@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-OpenCut is a desktop video editor built with Vite + TanStack Router + Electron. The project has been successfully migrated from Next.js and now runs as a native desktop application. It uses a monorepo structure with Bun as the package manager.
+QCut is a desktop video editor built with Vite + TanStack Router + Electron. The project has been successfully migrated from Next.js and now runs as a native desktop application. It uses a monorepo structure with Bun as the package manager.
 
 ## Key Architecture
 
@@ -21,11 +21,11 @@ OpenCut is a desktop video editor built with Vite + TanStack Router + Electron. 
 ### Project Structure
 ```
 qcut/
-├── apps/web/                    # Main Next.js app
+├── apps/web/                    # Main Vite app
 ├── packages/
 │   ├── auth/                    # @opencut/auth
 │   └── db/                      # @opencut/db
-├── electron/                    # Future Electron files
+├── electron/                    # Electron main and preload scripts
 └── docs/task/                   # Migration documentation
 ```
 
@@ -48,7 +48,7 @@ bun format       # Format with Ultracite/Biome
 
 ### Web App (apps/web/)
 ```bash
-bun dev                  # Next.js dev server (port 3000)
+bun dev                  # Vite dev server (port 5173)
 bun build                # Production build
 bun db:generate          # Generate Drizzle migrations
 bun db:migrate           # Run database migrations
@@ -62,27 +62,29 @@ bun lint:fix             # Auto-fix linting issues
 docker-compose up -d     # PostgreSQL (5432), Redis (6379)
 ```
 
-## Migration Status: Next.js → Vite + Electron
+## Electron Build & Distribution
 
-**Current Status**: Planning phase - codebase is still 100% Next.js
+### Development
+```bash
+bun run electron         # Run Electron app (production mode)
+bun run electron:dev     # Run Electron app (development mode)
+```
 
-### Migration Plan
-1. **Phase 0**: Add Electron to existing Next.js (Priority)
-2. **Phase 1**: Audit and remove Next.js dependencies
-3. **Phase 2**: Setup Vite with TanStack Router
-4. **Phase 3**: Convert routing to hash-based for Electron
-5. **Phase 4**: Implement IPC for file access
-6. **Phase 5**: Package Windows executable
+### Building EXE
+```bash
+# Option 1: Using electron-packager (recommended)
+npx electron-packager . QCut --platform=win32 --arch=x64 --out=dist-packager --overwrite
 
-### Key Migration Files
-- `docs/task/vite.md` - Comprehensive technical guide (Chinese)
-- `docs/task/task_todo.md` - Detailed task breakdown with file paths
+# Option 2: Using electron-builder (if configured)
+bun run dist:win
+```
 
-### Migration Considerations
-- Use hash routing for Electron file:// protocol
-- Convert API routes to IPC handlers
-- Ensure relative paths in Vite config (base: './')
-- Adapt FFmpeg for Electron environment
+### Current Build Status
+- ✅ **Fully migrated** from Next.js to Vite + Electron
+- ✅ **FFmpeg WebAssembly** working in packaged app
+- ✅ **Native file system** access via Electron IPC
+- ✅ **Hash routing** implemented for file:// protocol
+- ✅ **Windows EXE** builds successfully
 
 ## Important Patterns
 
@@ -123,19 +125,19 @@ MARBLE_WORKSPACE_KEY    # Blog CMS
 **⚠️ No testing framework currently configured** - This is a known gap
 
 ## Key Files to Understand
-- `apps/web/src/app/editor/[project_id]/page.tsx` - Main editor entry
+- `apps/web/src/routes/editor.$project_id.tsx` - Main editor entry
 - `apps/web/src/stores/timeline-store.ts` - Timeline state logic
 - `apps/web/src/lib/ffmpeg-utils.ts` - Video processing
 - `apps/web/src/components/editor/timeline/` - Timeline UI components
 
 ## Current Limitations
 1. No test suite
-2. Migration to Electron not started
-3. Limited error handling
-4. No performance monitoring
+2. Limited error handling
+3. No performance monitoring
+4. Basic export functionality (needs enhancement)
 
-## When Working on Migration
-1. Always test with `bun dev` before removing Next.js features
-2. Check `task_todo.md` for specific file paths
-3. Maintain backward compatibility until Phase 1 complete
-4. Test Electron packaging after each major change
+## When Working on Features
+1. Always test both `bun run electron:dev` (development) and `bun run electron` (production)
+2. Test EXE builds with `npx electron-packager` after major changes
+3. Ensure FFmpeg paths work in both dev and packaged environments
+4. Use Electron IPC for all file system operations
