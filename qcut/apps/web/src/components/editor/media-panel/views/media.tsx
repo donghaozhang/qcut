@@ -26,6 +26,7 @@ import { DraggableMediaItem } from "@/components/ui/draggable-item";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ExportAllButton } from "../export-all-button";
 
 export function MediaView() {
   const { mediaItems, addMediaItem, removeMediaItem } = useMediaStore();
@@ -239,6 +240,7 @@ export function MediaView() {
                 <Plus className="h-4 w-4" />
               )}
             </Button>
+            <ExportAllButton variant="outline" size="sm" className="h-9" />
           </div>
         </div>
 

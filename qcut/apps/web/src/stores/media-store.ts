@@ -23,6 +23,11 @@ export interface MediaItem {
   color?: string; // Text color
   backgroundColor?: string; // Background color
   textAlign?: "left" | "center" | "right"; // Text alignment
+  // Metadata for various sources (AI generated, etc.)
+  metadata?: {
+    source?: string; // e.g., 'text2image', 'upload', etc.
+    [key: string]: any; // Allow other metadata
+  };
 }
 
 interface MediaStore {
