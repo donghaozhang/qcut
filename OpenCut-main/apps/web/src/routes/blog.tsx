@@ -41,7 +41,7 @@ function BlogPage() {
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {posts.map((post) => (
+            {posts.map((post: any) => (
               <Link key={post.id} to="/blog/$slug" params={{ slug: post.slug }}>
                 <Card className="h-full hover:shadow-lg transition-shadow overflow-hidden">
                   {post.coverImage && (
@@ -57,7 +57,7 @@ function BlogPage() {
                   <CardContent className="p-6">
                     {post.authors && post.authors.length > 0 && (
                       <div className="flex items-center gap-2 mb-4">
-                        {post.authors.map((author, index) => (
+                        {post.authors.map((author: any, index: number) => (
                           <div
                             key={author.id}
                             className="flex items-center gap-2"

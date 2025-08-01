@@ -1,14 +1,18 @@
 import React from 'react'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
-import { createHashHistory } from '@tanstack/react-router'
+import { createMemoryHistory } from '@tanstack/react-router'
 
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
 
-// Create a router instance with hash history for Electron
+// Create router with memory history for Electron
 const router = createRouter({
   routeTree,
-  history: createHashHistory(),
+  history: createMemoryHistory({
+    initialEntries: ['/'],
+  }),
+  defaultPreload: 'intent',
+  context: {},
 })
 
 // Register the router instance for type safety
@@ -19,7 +23,11 @@ declare module '@tanstack/react-router' {
 }
 
 function App() {
-  return <RouterProvider router={router} />
+  return (
+    <React.Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <RouterProvider router={router} />
+    </React.Suspense>
+  )
 }
 
 export default App

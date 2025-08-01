@@ -16,4 +16,10 @@ export const Route = createRootRoute({
       </TooltipProvider>
     </ThemeProvider>
   ),
+  errorComponent: ({ error }) => (
+    <div className="p-4">
+      <h1>Something went wrong!</h1>
+      <pre className="text-red-500">{error.message}</pre>
+    </div>
+  ),
 })

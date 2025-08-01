@@ -106,7 +106,7 @@ function ContributorsPage() {
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-foreground rounded-full" />
                   <span className="font-medium">
-                    {contributors.reduce((sum, c) => sum + c.contributions, 0)}
+                    {contributors.reduce((sum: number, c: any) => sum + c.contributions, 0)}
                   </span>
                   <span className="text-muted-foreground">contributions</span>
                 </div>
@@ -125,7 +125,7 @@ function ContributorsPage() {
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-6 justify-center max-w-4xl mx-auto">
-                  {topContributors.map((contributor, index) => (
+                  {topContributors.map((contributor: any, index: number) => (
                     <a
                       key={contributor.id}
                       href={contributor.html_url}
@@ -178,7 +178,7 @@ function ContributorsPage() {
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                  {otherContributors.map((contributor, index) => (
+                  {otherContributors.map((contributor: any, index: number) => (
                     <a
                       key={contributor.id}
                       href={contributor.html_url}
