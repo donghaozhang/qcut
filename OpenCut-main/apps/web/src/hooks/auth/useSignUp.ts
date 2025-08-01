@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { signUp, signIn } from "@opencut/auth/client";
+import { useNavigate } from "@tanstack/react-router";
+// Temporarily disabled for Electron build - auth requires server
+// import { signUp, signIn } from "@opencut/auth/client";
 
 export function useSignUp() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,36 +16,22 @@ export function useSignUp() {
     setError(null);
     setIsEmailLoading(true);
 
-    const { error } = await signUp.email({
-      name,
-      email,
-      password,
-    });
-
-    if (error) {
-      setError(error.message || "An unexpected error occurred.");
-      setIsEmailLoading(false);
-      return;
-    }
-
-    router.push("/login");
-  }, [name, email, password, router]);
+    // Mock signup for Electron - would need server integration
+    setError("Sign up requires server setup. This is a demo build.");
+    setIsEmailLoading(false);
+    
+    // For demo, could navigate to login
+    // navigate({ to: "/login" });
+  }, [name, email, password, navigate]);
 
   const handleGoogleSignUp = useCallback(async () => {
     setError(null);
     setIsGoogleLoading(true);
 
-    try {
-      await signIn.social({
-        provider: "google",
-      });
-
-      router.push("/editor");
-    } catch (error) {
-      setError("Failed to sign up with Google. Please try again.");
-      setIsGoogleLoading(false);
-    }
-  }, [router]);
+    // Mock Google signup for Electron
+    setError("Google sign up requires server setup. This is a demo build.");
+    setIsGoogleLoading(false);
+  }, [navigate]);
 
   const isAnyLoading = isEmailLoading || isGoogleLoading;
 
