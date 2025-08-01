@@ -12,7 +12,8 @@
       "Bash(bun:*)",
       "Bash(rm:*)",
       "Bash(timeout 10 bun:*)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(find:*)"
     ],
     "deny": []
   }
