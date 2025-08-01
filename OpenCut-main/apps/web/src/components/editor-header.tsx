@@ -15,10 +15,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import Link from "next/link";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { RenameProjectDialog } from "./rename-project-dialog";
 import { DeleteProjectDialog } from "./delete-project-dialog";
-import { useRouter } from "next/navigation";
 import { FaDiscord, FaGithub } from "react-icons/fa6";
 
 export function EditorHeader() {
@@ -26,7 +25,7 @@ export function EditorHeader() {
   const { activeProject, renameProject, deleteProject } = useProjectStore();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
-  const router = useRouter();
+  const navigate = useNavigate();
 
   const handleExport = () => {
     // TODO: Implement export functionality
@@ -51,7 +50,7 @@ export function EditorHeader() {
     if (activeProject) {
       deleteProject(activeProject.id);
       setIsDeleteDialogOpen(false);
-      router.push("/projects");
+      navigate({ to: "/projects" });
     }
   };
 
@@ -68,7 +67,7 @@ export function EditorHeader() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-40">
-          <Link href="/projects">
+          <Link to="/projects">
             <DropdownMenuItem className="flex items-center gap-1.5">
               <ArrowLeft className="h-4 w-4" />
               Projects
@@ -91,7 +90,7 @@ export function EditorHeader() {
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link
+            <a
               href="https://discord.gg/zmR9N35cjK"
               target="_blank"
               rel="noopener noreferrer"
@@ -99,7 +98,7 @@ export function EditorHeader() {
             >
               <FaDiscord className="h-4 w-4" />
               Discord
-            </Link>
+            </a>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

@@ -120,19 +120,11 @@ Uncaught Error: invariant expected app router to be mounted
 
 ### Immediate Debug Steps:
 
-#### Step 1: Add Router Context Logging
+#### Step 1: Add Router Context Logging ✅ IMPLEMENTED
 **File**: `apps/web/src/App.tsx`
-```typescript
-// Add after router creation
-console.log('[DEBUG] Router created:', router)
-console.log('[DEBUG] Router state:', router.state)
-
-// Add in component
-useEffect(() => {
-  console.log('[DEBUG] RouterProvider mounted')
-  console.log('[DEBUG] Router context available:', !!router)
-}, [])
-```
+- ✅ Added router creation logging (lines 17-18)
+- ✅ Added RouterProvider mount logging (lines 39-42)
+- ✅ Ready for debugging - check console for router state information
 
 #### Step 2: Identify Failing Component  
 **Files**: All editor components

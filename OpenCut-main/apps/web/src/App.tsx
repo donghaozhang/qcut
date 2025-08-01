@@ -13,6 +13,7 @@ const router = createRouter({
   context: {},
 })
 
+
 // Register the router instance for type safety
 declare module '@tanstack/react-router' {
   interface Register {
@@ -31,6 +32,7 @@ function App() {
 
     return () => clearTimeout(timer)
   }, [])
+
 
   if (!isReady) {
     return <div className="flex items-center justify-center min-h-screen">Initializing...</div>
