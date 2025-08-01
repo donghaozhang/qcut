@@ -30,10 +30,11 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
     console.log('FFmpeg initializing in Electron environment');
     console.log('Base URL:', baseURL);
     
-    // For Electron, use direct file paths instead of toBlobURL
+    // For Electron, we need to construct proper file:// URLs relative to the HTML file
     try {
-      const coreURL = `${baseURL}/ffmpeg-core.js`;
-      const wasmURL = `${baseURL}/ffmpeg-core.wasm`;
+      // Use relative paths that work with Electron's file:// protocol
+      const coreURL = `./ffmpeg/ffmpeg-core.js`;
+      const wasmURL = `./ffmpeg/ffmpeg-core.wasm`;
       
       console.log('Core URL:', coreURL);
       console.log('WASM URL:', wasmURL);
