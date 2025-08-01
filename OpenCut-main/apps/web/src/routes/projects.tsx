@@ -92,7 +92,7 @@ function ProjectsPage() {
   const handleCreateProject = async () => {
     const projectId = await createNewProject('New Project')
     console.log('projectId', projectId)
-    navigate({ to: `/editor/${projectId}` })
+    navigate({ to: '/editor/$project_id', params: { project_id: projectId } })
   }
 
   const handleSelectProject = (projectId: string, checked: boolean) => {
@@ -520,7 +520,7 @@ function ProjectCard({
           {cardContent}
         </button>
       ) : (
-        <Link to={`/editor/${project.id}`} className="block group">
+        <Link to="/editor/$project_id" params={{ project_id: project.id }} className="block group">
           {cardContent}
         </Link>
       )}

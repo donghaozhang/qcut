@@ -79,15 +79,16 @@ function ContributorsPage() {
         <div className="relative container mx-auto px-4 py-16">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-20">
-              <Link
-                to="https://github.com/OpenCut-app/OpenCut"
+              <a
+                href="https://github.com/OpenCut-app/OpenCut"
                 target="_blank"
+                rel="noopener noreferrer"
               >
                 <Badge variant="secondary" className="gap-2 mb-6">
                   <GithubIcon className="h-3 w-3" />
                   Open Source
                 </Badge>
-              </Link>
+              </a>
               <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6">
                 Contributors
               </h1>
@@ -125,9 +126,9 @@ function ContributorsPage() {
 
                 <div className="flex flex-col md:flex-row gap-6 justify-center max-w-4xl mx-auto">
                   {topContributors.map((contributor, index) => (
-                    <Link
+                    <a
                       key={contributor.id}
-                      to={contributor.html_url}
+                      href={contributor.html_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="group block flex-1"
@@ -159,7 +160,7 @@ function ContributorsPage() {
                           </CardContent>
                         </Card>
                       </div>
-                    </Link>
+                    </a>
                   ))}
                 </div>
               </div>
@@ -178,9 +179,9 @@ function ContributorsPage() {
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
                   {otherContributors.map((contributor, index) => (
-                    <Link
+                    <a
                       key={contributor.id}
-                      to={contributor.html_url}
+                      href={contributor.html_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="group block"
@@ -205,7 +206,7 @@ function ContributorsPage() {
                           {contributor.contributions}
                         </p>
                       </div>
-                    </Link>
+                    </a>
                   ))}
                 </div>
               </div>
@@ -223,8 +224,8 @@ function ContributorsPage() {
                   Unable to load contributors at the moment. Check back later or
                   view on GitHub.
                 </p>
-                <Link
-                  to="https://github.com/OpenCut-app/OpenCut/graphs/contributors"
+                <a
+                  href="https://github.com/OpenCut-app/OpenCut/graphs/contributors"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -233,7 +234,7 @@ function ContributorsPage() {
                     View on GitHub
                     <ExternalLink className="h-4 w-4" />
                   </Button>
-                </Link>
+                </a>
               </div>
             )}
 
@@ -247,21 +248,19 @@ function ContributorsPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
                 {EXTERNAL_TOOLS.map((tool, index) => {
-                  const IconComponent = {
+                  const iconMap = {
                     MarbleIcon,
                     VercelIcon,
                     DataBuddyIcon,
-                  }[tool.icon as keyof typeof {
-                    MarbleIcon: any
-                    VercelIcon: any
-                    DataBuddyIcon: any
-                  }]
+                  }
+                  const IconComponent = iconMap[tool.icon as keyof typeof iconMap]
 
                   return (
-                    <Link
+                    <a
                       key={tool.name}
-                      to={tool.url}
+                      href={tool.url}
                       target="_blank"
+                      rel="noopener noreferrer"
                       className="group block"
                       style={{
                         animationDelay: `${index * 100}ms`,
@@ -282,7 +281,7 @@ function ContributorsPage() {
                           </p>
                         </CardContent>
                       </Card>
-                    </Link>
+                    </a>
                   )
                 })}
               </div>
@@ -298,8 +297,8 @@ function ContributorsPage() {
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link
-                    to="https://github.com/OpenCut-app/OpenCut/blob/main/.github/CONTRIBUTING.md"
+                  <a
+                    href="https://github.com/OpenCut-app/OpenCut/blob/main/.github/CONTRIBUTING.md"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -307,9 +306,9 @@ function ContributorsPage() {
                       <GithubIcon className="h-4 w-4 group-hover:scale-110 transition-transform" />
                       Start Contributing
                     </Button>
-                  </Link>
-                  <Link
-                    to="https://github.com/OpenCut-app/OpenCut/issues"
+                  </a>
+                  <a
+                    href="https://github.com/OpenCut-app/OpenCut/issues"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -317,7 +316,7 @@ function ContributorsPage() {
                       Browse Issues
                       <ExternalLink className="h-4 w-4 group-hover:scale-110 transition-transform" />
                     </Button>
-                  </Link>
+                  </a>
                 </div>
               </div>
             </div>

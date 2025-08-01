@@ -16,10 +16,6 @@ import { ArrowLeft, Loader2 } from 'lucide-react'
 import { GoogleIcon } from '@/components/icons'
 import { useLogin } from '@/hooks/auth/useLogin'
 
-export const Route = createFileRoute('/login')({
-  component: LoginPage,
-})
-
 const LoginPageComponent = () => {
   const navigate = useNavigate()
   const {
@@ -145,3 +141,7 @@ const LoginPageComponent = () => {
 }
 
 const LoginPage = memo(LoginPageComponent)
+
+export const Route = createFileRoute('/login')({
+  component: LoginPage,
+})

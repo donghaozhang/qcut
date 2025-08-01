@@ -3,18 +3,42 @@ import { toBlobURL } from "@ffmpeg/util";
 
 let ffmpeg: FFmpeg | null = null;
 
+// Check if running in Electron
+const isElectron = () => {
+  return (
+    typeof window !== 'undefined' &&
+    (window as any).process &&
+    (window as any).process.type === 'renderer'
+  ) || (
+    typeof navigator !== 'undefined' &&
+    navigator.userAgent.toLowerCase().indexOf('electron') > -1
+  ) || (
+    typeof window !== 'undefined' &&
+    window.electronAPI
+  );
+};
+
 export const initFFmpeg = async (): Promise<FFmpeg> => {
   if (ffmpeg) return ffmpeg;
 
   ffmpeg = new FFmpeg();
 
-  // Use locally hosted files instead of CDN
+  // Use locally hosted files - works for both browser and Electron
+  // In Electron, files are served from the local file system
+  // In browser, files are served from the public directory
   const baseURL = "/ffmpeg";
 
   await ffmpeg.load({
     coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
     wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
   });
+
+  // Log environment for debugging
+  if (isElectron()) {
+    console.log('FFmpeg initialized in Electron environment');
+  } else {
+    console.log('FFmpeg initialized in browser environment');
+  }
 
   return ffmpeg;
 };

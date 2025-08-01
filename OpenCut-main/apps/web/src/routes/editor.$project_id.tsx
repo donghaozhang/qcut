@@ -157,7 +157,7 @@ function EditorPage() {
             className="h-full w-full gap-[0.18rem]"
           >
             <ResizablePanel
-              defaultSize={mainContent.size}
+              defaultSize={mainContent}
               minSize={30}
               maxSize={85}
               onResize={setMainContent}
@@ -170,7 +170,7 @@ function EditorPage() {
               >
                 {/* Tools Panel */}
                 <ResizablePanel
-                  defaultSize={toolsPanel.size}
+                  defaultSize={toolsPanel}
                   minSize={15}
                   maxSize={40}
                   onResize={setToolsPanel}
@@ -183,7 +183,7 @@ function EditorPage() {
 
                 {/* Preview Area */}
                 <ResizablePanel
-                  defaultSize={previewPanel.size}
+                  defaultSize={previewPanel}
                   minSize={30}
                   onResize={setPreviewPanel}
                   className="min-w-0 min-h-0 flex-1"
@@ -208,7 +208,7 @@ function EditorPage() {
 
             {/* Timeline */}
             <ResizablePanel
-              defaultSize={timeline.size}
+              defaultSize={timeline}
               minSize={15}
               maxSize={70}
               onResize={setTimeline}

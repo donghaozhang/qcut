@@ -9,17 +9,37 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WhyNotCapcutRouteImport } from './routes/why-not-capcut'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ContributorsRouteImport } from './routes/contributors'
 import { Route as BlogRouteImport } from './routes/blog'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditorProject_idRouteImport } from './routes/editor.$project_id'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 
+const WhyNotCapcutRoute = WhyNotCapcutRouteImport.update({
+  id: '/why-not-capcut',
+  path: '/why-not-capcut',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoadmapRoute = RoadmapRouteImport.update({
+  id: '/roadmap',
+  path: '/roadmap',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsRoute = ProjectsRouteImport.update({
@@ -27,9 +47,19 @@ const ProjectsRoute = ProjectsRouteImport.update({
   path: '/projects',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContributorsRoute = ContributorsRouteImport.update({
+  id: '/contributors',
+  path: '/contributors',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BlogRoute = BlogRouteImport.update({
@@ -56,18 +86,28 @@ const BlogSlugRoute = BlogSlugRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/blog': typeof BlogRouteWithChildren
+  '/contributors': typeof ContributorsRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
   '/projects': typeof ProjectsRoute
+  '/roadmap': typeof RoadmapRoute
   '/signup': typeof SignupRoute
+  '/terms': typeof TermsRoute
+  '/why-not-capcut': typeof WhyNotCapcutRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/editor/$project_id': typeof EditorProject_idRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/blog': typeof BlogRouteWithChildren
+  '/contributors': typeof ContributorsRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
   '/projects': typeof ProjectsRoute
+  '/roadmap': typeof RoadmapRoute
   '/signup': typeof SignupRoute
+  '/terms': typeof TermsRoute
+  '/why-not-capcut': typeof WhyNotCapcutRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/editor/$project_id': typeof EditorProject_idRoute
 }
@@ -75,9 +115,14 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/blog': typeof BlogRouteWithChildren
+  '/contributors': typeof ContributorsRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
   '/projects': typeof ProjectsRoute
+  '/roadmap': typeof RoadmapRoute
   '/signup': typeof SignupRoute
+  '/terms': typeof TermsRoute
+  '/why-not-capcut': typeof WhyNotCapcutRoute
   '/blog/$slug': typeof BlogSlugRoute
   '/editor/$project_id': typeof EditorProject_idRoute
 }
@@ -86,27 +131,42 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/blog'
+    | '/contributors'
     | '/login'
+    | '/privacy'
     | '/projects'
+    | '/roadmap'
     | '/signup'
+    | '/terms'
+    | '/why-not-capcut'
     | '/blog/$slug'
     | '/editor/$project_id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/blog'
+    | '/contributors'
     | '/login'
+    | '/privacy'
     | '/projects'
+    | '/roadmap'
     | '/signup'
+    | '/terms'
+    | '/why-not-capcut'
     | '/blog/$slug'
     | '/editor/$project_id'
   id:
     | '__root__'
     | '/'
     | '/blog'
+    | '/contributors'
     | '/login'
+    | '/privacy'
     | '/projects'
+    | '/roadmap'
     | '/signup'
+    | '/terms'
+    | '/why-not-capcut'
     | '/blog/$slug'
     | '/editor/$project_id'
   fileRoutesById: FileRoutesById
@@ -114,19 +174,45 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BlogRoute: typeof BlogRouteWithChildren
+  ContributorsRoute: typeof ContributorsRoute
   LoginRoute: typeof LoginRoute
+  PrivacyRoute: typeof PrivacyRoute
   ProjectsRoute: typeof ProjectsRoute
+  RoadmapRoute: typeof RoadmapRoute
   SignupRoute: typeof SignupRoute
+  TermsRoute: typeof TermsRoute
+  WhyNotCapcutRoute: typeof WhyNotCapcutRoute
   EditorProject_idRoute: typeof EditorProject_idRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/why-not-capcut': {
+      id: '/why-not-capcut'
+      path: '/why-not-capcut'
+      fullPath: '/why-not-capcut'
+      preLoaderRoute: typeof WhyNotCapcutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signup': {
       id: '/signup'
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/roadmap': {
+      id: '/roadmap'
+      path: '/roadmap'
+      fullPath: '/roadmap'
+      preLoaderRoute: typeof RoadmapRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects': {
@@ -136,11 +222,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contributors': {
+      id: '/contributors'
+      path: '/contributors'
+      fullPath: '/contributors'
+      preLoaderRoute: typeof ContributorsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/blog': {
@@ -187,9 +287,14 @@ const BlogRouteWithChildren = BlogRoute._addFileChildren(BlogRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BlogRoute: BlogRouteWithChildren,
+  ContributorsRoute: ContributorsRoute,
   LoginRoute: LoginRoute,
+  PrivacyRoute: PrivacyRoute,
   ProjectsRoute: ProjectsRoute,
+  RoadmapRoute: RoadmapRoute,
   SignupRoute: SignupRoute,
+  TermsRoute: TermsRoute,
+  WhyNotCapcutRoute: WhyNotCapcutRoute,
   EditorProject_idRoute: EditorProject_idRoute,
 }
 export const routeTree = rootRouteImport

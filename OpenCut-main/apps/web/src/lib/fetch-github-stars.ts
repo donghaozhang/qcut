@@ -3,7 +3,10 @@ export async function getStars(): Promise<string> {
     const res = await fetch(
       "https://api.github.com/repos/OpenCut-app/OpenCut",
       {
-        next: { revalidate: 3600 },
+        // Cache for 1 hour
+        headers: {
+          'Cache-Control': 'max-age=3600'
+        }
       }
     );
 

@@ -42,7 +42,7 @@ function BlogPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {posts.map((post) => (
-              <Link key={post.id} to={`/blog/${post.slug}`}>
+              <Link key={post.id} to="/blog/$slug" params={{ slug: post.slug }}>
                 <Card className="h-full hover:shadow-lg transition-shadow overflow-hidden">
                   {post.coverImage && (
                     <div className="relative aspect-video">

@@ -1,39 +1,39 @@
-import {
-  Inter,
-  Roboto,
-  Open_Sans,
-  Playfair_Display,
-  Comic_Neue,
-} from "next/font/google";
-
-// Configure all fonts
-const inter = Inter({ subsets: ["latin"] });
-const roboto = Roboto({ subsets: ["latin"], weight: ["400", "700"] });
-const openSans = Open_Sans({ subsets: ["latin"] });
-const playfairDisplay = Playfair_Display({ subsets: ["latin"] });
-const comicNeue = Comic_Neue({ subsets: ["latin"], weight: ["400", "700"] });
+// Font configuration for Vite (without Next.js font optimization)
+// In a real app, you would load these via Google Fonts link in index.html
+// or install them as npm packages and import the CSS
 
 // Export font class mapping for use in components
+// System fonts return empty string to fallback to fontFamily style
 export const FONT_CLASS_MAP = {
-  Inter: inter.className,
-  Roboto: roboto.className,
-  "Open Sans": openSans.className,
-  "Playfair Display": playfairDisplay.className,
-  "Comic Neue": comicNeue.className,
+  Inter: "font-inter",
+  Roboto: "font-roboto", 
+  "Open Sans": "font-opensans",
+  "Playfair Display": "font-playfair",
+  "Comic Neue": "font-comic",
   Arial: "",
   Helvetica: "",
   "Times New Roman": "",
   Georgia: "",
 } as const;
 
-// Export individual fonts for use in layout
+// Export CSS font families for direct use
 export const fonts = {
-  inter,
-  roboto,
-  openSans,
-  playfairDisplay,
-  comicNeue,
+  inter: {
+    style: { fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }
+  },
+  roboto: {
+    style: { fontFamily: 'Roboto, system-ui, -apple-system, sans-serif' }
+  },
+  openSans: {
+    style: { fontFamily: '"Open Sans", system-ui, -apple-system, sans-serif' }
+  },
+  playfairDisplay: {
+    style: { fontFamily: '"Playfair Display", Georgia, serif' }
+  },
+  comicNeue: {
+    style: { fontFamily: '"Comic Neue", "Comic Sans MS", cursive' }
+  },
 };
 
 // Default font for the body
-export const defaultFont = inter;
+export const defaultFont = fonts.inter;
