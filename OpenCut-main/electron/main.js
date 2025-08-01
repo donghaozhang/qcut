@@ -132,3 +132,60 @@ ipcMain.handle('get-file-info', async (event, filePath) => {
     throw error
   }
 })
+
+// Storage IPC handlers
+ipcMain.handle('storage:save', async (event, key, data) => {
+  const userDataPath = app.getPath('userData')
+  const filePath = path.join(userDataPath, 'projects', `${key}.json`)
+  await fs.promises.mkdir(path.dirname(filePath), { recursive: true })
+  await fs.promises.writeFile(filePath, JSON.stringify(data))
+})
+
+ipcMain.handle('storage:load', async (event, key) => {
+  try {
+    const userDataPath = app.getPath('userData')
+    const filePath = path.join(userDataPath, 'projects', `${key}.json`)
+    const data = await fs.promises.readFile(filePath, 'utf8')
+    return JSON.parse(data)
+  } catch (error) {
+    if (error.code === 'ENOENT') return null
+    throw error
+  }
+})
+
+ipcMain.handle('storage:remove', async (event, key) => {
+  try {
+    const userDataPath = app.getPath('userData')
+    const filePath = path.join(userDataPath, 'projects', `${key}.json`)
+    await fs.promises.unlink(filePath)
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error
+  }
+})
+
+ipcMain.handle('storage:list', async (event) => {
+  try {
+    const userDataPath = app.getPath('userData')
+    const projectsDir = path.join(userDataPath, 'projects')
+    const files = await fs.promises.readdir(projectsDir)
+    return files.filter(f => f.endsWith('.json')).map(f => f.replace('.json', ''))
+  } catch (error) {
+    if (error.code === 'ENOENT') return []
+    throw error
+  }
+})
+
+ipcMain.handle('storage:clear', async (event) => {
+  try {
+    const userDataPath = app.getPath('userData')
+    const projectsDir = path.join(userDataPath, 'projects')
+    const files = await fs.promises.readdir(projectsDir)
+    await Promise.all(
+      files.filter(f => f.endsWith('.json')).map(f => 
+        fs.promises.unlink(path.join(projectsDir, f))
+      )
+    )
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error
+  }
+})
