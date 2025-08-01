@@ -18,6 +18,13 @@ const isElectron = () => {
   );
 };
 
+// Check if running in packaged Electron app
+const isPackagedElectron = () => {
+  return isElectron() && typeof window !== 'undefined' && 
+         (window.location.protocol === 'file:' && 
+          window.location.pathname.includes('/resources/app/'));
+};
+
 export const initFFmpeg = async (): Promise<FFmpeg> => {
   if (ffmpeg) return ffmpeg;
 
@@ -28,13 +35,23 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
   // Log environment for debugging
   if (isElectron()) {
     console.log('FFmpeg initializing in Electron environment');
-    console.log('Base URL:', baseURL);
+    console.log('Packaged:', isPackagedElectron());
+    console.log('Location:', window.location.href);
     
     // For Electron, we need to construct proper file:// URLs relative to the HTML file
     try {
-      // Use relative paths that work with Electron's file:// protocol
-      const coreURL = `./ffmpeg/ffmpeg-core.js`;
-      const wasmURL = `./ffmpeg/ffmpeg-core.wasm`;
+      let coreURL, wasmURL;
+      
+      if (isPackagedElectron()) {
+        // In packaged Electron app, construct absolute file:// URLs
+        const basePath = window.location.href.replace('/index.html', '');
+        coreURL = `${basePath}/ffmpeg/ffmpeg-core.js`;
+        wasmURL = `${basePath}/ffmpeg/ffmpeg-core.wasm`;
+      } else {
+        // In development Electron, use relative paths
+        coreURL = `./ffmpeg/ffmpeg-core.js`;
+        wasmURL = `./ffmpeg/ffmpeg-core.wasm`;
+      }
       
       console.log('Core URL:', coreURL);
       console.log('WASM URL:', wasmURL);

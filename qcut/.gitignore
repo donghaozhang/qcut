@@ -12,6 +12,7 @@
 /dist/
 /build/
 dist-electron/
+dist-packager*/
 
 # debug
 /apps/web/npm-debug.log*

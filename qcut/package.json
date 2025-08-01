@@ -11,6 +11,7 @@
     "electron": "^37.2.5",
     "electron-builder": "^26.0.12",
     "electron-devtools-installer": "^4.0.0",
+    "electron-packager": "^17.1.2",
     "husky": "^9.1.7",
     "turbo": "^2.5.4",
     "typescript": "5.8.3",
