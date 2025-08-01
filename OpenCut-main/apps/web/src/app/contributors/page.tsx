@@ -38,7 +38,7 @@ interface Contributor {
 async function getContributors(): Promise<Contributor[]> {
   try {
     const response = await fetch(
-      "https://api.github.com/repos/OpenCut-app/OpenCut/contributors?per_page=100",
+      "https://api.github.com/repos/donghaozhang/qcut/contributors?per_page=100",
       {
         headers: {
           Accept: "application/vnd.github.v3+json",
@@ -85,7 +85,7 @@ export default async function ContributorsPage() {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-20">
               <Link
-                href={"https://github.com/OpenCut-app/OpenCut"}
+                href={"https://github.com/donghaozhang/qcut"}
                 target="_blank"
               >
                 <Badge variant="secondary" className="gap-2 mb-6">
@@ -229,7 +229,7 @@ export default async function ContributorsPage() {
                   view on GitHub.
                 </p>
                 <Link
-                  href="https://github.com/OpenCut-app/OpenCut/graphs/contributors"
+                  href="https://github.com/donghaozhang/qcut/graphs/contributors"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -300,7 +300,7 @@ export default async function ContributorsPage() {
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Link
-                    href="https://github.com/OpenCut-app/OpenCut/blob/main/.github/CONTRIBUTING.md"
+                    href="https://github.com/donghaozhang/qcut/blob/main/.github/CONTRIBUTING.md"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -310,7 +310,7 @@ export default async function ContributorsPage() {
                     </Button>
                   </Link>
                   <Link
-                    href="https://github.com/OpenCut-app/OpenCut/issues"
+                    href="https://github.com/donghaozhang/qcut/issues"
                     target="_blank"
                     rel="noopener noreferrer"
                   >

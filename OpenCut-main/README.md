@@ -75,6 +75,11 @@ Before you begin, ensure you have the following installed on your system:
    bun run electron
    ```
 
+   **Or use this single command to build and run:**
+   ```bash
+   cd "apps/web" && bun run build && cd .. && npx electron .
+   ```
+
 The OpenCut desktop application will launch with the complete video editing interface!
 
 ## Development Setup

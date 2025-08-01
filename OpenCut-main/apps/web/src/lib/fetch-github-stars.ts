@@ -1,7 +1,7 @@
 export async function getStars(): Promise<string> {
   try {
     const res = await fetch(
-      "https://api.github.com/repos/OpenCut-app/OpenCut",
+      "https://api.github.com/repos/donghaozhang/qcut",
       {
         // Cache for 1 hour
         headers: {
