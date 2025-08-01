@@ -99,65 +99,99 @@ Only **Required** (MVP) and **Advanced** (future enhancements) categories.
 - Dialog replaces properties panel when open (as in reference version)
 - Export button now opens dialog, close button works
 
-### 5. Basic Export Canvas (2 min) ✨ REUSE OPPORTUNITY
+### 5. Basic Export Canvas (2 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/components/export-canvas.tsx` (NEW FILE)
 **Reference**: `qcut/apps/web/src/components/editor/preview-panel.tsx`
 ```typescript
 // Canvas component - adapt from preview-panel.tsx
-- [ ] Copy canvas setup pattern from preview-panel
-- [ ] Simplify to just canvas element with ref
-- [ ] Use canvasSize from useEditorStore (already exists!)
-- [ ] Hide with CSS (position: absolute, visibility: hidden)
+- [x] Copy canvas setup pattern from preview-panel
+- [x] Simplify to just canvas element with ref
+- [x] Use canvasSize from useEditorStore (already exists!)
+- [x] Hide with CSS (position: absolute, visibility: hidden)
 // Borrow: Canvas ref setup, dimension handling from preview-panel.tsx
 ```
+**Implementation Notes:**
+- Created ExportCanvas component with forwardRef pattern
+- Uses useExportStore settings for canvas dimensions
+- Auto-updates canvas size when settings change
+- Properly hidden with CSS (position: absolute, visibility: hidden)
+- Exposes getCanvas() and updateDimensions() methods via ref
 
-### 6. Export Dialog UI - Part 1 (2 min) ✨ REUSE OPPORTUNITY
+### 6. Export Dialog UI - Part 1 (2 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/components/export-dialog.tsx` (NEW FILE)
 **Reference**: `qcut/apps/web/src/components/delete-project-dialog.tsx`
 ```typescript
 // Dialog setup - copy pattern from delete-project-dialog.tsx
-- [ ] Copy Dialog component structure from delete-project-dialog
-- [ ] Change title to "Export Video"
-- [ ] Keep same Dialog, DialogContent, DialogHeader imports
-- [ ] Use same onOpenChange pattern for closing
+- [x] Copy Dialog component structure from delete-project-dialog
+- [x] Change title to "Export Video"
+- [x] Keep same Dialog, DialogContent, DialogHeader imports
+- [x] Use same onOpenChange pattern for closing
 // Borrow: Complete dialog structure, imports, close button pattern
 ```
+**Implementation Notes:**
+- Built complete export dialog with full UI implementation
+- Quality selection radio group (1080p/720p/480p)
+- Filename input with validation
+- Export details card showing resolution, size, duration
+- Progress tracking with Progress component
+- Error and warning alerts
+- Export button with proper disabled states
+- Canvas ref integration ready for export engine
 
-### 7. Export Dialog UI - Part 2 (3 min)
+### 7. Export Dialog UI - Part 2 (3 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/components/export-dialog.tsx` (CONTINUE)
 **Reference**: `qcut/apps/web/src/components/ui/radio-group.tsx` (component)
 ```typescript
 // Quality selection radio group
-- [ ] Add quality radio group (1080p, 720p, 480p)
-- [ ] Connect to local state
-- [ ] Show resolution info (1920×1080, etc.)
-- [ ] Update export store on change
+- [x] Add quality radio group (1080p, 720p, 480p)
+- [x] Connect to local state
+- [x] Show resolution info (1920×1080, etc.)
+- [x] Update export store on change
 // Borrow: RadioGroup component usage patterns
 ```
+**Implementation Notes:**
+- Quality radio group implemented with ExportQuality enum values
+- Shows descriptive labels: "1080p (High Quality) - 1920×1080"
+- Connected to local state with handleQualityChange function
+- Updates export store settings when quality changes
+- Uses QUALITY_RESOLUTIONS mapping for resolution display
 
-### 8. Export Dialog UI - Part 3 (3 min)
+### 8. Export Dialog UI - Part 3 (3 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/components/export-dialog.tsx` (CONTINUE)
 **Reference**: `qcut/apps/web/src/components/rename-project-dialog.tsx` (input pattern)
 ```typescript
 // Filename input
-- [ ] Add filename input field
-- [ ] Add validation for special characters
-- [ ] Show .mp4 extension
-- [ ] Display validation errors
+- [x] Add filename input field
+- [x] Add validation for special characters
+- [x] Show .mp4 extension
+- [x] Display validation errors
 // Borrow: Input validation pattern from rename-project-dialog
 ```
+**Implementation Notes:**
+- Filename input with controlled state (handleFilenameChange)
+- Validation using isValidFilename() helper function
+- Red border styling when invalid filename
+- Shows .mp4 extension as static text next to input
+- Error message displays forbidden characters: < > : " / \ | ? *
+- Updates export store settings on change
 
-### 9. Export Dialog UI - Part 4 (3 min)
+### 9. Export Dialog UI - Part 4 (3 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/components/export-dialog.tsx` (CONTINUE)
 **Reference**: `qcut/apps/web/src/components/ui/progress.tsx` (component)
 ```typescript
 // Export button and progress
-- [ ] Add Export Video button
-- [ ] Add progress bar component
-- [ ] Show progress percentage
-- [ ] Disable button during export
+- [x] Add Export Video button
+- [x] Add progress bar component
+- [x] Show progress percentage
+- [x] Disable button during export
 // Borrow: Progress component usage, button disabled state patterns
 ```
+**Implementation Notes:**
+- Export button with Download icon, changes text to "Exporting..." when active
+- Button disabled when: exporting, invalid filename, or timeline empty
+- Progress component shows percentage and status text
+- Progress card only visible during export (conditional rendering)
+- Progress value connected to export store progress state
 
 ### 10. Basic Export Engine - Part 1 (3 min)
 **Target**: `qcut/apps/web/src/lib/export-engine.ts` (NEW FILE)
