@@ -77,7 +77,6 @@ export class IndexedDBAdapter<T> implements StorageAdapter<T> {
   async list(): Promise<string[]> {
     try {
       const db = await this.getDB();
-      console.log('[DEBUG] IndexedDB: Database opened successfully');
       const transaction = db.transaction([this.storeName], "readonly");
       const store = transaction.objectStore(this.storeName);
 
