@@ -19,6 +19,7 @@ import {
   isValidFilename 
 } from "@/types/export";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export function ExportDialog() {
   const { 
@@ -115,6 +116,11 @@ export function ExportDialog() {
         isExporting: false
       });
 
+      // Show success toast notification
+      toast.success("Video exported successfully!", {
+        description: `${filename}.webm has been downloaded to your device.`
+      });
+
       // Close dialog after successful export
       setTimeout(() => {
         setDialogOpen(false);
@@ -122,9 +128,29 @@ export function ExportDialog() {
       }, 2000);
 
     } catch (error) {
+      // Log detailed error information for debugging
       console.error("Export failed:", error);
-      const errorMessage = error instanceof Error ? error.message : "Export failed";
+      console.error("Export context:", {
+        canvasAvailable: !!canvasRef.current?.getCanvas(),
+        timelineDuration: getTotalDuration(),
+        tracksCount: tracks.length,
+        mediaItemsCount: mediaItems.length,
+        settings: settings
+      });
+
+      // Get user-friendly error message
+      let errorMessage = "Export failed";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      // Set error in store for UI display
       setError(errorMessage);
+      
+      // Show error toast notification
+      toast.error("Export failed", {
+        description: errorMessage
+      });
       
       // Reset progress on error
       updateProgress({
@@ -219,11 +245,16 @@ export function ExportDialog() {
                 </div>
                 <div>
                   <span className="font-medium">Duration:</span>
-                  <span className="ml-2 text-muted-foreground">{timelineDuration.toFixed(2)}s</span>
+                  <span className={cn(
+                    "ml-2",
+                    timelineDuration === 0 ? "text-red-500" : "text-muted-foreground"
+                  )}>
+                    {timelineDuration === 0 ? "No content" : `${timelineDuration.toFixed(2)}s`}
+                  </span>
                 </div>
                 <div>
                   <span className="font-medium">Format:</span>
-                  <span className="ml-2 text-muted-foreground">MP4</span>
+                  <span className="ml-2 text-muted-foreground">WebM</span>
                 </div>
               </div>
             </CardContent>
@@ -252,13 +283,24 @@ export function ExportDialog() {
             </CardContent>
           </Card>
 
-          {/* Timeline Warning */}
+          {/* Timeline Warnings */}
           {timelineDuration === 0 && (
             <Alert className="border-red-500 bg-red-50">
               <AlertTriangle className="h-4 w-4 text-red-600" />
               <AlertDescription className="text-red-800">
                 <div className="font-medium">No Content</div>
                 <div>Your timeline is empty. Add some media files to export a video.</div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Short timeline warning */}
+          {timelineDuration > 0 && timelineDuration < 0.5 && (
+            <Alert className="border-yellow-500 bg-yellow-50">
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              <AlertDescription className="text-yellow-800">
+                <div className="font-medium">Very Short Video</div>
+                <div>Your timeline is very short ({timelineDuration.toFixed(2)}s). Consider adding more content for a better export result.</div>
               </AlertDescription>
             </Alert>
           )}
