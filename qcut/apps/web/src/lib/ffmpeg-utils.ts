@@ -23,21 +23,40 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
 
   ffmpeg = new FFmpeg();
 
-  // Use locally hosted files - works for both browser and Electron
-  // In Electron, files are served from the local file system
-  // In browser, files are served from the public directory
   const baseURL = "/ffmpeg";
-
-  await ffmpeg.load({
-    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-  });
-
+  
   // Log environment for debugging
   if (isElectron()) {
-    console.log('FFmpeg initialized in Electron environment');
+    console.log('FFmpeg initializing in Electron environment');
+    console.log('Base URL:', baseURL);
+    
+    // For Electron, use direct file paths instead of toBlobURL
+    try {
+      const coreURL = `${baseURL}/ffmpeg-core.js`;
+      const wasmURL = `${baseURL}/ffmpeg-core.wasm`;
+      
+      console.log('Core URL:', coreURL);
+      console.log('WASM URL:', wasmURL);
+      
+      await ffmpeg.load({
+        coreURL: coreURL,
+        wasmURL: wasmURL,
+      });
+      
+      console.log('FFmpeg initialized successfully in Electron');
+    } catch (error) {
+      console.error('FFmpeg initialization failed in Electron:', error);
+      throw error;
+    }
   } else {
-    console.log('FFmpeg initialized in browser environment');
+    console.log('FFmpeg initializing in browser environment');
+    
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+    });
+    
+    console.log('FFmpeg initialized successfully in browser');
   }
 
   return ffmpeg;

@@ -1,63 +1,68 @@
 # Electron FFmpeg Quick Fixes - Task Breakdown
 
-## Task 1: Fix FFmpeg WebAssembly Path Configuration (2 minutes)
-**File:** `src/lib/ffmpeg-utils.ts` or FFmpeg store configuration
-**Goal:** Update hardcoded FFmpeg path from `C:/ffmpeg/` to use bundled assets
+## ✅ GOOD NEWS: FFmpeg Files Already Configured Correctly!
+
+**Discovery:** After reviewing source files:
+- ✅ FFmpeg files exist in `apps/web/public/ffmpeg/` (ffmpeg-core.js, ffmpeg-core.wasm)
+- ✅ Path configuration in `ffmpeg-utils.ts:29` uses `/ffmpeg` (correct relative path)
+- ✅ Files should be bundled automatically by Vite from public folder
+
+## Task 1: Verify FFmpeg Files in Build Output (1 minute)
+**File:** Check `apps/web/dist/ffmpeg/` folder
+**Goal:** Confirm FFmpeg WASM files exist in build output
 **Action:** 
-- Find FFmpeg initialization code
-- Change path to relative/bundled location
-- Test that FFmpeg loads without 404 errors
+- Check if `apps/web/dist/ffmpeg/ffmpeg-core.js` exists
+- Check if `apps/web/dist/ffmpeg/ffmpeg-core.wasm` exists
+- If missing, copy from public folder
 
-## Task 2: Bundle FFmpeg WASM Files in Build (3 minutes)
-**File:** `vite.config.ts` or build configuration
-**Goal:** Include FFmpeg WebAssembly files in the build output
+## Task 2: Fix Electron File Protocol Path Resolution (2 minutes)
+**File:** `electron/main.js` - loadFile path
+**Goal:** Ensure Electron correctly serves files from dist folder
 **Action:**
-- Add FFmpeg WASM files to Vite's public assets
-- Ensure they're copied to dist folder during build
-- Verify files exist in `apps/web/dist/` after build
+- Verify `mainWindow.loadFile()` path points to correct index.html
+- Check if static files are served correctly in production
+- Test accessing `/ffmpeg/ffmpeg-core.js` in Electron
 
-## Task 3: Update Content Security Policy for Media (2 minutes)
-**File:** `electron/main.js`
-**Goal:** Allow blob: URLs for media playback
+## Task 3: Fix CSP Headers for Blob URLs (2 minutes)
+**File:** `electron/main.js` webPreferences
+**Goal:** Allow blob: and data: URLs for media playback
 **Action:**
-- Add `webSecurity: false` is already done, but may need CSP headers
-- Test if additional CSP configuration needed
-- Verify video blob URLs load correctly
+- Current: `webSecurity: false` should allow everything
+- Issue might be CSP meta tags in HTML
+- Try adding explicit CSP allowlist if needed
 
-## Task 4: Test FFmpeg Initialization (1 minute)
-**Goal:** Verify FFmpeg loads without errors
+## Task 4: Test FFmpeg File Access (1 minute)
+**Goal:** Verify Electron can access FFmpeg files via file:// protocol
 **Action:**
-- Open developer tools in Electron app
-- Check console for FFmpeg-related errors
-- Confirm no 404 errors for ffmpeg-core.js
+- Check browser console for 404 errors on ffmpeg-core.js
+- Try accessing `file:///path/to/dist/ffmpeg/ffmpeg-core.js` directly
+- Confirm FFmpeg initialization doesn't fail
 
-## Task 5: Test Video Import Functionality (2 minutes)
-**Goal:** Verify video files can be imported and processed
+## Task 5: Debug toBlobURL Function (2 minutes)
+**File:** `src/lib/ffmpeg-utils.ts:32-33`
+**Goal:** Ensure toBlobURL works in Electron file:// environment
 **Action:**
-- Try importing a small test video file
-- Check if video thumbnail generates
-- Verify video appears in media panel
+- Add console.logs to see what URLs are generated
+- Check if toBlobURL works with file:// base URLs
+- May need to modify for Electron environment
 
-## Task 6: Test Basic Video Processing (3 minutes)
-**Goal:** Ensure FFmpeg can process video operations
-**Action:**
-- Add video to timeline
-- Try basic operations (trim, cut)
-- Check if processing completes without errors
+## ROOT CAUSE ANALYSIS:
+**The real issue:** Electron `file://` protocol + `toBlobURL()` function incompatibility
+- FFmpeg files exist and are configured correctly
+- The `toBlobURL` function may not work with `file://` protocol
+- Need to adapt FFmpeg loading for Electron environment
 
 ## Expected Results After Completion
-- ✅ No FFmpeg 404 errors in console
-- ✅ Video files import successfully 
-- ✅ Video thumbnails generate
-- ✅ Basic video processing works
-- ✅ Media playback works with blob URLs
+- ✅ FFmpeg files accessible in Electron
+- ✅ No 404 errors for ffmpeg-core.js  
+- ✅ Video files import and process correctly
+- ✅ Blob URLs work for media playback
 
 ## Priority Order
-1. Task 1 (FFmpeg path fix) - **CRITICAL**
-2. Task 2 (Bundle WASM files) - **CRITICAL**  
-3. Task 3 (CSP for media) - **HIGH**
-4. Task 4 (Test initialization) - **MEDIUM**
-5. Task 5 (Test import) - **MEDIUM**
-6. Task 6 (Test processing) - **LOW**
+1. Task 1 (Verify files in build) - **HIGH**
+2. Task 2 (Fix Electron file serving) - **CRITICAL**  
+3. Task 5 (Debug toBlobURL) - **CRITICAL**
+4. Task 3 (CSP for media) - **MEDIUM**
+5. Task 4 (Test file access) - **LOW**
 
-## Time Estimate: 13 minutes total
+## Time Estimate: 8 minutes total (reduced from 13)
