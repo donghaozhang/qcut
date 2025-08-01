@@ -1,10 +1,10 @@
 <table width="100%">
   <tr>
     <td align="left" width="120">
-      <img src="apps/web/public/logo.png" alt="OpenCut Logo" width="100" />
+      <img src="apps/web/public/logo.png" alt="QCut Logo" width="100" />
     </td>
     <td align="right">
-      <h1>OpenCut <span style="font-size: 0.7em; font-weight: normal;">(prev AppCut)</span></h1>
+      <h1>QCut <span style="font-size: 0.7em; font-weight: normal;">(prev AppCut)</span></h1>
       <h3 style="margin-top: -10px;">A free, open-source video editor for Windows desktop (and web).</h3>
     </td>
   </tr>
@@ -55,7 +55,7 @@ Before you begin, ensure you have the following installed on your system:
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/OpenCut-app/OpenCut.git
-   cd OpenCut
+   cd QCut
    ```
 
 2. **Install dependencies:**
@@ -80,7 +80,7 @@ Before you begin, ensure you have the following installed on your system:
    cd "apps/web" && bun run build && cd .. && npx electron .
    ```
 
-The OpenCut desktop application will launch with the complete video editing interface!
+The QCut desktop application will launch with the complete video editing interface!
 
 ## Development Setup
 
@@ -132,7 +132,7 @@ bun run dist:win
 
 ## Architecture
 
-OpenCut uses a modern desktop application stack:
+QCut uses a modern desktop application stack:
 
 - **Frontend**: Vite + React + TanStack Router
 - **Desktop**: Electron with secure IPC communication
@@ -195,4 +195,4 @@ Thanks to [Vercel](https://vercel.com?utm_source=github-opencut&utm_campaign=oss
 
 ---
 
-![Star History Chart](https://api.star-history.com/svg?repos=opencut-app/opencut&type=Date)
+![Star History Chart](https://api.star-history.com/svg?repos=opencut-app/qcut&type=Date)
