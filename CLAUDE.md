@@ -4,23 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-OpenCut is a web-based video editor currently built with Next.js 15, in the process of migrating to Vite + TanStack Router + Electron for desktop application. The project uses a monorepo structure with Bun as the package manager.
+OpenCut is a desktop video editor built with Vite + TanStack Router + Electron. The project has been successfully migrated from Next.js and now runs as a native desktop application. It uses a monorepo structure with Bun as the package manager.
 
 ## Key Architecture
 
 ### Tech Stack
-- **Frontend**: Next.js 15.4.5 (App Router), React 19, TypeScript
+- **Frontend**: Vite 7.0.6, TanStack Router (Hash History), React 19, TypeScript
+- **Desktop**: Electron 37.2.5 with IPC handlers for file operations
 - **State Management**: Zustand stores (editor-store, timeline-store, project-store)
 - **Video Processing**: FFmpeg WebAssembly (@ffmpeg/ffmpeg)
-- **Database**: PostgreSQL with Drizzle ORM
-- **Auth**: Better Auth 1.2.7
+- **Storage**: Multi-tier system (Electron IPC → IndexedDB → localStorage fallback)
 - **Styling**: Tailwind CSS 4.1.11
 - **UI Components**: Radix UI primitives
 - **Monorepo**: Turborepo with Bun
 
 ### Project Structure
 ```
-OpenCut-main/
+qcut/
 ├── apps/web/                    # Main Next.js app
 ├── packages/
 │   ├── auth/                    # @opencut/auth

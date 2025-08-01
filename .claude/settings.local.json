@@ -17,7 +17,8 @@
       "Bash(find:*)",
       "Bash(NODE_ENV=production bun run electron)",
       "Bash(electron:*)",
-      "Bash(npx electron:*)"
+      "Bash(npx electron:*)",
+      "Bash(mv:*)"
     ],
     "deny": []
   }

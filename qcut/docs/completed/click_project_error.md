@@ -80,40 +80,40 @@ Ao @ index-C_ln-beA.js:91
 (anonymous) @ index-C_ln-beA.js:174
 index-C_ln-beA.js:159 The above error occurred in the <JCe> component:
 
-    at JCe (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:705:8329)
+    at JCe (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:705:8329)
     at div
-    at lEe (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:705:18689)
-    at VNe (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:717:9877)
-    at file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:242:2187
-    at Bc (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:241:12061)
-    at Bc (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:241:12061)
-    at Bc (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:241:12061)
-    at Bc (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:241:12061)
-    at file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:242:348
+    at lEe (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:705:18689)
+    at VNe (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:717:9877)
+    at file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:242:2187
+    at Bc (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:241:12061)
+    at Bc (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:241:12061)
+    at Bc (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:241:12061)
+    at Bc (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:241:12061)
+    at file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:242:348
     at Suspense
-    at file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:242:3815
-    at ooe (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:287:169602)
-    at f (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:243:15583)
-    at cz (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:287:100230)
-    at oZ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:242:6569)
-    at aZ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:242:6446)
+    at file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:242:3815
+    at ooe (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:287:169602)
+    at f (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:243:15583)
+    at cz (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:287:100230)
+    at oZ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:242:6569)
+    at aZ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:242:6446)
     at component
-    at file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:242:2187
-    at Bc (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:241:12061)
-    at yJ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:225:544)
-    at zw (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:225:339)
-    at Bc (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:241:12061)
-    at Bc (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:241:12061)
-    at file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:242:348
-    at yJ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:225:544)
-    at zw (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:225:339)
-    at KJ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:242:4738)
+    at file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:242:2187
+    at Bc (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:241:12061)
+    at yJ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:225:544)
+    at zw (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:225:339)
+    at Bc (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:241:12061)
+    at Bc (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:241:12061)
+    at file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:242:348
+    at yJ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:225:544)
+    at zw (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:225:339)
+    at KJ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:242:4738)
     at Suspense
-    at XJ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:242:4427)
-    at ZJ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:242:5437)
-    at eZ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:242:5689)
+    at XJ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:242:4427)
+    at ZJ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:242:5437)
+    at eZ (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:242:5689)
     at Suspense
-    at sDe (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/OpenCut-main/apps/web/dist/assets/index-C_ln-beA.js:717:22176)
+    at sDe (file:///C:/Users/zdhpe/Desktop/vite_opencut/OpenCut-main/qcut/apps/web/dist/assets/index-C_ln-beA.js:717:22176)
 
 React will try to recreate this component tree from scratch using the error boundary you provided, yJ.
 Mx @ index-C_ln-beA.js:159
