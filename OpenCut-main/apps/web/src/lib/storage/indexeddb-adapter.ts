@@ -13,14 +13,31 @@ export class IndexedDBAdapter<T> implements StorageAdapter<T> {
 
   private async getDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
+      console.log('[DEBUG] IndexedDB: Opening database:', this.dbName, 'version:', this.version);
+      
+      if (!indexedDB) {
+        console.error('[DEBUG] IndexedDB: IndexedDB not available');
+        reject(new Error('IndexedDB not available'));
+        return;
+      }
+
       const request = indexedDB.open(this.dbName, this.version);
 
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => {
+        console.error('[DEBUG] IndexedDB: Error opening database:', request.error);
+        reject(request.error);
+      };
+      
+      request.onsuccess = () => {
+        console.log('[DEBUG] IndexedDB: Database opened successfully');
+        resolve(request.result);
+      };
 
       request.onupgradeneeded = (event) => {
+        console.log('[DEBUG] IndexedDB: Database upgrade needed');
         const db = (event.target as IDBOpenDBRequest).result;
         if (!db.objectStoreNames.contains(this.storeName)) {
+          console.log('[DEBUG] IndexedDB: Creating object store:', this.storeName);
           db.createObjectStore(this.storeName, { keyPath: "id" });
         }
       };
@@ -64,15 +81,28 @@ export class IndexedDBAdapter<T> implements StorageAdapter<T> {
   }
 
   async list(): Promise<string[]> {
-    const db = await this.getDB();
-    const transaction = db.transaction([this.storeName], "readonly");
-    const store = transaction.objectStore(this.storeName);
+    try {
+      console.log('[DEBUG] IndexedDB: Getting database for list operation');
+      const db = await this.getDB();
+      console.log('[DEBUG] IndexedDB: Database opened successfully');
+      const transaction = db.transaction([this.storeName], "readonly");
+      const store = transaction.objectStore(this.storeName);
 
-    return new Promise((resolve, reject) => {
-      const request = store.getAllKeys();
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result as string[]);
-    });
+      return new Promise((resolve, reject) => {
+        const request = store.getAllKeys();
+        request.onerror = () => {
+          console.error('[DEBUG] IndexedDB: Error getting keys:', request.error);
+          reject(request.error);
+        };
+        request.onsuccess = () => {
+          console.log('[DEBUG] IndexedDB: Successfully got keys:', request.result);
+          resolve(request.result as string[]);
+        };
+      });
+    } catch (error) {
+      console.error('[DEBUG] IndexedDB: Error in list():', error);
+      throw error;
+    }
   }
 
   async clear(): Promise<void> {

@@ -1,18 +1,22 @@
 import { TProject } from "@/types/project";
 import { MediaItem } from "@/stores/media-store";
 import { IndexedDBAdapter } from "./indexeddb-adapter";
+import { LocalStorageAdapter } from "./localstorage-adapter";
 import { OPFSAdapter } from "./opfs-adapter";
 import {
   MediaFileData,
   StorageConfig,
   SerializedProject,
   TimelineData,
+  StorageAdapter,
 } from "./types";
 import { TimelineTrack } from "@/types/timeline";
 
 class StorageService {
-  private projectsAdapter: IndexedDBAdapter<SerializedProject>;
+  private projectsAdapter!: StorageAdapter<SerializedProject>;
   private config: StorageConfig;
+  private useLocalStorage: boolean = false;
+  private isInitialized: boolean = false;
 
   constructor() {
     this.config = {
@@ -22,11 +26,36 @@ class StorageService {
       version: 1,
     };
 
-    this.projectsAdapter = new IndexedDBAdapter<SerializedProject>(
-      this.config.projectsDb,
-      "projects",
-      this.config.version
-    );
+    // Initialize storage immediately
+    this.initializeStorage();
+  }
+
+  private async initializeStorage() {
+    if (this.isInitialized) {
+      return; // Already initialized
+    }
+
+    try {
+      console.log('[DEBUG] StorageService: Trying IndexedDB first');
+      this.projectsAdapter = new IndexedDBAdapter<SerializedProject>(
+        this.config.projectsDb,
+        "projects",
+        this.config.version
+      );
+      
+      // Test if IndexedDB works by doing a simple operation
+      await this.projectsAdapter.list();
+      console.log('[DEBUG] StorageService: IndexedDB test successful');
+      this.isInitialized = true;
+    } catch (error) {
+      console.log('[DEBUG] StorageService: IndexedDB failed, falling back to localStorage:', error);
+      this.useLocalStorage = true;
+      this.projectsAdapter = new LocalStorageAdapter<SerializedProject>(
+        this.config.projectsDb,
+        "projects"
+      );
+      this.isInitialized = true;
+    }
   }
 
   // Helper to get project-specific media adapters
@@ -53,6 +82,8 @@ class StorageService {
 
   // Project operations
   async saveProject(project: TProject): Promise<void> {
+    // Ensure storage is initialized
+    await this.initializeStorage();
     // Convert TProject to serializable format
     const serializedProject: SerializedProject = {
       id: project.id,
@@ -91,20 +122,36 @@ class StorageService {
   }
 
   async loadAllProjects(): Promise<TProject[]> {
-    const projectIds = await this.projectsAdapter.list();
-    const projects: TProject[] = [];
+    try {
+      console.log('[DEBUG] StorageService: Starting loadAllProjects');
+      
+      // Ensure storage is initialized
+      await this.initializeStorage();
+      
+      const projectIds = await this.projectsAdapter.list();
+      console.log('[DEBUG] StorageService: Found project IDs:', projectIds, 'using localStorage:', this.useLocalStorage);
+      const projects: TProject[] = [];
 
-    for (const id of projectIds) {
-      const project = await this.loadProject(id);
-      if (project) {
-        projects.push(project);
+      for (const id of projectIds) {
+        console.log('[DEBUG] StorageService: Loading project:', id);
+        const project = await this.loadProject(id);
+        if (project) {
+          projects.push(project);
+          console.log('[DEBUG] StorageService: Loaded project successfully:', id);
+        } else {
+          console.log('[DEBUG] StorageService: Failed to load project:', id);
+        }
       }
-    }
 
-    // Sort by last updated (most recent first)
-    return projects.sort(
-      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
-    );
+      console.log('[DEBUG] StorageService: loadAllProjects completed, total projects:', projects.length);
+      // Sort by last updated (most recent first)
+      return projects.sort(
+        (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
+      );
+    } catch (error) {
+      console.error('[DEBUG] StorageService: Error in loadAllProjects:', error);
+      throw error;
+    }
   }
 
   async deleteProject(id: string): Promise<void> {
