@@ -18,7 +18,8 @@
       "Bash(NODE_ENV=production bun run electron)",
       "Bash(electron:*)",
       "Bash(npx electron:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(git clone:*)"
     ],
     "deny": []
   }

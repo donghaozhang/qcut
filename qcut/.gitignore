@@ -65,3 +65,6 @@ yarn-error.log*
 # Claude settings (local only)
 .claude/settings.local.json
 .claude/
+
+# Reference version (local development only)
+docs/completed/reference-version/
