@@ -7,6 +7,8 @@ const DEFAULT_PANEL_SIZES = {
   propertiesPanel: 20,
   mainContent: 70,
   timeline: 30,
+  aiPanelWidth: 22,
+  aiPanelMinWidth: 4,
 } as const;
 
 interface PanelState {
@@ -16,6 +18,8 @@ interface PanelState {
   propertiesPanel: number;
   mainContent: number;
   timeline: number;
+  aiPanelWidth: number;
+  aiPanelMinWidth: number;
 
   // Actions
   setToolsPanel: (size: number) => void;
@@ -23,6 +27,7 @@ interface PanelState {
   setPropertiesPanel: (size: number) => void;
   setMainContent: (size: number) => void;
   setTimeline: (size: number) => void;
+  setAiPanelWidth: (size: number) => void;
 }
 
 export const usePanelStore = create<PanelState>()(
@@ -37,6 +42,7 @@ export const usePanelStore = create<PanelState>()(
       setPropertiesPanel: (size) => set({ propertiesPanel: size }),
       setMainContent: (size) => set({ mainContent: size }),
       setTimeline: (size) => set({ timeline: size }),
+      setAiPanelWidth: (size) => set({ aiPanelWidth: size }),
     }),
     {
       name: "panel-sizes",

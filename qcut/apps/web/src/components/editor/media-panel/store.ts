@@ -10,6 +10,7 @@ import {
   LucideIcon,
   TypeIcon,
   WandIcon,
+  BotIcon,
 } from "lucide-react";
 import { create } from "zustand";
 
@@ -23,7 +24,8 @@ export type Tab =
   | "captions"
   | "filters"
   | "adjustment"
-  | "text2image";
+  | "text2image"
+  | "ai";
 
 export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
   media: {
@@ -66,14 +68,26 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
     icon: WandIcon,
     label: "AI Images",
   },
+  ai: {
+    icon: BotIcon,
+    label: "AI Video",
+  },
 };
 
 interface MediaPanelStore {
   activeTab: Tab;
   setActiveTab: (tab: Tab) => void;
+  
+  // AI-specific state
+  aiActiveTab: "text" | "image";
+  setAiActiveTab: (tab: "text" | "image") => void;
 }
 
 export const useMediaPanelStore = create<MediaPanelStore>((set) => ({
   activeTab: "media",
   setActiveTab: (tab) => set({ activeTab: tab }),
+  
+  // AI-specific state defaults
+  aiActiveTab: "text",
+  setAiActiveTab: (tab) => set({ aiActiveTab: tab }),
 }));
