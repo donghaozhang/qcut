@@ -1,4 +1,4 @@
-import { ExportSettings, ExportProgress } from "@/types/export";
+import { ExportSettings, ExportProgress, FORMAT_INFO } from "@/types/export";
 import { TimelineElement, TimelineTrack } from "@/types/timeline";
 import { MediaItem } from "@/stores/media-store";
 import { useTimelineStore } from "@/stores/timeline-store";
@@ -247,14 +247,25 @@ export class ExportEngine {
     // Get canvas stream
     const stream = this.canvas.captureStream(this.fps);
     
-    // Configure MediaRecorder options based on quality
+    // Configure MediaRecorder options based on format and quality
+    const formatInfo = FORMAT_INFO[this.settings.format];
+    let selectedMimeType = formatInfo.mimeTypes[0]; // Default to first option
+    
+    // Find the first supported MIME type for this format
+    for (const mimeType of formatInfo.mimeTypes) {
+      if (MediaRecorder.isTypeSupported(mimeType)) {
+        selectedMimeType = mimeType;
+        break;
+      }
+    }
+    
     const options: MediaRecorderOptions = {
-      mimeType: 'video/webm;codecs=vp9', // VP9 for better compression
+      mimeType: selectedMimeType,
       videoBitsPerSecond: this.getVideoBitrate()
     };
 
-    // Fallback to VP8 if VP9 not supported
-    if (!MediaRecorder.isTypeSupported(options.mimeType!)) {
+    // Fallback to WebM if selected format not supported
+    if (!MediaRecorder.isTypeSupported(selectedMimeType)) {
       options.mimeType = 'video/webm;codecs=vp8';
     }
 
@@ -394,17 +405,20 @@ export class ExportEngine {
 
   // Download video blob - adapted from zip-manager.ts downloadZipSafely
   async downloadVideo(blob: Blob, filename: string): Promise<void> {
-    // Ensure filename has proper extension
-    const finalFilename = filename.endsWith('.webm') ? filename : `${filename}.webm`;
+    // Ensure filename has proper extension for the selected format
+    const formatInfo = FORMAT_INFO[this.settings.format];
+    const extension = formatInfo.extension;
+    const finalFilename = filename.endsWith(extension) ? filename : `${filename}${extension}`;
     
     // Use modern File System Access API if available
     if ('showSaveFilePicker' in window) {
       try {
+        const mimeType = blob.type || formatInfo.mimeTypes[0];
         const fileHandle = await (window as any).showSaveFilePicker({
           suggestedName: finalFilename,
           types: [{
-            description: 'Video files',
-            accept: { 'video/webm': ['.webm'] }
+            description: `${formatInfo.label} files`,
+            accept: { [mimeType]: [extension] }
           }]
         });
         

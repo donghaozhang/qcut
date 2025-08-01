@@ -13,11 +13,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Download, X, AlertTriangle } from "lucide-react";
 import { 
-  ExportQuality, 
+  ExportQuality,
+  ExportFormat,
   QUALITY_RESOLUTIONS, 
   QUALITY_SIZE_ESTIMATES,
+  FORMAT_INFO,
+  getSupportedFormats,
   isValidFilename 
 } from "@/types/export";
+import { calculateMemoryUsage, getMemoryWarningMessage } from "@/lib/memory-utils";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -40,7 +44,11 @@ export function ExportDialog() {
   
   // Local state for form inputs
   const [quality, setQuality] = useState<ExportQuality>(settings.quality);
+  const [format, setFormat] = useState<ExportFormat>(settings.format);
   const [filename, setFilename] = useState(settings.filename);
+  
+  // Get supported formats
+  const supportedFormats = getSupportedFormats();
 
   // Helper functions
   const getResolution = (quality: ExportQuality) => QUALITY_RESOLUTIONS[quality];
@@ -48,11 +56,27 @@ export function ExportDialog() {
   const timelineDuration = getTotalDuration();
   const resolution = getResolution(quality);
   const estimatedSize = getEstimatedSize(quality);
+  
+  // Calculate memory usage
+  const memoryEstimate = calculateMemoryUsage({
+    ...settings,
+    quality,
+    format,
+    width: resolution.width,
+    height: resolution.height
+  }, timelineDuration);
+  
+  const memoryWarning = getMemoryWarningMessage(memoryEstimate);
 
   // Handle form changes
   const handleQualityChange = (newQuality: ExportQuality) => {
     setQuality(newQuality);
     updateSettings({ quality: newQuality });
+  };
+
+  const handleFormatChange = (newFormat: ExportFormat) => {
+    setFormat(newFormat);
+    updateSettings({ format: newFormat });
   };
 
   const handleFilenameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,7 +142,7 @@ export function ExportDialog() {
 
       // Show success toast notification
       toast.success("Video exported successfully!", {
-        description: `${filename}.webm has been downloaded to your device.`
+        description: `${filename}${FORMAT_INFO[format].extension} has been downloaded to your device.`
       });
 
       // Close dialog after successful export
@@ -187,7 +211,7 @@ export function ExportDialog() {
         <div className="p-4 border-b border-border">
           <Button
             onClick={handleExport}
-            disabled={progress.isExporting || !isValidFilename(filename) || timelineDuration === 0}
+            disabled={progress.isExporting || !isValidFilename(filename) || timelineDuration === 0 || !memoryEstimate.canExport}
             className="w-full"
             size="lg"
           >
@@ -228,6 +252,28 @@ export function ExportDialog() {
             </CardContent>
           </Card>
 
+          {/* Format Selection */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Format</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RadioGroup value={format} onValueChange={handleFormatChange}>
+                {supportedFormats.map((fmt) => (
+                  <div key={fmt} className="flex items-center space-x-2">
+                    <RadioGroupItem value={fmt} id={fmt} />
+                    <Label htmlFor={fmt} className="text-sm cursor-pointer">
+                      <div>
+                        <div className="font-medium">{FORMAT_INFO[fmt].label}</div>
+                        <div className="text-xs text-muted-foreground">{FORMAT_INFO[fmt].description}</div>
+                      </div>
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </CardContent>
+          </Card>
+
           {/* File Information */}
           <Card>
             <CardHeader className="pb-3">
@@ -254,7 +300,7 @@ export function ExportDialog() {
                 </div>
                 <div>
                   <span className="font-medium">Format:</span>
-                  <span className="ml-2 text-muted-foreground">WebM</span>
+                  <span className="ml-2 text-muted-foreground">{FORMAT_INFO[format].label}</span>
                 </div>
               </div>
             </CardContent>
@@ -273,7 +319,7 @@ export function ExportDialog() {
                   placeholder="Enter filename"
                   className={cn(!isValidFilename(filename) && "border-red-500")}
                 />
-                <span className="text-sm text-muted-foreground">.mp4</span>
+                <span className="text-sm text-muted-foreground">{FORMAT_INFO[format].extension}</span>
               </div>
               {!isValidFilename(filename) && (
                 <p className="text-sm text-red-500 mt-2">
@@ -282,6 +328,38 @@ export function ExportDialog() {
               )}
             </CardContent>
           </Card>
+
+          {/* Memory Warnings */}
+          {memoryWarning && memoryEstimate.warningLevel !== 'none' && (
+            <Alert className={cn(
+              memoryEstimate.warningLevel === 'maximum' ? "border-red-500 bg-red-50" :
+              memoryEstimate.warningLevel === 'critical' ? "border-red-500 bg-red-50" :
+              "border-yellow-500 bg-yellow-50"
+            )}>
+              <AlertTriangle className={cn(
+                "h-4 w-4",
+                memoryEstimate.warningLevel === 'maximum' || memoryEstimate.warningLevel === 'critical' 
+                  ? "text-red-600" : "text-yellow-600"
+              )} />
+              <AlertDescription className={cn(
+                memoryEstimate.warningLevel === 'maximum' || memoryEstimate.warningLevel === 'critical' 
+                  ? "text-red-800" : "text-yellow-800"
+              )}>
+                <div className="font-medium">
+                  {memoryEstimate.warningLevel === 'maximum' ? 'Export Blocked' :
+                   memoryEstimate.warningLevel === 'critical' ? 'High Memory Usage' :
+                   'Memory Warning'}
+                </div>
+                <div>{memoryWarning}</div>
+                {memoryEstimate.recommendation && (
+                  <div className="mt-1 text-sm">
+                    <strong>Recommendation:</strong> Switch to {memoryEstimate.recommendation.suggestedQuality} quality 
+                    ({memoryEstimate.recommendation.description})
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Timeline Warnings */}
           {timelineDuration === 0 && (

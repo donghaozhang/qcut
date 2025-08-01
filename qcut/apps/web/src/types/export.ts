@@ -1,9 +1,8 @@
-// Export format types - MVP supports MP4 only
+// Export format types - supports multiple formats
 export enum ExportFormat {
+  WEBM = "webm",
   MP4 = "mp4",
-  // Future formats
-  // WEBM = "webm",
-  // MOV = "mov"
+  MOV = "mov"
 }
 
 // Export quality presets
@@ -45,6 +44,49 @@ export const QUALITY_SIZE_ESTIMATES = {
   [ExportQuality.MEDIUM]: "~25-50 MB/min",
   [ExportQuality.LOW]: "~15-25 MB/min",
 } as const;
+
+// Format information and codecs
+export const FORMAT_INFO = {
+  [ExportFormat.WEBM]: {
+    label: "WebM",
+    description: "Modern web format with excellent compression",
+    mimeTypes: ['video/webm;codecs=vp9', 'video/webm;codecs=vp8'],
+    extension: ".webm"
+  },
+  [ExportFormat.MP4]: {
+    label: "MP4", 
+    description: "Universal format compatible with all devices",
+    mimeTypes: ['video/mp4;codecs=h264', 'video/mp4'],
+    extension: ".mp4"
+  },
+  [ExportFormat.MOV]: {
+    label: "MOV",
+    description: "Apple QuickTime format for professional editing",
+    mimeTypes: ['video/quicktime', 'video/mp4;codecs=h264'],
+    extension: ".mov"
+  }
+} as const;
+
+// Get supported formats based on browser capabilities
+export const getSupportedFormats = (): ExportFormat[] => {
+  const supported: ExportFormat[] = [];
+  
+  Object.entries(FORMAT_INFO).forEach(([format, info]) => {
+    const isSupported = info.mimeTypes.some(mimeType => 
+      MediaRecorder.isTypeSupported(mimeType)
+    );
+    if (isSupported) {
+      supported.push(format as ExportFormat);
+    }
+  });
+  
+  // Always include WebM as fallback since it's widely supported
+  if (supported.length === 0) {
+    supported.push(ExportFormat.WEBM);
+  }
+  
+  return supported;
+};
 
 // Helper function to validate filename
 export const isValidFilename = (filename: string): boolean => {

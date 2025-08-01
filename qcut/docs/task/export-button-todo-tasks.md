@@ -412,27 +412,44 @@ Only **Required** (MVP) and **Advanced** (future enhancements) categories.
 
 ## 🚀 Advanced Tasks (Future Enhancements)
 
-### A1. Memory Warning System (3 min)
+### A1. Memory Warning System (3 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/lib/memory-utils.ts` (NEW FILE)
-**Reference**: `docs/completed/reference-version/.../memory-monitor.ts`
+**Reference**: Memory calculation formulas and thresholds
 ```typescript
 // Basic memory estimation
-- [ ] Calculate estimated memory usage
-- [ ] Show warning for large exports
-- [ ] Suggest lower quality if needed
+- [x] Calculate estimated memory usage
+- [x] Show warning for large exports
+- [x] Suggest lower quality if needed
 // Borrow: Memory calculation formulas from reference version
 ```
+**Implementation Notes:**
+- Created comprehensive memory calculation system with frame buffer estimation
+- Added memory thresholds: WARNING (2GB), CRITICAL (4GB), MAXIMUM (8GB)
+- Quality recommendations with memory savings percentages
+- System memory detection using deviceMemory API with fallbacks
+- Integrated memory warnings into export dialog with color-coded alerts
+- Export button blocked when memory usage exceeds maximum threshold
+- Detailed memory usage display with user-friendly formatting
 
-### A2. Multiple Format Support (3 min)
+### A2. Multiple Format Support (3 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/components/export-dialog.tsx` (MODIFY)
 **Reference**: MediaRecorder codec options documentation
 ```typescript
 // Add format selection
-- [ ] Add format radio group (MP4, WebM, MOV)
-- [ ] Update codec selection logic
-- [ ] Update file extension display
+- [x] Add format radio group (WebM, MP4, MOV)
+- [x] Update codec selection logic
+- [x] Update file extension display
 // Note: Different codecs for different formats in MediaRecorder options
 ```
+**Implementation Notes:**
+- Extended ExportFormat enum to support WebM, MP4, and MOV formats
+- Added FORMAT_INFO with codec mappings and descriptions
+- Created getSupportedFormats() function for browser capability detection
+- Added format selection radio group in export dialog
+- Updated MediaRecorder setup to use format-specific MIME types with fallbacks
+- Dynamic file extension display based on selected format
+- Updated download functionality with correct MIME types and extensions
+- Updated success notifications to show correct file extension
 
 ### A3. Export Engine Factory (3 min)
 **Target**: `qcut/apps/web/src/lib/export-engine-factory.ts` (NEW FILE)
