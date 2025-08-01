@@ -13,7 +13,8 @@
       "Bash(rm:*)",
       "Bash(timeout 10 bun:*)",
       "Bash(true)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(NODE_ENV=production bun run electron)"
     ],
     "deny": []
   }

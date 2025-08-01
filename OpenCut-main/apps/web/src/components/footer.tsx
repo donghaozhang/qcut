@@ -1,12 +1,11 @@
 "use client";
 
 import { motion } from "motion/react";
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { RiDiscordFill, RiTwitterXLine } from "react-icons/ri";
 import { FaGithub } from "react-icons/fa6";
 import { getStars } from "@/lib/fetch-github-stars";
-import Image from "next/image";
 
 export function Footer() {
   const [star, setStar] = useState<string>();
@@ -36,7 +35,7 @@ export function Footer() {
           {/* Brand Section */}
           <div className="md:col-span-1 max-w-sm">
             <div className="flex justify-start items-center gap-2 mb-4">
-              <Image src="/logo.svg" alt="OpenCut" width={24} height={24} />
+              <img src="/logo.svg" alt="OpenCut" width={24} height={24} />
               <span className="font-bold text-lg">OpenCut</span>
             </div>
             <p className="text-sm md:text-left text-muted-foreground mb-5">
@@ -44,30 +43,30 @@ export function Footer() {
               powerful, and works on any platform.
             </p>
             <div className="flex justify-start gap-3">
-              <Link
+              <a
                 href="https://github.com/OpenCut-app/OpenCut"
                 className="text-muted-foreground hover:text-foreground transition-colors"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 <FaGithub className="h-5 w-5" />
-              </Link>
-              <Link
+              </a>
+              <a
                 href="https://x.com/OpenCutApp"
                 className="text-muted-foreground hover:text-foreground transition-colors"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 <RiTwitterXLine className="h-5 w-5" />
-              </Link>
-              <Link
+              </a>
+              <a
                 href="https://discord.com/invite/Mu3acKZvCp"
                 className="text-muted-foreground hover:text-foreground transition-colors"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 <RiDiscordFill className="h-5 w-5" />
-              </Link>
+              </a>
             </div>
           </div>
 
@@ -77,7 +76,7 @@ export function Footer() {
               <ul className="space-y-2 text-sm">
                 <li>
                   <Link
-                    href="/roadmap"
+                    to="/roadmap"
                     className="text-muted-foreground hover:text-foreground transition-colors"
                   >
                     Roadmap
@@ -85,7 +84,7 @@ export function Footer() {
                 </li>
                 <li>
                   <Link
-                    href="/privacy"
+                    to="/privacy"
                     className="text-muted-foreground hover:text-foreground transition-colors"
                   >
                     Privacy policy
@@ -93,7 +92,7 @@ export function Footer() {
                 </li>
                 <li>
                   <Link
-                    href="/terms"
+                    to="/terms"
                     className="text-muted-foreground hover:text-foreground transition-colors"
                   >
                     Terms of use
@@ -108,21 +107,21 @@ export function Footer() {
               <ul className="space-y-2 text-sm">
                 <li>
                   <Link
-                    href="/contributors"
+                    to="/contributors"
                     className="text-muted-foreground hover:text-foreground transition-colors"
                   >
                     Contributors
                   </Link>
                 </li>
                 <li>
-                  <Link
+                  <a
                     href="https://github.com/OpenCut-app/OpenCut/blob/main/README.md"
                     className="text-muted-foreground hover:text-foreground transition-colors"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
                     About
-                  </Link>
+                  </a>
                 </li>
               </ul>
             </div>

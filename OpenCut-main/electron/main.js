@@ -18,7 +18,7 @@ function createWindow() {
   // Load the Vite app
   const isDev = process.env.NODE_ENV === 'development'
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173')
+    mainWindow.loadURL('http://localhost:5174')
   } else {
     mainWindow.loadFile(path.join(__dirname, '../apps/web/dist/index.html'))
   }
