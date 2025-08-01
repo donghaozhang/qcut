@@ -22,6 +22,7 @@ export const Route = createFileRoute('/editor/$project_id')({
 
 function EditorPage() {
   const { project_id } = Route.useParams()
+  console.log('[Task 2a] Route.useParams() project_id:', project_id)
   const {
     toolsPanel,
     previewPanel,
@@ -79,7 +80,9 @@ function EditorPage() {
       handledProjectIds.current.add(project_id)
 
       try {
+        console.log('[Task 2b] Attempting to load project:', project_id)
         await loadProject(project_id)
+        console.log('[Task 2b] Project loaded successfully:', project_id)
 
         // Check if component was unmounted during async operation
         if (isCancelled) {
@@ -102,23 +105,27 @@ function EditorPage() {
             error.message.includes('Project not found'))
 
         if (isProjectNotFound) {
+          console.log('[Task 2b] Project not found, creating new project. Invalid ID:', project_id)
           // Mark this project ID as invalid globally BEFORE creating project
           markProjectIdAsInvalid(project_id)
 
           try {
             const newProjectId = await createNewProject('Untitled Project')
+            console.log('[Task 2b] New project created successfully:', newProjectId)
 
             // Check again if component was unmounted
             if (isCancelled) {
               return
             }
 
+            console.log('[Task 2b] Navigating to new project:', newProjectId)
             navigate({ to: `/editor/${newProjectId}` })
           } catch (createError) {
             console.error('Failed to create new project:', createError)
           }
         } else {
           // For other errors (storage issues, corruption, etc.), don't create new project
+          console.log('[Task 2b] Recoverable error, not creating new project:', (error as Error).message)
           console.error(
             'Project loading failed with recoverable error:',
             error

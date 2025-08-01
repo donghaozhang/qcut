@@ -51,15 +51,87 @@ const router = createRouter({
 - Eliminates hash/browser history conflicts in Electron environment
 - Better performance - no DOM manipulation for URL updates
 
-### Files That Need Modification
-- `apps/web/src/App.tsx` - Replace hash history with memory history
-- `apps/web/src/routes/__root.tsx` - Error boundary implementation (already done)
-- `apps/web/src/components/header.tsx` - Fixed nested button warnings (already done)
+## Implementation Plan
 
-## Files Modified
-- `src/App.tsx` - Router initialization and lazy loading
-- `src/routes/__root.tsx` - Error boundary implementation
-- `src/components/header.tsx` - Fixed nested button warnings
+### Current Status
+✅ **COMPLETED**
+- `apps/web/src/App.tsx` - Memory history implementation done
+- `apps/web/src/routes/__root.tsx` - Error boundary implementation done  
+- `apps/web/src/components/header.tsx` - Fixed nested button warnings done
+
+### Remaining Tasks
+
+#### Task 1: Test New Project Button Navigation (2 min)
+**File:** `apps/web/src/routes/projects.tsx` (lines 93-95)
+**Subtasks:**
+1. ✅ Verify navigation syntax is correct for memory history (30s)
+2. ✅ Ensure project_id parameter is properly passed (30s)
+3. ✅ Build and start Electron app (30s) - Build completed successfully
+4. ✅ Electron app launches without build errors - Ready for manual testing
+
+**Status:** READY FOR MANUAL TESTING
+- Electron app is built and launching successfully
+- Navigation code syntax verified as correct for memory history
+- Need to manually click "New Project" button to verify router error is resolved
+
+#### Task 2: Validate Route Parameter Handling (3+ min → Split)
+
+##### Task 2a: Test useParams Hook (1 min)
+**File:** `apps/web/src/routes/editor.$project_id.tsx` (line 25)
+**Subtasks:**
+1. ✅ Add console.log to verify project_id extraction (30s)
+2. ✅ Build completed - Ready for testing useParams() functionality
+
+##### Task 2b: Test Project Loading Logic (2 min)  
+**File:** `apps/web/src/routes/editor.$project_id.tsx` (lines 83-135)
+**Subtasks:**
+1. ✅ Added console.log for loadProject() function testing (30s)
+2. ✅ Added console.log for createNewProject() fallback testing (30s) 
+3. ✅ Added console.log for navigation to new project_id (30s)
+4. ✅ Added console.log for error handling testing (30s)
+
+**Status:** READY FOR TESTING
+- Console logs added to track:
+  - Route parameter extraction: `[Task 2a] Route.useParams() project_id:`
+  - Project loading: `[Task 2b] Attempting to load project:` and `[Task 2b] Project loaded successfully:`
+  - New project creation: `[Task 2b] Project not found, creating new project:` and `[Task 2b] New project created successfully:`
+  - Navigation: `[Task 2b] Navigating to new project:`
+  - Error handling: `[Task 2b] Recoverable error, not creating new project:`
+
+##### Task 2c: Test Editor Component Rendering (1 min)
+**File:** `apps/web/src/routes/editor.$project_id.tsx` (lines 150-224)
+**Subtasks:**
+1. ⏳ Verify EditorProvider initializes correctly (30s)
+2. ⏳ Test that all editor panels render without errors (30s)
+
+#### Task 3: Test Basic Navigation (5+ min → Split)
+
+##### Task 3a: Test Static Routes (2 min)
+**Files:** Home, Blog, Contributors pages
+**Subtasks:**
+1. ⏳ Test home page navigation (30s)
+2. ⏳ Test blog page navigation (30s)
+3. ⏳ Test contributors page navigation (30s)
+4. ⏳ Test back/forward between static pages (30s)
+
+##### Task 3b: Test Dynamic Routes (2 min)
+**Files:** Editor, Blog post pages
+**Subtasks:**
+1. ⏳ Test editor route with different project_ids (30s)
+2. ⏳ Test blog post route with different slugs (30s)
+3. ⏳ Test invalid parameter handling (30s)
+4. ⏳ Test navigation between dynamic routes (30s)
+
+##### Task 3c: Test Navigation Edge Cases (1 min)
+**Subtasks:**
+1. ⏳ Test rapid navigation clicks (20s)
+2. ⏳ Test navigation during loading states (20s)
+3. ⏳ Test navigation with async operations (20s)
+
+### Files Modified
+- ✅ `apps/web/src/App.tsx` - Switched to memory history
+- ✅ `apps/web/src/routes/__root.tsx` - Added error boundary
+- ✅ `apps/web/src/components/header.tsx` - Fixed nested buttons
 
 ## Testing Notes
 - The router works for basic navigation (home, blog, contributors)
