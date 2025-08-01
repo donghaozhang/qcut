@@ -1,2 +1,23 @@
 apps/web
 .claude
+
+# Build folders
+electron-builds/
+dist/
+build/
+dist-electron/
+dist-packager*/
+node_modules/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db

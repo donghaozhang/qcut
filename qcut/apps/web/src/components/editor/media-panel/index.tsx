@@ -26,6 +26,8 @@ import { Label } from '@/components/ui/label';
 // Temporary test - Toast notifications verification
 import { toast } from 'sonner';
 import React from 'react';
+// Temporary test - Adjustment Panel rendering
+import { AdjustmentPanel } from '@/components/editor/adjustment';
 
 export function MediaPanel() {
   const { activeTab } = useMediaPanelStore();
@@ -69,11 +71,7 @@ export function MediaPanel() {
         Filters view coming soon...
       </div>
     ),
-    adjustment: (
-      <div className="p-4 text-muted-foreground">
-        Adjustment view coming soon...
-      </div>
-    ),
+    adjustment: <AdjustmentPanel />,
     text2image: <Text2ImageView />,
   };
 
