@@ -45,24 +45,20 @@ class StorageService {
     // Try Electron IPC first if available
     if (this.isElectronEnvironment()) {
       try {
-        console.log('[DEBUG] StorageService: Using Electron IPC storage');
         this.projectsAdapter = new ElectronStorageAdapter<SerializedProject>(
           this.config.projectsDb,
           "projects"
         );
         // Test if Electron IPC works
         await this.projectsAdapter.list();
-        console.log('[DEBUG] StorageService: Electron IPC test successful');
         this.isInitialized = true;
         return;
       } catch (error) {
-        console.log('[DEBUG] StorageService: Electron IPC failed, trying IndexedDB:', error);
       }
     }
 
     // Try IndexedDB second
     try {
-      console.log('[DEBUG] StorageService: Trying IndexedDB');
       this.projectsAdapter = new IndexedDBAdapter<SerializedProject>(
         this.config.projectsDb,
         "projects",
@@ -71,10 +67,8 @@ class StorageService {
       
       // Test if IndexedDB works by doing a simple operation
       await this.projectsAdapter.list();
-      console.log('[DEBUG] StorageService: IndexedDB test successful');
       this.isInitialized = true;
     } catch (error) {
-      console.log('[DEBUG] StorageService: IndexedDB failed, falling back to localStorage:', error);
       this.useLocalStorage = true;
       this.projectsAdapter = new LocalStorageAdapter<SerializedProject>(
         this.config.projectsDb,
@@ -149,33 +143,26 @@ class StorageService {
 
   async loadAllProjects(): Promise<TProject[]> {
     try {
-      console.log('[DEBUG] StorageService: Starting loadAllProjects');
       
       // Ensure storage is initialized
       await this.initializeStorage();
       
       const projectIds = await this.projectsAdapter.list();
-      console.log('[DEBUG] StorageService: Found project IDs:', projectIds, 'using localStorage:', this.useLocalStorage);
       const projects: TProject[] = [];
 
       for (const id of projectIds) {
-        console.log('[DEBUG] StorageService: Loading project:', id);
         const project = await this.loadProject(id);
         if (project) {
           projects.push(project);
-          console.log('[DEBUG] StorageService: Loaded project successfully:', id);
         } else {
-          console.log('[DEBUG] StorageService: Failed to load project:', id);
         }
       }
 
-      console.log('[DEBUG] StorageService: loadAllProjects completed, total projects:', projects.length);
       // Sort by last updated (most recent first)
       return projects.sort(
         (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
       );
     } catch (error) {
-      console.error('[DEBUG] StorageService: Error in loadAllProjects:', error);
       throw error;
     }
   }
