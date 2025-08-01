@@ -23,7 +23,9 @@
       "Bash(move:*)",
       "Bash(explorer \"C:\\Users\\zdhpe\\Desktop\\vite_opencut\\OpenCut-main\\qcut\")",
       "Bash(powershell:*)",
-      "Bash(start \"\" \"C:\\Users\\zdhpe\\Desktop\\vite_opencut\\OpenCut-main\\qcut\\dist-packager-new\\QCut-win32-x64\")"
+      "Bash(start \"\" \"C:\\Users\\zdhpe\\Desktop\\vite_opencut\\OpenCut-main\\qcut\\dist-packager-new\\QCut-win32-x64\")",
+      "Bash(xcopy:*)",
+      "Bash(git rm:*)"
     ],
     "deny": []
   }
