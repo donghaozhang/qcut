@@ -14,7 +14,7 @@ export function Hero() {
     <div className="min-h-[calc(100vh-4.5rem)] supports-[height:100dvh]:min-h-[calc(100dvh-4.5rem)] flex flex-col justify-between items-center text-center px-4">
       <img
         className="absolute top-0 left-0 -z-50 size-full object-cover"
-        src="/landing-page-bg.png"
+        src="./landing-page-bg.png"
         height={1903.5}
         width={1269}
         alt="landing-page.bg"
