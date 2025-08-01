@@ -1,7 +1,9 @@
 import React, { useState, useRef } from "react";
 import { useExportStore } from "@/stores/export-store";
 import { useTimelineStore } from "@/stores/timeline-store";
+import { useMediaStore } from "@/stores/media-store";
 import { ExportCanvas, ExportCanvasRef } from "@/components/export-canvas";
+import { ExportEngine } from "@/lib/export-engine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,10 +27,14 @@ export function ExportDialog() {
     settings, 
     updateSettings, 
     progress,
+    updateProgress,
+    setError,
+    resetExport,
     error 
   } = useExportStore();
   
-  const { getTotalDuration } = useTimelineStore();
+  const { getTotalDuration, tracks } = useTimelineStore();
+  const { mediaItems } = useMediaStore();
   const canvasRef = useRef<ExportCanvasRef>(null);
   
   // Local state for form inputs
@@ -61,11 +67,72 @@ export function ExportDialog() {
   };
 
   const handleExport = async () => {
-    // Placeholder for export logic - will be implemented in task 7
-    console.log("Export started with settings:", { quality, filename, resolution });
-    
-    // TODO: Implement actual export logic with export engine
-    alert("Export functionality will be implemented in the next task!");
+    // Reset any previous errors
+    setError(null);
+    resetExport();
+
+    try {
+      // Get canvas element
+      const canvas = canvasRef.current?.getCanvas();
+      if (!canvas) {
+        throw new Error("Canvas not available for export");
+      }
+
+      // Update canvas dimensions before export
+      canvasRef.current?.updateDimensions();
+
+      // Get timeline duration
+      const totalDuration = getTotalDuration();
+      if (totalDuration === 0) {
+        throw new Error("Timeline is empty - add some content before exporting");
+      }
+
+      // Create export engine
+      const exportEngine = new ExportEngine(
+        canvas,
+        settings,
+        tracks,
+        mediaItems,
+        totalDuration
+      );
+
+      // Progress callback to update UI
+      const progressCallback = (progressValue: number, status: string) => {
+        updateProgress({
+          progress: progressValue,
+          status: status,
+          isExporting: true
+        });
+      };
+
+      // Start export with download
+      await exportEngine.exportAndDownload(filename, progressCallback);
+
+      // Export completed successfully
+      updateProgress({
+        progress: 100,
+        status: "Export complete!",
+        isExporting: false
+      });
+
+      // Close dialog after successful export
+      setTimeout(() => {
+        setDialogOpen(false);
+        resetExport();
+      }, 2000);
+
+    } catch (error) {
+      console.error("Export failed:", error);
+      const errorMessage = error instanceof Error ? error.message : "Export failed";
+      setError(errorMessage);
+      
+      // Reset progress on error
+      updateProgress({
+        progress: 0,
+        status: "",
+        isExporting: false
+      });
+    }
   };
 
   if (!isDialogOpen) return null;

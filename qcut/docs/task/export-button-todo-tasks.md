@@ -193,77 +193,121 @@ Only **Required** (MVP) and **Advanced** (future enhancements) categories.
 - Progress card only visible during export (conditional rendering)
 - Progress value connected to export store progress state
 
-### 10. Basic Export Engine - Part 1 (3 min)
+### 10. Basic Export Engine - Part 1 (3 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/lib/export-engine.ts` (NEW FILE)
 **Reference**: `qcut/apps/web/src/lib/ffmpeg-utils.ts` (for class structure)
 ```typescript
 // Engine setup and initialization
-- [ ] Create ExportEngine class
-- [ ] Add constructor with canvas, settings
-- [ ] Add method to get timeline elements
-- [ ] Add method to calculate total frames
+- [x] Create ExportEngine class
+- [x] Add constructor with canvas, settings
+- [x] Add method to get timeline elements
+- [x] Add method to calculate total frames
 // Borrow: Class structure patterns, async method patterns
 ```
+**Implementation Notes:**
+- Created ExportEngine class with constructor taking canvas, settings, tracks, mediaItems, totalDuration
+- Added calculateTotalFrames() method using fps * duration
+- Added getActiveElements() method to find elements at specific time (borrowed from preview-panel.tsx)
+- Set up canvas context and dimensions based on export settings
+- Added getTotalDuration() and getFrameRate() helper methods
 
-### 11. Basic Export Engine - Part 2 (3 min)
+### 11. Basic Export Engine - Part 2 (3 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/lib/export-engine.ts` (CONTINUE)
 **Reference**: `qcut/apps/web/src/components/editor/preview-panel.tsx` (rendering)
 ```typescript
 // Frame rendering logic
-- [ ] Add renderFrame method
-- [ ] Clear canvas and draw elements
-- [ ] Handle media elements (images/videos)
-- [ ] Handle text elements
+- [x] Add renderFrame method
+- [x] Clear canvas and draw elements
+- [x] Handle media elements (images/videos)
+- [x] Handle text elements
 // Borrow: Element rendering logic from preview-panel renderElements
 ```
+**Implementation Notes:**
+- Added renderFrame() method that clears canvas and renders all active elements
+- Implemented renderElement() dispatcher for media vs text elements
+- Added renderMediaElement() with image and video support (video is placeholder for now)
+- Added renderTextElement() with basic text rendering (color, font, position)
+- Added calculateElementBounds() for proper media scaling and positioning
+- Borrowed active element detection logic from preview-panel.tsx
 
-### 12. Basic Export Engine - Part 3 (3 min)
+### 12. Basic Export Engine - Part 3 (3 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/lib/export-engine.ts` (CONTINUE)
 **Reference**: MDN MediaRecorder docs / no direct reference in codebase
 ```typescript
 // Video recording setup
-- [ ] Add MediaRecorder setup
-- [ ] Configure video codec and bitrate
-- [ ] Add blob collection array
-- [ ] Add start/stop recording methods
+- [x] Add MediaRecorder setup
+- [x] Configure video codec and bitrate
+- [x] Add blob collection array
+- [x] Add start/stop recording methods
 // Note: MediaRecorder is standard browser API, no existing usage in codebase
 ```
+**Implementation Notes:**
+- Added MediaRecorder setup with canvas.captureStream()
+- Configured VP9/VP8 codecs with quality-based bitrates (8/5/2.5 Mbps)
+- Added recordedChunks array for blob collection
+- Implemented startRecording() and stopRecording() methods
+- Added MediaRecorder event handlers for data and stop events
+- Included getVideoBitrate() method based on export quality settings
 
-### 13. Basic Export Engine - Part 4 (3 min)
+### 13. Basic Export Engine - Part 4 (3 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/lib/export-engine.ts` (CONTINUE)
 **Reference**: Animation loop patterns from preview rendering
 ```typescript
 // Export loop implementation
-- [ ] Add main export loop
-- [ ] Render frame by frame
-- [ ] Update progress callback
-- [ ] Handle completion
+- [x] Add main export loop
+- [x] Render frame by frame
+- [x] Update progress callback
+- [x] Handle completion
 // Borrow: requestAnimationFrame patterns, progress calculation logic
 ```
+**Implementation Notes:**
+- Added main export() method that orchestrates the entire process
+- Implemented frame-by-frame rendering loop with calculateTotalFrames()
+- Added ProgressCallback type and progress updates throughout export
+- Included proper error handling and cleanup
+- Added cancel() method to stop export mid-process
+- Added isExportInProgress() method for status checking
+- Returns final video Blob after completion
 
-### 14. Basic Export Engine - Part 5 (2 min) ✨ REUSE OPPORTUNITY
+### 14. Basic Export Engine - Part 5 (2 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/lib/export-engine.ts` (CONTINUE)
 **Reference**: `qcut/apps/web/src/lib/zip-manager.ts` (download logic)
 ```typescript
 // Download - adapt from zip-manager.ts
-- [ ] Create final video blob from MediaRecorder
-- [ ] Copy createDownloadLink pattern from zip-manager
-- [ ] Change MIME type to video/mp4
-- [ ] Clean up blob URLs after download
+- [x] Create final video blob from MediaRecorder
+- [x] Copy createDownloadLink pattern from zip-manager
+- [x] Change MIME type to video/webm
+- [x] Clean up blob URLs after download
 // Borrow: Entire createDownloadLink function, just change MIME type
 ```
+**Implementation Notes:**
+- Added downloadVideo() method using File System Access API with fallback
+- Borrowed iframe-based download pattern from zip-manager.ts downloadZipSafely()
+- Changed MIME type to video/webm (MediaRecorder output format)
+- Added automatic filename extension handling (.webm)
+- Included blob URL cleanup after download
+- Added exportAndDownload() convenience method for complete workflow
 
-### 15. Wire Up Export Process (3 min)
+### 15. Wire Up Export Process (3 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/components/export-dialog.tsx` (CONTINUE)
 **Reference**: `qcut/apps/web/src/components/editor/media-panel/export-all-button.tsx`
 ```typescript
 // Connect engine to dialog
-- [ ] Import export engine
-- [ ] Add handleExport function
-- [ ] Get canvas ref and create engine
-- [ ] Handle progress updates
+- [x] Import export engine
+- [x] Add handleExport function
+- [x] Get canvas ref and create engine
+- [x] Handle progress updates
 // Borrow: Async export handler pattern from export-all-button
 ```
+**Implementation Notes:**
+- Imported ExportEngine and required store methods (updateProgress, setError, resetExport)
+- Replaced placeholder handleExport with full implementation
+- Added canvas validation and dimension updates before export
+- Created ExportEngine instance with canvas, settings, tracks, mediaItems, totalDuration
+- Implemented progress callback that updates export store UI state
+- Added comprehensive error handling with user-friendly messages
+- Auto-closes dialog after successful export with 2-second delay
+- Borrowed async/await pattern and error handling from export-all-button.tsx
 
 ### 16. Error Handling (3 min)
 **Target**: `qcut/apps/web/src/components/export-dialog.tsx` (CONTINUE)

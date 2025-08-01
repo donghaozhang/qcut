@@ -11,6 +11,9 @@ interface ActiveElement {
   mediaItem: MediaItem | null;
 }
 
+// Progress callback type
+type ProgressCallback = (progress: number, status: string) => void;
+
 // Export engine for rendering timeline to video
 export class ExportEngine {
   private canvas: HTMLCanvasElement;
@@ -20,6 +23,12 @@ export class ExportEngine {
   private mediaItems: MediaItem[];
   private totalDuration: number;
   private fps: number = 30; // Fixed framerate for now
+  
+  // MediaRecorder properties
+  private mediaRecorder: MediaRecorder | null = null;
+  private recordedChunks: Blob[] = [];
+  private isRecording: boolean = false;
+  private isExporting: boolean = false;
   
   constructor(
     canvas: HTMLCanvasElement,
@@ -227,5 +236,218 @@ export class ExportEngine {
   // Get frame rate
   getFrameRate(): number {
     return this.fps;
+  }
+
+  // Setup MediaRecorder for canvas capture
+  private setupMediaRecorder(): void {
+    if (this.mediaRecorder) {
+      return; // Already set up
+    }
+
+    // Get canvas stream
+    const stream = this.canvas.captureStream(this.fps);
+    
+    // Configure MediaRecorder options based on quality
+    const options: MediaRecorderOptions = {
+      mimeType: 'video/webm;codecs=vp9', // VP9 for better compression
+      videoBitsPerSecond: this.getVideoBitrate()
+    };
+
+    // Fallback to VP8 if VP9 not supported
+    if (!MediaRecorder.isTypeSupported(options.mimeType!)) {
+      options.mimeType = 'video/webm;codecs=vp8';
+    }
+
+    // Create MediaRecorder
+    this.mediaRecorder = new MediaRecorder(stream, options);
+    
+    // Handle data chunks
+    this.mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        this.recordedChunks.push(event.data);
+      }
+    };
+
+    // Handle recording stop
+    this.mediaRecorder.onstop = () => {
+      this.isRecording = false;
+    };
+  }
+
+  // Get video bitrate based on quality settings
+  private getVideoBitrate(): number {
+    // Bitrates in bits per second
+    const bitrates = {
+      '1080p': 8000000,  // 8 Mbps
+      '720p': 5000000,   // 5 Mbps  
+      '480p': 2500000    // 2.5 Mbps
+    };
+    
+    return bitrates[this.settings.quality] || bitrates['720p'];
+  }
+
+  // Start recording
+  private startRecording(): void {
+    if (!this.mediaRecorder) {
+      this.setupMediaRecorder();
+    }
+    
+    if (this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
+      this.recordedChunks = []; // Clear previous chunks
+      this.isRecording = true;
+      this.mediaRecorder.start(100); // Record in 100ms chunks
+    }
+  }
+
+  // Stop recording and return blob
+  private stopRecording(): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      if (!this.mediaRecorder) {
+        reject(new Error('MediaRecorder not initialized'));
+        return;
+      }
+
+      this.mediaRecorder.onstop = () => {
+        this.isRecording = false;
+        const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
+        resolve(blob);
+      };
+
+      if (this.mediaRecorder.state === 'recording') {
+        this.mediaRecorder.stop();
+      } else {
+        // Already stopped, create blob immediately
+        const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
+        resolve(blob);
+      }
+    });
+  }
+
+  // Main export method - renders timeline and captures video
+  async export(progressCallback?: ProgressCallback): Promise<Blob> {
+    if (this.isExporting) {
+      throw new Error('Export already in progress');
+    }
+
+    this.isExporting = true;
+    
+    try {
+      // Setup and start recording
+      this.setupMediaRecorder();
+      this.startRecording();
+      
+      const totalFrames = this.calculateTotalFrames();
+      const frameTime = 1 / this.fps; // Time per frame in seconds
+      
+      progressCallback?.(0, 'Starting export...');
+      
+      // Render each frame
+      for (let frame = 0; frame < totalFrames; frame++) {
+        const currentTime = frame * frameTime;
+        
+        // Render frame to canvas
+        await this.renderFrame(currentTime);
+        
+        // Update progress
+        const progress = (frame / totalFrames) * 100;
+        const status = `Rendering frame ${frame + 1} of ${totalFrames}`;
+        progressCallback?.(progress, status);
+        
+        // Allow UI to update
+        await new Promise(resolve => setTimeout(resolve, 1));
+      }
+      
+      progressCallback?.(95, 'Finalizing video...');
+      
+      // Stop recording and get final blob
+      const videoBlob = await this.stopRecording();
+      
+      progressCallback?.(100, 'Export complete!');
+      
+      return videoBlob;
+      
+    } catch (error) {
+      // Clean up on error
+      if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+        this.mediaRecorder.stop();
+      }
+      this.isExporting = false;
+      throw error;
+    } finally {
+      this.isExporting = false;
+    }
+  }
+
+  // Cancel export
+  cancel(): void {
+    if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+      this.mediaRecorder.stop();
+    }
+    this.isExporting = false;
+    this.isRecording = false;
+  }
+
+  // Check if export is in progress
+  isExportInProgress(): boolean {
+    return this.isExporting;
+  }
+
+  // Download video blob - adapted from zip-manager.ts downloadZipSafely
+  async downloadVideo(blob: Blob, filename: string): Promise<void> {
+    // Ensure filename has proper extension
+    const finalFilename = filename.endsWith('.webm') ? filename : `${filename}.webm`;
+    
+    // Use modern File System Access API if available
+    if ('showSaveFilePicker' in window) {
+      try {
+        const fileHandle = await (window as any).showSaveFilePicker({
+          suggestedName: finalFilename,
+          types: [{
+            description: 'Video files',
+            accept: { 'video/webm': ['.webm'] }
+          }]
+        });
+        
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return;
+      } catch (error) {
+        // Fall back to traditional download if user cancels or API unavailable
+      }
+    }
+
+    // Traditional download with navigation bug prevention (borrowed from zip-manager.ts)
+    const url = URL.createObjectURL(blob);
+    
+    // Create download in a way that prevents navigation
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+    
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (iframeDoc) {
+      const link = iframeDoc.createElement('a');
+      link.href = url;
+      link.download = finalFilename;
+      iframeDoc.body.appendChild(link);
+      link.click();
+      iframeDoc.body.removeChild(link);
+    }
+    
+    // Cleanup blob URL after download
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+      URL.revokeObjectURL(url);
+    }, 100);
+  }
+
+  // Complete export with download
+  async exportAndDownload(
+    filename: string, 
+    progressCallback?: ProgressCallback
+  ): Promise<void> {
+    const videoBlob = await this.export(progressCallback);
+    await this.downloadVideo(videoBlob, filename);
   }
 }
