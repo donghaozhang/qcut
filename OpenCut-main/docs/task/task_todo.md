@@ -14,6 +14,14 @@ This document tracks the migration tasks for converting OpenCut from a Next.js w
 - **Blocker**: Cannot create static export due to Next.js API routes
 - **Next Steps**: Need to proceed with Vite migration to remove API route dependencies
 
+### Phase 1: Remove Next.js Dependencies ✅ (Complete)
+- Audited all Next.js usage: 12 files with Link, 7 with useRouter, 7 with Image
+- Documented findings in `docs/nextjs-audit.md`
+- Removed Next.js dependencies from package.json using Bun
+- Extracted providers and documented API routes for future IPC conversion
+- Created migration backup files in `src/migration-backup/`
+- **Ready**: Can now proceed to Phase 2 (Vite setup)
+
 ### Key Findings:
 1. The project uses Bun as package manager (not npm)
 2. Next.js API routes prevent static export for Electron
@@ -142,46 +150,70 @@ This document tracks the migration tasks for converting OpenCut from a Next.js w
 ### Phase 1: Remove Next.js Dependencies and Code
 
 #### 1.1 Audit Next.js Usage
-- [ ] **Search for next/link imports** (~2 min)
+- [x] **Search for next/link imports** (~2 min)
   - Files to check: `apps/web/src/components/**/*.tsx`
   - Command: `grep -r "from 'next/link'" apps/web/src/`
   - Document all files using next/link
+  - ✓ Found in 12 files - documented in `docs/nextjs-audit.md`
 
-- [ ] **Search for next/router imports** (~2 min)
+- [x] **Search for next/router imports** (~2 min)
   - Files to check: `apps/web/src/**/*.tsx`
   - Command: `grep -r "from 'next/router'" apps/web/src/`
   - Document all files using useRouter
+  - ✓ Found useRouter in 7 files
 
-- [ ] **List all pages in app directory** (~1 min)
+- [x] **List all pages in app directory** (~1 min)
   - Directory: `apps/web/src/app/`
   - Create inventory of all page routes
+  - ✓ Documented all routes in audit
 
-- [ ] **Check for Next.js metadata** (~1 min)
+- [x] **Check for Next.js metadata** (~1 min)
   - File: `apps/web/src/app/metadata.ts`
   - Note metadata configuration
+  - ✓ Found metadata export configuration
 
-- [ ] **Search for next/image usage** (~2 min)
+- [x] **Search for next/image usage** (~2 min)
   - Command: `grep -r "from 'next/image'" apps/web/src/`
   - List all files using Next.js Image component
+  - ✓ Found in 7 files
 
-- [ ] **Check for API routes** (~1 min)
+- [x] **Check for API routes** (~1 min)
   - Directory: `apps/web/src/app/api/`
   - List all API endpoints for IPC conversion
+  - ✓ Found 4 API routes - documented in `migration-backup/api-routes-to-ipc.md`
 
 #### 1.2 Remove Next.js from package.json
-- [ ] **Backup current package.json** (~1 min)
+- [x] **Backup current package.json** (~1 min)
   - File: `apps/web/package.json`
   - Copy to: `apps/web/package.json.backup`
+  - ✓ Backup created
 
-- [ ] **Remove next dependency** (~2 min)
+- [x] **Remove next dependency** (~2 min)
   - File: `apps/web/package.json`
   - Remove: `"next": "^version"`
-  - Run: `cd apps/web && npm uninstall next`
+  - Run: `cd apps/web && bun remove next next-themes @t3-oss/env-nextjs`
+  - ✓ Removed successfully
 
-- [ ] **Update build scripts** (~3 min)
+- [x] **Update build scripts** (~3 min)
   - File: `apps/web/package.json`
   - Remove scripts: `"next build"`, `"next export"`, `"next dev"`
   - Keep note of what each script did
+  - ✓ Scripts updated with placeholder messages
+
+#### 1.3 Clean Next.js Code Patterns
+- [x] **Extract app router providers** (~3 min)
+  - Files: `apps/web/src/app/layout.tsx`
+  - Extract providers to: `apps/web/src/migration-backup/providers.tsx`
+  - ✓ Providers extracted (ThemeProvider, TooltipProvider, StorageProvider, etc.)
+
+- [x] **Document API routes for IPC conversion** (~3 min)
+  - Files: `apps/web/src/app/api/**/*.ts`
+  - Create list of endpoints and their functions
+  - ✓ Created `migration-backup/api-routes-to-ipc.md`
+
+- [x] **Create Next.js audit documentation** (~2 min)
+  - File: `docs/nextjs-audit.md`
+  - ✓ Complete audit of all Next.js usage documented
 
 ### Phase 2: Setup Vite Build System
 
