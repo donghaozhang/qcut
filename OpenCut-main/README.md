@@ -5,7 +5,7 @@
     </td>
     <td align="right">
       <h1>OpenCut <span style="font-size: 0.7em; font-weight: normal;">(prev AppCut)</span></h1>
-      <h3 style="margin-top: -10px;">A free, open-source video editor for web, desktop, and mobile.</h3>
+      <h3 style="margin-top: -10px;">A free, open-source video editor for Windows desktop (and web).</h3>
     </td>
   </tr>
 </table>
@@ -18,21 +18,25 @@
 
 ## Features
 
-- Timeline-based editing
-- Multi-track support
-- Real-time preview
-- No watermarks or subscriptions
-- Analytics provided by [Databuddy](https://www.databuddy.cc?utm_source=opencut), 100% Anonymized & Non-invasive.
-- Blog powered by [Marble](https://marblecms.com?utm_source=opencut), Headless CMS.
+- **Native Windows Desktop App** - Runs completely offline with native file access
+- **Timeline-based editing** - Professional video editing interface
+- **Multi-track support** - Audio and video tracks with drag-and-drop
+- **Real-time preview** - Instant feedback while editing
+- **FFmpeg Integration** - Professional-grade video processing via WebAssembly
+- **Local File System** - Native file dialogs and direct file access
+- **No watermarks or subscriptions** - Completely free forever
+- **Privacy-first** - All processing happens locally on your device
 
 ## Project Structure
 
-- `apps/web/` – Main Next.js web application
+- `apps/web/` – Main Vite + React application (migrated from Next.js)
+- `electron/` – Electron main process and preload scripts
 - `src/components/` – UI and editor components
-- `src/hooks/` – Custom React hooks
-- `src/lib/` – Utility and API logic
+- `src/hooks/` – Custom React hooks including Electron integration
+- `src/lib/` – Utility and API logic including FFmpeg
 - `src/stores/` – State management (Zustand, etc.)
-- `src/types/` – TypeScript types
+- `src/types/` – TypeScript types including Electron APIs
+- `src/routes/` – TanStack Router file-based routing
 
 ## Getting Started
 
@@ -41,132 +45,144 @@
 Before you begin, ensure you have the following installed on your system:
 
 - [Node.js](https://nodejs.org/en/) (v18 or later)
-- [Bun](https://bun.sh/docs/installation)
-  (for `npm` alternative)
-- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+- [Bun](https://bun.sh/docs/installation) - Package manager and bundler
+- [Git](https://git-scm.com/) - For cloning the repository
 
-> **Note:** Docker is optional, but it's essential for running the local database and Redis services. If you're planning to run the frontend or want to contribute to frontend features, you can skip the Docker setup. If you have followed the steps below in [Setup](#setup), you're all set to go!
+> **Note:** The Windows desktop app runs completely offline and doesn't require Docker, databases, or external services. Just Node.js and Bun are sufficient for building and running the Electron application.
 
-### Setup
+### Quick Start (Windows Desktop App)
 
-1. Fork the repository
-2. Clone your fork locally
-3. Navigate to the web app directory: `cd apps/web`
-4. Copy `.env.example` to `.env.local`:
-
+1. **Clone the repository:**
    ```bash
-   # Unix/Linux/Mac
-   cp .env.example .env.local
-
-   # Windows Command Prompt
-   copy .env.example .env.local
-
-   # Windows PowerShell
-   Copy-Item .env.example .env.local
+   git clone https://github.com/OpenCut-app/OpenCut.git
+   cd OpenCut
    ```
 
-5. Install dependencies: `bun install`
-6. Start the development server: `bun dev`
+2. **Install dependencies:**
+   ```bash
+   bun install
+   ```
+
+3. **Build the Vite application:**
+   ```bash
+   cd apps/web
+   bun run build
+   ```
+
+4. **Run the Electron desktop app:**
+   ```bash
+   cd ../..  # Back to project root
+   bun run electron
+   ```
+
+The OpenCut desktop application will launch with the complete video editing interface!
 
 ## Development Setup
 
-### Local Development
+### Desktop App Development
 
-1. Start the database and Redis services:
+For developing the Electron desktop application:
 
-   ```bash
-   # From project root
-   docker-compose up -d
-   ```
-
-2. Navigate to the web app directory:
-
+1. **Start the Vite development server:**
    ```bash
    cd apps/web
+   bun run dev
    ```
+   The dev server will start at `http://localhost:5174`
 
-3. Copy `.env.example` to `.env.local`:
-
+2. **In another terminal, run Electron in development mode:**
    ```bash
-   # Unix/Linux/Mac
-   cp .env.example .env.local
-
-   # Windows Command Prompt
-   copy .env.example .env.local
-
-   # Windows PowerShell
-   Copy-Item .env.example .env.local
+   cd ..  # Back to project root
+   NODE_ENV=development bun run electron
    ```
 
-4. Configure required environment variables in `.env.local`:
+This will launch Electron with hot reload capabilities for development.
 
-   **Required Variables:**
+### Available Scripts
 
-   ```bash
-   # Database (matches docker-compose.yaml)
-   DATABASE_URL="postgresql://opencut:opencutthegoat@localhost:5432/opencut"
+From the project root:
+- `bun run electron` - Run the Electron app in production mode
+- `NODE_ENV=development bun run electron` - Run Electron in development mode
 
-   # Generate a secure secret for Better Auth
-   BETTER_AUTH_SECRET="your-generated-secret-here"
-   BETTER_AUTH_URL="http://localhost:3000"
+From `apps/web/`:
+- `bun run dev` - Start Vite development server
+- `bun run build` - Build the production bundle
+- `bun run preview` - Preview the production build
 
-   # Redis (matches docker-compose.yaml)
-   UPSTASH_REDIS_REST_URL="http://localhost:8079"
-   UPSTASH_REDIS_REST_TOKEN="example_token"
+### Building for Distribution
 
-   # Marble Blog
-   MARBLE_WORKSPACE_KEY=cm6ytuq9x0000i803v0isidst # example organization key
-   NEXT_PUBLIC_MARBLE_API_URL=https://api.marblecms.com
+To create a Windows installer:
 
-   # Development
-   NODE_ENV="development"
-   ```
+```bash
+# Build the web app
+cd apps/web
+bun run build
 
-   **Generate BETTER_AUTH_SECRET:**
+# Return to root and build Windows installer
+cd ../..
+bun run dist:win
+```
 
-   ```bash
-   # Unix/Linux/Mac
-   openssl rand -base64 32
+> **Note:** The installer will be created in the `dist-electron/` directory.
 
-   # Windows PowerShell (simple method)
-   [System.Web.Security.Membership]::GeneratePassword(32, 0)
+## Architecture
 
-   # Cross-platform (using Node.js)
-   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+OpenCut uses a modern desktop application stack:
 
-   # Or use an online generator: https://generate-secret.vercel.app/32
-   ```
-
-5. Run database migrations: `bun run db:migrate` from (inside apps/web)
-6. Start the development server: `bun run dev` from (inside apps/web)
-
-The application will be available at [http://localhost:3000](http://localhost:3000).
+- **Frontend**: Vite + React + TanStack Router
+- **Desktop**: Electron with secure IPC communication
+- **Video Processing**: FFmpeg via WebAssembly
+- **Styling**: Tailwind CSS with dark theme
+- **State Management**: Zustand stores
+- **File System**: Native Electron file dialogs and operations
 
 ## Contributing
 
-We welcome contributions! While we're actively developing and refactoring certain areas, there are plenty of opportunities to contribute effectively.
+We welcome contributions! The project has been successfully migrated to a desktop-first architecture.
 
-**🎯 Focus areas:** Timeline functionality, project management, performance, bug fixes, and UI improvements outside the preview panel.
+**🎯 Current focus areas:** 
+- Timeline functionality and performance
+- Native desktop features (menus, shortcuts, file associations)
+- Video processing optimizations
+- UI/UX improvements for desktop workflow
 
-**⚠️ Avoid for now:** Preview panel enhancements (fonts, stickers, effects) and export functionality - we're refactoring these with a new binary rendering approach.
-
-See our [Contributing Guide](.github/CONTRIBUTING.md) for detailed setup instructions, development guidelines, and complete focus area guidance.
+**✅ Completed:**
+- ✅ Full migration from Next.js to Vite + Electron
+- ✅ Native file system integration
+- ✅ TanStack Router implementation
+- ✅ FFmpeg WebAssembly integration
+- ✅ Production-ready Windows desktop build
 
 **Quick start for contributors:**
 
 - Fork the repo and clone locally
-- Follow the setup instructions in CONTRIBUTING.md
+- Follow the Quick Start instructions above
 - Create a feature branch and submit a PR
 
-## Sponsors
+## Technical Notes
+
+### Migration from Next.js to Electron
+
+This project was successfully migrated from a Next.js web application to a native Windows desktop application using:
+
+- **Vite** for fast bundling and development
+- **TanStack Router** for file-based routing
+- **Electron** for native desktop capabilities
+
+Key improvements in the desktop version:
+- Faster startup and build times
+- Native file system access
+- Offline operation
+- Better performance for video processing
+- No server dependencies
+
+### Sponsors
 
 Thanks to [Vercel](https://vercel.com?utm_source=github-opencut&utm_campaign=oss) for their support of open-source software.
 
 <a href="https://vercel.com/oss">
   <img alt="Vercel OSS Program" src="https://vercel.com/oss/program-badge.svg" />
 </a>
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FOpenCut-app%2FOpenCut&project-name=opencut&repository-name=opencut)
 
 ## License
 
