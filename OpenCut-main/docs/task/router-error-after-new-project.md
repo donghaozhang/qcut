@@ -1,5 +1,33 @@
 # Router Error After New Project Click
 
+## Implementation Tasks
+
+### Task 1: Import Hash History (2 min)
+**File**: `apps/web/src/App.tsx`
+- Add import: `import { createHashHistory } from '@tanstack/react-router'`
+- Remove import: `import { createMemoryHistory } from '@tanstack/react-router'`
+
+### Task 2: Replace Router History (3 min)
+**File**: `apps/web/src/App.tsx`
+- Replace `createMemoryHistory` with `createHashHistory`
+- Remove `initialEntries` parameter (not needed for hash history)
+- Update router creation to use `history: createHashHistory()`
+
+### Task 3: Test Development Mode (3 min)
+**Commands**: Terminal
+- Run: `cd apps/web && bun dev`
+- Open: http://localhost:5174
+- Test: Click "New Project" button
+- Verify: URL changes to `http://localhost:5174/#/editor/new`
+
+### Task 4: Build and Test Production (5 min)
+**Commands**: Terminal
+- Run: `bun run build`
+- Run: `bun run electron`
+- Test: Click "New Project" button
+- Verify: No router mounting errors
+- Check: URL format is `file:///path/index.html#/editor/[project-id]`
+
 ## Problem Description
 When clicking the "New Project" button, the following error occurs:
 ```
@@ -43,24 +71,29 @@ In `apps/web/src/components/editor/header.tsx`:
 
 This Link component from TanStack Router tries to access the router instance before it's ready in production.
 
-## Solutions
+## Solution: Use Hash History (Most Electron-Friendly)
 
-### Solution 1: Add Production-Ready Router Check (Recommended)
+Hash history is the most stable routing solution for Electron applications because:
+- Works reliably with `file://` protocol
+- No timing issues with router mounting
+- Better compatibility with Electron's navigation model
+
+### Implementation
+
 Update `apps/web/src/App.tsx`:
+
 ```typescript
 import React, { useEffect, useState } from 'react'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
-import { createMemoryHistory } from '@tanstack/react-router'
+import { createHashHistory } from '@tanstack/react-router'
+
+// Import the generated route tree
 import { routeTree } from './routeTree.gen'
 
-// Create router outside component
-const memoryHistory = createMemoryHistory({
-  initialEntries: ['/'],
-})
-
+// Create router with hash history for Electron
 const router = createRouter({
   routeTree,
-  history: memoryHistory,
+  history: createHashHistory(),
   defaultPreload: 'intent',
   context: {},
 })
@@ -73,19 +106,18 @@ declare module '@tanstack/react-router' {
 }
 
 function App() {
-  const [isRouterReady, setIsRouterReady] = useState(false)
+  const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
-    // Ensure router is fully initialized
-    router.mount()
-    setIsRouterReady(true)
-    
-    return () => {
-      router.unmount()
-    }
+    // Small delay to ensure DOM and Electron environment is ready
+    const timer = setTimeout(() => {
+      setIsReady(true)
+    }, 100)
+
+    return () => clearTimeout(timer)
   }, [])
 
-  if (!isRouterReady) {
+  if (!isReady) {
     return <div className="flex items-center justify-center min-h-screen">Initializing...</div>
   }
 
@@ -99,45 +131,11 @@ function App() {
 export default App
 ```
 
-### Solution 2: Use Programmatic Navigation
-Instead of using `<Link>` component, use programmatic navigation:
-
-Update `apps/web/src/components/editor/header.tsx`:
-```typescript
-import { useNavigate } from '@tanstack/react-router'
-
-// In component:
-const navigate = useNavigate()
-
-const handleNewProject = () => {
-  navigate({ to: '/editor/$project_id', params: { project_id: 'new' } })
-}
-
-// Replace Link with:
-<Button
-  onClick={handleNewProject}
-  variant="ghost"
-  size="sm"
-  className="h-9 px-4"
->
-  <Plus className="h-4 w-4 mr-2" />
-  New Project
-</Button>
-```
-
-### Solution 3: Use Hash History (Most Electron-Friendly)
-Update to use hash history which is more stable in Electron:
-
-```typescript
-import { createHashHistory } from '@tanstack/react-router'
-
-const router = createRouter({
-  routeTree,
-  history: createHashHistory(),
-  defaultPreload: 'intent',
-  context: {},
-})
-```
+### Benefits of Hash History
+1. **Stable in Electron**: No mounting errors in production builds
+2. **File Protocol Compatible**: Works perfectly with `file://` URLs
+3. **Simple Navigation**: URLs like `file:///path/index.html#/editor/project-id`
+4. **No Server Required**: Perfect for desktop applications
 
 ## Immediate Workaround
 While the error appears, the app still functions. The project is created and can be accessed by:
@@ -145,13 +143,10 @@ While the error appears, the app still functions. The project is created and can
 2. Navigating back to projects list
 3. Clicking on the newly created project
 
-## Recommended Fix Priority
-1. **First**: Implement Solution 1 (Router initialization check)
-2. **Then**: Consider Solution 3 (Hash history) for better Electron compatibility
-3. **Optional**: Solution 2 for specific navigation needs
-
-## Testing After Fix
-1. Build the app: `bun run build`
-2. Run Electron: `bun run electron`
-3. Click "New Project" - should navigate without errors
-4. Verify project is created and editable
+## Testing After Implementation
+1. Update `App.tsx` with hash history
+2. Build the app: `bun run build`
+3. Run Electron: `bun run electron`
+4. Click "New Project" - should navigate without errors
+5. Verify project is created and editable
+6. Check URL format: `file:///path/index.html#/editor/[project-id]`
