@@ -64,3 +64,4 @@ yarn-error.log*
 
 # Claude settings (local only)
 .claude/settings.local.json
+.claude/
