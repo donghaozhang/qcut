@@ -14,12 +14,12 @@ function createWindow() {
     }
   })
   
-  // For now, load the Next.js app
+  // Load the Vite app
   const isDev = process.env.NODE_ENV === 'development'
   if (isDev) {
-    mainWindow.loadURL('http://localhost:3000')
+    mainWindow.loadURL('http://localhost:5173')
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../apps/web/out/index.html'))
+    mainWindow.loadFile(path.join(__dirname, '../apps/web/dist/index.html'))
   }
 
   // Open DevTools in development

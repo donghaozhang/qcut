@@ -10,7 +10,9 @@
       "Bash(bun add:*)",
       "Bash(cp:*)",
       "Bash(bun:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(timeout 10 bun:*)",
+      "Bash(true)"
     ],
     "deny": []
   }

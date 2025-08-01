@@ -22,6 +22,20 @@ This document tracks the migration tasks for converting OpenCut from a Next.js w
 - Created migration backup files in `src/migration-backup/`
 - **Ready**: Can now proceed to Phase 2 (Vite setup)
 
+### Phase 2: Setup Vite Build System ✅ (Complete)
+- Installed Vite 7.0.6 with React plugin and TanStack Router
+- Created `vite.config.ts` with Electron compatibility (base: './')
+- Created `index.html` with all meta tags and CSP headers  
+- Created `tailwind.config.js` and verified Tailwind CSS v4 working
+- Updated TypeScript config for Vite (ES2020, react-jsx)
+- Created `src/main.tsx` entry point and basic `src/App.tsx`
+- Updated Electron to load localhost:5173 (dev) and dist/index.html (prod)
+- Successfully tested: ✓ Vite dev server, ✓ Production build, ✓ Electron integration
+- **Files Created/Modified**: 
+  - **Created**: `vite.config.ts`, `index.html`, `tailwind.config.js`, `tsconfig.node.json`, `src/main.tsx`, `src/App.tsx`, `src/routes/__root.tsx`, `src/routes/index.tsx`
+  - **Modified**: `tsconfig.json`, `package.json` (scripts), `electron/main.js`, root `package.json` (Electron Builder)
+- **Ready**: Basic Vite + TanStack Router + Electron stack working
+
 ### Key Findings:
 1. The project uses Bun as package manager (not npm)
 2. Next.js API routes prevent static export for Electron
@@ -218,22 +232,26 @@ This document tracks the migration tasks for converting OpenCut from a Next.js w
 ### Phase 2: Setup Vite Build System
 
 #### 2.1 Install Dependencies
-- [ ] **Install Vite core** (~2 min)
+- [x] **Install Vite core** (~2 min)
   - Directory: `apps/web/`
-  - Run: `npm install --save-dev vite`
+  - Run: `bun add -D vite`
+  - ✓ Installed vite@7.0.6
 
-- [ ] **Install React plugin** (~1 min)
+- [x] **Install React plugin** (~1 min)
   - Directory: `apps/web/`
-  - Run: `npm install --save-dev @vitejs/plugin-react`
+  - Run: `bun add -D @vitejs/plugin-react`
+  - ✓ Installed @vitejs/plugin-react@4.7.0
 
-- [ ] **Install TanStack Router** (~2 min)
+- [x] **Install TanStack Router** (~2 min)
   - Directory: `apps/web/`
-  - Run: `npm install @tanstack/react-router`
-  - Run: `npm install --save-dev @tanstack/router-plugin`
+  - Run: `bun add @tanstack/react-router`
+  - Run: `bun add -D @tanstack/router-plugin`
+  - ✓ Installed @tanstack/react-router@1.130.9 and plugin
 
 #### 2.2 Configure Vite for Electron
-- [ ] **Create vite.config.ts** (~3 min)
+- [x] **Create vite.config.ts** (~3 min)
   - File: `apps/web/vite.config.ts`
+  - ✓ Created with TanStack Router plugin and Electron compatibility
   ```typescript
   import { defineConfig } from 'vite'
   import react from '@vitejs/plugin-react'
@@ -263,8 +281,9 @@ This document tracks the migration tasks for converting OpenCut from a Next.js w
   })
   ```
 
-- [ ] **Create index.html** (~3 min)
+- [x] **Create index.html** (~3 min)
   - File: `apps/web/index.html`
+  - ✓ Created with all meta tags, icons, and CSP headers
   ```html
   <!DOCTYPE html>
   <html lang="en">

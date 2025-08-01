@@ -38,7 +38,8 @@
       "output": "dist-electron"
     },
     "files": [
-      "electron/**/*"
+      "electron/**/*",
+      "apps/web/dist/**/*"
     ],
     "extraMetadata": {
       "main": "electron/main.js"
