@@ -1,0 +1,29 @@
+{
+  "name": "opencut",
+  "packageManager": "bun@1.2.18",
+  "devDependencies": {
+    "@biomejs/biome": "2.1.2",
+    "husky": "^9.1.7",
+    "turbo": "^2.5.4",
+    "typescript": "5.8.3",
+    "ultracite": "5.0.48"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "check-types": "turbo run check-types",
+    "lint": "npx ultracite@latest lint",
+    "format": "npx ultracite@latest format"
+  },
+  "dependencies": {
+    "next": "^15.3.4",
+    "wavesurfer.js": "^7.9.8"
+  },
+  "trustedDependencies": [
+    "@tailwindcss/oxide"
+  ]
+}
