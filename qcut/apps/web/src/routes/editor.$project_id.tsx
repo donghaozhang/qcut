@@ -15,6 +15,8 @@ import { useProjectStore } from '@/stores/project-store'
 import { EditorProvider } from '@/components/editor-provider'
 import { usePlaybackControls } from '@/hooks/use-playback-controls'
 import { Onboarding } from '@/components/onboarding'
+import { ExportDialog } from '@/components/export-dialog'
+import { useExportStore } from '@/stores/export-store'
 
 export const Route = createFileRoute('/editor/$project_id')({
   component: EditorPage,
@@ -32,6 +34,7 @@ function EditorPage() {
     setMainContent,
     setTimeline,
   } = usePanelStore()
+  const { isDialogOpen } = useExportStore()
 
   const {
     activeProject,
@@ -199,7 +202,7 @@ function EditorPage() {
                   maxSize={40}
                   className="min-w-0"
                 >
-                  <PropertiesPanel />
+                  {isDialogOpen ? <ExportDialog /> : <PropertiesPanel />}
                 </ResizablePanel>
               </ResizablePanelGroup>
             </ResizablePanel>

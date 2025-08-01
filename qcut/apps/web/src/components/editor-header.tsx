@@ -19,6 +19,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { RenameProjectDialog } from "./rename-project-dialog";
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import { FaDiscord, FaGithub } from "react-icons/fa6";
+import { useExportStore } from "@/stores/export-store";
 
 export function EditorHeader() {
   const { getTotalDuration } = useTimelineStore();
@@ -26,12 +27,10 @@ export function EditorHeader() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const navigate = useNavigate();
+  const { setDialogOpen } = useExportStore();
 
   const handleExport = () => {
-    // TODO: Implement export functionality
-    // NOTE: This is already being worked on
-    console.log("Export project");
-    window.open("https://youtube.com/watch?v=dQw4w9WgXcQ", "_blank");
+    setDialogOpen(true);
   };
 
   const handleNameSave = async (newName: string) => {
