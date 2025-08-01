@@ -88,6 +88,101 @@ export const getSupportedFormats = (): ExportFormat[] => {
   return supported;
 };
 
+// Export presets for common platforms
+export interface ExportPreset {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  quality: ExportQuality;
+  format: ExportFormat;
+  aspectRatio?: number;
+  tags: string[];
+}
+
+export const EXPORT_PRESETS: ExportPreset[] = [
+  {
+    id: 'youtube-hd',
+    name: 'YouTube HD',
+    description: '1080p HD video optimized for YouTube',
+    icon: '🎬',
+    quality: ExportQuality.HIGH,
+    format: ExportFormat.MP4,
+    aspectRatio: 16/9,
+    tags: ['social', 'video', 'hd']
+  },
+  {
+    id: 'instagram-story',
+    name: 'Instagram Story',
+    description: '1080p vertical format for Instagram Stories',
+    icon: '📱',
+    quality: ExportQuality.HIGH,
+    format: ExportFormat.MP4,
+    aspectRatio: 9/16,
+    tags: ['social', 'mobile', 'vertical']
+  },
+  {
+    id: 'instagram-post',
+    name: 'Instagram Post',
+    description: '1080p square format for Instagram feed',
+    icon: '📷',
+    quality: ExportQuality.HIGH,
+    format: ExportFormat.MP4,
+    aspectRatio: 1/1,
+    tags: ['social', 'square']
+  },
+  {
+    id: 'tiktok',
+    name: 'TikTok',
+    description: '1080p vertical format for TikTok',
+    icon: '🎵',
+    quality: ExportQuality.HIGH,
+    format: ExportFormat.MP4,
+    aspectRatio: 9/16,
+    tags: ['social', 'mobile', 'vertical', 'short-form']
+  },
+  {
+    id: 'twitter',
+    name: 'Twitter/X',
+    description: '720p optimized for Twitter video',
+    icon: '🐦',
+    quality: ExportQuality.MEDIUM,
+    format: ExportFormat.MP4,
+    aspectRatio: 16/9,
+    tags: ['social', 'compressed']
+  },
+  {
+    id: 'linkedin',
+    name: 'LinkedIn',
+    description: '1080p professional format for LinkedIn',
+    icon: '💼',
+    quality: ExportQuality.HIGH,
+    format: ExportFormat.MP4,
+    aspectRatio: 16/9,
+    tags: ['professional', 'business']
+  },
+  {
+    id: 'web-optimized',
+    name: 'Web Optimized',
+    description: '720p WebM for web embedding',
+    icon: '🌐',
+    quality: ExportQuality.MEDIUM,
+    format: ExportFormat.WEBM,
+    aspectRatio: 16/9,
+    tags: ['web', 'compressed', 'fast-load']
+  },
+  {
+    id: 'high-quality',
+    name: 'High Quality',
+    description: '1080p maximum quality for archival',
+    icon: '⭐',
+    quality: ExportQuality.HIGH,
+    format: ExportFormat.MOV,
+    aspectRatio: 16/9,
+    tags: ['archival', 'editing', 'quality']
+  }
+];
+
 // Helper function to validate filename
 export const isValidFilename = (filename: string): boolean => {
   return filename.trim().length > 0 && !/[<>:"/\\|?*]/.test(filename);

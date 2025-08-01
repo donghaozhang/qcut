@@ -494,25 +494,44 @@ Only **Required** (MVP) and **Advanced** (future enhancements) categories.
 - Memory management with cache clearing and resource cleanup
 - Style-grouped text rendering to reduce context switching overhead
 
-### A5. Cancel Export Feature (3 min)
+### A5. Cancel Export Feature (3 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/components/export-dialog.tsx` (MODIFY)
 **Reference**: AbortController patterns in modern JS
 ```typescript
 // Allow canceling exports
-- [ ] Add cancel button during export
-- [ ] Add abort controller to engine
-- [ ] Clean up on cancel
+- [x] Add cancel button during export
+- [x] Add abort controller to engine
+- [x] Clean up on cancel
 // Borrow: AbortController usage pattern
 ```
+**Implementation Notes:**
+- Added AbortController support to base ExportEngine and OptimizedExportEngine
+- Export loop checks for cancellation signal at each frame render
+- Cancel button replaces export button during active export with destructive styling
+- Comprehensive cleanup on cancel: stops MediaRecorder, clears chunks, resets state
+- Toast notifications differentiate between cancellation and errors
+- Engine reference management for proper cleanup
+- Protected isExportCancelled() method for subclass access
+- Graceful error handling for "Export cancelled by user" messages
 
-### A6. Export Presets (3 min)
+### A6. Export Presets (3 min) ✅ COMPLETED
 **File**: `components/export-dialog.tsx`
 ```typescript
 // Quick export options
-- [ ] Add preset buttons (YouTube, Instagram, etc.)
-- [ ] Auto-configure resolution/quality
-- [ ] Show preset descriptions
+- [x] Add preset buttons (YouTube, Instagram, etc.)
+- [x] Auto-configure resolution/quality
+- [x] Show preset descriptions
 ```
+**Implementation Notes:**
+- Created comprehensive preset system with 8 popular export formats
+- Presets include: YouTube HD, Instagram Story/Post, TikTok, Twitter, LinkedIn, Web Optimized, High Quality
+- Each preset has icon, name, description, quality/format settings, aspect ratio, and tags
+- Grid layout with 2-column preset buttons showing icons and descriptions
+- Auto-applies quality, format, and generates appropriate filename
+- Selected preset highlighting and clear functionality
+- Preset selection automatically clears when manual settings changed
+- Toast confirmations when presets applied
+- Professional platform optimization (YouTube 1080p, Instagram Stories 9:16, etc.)
 
 ### A7. WebCodecs Detection (3 min)
 **File**: `lib/webcodecs-detector.ts`

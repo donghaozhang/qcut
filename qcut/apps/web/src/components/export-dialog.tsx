@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Download, X, AlertTriangle } from "lucide-react";
+import { Download, X, AlertTriangle, Square } from "lucide-react";
 import { 
   ExportQuality,
   ExportFormat,
@@ -20,7 +20,9 @@ import {
   QUALITY_SIZE_ESTIMATES,
   FORMAT_INFO,
   getSupportedFormats,
-  isValidFilename 
+  isValidFilename,
+  EXPORT_PRESETS,
+  ExportPreset
 } from "@/types/export";
 import { calculateMemoryUsage, getMemoryWarningMessage } from "@/lib/memory-utils";
 import { cn } from "@/lib/utils";
@@ -53,6 +55,12 @@ export function ExportDialog() {
   
   // Engine recommendation state
   const [engineRecommendation, setEngineRecommendation] = useState<string | null>(null);
+  
+  // Current export engine reference for cancellation
+  const currentEngineRef = useRef<ExportEngine | null>(null);
+  
+  // Preset selection state
+  const [selectedPreset, setSelectedPreset] = useState<ExportPreset | null>(null);
 
   // Helper functions
   const getResolution = (quality: ExportQuality) => QUALITY_RESOLUTIONS[quality];
@@ -114,11 +122,13 @@ export function ExportDialog() {
   const handleQualityChange = (newQuality: ExportQuality) => {
     setQuality(newQuality);
     updateSettings({ quality: newQuality });
+    clearPreset(); // Clear preset when manually changing settings
   };
 
   const handleFormatChange = (newFormat: ExportFormat) => {
     setFormat(newFormat);
     updateSettings({ format: newFormat });
+    clearPreset(); // Clear preset when manually changing settings
   };
 
   const handleFilenameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -127,9 +137,57 @@ export function ExportDialog() {
     updateSettings({ filename: newFilename });
   };
 
+  const handlePresetSelect = (preset: ExportPreset) => {
+    // Apply preset settings
+    setQuality(preset.quality);
+    setFormat(preset.format);
+    setSelectedPreset(preset);
+    
+    // Update store settings
+    updateSettings({ 
+      quality: preset.quality,
+      format: preset.format 
+    });
+    
+    // Generate filename based on preset
+    const presetFilename = `${preset.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
+    setFilename(presetFilename);
+    updateSettings({ filename: presetFilename });
+    
+    // Show confirmation
+    toast.success(`Applied ${preset.name} preset`, {
+      description: preset.description
+    });
+  };
+
+  const clearPreset = () => {
+    setSelectedPreset(null);
+  };
+
   const handleClose = () => {
     if (!progress.isExporting) {
       setDialogOpen(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (currentEngineRef.current && progress.isExporting) {
+      currentEngineRef.current.cancel();
+      currentEngineRef.current = null;
+      
+      // Reset export state
+      updateProgress({
+        progress: 0,
+        status: "Export cancelled",
+        isExporting: false
+      });
+      
+      toast.info("Export cancelled by user");
+      
+      // Reset after a brief moment
+      setTimeout(() => {
+        resetExport();
+      }, 1000);
     }
   };
 
@@ -169,6 +227,9 @@ export function ExportDialog() {
         mediaItems,
         totalDuration
       );
+      
+      // Store engine reference for cancellation
+      currentEngineRef.current = exportEngine;
 
       // Progress callback to update UI
       const progressCallback = (progressValue: number, status: string) => {
@@ -194,6 +255,9 @@ export function ExportDialog() {
         description: `${filename}${FORMAT_INFO[format].extension} has been downloaded to your device.`
       });
 
+      // Clear engine reference
+      currentEngineRef.current = null;
+
       // Close dialog after successful export
       setTimeout(() => {
         setDialogOpen(false);
@@ -217,13 +281,20 @@ export function ExportDialog() {
         errorMessage = error.message;
       }
 
+      // Clear engine reference
+      currentEngineRef.current = null;
+
       // Set error in store for UI display
       setError(errorMessage);
       
-      // Show error toast notification
-      toast.error("Export failed", {
-        description: errorMessage
-      });
+      // Show appropriate toast based on error type
+      if (errorMessage.includes('cancelled')) {
+        toast.info("Export cancelled by user");
+      } else {
+        toast.error("Export failed", {
+          description: errorMessage
+        });
+      }
       
       // Reset progress on error
       updateProgress({
@@ -258,19 +329,87 @@ export function ExportDialog() {
 
         {/* Export Button - Top Section */}
         <div className="p-4 border-b border-border">
-          <Button
-            onClick={handleExport}
-            disabled={progress.isExporting || !isValidFilename(filename) || timelineDuration === 0 || !memoryEstimate.canExport}
-            className="w-full"
-            size="lg"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            {progress.isExporting ? "Exporting..." : "Export Video"}
-          </Button>
+          {progress.isExporting ? (
+            <div className="space-y-2">
+              <Button
+                onClick={handleCancel}
+                variant="destructive"
+                className="w-full"
+                size="lg"
+              >
+                <Square className="w-4 h-4 mr-2" />
+                Cancel Export
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Export in progress - click to cancel
+              </p>
+            </div>
+          ) : (
+            <Button
+              onClick={handleExport}
+              disabled={!isValidFilename(filename) || timelineDuration === 0 || !memoryEstimate.canExport}
+              className="w-full"
+              size="lg"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export Video
+            </Button>
+          )}
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          
+          {/* Export Presets */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Quick Presets</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Choose a preset optimized for your platform
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-2">
+                {EXPORT_PRESETS.map((preset) => (
+                  <Button
+                    key={preset.id}
+                    variant={selectedPreset?.id === preset.id ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handlePresetSelect(preset)}
+                    className="h-auto p-3 flex-col items-start gap-1"
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      <span className="text-lg">{preset.icon}</span>
+                      <span className="font-medium text-xs">{preset.name}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground text-left line-clamp-2">
+                      {preset.description}
+                    </span>
+                  </Button>
+                ))}
+              </div>
+              {selectedPreset && (
+                <div className="mt-3 p-2 bg-muted rounded-md">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      {selectedPreset.icon} {selectedPreset.name} Applied
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearPreset}
+                      className="h-6 px-2 text-xs"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {selectedPreset.description}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
           
           {/* Quality Selection */}
           <Card>

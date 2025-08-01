@@ -158,6 +158,11 @@ export class OptimizedExportEngine extends ExportEngine {
     const frameStartTime = performance.now();
     const cacheKey = this.getFrameCacheKey(currentTime);
 
+    // Check if export was cancelled (access parent's abortController through protected method)
+    if (this.isExportCancelled()) {
+      throw new Error('Export cancelled by user');
+    }
+
     // Check cache first
     const cached = this.frameCache.get(cacheKey);
     if (cached) {

@@ -29,7 +29,7 @@ export class ExportEngine {
   private recordedChunks: Blob[] = [];
   private isRecording: boolean = false;
   private isExporting: boolean = false;
-  private abortController: AbortController | null = null;
+  protected abortController: AbortController | null = null;
   
   constructor(
     canvas: HTMLCanvasElement,
@@ -342,6 +342,7 @@ export class ExportEngine {
     }
 
     this.isExporting = true;
+    this.abortController = new AbortController();
     
     try {
       // Setup and start recording
@@ -355,6 +356,11 @@ export class ExportEngine {
       
       // Render each frame
       for (let frame = 0; frame < totalFrames; frame++) {
+        // Check if export was cancelled
+        if (this.abortController.signal.aborted) {
+          throw new Error('Export cancelled by user');
+        }
+        
         const currentTime = frame * frameTime;
         
         // Render frame to canvas
@@ -365,7 +371,7 @@ export class ExportEngine {
         const status = `Rendering frame ${frame + 1} of ${totalFrames}`;
         progressCallback?.(progress, status);
         
-        // Allow UI to update
+        // Allow UI to update and check for cancellation
         await new Promise(resolve => setTimeout(resolve, 1));
       }
       
@@ -392,16 +398,27 @@ export class ExportEngine {
 
   // Cancel export
   cancel(): void {
+    if (this.abortController) {
+      this.abortController.abort();
+    }
+    
     if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
       this.mediaRecorder.stop();
     }
+    
     this.isExporting = false;
     this.isRecording = false;
+    this.recordedChunks = []; // Clear any partial data
   }
 
   // Check if export is in progress
   isExportInProgress(): boolean {
     return this.isExporting;
+  }
+
+  // Check if export was cancelled (protected method for subclasses)
+  protected isExportCancelled(): boolean {
+    return this.abortController?.signal.aborted || false;
   }
 
   // Download video blob - adapted from zip-manager.ts downloadZipSafely
