@@ -2,6 +2,7 @@ import { TProject } from "@/types/project";
 import { MediaItem } from "@/stores/media-store";
 import { IndexedDBAdapter } from "./indexeddb-adapter";
 import { LocalStorageAdapter } from "./localstorage-adapter";
+import { ElectronStorageAdapter } from "./electron-adapter";
 import { OPFSAdapter } from "./opfs-adapter";
 import {
   MediaFileData,
@@ -30,13 +31,38 @@ class StorageService {
     this.initializeStorage();
   }
 
+  private isElectronEnvironment(): boolean {
+    return typeof window !== 'undefined' && 
+           !!(window as any).electronAPI && 
+           !!(window as any).electronAPI.storage;
+  }
+
   private async initializeStorage() {
     if (this.isInitialized) {
       return; // Already initialized
     }
 
+    // Try Electron IPC first if available
+    if (this.isElectronEnvironment()) {
+      try {
+        console.log('[DEBUG] StorageService: Using Electron IPC storage');
+        this.projectsAdapter = new ElectronStorageAdapter<SerializedProject>(
+          this.config.projectsDb,
+          "projects"
+        );
+        // Test if Electron IPC works
+        await this.projectsAdapter.list();
+        console.log('[DEBUG] StorageService: Electron IPC test successful');
+        this.isInitialized = true;
+        return;
+      } catch (error) {
+        console.log('[DEBUG] StorageService: Electron IPC failed, trying IndexedDB:', error);
+      }
+    }
+
+    // Try IndexedDB second
     try {
-      console.log('[DEBUG] StorageService: Trying IndexedDB first');
+      console.log('[DEBUG] StorageService: Trying IndexedDB');
       this.projectsAdapter = new IndexedDBAdapter<SerializedProject>(
         this.config.projectsDb,
         "projects",
