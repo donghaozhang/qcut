@@ -5,7 +5,12 @@
       "Bash(git remote add:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(npm install:*)",
+      "Bash(bun add:*)",
+      "Bash(cp:*)",
+      "Bash(bun:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

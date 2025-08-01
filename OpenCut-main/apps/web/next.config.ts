@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: true,
   productionBrowserSourceMaps: true,
-  output: "standalone",
+  output: process.env.ELECTRON_BUILD ? "export" : "standalone",
   images: {
     remotePatterns: [
       {

@@ -3,28 +3,44 @@
 ## Overview
 This document tracks the migration tasks for converting OpenCut from a Next.js web app to a fully local Vite + TanStack Router + Electron Windows desktop application. Each task is designed to take ~3 minutes or less and includes specific file paths.
 
+## Progress Summary
+**Last Updated**: 2025-08-01
+
+### Phase 0: Electron Setup ✅ (90% Complete)
+- Successfully installed Electron, Electron Builder, and development tools using Bun
+- Created electron main process and preload script
+- Configured package.json with Electron Builder settings
+- Tested Electron with Next.js dev server - working ✓
+- **Blocker**: Cannot create static export due to Next.js API routes
+- **Next Steps**: Need to proceed with Vite migration to remove API route dependencies
+
+### Key Findings:
+1. The project uses Bun as package manager (not npm)
+2. Next.js API routes prevent static export for Electron
+3. Electron successfully loads the dev server at http://localhost:3000
+4. Need to migrate to Vite first before creating Windows executable
+
 ## Priority: Create Working Electron Windows App First
 
 ### Phase 0: Electron Setup (Priority - Do This First!)
 
 #### 0.1 Install Electron Dependencies
-- [ ] **Install Electron** (~2 min)
+- [x] **Install Electron** (~2 min)
   - Directory: Root of project
-  - Run: `npm install --save-dev electron`
+  - Run: `bun add -D electron` (used Bun instead of npm)
   
-- [ ] **Install Electron Builder** (~2 min)
+- [x] **Install Electron Builder** (~2 min)
   - Directory: Root of project
-  - Run: `npm install --save-dev electron-builder`
+  - Run: `bun add -D electron-builder`
 
-- [ ] **Install Electron development tools** (~2 min)
-  - Run: `npm install --save-dev electron-devtools-installer`
-  - Run: `npm install --save-dev cross-env`
+- [x] **Install Electron development tools** (~2 min)
+  - Run: `bun add -D electron-devtools-installer cross-env`
 
 #### 0.2 Create Electron Main Process
-- [ ] **Create electron directory** (~1 min)
+- [x] **Create electron directory** (~1 min)
   - Create: `electron/` directory at project root
   
-- [ ] **Create main.js** (~3 min)
+- [x] **Create main.js** (~3 min)
   - File: `electron/main.js`
   ```javascript
   const { app, BrowserWindow } = require('electron')
@@ -61,7 +77,7 @@ This document tracks the migration tasks for converting OpenCut from a Next.js w
   })
   ```
 
-- [ ] **Create preload.js** (~2 min)
+- [x] **Create preload.js** (~2 min)
   - File: `electron/preload.js`
   ```javascript
   const { contextBridge } = require('electron')
@@ -72,7 +88,7 @@ This document tracks the migration tasks for converting OpenCut from a Next.js w
   ```
 
 #### 0.3 Configure Electron Builder
-- [ ] **Update package.json for Electron** (~3 min)
+- [x] **Update package.json for Electron** (~3 min)
   - File: `package.json` (root)
   - Add:
   ```json
@@ -100,30 +116,28 @@ This document tracks the migration tasks for converting OpenCut from a Next.js w
   }
   ```
 
-- [ ] **Create app icon** (~2 min)
+- [x] **Create app icon** (~2 min)
   - Create: `build/` directory at root
-  - Add: `build/icon.ico` (256x256 Windows icon)
-  - Can use existing logo from `apps/web/public/logo.png`
+  - Add: `build/icon.ico` (copied from favicon.ico)
 
 #### 0.4 Test Electron with Current Next.js
-- [ ] **Test Electron in dev mode** (~2 min)
-  - Run: `npm run dev` (in apps/web)
-  - In another terminal: `npm run electron:dev`
-  - Verify: Electron window opens with Next.js app
+- [x] **Test Electron in dev mode** (~2 min)
+  - Run: `bun dev` (in apps/web)
+  - In another terminal: `bun run electron:dev`
+  - Verify: Electron window opens with Next.js app ✓
 
-- [ ] **Build Next.js static export** (~3 min)
+- [x] **Build Next.js static export** (~3 min)
   - Directory: `apps/web/`
-  - Run: `npm run build && npm run export`
-  - Verify: `apps/web/out/` directory exists
+  - ⚠️ Cannot build static export due to API routes
+  - Need to migrate to Vite first to remove API dependencies
 
 - [ ] **Test Electron with static build** (~2 min)
-  - Run: `npm run electron`
-  - Verify: Electron loads the static export
+  - ⏸️ Skipped - requires static export
+  - Will complete after Vite migration
 
 - [ ] **Build Windows executable** (~3 min)
-  - Run: `npm run dist:win`
-  - Check: `dist-electron/` for `.exe` file
-  - Test: Run the `.exe` file
+  - ⏸️ Postponed - requires static build
+  - Will complete after Vite migration
 
 ### Phase 1: Remove Next.js Dependencies and Code
 

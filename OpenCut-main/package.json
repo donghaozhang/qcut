@@ -1,8 +1,16 @@
 {
   "name": "opencut",
+  "version": "0.1.0",
+  "description": "Open-source video editor",
+  "author": "OpenCut Team",
+  "main": "electron/main.js",
   "packageManager": "bun@1.2.18",
   "devDependencies": {
     "@biomejs/biome": "2.1.2",
+    "cross-env": "^10.0.0",
+    "electron": "^37.2.5",
+    "electron-builder": "^26.0.12",
+    "electron-devtools-installer": "^4.0.0",
     "husky": "^9.1.7",
     "turbo": "^2.5.4",
     "typescript": "5.8.3",
@@ -17,13 +25,42 @@
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "lint": "npx ultracite@latest lint",
-    "format": "npx ultracite@latest format"
+    "format": "npx ultracite@latest format",
+    "electron": "electron .",
+    "electron:dev": "cross-env NODE_ENV=development electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.opencut.app",
+    "productName": "OpenCut",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*"
+    ],
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "dependencies": {
     "next": "^15.3.4",
     "wavesurfer.js": "^7.9.8"
   },
   "trustedDependencies": [
-    "@tailwindcss/oxide"
+    "@tailwindcss/oxide",
+    "electron",
+    "electron-winstaller",
+    "esbuild",
+    "sharp"
   ]
 }
