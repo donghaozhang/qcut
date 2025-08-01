@@ -1,16 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
-import { createMemoryHistory } from '@tanstack/react-router'
+import { createHashHistory } from '@tanstack/react-router'
 
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
 
-// Create router with memory history for Electron
+// Create router with hash history for Electron
 const router = createRouter({
   routeTree,
-  history: createMemoryHistory({
-    initialEntries: ['/'],
-  }),
+  history: createHashHistory(),
   defaultPreload: 'intent',
   context: {},
 })
