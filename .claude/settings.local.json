@@ -19,7 +19,11 @@
       "Bash(electron:*)",
       "Bash(npx electron:*)",
       "Bash(mv:*)",
-      "Bash(git clone:*)"
+      "Bash(git clone:*)",
+      "Bash(move:*)",
+      "Bash(explorer \"C:\\Users\\zdhpe\\Desktop\\vite_opencut\\OpenCut-main\\qcut\")",
+      "Bash(powershell:*)",
+      "Bash(start \"\" \"C:\\Users\\zdhpe\\Desktop\\vite_opencut\\OpenCut-main\\qcut\\dist-packager-new\\QCut-win32-x64\")"
     ],
     "deny": []
   }

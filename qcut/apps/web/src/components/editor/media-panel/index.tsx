@@ -5,6 +5,7 @@ import { MediaView } from "./views/media";
 import { useMediaPanelStore, Tab } from "./store";
 import { TextView } from "./views/text";
 import { AudioView } from "./views/audio";
+import { Text2ImageView } from "./views/text2image";
 
 export function MediaPanel() {
   const { activeTab } = useMediaPanelStore();
@@ -43,6 +44,7 @@ export function MediaPanel() {
         Adjustment view coming soon...
       </div>
     ),
+    text2image: <Text2ImageView />,
   };
 
   return (

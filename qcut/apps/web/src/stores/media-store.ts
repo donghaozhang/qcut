@@ -39,6 +39,17 @@ interface MediaStore {
     projectId: string,
     item: Omit<MediaItem, "id">
   ) => Promise<void>;
+  addGeneratedImages: (items: Array<{
+    url: string;
+    type: MediaType;
+    name: string;
+    size: number;
+    duration: number;
+    metadata?: {
+      source?: string;
+      [key: string]: any;
+    };
+  }>) => void;
   removeMediaItem: (projectId: string, id: string) => Promise<void>;
   loadProjectMedia: (projectId: string) => Promise<void>;
   clearProjectMedia: (projectId: string) => Promise<void>;
@@ -186,6 +197,23 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
         mediaItems: state.mediaItems.filter((media) => media.id !== newItem.id),
       }));
     }
+  },
+
+  addGeneratedImages: (items) => {
+    const newItems: MediaItem[] = items.map((item) => ({
+      id: generateUUID(),
+      name: item.name,
+      type: item.type,
+      file: new File([], item.name), // Empty file for generated images
+      url: item.url,
+      duration: item.duration,
+      metadata: item.metadata,
+    }));
+
+    // Add to local state immediately
+    set((state) => ({
+      mediaItems: [...state.mediaItems, ...newItems],
+    }));
   },
 
   removeMediaItem: async (projectId: string, id: string) => {

@@ -1,2 +1,6 @@
 # Turborepo
 .turbo
+
+# Environment variables
+.env.local
+.env
