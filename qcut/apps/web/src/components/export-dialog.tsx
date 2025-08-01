@@ -375,7 +375,7 @@ export function ExportDialog() {
             <p className="text-sm text-muted-foreground">Configure export settings and render your video</p>
           </div>
           <Button
-            variant="ghost"
+            variant="text"
             size="icon"
             onClick={handleClose}
             disabled={progress.isExporting}
@@ -459,7 +459,7 @@ export function ExportDialog() {
                         </div>
                       </div>
                       <Button
-                        variant="ghost"
+                        variant="text"
                         size="sm"
                         onClick={() => replayExport(entry.id)}
                         className="h-8 px-2 text-xs flex-shrink-0"
@@ -514,7 +514,7 @@ export function ExportDialog() {
                       {selectedPreset.icon} {selectedPreset.name} Applied
                     </span>
                     <Button
-                      variant="ghost"
+                      variant="text"
                       size="sm"
                       onClick={clearPreset}
                       className="h-6 px-2 text-xs"

@@ -136,12 +136,12 @@ export class WebCodecsExportEngine extends ExportEngine {
         });
 
         const config = {
-          codec: this.webCodecsConfig.codec,
-          width: this.webCodecsConfig.width,
-          height: this.webCodecsConfig.height,
-          bitrate: this.webCodecsConfig.bitrate,
-          framerate: this.webCodecsConfig.framerate,
-          acceleration: this.webCodecsConfig.acceleration
+          codec: this.webCodecsConfig!.codec,
+          width: this.webCodecsConfig!.width,
+          height: this.webCodecsConfig!.height,
+          bitrate: this.webCodecsConfig!.bitrate,
+          framerate: this.webCodecsConfig!.framerate,
+          acceleration: this.webCodecsConfig!.acceleration
         };
 
         this.processingState.encoder.configure(config);
@@ -370,7 +370,7 @@ export class WebCodecsExportEngine extends ExportEngine {
       await super.renderFrame(currentTime);
       
       // Copy to main canvas if using offscreen
-      if (this.offscreenCanvas && originalCtx !== this.offscreenCtx) {
+      if (this.offscreenCanvas && this.offscreenCtx) {
         originalCtx.clearRect(0, 0, originalCanvas.width, originalCanvas.height);
         originalCtx.drawImage(this.offscreenCanvas, 0, 0);
       }

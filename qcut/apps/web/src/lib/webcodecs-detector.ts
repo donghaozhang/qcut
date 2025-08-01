@@ -178,7 +178,7 @@ export class WebCodecsDetector {
         if (support.supported) {
           const codecSupport: CodecSupport = {
             codec: codecInfo.codec,
-            hardware: support.config?.acceleration === 'prefer-hardware',
+            hardware: (support.config as any)?.acceleration === 'prefer-hardware',
             maxResolution: { width: 1920, height: 1080 },
             maxFramerate: 60,
             supportScore: this.calculateCodecScore(codecInfo.codec, true)
@@ -204,7 +204,7 @@ export class WebCodecsDetector {
         if (support.supported) {
           const codecSupport: CodecSupport = {
             codec: codecInfo.codec,
-            hardware: support.config?.acceleration === 'prefer-hardware',
+            hardware: (support.config as any)?.acceleration === 'prefer-hardware',
             supportScore: this.calculateCodecScore(codecInfo.codec, false)
           };
           info.supportedCodecs.decode.push(codecSupport);
@@ -239,7 +239,7 @@ export class WebCodecsDetector {
       };
 
       const hwSupport = await VideoEncoder.isConfigSupported(hwConfig);
-      if (hwSupport.supported && hwSupport.config?.acceleration === 'prefer-hardware') {
+      if (hwSupport.supported && (hwSupport.config as any)?.acceleration === 'prefer-hardware') {
         info.hardwareAcceleration.available = true;
       }
     } catch (error) {
@@ -321,7 +321,7 @@ export class WebCodecsDetector {
     }
 
     // Memory limitations
-    if (typeof navigator.deviceMemory !== 'undefined' && navigator.deviceMemory < 4) {
+    if (typeof (navigator as any).deviceMemory !== 'undefined' && (navigator as any).deviceMemory < 4) {
       info.limitations.push('Low device memory may impact performance');
     }
   }

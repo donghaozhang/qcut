@@ -205,8 +205,16 @@ export class OptimizedExportEngine extends ExportEngine {
     // Get active elements with optimized lookup
     const activeElements = this.getActiveElementsOptimized(currentTime);
     
-    // Sort elements by track order (render bottom to top)
-    const sortedElements = activeElements.sort((a, b) => a.track.order - b.track.order);
+    // Sort elements by track type (render bottom to top)
+    const sortedElements = activeElements.sort((a, b) => {
+      // Text tracks on top
+      if (a.track.type === "text" && b.track.type !== "text") return 1;
+      if (b.track.type === "text" && a.track.type !== "text") return -1;
+      // Audio tracks at bottom
+      if (a.track.type === "audio" && b.track.type !== "audio") return -1;
+      if (b.track.type === "audio" && a.track.type !== "audio") return 1;
+      return 0;
+    });
 
     // Batch render similar elements
     const imageBatch: Array<{element: TimelineElement, mediaItem: MediaItem}> = [];
@@ -235,7 +243,7 @@ export class OptimizedExportEngine extends ExportEngine {
     }
 
     // Copy from offscreen canvas to main canvas if using offscreen
-    if (this.offscreenCanvas && this.offscreenCtx !== this.ctx) {
+    if (this.offscreenCanvas && this.offscreenCtx) {
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       this.ctx.drawImage(this.offscreenCanvas, 0, 0);
     }
@@ -319,9 +327,9 @@ export class OptimizedExportEngine extends ExportEngine {
     const styleGroups = new Map<string, TimelineElement[]>();
 
     for (const element of textBatch) {
-      if (element.type !== "text" || !element.textData) continue;
+      if (element.type !== "text") continue;
       
-      const styleKey = `${element.textData.fontFamily}-${element.textData.fontSize}-${element.textData.color}`;
+      const styleKey = `${element.fontFamily}-${element.fontSize}-${element.color}`;
       if (!styleGroups.has(styleKey)) {
         styleGroups.set(styleKey, []);
       }
@@ -331,20 +339,20 @@ export class OptimizedExportEngine extends ExportEngine {
     // Render each style group
     for (const [styleKey, elements] of styleGroups) {
       const firstElement = elements[0];
-      if (!firstElement.textData) continue;
+      if (firstElement.type !== "text") continue;
 
       // Set style once for the group
-      ctx.fillStyle = firstElement.textData.color || "#ffffff";
-      ctx.font = `${firstElement.textData.fontSize || 24}px ${firstElement.textData.fontFamily || "Arial"}`;
+      ctx.fillStyle = firstElement.color || "#ffffff";
+      ctx.font = `${firstElement.fontSize || 24}px ${firstElement.fontFamily || "Arial"}`;
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
 
       // Render all elements with this style
       for (const element of elements) {
-        if (!element.textData?.content.trim()) continue;
+        if (element.type !== "text" || !element.content?.trim()) continue;
         const x = element.x || 50;
         const y = element.y || 50;
-        ctx.fillText(element.textData.content, x, y);
+        ctx.fillText(element.content, x, y);
       }
     }
   }
@@ -371,8 +379,8 @@ export class OptimizedExportEngine extends ExportEngine {
         }
       };
       
-      img.onerror = () => reject(new Error(`Failed to load image: ${mediaItem.url}`));
-      img.src = mediaItem.url;
+      img.onerror = () => reject(new Error(`Failed to load image: ${mediaItem.url || 'unknown'}`));
+      img.src = mediaItem.url || '';
     });
   }
 

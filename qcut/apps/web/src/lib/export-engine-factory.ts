@@ -199,7 +199,7 @@ export class ExportEngineFactory {
       const canvas = document.createElement('canvas');
       const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
       if (gl) {
-        return gl.getParameter(gl.MAX_TEXTURE_SIZE);
+        return (gl as WebGLRenderingContext).getParameter((gl as WebGLRenderingContext).MAX_TEXTURE_SIZE);
       }
     } catch (error) {
       console.warn('Failed to detect max texture size:', error);

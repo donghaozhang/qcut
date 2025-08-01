@@ -27,19 +27,19 @@ type ProgressCallback = (progress: number, status: string, advancedInfo?: Advanc
 
 // Export engine for rendering timeline to video
 export class ExportEngine {
-  private canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
-  private settings: ExportSettings;
-  private tracks: TimelineTrack[];
-  private mediaItems: MediaItem[];
-  private totalDuration: number;
-  private fps: number = 30; // Fixed framerate for now
+  protected canvas: HTMLCanvasElement;
+  protected ctx: CanvasRenderingContext2D;
+  protected settings: ExportSettings;
+  protected tracks: TimelineTrack[];
+  protected mediaItems: MediaItem[];
+  protected totalDuration: number;
+  protected fps: number = 30; // Fixed framerate for now
   
   // MediaRecorder properties
   private mediaRecorder: MediaRecorder | null = null;
   private recordedChunks: Blob[] = [];
   private isRecording: boolean = false;
-  private isExporting: boolean = false;
+  protected isExporting: boolean = false;
   protected abortController: AbortController | null = null;
   
   constructor(
@@ -106,8 +106,16 @@ export class ExportEngine {
 
     const activeElements = this.getActiveElements(currentTime);
     
-    // Sort elements by track order (render bottom to top)
-    const sortedElements = activeElements.sort((a, b) => a.track.order - b.track.order);
+    // Sort elements by track type (render bottom to top)
+    const sortedElements = activeElements.sort((a, b) => {
+      // Text tracks on top
+      if (a.track.type === "text" && b.track.type !== "text") return 1;
+      if (b.track.type === "text" && a.track.type !== "text") return -1;
+      // Audio tracks at bottom
+      if (a.track.type === "audio" && b.track.type !== "audio") return -1;
+      if (b.track.type === "audio" && a.track.type !== "audio") return 1;
+      return 0;
+    });
 
     // Render each active element
     for (const { element, mediaItem } of sortedElements) {
@@ -192,25 +200,24 @@ export class ExportEngine {
   private renderTextElement(element: TimelineElement): void {
     if (element.type !== "text") return;
 
-    const textData = element.textData;
-    if (!textData || !textData.content.trim()) return;
+    if (!element.content || !element.content.trim()) return;
 
     // Set text properties
-    this.ctx.fillStyle = textData.color || "#ffffff";
-    this.ctx.font = `${textData.fontSize || 24}px ${textData.fontFamily || "Arial"}`;
+    this.ctx.fillStyle = element.color || "#ffffff";
+    this.ctx.font = `${element.fontSize || 24}px ${element.fontFamily || "Arial"}`;
     this.ctx.textAlign = "left";
     this.ctx.textBaseline = "top";
 
     // Position text (using element position or defaults)
-    const x = element.x || 50;
-    const y = element.y || 50;
+    const x = element.type === "text" ? (element.x || 50) : 50;
+    const y = element.type === "text" ? (element.y || 50) : 50;
 
     // Simple text rendering (no word wrap for now)
-    this.ctx.fillText(textData.content, x, y);
+    this.ctx.fillText(element.content, x, y);
   }
 
   // Calculate element bounds based on element properties and media dimensions
-  private calculateElementBounds(element: TimelineElement, mediaWidth: number, mediaHeight: number) {
+  protected calculateElementBounds(element: TimelineElement, mediaWidth: number, mediaHeight: number) {
     // Default positioning and sizing
     const canvasAspect = this.canvas.width / this.canvas.height;
     const mediaAspect = mediaWidth / mediaHeight;
@@ -231,12 +238,15 @@ export class ExportEngine {
     const x = (this.canvas.width - width) / 2;
     const y = (this.canvas.height - height) / 2;
     
-    // Apply element transformations if available
+    // Apply element transformations if available (text elements have x,y properties)
+    const elementX = element.type === "text" ? element.x : undefined;
+    const elementY = element.type === "text" ? element.y : undefined;
+    
     return {
-      x: element.x || x,
-      y: element.y || y,
-      width: element.width || width,
-      height: element.height || height
+      x: elementX || x,
+      y: elementY || y,
+      width: width,
+      height: height
     };
   }
 
@@ -266,19 +276,19 @@ export class ExportEngine {
     // Find the first supported MIME type for this format
     for (const mimeType of formatInfo.mimeTypes) {
       if (MediaRecorder.isTypeSupported(mimeType)) {
-        selectedMimeType = mimeType;
+        selectedMimeType = mimeType as any;
         break;
       }
     }
     
     const options: MediaRecorderOptions = {
-      mimeType: selectedMimeType,
+      mimeType: selectedMimeType as string,
       videoBitsPerSecond: this.getVideoBitrate()
     };
 
     // Fallback to WebM if selected format not supported
     if (!MediaRecorder.isTypeSupported(selectedMimeType)) {
-      options.mimeType = 'video/webm;codecs=vp8';
+      options.mimeType = 'video/webm;codecs=vp8' as string;
     }
 
     // Create MediaRecorder
@@ -298,7 +308,7 @@ export class ExportEngine {
   }
 
   // Get video bitrate based on quality settings
-  private getVideoBitrate(): number {
+  protected getVideoBitrate(): number {
     // Bitrates in bits per second
     const bitrates = {
       '1080p': 8000000,  // 8 Mbps
