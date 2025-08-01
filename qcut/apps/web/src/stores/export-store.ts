@@ -9,6 +9,18 @@ import {
   QUALITY_RESOLUTIONS
 } from "@/types/export";
 
+// Export history entry
+export interface ExportHistoryEntry {
+  id: string;
+  filename: string;
+  settings: ExportSettings;
+  timestamp: Date;
+  duration: number; // Export duration in seconds
+  fileSize?: number; // File size in bytes (if available)
+  success: boolean;
+  error?: string;
+}
+
 interface ExportStore {
   // Dialog state
   isDialogOpen: boolean;
@@ -22,12 +34,21 @@ interface ExportStore {
   // Error state
   error: string | null;
   
+  // Export history
+  exportHistory: ExportHistoryEntry[];
+  
   // Actions
   setDialogOpen: (open: boolean) => void;
   updateSettings: (settings: Partial<ExportSettings>) => void;
   updateProgress: (progress: Partial<ExportProgress>) => void;
   setError: (error: string | null) => void;
   resetExport: () => void;
+  
+  // History actions
+  addToHistory: (entry: Omit<ExportHistoryEntry, 'id' | 'timestamp'>) => void;
+  clearHistory: () => void;
+  getRecentExports: (limit?: number) => ExportHistoryEntry[];
+  replayExport: (historyId: string) => void;
 }
 
 // Default settings factory
@@ -62,6 +83,7 @@ export const useExportStore = create<ExportStore>()(
       settings: getDefaultSettings(),
       progress: getDefaultProgress(),
       error: null,
+      exportHistory: [],
       
       // Actions
       setDialogOpen: (open) => {
@@ -108,6 +130,47 @@ export const useExportStore = create<ExportStore>()(
           error: null,
           isDialogOpen: false,
         });
+      },
+      
+      // History actions
+      addToHistory: (entry) => {
+        const historyEntry: ExportHistoryEntry = {
+          ...entry,
+          id: `export-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          timestamp: new Date(),
+        };
+        
+        set((state) => ({
+          exportHistory: [
+            historyEntry,
+            ...state.exportHistory.slice(0, 49), // Keep last 50 entries
+          ],
+        }));
+      },
+      
+      clearHistory: () => set({ exportHistory: [] }),
+      
+      getRecentExports: (limit = 10) => {
+        const { exportHistory } = get();
+        return exportHistory.slice(0, limit);
+      },
+      
+      replayExport: (historyId) => {
+        const { exportHistory } = get();
+        const historyEntry = exportHistory.find(entry => entry.id === historyId);
+        
+        if (historyEntry) {
+          // Apply the settings from history
+          set({
+            settings: {
+              ...historyEntry.settings,
+              filename: getDefaultFilename(), // Generate new filename
+            },
+          });
+          
+          // Open dialog for re-export
+          set({ isDialogOpen: true });
+        }
       },
     }),
     {

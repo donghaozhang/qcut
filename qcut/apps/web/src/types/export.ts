@@ -29,6 +29,13 @@ export interface ExportProgress {
   totalFrames: number;
   estimatedTimeRemaining: number; // seconds
   status: string; // User-friendly status message
+  
+  // Advanced progress info
+  encodingSpeed?: number; // frames per second
+  processedFrames?: number; // frames successfully processed
+  startTime?: Date; // export start time
+  elapsedTime?: number; // seconds since start
+  averageFrameTime?: number; // average milliseconds per frame
 }
 
 // Resolution presets for each quality

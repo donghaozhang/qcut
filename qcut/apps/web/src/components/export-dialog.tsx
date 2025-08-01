@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useExportStore } from "@/stores/export-store";
+import { useExportStore, ExportHistoryEntry } from "@/stores/export-store";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { useMediaStore } from "@/stores/media-store";
 import { ExportCanvas, ExportCanvasRef } from "@/components/export-canvas";
@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Download, X, AlertTriangle, Square } from "lucide-react";
+import { Download, X, AlertTriangle, Square, History, Clock, FileText } from "lucide-react";
 import { 
   ExportQuality,
   ExportFormat,
@@ -38,7 +38,11 @@ export function ExportDialog() {
     updateProgress,
     setError,
     resetExport,
-    error 
+    error,
+    exportHistory,
+    addToHistory,
+    getRecentExports,
+    replayExport
   } = useExportStore();
   
   const { getTotalDuration, tracks } = useTimelineStore();
@@ -61,6 +65,9 @@ export function ExportDialog() {
   
   // Preset selection state
   const [selectedPreset, setSelectedPreset] = useState<ExportPreset | null>(null);
+  
+  // Export timing state
+  const [exportStartTime, setExportStartTime] = useState<Date | null>(null);
 
   // Helper functions
   const getResolution = (quality: ExportQuality) => QUALITY_RESOLUTIONS[quality];
@@ -195,6 +202,10 @@ export function ExportDialog() {
     // Reset any previous errors
     setError(null);
     resetExport();
+    
+    // Record export start time
+    const startTime = new Date();
+    setExportStartTime(startTime);
 
     try {
       // Get canvas element
@@ -231,12 +242,20 @@ export function ExportDialog() {
       // Store engine reference for cancellation
       currentEngineRef.current = exportEngine;
 
-      // Progress callback to update UI
-      const progressCallback = (progressValue: number, status: string) => {
+      // Progress callback to update UI with advanced progress info
+      const progressCallback = (progressValue: number, status: string, advancedInfo?: any) => {
         updateProgress({
           progress: progressValue,
           status: status,
-          isExporting: true
+          isExporting: true,
+          currentFrame: advancedInfo?.currentFrame || 0,
+          totalFrames: advancedInfo?.totalFrames || 0,
+          encodingSpeed: advancedInfo?.encodingSpeed || 0,
+          processedFrames: advancedInfo?.processedFrames || 0,
+          elapsedTime: advancedInfo?.elapsedTime || 0,
+          averageFrameTime: advancedInfo?.averageFrameTime || 0,
+          estimatedTimeRemaining: advancedInfo?.estimatedTimeRemaining || 0,
+          startTime: exportStartTime || undefined
         });
       };
 
@@ -249,10 +268,28 @@ export function ExportDialog() {
         status: "Export complete!",
         isExporting: false
       });
+      
+      // Calculate export duration
+      const endTime = new Date();
+      const exportDuration = (endTime.getTime() - startTime.getTime()) / 1000; // seconds
+      
+      // Add to export history
+      addToHistory({
+        filename,
+        settings: {
+          ...settings,
+          quality,
+          format,
+          width: resolution.width,
+          height: resolution.height
+        },
+        duration: exportDuration,
+        success: true
+      });
 
       // Show success toast notification
       toast.success("Video exported successfully!", {
-        description: `${filename}${FORMAT_INFO[format].extension} has been downloaded to your device.`
+        description: `${filename}${FORMAT_INFO[format].extension} has been downloaded to your device. Export took ${exportDuration.toFixed(1)}s.`
       });
 
       // Clear engine reference
@@ -279,6 +316,27 @@ export function ExportDialog() {
       let errorMessage = "Export failed";
       if (error instanceof Error) {
         errorMessage = error.message;
+      }
+
+      // Calculate export duration for failed export
+      const endTime = new Date();
+      const exportDuration = exportStartTime ? (endTime.getTime() - exportStartTime.getTime()) / 1000 : 0;
+      
+      // Add failed export to history (unless cancelled)
+      if (!errorMessage.includes('cancelled')) {
+        addToHistory({
+          filename,
+          settings: {
+            ...settings,
+            quality,
+            format,
+            width: resolution.width,
+            height: resolution.height
+          },
+          duration: exportDuration,
+          success: false,
+          error: errorMessage
+        });
       }
 
       // Clear engine reference
@@ -359,6 +417,67 @@ export function ExportDialog() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          
+          {/* Export History */}
+          {exportHistory.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <History className="w-4 h-4" />
+                  Recent Exports
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Quick re-export with previous settings
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {getRecentExports(3).map((entry) => (
+                    <div 
+                      key={entry.id}
+                      className="flex items-center justify-between p-2 bg-muted rounded-md hover:bg-muted/80 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div className={cn(
+                          "w-2 h-2 rounded-full flex-shrink-0",
+                          entry.success ? "bg-green-500" : "bg-red-500"
+                        )} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                            <span className="text-sm font-medium truncate">
+                              {entry.filename}{FORMAT_INFO[entry.settings.format].extension}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span>{entry.settings.quality} • {FORMAT_INFO[entry.settings.format].label}</span>
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              <span>{entry.duration.toFixed(1)}s</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => replayExport(entry.id)}
+                        className="h-8 px-2 text-xs flex-shrink-0"
+                        disabled={progress.isExporting}
+                      >
+                        Re-export
+                      </Button>
+                    </div>
+                  ))}
+                  {exportHistory.length > 3 && (
+                    <p className="text-xs text-muted-foreground text-center pt-1">
+                      {exportHistory.length - 3} more exports in history
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
           {/* Export Presets */}
           <Card>
@@ -600,6 +719,45 @@ export function ExportDialog() {
                 </div>
                 <Progress value={progress.progress} className="w-full" />
                 <p className="text-sm text-muted-foreground">{progress.status}</p>
+                
+                {/* Advanced Progress Information */}
+                {progress.currentFrame > 0 && progress.totalFrames > 0 && (
+                  <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-2 border-t border-border">
+                    <div>
+                      <span className="font-medium">Frames:</span>
+                      <span className="ml-1">{progress.currentFrame} / {progress.totalFrames}</span>
+                    </div>
+                    {progress.encodingSpeed && progress.encodingSpeed > 0 && (
+                      <div>
+                        <span className="font-medium">Speed:</span>
+                        <span className="ml-1">{progress.encodingSpeed.toFixed(1)} fps</span>
+                      </div>
+                    )}
+                    {progress.elapsedTime && progress.elapsedTime > 0 && (
+                      <div>
+                        <span className="font-medium">Elapsed:</span>
+                        <span className="ml-1">{progress.elapsedTime.toFixed(1)}s</span>
+                      </div>
+                    )}
+                    {progress.estimatedTimeRemaining && progress.estimatedTimeRemaining > 0 && (
+                      <div>
+                        <span className="font-medium">Remaining:</span>
+                        <span className="ml-1">
+                          {progress.estimatedTimeRemaining < 60 
+                            ? `${progress.estimatedTimeRemaining.toFixed(0)}s`
+                            : `${Math.floor(progress.estimatedTimeRemaining / 60)}m ${Math.floor(progress.estimatedTimeRemaining % 60)}s`
+                          }
+                        </span>
+                      </div>
+                    )}
+                    {progress.averageFrameTime && progress.averageFrameTime > 0 && (
+                      <div className="col-span-2">
+                        <span className="font-medium">Avg frame time:</span>
+                        <span className="ml-1">{progress.averageFrameTime.toFixed(0)}ms</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

@@ -533,43 +533,87 @@ Only **Required** (MVP) and **Advanced** (future enhancements) categories.
 - Toast confirmations when presets applied
 - Professional platform optimization (YouTube 1080p, Instagram Stories 9:16, etc.)
 
-### A7. WebCodecs Detection (3 min)
-**File**: `lib/webcodecs-detector.ts`
+### A7. WebCodecs Detection (3 min) ✅ COMPLETED
+**Target**: `qcut/apps/web/src/lib/webcodecs-detector.ts` (NEW FILE)
+**Reference**: WebCodecs API documentation and capability testing patterns
 ```typescript
 // Check browser support
-- [ ] Detect WebCodecs availability
-- [ ] Check codec support
-- [ ] Return capability report
+- [x] Detect WebCodecs availability
+- [x] Check codec support
+- [x] Return capability report
 ```
+**Implementation Notes:**
+- Created comprehensive WebCodecsDetector singleton with full capability detection
+- Tests all major codec families (H.264, VP9, VP8, AV1, HEVC) with various profiles
+- Hardware acceleration detection with specific encoder/decoder reporting
+- Performance scoring system (0-100) based on codec support and hardware capabilities
+- Origin isolation checks for optimal performance (SharedArrayBuffer requirement)
+- Browser-specific limitation detection (Firefox, Safari compatibility notes)
+- Cached detection results with async promise handling to prevent duplicate tests
+- Memory-aware recommendations based on device capabilities
+- getBestEncoder() method for intelligent codec selection based on resolution/framerate requirements
 
-### A8. Basic WebCodecs Engine (3 min)
-**File**: `lib/webcodecs-export-engine.ts`
+### A8. Basic WebCodecs Engine (3 min) ✅ COMPLETED
+**Target**: `qcut/apps/web/src/lib/webcodecs-export-engine.ts` (NEW FILE)
+**Reference**: WebCodecs VideoEncoder API documentation and frame processing patterns
 ```typescript
 // Modern browser API usage
-- [ ] Create WebCodecs-based engine
-- [ ] Use VideoEncoder API
-- [ ] Handle hardware acceleration
+- [x] Create WebCodecs-based engine
+- [x] Use VideoEncoder API
+- [x] Handle hardware acceleration
 ```
+**Implementation Notes:**
+- Extended base ExportEngine with WebCodecsExportEngine for hardware-accelerated encoding
+- VideoEncoder integration with proper configuration (codec, bitrate, acceleration preference)
+- OffscreenCanvas support for better performance when available
+- Frame-by-frame encoding with VideoFrame creation from canvas content
+- Key frame management with configurable intervals (30 frames = 1 second at 30fps)
+- Encoded chunk collection and video blob creation with proper MIME type detection
+- Hardware acceleration preference with automatic fallback to software encoding
+- Comprehensive error handling and cleanup for VideoEncoder lifecycle
+- Progress tracking throughout encoding process with WebCodecs-specific status messages
+- Enhanced rendering pipeline using offscreen canvas when available for better performance
 
-### A9. Export History (3 min)
+### A9. Export History (3 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/stores/export-store.ts` (MODIFY)
 **Reference**: `qcut/apps/web/src/stores/text2image-store.ts` (history pattern)
 ```typescript
 // Remember recent exports
-- [ ] Add export history array
-- [ ] Store recent filenames/settings
-- [ ] Add quick re-export feature
+- [x] Add export history array
+- [x] Store recent filenames/settings
+- [x] Add quick re-export feature
 // Borrow: History array pattern from text2image-store generationHistory
 ```
+**Implementation Notes:**
+- Added ExportHistoryEntry interface with comprehensive export metadata (filename, settings, duration, success, error)
+- Extended export store with exportHistory array and history management actions
+- Implemented addToHistory(), clearHistory(), getRecentExports(), and replayExport() methods
+- Added history tracking to export process - records both successful and failed exports with timing info
+- Created export history UI component showing recent exports with success/failure indicators
+- Re-export functionality allows one-click repeat exports with previous settings but new filename
+- Limited to 50 history entries with LRU behavior for memory management
+- Success toast now includes export duration information
+- Failed exports recorded in history (excluding user cancellations) for debugging
 
-### A10. Advanced Progress Info (3 min)
-**File**: `components/export-dialog.tsx`
+### A10. Advanced Progress Info (3 min) ✅ COMPLETED
+**Target**: `qcut/apps/web/src/components/export-dialog.tsx` + `qcut/apps/web/src/lib/export-engine.ts` (MODIFY)
+**Reference**: Performance monitoring patterns and progress tracking systems
 ```typescript
 // Detailed progress display
-- [ ] Show current frame / total frames
-- [ ] Add time remaining estimate
-- [ ] Show encoding speed (fps)
+- [x] Show current frame / total frames
+- [x] Add time remaining estimate
+- [x] Show encoding speed (fps)
 ```
+**Implementation Notes:**
+- Extended ExportProgress interface with advanced progress fields (encodingSpeed, processedFrames, elapsedTime, averageFrameTime, estimatedTimeRemaining)
+- Enhanced ExportEngine progress callback to include AdvancedProgressInfo with detailed metrics
+- Real-time calculation of encoding speed (fps), average frame processing time, and time remaining estimates
+- Advanced progress UI grid showing frames, speed, elapsed time, remaining time, and average frame time
+- Intelligent time formatting (seconds for <60s, minutes:seconds for longer durations)
+- Frame counter shows current/total frames with visual progress indication
+- Export engine now tracks per-frame timing and provides accurate performance metrics
+- Status messages enhanced to show real-time encoding speed (e.g., "Rendering frame 45 of 900 (12.3 fps)")
+- Progress calculations account for finalization phase (95% for rendering, 5% for completion)
 
 ---
 

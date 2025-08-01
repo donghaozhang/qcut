@@ -11,8 +11,19 @@ interface ActiveElement {
   mediaItem: MediaItem | null;
 }
 
+// Advanced progress info
+interface AdvancedProgressInfo {
+  currentFrame: number;
+  totalFrames: number;
+  encodingSpeed: number;
+  processedFrames: number;
+  elapsedTime: number;
+  averageFrameTime: number;
+  estimatedTimeRemaining: number;
+}
+
 // Progress callback type
-type ProgressCallback = (progress: number, status: string) => void;
+type ProgressCallback = (progress: number, status: string, advancedInfo?: AdvancedProgressInfo) => void;
 
 // Export engine for rendering timeline to video
 export class ExportEngine {
@@ -351,11 +362,14 @@ export class ExportEngine {
       
       const totalFrames = this.calculateTotalFrames();
       const frameTime = 1 / this.fps; // Time per frame in seconds
+      const startTime = Date.now();
       
       progressCallback?.(0, 'Starting export...');
       
-      // Render each frame
+      // Render each frame with advanced progress tracking
       for (let frame = 0; frame < totalFrames; frame++) {
+        const frameStartTime = Date.now();
+        
         // Check if export was cancelled
         if (this.abortController.signal.aborted) {
           throw new Error('Export cancelled by user');
@@ -366,10 +380,33 @@ export class ExportEngine {
         // Render frame to canvas
         await this.renderFrame(currentTime);
         
-        // Update progress
-        const progress = (frame / totalFrames) * 100;
-        const status = `Rendering frame ${frame + 1} of ${totalFrames}`;
-        progressCallback?.(progress, status);
+        // Calculate advanced progress metrics
+        const now = Date.now();
+        const elapsedTime = (now - startTime) / 1000; // seconds
+        const frameProcessingTime = now - frameStartTime; // milliseconds
+        const averageFrameTime = elapsedTime * 1000 / (frame + 1); // milliseconds
+        const encodingSpeed = (frame + 1) / elapsedTime; // fps
+        
+        // Estimate time remaining
+        const remainingFrames = totalFrames - frame - 1;
+        const estimatedTimeRemaining = remainingFrames * (averageFrameTime / 1000); // seconds
+        
+        // Update progress with advanced info
+        const progress = (frame / totalFrames) * 95; // Reserve 5% for finalization
+        const status = `Rendering frame ${frame + 1} of ${totalFrames} (${encodingSpeed.toFixed(1)} fps)`;
+        
+        // Call with advanced progress info
+        if (progressCallback) {
+          progressCallback(progress, status, {
+            currentFrame: frame + 1,
+            totalFrames,
+            encodingSpeed,
+            processedFrames: frame + 1,
+            elapsedTime,
+            averageFrameTime,
+            estimatedTimeRemaining
+          });
+        }
         
         // Allow UI to update and check for cancellation
         await new Promise(resolve => setTimeout(resolve, 1));
