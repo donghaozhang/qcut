@@ -451,27 +451,48 @@ Only **Required** (MVP) and **Advanced** (future enhancements) categories.
 - Updated download functionality with correct MIME types and extensions
 - Updated success notifications to show correct file extension
 
-### A3. Export Engine Factory (3 min)
+### A3. Export Engine Factory (3 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/lib/export-engine-factory.ts` (NEW FILE)
-**Reference**: `docs/completed/reference-version/.../export-engine-factory.ts`
+**Reference**: Factory pattern and browser capability detection
 ```typescript
 // Engine selection logic
-- [ ] Create factory class
-- [ ] Add browser capability detection
-- [ ] Select best available engine
+- [x] Create factory class
+- [x] Add browser capability detection
+- [x] Select best available engine
 // Borrow: Factory pattern and capability detection from reference
 ```
+**Implementation Notes:**
+- Created comprehensive ExportEngineFactory singleton with intelligent engine selection
+- Implemented browser capability detection: WebCodecs, OffscreenCanvas, Workers, SharedArrayBuffer
+- Added device memory detection using navigator.deviceMemory with fallbacks
+- Canvas performance testing with dynamic scoring (0-100 scale)
+- Smart engine recommendations based on system capabilities and export requirements
+- Memory estimation to prevent overloading low-end devices
+- Support for STANDARD, OPTIMIZED, and WEBCODECS engine types
+- Integrated into export dialog with real-time engine recommendation display
+- Dynamic imports for optimized engines to reduce bundle size
 
-### A4. Optimized Export Engine (3 min)
+### A4. Optimized Export Engine (3 min) ✅ COMPLETED
 **Target**: `qcut/apps/web/src/lib/export-engine-optimized.ts` (NEW FILE)
-**Reference**: `docs/completed/reference-version/.../export-engine-optimized.ts`
+**Reference**: Performance optimization techniques
 ```typescript
 // Performance improvements
-- [ ] Extend base export engine
-- [ ] Add frame caching
-- [ ] Optimize rendering pipeline
+- [x] Extend base export engine
+- [x] Add frame caching
+- [x] Optimize rendering pipeline
 // Borrow: Optimization techniques from reference version
 ```
+**Implementation Notes:**
+- Extended base ExportEngine with OptimizedExportEngine class
+- Implemented intelligent frame caching with LRU eviction (50 frame cache)
+- Media asset preloading for faster rendering (images preloaded at initialization)
+- OffscreenCanvas support for better performance when available
+- Render batching system - analyzes timeline to optimize rendering in 30-frame batches
+- Batch rendering for similar elements (images and text grouped by style)
+- Performance metrics tracking (cache hits/misses, average frame time)
+- Smart active element lookup using render batches
+- Memory management with cache clearing and resource cleanup
+- Style-grouped text rendering to reduce context switching overhead
 
 ### A5. Cancel Export Feature (3 min)
 **Target**: `qcut/apps/web/src/components/export-dialog.tsx` (MODIFY)

@@ -1,9 +1,10 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useExportStore } from "@/stores/export-store";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { useMediaStore } from "@/stores/media-store";
 import { ExportCanvas, ExportCanvasRef } from "@/components/export-canvas";
 import { ExportEngine } from "@/lib/export-engine";
+import { ExportEngineFactory, ExportEngineType } from "@/lib/export-engine-factory";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,6 +50,9 @@ export function ExportDialog() {
   
   // Get supported formats
   const supportedFormats = getSupportedFormats();
+  
+  // Engine recommendation state
+  const [engineRecommendation, setEngineRecommendation] = useState<string | null>(null);
 
   // Helper functions
   const getResolution = (quality: ExportQuality) => QUALITY_RESOLUTIONS[quality];
@@ -67,6 +71,44 @@ export function ExportDialog() {
   }, timelineDuration);
   
   const memoryWarning = getMemoryWarningMessage(memoryEstimate);
+
+  // Get engine recommendation when dialog opens or settings change
+  useEffect(() => {
+    if (isDialogOpen && timelineDuration > 0) {
+      const getRecommendation = async () => {
+        try {
+          const factory = ExportEngineFactory.getInstance();
+          const recommendation = await factory.getEngineRecommendation(
+            {
+              ...settings,
+              quality,
+              format,
+              width: resolution.width,
+              height: resolution.height
+            },
+            timelineDuration
+          );
+          
+          const engineLabels = {
+            [ExportEngineType.STANDARD]: "Standard Engine",
+            [ExportEngineType.OPTIMIZED]: "Optimized Engine", 
+            [ExportEngineType.WEBCODECS]: "WebCodecs Engine"
+          };
+          
+          const label = engineLabels[recommendation.engineType];
+          const performance = recommendation.estimatedPerformance.charAt(0).toUpperCase() + 
+                            recommendation.estimatedPerformance.slice(1);
+          
+          setEngineRecommendation(`${label} (${performance} Performance)`);
+        } catch (error) {
+          console.warn('Failed to get engine recommendation:', error);
+          setEngineRecommendation(null);
+        }
+      };
+      
+      getRecommendation();
+    }
+  }, [isDialogOpen, quality, format, timelineDuration, resolution.width, resolution.height]);
 
   // Handle form changes
   const handleQualityChange = (newQuality: ExportQuality) => {
@@ -112,10 +154,17 @@ export function ExportDialog() {
         throw new Error("Timeline is empty - add some content before exporting");
       }
 
-      // Create export engine
-      const exportEngine = new ExportEngine(
+      // Create export engine using factory for optimal performance
+      const factory = ExportEngineFactory.getInstance();
+      const exportEngine = await factory.createEngine(
         canvas,
-        settings,
+        {
+          ...settings,
+          quality,
+          format,
+          width: resolution.width,
+          height: resolution.height
+        },
         tracks,
         mediaItems,
         totalDuration
@@ -302,6 +351,12 @@ export function ExportDialog() {
                   <span className="font-medium">Format:</span>
                   <span className="ml-2 text-muted-foreground">{FORMAT_INFO[format].label}</span>
                 </div>
+                {engineRecommendation && (
+                  <div>
+                    <span className="font-medium">Engine:</span>
+                    <span className="ml-2 text-muted-foreground">{engineRecommendation}</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

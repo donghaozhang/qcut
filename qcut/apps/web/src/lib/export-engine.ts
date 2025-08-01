@@ -29,6 +29,7 @@ export class ExportEngine {
   private recordedChunks: Blob[] = [];
   private isRecording: boolean = false;
   private isExporting: boolean = false;
+  private abortController: AbortController | null = null;
   
   constructor(
     canvas: HTMLCanvasElement,
