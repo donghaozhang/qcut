@@ -37,32 +37,47 @@ class FalAIClient {
   private baseUrl = "https://fal.run";
 
   constructor() {
-    // API key will be set server-side or via environment
-    this.apiKey = import.meta.env.VITE_FAL_API_KEY || null;
+    // Try to get API key from environment variables
+    this.apiKey = import.meta.env.VITE_FAL_API_KEY || 
+                  process.env.FAL_API_KEY || 
+                  (typeof window !== 'undefined' && (window as any).process?.env?.FAL_API_KEY) || 
+                  null;
+    
+    if (!this.apiKey) {
+      console.warn('[FalAI] No API key found. Set VITE_FAL_API_KEY environment variable to enable text-to-image generation.');
+    }
   }
 
   private async makeRequest(
     endpoint: string,
     params: Record<string, any>
   ): Promise<FalImageResponse> {
-    console.log("Making request to:", endpoint, "with params:", params);
+    // Check if API key is available
+    if (!this.apiKey) {
+      throw new Error("FAL API key is required for text-to-image generation. Please set VITE_FAL_API_KEY environment variable.");
+    }
+
+    // The endpoint already contains the full URL, so use it directly
+    const requestUrl = endpoint.startsWith('https://') ? endpoint : `${this.baseUrl}${endpoint}`;
     
-    const response = await fetch(`/api/text2image/generate`, {
+    console.log("[FalAI] Making direct API request to:", requestUrl);
+    console.log("[FalAI] Request params:", params);
+    
+    // Make direct API call to fal.run instead of proxy
+    const response = await fetch(requestUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Authorization": `Key ${this.apiKey}`,
       },
-      body: JSON.stringify({
-        endpoint,
-        params,
-      }),
+      body: JSON.stringify(params),
     });
 
-    console.log("Response status:", response.status);
+    console.log("[FalAI] Response status:", response.status);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error("API request failed:", errorData);
+      console.error("[FalAI] API request failed:", errorData);
       
       // Handle different error response formats
       let errorMessage = `API request failed: ${response.status}`;
@@ -89,7 +104,7 @@ class FalAIClient {
     }
 
     const result = await response.json();
-    console.log("API response:", result);
+    console.log("[FalAI] API response:", result);
     return result;
   }
 
@@ -264,9 +279,40 @@ class FalAIClient {
     }
   }
 
+  // API key management
+  setApiKey(apiKey: string): void {
+    this.apiKey = apiKey;
+    console.log("[FalAI] API key updated");
+  }
+
+  hasApiKey(): boolean {
+    return !!this.apiKey;
+  }
+
+  getApiKeyStatus(): { hasKey: boolean; source: string } {
+    if (!this.apiKey) {
+      return { hasKey: false, source: "none" };
+    }
+    
+    // Determine source of API key
+    let source = "unknown";
+    if (import.meta.env.VITE_FAL_API_KEY) source = "VITE_FAL_API_KEY";
+    else if (process.env.FAL_API_KEY) source = "FAL_API_KEY";
+    else if (typeof window !== 'undefined' && (window as any).process?.env?.FAL_API_KEY) source = "window.process.env.FAL_API_KEY";
+    else source = "manually_set";
+    
+    return { hasKey: true, source };
+  }
+
   // Utility methods
   async testModelAvailability(modelKey: string): Promise<boolean> {
     try {
+      // Check API key first
+      if (!this.hasApiKey()) {
+        console.warn("[FalAI] Cannot test model availability: no API key");
+        return false;
+      }
+
       const model = TEXT2IMAGE_MODELS[modelKey];
       if (!model) return false;
 
@@ -278,7 +324,8 @@ class FalAIClient {
       );
 
       return result.success;
-    } catch {
+    } catch (error) {
+      console.error(`[FalAI] Model availability test failed for ${modelKey}:`, error);
       return false;
     }
   }

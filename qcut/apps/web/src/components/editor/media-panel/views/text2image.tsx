@@ -172,8 +172,8 @@ export function Text2ImageView() {
                 </FloatingActionPanelTrigger>
 
                 {open && (
-                  <div className="w-full border rounded-md bg-transparent max-h-[300px] overflow-y-auto">
-                    <div className="p-2 space-y-3">
+                  <div className="w-full border rounded-md bg-white max-h-[300px] overflow-y-auto shadow-md">
+                    <div className="p-2 space-y-1">
                       {Object.entries(TEXT2IMAGE_MODELS).map(([key, model]) => (
                         <FloatingActionPanelModelOption
                           key={key}

@@ -228,7 +228,7 @@ export const FloatingActionPanelCheckbox = React.forwardRef<
       id={id}
       onClick={() => onCheckedChange?.(!checked)}
       className={cn(
-        "peer h-4 w-4 shrink-0 rounded-sm !border-transparent shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 disabled:cursor-not-allowed disabled:opacity-50 bg-transparent data-[state=checked]:bg-transparent data-[state=checked]:text-zinc-900",
+        "peer h-4 w-4 shrink-0 rounded border border-gray-300 shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#05c7c7] disabled:cursor-not-allowed disabled:opacity-50 bg-white data-[state=checked]:bg-[#05c7c7] data-[state=checked]:border-[#05c7c7] data-[state=checked]:text-white",
         className
       )}
     >
@@ -237,7 +237,7 @@ export const FloatingActionPanelCheckbox = React.forwardRef<
         className="flex items-center justify-center text-current"
         style={{ pointerEvents: "none" }}
       >
-        {checked && <Check className="h-1.5 w-1.5" />}
+        {checked && <Check className="h-3 w-3" />}
       </span>
     </button>
   )
@@ -279,21 +279,28 @@ export function FloatingActionPanelModelOption({
   onCheckedChange,
 }: FloatingActionPanelModelOptionProps) {
   return (
-    <div className="flex items-center justify-between p-3 bg-transparent">
-      <div>
-        <label 
-          className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 font-medium cursor-pointer" 
-          htmlFor={id}
-          style={{ marginLeft: '5px' }}
-        >
-          {name}
-        </label>
-      </div>
+    <div 
+      className={`flex items-center gap-3 p-2 hover:bg-gray-50 rounded-md cursor-pointer transition-colors border ${
+        checked 
+          ? 'bg-white border-[#05c7c7]/50' 
+          : 'bg-white border-gray-100'
+      }`}
+      onClick={() => onCheckedChange?.(!checked)}
+    >
       <FloatingActionPanelCheckbox
         id={id}
         checked={checked}
         onCheckedChange={onCheckedChange}
+        className="shrink-0"
       />
+      <label 
+        className={`text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 font-medium cursor-pointer flex-1 ${
+          checked ? 'text-[#05c7c7]' : 'text-gray-900'
+        }`}
+        htmlFor={id}
+      >
+        {name}
+      </label>
     </div>
   )
 }
