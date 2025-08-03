@@ -46,6 +46,14 @@ export const usePanelStore = create<PanelState>()(
     }),
     {
       name: "panel-sizes",
+      version: 2, // Increment this to reset stored values
+      migrate: (persistedState: any, version: number) => {
+        // Reset to defaults if coming from old version
+        if (version < 2) {
+          return DEFAULT_PANEL_SIZES;
+        }
+        return persistedState;
+      },
     }
   )
 );

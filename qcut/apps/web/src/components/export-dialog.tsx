@@ -133,6 +133,7 @@ export function ExportDialog() {
   };
 
   const handleFormatChange = (newFormat: ExportFormat) => {
+    console.log("Format changing from", format, "to", newFormat);
     setFormat(newFormat);
     updateSettings({ format: newFormat });
     clearPreset(); // Clear preset when manually changing settings
@@ -496,13 +497,13 @@ export function ExportDialog() {
                     variant={selectedPreset?.id === preset.id ? "default" : "outline"}
                     size="sm"
                     onClick={() => handlePresetSelect(preset)}
-                    className="h-auto p-3 flex-col items-start gap-1"
+                    className="h-auto min-h-[4rem] p-2 flex-col items-start gap-1 text-left justify-start"
                   >
                     <div className="flex items-center gap-2 w-full">
-                      <span className="text-lg">{preset.icon}</span>
-                      <span className="font-medium text-xs">{preset.name}</span>
+                      <span className="text-base flex-shrink-0">{preset.icon}</span>
+                      <span className="font-medium text-xs leading-tight">{preset.name}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground text-left line-clamp-2">
+                    <span className="text-[10px] text-muted-foreground text-left leading-tight line-clamp-3 w-full">
                       {preset.description}
                     </span>
                   </Button>
@@ -566,7 +567,10 @@ export function ExportDialog() {
               <CardTitle className="text-sm">Format</CardTitle>
             </CardHeader>
             <CardContent>
-              <RadioGroup value={format} onValueChange={handleFormatChange}>
+              <RadioGroup 
+                value={format} 
+                onValueChange={(value) => handleFormatChange(value as ExportFormat)}
+              >
                 {supportedFormats.map((fmt) => (
                   <div key={fmt} className="flex items-center space-x-2">
                     <RadioGroupItem value={fmt} id={fmt} />
