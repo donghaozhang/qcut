@@ -236,7 +236,8 @@ export function ExportDialog() {
         },
         tracks,
         mediaItems,
-        totalDuration
+        totalDuration,
+        ExportEngineType.STANDARD // Force standard engine to ensure video rendering works
       );
       
       // Store engine reference for cancellation

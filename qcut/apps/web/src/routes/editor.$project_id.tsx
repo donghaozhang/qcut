@@ -188,6 +188,7 @@ function EditorPage() {
                 <ResizablePanel
                   defaultSize={previewPanel}
                   minSize={30}
+                  maxSize={70}
                   onResize={setPreviewPanel}
                   className="min-w-0 min-h-0 flex-1"
                 >

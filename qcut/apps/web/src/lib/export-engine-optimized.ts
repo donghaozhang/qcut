@@ -391,16 +391,43 @@ export class OptimizedExportEngine extends ExportEngine {
     timeOffset: number,
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
   ): Promise<void> {
-    // For now, use the same approach as base class
-    // Future: Could implement video frame extraction and caching
-    ctx.fillStyle = "#333333";
-    ctx.fillRect(50, 50, 200, 100);
-    
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "16px Arial";
-    ctx.fillText("Video Element (Optimized)", 60, 80);
-    ctx.fillText(`Time: ${timeOffset.toFixed(2)}s`, 60, 100);
-    ctx.fillText(`File: ${mediaItem.name}`, 60, 120);
+    if (!mediaItem.url) return;
+
+    try {
+      const video = document.createElement('video');
+      video.src = mediaItem.url;
+      video.crossOrigin = 'anonymous';
+      
+      // Wait for video to load
+      await new Promise<void>((resolve, reject) => {
+        video.onloadeddata = () => resolve();
+        video.onerror = () => reject(new Error('Failed to load video'));
+      });
+      
+      // Seek to the correct time
+      video.currentTime = timeOffset + element.trimStart;
+      
+      // Wait for seek to complete
+      await new Promise<void>((resolve) => {
+        video.onseeked = () => resolve();
+      });
+      
+      // Calculate bounds
+      const { x, y, width, height } = this.calculateElementBounds(
+        element, 
+        video.videoWidth, 
+        video.videoHeight
+      );
+      
+      // Draw video frame to canvas
+      ctx.drawImage(video, x, y, width, height);
+      
+      // Clean up
+      video.remove();
+      
+    } catch (error) {
+      console.error('Failed to render video:', error);
+    }
   }
 
   // Frame caching methods

@@ -1,6 +1,6 @@
 "use client";
 
-import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { ArrowRightIcon } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -83,6 +83,9 @@ export function Onboarding() {
         <DialogTitle>
           <span className="sr-only">{getStepTitle()}</span>
         </DialogTitle>
+        <DialogDescription>
+          <span className="sr-only">Welcome to QCut video editor. Follow this guide to get started.</span>
+        </DialogDescription>
         {renderStepContent()}
       </DialogContent>
     </Dialog>
