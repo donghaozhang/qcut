@@ -212,7 +212,7 @@ export class ExportEngine {
     });
   }
 
-  // Render video element
+  // Render video element with retry mechanism for better reliability  
   private async renderVideo(
     element: TimelineElement, 
     mediaItem: MediaItem, 
@@ -223,12 +223,42 @@ export class ExportEngine {
       return;
     }
 
+    // Retry mechanism: retry appropriately if frames don't appear in time (max 3 attempts)
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await this.renderVideoAttempt(element, mediaItem, timeOffset, attempt);
+        return; // Return immediately on success
+      } catch (error) {
+        lastError = error as Error;
+        if (attempt < maxRetries) {
+          console.warn(`[ExportEngine] Video render attempt ${attempt} failed, retrying... Error: ${error}`);
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+        }
+      }
+    }
+    
+    // All retries failed
+    console.error(`[ExportEngine] All ${maxRetries} video render attempts failed for ${mediaItem.url}`);
+    throw lastError || new Error('Video rendering failed after retries');
+  }
+
+  // Single video render attempt
+  private async renderVideoAttempt(
+    element: TimelineElement, 
+    mediaItem: MediaItem, 
+    timeOffset: number,
+    attempt: number
+  ): Promise<void> {
     try {
       // Use cached video element or create new one
-      let video = this.videoCache.get(mediaItem.url);
+      let video = this.videoCache.get(mediaItem.url!);
       if (!video) {
         video = document.createElement('video');
-        video.src = mediaItem.url;
+        video.src = mediaItem.url!;
         video.crossOrigin = 'anonymous';
         
         // Wait for video to load
@@ -238,33 +268,35 @@ export class ExportEngine {
         });
         
         // Cache the loaded video
-        this.videoCache.set(mediaItem.url, video);
+        this.videoCache.set(mediaItem.url!, video);
       }
       
       // Seek to the correct time
       const seekTime = timeOffset + element.trimStart;
       video.currentTime = seekTime;
       
-      // Wait for seek to complete with adaptive timeout based on video properties
+      // Wait for seek to complete with extended timeout for better frame capture
       await new Promise<void>((resolve, reject) => {
-        // Adaptive timeout: 200-1000ms for better Electron compatibility
-        const adaptiveTimeout = Math.max(200, Math.min(1000, video.duration * 20));
+        // Extended timeout: 500-2000ms for reliable frame capture (experience shows 300ms+ significantly improves success rate)
+        const baseTimeout = 500; // Increased from 200ms to 500ms base timeout
+        const maxTimeout = 2000;  // Increased from 1000ms to 2000ms max timeout
+        const adaptiveTimeout = Math.max(baseTimeout, Math.min(maxTimeout, video.duration * 30));
         const seekDistanceFactor = Math.abs(video.currentTime - seekTime) / video.duration;
         const finalTimeout = adaptiveTimeout * (1 + seekDistanceFactor * 2);
         
         const timeout = setTimeout(() => {
-          console.warn(`[ExportEngine] Video seek timeout after ${finalTimeout.toFixed(0)}ms`);
+          console.warn(`[ExportEngine] Video seek timeout after ${finalTimeout.toFixed(0)}ms (extended for frame quality)`);
           reject(new Error('Video seek timeout'));
         }, finalTimeout);
         
         video.onseeked = () => {
           clearTimeout(timeout);
-          resolve();
+          // Additional 100-200ms delay to ensure browser completes frame rendering (avoid capturing empty frames)
+          setTimeout(() => {
+            resolve();
+          }, 150); // Give frame rendering sufficient time
         };
       });
-      
-      // Frame ready delay for Electron compatibility
-      await new Promise(resolve => setTimeout(resolve, 50)); // Increased for better stability
       
       // Calculate bounds
       const { x, y, width, height } = this.calculateElementBounds(
@@ -276,8 +308,15 @@ export class ExportEngine {
       // Draw video frame to canvas
       this.ctx.drawImage(video, x, y, width, height);
       
+      // Validate frame rendering success (detect black frames)
+      const frameValidation = this.validateRenderedFrame(x, y, width, height, attempt);
+      if (!frameValidation.isValid) {
+        throw new Error(`Frame validation failed: ${frameValidation.reason}`);
+      }
+      
     } catch (error) {
-      console.error(`[ExportEngine] Failed to render video:`, error);
+      console.error(`[ExportEngine] Failed to render video (attempt ${attempt}):`, error);
+      throw error; // Re-throw error for retry mechanism to handle
     }
   }
 
@@ -454,6 +493,11 @@ export class ExportEngine {
     this.isExporting = true;
     this.abortController = new AbortController();
     
+    // Log original timeline duration and export optimizations
+    console.log(`[ExportEngine] 📏 Original timeline duration: ${this.totalDuration.toFixed(3)}s`);
+    console.log(`[ExportEngine] 🎬 Target frames: ${this.calculateTotalFrames()} frames at ${this.fps}fps`);
+    console.log(`[ExportEngine] ⚡ Optimizations: 500-2000ms timeout, retry mechanism, frame validation`);
+    
     try {
       // Get canvas stream for manual frame capture FIRST
       const stream = this.canvas.captureStream(0);
@@ -565,6 +609,22 @@ export class ExportEngine {
       // Stop recording and get final blob
       const videoBlob = await this.stopRecording();
       
+      // Log exported video information
+      console.log(`[ExportEngine] 📦 Exported video size: ${(videoBlob.size / 1024 / 1024).toFixed(2)} MB`);
+      console.log(`[ExportEngine] 🔗 Blob type: ${videoBlob.type}`);
+      
+      // Calculate and log expected vs actual video duration
+      const expectedDuration = this.totalDuration;
+      const actualFramesRendered = this.calculateTotalFrames();
+      const calculatedDuration = actualFramesRendered / this.fps;
+      
+      console.log(`[ExportEngine] ⏱️  Expected duration: ${expectedDuration.toFixed(3)}s`);
+      console.log(`[ExportEngine] ⏱️  Calculated duration: ${calculatedDuration.toFixed(3)}s (${actualFramesRendered} frames / ${this.fps}fps)`);
+      console.log(`[ExportEngine] 📊 Duration ratio: ${(calculatedDuration / expectedDuration).toFixed(3)}x`);
+      
+      // Try to get actual video duration from blob (this requires creating a video element)
+      this.logActualVideoDuration(videoBlob);
+      
       progressCallback?.(100, 'Export complete!');
       
       return videoBlob;
@@ -672,6 +732,86 @@ export class ExportEngine {
   ): Promise<void> {
     const videoBlob = await this.export(progressCallback);
     await this.downloadVideo(videoBlob, filename);
+  }
+
+  // Validate rendered frame to avoid black frames
+  private validateRenderedFrame(x: number, y: number, width: number, height: number, attempt: number): { isValid: boolean; reason: string } {
+    try {
+      // Sample pixels in the rendered area
+      const sampleWidth = Math.min(width, 50);
+      const sampleHeight = Math.min(height, 50);
+      const imageData = this.ctx.getImageData(x, y, sampleWidth, sampleHeight);
+      const pixels = imageData.data;
+      
+      let nonBlackPixels = 0;
+      let totalPixels = 0;
+      
+      // Check sampled pixels for non-black content
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        const alpha = pixels[i + 3];
+        
+        totalPixels++;
+        
+        // Non-black and non-transparent pixels
+        if ((r > 10 || g > 10 || b > 10) && alpha > 10) {
+          nonBlackPixels++;
+        }
+      }
+      
+      const nonBlackRatio = nonBlackPixels / totalPixels;
+      const minValidRatio = 0.05; // At least 5% of pixels should be non-black
+      
+      if (nonBlackRatio < minValidRatio) {
+        return {
+          isValid: false,
+          reason: `Frame appears to be mostly black (${(nonBlackRatio * 100).toFixed(1)}% non-black pixels, attempt ${attempt})`
+        };
+      }
+      
+      if (attempt > 1) {
+        console.log(`[ExportEngine] ✅ Frame validation passed on attempt ${attempt} (${(nonBlackRatio * 100).toFixed(1)}% content)`);
+      }
+      
+      return { isValid: true, reason: 'Frame is valid' };
+      
+    } catch (error) {
+      console.warn(`[ExportEngine] Frame validation error: ${error}`);
+      // If validation itself fails, assume frame is valid
+      return { isValid: true, reason: 'Validation error - assuming valid' };
+    }
+  }
+
+  // Get actual video duration from blob for debugging
+  private logActualVideoDuration(videoBlob: Blob): void {
+    const video = document.createElement('video');
+    const url = URL.createObjectURL(videoBlob);
+    
+    video.onloadedmetadata = () => {
+      const actualDuration = video.duration;
+      const expectedDuration = this.totalDuration;
+      
+      console.log(`[ExportEngine] 🎥 Actual video duration: ${actualDuration.toFixed(3)}s`);
+      console.log(`[ExportEngine] 📈 Timeline vs Video ratio: ${(actualDuration / expectedDuration).toFixed(3)}x`);
+      
+      if (Math.abs(actualDuration - expectedDuration) > 0.1) {
+        console.warn(`[ExportEngine] ⚠️  Duration mismatch detected! Expected: ${expectedDuration.toFixed(3)}s, Got: ${actualDuration.toFixed(3)}s`);
+      } else {
+        console.log(`[ExportEngine] ✅ Duration match within tolerance`);
+      }
+      
+      // Cleanup
+      URL.revokeObjectURL(url);
+    };
+    
+    video.onerror = () => {
+      console.warn(`[ExportEngine] ⚠️  Could not determine actual video duration`);
+      URL.revokeObjectURL(url);
+    };
+    
+    video.src = url;
   }
 
   // Pre-load all videos for performance (Task 1.5)

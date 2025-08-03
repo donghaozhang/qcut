@@ -1,4 +1,4 @@
-const { ipcMain } = require('electron');
+const { ipcMain, app } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -81,8 +81,27 @@ function setupFFmpegIPC() {
 }
 
 function getFFmpegPath() {
-  // Check if FFmpeg is in PATH or use bundled version
-  return 'ffmpeg'; // or bundled path like './resources/ffmpeg.exe'
+  let ffmpegPath;
+  
+  if (app.isPackaged) {
+    // Production: use bundled FFmpeg
+    ffmpegPath = path.join(process.resourcesPath, 'ffmpeg.exe');
+  } else {
+    // Development: try bundled FFmpeg first, then system PATH
+    const devPath = path.join(__dirname, 'resources', 'ffmpeg.exe');
+    if (fs.existsSync(devPath)) {
+      ffmpegPath = devPath;
+    } else {
+      ffmpegPath = 'ffmpeg'; // System PATH
+    }
+  }
+  
+  // Verify FFmpeg exists (skip verification for system PATH)
+  if (ffmpegPath !== 'ffmpeg' && !fs.existsSync(ffmpegPath)) {
+    throw new Error(`FFmpeg not found at: ${ffmpegPath}`);
+  }
+  
+  return ffmpegPath;
 }
 
 function buildFFmpegArgs(inputDir, outputFile, width, height, fps, quality) {

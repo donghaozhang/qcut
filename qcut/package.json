@@ -41,7 +41,15 @@
     },
     "files": [
       "electron/**/*",
-      "apps/web/dist/**/*"
+      "apps/web/dist/**/*",
+      "!node_modules"
+    ],
+    "extraResources": [
+      {
+        "from": "electron/resources/",
+        "to": "resources/",
+        "filter": ["ffmpeg.exe"]
+      }
     ],
     "extraMetadata": {
       "main": "electron/main.js"

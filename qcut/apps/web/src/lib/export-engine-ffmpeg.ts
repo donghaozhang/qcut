@@ -24,6 +24,10 @@ export class FFmpegExportEngine extends ExportEngine {
   async export(progressCallback?: ProgressCallback): Promise<Blob> {
     console.log('[FFmpegExportEngine] Starting FFmpeg export...');
     
+    // Log original timeline duration
+    console.log(`[FFmpegExportEngine] 📏 Original timeline duration: ${this.totalDuration.toFixed(3)}s`);
+    console.log(`[FFmpegExportEngine] 🎬 Target frames: ${this.calculateTotalFrames()} frames at 30fps`);
+    
     // Create FFmpeg service with progress callback
     this.ffmpegService = new FFmpegService(progressCallback);
     
@@ -46,6 +50,22 @@ export class FFmpegExportEngine extends ExportEngine {
       30, // fps
       this.settings.format
     );
+    
+    // Log exported video information
+    console.log(`[FFmpegExportEngine] 📦 Exported video size: ${(videoBlob.size / 1024 / 1024).toFixed(2)} MB`);
+    console.log(`[FFmpegExportEngine] 🔗 Blob type: ${videoBlob.type}`);
+    
+    // Calculate and log expected vs actual video duration
+    const expectedDuration = this.totalDuration;
+    const actualFramesRendered = this.calculateTotalFrames();
+    const calculatedDuration = actualFramesRendered / 30; // 30fps
+    
+    console.log(`[FFmpegExportEngine] ⏱️  Expected duration: ${expectedDuration.toFixed(3)}s`);
+    console.log(`[FFmpegExportEngine] ⏱️  Calculated duration: ${calculatedDuration.toFixed(3)}s (${actualFramesRendered} frames / 30fps)`);
+    console.log(`[FFmpegExportEngine] 📊 Duration ratio: ${(calculatedDuration / expectedDuration).toFixed(3)}x`);
+    
+    // Try to get actual video duration from blob
+    this.logActualVideoDurationFFmpeg(videoBlob);
     
     progressCallback?.(100, 'Export completed!');
     console.log('[FFmpegExportEngine] Export completed successfully');
@@ -93,5 +113,35 @@ export class FFmpegExportEngine extends ExportEngine {
 
   calculateTotalFrames(): number {
     return Math.ceil(this.totalDuration * 30); // 30 fps
+  }
+  
+  // Get actual video duration from blob for debugging (FFmpeg version)
+  private logActualVideoDurationFFmpeg(videoBlob: Blob): void {
+    const video = document.createElement('video');
+    const url = URL.createObjectURL(videoBlob);
+    
+    video.onloadedmetadata = () => {
+      const actualDuration = video.duration;
+      const expectedDuration = this.totalDuration;
+      
+      console.log(`[FFmpegExportEngine] 🎥 Actual video duration: ${actualDuration.toFixed(3)}s`);
+      console.log(`[FFmpegExportEngine] 📈 Timeline vs Video ratio: ${(actualDuration / expectedDuration).toFixed(3)}x`);
+      
+      if (Math.abs(actualDuration - expectedDuration) > 0.1) {
+        console.warn(`[FFmpegExportEngine] ⚠️  Duration mismatch detected! Expected: ${expectedDuration.toFixed(3)}s, Got: ${actualDuration.toFixed(3)}s`);
+      } else {
+        console.log(`[FFmpegExportEngine] ✅ Duration match within tolerance`);
+      }
+      
+      // Cleanup
+      URL.revokeObjectURL(url);
+    };
+    
+    video.onerror = () => {
+      console.warn(`[FFmpegExportEngine] ⚠️  Could not determine actual video duration`);
+      URL.revokeObjectURL(url);
+    };
+    
+    video.src = url;
   }
 }

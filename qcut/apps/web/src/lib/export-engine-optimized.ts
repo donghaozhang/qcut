@@ -407,9 +407,25 @@ export class OptimizedExportEngine extends ExportEngine {
       // Seek to the correct time
       video.currentTime = timeOffset + element.trimStart;
       
-      // Wait for seek to complete
-      await new Promise<void>((resolve) => {
-        video.onseeked = () => resolve();
+      // Wait for seek to complete with extended timeout for better frame capture
+      await new Promise<void>((resolve, reject) => {
+        // Extended timeout: 500-2000ms for reliable frame capture
+        const baseTimeout = 500;
+        const maxTimeout = 2000;
+        const finalTimeout = Math.max(baseTimeout, Math.min(maxTimeout, video.duration * 30));
+        
+        const timeout = setTimeout(() => {
+          console.warn(`[OptimizedExportEngine] Video seek timeout after ${finalTimeout.toFixed(0)}ms`);
+          reject(new Error('Video seek timeout'));
+        }, finalTimeout);
+        
+        video.onseeked = () => {
+          clearTimeout(timeout);
+          // Additional delay to ensure browser completes frame rendering
+          setTimeout(() => {
+            resolve();
+          }, 150);
+        };
       });
       
       // Calculate bounds

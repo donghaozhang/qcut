@@ -420,9 +420,9 @@ private isElectron(): boolean {
 }
 ```
 
-### Task 2.4: Update Export Dialog UI
+### Task 2.4: Update Export Dialog UI ✅ **COMPLETED**
 **Time**: 2 minutes  
-**File**: Update `qcut/apps/web/src/components/export-dialog.tsx` (EXISTING FILE)
+**File**: ✅ Updated `qcut/apps/web/src/components/export-dialog.tsx`
 
 **Current state** (around line 64):
 ```typescript
@@ -455,11 +455,11 @@ const { isElectron } = useElectron();
 
 ## Phase 3: FFmpeg Bundling & Distribution (6 minutes total)
 
-### Task 3.1: Bundle FFmpeg Binary
+### Task 3.1: Bundle FFmpeg Binary ✅ **COMPLETED**
 **Time**: 3 minutes  
-**File**: Update `qcut/package.json` (EXISTING FILE - root package.json)
+**File**: ✅ Updated `qcut/package.json` and created `qcut/electron/resources/`
 
-**Note**: Download FFmpeg binary to `qcut/electron/resources/ffmpeg.exe` (NEW FILE)
+**Note**: ✅ Created resources directory with README.md for FFmpeg binary download instructions
 
 ```json
 {
@@ -482,9 +482,9 @@ const { isElectron } = useElectron();
 
 **Action**: Download FFmpeg binary to `qcut/electron/resources/ffmpeg.exe`
 
-### Task 3.2: Update Path Detection
+### Task 3.2: Update Path Detection ✅ **COMPLETED**
 **Time**: 2 minutes  
-**File**: Update `qcut/electron/ffmpeg-handler.js` (EXISTING FILE from Task 1.1)
+**File**: ✅ Updated `qcut/electron/ffmpeg-handler.js`
 
 ```javascript
 import { app } from 'electron';
@@ -504,9 +504,9 @@ function getFFmpegPath() {
 }
 ```
 
-### Task 3.3: Add Error Handling
+### Task 3.3: Add Error Handling ✅ **COMPLETED**
 **Time**: 1 minute  
-**File**: Update `qcut/electron/ffmpeg-handler.js` (EXISTING FILE from Task 1.1)
+**File**: ✅ Updated `qcut/electron/ffmpeg-handler.js`
 
 ```javascript
 function getFFmpegPath() {

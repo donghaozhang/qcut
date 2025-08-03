@@ -27,6 +27,7 @@ import {
 import { calculateMemoryUsage, getMemoryWarningMessage } from "@/lib/memory-utils";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useElectron } from "@/hooks/useElectron";
 
 export function ExportDialog() {
   const { 
@@ -61,8 +62,11 @@ export function ExportDialog() {
   const [engineRecommendation, setEngineRecommendation] = useState<string | null>(null);
   
   // FFmpeg engine state
-  const [engineType, setEngineType] = useState<'standard' | 'ffmpeg'>('standard');
+  const [engineType, setEngineType] = useState<'standard' | 'ffmpeg' | 'cli'>('standard');
   const [ffmpegAvailable, setFfmpegAvailable] = useState(false);
+  
+  // Electron detection
+  const { isElectron } = useElectron();
   
   // Current export engine reference for cancellation
   const currentEngineRef = useRef<ExportEngine | null>(null);
@@ -112,7 +116,8 @@ export function ExportDialog() {
             [ExportEngineType.STANDARD]: "Standard Engine",
             [ExportEngineType.OPTIMIZED]: "Optimized Engine", 
             [ExportEngineType.WEBCODECS]: "WebCodecs Engine",
-            [ExportEngineType.FFMPEG]: "FFmpeg Engine"
+            [ExportEngineType.FFMPEG]: "FFmpeg Engine",
+            [ExportEngineType.CLI]: "Native FFmpeg CLI"
           };
           
           const label = engineLabels[recommendation.engineType];
@@ -239,7 +244,10 @@ export function ExportDialog() {
 
       // Create export engine using factory for optimal performance
       const factory = ExportEngineFactory.getInstance();
-      const selectedEngineType = engineType === 'ffmpeg' ? ExportEngineType.FFMPEG : ExportEngineType.STANDARD;
+      const selectedEngineType = 
+        engineType === 'cli' ? ExportEngineType.CLI :
+        engineType === 'ffmpeg' ? ExportEngineType.FFMPEG : 
+        ExportEngineType.STANDARD;
       const exportEngine = await factory.createEngine(
         canvas,
         {
@@ -622,33 +630,45 @@ export function ExportDialog() {
           </Card>
 
           {/* Engine Selection */}
-          {ffmpegAvailable && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Encoding Engine</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="ffmpeg-toggle" className="text-sm cursor-pointer">
-                    Use FFmpeg (faster encoding):
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Encoding Engine</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RadioGroup value={engineType} onValueChange={(value) => setEngineType(value as 'standard' | 'ffmpeg' | 'cli')}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="standard" id="standard" />
+                  <Label htmlFor="standard" className="text-sm cursor-pointer">
+                    📹 Standard MediaRecorder
                   </Label>
-                  <input
-                    id="ffmpeg-toggle"
-                    type="checkbox"
-                    checked={engineType === 'ffmpeg'}
-                    onChange={(e) => setEngineType(e.target.checked ? 'ffmpeg' : 'standard')}
-                    className="w-4 h-4"
-                  />
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {engineType === 'ffmpeg' 
-                    ? '🚀 FFmpeg provides 5-10x faster encoding than standard MediaRecorder'
+                {ffmpegAvailable && (
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="ffmpeg" id="ffmpeg" />
+                    <Label htmlFor="ffmpeg" className="text-sm cursor-pointer">
+                      🚀 FFmpeg WASM (5x faster)
+                    </Label>
+                  </div>
+                )}
+                {isElectron() && (
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="cli" id="cli" />
+                    <Label htmlFor="cli" className="text-sm cursor-pointer">
+                      ⚡ Native FFmpeg CLI (10x faster)
+                    </Label>
+                  </div>
+                )}
+              </RadioGroup>
+              <p className="text-xs text-muted-foreground mt-2">
+                {engineType === 'cli' 
+                  ? '⚡ Native FFmpeg CLI provides maximum performance with hardware acceleration'
+                  : engineType === 'ffmpeg' 
+                    ? '🚀 FFmpeg WASM provides 5x faster encoding than standard MediaRecorder'
                     : '📹 Standard MediaRecorder (compatible with all browsers)'
-                  }
-                </p>
-              </CardContent>
-            </Card>
-          )}
+                }
+              </p>
+            </CardContent>
+          </Card>
 
           {/* Format Selection */}
           <Card>
