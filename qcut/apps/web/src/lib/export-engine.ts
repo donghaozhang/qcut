@@ -42,6 +42,9 @@ export class ExportEngine {
   protected isExporting: boolean = false;
   protected abortController: AbortController | null = null;
   
+  // Video element cache for performance
+  private videoCache = new Map<string, HTMLVideoElement>();
+  
   constructor(
     canvas: HTMLCanvasElement,
     settings: ExportSettings,
@@ -55,7 +58,7 @@ export class ExportEngine {
     this.mediaItems = mediaItems;
     this.totalDuration = totalDuration;
     
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) {
       throw new Error("Failed to get 2D context from canvas");
     }
@@ -202,24 +205,41 @@ export class ExportEngine {
     }
 
     try {
-      const video = document.createElement('video');
-      video.src = mediaItem.url;
-      video.crossOrigin = 'anonymous';
-      
-      // Wait for video to load
-      await new Promise<void>((resolve, reject) => {
-        video.onloadeddata = () => resolve();
-        video.onerror = () => reject(new Error('Failed to load video'));
-      });
+      // Use cached video element or create new one
+      let video = this.videoCache.get(mediaItem.url);
+      if (!video) {
+        video = document.createElement('video');
+        video.src = mediaItem.url;
+        video.crossOrigin = 'anonymous';
+        
+        // Wait for video to load
+        await new Promise<void>((resolve, reject) => {
+          video!.onloadeddata = () => resolve();
+          video!.onerror = () => reject(new Error('Failed to load video'));
+        });
+        
+        // Cache the loaded video
+        this.videoCache.set(mediaItem.url, video);
+      }
       
       // Seek to the correct time
       const seekTime = timeOffset + element.trimStart;
       video.currentTime = seekTime;
       
-      // Wait for seek to complete
-      await new Promise<void>((resolve) => {
-        video.onseeked = () => resolve();
+      // Wait for seek to complete with shorter timeout
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Video seek timeout'));
+        }, 100); // Reduced from 1000ms to 100ms
+        
+        video.onseeked = () => {
+          clearTimeout(timeout);
+          resolve();
+        };
       });
+      
+      // Shorter delay for frame ready
+      await new Promise(resolve => setTimeout(resolve, 20)); // Reduced from 50ms to 20ms
       
       // Calculate bounds
       const { x, y, width, height } = this.calculateElementBounds(
@@ -230,9 +250,6 @@ export class ExportEngine {
       
       // Draw video frame to canvas
       this.ctx.drawImage(video, x, y, width, height);
-      
-      // Clean up
-      video.remove();
       
     } catch (error) {
       console.error(`[ExportEngine] Failed to render video:`, error);
@@ -434,7 +451,7 @@ export class ExportEngine {
       
       // Render each frame with advanced progress tracking
       for (let frame = 0; frame < totalFrames; frame++) {
-        const frameStartTime = Date.now();
+        const frameStartTime = performance.now();
         
         // Check if export was cancelled
         if (this.abortController.signal.aborted) {
@@ -446,8 +463,8 @@ export class ExportEngine {
         // Render frame to canvas
         await this.renderFrame(currentTime);
         
-        // Debug canvas content every 30 frames
-        if (frame % 30 === 0) {
+        // Smart canvas verification - only check every 10th frame or when needed
+        if (frame % 10 === 0 || frame === 0) {
           const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
           const pixels = imageData.data;
           let nonBlackPixels = 0;
@@ -456,24 +473,34 @@ export class ExportEngine {
               nonBlackPixels++;
             }
           }
-          console.log(`[ExportEngine] Frame ${frame + 1}: ${nonBlackPixels} non-black pixels`);
+          
+          if (nonBlackPixels === 0) {
+            console.warn(`[ExportEngine] BLACK FRAME at ${frame + 1}!`);
+          } else if (frame % 30 === 0) {
+            console.log(`[ExportEngine] Frame ${frame + 1}: ${nonBlackPixels} pixels`);
+          }
         }
         
         // Manually capture this frame to the stream
         if (videoTrack && 'requestFrame' in videoTrack) {
           (videoTrack as any).requestFrame();
-          // Add a small delay to ensure frame is captured
-          await new Promise(resolve => setTimeout(resolve, 10));
+          // Shorter frame capture delay
+          await new Promise(resolve => setTimeout(resolve, 20)); // Reduced from 50ms to 20ms
         } else {
           console.warn(`[ExportEngine] Cannot capture frame ${frame + 1}`);
         }
         
-        // Calculate advanced progress metrics
+        // Calculate advanced progress metrics with performance timing
         const now = Date.now();
         const elapsedTime = (now - startTime) / 1000; // seconds
-        const frameProcessingTime = now - frameStartTime; // milliseconds
+        const frameProcessingTime = performance.now() - frameStartTime; // milliseconds
         const averageFrameTime = elapsedTime * 1000 / (frame + 1); // milliseconds
         const encodingSpeed = (frame + 1) / elapsedTime; // fps
+        
+        // Log frame timing every 30 frames
+        if (frame % 30 === 0) {
+          console.log(`[ExportEngine] Frame ${frame + 1} took ${frameProcessingTime.toFixed(1)}ms`);
+        }
         
         // Estimate time remaining
         const remainingFrames = totalFrames - frame - 1;
@@ -496,8 +523,10 @@ export class ExportEngine {
           });
         }
         
-        // Small delay for UI updates
-        await new Promise(resolve => setTimeout(resolve, 1));
+        // Minimal UI update delay
+        if (frame % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 1));
+        }
       }
       
       progressCallback?.(95, 'Finalizing video...');
@@ -545,6 +574,11 @@ export class ExportEngine {
   // Check if export was cancelled (protected method for subclasses)
   protected isExportCancelled(): boolean {
     return this.abortController?.signal.aborted || false;
+  }
+
+  // Clean up video cache
+  private cleanupVideoCache(): void {
+    this.videoCache.clear();
   }
 
   // Download video blob - adapted from zip-manager.ts downloadZipSafely
