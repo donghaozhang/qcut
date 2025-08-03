@@ -27,15 +27,18 @@ const isPackagedElectron = () => {
 };
 
 export const initFFmpeg = async (): Promise<FFmpeg> => {
+  console.log('[FFmpeg Utils] 🔧 initFFmpeg called');
+  console.log('[FFmpeg Utils] 📊 Current state - ffmpeg exists:', !!ffmpeg, ', isLoaded:', isFFmpegLoaded);
+  
   if (ffmpeg && isFFmpegLoaded) {
-    console.log('🎬 FFmpeg instance already loaded, reusing...');
+    console.log('[FFmpeg Utils] ✅ FFmpeg instance already loaded, reusing...');
     return ffmpeg;
   }
 
   if (ffmpeg && !isFFmpegLoaded) {
-    console.log('🎬 FFmpeg instance exists but not loaded, reinitializing...');
+    console.log('[FFmpeg Utils] 🔄 FFmpeg instance exists but not loaded, reinitializing...');
   } else {
-    console.log('🎬 Creating new FFmpeg instance...');
+    console.log('[FFmpeg Utils] 🆕 Creating new FFmpeg instance...');
     ffmpeg = new FFmpeg();
   }
 
@@ -75,12 +78,23 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
           const wasmBlobUrl = URL.createObjectURL(wasmBlob);
           
           console.log('🎬 Loading FFmpeg WASM with app:// protocol blob URLs:', coreBlobUrl, wasmBlobUrl);
+          console.log('[FFmpeg Utils] ⏳ Calling ffmpeg.load() with blob URLs...');
+          console.log('[FFmpeg Utils] 🧪 Testing SharedArrayBuffer availability:', typeof SharedArrayBuffer !== 'undefined');
+          console.log('[FFmpeg Utils] 🧪 Testing Worker availability:', typeof Worker !== 'undefined');
           
-          await ffmpeg.load({
+          // Add timeout to detect hanging
+          const loadPromise = ffmpeg.load({
             coreURL: coreBlobUrl,
             wasmURL: wasmBlobUrl,
           });
           
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('FFmpeg load timeout after 30 seconds')), 30000);
+          });
+          
+          await Promise.race([loadPromise, timeoutPromise]);
+          
+          console.log('[FFmpeg Utils] ✅ ffmpeg.load() completed successfully');
           console.log('✅ FFmpeg WASM loaded successfully in Electron via app:// protocol');
         } else {
           throw new Error('App protocol not available, falling back to HTTP server');
@@ -131,9 +145,10 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
     }
     
     isFFmpegLoaded = true;
-    console.log('🎬 FFmpeg is ready for use');
+    console.log('[FFmpeg Utils] 🎉 FFmpeg is ready for use');
+    console.log('[FFmpeg Utils] ✅ initFFmpeg completed successfully');
   } catch (error) {
-    console.error('❌ FFmpeg initialization failed:', error);
+    console.error('[FFmpeg Utils] ❌ FFmpeg initialization failed:', error);
     isFFmpegLoaded = false;
     ffmpeg = null;
     throw error;

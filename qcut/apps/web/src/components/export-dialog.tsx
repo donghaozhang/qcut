@@ -61,12 +61,14 @@ export function ExportDialog() {
   // Engine recommendation state
   const [engineRecommendation, setEngineRecommendation] = useState<string | null>(null);
   
-  // FFmpeg engine state
-  const [engineType, setEngineType] = useState<'standard' | 'ffmpeg' | 'cli'>('standard'); // Default to standard for Electron compatibility
-  const [ffmpegAvailable, setFfmpegAvailable] = useState(false);
-  
   // Electron detection
   const { isElectron } = useElectron();
+  
+  // FFmpeg engine state - auto-select CLI for Electron, standard for browser
+  const [engineType, setEngineType] = useState<'standard' | 'ffmpeg' | 'cli'>(
+    isElectron() ? 'cli' : 'standard'
+  );
+  const [ffmpegAvailable, setFfmpegAvailable] = useState(false);
   
   // Current export engine reference for cancellation
   const currentEngineRef = useRef<ExportEngine | null>(null);
@@ -244,10 +246,21 @@ export function ExportDialog() {
 
       // Create export engine using factory for optimal performance
       const factory = ExportEngineFactory.getInstance();
-      const selectedEngineType = 
-        engineType === 'cli' ? ExportEngineType.CLI :
-        engineType === 'ffmpeg' ? ExportEngineType.FFMPEG : 
-        ExportEngineType.STANDARD;
+      
+      // Let factory auto-recommend for Electron, otherwise use manual selection
+      let selectedEngineType: ExportEngineType | undefined;
+      if (isElectron()) {
+        // For Electron, let factory automatically recommend (will choose CLI)
+        console.log('[ExportDialog] 🖥️  Electron detected - letting factory auto-recommend engine');
+        selectedEngineType = undefined; // Let factory decide
+      } else {
+        // For browser, use manual selection
+        selectedEngineType = 
+          engineType === 'cli' ? ExportEngineType.CLI :
+          engineType === 'ffmpeg' ? ExportEngineType.FFMPEG : 
+          ExportEngineType.STANDARD;
+      }
+      
       const exportEngine = await factory.createEngine(
         canvas,
         {

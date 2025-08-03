@@ -77,39 +77,60 @@ export class ExportEngineFactory {
   ): Promise<EngineRecommendation> {
     const capabilities = await this.detectCapabilities();
     
-    // Calculate memory requirements
+    // 🚀 FORCE CLI FFmpeg in Electron - most stable and performant
+    if (this.isElectron()) {
+      console.log('[ExportEngineFactory] 🖥️  Electron detected - using CLI FFmpeg (most stable)');
+      return {
+        engineType: ExportEngineType.CLI,
+        reason: 'Electron environment - using native CLI FFmpeg for best performance and stability',
+        capabilities,
+        estimatedPerformance: 'high'
+      };
+    }
+    
+    // Calculate memory requirements for browser environments
     const estimatedMemoryGB = this.estimateMemoryRequirements(settings, duration);
     
-    // High-end system with modern APIs
+    // High-end system with modern APIs (browser only)
     if (capabilities.hasWebCodecs && 
         capabilities.deviceMemoryGB >= 16 && 
         capabilities.performanceScore >= 80 &&
         estimatedMemoryGB < capabilities.deviceMemoryGB * 0.4) {
       return {
         engineType: ExportEngineType.WEBCODECS,
-        reason: 'High-performance system with WebCodecs support',
+        reason: 'High-performance browser system with WebCodecs support',
         capabilities,
         estimatedPerformance: 'high'
       };
     }
 
-    // Mid-range system - use optimized engine if available
-    if (capabilities.hasOffscreenCanvas && 
+    // Mid-range system - use FFmpeg WASM if available (browser only)
+    if (capabilities.hasSharedArrayBuffer && 
         capabilities.hasWorkers &&
         capabilities.deviceMemoryGB >= 8 &&
         capabilities.performanceScore >= 60) {
       return {
-        engineType: ExportEngineType.OPTIMIZED,
-        reason: 'Good performance system with modern Canvas APIs',
+        engineType: ExportEngineType.FFMPEG,
+        reason: 'Good performance browser system with FFmpeg WASM support',
         capabilities,
         estimatedPerformance: 'medium'
       };
     }
 
-    // Default to standard engine for compatibility
+    // Browser fallback - optimized engine if available
+    if (capabilities.hasOffscreenCanvas && capabilities.hasWorkers) {
+      return {
+        engineType: ExportEngineType.OPTIMIZED,
+        reason: 'Browser with modern Canvas APIs',
+        capabilities,
+        estimatedPerformance: 'medium'
+      };
+    }
+
+    // Final fallback to standard engine for maximum compatibility
     return {
       engineType: ExportEngineType.STANDARD,
-      reason: 'Using standard engine for maximum compatibility',
+      reason: 'Using standard engine for maximum browser compatibility',
       capabilities,
       estimatedPerformance: capabilities.performanceScore >= 40 ? 'medium' : 'low'
     };
@@ -154,16 +175,17 @@ export class ExportEngineFactory {
         // Native FFmpeg CLI engine (Electron only)
         if (this.isElectron()) {
           try {
+            console.log('[ExportEngineFactory] 🚀 Loading CLI FFmpeg engine for Electron');
             const { CLIExportEngine } = await import('./export-engine-cli');
             return new CLIExportEngine(canvas, settings, tracks, mediaItems, totalDuration);
           } catch (error) {
-            console.warn('Failed to load CLI engine, falling back to FFmpeg WASM:', error);
-            // Fallback to FFmpeg WASM
-            const { FFmpegExportEngine } = await import('./export-engine-ffmpeg');
-            return new FFmpegExportEngine(canvas, settings, tracks, mediaItems, totalDuration);
+            console.error('[ExportEngineFactory] ❌ Failed to load CLI engine:', error);
+            console.log('[ExportEngineFactory] 🔄 Falling back to standard engine (avoiding WASM issues in Electron)');
+            // In Electron, avoid WASM FFmpeg due to loading issues - use standard engine instead
+            return new ExportEngine(canvas, settings, tracks, mediaItems, totalDuration);
           }
         } else {
-          console.warn('CLI engine only available in Electron, using FFmpeg WASM');
+          console.warn('[ExportEngineFactory] ⚠️  CLI engine only available in Electron, using FFmpeg WASM for browser');
           const { FFmpegExportEngine } = await import('./export-engine-ffmpeg');
           return new FFmpegExportEngine(canvas, settings, tracks, mediaItems, totalDuration);
         }

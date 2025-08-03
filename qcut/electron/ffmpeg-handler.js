@@ -109,8 +109,46 @@ function setupFFmpegIPC() {
         outputFile
       ];
       
-      // Create a temporary batch file to workaround Electron process spawning issues
+      // Attempt to spawn FFmpeg process directly instead of requiring manual run
       const inputPattern = path.join(frameDir, 'frame-%04d.png');
+
+      // =============================
+      // Try to run FFmpeg directly
+      // =============================
+      try {
+        console.log('[FFmpeg CLI] 🚀 Attempting direct FFmpeg spawn');
+        const ffmpegProc = spawn(ffmpegPath, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+
+        ffmpegProc.stderr.on('data', (chunk) => {
+          const text = chunk.toString();
+          const progress = parseProgress(text);
+          if (progress) {
+            event.sender?.send?.('ffmpeg-progress', progress);
+          }
+          if (process.env.DEBUG_FFMPEG) {
+            console.log('[FFmpeg stderr]', text);
+          }
+        });
+
+        ffmpegProc.on('error', (err) => {
+          console.error('[FFmpeg CLI] Spawn error:', err);
+          reject(err);
+        });
+
+        ffmpegProc.on('close', (code) => {
+          if (code === 0) {
+            console.log('[FFmpeg CLI] ✅ Finished via spawn');
+            resolve({ success: true, outputFile, method: 'spawn' });
+          } else {
+            reject(new Error(`FFmpeg exited with code ${code}`));
+          }
+        });
+
+        // If spawn succeeded we exit early and skip manual fallback logic below.
+        return;
+      } catch (spawnErr) {
+        console.warn('[FFmpeg CLI] Direct spawn failed, will fall back to manual instructions', spawnErr);
+      }
       const batchFile = path.join(tempManager.getOutputDir(sessionId), 'ffmpeg_run.bat');
       
       // Create batch file content using Windows CMD syntax

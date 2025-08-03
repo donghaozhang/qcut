@@ -48,7 +48,10 @@
       {
         "from": "electron/resources/",
         "to": "resources/",
-        "filter": ["ffmpeg.exe"]
+        "filter": [
+          "ffmpeg.exe",
+          "*.dll"
+        ]
       }
     ],
     "extraMetadata": {

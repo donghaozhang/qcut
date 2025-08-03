@@ -7,12 +7,23 @@ export class FFmpegService {
   constructor(private onProgress?: (progress: number, message: string) => void) {}
 
   async initialize(): Promise<void> {    
-    console.log('[FFmpeg Service] Initializing...');
+    console.log('[FFmpeg Service] 🔄 Starting initialization...');
     
-    // Use the ffmpeg-utils which already handles Electron properly and singleton management
-    this.ffmpeg = await initFFmpeg();
-    
-    console.log('[FFmpeg Service] Initialized successfully');
+    try {
+      // Use the ffmpeg-utils which already handles Electron properly and singleton management
+      console.log('[FFmpeg Service] 📞 Calling initFFmpeg()...');
+      this.ffmpeg = await initFFmpeg();
+      console.log('[FFmpeg Service] ✅ initFFmpeg() completed, instance received');
+      
+      if (!this.ffmpeg) {
+        throw new Error('FFmpeg instance is null after initialization');
+      }
+      
+      console.log('[FFmpeg Service] ✅ Initialized successfully');
+    } catch (error) {
+      console.error('[FFmpeg Service] ❌ Initialization failed:', error);
+      throw error;
+    }
   }
 
   async encodeFramesToVideo(
@@ -20,9 +31,11 @@ export class FFmpegService {
     fps: number,
     format: string
   ): Promise<Blob> {
+    console.log(`[FFmpeg Service] 🎬 Starting encodeFramesToVideo with ${frames.length} frames`);
+    
     // Ensure FFmpeg is ready, re-initialize if needed
     if (!isFFmpegReady() || !this.ffmpeg) {
-      console.log('🎬 FFmpeg not ready, initializing...');
+      console.log('[FFmpeg Service] 🔄 FFmpeg not ready, initializing...');
       await this.initialize();
     }
     
@@ -30,37 +43,51 @@ export class FFmpegService {
       throw new Error('FFmpeg initialization failed - instance not ready for encoding');
     }
     
-    console.log(`🎬 Starting video encoding: ${frames.length} frames at ${fps}fps to ${format}`);
+    console.log(`[FFmpeg Service] ✅ FFmpeg ready, starting video encoding: ${frames.length} frames at ${fps}fps to ${format}`);
     
-    // Add progress during encoding
-    this.ffmpeg!.on('progress', ({ progress, time }) => {
-      const percent = 90 + (progress * 10); // 90-100% range
-      this.onProgress?.(percent, `Encoding video... ${Math.round(progress * 100)}%`);
-    });
-    
-    // Write frames to FFmpeg file system
-    for (let i = 0; i < frames.length; i++) {
-      const frameData = await frames[i].arrayBuffer();
-      const frameName = `frame${i.toString().padStart(5, '0')}.png`;
-      await this.ffmpeg.writeFile(frameName, new Uint8Array(frameData));
+    try {
+      // Add progress during encoding
+      this.ffmpeg!.on('progress', ({ progress, time }) => {
+        const percent = 90 + (progress * 10); // 90-100% range
+        console.log(`[FFmpeg Service] 📊 Encoding progress: ${Math.round(progress * 100)}%`);
+        this.onProgress?.(percent, `Encoding video... ${Math.round(progress * 100)}%`);
+      });
       
-      if (i % 30 === 0) {
-        console.log(`[FFmpeg] Written ${i + 1}/${frames.length} frames`);
+      console.log('[FFmpeg Service] 📝 Writing frames to FFmpeg file system...');
+      // Write frames to FFmpeg file system
+      for (let i = 0; i < frames.length; i++) {
+        console.log(`[FFmpeg Service] 📂 Processing frame ${i + 1}/${frames.length}...`);
+        const frameData = await frames[i].arrayBuffer();
+        const frameName = `frame${i.toString().padStart(5, '0')}.png`;
+        await this.ffmpeg.writeFile(frameName, new Uint8Array(frameData));
+        
+        if (i % 10 === 0 || i === frames.length - 1) {
+          console.log(`[FFmpeg Service] ✅ Written ${i + 1}/${frames.length} frames`);
+        }
       }
+      
+      console.log('[FFmpeg Service] 🎥 All frames written, starting video encoding...');
+      // Encode video
+      const outputFile = `output.${format}`;
+      await this.runFFmpegCommand(fps, format, outputFile);
+      
+      console.log('[FFmpeg Service] 📖 Reading output file...');
+      // Read output
+      const data = await this.ffmpeg.readFile(outputFile);
+      const videoBlob = new Blob([data], { type: `video/${format}` });
+      
+      console.log(`[FFmpeg Service] ✅ Video encoded successfully: ${(videoBlob.size / 1024 / 1024).toFixed(2)} MB`);
+      
+      // Cleanup
+      console.log('[FFmpeg Service] 🧹 Cleaning up temporary files...');
+      await this.cleanup();
+      
+      console.log('[FFmpeg Service] 🎉 encodeFramesToVideo completed successfully');
+      return videoBlob;
+    } catch (error) {
+      console.error('[FFmpeg Service] ❌ Error during encoding:', error);
+      throw error;
     }
-    
-    // Encode video
-    const outputFile = `output.${format}`;
-    await this.runFFmpegCommand(fps, format, outputFile);
-    
-    // Read output
-    const data = await this.ffmpeg.readFile(outputFile);
-    const videoBlob = new Blob([data], { type: `video/${format}` });
-    
-    // Cleanup
-    await this.cleanup();
-    
-    return videoBlob;
   }
 
   private async runFFmpegCommand(
@@ -70,9 +97,16 @@ export class FFmpegService {
   ): Promise<void> {
     const args = this.getFFmpegArgs(fps, format, outputFile);
     
-    console.log('[FFmpeg] Running command:', args.join(' '));
+    console.log('[FFmpeg Service] 🚀 Running FFmpeg command:', args.join(' '));
     
-    await this.ffmpeg!.exec(args);
+    try {
+      console.log('[FFmpeg Service] ⏳ Executing FFmpeg command...');
+      await this.ffmpeg!.exec(args);
+      console.log('[FFmpeg Service] ✅ FFmpeg command completed successfully');
+    } catch (error) {
+      console.error('[FFmpeg Service] ❌ FFmpeg command failed:', error);
+      throw error;
+    }
   }
 
   private getFFmpegArgs(fps: number, format: string, outputFile: string): string[] {
