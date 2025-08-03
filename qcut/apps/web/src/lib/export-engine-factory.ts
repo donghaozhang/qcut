@@ -7,7 +7,8 @@ import { MediaItem } from "@/stores/media-store";
 export enum ExportEngineType {
   STANDARD = "standard",
   OPTIMIZED = "optimized",
-  WEBCODECS = "webcodecs"
+  WEBCODECS = "webcodecs",
+  FFMPEG = "ffmpeg"
 }
 
 // Browser capability detection results
@@ -135,6 +136,16 @@ export class ExportEngineFactory {
           return new OptimizedExportEngine(canvas, settings, tracks, mediaItems, totalDuration);
         } catch (error) {
           console.warn('Failed to load optimized engine, falling back to standard:', error);
+          return new ExportEngine(canvas, settings, tracks, mediaItems, totalDuration);
+        }
+
+      case ExportEngineType.FFMPEG:
+        // FFmpeg engine for faster encoding
+        try {
+          const { FFmpegExportEngine } = await import('./export-engine-ffmpeg');
+          return new FFmpegExportEngine(canvas, settings, tracks, mediaItems, totalDuration);
+        } catch (error) {
+          console.warn('Failed to load FFmpeg engine, falling back to standard:', error);
           return new ExportEngine(canvas, settings, tracks, mediaItems, totalDuration);
         }
 
@@ -298,5 +309,16 @@ export class ExportEngineFactory {
   async refreshCapabilities(): Promise<BrowserCapabilities> {
     this.capabilities = null;
     return this.detectCapabilities();
+  }
+
+  // Check if FFmpeg is available
+  static async isFFmpegAvailable(): Promise<boolean> {
+    try {
+      // Check if we can load FFmpeg
+      const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+      return true;
+    } catch {
+      return false;
+    }
   }
 }

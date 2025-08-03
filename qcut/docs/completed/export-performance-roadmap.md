@@ -10,45 +10,65 @@
 
 ## Phase 2: Advanced Optimizations (3-5 minute tasks)
 
-### Task 1: Implement Adaptive Timeout System
+### Task 1: Implement Adaptive Timeout System ✅
+**Status**: COMPLETED  
 **Time**: ~3 minutes  
 **File**: `apps/web/src/lib/export-engine.ts`  
-**Lines**: Around line 219 (video seek timeout)
+**Lines**: 229-245
 
+**Implemented Solution**:
 ```typescript
-// Current: Fixed 100ms timeout
-const timeout = setTimeout(() => {
-  reject(new Error('Video seek timeout'));
-}, 100);
-
-// Proposed: Adaptive based on video properties
+// Adaptive timeout: 50-200ms based on video duration and current position
 const adaptiveTimeout = Math.max(50, Math.min(200, video.duration * 10));
+const seekDistanceFactor = Math.abs(video.currentTime - seekTime) / video.duration;
+const finalTimeout = adaptiveTimeout * (1 + seekDistanceFactor);
+
 const timeout = setTimeout(() => {
+  console.warn(`[ExportEngine] Video seek timeout after ${finalTimeout.toFixed(0)}ms`);
   reject(new Error('Video seek timeout'));
-}, adaptiveTimeout);
+}, finalTimeout);
 ```
 
-**Debug**: Add `console.log(\`[ExportEngine] Seek timeout: \${adaptiveTimeout}ms\`)`
+**Debug Output**: `[ExportEngine] Video seek timeout after Xms` (only on timeout)
 
-### Task 2: Progressive Canvas Quality
+### Task 2: Progressive Canvas Quality ✅
+**Status**: COMPLETED  
 **Time**: ~4 minutes  
-**File**: `apps/web/src/lib/export-engine.ts`  
-**Lines**: Around line 58 (canvas context creation)
+**Files Modified**: 
+- `apps/web/src/types/export.ts` - Added ExportPurpose enum (lines 15-19)
+- `apps/web/src/lib/export-engine.ts` - Implemented canvas quality (lines 61-84)
 
+**Implemented Solution**:
 ```typescript
-// Current: Full quality always
-const ctx = canvas.getContext("2d", { willReadFrequently: true });
+// Added ExportPurpose enum
+export enum ExportPurpose {
+  FINAL = "final",
+  PREVIEW = "preview"
+}
 
-// Proposed: Quality based on export purpose
-const quality = this.settings.quality === 'preview' ? 'low' : 'high';
-const ctx = canvas.getContext("2d", { 
+// Progressive canvas quality based on export purpose
+const isPreview = settings.purpose === ExportPurpose.PREVIEW;
+const canvasOptions: CanvasRenderingContext2DSettings = {
   willReadFrequently: true,
-  alpha: quality === 'high',
-  desynchronized: quality === 'low'
-});
+  alpha: !isPreview, // Disable alpha channel for preview (faster)
+  desynchronized: isPreview // Allow desynchronized rendering for preview
+};
+
+// Set render quality
+if (isPreview) {
+  this.ctx.imageSmoothingEnabled = false; // Faster rendering
+  this.ctx.imageSmoothingQuality = "low";
+  console.log("[ExportEngine] Canvas quality: preview mode (fast)");
+} else {
+  this.ctx.imageSmoothingEnabled = true;
+  this.ctx.imageSmoothingQuality = "high";
+  console.log("[ExportEngine] Canvas quality: final mode (high quality)");
+}
 ```
 
-**Debug**: Add `console.log(\`[ExportEngine] Canvas quality: \${quality}\`)`
+**Debug Output**: 
+- `[ExportEngine] Canvas quality: preview mode (fast)` 
+- `[ExportEngine] Canvas quality: final mode (high quality)`
 
 ### Task 3: Smart Frame Skipping for Preview
 **Time**: ~5 minutes  

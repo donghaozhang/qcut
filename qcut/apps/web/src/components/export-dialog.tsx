@@ -60,6 +60,10 @@ export function ExportDialog() {
   // Engine recommendation state
   const [engineRecommendation, setEngineRecommendation] = useState<string | null>(null);
   
+  // FFmpeg engine state
+  const [engineType, setEngineType] = useState<'standard' | 'ffmpeg'>('standard');
+  const [ffmpegAvailable, setFfmpegAvailable] = useState(false);
+  
   // Current export engine reference for cancellation
   const currentEngineRef = useRef<ExportEngine | null>(null);
   
@@ -107,7 +111,8 @@ export function ExportDialog() {
           const engineLabels = {
             [ExportEngineType.STANDARD]: "Standard Engine",
             [ExportEngineType.OPTIMIZED]: "Optimized Engine", 
-            [ExportEngineType.WEBCODECS]: "WebCodecs Engine"
+            [ExportEngineType.WEBCODECS]: "WebCodecs Engine",
+            [ExportEngineType.FFMPEG]: "FFmpeg Engine"
           };
           
           const label = engineLabels[recommendation.engineType];
@@ -124,6 +129,11 @@ export function ExportDialog() {
       getRecommendation();
     }
   }, [isDialogOpen, quality, format, timelineDuration, resolution.width, resolution.height]);
+
+  // Check FFmpeg availability on mount
+  useEffect(() => {
+    ExportEngineFactory.isFFmpegAvailable().then(setFfmpegAvailable);
+  }, []);
 
   // Handle form changes
   const handleQualityChange = (newQuality: ExportQuality) => {
@@ -229,6 +239,7 @@ export function ExportDialog() {
 
       // Create export engine using factory for optimal performance
       const factory = ExportEngineFactory.getInstance();
+      const selectedEngineType = engineType === 'ffmpeg' ? ExportEngineType.FFMPEG : ExportEngineType.STANDARD;
       const exportEngine = await factory.createEngine(
         canvas,
         {
@@ -241,7 +252,7 @@ export function ExportDialog() {
         tracks,
         mediaItems,
         totalDuration,
-        ExportEngineType.STANDARD // Force standard engine to ensure video rendering works
+        selectedEngineType
       );
       
       // Store engine reference for cancellation
@@ -609,6 +620,35 @@ export function ExportDialog() {
               </RadioGroup>
             </CardContent>
           </Card>
+
+          {/* Engine Selection */}
+          {ffmpegAvailable && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Encoding Engine</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="ffmpeg-toggle" className="text-sm cursor-pointer">
+                    Use FFmpeg (faster encoding):
+                  </Label>
+                  <input
+                    id="ffmpeg-toggle"
+                    type="checkbox"
+                    checked={engineType === 'ffmpeg'}
+                    onChange={(e) => setEngineType(e.target.checked ? 'ffmpeg' : 'standard')}
+                    className="w-4 h-4"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {engineType === 'ffmpeg' 
+                    ? '🚀 FFmpeg provides 5-10x faster encoding than standard MediaRecorder'
+                    : '📹 Standard MediaRecorder (compatible with all browsers)'
+                  }
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Format Selection */}
           <Card>

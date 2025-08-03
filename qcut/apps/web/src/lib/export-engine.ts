@@ -1,4 +1,4 @@
-import { ExportSettings, ExportProgress, FORMAT_INFO } from "@/types/export";
+import { ExportSettings, ExportProgress, FORMAT_INFO, ExportPurpose } from "@/types/export";
 import { TimelineElement, TimelineTrack } from "@/types/timeline";
 import { MediaItem } from "@/stores/media-store";
 import { useTimelineStore } from "@/stores/timeline-store";
@@ -58,11 +58,30 @@ export class ExportEngine {
     this.mediaItems = mediaItems;
     this.totalDuration = totalDuration;
     
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    // Progressive canvas quality based on export purpose
+    const isPreview = settings.purpose === ExportPurpose.PREVIEW;
+    const canvasOptions: CanvasRenderingContext2DSettings = {
+      willReadFrequently: true,
+      alpha: !isPreview, // Disable alpha channel for preview (faster)
+      desynchronized: isPreview // Allow desynchronized rendering for preview
+    };
+    
+    const ctx = canvas.getContext("2d", canvasOptions);
     if (!ctx) {
       throw new Error("Failed to get 2D context from canvas");
     }
     this.ctx = ctx;
+    
+    // Set render quality based on purpose
+    if (isPreview) {
+      this.ctx.imageSmoothingEnabled = false; // Faster rendering
+      this.ctx.imageSmoothingQuality = "low";
+      console.log("[ExportEngine] Canvas quality: preview mode (fast)");
+    } else {
+      this.ctx.imageSmoothingEnabled = true;
+      this.ctx.imageSmoothingQuality = "high";
+      console.log("[ExportEngine] Canvas quality: final mode (high quality)");
+    }
     
     // Set canvas dimensions to match export settings
     this.canvas.width = settings.width;
@@ -226,11 +245,17 @@ export class ExportEngine {
       const seekTime = timeOffset + element.trimStart;
       video.currentTime = seekTime;
       
-      // Wait for seek to complete with shorter timeout
+      // Wait for seek to complete with adaptive timeout based on video properties
       await new Promise<void>((resolve, reject) => {
+        // Adaptive timeout: 200-1000ms for better Electron compatibility
+        const adaptiveTimeout = Math.max(200, Math.min(1000, video.duration * 20));
+        const seekDistanceFactor = Math.abs(video.currentTime - seekTime) / video.duration;
+        const finalTimeout = adaptiveTimeout * (1 + seekDistanceFactor * 2);
+        
         const timeout = setTimeout(() => {
+          console.warn(`[ExportEngine] Video seek timeout after ${finalTimeout.toFixed(0)}ms`);
           reject(new Error('Video seek timeout'));
-        }, 100); // Reduced from 1000ms to 100ms
+        }, finalTimeout);
         
         video.onseeked = () => {
           clearTimeout(timeout);
@@ -238,8 +263,8 @@ export class ExportEngine {
         };
       });
       
-      // Shorter delay for frame ready
-      await new Promise(resolve => setTimeout(resolve, 20)); // Reduced from 50ms to 20ms
+      // Frame ready delay for Electron compatibility
+      await new Promise(resolve => setTimeout(resolve, 50)); // Increased for better stability
       
       // Calculate bounds
       const { x, y, width, height } = this.calculateElementBounds(
@@ -468,24 +493,30 @@ export class ExportEngine {
           const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
           const pixels = imageData.data;
           let nonBlackPixels = 0;
-          for (let i = 0; i < pixels.length; i += 4) {
+          
+          // Sample every 10th pixel for 10x faster checking
+          const sampleRate = 10;
+          for (let i = 0; i < pixels.length; i += (4 * sampleRate)) {
             if (pixels[i] > 0 || pixels[i + 1] > 0 || pixels[i + 2] > 0) {
               nonBlackPixels++;
             }
           }
           
+          // Adjust count for sampling
+          nonBlackPixels *= sampleRate;
+          
           if (nonBlackPixels === 0) {
             console.warn(`[ExportEngine] BLACK FRAME at ${frame + 1}!`);
           } else if (frame % 30 === 0) {
-            console.log(`[ExportEngine] Frame ${frame + 1}: ${nonBlackPixels} pixels`);
+            console.log(`[ExportEngine] Frame ${frame + 1}: ~${nonBlackPixels} pixels (sampled)`);
           }
         }
         
         // Manually capture this frame to the stream
         if (videoTrack && 'requestFrame' in videoTrack) {
           (videoTrack as any).requestFrame();
-          // Shorter frame capture delay
-          await new Promise(resolve => setTimeout(resolve, 20)); // Reduced from 50ms to 20ms
+          // Frame capture delay for Electron compatibility
+          await new Promise(resolve => setTimeout(resolve, 50)); // Increased for better stability
         } else {
           console.warn(`[ExportEngine] Cannot capture frame ${frame + 1}`);
         }
@@ -641,5 +672,38 @@ export class ExportEngine {
   ): Promise<void> {
     const videoBlob = await this.export(progressCallback);
     await this.downloadVideo(videoBlob, filename);
+  }
+
+  // Pre-load all videos for performance (Task 1.5)
+  protected async preloadAllVideos(): Promise<void> {
+    const videoUrls = new Set<string>();
+    
+    // Collect unique video URLs
+    this.mediaItems
+      .filter(item => item.type === 'video' && item.url)
+      .forEach(item => videoUrls.add(item.url!));
+    
+    console.log(`[ExportEngine] Pre-loading ${videoUrls.size} videos...`);
+    
+    // Load videos in parallel
+    const loadPromises = Array.from(videoUrls).map(url => this.preloadVideo(url));
+    await Promise.all(loadPromises);
+    
+    console.log(`[ExportEngine] Pre-loaded ${this.videoCache.size} videos`);
+  }
+
+  private async preloadVideo(url: string): Promise<void> {
+    if (this.videoCache.has(url)) return;
+    
+    const video = document.createElement('video');
+    video.src = url;
+    video.crossOrigin = 'anonymous';
+    
+    await new Promise<void>((resolve, reject) => {
+      video.onloadeddata = () => resolve();
+      video.onerror = () => reject(new Error(`Failed to load video: ${url}`));
+    });
+    
+    this.videoCache.set(url, video);
   }
 }

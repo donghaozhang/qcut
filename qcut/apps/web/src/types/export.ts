@@ -12,6 +12,12 @@ export enum ExportQuality {
   LOW = "480p"
 }
 
+// Export purpose types
+export enum ExportPurpose {
+  FINAL = "final",
+  PREVIEW = "preview"
+}
+
 // Export settings configuration
 export interface ExportSettings {
   format: ExportFormat;
@@ -19,6 +25,7 @@ export interface ExportSettings {
   filename: string;
   width: number;
   height: number;
+  purpose?: ExportPurpose; // Optional, defaults to FINAL
 }
 
 // Export progress tracking
