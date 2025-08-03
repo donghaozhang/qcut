@@ -178,22 +178,49 @@ export class ExportEngine {
     });
   }
 
-  // Render video element (placeholder - needs video element synchronization)
+  // Render video element
   private async renderVideo(
     element: TimelineElement, 
     mediaItem: MediaItem, 
     timeOffset: number
   ): Promise<void> {
-    // For now, we'll create a placeholder that shows video info
-    // TODO: Implement proper video frame extraction
-    this.ctx.fillStyle = "#333333";
-    this.ctx.fillRect(50, 50, 200, 100);
-    
-    this.ctx.fillStyle = "#ffffff";
-    this.ctx.font = "16px Arial";
-    this.ctx.fillText("Video Element", 60, 80);
-    this.ctx.fillText(`Time: ${timeOffset.toFixed(2)}s`, 60, 100);
-    this.ctx.fillText(`File: ${mediaItem.name}`, 60, 120);
+    if (!mediaItem.url) return;
+
+    try {
+      const video = document.createElement('video');
+      video.src = mediaItem.url;
+      video.crossOrigin = 'anonymous';
+      
+      // Wait for video to load
+      await new Promise<void>((resolve, reject) => {
+        video.onloadeddata = () => resolve();
+        video.onerror = () => reject(new Error('Failed to load video'));
+      });
+      
+      // Seek to the correct time
+      video.currentTime = timeOffset + element.trimStart;
+      
+      // Wait for seek to complete
+      await new Promise<void>((resolve) => {
+        video.onseeked = () => resolve();
+      });
+      
+      // Calculate bounds
+      const { x, y, width, height } = this.calculateElementBounds(
+        element, 
+        video.videoWidth, 
+        video.videoHeight
+      );
+      
+      // Draw video frame to canvas
+      this.ctx.drawImage(video, x, y, width, height);
+      
+      // Clean up
+      video.remove();
+      
+    } catch (error) {
+      console.error('Failed to render video:', error);
+    }
   }
 
   // Render text elements
