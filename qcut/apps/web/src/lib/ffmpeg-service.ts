@@ -1,34 +1,18 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { toBlobURL } from '@ffmpeg/util';
+import { initFFmpeg, isFFmpegReady } from './ffmpeg-utils';
 
 export class FFmpegService {
   private ffmpeg: FFmpeg | null = null;
-  private loaded = false;
 
   constructor(private onProgress?: (progress: number, message: string) => void) {}
 
-  async initialize(): Promise<void> {
-    if (this.loaded) return;
+  async initialize(): Promise<void> {    
+    console.log('[FFmpeg Service] Initializing...');
     
-    console.log('[FFmpeg] Initializing...');
-    this.ffmpeg = new FFmpeg();
+    // Use the ffmpeg-utils which already handles Electron properly and singleton management
+    this.ffmpeg = await initFFmpeg();
     
-    const paths = await this.getFFmpegPaths();
-    await this.ffmpeg.load(paths);
-    
-    this.loaded = true;
-    console.log('[FFmpeg] Initialized successfully');
-  }
-
-  private async getFFmpegPaths() {
-    // Always use local files we copied to public/ffmpeg
-    const baseURL = '/ffmpeg';
-    console.log('[FFmpeg] Using local files from:', baseURL);
-    
-    return {
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-    };
+    console.log('[FFmpeg Service] Initialized successfully');
   }
 
   async encodeFramesToVideo(
@@ -36,11 +20,17 @@ export class FFmpegService {
     fps: number,
     format: string
   ): Promise<Blob> {
-    if (!this.ffmpeg || !this.loaded) {
-      throw new Error('FFmpeg not initialized');
+    // Ensure FFmpeg is ready, re-initialize if needed
+    if (!isFFmpegReady() || !this.ffmpeg) {
+      console.log('🎬 FFmpeg not ready, initializing...');
+      await this.initialize();
     }
     
-    console.log(`[FFmpeg] Encoding ${frames.length} frames at ${fps}fps to ${format}`);
+    if (!this.ffmpeg || !isFFmpegReady()) {
+      throw new Error('FFmpeg initialization failed - instance not ready for encoding');
+    }
+    
+    console.log(`🎬 Starting video encoding: ${frames.length} frames at ${fps}fps to ${format}`);
     
     // Add progress during encoding
     this.ffmpeg!.on('progress', ({ progress, time }) => {

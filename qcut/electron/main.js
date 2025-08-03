@@ -1,11 +1,123 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron')
+const { app, BrowserWindow, ipcMain, dialog, protocol, session } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const http = require('http')
 const { setupFFmpegIPC } = require('./ffmpeg-handler.js')
 
 let mainWindow
+let staticServer
+
+// ① 必须在 app.whenReady() 之前注册 app:// 协议，且支持 fetch API
+protocol.registerSchemesAsPrivileged([
+  { 
+    scheme: 'app', 
+    privileges: { 
+      secure: true, 
+      standard: true, 
+      supportFetchAPI: true,
+      corsEnabled: true
+    } 
+  }
+])
+
+// Create HTTP server to serve static files including FFmpeg WASM
+function createStaticServer() {
+  const server = http.createServer((req, res) => {
+    // Parse the URL to get the file path
+    const url = new URL(req.url, `http://${req.headers.host}`)
+    let filePath = url.pathname
+    
+    // Remove leading slash and decode URI
+    filePath = decodeURIComponent(filePath.substring(1))
+    
+    // Determine the full file path based on the request
+    let fullPath
+    if (filePath.startsWith('ffmpeg/')) {
+      // Serve FFmpeg files from the dist directory
+      fullPath = path.join(__dirname, '../apps/web/dist', filePath)
+    } else {
+      // Serve other static files from dist
+      fullPath = path.join(__dirname, '../apps/web/dist', filePath)
+    }
+    
+    console.log('[Static Server] Request:', req.url, '-> File:', fullPath)
+    
+    // Check if file exists
+    fs.access(fullPath, fs.constants.F_OK, (err) => {
+      if (err) {
+        console.log('[Static Server] File not found:', fullPath)
+        res.writeHead(404, { 'Content-Type': 'text/plain' })
+        res.end('File not found')
+        return
+      }
+      
+      // Determine content type
+      const ext = path.extname(fullPath).toLowerCase()
+      const mimeTypes = {
+        '.js': 'application/javascript',
+        '.wasm': 'application/wasm',
+        '.json': 'application/json',
+        '.css': 'text/css',
+        '.html': 'text/html'
+      }
+      const contentType = mimeTypes[ext] || 'application/octet-stream'
+      
+      // Set CORS headers to allow cross-origin requests
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+      res.setHeader('Content-Type', contentType)
+      
+      // Stream the file
+      const fileStream = fs.createReadStream(fullPath)
+      fileStream.pipe(res)
+      
+      fileStream.on('error', (error) => {
+        console.error('[Static Server] Error reading file:', error)
+        res.writeHead(500, { 'Content-Type': 'text/plain' })
+        res.end('Internal server error')
+      })
+    })
+  })
+  
+  server.listen(8080, 'localhost', () => {
+    console.log('[Static Server] Started on http://localhost:8080')
+  })
+  
+  return server
+}
 
 function createWindow() {
+  // 3️⃣ "替换" 而不是 "追加" CSP - 完全覆盖所有现有CSP策略
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const responseHeaders = { ...details.responseHeaders };
+    
+    // 删除所有现有的CSP相关header，确保没有冲突
+    Object.keys(responseHeaders).forEach(key => {
+      if (key.toLowerCase().includes('content-security-policy')) {
+        delete responseHeaders[key];
+      }
+    });
+    
+    // 设置完整的新CSP策略，与index.html meta标签完全一致
+    responseHeaders['Content-Security-Policy'] = [
+      "default-src 'self' blob: data: app:; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: app:; " +
+      "worker-src 'self' blob: app:; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "font-src 'self' https://fonts.gstatic.com; " +
+      "connect-src 'self' app: http://localhost:8080 ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://api.github.com; " +
+      "media-src 'self' blob: data: app:; " +
+      "img-src 'self' blob: data: app:;"
+    ];
+    
+    // 添加 COOP/COEP 头以支持 SharedArrayBuffer（FFmpeg WASM需要）
+    responseHeaders['Cross-Origin-Opener-Policy'] = ['same-origin'];
+    responseHeaders['Cross-Origin-Embedder-Policy'] = ['require-corp'];
+
+    callback({ responseHeaders });
+  });
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -13,8 +125,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
-      webSecurity: false, // Allow data URLs and disable CSP restrictions for media handling
-      allowRunningInsecureContent: true // Allow mixed content for development
+      // 移除 webSecurity: false 和 allowRunningInsecureContent，让CSP正确工作
     }
   })
   
@@ -33,12 +144,26 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Register custom protocol for serving static files
+  protocol.registerFileProtocol('app', (request, callback) => {
+    const url = request.url.replace('app://', '')
+    const filePath = path.join(__dirname, '../apps/web/dist', url)
+    callback(filePath)
+  })
+  
+  // Start the static server to serve FFmpeg WASM files
+  staticServer = createStaticServer()
+  
   createWindow()
   setupFFmpegIPC() // Add FFmpeg CLI support
 })
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    // Close the static server when quitting
+    if (staticServer) {
+      staticServer.close()
+    }
     app.quit()
   }
 })
