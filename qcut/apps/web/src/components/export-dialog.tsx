@@ -199,7 +199,10 @@ export function ExportDialog() {
     }
   };
 
-  const handleExport = async () => {
+  const handleExport = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
     // Reset any previous errors
     setError(null);
     resetExport();
@@ -388,7 +391,7 @@ export function ExportDialog() {
         </div>
 
         {/* Export Button - Top Section */}
-        <div className="p-4 border-b border-border">
+        <div className="p-4 border-b border-border space-y-4">
           {progress.isExporting ? (
             <div className="space-y-2">
               <Button
@@ -406,6 +409,7 @@ export function ExportDialog() {
             </div>
           ) : (
             <Button
+              type="button"
               onClick={handleExport}
               disabled={!isValidFilename(filename) || timelineDuration === 0 || !memoryEstimate.canExport}
               className="w-full"
@@ -414,6 +418,51 @@ export function ExportDialog() {
               <Download className="w-4 h-4 mr-2" />
               Export Video
             </Button>
+          )}
+
+          {/* Progress Display - Right below button */}
+          {progress.isExporting && (
+            <div className="space-y-3 p-4 bg-muted/50 rounded-md">
+              <div className="flex justify-between text-sm">
+                <span className="font-medium">Export Progress</span>
+                <span>{progress.progress.toFixed(0)}%</span>
+              </div>
+              <Progress value={progress.progress} className="w-full" />
+              <p className="text-sm text-muted-foreground">{progress.status}</p>
+              
+              {/* Advanced Progress Information */}
+              {progress.currentFrame > 0 && progress.totalFrames > 0 && (
+                <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-2 border-t border-border">
+                  <div>
+                    <span className="font-medium">Frames:</span>
+                    <span className="ml-1">{progress.currentFrame} / {progress.totalFrames}</span>
+                  </div>
+                  {progress.encodingSpeed && progress.encodingSpeed > 0 && (
+                    <div>
+                      <span className="font-medium">Speed:</span>
+                      <span className="ml-1">{progress.encodingSpeed.toFixed(1)} fps</span>
+                    </div>
+                  )}
+                  {progress.elapsedTime && progress.elapsedTime > 0 && (
+                    <div>
+                      <span className="font-medium">Elapsed:</span>
+                      <span className="ml-1">{progress.elapsedTime.toFixed(1)}s</span>
+                    </div>
+                  )}
+                  {progress.estimatedTimeRemaining && progress.estimatedTimeRemaining > 0 && (
+                    <div>
+                      <span className="font-medium">Remaining:</span>
+                      <span className="ml-1">
+                        {progress.estimatedTimeRemaining < 60 
+                          ? `${progress.estimatedTimeRemaining.toFixed(0)}s`
+                          : `${Math.floor(progress.estimatedTimeRemaining / 60)}m ${Math.floor(progress.estimatedTimeRemaining % 60)}s`
+                        }
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
@@ -711,61 +760,6 @@ export function ExportDialog() {
             </Alert>
           )}
 
-          {/* Progress Display */}
-          {progress.isExporting && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Export Progress</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span>Progress</span>
-                  <span>{progress.progress.toFixed(0)}%</span>
-                </div>
-                <Progress value={progress.progress} className="w-full" />
-                <p className="text-sm text-muted-foreground">{progress.status}</p>
-                
-                {/* Advanced Progress Information */}
-                {progress.currentFrame > 0 && progress.totalFrames > 0 && (
-                  <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-2 border-t border-border">
-                    <div>
-                      <span className="font-medium">Frames:</span>
-                      <span className="ml-1">{progress.currentFrame} / {progress.totalFrames}</span>
-                    </div>
-                    {progress.encodingSpeed && progress.encodingSpeed > 0 && (
-                      <div>
-                        <span className="font-medium">Speed:</span>
-                        <span className="ml-1">{progress.encodingSpeed.toFixed(1)} fps</span>
-                      </div>
-                    )}
-                    {progress.elapsedTime && progress.elapsedTime > 0 && (
-                      <div>
-                        <span className="font-medium">Elapsed:</span>
-                        <span className="ml-1">{progress.elapsedTime.toFixed(1)}s</span>
-                      </div>
-                    )}
-                    {progress.estimatedTimeRemaining && progress.estimatedTimeRemaining > 0 && (
-                      <div>
-                        <span className="font-medium">Remaining:</span>
-                        <span className="ml-1">
-                          {progress.estimatedTimeRemaining < 60 
-                            ? `${progress.estimatedTimeRemaining.toFixed(0)}s`
-                            : `${Math.floor(progress.estimatedTimeRemaining / 60)}m ${Math.floor(progress.estimatedTimeRemaining % 60)}s`
-                          }
-                        </span>
-                      </div>
-                    )}
-                    {progress.averageFrameTime && progress.averageFrameTime > 0 && (
-                      <div className="col-span-2">
-                        <span className="font-medium">Avg frame time:</span>
-                        <span className="ml-1">{progress.averageFrameTime.toFixed(0)}ms</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
 

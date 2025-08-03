@@ -4,6 +4,7 @@ apps/web
 # Build folders
 electron-builds/
 dist/
+dist*/
 build/
 dist-electron/
 dist-packager*/

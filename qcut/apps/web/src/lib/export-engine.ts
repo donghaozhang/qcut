@@ -287,14 +287,14 @@ export class ExportEngine {
     return this.fps;
   }
 
-  // Setup MediaRecorder for canvas capture
+  // Setup MediaRecorder for canvas capture with proper timing
   private setupMediaRecorder(): void {
     if (this.mediaRecorder) {
       return; // Already set up
     }
 
-    // Get canvas stream
-    const stream = this.canvas.captureStream(this.fps);
+    // Create a controlled stream that doesn't run in real-time
+    const stream = this.canvas.captureStream(0); // 0 fps = manual frame capture
     
     // Configure MediaRecorder options based on format and quality
     const formatInfo = FORMAT_INFO[this.settings.format];
@@ -403,6 +403,10 @@ export class ExportEngine {
       
       progressCallback?.(0, 'Starting export...');
       
+      // Get canvas stream for manual frame capture
+      const stream = this.canvas.captureStream(0);
+      const videoTrack = stream.getVideoTracks()[0];
+      
       // Render each frame with advanced progress tracking
       for (let frame = 0; frame < totalFrames; frame++) {
         const frameStartTime = Date.now();
@@ -416,6 +420,11 @@ export class ExportEngine {
         
         // Render frame to canvas
         await this.renderFrame(currentTime);
+        
+        // Manually capture this frame to the stream
+        if (videoTrack && 'requestFrame' in videoTrack) {
+          (videoTrack as any).requestFrame();
+        }
         
         // Calculate advanced progress metrics
         const now = Date.now();
@@ -445,7 +454,7 @@ export class ExportEngine {
           });
         }
         
-        // Allow UI to update and check for cancellation
+        // Small delay for UI updates
         await new Promise(resolve => setTimeout(resolve, 1));
       }
       
