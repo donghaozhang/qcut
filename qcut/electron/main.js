@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const { setupFFmpegIPC } = require('./ffmpeg-handler.js')
 
 let mainWindow
 
@@ -31,7 +32,10 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  createWindow()
+  setupFFmpegIPC() // Add FFmpeg CLI support
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

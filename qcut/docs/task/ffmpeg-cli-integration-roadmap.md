@@ -22,9 +22,9 @@ Integrate native FFmpeg CLI into Electron for **5-10x faster video encoding** co
 
 ## Phase 1: Electron IPC Setup (9 minutes total)
 
-### Task 1.1: Add FFmpeg IPC Handler
+### Task 1.1: Add FFmpeg IPC Handler ✅ **COMPLETED**
 **Time**: 3 minutes  
-**File**: Create `qcut/electron/ffmpeg-handler.js` (NEW FILE)
+**File**: ✅ Created `qcut/electron/ffmpeg-handler.js`
 
 ```javascript
 import { ipcMain } from 'electron';
@@ -116,9 +116,9 @@ function parseProgress(output) {
 }
 ```
 
-### Task 1.2: Register IPC Handler
+### Task 1.2: Register IPC Handler ✅ **COMPLETED**
 **Time**: 2 minutes  
-**File**: Update `qcut/electron/main.js` (EXISTING FILE)
+**File**: ✅ Updated `qcut/electron/main.js`
 
 ```javascript
 // Add to existing file after line 130+
@@ -132,9 +132,9 @@ app.whenReady().then(() => {
 });
 ```
 
-### Task 1.3: Add Temp Directory Management  
+### Task 1.3: Add Temp Directory Management ✅ **COMPLETED**
 **Time**: 4 minutes  
-**File**: Create `qcut/electron/temp-manager.js` (NEW FILE)
+**File**: ✅ Created `qcut/electron/temp-manager.js` and updated `ffmpeg-handler.js`
 
 ```javascript
 import fs from 'fs';
@@ -190,9 +190,9 @@ export class TempManager {
 
 ## Phase 2: CLI Export Engine (12 minutes total)
 
-### Task 2.1: Create CLI Export Engine
+### Task 2.1: Create CLI Export Engine ✅ **COMPLETED**
 **Time**: 4 minutes  
-**File**: Create `qcut/apps/web/src/lib/export-engine-cli.ts` (NEW FILE)
+**File**: ✅ Created `qcut/apps/web/src/lib/export-engine-cli.ts`
 
 ```typescript
 import { ExportEngine } from './export-engine';
@@ -370,9 +370,9 @@ export function setupFFmpegIPC() {
 }
 ```
 
-### Task 2.3: Update Export Engine Factory
+### Task 2.3: Update Export Engine Factory ✅ **COMPLETED**
 **Time**: 3 minutes  
-**File**: Update `qcut/apps/web/src/lib/export-engine-factory.ts` (EXISTING FILE)
+**File**: ✅ Updated `qcut/apps/web/src/lib/export-engine-factory.ts`
 
 **Current enum** (line 7-12):
 ```typescript

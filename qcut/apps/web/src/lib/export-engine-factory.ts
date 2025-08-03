@@ -8,7 +8,8 @@ export enum ExportEngineType {
   STANDARD = "standard",
   OPTIMIZED = "optimized",
   WEBCODECS = "webcodecs",
-  FFMPEG = "ffmpeg"
+  FFMPEG = "ffmpeg",
+  CLI = "cli"
 }
 
 // Browser capability detection results
@@ -147,6 +148,24 @@ export class ExportEngineFactory {
         } catch (error) {
           console.warn('Failed to load FFmpeg engine, falling back to standard:', error);
           return new ExportEngine(canvas, settings, tracks, mediaItems, totalDuration);
+        }
+
+      case ExportEngineType.CLI:
+        // Native FFmpeg CLI engine (Electron only)
+        if (this.isElectron()) {
+          try {
+            const { CLIExportEngine } = await import('./export-engine-cli');
+            return new CLIExportEngine(canvas, settings, tracks, mediaItems, totalDuration);
+          } catch (error) {
+            console.warn('Failed to load CLI engine, falling back to FFmpeg WASM:', error);
+            // Fallback to FFmpeg WASM
+            const { FFmpegExportEngine } = await import('./export-engine-ffmpeg');
+            return new FFmpegExportEngine(canvas, settings, tracks, mediaItems, totalDuration);
+          }
+        } else {
+          console.warn('CLI engine only available in Electron, using FFmpeg WASM');
+          const { FFmpegExportEngine } = await import('./export-engine-ffmpeg');
+          return new FFmpegExportEngine(canvas, settings, tracks, mediaItems, totalDuration);
         }
 
       case ExportEngineType.WEBCODECS:
@@ -320,5 +339,10 @@ export class ExportEngineFactory {
     } catch {
       return false;
     }
+  }
+
+  // Check if running in Electron environment
+  private isElectron(): boolean {
+    return !!(window as any).electronAPI;
   }
 }
