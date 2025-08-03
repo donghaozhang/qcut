@@ -62,7 +62,7 @@ export function ExportDialog() {
   const [engineRecommendation, setEngineRecommendation] = useState<string | null>(null);
   
   // FFmpeg engine state
-  const [engineType, setEngineType] = useState<'standard' | 'ffmpeg' | 'cli'>('cli'); // Default to CLI for testing
+  const [engineType, setEngineType] = useState<'standard' | 'ffmpeg' | 'cli'>('ffmpeg'); // Default to FFmpeg WASM
   const [ffmpegAvailable, setFfmpegAvailable] = useState(false);
   
   // Electron detection

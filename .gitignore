@@ -22,3 +22,17 @@ node_modules/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Video files and test outputs
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Electron resources (binaries and test files)
+qcut/electron/resources/*.exe
+qcut/electron/resources/*.mp4
+qcut/electron/resources/test*
+
+# Temporary files
+nul

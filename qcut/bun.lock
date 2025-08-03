@@ -4,6 +4,8 @@
     "": {
       "name": "opencut",
       "dependencies": {
+        "@ffmpeg/ffmpeg": "^0.12.15",
+        "@ffmpeg/util": "^0.12.2",
         "jszip": "^3.10.1",
         "next": "^15.3.4",
         "wavesurfer.js": "^7.9.8",

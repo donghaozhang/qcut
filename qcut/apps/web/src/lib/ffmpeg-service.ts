@@ -21,26 +21,14 @@ export class FFmpegService {
   }
 
   private async getFFmpegPaths() {
-    // Check if running in Electron
-    const isElectron = !!(window as any).electron;
+    // Always use local files we copied to public/ffmpeg
+    const baseURL = '/ffmpeg';
+    console.log('[FFmpeg] Using local files from:', baseURL);
     
-    if (isElectron) {
-      // Use local files in Electron
-      const baseURL = './ffmpeg';
-      console.log('[FFmpeg] Using local Electron files');
-      return {
-        coreURL: `${baseURL}/ffmpeg-core.js`,
-        wasmURL: `${baseURL}/ffmpeg-core.wasm`,
-      };
-    } else {
-      // Use CDN for web
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-      console.log('[FFmpeg] Using CDN files');
-      return {
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-      };
-    }
+    return {
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+    };
   }
 
   async encodeFramesToVideo(

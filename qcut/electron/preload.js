@@ -21,6 +21,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     clear: () => ipcRenderer.invoke('storage:clear')
   },
   
+  // Generic IPC invoke method
+  invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
+  
+  // FFmpeg export operations
+  ffmpeg: {
+    createExportSession: () => ipcRenderer.invoke('create-export-session'),
+    saveFrame: (data) => ipcRenderer.invoke('save-frame', data),
+    exportVideoCLI: (options) => ipcRenderer.invoke('export-video-cli', options),
+    readOutputFile: (path) => ipcRenderer.invoke('read-output-file', path),
+    cleanupExportSession: (sessionId) => ipcRenderer.invoke('cleanup-export-session', sessionId),
+    openFramesFolder: (sessionId) => ipcRenderer.invoke('open-frames-folder', sessionId)
+  },
+  
   // Utility functions
   isElectron: true
 })

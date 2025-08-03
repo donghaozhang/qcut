@@ -3,6 +3,7 @@ import { TimelineElement, TimelineTrack } from "@/types/timeline";
 import { MediaItem } from "@/stores/media-store";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { useMediaStore } from "@/stores/media-store";
+import { FFmpegVideoRecorder, isFFmpegExportEnabled } from "@/lib/ffmpeg-video-recorder";
 
 // Interface for active elements at a specific time
 interface ActiveElement {
@@ -42,6 +43,10 @@ export class ExportEngine {
   protected isExporting: boolean = false;
   protected abortController: AbortController | null = null;
   
+  // FFmpeg recorder for WASM-based export
+  private ffmpegRecorder: FFmpegVideoRecorder | null = null;
+  private useFFmpegExport: boolean = false;
+  
   // Video element cache for performance
   private videoCache = new Map<string, HTMLVideoElement>();
   
@@ -57,6 +62,10 @@ export class ExportEngine {
     this.tracks = tracks;
     this.mediaItems = mediaItems;
     this.totalDuration = totalDuration;
+    
+    // Check if we should use FFmpeg WASM export
+    this.useFFmpegExport = isFFmpegExportEnabled();
+    console.log(`[ExportEngine] Using ${this.useFFmpegExport ? 'FFmpeg WASM' : 'MediaRecorder'} for export`);
     
     // Progressive canvas quality based on export purpose
     const isPreview = settings.purpose === ExportPurpose.PREVIEW;
@@ -389,6 +398,12 @@ export class ExportEngine {
     if (this.mediaRecorder) {
       return; // Already set up
     }
+    
+    // If using FFmpeg, skip MediaRecorder setup
+    if (this.useFFmpegExport) {
+      console.log('[ExportEngine] Skipping MediaRecorder setup - using FFmpeg WASM');
+      return;
+    }
 
     // Use existing stream if provided, otherwise create a new one
     const stream = existingStream || this.canvas.captureStream(0); // 0 fps = manual frame capture
@@ -445,7 +460,20 @@ export class ExportEngine {
   }
 
   // Start recording
-  private startRecording(): void {
+  private async startRecording(): Promise<void> {
+    if (this.useFFmpegExport) {
+      // Initialize FFmpeg recorder
+      if (!this.ffmpegRecorder) {
+        this.ffmpegRecorder = new FFmpegVideoRecorder({
+          fps: this.fps,
+          settings: this.settings
+        });
+      }
+      await this.ffmpegRecorder.startRecording();
+      this.isRecording = true;
+      return;
+    }
+    
     if (!this.mediaRecorder) {
       this.setupMediaRecorder();
     }
@@ -459,7 +487,19 @@ export class ExportEngine {
 
   // Stop recording and return blob
   private stopRecording(): Promise<Blob> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
+      if (this.useFFmpegExport && this.ffmpegRecorder) {
+        try {
+          const blob = await this.ffmpegRecorder.stopRecording();
+          this.isRecording = false;
+          resolve(blob);
+          return;
+        } catch (error) {
+          reject(error);
+          return;
+        }
+      }
+      
       if (!this.mediaRecorder) {
         reject(new Error('MediaRecorder not initialized'));
         return;
@@ -499,13 +539,18 @@ export class ExportEngine {
     console.log(`[ExportEngine] ⚡ Optimizations: 500-2000ms timeout, retry mechanism, frame validation`);
     
     try {
-      // Get canvas stream for manual frame capture FIRST
-      const stream = this.canvas.captureStream(0);
-      const videoTrack = stream.getVideoTracks()[0];
+      // Get canvas stream for manual frame capture FIRST (only for MediaRecorder)
+      let videoTrack: MediaStreamTrack | null = null;
       
-      // Setup MediaRecorder with the same stream
-      this.setupMediaRecorder(stream);
-      this.startRecording();
+      if (!this.useFFmpegExport) {
+        const stream = this.canvas.captureStream(0);
+        videoTrack = stream.getVideoTracks()[0];
+        
+        // Setup MediaRecorder with the same stream
+        this.setupMediaRecorder(stream);
+      }
+      
+      await this.startRecording();
       
       const totalFrames = this.calculateTotalFrames();
       const frameTime = 1 / this.fps; // Time per frame in seconds
@@ -513,9 +558,12 @@ export class ExportEngine {
       
       progressCallback?.(0, 'Starting export...');
       
-      // Verify stream sync
-      if (stream.id !== this.mediaRecorder?.stream?.id) {
-        console.warn('[ExportEngine] Stream mismatch detected!');
+      // Verify stream sync (only for MediaRecorder)
+      if (!this.useFFmpegExport && this.mediaRecorder?.stream) {
+        const stream = this.canvas.captureStream(0);
+        if (stream.id !== this.mediaRecorder.stream.id) {
+          console.warn('[ExportEngine] Stream mismatch detected!');
+        }
       }
       
       // Render each frame with advanced progress tracking
@@ -556,13 +604,20 @@ export class ExportEngine {
           }
         }
         
-        // Manually capture this frame to the stream
-        if (videoTrack && 'requestFrame' in videoTrack) {
-          (videoTrack as any).requestFrame();
-          // Frame capture delay for Electron compatibility
-          await new Promise(resolve => setTimeout(resolve, 50)); // Increased for better stability
+        // Capture frame based on export method
+        if (this.useFFmpegExport && this.ffmpegRecorder) {
+          // For FFmpeg export, capture the canvas as PNG data
+          const dataUrl = this.canvas.toDataURL('image/png');
+          await this.ffmpegRecorder.addFrame(dataUrl, frame);
         } else {
-          console.warn(`[ExportEngine] Cannot capture frame ${frame + 1}`);
+          // For MediaRecorder, manually capture this frame to the stream
+          if (videoTrack && 'requestFrame' in videoTrack) {
+            (videoTrack as any).requestFrame();
+            // Frame capture delay for Electron compatibility
+            await new Promise(resolve => setTimeout(resolve, 50)); // Increased for better stability
+          } else {
+            console.warn(`[ExportEngine] Cannot capture frame ${frame + 1}`);
+          }
         }
         
         // Calculate advanced progress metrics with performance timing
@@ -635,10 +690,17 @@ export class ExportEngine {
       if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
         this.mediaRecorder.stop();
       }
+      if (this.ffmpegRecorder) {
+        this.ffmpegRecorder.cleanup();
+      }
       this.isExporting = false;
       throw error;
     } finally {
       this.isExporting = false;
+      if (this.ffmpegRecorder) {
+        this.ffmpegRecorder.cleanup();
+        this.ffmpegRecorder = null;
+      }
     }
   }
 
@@ -650,6 +712,11 @@ export class ExportEngine {
     
     if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
       this.mediaRecorder.stop();
+    }
+    
+    if (this.ffmpegRecorder) {
+      this.ffmpegRecorder.cleanup();
+      this.ffmpegRecorder = null;
     }
     
     this.isExporting = false;

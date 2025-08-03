@@ -40,6 +40,32 @@ export interface ElectronAPI {
     list: () => Promise<string[]>
     clear: () => Promise<void>
   }
+  
+  // Generic IPC invoke method
+  invoke: (channel: string, ...args: any[]) => Promise<any>
+  
+  // FFmpeg export operations
+  ffmpeg: {
+    createExportSession: () => Promise<{
+      sessionId: string
+      frameDir: string
+      outputDir: string
+    }>
+    saveFrame: (data: {
+      sessionId: string
+      frameName: string
+      data: string
+    }) => Promise<string>
+    exportVideoCLI: (options: {
+      sessionId: string
+      width: number
+      height: number
+      fps: number
+      quality: string
+    }) => Promise<{ success: boolean; outputFile: string }>
+    readOutputFile: (path: string) => Promise<Buffer>
+    cleanupExportSession: (sessionId: string) => Promise<void>
+  }
 }
 
 declare global {
