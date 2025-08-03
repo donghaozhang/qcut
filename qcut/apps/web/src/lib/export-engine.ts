@@ -75,9 +75,11 @@ export class ExportEngine {
   private getActiveElements(currentTime: number): ActiveElement[] {
     const activeElements: ActiveElement[] = [];
 
-    this.tracks.forEach((track) => {
-      track.elements.forEach((element) => {
-        if (element.hidden) return;
+    this.tracks.forEach((track, trackIndex) => {
+      track.elements.forEach((element, elementIndex) => {
+        if (element.hidden) {
+          return;
+        }
         
         const elementStart = element.startTime;
         const elementEnd = element.startTime + (element.duration - element.trimStart - element.trimEnd);
@@ -86,6 +88,9 @@ export class ExportEngine {
           let mediaItem = null;
           if (element.type === "media" && element.mediaId !== "test") {
             mediaItem = this.mediaItems.find((item) => item.id === element.mediaId) || null;
+            if (!mediaItem) {
+              console.warn(`[ExportEngine] Media item not found: ${element.mediaId}`);
+            }
           }
           activeElements.push({ element, track, mediaItem });
         }
@@ -144,7 +149,10 @@ export class ExportEngine {
     mediaItem: MediaItem,
     timeOffset: number
   ): Promise<void> {
-    if (!mediaItem.url) return;
+    if (!mediaItem.url) {
+      console.warn(`[ExportEngine] No URL for media item ${mediaItem.id}`);
+      return;
+    }
 
     try {
       if (mediaItem.type === "image") {
@@ -153,7 +161,7 @@ export class ExportEngine {
         await this.renderVideo(element, mediaItem, timeOffset);
       }
     } catch (error) {
-      console.warn(`Failed to render media element ${element.id}:`, error);
+      console.error(`[ExportEngine] Failed to render ${element.id}:`, error);
     }
   }
 
@@ -173,7 +181,11 @@ export class ExportEngine {
         }
       };
       
-      img.onerror = () => reject(new Error(`Failed to load image: ${mediaItem.url}`));
+      img.onerror = () => {
+        console.error(`[ExportEngine] Failed to load image: ${mediaItem.url}`);
+        reject(new Error(`Failed to load image: ${mediaItem.url}`));
+      };
+      
       img.src = mediaItem.url!;
     });
   }
@@ -184,7 +196,10 @@ export class ExportEngine {
     mediaItem: MediaItem, 
     timeOffset: number
   ): Promise<void> {
-    if (!mediaItem.url) return;
+    if (!mediaItem.url) {
+      console.warn(`[ExportEngine] No URL for video element ${element.id}`);
+      return;
+    }
 
     try {
       const video = document.createElement('video');
@@ -198,7 +213,8 @@ export class ExportEngine {
       });
       
       // Seek to the correct time
-      video.currentTime = timeOffset + element.trimStart;
+      const seekTime = timeOffset + element.trimStart;
+      video.currentTime = seekTime;
       
       // Wait for seek to complete
       await new Promise<void>((resolve) => {
@@ -219,7 +235,7 @@ export class ExportEngine {
       video.remove();
       
     } catch (error) {
-      console.error('Failed to render video:', error);
+      console.error(`[ExportEngine] Failed to render video:`, error);
     }
   }
 
@@ -288,13 +304,13 @@ export class ExportEngine {
   }
 
   // Setup MediaRecorder for canvas capture with proper timing
-  private setupMediaRecorder(): void {
+  private setupMediaRecorder(existingStream?: MediaStream): void {
     if (this.mediaRecorder) {
       return; // Already set up
     }
 
-    // Create a controlled stream that doesn't run in real-time
-    const stream = this.canvas.captureStream(0); // 0 fps = manual frame capture
+    // Use existing stream if provided, otherwise create a new one
+    const stream = existingStream || this.canvas.captureStream(0); // 0 fps = manual frame capture
     
     // Configure MediaRecorder options based on format and quality
     const formatInfo = FORMAT_INFO[this.settings.format];
@@ -308,9 +324,10 @@ export class ExportEngine {
       }
     }
     
+    const videoBitrate = this.getVideoBitrate();
     const options: MediaRecorderOptions = {
       mimeType: selectedMimeType as string,
-      videoBitsPerSecond: this.getVideoBitrate()
+      videoBitsPerSecond: videoBitrate
     };
 
     // Fallback to WebM if selected format not supported
@@ -367,6 +384,9 @@ export class ExportEngine {
         return;
       }
 
+      const totalSize = this.recordedChunks.reduce((total, chunk) => total + chunk.size, 0);
+      console.log(`[ExportEngine] Export complete: ${totalSize} bytes, ${this.recordedChunks.length} chunks`);
+
       this.mediaRecorder.onstop = () => {
         this.isRecording = false;
         const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
@@ -393,8 +413,12 @@ export class ExportEngine {
     this.abortController = new AbortController();
     
     try {
-      // Setup and start recording
-      this.setupMediaRecorder();
+      // Get canvas stream for manual frame capture FIRST
+      const stream = this.canvas.captureStream(0);
+      const videoTrack = stream.getVideoTracks()[0];
+      
+      // Setup MediaRecorder with the same stream
+      this.setupMediaRecorder(stream);
       this.startRecording();
       
       const totalFrames = this.calculateTotalFrames();
@@ -403,9 +427,10 @@ export class ExportEngine {
       
       progressCallback?.(0, 'Starting export...');
       
-      // Get canvas stream for manual frame capture
-      const stream = this.canvas.captureStream(0);
-      const videoTrack = stream.getVideoTracks()[0];
+      // Verify stream sync
+      if (stream.id !== this.mediaRecorder?.stream?.id) {
+        console.warn('[ExportEngine] Stream mismatch detected!');
+      }
       
       // Render each frame with advanced progress tracking
       for (let frame = 0; frame < totalFrames; frame++) {
@@ -421,9 +446,26 @@ export class ExportEngine {
         // Render frame to canvas
         await this.renderFrame(currentTime);
         
+        // Debug canvas content every 30 frames
+        if (frame % 30 === 0) {
+          const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+          const pixels = imageData.data;
+          let nonBlackPixels = 0;
+          for (let i = 0; i < pixels.length; i += 4) {
+            if (pixels[i] > 0 || pixels[i + 1] > 0 || pixels[i + 2] > 0) {
+              nonBlackPixels++;
+            }
+          }
+          console.log(`[ExportEngine] Frame ${frame + 1}: ${nonBlackPixels} non-black pixels`);
+        }
+        
         // Manually capture this frame to the stream
         if (videoTrack && 'requestFrame' in videoTrack) {
           (videoTrack as any).requestFrame();
+          // Add a small delay to ensure frame is captured
+          await new Promise(resolve => setTimeout(resolve, 10));
+        } else {
+          console.warn(`[ExportEngine] Cannot capture frame ${frame + 1}`);
         }
         
         // Calculate advanced progress metrics
@@ -468,6 +510,7 @@ export class ExportEngine {
       return videoBlob;
       
     } catch (error) {
+      console.error('[ExportEngine] Export failed:', error);
       // Clean up on error
       if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
         this.mediaRecorder.stop();
