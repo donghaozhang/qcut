@@ -27,12 +27,15 @@ function EditorPage() {
   const {
     toolsPanel,
     previewPanel,
+    propertiesPanel,
     mainContent,
     timeline,
     setToolsPanel,
     setPreviewPanel,
+    setPropertiesPanel,
     setMainContent,
     setTimeline,
+    normalizeHorizontalPanels,
   } = usePanelStore()
   const { isDialogOpen } = useExportStore()
 
@@ -48,6 +51,11 @@ function EditorPage() {
   const isInitializingRef = useRef<boolean>(false)
 
   usePlaybackControls()
+
+  // Normalize panel sizes on mount
+  useEffect(() => {
+    normalizeHorizontalPanels();
+  }, [normalizeHorizontalPanels]);
 
   useEffect(() => {
     let isCancelled = false
@@ -198,9 +206,10 @@ function EditorPage() {
                 <ResizableHandle withHandle />
 
                 <ResizablePanel
-                  defaultSize={25}
+                  defaultSize={propertiesPanel}
                   minSize={15}
                   maxSize={40}
+                  onResize={setPropertiesPanel}
                   className="min-w-0"
                 >
                   {isDialogOpen ? <ExportDialog /> : <PropertiesPanel />}

@@ -64,6 +64,8 @@ export const FloatingActionPanelTrigger = React.forwardRef<
       }}
       className={cn(
         "inline-flex h-9 items-center justify-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-50 hover:bg-zinc-900/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-zinc-950 disabled:pointer-events-none disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-50/90 dark:focus-visible:ring-zinc-300",
+        // Override dark mode text color when background is transparent
+        className?.includes("!bg-transparent") && "dark:text-zinc-50",
         className
       )}
       title={title}
@@ -228,7 +230,7 @@ export const FloatingActionPanelCheckbox = React.forwardRef<
       id={id}
       onClick={() => onCheckedChange?.(!checked)}
       className={cn(
-        "peer h-4 w-4 shrink-0 rounded border border-gray-300 shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#05c7c7] disabled:cursor-not-allowed disabled:opacity-50 bg-white data-[state=checked]:bg-[#05c7c7] data-[state=checked]:border-[#05c7c7] data-[state=checked]:text-white",
+        "peer h-4 w-4 shrink-0 rounded border border-gray-300 shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#05c7c7] disabled:cursor-not-allowed disabled:opacity-50 bg-transparent data-[state=checked]:bg-[#05c7c7] data-[state=checked]:border-[#05c7c7] data-[state=checked]:text-white",
         className
       )}
     >
@@ -280,10 +282,10 @@ export function FloatingActionPanelModelOption({
 }: FloatingActionPanelModelOptionProps) {
   return (
     <div 
-      className={`flex items-center gap-3 p-2 hover:bg-gray-50 rounded-md cursor-pointer transition-colors border ${
+      className={`flex items-center gap-3 p-2 hover:bg-gray-50 hover:bg-opacity-50 rounded-md cursor-pointer transition-colors border ${
         checked 
-          ? 'bg-white border-[#05c7c7]/50' 
-          : 'bg-white border-gray-100'
+          ? 'bg-transparent border-[#05c7c7]/50' 
+          : 'bg-transparent border-gray-100'
       }`}
       onClick={() => onCheckedChange?.(!checked)}
     >

@@ -106,9 +106,9 @@ function createWindow() {
       "worker-src 'self' blob: app:; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "font-src 'self' https://fonts.gstatic.com; " +
-      "connect-src 'self' app: http://localhost:8080 ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://api.github.com; " +
+      "connect-src 'self' app: http://localhost:8080 ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://api.github.com https://fal.run; " +
       "media-src 'self' blob: data: app:; " +
-      "img-src 'self' blob: data: app:;"
+      "img-src 'self' blob: data: app: https://fal.run https://v3.fal.media;"
     ];
     
     // 添加 COOP/COEP 头以支持 SharedArrayBuffer（FFmpeg WASM需要）

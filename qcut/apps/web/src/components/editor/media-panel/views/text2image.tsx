@@ -130,49 +130,46 @@ export function Text2ImageView() {
           <RadioGroup
             value={generationMode}
             onValueChange={(value: "single" | "multi") => setGenerationMode(value)}
-            className="flex flex-col gap-3"
-            style={{ marginBottom: '5px' }}
+            className="flex flex-col gap-1.5"
           >
-            <div className="flex items-center space-x-6 cursor-pointer">
-              <RadioGroupItem value="single" id="single" className="h-4 w-4" />
-              <Label htmlFor="single" className="text-sm cursor-pointer">Single Model</Label>
+            <div className="flex items-center space-x-2 cursor-pointer">
+              <RadioGroupItem value="single" id="single" className="h-3 w-3" />
+              <Label htmlFor="single" className="text-xs cursor-pointer">Single Model</Label>
             </div>
-            <div className="flex items-center space-x-6 cursor-pointer">
-              <RadioGroupItem value="multi" id="multi" className="h-4 w-4" />
-              <Label htmlFor="multi" className="text-sm cursor-pointer">Multi-Model Compare</Label>
+            <div className="flex items-center space-x-2 cursor-pointer">
+              <RadioGroupItem value="multi" id="multi" className="h-3 w-3" />
+              <Label htmlFor="multi" className="text-xs cursor-pointer">Multi-Model Compare</Label>
             </div>
           </RadioGroup>
         </CardContent>
       </Card>
 
       {/* Model Selection */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div style={{ height: '5px' }}></div>
+      <Card className="border-0 shadow-none">
+        <CardHeader className="pb-2 pt-3">
           <CardTitle className="text-sm">
             {generationMode === "single" ? "Select Model" : `Select Models (${selectedModelCount} chosen)`}
           </CardTitle>
-          <div style={{ height: '5px' }}></div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <FloatingActionPanelRoot defaultMode="selection">
             {({ mode, open }) => (
-              <div className="space-y-2">
+              <div>
                 <FloatingActionPanelTrigger 
                   mode="selection" 
-                  title="Select AI Model(s)"
-                  className="w-full !bg-transparent hover:!bg-transparent"
+                  title="Click to select AI models"
+                  className="w-full !bg-transparent hover:!bg-transparent border border-input h-8 text-xs"
                 >
                   {selectedModelCount === 0 
-                    ? "Choose Model(s)" 
+                    ? "Click to choose" 
                     : generationMode === "single" && selectedModels[0]
                     ? TEXT2IMAGE_MODELS[selectedModels[0]]?.name
-                    : `${selectedModelCount} Model${selectedModelCount !== 1 ? 's' : ''} Selected`
+                    : "Click to change selection"
                   }
                 </FloatingActionPanelTrigger>
 
                 {open && (
-                  <div className="w-full border rounded-md bg-white max-h-[300px] overflow-y-auto shadow-md">
+                  <div className="w-full border rounded-md bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm max-h-[250px] overflow-y-auto shadow-md mt-1">
                     <div className="p-2 space-y-1">
                       {Object.entries(TEXT2IMAGE_MODELS).map(([key, model]) => (
                         <FloatingActionPanelModelOption
@@ -232,16 +229,16 @@ export function Text2ImageView() {
               <Label htmlFor="size" className="text-xs">Image Size</Label>
               <div style={{ height: '5px' }}></div>
               <Select value={imageSize} onValueChange={setImageSize}>
-                <SelectTrigger id="size" className="justify-between">
+                <SelectTrigger id="size" className="justify-between text-zinc-900 dark:text-zinc-100">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="z-[100] bg-white border shadow-lg">
-                  <SelectItem value="square">Square</SelectItem>
-                  <SelectItem value="square_hd">Square HD</SelectItem>
-                  <SelectItem value="landscape_4_3">Landscape (4:3)</SelectItem>
-                  <SelectItem value="landscape_16_9">Landscape (16:9)</SelectItem>
-                  <SelectItem value="portrait_4_3">Portrait (4:3)</SelectItem>
-                  <SelectItem value="portrait_16_9">Portrait (16:9)</SelectItem>
+                <SelectContent className="z-[9999] bg-white dark:bg-zinc-800 border shadow-lg">
+                  <SelectItem value="square" className="text-zinc-900 dark:text-zinc-100">Square</SelectItem>
+                  <SelectItem value="square_hd" className="text-zinc-900 dark:text-zinc-100">Square HD</SelectItem>
+                  <SelectItem value="landscape_4_3" className="text-zinc-900 dark:text-zinc-100">Landscape (4:3)</SelectItem>
+                  <SelectItem value="landscape_16_9" className="text-zinc-900 dark:text-zinc-100">Landscape (16:9)</SelectItem>
+                  <SelectItem value="portrait_4_3" className="text-zinc-900 dark:text-zinc-100">Portrait (4:3)</SelectItem>
+                  <SelectItem value="portrait_16_9" className="text-zinc-900 dark:text-zinc-100">Portrait (16:9)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
