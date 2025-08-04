@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useExportStore, ExportHistoryEntry } from "@/stores/export-store";
 import { useTimelineStore } from "@/stores/timeline-store";
-import { useMediaStore } from "@/stores/media-store";
+import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
 import { ExportCanvas, ExportCanvasRef } from "@/components/export-canvas";
 import { ExportEngine } from "@/lib/export-engine";
 import { ExportEngineFactory, ExportEngineType } from "@/lib/export-engine-factory";
@@ -47,7 +47,7 @@ export function ExportDialog() {
   } = useExportStore();
   
   const { getTotalDuration, tracks } = useTimelineStore();
-  const { mediaItems } = useMediaStore();
+  const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems();
   const canvasRef = useRef<ExportCanvasRef>(null);
   
   // Local state for form inputs
@@ -401,6 +401,49 @@ export function ExportDialog() {
   };
 
   if (!isDialogOpen) return null;
+
+  // Handle media loading states
+  if (mediaItemsError) {
+    return (
+      <div className="h-full bg-background rounded-sm">
+        <div className="flex flex-col h-full">
+          <div className="flex items-center justify-between p-4 border-b border-border">
+            <h2 className="text-lg font-semibold">Export Video</h2>
+            <Button variant="text" size="icon" onClick={handleClose} className="h-8 w-8">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-4">
+            <div className="text-center">
+              <div className="text-red-500 mb-2">Failed to load media items</div>
+              <div className="text-sm text-muted-foreground">{mediaItemsError.message}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mediaItemsLoading) {
+    return (
+      <div className="h-full bg-background rounded-sm">
+        <div className="flex flex-col h-full">
+          <div className="flex items-center justify-between p-4 border-b border-border">
+            <h2 className="text-lg font-semibold">Export Video</h2>
+            <Button variant="text" size="icon" onClick={handleClose} className="h-8 w-8">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-4">
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              <span>Loading export dialog...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full bg-background rounded-sm">

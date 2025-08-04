@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { useProjectStore } from "@/stores/project-store";
-import { useMediaStore } from "@/stores/media-store";
 import { storageService } from "@/lib/storage/storage-service";
 import { toast } from "sonner";
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { ResizeState, TimelineElement, TimelineTrack } from "@/types/timeline";
-import { useMediaStore } from "@/stores/media-store";
+import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
 import { useTimelineStore } from "@/stores/timeline-store";
 
 interface UseTimelineElementResizeProps {
@@ -28,7 +28,7 @@ export function useTimelineElementResize({
   onUpdateDuration,
 }: UseTimelineElementResizeProps) {
   const [resizing, setResizing] = useState<ResizeState | null>(null);
-  const { mediaItems } = useMediaStore();
+  const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems();
   const {
     updateElementStartTime,
     updateElementTrim,
@@ -86,6 +86,9 @@ export function useTimelineElementResize({
 
     // Media elements - check the media type
     if (element.type === "media") {
+      // If media items are still loading, return false (conservative approach)
+      if (mediaItemsLoading) return false;
+      
       const mediaItem = mediaItems.find((item) => item.id === element.mediaId);
       if (!mediaItem) return false;
 
@@ -222,5 +225,8 @@ export function useTimelineElementResize({
     // Return empty handlers since we use document listeners now
     handleResizeMove: () => {}, // Not used anymore
     handleResizeEnd: () => {}, // Not used anymore
+    // Loading states
+    loading: mediaItemsLoading,
+    error: mediaItemsError,
   };
 }
