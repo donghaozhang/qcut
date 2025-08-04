@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import type { useMediaStore } from "@/stores/media-store";
 import { getMediaStore } from "@/stores/media-store-loader";
+import type { MediaStore } from "@/stores/media-store-types";
 
 export function useAsyncMediaStore() {
-  const [store, setStore] = useState<ReturnType<typeof useMediaStore> | null>(null);
+  const [storeHook, setStoreHook] = useState<(() => MediaStore) | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -14,7 +14,7 @@ export function useAsyncMediaStore() {
       try {
         const module = await getMediaStore();
         if (mounted) {
-          setStore(module.useMediaStore());
+          setStoreHook(() => module.useMediaStore);
           setLoading(false);
         }
       } catch (err) {
@@ -32,6 +32,9 @@ export function useAsyncMediaStore() {
     };
   }, []);
 
+  // Now we can safely call the hook inside this React component
+  const store = storeHook ? storeHook() : null;
+
   return { store, loading, error };
 }
 
@@ -45,9 +48,9 @@ export function useAsyncMediaStoreActions() {
     addMediaItem: store?.addMediaItem,
     addGeneratedImages: store?.addGeneratedImages,
     removeMediaItem: store?.removeMediaItem,
-    updateMediaItem: store?.updateMediaItem,
-    clearMediaItems: store?.clearMediaItems,
-    loadMediaItems: store?.loadMediaItems,
+    clearProjectMedia: store?.clearProjectMedia,
+    loadProjectMedia: store?.loadProjectMedia,
+    clearAllMedia: store?.clearAllMedia,
   };
 }
 

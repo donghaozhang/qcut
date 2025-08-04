@@ -95,7 +95,11 @@ export function MediaView() {
     }
 
     // Media store now handles cascade deletion automatically
-    await removeMediaItem(activeProject.id, id);
+    if (removeMediaItem) {
+      await removeMediaItem(activeProject.id, id);
+    } else {
+      toast.error("Media store not loaded");
+    }
   };
 
   const formatDuration = (duration: number) => {

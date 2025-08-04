@@ -1,4 +1,3 @@
-import type { useMediaStore } from "./media-store";
 import type { MediaType, MediaItem, MediaStoreUtils } from "./media-store-types";
 
 let mediaStoreModule: typeof import("./media-store") | undefined;

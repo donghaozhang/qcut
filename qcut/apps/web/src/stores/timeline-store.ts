@@ -1273,8 +1273,8 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 
         if (mediaItem.type === "video" && mediaItem.file) {
           const { generateVideoThumbnail } = await import(
-            "@/stores/media-store"
-          );
+            "@/stores/media-store-loader"
+          ).then(m => m.getMediaStoreUtils());
           const { thumbnailUrl } = await generateVideoThumbnail(mediaItem.file);
           return thumbnailUrl;
         }

@@ -5,6 +5,7 @@ import { Package, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAsyncMediaItems } from '@/hooks/use-async-media-store'
 import { useZipExport } from '@/hooks/use-zip-export'
+import type { MediaItem } from '@/stores/media-store-types'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -29,16 +30,16 @@ export function ExportAllButton({
     if (DEBUG_EXPORT_ALL) console.log('📦 EXPORT-ALL: Button clicked!');
     if (DEBUG_EXPORT_ALL) console.log('📊 EXPORT-ALL: Media items analysis', {
       totalItems: mediaItems.length,
-      generatedImages: mediaItems.filter(item => item.metadata?.source === 'text2image').length,
-      regularImages: mediaItems.filter(item => item.type === 'image' && item.metadata?.source !== 'text2image').length,
-      videos: mediaItems.filter(item => item.type === 'video').length,
-      audio: mediaItems.filter(item => item.type === 'audio').length
+      generatedImages: mediaItems.filter((item: MediaItem) => item.metadata?.source === 'text2image').length,
+      regularImages: mediaItems.filter((item: MediaItem) => item.type === 'image' && item.metadata?.source !== 'text2image').length,
+      videos: mediaItems.filter((item: MediaItem) => item.type === 'video').length,
+      audio: mediaItems.filter((item: MediaItem) => item.type === 'audio').length
     });
     
     // Log generated images details
-    const generatedImages = mediaItems.filter(item => item.metadata?.source === 'text2image');
+    const generatedImages = mediaItems.filter((item: MediaItem) => item.metadata?.source === 'text2image');
     if (generatedImages.length > 0) {
-      if (DEBUG_EXPORT_ALL) console.log('🖼️ EXPORT-ALL: Generated images found:', generatedImages.map(img => ({
+      if (DEBUG_EXPORT_ALL) console.log('🖼️ EXPORT-ALL: Generated images found:', generatedImages.map((img: MediaItem) => ({
         id: img.id,
         name: img.name,
         hasFile: !!img.file,

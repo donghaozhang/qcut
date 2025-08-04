@@ -27,7 +27,7 @@ export default defineConfig({
           'ffmpeg': ['@ffmpeg/ffmpeg'],
           'editor': ['./src/stores/editor-store', './src/stores/timeline-store'],
           'ui-components': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
-          'tanstack': ['@tanstack/react-router', '@tanstack/router-devtools']
+          'tanstack': ['@tanstack/react-router']
         }
       }
     }
