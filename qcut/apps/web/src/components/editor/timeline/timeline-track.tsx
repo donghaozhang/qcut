@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useTimelineStore } from "@/stores/timeline-store";
-import { useMediaStore } from "@/stores/media-store";
+import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
 import { toast } from "sonner";
 import { TimelineElement } from "./timeline-element";
 import {
@@ -33,7 +33,7 @@ export function TimelineTrackContent({
   zoomLevel: number;
   onSnapPointChange?: (snapPoint: SnapPoint | null) => void;
 }) {
-  const { mediaItems } = useMediaStore();
+  const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems();
   const {
     tracks,
     addTrack,
@@ -61,6 +61,17 @@ export function TimelineTrackContent({
     enableElementSnapping: snappingEnabled,
     enablePlayheadSnapping: snappingEnabled,
   });
+
+  // Handle media loading states
+  if (mediaItemsError) {
+    console.error('Failed to load media items in timeline track:', mediaItemsError);
+    // Return a placeholder that maintains track structure
+    return (
+      <div className="relative w-full h-full border border-red-300 bg-red-50 rounded text-red-600 text-xs p-2">
+        Error loading media items
+      </div>
+    );
+  }
 
   // Helper function for drop snapping that tries both edges
   const getDropSnappedTime = (

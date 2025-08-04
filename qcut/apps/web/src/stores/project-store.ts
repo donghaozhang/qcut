@@ -2,7 +2,7 @@ import { TProject } from "@/types/project";
 import { create } from "zustand";
 import { storageService } from "@/lib/storage/storage-service";
 import { toast } from "sonner";
-import { useMediaStore } from "./media-store";
+import { getMediaStore } from "./media-store-loader";
 import { useTimelineStore } from "./timeline-store";
 import { generateUUID } from "@/lib/utils";
 
@@ -19,7 +19,7 @@ interface ProjectStore {
   saveCurrentProject: () => Promise<void>;
   loadAllProjects: () => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
-  closeProject: () => void;
+  closeProject: () => Promise<void>;
   renameProject: (projectId: string, name: string) => Promise<void>;
   duplicateProject: (projectId: string) => Promise<string>;
   updateProjectBackground: (backgroundColor: string) => Promise<void>;
@@ -176,7 +176,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
 
     // Clear media and timeline immediately to prevent flickering when switching projects
-    const mediaStore = useMediaStore.getState();
+    const mediaStore = (await getMediaStore()).useMediaStore.getState();
     const timelineStore = useTimelineStore.getState();
     mediaStore.clearAllMedia();
     timelineStore.clearTimeline();
@@ -248,7 +248,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const { activeProject } = get();
       if (activeProject?.id === id) {
         set({ activeProject: null });
-        const mediaStore = useMediaStore.getState();
+        const mediaStore = (await getMediaStore()).useMediaStore.getState();
         const timelineStore = useTimelineStore.getState();
         mediaStore.clearAllMedia();
         timelineStore.clearTimeline();
@@ -258,11 +258,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }
   },
 
-  closeProject: () => {
+  closeProject: async () => {
     set({ activeProject: null });
 
     // Clear data from stores when closing project
-    const mediaStore = useMediaStore.getState();
+    const mediaStore = (await getMediaStore()).useMediaStore.getState();
     const timelineStore = useTimelineStore.getState();
     mediaStore.clearAllMedia();
     timelineStore.clearTimeline();

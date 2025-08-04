@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useAdjustmentStore } from '@/stores/adjustment-store';
-import { useMediaStore } from '@/stores/media-store';
+import { useAsyncMediaStoreActions } from '@/hooks/use-async-media-store';
 import { useParams } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Wand2, Loader2 } from 'lucide-react';
@@ -41,7 +41,7 @@ export function AdjustmentPanel() {
     addToHistory
   } = useAdjustmentStore();
   
-  const { addMediaItem } = useMediaStore();
+  const { addMediaItem, loading: mediaStoreLoading, error: mediaStoreError } = useAsyncMediaStoreActions();
 
   const handleImageSelect = (file: File) => {
     const url = URL.createObjectURL(file);
@@ -161,6 +161,9 @@ export function AdjustmentPanel() {
           };
           
           console.log('💾 Adding to media store...', { projectId, mediaItem: { ...mediaItem, file: '[File object]' } });
+          if (!addMediaItem) {
+            throw new Error('Media store not ready');
+          }
           await addMediaItem(projectId, mediaItem);
           
           console.log('✅ Edited image successfully added to media library:', filename);
@@ -206,6 +209,33 @@ export function AdjustmentPanel() {
   };
 
   const canGenerateEdit = originalImageUrl && prompt.trim() && !isProcessing;
+
+  // Handle media store loading/error states
+  if (mediaStoreError) {
+    return (
+      <div className="h-full flex flex-col gap-4 p-4">
+        <div className="flex items-center justify-center flex-1">
+          <div className="text-center">
+            <div className="text-red-500 mb-2">Failed to load media store</div>
+            <div className="text-sm text-muted-foreground">{mediaStoreError.message}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mediaStoreLoading) {
+    return (
+      <div className="h-full flex flex-col gap-4 p-4">
+        <div className="flex items-center justify-center flex-1">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Loading image editor...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col gap-4 p-4">

@@ -2,7 +2,8 @@
 
 import { useTimelineStore } from "@/stores/timeline-store";
 import { TimelineElement, TimelineTrack } from "@/types/timeline";
-import { useMediaStore, type MediaItem } from "@/stores/media-store";
+import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
+import type { MediaItem } from "@/stores/media-store-types";
 import { usePlaybackStore } from "@/stores/playback-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { useAspectRatio } from "@/hooks/use-aspect-ratio";
@@ -34,7 +35,7 @@ interface ActiveElement {
 
 export function PreviewPanel() {
   const { tracks, getTotalDuration, updateTextElement } = useTimelineStore();
-  const { mediaItems } = useMediaStore();
+  const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems();
   const { currentTime, toggle, setCurrentTime, isPlaying } = usePlaybackStore();
   const { canvasSize } = useEditorStore();
   const previewRef = useRef<HTMLDivElement>(null);
@@ -473,6 +474,33 @@ export function PreviewPanel() {
 
     return null;
   };
+
+  // Handle media loading states
+  if (mediaItemsError) {
+    return (
+      <div className="h-full w-full flex flex-col min-h-0 min-w-0 bg-panel rounded-sm">
+        <div className="flex-1 flex items-center justify-center p-3">
+          <div className="text-center">
+            <div className="text-red-500 mb-2">Failed to load media items</div>
+            <div className="text-sm text-muted-foreground">{mediaItemsError.message}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mediaItemsLoading) {
+    return (
+      <div className="h-full w-full flex flex-col min-h-0 min-w-0 bg-panel rounded-sm">
+        <div className="flex-1 flex items-center justify-center p-3">
+          <div className="flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            <span>Loading preview...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

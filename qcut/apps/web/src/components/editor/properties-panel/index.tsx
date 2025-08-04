@@ -2,7 +2,7 @@
 
 import { FPS_PRESETS } from "@/constants/timeline-constants";
 import { useAspectRatio } from "@/hooks/use-aspect-ratio";
-import { useMediaStore } from "@/stores/media-store";
+import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { Label } from "../../ui/label";
@@ -27,7 +27,7 @@ export function PropertiesPanel() {
   const { activeProject, updateProjectFps } = useProjectStore();
   const { getDisplayName, canvasSize } = useAspectRatio();
   const { selectedElements, tracks } = useTimelineStore();
-  const { mediaItems } = useMediaStore();
+  const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems();
 
   const handleFpsChange = (value: string) => {
     const fps = parseFloat(value);
@@ -85,6 +85,35 @@ export function PropertiesPanel() {
       </div>
     </div>
   );
+
+  // Handle media loading states
+  if (mediaItemsError) {
+    return (
+      <ScrollArea className="h-full bg-panel rounded-sm">
+        <div className="p-4">
+          <div className="text-center">
+            <div className="text-red-500 mb-2">Failed to load media items</div>
+            <div className="text-sm text-muted-foreground">{mediaItemsError.message}</div>
+          </div>
+        </div>
+      </ScrollArea>
+    );
+  }
+
+  if (mediaItemsLoading) {
+    return (
+      <ScrollArea className="h-full bg-panel rounded-sm">
+        <div className="p-4">
+          <div className="flex items-center justify-center">
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              <span>Loading properties...</span>
+            </div>
+          </div>
+        </div>
+      </ScrollArea>
+    );
+  }
 
   return (
     <ScrollArea className="h-full bg-panel rounded-sm">

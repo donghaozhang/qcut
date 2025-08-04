@@ -34,7 +34,7 @@ import {
   ContextMenuTrigger,
 } from "../../ui/context-menu";
 import { useTimelineStore } from "@/stores/timeline-store";
-import { useMediaStore } from "@/stores/media-store";
+import { useAsyncMediaStore } from "@/hooks/use-async-media-store";
 import { usePlaybackStore } from "@/stores/playback-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineZoom } from "@/hooks/use-timeline-zoom";
@@ -74,13 +74,33 @@ export function Timeline() {
     toggleTrackMute,
     dragState,
   } = useTimelineStore();
-  const { mediaItems, addMediaItem } = useMediaStore();
+  const { store: mediaStore, loading: mediaStoreLoading, error: mediaStoreError } = useAsyncMediaStore();
+  const mediaItems = mediaStore?.mediaItems || [];
+  const addMediaItem = mediaStore?.addMediaItem;
   const { activeProject } = useProjectStore();
   const { currentTime, duration, seek, setDuration, isPlaying, toggle } =
     usePlaybackStore();
   const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  // Handle media store loading/error states
+  if (mediaStoreError) {
+    console.error('Failed to load media store:', mediaStoreError);
+    return (
+      <div className="flex items-center justify-center h-full text-red-500">
+        Failed to load media store: {mediaStoreError.message}
+      </div>
+    );
+  }
+
+  if (mediaStoreLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
   const dragCounterRef = useRef(0);
   const timelineRef = useRef<HTMLDivElement>(null);
   const rulerRef = useRef<HTMLDivElement>(null);
@@ -393,8 +413,11 @@ export function Timeline() {
           (p) => setProgress(p)
         );
         for (const processedItem of processedItems) {
+          if (!addMediaItem) {
+            throw new Error('Media store not ready');
+          }
           await addMediaItem(activeProject.id, processedItem);
-          const currentMediaItems = useMediaStore.getState().mediaItems;
+          const currentMediaItems = mediaStore?.mediaItems || [];
           const addedItem = currentMediaItems.find(
             (item) =>
               item.name === processedItem.name && item.url === processedItem.url

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Package, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useMediaStore } from '@/stores/media-store'
+import { useAsyncMediaItems } from '@/hooks/use-async-media-store'
 import { useZipExport } from '@/hooks/use-zip-export'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -22,7 +22,7 @@ export function ExportAllButton({
   variant = 'outline', 
   size = 'sm' 
 }: ExportAllButtonProps) {
-  const { mediaItems } = useMediaStore()
+  const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems()
   const { exportState, exportToZip, isExporting } = useZipExport()
 
   const handleExportAll = async () => {
@@ -76,6 +76,34 @@ export function ExportAllButton({
       console.error('❌ EXPORT-ALL: Export failed:', error)
       toast.error('Failed to export media files')
     }
+  }
+
+  // Handle media loading states
+  if (mediaItemsError) {
+    return (
+      <Button 
+        variant="outline" 
+        size={size}
+        disabled
+        className={cn('text-red-500', className)}
+      >
+        Error Loading Media
+      </Button>
+    )
+  }
+
+  if (mediaItemsLoading) {
+    return (
+      <Button 
+        variant="outline" 
+        size={size}
+        disabled
+        className={cn(className)}
+      >
+        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        Loading...
+      </Button>
+    )
   }
 
   const isEmpty = mediaItems.length === 0

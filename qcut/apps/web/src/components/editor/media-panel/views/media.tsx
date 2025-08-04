@@ -2,7 +2,8 @@
 
 import { useDragDrop } from "@/hooks/use-drag-drop";
 import { processMediaFiles } from "@/lib/media-processing";
-import { useMediaStore, type MediaItem } from "@/stores/media-store";
+import { useAsyncMediaStore } from "@/hooks/use-async-media-store";
+import type { MediaItem } from "@/stores/media-store-types";
 import { Image, Loader2, Music, Plus, Video } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -29,7 +30,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ExportAllButton } from "../export-all-button";
 
 export function MediaView() {
-  const { mediaItems, addMediaItem, removeMediaItem } = useMediaStore();
+  const { store: mediaStore, loading: mediaStoreLoading, error: mediaStoreError } = useAsyncMediaStore();
+  const mediaItems = mediaStore?.mediaItems || [];
+  const addMediaItem = mediaStore?.addMediaItem;
+  const removeMediaItem = mediaStore?.removeMediaItem;
   const { activeProject } = useProjectStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -53,6 +57,9 @@ export function MediaView() {
       );
       // Add each processed media item to the store
       for (const item of processedItems) {
+        if (!addMediaItem) {
+          throw new Error('Media store not ready');
+        }
         await addMediaItem(activeProject.id, item);
       }
     } catch (error) {
@@ -97,6 +104,29 @@ export function MediaView() {
     const sec = Math.floor(duration % 60);
     return `${min}:${sec.toString().padStart(2, "0")}`;
   };
+
+  // Handle media store loading/error states
+  if (mediaStoreError) {
+    return (
+      <div className="flex items-center justify-center h-full p-4">
+        <div className="text-center">
+          <div className="text-red-500 mb-2">Failed to load media store</div>
+          <div className="text-sm text-muted-foreground">{mediaStoreError.message}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mediaStoreLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Loading media library...</span>
+        </div>
+      </div>
+    );
+  }
 
   const [filteredMediaItems, setFilteredMediaItems] = useState(mediaItems);
 

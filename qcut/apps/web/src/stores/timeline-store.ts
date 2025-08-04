@@ -1130,7 +1130,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
           getImageDimensions,
           generateVideoThumbnail,
           getMediaDuration,
-        } = await import("./media-store");
+        } = await import("./media-store-loader").then(m => m.getMediaStoreUtils());
 
         const fileType = getFileType(newFile);
         if (!fileType) {

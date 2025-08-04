@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generateVideo, generateVideoFromImage, handleApiError, getGenerationStatus, ProgressCallback } from "@/lib/ai-video-client";
 import { AIVideoOutputManager } from "@/lib/ai-video-output";
 import { useTimelineStore } from "@/stores/timeline-store";
-import { useMediaStore } from "@/stores/media-store";
+import { useAsyncMediaStoreActions } from "@/hooks/use-async-media-store";
 import { useProjectStore } from "@/stores/project-store";
 import { usePanelStore } from "@/stores/panel-store";
 import { useMediaPanelStore } from "../store";
@@ -181,7 +181,7 @@ export function AiView() {
   const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState<boolean>(false);
   
   // Store hooks
-  const { addMediaItem } = useMediaStore();
+  const { addMediaItem, loading: mediaStoreLoading, error: mediaStoreError } = useAsyncMediaStoreActions();
   const { aiPanelWidth, aiPanelMinWidth } = usePanelStore();
   
   // Responsive layout calculations with safe defaults
@@ -360,6 +360,9 @@ export function AiView() {
                 type: 'video/mp4',
               });
               
+              if (!addMediaItem) {
+                throw new Error('Media store not ready');
+              }
               await addMediaItem(activeProject.id, {
                 name: `AI: ${newVideo.prompt.substring(0, 30)}...`,
                 type: "video",
@@ -514,6 +517,9 @@ export function AiView() {
               const file = await outputManager.createFileFromData(videoData, fileName);
               
               // Add to media panel with fully downloaded file
+              if (!addMediaItem) {
+                throw new Error('Media store not ready');
+              }
               await addMediaItem(activeProject.id, {
                 name: `AI (${modelName}): ${newVideo.prompt.substring(0, 20)}...`,
                 type: "video",
@@ -588,6 +594,29 @@ export function AiView() {
     return total + (model ? parseFloat(model.price) : 0);
   }, 0);
 
+
+  // Handle media store loading/error states
+  if (mediaStoreError) {
+    return (
+      <div className="flex items-center justify-center h-full p-4">
+        <div className="text-center">
+          <div className="text-red-500 mb-2">Failed to load media store</div>
+          <div className="text-sm text-muted-foreground">{mediaStoreError.message}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mediaStoreLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Loading AI features...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`h-full flex flex-col transition-all duration-200 ${isCollapsed ? 'p-2' : isCompact ? 'p-3' : 'p-4'}`}>

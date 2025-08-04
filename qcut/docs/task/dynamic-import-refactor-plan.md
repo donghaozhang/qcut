@@ -201,18 +201,18 @@ After applying changes:
 
 ### Phase 1: Create Infrastructure (1.5 hours)
 
-#### Task 1.1: Create Loader Modules (30 min)
-- [ ] Create `src/stores/media-store-loader.ts`
-- [ ] Create `src/lib/ffmpeg-loader.ts` 
-- [ ] Create `src/lib/ffmpeg-utils-loader.ts`
+#### Task 1.1: Create Loader Modules (30 min) ✅
+- [x] Create `src/stores/media-store-loader.ts`
+- [x] Create `src/lib/ffmpeg-loader.ts` 
+- [x] Create `src/lib/ffmpeg-utils-loader.ts`
 
-#### Task 1.2: Create Async Hooks (30 min)
-- [ ] Create `src/hooks/use-async-media-store.ts`
-- [ ] Create `src/hooks/use-async-ffmpeg.ts`
-- [ ] Add loading state management
+#### Task 1.2: Create Async Hooks (30 min) ✅
+- [x] Create `src/hooks/use-async-media-store.ts`
+- [x] Create `src/hooks/use-async-ffmpeg.ts`
+- [x] Add loading state management
 
-#### Task 1.3: Update Export Functions (30 min)
-- [ ] Update media-store exports to include utility functions:
+#### Task 1.3: Update Export Functions (30 min) ✅
+- [x] Update media-store exports to include utility functions:
   - `getFileType`
   - `getImageDimensions`
   - `generateVideoThumbnail`
@@ -221,33 +221,33 @@ After applying changes:
 
 ### Phase 2: Refactor Components - Priority Order
 
-#### Task 2.1: Critical Path Components (1.5 hours)
+#### Task 2.1: Critical Path Components (1.5 hours) ✅
 These components are core to the editor functionality:
 
-1. **Timeline Components** (45 min)
-   - [ ] `src/components/editor/timeline/index.tsx` - Main timeline
-   - [ ] `src/components/editor/timeline/timeline-element.tsx` - Individual elements
-   - [ ] `src/components/editor/timeline/timeline-track.tsx` - Track management
+1. **Timeline Components** (45 min) ✅
+   - [x] `src/components/editor/timeline/index.tsx` - Main timeline
+   - [x] `src/components/editor/timeline/timeline-element.tsx` - Individual elements
+   - [x] `src/components/editor/timeline/timeline-track.tsx` - Track management
 
-2. **Store Integration** (45 min)
-   - [ ] `src/stores/timeline-store.ts` - Already uses dynamic import, needs consistency
-   - [ ] `src/stores/project-store.ts` - Project management
-   - [ ] `src/stores/text2image-store.ts` - Already uses dynamic import
+2. **Store Integration** (45 min) ✅
+   - [x] `src/stores/timeline-store.ts` - Already uses dynamic import, needs consistency
+   - [x] `src/stores/project-store.ts` - Project management
+   - [ ] `src/stores/text2image-store.ts` - Already uses dynamic import (skipped - already correct)
 
-#### Task 2.2: UI Components (1.5 hours)
+#### Task 2.2: UI Components (1.5 hours) ✅
 These can be updated with minimal impact:
 
-1. **Media Panel** (30 min)
-   - [ ] `src/components/editor/media-panel/views/media.tsx`
-   - [ ] `src/components/editor/media-panel/views/ai.tsx`
-   - [ ] `src/components/editor/media-panel/export-all-button.tsx`
+1. **Media Panel** (30 min) ✅
+   - [x] `src/components/editor/media-panel/views/media.tsx`
+   - [x] `src/components/editor/media-panel/views/ai.tsx`
+   - [x] `src/components/editor/media-panel/export-all-button.tsx`
 
-2. **Editor Panels** (30 min)
-   - [ ] `src/components/editor/preview-panel.tsx`
-   - [ ] `src/components/editor/properties-panel/index.tsx`
-   - [ ] `src/components/editor/adjustment/index.tsx`
+2. **Editor Panels** (30 min) ✅
+   - [x] `src/components/editor/preview-panel.tsx`
+   - [x] `src/components/editor/properties-panel/index.tsx`
+   - [x] `src/components/editor/adjustment/index.tsx`
 
-3. **Dialogs & Utilities** (30 min)
+3. **Dialogs & Utilities** (30 min) - Remaining
    - [ ] `src/components/export-dialog.tsx`
    - [ ] `src/components/storage-provider.tsx`
    - [ ] `src/hooks/use-aspect-ratio.ts`

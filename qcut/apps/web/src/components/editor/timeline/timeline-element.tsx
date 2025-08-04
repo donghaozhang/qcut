@@ -18,7 +18,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { useMediaStore } from "@/stores/media-store";
+import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { usePlaybackStore } from "@/stores/playback-store";
 import AudioWaveform from "../audio-waveform";
@@ -56,7 +56,7 @@ export function TimelineElement({
   onElementMouseDown,
   onElementClick,
 }: TimelineElementProps) {
-  const { mediaItems } = useMediaStore();
+  const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems();
   const {
     updateElementTrim,
     updateElementDuration,
@@ -75,6 +75,24 @@ export function TimelineElement({
   const { currentTime } = usePlaybackStore();
 
   const [elementMenuOpen, setElementMenuOpen] = useState(false);
+
+  // Handle media loading states
+  if (mediaItemsError) {
+    console.error('Failed to load media items:', mediaItemsError);
+    return (
+      <div className="absolute bg-red-100 border border-red-300 rounded text-red-600 text-xs p-1">
+        Error loading media
+      </div>
+    );
+  }
+
+  if (mediaItemsLoading && element.type === "media") {
+    return (
+      <div className="absolute bg-gray-100 border border-gray-300 rounded text-gray-600 text-xs p-1">
+        Loading media...
+      </div>
+    );
+  }
 
   const mediaItem =
     element.type === "media"
