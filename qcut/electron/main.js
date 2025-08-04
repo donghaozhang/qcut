@@ -7,6 +7,9 @@ const { setupFFmpegIPC } = require('./ffmpeg-handler.js')
 let mainWindow
 let staticServer
 
+// Suppress Electron DevTools Autofill errors
+app.commandLine.appendSwitch('disable-features', 'Autofill');
+
 // ① 必须在 app.whenReady() 之前注册 app:// 协议，且支持 fetch API
 protocol.registerSchemesAsPrivileged([
   { 

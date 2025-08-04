@@ -169,6 +169,51 @@ export async function downloadImage(url: string, filename: string): Promise<void
 }
 
 /**
+ * Download image from URL and convert to File object for media library
+ */
+export async function downloadImageAsFile(url: string, filename: string): Promise<File> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const blob = await response.blob();
+    
+    // Determine MIME type from blob or URL
+    let mimeType = blob.type;
+    if (!mimeType) {
+      // Fallback: guess from URL extension
+      const extension = url.split('.').pop()?.toLowerCase();
+      switch (extension) {
+        case 'jpg':
+        case 'jpeg':
+          mimeType = 'image/jpeg';
+          break;
+        case 'png':
+          mimeType = 'image/png';
+          break;
+        case 'webp':
+          mimeType = 'image/webp';
+          break;
+        default:
+          mimeType = 'image/jpeg'; // Default fallback
+      }
+    }
+    
+    // Create File object
+    const file = new File([blob], filename, {
+      type: mimeType,
+      lastModified: Date.now()
+    });
+    
+    return file;
+  } catch (error) {
+    throw new Error(`Failed to download image as file: ${error}`);
+  }
+}
+
+/**
  * Format file size for display
  */
 export function formatFileSize(bytes: number): string {

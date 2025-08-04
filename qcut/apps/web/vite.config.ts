@@ -21,7 +21,14 @@ export default defineConfig({
       output: {
         assetFileNames: 'assets/[name]-[hash][extname]',
         chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js'
+        entryFileNames: 'assets/[name]-[hash].js',
+        manualChunks: {
+          'vendor': ['react', 'react-dom'],
+          'ffmpeg': ['@ffmpeg/ffmpeg'],
+          'editor': ['./src/stores/editor-store', './src/stores/timeline-store'],
+          'ui-components': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
+          'tanstack': ['@tanstack/react-router', '@tanstack/router-devtools']
+        }
       }
     }
   },

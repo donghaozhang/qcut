@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { useAdjustmentStore } from '@/stores/adjustment-store';
 import { getImageEditModels } from '@/lib/image-edit-client';
 import { RotateCcw } from 'lucide-react';
@@ -13,8 +14,10 @@ export function ParameterControls() {
   const { 
     selectedModel, 
     parameters, 
+    prompt,
     updateParameter, 
-    resetParameters 
+    resetParameters,
+    setPrompt
   } = useAdjustmentStore();
 
   const models = getImageEditModels();
@@ -40,6 +43,20 @@ export function ParameterControls() {
           >
             <RotateCcw className="size-3" />
           </Button>
+        </div>
+
+        {/* Prompt Input */}
+        <div className="space-y-2">
+          <Label className="text-xs">Edit Prompt</Label>
+          <Textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Describe the changes you want to make to the image..."
+            className="text-xs min-h-[60px] resize-none"
+          />
+          <p className="text-xs text-muted-foreground">
+            Describe what you want to change or add to the image
+          </p>
         </div>
 
         {/* Guidance Scale */}
