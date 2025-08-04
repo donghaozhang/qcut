@@ -2,43 +2,64 @@ import { useEffect, useState } from "react";
 import { getMediaStore } from "@/stores/media-store-loader";
 import type { MediaStore } from "@/stores/media-store-types";
 
-export function useAsyncMediaStore() {
-  const [storeHook, setStoreHook] = useState<(() => MediaStore) | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+interface AsyncMediaStoreState {
+  store: MediaStore | null;
+  loading: boolean;
+  error: Error | null;
+}
+
+/**
+ * NOTE:
+ * We **must never** call a React hook conditionally or after an early return.
+ * The previous implementation violated the Rules-of-Hooks because it invoked
+ * `module.useMediaStore()` only *after* the dynamic module finished loading.
+ * On the **first** render nothing was called, on the **second** render a new
+ * hook appeared in the call-stack. React quite rightly threw the “change in
+ * the order of Hooks” warning and crashed with a `TypeError`.
+ *
+ * To fix this we **never** call the zustand React hook.  Instead we rely on
+ * the store's *API object* which is safe to use outside React.  `useMediaStore`
+ * is created with `zustand`, therefore it exposes:
+ *   - `useMediaStore.getState()`   → read current state / actions
+ *   - `useMediaStore.subscribe()`  → subscribe to changes (not required here)
+ */
+export function useAsyncMediaStore(): AsyncMediaStoreState {
+  const [state, setState] = useState<AsyncMediaStoreState>({
+    store: null,
+    loading: true,
+    error: null,
+  });
 
   useEffect(() => {
     let mounted = true;
 
-    async function loadStore() {
+    (async () => {
       try {
         const module = await getMediaStore();
-        if (mounted) {
-          setStoreHook(() => module.useMediaStore);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (mounted) {
-          setError(err instanceof Error ? err : new Error('Failed to load media store'));
-          setLoading(false);
-        }
-      }
-    }
+        if (!mounted) return;
 
-    loadStore();
+        // We grab the zustand store *object* (not the React hook) via getState.
+        const storeAPI = module.useMediaStore.getState();
+        setState({ store: storeAPI as unknown as MediaStore, loading: false, error: null });
+      } catch (err) {
+        if (!mounted) return;
+        setState({
+          store: null,
+          loading: false,
+          error: err instanceof Error ? err : new Error("Failed to load media store"),
+        });
+      }
+    })();
 
     return () => {
       mounted = false;
     };
   }, []);
 
-  // Now we can safely call the hook inside this React component
-  const store = storeHook ? storeHook() : null;
-
-  return { store, loading, error };
+  return state;
 }
 
-// Hook for components that only need specific methods
+// Hook for components that only need specific store actions
 export function useAsyncMediaStoreActions() {
   const { store, loading, error } = useAsyncMediaStore();
 
@@ -54,12 +75,12 @@ export function useAsyncMediaStoreActions() {
   };
 }
 
-// Hook for components that only need media items
+// Hook for components that only need the list of media items
 export function useAsyncMediaItems() {
   const { store, loading, error } = useAsyncMediaStore();
 
   return {
-    mediaItems: store?.mediaItems || [],
+    mediaItems: store?.mediaItems ?? [],
     loading,
     error,
   };
