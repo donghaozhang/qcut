@@ -2,6 +2,22 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Priority Hierarchy: Long-term maintainability > scalability > performance > short-term gains
+
+Core Principles:
+
+Systems Thinking: Analyze impacts across entire system
+Future-Proofing: Design decisions that accommodate growth
+Dependency Management: Minimize coupling, maximize cohesion
+
+frontend: UI/UX and user-facing development
+
+### Code Documentation
+- Write self-documenting code with clear naming
+- Add JSDoc comments for complex functions
+- Document API interfaces and types
+- Include usage examples for reusable components
+
 ## Project Overview
 
 QCut is a desktop video editor built with Vite + TanStack Router + Electron. The project has been successfully migrated from Next.js and now runs as a native desktop application. It uses a monorepo structure with Bun as the package manager.
@@ -28,6 +44,8 @@ qcut/
 ├── electron/                    # Electron main and preload scripts
 └── docs/task/                   # Migration documentation
 ```
+
+
 
 ### Core Editor Architecture
 - **Timeline System**: Custom implementation in `src/components/editor/timeline/`
