@@ -76,6 +76,21 @@ export function TimelineElement({
 
   const [elementMenuOpen, setElementMenuOpen] = useState(false);
 
+  // Resize & trim helpers – must be declared before any conditional returns
+  const {
+    resizing,
+    isResizing,
+    handleResizeStart,
+    handleResizeMove,
+    handleResizeEnd,
+  } = useTimelineElementResize({
+    element,
+    track,
+    zoomLevel,
+    onUpdateTrim: updateElementTrim,
+    onUpdateDuration: updateElementDuration,
+  });
+
   // Handle media loading states
   if (mediaItemsError) {
     console.error('Failed to load media items:', mediaItemsError);
@@ -100,19 +115,7 @@ export function TimelineElement({
       : null;
   const isAudio = mediaItem?.type === "audio";
 
-  const {
-    resizing,
-    isResizing,
-    handleResizeStart,
-    handleResizeMove,
-    handleResizeEnd,
-  } = useTimelineElementResize({
-    element,
-    track,
-    zoomLevel,
-    onUpdateTrim: updateElementTrim,
-    onUpdateDuration: updateElementDuration,
-  });
+  // resizing hooks already declared earlier to maintain stable hook order.
 
   const effectiveDuration =
     element.duration - element.trimStart - element.trimEnd;
