@@ -8,7 +8,11 @@ export interface VideoOptions {
   format: 'mp4' | 'webm';
 }
 
-export { initFFmpeg } from './ffmpeg-utils';
+// Re-export initFFmpeg dynamically to avoid mixed imports
+export const initFFmpeg = async () => {
+  const { initFFmpeg } = await import('./ffmpeg-utils');
+  return initFFmpeg();
+};
 
 export const encodeImagesToVideo = async (
   frames: ImageFrame[],

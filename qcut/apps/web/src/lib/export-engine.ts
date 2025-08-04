@@ -1,8 +1,7 @@
 import { ExportSettings, ExportProgress, FORMAT_INFO, ExportPurpose } from "@/types/export";
 import { TimelineElement, TimelineTrack } from "@/types/timeline";
-import { MediaItem } from "@/stores/media-store";
+import type { MediaItem } from "@/stores/media-store-types";
 import { useTimelineStore } from "@/stores/timeline-store";
-import { useMediaStore } from "@/stores/media-store";
 import { FFmpegVideoRecorder, isFFmpegExportEnabled } from "@/lib/ffmpeg-video-recorder";
 
 // Interface for active elements at a specific time

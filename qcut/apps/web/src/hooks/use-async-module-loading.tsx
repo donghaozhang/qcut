@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 // Global loading state for all async modules
 const moduleLoadingState = new Map<string, boolean>();

@@ -1,5 +1,6 @@
-import { FFmpeg } from "@ffmpeg/ffmpeg";
+import { createFFmpeg } from "@/lib/ffmpeg-loader";
 import { toBlobURL } from "@ffmpeg/util";
+import type { FFmpeg } from "@ffmpeg/ffmpeg";
 
 let ffmpeg: FFmpeg | null = null;
 let isFFmpegLoaded = false;
@@ -39,7 +40,7 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
     console.log('[FFmpeg Utils] 🔄 FFmpeg instance exists but not loaded, reinitializing...');
   } else {
     console.log('[FFmpeg Utils] 🆕 Creating new FFmpeg instance...');
-    ffmpeg = new FFmpeg();
+    ffmpeg = await createFFmpeg();
   }
 
   const baseURL = "/ffmpeg";

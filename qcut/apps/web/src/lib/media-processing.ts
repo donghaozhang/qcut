@@ -1,12 +1,6 @@
 import { toast } from "sonner";
-import {
-  getFileType,
-  generateVideoThumbnail,
-  getMediaDuration,
-  getImageDimensions,
-  type MediaItem,
-} from "@/stores/media-store";
-import { generateThumbnail, getVideoInfo } from "./ffmpeg-utils";
+import { getMediaStoreUtils, type MediaItem } from "@/stores/media-store-loader";
+import { getFFmpegUtilFunctions } from "@/lib/ffmpeg-utils-loader";
 
 export interface ProcessedMediaItem extends Omit<MediaItem, "id"> {}
 
@@ -17,11 +11,15 @@ export async function processMediaFiles(
   const fileArray = Array.from(files);
   const processedItems: ProcessedMediaItem[] = [];
 
+  // Load utilities dynamically
+  const mediaUtils = await getMediaStoreUtils();
+  const ffmpegUtils = await getFFmpegUtilFunctions();
+
   const total = fileArray.length;
   let completed = 0;
 
   for (const file of fileArray) {
-    const fileType = getFileType(file);
+    const fileType = mediaUtils.getFileType(file);
 
     if (!fileType) {
       toast.error(`Unsupported file type: ${file.name}`);
@@ -38,36 +36,36 @@ export async function processMediaFiles(
     try {
       if (fileType === "image") {
         // Get image dimensions
-        const dimensions = await getImageDimensions(file);
+        const dimensions = await mediaUtils.getImageDimensions(file);
         width = dimensions.width;
         height = dimensions.height;
       } else if (fileType === "video") {
         try {
           // Use FFmpeg for comprehensive video info extraction
-          const videoInfo = await getVideoInfo(file);
+          const videoInfo = await ffmpegUtils.getVideoInfo(file);
           duration = videoInfo.duration;
           width = videoInfo.width;
           height = videoInfo.height;
           fps = videoInfo.fps;
 
           // Generate thumbnail using FFmpeg
-          thumbnailUrl = await generateThumbnail(file, 1);
+          thumbnailUrl = await ffmpegUtils.generateThumbnail(file, 1);
         } catch (error) {
           console.warn(
             "FFmpeg processing failed, falling back to basic processing:",
             error
           );
           // Fallback to basic processing
-          const videoResult = await generateVideoThumbnail(file);
+          const videoResult = await mediaUtils.generateVideoThumbnail(file);
           thumbnailUrl = videoResult.thumbnailUrl;
           width = videoResult.width;
           height = videoResult.height;
-          duration = await getMediaDuration(file);
+          duration = await mediaUtils.getMediaDuration(file);
           // FPS will remain undefined for fallback
         }
       } else if (fileType === "audio") {
         // For audio, we don't set width/height/fps (they'll be undefined)
-        duration = await getMediaDuration(file);
+        duration = await mediaUtils.getMediaDuration(file);
       }
 
       processedItems.push({

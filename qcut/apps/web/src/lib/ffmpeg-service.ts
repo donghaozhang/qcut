@@ -1,4 +1,4 @@
-import { FFmpeg } from '@ffmpeg/ffmpeg';
+import type { FFmpeg } from '@ffmpeg/ffmpeg';
 import { initFFmpeg, isFFmpegReady } from './ffmpeg-utils';
 
 export class FFmpegService {

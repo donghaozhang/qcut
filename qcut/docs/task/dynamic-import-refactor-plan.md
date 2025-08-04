@@ -247,24 +247,24 @@ These can be updated with minimal impact:
    - [x] `src/components/editor/properties-panel/index.tsx`
    - [x] `src/components/editor/adjustment/index.tsx`
 
-3. **Dialogs & Utilities** (30 min) - Remaining
-   - [ ] `src/components/export-dialog.tsx`
-   - [ ] `src/components/storage-provider.tsx`
-   - [ ] `src/hooks/use-aspect-ratio.ts`
-   - [ ] `src/hooks/use-timeline-element-resize.ts`
+3. **Dialogs & Utilities** (30 min) ✅
+   - [x] `src/components/export-dialog.tsx`
+   - [x] `src/components/storage-provider.tsx` - Removed unused import
+   - [x] `src/hooks/use-aspect-ratio.ts`
+   - [x] `src/hooks/use-timeline-element-resize.ts`
 
-#### Task 2.3: FFmpeg Integration (1 hour)
+#### Task 2.3: FFmpeg Integration (1 hour) ✅
 Handle FFmpeg refactoring separately due to complexity:
 
-1. **Core FFmpeg** (30 min)
-   - [ ] `src/lib/ffmpeg-utils.ts` - Main utilities
-   - [ ] `src/lib/ffmpeg-service.ts` - Service layer
-   - [ ] `src/lib/ffmpeg-utils-encode.ts` - Encoding utilities
+1. **Core FFmpeg** (30 min) ✅
+   - [x] `src/lib/ffmpeg-utils.ts` - Replaced static FFmpeg import with createFFmpeg loader
+   - [x] `src/lib/ffmpeg-service.ts` - Updated to use type-only FFmpeg import
+   - [x] `src/lib/ffmpeg-utils-encode.ts` - Updated re-export to use dynamic import
 
-2. **Export Engine** (30 min)
-   - [ ] `src/lib/export-engine-factory.ts` - Already uses dynamic import
-   - [ ] `src/lib/export-engine.ts` - Export functionality
-   - [ ] `src/lib/media-processing.ts` - Media processing
+2. **Export Engine** (30 min) ✅
+   - [ ] `src/lib/export-engine-factory.ts` - Already uses dynamic import (no changes needed)
+   - [x] `src/lib/export-engine.ts` - Removed unused useMediaStore import, updated MediaItem to type import
+   - [x] `src/lib/media-processing.ts` - Refactored to use dynamic loaders for all utilities
 
 ### Phase 3: Testing & Verification (1 hour)
 
