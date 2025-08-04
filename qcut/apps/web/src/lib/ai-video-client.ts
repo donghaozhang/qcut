@@ -99,7 +99,7 @@ export async function generateVideo(
       'veo3_fast': 'fal-ai/google/veo3/fast',
       'hailuo': 'fal-ai/minimax/hailuo-02/standard/text-to-video',
       'hailuo_pro': 'fal-ai/minimax/hailuo-02/pro/text-to-video',
-      'kling_v2': 'fal-ai/kling-video/v2.1/master'
+      'kling_v2': 'fal-ai/kling-video/v2.1/master/text-to-video'
     };
 
     const endpoint = modelEndpoints[request.model] || 'fal-ai/minimax/hailuo-02/standard/text-to-video';
@@ -132,8 +132,14 @@ export async function generateVideo(
       payload.resolution = request.resolution || '1080p';
       // Optional parameters for Seedance Pro
       payload.aspect_ratio = '16:9'; // Default aspect ratio
+    } else if (request.model === 'kling_v2') {
+      // Kling v2.1 requires duration as string, only accepts '5' or '10'
+      const requestedDuration = request.duration || 5;
+      payload.duration = requestedDuration >= 10 ? '10' : '5';
+      // Kling v2.1 uses aspect_ratio instead of resolution
+      payload.aspect_ratio = request.resolution === '1080p' ? '16:9' : '16:9'; // Default to 16:9
     } else {
-      // Other models (Veo, Kling)
+      // Other models (Veo)
       payload.duration = request.duration || 5;
       payload.resolution = request.resolution || '1080p';
     }
