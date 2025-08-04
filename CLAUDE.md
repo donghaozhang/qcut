@@ -148,6 +148,36 @@ MARBLE_WORKSPACE_KEY    # Blog CMS
 - `apps/web/src/lib/ffmpeg-utils.ts` - Video processing
 - `apps/web/src/components/editor/timeline/` - Timeline UI components
 
+# QCut – Top 10 Accessibility Rules to Always Enforce
+
+These ten rules catch the most frequent and most critical a11y bugs in a React + Electron (Chromium) environment. Add them to your lint setup and PR checklist first.
+
+| # | Rule | Why It Matters |
+|---|------|----------------|
+| **1** | **Provide a meaningful `alt` text for every image/icon that requires it.** | Screen-reader users rely on `alt`; missing or vague descriptions leave them with zero context. |
+| **2** | **Never place `aria-hidden="true"` on focusable elements.** | The element is still tabbable, but the assistive tech can’t read it – a dead end for keyboard users. |
+| **3** | **Every `<button>` *must* specify `type="button"` or `type="submit"`.** | Avoids accidental form submission and clarifies intent. |
+| **4** | **Ensure every `<a>` tag contains meaningful, screen-reader-friendly content and a valid `href`.** | “Empty” or icon-only links announce as “link” with no context or go nowhere. |
+| **5** | **If you add `onClick`, also support keyboard (`onKeyDown`/`onKeyUp`).** | Click-only handlers are unusable via keyboard or assistive switches. |
+| **6** | **Give every SVG icon a `<title>` element that describes its purpose.** | Without it, readers just announce “graphic” or skip the icon entirely. |
+| **7** | **Do not set `tabIndex` on non-interactive elements.** | Arbitrary focus order confuses keyboard navigation and breaks logical flow. |
+| **8** | **Use semantic elements instead of roles (`<button>` > `<div role="button">`).** | Native elements come with keyboard focus, states, and ARIA roles out of the box. |
+| **9** | **Heading tags (`<h1>` … `<h6>`) must contain real, visible text (not hidden via `aria-hidden`).** | Screen readers rely on the heading hierarchy for quick navigation. |
+| **10** | **For every table header `<th>`, set the correct `scope` (“row”, “col”).** | Gives assistive tech enough info to announce the correct header–cell relationship. |
+
+# QCut – Top 5 Code-Complexity & Quality Rules to Enforce First
+
+| # | Rule | Why It Pays Off Immediately |
+|---|------|-----------------------------|
+| **1** | **Use `for…of` instead of `Array.forEach`.** | `forEach` swallows `await`/`return`, prevents early-exit, and complicates error handling. `for…of` is clearer, supports `break` / `continue`, and works perfectly with `await`. |
+| **2** | **Set a Cognitive-Complexity ceiling for every function.** | Stops “God functions” from landing in the codebase; forces decomposition into smaller, testable helpers and keeps reviews manageable. |
+| **3** | **Ban the legacy `arguments` object; use rest parameters (`...args`).** | Rest parameters are iterable, type-safe, and compatible with arrow functions—essential for clean TypeScript and better IntelliSense. |
+| **4** | **Disallow `any` / `unknown` as type constraints.** | The single biggest source of hidden runtime bugs. Removing it preserves strong typing and makes large-scale refactors safe. |
+| **5** | **Forbid reassigning `const` variables and eliminate `var`.** | Guarantees immutability by default, avoids hoisting surprises, and simplifies reasoning about state—especially in asynchronous flows. |
+
+> **Implementation tip:** add these rules to your Ultracite (Biome) config at **error** level first; they deliver the highest value-to-refactor ratio for an existing QCut codebase.
+
+
 ## Current Limitations
 1. No test suite
 2. Limited error handling
