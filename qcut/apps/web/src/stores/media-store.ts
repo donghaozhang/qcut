@@ -52,7 +52,7 @@ interface MediaStore {
         [key: string]: any;
       };
     }>
-  ) => void;
+  ) => Promise<void>;
   removeMediaItem: (projectId: string, id: string) => Promise<void>;
   loadProjectMedia: (projectId: string) => Promise<void>;
   clearProjectMedia: (projectId: string) => Promise<void>;
@@ -282,16 +282,39 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
     }
   },
 
-  addGeneratedImages: (items) => {
-    const newItems: MediaItem[] = items.map((item) => ({
-      id: generateUUID(),
-      name: item.name,
-      type: item.type,
-      file: new File([], item.name), // Empty file for generated images
-      url: item.url,
-      duration: item.duration,
-      metadata: item.metadata,
-    }));
+  addGeneratedImages: async (items) => {
+    // Import convertToBlob utility for COEP-safe image loading
+    const { convertToBlob, needsBlobConversion } = await import("@/lib/image-utils");
+    
+    const newItems: MediaItem[] = await Promise.all(
+      items.map(async (item) => {
+        let processedUrl = item.url;
+        
+        // Convert fal.media URLs to blob URLs to bypass COEP restrictions
+        if (needsBlobConversion(item.url)) {
+          try {
+            processedUrl = await convertToBlob(item.url);
+          } catch (error) {
+            console.error(`Failed to convert fal.media URL to blob: ${item.url}`, error);
+            // Keep original URL as fallback
+            processedUrl = item.url;
+          }
+        }
+        
+        return {
+          id: generateUUID(),
+          name: item.name,
+          type: item.type,
+          file: new File([], item.name), // Empty file for generated images
+          url: processedUrl,
+          duration: item.duration,
+          metadata: {
+            ...item.metadata,
+            originalUrl: item.url, // Keep original URL for reference
+          },
+        };
+      })
+    );
 
     // Add to local state immediately
     set((state) => ({

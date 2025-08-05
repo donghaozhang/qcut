@@ -186,7 +186,15 @@ const blobUrlCache = new Map<string, string>();
 export async function convertToBlob(url: string): Promise<string> {
   // Return cached blob URL if available
   if (blobUrlCache.has(url)) {
-    return blobUrlCache.get(url)!;
+    const cachedUrl = blobUrlCache.get(url)!;
+    // Validate that the blob URL is still valid
+    try {
+      await fetch(cachedUrl);
+      return cachedUrl;
+    } catch {
+      // Cached blob URL is invalid, remove from cache and recreate
+      blobUrlCache.delete(url);
+    }
   }
 
   try {

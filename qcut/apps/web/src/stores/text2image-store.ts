@@ -51,7 +51,7 @@ interface Text2ImageStore {
     prompt: string,
     settings: GenerationSettings
   ) => Promise<void>;
-  addSelectedToMedia: (results?: SelectedResult[]) => void;
+  addSelectedToMedia: (results?: SelectedResult[]) => Promise<void>;
   clearResults: () => void;
 
   // History
@@ -221,7 +221,7 @@ export const useText2ImageStore = create<Text2ImageStore>()(
                 successfulResults.length,
                 "images"
               );
-            get().addSelectedToMedia(successfulResults);
+            await get().addSelectedToMedia(successfulResults);
             if (DEBUG_TEXT2IMAGE_STORE)
               console.log(
                 "✅ TEXT2IMAGE-STORE: addSelectedToMedia() call completed"
@@ -255,7 +255,7 @@ export const useText2ImageStore = create<Text2ImageStore>()(
         }
       },
 
-      addSelectedToMedia: (results) => {
+      addSelectedToMedia: async (results) => {
         const { selectedResults, generationResults, prompt } = get();
         const resultsToAdd = results || selectedResults;
 
@@ -297,52 +297,54 @@ export const useText2ImageStore = create<Text2ImageStore>()(
           console.log(
             "🔄 TEXT2IMAGE-STORE: Importing media-store dynamically..."
           );
-        import("@/stores/media-store")
-          .then(({ useMediaStore }) => {
-            if (DEBUG_TEXT2IMAGE_STORE)
-              console.log(
-                "✅ TEXT2IMAGE-STORE: Media store imported successfully"
-              );
-            const { addGeneratedImages } = useMediaStore.getState();
+        
+        try {
+          const { useMediaStore } = await import("@/stores/media-store");
+          
+          if (DEBUG_TEXT2IMAGE_STORE)
+            console.log(
+              "✅ TEXT2IMAGE-STORE: Media store imported successfully"
+            );
+          
+          const { addGeneratedImages } = useMediaStore.getState();
 
-            const mediaItems = resultsToAdd.map((result) => ({
-              url: result.imageUrl,
-              type: "image" as const,
-              name: `Generated: ${result.prompt.slice(0, 30)}${result.prompt.length > 30 ? "..." : ""}`,
-              size: 0, // Will be determined when loaded
-              duration: 0,
-              metadata: {
-                source: "text2image" as const,
-                model: result.modelKey,
-                prompt: result.prompt,
-                settings: result.settings,
-                generatedAt: new Date(),
-              },
-            }));
+          const mediaItems = resultsToAdd.map((result) => ({
+            url: result.imageUrl,
+            type: "image" as const,
+            name: `Generated: ${result.prompt.slice(0, 30)}${result.prompt.length > 30 ? "..." : ""}`,
+            size: 0, // Will be determined when loaded
+            duration: 0,
+            metadata: {
+              source: "text2image" as const,
+              model: result.modelKey,
+              prompt: result.prompt,
+              settings: result.settings,
+              generatedAt: new Date(),
+            },
+          }));
 
-            if (DEBUG_TEXT2IMAGE_STORE)
-              console.log(
-                "📦 TEXT2IMAGE-STORE: Media items prepared:",
-                mediaItems.length,
-                "items"
-              );
-            if (DEBUG_TEXT2IMAGE_STORE)
-              console.log(
-                "📦 TEXT2IMAGE-STORE: Calling media-store.addGeneratedImages()..."
-              );
-            addGeneratedImages(mediaItems);
-            if (DEBUG_TEXT2IMAGE_STORE)
-              console.log(
-                "✅ TEXT2IMAGE-STORE: media-store.addGeneratedImages() called successfully"
-              );
-          })
-          .catch((error) => {
-            if (DEBUG_TEXT2IMAGE_STORE)
-              console.error(
-                "❌ TEXT2IMAGE-STORE: Failed to import media store:",
-                error
-              );
-          });
+          if (DEBUG_TEXT2IMAGE_STORE)
+            console.log(
+              "📦 TEXT2IMAGE-STORE: Media items prepared:",
+              mediaItems.length,
+              "items"
+            );
+          if (DEBUG_TEXT2IMAGE_STORE)
+            console.log(
+              "📦 TEXT2IMAGE-STORE: Calling media-store.addGeneratedImages()..."
+            );
+          await addGeneratedImages(mediaItems);
+          if (DEBUG_TEXT2IMAGE_STORE)
+            console.log(
+              "✅ TEXT2IMAGE-STORE: media-store.addGeneratedImages() called successfully"
+            );
+        } catch (error) {
+          if (DEBUG_TEXT2IMAGE_STORE)
+            console.error(
+              "❌ TEXT2IMAGE-STORE: Failed to import media store:",
+              error
+            );
+        }
 
         // Clear selections after adding
         if (DEBUG_TEXT2IMAGE_STORE)
