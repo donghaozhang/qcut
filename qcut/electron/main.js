@@ -77,6 +77,9 @@ function createStaticServer() {
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type");
       res.setHeader("Content-Type", contentType);
+      
+      // Add Cross-Origin-Resource-Policy for COEP compatibility
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
 
       // Stream the file
       const fileStream = fs.createReadStream(fullPath);
@@ -122,12 +125,8 @@ function createWindow() {
     ];
 
     // 添加 COOP/COEP 头以支持 SharedArrayBuffer（FFmpeg WASM需要）
-    // 注意：在生产环境中禁用 COEP 以允许加载外部图片
-    const isDev = process.env.NODE_ENV === "development";
     responseHeaders["Cross-Origin-Opener-Policy"] = ["same-origin"];
-    if (isDev) {
-      responseHeaders["Cross-Origin-Embedder-Policy"] = ["require-corp"];
-    }
+    responseHeaders["Cross-Origin-Embedder-Policy"] = ["require-corp"];
 
     callback({ responseHeaders });
   });

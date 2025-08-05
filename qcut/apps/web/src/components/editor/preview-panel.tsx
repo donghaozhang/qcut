@@ -280,7 +280,11 @@ export function PreviewPanel() {
   };
 
   const activeElements = useMemo(() => {
-    return getActiveElements();
+    const elements = getActiveElements();
+    if (elements.length > 0 && mediaItems.length === 0) {
+      console.warn('[Preview] Active elements found but mediaItems is empty. Preview will show placeholder.');
+    }
+    return elements;
   }, [tracks, currentTime, mediaItems]);
 
 

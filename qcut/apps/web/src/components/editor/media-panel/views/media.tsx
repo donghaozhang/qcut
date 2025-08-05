@@ -49,15 +49,20 @@ export function MediaView() {
   // Debug logging for media store state
   useEffect(() => {
     console.log('[MediaView] Current media items:', mediaItems);
-    mediaItems.forEach(item => {
-      console.log(`[MediaView] Item ${item.id}:`, {
-        name: item.name,
-        url: item.url,
-        type: item.type,
-        thumbnailUrl: item.thumbnailUrl
+    console.log('[MediaView] Active project ID:', activeProject?.id);
+    console.log('[MediaView] Media store loaded:', mediaStore ? 'Yes' : 'No');
+    console.log('[MediaView] Media store loading:', mediaStoreLoading);
+    if (mediaItems.length > 0) {
+      mediaItems.forEach(item => {
+        console.log(`[MediaView] Item ${item.id}:`, {
+          name: item.name,
+          url: item.url,
+          type: item.type,
+          thumbnailUrl: item.thumbnailUrl,
+        });
       });
-    });
-  }, [mediaItems]);
+    }
+  }, [mediaItems, activeProject, mediaStore, mediaStoreLoading]);
 
   useEffect(() => {
     const filtered = mediaItems.filter((item) => {
