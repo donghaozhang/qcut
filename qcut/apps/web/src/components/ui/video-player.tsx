@@ -121,12 +121,7 @@ export function VideoPlayer({
     const checkDimensions = () => {
       const rect = video.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) {
-        console.warn('[VideoPlayer] Video element has 0 dimensions!', {
-          rect,
-          offsetWidth: video.offsetWidth,
-          offsetHeight: video.offsetHeight,
-          parentElement: video.parentElement?.getBoundingClientRect()
-        });
+        console.warn('[VideoPlayer] Video element has 0 dimensions!');
       }
     };
     
@@ -145,13 +140,19 @@ export function VideoPlayer({
       ref={videoRef}
       src={src}
       poster={poster}
-      className={`max-w-full max-h-full object-contain ${className}`}
+      className={`object-contain ${className}`}
       playsInline
       preload="auto"
       controls={false}
       disablePictureInPicture
       disableRemotePlayback
-      style={{ pointerEvents: "none" }}
+      style={{ 
+        pointerEvents: "none",
+        minWidth: "320px",
+        minHeight: "180px",
+        width: "100%",
+        height: "100%"
+      }}
       onContextMenu={(e) => e.preventDefault()}
       onLoadedMetadata={(e) => {
         // Video metadata loaded
