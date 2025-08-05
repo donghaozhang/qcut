@@ -53,6 +53,15 @@
           "ffmpeg.exe",
           "*.dll"
         ]
+      },
+      {
+        "from": "apps/web/public/ffmpeg/",
+        "to": "resources/ffmpeg/",
+        "filter": [
+          "ffmpeg-core.js",
+          "ffmpeg-core.wasm",
+          "ffmpeg-core.d.ts"
+        ]
       }
     ],
     "extraMetadata": {

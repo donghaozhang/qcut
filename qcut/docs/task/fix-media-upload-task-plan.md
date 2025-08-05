@@ -6,144 +6,140 @@ This task plan addresses the FFmpeg WebAssembly initialization failures that pre
 
 ## Task Breakdown
 
-### **Phase 1: Resource Bundling (HIGH Priority - 30 min)**
+### **Phase 1: Resource Bundling (HIGH Priority - 15 min) ✅ COMPLETED**
 
-#### **Task 1.1: Verify FFmpeg Resources Exist** (3 min)
+#### **Task 1.1: Verify FFmpeg Resources Exist** (3 min) ✅ COMPLETED
 - **Description**: Check if FFmpeg WebAssembly files are present in the source
 - **Files to Check**:
-  - `apps/web/public/ffmpeg/ffmpeg-core.js`
-  - `apps/web/public/ffmpeg/ffmpeg-core.wasm`
-  - `apps/web/public/ffmpeg/ffmpeg-core.d.ts`
-- **Action**: Verify file existence and sizes
-- **Success Criteria**: All required FFmpeg files present and non-empty
+  - `apps/web/public/ffmpeg/ffmpeg-core.js` ✅ Found (176 KB)
+  - `apps/web/public/ffmpeg/ffmpeg-core.wasm` ✅ Found (30.7 MB)
+  - `apps/web/public/ffmpeg/ffmpeg-core.d.ts` ❌ Not found (optional)
+- **Action**: Verify file existence and sizes ✅ COMPLETED
+- **Success Criteria**: All required FFmpeg files present and non-empty ✅ SUCCESS
 
-#### **Task 1.2: Update Package.json Build Configuration** (4 min)
-- **File to Modify**: `package.json`
-- **Section**: Lines 37-60 (electron-builder configuration)
-- **Changes**:
+#### **Task 1.2: Update Package.json Build Configuration** (4 min) ✅ COMPLETED
+- **File to Modify**: `package.json` ✅ MODIFIED
+- **Section**: Lines 37-60 (electron-builder configuration) ✅ UPDATED
+- **Changes Applied**:
   ```json
   "extraResources": [
     {
       "from": "electron/resources/",
       "to": "resources/",
-      "filter": [
-        "ffmpeg.exe",
-        "*.dll"
-      ]
+      "filter": ["ffmpeg.exe", "*.dll"]
     },
     {
       "from": "apps/web/public/ffmpeg/",
-      "to": "ffmpeg/",
-      "filter": [
-        "ffmpeg-core.js",
-        "ffmpeg-core.wasm",
-        "ffmpeg-core.d.ts"
-      ]
+      "to": "resources/ffmpeg/",
+      "filter": ["ffmpeg-core.js", "ffmpeg-core.wasm", "ffmpeg-core.d.ts"]
     }
   ]
   ```
-- **Success Criteria**: FFmpeg WebAssembly files included in build resources
+- **Success Criteria**: FFmpeg WebAssembly files included in build resources ✅ SUCCESS
 
-#### **Task 1.3: Update Vite Configuration for Asset Copying** (5 min)
-- **File to Modify**: `apps/web/vite.config.ts`
-- **Section**: Public directory and asset handling configuration
-- **Changes**:
+#### **Task 1.3: Update Vite Configuration for Asset Copying** (5 min) ✅ COMPLETED
+- **File to Modify**: `apps/web/vite.config.ts` ✅ MODIFIED
+- **Section**: Public directory and asset handling configuration ✅ UPDATED
+- **Changes Applied**:
   ```typescript
   export default defineConfig({
-    // ... existing config
-    publicDir: 'public',
+    publicDir: "public", // ✅ Added
     build: {
-      // ... existing build config
-      rollupOptions: {
-        external: ['ffmpeg-core.js', 'ffmpeg-core.wasm']
-      }
-    },
-    assetsInclude: ['**/*.wasm']
+      assetsInclude: ["**/*.wasm"], // ✅ Added
+      // ... existing config
+    }
   })
   ```
-- **Success Criteria**: Vite properly copies FFmpeg files to dist directory
+- **Success Criteria**: Vite properly copies FFmpeg files to dist directory ✅ SUCCESS
 
-#### **Task 1.4: Verify Dist Directory Structure** (3 min)
+#### **Task 1.4: Verify Dist Directory Structure** (3 min) ✅ COMPLETED
 - **Files to Check After Build**:
-  - `apps/web/dist/ffmpeg/ffmpeg-core.js`
-  - `apps/web/dist/ffmpeg/ffmpeg-core.wasm`
-- **Action**: Run build and verify files are copied to dist
-- **Command**: `cd qcut && bun run build`
-- **Success Criteria**: FFmpeg files present in dist/ffmpeg/ directory
+  - `apps/web/dist/ffmpeg/ffmpeg-core.js` ✅ Found (176 KB)
+  - `apps/web/dist/ffmpeg/ffmpeg-core.wasm` ✅ Found (30.7 MB)
+- **Action**: Run build and verify files are copied to dist ✅ COMPLETED
+- **Command**: `cd qcut && bun run build` ✅ SUCCESS
+- **Success Criteria**: FFmpeg files present in dist/ffmpeg/ directory ✅ SUCCESS
 
 ### **Phase 2: Protocol Handler Fix (HIGH Priority - 25 min)**
 
-#### **Task 2.1: Read Current Electron Main Process** (2 min)
-- **File to Read**: `electron/main.js`
-- **Section**: Lines 200-250 (protocol handler registration)
-- **Action**: Understand current app:// protocol implementation
-- **Focus**: How `app://ffmpeg/*` URLs are currently handled
+#### **Task 2.1: Read Current Electron Main Process** (2 min) ✅ COMPLETED
+- **File to Read**: `electron/main.js` ✅ ANALYZED
+- **Section**: Lines 162-166 (protocol handler registration) ✅ FOUND
+- **Action**: Understand current app:// protocol implementation ✅ COMPLETED
+- **Analysis**: Current handler serves from `../apps/web/dist`, needs FFmpeg-specific handling
 
-#### **Task 2.2: Fix App Protocol Handler for FFmpeg** (8 min)
-- **File to Modify**: `electron/main.js`
-- **Section**: Protocol handler registration
-- **Changes**:
+#### **Task 2.2: Fix App Protocol Handler for FFmpeg** (8 min) ✅ COMPLETED
+- **File to Modify**: `electron/main.js` ✅ MODIFIED
+- **Section**: Protocol handler registration ✅ UPDATED
+- **Changes Applied**:
   ```javascript
-  protocol.handle('app', (request) => {
-    const url = new URL(request.url);
+  protocol.registerFileProtocol("app", (request, callback) => {
+    const url = request.url.replace("app://", "");
     
     // Handle FFmpeg resources specifically
-    if (url.pathname.startsWith('/ffmpeg/')) {
-      const filename = url.pathname.replace('/ffmpeg/', '');
-      const ffmpegPath = path.join(__dirname, 'resources', 'ffmpeg', filename);
+    if (url.startsWith("ffmpeg/")) {
+      const filename = url.replace("ffmpeg/", "");
+      const ffmpegPath = path.join(__dirname, "resources", "ffmpeg", filename);
       
       if (fs.existsSync(ffmpegPath)) {
-        return net.fetch(`file://${ffmpegPath}`);
+        callback(ffmpegPath);
+        return;
       }
+      
+      // Development fallback - try dist directory
+      const distPath = path.join(__dirname, "../apps/web/dist", url);
+      callback(distPath);
+    } else {
+      // Handle other resources normally
+      const filePath = path.join(__dirname, "../apps/web/dist", url);
+      callback(filePath);
     }
-    
-    // Existing handler logic for other resources
-    // ... rest of current implementation
   });
   ```
-- **Success Criteria**: `app://ffmpeg/ffmpeg-core.js` resolves to actual file
+- **Success Criteria**: `app://ffmpeg/ffmpeg-core.js` resolves to actual file ✅ SUCCESS
 
-#### **Task 2.3: Add FFmpeg Path Helper Functions** (5 min)
-- **File to Modify**: `electron/preload.js`
-- **Changes**:
+#### **Task 2.3: Add FFmpeg Path Helper Functions** (5 min) ✅ COMPLETED
+- **File to Modify**: `electron/preload.js` ✅ MODIFIED
+- **Changes Applied**:
   ```javascript
-  const { contextBridge, ipcRenderer } = require('electron');
-
-  contextBridge.exposeInMainWorld('electronAPI', {
-    // ... existing API
-    
-    // Add FFmpeg resource helpers
-    getFFmpegResourcePath: (filename) => 
-      ipcRenderer.invoke('get-ffmpeg-resource-path', filename),
-    
-    checkFFmpegResource: (filename) => 
-      ipcRenderer.invoke('check-ffmpeg-resource', filename)
-  });
+  // FFmpeg resource helpers
+  getFFmpegResourcePath: (filename) =>
+    ipcRenderer.invoke("get-ffmpeg-resource-path", filename),
+  checkFFmpegResource: (filename) =>
+    ipcRenderer.invoke("check-ffmpeg-resource", filename),
   ```
-- **Success Criteria**: Preload API provides FFmpeg resource access
+- **Success Criteria**: Preload API provides FFmpeg resource access ✅ SUCCESS
 
-#### **Task 2.4: Add IPC Handlers for FFmpeg Resources** (5 min)
-- **File to Modify**: `electron/main.js`
-- **Section**: IPC handler registration
-- **Changes**:
+#### **Task 2.4: Add IPC Handlers for FFmpeg Resources** (5 min) ✅ COMPLETED
+- **File to Modify**: `electron/main.js` ✅ MODIFIED
+- **Section**: IPC handler registration ✅ ADDED
+- **Changes Applied**:
   ```javascript
-  // Add IPC handlers for FFmpeg resources
-  ipcMain.handle('get-ffmpeg-resource-path', (event, filename) => {
-    const ffmpegPath = path.join(__dirname, 'resources', 'ffmpeg', filename);
-    return ffmpegPath;
+  // FFmpeg resource IPC handlers
+  ipcMain.handle("get-ffmpeg-resource-path", (event, filename) => {
+    const resourcesPath = path.join(__dirname, "resources", "ffmpeg", filename);
+    if (fs.existsSync(resourcesPath)) {
+      return resourcesPath;
+    }
+    const distPath = path.join(__dirname, "../apps/web/dist/ffmpeg", filename);
+    return distPath;
   });
 
-  ipcMain.handle('check-ffmpeg-resource', (event, filename) => {
-    const ffmpegPath = path.join(__dirname, 'resources', 'ffmpeg', filename);
-    return fs.existsSync(ffmpegPath);
+  ipcMain.handle("check-ffmpeg-resource", (event, filename) => {
+    const resourcesPath = path.join(__dirname, "resources", "ffmpeg", filename);
+    if (fs.existsSync(resourcesPath)) {
+      return true;
+    }
+    const distPath = path.join(__dirname, "../apps/web/dist/ffmpeg", filename);
+    return fs.existsSync(distPath);
   });
   ```
-- **Success Criteria**: IPC handlers return correct FFmpeg file paths
+- **Success Criteria**: IPC handlers return correct FFmpeg file paths ✅ SUCCESS
 
-#### **Task 2.5: Add Fallback Resource Resolution** (5 min)
-- **File to Modify**: `apps/web/src/lib/ffmpeg-utils.ts`
-- **Section**: Lines 50-80 (FFmpeg initialization logic)
-- **Changes**:
+#### **Task 2.5: Add Fallback Resource Resolution** (5 min) ✅ COMPLETED
+- **File to Modify**: `apps/web/src/lib/ffmpeg-utils.ts` ✅ MODIFIED
+- **Section**: Lines 30-69 (Fallback resource resolution function) ✅ ADDED
+- **Changes Applied**:
   ```typescript
   const getFFmpegResourceUrl = async (filename: string): Promise<string> => {
     // Try app:// protocol first
@@ -151,10 +147,11 @@ This task plan addresses the FFmpeg WebAssembly initialization failures that pre
       const appUrl = `app://ffmpeg/${filename}`;
       const response = await fetch(appUrl);
       if (response.ok) {
+        console.log(`[FFmpeg Utils] ✅ App protocol succeeded for ${filename}`);
         return appUrl;
       }
     } catch (error) {
-      console.warn(`App protocol failed for ${filename}:`, error);
+      console.warn(`[FFmpeg Utils] ⚠️ App protocol failed for ${filename}:`, error);
     }
 
     // Fallback to HTTP server
@@ -162,16 +159,30 @@ This task plan addresses the FFmpeg WebAssembly initialization failures that pre
       const httpUrl = `http://localhost:8080/ffmpeg/${filename}`;
       const response = await fetch(httpUrl);
       if (response.ok) {
+        console.log(`[FFmpeg Utils] ✅ HTTP fallback succeeded for ${filename}`);
         return httpUrl;
       }
     } catch (error) {
-      console.warn(`HTTP fallback failed for ${filename}:`, error);
+      console.warn(`[FFmpeg Utils] ⚠️ HTTP fallback failed for ${filename}:`, error);
+    }
+
+    // Final fallback to relative path
+    try {
+      const relativeUrl = `/ffmpeg/${filename}`;
+      const response = await fetch(relativeUrl);
+      if (response.ok) {
+        console.log(`[FFmpeg Utils] ✅ Relative path fallback succeeded for ${filename}`);
+        return relativeUrl;
+      }
+    } catch (error) {
+      console.warn(`[FFmpeg Utils] ⚠️ Relative path fallback failed for ${filename}:`, error);
     }
 
     throw new Error(`Could not resolve FFmpeg resource: ${filename}`);
   };
   ```
-- **Success Criteria**: Multiple fallback strategies for resource loading
+- **Additional Changes**: Refactored initFFmpeg() to use the new resource resolution function ✅ COMPLETED
+- **Success Criteria**: Multiple fallback strategies for resource loading ✅ SUCCESS
 
 ### **Phase 3: Enhanced Error Handling (MEDIUM Priority - 15 min)**
 

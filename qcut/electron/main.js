@@ -161,8 +161,27 @@ app.whenReady().then(() => {
   // Register custom protocol for serving static files
   protocol.registerFileProtocol("app", (request, callback) => {
     const url = request.url.replace("app://", "");
-    const filePath = path.join(__dirname, "../apps/web/dist", url);
-    callback(filePath);
+    
+    // Handle FFmpeg resources specifically
+    if (url.startsWith("ffmpeg/")) {
+      const filename = url.replace("ffmpeg/", "");
+      // In production, FFmpeg files are in resources/ffmpeg/
+      const ffmpegPath = path.join(__dirname, "resources", "ffmpeg", filename);
+      
+      // Check if file exists in resources/ffmpeg, fallback to dist
+      if (fs.existsSync(ffmpegPath)) {
+        callback(ffmpegPath);
+        return;
+      }
+      
+      // Development fallback - try dist directory
+      const distPath = path.join(__dirname, "../apps/web/dist", url);
+      callback(distPath);
+    } else {
+      // Handle other resources normally
+      const filePath = path.join(__dirname, "../apps/web/dist", url);
+      callback(filePath);
+    }
   });
 
   // Start the static server to serve FFmpeg WASM files
@@ -357,4 +376,29 @@ ipcMain.handle("storage:clear", async (event) => {
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
   }
+});
+
+// FFmpeg resource IPC handlers
+ipcMain.handle("get-ffmpeg-resource-path", (event, filename) => {
+  // Try resources/ffmpeg first (production)
+  const resourcesPath = path.join(__dirname, "resources", "ffmpeg", filename);
+  if (fs.existsSync(resourcesPath)) {
+    return resourcesPath;
+  }
+  
+  // Fallback to dist directory (development)
+  const distPath = path.join(__dirname, "../apps/web/dist/ffmpeg", filename);
+  return distPath;
+});
+
+ipcMain.handle("check-ffmpeg-resource", (event, filename) => {
+  // Check resources/ffmpeg first (production)
+  const resourcesPath = path.join(__dirname, "resources", "ffmpeg", filename);
+  if (fs.existsSync(resourcesPath)) {
+    return true;
+  }
+  
+  // Check dist directory (development)
+  const distPath = path.join(__dirname, "../apps/web/dist/ffmpeg", filename);
+  return fs.existsSync(distPath);
 });

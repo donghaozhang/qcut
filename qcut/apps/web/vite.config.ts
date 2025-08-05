@@ -5,6 +5,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   base: "./", // Critical for Electron file:// protocol
+  publicDir: "public", // Ensure public directory is properly copied
   plugins: [
     tsconfigPaths(), // Support for TypeScript path mapping
     TanStackRouterVite({
@@ -16,6 +17,8 @@ export default defineConfig({
   build: {
     outDir: "dist",
     assetsDir: "assets",
+    // Include WASM files as assets
+    assetsInclude: ["**/*.wasm"],
     // Ensure all assets use relative paths
     rollupOptions: {
       output: {
