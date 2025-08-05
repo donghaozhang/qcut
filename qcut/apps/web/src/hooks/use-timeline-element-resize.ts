@@ -65,12 +65,7 @@ export function useTimelineElementResize({
     }
 
     return false;
-  }, [
-    element.type,
-    element.type === "media" ? element.mediaId : null,
-    mediaItemsLoading,
-    mediaItems,
-  ]);
+  }, [element.type, mediaItemsLoading, mediaItems, element]);
 
   const handleResizeEnd = useCallback(() => {
     setResizing(null);

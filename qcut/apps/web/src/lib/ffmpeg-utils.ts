@@ -29,25 +29,31 @@ const isPackagedElectron = () => {
 
 // Environment diagnostics for FFmpeg initialization
 const checkEnvironment = () => {
-  const hasSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
-  const hasWorker = typeof Worker !== 'undefined';
-  
-  console.log('[FFmpeg Utils] 🧪 Environment check:', {
+  const hasSharedArrayBuffer = typeof SharedArrayBuffer !== "undefined";
+  const hasWorker = typeof Worker !== "undefined";
+
+  console.log("[FFmpeg Utils] 🧪 Environment check:", {
     SharedArrayBuffer: hasSharedArrayBuffer,
     Worker: hasWorker,
     isElectron: isElectron(),
     isPackagedElectron: isPackagedElectron(),
-    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A',
-    location: typeof window !== 'undefined' ? window.location.href : 'N/A'
+    userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "N/A",
+    location: typeof window !== "undefined" ? window.location.href : "N/A",
   });
 
   if (!hasSharedArrayBuffer) {
-    console.warn('[FFmpeg Utils] ⚠️ SharedArrayBuffer not available - performance may be degraded');
-    console.warn('[FFmpeg Utils] ⚠️ This may be due to missing COOP/COEP headers or insecure context');
+    console.warn(
+      "[FFmpeg Utils] ⚠️ SharedArrayBuffer not available - performance may be degraded"
+    );
+    console.warn(
+      "[FFmpeg Utils] ⚠️ This may be due to missing COOP/COEP headers or insecure context"
+    );
   }
 
   if (!hasWorker) {
-    console.warn('[FFmpeg Utils] ⚠️ Worker API not available - FFmpeg may not function properly');
+    console.warn(
+      "[FFmpeg Utils] ⚠️ Worker API not available - FFmpeg may not function properly"
+    );
   }
 
   return { hasSharedArrayBuffer, hasWorker };
@@ -64,7 +70,10 @@ const getFFmpegResourceUrl = async (filename: string): Promise<string> => {
       return appUrl;
     }
   } catch (error) {
-    console.warn(`[FFmpeg Utils] ⚠️ App protocol failed for ${filename}:`, error);
+    console.warn(
+      `[FFmpeg Utils] ⚠️ App protocol failed for ${filename}:`,
+      error
+    );
   }
 
   // Fallback to HTTP server
@@ -76,7 +85,10 @@ const getFFmpegResourceUrl = async (filename: string): Promise<string> => {
       return httpUrl;
     }
   } catch (error) {
-    console.warn(`[FFmpeg Utils] ⚠️ HTTP fallback failed for ${filename}:`, error);
+    console.warn(
+      `[FFmpeg Utils] ⚠️ HTTP fallback failed for ${filename}:`,
+      error
+    );
   }
 
   // Final fallback to relative path
@@ -84,18 +96,22 @@ const getFFmpegResourceUrl = async (filename: string): Promise<string> => {
     const relativeUrl = `/ffmpeg/${filename}`;
     const response = await fetch(relativeUrl);
     if (response.ok) {
-      console.log(`[FFmpeg Utils] ✅ Relative path fallback succeeded for ${filename}`);
+      console.log(
+        `[FFmpeg Utils] ✅ Relative path fallback succeeded for ${filename}`
+      );
       return relativeUrl;
     }
   } catch (error) {
-    console.warn(`[FFmpeg Utils] ⚠️ Relative path fallback failed for ${filename}:`, error);
+    console.warn(
+      `[FFmpeg Utils] ⚠️ Relative path fallback failed for ${filename}:`,
+      error
+    );
   }
 
   throw new Error(`Could not resolve FFmpeg resource: ${filename}`);
 };
 
 export const initFFmpeg = async (): Promise<FFmpeg> => {
-
   if (ffmpeg && isFFmpegLoaded) {
     return ffmpeg;
   }
@@ -106,16 +122,19 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
 
   // Validate FFmpeg instance was created successfully
   if (!ffmpeg) {
-    throw new Error("Failed to create FFmpeg instance - createFFmpeg() returned null");
+    throw new Error(
+      "Failed to create FFmpeg instance - createFFmpeg() returned null"
+    );
   }
 
   // Validate FFmpeg instance has required methods
-  if (typeof ffmpeg.load !== 'function') {
-    console.error("[FFmpeg Utils] ❌ FFmpeg instance missing load method:", ffmpeg);
+  if (typeof ffmpeg.load !== "function") {
+    console.error(
+      "[FFmpeg Utils] ❌ FFmpeg instance missing load method:",
+      ffmpeg
+    );
     throw new Error("Invalid FFmpeg instance - missing load() method");
   }
-
-
 
   // Check environment and log diagnostics
   const environment = checkEnvironment();
@@ -123,26 +142,31 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
   try {
     // Use improved resource resolution for both Electron and browser
     let coreUrl, wasmUrl;
-    
+
     try {
       coreUrl = await getFFmpegResourceUrl("ffmpeg-core.js");
       wasmUrl = await getFFmpegResourceUrl("ffmpeg-core.wasm");
-      
-
     } catch (resourceError) {
-      console.error("[FFmpeg Utils] ❌ Resource resolution failed:", resourceError);
-      throw new Error(`Failed to resolve FFmpeg resources: ${resourceError instanceof Error ? resourceError.message : String(resourceError)}`);
+      console.error(
+        "[FFmpeg Utils] ❌ Resource resolution failed:",
+        resourceError
+      );
+      throw new Error(
+        `Failed to resolve FFmpeg resources: ${resourceError instanceof Error ? resourceError.message : String(resourceError)}`
+      );
     }
 
     // Fetch and convert to blob URLs for consistent loading
     let coreResponse, wasmResponse;
-    
+
     try {
       coreResponse = await fetch(coreUrl);
       wasmResponse = await fetch(wasmUrl);
     } catch (fetchError) {
       console.error("[FFmpeg Utils] ❌ Network fetch failed:", fetchError);
-      throw new Error(`Network error while fetching FFmpeg resources: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+      throw new Error(
+        `Network error while fetching FFmpeg resources: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`
+      );
     }
 
     if (!coreResponse.ok) {
@@ -152,28 +176,28 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
     }
     if (!wasmResponse.ok) {
       const errorMsg = `Failed to fetch ffmpeg-core.wasm: ${wasmResponse.status} ${wasmResponse.statusText}`;
-      console.error("[FFmpeg Utils] ❌", errorMsg);  
+      console.error("[FFmpeg Utils] ❌", errorMsg);
       throw new Error(errorMsg);
     }
 
     let coreBlob, wasmBlob;
-    
+
     try {
       coreBlob = await coreResponse.blob();
       wasmBlob = await wasmResponse.blob();
     } catch (blobError) {
       console.error("[FFmpeg Utils] ❌ Blob conversion failed:", blobError);
-      throw new Error(`Failed to convert FFmpeg resources to blobs: ${blobError instanceof Error ? blobError.message : String(blobError)}`);
+      throw new Error(
+        `Failed to convert FFmpeg resources to blobs: ${blobError instanceof Error ? blobError.message : String(blobError)}`
+      );
     }
 
     const coreBlobUrl = URL.createObjectURL(coreBlob);
     const wasmBlobUrl = URL.createObjectURL(wasmBlob);
 
-
-
     // Add timeout to detect hanging with environment-specific timeouts
     const timeoutDuration = environment.hasSharedArrayBuffer ? 30_000 : 60_000; // Longer timeout without SharedArrayBuffer
-    
+
     try {
       const loadPromise = ffmpeg.load({
         coreURL: coreBlobUrl,
@@ -182,7 +206,12 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
 
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(
-          () => reject(new Error(`FFmpeg load timeout after ${timeoutDuration/1000} seconds`)),
+          () =>
+            reject(
+              new Error(
+                `FFmpeg load timeout after ${timeoutDuration / 1000} seconds`
+              )
+            ),
           timeoutDuration
         );
       });
@@ -190,20 +219,25 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
       await Promise.race([loadPromise, timeoutPromise]);
     } catch (loadError) {
       console.error("[FFmpeg Utils] ❌ FFmpeg load failed:", loadError);
-      
+
       // Cleanup blob URLs on failure
       URL.revokeObjectURL(coreBlobUrl);
       URL.revokeObjectURL(wasmBlobUrl);
-      
+
       // Provide specific error messages based on error type
-      const errorMessage = loadError instanceof Error ? loadError.message : String(loadError);
-      if (errorMessage.includes('timeout')) {
-        throw new Error(`FFmpeg initialization timed out. This may be due to slow network or missing SharedArrayBuffer support.`);
-      } else if (errorMessage.includes('SharedArrayBuffer')) {
-        throw new Error(`FFmpeg requires SharedArrayBuffer support. Please ensure proper COOP/COEP headers are set.`);
-      } else {
-        throw new Error(`FFmpeg initialization failed: ${errorMessage}`);
+      const errorMessage =
+        loadError instanceof Error ? loadError.message : String(loadError);
+      if (errorMessage.includes("timeout")) {
+        throw new Error(
+          "FFmpeg initialization timed out. This may be due to slow network or missing SharedArrayBuffer support."
+        );
       }
+      if (errorMessage.includes("SharedArrayBuffer")) {
+        throw new Error(
+          "FFmpeg requires SharedArrayBuffer support. Please ensure proper COOP/COEP headers are set."
+        );
+      }
+      throw new Error(`FFmpeg initialization failed: ${errorMessage}`);
     }
 
     isFFmpegLoaded = true;
@@ -229,17 +263,21 @@ export const generateThumbnail = async (
   videoFile: File,
   timeInSeconds = 1
 ): Promise<string> => {
-  console.log('[FFmpeg] generateThumbnail called');
+  console.log("[FFmpeg] generateThumbnail called");
   const ffmpeg = await initFFmpeg();
-  console.log('[FFmpeg] FFmpeg initialized for thumbnail generation');
+  console.log("[FFmpeg] FFmpeg initialized for thumbnail generation");
 
   const inputName = "input.mp4";
   const outputName = "thumbnail.jpg";
 
   try {
     // Add timeout wrapper (10 seconds)
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('[FFmpeg] Thumbnail generation timeout after 10s')), 10000)
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(
+        () =>
+          reject(new Error("[FFmpeg] Thumbnail generation timeout after 10s")),
+        10_000
+      )
     );
 
     // Write input file
@@ -248,8 +286,8 @@ export const generateThumbnail = async (
       new Uint8Array(await videoFile.arrayBuffer())
     );
 
-    console.log('[FFmpeg] Starting thumbnail generation...');
-    
+    console.log("[FFmpeg] Starting thumbnail generation...");
+
     // Generate thumbnail with timeout
     await Promise.race([
       ffmpeg.exec([
@@ -265,10 +303,10 @@ export const generateThumbnail = async (
         "2",
         outputName,
       ]),
-      timeoutPromise
+      timeoutPromise,
     ]);
 
-    console.log('[FFmpeg] Thumbnail generation completed');
+    console.log("[FFmpeg] Thumbnail generation completed");
 
     // Read output file
     const data = await ffmpeg.readFile(outputName);
@@ -280,8 +318,8 @@ export const generateThumbnail = async (
 
     return URL.createObjectURL(blob);
   } catch (error) {
-    console.error('[FFmpeg] Thumbnail generation failed:', error);
-    
+    console.error("[FFmpeg] Thumbnail generation failed:", error);
+
     // Cleanup on error
     try {
       await ffmpeg.deleteFile(inputName);
@@ -293,7 +331,7 @@ export const generateThumbnail = async (
     } catch (cleanupError) {
       // Ignore cleanup errors
     }
-    
+
     throw error;
   }
 };
@@ -377,13 +415,17 @@ export const getVideoInfo = async (
   // Run ffmpeg to get info (stderr will contain the info)
   try {
     // Add timeout wrapper (5 seconds for info extraction)
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('[FFmpeg] Video info extraction timeout after 5s')), 5000)
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(
+        () =>
+          reject(new Error("[FFmpeg] Video info extraction timeout after 5s")),
+        5000
+      )
     );
-    
+
     await Promise.race([
       ffmpeg.exec(["-i", inputName, "-f", "null", "-"]),
-      timeoutPromise
+      timeoutPromise,
     ]);
   } catch (error) {
     listening = false;

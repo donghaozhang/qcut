@@ -71,7 +71,7 @@ export const usePanelStore = create<PanelState>()(
 
         // Use a larger tolerance to avoid constant warnings from floating-point precision issues
         const tolerance = 0.1; // 0.1% tolerance instead of 0.01%
-        
+
         if (Math.abs(total - 100) > tolerance) {
           // Only log warning for significant deviations (> 1%)
           if (Math.abs(total - 100) > 1) {
@@ -79,10 +79,12 @@ export const usePanelStore = create<PanelState>()(
               `[PanelStore] Invalid layout total size: ${state.toolsPanel.toFixed(2)}%, ${state.previewPanel.toFixed(2)}%, ${state.propertiesPanel.toFixed(2)}%. Normalizing to 100%.`
             );
           }
-          
+
           // If the values are way off, reset to defaults
           if (total < 50 || total > 150) {
-            console.warn('[PanelStore] Panel sizes severely corrupted, resetting to defaults');
+            console.warn(
+              "[PanelStore] Panel sizes severely corrupted, resetting to defaults"
+            );
             set({
               toolsPanel: DEFAULT_PANEL_SIZES.toolsPanel,
               previewPanel: DEFAULT_PANEL_SIZES.previewPanel,
@@ -93,8 +95,10 @@ export const usePanelStore = create<PanelState>()(
             const factor = 100 / total;
             set({
               toolsPanel: Math.round(state.toolsPanel * factor * 1000) / 1000,
-              previewPanel: Math.round(state.previewPanel * factor * 1000) / 1000,
-              propertiesPanel: Math.round(state.propertiesPanel * factor * 1000) / 1000,
+              previewPanel:
+                Math.round(state.previewPanel * factor * 1000) / 1000,
+              propertiesPanel:
+                Math.round(state.propertiesPanel * factor * 1000) / 1000,
             });
           }
         }
@@ -106,16 +110,24 @@ export const usePanelStore = create<PanelState>()(
       migrate: (persistedState: any, version: number) => {
         // Reset to defaults if coming from old version or if data is corrupted
         if (version < 5) {
-          console.log('[PanelStore] Migrating from version', version, 'to version 5');
+          console.log(
+            "[PanelStore] Migrating from version",
+            version,
+            "to version 5"
+          );
           return DEFAULT_PANEL_SIZES;
         }
 
         // Validate persisted state
-        if (!persistedState || 
-            typeof persistedState.toolsPanel !== 'number' ||
-            typeof persistedState.previewPanel !== 'number' ||
-            typeof persistedState.propertiesPanel !== 'number') {
-          console.warn('[PanelStore] Invalid persisted state, resetting to defaults');
+        if (
+          !persistedState ||
+          typeof persistedState.toolsPanel !== "number" ||
+          typeof persistedState.previewPanel !== "number" ||
+          typeof persistedState.propertiesPanel !== "number"
+        ) {
+          console.warn(
+            "[PanelStore] Invalid persisted state, resetting to defaults"
+          );
           return DEFAULT_PANEL_SIZES;
         }
 
@@ -124,20 +136,25 @@ export const usePanelStore = create<PanelState>()(
           persistedState.toolsPanel +
           persistedState.previewPanel +
           persistedState.propertiesPanel;
-        
+
         // If severely corrupted, reset to defaults
         if (total < 50 || total > 150 || isNaN(total)) {
-          console.warn('[PanelStore] Corrupted panel sizes detected, resetting to defaults');
+          console.warn(
+            "[PanelStore] Corrupted panel sizes detected, resetting to defaults"
+          );
           return DEFAULT_PANEL_SIZES;
         }
-        
+
         if (Math.abs(total - 100) > 0.1) {
           const factor = 100 / total;
           return {
             ...persistedState,
-            toolsPanel: Math.round(persistedState.toolsPanel * factor * 1000) / 1000,
-            previewPanel: Math.round(persistedState.previewPanel * factor * 1000) / 1000,
-            propertiesPanel: Math.round(persistedState.propertiesPanel * factor * 1000) / 1000,
+            toolsPanel:
+              Math.round(persistedState.toolsPanel * factor * 1000) / 1000,
+            previewPanel:
+              Math.round(persistedState.previewPanel * factor * 1000) / 1000,
+            propertiesPanel:
+              Math.round(persistedState.propertiesPanel * factor * 1000) / 1000,
           };
         }
 

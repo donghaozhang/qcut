@@ -77,7 +77,7 @@ function createStaticServer() {
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type");
       res.setHeader("Content-Type", contentType);
-      
+
       // Add Cross-Origin-Resource-Policy for COEP compatibility
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
 
@@ -160,19 +160,19 @@ app.whenReady().then(() => {
   // Register custom protocol for serving static files
   protocol.registerFileProtocol("app", (request, callback) => {
     const url = request.url.replace("app://", "");
-    
+
     // Handle FFmpeg resources specifically
     if (url.startsWith("ffmpeg/")) {
       const filename = url.replace("ffmpeg/", "");
       // In production, FFmpeg files are in resources/ffmpeg/
       const ffmpegPath = path.join(__dirname, "resources", "ffmpeg", filename);
-      
+
       // Check if file exists in resources/ffmpeg, fallback to dist
       if (fs.existsSync(ffmpegPath)) {
         callback(ffmpegPath);
         return;
       }
-      
+
       // Development fallback - try dist directory
       const distPath = path.join(__dirname, "../apps/web/dist", url);
       callback(distPath);
@@ -384,7 +384,7 @@ ipcMain.handle("get-ffmpeg-resource-path", (event, filename) => {
   if (fs.existsSync(resourcesPath)) {
     return resourcesPath;
   }
-  
+
   // Fallback to dist directory (development)
   const distPath = path.join(__dirname, "../apps/web/dist/ffmpeg", filename);
   return distPath;
@@ -396,7 +396,7 @@ ipcMain.handle("check-ffmpeg-resource", (event, filename) => {
   if (fs.existsSync(resourcesPath)) {
     return true;
   }
-  
+
   // Check dist directory (development)
   const distPath = path.join(__dirname, "../apps/web/dist/ffmpeg", filename);
   return fs.existsSync(distPath);

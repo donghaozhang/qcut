@@ -38,7 +38,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.invoke("cleanup-export-session", sessionId),
     openFramesFolder: (sessionId) =>
       ipcRenderer.invoke("open-frames-folder", sessionId),
-    
+
     // FFmpeg resource helpers
     getFFmpegResourcePath: (filename) =>
       ipcRenderer.invoke("get-ffmpeg-resource-path", filename),

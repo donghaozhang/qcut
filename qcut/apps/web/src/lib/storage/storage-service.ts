@@ -16,7 +16,6 @@ import { TimelineTrack } from "@/types/timeline";
 class StorageService {
   private projectsAdapter!: StorageAdapter<SerializedProject>;
   private config: StorageConfig;
-  private useLocalStorage = false;
   private isInitialized = false;
 
   constructor() {
@@ -70,7 +69,6 @@ class StorageService {
       await this.projectsAdapter.list();
       this.isInitialized = true;
     } catch (error) {
-      this.useLocalStorage = true;
       this.projectsAdapter = new LocalStorageAdapter<SerializedProject>(
         this.config.projectsDb,
         "projects"

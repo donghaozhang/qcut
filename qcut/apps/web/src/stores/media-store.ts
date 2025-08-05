@@ -105,32 +105,32 @@ export const processVideoFile = async (file: File) => {
     // Try browser processing first - it's fast, reliable, and doesn't timeout
     const [thumbnailData, duration] = await Promise.all([
       generateVideoThumbnailBrowser(file),
-      getMediaDuration(file)
+      getMediaDuration(file),
     ]);
-    
+
     return {
       thumbnailUrl: thumbnailData.thumbnailUrl,
       width: thumbnailData.width,
       height: thumbnailData.height,
       duration,
       fps: 30, // Default FPS for browser method
-      processingMethod: 'browser'
+      processingMethod: "browser",
     };
   } catch (browserError) {
     // Fallback to FFmpeg processing (for edge cases or special codecs)
     try {
       const [videoInfo, thumbnailUrl] = await Promise.all([
         getVideoInfo(file),
-        generateThumbnail(file, 1) // Generate thumbnail at 1 second
+        generateThumbnail(file, 1), // Generate thumbnail at 1 second
       ]);
-      
+
       return {
         thumbnailUrl,
         width: videoInfo.width,
         height: videoInfo.height,
         duration: videoInfo.duration,
         fps: videoInfo.fps,
-        processingMethod: 'ffmpeg'
+        processingMethod: "ffmpeg",
       };
     } catch (ffmpegError) {
       // Return minimal data to prevent complete failure
@@ -140,8 +140,8 @@ export const processVideoFile = async (file: File) => {
         height: 1080,
         duration: 0,
         fps: 30,
-        processingMethod: 'fallback',
-        error: `Processing failed: ${ffmpegError instanceof Error ? ffmpegError.message : String(ffmpegError)}`
+        processingMethod: "fallback",
+        error: `Processing failed: ${ffmpegError instanceof Error ? ffmpegError.message : String(ffmpegError)}`,
       };
     }
   }
@@ -192,14 +192,22 @@ export const generateVideoThumbnailBrowser = (
         cleanup();
       } catch (drawError) {
         cleanup();
-        reject(new Error(`Canvas drawing failed: ${drawError instanceof Error ? drawError.message : String(drawError)}`));
+        reject(
+          new Error(
+            `Canvas drawing failed: ${drawError instanceof Error ? drawError.message : String(drawError)}`
+          )
+        );
       }
     });
 
     video.addEventListener("error", (event) => {
       clearTimeout(timeout);
       cleanup();
-      reject(new Error(`Video loading failed: ${video.error?.message || 'Unknown error'}`));
+      reject(
+        new Error(
+          `Video loading failed: ${video.error?.message || "Unknown error"}`
+        )
+      );
     });
 
     try {
@@ -208,7 +216,11 @@ export const generateVideoThumbnailBrowser = (
     } catch (urlError) {
       clearTimeout(timeout);
       cleanup();
-      reject(new Error(`Failed to create object URL: ${urlError instanceof Error ? urlError.message : String(urlError)}`));
+      reject(
+        new Error(
+          `Failed to create object URL: ${urlError instanceof Error ? urlError.message : String(urlError)}`
+        )
+      );
     }
   });
 };
@@ -358,7 +370,7 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
           if (item.type === "video" && item.file) {
             try {
               const processResult = await processVideoFile(item.file);
-              
+
               return {
                 ...item,
                 thumbnailUrl: processResult.thumbnailUrl || item.thumbnailUrl,
@@ -369,20 +381,25 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
                 metadata: {
                   ...item.metadata,
                   processingMethod: processResult.processingMethod,
-                  ...(processResult.error && { processingError: processResult.error })
-                }
+                  ...(processResult.error && {
+                    processingError: processResult.error,
+                  }),
+                },
               };
             } catch (error) {
-              console.error(`[Media Store] ❌ Failed to process video ${item.id}:`, error);
-              
+              console.error(
+                `[Media Store] ❌ Failed to process video ${item.id}:`,
+                error
+              );
+
               // Return item with error metadata to prevent complete failure
               return {
                 ...item,
                 metadata: {
                   ...item.metadata,
                   processingError: `Video processing failed: ${error instanceof Error ? error.message : String(error)}`,
-                  processingMethod: 'failed'
-                }
+                  processingMethod: "failed",
+                },
               };
             }
           }
@@ -393,7 +410,7 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
       set({ mediaItems: updatedMediaItems });
     } catch (error) {
       console.error("[Media Store] ❌ Failed to load media items:", error);
-      
+
       // Set empty array to prevent undefined state
       set({ mediaItems: [] });
     } finally {

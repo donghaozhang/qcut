@@ -11,7 +11,11 @@ export async function processMediaFiles(
   files: FileList | File[],
   onProgress?: (progress: number) => void
 ): Promise<ProcessedMediaItem[]> {
-  console.log("[Media Processing] 🚀 Starting processMediaFiles with", files.length, "files");
+  console.log(
+    "[Media Processing] 🚀 Starting processMediaFiles with",
+    files.length,
+    "files"
+  );
   const fileArray = Array.from(files);
   const processedItems: ProcessedMediaItem[] = [];
 
@@ -19,7 +23,7 @@ export async function processMediaFiles(
   console.log("[Media Processing] 📦 Loading media store utils...");
   const mediaUtils = await getMediaStoreUtils();
   console.log("[Media Processing] ✅ Media store utils loaded");
-  
+
   console.log("[Media Processing] 📦 Loading FFmpeg utils...");
   const ffmpegUtils = await getFFmpegUtilFunctions();
   console.log("[Media Processing] ✅ FFmpeg utils loaded");
@@ -28,13 +32,17 @@ export async function processMediaFiles(
   let completed = 0;
 
   for (const file of fileArray) {
-    console.log(`[Media Processing] 🎬 Processing file: ${file.name} (${file.type}, ${(file.size / 1024 / 1024).toFixed(2)} MB)`);
-    
+    console.log(
+      `[Media Processing] 🎬 Processing file: ${file.name} (${file.type}, ${(file.size / 1024 / 1024).toFixed(2)} MB)`
+    );
+
     const fileType = mediaUtils.getFileType(file);
     console.log(`[Media Processing] 📝 Detected file type: ${fileType}`);
 
     if (!fileType) {
-      console.warn(`[Media Processing] ❌ Unsupported file type: ${file.name} (${file.type})`);
+      console.warn(
+        `[Media Processing] ❌ Unsupported file type: ${file.name} (${file.type})`
+      );
       toast.error(`Unsupported file type: ${file.name}`);
       continue;
     }
@@ -42,7 +50,7 @@ export async function processMediaFiles(
     console.log(`[Media Processing] 🔗 Creating object URL for: ${file.name}`);
     const url = URL.createObjectURL(file);
     console.log(`[Media Processing] ✅ Object URL created: ${url}`);
-    
+
     let thumbnailUrl: string | undefined;
     let duration: number | undefined;
     let width: number | undefined;
@@ -56,67 +64,93 @@ export async function processMediaFiles(
         const dimensions = await mediaUtils.getImageDimensions(file);
         width = dimensions.width;
         height = dimensions.height;
-        console.log(`[Media Processing] ✅ Image processed: ${width}x${height}`);
+        console.log(
+          `[Media Processing] ✅ Image processed: ${width}x${height}`
+        );
       } else if (fileType === "video") {
         console.log(`[Media Processing] 🎥 Processing video: ${file.name}`);
         try {
-          console.log(`[Media Processing] 🔧 Attempting FFmpeg video processing...`);
+          console.log(
+            "[Media Processing] 🔧 Attempting FFmpeg video processing..."
+          );
           // Use FFmpeg for comprehensive video info extraction
           const videoInfo = await ffmpegUtils.getVideoInfo(file);
-          console.log(`[Media Processing] ✅ FFmpeg getVideoInfo successful:`, videoInfo);
+          console.log(
+            "[Media Processing] ✅ FFmpeg getVideoInfo successful:",
+            videoInfo
+          );
           duration = videoInfo.duration;
           width = videoInfo.width;
           height = videoInfo.height;
           fps = videoInfo.fps;
 
-          console.log(`[Media Processing] 🖼️ Generating thumbnail with FFmpeg...`);
+          console.log(
+            "[Media Processing] 🖼️ Generating thumbnail with FFmpeg..."
+          );
           // Skip FFmpeg thumbnail generation if video dimensions are invalid
           if (width === 0 || height === 0) {
-            console.warn(`[Media Processing] ⚠️ Skipping FFmpeg thumbnail due to invalid dimensions (${width}x${height})`);
-            throw new Error('Invalid video dimensions for thumbnail generation');
+            console.warn(
+              `[Media Processing] ⚠️ Skipping FFmpeg thumbnail due to invalid dimensions (${width}x${height})`
+            );
+            throw new Error(
+              "Invalid video dimensions for thumbnail generation"
+            );
           }
           // Generate thumbnail using FFmpeg
           thumbnailUrl = await ffmpegUtils.generateThumbnail(file, 1);
-          console.log(`[Media Processing] ✅ FFmpeg thumbnail generated:`, thumbnailUrl ? 'SUCCESS' : 'FAILED');
+          console.log(
+            "[Media Processing] ✅ FFmpeg thumbnail generated:",
+            thumbnailUrl ? "SUCCESS" : "FAILED"
+          );
         } catch (error) {
           console.warn(
             "[Media Processing] FFmpeg processing failed, falling back to basic processing:",
             error
           );
-          
+
           // Enhanced fallback processing with better error handling
           try {
-            console.log("[Media Processing] 🌐 Attempting browser fallback processing...");
+            console.log(
+              "[Media Processing] 🌐 Attempting browser fallback processing..."
+            );
             const videoResult = await mediaUtils.generateVideoThumbnail(file);
-            console.log("[Media Processing] ✅ Browser thumbnail generated:", videoResult);
+            console.log(
+              "[Media Processing] ✅ Browser thumbnail generated:",
+              videoResult
+            );
             thumbnailUrl = videoResult.thumbnailUrl;
             width = videoResult.width;
             height = videoResult.height;
-            
+
             console.log("[Media Processing] ⏱️ Getting video duration...");
             duration = await mediaUtils.getMediaDuration(file);
             console.log("[Media Processing] ✅ Duration extracted:", duration);
             // FPS will remain undefined for fallback
-            console.log("[Media Processing] ✅ Browser fallback processing successful");
+            console.log(
+              "[Media Processing] ✅ Browser fallback processing successful"
+            );
           } catch (fallbackError) {
             console.warn(
               "[Media Processing] ⚠️ Browser fallback also failed, using minimal processing:",
               fallbackError
             );
-            
+
             // Minimal processing - just basic file info
             try {
               duration = await mediaUtils.getMediaDuration(file);
             } catch (durationError) {
-              console.warn("[Media Processing] ⚠️ Duration extraction failed:", durationError);
+              console.warn(
+                "[Media Processing] ⚠️ Duration extraction failed:",
+                durationError
+              );
               duration = 0; // Default duration
             }
-            
+
             // Set default dimensions for failed processing
             width = 1920;
             height = 1080;
             thumbnailUrl = undefined;
-            
+
             console.log("[Media Processing] ✅ Minimal processing completed");
           }
         }
@@ -124,7 +158,10 @@ export async function processMediaFiles(
         console.log(`[Media Processing] 🎵 Processing audio: ${file.name}`);
         // For audio, we don't set width/height/fps (they'll be undefined)
         duration = await mediaUtils.getMediaDuration(file);
-        console.log("[Media Processing] ✅ Audio duration extracted:", duration);
+        console.log(
+          "[Media Processing] ✅ Audio duration extracted:",
+          duration
+        );
       }
 
       const processedItem = {
@@ -138,18 +175,18 @@ export async function processMediaFiles(
         height,
         fps,
       };
-      
-      console.log(`[Media Processing] ➕ Adding processed item:`, {
+
+      console.log("[Media Processing] ➕ Adding processed item:", {
         name: processedItem.name,
         type: processedItem.type,
-        url: processedItem.url ? 'SET' : 'UNSET',
-        thumbnailUrl: processedItem.thumbnailUrl ? 'SET' : 'UNSET',
+        url: processedItem.url ? "SET" : "UNSET",
+        thumbnailUrl: processedItem.thumbnailUrl ? "SET" : "UNSET",
         duration: processedItem.duration,
         width: processedItem.width,
         height: processedItem.height,
-        fps: processedItem.fps
+        fps: processedItem.fps,
       });
-      
+
       processedItems.push(processedItem);
 
       // Yield back to the event loop to keep the UI responsive
@@ -159,11 +196,17 @@ export async function processMediaFiles(
       if (onProgress) {
         const percent = Math.round((completed / total) * 100);
         onProgress(percent);
-        console.log(`[Media Processing] 📊 Progress: ${percent}% (${completed}/${total})`);
+        console.log(
+          `[Media Processing] 📊 Progress: ${percent}% (${completed}/${total})`
+        );
       }
     } catch (error) {
-      console.error("[Media Processing] ❌ Critical error processing file:", file.name, error);
-      
+      console.error(
+        "[Media Processing] ❌ Critical error processing file:",
+        file.name,
+        error
+      );
+
       // Don't completely abort - try to add the file with minimal info
       try {
         processedItems.push({
@@ -172,16 +215,25 @@ export async function processMediaFiles(
           file,
           url,
           thumbnailUrl: undefined,
-          duration: fileType === "video" || fileType === "audio" ? 0 : undefined,
-          width: fileType === "video" || fileType === "image" ? 1920 : undefined,
-          height: fileType === "video" || fileType === "image" ? 1080 : undefined,
+          duration:
+            fileType === "video" || fileType === "audio" ? 0 : undefined,
+          width:
+            fileType === "video" || fileType === "image" ? 1920 : undefined,
+          height:
+            fileType === "video" || fileType === "image" ? 1080 : undefined,
           fps: fileType === "video" ? 30 : undefined,
         });
-        
-        console.log("[Media Processing] ✅ Added file with minimal processing:", file.name);
+
+        console.log(
+          "[Media Processing] ✅ Added file with minimal processing:",
+          file.name
+        );
         toast.warning(`${file.name} added with limited processing`);
       } catch (addError) {
-        console.error("[Media Processing] ❌ Failed to add file even with minimal processing:", addError);
+        console.error(
+          "[Media Processing] ❌ Failed to add file even with minimal processing:",
+          addError
+        );
         toast.error(`Failed to process ${file.name}`);
         URL.revokeObjectURL(url); // Clean up on complete failure
       }

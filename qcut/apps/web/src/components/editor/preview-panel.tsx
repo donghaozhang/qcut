@@ -77,7 +77,7 @@ export function PreviewPanel() {
         availableHeight = window.innerHeight - controlsHeight - marginSpace;
       } else {
         const container = containerRef.current.getBoundingClientRect();
-        
+
         const computedStyle = getComputedStyle(containerRef.current);
         const paddingTop = parseFloat(computedStyle.paddingTop);
         const paddingBottom = parseFloat(computedStyle.paddingBottom);
@@ -96,7 +96,6 @@ export function PreviewPanel() {
           paddingBottom -
           toolbarHeight -
           (toolbarHeight > 0 ? gap : 0);
-        
       }
 
       const targetRatio = canvasSize.width / canvasSize.height;
@@ -116,15 +115,15 @@ export function PreviewPanel() {
 
     // Declare resizeObserver first to avoid temporal dead zone
     const resizeObserver = new ResizeObserver(updatePreviewSize);
-    
+
     updatePreviewSize();
-    
+
     // Retry size calculation if container wasn't ready initially
     if (!containerRef.current) {
       const retryTimeout = setTimeout(() => {
         updatePreviewSize();
       }, 100);
-      
+
       // Return cleanup that only clears timeout (resizeObserver not connected yet)
       return () => {
         clearTimeout(retryTimeout);
@@ -144,7 +143,6 @@ export function PreviewPanel() {
       }
     };
   }, [canvasSize.width, canvasSize.height, isExpanded]);
-
 
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
@@ -251,7 +249,7 @@ export function PreviewPanel() {
   }, []);
 
   const hasAnyElements = tracks.some((track) => track.elements.length > 0);
-  const getActiveElements = (): ActiveElement[] => {
+  const getActiveElements = useCallback((): ActiveElement[] => {
     const activeElements: ActiveElement[] = [];
 
     tracks.forEach((track) => {
@@ -277,16 +275,17 @@ export function PreviewPanel() {
     });
 
     return activeElements;
-  };
+  }, [tracks, currentTime, mediaItems]);
 
   const activeElements = useMemo(() => {
     const elements = getActiveElements();
     if (elements.length > 0 && mediaItems.length === 0) {
-      console.warn('[Preview] Active elements found but mediaItems is empty. Preview will show placeholder.');
+      console.warn(
+        "[Preview] Active elements found but mediaItems is empty. Preview will show placeholder."
+      );
     }
     return elements;
-  }, [tracks, currentTime, mediaItems]);
-
+  }, [mediaItems, getActiveElements]);
 
   // Get media elements for blur background (video/image only)
   const blurBackgroundElements = useMemo(() => {
@@ -453,9 +452,9 @@ export function PreviewPanel() {
           <div
             key={element.id}
             className="absolute inset-0 flex items-center justify-center"
-            style={{ 
-              width: '100%', 
-              height: '100%'
+            style={{
+              width: "100%",
+              height: "100%",
             }}
           >
             <VideoPlayer

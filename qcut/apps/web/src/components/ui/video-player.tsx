@@ -117,14 +117,14 @@ export function VideoPlayer({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    
+
     // Dimensions will be checked by video element itself
-  }, [src]);
+  }, []);
 
   // Video source tracking
   useEffect(() => {
     // Source changed - video will reinitialize
-  }, [src]);
+  }, []);
 
   return (
     <video
@@ -137,16 +137,18 @@ export function VideoPlayer({
       controls={false}
       disablePictureInPicture
       disableRemotePlayback
-      style={{ 
+      style={{
         pointerEvents: "none",
         width: "100%",
-        height: "100%"
+        height: "100%",
       }}
       onContextMenu={(e) => e.preventDefault()}
       onLoadedMetadata={(e) => {
         // Video metadata loaded
       }}
-      onError={(e) => console.error('[VideoPlayer] Video error:', e, 'src:', src)}
+      onError={(e) =>
+        console.error("[VideoPlayer] Video error:", e, "src:", src)
+      }
       onCanPlay={() => {
         // Video ready to play
       }}
