@@ -117,6 +117,19 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
     ffmpeg = await createFFmpeg();
   }
 
+  // Validate FFmpeg instance was created successfully
+  if (!ffmpeg) {
+    throw new Error("Failed to create FFmpeg instance - createFFmpeg() returned null");
+  }
+
+  // Validate FFmpeg instance has required methods
+  if (typeof ffmpeg.load !== 'function') {
+    console.error("[FFmpeg Utils] ❌ FFmpeg instance missing load method:", ffmpeg);
+    throw new Error("Invalid FFmpeg instance - missing load() method");
+  }
+
+  console.log("[FFmpeg Utils] ✅ FFmpeg instance validation passed");
+
   // Check environment and log diagnostics
   const environment = checkEnvironment();
 
