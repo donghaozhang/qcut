@@ -95,25 +95,12 @@ const getFFmpegResourceUrl = async (filename: string): Promise<string> => {
 };
 
 export const initFFmpeg = async (): Promise<FFmpeg> => {
-  console.log("[FFmpeg Utils] 🔧 initFFmpeg called");
-  console.log(
-    "[FFmpeg Utils] 📊 Current state - ffmpeg exists:",
-    !!ffmpeg,
-    ", isLoaded:",
-    isFFmpegLoaded
-  );
 
   if (ffmpeg && isFFmpegLoaded) {
-    console.log("[FFmpeg Utils] ✅ FFmpeg instance already loaded, reusing...");
     return ffmpeg;
   }
 
-  if (ffmpeg && !isFFmpegLoaded) {
-    console.log(
-      "[FFmpeg Utils] 🔄 FFmpeg instance exists but not loaded, reinitializing..."
-    );
-  } else {
-    console.log("[FFmpeg Utils] 🆕 Creating new FFmpeg instance...");
+  if (!ffmpeg || !isFFmpegLoaded) {
     ffmpeg = await createFFmpeg();
   }
 
@@ -135,18 +122,13 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
 
   try {
     // Use improved resource resolution for both Electron and browser
-    console.log("[FFmpeg Utils] 📁 Resolving FFmpeg resources...");
-    
     let coreUrl, wasmUrl;
     
     try {
       coreUrl = await getFFmpegResourceUrl("ffmpeg-core.js");
       wasmUrl = await getFFmpegResourceUrl("ffmpeg-core.wasm");
       
-      console.log("[FFmpeg Utils] 📁 Resource URLs resolved:", {
-        js: coreUrl,
-        wasm: wasmUrl
-      });
+
     } catch (resourceError) {
       console.error("[FFmpeg Utils] ❌ Resource resolution failed:", resourceError);
       throw new Error(`Failed to resolve FFmpeg resources: ${resourceError instanceof Error ? resourceError.message : String(resourceError)}`);
@@ -156,7 +138,6 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
     let coreResponse, wasmResponse;
     
     try {
-      console.log("[FFmpeg Utils] 🌐 Fetching FFmpeg resources...");
       coreResponse = await fetch(coreUrl);
       wasmResponse = await fetch(wasmUrl);
     } catch (fetchError) {
@@ -178,14 +159,8 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
     let coreBlob, wasmBlob;
     
     try {
-      console.log("[FFmpeg Utils] 📦 Converting responses to blobs...");
       coreBlob = await coreResponse.blob();
       wasmBlob = await wasmResponse.blob();
-      
-      console.log("[FFmpeg Utils] 📊 Blob sizes:", {
-        coreSize: `${(coreBlob.size / 1024).toFixed(1)} KB`,
-        wasmSize: `${(wasmBlob.size / 1024 / 1024).toFixed(1)} MB`
-      });
     } catch (blobError) {
       console.error("[FFmpeg Utils] ❌ Blob conversion failed:", blobError);
       throw new Error(`Failed to convert FFmpeg resources to blobs: ${blobError instanceof Error ? blobError.message : String(blobError)}`);
@@ -194,17 +169,12 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
     const coreBlobUrl = URL.createObjectURL(coreBlob);
     const wasmBlobUrl = URL.createObjectURL(wasmBlob);
 
-    console.log("[FFmpeg Utils] 🎬 Loading FFmpeg with blob URLs:", {
-      core: coreBlobUrl,
-      wasm: wasmBlobUrl
-    });
+
 
     // Add timeout to detect hanging with environment-specific timeouts
     const timeoutDuration = environment.hasSharedArrayBuffer ? 30_000 : 60_000; // Longer timeout without SharedArrayBuffer
     
     try {
-      console.log(`[FFmpeg Utils] ⏳ Starting FFmpeg load (timeout: ${timeoutDuration/1000}s)...`);
-      
       const loadPromise = ffmpeg.load({
         coreURL: coreBlobUrl,
         wasmURL: wasmBlobUrl,
