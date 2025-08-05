@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Play, Pause, Expand, SkipBack, SkipForward } from "lucide-react";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { formatTimeCode } from "@/lib/time";
 import { EditableTimecode } from "@/components/ui/editable-timecode";
@@ -262,18 +262,13 @@ export function PreviewPanel() {
     return activeElements;
   };
 
-  const activeElements = getActiveElements();
+  const activeElements = useMemo(() => {
+    return getActiveElements();
+  }, [tracks, currentTime, mediaItems]);
 
-  // Debug logging for active elements
-  console.log('[Preview] Active elements:', activeElements);
-  console.log('[Preview] Media items available:', mediaItems.length);
-  activeElements.forEach(el => {
-    console.log(`[Preview] Element ${el.element.id} mediaId:`, el.element.mediaId);
-    console.log(`[Preview] Found media item:`, el.mediaItem);
-  });
 
   // Get media elements for blur background (video/image only)
-  const getBlurBackgroundElements = (): ActiveElement[] => {
+  const blurBackgroundElements = useMemo(() => {
     return activeElements.filter(
       ({ element, mediaItem }) =>
         element.type === "media" &&
@@ -281,9 +276,7 @@ export function PreviewPanel() {
         (mediaItem.type === "video" || mediaItem.type === "image") &&
         element.mediaId !== "test" // Exclude test elements
     );
-  };
-
-  const blurBackgroundElements = getBlurBackgroundElements();
+  }, [activeElements]);
 
   // Render blur background layer
   const renderBlurBackground = () => {
@@ -439,6 +432,7 @@ export function PreviewPanel() {
           <div
             key={element.id}
             className="absolute inset-0 flex items-center justify-center"
+            style={{ width: '100%', height: '100%' }}
           >
             <VideoPlayer
               src={mediaItem.url!}
@@ -447,6 +441,7 @@ export function PreviewPanel() {
               trimStart={element.trimStart}
               trimEnd={element.trimEnd}
               clipDuration={element.duration}
+              className="w-full h-full object-contain"
             />
           </div>
         );

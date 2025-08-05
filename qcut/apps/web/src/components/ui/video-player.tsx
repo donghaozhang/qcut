@@ -113,13 +113,32 @@ export function VideoPlayer({
     video.playbackRate = speed;
   }, [volume, speed, muted]);
 
-  // Debug logging
-  console.log('[VideoPlayer] Rendering with:', {
-    src,
-    poster,
-    clipStartTime,
-    isInClipRange
-  });
+  // Check video element dimensions on mount
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    
+    const checkDimensions = () => {
+      const rect = video.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        console.warn('[VideoPlayer] Video element has 0 dimensions!', {
+          rect,
+          offsetWidth: video.offsetWidth,
+          offsetHeight: video.offsetHeight,
+          parentElement: video.parentElement?.getBoundingClientRect()
+        });
+      }
+    };
+    
+    // Check immediately and after a short delay
+    checkDimensions();
+    setTimeout(checkDimensions, 100);
+  }, [src]);
+
+  // Video source tracking
+  useEffect(() => {
+    // Source changed - video will reinitialize
+  }, [src]);
 
   return (
     <video
@@ -134,6 +153,13 @@ export function VideoPlayer({
       disableRemotePlayback
       style={{ pointerEvents: "none" }}
       onContextMenu={(e) => e.preventDefault()}
+      onLoadedMetadata={(e) => {
+        // Video metadata loaded
+      }}
+      onError={(e) => console.error('[VideoPlayer] Video error:', e, 'src:', src)}
+      onCanPlay={() => {
+        // Video ready to play
+      }}
     />
   );
 }
