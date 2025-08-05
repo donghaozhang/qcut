@@ -184,63 +184,14 @@ This task plan addresses the FFmpeg WebAssembly initialization failures that pre
 - **Additional Changes**: Refactored initFFmpeg() to use the new resource resolution function ✅ COMPLETED
 - **Success Criteria**: Multiple fallback strategies for resource loading ✅ SUCCESS
 
-### **Phase 3: Enhanced Error Handling (MEDIUM Priority - 15 min)**
+### **Phase 3: Enhanced Error Handling (MEDIUM Priority - 15 min) ✅ COMPLETED**
 
-#### **Task 3.1: Improve FFmpeg Initialization Error Handling** (5 min)
-- **File to Modify**: `apps/web/src/lib/ffmpeg-utils.ts`
-- **Section**: FFmpeg initialization function
-- **Changes**:
+#### **Task 3.1: Improve FFmpeg Initialization Error Handling** (5 min) ✅ COMPLETED
+- **File to Modify**: `apps/web/src/lib/ffmpeg-utils.ts` ✅ MODIFIED
+- **Section**: FFmpeg initialization function ✅ ENHANCED
+- **Changes Applied**:
   ```typescript
-  const initFFmpeg = async (): Promise<boolean> => {
-    try {
-      console.log('[FFmpeg Utils] 🔧 initFFmpeg called');
-      
-      // Check if resources are available
-      const coreJsUrl = await getFFmpegResourceUrl('ffmpeg-core.js');
-      const coreWasmUrl = await getFFmpegResourceUrl('ffmpeg-core.wasm');
-      
-      console.log(`[FFmpeg Utils] 📁 Resource URLs resolved:`, {
-        js: coreJsUrl,
-        wasm: coreWasmUrl
-      });
-
-      // Continue with FFmpeg initialization...
-      
-    } catch (error) {
-      console.error('[FFmpeg Utils] ❌ Resource resolution failed:', error);
-      return false;
-    }
-  };
-  ```
-- **Success Criteria**: Detailed error logging for debugging
-
-#### **Task 3.2: Add Media Store Error Handling** (5 min)
-- **File to Modify**: `apps/web/src/stores/media-store.ts`
-- **Section**: Media processing functions
-- **Changes**:
-  ```typescript
-  // Add error handling for FFmpeg failures
-  const processMediaFile = async (file: File) => {
-    try {
-      // Try FFmpeg processing first
-      const result = await ffmpegProcess(file);
-      return result;
-    } catch (ffmpegError) {
-      console.warn('FFmpeg processing failed, using fallback:', ffmpegError);
-      
-      // Fallback to basic processing
-      return await basicFileProcessing(file);
-    }
-  };
-  ```
-- **Success Criteria**: Graceful fallback when FFmpeg fails
-
-#### **Task 3.3: Add SharedArrayBuffer Detection and Warning** (5 min)
-- **File to Modify**: `apps/web/src/lib/ffmpeg-utils.ts`
-- **Section**: Environment detection
-- **Changes**:
-  ```typescript
-  // Add SharedArrayBuffer detection
+  // Environment diagnostics function
   const checkEnvironment = () => {
     const hasSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
     const hasWorker = typeof Worker !== 'undefined';
@@ -248,17 +199,114 @@ This task plan addresses the FFmpeg WebAssembly initialization failures that pre
     console.log('[FFmpeg Utils] 🧪 Environment check:', {
       SharedArrayBuffer: hasSharedArrayBuffer,
       Worker: hasWorker,
-      isElectron: window.electronAPI !== undefined
+      isElectron: isElectron(),
+      isPackagedElectron: isPackagedElectron(),
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'N/A',
+      location: typeof window !== 'undefined' ? window.location.href : 'N/A'
     });
 
     if (!hasSharedArrayBuffer) {
       console.warn('[FFmpeg Utils] ⚠️ SharedArrayBuffer not available - performance may be degraded');
+      console.warn('[FFmpeg Utils] ⚠️ This may be due to missing COOP/COEP headers or insecure context');
+    }
+
+    return { hasSharedArrayBuffer, hasWorker };
+  };
+
+  // Enhanced error handling in initFFmpeg with specific error messages
+  try {
+    const coreUrl = await getFFmpegResourceUrl("ffmpeg-core.js");
+    const wasmUrl = await getFFmpegResourceUrl("ffmpeg-core.wasm");
+    // ... detailed error handling for each step
+  } catch (resourceError) {
+    console.error("[FFmpeg Utils] ❌ Resource resolution failed:", resourceError);
+    throw new Error(`Failed to resolve FFmpeg resources: ${resourceError.message}`);
+  }
+  ```
+- **Success Criteria**: Detailed error logging for debugging ✅ SUCCESS
+
+#### **Task 3.2: Add Media Store Error Handling** (5 min) ✅ COMPLETED
+- **File to Modify**: `apps/web/src/stores/media-store.ts` ✅ MODIFIED
+- **Section**: Media processing functions ✅ ENHANCED
+- **Changes Applied**:
+  ```typescript
+  // Enhanced video processing with FFmpeg fallback
+  export const processVideoFile = async (file: File) => {
+    console.log(`[Media Store] 🎬 Processing video file: ${file.name}`);
+    
+    try {
+      // Try FFmpeg processing first for better accuracy
+      console.log("[Media Store] 🔧 Attempting FFmpeg video processing...");
+      
+      const [videoInfo, thumbnailUrl] = await Promise.all([
+        getVideoInfo(file),
+        generateThumbnail(file, 1)
+      ]);
+      
+      return {
+        thumbnailUrl, width: videoInfo.width, height: videoInfo.height,
+        duration: videoInfo.duration, fps: videoInfo.fps,
+        processingMethod: 'ffmpeg'
+      };
+    } catch (ffmpegError) {
+      console.warn("[Media Store] ⚠️ FFmpeg processing failed, using browser fallback:", ffmpegError);
+      
+      // Fallback to browser-based processing
+      try {
+        const [thumbnailData, duration] = await Promise.all([
+          generateVideoThumbnailBrowser(file), getMediaDuration(file)
+        ]);
+        
+        return {
+          thumbnailUrl: thumbnailData.thumbnailUrl,
+          width: thumbnailData.width, height: thumbnailData.height,
+          duration, fps: 30, processingMethod: 'browser'
+        };
+      } catch (browserError) {
+        // Return minimal data to prevent complete failure
+        return {
+          thumbnailUrl: undefined, width: 1920, height: 1080,
+          duration: 0, fps: 30, processingMethod: 'fallback',
+          error: `Processing failed: ${browserError.message}`
+        };
+      }
+    }
+  };
+  ```
+- **Additional Changes**: Enhanced loadProjectMedia with comprehensive error handling ✅ COMPLETED
+- **Success Criteria**: Graceful fallback when FFmpeg fails ✅ SUCCESS
+
+#### **Task 3.3: Add SharedArrayBuffer Detection and Warning** (5 min) ✅ COMPLETED
+- **File to Modify**: `apps/web/src/lib/ffmpeg-utils.ts` ✅ MODIFIED (Combined with Task 3.1)
+- **Section**: Environment detection ✅ IMPLEMENTED
+- **Changes Applied**: 
+  ```typescript
+  // SharedArrayBuffer detection integrated into checkEnvironment()
+  const checkEnvironment = () => {
+    const hasSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
+    const hasWorker = typeof Worker !== 'undefined';
+    
+    console.log('[FFmpeg Utils] 🧪 Environment check:', {
+      SharedArrayBuffer: hasSharedArrayBuffer,
+      Worker: hasWorker,
+      isElectron: isElectron(),
+      isPackagedElectron: isPackagedElectron()
+    });
+
+    if (!hasSharedArrayBuffer) {
+      console.warn('[FFmpeg Utils] ⚠️ SharedArrayBuffer not available - performance may be degraded');
+      console.warn('[FFmpeg Utils] ⚠️ This may be due to missing COOP/COEP headers or insecure context');
+    }
+
+    if (!hasWorker) {
+      console.warn('[FFmpeg Utils] ⚠️ Worker API not available - FFmpeg may not function properly');
     }
 
     return { hasSharedArrayBuffer, hasWorker };
   };
   ```
-- **Success Criteria**: Clear environment diagnostics
+- **Additional Features**: Environment-specific timeout adjustments based on SharedArrayBuffer availability ✅ ADDED
+- **Success Criteria**: Clear environment diagnostics ✅ SUCCESS
 
 ### **Phase 4: Testing and Validation (15 min)**
 

@@ -66,31 +66,56 @@ export function MediaView() {
   }, [mediaItems, mediaFilter, searchQuery]);
 
   const processFiles = async (files: FileList | File[]) => {
-    if (!files || files.length === 0) return;
+    console.log("[Media View] 🚀 processFiles called with", files?.length || 0, "files");
+    
+    if (!files || files.length === 0) {
+      console.log("[Media View] ❌ No files provided");
+      return;
+    }
     if (!activeProject) {
+      console.log("[Media View] ❌ No active project");
       toast.error("No active project");
       return;
     }
 
+    console.log("[Media View] ▶️ Starting upload process for project:", activeProject.id);
     setIsProcessing(true);
     setProgress(0);
+    
     try {
+      console.log("[Media View] 📋 File details:");
+      Array.from(files).forEach((file, i) => {
+        console.log(`  ${i + 1}. ${file.name} (${file.type}, ${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+      });
+      
       // Process files (extract metadata, generate thumbnails, etc.)
-      const processedItems = await processMediaFiles(files, (p) =>
-        setProgress(p)
-      );
+      console.log("[Media View] 🔧 Calling processMediaFiles...");
+      const processedItems = await processMediaFiles(files, (p) => {
+        console.log(`[Media View] 📊 Upload progress: ${p}%`);
+        setProgress(p);
+      });
+      
+      console.log("[Media View] ✅ processMediaFiles completed, got", processedItems.length, "processed items");
+      
       // Add each processed media item to the store
-      for (const item of processedItems) {
+      console.log("[Media View] 💾 Adding items to media store...");
+      for (const [index, item] of processedItems.entries()) {
+        console.log(`[Media View] ➕ Adding item ${index + 1}/${processedItems.length}:`, item.name);
         if (!addMediaItem) {
           throw new Error("Media store not ready");
         }
         await addMediaItem(activeProject.id, item);
+        console.log(`[Media View] ✅ Item ${index + 1} added successfully`);
       }
+      
+      console.log("[Media View] 🎉 Upload process completed successfully!");
+      toast.success(`Successfully uploaded ${processedItems.length} file(s)`);
     } catch (error) {
       // Show error toast if processing fails
-      console.error("Error processing files:", error);
+      console.error("[Media View] ❌ Upload process failed:", error);
       toast.error("Failed to process files");
     } finally {
+      console.log("[Media View] 🏁 Cleaning up upload process...");
       setIsProcessing(false);
       setProgress(0);
     }

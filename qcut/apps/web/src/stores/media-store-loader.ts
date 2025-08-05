@@ -19,7 +19,7 @@ export async function getMediaStoreUtils(): Promise<MediaStoreUtils> {
   return {
     getFileType: module.getFileType,
     getImageDimensions: module.getImageDimensions,
-    generateVideoThumbnail: module.generateVideoThumbnail,
+    generateVideoThumbnail: module.generateVideoThumbnailBrowser,
     getMediaDuration: module.getMediaDuration,
     getMediaAspectRatio: module.getMediaAspectRatio,
   };

@@ -136,7 +136,7 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
       });
     } catch (resourceError) {
       console.error("[FFmpeg Utils] ❌ Resource resolution failed:", resourceError);
-      throw new Error(`Failed to resolve FFmpeg resources: ${resourceError.message}`);
+      throw new Error(`Failed to resolve FFmpeg resources: ${resourceError instanceof Error ? resourceError.message : String(resourceError)}`);
     }
 
     // Fetch and convert to blob URLs for consistent loading
@@ -148,7 +148,7 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
       wasmResponse = await fetch(wasmUrl);
     } catch (fetchError) {
       console.error("[FFmpeg Utils] ❌ Network fetch failed:", fetchError);
-      throw new Error(`Network error while fetching FFmpeg resources: ${fetchError.message}`);
+      throw new Error(`Network error while fetching FFmpeg resources: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
     }
 
     if (!coreResponse.ok) {
@@ -175,7 +175,7 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
       });
     } catch (blobError) {
       console.error("[FFmpeg Utils] ❌ Blob conversion failed:", blobError);
-      throw new Error(`Failed to convert FFmpeg resources to blobs: ${blobError.message}`);
+      throw new Error(`Failed to convert FFmpeg resources to blobs: ${blobError instanceof Error ? blobError.message : String(blobError)}`);
     }
 
     const coreBlobUrl = URL.createObjectURL(coreBlob);
@@ -215,12 +215,13 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
       URL.revokeObjectURL(wasmBlobUrl);
       
       // Provide specific error messages based on error type
-      if (loadError.message.includes('timeout')) {
+      const errorMessage = loadError instanceof Error ? loadError.message : String(loadError);
+      if (errorMessage.includes('timeout')) {
         throw new Error(`FFmpeg initialization timed out. This may be due to slow network or missing SharedArrayBuffer support.`);
-      } else if (loadError.message.includes('SharedArrayBuffer')) {
+      } else if (errorMessage.includes('SharedArrayBuffer')) {
         throw new Error(`FFmpeg requires SharedArrayBuffer support. Please ensure proper COOP/COEP headers are set.`);
       } else {
-        throw new Error(`FFmpeg initialization failed: ${loadError.message}`);
+        throw new Error(`FFmpeg initialization failed: ${errorMessage}`);
       }
     }
 

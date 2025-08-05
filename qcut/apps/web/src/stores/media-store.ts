@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { storageService } from "@/lib/storage/storage-service";
 import { useTimelineStore } from "./timeline-store";
 import { generateUUID } from "@/lib/utils";
+import { getVideoInfo, generateThumbnail } from "@/lib/ffmpeg-utils";
 
 export type MediaType = "image" | "video" | "audio";
 
@@ -98,8 +99,73 @@ export const getImageDimensions = (
   });
 };
 
-// Helper function to generate video thumbnail and get dimensions
-export const generateVideoThumbnail = (
+// Enhanced video processing with FFmpeg fallback
+export const processVideoFile = async (file: File) => {
+  console.log(`[Media Store] 🎬 Processing video file: ${file.name}`);
+  
+  try {
+    // Try FFmpeg processing first for better accuracy
+    console.log("[Media Store] 🔧 Attempting FFmpeg video processing...");
+    
+    const [videoInfo, thumbnailUrl] = await Promise.all([
+      getVideoInfo(file),
+      generateThumbnail(file, 1) // Generate thumbnail at 1 second
+    ]);
+    
+    console.log("[Media Store] ✅ FFmpeg video processing successful:", {
+      duration: videoInfo.duration,
+      width: videoInfo.width, 
+      height: videoInfo.height,
+      fps: videoInfo.fps
+    });
+    
+    return {
+      thumbnailUrl,
+      width: videoInfo.width,
+      height: videoInfo.height,
+      duration: videoInfo.duration,
+      fps: videoInfo.fps,
+      processingMethod: 'ffmpeg'
+    };
+  } catch (ffmpegError) {
+    console.warn("[Media Store] ⚠️ FFmpeg processing failed, using browser fallback:", ffmpegError);
+    
+    // Fallback to browser-based processing
+    try {
+      const [thumbnailData, duration] = await Promise.all([
+        generateVideoThumbnailBrowser(file),
+        getMediaDuration(file)
+      ]);
+      
+      console.log("[Media Store] ✅ Browser fallback processing successful");
+      
+      return {
+        thumbnailUrl: thumbnailData.thumbnailUrl,
+        width: thumbnailData.width,
+        height: thumbnailData.height,
+        duration,
+        fps: 30, // Default FPS when browser method can't detect
+        processingMethod: 'browser'
+      };
+    } catch (browserError) {
+      console.error("[Media Store] ❌ Both FFmpeg and browser processing failed:", browserError);
+      
+      // Return minimal data to prevent complete failure
+      return {
+        thumbnailUrl: undefined,
+        width: 1920, // Default resolution
+        height: 1080,
+        duration: 0,
+        fps: 30,
+        processingMethod: 'fallback',
+        error: `Processing failed: ${browserError instanceof Error ? browserError.message : String(browserError)}`
+      };
+    }
+  }
+};
+
+// Helper function to generate video thumbnail using browser APIs (fallback)
+export const generateVideoThumbnailBrowser = (
   file: File
 ): Promise<{ thumbnailUrl: string; width: number; height: number }> => {
   return new Promise((resolve, reject) => {
@@ -112,6 +178,17 @@ export const generateVideoThumbnail = (
       return;
     }
 
+    const cleanup = () => {
+      video.remove();
+      canvas.remove();
+    };
+
+    // Set timeout to prevent hanging
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("Video thumbnail generation timed out"));
+    }, 10_000);
+
     video.addEventListener("loadedmetadata", () => {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -121,26 +198,35 @@ export const generateVideoThumbnail = (
     });
 
     video.addEventListener("seeked", () => {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const thumbnailUrl = canvas.toDataURL("image/jpeg", 0.8);
-      const width = video.videoWidth;
-      const height = video.videoHeight;
+      try {
+        clearTimeout(timeout);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const thumbnailUrl = canvas.toDataURL("image/jpeg", 0.8);
+        const width = video.videoWidth;
+        const height = video.videoHeight;
 
-      resolve({ thumbnailUrl, width, height });
-
-      // Cleanup
-      video.remove();
-      canvas.remove();
+        resolve({ thumbnailUrl, width, height });
+        cleanup();
+      } catch (drawError) {
+        cleanup();
+        reject(new Error(`Canvas drawing failed: ${drawError instanceof Error ? drawError.message : String(drawError)}`));
+      }
     });
 
-    video.addEventListener("error", () => {
-      reject(new Error("Could not load video"));
-      video.remove();
-      canvas.remove();
+    video.addEventListener("error", (event) => {
+      clearTimeout(timeout);
+      cleanup();
+      reject(new Error(`Video loading failed: ${video.error?.message || 'Unknown error'}`));
     });
 
-    video.src = URL.createObjectURL(file);
-    video.load();
+    try {
+      video.src = URL.createObjectURL(file);
+      video.load();
+    } catch (urlError) {
+      clearTimeout(timeout);
+      cleanup();
+      reject(new Error(`Failed to create object URL: ${urlError instanceof Error ? urlError.message : String(urlError)}`));
+    }
   });
 };
 
@@ -282,26 +368,41 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
 
     try {
       const mediaItems = await storageService.loadAllMediaItems(projectId);
+      console.log(`[Media Store] 📁 Loaded ${mediaItems.length} media items for project ${projectId}`);
 
-      // Regenerate thumbnails for video items
+      // Process media items with enhanced error handling
       const updatedMediaItems = await Promise.all(
         mediaItems.map(async (item) => {
           if (item.type === "video" && item.file) {
             try {
-              const { thumbnailUrl, width, height } =
-                await generateVideoThumbnail(item.file);
+              console.log(`[Media Store] 🔄 Processing video: ${item.name}`);
+              const processResult = await processVideoFile(item.file);
+              
               return {
                 ...item,
-                thumbnailUrl,
-                width: width || item.width,
-                height: height || item.height,
+                thumbnailUrl: processResult.thumbnailUrl || item.thumbnailUrl,
+                width: processResult.width || item.width,
+                height: processResult.height || item.height,
+                duration: processResult.duration || item.duration,
+                fps: processResult.fps || item.fps,
+                metadata: {
+                  ...item.metadata,
+                  processingMethod: processResult.processingMethod,
+                  ...(processResult.error && { processingError: processResult.error })
+                }
               };
             } catch (error) {
-              console.error(
-                `Failed to regenerate thumbnail for video ${item.id}:`,
-                error
-              );
-              return item;
+              console.error(`[Media Store] ❌ Failed to process video ${item.id}:`, error);
+              
+              // Return item with error metadata to prevent complete failure
+              return {
+                ...item,
+                metadata: {
+                  ...item.metadata,
+                  processingError: `Video processing failed: ${error instanceof Error ? error.message : String(error)}`,
+                  processingMethod: 'failed'
+                }
+              };
             }
           }
           return item;
@@ -309,8 +410,12 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
       );
 
       set({ mediaItems: updatedMediaItems });
+      console.log(`[Media Store] ✅ Successfully processed ${updatedMediaItems.length} media items`);
     } catch (error) {
-      console.error("Failed to load media items:", error);
+      console.error("[Media Store] ❌ Failed to load media items:", error);
+      
+      // Set empty array to prevent undefined state
+      set({ mediaItems: [] });
     } finally {
       set({ isLoading: false });
     }
