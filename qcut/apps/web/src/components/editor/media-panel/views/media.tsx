@@ -46,6 +46,19 @@ export function MediaView() {
   const [mediaFilter, setMediaFilter] = useState("all");
   const [filteredMediaItems, setFilteredMediaItems] = useState(mediaItems);
 
+  // Debug logging for media store state
+  useEffect(() => {
+    console.log('[MediaView] Current media items:', mediaItems);
+    mediaItems.forEach(item => {
+      console.log(`[MediaView] Item ${item.id}:`, {
+        name: item.name,
+        url: item.url,
+        type: item.type,
+        thumbnailUrl: item.thumbnailUrl
+      });
+    });
+  }, [mediaItems]);
+
   useEffect(() => {
     const filtered = mediaItems.filter((item) => {
       if (mediaFilter && mediaFilter !== "all" && item.type !== mediaFilter) {

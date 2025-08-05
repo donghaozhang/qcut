@@ -70,6 +70,11 @@ export async function processMediaFiles(
           fps = videoInfo.fps;
 
           console.log(`[Media Processing] 🖼️ Generating thumbnail with FFmpeg...`);
+          // Skip FFmpeg thumbnail generation if video dimensions are invalid
+          if (width === 0 || height === 0) {
+            console.warn(`[Media Processing] ⚠️ Skipping FFmpeg thumbnail due to invalid dimensions (${width}x${height})`);
+            throw new Error('Invalid video dimensions for thumbnail generation');
+          }
           // Generate thumbnail using FFmpeg
           thumbnailUrl = await ffmpegUtils.generateThumbnail(file, 1);
           console.log(`[Media Processing] ✅ FFmpeg thumbnail generated:`, thumbnailUrl ? 'SUCCESS' : 'FAILED');

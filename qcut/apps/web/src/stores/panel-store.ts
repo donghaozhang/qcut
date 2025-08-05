@@ -61,22 +61,46 @@ export const usePanelStore = create<PanelState>()(
           state.toolsPanel + state.previewPanel + state.propertiesPanel;
 
         if (Math.abs(total - 100) > 0.01) {
-          // Calculate normalized values
-          const factor = 100 / total;
-          set({
-            toolsPanel: state.toolsPanel * factor,
-            previewPanel: state.previewPanel * factor,
-            propertiesPanel: state.propertiesPanel * factor,
-          });
+          console.warn(
+            `[PanelStore] Invalid layout total size: ${state.toolsPanel}%, ${state.previewPanel}%, ${state.propertiesPanel}%. Normalizing to 100%.`
+          );
+          
+          // If the values are way off, reset to defaults
+          if (total < 50 || total > 150) {
+            console.warn('[PanelStore] Panel sizes severely corrupted, resetting to defaults');
+            set({
+              toolsPanel: DEFAULT_PANEL_SIZES.toolsPanel,
+              previewPanel: DEFAULT_PANEL_SIZES.previewPanel,
+              propertiesPanel: DEFAULT_PANEL_SIZES.propertiesPanel,
+            });
+          } else {
+            // Calculate normalized values
+            const factor = 100 / total;
+            set({
+              toolsPanel: state.toolsPanel * factor,
+              previewPanel: state.previewPanel * factor,
+              propertiesPanel: state.propertiesPanel * factor,
+            });
+          }
         }
       },
     }),
     {
       name: "panel-sizes",
-      version: 3, // Increment this to reset stored values
+      version: 4, // Increment this to force migration
       migrate: (persistedState: any, version: number) => {
-        // Reset to defaults if coming from old version
-        if (version < 3) {
+        // Reset to defaults if coming from old version or if data is corrupted
+        if (version < 4) {
+          console.log('[PanelStore] Migrating from version', version, 'to version 4');
+          return DEFAULT_PANEL_SIZES;
+        }
+
+        // Validate persisted state
+        if (!persistedState || 
+            typeof persistedState.toolsPanel !== 'number' ||
+            typeof persistedState.previewPanel !== 'number' ||
+            typeof persistedState.propertiesPanel !== 'number') {
+          console.warn('[PanelStore] Invalid persisted state, resetting to defaults');
           return DEFAULT_PANEL_SIZES;
         }
 
@@ -85,6 +109,13 @@ export const usePanelStore = create<PanelState>()(
           persistedState.toolsPanel +
           persistedState.previewPanel +
           persistedState.propertiesPanel;
+        
+        // If severely corrupted, reset to defaults
+        if (total < 50 || total > 150 || isNaN(total)) {
+          console.warn('[PanelStore] Corrupted panel sizes detected, resetting to defaults');
+          return DEFAULT_PANEL_SIZES;
+        }
+        
         if (Math.abs(total - 100) > 0.01) {
           const factor = 100 / total;
           return {

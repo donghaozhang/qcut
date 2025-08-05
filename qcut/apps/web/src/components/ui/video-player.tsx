@@ -113,6 +113,14 @@ export function VideoPlayer({
     video.playbackRate = speed;
   }, [volume, speed, muted]);
 
+  // Debug logging
+  console.log('[VideoPlayer] Rendering with:', {
+    src,
+    poster,
+    clipStartTime,
+    isInClipRange
+  });
+
   return (
     <video
       ref={videoRef}

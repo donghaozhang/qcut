@@ -229,41 +229,73 @@ export const generateThumbnail = async (
   videoFile: File,
   timeInSeconds = 1
 ): Promise<string> => {
+  console.log('[FFmpeg] generateThumbnail called');
   const ffmpeg = await initFFmpeg();
+  console.log('[FFmpeg] FFmpeg initialized for thumbnail generation');
 
   const inputName = "input.mp4";
   const outputName = "thumbnail.jpg";
 
-  // Write input file
-  await ffmpeg.writeFile(
-    inputName,
-    new Uint8Array(await videoFile.arrayBuffer())
-  );
+  try {
+    // Add timeout wrapper (10 seconds)
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('[FFmpeg] Thumbnail generation timeout after 10s')), 10000)
+    );
 
-  // Generate thumbnail at specific time
-  await ffmpeg.exec([
-    "-i",
-    inputName,
-    "-ss",
-    timeInSeconds.toString(),
-    "-vframes",
-    "1",
-    "-vf",
-    "scale=320:240",
-    "-q:v",
-    "2",
-    outputName,
-  ]);
+    // Write input file
+    await ffmpeg.writeFile(
+      inputName,
+      new Uint8Array(await videoFile.arrayBuffer())
+    );
 
-  // Read output file
-  const data = await ffmpeg.readFile(outputName);
-  const blob = new Blob([data], { type: "image/jpeg" });
+    console.log('[FFmpeg] Starting thumbnail generation...');
+    
+    // Generate thumbnail with timeout
+    await Promise.race([
+      ffmpeg.exec([
+        "-i",
+        inputName,
+        "-ss",
+        timeInSeconds.toString(),
+        "-vframes",
+        "1",
+        "-vf",
+        "scale=320:240",
+        "-q:v",
+        "2",
+        outputName,
+      ]),
+      timeoutPromise
+    ]);
 
-  // Cleanup
-  await ffmpeg.deleteFile(inputName);
-  await ffmpeg.deleteFile(outputName);
+    console.log('[FFmpeg] Thumbnail generation completed');
 
-  return URL.createObjectURL(blob);
+    // Read output file
+    const data = await ffmpeg.readFile(outputName);
+    const blob = new Blob([data], { type: "image/jpeg" });
+
+    // Cleanup
+    await ffmpeg.deleteFile(inputName);
+    await ffmpeg.deleteFile(outputName);
+
+    return URL.createObjectURL(blob);
+  } catch (error) {
+    console.error('[FFmpeg] Thumbnail generation failed:', error);
+    
+    // Cleanup on error
+    try {
+      await ffmpeg.deleteFile(inputName);
+    } catch (cleanupError) {
+      // Ignore cleanup errors
+    }
+    try {
+      await ffmpeg.deleteFile(outputName);
+    } catch (cleanupError) {
+      // Ignore cleanup errors
+    }
+    
+    throw error;
+  }
 };
 
 export const trimVideo = async (
@@ -344,7 +376,15 @@ export const getVideoInfo = async (
 
   // Run ffmpeg to get info (stderr will contain the info)
   try {
-    await ffmpeg.exec(["-i", inputName, "-f", "null", "-"]);
+    // Add timeout wrapper (5 seconds for info extraction)
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('[FFmpeg] Video info extraction timeout after 5s')), 5000)
+    );
+    
+    await Promise.race([
+      ffmpeg.exec(["-i", inputName, "-f", "null", "-"]),
+      timeoutPromise
+    ]);
   } catch (error) {
     listening = false;
     await ffmpeg.deleteFile(inputName);

@@ -264,6 +264,14 @@ export function PreviewPanel() {
 
   const activeElements = getActiveElements();
 
+  // Debug logging for active elements
+  console.log('[Preview] Active elements:', activeElements);
+  console.log('[Preview] Media items available:', mediaItems.length);
+  activeElements.forEach(el => {
+    console.log(`[Preview] Element ${el.element.id} mediaId:`, el.element.mediaId);
+    console.log(`[Preview] Found media item:`, el.mediaItem);
+  });
+
   // Get media elements for blur background (video/image only)
   const getBlurBackgroundElements = (): ActiveElement[] => {
     return activeElements.filter(
