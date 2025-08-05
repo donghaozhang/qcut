@@ -55,6 +55,7 @@ export function TimelineTrackContent({
     insertTrackAt,
     snappingEnabled,
     rippleEditingEnabled,
+    splitElement,
   } = useTimelineStore();
 
   const { currentTime } = usePlaybackStore();
@@ -66,67 +67,7 @@ export function TimelineTrackContent({
     enablePlayheadSnapping: snappingEnabled,
   });
 
-  // Handle media loading states
-  if (mediaItemsError) {
-    console.error(
-      "Failed to load media items in timeline track:",
-      mediaItemsError
-    );
-    // Return a placeholder that maintains track structure
-    return (
-      <div className="relative w-full h-full border border-red-300 bg-red-50 rounded text-red-600 text-xs p-2">
-        Error loading media items
-      </div>
-    );
-  }
-
-  // Helper function for drop snapping that tries both edges
-  const getDropSnappedTime = (
-    dropTime: number,
-    elementDuration: number,
-    excludeElementId?: string
-  ) => {
-    if (!snappingEnabled) {
-      // Use frame snapping if project has FPS, otherwise use decimal snapping
-      const projectStore = useProjectStore.getState();
-      const projectFps = projectStore.activeProject?.fps || 30;
-      return snapTimeToFrame(dropTime, projectFps);
-    }
-
-    // Try snapping both start and end edges for drops
-    const startSnapResult = snapElementEdge(
-      dropTime,
-      elementDuration,
-      tracks,
-      currentTime,
-      zoomLevel,
-      excludeElementId,
-      true // snap to start edge
-    );
-
-    const endSnapResult = snapElementEdge(
-      dropTime,
-      elementDuration,
-      tracks,
-      currentTime,
-      zoomLevel,
-      excludeElementId,
-      false // snap to end edge
-    );
-
-    // Choose the snap result with the smaller distance (closer snap)
-    let bestSnapResult = startSnapResult;
-    if (
-      endSnapResult.snapPoint &&
-      (!startSnapResult.snapPoint ||
-        endSnapResult.snapDistance < startSnapResult.snapDistance)
-    ) {
-      bestSnapResult = endSnapResult;
-    }
-
-    return bestSnapResult.snappedTime;
-  };
-
+  // Initialize all hooks before any conditional returns
   const timelineRef = useRef<HTMLDivElement>(null);
   const [isDropping, setIsDropping] = useState(false);
   const [dropPosition, setDropPosition] = useState<number | null>(null);
@@ -137,7 +78,7 @@ export function TimelineTrackContent({
     y: number;
   } | null>(null);
 
-  // Set up mouse event listeners for drag
+  // Set up mouse event listeners for drag - moved before early return to fix hook order
   useEffect(() => {
     if (!dragState.isDragging) return;
 
@@ -404,12 +345,78 @@ export function TimelineTrackContent({
     track.id,
     updateDragTime,
     updateElementStartTime,
+    updateElementStartTimeWithRipple,
     moveElementToTrack,
     endDragAction,
     selectedElements,
     selectElement,
     onSnapPointChange,
+    rippleEditingEnabled,
+    snappingEnabled,
+    snapElementEdge,
   ]);
+
+  // Handle media loading states
+  if (mediaItemsError) {
+    console.error(
+      "Failed to load media items in timeline track:",
+      mediaItemsError
+    );
+    // Return a placeholder that maintains track structure
+    return (
+      <div className="relative w-full h-full border border-red-300 bg-red-50 rounded text-red-600 text-xs p-2">
+        Error loading media items
+      </div>
+    );
+  }
+
+  // Helper function for drop snapping that tries both edges
+  const getDropSnappedTime = (
+    dropTime: number,
+    elementDuration: number,
+    excludeElementId?: string
+  ) => {
+    if (!snappingEnabled) {
+      // Use frame snapping if project has FPS, otherwise use decimal snapping
+      const projectStore = useProjectStore.getState();
+      const projectFps = projectStore.activeProject?.fps || 30;
+      return snapTimeToFrame(dropTime, projectFps);
+    }
+
+    // Try snapping both start and end edges for drops
+    const startSnapResult = snapElementEdge(
+      dropTime,
+      elementDuration,
+      tracks,
+      currentTime,
+      zoomLevel,
+      excludeElementId,
+      true // snap to start edge
+    );
+
+    const endSnapResult = snapElementEdge(
+      dropTime,
+      elementDuration,
+      tracks,
+      currentTime,
+      zoomLevel,
+      excludeElementId,
+      false // snap to end edge
+    );
+
+    // Choose the snap result with the smaller distance (closer snap)
+    let bestSnapResult = startSnapResult;
+    if (
+      endSnapResult.snapPoint &&
+      (!startSnapResult.snapPoint ||
+        endSnapResult.snapDistance < startSnapResult.snapDistance)
+    ) {
+      bestSnapResult = endSnapResult;
+    }
+
+    return bestSnapResult.snappedTime;
+  };
+
 
   const handleElementMouseDown = (
     e: React.MouseEvent,
@@ -1109,8 +1116,6 @@ export function TimelineTrackContent({
               );
 
               const handleElementSplit = () => {
-                const { currentTime } = usePlaybackStore();
-                const { splitElement } = useTimelineStore();
                 const splitTime = currentTime;
                 const effectiveStart = element.startTime;
                 const effectiveEnd =
