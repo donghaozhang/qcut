@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ResizeState, TimelineElement, TimelineTrack } from "@/types/timeline";
 import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
 import { useTimelineStore } from "@/stores/timeline-store";
@@ -109,7 +109,7 @@ export function useTimelineElementResize({
     return false;
   };
 
-  const updateTrimFromMouseMove = (e: { clientX: number }) => {
+  const updateTrimFromMouseMove = useCallback((e: { clientX: number }) => {
     if (!resizing) return;
 
     const deltaX = e.clientX - resizing.startX;
@@ -216,11 +216,11 @@ export function useTimelineElementResize({
         );
       }
     }
-  };
+  }, [resizing, zoomLevel, element, track.id, updateElementTrim, updateElementStartTime, updateElementDuration, canExtendElementDuration]);
 
-  const handleResizeEnd = () => {
+  const handleResizeEnd = useCallback(() => {
     setResizing(null);
-  };
+  }, []);
 
   return {
     resizing,

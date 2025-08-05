@@ -47,7 +47,7 @@ export function useTimelinePlayhead({
       setIsScrubbing(true);
       handleScrub(e);
     },
-    [duration, zoomLevel, handleScrub]
+    [handleScrub]
   );
 
   // Ruler mouse down handler
@@ -67,7 +67,7 @@ export function useTimelinePlayhead({
       setIsScrubbing(true);
       handleScrub(e);
     },
-    [duration, zoomLevel]
+    [handleScrub, playheadRef]
   );
 
   const handleScrub = useCallback(

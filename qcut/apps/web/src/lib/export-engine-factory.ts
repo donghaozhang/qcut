@@ -4,13 +4,15 @@ import { TimelineTrack } from "@/types/timeline";
 import { MediaItem } from "@/stores/media-store";
 
 // Engine types available
-export enum ExportEngineType {
-  STANDARD = "standard",
-  OPTIMIZED = "optimized",
-  WEBCODECS = "webcodecs",
-  FFMPEG = "ffmpeg",
-  CLI = "cli",
-}
+export const ExportEngineType = {
+  STANDARD: "standard",
+  OPTIMIZED: "optimized",
+  WEBCODECS: "webcodecs",
+  FFMPEG: "ffmpeg",
+  CLI: "cli",
+} as const;
+
+export type ExportEngineType = (typeof ExportEngineType)[keyof typeof ExportEngineType];
 
 // Browser capability detection results
 export interface BrowserCapabilities {
@@ -37,7 +39,7 @@ export class ExportEngineFactory {
   private capabilities: BrowserCapabilities | null = null;
 
   // Singleton pattern for factory
-  public static getInstance(): ExportEngineFactory {
+  static getInstance(): ExportEngineFactory {
     if (!ExportEngineFactory.instance) {
       ExportEngineFactory.instance = new ExportEngineFactory();
     }
@@ -289,7 +291,6 @@ export class ExportEngineFactory {
           );
         }
 
-      case ExportEngineType.STANDARD:
       default:
         return new ExportEngine(
           canvas,
