@@ -878,7 +878,7 @@ export function AiView() {
                   <div className="relative">
                     <img
                       src={imagePreview!}
-                      alt="Selected image"
+                      alt="Selected artwork"
                       className="w-full h-40 object-cover rounded-lg border"
                     />
                     <Button

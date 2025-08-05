@@ -47,7 +47,7 @@ export function useTimelinePlayhead({
       setIsScrubbing(true);
       handleScrub(e);
     },
-    [duration, zoomLevel]
+    [duration, zoomLevel, handleScrub]
   );
 
   // Ruler mouse down handler

@@ -67,7 +67,7 @@ export class WebCodecsDetector {
   private detectionPromise: Promise<WebCodecsSupportInfo> | null = null;
 
   // Singleton pattern
-  public static getInstance(): WebCodecsDetector {
+  static getInstance(): WebCodecsDetector {
     if (!WebCodecsDetector.instance) {
       WebCodecsDetector.instance = new WebCodecsDetector();
     }

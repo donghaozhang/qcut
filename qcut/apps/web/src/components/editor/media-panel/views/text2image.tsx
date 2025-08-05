@@ -355,7 +355,7 @@ export function Text2ImageView() {
                       <div className="space-y-2">
                         <img
                           src={result.imageUrl}
-                          alt="Generated image"
+                          alt="Generated artwork"
                           className="w-full rounded-lg border"
                           crossOrigin="anonymous"
                         />

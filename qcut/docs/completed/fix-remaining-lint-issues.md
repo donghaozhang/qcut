@@ -123,35 +123,35 @@ Image alt text contains redundant "image" words
 #### 1.5 Custom Hook Dependencies (~5 min)
 - [x] **Task 1.5.1** (2 min): Add `handleResizeEnd` dependency to useEffect in `hooks/use-timeline-element-resize.ts` ✅
 - [x] **Task 1.5.2** (2 min): Add `updateTrimFromMouseMove` dependency to useEffect in `hooks/use-timeline-element-resize.ts` ✅
-- [ ] **Task 1.5.3** (1 min): Add `handleScrub` dependency to `handlePlayheadMouseDown` in `hooks/use-timeline-playhead.ts`
+- [x] **Task 1.5.3** (1 min): Add `handleScrub` dependency to `handlePlayheadMouseDown` in `hooks/use-timeline-playhead.ts` ✅
 
 #### 1.6 Store Hook Dependencies (~5 min)
-- [ ] **Task 1.6.1** (2 min): Fix missing dependencies in `stores/media-store.ts` 
-- [ ] **Task 1.6.2** (2 min): Fix missing dependencies in `stores/project-store.ts`
+- [x] **Task 1.6.1** (2 min): ~~Fix missing dependencies in `stores/media-store.ts`~~ (No issues found) ✅
+- [x] **Task 1.6.2** (2 min): ~~Fix missing dependencies in `stores/project-store.ts`~~ (No issues found) ✅
 
 ### Phase 2: Accessibility (MEDIUM Priority)
 
 #### 2.1 Button Type Attributes (~10 min)
-- [ ] **Task 2.1.1** (2 min): Add `type="button"` to buttons in `components/editor/adjustment/model-selector.tsx`
-- [ ] **Task 2.1.2** (2 min): Add `type="button"` to button in `components/ui/floating-action-panel.tsx`
-- [ ] **Task 2.1.3** (5 min): Find and fix remaining button type issues in other components
+- [x] **Task 2.1.1** (2 min): Add `type="button"` to buttons in `components/editor/adjustment/model-selector.tsx` ✅
+- [x] **Task 2.1.2** (2 min): Add `type="button"` to button in `components/ui/floating-action-panel.tsx` ✅
+- [x] **Task 2.1.3** (5 min): Find and fix remaining button type issues in other components ✅
 
 #### 2.2 Alt Text Improvements (~3 min)
-- [ ] **Task 2.2.1** (1 min): Change "Selected image" to "Selected artwork" in `components/editor/media-panel/views/ai.tsx`
-- [ ] **Task 2.2.2** (1 min): Change "Generated image" to "Generated artwork" in `components/editor/media-panel/views/text2image.tsx`
+- [x] **Task 2.2.1** (1 min): Change "Selected image" to "Selected artwork" in `components/editor/media-panel/views/ai.tsx` ✅
+- [x] **Task 2.2.2** (1 min): Change "Generated image" to "Generated artwork" in `components/editor/media-panel/views/text2image.tsx` ✅
 
 ### Phase 3: Code Quality (LOW Priority)
 
 #### 3.1 Enum Replacements (~10 min)
-- [ ] **Task 3.1.1** (3 min): Replace `ExportFormat` enum with const object in `types/export.ts`
-- [ ] **Task 3.1.2** (3 min): Replace `ExportQuality` enum with const object in `types/export.ts`
-- [ ] **Task 3.1.3** (3 min): Replace `ExportPurpose` enum with const object in `types/export.ts`
+- [x] **Task 3.1.1** (3 min): Replace `ExportFormat` enum with const object in `types/export.ts` ✅
+- [x] **Task 3.1.2** (3 min): Replace `ExportQuality` enum with const object in `types/export.ts` ✅
+- [x] **Task 3.1.3** (3 min): Replace `ExportPurpose` enum with const object in `types/export.ts` ✅
 
 #### 3.2 Code Quality Fixes (~10 min)
-- [ ] **Task 3.2.1** (2 min): Remove unreachable catch block in `lib/webcodecs-export-engine.ts`
-- [ ] **Task 3.2.2** (2 min): Remove `public` modifier from `getInstance()` in `lib/webcodecs-detector.ts`
-- [ ] **Task 3.2.3** (3 min): Fix control characters in regex in `lib/zip-manager.ts`
-- [ ] **Task 3.2.4** (2 min): Remove useless catch clause in project store
+- [x] **Task 3.2.1** (2 min): Remove unreachable catch block in `lib/webcodecs-export-engine.ts` ✅
+- [x] **Task 3.2.2** (2 min): Remove `public` modifier from `getInstance()` in `lib/webcodecs-detector.ts` ✅
+- [x] **Task 3.2.3** (3 min): Fix control characters in regex in `lib/zip-manager.ts` ✅
+- [x] **Task 3.2.4** (2 min): Remove useless catch clause in IndexedDB adapter ✅
 
 ## Detailed Fixes
 

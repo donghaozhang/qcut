@@ -1,22 +1,28 @@
 // Export format types - supports multiple formats
-export enum ExportFormat {
-  WEBM = "webm",
-  MP4 = "mp4",
-  MOV = "mov",
-}
+export const ExportFormat = {
+  WEBM: "webm",
+  MP4: "mp4",
+  MOV: "mov",
+} as const;
+
+export type ExportFormat = typeof ExportFormat[keyof typeof ExportFormat];
 
 // Export quality presets
-export enum ExportQuality {
-  HIGH = "1080p",
-  MEDIUM = "720p",
-  LOW = "480p",
-}
+export const ExportQuality = {
+  HIGH: "1080p",
+  MEDIUM: "720p",
+  LOW: "480p",
+} as const;
+
+export type ExportQuality = typeof ExportQuality[keyof typeof ExportQuality];
 
 // Export purpose types
-export enum ExportPurpose {
-  FINAL = "final",
-  PREVIEW = "preview",
-}
+export const ExportPurpose = {
+  FINAL: "final",
+  PREVIEW: "preview",
+} as const;
+
+export type ExportPurpose = typeof ExportPurpose[keyof typeof ExportPurpose];
 
 // Export settings configuration
 export interface ExportSettings {

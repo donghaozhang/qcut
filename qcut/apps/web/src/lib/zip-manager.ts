@@ -152,7 +152,7 @@ export class ZipManager {
 
   private sanitizeFilenameForWindows(filename: string): string {
     // Windows reserved characters
-    const reservedChars = /[<>:"|?*\x00-\x1f]/g;
+    const reservedChars = /[<>:"|?*\u0000-\u001f]/g;
 
     // Windows reserved names
     const reservedNames = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)/i;

@@ -409,11 +409,7 @@ export class WebCodecsExportEngine extends ExportEngine {
 
     // Clean up video frames
     this.processingState.encodedChunks.forEach((chunk) => {
-      try {
-        // EncodedVideoChunk doesn't have explicit cleanup in the current API
-      } catch (error) {
-        console.warn("Error cleaning up chunk:", error);
-      }
+      // EncodedVideoChunk doesn't have explicit cleanup in the current API
     });
 
     this.processingState.encodedChunks = [];
