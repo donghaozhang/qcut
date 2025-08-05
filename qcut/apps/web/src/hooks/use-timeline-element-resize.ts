@@ -60,7 +60,7 @@ export function useTimelineElementResize({
       document.removeEventListener("mousemove", handleDocumentMouseMove);
       document.removeEventListener("mouseup", handleDocumentMouseUp);
     };
-  }, [resizing]); // Re-run when resizing state changes
+  }, [resizing, handleResizeEnd, updateTrimFromMouseMove]); // Re-run when resizing state changes
 
   const handleResizeStart = (
     e: React.MouseEvent,

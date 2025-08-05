@@ -132,6 +132,7 @@ export const FloatingActionPanelButton = React.forwardRef<
 
   return (
     <button
+      type="button"
       ref={ref}
       onClick={() => {
         onClick?.();

@@ -21,7 +21,7 @@ export function useLogin() {
 
     // For demo, just navigate to projects
     // navigate({ to: "/projects" });
-  }, [navigate, email, password]);
+  }, []);
 
   const handleGoogleLogin = async () => {
     setError(null);

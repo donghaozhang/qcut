@@ -46,6 +46,25 @@ export function MediaView() {
   const [mediaFilter, setMediaFilter] = useState("all");
   const [filteredMediaItems, setFilteredMediaItems] = useState(mediaItems);
 
+  useEffect(() => {
+    const filtered = mediaItems.filter((item) => {
+      if (mediaFilter && mediaFilter !== "all" && item.type !== mediaFilter) {
+        return false;
+      }
+
+      if (
+        searchQuery &&
+        !item.name.toLowerCase().includes(searchQuery.toLowerCase())
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+
+    setFilteredMediaItems(filtered);
+  }, [mediaItems, mediaFilter, searchQuery]);
+
   const processFiles = async (files: FileList | File[]) => {
     if (!files || files.length === 0) return;
     if (!activeProject) {
@@ -138,27 +157,6 @@ export function MediaView() {
       </div>
     );
   }
-
-  const [filteredMediaItems, setFilteredMediaItems] = useState(mediaItems);
-
-  useEffect(() => {
-    const filtered = mediaItems.filter((item) => {
-      if (mediaFilter && mediaFilter !== "all" && item.type !== mediaFilter) {
-        return false;
-      }
-
-      if (
-        searchQuery &&
-        !item.name.toLowerCase().includes(searchQuery.toLowerCase())
-      ) {
-        return false;
-      }
-
-      return true;
-    });
-
-    setFilteredMediaItems(filtered);
-  }, [mediaItems, mediaFilter, searchQuery]);
 
   const renderPreview = (item: MediaItem) => {
     // Render a preview for each media type (image, video, audio, unknown)

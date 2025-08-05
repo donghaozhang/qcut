@@ -22,7 +22,7 @@ export function useSignUp() {
 
     // For demo, could navigate to login
     // navigate({ to: "/login" });
-  }, [name, email, password, navigate]);
+  }, []);
 
   const handleGoogleSignUp = useCallback(async () => {
     setError(null);
@@ -31,7 +31,7 @@ export function useSignUp() {
     // Mock Google signup for Electron
     setError("Google sign up requires server setup. This is a demo build.");
     setIsGoogleLoading(false);
-  }, [navigate]);
+  }, []);
 
   const isAnyLoading = isEmailLoading || isGoogleLoading;
 

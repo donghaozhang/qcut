@@ -170,6 +170,7 @@ export function ExportDialog() {
     timelineDuration,
     resolution.width,
     resolution.height,
+    settings,
   ]);
 
   // Check FFmpeg availability on mount

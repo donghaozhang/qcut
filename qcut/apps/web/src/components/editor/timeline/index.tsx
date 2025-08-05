@@ -301,11 +301,10 @@ export function Timeline() {
       duration,
       zoomLevel,
       seek,
-      rulerScrollRef,
-      tracksScrollRef,
       clearSelectedElements,
       isSelecting,
       justFinishedSelecting,
+      activeProject?.fps,
     ]
   );
 
@@ -313,7 +312,7 @@ export function Timeline() {
   useEffect(() => {
     const totalDuration = getTotalDuration();
     setDuration(Math.max(totalDuration, 10)); // Minimum 10 seconds for empty timeline
-  }, [tracks, setDuration, getTotalDuration]);
+  }, [setDuration, getTotalDuration]);
 
   // Old marquee system removed - using new SelectionBox component instead
 

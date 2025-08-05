@@ -29,6 +29,7 @@ export function ModelSelector() {
 
             return (
               <button
+                type="button"
                 key={model.id}
                 className={cn(
                   "w-full h-6 px-2 rounded-md border text-left cursor-pointer transition-all duration-200 flex items-center justify-between",
