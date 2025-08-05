@@ -88,23 +88,7 @@ export function Timeline() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  // Handle media store loading/error states
-  if (mediaStoreError) {
-    console.error("Failed to load media store:", mediaStoreError);
-    return (
-      <div className="flex items-center justify-center h-full text-red-500">
-        Failed to load media store: {mediaStoreError.message}
-      </div>
-    );
-  }
-
-  if (mediaStoreLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
-  }
+  // All hooks must be declared before early returns
   const dragCounterRef = useRef(0);
   const timelineRef = useRef<HTMLDivElement>(null);
   const rulerRef = useRef<HTMLDivElement>(null);
@@ -526,6 +510,24 @@ export function Timeline() {
       tracksViewport.removeEventListener("scroll", handleTracksScroll);
     };
   }, []);
+
+  // Handle media store loading/error states
+  if (mediaStoreError) {
+    console.error("Failed to load media store:", mediaStoreError);
+    return (
+      <div className="flex items-center justify-center h-full text-red-500">
+        Failed to load media store: {mediaStoreError.message}
+      </div>
+    );
+  }
+
+  if (mediaStoreLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <div

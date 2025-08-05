@@ -44,6 +44,7 @@ export function MediaView() {
   const [progress, setProgress] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [mediaFilter, setMediaFilter] = useState("all");
+  const [filteredMediaItems, setFilteredMediaItems] = useState(mediaItems);
 
   const processFiles = async (files: FileList | File[]) => {
     if (!files || files.length === 0) return;

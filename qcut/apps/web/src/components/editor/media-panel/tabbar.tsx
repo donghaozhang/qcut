@@ -32,21 +32,21 @@ export function TabBar() {
     }
   };
 
-  const checkScrollPosition = () => {
-    if (scrollContainerRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } =
-        scrollContainerRef.current;
-      const isAtEndNow = scrollLeft + clientWidth >= scrollWidth - 1;
-      const isAtStartNow = scrollLeft <= 1;
-      setIsAtEnd(isAtEndNow);
-      setIsAtStart(isAtStartNow);
-    }
-  };
-
   // We're using useEffect because we need to sync with external DOM scroll events
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
+
+    const checkScrollPosition = () => {
+      if (scrollContainerRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } =
+          scrollContainerRef.current;
+        const isAtEndNow = scrollLeft + clientWidth >= scrollWidth - 1;
+        const isAtStartNow = scrollLeft <= 1;
+        setIsAtEnd(isAtEndNow);
+        setIsAtStart(isAtStartNow);
+      }
+    };
 
     checkScrollPosition();
     container.addEventListener("scroll", checkScrollPosition);

@@ -156,6 +156,7 @@ function EditorPage() {
     navigate,
     isInvalidProjectId,
     markProjectIdAsInvalid,
+    activeProject?.id,
   ]);
 
   return (

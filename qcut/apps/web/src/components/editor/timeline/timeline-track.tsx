@@ -343,6 +343,7 @@ export function TimelineTrackContent({
     zoomLevel,
     tracks,
     track.id,
+    track.elements,
     updateDragTime,
     updateElementStartTime,
     updateElementStartTimeWithRipple,
@@ -354,6 +355,7 @@ export function TimelineTrackContent({
     rippleEditingEnabled,
     snappingEnabled,
     snapElementEdge,
+    currentTime,
   ]);
 
   // Handle media loading states

@@ -86,7 +86,7 @@ function ProjectsPage() {
         });
       }
     },
-    []
+    [thumbnailCache]
   );
 
   const handleCreateProject = async () => {

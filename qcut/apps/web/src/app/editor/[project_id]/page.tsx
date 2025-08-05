@@ -146,6 +146,7 @@ export default function Editor() {
     router,
     isInvalidProjectId,
     markProjectIdAsInvalid,
+    activeProject?.id,
   ]);
 
   return (
