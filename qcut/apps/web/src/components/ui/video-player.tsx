@@ -130,9 +130,29 @@ export function VideoPlayer({
     setTimeout(checkDimensions, 100);
   }, [src]);
 
-  // Video source tracking
+  // Video source tracking and loading debugging
   useEffect(() => {
-    // Source changed - video will reinitialize
+    const video = videoRef.current;
+    if (!video) return;
+    
+    console.log('[VideoPlayer] Source changed to:', src);
+    
+    const handleLoadStart = () => console.log('[VideoPlayer] Load started for:', src);
+    const handleCanPlay = () => console.log('[VideoPlayer] Can play:', src);
+    const handleLoadedData = () => console.log('[VideoPlayer] Data loaded:', src);
+    const handleError = (e: Event) => console.log('[VideoPlayer] Error loading:', src, e);
+    
+    video.addEventListener('loadstart', handleLoadStart);
+    video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('loadeddata', handleLoadedData);
+    video.addEventListener('error', handleError);
+    
+    return () => {
+      video.removeEventListener('loadstart', handleLoadStart);
+      video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('loadeddata', handleLoadedData);
+      video.removeEventListener('error', handleError);
+    };
   }, [src]);
 
   return (
@@ -148,8 +168,8 @@ export function VideoPlayer({
       disableRemotePlayback
       style={{ 
         pointerEvents: "none",
-        width: "320px",
-        height: "180px"
+        width: "100%",
+        height: "100%"
       }}
       onContextMenu={(e) => e.preventDefault()}
       onLoadedMetadata={(e) => {

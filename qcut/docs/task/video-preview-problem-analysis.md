@@ -17,21 +17,26 @@ The video preview window is not showing video content. Instead, users see either
 - Preview containers are displaying (red X marks visible = containers exist)
 - No React component crashes or errors
 
-### 3. **Video Element Status: ❌ FAILING**
-- Video elements are created with proper dimensions
-- Video src is set to valid blob URLs
-- **BUT**: Video content is not displaying/playing
-- No video loading events (onLoadedMetadata, onCanPlay) are firing
+### 3. **Video Element Status: ⚠️ PARTIALLY WORKING**
+- Video elements are created but have **0 dimensions initially**
+- Video src is set to valid blob URLs ✅
+- Video loading events ARE firing successfully ✅
+  - `Load started` ✅
+  - `Data loaded` ✅ 
+  - `Can play` ✅
+- **BUT**: Video element dimensions collapse to 0x0 despite CSS styling
 
 ### 4. **Root Cause Analysis**
 
-#### Primary Issue: Video Loading Failure
-The video element is not actually loading the blob URL content. Possible causes:
+#### Primary Issue: Video Dimension Collapse ⚠️ **NEW DISCOVERY**
+The video IS loading successfully (all events fire), but the video element dimensions are collapsing to 0x0 despite CSS styling.
 
-1. **Blob URL Protocol Issue**: In Electron with `file://` protocol, blob URLs might not resolve properly
-2. **Video Codec/Format Issue**: The video format might not be supported in Chromium/Electron
-3. **Security Policy**: Content Security Policy might be blocking video loading
-4. **CORS/Cross-Origin**: File protocol might have restrictions on blob URL access
+**Root Cause**: CSS dimension conflict between:
+1. **Inline style**: `width: "320px", height: "180px"` ✅
+2. **CSS classes**: `object-contain w-full h-full` ❌ **CONFLICTING**
+3. **Container constraints**: May be overriding video dimensions
+
+**Why video appears empty**: Video element exists and plays, but has 0 visible area due to dimension collapse.
 
 #### Secondary Issue: Infinite Re-rendering (FIXED)
 - Console.log statements in render functions were causing infinite React re-renders
@@ -102,18 +107,42 @@ Review Electron's security settings that might block video loading:
 - allowRunningInsecureContent
 - Content Security Policy headers
 
-## Current Status
-- ❌ Video content not displaying
-- ✅ Video containers rendering properly  
+## Current Status - **ROOT CAUSE IDENTIFIED** 🎯
+- ❌ Video content not displaying **ROOT CAUSE FOUND**
+- ❌ **Video container dimensions: 0 x 0** ⬅️ **THIS IS THE PROBLEM**
 - ✅ Data pipeline working correctly
-- ✅ No infinite re-rendering loops
-- ❌ Video loading events not firing
+- ✅ No infinite re-rendering loops  
+- ✅ Video loading events firing successfully (`Load started`, `Data loaded`, `Can play`)
+- ✅ Blob URLs working correctly
+- ❌ Video element inheriting 0x0 from parent container
 
-## Next Steps Priority
-1. **HIGH**: Test video loading events and error handling
-2. **HIGH**: Try direct file URLs instead of blob URLs
-3. **MEDIUM**: Review Electron security configuration
-4. **LOW**: Implement fallback rendering method
+**ROOT CAUSE**: The `<div className="absolute inset-0">` container that holds the video is 0x0, causing the video element to also be 0x0 even though it has `width: 100%, height: 100%`.
+
+## Next Steps Priority - **IMMEDIATE FIX NEEDED** 
+1. **HIGH**: Check if main preview container (`previewDimensions`) is also 0x0
+2. **HIGH**: Fix `previewDimensions` calculation if it's returning 0x0  
+3. **HIGH**: Ensure parent container has proper dimensions before video renders
+4. **MEDIUM**: Add fallback minimum dimensions if calculation fails
+
+## **ROOT CAUSE CONFIRMED** ✅
+- **Video container**: `<div className="absolute inset-0">` = 0x0 
+- **Video element**: Inherits 0x0 from parent container
+- **CSS classes work correctly** - problem is the container size calculation
+- **Video loading works perfectly** - just invisible due to 0 size
+
+## **THE PROBLEM**
+The `absolute inset-0` positioning depends on the parent having proper dimensions. If the parent preview container is 0x0, then `inset-0` creates a 0x0 child.
+
+## **NEXT DEBUGGING STEP**
+Add container dimension logging to identify which element in the chain is collapsing:
+```typescript
+// Check container dimensions in useEffect
+const container = containerRef.current;
+if (container) {
+  const rect = container.getBoundingClientRect();
+  console.log('Container dimensions:', rect.width, rect.height);
+}
+```
 
 ## Files Involved
 - `preview-panel.tsx:430-450` - Video element rendering

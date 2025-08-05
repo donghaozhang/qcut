@@ -129,6 +129,15 @@ export function PreviewPanel() {
     };
   }, [canvasSize.width, canvasSize.height, isExpanded]);
 
+  // Debug container dimensions
+  useEffect(() => {
+    if (previewRef.current) {
+      const rect = previewRef.current.getBoundingClientRect();
+      console.log('[Preview] Main preview container dimensions:', rect.width, 'x', rect.height);
+      console.log('[Preview] Preview dimensions state:', previewDimensions.width, 'x', previewDimensions.height);
+    }
+  }, [previewDimensions.width, previewDimensions.height]);
+
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === "Escape" && isExpanded) {
@@ -314,7 +323,7 @@ export function PreviewPanel() {
             trimStart={element.trimStart}
             trimEnd={element.trimEnd}
             clipDuration={element.duration}
-            className="w-full h-full object-cover"
+            className="object-cover"
           />
         </div>
       );
@@ -436,6 +445,12 @@ export function PreviewPanel() {
               width: '100%', 
               height: '100%'
             }}
+            ref={(el) => {
+              if (el) {
+                const rect = el.getBoundingClientRect();
+                console.log('[Container] Video container dimensions:', rect.width, 'x', rect.height);
+              }
+            }}
           >
             <VideoPlayer
               src={mediaItem.url!}
@@ -444,7 +459,7 @@ export function PreviewPanel() {
               trimStart={element.trimStart}
               trimEnd={element.trimEnd}
               clipDuration={element.duration}
-              className="w-full h-full object-contain"
+              className="object-contain"
             />
           </div>
         );
