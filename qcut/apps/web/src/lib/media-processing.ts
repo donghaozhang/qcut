@@ -86,16 +86,16 @@ export async function processMediaFiles(
           
           // Enhanced fallback processing with better error handling
           try {
-            console.log(`[Media Processing] 🌐 Attempting browser fallback processing...`);
+            console.log("[Media Processing] 🌐 Attempting browser fallback processing...");
             const videoResult = await mediaUtils.generateVideoThumbnail(file);
-            console.log(`[Media Processing] ✅ Browser thumbnail generated:`, videoResult);
+            console.log("[Media Processing] ✅ Browser thumbnail generated:", videoResult);
             thumbnailUrl = videoResult.thumbnailUrl;
             width = videoResult.width;
             height = videoResult.height;
             
-            console.log(`[Media Processing] ⏱️ Getting video duration...`);
+            console.log("[Media Processing] ⏱️ Getting video duration...");
             duration = await mediaUtils.getMediaDuration(file);
-            console.log(`[Media Processing] ✅ Duration extracted:`, duration);
+            console.log("[Media Processing] ✅ Duration extracted:", duration);
             // FPS will remain undefined for fallback
             console.log("[Media Processing] ✅ Browser fallback processing successful");
           } catch (fallbackError) {
@@ -124,7 +124,7 @@ export async function processMediaFiles(
         console.log(`[Media Processing] 🎵 Processing audio: ${file.name}`);
         // For audio, we don't set width/height/fps (they'll be undefined)
         duration = await mediaUtils.getMediaDuration(file);
-        console.log(`[Media Processing] ✅ Audio duration extracted:`, duration);
+        console.log("[Media Processing] ✅ Audio duration extracted:", duration);
       }
 
       const processedItem = {
