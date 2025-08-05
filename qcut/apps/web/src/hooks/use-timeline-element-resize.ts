@@ -28,7 +28,11 @@ export function useTimelineElementResize({
   onUpdateDuration,
 }: UseTimelineElementResizeProps) {
   const [resizing, setResizing] = useState<ResizeState | null>(null);
-  const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems();
+  const {
+    mediaItems,
+    loading: mediaItemsLoading,
+    error: mediaItemsError,
+  } = useAsyncMediaItems();
   const {
     updateElementStartTime,
     updateElementTrim,
@@ -88,7 +92,7 @@ export function useTimelineElementResize({
     if (element.type === "media") {
       // If media items are still loading, return false (conservative approach)
       if (mediaItemsLoading) return false;
-      
+
       const mediaItem = mediaItems.find((item) => item.id === element.mediaId);
       if (!mediaItem) return false;
 

@@ -1,23 +1,23 @@
-import React, { memo, Suspense } from 'react'
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { Button } from '@/components/ui/button'
+import React, { memo, Suspense } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { ArrowLeft, Loader2 } from 'lucide-react'
-import { GoogleIcon } from '@/components/icons'
-import { useSignUp } from '@/hooks/auth/useSignUp'
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { GoogleIcon } from "@/components/icons";
+import { useSignUp } from "@/hooks/auth/useSignUp";
 
 const SignUpPageComponent = () => {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const {
     name,
     setName,
@@ -31,13 +31,13 @@ const SignUpPageComponent = () => {
     isGoogleLoading,
     handleSignUp,
     handleGoogleSignUp,
-  } = useSignUp()
+  } = useSignUp();
 
   return (
     <div className="flex h-screen items-center justify-center relative">
       <Button
         variant="text"
-        onClick={() => navigate({ to: '/' })}
+        onClick={() => navigate({ to: "/" })}
         className="absolute top-6 left-6"
       >
         <ArrowLeft className="h-5 w-5" /> Back
@@ -76,7 +76,7 @@ const SignUpPageComponent = () => {
                   <Loader2 className="animate-spin" />
                 ) : (
                   <GoogleIcon />
-                )}{' '}
+                )}{" "}
                 Continue with Google
               </Button>
               <div className="relative">
@@ -135,13 +135,13 @@ const SignUpPageComponent = () => {
                   {isEmailLoading ? (
                     <Loader2 className="animate-spin" />
                   ) : (
-                    'Create account'
+                    "Create account"
                   )}
                 </Button>
               </div>
             </div>
             <div className="mt-6 text-center text-sm">
-              Already have an account?{' '}
+              Already have an account?{" "}
               <Link
                 to="/login"
                 className="font-medium text-primary underline-offset-4 hover:underline"
@@ -153,11 +153,11 @@ const SignUpPageComponent = () => {
         </CardContent>
       </Card>
     </div>
-  )
-}
+  );
+};
 
-const SignUpPage = memo(SignUpPageComponent)
+const SignUpPage = memo(SignUpPageComponent);
 
-export const Route = createFileRoute('/signup')({
+export const Route = createFileRoute("/signup")({
   component: SignUpPage,
-})
+});

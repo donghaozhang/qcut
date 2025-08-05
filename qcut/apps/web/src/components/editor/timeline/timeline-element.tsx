@@ -56,7 +56,11 @@ export function TimelineElement({
   onElementMouseDown,
   onElementClick,
 }: TimelineElementProps) {
-  const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems();
+  const {
+    mediaItems,
+    loading: mediaItemsLoading,
+    error: mediaItemsError,
+  } = useAsyncMediaItems();
   const {
     updateElementTrim,
     updateElementDuration,
@@ -93,7 +97,7 @@ export function TimelineElement({
 
   // Handle media loading states
   if (mediaItemsError) {
-    console.error('Failed to load media items:', mediaItemsError);
+    console.error("Failed to load media items:", mediaItemsError);
     return (
       <div className="absolute bg-red-100 border border-red-300 rounded text-red-600 text-xs p-1">
         Error loading media
@@ -428,8 +432,8 @@ export function TimelineElement({
                 ? "Unmute"
                 : "Mute"
               : element.hidden
-              ? "Show"
-              : "Hide"}{" "}
+                ? "Show"
+                : "Hide"}{" "}
             {element.type === "text" ? "text" : "clip"}
           </span>
         </ContextMenuItem>

@@ -33,7 +33,11 @@ export function TimelineTrackContent({
   zoomLevel: number;
   onSnapPointChange?: (snapPoint: SnapPoint | null) => void;
 }) {
-  const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems();
+  const {
+    mediaItems,
+    loading: mediaItemsLoading,
+    error: mediaItemsError,
+  } = useAsyncMediaItems();
   const {
     tracks,
     addTrack,
@@ -64,7 +68,10 @@ export function TimelineTrackContent({
 
   // Handle media loading states
   if (mediaItemsError) {
-    console.error('Failed to load media items in timeline track:', mediaItemsError);
+    console.error(
+      "Failed to load media items in timeline track:",
+      mediaItemsError
+    );
     // Return a placeholder that maintains track structure
     return (
       <div className="relative w-full h-full border border-red-300 bg-red-50 rounded text-red-600 text-xs p-2">

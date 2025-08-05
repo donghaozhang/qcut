@@ -1,29 +1,29 @@
-import React, { useEffect, useRef } from 'react'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import React, { useEffect, useRef } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
-} from '@/components/ui/resizable'
-import { MediaPanel } from '@/components/editor/media-panel'
-import { PropertiesPanel } from '@/components/editor/properties-panel'
-import { Timeline } from '@/components/editor/timeline'
-import { PreviewPanel } from '@/components/editor/preview-panel'
-import { EditorHeader } from '@/components/editor-header'
-import { usePanelStore } from '@/stores/panel-store'
-import { useProjectStore } from '@/stores/project-store'
-import { EditorProvider } from '@/components/editor-provider'
-import { usePlaybackControls } from '@/hooks/use-playback-controls'
-import { Onboarding } from '@/components/onboarding'
-import { ExportDialog } from '@/components/export-dialog'
-import { useExportStore } from '@/stores/export-store'
+} from "@/components/ui/resizable";
+import { MediaPanel } from "@/components/editor/media-panel";
+import { PropertiesPanel } from "@/components/editor/properties-panel";
+import { Timeline } from "@/components/editor/timeline";
+import { PreviewPanel } from "@/components/editor/preview-panel";
+import { EditorHeader } from "@/components/editor-header";
+import { usePanelStore } from "@/stores/panel-store";
+import { useProjectStore } from "@/stores/project-store";
+import { EditorProvider } from "@/components/editor-provider";
+import { usePlaybackControls } from "@/hooks/use-playback-controls";
+import { Onboarding } from "@/components/onboarding";
+import { ExportDialog } from "@/components/export-dialog";
+import { useExportStore } from "@/stores/export-store";
 
-export const Route = createFileRoute('/editor/$project_id')({
+export const Route = createFileRoute("/editor/$project_id")({
   component: EditorPage,
-})
+});
 
 function EditorPage() {
-  const { project_id } = Route.useParams()
+  const { project_id } = Route.useParams();
   const {
     toolsPanel,
     previewPanel,
@@ -36,8 +36,8 @@ function EditorPage() {
     setMainContent,
     setTimeline,
     normalizeHorizontalPanels,
-  } = usePanelStore()
-  const { isDialogOpen } = useExportStore()
+  } = usePanelStore();
+  const { isDialogOpen } = useExportStore();
 
   const {
     activeProject,
@@ -45,12 +45,12 @@ function EditorPage() {
     createNewProject,
     isInvalidProjectId,
     markProjectIdAsInvalid,
-  } = useProjectStore()
-  const navigate = useNavigate()
-  const handledProjectIds = useRef<Set<string>>(new Set())
-  const isInitializingRef = useRef<boolean>(false)
+  } = useProjectStore();
+  const navigate = useNavigate();
+  const handledProjectIds = useRef<Set<string>>(new Set());
+  const isInitializingRef = useRef<boolean>(false);
 
-  usePlaybackControls()
+  usePlaybackControls();
 
   // Normalize panel sizes on mount
   useEffect(() => {
@@ -58,97 +58,97 @@ function EditorPage() {
   }, [normalizeHorizontalPanels]);
 
   useEffect(() => {
-    let isCancelled = false
+    let isCancelled = false;
 
     const initProject = async () => {
       if (!project_id) {
-        return
+        return;
       }
 
       // Prevent duplicate initialization
       if (isInitializingRef.current) {
-        return
+        return;
       }
 
       // Check if project is already loaded
       if (activeProject?.id === project_id) {
-        return
+        return;
       }
 
       // Check global invalid tracking first (most important for preventing duplicates)
       if (isInvalidProjectId(project_id)) {
-        return
+        return;
       }
 
       // Check if we've already handled this project ID locally
       if (handledProjectIds.current.has(project_id)) {
-        return
+        return;
       }
 
       // Mark as initializing to prevent race conditions
-      isInitializingRef.current = true
-      handledProjectIds.current.add(project_id)
+      isInitializingRef.current = true;
+      handledProjectIds.current.add(project_id);
 
       try {
-        await loadProject(project_id)
+        await loadProject(project_id);
 
         // Check if component was unmounted during async operation
         if (isCancelled) {
-          return
+          return;
         }
 
         // Project loaded successfully
-        isInitializingRef.current = false
+        isInitializingRef.current = false;
       } catch (error) {
         // Check if component was unmounted during async operation
         if (isCancelled) {
-          return
+          return;
         }
 
         // More specific error handling - only create new project for actual "not found" errors
         const isProjectNotFound =
           error instanceof Error &&
-          (error.message.includes('not found') ||
-            error.message.includes('does not exist') ||
-            error.message.includes('Project not found'))
+          (error.message.includes("not found") ||
+            error.message.includes("does not exist") ||
+            error.message.includes("Project not found"));
 
         if (isProjectNotFound) {
           // Mark this project ID as invalid globally BEFORE creating project
-          markProjectIdAsInvalid(project_id)
+          markProjectIdAsInvalid(project_id);
 
           try {
-            const newProjectId = await createNewProject('Untitled Project')
+            const newProjectId = await createNewProject("Untitled Project");
 
             // Check again if component was unmounted
             if (isCancelled) {
-              return
+              return;
             }
 
-            navigate({ to: `/editor/${newProjectId}` })
+            navigate({ to: `/editor/${newProjectId}` });
           } catch (createError) {
-            console.error('Failed to create new project:', createError)
+            console.error("Failed to create new project:", createError);
           }
         } else {
           // For other errors (storage issues, corruption, etc.), don't create new project
           console.error(
-            'Project loading failed with recoverable error:',
+            "Project loading failed with recoverable error:",
             error
-          )
+          );
           // Remove from handled set so user can retry
-          handledProjectIds.current.delete(project_id)
+          handledProjectIds.current.delete(project_id);
         }
 
-        isInitializingRef.current = false
+        isInitializingRef.current = false;
       }
-    }
+    };
 
-    initProject()
+    initProject();
 
     // Cleanup function to cancel async operations
     return () => {
-      isCancelled = true
-      isInitializingRef.current = false
-    }
+      isCancelled = true;
+      isInitializingRef.current = false;
+    };
   }, [
     project_id,
     loadProject,
@@ -156,7 +156,7 @@ function EditorPage() {
     navigate,
     isInvalidProjectId,
     markProjectIdAsInvalid,
-  ])
+  ]);
 
   return (
     <EditorProvider>
@@ -234,5 +234,5 @@ function EditorPage() {
         <Onboarding />
       </div>
     </EditorProvider>
-  )
+  );
 }

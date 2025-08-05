@@ -53,12 +53,13 @@ export const usePanelStore = create<PanelState>()(
       setMainContent: (size) => set({ mainContent: size }),
       setTimeline: (size) => set({ timeline: size }),
       setAiPanelWidth: (size) => set({ aiPanelWidth: size }),
-      
+
       // Normalize horizontal panels to ensure they add up to 100%
       normalizeHorizontalPanels: () => {
         const state = get();
-        const total = state.toolsPanel + state.previewPanel + state.propertiesPanel;
-        
+        const total =
+          state.toolsPanel + state.previewPanel + state.propertiesPanel;
+
         if (Math.abs(total - 100) > 0.01) {
           // Calculate normalized values
           const factor = 100 / total;
@@ -78,9 +79,12 @@ export const usePanelStore = create<PanelState>()(
         if (version < 3) {
           return DEFAULT_PANEL_SIZES;
         }
-        
+
         // Normalize horizontal panels on load
-        const total = persistedState.toolsPanel + persistedState.previewPanel + persistedState.propertiesPanel;
+        const total =
+          persistedState.toolsPanel +
+          persistedState.previewPanel +
+          persistedState.propertiesPanel;
         if (Math.abs(total - 100) > 0.01) {
           const factor = 100 / total;
           return {
@@ -90,7 +94,7 @@ export const usePanelStore = create<PanelState>()(
             propertiesPanel: persistedState.propertiesPanel * factor,
           };
         }
-        
+
         return persistedState;
       },
     }

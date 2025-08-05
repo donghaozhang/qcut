@@ -27,7 +27,11 @@ export function PropertiesPanel() {
   const { activeProject, updateProjectFps } = useProjectStore();
   const { getDisplayName, canvasSize } = useAspectRatio();
   const { selectedElements, tracks } = useTimelineStore();
-  const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems();
+  const {
+    mediaItems,
+    loading: mediaItemsLoading,
+    error: mediaItemsError,
+  } = useAsyncMediaItems();
 
   const handleFpsChange = (value: string) => {
     const fps = parseFloat(value);
@@ -93,7 +97,9 @@ export function PropertiesPanel() {
         <div className="p-4">
           <div className="text-center">
             <div className="text-red-500 mb-2">Failed to load media items</div>
-            <div className="text-sm text-muted-foreground">{mediaItemsError.message}</div>
+            <div className="text-sm text-muted-foreground">
+              {mediaItemsError.message}
+            </div>
           </div>
         </div>
       </ScrollArea>
@@ -106,7 +112,7 @@ export function PropertiesPanel() {
         <div className="p-4">
           <div className="flex items-center justify-center">
             <div className="flex items-center space-x-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
               <span>Loading properties...</span>
             </div>
           </div>

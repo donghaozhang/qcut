@@ -15,7 +15,7 @@ export function useAsyncFFmpeg() {
     async function loadFFmpeg() {
       try {
         const instance = await createFFmpeg();
-        
+
         if (mounted) {
           // Set up progress callback
           instance.on("progress", ({ progress }) => {
@@ -30,7 +30,9 @@ export function useAsyncFFmpeg() {
         }
       } catch (err) {
         if (mounted) {
-          setError(err instanceof Error ? err : new Error('Failed to load FFmpeg'));
+          setError(
+            err instanceof Error ? err : new Error("Failed to load FFmpeg")
+          );
           setLoading(false);
         }
       }
@@ -61,16 +63,22 @@ export function useAsyncFFmpegUtils() {
 
     async function loadUtils() {
       try {
-        const { getFFmpegUtilFunctions } = await import("@/lib/ffmpeg-utils-loader");
+        const { getFFmpegUtilFunctions } = await import(
+          "@/lib/ffmpeg-utils-loader"
+        );
         const utilFunctions = await getFFmpegUtilFunctions();
-        
+
         if (mounted) {
           setUtils(utilFunctions);
           setLoading(false);
         }
       } catch (err) {
         if (mounted) {
-          setError(err instanceof Error ? err : new Error('Failed to load FFmpeg utilities'));
+          setError(
+            err instanceof Error
+              ? err
+              : new Error("Failed to load FFmpeg utilities")
+          );
           setLoading(false);
         }
       }

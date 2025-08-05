@@ -83,7 +83,9 @@ export function TabBar() {
               key={tabKey}
             >
               <tab.icon className="size-[1.1rem]! shrink-0" />
-              <span className="text-[0.65rem] whitespace-nowrap">{tab.label}</span>
+              <span className="text-[0.65rem] whitespace-nowrap">
+                {tab.label}
+              </span>
             </div>
           );
         })}

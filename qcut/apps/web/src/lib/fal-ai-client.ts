@@ -38,13 +38,17 @@ class FalAIClient {
 
   constructor() {
     // Try to get API key from environment variables
-    this.apiKey = import.meta.env.VITE_FAL_API_KEY || 
-                  process.env.FAL_API_KEY || 
-                  (typeof window !== 'undefined' && (window as any).process?.env?.FAL_API_KEY) || 
-                  null;
-    
+    this.apiKey =
+      import.meta.env.VITE_FAL_API_KEY ||
+      process.env.FAL_API_KEY ||
+      (typeof window !== "undefined" &&
+        (window as any).process?.env?.FAL_API_KEY) ||
+      null;
+
     if (!this.apiKey) {
-      console.warn('[FalAI] No API key found. Set VITE_FAL_API_KEY environment variable to enable text-to-image generation.');
+      console.warn(
+        "[FalAI] No API key found. Set VITE_FAL_API_KEY environment variable to enable text-to-image generation."
+      );
     }
   }
 
@@ -54,15 +58,19 @@ class FalAIClient {
   ): Promise<FalImageResponse> {
     // Check if API key is available
     if (!this.apiKey) {
-      throw new Error("FAL API key is required for text-to-image generation. Please set VITE_FAL_API_KEY environment variable.");
+      throw new Error(
+        "FAL API key is required for text-to-image generation. Please set VITE_FAL_API_KEY environment variable."
+      );
     }
 
     // The endpoint already contains the full URL, so use it directly
-    const requestUrl = endpoint.startsWith('https://') ? endpoint : `${this.baseUrl}${endpoint}`;
-    
+    const requestUrl = endpoint.startsWith("https://")
+      ? endpoint
+      : `${this.baseUrl}${endpoint}`;
+
     console.log("[FalAI] Making direct API request to:", requestUrl);
     console.log("[FalAI] Request params:", params);
-    
+
     // Make direct API call to fal.run instead of proxy
     const response = await fetch(requestUrl, {
       method: "POST",
@@ -78,28 +86,30 @@ class FalAIClient {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error("[FalAI] API request failed:", errorData);
-      
+
       // Handle different error response formats
       let errorMessage = `API request failed: ${response.status}`;
-      
+
       if (errorData.error) {
-        if (typeof errorData.error === 'string') {
+        if (typeof errorData.error === "string") {
           errorMessage = errorData.error;
-        } else if (typeof errorData.error === 'object') {
+        } else if (typeof errorData.error === "object") {
           errorMessage = JSON.stringify(errorData.error, null, 2);
         }
       } else if (errorData.detail) {
-        if (typeof errorData.detail === 'string') {
+        if (typeof errorData.detail === "string") {
           errorMessage = errorData.detail;
         } else if (Array.isArray(errorData.detail)) {
-          errorMessage = errorData.detail.map((d: any) => d.msg || JSON.stringify(d)).join(', ');
+          errorMessage = errorData.detail
+            .map((d: any) => d.msg || JSON.stringify(d))
+            .join(", ");
         } else {
           errorMessage = JSON.stringify(errorData.detail, null, 2);
         }
       } else if (errorData.message) {
         errorMessage = errorData.message;
       }
-      
+
       throw new Error(errorMessage);
     }
 
@@ -194,7 +204,7 @@ class FalAIClient {
       }
 
       const params = this.convertSettingsToParams(model, prompt, settings);
-      
+
       console.log(`Generating with ${model.name}:`, { prompt, params });
 
       const response = await this.makeRequest(model.endpoint, params);
@@ -204,7 +214,7 @@ class FalAIClient {
       }
 
       const image = response.images[0];
-      
+
       return {
         success: true,
         imageUrl: image.url,
@@ -219,10 +229,11 @@ class FalAIClient {
       };
     } catch (error) {
       console.error(`Generation failed for ${modelKey}:`, error);
-      
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   }
@@ -232,7 +243,10 @@ class FalAIClient {
     prompt: string,
     settings: GenerationSettings
   ): Promise<MultiModelGenerationResult> {
-    console.log(`Starting multi-model generation with ${modelKeys.length} models:`, modelKeys);
+    console.log(
+      `Starting multi-model generation with ${modelKeys.length} models:`,
+      modelKeys
+    );
 
     // Create promises for all model generations
     const generationPromises = modelKeys.map(async (modelKey) => {
@@ -243,21 +257,25 @@ class FalAIClient {
     try {
       // Wait for all generations to complete (or fail)
       const results = await Promise.allSettled(generationPromises);
-      
+
       const finalResults: MultiModelGenerationResult = {};
-      
+
       results.forEach((result, index) => {
         const modelKey = modelKeys[index];
-        
+
         if (result.status === "fulfilled") {
           finalResults[modelKey] = result.value[1];
         } else {
-          console.error(`Model ${modelKey} generation rejected:`, result.reason);
+          console.error(
+            `Model ${modelKey} generation rejected:`,
+            result.reason
+          );
           finalResults[modelKey] = {
             success: false,
-            error: result.reason instanceof Error 
-              ? result.reason.message 
-              : "Generation failed",
+            error:
+              result.reason instanceof Error
+                ? result.reason.message
+                : "Generation failed",
           };
         }
       });
@@ -265,16 +283,19 @@ class FalAIClient {
       return finalResults;
     } catch (error) {
       console.error("Multi-model generation failed:", error);
-      
+
       // Return error results for all models
       const errorResults: MultiModelGenerationResult = {};
       modelKeys.forEach((modelKey) => {
         errorResults[modelKey] = {
           success: false,
-          error: error instanceof Error ? error.message : "Multi-model generation failed",
+          error:
+            error instanceof Error
+              ? error.message
+              : "Multi-model generation failed",
         };
       });
-      
+
       return errorResults;
     }
   }
@@ -293,14 +314,18 @@ class FalAIClient {
     if (!this.apiKey) {
       return { hasKey: false, source: "none" };
     }
-    
+
     // Determine source of API key
     let source = "unknown";
     if (import.meta.env.VITE_FAL_API_KEY) source = "VITE_FAL_API_KEY";
     else if (process.env.FAL_API_KEY) source = "FAL_API_KEY";
-    else if (typeof window !== 'undefined' && (window as any).process?.env?.FAL_API_KEY) source = "window.process.env.FAL_API_KEY";
+    else if (
+      typeof window !== "undefined" &&
+      (window as any).process?.env?.FAL_API_KEY
+    )
+      source = "window.process.env.FAL_API_KEY";
     else source = "manually_set";
-    
+
     return { hasKey: true, source };
   }
 
@@ -317,15 +342,16 @@ class FalAIClient {
       if (!model) return false;
 
       // Test with a simple prompt
-      const result = await this.generateWithModel(
-        modelKey,
-        "test image",
-        { imageSize: "square" }
-      );
+      const result = await this.generateWithModel(modelKey, "test image", {
+        imageSize: "square",
+      });
 
       return result.success;
     } catch (error) {
-      console.error(`[FalAI] Model availability test failed for ${modelKey}:`, error);
+      console.error(
+        `[FalAI] Model availability test failed for ${modelKey}:`,
+        error
+      );
       return false;
     }
   }
@@ -335,7 +361,7 @@ class FalAIClient {
     prompt: string
   ): Promise<Record<string, number>> {
     const estimates: Record<string, number> = {};
-    
+
     modelKeys.forEach((modelKey) => {
       const model = TEXT2IMAGE_MODELS[modelKey];
       if (model) {
@@ -343,11 +369,13 @@ class FalAIClient {
         const baseTime = 15; // seconds
         const speedMultiplier = (6 - model.speedRating) * 0.5; // 0.5 to 2.5
         const promptComplexity = Math.min(prompt.split(" ").length / 10, 2); // 0 to 2
-        
-        estimates[modelKey] = Math.round(baseTime * speedMultiplier * (1 + promptComplexity));
+
+        estimates[modelKey] = Math.round(
+          baseTime * speedMultiplier * (1 + promptComplexity)
+        );
       }
     });
-    
+
     return estimates;
   }
 
@@ -389,7 +417,9 @@ export async function generateWithMultipleModels(
   return falAIClient.generateWithMultipleModels(modelKeys, prompt, settings);
 }
 
-export async function testModelAvailability(modelKey: string): Promise<boolean> {
+export async function testModelAvailability(
+  modelKey: string
+): Promise<boolean> {
   return falAIClient.testModelAvailability(modelKey);
 }
 
@@ -411,14 +441,17 @@ export async function batchGenerate(
     concurrency?: number;
     delayBetweenBatches?: number;
   } = {}
-): Promise<Array<{ request: typeof requests[0]; result: GenerationResult }>> {
+): Promise<Array<{ request: (typeof requests)[0]; result: GenerationResult }>> {
   const { concurrency = 3, delayBetweenBatches = 1000 } = options;
-  const results: Array<{ request: typeof requests[0]; result: GenerationResult }> = [];
-  
+  const results: Array<{
+    request: (typeof requests)[0];
+    result: GenerationResult;
+  }> = [];
+
   // Process requests in batches
   for (let i = 0; i < requests.length; i += concurrency) {
     const batch = requests.slice(i, i + concurrency);
-    
+
     const batchPromises = batch.map(async (request) => {
       const result = await generateWithModel(
         request.modelKey,
@@ -427,9 +460,9 @@ export async function batchGenerate(
       );
       return { request, result };
     });
-    
+
     const batchResults = await Promise.allSettled(batchPromises);
-    
+
     batchResults.forEach((settledResult) => {
       if (settledResult.status === "fulfilled") {
         results.push(settledResult.value);
@@ -438,12 +471,12 @@ export async function batchGenerate(
         console.error("Batch generation item failed:", settledResult.reason);
       }
     });
-    
+
     // Delay between batches to respect rate limits
     if (i + concurrency < requests.length && delayBetweenBatches > 0) {
       await new Promise((resolve) => setTimeout(resolve, delayBetweenBatches));
     }
   }
-  
+
   return results;
 }

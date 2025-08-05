@@ -1,70 +1,70 @@
-import React from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { Header } from '@/components/header'
-import { Card, CardContent } from '@/components/ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
-import { ExternalLink } from 'lucide-react'
+import React from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Header } from "@/components/header";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
 import {
   GithubIcon,
   MarbleIcon,
   VercelIcon,
   DataBuddyIcon,
-} from '@/components/icons'
-import { Badge } from '@/components/ui/badge'
-import { EXTERNAL_TOOLS } from '@/constants/site'
+} from "@/components/icons";
+import { Badge } from "@/components/ui/badge";
+import { EXTERNAL_TOOLS } from "@/constants/site";
 
 interface Contributor {
-  id: number
-  login: string
-  avatar_url: string
-  html_url: string
-  contributions: number
-  type: string
+  id: number;
+  login: string;
+  avatar_url: string;
+  html_url: string;
+  contributions: number;
+  type: string;
 }
 
 async function getContributors(): Promise<Contributor[]> {
   try {
     const response = await fetch(
-      'https://api.github.com/repos/donghaozhang/qcut/contributors?per_page=100',
+      "https://api.github.com/repos/donghaozhang/qcut/contributors?per_page=100",
       {
         headers: {
-          Accept: 'application/vnd.github.v3+json',
-          'User-Agent': 'OpenCut-Web-App',
+          Accept: "application/vnd.github.v3+json",
+          "User-Agent": "OpenCut-Web-App",
         },
       }
-    )
+    );
 
     if (!response.ok) {
-      console.error('Failed to fetch contributors')
-      return []
+      console.error("Failed to fetch contributors");
+      return [];
     }
 
-    const contributors = (await response.json()) as Contributor[]
+    const contributors = (await response.json()) as Contributor[];
 
     const filteredContributors = contributors.filter(
-      (contributor: Contributor) => contributor.type === 'User'
-    )
+      (contributor: Contributor) => contributor.type === "User"
+    );
 
-    return filteredContributors
+    return filteredContributors;
   } catch (error) {
-    console.error('Error fetching contributors:', error)
-    return []
+    console.error("Error fetching contributors:", error);
+    return [];
   }
 }
 
-export const Route = createFileRoute('/contributors')({
+export const Route = createFileRoute("/contributors")({
   component: ContributorsPage,
   loader: async () => {
-    const contributors = await getContributors()
-    return { contributors }
+    const contributors = await getContributors();
+    return { contributors };
   },
-})
+});
 
 function ContributorsPage() {
-  const { contributors } = Route.useLoaderData()
-  const topContributors = contributors.slice(0, 2)
-  const otherContributors = contributors.slice(2)
+  const { contributors } = Route.useLoaderData();
+  const topContributors = contributors.slice(0, 2);
+  const otherContributors = contributors.slice(2);
 
   return (
     <div className="min-h-screen bg-background">
@@ -106,7 +106,10 @@ function ContributorsPage() {
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-foreground rounded-full" />
                   <span className="font-medium">
-                    {contributors.reduce((sum: number, c: any) => sum + c.contributions, 0)}
+                    {contributors.reduce(
+                      (sum: number, c: any) => sum + c.contributions,
+                      0
+                    )}
                   </span>
                   <span className="text-muted-foreground">contributions</span>
                 </div>
@@ -252,8 +255,9 @@ function ContributorsPage() {
                     MarbleIcon,
                     VercelIcon,
                     DataBuddyIcon,
-                  }
-                  const IconComponent = iconMap[tool.icon as keyof typeof iconMap]
+                  };
+                  const IconComponent =
+                    iconMap[tool.icon as keyof typeof iconMap];
 
                   return (
                     <a
@@ -282,7 +286,7 @@ function ContributorsPage() {
                         </CardContent>
                       </Card>
                     </a>
-                  )
+                  );
                 })}
               </div>
             </div>
@@ -324,5 +328,5 @@ function ContributorsPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }

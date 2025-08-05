@@ -35,8 +35,8 @@
         "noUnusedFunctionParameters": "off",
         "noUnusedImports": "off",
         "noUnusedVariables": "off",
-        "useExhaustiveDependencies": "off",
-        "useHookAtTopLevel": "off",
+        "useExhaustiveDependencies": "warn",
+        "useHookAtTopLevel": "error",
         "useJsxKeyInIterable": "off"
       },
       "nursery": {

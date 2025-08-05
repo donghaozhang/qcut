@@ -1,12 +1,12 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import { 
-  ExportSettings, 
-  ExportProgress, 
-  ExportFormat, 
+import {
+  ExportSettings,
+  ExportProgress,
+  ExportFormat,
   ExportQuality,
   getDefaultFilename,
-  QUALITY_RESOLUTIONS
+  QUALITY_RESOLUTIONS,
 } from "@/types/export";
 
 // Export history entry
@@ -24,28 +24,28 @@ export interface ExportHistoryEntry {
 interface ExportStore {
   // Dialog state
   isDialogOpen: boolean;
-  
+
   // Export settings
   settings: ExportSettings;
-  
+
   // Export progress
   progress: ExportProgress;
-  
+
   // Error state
   error: string | null;
-  
+
   // Export history
   exportHistory: ExportHistoryEntry[];
-  
+
   // Actions
   setDialogOpen: (open: boolean) => void;
   updateSettings: (settings: Partial<ExportSettings>) => void;
   updateProgress: (progress: Partial<ExportProgress>) => void;
   setError: (error: string | null) => void;
   resetExport: () => void;
-  
+
   // History actions
-  addToHistory: (entry: Omit<ExportHistoryEntry, 'id' | 'timestamp'>) => void;
+  addToHistory: (entry: Omit<ExportHistoryEntry, "id" | "timestamp">) => void;
   clearHistory: () => void;
   getRecentExports: (limit?: number) => ExportHistoryEntry[];
   replayExport: (historyId: string) => void;
@@ -55,7 +55,7 @@ interface ExportStore {
 const getDefaultSettings = (): ExportSettings => {
   const quality = ExportQuality.HIGH;
   const resolution = QUALITY_RESOLUTIONS[quality];
-  
+
   return {
     format: ExportFormat.WEBM,
     quality,
@@ -84,7 +84,7 @@ export const useExportStore = create<ExportStore>()(
       progress: getDefaultProgress(),
       error: null,
       exportHistory: [],
-      
+
       // Actions
       setDialogOpen: (open) => {
         set({ isDialogOpen: open });
@@ -93,11 +93,14 @@ export const useExportStore = create<ExportStore>()(
           set({ error: null });
         }
       },
-      
+
       updateSettings: (newSettings) => {
         set((state) => {
           // If quality changed, update resolution
-          if (newSettings.quality && newSettings.quality !== state.settings.quality) {
+          if (
+            newSettings.quality &&
+            newSettings.quality !== state.settings.quality
+          ) {
             const resolution = QUALITY_RESOLUTIONS[newSettings.quality];
             return {
               settings: {
@@ -108,21 +111,21 @@ export const useExportStore = create<ExportStore>()(
               },
             };
           }
-          
+
           return {
             settings: { ...state.settings, ...newSettings },
           };
         });
       },
-      
+
       updateProgress: (newProgress) => {
         set((state) => ({
           progress: { ...state.progress, ...newProgress },
         }));
       },
-      
+
       setError: (error) => set({ error }),
-      
+
       resetExport: () => {
         set({
           settings: getDefaultSettings(),
@@ -131,7 +134,7 @@ export const useExportStore = create<ExportStore>()(
           isDialogOpen: false,
         });
       },
-      
+
       // History actions
       addToHistory: (entry) => {
         const historyEntry: ExportHistoryEntry = {
@@ -139,7 +142,7 @@ export const useExportStore = create<ExportStore>()(
           id: `export-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           timestamp: new Date(),
         };
-        
+
         set((state) => ({
           exportHistory: [
             historyEntry,
@@ -147,18 +150,20 @@ export const useExportStore = create<ExportStore>()(
           ],
         }));
       },
-      
+
       clearHistory: () => set({ exportHistory: [] }),
-      
+
       getRecentExports: (limit = 10) => {
         const { exportHistory } = get();
         return exportHistory.slice(0, limit);
       },
-      
+
       replayExport: (historyId) => {
         const { exportHistory } = get();
-        const historyEntry = exportHistory.find(entry => entry.id === historyId);
-        
+        const historyEntry = exportHistory.find(
+          (entry) => entry.id === historyId
+        );
+
         if (historyEntry) {
           // Apply the settings from history
           set({
@@ -167,7 +172,7 @@ export const useExportStore = create<ExportStore>()(
               filename: getDefaultFilename(), // Generate new filename
             },
           });
-          
+
           // Open dialog for re-export
           set({ isDialogOpen: true });
         }

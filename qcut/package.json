@@ -31,13 +31,14 @@
     "electron": "electron .",
     "electron:dev": "cross-env NODE_ENV=development electron .",
     "dist": "electron-builder",
-    "dist:win": "electron-builder --win"
+    "dist:win": "electron-builder --win",
+    "package:win": "electron-packager . QCut --platform=win32 --arch=x64 --out=d:/AI_play/AI_Code/opencut_build --overwrite"
   },
   "build": {
     "appId": "com.opencut.app",
     "productName": "OpenCut",
     "directories": {
-      "output": "dist-electron"
+      "output": "d:/AI_play/AI_Code/opencut_build"
     },
     "files": [
       "electron/**/*",

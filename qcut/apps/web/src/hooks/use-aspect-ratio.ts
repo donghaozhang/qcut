@@ -1,20 +1,31 @@
 import { useEditorStore } from "@/stores/editor-store";
 import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
-import { getMediaStoreUtils, type MediaItem } from "@/stores/media-store-loader";
+import {
+  getMediaStoreUtils,
+  type MediaItem,
+} from "@/stores/media-store-loader";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { useMemo, useState, useEffect } from "react";
 
 export function useAspectRatio() {
   const { canvasSize, canvasMode, canvasPresets } = useEditorStore();
-  const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems();
+  const {
+    mediaItems,
+    loading: mediaItemsLoading,
+    error: mediaItemsError,
+  } = useAsyncMediaItems();
   const { tracks } = useTimelineStore();
-  const [mediaUtils, setMediaUtils] = useState<{ getMediaAspectRatio: (item: MediaItem) => number } | null>(null);
+  const [mediaUtils, setMediaUtils] = useState<{
+    getMediaAspectRatio: (item: MediaItem) => number;
+  } | null>(null);
 
   // Load media utilities
   useEffect(() => {
-    getMediaStoreUtils().then(utils => {
-      setMediaUtils({ getMediaAspectRatio: utils.getMediaAspectRatio });
-    }).catch(console.error);
+    getMediaStoreUtils()
+      .then((utils) => {
+        setMediaUtils({ getMediaAspectRatio: utils.getMediaAspectRatio });
+      })
+      .catch(console.error);
   }, []);
 
   // Find the current preset based on canvas size

@@ -2,20 +2,20 @@
 export enum ExportFormat {
   WEBM = "webm",
   MP4 = "mp4",
-  MOV = "mov"
+  MOV = "mov",
 }
 
 // Export quality presets
 export enum ExportQuality {
   HIGH = "1080p",
-  MEDIUM = "720p", 
-  LOW = "480p"
+  MEDIUM = "720p",
+  LOW = "480p",
 }
 
 // Export purpose types
 export enum ExportPurpose {
   FINAL = "final",
-  PREVIEW = "preview"
+  PREVIEW = "preview",
 }
 
 // Export settings configuration
@@ -36,7 +36,7 @@ export interface ExportProgress {
   totalFrames: number;
   estimatedTimeRemaining: number; // seconds
   status: string; // User-friendly status message
-  
+
   // Advanced progress info
   encodingSpeed?: number; // frames per second
   processedFrames?: number; // frames successfully processed
@@ -64,41 +64,41 @@ export const FORMAT_INFO = {
   [ExportFormat.WEBM]: {
     label: "WebM",
     description: "Modern web format with excellent compression",
-    mimeTypes: ['video/webm;codecs=vp9', 'video/webm;codecs=vp8'],
-    extension: ".webm"
+    mimeTypes: ["video/webm;codecs=vp9", "video/webm;codecs=vp8"],
+    extension: ".webm",
   },
   [ExportFormat.MP4]: {
-    label: "MP4", 
+    label: "MP4",
     description: "Universal format compatible with all devices",
-    mimeTypes: ['video/mp4;codecs=h264', 'video/mp4'],
-    extension: ".mp4"
+    mimeTypes: ["video/mp4;codecs=h264", "video/mp4"],
+    extension: ".mp4",
   },
   [ExportFormat.MOV]: {
     label: "MOV",
     description: "Apple QuickTime format for professional editing",
-    mimeTypes: ['video/quicktime', 'video/mp4;codecs=h264'],
-    extension: ".mov"
-  }
+    mimeTypes: ["video/quicktime", "video/mp4;codecs=h264"],
+    extension: ".mov",
+  },
 } as const;
 
 // Get supported formats based on browser capabilities
 export const getSupportedFormats = (): ExportFormat[] => {
   const supported: ExportFormat[] = [];
-  
+
   Object.entries(FORMAT_INFO).forEach(([format, info]) => {
-    const isSupported = info.mimeTypes.some(mimeType => 
+    const isSupported = info.mimeTypes.some((mimeType) =>
       MediaRecorder.isTypeSupported(mimeType)
     );
     if (isSupported) {
       supported.push(format as ExportFormat);
     }
   });
-  
+
   // Always include WebM as fallback since it's widely supported
   if (supported.length === 0) {
     supported.push(ExportFormat.WEBM);
   }
-  
+
   return supported;
 };
 
@@ -116,85 +116,85 @@ export interface ExportPreset {
 
 export const EXPORT_PRESETS: ExportPreset[] = [
   {
-    id: 'youtube-hd',
-    name: 'YouTube HD',
-    description: '1080p HD video optimized for YouTube',
-    icon: '🎬',
+    id: "youtube-hd",
+    name: "YouTube HD",
+    description: "1080p HD video optimized for YouTube",
+    icon: "🎬",
     quality: ExportQuality.HIGH,
     format: ExportFormat.MP4,
-    aspectRatio: 16/9,
-    tags: ['social', 'video', 'hd']
+    aspectRatio: 16 / 9,
+    tags: ["social", "video", "hd"],
   },
   {
-    id: 'instagram-story',
-    name: 'Instagram Story',
-    description: '1080p vertical format for Instagram Stories',
-    icon: '📱',
+    id: "instagram-story",
+    name: "Instagram Story",
+    description: "1080p vertical format for Instagram Stories",
+    icon: "📱",
     quality: ExportQuality.HIGH,
     format: ExportFormat.MP4,
-    aspectRatio: 9/16,
-    tags: ['social', 'mobile', 'vertical']
+    aspectRatio: 9 / 16,
+    tags: ["social", "mobile", "vertical"],
   },
   {
-    id: 'instagram-post',
-    name: 'Instagram Post',
-    description: '1080p square format for Instagram feed',
-    icon: '📷',
+    id: "instagram-post",
+    name: "Instagram Post",
+    description: "1080p square format for Instagram feed",
+    icon: "📷",
     quality: ExportQuality.HIGH,
     format: ExportFormat.MP4,
-    aspectRatio: 1/1,
-    tags: ['social', 'square']
+    aspectRatio: 1 / 1,
+    tags: ["social", "square"],
   },
   {
-    id: 'tiktok',
-    name: 'TikTok',
-    description: '1080p vertical format for TikTok',
-    icon: '🎵',
+    id: "tiktok",
+    name: "TikTok",
+    description: "1080p vertical format for TikTok",
+    icon: "🎵",
     quality: ExportQuality.HIGH,
     format: ExportFormat.MP4,
-    aspectRatio: 9/16,
-    tags: ['social', 'mobile', 'vertical', 'short-form']
+    aspectRatio: 9 / 16,
+    tags: ["social", "mobile", "vertical", "short-form"],
   },
   {
-    id: 'twitter',
-    name: 'Twitter/X',
-    description: '720p optimized for Twitter video',
-    icon: '🐦',
+    id: "twitter",
+    name: "Twitter/X",
+    description: "720p optimized for Twitter video",
+    icon: "🐦",
     quality: ExportQuality.MEDIUM,
     format: ExportFormat.MP4,
-    aspectRatio: 16/9,
-    tags: ['social', 'compressed']
+    aspectRatio: 16 / 9,
+    tags: ["social", "compressed"],
   },
   {
-    id: 'linkedin',
-    name: 'LinkedIn',
-    description: '1080p professional format for LinkedIn',
-    icon: '💼',
+    id: "linkedin",
+    name: "LinkedIn",
+    description: "1080p professional format for LinkedIn",
+    icon: "💼",
     quality: ExportQuality.HIGH,
     format: ExportFormat.MP4,
-    aspectRatio: 16/9,
-    tags: ['professional', 'business']
+    aspectRatio: 16 / 9,
+    tags: ["professional", "business"],
   },
   {
-    id: 'web-optimized',
-    name: 'Web Optimized',
-    description: '720p WebM for web embedding',
-    icon: '🌐',
+    id: "web-optimized",
+    name: "Web Optimized",
+    description: "720p WebM for web embedding",
+    icon: "🌐",
     quality: ExportQuality.MEDIUM,
     format: ExportFormat.WEBM,
-    aspectRatio: 16/9,
-    tags: ['web', 'compressed', 'fast-load']
+    aspectRatio: 16 / 9,
+    tags: ["web", "compressed", "fast-load"],
   },
   {
-    id: 'high-quality',
-    name: 'High Quality',
-    description: '1080p maximum quality for archival',
-    icon: '⭐',
+    id: "high-quality",
+    name: "High Quality",
+    description: "1080p maximum quality for archival",
+    icon: "⭐",
     quality: ExportQuality.HIGH,
     format: ExportFormat.MOV,
-    aspectRatio: 16/9,
-    tags: ['archival', 'editing', 'quality']
-  }
+    aspectRatio: 16 / 9,
+    tags: ["archival", "editing", "quality"],
+  },
 ];
 
 // Helper function to validate filename
@@ -205,6 +205,10 @@ export const isValidFilename = (filename: string): boolean => {
 // Helper function to get default filename with timestamp
 export const getDefaultFilename = (): string => {
   const now = new Date();
-  const timestamp = now.toISOString().slice(0, 16).replace('T', '_').replace(/:/g, '-');
+  const timestamp = now
+    .toISOString()
+    .slice(0, 16)
+    .replace("T", "_")
+    .replace(/:/g, "-");
   return `export_${timestamp}`;
 };

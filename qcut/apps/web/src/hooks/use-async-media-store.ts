@@ -40,13 +40,20 @@ export function useAsyncMediaStore(): AsyncMediaStoreState {
 
         // We grab the zustand store *object* (not the React hook) via getState.
         const storeAPI = module.useMediaStore.getState();
-        setState({ store: storeAPI as unknown as MediaStore, loading: false, error: null });
+        setState({
+          store: storeAPI as unknown as MediaStore,
+          loading: false,
+          error: null,
+        });
       } catch (err) {
         if (!mounted) return;
         setState({
           store: null,
           loading: false,
-          error: err instanceof Error ? err : new Error("Failed to load media store"),
+          error:
+            err instanceof Error
+              ? err
+              : new Error("Failed to load media store"),
         });
       }
     })();

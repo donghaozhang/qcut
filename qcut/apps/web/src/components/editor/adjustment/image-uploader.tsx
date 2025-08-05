@@ -1,29 +1,27 @@
 "use client";
 
-import { useCallback, useState, useRef } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { 
-  Upload, 
-  Image as ImageIcon, 
-  Loader2,
-  FileImage
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useCallback, useState, useRef } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Upload, Image as ImageIcon, Loader2, FileImage } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ImageUploaderProps {
   onImageSelect: (file: File) => void;
   uploading?: boolean;
 }
 
-export function ImageUploader({ onImageSelect, uploading }: ImageUploaderProps) {
+export function ImageUploader({
+  onImageSelect,
+  uploading,
+}: ImageUploaderProps) {
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (e.type === "dragenter" || e.type === "dragover") {
       setDragActive(true);
     } else if (e.type === "dragleave") {
@@ -31,25 +29,31 @@ export function ImageUploader({ onImageSelect, uploading }: ImageUploaderProps) 
     }
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (file.type.startsWith('image/')) {
-        onImageSelect(file);
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        const file = e.dataTransfer.files[0];
+        if (file.type.startsWith("image/")) {
+          onImageSelect(file);
+        }
       }
-    }
-  }, [onImageSelect]);
+    },
+    [onImageSelect]
+  );
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    if (e.target.files && e.target.files[0]) {
-      onImageSelect(e.target.files[0]);
-    }
-  }, [onImageSelect]);
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      e.preventDefault();
+      if (e.target.files && e.target.files[0]) {
+        onImageSelect(e.target.files[0]);
+      }
+    },
+    [onImageSelect]
+  );
 
   const openFileDialog = useCallback(() => {
     inputRef.current?.click();
@@ -114,7 +118,11 @@ export function ImageUploader({ onImageSelect, uploading }: ImageUploaderProps) 
                 </p>
               </div>
 
-              <Button variant="outline" size="sm" className="mt-2 !bg-transparent !border-transparent">
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 !bg-transparent !border-transparent"
+              >
                 <ImageIcon className="size-4 mr-2" />
                 Choose Image
               </Button>

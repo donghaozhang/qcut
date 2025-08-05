@@ -20,7 +20,13 @@ interface AIHistoryPanelProps {
   generationHistory: GeneratedVideo[];
   onSelectVideo: (video: GeneratedVideo) => void;
   onRemoveFromHistory: (jobId: string) => void;
-  aiModels: Array<{ id: string; name: string; description: string; price: string; resolution: string }>;
+  aiModels: Array<{
+    id: string;
+    name: string;
+    description: string;
+    price: string;
+    resolution: string;
+  }>;
 }
 
 export function AIHistoryPanel({
@@ -29,24 +35,23 @@ export function AIHistoryPanel({
   generationHistory,
   onSelectVideo,
   onRemoveFromHistory,
-  aiModels
+  aiModels,
 }: AIHistoryPanelProps) {
   if (!isOpen) return null;
 
   return (
     <>
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/20 z-40"
-        onClick={onClose}
-      />
-      
+      <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
+
       {/* Sliding Panel */}
-      <div className={`
+      <div
+        className={`
         fixed right-0 top-0 h-full w-80 bg-background border-l border-border z-50
         transform transition-transform duration-300 ease-in-out
-        ${isOpen ? 'translate-x-0' : 'translate-x-full'}
-      `}>
+        ${isOpen ? "translate-x-0" : "translate-x-full"}
+      `}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">
@@ -74,7 +79,10 @@ export function AIHistoryPanel({
           ) : (
             <div className="space-y-3">
               {generationHistory.map((video) => (
-                <div key={video.jobId} className="bg-panel-accent rounded-lg border p-3">
+                <div
+                  key={video.jobId}
+                  className="bg-panel-accent rounded-lg border p-3"
+                >
                   {/* Video Thumbnail/Preview */}
                   <div className="aspect-video bg-black rounded-lg mb-3 relative overflow-hidden">
                     <video
@@ -94,15 +102,18 @@ export function AIHistoryPanel({
                   <div className="space-y-2">
                     <div className="flex items-start justify-between">
                       <h4 className="text-sm font-medium line-clamp-2">
-                        {video.prompt.length > 40 ? `${video.prompt.substring(0, 40)}...` : video.prompt}
+                        {video.prompt.length > 40
+                          ? `${video.prompt.substring(0, 40)}...`
+                          : video.prompt}
                       </h4>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                       <div>
                         <span className="font-medium">Model:</span>
                         <br />
-                        {aiModels.find(m => m.id === video.model)?.name || video.model}
+                        {aiModels.find((m) => m.id === video.model)?.name ||
+                          video.model}
                       </div>
                       <div>
                         <span className="font-medium">Duration:</span>
@@ -113,7 +124,8 @@ export function AIHistoryPanel({
 
                     {video.fileSize && (
                       <div className="text-xs text-muted-foreground">
-                        <span className="font-medium">Size:</span> {(video.fileSize / 1024).toFixed(1)} KB
+                        <span className="font-medium">Size:</span>{" "}
+                        {(video.fileSize / 1024).toFixed(1)} KB
                       </div>
                     )}
                   </div>
@@ -133,7 +145,7 @@ export function AIHistoryPanel({
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        const link = document.createElement('a');
+                        const link = document.createElement("a");
                         link.href = video.videoUrl;
                         link.download = `generated-video-${video.jobId.substring(0, 8)}.mp4`;
                         link.click();
@@ -159,7 +171,8 @@ export function AIHistoryPanel({
         {/* Footer */}
         <div className="p-4 border-t border-border">
           <p className="text-xs text-muted-foreground text-center">
-            {generationHistory.length} video{generationHistory.length !== 1 ? 's' : ''} in history
+            {generationHistory.length} video
+            {generationHistory.length !== 1 ? "s" : ""} in history
           </p>
         </div>
       </div>

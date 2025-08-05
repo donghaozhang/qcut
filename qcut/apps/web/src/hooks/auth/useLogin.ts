@@ -18,7 +18,7 @@ export function useLogin() {
     // Mock auth for Electron - would need server integration
     setError("Authentication requires server setup. This is a demo build.");
     setIsEmailLoading(false);
-    
+
     // For demo, just navigate to projects
     // navigate({ to: "/projects" });
   }, [navigate, email, password]);
@@ -28,7 +28,9 @@ export function useLogin() {
     setIsGoogleLoading(true);
 
     // Mock Google auth for Electron
-    setError("Google authentication requires server setup. This is a demo build.");
+    setError(
+      "Google authentication requires server setup. This is a demo build."
+    );
     setIsGoogleLoading(false);
   };
 

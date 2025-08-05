@@ -1,4 +1,9 @@
-import React, { useRef, forwardRef, useImperativeHandle, useEffect } from "react";
+import React, {
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+  useEffect,
+} from "react";
 import { useEditorStore } from "@/stores/editor-store";
 import { useExportStore } from "@/stores/export-store";
 
@@ -32,7 +37,7 @@ export const ExportCanvas = forwardRef<ExportCanvasRef>((props, ref) => {
     if (canvas) {
       canvas.width = settings.width;
       canvas.height = settings.height;
-      
+
       // Set CSS size to match for proper scaling
       canvas.style.width = `${settings.width}px`;
       canvas.style.height = `${settings.height}px`;

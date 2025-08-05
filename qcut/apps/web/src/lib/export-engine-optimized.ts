@@ -43,7 +43,7 @@ export class OptimizedExportEngine extends ExportEngine {
     cacheHits: 0,
     cacheMisses: 0,
     averageFrameTime: 0,
-    totalRenderTime: 0
+    totalRenderTime: 0,
   };
 
   constructor(
@@ -66,16 +66,19 @@ export class OptimizedExportEngine extends ExportEngine {
 
   // Set up offscreen canvas for better performance
   private setupOffscreenCanvas(): void {
-    if (typeof OffscreenCanvas !== 'undefined') {
+    if (typeof OffscreenCanvas !== "undefined") {
       try {
         this.offscreenCanvas = new OffscreenCanvas(
           this.canvas.width,
           this.canvas.height
         );
-        this.offscreenCtx = this.offscreenCanvas.getContext('2d');
-        console.log('OptimizedExportEngine: OffscreenCanvas initialized');
+        this.offscreenCtx = this.offscreenCanvas.getContext("2d");
+        console.log("OptimizedExportEngine: OffscreenCanvas initialized");
       } catch (error) {
-        console.warn('OptimizedExportEngine: OffscreenCanvas not available:', error);
+        console.warn(
+          "OptimizedExportEngine: OffscreenCanvas not available:",
+          error
+        );
       }
     }
   }
@@ -85,10 +88,10 @@ export class OptimizedExportEngine extends ExportEngine {
     const imagePromises: Promise<void>[] = [];
 
     for (const mediaItem of this.mediaItems) {
-      if (mediaItem.type === 'image' && mediaItem.url) {
+      if (mediaItem.type === "image" && mediaItem.url) {
         const promise = new Promise<void>((resolve, reject) => {
           const img = new Image();
-          img.crossOrigin = 'anonymous';
+          img.crossOrigin = "anonymous";
           img.onload = () => {
             this.preloadedImages.set(mediaItem.id, img);
             resolve();
@@ -105,9 +108,14 @@ export class OptimizedExportEngine extends ExportEngine {
 
     try {
       await Promise.all(imagePromises);
-      console.log(`OptimizedExportEngine: Preloaded ${this.preloadedImages.size} images`);
+      console.log(
+        `OptimizedExportEngine: Preloaded ${this.preloadedImages.size} images`
+      );
     } catch (error) {
-      console.warn('OptimizedExportEngine: Some images failed to preload:', error);
+      console.warn(
+        "OptimizedExportEngine: Some images failed to preload:",
+        error
+      );
     }
   }
 
@@ -116,31 +124,38 @@ export class OptimizedExportEngine extends ExportEngine {
     const totalFrames = this.calculateTotalFrames();
     const batchSize = 30; // Process 30 frames at a time
 
-    for (let startFrame = 0; startFrame < totalFrames; startFrame += batchSize) {
+    for (
+      let startFrame = 0;
+      startFrame < totalFrames;
+      startFrame += batchSize
+    ) {
       const endFrame = Math.min(startFrame + batchSize, totalFrames);
       const batch: RenderBatch = {
         startFrame,
         endFrame,
-        elements: []
+        elements: [],
       };
 
       // Find elements active in this batch timespan
       const startTime = startFrame / this.getFrameRate();
       const endTime = endFrame / this.getFrameRate();
 
-      this.tracks.forEach(track => {
-        track.elements.forEach(element => {
+      this.tracks.forEach((track) => {
+        track.elements.forEach((element) => {
           if (element.hidden) return;
 
           const elementStart = element.startTime;
-          const elementEnd = element.startTime + 
+          const elementEnd =
+            element.startTime +
             (element.duration - element.trimStart - element.trimEnd);
 
           // Check if element overlaps with batch timespan
           if (elementStart < endTime && elementEnd > startTime) {
-            const mediaItem = element.type === 'media' && element.mediaId !== 'test'
-              ? this.mediaItems.find(item => item.id === element.mediaId) || null
-              : null;
+            const mediaItem =
+              element.type === "media" && element.mediaId !== "test"
+                ? this.mediaItems.find((item) => item.id === element.mediaId) ||
+                  null
+                : null;
 
             batch.elements.push({ element, track, mediaItem });
           }
@@ -150,7 +165,9 @@ export class OptimizedExportEngine extends ExportEngine {
       this.renderBatches.push(batch);
     }
 
-    console.log(`OptimizedExportEngine: Created ${this.renderBatches.length} render batches`);
+    console.log(
+      `OptimizedExportEngine: Created ${this.renderBatches.length} render batches`
+    );
   }
 
   // Override renderFrame with caching and optimization
@@ -160,7 +177,7 @@ export class OptimizedExportEngine extends ExportEngine {
 
     // Check if export was cancelled (access parent's abortController through protected method)
     if (this.isExportCancelled()) {
-      throw new Error('Export cancelled by user');
+      throw new Error("Export cancelled by user");
     }
 
     // Check cache first
@@ -185,7 +202,7 @@ export class OptimizedExportEngine extends ExportEngine {
 
     this.metrics.cacheMisses++;
     this.metrics.framesRendered++;
-    
+
     const frameTime = performance.now() - frameStartTime;
     this.updatePerformanceMetrics(frameTime);
   }
@@ -197,14 +214,14 @@ export class OptimizedExportEngine extends ExportEngine {
 
     // Clear canvas
     renderCtx.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
-    
+
     // Fill with background color
     renderCtx.fillStyle = "#000000";
     renderCtx.fillRect(0, 0, renderCanvas.width, renderCanvas.height);
 
     // Get active elements with optimized lookup
     const activeElements = this.getActiveElementsOptimized(currentTime);
-    
+
     // Sort elements by track type (render bottom to top)
     const sortedElements = activeElements.sort((a, b) => {
       // Text tracks on top
@@ -217,7 +234,10 @@ export class OptimizedExportEngine extends ExportEngine {
     });
 
     // Batch render similar elements
-    const imageBatch: Array<{element: TimelineElement, mediaItem: MediaItem}> = [];
+    const imageBatch: Array<{
+      element: TimelineElement;
+      mediaItem: MediaItem;
+    }> = [];
     const textBatch: TimelineElement[] = [];
 
     for (const { element, mediaItem } of sortedElements) {
@@ -227,8 +247,17 @@ export class OptimizedExportEngine extends ExportEngine {
         textBatch.push(element);
       }
       // Handle other types individually for now
-      else if (element.type === "media" && mediaItem && mediaItem.type === "video") {
-        await this.renderVideoElementOptimized(element, mediaItem, currentTime - element.startTime, renderCtx);
+      else if (
+        element.type === "media" &&
+        mediaItem &&
+        mediaItem.type === "video"
+      ) {
+        await this.renderVideoElementOptimized(
+          element,
+          mediaItem,
+          currentTime - element.startTime,
+          renderCtx
+        );
       }
     }
 
@@ -259,17 +288,18 @@ export class OptimizedExportEngine extends ExportEngine {
 
     // Find which batch this time falls into for optimization
     const frameNumber = Math.floor(currentTime * this.getFrameRate());
-    const batch = this.renderBatches.find(b => 
-      frameNumber >= b.startFrame && frameNumber < b.endFrame
+    const batch = this.renderBatches.find(
+      (b) => frameNumber >= b.startFrame && frameNumber < b.endFrame
     );
 
     const elementsToCheck = batch ? batch.elements : this.getAllElements();
 
     for (const { element, track, mediaItem } of elementsToCheck) {
       if (element.hidden) continue;
-      
+
       const elementStart = element.startTime;
-      const elementEnd = element.startTime + 
+      const elementEnd =
+        element.startTime +
         (element.duration - element.trimStart - element.trimEnd);
 
       if (currentTime >= elementStart && currentTime < elementEnd) {
@@ -288,11 +318,12 @@ export class OptimizedExportEngine extends ExportEngine {
       mediaItem: MediaItem | null;
     }> = [];
 
-    this.tracks.forEach(track => {
-      track.elements.forEach(element => {
+    this.tracks.forEach((track) => {
+      track.elements.forEach((element) => {
         let mediaItem = null;
         if (element.type === "media" && element.mediaId !== "test") {
-          mediaItem = this.mediaItems.find(item => item.id === element.mediaId) || null;
+          mediaItem =
+            this.mediaItems.find((item) => item.id === element.mediaId) || null;
         }
         allElements.push({ element, track, mediaItem });
       });
@@ -303,14 +334,24 @@ export class OptimizedExportEngine extends ExportEngine {
 
   // Batch render images for better performance
   private async renderImageBatch(
-    imageBatch: Array<{element: TimelineElement, mediaItem: MediaItem}>,
+    imageBatch: Array<{ element: TimelineElement; mediaItem: MediaItem }>,
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
   ): Promise<void> {
     for (const { element, mediaItem } of imageBatch) {
       const preloadedImg = this.preloadedImages.get(mediaItem.id);
       if (preloadedImg) {
-        const bounds = this.calculateElementBounds(element, preloadedImg.width, preloadedImg.height);
-        ctx.drawImage(preloadedImg, bounds.x, bounds.y, bounds.width, bounds.height);
+        const bounds = this.calculateElementBounds(
+          element,
+          preloadedImg.width,
+          preloadedImg.height
+        );
+        ctx.drawImage(
+          preloadedImg,
+          bounds.x,
+          bounds.y,
+          bounds.width,
+          bounds.height
+        );
       } else {
         // Fallback to regular loading
         await this.renderImageElement(element, mediaItem, ctx);
@@ -328,7 +369,7 @@ export class OptimizedExportEngine extends ExportEngine {
 
     for (const element of textBatch) {
       if (element.type !== "text") continue;
-      
+
       const styleKey = `${element.fontFamily}-${element.fontSize}-${element.color}`;
       if (!styleGroups.has(styleKey)) {
         styleGroups.set(styleKey, []);
@@ -368,19 +409,26 @@ export class OptimizedExportEngine extends ExportEngine {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
-      
+
       img.onload = () => {
         try {
-          const bounds = this.calculateElementBounds(element, img.width, img.height);
+          const bounds = this.calculateElementBounds(
+            element,
+            img.width,
+            img.height
+          );
           ctx.drawImage(img, bounds.x, bounds.y, bounds.width, bounds.height);
           resolve();
         } catch (error) {
           reject(error);
         }
       };
-      
-      img.onerror = () => reject(new Error(`Failed to load image: ${mediaItem.url || 'unknown'}`));
-      img.src = mediaItem.url || '';
+
+      img.onerror = () =>
+        reject(
+          new Error(`Failed to load image: ${mediaItem.url || "unknown"}`)
+        );
+      img.src = mediaItem.url || "";
     });
   }
 
@@ -394,31 +442,36 @@ export class OptimizedExportEngine extends ExportEngine {
     if (!mediaItem.url) return;
 
     try {
-      const video = document.createElement('video');
+      const video = document.createElement("video");
       video.src = mediaItem.url;
-      video.crossOrigin = 'anonymous';
-      
+      video.crossOrigin = "anonymous";
+
       // Wait for video to load
       await new Promise<void>((resolve, reject) => {
         video.onloadeddata = () => resolve();
-        video.onerror = () => reject(new Error('Failed to load video'));
+        video.onerror = () => reject(new Error("Failed to load video"));
       });
-      
+
       // Seek to the correct time
       video.currentTime = timeOffset + element.trimStart;
-      
+
       // Wait for seek to complete with extended timeout for better frame capture
       await new Promise<void>((resolve, reject) => {
         // Extended timeout: 500-2000ms for reliable frame capture
         const baseTimeout = 500;
         const maxTimeout = 2000;
-        const finalTimeout = Math.max(baseTimeout, Math.min(maxTimeout, video.duration * 30));
-        
+        const finalTimeout = Math.max(
+          baseTimeout,
+          Math.min(maxTimeout, video.duration * 30)
+        );
+
         const timeout = setTimeout(() => {
-          console.warn(`[OptimizedExportEngine] Video seek timeout after ${finalTimeout.toFixed(0)}ms`);
-          reject(new Error('Video seek timeout'));
+          console.warn(
+            `[OptimizedExportEngine] Video seek timeout after ${finalTimeout.toFixed(0)}ms`
+          );
+          reject(new Error("Video seek timeout"));
         }, finalTimeout);
-        
+
         video.onseeked = () => {
           clearTimeout(timeout);
           // Additional delay to ensure browser completes frame rendering
@@ -427,22 +480,21 @@ export class OptimizedExportEngine extends ExportEngine {
           }, 150);
         };
       });
-      
+
       // Calculate bounds
       const { x, y, width, height } = this.calculateElementBounds(
-        element, 
-        video.videoWidth, 
+        element,
+        video.videoWidth,
         video.videoHeight
       );
-      
+
       // Draw video frame to canvas
       ctx.drawImage(video, x, y, width, height);
-      
+
       // Clean up
       video.remove();
-      
     } catch (error) {
-      console.error('Failed to render video:', error);
+      console.error("Failed to render video:", error);
     }
   }
 
@@ -455,14 +507,19 @@ export class OptimizedExportEngine extends ExportEngine {
 
   private cacheCurrentFrame(cacheKey: string): void {
     try {
-      const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+      const imageData = this.ctx.getImageData(
+        0,
+        0,
+        this.canvas.width,
+        this.canvas.height
+      );
       this.frameCache.set(cacheKey, {
         timestamp: Date.now(),
-        imageData: imageData,
-        lastUsed: Date.now()
+        imageData,
+        lastUsed: Date.now(),
       });
     } catch (error) {
-      console.warn('Failed to cache frame:', error);
+      console.warn("Failed to cache frame:", error);
     }
   }
 
@@ -471,7 +528,7 @@ export class OptimizedExportEngine extends ExportEngine {
   }
 
   private evictOldestFrame(): void {
-    let oldestKey = '';
+    let oldestKey = "";
     let oldestTime = Date.now();
 
     for (const [key, cached] of this.frameCache) {
@@ -489,7 +546,8 @@ export class OptimizedExportEngine extends ExportEngine {
   // Performance metrics
   private updatePerformanceMetrics(frameTime: number): void {
     this.metrics.totalRenderTime += frameTime;
-    this.metrics.averageFrameTime = this.metrics.totalRenderTime / this.metrics.framesRendered;
+    this.metrics.averageFrameTime =
+      this.metrics.totalRenderTime / this.metrics.framesRendered;
   }
 
   // Get performance metrics

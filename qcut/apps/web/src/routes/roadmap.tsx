@@ -1,11 +1,11 @@
-import React from 'react'
-import { createFileRoute } from '@tanstack/react-router'
-import { Header } from '@/components/header'
-import { Footer } from '@/components/footer'
+import React from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
 
-export const Route = createFileRoute('/roadmap')({
+export const Route = createFileRoute("/roadmap")({
   component: RoadmapPage,
-})
+});
 
 function RoadmapPage() {
   return (
@@ -26,5 +26,5 @@ function RoadmapPage() {
       </main>
       <Footer />
     </div>
-  )
+  );
 }

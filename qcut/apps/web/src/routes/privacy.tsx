@@ -1,14 +1,14 @@
-import React from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { GithubIcon } from '@/components/icons'
-import { Footer } from '@/components/footer'
-import { Header } from '@/components/header'
+import React from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { GithubIcon } from "@/components/icons";
+import { Footer } from "@/components/footer";
+import { Header } from "@/components/header";
 
-export const Route = createFileRoute('/privacy')({
+export const Route = createFileRoute("/privacy")({
   component: PrivacyPage,
-})
+});
 
 function PrivacyPage() {
   return (
@@ -49,7 +49,7 @@ function PrivacyPage() {
                   <p className="mb-4">
                     <strong>
                       OpenCut processes all videos locally on your device.
-                    </strong>{' '}
+                    </strong>{" "}
                     We never upload, store, or have access to your video files.
                     Your content remains completely private and under your
                     control at all times.
@@ -78,12 +78,12 @@ function PrivacyPage() {
                   <p className="mb-4">
                     <strong>
                       We do NOT store your projects on our servers.
-                    </strong>{' '}
+                    </strong>{" "}
                     All project data, including names, thumbnails, and creation
                     dates, is stored locally in your browser using IndexedDB.
                   </p>
                   <p>
-                    We use{' '}
+                    We use{" "}
                     <a
                       href="https://www.better-auth.com"
                       target="_blank"
@@ -91,7 +91,7 @@ function PrivacyPage() {
                       className="text-primary hover:underline"
                     >
                       Better Auth
-                    </a>{' '}
+                    </a>{" "}
                     for secure authentication and follow industry-standard
                     security practices.
                   </p>
@@ -100,7 +100,7 @@ function PrivacyPage() {
                 <section>
                   <h2 className="text-2xl font-semibold mb-4">Analytics</h2>
                   <p className="mb-4">
-                    We use{' '}
+                    We use{" "}
                     <a
                       href="https://www.databuddy.cc"
                       target="_blank"
@@ -108,7 +108,7 @@ function PrivacyPage() {
                       className="text-primary hover:underline"
                     >
                       Databuddy
-                    </a>{' '}
+                    </a>{" "}
                     for completely anonymized and non-invasive analytics to
                     understand how people use OpenCut.
                   </p>
@@ -183,7 +183,7 @@ function PrivacyPage() {
                     application if you prefer.
                   </p>
                   <p>
-                    View our source code on{' '}
+                    View our source code on{" "}
                     <a
                       href="https://github.com/OpenCut-app/OpenCut"
                       target="_blank"
@@ -203,7 +203,7 @@ function PrivacyPage() {
                     data?
                   </p>
                   <p>
-                    Open an issue on our{' '}
+                    Open an issue on our{" "}
                     <a
                       href="https://github.com/OpenCut-app/OpenCut/issues"
                       target="_blank"
@@ -212,14 +212,14 @@ function PrivacyPage() {
                     >
                       GitHub repository
                     </a>
-                    , email us at{' '}
+                    , email us at{" "}
                     <a
                       href="mailto:oss@opencut.app"
                       className="text-primary hover:underline"
                     >
                       oss@opencut.app
                     </a>
-                    , or reach out on{' '}
+                    , or reach out on{" "}
                     <a
                       href="https://x.com/opencutapp"
                       target="_blank"
@@ -242,5 +242,5 @@ function PrivacyPage() {
       </main>
       <Footer />
     </div>
-  )
+  );
 }

@@ -30,8 +30,13 @@ export interface MediaItem {
 // Export type definitions for the store functions
 export type MediaStoreUtils = {
   getFileType: (file: File) => MediaType | null;
-  getImageDimensions: (file: File) => Promise<{ width: number; height: number }>;
-  generateVideoThumbnail: (file: File, time?: number) => Promise<{ thumbnailUrl: string; width: number; height: number }>;
+  getImageDimensions: (
+    file: File
+  ) => Promise<{ width: number; height: number }>;
+  generateVideoThumbnail: (
+    file: File,
+    time?: number
+  ) => Promise<{ thumbnailUrl: string; width: number; height: number }>;
   getMediaDuration: (file: File) => Promise<number>;
   getMediaAspectRatio: (item: MediaItem) => number;
 };
@@ -40,18 +45,23 @@ export type MediaStoreUtils = {
 export type MediaStore = {
   mediaItems: MediaItem[];
   isLoading: boolean;
-  addMediaItem: (projectId: string, item: Omit<MediaItem, "id">) => Promise<void>;
-  addGeneratedImages: (items: Array<{
-    url: string;
-    type: MediaType;
-    name: string;
-    size: number;
-    duration: number;
-    metadata?: {
-      source?: string;
-      [key: string]: any;
-    };
-  }>) => void;
+  addMediaItem: (
+    projectId: string,
+    item: Omit<MediaItem, "id">
+  ) => Promise<void>;
+  addGeneratedImages: (
+    items: Array<{
+      url: string;
+      type: MediaType;
+      name: string;
+      size: number;
+      duration: number;
+      metadata?: {
+        source?: string;
+        [key: string]: any;
+      };
+    }>
+  ) => void;
   removeMediaItem: (projectId: string, id: string) => Promise<void>;
   loadProjectMedia: (projectId: string) => Promise<void>;
   clearProjectMedia: (projectId: string) => Promise<void>;

@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react'
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import React, { useCallback, useEffect, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Calendar,
   ChevronLeft,
@@ -10,35 +10,35 @@ import {
   Trash2,
   Video,
   X,
-} from 'lucide-react'
-import { DeleteProjectDialog } from '@/components/delete-project-dialog'
-import { RenameProjectDialog } from '@/components/rename-project-dialog'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
+} from "lucide-react";
+import { DeleteProjectDialog } from "@/components/delete-project-dialog";
+import { RenameProjectDialog } from "@/components/rename-project-dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Skeleton } from '@/components/ui/skeleton'
-import { useProjectStore } from '@/stores/project-store'
-import { useTimelineStore } from '@/stores/timeline-store'
-import type { TProject } from '@/types/project'
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useProjectStore } from "@/stores/project-store";
+import { useTimelineStore } from "@/stores/timeline-store";
+import type { TProject } from "@/types/project";
 
-export const Route = createFileRoute('/projects')({
+export const Route = createFileRoute("/projects")({
   component: ProjectsPage,
-})
+});
 
 function ProjectsPage() {
   const {
@@ -48,92 +48,92 @@ function ProjectsPage() {
     deleteProject,
     createNewProject,
     getFilteredAndSortedProjects,
-  } = useProjectStore()
+  } = useProjectStore();
   const [thumbnailCache, setThumbnailCache] = useState<
     Record<string, string | null>
-  >({})
+  >({});
   const [_loadingThumbnails, setLoadingThumbnails] = useState<Set<string>>(
     new Set()
-  )
-  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  );
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(
     new Set()
-  )
-  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sortOption, setSortOption] = useState('createdAt-desc')
-  const navigate = useNavigate()
+  );
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState("createdAt-desc");
+  const navigate = useNavigate();
 
   const getProjectThumbnail = useCallback(
     async (projectId: string): Promise<string | null> => {
       if (thumbnailCache[projectId] !== undefined) {
-        return thumbnailCache[projectId]
+        return thumbnailCache[projectId];
       }
 
-      setLoadingThumbnails((prev) => new Set(prev).add(projectId))
+      setLoadingThumbnails((prev) => new Set(prev).add(projectId));
 
       try {
         const thumbnail = await useTimelineStore
           .getState()
-          .getProjectThumbnail(projectId)
-        setThumbnailCache((prev) => ({ ...prev, [projectId]: thumbnail }))
-        return thumbnail
+          .getProjectThumbnail(projectId);
+        setThumbnailCache((prev) => ({ ...prev, [projectId]: thumbnail }));
+        return thumbnail;
       } finally {
         setLoadingThumbnails((prev) => {
-          const newSet = new Set(prev)
-          newSet.delete(projectId)
-          return newSet
-        })
+          const newSet = new Set(prev);
+          newSet.delete(projectId);
+          return newSet;
+        });
       }
     },
     []
-  )
+  );
 
   const handleCreateProject = async () => {
-    const projectId = await createNewProject('New Project')
-    console.log('projectId', projectId)
-    navigate({ to: '/editor/$project_id', params: { project_id: projectId } })
-  }
+    const projectId = await createNewProject("New Project");
+    console.log("projectId", projectId);
+    navigate({ to: "/editor/$project_id", params: { project_id: projectId } });
+  };
 
   const handleSelectProject = (projectId: string, checked: boolean) => {
-    const newSelected = new Set(selectedProjects)
+    const newSelected = new Set(selectedProjects);
     if (checked) {
-      newSelected.add(projectId)
+      newSelected.add(projectId);
     } else {
-      newSelected.delete(projectId)
+      newSelected.delete(projectId);
     }
-    setSelectedProjects(newSelected)
-  }
+    setSelectedProjects(newSelected);
+  };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedProjects(new Set(sortedProjects.map((p) => p.id)))
+      setSelectedProjects(new Set(sortedProjects.map((p) => p.id)));
     } else {
-      setSelectedProjects(new Set())
+      setSelectedProjects(new Set());
     }
-  }
+  };
 
   const handleCancelSelection = () => {
-    setIsSelectionMode(false)
-    setSelectedProjects(new Set())
-  }
+    setIsSelectionMode(false);
+    setSelectedProjects(new Set());
+  };
 
   const handleBulkDelete = async () => {
     await Promise.all(
       Array.from(selectedProjects).map((projectId) => deleteProject(projectId))
-    )
-    setSelectedProjects(new Set())
-    setIsSelectionMode(false)
-    setIsBulkDeleteDialogOpen(false)
-  }
+    );
+    setSelectedProjects(new Set());
+    setIsSelectionMode(false);
+    setIsBulkDeleteDialogOpen(false);
+  };
 
-  const sortedProjects = getFilteredAndSortedProjects(searchQuery, sortOption)
+  const sortedProjects = getFilteredAndSortedProjects(searchQuery, sortOption);
 
   const allSelected =
     sortedProjects.length > 0 &&
-    selectedProjects.size === sortedProjects.length
+    selectedProjects.size === sortedProjects.length;
   const someSelected =
-    selectedProjects.size > 0 && selectedProjects.size < sortedProjects.length
+    selectedProjects.size > 0 && selectedProjects.size < sortedProjects.length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -179,8 +179,8 @@ function ProjectsPage() {
               Your Projects
             </h1>
             <p className="text-muted-foreground">
-              {savedProjects.length}{' '}
-              {savedProjects.length === 1 ? 'project' : 'projects'}
+              {savedProjects.length}{" "}
+              {savedProjects.length === 1 ? "project" : "projects"}
               {isSelectionMode && selectedProjects.size > 0 && (
                 <span className="ml-2 text-primary">
                   • {selectedProjects.size} selected
@@ -246,17 +246,17 @@ function ProjectsPage() {
             type="button"
             onClick={() => handleSelectAll(!allSelected)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                handleSelectAll(!allSelected)
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleSelectAll(!allSelected);
               }
             }}
             className="w-full hover:cursor-pointer gap-2 mb-6 p-4 bg-muted/30 rounded-lg border items-center flex"
             tabIndex={0}
           >
-            <Checkbox checked={someSelected ? 'indeterminate' : allSelected} />
+            <Checkbox checked={someSelected ? "indeterminate" : allSelected} />
             <span className="text-sm font-medium">
-              {allSelected ? 'Deselect All' : 'Select All'}
+              {allSelected ? "Deselect All" : "Select All"}
             </span>
             <span className="text-sm text-muted-foreground">
               ({selectedProjects.size} of {sortedProjects.length} selected)
@@ -287,7 +287,7 @@ function ProjectsPage() {
         ) : sortedProjects.length === 0 ? (
           <NoResults
             searchQuery={searchQuery}
-            onClearSearch={() => setSearchQuery('')}
+            onClearSearch={() => setSearchQuery("")}
           />
         ) : (
           <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -311,15 +311,15 @@ function ProjectsPage() {
         onConfirm={handleBulkDelete}
       />
     </div>
-  )
+  );
 }
 
 interface ProjectCardProps {
-  project: TProject
-  isSelectionMode?: boolean
-  isSelected?: boolean
-  onSelect?: (projectId: string, checked: boolean) => void
-  getProjectThumbnail: (projectId: string) => Promise<string | null>
+  project: TProject;
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
+  onSelect?: (projectId: string, checked: boolean) => void;
+  getProjectThumbnail: (projectId: string) => Promise<string | null>;
 }
 
 function ProjectCard({
@@ -329,72 +329,72 @@ function ProjectCard({
   onSelect,
   getProjectThumbnail,
 }: ProjectCardProps) {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
-  const [dynamicThumbnail, setDynamicThumbnail] = useState<string | null>(null)
-  const [isLoadingThumbnail, setIsLoadingThumbnail] = useState(true)
-  const { deleteProject, renameProject, duplicateProject } = useProjectStore()
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+  const [dynamicThumbnail, setDynamicThumbnail] = useState<string | null>(null);
+  const [isLoadingThumbnail, setIsLoadingThumbnail] = useState(true);
+  const { deleteProject, renameProject, duplicateProject } = useProjectStore();
 
   useEffect(() => {
     const loadThumbnail = async () => {
-      setIsLoadingThumbnail(true)
+      setIsLoadingThumbnail(true);
       try {
-        const thumbnail = await getProjectThumbnail(project.id)
-        setDynamicThumbnail(thumbnail)
+        const thumbnail = await getProjectThumbnail(project.id);
+        setDynamicThumbnail(thumbnail);
       } finally {
-        setIsLoadingThumbnail(false)
+        setIsLoadingThumbnail(false);
       }
-    }
-    loadThumbnail()
-  }, [project.id, getProjectThumbnail])
+    };
+    loadThumbnail();
+  }, [project.id, getProjectThumbnail]);
 
   const formatDate = (date: Date): string => {
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
-  }
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
 
   const handleDeleteProject = async () => {
-    await deleteProject(project.id)
-    setIsDropdownOpen(false)
-  }
+    await deleteProject(project.id);
+    setIsDropdownOpen(false);
+  };
 
   const handleRenameProject = async (newName: string) => {
-    await renameProject(project.id, newName)
-    setIsRenameDialogOpen(false)
-  }
+    await renameProject(project.id, newName);
+    setIsRenameDialogOpen(false);
+  };
 
   const handleDuplicateProject = async () => {
-    setIsDropdownOpen(false)
-    await duplicateProject(project.id)
-  }
+    setIsDropdownOpen(false);
+    await duplicateProject(project.id);
+  };
 
   const handleCardClick = (e: React.MouseEvent) => {
     if (isSelectionMode) {
-      e.preventDefault()
-      onSelect?.(project.id, !isSelected)
+      e.preventDefault();
+      onSelect?.(project.id, !isSelected);
     }
-  }
+  };
 
   const handleCardKeyDown = (e: React.KeyboardEvent) => {
-    if (isSelectionMode && (e.key === 'Enter' || e.key === ' ')) {
-      e.preventDefault()
-      onSelect?.(project.id, !isSelected)
+    if (isSelectionMode && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      onSelect?.(project.id, !isSelected);
     }
-  }
+  };
 
   const cardContent = (
     <Card
       className={`overflow-hidden bg-background border-none p-0 transition-all ${
-        isSelectionMode && isSelected ? 'ring-2 ring-primary' : ''
+        isSelectionMode && isSelected ? "ring-2 ring-primary" : ""
       }`}
     >
       <div
         className={`relative aspect-square bg-muted transition-opacity ${
-          isDropdownOpen ? 'opacity-65' : 'opacity-100 group-hover:opacity-65'
+          isDropdownOpen ? "opacity-65" : "opacity-100 group-hover:opacity-65"
         }`}
       >
         {isSelectionMode && (
@@ -447,8 +447,8 @@ function ProjectCard({
                   size="sm"
                   className={`size-6 p-0 transition-all shrink-0 ml-2 ${
                     isDropdownOpen
-                      ? 'opacity-100'
-                      : 'opacity-0 group-hover:opacity-100'
+                      ? "opacity-100"
+                      : "opacity-0 group-hover:opacity-100"
                   }`}
                   onClick={(e) => e.preventDefault()}
                 >
@@ -458,25 +458,25 @@ function ProjectCard({
               <DropdownMenuContent
                 align="end"
                 onCloseAutoFocus={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
+                  e.preventDefault();
+                  e.stopPropagation();
                 }}
               >
                 <DropdownMenuItem
                   onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setIsDropdownOpen(false)
-                    setIsRenameDialogOpen(true)
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDropdownOpen(false);
+                    setIsRenameDialogOpen(true);
                   }}
                 >
                   Rename
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    handleDuplicateProject()
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDuplicateProject();
                   }}
                 >
                   Duplicate
@@ -485,10 +485,10 @@ function ProjectCard({
                 <DropdownMenuItem
                   variant="destructive"
                   onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setIsDropdownOpen(false)
-                    setIsDeleteDialogOpen(true)
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDropdownOpen(false);
+                    setIsDeleteDialogOpen(true);
                   }}
                 >
                   Delete
@@ -506,7 +506,7 @@ function ProjectCard({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 
   return (
     <>
@@ -520,7 +520,11 @@ function ProjectCard({
           {cardContent}
         </button>
       ) : (
-        <Link to="/editor/$project_id" params={{ project_id: project.id }} className="block group">
+        <Link
+          to="/editor/$project_id"
+          params={{ project_id: project.id }}
+          className="block group"
+        >
           {cardContent}
         </Link>
       )}
@@ -536,7 +540,7 @@ function ProjectCard({
         projectName={project.name}
       />
     </>
-  )
+  );
 }
 
 function CreateButton({ onClick }: { onClick?: () => void }) {
@@ -545,7 +549,7 @@ function CreateButton({ onClick }: { onClick?: () => void }) {
       <Plus className="size-4!" />
       <span className="text-sm font-medium">New project</span>
     </Button>
-  )
+  );
 }
 
 function NoProjects({ onCreateProject }: { onCreateProject: () => void }) {
@@ -564,15 +568,15 @@ function NoProjects({ onCreateProject }: { onCreateProject: () => void }) {
         Create Your First Project
       </Button>
     </div>
-  )
+  );
 }
 
 function NoResults({
   searchQuery,
   onClearSearch,
 }: {
-  searchQuery: string
-  onClearSearch: () => void
+  searchQuery: string;
+  onClearSearch: () => void;
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -587,5 +591,5 @@ function NoResults({
         Clear Search
       </Button>
     </div>
-  )
+  );
 }

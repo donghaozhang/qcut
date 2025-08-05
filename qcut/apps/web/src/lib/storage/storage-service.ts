@@ -16,8 +16,8 @@ import { TimelineTrack } from "@/types/timeline";
 class StorageService {
   private projectsAdapter!: StorageAdapter<SerializedProject>;
   private config: StorageConfig;
-  private useLocalStorage: boolean = false;
-  private isInitialized: boolean = false;
+  private useLocalStorage = false;
+  private isInitialized = false;
 
   constructor() {
     this.config = {
@@ -32,9 +32,11 @@ class StorageService {
   }
 
   private isElectronEnvironment(): boolean {
-    return typeof window !== 'undefined' && 
-           !!(window as any).electronAPI && 
-           !!(window as any).electronAPI.storage;
+    return (
+      typeof window !== "undefined" &&
+      !!(window as any).electronAPI &&
+      !!(window as any).electronAPI.storage
+    );
   }
 
   private async initializeStorage() {
@@ -53,8 +55,7 @@ class StorageService {
         await this.projectsAdapter.list();
         this.isInitialized = true;
         return;
-      } catch (error) {
-      }
+      } catch (error) {}
     }
 
     // Try IndexedDB second
@@ -64,7 +65,7 @@ class StorageService {
         "projects",
         this.config.version
       );
-      
+
       // Test if IndexedDB works by doing a simple operation
       await this.projectsAdapter.list();
       this.isInitialized = true;
@@ -143,10 +144,9 @@ class StorageService {
 
   async loadAllProjects(): Promise<TProject[]> {
     try {
-      
       // Ensure storage is initialized
       await this.initializeStorage();
-      
+
       const projectIds = await this.projectsAdapter.list();
       const projects: TProject[] = [];
 

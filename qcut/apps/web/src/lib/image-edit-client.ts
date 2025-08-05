@@ -4,19 +4,20 @@
  */
 
 const FAL_API_KEY = import.meta.env.VITE_FAL_API_KEY;
-const FAL_API_BASE = 'https://fal.run';
+const FAL_API_BASE = "https://fal.run";
 
 // Temporary test - Environment loading verification
-console.log('Environment check:', {
+console.log("Environment check:", {
   hasApiKey: !!import.meta.env.VITE_FAL_API_KEY,
   keyLength: import.meta.env.VITE_FAL_API_KEY?.length || 0,
-  keyPreview: import.meta.env.VITE_FAL_API_KEY?.substring(0, 8) + '...' || 'Not found'
+  keyPreview:
+    import.meta.env.VITE_FAL_API_KEY?.substring(0, 8) + "..." || "Not found",
 });
 
 export interface ImageEditRequest {
   imageUrl: string;
   prompt: string;
-  model: 'seededit' | 'flux-kontext' | 'flux-kontext-max';
+  model: "seededit" | "flux-kontext" | "flux-kontext-max";
   guidanceScale?: number;
   steps?: number;
   seed?: number;
@@ -26,7 +27,7 @@ export interface ImageEditRequest {
 
 export interface ImageEditResponse {
   job_id: string;
-  status: 'processing' | 'completed' | 'failed';
+  status: "processing" | "completed" | "failed";
   message: string;
   result_url?: string;
   seed_used?: number;
@@ -34,7 +35,7 @@ export interface ImageEditResponse {
 }
 
 export type ImageEditProgressCallback = (status: {
-  status: 'queued' | 'processing' | 'completed' | 'failed';
+  status: "queued" | "processing" | "completed" | "failed";
   progress?: number;
   message?: string;
   elapsedTime?: number;
@@ -47,30 +48,30 @@ interface ModelEndpoint {
 }
 
 const MODEL_ENDPOINTS: Record<string, ModelEndpoint> = {
-  'seededit': {
-    endpoint: 'fal-ai/bytedance/seededit/v3/edit-image',
+  "seededit": {
+    endpoint: "fal-ai/bytedance/seededit/v3/edit-image",
     defaultParams: {
       guidance_scale: 1.0,
-    }
+    },
   },
-  'flux-kontext': {
-    endpoint: 'fal-ai/flux-pro/kontext',
+  "flux-kontext": {
+    endpoint: "fal-ai/flux-pro/kontext",
     defaultParams: {
       guidance_scale: 3.5,
       num_inference_steps: 28,
       safety_tolerance: 2,
-      num_images: 1
-    }
+      num_images: 1,
+    },
   },
-  'flux-kontext-max': {
-    endpoint: 'fal-ai/flux-pro/kontext/max',
+  "flux-kontext-max": {
+    endpoint: "fal-ai/flux-pro/kontext/max",
     defaultParams: {
       guidance_scale: 3.5,
       num_inference_steps: 28,
       safety_tolerance: 2,
-      num_images: 1
-    }
-  }
+      num_images: 1,
+    },
+  },
 };
 
 /**
@@ -78,75 +79,82 @@ const MODEL_ENDPOINTS: Record<string, ModelEndpoint> = {
  */
 export async function uploadImageToFAL(imageFile: File): Promise<string> {
   if (!FAL_API_KEY) {
-    throw new Error('FAL API key not configured');
+    throw new Error("FAL API key not configured");
   }
 
-  console.log('📤 UPLOAD: Starting upload process for:', {
+  console.log("📤 UPLOAD: Starting upload process for:", {
     fileName: imageFile.name,
     fileSize: imageFile.size,
-    fileType: imageFile.type
+    fileType: imageFile.type,
   });
 
   // Try actual file upload first
   try {
-    console.log('🔄 UPLOAD: Attempting FAL storage upload...');
+    console.log("🔄 UPLOAD: Attempting FAL storage upload...");
     const formData = new FormData();
-    formData.append('file', imageFile);
+    formData.append("file", imageFile);
 
-    const uploadResponse = await fetch(`https://fal.run/storage/upload`, {
-      method: 'POST',
+    const uploadResponse = await fetch("https://fal.run/storage/upload", {
+      method: "POST",
       headers: {
-        'Authorization': `Key ${FAL_API_KEY}`,
+        "Authorization": `Key ${FAL_API_KEY}`,
       },
       body: formData,
     });
 
     if (uploadResponse.ok) {
       const uploadResult = await uploadResponse.json();
-      console.log('✅ UPLOAD: FAL storage upload successful:', uploadResult);
+      console.log("✅ UPLOAD: FAL storage upload successful:", uploadResult);
       return uploadResult.url;
-    } else {
-      const errorText = await uploadResponse.text();
-      console.warn('⚠️ UPLOAD: FAL storage upload failed, falling back to base64:', {
-        status: uploadResponse.status,
-        error: errorText
-      });
     }
+    const errorText = await uploadResponse.text();
+    console.warn(
+      "⚠️ UPLOAD: FAL storage upload failed, falling back to base64:",
+      {
+        status: uploadResponse.status,
+        error: errorText,
+      }
+    );
   } catch (error) {
-    console.warn('⚠️ UPLOAD: FAL storage upload error, using base64 fallback:', error);
+    console.warn(
+      "⚠️ UPLOAD: FAL storage upload error, using base64 fallback:",
+      error
+    );
   }
 
   // Fallback to base64 data URL with proper MIME type
-  console.log('🔄 UPLOAD: Using base64 data URL fallback...');
+  console.log("🔄 UPLOAD: Using base64 data URL fallback...");
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       if (reader.result) {
         let dataUrl = reader.result as string;
-        
+
         // Fix malformed MIME type if needed
-        if (dataUrl.startsWith('data:image;base64,')) {
+        if (dataUrl.startsWith("data:image;base64,")) {
           // Determine proper MIME type from file type or default to PNG
-          const mimeType = imageFile.type || 'image/png';
-          const base64Data = dataUrl.split(',')[1];
+          const mimeType = imageFile.type || "image/png";
+          const base64Data = dataUrl.split(",")[1];
           dataUrl = `data:${mimeType};base64,${base64Data}`;
-          console.log('🔧 UPLOAD: Fixed MIME type in data URL');
+          console.log("🔧 UPLOAD: Fixed MIME type in data URL");
         }
-        
-        console.log('✅ UPLOAD: Image converted to base64 data URL for FAL API');
-        console.log('🔍 UPLOAD: Data URL format:', {
+
+        console.log(
+          "✅ UPLOAD: Image converted to base64 data URL for FAL API"
+        );
+        console.log("🔍 UPLOAD: Data URL format:", {
           type: typeof dataUrl,
           length: dataUrl.length,
-          startsWithData: dataUrl.startsWith('data:'),
+          startsWithData: dataUrl.startsWith("data:"),
           prefix: dataUrl.substring(0, 30),
-          mimeType: dataUrl.split(';')[0]
+          mimeType: dataUrl.split(";")[0],
         });
         resolve(dataUrl);
       } else {
-        reject(new Error('Failed to convert image to base64'));
+        reject(new Error("Failed to convert image to base64"));
       }
     };
-    reader.onerror = () => reject(new Error('Failed to read image file'));
+    reader.onerror = () => reject(new Error("Failed to read image file"));
     reader.readAsDataURL(imageFile);
   });
 
@@ -188,7 +196,7 @@ export async function editImage(
   onProgress?: ImageEditProgressCallback
 ): Promise<ImageEditResponse> {
   if (!FAL_API_KEY) {
-    throw new Error('FAL API key not configured');
+    throw new Error("FAL API key not configured");
   }
 
   const modelConfig = MODEL_ENDPOINTS[request.model];
@@ -200,10 +208,10 @@ export async function editImage(
   const jobId = generateJobId();
 
   // Build request payload
-  let payload: any = {
+  const payload: any = {
     prompt: request.prompt,
     image_url: request.imageUrl,
-    ...modelConfig.defaultParams
+    ...modelConfig.defaultParams,
   };
 
   // Override with user-specified parameters
@@ -225,147 +233,166 @@ export async function editImage(
 
   console.log(`🎨 Editing image with ${request.model}:`, {
     ...payload,
-    image_url: payload.image_url?.substring(0, 50) + '...' // Truncate for readability
+    image_url: payload.image_url?.substring(0, 50) + "...", // Truncate for readability
   });
 
   // Debug: Check the actual format of the image URL
-  console.log('🔍 DEBUG: Image URL details:', {
+  console.log("🔍 DEBUG: Image URL details:", {
     type: typeof payload.image_url,
     length: payload.image_url?.length,
-    startsWithData: payload.image_url?.startsWith('data:'),
-    startsWithHttps: payload.image_url?.startsWith('https:'),
-    firstChars: payload.image_url?.substring(0, 20)
+    startsWithData: payload.image_url?.startsWith("data:"),
+    startsWithHttps: payload.image_url?.startsWith("https:"),
+    firstChars: payload.image_url?.substring(0, 20),
   });
 
   if (onProgress) {
     onProgress({
-      status: 'queued',
+      status: "queued",
       progress: 0,
-      message: 'Submitting to FAL.ai...',
-      elapsedTime: 0
+      message: "Submitting to FAL.ai...",
+      elapsedTime: 0,
     });
   }
 
   try {
     // Try queue mode first
     const response = await fetch(`${FAL_API_BASE}/${modelConfig.endpoint}`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Key ${FAL_API_KEY}`,
-        'Content-Type': 'application/json',
-        'X-Fal-Queue': 'true',
+        "Authorization": `Key ${FAL_API_KEY}`,
+        "Content-Type": "application/json",
+        "X-Fal-Queue": "true",
       },
       body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('FAL API Error:', errorData);
-      
+      console.error("FAL API Error:", errorData);
+
       // Handle content policy violations (422 errors) with user-friendly messages
-      if (response.status === 422 && errorData.detail && Array.isArray(errorData.detail)) {
+      if (
+        response.status === 422 &&
+        errorData.detail &&
+        Array.isArray(errorData.detail)
+      ) {
         const contentPolicyError = errorData.detail.find(
-          (error: any) => error.type === 'content_policy_violation'
+          (error: any) => error.type === "content_policy_violation"
         );
-        
+
         if (contentPolicyError) {
-          throw new Error('Content policy violation: Please use appropriate language for image descriptions');
+          throw new Error(
+            "Content policy violation: Please use appropriate language for image descriptions"
+          );
         }
       }
-      
+
       // Handle other error types with original logic
-      const errorMessage = errorData.detail 
-        ? (typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail))
+      const errorMessage = errorData.detail
+        ? typeof errorData.detail === "string"
+          ? errorData.detail
+          : JSON.stringify(errorData.detail)
         : errorData.message || response.statusText;
       throw new Error(`API error: ${response.status} - ${errorMessage}`);
     }
 
     const result = await response.json();
-    console.log('✅ FAL API response:', JSON.stringify(result, null, 2));
+    console.log("✅ FAL API response:", JSON.stringify(result, null, 2));
 
     // Check if we got a direct result or need to poll
     if (result.request_id) {
       // Queue mode - poll for results
-      console.log('📋 Using queue mode with request_id:', result.request_id);
-      return await pollImageEditStatus(result.request_id, modelConfig.endpoint, startTime, onProgress, jobId, request.model);
-    } else if (result.images && result.images.length > 0) {
+      console.log("📋 Using queue mode with request_id:", result.request_id);
+      return await pollImageEditStatus(
+        result.request_id,
+        modelConfig.endpoint,
+        startTime,
+        onProgress,
+        jobId,
+        request.model
+      );
+    }
+    if (result.images && result.images.length > 0) {
       // Direct mode - return immediately
-      console.log('🎯 Using direct mode with images:', result.images.length);
+      console.log("🎯 Using direct mode with images:", result.images.length);
       if (onProgress) {
         onProgress({
-          status: 'completed',
+          status: "completed",
           progress: 100,
-          message: 'Image editing completed!',
-          elapsedTime: Math.floor((Date.now() - startTime) / 1000)
+          message: "Image editing completed!",
+          elapsedTime: Math.floor((Date.now() - startTime) / 1000),
         });
       }
 
       return {
         job_id: jobId,
-        status: 'completed',
-        message: 'Image edited successfully',
+        status: "completed",
+        message: "Image edited successfully",
         result_url: result.images[0].url,
         seed_used: result.seed,
-        processing_time: Math.floor((Date.now() - startTime) / 1000)
+        processing_time: Math.floor((Date.now() - startTime) / 1000),
       };
-    } else if (result.image && result.image.url) {
+    }
+    if (result.image && result.image.url) {
       // Alternative direct mode format - single image object
-      console.log('🎯 Using direct mode with single image object');
+      console.log("🎯 Using direct mode with single image object");
       if (onProgress) {
         onProgress({
-          status: 'completed',
+          status: "completed",
           progress: 100,
-          message: 'Image editing completed!',
-          elapsedTime: Math.floor((Date.now() - startTime) / 1000)
+          message: "Image editing completed!",
+          elapsedTime: Math.floor((Date.now() - startTime) / 1000),
         });
       }
 
       return {
         job_id: jobId,
-        status: 'completed',
-        message: 'Image edited successfully',
+        status: "completed",
+        message: "Image edited successfully",
         result_url: result.image.url,
         seed_used: result.seed,
-        processing_time: Math.floor((Date.now() - startTime) / 1000)
+        processing_time: Math.floor((Date.now() - startTime) / 1000),
       };
-    } else if (result.url) {
+    }
+    if (result.url) {
       // Alternative direct mode format - URL at root level
-      console.log('🎯 Using direct mode with root URL');
+      console.log("🎯 Using direct mode with root URL");
       if (onProgress) {
         onProgress({
-          status: 'completed',
+          status: "completed",
           progress: 100,
-          message: 'Image editing completed!',
-          elapsedTime: Math.floor((Date.now() - startTime) / 1000)
+          message: "Image editing completed!",
+          elapsedTime: Math.floor((Date.now() - startTime) / 1000),
         });
       }
 
       return {
         job_id: jobId,
-        status: 'completed',
-        message: 'Image edited successfully',
+        status: "completed",
+        message: "Image edited successfully",
         result_url: result.url,
         seed_used: result.seed,
-        processing_time: Math.floor((Date.now() - startTime) / 1000)
+        processing_time: Math.floor((Date.now() - startTime) / 1000),
       };
-    } else {
-      console.error('❌ Unexpected API response structure:', {
-        hasRequestId: !!result.request_id,
-        hasImages: !!result.images,
-        hasImageObject: !!result.image,
-        hasUrlRoot: !!result.url,
-        keys: Object.keys(result),
-        result: result
-      });
-      throw new Error(`Unexpected response format from FAL API. Response keys: ${Object.keys(result).join(', ')}`);
     }
+    console.error("❌ Unexpected API response structure:", {
+      hasRequestId: !!result.request_id,
+      hasImages: !!result.images,
+      hasImageObject: !!result.image,
+      hasUrlRoot: !!result.url,
+      keys: Object.keys(result),
+      result,
+    });
+    throw new Error(
+      `Unexpected response format from FAL API. Response keys: ${Object.keys(result).join(", ")}`
+    );
   } catch (error) {
     if (onProgress) {
       onProgress({
-        status: 'failed',
+        status: "failed",
         progress: 0,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        elapsedTime: Math.floor((Date.now() - startTime) / 1000)
+        message: error instanceof Error ? error.message : "Unknown error",
+        elapsedTime: Math.floor((Date.now() - startTime) / 1000),
       });
     }
     throw error;
@@ -391,14 +418,20 @@ async function pollImageEditStatus(
     const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
 
     try {
-      const statusResponse = await fetch(`${FAL_API_BASE}/queue/requests/${requestId}/status`, {
-        headers: {
-          'Authorization': `Key ${FAL_API_KEY}`,
-        },
-      });
+      const statusResponse = await fetch(
+        `${FAL_API_BASE}/queue/requests/${requestId}/status`,
+        {
+          headers: {
+            "Authorization": `Key ${FAL_API_KEY}`,
+          },
+        }
+      );
 
       if (!statusResponse.ok) {
-        console.warn(`Status check failed (attempt ${attempts}):`, statusResponse.status);
+        console.warn(
+          `Status check failed (attempt ${attempts}):`,
+          statusResponse.status
+        );
         await sleep(5000);
         continue;
       }
@@ -411,45 +444,48 @@ async function pollImageEditStatus(
         onProgress(progressUpdate);
       }
 
-      if (status.status === 'COMPLETED') {
-        const resultResponse = await fetch(`${FAL_API_BASE}/queue/requests/${requestId}`, {
-          headers: {
-            'Authorization': `Key ${FAL_API_KEY}`,
-          },
-        });
+      if (status.status === "COMPLETED") {
+        const resultResponse = await fetch(
+          `${FAL_API_BASE}/queue/requests/${requestId}`,
+          {
+            headers: {
+              "Authorization": `Key ${FAL_API_KEY}`,
+            },
+          }
+        );
 
         if (resultResponse.ok) {
           const result = await resultResponse.json();
-          console.log('✅ Edit completed:', result);
+          console.log("✅ Edit completed:", result);
 
           if (onProgress) {
             onProgress({
-              status: 'completed',
+              status: "completed",
               progress: 100,
               message: `Image edited successfully with ${modelName}`,
-              elapsedTime: elapsedTime
+              elapsedTime,
             });
           }
 
           return {
             job_id: jobId || requestId,
-            status: 'completed',
+            status: "completed",
             message: `Image edited successfully with ${modelName}`,
             result_url: result.images?.[0]?.url || result.image?.url,
             seed_used: result.seed,
-            processing_time: elapsedTime
+            processing_time: elapsedTime,
           };
         }
       }
 
-      if (status.status === 'FAILED') {
-        const errorMessage = status.error || 'Image editing failed';
+      if (status.status === "FAILED") {
+        const errorMessage = status.error || "Image editing failed";
         if (onProgress) {
           onProgress({
-            status: 'failed',
+            status: "failed",
             progress: 0,
             message: errorMessage,
-            elapsedTime: elapsedTime
+            elapsedTime,
           });
         }
         throw new Error(errorMessage);
@@ -459,65 +495,65 @@ async function pollImageEditStatus(
     } catch (error) {
       console.error(`Status polling error (attempt ${attempts}):`, error);
       if (attempts >= maxAttempts) {
-        throw new Error('Image editing timeout');
+        throw new Error("Image editing timeout");
       }
       await sleep(5000);
     }
   }
 
-  throw new Error('Maximum polling attempts reached');
+  throw new Error("Maximum polling attempts reached");
 }
 
 function mapEditStatusToProgress(status: any, elapsedTime: number) {
   const baseUpdate = { elapsedTime };
 
   switch (status.status) {
-    case 'IN_QUEUE':
+    case "IN_QUEUE":
       return {
         ...baseUpdate,
-        status: 'queued' as const,
+        status: "queued" as const,
         progress: 10,
-        message: `Queued (position: ${status.queue_position || 'unknown'})`,
-        estimatedTime: status.estimated_time
+        message: `Queued (position: ${status.queue_position || "unknown"})`,
+        estimatedTime: status.estimated_time,
       };
-    case 'IN_PROGRESS':
+    case "IN_PROGRESS":
       return {
         ...baseUpdate,
-        status: 'processing' as const,
-        progress: Math.min(90, 20 + (elapsedTime * 3)),
-        message: 'Processing image...',
-        estimatedTime: status.estimated_time
+        status: "processing" as const,
+        progress: Math.min(90, 20 + elapsedTime * 3),
+        message: "Processing image...",
+        estimatedTime: status.estimated_time,
       };
-    case 'COMPLETED':
+    case "COMPLETED":
       return {
         ...baseUpdate,
-        status: 'completed' as const,
+        status: "completed" as const,
         progress: 100,
-        message: 'Image editing completed!'
+        message: "Image editing completed!",
       };
-    case 'FAILED':
+    case "FAILED":
       return {
         ...baseUpdate,
-        status: 'failed' as const,
+        status: "failed" as const,
         progress: 0,
-        message: status.error || 'Processing failed'
+        message: status.error || "Processing failed",
       };
     default:
       return {
         ...baseUpdate,
-        status: 'processing' as const,
+        status: "processing" as const,
         progress: 5,
-        message: `Status: ${status.status}`
+        message: `Status: ${status.status}`,
       };
   }
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function generateJobId(): string {
-  return 'edit_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+  return "edit_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now();
 }
 
 /**
@@ -526,44 +562,44 @@ function generateJobId(): string {
 export function getImageEditModels() {
   return [
     {
-      id: 'seededit',
-      name: 'SeedEdit v3',
-      description: 'Precise photo editing with content preservation',
-      provider: 'ByteDance',
-      estimatedCost: '$0.05-0.10',
-      features: ['Photo retouching', 'Object modification', 'Realistic edits'],
+      id: "seededit",
+      name: "SeedEdit v3",
+      description: "Precise photo editing with content preservation",
+      provider: "ByteDance",
+      estimatedCost: "$0.05-0.10",
+      features: ["Photo retouching", "Object modification", "Realistic edits"],
       parameters: {
         guidanceScale: { min: 1, max: 10, default: 1.0, step: 0.1 },
-        seed: { optional: true }
-      }
+        seed: { optional: true },
+      },
     },
     {
-      id: 'flux-kontext',
-      name: 'FLUX Pro Kontext',
-      description: 'Context-aware editing with scene transformations',
-      provider: 'FLUX',
-      estimatedCost: '$0.15-0.25',
-      features: ['Style changes', 'Object replacement', 'Scene modification'],
+      id: "flux-kontext",
+      name: "FLUX Pro Kontext",
+      description: "Context-aware editing with scene transformations",
+      provider: "FLUX",
+      estimatedCost: "$0.15-0.25",
+      features: ["Style changes", "Object replacement", "Scene modification"],
       parameters: {
         guidanceScale: { min: 1, max: 20, default: 3.5, step: 0.5 },
         steps: { min: 1, max: 50, default: 28, step: 1 },
         safetyTolerance: { min: 1, max: 6, default: 2, step: 1 },
-        numImages: { min: 1, max: 4, default: 1, step: 1 }
-      }
+        numImages: { min: 1, max: 4, default: 1, step: 1 },
+      },
     },
     {
-      id: 'flux-kontext-max',
-      name: 'FLUX Pro Kontext Max',
-      description: 'Advanced editing for complex tasks and typography',
-      provider: 'FLUX',
-      estimatedCost: '$0.25-0.40',
-      features: ['Complex edits', 'Typography', 'Professional adjustments'],
+      id: "flux-kontext-max",
+      name: "FLUX Pro Kontext Max",
+      description: "Advanced editing for complex tasks and typography",
+      provider: "FLUX",
+      estimatedCost: "$0.25-0.40",
+      features: ["Complex edits", "Typography", "Professional adjustments"],
       parameters: {
         guidanceScale: { min: 1, max: 20, default: 3.5, step: 0.5 },
         steps: { min: 1, max: 50, default: 28, step: 1 },
         safetyTolerance: { min: 1, max: 6, default: 2, step: 1 },
-        numImages: { min: 1, max: 4, default: 1, step: 1 }
-      }
-    }
+        numImages: { min: 1, max: 4, default: 1, step: 1 },
+      },
+    },
   ];
 }

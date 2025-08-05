@@ -1,14 +1,11 @@
 export async function getStars(): Promise<string> {
   try {
-    const res = await fetch(
-      "https://api.github.com/repos/donghaozhang/qcut",
-      {
-        // Cache for 1 hour
-        headers: {
-          'Cache-Control': 'max-age=3600'
-        }
-      }
-    );
+    const res = await fetch("https://api.github.com/repos/donghaozhang/qcut", {
+      // Cache for 1 hour
+      headers: {
+        "Cache-Control": "max-age=3600",
+      },
+    });
 
     if (!res.ok) {
       throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);

@@ -1,23 +1,23 @@
-import React from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { Header } from '@/components/header'
-import { Card, CardContent } from '@/components/ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { getPosts } from '@/lib/blog-query'
+import React from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Header } from "@/components/header";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getPosts } from "@/lib/blog-query";
 
-export const Route = createFileRoute('/blog')({
+export const Route = createFileRoute("/blog")({
   component: BlogPage,
   loader: async () => {
-    const data = await getPosts()
-    return { posts: data?.posts || [] }
+    const data = await getPosts();
+    return { posts: data?.posts || [] };
   },
-})
+});
 
 function BlogPage() {
-  const { posts } = Route.useLoaderData()
+  const { posts } = Route.useLoaderData();
 
   if (!posts || posts.length === 0) {
-    return <div>No posts yet</div>
+    return <div>No posts yet</div>;
   }
 
   return (
@@ -91,5 +91,5 @@ function BlogPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }

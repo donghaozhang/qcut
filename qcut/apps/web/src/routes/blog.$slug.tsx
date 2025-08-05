@@ -1,30 +1,30 @@
-import React from 'react'
-import { createFileRoute } from '@tanstack/react-router'
-import { Header } from '@/components/header'
-import Prose from '@/components/ui/prose'
-import { Separator } from '@/components/ui/separator'
-import { getSinglePost, processHtmlContent } from '@/lib/blog-query'
+import React from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Header } from "@/components/header";
+import Prose from "@/components/ui/prose";
+import { Separator } from "@/components/ui/separator";
+import { getSinglePost, processHtmlContent } from "@/lib/blog-query";
 
-export const Route = createFileRoute('/blog/$slug')({
+export const Route = createFileRoute("/blog/$slug")({
   component: BlogPostPage,
   loader: async ({ params }) => {
-    const data = await getSinglePost(params.slug)
+    const data = await getSinglePost(params.slug);
     if (!data || !data.post) {
-      throw new Error('Post not found')
+      throw new Error("Post not found");
     }
-    const html = await processHtmlContent(data.post.content)
-    return { post: data.post, html }
+    const html = await processHtmlContent(data.post.content);
+    return { post: data.post, html };
   },
-})
+});
 
 function BlogPostPage() {
-  const { post, html } = Route.useLoaderData()
+  const { post, html } = Route.useLoaderData();
 
-  const formattedDate = new Date(post.publishedAt).toLocaleDateString('en-US', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
+  const formattedDate = new Date(post.publishedAt).toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -78,5 +78,5 @@ function BlogPostPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }

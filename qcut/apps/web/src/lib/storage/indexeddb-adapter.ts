@@ -13,9 +13,8 @@ export class IndexedDBAdapter<T> implements StorageAdapter<T> {
 
   private async getDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
-      
       if (!indexedDB) {
-        reject(new Error('IndexedDB not available'));
+        reject(new Error("IndexedDB not available"));
         return;
       }
 
@@ -24,7 +23,7 @@ export class IndexedDBAdapter<T> implements StorageAdapter<T> {
       request.onerror = () => {
         reject(request.error);
       };
-      
+
       request.onsuccess = () => {
         resolve(request.result);
       };

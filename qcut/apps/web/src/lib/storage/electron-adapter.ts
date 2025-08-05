@@ -12,7 +12,7 @@ export class ElectronStorageAdapter<T> implements StorageAdapter<T> {
       const fullKey = this.prefix + key;
       return await (window as any).electronAPI.storage.load(fullKey);
     } catch (error) {
-      console.error('ElectronStorageAdapter: Error getting key:', key, error);
+      console.error("ElectronStorageAdapter: Error getting key:", key, error);
       return null;
     }
   }
@@ -22,7 +22,7 @@ export class ElectronStorageAdapter<T> implements StorageAdapter<T> {
       const fullKey = this.prefix + key;
       await (window as any).electronAPI.storage.save(fullKey, value);
     } catch (error) {
-      console.error('ElectronStorageAdapter: Error setting key:', key, error);
+      console.error("ElectronStorageAdapter: Error setting key:", key, error);
       throw error;
     }
   }
@@ -32,7 +32,7 @@ export class ElectronStorageAdapter<T> implements StorageAdapter<T> {
       const fullKey = this.prefix + key;
       await (window as any).electronAPI.storage.remove(fullKey);
     } catch (error) {
-      console.error('ElectronStorageAdapter: Error removing key:', key, error);
+      console.error("ElectronStorageAdapter: Error removing key:", key, error);
       throw error;
     }
   }
@@ -44,7 +44,7 @@ export class ElectronStorageAdapter<T> implements StorageAdapter<T> {
         .filter((key: string) => key.startsWith(this.prefix))
         .map((key: string) => key.substring(this.prefix.length));
     } catch (error) {
-      console.error('ElectronStorageAdapter: Error listing keys:', error);
+      console.error("ElectronStorageAdapter: Error listing keys:", error);
       throw error;
     }
   }
@@ -52,14 +52,16 @@ export class ElectronStorageAdapter<T> implements StorageAdapter<T> {
   async clear(): Promise<void> {
     try {
       const allKeys = await (window as any).electronAPI.storage.list();
-      const keysToRemove = allKeys.filter((key: string) => key.startsWith(this.prefix));
+      const keysToRemove = allKeys.filter((key: string) =>
+        key.startsWith(this.prefix)
+      );
       await Promise.all(
-        keysToRemove.map((key: string) => 
+        keysToRemove.map((key: string) =>
           (window as any).electronAPI.storage.remove(key)
         )
       );
     } catch (error) {
-      console.error('ElectronStorageAdapter: Error clearing:', error);
+      console.error("ElectronStorageAdapter: Error clearing:", error);
       throw error;
     }
   }

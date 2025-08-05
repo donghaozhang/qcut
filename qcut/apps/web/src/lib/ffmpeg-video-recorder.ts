@@ -1,5 +1,9 @@
 import { ExportSettings } from "@/types/export";
-import { encodeImagesToVideo, ImageFrame, initFFmpeg } from "@/lib/ffmpeg-utils-encode";
+import {
+  encodeImagesToVideo,
+  ImageFrame,
+  initFFmpeg,
+} from "@/lib/ffmpeg-utils-encode";
 
 export interface FFmpegVideoRecorderOptions {
   fps: number;
@@ -22,8 +26,10 @@ export class FFmpegVideoRecorder {
   }
 
   async startRecording(): Promise<void> {
-    console.log("🚀 FFmpegVideoRecorder: Starting recording and initializing FFmpeg...");
-    
+    console.log(
+      "🚀 FFmpegVideoRecorder: Starting recording and initializing FFmpeg..."
+    );
+
     try {
       // Initialize FFmpeg early to catch any loading issues
       await initFFmpeg();
@@ -33,7 +39,7 @@ export class FFmpegVideoRecorder {
       console.error("❌ Failed to load FFmpeg WASM:", error);
       throw new Error(`Failed to initialize FFmpeg WASM: ${error}`);
     }
-    
+
     this.frames = [];
   }
 
@@ -41,7 +47,7 @@ export class FFmpegVideoRecorder {
     if (!this.ffmpegReady) {
       throw new Error("FFmpeg not initialized. Call startRecording() first.");
     }
-    
+
     const base64 = dataUrl.split(",", 2)[1];
     // Convert base64 to Uint8Array
     const binaryString = atob(base64);
@@ -58,13 +64,13 @@ export class FFmpegVideoRecorder {
     if (!this.ffmpegReady) {
       throw new Error("FFmpeg not initialized. Call startRecording() first.");
     }
-    
+
     console.log(`🎬 Encoding ${this.frames.length} frames to video...`);
-    
+
     try {
       // Map ExportFormat to supported FFmpeg formats
-      const format = this.settings.format === 'webm' ? 'webm' : 'mp4'; // MOV maps to MP4
-      
+      const format = this.settings.format === "webm" ? "webm" : "mp4"; // MOV maps to MP4
+
       const blob = await encodeImagesToVideo(this.frames, {
         fps: this.fps,
         format,

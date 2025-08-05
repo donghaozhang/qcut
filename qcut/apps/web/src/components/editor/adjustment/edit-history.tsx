@@ -1,44 +1,47 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useAdjustmentStore } from '@/stores/adjustment-store';
-import { 
-  History, 
-  Undo2, 
-  Redo2, 
-  Trash2, 
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAdjustmentStore } from "@/stores/adjustment-store";
+import {
+  History,
+  Undo2,
+  Redo2,
+  Trash2,
   Download,
   Clock,
-  X
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { downloadImage } from '@/lib/image-utils';
-import { toast } from 'sonner';
+  X,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { downloadImage } from "@/lib/image-utils";
+import { toast } from "sonner";
 
 export function EditHistory() {
-  const { 
-    editHistory, 
-    currentHistoryIndex, 
-    goToHistoryItem, 
-    clearHistory, 
-    canUndo, 
-    canRedo, 
-    undo, 
+  const {
+    editHistory,
+    currentHistoryIndex,
+    goToHistoryItem,
+    clearHistory,
+    canUndo,
+    canRedo,
+    undo,
     redo,
-    toggleHistory
+    toggleHistory,
   } = useAdjustmentStore();
 
   const handleDownloadEdit = async (item: any, index: number) => {
     try {
-      const timestamp = new Date(item.timestamp).toISOString().slice(0, 19).replace(/[:.]/g, '-');
+      const timestamp = new Date(item.timestamp)
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[:.]/g, "-");
       const filename = `edit-${index + 1}-${item.model}-${timestamp}.png`;
       await downloadImage(item.editedUrl, filename);
       toast.success(`Edit ${index + 1} downloaded!`);
     } catch (error) {
-      toast.error('Failed to download image');
+      toast.error("Failed to download image");
     }
   };
 
@@ -92,7 +95,7 @@ export function EditHistory() {
             <X className="size-3" />
           </Button>
         </div>
-        
+
         {/* Quick Actions */}
         <div className="flex gap-2">
           <Button
@@ -132,7 +135,7 @@ export function EditHistory() {
             {editHistory.map((item, index) => {
               const isActive = index === currentHistoryIndex;
               const isFuture = index > currentHistoryIndex;
-              
+
               return (
                 <div
                   key={item.id}
@@ -141,24 +144,22 @@ export function EditHistory() {
                     isActive
                       ? "bg-primary/10 border-primary"
                       : isFuture
-                      ? "bg-muted/30 border-muted opacity-60"
-                      : "hover:bg-muted/50 hover:border-muted-foreground/20"
+                        ? "bg-muted/30 border-muted opacity-60"
+                        : "hover:bg-muted/50 hover:border-muted-foreground/20"
                   )}
                   onClick={() => goToHistoryItem(index)}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Badge 
-                        variant={isActive ? "default" : "outline"} 
+                      <Badge
+                        variant={isActive ? "default" : "outline"}
                         className="text-xs"
                       >
                         #{index + 1}
                       </Badge>
-                      <span className="text-xs font-medium">
-                        {item.model}
-                      </span>
+                      <span className="text-xs font-medium">{item.model}</span>
                     </div>
-                    
+
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button
                         variant="outline"
@@ -196,9 +197,7 @@ export function EditHistory() {
                         {new Date(item.timestamp).toLocaleTimeString()}
                       </span>
                     </div>
-                    <span>
-                      {item.processingTime}s
-                    </span>
+                    <span>{item.processingTime}s</span>
                   </div>
                 </div>
               );

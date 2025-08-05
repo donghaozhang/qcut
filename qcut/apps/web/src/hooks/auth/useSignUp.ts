@@ -19,7 +19,7 @@ export function useSignUp() {
     // Mock signup for Electron - would need server integration
     setError("Sign up requires server setup. This is a demo build.");
     setIsEmailLoading(false);
-    
+
     // For demo, could navigate to login
     // navigate({ to: "/login" });
   }, [name, email, password, navigate]);

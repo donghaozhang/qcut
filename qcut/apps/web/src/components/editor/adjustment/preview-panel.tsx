@@ -1,28 +1,28 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAdjustmentStore } from '@/stores/adjustment-store';
-import { 
-  ImageIcon, 
-  SplitSquareVertical, 
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAdjustmentStore } from "@/stores/adjustment-store";
+import {
+  ImageIcon,
+  SplitSquareVertical,
   Eye,
   Maximize2,
   X,
-  ArrowLeft
-} from 'lucide-react';
+  ArrowLeft,
+} from "lucide-react";
 
 export function PreviewPanel() {
-  const { 
-    originalImageUrl, 
-    currentEditedUrl, 
-    previewMode, 
+  const {
+    originalImageUrl,
+    currentEditedUrl,
+    previewMode,
     setPreviewMode,
     editHistory,
-    currentHistoryIndex
+    currentHistoryIndex,
   } = useAdjustmentStore();
 
   const [fullscreen, setFullscreen] = useState(false);
@@ -33,15 +33,15 @@ export function PreviewPanel() {
   // Close fullscreen on Escape key
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && fullscreen) {
+      if (event.key === "Escape" && fullscreen) {
         setFullscreen(false);
       }
     };
 
     if (fullscreen) {
-      document.addEventListener('keydown', handleKeyDown);
+      document.addEventListener("keydown", handleKeyDown);
       return () => {
-        document.removeEventListener('keydown', handleKeyDown);
+        document.removeEventListener("keydown", handleKeyDown);
       };
     }
   }, [fullscreen]);
@@ -61,23 +61,33 @@ export function PreviewPanel() {
     <Card className="h-full flex flex-col">
       <CardContent className="p-3 flex-1 flex flex-col">
         {/* Single Image Preview with Toggle */}
-        <Tabs value={hasEdit ? 'edited' : 'original'} className="h-full flex flex-col">
+        <Tabs
+          value={hasEdit ? "edited" : "original"}
+          className="h-full flex flex-col"
+        >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-medium">Preview</h3>
               {currentEdit && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                <Badge
+                  variant="outline"
+                  className="text-[10px] px-1.5 py-0 h-4"
+                >
                   {currentEdit.model}
                 </Badge>
               )}
             </div>
-            
+
             <TabsList className="grid grid-cols-2 h-6">
               <TabsTrigger value="original" className="text-[10px] px-2 h-5">
                 Original
               </TabsTrigger>
-              <TabsTrigger value="edited" disabled={!hasEdit} className="text-[10px] px-2 h-5">
-                {hasEdit ? 'Edited' : 'No Edit'}
+              <TabsTrigger
+                value="edited"
+                disabled={!hasEdit}
+                className="text-[10px] px-2 h-5"
+              >
+                {hasEdit ? "Edited" : "No Edit"}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -127,7 +137,7 @@ export function PreviewPanel() {
 
       {/* Fullscreen Modal */}
       {fullscreen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4"
           onClick={() => setFullscreen(false)}
         >

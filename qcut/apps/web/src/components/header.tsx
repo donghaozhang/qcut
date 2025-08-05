@@ -16,10 +16,16 @@ export function Header() {
   const rightContent = (
     <nav className="flex items-center gap-1">
       <div className="flex items-center gap-4">
-        <Link to="/blog" className="text-sm p-0 text-muted-foreground hover:text-foreground transition-colors">
+        <Link
+          to="/blog"
+          className="text-sm p-0 text-muted-foreground hover:text-foreground transition-colors"
+        >
           Blog
         </Link>
-        <Link to="/contributors" className="text-sm p-0 text-muted-foreground hover:text-foreground transition-colors">
+        <Link
+          to="/contributors"
+          className="text-sm p-0 text-muted-foreground hover:text-foreground transition-colors"
+        >
           Contributors
         </Link>
       </div>

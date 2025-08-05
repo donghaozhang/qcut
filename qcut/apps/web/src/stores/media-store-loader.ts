@@ -1,4 +1,8 @@
-import type { MediaType, MediaItem, MediaStoreUtils } from "./media-store-types";
+import type {
+  MediaType,
+  MediaItem,
+  MediaStoreUtils,
+} from "./media-store-types";
 
 let mediaStoreModule: typeof import("./media-store") | undefined;
 
@@ -22,4 +26,9 @@ export async function getMediaStoreUtils(): Promise<MediaStoreUtils> {
 }
 
 // Re-export types (these don't cause static imports)
-export type { MediaType, MediaItem, MediaStore, MediaStoreUtils } from "./media-store-types";
+export type {
+  MediaType,
+  MediaItem,
+  MediaStore,
+  MediaStoreUtils,
+} from "./media-store-types";

@@ -8,148 +8,203 @@ let isFFmpegLoaded = false;
 // Check if running in Electron
 const isElectron = () => {
   return (
-    typeof window !== 'undefined' &&
-    (window as any).process &&
-    (window as any).process.type === 'renderer'
-  ) || (
-    typeof navigator !== 'undefined' &&
-    navigator.userAgent.toLowerCase().indexOf('electron') > -1
-  ) || (
-    typeof window !== 'undefined' &&
-    window.electronAPI
+    (typeof window !== "undefined" &&
+      (window as any).process &&
+      (window as any).process.type === "renderer") ||
+    (typeof navigator !== "undefined" &&
+      navigator.userAgent.toLowerCase().indexOf("electron") > -1) ||
+    (typeof window !== "undefined" && window.electronAPI)
   );
 };
 
 // Check if running in packaged Electron app
 const isPackagedElectron = () => {
-  return isElectron() && typeof window !== 'undefined' && 
-         (window.location.protocol === 'file:' && 
-          window.location.pathname.includes('/resources/app/'));
+  return (
+    isElectron() &&
+    typeof window !== "undefined" &&
+    window.location.protocol === "file:" &&
+    window.location.pathname.includes("/resources/app/")
+  );
 };
 
 export const initFFmpeg = async (): Promise<FFmpeg> => {
-  console.log('[FFmpeg Utils] 🔧 initFFmpeg called');
-  console.log('[FFmpeg Utils] 📊 Current state - ffmpeg exists:', !!ffmpeg, ', isLoaded:', isFFmpegLoaded);
-  
+  console.log("[FFmpeg Utils] 🔧 initFFmpeg called");
+  console.log(
+    "[FFmpeg Utils] 📊 Current state - ffmpeg exists:",
+    !!ffmpeg,
+    ", isLoaded:",
+    isFFmpegLoaded
+  );
+
   if (ffmpeg && isFFmpegLoaded) {
-    console.log('[FFmpeg Utils] ✅ FFmpeg instance already loaded, reusing...');
+    console.log("[FFmpeg Utils] ✅ FFmpeg instance already loaded, reusing...");
     return ffmpeg;
   }
 
   if (ffmpeg && !isFFmpegLoaded) {
-    console.log('[FFmpeg Utils] 🔄 FFmpeg instance exists but not loaded, reinitializing...');
+    console.log(
+      "[FFmpeg Utils] 🔄 FFmpeg instance exists but not loaded, reinitializing..."
+    );
   } else {
-    console.log('[FFmpeg Utils] 🆕 Creating new FFmpeg instance...');
+    console.log("[FFmpeg Utils] 🆕 Creating new FFmpeg instance...");
     ffmpeg = await createFFmpeg();
   }
 
   const baseURL = "/ffmpeg";
-  
+
   // Log environment for debugging
   // Always use blob URLs for both Electron and browser
   // This works around Electron's file:// loading issues
-  console.log('FFmpeg initializing...');
-  console.log('Is Electron:', isElectron());
-  console.log('Location:', window.location.href);
-  
+  console.log("FFmpeg initializing...");
+  console.log("Is Electron:", isElectron());
+  console.log("Location:", window.location.href);
+
   try {
     // For Electron, we need to fetch the files differently
     if (isElectron()) {
       // Try app:// protocol first, fallback to HTTP server
       try {
-        const coreUrl = 'app://ffmpeg/ffmpeg-core.js';
-        const wasmUrl = 'app://ffmpeg/ffmpeg-core.wasm';
-        
-        console.log('🌐 Fetching FFmpeg WASM from app:// protocol:', coreUrl, wasmUrl);
-        
+        const coreUrl = "app://ffmpeg/ffmpeg-core.js";
+        const wasmUrl = "app://ffmpeg/ffmpeg-core.wasm";
+
+        console.log(
+          "🌐 Fetching FFmpeg WASM from app:// protocol:",
+          coreUrl,
+          wasmUrl
+        );
+
         // Test if app:// protocol works by trying to fetch one file
         const testResponse = await fetch(coreUrl);
         if (testResponse.ok) {
           // App protocol works, use it for both files
           const wasmResponse = await fetch(wasmUrl);
-          
+
           if (!wasmResponse.ok) {
-            throw new Error(`Failed to fetch ffmpeg-core.wasm: ${wasmResponse.status} ${wasmResponse.statusText}`);
+            throw new Error(
+              `Failed to fetch ffmpeg-core.wasm: ${wasmResponse.status} ${wasmResponse.statusText}`
+            );
           }
-          
+
           const coreBlob = await testResponse.blob();
           const wasmBlob = await wasmResponse.blob();
-          
+
           const coreBlobUrl = URL.createObjectURL(coreBlob);
           const wasmBlobUrl = URL.createObjectURL(wasmBlob);
-          
-          console.log('🎬 Loading FFmpeg WASM with app:// protocol blob URLs:', coreBlobUrl, wasmBlobUrl);
-          console.log('[FFmpeg Utils] ⏳ Calling ffmpeg.load() with blob URLs...');
-          console.log('[FFmpeg Utils] 🧪 Testing SharedArrayBuffer availability:', typeof SharedArrayBuffer !== 'undefined');
-          console.log('[FFmpeg Utils] 🧪 Testing Worker availability:', typeof Worker !== 'undefined');
-          
+
+          console.log(
+            "🎬 Loading FFmpeg WASM with app:// protocol blob URLs:",
+            coreBlobUrl,
+            wasmBlobUrl
+          );
+          console.log(
+            "[FFmpeg Utils] ⏳ Calling ffmpeg.load() with blob URLs..."
+          );
+          console.log(
+            "[FFmpeg Utils] 🧪 Testing SharedArrayBuffer availability:",
+            typeof SharedArrayBuffer !== "undefined"
+          );
+          console.log(
+            "[FFmpeg Utils] 🧪 Testing Worker availability:",
+            typeof Worker !== "undefined"
+          );
+
           // Add timeout to detect hanging
           const loadPromise = ffmpeg.load({
             coreURL: coreBlobUrl,
             wasmURL: wasmBlobUrl,
           });
-          
+
           const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('FFmpeg load timeout after 30 seconds')), 30000);
+            setTimeout(
+              () => reject(new Error("FFmpeg load timeout after 30 seconds")),
+              30_000
+            );
           });
-          
+
           await Promise.race([loadPromise, timeoutPromise]);
-          
-          console.log('[FFmpeg Utils] ✅ ffmpeg.load() completed successfully');
-          console.log('✅ FFmpeg WASM loaded successfully in Electron via app:// protocol');
+
+          console.log("[FFmpeg Utils] ✅ ffmpeg.load() completed successfully");
+          console.log(
+            "✅ FFmpeg WASM loaded successfully in Electron via app:// protocol"
+          );
         } else {
-          throw new Error('App protocol not available, falling back to HTTP server');
+          throw new Error(
+            "App protocol not available, falling back to HTTP server"
+          );
         }
       } catch (appProtocolError) {
-        console.log('🔄 App protocol failed, falling back to HTTP server:', appProtocolError);
-        
+        console.log(
+          "🔄 App protocol failed, falling back to HTTP server:",
+          appProtocolError
+        );
+
         // Fallback to HTTP server
-        const coreUrl = 'http://localhost:8080/ffmpeg/ffmpeg-core.js';
-        const wasmUrl = 'http://localhost:8080/ffmpeg/ffmpeg-core.wasm';
-        
-        console.log('🌐 Fetching FFmpeg WASM from HTTP server:', coreUrl, wasmUrl);
-        
+        const coreUrl = "http://localhost:8080/ffmpeg/ffmpeg-core.js";
+        const wasmUrl = "http://localhost:8080/ffmpeg/ffmpeg-core.wasm";
+
+        console.log(
+          "🌐 Fetching FFmpeg WASM from HTTP server:",
+          coreUrl,
+          wasmUrl
+        );
+
         // Fetch and convert to blob URLs
         const coreResponse = await fetch(coreUrl);
         const wasmResponse = await fetch(wasmUrl);
-        
+
         if (!coreResponse.ok) {
-          throw new Error(`Failed to fetch ffmpeg-core.js: ${coreResponse.status} ${coreResponse.statusText}`);
+          throw new Error(
+            `Failed to fetch ffmpeg-core.js: ${coreResponse.status} ${coreResponse.statusText}`
+          );
         }
         if (!wasmResponse.ok) {
-          throw new Error(`Failed to fetch ffmpeg-core.wasm: ${wasmResponse.status} ${wasmResponse.statusText}`);
+          throw new Error(
+            `Failed to fetch ffmpeg-core.wasm: ${wasmResponse.status} ${wasmResponse.statusText}`
+          );
         }
-        
+
         const coreBlob = await coreResponse.blob();
         const wasmBlob = await wasmResponse.blob();
-        
+
         const coreBlobUrl = URL.createObjectURL(coreBlob);
         const wasmBlobUrl = URL.createObjectURL(wasmBlob);
-        
-        console.log('🎬 Loading FFmpeg WASM with HTTP server blob URLs:', coreBlobUrl, wasmBlobUrl);
-        
+
+        console.log(
+          "🎬 Loading FFmpeg WASM with HTTP server blob URLs:",
+          coreBlobUrl,
+          wasmBlobUrl
+        );
+
         await ffmpeg.load({
           coreURL: coreBlobUrl,
           wasmURL: wasmBlobUrl,
         });
-        
-        console.log('✅ FFmpeg WASM loaded successfully in Electron via HTTP server fallback');
+
+        console.log(
+          "✅ FFmpeg WASM loaded successfully in Electron via HTTP server fallback"
+        );
       }
     } else {
       // For browser, use the standard approach
       await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+        coreURL: await toBlobURL(
+          `${baseURL}/ffmpeg-core.js`,
+          "text/javascript"
+        ),
+        wasmURL: await toBlobURL(
+          `${baseURL}/ffmpeg-core.wasm`,
+          "application/wasm"
+        ),
       });
-      
-      console.log('✅ FFmpeg WASM loaded successfully in browser');
+
+      console.log("✅ FFmpeg WASM loaded successfully in browser");
     }
-    
+
     isFFmpegLoaded = true;
-    console.log('[FFmpeg Utils] 🎉 FFmpeg is ready for use');
-    console.log('[FFmpeg Utils] ✅ initFFmpeg completed successfully');
+    console.log("[FFmpeg Utils] 🎉 FFmpeg is ready for use");
+    console.log("[FFmpeg Utils] ✅ initFFmpeg completed successfully");
   } catch (error) {
-    console.error('[FFmpeg Utils] ❌ FFmpeg initialization failed:', error);
+    console.error("[FFmpeg Utils] ❌ FFmpeg initialization failed:", error);
     isFFmpegLoaded = false;
     ffmpeg = null;
     throw error;

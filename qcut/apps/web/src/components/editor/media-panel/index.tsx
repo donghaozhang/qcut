@@ -6,9 +6,9 @@ import { useMediaPanelStore, Tab } from "./store";
 import { TextView } from "./views/text";
 import { AudioView } from "./views/audio";
 import { Text2ImageView } from "./views/text2image";
-import { AdjustmentPanel } from '@/components/editor/adjustment';
+import { AdjustmentPanel } from "@/components/editor/adjustment";
 import { AiView } from "./views/ai";
-import React from 'react';
+import React from "react";
 
 export function MediaPanel() {
   const { activeTab } = useMediaPanelStore();

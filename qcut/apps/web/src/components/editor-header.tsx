@@ -1,7 +1,13 @@
 "use client";
 
 import { Button } from "./ui/button";
-import { ChevronDown, ArrowLeft, Download, SquarePen, Trash } from "lucide-react";
+import {
+  ChevronDown,
+  ArrowLeft,
+  Download,
+  SquarePen,
+  Trash,
+} from "lucide-react";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { HeaderBase } from "./header-base";
 import { formatTimeCode } from "@/lib/time";

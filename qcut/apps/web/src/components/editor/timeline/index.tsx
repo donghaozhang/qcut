@@ -74,7 +74,11 @@ export function Timeline() {
     toggleTrackMute,
     dragState,
   } = useTimelineStore();
-  const { store: mediaStore, loading: mediaStoreLoading, error: mediaStoreError } = useAsyncMediaStore();
+  const {
+    store: mediaStore,
+    loading: mediaStoreLoading,
+    error: mediaStoreError,
+  } = useAsyncMediaStore();
   const mediaItems = mediaStore?.mediaItems || [];
   const addMediaItem = mediaStore?.addMediaItem;
   const { activeProject } = useProjectStore();
@@ -86,7 +90,7 @@ export function Timeline() {
 
   // Handle media store loading/error states
   if (mediaStoreError) {
-    console.error('Failed to load media store:', mediaStoreError);
+    console.error("Failed to load media store:", mediaStoreError);
     return (
       <div className="flex items-center justify-center h-full text-red-500">
         Failed to load media store: {mediaStoreError.message}
@@ -97,7 +101,7 @@ export function Timeline() {
   if (mediaStoreLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }
@@ -414,7 +418,7 @@ export function Timeline() {
         );
         for (const processedItem of processedItems) {
           if (!addMediaItem) {
-            throw new Error('Media store not ready');
+            throw new Error("Media store not ready");
           }
           await addMediaItem(activeProject.id, processedItem);
           const currentMediaItems = mediaStore?.mediaItems || [];
@@ -675,14 +679,14 @@ export function Timeline() {
                     );
                   }).filter(Boolean);
                 })()}
-                
+
                 {/* Bookmark markers */}
                 {(() => {
                   const { activeProject } = useProjectStore.getState();
                   if (!activeProject?.bookmarks?.length) return null;
-                  
+
                   return activeProject.bookmarks.map((bookmarkTime, i) => (
-                                          <div
+                    <div
                       key={`bookmark-${i}`}
                       className="absolute top-0 h-10 w-0.5 !bg-primary cursor-pointer"
                       style={{
@@ -821,23 +825,28 @@ export function Timeline() {
                           <ContextMenuItem onClick={(e) => e.stopPropagation()}>
                             Track settings (soon)
                           </ContextMenuItem>
-                          {activeProject?.bookmarks?.length && activeProject.bookmarks.length > 0 && (
-                            <>
-                              <ContextMenuItem disabled>Bookmarks</ContextMenuItem>
-                              {activeProject.bookmarks.map((bookmarkTime, i) => (
-                                <ContextMenuItem 
-                                  key={`bookmark-menu-${i}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    seek(bookmarkTime);
-                                  }}
-                                >
-                                  <Bookmark className="h-3 w-3 mr-2 inline-block" />
-                                  {bookmarkTime.toFixed(1)}s
+                          {activeProject?.bookmarks?.length &&
+                            activeProject.bookmarks.length > 0 && (
+                              <>
+                                <ContextMenuItem disabled>
+                                  Bookmarks
                                 </ContextMenuItem>
-                              ))}
+                                {activeProject.bookmarks.map(
+                                  (bookmarkTime, i) => (
+                                    <ContextMenuItem
+                                      key={`bookmark-menu-${i}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        seek(bookmarkTime);
+                                      }}
+                                    >
+                                      <Bookmark className="h-3 w-3 mr-2 inline-block" />
+                                      {bookmarkTime.toFixed(1)}s
+                                    </ContextMenuItem>
+                                  )
+                                )}
                               </>
-                          )}
+                            )}
                         </ContextMenuContent>
                       </ContextMenu>
                     ))}
@@ -1023,11 +1032,11 @@ function TimelineToolbar({
   const handleZoomSliderChange = (values: number[]) => {
     setZoomLevel(values[0]);
   };
-  
+
   const handleToggleBookmark = async () => {
     await toggleBookmark(currentTime);
   };
-  
+
   // Check if the current time is bookmarked
   const currentBookmarked = isBookmarked(currentTime);
   return (
@@ -1165,7 +1174,9 @@ function TimelineToolbar({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="text" size="icon" onClick={handleToggleBookmark}>
-                <Bookmark className={`h-4 w-4 ${currentBookmarked ? "fill-primary text-primary" : ""}`} />
+                <Bookmark
+                  className={`h-4 w-4 ${currentBookmarked ? "fill-primary text-primary" : ""}`}
+                />
               </Button>
             </TooltipTrigger>
             <TooltipContent>

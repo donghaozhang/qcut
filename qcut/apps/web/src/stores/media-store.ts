@@ -39,17 +39,19 @@ interface MediaStore {
     projectId: string,
     item: Omit<MediaItem, "id">
   ) => Promise<void>;
-  addGeneratedImages: (items: Array<{
-    url: string;
-    type: MediaType;
-    name: string;
-    size: number;
-    duration: number;
-    metadata?: {
-      source?: string;
-      [key: string]: any;
-    };
-  }>) => void;
+  addGeneratedImages: (
+    items: Array<{
+      url: string;
+      type: MediaType;
+      name: string;
+      size: number;
+      duration: number;
+      metadata?: {
+        source?: string;
+        [key: string]: any;
+      };
+    }>
+  ) => void;
   removeMediaItem: (projectId: string, id: string) => Promise<void>;
   loadProjectMedia: (projectId: string) => Promise<void>;
   clearProjectMedia: (projectId: string) => Promise<void>;

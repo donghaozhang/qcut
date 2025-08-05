@@ -35,7 +35,11 @@ interface ActiveElement {
 
 export function PreviewPanel() {
   const { tracks, getTotalDuration, updateTextElement } = useTimelineStore();
-  const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems();
+  const {
+    mediaItems,
+    loading: mediaItemsLoading,
+    error: mediaItemsError,
+  } = useAsyncMediaItems();
   const { currentTime, toggle, setCurrentTime, isPlaying } = usePlaybackStore();
   const { canvasSize } = useEditorStore();
   const previewRef = useRef<HTMLDivElement>(null);
@@ -360,18 +364,20 @@ export function PreviewPanel() {
           style={{
             left: `${
               50 +
-              ((dragState.isDragging && dragState.elementId === element.id
-                ? dragState.currentX
-                : element.x) /
-                canvasSize.width) *
+              (
+                (dragState.isDragging && dragState.elementId === element.id
+                  ? dragState.currentX
+                  : element.x) / canvasSize.width
+              ) *
                 100
             }%`,
             top: `${
               50 +
-              ((dragState.isDragging && dragState.elementId === element.id
-                ? dragState.currentY
-                : element.y) /
-                canvasSize.height) *
+              (
+                (dragState.isDragging && dragState.elementId === element.id
+                  ? dragState.currentY
+                  : element.y) / canvasSize.height
+              ) *
                 100
             }%`,
             transform: `translate(-50%, -50%) rotate(${element.rotation}deg) scale(${scaleRatio})`,
@@ -482,7 +488,9 @@ export function PreviewPanel() {
         <div className="flex-1 flex items-center justify-center p-3">
           <div className="text-center">
             <div className="text-red-500 mb-2">Failed to load media items</div>
-            <div className="text-sm text-muted-foreground">{mediaItemsError.message}</div>
+            <div className="text-sm text-muted-foreground">
+              {mediaItemsError.message}
+            </div>
           </div>
         </div>
       </div>
@@ -494,7 +502,7 @@ export function PreviewPanel() {
       <div className="h-full w-full flex flex-col min-h-0 min-w-0 bg-panel rounded-sm">
         <div className="flex-1 flex items-center justify-center p-3">
           <div className="flex items-center space-x-2">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
             <span>Loading preview...</span>
           </div>
         </div>

@@ -18,7 +18,7 @@ export function useAsyncModuleLoading() {
 
     // Subscribe to all module changes
     const listener = () => updateLoadingModules();
-    
+
     moduleLoadingListeners.forEach((listeners) => {
       listeners.add(listener);
     });
@@ -45,13 +45,16 @@ export function useAsyncModuleLoading() {
 
 // Helper to manage loading state for a specific module
 export function useModuleLoadingState(moduleName: string) {
-  const setLoading = useCallback((isLoading: boolean) => {
-    moduleLoadingState.set(moduleName, isLoading);
-    
-    // Notify listeners
-    const listeners = moduleLoadingListeners.get(moduleName) || new Set();
-    listeners.forEach(listener => listener());
-  }, [moduleName]);
+  const setLoading = useCallback(
+    (isLoading: boolean) => {
+      moduleLoadingState.set(moduleName, isLoading);
+
+      // Notify listeners
+      const listeners = moduleLoadingListeners.get(moduleName) || new Set();
+      listeners.forEach((listener) => listener());
+    },
+    [moduleName]
+  );
 
   useEffect(() => {
     // Initialize listeners for this module
@@ -78,7 +81,7 @@ export function AsyncModuleLoadingIndicator() {
   return (
     <div className="fixed top-4 right-4 bg-background/80 backdrop-blur-sm border rounded-lg p-3 shadow-lg z-50">
       <div className="flex items-center space-x-2">
-        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
         <span className="text-sm text-muted-foreground">
           Loading modules... ({loadingModules.length})
         </span>
@@ -124,7 +127,7 @@ export function AsyncModuleWrapper({
       <>
         {fallback || (
           <div className="flex items-center justify-center p-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
         )}
       </>

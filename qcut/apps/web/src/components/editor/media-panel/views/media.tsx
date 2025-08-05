@@ -30,7 +30,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ExportAllButton } from "../export-all-button";
 
 export function MediaView() {
-  const { store: mediaStore, loading: mediaStoreLoading, error: mediaStoreError } = useAsyncMediaStore();
+  const {
+    store: mediaStore,
+    loading: mediaStoreLoading,
+    error: mediaStoreError,
+  } = useAsyncMediaStore();
   const mediaItems = mediaStore?.mediaItems || [];
   const addMediaItem = mediaStore?.addMediaItem;
   const removeMediaItem = mediaStore?.removeMediaItem;
@@ -58,7 +62,7 @@ export function MediaView() {
       // Add each processed media item to the store
       for (const item of processedItems) {
         if (!addMediaItem) {
-          throw new Error('Media store not ready');
+          throw new Error("Media store not ready");
         }
         await addMediaItem(activeProject.id, item);
       }
@@ -115,7 +119,9 @@ export function MediaView() {
       <div className="flex items-center justify-center h-full p-4">
         <div className="text-center">
           <div className="text-red-500 mb-2">Failed to load media store</div>
-          <div className="text-sm text-muted-foreground">{mediaStoreError.message}</div>
+          <div className="text-sm text-muted-foreground">
+            {mediaStoreError.message}
+          </div>
         </div>
       </div>
     );

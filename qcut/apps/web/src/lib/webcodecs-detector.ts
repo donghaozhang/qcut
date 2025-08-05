@@ -39,26 +39,26 @@ export interface CodecSupport {
 // Common codec configurations to test
 const TEST_CODECS = [
   // H.264 variants
-  { codec: 'avc1.42001E', name: 'H.264 Baseline' }, // 480p baseline
-  { codec: 'avc1.42401E', name: 'H.264 Constrained Baseline' },
-  { codec: 'avc1.4D401E', name: 'H.264 Main' }, // 720p main
-  { codec: 'avc1.64001E', name: 'H.264 High' }, // 1080p high
-  
+  { codec: "avc1.42001E", name: "H.264 Baseline" }, // 480p baseline
+  { codec: "avc1.42401E", name: "H.264 Constrained Baseline" },
+  { codec: "avc1.4D401E", name: "H.264 Main" }, // 720p main
+  { codec: "avc1.64001E", name: "H.264 High" }, // 1080p high
+
   // VP9 variants
-  { codec: 'vp09.00.10.08', name: 'VP9 Profile 0' }, // 8-bit
-  { codec: 'vp09.01.20.08.01', name: 'VP9 Profile 1' },
-  { codec: 'vp09.02.10.10.01.09.16.09.01', name: 'VP9 Profile 2 10-bit' },
-  
+  { codec: "vp09.00.10.08", name: "VP9 Profile 0" }, // 8-bit
+  { codec: "vp09.01.20.08.01", name: "VP9 Profile 1" },
+  { codec: "vp09.02.10.10.01.09.16.09.01", name: "VP9 Profile 2 10-bit" },
+
   // VP8
-  { codec: 'vp8', name: 'VP8' },
-  
+  { codec: "vp8", name: "VP8" },
+
   // AV1 (next-gen)
-  { codec: 'av01.0.04M.08', name: 'AV1 Main' },
-  { codec: 'av01.0.05M.08', name: 'AV1 High' },
-  
+  { codec: "av01.0.04M.08", name: "AV1 Main" },
+  { codec: "av01.0.05M.08", name: "AV1 High" },
+
   // HEVC/H.265 (limited browser support)
-  { codec: 'hev1.1.6.L93.B0', name: 'HEVC Main' },
-  { codec: 'hvc1.1.6.L93.B0', name: 'HEVC Main (hvc1)' }
+  { codec: "hev1.1.6.L93.B0", name: "HEVC Main" },
+  { codec: "hvc1.1.6.L93.B0", name: "HEVC Main (hvc1)" },
 ];
 
 export class WebCodecsDetector {
@@ -91,7 +91,7 @@ export class WebCodecsDetector {
     // Start detection
     this.detectionPromise = this.performDetection();
     const result = await this.detectionPromise;
-    
+
     // Cache the result
     this.detectionCache = result;
     return result;
@@ -105,41 +105,46 @@ export class WebCodecsDetector {
         videoDecoder: false,
         videoFrame: false,
         encodedVideoChunk: false,
-        decodedVideoChunk: false
+        decodedVideoChunk: false,
       },
       hardwareAcceleration: {
         available: false,
         encoders: [],
-        decoders: []
+        decoders: [],
       },
       supportedCodecs: {
         encode: [],
-        decode: []
+        decode: [],
       },
       limitations: [],
-      performanceScore: 0
+      performanceScore: 0,
     };
 
     try {
       // Check basic API availability
-      info.features.videoEncoder = typeof VideoEncoder !== 'undefined';
-      info.features.videoDecoder = typeof VideoDecoder !== 'undefined';
-      info.features.videoFrame = typeof VideoFrame !== 'undefined';
-      info.features.encodedVideoChunk = typeof EncodedVideoChunk !== 'undefined';
-      info.features.decodedVideoChunk = typeof (globalThis as any).DecodedVideoChunk !== 'undefined';
+      info.features.videoEncoder = typeof VideoEncoder !== "undefined";
+      info.features.videoDecoder = typeof VideoDecoder !== "undefined";
+      info.features.videoFrame = typeof VideoFrame !== "undefined";
+      info.features.encodedVideoChunk =
+        typeof EncodedVideoChunk !== "undefined";
+      info.features.decodedVideoChunk =
+        typeof (globalThis as any).DecodedVideoChunk !== "undefined";
 
-      info.supported = info.features.videoEncoder && 
-                      info.features.videoDecoder && 
-                      info.features.videoFrame;
+      info.supported =
+        info.features.videoEncoder &&
+        info.features.videoDecoder &&
+        info.features.videoFrame;
 
       if (!info.supported) {
-        info.limitations.push('WebCodecs API not available in this browser');
+        info.limitations.push("WebCodecs API not available in this browser");
         return info;
       }
 
       // Check for origin isolation requirement
       if (!this.checkOriginIsolation()) {
-        info.limitations.push('Origin isolation required for optimal performance');
+        info.limitations.push(
+          "Origin isolation required for optimal performance"
+        );
       }
 
       // Test codec support
@@ -153,10 +158,11 @@ export class WebCodecsDetector {
 
       // Add any detected limitations
       this.detectLimitations(info);
-
     } catch (error) {
-      console.warn('WebCodecs detection failed:', error);
-      info.limitations.push(`Detection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.warn("WebCodecs detection failed:", error);
+      info.limitations.push(
+        `Detection failed: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     }
 
     return info;
@@ -170,18 +176,19 @@ export class WebCodecsDetector {
           codec: codecInfo.codec,
           width: 1920,
           height: 1080,
-          bitrate: 5000000,
-          framerate: 30
+          bitrate: 5_000_000,
+          framerate: 30,
         };
 
         const support = await VideoEncoder.isConfigSupported(config);
         if (support.supported) {
           const codecSupport: CodecSupport = {
             codec: codecInfo.codec,
-            hardware: (support.config as any)?.acceleration === 'prefer-hardware',
+            hardware:
+              (support.config as any)?.acceleration === "prefer-hardware",
             maxResolution: { width: 1920, height: 1080 },
             maxFramerate: 60,
-            supportScore: this.calculateCodecScore(codecInfo.codec, true)
+            supportScore: this.calculateCodecScore(codecInfo.codec, true),
           };
           info.supportedCodecs.encode.push(codecSupport);
 
@@ -197,15 +204,16 @@ export class WebCodecsDetector {
     const decodeTests = TEST_CODECS.map(async (codecInfo) => {
       try {
         const config = {
-          codec: codecInfo.codec
+          codec: codecInfo.codec,
         };
 
         const support = await VideoDecoder.isConfigSupported(config);
         if (support.supported) {
           const codecSupport: CodecSupport = {
             codec: codecInfo.codec,
-            hardware: (support.config as any)?.acceleration === 'prefer-hardware',
-            supportScore: this.calculateCodecScore(codecInfo.codec, false)
+            hardware:
+              (support.config as any)?.acceleration === "prefer-hardware",
+            supportScore: this.calculateCodecScore(codecInfo.codec, false),
           };
           info.supportedCodecs.decode.push(codecSupport);
 
@@ -219,32 +227,37 @@ export class WebCodecsDetector {
     });
 
     await Promise.all([...encodeTests, ...decodeTests]);
-    
-    info.hardwareAcceleration.available = 
-      info.hardwareAcceleration.encoders.length > 0 || 
+
+    info.hardwareAcceleration.available =
+      info.hardwareAcceleration.encoders.length > 0 ||
       info.hardwareAcceleration.decoders.length > 0;
   }
 
   // Test hardware acceleration capabilities
-  private async testHardwareAcceleration(info: WebCodecsSupportInfo): Promise<void> {
+  private async testHardwareAcceleration(
+    info: WebCodecsSupportInfo
+  ): Promise<void> {
     try {
       // Test with hardware preference
       const hwConfig = {
-        codec: 'avc1.42001E',
+        codec: "avc1.42001E",
         width: 1920,
         height: 1080,
-        bitrate: 5000000,
+        bitrate: 5_000_000,
         framerate: 30,
-        acceleration: 'prefer-hardware' as const
+        acceleration: "prefer-hardware" as const,
       };
 
       const hwSupport = await VideoEncoder.isConfigSupported(hwConfig);
-      if (hwSupport.supported && (hwSupport.config as any)?.acceleration === 'prefer-hardware') {
+      if (
+        hwSupport.supported &&
+        (hwSupport.config as any)?.acceleration === "prefer-hardware"
+      ) {
         info.hardwareAcceleration.available = true;
       }
     } catch (error) {
       // Hardware acceleration test failed
-      info.limitations.push('Hardware acceleration test failed');
+      info.limitations.push("Hardware acceleration test failed");
     }
   }
 
@@ -253,10 +266,13 @@ export class WebCodecsDetector {
     let score = 50; // Base score
 
     // Modern codecs get higher scores
-    if (codec.includes('av01')) score += 30; // AV1
-    else if (codec.includes('vp09')) score += 20; // VP9
-    else if (codec.includes('avc1')) score += 10; // H.264
-    else if (codec.includes('hev1') || codec.includes('hvc1')) score += 25; // HEVC
+    if (codec.includes("av01"))
+      score += 30; // AV1
+    else if (codec.includes("vp09"))
+      score += 20; // VP9
+    else if (codec.includes("avc1"))
+      score += 10; // H.264
+    else if (codec.includes("hev1") || codec.includes("hvc1")) score += 25; // HEVC
 
     // Encoding is generally harder than decoding
     if (isEncoder) score -= 10;
@@ -288,8 +304,10 @@ export class WebCodecsDetector {
   // Check origin isolation
   private checkOriginIsolation(): boolean {
     try {
-      return typeof SharedArrayBuffer !== 'undefined' || 
-             (typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated);
+      return (
+        typeof SharedArrayBuffer !== "undefined" ||
+        (typeof crossOriginIsolated !== "undefined" && crossOriginIsolated)
+      );
     } catch {
       return false;
     }
@@ -299,46 +317,57 @@ export class WebCodecsDetector {
   private detectLimitations(info: WebCodecsSupportInfo): void {
     // Check for common limitations
     if (info.supportedCodecs.encode.length === 0) {
-      info.limitations.push('No encoding codecs supported');
+      info.limitations.push("No encoding codecs supported");
     }
 
     if (info.supportedCodecs.decode.length === 0) {
-      info.limitations.push('No decoding codecs supported');
+      info.limitations.push("No decoding codecs supported");
     }
 
     if (!info.hardwareAcceleration.available) {
-      info.limitations.push('Hardware acceleration not available');
+      info.limitations.push("Hardware acceleration not available");
     }
 
     // Check browser-specific limitations
     const userAgent = navigator.userAgent.toLowerCase();
-    if (userAgent.includes('firefox')) {
-      info.limitations.push('Firefox WebCodecs support may be limited');
+    if (userAgent.includes("firefox")) {
+      info.limitations.push("Firefox WebCodecs support may be limited");
     }
 
-    if (userAgent.includes('safari')) {
-      info.limitations.push('Safari WebCodecs support is experimental');
+    if (userAgent.includes("safari")) {
+      info.limitations.push("Safari WebCodecs support is experimental");
     }
 
     // Memory limitations
-    if (typeof (navigator as any).deviceMemory !== 'undefined' && (navigator as any).deviceMemory < 4) {
-      info.limitations.push('Low device memory may impact performance');
+    if (
+      typeof (navigator as any).deviceMemory !== "undefined" &&
+      (navigator as any).deviceMemory < 4
+    ) {
+      info.limitations.push("Low device memory may impact performance");
     }
   }
 
   // Get best encoder for given requirements
-  getBestEncoder(width: number, height: number, framerate: number = 30): CodecSupport | null {
+  getBestEncoder(
+    width: number,
+    height: number,
+    framerate = 30
+  ): CodecSupport | null {
     if (!this.detectionCache?.supported) {
       return null;
     }
 
-    const suitableCodecs = this.detectionCache.supportedCodecs.encode.filter(codec => {
-      const maxRes = codec.maxResolution;
-      const maxFps = codec.maxFramerate;
-      
-      return (!maxRes || (width <= maxRes.width && height <= maxRes.height)) &&
-             (!maxFps || framerate <= maxFps);
-    });
+    const suitableCodecs = this.detectionCache.supportedCodecs.encode.filter(
+      (codec) => {
+        const maxRes = codec.maxResolution;
+        const maxFps = codec.maxFramerate;
+
+        return (
+          (!maxRes || (width <= maxRes.width && height <= maxRes.height)) &&
+          (!maxFps || framerate <= maxFps)
+        );
+      }
+    );
 
     if (suitableCodecs.length === 0) {
       return null;
@@ -360,10 +389,12 @@ export class WebCodecsDetector {
     }
 
     // Only recommend for high-quality exports with hardware acceleration
-    return this.detectionCache.hardwareAcceleration.available &&
-           this.detectionCache.performanceScore >= 70 &&
-           (width >= 1920 || height >= 1080) &&
-           duration >= 5; // 5+ seconds
+    return (
+      this.detectionCache.hardwareAcceleration.available &&
+      this.detectionCache.performanceScore >= 70 &&
+      (width >= 1920 || height >= 1080) &&
+      duration >= 5
+    ); // 5+ seconds
   }
 
   // Force refresh detection (useful for debugging)

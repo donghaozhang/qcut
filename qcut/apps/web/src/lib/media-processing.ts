@@ -1,5 +1,8 @@
 import { toast } from "sonner";
-import { getMediaStoreUtils, type MediaItem } from "@/stores/media-store-loader";
+import {
+  getMediaStoreUtils,
+  type MediaItem,
+} from "@/stores/media-store-loader";
 import { getFFmpegUtilFunctions } from "@/lib/ffmpeg-utils-loader";
 
 export interface ProcessedMediaItem extends Omit<MediaItem, "id"> {}

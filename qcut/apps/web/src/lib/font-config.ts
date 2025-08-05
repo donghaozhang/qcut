@@ -6,7 +6,7 @@
 // System fonts return empty string to fallback to fontFamily style
 export const FONT_CLASS_MAP = {
   Inter: "font-inter",
-  Roboto: "font-roboto", 
+  Roboto: "font-roboto",
   "Open Sans": "font-opensans",
   "Playfair Display": "font-playfair",
   "Comic Neue": "font-comic",
@@ -19,19 +19,19 @@ export const FONT_CLASS_MAP = {
 // Export CSS font families for direct use
 export const fonts = {
   inter: {
-    style: { fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }
+    style: { fontFamily: "Inter, system-ui, -apple-system, sans-serif" },
   },
   roboto: {
-    style: { fontFamily: 'Roboto, system-ui, -apple-system, sans-serif' }
+    style: { fontFamily: "Roboto, system-ui, -apple-system, sans-serif" },
   },
   openSans: {
-    style: { fontFamily: '"Open Sans", system-ui, -apple-system, sans-serif' }
+    style: { fontFamily: '"Open Sans", system-ui, -apple-system, sans-serif' },
   },
   playfairDisplay: {
-    style: { fontFamily: '"Playfair Display", Georgia, serif' }
+    style: { fontFamily: '"Playfair Display", Georgia, serif' },
   },
   comicNeue: {
-    style: { fontFamily: '"Comic Neue", "Comic Sans MS", cursive' }
+    style: { fontFamily: '"Comic Neue", "Comic Sans MS", cursive' },
   },
 };
 

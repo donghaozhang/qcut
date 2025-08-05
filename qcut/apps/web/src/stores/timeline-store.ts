@@ -1130,7 +1130,9 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
           getImageDimensions,
           generateVideoThumbnail,
           getMediaDuration,
-        } = await import("./media-store-loader").then(m => m.getMediaStoreUtils());
+        } = await import("./media-store-loader").then((m) =>
+          m.getMediaStoreUtils()
+        );
 
         const fileType = getFileType(newFile);
         if (!fileType) {
@@ -1274,7 +1276,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
         if (mediaItem.type === "video" && mediaItem.file) {
           const { generateVideoThumbnail } = await import(
             "@/stores/media-store-loader"
-          ).then(m => m.getMediaStoreUtils());
+          ).then((m) => m.getMediaStoreUtils());
           const { thumbnailUrl } = await generateVideoThumbnail(mediaItem.file);
           return thumbnailUrl;
         }

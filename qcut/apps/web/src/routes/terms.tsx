@@ -1,11 +1,11 @@
-import React from 'react'
-import { createFileRoute } from '@tanstack/react-router'
-import { Header } from '@/components/header'
-import { Footer } from '@/components/footer'
+import React from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
 
-export const Route = createFileRoute('/terms')({
+export const Route = createFileRoute("/terms")({
   component: TermsPage,
-})
+});
 
 function TermsPage() {
   return (
@@ -26,5 +26,5 @@ function TermsPage() {
       </main>
       <Footer />
     </div>
-  )
+  );
 }
