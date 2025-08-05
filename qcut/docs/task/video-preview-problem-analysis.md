@@ -107,22 +107,61 @@ Review Electron's security settings that might block video loading:
 - allowRunningInsecureContent
 - Content Security Policy headers
 
-## Current Status - **ROOT CAUSE IDENTIFIED** 🎯
-- ❌ Video content not displaying **ROOT CAUSE FOUND**
-- ❌ **Video container dimensions: 0 x 0** ⬅️ **THIS IS THE PROBLEM**
+## Current Status - **DEEPER ROOT CAUSE IDENTIFIED** 🎯
+- ❌ Video content not displaying **DEEPER CAUSE FOUND**
+- ❌ **Video container dimensions: 0 x 0** ✅ **CONFIRMED**
+- ❌ **Main preview container debug logs NOT appearing** ⬅️ **NEW DISCOVERY**
 - ✅ Data pipeline working correctly
 - ✅ No infinite re-rendering loops  
 - ✅ Video loading events firing successfully (`Load started`, `Data loaded`, `Can play`)
 - ✅ Blob URLs working correctly
-- ❌ Video element inheriting 0x0 from parent container
 
-**ROOT CAUSE**: The `<div className="absolute inset-0">` container that holds the video is 0x0, causing the video element to also be 0x0 even though it has `width: 100%, height: 100%`.
+**DEEPER ROOT CAUSE**: Main preview container (`previewRef`) is likely not rendering or has 0x0 dimensions. Since `absolute inset-0` depends on parent size, if parent is 0x0, child is 0x0.
 
-## Next Steps Priority - **IMMEDIATE FIX NEEDED** 
-1. **HIGH**: Check if main preview container (`previewDimensions`) is also 0x0
-2. **HIGH**: Fix `previewDimensions` calculation if it's returning 0x0  
-3. **HIGH**: Ensure parent container has proper dimensions before video renders
-4. **MEDIUM**: Add fallback minimum dimensions if calculation fails
+**CRITICAL FINDINGS FROM LOG_V10.MD** 🎯:
+✅ **Component is mounting**: `[Preview] PreviewPanel component mounted/re-rendered` 
+✅ **canvasSize is valid**: `{width: 1920, height: 1080}`
+✅ **containerRef gets attached**: `<div class="flex-1 flex flex-col...">` (eventually)
+❌ **containerRef starts as null**: Lines 9, 12 show `containerRef.current is null!`
+❌ **useEffect runs but exits early**: Lines 8, 11 show useEffect triggering but exiting due to null containerRef
+❌ **No size calculation logs**: Missing all `[Preview] Container rect`, `Available space`, `Calculated dimensions`
+
+**ROOT CAUSE IDENTIFIED**: 
+The useEffect runs **BEFORE** the containerRef gets attached to the DOM element. The containerRef becomes available later, but the useEffect doesn't re-run because it only depends on `[canvasSize.width, canvasSize.height, isExpanded]`, not on the containerRef itself.
+
+**TIMING ISSUE**: React lifecycle timing problem where:
+1. useEffect runs immediately → containerRef.current is null → exits early
+2. DOM renders later → containerRef gets attached 
+3. useEffect never re-runs → size never calculated → previewDimensions stays 0x0
+
+## Next Steps Priority - **TIMING ISSUE FIX NEEDED** 
+1. **CRITICAL**: Fix useEffect to re-run when containerRef becomes available
+2. **CRITICAL**: Add containerRef to useEffect dependency array or use ResizeObserver
+3. **HIGH**: Add fallback minimum dimensions (e.g., 640x360) if calculation fails
+4. **MEDIUM**: Consider using useLayoutEffect instead of useEffect for DOM measurements
+
+## **IMMEDIATE FIX**
+The useEffect needs to trigger when containerRef becomes available. Options:
+1. **Add a separate useEffect that watches for containerRef.current**
+2. **Use ResizeObserver which already watches the container** 
+3. **Add setTimeout to retry size calculation if container is null**
+
+```typescript
+// Option 1: Watch for containerRef changes
+useEffect(() => {
+  if (containerRef.current) {
+    updatePreviewSize();
+  }
+}, [containerRef.current]); // This might not work due to ref mutations
+
+// Option 2: Use callback ref instead
+const callbackRef = useCallback((element) => {
+  if (element) {
+    containerRef.current = element;
+    updatePreviewSize();
+  }
+}, []);
+```
 
 ## **ROOT CAUSE CONFIRMED** ✅
 - **Video container**: `<div className="absolute inset-0">` = 0x0 

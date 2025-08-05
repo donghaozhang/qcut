@@ -34,6 +34,7 @@ interface ActiveElement {
 }
 
 export function PreviewPanel() {
+  console.log('[Preview] PreviewPanel component mounted/re-rendered');
   const { tracks, getTotalDuration, updateTextElement } = useTimelineStore();
   const {
     mediaItems,
@@ -42,8 +43,10 @@ export function PreviewPanel() {
   } = useAsyncMediaItems();
   const { currentTime, toggle, setCurrentTime, isPlaying } = usePlaybackStore();
   const { canvasSize } = useEditorStore();
+  console.log('[Preview] canvasSize:', canvasSize);
   const previewRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  console.log('[Preview] containerRef on render:', containerRef.current);
   const [previewDimensions, setPreviewDimensions] = useState({
     width: 0,
     height: 0,
@@ -65,8 +68,12 @@ export function PreviewPanel() {
   });
 
   useEffect(() => {
+    console.log('[Preview] useEffect running, canvasSize:', canvasSize, 'isExpanded:', isExpanded);
     const updatePreviewSize = () => {
-      if (!containerRef.current) return;
+      if (!containerRef.current) {
+        console.log('[Preview] containerRef.current is null!');
+        return;
+      }
 
       let availableWidth, availableHeight;
 
@@ -77,6 +84,8 @@ export function PreviewPanel() {
         availableHeight = window.innerHeight - controlsHeight - marginSpace;
       } else {
         const container = containerRef.current.getBoundingClientRect();
+        console.log('[Preview] Container rect:', container.width, 'x', container.height);
+        
         const computedStyle = getComputedStyle(containerRef.current);
         const paddingTop = parseFloat(computedStyle.paddingTop);
         const paddingBottom = parseFloat(computedStyle.paddingBottom);
@@ -95,6 +104,8 @@ export function PreviewPanel() {
           paddingBottom -
           toolbarHeight -
           (toolbarHeight > 0 ? gap : 0);
+        
+        console.log('[Preview] Available space:', availableWidth, 'x', availableHeight);
       }
 
       const targetRatio = canvasSize.width / canvasSize.height;
@@ -109,10 +120,34 @@ export function PreviewPanel() {
         height = width / targetRatio;
       }
 
+      console.log('[Preview] Calculated dimensions:', width, 'x', height);
       setPreviewDimensions({ width, height });
     };
 
     updatePreviewSize();
+    
+    // Retry size calculation if container wasn't ready initially
+    if (!containerRef.current) {
+      console.log('[Preview] Container null, retrying in 100ms...');
+      const retryTimeout = setTimeout(() => {
+        console.log('[Preview] Retrying size calculation after DOM render...');
+        updatePreviewSize();
+      }, 100);
+      
+      // Clean up timeout if component unmounts
+      const originalCleanup = () => {
+        resizeObserver.disconnect();
+        if (isExpanded) {
+          window.removeEventListener("resize", updatePreviewSize);
+        }
+      };
+      
+      return () => {
+        clearTimeout(retryTimeout);
+        originalCleanup();
+      };
+    }
+    
     const resizeObserver = new ResizeObserver(updatePreviewSize);
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
