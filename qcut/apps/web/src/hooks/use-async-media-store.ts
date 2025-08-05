@@ -44,9 +44,6 @@ export function useAsyncMediaStore(): AsyncMediaStoreState {
           if (!mounted) return;
           // Get fresh state from the store
           const currentState = module.useMediaStore.getState();
-          console.log('[useAsyncMediaStore] Store subscription triggered');
-          console.log('[useAsyncMediaStore] Current state from store:', currentState);
-          console.log('[useAsyncMediaStore] Media items count:', currentState.mediaItems?.length);
           setState({
             store: currentState as unknown as MediaStore,
             loading: false,
@@ -56,9 +53,6 @@ export function useAsyncMediaStore(): AsyncMediaStoreState {
 
         // Set initial state
         const initialState = module.useMediaStore.getState();
-        console.log('[useAsyncMediaStore] Setting initial state');
-        console.log('[useAsyncMediaStore] Initial state from store:', initialState);
-        console.log('[useAsyncMediaStore] Initial media items count:', initialState.mediaItems?.length);
         setState({
           store: initialState as unknown as MediaStore,
           loading: false,

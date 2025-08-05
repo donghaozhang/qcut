@@ -99,57 +99,40 @@ export const getImageDimensions = (
   });
 };
 
-// Enhanced video processing with FFmpeg fallback
+// Enhanced video processing with browser APIs first, FFmpeg as fallback
 export const processVideoFile = async (file: File) => {
-  console.log(`[Media Store] 🎬 Processing video file: ${file.name}`);
-  
   try {
-    // Try FFmpeg processing first for better accuracy
-    console.log("[Media Store] 🔧 Attempting FFmpeg video processing...");
-    
-    const [videoInfo, thumbnailUrl] = await Promise.all([
-      getVideoInfo(file),
-      generateThumbnail(file, 1) // Generate thumbnail at 1 second
+    // Try browser processing first - it's fast, reliable, and doesn't timeout
+    const [thumbnailData, duration] = await Promise.all([
+      generateVideoThumbnailBrowser(file),
+      getMediaDuration(file)
     ]);
     
-    console.log("[Media Store] ✅ FFmpeg video processing successful:", {
-      duration: videoInfo.duration,
-      width: videoInfo.width, 
-      height: videoInfo.height,
-      fps: videoInfo.fps
-    });
-    
     return {
-      thumbnailUrl,
-      width: videoInfo.width,
-      height: videoInfo.height,
-      duration: videoInfo.duration,
-      fps: videoInfo.fps,
-      processingMethod: 'ffmpeg'
+      thumbnailUrl: thumbnailData.thumbnailUrl,
+      width: thumbnailData.width,
+      height: thumbnailData.height,
+      duration,
+      fps: 30, // Default FPS for browser method
+      processingMethod: 'browser'
     };
-  } catch (ffmpegError) {
-    console.warn("[Media Store] ⚠️ FFmpeg processing failed, using browser fallback:", ffmpegError);
-    
-    // Fallback to browser-based processing
+  } catch (browserError) {
+    // Fallback to FFmpeg processing (for edge cases or special codecs)
     try {
-      const [thumbnailData, duration] = await Promise.all([
-        generateVideoThumbnailBrowser(file),
-        getMediaDuration(file)
+      const [videoInfo, thumbnailUrl] = await Promise.all([
+        getVideoInfo(file),
+        generateThumbnail(file, 1) // Generate thumbnail at 1 second
       ]);
       
-      console.log("[Media Store] ✅ Browser fallback processing successful");
-      
       return {
-        thumbnailUrl: thumbnailData.thumbnailUrl,
-        width: thumbnailData.width,
-        height: thumbnailData.height,
-        duration,
-        fps: 30, // Default FPS when browser method can't detect
-        processingMethod: 'browser'
+        thumbnailUrl,
+        width: videoInfo.width,
+        height: videoInfo.height,
+        duration: videoInfo.duration,
+        fps: videoInfo.fps,
+        processingMethod: 'ffmpeg'
       };
-    } catch (browserError) {
-      console.error("[Media Store] ❌ Both FFmpeg and browser processing failed:", browserError);
-      
+    } catch (ffmpegError) {
       // Return minimal data to prevent complete failure
       return {
         thumbnailUrl: undefined,
@@ -158,13 +141,13 @@ export const processVideoFile = async (file: File) => {
         duration: 0,
         fps: 30,
         processingMethod: 'fallback',
-        error: `Processing failed: ${browserError instanceof Error ? browserError.message : String(browserError)}`
+        error: `Processing failed: ${ffmpegError instanceof Error ? ffmpegError.message : String(ffmpegError)}`
       };
     }
   }
 };
 
-// Helper function to generate video thumbnail using browser APIs (fallback)
+// Helper function to generate video thumbnail using browser APIs (primary method)
 export const generateVideoThumbnailBrowser = (
   file: File
 ): Promise<{ thumbnailUrl: string; width: number; height: number }> => {
@@ -364,20 +347,16 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
   },
 
   loadProjectMedia: async (projectId) => {
-    console.log(`[Media Store] 🚀 loadProjectMedia called with projectId: ${projectId}`);
     set({ isLoading: true });
 
     try {
-      console.log(`[Media Store] 📂 Loading media items from storage...`);
       const mediaItems = await storageService.loadAllMediaItems(projectId);
-      console.log(`[Media Store] 📁 Loaded ${mediaItems.length} media items for project ${projectId}`);
 
       // Process media items with enhanced error handling
       const updatedMediaItems = await Promise.all(
         mediaItems.map(async (item) => {
           if (item.type === "video" && item.file) {
             try {
-              console.log(`[Media Store] 🔄 Processing video: ${item.name}`);
               const processResult = await processVideoFile(item.file);
               
               return {
@@ -411,13 +390,7 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
         })
       );
 
-      console.log(`[Media Store] 💾 Setting ${updatedMediaItems.length} processed media items to store`);
       set({ mediaItems: updatedMediaItems });
-      console.log(`[Media Store] ✅ Successfully processed ${updatedMediaItems.length} media items`);
-      
-      // Verify the store state after setting
-      const verifyState = get();
-      console.log(`[Media Store] 🔍 Store verification - current mediaItems count: ${verifyState.mediaItems.length}`);
     } catch (error) {
       console.error("[Media Store] ❌ Failed to load media items:", error);
       
@@ -456,9 +429,7 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
   },
 
   clearAllMedia: () => {
-    console.log(`[Media Store] 🧹 clearAllMedia called`);
     const state = get();
-    console.log(`[Media Store] 🧹 Clearing ${state.mediaItems.length} media items`);
 
     // Cleanup all object URLs
     state.mediaItems.forEach((item) => {
@@ -472,6 +443,5 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
 
     // Clear local state
     set({ mediaItems: [] });
-    console.log(`[Media Store] 🧹 Media items cleared, new count: 0`);
   },
 }));

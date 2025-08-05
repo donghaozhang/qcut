@@ -46,37 +46,10 @@ export function MediaView() {
   const [mediaFilter, setMediaFilter] = useState("all");
   const [filteredMediaItems, setFilteredMediaItems] = useState(mediaItems);
 
-  // Debug logging for media store state
-  useEffect(() => {
-    console.log('[MediaView] === MEDIA STORE DEBUG ===');
-    console.log('[MediaView] Current media items:', mediaItems);
-    console.log('[MediaView] Media items array length:', mediaItems?.length);
-    console.log('[MediaView] Active project ID:', activeProject?.id);
-    console.log('[MediaView] Media store loaded:', mediaStore ? 'Yes' : 'No');
-    console.log('[MediaView] Media store loading:', mediaStoreLoading);
-    console.log('[MediaView] Media store object:', mediaStore);
-    
-    if (mediaStore) {
-      console.log('[MediaView] Direct store.mediaItems:', mediaStore.mediaItems);
-      console.log('[MediaView] Direct store.mediaItems length:', mediaStore.mediaItems?.length);
-      console.log('[MediaView] Store isLoading:', mediaStore.isLoading);
-    }
-    
-    if (mediaItems && mediaItems.length > 0) {
-      console.log('[MediaView] === MEDIA ITEMS DETAILS ===');
-      mediaItems.forEach(item => {
-        console.log(`[MediaView] Item ${item.id}:`, {
-          name: item.name,
-          url: item.url,
-          type: item.type,
-          thumbnailUrl: item.thumbnailUrl,
-        });
-      });
-    } else {
-      console.log('[MediaView] No media items to display');
-    }
-    console.log('[MediaView] === END DEBUG ===');
-  }, [mediaItems, activeProject, mediaStore, mediaStoreLoading]);
+  // Media store state monitoring (debug removed)
+  // useEffect(() => {
+  //   // Debug logging removed - media store working correctly
+  // }, [mediaItems, activeProject, mediaStore, mediaStoreLoading]);
 
   useEffect(() => {
     const filtered = mediaItems.filter((item) => {
