@@ -129,16 +129,31 @@ Review Electron's security settings that might block video loading:
 **ROOT CAUSE IDENTIFIED**: 
 The useEffect runs **BEFORE** the containerRef gets attached to the DOM element. The containerRef becomes available later, but the useEffect doesn't re-run because it only depends on `[canvasSize.width, canvasSize.height, isExpanded]`, not on the containerRef itself.
 
-**TIMING ISSUE**: React lifecycle timing problem where:
-1. useEffect runs immediately → containerRef.current is null → exits early
-2. DOM renders later → containerRef gets attached 
-3. useEffect never re-runs → size never calculated → previewDimensions stays 0x0
+**CRITICAL ERROR DISCOVERED** ⚠️:
+```
+Uncaught ReferenceError: Cannot access 'z' before initialization
+at L (index-045_2v1K.js:529:20334)
+```
 
-## Next Steps Priority - **TIMING ISSUE FIX NEEDED** 
-1. **CRITICAL**: Fix useEffect to re-run when containerRef becomes available
-2. **CRITICAL**: Add containerRef to useEffect dependency array or use ResizeObserver
-3. **HIGH**: Add fallback minimum dimensions (e.g., 640x360) if calculation fails
-4. **MEDIUM**: Consider using useLayoutEffect instead of useEffect for DOM measurements
+**NEW PROBLEM**: JavaScript initialization error is crashing the PreviewPanel component entirely!
+- The component tries to mount but crashes with "Cannot access 'z' before initialization"
+- This is likely a variable hoisting issue introduced by our retry logic
+- The error happens in the `<IU>` component (PreviewPanel minified name)
+- React error boundary catches it and prevents entire app crash
+
+**ORIGINAL TIMING ISSUE STILL EXISTS BUT MASKED BY CRASH**:
+1. useEffect runs → containerRef.current is null → sets up retry
+2. **CRASH OCCURS** during retry logic setup
+3. Component unmounts due to error → preview never renders
+
+## Next Steps Priority - **CRITICAL CRASH FIX NEEDED** 🚨
+1. **IMMEDIATE**: Fix the "Cannot access 'z' before initialization" error 
+2. **CRITICAL**: The retry logic is likely accessing `resizeObserver` before it's declared
+3. **CRITICAL**: Need to move variable declarations or restructure the code
+4. **THEN**: Fix the original timing issue once crash is resolved
+
+## **BUG ANALYSIS**
+The error occurs because in our retry logic, we're trying to use `resizeObserver` in the cleanup function, but it's declared AFTER the retry block. This is a temporal dead zone (TDZ) error in JavaScript.
 
 ## **IMMEDIATE FIX**
 The useEffect needs to trigger when containerRef becomes available. Options:

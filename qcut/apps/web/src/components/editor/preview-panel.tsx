@@ -124,6 +124,9 @@ export function PreviewPanel() {
       setPreviewDimensions({ width, height });
     };
 
+    // Declare resizeObserver first to avoid temporal dead zone
+    const resizeObserver = new ResizeObserver(updatePreviewSize);
+    
     updatePreviewSize();
     
     // Retry size calculation if container wasn't ready initially
@@ -134,21 +137,11 @@ export function PreviewPanel() {
         updatePreviewSize();
       }, 100);
       
-      // Clean up timeout if component unmounts
-      const originalCleanup = () => {
-        resizeObserver.disconnect();
-        if (isExpanded) {
-          window.removeEventListener("resize", updatePreviewSize);
-        }
-      };
-      
+      // Return cleanup that only clears timeout (resizeObserver not connected yet)
       return () => {
         clearTimeout(retryTimeout);
-        originalCleanup();
       };
     }
-    
-    const resizeObserver = new ResizeObserver(updatePreviewSize);
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
     }
