@@ -268,7 +268,6 @@ export function useTimelinePlayhead({
     }
   }, [
     playheadPosition,
-    duration,
     zoomLevel,
     rulerScrollRef,
     tracksScrollRef,

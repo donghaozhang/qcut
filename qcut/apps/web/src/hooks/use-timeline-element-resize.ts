@@ -40,49 +40,7 @@ export function useTimelineElementResize({
     pushHistory,
   } = useTimelineStore();
 
-  // Set up document-level mouse listeners during resize (like proper drag behavior)
-  useEffect(() => {
-    if (!resizing) return;
-
-    const handleDocumentMouseMove = (e: MouseEvent) => {
-      updateTrimFromMouseMove({ clientX: e.clientX });
-    };
-
-    const handleDocumentMouseUp = () => {
-      handleResizeEnd();
-    };
-
-    // Add document-level listeners for proper drag behavior
-    document.addEventListener("mousemove", handleDocumentMouseMove);
-    document.addEventListener("mouseup", handleDocumentMouseUp);
-
-    return () => {
-      document.removeEventListener("mousemove", handleDocumentMouseMove);
-      document.removeEventListener("mouseup", handleDocumentMouseUp);
-    };
-  }, [resizing, handleResizeEnd, updateTrimFromMouseMove]); // Re-run when resizing state changes
-
-  const handleResizeStart = (
-    e: React.MouseEvent,
-    elementId: string,
-    side: "left" | "right"
-  ) => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    // Push history once at the start of the resize operation
-    pushHistory();
-
-    setResizing({
-      elementId,
-      side,
-      startX: e.clientX,
-      initialTrimStart: element.trimStart,
-      initialTrimEnd: element.trimEnd,
-    });
-  };
-
-  const canExtendElementDuration = () => {
+  const canExtendElementDuration = useCallback(() => {
     // Text elements can always be extended
     if (element.type === "text") {
       return true;
@@ -107,7 +65,11 @@ export function useTimelineElementResize({
     }
 
     return false;
-  };
+  }, [element.type, element.mediaId, mediaItemsLoading, mediaItems]);
+
+  const handleResizeEnd = useCallback(() => {
+    setResizing(null);
+  }, []);
 
   const updateTrimFromMouseMove = useCallback((e: { clientX: number }) => {
     if (!resizing) return;
@@ -218,9 +180,47 @@ export function useTimelineElementResize({
     }
   }, [resizing, zoomLevel, element, track.id, updateElementTrim, updateElementStartTime, updateElementDuration, canExtendElementDuration]);
 
-  const handleResizeEnd = useCallback(() => {
-    setResizing(null);
-  }, []);
+  // Set up document-level mouse listeners during resize (like proper drag behavior)
+  useEffect(() => {
+    if (!resizing) return;
+
+    const handleDocumentMouseMove = (e: MouseEvent) => {
+      updateTrimFromMouseMove({ clientX: e.clientX });
+    };
+
+    const handleDocumentMouseUp = () => {
+      handleResizeEnd();
+    };
+
+    // Add document-level listeners for proper drag behavior
+    document.addEventListener("mousemove", handleDocumentMouseMove);
+    document.addEventListener("mouseup", handleDocumentMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleDocumentMouseMove);
+      document.removeEventListener("mouseup", handleDocumentMouseUp);
+    };
+  }, [resizing, handleResizeEnd, updateTrimFromMouseMove]); // Re-run when resizing state changes
+
+  const handleResizeStart = (
+    e: React.MouseEvent,
+    elementId: string,
+    side: "left" | "right"
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    // Push history once at the start of the resize operation
+    pushHistory();
+
+    setResizing({
+      elementId,
+      side,
+      startX: e.clientX,
+      initialTrimStart: element.trimStart,
+      initialTrimEnd: element.trimEnd,
+    });
+  };
 
   return {
     resizing,
