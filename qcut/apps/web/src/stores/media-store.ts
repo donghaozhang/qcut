@@ -364,9 +364,11 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
   },
 
   loadProjectMedia: async (projectId) => {
+    console.log(`[Media Store] 🚀 loadProjectMedia called with projectId: ${projectId}`);
     set({ isLoading: true });
 
     try {
+      console.log(`[Media Store] 📂 Loading media items from storage...`);
       const mediaItems = await storageService.loadAllMediaItems(projectId);
       console.log(`[Media Store] 📁 Loaded ${mediaItems.length} media items for project ${projectId}`);
 

@@ -48,11 +48,22 @@ export function MediaView() {
 
   // Debug logging for media store state
   useEffect(() => {
+    console.log('[MediaView] === MEDIA STORE DEBUG ===');
     console.log('[MediaView] Current media items:', mediaItems);
+    console.log('[MediaView] Media items array length:', mediaItems?.length);
     console.log('[MediaView] Active project ID:', activeProject?.id);
     console.log('[MediaView] Media store loaded:', mediaStore ? 'Yes' : 'No');
     console.log('[MediaView] Media store loading:', mediaStoreLoading);
-    if (mediaItems.length > 0) {
+    console.log('[MediaView] Media store object:', mediaStore);
+    
+    if (mediaStore) {
+      console.log('[MediaView] Direct store.mediaItems:', mediaStore.mediaItems);
+      console.log('[MediaView] Direct store.mediaItems length:', mediaStore.mediaItems?.length);
+      console.log('[MediaView] Store isLoading:', mediaStore.isLoading);
+    }
+    
+    if (mediaItems && mediaItems.length > 0) {
+      console.log('[MediaView] === MEDIA ITEMS DETAILS ===');
       mediaItems.forEach(item => {
         console.log(`[MediaView] Item ${item.id}:`, {
           name: item.name,
@@ -61,7 +72,10 @@ export function MediaView() {
           thumbnailUrl: item.thumbnailUrl,
         });
       });
+    } else {
+      console.log('[MediaView] No media items to display');
     }
+    console.log('[MediaView] === END DEBUG ===');
   }, [mediaItems, activeProject, mediaStore, mediaStoreLoading]);
 
   useEffect(() => {

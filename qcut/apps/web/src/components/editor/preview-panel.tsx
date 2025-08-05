@@ -465,7 +465,7 @@ export function PreviewPanel() {
               trimStart={element.trimStart}
               trimEnd={element.trimEnd}
               clipDuration={element.duration}
-              className="object-contain"
+              className="object-cover"
             />
           </div>
         );
@@ -481,7 +481,7 @@ export function PreviewPanel() {
             <img
               src={mediaItem.url!}
               alt={mediaItem.name}
-              className="max-w-full max-h-full object-contain"
+              className="w-full h-full object-cover"
               draggable={false}
             />
           </div>
