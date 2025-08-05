@@ -3,10 +3,13 @@ import { initFFmpeg, isFFmpegReady } from "./ffmpeg-utils";
 
 export class FFmpegService {
   private ffmpeg: FFmpeg | null = null;
+  private onProgress?: (progress: number, message: string) => void;
 
   constructor(
-    private onProgress?: (progress: number, message: string) => void
-  ) {}
+    onProgress?: (progress: number, message: string) => void
+  ) {
+    this.onProgress = onProgress;
+  }
 
   async initialize(): Promise<void> {
     console.log("[FFmpeg Service] 🔄 Starting initialization...");

@@ -38,22 +38,22 @@ After successful completion of fix-remaining-lint-issues.md, we've reduced error
 - [ ] **Task 3.2.1** (5 min): Replace parameter assignment with local variable in `createEngine()` method at `lib/export-engine-factory.ts:164`
 
 #### 3.3 Export Engine Core Issues (~10 min)
-- [ ] **Task 3.3.1** (2 min): Remove unused `isRecording` private property in `lib/export-engine.ts:53`
-- [ ] **Task 3.3.2** (5 min): Fix async Promise executor in `stopRecording()` method at `lib/export-engine.ts:540`
-- [ ] **Task 3.3.3** (3 min): Replace parameter property with explicit class property in `lib/ffmpeg-service.ts:8`
+- [x] **Task 3.3.1** (2 min): Remove unused `isRecording` private property in `lib/export-engine.ts:53` ✅
+- [x] **Task 3.3.2** (5 min): Fix async Promise executor in `stopRecording()` method at `lib/export-engine.ts:540` ✅
+- [x] **Task 3.3.3** (3 min): Replace parameter property with explicit class property in `lib/ffmpeg-service.ts:8` ✅
 
 ### Phase 4: Type Formatting (LOW Priority - ~5 min)
 
 #### 4.1 Type Alias Formatting (~5 min)
-- [ ] **Task 4.1.1** (2 min): Add parentheses to `ExportFormat` type alias in `types/export.ts:8`
-- [ ] **Task 4.1.2** (2 min): Add parentheses to `ExportQuality` type alias in `types/export.ts:17`
-- [ ] **Task 4.1.3** (1 min): Add parentheses to `ExportPurpose` type alias in `types/export.ts:25`
+- [x] **Task 4.1.1** (2 min): Add parentheses to `ExportFormat` type alias in `types/export.ts:8` ✅
+- [x] **Task 4.1.2** (2 min): Add parentheses to `ExportQuality` type alias in `types/export.ts:17` ✅
+- [x] **Task 4.1.3** (1 min): Add parentheses to `ExportPurpose` type alias in `types/export.ts:25` ✅
 
 ### Phase 5: Investigation & Remaining Issues (OPTIONAL - ~30 min)
 
 #### 5.1 Full Error Assessment (~15 min)
-- [ ] **Task 5.1.1** (5 min): Run `bun run lint --max-diagnostics=5000` to see all hidden errors
-- [ ] **Task 5.1.2** (10 min): Categorize and prioritize the remaining ~1400 hidden errors
+- [x] **Task 5.1.1** (5 min): Run `npx @biomejs/biome check ./ --max-diagnostics=5000` to see all hidden errors ✅
+- [x] **Task 5.1.2** (10 min): Categorize and prioritize the remaining ~1400 hidden errors ✅
 
 #### 5.2 Hook Dependencies Deep Dive (~15 min)
 - [ ] **Task 5.2.1** (5 min): Check for similar hook dependency issues in other timeline components

@@ -5,7 +5,7 @@ export const ExportFormat = {
   MOV: "mov",
 } as const;
 
-export type ExportFormat = typeof ExportFormat[keyof typeof ExportFormat];
+export type ExportFormat = (typeof ExportFormat)[keyof typeof ExportFormat];
 
 // Export quality presets
 export const ExportQuality = {
@@ -14,7 +14,7 @@ export const ExportQuality = {
   LOW: "480p",
 } as const;
 
-export type ExportQuality = typeof ExportQuality[keyof typeof ExportQuality];
+export type ExportQuality = (typeof ExportQuality)[keyof typeof ExportQuality];
 
 // Export purpose types
 export const ExportPurpose = {
@@ -22,7 +22,7 @@ export const ExportPurpose = {
   PREVIEW: "preview",
 } as const;
 
-export type ExportPurpose = typeof ExportPurpose[keyof typeof ExportPurpose];
+export type ExportPurpose = (typeof ExportPurpose)[keyof typeof ExportPurpose];
 
 // Export settings configuration
 export interface ExportSettings {

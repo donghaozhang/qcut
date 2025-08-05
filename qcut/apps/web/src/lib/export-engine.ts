@@ -50,7 +50,6 @@ export class ExportEngine {
   // MediaRecorder properties
   private mediaRecorder: MediaRecorder | null = null;
   private recordedChunks: Blob[] = [];
-  private isRecording = false;
   protected isExporting = false;
   protected abortController: AbortController | null = null;
 
@@ -493,7 +492,7 @@ export class ExportEngine {
 
     // Handle recording stop
     this.mediaRecorder.onstop = () => {
-      this.isRecording = false;
+      // Recording stopped
     };
   }
 
@@ -520,7 +519,6 @@ export class ExportEngine {
         });
       }
       await this.ffmpegRecorder.startRecording();
-      this.isRecording = true;
       return;
     }
 
@@ -530,47 +528,36 @@ export class ExportEngine {
 
     if (this.mediaRecorder && this.mediaRecorder.state === "inactive") {
       this.recordedChunks = []; // Clear previous chunks
-      this.isRecording = true;
       this.mediaRecorder.start(100); // Record in 100ms chunks
     }
   }
 
   // Stop recording and return blob
-  private stopRecording(): Promise<Blob> {
-    return new Promise(async (resolve, reject) => {
-      if (this.useFFmpegExport && this.ffmpegRecorder) {
-        try {
-          const blob = await this.ffmpegRecorder.stopRecording();
-          this.isRecording = false;
-          resolve(blob);
-          return;
-        } catch (error) {
-          reject(error);
-          return;
-        }
-      }
+  private async stopRecording(): Promise<Blob> {
+    if (this.useFFmpegExport && this.ffmpegRecorder) {
+      return await this.ffmpegRecorder.stopRecording();
+    }
 
-      if (!this.mediaRecorder) {
-        reject(new Error("MediaRecorder not initialized"));
-        return;
-      }
+    if (!this.mediaRecorder) {
+      throw new Error("MediaRecorder not initialized");
+    }
 
-      const totalSize = this.recordedChunks.reduce(
-        (total, chunk) => total + chunk.size,
-        0
-      );
-      console.log(
-        `[ExportEngine] Export complete: ${totalSize} bytes, ${this.recordedChunks.length} chunks`
-      );
+    const totalSize = this.recordedChunks.reduce(
+      (total, chunk) => total + chunk.size,
+      0
+    );
+    console.log(
+      `[ExportEngine] Export complete: ${totalSize} bytes, ${this.recordedChunks.length} chunks`
+    );
 
-      this.mediaRecorder.onstop = () => {
-        this.isRecording = false;
+    return new Promise((resolve, reject) => {
+      this.mediaRecorder!.onstop = () => {
         const blob = new Blob(this.recordedChunks, { type: "video/webm" });
         resolve(blob);
       };
 
-      if (this.mediaRecorder.state === "recording") {
-        this.mediaRecorder.stop();
+      if (this.mediaRecorder!.state === "recording") {
+        this.mediaRecorder!.stop();
       } else {
         // Already stopped, create blob immediately
         const blob = new Blob(this.recordedChunks, { type: "video/webm" });
@@ -798,7 +785,6 @@ export class ExportEngine {
     }
 
     this.isExporting = false;
-    this.isRecording = false;
     this.recordedChunks = []; // Clear any partial data
   }
 
