@@ -218,8 +218,6 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
       });
 
       await Promise.race([loadPromise, timeoutPromise]);
-      
-      console.log("[FFmpeg Utils] ✅ FFmpeg.load() completed successfully");
     } catch (loadError) {
       console.error("[FFmpeg Utils] ❌ FFmpeg load failed:", loadError);
       
@@ -239,8 +237,6 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
     }
 
     isFFmpegLoaded = true;
-    console.log("[FFmpeg Utils] ✅ FFmpeg loaded successfully");
-    console.log("[FFmpeg Utils] 🎉 FFmpeg is ready for use");
   } catch (error) {
     console.error("[FFmpeg Utils] ❌ FFmpeg initialization failed:", error);
     isFFmpegLoaded = false;
