@@ -411,8 +411,13 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
         })
       );
 
+      console.log(`[Media Store] 💾 Setting ${updatedMediaItems.length} processed media items to store`);
       set({ mediaItems: updatedMediaItems });
       console.log(`[Media Store] ✅ Successfully processed ${updatedMediaItems.length} media items`);
+      
+      // Verify the store state after setting
+      const verifyState = get();
+      console.log(`[Media Store] 🔍 Store verification - current mediaItems count: ${verifyState.mediaItems.length}`);
     } catch (error) {
       console.error("[Media Store] ❌ Failed to load media items:", error);
       
@@ -451,7 +456,9 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
   },
 
   clearAllMedia: () => {
+    console.log(`[Media Store] 🧹 clearAllMedia called`);
     const state = get();
+    console.log(`[Media Store] 🧹 Clearing ${state.mediaItems.length} media items`);
 
     // Cleanup all object URLs
     state.mediaItems.forEach((item) => {
@@ -465,5 +472,6 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
 
     // Clear local state
     set({ mediaItems: [] });
+    console.log(`[Media Store] 🧹 Media items cleared, new count: 0`);
   },
 }));

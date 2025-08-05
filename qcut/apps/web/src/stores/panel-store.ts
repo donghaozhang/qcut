@@ -31,6 +31,15 @@ interface PanelState {
   normalizeHorizontalPanels: () => void;
 }
 
+// Debounce normalization to avoid excessive calls during resize
+let normalizationTimeout: NodeJS.Timeout | null = null;
+const debouncedNormalize = (normalizeFunc: () => void) => {
+  if (normalizationTimeout) {
+    clearTimeout(normalizationTimeout);
+  }
+  normalizationTimeout = setTimeout(normalizeFunc, 50); // 50ms debounce
+};
+
 export const usePanelStore = create<PanelState>()(
   persist(
     (set, get) => ({
@@ -39,16 +48,16 @@ export const usePanelStore = create<PanelState>()(
 
       // Actions
       setToolsPanel: (size) => {
-        set({ toolsPanel: size });
-        get().normalizeHorizontalPanels();
+        set({ toolsPanel: Math.round(size * 1000) / 1000 }); // Round to 3 decimal places
+        debouncedNormalize(() => get().normalizeHorizontalPanels());
       },
       setPreviewPanel: (size) => {
-        set({ previewPanel: size });
-        get().normalizeHorizontalPanels();
+        set({ previewPanel: Math.round(size * 1000) / 1000 }); // Round to 3 decimal places
+        debouncedNormalize(() => get().normalizeHorizontalPanels());
       },
       setPropertiesPanel: (size) => {
-        set({ propertiesPanel: size });
-        get().normalizeHorizontalPanels();
+        set({ propertiesPanel: Math.round(size * 1000) / 1000 }); // Round to 3 decimal places
+        debouncedNormalize(() => get().normalizeHorizontalPanels());
       },
       setMainContent: (size) => set({ mainContent: size }),
       setTimeline: (size) => set({ timeline: size }),
@@ -60,10 +69,16 @@ export const usePanelStore = create<PanelState>()(
         const total =
           state.toolsPanel + state.previewPanel + state.propertiesPanel;
 
-        if (Math.abs(total - 100) > 0.01) {
-          console.warn(
-            `[PanelStore] Invalid layout total size: ${state.toolsPanel}%, ${state.previewPanel}%, ${state.propertiesPanel}%. Normalizing to 100%.`
-          );
+        // Use a larger tolerance to avoid constant warnings from floating-point precision issues
+        const tolerance = 0.1; // 0.1% tolerance instead of 0.01%
+        
+        if (Math.abs(total - 100) > tolerance) {
+          // Only log warning for significant deviations (> 1%)
+          if (Math.abs(total - 100) > 1) {
+            console.warn(
+              `[PanelStore] Invalid layout total size: ${state.toolsPanel.toFixed(2)}%, ${state.previewPanel.toFixed(2)}%, ${state.propertiesPanel.toFixed(2)}%. Normalizing to 100%.`
+            );
+          }
           
           // If the values are way off, reset to defaults
           if (total < 50 || total > 150) {
@@ -74,12 +89,12 @@ export const usePanelStore = create<PanelState>()(
               propertiesPanel: DEFAULT_PANEL_SIZES.propertiesPanel,
             });
           } else {
-            // Calculate normalized values
+            // Calculate normalized values with rounding to avoid precision issues
             const factor = 100 / total;
             set({
-              toolsPanel: state.toolsPanel * factor,
-              previewPanel: state.previewPanel * factor,
-              propertiesPanel: state.propertiesPanel * factor,
+              toolsPanel: Math.round(state.toolsPanel * factor * 1000) / 1000,
+              previewPanel: Math.round(state.previewPanel * factor * 1000) / 1000,
+              propertiesPanel: Math.round(state.propertiesPanel * factor * 1000) / 1000,
             });
           }
         }
@@ -87,11 +102,11 @@ export const usePanelStore = create<PanelState>()(
     }),
     {
       name: "panel-sizes",
-      version: 4, // Increment this to force migration
+      version: 5, // Increment this to force migration
       migrate: (persistedState: any, version: number) => {
         // Reset to defaults if coming from old version or if data is corrupted
-        if (version < 4) {
-          console.log('[PanelStore] Migrating from version', version, 'to version 4');
+        if (version < 5) {
+          console.log('[PanelStore] Migrating from version', version, 'to version 5');
           return DEFAULT_PANEL_SIZES;
         }
 
@@ -116,13 +131,13 @@ export const usePanelStore = create<PanelState>()(
           return DEFAULT_PANEL_SIZES;
         }
         
-        if (Math.abs(total - 100) > 0.01) {
+        if (Math.abs(total - 100) > 0.1) {
           const factor = 100 / total;
           return {
             ...persistedState,
-            toolsPanel: persistedState.toolsPanel * factor,
-            previewPanel: persistedState.previewPanel * factor,
-            propertiesPanel: persistedState.propertiesPanel * factor,
+            toolsPanel: Math.round(persistedState.toolsPanel * factor * 1000) / 1000,
+            previewPanel: Math.round(persistedState.previewPanel * factor * 1000) / 1000,
+            propertiesPanel: Math.round(persistedState.propertiesPanel * factor * 1000) / 1000,
           };
         }
 
