@@ -148,10 +148,8 @@ export function VideoPlayer({
       disableRemotePlayback
       style={{ 
         pointerEvents: "none",
-        minWidth: "320px",
-        minHeight: "180px",
-        width: "100%",
-        height: "100%"
+        width: "320px",
+        height: "180px"
       }}
       onContextMenu={(e) => e.preventDefault()}
       onLoadedMetadata={(e) => {

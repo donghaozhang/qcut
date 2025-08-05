@@ -237,27 +237,6 @@ export function PreviewPanel() {
   const getActiveElements = (): ActiveElement[] => {
     const activeElements: ActiveElement[] = [];
 
-    // Debug: Check tracks and timeline elements
-    console.log('[PreviewPanel] Checking tracks:', {
-      currentTime,
-      tracks: tracks.map(track => ({
-        id: track.id,
-        elementsCount: track.elements.length,
-        elements: track.elements.map(el => ({
-          id: el.id,
-          name: el.name,
-          startTime: el.startTime,
-          duration: el.duration,
-          endTime: el.startTime + el.duration,
-          trimStart: el.trimStart,
-          trimEnd: el.trimEnd,
-          adjustedEndTime: el.startTime + (el.duration - el.trimStart - el.trimEnd),
-          isActive: currentTime >= el.startTime && currentTime < el.startTime + (el.duration - el.trimStart - el.trimEnd),
-          hidden: el.hidden
-        }))
-      }))
-    });
-
     tracks.forEach((track) => {
       track.elements.forEach((element) => {
         if (element.hidden) return;
@@ -274,17 +253,6 @@ export function PreviewPanel() {
                 ? null
                 : mediaItems.find((item) => item.id === element.mediaId) ||
                   null;
-            
-            // Debug: Check media item lookup
-            console.log('[PreviewPanel] Element media lookup:', {
-              elementId: element.id,
-              elementMediaId: element.mediaId,
-              elementName: element.name,
-              foundMediaItem: !!mediaItem,
-              mediaItemUrl: mediaItem?.url?.substring(0, 50) + '...',
-              mediaItemType: mediaItem?.type,
-              availableMediaIds: mediaItems.map(item => item.id)
-            });
           }
           activeElements.push({ element, track, mediaItem });
         }
@@ -294,33 +262,21 @@ export function PreviewPanel() {
     return activeElements;
   };
 
-  const activeElements = getActiveElements();
-
-  // Debug: Check activeElements calculation
-  console.log('[PreviewPanel] Debug activeElements:', {
-    currentTime,
-    tracksCount: tracks.length,
-    mediaItemsCount: mediaItems.length,
-    activeElementsCount: activeElements.length,
-    activeElements: activeElements.map(({element}) => ({
-      id: element.id,
-      name: element.name,
-      startTime: element.startTime,
-      endTime: element.startTime + element.duration,
-      currentTime,
-      isInRange: currentTime >= element.startTime && currentTime < element.startTime + element.duration
-    }))
-  });
+  const activeElements = useMemo(() => {
+    return getActiveElements();
+  }, [tracks, currentTime, mediaItems]);
 
 
   // Get media elements for blur background (video/image only)
-  const blurBackgroundElements = activeElements.filter(
-    ({ element, mediaItem }) =>
-      element.type === "media" &&
-      mediaItem &&
-      (mediaItem.type === "video" || mediaItem.type === "image") &&
-      element.mediaId !== "test" // Exclude test elements
-  );
+  const blurBackgroundElements = useMemo(() => {
+    return activeElements.filter(
+      ({ element, mediaItem }) =>
+        element.type === "media" &&
+        mediaItem &&
+        (mediaItem.type === "video" || mediaItem.type === "image") &&
+        element.mediaId !== "test" // Exclude test elements
+    );
+  }, [activeElements]);
 
   // Render blur background layer
   const renderBlurBackground = () => {
@@ -391,17 +347,6 @@ export function PreviewPanel() {
   // Render an element
   const renderElement = (elementData: ActiveElement, index: number) => {
     const { element, mediaItem } = elementData;
-
-    // Debug: Check renderElement calls
-    console.log('[PreviewPanel] Rendering element:', {
-      elementId: element.id,
-      elementName: element.name,
-      elementType: element.type,
-      mediaItemType: mediaItem?.type,
-      mediaItemUrl: mediaItem?.url?.substring(0, 50) + '...',
-      hasPoster: !!mediaItem?.thumbnailUrl,
-      index
-    });
 
     // Text elements
     if (element.type === "text") {
@@ -487,7 +432,10 @@ export function PreviewPanel() {
           <div
             key={element.id}
             className="absolute inset-0 flex items-center justify-center"
-            style={{ width: '100%', height: '100%' }}
+            style={{ 
+              width: '100%', 
+              height: '100%'
+            }}
           >
             <VideoPlayer
               src={mediaItem.url!}
