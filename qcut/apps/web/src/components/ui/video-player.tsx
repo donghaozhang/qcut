@@ -118,41 +118,12 @@ export function VideoPlayer({
     const video = videoRef.current;
     if (!video) return;
     
-    const checkDimensions = () => {
-      const rect = video.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) {
-        console.warn('[VideoPlayer] Video element has 0 dimensions!');
-      }
-    };
-    
-    // Check immediately and after a short delay
-    checkDimensions();
-    setTimeout(checkDimensions, 100);
+    // Dimensions will be checked by video element itself
   }, [src]);
 
-  // Video source tracking and loading debugging
+  // Video source tracking
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    
-    console.log('[VideoPlayer] Source changed to:', src);
-    
-    const handleLoadStart = () => console.log('[VideoPlayer] Load started for:', src);
-    const handleCanPlay = () => console.log('[VideoPlayer] Can play:', src);
-    const handleLoadedData = () => console.log('[VideoPlayer] Data loaded:', src);
-    const handleError = (e: Event) => console.log('[VideoPlayer] Error loading:', src, e);
-    
-    video.addEventListener('loadstart', handleLoadStart);
-    video.addEventListener('canplay', handleCanPlay);
-    video.addEventListener('loadeddata', handleLoadedData);
-    video.addEventListener('error', handleError);
-    
-    return () => {
-      video.removeEventListener('loadstart', handleLoadStart);
-      video.removeEventListener('canplay', handleCanPlay);
-      video.removeEventListener('loadeddata', handleLoadedData);
-      video.removeEventListener('error', handleError);
-    };
+    // Source changed - video will reinitialize
   }, [src]);
 
   return (
