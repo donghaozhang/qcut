@@ -30,6 +30,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ExportAllButton } from "../export-all-button";
 
 export function MediaView() {
+  console.log("🔥🔥🔥 MEDIA VIEW COMPONENT LOADED 🔥🔥🔥");
+  
   const {
     store: mediaStore,
     loading: mediaStoreLoading,
@@ -38,6 +40,23 @@ export function MediaView() {
   const mediaItems = mediaStore?.mediaItems || [];
   const addMediaItem = mediaStore?.addMediaItem;
   const removeMediaItem = mediaStore?.removeMediaItem;
+
+  // Debug logging
+  console.log("🚀 MEDIA VIEW RENDERING:", { 
+    mediaItemsCount: mediaItems.length, 
+    hasStore: !!mediaStore,
+    loading: mediaStoreLoading 
+  });
+  
+  useEffect(() => {
+    console.log("[Media View Debug] 🐛 Store state:", {
+      mediaStore: !!mediaStore,
+      loading: mediaStoreLoading,
+      error: mediaStoreError?.message,
+      mediaItemsCount: mediaItems.length,
+      mediaItems: mediaItems.map(item => ({ id: item.id, name: item.name, type: item.type }))
+    });
+  }, [mediaStore, mediaStoreLoading, mediaStoreError, mediaItems]);
   const { activeProject } = useProjectStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -264,6 +283,7 @@ export function MediaView() {
         multiple
         className="hidden"
         onChange={handleFileChange}
+        aria-label="Upload media files"
       />
 
       <div

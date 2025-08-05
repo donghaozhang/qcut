@@ -21,7 +21,7 @@ interface AsyncMediaStoreState {
  * the store's *API object* which is safe to use outside React.  `useMediaStore`
  * is created with `zustand`, therefore it exposes:
  *   - `useMediaStore.getState()`   → read current state / actions
- *   - `useMediaStore.subscribe()`  → subscribe to changes (not required here)
+ *   - `useMediaStore.subscribe()`  → subscribe to changes for reactivity
  */
 export function useAsyncMediaStore(): AsyncMediaStoreState {
   const [state, setState] = useState<AsyncMediaStoreState>({
@@ -32,16 +32,31 @@ export function useAsyncMediaStore(): AsyncMediaStoreState {
 
   useEffect(() => {
     let mounted = true;
+    let unsubscribe: (() => void) | null = null;
 
     (async () => {
       try {
         const module = await getMediaStore();
         if (!mounted) return;
 
-        // We grab the zustand store *object* (not the React hook) via getState.
-        const storeAPI = module.useMediaStore.getState();
+        // Subscribe to store changes for reactivity
+        unsubscribe = module.useMediaStore.subscribe((newState) => {
+          if (!mounted) return;
+          console.log("[Media Store Hook] 🔄 Store updated:", {
+            mediaItemsCount: newState.mediaItems.length,
+            mediaItems: newState.mediaItems.map((item: any) => ({ id: item.id, name: item.name, type: item.type }))
+          });
+          setState({
+            store: newState as unknown as MediaStore,
+            loading: false,
+            error: null,
+          });
+        });
+
+        // Set initial state
+        const initialState = module.useMediaStore.getState();
         setState({
-          store: storeAPI as unknown as MediaStore,
+          store: initialState as unknown as MediaStore,
           loading: false,
           error: null,
         });
@@ -60,6 +75,9 @@ export function useAsyncMediaStore(): AsyncMediaStoreState {
 
     return () => {
       mounted = false;
+      if (unsubscribe) {
+        unsubscribe();
+      }
     };
   }, []);
 
