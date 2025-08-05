@@ -42,10 +42,6 @@ export function useAsyncMediaStore(): AsyncMediaStoreState {
         // Subscribe to store changes for reactivity
         unsubscribe = module.useMediaStore.subscribe((newState) => {
           if (!mounted) return;
-          console.log("[Media Store Hook] 🔄 Store updated:", {
-            mediaItemsCount: newState.mediaItems.length,
-            mediaItems: newState.mediaItems.map((item: any) => ({ id: item.id, name: item.name, type: item.type }))
-          });
           setState({
             store: newState as unknown as MediaStore,
             loading: false,
