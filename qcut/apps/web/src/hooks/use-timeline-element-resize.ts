@@ -71,55 +71,22 @@ export function useTimelineElementResize({
     setResizing(null);
   }, []);
 
-  const updateTrimFromMouseMove = useCallback((e: { clientX: number }) => {
-    if (!resizing) return;
+  const updateTrimFromMouseMove = useCallback(
+    (e: { clientX: number }) => {
+      if (!resizing) return;
 
-    const deltaX = e.clientX - resizing.startX;
-    // Reasonable sensitivity for resize operations - similar to timeline scale
-    const deltaTime = deltaX / (50 * zoomLevel);
+      const deltaX = e.clientX - resizing.startX;
+      // Reasonable sensitivity for resize operations - similar to timeline scale
+      const deltaTime = deltaX / (50 * zoomLevel);
 
-    if (resizing.side === "left") {
-      // Left resize - different behavior for media vs text/image elements
-      const maxAllowed = element.duration - resizing.initialTrimEnd - 0.1;
-      const calculated = resizing.initialTrimStart + deltaTime;
+      if (resizing.side === "left") {
+        // Left resize - different behavior for media vs text/image elements
+        const maxAllowed = element.duration - resizing.initialTrimEnd - 0.1;
+        const calculated = resizing.initialTrimStart + deltaTime;
 
-      if (calculated >= 0) {
-        // Normal trimming within available content
-        const newTrimStart = Math.min(maxAllowed, calculated);
-        const trimDelta = newTrimStart - resizing.initialTrimStart;
-        const newStartTime = element.startTime + trimDelta;
-
-        updateElementTrim(
-          track.id,
-          element.id,
-          newTrimStart,
-          resizing.initialTrimEnd,
-          false
-        );
-        updateElementStartTime(track.id, element.id, newStartTime, false);
-      } else {
-        // Trying to extend beyond trimStart = 0
-        if (canExtendElementDuration()) {
-          // Text/Image: extend element to the left by moving startTime and increasing duration
-          const extensionAmount = Math.abs(calculated);
-          const maxExtension = element.startTime;
-          const actualExtension = Math.min(extensionAmount, maxExtension);
-          const newStartTime = element.startTime - actualExtension;
-          const newDuration = element.duration + actualExtension;
-
-          // Keep trimStart at 0 and extend the element
-          updateElementTrim(
-            track.id,
-            element.id,
-            0,
-            resizing.initialTrimEnd,
-            false
-          );
-          updateElementDuration(track.id, element.id, newDuration, false);
-          updateElementStartTime(track.id, element.id, newStartTime, false);
-        } else {
-          // Video/Audio: can't extend beyond original content - limit to trimStart = 0
-          const newTrimStart = 0;
+        if (calculated >= 0) {
+          // Normal trimming within available content
+          const newTrimStart = Math.min(maxAllowed, calculated);
           const trimDelta = newTrimStart - resizing.initialTrimStart;
           const newStartTime = element.startTime + trimDelta;
 
@@ -131,22 +98,78 @@ export function useTimelineElementResize({
             false
           );
           updateElementStartTime(track.id, element.id, newStartTime, false);
+        } else {
+          // Trying to extend beyond trimStart = 0
+          if (canExtendElementDuration()) {
+            // Text/Image: extend element to the left by moving startTime and increasing duration
+            const extensionAmount = Math.abs(calculated);
+            const maxExtension = element.startTime;
+            const actualExtension = Math.min(extensionAmount, maxExtension);
+            const newStartTime = element.startTime - actualExtension;
+            const newDuration = element.duration + actualExtension;
+
+            // Keep trimStart at 0 and extend the element
+            updateElementTrim(
+              track.id,
+              element.id,
+              0,
+              resizing.initialTrimEnd,
+              false
+            );
+            updateElementDuration(track.id, element.id, newDuration, false);
+            updateElementStartTime(track.id, element.id, newStartTime, false);
+          } else {
+            // Video/Audio: can't extend beyond original content - limit to trimStart = 0
+            const newTrimStart = 0;
+            const trimDelta = newTrimStart - resizing.initialTrimStart;
+            const newStartTime = element.startTime + trimDelta;
+
+            updateElementTrim(
+              track.id,
+              element.id,
+              newTrimStart,
+              resizing.initialTrimEnd,
+              false
+            );
+            updateElementStartTime(track.id, element.id, newStartTime, false);
+          }
         }
-      }
-    } else {
-      // Right resize - can extend duration for supported element types
-      const calculated = resizing.initialTrimEnd - deltaTime;
+      } else {
+        // Right resize - can extend duration for supported element types
+        const calculated = resizing.initialTrimEnd - deltaTime;
 
-      if (calculated < 0) {
-        // We're trying to extend beyond original duration
-        if (canExtendElementDuration()) {
-          // Extend the duration instead of reducing trimEnd further
-          const extensionNeeded = Math.abs(calculated);
-          const newDuration = element.duration + extensionNeeded;
-          const newTrimEnd = 0; // Reset trimEnd to 0 since we're extending
+        if (calculated < 0) {
+          // We're trying to extend beyond original duration
+          if (canExtendElementDuration()) {
+            // Extend the duration instead of reducing trimEnd further
+            const extensionNeeded = Math.abs(calculated);
+            const newDuration = element.duration + extensionNeeded;
+            const newTrimEnd = 0; // Reset trimEnd to 0 since we're extending
 
-          // Update duration first, then trim
-          updateElementDuration(track.id, element.id, newDuration, false);
+            // Update duration first, then trim
+            updateElementDuration(track.id, element.id, newDuration, false);
+            updateElementTrim(
+              track.id,
+              element.id,
+              resizing.initialTrimStart,
+              newTrimEnd,
+              false
+            );
+          } else {
+            // Can't extend - just set trimEnd to 0 (maximum possible extension)
+            updateElementTrim(
+              track.id,
+              element.id,
+              resizing.initialTrimStart,
+              0,
+              false
+            );
+          }
+        } else {
+          // Normal trimming within original duration
+          const maxTrimEnd = element.duration - resizing.initialTrimStart - 0.1; // Leave at least 0.1s visible
+          const newTrimEnd = Math.max(0, Math.min(maxTrimEnd, calculated));
+
           updateElementTrim(
             track.id,
             element.id,
@@ -154,31 +177,20 @@ export function useTimelineElementResize({
             newTrimEnd,
             false
           );
-        } else {
-          // Can't extend - just set trimEnd to 0 (maximum possible extension)
-          updateElementTrim(
-            track.id,
-            element.id,
-            resizing.initialTrimStart,
-            0,
-            false
-          );
         }
-      } else {
-        // Normal trimming within original duration
-        const maxTrimEnd = element.duration - resizing.initialTrimStart - 0.1; // Leave at least 0.1s visible
-        const newTrimEnd = Math.max(0, Math.min(maxTrimEnd, calculated));
-
-        updateElementTrim(
-          track.id,
-          element.id,
-          resizing.initialTrimStart,
-          newTrimEnd,
-          false
-        );
       }
-    }
-  }, [resizing, zoomLevel, element, track.id, updateElementTrim, updateElementStartTime, updateElementDuration, canExtendElementDuration]);
+    },
+    [
+      resizing,
+      zoomLevel,
+      element,
+      track.id,
+      updateElementTrim,
+      updateElementStartTime,
+      updateElementDuration,
+      canExtendElementDuration,
+    ]
+  );
 
   // Set up document-level mouse listeners during resize (like proper drag behavior)
   useEffect(() => {

@@ -12,7 +12,8 @@ export const ExportEngineType = {
   CLI: "cli",
 } as const;
 
-export type ExportEngineType = (typeof ExportEngineType)[keyof typeof ExportEngineType];
+export type ExportEngineType =
+  (typeof ExportEngineType)[keyof typeof ExportEngineType];
 
 // Browser capability detection results
 export interface BrowserCapabilities {
@@ -158,15 +159,16 @@ export class ExportEngineFactory {
     totalDuration: number,
     engineType?: ExportEngineType
   ): Promise<ExportEngine> {
-    if (!engineType) {
+    let selectedEngineType = engineType;
+    if (!selectedEngineType) {
       const recommendation = await this.getEngineRecommendation(
         settings,
         totalDuration
       );
-      engineType = recommendation.engineType;
+      selectedEngineType = recommendation.engineType;
     }
 
-    switch (engineType) {
+    switch (selectedEngineType) {
       case ExportEngineType.OPTIMIZED:
         // Import optimized engine dynamically
         try {

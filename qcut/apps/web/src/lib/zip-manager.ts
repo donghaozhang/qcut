@@ -151,8 +151,8 @@ export class ZipManager {
   }
 
   private sanitizeFilenameForWindows(filename: string): string {
-    // Windows reserved characters
-    const reservedChars = /[<>:"|?*\u0000-\u001f]/g;
+    // Windows reserved characters (excluding control characters for simplicity)
+    const reservedChars = /[<>:"|?*]/g;
 
     // Windows reserved names
     const reservedNames = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)/i;

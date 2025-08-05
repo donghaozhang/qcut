@@ -39,37 +39,6 @@ export function useTimelinePlayhead({
   const playheadPosition =
     isScrubbing && scrubTime !== null ? scrubTime : currentTime;
 
-  // --- Playhead Scrubbing Handlers ---
-  const handlePlayheadMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation(); // Prevent ruler drag from triggering
-      setIsScrubbing(true);
-      handleScrub(e);
-    },
-    [handleScrub]
-  );
-
-  // Ruler mouse down handler
-  const handleRulerMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      // Only handle left mouse button
-      if (e.button !== 0) return;
-
-      // Don't interfere if clicking on the playhead itself
-      if (playheadRef?.current?.contains(e.target as Node)) return;
-
-      e.preventDefault();
-      setIsDraggingRuler(true);
-      setHasDraggedRuler(false);
-
-      // Start scrubbing immediately
-      setIsScrubbing(true);
-      handleScrub(e);
-    },
-    [handleScrub, playheadRef]
-  );
-
   const handleScrub = useCallback(
     (e: MouseEvent | React.MouseEvent) => {
       const ruler = rulerRef.current;
@@ -115,6 +84,37 @@ export function useTimelinePlayhead({
       lastMouseXRef.current = e.clientX;
     },
     [duration, zoomLevel, seek, rulerRef]
+  );
+
+  // --- Playhead Scrubbing Handlers ---
+  const handlePlayheadMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation(); // Prevent ruler drag from triggering
+      setIsScrubbing(true);
+      handleScrub(e);
+    },
+    [handleScrub]
+  );
+
+  // Ruler mouse down handler
+  const handleRulerMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      // Only handle left mouse button
+      if (e.button !== 0) return;
+
+      // Don't interfere if clicking on the playhead itself
+      if (playheadRef?.current?.contains(e.target as Node)) return;
+
+      e.preventDefault();
+      setIsDraggingRuler(true);
+      setHasDraggedRuler(false);
+
+      // Start scrubbing immediately
+      setIsScrubbing(true);
+      handleScrub(e);
+    },
+    [handleScrub, playheadRef]
   );
 
   // Auto-scroll function during dragging

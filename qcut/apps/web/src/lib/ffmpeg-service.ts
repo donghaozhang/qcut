@@ -5,9 +5,7 @@ export class FFmpegService {
   private ffmpeg: FFmpeg | null = null;
   private onProgress?: (progress: number, message: string) => void;
 
-  constructor(
-    onProgress?: (progress: number, message: string) => void
-  ) {
+  constructor(onProgress?: (progress: number, message: string) => void) {
     this.onProgress = onProgress;
   }
 

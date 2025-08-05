@@ -143,28 +143,24 @@ class StorageService {
   }
 
   async loadAllProjects(): Promise<TProject[]> {
-    try {
-      // Ensure storage is initialized
-      await this.initializeStorage();
+    // Ensure storage is initialized
+    await this.initializeStorage();
 
-      const projectIds = await this.projectsAdapter.list();
-      const projects: TProject[] = [];
+    const projectIds = await this.projectsAdapter.list();
+    const projects: TProject[] = [];
 
-      for (const id of projectIds) {
-        const project = await this.loadProject(id);
-        if (project) {
-          projects.push(project);
-        } else {
-        }
+    for (const id of projectIds) {
+      const project = await this.loadProject(id);
+      if (project) {
+        projects.push(project);
+      } else {
       }
-
-      // Sort by last updated (most recent first)
-      return projects.sort(
-        (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
-      );
-    } catch (error) {
-      throw error;
     }
+
+    // Sort by last updated (most recent first)
+    return projects.sort(
+      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
+    );
   }
 
   async deleteProject(id: string): Promise<void> {

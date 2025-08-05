@@ -419,7 +419,6 @@ export function TimelineTrackContent({
     return bestSnapResult.snappedTime;
   };
 
-
   const handleElementMouseDown = (
     e: React.MouseEvent,
     element: TimelineElementType

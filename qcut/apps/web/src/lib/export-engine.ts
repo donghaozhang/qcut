@@ -798,11 +798,6 @@ export class ExportEngine {
     return this.abortController?.signal.aborted || false;
   }
 
-  // Clean up video cache
-  private cleanupVideoCache(): void {
-    this.videoCache.clear();
-  }
-
   // Download video blob - adapted from zip-manager.ts downloadZipSafely
   async downloadVideo(blob: Blob, filename: string): Promise<void> {
     // Ensure filename has proper extension for the selected format

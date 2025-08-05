@@ -432,12 +432,6 @@ export class CLIExportEngine extends ExportEngine {
     return new Blob([buffer], { type: "video/mp4" });
   }
 
-  private async cleanup(): Promise<void> {
-    if (this.sessionId && window.electronAPI) {
-      await window.electronAPI.invoke("cleanup-export-session", this.sessionId);
-    }
-  }
-
   calculateTotalFrames(): number {
     return Math.ceil(this.totalDuration * 30); // 30 fps
   }
