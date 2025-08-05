@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { downloadImage } from "@/lib/image-utils";
 import { toast } from "sonner";
+import { BlobImage } from "@/components/ui/blob-image";
 
 export function EditHistory() {
   const {
@@ -177,7 +178,7 @@ export function EditHistory() {
 
                   {/* Thumbnail */}
                   <div className="aspect-video bg-muted/20 rounded border mb-2 overflow-hidden">
-                    <img
+                    <BlobImage
                       src={item.editedUrl}
                       alt={`Edit ${index + 1}`}
                       className="w-full h-full object-cover"

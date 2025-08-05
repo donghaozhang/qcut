@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useBlobImage } from "@/hooks/use-blob-image";
 import { Button } from "../../ui/button";
 import {
   MoreVertical,
@@ -95,6 +96,16 @@ export function TimelineElement({
     onUpdateDuration: updateElementDuration,
   });
 
+  // Get media item for hook dependency (must be called at top level)
+  const mediaItem =
+    element.type === "media"
+      ? mediaItems.find((item) => item.id === element.mediaId)
+      : null;
+
+  // Convert fal.media URLs to blob URLs to bypass COEP restrictions
+  // Must be called at top level before any conditional returns
+  const { blobUrl: mediaItemBlobUrl } = useBlobImage(mediaItem?.url);
+
   // Handle media loading states
   if (mediaItemsError) {
     console.error("Failed to load media items:", mediaItemsError);
@@ -113,10 +124,6 @@ export function TimelineElement({
     );
   }
 
-  const mediaItem =
-    element.type === "media"
-      ? mediaItems.find((item) => item.id === element.mediaId)
-      : null;
   const isAudio = mediaItem?.type === "audio";
 
   // resizing hooks already declared earlier to maintain stable hook order.
@@ -250,8 +257,8 @@ export function TimelineElement({
             <div
               className="absolute top-3 bottom-3 left-0 right-0"
               style={{
-                backgroundImage: mediaItem.url
-                  ? `url(${mediaItem.url})`
+                backgroundImage: mediaItemBlobUrl
+                  ? `url(${mediaItemBlobUrl})`
                   : "none",
                 backgroundRepeat: "repeat-x",
                 backgroundSize: `${tileWidth}px ${tileHeight}px`,

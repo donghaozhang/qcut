@@ -175,6 +175,59 @@ export async function downloadImage(
 }
 
 /**
+ * Cache for blob URLs to avoid creating multiple blob URLs for the same image
+ */
+const blobUrlCache = new Map<string, string>();
+
+/**
+ * Convert an image URL to a blob URL that bypasses COEP restrictions
+ * Useful for displaying images from external domains like fal.media
+ */
+export async function convertToBlob(url: string): Promise<string> {
+  // Return cached blob URL if available
+  if (blobUrlCache.has(url)) {
+    return blobUrlCache.get(url)!;
+  }
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
+    // Cache the blob URL
+    blobUrlCache.set(url, blobUrl);
+
+    return blobUrl;
+  } catch (error) {
+    console.error(`Failed to convert image to blob URL: ${url}`, error);
+    // Return original URL as fallback
+    return url;
+  }
+}
+
+/**
+ * Clean up blob URL from cache and revoke it
+ */
+export function revokeBlobUrl(originalUrl: string): void {
+  const blobUrl = blobUrlCache.get(originalUrl);
+  if (blobUrl) {
+    URL.revokeObjectURL(blobUrl);
+    blobUrlCache.delete(originalUrl);
+  }
+}
+
+/**
+ * Check if a URL is from fal.media domains and needs blob conversion
+ */
+export function needsBlobConversion(url: string): boolean {
+  return url.includes("fal.media") || url.includes("v3.fal.media");
+}
+
+/**
  * Download image from URL and convert to File object for media library
  */
 export async function downloadImageAsFile(
