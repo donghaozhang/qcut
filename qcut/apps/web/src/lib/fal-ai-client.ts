@@ -2,12 +2,20 @@ import { TEXT2IMAGE_MODELS, type Text2ImageModel } from "./text2image-models";
 
 // Types for API responses
 interface FalImageResponse {
-  images: Array<{
+  // Most models return images array
+  images?: Array<{
     url: string;
     width: number;
     height: number;
     content_type: string;
   }>;
+  // WAN v2.2 returns single image object
+  image?: {
+    url: string;
+    width: number;
+    height: number;
+    content_type?: string;
+  };
   timings?: Record<string, number>;
   seed?: number;
   has_nsfw_concepts?: boolean[];
@@ -214,11 +222,22 @@ class FalAIClient {
 
       const response = await this.makeRequest(model.endpoint, params);
 
-      if (!response.images || response.images.length === 0) {
-        throw new Error("No images returned from API");
-      }
+      let image: { url: string; width: number; height: number };
 
-      const image = response.images[0];
+      // Handle different response formats
+      if (modelKey === "wan-v2-2") {
+        // WAN v2.2 returns {image: {...}, seed: ...}
+        if (!response.image) {
+          throw new Error("No image returned from API");
+        }
+        image = response.image;
+      } else {
+        // Other models return {images: [...], seed: ...}
+        if (!response.images || response.images.length === 0) {
+          throw new Error("No images returned from API");
+        }
+        image = response.images[0];
+      }
 
       return {
         success: true,
