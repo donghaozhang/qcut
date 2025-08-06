@@ -4,7 +4,7 @@ import { useDragDrop } from "@/hooks/use-drag-drop";
 import { processMediaFiles } from "@/lib/media-processing";
 import { useAsyncMediaStore } from "@/hooks/use-async-media-store";
 import type { MediaItem } from "@/stores/media-store-types";
-import { Image, Loader2, Music, Plus, Video } from "lucide-react";
+import { Image, Loader2, Music, Plus, Video, Edit } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,8 @@ import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ExportAllButton } from "../export-all-button";
+import { useAdjustmentStore } from "@/stores/adjustment-store";
+import { useMediaPanelStore } from "../store";
 
 export function MediaView() {
   const {
@@ -39,6 +41,8 @@ export function MediaView() {
   const addMediaItem = mediaStore?.addMediaItem;
   const removeMediaItem = mediaStore?.removeMediaItem;
   const { activeProject } = useProjectStore();
+  const { setOriginalImage } = useAdjustmentStore();
+  const { setActiveTab } = useMediaPanelStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -169,6 +173,35 @@ export function MediaView() {
       await removeMediaItem(activeProject.id, id);
     } else {
       toast.error("Media store not loaded");
+    }
+  };
+
+  const handleEdit = async (e: React.MouseEvent, item: MediaItem) => {
+    // Send image to adjustment panel for editing
+    e.stopPropagation();
+
+    if (item.type !== "image") {
+      toast.error("Only images can be edited");
+      return;
+    }
+
+    if (!item.file) {
+      toast.error("Image file not available for editing");
+      return;
+    }
+
+    try {
+      // Set the original image in the adjustment store
+      const imageUrl = item.url || URL.createObjectURL(item.file);
+      setOriginalImage(item.file, imageUrl);
+      
+      // Switch to adjustment tab
+      setActiveTab("adjustment");
+      
+      toast.success(`"${item.name}" loaded in adjustment panel`);
+    } catch (error) {
+      console.error("Failed to load image for editing:", error);
+      toast.error("Failed to load image for editing");
     }
   };
 
@@ -370,6 +403,12 @@ export function MediaView() {
                     </ContextMenuTrigger>
                     <ContextMenuContent>
                       <ContextMenuItem>Export clips</ContextMenuItem>
+                      {item.type === "image" && (
+                        <ContextMenuItem onClick={(e) => handleEdit(e, item)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </ContextMenuItem>
+                      )}
                       <ContextMenuItem
                         variant="destructive"
                         onClick={(e) => handleRemove(e, item.id)}

@@ -40,6 +40,7 @@ import { usePanelStore } from "@/stores/panel-store";
 import { useMediaPanelStore } from "../store";
 import { AIHistoryPanel } from "./ai-history-panel";
 import { debugLogger } from "@/lib/debug-logger";
+import { getMediaStoreUtils } from "@/stores/media-store-loader";
 
 // FAL API constants for testing
 const FAL_API_KEY = import.meta.env.VITE_FAL_API_KEY;
@@ -679,11 +680,24 @@ export function AiView() {
               const blobUrl = URL.createObjectURL(file);
               console.log(`🔗 Created blob URL for video: ${blobUrl}`);
               
+              // Generate thumbnail for video preview
+              let thumbnailUrl: string | undefined;
+              try {
+                console.log(`🎬 Generating thumbnail for AI video...`);
+                const mediaUtils = await getMediaStoreUtils();
+                const videoResult = await mediaUtils.generateVideoThumbnail(file);
+                thumbnailUrl = videoResult.thumbnailUrl;
+                console.log(`✅ Thumbnail generated successfully`);
+              } catch (error) {
+                console.warn(`⚠️ Failed to generate thumbnail for AI video:`, error);
+              }
+              
               await addMediaItem(activeProject.id, {
                 name: `AI (${modelName}): ${newVideo.prompt.substring(0, 20)}...`,
                 type: "video",
                 file,
                 url: blobUrl, // Add the blob URL immediately
+                thumbnailUrl, // Add the generated thumbnail
                 duration: newVideo.duration || 5,
                 width: 1920,
                 height: 1080,

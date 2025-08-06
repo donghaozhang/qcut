@@ -51,9 +51,9 @@ export function TimelinePlayhead({
 
   // Track scroll position to lock playhead to frame
   useEffect(() => {
-    const tracksViewport = tracksScrollRef.current?.querySelector(
+    const tracksViewport = (tracksScrollRef.current?.querySelector(
       "[data-radix-scroll-area-viewport]"
-    ) as HTMLElement;
+    ) || tracksScrollRef.current) as HTMLElement;
 
     if (!tracksViewport) return;
 
@@ -86,9 +86,9 @@ export function TimelinePlayhead({
   // Get the timeline content width and viewport width for right boundary
   const timelineContentWidth =
     duration * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
-  const tracksViewport = tracksScrollRef.current?.querySelector(
+  const tracksViewport = (tracksScrollRef.current?.querySelector(
     "[data-radix-scroll-area-viewport]"
-  ) as HTMLElement;
+  ) || tracksScrollRef.current) as HTMLElement;
   const viewportWidth = tracksViewport?.clientWidth || 1000;
 
   // Constrain playhead to never appear outside the timeline area
@@ -103,25 +103,6 @@ export function TimelinePlayhead({
     Math.min(rightBoundary, rawLeftPosition)
   );
 
-  // Debug logging when playhead might go outside
-  if (rawLeftPosition < leftBoundary || rawLeftPosition > rightBoundary) {
-    console.log(
-      "PLAYHEAD VISUAL DEBUG:",
-      JSON.stringify({
-        playheadPosition,
-        timelinePosition,
-        trackLabelsWidth,
-        scrollLeft,
-        rawLeftPosition,
-        constrainedLeftPosition: leftPosition,
-        leftBoundary,
-        rightBoundary,
-        timelineContentWidth,
-        viewportWidth,
-        zoomLevel,
-      })
-    );
-  }
 
   return (
     <div

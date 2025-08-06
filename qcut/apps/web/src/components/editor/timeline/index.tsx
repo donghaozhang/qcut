@@ -111,9 +111,10 @@ export function Timeline() {
   // Old marquee selection removed - using new SelectionBox component instead
 
   // Dynamic timeline width calculation based on playhead position and duration
+  const dynamicBuffer = Math.max(60, (duration || 0) * 0.1); // Buffer is 60s or 10% of duration, whichever is greater
   const dynamicTimelineWidth = Math.max(
     (duration || 0) * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel, // Base width from duration
-    (currentTime + 30) * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel, // Width to show current time + 30 seconds buffer
+    (currentTime + dynamicBuffer) * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel, // Width to show current time + dynamic buffer
     timelineRef.current?.clientWidth || 1000 // Minimum width
   );
 
