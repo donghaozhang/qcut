@@ -213,7 +213,12 @@ function EditorPage() {
                   onResize={setPropertiesPanel}
                   className="min-w-0"
                 >
-                  {isDialogOpen ? <ExportDialog /> : <PropertiesPanel />}
+                  <div 
+                    className="h-full" 
+                    style={{ borderRadius: '0.375rem', overflow: 'hidden' }}
+                  >
+                    {isDialogOpen ? <ExportDialog /> : <PropertiesPanel />}
+                  </div>
                 </ResizablePanel>
               </ResizablePanelGroup>
             </ResizablePanel>

@@ -452,8 +452,9 @@ export function ExportDialog() {
   // Handle media loading states
   if (mediaItemsError) {
     return (
-      <div className="h-full bg-background rounded-sm">
-        <div className="flex flex-col h-full">
+      <div 
+        className="h-full flex flex-col bg-background"
+        style={{ borderRadius: '0.375rem', overflow: 'hidden' }}>
           <div className="flex items-center justify-between p-4 border-b border-border">
             <h2 className="text-lg font-semibold">Export Video</h2>
             <Button
@@ -475,15 +476,15 @@ export function ExportDialog() {
               </div>
             </div>
           </div>
-        </div>
       </div>
     );
   }
 
   if (mediaItemsLoading) {
     return (
-      <div className="h-full bg-background rounded-sm">
-        <div className="flex flex-col h-full">
+      <div 
+        className="h-full flex flex-col bg-background"
+        style={{ borderRadius: '0.375rem', overflow: 'hidden' }}>
           <div className="flex items-center justify-between p-4 border-b border-border">
             <h2 className="text-lg font-semibold">Export Video</h2>
             <Button
@@ -501,16 +502,16 @@ export function ExportDialog() {
               <span>Loading export dialog...</span>
             </div>
           </div>
-        </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full bg-background rounded-sm">
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
+    <div 
+      className="h-full flex flex-col bg-background" 
+      style={{ borderRadius: '0.375rem', overflow: 'hidden' }}>
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-border">
           <div>
             <h2 className="text-lg font-semibold">Export Video</h2>
             <p className="text-sm text-muted-foreground">
@@ -615,7 +616,9 @@ export function ExportDialog() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div 
+          className="flex-1 overflow-y-auto p-4 space-y-6"
+          style={{ borderBottomLeftRadius: '0.375rem', borderBottomRightRadius: '0.375rem' }}>
           {/* Export History */}
           {exportHistory.length > 0 && (
             <Card>
@@ -1012,7 +1015,6 @@ export function ExportDialog() {
               </AlertDescription>
             </Alert>
           )}
-        </div>
       </div>
 
       {/* Hidden Export Canvas */}
