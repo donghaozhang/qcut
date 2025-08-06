@@ -244,17 +244,17 @@ export function AiView() {
     }
   };
 
-  // DEBUG: Component lifecycle tracking
-  debugLogger.log("AIView", "RENDER", {
-    activeTab,
-    selectedModels,
-    selectedImageExists: !!selectedImage,
-    currentProjectId: activeProject?.id,
-    isFallbackProject,
-    currentUrl: window.location.href,
-    renderCount: Math.random(),
-    codeVersion: "2025-07-21-15:30-MULTI-SELECT-IMPLEMENTATION",
-  });
+  // DEBUG: Component lifecycle tracking - disabled to reduce console noise
+  // debugLogger.log("AIView", "RENDER", {
+  //   activeTab,
+  //   selectedModels,
+  //   selectedImageExists: !!selectedImage,
+  //   currentProjectId: activeProject?.id,
+  //   isFallbackProject,
+  //   currentUrl: window.location.href,
+  //   renderCount: Math.random(),
+  //   codeVersion: "2025-07-21-15:30-MULTI-SELECT-IMPLEMENTATION",
+  // });
 
   // Temporarily disabled all window/document event monitoring for debugging
 
@@ -611,6 +611,9 @@ export function AiView() {
               const modelName =
                 AI_MODELS.find((m) => m.id === modelId)?.name || modelId;
 
+              console.log(`✅ Video generation completed for ${modelName}`);
+              console.log(`📥 Starting download process for: ${newVideo.videoUrl}`);
+
               // Start download tracking
               const localPath = await outputManager.startDownload(
                 newVideo.jobId,
@@ -625,6 +628,8 @@ export function AiView() {
               // Stream download the video data
               setStatusMessage(`Downloading ${modelName} video...`);
               const videoData = await downloadVideoToMemory(newVideo.videoUrl);
+              
+              console.log(`📦 Downloaded video data: ${videoData.length} bytes`);
 
               // Complete download tracking
               await outputManager.completeDownload(
