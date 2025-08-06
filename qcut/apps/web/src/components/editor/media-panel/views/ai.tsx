@@ -268,6 +268,25 @@ export function AiView() {
     null
   );
   const [progressLogs, setProgressLogs] = useState<string[]>([]);
+  
+  // Client-side timer for elapsed time
+  const [generationStartTime, setGenerationStartTime] = useState<number | null>(null);
+
+  // Client-side elapsed time timer
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+
+    if (isGenerating && generationStartTime) {
+      interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - generationStartTime) / 1000);
+        setElapsedTime(elapsed);
+      }, 1000); // Update every second
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isGenerating, generationStartTime]);
 
   // History panel state
   const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState<boolean>(false);
@@ -537,6 +556,11 @@ export function AiView() {
     setIsGenerating(true);
     setError(null);
     setJobId(null);
+    
+    // Start the client-side timer
+    const startTime = Date.now();
+    setGenerationStartTime(startTime);
+    setElapsedTime(0);
 
     // Reset any existing generated videos
     setGeneratedVideos([]);
@@ -562,7 +586,7 @@ export function AiView() {
             status.message ||
               `Generating with ${AI_MODELS.find((m) => m.id === modelId)?.name}...`
           );
-          setElapsedTime(status.elapsedTime || 0);
+          // Note: elapsedTime is now handled by client-side timer
           setEstimatedTime(status.estimatedTime);
           if (status.logs) {
             setProgressLogs(status.logs);
@@ -648,14 +672,24 @@ export function AiView() {
               if (!addMediaItem) {
                 throw new Error("Media store not ready");
               }
+              
+              console.log(`💾 Adding video to media panel...`);
+              
+              // Create blob URL for immediate use
+              const blobUrl = URL.createObjectURL(file);
+              console.log(`🔗 Created blob URL for video: ${blobUrl}`);
+              
               await addMediaItem(activeProject.id, {
                 name: `AI (${modelName}): ${newVideo.prompt.substring(0, 20)}...`,
                 type: "video",
                 file,
+                url: blobUrl, // Add the blob URL immediately
                 duration: newVideo.duration || 5,
                 width: 1920,
                 height: 1080,
               });
+              
+              console.log(`✅ Successfully added ${modelName} video to media panel`);
 
               debugLogger.log(
                 "AIView",
@@ -714,6 +748,7 @@ export function AiView() {
     setEstimatedTime(undefined);
     setCurrentModelIndex(0);
     setProgressLogs([]);
+    setGenerationStartTime(null); // Reset timer
     if (pollingInterval) {
       clearInterval(pollingInterval);
       setPollingInterval(null);
@@ -1116,10 +1151,10 @@ export function AiView() {
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
-                  Mock Generating...
+                  Generating...
                 </>
               ) : (
-                <>Generate Preview</>
+                <>Generate Video</>
               )}
             </Button>
           </div>
