@@ -52,15 +52,9 @@ export function useBlobImage(url: string | undefined): {
         setIsLoading(false);
       });
 
-    // Cleanup function to revoke blob URL when component unmounts or URL changes
-    return () => {
-      if (url && needsBlobConversion(url)) {
-        // Small delay to avoid race conditions if the same image is used elsewhere
-        setTimeout(() => {
-          revokeBlobUrl(url);
-        }, 100);
-      }
-    };
+    // Don't cleanup blob URLs - they're managed globally by the cache
+    // This prevents issues where the same image is used in multiple places
+    // Blob URLs will be cleaned up when media items are removed from the store
   }, [url]);
 
   return { blobUrl, isLoading, error };

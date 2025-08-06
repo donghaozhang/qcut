@@ -48,15 +48,21 @@ export const usePanelStore = create<PanelState>()(
 
       // Actions
       setToolsPanel: (size) => {
-        set({ toolsPanel: Math.round(size * 1000) / 1000 }); // Round to 3 decimal places
+        // Round to 2 decimal places to reduce precision errors
+        const roundedSize = Math.round(size * 100) / 100;
+        set({ toolsPanel: roundedSize });
         debouncedNormalize(() => get().normalizeHorizontalPanels());
       },
       setPreviewPanel: (size) => {
-        set({ previewPanel: Math.round(size * 1000) / 1000 }); // Round to 3 decimal places
+        // Round to 2 decimal places to reduce precision errors
+        const roundedSize = Math.round(size * 100) / 100;
+        set({ previewPanel: roundedSize });
         debouncedNormalize(() => get().normalizeHorizontalPanels());
       },
       setPropertiesPanel: (size) => {
-        set({ propertiesPanel: Math.round(size * 1000) / 1000 }); // Round to 3 decimal places
+        // Round to 2 decimal places to reduce precision errors
+        const roundedSize = Math.round(size * 100) / 100;
+        set({ propertiesPanel: roundedSize });
         debouncedNormalize(() => get().normalizeHorizontalPanels());
       },
       setMainContent: (size) => set({ mainContent: size }),
@@ -76,7 +82,7 @@ export const usePanelStore = create<PanelState>()(
           // Only log warning for significant deviations (> 1%)
           if (Math.abs(total - 100) > 1) {
             console.warn(
-              `[PanelStore] Invalid layout total size: ${state.toolsPanel.toFixed(2)}%, ${state.previewPanel.toFixed(2)}%, ${state.propertiesPanel.toFixed(2)}%. Normalizing to 100%.`
+              `WARNING: Invalid layout total size: ${state.toolsPanel}%, ${state.previewPanel}%, ${state.propertiesPanel}%. Layout normalization will be applied.`
             );
           }
 
@@ -93,12 +99,19 @@ export const usePanelStore = create<PanelState>()(
           } else {
             // Calculate normalized values with rounding to avoid precision issues
             const factor = 100 / total;
+            const normalizedTools =
+              Math.round(state.toolsPanel * factor * 100) / 100;
+            const normalizedPreview =
+              Math.round(state.previewPanel * factor * 100) / 100;
+            // Properties panel gets the remainder to ensure exact 100%
+            const normalizedProperties =
+              Math.round((100 - normalizedTools - normalizedPreview) * 100) /
+              100;
+
             set({
-              toolsPanel: Math.round(state.toolsPanel * factor * 1000) / 1000,
-              previewPanel:
-                Math.round(state.previewPanel * factor * 1000) / 1000,
-              propertiesPanel:
-                Math.round(state.propertiesPanel * factor * 1000) / 1000,
+              toolsPanel: normalizedTools,
+              previewPanel: normalizedPreview,
+              propertiesPanel: normalizedProperties,
             });
           }
         }
@@ -106,14 +119,14 @@ export const usePanelStore = create<PanelState>()(
     }),
     {
       name: "panel-sizes",
-      version: 5, // Increment this to force migration
+      version: 6, // Increment this to force migration
       migrate: (persistedState: any, version: number) => {
         // Reset to defaults if coming from old version or if data is corrupted
-        if (version < 5) {
+        if (version < 6) {
           console.log(
             "[PanelStore] Migrating from version",
             version,
-            "to version 5"
+            "to version 6"
           );
           return DEFAULT_PANEL_SIZES;
         }
@@ -147,14 +160,19 @@ export const usePanelStore = create<PanelState>()(
 
         if (Math.abs(total - 100) > 0.1) {
           const factor = 100 / total;
+          const normalizedTools =
+            Math.round(persistedState.toolsPanel * factor * 100) / 100;
+          const normalizedPreview =
+            Math.round(persistedState.previewPanel * factor * 100) / 100;
+          // Properties panel gets the remainder to ensure exact 100%
+          const normalizedProperties =
+            Math.round((100 - normalizedTools - normalizedPreview) * 100) / 100;
+
           return {
             ...persistedState,
-            toolsPanel:
-              Math.round(persistedState.toolsPanel * factor * 1000) / 1000,
-            previewPanel:
-              Math.round(persistedState.previewPanel * factor * 1000) / 1000,
-            propertiesPanel:
-              Math.round(persistedState.propertiesPanel * factor * 1000) / 1000,
+            toolsPanel: normalizedTools,
+            previewPanel: normalizedPreview,
+            propertiesPanel: normalizedProperties,
           };
         }
 

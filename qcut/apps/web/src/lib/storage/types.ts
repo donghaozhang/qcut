@@ -18,6 +18,8 @@ export interface MediaFileData {
   width?: number;
   height?: number;
   duration?: number;
+  url?: string; // For generated images with blob URLs
+  metadata?: any; // Additional metadata
   // File will be stored separately in OPFS
 }
 

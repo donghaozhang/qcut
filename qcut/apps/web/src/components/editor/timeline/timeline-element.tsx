@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useBlobImage } from "@/hooks/use-blob-image";
 import { Button } from "../../ui/button";
 import {
   MoreVertical,
@@ -102,9 +101,13 @@ export function TimelineElement({
       ? mediaItems.find((item) => item.id === element.mediaId)
       : null;
 
-  // Convert fal.media URLs to blob URLs to bypass COEP restrictions
-  // Must be called at top level before any conditional returns
-  const { blobUrl: mediaItemBlobUrl } = useBlobImage(mediaItem?.url);
+  // Use the media item URL directly - it's already been converted to blob if needed
+  const mediaItemUrl = mediaItem?.url;
+
+  // Log if we have a media item but no URL
+  if (mediaItem && !mediaItemUrl) {
+    console.warn(`[TimelineElement] Media item ${mediaItem.id} has no URL`);
+  }
 
   // Handle media loading states
   if (mediaItemsError) {
@@ -257,9 +260,7 @@ export function TimelineElement({
             <div
               className="absolute top-3 bottom-3 left-0 right-0"
               style={{
-                backgroundImage: mediaItemBlobUrl
-                  ? `url(${mediaItemBlobUrl})`
-                  : "none",
+                backgroundImage: mediaItemUrl ? `url(${mediaItemUrl})` : "none",
                 backgroundRepeat: "repeat-x",
                 backgroundSize: `${tileWidth}px ${tileHeight}px`,
                 backgroundPosition: "left center",

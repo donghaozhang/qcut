@@ -176,25 +176,28 @@ export async function downloadImage(
 
 /**
  * Cache for blob URLs to avoid creating multiple blob URLs for the same image
+ * Also tracks blob URL to original URL mapping for cleanup
  */
 const blobUrlCache = new Map<string, string>();
+const blobToOriginalUrl = new Map<string, string>();
 
 /**
  * Convert an image URL to a blob URL that bypasses COEP restrictions
  * Useful for displaying images from external domains like fal.media
  */
 export async function convertToBlob(url: string): Promise<string> {
+  // If it's already a blob URL, return it as-is
+  if (url.startsWith("blob:")) {
+    return url;
+  }
+
   // Return cached blob URL if available
   if (blobUrlCache.has(url)) {
     const cachedUrl = blobUrlCache.get(url)!;
-    // Validate that the blob URL is still valid
-    try {
-      await fetch(cachedUrl);
-      return cachedUrl;
-    } catch {
-      // Cached blob URL is invalid, remove from cache and recreate
-      blobUrlCache.delete(url);
-    }
+    console.log(
+      `[convertToBlob] Using cached blob URL for ${url}: ${cachedUrl}`
+    );
+    return cachedUrl;
   }
 
   try {
@@ -208,6 +211,8 @@ export async function convertToBlob(url: string): Promise<string> {
 
     // Cache the blob URL
     blobUrlCache.set(url, blobUrl);
+    blobToOriginalUrl.set(blobUrl, url);
+    console.log(`[convertToBlob] Created new blob URL for ${url}: ${blobUrl}`);
 
     return blobUrl;
   } catch (error) {
@@ -223,15 +228,30 @@ export async function convertToBlob(url: string): Promise<string> {
 export function revokeBlobUrl(originalUrl: string): void {
   const blobUrl = blobUrlCache.get(originalUrl);
   if (blobUrl) {
+    console.log(
+      `[revokeBlobUrl] Revoking blob URL for ${originalUrl}: ${blobUrl}`
+    );
     URL.revokeObjectURL(blobUrl);
     blobUrlCache.delete(originalUrl);
+    blobToOriginalUrl.delete(blobUrl);
   }
+}
+
+/**
+ * Get all cached blob URLs (for debugging)
+ */
+export function getCachedBlobUrls(): Map<string, string> {
+  return new Map(blobUrlCache);
 }
 
 /**
  * Check if a URL is from fal.media domains and needs blob conversion
  */
 export function needsBlobConversion(url: string): boolean {
+  // Skip blob URLs as they're already converted
+  if (url.startsWith("blob:")) {
+    return false;
+  }
   return url.includes("fal.media") || url.includes("v3.fal.media");
 }
 

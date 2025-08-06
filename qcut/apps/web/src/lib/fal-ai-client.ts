@@ -164,6 +164,11 @@ class FalAIClient {
         params.image_size = settings.imageSize;
         break;
 
+      case "wan-v2-2":
+        // WAN v2.2 uses image_size like SeedDream v3
+        params.image_size = settings.imageSize;
+        break;
+
       case "flux-pro-v11-ultra":
         // FLUX Pro uses aspect_ratio
         switch (settings.imageSize) {

@@ -283,29 +283,51 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
   },
 
   addGeneratedImages: async (items) => {
-    // Import convertToBlob utility for COEP-safe image loading
-    const { convertToBlob, needsBlobConversion } = await import("@/lib/image-utils");
-    
+    // Import utilities for COEP-safe image loading
+    const { convertToBlob, needsBlobConversion, downloadImageAsFile } =
+      await import("@/lib/image-utils");
+
+    console.log("[MediaStore] Adding generated images:", items.length);
+
     const newItems: MediaItem[] = await Promise.all(
       items.map(async (item) => {
         let processedUrl = item.url;
-        
-        // Convert fal.media URLs to blob URLs to bypass COEP restrictions
-        if (needsBlobConversion(item.url)) {
-          try {
+        let file: File;
+
+        try {
+          // Convert fal.media URLs to blob URLs to bypass COEP restrictions
+          if (needsBlobConversion(item.url)) {
+            console.log(
+              `[MediaStore] Converting fal.media URL to blob: ${item.url}`
+            );
             processedUrl = await convertToBlob(item.url);
-          } catch (error) {
-            console.error(`Failed to convert fal.media URL to blob: ${item.url}`, error);
-            // Keep original URL as fallback
-            processedUrl = item.url;
+            console.log(
+              `[MediaStore] Successfully converted to blob: ${processedUrl}`
+            );
           }
+
+          // Download the image as a proper File object for storage
+          console.log(`[MediaStore] Downloading image as file: ${item.name}`);
+          file = await downloadImageAsFile(item.url, item.name);
+          console.log(
+            `[MediaStore] Successfully downloaded file: ${file.name} (${file.size} bytes)`
+          );
+        } catch (error) {
+          console.error(
+            `[MediaStore] Failed to process image: ${item.url}`,
+            error
+          );
+          // Create empty file as fallback
+          file = new File([], item.name, { type: "image/jpeg" });
+          // Keep original URL as fallback
+          processedUrl = item.url;
         }
-        
+
         return {
           id: generateUUID(),
           name: item.name,
           type: item.type,
-          file: new File([], item.name), // Empty file for generated images
+          file, // Now contains actual image data
           url: processedUrl,
           duration: item.duration,
           metadata: {
@@ -315,6 +337,8 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
         };
       })
     );
+
+    console.log("[MediaStore] Created media items:", newItems);
 
     // Add to local state immediately
     set((state) => ({
@@ -326,12 +350,21 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
     const state = get();
     const item = state.mediaItems.find((media) => media.id === id);
 
-    // Cleanup object URLs to prevent memory leaks
-    if (item?.url) {
+    // For generated images with fal.media origins, clean up using the cache
+    if (item?.metadata?.originalUrl) {
+      const { revokeBlobUrl } = await import("@/lib/image-utils");
+      revokeBlobUrl(item.metadata.originalUrl);
+    }
+    // For other blob URLs (like video thumbnails), revoke directly
+    else if (
+      item?.url &&
+      item.url.startsWith("blob:") &&
+      !item.metadata?.originalUrl
+    ) {
       URL.revokeObjectURL(item.url);
-      if (item.thumbnailUrl) {
-        URL.revokeObjectURL(item.thumbnailUrl);
-      }
+    }
+    if (item?.thumbnailUrl && item.thumbnailUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(item.thumbnailUrl);
     }
 
     // 1) Remove from local state immediately
@@ -445,11 +478,12 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
     const state = get();
 
     // Cleanup all object URLs
+    // Only revoke blob URLs, not regular URLs
     state.mediaItems.forEach((item) => {
-      if (item.url) {
+      if (item.url && item.url.startsWith("blob:")) {
         URL.revokeObjectURL(item.url);
       }
-      if (item.thumbnailUrl) {
+      if (item.thumbnailUrl && item.thumbnailUrl.startsWith("blob:")) {
         URL.revokeObjectURL(item.thumbnailUrl);
       }
     });
@@ -472,11 +506,12 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
     const state = get();
 
     // Cleanup all object URLs
+    // Only revoke blob URLs, not regular URLs
     state.mediaItems.forEach((item) => {
-      if (item.url) {
+      if (item.url && item.url.startsWith("blob:")) {
         URL.revokeObjectURL(item.url);
       }
-      if (item.thumbnailUrl) {
+      if (item.thumbnailUrl && item.thumbnailUrl.startsWith("blob:")) {
         URL.revokeObjectURL(item.thumbnailUrl);
       }
     });

@@ -275,6 +275,94 @@ export const TEXT2IMAGE_MODELS: Record<string, Text2ImageModel> = {
       "May require prompt engineering",
     ],
   },
+
+  "wan-v2-2": {
+    id: "wan-v2-2",
+    name: "WAN v2.2",
+    description:
+      "High-resolution photorealistic model with powerful prompt understanding",
+    provider: "fal.ai",
+    endpoint: "https://fal.run/fal-ai/wan/v2.2-a14b/text-to-image",
+
+    qualityRating: 5,
+    speedRating: 3,
+
+    estimatedCost: "$0.06-0.10",
+    costPerImage: 8, // cents
+
+    maxResolution: "2048x2048",
+    supportedAspectRatios: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+
+    defaultParams: {
+      num_inference_steps: 27,
+      image_size: "square_hd",
+      guidance_scale: 3.5,
+    },
+
+    availableParams: [
+      {
+        name: "image_size",
+        type: "select",
+        options: [
+          "square_hd",
+          "square",
+          "portrait_4_3",
+          "portrait_16_9",
+          "landscape_4_3",
+          "landscape_16_9",
+        ],
+        default: "square_hd",
+        description: "Output image resolution and aspect ratio",
+      },
+      {
+        name: "num_inference_steps",
+        type: "number",
+        min: 10,
+        max: 50,
+        default: 27,
+        description: "Number of inference steps (quality vs. speed trade-off)",
+      },
+      {
+        name: "guidance_scale",
+        type: "number",
+        min: 1,
+        max: 10,
+        default: 3.5,
+        description: "How closely to follow the prompt (1-10)",
+      },
+      {
+        name: "seed",
+        type: "number",
+        min: 0,
+        max: 2_147_483_647,
+        default: null,
+        description: "Random seed for reproducible results",
+      },
+    ],
+
+    bestFor: [
+      "High-resolution photorealistic images",
+      "Detailed character portraits",
+      "Professional photography-style images",
+      "Complex scene generation",
+      "Commercial content creation",
+    ],
+
+    strengths: [
+      "Exceptional photorealism",
+      "Powerful prompt understanding",
+      "High-resolution output",
+      "Excellent detail preservation",
+      "Good at complex compositions",
+    ],
+
+    limitations: [
+      "Slower generation time",
+      "Higher computational cost",
+      "May struggle with highly abstract concepts",
+      "Less creative interpretation than artistic models",
+    ],
+  },
 };
 
 // Helper functions
@@ -318,7 +406,7 @@ export function recommendModelsForPrompt(prompt: string): string[] {
     lowercasePrompt.includes("portrait") ||
     lowercasePrompt.includes("product")
   ) {
-    return ["imagen4-ultra", "flux-pro-v11-ultra"];
+    return ["imagen4-ultra", "wan-v2-2", "flux-pro-v11-ultra"];
   }
 
   if (
@@ -336,10 +424,10 @@ export function recommendModelsForPrompt(prompt: string): string[] {
 }
 
 export const MODEL_CATEGORIES = {
-  PHOTOREALISTIC: ["imagen4-ultra"],
+  PHOTOREALISTIC: ["imagen4-ultra", "wan-v2-2"],
   ARTISTIC: ["seeddream-v3"],
   VERSATILE: ["flux-pro-v11-ultra"],
   FAST: ["seeddream-v3"],
-  HIGH_QUALITY: ["imagen4-ultra", "flux-pro-v11-ultra"],
+  HIGH_QUALITY: ["imagen4-ultra", "wan-v2-2", "flux-pro-v11-ultra"],
   COST_EFFECTIVE: ["seeddream-v3"],
 } as const;

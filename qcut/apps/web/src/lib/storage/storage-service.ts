@@ -170,8 +170,11 @@ class StorageService {
     const { mediaMetadataAdapter, mediaFilesAdapter } =
       this.getProjectMediaAdapters(projectId);
 
-    // Save file to project-specific OPFS
-    await mediaFilesAdapter.set(mediaItem.id, mediaItem.file);
+    // Only save file if it has actual content
+    if (mediaItem.file.size > 0) {
+      // Save file to project-specific OPFS
+      await mediaFilesAdapter.set(mediaItem.id, mediaItem.file);
+    }
 
     // Save metadata to project-specific IndexedDB
     const metadata: MediaFileData = {
@@ -183,6 +186,9 @@ class StorageService {
       width: mediaItem.width,
       height: mediaItem.height,
       duration: mediaItem.duration,
+      // Store the URL if it's a generated image (blob URL)
+      url: mediaItem.url,
+      metadata: mediaItem.metadata,
     };
 
     await mediaMetadataAdapter.set(mediaItem.id, metadata);
@@ -200,20 +206,37 @@ class StorageService {
       mediaMetadataAdapter.get(id),
     ]);
 
-    if (!file || !metadata) return null;
+    if (!metadata) return null;
 
-    // Create new object URL for the file
-    const url = URL.createObjectURL(file);
+    let url: string;
+    let actualFile: File;
+
+    if (file && file.size > 0) {
+      // File exists with content, create object URL
+      url = URL.createObjectURL(file);
+      actualFile = file;
+    } else if (metadata.url) {
+      // No file or empty file, but we have a URL (e.g., generated image)
+      url = metadata.url;
+      // Create empty file placeholder
+      actualFile = new File([], metadata.name, {
+        type: `${metadata.type}/jpeg`,
+      });
+    } else {
+      // No file and no URL, cannot load
+      return null;
+    }
 
     return {
       id: metadata.id,
       name: metadata.name,
       type: metadata.type,
-      file,
+      file: actualFile,
       url,
       width: metadata.width,
       height: metadata.height,
       duration: metadata.duration,
+      metadata: metadata.metadata,
       // thumbnailUrl would need to be regenerated or cached separately
     };
   }

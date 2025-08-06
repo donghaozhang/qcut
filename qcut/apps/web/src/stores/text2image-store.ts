@@ -77,7 +77,12 @@ export const useText2ImageStore = create<Text2ImageStore>()(
       setPrompt: (prompt) => set({ prompt }),
 
       // Model selection
-      selectedModels: ["imagen4-ultra", "seeddream-v3", "flux-pro-v11-ultra"], // Default to all models
+      selectedModels: [
+        "imagen4-ultra",
+        "seeddream-v3",
+        "flux-pro-v11-ultra",
+        "wan-v2-2",
+      ], // Default to all models
       toggleModel: (modelKey) =>
         set((state) => ({
           selectedModels: state.selectedModels.includes(modelKey)
@@ -97,8 +102,10 @@ export const useText2ImageStore = create<Text2ImageStore>()(
           // Keep only the first selected model for single mode
           set({ selectedModels: selectedModels.slice(0, 1) });
         } else if (mode === "multi" && selectedModels.length === 0) {
-          // Select first two models by default for multi mode
-          set({ selectedModels: ["imagen4-ultra", "seeddream-v3"] });
+          // Select first three models by default for multi mode
+          set({
+            selectedModels: ["imagen4-ultra", "wan-v2-2", "seeddream-v3"],
+          });
         } else if (mode === "single" && selectedModels.length === 0) {
           // Select first model by default for single mode
           set({ selectedModels: ["imagen4-ultra"] });
@@ -297,15 +304,15 @@ export const useText2ImageStore = create<Text2ImageStore>()(
           console.log(
             "🔄 TEXT2IMAGE-STORE: Importing media-store dynamically..."
           );
-        
+
         try {
           const { useMediaStore } = await import("@/stores/media-store");
-          
+
           if (DEBUG_TEXT2IMAGE_STORE)
             console.log(
               "✅ TEXT2IMAGE-STORE: Media store imported successfully"
             );
-          
+
           const { addGeneratedImages } = useMediaStore.getState();
 
           const mediaItems = resultsToAdd.map((result) => ({
