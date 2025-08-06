@@ -71,68 +71,96 @@ export async function processMediaFiles(
         console.log(`[Media Processing] 🎥 Processing video: ${file.name}`);
         try {
           console.log(
-            "[Media Processing] 🔧 Attempting FFmpeg video processing..."
+            "[Media Processing] 🌐 Using browser APIs for video processing (primary method)..."
           );
-          // Use FFmpeg for comprehensive video info extraction
-          const videoInfo = await ffmpegUtils.getVideoInfo(file);
+          const videoResult = await mediaUtils.generateVideoThumbnail(file);
           console.log(
-            "[Media Processing] ✅ FFmpeg getVideoInfo successful:",
-            videoInfo
+            "[Media Processing] ✅ Browser thumbnail generated:",
+            videoResult
           );
-          duration = videoInfo.duration;
-          width = videoInfo.width;
-          height = videoInfo.height;
-          fps = videoInfo.fps;
+          thumbnailUrl = videoResult.thumbnailUrl;
+          width = videoResult.width;
+          height = videoResult.height;
 
-          console.log(
-            "[Media Processing] 🖼️ Generating thumbnail with FFmpeg..."
-          );
-          // Skip FFmpeg thumbnail generation if video dimensions are invalid
-          if (width === 0 || height === 0) {
-            console.warn(
-              `[Media Processing] ⚠️ Skipping FFmpeg thumbnail due to invalid dimensions (${width}x${height})`
+          console.log("[Media Processing] ⏱️ Getting video duration...");
+          duration = await mediaUtils.getMediaDuration(file);
+          console.log("[Media Processing] ✅ Duration extracted:", duration);
+
+          // Set default FPS for browser processing (FFmpeg can override later if needed)
+          fps = 30;
+          console.log("[Media Processing] ✅ Browser processing successful");
+
+          // Optionally try to enhance with FFmpeg data if available (non-blocking)
+          try {
+            console.log(
+              "[Media Processing] 🔧 Attempting to enhance with FFmpeg data..."
             );
-            throw new Error(
-              "Invalid video dimensions for thumbnail generation"
+            const videoInfo = await Promise.race([
+              ffmpegUtils.getVideoInfo(file),
+              new Promise<never>((_, reject) =>
+                setTimeout(
+                  () => reject(new Error("FFmpeg enhancement timeout")),
+                  5000
+                )
+              ),
+            ]);
+            console.log(
+              "[Media Processing] ✅ FFmpeg enhancement successful:",
+              videoInfo
             );
+            // Only override FPS from FFmpeg, keep browser-generated thumbnail and dimensions
+            fps = videoInfo.fps || fps;
+          } catch (ffmpegError) {
+            console.log(
+              "[Media Processing] ℹ️ FFmpeg enhancement failed (using browser data):",
+              ffmpegError instanceof Error
+                ? ffmpegError.message
+                : String(ffmpegError)
+            );
+            // Continue with browser-generated data - this is not an error
           }
-          // Generate thumbnail using FFmpeg
-          thumbnailUrl = await ffmpegUtils.generateThumbnail(file, 1);
-          console.log(
-            "[Media Processing] ✅ FFmpeg thumbnail generated:",
-            thumbnailUrl ? "SUCCESS" : "FAILED"
-          );
         } catch (error) {
           console.warn(
-            "[Media Processing] FFmpeg processing failed, falling back to basic processing:",
+            "[Media Processing] Browser processing failed, falling back to FFmpeg:",
             error
           );
 
-          // Enhanced fallback processing with better error handling
+          // Fallback to FFmpeg processing
           try {
             console.log(
-              "[Media Processing] 🌐 Attempting browser fallback processing..."
+              "[Media Processing] 🔧 Attempting FFmpeg fallback processing..."
             );
-            const videoResult = await mediaUtils.generateVideoThumbnail(file);
+            const videoInfo = await ffmpegUtils.getVideoInfo(file);
             console.log(
-              "[Media Processing] ✅ Browser thumbnail generated:",
-              videoResult
+              "[Media Processing] ✅ FFmpeg getVideoInfo successful:",
+              videoInfo
             );
-            thumbnailUrl = videoResult.thumbnailUrl;
-            width = videoResult.width;
-            height = videoResult.height;
+            duration = videoInfo.duration;
+            width = videoInfo.width;
+            height = videoInfo.height;
+            fps = videoInfo.fps;
 
-            console.log("[Media Processing] ⏱️ Getting video duration...");
-            duration = await mediaUtils.getMediaDuration(file);
-            console.log("[Media Processing] ✅ Duration extracted:", duration);
-            // FPS will remain undefined for fallback
             console.log(
-              "[Media Processing] ✅ Browser fallback processing successful"
+              "[Media Processing] 🖼️ Generating thumbnail with FFmpeg..."
             );
-          } catch (fallbackError) {
+            // Skip FFmpeg thumbnail generation if video dimensions are invalid
+            if (width === 0 || height === 0) {
+              console.warn(
+                `[Media Processing] ⚠️ Skipping FFmpeg thumbnail due to invalid dimensions (${width}x${height})`
+              );
+              throw new Error(
+                "Invalid video dimensions for thumbnail generation"
+              );
+            }
+            // Generate thumbnail using FFmpeg
+            thumbnailUrl = await ffmpegUtils.generateThumbnail(file, 1);
+            console.log(
+              "[Media Processing] ✅ FFmpeg fallback processing successful"
+            );
+          } catch (ffmpegError) {
             console.warn(
-              "[Media Processing] ⚠️ Browser fallback also failed, using minimal processing:",
-              fallbackError
+              "[Media Processing] ⚠️ FFmpeg fallback also failed, using minimal processing:",
+              ffmpegError
             );
 
             // Minimal processing - just basic file info
@@ -149,6 +177,7 @@ export async function processMediaFiles(
             // Set default dimensions for failed processing
             width = 1920;
             height = 1080;
+            fps = 30;
             thumbnailUrl = undefined;
 
             console.log("[Media Processing] ✅ Minimal processing completed");

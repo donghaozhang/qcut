@@ -145,21 +145,29 @@ export class CLIExportEngine extends ExportEngine {
   }
 
   // Enhanced image rendering for CLI with better blob URL handling
-  private async renderImageCLI(element: any, mediaItem: any): Promise<void> {
-    return new Promise(async (resolve) => {
+  private renderImageCLI(element: any, mediaItem: any): Promise<void> {
+    return new Promise((resolve) => {
       try {
         // For generated images with blob URLs, try to get the actual file data first
-        if (mediaItem.url?.startsWith('blob:') && mediaItem.file && mediaItem.file.size > 0) {
-          console.log(`[CLIExportEngine] Using file data for generated image: ${mediaItem.name}`);
-          
+        if (
+          mediaItem.url?.startsWith("blob:") &&
+          mediaItem.file &&
+          mediaItem.file.size > 0
+        ) {
+          console.log(
+            `[CLIExportEngine] Using file data for generated image: ${mediaItem.name}`
+          );
+
           // Create a new blob URL from the file data to ensure it's accessible
           const newBlobUrl = URL.createObjectURL(mediaItem.file);
-          
+
           const img = new Image();
           img.crossOrigin = "anonymous";
 
           const timeout = setTimeout(() => {
-            console.warn(`[CLIExportEngine] Generated image timeout: ${mediaItem.url}`);
+            console.warn(
+              `[CLIExportEngine] Generated image timeout: ${mediaItem.url}`
+            );
             URL.revokeObjectURL(newBlobUrl);
             resolve();
           }, 8000); // Increased timeout for generated images
@@ -176,7 +184,10 @@ export class CLIExportEngine extends ExportEngine {
               URL.revokeObjectURL(newBlobUrl);
               resolve();
             } catch (error) {
-              console.warn("[CLIExportEngine] Generated image render failed:", error);
+              console.warn(
+                "[CLIExportEngine] Generated image render failed:",
+                error
+              );
               URL.revokeObjectURL(newBlobUrl);
               resolve();
             }
@@ -184,7 +195,9 @@ export class CLIExportEngine extends ExportEngine {
 
           img.onerror = () => {
             clearTimeout(timeout);
-            console.warn(`[CLIExportEngine] Failed to load generated image: ${mediaItem.url}`);
+            console.warn(
+              `[CLIExportEngine] Failed to load generated image: ${mediaItem.url}`
+            );
             URL.revokeObjectURL(newBlobUrl);
             resolve();
           };
@@ -198,7 +211,9 @@ export class CLIExportEngine extends ExportEngine {
         img.crossOrigin = "anonymous";
 
         const timeout = setTimeout(() => {
-          console.warn(`[CLIExportEngine] Image load timeout: ${mediaItem.url}`);
+          console.warn(
+            `[CLIExportEngine] Image load timeout: ${mediaItem.url}`
+          );
           resolve();
         }, 5000); // Standard timeout for regular images
 
@@ -220,12 +235,13 @@ export class CLIExportEngine extends ExportEngine {
 
         img.onerror = () => {
           clearTimeout(timeout);
-          console.warn(`[CLIExportEngine] Failed to load image: ${mediaItem.url}`);
+          console.warn(
+            `[CLIExportEngine] Failed to load image: ${mediaItem.url}`
+          );
           resolve();
         };
 
         img.src = mediaItem.url!;
-
       } catch (error) {
         console.warn("[CLIExportEngine] Image setup failed:", error);
         resolve();

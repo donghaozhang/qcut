@@ -36,3 +36,9 @@ qcut/electron/resources/test*
 
 # Temporary files
 nul
+
+# Third-party library files that shouldn't be linted
+**/public/ffmpeg/ffmpeg-core.js
+**/public/ffmpeg/ffmpeg-core.wasm
+qcut/lint-output.txt
+qcut/temp-lint-output.txt
