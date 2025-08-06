@@ -261,7 +261,34 @@ export function AdjustmentPanel() {
 
   return (
     <div className="h-full flex flex-col gap-4 p-4">
-      {/* Image Upload Section */}
+      {/* Generate Edit Button - Always at top */}
+      <div className="flex-shrink-0">
+        <Button
+          onClick={handleGenerateEdit}
+          disabled={!canGenerateEdit}
+          className="w-full"
+          size="lg"
+        >
+          {isProcessing ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Wand2 className="w-4 h-4 mr-2" />
+              Generate Edit
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Model Selection - Second */}
+      <div className="flex-shrink-0">
+        <ModelSelector />
+      </div>
+
+      {/* Image Upload Section - Third */}
       <div className="flex-shrink-0">
         <ImageUploader onImageSelect={handleImageSelect} uploading={false} />
       </div>
@@ -269,33 +296,6 @@ export function AdjustmentPanel() {
       {/* Only show other components if image is loaded */}
       {originalImageUrl && (
         <>
-          {/* Model Selection */}
-          <div className="flex-shrink-0">
-            <ModelSelector />
-          </div>
-
-          {/* Generate Edit Button */}
-          <div className="flex-shrink-0">
-            <Button
-              onClick={handleGenerateEdit}
-              disabled={!canGenerateEdit}
-              className="w-full"
-              size="lg"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Wand2 className="w-4 h-4 mr-2" />
-                  Generate Edit
-                </>
-              )}
-            </Button>
-          </div>
-
           {/* Parameter Controls */}
           <div className="flex-shrink-0">
             <ParameterControls />
