@@ -279,13 +279,20 @@ export function PreviewPanel() {
 
   const activeElements = useMemo(() => {
     const elements = getActiveElements();
-    if (elements.length > 0 && mediaItems.length === 0) {
-      console.warn(
-        "[Preview] Active elements found but mediaItems is empty. Preview will show placeholder."
+    // Only log if we have media elements that should have loaded mediaItems but haven't
+    // and we're not in a loading state
+    if (elements.length > 0 && mediaItems.length === 0 && !mediaItemsLoading) {
+      const hasMediaElements = elements.some(
+        ({ element }) => element.type === "media"
       );
+      if (hasMediaElements) {
+        console.log(
+          "[Preview] Active media elements found but mediaItems is empty. Preview will show placeholder."
+        );
+      }
     }
     return elements;
-  }, [mediaItems, getActiveElements]);
+  }, [mediaItems, getActiveElements, mediaItemsLoading]);
 
   // Get media elements for blur background (video/image only)
   const blurBackgroundElements = useMemo(() => {

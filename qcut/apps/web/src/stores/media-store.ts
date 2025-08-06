@@ -323,12 +323,21 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
           processedUrl = item.url;
         }
 
+        // Create a blob URL from the downloaded file for immediate display
+        let displayUrl = processedUrl;
+        if (file.size > 0) {
+          displayUrl = URL.createObjectURL(file);
+          console.log(
+            `[MediaStore] Created object URL for display: ${displayUrl}`
+          );
+        }
+
         return {
           id: generateUUID(),
           name: item.name,
           type: item.type,
           file, // Now contains actual image data
-          url: processedUrl,
+          url: displayUrl, // Use object URL created from the actual file
           duration: item.duration,
           metadata: {
             ...item.metadata,
@@ -344,6 +353,40 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
     set((state) => ({
       mediaItems: [...state.mediaItems, ...newItems],
     }));
+
+    // Save each generated image to persistent storage
+    // Get the current project ID from the store
+    try {
+      const { useProjectStore } = await import("@/stores/project-store");
+      const currentProject = useProjectStore.getState().activeProject;
+
+      if (currentProject) {
+        console.log("[MediaStore] Saving generated images to storage...");
+        await Promise.all(
+          newItems.map(async (item) => {
+            try {
+              await storageService.saveMediaItem(currentProject.id, item);
+              console.log(`[MediaStore] Saved generated image: ${item.name}`);
+            } catch (error) {
+              console.error(
+                `[MediaStore] Failed to save generated image ${item.name}:`,
+                error
+              );
+            }
+          })
+        );
+        console.log("[MediaStore] All generated images saved to storage");
+      } else {
+        console.warn(
+          "[MediaStore] No active project found, generated images won't persist"
+        );
+      }
+    } catch (error) {
+      console.error(
+        "[MediaStore] Failed to save generated images to storage:",
+        error
+      );
+    }
   },
 
   removeMediaItem: async (projectId: string, id: string) => {

@@ -144,41 +144,92 @@ export class CLIExportEngine extends ExportEngine {
     }
   }
 
-  // Simple image rendering for CLI
+  // Enhanced image rendering for CLI with better blob URL handling
   private async renderImageCLI(element: any, mediaItem: any): Promise<void> {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
+    return new Promise(async (resolve) => {
+      try {
+        // For generated images with blob URLs, try to get the actual file data first
+        if (mediaItem.url?.startsWith('blob:') && mediaItem.file && mediaItem.file.size > 0) {
+          console.log(`[CLIExportEngine] Using file data for generated image: ${mediaItem.name}`);
+          
+          // Create a new blob URL from the file data to ensure it's accessible
+          const newBlobUrl = URL.createObjectURL(mediaItem.file);
+          
+          const img = new Image();
+          img.crossOrigin = "anonymous";
 
-      img.onload = () => {
-        try {
-          const { x, y, width, height } = this.calculateElementBounds(
-            element,
-            img.width,
-            img.height
-          );
-          this.ctx.drawImage(img, x, y, width, height);
-          resolve();
-        } catch (error) {
-          console.warn("[CLIExportEngine] Image render failed:", error);
-          resolve(); // Don't fail the export
+          const timeout = setTimeout(() => {
+            console.warn(`[CLIExportEngine] Generated image timeout: ${mediaItem.url}`);
+            URL.revokeObjectURL(newBlobUrl);
+            resolve();
+          }, 8000); // Increased timeout for generated images
+
+          img.onload = () => {
+            try {
+              clearTimeout(timeout);
+              const { x, y, width, height } = this.calculateElementBounds(
+                element,
+                img.width,
+                img.height
+              );
+              this.ctx.drawImage(img, x, y, width, height);
+              URL.revokeObjectURL(newBlobUrl);
+              resolve();
+            } catch (error) {
+              console.warn("[CLIExportEngine] Generated image render failed:", error);
+              URL.revokeObjectURL(newBlobUrl);
+              resolve();
+            }
+          };
+
+          img.onerror = () => {
+            clearTimeout(timeout);
+            console.warn(`[CLIExportEngine] Failed to load generated image: ${mediaItem.url}`);
+            URL.revokeObjectURL(newBlobUrl);
+            resolve();
+          };
+
+          img.src = newBlobUrl;
+          return;
         }
-      };
 
-      img.onerror = () => {
-        console.warn(
-          `[CLIExportEngine] Failed to load image: ${mediaItem.url}`
-        );
-        resolve(); // Don't fail the export
-      };
+        // Fallback to original URL loading for regular images
+        const img = new Image();
+        img.crossOrigin = "anonymous";
 
-      // Timeout fallback
-      setTimeout(() => {
-        console.warn(`[CLIExportEngine] Image load timeout: ${mediaItem.url}`);
+        const timeout = setTimeout(() => {
+          console.warn(`[CLIExportEngine] Image load timeout: ${mediaItem.url}`);
+          resolve();
+        }, 5000); // Standard timeout for regular images
+
+        img.onload = () => {
+          try {
+            clearTimeout(timeout);
+            const { x, y, width, height } = this.calculateElementBounds(
+              element,
+              img.width,
+              img.height
+            );
+            this.ctx.drawImage(img, x, y, width, height);
+            resolve();
+          } catch (error) {
+            console.warn("[CLIExportEngine] Image render failed:", error);
+            resolve();
+          }
+        };
+
+        img.onerror = () => {
+          clearTimeout(timeout);
+          console.warn(`[CLIExportEngine] Failed to load image: ${mediaItem.url}`);
+          resolve();
+        };
+
+        img.src = mediaItem.url!;
+
+      } catch (error) {
+        console.warn("[CLIExportEngine] Image setup failed:", error);
         resolve();
-      }, 3000);
-
-      img.src = mediaItem.url!;
+      }
     });
   }
 

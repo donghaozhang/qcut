@@ -363,6 +363,118 @@ export const TEXT2IMAGE_MODELS: Record<string, Text2ImageModel> = {
       "Less creative interpretation than artistic models",
     ],
   },
+
+  "qwen-image": {
+    id: "qwen-image",
+    name: "Qwen Image",
+    description:
+      "Alibaba's versatile image generation model with excellent prompt understanding",
+    provider: "Alibaba",
+    endpoint: "https://fal.run/fal-ai/qwen-image",
+
+    qualityRating: 4,
+    speedRating: 4,
+
+    estimatedCost: "$0.04-0.08",
+    costPerImage: 6, // cents
+
+    maxResolution: "2048x2048",
+    supportedAspectRatios: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+
+    defaultParams: {
+      image_size: "landscape_4_3",
+      num_inference_steps: 30,
+      guidance_scale: 2.5,
+      num_images: 1,
+      output_format: "png",
+      negative_prompt: " ",
+    },
+
+    availableParams: [
+      {
+        name: "image_size",
+        type: "select",
+        options: [
+          "square_hd",
+          "square",
+          "portrait_4_3",
+          "portrait_16_9",
+          "landscape_4_3",
+          "landscape_16_9",
+        ],
+        default: "landscape_4_3",
+        description: "Output image resolution and aspect ratio",
+      },
+      {
+        name: "num_inference_steps",
+        type: "number",
+        min: 2,
+        max: 50,
+        default: 30,
+        description: "Number of inference steps (quality vs. speed trade-off)",
+      },
+      {
+        name: "guidance_scale",
+        type: "number",
+        min: 0,
+        max: 20,
+        default: 2.5,
+        description: "How closely to follow the prompt (0-20)",
+      },
+      {
+        name: "num_images",
+        type: "number",
+        min: 1,
+        max: 4,
+        default: 1,
+        description: "Number of images to generate",
+      },
+      {
+        name: "output_format",
+        type: "select",
+        options: ["png", "jpeg", "webp"],
+        default: "png",
+        description: "Output image format",
+      },
+      {
+        name: "negative_prompt",
+        type: "string",
+        default: " ",
+        description: "What to avoid in the generated image",
+      },
+      {
+        name: "seed",
+        type: "number",
+        min: 0,
+        max: 2_147_483_647,
+        default: null,
+        description: "Random seed for reproducible results",
+      },
+    ],
+
+    bestFor: [
+      "Versatile image generation",
+      "Natural scene composition",
+      "Character and object generation",
+      "Cultural and artistic themes",
+      "Balanced realism and creativity",
+    ],
+
+    strengths: [
+      "Strong prompt understanding",
+      "Good balance of speed and quality",
+      "Versatile across different styles",
+      "Cost-effective generation",
+      "Supports negative prompts",
+    ],
+
+    limitations: [
+      "Not as photorealistic as specialized models",
+      "May require prompt engineering for best results",
+      "Less detailed than ultra-high-end models",
+      "Limited creative interpretation for abstract concepts",
+    ],
+  },
 };
 
 // Helper functions
@@ -416,18 +528,18 @@ export function recommendModelsForPrompt(prompt: string): string[] {
     lowercasePrompt.includes("creative") ||
     lowercasePrompt.includes("abstract")
   ) {
-    return ["seeddream-v3", "flux-pro-v11-ultra"];
+    return ["seeddream-v3", "qwen-image", "flux-pro-v11-ultra"];
   }
 
   // Default recommendation for balanced use
-  return ["flux-pro-v11-ultra", "seeddream-v3"];
+  return ["qwen-image", "flux-pro-v11-ultra", "seeddream-v3"];
 }
 
 export const MODEL_CATEGORIES = {
   PHOTOREALISTIC: ["imagen4-ultra", "wan-v2-2"],
-  ARTISTIC: ["seeddream-v3"],
-  VERSATILE: ["flux-pro-v11-ultra"],
-  FAST: ["seeddream-v3"],
+  ARTISTIC: ["seeddream-v3", "qwen-image"],
+  VERSATILE: ["qwen-image", "flux-pro-v11-ultra"],
+  FAST: ["seeddream-v3", "qwen-image"],
   HIGH_QUALITY: ["imagen4-ultra", "wan-v2-2", "flux-pro-v11-ultra"],
-  COST_EFFECTIVE: ["seeddream-v3"],
+  COST_EFFECTIVE: ["seeddream-v3", "qwen-image"],
 } as const;

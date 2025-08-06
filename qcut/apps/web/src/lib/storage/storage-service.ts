@@ -215,15 +215,24 @@ class StorageService {
       // File exists with content, create object URL
       url = URL.createObjectURL(file);
       actualFile = file;
+      console.log(
+        `[StorageService] Created new object URL for ${metadata.name}: ${url}`
+      );
     } else if (metadata.url) {
-      // No file or empty file, but we have a URL (e.g., generated image)
+      // No file or empty file, but we have a URL (e.g., generated image fallback)
       url = metadata.url;
       // Create empty file placeholder
       actualFile = new File([], metadata.name, {
         type: `${metadata.type}/jpeg`,
       });
+      console.log(
+        `[StorageService] Using stored URL for ${metadata.name}: ${url}`
+      );
     } else {
       // No file and no URL, cannot load
+      console.warn(
+        `[StorageService] No file or URL found for media item: ${metadata.name}`
+      );
       return null;
     }
 

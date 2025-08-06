@@ -82,6 +82,7 @@ export const useText2ImageStore = create<Text2ImageStore>()(
         "seeddream-v3",
         "flux-pro-v11-ultra",
         "wan-v2-2",
+        "qwen-image",
       ], // Default to all models
       toggleModel: (modelKey) =>
         set((state) => ({

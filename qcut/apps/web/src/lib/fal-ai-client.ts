@@ -177,6 +177,11 @@ class FalAIClient {
         params.image_size = settings.imageSize;
         break;
 
+      case "qwen-image":
+        // Qwen Image uses image_size parameter
+        params.image_size = settings.imageSize;
+        break;
+
       case "flux-pro-v11-ultra":
         // FLUX Pro uses aspect_ratio
         switch (settings.imageSize) {
