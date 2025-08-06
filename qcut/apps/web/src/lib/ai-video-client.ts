@@ -106,6 +106,7 @@ export async function generateVideo(
       "hailuo": "fal-ai/minimax/hailuo-02/standard/text-to-video",
       "hailuo_pro": "fal-ai/minimax/hailuo-02/pro/text-to-video",
       "kling_v2": "fal-ai/kling-video/v2.1/master",
+      "wan_turbo": "fal-ai/wan/v2.2-a14b/text-to-video/turbo",
     };
 
     const endpoint =
@@ -140,6 +141,15 @@ export async function generateVideo(
       payload.resolution = request.resolution || "1080p";
       // Optional parameters for Seedance Pro
       payload.aspect_ratio = "16:9"; // Default aspect ratio
+    } else if (request.model === "wan_turbo") {
+      // WAN Turbo only accepts "480p", "580p", or "720p"
+      payload.duration = request.duration || 5;
+      payload.resolution = request.resolution || "720p";
+      // Ensure resolution is valid for WAN Turbo
+      const validResolutions = ["480p", "580p", "720p"];
+      if (!validResolutions.includes(payload.resolution)) {
+        payload.resolution = "720p"; // Default to 720p for invalid resolutions
+      }
     } else {
       // Other models (Veo, Kling)
       payload.duration = request.duration || 5;

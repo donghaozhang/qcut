@@ -103,6 +103,13 @@ const AI_MODELS: AIModel[] = [
     price: "3.00",
     resolution: "1080p",
   },
+  {
+    id: "wan_turbo",
+    name: "WAN v2.2 Turbo",
+    description: "High-speed photorealistic video generation",
+    price: "0.10",
+    resolution: "720p",
+  },
 ];
 
 interface GeneratedVideo {
