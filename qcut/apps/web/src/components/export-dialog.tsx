@@ -701,17 +701,17 @@ export function ExportDialog() {
                     }
                     size="sm"
                     onClick={() => handlePresetSelect(preset)}
-                    className="h-auto min-h-[5rem] p-2 flex-col items-start gap-1 text-left justify-start"
+                    className="h-auto min-h-[6rem] p-3 flex-col items-start gap-1 text-left justify-start"
                   >
                     <div className="flex items-start gap-2 w-full">
-                      <span className="text-base flex-shrink-0 mt-0.5">
+                      <span className="text-lg flex-shrink-0 mt-0.5">
                         {preset.icon}
                       </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-xs leading-tight break-words">
+                      <div className="flex-1 overflow-hidden">
+                        <div className="font-medium text-sm leading-tight break-words">
                           {preset.name}
                         </div>
-                        <div className="text-[10px] text-muted-foreground text-left leading-tight mt-1 break-words">
+                        <div className="text-xs text-muted-foreground text-left leading-relaxed mt-1 break-words">
                           {preset.description}
                         </div>
                       </div>

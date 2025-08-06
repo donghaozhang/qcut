@@ -645,6 +645,16 @@ export async function generateVideoFromImage(
         duration: request.duration || 5,
         cfg_scale: 0.5, // Default for good prompt adherence
       };
+    } else if (request.model === "wan_turbo") {
+      // Use WAN Turbo image-to-video endpoint
+      endpoint = "fal-ai/wan/v2.2-a14b/image-to-video/turbo";
+      payload = {
+        prompt: request.prompt || "Create a cinematic video from this image",
+        image_url: imageUrl,
+        // WAN Turbo image-to-video only supports specific resolutions
+        resolution: request.resolution === "1080p" ? "720p" : request.resolution || "720p",
+        seed: Math.floor(Math.random() * 1000000), // Optional: for reproducibility
+      };
     } else {
       // Use Seedance model for other cases (proven to work)
       endpoint = "fal-ai/bytedance/seedance/v1/pro/image-to-video";
