@@ -34,6 +34,7 @@
     "dist:win": "electron-builder --win -c.win.forceCodeSigning=false",
     "dist:dir": "electron-builder --dir",
     "dist:win:unsigned": "electron-builder --win --config.win.forceCodeSigning=false --config.win.verifyUpdateCodeSignature=false",
+    "dist:win:release": "electron-builder --win --config.win.forceCodeSigning=false --config.win.verifyUpdateCodeSignature=false",
     "package:win": "electron-packager . QCut --platform=win32 --arch=x64 --out=d:/AI_play/AI_Code/opencut_build --overwrite"
   },
   "build": {
@@ -73,9 +74,22 @@
     "compression": "maximum",
     "npmRebuild": true,
     "nodeGypRebuild": false,
+    "extraResources": [
+      {
+        "from": "electron/resources/",
+        "to": "resources/",
+        "filter": ["**/*.exe", "**/*.dll"]
+      }
+    ],
     "extraMetadata": {
       "main": "electron/main.js"
     },
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/sharp/**/*",
+      "**/node_modules/@ffmpeg/**/*",
+      "**/electron/resources/**/*"
+    ],
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico",
@@ -83,7 +97,6 @@
       "verifyUpdateCodeSignature": false,
       "signAndEditExecutable": false,
       "legalTrademarks": "QCut is a trademark of QCut Team",
-      "publisherName": "QCut Team",
       "requestedExecutionLevel": "asInvoker",
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
@@ -105,7 +118,9 @@
       "installerSidebar": "build/icon.ico",
       "uninstallerSidebar": "build/icon.ico",
       "license": false,
-      "warningsAsErrors": false
+      "warningsAsErrors": false,
+      "packElevateHelper": true,
+      "differentialPackage": true
     },
     "protocols": [
       {
