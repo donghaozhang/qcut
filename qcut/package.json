@@ -93,7 +93,7 @@
     "extraResources": [
       {
         "from": "electron/resources/",
-        "to": "resources/",
+        "to": "./",
         "filter": ["**/*.exe", "**/*.dll"]
       }
     ],

@@ -137,7 +137,6 @@ function setupFFmpegIPC() {
       // Try to run FFmpeg directly
       // =============================
       try {
-        console.log("[FFmpeg CLI] 🚀 Attempting direct FFmpeg spawn");
         const ffmpegProc = spawn(ffmpegPath, args, {
           windowsHide: true,
           stdio: ["ignore", "pipe", "pipe"],
@@ -242,8 +241,8 @@ function getFFmpegPath() {
   let ffmpegPath;
 
   if (app.isPackaged) {
-    // Production: use bundled FFmpeg in resources directory
-    ffmpegPath = path.join(__dirname, "resources", "ffmpeg.exe");
+    // Production: FFmpeg is in resources folder outside asar (copied by extraResources)
+    ffmpegPath = path.join(process.resourcesPath, "ffmpeg.exe");
   } else {
     // Development: try bundled FFmpeg first, then system PATH
     const devPath = path.join(__dirname, "resources", "ffmpeg.exe");
