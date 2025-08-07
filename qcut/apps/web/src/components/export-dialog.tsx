@@ -274,8 +274,9 @@ export function ExportDialog() {
                 onValueChange={(value) => exportSettings.handleQualityChange(value as ExportQuality)}
                 disabled={exportProgress.progress.isExporting}
               >
-                {(["480p", "720p", "1080p", "4k"] as ExportQuality[]).map((q) => {
+                {Object.values(ExportQuality).map((q) => {
                   const resolution = QUALITY_RESOLUTIONS[q];
+                  if (!resolution) return null;
                   return (
                     <div key={q} className="flex items-center space-x-2">
                       <RadioGroupItem value={q} id={q} />
@@ -376,7 +377,7 @@ export function ExportDialog() {
                 <div>
                   <span className="font-medium">Resolution:</span>
                   <span className="ml-2 text-muted-foreground">
-                    {exportSettings.resolution.label}
+                    {exportSettings.resolution?.label || 'N/A'}
                   </span>
                 </div>
                 <div>

@@ -125,8 +125,20 @@ export function useExportProgress() {
         exportEngine.constructor.name
       );
 
-      // Start export
-      const blob = await exportEngine.export();
+      // Start export with progress callback
+      updateProgress({
+        progress: 0,
+        status: "Initializing export...",
+        isExporting: true,
+      });
+
+      const blob = await exportEngine.export((progress, status) => {
+        updateProgress({
+          progress,
+          status,
+          isExporting: true,
+        });
+      });
 
       console.log("[ExportDialog] ✅ Export completed successfully");
 

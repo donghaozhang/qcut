@@ -28,8 +28,8 @@ export function useExportSettings() {
 
   // PRESERVE: Computed values
   const supportedFormats = getSupportedFormats();
-  const resolution = QUALITY_RESOLUTIONS[quality];
-  const estimatedSize = QUALITY_SIZE_ESTIMATES[quality];
+  const resolution = QUALITY_RESOLUTIONS[quality] || QUALITY_RESOLUTIONS[ExportQuality.HIGH];
+  const estimatedSize = QUALITY_SIZE_ESTIMATES[quality] || QUALITY_SIZE_ESTIMATES[ExportQuality.HIGH];
   const timelineDuration = getTotalDuration();
 
   // PRESERVE: Engine recommendation effect (lines 128-174) - CRITICAL 8+ dependencies
