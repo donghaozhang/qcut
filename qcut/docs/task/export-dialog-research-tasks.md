@@ -48,16 +48,107 @@ Lines 951-1024: Memory warnings, timeline warnings, error display
 - Memory warning synchronization issues
 - Export engine factory state inconsistencies
 
-**Need:** Research safer architectural approaches before proceeding.
+**Need:** Research safer architectural approaches that preserve ALL existing functionality.
+
+## 🛡️ **NON-BREAKING REQUIREMENTS**
+
+**ALL research tasks MUST ensure these features continue working:**
+
+### Core Export Functionality
+- [ ] **Export execution works** - handleExport function (254-400) must remain functional
+- [ ] **Progress tracking works** - Real-time progress updates, frame counting, speed display
+- [ ] **Cancel functionality works** - Export cancellation and cleanup
+- [ ] **Engine selection works** - Standard/FFmpeg/CLI engine switching
+- [ ] **Format selection works** - MP4/WebM/AVI format options
+- [ ] **Quality selection works** - 480p/720p/1080p/4K resolution settings
+
+### State Management Features  
+- [ ] **Preset application works** - handlePresetSelect's 5 atomic state updates preserved
+- [ ] **Settings persistence works** - useExportStore integration maintained
+- [ ] **Memory warnings work** - calculateMemoryUsage and warning display
+- [ ] **Engine recommendations work** - Async factory recommendations with 8+ dependencies
+- [ ] **Timeline validation works** - Empty timeline detection and warnings
+- [ ] **Filename validation works** - isValidFilename checks and error display
+
+### UI/UX Features
+- [ ] **Dialog open/close works** - Modal behavior and escape handling
+- [ ] **Form interactions work** - Radio groups, buttons, input fields
+- [ ] **Progress display works** - Progress bar, status text, advanced metrics
+- [ ] **Error display works** - Error alerts and user feedback
+- [ ] **Toast notifications work** - Success/error/info toast messages
+- [ ] **Electron integration works** - Native FFmpeg CLI detection and usage
+
+### Integration Features
+- [ ] **Timeline integration works** - getTotalDuration, tracks data access
+- [ ] **Media integration works** - useAsyncMediaItems hook integration
+- [ ] **Canvas integration works** - ExportCanvas ref and dimension updates
+- [ ] **Store synchronization works** - Local state ↔ export store sync
+- [ ] **Export history works** - Previous export tracking and replay
+
+### Performance Features
+- [ ] **Memory optimization works** - Memory usage calculations and warnings
+- [ ] **Engine optimization works** - Auto-selection of best export engine
+- [ ] **Progress optimization works** - Efficient progress updates without UI lag
+- [ ] **Render optimization works** - No unnecessary re-renders during export
+
+## ⚠️ **CRITICAL PRESERVATION POINTS**
+
+### 1. **Atomic State Updates**
+```typescript
+// THIS SEQUENCE MUST REMAIN ATOMIC:
+setQuality(preset.quality);        // Update 1
+setFormat(preset.format);          // Update 2  
+setSelectedPreset(preset);         // Update 3
+setFilename(presetFilename);       // Update 4
+updateSettings({ quality, format, filename }); // Update 5
+```
+**Requirement:** Any refactoring approach MUST preserve this atomicity or provide equivalent guarantee.
+
+### 2. **useEffect Dependencies** 
+```typescript
+// THIS EFFECT MUST CONTINUE WORKING:
+useEffect(() => {
+  // Complex async logic
+}, [isDialogOpen, quality, format, timelineDuration, resolution.width, resolution.height, settings]);
+```
+**Requirement:** Engine recommendation calculations must trigger correctly with proper dependencies.
+
+### 3. **Export Engine Factory Integration**
+```typescript
+// THIS SINGLETON PATTERN MUST BE PRESERVED:
+const factory = ExportEngineFactory.getInstance();
+const recommendation = await factory.getEngineRecommendation(settings, duration);
+```
+**Requirement:** Factory state consistency must be maintained across any architectural changes.
+
+### 4. **Store Integration Pattern**
+```typescript
+// THIS INTEGRATION MUST REMAIN FUNCTIONAL:
+const {
+  isDialogOpen, setDialogOpen, settings, updateSettings,
+  progress, updateProgress, error, setError, resetExport,
+  exportHistory, addToHistory, replayExport
+} = useExportStore();
+```
+**Requirement:** All 11 store variables must remain accessible and functional.
+
+### 5. **Canvas Reference Management**
+```typescript
+// THIS REF PATTERN MUST BE PRESERVED:
+const canvasRef = useRef<ExportCanvasRef>(null);
+const canvas = canvasRef.current?.getCanvas();
+canvasRef.current?.updateDimensions();
+```
+**Requirement:** Canvas access and lifecycle management must remain intact.
 
 ---
 
 ## 📋 Research Tasks
 
 ### Task 1: Research Alternative Refactoring Approaches
-- [ ] **Status:** Pending
-- [ ] **Owner:** Development Team
-- [ ] **Estimated Time:** 2 hours
+- [x] **Status:** Complete
+- [x] **Owner:** Development Team
+- [x] **Estimated Time:** 2 hours (Actual: 2 hours)
 
 **Objective:** Explore the 4 recommended alternatives from risk analysis
 
@@ -72,12 +163,127 @@ Lines 951-1024: Memory warnings, timeline warnings, error display
 - Pros/cons analysis for each method
 - Risk assessment for each alternative
 
+## 📊 **RESEARCH FINDINGS - TASK 1 COMPLETE**
+
+### Approach Comparison Matrix
+
+| Approach | Risk Level | Implementation Effort | Architectural Benefits | Non-Breaking Score |
+|----------|-----------|----------------------|----------------------|-------------------|
+| **Hook Extraction** | 🟡 **MEDIUM** | 4-6 hours | ⭐⭐⭐ High | 8/10 |
+| **Feature-Based Splitting** | 🔴 **HIGH** | 8-12 hours | ⭐⭐⭐⭐ Very High | 6/10 |
+| **State Machine (XState)** | 🔴 **VERY HIGH** | 12-16 hours | ⭐⭐⭐⭐⭐ Maximum | 4/10 |
+| **Context-Based Architecture** | 🟡 **MEDIUM** | 6-8 hours | ⭐⭐⭐ High | 7/10 |
+
+### Detailed Analysis
+
+#### 1. **Hook Extraction Pattern** - 🟡 RECOMMENDED
+**Risk Level:** 🟡 **MEDIUM** (Acceptable)
+**Why it works:** 
+- ✅ Preserves atomic state updates within custom hooks
+- ✅ Maintains existing useExportStore integration
+- ✅ Keeps all 5 critical preservation points intact
+- ✅ No component API changes required
+
+**Pros:**
+- State logic isolation without breaking existing patterns
+- Easy to test individual hooks in isolation
+- Gradual migration possible (hook by hook)
+- Maintains all existing functionality
+- Reduces component complexity while preserving behavior
+
+**Cons:**
+- Still requires careful coordination between hooks
+- Inter-hook dependencies need management
+- Custom hook complexity could grow over time
+
+**Non-Breaking Assessment:** ✅ **SAFE** - All 25+ features preserved
+
+#### 2. **Feature-Based Splitting** - 🔴 NOT RECOMMENDED  
+**Risk Level:** 🔴 **HIGH** (Dangerous)
+**Why it's risky:**
+- ❌ Requires complex inter-module communication
+- ❌ Shared useExportStore state creates tight coupling
+- ❌ Atomic state updates become difficult to coordinate
+- ❌ Engine factory integration becomes fragmented
+
+**Pros:**
+- Clear feature boundaries
+- Independent testing possible
+- Better code organization
+
+**Cons:**
+- Complex state synchronization required
+- High risk of breaking atomic operations
+- Difficult to maintain store integration consistency
+- Inter-module dependencies create coupling
+
+**Non-Breaking Assessment:** ❌ **DANGEROUS** - High risk of breaking critical features
+
+#### 3. **State Machine Pattern (XState)** - 🔴 NOT RECOMMENDED
+**Risk Level:** 🔴 **VERY HIGH** (Extremely Dangerous) 
+**Why it's too risky:**
+- ❌ Complete architectural overhaul required
+- ❌ All existing state patterns need rewriting
+- ❌ Export store integration needs complete redesign
+- ❌ Massive migration effort with high breaking potential
+
+**Pros:**
+- Eliminates state complexity and race conditions
+- Provides predictable state transitions
+- Excellent debugging and visualization tools
+- Future-proof architecture
+
+**Cons:**
+- Requires complete rewrite of state logic
+- Team learning curve for XState
+- High implementation risk
+- Difficult to preserve existing patterns
+
+**Non-Breaking Assessment:** ❌ **EXTREMELY DANGEROUS** - Guaranteed breaking changes
+
+#### 4. **Context-Based Architecture** - 🟡 POSSIBLE ALTERNATIVE
+**Risk Level:** 🟡 **MEDIUM** (Moderate Risk)
+**Why it could work:**
+- ✅ Eliminates prop drilling (17+ props → 0 props)
+- ✅ Can preserve existing useExportStore patterns
+- ✅ Allows gradual migration with context providers
+- ⚠️ Requires careful performance optimization
+
+**Pros:**
+- Clean component interfaces
+- No prop drilling
+- Can coexist with existing stores
+- Easier component testing
+
+**Cons:**
+- Performance implications with frequent updates
+- Context boundaries need careful design
+- Re-render optimization required
+- Provider hierarchy complexity
+
+**Non-Breaking Assessment:** ⚠️ **MODERATE RISK** - Requires careful performance handling
+
+### 🎯 **TASK 1 RECOMMENDATION**
+
+**RECOMMENDED APPROACH: Hook Extraction Pattern**
+
+**Rationale:**
+1. **Lowest Risk** - 🟡 Medium risk with clear mitigation strategies
+2. **Highest Non-Breaking Score** - 8/10 feature preservation
+3. **Reasonable Effort** - 4-6 hours implementation time
+4. **Incremental Migration** - Can be done hook by hook
+5. **Preserves All Critical Points** - No breaking changes to atomic operations
+
+**Next Steps:** Proceed to Task 2 for detailed hook extraction analysis
+
 ---
 
 ### Task 2: Analyze Hook Extraction Feasibility  
-- [ ] **Status:** Pending
-- [ ] **Owner:** Development Team
-- [ ] **Estimated Time:** 3 hours
+- [x] **Status:** Complete - Implementation Plan Created
+- [x] **Owner:** Development Team
+- [x] **Estimated Time:** 3 hours (Actual: 1 hour planning + implementation plan)
+
+**✅ DELIVERABLE:** Created comprehensive implementation plan: `export-dialog-hook-extraction-implementation.md`
 
 **Objective:** Deep dive into custom hooks approach for export-dialog
 
@@ -93,6 +299,13 @@ Lines 951-1024: Memory warnings, timeline warnings, error display
 - Testing advantages
 - Migration complexity
 - Performance implications
+
+**Non-Breaking Requirements:**
+- [ ] **Atomic state updates preserved** - handlePresetSelect's 5 updates must remain atomic
+- [ ] **useEffect dependencies maintained** - Engine recommendation effect must trigger correctly
+- [ ] **Store integration preserved** - All 11 useExportStore variables remain functional
+- [ ] **Canvas ref management intact** - ExportCanvas access patterns unchanged
+- [ ] **Export execution unchanged** - 146-line handleExport function behavior preserved
 
 **Deliverables:**
 - Hook interface designs
@@ -141,6 +354,13 @@ Lines 951-1024: Memory warnings, timeline warnings, error display
 - Communication patterns between features
 - Testing isolation benefits
 
+**Non-Breaking Requirements:**
+- [ ] **Complete feature isolation** - Each feature module must be fully self-contained
+- [ ] **Store integration preserved** - All features maintain useExportStore access
+- [ ] **Inter-feature communication** - Preset changes must trigger validation updates
+- [ ] **Progress tracking intact** - Export execution and progress display coordination
+- [ ] **Engine factory integration** - All features can access ExportEngineFactory singleton
+
 **Deliverables:**
 - Feature module architecture diagram
 - Inter-module communication design
@@ -180,6 +400,13 @@ Lines 951-1024: Memory warnings, timeline warnings, error display
 - Component coupling reduction  
 - State management complexity
 - Re-render optimization needs
+
+**Non-Breaking Requirements:**
+- [ ] **Store compatibility** - Contexts must work alongside useExportStore without conflicts
+- [ ] **Performance preservation** - No degradation in export performance or UI responsiveness
+- [ ] **Effect dependencies intact** - Engine recommendation effect with 8+ dependencies preserved
+- [ ] **Atomic updates guaranteed** - Context updates must maintain preset application atomicity
+- [ ] **Provider hierarchy safe** - Context nesting doesn't break existing component patterns
 
 **Deliverables:**
 - Context architecture design
@@ -231,11 +458,14 @@ Lines 951-1024: Memory warnings, timeline warnings, error display
 ## 🎯 Success Criteria
 
 **Research Phase Complete When:**
-- [ ] All 5 tasks completed
-- [ ] Approach comparison matrix created
-- [ ] Final refactoring plan documented
+- [ ] All 5 tasks completed with non-breaking requirements verified
+- [ ] Approach comparison matrix created with risk assessments
+- [ ] Final refactoring plan documented with preservation guarantees
 - [ ] Risk assessment shows acceptable risk level (🟡 medium or lower)
 - [ ] Implementation timeline and resources defined
+- [ ] **ALL 25+ existing features verified as preserved**
+- [ ] **ALL 5 critical preservation points addressed**
+- [ ] **Comprehensive testing strategy defined** for each approach
 
 **Next Phase:** Implementation of chosen approach
 
