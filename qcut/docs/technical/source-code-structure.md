@@ -4,8 +4,8 @@
 
 This document provides a comprehensive overview of the QCut source code structure, including folder organization and line counts for all TypeScript/JavaScript source files.
 
-**Generated:** 2025-01-27  
-**Total Source Files:** 229 files  
+**Generated:** 2025-08-07  
+**Total Source Files:** 236 files (231 in src/ + 5 in electron/)  
 **Main Source Directory:** `apps/web/src/`
 
 ## Project Architecture
@@ -32,60 +32,59 @@ apps/web/
 
 ### Main Source Directory: `apps/web/src/`
 
-#### 📁 **Routes** (`src/routes/`)
+#### 📁 **Routes** (`src/routes/`) - 13 files
 Main application routing using TanStack Router:
-- `src/routes/index.tsx` - Home page route
-- `src/routes/editor.$project_id.tsx` - Main editor route
-- `src/routes/projects/index.tsx` - Projects list route
-- `src/routes/__root.tsx` - Root layout component
+- `__root.tsx` - Root layout component
+- `index.tsx` - Home page route  
+- `editor.$project_id.tsx` - Main editor route
+- `projects.tsx` - Projects list route
+- `blog.tsx` + `blog.$slug.tsx` - Blog functionality
+- `login.tsx` + `signup.tsx` - Authentication routes
+- `contributors.tsx` - Contributors page
+- `privacy.tsx` + `terms.tsx` - Legal pages
+- `roadmap.tsx` - Product roadmap
+- `why-not-capcut.tsx` - Comparison page
 
 #### 📁 **Components** (`src/components/`)
 
-##### UI Components (`src/components/ui/`)
+##### UI Components (`src/components/ui/`) - 65+ files
 Base UI components built on Radix UI primitives:
-- `accordion.tsx` - Collapsible content areas
-- `alert-dialog.tsx` - Modal confirmation dialogs
-- `alert.tsx` - Notification messages
-- `audio-player.tsx` - Audio playback controls
-- `avatar.tsx` - User profile pictures
-- `badge.tsx` - Status indicators
-- `button.tsx` - Interactive buttons
-- `calendar.tsx` - Date selection
-- `card.tsx` - Content containers
-- `carousel.tsx` - Image/content sliders
-- `checkbox.tsx` - Toggle controls
-- `command.tsx` - Command palette
-- `context-menu.tsx` - Right-click menus
-- `dialog.tsx` - Modal windows
-- `dropdown-menu.tsx` - Action menus
-- `form.tsx` - Form handling
-- `input.tsx` - Text input fields
-- `label.tsx` - Form labels
-- `popover.tsx` - Floating content
-- `progress.tsx` - Progress indicators
-- `resizable.tsx` - Resizable panels
-- `scroll-area.tsx` - Custom scrollbars
-- `select.tsx` - Dropdown selection
-- `separator.tsx` - Visual dividers
-- `sheet.tsx` - Side panels
-- `slider.tsx` - Range controls
-- `switch.tsx` - Toggle switches
-- `table.tsx` - Data tables
-- `tabs.tsx` - Tab navigation
-- `textarea.tsx` - Multi-line text
-- `toast.tsx` - Notification system
-- `tooltip.tsx` - Hover information
-- `video-player.tsx` - Video playback
+
+**Core Components:**
+- `button.tsx`, `input.tsx`, `textarea.tsx` - Form inputs
+- `dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx` - Modal interfaces
+- `dropdown-menu.tsx`, `context-menu.tsx`, `menubar.tsx` - Menu systems
+- `table.tsx`, `tabs.tsx`, `card.tsx` - Layout components
+- `toast.tsx`, `toaster.tsx`, `sonner.tsx` - Notification system
+
+**Interactive Components:**
+- `accordion.tsx`, `collapsible.tsx` - Expandable content
+- `carousel.tsx`, `slider.tsx` - Range/navigation controls
+- `checkbox.tsx`, `radio-group.tsx`, `switch.tsx` - Selection inputs
+- `select.tsx`, `combobox.tsx` - Dropdown selections
+- `calendar.tsx`, `popover.tsx` - Date/overlay components
+
+**Media & Display:**
+- `audio-player.tsx`, `video-player.tsx` - Media controls
+- `avatar.tsx`, `badge.tsx`, `skeleton.tsx` - Display elements
+- `progress.tsx`, `scroll-area.tsx` - Progress/scrolling
+- `resizable.tsx`, `draggable-item.tsx` - Interactive layouts
+
+**Specialized Components:**
+- `font-picker.tsx`, `phone-input.tsx`, `input-otp.tsx` - Specialized inputs
+- `image-timeline-treatment.tsx`, `editable-timecode.tsx` - Video editor UI
+- `floating-action-panel.tsx`, `sponsor-button.tsx` - Custom components
+- `blob-image.tsx` - Blob URL image display
+- `chart.tsx`, `prose.tsx` - Content display
 
 ##### Editor Components (`src/components/editor/`)
 Core video editor interface:
 
 **Timeline System:**
-- `timeline/timeline.tsx` - Main timeline container  
+- `timeline/index.tsx` - Main timeline container  
 - `timeline/timeline-track.tsx` - Individual timeline tracks
 - `timeline/timeline-element.tsx` - Media elements on timeline
 - `timeline/timeline-playhead.tsx` - Current position indicator
-- `timeline/timeline-toolbar.tsx` - Timeline controls
 
 **Properties Panel:**
 - `properties-panel/index.tsx` - Properties container
@@ -99,121 +98,198 @@ Core video editor interface:
 - `media-panel/views/text.tsx` - Text creation tools
 - `media-panel/views/ai.tsx` - AI generation tools
 
-**Other Editor Components:**
-- `preview-panel.tsx` - Video preview window
-- `selection-box.tsx` - Multi-selection tool
-- `speed-control.tsx` - Playback speed controls
+**Adjustment Panel (1,104 lines):**
+- `adjustment/index.tsx` - Image adjustment interface (338 lines)
+- `adjustment/edit-history.tsx` - Edit history management (211 lines)
+- `adjustment/parameter-controls.tsx` - Adjustment controls (182 lines)
+- `adjustment/preview-panel.tsx` - Adjustment preview (175 lines)
+- `adjustment/image-uploader.tsx` - Image upload interface (135 lines)
+- `adjustment/model-selector.tsx` - AI model selection (63 lines)
 
-##### Application Components (`src/components/`)
-- `header-base.tsx` - Application header
+**Other Editor Components (1,405 lines):**
+- `preview-panel.tsx` - Video preview window (1,063 lines)
+- `audio-waveform.tsx` - Audio visualization (162 lines)
+- `snap-indicator.tsx` - Snapping visual feedback (79 lines)
+- `selection-box.tsx` - Multi-selection tool (55 lines)
+- `speed-control.tsx` - Playback speed controls (46 lines)
+
+##### Application Components (`src/components/`) - 15+ files
+- `header-base.tsx`, `header.tsx` - Application headers
 - `editor-provider.tsx` - Editor context provider
+- `storage-provider.tsx` - Storage abstraction context
 - `background-settings.tsx` - Project settings
-- `delete-project-dialog.tsx` - Project deletion
-- `rename-project-dialog.tsx` - Project renaming
+- `delete-project-dialog.tsx`, `rename-project-dialog.tsx` - Project management
+- `export-dialog.tsx`, `export-canvas.tsx` - Export functionality
 - `keyboard-shortcuts-help.tsx` - Help system
+- `onboarding.tsx` - User onboarding
 - `icons.tsx` - Icon definitions
+- `footer.tsx` - Application footer
+- `landing/hero.tsx`, `landing/handlebars.tsx` - Landing page components
 
-#### 📁 **Stores** (`src/stores/`)
+#### 📁 **Stores** (`src/stores/`) - 12 files
 Zustand state management:
-- `timeline-store.ts` - Timeline operations (1,553 lines)
-- `project-store.ts` - Project persistence (484 lines) 
-- `media-store.ts` - Media file management (467 lines)
-- `text2image-store.ts` - AI image generation (380 lines)
-- `adjustment-store.ts` - Image adjustments (301 lines)
-- `keybindings-store.ts` - Keyboard shortcuts (260 lines)
-- `export-store.ts` - Video export functionality (185 lines)
-- `playback-store.ts` - Video playback state (156 lines)
-- `panel-store.ts` - UI panel management (102 lines)
-- `editor-store.ts` - Main editor state (102 lines)
-- `media-store-types.ts` - Media type definitions (69 lines)
-- `media-store-loader.ts` - Media loading utilities (34 lines)
 
-#### 📁 **Library** (`src/lib/`)
+**Core Stores:**
+- `timeline-store.ts` - Timeline operations and state management
+- `project-store.ts` - Project persistence and management
+- `media-store.ts` - Media file handling and organization
+- `editor-store.ts` - Main editor state and settings
+- `playback-store.ts` - Video playback controls and state
+
+**Feature-Specific Stores:**
+- `export-store.ts` - Video export functionality
+- `text2image-store.ts` - AI image generation
+- `adjustment-store.ts` - Image adjustment tools
+- `keybindings-store.ts` - Keyboard shortcut management
+- `panel-store.ts` - UI panel visibility and layout
+
+**Supporting Files:**
+- `media-store-types.ts` - Media type definitions
+- `media-store-loader.ts` - Media loading utilities
+
+#### 📁 **Library** (`src/lib/`) - 30+ files
 Core functionality and utilities:
 
 **Export Engines:**
-- `export-engine.ts` - Main export engine (996 lines)
-- `ai-video-client.ts` - AI video processing (908 lines)
-- `export-engine-optimized.ts` - Optimized export (575 lines)
-- `fal-ai-client.ts` - FAL AI integration (482 lines)
-- `export-engine-factory.ts` - Export factory (477 lines)
-- `export-engine-cli.ts` - CLI export engine (476 lines)
-- `export-engine-ffmpeg.ts` - FFmpeg export (172 lines)
+- `export-engine.ts` - Main export engine
+- `export-engine-optimized.ts` - Performance-optimized export
+- `export-engine-factory.ts` - Export strategy factory
+- `export-engine-cli.ts` - Command-line export interface
+- `export-engine-ffmpeg.ts` - FFmpeg-based export
+- `webcodecs-export-engine.ts` - Modern WebCodecs export
 
 **Video Processing:**
-- `ffmpeg-utils.ts` - FFmpeg WebAssembly integration (496 lines)
-- `ffmpeg-loader.ts` - Dynamic FFmpeg loading (85 lines)
+- `ffmpeg-utils.ts` - FFmpeg WebAssembly integration
+- `ffmpeg-utils-encode.ts` - Video encoding utilities
+- `ffmpeg-utils-loader.ts` - Dynamic FFmpeg loading
+- `ffmpeg-loader.ts` - FFmpeg initialization
+- `ffmpeg-service.ts` - FFmpeg service wrapper
+- `ffmpeg-video-recorder.ts` - Screen recording functionality
+- `media-processing.ts` - General media processing
+- `webcodecs-detector.ts` - WebCodecs capability detection
+
+**AI Integration:**
+- `ai-video-client.ts` - AI video processing client
+- `fal-ai-client.ts` - FAL AI service integration
+- `image-edit-client.ts` - AI image editing
+- `text2image-models.ts` - Text-to-image AI models
+- `ai-video-output.ts` - AI processing output handling
 
 **Storage System:**
-- `storage/storage-service.ts` - Storage abstraction (339 lines)
-- `storage/indexeddb-adapter.ts` - IndexedDB implementation (103 lines)
-- `storage/localstorage-adapter.ts` - LocalStorage fallback (103 lines)
-- `storage/opfs-adapter.ts` - File system adapter (73 lines)
-- `storage/electron-adapter.ts` - Electron storage (68 lines)
-- `storage/types.ts` - Storage type definitions (50 lines)
+- `storage/storage-service.ts` - Storage abstraction layer
+- `storage/indexeddb-adapter.ts` - IndexedDB implementation
+- `storage/localstorage-adapter.ts` - LocalStorage fallback
+- `storage/opfs-adapter.ts` - Origin Private File System
+- `storage/electron-adapter.ts` - Electron file system
+- `storage/types.ts` - Storage interface definitions
 
-**Utilities:**
-- `time.ts` - Time formatting (118 lines)
-- `ai-video-output.ts` - AI output handling (113 lines)
-- `utils.ts` - General utilities (76 lines)
-- `blog-query.ts` - Blog functionality (64 lines)
-- `debug-logger.ts` - Debug utilities (44 lines)
+**Utilities & Services:**
+- `time.ts` - Time formatting and parsing
+- `timeline.ts` - Timeline calculation utilities
+- `utils.ts` - General utility functions
+- `image-utils.ts` - Image processing helpers
+- `memory-utils.ts` - Memory management utilities
+- `zip-manager.ts` - ZIP file handling
+- `font-config.ts` - Font configuration
+- `debug-logger.ts` - Debug logging system
+- `blog-query.ts` - Blog content queries
+- `waitlist.ts` - Waitlist management
+- `rate-limit.ts` - API rate limiting
+- `fetch-github-stars.ts` - GitHub integration
 
-#### 📁 **Hooks** (`src/hooks/`)
+#### 📁 **Hooks** (`src/hooks/`) - 21+ files
 Custom React hooks:
-- `use-timeline-zoom.ts` - Timeline zoom controls (~150 lines)
-- `use-timeline-snapping.ts` - Element snapping (~200 lines)
-- `use-selection-box.ts` - Multi-selection logic (~250 lines)
-- `use-playback-controls.ts` - Video controls (~180 lines)
-- `use-keyboard-shortcuts-help.ts` - Help system (~100 lines)
-- `use-keybindings.ts` - Keyboard handling (~200 lines)
-- `use-editor-actions.ts` - Editor actions (~300 lines)
-- `use-drag-drop.ts` - Drag and drop (~150 lines)
-- `use-mobile.tsx` - Mobile detection (~50 lines)
 
-#### 📁 **Types** (`src/types/`)
+**Timeline & Editor Hooks:**
+- `use-timeline-zoom.ts` - Timeline zoom controls
+- `use-timeline-snapping.ts` - Element snapping logic
+- `use-timeline-element-resize.ts` - Element resizing
+- `use-timeline-playhead.ts` - Playhead positioning
+- `use-selection-box.ts` - Multi-selection functionality
+- `use-editor-actions.ts` - Core editor operations
+- `use-drag-drop.ts` - Drag and drop interactions
+
+**Playback & Media Hooks:**
+- `use-playback-controls.ts` - Video playback controls
+- `use-async-ffmpeg.ts` - Asynchronous FFmpeg operations
+- `use-async-media-store.ts` - Media loading and caching
+- `use-async-module-loading.tsx` - Dynamic module loading
+- `use-blob-image.ts` - Blob URL image handling
+- `use-aspect-ratio.ts` - Aspect ratio calculations
+
+**UI & Interaction Hooks:**
+- `use-keybindings.ts` - Keyboard shortcut handling
+- `use-keybinding-conflicts.ts` - Shortcut conflict detection
+- `use-keyboard-shortcuts-help.ts` - Help system integration
+- `use-mobile.tsx` - Mobile device detection
+- `use-toast.ts` - Toast notification system
+
+**Utility & Export Hooks:**
+- `use-zip-export.ts` - Project export to ZIP
+- `useElectron.ts` - Electron integration
+
+**Authentication Hooks:**
+- `auth/useLogin.ts` - User login functionality
+- `auth/useSignUp.ts` - User registration
+
+#### 📁 **Types** (`src/types/`) - 7 files
 TypeScript type definitions:
-- `timeline.ts` - Timeline data structures (~200 lines)
-- `editor.ts` - Editor interfaces (~150 lines)
-- `project.ts` - Project data types (~100 lines)
-- `playback.ts` - Playback state types (~50 lines)
-- `keybinding.ts` - Keyboard shortcut types (~80 lines)
+- `timeline.ts` - Timeline data structures and interfaces
+- `editor.ts` - Editor state and component interfaces
+- `project.ts` - Project data models and schemas
+- `playback.ts` - Video playback state types
+- `keybinding.ts` - Keyboard shortcut definitions
+- `export.ts` - Export configuration types
+- `post.ts` - Blog post data structures
+- `electron.d.ts` - Electron API type extensions
 
-#### 📁 **Constants** (`src/constants/`)
+#### 📁 **Constants** (`src/constants/`) - 4 files
 Application constants:
-- `timeline-constants.ts` - Timeline configuration (~50 lines)
-- `font-constants.ts` - Font definitions (~100 lines)
-- `actions.ts` - Action definitions (~80 lines)
-- `site.ts` - Site metadata (~30 lines)
+- `timeline-constants.ts` - Timeline configuration and defaults
+- `font-constants.ts` - Available font definitions
+- `actions.ts` - Editor action types and definitions
+- `site.ts` - Site metadata and configuration
 
-#### 📁 **Data** (`src/data/`)
+#### 📁 **Data** (`src/data/`) - 1 file, 244 lines
 Static data:
-- `colors.ts` - Color palette definitions (~50 lines)
+- `colors.ts` - Application color palette definitions (244 lines)
+
+#### 📁 **Main Source Files** - 6 files, 418 lines
+Core application bootstrap files:
+- `routeTree.gen.ts` - Generated TanStack Router tree (302 lines)
+- `App.tsx` - Main application component (56 lines)
+- `middleware.ts` - Application middleware (24 lines)
+- `env.ts` - Environment configuration (16 lines)
+- `env.client.ts` - Client-side environment (10 lines)
+- `main.tsx` - Application entry point (10 lines)
 
 ### Electron Integration
 
-#### Main Process (`electron/`)
-- `main.js` - Electron main process (~400 lines)
-- `preload.js` - Preload script for IPC (~50 lines)
-- `ffmpeg-handler.js` - FFmpeg CLI integration (~200 lines)
+#### Main Process (`electron/`) - 4 files
+- `main.js` - Electron main process and window management
+- `preload.js` - Preload script for secure IPC communication
+- `ffmpeg-handler.js` - FFmpeg CLI integration and processing
+- `temp-manager.js` - Temporary file management
 
 ## File Size Analysis
 
-### Large Files (>300 lines)
-1. `src/stores/timeline-store.ts` - 1,553 lines - Timeline state management
-2. `src/lib/export-engine.ts` - 996 lines - Main export engine
-3. `src/lib/ai-video-client.ts` - 908 lines - AI video processing
-4. `src/lib/export-engine-optimized.ts` - 575 lines - Optimized export
-5. `src/lib/ffmpeg-utils.ts` - 496 lines - Video processing
-6. `src/stores/project-store.ts` - 484 lines - Project persistence
-7. `src/lib/fal-ai-client.ts` - 482 lines - FAL AI integration
-8. `src/lib/export-engine-factory.ts` - 477 lines - Export factory
-9. `src/lib/export-engine-cli.ts` - 476 lines - CLI export engine
-10. `src/stores/media-store.ts` - 467 lines - Media file handling
-11. `electron/main.js` - 405 lines - Electron main process
-12. `src/stores/text2image-store.ts` - 380 lines - AI image generation
-13. `src/lib/storage/storage-service.ts` - 339 lines - Storage abstraction
-14. `src/stores/adjustment-store.ts` - 301 lines - Image adjustments
+### File Size Analysis
+
+**Key Implementation Files:**
+The codebase contains several substantial files that form the core of the application:
+
+- **Timeline Store** - Comprehensive timeline state management
+- **Export Engines** - Multiple export strategies and optimizations
+- **AI Integration** - Video and image AI processing clients
+- **Media Processing** - FFmpeg integration and utilities
+- **Storage System** - Multi-adapter storage abstraction
+- **Electron Main Process** - Desktop application lifecycle
+
+**Architecture Highlights:**
+- Modular export system with multiple engine implementations
+- Comprehensive AI integration for video and image processing
+- Robust storage abstraction supporting multiple backends
+- Extensive timeline management with complex state handling
 
 ### Medium Files (100-299 lines)
 - Timeline components and hooks
