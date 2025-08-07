@@ -4,7 +4,7 @@
       <img src="qcut/apps/web/public/logo.png" alt="QCut Logo" width="100" />
     </td>
     <td align="right">
-      <h1>QCut <span style="font-size: 0.7em; font-weight: normal;">(prev AppCut)</span></h1>
+      <h1>QCut <span style="font-size: 0.7em; font-weight: normal;"></span></h1>
       <h3 style="margin-top: -10px;">A free, open-source video editor for Windows desktop (and web).</h3>
     </td>
   </tr>
@@ -54,8 +54,8 @@ Before you begin, ensure you have the following installed on your system:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/OpenCut-app/OpenCut.git
-   cd QCut
+   git clone https://github.com/donghaozhang/qcut.git
+   cd qcut
    ```
 
 2. **Install dependencies:**
@@ -145,19 +145,6 @@ QCut uses a modern desktop application stack:
 
 We welcome contributions! The project has been successfully migrated to a desktop-first architecture.
 
-**🎯 Current focus areas:** 
-- Timeline functionality and performance
-- Native desktop features (menus, shortcuts, file associations)
-- Video processing optimizations
-- UI/UX improvements for desktop workflow
-
-**✅ Completed:**
-- ✅ Full migration from Next.js to Vite + Electron
-- ✅ Native file system integration
-- ✅ TanStack Router implementation
-- ✅ FFmpeg WebAssembly integration
-- ✅ Production-ready Windows desktop build
-
 **Quick start for contributors:**
 
 - Fork the repo and clone locally
@@ -180,15 +167,3 @@ Key improvements in the desktop version:
 - Offline operation
 - Better performance for video processing
 - No server dependencies
-
-### Sponsors
-
-Thanks to [Vercel](https://vercel.com?utm_source=github-opencut&utm_campaign=oss) for their support of open-source software.
-
-<a href="https://vercel.com/oss">
-  <img alt="Vercel OSS Program" src="https://vercel.com/oss/program-badge.svg" />
-</a>
-
-## License
-
-[MIT LICENSE](LICENSE)

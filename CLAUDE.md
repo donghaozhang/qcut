@@ -68,9 +68,6 @@ bun format       # Format with Ultracite/Biome
 ```bash
 bun dev                  # Vite dev server (port 5173)
 bun build                # Production build
-bun db:generate          # Generate Drizzle migrations
-bun db:migrate           # Run database migrations
-bun db:push:local        # Push schema to local database
 bun lint:fix             # Auto-fix linting issues
 ```
 
@@ -96,14 +93,6 @@ npx electron-packager . QCut --platform=win32 --arch=x64 --out=dist-packager --o
 # Option 2: Using electron-builder (if configured)
 bun run dist:win
 ```
-
-### Current Build Status
-- ✅ **Fully migrated** from Next.js to Vite + Electron
-- ✅ **FFmpeg WebAssembly** working in packaged app
-- ✅ **Native file system** access via Electron IPC
-- ✅ **Hash routing** implemented for file:// protocol
-- ✅ **Windows EXE** builds successfully
-
 ## Important Patterns
 
 ### State Management
