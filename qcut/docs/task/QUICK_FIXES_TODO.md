@@ -2,204 +2,257 @@
 
 ## High Priority Tasks
 
-### 1. Fix CORS Image Display Issue
-**Time:** 3-4 minutes  
-**Files to modify:**
-- `apps/web/src/lib/media-processing.ts`
-- `apps/web/src/components/editor/media-panel/views/ai.tsx`
-
-**Task:** Add blob URL conversion for external FAL images
-```typescript
-// In media-processing.ts - add function:
-export async function convertExternalImageToBlob(imageUrl: string): Promise<string> {
-  const response = await fetch(imageUrl);
-  const blob = await response.blob();
-  return URL.createObjectURL(blob);
-}
-```
-
----
-
-### 2. Add Blob URL Cleanup
+### 1. Enhance Preview Panel Sync
 **Time:** 2-3 minutes  
 **Files to modify:**
-- `apps/web/src/stores/media-store.ts`
-- `apps/web/src/hooks/use-media-cleanup.ts` (create new)
-
-**Task:** Create cleanup hook for blob URLs
-```typescript
-// Create use-media-cleanup.ts:
-export function useMediaCleanup() {
-  const cleanup = useCallback((urls: string[]) => {
-    urls.forEach(url => {
-      if (url.startsWith('blob:')) {
-        URL.revokeObjectURL(url);
-      }
-    });
-  }, []);
-  
-  useEffect(() => () => cleanup(blobUrls), []);
-  return cleanup;
-}
-```
-
----
-
-### 3. Fix Preview Panel Sync
-**Time:** 4-5 minutes  
-**Files to modify:**
-- `apps/web/src/components/editor/preview-panel/index.tsx`
+- `apps/web/src/components/editor/preview-panel.tsx` (line ~520)
 - `apps/web/src/stores/timeline-store.ts`
 
-**Task:** Add null check and loading state
+**Task:** Enhance existing loading state logic
 ```typescript
-// In preview-panel/index.tsx:
+// In preview-panel.tsx around line 520:
+const timelineElements = useTimelineStore(state => state.elements);
+const mediaItems = useMediaStore(state => state.mediaItems);
+
+// Add before existing loading check:
 if (!mediaItems?.length && timelineElements?.length > 0) {
-  console.warn('[Preview] Timeline elements exist but no media items loaded');
+  debugLogger.warn('[Preview] Timeline elements exist but no media items loaded');
   return <LoadingPlaceholder message="Loading media..." />;
 }
 ```
 
 ---
 
-### 4. Update FAL Storage Endpoint
-**Time:** 2 minutes  
+### 2. Add CORS Image Conversion for FAL AI
+**Time:** 3-4 minutes  
 **Files to modify:**
-- `apps/web/src/lib/fal-ai-client.ts`
+- `apps/web/src/lib/media-processing.ts` (add new function)
+- `apps/web/src/components/editor/media-panel/views/ai.tsx` (use function)
 
-**Task:** Update storage URL and add error handling
+**Task:** Add FAL media URL conversion to existing media processing
 ```typescript
-// Replace current endpoint:
-const STORAGE_URL = 'https://fal.run/fal-ai/storage/upload'; // Add fal-ai prefix
+// In media-processing.ts - add function:
+export async function convertFalImageToBlob(imageUrl: string): Promise<string> {
+  if (!imageUrl.includes('fal.media')) return imageUrl;
+  
+  try {
+    const response = await fetch(imageUrl, { mode: 'cors' });
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  } catch (error) {
+    debugLogger.error('[FAL Image] Failed to convert to blob:', error);
+    return imageUrl; // Fallback to original URL
+  }
+}
 ```
 
 ---
 
-### 5. Add Error Boundary for AI Components
-**Time:** 3-4 minutes  
-**Files to create/modify:**
-- `apps/web/src/components/error-boundary.tsx` (create new)
-- `apps/web/src/components/editor/media-panel/views/ai.tsx`
+### 3. Enhance Existing Blob URL Cleanup
+**Time:** 2-3 minutes  
+**Files to modify:**
+- `apps/web/src/stores/media-store.ts` (enhance existing cleanup, lines ~525-565)
 
-**Task:** Wrap AI components with error boundary
+**Task:** Improve existing cleanup logic
 ```typescript
-// Create error-boundary.tsx with fallback UI
-export class AIErrorBoundary extends Component {
-  render() {
-    if (this.state.hasError) {
-      return <div>AI features temporarily unavailable</div>;
+// In media-store.ts - enhance existing cleanup method around line 550:
+cleanup: (projectId?: string) => {
+  const state = get();
+  
+  // Enhanced cleanup with better URL tracking
+  Object.entries(state.objectUrls).forEach(([key, url]) => {
+    if (!projectId || key.includes(projectId)) {
+      if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+        debugLogger.debug('[Cleanup] Revoked blob URL:', key);
+      }
     }
-    return this.props.children;
+  });
+  
+  set(state => ({
+    objectUrls: projectId 
+      ? Object.fromEntries(Object.entries(state.objectUrls).filter(([k]) => !k.includes(projectId)))
+      : {}
+  }));
+},
+```
+
+---
+
+### 4. Add Storage Quota Check
+**Time:** 2 minutes  
+**Files to modify:**
+- `apps/web/src/lib/storage/storage-service.ts` (add to StorageService class)
+
+**Task:** Add quota check to existing storage service
+```typescript
+// In storage-service.ts - add method to StorageService class:
+async checkStorageQuota(): Promise<{ available: boolean; usage: number; quota: number }> {
+  if (!('storage' in navigator)) {
+    return { available: true, usage: 0, quota: Infinity };
   }
+  
+  const estimate = await navigator.storage.estimate();
+  const usage = estimate.usage || 0;
+  const quota = estimate.quota || Infinity;
+  const usagePercent = usage / quota;
+  
+  return {
+    available: usagePercent < 0.8, // Warn at 80%
+    usage,
+    quota
+  };
 }
+```
+
+---
+
+### 5. Add Timeline Virtualization for Performance
+**Time:** 4-5 minutes  
+**Files to modify:**
+- `apps/web/src/components/editor/timeline/timeline-track.tsx` (enhance existing rendering)
+
+**Task:** Add viewport-based rendering optimization
+```typescript
+// In timeline-track.tsx - add to existing component:
+const visibleElements = useMemo(() => {
+  if (!elements?.length) return [];
+  
+  // Get viewport bounds from timeline context or props
+  const viewportStart = scrollLeft / pixelsPerSecond;
+  const viewportEnd = (scrollLeft + viewportWidth) / pixelsPerSecond;
+  
+  return elements.filter(element => {
+    const elementEnd = element.startTime + element.duration;
+    return element.startTime < viewportEnd && elementEnd > viewportStart;
+  });
+}, [elements, scrollLeft, viewportWidth, pixelsPerSecond]);
+
+// Use visibleElements instead of elements in render
 ```
 
 ---
 
 ## Medium Priority Tasks
 
-### 6. Add Console Log Levels
-**Time:** 2-3 minutes  
+### 6. Enhance Debug Logger Configuration  
+**Time:** 2 minutes  
 **Files to modify:**
-- `apps/web/src/lib/logger.ts` (create new)
-- `apps/web/vite.config.ts`
+- `apps/web/src/lib/debug-logger.ts` (existing file, enhance configuration)
 
-**Task:** Create logger utility with environment-based levels
+**Task:** Add environment-based log level control
 ```typescript
-// Create logger.ts:
-const isDev = import.meta.env.DEV;
-export const logger = {
-  info: isDev ? console.log : () => {},
-  warn: console.warn,
-  error: console.error
-};
+// In debug-logger.ts - enhance existing logger:
+const LOG_LEVELS = {
+  error: 0,
+  warn: 1, 
+  info: 2,
+  debug: 3
+} as const;
+
+const currentLevel = import.meta.env.DEV ? LOG_LEVELS.debug : LOG_LEVELS.warn;
+
+// Add level checking to existing logger methods
 ```
 
 ---
 
-### 7. Cache FAL Image Downloads
-**Time:** 4-5 minutes  
+### 7. Add Image Caching to FAL Client
+**Time:** 3-4 minutes  
 **Files to modify:**
-- `apps/web/src/lib/fal-ai-client.ts`
-- `apps/web/src/lib/image-cache.ts` (create new)
+- `apps/web/src/lib/fal-ai-client.ts` (add caching to existing methods)
 
-**Task:** Add simple in-memory cache for downloaded images
+**Task:** Add simple in-memory cache for FAL images
 ```typescript
-// Create image-cache.ts:
-const imageCache = new Map<string, string>();
-export function getCachedImage(url: string): string | null {
-  return imageCache.get(url) || null;
-}
-```
+// In fal-ai-client.ts - add at top of file:
+const imageCache = new Map<string, { blob: string; timestamp: number }>();
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
----
-
-### 8. Add Storage Quota Check
-**Time:** 3 minutes  
-**Files to modify:**
-- `apps/web/src/lib/storage/storage-service.ts`
-
-**Task:** Add quota warning before large operations
-```typescript
-// In storage-service.ts:
-async checkStorageQuota(): Promise<boolean> {
-  const estimate = await navigator.storage.estimate();
-  const usagePercent = (estimate.usage || 0) / (estimate.quota || 1);
-  return usagePercent < 0.8; // Warn at 80%
-}
-```
-
----
-
-### 9. Improve Network Error Handling
-**Time:** 2-3 minutes  
-**Files to modify:**
-- `apps/web/src/lib/api-client.ts`
-
-**Task:** Add retry logic for network failures
-```typescript
-// Add to api-client.ts:
-const retryRequest = async (fn: () => Promise<any>, retries = 3) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await fn();
-    } catch (error) {
-      if (i === retries - 1) throw error;
-      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
-    }
+// Add to existing download function:
+const getCachedImage = (url: string): string | null => {
+  const cached = imageCache.get(url);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.blob;
   }
+  if (cached) imageCache.delete(url); // Remove expired
+  return null;
 };
 ```
 
 ---
 
-### 10. Add Timeline Performance Optimization
-**Time:** 4-5 minutes  
-**Files to modify:**
-- `apps/web/src/components/editor/timeline/timeline-track.tsx`
+### 8. ~~Add Storage Quota Check~~ 
+**Status:** ✅ **Moved to High Priority (#4)**
 
-**Task:** Add virtualization for large timelines
+---
+
+### 9. Add Error Boundary (Modern Functional Approach)
+**Time:** 3-4 minutes  
+**Files to create/modify:**
+- `apps/web/src/components/error-boundary.tsx` (create new)
+- `apps/web/src/components/editor/media-panel/views/ai.tsx` (wrap components)
+
+**Task:** Create functional error boundary with React Error Boundary
 ```typescript
-// In timeline-track.tsx:
-const visibleElements = useMemo(() => {
-  const viewport = { start: scrollLeft, end: scrollLeft + width };
-  return elements.filter(el => 
-    el.startTime < viewport.end && el.endTime > viewport.start
+// Create error-boundary.tsx:
+import { ErrorBoundary } from 'react-error-boundary';
+
+function ErrorFallback({ error, resetErrorBoundary }: any) {
+  return (
+    <div className="p-4 border border-red-200 rounded-md bg-red-50">
+      <h3 className="text-red-800 font-medium">AI features temporarily unavailable</h3>
+      <button onClick={resetErrorBoundary} className="text-red-600 underline text-sm">
+        Try again
+      </button>
+    </div>
   );
-}, [elements, scrollLeft, width]);
+}
+
+export function AIErrorBoundary({ children }: { children: React.ReactNode }) {
+  return (
+    <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
+      {children}
+    </ErrorBoundary>
+  );
+}
 ```
 
 ---
 
-## Implementation Priority Order
+### 10. Timeline Element Intersection Optimization
+**Time:** 2-3 minutes
+**Files to modify:**
+- `apps/web/src/stores/timeline-store.ts` (optimize element queries)
 
-1. **Fix CORS Image Display** (Critical for AI features)
-2. **Add Blob URL Cleanup** (Prevents memory leaks)  
-3. **Fix Preview Panel Sync** (Core editor functionality)
-4. **Update FAL Storage Endpoint** (Improves upload success rate)
-5. **Add Error Boundary** (Better user experience)
+**Task:** Add memoized intersection calculations
+```typescript
+// In timeline-store.ts - add computed getter:
+get visibleElements(): TimelineElement[] {
+  const { elements, viewportStart, viewportEnd } = this;
+  return elements.filter(element => {
+    const elementEnd = element.startTime + element.duration;
+    return element.startTime < viewportEnd && elementEnd > viewportStart;
+  });
+},
+```
 
-**Total estimated time for top 5 fixes:** 15-20 minutes
+---
+
+## Updated Implementation Priority Order
+
+1. **Enhance Preview Panel Sync** (Easy enhancement, immediate impact)
+2. **Add CORS Image Conversion** (Fixes critical AI image display)  
+3. **Enhance Blob URL Cleanup** (Prevents memory leaks)
+4. **Add Storage Quota Check** (Prevents storage issues)
+5. **Add Timeline Virtualization** (Performance improvement)
+
+**Total estimated time for top 5 fixes:** 12-17 minutes
+
+## Fixes Removed/Reconsidered
+
+- **FAL Storage Endpoint Update**: Current implementation is already correct
+- **Network Error Handling**: No centralized API client exists; services handle their own errors
+- **New Logger Creation**: Existing debug-logger.ts is more sophisticated than suggested replacement
 
 ---
 

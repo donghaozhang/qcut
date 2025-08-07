@@ -201,7 +201,14 @@ export async function convertToBlob(url: string): Promise<string> {
   }
 
   try {
-    const response = await fetch(url);
+    console.log(`[convertToBlob] Fetching image with CORS headers: ${url}`);
+    const response = await fetch(url, {
+      mode: 'cors',
+      headers: {
+        'Accept': 'image/*',
+      }
+    });
+    
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -263,12 +270,22 @@ export async function downloadImageAsFile(
   filename: string
 ): Promise<File> {
   try {
-    const response = await fetch(url);
+    console.log(`[convertToBlob] Downloading image from: ${url}`);
+    
+    // Enhanced fetch with CORS handling for FAL.ai URLs
+    const response = await fetch(url, {
+      mode: 'cors',
+      headers: {
+        'Accept': 'image/*',
+      }
+    });
+    
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const blob = await response.blob();
+    console.log(`[convertToBlob] Downloaded blob: ${blob.size} bytes, type: ${blob.type}`);
 
     // Determine MIME type from blob or URL
     let mimeType = blob.type;

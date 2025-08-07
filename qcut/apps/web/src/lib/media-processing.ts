@@ -271,3 +271,37 @@ export async function processMediaFiles(
 
   return processedItems;
 }
+
+/**
+ * Convert FAL.ai media URLs to blob URLs to avoid CORS/COEP issues
+ */
+export async function convertFalImageToBlob(imageUrl: string): Promise<string> {
+  if (!imageUrl.includes('fal.media')) {
+    console.log('[FAL Image] URL is not a fal.media URL, returning as-is');
+    return imageUrl;
+  }
+  
+  try {
+    console.log('[FAL Image] Converting fal.media URL to blob:', imageUrl);
+    const response = await fetch(imageUrl, { 
+      mode: 'cors',
+      headers: {
+        'Accept': 'image/*',
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    
+    console.log('[FAL Image] ✅ Successfully converted to blob URL:', blobUrl);
+    return blobUrl;
+  } catch (error) {
+    console.error('[FAL Image] ❌ Failed to convert to blob:', error);
+    // Fallback to original URL - better to try than completely fail
+    return imageUrl;
+  }
+}

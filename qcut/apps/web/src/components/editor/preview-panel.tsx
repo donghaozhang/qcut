@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Play, Pause, Expand, SkipBack, SkipForward } from "lucide-react";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { debugLogger } from "@/lib/debug-logger";
 import { cn } from "@/lib/utils";
 import { formatTimeCode } from "@/lib/time";
 import { EditableTimecode } from "@/components/ui/editable-timecode";
@@ -513,6 +514,31 @@ export function PreviewPanel() {
 
     return null;
   };
+
+  // Enhanced sync check: Timeline elements exist but no media items loaded
+  const timelineElements = useMemo(() => {
+    return tracks.flatMap(track => track.elements || []);
+  }, [tracks]);
+
+  if (!mediaItems?.length && timelineElements?.length > 0 && !mediaItemsLoading) {
+    debugLogger.warn('Preview', 'Timeline elements exist but no media items loaded', {
+      timelineElementsCount: timelineElements.length,
+      mediaItemsCount: mediaItems?.length || 0,
+      mediaItemsLoading
+    });
+    return (
+      <div className="h-full w-full flex flex-col min-h-0 min-w-0 bg-panel rounded-sm">
+        <div className="flex-1 flex items-center justify-center p-3">
+          <div className="text-center">
+            <div className="text-yellow-600 mb-2">Loading media...</div>
+            <div className="text-sm text-muted-foreground">
+              Timeline has content but media items are not ready
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Handle media loading states
   if (mediaItemsError) {
