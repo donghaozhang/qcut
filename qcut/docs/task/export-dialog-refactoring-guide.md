@@ -3,8 +3,8 @@
 **Date:** 2025-08-07  
 **Branch:** refactor/large-files  
 **Target:** Split `export-dialog.tsx` (1,024 lines) into 2 files  
-**Risk Level:** 🟡 MEDIUM (complex internal state)  
-**Estimated Time:** 4-6 hours
+**Risk Level:** 🔴 HIGH (after deep analysis - see critical findings below)  
+**Estimated Time:** 6-8 hours (increased due to complexity)
 
 ## 🎯 Objective
 
@@ -276,6 +276,151 @@ import { ExportDialogSettings } from "./export-dialog-settings";
 - FFmpeg availability check runs on mount
 
 **Mitigation:** Keep all effects in main component
+
+## 🚨 DEEP RISK ANALYSIS - CRITICAL FINDINGS
+
+**After ultra-deep analysis, this refactoring has SIGNIFICANT breaking potential. Here are the critical issues:**
+
+### 🔴 **CRITICAL ISSUE #1: Non-Atomic Preset Updates**
+**WILL BREAK:** Preset selection currently updates multiple state variables in sequence within a single function:
+```typescript
+// Current atomic update in handlePresetSelect:
+setQuality(preset.quality);        // Update 1
+setFormat(preset.format);          // Update 2  
+setSelectedPreset(preset);         // Update 3
+setFilename(presetFilename);       // Update 4
+updateSettings({ quality, format, filename }); // Update 5
+```
+
+**Problem:** If this becomes callback-driven from child component, React may not batch these updates properly, leading to:
+- Intermediate inconsistent states
+- Multiple re-renders with partial data
+- Engine recommendations calculating with wrong combinations
+- Memory warnings showing incorrect values
+
+**Impact:** 🔴 **GUARANTEED BREAKAGE** - Users will see flickering UI and wrong calculations
+
+### 🔴 **CRITICAL ISSUE #2: useEffect Race Conditions**
+**WILL BREAK:** The engine recommendation effect has complex dependencies:
+```typescript
+useEffect(() => {
+  // Complex async logic depending on 8+ variables
+}, [isDialogOpen, quality, format, timelineDuration, resolution.width, resolution.height, settings]);
+```
+
+**Problem:** If child component triggers quality/format changes via callbacks, but the effect fires before all related state updates complete:
+- Engine recommendations will be calculated with stale data
+- supportedFormats array becomes inconsistent with current engineType
+- Users can select invalid format/engine combinations
+
+**Impact:** 🔴 **GUARANTEED BREAKAGE** - Wrong engine recommendations, invalid exports
+
+### 🔴 **CRITICAL ISSUE #3: Memory Warning Synchronization**
+**WILL BREAK:** Memory warnings are calculated based on current settings:
+```typescript
+const memoryEstimate = calculateMemoryUsage({
+  ...settings, quality, format, width: resolution.width, height: resolution.height
+}, timelineDuration);
+```
+
+**Problem:** If child component changes quality/format, but parent hasn't re-rendered yet:
+- Memory warnings show stale calculations
+- Users might proceed with exports that will crash
+- High-memory situations not properly warned about
+
+**Impact:** 🔴 **GUARANTEED BREAKAGE** - Incorrect memory warnings, potential crashes
+
+### 🔴 **CRITICAL ISSUE #4: Computed Values Staleness**
+**WILL BREAK:** Multiple computed values depend on current state:
+```typescript
+const resolution = getResolution(quality);        // Depends on quality
+const estimatedSize = getEstimatedSize(quality); // Depends on quality
+const supportedFormats = getSupportedFormats(engineType); // Depends on engineType
+```
+
+**Problem:** When child component changes quality via callback, there's a timing window where:
+- Props passed to child show old resolution/estimatedSize
+- Child component displays incorrect information
+- User makes decisions based on wrong data
+
+**Impact:** 🔴 **GUARANTEED BREAKAGE** - UI shows wrong information
+
+### 🔴 **CRITICAL ISSUE #5: Export Engine Factory State**
+**WILL BREAK:** The ExportEngineFactory maintains internal state and caches:
+```typescript
+const factory = ExportEngineFactory.getInstance(); // Singleton with internal state
+const recommendation = await factory.getEngineRecommendation(settings, duration);
+```
+
+**Problem:** If settings are changed via callbacks from child, but factory state isn't properly updated:
+- Factory returns recommendations based on old settings
+- Engine availability checks become inconsistent
+- Export attempts use wrong engine configuration
+
+**Impact:** 🔴 **GUARANTEED BREAKAGE** - Export failures, wrong engines selected
+
+### 🟡 **MEDIUM ISSUE #6: Toast Notification Context**
+**MIGHT BREAK:** Toast calls currently happen within handlers:
+```typescript
+toast.success(`Applied ${preset.name} preset`, {
+  description: preset.description,
+});
+```
+
+**Problem:** If preset selection logic moves to child component:
+- Toast context might not be available
+- Toast positioning could be wrong
+- Error handling toasts might not display
+
+**Impact:** 🟡 **POSSIBLE BREAKAGE** - Missing user feedback
+
+### 🟡 **MEDIUM ISSUE #7: Filename Validation Timing**
+**MIGHT BREAK:** Filename validation using `isValidFilename()` happens inline:
+```typescript
+const handleFilenameChange = (e) => {
+  const newFilename = e.target.value;
+  // Validation happens immediately
+};
+```
+
+**Problem:** If validation moves to child component:
+- Validation state not synchronized with parent
+- Export button enable/disable state becomes inconsistent
+- Invalid filenames might be allowed
+
+**Impact:** 🟡 **POSSIBLE BREAKAGE** - Export failures due to invalid filenames
+
+### 🔴 **ARCHITECTURAL ISSUE #8: Single Responsibility Violation**
+**DESIGN PROBLEM:** The proposed refactoring doesn't actually solve the core problem:
+- Main component still manages ALL state (580+ lines of logic)
+- Main component still coordinates ALL UI interactions
+- We're just moving JSX around, not reducing complexity
+- Prop interface becomes unwieldy (17+ props)
+
+**Better Solution Needed:** This isn't true separation of concerns - it's just UI extraction.
+
+## 🚫 **RECOMMENDATION: DO NOT PROCEED WITH CURRENT PLAN**
+
+**Why this refactoring is too risky:**
+1. **5 critical breaking points** that will cause guaranteed failures
+2. **Complex state synchronization** that React's batching can't handle
+3. **No real architectural improvement** - still a monolithic component
+4. **High maintenance cost** - 17+ prop interface that grows with every new setting
+
+**Alternative Approaches to Consider:**
+1. **Feature-based splitting** - Extract entire export workflows (preset selection, progress tracking, history)
+2. **Hook extraction** - Move state logic to custom hooks (useExportSettings, useExportProgress)
+3. **State machine pattern** - Use XState or similar to manage complex state transitions
+4. **Context-based splitting** - Use React Context to avoid prop drilling
+
+**If you must proceed:**
+- Increase timeline to 12+ hours for comprehensive testing
+- Implement comprehensive integration tests first
+- Consider feature flags to enable rollback
+- Test every state combination manually
+- Monitor production for state inconsistencies
+
+**Current Risk Level: 🔴 EXTREMELY HIGH - NOT RECOMMENDED**
 
 ## 🧪 Enhanced Testing Checklist
 
