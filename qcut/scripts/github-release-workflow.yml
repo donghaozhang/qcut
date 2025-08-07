@@ -1,0 +1,138 @@
+# GitHub Actions Workflow for QCut Releases
+# 
+# This file should be placed at: .github/workflows/release.yml
+# 
+# Triggers on version tags (v1.0.0, v1.2.3, etc.)
+# Builds the application and creates a GitHub release
+
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Matches v1.0.0, v0.1.0, etc.
+
+env:
+  BUILD_OUTPUT_DIR: d:/AI_play/AI_Code/build_opencut
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+        
+    - name: Setup Node.js (fallback)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Install dependencies
+      run: bun install
+      
+    - name: Build web application
+      run: bun run build
+      
+    - name: Build Electron application
+      run: bun run dist:win:release
+      
+    - name: Generate checksums
+      run: |
+        cd "${{ env.BUILD_OUTPUT_DIR }}"
+        $installer = Get-ChildItem -Name "QCut*Setup*.exe" | Select-Object -First 1
+        if ($installer) {
+          $hash = Get-FileHash $installer -Algorithm SHA256
+          $content = "SHA256 Checksums for QCut Release`n"
+          $content += "=================================`n`n"
+          $content += "$installer`n"
+          $content += "SHA256: $($hash.Hash)`n"
+          $content | Out-File -FilePath "SHA256SUMS.txt" -Encoding utf8
+          Write-Output "Generated checksum for $installer"
+        }
+      shell: powershell
+      
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: QCut Video Editor ${{ github.ref_name }}
+        body: |
+          ## 🎉 QCut Video Editor ${{ github.ref_name }}
+          
+          ### 📦 Download
+          - **Windows Installer:** See assets below
+          - **Size:** ~150MB
+          - **SHA256:** See SHA256SUMS.txt
+          
+          ### 🔒 Security Notice
+          ⚠️ **This is an unsigned installer.** QCut is an open-source project.
+          
+          **Expected Windows behavior:**
+          - Windows will show "Unknown publisher" warning
+          - Click "More info" then "Run anyway"
+          - This is normal for open-source software
+          
+          ### 📋 Installation
+          1. Download the installer below
+          2. Run the installer (see security notice above)  
+          3. Follow installation wizard
+          4. QCut will be in Start Menu and Desktop
+          
+          ### 🔄 Updates
+          This version includes auto-update functionality that checks for new releases automatically.
+          
+          **Full Changelog:** https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}
+        draft: false
+        prerelease: false
+        
+    - name: Upload Installer
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ env.BUILD_OUTPUT_DIR }}/QCut Video Editor Setup ${{ github.ref_name }}.exe
+        asset_name: QCut-Video-Editor-Setup-${{ github.ref_name }}.exe
+        asset_content_type: application/octet-stream
+        
+    - name: Upload Checksums
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ env.BUILD_OUTPUT_DIR }}/SHA256SUMS.txt
+        asset_name: SHA256SUMS.txt
+        asset_content_type: text/plain
+        
+    - name: Upload Auto-Updater Metadata
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ env.BUILD_OUTPUT_DIR }}/latest.yml
+        asset_name: latest.yml
+        asset_content_type: text/yaml
+      continue-on-error: true  # latest.yml might not exist in all builds
+      
+  notify:
+    needs: build
+    runs-on: ubuntu-latest
+    if: success()
+    
+    steps:
+    - name: Notify Success
+      run: |
+        echo "✅ QCut ${{ github.ref_name }} released successfully!"
+        echo "📦 Installer and checksums uploaded to GitHub Releases"
+        echo "🔄 Auto-updater will notify existing users within 1 hour"

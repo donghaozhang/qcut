@@ -242,8 +242,8 @@ function getFFmpegPath() {
   let ffmpegPath;
 
   if (app.isPackaged) {
-    // Production: use bundled FFmpeg
-    ffmpegPath = path.join(process.resourcesPath, "ffmpeg.exe");
+    // Production: use bundled FFmpeg in resources directory
+    ffmpegPath = path.join(__dirname, "resources", "ffmpeg.exe");
   } else {
     // Development: try bundled FFmpeg first, then system PATH
     const devPath = path.join(__dirname, "resources", "ffmpeg.exe");

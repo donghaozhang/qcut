@@ -9,7 +9,13 @@ const {
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
-const { autoUpdater } = require("electron-updater");
+// Auto-updater - wrapped in try-catch for packaged builds
+let autoUpdater = null;
+try {
+  autoUpdater = require("electron-updater").autoUpdater;
+} catch (error) {
+  console.warn("⚠️ [AutoUpdater] electron-updater not available:", error.message);
+}
 const { setupFFmpegIPC } = require("./ffmpeg-handler.js");
 
 let mainWindow;
@@ -410,6 +416,11 @@ ipcMain.handle("check-ffmpeg-resource", (event, filename) => {
 
 // Auto-updater configuration and handlers
 function setupAutoUpdater() {
+  if (!autoUpdater) {
+    console.log("⚠️ [AutoUpdater] Auto-updater not available - skipping setup");
+    return;
+  }
+  
   console.log("🔄 [AutoUpdater] Setting up auto-updater...");
   
   // Configure auto-updater settings
@@ -478,6 +489,10 @@ ipcMain.handle("check-for-updates", async () => {
     return { available: false, message: "Updates only available in production builds" };
   }
   
+  if (!autoUpdater) {
+    return { available: false, message: "Auto-updater not available" };
+  }
+  
   try {
     const result = await autoUpdater.checkForUpdates();
     return { 
@@ -498,6 +513,10 @@ ipcMain.handle("check-for-updates", async () => {
 ipcMain.handle("install-update", async () => {
   if (!app.isPackaged) {
     return { success: false, message: "Updates only available in production builds" };
+  }
+  
+  if (!autoUpdater) {
+    return { success: false, message: "Auto-updater not available" };
   }
   
   try {
