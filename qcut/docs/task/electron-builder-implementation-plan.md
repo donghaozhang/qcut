@@ -6,55 +6,79 @@ Transition from electron-packager to electron-builder for professional Windows E
 **Total Estimated Time**: ~45-60 minutes  
 **Branch**: `electron-builder`
 
+## Current Project Structure Analysis
+- **Architecture**: Vite + TanStack Router + Electron (not Next.js)
+- **Electron Main**: `/electron/main.js` 
+- **Web Build**: `/apps/web/dist/` (Vite output)
+- **FFmpeg**: Pre-built binaries in `/electron/resources/`
+- **Current Build Method**: electron-packager
+- **Existing Issues**: Multiple large build folders (~1.2GB total)
+
+## Pre-requisites & Critical Notes
+⚠️ **Before Starting**:
+- [ ] Ensure `apps/web/dist/` has recent build (run `bun run build` first)
+- [ ] Backup current working electron-packager setup
+- [ ] Clean up old dist-packager folders to save space
+- [ ] Verify FFmpeg binaries are in `/electron/resources/`
+
+🔧 **Known Issues to Address**:
+- Large bundle size due to dev dependencies
+- FFmpeg binaries need proper extraResources configuration  
+- Electron main process must handle file:// protocol for local builds
+- AI features require proper CORS/CSP headers in built app
+
 ---
 
 ## Phase 1: Basic Setup (15 minutes)
 
-### Task 1.1: Install electron-builder (2 minutes)
+### Task 1.1: Install electron-builder (2 minutes) ✅
 ```bash
-cd qcut/apps/web
+cd qcut
 bun add --dev electron-builder
 ```
-- [ ] Install electron-builder as dev dependency
-- [ ] Verify installation in package.json
+- [x] Install electron-builder as dev dependency in root package.json
+- [x] Verify installation in package.json
 
-### Task 1.2: Create basic build configuration (3 minutes)
-- [ ] Add build config to `apps/web/package.json`
-- [ ] Set appId, productName, and basic Windows target
-- [ ] Configure output directory to `d:/AI_play/AI_Code/build_opencut`
-- [ ] Create output directory if it doesn't exist
+### Task 1.2: Create basic build configuration (3 minutes) ✅
+- [x] Add build config to root `package.json`
+- [x] Set appId, productName, and basic Windows target
+- [x] Configure output directory to `d:/AI_play/AI_Code/build_opencut`
+- [x] Configure files array to include web dist, electron, and dependencies
+- [x] Set main entry point to `electron/main.js`
+- [x] Create output directory if it doesn't exist
 
-### Task 1.3: Add build scripts (2 minutes)
-- [ ] Add `"dist": "electron-builder"` to scripts
-- [ ] Add `"dist:win": "electron-builder --win"` 
-- [ ] Add `"dist:dir": "electron-builder --dir"` for testing
+### Task 1.3: Add build scripts (2 minutes) ✅
+- [x] Add `"dist": "electron-builder"` to scripts
+- [x] Add `"dist:win": "electron-builder --win"` 
+- [x] Add `"dist:dir": "electron-builder --dir"` for testing
 
-### Task 1.4: Create app icon (3 minutes)
-- [ ] Create/find suitable app icon (512x512 PNG)
-- [ ] Convert to ICO format for Windows
-- [ ] Place in `build/` directory
-- [ ] Update config to reference icon
+### Task 1.4: Create app icon (3 minutes) ✅
+- [x] Use existing logo from `apps/web/public/logo.png` as base
+- [x] Convert to ICO format for Windows (512x512 → ICO)
+- [x] Create `build/` directory in root if not exists
+- [x] Place `icon.ico` in root `build/` directory
+- [x] Update config to reference `build/icon.ico`
 
-### Task 1.5: Test basic build (5 minutes)
-- [ ] Run `bun run build` (web build)
-- [ ] Run `bun run dist:dir` (directory build)
-- [ ] Verify QCut.exe runs correctly
-- [ ] Check file structure
+### Task 1.5: Test basic build (5 minutes) ✅
+- [x] Run `bun run build` (web build)
+- [x] Run `bun run dist:dir` (directory build) 
+- [x] Verify QCut.exe runs correctly
+- [x] Check file structure
 
 ---
 
 ## Phase 2: Windows Installer Configuration (15 minutes)
 
-### Task 2.1: Configure NSIS installer (4 minutes)
-- [ ] Set target to "nsis" in build config
-- [ ] Configure installer branding
-- [ ] Set installation directory defaults
-- [ ] Add uninstaller configuration
+### Task 2.1: Configure NSIS installer (4 minutes) ✅
+- [x] Set target to "nsis" in build config
+- [x] Configure installer branding
+- [x] Set installation directory defaults
+- [x] Add uninstaller configuration
 
-### Task 2.2: Add file associations (3 minutes)
-- [ ] Configure .mp4, .mov, .avi file associations
-- [ ] Set QCut as default video editor option
-- [ ] Add context menu "Edit with QCut"
+### Task 2.2: Add file associations (3 minutes) ✅
+- [x] Configure .mp4, .mov, .avi file associations
+- [x] Set QCut as default video editor option
+- [x] Add context menu "Edit with QCut"
 
 ### Task 2.3: Configure shortcuts and registry (3 minutes)
 - [ ] Desktop shortcut option
@@ -63,10 +87,11 @@ bun add --dev electron-builder
 - [ ] Set proper app metadata
 
 ### Task 2.4: Optimize bundle size (3 minutes)
-- [ ] Add file ignore patterns
-- [ ] Exclude dev dependencies
-- [ ] Configure compression settings
-- [ ] Set resource optimization
+- [ ] Add file ignore patterns (exclude docs/, dist-packager/, node_modules dev deps)
+- [ ] Configure FFmpeg as extraResources (not in main bundle)
+- [ ] Set compression to "maximum"
+- [ ] Exclude old build artifacts and temp files
+- [ ] Add patterns to ignore large unused dependencies
 
 ### Task 2.5: Build and test installer (2 minutes)
 - [ ] Run `bun run dist:win`
@@ -143,19 +168,46 @@ bun add --dev electron-builder
 ### Basic package.json build config:
 ```json
 {
+  "main": "electron/main.js",
+  "homepage": "./",
   "build": {
     "appId": "com.qcut.videoeditor",
     "productName": "QCut Video Editor",
     "directories": {
-      "output": "d:/AI_play/AI_Code/build_opencut"
+      "output": "d:/AI_play/AI_Code/build_opencut",
+      "buildResources": "build"
     },
+    "files": [
+      "apps/web/dist/**/*",
+      "electron/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "electron/resources/ffmpeg.exe",
+        "to": "ffmpeg.exe"
+      },
+      {
+        "from": "electron/resources/ffprobe.exe", 
+        "to": "ffprobe.exe"
+      },
+      {
+        "from": "electron/resources/*.dll",
+        "to": "./"
+      }
+    ],
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "QCut Video Editor"
     }
   }
 }
@@ -166,13 +218,20 @@ bun add --dev electron-builder
 d:/AI_play/AI_Code/build_opencut/
 ├── QCut Setup 1.0.0.exe          # Windows installer
 ├── win-unpacked/                 # Unpacked app folder
-│   └── QCut.exe
-└── builder-debug.yml             # Build metadata
+│   ├── QCut.exe                  # Main executable
+│   ├── resources/                # Electron resources
+│   │   ├── app.asar              # Packed application
+│   │   ├── ffmpeg.exe            # Video processing
+│   │   ├── ffprobe.exe           # Media analysis
+│   │   └── *.dll                 # FFmpeg dependencies
+│   └── locales/                  # Electron locales
+├── latest.yml                    # Auto-updater metadata
+└── builder-debug.yml             # Build debug info
 
-qcut/apps/web/
+qcut/ (project root)
 ├── build/
-│   └── icon.ico
-├── package.json (updated)
+│   └── icon.ico                  # App icon for Windows
+├── package.json (updated)       # Root package with electron-builder config
 └── electron-builder.yml (optional)
 ```
 

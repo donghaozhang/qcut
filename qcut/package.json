@@ -32,49 +32,79 @@
     "electron:dev": "cross-env NODE_ENV=development electron .",
     "dist": "electron-builder",
     "dist:win": "electron-builder --win",
+    "dist:dir": "electron-builder --dir",
     "package:win": "electron-packager . QCut --platform=win32 --arch=x64 --out=d:/AI_play/AI_Code/opencut_build --overwrite"
   },
   "build": {
-    "appId": "com.opencut.app",
-    "productName": "OpenCut",
+    "appId": "com.qcut.videoeditor",
+    "productName": "QCut Video Editor",
     "directories": {
-      "output": "d:/AI_play/AI_Code/opencut_build"
+      "output": "d:/AI_play/AI_Code/build_opencut",
+      "buildResources": "build"
     },
     "files": [
       "electron/**/*",
       "apps/web/dist/**/*",
       "!node_modules"
     ],
-    "extraResources": [
-      {
-        "from": "electron/resources/",
-        "to": "resources/",
-        "filter": [
-          "ffmpeg.exe",
-          "*.dll"
-        ]
-      },
-      {
-        "from": "apps/web/public/ffmpeg/",
-        "to": "resources/ffmpeg/",
-        "filter": [
-          "ffmpeg-core.js",
-          "ffmpeg-core.wasm",
-          "ffmpeg-core.d.ts"
-        ]
-      }
-    ],
     "extraMetadata": {
       "main": "electron/main.js"
     },
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "build/icon.png",
+      "forceCodeSigning": false
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    }
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "QCut Video Editor",
+      "installerIcon": "build/icon.png",
+      "uninstallerIcon": "build/icon.png",
+      "installerHeaderIcon": "build/icon.png",
+      "deleteAppDataOnUninstall": true,
+      "runAfterFinish": true
+    },
+    "fileAssociations": [
+      {
+        "ext": "qcut",
+        "name": "QCut Project",
+        "description": "QCut Project File",
+        "icon": "build/icon.png"
+      },
+      {
+        "ext": "mp4",
+        "name": "MP4 Video",
+        "description": "MPEG-4 Video File",
+        "icon": "build/icon.png"
+      },
+      {
+        "ext": "avi",
+        "name": "AVI Video",
+        "description": "AVI Video File",
+        "icon": "build/icon.png"
+      },
+      {
+        "ext": "mov",
+        "name": "QuickTime Video",
+        "description": "QuickTime Movie File",
+        "icon": "build/icon.png"
+      },
+      {
+        "ext": "mkv",
+        "name": "Matroska Video",
+        "description": "Matroska Video File",
+        "icon": "build/icon.png"
+      },
+      {
+        "ext": "webm",
+        "name": "WebM Video",
+        "description": "WebM Video File",
+        "icon": "build/icon.png"
+      }
+    ]
   },
   "dependencies": {
     "@ffmpeg/core": "^0.12.10",
