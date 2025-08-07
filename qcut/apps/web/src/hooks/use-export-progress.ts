@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
 import { useExportStore } from "@/stores/export-store";
+import { useTimelineStore } from "@/stores/timeline-store";
+import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
 import { ExportEngine } from "@/lib/export-engine";
 import { ExportEngineFactory, ExportEngineType } from "@/lib/export-engine-factory";
 import { toast } from "sonner";
@@ -14,6 +16,8 @@ export function useExportProgress() {
     addToHistory,
   } = useExportStore();
 
+  const { tracks } = useTimelineStore();
+  const { mediaItems } = useAsyncMediaItems();
   const { isElectron } = useElectron();
 
   // PRESERVE: Refs and timing state (lines 94-102 from original)
@@ -98,15 +102,20 @@ export function useExportProgress() {
         }
       );
 
-      const exportEngine = await factory.createEngine({
-        quality: exportSettings.quality,
-        format: exportSettings.format,
-        width: exportSettings.resolution.width,
-        height: exportSettings.resolution.height,
-        fps: 30,
-        filename: exportSettings.filename,
-        selectedEngineType,
-      });
+      const exportEngine = await factory.createEngine(
+        canvas,
+        {
+          quality: exportSettings.quality,
+          format: exportSettings.format,
+          width: exportSettings.resolution.width,
+          height: exportSettings.resolution.height,
+          filename: exportSettings.filename,
+        },
+        tracks,
+        mediaItems,
+        totalDuration,
+        selectedEngineType
+      );
 
       // Store engine reference for cancellation
       currentEngineRef.current = exportEngine;
@@ -117,15 +126,7 @@ export function useExportProgress() {
       );
 
       // Start export
-      const blob = await exportEngine.export(canvas, totalDuration, {
-        onProgress: (progressData) => {
-          updateProgress(progressData);
-        },
-        onError: (error) => {
-          console.error("[ExportDialog] Export error:", error);
-          setError(error.message);
-        },
-      });
+      const blob = await exportEngine.export();
 
       console.log("[ExportDialog] ✅ Export completed successfully");
 
@@ -135,12 +136,15 @@ export function useExportProgress() {
       // Add to history
       addToHistory({
         filename: exportSettings.filename,
-        format: exportSettings.format,
-        quality: exportSettings.quality,
-        duration: totalDuration,
+        settings: {
+          quality: exportSettings.quality,
+          format: exportSettings.format,
+          filename: exportSettings.filename,
+          width: exportSettings.resolution.width,
+          height: exportSettings.resolution.height,
+        },
+        duration: exportDuration,
         fileSize: blob.size,
-        timestamp: startTime,
-        exportDuration,
         success: true,
       });
 
@@ -181,12 +185,15 @@ export function useExportProgress() {
       // Add failed attempt to history
       addToHistory({
         filename: exportSettings.filename,
-        format: exportSettings.format,
-        quality: exportSettings.quality,
-        duration: totalDuration,
+        settings: {
+          quality: exportSettings.quality,
+          format: exportSettings.format,
+          filename: exportSettings.filename,
+          width: exportSettings.resolution.width,
+          height: exportSettings.resolution.height,
+        },
+        duration: exportDuration,
         fileSize: 0,
-        timestamp: startTime,
-        exportDuration,
         success: false,
         error: error.message,
       });
