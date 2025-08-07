@@ -119,17 +119,8 @@ export function AdjustmentPanel() {
       if (result.status === "completed" && result.result_url) {
         const totalTime = (Date.now() - startTime) / 1000;
 
-        // Add to edit history
-        addToHistory({
-          originalUrl: originalImageUrl,
-          editedUrl: result.result_url,
-          prompt: prompt.trim(),
-          model: selectedModel,
-          parameters: { ...parameters },
-          processingTime: totalTime,
-        });
-
-        // Download and add to media library
+        // Download and add to media library first to get blob URL
+        let blobUrl: string | undefined;
         try {
           console.log("📥 Downloading edited image to media library...", {
             resultUrl: result.result_url,
@@ -150,6 +141,10 @@ export function AdjustmentPanel() {
             fileType: downloadedFile.type,
           });
 
+          // Create blob URL for display (avoids CORS/COEP issues)
+          blobUrl = URL.createObjectURL(downloadedFile);
+          console.log("🔗 Created blob URL for display:", blobUrl);
+
           console.log("🔍 Getting image info...");
           const imageInfo = await getImageInfo(downloadedFile);
           console.log("✅ Image info retrieved:", imageInfo);
@@ -158,7 +153,7 @@ export function AdjustmentPanel() {
             name: filename,
             type: "image" as const,
             file: downloadedFile,
-            url: URL.createObjectURL(downloadedFile),
+            url: blobUrl,
             width: imageInfo.width,
             height: imageInfo.height,
             metadata: {
@@ -197,6 +192,16 @@ export function AdjustmentPanel() {
           // Don't fail the whole operation, just log the error
         }
 
+        // Add to edit history with blob URL (avoids CORS/COEP display issues)
+        addToHistory({
+          originalUrl: originalImageUrl,
+          editedUrl: blobUrl || result.result_url, // Use blob URL if available, fallback to FAL URL
+          prompt: prompt.trim(),
+          model: selectedModel,
+          parameters: { ...parameters },
+          processingTime: totalTime,
+        });
+
         setProcessingState({
           isProcessing: false,
           progress: 100,
@@ -206,6 +211,7 @@ export function AdjustmentPanel() {
 
         console.log("✅ Edit completed successfully!", {
           resultUrl: result.result_url,
+          blobUrl: blobUrl,
           processingTime: totalTime,
           seedUsed: result.seed_used,
         });
