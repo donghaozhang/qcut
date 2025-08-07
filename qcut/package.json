@@ -35,7 +35,14 @@
     "dist:dir": "electron-builder --dir",
     "dist:win:unsigned": "electron-builder --win --config.win.forceCodeSigning=false --config.win.verifyUpdateCodeSignature=false",
     "dist:win:release": "electron-builder --win --config.win.forceCodeSigning=false --config.win.verifyUpdateCodeSignature=false",
-    "package:win": "electron-packager . QCut --platform=win32 --arch=x64 --out=d:/AI_play/AI_Code/opencut_build --overwrite"
+    "dist:win:fast": "electron-builder --win --config.win.forceCodeSigning=false --config.compression=store --config.nsis.differentialPackage=false",
+    "package:win": "electron-packager . QCut --platform=win32 --arch=x64 --out=d:/AI_play/AI_Code/opencut_build --overwrite",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version"
   },
   "build": {
     "appId": "com.qcut.videoeditor",
@@ -45,6 +52,14 @@
       "output": "d:/AI_play/AI_Code/build_opencut",
       "buildResources": "build"
     },
+    "publish": {
+      "provider": "github",
+      "owner": "qcut-team",
+      "repo": "qcut",
+      "private": false,
+      "releaseType": "release"
+    },
+    "generateUpdatesFilesForAllChannels": true,
     "files": [
       "electron/**/*",
       "apps/web/dist/**/*",
@@ -120,7 +135,9 @@
       "license": false,
       "warningsAsErrors": false,
       "packElevateHelper": true,
-      "differentialPackage": true
+      "differentialPackage": true,
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "guid": "0fa53e31-8a77-5f52-ad1c-f9c8705b5d38"
     },
     "protocols": [
       {
@@ -171,6 +188,7 @@
     "@ffmpeg/core": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
+    "electron-updater": "^6.6.2",
     "jszip": "^3.10.1",
     "next": "^15.3.4",
     "wavesurfer.js": "^7.9.8"
