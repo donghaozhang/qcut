@@ -113,7 +113,6 @@
       "forceCodeSigning": false,
       "verifyUpdateCodeSignature": false,
       "signAndEditExecutable": false,
-      "legalTrademarks": "QCut is a trademark of QCut Team",
       "requestedExecutionLevel": "asInvoker",
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
