@@ -114,7 +114,8 @@
       "verifyUpdateCodeSignature": false,
       "signAndEditExecutable": false,
       "requestedExecutionLevel": "asInvoker",
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "compression": "store"
     },
     "nsis": {
       "oneClick": false,
