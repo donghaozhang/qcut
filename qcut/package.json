@@ -31,13 +31,15 @@
     "electron": "electron .",
     "electron:dev": "cross-env NODE_ENV=development electron .",
     "dist": "electron-builder",
-    "dist:win": "electron-builder --win",
+    "dist:win": "electron-builder --win -c.win.forceCodeSigning=false",
     "dist:dir": "electron-builder --dir",
+    "dist:win:unsigned": "electron-builder --win --config.win.forceCodeSigning=false --config.win.verifyUpdateCodeSignature=false",
     "package:win": "electron-packager . QCut --platform=win32 --arch=x64 --out=d:/AI_play/AI_Code/opencut_build --overwrite"
   },
   "build": {
     "appId": "com.qcut.videoeditor",
     "productName": "QCut Video Editor",
+    "copyright": "Copyright © 2024 QCut Team",
     "directories": {
       "output": "d:/AI_play/AI_Code/build_opencut",
       "buildResources": "build"
@@ -45,15 +47,45 @@
     "files": [
       "electron/**/*",
       "apps/web/dist/**/*",
-      "!node_modules"
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}",
+      "!**/dist-packager/**/*",
+      "!**/dist-packager-*/**/*",
+      "!**/electron-builds/**/*",
+      "!**/docs/**/*",
+      "!**/test/**/*",
+      "!**/tests/**/*",
+      "!**/coverage/**/*",
+      "!**/.turbo/**/*",
+      "!**/.next/**/*",
+      "!**/packages/**/*",
+      "!**/apps/landing/**/*"
     ],
+    "compression": "maximum",
+    "npmRebuild": true,
+    "nodeGypRebuild": false,
     "extraMetadata": {
       "main": "electron/main.js"
     },
     "win": {
       "target": "nsis",
-      "icon": "build/icon.png",
-      "forceCodeSigning": false
+      "icon": "build/icon.ico",
+      "forceCodeSigning": false,
+      "verifyUpdateCodeSignature": false,
+      "signAndEditExecutable": false,
+      "legalTrademarks": "QCut is a trademark of QCut Team",
+      "publisherName": "QCut Team",
+      "requestedExecutionLevel": "asInvoker",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -61,48 +93,62 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "QCut Video Editor",
-      "installerIcon": "build/icon.png",
-      "uninstallerIcon": "build/icon.png",
-      "installerHeaderIcon": "build/icon.png",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
       "deleteAppDataOnUninstall": true,
-      "runAfterFinish": true
+      "runAfterFinish": true,
+      "menuCategory": "Video",
+      "perMachine": false,
+      "allowElevation": true,
+      "displayLanguageSelector": false,
+      "installerSidebar": "build/icon.ico",
+      "uninstallerSidebar": "build/icon.ico",
+      "license": false,
+      "warningsAsErrors": false
     },
+    "protocols": [
+      {
+        "name": "qcut-protocol",
+        "schemes": ["qcut"]
+      }
+    ],
     "fileAssociations": [
       {
         "ext": "qcut",
         "name": "QCut Project",
         "description": "QCut Project File",
-        "icon": "build/icon.png"
+        "icon": "build/icon.ico"
       },
       {
         "ext": "mp4",
         "name": "MP4 Video",
         "description": "MPEG-4 Video File",
-        "icon": "build/icon.png"
+        "icon": "build/icon.ico"
       },
       {
         "ext": "avi",
         "name": "AVI Video",
         "description": "AVI Video File",
-        "icon": "build/icon.png"
+        "icon": "build/icon.ico"
       },
       {
         "ext": "mov",
         "name": "QuickTime Video",
         "description": "QuickTime Movie File",
-        "icon": "build/icon.png"
+        "icon": "build/icon.ico"
       },
       {
         "ext": "mkv",
         "name": "Matroska Video",
         "description": "Matroska Video File",
-        "icon": "build/icon.png"
+        "icon": "build/icon.ico"
       },
       {
         "ext": "webm",
         "name": "WebM Video",
         "description": "WebM Video File",
-        "icon": "build/icon.png"
+        "icon": "build/icon.ico"
       }
     ]
   },
