@@ -88,42 +88,8 @@ export async function uploadImageToFAL(imageFile: File): Promise<string> {
     fileType: imageFile.type,
   });
 
-  // Try actual file upload first
-  try {
-    console.log("🔄 UPLOAD: Attempting FAL storage upload...");
-    const formData = new FormData();
-    formData.append("file", imageFile);
-
-    const uploadResponse = await fetch("https://fal.run/storage/upload", {
-      method: "POST",
-      headers: {
-        "Authorization": `Key ${FAL_API_KEY}`,
-      },
-      body: formData,
-    });
-
-    if (uploadResponse.ok) {
-      const uploadResult = await uploadResponse.json();
-      console.log("✅ UPLOAD: FAL storage upload successful:", uploadResult);
-      return uploadResult.url;
-    }
-    const errorText = await uploadResponse.text();
-    console.warn(
-      "⚠️ UPLOAD: FAL storage upload failed, falling back to base64:",
-      {
-        status: uploadResponse.status,
-        error: errorText,
-      }
-    );
-  } catch (error) {
-    console.warn(
-      "⚠️ UPLOAD: FAL storage upload error, using base64 fallback:",
-      error
-    );
-  }
-
-  // Fallback to base64 data URL with proper MIME type
-  console.log("🔄 UPLOAD: Using base64 data URL fallback...");
+  // Use base64 data URL as primary method (reliable and fast)
+  console.log("🔄 UPLOAD: Using base64 data URL (primary method)...");
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -140,7 +106,7 @@ export async function uploadImageToFAL(imageFile: File): Promise<string> {
         }
 
         console.log(
-          "✅ UPLOAD: Image converted to base64 data URL for FAL API"
+          "✅ UPLOAD: Image successfully converted to base64 data URL for FAL API"
         );
         console.log("🔍 UPLOAD: Data URL format:", {
           type: typeof dataUrl,
@@ -157,35 +123,6 @@ export async function uploadImageToFAL(imageFile: File): Promise<string> {
     reader.onerror = () => reject(new Error("Failed to read image file"));
     reader.readAsDataURL(imageFile);
   });
-
-  // Alternative: Try FAL storage upload (commented out until we confirm the endpoint)
-  /*
-  try {
-    const formData = new FormData();
-    formData.append('file', imageFile);
-
-    const response = await fetch(`${FAL_API_BASE}/storage/upload`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Key ${FAL_API_KEY}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.warn('FAL storage upload failed, falling back to base64:', errorData);
-      // Fall back to base64
-      return imageToBase64(imageFile);
-    }
-
-    const result = await response.json();
-    return result.url;
-  } catch (error) {
-    console.warn('FAL storage upload error, using base64 fallback:', error);
-    return imageToBase64(imageFile);
-  }
-  */
 }
 
 /**
