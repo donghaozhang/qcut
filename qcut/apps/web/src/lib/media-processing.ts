@@ -20,13 +20,8 @@ export async function processMediaFiles(
   const processedItems: ProcessedMediaItem[] = [];
 
   // Load utilities dynamically
-  console.log("[Media Processing] 📦 Loading media store utils...");
   const mediaUtils = await getMediaStoreUtils();
-  console.log("[Media Processing] ✅ Media store utils loaded");
-
-  console.log("[Media Processing] 📦 Loading FFmpeg utils...");
   const ffmpegUtils = await getFFmpegUtilFunctions();
-  console.log("[Media Processing] ✅ FFmpeg utils loaded");
 
   const total = fileArray.length;
   let completed = 0;
@@ -47,9 +42,8 @@ export async function processMediaFiles(
       continue;
     }
 
-    console.log(`[Media Processing] 🔗 Creating object URL for: ${file.name}`);
+    // Create object URL silently
     const url = URL.createObjectURL(file);
-    console.log(`[Media Processing] ✅ Object URL created: ${url}`);
 
     let thumbnailUrl: string | undefined;
     let duration: number | undefined;
@@ -84,11 +78,9 @@ export async function processMediaFiles(
 
           console.log("[Media Processing] ⏱️ Getting video duration...");
           duration = await mediaUtils.getMediaDuration(file);
-          console.log("[Media Processing] ✅ Duration extracted:", duration);
 
           // Set default FPS for browser processing (FFmpeg can override later if needed)
           fps = 30;
-          console.log("[Media Processing] ✅ Browser processing successful");
 
           // Optionally try to enhance with FFmpeg data if available (non-blocking)
           try {

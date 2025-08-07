@@ -143,11 +143,8 @@ export function AdjustmentPanel() {
 
           // Create blob URL for display (avoids CORS/COEP issues)
           blobUrl = URL.createObjectURL(downloadedFile);
-          console.log("🔗 Created blob URL for display:", blobUrl);
 
-          console.log("🔍 Getting image info...");
           const imageInfo = await getImageInfo(downloadedFile);
-          console.log("✅ Image info retrieved:", imageInfo);
 
           const mediaItem = {
             name: filename,
@@ -166,19 +163,10 @@ export function AdjustmentPanel() {
             },
           };
 
-          console.log("💾 Adding to media store...", {
-            projectId,
-            mediaItem: { ...mediaItem, file: "[File object]" },
-          });
           if (!addMediaItem) {
             throw new Error("Media store not ready");
           }
           await addMediaItem(projectId, mediaItem);
-
-          console.log(
-            "✅ Edited image successfully added to media library:",
-            filename
-          );
         } catch (error) {
           console.error(
             "❌ Failed to add edited image to media library:",
@@ -209,12 +197,7 @@ export function AdjustmentPanel() {
           elapsedTime: totalTime,
         });
 
-        console.log("✅ Edit completed successfully!", {
-          resultUrl: result.result_url,
-          blobUrl: blobUrl,
-          processingTime: totalTime,
-          seedUsed: result.seed_used,
-        });
+        // Edit completed successfully
       } else {
         throw new Error(result.message || "Edit generation failed");
       }

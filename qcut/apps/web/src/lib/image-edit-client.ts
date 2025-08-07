@@ -393,7 +393,7 @@ async function pollImageEditStatus(
 
         if (resultResponse.ok) {
           const result = await resultResponse.json();
-          console.log("✅ Edit completed:", result);
+          // Edit completed successfully
 
           if (onProgress) {
             onProgress({
