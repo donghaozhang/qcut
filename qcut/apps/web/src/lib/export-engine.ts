@@ -951,9 +951,7 @@ export class ExportEngine {
     };
 
     video.onerror = () => {
-      debugWarn(
-        "[ExportEngine] ⚠️  Could not determine actual video duration"
-      );
+      debugWarn("[ExportEngine] ⚠️  Could not determine actual video duration");
       URL.revokeObjectURL(url);
     };
 

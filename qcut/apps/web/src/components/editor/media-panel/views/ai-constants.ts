@@ -1,9 +1,9 @@
 /**
  * AI View Constants
- * 
+ *
  * Extracted from ai.tsx as part of safe refactoring process.
  * This file contains all constants and configuration used by the AI video generation feature.
- * 
+ *
  * @see ai-view-refactoring-guide.md for refactoring plan
  * @see ai-refactoring-subtasks.md for implementation tracking
  */
@@ -19,7 +19,7 @@ export const API_CONFIG: APIConfiguration = {
   falApiKey: FAL_API_KEY,
   falApiBase: FAL_API_BASE,
   maxRetries: 3,
-  timeoutMs: 30000, // 30 seconds
+  timeoutMs: 30_000, // 30 seconds
 };
 
 // AI Models Configuration (Extracted from original source)
@@ -88,7 +88,7 @@ export const UI_CONSTANTS = {
   MAX_IMAGE_SIZE_MB: 10,
   MAX_HISTORY_ITEMS: 10,
   POLLING_INTERVAL_MS: 2000,
-  GENERATION_TIMEOUT_MS: 300000, // 5 minutes
+  GENERATION_TIMEOUT_MS: 300_000, // 5 minutes
 } as const;
 
 // File Upload Constants
@@ -153,21 +153,21 @@ export const MODEL_HELPERS = {
    * Get model by ID
    */
   getModelById: (id: string): AIModel | undefined => {
-    return AI_MODELS.find(model => model.id === id);
+    return AI_MODELS.find((model) => model.id === id);
   },
 
   /**
    * Get models by resolution
    */
   getModelsByResolution: (resolution: string): AIModel[] => {
-    return AI_MODELS.filter(model => model.resolution === resolution);
+    return AI_MODELS.filter((model) => model.resolution === resolution);
   },
 
   /**
    * Get models by price range
    */
   getModelsByPriceRange: (min: number, max: number): AIModel[] => {
-    return AI_MODELS.filter(model => {
+    return AI_MODELS.filter((model) => {
       const price = parseFloat(model.price);
       return price >= min && price <= max;
     });
@@ -177,7 +177,9 @@ export const MODEL_HELPERS = {
    * Sort models by price (ascending)
    */
   sortModelsByPrice: (): AIModel[] => {
-    return [...AI_MODELS].sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+    return [...AI_MODELS].sort(
+      (a, b) => parseFloat(a.price) - parseFloat(b.price)
+    );
   },
 
   /**

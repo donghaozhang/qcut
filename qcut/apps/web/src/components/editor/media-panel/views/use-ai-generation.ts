@@ -1,17 +1,17 @@
 /**
  * AI Generation Management Hook
- * 
+ *
  * Extracted from ai.tsx as part of safe refactoring process.
  * Manages AI video generation, progress tracking, and API integration.
- * 
+ *
  * @see ai-view-refactoring-guide.md for refactoring plan
  * @see ai-refactoring-subtasks.md for implementation tracking
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { 
-  generateVideo, 
-  generateVideoFromImage, 
+import {
+  generateVideo,
+  generateVideoFromImage,
   handleApiError,
   getGenerationStatus,
   ProgressCallback,
@@ -22,19 +22,19 @@ import { getMediaStoreUtils } from "@/stores/media-store-loader";
 import { debugLog, debugError, debugWarn } from "@/lib/debug-config";
 import { useAsyncMediaStoreActions } from "@/hooks/use-async-media-store";
 
-import { 
-  AI_MODELS, 
-  UI_CONSTANTS, 
+import {
+  AI_MODELS,
+  UI_CONSTANTS,
   PROGRESS_CONSTANTS,
   STATUS_MESSAGES,
-  ERROR_MESSAGES 
+  ERROR_MESSAGES,
 } from "./ai-constants";
-import type { 
-  GeneratedVideo, 
+import type {
+  GeneratedVideo,
   GeneratedVideoResult,
   AIGenerationState,
   UseAIGenerationProps,
-  ProgressCallback as AIProgressCallback
+  ProgressCallback as AIProgressCallback,
 } from "./ai-types";
 
 /**
@@ -52,7 +52,7 @@ export function useAIGeneration(props: UseAIGenerationProps) {
     onError,
     onComplete,
     onJobIdChange,
-    onGeneratedVideoChange
+    onGeneratedVideoChange,
   } = props;
 
   // Core generation state
@@ -63,19 +63,29 @@ export function useAIGeneration(props: UseAIGenerationProps) {
   const [estimatedTime, setEstimatedTime] = useState<number | undefined>();
   const [currentModelIndex, setCurrentModelIndex] = useState(0);
   const [progressLogs, setProgressLogs] = useState<string[]>([]);
-  const [generationStartTime, setGenerationStartTime] = useState<number | null>(null);
-  
+  const [generationStartTime, setGenerationStartTime] = useState<number | null>(
+    null
+  );
+
   // Critical state variables identified in validation
   const [jobId, setJobId] = useState<string | null>(null);
-  const [generatedVideo, setGeneratedVideo] = useState<GeneratedVideo | null>(null);
-  const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideoResult[]>([]);
-  
+  const [generatedVideo, setGeneratedVideo] = useState<GeneratedVideo | null>(
+    null
+  );
+  const [generatedVideos, setGeneratedVideos] = useState<
+    GeneratedVideoResult[]
+  >([]);
+
   // Polling lifecycle management
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
-  
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(
+    null
+  );
+
   // Service instance management
-  const [outputManager] = useState(() => new AIVideoOutputManager("./ai-generated-videos"));
-  
+  const [outputManager] = useState(
+    () => new AIVideoOutputManager("./ai-generated-videos")
+  );
+
   // Store hooks
   const {
     addMediaItem,
@@ -128,151 +138,173 @@ export function useAIGeneration(props: UseAIGenerationProps) {
   }, [generationProgress, statusMessage, onProgress]);
 
   // Helper function to download video to memory
-  const downloadVideoToMemory = useCallback(async (
-    videoUrl: string
-  ): Promise<Uint8Array> => {
-    debugLog("📥 Starting video download from:", videoUrl);
+  const downloadVideoToMemory = useCallback(
+    async (videoUrl: string): Promise<Uint8Array> => {
+      debugLog("📥 Starting video download from:", videoUrl);
 
-    const response = await fetch(videoUrl);
-    if (!response.ok) {
-      throw new Error(
-        `Failed to download video: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const reader = response.body?.getReader();
-    if (!reader) {
-      throw new Error("Response body is not readable");
-    }
-
-    const chunks: Uint8Array[] = [];
-    let receivedLength = 0;
-
-    // Read the stream
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done) break;
-
-      if (value) {
-        chunks.push(value);
-        receivedLength += value.length;
+      const response = await fetch(videoUrl);
+      if (!response.ok) {
+        throw new Error(
+          `Failed to download video: ${response.status} ${response.statusText}`
+        );
       }
-    }
 
-    // Concatenate chunks into single Uint8Array
-    const result = new Uint8Array(receivedLength);
-    let position = 0;
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("Response body is not readable");
+      }
 
-    for (const chunk of chunks) {
-      result.set(chunk, position);
-      position += chunk.length;
-    }
+      const chunks: Uint8Array[] = [];
+      let receivedLength = 0;
 
-    debugLog(`📥 Download complete: ${result.length} bytes`);
-    return result;
-  }, []);
+      // Read the stream
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        if (value) {
+          chunks.push(value);
+          receivedLength += value.length;
+        }
+      }
+
+      // Concatenate chunks into single Uint8Array
+      const result = new Uint8Array(receivedLength);
+      let position = 0;
+
+      for (const chunk of chunks) {
+        result.set(chunk, position);
+        position += chunk.length;
+      }
+
+      debugLog(`📥 Download complete: ${result.length} bytes`);
+      return result;
+    },
+    []
+  );
 
   // Status polling function
-  const startStatusPolling = useCallback((jobId: string) => {
-    setGenerationProgress(PROGRESS_CONSTANTS.POLLING_START_PROGRESS);
-    setStatusMessage(STATUS_MESSAGES.STARTING);
+  const startStatusPolling = useCallback(
+    (jobId: string) => {
+      setGenerationProgress(PROGRESS_CONSTANTS.POLLING_START_PROGRESS);
+      setStatusMessage(STATUS_MESSAGES.STARTING);
 
-    const pollStatus = async () => {
-      try {
-        const status = await getGenerationStatus(jobId);
+      const pollStatus = async () => {
+        try {
+          const status = await getGenerationStatus(jobId);
 
-        if (status.progress) {
-          setGenerationProgress(status.progress);
-        }
-
-        if (status.status === "processing") {
-          setStatusMessage(`${STATUS_MESSAGES.PROCESSING} ${status.progress || 0}%`);
-        } else if (status.status === "completed" && status.video_url) {
-          // Clear polling
-          if (pollingInterval) {
-            clearInterval(pollingInterval);
-            setPollingInterval(null);
+          if (status.progress) {
+            setGenerationProgress(status.progress);
           }
 
-          setGenerationProgress(PROGRESS_CONSTANTS.COMPLETE_PROGRESS);
-          setStatusMessage(STATUS_MESSAGES.COMPLETE);
-
-          const newVideo: GeneratedVideo = {
-            jobId,
-            videoUrl: status.video_url,
-            videoPath: undefined,
-            fileSize: undefined,
-            duration: undefined,
-            prompt: prompt.trim(),
-            model: selectedModels[0] || "unknown",
-          };
-
-          setGeneratedVideo(newVideo);
-
-          // Automatically add to media store
-          if (activeProject) {
-            try {
-              const response = await fetch(newVideo.videoUrl);
-              const blob = await response.blob();
-              const file = new File(
-                [blob],
-                `generated-video-${newVideo.jobId.substring(0, 8)}.mp4`,
-                { type: "video/mp4" }
-              );
-
-              if (!addMediaItem) {
-                throw new Error("Media store not ready");
-              }
-              
-              await addMediaItem(activeProject.id, {
-                name: `AI: ${newVideo.prompt.substring(0, 30)}...`,
-                type: "video",
-                file,
-                url: newVideo.videoUrl,
-                duration: newVideo.duration || 5,
-                width: 1920,
-                height: 1080,
-              });
-
-              debugLogger.log("AIGeneration", "VIDEO_ADDED_TO_MEDIA_STORE", {
-                videoUrl: newVideo.videoUrl,
-                projectId: activeProject.id,
-              });
-            } catch (error) {
-              debugLogger.log("AIGeneration", "VIDEO_ADD_TO_MEDIA_STORE_FAILED", {
-                error: error instanceof Error ? error.message : "Unknown error",
-                projectId: activeProject.id,
-              });
+          if (status.status === "processing") {
+            setStatusMessage(
+              `${STATUS_MESSAGES.PROCESSING} ${status.progress || 0}%`
+            );
+          } else if (status.status === "completed" && status.video_url) {
+            // Clear polling
+            if (pollingInterval) {
+              clearInterval(pollingInterval);
+              setPollingInterval(null);
             }
-          }
 
-          setIsGenerating(false);
-        } else if (status.status === "failed") {
-          // Clear polling
-          if (pollingInterval) {
-            clearInterval(pollingInterval);
-            setPollingInterval(null);
-          }
+            setGenerationProgress(PROGRESS_CONSTANTS.COMPLETE_PROGRESS);
+            setStatusMessage(STATUS_MESSAGES.COMPLETE);
 
-          const errorMessage = status.error || ERROR_MESSAGES.GENERATION_FAILED;
-          onError?.(errorMessage);
-          setIsGenerating(false);
+            const newVideo: GeneratedVideo = {
+              jobId,
+              videoUrl: status.video_url,
+              videoPath: undefined,
+              fileSize: undefined,
+              duration: undefined,
+              prompt: prompt.trim(),
+              model: selectedModels[0] || "unknown",
+            };
+
+            setGeneratedVideo(newVideo);
+
+            // Automatically add to media store
+            if (activeProject) {
+              try {
+                const response = await fetch(newVideo.videoUrl);
+                const blob = await response.blob();
+                const file = new File(
+                  [blob],
+                  `generated-video-${newVideo.jobId.substring(0, 8)}.mp4`,
+                  { type: "video/mp4" }
+                );
+
+                if (!addMediaItem) {
+                  throw new Error("Media store not ready");
+                }
+
+                await addMediaItem(activeProject.id, {
+                  name: `AI: ${newVideo.prompt.substring(0, 30)}...`,
+                  type: "video",
+                  file,
+                  url: newVideo.videoUrl,
+                  duration: newVideo.duration || 5,
+                  width: 1920,
+                  height: 1080,
+                });
+
+                debugLogger.log("AIGeneration", "VIDEO_ADDED_TO_MEDIA_STORE", {
+                  videoUrl: newVideo.videoUrl,
+                  projectId: activeProject.id,
+                });
+              } catch (error) {
+                debugLogger.log(
+                  "AIGeneration",
+                  "VIDEO_ADD_TO_MEDIA_STORE_FAILED",
+                  {
+                    error:
+                      error instanceof Error ? error.message : "Unknown error",
+                    projectId: activeProject.id,
+                  }
+                );
+              }
+            }
+
+            setIsGenerating(false);
+          } else if (status.status === "failed") {
+            // Clear polling
+            if (pollingInterval) {
+              clearInterval(pollingInterval);
+              setPollingInterval(null);
+            }
+
+            const errorMessage =
+              status.error || ERROR_MESSAGES.GENERATION_FAILED;
+            onError?.(errorMessage);
+            setIsGenerating(false);
+          }
+        } catch (error) {
+          debugLogger.log("AIGeneration", "STATUS_POLLING_ERROR", {
+            error: error instanceof Error ? error.message : "Unknown error",
+            jobId,
+          });
+          setGenerationProgress((prev) => Math.min(prev + 5, 90));
         }
-      } catch (error) {
-        debugLogger.log("AIGeneration", "STATUS_POLLING_ERROR", {
-          error: error instanceof Error ? error.message : "Unknown error",
-          jobId,
-        });
-        setGenerationProgress((prev) => Math.min(prev + 5, 90));
-      }
-    };
+      };
 
-    // Poll immediately, then every 3 seconds
-    pollStatus();
-    const interval = setInterval(pollStatus, UI_CONSTANTS.POLLING_INTERVAL_MS);
-    setPollingInterval(interval);
-  }, [pollingInterval, prompt, selectedModels, activeProject, addMediaItem, onError]);
+      // Poll immediately, then every 3 seconds
+      pollStatus();
+      const interval = setInterval(
+        pollStatus,
+        UI_CONSTANTS.POLLING_INTERVAL_MS
+      );
+      setPollingInterval(interval);
+    },
+    [
+      pollingInterval,
+      prompt,
+      selectedModels,
+      activeProject,
+      addMediaItem,
+      onError,
+    ]
+  );
 
   // Mock generation function for testing
   const handleMockGenerate = useCallback(async () => {
@@ -307,8 +339,10 @@ export function useAIGeneration(props: UseAIGenerationProps) {
 
         const mockVideo: GeneratedVideo = {
           jobId: `mock-job-${Date.now()}-${i}`,
-          videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-          videoPath: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+          videoUrl:
+            "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+          videoPath:
+            "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
           fileSize: 2_097_152,
           duration: 15,
           prompt: prompt.trim(),
@@ -330,7 +364,8 @@ export function useAIGeneration(props: UseAIGenerationProps) {
       );
       onComplete?.(mockGenerations);
     } catch (error) {
-      const errorMessage = "Mock generation error: " + 
+      const errorMessage =
+        "Mock generation error: " +
         (error instanceof Error ? error.message : "Unknown error");
       onError?.(errorMessage);
       debugLogger.log("AIGeneration", "MOCK_GENERATION_FAILED", {
@@ -351,7 +386,7 @@ export function useAIGeneration(props: UseAIGenerationProps) {
 
     setIsGenerating(true);
     setJobId(null);
-    
+
     // Start the client-side timer
     const startTime = Date.now();
     setGenerationStartTime(startTime);
@@ -367,7 +402,7 @@ export function useAIGeneration(props: UseAIGenerationProps) {
       for (let i = 0; i < selectedModels.length; i++) {
         const modelId = selectedModels[i];
         const modelName = AI_MODELS.find((m) => m.id === modelId)?.name;
-        
+
         setStatusMessage(
           `Generating with ${modelName} (${i + 1}/${selectedModels.length})`
         );
@@ -378,13 +413,11 @@ export function useAIGeneration(props: UseAIGenerationProps) {
         // Create progress callback for this model
         const progressCallback: ProgressCallback = (status) => {
           setGenerationProgress(status.progress || 0);
-          setStatusMessage(
-            status.message || `Generating with ${modelName}...`
-          );
-          
+          setStatusMessage(status.message || `Generating with ${modelName}...`);
+
           // Add to progress logs
           if (status.message) {
-            setProgressLogs(prev => [...prev.slice(-4), status.message!]);
+            setProgressLogs((prev) => [...prev.slice(-4), status.message!]);
           }
         };
 
@@ -419,11 +452,11 @@ export function useAIGeneration(props: UseAIGenerationProps) {
 
           // Start status polling for this job
           startStatusPolling(response.job_id);
-          
+
           debugLogger.log("AIGeneration", "GENERATION_STARTED", {
             jobId: response.job_id,
             model: modelId,
-            modelName
+            modelName,
           });
         }
       }
@@ -443,14 +476,13 @@ export function useAIGeneration(props: UseAIGenerationProps) {
       setIsGenerating(false);
     }
   }, [
-    activeTab, 
-    prompt, 
-    selectedImage, 
-    selectedModels, 
-    onError, 
-    onComplete, 
-    downloadVideoToMemory, 
-    outputManager
+    activeTab,
+    prompt,
+    selectedImage,
+    selectedModels,
+    onError,
+    onComplete,
+    startStatusPolling,
   ]);
 
   // Reset generation state
@@ -466,7 +498,7 @@ export function useAIGeneration(props: UseAIGenerationProps) {
     setJobId(null);
     setGeneratedVideo(null);
     setGeneratedVideos([]);
-    
+
     // Critical: Cleanup polling interval
     if (pollingInterval) {
       clearInterval(pollingInterval);
@@ -508,27 +540,28 @@ export function useAIGeneration(props: UseAIGenerationProps) {
     setGeneratedVideos,
     pollingInterval,
     setPollingInterval,
-    
+
     // Service instance
     outputManager,
-    
+
     // Actions
     handleGenerate,
     handleMockGenerate,
     resetGenerationState,
     startStatusPolling,
     downloadVideoToMemory,
-    
+
     // Complete state object
     generationState,
-    
+
     // Computed values
-    canGenerate: activeTab === "text" 
-      ? prompt.trim().length > 0 && selectedModels.length > 0
-      : selectedImage !== null && selectedModels.length > 0,
+    canGenerate:
+      activeTab === "text"
+        ? prompt.trim().length > 0 && selectedModels.length > 0
+        : selectedImage !== null && selectedModels.length > 0,
     isPolling: pollingInterval !== null,
     hasResults: generatedVideos.length > 0,
-    
+
     // Media store state
     mediaStoreLoading,
     mediaStoreError,

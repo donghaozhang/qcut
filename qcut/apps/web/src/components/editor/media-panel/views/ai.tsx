@@ -49,7 +49,8 @@ export function AiView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use global AI tab state (CRITICAL: preserve global state integration)
-  const { aiActiveTab: activeTab, setAiActiveTab: setActiveTab } = useMediaPanelStore();
+  const { aiActiveTab: activeTab, setAiActiveTab: setActiveTab } =
+    useMediaPanelStore();
 
   // Get project store
   const { activeProject } = useProjectStore();
@@ -73,9 +74,9 @@ export function AiView() {
     onComplete: (videos) => {
       debugLogger.log("AiView", "GENERATION_COMPLETE", {
         videoCount: videos.length,
-        models: selectedModels
+        models: selectedModels,
       });
-    }
+    },
   });
 
   const history = useAIHistory();
@@ -231,7 +232,12 @@ export function AiView() {
       ) : (
         <div className="flex-1 overflow-y-auto space-y-4">
           {/* Tab selector */}
-          <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as AIActiveTab)}>
+          <Tabs
+            value={activeTab}
+            onValueChange={(value: string) =>
+              setActiveTab(value as AIActiveTab)
+            }
+          >
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="text" className="text-xs">
                 <TypeIcon className="size-3 mr-1" />
@@ -273,9 +279,10 @@ export function AiView() {
               {/* Image upload */}
               <div className="space-y-2">
                 <Label className="text-xs">
-                  {!isCompact && "Upload "}Image{!isCompact && " for Video Generation"}
+                  {!isCompact && "Upload "}Image
+                  {!isCompact && " for Video Generation"}
                 </Label>
-                
+
                 <div
                   className={`border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors ${
                     selectedImage ? "border-primary/50" : ""
@@ -325,11 +332,12 @@ export function AiView() {
                   onChange={handleImageSelect}
                   className="hidden"
                 />
-                
+
                 {/* Prompt for image-to-video */}
                 <div className="space-y-2">
                   <Label htmlFor="image-prompt" className="text-xs">
-                    {!isCompact && "Additional "}Prompt{!isCompact && " (optional)"}
+                    {!isCompact && "Additional "}Prompt
+                    {!isCompact && " (optional)"}
                   </Label>
                   <Textarea
                     id="image-prompt"
@@ -351,7 +359,8 @@ export function AiView() {
           {/* AI Model Selection */}
           <div className="space-y-2">
             <Label className="text-xs">
-              {!isCompact && "Select "}AI Models{!isCompact && " (multi-select)"}
+              {!isCompact && "Select "}AI Models
+              {!isCompact && " (multi-select)"}
             </Label>
             <div className="space-y-1">
               {AI_MODELS.map((model) => (
@@ -388,17 +397,20 @@ export function AiView() {
                   <div className="text-xs text-right">
                     <div>${model.price}</div>
                     {!isCompact && (
-                      <div className="text-muted-foreground">{model.resolution}</div>
+                      <div className="text-muted-foreground">
+                        {model.resolution}
+                      </div>
                     )}
                   </div>
                 </div>
               ))}
             </div>
-            
+
             {/* Cost display */}
             {selectedModels.length > 0 && (
               <div className="text-xs text-muted-foreground text-right">
-                Total estimated cost: <span className="font-medium">${totalCost.toFixed(2)}</span>
+                Total estimated cost:{" "}
+                <span className="font-medium">${totalCost.toFixed(2)}</span>
               </div>
             )}
           </div>
@@ -445,11 +457,16 @@ export function AiView() {
                 {generation.generatedVideos.map((result, index) => {
                   const model = AI_MODELS.find((m) => m.id === result.modelId);
                   return (
-                    <div key={index} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 bg-muted/30 rounded-md"
+                    >
                       <div className="flex items-center space-x-2">
                         <Play className="size-4 text-primary" />
                         <div>
-                          <div className="text-xs font-medium">{model?.name}</div>
+                          <div className="text-xs font-medium">
+                            {model?.name}
+                          </div>
                           <div className="text-xs text-muted-foreground">
                             {result.video.prompt.substring(0, 30)}...
                           </div>

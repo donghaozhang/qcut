@@ -1,13 +1,13 @@
 import React from "react";
-import { 
-  Youtube, 
-  Instagram, 
-  Music2, 
-  Twitter, 
-  Linkedin, 
-  Globe, 
+import {
+  Youtube,
+  Instagram,
+  Music2,
+  Twitter,
+  Linkedin,
+  Globe,
   Star,
-  LucideIcon 
+  LucideIcon,
 } from "lucide-react";
 
 // Platform icon mapping
@@ -33,7 +33,10 @@ interface PlatformIconProps {
   className?: string;
 }
 
-export function PlatformIcon({ presetId, className = "size-4" }: PlatformIconProps) {
+export function PlatformIcon({
+  presetId,
+  className = "size-4",
+}: PlatformIconProps) {
   const Icon = getPlatformIcon(presetId);
   return <Icon className={className} />;
 }

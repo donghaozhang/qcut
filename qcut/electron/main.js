@@ -14,7 +14,10 @@ let autoUpdater = null;
 try {
   autoUpdater = require("electron-updater").autoUpdater;
 } catch (error) {
-  console.warn("⚠️ [AutoUpdater] electron-updater not available:", error.message);
+  console.warn(
+    "⚠️ [AutoUpdater] electron-updater not available:",
+    error.message
+  );
 }
 const { setupFFmpegIPC } = require("./ffmpeg-handler.js");
 
@@ -195,7 +198,7 @@ app.whenReady().then(() => {
 
   createWindow();
   setupFFmpegIPC(); // Add FFmpeg CLI support
-  
+
   // Configure auto-updater for production builds
   if (app.isPackaged) {
     setupAutoUpdater();
@@ -420,105 +423,114 @@ function setupAutoUpdater() {
     console.log("⚠️ [AutoUpdater] Auto-updater not available - skipping setup");
     return;
   }
-  
+
   console.log("🔄 [AutoUpdater] Setting up auto-updater...");
-  
+
   // Configure auto-updater settings
   autoUpdater.checkForUpdatesAndNotify();
-  
+
   // Auto-updater event handlers
   autoUpdater.on("checking-for-update", () => {
     console.log("🔄 [AutoUpdater] Checking for updates...");
   });
-  
+
   autoUpdater.on("update-available", (info) => {
     console.log("📦 [AutoUpdater] Update available:", info.version);
-    
+
     // Send to renderer process
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send("update-available", {
         version: info.version,
         releaseNotes: info.releaseNotes,
-        releaseDate: info.releaseDate
+        releaseDate: info.releaseDate,
       });
     }
   });
-  
+
   autoUpdater.on("update-not-available", () => {
     console.log("✅ [AutoUpdater] App is up to date");
   });
-  
+
   autoUpdater.on("error", (err) => {
     console.error("❌ [AutoUpdater] Error:", err);
   });
-  
+
   autoUpdater.on("download-progress", (progressObj) => {
     const percent = Math.round(progressObj.percent);
     console.log(`📥 [AutoUpdater] Download progress: ${percent}%`);
-    
+
     // Send progress to renderer
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send("download-progress", {
-        percent: percent,
+        percent,
         transferred: progressObj.transferred,
-        total: progressObj.total
+        total: progressObj.total,
       });
     }
   });
-  
+
   autoUpdater.on("update-downloaded", (info) => {
     console.log("✅ [AutoUpdater] Update downloaded, will install on quit");
-    
+
     // Send to renderer process
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send("update-downloaded", {
-        version: info.version
+        version: info.version,
       });
     }
   });
-  
+
   // Check for updates every hour in production
-  setInterval(() => {
-    autoUpdater.checkForUpdatesAndNotify();
-  }, 60 * 60 * 1000); // 1 hour
+  setInterval(
+    () => {
+      autoUpdater.checkForUpdatesAndNotify();
+    },
+    60 * 60 * 1000
+  ); // 1 hour
 }
 
 // IPC handlers for manual update checks
 ipcMain.handle("check-for-updates", async () => {
   if (!app.isPackaged) {
-    return { available: false, message: "Updates only available in production builds" };
+    return {
+      available: false,
+      message: "Updates only available in production builds",
+    };
   }
-  
+
   if (!autoUpdater) {
     return { available: false, message: "Auto-updater not available" };
   }
-  
+
   try {
     const result = await autoUpdater.checkForUpdates();
-    return { 
-      available: true, 
+    return {
+      available: true,
       version: result?.updateInfo?.version || "unknown",
-      message: "Checking for updates..." 
+      message: "Checking for updates...",
     };
   } catch (error) {
     console.error("Error checking for updates:", error);
-    return { 
-      available: false, 
+    return {
+      available: false,
       error: error.message,
-      message: "Failed to check for updates" 
+      message: "Failed to check for updates",
     };
   }
 });
 
 ipcMain.handle("install-update", async () => {
   if (!app.isPackaged) {
-    return { success: false, message: "Updates only available in production builds" };
+    return {
+      success: false,
+      message: "Updates only available in production builds",
+    };
   }
-  
+
   if (!autoUpdater) {
     return { success: false, message: "Auto-updater not available" };
   }
-  
+
   try {
     autoUpdater.quitAndInstall();
     return { success: true, message: "Installing update..." };

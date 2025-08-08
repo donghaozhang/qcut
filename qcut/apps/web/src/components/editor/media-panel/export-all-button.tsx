@@ -39,17 +39,17 @@ export function ExportAllButton({
     debugLog("📦 EXPORT-ALL: Button clicked!");
     debugLog("📊 EXPORT-ALL: Media items analysis", {
       totalItems: mediaItems.length,
-        generatedImages: mediaItems.filter(
-          (item: MediaItem) => item.metadata?.source === "text2image"
-        ).length,
-        regularImages: mediaItems.filter(
-          (item: MediaItem) =>
-            item.type === "image" && item.metadata?.source !== "text2image"
-        ).length,
-        videos: mediaItems.filter((item: MediaItem) => item.type === "video")
-          .length,
-        audio: mediaItems.filter((item: MediaItem) => item.type === "audio")
-          .length,
+      generatedImages: mediaItems.filter(
+        (item: MediaItem) => item.metadata?.source === "text2image"
+      ).length,
+      regularImages: mediaItems.filter(
+        (item: MediaItem) =>
+          item.type === "image" && item.metadata?.source !== "text2image"
+      ).length,
+      videos: mediaItems.filter((item: MediaItem) => item.type === "video")
+        .length,
+      audio: mediaItems.filter((item: MediaItem) => item.type === "audio")
+        .length,
     });
 
     // Log generated images details
@@ -86,7 +86,10 @@ export function ExportAllButton({
 
     try {
       debugLog("🚀 EXPORT-ALL: Starting ZIP export...");
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")
+        .slice(0, -5);
       await exportToZip(mediaItems, {
         filename: `media-export-${timestamp}.zip`,
       });

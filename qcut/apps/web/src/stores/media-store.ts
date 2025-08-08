@@ -525,17 +525,23 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
     state.mediaItems.forEach((item) => {
       if (item.url && item.url.startsWith("blob:")) {
         URL.revokeObjectURL(item.url);
-        console.debug(`[Cleanup] Revoked blob URL for ${item.name} (project: ${projectId}): ${item.url}`);
+        console.debug(
+          `[Cleanup] Revoked blob URL for ${item.name} (project: ${projectId}): ${item.url}`
+        );
         revokedCount++;
       }
       if (item.thumbnailUrl && item.thumbnailUrl.startsWith("blob:")) {
         URL.revokeObjectURL(item.thumbnailUrl);
-        console.debug(`[Cleanup] Revoked thumbnail blob URL for ${item.name} (project: ${projectId}): ${item.thumbnailUrl}`);
+        console.debug(
+          `[Cleanup] Revoked thumbnail blob URL for ${item.name} (project: ${projectId}): ${item.thumbnailUrl}`
+        );
         revokedCount++;
       }
     });
 
-    console.log(`[Cleanup] Revoked ${revokedCount} blob URLs from project ${projectId} with ${state.mediaItems.length} media items`);
+    console.log(
+      `[Cleanup] Revoked ${revokedCount} blob URLs from project ${projectId} with ${state.mediaItems.length} media items`
+    );
 
     // Clear local state
     set({ mediaItems: [] });
@@ -546,7 +552,9 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
       await Promise.all(
         mediaIds.map((id) => storageService.deleteMediaItem(projectId, id))
       );
-      console.log(`[Cleanup] Cleared ${mediaIds.length} media items from persistent storage for project ${projectId}`);
+      console.log(
+        `[Cleanup] Cleared ${mediaIds.length} media items from persistent storage for project ${projectId}`
+      );
     } catch (error) {
       console.error("Failed to clear media items from storage:", error);
     }
@@ -560,17 +568,23 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
     state.mediaItems.forEach((item) => {
       if (item.url && item.url.startsWith("blob:")) {
         URL.revokeObjectURL(item.url);
-        console.debug(`[Cleanup] Revoked blob URL for ${item.name}: ${item.url}`);
+        console.debug(
+          `[Cleanup] Revoked blob URL for ${item.name}: ${item.url}`
+        );
         revokedCount++;
       }
       if (item.thumbnailUrl && item.thumbnailUrl.startsWith("blob:")) {
         URL.revokeObjectURL(item.thumbnailUrl);
-        console.debug(`[Cleanup] Revoked thumbnail blob URL for ${item.name}: ${item.thumbnailUrl}`);
+        console.debug(
+          `[Cleanup] Revoked thumbnail blob URL for ${item.name}: ${item.thumbnailUrl}`
+        );
         revokedCount++;
       }
     });
 
-    console.log(`[Cleanup] Revoked ${revokedCount} blob URLs from ${state.mediaItems.length} media items`);
+    console.log(
+      `[Cleanup] Revoked ${revokedCount} blob URLs from ${state.mediaItems.length} media items`
+    );
 
     // Clear local state
     set({ mediaItems: [] });

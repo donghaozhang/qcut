@@ -94,7 +94,10 @@
       {
         "from": "electron/resources/",
         "to": "./",
-        "filter": ["**/*.exe", "**/*.dll"]
+        "filter": [
+          "**/*.exe",
+          "**/*.dll"
+        ]
       }
     ],
     "extraMetadata": {
@@ -144,7 +147,9 @@
     "protocols": [
       {
         "name": "qcut-protocol",
-        "schemes": ["qcut"]
+        "schemes": [
+          "qcut"
+        ]
       }
     ],
     "fileAssociations": [

@@ -522,15 +522,23 @@ export function PreviewPanel() {
 
   // Enhanced sync check: Timeline elements exist but no media items loaded
   const timelineElements = useMemo(() => {
-    return tracks.flatMap(track => track.elements || []);
+    return tracks.flatMap((track) => track.elements || []);
   }, [tracks]);
 
-  if (!mediaItems?.length && timelineElements?.length > 0 && !mediaItemsLoading) {
-    debugLogger.warn('Preview', 'Timeline elements exist but no media items loaded', {
-      timelineElementsCount: timelineElements.length,
-      mediaItemsCount: mediaItems?.length || 0,
-      mediaItemsLoading
-    });
+  if (
+    !mediaItems?.length &&
+    timelineElements?.length > 0 &&
+    !mediaItemsLoading
+  ) {
+    debugLogger.warn(
+      "Preview",
+      "Timeline elements exist but no media items loaded",
+      {
+        timelineElementsCount: timelineElements.length,
+        mediaItemsCount: mediaItems?.length || 0,
+        mediaItemsLoading,
+      }
+    );
     return (
       <div className="h-full w-full flex flex-col min-h-0 min-w-0 bg-panel rounded-sm">
         <div className="flex-1 flex items-center justify-center p-3">

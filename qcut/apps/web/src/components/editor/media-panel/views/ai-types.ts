@@ -1,9 +1,9 @@
 /**
  * AI View Types and Interfaces
- * 
+ *
  * Extracted from ai.tsx as part of safe refactoring process.
  * This file contains all TypeScript interfaces and types used by the AI video generation feature.
- * 
+ *
  * @see ai-view-refactoring-guide.md for refactoring plan
  * @see ai-refactoring-subtasks.md for implementation tracking
  */
@@ -76,19 +76,17 @@ export interface AIGenerationState {
   currentModelIndex: number;
   progressLogs: string[];
   generationStartTime: number | null;
-  
+
   // ⚠️ CRITICAL ADDITIONS: Missing state variables from validation
   jobId: string | null;
   generatedVideo: GeneratedVideo | null;
   generatedVideos: GeneratedVideoResult[];
-  
+
   // ⚠️ CRITICAL: Polling state management
   pollingInterval: NodeJS.Timeout | null;
 }
 
-export interface UseAIHistoryProps {
-  // Props for history management hook
-}
+export type UseAIHistoryProps = {};
 
 export interface AIHistoryState {
   generationHistory: GeneratedVideo[];

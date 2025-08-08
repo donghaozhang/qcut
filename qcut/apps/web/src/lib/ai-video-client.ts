@@ -652,8 +652,11 @@ export async function generateVideoFromImage(
         prompt: request.prompt || "Create a cinematic video from this image",
         image_url: imageUrl,
         // WAN Turbo image-to-video only supports specific resolutions
-        resolution: request.resolution === "1080p" ? "720p" : request.resolution || "720p",
-        seed: Math.floor(Math.random() * 1000000), // Optional: for reproducibility
+        resolution:
+          request.resolution === "1080p"
+            ? "720p"
+            : request.resolution || "720p",
+        seed: Math.floor(Math.random() * 1_000_000), // Optional: for reproducibility
       };
     } else {
       // Use Seedance model for other cases (proven to work)

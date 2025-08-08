@@ -59,9 +59,7 @@ export async function processMediaFiles(
         const dimensions = await mediaUtils.getImageDimensions(file);
         width = dimensions.width;
         height = dimensions.height;
-        debugLog(
-          `[Media Processing] ✅ Image processed: ${width}x${height}`
-        );
+        debugLog(`[Media Processing] ✅ Image processed: ${width}x${height}`);
       } else if (fileType === "video") {
         debugLog(`[Media Processing] 🎥 Processing video: ${file.name}`);
         try {
@@ -180,10 +178,7 @@ export async function processMediaFiles(
         debugLog(`[Media Processing] 🎵 Processing audio: ${file.name}`);
         // For audio, we don't set width/height/fps (they'll be undefined)
         duration = await mediaUtils.getMediaDuration(file);
-        debugLog(
-          "[Media Processing] ✅ Audio duration extracted:",
-          duration
-        );
+        debugLog("[Media Processing] ✅ Audio duration extracted:", duration);
       }
 
       const processedItem = {
@@ -269,31 +264,31 @@ export async function processMediaFiles(
  * Convert FAL.ai media URLs to blob URLs to avoid CORS/COEP issues
  */
 export async function convertFalImageToBlob(imageUrl: string): Promise<string> {
-  if (!imageUrl.includes('fal.media')) {
-    debugLog('[FAL Image] URL is not a fal.media URL, returning as-is');
+  if (!imageUrl.includes("fal.media")) {
+    debugLog("[FAL Image] URL is not a fal.media URL, returning as-is");
     return imageUrl;
   }
-  
+
   try {
-    debugLog('[FAL Image] Converting fal.media URL to blob:', imageUrl);
-    const response = await fetch(imageUrl, { 
-      mode: 'cors',
+    debugLog("[FAL Image] Converting fal.media URL to blob:", imageUrl);
+    const response = await fetch(imageUrl, {
+      mode: "cors",
       headers: {
-        'Accept': 'image/*',
-      }
+        "Accept": "image/*",
+      },
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-    
+
     const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
-    
-    debugLog('[FAL Image] ✅ Successfully converted to blob URL:', blobUrl);
+
+    debugLog("[FAL Image] ✅ Successfully converted to blob URL:", blobUrl);
     return blobUrl;
   } catch (error) {
-    debugError('[FAL Image] ❌ Failed to convert to blob:', error);
+    debugError("[FAL Image] ❌ Failed to convert to blob:", error);
     // Fallback to original URL - better to try than completely fail
     return imageUrl;
   }

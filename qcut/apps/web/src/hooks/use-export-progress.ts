@@ -3,19 +3,17 @@ import { useExportStore } from "@/stores/export-store";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
 import { ExportEngine } from "@/lib/export-engine";
-import { ExportEngineFactory, ExportEngineType } from "@/lib/export-engine-factory";
+import {
+  ExportEngineFactory,
+  ExportEngineType,
+} from "@/lib/export-engine-factory";
 import { toast } from "sonner";
 import { useElectron } from "@/hooks/useElectron";
 import { debugLog, debugError } from "@/lib/debug-config";
 
 export function useExportProgress() {
-  const {
-    progress,
-    updateProgress,
-    setError,
-    resetExport,
-    addToHistory,
-  } = useExportStore();
+  const { progress, updateProgress, setError, resetExport, addToHistory } =
+    useExportStore();
 
   const { tracks } = useTimelineStore();
   const { mediaItems } = useAsyncMediaItems();
@@ -88,17 +86,14 @@ export function useExportProgress() {
               : ExportEngineType.STANDARD;
       }
 
-      debugLog(
-        "[ExportDialog] 🎬 Creating export engine with settings:",
-        {
-          quality: exportSettings.quality,
-          format: exportSettings.format,
-          filename: exportSettings.filename,
-          engineType: selectedEngineType || "auto-recommend",
-          resolution: exportSettings.resolution,
-          duration: totalDuration,
-        }
-      );
+      debugLog("[ExportDialog] 🎬 Creating export engine with settings:", {
+        quality: exportSettings.quality,
+        format: exportSettings.format,
+        filename: exportSettings.filename,
+        engineType: selectedEngineType || "auto-recommend",
+        resolution: exportSettings.resolution,
+        duration: totalDuration,
+      });
 
       const exportEngine = await factory.createEngine(
         canvas,
@@ -185,10 +180,9 @@ export function useExportProgress() {
 
       // Clean up engine reference
       currentEngineRef.current = null;
-
     } catch (error: any) {
       debugError("[ExportDialog] Export failed:", error);
-      
+
       // Calculate partial export duration
       const exportDuration = Date.now() - startTime.getTime();
 
@@ -209,7 +203,7 @@ export function useExportProgress() {
       });
 
       setError(error.message);
-      
+
       updateProgress({
         progress: 0,
         status: `Export failed: ${error.message}`,
@@ -218,7 +212,7 @@ export function useExportProgress() {
 
       // Reset timing state
       setExportStartTime(null);
-      
+
       // Clean up engine reference
       currentEngineRef.current = null;
 

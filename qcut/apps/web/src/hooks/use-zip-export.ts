@@ -69,7 +69,10 @@ export function useZipExport() {
           progress: 90,
         }));
 
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        const timestamp = new Date()
+          .toISOString()
+          .replace(/[:.]/g, "-")
+          .slice(0, -5);
         const filename = options?.filename || `media-export-${timestamp}.zip`;
         await downloadZipSafely(zipBlob, filename);
 

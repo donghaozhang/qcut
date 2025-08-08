@@ -270,9 +270,11 @@ export function AiView() {
     null
   );
   const [progressLogs, setProgressLogs] = useState<string[]>([]);
-  
+
   // Client-side timer for elapsed time
-  const [generationStartTime, setGenerationStartTime] = useState<number | null>(null);
+  const [generationStartTime, setGenerationStartTime] = useState<number | null>(
+    null
+  );
 
   // Client-side elapsed time timer
   useEffect(() => {
@@ -558,7 +560,7 @@ export function AiView() {
     setIsGenerating(true);
     setError(null);
     setJobId(null);
-    
+
     // Start the client-side timer
     const startTime = Date.now();
     setGenerationStartTime(startTime);
@@ -638,7 +640,9 @@ export function AiView() {
                 AI_MODELS.find((m) => m.id === modelId)?.name || modelId;
 
               debugLog(`✅ Video generation completed for ${modelName}`);
-              debugLog(`📥 Starting download process for: ${newVideo.videoUrl}`);
+              debugLog(
+                `📥 Starting download process for: ${newVideo.videoUrl}`
+              );
 
               // Start download tracking
               const localPath = await outputManager.startDownload(
@@ -654,7 +658,7 @@ export function AiView() {
               // Stream download the video data
               setStatusMessage(`Downloading ${modelName} video...`);
               const videoData = await downloadVideoToMemory(newVideo.videoUrl);
-              
+
               debugLog(`📦 Downloaded video data: ${videoData.length} bytes`);
 
               // Complete download tracking
@@ -674,25 +678,29 @@ export function AiView() {
               if (!addMediaItem) {
                 throw new Error("Media store not ready");
               }
-              
-              debugLog(`💾 Adding video to media panel...`);
-              
+
+              debugLog("💾 Adding video to media panel...");
+
               // Create blob URL for immediate use
               const blobUrl = URL.createObjectURL(file);
               debugLog(`🔗 Created blob URL for video: ${blobUrl}`);
-              
+
               // Generate thumbnail for video preview
               let thumbnailUrl: string | undefined;
               try {
-                debugLog(`🎬 Generating thumbnail for AI video...`);
+                debugLog("🎬 Generating thumbnail for AI video...");
                 const mediaUtils = await getMediaStoreUtils();
-                const videoResult = await mediaUtils.generateVideoThumbnail(file);
+                const videoResult =
+                  await mediaUtils.generateVideoThumbnail(file);
                 thumbnailUrl = videoResult.thumbnailUrl;
-                debugLog(`✅ Thumbnail generated successfully`);
+                debugLog("✅ Thumbnail generated successfully");
               } catch (error) {
-                debugWarn(`⚠️ Failed to generate thumbnail for AI video:`, error);
+                debugWarn(
+                  "⚠️ Failed to generate thumbnail for AI video:",
+                  error
+                );
               }
-              
+
               await addMediaItem(activeProject.id, {
                 name: `AI (${modelName}): ${newVideo.prompt.substring(0, 20)}...`,
                 type: "video",
@@ -703,8 +711,10 @@ export function AiView() {
                 width: 1920,
                 height: 1080,
               });
-              
-              debugLog(`✅ Successfully added ${modelName} video to media panel`);
+
+              debugLog(
+                `✅ Successfully added ${modelName} video to media panel`
+              );
 
               debugLogger.log(
                 "AIView",
