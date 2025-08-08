@@ -8,9 +8,7 @@ import { useZipExport } from "@/hooks/use-zip-export";
 import type { MediaItem } from "@/stores/media-store-types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-// Debug flag - set to true to enable console logging
-const DEBUG_EXPORT_ALL = process.env.NODE_ENV === "development" && false;
+import { debugLog, debugError, debugWarn } from "@/lib/debug-config";
 
 interface ExportAllButtonProps {
   className?: string;
@@ -38,10 +36,9 @@ export function ExportAllButton({
   const { exportState, exportToZip, isExporting } = useZipExport();
 
   const handleExportAll = async () => {
-    if (DEBUG_EXPORT_ALL) console.log("📦 EXPORT-ALL: Button clicked!");
-    if (DEBUG_EXPORT_ALL)
-      console.log("📊 EXPORT-ALL: Media items analysis", {
-        totalItems: mediaItems.length,
+    debugLog("📦 EXPORT-ALL: Button clicked!");
+    debugLog("📊 EXPORT-ALL: Media items analysis", {
+      totalItems: mediaItems.length,
         generatedImages: mediaItems.filter(
           (item: MediaItem) => item.metadata?.source === "text2image"
         ).length,
@@ -53,55 +50,51 @@ export function ExportAllButton({
           .length,
         audio: mediaItems.filter((item: MediaItem) => item.type === "audio")
           .length,
-      });
+    });
 
     // Log generated images details
     const generatedImages = mediaItems.filter(
       (item: MediaItem) => item.metadata?.source === "text2image"
     );
     if (generatedImages.length > 0) {
-      if (DEBUG_EXPORT_ALL)
-        console.log(
-          "🖼️ EXPORT-ALL: Generated images found:",
-          generatedImages.map((img: MediaItem) => ({
-            id: img.id,
-            name: img.name,
-            hasFile: !!img.file,
-            hasUrl: !!img.url,
-            urlType: img.url?.startsWith("data:")
-              ? "data"
-              : img.url?.startsWith("blob:")
-                ? "blob"
-                : "other",
-            fileSize: img.file?.size || 0,
-            metadata: img.metadata,
-          }))
-        );
+      debugLog(
+        "🖼️ EXPORT-ALL: Generated images found:",
+        generatedImages.map((img: MediaItem) => ({
+          id: img.id,
+          name: img.name,
+          hasFile: !!img.file,
+          hasUrl: !!img.url,
+          urlType: img.url?.startsWith("data:")
+            ? "data"
+            : img.url?.startsWith("blob:")
+              ? "blob"
+              : "other",
+          fileSize: img.file?.size || 0,
+          metadata: img.metadata,
+        }))
+      );
     }
 
     if (mediaItems.length === 0 || isExporting) {
-      if (DEBUG_EXPORT_ALL)
-        console.log("⚠️ EXPORT-ALL: Export blocked", {
-          reason:
-            mediaItems.length === 0 ? "No media items" : "Already exporting",
-          isExporting,
-        });
+      debugWarn("⚠️ EXPORT-ALL: Export blocked", {
+        reason:
+          mediaItems.length === 0 ? "No media items" : "Already exporting",
+        isExporting,
+      });
       return;
     }
 
     try {
-      if (DEBUG_EXPORT_ALL)
-        console.log("🚀 EXPORT-ALL: Starting ZIP export...");
+      debugLog("🚀 EXPORT-ALL: Starting ZIP export...");
       await exportToZip(mediaItems, {
         filename: `media-export-${Date.now()}.zip`,
       });
 
-      if (DEBUG_EXPORT_ALL)
-        console.log("✅ EXPORT-ALL: Export completed", {
-          phase: exportState.phase,
-          totalFiles: exportState.totalFiles,
-          completedFiles: exportState.completedFiles,
-        });
+      debugLog("✅ EXPORT-ALL: Export completed", {
+        phase: exportState.phase,
+        totalFiles: exportState.totalFiles,
+        completedFiles: exportState.completedFiles,
+      });
 
       if (exportState.phase === "complete") {
         toast.success(
@@ -109,7 +102,7 @@ export function ExportAllButton({
         );
       }
     } catch (error) {
-      console.error("❌ EXPORT-ALL: Export failed:", error);
+      debugError("❌ EXPORT-ALL: Export failed:", error);
       toast.error("Failed to export media files");
     }
   };

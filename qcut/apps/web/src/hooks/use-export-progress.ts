@@ -6,6 +6,7 @@ import { ExportEngine } from "@/lib/export-engine";
 import { ExportEngineFactory, ExportEngineType } from "@/lib/export-engine-factory";
 import { toast } from "sonner";
 import { useElectron } from "@/hooks/useElectron";
+import { debugLog, debugError } from "@/lib/debug-config";
 
 export function useExportProgress() {
   const {
@@ -77,7 +78,7 @@ export function useExportProgress() {
       // Let factory auto-recommend for Electron, otherwise use manual selection
       let selectedEngineType: ExportEngineType | undefined;
       if (isElectron()) {
-        console.log(
+        debugLog(
           "[ExportDialog] 🖥️  Electron detected - letting factory auto-recommend engine"
         );
         selectedEngineType = undefined; // Let factory decide
@@ -90,7 +91,7 @@ export function useExportProgress() {
               : ExportEngineType.STANDARD;
       }
 
-      console.log(
+      debugLog(
         "[ExportDialog] 🎬 Creating export engine with settings:",
         {
           quality: exportSettings.quality,
@@ -120,7 +121,7 @@ export function useExportProgress() {
       // Store engine reference for cancellation
       currentEngineRef.current = exportEngine;
 
-      console.log(
+      debugLog(
         "[ExportDialog] 🚀 Starting export with engine:",
         exportEngine.constructor.name
       );
@@ -140,7 +141,7 @@ export function useExportProgress() {
         });
       });
 
-      console.log("[ExportDialog] ✅ Export completed successfully");
+      debugLog("[ExportDialog] ✅ Export completed successfully");
 
       // Calculate export duration
       const exportDuration = Date.now() - startTime.getTime();
@@ -189,7 +190,7 @@ export function useExportProgress() {
       currentEngineRef.current = null;
 
     } catch (error: any) {
-      console.error("[ExportDialog] Export failed:", error);
+      debugError("[ExportDialog] Export failed:", error);
       
       // Calculate partial export duration
       const exportDuration = Date.now() - startTime.getTime();

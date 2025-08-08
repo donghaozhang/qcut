@@ -10,6 +10,7 @@ import {
 } from "@/types/export";
 import { useElectron } from "@/hooks/useElectron";
 import { ExportEngineFactory, ExportEngineType } from "@/lib/export-engine-factory";
+import { debugLog } from "@/lib/debug-config";
 
 export function useExportSettings() {
   const { isDialogOpen, settings, updateSettings } = useExportStore();
@@ -93,7 +94,7 @@ export function useExportSettings() {
   };
 
   const handleFormatChange = (newFormat: ExportFormat) => {
-    console.log("Format changing from", format, "to", newFormat);
+    debugLog("Format changing from", format, "to", newFormat);
     setFormat(newFormat);
     updateSettings({ format: newFormat });
   };
