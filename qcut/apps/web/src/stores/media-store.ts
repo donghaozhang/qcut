@@ -547,7 +547,7 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
       await Promise.all(
         mediaIds.map((id) => storageService.deleteMediaItem(projectId, id))
       );
-      console.log(
+      debugLog(
         `[Cleanup] Cleared ${mediaIds.length} media items from persistent storage for project ${projectId}`
       );
     } catch (error) {
@@ -577,7 +577,7 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
       }
     });
 
-    console.log(
+    debugLog(
       `[Cleanup] Revoked ${revokedCount} blob URLs from ${state.mediaItems.length} media items`
     );
 

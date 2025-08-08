@@ -373,7 +373,7 @@ class StorageService {
     quota: number;
     usagePercent: number;
   }> {
-    if (!("storage" in navigator)) {
+    if (typeof navigator === "undefined" || !("storage" in navigator)) {
       // Storage API not supported - assume available but with unknown limits
       debugLog(
         "[StorageService] Storage API not supported, assuming available"
