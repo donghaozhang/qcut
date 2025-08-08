@@ -288,10 +288,23 @@ export function AiView() {
                 </Label>
 
                 <div
-                  className={`border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors ${
+                  role="button"
+                  tabIndex={0}
+                  className={`border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
                     selectedImage ? "border-primary/50" : ""
                   }`}
                   onClick={() => fileInputRef.current?.click()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  aria-label={
+                    selectedImage
+                      ? "Change selected image"
+                      : "Click to upload an image"
+                  }
                 >
                   {selectedImage && imagePreview ? (
                     <div className="relative">
