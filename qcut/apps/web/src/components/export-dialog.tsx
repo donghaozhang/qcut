@@ -373,24 +373,23 @@ export function ExportDialog() {
               <CardTitle className="text-sm">Export Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center">
                   <span className="font-medium">Resolution:</span>
-                  <span className="ml-2 text-muted-foreground">
+                  <span className="text-muted-foreground">
                     {exportSettings.resolution?.label || 'N/A'}
                   </span>
                 </div>
-                <div>
+                <div className="flex justify-between items-center">
                   <span className="font-medium">Est. size:</span>
-                  <span className="ml-2 text-muted-foreground">
+                  <span className="text-muted-foreground">
                     {exportSettings.estimatedSize}
                   </span>
                 </div>
-                <div>
+                <div className="flex justify-between items-center">
                   <span className="font-medium">Duration:</span>
                   <span
                     className={cn(
-                      "ml-2",
                       exportSettings.timelineDuration === 0
                         ? "text-red-500"
                         : "text-muted-foreground"
@@ -401,16 +400,16 @@ export function ExportDialog() {
                       : `${exportSettings.timelineDuration.toFixed(2)}s`}
                   </span>
                 </div>
-                <div>
+                <div className="flex justify-between items-center">
                   <span className="font-medium">Format:</span>
-                  <span className="ml-2 text-muted-foreground">
+                  <span className="text-muted-foreground">
                     {FORMAT_INFO[exportSettings.format].label}
                   </span>
                 </div>
                 {exportSettings.engineRecommendation && (
-                  <div>
+                  <div className="flex justify-between items-center">
                     <span className="font-medium">Engine:</span>
-                    <span className="ml-2 text-muted-foreground">
+                    <span className="text-muted-foreground">
                       {exportSettings.engineRecommendation}
                     </span>
                   </div>
