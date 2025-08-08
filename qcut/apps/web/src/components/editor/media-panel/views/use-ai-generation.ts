@@ -110,15 +110,21 @@ export function useAIGeneration(props: UseAIGenerationProps) {
 
   // Notify parent of state changes
   useEffect(() => {
-    onJobIdChange?.(jobId);
+    if (onJobIdChange) {
+      onJobIdChange(jobId);
+    }
   }, [jobId, onJobIdChange]);
 
   useEffect(() => {
-    onGeneratedVideoChange?.(generatedVideo);
+    if (onGeneratedVideoChange) {
+      onGeneratedVideoChange(generatedVideo);
+    }
   }, [generatedVideo, onGeneratedVideoChange]);
 
   useEffect(() => {
-    onProgress?.(generationProgress, statusMessage);
+    if (onProgress) {
+      onProgress(generationProgress, statusMessage);
+    }
   }, [generationProgress, statusMessage, onProgress]);
 
   // Helper function to download video to memory
@@ -277,7 +283,6 @@ export function useAIGeneration(props: UseAIGenerationProps) {
     }
 
     setIsGenerating(true);
-    onError?.(null);
     setJobId(null);
     setGeneratedVideos([]);
 
@@ -345,7 +350,6 @@ export function useAIGeneration(props: UseAIGenerationProps) {
     }
 
     setIsGenerating(true);
-    onError?.(null);
     setJobId(null);
     
     // Start the client-side timer
@@ -385,55 +389,42 @@ export function useAIGeneration(props: UseAIGenerationProps) {
         };
 
         if (activeTab === "text") {
-          response = await generateVideo({
-            prompt: prompt.trim(),
-            model: modelId,
-            progressCallback,
-          });
+          response = await generateVideo(
+            {
+              prompt: prompt.trim(),
+              model: modelId,
+            },
+            progressCallback
+          );
         } else if (selectedImage) {
           response = await generateVideoFromImage({
             image: selectedImage,
             prompt: prompt.trim(),
             model: modelId,
-            progressCallback,
           });
         }
 
         if (response?.job_id) {
-          // Start polling for video download workflow
-          try {
-            // Monitor job status
-            const finalVideo = await outputManager.waitForJobCompletion(response.job_id);
-            
-            if (finalVideo?.videoUrl) {
-              // Download video data
-              const videoData = await downloadVideoToMemory(finalVideo.videoUrl);
-              
-              debugLog(`📦 Downloaded video data: ${videoData.length} bytes`);
+          // For now, just add the response as a generated video
+          // The actual polling and download will be handled by the status polling
+          const newVideo: GeneratedVideo = {
+            jobId: response.job_id,
+            videoUrl: "", // Will be filled when polling completes
+            videoPath: undefined,
+            fileSize: undefined,
+            duration: undefined,
+            prompt: prompt.trim(),
+            model: modelId,
+          };
 
-              // Complete download tracking
-              await outputManager.completeDownload(
-                response.job_id,
-                videoData,
-                finalVideo
-              );
-
-              const newVideo: GeneratedVideo = {
-                jobId: response.job_id,
-                videoUrl: finalVideo.videoUrl,
-                videoPath: finalVideo.videoPath,
-                fileSize: videoData.length,
-                duration: finalVideo.duration || 5,
-                prompt: prompt.trim(),
-                model: modelId,
-              };
-
-              generations.push({ modelId, video: newVideo });
-            }
-          } catch (downloadError) {
-            debugError("Generation workflow failed:", downloadError);
-            onError?.(`Download failed for ${modelName}: ${downloadError instanceof Error ? downloadError.message : "Unknown error"}`);
-          }
+          // Start status polling for this job
+          startStatusPolling(response.job_id);
+          
+          debugLogger.log("AIGeneration", "GENERATION_STARTED", {
+            jobId: response.job_id,
+            model: modelId,
+            modelName
+          });
         }
       }
 
