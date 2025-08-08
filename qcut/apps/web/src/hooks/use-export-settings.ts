@@ -17,7 +17,6 @@ export function useExportSettings() {
   const { getTotalDuration } = useTimelineStore();
   const { isElectron } = useElectron();
   
-  // PRESERVE: Local form state (lines 72-100 from original)
   const [quality, setQuality] = useState<ExportQuality>(settings.quality);
   const [format, setFormat] = useState<ExportFormat>(settings.format);
   const [filename, setFilename] = useState(settings.filename);
@@ -27,13 +26,12 @@ export function useExportSettings() {
   const [ffmpegAvailable, setFfmpegAvailable] = useState(false);
   const [engineRecommendation, setEngineRecommendation] = useState<string | null>(null);
 
-  // PRESERVE: Computed values
   const supportedFormats = getSupportedFormats();
   const resolution = QUALITY_RESOLUTIONS[quality] || QUALITY_RESOLUTIONS[ExportQuality.HIGH];
   const estimatedSize = QUALITY_SIZE_ESTIMATES[quality] || QUALITY_SIZE_ESTIMATES[ExportQuality.HIGH];
   const timelineDuration = getTotalDuration();
 
-  // PRESERVE: Engine recommendation effect (lines 128-174) - CRITICAL 8+ dependencies
+  // Engine recommendation effect with multiple dependencies
   useEffect(() => {
     if (isDialogOpen && timelineDuration > 0) {
       const getRecommendation = async () => {
@@ -82,12 +80,10 @@ export function useExportSettings() {
     settings,
   ]);
 
-  // PRESERVE: FFmpeg availability check (lines 177-179 from original)
   useEffect(() => {
     ExportEngineFactory.isFFmpegAvailable().then(setFfmpegAvailable);
   }, []);
 
-  // PRESERVE: Event handlers (lines 182-200 from original)
   const handleQualityChange = (newQuality: ExportQuality) => {
     setQuality(newQuality);
     updateSettings({ quality: newQuality });

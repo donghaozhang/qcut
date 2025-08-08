@@ -10,13 +10,11 @@ export function useExportPresets(
 ) {
   const [selectedPreset, setSelectedPreset] = useState<ExportPreset | null>(null);
 
-  // PRESERVE: CRITICAL atomic preset selection (lines 201-222 from original)
-  // This sequence MUST remain atomic to prevent UI flicker and wrong calculations
   const handlePresetSelect = (preset: ExportPreset) => {
-    // Apply preset settings - CRITICAL: These 5 updates must be atomic
-    setQuality(preset.quality);        // Update 1
-    setFormat(preset.format);          // Update 2  
-    setSelectedPreset(preset);         // Update 3
+    // Apply preset settings atomically to prevent UI flicker
+    setQuality(preset.quality);
+    setFormat(preset.format);
+    setSelectedPreset(preset);
 
     // Update store settings
     updateSettings({
@@ -26,8 +24,8 @@ export function useExportPresets(
 
     // Generate filename based on preset
     const presetFilename = `${preset.name.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Date.now()}`;
-    setFilename(presetFilename);       // Update 4
-    updateSettings({ filename: presetFilename }); // Update 5
+    setFilename(presetFilename);
+    updateSettings({ filename: presetFilename });
 
     // Show confirmation
     toast.success(`Applied ${preset.name} preset`, {
@@ -35,7 +33,6 @@ export function useExportPresets(
     });
   };
 
-  // PRESERVE: Clear preset (lines 224-226 from original)
   const clearPreset = () => {
     setSelectedPreset(null);
   };

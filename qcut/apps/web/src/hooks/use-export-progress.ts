@@ -21,11 +21,9 @@ export function useExportProgress() {
   const { mediaItems } = useAsyncMediaItems();
   const { isElectron } = useElectron();
 
-  // PRESERVE: Refs and timing state (lines 94-102 from original)
   const currentEngineRef = useRef<ExportEngine | null>(null);
   const [exportStartTime, setExportStartTime] = useState<Date | null>(null);
 
-  // PRESERVE: Cancel handler (lines 234-253 from original)
   const handleCancel = () => {
     if (currentEngineRef.current && progress.isExporting) {
       currentEngineRef.current.cancel();
@@ -45,7 +43,6 @@ export function useExportProgress() {
     }
   };
 
-  // PRESERVE: Main export handler (lines 254-400 from original) - CRITICAL 146 lines
   const handleExport = async (
     canvas: HTMLCanvasElement,
     totalDuration: number,

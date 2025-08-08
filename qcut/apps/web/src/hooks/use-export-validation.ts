@@ -12,7 +12,6 @@ export function useExportValidation(
   },
   timelineDuration: number
 ) {
-  // PRESERVE: Memory calculation (lines 114-126 from original)
   const memoryEstimate = useMemo(() => {
     return calculateMemoryUsage(
       {

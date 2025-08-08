@@ -35,12 +35,10 @@ import { useExportValidation } from "@/hooks/use-export-validation";
 import { useExportPresets } from "@/hooks/use-export-presets";
 
 export function ExportDialog() {
-  // PRESERVE: Existing store hooks
   const { isDialogOpen, setDialogOpen, error } = useExportStore();
   const { getTotalDuration } = useTimelineStore();
   const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems();
   
-  // PRESERVE: Canvas ref
   const canvasRef = useRef<ExportCanvasRef>(null);
   const { isElectron } = useElectron();
 
@@ -64,7 +62,6 @@ export function ExportDialog() {
     exportSettings.updateSettings
   );
 
-  // PRESERVE: Simple handlers that don't need hooks
   const handleClose = () => {
     if (!exportProgress.progress.isExporting) {
       setDialogOpen(false);
@@ -92,7 +89,6 @@ export function ExportDialog() {
     });
   };
 
-  // PRESERVE: All existing loading states
   if (mediaItemsLoading) {
     return (
       <div className="h-full flex flex-col bg-background" 
@@ -107,12 +103,10 @@ export function ExportDialog() {
     );
   }
 
-  // PRESERVE: All existing JSX structure with hook values
   return (
     <div className="h-full flex flex-col bg-background" 
          style={{ borderRadius: '0.375rem', overflow: 'hidden' }}>
       
-      {/* PRESERVE: Header */}
       <div className="flex items-center justify-between p-4 border-b border-border">
         <div>
           <h2 className="text-lg font-semibold">Export Video</h2>
@@ -131,7 +125,6 @@ export function ExportDialog() {
         </Button>
       </div>
 
-      {/* PRESERVE: Export Button - now uses hook values */}
       <div className="p-4 border-b border-border space-y-4">
         {exportProgress.progress.isExporting ? (
           <div className="space-y-2">
@@ -161,7 +154,6 @@ export function ExportDialog() {
           </Button>
         )}
 
-        {/* PRESERVE: Progress Display - now uses hook values */}
         {exportProgress.progress.isExporting && (
           <div className="space-y-3 p-4 bg-muted/50 rounded-md">
             <div className="flex justify-between text-sm">
@@ -205,7 +197,6 @@ export function ExportDialog() {
       {/* Settings Section - Scrollable Content */}
       <div className="flex-1 overflow-auto p-4 space-y-4">
         
-        {/* PRESERVE: Preset Buttons - now uses hook handlers */}
         <div className="grid grid-cols-2 gap-2 mb-4">
           {EXPORT_PRESETS.map((preset) => (
             <Button
@@ -247,7 +238,6 @@ export function ExportDialog() {
 
         <div className="grid grid-cols-2 gap-3">
           
-          {/* PRESERVE: Filename Input - now uses hook values */}
           <Card className="col-span-2">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">File Name</CardTitle>
@@ -269,7 +259,6 @@ export function ExportDialog() {
             </CardContent>
           </Card>
 
-          {/* PRESERVE: Quality Selection - now uses hook values */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Quality</CardTitle>
@@ -299,7 +288,6 @@ export function ExportDialog() {
             </CardContent>
           </Card>
 
-          {/* PRESERVE: Engine Selection - now uses hook values */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Export Engine</CardTitle>
@@ -343,7 +331,6 @@ export function ExportDialog() {
             </CardContent>
           </Card>
 
-          {/* PRESERVE: Format Selection - now uses hook values */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Format</CardTitle>
@@ -373,7 +360,6 @@ export function ExportDialog() {
             </CardContent>
           </Card>
 
-          {/* PRESERVE: Export Details - now uses hook values */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Export Details</CardTitle>
@@ -425,7 +411,6 @@ export function ExportDialog() {
           </Card>
         </div>
 
-        {/* PRESERVE: Warnings and Errors - now uses hook values */}
         
         {/* Memory Warning */}
         {exportValidation.memoryWarning && (
@@ -511,7 +496,6 @@ export function ExportDialog() {
         )}
       </div>
 
-      {/* PRESERVE: Hidden Export Canvas */}
       <ExportCanvas ref={canvasRef} />
     </div>
   );
