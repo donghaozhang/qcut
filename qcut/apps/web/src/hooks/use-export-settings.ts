@@ -34,6 +34,7 @@ export function useExportSettings() {
   // Engine recommendation effect with multiple dependencies
   useEffect(() => {
     if (isDialogOpen && timelineDuration > 0) {
+      let aborted = false;
       const getRecommendation = async () => {
         try {
           const factory = ExportEngineFactory.getInstance();
@@ -47,6 +48,8 @@ export function useExportSettings() {
             },
             timelineDuration
           );
+
+          if (aborted) return;
 
           const engineLabels = {
             [ExportEngineType.STANDARD]: "Standard Engine",
@@ -63,12 +66,15 @@ export function useExportSettings() {
 
           setEngineRecommendation(`${label} (${performance} Performance)`);
         } catch (error) {
-          debugWarn("Failed to get engine recommendation:", error);
-          setEngineRecommendation(null);
+          if (!aborted) {
+            debugWarn("Failed to get engine recommendation:", error);
+            setEngineRecommendation(null);
+          }
         }
       };
 
       getRecommendation();
+      return () => { aborted = true; };
     }
   }, [
     isDialogOpen,
