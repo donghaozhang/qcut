@@ -537,8 +537,6 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
       }
     });
 
-
-
     // Clear local state
     set({ mediaItems: [] });
 
@@ -552,7 +550,9 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
         `[Cleanup] Cleared ${mediaIds.length} media items from persistent storage for project ${projectId}`
       );
     } catch (error) {
-
+      console.error("Failed to clear project media from storage:", error);
+    }
+  },
 
   clearAllMedia: () => {
     const state = get();

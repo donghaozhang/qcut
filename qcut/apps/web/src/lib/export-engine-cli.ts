@@ -368,7 +368,9 @@ export class CLIExportEngine extends ExportEngine {
       debugLog(
         "[CLIExportEngine] 🔍 DEBUG: Keeping frames in temp directory for inspection"
       );
-      debugLog(`[CLIExportEngine] 📁 Frames location: ${this.frameDir}\\frames`);
+      debugLog(
+        `[CLIExportEngine] 📁 Frames location: ${this.frameDir}\\frames`
+      );
       debugLog("[CLIExportEngine] 🧪 TEST: Try this FFmpeg command manually:");
       (async () => {
         // get the ffmpeg path from main process (works in dev & packaged)
@@ -377,8 +379,8 @@ export class CLIExportEngine extends ExportEngine {
         const duration = Math.ceil(this.totalDuration);
         debugLog(
           `"${ffmpegPath}" -y -framerate ${this.fps}` +
-          ` -i "${framesDir}\\frame-%04d.png" -c:v libx264` +
-          ` -preset fast -crf 23 -t ${duration} "output.mp4"`
+            ` -i "${framesDir}\\frame-%04d.png" -c:v libx264` +
+            ` -preset fast -crf 23 -t ${duration} "output.mp4"`
         );
       })();
 

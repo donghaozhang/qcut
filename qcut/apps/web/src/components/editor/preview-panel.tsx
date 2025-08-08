@@ -528,7 +528,8 @@ export function PreviewPanel() {
   if (
     !mediaItems?.length &&
     timelineElements?.length > 0 &&
-    !mediaItemsLoading
+    !mediaItemsLoading &&
+    !mediaItemsError
   ) {
     debugLogger.warn(
       "Preview",
@@ -541,9 +542,9 @@ export function PreviewPanel() {
     );
     return (
       <div className="h-full w-full flex flex-col min-h-0 min-w-0 bg-panel rounded-sm">
-        <div className="flex-1 flex items-center justify-center p-3">
+        <div className="flex-1 flex items-center justify-center p-3" role="status" aria-live="polite">
           <div className="text-center">
-            <div className="text-yellow-600 mb-2">Loading media...</div>
+            <div className="text-yellow-600 mb-2">Media items not ready</div>
             <div className="text-sm text-muted-foreground">
               Timeline has content but media items are not ready
             </div>
