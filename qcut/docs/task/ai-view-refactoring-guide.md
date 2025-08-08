@@ -16,6 +16,26 @@ The `ai.tsx` file (1453 lines) is a complex component that handles AI video gene
   - Media integration
   - Responsive layout handling
 
+### ⚠️ CRITICAL ISSUES IDENTIFIED (Source Code Validation)
+
+**🚨 Missing State Dependencies:**
+- `jobId` state management not addressed in original plan
+- `generatedVideo` and `generatedVideos` interdependency complexity
+- `pollingInterval` cleanup spans multiple proposed boundaries
+
+**🚨 Global State Integration:**
+- **BREAKING**: Original plan assumes local `activeTab` state
+- **ACTUAL**: Uses `useMediaPanelStore()` global state - must preserve
+- Parent component integration would break with local state approach
+
+**🚨 Complex Async Workflows:**
+- Video generation → download → thumbnail → media store workflow crosses boundaries
+- `AIVideoOutputManager` singleton instance needs careful handling
+- Polling lifecycle management more complex than anticipated
+
+**🚨 Service Instance Management:**
+- `outputManager` stateful service instance requires special handling in hooks
+
 ### Key Features to Preserve
 - ✅ Text-to-video generation
 - ✅ Image-to-video generation
@@ -126,10 +146,13 @@ interface UseAIGenerationProps {
   onProgress: (progress: number, message: string) => void;
   onError: (error: string) => void;
   onComplete: (videos: GeneratedVideoResult[]) => void;
+  // ⚠️ CRITICAL ADDITIONS: Include missing dependencies
+  onJobIdChange?: (jobId: string | null) => void;
+  onGeneratedVideoChange?: (video: GeneratedVideo | null) => void;
 }
 
 export function useAIGeneration(props: UseAIGenerationProps) {
-  // Move all generation-related state and logic here
+  // CRITICAL: Include ALL missing state variables identified in validation
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState("");
@@ -139,7 +162,15 @@ export function useAIGeneration(props: UseAIGenerationProps) {
   const [progressLogs, setProgressLogs] = useState<string[]>([]);
   const [generationStartTime, setGenerationStartTime] = useState<number | null>(null);
   
-  // Move outputManager, polling logic, and all generation functions here
+  // ⚠️ CRITICAL ADDITIONS: Missing state variables from validation
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [generatedVideo, setGeneratedVideo] = useState<GeneratedVideo | null>(null);
+  const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideoResult[]>([]);
+  
+  // ⚠️ CRITICAL: Polling lifecycle management
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  
+  // ⚠️ CRITICAL: Service instance management
   const [outputManager] = useState(() => new AIVideoOutputManager("./ai-generated-videos"));
   
   const handleGenerate = async () => {
@@ -162,10 +193,36 @@ export function useAIGeneration(props: UseAIGenerationProps) {
     estimatedTime,
     currentModelIndex,
     progressLogs,
+    // ⚠️ CRITICAL ADDITIONS: Missing state from validation
+    jobId,
+    setJobId,
+    generatedVideo,
+    setGeneratedVideo,
+    generatedVideos,
+    setGeneratedVideos,
+    pollingInterval,
+    setPollingInterval,
+    outputManager,
     handleGenerate,
     handleMockGenerate,
     resetGenerationState: () => {
-      // Reset all generation state
+      // ⚠️ COMPREHENSIVE reset including all state
+      setIsGenerating(false);
+      setGenerationProgress(0);
+      setStatusMessage("");
+      setElapsedTime(0);
+      setEstimatedTime(undefined);
+      setCurrentModelIndex(0);
+      setProgressLogs([]);
+      setGenerationStartTime(null);
+      setJobId(null);
+      setGeneratedVideo(null);
+      setGeneratedVideos([]);
+      // ⚠️ CRITICAL: Cleanup polling interval
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        setPollingInterval(null);
+      }
     }
   };
 }
@@ -230,7 +287,12 @@ export function AiView() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [generatedVideos, setGeneratedVideos] = useState<GeneratedVideoResult[]>([]);
+  
+  // ⚠️ CRITICAL FIX: Use global state instead of local state
+  // DON'T create local activeTab state - use existing global state
+  const { aiActiveTab: activeTab, setAiActiveTab: setActiveTab } = useMediaPanelStore();
+  
+  // ⚠️ NOTE: generatedVideos moved to useAIGeneration hook
   
   // Use custom hooks
   const generation = useAIGeneration({
@@ -287,8 +349,22 @@ export interface GeneratedVideoResult {
   video: GeneratedVideo;
 }
 
+// ⚠️ CRITICAL ADDITION: Include polling state interface
+export interface PollingState {
+  interval: NodeJS.Timeout | null;
+  jobId: string | null;
+  isPolling: boolean;
+}
+
+// ⚠️ CRITICAL ADDITION: Service manager interface
+export interface AIServiceManager {
+  outputManager: AIVideoOutputManager;
+  cleanup: () => void;
+}
+
 export const AI_MODELS: AIModel[] = [
-  // Move AI_MODELS array here
+  // Move complete AI_MODELS array here (8 models)
+  // Kling v2.1, Seedance v1 Lite, Hailuo 02, etc.
 ];
 ```
 
@@ -319,30 +395,57 @@ export const AI_MODELS: AIModel[] = [
 - [ ] Test error handling
 - [ ] Test mock generation
 - [ ] Verify localStorage persistence
+- [ ] **⚠️ CRITICAL**: Test global state integration (`useMediaPanelStore`)
+- [ ] **⚠️ CRITICAL**: Test polling interval cleanup
+- [ ] **⚠️ CRITICAL**: Test service instance coordination
+- [ ] **⚠️ CRITICAL**: Test async workflow (generation → download → media store)
+- [ ] **⚠️ CRITICAL**: Test state reset functionality across hooks
+- [ ] **⚠️ CRITICAL**: Test parent component integration unchanged
 
 ## Migration Strategy
 
-### Safe Migration Approach
+### 🔄 UPDATED SAFE MIGRATION APPROACH (POST-VALIDATION)
 
 1. **Create Backup**: Copy original `ai.tsx` to `ai-backup.tsx`
 
-2. **Extract Constants First**: Move `AI_MODELS` and interfaces to separate file
+2. **⚠️ CRITICAL FIRST**: Complete documentation updates with all critical findings
 
-3. **Extract Hooks Gradually**: 
-   - Start with history management (least complex)
-   - Then generation engine (most complex)
-   - Finally refactor main component
+3. **Create Comprehensive Test Suite**: BEFORE any refactoring
+   - Test ALL current functionality
+   - Document global state usage patterns
+   - Validate polling cleanup scenarios
+   - Test service instance behavior
 
-4. **Maintain Same External Interface**: Ensure parent components don't need changes
+4. **Extract Constants First**: Move `AI_MODELS` and interfaces to separate file (SAFEST)
 
-5. **Test Each Step**: Run full test suite after each extraction
+5. **Start with 2-File Split** (NOT 3-file split):
+   - Extract history management (most isolated, lowest risk)
+   - Create enhanced generation hook with ALL state variables
+   - Refactor main component preserving global state integration
 
-### Rollback Plan
+6. **⚠️ PRESERVE GLOBAL STATE**: Maintain `useMediaPanelStore` integration unchanged
 
-If issues arise:
-1. Revert to `ai-backup.tsx`
-2. Fix issues in extracted components
-3. Re-attempt migration
+7. **Test Each Step**: Comprehensive validation after each extraction
+
+8. **Consider 3-File Split**: Only AFTER 2-file split succeeds completely
+
+### 🔙 ENHANCED ROLLBACK PLAN (POST-VALIDATION)
+
+**If issues arise:**
+1. **Immediate Rollback**: Revert to `ai-backup.tsx`
+2. **Analyze Failure**: Identify which critical dependency was missed
+3. **Update Documentation**: Add missed dependency to refactoring guide
+4. **Fix Root Cause**: Address state management, polling, or global state issue
+5. **Re-validate Plan**: Ensure all dependencies documented before retry
+6. **Re-attempt Migration**: With updated comprehensive plan
+
+**Critical Rollback Triggers:**
+- ❌ Global state integration breaks (`useMediaPanelStore`)
+- ❌ Polling intervals don't cleanup properly
+- ❌ Service instances don't coordinate correctly
+- ❌ Async workflows fail (generation → download → media store)
+- ❌ Parent component integration affected
+- ❌ Any state reset functionality breaks
 
 ## Benefits of Refactoring
 
@@ -377,31 +480,43 @@ If issues arise:
 3. **Incremental Testing**: Test after each small change
 4. **Rollback Plan**: Keep backup and be ready to revert
 
-## Implementation Timeline
+## 📅 UPDATED IMPLEMENTATION TIMELINE (POST-VALIDATION)
 
-### Week 1: Planning and Setup
-- [ ] Analyze current code dependencies
-- [ ] Create detailed extraction plan
-- [ ] Set up testing environment
-- [ ] Create backup files
+### Week 1: CRITICAL Documentation and Planning
+- [x] ✅ Validate refactoring plan against source code
+- [🔄] **IN PROGRESS**: Update refactoring guide with critical findings
+- [ ] Create comprehensive state dependency mapping
+- [ ] Design polling lifecycle management strategy
+- [ ] Plan global state integration preservation
+- [ ] Create enhanced test suite requirements
 
-### Week 2: Extract Business Logic
-- [ ] Extract generation engine hook
-- [ ] Extract history management hook
-- [ ] Create shared types file
-- [ ] Test extracted hooks
+### Week 2: Safe Foundation Building
+- [ ] Create comprehensive test suite (BEFORE any refactoring)
+- [ ] Extract constants and types first (SAFEST)
+- [ ] Test global state integration patterns
+- [ ] Validate service instance management approach
+- [ ] Create backup and rollback procedures
 
-### Week 3: Refactor Main Component
-- [ ] Refactor main component to use hooks
-- [ ] Update imports and dependencies
-- [ ] Comprehensive testing
-- [ ] Performance validation
+### Week 3: Careful 2-File Split Implementation
+- [ ] Extract history management hook (lowest risk)
+- [ ] Create enhanced generation hook with ALL state variables
+- [ ] Implement polling lifecycle management
+- [ ] Preserve global state integration (`useMediaPanelStore`)
+- [ ] Test each extraction step thoroughly
 
-### Week 4: Polish and Documentation
-- [ ] Code review and cleanup
-- [ ] Update documentation
-- [ ] Add unit tests for hooks
-- [ ] Final validation
+### Week 4: Validation and Optimization
+- [ ] Comprehensive integration testing
+- [ ] Validate all critical workflows work identically
+- [ ] Performance validation (no regression)
+- [ ] Documentation updates reflecting actual implementation
+- [ ] Consider 3-file split only if 2-file split succeeds
+
+### 🚨 CRITICAL SUCCESS GATES:
+- **Gate 1**: All state dependencies documented and planned
+- **Gate 2**: Global state integration strategy validated
+- **Gate 3**: Comprehensive test suite passes
+- **Gate 4**: 2-file split works identically to original
+- **Gate 5**: No performance regression detected
 
 ## Success Metrics
 
@@ -409,19 +524,64 @@ If issues arise:
    - Reduced file size (aim for <500 lines per file)
    - Improved maintainability score
    - Better test coverage
+   - **⚠️ CRITICAL**: All state dependencies correctly handled
 
 2. **Functionality**: 
    - All existing features work identically
    - No performance regression
    - Same user experience
+   - **⚠️ CRITICAL**: Global state integration preserved
+   - **⚠️ CRITICAL**: Polling cleanup works correctly
+   - **⚠️ CRITICAL**: Async workflows function properly
 
 3. **Developer Experience**:
    - Faster development iteration
    - Easier debugging
    - Better code organization
+   - **⚠️ CRITICAL**: Service instance management clarity
 
-## Conclusion
+4. **🔍 VALIDATION REQUIREMENTS**:
+   - ✅ `useMediaPanelStore` integration unchanged
+   - ✅ All state variables accounted for in hooks
+   - ✅ Polling intervals cleanup properly
+   - ✅ `AIVideoOutputManager` singleton works correctly
+   - ✅ Video generation → download → media store workflow intact
+   - ✅ Parent component integration unaffected
 
-This refactoring will significantly improve the maintainability and organization of the AI video generation feature while preserving all existing functionality. The proposed 3-file split provides the best balance between separation of concerns and implementation complexity.
+## 🎆 UPDATED CONCLUSION (POST-VALIDATION)
 
-The key to success is incremental migration with thorough testing at each step. By following this guide, the refactoring can be completed safely without breaking any existing features.
+This refactoring will significantly improve the maintainability and organization of the AI video generation feature while preserving all existing functionality. **However, the original 3-file split approach requires critical modifications based on source code validation.**
+
+### **🚨 CRITICAL CHANGES REQUIRED:**
+
+1. **Recommended Approach**: Start with **2-file split** instead of 3-file split to reduce initial risk
+2. **State Management**: Include ALL identified state variables in hook interfaces
+3. **Global State**: Preserve `useMediaPanelStore` integration - NO local activeTab state
+4. **Polling Management**: Design comprehensive polling lifecycle management
+5. **Service Instances**: Plan `AIVideoOutputManager` singleton coordination
+
+### **✅ SUCCESS STRATEGY:**
+
+**Phase 1**: Complete documentation updates with all critical findings  
+**Phase 2**: Create comprehensive test suite before any refactoring  
+**Phase 3**: Implement 2-file split with enhanced state management  
+**Phase 4**: Validate all functionality works identically  
+**Phase 5**: Consider further splitting only if phase 4 succeeds  
+
+### **🎯 KEY SUCCESS FACTORS:**
+
+- **Incremental migration** with validation at each step
+- **Comprehensive state dependency mapping** before extraction
+- **Global state integration preservation** (breaking change risk)
+- **Polling lifecycle management** (complex cleanup requirements)
+- **Service instance coordination** (singleton management)
+- **Rollback capability** at each phase
+
+**The refactoring is beneficial and needed, but requires careful attention to the complex state management and global integration patterns identified in validation.**
+
+---
+
+### **📄 RELATED DOCUMENTATION:**
+- **Detailed Subtasks**: `ai-refactoring-subtasks.md`
+- **Source Code Validation**: Task agent analysis report
+- **Implementation Tracking**: Progress in subtasks file
