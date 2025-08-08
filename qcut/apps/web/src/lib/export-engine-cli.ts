@@ -2,6 +2,7 @@ import { ExportEngine } from "./export-engine";
 import { ExportSettings } from "@/types/export";
 import { TimelineTrack } from "@/types/timeline";
 import { MediaItem } from "@/stores/media-store";
+import { debugLog, debugError, debugWarn } from "@/lib/debug-config";
 
 export type ProgressCallback = (progress: number, message: string) => void;
 
@@ -59,7 +60,7 @@ export class CLIExportEngine extends ExportEngine {
     timeOffset: number
   ): Promise<void> {
     if (!mediaItem.url) {
-      console.warn(`[CLIExportEngine] No URL for media item ${mediaItem.id}`);
+      debugWarn(`[CLIExportEngine] No URL for media item ${mediaItem.id}`);
       return;
     }
 
@@ -70,7 +71,7 @@ export class CLIExportEngine extends ExportEngine {
         await this.renderVideoCLI(element, mediaItem, timeOffset);
       }
     } catch (error) {
-      console.warn(
+      debugWarn(
         `[CLIExportEngine] Failed to render ${element.id}, using fallback:`,
         error
       );
@@ -110,7 +111,7 @@ export class CLIExportEngine extends ExportEngine {
       // Wait for seek with more generous timeout
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
-          console.warn(
+          debugWarn(
             "[CLIExportEngine] Video seek timeout, using current frame"
           );
           resolve(); // Don't reject, just use whatever frame we have
@@ -133,7 +134,7 @@ export class CLIExportEngine extends ExportEngine {
 
       // No black frame validation for CLI export
     } catch (error) {
-      console.warn(
+      debugWarn(
         "[CLIExportEngine] Video render failed, using placeholder:",
         error
       );
@@ -154,7 +155,7 @@ export class CLIExportEngine extends ExportEngine {
           mediaItem.file &&
           mediaItem.file.size > 0
         ) {
-          console.log(
+          debugLog(
             `[CLIExportEngine] Using file data for generated image: ${mediaItem.name}`
           );
 
@@ -165,7 +166,7 @@ export class CLIExportEngine extends ExportEngine {
           img.crossOrigin = "anonymous";
 
           const timeout = setTimeout(() => {
-            console.warn(
+            debugWarn(
               `[CLIExportEngine] Generated image timeout: ${mediaItem.url}`
             );
             URL.revokeObjectURL(newBlobUrl);
@@ -184,7 +185,7 @@ export class CLIExportEngine extends ExportEngine {
               URL.revokeObjectURL(newBlobUrl);
               resolve();
             } catch (error) {
-              console.warn(
+              debugWarn(
                 "[CLIExportEngine] Generated image render failed:",
                 error
               );
@@ -195,7 +196,7 @@ export class CLIExportEngine extends ExportEngine {
 
           img.onerror = () => {
             clearTimeout(timeout);
-            console.warn(
+            debugWarn(
               `[CLIExportEngine] Failed to load generated image: ${mediaItem.url}`
             );
             URL.revokeObjectURL(newBlobUrl);
@@ -211,7 +212,7 @@ export class CLIExportEngine extends ExportEngine {
         img.crossOrigin = "anonymous";
 
         const timeout = setTimeout(() => {
-          console.warn(
+          debugWarn(
             `[CLIExportEngine] Image load timeout: ${mediaItem.url}`
           );
           resolve();
@@ -228,14 +229,14 @@ export class CLIExportEngine extends ExportEngine {
             this.ctx.drawImage(img, x, y, width, height);
             resolve();
           } catch (error) {
-            console.warn("[CLIExportEngine] Image render failed:", error);
+            debugWarn("[CLIExportEngine] Image render failed:", error);
             resolve();
           }
         };
 
         img.onerror = () => {
           clearTimeout(timeout);
-          console.warn(
+          debugWarn(
             `[CLIExportEngine] Failed to load image: ${mediaItem.url}`
           );
           resolve();
@@ -243,7 +244,7 @@ export class CLIExportEngine extends ExportEngine {
 
         img.src = mediaItem.url!;
       } catch (error) {
-        console.warn("[CLIExportEngine] Image setup failed:", error);
+        debugWarn("[CLIExportEngine] Image setup failed:", error);
         resolve();
       }
     });
@@ -307,13 +308,13 @@ export class CLIExportEngine extends ExportEngine {
   }
 
   async export(progressCallback?: ProgressCallback): Promise<Blob> {
-    console.log("[CLIExportEngine] Starting CLI export...");
+    debugLog("[CLIExportEngine] Starting CLI export...");
 
     // Log original timeline duration
-    console.log(
+    debugLog(
       `[CLIExportEngine] 📏 Original timeline duration: ${this.totalDuration.toFixed(3)}s`
     );
-    console.log(
+    debugLog(
       `[CLIExportEngine] 🎬 Target frames: ${this.calculateTotalFrames()} frames at 30fps`
     );
 
@@ -341,23 +342,23 @@ export class CLIExportEngine extends ExportEngine {
       const videoBlob = await this.readOutputFile(outputFile);
 
       // Log exported video information
-      console.log(
+      debugLog(
         `[CLIExportEngine] 📦 Exported video size: ${(videoBlob.size / 1024 / 1024).toFixed(2)} MB`
       );
-      console.log(`[CLIExportEngine] 🔗 Blob type: ${videoBlob.type}`);
+      debugLog(`[CLIExportEngine] 🔗 Blob type: ${videoBlob.type}`);
 
       // Calculate and log expected vs actual video duration
       const expectedDuration = this.totalDuration;
       const actualFramesRendered = this.calculateTotalFrames();
       const calculatedDuration = actualFramesRendered / 30; // 30fps
 
-      console.log(
+      debugLog(
         `[CLIExportEngine] ⏱️  Expected duration: ${expectedDuration.toFixed(3)}s`
       );
-      console.log(
+      debugLog(
         `[CLIExportEngine] ⏱️  Calculated duration: ${calculatedDuration.toFixed(3)}s (${actualFramesRendered} frames / 30fps)`
       );
-      console.log(
+      debugLog(
         `[CLIExportEngine] 📊 Duration ratio: ${(calculatedDuration / expectedDuration).toFixed(3)}x`
       );
 
@@ -368,16 +369,16 @@ export class CLIExportEngine extends ExportEngine {
       return videoBlob;
     } finally {
       // For debugging: don't cleanup temp files so we can inspect frames
-      console.log(
+      debugLog(
         "[CLIExportEngine] 🔍 DEBUG: Keeping frames in temp directory for inspection"
       );
-      console.log(
+      debugLog(
         `[CLIExportEngine] 📁 Frames location: C:\\Users\\zdhpe\\AppData\\Local\\Temp\\qcut-export\\${this.sessionId}\\frames`
       );
-      console.log(
+      debugLog(
         "[CLIExportEngine] 🧪 TEST: Try this FFmpeg command manually:"
       );
-      console.log(
+      debugLog(
         `cd "C:\\Users\\zdhpe\\Desktop\\vite_opencut\\OpenCut-main\\qcut\\electron\\resources" && ffmpeg.exe -y -framerate 30 -i "C:\\Users\\zdhpe\\AppData\\Local\\Temp\\qcut-export\\${this.sessionId}\\frames\\frame-%04d.png" -c:v libx264 -preset fast -crf 23 -t 5 test-output.mp4`
       );
 
@@ -403,7 +404,7 @@ export class CLIExportEngine extends ExportEngine {
     const totalFrames = this.calculateTotalFrames();
     const frameTime = 1 / 30; // fps
 
-    console.log(`[CLI] Rendering ${totalFrames} frames to disk...`);
+    debugLog(`[CLI] Rendering ${totalFrames} frames to disk...`);
 
     for (let frame = 0; frame < totalFrames; frame++) {
       if (this.abortController?.signal.aborted) {
@@ -427,7 +428,7 @@ export class CLIExportEngine extends ExportEngine {
       );
     }
 
-    console.log(`[CLI] Rendered ${totalFrames} frames to ${this.frameDir}`);
+    debugLog(`[CLI] Rendered ${totalFrames} frames to ${this.frameDir}`);
   }
 
   private async saveFrameToDisk(frameName: string): Promise<void> {
@@ -454,12 +455,12 @@ export class CLIExportEngine extends ExportEngine {
 
       // Log success for debugging
       if (frameName === "frame-0000.png" || frameName === "frame-0001.png") {
-        console.log(
+        debugLog(
           `[CLIExportEngine] Saved ${frameName} (${base64Data.length} chars)`
         );
       }
     } catch (error) {
-      console.error(
+      debugError(
         `[CLIExportEngine] Failed to save frame ${frameName}:`,
         error
       );
@@ -512,19 +513,19 @@ export class CLIExportEngine extends ExportEngine {
       const actualDuration = video.duration;
       const expectedDuration = this.totalDuration;
 
-      console.log(
+      debugLog(
         `[CLIExportEngine] 🎥 Actual video duration: ${actualDuration.toFixed(3)}s`
       );
-      console.log(
+      debugLog(
         `[CLIExportEngine] 📈 Timeline vs Video ratio: ${(actualDuration / expectedDuration).toFixed(3)}x`
       );
 
       if (Math.abs(actualDuration - expectedDuration) > 0.1) {
-        console.warn(
+        debugWarn(
           `[CLIExportEngine] ⚠️  Duration mismatch detected! Expected: ${expectedDuration.toFixed(3)}s, Got: ${actualDuration.toFixed(3)}s`
         );
       } else {
-        console.log("[CLIExportEngine] ✅ Duration match within tolerance");
+        debugLog("[CLIExportEngine] ✅ Duration match within tolerance");
       }
 
       // Cleanup
@@ -532,7 +533,7 @@ export class CLIExportEngine extends ExportEngine {
     };
 
     video.onerror = () => {
-      console.warn(
+      debugWarn(
         "[CLIExportEngine] ⚠️  Could not determine actual video duration"
       );
       URL.revokeObjectURL(url);

@@ -61,10 +61,10 @@ export function ImageUploader({
 
   return (
     <Card>
-      <CardContent className="p-6">
+      <CardContent className="p-4">
         <div
           className={cn(
-            "border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer",
+            "border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer",
             dragActive
               ? "border-primary bg-primary/5"
               : "border-muted-foreground/25 hover:border-muted-foreground/50 hover:bg-muted/25",
@@ -87,44 +87,41 @@ export function ImageUploader({
           />
 
           {uploading ? (
-            <div className="flex flex-col items-center gap-4">
-              <Loader2 className="size-8 text-primary animate-spin" />
-              <div>
+            <div className="flex items-center gap-3 py-1">
+              <Loader2 className="size-5 text-primary animate-spin" />
+              <div className="text-left">
                 <p className="text-sm font-medium">Loading image...</p>
                 <p className="text-xs text-muted-foreground">
-                  Please wait while we process your image
+                  Processing your image
                 </p>
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-4">
-              <div className="flex items-center justify-center size-16 rounded-full bg-muted/50">
+            <div className="flex items-center gap-3 py-1">
+              <div className="flex items-center justify-center size-10 rounded-full bg-muted/50 shrink-0">
                 {dragActive ? (
-                  <FileImage className="size-8 text-primary" />
+                  <FileImage className="size-5 text-primary" />
                 ) : (
-                  <Upload className="size-8 text-muted-foreground" />
+                  <Upload className="size-5 text-muted-foreground" />
                 )}
               </div>
 
-              <div>
-                <p className="text-sm font-medium mb-1">
+              <div className="text-left flex-1">
+                <p className="text-sm font-medium leading-tight">
                   {dragActive ? "Drop image here" : "Upload an image to edit"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Drag & drop or click to browse
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Supports JPEG, PNG, WebP • Max 50MB
+                  Drag & drop or click • JPEG, PNG, WebP
                 </p>
               </div>
 
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-2 !bg-transparent !border-transparent"
+                className="h-7 text-xs !bg-transparent !border-transparent shrink-0"
               >
-                <ImageIcon className="size-4 mr-2" />
-                Choose Image
+                <ImageIcon className="size-3 mr-1" />
+                Browse
               </Button>
             </div>
           )}

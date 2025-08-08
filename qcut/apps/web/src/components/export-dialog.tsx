@@ -1,13 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
-import { useExportStore, ExportHistoryEntry } from "@/stores/export-store";
+import React, { useRef } from "react";
+import { useExportStore } from "@/stores/export-store";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
 import { ExportCanvas, ExportCanvasRef } from "@/components/export-canvas";
-import { ExportEngine } from "@/lib/export-engine";
-import {
-  ExportEngineFactory,
-  ExportEngineType,
-} from "@/lib/export-engine-factory";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,774 +15,290 @@ import {
   X,
   AlertTriangle,
   Square,
-  History,
-  Clock,
-  FileText,
 } from "lucide-react";
 import {
   ExportQuality,
   ExportFormat,
   QUALITY_RESOLUTIONS,
-  QUALITY_SIZE_ESTIMATES,
   FORMAT_INFO,
-  getSupportedFormats,
   isValidFilename,
   EXPORT_PRESETS,
-  ExportPreset,
 } from "@/types/export";
-import {
-  calculateMemoryUsage,
-  getMemoryWarningMessage,
-} from "@/lib/memory-utils";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import { useElectron } from "@/hooks/useElectron";
+import { PlatformIcon } from "@/components/export-icons";
+
+// NEW: Custom hook imports
+import { useExportSettings } from "@/hooks/use-export-settings";
+import { useExportProgress } from "@/hooks/use-export-progress";
+import { useExportValidation } from "@/hooks/use-export-validation";
+import { useExportPresets } from "@/hooks/use-export-presets";
 
 export function ExportDialog() {
-  const {
-    isDialogOpen,
-    setDialogOpen,
-    settings,
-    updateSettings,
-    progress,
-    updateProgress,
-    setError,
-    resetExport,
-    error,
-    exportHistory,
-    addToHistory,
-    getRecentExports,
-    replayExport,
-  } = useExportStore();
-
-  const { getTotalDuration, tracks } = useTimelineStore();
-  const {
-    mediaItems,
-    loading: mediaItemsLoading,
-    error: mediaItemsError,
-  } = useAsyncMediaItems();
+  const { isDialogOpen, setDialogOpen, error } = useExportStore();
+  const { getTotalDuration } = useTimelineStore();
+  const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems();
+  
   const canvasRef = useRef<ExportCanvasRef>(null);
-
-  // Local state for form inputs
-  const [quality, setQuality] = useState<ExportQuality>(settings.quality);
-  const [format, setFormat] = useState<ExportFormat>(settings.format);
-  const [filename, setFilename] = useState(settings.filename);
-
-  // Get supported formats
-  const supportedFormats = getSupportedFormats();
-
-  // Engine recommendation state
-  const [engineRecommendation, setEngineRecommendation] = useState<
-    string | null
-  >(null);
-
-  // Electron detection
   const { isElectron } = useElectron();
 
-  // FFmpeg engine state - auto-select CLI for Electron, standard for browser
-  const [engineType, setEngineType] = useState<"standard" | "ffmpeg" | "cli">(
-    isElectron() ? "cli" : "standard"
-  );
-  const [ffmpegAvailable, setFfmpegAvailable] = useState(false);
-
-  // Current export engine reference for cancellation
-  const currentEngineRef = useRef<ExportEngine | null>(null);
-
-  // Preset selection state
-  const [selectedPreset, setSelectedPreset] = useState<ExportPreset | null>(
-    null
-  );
-
-  // Export timing state
-  const [exportStartTime, setExportStartTime] = useState<Date | null>(null);
-
-  // Helper functions
-  const getResolution = (quality: ExportQuality) =>
-    QUALITY_RESOLUTIONS[quality];
-  const getEstimatedSize = (quality: ExportQuality) =>
-    QUALITY_SIZE_ESTIMATES[quality];
-  const timelineDuration = getTotalDuration();
-  const resolution = getResolution(quality);
-  const estimatedSize = getEstimatedSize(quality);
-
-  // Calculate memory usage
-  const memoryEstimate = calculateMemoryUsage(
+  // REPLACE: All state declarations (lines 72-100) with custom hooks
+  const exportSettings = useExportSettings();
+  const exportProgress = useExportProgress();
+  const exportValidation = useExportValidation(
     {
-      ...settings,
-      quality,
-      format,
-      width: resolution.width,
-      height: resolution.height,
+      quality: exportSettings.quality,
+      format: exportSettings.format,
+      filename: exportSettings.filename,
+      width: exportSettings.resolution.width,
+      height: exportSettings.resolution.height,
     },
-    timelineDuration
+    exportSettings.timelineDuration
   );
-
-  const memoryWarning = getMemoryWarningMessage(memoryEstimate);
-
-  // Get engine recommendation when dialog opens or settings change
-  useEffect(() => {
-    if (isDialogOpen && timelineDuration > 0) {
-      const getRecommendation = async () => {
-        try {
-          const factory = ExportEngineFactory.getInstance();
-          const recommendation = await factory.getEngineRecommendation(
-            {
-              ...settings,
-              quality,
-              format,
-              width: resolution.width,
-              height: resolution.height,
-            },
-            timelineDuration
-          );
-
-          const engineLabels = {
-            [ExportEngineType.STANDARD]: "Standard Engine",
-            [ExportEngineType.OPTIMIZED]: "Optimized Engine",
-            [ExportEngineType.WEBCODECS]: "WebCodecs Engine",
-            [ExportEngineType.FFMPEG]: "FFmpeg Engine",
-            [ExportEngineType.CLI]: "Native FFmpeg CLI",
-          };
-
-          const label = engineLabels[recommendation.engineType];
-          const performance =
-            recommendation.estimatedPerformance.charAt(0).toUpperCase() +
-            recommendation.estimatedPerformance.slice(1);
-
-          setEngineRecommendation(`${label} (${performance} Performance)`);
-        } catch (error) {
-          console.warn("Failed to get engine recommendation:", error);
-          setEngineRecommendation(null);
-        }
-      };
-
-      getRecommendation();
-    }
-  }, [
-    isDialogOpen,
-    quality,
-    format,
-    timelineDuration,
-    resolution.width,
-    resolution.height,
-    settings,
-  ]);
-
-  // Check FFmpeg availability on mount
-  useEffect(() => {
-    ExportEngineFactory.isFFmpegAvailable().then(setFfmpegAvailable);
-  }, []);
-
-  // Handle form changes
-  const handleQualityChange = (newQuality: ExportQuality) => {
-    setQuality(newQuality);
-    updateSettings({ quality: newQuality });
-    clearPreset(); // Clear preset when manually changing settings
-  };
-
-  const handleFormatChange = (newFormat: ExportFormat) => {
-    console.log("Format changing from", format, "to", newFormat);
-    setFormat(newFormat);
-    updateSettings({ format: newFormat });
-    clearPreset(); // Clear preset when manually changing settings
-  };
-
-  const handleFilenameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newFilename = e.target.value;
-    setFilename(newFilename);
-    updateSettings({ filename: newFilename });
-  };
-
-  const handlePresetSelect = (preset: ExportPreset) => {
-    // Apply preset settings
-    setQuality(preset.quality);
-    setFormat(preset.format);
-    setSelectedPreset(preset);
-
-    // Update store settings
-    updateSettings({
-      quality: preset.quality,
-      format: preset.format,
-    });
-
-    // Generate filename based on preset
-    const presetFilename = `${preset.name.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Date.now()}`;
-    setFilename(presetFilename);
-    updateSettings({ filename: presetFilename });
-
-    // Show confirmation
-    toast.success(`Applied ${preset.name} preset`, {
-      description: preset.description,
-    });
-  };
-
-  const clearPreset = () => {
-    setSelectedPreset(null);
-  };
+  const exportPresets = useExportPresets(
+    exportSettings.handleQualityChange,
+    exportSettings.handleFormatChange,
+    exportSettings.handleFilenameChange,
+    exportSettings.updateSettings
+  );
 
   const handleClose = () => {
-    if (!progress.isExporting) {
+    if (!exportProgress.progress.isExporting) {
       setDialogOpen(false);
     }
   };
 
-  const handleCancel = () => {
-    if (currentEngineRef.current && progress.isExporting) {
-      currentEngineRef.current.cancel();
-      currentEngineRef.current = null;
-
-      // Reset export state
-      updateProgress({
-        progress: 0,
-        status: "Export cancelled",
-        isExporting: false,
-      });
-
-      toast.info("Export cancelled by user");
-
-      // Reset after a brief moment
-      setTimeout(() => {
-        resetExport();
-      }, 1000);
-    }
-  };
-
+  // REPLACE: Complex export handler (lines 254-400) with hook call
   const handleExport = async (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
 
-    // Reset any previous errors
-    setError(null);
-    resetExport();
-
-    // Record export start time
-    const startTime = new Date();
-    setExportStartTime(startTime);
-
-    try {
-      // Get canvas element
-      const canvas = canvasRef.current?.getCanvas();
-      if (!canvas) {
-        throw new Error("Canvas not available for export");
-      }
-
-      // Update canvas dimensions before export
-      canvasRef.current?.updateDimensions();
-
-      // Get timeline duration
-      const totalDuration = getTotalDuration();
-      if (totalDuration === 0) {
-        throw new Error(
-          "Timeline is empty - add some content before exporting"
-        );
-      }
-
-      // Create export engine using factory for optimal performance
-      const factory = ExportEngineFactory.getInstance();
-
-      // Let factory auto-recommend for Electron, otherwise use manual selection
-      let selectedEngineType: ExportEngineType | undefined;
-      if (isElectron()) {
-        // For Electron, let factory automatically recommend (will choose CLI)
-        console.log(
-          "[ExportDialog] 🖥️  Electron detected - letting factory auto-recommend engine"
-        );
-        selectedEngineType = undefined; // Let factory decide
-      } else {
-        // For browser, use manual selection
-        selectedEngineType =
-          engineType === "cli"
-            ? ExportEngineType.CLI
-            : engineType === "ffmpeg"
-              ? ExportEngineType.FFMPEG
-              : ExportEngineType.STANDARD;
-      }
-
-      const exportEngine = await factory.createEngine(
-        canvas,
-        {
-          ...settings,
-          quality,
-          format,
-          width: resolution.width,
-          height: resolution.height,
-        },
-        tracks,
-        mediaItems,
-        totalDuration,
-        selectedEngineType
-      );
-
-      // Store engine reference for cancellation
-      currentEngineRef.current = exportEngine;
-
-      // Progress callback to update UI with advanced progress info
-      const progressCallback = (
-        progressValue: number,
-        status: string,
-        advancedInfo?: any
-      ) => {
-        updateProgress({
-          progress: progressValue,
-          status,
-          isExporting: true,
-          currentFrame: advancedInfo?.currentFrame || 0,
-          totalFrames: advancedInfo?.totalFrames || 0,
-          encodingSpeed: advancedInfo?.encodingSpeed || 0,
-          processedFrames: advancedInfo?.processedFrames || 0,
-          elapsedTime: advancedInfo?.elapsedTime || 0,
-          averageFrameTime: advancedInfo?.averageFrameTime || 0,
-          estimatedTimeRemaining: advancedInfo?.estimatedTimeRemaining || 0,
-          startTime: exportStartTime || undefined,
-        });
-      };
-
-      // Start export with download
-      await exportEngine.exportAndDownload(filename, progressCallback);
-
-      // Export completed successfully
-      updateProgress({
-        progress: 100,
-        status: "Export complete!",
-        isExporting: false,
-      });
-
-      // Calculate export duration
-      const endTime = new Date();
-      const exportDuration = (endTime.getTime() - startTime.getTime()) / 1000; // seconds
-
-      // Add to export history
-      addToHistory({
-        filename,
-        settings: {
-          ...settings,
-          quality,
-          format,
-          width: resolution.width,
-          height: resolution.height,
-        },
-        duration: exportDuration,
-        success: true,
-      });
-
-      // Show success toast notification
-      toast.success("Video exported successfully!", {
-        description: `${filename}${FORMAT_INFO[format].extension} has been downloaded to your device. Export took ${exportDuration.toFixed(1)}s.`,
-      });
-
-      // Clear engine reference
-      currentEngineRef.current = null;
-
-      // Close dialog after successful export
-      setTimeout(() => {
-        setDialogOpen(false);
-        resetExport();
-      }, 2000);
-    } catch (error) {
-      // Log detailed error information for debugging
-      console.error("Export failed:", error);
-      console.error("Export context:", {
-        canvasAvailable: !!canvasRef.current?.getCanvas(),
-        timelineDuration: getTotalDuration(),
-        tracksCount: tracks.length,
-        mediaItemsCount: mediaItems.length,
-        settings,
-      });
-
-      // Get user-friendly error message
-      let errorMessage = "Export failed";
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-
-      // Calculate export duration for failed export
-      const endTime = new Date();
-      const exportDuration = exportStartTime
-        ? (endTime.getTime() - exportStartTime.getTime()) / 1000
-        : 0;
-
-      // Add failed export to history (unless cancelled)
-      if (!errorMessage.includes("cancelled")) {
-        addToHistory({
-          filename,
-          settings: {
-            ...settings,
-            quality,
-            format,
-            width: resolution.width,
-            height: resolution.height,
-          },
-          duration: exportDuration,
-          success: false,
-          error: errorMessage,
-        });
-      }
-
-      // Clear engine reference
-      currentEngineRef.current = null;
-
-      // Set error in store for UI display
-      setError(errorMessage);
-
-      // Show appropriate toast based on error type
-      if (errorMessage.includes("cancelled")) {
-        toast.info("Export cancelled by user");
-      } else {
-        toast.error("Export failed", {
-          description: errorMessage,
-        });
-      }
-
-      // Reset progress on error
-      updateProgress({
-        progress: 0,
-        status: "",
-        isExporting: false,
-      });
+    const canvas = canvasRef.current?.getCanvas();
+    if (!canvas) {
+      // Use the export store's error handling
+      useExportStore.getState().setError("Canvas not available for export");
+      return;
     }
+
+    canvasRef.current?.updateDimensions();
+
+    await exportProgress.handleExport(canvas, exportSettings.timelineDuration, {
+      quality: exportSettings.quality,
+      format: exportSettings.format,
+      filename: exportSettings.filename,
+      engineType: exportSettings.engineType,
+      resolution: exportSettings.resolution,
+    });
   };
-
-  if (!isDialogOpen) return null;
-
-  // Handle media loading states
-  if (mediaItemsError) {
-    return (
-      <div 
-        className="h-full flex flex-col bg-background"
-        style={{ borderRadius: '0.375rem', overflow: 'hidden' }}>
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <h2 className="text-lg font-semibold">Export Video</h2>
-            <Button
-              variant="text"
-              size="icon"
-              onClick={handleClose}
-              className="h-8 w-8"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="flex-1 flex items-center justify-center p-4">
-            <div className="text-center">
-              <div className="text-red-500 mb-2">
-                Failed to load media items
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {mediaItemsError.message}
-              </div>
-            </div>
-          </div>
-      </div>
-    );
-  }
 
   if (mediaItemsLoading) {
     return (
-      <div 
-        className="h-full flex flex-col bg-background"
-        style={{ borderRadius: '0.375rem', overflow: 'hidden' }}>
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <h2 className="text-lg font-semibold">Export Video</h2>
-            <Button
-              variant="text"
-              size="icon"
-              onClick={handleClose}
-              className="h-8 w-8"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+      <div className="h-full flex flex-col bg-background" 
+           style={{ borderRadius: '0.375rem', overflow: 'hidden' }}>
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+            <span>Loading export dialog...</span>
           </div>
-          <div className="flex-1 flex items-center justify-center p-4">
-            <div className="flex items-center space-x-2">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-              <span>Loading export dialog...</span>
-            </div>
-          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div 
-      className="h-full flex flex-col bg-background" 
-      style={{ borderRadius: '0.375rem', overflow: 'hidden' }}>
-      {/* Header */}
+    <div className="h-full flex flex-col bg-background" 
+         style={{ borderRadius: '0.375rem', overflow: 'hidden' }}>
+      
       <div className="flex items-center justify-between p-4 border-b border-border">
-          <div>
-            <h2 className="text-lg font-semibold">Export Video</h2>
-            <p className="text-sm text-muted-foreground">
-              Configure export settings and render your video
-            </p>
-          </div>
-          <Button
-            variant="text"
-            size="icon"
-            onClick={handleClose}
-            disabled={progress.isExporting}
-            className="h-8 w-8"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+        <div>
+          <h2 className="text-lg font-semibold">Export Video</h2>
+          <p className="text-sm text-muted-foreground">
+            Configure export settings and render your video
+          </p>
         </div>
+        <Button
+          variant="text"
+          size="icon"
+          onClick={handleClose}
+          disabled={exportProgress.progress.isExporting}
+          className="h-8 w-8"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
 
-        {/* Export Button - Top Section */}
-        <div className="p-4 border-b border-border space-y-4">
-          {progress.isExporting ? (
-            <div className="space-y-2">
-              <Button
-                onClick={handleCancel}
-                variant="destructive"
-                className="w-full"
-                size="lg"
-              >
-                <Square className="w-4 h-4 mr-2" />
-                Cancel Export
-              </Button>
-              <p className="text-xs text-muted-foreground text-center">
-                Export in progress - click to cancel
-              </p>
-            </div>
-          ) : (
+      <div className="p-4 border-b border-border space-y-4">
+        {exportProgress.progress.isExporting ? (
+          <div className="space-y-2">
             <Button
-              type="button"
-              onClick={handleExport}
-              disabled={
-                !isValidFilename(filename) ||
-                timelineDuration === 0 ||
-                !memoryEstimate.canExport
-              }
+              onClick={exportProgress.handleCancel}
+              variant="destructive"
               className="w-full"
               size="lg"
             >
-              <Download className="w-4 h-4 mr-2" />
-              Export Video
+              <Square className="w-4 h-4 mr-2" />
+              Cancel Export
             </Button>
-          )}
+            <p className="text-xs text-muted-foreground text-center">
+              Export in progress - click to cancel
+            </p>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            onClick={handleExport}
+            disabled={!exportValidation.canExport}
+            className="w-full"
+            size="lg"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export Video
+          </Button>
+        )}
 
-          {/* Progress Display - Right below button */}
-          {progress.isExporting && (
-            <div className="space-y-3 p-4 bg-muted/50 rounded-md">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium">Export Progress</span>
-                <span>{progress.progress.toFixed(0)}%</span>
-              </div>
-              <Progress value={progress.progress} className="w-full" />
-              <p className="text-sm text-muted-foreground">{progress.status}</p>
+        {exportProgress.progress.isExporting && (
+          <div className="space-y-3 p-4 bg-muted/50 rounded-md">
+            <div className="flex justify-between text-sm">
+              <span className="font-medium">Export Progress</span>
+              <span>{exportProgress.progress.progress.toFixed(0)}%</span>
+            </div>
+            <Progress value={exportProgress.progress.progress} className="w-full" />
+            <p className="text-sm text-muted-foreground">{exportProgress.progress.status}</p>
 
-              {/* Advanced Progress Information */}
-              {progress.currentFrame > 0 && progress.totalFrames > 0 && (
-                <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-2 border-t border-border">
+            {/* Advanced Progress Information */}
+            {exportProgress.progress.currentFrame > 0 && exportProgress.progress.totalFrames > 0 && (
+              <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-2 border-t border-border">
+                <div>
+                  <span className="font-medium">Frames:</span>
+                  <span className="ml-1">
+                    {exportProgress.progress.currentFrame} / {exportProgress.progress.totalFrames}
+                  </span>
+                </div>
+                {exportProgress.progress.encodingSpeed && exportProgress.progress.encodingSpeed > 0 && (
                   <div>
-                    <span className="font-medium">Frames:</span>
+                    <span className="font-medium">Speed:</span>
                     <span className="ml-1">
-                      {progress.currentFrame} / {progress.totalFrames}
+                      {exportProgress.progress.encodingSpeed.toFixed(1)} fps
                     </span>
                   </div>
-                  {progress.encodingSpeed && progress.encodingSpeed > 0 && (
-                    <div>
-                      <span className="font-medium">Speed:</span>
-                      <span className="ml-1">
-                        {progress.encodingSpeed.toFixed(1)} fps
-                      </span>
-                    </div>
-                  )}
-                  {progress.elapsedTime && progress.elapsedTime > 0 && (
-                    <div>
-                      <span className="font-medium">Elapsed:</span>
-                      <span className="ml-1">
-                        {progress.elapsedTime.toFixed(1)}s
-                      </span>
-                    </div>
-                  )}
-                  {progress.estimatedTimeRemaining &&
-                    progress.estimatedTimeRemaining > 0 && (
-                      <div>
-                        <span className="font-medium">Remaining:</span>
-                        <span className="ml-1">
-                          {progress.estimatedTimeRemaining < 60
-                            ? `${progress.estimatedTimeRemaining.toFixed(0)}s`
-                            : `${Math.floor(progress.estimatedTimeRemaining / 60)}m ${Math.floor(progress.estimatedTimeRemaining % 60)}s`}
-                        </span>
-                      </div>
-                    )}
+                )}
+                {exportProgress.progress.elapsedTime && exportProgress.progress.elapsedTime > 0 && (
+                  <div>
+                    <span className="font-medium">Elapsed:</span>
+                    <span className="ml-1">
+                      {exportProgress.progress.elapsedTime.toFixed(1)}s
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Settings Section - Scrollable Content */}
+      <div className="flex-1 overflow-auto p-4 space-y-4">
+        
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          {EXPORT_PRESETS.map((preset) => (
+            <Button
+              key={preset.name}
+              variant={exportPresets.selectedPreset?.name === preset.name ? "default" : "outline"}
+              size="sm"
+              onClick={() => exportPresets.handlePresetSelect(preset)}
+              className="text-xs p-3 h-auto overflow-hidden"
+              disabled={exportProgress.progress.isExporting}
+            >
+              <div className="flex flex-col items-center gap-1.5 w-full">
+                <PlatformIcon presetId={preset.id} className="size-5 shrink-0" />
+                <div className="flex flex-col items-center gap-0.5 w-full">
+                  <span className="font-medium text-xs">{preset.name}</span>
+                  <span className="text-[0.6rem] opacity-70 leading-tight text-center line-clamp-2">
+                    {preset.description}
+                  </span>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            </Button>
+          ))}
         </div>
 
-        {/* Content */}
-        <div 
-          className="flex-1 overflow-y-auto p-4 space-y-6"
-          style={{ borderBottomLeftRadius: '0.375rem', borderBottomRightRadius: '0.375rem' }}>
-          {/* Export History */}
-          {exportHistory.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <History className="w-4 h-4" />
-                  Recent Exports
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  Quick re-export with previous settings
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {getRecentExports(3).map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="flex items-center justify-between p-2 bg-muted rounded-md hover:bg-muted/80 transition-colors"
-                    >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <div
-                          className={cn(
-                            "w-2 h-2 rounded-full flex-shrink-0",
-                            entry.success ? "bg-green-500" : "bg-red-500"
-                          )}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                            <span className="text-sm font-medium truncate">
-                              {entry.filename}
-                              {FORMAT_INFO[entry.settings.format].extension}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                            <span>
-                              {entry.settings.quality} •{" "}
-                              {FORMAT_INFO[entry.settings.format].label}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              <span>{entry.duration.toFixed(1)}s</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        variant="text"
-                        size="sm"
-                        onClick={() => replayExport(entry.id)}
-                        className="h-8 px-2 text-xs flex-shrink-0"
-                        disabled={progress.isExporting}
-                      >
-                        Re-export
-                      </Button>
-                    </div>
-                  ))}
-                  {exportHistory.length > 3 && (
-                    <p className="text-xs text-muted-foreground text-center pt-1">
-                      {exportHistory.length - 3} more exports in history
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        {exportPresets.selectedPreset && (
+          <div className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+            <span className="text-sm">
+              Using <span className="font-medium">{exportPresets.selectedPreset.name}</span> preset
+            </span>
+            <Button
+              variant="text"
+              size="sm"
+              onClick={exportPresets.clearPreset}
+              className="h-6 px-2 text-xs"
+            >
+              Clear
+            </Button>
+          </div>
+        )}
 
-          {/* Export Presets */}
-          <Card>
+        <div className="grid grid-cols-2 gap-3">
+          
+          <Card className="col-span-2">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Quick Presets</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Choose a preset optimized for your platform
-              </p>
+              <CardTitle className="text-sm">File Name</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-2">
-                {EXPORT_PRESETS.map((preset) => (
-                  <Button
-                    key={preset.id}
-                    variant={
-                      selectedPreset?.id === preset.id ? "default" : "outline"
-                    }
-                    size="sm"
-                    onClick={() => handlePresetSelect(preset)}
-                    className="h-auto min-h-[6rem] p-3 flex-col items-start gap-1 text-left justify-start"
-                  >
-                    <div className="flex items-start gap-2 w-full">
-                      <span className="text-lg flex-shrink-0 mt-0.5">
-                        {preset.icon}
-                      </span>
-                      <div className="flex-1 overflow-hidden">
-                        <div className="font-medium text-sm leading-tight break-words">
-                          {preset.name}
-                        </div>
-                        <div className="text-xs text-muted-foreground text-left leading-relaxed mt-1 break-words">
-                          {preset.description}
-                        </div>
-                      </div>
-                    </div>
-                  </Button>
-                ))}
-              </div>
-              {selectedPreset && (
-                <div className="mt-3 p-2 bg-muted rounded-md">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">
-                      {selectedPreset.icon} {selectedPreset.name} Applied
-                    </span>
-                    <Button
-                      variant="text"
-                      size="sm"
-                      onClick={clearPreset}
-                      className="h-6 px-2 text-xs"
-                    >
-                      Clear
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {selectedPreset.description}
-                  </p>
-                </div>
+              <Input
+                type="text"
+                value={exportSettings.filename}
+                onChange={(e) => exportSettings.handleFilenameChange(e.target.value)}
+                placeholder="Enter filename"
+                disabled={exportProgress.progress.isExporting}
+                className="text-sm"
+              />
+              {!exportValidation.hasValidFilename && exportSettings.filename && (
+                <p className="text-xs text-red-500 mt-1">
+                  Invalid filename. Use only letters, numbers, hyphens, and underscores.
+                </p>
               )}
             </CardContent>
           </Card>
 
-          {/* Quality Selection */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Quality</CardTitle>
             </CardHeader>
             <CardContent>
-              <RadioGroup value={quality} onValueChange={handleQualityChange}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value={ExportQuality.HIGH} id="1080p" />
-                  <Label htmlFor="1080p" className="text-sm cursor-pointer">
-                    1080p (High Quality) -{" "}
-                    {QUALITY_RESOLUTIONS[ExportQuality.HIGH].label}
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value={ExportQuality.MEDIUM} id="720p" />
-                  <Label htmlFor="720p" className="text-sm cursor-pointer">
-                    720p (Medium Quality) -{" "}
-                    {QUALITY_RESOLUTIONS[ExportQuality.MEDIUM].label}
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value={ExportQuality.LOW} id="480p" />
-                  <Label htmlFor="480p" className="text-sm cursor-pointer">
-                    480p (Low Quality) -{" "}
-                    {QUALITY_RESOLUTIONS[ExportQuality.LOW].label}
-                  </Label>
-                </div>
+              <RadioGroup
+                value={exportSettings.quality}
+                onValueChange={(value) => exportSettings.handleQualityChange(value as ExportQuality)}
+                disabled={exportProgress.progress.isExporting}
+              >
+                {Object.values(ExportQuality).map((q) => {
+                  const resolution = QUALITY_RESOLUTIONS[q];
+                  if (!resolution) return null;
+                  return (
+                    <div key={q} className="flex items-center space-x-2">
+                      <RadioGroupItem value={q} id={q} />
+                      <Label htmlFor={q} className="text-sm cursor-pointer">
+                        <div>
+                          <div className="font-medium">{resolution.label}</div>
+                          <div className="text-xs text-muted-foreground">~{exportSettings.estimatedSize}</div>
+                        </div>
+                      </Label>
+                    </div>
+                  );
+                })}
               </RadioGroup>
             </CardContent>
           </Card>
 
-          {/* Engine Selection */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Encoding Engine</CardTitle>
+              <CardTitle className="text-sm">Export Engine</CardTitle>
             </CardHeader>
             <CardContent>
               <RadioGroup
-                value={engineType}
-                onValueChange={(value) =>
-                  setEngineType(value as "standard" | "ffmpeg" | "cli")
-                }
+                value={exportSettings.engineType}
+                onValueChange={(value) => exportSettings.setEngineType(value as "standard" | "ffmpeg" | "cli")}
+                disabled={exportProgress.progress.isExporting}
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="standard" id="standard" />
@@ -795,7 +306,7 @@ export function ExportDialog() {
                     📹 Standard MediaRecorder
                   </Label>
                 </div>
-                {ffmpegAvailable && (
+                {exportSettings.ffmpegAvailable && (
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="ffmpeg" id="ffmpeg" />
                     <Label htmlFor="ffmpeg" className="text-sm cursor-pointer">
@@ -813,28 +324,26 @@ export function ExportDialog() {
                 )}
               </RadioGroup>
               <p className="text-xs text-muted-foreground mt-2">
-                {engineType === "cli"
+                {exportSettings.engineType === "cli"
                   ? "⚡ Native FFmpeg CLI provides maximum performance with hardware acceleration"
-                  : engineType === "ffmpeg"
+                  : exportSettings.engineType === "ffmpeg"
                     ? "🚀 FFmpeg WASM provides 5x faster encoding than standard MediaRecorder"
                     : "📹 Standard MediaRecorder (compatible with all browsers)"}
               </p>
             </CardContent>
           </Card>
 
-          {/* Format Selection */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Format</CardTitle>
             </CardHeader>
             <CardContent>
               <RadioGroup
-                value={format}
-                onValueChange={(value) =>
-                  handleFormatChange(value as ExportFormat)
-                }
+                value={exportSettings.format}
+                onValueChange={(value) => exportSettings.handleFormatChange(value as ExportFormat)}
+                disabled={exportProgress.progress.isExporting}
               >
-                {supportedFormats.map((fmt) => (
+                {exportSettings.supportedFormats.map((fmt) => (
                   <div key={fmt} className="flex items-center space-x-2">
                     <RadioGroupItem value={fmt} id={fmt} />
                     <Label htmlFor={fmt} className="text-sm cursor-pointer">
@@ -853,171 +362,142 @@ export function ExportDialog() {
             </CardContent>
           </Card>
 
-          {/* File Information */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Export Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center">
                   <span className="font-medium">Resolution:</span>
-                  <span className="ml-2 text-muted-foreground">
-                    {resolution.label}
+                  <span className="text-muted-foreground">
+                    {exportSettings.resolution?.label || 'N/A'}
                   </span>
                 </div>
-                <div>
+                <div className="flex justify-between items-center">
                   <span className="font-medium">Est. size:</span>
-                  <span className="ml-2 text-muted-foreground">
-                    {estimatedSize}
+                  <span className="text-muted-foreground">
+                    {exportSettings.estimatedSize}
                   </span>
                 </div>
-                <div>
+                <div className="flex justify-between items-center">
                   <span className="font-medium">Duration:</span>
                   <span
                     className={cn(
-                      "ml-2",
-                      timelineDuration === 0
+                      exportSettings.timelineDuration === 0
                         ? "text-red-500"
                         : "text-muted-foreground"
                     )}
                   >
-                    {timelineDuration === 0
+                    {exportSettings.timelineDuration === 0
                       ? "No content"
-                      : `${timelineDuration.toFixed(2)}s`}
+                      : `${exportSettings.timelineDuration.toFixed(2)}s`}
                   </span>
                 </div>
-                <div>
+                <div className="flex justify-between items-center">
                   <span className="font-medium">Format:</span>
-                  <span className="ml-2 text-muted-foreground">
-                    {FORMAT_INFO[format].label}
+                  <span className="text-muted-foreground">
+                    {FORMAT_INFO[exportSettings.format].label}
                   </span>
                 </div>
-                {engineRecommendation && (
-                  <div>
+                {exportSettings.engineRecommendation && (
+                  <div className="flex justify-between items-center">
                     <span className="font-medium">Engine:</span>
-                    <span className="ml-2 text-muted-foreground">
-                      {engineRecommendation}
+                    <span className="text-muted-foreground">
+                      {exportSettings.engineRecommendation}
                     </span>
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
+        </div>
 
-          {/* Filename Input */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Filename</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center space-x-2">
-                <Input
-                  value={filename}
-                  onChange={handleFilenameChange}
-                  placeholder="Enter filename"
-                  className={cn(!isValidFilename(filename) && "border-red-500")}
-                />
-                <span className="text-sm text-muted-foreground">
-                  {FORMAT_INFO[format].extension}
-                </span>
-              </div>
-              {!isValidFilename(filename) && (
-                <p className="text-sm text-red-500 mt-2">
-                  Invalid filename. Avoid special characters: &lt; &gt; : " / \
-                  | ? *
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Memory Warnings */}
-          {memoryWarning && memoryEstimate.warningLevel !== "none" && (
-            <Alert
+        
+        {/* Memory Warning */}
+        {exportValidation.memoryWarning && (
+          <Alert
+            className={cn(
+              "border-yellow-500 bg-yellow-50",
+              exportValidation.memoryEstimate.warningLevel === "maximum" ||
+                exportValidation.memoryEstimate.warningLevel === "critical"
+                ? "border-red-500 bg-red-50"
+                : "border-yellow-500 bg-yellow-50"
+            )}
+          >
+            <AlertTriangle
               className={cn(
-                memoryEstimate.warningLevel === "maximum"
-                  ? "border-red-500 bg-red-50"
-                  : memoryEstimate.warningLevel === "critical"
-                    ? "border-red-500 bg-red-50"
-                    : "border-yellow-500 bg-yellow-50"
+                "h-4 w-4",
+                exportValidation.memoryEstimate.warningLevel === "maximum" ||
+                  exportValidation.memoryEstimate.warningLevel === "critical"
+                  ? "text-red-600"
+                  : "text-yellow-600"
+              )}
+            />
+            <AlertDescription
+              className={cn(
+                exportValidation.memoryEstimate.warningLevel === "maximum" ||
+                  exportValidation.memoryEstimate.warningLevel === "critical"
+                  ? "text-red-800"
+                  : "text-yellow-800"
               )}
             >
-              <AlertTriangle
-                className={cn(
-                  "h-4 w-4",
-                  memoryEstimate.warningLevel === "maximum" ||
-                    memoryEstimate.warningLevel === "critical"
-                    ? "text-red-600"
-                    : "text-yellow-600"
-                )}
-              />
-              <AlertDescription
-                className={cn(
-                  memoryEstimate.warningLevel === "maximum" ||
-                    memoryEstimate.warningLevel === "critical"
-                    ? "text-red-800"
-                    : "text-yellow-800"
-                )}
-              >
-                <div className="font-medium">
-                  {memoryEstimate.warningLevel === "maximum"
-                    ? "Export Blocked"
-                    : memoryEstimate.warningLevel === "critical"
-                      ? "High Memory Usage"
-                      : "Memory Warning"}
+              <div className="font-medium">
+                {exportValidation.memoryEstimate.warningLevel === "maximum"
+                  ? "Export Blocked"
+                  : exportValidation.memoryEstimate.warningLevel === "critical"
+                    ? "High Memory Usage"
+                    : "Memory Warning"}
+              </div>
+              <div>{exportValidation.memoryWarning}</div>
+              {exportValidation.memoryEstimate.recommendation && (
+                <div className="mt-1 text-sm">
+                  <strong>Recommendation:</strong> Switch to{" "}
+                  {exportValidation.memoryEstimate.recommendation.suggestedQuality} quality (
+                  {exportValidation.memoryEstimate.recommendation.description})
                 </div>
-                <div>{memoryWarning}</div>
-                {memoryEstimate.recommendation && (
-                  <div className="mt-1 text-sm">
-                    <strong>Recommendation:</strong> Switch to{" "}
-                    {memoryEstimate.recommendation.suggestedQuality} quality (
-                    {memoryEstimate.recommendation.description})
-                  </div>
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
 
-          {/* Timeline Warnings */}
-          {timelineDuration === 0 && (
-            <Alert className="border-red-500 bg-red-50">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-800">
-                <div className="font-medium">No Content</div>
-                <div>
-                  Your timeline is empty. Add some media files to export a
-                  video.
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
+        {/* Timeline Warnings */}
+        {!exportValidation.hasTimelineContent && (
+          <Alert className="border-red-500 bg-red-50">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-800">
+              <div className="font-medium">No Content</div>
+              <div>
+                Your timeline is empty. Add some media files to export a video.
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
-          {/* Short timeline warning */}
-          {timelineDuration > 0 && timelineDuration < 0.5 && (
-            <Alert className="border-yellow-500 bg-yellow-50">
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              <AlertDescription className="text-yellow-800">
-                <div className="font-medium">Very Short Video</div>
-                <div>
-                  Your timeline is very short ({timelineDuration.toFixed(2)}s).
-                  Consider adding more content for a better export result.
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
+        {exportValidation.isShortVideo && (
+          <Alert className="border-yellow-500 bg-yellow-50">
+            <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-800">
+              <div className="font-medium">Very Short Video</div>
+              <div>
+                Your timeline is very short ({exportSettings.timelineDuration.toFixed(2)}s).
+                Consider adding more content for a better export result.
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
-          {/* Error Display */}
-          {error && (
-            <Alert className="border-red-500 bg-red-50">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-800">
-                {error}
-              </AlertDescription>
-            </Alert>
-          )}
+        {/* Error Display */}
+        {error && (
+          <Alert className="border-red-500 bg-red-50">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-800">
+              {error}
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
-      {/* Hidden Export Canvas */}
       <ExportCanvas ref={canvasRef} />
     </div>
   );

@@ -1,4 +1,5 @@
 import { generateUUID } from "@/lib/utils";
+import { debugLog } from "@/lib/debug-config";
 
 export interface AIVideoOutput {
   id: string;
@@ -27,7 +28,8 @@ export class AIVideoOutputManager {
     prompt: string,
     model: string
   ): Promise<string> {
-    const filename = `ai-video-${model}-${videoId}-${Date.now()}.mp4`;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const filename = `ai-video-${model}-${videoId}-${timestamp}.mp4`;
     const localPath = `${this.outputDir}/${filename}`;
 
     const output: AIVideoOutput = {
@@ -45,7 +47,7 @@ export class AIVideoOutputManager {
     };
 
     this.activeDownloads.set(videoId, output);
-    console.log(
+    debugLog(
       `🚀 AIVideoOutputManager: Started download tracking for ${videoId}`
     );
     return localPath;
@@ -55,7 +57,7 @@ export class AIVideoOutputManager {
     const download = this.activeDownloads.get(videoId);
     if (download) {
       download.progress = Math.min(100, Math.max(0, progress));
-      console.log(
+      debugLog(
         `📊 AIVideoOutputManager: Progress ${videoId}: ${download.progress}%`
       );
     }
@@ -70,7 +72,7 @@ export class AIVideoOutputManager {
       download.status = "completed";
       download.progress = 100;
       download.metadata.duration = videoDuration;
-      console.log(`✅ AIVideoOutputManager: Download completed for ${videoId}`);
+      debugLog(`✅ AIVideoOutputManager: Download completed for ${videoId}`);
       return download;
     }
     return null;
@@ -96,7 +98,7 @@ export class AIVideoOutputManager {
 
   cleanupDownload(videoId: string): void {
     this.activeDownloads.delete(videoId);
-    console.log(
+    debugLog(
       `🧹 AIVideoOutputManager: Cleaned up download tracking for ${videoId}`
     );
   }

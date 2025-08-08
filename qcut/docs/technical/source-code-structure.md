@@ -5,7 +5,7 @@
 This document provides a comprehensive overview of the QCut source code structure, including folder organization and line counts for all TypeScript/JavaScript source files.
 
 **Generated:** 2025-08-07  
-**Total Source Files:** 236 files (231 in src/ + 5 in electron/)  
+**Total Source Files:** 237 files (232 in src/ + 5 in electron/)  
 **Main Source Directory:** `apps/web/src/`
 
 ## Project Architecture
@@ -106,8 +106,9 @@ Core video editor interface:
 - `adjustment/image-uploader.tsx` - Image upload interface (135 lines)
 - `adjustment/model-selector.tsx` - AI model selection (63 lines)
 
-**Other Editor Components (1,405 lines):**
-- `preview-panel.tsx` - Video preview window (1,063 lines)
+**Other Editor Components (1,255 lines):**
+- `preview-panel.tsx` - Video preview window (588 lines)
+- `preview-panel-components.tsx` - Preview sub-components (450 lines)
 - `audio-waveform.tsx` - Audio visualization (162 lines)
 - `snap-indicator.tsx` - Snapping visual feedback (79 lines)
 - `selection-box.tsx` - Multi-selection tool (55 lines)

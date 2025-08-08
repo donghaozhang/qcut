@@ -2,6 +2,8 @@
  * Image utility functions for the adjustment panel
  */
 
+import { debugLog, debugError } from './debug-config';
+
 export interface ImageInfo {
   width: number;
   height: number;
@@ -194,14 +196,14 @@ export async function convertToBlob(url: string): Promise<string> {
   // Return cached blob URL if available
   if (blobUrlCache.has(url)) {
     const cachedUrl = blobUrlCache.get(url)!;
-    console.log(
+    debugLog(
       `[convertToBlob] Using cached blob URL for ${url}: ${cachedUrl}`
     );
     return cachedUrl;
   }
 
   try {
-    console.log(`[convertToBlob] Fetching image with CORS headers: ${url}`);
+    debugLog(`[convertToBlob] Fetching image with CORS headers: ${url}`);
     const response = await fetch(url, {
       mode: 'cors',
       headers: {
@@ -219,11 +221,11 @@ export async function convertToBlob(url: string): Promise<string> {
     // Cache the blob URL
     blobUrlCache.set(url, blobUrl);
     blobToOriginalUrl.set(blobUrl, url);
-    console.log(`[convertToBlob] Created new blob URL for ${url}: ${blobUrl}`);
+    debugLog(`[convertToBlob] Created new blob URL for ${url}: ${blobUrl}`);
 
     return blobUrl;
   } catch (error) {
-    console.error(`Failed to convert image to blob URL: ${url}`, error);
+    debugError(`Failed to convert image to blob URL: ${url}`, error);
     // Return original URL as fallback
     return url;
   }
@@ -235,7 +237,7 @@ export async function convertToBlob(url: string): Promise<string> {
 export function revokeBlobUrl(originalUrl: string): void {
   const blobUrl = blobUrlCache.get(originalUrl);
   if (blobUrl) {
-    console.log(
+    debugLog(
       `[revokeBlobUrl] Revoking blob URL for ${originalUrl}: ${blobUrl}`
     );
     URL.revokeObjectURL(blobUrl);
@@ -270,7 +272,7 @@ export async function downloadImageAsFile(
   filename: string
 ): Promise<File> {
   try {
-    console.log(`[convertToBlob] Downloading image from: ${url}`);
+    debugLog(`[convertToBlob] Downloading image from: ${url}`);
     
     // Enhanced fetch with CORS handling for FAL.ai URLs
     const response = await fetch(url, {
@@ -285,7 +287,7 @@ export async function downloadImageAsFile(
     }
 
     const blob = await response.blob();
-    console.log(`[convertToBlob] Downloaded blob: ${blob.size} bytes, type: ${blob.type}`);
+    debugLog(`[convertToBlob] Downloaded blob: ${blob.size} bytes, type: ${blob.type}`);
 
     // Determine MIME type from blob or URL
     let mimeType = blob.type;
