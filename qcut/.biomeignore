@@ -1,5 +1,8 @@
 # Third-party libraries and generated files
+apps/web/public/ffmpeg/
 apps/web/public/ffmpeg/**
+apps/web/public/ffmpeg-core.js
+apps/web/public/*.js
 apps/web/public/**/*.js
 apps/web/public/**/*.wasm
 electron/resources/ffmpeg/**
@@ -10,10 +13,13 @@ electron/resources/**/*.wasm
 **/build/**
 **/*.min.js
 
-# Documentation and logs
+# Documentation and logs  
 docs/**
 lint-output.txt
 temp-lint-output.txt
 
 # Build artifacts
 dist-packager*/**
+
+# Specific generated files
+**/*-core.js

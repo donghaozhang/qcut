@@ -72,17 +72,13 @@ function main() {
 }
 
 function checkGitStatus() {
-  try {
-    const status = execSync("git status --porcelain", { encoding: "utf8" });
-    if (status.trim()) {
-      throw new Error(
-        "Working directory is not clean. Please commit your changes first."
-      );
-    }
-    console.log("✅ Working directory is clean");
-  } catch (error) {
-    throw error;
+  const status = execSync("git status --porcelain", { encoding: "utf8" });
+  if (status.trim()) {
+    throw new Error(
+      "Working directory is not clean. Please commit your changes first."
+    );
   }
+  console.log("✅ Working directory is clean");
 }
 
 function bumpVersion(releaseType) {

@@ -86,7 +86,7 @@ export interface AIGenerationState {
   pollingInterval: NodeJS.Timeout | null;
 }
 
-export type UseAIHistoryProps = {};
+export type UseAIHistoryProps = Record<string, never>;
 
 export interface AIHistoryState {
   generationHistory: GeneratedVideo[];
