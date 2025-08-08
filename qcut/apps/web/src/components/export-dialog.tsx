@@ -75,7 +75,9 @@ export function ExportDialog() {
 
     const canvas = canvasRef.current?.getCanvas();
     if (!canvas) {
-      throw new Error("Canvas not available for export");
+      // Use the export store's error handling
+      useExportStore.getState().setError("Canvas not available for export");
+      return;
     }
 
     canvasRef.current?.updateDimensions();

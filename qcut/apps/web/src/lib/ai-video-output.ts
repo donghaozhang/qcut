@@ -28,7 +28,8 @@ export class AIVideoOutputManager {
     prompt: string,
     model: string
   ): Promise<string> {
-    const filename = `ai-video-${model}-${videoId}-${Date.now()}.mp4`;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const filename = `ai-video-${model}-${videoId}-${timestamp}.mp4`;
     const localPath = `${this.outputDir}/${filename}`;
 
     const output: AIVideoOutput = {

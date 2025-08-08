@@ -1,15 +1,9 @@
 import { useMemo } from "react";
 import { calculateMemoryUsage, getMemoryWarningMessage } from "@/lib/memory-utils";
-import { isValidFilename } from "@/types/export";
+import { isValidFilename, ExportSettings } from "@/types/export";
 
 export function useExportValidation(
-  settings: {
-    quality: any;
-    format: any;
-    filename: string;
-    width: number;
-    height: number;
-  },
+  settings: Pick<ExportSettings, 'quality' | 'format' | 'filename' | 'width' | 'height'>,
   timelineDuration: number
 ) {
   const memoryEstimate = useMemo(() => {

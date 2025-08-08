@@ -23,7 +23,8 @@ export function useExportPresets(
     });
 
     // Generate filename based on preset
-    const presetFilename = `${preset.name.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Date.now()}`;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const presetFilename = `${preset.name.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${timestamp}`;
     setFilename(presetFilename);
     updateSettings({ filename: presetFilename });
 

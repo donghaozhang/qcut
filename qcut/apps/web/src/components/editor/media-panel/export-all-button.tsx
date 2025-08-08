@@ -86,8 +86,9 @@ export function ExportAllButton({
 
     try {
       debugLog("🚀 EXPORT-ALL: Starting ZIP export...");
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       await exportToZip(mediaItems, {
-        filename: `media-export-${Date.now()}.zip`,
+        filename: `media-export-${timestamp}.zip`,
       });
 
       debugLog("✅ EXPORT-ALL: Export completed", {
