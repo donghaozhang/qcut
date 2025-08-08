@@ -197,7 +197,6 @@ export {
   STORAGE_KEYS as STORAGE,
   ERROR_MESSAGES as ERRORS,
   STATUS_MESSAGES as STATUS,
-  DEFAULTS,
 };
 
 // Export default configuration object
