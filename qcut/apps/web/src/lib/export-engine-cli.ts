@@ -368,13 +368,19 @@ export class CLIExportEngine extends ExportEngine {
       debugLog(
         "[CLIExportEngine] 🔍 DEBUG: Keeping frames in temp directory for inspection"
       );
-      debugLog(
-        `[CLIExportEngine] 📁 Frames location: C:\\Users\\zdhpe\\AppData\\Local\\Temp\\qcut-export\\${this.sessionId}\\frames`
-      );
+      debugLog(`[CLIExportEngine] 📁 Frames location: ${this.frameDir}\\frames`);
       debugLog("[CLIExportEngine] 🧪 TEST: Try this FFmpeg command manually:");
-      debugLog(
-        `cd "C:\\Users\\zdhpe\\Desktop\\vite_opencut\\OpenCut-main\\qcut\\electron\\resources" && ffmpeg.exe -y -framerate 30 -i "C:\\Users\\zdhpe\\AppData\\Local\\Temp\\qcut-export\\${this.sessionId}\\frames\\frame-%04d.png" -c:v libx264 -preset fast -crf 23 -t 5 test-output.mp4`
-      );
+      (async () => {
+        // get the ffmpeg path from main process (works in dev & packaged)
+        const ffmpegPath = await window.electronAPI.invoke("ffmpeg-path");
+        const framesDir = `${this.frameDir}\\frames`;
+        const duration = Math.ceil(this.totalDuration);
+        debugLog(
+          `"${ffmpegPath}" -y -framerate ${this.fps}` +
+          ` -i "${framesDir}\\frame-%04d.png" -c:v libx264` +
+          ` -preset fast -crf 23 -t ${duration} "output.mp4"`
+        );
+      })();
 
       // Uncomment this line to cleanup as normal:
       // if (this.sessionId) {

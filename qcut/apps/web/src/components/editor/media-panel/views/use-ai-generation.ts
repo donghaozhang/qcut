@@ -456,6 +456,9 @@ export function useAIGeneration(props: UseAIGenerationProps) {
             model: modelId,
           };
 
+          // Add to generations array so results are properly tracked
+          generations.push({ modelId, video: newVideo });
+
           // Start status polling for this job
           startStatusPolling(response.job_id);
 
