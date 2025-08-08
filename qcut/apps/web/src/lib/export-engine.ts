@@ -11,6 +11,7 @@ import {
   FFmpegVideoRecorder,
   isFFmpegExportEnabled,
 } from "@/lib/ffmpeg-video-recorder";
+import { debugLog, debugError, debugWarn } from "@/lib/debug-config";
 
 // Interface for active elements at a specific time
 interface ActiveElement {
@@ -75,7 +76,7 @@ export class ExportEngine {
 
     // Check if we should use FFmpeg WASM export
     this.useFFmpegExport = isFFmpegExportEnabled();
-    console.log(
+    debugLog(
       `[ExportEngine] Using ${this.useFFmpegExport ? "FFmpeg WASM" : "MediaRecorder"} for export`
     );
 
@@ -97,11 +98,11 @@ export class ExportEngine {
     if (isPreview) {
       this.ctx.imageSmoothingEnabled = false; // Faster rendering
       this.ctx.imageSmoothingQuality = "low";
-      console.log("[ExportEngine] Canvas quality: preview mode (fast)");
+      debugLog("[ExportEngine] Canvas quality: preview mode (fast)");
     } else {
       this.ctx.imageSmoothingEnabled = true;
       this.ctx.imageSmoothingQuality = "high";
-      console.log("[ExportEngine] Canvas quality: final mode (high quality)");
+      debugLog("[ExportEngine] Canvas quality: final mode (high quality)");
     }
 
     // Set canvas dimensions to match export settings
@@ -136,7 +137,7 @@ export class ExportEngine {
               this.mediaItems.find((item) => item.id === element.mediaId) ||
               null;
             if (!mediaItem) {
-              console.warn(
+              debugWarn(
                 `[ExportEngine] Media item not found: ${element.mediaId}`
               );
             }
@@ -199,7 +200,7 @@ export class ExportEngine {
     timeOffset: number
   ): Promise<void> {
     if (!mediaItem.url) {
-      console.warn(`[ExportEngine] No URL for media item ${mediaItem.id}`);
+      debugWarn(`[ExportEngine] No URL for media item ${mediaItem.id}`);
       return;
     }
 
@@ -210,7 +211,7 @@ export class ExportEngine {
         await this.renderVideo(element, mediaItem, timeOffset);
       }
     } catch (error) {
-      console.error(`[ExportEngine] Failed to render ${element.id}:`, error);
+      debugError(`[ExportEngine] Failed to render ${element.id}:`, error);
     }
   }
 
@@ -238,7 +239,7 @@ export class ExportEngine {
       };
 
       img.onerror = () => {
-        console.error(`[ExportEngine] Failed to load image: ${mediaItem.url}`);
+        debugError(`[ExportEngine] Failed to load image: ${mediaItem.url}`);
         reject(new Error(`Failed to load image: ${mediaItem.url}`));
       };
 
@@ -253,7 +254,7 @@ export class ExportEngine {
     timeOffset: number
   ): Promise<void> {
     if (!mediaItem.url) {
-      console.warn(`[ExportEngine] No URL for video element ${element.id}`);
+      debugWarn(`[ExportEngine] No URL for video element ${element.id}`);
       return;
     }
 
@@ -268,7 +269,7 @@ export class ExportEngine {
       } catch (error) {
         lastError = error as Error;
         if (attempt < maxRetries) {
-          console.warn(
+          debugWarn(
             `[ExportEngine] Video render attempt ${attempt} failed, retrying... Error: ${error}`
           );
           // Wait before retrying
@@ -278,7 +279,7 @@ export class ExportEngine {
     }
 
     // All retries failed
-    console.error(
+    debugError(
       `[ExportEngine] All ${maxRetries} video render attempts failed for ${mediaItem.url}`
     );
     throw lastError || new Error("Video rendering failed after retries");
@@ -327,7 +328,7 @@ export class ExportEngine {
         const finalTimeout = adaptiveTimeout * (1 + seekDistanceFactor * 2);
 
         const timeout = setTimeout(() => {
-          console.warn(
+          debugWarn(
             `[ExportEngine] Video seek timeout after ${finalTimeout.toFixed(0)}ms (extended for frame quality)`
           );
           reject(new Error("Video seek timeout"));
@@ -364,7 +365,7 @@ export class ExportEngine {
         throw new Error(`Frame validation failed: ${frameValidation.reason}`);
       }
     } catch (error) {
-      console.error(
+      debugError(
         `[ExportEngine] Failed to render video (attempt ${attempt}):`,
         error
       );
@@ -448,7 +449,7 @@ export class ExportEngine {
 
     // If using FFmpeg, skip MediaRecorder setup
     if (this.useFFmpegExport) {
-      console.log(
+      debugLog(
         "[ExportEngine] Skipping MediaRecorder setup - using FFmpeg WASM"
       );
       return;
@@ -546,7 +547,7 @@ export class ExportEngine {
       (total, chunk) => total + chunk.size,
       0
     );
-    console.log(
+    debugLog(
       `[ExportEngine] Export complete: ${totalSize} bytes, ${this.recordedChunks.length} chunks`
     );
 
@@ -576,13 +577,13 @@ export class ExportEngine {
     this.abortController = new AbortController();
 
     // Log original timeline duration and export optimizations
-    console.log(
+    debugLog(
       `[ExportEngine] 📏 Original timeline duration: ${this.totalDuration.toFixed(3)}s`
     );
-    console.log(
+    debugLog(
       `[ExportEngine] 🎬 Target frames: ${this.calculateTotalFrames()} frames at ${this.fps}fps`
     );
-    console.log(
+    debugLog(
       "[ExportEngine] ⚡ Optimizations: 500-2000ms timeout, retry mechanism, frame validation"
     );
 
@@ -610,7 +611,7 @@ export class ExportEngine {
       if (!this.useFFmpegExport && this.mediaRecorder?.stream) {
         const stream = this.canvas.captureStream(0);
         if (stream.id !== this.mediaRecorder.stream.id) {
-          console.warn("[ExportEngine] Stream mismatch detected!");
+          debugWarn("[ExportEngine] Stream mismatch detected!");
         }
       }
 
@@ -651,9 +652,9 @@ export class ExportEngine {
           nonBlackPixels *= sampleRate;
 
           if (nonBlackPixels === 0) {
-            console.warn(`[ExportEngine] BLACK FRAME at ${frame + 1}!`);
+            debugWarn(`[ExportEngine] BLACK FRAME at ${frame + 1}!`);
           } else if (frame % 30 === 0) {
-            console.log(
+            debugLog(
               `[ExportEngine] Frame ${frame + 1}: ~${nonBlackPixels} pixels (sampled)`
             );
           }
@@ -671,7 +672,7 @@ export class ExportEngine {
             // Frame capture delay for Electron compatibility
             await new Promise((resolve) => setTimeout(resolve, 50)); // Increased for better stability
           } else {
-            console.warn(`[ExportEngine] Cannot capture frame ${frame + 1}`);
+            debugWarn(`[ExportEngine] Cannot capture frame ${frame + 1}`);
           }
         }
 
@@ -684,7 +685,7 @@ export class ExportEngine {
 
         // Log frame timing every 30 frames
         if (frame % 30 === 0) {
-          console.log(
+          debugLog(
             `[ExportEngine] Frame ${frame + 1} took ${frameProcessingTime.toFixed(1)}ms`
           );
         }
@@ -723,23 +724,23 @@ export class ExportEngine {
       const videoBlob = await this.stopRecording();
 
       // Log exported video information
-      console.log(
+      debugLog(
         `[ExportEngine] 📦 Exported video size: ${(videoBlob.size / 1024 / 1024).toFixed(2)} MB`
       );
-      console.log(`[ExportEngine] 🔗 Blob type: ${videoBlob.type}`);
+      debugLog(`[ExportEngine] 🔗 Blob type: ${videoBlob.type}`);
 
       // Calculate and log expected vs actual video duration
       const expectedDuration = this.totalDuration;
       const actualFramesRendered = this.calculateTotalFrames();
       const calculatedDuration = actualFramesRendered / this.fps;
 
-      console.log(
+      debugLog(
         `[ExportEngine] ⏱️  Expected duration: ${expectedDuration.toFixed(3)}s`
       );
-      console.log(
+      debugLog(
         `[ExportEngine] ⏱️  Calculated duration: ${calculatedDuration.toFixed(3)}s (${actualFramesRendered} frames / ${this.fps}fps)`
       );
-      console.log(
+      debugLog(
         `[ExportEngine] 📊 Duration ratio: ${(calculatedDuration / expectedDuration).toFixed(3)}x`
       );
 
@@ -750,7 +751,7 @@ export class ExportEngine {
 
       return videoBlob;
     } catch (error) {
-      console.error("[ExportEngine] Export failed:", error);
+      debugError("[ExportEngine] Export failed:", error);
       // Clean up on error
       if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
         this.mediaRecorder.stop();
@@ -908,14 +909,14 @@ export class ExportEngine {
       }
 
       if (attempt > 1) {
-        console.log(
+        debugLog(
           `[ExportEngine] ✅ Frame validation passed on attempt ${attempt} (${(nonBlackRatio * 100).toFixed(1)}% content)`
         );
       }
 
       return { isValid: true, reason: "Frame is valid" };
     } catch (error) {
-      console.warn(`[ExportEngine] Frame validation error: ${error}`);
+      debugWarn(`[ExportEngine] Frame validation error: ${error}`);
       // If validation itself fails, assume frame is valid
       return { isValid: true, reason: "Validation error - assuming valid" };
     }
@@ -930,19 +931,19 @@ export class ExportEngine {
       const actualDuration = video.duration;
       const expectedDuration = this.totalDuration;
 
-      console.log(
+      debugLog(
         `[ExportEngine] 🎥 Actual video duration: ${actualDuration.toFixed(3)}s`
       );
-      console.log(
+      debugLog(
         `[ExportEngine] 📈 Timeline vs Video ratio: ${(actualDuration / expectedDuration).toFixed(3)}x`
       );
 
       if (Math.abs(actualDuration - expectedDuration) > 0.1) {
-        console.warn(
+        debugWarn(
           `[ExportEngine] ⚠️  Duration mismatch detected! Expected: ${expectedDuration.toFixed(3)}s, Got: ${actualDuration.toFixed(3)}s`
         );
       } else {
-        console.log("[ExportEngine] ✅ Duration match within tolerance");
+        debugLog("[ExportEngine] ✅ Duration match within tolerance");
       }
 
       // Cleanup
@@ -950,7 +951,7 @@ export class ExportEngine {
     };
 
     video.onerror = () => {
-      console.warn(
+      debugWarn(
         "[ExportEngine] ⚠️  Could not determine actual video duration"
       );
       URL.revokeObjectURL(url);
@@ -968,7 +969,7 @@ export class ExportEngine {
       .filter((item) => item.type === "video" && item.url)
       .forEach((item) => videoUrls.add(item.url!));
 
-    console.log(`[ExportEngine] Pre-loading ${videoUrls.size} videos...`);
+    debugLog(`[ExportEngine] Pre-loading ${videoUrls.size} videos...`);
 
     // Load videos in parallel
     const loadPromises = Array.from(videoUrls).map((url) =>
@@ -976,7 +977,7 @@ export class ExportEngine {
     );
     await Promise.all(loadPromises);
 
-    console.log(`[ExportEngine] Pre-loaded ${this.videoCache.size} videos`);
+    debugLog(`[ExportEngine] Pre-loaded ${this.videoCache.size} videos`);
   }
 
   private async preloadVideo(url: string): Promise<void> {

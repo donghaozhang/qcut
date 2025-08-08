@@ -10,7 +10,7 @@ import {
 } from "@/types/export";
 import { useElectron } from "@/hooks/useElectron";
 import { ExportEngineFactory, ExportEngineType } from "@/lib/export-engine-factory";
-import { debugLog } from "@/lib/debug-config";
+import { debugLog, debugWarn } from "@/lib/debug-config";
 
 export function useExportSettings() {
   const { isDialogOpen, settings, updateSettings } = useExportStore();
@@ -63,7 +63,7 @@ export function useExportSettings() {
 
           setEngineRecommendation(`${label} (${performance} Performance)`);
         } catch (error) {
-          console.warn("Failed to get engine recommendation:", error);
+          debugWarn("Failed to get engine recommendation:", error);
           setEngineRecommendation(null);
         }
       };

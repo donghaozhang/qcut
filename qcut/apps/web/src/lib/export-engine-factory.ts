@@ -2,6 +2,7 @@ import { ExportEngine } from "./export-engine";
 import { ExportSettings } from "@/types/export";
 import { TimelineTrack } from "@/types/timeline";
 import { MediaItem } from "@/stores/media-store";
+import { debugLog, debugError, debugWarn } from "@/lib/debug-config";
 
 // Engine types available
 export const ExportEngineType = {
@@ -82,7 +83,7 @@ export class ExportEngineFactory {
 
     // 🚀 FORCE CLI FFmpeg in Electron - most stable and performant
     if (this.isElectron()) {
-      console.log(
+      debugLog(
         "[ExportEngineFactory] 🖥️  Electron detected - using CLI FFmpeg (most stable)"
       );
       return {
@@ -183,7 +184,7 @@ export class ExportEngineFactory {
             totalDuration
           );
         } catch (error) {
-          console.warn(
+          debugWarn(
             "Failed to load optimized engine, falling back to standard:",
             error
           );
@@ -208,7 +209,7 @@ export class ExportEngineFactory {
             totalDuration
           );
         } catch (error) {
-          console.warn(
+          debugWarn(
             "Failed to load FFmpeg engine, falling back to standard:",
             error
           );
@@ -225,7 +226,7 @@ export class ExportEngineFactory {
         // Native FFmpeg CLI engine (Electron only)
         if (this.isElectron()) {
           try {
-            console.log(
+            debugLog(
               "[ExportEngineFactory] 🚀 Loading CLI FFmpeg engine for Electron"
             );
             const { CLIExportEngine } = await import("./export-engine-cli");
@@ -237,11 +238,11 @@ export class ExportEngineFactory {
               totalDuration
             );
           } catch (error) {
-            console.error(
+            debugError(
               "[ExportEngineFactory] ❌ Failed to load CLI engine:",
               error
             );
-            console.log(
+            debugLog(
               "[ExportEngineFactory] 🔄 Falling back to standard engine (avoiding WASM issues in Electron)"
             );
             // In Electron, avoid WASM FFmpeg due to loading issues - use standard engine instead
@@ -254,7 +255,7 @@ export class ExportEngineFactory {
             );
           }
         } else {
-          console.warn(
+          debugWarn(
             "[ExportEngineFactory] ⚠️  CLI engine only available in Electron, using FFmpeg WASM for browser"
           );
           const { FFmpegExportEngine } = await import("./export-engine-ffmpeg");
@@ -269,7 +270,7 @@ export class ExportEngineFactory {
 
       case ExportEngineType.WEBCODECS:
         // Future: WebCodecs engine
-        console.log(
+        debugLog(
           "WebCodecs engine not yet implemented, using optimized engine"
         );
         try {
@@ -357,7 +358,7 @@ export class ExportEngineFactory {
         );
       }
     } catch (error) {
-      console.warn("Failed to detect max texture size:", error);
+      debugWarn("Failed to detect max texture size:", error);
     }
     return 4096; // Safe default
   }

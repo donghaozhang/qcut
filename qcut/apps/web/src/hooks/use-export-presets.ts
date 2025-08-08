@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { ExportPreset } from "@/types/export";
+import { ExportPreset, ExportQuality, ExportFormat, ExportSettings } from "@/types/export";
 import { toast } from "sonner";
 
 export function useExportPresets(
-  setQuality: (quality: any) => void,
-  setFormat: (format: any) => void,
+  setQuality: (quality: ExportQuality) => void,
+  setFormat: (format: ExportFormat) => void,
   setFilename: (filename: string) => void,
-  updateSettings: (settings: any) => void
+  updateSettings: (settings: Partial<ExportSettings>) => void
 ) {
   const [selectedPreset, setSelectedPreset] = useState<ExportPreset | null>(null);
 
