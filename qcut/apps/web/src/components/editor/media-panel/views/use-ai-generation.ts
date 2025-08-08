@@ -186,121 +186,139 @@ export function useAIGeneration(props: UseAIGenerationProps) {
 
   // Status polling function
   const startStatusPolling = useCallback(
-    (jobId: string) => {
+    (jobId: string): Promise<void> => {
+      let hasResolved = false;
+      const resolveOnce = (resolve: () => void) => {
+        if (!hasResolved) {
+          hasResolved = true;
+          resolve();
+        }
+      };
+
       // Clear any existing polling interval before starting a new one
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-        setPollingInterval(null);
-      }
+      setPollingInterval((current) => {
+        if (current) clearInterval(current);
+        return null;
+      });
 
       setGenerationProgress(PROGRESS_CONSTANTS.POLLING_START_PROGRESS);
       setStatusMessage(STATUS_MESSAGES.STARTING);
 
-      const pollStatus = async () => {
-        try {
-          const status = await getGenerationStatus(jobId);
+      return new Promise<void>((resolve) => {
+        const pollStatus = async () => {
+          try {
+            const status = await getGenerationStatus(jobId);
 
-          if (status.progress) {
-            setGenerationProgress(status.progress);
-          }
-
-          if (status.status === "processing") {
-            setStatusMessage(
-              `${STATUS_MESSAGES.PROCESSING} ${status.progress || 0}%`
-            );
-          } else if (status.status === "completed" && status.video_url) {
-            // Clear polling
-            if (pollingInterval) {
-              clearInterval(pollingInterval);
-              setPollingInterval(null);
+            if (status.progress) {
+              setGenerationProgress(status.progress);
             }
 
-            setGenerationProgress(PROGRESS_CONSTANTS.COMPLETE_PROGRESS);
-            setStatusMessage(STATUS_MESSAGES.COMPLETE);
+            if (status.status === "processing") {
+              setStatusMessage(
+                `${STATUS_MESSAGES.PROCESSING} ${status.progress || 0}%`
+              );
+            } else if (status.status === "completed" && status.video_url) {
+              // Clear polling (avoid stale closure)
+              setPollingInterval((current) => {
+                if (current) clearInterval(current);
+                return null;
+              });
 
-            const newVideo: GeneratedVideo = {
-              jobId,
-              videoUrl: status.video_url,
-              videoPath: undefined,
-              fileSize: undefined,
-              duration: undefined,
-              prompt: prompt.trim(),
-              model: selectedModels[0] || "unknown",
-            };
+              setGenerationProgress(PROGRESS_CONSTANTS.COMPLETE_PROGRESS);
+              setStatusMessage(STATUS_MESSAGES.COMPLETE);
 
-            setGeneratedVideo(newVideo);
+              const newVideo: GeneratedVideo = {
+                jobId,
+                videoUrl: status.video_url,
+                videoPath: undefined,
+                fileSize: undefined,
+                duration: undefined,
+                prompt: prompt.trim(),
+                model: selectedModels[0] || "unknown",
+              };
 
-            // Automatically add to media store
-            if (activeProject) {
-              try {
-                const response = await fetch(newVideo.videoUrl);
-                const blob = await response.blob();
-                const file = new File(
-                  [blob],
-                  `generated-video-${newVideo.jobId.substring(0, 8)}.mp4`,
-                  { type: "video/mp4" }
-                );
+              setGeneratedVideo(newVideo);
 
-                if (!addMediaItem) {
-                  throw new Error("Media store not ready");
-                }
+              // Automatically add to media store
+              if (activeProject) {
+                try {
+                  const response = await fetch(newVideo.videoUrl);
+                  const blob = await response.blob();
+                  const file = new File(
+                    [blob],
+                    `generated-video-${newVideo.jobId.substring(0, 8)}.mp4`,
+                    { type: "video/mp4" }
+                  );
 
-                await addMediaItem(activeProject.id, {
-                  name: `AI: ${newVideo.prompt.substring(0, 30)}...`,
-                  type: "video",
-                  file,
-                  url: newVideo.videoUrl,
-                  duration: newVideo.duration || 5,
-                  width: 1920,
-                  height: 1080,
-                });
-
-                debugLogger.log("AIGeneration", "VIDEO_ADDED_TO_MEDIA_STORE", {
-                  videoUrl: newVideo.videoUrl,
-                  projectId: activeProject.id,
-                });
-              } catch (error) {
-                debugLogger.log(
-                  "AIGeneration",
-                  "VIDEO_ADD_TO_MEDIA_STORE_FAILED",
-                  {
-                    error:
-                      error instanceof Error ? error.message : "Unknown error",
-                    projectId: activeProject.id,
+                  if (!addMediaItem) {
+                    throw new Error("Media store not ready");
                   }
-                );
+
+                  await addMediaItem(activeProject.id, {
+                    name: `AI: ${newVideo.prompt.substring(0, 30)}...`,
+                    type: "video",
+                    file,
+                    url: newVideo.videoUrl,
+                    duration: newVideo.duration || 5,
+                    width: 1920,
+                    height: 1080,
+                  });
+
+                  debugLogger.log(
+                    "AIGeneration",
+                    "VIDEO_ADDED_TO_MEDIA_STORE",
+                    {
+                      videoUrl: newVideo.videoUrl,
+                      projectId: activeProject.id,
+                    }
+                  );
+                } catch (error) {
+                  debugLogger.log(
+                    "AIGeneration",
+                    "VIDEO_ADD_TO_MEDIA_STORE_FAILED",
+                    {
+                      error:
+                        error instanceof Error
+                          ? error.message
+                          : "Unknown error",
+                      projectId: activeProject.id,
+                    }
+                  );
+                }
               }
-            }
 
-            setIsGenerating(false);
-          } else if (status.status === "failed") {
-            // Clear polling
-            if (pollingInterval) {
-              clearInterval(pollingInterval);
-              setPollingInterval(null);
-            }
+              setIsGenerating(false);
+              resolveOnce(resolve);
+            } else if (status.status === "failed") {
+              // Clear polling (avoid stale closure)
+              setPollingInterval((current) => {
+                if (current) clearInterval(current);
+                return null;
+              });
 
-            const errorMessage =
-              status.error || ERROR_MESSAGES.GENERATION_FAILED;
-            onError?.(errorMessage);
-            setIsGenerating(false);
+              const errorMessage =
+                status.error || ERROR_MESSAGES.GENERATION_FAILED;
+              onError?.(errorMessage);
+              setIsGenerating(false);
+              resolveOnce(resolve);
+            }
+          } catch (error) {
+            debugLogger.log("AIGeneration", "STATUS_POLLING_ERROR", {
+              error: error instanceof Error ? error.message : "Unknown error",
+              jobId,
+            });
+            setGenerationProgress((prev) => Math.min(prev + 5, 90));
           }
-        } catch (error) {
-          debugLogger.log("AIGeneration", "STATUS_POLLING_ERROR", {
-            error: error instanceof Error ? error.message : "Unknown error",
-            jobId,
-          });
-          setGenerationProgress((prev) => Math.min(prev + 5, 90));
-        }
-      };
+        };
 
-      // Poll immediately, then every 3 seconds
-      pollStatus();
-      const interval = setInterval(
-        pollStatus,
-        UI_CONSTANTS.POLLING_INTERVAL_MS
-      );
-      setPollingInterval(interval);
+        // Poll immediately, then every interval
+        pollStatus();
+        const interval = setInterval(
+          pollStatus,
+          UI_CONSTANTS.POLLING_INTERVAL_MS
+        );
+        setPollingInterval(interval);
+      });
     },
     [
       pollingInterval,

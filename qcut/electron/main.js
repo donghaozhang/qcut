@@ -14,10 +14,8 @@ let autoUpdater = null;
 try {
   autoUpdater = require("electron-updater").autoUpdater;
 } catch (error) {
-  console.warn(
-    "⚠️ [AutoUpdater] electron-updater not available:",
-    error.message
-  );
+  const log = require("electron-log");
+  log.warn("⚠️ [AutoUpdater] electron-updater not available: %s", error.message);
 }
 const { setupFFmpegIPC } = require("./ffmpeg-handler.js");
 
