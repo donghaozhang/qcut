@@ -109,7 +109,11 @@ export function AiView() {
     if (!file) return;
 
     // Validate file type
-    if (!UPLOAD_CONSTANTS.ALLOWED_IMAGE_TYPES.includes(file.type as any)) {
+    if (
+      !(UPLOAD_CONSTANTS.ALLOWED_IMAGE_TYPES as readonly string[]).includes(
+        file.type
+      )
+    ) {
       setError(ERROR_MESSAGES.INVALID_FILE_TYPE);
       return;
     }
