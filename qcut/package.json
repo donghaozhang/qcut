@@ -27,6 +27,7 @@
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "lint": "npx ultracite@latest lint",
+    "lint:clean": "npx @biomejs/biome check --skip-parse-errors .",
     "format": "npx ultracite@latest format",
     "electron": "electron .",
     "electron:dev": "cross-env NODE_ENV=development electron .",

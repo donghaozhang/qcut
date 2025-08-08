@@ -1,11 +1,13 @@
-# Third-party libraries and generated files
+# Third-party libraries and generated files - CRITICAL: These files cause unfixable parsing errors
 apps/web/public/ffmpeg/
 apps/web/public/ffmpeg/**
 apps/web/public/ffmpeg-core.js
 apps/web/public/*.js
 apps/web/public/**/*.js
 apps/web/public/**/*.wasm
+electron/resources/ffmpeg/
 electron/resources/ffmpeg/**
+electron/resources/ffmpeg-core.js
 electron/resources/**/*.js
 electron/resources/**/*.wasm
 **/node_modules/**
@@ -21,5 +23,6 @@ temp-lint-output.txt
 # Build artifacts
 dist-packager*/**
 
-# Specific generated files
+# Specific generated files with parsing issues
 **/*-core.js
+**/ffmpeg-core.js
