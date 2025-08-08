@@ -287,13 +287,13 @@ export function AiView() {
                   {!isCompact && " for Video Generation"}
                 </Label>
 
-                <div
+                <label
+                  htmlFor="ai-image-input"
                   role="button"
                   tabIndex={0}
                   className={`border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
                     selectedImage ? "border-primary/50" : ""
                   }`}
-                  onClick={() => fileInputRef.current?.click()}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
@@ -340,7 +340,7 @@ export function AiView() {
                       </div>
                     </div>
                   )}
-                </div>
+                </label>
 
                 <input
                   ref={fileInputRef}
@@ -348,6 +348,7 @@ export function AiView() {
                   accept={UPLOAD_CONSTANTS.SUPPORTED_FORMATS.join(",")}
                   onChange={handleImageSelect}
                   className="hidden"
+                  id="ai-image-input"
                 />
 
                 {/* Prompt for image-to-video */}
@@ -380,47 +381,57 @@ export function AiView() {
               {!isCompact && " (multi-select)"}
             </Label>
             <div className="space-y-1">
-              {AI_MODELS.map((model) => (
-                <div
-                  key={model.id}
-                  className={`flex items-center justify-between p-2 rounded-md border cursor-pointer transition-colors ${
-                    isModelSelected(model.id)
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-muted-foreground/50"
-                  }`}
-                  onClick={() => toggleModel(model.id)}
-                >
-                  <div className="flex items-center space-x-2">
-                    <div
-                      className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                        isModelSelected(model.id)
-                          ? "border-primary bg-primary"
-                          : "border-muted-foreground/30"
-                      }`}
-                    >
-                      {isModelSelected(model.id) && (
-                        <Check className="w-2.5 h-2.5 text-primary-foreground" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium">{model.name}</div>
-                      {!isCompact && (
-                        <div className="text-xs text-muted-foreground">
-                          {model.description}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-xs text-right">
-                    <div>${model.price}</div>
-                    {!isCompact && (
-                      <div className="text-muted-foreground">
-                        {model.resolution}
+              {AI_MODELS.map((model) => {
+                const inputId = `ai-model-${model.id}`;
+                const selected = isModelSelected(model.id);
+                return (
+                  <label
+                    key={model.id}
+                    htmlFor={inputId}
+                    className={`w-full flex items-center justify-between p-2 rounded-md border transition-colors cursor-pointer focus-within:outline-none focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 ${
+                      selected
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-muted-foreground/50"
+                    }`}
+                  >
+                    <input
+                      id={inputId}
+                      type="checkbox"
+                      className="sr-only"
+                      checked={selected}
+                      onChange={() => toggleModel(model.id)}
+                      aria-label={`Select ${model.name}`}
+                    />
+                    <div className="flex items-center space-x-2">
+                      <div
+                        className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                          selected
+                            ? "border-primary bg-primary"
+                            : "border-muted-foreground/30"
+                        }`}
+                      >
+                        {selected && (
+                          <Check className="w-2.5 h-2.5 text-primary-foreground" />
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+                      <div>
+                        <div className="text-xs font-medium">{model.name}</div>
+                        {!isCompact && (
+                          <div className="text-xs text-muted-foreground">
+                            {model.description}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-xs text-right">
+                      <div>${model.price}</div>
+                      {!isCompact && (
+                        <div className="text-muted-foreground">{model.resolution}</div>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
             </div>
 
             {/* Cost display */}
