@@ -6,11 +6,9 @@
     {
       "includes": [
         "apps/web/public/ffmpeg/**",
-        "apps/web/public/ffmpeg-core.js",
-        "apps/web/public/*.js",
+        "apps/web/public/ffmpeg*.js",
         "electron/resources/ffmpeg/**",
-        "electron/resources/ffmpeg-core.js",
-        "electron/resources/**/*.js",
+        "electron/resources/ffmpeg*.js",
         "**/ffmpeg-core.js",
         "**/*-core.js",
         "**/*.min.js"
