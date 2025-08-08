@@ -374,7 +374,7 @@ export class CLIExportEngine extends ExportEngine {
       debugLog("[CLIExportEngine] 🧪 TEST: Try this FFmpeg command manually:");
       (async () => {
         // get the ffmpeg path from main process (works in dev & packaged)
-        const ffmpegPath = await window.electronAPI.invoke("ffmpeg-path");
+        const ffmpegPath = await window.electronAPI?.invoke("ffmpeg-path");
         const framesDir = `${this.frameDir}\\frames`;
         const duration = Math.ceil(this.totalDuration);
         debugLog(

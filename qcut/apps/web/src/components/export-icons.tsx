@@ -49,6 +49,6 @@ export function PlatformIcon({
   const computedTitle =
     title ?? presetId.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   return (
-    <Icon className={className} title={computedTitle} role="img" aria-label={computedTitle} />
+    <Icon className={className} role="img" aria-label={computedTitle} />
   );
 }
