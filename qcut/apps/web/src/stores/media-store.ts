@@ -532,16 +532,12 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
       }
       if (item.thumbnailUrl && item.thumbnailUrl.startsWith("blob:")) {
         URL.revokeObjectURL(item.thumbnailUrl);
-        console.debug(
-          `[Cleanup] Revoked thumbnail blob URL for ${item.name} (project: ${projectId}): ${item.thumbnailUrl}`
-        );
+
         revokedCount++;
       }
     });
 
-    console.log(
-      `[Cleanup] Revoked ${revokedCount} blob URLs from project ${projectId} with ${state.mediaItems.length} media items`
-    );
+
 
     // Clear local state
     set({ mediaItems: [] });
@@ -556,9 +552,7 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
         `[Cleanup] Cleared ${mediaIds.length} media items from persistent storage for project ${projectId}`
       );
     } catch (error) {
-      console.error("Failed to clear media items from storage:", error);
-    }
-  },
+
 
   clearAllMedia: () => {
     const state = get();
