@@ -87,41 +87,41 @@ export function ImageUploader({
           />
 
           {uploading ? (
-            <div className="flex flex-col items-center gap-2 py-2">
-              <Loader2 className="size-6 text-primary animate-spin" />
-              <div>
+            <div className="flex items-center gap-3 py-1">
+              <Loader2 className="size-5 text-primary animate-spin" />
+              <div className="text-left">
                 <p className="text-sm font-medium">Loading image...</p>
                 <p className="text-xs text-muted-foreground">
-                  Please wait while we process your image
+                  Processing your image
                 </p>
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-2 py-2">
-              <div className="flex items-center justify-center size-12 rounded-full bg-muted/50">
+            <div className="flex items-center gap-3 py-1">
+              <div className="flex items-center justify-center size-10 rounded-full bg-muted/50 shrink-0">
                 {dragActive ? (
-                  <FileImage className="size-6 text-primary" />
+                  <FileImage className="size-5 text-primary" />
                 ) : (
-                  <Upload className="size-6 text-muted-foreground" />
+                  <Upload className="size-5 text-muted-foreground" />
                 )}
               </div>
 
-              <div>
-                <p className="text-sm font-medium">
+              <div className="text-left flex-1">
+                <p className="text-sm font-medium leading-tight">
                   {dragActive ? "Drop image here" : "Upload an image to edit"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Drag & drop or click to browse • JPEG, PNG, WebP
+                  Drag & drop or click • JPEG, PNG, WebP
                 </p>
               </div>
 
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-1 h-7 text-xs !bg-transparent !border-transparent"
+                className="h-7 text-xs !bg-transparent !border-transparent shrink-0"
               >
-                <ImageIcon className="size-3 mr-1.5" />
-                Choose Image
+                <ImageIcon className="size-3 mr-1" />
+                Browse
               </Button>
             </div>
           )}

@@ -26,6 +26,7 @@ import {
 } from "@/types/export";
 import { cn } from "@/lib/utils";
 import { useElectron } from "@/hooks/useElectron";
+import { PlatformIcon } from "@/components/export-icons";
 
 // NEW: Custom hook imports
 import { useExportSettings } from "@/hooks/use-export-settings";
@@ -212,12 +213,17 @@ export function ExportDialog() {
               variant={exportPresets.selectedPreset?.name === preset.name ? "default" : "outline"}
               size="sm"
               onClick={() => exportPresets.handlePresetSelect(preset)}
-              className="text-xs py-1 h-auto"
+              className="text-xs p-3 h-auto overflow-hidden"
               disabled={exportProgress.progress.isExporting}
             >
-              <div className="flex flex-col items-center gap-1">
-                <span className="font-medium">{preset.name}</span>
-                <span className="text-[0.65rem] opacity-70">{preset.description}</span>
+              <div className="flex flex-col items-center gap-1.5 w-full">
+                <PlatformIcon presetId={preset.id} className="size-5 shrink-0" />
+                <div className="flex flex-col items-center gap-0.5 w-full">
+                  <span className="font-medium text-xs">{preset.name}</span>
+                  <span className="text-[0.6rem] opacity-70 leading-tight text-center line-clamp-2">
+                    {preset.description}
+                  </span>
+                </div>
               </div>
             </Button>
           ))}
