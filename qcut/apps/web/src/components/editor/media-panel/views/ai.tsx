@@ -41,7 +41,7 @@ import { useMediaPanelStore } from "../store";
 import { AIHistoryPanel } from "./ai-history-panel";
 import { debugLogger } from "@/lib/debug-logger";
 import { getMediaStoreUtils } from "@/stores/media-store-loader";
-import { debugLog, debugError } from "@/lib/debug-config";
+import { debugLog, debugError, debugWarn } from "@/lib/debug-config";
 
 // FAL API constants for testing
 const FAL_API_KEY = import.meta.env.VITE_FAL_API_KEY;
@@ -690,7 +690,7 @@ export function AiView() {
                 thumbnailUrl = videoResult.thumbnailUrl;
                 debugLog(`✅ Thumbnail generated successfully`);
               } catch (error) {
-                console.warn(`⚠️ Failed to generate thumbnail for AI video:`, error);
+                debugWarn(`⚠️ Failed to generate thumbnail for AI video:`, error);
               }
               
               await addMediaItem(activeProject.id, {
