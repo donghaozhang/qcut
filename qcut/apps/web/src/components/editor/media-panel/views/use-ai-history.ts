@@ -155,7 +155,7 @@ export function useAIHistory(props: UseAIHistoryProps = {}) {
     // Panel control
     openHistoryPanel: () => setIsHistoryPanelOpen(true),
     closeHistoryPanel: () => setIsHistoryPanelOpen(false),
-    toggleHistoryPanel: () => setIsHistoryPanelOpen(!isHistoryPanelOpen),
+    toggleHistoryPanel: () => setIsHistoryPanelOpen((prev) => !prev),
   };
 }
 
