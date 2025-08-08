@@ -12,6 +12,7 @@ import {
   StorageAdapter,
 } from "./types";
 import { TimelineTrack } from "@/types/timeline";
+import { debugLog, debugError } from "@/lib/debug-config";
 
 class StorageService {
   private projectsAdapter!: StorageAdapter<SerializedProject>;
@@ -215,7 +216,7 @@ class StorageService {
       // File exists with content, create object URL
       url = URL.createObjectURL(file);
       actualFile = file;
-      console.log(
+      debugLog(
         `[StorageService] Created new object URL for ${metadata.name}: ${url}`
       );
     } else if (metadata.url) {
@@ -369,7 +370,7 @@ class StorageService {
   async checkStorageQuota(): Promise<{ available: boolean; usage: number; quota: number; usagePercent: number }> {
     if (!('storage' in navigator)) {
       // Storage API not supported - assume available but with unknown limits
-      console.log('[StorageService] Storage API not supported, assuming available');
+      debugLog('[StorageService] Storage API not supported, assuming available');
       return { available: true, usage: 0, quota: Infinity, usagePercent: 0 };
     }
     
@@ -379,7 +380,7 @@ class StorageService {
       const quota = estimate.quota || Infinity;
       const usagePercent = quota === Infinity ? 0 : (usage / quota) * 100;
       
-      console.log(`[StorageService] Storage usage: ${(usage / 1024 / 1024).toFixed(2)}MB / ${quota === Infinity ? '∞' : (quota / 1024 / 1024).toFixed(2)}MB (${usagePercent.toFixed(1)}%)`);
+      debugLog(`[StorageService] Storage usage: ${(usage / 1024 / 1024).toFixed(2)}MB / ${quota === Infinity ? '∞' : (quota / 1024 / 1024).toFixed(2)}MB (${usagePercent.toFixed(1)}%`);
       
       return {
         available: usagePercent < 80, // Warn at 80% usage
@@ -388,7 +389,7 @@ class StorageService {
         usagePercent
       };
     } catch (error) {
-      console.error('[StorageService] Failed to check storage quota:', error);
+      debugError('[StorageService] Failed to check storage quota:', error);
       // On error, assume available to not block operations
       return { available: true, usage: 0, quota: Infinity, usagePercent: 0 };
     }

@@ -41,6 +41,7 @@ import { useMediaPanelStore } from "../store";
 import { AIHistoryPanel } from "./ai-history-panel";
 import { debugLogger } from "@/lib/debug-logger";
 import { getMediaStoreUtils } from "@/stores/media-store-loader";
+import { debugLog, debugError } from "@/lib/debug-config";
 
 // FAL API constants for testing
 const FAL_API_KEY = import.meta.env.VITE_FAL_API_KEY;
@@ -312,7 +313,7 @@ export function AiView() {
   const downloadVideoToMemory = async (
     videoUrl: string
   ): Promise<Uint8Array> => {
-    console.log("📥 Starting video download from:", videoUrl);
+    debugLog("📥 Starting video download from:", videoUrl);
 
     const response = await fetch(videoUrl);
     if (!response.ok) {
@@ -346,7 +347,7 @@ export function AiView() {
         position += chunk.length;
       }
 
-      console.log(`✅ Download complete: ${totalData.length} bytes total`);
+      debugLog(`✅ Download complete: ${totalData.length} bytes total`);
       return totalData;
     } finally {
       reader.releaseLock();
@@ -636,8 +637,8 @@ export function AiView() {
               const modelName =
                 AI_MODELS.find((m) => m.id === modelId)?.name || modelId;
 
-              console.log(`✅ Video generation completed for ${modelName}`);
-              console.log(`📥 Starting download process for: ${newVideo.videoUrl}`);
+              debugLog(`✅ Video generation completed for ${modelName}`);
+              debugLog(`📥 Starting download process for: ${newVideo.videoUrl}`);
 
               // Start download tracking
               const localPath = await outputManager.startDownload(
@@ -646,7 +647,7 @@ export function AiView() {
                 modelId
               );
 
-              console.log(
+              debugLog(
                 `🚀 Started download tracking for ${modelName}: ${localPath}`
               );
 
@@ -654,7 +655,7 @@ export function AiView() {
               setStatusMessage(`Downloading ${modelName} video...`);
               const videoData = await downloadVideoToMemory(newVideo.videoUrl);
               
-              console.log(`📦 Downloaded video data: ${videoData.length} bytes`);
+              debugLog(`📦 Downloaded video data: ${videoData.length} bytes`);
 
               // Complete download tracking
               await outputManager.completeDownload(
@@ -674,20 +675,20 @@ export function AiView() {
                 throw new Error("Media store not ready");
               }
               
-              console.log(`💾 Adding video to media panel...`);
+              debugLog(`💾 Adding video to media panel...`);
               
               // Create blob URL for immediate use
               const blobUrl = URL.createObjectURL(file);
-              console.log(`🔗 Created blob URL for video: ${blobUrl}`);
+              debugLog(`🔗 Created blob URL for video: ${blobUrl}`);
               
               // Generate thumbnail for video preview
               let thumbnailUrl: string | undefined;
               try {
-                console.log(`🎬 Generating thumbnail for AI video...`);
+                debugLog(`🎬 Generating thumbnail for AI video...`);
                 const mediaUtils = await getMediaStoreUtils();
                 const videoResult = await mediaUtils.generateVideoThumbnail(file);
                 thumbnailUrl = videoResult.thumbnailUrl;
-                console.log(`✅ Thumbnail generated successfully`);
+                debugLog(`✅ Thumbnail generated successfully`);
               } catch (error) {
                 console.warn(`⚠️ Failed to generate thumbnail for AI video:`, error);
               }
@@ -703,7 +704,7 @@ export function AiView() {
                 height: 1080,
               });
               
-              console.log(`✅ Successfully added ${modelName} video to media panel`);
+              debugLog(`✅ Successfully added ${modelName} video to media panel`);
 
               debugLogger.log(
                 "AIView",

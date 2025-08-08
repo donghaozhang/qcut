@@ -12,6 +12,7 @@ import {
   type ImageEditRequest,
 } from "@/lib/image-edit-client";
 import { downloadImageAsFile, getImageInfo } from "@/lib/image-utils";
+import { debugLog } from "@/lib/debug-config";
 
 // Export individual components
 export { EditHistory } from "./edit-history";
@@ -79,7 +80,7 @@ export function AdjustmentPanel() {
       });
 
       // Upload image to FAL
-      console.log("🔄 Uploading image to FAL...");
+      debugLog("🔄 Uploading image to FAL...");
       const uploadedImageUrl = await uploadImageToFAL(originalImage);
 
       setProcessingState({
@@ -101,7 +102,7 @@ export function AdjustmentPanel() {
         numImages: parameters.numImages,
       };
 
-      console.log("🎨 Generating edit with:", editRequest);
+      debugLog("🎨 Generating edit with:", editRequest);
 
       // Process edit with progress callback
       const result = await editImage(editRequest, (status) => {
@@ -122,7 +123,7 @@ export function AdjustmentPanel() {
         // Download and add to media library first to get blob URL
         let blobUrl: string | undefined;
         try {
-          console.log("📥 Downloading edited image to media library...", {
+          debugLog("📥 Downloading edited image to media library...", {
             resultUrl: result.result_url,
             projectId,
           });
@@ -130,12 +131,12 @@ export function AdjustmentPanel() {
           const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
           const filename = `edited_${selectedModel}_${timestamp}.jpg`;
 
-          console.log("🔄 Starting download process...", { filename });
+          debugLog("🔄 Starting download process...", { filename });
           const downloadedFile = await downloadImageAsFile(
             result.result_url,
             filename
           );
-          console.log("✅ Download completed:", {
+          debugLog("✅ Download completed:", {
             fileName: downloadedFile.name,
             fileSize: downloadedFile.size,
             fileType: downloadedFile.type,
