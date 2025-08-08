@@ -9,6 +9,7 @@
  */
 
 import { AIVideoOutputManager } from "@/lib/ai-video-output";
+import type { TProject } from "@/types/project";
 
 // Core AI Model Interface
 export interface AIModel {
@@ -56,7 +57,7 @@ export interface UseAIGenerationProps {
   selectedModels: string[];
   selectedImage: File | null;
   activeTab: "text" | "image";
-  activeProject: any;
+  activeProject: TProject | null;
   onProgress: (progress: number, message: string) => void;
   onError: (error: string) => void;
   onComplete: (videos: GeneratedVideoResult[]) => void;
