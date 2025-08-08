@@ -7,6 +7,7 @@ import {
   ExportEngineFactory,
   ExportEngineType,
 } from "@/lib/export-engine-factory";
+import type { ExportFormat, ExportQuality } from "@/types/export";
 import { toast } from "sonner";
 import { useElectron } from "@/hooks/useElectron";
 import { debugLog, debugError } from "@/lib/debug-config";
@@ -41,14 +42,16 @@ export function useExportProgress() {
     }
   };
 
+  type EngineSelection = "auto" | "cli" | "ffmpeg" | "standard";
+
   const handleExport = async (
     canvas: HTMLCanvasElement,
     totalDuration: number,
     exportSettings: {
-      quality: any;
-      format: any;
+      quality: ExportQuality;
+      format: ExportFormat;
       filename: string;
-      engineType: string;
+      engineType: EngineSelection;
       resolution: { width: number; height: number };
     }
   ) => {
@@ -78,12 +81,15 @@ export function useExportProgress() {
         );
         selectedEngineType = undefined; // Let factory decide
       } else {
-        selectedEngineType =
-          exportSettings.engineType === "cli"
-            ? ExportEngineType.CLI
-            : exportSettings.engineType === "ffmpeg"
-              ? ExportEngineType.FFMPEG
-              : ExportEngineType.STANDARD;
+        if (exportSettings.engineType === "auto") {
+          selectedEngineType = undefined;
+        } else if (exportSettings.engineType === "cli") {
+          selectedEngineType = ExportEngineType.CLI;
+        } else if (exportSettings.engineType === "ffmpeg") {
+          selectedEngineType = ExportEngineType.FFMPEG;
+        } else {
+          selectedEngineType = ExportEngineType.STANDARD;
+        }
       }
 
       debugLog("[ExportDialog] 🎬 Creating export engine with settings:", {
@@ -180,8 +186,9 @@ export function useExportProgress() {
 
       // Clean up engine reference
       currentEngineRef.current = null;
-    } catch (error: any) {
-      debugError("[ExportDialog] Export failed:", error);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      debugError("[ExportDialog] Export failed:", message);
 
       // Calculate partial export duration
       const exportDuration = Date.now() - startTime.getTime();
@@ -199,14 +206,14 @@ export function useExportProgress() {
         duration: exportDuration,
         fileSize: 0,
         success: false,
-        error: error.message,
+        error: message,
       });
 
-      setError(error.message);
+      setError(message);
 
       updateProgress({
         progress: 0,
-        status: `Export failed: ${error.message}`,
+        status: `Export failed: ${message}`,
         isExporting: false,
       });
 
@@ -218,7 +225,7 @@ export function useExportProgress() {
 
       // Show error toast
       toast.error("Export failed", {
-        description: error.message,
+        description: message,
       });
     }
   };
