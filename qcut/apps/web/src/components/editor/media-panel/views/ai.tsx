@@ -477,6 +477,7 @@ export function AiView() {
                         </div>
                       </div>
                       <Button
+                        type="button"
                         size="sm"
                         variant="outline"
                         onClick={() => {
@@ -499,6 +500,7 @@ export function AiView() {
           {/* Action buttons */}
           <div className="space-y-2 pt-2">
             <Button
+              type="button"
               onClick={generation.handleGenerate}
               disabled={!generation.canGenerate}
               className="w-full"
@@ -520,6 +522,7 @@ export function AiView() {
             {/* Mock generation for testing */}
             {process.env.NODE_ENV === "development" && (
               <Button
+                type="button"
                 onClick={generation.handleMockGenerate}
                 disabled={!generation.canGenerate}
                 className="w-full"
@@ -533,6 +536,7 @@ export function AiView() {
             {/* Reset button */}
             {(generation.hasResults || error) && (
               <Button
+                type="button"
                 onClick={resetGenerationState}
                 variant="outline"
                 size="sm"
