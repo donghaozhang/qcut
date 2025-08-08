@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { debugLog } from "@/lib/debug-config";
 import { storageService } from "@/lib/storage/storage-service";
 import { useTimelineStore } from "./timeline-store";
 import { generateUUID } from "@/lib/utils";
@@ -525,7 +526,7 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
     state.mediaItems.forEach((item) => {
       if (item.url && item.url.startsWith("blob:")) {
         URL.revokeObjectURL(item.url);
-        console.debug(
+        debugLog(
           `[Cleanup] Revoked blob URL for ${item.name} (project: ${projectId}): ${item.url}`
         );
         revokedCount++;
@@ -562,14 +563,14 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
     state.mediaItems.forEach((item) => {
       if (item.url && item.url.startsWith("blob:")) {
         URL.revokeObjectURL(item.url);
-        console.debug(
+        debugLog(
           `[Cleanup] Revoked blob URL for ${item.name}: ${item.url}`
         );
         revokedCount++;
       }
       if (item.thumbnailUrl && item.thumbnailUrl.startsWith("blob:")) {
         URL.revokeObjectURL(item.thumbnailUrl);
-        console.debug(
+        debugLog(
           `[Cleanup] Revoked thumbnail blob URL for ${item.name}: ${item.thumbnailUrl}`
         );
         revokedCount++;

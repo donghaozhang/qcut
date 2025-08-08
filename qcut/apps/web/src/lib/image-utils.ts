@@ -2,7 +2,7 @@
  * Image utility functions for the adjustment panel
  */
 
-import { debugLog, debugError } from "./debug-config";
+import { debugLog, debugError } from "@/lib/debug-config";
 
 export interface ImageInfo {
   width: number;

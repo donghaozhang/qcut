@@ -15,6 +15,10 @@ import {
 } from "@/lib/export-engine-factory";
 import { debugLog, debugWarn } from "@/lib/debug-config";
 
+/**
+ * Hook for managing export settings state, derived metadata (supported formats, resolution, size estimates),
+ * and change handlers. `engineRecommendation` is a transient hint and may be null when unavailable.
+ */
 export function useExportSettings() {
   const { isDialogOpen, settings, updateSettings } = useExportStore();
   const { getTotalDuration } = useTimelineStore();
