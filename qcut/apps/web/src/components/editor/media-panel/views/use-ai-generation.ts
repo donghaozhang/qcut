@@ -187,6 +187,12 @@ export function useAIGeneration(props: UseAIGenerationProps) {
   // Status polling function
   const startStatusPolling = useCallback(
     (jobId: string) => {
+      // Clear any existing polling interval before starting a new one
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        setPollingInterval(null);
+      }
+
       setGenerationProgress(PROGRESS_CONSTANTS.POLLING_START_PROGRESS);
       setStatusMessage(STATUS_MESSAGES.STARTING);
 
