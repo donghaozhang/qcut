@@ -69,7 +69,7 @@ export function TimelineTrackContent({
   });
 
   // Initialize positioning hook
-  const { getDropSnappedTime } = useTimelinePositioning({
+  const { getDropSnappedTime, detectElementOverlap, checkTrackCompatibility } = useTimelinePositioning({
     zoomLevel,
     snapThreshold: 10,
   });

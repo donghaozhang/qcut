@@ -1,4 +1,4 @@
-import { TimelineElement, TimelineTrack, SnapPoint } from "@/types/timeline";
+import { TimelineElement, TimelineTrack, SnapPoint, canElementGoOnTrack } from "@/types/timeline";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { usePlaybackStore } from "@/stores/playback-store";
@@ -85,21 +85,66 @@ export function useTimelinePositioning(options: TimelinePositioningOptions) {
     return bestSnapResult.snappedTime;
   };
 
+  // Extracted from timeline-track.tsx - overlap detection logic
   const detectElementOverlap = (
-    element: TimelineElement,
-    track: TimelineTrack,
-    newStartTime: number
+    newStartTime: number,
+    elementDuration: number,
+    targetTrack: TimelineTrack,
+    excludeElementId?: string
   ): OverlapDetectionResult => {
-    // TODO: Extract from timeline-track.tsx
-    return { hasOverlap: false, overlappingElements: [] };
+    const newElementEnd = newStartTime + elementDuration;
+    const overlappingElements: TimelineElement[] = [];
+
+    const hasOverlap = targetTrack.elements.some((existingElement) => {
+      // Skip the element being moved if specified
+      if (excludeElementId && existingElement.id === excludeElementId) {
+        return false;
+      }
+
+      const existingStart = existingElement.startTime;
+      const existingEnd =
+        existingElement.startTime +
+        (existingElement.duration -
+          existingElement.trimStart -
+          existingElement.trimEnd);
+
+      // Check if elements overlap
+      const overlaps = newStartTime < existingEnd && newElementEnd > existingStart;
+      
+      if (overlaps) {
+        overlappingElements.push(existingElement);
+      }
+      
+      return overlaps;
+    });
+
+    return { hasOverlap, overlappingElements };
   };
 
+  // Extracted from timeline-track.tsx - track compatibility checking
   const checkTrackCompatibility = (
-    elementType: string,
+    elementType: "media" | "text" | "audio" | "video" | "image",
     trackType: string
   ): TrackCompatibilityResult => {
-    // TODO: Extract from timeline-track.tsx
-    return { compatible: true };
+    const isVideoOrImage = elementType === "video" || elementType === "image";
+    const isAudio = elementType === "audio";
+    const isMedia = elementType === "media";
+    
+    let compatible = false;
+    let reason = "";
+
+    if (isVideoOrImage || isAudio || isMedia) {
+      compatible = canElementGoOnTrack("media", trackType);
+      reason = compatible ? "" : "Media elements require a media track";
+    } else if (elementType === "text") {
+      compatible = canElementGoOnTrack("text", trackType);
+      reason = compatible ? "" : "Text elements require a text track";
+    } else {
+      compatible = false;
+      reason = `Unknown element type: ${elementType}`;
+    }
+
+    return { compatible, reason };
   };
 
   return {
