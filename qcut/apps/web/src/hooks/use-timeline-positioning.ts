@@ -32,8 +32,13 @@ export interface TrackCompatibilityResult {
  * Custom hook for timeline positioning, snapping, and validation logic
  */
 export function useTimelinePositioning(options: TimelinePositioningOptions) {
-  const { tracks, snappingEnabled } = useTimelineStore();
-  const { currentTime } = usePlaybackStore();
+  const { tracks, snappingEnabled } = useTimelineStore(s => ({
+    tracks: s.tracks,
+    snappingEnabled: s.snappingEnabled,
+  }));
+  const { currentTime } = usePlaybackStore(s => ({
+    currentTime: s.currentTime,
+  }));
   const { snapElementEdge } = useTimelineSnapping({
     snapThreshold: options.snapThreshold || 10,
     enableElementSnapping: snappingEnabled,

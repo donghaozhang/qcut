@@ -48,7 +48,17 @@ export function useTimelineDragHandlers(options: DragHandlersOptions): DragHandl
     selectedElements,
     selectElement,
     rippleEditingEnabled,
-  } = useTimelineStore();
+  } = useTimelineStore(s => ({
+    dragState: s.dragState,
+    updateDragTime: s.updateDragTime,
+    updateElementStartTime: s.updateElementStartTime,
+    updateElementStartTimeWithRipple: s.updateElementStartTimeWithRipple,
+    moveElementToTrack: s.moveElementToTrack,
+    endDrag: s.endDrag,
+    selectedElements: s.selectedElements,
+    selectElement: s.selectElement,
+    rippleEditingEnabled: s.rippleEditingEnabled,
+  }));
   
   // Extracted from timeline-track.tsx useEffect (lines 82-311)
   useEffect(() => {

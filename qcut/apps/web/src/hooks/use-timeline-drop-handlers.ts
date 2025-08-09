@@ -47,7 +47,15 @@ export function useTimelineDropHandlers(options: DropHandlersOptions): DropHandl
     updateElementStartTime,
     updateElementStartTimeWithRipple,
     rippleEditingEnabled,
-  } = useTimelineStore();
+  } = useTimelineStore(s => ({
+    addTrack: s.addTrack,
+    moveElementToTrack: s.moveElementToTrack,
+    addElementToTrack: s.addElementToTrack,
+    insertTrackAt: s.insertTrackAt,
+    updateElementStartTime: s.updateElementStartTime,
+    updateElementStartTimeWithRipple: s.updateElementStartTimeWithRipple,
+    rippleEditingEnabled: s.rippleEditingEnabled,
+  }));
 
   // Drop state management (extracted from timeline-track.tsx)
   const [isDropping, setIsDropping] = useState(false);
