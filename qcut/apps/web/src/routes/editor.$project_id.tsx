@@ -84,39 +84,48 @@ function EditorPage() {
     timeline
   });
   
-  // PHASE 2-B: Enhanced verification messages to detect Component Virus
+  // PHASE 2-D: Enhanced verification messages to detect Component Virus with PreviewPanel
   if (renderCount.current === 1) {
     console.log('🔧 [CSS-GRID-FIX] First render - checking for infinite loop prevention...');
     console.log(`🚨 [REACT-DOWNGRADE] React ${React.version} first render completed`);
-    console.log(`🦠 [VIRUS-HUNT-P2-B] First render with EditorHeader enabled - monitoring for Component Virus...`);
+    console.log(`🦠 [VIRUS-HUNT-P2-D] First render with PreviewPanel enabled - monitoring for Component Virus...`);
+    console.log(`🦠 [VIRUS-HUNT-P2-D] EditorHeader and MediaPanel were cleared - now testing PreviewPanel`);
+    console.log(`🔍 [VIRUS-HUNT-P2-D] PreviewPanel is complex (video, canvas, playback) - HIGH SUSPECT!`);
   } else if (renderCount.current === 2) {
     console.log('🔧 [CSS-GRID-FIX] Second render - normal React behavior, no infinite loop detected yet');
     console.log(`🚨 [REACT-DOWNGRADE] React ${React.version} second render - checking if downgrade helped...`);
-    console.log(`✅ [VIRUS-HUNT-P2-B] Second render successful - EditorHeader appears safe so far`);
+    console.log(`✅ [VIRUS-HUNT-P2-D] Second render successful - PreviewPanel appears safe so far`);
   } else if (renderCount.current === 3) {
     console.warn('⚠️ [CSS-GRID-FIX] Third render detected - still normal but monitoring...');
     console.warn(`🚨 [REACT-DOWNGRADE] React ${React.version} third render - monitoring for virus return`);
-    console.log(`🦠 [VIRUS-HUNT-P2-B] Third render with EditorHeader - still no getSnapshot warning (GOOD)`);
+    console.log(`🦠 [VIRUS-HUNT-P2-D] Third render with PreviewPanel - still no getSnapshot warning (GOOD)`);
   } else if (renderCount.current >= 4 && renderCount.current <= 10) {
     console.error('⚠️ [CSS-GRID-FIX] Multiple renders detected - investigating cause...');
     console.error(`🚨 [REACT-DOWNGRADE] React ${React.version} multiple renders - potential issue forming`);
-    console.error(`🦠 [VIRUS-HUNT-P2-B] WARNING: ${renderCount.current} renders detected - Component Virus may be returning!`);
+    console.error(`🦠 [VIRUS-HUNT-P2-D] WARNING: ${renderCount.current} renders detected - Component Virus may be returning!`);
+    console.error(`🦠 [VIRUS-HUNT-P2-D] PreviewPanel might be the culprit! Watch for getSnapshot warning...`);
+    console.error(`🔍 [VIRUS-HUNT-P2-D] PreviewPanel has video/canvas/playback complexity - likely suspect!`);
   } else if (renderCount.current > 10) {
     console.error('🚨 [CSS-GRID-FIX] CRITICAL: Too many renders detected - infinite loop suspected!');
     console.error(`🚨 [REACT-DOWNGRADE] React ${React.version} - CRITICAL: 10+ renders detected`);
-    console.error(`💥 [VIRUS-HUNT-P2-B] COMPONENT VIRUS DETECTED! EditorHeader is likely the culprit!`);
-    console.error(`💥 [VIRUS-HUNT-P2-B] Render count: ${renderCount.current} - Expect getSnapshot warning and crash soon`);
+    console.error(`💥 [VIRUS-HUNT-P2-D] COMPONENT VIRUS DETECTED! PreviewPanel IS the culprit!`);
+    console.error(`💥 [VIRUS-HUNT-P2-D] Render count: ${renderCount.current} - Expect getSnapshot warning and crash soon`);
+    console.error(`💥 [VIRUS-HUNT-P2-D] PreviewPanel contains faulty useSyncExternalStore usage!`);
+    console.error(`💥 [VIRUS-HUNT-P2-D] Check PreviewPanel video/canvas/playback components for infinite loops!`);
   }
 
-  // PHASE 2-B: Success/Failure detection timer
+  // PHASE 2-D: Success/Failure detection timer
   if (renderCount.current === 1) {
     setTimeout(() => {
       if (renderCount.current <= 3) {
-        console.log(`✅ [VIRUS-HUNT-P2-B] SUCCESS! EditorHeader is NOT the culprit (${renderCount.current} renders only)`);
-        console.log(`✅ [VIRUS-HUNT-P2-B] No getSnapshot warning detected - proceed to Phase 2-C (MediaPanel test)`);
+        console.log(`✅ [VIRUS-HUNT-P2-D] SUCCESS! PreviewPanel is NOT the culprit (${renderCount.current} renders only)`);
+        console.log(`✅ [VIRUS-HUNT-P2-D] No getSnapshot warning detected - proceed to Phase 2-E (PropertiesPanel test)`);
+        console.log(`✅ [VIRUS-HUNT-P2-D] PreviewPanel cleared - 3 of 7 components tested, 4 remaining`);
       } else {
-        console.error(`💥 [VIRUS-HUNT-P2-B] FAILURE! EditorHeader IS the culprit (${renderCount.current} renders detected)`);
-        console.error(`💥 [VIRUS-HUNT-P2-B] Component Virus found - investigate EditorHeader for useSyncExternalStore issues`);
+        console.error(`💥 [VIRUS-HUNT-P2-D] FAILURE! PreviewPanel IS the culprit (${renderCount.current} renders detected)`);
+        console.error(`💥 [VIRUS-HUNT-P2-D] Component Virus found - investigate PreviewPanel for useSyncExternalStore issues`);
+        console.error(`💥 [VIRUS-HUNT-P2-D] Check PreviewPanel video rendering, canvas operations, and playback controls`);
+        console.error(`💥 [VIRUS-HUNT-P2-D] CULPRIT FOUND! PreviewPanel is the problematic component!`);
       }
     }, 3000); // Check after 3 seconds to allow for normal React mounting
   }
@@ -195,27 +204,29 @@ function EditorPage() {
     console.error(`💥 [REACT-DOWNGRADE] Error during render preparation:`, error);
   }
   
-  // ULTRA ANALYSIS: Phase 2-B - Re-enable EditorHeader ONLY to test for virus trigger
-  console.log(`🦠 [VIRUS-HUNT-P2-B] Re-enabling EditorHeader ONLY - testing if it triggers the Component Virus`);
-  console.log(`🦠 [VIRUS-HUNT-P2-B] All other components remain DISABLED (MediaPanel, PreviewPanel, PropertiesPanel, Timeline, Onboarding)`);
-  console.log(`🦠 [VIRUS-HUNT-P2-B] SUCCESS CRITERIA: No getSnapshot warning, no Maximum update depth error, clean render cycle`);
-  console.log(`🦠 [VIRUS-HUNT-P2-B] FAILURE CRITERIA: Component Virus returns - getSnapshot warning + infinite loop crash`);
+  // ULTRA ANALYSIS: Phase 2-D - Re-enable PreviewPanel ONLY to test for virus trigger
+  console.log(`🦠 [VIRUS-HUNT-P2-D] Re-enabling PreviewPanel ONLY - testing if it triggers the Component Virus`);
+  console.log(`🦠 [VIRUS-HUNT-P2-D] EditorHeader and MediaPanel proven safe in previous phases`);
+  console.log(`🦠 [VIRUS-HUNT-P2-D] All other components remain DISABLED (PropertiesPanel, Timeline, Onboarding)`);
+  console.log(`🦠 [VIRUS-HUNT-P2-D] SUCCESS CRITERIA: No getSnapshot warning, no Maximum update depth error, clean render cycle`);
+  console.log(`🦠 [VIRUS-HUNT-P2-D] FAILURE CRITERIA: Component Virus returns - getSnapshot warning + infinite loop crash`);
+  console.log(`🦠 [VIRUS-HUNT-P2-D] PreviewPanel is a complex component - high probability of being the culprit!`);
   
   return (
     <EditorProvider>
       <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
-        {/* PHASE 2-B: Re-enable EditorHeader ONLY */}
-        <EditorHeader />
+        {/* PHASE 2-D: All components disabled except PreviewPanel */}
+        {/* <EditorHeader /> */}
         <div 
           style={{ 
             padding: '0.5rem', 
-            background: '#0a5a0a', 
+            background: '#5a1a0a', 
             color: 'white',
             textAlign: 'center',
             fontSize: '14px'
           }}
         >
-          🦠 [VIRUS-HUNT-P2-B] EditorHeader RE-ENABLED - All other components still DISABLED
+          🦠 [VIRUS-HUNT-P2-D] All components DISABLED except PreviewPanel - Testing if PreviewPanel is the culprit
         </div>
         
         <div className="flex-1 min-h-0 min-w-0">
@@ -250,9 +261,9 @@ function EditorPage() {
                 padding: '0 0.5rem'
               }}
             >
-              {/* PHASE 2-B: All child panels STILL DISABLED except EditorHeader */}
+              {/* PHASE 2-D: Re-enable PreviewPanel ONLY - all other panels remain disabled */}
               
-              {/* Tools Panel - STILL DISABLED */}
+              {/* Tools Panel - DISABLED AGAIN */}
               <div style={{ gridArea: 'tools' }} className="min-w-0">
                 {/* <MediaPanel /> */}
                 <div 
@@ -265,24 +276,27 @@ function EditorPage() {
                     fontSize: '14px'
                   }}
                 >
-                  🦠 [VIRUS-HUNT-P2-B]<br/>MediaPanel STILL DISABLED
+                  🦠 [VIRUS-HUNT-P2-D]<br/>MediaPanel DISABLED AGAIN
                 </div>
               </div>
 
-              {/* Preview Area - STILL DISABLED */}
+              {/* Preview Area - RE-ENABLED for testing */}
               <div style={{ gridArea: 'preview' }} className="min-w-0 min-h-0 flex-1">
-                {/* <PreviewPanel /> */}
+                <PreviewPanel />
                 <div 
                   style={{ 
-                    background: '#3a3a3a', 
+                    position: 'absolute',
+                    top: '0.5rem',
+                    right: '0.5rem',
+                    background: 'rgba(90, 10, 10, 0.9)', 
                     color: 'white', 
-                    padding: '2rem',
-                    textAlign: 'center',
-                    height: '100%',
-                    fontSize: '14px'
+                    padding: '0.25rem 0.5rem',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    zIndex: 1000
                   }}
                 >
-                  🦠 [VIRUS-HUNT-P2-B]<br/>PreviewPanel STILL DISABLED
+                  🦠 [P2-D] PreviewPanel RE-ENABLED
                 </div>
               </div>
 
@@ -303,7 +317,7 @@ function EditorPage() {
                       fontSize: '14px'
                     }}
                   >
-                    🦠 [VIRUS-HUNT-P2-B]<br/>PropertiesPanel STILL DISABLED<br/>ExportDialog STILL DISABLED
+                    🦠 [VIRUS-HUNT-P2-D]<br/>PropertiesPanel STILL DISABLED<br/>ExportDialog STILL DISABLED
                   </div>
                 </div>
               </div>
@@ -325,7 +339,7 @@ function EditorPage() {
                   fontSize: '14px'
                 }}
               >
-                🦠 [VIRUS-HUNT-P2-B] Timeline STILL DISABLED
+                🦠 [VIRUS-HUNT-P2-D] Timeline STILL DISABLED
               </div>
             </div>
           </div>
@@ -345,7 +359,7 @@ function EditorPage() {
             fontSize: '12px'
           }}
         >
-          🦠 [VIRUS-HUNT-P2-B] Onboarding STILL DISABLED
+          🦠 [VIRUS-HUNT-P2-D] Onboarding STILL DISABLED
         </div>
       </div>
     </EditorProvider>
