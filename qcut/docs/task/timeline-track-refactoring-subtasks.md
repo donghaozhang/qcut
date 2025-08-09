@@ -11,14 +11,20 @@ Split the timeline-track.tsx file by extracting interaction logic into separate 
 
 ## Current File Analysis
 
+**⚠️ CRITICAL DEPENDENCIES IDENTIFIED:**
+
+**Hook Dependencies (CANNOT EXTRACT):**
+- **Lines 36-68**: Multiple store hooks (useTimelineStore, usePlaybackStore, etc.) - MUST stay in component
+- **Lines 71-79**: useState and useRef hooks - MUST stay in component  
+- **Lines 82-359**: useEffect with massive dependency array (18 dependencies) - RISKY to extract
+
 **Structure identified:**
-- **Lines 1-26**: Imports and type definitions  
-- **Lines 27-75**: Component props and initial state/hooks setup
-- **Lines 76-359**: Drag & Drop mouse event handlers (LARGE BLOCK)
-- **Lines 360-425**: Helper functions for snapping and positioning  
-- **Lines 426-750**: Drop event handlers (dragEnter, dragLeave, dragOver)
-- **Lines 751-1050**: Main drop handler with complex logic
-- **Lines 1051-1175**: Render JSX and element mapping
+- **Lines 1-35**: Imports and component signature
+- **Lines 36-80**: Hook calls and state initialization (CRITICAL - cannot move)
+- **Lines 82-359**: useEffect for drag handlers (COMPLEX - high risk)  
+- **Lines 376-425**: Helper functions for snapping (SAFE to extract)
+- **Lines 647-1050**: Drop event handlers (MODERATE risk to extract)
+- **Lines 1114-1175**: Render JSX and element mapping (SAFE)
 
 ## Refactoring Strategy
 
