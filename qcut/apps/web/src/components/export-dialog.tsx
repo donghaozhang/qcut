@@ -10,12 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Download,
-  X,
-  AlertTriangle,
-  Square,
-} from "lucide-react";
+import { Download, X, AlertTriangle, Square } from "lucide-react";
 import {
   ExportQuality,
   ExportFormat,
@@ -37,8 +32,12 @@ import { useExportPresets } from "@/hooks/use-export-presets";
 export function ExportDialog() {
   const { isDialogOpen, setDialogOpen, error } = useExportStore();
   const { getTotalDuration } = useTimelineStore();
-  const { mediaItems, loading: mediaItemsLoading, error: mediaItemsError } = useAsyncMediaItems();
-  
+  const {
+    mediaItems,
+    loading: mediaItemsLoading,
+    error: mediaItemsError,
+  } = useAsyncMediaItems();
+
   const canvasRef = useRef<ExportCanvasRef>(null);
   const { isElectron } = useElectron();
 
@@ -93,8 +92,10 @@ export function ExportDialog() {
 
   if (mediaItemsLoading) {
     return (
-      <div className="h-full flex flex-col bg-background" 
-           style={{ borderRadius: '0.375rem', overflow: 'hidden' }}>
+      <div
+        className="h-full flex flex-col bg-background"
+        style={{ borderRadius: "0.375rem", overflow: "hidden" }}
+      >
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="flex items-center space-x-2">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
@@ -106,9 +107,10 @@ export function ExportDialog() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-background" 
-         style={{ borderRadius: '0.375rem', overflow: 'hidden' }}>
-      
+    <div
+      className="h-full flex flex-col bg-background"
+      style={{ borderRadius: "0.375rem", overflow: "hidden" }}
+    >
       <div className="flex items-center justify-between p-4 border-b border-border">
         <div>
           <h2 className="text-lg font-semibold">Export Video</h2>
@@ -162,55 +164,70 @@ export function ExportDialog() {
               <span className="font-medium">Export Progress</span>
               <span>{exportProgress.progress.progress.toFixed(0)}%</span>
             </div>
-            <Progress value={exportProgress.progress.progress} className="w-full" />
-            <p className="text-sm text-muted-foreground">{exportProgress.progress.status}</p>
+            <Progress
+              value={exportProgress.progress.progress}
+              className="w-full"
+            />
+            <p className="text-sm text-muted-foreground">
+              {exportProgress.progress.status}
+            </p>
 
             {/* Advanced Progress Information */}
-            {exportProgress.progress.currentFrame > 0 && exportProgress.progress.totalFrames > 0 && (
-              <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-2 border-t border-border">
-                <div>
-                  <span className="font-medium">Frames:</span>
-                  <span className="ml-1">
-                    {exportProgress.progress.currentFrame} / {exportProgress.progress.totalFrames}
-                  </span>
+            {exportProgress.progress.currentFrame > 0 &&
+              exportProgress.progress.totalFrames > 0 && (
+                <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-2 border-t border-border">
+                  <div>
+                    <span className="font-medium">Frames:</span>
+                    <span className="ml-1">
+                      {exportProgress.progress.currentFrame} /{" "}
+                      {exportProgress.progress.totalFrames}
+                    </span>
+                  </div>
+                  {exportProgress.progress.encodingSpeed &&
+                    exportProgress.progress.encodingSpeed > 0 && (
+                      <div>
+                        <span className="font-medium">Speed:</span>
+                        <span className="ml-1">
+                          {exportProgress.progress.encodingSpeed.toFixed(1)} fps
+                        </span>
+                      </div>
+                    )}
+                  {exportProgress.progress.elapsedTime &&
+                    exportProgress.progress.elapsedTime > 0 && (
+                      <div>
+                        <span className="font-medium">Elapsed:</span>
+                        <span className="ml-1">
+                          {exportProgress.progress.elapsedTime.toFixed(1)}s
+                        </span>
+                      </div>
+                    )}
                 </div>
-                {exportProgress.progress.encodingSpeed && exportProgress.progress.encodingSpeed > 0 && (
-                  <div>
-                    <span className="font-medium">Speed:</span>
-                    <span className="ml-1">
-                      {exportProgress.progress.encodingSpeed.toFixed(1)} fps
-                    </span>
-                  </div>
-                )}
-                {exportProgress.progress.elapsedTime && exportProgress.progress.elapsedTime > 0 && (
-                  <div>
-                    <span className="font-medium">Elapsed:</span>
-                    <span className="ml-1">
-                      {exportProgress.progress.elapsedTime.toFixed(1)}s
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
+              )}
           </div>
         )}
       </div>
 
       {/* Settings Section - Scrollable Content */}
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        
         <div className="grid grid-cols-2 gap-2 mb-4">
           {EXPORT_PRESETS.map((preset) => (
             <Button
               key={preset.name}
-              variant={exportPresets.selectedPreset?.name === preset.name ? "default" : "outline"}
+              variant={
+                exportPresets.selectedPreset?.name === preset.name
+                  ? "default"
+                  : "outline"
+              }
               size="sm"
               onClick={() => exportPresets.handlePresetSelect(preset)}
               className="text-xs p-3 h-auto overflow-hidden"
               disabled={exportProgress.progress.isExporting}
             >
               <div className="flex flex-col items-center gap-1.5 w-full">
-                <PlatformIcon presetId={preset.id} className="size-5 shrink-0" />
+                <PlatformIcon
+                  presetId={preset.id}
+                  className="size-5 shrink-0"
+                />
                 <div className="flex flex-col items-center gap-0.5 w-full">
                   <span className="font-medium text-xs">{preset.name}</span>
                   <span className="text-[0.6rem] opacity-70 leading-tight text-center line-clamp-2">
@@ -225,7 +242,11 @@ export function ExportDialog() {
         {exportPresets.selectedPreset && (
           <div className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
             <span className="text-sm">
-              Using <span className="font-medium">{exportPresets.selectedPreset.name}</span> preset
+              Using{" "}
+              <span className="font-medium">
+                {exportPresets.selectedPreset.name}
+              </span>{" "}
+              preset
             </span>
             <Button
               variant="text"
@@ -239,7 +260,6 @@ export function ExportDialog() {
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          
           <Card className="col-span-2">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">File Name</CardTitle>
@@ -248,16 +268,20 @@ export function ExportDialog() {
               <Input
                 type="text"
                 value={exportSettings.filename}
-                onChange={(e) => exportSettings.handleFilenameChange(e.target.value)}
+                onChange={(e) =>
+                  exportSettings.handleFilenameChange(e.target.value)
+                }
                 placeholder="Enter filename"
                 disabled={exportProgress.progress.isExporting}
                 className="text-sm"
               />
-              {!exportValidation.hasValidFilename && exportSettings.filename && (
-                <p className="text-xs text-red-500 mt-1">
-                  Invalid filename. Use only letters, numbers, hyphens, and underscores.
-                </p>
-              )}
+              {!exportValidation.hasValidFilename &&
+                exportSettings.filename && (
+                  <p className="text-xs text-red-500 mt-1">
+                    Invalid filename. Use only letters, numbers, hyphens, and
+                    underscores.
+                  </p>
+                )}
             </CardContent>
           </Card>
 
@@ -268,7 +292,9 @@ export function ExportDialog() {
             <CardContent>
               <RadioGroup
                 value={exportSettings.quality}
-                onValueChange={(value) => exportSettings.handleQualityChange(value as ExportQuality)}
+                onValueChange={(value) =>
+                  exportSettings.handleQualityChange(value as ExportQuality)
+                }
                 disabled={exportProgress.progress.isExporting}
               >
                 {Object.values(ExportQuality).map((q) => {
@@ -280,7 +306,9 @@ export function ExportDialog() {
                       <Label htmlFor={q} className="text-sm cursor-pointer">
                         <div>
                           <div className="font-medium">{resolution.label}</div>
-                          <div className="text-xs text-muted-foreground">~{exportSettings.estimatedSize}</div>
+                          <div className="text-xs text-muted-foreground">
+                            ~{exportSettings.estimatedSize}
+                          </div>
                         </div>
                       </Label>
                     </div>
@@ -297,7 +325,11 @@ export function ExportDialog() {
             <CardContent>
               <RadioGroup
                 value={exportSettings.engineType}
-                onValueChange={(value) => exportSettings.setEngineType(value as "standard" | "ffmpeg" | "cli")}
+                onValueChange={(value) =>
+                  exportSettings.setEngineType(
+                    value as "standard" | "ffmpeg" | "cli"
+                  )
+                }
                 disabled={exportProgress.progress.isExporting}
               >
                 <div className="flex items-center space-x-2">
@@ -340,7 +372,9 @@ export function ExportDialog() {
             <CardContent>
               <RadioGroup
                 value={exportSettings.format}
-                onValueChange={(value) => exportSettings.handleFormatChange(value as ExportFormat)}
+                onValueChange={(value) =>
+                  exportSettings.handleFormatChange(value as ExportFormat)
+                }
                 disabled={exportProgress.progress.isExporting}
               >
                 {exportSettings.supportedFormats.map((fmt) => (
@@ -371,7 +405,7 @@ export function ExportDialog() {
                 <div className="flex justify-between items-center">
                   <span className="font-medium">Resolution:</span>
                   <span className="text-muted-foreground">
-                    {exportSettings.resolution?.label || 'N/A'}
+                    {exportSettings.resolution?.label || "N/A"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -413,7 +447,6 @@ export function ExportDialog() {
           </Card>
         </div>
 
-        
         {/* Memory Warning */}
         {exportValidation.memoryWarning && (
           <Alert
@@ -453,7 +486,11 @@ export function ExportDialog() {
               {exportValidation.memoryEstimate.recommendation && (
                 <div className="mt-1 text-sm">
                   <strong>Recommendation:</strong> Switch to{" "}
-                  {exportValidation.memoryEstimate.recommendation.suggestedQuality} quality (
+                  {
+                    exportValidation.memoryEstimate.recommendation
+                      .suggestedQuality
+                  }{" "}
+                  quality (
                   {exportValidation.memoryEstimate.recommendation.description})
                 </div>
               )}
@@ -480,8 +517,9 @@ export function ExportDialog() {
             <AlertDescription className="text-yellow-800">
               <div className="font-medium">Very Short Video</div>
               <div>
-                Your timeline is very short ({exportSettings.timelineDuration.toFixed(2)}s).
-                Consider adding more content for a better export result.
+                Your timeline is very short (
+                {exportSettings.timelineDuration.toFixed(2)}s). Consider adding
+                more content for a better export result.
               </div>
             </AlertDescription>
           </Alert>

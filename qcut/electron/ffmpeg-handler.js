@@ -7,6 +7,16 @@ const { TempManager } = require("./temp-manager.js");
 const tempManager = new TempManager();
 
 function setupFFmpegIPC() {
+  // Handle ffmpeg-path request
+  ipcMain.handle("ffmpeg-path", async () => {
+    try {
+      return getFFmpegPath();
+    } catch (error) {
+      console.error("[FFmpeg] Error getting FFmpeg path:", error);
+      throw error;
+    }
+  });
+
   // Create export session
   ipcMain.handle("create-export-session", async () => {
     return tempManager.createExportSession();

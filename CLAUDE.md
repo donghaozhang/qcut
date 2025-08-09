@@ -4,6 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Priority Hierarchy: Long-term maintainability > scalability > performance > short-term gains
 
+## Essential Commands
+
+### Linting & Code Quality
+```bash
+# Run standard linting (shows all errors including unfixable FFmpeg files)
+bun lint
+
+# Run clean linting (skips parse errors from FFmpeg WebAssembly files) - RECOMMENDED
+bun lint:clean
+
+# Auto-fix formatting issues
+bun format
+```
+
 Core Principles:
 
 Systems Thinking: Analyze impacts across entire system

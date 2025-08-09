@@ -194,10 +194,10 @@ export function MediaView() {
       // Set the original image in the adjustment store
       const imageUrl = item.url || URL.createObjectURL(item.file);
       setOriginalImage(item.file, imageUrl);
-      
+
       // Switch to adjustment tab
       setActiveTab("adjustment");
-      
+
       toast.success(`"${item.name}" loaded in adjustment panel`);
     } catch (error) {
       console.error("Failed to load image for editing:", error);

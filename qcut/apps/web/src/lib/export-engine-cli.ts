@@ -212,9 +212,7 @@ export class CLIExportEngine extends ExportEngine {
         img.crossOrigin = "anonymous";
 
         const timeout = setTimeout(() => {
-          debugWarn(
-            `[CLIExportEngine] Image load timeout: ${mediaItem.url}`
-          );
+          debugWarn(`[CLIExportEngine] Image load timeout: ${mediaItem.url}`);
           resolve();
         }, 5000); // Standard timeout for regular images
 
@@ -236,9 +234,7 @@ export class CLIExportEngine extends ExportEngine {
 
         img.onerror = () => {
           clearTimeout(timeout);
-          debugWarn(
-            `[CLIExportEngine] Failed to load image: ${mediaItem.url}`
-          );
+          debugWarn(`[CLIExportEngine] Failed to load image: ${mediaItem.url}`);
           resolve();
         };
 
@@ -373,14 +369,20 @@ export class CLIExportEngine extends ExportEngine {
         "[CLIExportEngine] 🔍 DEBUG: Keeping frames in temp directory for inspection"
       );
       debugLog(
-        `[CLIExportEngine] 📁 Frames location: C:\\Users\\zdhpe\\AppData\\Local\\Temp\\qcut-export\\${this.sessionId}\\frames`
+        `[CLIExportEngine] 📁 Frames location: ${this.frameDir}\\frames`
       );
-      debugLog(
-        "[CLIExportEngine] 🧪 TEST: Try this FFmpeg command manually:"
-      );
-      debugLog(
-        `cd "C:\\Users\\zdhpe\\Desktop\\vite_opencut\\OpenCut-main\\qcut\\electron\\resources" && ffmpeg.exe -y -framerate 30 -i "C:\\Users\\zdhpe\\AppData\\Local\\Temp\\qcut-export\\${this.sessionId}\\frames\\frame-%04d.png" -c:v libx264 -preset fast -crf 23 -t 5 test-output.mp4`
-      );
+      debugLog("[CLIExportEngine] 🧪 TEST: Try this FFmpeg command manually:");
+      (async () => {
+        // get the ffmpeg path from main process (works in dev & packaged)
+        const ffmpegPath = await window.electronAPI?.invoke("ffmpeg-path");
+        const framesDir = `${this.frameDir}\\frames`;
+        const duration = Math.ceil(this.totalDuration);
+        debugLog(
+          `"${ffmpegPath}" -y -framerate ${this.fps}` +
+            ` -i "${framesDir}\\frame-%04d.png" -c:v libx264` +
+            ` -preset fast -crf 23 -t ${duration} "output.mp4"`
+        );
+      })();
 
       // Uncomment this line to cleanup as normal:
       // if (this.sessionId) {
@@ -460,10 +462,7 @@ export class CLIExportEngine extends ExportEngine {
         );
       }
     } catch (error) {
-      debugError(
-        `[CLIExportEngine] Failed to save frame ${frameName}:`,
-        error
-      );
+      debugError(`[CLIExportEngine] Failed to save frame ${frameName}:`, error);
       throw error;
     }
   }

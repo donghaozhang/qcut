@@ -213,9 +213,9 @@ function EditorPage() {
                   onResize={setPropertiesPanel}
                   className="min-w-0"
                 >
-                  <div 
-                    className="h-full" 
-                    style={{ borderRadius: '0.375rem', overflow: 'hidden' }}
+                  <div
+                    className="h-full"
+                    style={{ borderRadius: "0.375rem", overflow: "hidden" }}
                   >
                     {isDialogOpen ? <ExportDialog /> : <PropertiesPanel />}
                   </div>

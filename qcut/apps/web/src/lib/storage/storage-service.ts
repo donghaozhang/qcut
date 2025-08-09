@@ -367,29 +367,38 @@ class StorageService {
   /**
    * Check storage quota to prevent running out of space
    */
-  async checkStorageQuota(): Promise<{ available: boolean; usage: number; quota: number; usagePercent: number }> {
-    if (!('storage' in navigator)) {
+  async checkStorageQuota(): Promise<{
+    available: boolean;
+    usage: number;
+    quota: number;
+    usagePercent: number;
+  }> {
+    if (typeof navigator === "undefined" || !("storage" in navigator)) {
       // Storage API not supported - assume available but with unknown limits
-      debugLog('[StorageService] Storage API not supported, assuming available');
+      debugLog(
+        "[StorageService] Storage API not supported, assuming available"
+      );
       return { available: true, usage: 0, quota: Infinity, usagePercent: 0 };
     }
-    
+
     try {
       const estimate = await navigator.storage.estimate();
       const usage = estimate.usage || 0;
       const quota = estimate.quota || Infinity;
       const usagePercent = quota === Infinity ? 0 : (usage / quota) * 100;
-      
-      debugLog(`[StorageService] Storage usage: ${(usage / 1024 / 1024).toFixed(2)}MB / ${quota === Infinity ? '∞' : (quota / 1024 / 1024).toFixed(2)}MB (${usagePercent.toFixed(1)}%`);
-      
+
+      debugLog(
+        `[StorageService] Storage usage: ${(usage / 1024 / 1024).toFixed(2)}MB / ${quota === Infinity ? "∞" : (quota / 1024 / 1024).toFixed(2)}MB (${usagePercent.toFixed(1)}%`
+      );
+
       return {
         available: usagePercent < 80, // Warn at 80% usage
         usage,
         quota,
-        usagePercent
+        usagePercent,
       };
     } catch (error) {
-      debugError('[StorageService] Failed to check storage quota:', error);
+      debugError("[StorageService] Failed to check storage quota:", error);
       // On error, assume available to not block operations
       return { available: true, usage: 0, quota: Infinity, usagePercent: 0 };
     }

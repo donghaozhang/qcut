@@ -1,13 +1,13 @@
 import React from "react";
-import { 
-  Youtube, 
-  Instagram, 
-  Music2, 
-  Twitter, 
-  Linkedin, 
-  Globe, 
+import {
+  Youtube,
+  Instagram,
+  Music2,
+  Twitter,
+  Linkedin,
+  Globe,
   Star,
-  LucideIcon 
+  LucideIcon,
 } from "lucide-react";
 
 // Platform icon mapping
@@ -31,9 +31,23 @@ export function getPlatformIcon(presetId: string): LucideIcon {
 interface PlatformIconProps {
   presetId: string;
   className?: string;
+  title?: string;
 }
 
-export function PlatformIcon({ presetId, className = "size-4" }: PlatformIconProps) {
+/**
+ * Renders a platform icon with consistent sizing and accessible labeling.
+ *
+ * Example:
+ * <PlatformIcon presetId="youtube-hd" className="size-5" />
+ */
+export function PlatformIcon({
+  presetId,
+  className = "size-4",
+  title,
+}: PlatformIconProps) {
   const Icon = getPlatformIcon(presetId);
-  return <Icon className={className} />;
+  const computedTitle =
+    title ??
+    presetId.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return <Icon className={className} role="img" aria-label={computedTitle} />;
 }

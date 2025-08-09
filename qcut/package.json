@@ -27,6 +27,7 @@
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "lint": "npx ultracite@latest lint",
+    "lint:clean": "npx @biomejs/biome check --skip-parse-errors .",
     "format": "npx ultracite@latest format",
     "electron": "electron .",
     "electron:dev": "cross-env NODE_ENV=development electron .",
@@ -36,7 +37,9 @@
     "dist:win:unsigned": "electron-builder --win --config.win.forceCodeSigning=false --config.win.verifyUpdateCodeSignature=false",
     "dist:win:release": "electron-builder --win --config.win.forceCodeSigning=false --config.win.verifyUpdateCodeSignature=false",
     "dist:win:fast": "electron-builder --win --config.win.forceCodeSigning=false --config.compression=store --config.nsis.differentialPackage=false",
-    "package:win": "electron-packager . QCut --platform=win32 --arch=x64 --out=d:/AI_play/AI_Code/opencut_build --overwrite",
+    "package:win": "electron-packager . QCut --platform=win32 --arch=x64 --out=dist-packager-new --overwrite --ignore=\"dist-packager.*\" --ignore=\"dist-electron.*\" && npm run copy-ffmpeg",
+    "copy-ffmpeg": "powershell -Command \"Copy-Item -Path 'electron/resources/*.exe' -Destination 'dist-packager-new/QCut-win32-x64/resources/' -Force; Copy-Item -Path 'electron/resources/*.dll' -Destination 'dist-packager-new/QCut-win32-x64/resources/' -Force; Copy-Item -Path 'electron/resources/ffmpeg' -Destination 'dist-packager-new/QCut-win32-x64/resources/' -Recurse -Force\"",
+    "build:exe": "npm run build && npm run package:win",
     "release:patch": "node scripts/release.js patch",
     "release:minor": "node scripts/release.js minor",
     "release:major": "node scripts/release.js major",
@@ -94,7 +97,10 @@
       {
         "from": "electron/resources/",
         "to": "./",
-        "filter": ["**/*.exe", "**/*.dll"]
+        "filter": [
+          "**/*.exe",
+          "**/*.dll"
+        ]
       }
     ],
     "extraMetadata": {
@@ -144,7 +150,9 @@
     "protocols": [
       {
         "name": "qcut-protocol",
-        "schemes": ["qcut"]
+        "schemes": [
+          "qcut"
+        ]
       }
     ],
     "fileAssociations": [

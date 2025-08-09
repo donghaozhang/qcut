@@ -2,7 +2,7 @@
  * Image utility functions for the adjustment panel
  */
 
-import { debugLog, debugError } from './debug-config';
+import { debugLog, debugError } from "@/lib/debug-config";
 
 export interface ImageInfo {
   width: number;
@@ -196,21 +196,19 @@ export async function convertToBlob(url: string): Promise<string> {
   // Return cached blob URL if available
   if (blobUrlCache.has(url)) {
     const cachedUrl = blobUrlCache.get(url)!;
-    debugLog(
-      `[convertToBlob] Using cached blob URL for ${url}: ${cachedUrl}`
-    );
+    debugLog(`[convertToBlob] Using cached blob URL for ${url}: ${cachedUrl}`);
     return cachedUrl;
   }
 
   try {
     debugLog(`[convertToBlob] Fetching image with CORS headers: ${url}`);
     const response = await fetch(url, {
-      mode: 'cors',
+      mode: "cors",
       headers: {
-        'Accept': 'image/*',
-      }
+        "Accept": "image/*",
+      },
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -273,21 +271,23 @@ export async function downloadImageAsFile(
 ): Promise<File> {
   try {
     debugLog(`[convertToBlob] Downloading image from: ${url}`);
-    
+
     // Enhanced fetch with CORS handling for FAL.ai URLs
     const response = await fetch(url, {
-      mode: 'cors',
+      mode: "cors",
       headers: {
-        'Accept': 'image/*',
-      }
+        "Accept": "image/*",
+      },
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const blob = await response.blob();
-    debugLog(`[convertToBlob] Downloaded blob: ${blob.size} bytes, type: ${blob.type}`);
+    debugLog(
+      `[convertToBlob] Downloaded blob: ${blob.size} bytes, type: ${blob.type}`
+    );
 
     // Determine MIME type from blob or URL
     let mimeType = blob.type;

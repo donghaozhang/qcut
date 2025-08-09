@@ -103,7 +103,6 @@ export function TimelinePlayhead({
     Math.min(rightBoundary, rawLeftPosition)
   );
 
-
   return (
     <div
       ref={playheadRef}

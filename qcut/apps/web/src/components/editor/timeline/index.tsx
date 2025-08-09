@@ -114,7 +114,9 @@ export function Timeline() {
   const dynamicBuffer = Math.max(60, (duration || 0) * 0.1); // Buffer is 60s or 10% of duration, whichever is greater
   const dynamicTimelineWidth = Math.max(
     (duration || 0) * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel, // Base width from duration
-    (currentTime + dynamicBuffer) * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel, // Width to show current time + dynamic buffer
+    (currentTime + dynamicBuffer) *
+      TIMELINE_CONSTANTS.PIXELS_PER_SECOND *
+      zoomLevel, // Width to show current time + dynamic buffer
     timelineRef.current?.clientWidth || 1000 // Minimum width
   );
 

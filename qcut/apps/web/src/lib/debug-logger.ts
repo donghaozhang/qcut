@@ -13,7 +13,7 @@ export interface LogData {
 export const debugLogger = {
   log: (component: string, event: string, data?: LogData) => {
     if (!DEBUG_ENABLED) return;
-    
+
     const timestamp = new Date().toISOString().slice(11, 23); // HH:mm:ss.sss
     const message = `[${timestamp}] [${component}] ${event}`;
 
@@ -38,7 +38,7 @@ export const debugLogger = {
 
   warn: (component: string, event: string, data?: LogData) => {
     if (!DEBUG_ENABLED) return;
-    
+
     const timestamp = new Date().toISOString().slice(11, 23);
     const message = `[${timestamp}] [${component}] WARNING: ${event}`;
 

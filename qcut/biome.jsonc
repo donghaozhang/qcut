@@ -1,7 +1,26 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.1.2/schema.json",
   "extends": ["ultracite"],
-  
+
+  "overrides": [
+    {
+      "includes": [
+        "apps/web/public/ffmpeg/**",
+        "apps/web/public/ffmpeg*.js",
+        "electron/resources/ffmpeg/**",
+        "electron/resources/ffmpeg*.js",
+        "**/ffmpeg-core.js",
+        "**/*-core.js",
+        "**/*.min.js"
+      ],
+      "linter": {
+        "enabled": false
+      },
+      "formatter": {
+        "enabled": false
+      }
+    }
+  ],
 
   "assist": {
     "actions": {

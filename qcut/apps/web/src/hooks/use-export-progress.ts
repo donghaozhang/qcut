@@ -3,19 +3,18 @@ import { useExportStore } from "@/stores/export-store";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
 import { ExportEngine } from "@/lib/export-engine";
-import { ExportEngineFactory, ExportEngineType } from "@/lib/export-engine-factory";
+import {
+  ExportEngineFactory,
+  ExportEngineType,
+} from "@/lib/export-engine-factory";
+import type { ExportFormat, ExportQuality } from "@/types/export";
 import { toast } from "sonner";
 import { useElectron } from "@/hooks/useElectron";
 import { debugLog, debugError } from "@/lib/debug-config";
 
 export function useExportProgress() {
-  const {
-    progress,
-    updateProgress,
-    setError,
-    resetExport,
-    addToHistory,
-  } = useExportStore();
+  const { progress, updateProgress, setError, resetExport, addToHistory } =
+    useExportStore();
 
   const { tracks } = useTimelineStore();
   const { mediaItems } = useAsyncMediaItems();
@@ -43,14 +42,16 @@ export function useExportProgress() {
     }
   };
 
+  type EngineSelection = "auto" | "cli" | "ffmpeg" | "standard";
+
   const handleExport = async (
     canvas: HTMLCanvasElement,
     totalDuration: number,
     exportSettings: {
-      quality: any;
-      format: any;
+      quality: ExportQuality;
+      format: ExportFormat;
       filename: string;
-      engineType: string;
+      engineType: EngineSelection;
       resolution: { width: number; height: number };
     }
   ) => {
@@ -80,25 +81,25 @@ export function useExportProgress() {
         );
         selectedEngineType = undefined; // Let factory decide
       } else {
-        selectedEngineType =
-          exportSettings.engineType === "cli"
-            ? ExportEngineType.CLI
-            : exportSettings.engineType === "ffmpeg"
-              ? ExportEngineType.FFMPEG
-              : ExportEngineType.STANDARD;
+        if (exportSettings.engineType === "auto") {
+          selectedEngineType = undefined;
+        } else if (exportSettings.engineType === "cli") {
+          selectedEngineType = ExportEngineType.CLI;
+        } else if (exportSettings.engineType === "ffmpeg") {
+          selectedEngineType = ExportEngineType.FFMPEG;
+        } else {
+          selectedEngineType = ExportEngineType.STANDARD;
+        }
       }
 
-      debugLog(
-        "[ExportDialog] 🎬 Creating export engine with settings:",
-        {
-          quality: exportSettings.quality,
-          format: exportSettings.format,
-          filename: exportSettings.filename,
-          engineType: selectedEngineType || "auto-recommend",
-          resolution: exportSettings.resolution,
-          duration: totalDuration,
-        }
-      );
+      debugLog("[ExportDialog] 🎬 Creating export engine with settings:", {
+        quality: exportSettings.quality,
+        format: exportSettings.format,
+        filename: exportSettings.filename,
+        engineType: selectedEngineType || "auto-recommend",
+        resolution: exportSettings.resolution,
+        duration: totalDuration,
+      });
 
       const exportEngine = await factory.createEngine(
         canvas,
@@ -185,10 +186,10 @@ export function useExportProgress() {
 
       // Clean up engine reference
       currentEngineRef.current = null;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      debugError("[ExportDialog] Export failed:", message);
 
-    } catch (error: any) {
-      debugError("[ExportDialog] Export failed:", error);
-      
       // Calculate partial export duration
       const exportDuration = Date.now() - startTime.getTime();
 
@@ -205,26 +206,26 @@ export function useExportProgress() {
         duration: exportDuration,
         fileSize: 0,
         success: false,
-        error: error.message,
+        error: message,
       });
 
-      setError(error.message);
-      
+      setError(message);
+
       updateProgress({
         progress: 0,
-        status: `Export failed: ${error.message}`,
+        status: `Export failed: ${message}`,
         isExporting: false,
       });
 
       // Reset timing state
       setExportStartTime(null);
-      
+
       // Clean up engine reference
       currentEngineRef.current = null;
 
       // Show error toast
       toast.error("Export failed", {
-        description: error.message,
+        description: message,
       });
     }
   };

@@ -6,25 +6,25 @@
  * Global debug flag - set to true to enable console logging
  * Can be overridden via localStorage or environment variable
  */
-const DEBUG_KEY = 'qcut_debug_mode';
+const DEBUG_KEY = "qcut_debug_mode";
 
 /**
  * Check if debug mode is enabled
  */
 export function isDebugEnabled(): boolean {
   // Check localStorage first (for runtime toggling)
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     const localDebug = localStorage.getItem(DEBUG_KEY);
     if (localDebug !== null) {
-      return localDebug === 'true';
+      return localDebug === "true";
     }
   }
-  
+
   // Check environment variable (for build-time configuration)
   if (import.meta.env.VITE_DEBUG_MODE) {
-    return import.meta.env.VITE_DEBUG_MODE === 'true';
+    return import.meta.env.VITE_DEBUG_MODE === "true";
   }
-  
+
   // Default to false (no debug output)
   return false;
 }
@@ -33,8 +33,8 @@ export function isDebugEnabled(): boolean {
  * Enable debug mode
  */
 export function enableDebug(): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(DEBUG_KEY, 'true');
+  if (typeof window !== "undefined") {
+    localStorage.setItem(DEBUG_KEY, "true");
   }
 }
 
@@ -42,8 +42,8 @@ export function enableDebug(): void {
  * Disable debug mode
  */
 export function disableDebug(): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(DEBUG_KEY, 'false');
+  if (typeof window !== "undefined") {
+    localStorage.setItem(DEBUG_KEY, "false");
   }
 }
 
