@@ -78,7 +78,7 @@ export function PropertiesPanel() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {FPS_PRESETS.map(({ value, label }) => (
+              {FPS_PRESETS?.map(({ value, label }) => (
                 <SelectItem key={value} value={value} className="text-xs">
                   {label}
                 </SelectItem>
