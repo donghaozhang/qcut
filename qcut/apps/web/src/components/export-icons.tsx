@@ -47,8 +47,7 @@ export function PlatformIcon({
 }: PlatformIconProps) {
   const Icon = getPlatformIcon(presetId);
   const computedTitle =
-    title ?? presetId.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  return (
-    <Icon className={className} role="img" aria-label={computedTitle} />
-  );
+    title ??
+    presetId.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return <Icon className={className} role="img" aria-label={computedTitle} />;
 }

@@ -653,7 +653,8 @@ export async function generateVideoFromImage(
         image_url: imageUrl,
         // WAN Turbo image-to-video only supports specific resolutions
         resolution:
-          (request.resolution && ["480p", "580p", "720p"].includes(request.resolution))
+          request.resolution &&
+          ["480p", "580p", "720p"].includes(request.resolution)
             ? request.resolution
             : "720p",
         seed: Math.floor(Math.random() * 1_000_000), // Optional: for reproducibility

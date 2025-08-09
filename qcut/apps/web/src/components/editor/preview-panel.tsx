@@ -542,7 +542,11 @@ export function PreviewPanel() {
     );
     return (
       <div className="h-full w-full flex flex-col min-h-0 min-w-0 bg-panel rounded-sm">
-        <div className="flex-1 flex items-center justify-center p-3" role="status" aria-live="polite">
+        <div
+          className="flex-1 flex items-center justify-center p-3"
+          role="status"
+          aria-live="polite"
+        >
           <div className="text-center">
             <div className="text-yellow-600 mb-2">Media items not ready</div>
             <div className="text-sm text-muted-foreground">

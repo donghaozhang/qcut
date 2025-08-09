@@ -563,9 +563,7 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
     state.mediaItems.forEach((item) => {
       if (item.url && item.url.startsWith("blob:")) {
         URL.revokeObjectURL(item.url);
-        debugLog(
-          `[Cleanup] Revoked blob URL for ${item.name}: ${item.url}`
-        );
+        debugLog(`[Cleanup] Revoked blob URL for ${item.name}: ${item.url}`);
         revokedCount++;
       }
       if (item.thumbnailUrl && item.thumbnailUrl.startsWith("blob:")) {

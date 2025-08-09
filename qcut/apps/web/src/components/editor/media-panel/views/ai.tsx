@@ -13,7 +13,7 @@ import {
   X,
   Check,
 } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -103,6 +103,18 @@ export function AiView() {
 
   const isModelSelected = (modelId: string) => selectedModels.includes(modelId);
 
+  // Track active FileReader for cleanup
+  const fileReaderRef = useRef<FileReader | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (fileReaderRef.current) {
+        fileReaderRef.current.abort();
+      }
+    };
+  }, []);
+
   // Image handling
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -127,11 +139,22 @@ export function AiView() {
     setSelectedImage(file);
     setError(null);
 
-    // Create preview
+    // Abort any previous reader
+    if (fileReaderRef.current) {
+      fileReaderRef.current.abort();
+    }
+
+    // Create preview with cleanup
     const reader = new FileReader();
+    fileReaderRef.current = reader;
+
     reader.onload = (e) => {
-      setImagePreview(e.target?.result as string);
+      // Only update if this reader is still current
+      if (fileReaderRef.current === reader) {
+        setImagePreview(e.target?.result as string);
+      }
     };
+
     reader.readAsDataURL(file);
 
     debugLogger.log("AiView", "IMAGE_SELECTED", {
@@ -426,7 +449,9 @@ export function AiView() {
                     <div className="text-xs text-right">
                       <div>${model.price}</div>
                       {!isCompact && (
-                        <div className="text-muted-foreground">{model.resolution}</div>
+                        <div className="text-muted-foreground">
+                          {model.resolution}
+                        </div>
                       )}
                     </div>
                   </label>
@@ -511,6 +536,7 @@ export function AiView() {
                           a.click();
                         }}
                         className="h-6 px-2"
+                        aria-label="Download video"
                       >
                         <Download className="size-3" />
                       </Button>
