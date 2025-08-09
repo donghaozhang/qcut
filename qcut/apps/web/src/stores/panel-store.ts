@@ -33,11 +33,21 @@ interface PanelState {
 
 // Debounce normalization to avoid excessive calls during resize
 let normalizationTimeout: NodeJS.Timeout | null = null;
+let isNormalizing = false;
 const debouncedNormalize = (normalizeFunc: () => void) => {
+  if (isNormalizing) return; // Prevent recursive calls
+
   if (normalizationTimeout) {
     clearTimeout(normalizationTimeout);
   }
-  normalizationTimeout = setTimeout(normalizeFunc, 50); // 50ms debounce
+  normalizationTimeout = setTimeout(() => {
+    isNormalizing = true;
+    try {
+      normalizeFunc();
+    } finally {
+      isNormalizing = false;
+    }
+  }, 50); // 50ms debounce
 };
 
 export const usePanelStore = create<PanelState>()(
@@ -50,20 +60,35 @@ export const usePanelStore = create<PanelState>()(
       setToolsPanel: (size) => {
         // Round to 2 decimal places to reduce precision errors
         const roundedSize = Math.round(size * 100) / 100;
-        set({ toolsPanel: roundedSize });
-        debouncedNormalize(() => get().normalizeHorizontalPanels());
+        const currentSize = get().toolsPanel;
+
+        // Only update if the size actually changed (prevents infinite loops)
+        if (Math.abs(currentSize - roundedSize) > 0.01) {
+          set({ toolsPanel: roundedSize });
+          debouncedNormalize(() => get().normalizeHorizontalPanels());
+        }
       },
       setPreviewPanel: (size) => {
         // Round to 2 decimal places to reduce precision errors
         const roundedSize = Math.round(size * 100) / 100;
-        set({ previewPanel: roundedSize });
-        debouncedNormalize(() => get().normalizeHorizontalPanels());
+        const currentSize = get().previewPanel;
+
+        // Only update if the size actually changed (prevents infinite loops)
+        if (Math.abs(currentSize - roundedSize) > 0.01) {
+          set({ previewPanel: roundedSize });
+          debouncedNormalize(() => get().normalizeHorizontalPanels());
+        }
       },
       setPropertiesPanel: (size) => {
         // Round to 2 decimal places to reduce precision errors
         const roundedSize = Math.round(size * 100) / 100;
-        set({ propertiesPanel: roundedSize });
-        debouncedNormalize(() => get().normalizeHorizontalPanels());
+        const currentSize = get().propertiesPanel;
+
+        // Only update if the size actually changed (prevents infinite loops)
+        if (Math.abs(currentSize - roundedSize) > 0.01) {
+          set({ propertiesPanel: roundedSize });
+          debouncedNormalize(() => get().normalizeHorizontalPanels());
+        }
       },
       setMainContent: (size) => set({ mainContent: size }),
       setTimeline: (size) => set({ timeline: size }),
