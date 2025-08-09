@@ -217,7 +217,7 @@ function EditorPage() {
   return (
     <EditorProvider>
       <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
-        {/* PHASE 2-F: All components disabled except ExportDialog */}
+        {/* PHASE 2-G: All components disabled except Timeline */}
         {/* <EditorHeader /> */}
         <div 
           style={{ 
@@ -228,7 +228,7 @@ function EditorPage() {
             fontSize: '14px'
           }}
         >
-          🦠 [VIRUS-HUNT-P2-F] All components DISABLED except ExportDialog - Testing if ExportDialog is the culprit
+          🦠 [VIRUS-HUNT-P2-G] All components DISABLED except Timeline - Testing if Timeline is the culprit (FINAL PHASE!)
         </div>
         
         <div className="flex-1 min-h-0 min-w-0">
@@ -263,7 +263,7 @@ function EditorPage() {
                 padding: '0 0.5rem'
               }}
             >
-              {/* PHASE 2-F: Re-enable ExportDialog ONLY - all other panels remain disabled */}
+              {/* PHASE 2-G: Re-enable Timeline ONLY - all other panels remain disabled */}
               
               {/* Tools Panel - STILL DISABLED */}
               <div style={{ gridArea: 'tools' }} className="min-w-0">
@@ -278,7 +278,7 @@ function EditorPage() {
                     fontSize: '14px'
                   }}
                 >
-                  🦠 [VIRUS-HUNT-P2-F]<br/>MediaPanel STILL DISABLED
+                  🦠 [VIRUS-HUNT-P2-G]<br/>MediaPanel STILL DISABLED
                 </div>
               </div>
 
@@ -295,11 +295,11 @@ function EditorPage() {
                     fontSize: '14px'
                   }}
                 >
-                  🦠 [VIRUS-HUNT-P2-F]<br/>PreviewPanel STILL DISABLED
+                  🦠 [VIRUS-HUNT-P2-G]<br/>PreviewPanel STILL DISABLED
                 </div>
               </div>
 
-              {/* Properties Panel - DISABLED AGAIN */}
+              {/* Properties Panel - STILL DISABLED */}
               <div style={{ gridArea: 'properties' }} className="min-w-0">
                 <div
                   className="h-full"
@@ -316,7 +316,7 @@ function EditorPage() {
                       fontSize: '14px'
                     }}
                   >
-                    🦠 [VIRUS-HUNT-P2-F]<br/>PropertiesPanel DISABLED AGAIN
+                    🦠 [VIRUS-HUNT-P2-G]<br/>PropertiesPanel STILL DISABLED
                   </div>
                   <div 
                     style={{ 
@@ -331,36 +331,39 @@ function EditorPage() {
                       zIndex: 1000
                     }}
                   >
-                    🦠 [P2-F] PropertiesPanel DISABLED
+                    🦠 [P2-G] PropertiesPanel DISABLED
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Timeline - STILL DISABLED */}
+            {/* Timeline - RE-ENABLED for Phase 2-G testing */}
             <div 
               style={{ gridArea: 'timeline' }} 
               className="min-h-0 px-2 pb-2"
             >
-              {/* <Timeline /> */}
+              <Timeline />
               <div 
                 style={{ 
-                  background: '#5a5a5a', 
-                  color: 'white', 
-                  padding: '2rem',
-                  textAlign: 'center',
-                  height: '100%',
-                  fontSize: '14px'
+                  position: 'absolute',
+                  bottom: '1rem',
+                  left: '1rem',
+                  background: 'rgba(150, 10, 200, 0.9)',
+                  color: 'white',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '0.25rem',
+                  fontSize: '12px',
+                  zIndex: 1002
                 }}
               >
-                🦠 [VIRUS-HUNT-P2-F] Timeline STILL DISABLED
+                🦠 [P2-G] Timeline RE-ENABLED - FINAL PHASE TEST!
               </div>
             </div>
           </div>
         </div>
         
-        {/* ExportDialog - RE-ENABLED for Phase 2-F testing */}
-        <ExportDialog />
+        {/* ExportDialog - DISABLED AGAIN for Phase 2-G */}
+        {/* <ExportDialog /> */}
         <div 
           style={{ 
             position: 'fixed',
@@ -374,7 +377,7 @@ function EditorPage() {
             zIndex: 1001
           }}
         >
-          🦠 [P2-F] ExportDialog RE-ENABLED
+          🦠 [P2-G] ExportDialog DISABLED AGAIN
         </div>
         
         {/* Onboarding - STILL DISABLED */}
@@ -391,7 +394,7 @@ function EditorPage() {
             fontSize: '12px'
           }}
         >
-          🦠 [VIRUS-HUNT-P2-F] Onboarding STILL DISABLED
+          🦠 [VIRUS-HUNT-P2-G] Onboarding STILL DISABLED (FINAL COMPONENT LEFT!)
         </div>
       </div>
     </EditorProvider>

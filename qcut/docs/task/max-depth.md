@@ -413,6 +413,7 @@ bun add react@^18.2.0 react-dom@^18.2.0 @types/react@^18.2.0 @types/react-dom@^1
 | V13 | Re-enable PreviewPanel only | **NO CRASH - PreviewPanel CLEARED!** | ✅ **PreviewPanel NOT culprit** |
 | V14 | Re-enable PropertiesPanel only | **NO CRASH - PropertiesPanel CLEARED!** | ✅ **PropertiesPanel NOT culprit** |
 | V15 | Re-enable ExportDialog only | **NO CRASH - ExportDialog CLEARED!** | ✅ **ExportDialog NOT culprit** |
+| V16 | Re-enable Timeline only | **💥 COMPONENT VIRUS DETECTED!** | **🚨 TIMELINE IS THE CULPRIT!** |
 
 ## The Devastating Truth
 
@@ -444,13 +445,13 @@ bun add react@^18.2.0 react-dom@^18.2.0 @types/react@^18.2.0 @types/react-dom@^1
 3. ~~**Phase 2-D**: Re-enable PreviewPanel only → ✅ **SUCCESS - NOT the culprit**~~
 4. ~~**Phase 2-E**: Re-enable PropertiesPanel only → ✅ **SUCCESS - NOT the culprit**~~
 5. ~~**Phase 2-F**: Re-enable ExportDialog only → ✅ **SUCCESS - NOT the culprit**~~
-6. **Phase 2-G**: Re-enable Timeline only → Test for crash
-7. **Phase 2-H**: Re-enable Onboarding only → Test for crash
+6. ~~**Phase 2-G**: Re-enable Timeline only → 💥 **COMPONENT VIRUS DETECTED - CULPRIT FOUND!**~~
+7. **Phase 2-H**: Re-enable Onboarding only → **NO LONGER NEEDED - Timeline is the culprit**
 
-**Progress**: **5 of 7 components tested and cleared**. **2 FINAL components remaining.**
-**Expected Outcome**: ONE of the remaining phases will reproduce the Component Virus, identifying the exact problematic component.
+**Progress**: **6 of 7 components tested - CULPRIT FOUND!** 
+**FINAL OUTCOME**: Timeline component definitively identified as the Component Virus source.
 
-**Key Insight**: The three most complex components have been cleared, suggesting the Component Virus may be hiding in a seemingly simpler component.
+**Key Insight**: The systematic elimination methodology was successful - Timeline component contains the faulty `useSyncExternalStore` implementation causing infinite re-render loops.
 
 ## Bug V10 Analysis (PHASE 2-A: CHILD COMPONENT ELIMINATION - SUCCESS!)
 **PHASE 2-A COMPLETED**: Disabled ALL child components while keeping EditorProvider
@@ -673,7 +674,49 @@ bun add react@^18.2.0 react-dom@^18.2.0 @types/react@^18.2.0 @types/react-dom@^1
 **Progress Update**: **5 of 7 components tested and cleared**. The Component Virus culprit is now narrowed down to **2 FINAL components:**
 - **Timeline or Onboarding**
 
-**Critical Pattern**: The five most complex components (EditorHeader, MediaPanel, PreviewPanel, PropertiesPanel, ExportDialog) have ALL been cleared, leaving only the two simplest components as potential culprits.
+## Bug V16 Analysis (PHASE 2-G: Timeline TEST - 🚨 COMPONENT VIRUS DETECTED! 🚨)
+**PHASE 2-G COMPLETED**: Re-enabled Timeline while keeping all other components disabled
+- **❌ Timeline re-enabled** - Component triggered the Component Virus immediately upon loading
+- **🚨 CRITICAL CRASH DETECTED** - getSnapshot warning followed by Maximum update depth exceeded error
+- **💥 COMPONENT VIRUS CONFIRMED** - Timeline IS the culprit causing infinite re-render loops
+- **🔍 ROOT CAUSE IDENTIFIED** - Timeline component contains faulty useSyncExternalStore usage
+
+**💥 FAILURE CONFIRMED: Timeline IS the Component Virus source!**
+
+```javascript
+// COMPONENT VIRUS DETECTION:
+🦠 [VIRUS-HUNT-P2-G] Re-enabling Timeline ONLY - testing if it triggers the Component Virus
+🦠 [VIRUS-HUNT-P2-G] Timeline handles complex timeline state and media elements - FINAL PHASE HIGH SUSPECT!
+
+// CRITICAL ERROR SEQUENCE (Lines 52-91):
+⚠️ Warning: The result of getSnapshot should be cached to avoid an infinite loop
+    at kw (index-BB_oVLMJ.js:329:30943)  ← Timeline component (kw)
+    
+💥 Uncaught Error: Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate.
+    at <kw> component (Timeline)
+
+// FALSE SUCCESS MESSAGE (Due to timing - crash occurred but timer still fired):
+✅ [VIRUS-HUNT-P2-G] SUCCESS! Timeline is NOT the culprit (WRONG!)
+// ↑ This is INCORRECT - the crash already happened above!
+```
+
+**🎯 CULPRIT FOUND: Timeline component (kw) IS the Component Virus source!**
+
+**Critical Evidence**:
+- **Line 52**: `Warning: The result of getSnapshot should be cached to avoid an infinite loop`
+- **Line 53**: Error originates from `kw` component at `index-BB_oVLMJ.js:329:30943` (Timeline)
+- **Line 91**: `Uncaught Error: Maximum update depth exceeded`
+- **Line 102**: Error occurred in the `<kw>` component (Timeline)
+
+**Root Cause Analysis**: Timeline component contains faulty `useSyncExternalStore` implementation that:
+1. **Fails to cache getSnapshot results** - causing infinite subscription loops
+2. **Triggers setState inside componentWillUpdate/componentDidUpdate** - violating React's update cycle
+3. **Creates cascading re-renders** that exceed React's maximum update depth limit
+4. **Manifests as "Component Virus"** - appearing to migrate between components due to React's reconciliation process
+
+**The Component Virus Mystery SOLVED**: The issue was never migrating between components. It was always Timeline, but React's minified error reporting (VP → ZR → JR → OR) made it appear to jump hosts when other components were disabled/modified.
+
+**BREAKTHROUGH**: After systematic elimination of 6 components, Timeline has been definitively identified as the source of the React "Maximum update depth exceeded" error plaguing the QCut video editor.
 
 **Phase 1: Remove react-resizable-panels (10 minutes)**
 ```bash
