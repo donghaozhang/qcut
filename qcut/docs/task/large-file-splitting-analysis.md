@@ -28,18 +28,17 @@ This document analyzes the top 5 largest source files in QCut to determine the b
 
 ---
 
-### 🥈 **Second choice: export-dialog.tsx** (1,024 lines)
+### 🥈 ~~**COMPLETED: export-dialog.tsx**~~ ✅ **ALREADY REFACTORED**
 
-**Why it's relatively easy:**
-- ✅ **Single large component** - All logic in one ExportDialog function
-- ⚠️ **Complex internal state** - Many useState hooks and complex logic
-- ⚠️ **Tightly coupled** - Lots of shared state between UI sections
+**Status:** ✅ **COMPLETED** - Successfully refactored using custom hooks pattern
+- **export-dialog.tsx** - Reduced from 1,024 → 542 lines (47% reduction)
+- **Custom hooks created**:
+  - `use-export-settings.ts` - Export configuration logic
+  - `use-export-progress.ts` - Progress tracking logic  
+  - `use-export-validation.ts` - Validation logic
+  - `use-export-presets.ts` - Preset management logic
 
-**Potential split:**
-1. **export-dialog.tsx** - Main dialog and state management
-2. **export-dialog-settings.tsx** - Export settings forms/UI
-
-**Splitting effort:** 🟡 **MEDIUM** (4-6 hours)
+**Result:** Much cleaner component with business logic properly separated into reusable hooks.
 
 ---
 
@@ -77,46 +76,54 @@ This document analyzes the top 5 largest source files in QCut to determine the b
 
 ## Recommendation
 
-### 🎯 **Next Target: export-dialog.tsx** (1,024 lines)
+### 🎯 **Next Target: timeline/timeline-track.tsx** (1,175 lines)
 
-**Reasons it's the next best choice:**
-1. **Single large component** - All logic in one ExportDialog function
-2. **Clear UI sections** - Can separate settings forms from main dialog
-3. **Moderate complexity** - More challenging than preview-panel but manageable
-4. **High impact** - Frequently used export functionality
-5. **Good learning** - Step up in complexity from preview-panel
+**Why it's now the next best choice:**
+1. **Clear component structure** - Main TimelineTrack with helper functions
+2. **Separable drag & drop logic** - Can extract interaction handlers
+3. **Performance critical** - But improvements would benefit timeline performance
+4. **High impact** - Core timeline functionality used frequently
+5. **Moderate complexity** - More challenging but manageable with careful planning
 
-### Potential Split Strategy for export-dialog.tsx:
+### Potential Split Strategy for timeline-track.tsx:
 
-1. **Create new file:** `export-dialog-settings.tsx`
+1. **Create new file:** `timeline-track-interactions.tsx`
 2. **Extract sections:**
-   - Export presets selection UI
-   - Quality and format settings
-   - Advanced export options
+   - Drag & drop event handlers
+   - Resize logic and handlers  
+   - Selection and keyboard interactions
 3. **Keep in main file:**
-   - Dialog wrapper and state management
-   - Export logic and progress handling
-4. **Create shared types** for component communication
+   - Main TimelineTrack component
+   - Rendering logic and JSX
+   - Track state management
+4. **Create shared interfaces** for handler communication
 
 ### Expected outcome:
-- **export-dialog.tsx:** ~600 lines (main dialog + logic)
-- **export-dialog-settings.tsx:** ~400 lines (settings UI)
-- **Total benefit:** Better separation of concerns, easier to maintain export UI
+- **timeline-track.tsx:** ~700 lines (main component + rendering)
+- **timeline-track-interactions.tsx:** ~475 lines (interaction logic)
+- **Total benefit:** Cleaner component separation, easier to debug interactions
 
 ## Implementation Order
 
-Updated implementation order (after preview-panel completion):
+Updated implementation order (after both completed refactorings):
 
-1. ✅ ~~**preview-panel.tsx**~~ (COMPLETED - Easy, low risk)
-2. 🎯 **export-dialog.tsx** (NEXT TARGET - Medium, moderate risk)  
-3. 🥉 **timeline/timeline-track.tsx** (Medium-high, higher risk)
-4. 🚫 **timeline/index.tsx** (High complexity)
-5. 🚫 **timeline-store.ts** (Highest risk, save for last)
+1. ✅ ~~**preview-panel.tsx**~~ (COMPLETED - Component split approach)
+2. ✅ ~~**export-dialog.tsx**~~ (COMPLETED - Custom hooks approach)  
+3. 🎯 **timeline/timeline-track.tsx** (NEXT TARGET - Interaction logic split)
+4. 🚫 **timeline/index.tsx** (High complexity - save for later)
+5. 🚫 **timeline-store.ts** (Highest risk - save for last)
 
 ## Conclusion
 
-✅ **preview-panel.tsx has been successfully refactored** - The first and easiest split has been completed, demonstrating the value of this approach.
+✅ **Two major refactorings completed successfully:**
 
-**Next recommendation: export-dialog.tsx** - Now the best remaining candidate, offering good separation potential with moderate complexity.
+1. **preview-panel.tsx** - Split into component + sub-components (47% size reduction)
+2. **export-dialog.tsx** - Refactored with custom hooks pattern (47% size reduction)
 
-The splitting approach is proven to improve code maintainability, reduce cognitive load, and make the codebase easier to navigate without introducing significant risk.
+**Results demonstrate different successful approaches:**
+- **Component splitting** - Moving sub-components to separate files
+- **Custom hooks pattern** - Extracting business logic into reusable hooks
+
+**Next recommendation: timeline/timeline-track.tsx** - The next best candidate for refactoring, focusing on separating interaction logic from rendering logic.
+
+The splitting approach has proven effective for improving code maintainability, reducing cognitive load, and making the codebase easier to navigate without introducing significant risk.
