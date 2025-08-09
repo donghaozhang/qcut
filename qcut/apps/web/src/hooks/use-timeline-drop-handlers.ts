@@ -44,6 +44,9 @@ export function useTimelineDropHandlers(options: DropHandlersOptions): DropHandl
     moveElementToTrack,
     addElementToTrack,
     insertTrackAt,
+    updateElementStartTime,
+    updateElementStartTimeWithRipple,
+    rippleEditingEnabled,
   } = useTimelineStore();
 
   // Drop state management (extracted from timeline-track.tsx)
@@ -361,7 +364,6 @@ export function useTimelineDropHandlers(options: DropHandlersOptions): DropHandl
           return;
         }
 
-        const { updateElementStartTime, updateElementStartTimeWithRipple, moveElementToTrack, rippleEditingEnabled } = useTimelineStore.getState();
 
         if (fromTrackId === track.id) {
           // Moving within same track
@@ -640,6 +642,10 @@ export function useTimelineDropHandlers(options: DropHandlersOptions): DropHandl
     addTrack,
     addElementToTrack,
     insertTrackAt,
+    moveElementToTrack,
+    updateElementStartTime,
+    updateElementStartTimeWithRipple,
+    rippleEditingEnabled,
     dragCounterRef
   ]);
 
