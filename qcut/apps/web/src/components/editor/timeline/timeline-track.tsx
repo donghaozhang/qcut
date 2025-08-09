@@ -69,7 +69,7 @@ export function TimelineTrackContent({
   });
 
   // Initialize positioning hook
-  const { getDropSnappedTime, detectElementOverlap, checkTrackCompatibility } = useTimelinePositioning({
+  const { getDropSnappedTime, getDragSnappedTime, detectElementOverlap, checkTrackCompatibility } = useTimelinePositioning({
     zoomLevel,
     snapThreshold: 10,
   });
@@ -114,68 +114,13 @@ export function TimelineTrackContent({
       );
       const adjustedTime = Math.max(0, mouseTime - dragState.clickOffsetTime);
 
-      // Apply snapping if enabled
-      let finalTime = adjustedTime;
-      let snapPoint = null;
-      if (snappingEnabled) {
-        // Find the element being dragged to get its duration
-        let elementDuration = 5; // fallback duration
-        if (dragState.elementId && dragState.trackId) {
-          const sourceTrack = tracks.find((t) => t.id === dragState.trackId);
-          const element = sourceTrack?.elements.find(
-            (e) => e.id === dragState.elementId
-          );
-          if (element) {
-            elementDuration =
-              element.duration - element.trimStart - element.trimEnd;
-          }
-        }
-
-        // Try snapping both start and end edges
-        const startSnapResult = snapElementEdge(
-          adjustedTime,
-          elementDuration,
-          tracks,
-          currentTime,
-          zoomLevel,
-          dragState.elementId || undefined,
-          true // snap to start edge
-        );
-
-        const endSnapResult = snapElementEdge(
-          adjustedTime,
-          elementDuration,
-          tracks,
-          currentTime,
-          zoomLevel,
-          dragState.elementId || undefined,
-          false // snap to end edge
-        );
-
-        // Choose the snap result with the smaller distance (closer snap)
-        let bestSnapResult = startSnapResult;
-        if (
-          endSnapResult.snapPoint &&
-          (!startSnapResult.snapPoint ||
-            endSnapResult.snapDistance < startSnapResult.snapDistance)
-        ) {
-          bestSnapResult = endSnapResult;
-        }
-
-        finalTime = bestSnapResult.snappedTime;
-        snapPoint = bestSnapResult.snapPoint;
-
-        // Notify parent component about snap point change
-        onSnapPointChange?.(snapPoint);
-      } else {
-        // Use frame snapping if project has FPS, otherwise use decimal snapping
-        const projectStore = useProjectStore.getState();
-        const projectFps = projectStore.activeProject?.fps || 30;
-        finalTime = snapTimeToFrame(adjustedTime, projectFps);
-
-        // Clear snap point when not snapping
-        onSnapPointChange?.(null);
-      }
+      // Apply snapping using extracted function
+      const { finalTime, snapPoint } = getDragSnappedTime(
+        adjustedTime,
+        dragState.elementId || undefined,
+        dragState.trackId || undefined,
+        onSnapPointChange
+      );
 
       updateDragTime(finalTime);
     };
