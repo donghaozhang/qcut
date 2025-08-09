@@ -36,9 +36,7 @@ function EditorPage() {
   
   // ULTRA ANALYSIS: Comprehensive debugging to hunt the Component Virus
   console.log(`🎯 [EditorPage] Render #${renderCount.current}, Project ID: ${project_id}, Mounted: ${isMounted}`);
-  console.log(`🔧 [CSS-GRID-FIX] Using CSS Grid layout instead of react-resizable-panels to prevent infinite loops`);
-  console.log(`🚨 [REACT-DOWNGRADE] Now using React ${React.version} (downgraded from 19 to fix infinite loops)`);
-  console.log(`🦠 [VIRUS-HUNT] Starting systematic component elimination - Render #${renderCount.current}`);
+  // Debug logs removed after fix
   
   // SUBTASK 1: Replace Zustand panel store with local useState to test useSyncExternalStore issue
   const [panelSizes, setPanelSizes] = useState({
@@ -86,48 +84,24 @@ function EditorPage() {
   
   // PHASE 2-G: Enhanced verification messages to detect Component Virus with Timeline
   if (renderCount.current === 1) {
-    console.log('🔧 [CSS-GRID-FIX] First render - checking for infinite loop prevention...');
-    console.log(`🚨 [REACT-DOWNGRADE] React ${React.version} first render completed`);
-    console.log(`🦠 [VIRUS-HUNT-P2-G] First render with Timeline enabled - monitoring for Component Virus...`);
-    console.log(`🦠 [VIRUS-HUNT-P2-G] EditorHeader, MediaPanel, PreviewPanel, PropertiesPanel, and ExportDialog were all cleared - now testing Timeline`);
-    console.log(`🔍 [VIRUS-HUNT-P2-G] Timeline handles complex timeline state and media elements - HIGH SUSPECT FOR FINAL PHASE!`);
+    // initial mount
   } else if (renderCount.current === 2) {
-    console.log('🔧 [CSS-GRID-FIX] Second render - normal React behavior, no infinite loop detected yet');
-    console.log(`🚨 [REACT-DOWNGRADE] React ${React.version} second render - checking if downgrade helped...`);
-    console.log(`✅ [VIRUS-HUNT-P2-G] Second render successful - Timeline appears safe so far`);
+    // secondary render
   } else if (renderCount.current === 3) {
-    console.warn('⚠️ [CSS-GRID-FIX] Third render detected - still normal but monitoring...');
-    console.warn(`🚨 [REACT-DOWNGRADE] React ${React.version} third render - monitoring for virus return`);
-    console.log(`🦠 [VIRUS-HUNT-P2-G] Third render with Timeline - still no getSnapshot warning (GOOD)`);
+    // tertiary render
   } else if (renderCount.current >= 4 && renderCount.current <= 10) {
-    console.error('⚠️ [CSS-GRID-FIX] Multiple renders detected - investigating cause...');
-    console.error(`🚨 [REACT-DOWNGRADE] React ${React.version} multiple renders - potential issue forming`);
-    console.error(`🦠 [VIRUS-HUNT-P2-G] WARNING: ${renderCount.current} renders detected - Component Virus may be returning!`);
-    console.error(`🦠 [VIRUS-HUNT-P2-G] Timeline might be the culprit! Watch for getSnapshot warning...`);
-    console.error(`🔍 [VIRUS-HUNT-P2-G] Timeline has complex timeline state and media elements - likely reactive store issue!`);
+    // excessive renders watchdog (disabled after fix)
   } else if (renderCount.current > 10) {
-    console.error('🚨 [CSS-GRID-FIX] CRITICAL: Too many renders detected - infinite loop suspected!');
-    console.error(`🚨 [REACT-DOWNGRADE] React ${React.version} - CRITICAL: 10+ renders detected`);
-    console.error(`💥 [VIRUS-HUNT-P2-G] COMPONENT VIRUS DETECTED! Timeline IS the culprit!`);
-    console.error(`💥 [VIRUS-HUNT-P2-G] Render count: ${renderCount.current} - Expect getSnapshot warning and crash soon`);
-    console.error(`💥 [VIRUS-HUNT-P2-G] Timeline contains faulty useSyncExternalStore usage!`);
-    console.error(`💥 [VIRUS-HUNT-P2-G] Check Timeline component state management and timeline store for infinite loops!`);
-    console.error(`💥 [VIRUS-HUNT-P2-G] CULPRIT FOUND! Timeline reactive state is causing the Component Virus!`);
+    // disabled noisy logs
   }
 
   // PHASE 2-G: Success/Failure detection timer
   if (renderCount.current === 1) {
     setTimeout(() => {
       if (renderCount.current <= 3) {
-        console.log(`✅ [VIRUS-HUNT-P2-G] SUCCESS! Timeline is NOT the culprit (${renderCount.current} renders only)`);
-        console.log(`✅ [VIRUS-HUNT-P2-G] No getSnapshot warning detected - proceed to Phase 2-H (Onboarding test)`);
-        console.log(`✅ [VIRUS-HUNT-P2-G] Timeline cleared - 6 of 7 components tested, 1 FINAL remaining`);
-        console.log(`🔍 [VIRUS-HUNT-P2-G] FINAL CULPRIT: Onboarding MUST be the Component Virus source!`);
+        // success
       } else {
-        console.error(`💥 [VIRUS-HUNT-P2-G] FAILURE! Timeline IS the culprit (${renderCount.current} renders detected)`);
-        console.error(`💥 [VIRUS-HUNT-P2-G] Component Virus found - investigate Timeline for useSyncExternalStore issues`);
-        console.error(`💥 [VIRUS-HUNT-P2-G] Check Timeline component state management, timeline store, and media element subscriptions`);
-        console.error(`💥 [VIRUS-HUNT-P2-G] CULPRIT FOUND! Timeline is the problematic component!`);
+        // failure path (not expected)
       }
     }, 3000); // Check after 3 seconds to allow for normal React mounting
   }
@@ -207,12 +181,7 @@ function EditorPage() {
   }
   
   // ULTRA ANALYSIS: Phase 2-G - Re-enable Timeline ONLY to test for virus trigger
-  console.log(`🦠 [VIRUS-HUNT-P2-G] Re-enabling Timeline ONLY - testing if it triggers the Component Virus`);
-  console.log(`🦠 [VIRUS-HUNT-P2-G] EditorHeader, MediaPanel, PreviewPanel, PropertiesPanel, and ExportDialog all proven safe in previous phases`);
-  console.log(`🦠 [VIRUS-HUNT-P2-G] All other components remain DISABLED (Only Onboarding left)`);
-  console.log(`🦠 [VIRUS-HUNT-P2-G] SUCCESS CRITERIA: No getSnapshot warning, no Maximum update depth error, clean render cycle`);
-  console.log(`🦠 [VIRUS-HUNT-P2-G] FAILURE CRITERIA: Component Virus returns - getSnapshot warning + infinite loop crash`);
-  console.log(`🦠 [VIRUS-HUNT-P2-G] Timeline handles complex timeline state and media elements - FINAL PHASE HIGH SUSPECT!`);
+  // removed verbose VIRUS-HUNT logs after fix
   
   return (
     <EditorProvider>
@@ -348,7 +317,7 @@ function EditorPage() {
                   position: 'absolute',
                   bottom: '1rem',
                   left: '1rem',
-                  background: 'rgba(150, 10, 200, 0.9)',
+                  background: 'rgba(0, 150, 0, 0.9)',
                   color: 'white',
                   padding: '0.5rem 1rem',
                   borderRadius: '0.25rem',
@@ -356,7 +325,7 @@ function EditorPage() {
                   zIndex: 1002
                 }}
               >
-                🦠 [P2-G] Timeline RE-ENABLED - FINAL PHASE TEST!
+                🔧 [VIRUS-FIX] Timeline FIXED - Individual Selectors!
               </div>
             </div>
           </div>

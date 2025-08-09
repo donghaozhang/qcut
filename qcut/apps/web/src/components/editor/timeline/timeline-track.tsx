@@ -38,43 +38,26 @@ export function TimelineTrackContent({
     loading: mediaItemsLoading,
     error: mediaItemsError,
   } = useAsyncMediaItems();
-  const {
-    tracks,
-    addTrack,
-    moveElementToTrack,
-    updateElementStartTime,
-    updateElementStartTimeWithRipple,
-    addElementToTrack,
-    selectedElements,
-    selectElement,
-    dragState,
-    startDrag: startDragAction,
-    updateDragTime,
-    endDrag: endDragAction,
-    clearSelectedElements,
-    insertTrackAt,
-    snappingEnabled,
-    rippleEditingEnabled,
-    splitElement,
-  } = useTimelineStore(s => ({
-    tracks: s.tracks,
-    addTrack: s.addTrack,
-    moveElementToTrack: s.moveElementToTrack,
-    updateElementStartTime: s.updateElementStartTime,
-    updateElementStartTimeWithRipple: s.updateElementStartTimeWithRipple,
-    addElementToTrack: s.addElementToTrack,
-    selectedElements: s.selectedElements,
-    selectElement: s.selectElement,
-    dragState: s.dragState,
-    startDrag: s.startDrag,
-    updateDragTime: s.updateDragTime,
-    endDrag: s.endDrag,
-    clearSelectedElements: s.clearSelectedElements,
-    insertTrackAt: s.insertTrackAt,
-    snappingEnabled: s.snappingEnabled,
-    rippleEditingEnabled: s.rippleEditingEnabled,
-    splitElement: s.splitElement,
-  }));
+  // Use individual selectors to keep snapshots stable and avoid infinite update loops
+  const tracks = useTimelineStore(s => s.tracks);
+  const addTrack = useTimelineStore(s => s.addTrack);
+  const moveElementToTrack = useTimelineStore(s => s.moveElementToTrack);
+  const updateElementStartTime = useTimelineStore(s => s.updateElementStartTime);
+  const updateElementStartTimeWithRipple = useTimelineStore(
+    s => s.updateElementStartTimeWithRipple,
+  );
+  const addElementToTrack = useTimelineStore(s => s.addElementToTrack);
+  const selectedElements = useTimelineStore(s => s.selectedElements);
+  const selectElement = useTimelineStore(s => s.selectElement);
+  const dragState = useTimelineStore(s => s.dragState);
+  const startDragAction = useTimelineStore(s => s.startDrag);
+  const updateDragTime = useTimelineStore(s => s.updateDragTime);
+  const endDragAction = useTimelineStore(s => s.endDrag);
+  const clearSelectedElements = useTimelineStore(s => s.clearSelectedElements);
+  const insertTrackAt = useTimelineStore(s => s.insertTrackAt);
+  const snappingEnabled = useTimelineStore(s => s.snappingEnabled);
+  const rippleEditingEnabled = useTimelineStore(s => s.rippleEditingEnabled);
+  const splitElement = useTimelineStore(s => s.splitElement);
 
   const currentTime = usePlaybackStore(s => s.currentTime);
 

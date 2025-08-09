@@ -4,7 +4,14 @@
 2025-01-09
 
 ## Error Summary
-The packaged Electron application was crashing with a React "Maximum update depth exceeded" error, causing an infinite re-render loop in the ResizablePanel components.
+The packaged Electron application was crashing with a React "Maximum update depth exceeded" error, causing an infinite re-render loop.
+
+## TL;DR (current fix and status)
+- Root cause: a store subscription inside the `Timeline` component returned unstable snapshots (object selectors), causing React's subscription loop to retrigger continuously.
+- Fix: refactor `Timeline` to use individual primitive selectors from the store and avoid returning objects; only perform updates when values actually change.
+- Status: fixed and verified in development, production build, and packaged Electron app.
+- React: 18.x in `apps/web` (`react@^18.2.0`).
+- Note: `react-resizable-panels` is not the root cause; it can remain in the Next.js editor. The CSS Grid experiment is documented below for history but is not required.
 
 ## Original Error Log
 ```javascript
@@ -24,24 +31,41 @@ vendor-CvAI8bIM.js:138 Uncaught Error: Maximum update depth exceeded. This can h
 
 ## Root Cause Analysis
 
-The infinite loop was caused by a circular update pattern in the panel resize handling:
+The infinite loop was ultimately traced to `useSyncExternalStore` usage in the `Timeline` component where the selector returned non-stable snapshots (e.g., new objects per render). This caused React's subscription mechanism to detect a change every render and retrigger updates, leading to the "Maximum update depth exceeded" error.
 
-1. User resizes a panel → triggers `onResize` callback
-2. `onResize` calls panel setter (e.g., `setToolsPanel`)
-3. Panel setter calls `debouncedNormalize(() => get().normalizeHorizontalPanels())`
-4. `normalizeHorizontalPanels()` recalculates and updates panel sizes
-5. Panel size updates trigger React re-render
-6. Re-render triggers `onResize` again → **INFINITE LOOP**
+Key factors:
+- Object-returning selectors were recreated each render → snapshots never stabilized
+- Downstream effects triggered additional state updates during render cycles
+- Production bundling and minification obscured the real host component in the stack traces, making the issue appear to "migrate"
+
+Earlier hypotheses about panel resize normalization contributed noise but were not the root cause. Those mitigations are kept below as historical context.
 
 ## Affected Files
 
 ### Primary Files Modified
-- `apps/web/src/stores/panel-store.ts` - Main fix location (lines 35-92)
+- `apps/web/src/components/editor/timeline/index.tsx` - Final root-cause fix (stable, primitive selectors)
+- `apps/web/src/stores/panel-store.ts` - Historical mitigation (size-change guard, debounce)
 
 ### Related Files (Context)
 - `apps/web/src/routes/editor.$project_id.tsx` - Uses ResizablePanel components with onResize handlers (lines 171-237)
 - `apps/web/src/components/ui/resizable.tsx` - Wrapper components for react-resizable-panels
 - `apps/web/package.json` - Contains react-resizable-panels dependency
+
+## Current Code Pointers (final fix)
+
+The final, effective fix is in `apps/web/src/components/editor/timeline/index.tsx` where the component now uses individual store selectors to keep snapshots stable and avoid returning new objects each render:
+
+```63:76:qcut/apps/web/src/components/editor/timeline/index.tsx
+export function Timeline() {
+  // Individual selectors to prevent infinite loops with useSyncExternalStore
+  const tracks = useTimelineStore(s => s.tracks);
+  const getTotalDuration = useTimelineStore(s => s.getTotalDuration);
+  const clearSelectedElements = useTimelineStore(s => s.clearSelectedElements);
+  const snappingEnabled = useTimelineStore(s => s.snappingEnabled);
+  const setSelectedElements = useTimelineStore(s => s.setSelectedElements);
+  const toggleTrackMute = useTimelineStore(s => s.toggleTrackMute);
+  const dragState = useTimelineStore(s => s.dragState);
+```
 
 ## Solution Implemented
 
@@ -83,12 +107,27 @@ const debouncedNormalize = (normalizeFunc: () => void) => {
 };
 ```
 
+### 3. Timeline selectors refactor (final fix)
+Adopted individual primitive selectors to keep snapshots stable and avoid returning new objects from the store.
+
+Anti-pattern (example):
+```ts
+// const timelineState = useTimelineStore(s => ({ tracks: s.tracks, drag: s.dragState })); // returns a new object each render
+```
+
+Correct pattern:
+```ts
+const tracks = useTimelineStore(s => s.tracks);
+const dragState = useTimelineStore(s => s.dragState);
+// ...repeat per primitive/derived value
+```
+
 ## Debug Information
 
 ### Environment
 - Platform: Windows (win32)
 - Electron Version: 37.2.5
-- React Version: 19
+- React Version: 18.x (apps/web uses `react@^18.2.0`)
 - react-resizable-panels: Used for panel layout
 - Build Tool: Vite 7.0.6
 - Package Manager: Bun 1.2.18
@@ -161,7 +200,7 @@ C:\Users\zdhpe\Desktop\vite_opencut\OpenCut-main\qcut\
 ```
 
 ## Status
-🚨 **BUG IS NOT REACT VERSION** - Even React 18 downgrade failed, error moved to JR component (3rd different component)
+✅ Resolved – Root cause fixed in `Timeline` via stable store selectors. Not dependent on React version or the resizable panels library.
 
 ## Bug V6 Analysis (FINAL PROOF)
 **SUBTASKS 1-4 COMPLETED**: Successfully removed all Zustand panel stores and replaced with local useState
@@ -199,7 +238,7 @@ at VP (index-DTamFXiF.js:538:29515)  ← react-resizable-panels Panel
 at ZR (index-CFu_ptUh.js:535:29571)  ← Different component entirely
 ```
 
-**This proves the issue is NOT in react-resizable-panels** - it's a deeper React/component architecture problem that affects multiple components.
+**This proved the issue was not in react-resizable-panels**. The underlying cause was unstable store snapshots in `Timeline`.
 
 ## Bug V8 Analysis (REACT VERSION ELIMINATION)
 **NUCLEAR OPTION 1 COMPLETED**: Successfully downgraded from React 19 to React 18.3.1
@@ -718,13 +757,15 @@ bun add react@^18.2.0 react-dom@^18.2.0 @types/react@^18.2.0 @types/react-dom@^1
 
 **BREAKTHROUGH**: After systematic elimination of 6 components, Timeline has been definitively identified as the source of the React "Maximum update depth exceeded" error plaguing the QCut video editor.
 
-**Phase 1: Remove react-resizable-panels (10 minutes)**
+## Historical experiments (not required for the fix)
+
+**Phase 1: Remove react-resizable-panels (experiment)**
 ```bash
 # Remove the library
 cd qcut && bun remove react-resizable-panels
 ```
 
-**Phase 2: Replace with CSS Grid Layout (15 minutes)**
+**Phase 2: Replace with CSS Grid Layout (experiment)**
 **File**: `C:\Users\zdhpe\Desktop\vite_opencut\OpenCut-main\qcut\apps\web\src\routes\editor.$project_id.tsx`
 ```typescript
 // REPLACE ResizablePanelGroup/ResizablePanel with:
@@ -770,10 +811,7 @@ cd qcut && bun remove react-resizable-panels
 .timeline-panel { grid-area: timeline; }
 ```
 
-**Success Criteria**: 
-- No ResizablePanel components in codebase
-- Application loads without infinite loops
-- Layout maintains visual structure
+These experiments helped isolate the issue but are not required. The production fix retains resizable panels in the Next.js editor; the key change is in `Timeline` selectors.
 
 ## Commit Information
 - Branch: refactor/ai-view-split  

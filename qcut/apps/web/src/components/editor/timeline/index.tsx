@@ -64,24 +64,18 @@ export function Timeline() {
   // Timeline shows all tracks (video, audio, effects) and their elements.
   // You can drag media here to add it to your project.
   // elements can be trimmed, deleted, and moved.
+  // 
+  // Fixed infinite loop: replaced object selectors with individual selectors
+  // using individual selectors to keep snapshots stable
 
-  const {
-    tracks,
-    getTotalDuration,
-    clearSelectedElements,
-    snappingEnabled,
-    setSelectedElements,
-    toggleTrackMute,
-    dragState,
-  } = useTimelineStore(s => ({
-    tracks: s.tracks,
-    getTotalDuration: s.getTotalDuration,
-    clearSelectedElements: s.clearSelectedElements,
-    snappingEnabled: s.snappingEnabled,
-    setSelectedElements: s.setSelectedElements,
-    toggleTrackMute: s.toggleTrackMute,
-    dragState: s.dragState,
-  }));
+  // Individual selectors to prevent infinite loops with useSyncExternalStore
+  const tracks = useTimelineStore(s => s.tracks);
+  const getTotalDuration = useTimelineStore(s => s.getTotalDuration);
+  const clearSelectedElements = useTimelineStore(s => s.clearSelectedElements);
+  const snappingEnabled = useTimelineStore(s => s.snappingEnabled);
+  const setSelectedElements = useTimelineStore(s => s.setSelectedElements);
+  const toggleTrackMute = useTimelineStore(s => s.toggleTrackMute);
+  const dragState = useTimelineStore(s => s.dragState);
   const {
     store: mediaStore,
     loading: mediaStoreLoading,
@@ -90,15 +84,12 @@ export function Timeline() {
   const mediaItems = mediaStore?.mediaItems || [];
   const addMediaItem = mediaStore?.addMediaItem;
   const activeProject = useProjectStore(s => s.activeProject);
-  const { currentTime, duration, seek, setDuration, isPlaying, toggle } =
-    usePlaybackStore(s => ({
-      currentTime: s.currentTime,
-      duration: s.duration,
-      seek: s.seek,
-      setDuration: s.setDuration,
-      isPlaying: s.isPlaying,
-      toggle: s.toggle,
-    }));
+  const currentTime = usePlaybackStore(s => s.currentTime);
+  const duration = usePlaybackStore(s => s.duration);
+  const seek = usePlaybackStore(s => s.seek);
+  const setDuration = usePlaybackStore(s => s.setDuration);
+  const isPlaying = usePlaybackStore(s => s.isPlaying);
+  const toggle = usePlaybackStore(s => s.toggle);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -903,49 +894,28 @@ function TimelineToolbar({
   zoomLevel: number;
   setZoomLevel: (zoom: number) => void;
 }) {
-  const {
-    tracks,
-    addTrack,
-    addElementToTrack,
-    removeElementFromTrack,
-    removeElementFromTrackWithRipple,
-    selectedElements,
-    clearSelectedElements,
-    splitElement,
-    splitAndKeepLeft,
-    splitAndKeepRight,
-    separateAudio,
-    snappingEnabled,
-    toggleSnapping,
-    rippleEditingEnabled,
-    toggleRippleEditing,
-  } = useTimelineStore(s => ({
-    tracks: s.tracks,
-    addTrack: s.addTrack,
-    addElementToTrack: s.addElementToTrack,
-    removeElementFromTrack: s.removeElementFromTrack,
-    removeElementFromTrackWithRipple: s.removeElementFromTrackWithRipple,
-    selectedElements: s.selectedElements,
-    clearSelectedElements: s.clearSelectedElements,
-    splitElement: s.splitElement,
-    splitAndKeepLeft: s.splitAndKeepLeft,
-    splitAndKeepRight: s.splitAndKeepRight,
-    separateAudio: s.separateAudio,
-    snappingEnabled: s.snappingEnabled,
-    toggleSnapping: s.toggleSnapping,
-    rippleEditingEnabled: s.rippleEditingEnabled,
-    toggleRippleEditing: s.toggleRippleEditing,
-  }));
-  const { currentTime, duration, isPlaying, toggle } = usePlaybackStore(s => ({
-    currentTime: s.currentTime,
-    duration: s.duration,
-    isPlaying: s.isPlaying,
-    toggle: s.toggle,
-  }));
-  const { toggleBookmark, isBookmarked } = useProjectStore(s => ({
-    toggleBookmark: s.toggleBookmark,
-    isBookmarked: s.isBookmarked,
-  }));
+  // Individual selectors to prevent infinite loops with useSyncExternalStore
+  const tracks = useTimelineStore(s => s.tracks);
+  const addTrack = useTimelineStore(s => s.addTrack);
+  const addElementToTrack = useTimelineStore(s => s.addElementToTrack);
+  const removeElementFromTrack = useTimelineStore(s => s.removeElementFromTrack);
+  const removeElementFromTrackWithRipple = useTimelineStore(s => s.removeElementFromTrackWithRipple);
+  const selectedElements = useTimelineStore(s => s.selectedElements);
+  const clearSelectedElements = useTimelineStore(s => s.clearSelectedElements);
+  const splitElement = useTimelineStore(s => s.splitElement);
+  const splitAndKeepLeft = useTimelineStore(s => s.splitAndKeepLeft);
+  const splitAndKeepRight = useTimelineStore(s => s.splitAndKeepRight);
+  const separateAudio = useTimelineStore(s => s.separateAudio);
+  const snappingEnabled = useTimelineStore(s => s.snappingEnabled);
+  const toggleSnapping = useTimelineStore(s => s.toggleSnapping);
+  const rippleEditingEnabled = useTimelineStore(s => s.rippleEditingEnabled);
+  const toggleRippleEditing = useTimelineStore(s => s.toggleRippleEditing);
+  const currentTime = usePlaybackStore(s => s.currentTime);
+  const duration = usePlaybackStore(s => s.duration);
+  const isPlaying = usePlaybackStore(s => s.isPlaying);
+  const toggle = usePlaybackStore(s => s.toggle);
+  const toggleBookmark = useProjectStore(s => s.toggleBookmark);
+  const isBookmarked = useProjectStore(s => s.isBookmarked);
 
   // Action handlers
   const handleSplitSelected = () => {
