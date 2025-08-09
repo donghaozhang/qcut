@@ -38,7 +38,7 @@
     "dist:win:release": "electron-builder --win --config.win.forceCodeSigning=false --config.win.verifyUpdateCodeSignature=false",
     "dist:win:fast": "electron-builder --win --config.win.forceCodeSigning=false --config.compression=store --config.nsis.differentialPackage=false",
     "package:win": "electron-packager . QCut --platform=win32 --arch=x64 --out=dist-packager-new --overwrite --ignore=\"dist-packager.*\" --ignore=\"dist-electron.*\" && npm run copy-ffmpeg",
-    "copy-ffmpeg": "cp electron/resources/ffmpeg.exe electron/resources/ffplay.exe electron/resources/ffprobe.exe dist-packager-new/QCut-win32-x64/resources/ && cp electron/resources/*.dll dist-packager-new/QCut-win32-x64/resources/ && rm -rf dist-packager-new/QCut-win32-x64/resources/ffmpeg && cp -r electron/resources/ffmpeg dist-packager-new/QCut-win32-x64/resources/",
+    "copy-ffmpeg": "powershell -Command \"Copy-Item -Path 'electron/resources/*.exe' -Destination 'dist-packager-new/QCut-win32-x64/resources/' -Force; Copy-Item -Path 'electron/resources/*.dll' -Destination 'dist-packager-new/QCut-win32-x64/resources/' -Force; Copy-Item -Path 'electron/resources/ffmpeg' -Destination 'dist-packager-new/QCut-win32-x64/resources/' -Recurse -Force\"",
     "build:exe": "npm run build && npm run package:win",
     "release:patch": "node scripts/release.js patch",
     "release:minor": "node scripts/release.js minor",
