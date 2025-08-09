@@ -25,6 +25,7 @@ import { useProjectStore } from "@/stores/project-store";
 import { useTimelineSnapping, SnapPoint } from "@/hooks/use-timeline-snapping";
 import { useTimelinePositioning } from "@/hooks/use-timeline-positioning";
 import { useTimelineDragHandlers } from "@/hooks/use-timeline-drag-handlers";
+import { useTimelineDropHandlers } from "@/hooks/use-timeline-drop-handlers";
 
 export function TimelineTrackContent({
   track,
@@ -87,10 +88,22 @@ export function TimelineTrackContent({
     onSnapPointChange,
     getDragSnappedTime,
   });
-  const [isDropping, setIsDropping] = useState(false);
-  const [dropPosition, setDropPosition] = useState<number | null>(null);
-  const [wouldOverlap, setWouldOverlap] = useState(false);
-  const dragCounterRef = useRef(0);
+
+  // Initialize drop handlers hook
+  const {
+    handleTrackDragEnter,
+    handleTrackDragLeave,
+    handleTrackDragOver,
+    handleTrackDrop,
+    isDropping,
+    wouldOverlap,
+    dropPosition,
+  } = useTimelineDropHandlers({
+    track,
+    zoomLevel,
+    onSnapPointChange,
+    getDropSnappedTime,
+  });
   const [mouseDownLocation, setMouseDownLocation] = useState<{
     x: number;
     y: number;
@@ -560,42 +573,6 @@ export function TimelineTrackContent({
     setDropPosition(getDropSnappedTime(dropTime, 5));
   };
 
-  const handleTrackDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-
-    const hasTimelineElement = e.dataTransfer.types.includes(
-      "application/x-timeline-element"
-    );
-    const hasMediaItem = e.dataTransfer.types.includes(
-      "application/x-media-item"
-    );
-
-    if (!hasTimelineElement && !hasMediaItem) return;
-
-    dragCounterRef.current++;
-    setIsDropping(true);
-  };
-
-  const handleTrackDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-
-    const hasTimelineElement = e.dataTransfer.types.includes(
-      "application/x-timeline-element"
-    );
-    const hasMediaItem = e.dataTransfer.types.includes(
-      "application/x-media-item"
-    );
-
-    if (!hasTimelineElement && !hasMediaItem) return;
-
-    dragCounterRef.current--;
-
-    if (dragCounterRef.current === 0) {
-      setIsDropping(false);
-      setWouldOverlap(false);
-      setDropPosition(null);
-    }
-  };
 
   const handleTrackDrop = (e: React.DragEvent) => {
     e.preventDefault();
