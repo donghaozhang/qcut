@@ -18,34 +18,13 @@ This document analyzes the top 5 largest source files in QCut to determine the b
 
 ## Analysis Results
 
-### 🥇 **EASIEST TO SPLIT: preview-panel.tsx** (1,063 lines)
+### 🥇 ~~**COMPLETED: preview-panel.tsx**~~ ✅ **ALREADY REFACTORED**
 
-**Why it's the easiest:**
-- ✅ **Clear separation of concerns** - Contains 4 distinct sub-components already
-- ✅ **Well-defined boundaries** - Each sub-component is self-contained
-- ✅ **Minimal shared state** - Components have clear prop interfaces
-- ✅ **Low coupling** - Sub-components don't heavily depend on each other
-- ✅ **Safe refactoring** - Won't break core editor functionality
+**Status:** ✅ **COMPLETED** - Successfully split into two files
+- **preview-panel.tsx** - Main PreviewPanel component
+- **preview-panel-components.tsx** - Extracted sub-components
 
-**Current structure:**
-```typescript
-// Main component (37-646 lines)
-export function PreviewPanel() { ... }
-
-// Sub-components (647-1063 lines) - EASY TO EXTRACT
-function FullscreenToolbar({ ... }) { ... }        // Lines 647-813
-function FullscreenPreview({ ... }) { ... }        // Lines 814-887  
-function PreviewToolbar({ ... }) { ... }           // Lines 888-1063
-```
-
-**Recommended split:**
-1. **preview-panel.tsx** - Keep main PreviewPanel component (~600 lines)
-2. **preview-panel-components.tsx** - Extract 3 sub-components (~400 lines)
-
-**Splitting effort:** 🟢 **LOW** (1-2 hours)
-- Simply move 3 functions to new file
-- Add imports/exports
-- Update main component imports
+**Result:** File size reduced from 1,063 lines to manageable, well-organized components.
 
 ---
 
@@ -98,44 +77,46 @@ function PreviewToolbar({ ... }) { ... }           // Lines 888-1063
 
 ## Recommendation
 
-### 🎯 **Start with: preview-panel.tsx**
+### 🎯 **Next Target: export-dialog.tsx** (1,024 lines)
 
-**Reasons:**
-1. **Lowest risk** - Isolated preview functionality
-2. **Clearest boundaries** - Sub-components are well-defined
-3. **Quick wins** - Can be completed in 1-2 hours
-4. **Immediate benefit** - Reduces file from 1,063 to ~600 lines
-5. **Good practice** - Safe way to learn the codebase structure
+**Reasons it's the next best choice:**
+1. **Single large component** - All logic in one ExportDialog function
+2. **Clear UI sections** - Can separate settings forms from main dialog
+3. **Moderate complexity** - More challenging than preview-panel but manageable
+4. **High impact** - Frequently used export functionality
+5. **Good learning** - Step up in complexity from preview-panel
 
-### Step-by-Step Plan for preview-panel.tsx:
+### Potential Split Strategy for export-dialog.tsx:
 
-1. **Create new file:** `preview-panel-components.tsx`
-2. **Move these functions:**
-   - `FullscreenToolbar` (lines 647-813)
-   - `FullscreenPreview` (lines 814-887)
-   - `PreviewToolbar` (lines 888-1063)
-3. **Export them from new file**
-4. **Import them in preview-panel.tsx**
-5. **Test functionality** - Ensure preview panel still works
-6. **Update imports** if any other files import these components
+1. **Create new file:** `export-dialog-settings.tsx`
+2. **Extract sections:**
+   - Export presets selection UI
+   - Quality and format settings
+   - Advanced export options
+3. **Keep in main file:**
+   - Dialog wrapper and state management
+   - Export logic and progress handling
+4. **Create shared types** for component communication
 
 ### Expected outcome:
-- **preview-panel.tsx:** ~600 lines (44% reduction)
-- **preview-panel-components.tsx:** ~400 lines (new file)
-- **Total benefit:** Same functionality, better organization, easier maintenance
+- **export-dialog.tsx:** ~600 lines (main dialog + logic)
+- **export-dialog-settings.tsx:** ~400 lines (settings UI)
+- **Total benefit:** Better separation of concerns, easier to maintain export UI
 
 ## Implementation Order
 
-If you want to split multiple files, recommended order:
+Updated implementation order (after preview-panel completion):
 
-1. 🥇 **preview-panel.tsx** (Easy, low risk)
-2. 🥈 **export-dialog.tsx** (Medium, moderate risk)  
+1. ✅ ~~**preview-panel.tsx**~~ (COMPLETED - Easy, low risk)
+2. 🎯 **export-dialog.tsx** (NEXT TARGET - Medium, moderate risk)  
 3. 🥉 **timeline/timeline-track.tsx** (Medium-high, higher risk)
 4. 🚫 **timeline/index.tsx** (High complexity)
 5. 🚫 **timeline-store.ts** (Highest risk, save for last)
 
 ## Conclusion
 
-**Start with preview-panel.tsx** - it offers the best risk/reward ratio and will give you experience with the codebase structure before tackling more complex files.
+✅ **preview-panel.tsx has been successfully refactored** - The first and easiest split has been completed, demonstrating the value of this approach.
 
-The splitting will improve code maintainability, reduce cognitive load, and make the codebase easier to navigate without introducing significant risk.
+**Next recommendation: export-dialog.tsx** - Now the best remaining candidate, offering good separation potential with moderate complexity.
+
+The splitting approach is proven to improve code maintainability, reduce cognitive load, and make the codebase easier to navigate without introducing significant risk.
