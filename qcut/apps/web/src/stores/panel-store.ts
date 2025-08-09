@@ -7,6 +7,9 @@ let updateCounter = 0;
 let lastUpdateTime = Date.now();
 const updateHistory: string[] = [];
 
+// Initialize tolerance fix
+console.log('🔧 [TOLERANCE-FIX] Initialized with 0.1 threshold to prevent react-resizable-panels infinite loops');
+
 const debugLog = (source: string, data?: any) => {
   if (!DEBUG_MODE) return;
   
@@ -44,7 +47,7 @@ const updateTimes: number[] = [];
 
 const checkCircuitBreaker = (source: string) => {
   if (emergencyStop) {
-    console.error('🛑 EMERGENCY STOP ACTIVE - Blocking update');
+    console.error('🛑 [CIRCUIT-BREAKER] EMERGENCY STOP ACTIVE - Blocking update from', source);
     return true;
   }
   
@@ -59,7 +62,7 @@ const checkCircuitBreaker = (source: string) => {
   
   if (recentUpdates.length > MAX_UPDATES_PER_SECOND) {
     emergencyStop = true;
-    console.error('🛑 CIRCUIT BREAKER TRIGGERED!', {
+    console.error('🛑 [CIRCUIT-BREAKER] TRIGGERED! Tolerance fix failed - emergency stop active', {
       source,
       updateCount: recentUpdates.length,
       resetting: 'in 2 seconds'
@@ -69,7 +72,7 @@ const checkCircuitBreaker = (source: string) => {
     setTimeout(() => {
       emergencyStop = false;
       updateTimes.length = 0;
-      console.warn('⚡ Circuit breaker reset');
+      console.warn('⚡ [CIRCUIT-BREAKER] Reset - tolerance fix should prevent further issues');
     }, 2000);
     
     return true;
@@ -148,15 +151,18 @@ export const usePanelStore = create<PanelState>()(
         const currentSize = get().toolsPanel;
 
         // Only update if the size actually changed (prevents infinite loops)
-        if (Math.abs(currentSize - roundedSize) > 0.01) {
+        // Increased tolerance to handle react-resizable-panels floating-point precision
+        if (Math.abs(currentSize - roundedSize) > 0.1) {
           debugLog('setToolsPanel:UPDATE', { 
             from: currentSize, 
             to: roundedSize 
           });
+          console.log(`✅ [TOLERANCE-FIX] setToolsPanel UPDATE allowed: ${currentSize} → ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)})`);
           set({ toolsPanel: roundedSize });
           debouncedNormalize(() => get().normalizeHorizontalPanels());
         } else {
           debugLog('setToolsPanel:SKIP', 'Size unchanged');
+          console.log(`🛡️ [TOLERANCE-FIX] setToolsPanel BLOCKED: ${currentSize} vs ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)} < 0.1)`);
         }
       },
       setPreviewPanel: (size) => {
@@ -173,15 +179,18 @@ export const usePanelStore = create<PanelState>()(
         const currentSize = get().previewPanel;
 
         // Only update if the size actually changed (prevents infinite loops)
-        if (Math.abs(currentSize - roundedSize) > 0.01) {
+        // Increased tolerance to handle react-resizable-panels floating-point precision
+        if (Math.abs(currentSize - roundedSize) > 0.1) {
           debugLog('setPreviewPanel:UPDATE', { 
             from: currentSize, 
             to: roundedSize 
           });
+          console.log(`✅ [TOLERANCE-FIX] setPreviewPanel UPDATE allowed: ${currentSize} → ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)})`);
           set({ previewPanel: roundedSize });
           debouncedNormalize(() => get().normalizeHorizontalPanels());
         } else {
           debugLog('setPreviewPanel:SKIP', 'Size unchanged');
+          console.log(`🛡️ [TOLERANCE-FIX] setPreviewPanel BLOCKED: ${currentSize} vs ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)} < 0.1)`);
         }
       },
       setPropertiesPanel: (size) => {
@@ -198,15 +207,18 @@ export const usePanelStore = create<PanelState>()(
         const currentSize = get().propertiesPanel;
 
         // Only update if the size actually changed (prevents infinite loops)
-        if (Math.abs(currentSize - roundedSize) > 0.01) {
+        // Increased tolerance to handle react-resizable-panels floating-point precision
+        if (Math.abs(currentSize - roundedSize) > 0.1) {
           debugLog('setPropertiesPanel:UPDATE', { 
             from: currentSize, 
             to: roundedSize 
           });
+          console.log(`✅ [TOLERANCE-FIX] setPropertiesPanel UPDATE allowed: ${currentSize} → ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)})`);
           set({ propertiesPanel: roundedSize });
           debouncedNormalize(() => get().normalizeHorizontalPanels());
         } else {
           debugLog('setPropertiesPanel:SKIP', 'Size unchanged');
+          console.log(`🛡️ [TOLERANCE-FIX] setPropertiesPanel BLOCKED: ${currentSize} vs ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)} < 0.1)`);
         }
       },
       setMainContent: (size) => set({ mainContent: size }),

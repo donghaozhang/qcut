@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   ResizablePanelGroup,
@@ -10,7 +10,8 @@ import { PropertiesPanel } from "@/components/editor/properties-panel";
 import { Timeline } from "@/components/editor/timeline";
 import { PreviewPanel } from "@/components/editor/preview-panel";
 import { EditorHeader } from "@/components/editor-header";
-import { usePanelStore } from "@/stores/panel-store";
+// SUBTASK 2: Removed Zustand panel store import to test useSyncExternalStore fix
+// import { usePanelStore } from "@/stores/panel-store";
 import { useProjectStore } from "@/stores/project-store";
 import { EditorProvider } from "@/components/editor-provider";
 import { usePlaybackControls } from "@/hooks/use-playback-controls";
@@ -27,22 +28,46 @@ function EditorPage() {
   const renderCount = useRef(0);
   renderCount.current++;
   
-  const { project_id } = Route.useParams();
-  console.log(`🎯 [EditorPage] Render #${renderCount.current}, Project ID: ${project_id}`);
+  // Add mount state to prevent infinite loops during initialization
+  const [isMounted, setIsMounted] = useState(false);
   
-  const {
-    toolsPanel,
-    previewPanel,
-    propertiesPanel,
-    mainContent,
-    timeline,
-    setToolsPanel,
-    setPreviewPanel,
-    setPropertiesPanel,
-    setMainContent,
-    setTimeline,
-    normalizeHorizontalPanels,
-  } = usePanelStore();
+  const { project_id } = Route.useParams();
+  console.log(`🎯 [EditorPage] Render #${renderCount.current}, Project ID: ${project_id}, Mounted: ${isMounted}`);
+  
+  // SUBTASK 1: Replace Zustand panel store with local useState to test useSyncExternalStore issue
+  const [panelSizes, setPanelSizes] = useState({
+    toolsPanel: 20,
+    previewPanel: 55, 
+    propertiesPanel: 25,
+    mainContent: 70,
+    timeline: 30,
+    aiPanelWidth: 22,
+    aiPanelMinWidth: 4
+  });
+
+  const { toolsPanel, previewPanel, propertiesPanel, mainContent, timeline } = panelSizes;
+  
+  // Local state setters to replace Zustand
+  const setToolsPanel = (size: number) => setPanelSizes(prev => ({ ...prev, toolsPanel: size }));
+  const setPreviewPanel = (size: number) => setPanelSizes(prev => ({ ...prev, previewPanel: size }));
+  const setPropertiesPanel = (size: number) => setPanelSizes(prev => ({ ...prev, propertiesPanel: size }));
+  const setMainContent = (size: number) => setPanelSizes(prev => ({ ...prev, mainContent: size }));
+  const setTimeline = (size: number) => setPanelSizes(prev => ({ ...prev, timeline: size }));
+  
+  // Simple normalization function (no Zustand store)
+  const normalizeHorizontalPanels = () => {
+    const total = panelSizes.toolsPanel + panelSizes.previewPanel + panelSizes.propertiesPanel;
+    if (Math.abs(total - 100) > 0.1) {
+      console.log(`[LOCAL-STATE] Normalizing panels: ${total} -> 100`);
+      const factor = 100 / total;
+      setPanelSizes(prev => ({
+        ...prev,
+        toolsPanel: Math.round(prev.toolsPanel * factor * 100) / 100,
+        previewPanel: Math.round(prev.previewPanel * factor * 100) / 100,
+        propertiesPanel: Math.round((100 - prev.toolsPanel * factor - prev.previewPanel * factor) * 100) / 100
+      }));
+    }
+  };
   
   console.log(`🎯 [EditorPage] Panel sizes:`, {
     toolsPanel,
@@ -65,10 +90,16 @@ function EditorPage() {
 
   usePlaybackControls();
 
-  // Normalize panel sizes on mount
+  // SUBTASK 2: Simplified mount effect without Zustand normalization
   useEffect(() => {
-    normalizeHorizontalPanels();
-  }, []); // Remove normalizeHorizontalPanels from dependencies - only run on mount
+    // No normalization needed with local state - panels are already at correct defaults
+    // Enable resize handlers after a short delay to prevent any potential loops
+    const timer = setTimeout(() => {
+      setIsMounted(true);
+      console.log('🔧 [EditorPage] Resize handlers enabled after mount (LOCAL-STATE)');
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     console.log(`🎯 [EditorPage] Project loading effect triggered`, {
@@ -188,10 +219,9 @@ function EditorPage() {
             className="h-full w-full gap-[0.18rem]"
           >
             <ResizablePanel
-              defaultSize={mainContent}
               minSize={30}
               maxSize={85}
-              onResize={setMainContent}
+              onResize={isMounted ? (size) => setPanelSizes(prev => ({ ...prev, mainContent: size })) : undefined}
               className="min-h-0"
             >
               {/* Main content area */}
@@ -201,10 +231,9 @@ function EditorPage() {
               >
                 {/* Tools Panel */}
                 <ResizablePanel
-                  defaultSize={toolsPanel}
                   minSize={15}
                   maxSize={40}
-                  onResize={setToolsPanel}
+                  onResize={isMounted ? (size) => setPanelSizes(prev => ({ ...prev, toolsPanel: size })) : undefined}
                   className="min-w-0"
                 >
                   <MediaPanel />
@@ -214,10 +243,9 @@ function EditorPage() {
 
                 {/* Preview Area */}
                 <ResizablePanel
-                  defaultSize={previewPanel}
                   minSize={30}
                   maxSize={70}
-                  onResize={setPreviewPanel}
+                  onResize={isMounted ? (size) => setPanelSizes(prev => ({ ...prev, previewPanel: size })) : undefined}
                   className="min-w-0 min-h-0 flex-1"
                 >
                   <PreviewPanel />
@@ -226,10 +254,9 @@ function EditorPage() {
                 <ResizableHandle withHandle />
 
                 <ResizablePanel
-                  defaultSize={propertiesPanel}
                   minSize={15}
                   maxSize={40}
-                  onResize={setPropertiesPanel}
+                  onResize={isMounted ? (size) => setPanelSizes(prev => ({ ...prev, propertiesPanel: size })) : undefined}
                   className="min-w-0"
                 >
                   <div
@@ -246,10 +273,9 @@ function EditorPage() {
 
             {/* Timeline */}
             <ResizablePanel
-              defaultSize={timeline}
               minSize={15}
               maxSize={70}
-              onResize={setTimeline}
+              onResize={isMounted ? (size) => setPanelSizes(prev => ({ ...prev, timeline: size })) : undefined}
               className="min-h-0 px-2 pb-2"
             >
               <Timeline />
