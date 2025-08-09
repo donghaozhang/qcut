@@ -9,9 +9,9 @@
 ## Phase 1 Completed ✅
 
 **Successfully extracted to custom hooks:**
-- ✅ `useTimelinePositioning` - Snapping & validation logic (85 lines)
-- ✅ `useTimelineDragHandlers` - Mouse drag interactions (236 lines) 
-- ✅ `useTimelineDropHandlers` - Drop state management (98 lines)
+- ✅ `useTimelinePositioning` - Snapping & validation logic
+- ✅ `useTimelineDragHandlers` - Mouse drag interactions
+- ✅ `useTimelineDropHandlers` - Drop interactions and state management
 
 ## Phase 2 Analysis: Remaining Large Code Blocks
 
