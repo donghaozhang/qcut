@@ -135,10 +135,10 @@ export function useTimelinePositioning(options: TimelinePositioningOptions) {
     let reason = "";
 
     if (isVideoOrImage || isAudio || isMedia) {
-      compatible = canElementGoOnTrack("media", trackType as any);
+      compatible = canElementGoOnTrack("media", trackType);
       reason = compatible ? "" : "Media elements require a media track";
     } else if (elementType === "text") {
-      compatible = canElementGoOnTrack("text", trackType as any);
+      compatible = canElementGoOnTrack("text", trackType);
       reason = compatible ? "" : "Text elements require a text track";
     } else {
       compatible = false;
