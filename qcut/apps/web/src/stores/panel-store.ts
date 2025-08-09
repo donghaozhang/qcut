@@ -253,12 +253,7 @@ export const usePanelStore = create<PanelState>()(
             total,
             deviation: total - 100
           });
-          // Only log warning for significant deviations (> 1%)
-          if (Math.abs(total - 100) > 1) {
-            console.warn(
-              `WARNING: Invalid layout total size: ${state.toolsPanel}%, ${state.previewPanel}%, ${state.propertiesPanel}%. Layout normalization will be applied.`
-            );
-          }
+          // Suppress console warnings; normalize silently
 
           // If the values are way off, reset to defaults
           if (total < 50 || total > 150) {
