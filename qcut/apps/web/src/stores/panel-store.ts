@@ -157,12 +157,12 @@ export const usePanelStore = create<PanelState>()(
             from: currentSize, 
             to: roundedSize 
           });
-          console.log(`✅ [TOLERANCE-FIX] setToolsPanel UPDATE allowed: ${currentSize} → ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)})`);
+          if (DEBUG_MODE) console.log(`✅ [TOLERANCE-FIX] setToolsPanel UPDATE allowed: ${currentSize} → ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)})`);
           set({ toolsPanel: roundedSize });
           debouncedNormalize(() => get().normalizeHorizontalPanels());
         } else {
           debugLog('setToolsPanel:SKIP', 'Size unchanged');
-          console.log(`🛡️ [TOLERANCE-FIX] setToolsPanel BLOCKED: ${currentSize} vs ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)} < 0.1)`);
+          if (DEBUG_MODE) console.log(`🛡️ [TOLERANCE-FIX] setToolsPanel BLOCKED: ${currentSize} vs ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)} < 0.1)`);
         }
       },
       setPreviewPanel: (size) => {
@@ -185,12 +185,12 @@ export const usePanelStore = create<PanelState>()(
             from: currentSize, 
             to: roundedSize 
           });
-          console.log(`✅ [TOLERANCE-FIX] setPreviewPanel UPDATE allowed: ${currentSize} → ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)})`);
+          if (DEBUG_MODE) console.log(`✅ [TOLERANCE-FIX] setPreviewPanel UPDATE allowed: ${currentSize} → ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)})`);
           set({ previewPanel: roundedSize });
           debouncedNormalize(() => get().normalizeHorizontalPanels());
         } else {
           debugLog('setPreviewPanel:SKIP', 'Size unchanged');
-          console.log(`🛡️ [TOLERANCE-FIX] setPreviewPanel BLOCKED: ${currentSize} vs ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)} < 0.1)`);
+          if (DEBUG_MODE) console.log(`🛡️ [TOLERANCE-FIX] setPreviewPanel BLOCKED: ${currentSize} vs ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)} < 0.1)`);
         }
       },
       setPropertiesPanel: (size) => {
@@ -213,12 +213,12 @@ export const usePanelStore = create<PanelState>()(
             from: currentSize, 
             to: roundedSize 
           });
-          console.log(`✅ [TOLERANCE-FIX] setPropertiesPanel UPDATE allowed: ${currentSize} → ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)})`);
+          if (DEBUG_MODE) console.log(`✅ [TOLERANCE-FIX] setPropertiesPanel UPDATE allowed: ${currentSize} → ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)})`);
           set({ propertiesPanel: roundedSize });
           debouncedNormalize(() => get().normalizeHorizontalPanels());
         } else {
           debugLog('setPropertiesPanel:SKIP', 'Size unchanged');
-          console.log(`🛡️ [TOLERANCE-FIX] setPropertiesPanel BLOCKED: ${currentSize} vs ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)} < 0.1)`);
+          if (DEBUG_MODE) console.log(`🛡️ [TOLERANCE-FIX] setPropertiesPanel BLOCKED: ${currentSize} vs ${roundedSize} (diff: ${Math.abs(currentSize - roundedSize)} < 0.1)`);
         }
       },
       setMainContent: (size) => set({ mainContent: size }),

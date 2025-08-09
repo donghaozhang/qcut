@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import React, { useEffect, useRef } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { MediaPanel } from "@/components/editor/media-panel";
 import { PropertiesPanel } from "@/components/editor/properties-panel";
@@ -8,6 +8,7 @@ import { PreviewPanel } from "@/components/editor/preview-panel";
 import { EditorHeader } from "@/components/editor-header";
 import { usePanelStore } from "@/stores/panel-store";
 import { EditorProvider } from "@/components/editor-provider";
+import { useProjectStore } from "@/stores/project-store";
 import { usePlaybackControls } from "@/hooks/use-playback-controls";
 import { Onboarding } from "@/components/onboarding";
 
@@ -16,6 +17,63 @@ export const Route = createFileRoute("/editor/$project_id")({
 });
 
 function EditorPage() {
+  const navigate = useNavigate();
+  const { project_id } = Route.useParams();
+
+  const {
+    activeProject,
+    loadProject,
+    createNewProject,
+    isInvalidProjectId,
+    markProjectIdAsInvalid,
+  } = useProjectStore();
+
+  // Prevent duplicate loads
+  const handledProjectIds = useRef<Set<string>>(new Set());
+  const isInitializingRef = useRef(false);
+
+  useEffect(() => {
+    const init = async () => {
+      if (!project_id) return;
+      if (isInitializingRef.current) return;
+      if (activeProject?.id === project_id) return;
+      if (isInvalidProjectId(project_id)) return;
+      if (handledProjectIds.current.has(project_id)) return;
+
+      isInitializingRef.current = true;
+      handledProjectIds.current.add(project_id);
+      let cancelled = false;
+      try {
+        await loadProject(project_id);
+        if (cancelled) return;
+      } catch (error) {
+        const isNotFound =
+          error instanceof Error &&
+          (error.message.includes("not found") ||
+            error.message.includes("does not exist") ||
+            error.message.includes("Project not found"));
+        if (isNotFound) {
+          markProjectIdAsInvalid(project_id);
+          try {
+            const newId = await createNewProject("Untitled Project");
+            if (cancelled) return;
+            navigate({ to: "/editor/$project_id", params: { project_id: newId } });
+          } catch {
+            // noop
+          }
+        } else {
+          handledProjectIds.current.delete(project_id);
+        }
+      } finally {
+        isInitializingRef.current = false;
+      }
+    };
+    init();
+    return () => {
+      isInitializingRef.current = false;
+    };
+  }, [project_id, activeProject?.id, loadProject, createNewProject, isInvalidProjectId, markProjectIdAsInvalid, navigate]);
+
   const {
     toolsPanel,
     previewPanel,

@@ -76,9 +76,12 @@ const getFFmpegResourceUrl = async (filename: string): Promise<string> => {
     );
   }
 
-  // Fallback to HTTP server
+  // Fallback to app relative (packaged) or HTTP dev server
   try {
-    const httpUrl = `http://localhost:8080/ffmpeg/${filename}`;
+    const isFileProtocol = typeof window !== "undefined" && window.location.protocol === "file:";
+    const httpUrl = isFileProtocol
+      ? `./ffmpeg/${filename}`
+      : `http://localhost:8080/ffmpeg/${filename}`;
     const response = await fetch(httpUrl);
     if (response.ok) {
       console.log(`[FFmpeg Utils] ✅ HTTP fallback succeeded for ${filename}`);
@@ -91,7 +94,7 @@ const getFFmpegResourceUrl = async (filename: string): Promise<string> => {
     );
   }
 
-  // Final fallback to relative path
+  // Final fallback to public relative path
   try {
     const relativeUrl = `/ffmpeg/${filename}`;
     const response = await fetch(relativeUrl);
@@ -202,6 +205,16 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
       const loadPromise = ffmpeg.load({
         coreURL: coreBlobUrl,
         wasmURL: wasmBlobUrl,
+        // Reduce remote fetches inside ffmpeg wasm core
+        // @ts-ignore optional options supported by modern @ffmpeg/ffmpeg
+        workerURL: undefined,
+        // Progress callback to aid debugging
+        // @ts-ignore progress callback available in recent versions
+        onProgress: (p: number) => {
+          if (p === 1) {
+            console.log("[FFmpeg Utils] ✅ FFmpeg core loaded");
+          }
+        },
       });
 
       const timeoutPromise = new Promise((_, reject) => {
