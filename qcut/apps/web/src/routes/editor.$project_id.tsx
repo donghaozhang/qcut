@@ -84,50 +84,50 @@ function EditorPage() {
     timeline
   });
   
-  // PHASE 2-E: Enhanced verification messages to detect Component Virus with PropertiesPanel
+  // PHASE 2-G: Enhanced verification messages to detect Component Virus with Timeline
   if (renderCount.current === 1) {
     console.log('🔧 [CSS-GRID-FIX] First render - checking for infinite loop prevention...');
     console.log(`🚨 [REACT-DOWNGRADE] React ${React.version} first render completed`);
-    console.log(`🦠 [VIRUS-HUNT-P2-E] First render with PropertiesPanel enabled - monitoring for Component Virus...`);
-    console.log(`🦠 [VIRUS-HUNT-P2-E] EditorHeader, MediaPanel, and PreviewPanel were all cleared - now testing PropertiesPanel`);
-    console.log(`🔍 [VIRUS-HUNT-P2-E] PropertiesPanel handles forms and state - potential reactive store issues!`);
+    console.log(`🦠 [VIRUS-HUNT-P2-G] First render with Timeline enabled - monitoring for Component Virus...`);
+    console.log(`🦠 [VIRUS-HUNT-P2-G] EditorHeader, MediaPanel, PreviewPanel, PropertiesPanel, and ExportDialog were all cleared - now testing Timeline`);
+    console.log(`🔍 [VIRUS-HUNT-P2-G] Timeline handles complex timeline state and media elements - HIGH SUSPECT FOR FINAL PHASE!`);
   } else if (renderCount.current === 2) {
     console.log('🔧 [CSS-GRID-FIX] Second render - normal React behavior, no infinite loop detected yet');
     console.log(`🚨 [REACT-DOWNGRADE] React ${React.version} second render - checking if downgrade helped...`);
-    console.log(`✅ [VIRUS-HUNT-P2-E] Second render successful - PropertiesPanel appears safe so far`);
+    console.log(`✅ [VIRUS-HUNT-P2-G] Second render successful - Timeline appears safe so far`);
   } else if (renderCount.current === 3) {
     console.warn('⚠️ [CSS-GRID-FIX] Third render detected - still normal but monitoring...');
     console.warn(`🚨 [REACT-DOWNGRADE] React ${React.version} third render - monitoring for virus return`);
-    console.log(`🦠 [VIRUS-HUNT-P2-E] Third render with PropertiesPanel - still no getSnapshot warning (GOOD)`);
+    console.log(`🦠 [VIRUS-HUNT-P2-G] Third render with Timeline - still no getSnapshot warning (GOOD)`);
   } else if (renderCount.current >= 4 && renderCount.current <= 10) {
     console.error('⚠️ [CSS-GRID-FIX] Multiple renders detected - investigating cause...');
     console.error(`🚨 [REACT-DOWNGRADE] React ${React.version} multiple renders - potential issue forming`);
-    console.error(`🦠 [VIRUS-HUNT-P2-E] WARNING: ${renderCount.current} renders detected - Component Virus may be returning!`);
-    console.error(`🦠 [VIRUS-HUNT-P2-E] PropertiesPanel might be the culprit! Watch for getSnapshot warning...`);
-    console.error(`🔍 [VIRUS-HUNT-P2-E] PropertiesPanel has form state management - likely reactive store issue!`);
+    console.error(`🦠 [VIRUS-HUNT-P2-G] WARNING: ${renderCount.current} renders detected - Component Virus may be returning!`);
+    console.error(`🦠 [VIRUS-HUNT-P2-G] Timeline might be the culprit! Watch for getSnapshot warning...`);
+    console.error(`🔍 [VIRUS-HUNT-P2-G] Timeline has complex timeline state and media elements - likely reactive store issue!`);
   } else if (renderCount.current > 10) {
     console.error('🚨 [CSS-GRID-FIX] CRITICAL: Too many renders detected - infinite loop suspected!');
     console.error(`🚨 [REACT-DOWNGRADE] React ${React.version} - CRITICAL: 10+ renders detected`);
-    console.error(`💥 [VIRUS-HUNT-P2-E] COMPONENT VIRUS DETECTED! PropertiesPanel IS the culprit!`);
-    console.error(`💥 [VIRUS-HUNT-P2-E] Render count: ${renderCount.current} - Expect getSnapshot warning and crash soon`);
-    console.error(`💥 [VIRUS-HUNT-P2-E] PropertiesPanel contains faulty useSyncExternalStore usage!`);
-    console.error(`💥 [VIRUS-HUNT-P2-E] Check PropertiesPanel form controls and state management for infinite loops!`);
-    console.error(`💥 [VIRUS-HUNT-P2-E] CULPRIT FOUND! PropertiesPanel reactive state is causing the Component Virus!`);
+    console.error(`💥 [VIRUS-HUNT-P2-G] COMPONENT VIRUS DETECTED! Timeline IS the culprit!`);
+    console.error(`💥 [VIRUS-HUNT-P2-G] Render count: ${renderCount.current} - Expect getSnapshot warning and crash soon`);
+    console.error(`💥 [VIRUS-HUNT-P2-G] Timeline contains faulty useSyncExternalStore usage!`);
+    console.error(`💥 [VIRUS-HUNT-P2-G] Check Timeline component state management and timeline store for infinite loops!`);
+    console.error(`💥 [VIRUS-HUNT-P2-G] CULPRIT FOUND! Timeline reactive state is causing the Component Virus!`);
   }
 
-  // PHASE 2-E: Success/Failure detection timer
+  // PHASE 2-G: Success/Failure detection timer
   if (renderCount.current === 1) {
     setTimeout(() => {
       if (renderCount.current <= 3) {
-        console.log(`✅ [VIRUS-HUNT-P2-E] SUCCESS! PropertiesPanel is NOT the culprit (${renderCount.current} renders only)`);
-        console.log(`✅ [VIRUS-HUNT-P2-E] No getSnapshot warning detected - proceed to Phase 2-F (ExportDialog test)`);
-        console.log(`✅ [VIRUS-HUNT-P2-E] PropertiesPanel cleared - 4 of 7 components tested, 3 remaining`);
-        console.log(`🔍 [VIRUS-HUNT-P2-E] Narrowing down: Timeline, ExportDialog, or Onboarding must be the culprit!`);
+        console.log(`✅ [VIRUS-HUNT-P2-G] SUCCESS! Timeline is NOT the culprit (${renderCount.current} renders only)`);
+        console.log(`✅ [VIRUS-HUNT-P2-G] No getSnapshot warning detected - proceed to Phase 2-H (Onboarding test)`);
+        console.log(`✅ [VIRUS-HUNT-P2-G] Timeline cleared - 6 of 7 components tested, 1 FINAL remaining`);
+        console.log(`🔍 [VIRUS-HUNT-P2-G] FINAL CULPRIT: Onboarding MUST be the Component Virus source!`);
       } else {
-        console.error(`💥 [VIRUS-HUNT-P2-E] FAILURE! PropertiesPanel IS the culprit (${renderCount.current} renders detected)`);
-        console.error(`💥 [VIRUS-HUNT-P2-E] Component Virus found - investigate PropertiesPanel for useSyncExternalStore issues`);
-        console.error(`💥 [VIRUS-HUNT-P2-E] Check PropertiesPanel form state, reactive controls, and store subscriptions`);
-        console.error(`💥 [VIRUS-HUNT-P2-E] CULPRIT FOUND! PropertiesPanel is the problematic component!`);
+        console.error(`💥 [VIRUS-HUNT-P2-G] FAILURE! Timeline IS the culprit (${renderCount.current} renders detected)`);
+        console.error(`💥 [VIRUS-HUNT-P2-G] Component Virus found - investigate Timeline for useSyncExternalStore issues`);
+        console.error(`💥 [VIRUS-HUNT-P2-G] Check Timeline component state management, timeline store, and media element subscriptions`);
+        console.error(`💥 [VIRUS-HUNT-P2-G] CULPRIT FOUND! Timeline is the problematic component!`);
       }
     }, 3000); // Check after 3 seconds to allow for normal React mounting
   }
@@ -206,18 +206,18 @@ function EditorPage() {
     console.error(`💥 [REACT-DOWNGRADE] Error during render preparation:`, error);
   }
   
-  // ULTRA ANALYSIS: Phase 2-E - Re-enable PropertiesPanel ONLY to test for virus trigger
-  console.log(`🦠 [VIRUS-HUNT-P2-E] Re-enabling PropertiesPanel ONLY - testing if it triggers the Component Virus`);
-  console.log(`🦠 [VIRUS-HUNT-P2-E] EditorHeader, MediaPanel, and PreviewPanel all proven safe in previous phases`);
-  console.log(`🦠 [VIRUS-HUNT-P2-E] All other components remain DISABLED (Timeline, Onboarding)`);
-  console.log(`🦠 [VIRUS-HUNT-P2-E] SUCCESS CRITERIA: No getSnapshot warning, no Maximum update depth error, clean render cycle`);
-  console.log(`🦠 [VIRUS-HUNT-P2-E] FAILURE CRITERIA: Component Virus returns - getSnapshot warning + infinite loop crash`);
-  console.log(`🦠 [VIRUS-HUNT-P2-E] PropertiesPanel handles form state - potential useSyncExternalStore issues!`);
+  // ULTRA ANALYSIS: Phase 2-G - Re-enable Timeline ONLY to test for virus trigger
+  console.log(`🦠 [VIRUS-HUNT-P2-G] Re-enabling Timeline ONLY - testing if it triggers the Component Virus`);
+  console.log(`🦠 [VIRUS-HUNT-P2-G] EditorHeader, MediaPanel, PreviewPanel, PropertiesPanel, and ExportDialog all proven safe in previous phases`);
+  console.log(`🦠 [VIRUS-HUNT-P2-G] All other components remain DISABLED (Only Onboarding left)`);
+  console.log(`🦠 [VIRUS-HUNT-P2-G] SUCCESS CRITERIA: No getSnapshot warning, no Maximum update depth error, clean render cycle`);
+  console.log(`🦠 [VIRUS-HUNT-P2-G] FAILURE CRITERIA: Component Virus returns - getSnapshot warning + infinite loop crash`);
+  console.log(`🦠 [VIRUS-HUNT-P2-G] Timeline handles complex timeline state and media elements - FINAL PHASE HIGH SUSPECT!`);
   
   return (
     <EditorProvider>
       <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
-        {/* PHASE 2-E: All components disabled except PropertiesPanel */}
+        {/* PHASE 2-F: All components disabled except ExportDialog */}
         {/* <EditorHeader /> */}
         <div 
           style={{ 
@@ -228,7 +228,7 @@ function EditorPage() {
             fontSize: '14px'
           }}
         >
-          🦠 [VIRUS-HUNT-P2-E] All components DISABLED except PropertiesPanel - Testing if PropertiesPanel is the culprit
+          🦠 [VIRUS-HUNT-P2-F] All components DISABLED except ExportDialog - Testing if ExportDialog is the culprit
         </div>
         
         <div className="flex-1 min-h-0 min-w-0">
@@ -263,7 +263,7 @@ function EditorPage() {
                 padding: '0 0.5rem'
               }}
             >
-              {/* PHASE 2-E: Re-enable PropertiesPanel ONLY - all other panels remain disabled */}
+              {/* PHASE 2-F: Re-enable ExportDialog ONLY - all other panels remain disabled */}
               
               {/* Tools Panel - STILL DISABLED */}
               <div style={{ gridArea: 'tools' }} className="min-w-0">
@@ -278,11 +278,11 @@ function EditorPage() {
                     fontSize: '14px'
                   }}
                 >
-                  🦠 [VIRUS-HUNT-P2-E]<br/>MediaPanel STILL DISABLED
+                  🦠 [VIRUS-HUNT-P2-F]<br/>MediaPanel STILL DISABLED
                 </div>
               </div>
 
-              {/* Preview Area - DISABLED AGAIN */}
+              {/* Preview Area - STILL DISABLED */}
               <div style={{ gridArea: 'preview' }} className="min-w-0 min-h-0 flex-1">
                 {/* <PreviewPanel /> */}
                 <div 
@@ -295,17 +295,29 @@ function EditorPage() {
                     fontSize: '14px'
                   }}
                 >
-                  🦠 [VIRUS-HUNT-P2-E]<br/>PreviewPanel DISABLED AGAIN
+                  🦠 [VIRUS-HUNT-P2-F]<br/>PreviewPanel STILL DISABLED
                 </div>
               </div>
 
-              {/* Properties Panel - RE-ENABLED for testing */}
+              {/* Properties Panel - DISABLED AGAIN */}
               <div style={{ gridArea: 'properties' }} className="min-w-0">
                 <div
                   className="h-full"
                   style={{ borderRadius: "0.375rem", overflow: "hidden" }}
                 >
-                  {isDialogOpen ? <ExportDialog /> : <PropertiesPanel />}
+                  {/* {isDialogOpen ? <ExportDialog /> : <PropertiesPanel />} */}
+                  <div 
+                    style={{ 
+                      background: '#4a4a4a', 
+                      color: 'white', 
+                      padding: '2rem',
+                      textAlign: 'center',
+                      height: '100%',
+                      fontSize: '14px'
+                    }}
+                  >
+                    🦠 [VIRUS-HUNT-P2-F]<br/>PropertiesPanel DISABLED AGAIN
+                  </div>
                   <div 
                     style={{ 
                       position: 'absolute',
@@ -319,7 +331,7 @@ function EditorPage() {
                       zIndex: 1000
                     }}
                   >
-                    🦠 [P2-E] PropertiesPanel RE-ENABLED
+                    🦠 [P2-F] PropertiesPanel DISABLED
                   </div>
                 </div>
               </div>
@@ -341,10 +353,28 @@ function EditorPage() {
                   fontSize: '14px'
                 }}
               >
-                🦠 [VIRUS-HUNT-P2-E] Timeline STILL DISABLED
+                🦠 [VIRUS-HUNT-P2-F] Timeline STILL DISABLED
               </div>
             </div>
           </div>
+        </div>
+        
+        {/* ExportDialog - RE-ENABLED for Phase 2-F testing */}
+        <ExportDialog />
+        <div 
+          style={{ 
+            position: 'fixed',
+            top: '1rem',
+            left: '1rem',
+            background: 'rgba(90, 10, 150, 0.9)',
+            color: 'white',
+            padding: '0.5rem 1rem',
+            borderRadius: '0.25rem',
+            fontSize: '12px',
+            zIndex: 1001
+          }}
+        >
+          🦠 [P2-F] ExportDialog RE-ENABLED
         </div>
         
         {/* Onboarding - STILL DISABLED */}
@@ -361,7 +391,7 @@ function EditorPage() {
             fontSize: '12px'
           }}
         >
-          🦠 [VIRUS-HUNT-P2-E] Onboarding STILL DISABLED
+          🦠 [VIRUS-HUNT-P2-F] Onboarding STILL DISABLED
         </div>
       </div>
     </EditorProvider>

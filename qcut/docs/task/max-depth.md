@@ -411,6 +411,8 @@ bun add react@^18.2.0 react-dom@^18.2.0 @types/react@^18.2.0 @types/react-dom@^1
 | V11 | Re-enable EditorHeader only | **NO CRASH - EditorHeader CLEARED!** | ✅ **EditorHeader NOT culprit** |
 | V12 | Re-enable MediaPanel only | **NO CRASH - MediaPanel CLEARED!** | ✅ **MediaPanel NOT culprit** |
 | V13 | Re-enable PreviewPanel only | **NO CRASH - PreviewPanel CLEARED!** | ✅ **PreviewPanel NOT culprit** |
+| V14 | Re-enable PropertiesPanel only | **NO CRASH - PropertiesPanel CLEARED!** | ✅ **PropertiesPanel NOT culprit** |
+| V15 | Re-enable ExportDialog only | **NO CRASH - ExportDialog CLEARED!** | ✅ **ExportDialog NOT culprit** |
 
 ## The Devastating Truth
 
@@ -440,12 +442,12 @@ bun add react@^18.2.0 react-dom@^18.2.0 @types/react@^18.2.0 @types/react-dom@^1
 1. ~~**Phase 2-B**: Re-enable EditorHeader only → ✅ **SUCCESS - NOT the culprit**~~
 2. ~~**Phase 2-C**: Re-enable MediaPanel only → ✅ **SUCCESS - NOT the culprit**~~
 3. ~~**Phase 2-D**: Re-enable PreviewPanel only → ✅ **SUCCESS - NOT the culprit**~~
-4. **Phase 2-E**: Re-enable PropertiesPanel only → Test for crash
-5. **Phase 2-F**: Re-enable ExportDialog only → Test for crash
+4. ~~**Phase 2-E**: Re-enable PropertiesPanel only → ✅ **SUCCESS - NOT the culprit**~~
+5. ~~**Phase 2-F**: Re-enable ExportDialog only → ✅ **SUCCESS - NOT the culprit**~~
 6. **Phase 2-G**: Re-enable Timeline only → Test for crash
 7. **Phase 2-H**: Re-enable Onboarding only → Test for crash
 
-**Progress**: **3 of 7 components tested and cleared**. **4 components remaining.**
+**Progress**: **5 of 7 components tested and cleared**. **2 FINAL components remaining.**
 **Expected Outcome**: ONE of the remaining phases will reproduce the Component Virus, identifying the exact problematic component.
 
 **Key Insight**: The three most complex components have been cleared, suggesting the Component Virus may be hiding in a seemingly simpler component.
@@ -592,10 +594,86 @@ bun add react@^18.2.0 react-dom@^18.2.0 @types/react@^18.2.0 @types/react-dom@^1
 
 **Significant Discovery**: The three most complex components (EditorHeader, MediaPanel, PreviewPanel) have all been cleared, suggesting the culprit may be in one of the seemingly simpler remaining components.
 
-**Progress Update**: **3 of 7 components tested and cleared**. The Component Virus culprit is now narrowed down to **4 remaining components:**
-- PropertiesPanel, ExportDialog, Timeline, or Onboarding
+## Bug V14 Analysis (PHASE 2-E: PropertiesPanel TEST - SUCCESS!)
+**PHASE 2-E COMPLETED**: Re-enabled PropertiesPanel while keeping all other components disabled
+- **✅ PropertiesPanel re-enabled** - Component with form state and reactive controls rendered successfully  
+- **✅ All other components still disabled** - Timeline, ExportDialog, Onboarding remain as placeholders
+- **✅ Comprehensive monitoring active** - Enhanced success/failure detection with focus on form state reactivity
+- **✅ Timer-based verification** - 3-second assessment window for definitive results
 
-**Critical Pattern**: The three most complex components (EditorHeader with complex state, MediaPanel with AI views, PreviewPanel with video/canvas) have all been cleared, suggesting the culprit is likely in one of the seemingly simpler remaining components.
+**SUCCESS CONFIRMED**: **PropertiesPanel is NOT the culprit!**
+
+```javascript
+🦠 [VIRUS-HUNT-P2-E] Re-enabling PropertiesPanel ONLY - testing if it triggers the Component Virus
+🦠 [VIRUS-HUNT-P2-E] EditorHeader, MediaPanel, and PreviewPanel all proven safe in previous phases
+🔍 [VIRUS-HUNT-P2-E] PropertiesPanel handles forms and state - potential reactive store issues!
+🦠 [VIRUS-HUNT-P2-E] SUCCESS CRITERIA: No getSnapshot warning, no Maximum update depth error, clean render cycle
+🦠 [VIRUS-HUNT-P2-E] FAILURE CRITERIA: Component Virus returns - getSnapshot warning + infinite loop crash
+
+// CLEAN RENDER CYCLE WITH PropertiesPanel:
+🎯 [EditorPage] Render #1 → Render #2 → Render #3
+✅ [VIRUS-HUNT-P2-E] Second render successful - PropertiesPanel appears safe so far
+🦠 [VIRUS-HUNT-P2-E] Third render with PropertiesPanel - still no getSnapshot warning (GOOD)
+
+// SUCCESS CONFIRMATION:
+✅ [VIRUS-HUNT-P2-E] SUCCESS! PropertiesPanel is NOT the culprit (3 renders only)
+✅ [VIRUS-HUNT-P2-E] No getSnapshot warning detected - proceed to Phase 2-F (ExportDialog test)
+✅ [VIRUS-HUNT-P2-E] PropertiesPanel cleared - 4 of 7 components tested, 3 remaining
+🔍 [VIRUS-HUNT-P2-E] Narrowing down: Timeline, ExportDialog, or Onboarding must be the culprit!
+
+// NO Component Virus symptoms:
+// ❌ NO getSnapshot warning
+// ❌ NO Maximum update depth exceeded error  
+// ❌ NO infinite render loop
+// ❌ NO component crash
+```
+
+**PropertiesPanel ELIMINATED from suspect list**. Despite handling complex form state and reactive controls, PropertiesPanel operates cleanly without triggering the Component Virus.
+
+**Major Breakthrough**: All four most complex components have been systematically tested and cleared, proving the culprit is in one of the remaining three simpler components.
+
+## Bug V15 Analysis (PHASE 2-F: ExportDialog TEST - SUCCESS!)
+**PHASE 2-F COMPLETED**: Re-enabled ExportDialog while keeping all other components disabled
+- **✅ ExportDialog re-enabled** - Complex component with FFmpeg operations, export state, and async operations rendered successfully  
+- **✅ All other components still disabled** - Timeline, Onboarding remain as placeholders
+- **✅ Comprehensive monitoring active** - Enhanced success/failure detection with focus on async/reactive state management
+- **✅ Timer-based verification** - 3-second assessment window for definitive results
+
+**SUCCESS CONFIRMED**: **ExportDialog is NOT the culprit!**
+
+```javascript
+🦠 [VIRUS-HUNT-P2-F] Re-enabling ExportDialog ONLY - testing if it triggers the Component Virus
+🦠 [VIRUS-HUNT-P2-F] EditorHeader, MediaPanel, PreviewPanel, and PropertiesPanel all proven safe in previous phases
+🔍 [VIRUS-HUNT-P2-F] ExportDialog handles export state and FFmpeg - potential async/reactive issues!
+🦠 [VIRUS-HUNT-P2-F] SUCCESS CRITERIA: No getSnapshot warning, no Maximum update depth error, clean render cycle
+🦠 [VIRUS-HUNT-P2-F] FAILURE CRITERIA: Component Virus returns - getSnapshot warning + infinite loop crash
+
+// CLEAN RENDER CYCLE WITH ExportDialog:
+🎯 [EditorPage] Render #1 → Render #2 → Render #3
+✅ [VIRUS-HUNT-P2-F] Second render successful - ExportDialog appears safe so far
+🦠 [VIRUS-HUNT-P2-F] Third render with ExportDialog - still no getSnapshot warning (GOOD)
+
+// SUCCESS CONFIRMATION:
+✅ [VIRUS-HUNT-P2-F] SUCCESS! ExportDialog is NOT the culprit (3 renders only)
+✅ [VIRUS-HUNT-P2-F] No getSnapshot warning detected - proceed to Phase 2-G (Timeline test)
+✅ [VIRUS-HUNT-P2-F] ExportDialog cleared - 5 of 7 components tested, 2 remaining
+🔍 [VIRUS-HUNT-P2-F] Narrowing down: Timeline or Onboarding must be the culprit!
+
+// NO Component Virus symptoms:
+// ❌ NO getSnapshot warning
+// ❌ NO Maximum update depth exceeded error  
+// ❌ NO infinite render loop
+// ❌ NO component crash
+```
+
+**ExportDialog ELIMINATED from suspect list**. Despite handling complex FFmpeg operations, export state management, and async file operations, ExportDialog operates cleanly without triggering the Component Virus.
+
+**STUNNING DISCOVERY**: **All five most complex components have been systematically tested and cleared!** This dramatically narrows the Component Virus to the final two remaining components, suggesting the culprit is likely in one of the seemingly simple components.
+
+**Progress Update**: **5 of 7 components tested and cleared**. The Component Virus culprit is now narrowed down to **2 FINAL components:**
+- **Timeline or Onboarding**
+
+**Critical Pattern**: The five most complex components (EditorHeader, MediaPanel, PreviewPanel, PropertiesPanel, ExportDialog) have ALL been cleared, leaving only the two simplest components as potential culprits.
 
 **Phase 1: Remove react-resizable-panels (10 minutes)**
 ```bash
