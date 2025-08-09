@@ -245,15 +245,7 @@ export function useTimelineDropHandlers(options: DropHandlersOptions): DropHandl
     e.preventDefault();
     e.stopPropagation();
 
-    // Debug logging
-    console.log(
-      JSON.stringify({
-        message: "Drop event started in timeline track",
-        dataTransferTypes: Array.from(e.dataTransfer.types),
-        trackId: track.id,
-        trackType: track.type,
-      })
-    );
+    // Drop event processing - removed debug logging for production
 
     // Reset all drag states
     dragCounterRef.current = 0;
