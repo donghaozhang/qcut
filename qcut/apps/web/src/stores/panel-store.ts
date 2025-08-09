@@ -7,8 +7,7 @@ let updateCounter = 0;
 let lastUpdateTime = Date.now();
 const updateHistory: string[] = [];
 
-// Initialize tolerance fix
-console.log('🔧 [TOLERANCE-FIX] Initialized with 0.1 threshold to prevent react-resizable-panels infinite loops');
+// Initialize tolerance fix (silent by default)
 
 const debugLog = (source: string, data?: any) => {
   if (!DEBUG_MODE) return;

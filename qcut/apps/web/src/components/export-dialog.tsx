@@ -26,6 +26,7 @@ import { PlatformIcon } from "@/components/export-icons";
 // NEW: Custom hook imports
 import { useExportSettings } from "@/hooks/use-export-settings";
 import { useExportProgress } from "@/hooks/use-export-progress";
+import { debugLog, debugWarn } from "@/lib/debug-config";
 import { useExportValidation } from "@/hooks/use-export-validation";
 import { useExportPresets } from "@/hooks/use-export-presets";
 
@@ -67,19 +68,46 @@ export function ExportDialog() {
     }
   };
 
+  // Only render when dialog is open
+  if (!isDialogOpen) {
+    return null;
+  }
+
   // REPLACE: Complex export handler (lines 254-400) with hook call
   const handleExport = async (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
+    debugLog("[ExportDialog] ▶ handleExport clicked", {
+      isDialogOpen,
+      canExport: exportValidation.canExport,
+      timelineDuration: exportSettings.timelineDuration,
+      mediaItemsCount: mediaItems.length,
+    });
+
+    if (!exportValidation.canExport) {
+      debugWarn("[ExportDialog] ❌ cannot export: validation failed", {
+        hasTimelineContent: exportValidation.hasTimelineContent,
+        timelineDuration: exportSettings.timelineDuration,
+        hasValidFilename: exportValidation.hasValidFilename,
+      });
+    }
 
     const canvas = canvasRef.current?.getCanvas();
     if (!canvas) {
+       debugWarn("[ExportDialog] ❌ canvas not available for export");
       // Use the export store's error handling
       useExportStore.getState().setError("Canvas not available for export");
       return;
     }
 
     canvasRef.current?.updateDimensions();
+
+    debugLog("[ExportDialog] 🚀 starting export", {
+      engineType: exportSettings.engineType,
+      quality: exportSettings.quality,
+      format: exportSettings.format,
+      resolution: exportSettings.resolution,
+    });
 
     await exportProgress.handleExport(canvas, exportSettings.timelineDuration, {
       quality: exportSettings.quality,

@@ -10,7 +10,7 @@ import {
 import type { ExportFormat, ExportQuality } from "@/types/export";
 import { toast } from "sonner";
 import { useElectron } from "@/hooks/useElectron";
-import { debugLog, debugError } from "@/lib/debug-config";
+import { debugLog, debugError, debugWarn } from "@/lib/debug-config";
 
 export function useExportProgress() {
   const { progress, updateProgress, setError, resetExport, addToHistory } =
@@ -65,9 +65,8 @@ export function useExportProgress() {
 
     try {
       if (totalDuration === 0) {
-        throw new Error(
-          "Timeline is empty - add some content before exporting"
-        );
+        debugWarn("[ExportDialog] ❌ cannot export: timeline duration is 0");
+        throw new Error("Timeline is empty - add some content before exporting");
       }
 
       // Create export engine using factory for optimal performance
