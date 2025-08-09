@@ -23,7 +23,13 @@ export const Route = createFileRoute("/editor/$project_id")({
 });
 
 function EditorPage() {
+  // Add render counter
+  const renderCount = useRef(0);
+  renderCount.current++;
+  
   const { project_id } = Route.useParams();
+  console.log(`🎯 [EditorPage] Render #${renderCount.current}, Project ID: ${project_id}`);
+  
   const {
     toolsPanel,
     previewPanel,
@@ -37,6 +43,13 @@ function EditorPage() {
     setTimeline,
     normalizeHorizontalPanels,
   } = usePanelStore();
+  
+  console.log(`🎯 [EditorPage] Panel sizes:`, {
+    toolsPanel,
+    previewPanel,
+    propertiesPanel,
+    total: toolsPanel + previewPanel + propertiesPanel
+  });
   const { isDialogOpen } = useExportStore();
 
   const {
@@ -55,9 +68,15 @@ function EditorPage() {
   // Normalize panel sizes on mount
   useEffect(() => {
     normalizeHorizontalPanels();
-  }, [normalizeHorizontalPanels]);
+  }, []); // Remove normalizeHorizontalPanels from dependencies - only run on mount
 
   useEffect(() => {
+    console.log(`🎯 [EditorPage] Project loading effect triggered`, {
+      project_id,
+      activeProject: activeProject?.id,
+      isInitializing: isInitializingRef.current
+    });
+    
     let isCancelled = false;
 
     const initProject = async () => {
