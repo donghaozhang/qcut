@@ -23,6 +23,7 @@ import {
 } from "@/constants/timeline-constants";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineSnapping, SnapPoint } from "@/hooks/use-timeline-snapping";
+import { useTimelinePositioning } from "@/hooks/use-timeline-positioning";
 
 export function TimelineTrackContent({
   track,
@@ -65,6 +66,12 @@ export function TimelineTrackContent({
     snapThreshold: 10,
     enableElementSnapping: snappingEnabled,
     enablePlayheadSnapping: snappingEnabled,
+  });
+
+  // Initialize positioning hook
+  const { getDropSnappedTime } = useTimelinePositioning({
+    zoomLevel,
+    snapThreshold: 10,
   });
 
   // Initialize all hooks before any conditional returns
@@ -372,52 +379,6 @@ export function TimelineTrackContent({
     );
   }
 
-  // Helper function for drop snapping that tries both edges
-  const getDropSnappedTime = (
-    dropTime: number,
-    elementDuration: number,
-    excludeElementId?: string
-  ) => {
-    if (!snappingEnabled) {
-      // Use frame snapping if project has FPS, otherwise use decimal snapping
-      const projectStore = useProjectStore.getState();
-      const projectFps = projectStore.activeProject?.fps || 30;
-      return snapTimeToFrame(dropTime, projectFps);
-    }
-
-    // Try snapping both start and end edges for drops
-    const startSnapResult = snapElementEdge(
-      dropTime,
-      elementDuration,
-      tracks,
-      currentTime,
-      zoomLevel,
-      excludeElementId,
-      true // snap to start edge
-    );
-
-    const endSnapResult = snapElementEdge(
-      dropTime,
-      elementDuration,
-      tracks,
-      currentTime,
-      zoomLevel,
-      excludeElementId,
-      false // snap to end edge
-    );
-
-    // Choose the snap result with the smaller distance (closer snap)
-    let bestSnapResult = startSnapResult;
-    if (
-      endSnapResult.snapPoint &&
-      (!startSnapResult.snapPoint ||
-        endSnapResult.snapDistance < startSnapResult.snapDistance)
-    ) {
-      bestSnapResult = endSnapResult;
-    }
-
-    return bestSnapResult.snappedTime;
-  };
 
   const handleElementMouseDown = (
     e: React.MouseEvent,
