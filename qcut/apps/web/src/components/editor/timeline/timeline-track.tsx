@@ -24,6 +24,7 @@ import {
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineSnapping, SnapPoint } from "@/hooks/use-timeline-snapping";
 import { useTimelinePositioning } from "@/hooks/use-timeline-positioning";
+import { useTimelineDragHandlers } from "@/hooks/use-timeline-drag-handlers";
 
 export function TimelineTrackContent({
   track,
@@ -76,6 +77,16 @@ export function TimelineTrackContent({
 
   // Initialize all hooks before any conditional returns
   const timelineRef = useRef<HTMLDivElement>(null);
+
+  // Initialize drag handlers hook
+  useTimelineDragHandlers({
+    track,
+    tracks,
+    zoomLevel,
+    timelineRef,
+    onSnapPointChange,
+    getDragSnappedTime,
+  });
   const [isDropping, setIsDropping] = useState(false);
   const [dropPosition, setDropPosition] = useState<number | null>(null);
   const [wouldOverlap, setWouldOverlap] = useState(false);
@@ -85,8 +96,6 @@ export function TimelineTrackContent({
     y: number;
   } | null>(null);
 
-  // Set up mouse event listeners for drag - moved before early return to fix hook order
-  useEffect(() => {
     if (!dragState.isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
