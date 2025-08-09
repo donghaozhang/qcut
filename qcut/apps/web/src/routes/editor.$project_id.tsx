@@ -33,9 +33,12 @@ function EditorPage() {
   const [isMounted, setIsMounted] = useState(false);
   
   const { project_id } = Route.useParams();
+  
+  // ULTRA ANALYSIS: Comprehensive debugging to hunt the Component Virus
   console.log(`🎯 [EditorPage] Render #${renderCount.current}, Project ID: ${project_id}, Mounted: ${isMounted}`);
   console.log(`🔧 [CSS-GRID-FIX] Using CSS Grid layout instead of react-resizable-panels to prevent infinite loops`);
   console.log(`🚨 [REACT-DOWNGRADE] Now using React ${React.version} (downgraded from 19 to fix infinite loops)`);
+  console.log(`🦠 [VIRUS-HUNT] Starting systematic component elimination - Render #${renderCount.current}`);
   
   // SUBTASK 1: Replace Zustand panel store with local useState to test useSyncExternalStore issue
   const [panelSizes, setPanelSizes] = useState({
@@ -96,41 +99,48 @@ function EditorPage() {
       console.error(`🚨 [REACT-DOWNGRADE] React ${React.version} - CRITICAL: 5+ renders detected`);
     }
   }
-  const { isDialogOpen } = useExportStore();
+  
+  // ULTRA ANALYSIS: Phase 1 - Comment out all store hooks to isolate the virus
+  console.log(`🦠 [VIRUS-HUNT-P1] Testing with NO external store hooks`);
+  
+  // COMMENTED OUT FOR VIRUS ISOLATION:
+  // const { isDialogOpen } = useExportStore();
+  // const {
+  //   activeProject,
+  //   loadProject,
+  //   createNewProject,
+  //   isInvalidProjectId,
+  //   markProjectIdAsInvalid,
+  // } = useProjectStore();
+  // const navigate = useNavigate();
+  // const handledProjectIds = useRef<Set<string>>(new Set());
+  // const isInitializingRef = useRef<boolean>(false);
+  // usePlaybackControls();
+  
+  // TEMPORARY REPLACEMENTS FOR ISOLATION:
+  const isDialogOpen = false;
+  const activeProject = { id: 'test' };
+  console.log(`🦠 [VIRUS-HUNT-P1] Using isolated state - no store dependencies`);
 
-  const {
-    activeProject,
-    loadProject,
-    createNewProject,
-    isInvalidProjectId,
-    markProjectIdAsInvalid,
-  } = useProjectStore();
-  const navigate = useNavigate();
-  const handledProjectIds = useRef<Set<string>>(new Set());
-  const isInitializingRef = useRef<boolean>(false);
-
-  usePlaybackControls();
-
-  // NUCLEAR OPTION 1: Mount effect with React 18 debugging
+  // ULTRA ANALYSIS: Phase 1 - Simplified mount effect (no complex logic)
   useEffect(() => {
-    console.log('🔧 [CSS-GRID-FIX] Mount effect started - no react-resizable-panels to initialize');
-    console.log(`🚨 [REACT-DOWNGRADE] React ${React.version} useEffect mounting...`);
+    console.log('🦠 [VIRUS-HUNT-P1] Simplified mount effect started');
+    console.log(`🚨 [REACT-DOWNGRADE] React ${React.version} minimal useEffect mounting...`);
     
-    // No normalization needed with local state - panels are already at correct defaults
-    // Enable mount flag after a short delay (keeping for other components that may need it)
     const timer = setTimeout(() => {
       setIsMounted(true);
-      console.log('✅ [CSS-GRID-FIX] Component fully mounted - NO ResizablePanel components loaded');
-      console.log('✅ [CSS-GRID-FIX] Using pure CSS Grid - infinite loop should be FIXED');
-      console.log(`✅ [REACT-DOWNGRADE] React ${React.version} mount completed successfully`);
+      console.log('🦠 [VIRUS-HUNT-P1] Mount completed with NO store interactions');
+      console.log(`✅ [VIRUS-HUNT-P1] React ${React.version} minimal mount successful`);
     }, 100);
     
     return () => {
       clearTimeout(timer);
-      console.log(`🧹 [REACT-DOWNGRADE] React ${React.version} cleanup effect running`);
+      console.log(`🦠 [VIRUS-HUNT-P1] Cleanup effect running`);
     };
-  }, []);
+  }, []); // CRITICAL: Empty dependency array to test if dependencies cause infinite loop
 
+  // ULTRA ANALYSIS: COMMENTED OUT the complex project loading useEffect (PRIMARY SUSPECT)
+  /*
   useEffect(() => {
     console.log(`🎯 [EditorPage] Project loading effect triggered`, {
       project_id,
@@ -138,106 +148,20 @@ function EditorPage() {
       isInitializing: isInitializingRef.current
     });
     
-    let isCancelled = false;
-
-    const initProject = async () => {
-      if (!project_id) {
-        return;
-      }
-
-      // Prevent duplicate initialization
-      if (isInitializingRef.current) {
-        return;
-      }
-
-      // Check if project is already loaded
-      if (activeProject?.id === project_id) {
-        return;
-      }
-
-      // Check global invalid tracking first (most important for preventing duplicates)
-      if (isInvalidProjectId(project_id)) {
-        return;
-      }
-
-      // Check if we've already handled this project ID locally
-      if (handledProjectIds.current.has(project_id)) {
-        return;
-      }
-
-      // Mark as initializing to prevent race conditions
-      isInitializingRef.current = true;
-      handledProjectIds.current.add(project_id);
-
-      try {
-        await loadProject(project_id);
-
-        // Check if component was unmounted during async operation
-        if (isCancelled) {
-          return;
-        }
-
-        // Project loaded successfully
-        isInitializingRef.current = false;
-      } catch (error) {
-        // Check if component was unmounted during async operation
-        if (isCancelled) {
-          return;
-        }
-
-        // More specific error handling - only create new project for actual "not found" errors
-        const isProjectNotFound =
-          error instanceof Error &&
-          (error.message.includes("not found") ||
-            error.message.includes("does not exist") ||
-            error.message.includes("Project not found"));
-
-        if (isProjectNotFound) {
-          // Mark this project ID as invalid globally BEFORE creating project
-          markProjectIdAsInvalid(project_id);
-
-          try {
-            const newProjectId = await createNewProject("Untitled Project");
-
-            // Check again if component was unmounted
-            if (isCancelled) {
-              return;
-            }
-
-            navigate({ to: `/editor/${newProjectId}` });
-          } catch (createError) {
-            console.error("Failed to create new project:", createError);
-          }
-        } else {
-          // For other errors (storage issues, corruption, etc.), don't create new project
-          console.error(
-            "Project loading failed with recoverable error:",
-            error
-          );
-          // Remove from handled set so user can retry
-          handledProjectIds.current.delete(project_id);
-        }
-
-        isInitializingRef.current = false;
-      }
-    };
-
-    initProject();
-
-    // Cleanup function to cancel async operations
-    return () => {
-      isCancelled = true;
-      isInitializingRef.current = false;
-    };
+    // ... complex project loading logic with many dependencies
+    
   }, [
     project_id,
-    loadProject,
-    createNewProject,
-    navigate,
-    isInvalidProjectId,
-    markProjectIdAsInvalid,
-    activeProject?.id,
+    loadProject,           // ← SUSPECT: Function may change on every render
+    createNewProject,      // ← SUSPECT: Function may change on every render  
+    navigate,              // ← SUSPECT: Function may change on every render
+    isInvalidProjectId,    // ← SUSPECT: Function may change on every render
+    markProjectIdAsInvalid,// ← SUSPECT: Function may change on every render
+    activeProject?.id,     // ← SUSPECT: Object property may cause re-runs
   ]);
+  */
+  
+  console.log(`🦠 [VIRUS-HUNT-P1] Complex project loading useEffect DISABLED for isolation`);
 
   // Final verification before render
   console.log('🚀 [CSS-GRID-FIX] About to render - NO react-resizable-panels in component tree');
@@ -250,10 +174,25 @@ function EditorPage() {
     console.error(`💥 [REACT-DOWNGRADE] Error during render preparation:`, error);
   }
   
+  // ULTRA ANALYSIS: Phase 2 - Systematic child component elimination
+  console.log(`🦠 [VIRUS-HUNT-P2] Starting child component elimination to isolate the trigger`);
+  
   return (
     <EditorProvider>
       <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
-        <EditorHeader />
+        {/* PHASE 2-A: Test without EditorHeader first */}
+        {/* <EditorHeader /> */}
+        <div 
+          style={{ 
+            padding: '1rem', 
+            background: '#1a1a1a', 
+            color: 'white',
+            textAlign: 'center'
+          }}
+        >
+          🦠 [VIRUS-HUNT-P2-A] EditorHeader DISABLED - Testing if header triggers virus
+        </div>
+        
         <div className="flex-1 min-h-0 min-w-0">
           {/* SUBTASK 6: CSS Grid Layout - Replaces react-resizable-panels to fix infinite loop */}
           <div 
@@ -286,37 +225,98 @@ function EditorPage() {
                 padding: '0 0.5rem'
               }}
             >
-              {/* Tools Panel */}
+              {/* PHASE 2-A: All child panels DISABLED for testing */}
+              
+              {/* Tools Panel - DISABLED */}
               <div style={{ gridArea: 'tools' }} className="min-w-0">
-                <MediaPanel />
+                {/* <MediaPanel /> */}
+                <div 
+                  style={{ 
+                    background: '#2a2a2a', 
+                    color: 'white', 
+                    padding: '2rem',
+                    textAlign: 'center',
+                    height: '100%'
+                  }}
+                >
+                  🦠 [VIRUS-HUNT-P2-A]<br/>MediaPanel DISABLED
+                </div>
               </div>
 
-              {/* Preview Area */}
+              {/* Preview Area - DISABLED */}
               <div style={{ gridArea: 'preview' }} className="min-w-0 min-h-0 flex-1">
-                <PreviewPanel />
+                {/* <PreviewPanel /> */}
+                <div 
+                  style={{ 
+                    background: '#3a3a3a', 
+                    color: 'white', 
+                    padding: '2rem',
+                    textAlign: 'center',
+                    height: '100%'
+                  }}
+                >
+                  🦠 [VIRUS-HUNT-P2-A]<br/>PreviewPanel DISABLED
+                </div>
               </div>
 
-              {/* Properties Panel */}
+              {/* Properties Panel - DISABLED */}
               <div style={{ gridArea: 'properties' }} className="min-w-0">
                 <div
                   className="h-full"
                   style={{ borderRadius: "0.375rem", overflow: "hidden" }}
                 >
-                  {isDialogOpen ? <ExportDialog /> : <PropertiesPanel />}
+                  {/* {isDialogOpen ? <ExportDialog /> : <PropertiesPanel />} */}
+                  <div 
+                    style={{ 
+                      background: '#4a4a4a', 
+                      color: 'white', 
+                      padding: '2rem',
+                      textAlign: 'center',
+                      height: '100%'
+                    }}
+                  >
+                    🦠 [VIRUS-HUNT-P2-A]<br/>PropertiesPanel DISABLED<br/>ExportDialog DISABLED
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Timeline */}
+            {/* Timeline - DISABLED */}
             <div 
               style={{ gridArea: 'timeline' }} 
               className="min-h-0 px-2 pb-2"
             >
-              <Timeline />
+              {/* <Timeline /> */}
+              <div 
+                style={{ 
+                  background: '#5a5a5a', 
+                  color: 'white', 
+                  padding: '2rem',
+                  textAlign: 'center',
+                  height: '100%'
+                }}
+              >
+                🦠 [VIRUS-HUNT-P2-A] Timeline DISABLED
+              </div>
             </div>
           </div>
         </div>
-        <Onboarding />
+        
+        {/* Onboarding - DISABLED */}
+        {/* <Onboarding /> */}
+        <div 
+          style={{ 
+            position: 'fixed',
+            bottom: '1rem',
+            right: '1rem',
+            background: '#6a6a6a',
+            color: 'white',
+            padding: '0.5rem 1rem',
+            borderRadius: '0.25rem'
+          }}
+        >
+          🦠 [VIRUS-HUNT-P2-A] Onboarding DISABLED
+        </div>
       </div>
     </EditorProvider>
   );
