@@ -321,7 +321,6 @@ export function useAIGeneration(props: UseAIGenerationProps) {
       });
     },
     [
-      pollingInterval,
       prompt,
       selectedModels,
       activeProject,
