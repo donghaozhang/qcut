@@ -44,7 +44,7 @@ export function useTimelineDragHandlers(options: DragHandlersOptions): DragHandl
     updateElementStartTime,
     updateElementStartTimeWithRipple,
     moveElementToTrack,
-    endDragAction,
+    endDrag,
     selectedElements,
     selectElement,
     rippleEditingEnabled,
@@ -112,7 +112,7 @@ export function useTimelineDragHandlers(options: DragHandlersOptions): DragHandl
               dragState.currentTime
             );
           }
-          endDragAction();
+          endDrag();
           // Clear snap point when drag ends
           onSnapPointChange?.(null);
         }
@@ -137,8 +137,7 @@ export function useTimelineDragHandlers(options: DragHandlersOptions): DragHandl
           moveElementToTrack(
             dragState.trackId,
             track.id,
-            dragState.elementId,
-            finalTime
+            dragState.elementId
           );
         } else if (movingElement) {
           // Moving within the same track - check for overlaps
@@ -177,7 +176,7 @@ export function useTimelineDragHandlers(options: DragHandlersOptions): DragHandl
       }
 
       if (isTrackThatStartedDrag) {
-        endDragAction();
+        endDrag();
         // Clear snap point when drag ends
         onSnapPointChange?.(null);
       }
@@ -204,7 +203,7 @@ export function useTimelineDragHandlers(options: DragHandlersOptions): DragHandl
     updateElementStartTime,
     updateElementStartTimeWithRipple,
     moveElementToTrack,
-    endDragAction,
+    endDrag,
     selectedElements,
     selectElement,
     onSnapPointChange,

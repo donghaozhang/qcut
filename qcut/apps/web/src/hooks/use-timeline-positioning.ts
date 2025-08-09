@@ -1,4 +1,5 @@
-import { TimelineElement, TimelineTrack, SnapPoint, canElementGoOnTrack } from "@/types/timeline";
+import { TimelineElement, TimelineTrack, canElementGoOnTrack } from "@/types/timeline";
+import { SnapPoint } from "@/hooks/use-timeline-snapping";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { usePlaybackStore } from "@/stores/playback-store";
@@ -124,7 +125,7 @@ export function useTimelinePositioning(options: TimelinePositioningOptions) {
   // Extracted from timeline-track.tsx - track compatibility checking
   const checkTrackCompatibility = (
     elementType: "media" | "text" | "audio" | "video" | "image",
-    trackType: string
+    trackType: "media" | "audio" | "text"
   ): TrackCompatibilityResult => {
     const isVideoOrImage = elementType === "video" || elementType === "image";
     const isAudio = elementType === "audio";
@@ -134,10 +135,10 @@ export function useTimelinePositioning(options: TimelinePositioningOptions) {
     let reason = "";
 
     if (isVideoOrImage || isAudio || isMedia) {
-      compatible = canElementGoOnTrack("media", trackType);
+      compatible = canElementGoOnTrack("media", trackType as any);
       reason = compatible ? "" : "Media elements require a media track";
     } else if (elementType === "text") {
-      compatible = canElementGoOnTrack("text", trackType);
+      compatible = canElementGoOnTrack("text", trackType as any);
       reason = compatible ? "" : "Text elements require a text track";
     } else {
       compatible = false;
