@@ -1,5 +1,6 @@
-import { TimelineElement, TimelineTrack, canElementGoOnTrack } from "@/types/timeline";
-import { SnapPoint } from "@/hooks/use-timeline-snapping";
+import type { TimelineElement, TimelineTrack } from "@/types/timeline";
+import { canElementGoOnTrack } from "@/types/timeline";
+import type { SnapPoint } from "@/hooks/use-timeline-snapping";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { usePlaybackStore } from "@/stores/playback-store";

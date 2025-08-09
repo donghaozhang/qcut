@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
-import { TimelineTrack, TimelineElement } from "@/types/timeline";
-import { SnapPoint } from "@/hooks/use-timeline-snapping";
+import type { TimelineTrack, TimelineElement } from "@/types/timeline";
+import type { SnapPoint } from "@/hooks/use-timeline-snapping";
 import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { useProjectStore } from "@/stores/project-store";

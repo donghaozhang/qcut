@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, RefObject } from "react";
-import { TimelineElement, TimelineTrack, DragData } from "@/types/timeline";
-import { SnapPoint } from "@/hooks/use-timeline-snapping";
+import type { TimelineElement, TimelineTrack, DragData } from "@/types/timeline";
+import type { SnapPoint } from "@/hooks/use-timeline-snapping";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 
@@ -215,7 +215,7 @@ export function useTimelineDragHandlers(options: DragHandlersOptions): DragHandl
   // Placeholder handlers for now
   const handleMouseDown = useCallback((e: React.MouseEvent, element: TimelineElement) => {
     // TODO: Extract mouse down logic if needed
-    console.log("Mouse down on element", element.id);
+    // Mouse down handling is currently managed by the main component
   }, []);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
