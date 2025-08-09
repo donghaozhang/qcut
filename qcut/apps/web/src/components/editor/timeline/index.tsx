@@ -73,7 +73,15 @@ export function Timeline() {
     setSelectedElements,
     toggleTrackMute,
     dragState,
-  } = useTimelineStore();
+  } = useTimelineStore(s => ({
+    tracks: s.tracks,
+    getTotalDuration: s.getTotalDuration,
+    clearSelectedElements: s.clearSelectedElements,
+    snappingEnabled: s.snappingEnabled,
+    setSelectedElements: s.setSelectedElements,
+    toggleTrackMute: s.toggleTrackMute,
+    dragState: s.dragState,
+  }));
   const {
     store: mediaStore,
     loading: mediaStoreLoading,
@@ -81,9 +89,16 @@ export function Timeline() {
   } = useAsyncMediaStore();
   const mediaItems = mediaStore?.mediaItems || [];
   const addMediaItem = mediaStore?.addMediaItem;
-  const { activeProject } = useProjectStore();
+  const activeProject = useProjectStore(s => s.activeProject);
   const { currentTime, duration, seek, setDuration, isPlaying, toggle } =
-    usePlaybackStore();
+    usePlaybackStore(s => ({
+      currentTime: s.currentTime,
+      duration: s.duration,
+      seek: s.seek,
+      setDuration: s.setDuration,
+      isPlaying: s.isPlaying,
+      toggle: s.toggle,
+    }));
   const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -904,9 +919,33 @@ function TimelineToolbar({
     toggleSnapping,
     rippleEditingEnabled,
     toggleRippleEditing,
-  } = useTimelineStore();
-  const { currentTime, duration, isPlaying, toggle } = usePlaybackStore();
-  const { toggleBookmark, isBookmarked } = useProjectStore();
+  } = useTimelineStore(s => ({
+    tracks: s.tracks,
+    addTrack: s.addTrack,
+    addElementToTrack: s.addElementToTrack,
+    removeElementFromTrack: s.removeElementFromTrack,
+    removeElementFromTrackWithRipple: s.removeElementFromTrackWithRipple,
+    selectedElements: s.selectedElements,
+    clearSelectedElements: s.clearSelectedElements,
+    splitElement: s.splitElement,
+    splitAndKeepLeft: s.splitAndKeepLeft,
+    splitAndKeepRight: s.splitAndKeepRight,
+    separateAudio: s.separateAudio,
+    snappingEnabled: s.snappingEnabled,
+    toggleSnapping: s.toggleSnapping,
+    rippleEditingEnabled: s.rippleEditingEnabled,
+    toggleRippleEditing: s.toggleRippleEditing,
+  }));
+  const { currentTime, duration, isPlaying, toggle } = usePlaybackStore(s => ({
+    currentTime: s.currentTime,
+    duration: s.duration,
+    isPlaying: s.isPlaying,
+    toggle: s.toggle,
+  }));
+  const { toggleBookmark, isBookmarked } = useProjectStore(s => ({
+    toggleBookmark: s.toggleBookmark,
+    isBookmarked: s.isBookmarked,
+  }));
 
   // Action handlers
   const handleSplitSelected = () => {

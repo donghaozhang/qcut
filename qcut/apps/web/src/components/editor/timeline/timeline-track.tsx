@@ -56,9 +56,27 @@ export function TimelineTrackContent({
     snappingEnabled,
     rippleEditingEnabled,
     splitElement,
-  } = useTimelineStore();
+  } = useTimelineStore(s => ({
+    tracks: s.tracks,
+    addTrack: s.addTrack,
+    moveElementToTrack: s.moveElementToTrack,
+    updateElementStartTime: s.updateElementStartTime,
+    updateElementStartTimeWithRipple: s.updateElementStartTimeWithRipple,
+    addElementToTrack: s.addElementToTrack,
+    selectedElements: s.selectedElements,
+    selectElement: s.selectElement,
+    dragState: s.dragState,
+    startDrag: s.startDrag,
+    updateDragTime: s.updateDragTime,
+    endDrag: s.endDrag,
+    clearSelectedElements: s.clearSelectedElements,
+    insertTrackAt: s.insertTrackAt,
+    snappingEnabled: s.snappingEnabled,
+    rippleEditingEnabled: s.rippleEditingEnabled,
+    splitElement: s.splitElement,
+  }));
 
-  const { currentTime } = usePlaybackStore();
+  const currentTime = usePlaybackStore(s => s.currentTime);
 
   // Initialize snapping hook
   const { snapElementPosition, snapElementEdge } = useTimelineSnapping({

@@ -75,8 +75,22 @@ export function TimelineElement({
     replaceElementMedia,
     rippleEditingEnabled,
     toggleElementHidden,
-  } = useTimelineStore();
-  const { currentTime } = usePlaybackStore();
+  } = useTimelineStore(s => ({
+    updateElementTrim: s.updateElementTrim,
+    updateElementDuration: s.updateElementDuration,
+    removeElementFromTrack: s.removeElementFromTrack,
+    removeElementFromTrackWithRipple: s.removeElementFromTrackWithRipple,
+    dragState: s.dragState,
+    splitElement: s.splitElement,
+    splitAndKeepLeft: s.splitAndKeepLeft,
+    splitAndKeepRight: s.splitAndKeepRight,
+    separateAudio: s.separateAudio,
+    addElementToTrack: s.addElementToTrack,
+    replaceElementMedia: s.replaceElementMedia,
+    rippleEditingEnabled: s.rippleEditingEnabled,
+    toggleElementHidden: s.toggleElementHidden,
+  }));
+  const currentTime = usePlaybackStore(s => s.currentTime);
 
   const [elementMenuOpen, setElementMenuOpen] = useState(false);
 
