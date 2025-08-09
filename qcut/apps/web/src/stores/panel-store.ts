@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 // DEBUG: Trace infinite loop on project click
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 let updateCounter = 0;
 let lastUpdateTime = Date.now();
 const updateHistory: string[] = [];
@@ -232,8 +232,11 @@ export const usePanelStore = create<PanelState>()(
         });
         
         const state = get();
-        const total =
+        const totalRaw =
           state.toolsPanel + state.previewPanel + state.propertiesPanel;
+
+        // Round the total to 2 decimals to avoid floating point drift like 99.9899999999
+        const total = Math.round(totalRaw * 100) / 100;
 
         debugLog('normalizeHorizontalPanels:CHECK', {
           toolsPanel: state.toolsPanel,
@@ -242,8 +245,8 @@ export const usePanelStore = create<PanelState>()(
           total
         });
 
-        // Use a larger tolerance to avoid constant warnings from floating-point precision issues
-        const tolerance = 0.1; // 0.1% tolerance instead of 0.01%
+        // Use a larger tolerance to avoid constant corrections from floating-point precision issues
+        const tolerance = 0.1; // 0.1% tolerance
 
         if (Math.abs(total - 100) > tolerance) {
           debugLog('normalizeHorizontalPanels:NORMALIZE_NEEDED', {
