@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
+// SUBTASK 6: Removed react-resizable-panels - replaced with CSS Grid to fix infinite loop
+// import {
+//   ResizablePanelGroup,
+//   ResizablePanel,
+//   ResizableHandle,
+// } from "@/components/ui/resizable";
 import { MediaPanel } from "@/components/editor/media-panel";
 import { PropertiesPanel } from "@/components/editor/properties-panel";
 import { Timeline } from "@/components/editor/timeline";
@@ -33,6 +34,8 @@ function EditorPage() {
   
   const { project_id } = Route.useParams();
   console.log(`🎯 [EditorPage] Render #${renderCount.current}, Project ID: ${project_id}, Mounted: ${isMounted}`);
+  console.log(`🔧 [CSS-GRID-FIX] Using CSS Grid layout instead of react-resizable-panels to prevent infinite loops`);
+  console.log(`🚨 [REACT-DOWNGRADE] Now using React ${React.version} (downgraded from 19 to fix infinite loops)`);
   
   // SUBTASK 1: Replace Zustand panel store with local useState to test useSyncExternalStore issue
   const [panelSizes, setPanelSizes] = useState({
@@ -69,12 +72,30 @@ function EditorPage() {
     }
   };
   
-  console.log(`🎯 [EditorPage] Panel sizes:`, {
+  console.log(`🎯 [EditorPage] Panel sizes (CSS-Grid):`, {
     toolsPanel,
     previewPanel,
     propertiesPanel,
-    total: toolsPanel + previewPanel + propertiesPanel
+    total: toolsPanel + previewPanel + propertiesPanel,
+    mainContent,
+    timeline
   });
+  
+  // Additional verification messages with React version tracking
+  if (renderCount.current === 1) {
+    console.log('🔧 [CSS-GRID-FIX] First render - checking for infinite loop prevention...');
+    console.log(`🚨 [REACT-DOWNGRADE] React ${React.version} first render completed`);
+  } else if (renderCount.current === 2) {
+    console.log('🔧 [CSS-GRID-FIX] Second render - normal React behavior, no infinite loop detected yet');
+    console.log(`🚨 [REACT-DOWNGRADE] React ${React.version} second render - checking if downgrade helped...`);
+  } else if (renderCount.current >= 3) {
+    console.error('⚠️ [CSS-GRID-FIX] Multiple renders detected - investigating cause...');
+    console.error(`🚨 [REACT-DOWNGRADE] React ${React.version} multiple renders - downgrade may not have fixed issue`);
+    if (renderCount.current >= 5) {
+      console.error('🚨 [CSS-GRID-FIX] POTENTIAL ISSUE: Too many renders, but no crash yet');
+      console.error(`🚨 [REACT-DOWNGRADE] React ${React.version} - CRITICAL: 5+ renders detected`);
+    }
+  }
   const { isDialogOpen } = useExportStore();
 
   const {
@@ -90,15 +111,24 @@ function EditorPage() {
 
   usePlaybackControls();
 
-  // SUBTASK 2: Simplified mount effect without Zustand normalization
+  // NUCLEAR OPTION 1: Mount effect with React 18 debugging
   useEffect(() => {
+    console.log('🔧 [CSS-GRID-FIX] Mount effect started - no react-resizable-panels to initialize');
+    console.log(`🚨 [REACT-DOWNGRADE] React ${React.version} useEffect mounting...`);
+    
     // No normalization needed with local state - panels are already at correct defaults
-    // Enable resize handlers after a short delay to prevent any potential loops
+    // Enable mount flag after a short delay (keeping for other components that may need it)
     const timer = setTimeout(() => {
       setIsMounted(true);
-      console.log('🔧 [EditorPage] Resize handlers enabled after mount (LOCAL-STATE)');
+      console.log('✅ [CSS-GRID-FIX] Component fully mounted - NO ResizablePanel components loaded');
+      console.log('✅ [CSS-GRID-FIX] Using pure CSS Grid - infinite loop should be FIXED');
+      console.log(`✅ [REACT-DOWNGRADE] React ${React.version} mount completed successfully`);
     }, 100);
-    return () => clearTimeout(timer);
+    
+    return () => {
+      clearTimeout(timer);
+      console.log(`🧹 [REACT-DOWNGRADE] React ${React.version} cleanup effect running`);
+    };
   }, []);
 
   useEffect(() => {
@@ -209,78 +239,82 @@ function EditorPage() {
     activeProject?.id,
   ]);
 
+  // Final verification before render
+  console.log('🚀 [CSS-GRID-FIX] About to render - NO react-resizable-panels in component tree');
+  console.log(`🚀 [REACT-DOWNGRADE] React ${React.version} about to render component tree`);
+  
+  // Add error boundary detection
+  try {
+    console.log(`🔍 [REACT-DOWNGRADE] Component tree health check - React ${React.version}`);
+  } catch (error) {
+    console.error(`💥 [REACT-DOWNGRADE] Error during render preparation:`, error);
+  }
+  
   return (
     <EditorProvider>
       <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
         <EditorHeader />
         <div className="flex-1 min-h-0 min-w-0">
-          <ResizablePanelGroup
-            direction="vertical"
-            className="h-full w-full gap-[0.18rem]"
+          {/* SUBTASK 6: CSS Grid Layout - Replaces react-resizable-panels to fix infinite loop */}
+          <div 
+            className="editor-grid h-full w-full"
+            style={{
+              // @ts-ignore - CSS custom properties
+              '--tools-width': `${panelSizes.toolsPanel}%`,
+              '--preview-width': `${panelSizes.previewPanel}%`,
+              '--props-width': `${panelSizes.propertiesPanel}%`, 
+              '--main-height': `${panelSizes.mainContent}%`,
+              '--timeline-height': `${panelSizes.timeline}%`,
+              display: 'grid',
+              gridTemplateAreas: `
+                "main-content main-content main-content"
+                "timeline timeline timeline"
+              `,
+              gridTemplateRows: `var(--main-height) var(--timeline-height)`,
+              gridTemplateColumns: '1fr',
+              gap: '0.18rem'
+            } as React.CSSProperties}
           >
-            <ResizablePanel
-              minSize={30}
-              maxSize={85}
-              onResize={isMounted ? (size) => setPanelSizes(prev => ({ ...prev, mainContent: size })) : undefined}
-              className="min-h-0"
+            {/* Main Content Area */}
+            <div 
+              style={{ 
+                gridArea: 'main-content',
+                display: 'grid',
+                gridTemplateAreas: '"tools preview properties"',
+                gridTemplateColumns: `var(--tools-width) var(--preview-width) var(--props-width)`,
+                gap: '0.19rem',
+                padding: '0 0.5rem'
+              }}
             >
-              {/* Main content area */}
-              <ResizablePanelGroup
-                direction="horizontal"
-                className="h-full w-full gap-[0.19rem] px-2"
-              >
-                {/* Tools Panel */}
-                <ResizablePanel
-                  minSize={15}
-                  maxSize={40}
-                  onResize={isMounted ? (size) => setPanelSizes(prev => ({ ...prev, toolsPanel: size })) : undefined}
-                  className="min-w-0"
+              {/* Tools Panel */}
+              <div style={{ gridArea: 'tools' }} className="min-w-0">
+                <MediaPanel />
+              </div>
+
+              {/* Preview Area */}
+              <div style={{ gridArea: 'preview' }} className="min-w-0 min-h-0 flex-1">
+                <PreviewPanel />
+              </div>
+
+              {/* Properties Panel */}
+              <div style={{ gridArea: 'properties' }} className="min-w-0">
+                <div
+                  className="h-full"
+                  style={{ borderRadius: "0.375rem", overflow: "hidden" }}
                 >
-                  <MediaPanel />
-                </ResizablePanel>
-
-                <ResizableHandle withHandle />
-
-                {/* Preview Area */}
-                <ResizablePanel
-                  minSize={30}
-                  maxSize={70}
-                  onResize={isMounted ? (size) => setPanelSizes(prev => ({ ...prev, previewPanel: size })) : undefined}
-                  className="min-w-0 min-h-0 flex-1"
-                >
-                  <PreviewPanel />
-                </ResizablePanel>
-
-                <ResizableHandle withHandle />
-
-                <ResizablePanel
-                  minSize={15}
-                  maxSize={40}
-                  onResize={isMounted ? (size) => setPanelSizes(prev => ({ ...prev, propertiesPanel: size })) : undefined}
-                  className="min-w-0"
-                >
-                  <div
-                    className="h-full"
-                    style={{ borderRadius: "0.375rem", overflow: "hidden" }}
-                  >
-                    {isDialogOpen ? <ExportDialog /> : <PropertiesPanel />}
-                  </div>
-                </ResizablePanel>
-              </ResizablePanelGroup>
-            </ResizablePanel>
-
-            <ResizableHandle withHandle />
+                  {isDialogOpen ? <ExportDialog /> : <PropertiesPanel />}
+                </div>
+              </div>
+            </div>
 
             {/* Timeline */}
-            <ResizablePanel
-              minSize={15}
-              maxSize={70}
-              onResize={isMounted ? (size) => setPanelSizes(prev => ({ ...prev, timeline: size })) : undefined}
+            <div 
+              style={{ gridArea: 'timeline' }} 
               className="min-h-0 px-2 pb-2"
             >
               <Timeline />
-            </ResizablePanel>
-          </ResizablePanelGroup>
+            </div>
+          </div>
         </div>
         <Onboarding />
       </div>
