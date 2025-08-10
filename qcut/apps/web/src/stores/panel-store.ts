@@ -7,7 +7,11 @@ let updateCounter = 0;
 let lastUpdateTime = Date.now();
 const updateHistory: string[] = [];
 
-// Initialize tolerance fix (silent by default)
+// Trace configuration constants
+const RAPID_UPDATE_WINDOW_MS = 10;
+const RAPID_UPDATE_THRESHOLD = 5;
+const INACTIVITY_RESET_MS = 1000;
+const MAX_HISTORY_SIZE = 200;
 
 const tracePanelUpdate = (source: string, data?: unknown) => {
   if (!isDebugEnabled()) return;
@@ -18,11 +22,16 @@ const tracePanelUpdate = (source: string, data?: unknown) => {
 
   const logEntry = `[${updateCounter}] ${source} +${timeDiff}ms`;
   updateHistory.push(logEntry);
+  
+  // Cap history to prevent unbounded growth
+  if (updateHistory.length > MAX_HISTORY_SIZE) {
+    updateHistory.splice(0, updateHistory.length - MAX_HISTORY_SIZE);
+  }
 
-  debugLog(`🔍 [PanelStore] ${logEntry}`, data || "");
+  debugLog(`🔍 [PanelStore] ${logEntry}`, data ?? "");
 
   // Detect rapid updates
-  if (timeDiff < 10 && updateCounter > 5) {
+  if (timeDiff < RAPID_UPDATE_WINDOW_MS && updateCounter > RAPID_UPDATE_THRESHOLD) {
     debugError("⚠️ RAPID UPDATES DETECTED!", {
       count: updateCounter,
       history: updateHistory.slice(-10),
@@ -30,8 +39,8 @@ const tracePanelUpdate = (source: string, data?: unknown) => {
     });
   }
 
-  // Reset counter after 1 second of inactivity
-  if (timeDiff > 1000) {
+  // Reset counter after inactivity period
+  if (timeDiff > INACTIVITY_RESET_MS) {
     updateCounter = 0;
     updateHistory.length = 0;
   }
@@ -42,6 +51,8 @@ const tracePanelUpdate = (source: string, data?: unknown) => {
 // Circuit breaker for infinite loops
 let emergencyStop = false;
 const MAX_UPDATES_PER_SECOND = 20;
+const SECOND_MS = 1000;
+const CIRCUIT_BREAKER_RESET_MS = 2000;
 const updateTimes: number[] = [];
 
 const checkCircuitBreaker = (source: string) => {
@@ -56,31 +67,32 @@ const checkCircuitBreaker = (source: string) => {
   const now = Date.now();
   updateTimes.push(now);
 
-  // Keep only updates from last second
-  const oneSecondAgo = now - 1000;
-  const recentUpdates = updateTimes.filter((t) => t > oneSecondAgo);
-  updateTimes.length = 0;
-  updateTimes.push(...recentUpdates);
+  // Keep only updates from last second using sliding window
+  const oneSecondAgo = now - SECOND_MS;
+  // Drop timestamps older than 1 second
+  while (updateTimes.length && updateTimes[0] <= oneSecondAgo) {
+    updateTimes.shift();
+  }
 
-  if (recentUpdates.length > MAX_UPDATES_PER_SECOND) {
+  if (updateTimes.length > MAX_UPDATES_PER_SECOND) {
     emergencyStop = true;
     debugError(
       "🛑 [CIRCUIT-BREAKER] TRIGGERED! Tolerance fix failed - emergency stop active",
       {
         source,
-        updateCount: recentUpdates.length,
-        resetting: "in 2 seconds",
+        updateCount: updateTimes.length,
+        resetting: `in ${CIRCUIT_BREAKER_RESET_MS / SECOND_MS} seconds`,
       }
     );
 
-    // Auto-reset after 2 seconds
+    // Auto-reset after configured delay
     setTimeout(() => {
       emergencyStop = false;
       updateTimes.length = 0;
       debugLog(
         "⚡ [CIRCUIT-BREAKER] Reset - tolerance fix should prevent further issues"
       );
-    }, 2000);
+    }, CIRCUIT_BREAKER_RESET_MS);
 
     return true;
   }

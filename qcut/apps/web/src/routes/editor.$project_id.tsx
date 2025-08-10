@@ -91,12 +91,12 @@ function EditorPage() {
     navigate,
   ]);
 
-  // Use selector-based subscriptions to minimize re-renders
-  const toolsPanel = usePanelStore((s) => s.toolsPanel);
-  const previewPanel = usePanelStore((s) => s.previewPanel);
-  const propertiesPanel = usePanelStore((s) => s.propertiesPanel);
-  const mainContent = usePanelStore((s) => s.mainContent);
-  const timeline = usePanelStore((s) => s.timeline);
+  // Use selector-based subscriptions to minimize re-renders with fallback defaults
+  const toolsPanel = usePanelStore((s) => s.toolsPanel) ?? 20;
+  const previewPanel = usePanelStore((s) => s.previewPanel) ?? 55;
+  const propertiesPanel = usePanelStore((s) => s.propertiesPanel) ?? 25;
+  const mainContent = usePanelStore((s) => s.mainContent) ?? 70;
+  const timeline = usePanelStore((s) => s.timeline) ?? 30;
   const setToolsPanel = usePanelStore((s) => s.setToolsPanel);
   const setPreviewPanel = usePanelStore((s) => s.setPreviewPanel);
   const setPropertiesPanel = usePanelStore((s) => s.setPropertiesPanel);
@@ -104,6 +104,16 @@ function EditorPage() {
   const setTimeline = usePanelStore((s) => s.setTimeline);
 
   usePlaybackControls();
+
+  // Ensure panels are normalized on mount
+  const normalizeHorizontalPanels = usePanelStore((s) => s.normalizeHorizontalPanels);
+  useEffect(() => {
+    // Normalize panels after a short delay to ensure they're initialized
+    const timer = setTimeout(() => {
+      normalizeHorizontalPanels();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [normalizeHorizontalPanels]);
 
   return (
     <EditorProvider>
