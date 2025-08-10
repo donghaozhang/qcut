@@ -34,8 +34,9 @@ function EditorPage() {
   const isInitializingRef = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
     const init = async () => {
-      if (!project_id) return;
+      if (!project_id || cancelled) return;
       if (isInitializingRef.current) return;
       if (activeProject?.id === project_id) return;
       if (isInvalidProjectId(project_id)) return;
@@ -43,7 +44,6 @@ function EditorPage() {
 
       isInitializingRef.current = true;
       handledProjectIds.current.add(project_id);
-      let cancelled = false;
       try {
         await loadProject(project_id);
         if (cancelled) return;
@@ -71,22 +71,22 @@ function EditorPage() {
     };
     init();
     return () => {
+      cancelled = true;
       isInitializingRef.current = false;
     };
   }, [project_id, activeProject?.id, loadProject, createNewProject, isInvalidProjectId, markProjectIdAsInvalid, navigate]);
 
-  const {
-    toolsPanel,
-    previewPanel,
-    mainContent,
-    timeline,
-    setToolsPanel,
-    setPreviewPanel,
-    setMainContent,
-    setTimeline,
-    propertiesPanel,
-    setPropertiesPanel,
-  } = usePanelStore();
+  // Use selector-based subscriptions to minimize re-renders
+  const toolsPanel = usePanelStore(s => s.toolsPanel);
+  const previewPanel = usePanelStore(s => s.previewPanel);
+  const propertiesPanel = usePanelStore(s => s.propertiesPanel);
+  const mainContent = usePanelStore(s => s.mainContent);
+  const timeline = usePanelStore(s => s.timeline);
+  const setToolsPanel = usePanelStore(s => s.setToolsPanel);
+  const setPreviewPanel = usePanelStore(s => s.setPreviewPanel);
+  const setPropertiesPanel = usePanelStore(s => s.setPropertiesPanel);
+  const setMainContent = usePanelStore(s => s.setMainContent);
+  const setTimeline = usePanelStore(s => s.setTimeline);
 
   usePlaybackControls();
 

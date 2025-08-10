@@ -78,10 +78,13 @@ const getFFmpegResourceUrl = async (filename: string): Promise<string> => {
 
   // Fallback to app relative (packaged) or HTTP dev server
   try {
-    const isFileProtocol = typeof window !== "undefined" && window.location.protocol === "file:";
+    const isFileProtocol =
+      typeof window !== "undefined" && window.location.protocol === "file:";
+    const base =
+      typeof window !== "undefined" ? window.location.origin : "";
     const httpUrl = isFileProtocol
       ? `./ffmpeg/${filename}`
-      : `http://localhost:8080/ffmpeg/${filename}`;
+      : `${base}/ffmpeg/${filename}`;
     const response = await fetch(httpUrl);
     if (response.ok) {
       console.log(`[FFmpeg Utils] ✅ HTTP fallback succeeded for ${filename}`);
@@ -205,16 +208,6 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
       const loadPromise = ffmpeg.load({
         coreURL: coreBlobUrl,
         wasmURL: wasmBlobUrl,
-        // Reduce remote fetches inside ffmpeg wasm core
-        // @ts-ignore optional options supported by modern @ffmpeg/ffmpeg
-        workerURL: undefined,
-        // Progress callback to aid debugging
-        // @ts-ignore progress callback available in recent versions
-        onProgress: (p: number) => {
-          if (p === 1) {
-            console.log("[FFmpeg Utils] ✅ FFmpeg core loaded");
-          }
-        },
       });
 
       const timeoutPromise = new Promise((_, reject) => {
@@ -230,6 +223,9 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
       });
 
       await Promise.race([loadPromise, timeoutPromise]);
+      
+      // FFmpeg core fully loaded
+      console.log("[FFmpeg Utils] ✅ FFmpeg core loaded");
     } catch (loadError) {
       console.error("[FFmpeg Utils] ❌ FFmpeg load failed:", loadError);
 

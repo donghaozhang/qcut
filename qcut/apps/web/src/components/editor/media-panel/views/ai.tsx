@@ -81,8 +81,9 @@ export function AiView() {
 
   const history = useAIHistory();
 
-  // Store hooks
-  const { aiPanelWidth, aiPanelMinWidth } = usePanelStore();
+  // Store hooks - use selector-based subscriptions to minimize re-renders
+  const aiPanelWidth = usePanelStore(s => s.aiPanelWidth);
+  const aiPanelMinWidth = usePanelStore(s => s.aiPanelMinWidth);
 
   // Responsive layout calculations with safe defaults
   const safeAiPanelWidth = typeof aiPanelWidth === "number" ? aiPanelWidth : 22;
