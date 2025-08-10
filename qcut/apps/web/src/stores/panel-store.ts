@@ -340,14 +340,24 @@ export const usePanelStore = create<PanelState>()(
     }),
     {
       name: "panel-sizes",
-      version: 6, // Increment this to force migration
+      version: 7, // Increment this to force migration and reset
+      onRehydrateStorage: () => (state) => {
+        // Normalize panels after rehydration
+        if (state) {
+          const total = state.toolsPanel + state.previewPanel + state.propertiesPanel;
+          if (Math.abs(total - 100) > 0.1) {
+            // Immediately normalize if total is not 100%
+            state.normalizeHorizontalPanels();
+          }
+        }
+      },
       migrate: (persistedState: any, version: number) => {
         // Reset to defaults if coming from old version or if data is corrupted
-        if (version < 6) {
+        if (version < 7) {
           console.log(
             "[PanelStore] Migrating from version",
             version,
-            "to version 6"
+            "to version 7"
           );
           return DEFAULT_PANEL_SIZES;
         }
