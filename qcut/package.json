@@ -113,6 +113,7 @@
       "**/node_modules/sharp/**/*",
       "**/node_modules/@ffmpeg/**/*",
       "**/node_modules/electron-updater/**/*",
+      "**/node_modules/electron-log/**/*",
       "**/electron/resources/**/*"
     ],
     "win": {

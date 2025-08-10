@@ -9,13 +9,24 @@ const {
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
+// Initialize electron-log early
+let log = null;
+try {
+  log = require("electron-log");
+} catch (error) {
+  console.warn("⚠️ [Logger] electron-log not available:", error.message);
+}
+
 // Auto-updater - wrapped in try-catch for packaged builds
 let autoUpdater = null;
 try {
   autoUpdater = require("electron-updater").autoUpdater;
 } catch (error) {
-  const log = require("electron-log");
-  log.warn("⚠️ [AutoUpdater] electron-updater not available: %s", error.message);
+  if (log) {
+    log.warn("⚠️ [AutoUpdater] electron-updater not available: %s", error.message);
+  } else {
+    console.warn("⚠️ [AutoUpdater] electron-updater not available:", error.message);
+  }
 }
 const { setupFFmpegIPC } = require("./ffmpeg-handler.js");
 
