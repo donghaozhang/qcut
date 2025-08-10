@@ -66,7 +66,9 @@ export function useExportProgress() {
     try {
       if (totalDuration === 0) {
         debugWarn("[ExportDialog] ❌ cannot export: timeline duration is 0");
-        throw new Error("Timeline is empty - add some content before exporting");
+        throw new Error(
+          "Timeline is empty - add some content before exporting"
+        );
       }
 
       // Create export engine using factory for optimal performance

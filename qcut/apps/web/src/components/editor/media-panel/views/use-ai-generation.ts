@@ -320,13 +320,7 @@ export function useAIGeneration(props: UseAIGenerationProps) {
         setPollingInterval(interval);
       });
     },
-    [
-      prompt,
-      selectedModels,
-      activeProject,
-      addMediaItem,
-      onError,
-    ]
+    [prompt, selectedModels, activeProject, addMediaItem, onError]
   );
 
   // Mock generation function for testing

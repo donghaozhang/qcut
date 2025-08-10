@@ -94,7 +94,7 @@ export function ExportDialog() {
 
     const canvas = canvasRef.current?.getCanvas();
     if (!canvas) {
-       debugWarn("[ExportDialog] ❌ canvas not available for export");
+      debugWarn("[ExportDialog] ❌ canvas not available for export");
       // Use the export store's error handling
       useExportStore.getState().setError("Canvas not available for export");
       return;

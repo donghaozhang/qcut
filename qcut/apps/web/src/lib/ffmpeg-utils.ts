@@ -80,8 +80,7 @@ const getFFmpegResourceUrl = async (filename: string): Promise<string> => {
   try {
     const isFileProtocol =
       typeof window !== "undefined" && window.location.protocol === "file:";
-    const base =
-      typeof window !== "undefined" ? window.location.origin : "";
+    const base = typeof window !== "undefined" ? window.location.origin : "";
     const httpUrl = isFileProtocol
       ? `./ffmpeg/${filename}`
       : `${base}/ffmpeg/${filename}`;
@@ -223,7 +222,7 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
       });
 
       await Promise.race([loadPromise, timeoutPromise]);
-      
+
       // FFmpeg core fully loaded
       console.log("[FFmpeg Utils] ✅ FFmpeg core loaded");
     } catch (loadError) {

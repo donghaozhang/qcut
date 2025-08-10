@@ -39,27 +39,31 @@ export function TimelineTrackContent({
     error: mediaItemsError,
   } = useAsyncMediaItems();
   // Use individual selectors to keep snapshots stable and avoid infinite update loops
-  const tracks = useTimelineStore(s => s.tracks);
-  const addTrack = useTimelineStore(s => s.addTrack);
-  const moveElementToTrack = useTimelineStore(s => s.moveElementToTrack);
-  const updateElementStartTime = useTimelineStore(s => s.updateElementStartTime);
-  const updateElementStartTimeWithRipple = useTimelineStore(
-    s => s.updateElementStartTimeWithRipple,
+  const tracks = useTimelineStore((s) => s.tracks);
+  const addTrack = useTimelineStore((s) => s.addTrack);
+  const moveElementToTrack = useTimelineStore((s) => s.moveElementToTrack);
+  const updateElementStartTime = useTimelineStore(
+    (s) => s.updateElementStartTime
   );
-  const addElementToTrack = useTimelineStore(s => s.addElementToTrack);
-  const selectedElements = useTimelineStore(s => s.selectedElements);
-  const selectElement = useTimelineStore(s => s.selectElement);
-  const dragState = useTimelineStore(s => s.dragState);
-  const startDragAction = useTimelineStore(s => s.startDrag);
-  const updateDragTime = useTimelineStore(s => s.updateDragTime);
-  const endDragAction = useTimelineStore(s => s.endDrag);
-  const clearSelectedElements = useTimelineStore(s => s.clearSelectedElements);
-  const insertTrackAt = useTimelineStore(s => s.insertTrackAt);
-  const snappingEnabled = useTimelineStore(s => s.snappingEnabled);
-  const rippleEditingEnabled = useTimelineStore(s => s.rippleEditingEnabled);
-  const splitElement = useTimelineStore(s => s.splitElement);
+  const updateElementStartTimeWithRipple = useTimelineStore(
+    (s) => s.updateElementStartTimeWithRipple
+  );
+  const addElementToTrack = useTimelineStore((s) => s.addElementToTrack);
+  const selectedElements = useTimelineStore((s) => s.selectedElements);
+  const selectElement = useTimelineStore((s) => s.selectElement);
+  const dragState = useTimelineStore((s) => s.dragState);
+  const startDragAction = useTimelineStore((s) => s.startDrag);
+  const updateDragTime = useTimelineStore((s) => s.updateDragTime);
+  const endDragAction = useTimelineStore((s) => s.endDrag);
+  const clearSelectedElements = useTimelineStore(
+    (s) => s.clearSelectedElements
+  );
+  const insertTrackAt = useTimelineStore((s) => s.insertTrackAt);
+  const snappingEnabled = useTimelineStore((s) => s.snappingEnabled);
+  const rippleEditingEnabled = useTimelineStore((s) => s.rippleEditingEnabled);
+  const splitElement = useTimelineStore((s) => s.splitElement);
 
-  const currentTime = usePlaybackStore(s => s.currentTime);
+  const currentTime = usePlaybackStore((s) => s.currentTime);
 
   // Initialize snapping hook
   const { snapElementPosition, snapElementEdge } = useTimelineSnapping({

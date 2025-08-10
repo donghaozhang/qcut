@@ -283,7 +283,10 @@ export function PreviewPanel() {
     return activeElements;
   }, [tracks, currentTime, mediaItems]);
 
-  const activeElements = useMemo(() => getActiveElements(), [getActiveElements]);
+  const activeElements = useMemo(
+    () => getActiveElements(),
+    [getActiveElements]
+  );
 
   // Get media elements for blur background (video/image only)
   const blurBackgroundElements = useMemo(() => {

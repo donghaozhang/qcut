@@ -1,6 +1,10 @@
 import React, { useEffect, useRef } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 import { MediaPanel } from "@/components/editor/media-panel";
 import { PropertiesPanel } from "@/components/editor/properties-panel";
 import { Timeline } from "@/components/editor/timeline";
@@ -58,7 +62,10 @@ function EditorPage() {
           try {
             const newId = await createNewProject("Untitled Project");
             if (cancelled) return;
-            navigate({ to: "/editor/$project_id", params: { project_id: newId } });
+            navigate({
+              to: "/editor/$project_id",
+              params: { project_id: newId },
+            });
           } catch {
             // noop
           }
@@ -74,19 +81,27 @@ function EditorPage() {
       cancelled = true;
       isInitializingRef.current = false;
     };
-  }, [project_id, activeProject?.id, loadProject, createNewProject, isInvalidProjectId, markProjectIdAsInvalid, navigate]);
+  }, [
+    project_id,
+    activeProject?.id,
+    loadProject,
+    createNewProject,
+    isInvalidProjectId,
+    markProjectIdAsInvalid,
+    navigate,
+  ]);
 
   // Use selector-based subscriptions to minimize re-renders
-  const toolsPanel = usePanelStore(s => s.toolsPanel);
-  const previewPanel = usePanelStore(s => s.previewPanel);
-  const propertiesPanel = usePanelStore(s => s.propertiesPanel);
-  const mainContent = usePanelStore(s => s.mainContent);
-  const timeline = usePanelStore(s => s.timeline);
-  const setToolsPanel = usePanelStore(s => s.setToolsPanel);
-  const setPreviewPanel = usePanelStore(s => s.setPreviewPanel);
-  const setPropertiesPanel = usePanelStore(s => s.setPropertiesPanel);
-  const setMainContent = usePanelStore(s => s.setMainContent);
-  const setTimeline = usePanelStore(s => s.setTimeline);
+  const toolsPanel = usePanelStore((s) => s.toolsPanel);
+  const previewPanel = usePanelStore((s) => s.previewPanel);
+  const propertiesPanel = usePanelStore((s) => s.propertiesPanel);
+  const mainContent = usePanelStore((s) => s.mainContent);
+  const timeline = usePanelStore((s) => s.timeline);
+  const setToolsPanel = usePanelStore((s) => s.setToolsPanel);
+  const setPreviewPanel = usePanelStore((s) => s.setPreviewPanel);
+  const setPropertiesPanel = usePanelStore((s) => s.setPropertiesPanel);
+  const setMainContent = usePanelStore((s) => s.setMainContent);
+  const setTimeline = usePanelStore((s) => s.setTimeline);
 
   usePlaybackControls();
 
@@ -95,7 +110,10 @@ function EditorPage() {
       <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
         <EditorHeader />
         <div className="flex-1 min-h-0 min-w-0">
-          <ResizablePanelGroup direction="vertical" className="h-full w-full gap-[0.18rem]">
+          <ResizablePanelGroup
+            direction="vertical"
+            className="h-full w-full gap-[0.18rem]"
+          >
             <ResizablePanel
               defaultSize={mainContent}
               minSize={30}
@@ -103,7 +121,10 @@ function EditorPage() {
               onResize={setMainContent}
               className="min-h-0"
             >
-              <ResizablePanelGroup direction="horizontal" className="h-full w-full gap-[0.19rem] px-2">
+              <ResizablePanelGroup
+                direction="horizontal"
+                className="h-full w-full gap-[0.19rem] px-2"
+              >
                 <ResizablePanel
                   defaultSize={toolsPanel}
                   minSize={15}

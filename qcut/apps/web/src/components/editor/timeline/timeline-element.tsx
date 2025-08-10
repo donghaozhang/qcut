@@ -62,22 +62,26 @@ export function TimelineElement({
     error: mediaItemsError,
   } = useAsyncMediaItems();
   // Use individual selectors to keep snapshots stable and avoid infinite update loops
-  const updateElementTrim = useTimelineStore(s => s.updateElementTrim);
-  const updateElementDuration = useTimelineStore(s => s.updateElementDuration);
-  const removeElementFromTrack = useTimelineStore(s => s.removeElementFromTrack);
-  const removeElementFromTrackWithRipple = useTimelineStore(
-    s => s.removeElementFromTrackWithRipple,
+  const updateElementTrim = useTimelineStore((s) => s.updateElementTrim);
+  const updateElementDuration = useTimelineStore(
+    (s) => s.updateElementDuration
   );
-  const dragState = useTimelineStore(s => s.dragState);
-  const splitElement = useTimelineStore(s => s.splitElement);
-  const splitAndKeepLeft = useTimelineStore(s => s.splitAndKeepLeft);
-  const splitAndKeepRight = useTimelineStore(s => s.splitAndKeepRight);
-  const separateAudio = useTimelineStore(s => s.separateAudio);
-  const addElementToTrack = useTimelineStore(s => s.addElementToTrack);
-  const replaceElementMedia = useTimelineStore(s => s.replaceElementMedia);
-  const rippleEditingEnabled = useTimelineStore(s => s.rippleEditingEnabled);
-  const toggleElementHidden = useTimelineStore(s => s.toggleElementHidden);
-  const currentTime = usePlaybackStore(s => s.currentTime);
+  const removeElementFromTrack = useTimelineStore(
+    (s) => s.removeElementFromTrack
+  );
+  const removeElementFromTrackWithRipple = useTimelineStore(
+    (s) => s.removeElementFromTrackWithRipple
+  );
+  const dragState = useTimelineStore((s) => s.dragState);
+  const splitElement = useTimelineStore((s) => s.splitElement);
+  const splitAndKeepLeft = useTimelineStore((s) => s.splitAndKeepLeft);
+  const splitAndKeepRight = useTimelineStore((s) => s.splitAndKeepRight);
+  const separateAudio = useTimelineStore((s) => s.separateAudio);
+  const addElementToTrack = useTimelineStore((s) => s.addElementToTrack);
+  const replaceElementMedia = useTimelineStore((s) => s.replaceElementMedia);
+  const rippleEditingEnabled = useTimelineStore((s) => s.rippleEditingEnabled);
+  const toggleElementHidden = useTimelineStore((s) => s.toggleElementHidden);
+  const currentTime = usePlaybackStore((s) => s.currentTime);
 
   const [elementMenuOpen, setElementMenuOpen] = useState(false);
 
