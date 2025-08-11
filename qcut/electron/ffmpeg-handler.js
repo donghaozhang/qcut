@@ -253,8 +253,14 @@ function getFFmpegPath() {
   if (app.isPackaged) {
     // Production: FFmpeg is in the app's resources folder
     // Path structure: resources/app/electron/resources/ffmpeg.exe
-    const appResourcePath = path.join(process.resourcesPath, "app", "electron", "resources", "ffmpeg.exe");
-    
+    const appResourcePath = path.join(
+      process.resourcesPath,
+      "app",
+      "electron",
+      "resources",
+      "ffmpeg.exe"
+    );
+
     if (fs.existsSync(appResourcePath)) {
       ffmpegPath = appResourcePath;
     } else {
@@ -263,7 +269,9 @@ function getFFmpegPath() {
       if (fs.existsSync(oldPath)) {
         ffmpegPath = oldPath;
       } else {
-        throw new Error(`FFmpeg not found. Searched:\n1. ${appResourcePath}\n2. ${oldPath}`);
+        throw new Error(
+          `FFmpeg not found. Searched:\n1. ${appResourcePath}\n2. ${oldPath}`
+        );
       }
     }
   } else {

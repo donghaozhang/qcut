@@ -247,7 +247,9 @@ export class ExportEngineFactory {
             );
             // Try FFmpeg WebAssembly as fallback
             try {
-              const { FFmpegExportEngine } = await import("./export-engine-ffmpeg");
+              const { FFmpegExportEngine } = await import(
+                "./export-engine-ffmpeg"
+              );
               return new FFmpegExportEngine(
                 canvas,
                 settings,
