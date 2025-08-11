@@ -22,6 +22,9 @@ import {
   PropertyItemValue,
 } from "./property-item";
 import { TextProperties } from "./text-properties";
+import { PanelTabs } from './panel-tabs';
+import { useExportStore } from '@/stores/export-store';
+import { ExportPanelContent } from './export-panel-content';
 
 export function PropertiesPanel() {
   const { activeProject, updateProjectFps } = useProjectStore();
@@ -32,6 +35,8 @@ export function PropertiesPanel() {
     loading: mediaItemsLoading,
     error: mediaItemsError,
   } = useAsyncMediaItems();
+
+  const { panelView, setPanelView } = useExportStore();
 
   const handleFpsChange = (value: string) => {
     const fps = parseFloat(value);
@@ -122,9 +127,15 @@ export function PropertiesPanel() {
   }
 
   return (
-    <ScrollArea className="h-full bg-panel rounded-sm">
-      {selectedElements.length > 0
-        ? selectedElements.map(({ trackId, elementId }) => {
+    <div className="h-full flex flex-col">
+      <PanelTabs activeTab={panelView} onTabChange={setPanelView} />
+      <div className="flex-1 overflow-auto">
+        {panelView === 'export' ? (
+          <ExportPanelContent />
+        ) : (
+          <ScrollArea className="h-full bg-panel rounded-sm">
+          {selectedElements.length > 0
+            ? selectedElements.map(({ trackId, elementId }) => {
             const track = tracks.find((t) => t.id === trackId);
             const element = track?.elements.find((e) => e.id === elementId);
 
@@ -151,8 +162,11 @@ export function PropertiesPanel() {
               );
             }
             return null;
-          })
-        : emptyView}
-    </ScrollArea>
+            })
+          : emptyView}
+        </ScrollArea>
+        )}
+      </div>
+    </div>
   );
 }

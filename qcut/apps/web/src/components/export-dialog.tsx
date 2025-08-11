@@ -31,7 +31,7 @@ import { useExportValidation } from "@/hooks/use-export-validation";
 import { useExportPresets } from "@/hooks/use-export-presets";
 
 export function ExportDialog() {
-  const { isDialogOpen, setDialogOpen, error } = useExportStore();
+  const { error } = useExportStore();
   const { getTotalDuration } = useTimelineStore();
   const {
     mediaItems,

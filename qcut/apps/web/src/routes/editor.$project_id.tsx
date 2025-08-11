@@ -15,7 +15,6 @@ import { EditorProvider } from "@/components/editor-provider";
 import { useProjectStore } from "@/stores/project-store";
 import { usePlaybackControls } from "@/hooks/use-playback-controls";
 import { Onboarding } from "@/components/onboarding";
-import { ExportDialog } from "@/components/export-dialog";
 
 export const Route = createFileRoute("/editor/$project_id")({
   component: EditorPage,
@@ -191,7 +190,6 @@ function EditorPage() {
           </ResizablePanelGroup>
         </div>
         <Onboarding />
-        <ExportDialog />
       </div>
     </EditorProvider>
   );
