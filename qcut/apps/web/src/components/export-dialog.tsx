@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import { useExportStore } from "@/stores/export-store";
+import { PanelView } from "@/types/panel";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
 import { ExportCanvas, ExportCanvasRef } from "@/components/export-canvas";
@@ -66,7 +67,7 @@ export function ExportDialog() {
     if (!exportProgress.progress.isExporting) {
       // Switch back to properties view when closing export
       const { setPanelView } = useExportStore.getState();
-      setPanelView('properties');
+      setPanelView(PanelView.PROPERTIES);
     }
   };
 

@@ -60,7 +60,8 @@ const tracePanelUpdate = (source: string, data?: unknown) => {
 
 // Circuit breaker for infinite loops
 let emergencyStop = false;
-const MAX_UPDATES_PER_SECOND = 20;
+// Use a high threshold so normal drags (typically 60fps) never trip.
+const MAX_UPDATES_PER_SECOND = 120;
 const SECOND_MS = 1000;
 const CIRCUIT_BREAKER_RESET_MS = 2000;
 
@@ -98,6 +99,9 @@ const updateTimes: number[] = [];
  * @returns true if updates should be blocked, false otherwise.
  */
 const checkCircuitBreaker = (source: string) => {
+  // Never block UI updates unless debug mode is explicitly enabled.
+  if (!isDebugEnabled()) return false;
+  
   if (emergencyStop) {
     debugError(
       "🛑 [CIRCUIT-BREAKER] EMERGENCY STOP ACTIVE - Blocking update from",

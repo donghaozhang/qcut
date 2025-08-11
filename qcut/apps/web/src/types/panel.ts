@@ -1,6 +1,6 @@
-export enum PanelView {
-  PROPERTIES = 'properties',
-  EXPORT = 'export'
-}
+export const PanelView = {
+  PROPERTIES: 'properties',
+  EXPORT: 'export'
+} as const;
 
 export type PanelViewType = 'properties' | 'export';
