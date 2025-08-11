@@ -1,6 +1,7 @@
 import { createFFmpeg } from "@/lib/ffmpeg-loader";
 import { toBlobURL } from "@ffmpeg/util";
 import type { FFmpeg } from "@ffmpeg/ffmpeg";
+import { debugLog, debugError, debugWarn } from "@/lib/debug-config";
 
 let ffmpeg: FFmpeg | null = null;
 let isFFmpegLoaded = false;
@@ -80,10 +81,12 @@ const getFFmpegResourceUrl = async (filename: string): Promise<string> => {
   try {
     const isFileProtocol =
       typeof window !== "undefined" && window.location.protocol === "file:";
-    const base = typeof window !== "undefined" ? window.location.origin : "";
+    // Use Vite's BASE_URL (fallback to document.baseURI) for proper base-path support
+    const rawBase = import.meta.env.BASE_URL || document.baseURI || "";
+    const baseUrl = rawBase.replace(/\/$/, "");
     const httpUrl = isFileProtocol
       ? `./ffmpeg/${filename}`
-      : `${base}/ffmpeg/${filename}`;
+      : `${baseUrl}/ffmpeg/${filename}`;
     const response = await fetch(httpUrl);
     if (response.ok) {
       console.log(`[FFmpeg Utils] ✅ HTTP fallback succeeded for ${filename}`);
@@ -224,7 +227,7 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
       await Promise.race([loadPromise, timeoutPromise]);
 
       // FFmpeg core fully loaded
-      console.log("[FFmpeg Utils] ✅ FFmpeg core loaded");
+      debugLog("[FFmpeg Utils] ✅ FFmpeg core loaded");
     } catch (loadError) {
       console.error("[FFmpeg Utils] ❌ FFmpeg load failed:", loadError);
 

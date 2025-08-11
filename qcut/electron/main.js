@@ -16,6 +16,7 @@ try {
 } catch (error) {
   console.warn("⚠️ [Logger] electron-log not available:", error.message);
 }
+const logger = log || console;
 
 // Auto-updater - wrapped in try-catch for packaged builds
 let autoUpdater = null;

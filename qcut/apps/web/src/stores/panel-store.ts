@@ -131,7 +131,7 @@ interface PanelState {
 }
 
 // Debounce normalization to avoid excessive calls during resize
-let normalizationTimeout: NodeJS.Timeout | null = null;
+let normalizationTimeout: ReturnType<typeof setTimeout> | null = null;
 let isNormalizing = false;
 const debouncedNormalize = (normalizeFunc: () => void) => {
   if (isNormalizing) return; // Prevent recursive calls
@@ -145,6 +145,7 @@ const debouncedNormalize = (normalizeFunc: () => void) => {
       normalizeFunc();
     } finally {
       isNormalizing = false;
+      normalizationTimeout = null;
     }
   }, 50); // 50ms debounce
 };
