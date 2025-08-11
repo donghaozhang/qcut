@@ -42,3 +42,6 @@ nul
 **/public/ffmpeg/ffmpeg-core.wasm
 qcut/lint-output.txt
 qcut/temp-lint-output.txt
+
+# Documentation folders
+qcut/docs/completed/
