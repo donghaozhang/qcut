@@ -64,7 +64,9 @@ export function ExportDialog() {
 
   const handleClose = () => {
     if (!exportProgress.progress.isExporting) {
-      setDialogOpen(false);
+      // Switch back to properties view when closing export
+      const { setPanelView } = useExportStore.getState();
+      setPanelView('properties');
     }
   };
 
@@ -75,7 +77,6 @@ export function ExportDialog() {
     e?.preventDefault();
     e?.stopPropagation();
     debugLog("[ExportDialog] ▶ handleExport clicked", {
-      isDialogOpen,
       canExport: exportValidation.canExport,
       timelineDuration: exportSettings.timelineDuration,
       mediaItemsCount: mediaItems.length,
