@@ -131,6 +131,14 @@ function StickerItem({
   );
 }
 
+// Fallback icons for when API calls fail or return no data
+const FALLBACK_ICONS: Record<string, string[]> = {
+  "heroicons": ["home", "user", "cog", "heart", "star", "check"],
+  "tabler": ["home", "user", "settings", "heart", "star", "check"],
+  "material-symbols": ["home", "person", "settings", "favorite", "star", "check"],
+  "simple-icons": ["github", "google", "facebook", "twitter", "instagram", "youtube"]
+};
+
 // CollectionContent Component
 interface CollectionContentProps {
   collectionPrefix: string;
@@ -202,14 +210,7 @@ function CollectionContent({
             // If still no icons, try a fallback based on collection prefix
             if (icons.length === 0) {
               console.log(`[CollectionContent] No icons found, using fallback for ${collectionPrefix}`);
-              // Use some common icon names that exist in most collections
-              const fallbackIcons: Record<string, string[]> = {
-                "heroicons": ["home", "user", "cog", "heart", "star", "check"],
-                "tabler": ["home", "user", "settings", "heart", "star", "check"],
-                "material-symbols": ["home", "person", "settings", "favorite", "star", "check"],
-                "simple-icons": ["github", "google", "facebook", "twitter", "instagram", "youtube"]
-              };
-              icons = fallbackIcons[collectionPrefix] || [];
+              icons = FALLBACK_ICONS[collectionPrefix] || [];
             }
             
             setCollectionIcons(icons.slice(0, 20)); // Limit to 20 for performance
@@ -219,13 +220,7 @@ function CollectionContent({
               error
             );
             // Use fallback icons on error
-            const fallbackIcons: Record<string, string[]> = {
-              "heroicons": ["home", "user", "cog", "heart", "star", "check"],
-              "tabler": ["home", "user", "settings", "heart", "star", "check"],
-              "material-symbols": ["home", "person", "settings", "favorite", "star", "check"],
-              "simple-icons": ["github", "google", "facebook", "twitter", "instagram", "youtube"]
-            };
-            setCollectionIcons(fallbackIcons[collectionPrefix] || []);
+            setCollectionIcons(FALLBACK_ICONS[collectionPrefix] || []);
           }
         }
       } catch (error) {

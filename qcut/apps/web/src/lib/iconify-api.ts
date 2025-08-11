@@ -8,9 +8,24 @@ export const ICONIFY_HOSTS = [
 class IconifyAPIClient {
   private lastWorkingHost: string = ICONIFY_HOSTS[0];
   
-  async fetchWithFallback(path: string): Promise<Response> {
-    console.log("[Iconify API] Fetching:", path);
+  // Helper to create timeout signal with fallback for older browsers
+  private createTimeoutSignal(timeout: number): AbortSignal {
+    // Use native timeout if available (Chrome 94+, Firefox 93+, Node 16+)
+    if ('timeout' in AbortSignal && typeof AbortSignal.timeout === 'function') {
+      return AbortSignal.timeout(timeout);
+    }
     
+    // Fallback for older browsers
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    
+    // Clean up timeout if operation completes or is aborted
+    controller.signal.addEventListener('abort', () => clearTimeout(timeoutId), { once: true });
+    
+    return controller.signal;
+  }
+  
+  async fetchWithFallback(path: string): Promise<Response> {
     // Try last working host first for better performance
     const hostsToTry = [
       this.lastWorkingHost, 
@@ -19,21 +34,16 @@ class IconifyAPIClient {
     
     for (const host of hostsToTry) {
       try {
-        console.log(`[Iconify API] Trying host: ${host}${path}`);
         const response = await fetch(`${host}${path}`, {
-          signal: AbortSignal.timeout(2000),
+          signal: this.createTimeoutSignal(2000),
         });
-        console.log(
-          `[Iconify API] Response status from ${host}:`,
-          response.status
-        );
         if (response.ok) {
           this.lastWorkingHost = host;
-          console.log(`[Iconify API] Success with host: ${host}`);
           return response;
         }
       } catch (error) {
-        console.warn(`[Iconify API] Failed to fetch from ${host}:`, error);
+        // Silent fail, try next host
+        continue;
       }
     }
     throw new Error("All API hosts failed");
@@ -101,7 +111,6 @@ export async function getCollections(
 
     return data;
   } catch (error) {
-    console.error("Failed to fetch collections:", error);
     throw error;
   }
 }
@@ -114,7 +123,6 @@ export async function getCollection(prefix: string): Promise<CollectionInfo> {
     const data = (await response.json()) as CollectionInfo;
     return data;
   } catch (error) {
-    console.error(`Failed to fetch collection ${prefix}:`, error);
     throw error;
   }
 }
@@ -136,7 +144,6 @@ export async function searchIcons(
     const data = (await response.json()) as IconSearchResult;
     return data;
   } catch (error) {
-    console.error("Failed to search icons:", error);
     throw error;
   }
 }
@@ -155,8 +162,7 @@ export function buildIconSvgUrl(
   const params = new URLSearchParams();
 
   if (options.color) {
-    // URL encode the color to handle # symbols
-    params.set("color", encodeURIComponent(options.color));
+    params.set("color", options.color);
   }
   if (options.width) params.set("width", options.width.toString());
   if (options.height) params.set("height", options.height.toString());
@@ -191,7 +197,6 @@ export async function downloadIconSvg(
     const svgContent = await response.text();
     return svgContent;
   } catch (error) {
-    console.error(`Failed to download icon ${collection}:${icon}:`, error);
     throw error;
   }
 }
