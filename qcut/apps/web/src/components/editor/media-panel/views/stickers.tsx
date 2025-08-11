@@ -25,7 +25,11 @@ import {
 import { useStickersStore } from "@/stores/stickers-store";
 import { useMediaStore } from "@/stores/media-store";
 import { useProjectStore } from "@/stores/project-store";
-import { buildIconSvgUrl, POPULAR_COLLECTIONS } from "@/lib/iconify-api";
+import {
+  buildIconSvgUrl,
+  getCollection,
+  POPULAR_COLLECTIONS,
+} from "@/lib/iconify-api";
 import { cn } from "@/lib/utils";
 
 // Types
@@ -61,11 +65,17 @@ function StickerItem({
           width: 32,
           height: 32,
         });
-        
-        console.log(`[StickerItem] Built SVG URL for ${collection}:${icon}:`, svgUrl);
+
+        console.log(
+          `[StickerItem] Built SVG URL for ${collection}:${icon}:`,
+          svgUrl
+        );
         setImageUrl(svgUrl);
       } catch (error) {
-        console.error(`[StickerItem] Failed to load icon ${collection}:${icon}:`, error);
+        console.error(
+          `[StickerItem] Failed to load icon ${collection}:${icon}:`,
+          error
+        );
         setHasError(true);
       } finally {
         setIsLoading(false);
@@ -121,6 +131,123 @@ function StickerItem({
   );
 }
 
+// CollectionContent Component
+interface CollectionContentProps {
+  collectionPrefix: string;
+  collections: any[];
+  onSelect: (iconId: string, name: string) => void;
+}
+
+function CollectionContent({
+  collectionPrefix,
+  collections,
+  onSelect,
+}: CollectionContentProps) {
+  const [collectionIcons, setCollectionIcons] = useState<string[]>([]);
+  const [loadingCollection, setLoadingCollection] = useState(true);
+
+  useEffect(() => {
+    const fetchCollectionIcons = async () => {
+      setLoadingCollection(true);
+      try {
+        // First, check if we have this collection in our store
+        const collection = collections.find(
+          (c) => c.prefix === collectionPrefix
+        );
+        console.log(
+          `[CollectionContent] Rendering collection ${collectionPrefix}:`,
+          collection
+        );
+
+        // Try to get sample icons from POPULAR_COLLECTIONS first
+        const popularCollection = POPULAR_COLLECTIONS.find(
+          (c) => c.prefix === collectionPrefix
+        );
+        if (popularCollection?.samples) {
+          console.log(
+            `[CollectionContent] Using popular samples for ${collectionPrefix}`
+          );
+          setCollectionIcons(popularCollection.samples);
+        } else if (collection) {
+          // Collection exists in store but no samples, try to fetch from API
+          console.log(
+            `[CollectionContent] Fetching icons from API for ${collectionPrefix}`
+          );
+          try {
+            const collectionInfo = await getCollection(collectionPrefix);
+            console.log(
+              "[CollectionContent] Fetched collection info:",
+              collectionInfo
+            );
+            // Use uncategorized icons or first category
+            const icons =
+              collectionInfo.uncategorized ||
+              (collectionInfo.categories
+                ? (Object.values(collectionInfo.categories)[0] as string[])
+                : []) ||
+              [];
+            setCollectionIcons(icons.slice(0, 20)); // Limit to 20 for performance
+          } catch (error) {
+            console.error(
+              `[CollectionContent] Failed to fetch collection ${collectionPrefix}:`,
+              error
+            );
+            setCollectionIcons([]);
+          }
+        } else {
+          console.log(
+            `[CollectionContent] Collection ${collectionPrefix} not found`
+          );
+          setCollectionIcons([]);
+        }
+      } catch (error) {
+        console.error(
+          `[CollectionContent] Error loading collection ${collectionPrefix}:`,
+          error
+        );
+        setCollectionIcons([]);
+      } finally {
+        setLoadingCollection(false);
+      }
+    };
+
+    fetchCollectionIcons();
+  }, [collectionPrefix, collections]);
+
+  if (loadingCollection) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (collectionIcons.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <AlertCircle className="mb-2 h-8 w-8 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          No icons available for this collection
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
+      {collectionIcons.map((iconName) => (
+        <StickerItem
+          key={`${collectionPrefix}:${iconName}`}
+          icon={iconName}
+          name={iconName}
+          collection={collectionPrefix}
+          onSelect={onSelect}
+        />
+      ))}
+    </div>
+  );
+}
+
 // Main StickersView Component
 export function StickersView() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -143,12 +270,25 @@ export function StickersView() {
 
   // Load collections on mount
   useEffect(() => {
-    console.log("[StickersView] Component mounted, collections:", collections.length);
+    console.log(
+      "[StickersView] Component mounted, collections:",
+      collections.length
+    );
     if (collections.length === 0) {
       console.log("[StickersView] Fetching collections...");
       fetchCollections();
     }
   }, [collections.length, fetchCollections]);
+
+  // Log available collections when they load
+  useEffect(() => {
+    if (collections.length > 0) {
+      console.log("[StickersView] Available collection prefixes:");
+      collections.slice(0, 10).forEach((c) => {
+        console.log(`  - ${c.prefix}: ${c.name} (${c.total} icons)`);
+      });
+    }
+  }, [collections]);
 
   // Search functionality with debounce
   useEffect(() => {
@@ -192,9 +332,11 @@ export function StickersView() {
 
         // Add to media store with correct interface
         // Create a fake File object for SVG stickers
-        const svgBlob = new Blob([`<svg></svg>`], { type: "image/svg+xml" });
-        const svgFile = new File([svgBlob], `${name}.svg`, { type: "image/svg+xml" });
-        
+        const svgBlob = new Blob(["<svg></svg>"], { type: "image/svg+xml" });
+        const svgFile = new File([svgBlob], `${name}.svg`, {
+          type: "image/svg+xml",
+        });
+
         await addMediaItem(activeProject.id, {
           name: `${name}.svg`,
           type: "image",
@@ -292,42 +434,6 @@ export function StickersView() {
     );
   };
 
-  const renderCollectionContent = (collectionPrefix: string) => {
-    const collection = collections.find((c) => c.prefix === collectionPrefix);
-    console.log(`[StickersView] Rendering collection ${collectionPrefix}:`, collection);
-
-    if (!collection) {
-      console.log(`[StickersView] Collection ${collectionPrefix} not found in:`, collections);
-      return (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      );
-    }
-
-    // For now, show popular icons from the collection
-    // In a full implementation, this would fetch icons for the specific collection
-    const popularIcons =
-      POPULAR_COLLECTIONS.find((c) => c.prefix === collectionPrefix)?.samples ||
-      [];
-    
-    console.log(`[StickersView] Popular icons for ${collectionPrefix}:`, popularIcons);
-
-    return (
-      <div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
-        {popularIcons.map((iconName) => (
-          <StickerItem
-            key={`${collectionPrefix}:${iconName}`}
-            icon={iconName}
-            name={iconName}
-            collection={collectionPrefix}
-            onSelect={handleStickerSelect}
-          />
-        ))}
-      </div>
-    );
-  };
-
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -388,14 +494,14 @@ export function StickersView() {
                 <Grid3X3 className="h-4 w-4" />
                 All
               </TabsTrigger>
-              <TabsTrigger value="simple-icons" className="flex items-center gap-2">
+              <TabsTrigger
+                value="simple-icons"
+                className="flex items-center gap-2"
+              >
                 <Hash className="h-4 w-4" />
                 Brands
               </TabsTrigger>
-              <TabsTrigger
-                value="tabler"
-                className="flex items-center gap-2"
-              >
+              <TabsTrigger value="tabler" className="flex items-center gap-2">
                 <Hash className="h-4 w-4" />
                 Tabler
               </TabsTrigger>
@@ -418,22 +524,34 @@ export function StickersView() {
                         </h3>
                         <Badge variant="secondary">{collection.prefix}</Badge>
                       </div>
-                      {renderCollectionContent(collection.prefix)}
+                      <CollectionContent
+                        collectionPrefix={collection.prefix}
+                        collections={collections}
+                        onSelect={handleStickerSelect}
+                      />
                     </div>
                   ))}
                 </div>
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="mdi" className="mt-0 h-full">
+            <TabsContent value="simple-icons" className="mt-0 h-full">
               <ScrollArea className="h-full">
-                {renderCollectionContent("mdi")}
+                <CollectionContent
+                  collectionPrefix="simple-icons"
+                  collections={collections}
+                  onSelect={handleStickerSelect}
+                />
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="fa6-solid" className="mt-0 h-full">
+            <TabsContent value="tabler" className="mt-0 h-full">
               <ScrollArea className="h-full">
-                {renderCollectionContent("fa6-solid")}
+                <CollectionContent
+                  collectionPrefix="tabler"
+                  collections={collections}
+                  onSelect={handleStickerSelect}
+                />
               </ScrollArea>
             </TabsContent>
           </Tabs>

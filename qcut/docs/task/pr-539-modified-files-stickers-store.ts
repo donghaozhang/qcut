@@ -228,19 +228,30 @@ throw error;
 
 ## Key Features
 
-1. **State Management**: Comprehensive state for stickers functionality
-2. **API Integration**: Connects to iconify-api for data fetching
-3. **Persistence**: Uses Zustand persist middleware for caching
-4. **Recent Stickers**: Tracks up to 50 recently used stickers
+1. **State Management**: Comprehensive state
+for stickers functionality
+2. **API Integration**
+: Connects to iconify-api
+for data fetching
+3. **Persistence**
+: Uses Zustand persist middleware
+for caching
+4. **Recent Stickers**
+: Tracks up to 50 recently used stickers
 5. **Error Handling**: Proper error states and messaging
-6. **Search Functionality**: Debounced search with result management
-7. **Loading States**: Loading indicators for async operations
-8. **Collection Management**: Fetches and caches icon collections
+6. **Search Functionality**: Debounced search
+with result management
+7 ** Loading;
+States**
+: Loading indicators
+for async operations
+8. **Collection Management**
+: Fetches and caches icon collections
 
 ## Store Structure
 
 ### State Properties
-- `;
+- `
 collections: IconSet[]` - Available icon collections
 - `
 searchResults: string[]` - Search result icon IDs

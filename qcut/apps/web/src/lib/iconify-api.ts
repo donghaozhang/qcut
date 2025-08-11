@@ -14,7 +14,10 @@ async function fetchWithFallback(path: string): Promise<Response> {
       const response = await fetch(`${host}${path}`, {
         signal: AbortSignal.timeout(2000),
       });
-      console.log(`[Iconify API] Response status from ${host}:`, response.status);
+      console.log(
+        `[Iconify API] Response status from ${host}:`,
+        response.status
+      );
       if (response.ok) {
         currentHost = host;
         console.log(`[Iconify API] Success with host: ${host}`);
@@ -179,8 +182,8 @@ export async function downloadIconSvg(
 // Popular collections with sample icons
 export const POPULAR_COLLECTIONS: IconSet[] = [
   {
-    prefix: "mdi",
-    name: "Material Design Icons",
+    prefix: "simple-icons",
+    name: "Simple Icons (Brands)",
     total: 7400,
     category: "General",
     author: {
@@ -192,32 +195,32 @@ export const POPULAR_COLLECTIONS: IconSet[] = [
       spdx: "Apache-2.0",
     },
     samples: [
-      "account",
-      "home",
-      "heart",
-      "star",
-      "check",
-      "close",
-      "menu",
-      "arrow-right",
-      "arrow-left",
-      "arrow-up",
-      "arrow-down",
-      "play",
-      "pause",
-      "stop",
-      "settings",
-      "help",
-      "search",
-      "plus",
-      "minus",
-      "edit",
+      "github",
+      "google",
+      "facebook",
+      "twitter",
+      "instagram",
+      "youtube",
+      "linkedin",
+      "discord",
+      "slack",
+      "reddit",
+      "amazon",
+      "apple",
+      "microsoft",
+      "netflix",
+      "spotify",
+      "twitch",
+      "tiktok",
+      "whatsapp",
+      "telegram",
+      "pinterest",
     ],
     palette: false,
   },
   {
-    prefix: "fa6-solid",
-    name: "Font Awesome 6 Solid",
+    prefix: "tabler",
+    name: "Tabler Icons",
     total: 1400,
     category: "General",
     author: {
@@ -229,22 +232,22 @@ export const POPULAR_COLLECTIONS: IconSet[] = [
       url: "https://creativecommons.org/licenses/by/4.0/",
     },
     samples: [
-      "house",
+      "home",
       "user",
-      "gear",
+      "settings",
       "heart",
       "star",
       "check",
-      "xmark",
-      "bars",
+      "x",
+      "menu-2",
       "arrow-right",
       "arrow-left",
-      "play",
-      "pause",
-      "stop",
+      "player-play",
+      "player-pause",
+      "player-stop",
       "plus",
       "minus",
-      "pen-to-square",
+      "edit",
       "trash",
       "download",
       "upload",
@@ -253,8 +256,8 @@ export const POPULAR_COLLECTIONS: IconSet[] = [
     palette: false,
   },
   {
-    prefix: "ion",
-    name: "IonIcons",
+    prefix: "material-symbols",
+    name: "Material Symbols",
     total: 1300,
     category: "General",
     author: {
@@ -290,8 +293,8 @@ export const POPULAR_COLLECTIONS: IconSet[] = [
     palette: false,
   },
   {
-    prefix: "lucide",
-    name: "Lucide",
+    prefix: "heroicons",
+    name: "Hero Icons",
     total: 1400,
     category: "General",
     author: {

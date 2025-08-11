@@ -236,7 +236,7 @@ type: "image/svg+xml", url;
         })
 
 // Add to recent stickers
-addRecentSticker(iconId, name);
+addRecentSticker(iconId, name)
 
 toast.success(`Added ${name} to project`);
 } catch (error)
