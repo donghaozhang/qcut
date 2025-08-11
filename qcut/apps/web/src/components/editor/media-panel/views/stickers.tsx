@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Clock,
@@ -66,16 +66,8 @@ function StickerItem({
         width: 32,
         height: 32,
       });
-      console.log(
-        `[StickerItem] Built SVG URL for ${collection}:${icon}:`,
-        svgUrl
-      );
       setImageUrl(svgUrl);
     } catch (error) {
-      console.error(
-        `[StickerItem] Failed to build icon URL for ${collection}:${icon}:`,
-        error
-      );
       setHasError(true);
       setIsLoading(false);
     }
@@ -177,10 +169,6 @@ function CollectionContent({
         const collection = collections.find(
           (c) => c.prefix === collectionPrefix
         );
-        console.log(
-          `[CollectionContent] Rendering collection ${collectionPrefix}:`,
-          collection
-        );
 
         // Try to get sample icons from POPULAR_COLLECTIONS first
         const popularCollection = POPULAR_COLLECTIONS.find(
@@ -188,21 +176,11 @@ function CollectionContent({
         );
 
         if (popularCollection?.samples) {
-          console.log(
-            `[CollectionContent] Using popular samples for ${collectionPrefix}`
-          );
           setCollectionIcons(popularCollection.samples);
         } else {
           // Try to fetch actual icons from the API
-          console.log(
-            `[CollectionContent] Fetching icons from API for ${collectionPrefix}`
-          );
           try {
             const collectionInfo = await getCollection(collectionPrefix);
-            console.log(
-              "[CollectionContent] Fetched collection info:",
-              collectionInfo
-            );
 
             // Get icons from the collection
             let icons: string[] = [];
@@ -213,9 +191,6 @@ function CollectionContent({
               collectionInfo.uncategorized.length > 0
             ) {
               icons = collectionInfo.uncategorized;
-              console.log(
-                `[CollectionContent] Using ${icons.length} uncategorized icons`
-              );
             }
             // Then try categories
             else if (collectionInfo.categories) {
@@ -223,35 +198,21 @@ function CollectionContent({
               if (categoryArrays.length > 0) {
                 // Flatten all categories and take first 30
                 icons = categoryArrays.flat().slice(0, 30);
-                console.log(
-                  `[CollectionContent] Using ${icons.length} icons from categories`
-                );
               }
             }
 
             // If still no icons, try a fallback based on collection prefix
             if (icons.length === 0) {
-              console.log(
-                `[CollectionContent] No icons found, using fallback for ${collectionPrefix}`
-              );
               icons = FALLBACK_ICONS[collectionPrefix] || [];
             }
 
             setCollectionIcons(icons.slice(0, 20)); // Limit to 20 for performance
           } catch (error) {
-            console.error(
-              `[CollectionContent] Failed to fetch collection ${collectionPrefix}:`,
-              error
-            );
             // Use fallback icons on error
             setCollectionIcons(FALLBACK_ICONS[collectionPrefix] || []);
           }
         }
       } catch (error) {
-        console.error(
-          `[CollectionContent] Error loading collection ${collectionPrefix}:`,
-          error
-        );
         setCollectionIcons([]);
       } finally {
         setLoadingCollection(false);
@@ -315,27 +276,23 @@ export function StickersView() {
   const { addMediaItem } = useMediaStore();
   const { activeProject } = useProjectStore();
 
+  // Track object URLs for cleanup
+  const objectUrlsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    // Cleanup object URLs on unmount
+    return () => {
+      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      objectUrlsRef.current.clear();
+    };
+  }, []);
+
   // Load collections on mount
   useEffect(() => {
-    console.log(
-      "[StickersView] Component mounted, collections:",
-      collections.length
-    );
     if (collections.length === 0) {
-      console.log("[StickersView] Fetching collections...");
       fetchCollections();
     }
   }, [collections.length, fetchCollections]);
-
-  // Log available collections when they load
-  useEffect(() => {
-    if (collections.length > 0) {
-      console.log("[StickersView] Available collection prefixes:");
-      collections.slice(0, 10).forEach((c) => {
-        console.log(`  - ${c.prefix}: ${c.name} (${c.total} icons)`);
-      });
-    }
-  }, [collections]);
 
   // Search functionality with debounce
   useEffect(() => {
@@ -348,7 +305,6 @@ export function StickersView() {
       try {
         await searchIcons(searchQuery);
       } catch (error) {
-        console.error("Search failed:", error);
         toast.error("Failed to search icons");
       } finally {
         setIsSearching(false);
@@ -382,6 +338,7 @@ export function StickersView() {
 
         // Create a local blob URL for preview
         const objectUrl = URL.createObjectURL(svgBlob);
+        objectUrlsRef.current.add(objectUrl);
 
         await addMediaItem(activeProject.id, {
           name: `${name}.svg`,
@@ -399,11 +356,8 @@ export function StickersView() {
 
         toast.success(`Added ${name} to project`);
 
-        // Note: In a production app, you might want to track and revoke
-        // these object URLs when components unmount or media is removed
-        // to prevent memory leaks: URL.revokeObjectURL(objectUrl)
+        // Object URL is tracked and will be cleaned up on component unmount
       } catch (error) {
-        console.error("Failed to add sticker:", error);
         toast.error("Failed to add sticker to project");
       }
     },
