@@ -8,6 +8,8 @@
   "devDependencies": {
     "@biomejs/biome": "2.1.2",
     "@types/jszip": "^3.4.1",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
     "cross-env": "^10.0.0",
     "electron": "^37.2.5",
     "electron-builder": "^26.0.12",
@@ -111,6 +113,7 @@
       "**/node_modules/sharp/**/*",
       "**/node_modules/@ffmpeg/**/*",
       "**/node_modules/electron-updater/**/*",
+      "**/node_modules/electron-log/**/*",
       "**/electron/resources/**/*"
     ],
     "win": {
@@ -198,9 +201,12 @@
     "@ffmpeg/core": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
+    "electron-log": "^5.4.2",
     "electron-updater": "^6.6.2",
     "jszip": "^3.10.1",
     "next": "^15.3.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "wavesurfer.js": "^7.9.8"
   },
   "trustedDependencies": [

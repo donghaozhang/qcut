@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import { useExportStore } from "@/stores/export-store";
+import { PanelView } from "@/types/panel";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
 import { ExportCanvas, ExportCanvasRef } from "@/components/export-canvas";
@@ -26,11 +27,12 @@ import { PlatformIcon } from "@/components/export-icons";
 // NEW: Custom hook imports
 import { useExportSettings } from "@/hooks/use-export-settings";
 import { useExportProgress } from "@/hooks/use-export-progress";
+import { debugLog, debugWarn } from "@/lib/debug-config";
 import { useExportValidation } from "@/hooks/use-export-validation";
 import { useExportPresets } from "@/hooks/use-export-presets";
 
 export function ExportDialog() {
-  const { isDialogOpen, setDialogOpen, error } = useExportStore();
+  const { error } = useExportStore();
   const { getTotalDuration } = useTimelineStore();
   const {
     mediaItems,
@@ -63,23 +65,49 @@ export function ExportDialog() {
 
   const handleClose = () => {
     if (!exportProgress.progress.isExporting) {
-      setDialogOpen(false);
+      // Switch back to properties view when closing export
+      const { setPanelView } = useExportStore.getState();
+      setPanelView(PanelView.PROPERTIES);
     }
   };
+
+  // Removed conditional rendering - now integrated into panel system
 
   // REPLACE: Complex export handler (lines 254-400) with hook call
   const handleExport = async (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
+    debugLog("[ExportPanel] ▶ handleExport clicked", {
+      canExport: exportValidation.canExport,
+      timelineDuration: exportSettings.timelineDuration,
+      mediaItemsCount: mediaItems.length,
+    });
+
+    if (!exportValidation.canExport) {
+      debugWarn("[ExportPanel] ❌ cannot export: validation failed", {
+        hasTimelineContent: exportValidation.hasTimelineContent,
+        timelineDuration: exportSettings.timelineDuration,
+        hasValidFilename: exportValidation.hasValidFilename,
+      });
+      return;
+    }
 
     const canvas = canvasRef.current?.getCanvas();
     if (!canvas) {
+      debugWarn("[ExportPanel] ❌ canvas not available for export");
       // Use the export store's error handling
       useExportStore.getState().setError("Canvas not available for export");
       return;
     }
 
     canvasRef.current?.updateDimensions();
+
+    debugLog("[ExportPanel] 🚀 starting export", {
+      engineType: exportSettings.engineType,
+      quality: exportSettings.quality,
+      format: exportSettings.format,
+      resolution: exportSettings.resolution,
+    });
 
     await exportProgress.handleExport(canvas, exportSettings.timelineDuration, {
       quality: exportSettings.quality,
@@ -92,10 +120,7 @@ export function ExportDialog() {
 
   if (mediaItemsLoading) {
     return (
-      <div
-        className="h-full flex flex-col bg-background"
-        style={{ borderRadius: "0.375rem", overflow: "hidden" }}
-      >
+      <div className="h-full flex flex-col bg-background p-4">
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="flex items-center space-x-2">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
@@ -107,10 +132,7 @@ export function ExportDialog() {
   }
 
   return (
-    <div
-      className="h-full flex flex-col bg-background"
-      style={{ borderRadius: "0.375rem", overflow: "hidden" }}
-    >
+    <div className="h-full flex flex-col bg-background p-4">
       <div className="flex items-center justify-between p-4 border-b border-border">
         <div>
           <h2 className="text-lg font-semibold">Export Video</h2>

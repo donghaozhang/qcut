@@ -1,6 +1,7 @@
 import { createFFmpeg } from "@/lib/ffmpeg-loader";
 import { toBlobURL } from "@ffmpeg/util";
 import type { FFmpeg } from "@ffmpeg/ffmpeg";
+import { debugLog, debugError, debugWarn } from "@/lib/debug-config";
 
 let ffmpeg: FFmpeg | null = null;
 let isFFmpegLoaded = false;
@@ -76,9 +77,16 @@ const getFFmpegResourceUrl = async (filename: string): Promise<string> => {
     );
   }
 
-  // Fallback to HTTP server
+  // Fallback to app relative (packaged) or HTTP dev server
   try {
-    const httpUrl = `http://localhost:8080/ffmpeg/${filename}`;
+    const isFileProtocol =
+      typeof window !== "undefined" && window.location.protocol === "file:";
+    // Use Vite's BASE_URL (fallback to document.baseURI) for proper base-path support
+    const rawBase = import.meta.env.BASE_URL || document.baseURI || "";
+    const baseUrl = rawBase.replace(/\/$/, "");
+    const httpUrl = isFileProtocol
+      ? `./ffmpeg/${filename}`
+      : `${baseUrl}/ffmpeg/${filename}`;
     const response = await fetch(httpUrl);
     if (response.ok) {
       console.log(`[FFmpeg Utils] ✅ HTTP fallback succeeded for ${filename}`);
@@ -91,7 +99,7 @@ const getFFmpegResourceUrl = async (filename: string): Promise<string> => {
     );
   }
 
-  // Final fallback to relative path
+  // Final fallback to public relative path
   try {
     const relativeUrl = `/ffmpeg/${filename}`;
     const response = await fetch(relativeUrl);
@@ -196,7 +204,7 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
     const wasmBlobUrl = URL.createObjectURL(wasmBlob);
 
     // Add timeout to detect hanging with environment-specific timeouts
-    const timeoutDuration = environment.hasSharedArrayBuffer ? 30_000 : 60_000; // Longer timeout without SharedArrayBuffer
+    const timeoutDuration = environment.hasSharedArrayBuffer ? 60_000 : 120_000; // More generous timeouts for large WASM files
 
     try {
       const loadPromise = ffmpeg.load({
@@ -217,19 +225,30 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
       });
 
       await Promise.race([loadPromise, timeoutPromise]);
+
+      // FFmpeg core fully loaded
+      debugLog("[FFmpeg Utils] ✅ FFmpeg core loaded");
     } catch (loadError) {
-      console.error("[FFmpeg Utils] ❌ FFmpeg load failed:", loadError);
+      debugLog("[FFmpeg Utils] ❌ FFmpeg load failed:", loadError);
 
       // Cleanup blob URLs on failure
       URL.revokeObjectURL(coreBlobUrl);
       URL.revokeObjectURL(wasmBlobUrl);
+
+      // Enhanced diagnostics
+      debugLog("[FFmpeg Utils] 🔍 Environment diagnostics:", {
+        hasSharedArrayBuffer: environment.hasSharedArrayBuffer,
+        crossOriginIsolated: self.crossOriginIsolated,
+        timeoutUsed: timeoutDuration / 1000 + "s",
+        userAgent: navigator.userAgent,
+      });
 
       // Provide specific error messages based on error type
       const errorMessage =
         loadError instanceof Error ? loadError.message : String(loadError);
       if (errorMessage.includes("timeout")) {
         throw new Error(
-          "FFmpeg initialization timed out. This may be due to slow network or missing SharedArrayBuffer support."
+          `FFmpeg initialization timed out after ${timeoutDuration / 1000}s. This may be due to slow network, large WASM files, or missing SharedArrayBuffer support.`
         );
       }
       if (errorMessage.includes("SharedArrayBuffer")) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "./ui/button";
+import { PanelView } from "@/types/panel";
 import {
   ChevronDown,
   ArrowLeft,
@@ -33,10 +34,10 @@ export function EditorHeader() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const navigate = useNavigate();
-  const { setDialogOpen } = useExportStore();
+  const { setPanelView } = useExportStore();
 
   const handleExport = () => {
-    setDialogOpen(true);
+    setPanelView(PanelView.EXPORT);
   };
 
   const handleNameSave = async (newName: string) => {

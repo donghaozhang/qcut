@@ -11,33 +11,19 @@ import { Timeline } from "@/components/editor/timeline";
 import { PreviewPanel } from "@/components/editor/preview-panel";
 import { EditorHeader } from "@/components/editor-header";
 import { usePanelStore } from "@/stores/panel-store";
-import { useProjectStore } from "@/stores/project-store";
 import { EditorProvider } from "@/components/editor-provider";
+import { useProjectStore, NotFoundError } from "@/stores/project-store";
 import { usePlaybackControls } from "@/hooks/use-playback-controls";
 import { Onboarding } from "@/components/onboarding";
-import { ExportDialog } from "@/components/export-dialog";
-import { useExportStore } from "@/stores/export-store";
+import { debugError } from "@/lib/debug-config";
 
 export const Route = createFileRoute("/editor/$project_id")({
   component: EditorPage,
 });
 
 function EditorPage() {
+  const navigate = useNavigate();
   const { project_id } = Route.useParams();
-  const {
-    toolsPanel,
-    previewPanel,
-    propertiesPanel,
-    mainContent,
-    timeline,
-    setToolsPanel,
-    setPreviewPanel,
-    setPropertiesPanel,
-    setMainContent,
-    setTimeline,
-    normalizeHorizontalPanels,
-  } = usePanelStore();
-  const { isDialogOpen } = useExportStore();
 
   const {
     activeProject,
@@ -46,118 +32,94 @@ function EditorPage() {
     isInvalidProjectId,
     markProjectIdAsInvalid,
   } = useProjectStore();
-  const navigate = useNavigate();
-  const handledProjectIds = useRef<Set<string>>(new Set());
-  const isInitializingRef = useRef<boolean>(false);
 
-  usePlaybackControls();
-
-  // Normalize panel sizes on mount
-  useEffect(() => {
-    normalizeHorizontalPanels();
-  }, [normalizeHorizontalPanels]);
+  // Prevent concurrent duplicate loads for the same id (allow future reloads)
+  const inFlightProjectIdRef = useRef<string | null>(null);
+  const isInitializingRef = useRef(false);
 
   useEffect(() => {
-    let isCancelled = false;
+    let cancelled = false;
+    const init = async () => {
+      if (!project_id || cancelled) return;
+      if (isInitializingRef.current) return;
+      if (activeProject?.id === project_id) return;
+      if (isInvalidProjectId(project_id)) return;
+      if (inFlightProjectIdRef.current === project_id) return;
 
-    const initProject = async () => {
-      if (!project_id) {
-        return;
-      }
-
-      // Prevent duplicate initialization
-      if (isInitializingRef.current) {
-        return;
-      }
-
-      // Check if project is already loaded
-      if (activeProject?.id === project_id) {
-        return;
-      }
-
-      // Check global invalid tracking first (most important for preventing duplicates)
-      if (isInvalidProjectId(project_id)) {
-        return;
-      }
-
-      // Check if we've already handled this project ID locally
-      if (handledProjectIds.current.has(project_id)) {
-        return;
-      }
-
-      // Mark as initializing to prevent race conditions
       isInitializingRef.current = true;
-      handledProjectIds.current.add(project_id);
-
+      inFlightProjectIdRef.current = project_id;
       try {
         await loadProject(project_id);
-
-        // Check if component was unmounted during async operation
-        if (isCancelled) {
-          return;
-        }
-
-        // Project loaded successfully
-        isInitializingRef.current = false;
+        if (cancelled) return;
       } catch (error) {
-        // Check if component was unmounted during async operation
-        if (isCancelled) {
-          return;
-        }
-
-        // More specific error handling - only create new project for actual "not found" errors
-        const isProjectNotFound =
-          error instanceof Error &&
-          (error.message.includes("not found") ||
-            error.message.includes("does not exist") ||
-            error.message.includes("Project not found"));
-
-        if (isProjectNotFound) {
-          // Mark this project ID as invalid globally BEFORE creating project
+        const isNotFound = error instanceof NotFoundError;
+        if (isNotFound) {
           markProjectIdAsInvalid(project_id);
-
           try {
-            const newProjectId = await createNewProject("Untitled Project");
-
-            // Check again if component was unmounted
-            if (isCancelled) {
-              return;
-            }
-
-            navigate({ to: `/editor/${newProjectId}` });
-          } catch (createError) {
-            console.error("Failed to create new project:", createError);
+            const newId = await createNewProject("Untitled Project");
+            if (cancelled) return;
+            navigate({
+              to: "/editor/$project_id",
+              params: { project_id: newId },
+            });
+          } catch (e) {
+            debugError(
+              "[Editor] createNewProject failed after NotFoundError",
+              e
+            );
           }
         } else {
-          // For other errors (storage issues, corruption, etc.), don't create new project
-          console.error(
-            "Project loading failed with recoverable error:",
-            error
-          );
-          // Remove from handled set so user can retry
-          handledProjectIds.current.delete(project_id);
+          // Allow retries on non-not-found errors
+          inFlightProjectIdRef.current = null;
         }
-
+      } finally {
         isInitializingRef.current = false;
+        // Clear in-flight flag after attempt finishes or is cancelled
+        if (inFlightProjectIdRef.current === project_id) {
+          inFlightProjectIdRef.current = null;
+        }
       }
     };
-
-    initProject();
-
-    // Cleanup function to cancel async operations
+    init();
     return () => {
-      isCancelled = true;
+      cancelled = true;
       isInitializingRef.current = false;
     };
   }, [
     project_id,
+    activeProject?.id,
     loadProject,
     createNewProject,
-    navigate,
     isInvalidProjectId,
     markProjectIdAsInvalid,
-    activeProject?.id,
+    navigate,
   ]);
+
+  // Use selector-based subscriptions to minimize re-renders with fallback defaults
+  const toolsPanel = usePanelStore((s) => s.toolsPanel) ?? 20;
+  const previewPanel = usePanelStore((s) => s.previewPanel) ?? 55;
+  const propertiesPanel = usePanelStore((s) => s.propertiesPanel) ?? 25;
+  const mainContent = usePanelStore((s) => s.mainContent) ?? 70;
+  const timeline = usePanelStore((s) => s.timeline) ?? 30;
+  const setToolsPanel = usePanelStore((s) => s.setToolsPanel);
+  const setPreviewPanel = usePanelStore((s) => s.setPreviewPanel);
+  const setPropertiesPanel = usePanelStore((s) => s.setPropertiesPanel);
+  const setMainContent = usePanelStore((s) => s.setMainContent);
+  const setTimeline = usePanelStore((s) => s.setTimeline);
+
+  usePlaybackControls();
+
+  // Ensure panels are normalized on mount
+  const normalizeHorizontalPanels = usePanelStore(
+    (s) => s.normalizeHorizontalPanels
+  );
+  useEffect(() => {
+    // Normalize panels after a short delay to ensure they're initialized
+    const timer = setTimeout(() => {
+      normalizeHorizontalPanels();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [normalizeHorizontalPanels]);
 
   return (
     <EditorProvider>
@@ -175,12 +137,10 @@ function EditorPage() {
               onResize={setMainContent}
               className="min-h-0"
             >
-              {/* Main content area */}
               <ResizablePanelGroup
                 direction="horizontal"
                 className="h-full w-full gap-[0.19rem] px-2"
               >
-                {/* Tools Panel */}
                 <ResizablePanel
                   defaultSize={toolsPanel}
                   minSize={15}
@@ -193,11 +153,9 @@ function EditorPage() {
 
                 <ResizableHandle withHandle />
 
-                {/* Preview Area */}
                 <ResizablePanel
                   defaultSize={previewPanel}
                   minSize={30}
-                  maxSize={70}
                   onResize={setPreviewPanel}
                   className="min-w-0 min-h-0 flex-1"
                 >
@@ -213,19 +171,13 @@ function EditorPage() {
                   onResize={setPropertiesPanel}
                   className="min-w-0"
                 >
-                  <div
-                    className="h-full"
-                    style={{ borderRadius: "0.375rem", overflow: "hidden" }}
-                  >
-                    {isDialogOpen ? <ExportDialog /> : <PropertiesPanel />}
-                  </div>
+                  <PropertiesPanel />
                 </ResizablePanel>
               </ResizablePanelGroup>
             </ResizablePanel>
 
             <ResizableHandle withHandle />
 
-            {/* Timeline */}
             <ResizablePanel
               defaultSize={timeline}
               minSize={15}

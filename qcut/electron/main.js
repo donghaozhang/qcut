@@ -9,13 +9,31 @@ const {
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
+// Initialize electron-log early
+let log = null;
+try {
+  log = require("electron-log");
+} catch (error) {
+  console.warn("⚠️ [Logger] electron-log not available:", error.message);
+}
+const logger = log || console;
+
 // Auto-updater - wrapped in try-catch for packaged builds
 let autoUpdater = null;
 try {
   autoUpdater = require("electron-updater").autoUpdater;
 } catch (error) {
-  const log = require("electron-log");
-  log.warn("⚠️ [AutoUpdater] electron-updater not available: %s", error.message);
+  if (log) {
+    log.warn(
+      "⚠️ [AutoUpdater] electron-updater not available: %s",
+      error.message
+    );
+  } else {
+    logger.warn(
+      "⚠️ [AutoUpdater] electron-updater not available:",
+      error.message
+    );
+  }
 }
 const { setupFFmpegIPC } = require("./ffmpeg-handler.js");
 
@@ -58,12 +76,12 @@ function createStaticServer() {
       fullPath = path.join(__dirname, "../apps/web/dist", filePath);
     }
 
-    console.log("[Static Server] Request:", req.url, "-> File:", fullPath);
+    logger.log("[Static Server] Request:", req.url, "-> File:", fullPath);
 
     // Check if file exists
     fs.access(fullPath, fs.constants.F_OK, (err) => {
       if (err) {
-        console.log("[Static Server] File not found:", fullPath);
+        logger.log("[Static Server] File not found:", fullPath);
         res.writeHead(404, { "Content-Type": "text/plain" });
         res.end("File not found");
         return;
@@ -94,7 +112,7 @@ function createStaticServer() {
       fileStream.pipe(res);
 
       fileStream.on("error", (error) => {
-        console.error("[Static Server] Error reading file:", error);
+        logger.error("[Static Server] Error reading file:", error);
         res.writeHead(500, { "Content-Type": "text/plain" });
         res.end("Internal server error");
       });
@@ -102,7 +120,7 @@ function createStaticServer() {
   });
 
   server.listen(8080, "localhost", () => {
-    console.log("[Static Server] Started on http://localhost:8080");
+    logger.log("[Static Server] Started on http://localhost:8080");
   });
 
   return server;
@@ -300,7 +318,7 @@ ipcMain.handle("read-file", async (event, filePath) => {
     const data = await fs.promises.readFile(filePath);
     return data;
   } catch (error) {
-    console.error("Error reading file:", error);
+    logger.error("Error reading file:", error);
     throw error;
   }
 });
@@ -310,7 +328,7 @@ ipcMain.handle("write-file", async (event, filePath, data) => {
     await fs.promises.writeFile(filePath, data);
     return { success: true };
   } catch (error) {
-    console.error("Error writing file:", error);
+    logger.error("Error writing file:", error);
     throw error;
   }
 });
@@ -326,7 +344,7 @@ ipcMain.handle("get-file-info", async (event, filePath) => {
       isDirectory: stats.isDirectory(),
     };
   } catch (error) {
-    console.error("Error getting file info:", error);
+    logger.error("Error getting file info:", error);
     throw error;
   }
 });
@@ -418,22 +436,22 @@ ipcMain.handle("check-ffmpeg-resource", (event, filename) => {
 // Auto-updater configuration and handlers
 function setupAutoUpdater() {
   if (!autoUpdater) {
-    console.log("⚠️ [AutoUpdater] Auto-updater not available - skipping setup");
+    logger.log("⚠️ [AutoUpdater] Auto-updater not available - skipping setup");
     return;
   }
 
-  console.log("🔄 [AutoUpdater] Setting up auto-updater...");
+  logger.log("🔄 [AutoUpdater] Setting up auto-updater...");
 
   // Configure auto-updater settings
   autoUpdater.checkForUpdatesAndNotify();
 
   // Auto-updater event handlers
   autoUpdater.on("checking-for-update", () => {
-    console.log("🔄 [AutoUpdater] Checking for updates...");
+    logger.log("🔄 [AutoUpdater] Checking for updates...");
   });
 
   autoUpdater.on("update-available", (info) => {
-    console.log("📦 [AutoUpdater] Update available:", info.version);
+    logger.log("📦 [AutoUpdater] Update available:", info.version);
 
     // Send to renderer process
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -446,16 +464,16 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on("update-not-available", () => {
-    console.log("✅ [AutoUpdater] App is up to date");
+    logger.log("✅ [AutoUpdater] App is up to date");
   });
 
   autoUpdater.on("error", (err) => {
-    console.error("❌ [AutoUpdater] Error:", err);
+    logger.error("❌ [AutoUpdater] Error:", err);
   });
 
   autoUpdater.on("download-progress", (progressObj) => {
     const percent = Math.round(progressObj.percent);
-    console.log(`📥 [AutoUpdater] Download progress: ${percent}%`);
+    logger.log(`📥 [AutoUpdater] Download progress: ${percent}%`);
 
     // Send progress to renderer
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -468,7 +486,7 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on("update-downloaded", (info) => {
-    console.log("✅ [AutoUpdater] Update downloaded, will install on quit");
+    logger.log("✅ [AutoUpdater] Update downloaded, will install on quit");
 
     // Send to renderer process
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -508,7 +526,7 @@ ipcMain.handle("check-for-updates", async () => {
       message: "Checking for updates...",
     };
   } catch (error) {
-    console.error("Error checking for updates:", error);
+    logger.error("Error checking for updates:", error);
     return {
       available: false,
       error: error.message,
@@ -533,7 +551,7 @@ ipcMain.handle("install-update", async () => {
     autoUpdater.quitAndInstall();
     return { success: true, message: "Installing update..." };
   } catch (error) {
-    console.error("Error installing update:", error);
+    logger.error("Error installing update:", error);
     return { success: false, error: error.message };
   }
 });

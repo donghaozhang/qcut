@@ -81,8 +81,9 @@ export function AiView() {
 
   const history = useAIHistory();
 
-  // Store hooks
-  const { aiPanelWidth, aiPanelMinWidth } = usePanelStore();
+  // Store hooks - use selector-based subscriptions to minimize re-renders
+  const aiPanelWidth = usePanelStore((s) => s.aiPanelWidth);
+  const aiPanelMinWidth = usePanelStore((s) => s.aiPanelMinWidth);
 
   // Responsive layout calculations with safe defaults
   const safeAiPanelWidth = typeof aiPanelWidth === "number" ? aiPanelWidth : 22;
@@ -312,17 +313,9 @@ export function AiView() {
 
                 <label
                   htmlFor="ai-image-input"
-                  role="button"
-                  tabIndex={0}
-                  className={`border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                  className={`border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center cursor-pointer hover:border-muted-foreground/50 transition-colors ${
                     selectedImage ? "border-primary/50" : ""
                   }`}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      fileInputRef.current?.click();
-                    }
-                  }}
                   aria-label={
                     selectedImage
                       ? "Change selected image"
