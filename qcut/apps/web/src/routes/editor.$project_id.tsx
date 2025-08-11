@@ -15,6 +15,7 @@ import { EditorProvider } from "@/components/editor-provider";
 import { useProjectStore, NotFoundError } from "@/stores/project-store";
 import { usePlaybackControls } from "@/hooks/use-playback-controls";
 import { Onboarding } from "@/components/onboarding";
+import { debugError } from "@/lib/debug-config";
 
 export const Route = createFileRoute("/editor/$project_id")({
   component: EditorPage,
@@ -62,12 +63,10 @@ function EditorPage() {
               params: { project_id: newId },
             });
           } catch (e) {
-            import("@/lib/debug-config").then(({ debugError }) => {
-              debugError(
-                "[Editor] createNewProject failed after NotFoundError",
-                e
-              );
-            });
+            debugError(
+              "[Editor] createNewProject failed after NotFoundError",
+              e
+            );
           }
         } else {
           // Allow retries on non-not-found errors

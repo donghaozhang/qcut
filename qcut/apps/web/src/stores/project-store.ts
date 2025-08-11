@@ -361,10 +361,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       return newProject.id;
     } catch (error) {
       debugError("Failed to duplicate project:", error);
-      toast.error("Failed to duplicate project", {
-        description:
-          error instanceof Error ? error.message : "Please try again",
-      });
+      // Avoid double reporting when we already showed a "Project not found" toast.
+      if (!(error instanceof NotFoundError)) {
+        toast.error("Failed to duplicate project", {
+          description:
+            error instanceof Error ? error.message : "Please try again",
+        });
+      }
       throw error;
     }
   },

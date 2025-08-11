@@ -3,4 +3,4 @@ export const PanelView = {
   EXPORT: "export",
 } as const;
 
-export type PanelViewType = "properties" | "export";
+export type PanelViewType = (typeof PanelView)[keyof typeof PanelView];
