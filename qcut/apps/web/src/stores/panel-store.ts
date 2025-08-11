@@ -73,14 +73,13 @@ type PersistedPanelState = Pick<
   "toolsPanel" | "previewPanel" | "propertiesPanel"
 >;
 
+const isPercent = (n: unknown): n is number =>
+  typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 100;
+
 function isPersistedPanelState(value: unknown): value is PersistedPanelState {
   if (value == null || typeof value !== "object") return false;
   const v = value as Record<string, unknown>;
-  return (
-    typeof v.toolsPanel === "number" &&
-    typeof v.previewPanel === "number" &&
-    typeof v.propertiesPanel === "number"
-  );
+  return isPercent(v.toolsPanel) && isPercent(v.previewPanel) && isPercent(v.propertiesPanel);
 }
 const updateTimes: number[] = [];
 
@@ -168,6 +167,11 @@ interface PanelState {
 // Debounce normalization to avoid excessive calls during resize
 let normalizationTimeout: ReturnType<typeof setTimeout> | null = null;
 let isNormalizing = false;
+/**
+ * Debounces panel normalization and guards against re-entrancy.
+ * Schedules normalizeFunc after a short delay and blocks nested calls while running.
+ * @param normalizeFunc Callback that performs normalization.
+ */
 const debouncedNormalize = (normalizeFunc: () => void) => {
   if (isNormalizing) return; // Prevent recursive calls
 
@@ -186,6 +190,13 @@ const debouncedNormalize = (normalizeFunc: () => void) => {
 };
 
 // Consolidated panel size setter to reduce duplication
+/**
+ * Shared setter for horizontal panel sizes with circuit-breaker and tolerance gating.
+ * Validates input, rounds to two decimals, and schedules normalization when an update is applied.
+ * @param key One of "toolsPanel" | "previewPanel" | "propertiesPanel".
+ * @param size Target size percentage (0–100); must be finite.
+ * @param source Identifier for debugging and circuit-breaker tracking.
+ */
 function setPanelSize<
   K extends "toolsPanel" | "previewPanel" | "propertiesPanel",
 >(key: K, size: number, source: string) {

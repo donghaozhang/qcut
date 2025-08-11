@@ -33,8 +33,8 @@ function EditorPage() {
     markProjectIdAsInvalid,
   } = useProjectStore();
 
-  // Prevent duplicate loads
-  const handledProjectIds = useRef<Set<string>>(new Set());
+  // Prevent concurrent duplicate loads for the same id (allow future reloads)
+  const inFlightProjectIdRef = useRef<string | null>(null);
   const isInitializingRef = useRef(false);
 
   useEffect(() => {
@@ -44,10 +44,10 @@ function EditorPage() {
       if (isInitializingRef.current) return;
       if (activeProject?.id === project_id) return;
       if (isInvalidProjectId(project_id)) return;
-      if (handledProjectIds.current.has(project_id)) return;
+      if (inFlightProjectIdRef.current === project_id) return;
 
       isInitializingRef.current = true;
-      handledProjectIds.current.add(project_id);
+      inFlightProjectIdRef.current = project_id;
       try {
         await loadProject(project_id);
         if (cancelled) return;
@@ -70,10 +70,15 @@ function EditorPage() {
             // noop
           }
         } else {
-          handledProjectIds.current.delete(project_id);
+          // Allow retries on non-not-found errors
+          inFlightProjectIdRef.current = null;
         }
       } finally {
         isInitializingRef.current = false;
+        // Clear in-flight flag after attempt finishes or is cancelled
+        if (inFlightProjectIdRef.current === project_id) {
+          inFlightProjectIdRef.current = null;
+        }
       }
     };
     init();
