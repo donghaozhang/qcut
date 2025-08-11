@@ -84,6 +84,18 @@ export const useStickersStore = create<StickersStore>()(
           });
           console.log("[StickersStore] Collections stored successfully");
           console.log("[StickersStore] First 10 collection prefixes:", collectionsArray.slice(0, 10).map(c => c.prefix));
+          
+          // Find actual prefixes for popular collections
+          const materialDesign = collectionsArray.find(c => c.name?.toLowerCase().includes('material'));
+          const fontAwesome = collectionsArray.find(c => c.name?.toLowerCase().includes('font awesome'));
+          const ionicons = collectionsArray.find(c => c.name?.toLowerCase().includes('ionicon'));
+          const lucide = collectionsArray.find(c => c.name?.toLowerCase().includes('lucide'));
+          
+          console.log("[StickersStore] Popular collection prefixes found:");
+          console.log("  Material Design:", materialDesign?.prefix || "not found");
+          console.log("  Font Awesome:", fontAwesome?.prefix || "not found");
+          console.log("  Ionicons:", ionicons?.prefix || "not found");
+          console.log("  Lucide:", lucide?.prefix || "not found");
         } catch (error) {
           const errorMessage =
             error instanceof Error

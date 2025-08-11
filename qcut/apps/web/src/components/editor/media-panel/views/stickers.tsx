@@ -388,16 +388,16 @@ export function StickersView() {
                 <Grid3X3 className="h-4 w-4" />
                 All
               </TabsTrigger>
-              <TabsTrigger value="mdi" className="flex items-center gap-2">
+              <TabsTrigger value="simple-icons" className="flex items-center gap-2">
                 <Hash className="h-4 w-4" />
-                Material
+                Brands
               </TabsTrigger>
               <TabsTrigger
-                value="fa6-solid"
+                value="tabler"
                 className="flex items-center gap-2"
               >
                 <Hash className="h-4 w-4" />
-                FontAwesome
+                Tabler
               </TabsTrigger>
             </TabsList>
 
