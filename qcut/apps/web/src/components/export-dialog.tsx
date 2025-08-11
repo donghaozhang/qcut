@@ -89,6 +89,7 @@ export function ExportDialog() {
         timelineDuration: exportSettings.timelineDuration,
         hasValidFilename: exportValidation.hasValidFilename,
       });
+      return;
     }
 
     const canvas = canvasRef.current?.getCanvas();

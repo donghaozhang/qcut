@@ -40,10 +40,10 @@ nul
 # Third-party library files that shouldn't be linted
 **/public/ffmpeg/ffmpeg-core.js
 **/public/ffmpeg/ffmpeg-core.wasm
-qcut/lint-output.txt
-qcut/temp-lint-output.txt
+/qcut/lint-output.txt
+/qcut/temp-lint-output.txt
 
 # Documentation folders
-qcut/docs/completed/
-!qcut/docs/completed/.gitkeep
-!qcut/docs/completed/README.md
+/qcut/docs/completed/*
+!/qcut/docs/completed/.gitkeep
+!/qcut/docs/completed/README.md

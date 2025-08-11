@@ -5,8 +5,12 @@ import { toast } from "sonner";
 import { getMediaStore } from "./media-store-loader";
 import { useTimelineStore } from "./timeline-store";
 import { generateUUID } from "@/lib/utils";
+import { debugError } from "@/lib/debug-config";
 
-// Custom error class for project not found scenarios
+/**
+ * Thrown when a requested project cannot be found in storage.
+ * Includes a stable code for programmatic detection.
+ */
 export class NotFoundError extends Error {
   readonly code = "PROJECT_NOT_FOUND";
 
@@ -98,7 +102,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       set({ activeProject: updatedProject });
       await get().loadAllProjects(); // Refresh the list
     } catch (error) {
-      console.error("Failed to update project bookmarks:", error);
+      debugError("Failed to update project bookmarks:", error);
       toast.error("Failed to update bookmarks", {
         description: "Please try again",
       });
@@ -146,7 +150,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       set({ activeProject: updatedProject });
       await get().loadAllProjects(); // Refresh the list
     } catch (error) {
-      console.error("Failed to update project bookmarks:", error);
+      debugError("Failed to update project bookmarks:", error);
       toast.error("Failed to remove bookmark", {
         description: "Please try again",
       });
@@ -205,7 +209,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         throw new NotFoundError(`Project ${id} not found`);
       }
     } catch (error) {
-      console.error("Failed to load project:", error);
+      debugError("Failed to load project:", error);
       throw error; // Re-throw so the editor page can handle it
     } finally {
       set({ isLoading: false });
@@ -225,7 +229,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       ]);
       await get().loadAllProjects(); // Refresh the list
     } catch (error) {
-      console.error("Failed to save project:", error);
+      debugError("Failed to save project:", error);
     }
   },
 
@@ -238,7 +242,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       const projects = await storageService.loadAllProjects();
       set({ savedProjects: projects });
     } catch (error) {
-      console.error("Failed to load projects:", error);
+      debugError("Failed to load projects:", error);
     } finally {
       set({ isLoading: false, isInitialized: true });
     }
@@ -264,7 +268,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         timelineStore.clearTimeline();
       }
     } catch (error) {
-      console.error("Failed to delete project:", error);
+      debugError("Failed to delete project:", error);
     }
   },
 
@@ -308,7 +312,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         set({ activeProject: updatedProject });
       }
     } catch (error) {
-      console.error("Failed to rename project:", error);
+      debugError("Failed to rename project:", error);
       toast.error("Failed to rename project", {
         description:
           error instanceof Error ? error.message : "Please try again",
@@ -356,7 +360,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       await get().loadAllProjects();
       return newProject.id;
     } catch (error) {
-      console.error("Failed to duplicate project:", error);
+      debugError("Failed to duplicate project:", error);
       toast.error("Failed to duplicate project", {
         description:
           error instanceof Error ? error.message : "Please try again",
@@ -380,7 +384,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       set({ activeProject: updatedProject });
       await get().loadAllProjects(); // Refresh the list
     } catch (error) {
-      console.error("Failed to update project background:", error);
+      debugError("Failed to update project background:", error);
       toast.error("Failed to update background", {
         description: "Please try again",
       });
@@ -409,7 +413,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       set({ activeProject: updatedProject });
       await get().loadAllProjects(); // Refresh the list
     } catch (error) {
-      console.error("Failed to update background type:", error);
+      debugError("Failed to update background type:", error);
       toast.error("Failed to update background", {
         description: "Please try again",
       });
@@ -431,7 +435,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       set({ activeProject: updatedProject });
       await get().loadAllProjects(); // Refresh the list
     } catch (error) {
-      console.error("Failed to update project FPS:", error);
+      debugError("Failed to update project FPS:", error);
       toast.error("Failed to update project FPS", {
         description: "Please try again",
       });
