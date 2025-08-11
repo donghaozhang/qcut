@@ -288,7 +288,7 @@ export const usePanelStore = create<PanelState>()(
 
           // If the values are way off, reset to defaults
           if (total < 50 || total > 150) {
-            console.warn(
+            debugError(
               "[PanelStore] Panel sizes severely corrupted, resetting to defaults"
             );
             set({
