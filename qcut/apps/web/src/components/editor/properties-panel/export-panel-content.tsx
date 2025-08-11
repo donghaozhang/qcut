@@ -1,12 +1,13 @@
 import React from "react";
 import { ExportDialog } from "@/components/export-dialog";
 import { useExportStore } from "@/stores/export-store";
+import { PanelView } from "@/types/panel";
 
 export function ExportPanelContent() {
-  const { panelView } = useExportStore();
+  const panelView = useExportStore((s) => s.panelView);
 
   // Only render export content when panel view is 'export'
-  if (panelView !== "export") {
+  if (panelView !== PanelView.EXPORT) {
     return null;
   }
 

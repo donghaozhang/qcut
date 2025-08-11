@@ -77,14 +77,14 @@ export function ExportDialog() {
   const handleExport = async (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
-    debugLog("[ExportDialog] ▶ handleExport clicked", {
+    debugLog("[ExportPanel] ▶ handleExport clicked", {
       canExport: exportValidation.canExport,
       timelineDuration: exportSettings.timelineDuration,
       mediaItemsCount: mediaItems.length,
     });
 
     if (!exportValidation.canExport) {
-      debugWarn("[ExportDialog] ❌ cannot export: validation failed", {
+      debugWarn("[ExportPanel] ❌ cannot export: validation failed", {
         hasTimelineContent: exportValidation.hasTimelineContent,
         timelineDuration: exportSettings.timelineDuration,
         hasValidFilename: exportValidation.hasValidFilename,
@@ -94,7 +94,7 @@ export function ExportDialog() {
 
     const canvas = canvasRef.current?.getCanvas();
     if (!canvas) {
-      debugWarn("[ExportDialog] ❌ canvas not available for export");
+      debugWarn("[ExportPanel] ❌ canvas not available for export");
       // Use the export store's error handling
       useExportStore.getState().setError("Canvas not available for export");
       return;
@@ -102,7 +102,7 @@ export function ExportDialog() {
 
     canvasRef.current?.updateDimensions();
 
-    debugLog("[ExportDialog] 🚀 starting export", {
+    debugLog("[ExportPanel] 🚀 starting export", {
       engineType: exportSettings.engineType,
       quality: exportSettings.quality,
       format: exportSettings.format,

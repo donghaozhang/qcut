@@ -65,7 +65,7 @@ export function useExportProgress() {
 
     try {
       if (totalDuration === 0) {
-        debugWarn("[ExportDialog] ❌ cannot export: timeline duration is 0");
+        debugWarn("[ExportPanel] ❌ cannot export: timeline duration is 0");
         throw new Error(
           "Timeline is empty - add some content before exporting"
         );
@@ -78,7 +78,7 @@ export function useExportProgress() {
       let selectedEngineType: ExportEngineType | undefined;
       if (isElectron()) {
         debugLog(
-          "[ExportDialog] 🖥️  Electron detected - letting factory auto-recommend engine"
+          "[ExportPanel] 🖥️  Electron detected - letting factory auto-recommend engine"
         );
         selectedEngineType = undefined; // Let factory decide
       } else {
@@ -93,7 +93,7 @@ export function useExportProgress() {
         }
       }
 
-      debugLog("[ExportDialog] 🎬 Creating export engine with settings:", {
+      debugLog("[ExportPanel] 🎬 Creating export engine with settings:", {
         quality: exportSettings.quality,
         format: exportSettings.format,
         filename: exportSettings.filename,
@@ -121,7 +121,7 @@ export function useExportProgress() {
       currentEngineRef.current = exportEngine;
 
       debugLog(
-        "[ExportDialog] 🚀 Starting export with engine:",
+        "[ExportPanel] 🚀 Starting export with engine:",
         exportEngine.constructor.name
       );
 
@@ -140,7 +140,7 @@ export function useExportProgress() {
         });
       });
 
-      debugLog("[ExportDialog] ✅ Export completed successfully");
+      debugLog("[ExportPanel] ✅ Export completed successfully");
 
       // Calculate export duration
       const exportDuration = Date.now() - startTime.getTime();
@@ -189,7 +189,7 @@ export function useExportProgress() {
       currentEngineRef.current = null;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      debugError("[ExportDialog] Export failed:", message);
+      debugError("[ExportPanel] Export failed:", message);
 
       // Calculate partial export duration
       const exportDuration = Date.now() - startTime.getTime();
