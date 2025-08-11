@@ -163,13 +163,14 @@ function CollectionContent({
         const popularCollection = POPULAR_COLLECTIONS.find(
           (c) => c.prefix === collectionPrefix
         );
+        
         if (popularCollection?.samples) {
           console.log(
             `[CollectionContent] Using popular samples for ${collectionPrefix}`
           );
           setCollectionIcons(popularCollection.samples);
-        } else if (collection) {
-          // Collection exists in store but no samples, try to fetch from API
+        } else {
+          // Try to fetch actual icons from the API
           console.log(
             `[CollectionContent] Fetching icons from API for ${collectionPrefix}`
           );
@@ -179,26 +180,53 @@ function CollectionContent({
               "[CollectionContent] Fetched collection info:",
               collectionInfo
             );
-            // Use uncategorized icons or first category
-            const icons =
-              collectionInfo.uncategorized ||
-              (collectionInfo.categories
-                ? (Object.values(collectionInfo.categories)[0] as string[])
-                : []) ||
-              [];
+            
+            // Get icons from the collection
+            let icons: string[] = [];
+            
+            // Try uncategorized first
+            if (collectionInfo.uncategorized && collectionInfo.uncategorized.length > 0) {
+              icons = collectionInfo.uncategorized;
+              console.log(`[CollectionContent] Using ${icons.length} uncategorized icons`);
+            } 
+            // Then try categories
+            else if (collectionInfo.categories) {
+              const categoryArrays = Object.values(collectionInfo.categories);
+              if (categoryArrays.length > 0) {
+                // Flatten all categories and take first 30
+                icons = categoryArrays.flat().slice(0, 30);
+                console.log(`[CollectionContent] Using ${icons.length} icons from categories`);
+              }
+            }
+            
+            // If still no icons, try a fallback based on collection prefix
+            if (icons.length === 0) {
+              console.log(`[CollectionContent] No icons found, using fallback for ${collectionPrefix}`);
+              // Use some common icon names that exist in most collections
+              const fallbackIcons: Record<string, string[]> = {
+                "heroicons": ["home", "user", "cog", "heart", "star", "check"],
+                "tabler": ["home", "user", "settings", "heart", "star", "check"],
+                "material-symbols": ["home", "person", "settings", "favorite", "star", "check"],
+                "simple-icons": ["github", "google", "facebook", "twitter", "instagram", "youtube"]
+              };
+              icons = fallbackIcons[collectionPrefix] || [];
+            }
+            
             setCollectionIcons(icons.slice(0, 20)); // Limit to 20 for performance
           } catch (error) {
             console.error(
               `[CollectionContent] Failed to fetch collection ${collectionPrefix}:`,
               error
             );
-            setCollectionIcons([]);
+            // Use fallback icons on error
+            const fallbackIcons: Record<string, string[]> = {
+              "heroicons": ["home", "user", "cog", "heart", "star", "check"],
+              "tabler": ["home", "user", "settings", "heart", "star", "check"],
+              "material-symbols": ["home", "person", "settings", "favorite", "star", "check"],
+              "simple-icons": ["github", "google", "facebook", "twitter", "instagram", "youtube"]
+            };
+            setCollectionIcons(fallbackIcons[collectionPrefix] || []);
           }
-        } else {
-          console.log(
-            `[CollectionContent] Collection ${collectionPrefix} not found`
-          );
-          setCollectionIcons([]);
         }
       } catch (error) {
         console.error(
