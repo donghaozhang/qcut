@@ -59,7 +59,7 @@ function StickerItem({
     // Reset state for new icon
     setIsLoading(true);
     setHasError(false);
-    
+
     try {
       const svgUrl = buildIconSvgUrl(collection, icon, {
         color: "currentColor",
@@ -136,8 +136,22 @@ function StickerItem({
 const FALLBACK_ICONS: Record<string, string[]> = {
   "heroicons": ["home", "user", "cog", "heart", "star", "check"],
   "tabler": ["home", "user", "settings", "heart", "star", "check"],
-  "material-symbols": ["home", "person", "settings", "favorite", "star", "check"],
-  "simple-icons": ["github", "google", "facebook", "twitter", "instagram", "youtube"]
+  "material-symbols": [
+    "home",
+    "person",
+    "settings",
+    "favorite",
+    "star",
+    "check",
+  ],
+  "simple-icons": [
+    "github",
+    "google",
+    "facebook",
+    "twitter",
+    "instagram",
+    "youtube",
+  ],
 };
 
 // CollectionContent Component
@@ -172,7 +186,7 @@ function CollectionContent({
         const popularCollection = POPULAR_COLLECTIONS.find(
           (c) => c.prefix === collectionPrefix
         );
-        
+
         if (popularCollection?.samples) {
           console.log(
             `[CollectionContent] Using popular samples for ${collectionPrefix}`
@@ -189,31 +203,40 @@ function CollectionContent({
               "[CollectionContent] Fetched collection info:",
               collectionInfo
             );
-            
+
             // Get icons from the collection
             let icons: string[] = [];
-            
+
             // Try uncategorized first
-            if (collectionInfo.uncategorized && collectionInfo.uncategorized.length > 0) {
+            if (
+              collectionInfo.uncategorized &&
+              collectionInfo.uncategorized.length > 0
+            ) {
               icons = collectionInfo.uncategorized;
-              console.log(`[CollectionContent] Using ${icons.length} uncategorized icons`);
-            } 
+              console.log(
+                `[CollectionContent] Using ${icons.length} uncategorized icons`
+              );
+            }
             // Then try categories
             else if (collectionInfo.categories) {
               const categoryArrays = Object.values(collectionInfo.categories);
               if (categoryArrays.length > 0) {
                 // Flatten all categories and take first 30
                 icons = categoryArrays.flat().slice(0, 30);
-                console.log(`[CollectionContent] Using ${icons.length} icons from categories`);
+                console.log(
+                  `[CollectionContent] Using ${icons.length} icons from categories`
+                );
               }
             }
-            
+
             // If still no icons, try a fallback based on collection prefix
             if (icons.length === 0) {
-              console.log(`[CollectionContent] No icons found, using fallback for ${collectionPrefix}`);
+              console.log(
+                `[CollectionContent] No icons found, using fallback for ${collectionPrefix}`
+              );
               icons = FALLBACK_ICONS[collectionPrefix] || [];
             }
-            
+
             setCollectionIcons(icons.slice(0, 20)); // Limit to 20 for performance
           } catch (error) {
             console.error(
@@ -375,7 +398,7 @@ export function StickersView() {
         addRecentSticker(iconId, name);
 
         toast.success(`Added ${name} to project`);
-        
+
         // Note: In a production app, you might want to track and revoke
         // these object URLs when components unmount or media is removed
         // to prevent memory leaks: URL.revokeObjectURL(objectUrl)

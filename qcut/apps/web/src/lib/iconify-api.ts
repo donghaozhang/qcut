@@ -7,31 +7,33 @@ export const ICONIFY_HOSTS = [
 // Encapsulate API state to avoid race conditions
 class IconifyAPIClient {
   private lastWorkingHost: string = ICONIFY_HOSTS[0];
-  
+
   // Helper to create timeout signal with fallback for older browsers
   private createTimeoutSignal(timeout: number): AbortSignal {
     // Use native timeout if available (Chrome 94+, Firefox 93+, Node 16+)
-    if ('timeout' in AbortSignal && typeof AbortSignal.timeout === 'function') {
+    if ("timeout" in AbortSignal && typeof AbortSignal.timeout === "function") {
       return AbortSignal.timeout(timeout);
     }
-    
+
     // Fallback for older browsers
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
-    
+
     // Clean up timeout if operation completes or is aborted
-    controller.signal.addEventListener('abort', () => clearTimeout(timeoutId), { once: true });
-    
+    controller.signal.addEventListener("abort", () => clearTimeout(timeoutId), {
+      once: true,
+    });
+
     return controller.signal;
   }
-  
+
   async fetchWithFallback(path: string): Promise<Response> {
     // Try last working host first for better performance
     const hostsToTry = [
-      this.lastWorkingHost, 
-      ...ICONIFY_HOSTS.filter(h => h !== this.lastWorkingHost)
+      this.lastWorkingHost,
+      ...ICONIFY_HOSTS.filter((h) => h !== this.lastWorkingHost),
     ];
-    
+
     for (const host of hostsToTry) {
       try {
         const response = await fetch(`${host}${path}`, {
@@ -41,14 +43,11 @@ class IconifyAPIClient {
           this.lastWorkingHost = host;
           return response;
         }
-      } catch (error) {
-        // Silent fail, try next host
-        continue;
-      }
+      } catch (error) {}
     }
     throw new Error("All API hosts failed");
   }
-  
+
   getCurrentHost(): string {
     return this.lastWorkingHost;
   }
@@ -96,35 +95,27 @@ export interface CollectionInfo {
 export async function getCollections(
   category?: string
 ): Promise<Record<string, IconSet>> {
-  try {
-    const response = await apiClient.fetchWithFallback("/collections?pretty=1");
-    const data = (await response.json()) as Record<string, IconSet>;
+  const response = await apiClient.fetchWithFallback("/collections?pretty=1");
+  const data = (await response.json()) as Record<string, IconSet>;
 
-    if (category) {
-      const filtered = Object.fromEntries(
-        Object.entries(data).filter(
-          ([, iconSet]) => iconSet.category === category
-        )
-      );
-      return filtered;
-    }
-
-    return data;
-  } catch (error) {
-    throw error;
+  if (category) {
+    const filtered = Object.fromEntries(
+      Object.entries(data).filter(
+        ([, iconSet]) => iconSet.category === category
+      )
+    );
+    return filtered;
   }
+
+  return data;
 }
 
 export async function getCollection(prefix: string): Promise<CollectionInfo> {
-  try {
-    const response = await apiClient.fetchWithFallback(
-      `/collection?prefix=${prefix}&pretty=1`
-    );
-    const data = (await response.json()) as CollectionInfo;
-    return data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await apiClient.fetchWithFallback(
+    `/collection?prefix=${prefix}&pretty=1`
+  );
+  const data = (await response.json()) as CollectionInfo;
+  return data;
 }
 
 export async function searchIcons(
@@ -132,20 +123,16 @@ export async function searchIcons(
   limit = 100,
   start = 0
 ): Promise<IconSearchResult> {
-  try {
-    const params = new URLSearchParams({
-      query,
-      limit: limit.toString(),
-      start: start.toString(),
-      pretty: "1",
-    });
+  const params = new URLSearchParams({
+    query,
+    limit: limit.toString(),
+    start: start.toString(),
+    pretty: "1",
+  });
 
-    const response = await apiClient.fetchWithFallback(`/search?${params}`);
-    const data = (await response.json()) as IconSearchResult;
-    return data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await apiClient.fetchWithFallback(`/search?${params}`);
+  const data = (await response.json()) as IconSearchResult;
+  return data;
 }
 
 export function buildIconSvgUrl(
@@ -186,19 +173,15 @@ export async function downloadIconSvg(
     rotate?: number;
   } = {}
 ): Promise<string> {
-  try {
-    const url = buildIconSvgUrl(collection, icon, options);
-    const response = await fetch(url);
+  const url = buildIconSvgUrl(collection, icon, options);
+  const response = await fetch(url);
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const svgContent = await response.text();
-    return svgContent;
-  } catch (error) {
-    throw error;
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
+
+  const svgContent = await response.text();
+  return svgContent;
 }
 
 // Popular collections with sample icons
