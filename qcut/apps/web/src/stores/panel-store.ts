@@ -354,11 +354,7 @@ export const usePanelStore = create<PanelState>()(
       migrate: (persistedState: any, version: number) => {
         // Reset to defaults if coming from old version or if data is corrupted
         if (version < 7) {
-          console.log(
-            "[PanelStore] Migrating from version",
-            version,
-            "to version 7"
-          );
+          debugLog(`[PanelStore] Migrating from version ${version} to version 7`);
           return DEFAULT_PANEL_SIZES;
         }
 
