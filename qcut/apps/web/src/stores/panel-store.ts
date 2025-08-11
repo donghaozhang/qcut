@@ -71,7 +71,7 @@ type PersistedPanelState = Pick<
 >;
 
 function isPersistedPanelState(value: unknown): value is PersistedPanelState {
-  if (!value || typeof value !== "object") return false;
+  if (value == null || typeof value !== "object") return false;
   const v = value as Record<string, unknown>;
   return (
     typeof v.toolsPanel === "number" &&
