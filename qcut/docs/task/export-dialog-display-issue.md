@@ -46,33 +46,27 @@ The export dialog is currently rendered as a global overlay component in the mai
 **File**: `apps/web/src/components/editor/properties-panel/index.tsx`
 - **Lines**: 26-onwards (main component structure)
 - **Changes Needed**:
-  - Add export panel integration or tab switching logic
-  - Create space for export controls within properties panel
-  - Handle panel state management
+  - Add tab/section switching logic for Properties vs Export views
+  - Integrate export controls into existing panel layout
+  - Handle state management for view switching
+  - Maintain existing element properties functionality alongside export features
 
 ## Implementation Approach
 
-### Option 1: Integrate into Properties Panel (Recommended)
+### Integrate into Properties Panel
 1. Add export functionality as a tab/section in the existing Properties Panel
 2. Update Properties Panel to handle export state alongside element properties
 3. Create seamless switching between property editing and export configuration
-
-### Option 2: Create Dedicated Export Panel
-1. Create new resizable panel in the editor layout
-2. Add panel visibility controls to the panel store
-3. Position export panel adjacent to properties panel
-
-### Option 3: Replace Properties Panel When Exporting
-1. Transform Properties Panel into Export Panel when export is triggered
-2. Add back/cancel functionality to return to properties view
-3. Maintain panel dimensions and positioning
+4. Add tab/section navigation within Properties Panel for:
+   - **Element Properties** (default view when timeline elements are selected)
+   - **Export Configuration** (activated when export button is clicked)
 
 ## Technical Considerations
 
 ### Panel Store Updates
-- Add export panel state to `usePanelStore` if creating new panel
-- Update panel normalization logic if layout changes
-- Handle panel visibility and sizing constraints
+- No changes needed to panel layout or sizing logic
+- Export state managed through existing properties panel space
+- Maintain current panel normalization and resizing behavior
 
 ### Responsive Design
 - Ensure export controls work within panel width constraints
@@ -80,25 +74,29 @@ The export dialog is currently rendered as a global overlay component in the mai
 - Maintain accessibility standards within confined space
 
 ### State Management
-- Update export store to work with panel-based approach
-- Handle export progress display within panel constraints
-- Manage export validation and error states in smaller space
+- Update export store to work with Properties Panel integration
+- Replace `isDialogOpen` with panel view state management
+- Handle export progress display within existing panel constraints
+- Manage export validation and error states within Properties Panel layout
+- Coordinate between element selection state and export configuration state
 
 ## Files to Monitor for Side Effects
 
-- `apps/web/src/stores/panel-store.ts` - Panel layout and sizing
-- `apps/web/src/components/ui/resizable.tsx` - Resizable panel behavior  
-- `apps/web/src/hooks/use-export-*.ts` - Export-related hooks
-- `apps/web/src/components/export-canvas.tsx` - Canvas integration
+- `apps/web/src/hooks/use-export-*.ts` - Export-related hooks may need updates for panel integration
+- `apps/web/src/components/export-canvas.tsx` - Canvas integration and positioning within panel
+- `apps/web/src/stores/timeline-store.ts` - Element selection state coordination
+- Properties Panel sub-components that may be affected by layout changes
 
 ## Success Criteria
 
-1. Export dialog appears only within designated panel region
+1. Export controls appear only within Properties Panel region (no full-page overlay)
 2. Editor timeline and other components remain visible during export configuration
-3. Export functionality maintains all current features
-4. Panel layout remains stable and properly sized
-5. Export progress is clearly visible within panel constraints
-6. Mobile/responsive behavior is maintained
+3. Smooth transition between element properties view and export configuration view
+4. Export functionality maintains all current features within panel constraints
+5. Properties Panel layout remains stable and properly sized
+6. Export progress is clearly visible within existing panel space
+7. Users can switch back to element properties while export is in progress
+8. Mobile/responsive behavior is maintained for both properties and export views
 
 ## Priority: High
 This issue directly affects user experience and editor workflow efficiency.

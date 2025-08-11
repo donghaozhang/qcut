@@ -255,6 +255,10 @@ export const usePanelStore = create<PanelState>()(
       setAiPanelWidth: (size) => set({ aiPanelWidth: size }),
 
       // Normalize horizontal panels to ensure they add up to 100%
+      /**
+       * Normalizes tools/preview/properties so their total equals 100%.
+       * Uses SIZE_TOLERANCE to avoid churn; applies severe reset when totals are way off.
+       */
       normalizeHorizontalPanels: () => {
         tracePanelUpdate("normalizeHorizontalPanels:START", {
           isNormalizing,
@@ -351,7 +355,7 @@ export const usePanelStore = create<PanelState>()(
           persistedState.propertiesPanel;
 
         // If severely corrupted, reset to defaults
-        if (total < 50 || total > 150 || Number.isNaN(total)) {
+        if (total < 50 || total > 150 || isNaN(total)) {
           debugError(
             "[PanelStore] Corrupted panel sizes detected, resetting to defaults"
           );

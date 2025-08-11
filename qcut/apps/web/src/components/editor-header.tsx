@@ -33,10 +33,10 @@ export function EditorHeader() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
   const navigate = useNavigate();
-  const { setDialogOpen } = useExportStore();
+  const { setPanelView } = useExportStore();
 
   const handleExport = () => {
-    setDialogOpen(true);
+    setPanelView('export');
   };
 
   const handleNameSave = async (newName: string) => {

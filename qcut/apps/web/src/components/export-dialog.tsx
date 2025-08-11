@@ -68,10 +68,7 @@ export function ExportDialog() {
     }
   };
 
-  // Only render when dialog is open
-  if (!isDialogOpen) {
-    return null;
-  }
+  // Removed conditional rendering - now integrated into panel system
 
   // REPLACE: Complex export handler (lines 254-400) with hook call
   const handleExport = async (e?: React.MouseEvent) => {
@@ -120,10 +117,7 @@ export function ExportDialog() {
 
   if (mediaItemsLoading) {
     return (
-      <div
-        className="h-full flex flex-col bg-background"
-        style={{ borderRadius: "0.375rem", overflow: "hidden" }}
-      >
+      <div className="h-full flex flex-col bg-background p-4">
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="flex items-center space-x-2">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
@@ -135,10 +129,7 @@ export function ExportDialog() {
   }
 
   return (
-    <div
-      className="h-full flex flex-col bg-background"
-      style={{ borderRadius: "0.375rem", overflow: "hidden" }}
-    >
+    <div className="h-full flex flex-col bg-background p-4">
       <div className="flex items-center justify-between p-4 border-b border-border">
         <div>
           <h2 className="text-lg font-semibold">Export Video</h2>
