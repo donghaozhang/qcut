@@ -11,7 +11,10 @@ class IconifyAPIClient {
   // Helper to create timeout signal with fallback for older browsers
   private createTimeoutSignal(timeout: number): AbortSignal {
     // Use native timeout if available (Chrome 94+, Firefox 93+, Node 16+)
-    if ("timeout" in AbortSignal && typeof AbortSignal.timeout === "function") {
+    if (
+      "timeout" in AbortSignal &&
+      typeof (AbortSignal as any).timeout === "function"
+    ) {
       return AbortSignal.timeout(timeout);
     }
 
@@ -43,7 +46,9 @@ class IconifyAPIClient {
           this.lastWorkingHost = host;
           return response;
         }
-      } catch (error) {}
+      } catch (error) {
+        // Silent fail, try next host (consider adding debug logging if needed)
+      }
     }
     throw new Error("All API hosts failed");
   }
