@@ -22,6 +22,9 @@ import {
   PropertyItemValue,
 } from "./property-item";
 import { TextProperties } from "./text-properties";
+import { PanelTabs } from "./panel-tabs";
+import { useExportStore } from "@/stores/export-store";
+import { ExportPanelContent } from "./export-panel-content";
 
 export function PropertiesPanel() {
   const { activeProject, updateProjectFps } = useProjectStore();
@@ -32,6 +35,9 @@ export function PropertiesPanel() {
     loading: mediaItemsLoading,
     error: mediaItemsError,
   } = useAsyncMediaItems();
+
+  const panelView = useExportStore((s) => s.panelView);
+  const setPanelView = useExportStore((s) => s.setPanelView);
 
   const handleFpsChange = (value: string) => {
     const fps = parseFloat(value);
@@ -122,37 +128,50 @@ export function PropertiesPanel() {
   }
 
   return (
-    <ScrollArea className="h-full bg-panel rounded-sm">
-      {selectedElements.length > 0
-        ? selectedElements.map(({ trackId, elementId }) => {
-            const track = tracks.find((t) => t.id === trackId);
-            const element = track?.elements.find((e) => e.id === elementId);
+    <div className="h-full flex flex-col">
+      <PanelTabs activeTab={panelView} onTabChange={setPanelView} />
+      <div className="flex-1 overflow-auto">
+        {panelView === "export" ? (
+          <ExportPanelContent />
+        ) : (
+          <ScrollArea className="h-full bg-panel rounded-sm">
+            {selectedElements.length > 0
+              ? selectedElements.map(({ trackId, elementId }) => {
+                  const track = tracks.find((t) => t.id === trackId);
+                  const element = track?.elements.find(
+                    (e) => e.id === elementId
+                  );
 
-            if (element?.type === "text") {
-              return (
-                <div key={elementId}>
-                  <TextProperties element={element} trackId={trackId} />
-                </div>
-              );
-            }
-            if (element?.type === "media") {
-              const mediaItem = mediaItems.find(
-                (item) => item.id === element.mediaId
-              );
+                  if (element?.type === "text") {
+                    return (
+                      <div key={elementId}>
+                        <TextProperties element={element} trackId={trackId} />
+                      </div>
+                    );
+                  }
+                  if (element?.type === "media") {
+                    const mediaItem = mediaItems.find(
+                      (item) => item.id === element.mediaId
+                    );
 
-              if (mediaItem?.type === "audio") {
-                return <AudioProperties key={elementId} element={element} />;
-              }
+                    if (mediaItem?.type === "audio") {
+                      return (
+                        <AudioProperties key={elementId} element={element} />
+                      );
+                    }
 
-              return (
-                <div key={elementId}>
-                  <MediaProperties element={element} />
-                </div>
-              );
-            }
-            return null;
-          })
-        : emptyView}
-    </ScrollArea>
+                    return (
+                      <div key={elementId}>
+                        <MediaProperties element={element} />
+                      </div>
+                    );
+                  }
+                  return null;
+                })
+              : emptyView}
+          </ScrollArea>
+        )}
+      </div>
+    </div>
   );
 }

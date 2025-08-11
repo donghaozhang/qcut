@@ -283,22 +283,10 @@ export function PreviewPanel() {
     return activeElements;
   }, [tracks, currentTime, mediaItems]);
 
-  const activeElements = useMemo(() => {
-    const elements = getActiveElements();
-    // Only log if we have media elements that should have loaded mediaItems but haven't
-    // and we're not in a loading state
-    if (elements.length > 0 && mediaItems.length === 0 && !mediaItemsLoading) {
-      const hasMediaElements = elements.some(
-        ({ element }) => element.type === "media"
-      );
-      if (hasMediaElements) {
-        console.log(
-          "[Preview] Active media elements found but mediaItems is empty. Preview will show placeholder."
-        );
-      }
-    }
-    return elements;
-  }, [mediaItems, getActiveElements, mediaItemsLoading]);
+  const activeElements = useMemo(
+    () => getActiveElements(),
+    [getActiveElements]
+  );
 
   // Get media elements for blur background (video/image only)
   const blurBackgroundElements = useMemo(() => {
@@ -525,38 +513,8 @@ export function PreviewPanel() {
     return tracks.flatMap((track) => track.elements || []);
   }, [tracks]);
 
-  if (
-    !mediaItems?.length &&
-    timelineElements?.length > 0 &&
-    !mediaItemsLoading &&
-    !mediaItemsError
-  ) {
-    debugLogger.warn(
-      "Preview",
-      "Timeline elements exist but no media items loaded",
-      {
-        timelineElementsCount: timelineElements.length,
-        mediaItemsCount: mediaItems?.length || 0,
-        mediaItemsLoading,
-      }
-    );
-    return (
-      <div className="h-full w-full flex flex-col min-h-0 min-w-0 bg-panel rounded-sm">
-        <div
-          className="flex-1 flex items-center justify-center p-3"
-          role="status"
-          aria-live="polite"
-        >
-          <div className="text-center">
-            <div className="text-yellow-600 mb-2">Media items not ready</div>
-            <div className="text-sm text-muted-foreground">
-              Timeline has content but media items are not ready
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // If timeline has elements but media list is still empty, prefer showing normal UI and let
+  // individual elements render placeholders as needed. Avoid global warning screen.
 
   // Handle media loading states
   if (mediaItemsError) {
