@@ -251,8 +251,21 @@ function getFFmpegPath() {
   let ffmpegPath;
 
   if (app.isPackaged) {
-    // Production: FFmpeg is in resources folder outside asar (copied by extraResources)
-    ffmpegPath = path.join(process.resourcesPath, "ffmpeg.exe");
+    // Production: FFmpeg is in the app's resources folder
+    // Path structure: resources/app/electron/resources/ffmpeg.exe
+    const appResourcePath = path.join(process.resourcesPath, "app", "electron", "resources", "ffmpeg.exe");
+    
+    if (fs.existsSync(appResourcePath)) {
+      ffmpegPath = appResourcePath;
+    } else {
+      // Fallback: try old location for backwards compatibility
+      const oldPath = path.join(process.resourcesPath, "ffmpeg.exe");
+      if (fs.existsSync(oldPath)) {
+        ffmpegPath = oldPath;
+      } else {
+        throw new Error(`FFmpeg not found. Searched:\n1. ${appResourcePath}\n2. ${oldPath}`);
+      }
+    }
   } else {
     // Development: try bundled FFmpeg first, then system PATH
     const devPath = path.join(__dirname, "resources", "ffmpeg.exe");
@@ -268,6 +281,7 @@ function getFFmpegPath() {
     throw new Error(`FFmpeg not found at: ${ffmpegPath}`);
   }
 
+  console.log(`[FFmpeg] Using FFmpeg at: ${ffmpegPath}`);
   return ffmpegPath;
 }
 

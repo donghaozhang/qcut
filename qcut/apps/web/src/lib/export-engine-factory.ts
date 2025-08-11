@@ -243,16 +243,31 @@ export class ExportEngineFactory {
               error
             );
             debugLog(
-              "[ExportEngineFactory] 🔄 Falling back to standard engine (avoiding WASM issues in Electron)"
+              "[ExportEngineFactory] 🔄 Falling back to FFmpeg WebAssembly engine"
             );
-            // In Electron, avoid WASM FFmpeg due to loading issues - use standard engine instead
-            return new ExportEngine(
-              canvas,
-              settings,
-              tracks,
-              mediaItems,
-              totalDuration
-            );
+            // Try FFmpeg WebAssembly as fallback
+            try {
+              const { FFmpegExportEngine } = await import("./export-engine-ffmpeg");
+              return new FFmpegExportEngine(
+                canvas,
+                settings,
+                tracks,
+                mediaItems,
+                totalDuration
+              );
+            } catch (wasmError) {
+              debugWarn(
+                "[ExportEngineFactory] ⚠️  FFmpeg WebAssembly also failed, using standard engine:",
+                wasmError
+              );
+              return new ExportEngine(
+                canvas,
+                settings,
+                tracks,
+                mediaItems,
+                totalDuration
+              );
+            }
           }
         } else {
           debugWarn(

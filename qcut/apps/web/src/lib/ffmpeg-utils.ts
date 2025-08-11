@@ -204,7 +204,7 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
     const wasmBlobUrl = URL.createObjectURL(wasmBlob);
 
     // Add timeout to detect hanging with environment-specific timeouts
-    const timeoutDuration = environment.hasSharedArrayBuffer ? 30_000 : 60_000; // Longer timeout without SharedArrayBuffer
+    const timeoutDuration = environment.hasSharedArrayBuffer ? 60_000 : 120_000; // More generous timeouts for large WASM files
 
     try {
       const loadPromise = ffmpeg.load({
@@ -229,18 +229,26 @@ export const initFFmpeg = async (): Promise<FFmpeg> => {
       // FFmpeg core fully loaded
       debugLog("[FFmpeg Utils] ✅ FFmpeg core loaded");
     } catch (loadError) {
-      console.error("[FFmpeg Utils] ❌ FFmpeg load failed:", loadError);
+      debugLog("[FFmpeg Utils] ❌ FFmpeg load failed:", loadError);
 
       // Cleanup blob URLs on failure
       URL.revokeObjectURL(coreBlobUrl);
       URL.revokeObjectURL(wasmBlobUrl);
+
+      // Enhanced diagnostics
+      debugLog("[FFmpeg Utils] 🔍 Environment diagnostics:", {
+        hasSharedArrayBuffer: environment.hasSharedArrayBuffer,
+        crossOriginIsolated: self.crossOriginIsolated,
+        timeoutUsed: timeoutDuration / 1000 + "s",
+        userAgent: navigator.userAgent,
+      });
 
       // Provide specific error messages based on error type
       const errorMessage =
         loadError instanceof Error ? loadError.message : String(loadError);
       if (errorMessage.includes("timeout")) {
         throw new Error(
-          "FFmpeg initialization timed out. This may be due to slow network or missing SharedArrayBuffer support."
+          `FFmpeg initialization timed out after ${timeoutDuration / 1000}s. This may be due to slow network, large WASM files, or missing SharedArrayBuffer support.`
         );
       }
       if (errorMessage.includes("SharedArrayBuffer")) {
