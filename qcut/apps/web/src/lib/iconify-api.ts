@@ -178,13 +178,20 @@ export async function downloadIconSvg(
     rotate?: number;
   } = {}
 ): Promise<string> {
-  const url = buildIconSvgUrl(collection, icon, options);
-  const response = await fetch(url);
+  const params = new URLSearchParams();
 
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  if (options.color) {
+    params.set("color", options.color);
   }
+  if (options.width) params.set("width", options.width.toString());
+  if (options.height) params.set("height", options.height.toString());
+  if (options.flip) params.set("flip", options.flip);
+  if (options.rotate) params.set("rotate", options.rotate.toString());
 
+  const queryString = params.toString();
+  const path = `/${collection}:${icon}.svg${queryString ? `?${queryString}` : ""}`;
+
+  const response = await apiClient.fetchWithFallback(path);
   const svgContent = await response.text();
   return svgContent;
 }
