@@ -63,7 +63,10 @@ function EditorPage() {
             });
           } catch (e) {
             import("@/lib/debug-config").then(({ debugError }) => {
-              debugError("[Editor] createNewProject failed after NotFoundError", e);
+              debugError(
+                "[Editor] createNewProject failed after NotFoundError",
+                e
+              );
             });
           }
         } else {

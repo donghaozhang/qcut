@@ -88,7 +88,11 @@ const isPercent = (n: unknown): n is number =>
 function isPersistedPanelState(value: unknown): value is PersistedPanelState {
   if (value == null || typeof value !== "object") return false;
   const v = value as Record<string, unknown>;
-  return isPercent(v.toolsPanel) && isPercent(v.previewPanel) && isPercent(v.propertiesPanel);
+  return (
+    isPercent(v.toolsPanel) &&
+    isPercent(v.previewPanel) &&
+    isPercent(v.propertiesPanel)
+  );
 }
 const updateTimes: number[] = [];
 
@@ -101,7 +105,7 @@ const updateTimes: number[] = [];
 const checkCircuitBreaker = (source: string) => {
   // Never block UI updates unless debug mode is explicitly enabled.
   if (!isDebugEnabled()) return false;
-  
+
   if (emergencyStop) {
     debugError(
       "🛑 [CIRCUIT-BREAKER] EMERGENCY STOP ACTIVE - Blocking update from",
@@ -264,11 +268,17 @@ export const usePanelStore = create<PanelState>()(
       setPropertiesPanel: (size) =>
         setPanelSize("propertiesPanel", size, "setPropertiesPanel"),
       setMainContent: (size) => {
-        const clamped = Math.max(MIN_VERTICAL_PANEL_SIZE, Math.min(MAX_VERTICAL_PANEL_SIZE, size));
+        const clamped = Math.max(
+          MIN_VERTICAL_PANEL_SIZE,
+          Math.min(MAX_VERTICAL_PANEL_SIZE, size)
+        );
         set({ mainContent: clamped });
       },
       setTimeline: (size) => {
-        const clamped = Math.max(MIN_VERTICAL_PANEL_SIZE, Math.min(MAX_VERTICAL_PANEL_SIZE, size));
+        const clamped = Math.max(
+          MIN_VERTICAL_PANEL_SIZE,
+          Math.min(MAX_VERTICAL_PANEL_SIZE, size)
+        );
         set({ timeline: clamped });
       },
       setAiPanelWidth: (size) => set({ aiPanelWidth: size }),

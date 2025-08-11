@@ -9,7 +9,7 @@ import { generateUUID } from "@/lib/utils";
 // Custom error class for project not found scenarios
 export class NotFoundError extends Error {
   readonly code = "PROJECT_NOT_FOUND";
-  
+
   constructor(message: string) {
     super(message);
     this.name = "NotFoundError";

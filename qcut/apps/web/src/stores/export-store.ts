@@ -24,7 +24,7 @@ export interface ExportHistoryEntry {
 interface ExportStore {
   // Dialog state
   isDialogOpen: boolean;
-  panelView: 'properties' | 'export';
+  panelView: "properties" | "export";
 
   // Export settings
   settings: ExportSettings;
@@ -40,7 +40,7 @@ interface ExportStore {
 
   // Actions
   setDialogOpen: (open: boolean) => void;
-  setPanelView: (view: 'properties' | 'export') => void;
+  setPanelView: (view: "properties" | "export") => void;
   updateSettings: (settings: Partial<ExportSettings>) => void;
   updateProgress: (progress: Partial<ExportProgress>) => void;
   setError: (error: string | null) => void;
@@ -82,7 +82,7 @@ export const useExportStore = create<ExportStore>()(
     (set, get) => ({
       // Initial state
       isDialogOpen: false,
-      panelView: 'properties',
+      panelView: "properties",
       settings: getDefaultSettings(),
       progress: getDefaultProgress(),
       error: null,

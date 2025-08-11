@@ -1,6 +1,6 @@
 export const PanelView = {
-  PROPERTIES: 'properties',
-  EXPORT: 'export'
+  PROPERTIES: "properties",
+  EXPORT: "export",
 } as const;
 
-export type PanelViewType = 'properties' | 'export';
+export type PanelViewType = "properties" | "export";
