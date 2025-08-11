@@ -24,7 +24,7 @@ const tracePanelUpdate = (source: string, data?: unknown) => {
 
   const now = Date.now();
   const timeDiff = now - lastUpdateTime;
-  
+
   // Reset counter after inactivity period
   if (timeDiff > INACTIVITY_RESET_MS) {
     updateCounter = 0;
@@ -34,7 +34,7 @@ const tracePanelUpdate = (source: string, data?: unknown) => {
 
   const logEntry = `[${updateCounter}] ${source} +${timeDiff}ms`;
   updateHistory.push(logEntry);
-  
+
   // Cap history to prevent unbounded growth
   if (updateHistory.length > MAX_HISTORY_SIZE) {
     updateHistory.splice(0, updateHistory.length - MAX_HISTORY_SIZE);
@@ -43,7 +43,10 @@ const tracePanelUpdate = (source: string, data?: unknown) => {
   debugLog(`🔍 [PanelStore] ${logEntry}`, data ?? "");
 
   // Detect rapid updates
-  if (timeDiff < RAPID_UPDATE_WINDOW_MS && updateCounter > RAPID_UPDATE_THRESHOLD) {
+  if (
+    timeDiff < RAPID_UPDATE_WINDOW_MS &&
+    updateCounter > RAPID_UPDATE_THRESHOLD
+  ) {
     debugError("⚠️ RAPID UPDATES DETECTED!", {
       count: updateCounter,
       history: updateHistory.slice(-10),
@@ -183,11 +186,9 @@ const debouncedNormalize = (normalizeFunc: () => void) => {
 };
 
 // Consolidated panel size setter to reduce duplication
-function setPanelSize<K extends "toolsPanel" | "previewPanel" | "propertiesPanel">(
-  key: K,
-  size: number,
-  source: string
-) {
+function setPanelSize<
+  K extends "toolsPanel" | "previewPanel" | "propertiesPanel",
+>(key: K, size: number, source: string) {
   if (checkCircuitBreaker(source)) return;
   if (!Number.isFinite(size)) {
     tracePanelUpdate(`${source}:INVALID`, { size });
@@ -212,7 +213,9 @@ function setPanelSize<K extends "toolsPanel" | "previewPanel" | "propertiesPanel
       action: "TOLERANCE-FIX-ALLOWED",
     });
     usePanelStore.setState({ [key]: rounded } as Pick<PanelState, K>);
-    debouncedNormalize(() => usePanelStore.getState().normalizeHorizontalPanels());
+    debouncedNormalize(() =>
+      usePanelStore.getState().normalizeHorizontalPanels()
+    );
   } else {
     tracePanelUpdate(`${source}:SKIP`, {
       current,
@@ -230,9 +233,12 @@ export const usePanelStore = create<PanelState>()(
       ...DEFAULT_PANEL_SIZES,
 
       // Actions
-      setToolsPanel: (size) => setPanelSize("toolsPanel", size, "setToolsPanel"),
-      setPreviewPanel: (size) => setPanelSize("previewPanel", size, "setPreviewPanel"),
-      setPropertiesPanel: (size) => setPanelSize("propertiesPanel", size, "setPropertiesPanel"),
+      setToolsPanel: (size) =>
+        setPanelSize("toolsPanel", size, "setToolsPanel"),
+      setPreviewPanel: (size) =>
+        setPanelSize("previewPanel", size, "setPreviewPanel"),
+      setPropertiesPanel: (size) =>
+        setPanelSize("propertiesPanel", size, "setPropertiesPanel"),
       setMainContent: (size) => set({ mainContent: size }),
       setTimeline: (size) => set({ timeline: size }),
       setAiPanelWidth: (size) => set({ aiPanelWidth: size }),
@@ -302,7 +308,8 @@ export const usePanelStore = create<PanelState>()(
       onRehydrateStorage: () => (state) => {
         // Normalize panels after rehydration
         if (state) {
-          const total = state.toolsPanel + state.previewPanel + state.propertiesPanel;
+          const total =
+            state.toolsPanel + state.previewPanel + state.propertiesPanel;
           if (Math.abs(total - 100) > SIZE_TOLERANCE) {
             // Immediately normalize if total is not 100%
             state.normalizeHorizontalPanels();
@@ -312,13 +319,17 @@ export const usePanelStore = create<PanelState>()(
       migrate: (persistedState: unknown, version: number) => {
         // Reset to defaults if coming from old version or if data is corrupted
         if (version < 7) {
-          debugLog(`[PanelStore] Migrating from version ${version} to version 7`);
+          debugLog(
+            `[PanelStore] Migrating from version ${version} to version 7`
+          );
           return DEFAULT_PANEL_SIZES;
         }
 
         // Validate persisted state
         if (!isPersistedPanelState(persistedState)) {
-          debugError("[PanelStore] Invalid persisted state, resetting to defaults");
+          debugError(
+            "[PanelStore] Invalid persisted state, resetting to defaults"
+          );
           return DEFAULT_PANEL_SIZES;
         }
 

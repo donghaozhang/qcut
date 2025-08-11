@@ -24,9 +24,15 @@ try {
   autoUpdater = require("electron-updater").autoUpdater;
 } catch (error) {
   if (log) {
-    log.warn("⚠️ [AutoUpdater] electron-updater not available: %s", error.message);
+    log.warn(
+      "⚠️ [AutoUpdater] electron-updater not available: %s",
+      error.message
+    );
   } else {
-    logger.warn("⚠️ [AutoUpdater] electron-updater not available:", error.message);
+    logger.warn(
+      "⚠️ [AutoUpdater] electron-updater not available:",
+      error.message
+    );
   }
 }
 const { setupFFmpegIPC } = require("./ffmpeg-handler.js");

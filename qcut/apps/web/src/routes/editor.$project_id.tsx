@@ -106,7 +106,9 @@ function EditorPage() {
   usePlaybackControls();
 
   // Ensure panels are normalized on mount
-  const normalizeHorizontalPanels = usePanelStore((s) => s.normalizeHorizontalPanels);
+  const normalizeHorizontalPanels = usePanelStore(
+    (s) => s.normalizeHorizontalPanels
+  );
   useEffect(() => {
     // Normalize panels after a short delay to ensure they're initialized
     const timer = setTimeout(() => {
