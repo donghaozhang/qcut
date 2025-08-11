@@ -36,7 +36,8 @@ export function PropertiesPanel() {
     error: mediaItemsError,
   } = useAsyncMediaItems();
 
-  const { panelView, setPanelView } = useExportStore();
+  const panelView = useExportStore((s) => s.panelView);
+  const setPanelView = useExportStore((s) => s.setPanelView);
 
   const handleFpsChange = (value: string) => {
     const fps = parseFloat(value);

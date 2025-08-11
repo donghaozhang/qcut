@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "./ui/button";
+import { PanelView } from "@/types/panel";
 import {
   ChevronDown,
   ArrowLeft,
@@ -36,7 +37,7 @@ export function EditorHeader() {
   const { setPanelView } = useExportStore();
 
   const handleExport = () => {
-    setPanelView('export');
+    setPanelView(PanelView.EXPORT);
   };
 
   const handleNameSave = async (newName: string) => {

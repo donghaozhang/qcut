@@ -374,7 +374,7 @@ export const usePanelStore = create<PanelState>()(
           persistedState.propertiesPanel;
 
         // If severely corrupted, reset to defaults
-        if (total < 50 || total > 150 || isNaN(total)) {
+        if (total < 50 || total > 150 || Number.isNaN(total)) {
           debugError(
             "[PanelStore] Corrupted panel sizes detected, resetting to defaults"
           );
