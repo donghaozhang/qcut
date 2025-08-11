@@ -42,14 +42,9 @@ getCollections().then(console.log);
 # Copy the complete source code from lines 9-180
 ```
 
-#### ☐ Task 5: Add Store to Index Exports (5 min)
-**Action**: Export stickers store from stores index  
-**Path**: `qcut/apps/web/src/stores/index.ts`  
-**Code to Add**:
-```typescript
-export { useStickersStore } from './stickers-store';
-export type { StickersStore, RecentSticker } from './stickers-store';
-```
+#### ☐ Task 5: ~~Add Store to Index Exports~~ (SKIP - No index.ts)
+**Note**: No stores/index.ts file exists. Stores are imported directly.  
+**Action**: Skip this task - imports will work directly from the store file
 
 ---
 
@@ -62,6 +57,7 @@ export type { StickersStore, RecentSticker } from './stickers-store';
 ```bash
 # Copy the complete source code from lines 9-454
 ```
+**Note**: Component will need modifications for `addMediaFile` → `addMediaItem`
 
 #### ☐ Task 7: Update Media Panel Index (5 min)
 **Action**: Integrate StickersView into MediaPanel  
