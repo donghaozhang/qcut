@@ -44,6 +44,6 @@ nul
 /qcut/temp-lint-output.txt
 
 # Documentation folders
-/qcut/docs/completed/*
+/qcut/docs/completed/**
 !/qcut/docs/completed/.gitkeep
 !/qcut/docs/completed/README.md
