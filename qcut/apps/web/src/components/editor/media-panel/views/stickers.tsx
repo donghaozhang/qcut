@@ -31,6 +31,7 @@ import {
   getCollection,
   POPULAR_COLLECTIONS,
 } from "@/lib/iconify-api";
+import type { IconSet } from "@/lib/iconify-api";
 import { cn } from "@/lib/utils";
 
 // Types
@@ -142,7 +143,7 @@ const FALLBACK_ICONS: Record<string, string[]> = {
 // CollectionContent Component
 interface CollectionContentProps {
   collectionPrefix: string;
-  collections: any[];
+  collections: IconSet[];
   onSelect: (iconId: string, name: string) => void;
 }
 
