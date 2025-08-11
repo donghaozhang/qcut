@@ -8,6 +8,7 @@ import { AudioView } from "./views/audio";
 import { Text2ImageView } from "./views/text2image";
 import { AdjustmentPanel } from "@/components/editor/adjustment";
 import { AiView } from "./views/ai";
+import { StickersView } from "./views/stickers";
 import React from "react";
 
 export function MediaPanel() {
@@ -17,11 +18,7 @@ export function MediaPanel() {
     media: <MediaView />,
     audio: <AudioView />,
     text: <TextView />,
-    stickers: (
-      <div className="p-4 text-muted-foreground">
-        Stickers view coming soon...
-      </div>
-    ),
+    stickers: <StickersView />,
     effects: (
       <div className="p-4 text-muted-foreground">
         Effects view coming soon...
