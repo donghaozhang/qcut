@@ -188,9 +188,14 @@ export function StickersView() {
         );
 
         // Add to media store with correct interface
+        // Create a fake File object for SVG stickers
+        const svgBlob = new Blob([`<svg></svg>`], { type: "image/svg+xml" });
+        const svgFile = new File([svgBlob], `${name}.svg`, { type: "image/svg+xml" });
+        
         await addMediaItem(activeProject.id, {
           name: `${name}.svg`,
           type: "image",
+          file: svgFile,
           url: svgUrl,
           thumbnailUrl: svgUrl,
           width: 512,
@@ -346,14 +351,13 @@ export function StickersView() {
             className="pl-10 pr-10"
           />
           {searchQuery && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 transform p-0"
+            <button
+              type="button"
+              className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 transform p-0 hover:bg-accent rounded"
               onClick={() => setSearchQuery("")}
             >
               <X className="h-4 w-4" />
-            </Button>
+            </button>
           )}
         </div>
       </div>
