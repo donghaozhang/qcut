@@ -32,7 +32,7 @@ export function BackgroundSettings() {
       label: "Blur",
       value: "blur",
     },
-  ];
+  ] as const;
 
   return (
     <Popover>
@@ -49,7 +49,7 @@ export function BackgroundSettings() {
         <div className="flex items-center justify-between w-full gap-2 z-10 bg-popover p-3">
           <h2 className="text-sm">Background</h2>
           <div className="flex items-center gap-2 text-sm">
-            {tabs.map((tab) => (
+            {tabs?.map((tab) => (
               <span
                 key={tab.value}
                 onClick={() => {
@@ -70,7 +70,7 @@ export function BackgroundSettings() {
                   activeTab === tab.value && "text-foreground"
                 )}
               >
-                {tab.label}
+                {tab?.label}
               </span>
             ))}
           </div>
