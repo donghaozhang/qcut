@@ -7,17 +7,21 @@ export const ICONIFY_HOSTS = [
 let currentHost = ICONIFY_HOSTS[0];
 
 async function fetchWithFallback(path: string): Promise<Response> {
+  console.log("[Iconify API] Fetching:", path);
   for (const host of ICONIFY_HOSTS) {
     try {
+      console.log(`[Iconify API] Trying host: ${host}${path}`);
       const response = await fetch(`${host}${path}`, {
         signal: AbortSignal.timeout(2000),
       });
+      console.log(`[Iconify API] Response status from ${host}:`, response.status);
       if (response.ok) {
         currentHost = host;
+        console.log(`[Iconify API] Success with host: ${host}`);
         return response;
       }
     } catch (error) {
-      console.warn(`Failed to fetch from ${host}:`, error);
+      console.warn(`[Iconify API] Failed to fetch from ${host}:`, error);
     }
   }
   throw new Error("All API hosts failed");

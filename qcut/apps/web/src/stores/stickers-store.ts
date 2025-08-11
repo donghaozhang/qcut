@@ -60,13 +60,19 @@ export const useStickersStore = create<StickersStore>()(
         const { collections } = get();
 
         // Don't refetch if we already have collections
-        if (collections.length > 0) return;
+        if (collections.length > 0) {
+          console.log("[StickersStore] Collections already loaded:", collections.length);
+          return;
+        }
 
+        console.log("[StickersStore] Starting to fetch collections...");
         set({ isLoading: true, error: null });
 
         try {
           const collectionsData = await getCollections();
+          console.log("[StickersStore] Raw collections data:", collectionsData);
           const collectionsArray = Object.values(collectionsData);
+          console.log("[StickersStore] Collections array:", collectionsArray.length, "items");
 
           // Sort by popularity (total icons)
           collectionsArray.sort((a, b) => b.total - a.total);
@@ -76,6 +82,8 @@ export const useStickersStore = create<StickersStore>()(
             isLoading: false,
             error: null,
           });
+          console.log("[StickersStore] Collections stored successfully");
+          console.log("[StickersStore] First 10 collection prefixes:", collectionsArray.slice(0, 10).map(c => c.prefix));
         } catch (error) {
           const errorMessage =
             error instanceof Error

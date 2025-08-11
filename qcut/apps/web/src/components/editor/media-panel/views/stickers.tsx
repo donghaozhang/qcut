@@ -61,10 +61,11 @@ function StickerItem({
           width: 32,
           height: 32,
         });
-
+        
+        console.log(`[StickerItem] Built SVG URL for ${collection}:${icon}:`, svgUrl);
         setImageUrl(svgUrl);
       } catch (error) {
-        console.error("Failed to load icon:", error);
+        console.error(`[StickerItem] Failed to load icon ${collection}:${icon}:`, error);
         setHasError(true);
       } finally {
         setIsLoading(false);
@@ -142,7 +143,9 @@ export function StickersView() {
 
   // Load collections on mount
   useEffect(() => {
+    console.log("[StickersView] Component mounted, collections:", collections.length);
     if (collections.length === 0) {
+      console.log("[StickersView] Fetching collections...");
       fetchCollections();
     }
   }, [collections.length, fetchCollections]);
@@ -291,8 +294,10 @@ export function StickersView() {
 
   const renderCollectionContent = (collectionPrefix: string) => {
     const collection = collections.find((c) => c.prefix === collectionPrefix);
+    console.log(`[StickersView] Rendering collection ${collectionPrefix}:`, collection);
 
     if (!collection) {
+      console.log(`[StickersView] Collection ${collectionPrefix} not found in:`, collections);
       return (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -305,6 +310,8 @@ export function StickersView() {
     const popularIcons =
       POPULAR_COLLECTIONS.find((c) => c.prefix === collectionPrefix)?.samples ||
       [];
+    
+    console.log(`[StickersView] Popular icons for ${collectionPrefix}:`, popularIcons);
 
     return (
       <div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
