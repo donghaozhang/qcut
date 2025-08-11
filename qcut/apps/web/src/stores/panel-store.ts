@@ -13,11 +13,23 @@ const RAPID_UPDATE_THRESHOLD = 5;
 const INACTIVITY_RESET_MS = 1000;
 const MAX_HISTORY_SIZE = 200;
 
+/**
+ * Trace panel-related updates when debug mode is enabled.
+ * Adds an entry to update history and detects rapid update bursts.
+ * @param source Short identifier for the caller.
+ * @param data Optional payload to log with the trace line.
+ */
 const tracePanelUpdate = (source: string, data?: unknown) => {
   if (!isDebugEnabled()) return;
 
   const now = Date.now();
   const timeDiff = now - lastUpdateTime;
+  
+  // Reset counter after inactivity period
+  if (timeDiff > INACTIVITY_RESET_MS) {
+    updateCounter = 0;
+    updateHistory.length = 0;
+  }
   updateCounter++;
 
   const logEntry = `[${updateCounter}] ${source} +${timeDiff}ms`;
@@ -39,12 +51,7 @@ const tracePanelUpdate = (source: string, data?: unknown) => {
     });
   }
 
-  // Reset counter after inactivity period
-  if (timeDiff > INACTIVITY_RESET_MS) {
-    updateCounter = 0;
-    updateHistory.length = 0;
-  }
-
+  // Reset handled above to ensure the first post-inactivity event is [1]
   lastUpdateTime = now;
 };
 
@@ -53,8 +60,33 @@ let emergencyStop = false;
 const MAX_UPDATES_PER_SECOND = 20;
 const SECOND_MS = 1000;
 const CIRCUIT_BREAKER_RESET_MS = 2000;
+
+// Size change tolerance for panel updates (in percent)
+const SIZE_TOLERANCE = 0.1;
+
+// Type guard for persisted panel state validation
+type PersistedPanelState = Pick<
+  PanelState,
+  "toolsPanel" | "previewPanel" | "propertiesPanel"
+>;
+
+function isPersistedPanelState(value: unknown): value is PersistedPanelState {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.toolsPanel === "number" &&
+    typeof v.previewPanel === "number" &&
+    typeof v.propertiesPanel === "number"
+  );
+}
 const updateTimes: number[] = [];
 
+/**
+ * Sliding-window circuit breaker to prevent runaway update loops.
+ * Returns true when updates should be blocked.
+ * @param source Identifier for the source attempting the update.
+ * @returns true if updates should be blocked, false otherwise.
+ */
 const checkCircuitBreaker = (source: string) => {
   if (emergencyStop) {
     debugError(
@@ -150,6 +182,47 @@ const debouncedNormalize = (normalizeFunc: () => void) => {
   }, 50); // 50ms debounce
 };
 
+// Consolidated panel size setter to reduce duplication
+function setPanelSize<K extends "toolsPanel" | "previewPanel" | "propertiesPanel">(
+  key: K,
+  size: number,
+  source: string
+) {
+  if (checkCircuitBreaker(source)) return;
+  if (!Number.isFinite(size)) {
+    tracePanelUpdate(`${source}:INVALID`, { size });
+    return;
+  }
+
+  const state = usePanelStore.getState();
+  tracePanelUpdate(`${source}:START`, {
+    incoming: size,
+    current: state[key],
+    diff: Math.abs(state[key] - size),
+  });
+
+  const rounded = Math.round(size * 100) / 100;
+  const current = state[key];
+
+  if (Math.abs(current - rounded) > SIZE_TOLERANCE) {
+    tracePanelUpdate(`${source}:UPDATE`, {
+      from: current,
+      to: rounded,
+      diff: Math.abs(current - rounded),
+      action: "TOLERANCE-FIX-ALLOWED",
+    });
+    usePanelStore.setState({ [key]: rounded } as Pick<PanelState, K>);
+    debouncedNormalize(() => usePanelStore.getState().normalizeHorizontalPanels());
+  } else {
+    tracePanelUpdate(`${source}:SKIP`, {
+      current,
+      attempted: rounded,
+      diff: Math.abs(current - rounded),
+      reason: "TOLERANCE-FIX-BLOCKED",
+    });
+  }
+}
+
 export const usePanelStore = create<PanelState>()(
   persist(
     (set, get) => ({
@@ -157,123 +230,9 @@ export const usePanelStore = create<PanelState>()(
       ...DEFAULT_PANEL_SIZES,
 
       // Actions
-      setToolsPanel: (size) => {
-        if (checkCircuitBreaker("setToolsPanel")) return;
-
-        // Ensure size is a valid finite number
-        if (!Number.isFinite(size)) {
-          tracePanelUpdate("setToolsPanel:INVALID", { size });
-          return;
-        }
-
-        tracePanelUpdate("setToolsPanel:START", {
-          incoming: size,
-          current: get().toolsPanel,
-          diff: Math.abs(get().toolsPanel - size),
-        });
-
-        // Round to 2 decimal places to reduce precision errors
-        const roundedSize = Math.round(size * 100) / 100;
-        const currentSize = get().toolsPanel;
-
-        // Only update if the size actually changed (prevents infinite loops)
-        // Increased tolerance to handle react-resizable-panels floating-point precision
-        if (Math.abs(currentSize - roundedSize) > 0.1) {
-          tracePanelUpdate("setToolsPanel:UPDATE", {
-            from: currentSize,
-            to: roundedSize,
-            diff: Math.abs(currentSize - roundedSize),
-            action: "TOLERANCE-FIX-ALLOWED",
-          });
-          set({ toolsPanel: roundedSize });
-          debouncedNormalize(() => get().normalizeHorizontalPanels());
-        } else {
-          tracePanelUpdate("setToolsPanel:SKIP", {
-            current: currentSize,
-            attempted: roundedSize,
-            diff: Math.abs(currentSize - roundedSize),
-            reason: "TOLERANCE-FIX-BLOCKED",
-          });
-        }
-      },
-      setPreviewPanel: (size) => {
-        if (checkCircuitBreaker("setPreviewPanel")) return;
-
-        // Ensure size is a valid finite number
-        if (!Number.isFinite(size)) {
-          tracePanelUpdate("setPreviewPanel:INVALID", { size });
-          return;
-        }
-
-        tracePanelUpdate("setPreviewPanel:START", {
-          incoming: size,
-          current: get().previewPanel,
-          diff: Math.abs(get().previewPanel - size),
-        });
-
-        // Round to 2 decimal places to reduce precision errors
-        const roundedSize = Math.round(size * 100) / 100;
-        const currentSize = get().previewPanel;
-
-        // Only update if the size actually changed (prevents infinite loops)
-        // Increased tolerance to handle react-resizable-panels floating-point precision
-        if (Math.abs(currentSize - roundedSize) > 0.1) {
-          tracePanelUpdate("setPreviewPanel:UPDATE", {
-            from: currentSize,
-            to: roundedSize,
-            diff: Math.abs(currentSize - roundedSize),
-            action: "TOLERANCE-FIX-ALLOWED",
-          });
-          set({ previewPanel: roundedSize });
-          debouncedNormalize(() => get().normalizeHorizontalPanels());
-        } else {
-          tracePanelUpdate("setPreviewPanel:SKIP", {
-            current: currentSize,
-            attempted: roundedSize,
-            diff: Math.abs(currentSize - roundedSize),
-            reason: "TOLERANCE-FIX-BLOCKED",
-          });
-        }
-      },
-      setPropertiesPanel: (size) => {
-        if (checkCircuitBreaker("setPropertiesPanel")) return;
-
-        // Ensure size is a valid finite number
-        if (!Number.isFinite(size)) {
-          tracePanelUpdate("setPropertiesPanel:INVALID", { size });
-          return;
-        }
-
-        tracePanelUpdate("setPropertiesPanel:START", {
-          incoming: size,
-          current: get().propertiesPanel,
-          diff: Math.abs(get().propertiesPanel - size),
-        });
-
-        // Round to 2 decimal places to reduce precision errors
-        const roundedSize = Math.round(size * 100) / 100;
-        const currentSize = get().propertiesPanel;
-
-        // Only update if the size actually changed (prevents infinite loops)
-        // Increased tolerance to handle react-resizable-panels floating-point precision
-        if (Math.abs(currentSize - roundedSize) > 0.1) {
-          tracePanelUpdate("setPropertiesPanel:UPDATE", {
-            from: currentSize,
-            to: roundedSize,
-            diff: Math.abs(currentSize - roundedSize),
-            action: "TOLERANCE-FIX-ALLOWED",
-          });
-          set({ propertiesPanel: roundedSize });
-          debouncedNormalize(() => get().normalizeHorizontalPanels());
-        } else {
-          tracePanelUpdate("setPropertiesPanel:SKIP", {
-            current: currentSize,
-            attempted: roundedSize,
-            diff: Math.abs(currentSize - roundedSize),
-            reason: "TOLERANCE-FIX-BLOCKED",
-          });
-        }
-      },
+      setToolsPanel: (size) => setPanelSize("toolsPanel", size, "setToolsPanel"),
+      setPreviewPanel: (size) => setPanelSize("previewPanel", size, "setPreviewPanel"),
+      setPropertiesPanel: (size) => setPanelSize("propertiesPanel", size, "setPropertiesPanel"),
       setMainContent: (size) => set({ mainContent: size }),
       setTimeline: (size) => set({ timeline: size }),
       setAiPanelWidth: (size) => set({ aiPanelWidth: size }),
@@ -299,9 +258,7 @@ export const usePanelStore = create<PanelState>()(
         });
 
         // Use a larger tolerance to avoid constant corrections from floating-point precision issues
-        const tolerance = 0.1; // 0.1% tolerance
-
-        if (Math.abs(total - 100) > tolerance) {
+        if (Math.abs(total - 100) > SIZE_TOLERANCE) {
           tracePanelUpdate("normalizeHorizontalPanels:NORMALIZE_NEEDED", {
             total,
             deviation: total - 100,
@@ -346,13 +303,13 @@ export const usePanelStore = create<PanelState>()(
         // Normalize panels after rehydration
         if (state) {
           const total = state.toolsPanel + state.previewPanel + state.propertiesPanel;
-          if (Math.abs(total - 100) > 0.1) {
+          if (Math.abs(total - 100) > SIZE_TOLERANCE) {
             // Immediately normalize if total is not 100%
             state.normalizeHorizontalPanels();
           }
         }
       },
-      migrate: (persistedState: any, version: number) => {
+      migrate: (persistedState: unknown, version: number) => {
         // Reset to defaults if coming from old version or if data is corrupted
         if (version < 7) {
           debugLog(`[PanelStore] Migrating from version ${version} to version 7`);
@@ -360,15 +317,8 @@ export const usePanelStore = create<PanelState>()(
         }
 
         // Validate persisted state
-        if (
-          !persistedState ||
-          typeof persistedState.toolsPanel !== "number" ||
-          typeof persistedState.previewPanel !== "number" ||
-          typeof persistedState.propertiesPanel !== "number"
-        ) {
-          console.warn(
-            "[PanelStore] Invalid persisted state, resetting to defaults"
-          );
+        if (!isPersistedPanelState(persistedState)) {
+          debugError("[PanelStore] Invalid persisted state, resetting to defaults");
           return DEFAULT_PANEL_SIZES;
         }
 
@@ -379,14 +329,14 @@ export const usePanelStore = create<PanelState>()(
           persistedState.propertiesPanel;
 
         // If severely corrupted, reset to defaults
-        if (total < 50 || total > 150 || isNaN(total)) {
-          console.warn(
+        if (total < 50 || total > 150 || Number.isNaN(total)) {
+          debugError(
             "[PanelStore] Corrupted panel sizes detected, resetting to defaults"
           );
           return DEFAULT_PANEL_SIZES;
         }
 
-        if (Math.abs(total - 100) > 0.1) {
+        if (Math.abs(total - 100) > SIZE_TOLERANCE) {
           const factor = 100 / total;
           const normalizedTools =
             Math.round(persistedState.toolsPanel * factor * 100) / 100;
