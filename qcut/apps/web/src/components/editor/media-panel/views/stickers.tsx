@@ -27,6 +27,7 @@ import { useMediaStore } from "@/stores/media-store";
 import { useProjectStore } from "@/stores/project-store";
 import {
   buildIconSvgUrl,
+  downloadIconSvg,
   getCollection,
   POPULAR_COLLECTIONS,
 } from "@/lib/iconify-api";
@@ -54,35 +55,29 @@ function StickerItem({
   const [imageUrl, setImageUrl] = useState<string>("");
 
   useEffect(() => {
-    const loadImage = async () => {
-      setIsLoading(true);
-      setHasError(false);
-
-      try {
-        // Build the SVG URL for this icon
-        const svgUrl = buildIconSvgUrl(collection, icon, {
-          color: "currentColor",
-          width: 32,
-          height: 32,
-        });
-
-        console.log(
-          `[StickerItem] Built SVG URL for ${collection}:${icon}:`,
-          svgUrl
-        );
-        setImageUrl(svgUrl);
-      } catch (error) {
-        console.error(
-          `[StickerItem] Failed to load icon ${collection}:${icon}:`,
-          error
-        );
-        setHasError(true);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadImage();
+    // Reset state for new icon
+    setIsLoading(true);
+    setHasError(false);
+    
+    try {
+      const svgUrl = buildIconSvgUrl(collection, icon, {
+        color: "currentColor",
+        width: 32,
+        height: 32,
+      });
+      console.log(
+        `[StickerItem] Built SVG URL for ${collection}:${icon}:`,
+        svgUrl
+      );
+      setImageUrl(svgUrl);
+    } catch (error) {
+      console.error(
+        `[StickerItem] Failed to build icon URL for ${collection}:${icon}:`,
+        error
+      );
+      setHasError(true);
+      setIsLoading(false);
+    }
   }, [icon, collection]);
 
   const handleClick = () => {
@@ -101,17 +96,22 @@ function StickerItem({
               isSelected && "border-primary bg-accent"
             )}
             onClick={handleClick}
-            disabled={isLoading || hasError}
+            disabled={hasError || !imageUrl}
           >
-            {isLoading ? (
+            {isLoading && (
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            ) : hasError ? (
+            )}
+            {hasError && !isLoading && (
               <AlertCircle className="h-6 w-6 text-destructive" />
-            ) : (
+            )}
+            {imageUrl && (
               <img
                 src={imageUrl}
                 alt={name || icon}
-                className="h-8 w-8 object-contain"
+                className={cn(
+                  "h-8 w-8 object-contain",
+                  (isLoading || hasError) && "hidden"
+                )}
                 onLoad={() => setIsLoading(false)}
                 onError={() => {
                   setHasError(true);
@@ -347,30 +347,29 @@ export function StickersView() {
       }
 
       try {
-        // Build the icon SVG URL
-        const svgUrl = buildIconSvgUrl(
-          iconId.split(":")[0],
-          iconId.split(":")[1],
-          {
-            color: "currentColor",
-            width: 512,
-            height: 512,
-          }
-        );
+        // Download the actual SVG content
+        const [collection, icon] = iconId.split(":");
+        const svgContent = await downloadIconSvg(collection, icon, {
+          color: "currentColor",
+          width: 512,
+          height: 512,
+        });
 
-        // Add to media store with correct interface
-        // Create a fake File object for SVG stickers
-        const svgBlob = new Blob(["<svg></svg>"], { type: "image/svg+xml" });
+        // Create a File object from the downloaded SVG content
+        const svgBlob = new Blob([svgContent], { type: "image/svg+xml" });
         const svgFile = new File([svgBlob], `${name}.svg`, {
           type: "image/svg+xml",
         });
+
+        // Create a local blob URL for preview
+        const objectUrl = URL.createObjectURL(svgBlob);
 
         await addMediaItem(activeProject.id, {
           name: `${name}.svg`,
           type: "image",
           file: svgFile,
-          url: svgUrl,
-          thumbnailUrl: svgUrl,
+          url: objectUrl,
+          thumbnailUrl: objectUrl,
           width: 512,
           height: 512,
           duration: 0,
@@ -380,6 +379,10 @@ export function StickersView() {
         addRecentSticker(iconId, name);
 
         toast.success(`Added ${name} to project`);
+        
+        // Note: In a production app, you might want to track and revoke
+        // these object URLs when components unmount or media is removed
+        // to prevent memory leaks: URL.revokeObjectURL(objectUrl)
       } catch (error) {
         console.error("Failed to add sticker:", error);
         toast.error("Failed to add sticker to project");
@@ -387,11 +390,6 @@ export function StickersView() {
     },
     [activeProject, addMediaItem, addRecentSticker]
   );
-
-  const filteredCollections = useMemo(() => {
-    if (selectedCollection === "all") return collections;
-    return collections.filter((col) => col.prefix === selectedCollection);
-  }, [collections, selectedCollection]);
 
   const renderSearchResults = () => {
     if (isSearching) {

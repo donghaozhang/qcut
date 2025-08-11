@@ -4,31 +4,48 @@ export const ICONIFY_HOSTS = [
   "https://api.unisvg.com",
 ];
 
-let currentHost = ICONIFY_HOSTS[0];
-
-async function fetchWithFallback(path: string): Promise<Response> {
-  console.log("[Iconify API] Fetching:", path);
-  for (const host of ICONIFY_HOSTS) {
-    try {
-      console.log(`[Iconify API] Trying host: ${host}${path}`);
-      const response = await fetch(`${host}${path}`, {
-        signal: AbortSignal.timeout(2000),
-      });
-      console.log(
-        `[Iconify API] Response status from ${host}:`,
-        response.status
-      );
-      if (response.ok) {
-        currentHost = host;
-        console.log(`[Iconify API] Success with host: ${host}`);
-        return response;
+// Encapsulate API state to avoid race conditions
+class IconifyAPIClient {
+  private lastWorkingHost: string = ICONIFY_HOSTS[0];
+  
+  async fetchWithFallback(path: string): Promise<Response> {
+    console.log("[Iconify API] Fetching:", path);
+    
+    // Try last working host first for better performance
+    const hostsToTry = [
+      this.lastWorkingHost, 
+      ...ICONIFY_HOSTS.filter(h => h !== this.lastWorkingHost)
+    ];
+    
+    for (const host of hostsToTry) {
+      try {
+        console.log(`[Iconify API] Trying host: ${host}${path}`);
+        const response = await fetch(`${host}${path}`, {
+          signal: AbortSignal.timeout(2000),
+        });
+        console.log(
+          `[Iconify API] Response status from ${host}:`,
+          response.status
+        );
+        if (response.ok) {
+          this.lastWorkingHost = host;
+          console.log(`[Iconify API] Success with host: ${host}`);
+          return response;
+        }
+      } catch (error) {
+        console.warn(`[Iconify API] Failed to fetch from ${host}:`, error);
       }
-    } catch (error) {
-      console.warn(`[Iconify API] Failed to fetch from ${host}:`, error);
     }
+    throw new Error("All API hosts failed");
   }
-  throw new Error("All API hosts failed");
+  
+  getCurrentHost(): string {
+    return this.lastWorkingHost;
+  }
 }
+
+// Create a singleton instance for the application
+const apiClient = new IconifyAPIClient();
 
 export interface IconSet {
   prefix: string;
@@ -70,7 +87,7 @@ export async function getCollections(
   category?: string
 ): Promise<Record<string, IconSet>> {
   try {
-    const response = await fetchWithFallback("/collections?pretty=1");
+    const response = await apiClient.fetchWithFallback("/collections?pretty=1");
     const data = (await response.json()) as Record<string, IconSet>;
 
     if (category) {
@@ -91,7 +108,7 @@ export async function getCollections(
 
 export async function getCollection(prefix: string): Promise<CollectionInfo> {
   try {
-    const response = await fetchWithFallback(
+    const response = await apiClient.fetchWithFallback(
       `/collection?prefix=${prefix}&pretty=1`
     );
     const data = (await response.json()) as CollectionInfo;
@@ -115,7 +132,7 @@ export async function searchIcons(
       pretty: "1",
     });
 
-    const response = await fetchWithFallback(`/search?${params}`);
+    const response = await apiClient.fetchWithFallback(`/search?${params}`);
     const data = (await response.json()) as IconSearchResult;
     return data;
   } catch (error) {
@@ -147,7 +164,7 @@ export function buildIconSvgUrl(
   if (options.rotate) params.set("rotate", options.rotate.toString());
 
   const queryString = params.toString();
-  const baseUrl = `${currentHost}/${collection}:${icon}.svg`;
+  const baseUrl = `${apiClient.getCurrentHost()}/${collection}:${icon}.svg`;
 
   return queryString ? `${baseUrl}?${queryString}` : baseUrl;
 }
