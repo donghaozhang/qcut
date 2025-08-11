@@ -67,6 +67,14 @@ const CIRCUIT_BREAKER_RESET_MS = 2000;
 // Size change tolerance for panel updates (in percent)
 const SIZE_TOLERANCE = 0.1;
 
+// Valid range for panel sizes (in percent)
+const MIN_PANEL_SIZE = 5; // Minimum 5% to ensure panels remain usable
+const MAX_PANEL_SIZE = 80; // Maximum 80% to prevent panels from taking over entire UI
+
+// Valid range for vertical panels (mainContent/timeline split)
+const MIN_VERTICAL_PANEL_SIZE = 10; // Minimum 10% for vertical panels
+const MAX_VERTICAL_PANEL_SIZE = 90; // Maximum 90% for vertical panels
+
 // Type guard for persisted panel state validation
 type PersistedPanelState = Pick<
   PanelState,
@@ -214,24 +222,25 @@ function setPanelSize<
   });
 
   const rounded = Math.round(size * 100) / 100;
+  const clamped = Math.max(MIN_PANEL_SIZE, Math.min(MAX_PANEL_SIZE, rounded));
   const current = state[key];
 
-  if (Math.abs(current - rounded) > SIZE_TOLERANCE) {
+  if (Math.abs(current - clamped) > SIZE_TOLERANCE) {
     tracePanelUpdate(`${source}:UPDATE`, {
       from: current,
-      to: rounded,
-      diff: Math.abs(current - rounded),
+      to: clamped,
+      diff: Math.abs(current - clamped),
       action: "TOLERANCE-FIX-ALLOWED",
     });
-    usePanelStore.setState({ [key]: rounded } as Pick<PanelState, K>);
+    usePanelStore.setState({ [key]: clamped } as Pick<PanelState, K>);
     debouncedNormalize(() =>
       usePanelStore.getState().normalizeHorizontalPanels()
     );
   } else {
     tracePanelUpdate(`${source}:SKIP`, {
       current,
-      attempted: rounded,
-      diff: Math.abs(current - rounded),
+      attempted: clamped,
+      diff: Math.abs(current - clamped),
       reason: "TOLERANCE-FIX-BLOCKED",
     });
   }
@@ -250,8 +259,14 @@ export const usePanelStore = create<PanelState>()(
         setPanelSize("previewPanel", size, "setPreviewPanel"),
       setPropertiesPanel: (size) =>
         setPanelSize("propertiesPanel", size, "setPropertiesPanel"),
-      setMainContent: (size) => set({ mainContent: size }),
-      setTimeline: (size) => set({ timeline: size }),
+      setMainContent: (size) => {
+        const clamped = Math.max(MIN_VERTICAL_PANEL_SIZE, Math.min(MAX_VERTICAL_PANEL_SIZE, size));
+        set({ mainContent: clamped });
+      },
+      setTimeline: (size) => {
+        const clamped = Math.max(MIN_VERTICAL_PANEL_SIZE, Math.min(MAX_VERTICAL_PANEL_SIZE, size));
+        set({ timeline: clamped });
+      },
       setAiPanelWidth: (size) => set({ aiPanelWidth: size }),
 
       // Normalize horizontal panels to ensure they add up to 100%

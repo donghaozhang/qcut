@@ -1,10 +1,11 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
+import { PanelViewType } from '@/types/panel';
 
 interface PanelTabsProps {
-  activeTab: 'properties' | 'export';
-  onTabChange: (tab: 'properties' | 'export') => void;
+  activeTab: PanelViewType;
+  onTabChange: (tab: PanelViewType) => void;
 }
 
 export function PanelTabs({ activeTab, onTabChange }: PanelTabsProps) {

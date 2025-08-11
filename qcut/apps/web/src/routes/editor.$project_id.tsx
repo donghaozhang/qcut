@@ -12,7 +12,7 @@ import { PreviewPanel } from "@/components/editor/preview-panel";
 import { EditorHeader } from "@/components/editor-header";
 import { usePanelStore } from "@/stores/panel-store";
 import { EditorProvider } from "@/components/editor-provider";
-import { useProjectStore } from "@/stores/project-store";
+import { useProjectStore, NotFoundError } from "@/stores/project-store";
 import { usePlaybackControls } from "@/hooks/use-playback-controls";
 import { Onboarding } from "@/components/onboarding";
 
@@ -51,11 +51,7 @@ function EditorPage() {
         await loadProject(project_id);
         if (cancelled) return;
       } catch (error) {
-        const isNotFound =
-          error instanceof Error &&
-          (error.message.includes("not found") ||
-            error.message.includes("does not exist") ||
-            error.message.includes("Project not found"));
+        const isNotFound = error instanceof NotFoundError;
         if (isNotFound) {
           markProjectIdAsInvalid(project_id);
           try {
@@ -65,8 +61,10 @@ function EditorPage() {
               to: "/editor/$project_id",
               params: { project_id: newId },
             });
-          } catch {
-            // noop
+          } catch (e) {
+            import("@/lib/debug-config").then(({ debugError }) => {
+              debugError("[Editor] createNewProject failed after NotFoundError", e);
+            });
           }
         } else {
           // Allow retries on non-not-found errors

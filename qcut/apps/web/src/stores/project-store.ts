@@ -6,6 +6,16 @@ import { getMediaStore } from "./media-store-loader";
 import { useTimelineStore } from "./timeline-store";
 import { generateUUID } from "@/lib/utils";
 
+// Custom error class for project not found scenarios
+export class NotFoundError extends Error {
+  readonly code = "PROJECT_NOT_FOUND";
+  
+  constructor(message: string) {
+    super(message);
+    this.name = "NotFoundError";
+  }
+}
+
 interface ProjectStore {
   activeProject: TProject | null;
   savedProjects: TProject[];
@@ -192,7 +202,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
           timelineStore.loadProjectTimeline(id),
         ]);
       } else {
-        throw new Error(`Project with id ${id} not found`);
+        throw new NotFoundError(`Project ${id} not found`);
       }
     } catch (error) {
       console.error("Failed to load project:", error);
@@ -313,7 +323,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         toast.error("Project not found", {
           description: "Please try again",
         });
-        throw new Error("Project not found");
+        throw new NotFoundError(`Project ${projectId} not found`);
       }
 
       const { savedProjects } = get();
