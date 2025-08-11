@@ -1,11 +1,15 @@
 # PR #539: apps/web/src/lib/iconify-api.ts
 
 **File**: New file creation  
-**Purpose**: Iconify API integration service for fetching sticker collections and data
+**Purpose**: Iconify API integration service
+for fetching sticker collections and
+data;
 
-## Complete Source Code
-
-```typescript
+#
+#
+Complete;
+Source;
+Code```typescript
 export const ICONIFY_HOSTS = [
   "https://api.iconify.design",
   "https://api.simplesvg.com",
@@ -17,7 +21,16 @@ let currentHost = ICONIFY_HOSTS[0];
 async function fetchWithFallback(path: string): Promise<Response> {
   for (const host of ICONIFY_HOSTS) {
     try {
-      const response = await fetch(`${host}${path}`, {
+      const response = await fetch(`;
+$;
+{
+  host;
+}
+$;
+{
+  path;
+}
+`, {
         signal: AbortSignal.timeout(2000),
       });
       if (response.ok) {
@@ -25,10 +38,19 @@ async function fetchWithFallback(path: string): Promise<Response> {
         return response;
       }
     } catch (error) {
-      console.warn(`Failed to fetch from ${host}:`, error);
-    }
+      console.warn(`;
+Failed;
+to;
+fetch;
+from;
+$;
+{
+  host;
+}
+:`, error)
+}
   }
-  throw new Error("All API hosts failed");
+throw new Error("All API hosts failed");
 }
 
 export interface IconSet {
@@ -76,7 +98,9 @@ export async function getCollections(
 
     if (category) {
       const filtered = Object.fromEntries(
-        Object.entries(data).filter(([, iconSet]) => iconSet.category === category)
+        Object.entries(data).filter(
+          ([, iconSet]) => iconSet.category === category
+        )
       );
       return filtered;
     }
@@ -90,7 +114,9 @@ export async function getCollections(
 
 export async function getCollection(prefix: string): Promise<CollectionInfo> {
   try {
-    const response = await fetchWithFallback(`/collection?prefix=${prefix}&pretty=1`);
+    const response = await fetchWithFallback(
+      `/collection?prefix=${prefix}&pretty=1`
+    );
     const data = (await response.json()) as CollectionInfo;
     return data;
   } catch (error) {
@@ -101,8 +127,8 @@ export async function getCollection(prefix: string): Promise<CollectionInfo> {
 
 export async function searchIcons(
   query: string,
-  limit: number = 100,
-  start: number = 0
+  limit = 100,
+  start = 0
 ): Promise<IconSearchResult> {
   try {
     const params = new URLSearchParams({
@@ -392,15 +418,15 @@ export class IconifyAPI {
 
   // Get all available collections
   async getCollections(): Promise<IconifyCollection[]> {
-    const cacheKey = 'collections';
-    
+    const cacheKey = "collections";
+
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey);
     }
 
     try {
       const response = await fetch(`${this.baseUrl}/collections`);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -414,7 +440,7 @@ export class IconifyAPI {
       this.cache.set(cacheKey, collections);
       return collections;
     } catch (error) {
-      console.error('Failed to fetch collections:', error);
+      console.error("Failed to fetch collections:", error);
       throw error;
     }
   }
@@ -422,14 +448,16 @@ export class IconifyAPI {
   // Get icons from a specific collection
   async getCollection(prefix: string): Promise<string[]> {
     const cacheKey = `collection:${prefix}`;
-    
+
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey);
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/collection?prefix=${prefix}`);
-      
+      const response = await fetch(
+        `${this.baseUrl}/collection?prefix=${prefix}`
+      );
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -439,7 +467,7 @@ export class IconifyAPI {
 
       // Add categorized icons
       if (data.categories) {
-        Object.values(data.categories).forEach(categoryIcons => {
+        Object.values(data.categories).forEach((categoryIcons) => {
           icons.push(...categoryIcons);
         });
       }
@@ -462,7 +490,7 @@ export class IconifyAPI {
       const response = await fetch(
         `${this.baseUrl}/search?query=${encodeURIComponent(query)}&limit=${limit}`
       );
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -470,7 +498,7 @@ export class IconifyAPI {
       const data: SearchResult = await response.json();
       return data;
     } catch (error) {
-      console.error('Failed to search icons:', error);
+      console.error("Failed to search icons:", error);
       throw error;
     }
   }
@@ -478,14 +506,14 @@ export class IconifyAPI {
   // Get SVG content for an icon
   async getIconSvg(icon: string): Promise<string> {
     const cacheKey = `svg:${icon}`;
-    
+
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey);
     }
 
     try {
       const response = await fetch(`${this.baseUrl}/${icon}.svg`);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -511,24 +539,27 @@ export class IconifyAPI {
 }
 
 // Utility functions
-export function getIconSvgUrl(icon: string, options?: {
-  color?: string;
-  width?: number;
-  height?: number;
-}): string {
+export function getIconSvgUrl(
+  icon: string,
+  options?: {
+    color?: string;
+    width?: number;
+    height?: number;
+  }
+): string {
   const params = new URLSearchParams();
-  
-  if (options?.color) params.set('color', options.color);
-  if (options?.width) params.set('width', options.width.toString());
-  if (options?.height) params.set('height', options.height.toString());
+
+  if (options?.color) params.set("color", options.color);
+  if (options?.width) params.set("width", options.width.toString());
+  if (options?.height) params.set("height", options.height.toString());
 
   const queryString = params.toString();
-  return `${ICONIFY_BASE_URL}/${icon}.svg${queryString ? `?${queryString}` : ''}`;
+  return `${ICONIFY_BASE_URL}/${icon}.svg${queryString ? `?${queryString}` : ""}`;
 }
 
 export function buildIconSvgUrl(
-  collection: string, 
-  icon: string, 
+  collection: string,
+  icon: string,
   options?: {
     color?: string;
     width?: number;
@@ -538,9 +569,12 @@ export function buildIconSvgUrl(
   return getIconSvgUrl(`${collection}:${icon}`, options);
 }
 
-export function parseIconName(iconName: string): { collection: string; name: string } {
-  const [collection, name] = iconName.split(':');
-  return { collection: collection || '', name: name || '' };
+export function parseIconName(iconName: string): {
+  collection: string;
+  name: string;
+} {
+  const [collection, name] = iconName.split(":");
+  return { collection: collection || "", name: name || "" };
 }
 
 export function isValidIconName(iconName: string): boolean {
@@ -552,24 +586,27 @@ export const iconifyAPI = new IconifyAPI();
 
 // Error types
 export class IconifyError extends Error {
-  constructor(message: string, public code?: string) {
+  constructor(
+    message: string,
+    public code?: string
+  ) {
     super(message);
-    this.name = 'IconifyError';
+    this.name = "IconifyError";
   }
 }
 
 export class NetworkError extends IconifyError {
   constructor(message: string) {
-    super(message, 'NETWORK_ERROR');
+    super(message, "NETWORK_ERROR");
   }
 }
 
 export class RateLimitError extends IconifyError {
   constructor(message: string) {
-    super(message, 'RATE_LIMIT');
+    super(message, "RATE_LIMIT");
   }
 }
-```
+""`
 
 ## Key Features
 
@@ -583,21 +620,43 @@ export class RateLimitError extends IconifyError {
 
 ## API Endpoints Used
 
-- `GET /collections` - List all available collections
-- `GET /collection?prefix={id}` - Get icons from specific collection
+- `;
+GET /
+  collections` - List all available collections
+- `;
+GET /collection?prefix={id}` - Get icons from specific collection
 - `GET /search?query={term}&limit={n}` - Search icons
-- `GET /{collection}:{icon}.svg` - Get icon SVG with options
+- `GET /{collection}
+:
+{
+  icon;
+}
+.svg` - Get icon SVG
+with options
 
-## Configuration
+#
+#
+Configuration
 
-- **Base URL**: `https://api.iconify.design`
-- **Fallback Hosts**: Multiple hosts for redundancy
-- **Popular Collections**: Curated list of commonly used icon sets
-- **Cache Strategy**: In-memory caching with manual cache management
+- **Base
+URL**
+: `https://api.iconify.design`
+- **Fallback Hosts**: Multiple hosts
+for redundancy
+- **Popular Collections**
+: Curated list of commonly used icon sets
+- **Cache Strategy**: In-memory caching
+with manual cache
+management;
 
-## Error Handling
+#
+#
+Error;
+Handling
 
-- **Network Errors**: Connection and timeout issues
+- **Network
+Errors**
+: Connection and timeout issues
 - **Rate Limiting**: API quota exceeded scenarios
 - **Invalid Responses**: Malformed or missing data
 - **Not Found**: Missing collections or icons

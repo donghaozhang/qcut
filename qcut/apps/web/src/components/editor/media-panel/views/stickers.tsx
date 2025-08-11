@@ -1,14 +1,3 @@
-# PR #539: apps/web/src/components/editor/media-panel/views/stickers.tsx
-
-**File**: New file creation  
-**Purpose**: Primary UI component
-for sticker browsing and selection
-
-#
-#
-Complete;
-Source;
-Code```typescript
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -86,16 +75,7 @@ function StickerItem({
   }, [icon, collection]);
 
   const handleClick = () => {
-    const iconId = `;
-$;
-{
-  collection;
-}
-:$
-{
-  icon;
-}
-`;
+    const iconId = `${collection}:${icon}`;
     onSelect(iconId, name || icon);
   };
 
@@ -104,6 +84,7 @@ $;
       <Tooltip>
         <TooltipTrigger asChild>
           <button
+            type="button"
             className={cn(
               "relative flex h-16 w-16 flex-col items-center justify-center rounded-lg border-2 border-border bg-background transition-all hover:border-primary hover:bg-accent",
               isSelected && "border-primary bg-accent"
@@ -156,8 +137,8 @@ export function StickersView() {
     addRecentSticker,
   } = useStickersStore();
 
-  const { addMediaFile } = useMediaStore();
-  const { currentProject } = useProjectStore();
+  const { addMediaItem } = useMediaStore();
+  const { activeProject } = useProjectStore();
 
   // Load collections on mount
   useEffect(() => {
@@ -189,13 +170,13 @@ export function StickersView() {
 
   const handleStickerSelect = useCallback(
     async (iconId: string, name: string) => {
-      if (!currentProject) {
+      if (!activeProject) {
         toast.error("No project selected");
         return;
       }
 
       try {
-        // Download the icon as SVG
+        // Build the icon SVG URL
         const svgUrl = buildIconSvgUrl(
           iconId.split(":")[0],
           iconId.split(":")[1],
@@ -206,154 +187,137 @@ export function StickersView() {
           }
         );
 
-        // Add to media store
-        await addMediaFile({
-          id: `;
-sticker - $;
-{
-  Date.now();
-}
-`,
-          name: `;
-$;
-{
-  name;
-}
-.svg`,
-type: "image/svg+xml", url;
-: svgUrl,
-          size: 0, // SVG size is not easily determined
-          duration: 0,
+        // Add to media store with correct interface
+        await addMediaItem(activeProject.id, {
+          name: `${name}.svg`,
+          type: "image",
+          url: svgUrl,
           thumbnailUrl: svgUrl,
-          metadata:
-{
-  width: 512, height;
-  : 512,
-            iconId,
-            collection: iconId.split(":")[0],
-}
-,
-        })
+          width: 512,
+          height: 512,
+          duration: 0,
+        });
 
-// Add to recent stickers
-addRecentSticker(iconId, name);
+        // Add to recent stickers
+        addRecentSticker(iconId, name);
 
-toast.success(`Added ${name} to project`);
-} catch (error)
-{
-  console.error("Failed to add sticker:", error);
-  toast.error("Failed to add sticker to project");
-}
-},
-    [currentProject, addMediaFile, addRecentSticker]
-  )
+        toast.success(`Added ${name} to project`);
+      } catch (error) {
+        console.error("Failed to add sticker:", error);
+        toast.error("Failed to add sticker to project");
+      }
+    },
+    [activeProject, addMediaItem, addRecentSticker]
+  );
 
-const filteredCollections = useMemo(() => {
-  if (selectedCollection === "all") return collections;
-  return collections.filter((col) => col.prefix === selectedCollection);
-}, [collections, selectedCollection]);
+  const filteredCollections = useMemo(() => {
+    if (selectedCollection === "all") return collections;
+    return collections.filter((col) => col.prefix === selectedCollection);
+  }, [collections, selectedCollection]);
 
-const renderSearchResults = () => {
-  if (isSearching) {
+  const renderSearchResults = () => {
+    if (isSearching) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+
+    if (searchResults.length === 0 && searchQuery) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <Search className="mb-4 h-12 w-12 text-muted-foreground" />
+          <p className="text-lg font-medium">No icons found</p>
+          <p className="text-muted-foreground">
+            Try searching with different keywords
+          </p>
+        </div>
+      );
+    }
+
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
+        {searchResults.map((result) => {
+          const [collection, iconName] = result.split(":");
+          return (
+            <StickerItem
+              key={result}
+              icon={iconName}
+              name={iconName}
+              collection={collection}
+              onSelect={handleStickerSelect}
+            />
+          );
+        })}
       </div>
     );
-  }
+  };
 
-  if (searchResults.length === 0 && searchQuery) {
+  const renderRecentStickers = () => {
+    if (recentStickers.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <Clock className="mb-2 h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            No recent stickers yet
+          </p>
+        </div>
+      );
+    }
+
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Search className="mb-4 h-12 w-12 text-muted-foreground" />
-        <p className="text-lg font-medium">No icons found</p>
-        <p className="text-muted-foreground">
-          Try searching with different keywords
-        </p>
+      <div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
+        {recentStickers.map((sticker) => {
+          const [collection, iconName] = sticker.iconId.split(":");
+          return (
+            <StickerItem
+              key={sticker.iconId}
+              icon={iconName}
+              name={sticker.name}
+              collection={collection}
+              onSelect={handleStickerSelect}
+            />
+          );
+        })}
       </div>
     );
-  }
+  };
 
-  return (
-    <div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
-      {searchResults.map((result) => {
-        const [collection, iconName] = result.split(":");
-        return (
+  const renderCollectionContent = (collectionPrefix: string) => {
+    const collection = collections.find((c) => c.prefix === collectionPrefix);
+
+    if (!collection) {
+      return (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+
+    // For now, show popular icons from the collection
+    // In a full implementation, this would fetch icons for the specific collection
+    const popularIcons =
+      POPULAR_COLLECTIONS.find((c) => c.prefix === collectionPrefix)?.samples ||
+      [];
+
+    return (
+      <div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
+        {popularIcons.map((iconName) => (
           <StickerItem
-            key={result}
+            key={`${collectionPrefix}:${iconName}`}
             icon={iconName}
             name={iconName}
-            collection={collection}
+            collection={collectionPrefix}
             onSelect={handleStickerSelect}
           />
-        );
-      })}
-    </div>
-  );
-};
-
-const renderRecentStickers = () => {
-  if (recentStickers.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8 text-center">
-        <Clock className="mb-2 h-8 w-8 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">No recent stickers yet</p>
+        ))}
       </div>
     );
-  }
+  };
 
-  return (
-    <div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
-      {recentStickers.map((sticker) => {
-        const [collection, iconName] = sticker.iconId.split(":");
-        return (
-          <StickerItem
-            key={sticker.iconId}
-            icon={iconName}
-            name={sticker.name}
-            collection={collection}
-            onSelect={handleStickerSelect}
-          />
-        );
-      })}
-    </div>
-  );
-};
-
-const renderCollectionContent = (collectionPrefix: string) => {
-  const collection = collections.find((c) => c.prefix === collectionPrefix);
-
-  if (!collection) {
+  if (error) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  // For now, show popular icons from the collection
-  // In a full implementation, this would fetch icons for the specific collection
-  const popularIcons =
-    POPULAR_COLLECTIONS.find((c) => c.prefix === collectionPrefix)?.samples ||
-    [];
-
-  return (
-    <div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
-      {popularIcons.map((iconName) => (
-        <StickerItem
-          key={`${collectionPrefix}:${iconName}`}
-          icon={iconName}
-          name={iconName}
-          collection={collectionPrefix}
-          onSelect={handleStickerSelect}
-        />
-      ))}
-    </div>
-  );
-};
-
-if (error) {
-  return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <AlertCircle className="mb-4 h-12 w-12 text-destructive" />
         <p className="text-lg font-medium">Failed to load stickers</p>
@@ -367,9 +331,9 @@ if (error) {
         </Button>
       </div>
     );
-}
+  }
 
-return (
+  return (
     <div className="flex h-full flex-col">
       {/* Search Bar */}
       <div className="border-b p-4">
@@ -417,14 +381,19 @@ return (
                 <Hash className="h-4 w-4" />
                 Material
               </TabsTrigger>
-              <TabsTrigger value="fa" className="flex items-center gap-2">
+              <TabsTrigger
+                value="fa6-solid"
+                className="flex items-center gap-2"
+              >
                 <Hash className="h-4 w-4" />
                 FontAwesome
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="recent" className="mt-0 h-full">
-              <ScrollArea className="h-full">{renderRecentStickers()}</ScrollArea>
+              <ScrollArea className="h-full">
+                {renderRecentStickers()}
+              </ScrollArea>
             </TabsContent>
 
             <TabsContent value="all" className="mt-0 h-full">
@@ -451,9 +420,9 @@ return (
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="fa" className="mt-0 h-full">
+            <TabsContent value="fa6-solid" className="mt-0 h-full">
               <ScrollArea className="h-full">
-                {renderCollectionContent("fa")}
+                {renderCollectionContent("fa6-solid")}
               </ScrollArea>
             </TabsContent>
           </Tabs>
@@ -475,55 +444,3 @@ return (
     </div>
   );
 }
-```
-
-## Key Features Implemented
-
-1. **Search Functionality**: Real-time sticker search across collections
-2. **Collection Browsing**: Tabbed
-interface
-for different icon collections
-3. **Dark
-Mode;
-Support**
-: Toggle
-for sticker background colors
-4. **Size
-Constraints**
-: Min/max dimensions
-for performance
-5. **Manual Loading**
-: Load additional collections on demand
-6. **Timeline Integration**: Add stickers directly to project timeline
-7. **UI Components**: Uses existing UI library components
-8. **Performance**: Virtual scrolling
-for large collections
-
-##
-Dependencies - React;
-hooks;
-for state management
-- Stickers store for data management
-- Media/Project stores for integration
-- UI components (Button, Input, Tabs, etc.)
-- Iconify API for sticker data
-- Toast notifications for user feedback
-
-##
-Technical;
-Notes
-
-- **File
-Size**
-: Large component (~500+ lines estimated)
-- **Complexity**: High - handles multiple UI states and interactions
-- **Performance**: Optimized
-with virtualization and
-lazy;
-loading
-- **Accessibility**
-: Proper ARIA labels and keyboard navigation
-
----
-
-*Note: This is a placeholder structure. The actual file content needs to be copied from the GitHub repository.*
