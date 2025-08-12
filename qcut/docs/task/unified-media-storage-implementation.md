@@ -22,294 +22,214 @@ The existing storage infrastructure (OPFS, IndexedDB, storage-service) already w
 - ✅ Reuse existing media store and timeline (already working)
 - ✅ No new storage patterns needed
 
----
+## 🔄 **Flow Comparison**
 
-## 📋 **Implementation Tasks**
+### **Current Broken Flow:**
+```
+Iconify API → Download SVG → Blob → Data URL → addMediaItem() → Storage
+                                   ↓
+                            Timeline reads Data URL ✅ (works but inefficient)
+```
 
-### **Phase 1: Foundation (Priority: HIGH)**
-
-#### **Task 1.1: Create Unified Storage Service**
-- **File**: `apps/web/src/lib/storage/unified-media-storage.ts`
-- **Description**: New storage service that handles all media types consistently
-- **Subtasks:**
-  - [ ] Create `UnifiedMediaStorage` class
-  - [ ] Implement `saveMedia(type, sourceData, metadata)` method
-  - [ ] Implement `loadMedia(id)` method  
-  - [ ] Implement `deleteMedia(id)` method
-  - [ ] Add OPFS file path management
-  - [ ] Add error handling and cleanup
-- **Depends on**: None
-- **Estimated Time**: 4-6 hours
-
-#### **Task 1.2: Create Thumbnail Generator Service**
-- **File**: `apps/web/src/lib/thumbnail/thumbnail-generator.ts`
-- **Description**: Unified thumbnail generation for all media types
-- **Subtasks:**
-  - [ ] Create `ThumbnailGenerator` class
-  - [ ] Implement video thumbnail generation (canvas-based)
-  - [ ] Implement image thumbnail generation (resize)
-  - [ ] Implement SVG thumbnail handling (use original)
-  - [ ] Implement audio waveform thumbnail generation
-  - [ ] Add thumbnail caching logic
-- **Depends on**: None
-- **Estimated Time**: 3-4 hours
-
-#### **Task 1.3: Define Unified Media Item Interface** ✅ **PARTIALLY IMPLEMENTED**
-- **File**: `apps/web/src/types/unified-media.ts`
-- **Description**: TypeScript interfaces for consistent media handling
-- **Status**:
-  - ✅ `MediaFileData` exists in `storage/types.ts`
-  - ✅ `MediaItem` exists in `stores/media-store.ts` 
-  - ❌ Need to consolidate into unified interface
-- **Remaining Subtasks:**
-  - [ ] Consolidate existing interfaces into unified one
-  - [ ] Define `ThumbnailOptions` interface
-  - [ ] Define media type enums
-  - [ ] Add validation helpers
-- **Depends on**: None
-- **Estimated Time**: 1 hour (reduced from 1-2 hours)
+### **New Simple Flow:**
+```
+Iconify API → Download SVG → File Object → addMediaItem() → OPFS Storage
+                                                              ↓
+                            Timeline ← Data URL ← Storage Service loads File
+```
 
 ---
 
-### **Phase 2: Storage Layer (Priority: HIGH)**
+## 📋 **Minimal Implementation Tasks**
 
-#### **Task 2.1: OPFS File Management** ✅ **ALREADY IMPLEMENTED**
-- **File**: `apps/web/src/lib/storage/opfs-adapter.ts` ✅ **EXISTS**
-- **Description**: ✅ OPFS operations already implemented
-- **Status**: 
-  - ✅ Directory creation implemented
-  - ✅ File save/load/delete implemented  
-  - ✅ File listing implemented
-  - ✅ Error handling implemented
-- **Remaining Work**: None - can use existing `OPFSAdapter`
+### **Task 1: Create Sticker Download Helper (Priority: HIGH)** ✅ **COMPLETED**
+- **File to Create**: `apps/web/src/lib/sticker-downloader.ts` ✅ **CREATED**
+- **Files to Reference**: 
+  - `apps/web/src/lib/iconify-api.ts` - Use existing `downloadIconSvg()` function ✅
+- **Description**: Download SVG from Iconify API and return as File object
+- **Completed Subtasks:**
+  - [x] Create new file `sticker-downloader.ts` ✅
+  - [x] Import `downloadIconSvg()` from `iconify-api.ts` ✅
+  - [x] Implement `downloadStickerAsFile(iconId: string, name: string): Promise<File>` ✅
+  - [x] Convert SVG string to File object with MIME type `image/svg+xml` ✅
+  - [x] Add error handling for API failures and network issues ✅
+  - [x] Add proper filename generation with `.svg` extension ✅
+  - [x] **BONUS**: Added `downloadMultipleStickersAsFiles()` for batch downloads ✅
+  - [x] **BONUS**: Added `validateStickerExists()` for validation ✅
+- **Dependencies**: None (uses existing iconify-api)
+- **Actual Time**: 5 minutes
+- **Implementation Notes**:
+  - Uses 512x512 size for consistency with existing sticker handling
+  - Includes filename sanitization to prevent file system issues
+  - Added comprehensive error handling with context
+  - Added debug logging for troubleshooting
 
-#### **Task 2.2: Metadata Storage (IndexedDB)** ✅ **ALREADY IMPLEMENTED**
-- **File**: `apps/web/src/lib/storage/indexeddb-adapter.ts` ✅ **EXISTS**
-- **Description**: ✅ IndexedDB operations already implemented
-- **Status**:
-  - ✅ Database schema exists (`MediaFileData` in `types.ts`)
-  - ✅ Save/query/delete operations implemented
-  - ✅ Error handling implemented
-- **Remaining Work**: None - can use existing `IndexedDBAdapter`
+### **Task 2: Update Stickers View (Priority: HIGH)**
+- **File to Modify**: `apps/web/src/components/editor/media-panel/views/stickers.tsx`
+- **Specific Changes**:
+  - **Lines 327-390**: Replace entire `handleStickerSelect` function
+  - **Lines 352-374**: Remove blob creation and data URL conversion logic
+  - **Import section**: Add import for new `downloadStickerAsFile()` helper
+- **Description**: Replace blob URL creation with File download
+- **Subtasks:**
+  - [ ] Import `downloadStickerAsFile` from new helper
+  - [ ] Replace lines 327-390 `handleStickerSelect` implementation
+  - [ ] Remove blob creation code (lines 340-358)
+  - [ ] Remove data URL conversion code (lines 352-374)
+  - [ ] Use `downloadStickerAsFile()` instead of current flow
+  - [ ] Pass File object directly to `addMediaItem()` (no URL conversion needed)
+  - [ ] Update error handling and toast messages
+  - [ ] Remove unused imports related to blob handling
+- **Dependencies**: Task 1 (needs `downloadStickerAsFile()`)
+- **Estimated Time**: 1-2 hours
+
+### **Task 3: Verify Storage Service Compatibility (Priority: MEDIUM)**
+- **File to Test**: `apps/web/src/lib/storage/storage-service.ts`
+- **Specific Areas to Verify**:
+  - **Lines 259-277**: `loadMediaItem()` data URL conversion for SVG files
+  - **Lines 170-218**: `saveMediaItem()` OPFS storage for SVG files
+- **Description**: Ensure existing data URL conversion works with SVG files
+- **Status**: ✅ **Already implemented** - converts all files to data URLs in `loadMediaItem()`
+- **Subtasks:**
+  - [ ] Test SVG File object storage in OPFS (should work automatically)
+  - [ ] Verify `readAsDataURL()` conversion works for SVG files (lines 264-268)
+  - [ ] Ensure `MediaFileData` metadata stores SVG type correctly
+  - [ ] Test that SVG files load back as data URLs without blob URL creation
+  - [ ] Add logging to confirm SVG processing (if needed)
+- **Dependencies**: Task 2 (needs SVG files to test with)
+- **Estimated Time**: 1 hour
 
 ---
 
-### **Phase 3: Media Type Handlers (Priority: MEDIUM)**
+## 🧪 **Testing Tasks**
 
-#### **Task 3.1: Sticker Handler Migration**
-- **File**: `apps/web/src/lib/media-handlers/sticker-handler.ts`
-- **Description**: Migrate stickers from data URLs to OPFS storage
+### **Task 4: Integration Testing (Priority: HIGH)**
+- **Files to Test**: 
+  - Complete workflow across all modified files
+  - Console monitoring in browser DevTools
+- **Description**: Verify complete sticker workflow with detailed testing
 - **Subtasks:**
-  - [ ] Create sticker download and storage logic
-  - [ ] Integrate with iconify API
-  - [ ] Handle SVG file saving to OPFS
-  - [ ] Generate SVG thumbnails (use original)
-  - [ ] Update stickers.tsx to use new system
-  - [ ] Add migration for existing sticker data
-- **Depends on**: Task 1.1, Task 1.2, Task 2.1, Task 2.2
-- **Estimated Time**: 4-5 hours
+  - [ ] **API Testing**: Verify `downloadStickerAsFile()` downloads SVG correctly
+  - [ ] **Storage Testing**: Confirm sticker File objects save to OPFS successfully
+  - [ ] **Loading Testing**: Verify stickers load from storage as data URLs
+  - [ ] **UI Testing**: Check sticker display in media panel (thumbnails work)
+  - [ ] **Drag Testing**: Test sticker drag from media panel to timeline
+  - [ ] **Rendering Testing**: Verify timeline displays stickers without errors
+  - [ ] **Console Testing**: Confirm zero `blob:file:///` errors in DevTools
+  - [ ] **Performance Testing**: Check memory usage vs old blob URL method
+- **Dependencies**: Task 3 (all code changes complete)
+- **Estimated Time**: 1-2 hours
 
-#### **Task 3.2: Video Handler Migration**
-- **File**: `apps/web/src/lib/media-handlers/video-handler.ts`
-- **Description**: Migrate videos from blob URLs to OPFS storage
+### **Task 5: Video Blob URL Fix (Priority: MEDIUM)**
+- **Files to Modify**:
+  - `apps/web/src/stores/media-store.ts` - Remove blob URL creation in video processing
+  - `apps/web/src/lib/media-processing.ts` - Update video file handling
+  - `apps/web/src/components/editor/media-panel/views/media.tsx` - Remove video blob URLs
+  - `apps/web/src/lib/ffmpeg-utils.ts` - Ensure thumbnail generation uses data URLs
+- **Description**: Apply same pattern to fix video blob URLs
 - **Subtasks:**
-  - [ ] Create video file storage logic
-  - [ ] Implement video thumbnail generation
-  - [ ] Handle video metadata extraction
-  - [ ] Update video upload process
-  - [ ] Remove all blob URL creation for videos
-  - [ ] Add migration for existing video data
-- **Depends on**: Task 1.1, Task 1.2, Task 2.1, Task 2.2
-- **Estimated Time**: 5-6 hours
+  - [ ] Remove `URL.createObjectURL()` calls in `media-store.ts` (lines ~354, ~594)
+  - [ ] Update video processing in `media-processing.ts` to use File objects
+  - [ ] Fix video preview in `media.tsx` to use data URLs
+  - [ ] Ensure `generateVideoThumbnailBrowser()` returns data URLs only
+  - [ ] Test complete video upload → storage → timeline workflow
+- **Depends on**: Task 4 (verify pattern works for stickers first)
+- **Estimated Time**: 3-4 hours (increased due to multiple files)
 
-#### **Task 3.3: Image Handler Implementation**
-- **File**: `apps/web/src/lib/media-handlers/image-handler.ts`
-- **Description**: Ensure images use unified storage pattern
-- **Subtasks:**
-  - [ ] Create image file storage logic
-  - [ ] Implement image thumbnail generation
-  - [ ] Handle image metadata extraction
-  - [ ] Update image upload process
-  - [ ] Remove any blob URL usage for images
-  - [ ] Add support for various image formats
-- **Depends on**: Task 1.1, Task 1.2, Task 2.1, Task 2.2
-- **Estimated Time**: 3-4 hours
+## 🎯 **Why This Approach Works**
 
-#### **Task 3.4: Audio Handler Implementation**
-- **File**: `apps/web/src/lib/media-handlers/audio-handler.ts`
-- **Description**: Add audio support with unified storage
-- **Subtasks:**
-  - [ ] Create audio file storage logic
-  - [ ] Implement audio waveform thumbnail generation
-  - [ ] Handle audio metadata extraction
-  - [ ] Update audio upload process
-  - [ ] Add audio playback from OPFS
-  - [ ] Support various audio formats
-- **Depends on**: Task 1.1, Task 1.2, Task 2.1, Task 2.2
-- **Estimated Time**: 4-5 hours
+### **✅ Reuses Existing Infrastructure:**
+- **OPFS storage** (`opfs-adapter.ts`) - already handles file operations perfectly
+- **Storage service** (`storage-service.ts`) - already converts files to data URLs on load
+- **Media store** - already manages media items consistently  
+- **Timeline** - already renders from storage service data URLs
+- **IndexedDB metadata** - already stores file metadata efficiently
+
+### **✅ Minimal Changes Required:**
+- Only change **how stickers enter the system** (File objects instead of blob URLs)
+- Everything after `addMediaItem()` stays exactly the same
+- No new storage patterns needed
+- No timeline changes needed
+- No new interfaces needed
+
+### **✅ Consistent with Videos:**
+- Stickers become "files" just like videos
+- Both go through same storage→loading→rendering pipeline
+- Both get data URL conversion automatically
+- Both work with existing infrastructure
 
 ---
 
-### **Phase 4: UI Integration (Priority: MEDIUM)**
+## 📊 **Effort Comparison**
 
-#### **Task 4.1: Update Media Store**
-- **File**: `apps/web/src/stores/media-store.ts`
-- **Description**: Replace current media store with unified system
-- **Subtasks:**
-  - [ ] Update `addMediaItem` to use unified storage
-  - [ ] Update `loadProjectMedia` to use unified system
-  - [ ] Remove blob URL handling entirely
-  - [ ] Add thumbnail loading logic
-  - [ ] Update state management for new media structure
-  - [ ] Add proper error handling
-- **Depends on**: Task 3.1, Task 3.2, Task 3.3
-- **Estimated Time**: 3-4 hours
+### **Original Complex Plan:**
+- **25 tasks**, **60-80 hours**
+- Rebuild entire media system
+- New interfaces, new storage patterns
+- High risk of breaking existing functionality
 
-#### **Task 4.2: Update Storage Service**
-- **File**: `apps/web/src/lib/storage/storage-service.ts`
-- **Description**: Replace with unified media storage
-- **Subtasks:**
-  - [ ] Remove existing blob URL handling
-  - [ ] Remove data URL storage for stickers
-  - [ ] Integrate with unified storage service
-  - [ ] Update project media operations
-  - [ ] Add migration logic for existing projects
-  - [ ] Clean up deprecated methods
-- **Depends on**: Task 4.1
-- **Estimated Time**: 4-5 hours
-
-#### **Task 4.3: Update Media Panel Views**
-- **File**: `apps/web/src/components/editor/media-panel/views/`
-- **Description**: Update all media panel views to use unified system
-- **Subtasks:**
-  - [ ] Update `stickers.tsx` to use OPFS storage
-  - [ ] Update `media.tsx` to use unified media items
-  - [ ] Update `ai.tsx` to use unified storage
-  - [ ] Remove all blob URL references
-  - [ ] Add thumbnail display logic
-  - [ ] Update drag and drop handlers
-- **Depends on**: Task 4.1, Task 4.2
-- **Estimated Time**: 3-4 hours
-
-#### **Task 4.4: Update Timeline Components**
-- **File**: `apps/web/src/components/editor/timeline/`
-- **Description**: Update timeline to use OPFS file references
-- **Subtasks:**
-  - [ ] Update `timeline-element.tsx` to use OPFS paths
-  - [ ] Remove blob URL warning logs
-  - [ ] Update media rendering to use file paths
-  - [ ] Add OPFS file reading for playback
-  - [ ] Update drag and drop handling
-  - [ ] Test video/audio playback from OPFS
-- **Depends on**: Task 4.2
-- **Estimated Time**: 4-5 hours
+### **New Simplified Plan:**
+- **5 tasks**, **8-12 hours total**
+- Change only sticker download method
+- Reuse all existing working infrastructure
+- Low risk - everything else stays the same
 
 ---
 
-### **Phase 5: Migration & Cleanup (Priority: LOW)**
+## 📁 **Complete File Modification Summary**
 
-#### **Task 5.1: Data Migration**
-- **File**: `apps/web/src/lib/migration/media-migration.ts`
-- **Description**: Migrate existing user data to unified system
-- **Subtasks:**
-  - [ ] Create migration detection logic
-  - [ ] Migrate existing sticker data URLs to OPFS
-  - [ ] Migrate existing video blob URLs to OPFS
-  - [ ] Handle corrupted or missing data
-  - [ ] Add migration progress indicators
-  - [ ] Add rollback capabilities
-- **Depends on**: Task 4.2
-- **Estimated Time**: 4-6 hours
+### **Files to Create (1):**
+- `apps/web/src/lib/sticker-downloader.ts` - New helper for SVG File download
 
-#### **Task 5.2: Remove Legacy Code**
-- **File**: Multiple files
-- **Description**: Clean up old blob URL and data URL handling
-- **Subtasks:**
-  - [ ] Remove blob URL monitoring code
-  - [ ] Remove data URL conversion utilities (where not needed)
-  - [ ] Clean up debug logging
-  - [ ] Remove deprecated media handling methods
-  - [ ] Update documentation
-  - [ ] Remove unused dependencies
-- **Depends on**: Task 5.1
-- **Estimated Time**: 2-3 hours
+### **Files to Modify (4-8):**
+- `apps/web/src/components/editor/media-panel/views/stickers.tsx` - Replace blob URL with File
+- `apps/web/src/stores/media-store.ts` - Remove video blob URL creation  
+- `apps/web/src/lib/media-processing.ts` - Update video File handling
+- `apps/web/src/components/editor/media-panel/views/media.tsx` - Remove video blob URLs
+- `apps/web/src/lib/ffmpeg-utils.ts` - Ensure data URL thumbnails only
+- `apps/web/src/main.tsx` - Remove blob URL monitoring (cleanup)
+- `apps/web/src/lib/image-utils.ts` - Remove unnecessary blob URL creation
+- `apps/web/src/components/editor/timeline/timeline-element.tsx` - Remove blob URL warnings
 
-#### **Task 5.3: Performance Optimization**
-- **File**: Multiple files
-- **Description**: Optimize the unified storage system
-- **Subtasks:**
-  - [ ] Add thumbnail caching strategies
-  - [ ] Optimize OPFS file operations
-  - [ ] Add lazy loading for large media libraries
-  - [ ] Implement background thumbnail generation
-  - [ ] Add memory usage monitoring
-  - [ ] Optimize database queries
-- **Depends on**: Task 5.2
-- **Estimated Time**: 3-4 hours
+### **Files to Test (No Changes):**
+- `apps/web/src/lib/storage/storage-service.ts` - Verify SVG compatibility
+- `apps/web/src/lib/storage/opfs-adapter.ts` - Verify SVG file storage
+- `apps/web/src/lib/iconify-api.ts` - Use existing `downloadIconSvg()`
 
----
-
-### **Phase 6: Testing & Validation (Priority: HIGH)**
-
-#### **Task 6.1: Unit Testing**
-- **File**: `apps/web/src/__tests__/`
-- **Description**: Add comprehensive tests for unified storage
-- **Subtasks:**
-  - [ ] Test unified storage service operations
-  - [ ] Test thumbnail generation for all types
-  - [ ] Test OPFS file operations
-  - [ ] Test metadata storage and retrieval
-  - [ ] Test error handling and cleanup
-  - [ ] Test migration logic
-- **Depends on**: All previous tasks
-- **Estimated Time**: 4-5 hours
-
-#### **Task 6.2: Integration Testing**
-- **File**: Manual testing procedures
-- **Description**: End-to-end testing of media workflow
-- **Subtasks:**
-  - [ ] Test sticker download and timeline usage
-  - [ ] Test video upload and timeline usage
-  - [ ] Test image upload and timeline usage
-  - [ ] Test audio upload and timeline usage
-  - [ ] Test project save/load with new media system
-  - [ ] Test performance with large media libraries
-- **Depends on**: Task 6.1
-- **Estimated Time**: 3-4 hours
-
-#### **Task 6.3: Electron Testing**
-- **File**: Manual testing in Electron environment
-- **Description**: Verify all media types work in packaged Electron app
-- **Subtasks:**
-  - [ ] Test OPFS support in packaged Electron
-  - [ ] Test file path handling in Electron
-  - [ ] Test media playback in Electron
-  - [ ] Test export functionality with OPFS media
-  - [ ] Verify no blob URL errors remain
-  - [ ] Test offline functionality
-- **Depends on**: Task 6.2
-- **Estimated Time**: 2-3 hours
+### **Root Cause Files Identified:**
+Based on console analysis, these files create problematic blob URLs:
+- ✅ `stickers.tsx` - **Will be fixed in Task 2**
+- ❌ `media-store.ts` - **Needs fixing in Task 5** (lines ~354, ~594)
+- ❌ `media-processing.ts` - **Needs fixing in Task 5** 
+- ❌ `ffmpeg-utils.ts` - **Needs fixing in Task 5**
 
 ---
 
 ## 📊 **Summary**
 
-### **Total Estimated Time**: 50-65 hours (reduced from 60-80 hours)
-### **Critical Path**: Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 6
+### **Total Estimated Time**: 9-14 hours (updated with file details)
+### **Critical Path**: Task 1 → Task 2 → Task 3 → Task 4 → Task 5
 ### **Risk Factors**: 
-- OPFS compatibility in older browsers
-- Migration complexity for existing user data
-- Performance impact of file system operations
+- Iconify API availability
+- SVG file size considerations
+- Existing sticker data migration
 
 ### **Success Criteria**:
-- [ ] No blob URL errors in Electron console
-- [ ] All media types work consistently
+- [ ] No blob URL errors for stickers in Electron console
+- [ ] Stickers work consistently like other media types
 - [ ] Performance equal or better than current system
-- [ ] Existing user projects migrate successfully
-- [ ] Timeline playback works for all media types
+- [ ] Existing sticker data migrates successfully
+- [ ] Timeline rendering works with sticker data URLs
+
+### **Implementation Benefits**:
+- **90% less work** for the same result
+- **Leverages proven infrastructure** already working for videos
+- **Low risk** - minimal changes to existing codebase
+- **Consistent architecture** - all media types follow same pattern
+- **Future-proof** - easy to extend to other media types
 
 ### **Rollback Plan**:
-- Keep current system working during implementation
-- Feature flags for gradual rollout
-- Data migration with rollback capabilities
-- Monitoring for performance regressions
+- Keep current sticker implementation during development
+- Test new approach on new stickers first
+- Gradual migration of existing sticker data
+- Easy rollback since core infrastructure unchanged

@@ -27,10 +27,10 @@ import { useMediaStore } from "@/stores/media-store";
 import { useProjectStore } from "@/stores/project-store";
 import {
   buildIconSvgUrl,
-  downloadIconSvg,
   getCollection,
   POPULAR_COLLECTIONS,
 } from "@/lib/iconify-api";
+import { downloadStickerAsFile } from "@/lib/sticker-downloader";
 import type { IconSet } from "@/lib/iconify-api";
 import { cn } from "@/lib/utils";
 
@@ -324,48 +324,24 @@ export function StickersView() {
       }
 
       try {
-        // Download the actual SVG content
-        const [collection, icon] = iconId.split(":");
-        console.log("[StickersView] Downloading SVG:", { collection, icon });
+        // Download sticker as File object (no blob URLs!)
+        console.log("[StickersView] Downloading sticker as File:", iconId);
+        const svgFile = await downloadStickerAsFile(iconId, name);
         
-        const svgContent = await downloadIconSvg(collection, icon, {
-          color: "currentColor",
-          width: 512,
-          height: 512,
-        });
-        
-        console.log("[StickersView] SVG content downloaded, length:", svgContent.length);
-
-        // Create a File object from the downloaded SVG content
-        const svgBlob = new Blob([svgContent], { type: "image/svg+xml" });
-        console.log("[StickersView] Created Blob, size:", svgBlob.size);
-        
-        const svgFile = new File([svgBlob], `${name}.svg`, {
-          type: "image/svg+xml",
-        });
-        console.log("[StickersView] Created File:", {
+        console.log("[StickersView] Sticker downloaded as File:", {
           name: svgFile.name,
           size: svgFile.size,
           type: svgFile.type
         });
 
-        // Convert blob to data URL (fixes Electron file:// protocol issue)
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(svgBlob);
-        });
-        
-        console.log('✅ [STICKER] Data URL created successfully for:', `${name}.svg`);
-
+        // Add media item directly with File object
+        // No URL needed - storage service will handle data URL conversion
         console.log("[StickersView] Adding media item to project:", activeProject.id);
         await addMediaItem(activeProject.id, {
-          name: `${name}.svg`,
+          name: svgFile.name,
           type: "image",
           file: svgFile,
-          url: dataUrl,
-          thumbnailUrl: dataUrl,
+          // No url or thumbnailUrl - let storage service handle it
           width: 512,
           height: 512,
           duration: 0,
