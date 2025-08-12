@@ -216,6 +216,20 @@ export async function convertToBlob(url: string): Promise<string> {
     const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
 
+    // ENHANCED LOGGING for blob URL debugging
+    console.error('🔍 [IMAGE-UTILS] Created blob URL:', {
+      originalUrl: url,
+      blobUrl: blobUrl,
+      isProblematic: blobUrl.startsWith('blob:file:///'),
+      blobSize: blob.size,
+      blobType: blob.type
+    });
+
+    if (blobUrl.startsWith('blob:file:///')) {
+      console.error('❌❌❌ [IMAGE-UTILS] PROBLEMATIC BLOB URL CREATED:', blobUrl);
+      alert(`IMAGE-UTILS CREATED BAD BLOB: ${blobUrl.substring(0, 50)}...`);
+    }
+
     // Cache the blob URL
     blobUrlCache.set(url, blobUrl);
     blobToOriginalUrl.set(blobUrl, url);

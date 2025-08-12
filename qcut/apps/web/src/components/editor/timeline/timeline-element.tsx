@@ -109,18 +109,26 @@ export function TimelineElement({
   // Use the media item URL directly - it's already been converted to blob if needed
   const mediaItemUrl = mediaItem?.url;
 
-  // Enhanced logging for blob URL debugging
+  // AGGRESSIVE ERROR LOGGING for blob URL debugging
   if (mediaItem) {
-    console.log("[TimelineElement] Media item details:", {
+    console.error("🔍 [TIMELINE-ELEMENT] Media item details:", {
       id: mediaItem.id,
       name: mediaItem.name,
       type: mediaItem.type,
       url: mediaItemUrl,
       isBlobUrl: mediaItemUrl?.startsWith('blob:'),
+      isProblematicBlob: mediaItemUrl?.startsWith('blob:file:///'),
       urlProtocol: mediaItemUrl ? mediaItemUrl.substring(0, 20) : 'none',
       hasFile: !!mediaItem.file,
-      fileSize: mediaItem.file?.size
+      fileSize: mediaItem.file?.size,
+      elementId: element.id
     });
+    
+    if (mediaItemUrl?.startsWith('blob:file:///')) {
+      console.error("❌❌❌ [TIMELINE-ELEMENT] USING PROBLEMATIC BLOB URL:", mediaItemUrl);
+      console.error("❌❌❌ [TIMELINE-ELEMENT] Media item:", mediaItem);
+      alert(`TIMELINE USING BAD BLOB URL: ${mediaItemUrl}`);
+    }
   }
 
   // Log if we have a media item but no URL

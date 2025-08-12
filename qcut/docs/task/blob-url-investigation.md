@@ -1,67 +1,75 @@
-# Blob URL Investigation - Systematic File Analysis
+# Blob URL Investigation - Updated Status
 
 ## Problem Summary
 `blob:file:///` URLs fail in Electron, causing stickers to not load when dragged to timeline.
 
+## ❌ CURRENT ISSUE: Console Logs Not Showing
+**Error:** `blob:file:///61d03491-2c80-4820-a5ab-a90ef4f865b9:1 Failed to load resource: net::ERR_FILE_NOT_FOUND`
+
+**Problem:** The systematic console logging we added isn't appearing in the console, which means:
+1. Either the logging code isn't being executed 
+2. Or the console logs are being filtered/hidden
+3. Or the URL creation is happening in a different code path
+
+## URGENT: Need Enhanced Logging
+
+### 🚨 Missing Console Output Investigation
+The console should show messages like:
+- `[STICKER] URL created:` - ❌ NOT APPEARING
+- `[STORAGE] Loading item:` - ❌ NOT APPEARING  
+- `[MEDIA-STORE] Adding:` - ❌ NOT APPEARING
+- `❌ Still creating problematic blob URL:` - ❌ NOT APPEARING
+
+### 🎯 Next Actions Required
+
+1. **Add More Aggressive Logging** - Replace existing subtle logs with error-level logs
+2. **Add Stack Traces** - Show exactly where blob URLs are created
+3. **Add Global URL Monitoring** - Hook into ALL URL creation
+4. **Check Electron DevTools** - Ensure console is visible
+
 ## Files That Could Create Blob URLs
 
-### 1. **Sticker System** 🎯 HIGH PRIORITY
-| File | Function | Potential Issue | Console Check |
-|------|----------|----------------|---------------|
-| `apps/web/src/components/editor/media-panel/views/stickers.tsx` | `handleStickerSelect` | ❌ Creates blob URLs for SVG | `console.log('[STICKER] URL created:', url)` |
-| `apps/web/src/stores/stickers-store.ts` | `downloadSticker` | ⚠️ May store blob URLs | `console.log('[STICKER-STORE] Downloaded:', iconId)` |
+### 1. **Sticker System** 🎯 HIGH PRIORITY - NEEDS ENHANCEMENT
+| File | Current Status | Required Enhancement |
+|------|---------------|---------------------|
+| `stickers.tsx` | Has logging | ❌ Not showing - add `console.error()` |
+| `storage-service.ts` | Has logging | ❌ Not showing - add stack traces |
 
-### 2. **Storage System** 🎯 HIGH PRIORITY  
-| File | Function | Potential Issue | Console Check |
-|------|----------|----------------|---------------|
-| `apps/web/src/lib/storage/storage-service.ts` | `loadMediaItem` | ❌ Creates blob URLs from files | `console.log('[STORAGE] Loading item:', id, 'URL:', url)` |
-| `apps/web/src/lib/storage/storage-service.ts` | `saveMediaItem` | ⚠️ May save blob URLs | `console.log('[STORAGE] Saving item:', mediaItem.name, 'URL:', mediaItem.url)` |
+### 2. **Media Store** 🎯 HIGH PRIORITY - NEEDS ENHANCEMENT
+| File | Current Status | Required Enhancement |
+|------|---------------|---------------------|
+| `media-store.ts` | Has blob detection | ❌ Need aggressive error logs |
 
-### 3. **Media Store** 🎯 MEDIUM PRIORITY
-| File | Function | Potential Issue | Console Check |
-|------|----------|----------------|---------------|
-| `apps/web/src/stores/media-store.ts` | `addMediaItem` | ⚠️ Receives blob URLs | `console.log('[MEDIA-STORE] Adding:', item.name, 'URL:', item.url)` |
-| `apps/web/src/stores/media-store.ts` | `loadProjectMedia` | ❌ May create blob URLs | `console.log('[MEDIA-STORE] Loaded media count:', mediaItems.length)` |
+### 3. **Global Monitoring** 🎯 HIGH PRIORITY - NEEDS ENHANCEMENT
+| File | Current Status | Required Enhancement |
+|------|---------------|---------------------|
+| `main.tsx` | Has URL.createObjectURL hook | ❌ Need stack trace logging |
 
-### 4. **Drag & Drop System** 🎯 MEDIUM PRIORITY
-| File | Function | Potential Issue | Console Check |
-|------|----------|----------------|---------------|
-| `apps/web/src/components/ui/draggable-item.tsx` | `handleDragStart` | ⚠️ Passes blob URLs in drag data | `console.log('[DRAG] Starting drag:', dragData.url)` |
-| `apps/web/src/components/editor/timeline/timeline-track.tsx` | `handleTrackDrop` | ⚠️ Receives blob URLs | `console.log('[DROP] Received media:', mediaItem?.url)` |
+### 4. **Hidden Sources** 🎯 HIGH PRIORITY - NOT CHECKED YET
+| File | Potential Issue | Required Check |
+|------|----------------|----------------|
+| `timeline-element.tsx` | ❌ May render blob URLs | Need to add logging |
+| `media.tsx` | ❌ May display blob URLs | Need to add logging |
+| `image-utils.ts` | ❌ Explicitly creates blobs | Need to check this file |
 
-### 5. **Timeline Rendering** 🎯 MEDIUM PRIORITY
-| File | Function | Potential Issue | Console Check |
-|------|----------|----------------|---------------|
-| `apps/web/src/components/editor/timeline/timeline-element.tsx` | `mediaItemUrl` | ❌ Uses blob URLs for background | `console.log('[TIMELINE] Rendering with URL:', mediaItemUrl)` |
+## Investigation Priority - UPDATED
 
-### 6. **Media Panel Views** 🎯 LOW PRIORITY
-| File | Function | Potential Issue | Console Check |
-|------|----------|----------------|---------------|
-| `apps/web/src/components/editor/media-panel/views/media.tsx` | `renderPreview` | ⚠️ May display blob URLs | `console.log('[MEDIA-VIEW] Preview URL:', item.url)` |
-| `apps/web/src/components/editor/media-panel/views/ai.tsx` | Image generation | ⚠️ May create blob URLs | `console.log('[AI-VIEW] Generated image URL:', url)` |
+### Phase 1: Enhanced Global Monitoring ⭐ IMMEDIATE
+1. Replace console.log with console.error in main.tsx
+2. Add stack traces to URL.createObjectURL hook
+3. Add error-level logging to all existing log points
+4. Test: Should see RED error messages in console
 
-### 7. **Utility Functions** 🎯 LOW PRIORITY
-| File | Function | Potential Issue | Console Check |
-|------|----------|----------------|---------------|
-| `apps/web/src/lib/image-utils.ts` | `convertToBlob` | ❌ Explicitly creates blob URLs | `console.log('[IMAGE-UTILS] Converting to blob:', url)` |
-| `apps/web/src/lib/ffmpeg-utils.ts` | Video processing | ⚠️ May create blob URLs | `console.log('[FFMPEG] Processing result URL:', url)` |
+### Phase 2: Check Missing Files ⭐ IMMEDIATE  
+1. Add logging to `timeline-element.tsx`
+2. Add logging to `media.tsx` 
+3. Check `image-utils.ts` for blob creation
+4. Test: Verify all code paths are monitored
 
-## Investigation Priority
-
-### Phase 1: Core Sticker System ⭐ START HERE
-1. Add console logs to `stickers.tsx` - track SVG to URL conversion
-2. Add console logs to `storage-service.ts` - track what URLs are saved/loaded  
-3. Test: Add a sticker and check console for blob URL creation
-
-### Phase 2: Media Flow ⭐ IF PHASE 1 DOESN'T SOLVE IT
-1. Add console logs to `media-store.ts` - track media item URLs
-2. Add console logs to `draggable-item.tsx` - track drag data URLs
-3. Test: Drag a sticker and check console for blob URL propagation
-
-### Phase 3: Rendering ⭐ IF ISSUE PERSISTS
-1. Add console logs to `timeline-element.tsx` - track rendering URLs
-2. Add console logs to `timeline-track.tsx` - track drop processing
-3. Test: Check timeline rendering console output
+### Phase 3: Timeline Rendering ⭐ IF STILL HIDDEN
+1. Add console logs to drag/drop events
+2. Add logging to timeline rendering
+3. Test: Track complete sticker-to-timeline flow
 
 ## Console Message Template
 
