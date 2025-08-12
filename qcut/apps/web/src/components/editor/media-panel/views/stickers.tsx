@@ -357,20 +357,7 @@ export function StickersView() {
           reader.readAsDataURL(svgBlob);
         });
         
-        console.error('🔍 [STICKER] URL created:', {
-          itemName: `${name}.svg`,
-          url: dataUrl.substring(0, 50) + '...',
-          isBlobUrl: dataUrl?.startsWith('blob:'),
-          isFileBlob: dataUrl?.startsWith('blob:file:'),
-          isDataUrl: dataUrl?.startsWith('data:'),
-          isProblematic: dataUrl?.startsWith('blob:file:///'),
-          timestamp: new Date().toISOString()
-        });
-
-        if (dataUrl?.startsWith('blob:file:///')) {
-          console.error("❌❌❌ [STICKER] CREATED PROBLEMATIC BLOB URL:", dataUrl);
-          alert('STICKER CREATED BAD BLOB URL!');
-        }
+        console.log('✅ [STICKER] Data URL created successfully for:', `${name}.svg`);
 
         console.log("[StickersView] Adding media item to project:", activeProject.id);
         await addMediaItem(activeProject.id, {
