@@ -348,13 +348,24 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
           processedUrl = item.url;
         }
 
-        // Create a blob URL from the downloaded file for immediate display
+        // Create a data URL from the downloaded file for immediate display (no blob URLs in Electron)
         let displayUrl = processedUrl;
         if (file.size > 0) {
-          displayUrl = URL.createObjectURL(file);
-          console.log(
-            `[MediaStore] Created object URL for display: ${displayUrl}`
-          );
+          try {
+            // Convert to data URL instead of blob URL for Electron compatibility
+            const reader = new FileReader();
+            displayUrl = await new Promise<string>((resolve, reject) => {
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+            console.error(
+              `✅ [MediaStore] Created data URL for display: ${displayUrl.substring(0, 50)}...`
+            );
+          } catch (error) {
+            console.error(`❌ [MediaStore] Failed to create data URL:`, error);
+            // Keep processedUrl as fallback
+          }
         }
 
         return {

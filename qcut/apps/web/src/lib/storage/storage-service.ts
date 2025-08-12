@@ -257,29 +257,23 @@ class StorageService {
         `[StorageService] Using stored data URL for ${metadata.name}: ${url.substring(0, 50)}...`
       );
     } else if (file && file.size > 0) {
-      // File exists with content, convert SVG to data URL or create blob URL
-      if (metadata.name.endsWith('.svg') || metadata.type === 'image') {
-        try {
-          // Convert SVG files to data URLs to avoid blob:file:// issues
-          const reader = new FileReader();
-          url = await new Promise<string>((resolve, reject) => {
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-          console.log(
-            `[StorageService] Converted SVG file to data URL for ${metadata.name}`
-          );
-        } catch (error) {
-          console.error(`[StorageService] Failed to convert SVG to data URL, using blob URL:`, error);
-          url = URL.createObjectURL(file);
-        }
-      } else {
-        // For non-SVG files, create blob URL
-        url = URL.createObjectURL(file);
-        console.log(
-          `[StorageService] Created new blob URL for ${metadata.name}: ${url}`
+      // NEVER create blob URLs in Electron - always use data URLs
+      try {
+        // Convert ALL files to data URLs to avoid blob:file:// issues
+        const reader = new FileReader();
+        url = await new Promise<string>((resolve, reject) => {
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        console.error(
+          `✅ [StorageService] Converted file to data URL for ${metadata.name}: ${url.substring(0, 50)}...`
         );
+      } catch (error) {
+        console.error(`❌ [StorageService] Failed to convert to data URL:`, error);
+        // In Electron, even fallback blob URLs are broken, so don't create them
+        url = undefined;
+        console.error(`❌ [StorageService] No URL available for ${metadata.name} - blob URLs don't work in Electron`);
       }
       actualFile = file;
       debugLog(
