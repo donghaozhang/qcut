@@ -96,7 +96,16 @@ export const getImageDimensions = (
       img.remove();
     });
 
-    img.src = URL.createObjectURL(file);
+    // Use data URL instead of blob URL to avoid Electron issues
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => {
+      reject(new Error("Could not read file"));
+      img.remove();
+    };
+    reader.readAsDataURL(file);
   });
 };
 
@@ -211,18 +220,28 @@ export const generateVideoThumbnailBrowser = (
       );
     });
 
-    try {
-      video.src = URL.createObjectURL(file);
-      video.load();
-    } catch (urlError) {
+    // Use data URL instead of blob URL to avoid Electron issues
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      try {
+        video.src = reader.result as string;
+        video.load();
+      } catch (error) {
+        clearTimeout(timeout);
+        cleanup();
+        reject(
+          new Error(
+            `Failed to set video source: ${error instanceof Error ? error.message : String(error)}`
+          )
+        );
+      }
+    };
+    reader.onerror = () => {
       clearTimeout(timeout);
       cleanup();
-      reject(
-        new Error(
-          `Failed to create object URL: ${urlError instanceof Error ? urlError.message : String(urlError)}`
-        )
-      );
-    }
+      reject(new Error("Could not read video file"));
+    };
+    reader.readAsDataURL(file);
   });
 };
 
@@ -243,8 +262,17 @@ export const getMediaDuration = (file: File): Promise<number> => {
       element.remove();
     });
 
-    element.src = URL.createObjectURL(file);
-    element.load();
+    // Use data URL instead of blob URL to avoid Electron issues
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      element.src = reader.result as string;
+      element.load();
+    };
+    reader.onerror = () => {
+      reject(new Error("Could not read media file"));
+      element.remove();
+    };
+    reader.readAsDataURL(file);
   });
 };
 

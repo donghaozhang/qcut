@@ -335,7 +335,13 @@ export const generateThumbnail = async (
     await ffmpeg.deleteFile(inputName);
     await ffmpeg.deleteFile(outputName);
 
-    return URL.createObjectURL(blob);
+    // Convert blob to data URL to avoid Electron blob URL issues
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("Failed to convert thumbnail to data URL"));
+      reader.readAsDataURL(blob);
+    });
   } catch (error) {
     console.error("[FFmpeg] Thumbnail generation failed:", error);
 

@@ -18,7 +18,7 @@ export interface ImageInfo {
 export async function getImageInfo(file: File): Promise<ImageInfo> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    const url = URL.createObjectURL(file);
+    const reader = new FileReader();
 
     img.onload = () => {
       const info: ImageInfo = {
@@ -28,16 +28,22 @@ export async function getImageInfo(file: File): Promise<ImageInfo> {
         type: file.type,
         aspectRatio: img.naturalWidth / img.naturalHeight,
       };
-      URL.revokeObjectURL(url);
       resolve(info);
     };
 
     img.onerror = () => {
-      URL.revokeObjectURL(url);
       reject(new Error("Failed to load image"));
     };
 
-    img.src = url;
+    reader.onloadend = () => {
+      img.src = reader.result as string;
+    };
+
+    reader.onerror = () => {
+      reject(new Error("Failed to read image file"));
+    };
+
+    reader.readAsDataURL(file);
   });
 }
 
@@ -122,7 +128,14 @@ export async function resizeImage(
     };
 
     img.onerror = () => reject(new Error("Failed to load image"));
-    img.src = URL.createObjectURL(file);
+    
+    // Use data URL instead of blob URL to avoid Electron issues
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
   });
 }
 
@@ -155,22 +168,26 @@ export async function downloadImage(
     const response = await fetch(url);
     const blob = await response.blob();
 
-    const downloadUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = filename;
-    link.style.display = "none";
+    // Convert to data URL for download to avoid Electron blob URL issues
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const link = document.createElement("a");
+      link.href = reader.result as string;
+      link.download = filename;
+      link.style.display = "none";
 
-    document.body.appendChild(link);
+      document.body.appendChild(link);
 
-    // Use setTimeout to ensure proper download without navigation
-    setTimeout(() => {
-      link.click();
-      document.body.removeChild(link);
+      // Use setTimeout to ensure proper download without navigation
       setTimeout(() => {
-        URL.revokeObjectURL(downloadUrl);
-      }, 100);
-    }, 10);
+        link.click();
+        document.body.removeChild(link);
+      }, 10);
+    };
+    reader.onerror = () => {
+      throw new Error("Failed to convert blob to data URL");
+    };
+    reader.readAsDataURL(blob);
   } catch (error) {
     throw new Error(`Failed to download image: ${error}`);
   }
@@ -214,28 +231,29 @@ export async function convertToBlob(url: string): Promise<string> {
     }
 
     const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
+    
+    // Convert blob to data URL instead of blob URL to avoid Electron issues
+    const reader = new FileReader();
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
 
-    // ENHANCED LOGGING for blob URL debugging
-    console.error('🔍 [IMAGE-UTILS] Created blob URL:', {
+    // ENHANCED LOGGING for data URL conversion
+    console.log('✅ [IMAGE-UTILS] Created data URL:', {
       originalUrl: url,
-      blobUrl: blobUrl,
-      isProblematic: blobUrl.startsWith('blob:file:///'),
+      dataUrlPrefix: dataUrl.substring(0, 50),
       blobSize: blob.size,
       blobType: blob.type
     });
 
-    if (blobUrl.startsWith('blob:file:///')) {
-      console.error('❌❌❌ [IMAGE-UTILS] PROBLEMATIC BLOB URL CREATED:', blobUrl);
-      alert(`IMAGE-UTILS CREATED BAD BLOB: ${blobUrl.substring(0, 50)}...`);
-    }
+    // Cache the data URL
+    blobUrlCache.set(url, dataUrl);
+    blobToOriginalUrl.set(dataUrl, url);
+    debugLog(`[convertToBlob] Created new data URL for ${url}`);
 
-    // Cache the blob URL
-    blobUrlCache.set(url, blobUrl);
-    blobToOriginalUrl.set(blobUrl, url);
-    debugLog(`[convertToBlob] Created new blob URL for ${url}: ${blobUrl}`);
-
-    return blobUrl;
+    return dataUrl;
   } catch (error) {
     debugError(`Failed to convert image to blob URL: ${url}`, error);
     // Return original URL as fallback
@@ -244,17 +262,17 @@ export async function convertToBlob(url: string): Promise<string> {
 }
 
 /**
- * Clean up blob URL from cache and revoke it
+ * Clean up cached data URL
  */
 export function revokeBlobUrl(originalUrl: string): void {
-  const blobUrl = blobUrlCache.get(originalUrl);
-  if (blobUrl) {
+  const dataUrl = blobUrlCache.get(originalUrl);
+  if (dataUrl) {
     debugLog(
-      `[revokeBlobUrl] Revoking blob URL for ${originalUrl}: ${blobUrl}`
+      `[revokeBlobUrl] Removing cached data URL for ${originalUrl}`
     );
-    URL.revokeObjectURL(blobUrl);
+    // Data URLs don't need to be revoked, just remove from cache
     blobUrlCache.delete(originalUrl);
-    blobToOriginalUrl.delete(blobUrl);
+    blobToOriginalUrl.delete(dataUrl);
   }
 }
 
