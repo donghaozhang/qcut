@@ -43,8 +43,8 @@ export async function processMediaFiles(
       continue;
     }
 
-    // Don't create blob URL - storage service will handle URL creation
-    // const url = URL.createObjectURL(file);
+    // Create object URL silently
+    const url = URL.createObjectURL(file);
 
     let thumbnailUrl: string | undefined;
     let duration: number | undefined;
@@ -185,8 +185,7 @@ export async function processMediaFiles(
         name: file.name,
         type: fileType,
         file,
-        // Don't include URL - let storage service handle it
-        // url,
+        url,
         thumbnailUrl,
         duration,
         width,
@@ -197,7 +196,7 @@ export async function processMediaFiles(
       debugLog("[Media Processing] ➕ Adding processed item:", {
         name: processedItem.name,
         type: processedItem.type,
-        // url: processedItem.url ? "SET" : "UNSET",
+        url: processedItem.url ? "SET" : "UNSET",
         thumbnailUrl: processedItem.thumbnailUrl ? "SET" : "UNSET",
         duration: processedItem.duration,
         width: processedItem.width,
@@ -231,8 +230,7 @@ export async function processMediaFiles(
           name: file.name,
           type: fileType,
           file,
-          // Don't include URL - let storage service handle it
-          // url,
+          url,
           thumbnailUrl: undefined,
           duration:
             fileType === "video" || fileType === "audio" ? 0 : undefined,
