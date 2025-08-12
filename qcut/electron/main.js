@@ -188,16 +188,45 @@ function createWindow() {
 
 // Start Express server to serve the app via HTTP (fixes blob URLs)
 function startExpressServer() {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const expressApp = express();
     
     // Serve static files from dist directory
     const distPath = path.join(__dirname, "../apps/web/dist");
+    
+    // Set CORS headers for FFmpeg files
+    expressApp.use((req, res, next) => {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+      
+      // Set proper MIME types
+      if (req.path.endsWith('.wasm')) {
+        res.setHeader('Content-Type', 'application/wasm');
+      } else if (req.path.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      }
+      
+      next();
+    });
+    
+    // Serve static files
     expressApp.use(express.static(distPath));
     
-    // Handle all routes by serving index.html (for client-side routing)
-    expressApp.get('*', (req, res) => {
+    // Handle client-side routing - serve index.html for non-asset requests
+    expressApp.get('/', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
+    });
+    
+    // Fallback for other routes
+    expressApp.use((req, res) => {
+      // If it's not a static file request, serve index.html
+      if (!req.path.includes('.')) {
+        res.sendFile(path.join(distPath, 'index.html'));
+      } else {
+        res.status(404).send('File not found');
+      }
     });
     
     // Start server on a random available port
@@ -205,6 +234,11 @@ function startExpressServer() {
       const port = expressServer.address().port;
       logger.log(`[Express Server] App server started on http://127.0.0.1:${port}`);
       resolve(`http://127.0.0.1:${port}`);
+    });
+    
+    expressServer.on('error', (error) => {
+      logger.error('[Express Server] Failed to start:', error);
+      reject(error);
     });
   });
 }
@@ -236,8 +270,8 @@ app.whenReady().then(async () => {
     }
   });
 
-  // Start the static server to serve FFmpeg WASM files
-  staticServer = createStaticServer();
+  // Static server no longer needed - Express server handles everything
+  // staticServer = createStaticServer();
 
   // Start Express server first (for production)
   const isDev = process.env.NODE_ENV === "development";
@@ -265,10 +299,8 @@ app.whenReady().then(async () => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
-    // Close servers when quitting
-    if (staticServer) {
-      staticServer.close();
-    }
+    // Close Express server when quitting
+    // Static server removed - no longer needed
     if (expressServer) {
       expressServer.close();
       logger.log("[Express Server] Closed");
