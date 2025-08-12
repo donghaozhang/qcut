@@ -67,7 +67,7 @@ export function StickersCollection({
               icons = FALLBACK_ICONS[collectionPrefix] || [];
             }
 
-            setCollectionIcons(icons.slice(0, 20)); // Limit to 20 for performance
+            setCollectionIcons(icons.slice(0, 20)); // Limit for performance
           } catch (error) {
             // Use fallback icons on error
             setCollectionIcons(FALLBACK_ICONS[collectionPrefix] || []);

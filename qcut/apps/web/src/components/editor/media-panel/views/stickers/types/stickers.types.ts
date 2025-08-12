@@ -1,4 +1,6 @@
 // Sticker-related type definitions
+import type { IconSet } from "@/lib/iconify-api";
+
 export interface StickerItemProps {
   icon: string;
   name: string;
@@ -9,7 +11,7 @@ export interface StickerItemProps {
 
 export interface CollectionContentProps {
   collectionPrefix: string;
-  collections: any[]; // IconSet[] from iconify-api
+  collections: IconSet[];
   onSelect: (iconId: string, name: string) => void;
 }
 
