@@ -1,9 +1,10 @@
 export async function getStars(): Promise<string> {
   try {
     const res = await fetch("https://api.github.com/repos/donghaozhang/qcut", {
-      // Cache for 1 hour
+      // Remove Cache-Control header to avoid CORS issues
+      // GitHub API will handle caching on their end
       headers: {
-        "Cache-Control": "max-age=3600",
+        "Accept": "application/vnd.github.v3+json",
       },
     });
 
