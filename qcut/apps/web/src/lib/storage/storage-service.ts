@@ -321,20 +321,15 @@ class StorageService {
       // thumbnailUrl would need to be regenerated or cached separately
     };
 
-    console.error("[BLOB DEBUG] StorageService returning media item:", {
-      id: result.id,
-      name: result.name,
-      url: result.url,
+    console.log('[STORAGE] Loading item:', {
+      itemName: result.name,
+      url: result.url?.substring(0, 50) + '...',
       isBlobUrl: result.url?.startsWith('blob:'),
+      isFileBlob: result.url?.startsWith('blob:file:'),
       isDataUrl: result.url?.startsWith('data:'),
-      urlProtocol: result.url ? result.url.substring(0, 20) : 'none',
-      fileSize: result.file.size
+      fileSize: result.file.size,
+      timestamp: new Date().toISOString()
     });
-
-    // Alert if we're returning a problematic blob URL
-    if (result.url?.startsWith('blob:file:///')) {
-      console.error("[BLOB DEBUG] ❌ STORAGE SERVICE RETURNING PROBLEMATIC BLOB URL:", result.url);
-    }
 
     return result;
   }

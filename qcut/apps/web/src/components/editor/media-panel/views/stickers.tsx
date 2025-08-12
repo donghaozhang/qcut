@@ -357,8 +357,14 @@ export function StickersView() {
           reader.readAsDataURL(svgBlob);
         });
         
-        console.log("[StickersView] Created data URL (first 50 chars):", dataUrl.substring(0, 50));
-        console.log("[StickersView] Data URL protocol:", dataUrl.split(':')[0]);
+        console.log('[STICKER] URL created:', {
+          itemName: `${name}.svg`,
+          url: dataUrl.substring(0, 50) + '...',
+          isBlobUrl: dataUrl?.startsWith('blob:'),
+          isFileBlob: dataUrl?.startsWith('blob:file:'),
+          isDataUrl: dataUrl?.startsWith('data:'),
+          timestamp: new Date().toISOString()
+        });
 
         console.log("[StickersView] Adding media item to project:", activeProject.id);
         await addMediaItem(activeProject.id, {
