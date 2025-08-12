@@ -4,6 +4,7 @@ import {
   getCollections,
   searchIcons,
   downloadIconSvg,
+  createSvgBlob,
   IconSet,
   IconSearchResult,
 } from "@/lib/iconify-api";
@@ -29,7 +30,7 @@ export interface StickersStore {
   setSelectedCategory: (category: string | null) => void;
   fetchCollections: () => Promise<void>;
   searchIcons: (query: string) => Promise<void>;
-  downloadSticker: (collection: string, icon: string) => Promise<string>;
+  downloadSticker: (collection: string, icon: string) => Promise<Blob>;
   addRecentSticker: (iconId: string, name: string) => void;
   clearError: () => void;
   clearSearchResults: () => void;
@@ -124,15 +125,19 @@ export const useStickersStore = create<StickersStore>()(
 
         try {
           const svgContent = await downloadIconSvg(collection, icon, {
+            // No color specified to maintain transparency
             width: 512,
             height: 512,
           });
+
+          // Create a blob from the SVG content
+          const svgBlob = createSvgBlob(svgContent);
 
           // Add to recent stickers
           const iconId = `${collection}:${icon}`;
           get().addRecentSticker(iconId, icon);
 
-          return svgContent;
+          return svgBlob;
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : "Download failed";

@@ -153,7 +153,8 @@ export function buildIconSvgUrl(
 ): string {
   const params = new URLSearchParams();
 
-  if (options.color) {
+  // Don't set color to preserve transparency
+  if (options.color && options.color !== "transparent") {
     params.set("color", options.color);
   }
   if (options.width) params.set("width", options.width.toString());
@@ -180,7 +181,8 @@ export async function downloadIconSvg(
 ): Promise<string> {
   const params = new URLSearchParams();
 
-  if (options.color) {
+  // Don't set color to preserve transparency
+  if (options.color && options.color !== "transparent") {
     params.set("color", options.color);
   }
   if (options.width) params.set("width", options.width.toString());
@@ -194,6 +196,17 @@ export async function downloadIconSvg(
   const response = await apiClient.fetchWithFallback(path);
   const svgContent = await response.text();
   return svgContent;
+}
+
+// Helper function to create a Blob from SVG content
+export function createSvgBlob(svgContent: string): Blob {
+  return new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
+}
+
+// Helper function to create a transparent SVG blob URL
+export function createTransparentSvgBlobUrl(svgContent: string): string {
+  const blob = createSvgBlob(svgContent);
+  return URL.createObjectURL(blob);
 }
 
 // Popular collections with sample icons

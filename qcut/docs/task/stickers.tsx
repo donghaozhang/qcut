@@ -33,6 +33,7 @@ import { useProjectStore } from "@/stores/project-store";
 import {
   buildIconSvgUrl,
   downloadIconSvg,
+  createSvgBlob,
   getCollection,
   POPULAR_COLLECTIONS,
 } from "@/lib/iconify-api";
@@ -67,7 +68,7 @@ function StickerItem({
 
     try {
       const svgUrl = buildIconSvgUrl(collection, icon, {
-        color: "currentColor",
+        // Remove color to keep transparency
         width: 32,
         height: 32,
       });
@@ -327,30 +328,30 @@ export function StickersView() {
       }
 
       try {
-        // Download the actual SVG content
+        // Download the actual SVG content with transparency
         const [collection, icon] = iconId.split(":");
         const svgContent = await downloadIconSvg(collection, icon, {
-          color: "currentColor",
+          // No color specified to maintain transparency
           width: 512,
           height: 512,
         });
 
-        // Create a File object from the downloaded SVG content
-        const svgBlob = new Blob([svgContent], { type: "image/svg+xml" });
+        // Create a Blob from the downloaded SVG content
+        const svgBlob = createSvgBlob(svgContent);
         const svgFile = new File([svgBlob], `${name}.svg`, {
-          type: "image/svg+xml",
+          type: "image/svg+xml;charset=utf-8",
         });
 
-        // Create a local blob URL for preview
-        const objectUrl = URL.createObjectURL(svgBlob);
-        objectUrlsRef.current.add(objectUrl);
+        // Create a blob URL for preview (no data URL)
+        const blobUrl = URL.createObjectURL(svgBlob);
+        objectUrlsRef.current.add(blobUrl);
 
         await addMediaItem(activeProject.id, {
           name: `${name}.svg`,
           type: "image",
           file: svgFile,
-          url: objectUrl,
-          thumbnailUrl: objectUrl,
+          url: blobUrl,
+          thumbnailUrl: blobUrl,
           width: 512,
           height: 512,
           duration: 0,
