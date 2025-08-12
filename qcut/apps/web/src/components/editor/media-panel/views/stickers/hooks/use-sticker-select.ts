@@ -9,7 +9,7 @@ export function useStickerSelect() {
   const { addMediaItem } = useMediaStore();
   const { activeProject } = useProjectStore();
   const { addRecentSticker } = useStickersStore();
-  
+
   // Track object URLs for cleanup
   const objectUrlsRef = useRef<Set<string>>(new Set());
 

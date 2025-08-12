@@ -2,9 +2,9 @@
 export { StickersView } from "./stickers-view";
 
 // Re-export types if needed elsewhere
-export type { 
+export type {
   StickerItemProps,
   CollectionContentProps,
   StickersViewProps,
-  RecentSticker 
+  RecentSticker,
 } from "./types/stickers.types";

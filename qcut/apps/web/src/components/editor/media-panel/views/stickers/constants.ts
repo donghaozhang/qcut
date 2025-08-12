@@ -2,11 +2,11 @@
 export const STICKERS_CONSTANTS = {
   // Search
   SEARCH_DEBOUNCE_MS: 300,
-  
+
   // Collection display
   MAX_ICONS_PER_COLLECTION: 20,
   MAX_CATEGORIES_FLATTEN: 30,
-  
+
   // Grid layout
   GRID_COLS: {
     BASE: 6,
@@ -14,11 +14,11 @@ export const STICKERS_CONSTANTS = {
     MD: 10,
     LG: 12,
   },
-  
+
   // SVG settings
   ICON_PREVIEW_SIZE: 32,
   ICON_DOWNLOAD_SIZE: 512,
-  
+
   // Storage
   MAX_RECENT_STICKERS: 50,
 } as const;

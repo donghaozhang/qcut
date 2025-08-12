@@ -10,8 +10,22 @@ import type { CollectionContentProps } from "../types/stickers.types";
 const FALLBACK_ICONS: Record<string, string[]> = {
   "heroicons": ["home", "user", "cog", "heart", "star", "check"],
   "tabler": ["home", "user", "settings", "heart", "star", "check"],
-  "material-symbols": ["home", "person", "settings", "favorite", "star", "check"],
-  "simple-icons": ["github", "google", "facebook", "twitter", "instagram", "youtube"],
+  "material-symbols": [
+    "home",
+    "person",
+    "settings",
+    "favorite",
+    "star",
+    "check",
+  ],
+  "simple-icons": [
+    "github",
+    "google",
+    "facebook",
+    "twitter",
+    "instagram",
+    "youtube",
+  ],
 };
 
 export function StickersCollection({

@@ -86,7 +86,7 @@ export function StickersView() {
   return (
     <div className="flex h-full flex-col">
       {/* Search Bar */}
-      <StickersSearch 
+      <StickersSearch
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
       />
@@ -117,7 +117,10 @@ export function StickersView() {
                 <Grid3X3 className="h-4 w-4" />
                 All
               </TabsTrigger>
-              <TabsTrigger value="simple-icons" className="flex items-center gap-2">
+              <TabsTrigger
+                value="simple-icons"
+                className="flex items-center gap-2"
+              >
                 <Hash className="h-4 w-4" />
                 Brands
               </TabsTrigger>

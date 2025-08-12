@@ -8,7 +8,10 @@ interface StickersSearchProps {
   onSearchChange: (query: string) => void;
 }
 
-export function StickersSearch({ searchQuery, onSearchChange }: StickersSearchProps) {
+export function StickersSearch({
+  searchQuery,
+  onSearchChange,
+}: StickersSearchProps) {
   return (
     <div className="border-b p-4">
       <div className="relative">
