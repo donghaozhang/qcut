@@ -168,13 +168,27 @@ class StorageService {
 
   // Media operations - now project-specific
   async saveMediaItem(projectId: string, mediaItem: MediaItem): Promise<void> {
+    console.log("[StorageService] saveMediaItem called:", {
+      projectId,
+      mediaItemId: mediaItem.id,
+      name: mediaItem.name,
+      type: mediaItem.type,
+      fileSize: mediaItem.file.size,
+      url: mediaItem.url,
+      isBlobUrl: mediaItem.url?.startsWith('blob:')
+    });
+
     const { mediaMetadataAdapter, mediaFilesAdapter } =
       this.getProjectMediaAdapters(projectId);
 
     // Only save file if it has actual content
     if (mediaItem.file.size > 0) {
+      console.log("[StorageService] Saving file to OPFS:", mediaItem.id);
       // Save file to project-specific OPFS
       await mediaFilesAdapter.set(mediaItem.id, mediaItem.file);
+      console.log("[StorageService] File saved to OPFS successfully");
+    } else {
+      console.warn("[StorageService] File has no content, skipping OPFS save");
     }
 
     // Save metadata to project-specific IndexedDB
@@ -187,18 +201,28 @@ class StorageService {
       width: mediaItem.width,
       height: mediaItem.height,
       duration: mediaItem.duration,
-      // Store the URL if it's a generated image (blob URL)
-      url: mediaItem.url,
+      // Don't store blob URLs as they become invalid after page reload
+      // Only store non-blob URLs (like original URLs from external sources)
+      url: mediaItem.url && !mediaItem.url.startsWith('blob:') ? mediaItem.url : undefined,
       metadata: mediaItem.metadata,
     };
 
+    console.log("[StorageService] Saving metadata to IndexedDB:", {
+      id: metadata.id,
+      storedUrl: metadata.url,
+      originalUrl: mediaItem.url
+    });
+
     await mediaMetadataAdapter.set(mediaItem.id, metadata);
+    console.log("[StorageService] Metadata saved successfully");
   }
 
   async loadMediaItem(
     projectId: string,
     id: string
   ): Promise<MediaItem | null> {
+    console.log("[StorageService] loadMediaItem called:", { projectId, id });
+    
     const { mediaMetadataAdapter, mediaFilesAdapter } =
       this.getProjectMediaAdapters(projectId);
 
@@ -207,37 +231,55 @@ class StorageService {
       mediaMetadataAdapter.get(id),
     ]);
 
-    if (!metadata) return null;
+    console.log("[StorageService] Loaded from storage:", {
+      hasFile: !!file,
+      fileSize: file?.size,
+      hasMetadata: !!metadata,
+      storedUrl: metadata?.url
+    });
 
-    let url: string;
+    if (!metadata) {
+      console.warn("[StorageService] No metadata found for media item:", id);
+      return null;
+    }
+
+    let url: string | undefined;
     let actualFile: File;
 
     if (file && file.size > 0) {
-      // File exists with content, create object URL
+      // File exists with content, create new object URL
       url = URL.createObjectURL(file);
       actualFile = file;
+      console.log(
+        `[StorageService] Created new blob URL for ${metadata.name}: ${url}`
+      );
       debugLog(
         `[StorageService] Created new object URL for ${metadata.name}: ${url}`
       );
-    } else if (metadata.url) {
-      // No file or empty file, but we have a URL (e.g., generated image fallback)
+    } else if (metadata.url && !metadata.url.startsWith('blob:')) {
+      // No file or empty file, but we have a non-blob URL (e.g., external URL)
       url = metadata.url;
       // Create empty file placeholder
       actualFile = new File([], metadata.name, {
         type: `${metadata.type}/jpeg`,
       });
       console.log(
-        `[StorageService] Using stored URL for ${metadata.name}: ${url}`
+        `[StorageService] Using stored non-blob URL for ${metadata.name}: ${url}`
       );
     } else {
-      // No file and no URL, cannot load
+      // No valid file or URL available
       console.warn(
-        `[StorageService] No file or URL found for media item: ${metadata.name}`
+        `[StorageService] No valid file or URL found for media item: ${metadata.name}, id: ${id}`
       );
-      return null;
+      // Create an empty file as fallback
+      actualFile = new File([], metadata.name, {
+        type: `${metadata.type}/jpeg`,
+      });
+      // Don't set a URL if we don't have a valid one
+      url = undefined;
     }
 
-    return {
+    const result = {
       id: metadata.id,
       name: metadata.name,
       type: metadata.type,
@@ -249,6 +291,15 @@ class StorageService {
       metadata: metadata.metadata,
       // thumbnailUrl would need to be regenerated or cached separately
     };
+
+    console.log("[StorageService] Returning media item:", {
+      id: result.id,
+      name: result.name,
+      url: result.url,
+      fileSize: result.file.size
+    });
+
+    return result;
   }
 
   async loadAllMediaItems(projectId: string): Promise<MediaItem[]> {

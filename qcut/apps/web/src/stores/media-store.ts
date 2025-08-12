@@ -261,25 +261,40 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
   isLoading: false,
 
   addMediaItem: async (projectId, item) => {
+    console.log("[MediaStore] addMediaItem called:", {
+      projectId,
+      itemName: item.name,
+      itemType: item.type,
+      itemUrl: item.url,
+      fileSize: item.file?.size,
+      isBlobUrl: item.url?.startsWith('blob:')
+    });
+
     const newItem: MediaItem = {
       ...item,
       id: generateUUID(),
     };
 
+    console.log("[MediaStore] Created new media item with ID:", newItem.id);
+
     // Add to local state immediately for UI responsiveness
     set((state) => ({
       mediaItems: [...state.mediaItems, newItem],
     }));
+    console.log("[MediaStore] Added to local state");
 
     // Save to persistent storage in background
     try {
+      console.log("[MediaStore] Saving to storage service...");
       await storageService.saveMediaItem(projectId, newItem);
+      console.log("[MediaStore] Successfully saved to storage");
     } catch (error) {
-      console.error("Failed to save media item:", error);
+      console.error("[MediaStore] Failed to save media item:", error);
       // Remove from local state if save failed
       set((state) => ({
         mediaItems: state.mediaItems.filter((media) => media.id !== newItem.id),
       }));
+      console.log("[MediaStore] Removed from local state due to save failure");
     }
   },
 

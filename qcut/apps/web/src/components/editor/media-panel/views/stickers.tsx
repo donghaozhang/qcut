@@ -66,8 +66,10 @@ function StickerItem({
         width: 32,
         height: 32,
       });
+      console.log("[StickerItem] Built SVG URL:", { collection, icon, svgUrl });
       setImageUrl(svgUrl);
     } catch (error) {
+      console.error("[StickerItem] Error building SVG URL:", error);
       setHasError(true);
       setIsLoading(false);
     }
@@ -105,8 +107,16 @@ function StickerItem({
                   "h-8 w-8 object-contain",
                   (isLoading || hasError) && "hidden"
                 )}
-                onLoad={() => setIsLoading(false)}
-                onError={() => {
+                onLoad={() => {
+                  console.log("[StickerItem] Image loaded successfully:", imageUrl);
+                  setIsLoading(false);
+                }}
+                onError={(e) => {
+                  console.error("[StickerItem] Image failed to load:", {
+                    url: imageUrl,
+                    error: e,
+                    target: e.currentTarget.src
+                  });
                   setHasError(true);
                   setIsLoading(false);
                 }}
@@ -316,7 +326,10 @@ export function StickersView() {
 
   const handleStickerSelect = useCallback(
     async (iconId: string, name: string) => {
+      console.log("[StickersView] handleStickerSelect called:", { iconId, name });
+      
       if (!activeProject) {
+        console.error("[StickersView] No active project");
         toast.error("No project selected");
         return;
       }
@@ -324,22 +337,36 @@ export function StickersView() {
       try {
         // Download the actual SVG content
         const [collection, icon] = iconId.split(":");
+        console.log("[StickersView] Downloading SVG:", { collection, icon });
+        
         const svgContent = await downloadIconSvg(collection, icon, {
           color: "currentColor",
           width: 512,
           height: 512,
         });
+        
+        console.log("[StickersView] SVG content downloaded, length:", svgContent.length);
 
         // Create a File object from the downloaded SVG content
         const svgBlob = new Blob([svgContent], { type: "image/svg+xml" });
+        console.log("[StickersView] Created Blob, size:", svgBlob.size);
+        
         const svgFile = new File([svgBlob], `${name}.svg`, {
           type: "image/svg+xml",
+        });
+        console.log("[StickersView] Created File:", {
+          name: svgFile.name,
+          size: svgFile.size,
+          type: svgFile.type
         });
 
         // Create a local blob URL for preview
         const objectUrl = URL.createObjectURL(svgBlob);
+        console.log("[StickersView] Created blob URL:", objectUrl);
         objectUrlsRef.current.add(objectUrl);
+        console.log("[StickersView] Tracked blob URLs count:", objectUrlsRef.current.size);
 
+        console.log("[StickersView] Adding media item to project:", activeProject.id);
         await addMediaItem(activeProject.id, {
           name: `${name}.svg`,
           type: "image",
@@ -350,14 +377,17 @@ export function StickersView() {
           height: 512,
           duration: 0,
         });
+        console.log("[StickersView] Media item added successfully");
 
         // Add to recent stickers
         addRecentSticker(iconId, name);
+        console.log("[StickersView] Added to recent stickers");
 
         toast.success(`Added ${name} to project`);
 
         // Object URL is tracked and will be cleaned up on component unmount
       } catch (error) {
+        console.error("[StickersView] Error adding sticker:", error);
         toast.error("Failed to add sticker to project");
       }
     },
