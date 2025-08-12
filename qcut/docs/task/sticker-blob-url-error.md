@@ -263,6 +263,24 @@ if (metadata.url && metadata.url.startsWith('data:')) {
 - **Cleanup**: Tool available to clear existing problematic items
 - **Future-proof**: All SVG files automatically converted to data URLs
 
+## Debug Instructions for Testing
+
+### To identify the source of remaining blob URLs:
+
+1. **Open Developer Console** (Ctrl+Shift+I)
+2. **Look for red error messages** starting with `[BLOB DEBUG]`
+3. **Add a sticker** and watch for:
+   - `[BLOB DEBUG] Blob URL created:` - Shows exactly where blob URLs are created
+   - `[BLOB DEBUG] ❌ FOUND PROBLEMATIC BLOB URL` - Alerts when problematic URLs detected
+4. **Drag the sticker** and check for URL types in drag data
+5. **Check storage operations** for what URLs are being saved/loaded
+
+### Key Debug Messages to Watch:
+- `[BLOB DEBUG] Blob URL created:` - With stack trace showing creation point
+- `[BLOB DEBUG] DraggableMediaItem - Drag started:` - Shows what URL is being dragged
+- `[BLOB DEBUG] MediaStore.addMediaItem called:` - Shows what URL is being stored
+- `[BLOB DEBUG] StorageService returning media item:` - Shows what URL is loaded
+
 ### For Users with Existing Issues:
 If you still see blob URL errors after updating, you may have old stickers with blob URLs. The app will automatically convert them, but you can also manually clear them by opening the browser console and running:
 ```javascript

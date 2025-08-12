@@ -192,7 +192,7 @@ export function MediaView() {
 
     try {
       // Set the original image in the adjustment store
-      const imageUrl = item.url || URL.createObjectURL(item.file);
+      const imageUrl = item.url || item.thumbnailUrl || URL.createObjectURL(item.file);
       setOriginalImage(item.file, imageUrl);
 
       // Switch to adjustment tab
@@ -243,7 +243,7 @@ export function MediaView() {
       return (
         <div className="w-full h-full flex items-center justify-center">
           <img
-            src={item.url}
+            src={item.url || item.thumbnailUrl}
             alt={item.name}
             className="max-w-full max-h-full object-contain"
             loading="lazy"
