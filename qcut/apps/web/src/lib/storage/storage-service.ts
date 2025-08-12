@@ -257,59 +257,15 @@ class StorageService {
         `[StorageService] Using stored data URL for ${metadata.name}: ${url.substring(0, 50)}...`
       );
     } else if (file && file.size > 0) {
-      // Try blob URL first
-      let blobUrl: string | undefined;
+      // Create blob URL - now works perfectly with HTTP server
       try {
-        blobUrl = URL.createObjectURL(file);
+        url = URL.createObjectURL(file);
         console.log(
-          `🔵 [StorageService] Created blob URL for ${metadata.name}: ${blobUrl.substring(0, 50)}...`
+          `✅ [StorageService] Created blob URL for ${metadata.name}: ${url.substring(0, 50)}...`
         );
-        
-        // Check if it's a problematic blob URL and convert to data URL
-        if (blobUrl.startsWith('blob:file:///')) {
-          console.warn(
-            `⚠️ [StorageService] Problematic blob URL detected (blob:file:///) for ${metadata.name}, converting to data URL...`
-          );
-          
-          // Revoke the problematic blob URL
-          URL.revokeObjectURL(blobUrl);
-          
-          // Convert to data URL instead
-          const reader = new FileReader();
-          url = await new Promise<string>((resolve, reject) => {
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-          console.log(
-            `✅ [StorageService] Converted to data URL for ${metadata.name}: ${url.substring(0, 50)}...`
-          );
-        } else {
-          // Blob URL is good (blob:http:// or blob:https://)
-          url = blobUrl;
-          console.log(
-            `✅ [StorageService] Using working blob URL for ${metadata.name}`
-          );
-        }
-      } catch (blobError) {
-        console.error(`❌ [StorageService] Failed to create blob URL:`, blobError);
-        
-        // Fallback to data URL
-        try {
-          const reader = new FileReader();
-          url = await new Promise<string>((resolve, reject) => {
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-          console.log(
-            `✅ [StorageService] Fallback: Converted file to data URL for ${metadata.name}: ${url.substring(0, 50)}...`
-          );
-        } catch (dataUrlError) {
-          console.error(`❌ [StorageService] Failed to convert to data URL:`, dataUrlError);
-          url = undefined;
-          console.error(`❌ [StorageService] No URL available for ${metadata.name}`);
-        }
+      } catch (error) {
+        console.error(`❌ [StorageService] Failed to create blob URL:`, error);
+        url = undefined;
       }
       actualFile = file;
       debugLog(

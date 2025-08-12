@@ -9,6 +9,7 @@ const {
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
+const express = require("express");
 // Initialize electron-log early
 let log = null;
 try {
@@ -39,6 +40,7 @@ const { setupFFmpegIPC } = require("./ffmpeg-handler.js");
 
 let mainWindow;
 let staticServer;
+let expressServer; // Express server for serving the app
 
 // Suppress Electron DevTools Autofill errors
 app.commandLine.appendSwitch("disable-features", "Autofill");
@@ -173,7 +175,9 @@ function createWindow() {
   if (isDev) {
     mainWindow.loadURL("http://localhost:5174");
   } else {
-    mainWindow.loadFile(path.join(__dirname, "../apps/web/dist/index.html"));
+    // In production, wait for Express server to be ready then load from HTTP
+    // This will be set after the server starts
+    // mainWindow.loadURL will be called from startExpressServer()
   }
 
   // Open DevTools in development
@@ -182,7 +186,30 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(() => {
+// Start Express server to serve the app via HTTP (fixes blob URLs)
+function startExpressServer() {
+  return new Promise((resolve) => {
+    const expressApp = express();
+    
+    // Serve static files from dist directory
+    const distPath = path.join(__dirname, "../apps/web/dist");
+    expressApp.use(express.static(distPath));
+    
+    // Handle all routes by serving index.html (for client-side routing)
+    expressApp.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+    
+    // Start server on a random available port
+    expressServer = expressApp.listen(0, '127.0.0.1', () => {
+      const port = expressServer.address().port;
+      logger.log(`[Express Server] App server started on http://127.0.0.1:${port}`);
+      resolve(`http://127.0.0.1:${port}`);
+    });
+  });
+}
+
+app.whenReady().then(async () => {
   // Register custom protocol for serving static files
   protocol.registerFileProtocol("app", (request, callback) => {
     const url = request.url.replace("app://", "");
@@ -212,7 +239,22 @@ app.whenReady().then(() => {
   // Start the static server to serve FFmpeg WASM files
   staticServer = createStaticServer();
 
+  // Start Express server first (for production)
+  const isDev = process.env.NODE_ENV === "development";
+  let appUrl = null;
+  
+  if (!isDev) {
+    appUrl = await startExpressServer();
+  }
+  
   createWindow();
+  
+  // Load the app URL after window is created
+  if (!isDev && appUrl) {
+    mainWindow.loadURL(appUrl);
+    logger.log(`[Main] Loading app from Express server: ${appUrl}`);
+  }
+  
   setupFFmpegIPC(); // Add FFmpeg CLI support
 
   // Configure auto-updater for production builds
@@ -223,9 +265,13 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
-    // Close the static server when quitting
+    // Close servers when quitting
     if (staticServer) {
       staticServer.close();
+    }
+    if (expressServer) {
+      expressServer.close();
+      logger.log("[Express Server] Closed");
     }
     app.quit();
   }
