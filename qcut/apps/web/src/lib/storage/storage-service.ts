@@ -221,7 +221,7 @@ class StorageService {
     projectId: string,
     id: string
   ): Promise<MediaItem | null> {
-    console.log("[StorageService] loadMediaItem called:", { projectId, id });
+    console.error("[BLOB DEBUG] StorageService.loadMediaItem called:", { projectId, id });
     
     const { mediaMetadataAdapter, mediaFilesAdapter } =
       this.getProjectMediaAdapters(projectId);
@@ -246,17 +246,46 @@ class StorageService {
     let url: string | undefined;
     let actualFile: File;
 
-    if (file && file.size > 0) {
-      // File exists with content, create new object URL
-      url = URL.createObjectURL(file);
-      actualFile = file;
+    // Prioritize stored data URLs over creating new blob URLs
+    if (metadata.url && metadata.url.startsWith('data:')) {
+      // Use stored data URL (preferred for SVG stickers)
+      url = metadata.url;
+      actualFile = file || new File([], metadata.name, {
+        type: `${metadata.type}/svg+xml`,
+      });
       console.log(
-        `[StorageService] Created new blob URL for ${metadata.name}: ${url}`
+        `[StorageService] Using stored data URL for ${metadata.name}: ${url.substring(0, 50)}...`
       );
+    } else if (file && file.size > 0) {
+      // File exists with content, convert SVG to data URL or create blob URL
+      if (metadata.name.endsWith('.svg') || metadata.type === 'image') {
+        try {
+          // Convert SVG files to data URLs to avoid blob:file:// issues
+          const reader = new FileReader();
+          url = await new Promise<string>((resolve, reject) => {
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          console.log(
+            `[StorageService] Converted SVG file to data URL for ${metadata.name}`
+          );
+        } catch (error) {
+          console.error(`[StorageService] Failed to convert SVG to data URL, using blob URL:`, error);
+          url = URL.createObjectURL(file);
+        }
+      } else {
+        // For non-SVG files, create blob URL
+        url = URL.createObjectURL(file);
+        console.log(
+          `[StorageService] Created new blob URL for ${metadata.name}: ${url}`
+        );
+      }
+      actualFile = file;
       debugLog(
-        `[StorageService] Created new object URL for ${metadata.name}: ${url}`
+        `[StorageService] Processed file for ${metadata.name}: ${url?.substring(0, 50)}`
       );
-    } else if (metadata.url && (!metadata.url.startsWith('blob:') || metadata.url.startsWith('data:'))) {
+    } else if (metadata.url && !metadata.url.startsWith('blob:')) {
       // No file or empty file, but we have a data URL or non-blob URL (e.g., external URL)
       url = metadata.url;
       // Create empty file placeholder
@@ -292,12 +321,20 @@ class StorageService {
       // thumbnailUrl would need to be regenerated or cached separately
     };
 
-    console.log("[StorageService] Returning media item:", {
+    console.error("[BLOB DEBUG] StorageService returning media item:", {
       id: result.id,
       name: result.name,
       url: result.url,
+      isBlobUrl: result.url?.startsWith('blob:'),
+      isDataUrl: result.url?.startsWith('data:'),
+      urlProtocol: result.url ? result.url.substring(0, 20) : 'none',
       fileSize: result.file.size
     });
+
+    // Alert if we're returning a problematic blob URL
+    if (result.url?.startsWith('blob:file:///')) {
+      console.error("[BLOB DEBUG] ❌ STORAGE SERVICE RETURNING PROBLEMATIC BLOB URL:", result.url);
+    }
 
     return result;
   }
@@ -413,6 +450,28 @@ class StorageService {
 
   isFullySupported(): boolean {
     return this.isIndexedDBSupported() && this.isOPFSSupported();
+  }
+
+  /**
+   * Clear media items with problematic blob URLs
+   */
+  async clearBlobUrlMediaItems(projectId: string): Promise<number> {
+    const { mediaMetadataAdapter } = this.getProjectMediaAdapters(projectId);
+    
+    const mediaIds = await mediaMetadataAdapter.list();
+    let clearedCount = 0;
+    
+    for (const id of mediaIds) {
+      const metadata = await mediaMetadataAdapter.get(id);
+      if (metadata && metadata.url && metadata.url.startsWith('blob:file:///')) {
+        await this.deleteMediaItem(projectId, id);
+        clearedCount++;
+        console.log(`[StorageService] Cleared problematic media item: ${metadata.name}`);
+      }
+    }
+    
+    console.log(`[StorageService] Cleared ${clearedCount} media items with blob URLs`);
+    return clearedCount;
   }
 
   /**

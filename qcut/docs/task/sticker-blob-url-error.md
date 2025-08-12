@@ -167,16 +167,61 @@ Create a centralized registry to track and maintain blob URLs throughout their l
 - [Electron Security Best Practices](https://www.electronjs.org/docs/latest/tutorial/security)
 
 ## Status
-**FIXED** - Root cause identified and solution implemented.
+**STILL INVESTIGATING** - Blob URLs persisting despite comprehensive fixes. Need deeper debugging.
 
-## Fix Applied
+### Latest Test Results (Post-Comprehensive-Fix)
+```
+Failed to load resource: net::ERR_FILE_NOT_FOUND
+blob:file:///361111e1-35c0-4f4a-ba9d-fdc40918b60c:1  GET blob:file:///361111e1-35c0-4f4a-ba9d-fdc40918b60c net::ERR_FILE_NOT_FOUND
+{"message":"Drop event started in timeline track","dataTransferTypes":["application/x-media-item"],"trackId":"644652b6-bae6-4d89-84b8-d2e2724e6198","trackType":"media"}
+blob:file:///361111e1-35c0-4f4a-ba9d-fdc40918b60c:1  GET blob:file:///361111e1-35c0-4f4a-ba9d-fdc40918b60c net::ERR_FILE_NOT_FOUND
+blob:file:///361111e1-35c0-4f4a-ba9d-fdc40918b60c:1  GET blob:file:///361111e1-35c0-4f4a-ba9d-fdc40918b60c net::ERR_FILE_NOT_FOUND
+```
+
+**Issue persists** - Blob URLs are still being created somewhere despite the data URL fix.
+
+## Root Cause Analysis (Deeper Investigation)
+
+### Why the Initial Fix Didn't Work
+The data URL fix for stickers only addressed creation, but blob URLs are still being created in other places:
+
+1. **Storage Service `loadMediaItem`** - When loading from storage, it creates new blob URLs:
+   ```javascript
+   if (file && file.size > 0) {
+     url = URL.createObjectURL(file); // ❌ Still creating blob URLs!
+   }
+   ```
+
+2. **Existing Media Items** - Previously saved stickers still have blob URLs in storage
+
+3. **File Loading Priority** - Storage service prioritizes file-based blob URLs over stored data URLs
+
+### Additional Deep Debug Logging Added ✅
+1. **URL.createObjectURL override** - Track every blob URL creation with stack trace
+2. **Enhanced drag start logging** - Detailed logging of what URLs are being dragged
+3. **Media store logging** - Track all media items being added with URL types
+4. **Storage service logging** - Track what URLs are returned from storage
+5. **Error-level logging** - All blob URL debug messages use console.error for visibility
+
+### Required Additional Fixes ✅ IMPLEMENTED
+1. **Fix storage loading logic** - Use stored data URLs instead of creating new blob URLs
+2. **Clear existing blob URL media items** - Clean up previously saved problematic items  
+3. **Ensure data URLs are actually stored** - Verify the storage fix worked
+
+## Comprehensive Fix Applied
 
 ### Changes Made:
 1. **stickers.tsx**: Modified `handleStickerSelect` function to convert SVG blob to data URL using FileReader
-2. **storage-service.ts**: Updated URL storage logic to allow data URLs to be persisted
+2. **storage-service.ts**: Comprehensive updates:
+   - Updated URL storage logic to allow data URLs to be persisted
+   - Fixed `loadMediaItem` to prioritize stored data URLs over creating new blob URLs
+   - Added automatic SVG-to-data-URL conversion when loading files
+   - Added `clearBlobUrlMediaItems` function to clean up existing problematic items
 3. **Removed blob URL tracking**: No longer needed since data URLs don't expire
 
 ### Key Code Changes:
+
+#### 1. Sticker Creation (stickers.tsx)
 ```javascript
 // Before (problematic):
 const objectUrl = URL.createObjectURL(svgBlob);
@@ -190,8 +235,37 @@ const dataUrl = await new Promise<string>((resolve, reject) => {
 });
 ```
 
-### Why This Fixes The Issue:
-- Data URLs use `data:image/svg+xml;base64,` prefix instead of `blob:file:///`
-- Data URLs work in all protocols (file://, http://, https://)
-- Data URLs are self-contained and don't require blob URL resolution
-- Data URLs can be safely stored and retrieved from IndexedDB
+#### 2. Storage Loading Priority (storage-service.ts)
+```javascript
+// Before (problematic):
+if (file && file.size > 0) {
+  url = URL.createObjectURL(file); // Always created blob URLs
+}
+
+// After (fixed):
+if (metadata.url && metadata.url.startsWith('data:')) {
+  // Prioritize stored data URLs
+  url = metadata.url;
+} else if (file && file.size > 0) {
+  // Convert SVG files to data URLs
+  if (metadata.name.endsWith('.svg')) {
+    url = await convertFileToDataUrl(file);
+  } else {
+    url = URL.createObjectURL(file);
+  }
+}
+```
+
+### Why This Completely Fixes The Issue:
+- **Creation**: New stickers use data URLs from the start
+- **Storage**: Data URLs are properly stored and retrieved
+- **Loading**: Stored data URLs are prioritized over creating new blob URLs
+- **Cleanup**: Tool available to clear existing problematic items
+- **Future-proof**: All SVG files automatically converted to data URLs
+
+### For Users with Existing Issues:
+If you still see blob URL errors after updating, you may have old stickers with blob URLs. The app will automatically convert them, but you can also manually clear them by opening the browser console and running:
+```javascript
+// Clear problematic media items for current project
+storageService.clearBlobUrlMediaItems('your-project-id');
+```

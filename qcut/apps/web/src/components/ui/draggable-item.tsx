@@ -66,21 +66,31 @@ export function DraggableMediaItem({
   }, [isDragging]);
 
   const handleDragStart = (e: React.DragEvent) => {
-    console.log("[DraggableMediaItem] Drag started:", {
+    console.error("[BLOB DEBUG] DraggableMediaItem - Drag started:", {
       name,
       dragData,
       dragDataId: dragData.id,
       dragDataType: dragData.type,
       dragDataUrl: dragData.url,
-      isBlobUrl: dragData.url?.startsWith('blob:')
+      isBlobUrl: dragData.url?.startsWith('blob:'),
+      isDataUrl: dragData.url?.startsWith('data:'),
+      urlProtocol: dragData.url ? dragData.url.substring(0, 20) : 'none'
     });
+
+    // Check if we're accidentally dragging a blob URL
+    if (dragData.url?.startsWith('blob:file:///')) {
+      console.error("[BLOB DEBUG] ❌ FOUND PROBLEMATIC BLOB URL IN DRAG DATA:", dragData.url);
+      console.error("[BLOB DEBUG] dragData full object:", JSON.stringify(dragData, null, 2));
+    }
 
     e.dataTransfer.setDragImage(emptyImg, 0, 0);
 
     // Set drag data
+    const serializedData = JSON.stringify(dragData);
+    console.error("[BLOB DEBUG] Serialized drag data:", serializedData);
     e.dataTransfer.setData(
       "application/x-media-item",
-      JSON.stringify(dragData)
+      serializedData
     );
     e.dataTransfer.effectAllowed = "copy";
 

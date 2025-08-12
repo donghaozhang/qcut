@@ -261,14 +261,23 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
   isLoading: false,
 
   addMediaItem: async (projectId, item) => {
-    console.log("[MediaStore] addMediaItem called:", {
+    console.error("[BLOB DEBUG] MediaStore.addMediaItem called:", {
       projectId,
       itemName: item.name,
       itemType: item.type,
       itemUrl: item.url,
       fileSize: item.file?.size,
-      isBlobUrl: item.url?.startsWith('blob:')
+      isBlobUrl: item.url?.startsWith('blob:'),
+      isDataUrl: item.url?.startsWith('data:'),
+      urlProtocol: item.url ? item.url.substring(0, 20) : 'none',
+      stack: new Error().stack
     });
+
+    // Alert if we're adding a problematic blob URL
+    if (item.url?.startsWith('blob:file:///')) {
+      console.error("[BLOB DEBUG] ❌ ADDING PROBLEMATIC BLOB URL TO MEDIA STORE:", item.url);
+      console.error("[BLOB DEBUG] Full item:", JSON.stringify(item, null, 2));
+    }
 
     const newItem: MediaItem = {
       ...item,
