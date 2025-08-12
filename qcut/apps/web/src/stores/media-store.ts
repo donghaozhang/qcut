@@ -96,16 +96,20 @@ export const getImageDimensions = (
       img.remove();
     });
 
-    // Use data URL instead of blob URL to avoid Electron issues
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      img.src = reader.result as string;
-    };
-    reader.onerror = () => {
-      reject(new Error("Could not read file"));
-      img.remove();
-    };
-    reader.readAsDataURL(file);
+    // Now that we have HTTP server, we can use blob URLs directly
+    // Create a temporary blob URL just for dimension extraction
+    const blobUrl = URL.createObjectURL(file);
+    
+    img.addEventListener("load", () => {
+      // Clean up the temporary blob URL after dimensions are extracted
+      URL.revokeObjectURL(blobUrl);
+    });
+    
+    img.addEventListener("error", () => {
+      URL.revokeObjectURL(blobUrl);
+    });
+    
+    img.src = blobUrl;
   });
 };
 
@@ -165,6 +169,7 @@ export const generateVideoThumbnailBrowser = (
     const video = document.createElement("video") as HTMLVideoElement;
     const canvas = document.createElement("canvas") as HTMLCanvasElement;
     const ctx = canvas.getContext("2d");
+    let blobUrl: string | undefined;
 
     if (!ctx) {
       reject(new Error("Could not get canvas context"));
@@ -172,6 +177,10 @@ export const generateVideoThumbnailBrowser = (
     }
 
     const cleanup = () => {
+      // Clean up the temporary blob URL used for thumbnail generation
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
       video.remove();
       canvas.remove();
     };
@@ -220,28 +229,20 @@ export const generateVideoThumbnailBrowser = (
       );
     });
 
-    // Use data URL instead of blob URL to avoid Electron issues
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      try {
-        video.src = reader.result as string;
-        video.load();
-      } catch (error) {
-        clearTimeout(timeout);
-        cleanup();
-        reject(
-          new Error(
-            `Failed to set video source: ${error instanceof Error ? error.message : String(error)}`
-          )
-        );
-      }
-    };
-    reader.onerror = () => {
+    // Now that we have HTTP server, we can use blob URLs directly
+    try {
+      blobUrl = URL.createObjectURL(file);
+      video.src = blobUrl;
+      video.load();
+    } catch (error) {
       clearTimeout(timeout);
       cleanup();
-      reject(new Error("Could not read video file"));
-    };
-    reader.readAsDataURL(file);
+      reject(
+        new Error(
+          `Failed to create blob URL: ${error instanceof Error ? error.message : String(error)}`
+        )
+      );
+    }
   });
 };
 
@@ -262,17 +263,25 @@ export const getMediaDuration = (file: File): Promise<number> => {
       element.remove();
     });
 
-    // Use data URL instead of blob URL to avoid Electron issues
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      element.src = reader.result as string;
-      element.load();
+    // Now that we have HTTP server, we can use blob URLs directly
+    // Create a temporary blob URL just for duration extraction
+    const blobUrl = URL.createObjectURL(file);
+    
+    const cleanupUrl = () => {
+      URL.revokeObjectURL(blobUrl);
     };
-    reader.onerror = () => {
-      reject(new Error("Could not read media file"));
-      element.remove();
-    };
-    reader.readAsDataURL(file);
+    
+    element.addEventListener("loadedmetadata", () => {
+      // Clean up after we have the duration
+      cleanupUrl();
+    });
+    
+    element.addEventListener("error", () => {
+      cleanupUrl();
+    });
+    
+    element.src = blobUrl;
+    element.load();
   });
 };
 
@@ -289,24 +298,6 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
   isLoading: false,
 
   addMediaItem: async (projectId, item) => {
-    console.error("[BLOB DEBUG] MediaStore.addMediaItem called:", {
-      projectId,
-      itemName: item.name,
-      itemType: item.type,
-      itemUrl: item.url,
-      fileSize: item.file?.size,
-      isBlobUrl: item.url?.startsWith('blob:'),
-      isDataUrl: item.url?.startsWith('data:'),
-      urlProtocol: item.url ? item.url.substring(0, 20) : 'none',
-      stack: new Error().stack
-    });
-
-    // Alert if we're adding a problematic blob URL
-    if (item.url?.startsWith('blob:file:///')) {
-      console.error("[BLOB DEBUG] ❌ ADDING PROBLEMATIC BLOB URL TO MEDIA STORE:", item.url);
-      console.error("[BLOB DEBUG] Full item:", JSON.stringify(item, null, 2));
-    }
-
     const newItem: MediaItem = {
       ...item,
       id: generateUUID(),

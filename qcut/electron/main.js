@@ -8,7 +8,6 @@ const {
 } = require("electron");
 const path = require("path");
 const fs = require("fs");
-const http = require("http");
 const express = require("express");
 // Initialize electron-log early
 let log = null;
@@ -39,7 +38,6 @@ try {
 const { setupFFmpegIPC } = require("./ffmpeg-handler.js");
 
 let mainWindow;
-let staticServer;
 let expressServer; // Express server for serving the app
 
 // Suppress Electron DevTools Autofill errors
@@ -58,75 +56,7 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
-// Create HTTP server to serve static files including FFmpeg WASM
-function createStaticServer() {
-  const server = http.createServer((req, res) => {
-    // Parse the URL to get the file path
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    let filePath = url.pathname;
-
-    // Remove leading slash and decode URI
-    filePath = decodeURIComponent(filePath.substring(1));
-
-    // Determine the full file path based on the request
-    let fullPath;
-    if (filePath.startsWith("ffmpeg/")) {
-      // Serve FFmpeg files from the dist directory
-      fullPath = path.join(__dirname, "../apps/web/dist", filePath);
-    } else {
-      // Serve other static files from dist
-      fullPath = path.join(__dirname, "../apps/web/dist", filePath);
-    }
-
-    logger.log("[Static Server] Request:", req.url, "-> File:", fullPath);
-
-    // Check if file exists
-    fs.access(fullPath, fs.constants.F_OK, (err) => {
-      if (err) {
-        logger.log("[Static Server] File not found:", fullPath);
-        res.writeHead(404, { "Content-Type": "text/plain" });
-        res.end("File not found");
-        return;
-      }
-
-      // Determine content type
-      const ext = path.extname(fullPath).toLowerCase();
-      const mimeTypes = {
-        ".js": "application/javascript",
-        ".wasm": "application/wasm",
-        ".json": "application/json",
-        ".css": "text/css",
-        ".html": "text/html",
-      };
-      const contentType = mimeTypes[ext] || "application/octet-stream";
-
-      // Set CORS headers to allow cross-origin requests
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-      res.setHeader("Content-Type", contentType);
-
-      // Add Cross-Origin-Resource-Policy for COEP compatibility
-      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-
-      // Stream the file
-      const fileStream = fs.createReadStream(fullPath);
-      fileStream.pipe(res);
-
-      fileStream.on("error", (error) => {
-        logger.error("[Static Server] Error reading file:", error);
-        res.writeHead(500, { "Content-Type": "text/plain" });
-        res.end("Internal server error");
-      });
-    });
-  });
-
-  server.listen(8080, "localhost", () => {
-    logger.log("[Static Server] Started on http://localhost:8080");
-  });
-
-  return server;
-}
+// Static server removed - Express server handles everything
 
 function createWindow() {
   // 3️⃣ "替换" 而不是 "追加" CSP - 完全覆盖所有现有CSP策略

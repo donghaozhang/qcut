@@ -221,8 +221,6 @@ class StorageService {
     projectId: string,
     id: string
   ): Promise<MediaItem | null> {
-    console.error("[BLOB DEBUG] StorageService.loadMediaItem called:", { projectId, id });
-    
     const { mediaMetadataAdapter, mediaFilesAdapter } =
       this.getProjectMediaAdapters(projectId);
 

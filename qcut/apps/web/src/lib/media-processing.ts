@@ -78,38 +78,14 @@ export async function processMediaFiles(
           debugLog("[Media Processing] ⏱️ Getting video duration...");
           duration = await mediaUtils.getMediaDuration(file);
 
-          // Set default FPS for browser processing (FFmpeg can override later if needed)
+          // Set default FPS for browser processing
           fps = 30;
 
-          // Optionally try to enhance with FFmpeg data if available (non-blocking)
-          try {
-            debugLog(
-              "[Media Processing] 🔧 Attempting to enhance with FFmpeg data..."
-            );
-            const videoInfo = await Promise.race([
-              ffmpegUtils.getVideoInfo(file),
-              new Promise<never>((_, reject) =>
-                setTimeout(
-                  () => reject(new Error("FFmpeg enhancement timeout")),
-                  5000
-                )
-              ),
-            ]);
-            debugLog(
-              "[Media Processing] ✅ FFmpeg enhancement successful:",
-              videoInfo
-            );
-            // Only override FPS from FFmpeg, keep browser-generated thumbnail and dimensions
-            fps = videoInfo.fps || fps;
-          } catch (ffmpegError) {
-            debugLog(
-              "[Media Processing] ℹ️ FFmpeg enhancement failed (using browser data):",
-              ffmpegError instanceof Error
-                ? ffmpegError.message
-                : String(ffmpegError)
-            );
-            // Continue with browser-generated data - this is not an error
-          }
+          // Skip FFmpeg enhancement entirely to avoid error messages
+          // Browser APIs are sufficient for most use cases
+          debugLog(
+            "[Media Processing] ✅ Browser processing complete, skipping FFmpeg enhancement"
+          );
         } catch (error) {
           debugWarn(
             "[Media Processing] Browser processing failed, falling back to FFmpeg:",
