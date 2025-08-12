@@ -202,8 +202,8 @@ class StorageService {
       height: mediaItem.height,
       duration: mediaItem.duration,
       // Don't store blob URLs as they become invalid after page reload
-      // Only store non-blob URLs (like original URLs from external sources)
-      url: mediaItem.url && !mediaItem.url.startsWith('blob:') ? mediaItem.url : undefined,
+      // Store data URLs and non-blob URLs (like original URLs from external sources)
+      url: mediaItem.url && (!mediaItem.url.startsWith('blob:') || mediaItem.url.startsWith('data:')) ? mediaItem.url : undefined,
       metadata: mediaItem.metadata,
     };
 
@@ -256,15 +256,15 @@ class StorageService {
       debugLog(
         `[StorageService] Created new object URL for ${metadata.name}: ${url}`
       );
-    } else if (metadata.url && !metadata.url.startsWith('blob:')) {
-      // No file or empty file, but we have a non-blob URL (e.g., external URL)
+    } else if (metadata.url && (!metadata.url.startsWith('blob:') || metadata.url.startsWith('data:'))) {
+      // No file or empty file, but we have a data URL or non-blob URL (e.g., external URL)
       url = metadata.url;
       // Create empty file placeholder
       actualFile = new File([], metadata.name, {
         type: `${metadata.type}/jpeg`,
       });
       console.log(
-        `[StorageService] Using stored non-blob URL for ${metadata.name}: ${url}`
+        `[StorageService] Using stored URL for ${metadata.name}: ${url.substring(0, 50)}...`
       );
     } else {
       // No valid file or URL available

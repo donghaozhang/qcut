@@ -286,17 +286,6 @@ export function StickersView() {
   const { addMediaItem } = useMediaStore();
   const { activeProject } = useProjectStore();
 
-  // Track object URLs for cleanup
-  const objectUrlsRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    // Cleanup object URLs on unmount
-    return () => {
-      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      objectUrlsRef.current.clear();
-    };
-  }, []);
-
   // Load collections on mount
   useEffect(() => {
     if (collections.length === 0) {
@@ -360,19 +349,24 @@ export function StickersView() {
           type: svgFile.type
         });
 
-        // Create a local blob URL for preview
-        const objectUrl = URL.createObjectURL(svgBlob);
-        console.log("[StickersView] Created blob URL:", objectUrl);
-        objectUrlsRef.current.add(objectUrl);
-        console.log("[StickersView] Tracked blob URLs count:", objectUrlsRef.current.size);
+        // Convert blob to data URL (fixes Electron file:// protocol issue)
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(svgBlob);
+        });
+        
+        console.log("[StickersView] Created data URL (first 50 chars):", dataUrl.substring(0, 50));
+        console.log("[StickersView] Data URL protocol:", dataUrl.split(':')[0]);
 
         console.log("[StickersView] Adding media item to project:", activeProject.id);
         await addMediaItem(activeProject.id, {
           name: `${name}.svg`,
           type: "image",
           file: svgFile,
-          url: objectUrl,
-          thumbnailUrl: objectUrl,
+          url: dataUrl,
+          thumbnailUrl: dataUrl,
           width: 512,
           height: 512,
           duration: 0,
@@ -384,8 +378,6 @@ export function StickersView() {
         console.log("[StickersView] Added to recent stickers");
 
         toast.success(`Added ${name} to project`);
-
-        // Object URL is tracked and will be cleaned up on component unmount
       } catch (error) {
         console.error("[StickersView] Error adding sticker:", error);
         toast.error("Failed to add sticker to project");

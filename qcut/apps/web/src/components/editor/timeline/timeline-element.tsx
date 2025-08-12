@@ -109,6 +109,20 @@ export function TimelineElement({
   // Use the media item URL directly - it's already been converted to blob if needed
   const mediaItemUrl = mediaItem?.url;
 
+  // Enhanced logging for blob URL debugging
+  if (mediaItem) {
+    console.log("[TimelineElement] Media item details:", {
+      id: mediaItem.id,
+      name: mediaItem.name,
+      type: mediaItem.type,
+      url: mediaItemUrl,
+      isBlobUrl: mediaItemUrl?.startsWith('blob:'),
+      urlProtocol: mediaItemUrl ? mediaItemUrl.substring(0, 20) : 'none',
+      hasFile: !!mediaItem.file,
+      fileSize: mediaItem.file?.size
+    });
+  }
+
   // Log if we have a media item but no URL
   if (mediaItem && !mediaItemUrl) {
     console.warn(`[TimelineElement] Media item ${mediaItem.id} has no URL`);
@@ -270,6 +284,14 @@ export function TimelineElement({
                 backgroundSize: `${tileWidth}px ${tileHeight}px`,
                 backgroundPosition: "left center",
                 pointerEvents: "none",
+              }}
+              onError={(e) => {
+                console.error("[TimelineElement] Background image failed to load:", {
+                  url: mediaItemUrl,
+                  elementId: element.id,
+                  mediaId: element.mediaId,
+                  error: e
+                });
               }}
               aria-label={`Tiled background of ${mediaItem.name}`}
             />

@@ -66,6 +66,15 @@ export function DraggableMediaItem({
   }, [isDragging]);
 
   const handleDragStart = (e: React.DragEvent) => {
+    console.log("[DraggableMediaItem] Drag started:", {
+      name,
+      dragData,
+      dragDataId: dragData.id,
+      dragDataType: dragData.type,
+      dragDataUrl: dragData.url,
+      isBlobUrl: dragData.url?.startsWith('blob:')
+    });
+
     e.dataTransfer.setDragImage(emptyImg, 0, 0);
 
     // Set drag data
