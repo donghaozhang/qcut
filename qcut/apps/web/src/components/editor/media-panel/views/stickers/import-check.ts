@@ -8,7 +8,7 @@ export const REQUIRED_STORES = {
   stickers: "@/stores/stickers-store", // Created in subtask 1.2
   media: "@/stores/media-store", // Verified exists
   project: "@/stores/project-store", // Verified exists
-} as const;
+} satisfies Record<keyof StoreCheck, string>;
 
 // ✅ UI COMPONENTS - All verified to exist in project
 export const REQUIRED_UI_COMPONENTS = {
@@ -18,21 +18,21 @@ export const REQUIRED_UI_COMPONENTS = {
   scrollArea: "@/components/ui/scroll-area", // ✅ Exists
   tabs: "@/components/ui/tabs", // ✅ Exists
   tooltip: "@/components/ui/tooltip", // ✅ Exists
-} as const;
+} satisfies Record<keyof UICheck, string>;
 
 // ✅ LIBRARY MODULES - Verify these exist
 export const REQUIRED_LIB_MODULES = {
   iconifyApi: "@/lib/iconify-api", // Created in subtask 1.2
   utils: "@/lib/utils", // Verified exists
-} as const;
+} satisfies Record<keyof LibCheck, string>;
 
 // ✅ EXTERNAL DEPENDENCIES - From package.json
 export const REQUIRED_PACKAGES = {
   react: "react", // Core dependency
-  lucideReact: "lucide-react", // Icon library
+  lucide: "lucide-react", // Icon library
   sonner: "sonner", // Toast notifications
   zustand: "zustand", // State management
-} as const;
+} satisfies Record<keyof ExternalCheck, string>;
 
 // Type-only validation (no runtime imports)
 

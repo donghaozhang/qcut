@@ -92,7 +92,7 @@ export function StickersCollection({
     };
 
     fetchCollectionIcons();
-  }, [collectionPrefix, collections]);
+  }, [collectionPrefix]);
 
   if (loadingCollection) {
     return (

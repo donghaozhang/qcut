@@ -12,7 +12,14 @@ import type {
   OverlaySticker,
   ValidatedStickerUpdate,
 } from "@/types/sticker-overlay";
-import { STICKER_DEFAULTS, Z_INDEX } from "@/types/sticker-overlay";
+import { Z_INDEX } from "@/types/sticker-overlay";
+
+// Debug utility for conditional logging
+const debugLog = (message: string, ...args: any[]) => {
+  if (import.meta.env.DEV) {
+    console.log(message, ...args);
+  }
+};
 
 // Import constants
 const DEFAULTS = {
@@ -34,7 +41,7 @@ const generateStickerId = (): string => {
  * Calculate next z-index for new stickers
  */
 const getNextZIndex = (stickers: Map<string, OverlaySticker>): number => {
-  if (stickers.size === 0) return Z_INDEX.MIN * 10; // Start at a reasonable baseline
+  if (stickers.size === 0) return Z_INDEX.MIN;
   const maxZ = Math.max(...Array.from(stickers.values()).map((s) => s.zIndex));
   return Math.min(maxZ + Z_INDEX.INCREMENT, Z_INDEX.MAX);
 };
@@ -260,7 +267,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
         if (higherStickers.length > 0) {
           state.updateOverlaySticker(id, {
-            zIndex: higherStickers[0].zIndex + 5,
+            zIndex: higherStickers[0].zIndex + Z_INDEX.INCREMENT,
           });
         }
       },
@@ -276,7 +283,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
         if (lowerStickers.length > 0) {
           state.updateOverlaySticker(id, {
-            zIndex: Math.max(1, lowerStickers[0].zIndex - 5),
+            zIndex: Math.max(Z_INDEX.MIN, lowerStickers[0].zIndex - Z_INDEX.INCREMENT),
           });
         }
       },

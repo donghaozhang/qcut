@@ -8,6 +8,7 @@ import {
   IconSet,
   IconSearchResult,
 } from "@/lib/iconify-api";
+import { STICKERS_CONSTANTS } from "@/components/editor/media-panel/views/stickers/constants";
 import type { RecentSticker } from "@/components/editor/media-panel/views/stickers/types/stickers.types";
 
 export interface StickersStore {
@@ -121,8 +122,8 @@ export const useStickersStore = create<StickersStore>()(
         try {
           const svgContent = await downloadIconSvg(collection, icon, {
             // No color specified to maintain transparency
-            width: 512,
-            height: 512,
+            width: STICKERS_CONSTANTS.ICON_DOWNLOAD_SIZE,
+            height: STICKERS_CONSTANTS.ICON_DOWNLOAD_SIZE,
           });
 
           // Create a blob from the SVG content
@@ -161,8 +162,8 @@ export const useStickersStore = create<StickersStore>()(
           ...filtered,
         ];
 
-        // Keep only the most recent 50 stickers
-        const trimmed = newRecentStickers.slice(0, 50);
+        // Keep only the most recent stickers
+        const trimmed = newRecentStickers.slice(0, STICKERS_CONSTANTS.MAX_RECENT_STICKERS);
 
         set({ recentStickers: trimmed });
       },
