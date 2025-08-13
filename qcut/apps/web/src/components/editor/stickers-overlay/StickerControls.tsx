@@ -55,9 +55,10 @@ export const StickerControls = memo<StickerControlsProps>(
      */
     const handleDuplicate = (e: React.MouseEvent) => {
       e.stopPropagation();
-      // Add a duplicate with slight offset
+      // Add a duplicate with slight offset, excluding id and metadata
+      const { id, metadata, ...stickerWithoutId } = sticker;
       addOverlaySticker(sticker.mediaItemId, {
-        ...sticker,
+        ...stickerWithoutId,
         position: {
           x: Math.min(90, sticker.position.x + 5),
           y: Math.min(90, sticker.position.y + 5),

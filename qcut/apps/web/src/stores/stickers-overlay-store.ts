@@ -236,7 +236,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         const maxZ = Math.max(
           ...Array.from(state.overlayStickers.values()).map((s) => s.zIndex)
         );
-        state.updateOverlaySticker(id, { zIndex: maxZ + 10 });
+        state.updateOverlaySticker(id, { zIndex: Math.min(maxZ + Z_INDEX.INCREMENT, Z_INDEX.MAX) });
       },
 
       sendToBack: (id: string) => {
@@ -247,7 +247,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         const minZ = Math.min(
           ...Array.from(state.overlayStickers.values()).map((s) => s.zIndex)
         );
-        state.updateOverlaySticker(id, { zIndex: Math.max(1, minZ - 10) });
+        state.updateOverlaySticker(id, { zIndex: Math.max(Z_INDEX.MIN, minZ - Z_INDEX.INCREMENT) });
       },
 
       bringForward: (id: string) => {
