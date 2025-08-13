@@ -4,6 +4,7 @@ import { storageService } from "@/lib/storage/storage-service";
 import { toast } from "sonner";
 import { getMediaStore } from "./media-store-loader";
 import { useTimelineStore } from "./timeline-store";
+import { useStickersOverlayStore } from "./stickers-overlay-store";
 import { generateUUID } from "@/lib/utils";
 import { debugError } from "@/lib/debug-config";
 
@@ -189,21 +190,24 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       set({ isLoading: true });
     }
 
-    // Clear media and timeline immediately to prevent flickering when switching projects
+    // Clear media, timeline, and stickers immediately to prevent flickering when switching projects
     const mediaStore = (await getMediaStore()).useMediaStore.getState();
     const timelineStore = useTimelineStore.getState();
+    const stickersStore = useStickersOverlayStore.getState();
     mediaStore.clearAllMedia();
     timelineStore.clearTimeline();
+    stickersStore.clearAllStickers();
 
     try {
       const project = await storageService.loadProject(id);
       if (project) {
         set({ activeProject: project });
 
-        // Load project-specific data in parallel
+        // Load project-specific data in parallel, including stickers
         await Promise.all([
           mediaStore.loadProjectMedia(id),
           timelineStore.loadProjectTimeline(id),
+          stickersStore.loadFromProject(id),
         ]);
       } else {
         throw new NotFoundError(`Project ${id} not found`);
@@ -221,11 +225,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (!activeProject) return;
 
     try {
-      // Save project metadata and timeline data in parallel
+      // Save project metadata, timeline data, and stickers in parallel
       const timelineStore = useTimelineStore.getState();
+      const stickersStore = useStickersOverlayStore.getState();
       await Promise.all([
         storageService.saveProject(activeProject),
         timelineStore.saveProjectTimeline(activeProject.id),
+        stickersStore.saveToProject(activeProject.id),
       ]);
       await get().loadAllProjects(); // Refresh the list
     } catch (error) {

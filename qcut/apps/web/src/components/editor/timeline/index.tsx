@@ -20,6 +20,7 @@ import {
   ZoomIn,
   ZoomOut,
   Bookmark,
+  Sticker,
 } from "lucide-react";
 import {
   Tooltip,
@@ -884,6 +885,9 @@ function TrackIcon({ track }: { track: TimelineTrack }) {
       )}
       {track.type === "audio" && (
         <Music className="w-4 h-4 shrink-0 text-muted-foreground" />
+      )}
+      {track.type === "sticker" && (
+        <Sticker className="w-4 h-4 shrink-0 text-muted-foreground" />
       )}
     </>
   );

@@ -13,6 +13,7 @@ import type {
   ValidatedStickerUpdate,
 } from "@/types/sticker-overlay";
 import { Z_INDEX } from "@/types/sticker-overlay";
+import { useTimelineStore } from "./timeline-store";
 
 // Debug utility for conditional logging
 const debugLog = (message: string, ...args: any[]) => {
@@ -112,6 +113,32 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             history: newHistory,
           };
         });
+
+        // Create or find sticker timeline track
+        const timelineStore = useTimelineStore.getState();
+        let stickerTrack = timelineStore.tracks.find((track) => track.type === "sticker");
+        
+        if (!stickerTrack) {
+          debugLog("[StickerStore] Creating new sticker timeline track");
+          const trackId = timelineStore.addTrack("sticker");
+          stickerTrack = timelineStore.tracks.find((track) => track.id === trackId);
+        }
+
+        // Add sticker element to timeline track
+        if (stickerTrack && newSticker.timing) {
+          const duration = newSticker.timing.endTime - newSticker.timing.startTime;
+          timelineStore.addElementToTrack(stickerTrack.id, {
+            type: "sticker",
+            stickerId: id,
+            mediaId: mediaItemId,
+            name: `Sticker ${get().overlayStickers.size}`,
+            duration,
+            startTime: newSticker.timing.startTime,
+            trimStart: 0,
+            trimEnd: 0,
+          });
+          debugLog(`[StickerStore] Added sticker to timeline track: ${duration}s duration`);
+        }
 
         return id;
       },
