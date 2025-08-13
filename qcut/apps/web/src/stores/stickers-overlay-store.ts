@@ -408,7 +408,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
           // Validate data structure and individual sticker objects
           if (!Array.isArray(data)) {
-            console.warn(
+            debugLog(
               `[StickerStore] ⚠️ INVALID DATA: Expected array, got ${typeof data}`
             );
             data = [];
@@ -430,7 +430,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
                   typeof item.zIndex === "number";
 
                 if (!isValid) {
-                  console.warn(
+                  debugLog(
                     `[StickerStore] ⚠️ INVALID STICKER: Skipping malformed sticker object:`,
                     item
                   );
@@ -442,7 +442,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
             const filteredCount = data.length - validStickers.length;
             if (filteredCount > 0) {
-              console.warn(
+              debugLog(
                 `[StickerStore] 🧹 VALIDATION: Filtered out ${filteredCount} invalid sticker objects`
               );
             }

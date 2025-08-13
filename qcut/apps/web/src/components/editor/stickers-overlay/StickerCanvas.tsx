@@ -67,7 +67,7 @@ export const StickerCanvas: React.FC<{
 
     try {
       const mediaItem = JSON.parse(mediaItemData);
-      console.log(
+      debugLog(
         "[StickerCanvas] 🎯 DROP DETECTED: Adding sticker from drag-and-drop",
         mediaItem
       );
@@ -90,7 +90,7 @@ export const StickerCanvas: React.FC<{
             timing: { startTime: currentTime, endTime: currentTime + 5 }, // 5 second default duration
           });
 
-          console.log(
+          debugLog(
             "[StickerCanvas] ✅ DRAG-DROP FIX: Added sticker at position",
             { x, y }
           );
@@ -99,13 +99,13 @@ export const StickerCanvas: React.FC<{
           addOverlaySticker(mediaItem.id, {
             timing: { startTime: currentTime, endTime: currentTime + 5 }, // 5 second default duration
           });
-          console.log(
+          debugLog(
             "[StickerCanvas] ✅ DRAG-DROP FIX: Added sticker at center (fallback)"
           );
         }
       }
     } catch (error) {
-      console.error("[StickerCanvas] ❌ DROP ERROR:", error);
+      debugLog("[StickerCanvas] ❌ DROP ERROR:", error);
     }
   };
 
@@ -198,7 +198,7 @@ export const StickerCanvas: React.FC<{
 
           // Skip if media item not found
           if (!mediaItem) {
-            console.warn(
+            debugLog(
               `[StickerCanvas] ⚠️ MEDIA MISSING: Media item not found for sticker ${sticker.id}, mediaItemId: ${sticker.mediaItemId}. Available media: ${mediaItems.length}`
             );
             return null;
