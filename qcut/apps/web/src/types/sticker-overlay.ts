@@ -112,6 +112,7 @@ export interface StickerOverlayActions {
   // Persistence
   saveToProject: (projectId: string) => Promise<void>;
   loadFromProject: (projectId: string) => Promise<void>;
+  cleanupInvalidStickers: (availableMediaIds: string[]) => void;
 
   // Export
   getStickersForExport: () => OverlaySticker[];

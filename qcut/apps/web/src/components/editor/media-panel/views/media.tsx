@@ -26,6 +26,7 @@ import {
 import { DraggableMediaItem } from "@/components/ui/draggable-item";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline-store";
+import { usePlaybackStore } from "@/stores/playback-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ExportAllButton } from "../export-all-button";
 import { useAdjustmentStore } from "@/stores/adjustment-store";
@@ -410,7 +411,10 @@ export function MediaView() {
                             e.stopPropagation();
                             const { addOverlaySticker } =
                               useStickersOverlayStore.getState();
-                            addOverlaySticker(item.id);
+                            const { currentTime } = usePlaybackStore.getState();
+                            addOverlaySticker(item.id, {
+                              timing: { startTime: currentTime, endTime: currentTime + 5 }
+                            });
                             toast.success(`Added "${item.name}" as overlay`);
                           }}
                         >

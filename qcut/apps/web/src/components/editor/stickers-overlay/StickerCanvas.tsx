@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { StickerElement } from "./StickerElement";
 import { StickerOverlayAutoSave } from "./AutoSave";
 import { useProjectStore } from "@/stores/project-store";
+import { usePlaybackStore } from "@/stores/playback-store";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -31,10 +32,12 @@ export const StickerCanvas: React.FC<{
     loadFromProject,
     saveToProject,
     cleanupInvalidStickers,
+    getVisibleStickersAtTime,
   } = useStickersOverlayStore();
 
   const { mediaItems } = useMediaStore();
   const { activeProject } = useProjectStore();
+  const { currentTime } = usePlaybackStore();
 
   // Handle clicking on canvas (deselect)
   const handleCanvasClick = (e: React.MouseEvent) => {
@@ -70,13 +73,16 @@ export const StickerCanvas: React.FC<{
           const y = ((e.clientY - rect.top) / rect.height) * 100;
           
           addOverlaySticker(mediaItem.id, {
-            position: { x: Math.min(Math.max(x, 0), 100), y: Math.min(Math.max(y, 0), 100) }
+            position: { x: Math.min(Math.max(x, 0), 100), y: Math.min(Math.max(y, 0), 100) },
+            timing: { startTime: currentTime, endTime: currentTime + 5 } // 5 second default duration
           });
           
           console.log("[StickerCanvas] ✅ DRAG-DROP FIX: Added sticker at position", { x, y });
         } else {
           // Fallback to center position
-          addOverlaySticker(mediaItem.id);
+          addOverlaySticker(mediaItem.id, {
+            timing: { startTime: currentTime, endTime: currentTime + 5 } // 5 second default duration
+          });
           console.log("[StickerCanvas] ✅ DRAG-DROP FIX: Added sticker at center (fallback)");
         }
       }
@@ -138,19 +144,14 @@ export const StickerCanvas: React.FC<{
   // Don't render if disabled
   if (disabled) return null;
 
-  // Convert Map to sorted array for rendering
-  const sortedStickers = Array.from(overlayStickers.values()).sort(
-    (a, b) => a.zIndex - b.zIndex
-  );
+  // Get only visible stickers at current time
+  const visibleStickers = getVisibleStickersAtTime(currentTime);
   
   // Debug logging
   console.log("[StickerCanvas] 📊 RENDERING STATUS:", {
-    stickersCount: overlayStickers.size,
-    sortedStickers: sortedStickers.map(s => ({
-      id: s.id,
-      size: s.size, // Show actual size to verify it's 8% not 20%
-      position: s.position
-    })),
+    totalStickers: overlayStickers.size,
+    visibleStickers: visibleStickers.length,
+    currentTime,
     mediaItemsCount: mediaItems.length,
     disabled
   });
@@ -175,7 +176,7 @@ export const StickerCanvas: React.FC<{
         }}
       >
         {/* Render stickers using StickerElement */}
-        {sortedStickers.map((sticker) => {
+        {visibleStickers.map((sticker) => {
           const mediaItem = mediaItems.find(
             (item) => item.id === sticker.mediaItemId
           );
