@@ -11,6 +11,8 @@ import { useMediaStore } from "@/stores/media-store";
 import { cn } from "@/lib/utils";
 import { StickerElement } from "./StickerElement";
 import { StickerOverlayAutoSave } from "./AutoSave";
+import { useProjectStore } from "@/stores/project-store";
+import { Button } from "@/components/ui/button";
 
 /**
  * Main canvas component that manages all overlay stickers
@@ -31,12 +33,62 @@ export const StickerCanvas: React.FC<{
   } = useStickersOverlayStore();
 
   const { mediaItems } = useMediaStore();
+  const { activeProject } = useProjectStore();
 
   // Handle clicking on canvas (deselect)
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (e.target === canvasRef.current) {
       selectSticker(null);
     }
+  };
+
+  // Handle drag and drop from media panel
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    
+    const mediaItemData = e.dataTransfer.getData("application/x-media-item");
+    if (!mediaItemData) return;
+
+    try {
+      const mediaItem = JSON.parse(mediaItemData);
+      console.log("[StickerCanvas] 🎯 DROP DETECTED: Adding sticker from drag-and-drop", mediaItem);
+      
+      // Only allow images and videos as stickers
+      if (mediaItem.type === "image" || mediaItem.type === "video") {
+        const { addOverlaySticker } = useStickersOverlayStore.getState();
+        
+        // Calculate drop position as percentage
+        const rect = canvasRef.current?.getBoundingClientRect();
+        if (rect) {
+          const x = ((e.clientX - rect.left) / rect.width) * 100;
+          const y = ((e.clientY - rect.top) / rect.height) * 100;
+          
+          addOverlaySticker(mediaItem.id, {
+            position: { x: Math.min(Math.max(x, 0), 100), y: Math.min(Math.max(y, 0), 100) }
+          });
+          
+          console.log("[StickerCanvas] ✅ DRAG-DROP FIX: Added sticker at position", { x, y });
+        } else {
+          // Fallback to center position
+          addOverlaySticker(mediaItem.id);
+          console.log("[StickerCanvas] ✅ DRAG-DROP FIX: Added sticker at center (fallback)");
+        }
+      }
+    } catch (error) {
+      console.error("[StickerCanvas] ❌ DROP ERROR:", error);
+    }
+  };
+
+  // Manual save for testing
+  const handleManualSave = async () => {
+    if (!activeProject?.id) return;
+    console.log("[StickerCanvas] 🔧 MANUAL SAVE: Triggered for testing");
+    await saveToProject(activeProject.id);
   };
 
   // Handle keyboard shortcuts
@@ -102,13 +154,12 @@ export const StickerCanvas: React.FC<{
       <div
         ref={canvasRef}
         className={cn(
-          "absolute inset-0 z-50",
-          overlayStickers.size === 0
-            ? "pointer-events-none"
-            : "pointer-events-auto",
+          "absolute inset-0 z-50 pointer-events-auto",
           className
         )}
         onClick={handleCanvasClick}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
         data-testid="sticker-canvas"
         style={{
           isolation: "isolate", // Create new stacking context
@@ -147,8 +198,18 @@ export const StickerCanvas: React.FC<{
 
         {/* Debug info */}
         {process.env.NODE_ENV === "development" && (
-          <div className="absolute top-2 right-2 text-xs bg-black/50 text-white px-2 py-1 rounded pointer-events-none">
-            Stickers: {overlayStickers.size}
+          <div className="absolute top-2 right-2 flex gap-2 pointer-events-none">
+            <div className="text-xs bg-black/50 text-white px-2 py-1 rounded">
+              Stickers: {overlayStickers.size}
+            </div>
+            <Button 
+              size="sm" 
+              variant="secondary" 
+              onClick={handleManualSave}
+              className="pointer-events-auto text-xs h-6"
+            >
+              Save Test
+            </Button>
           </div>
         )}
       </div>
