@@ -54,36 +54,47 @@ export const StickerCanvas: React.FC<{
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    
+
     const mediaItemData = e.dataTransfer.getData("application/x-media-item");
     if (!mediaItemData) return;
 
     try {
       const mediaItem = JSON.parse(mediaItemData);
-      console.log("[StickerCanvas] 🎯 DROP DETECTED: Adding sticker from drag-and-drop", mediaItem);
-      
+      console.log(
+        "[StickerCanvas] 🎯 DROP DETECTED: Adding sticker from drag-and-drop",
+        mediaItem
+      );
+
       // Only allow images and videos as stickers
       if (mediaItem.type === "image" || mediaItem.type === "video") {
         const { addOverlaySticker } = useStickersOverlayStore.getState();
-        
+
         // Calculate drop position as percentage
         const rect = canvasRef.current?.getBoundingClientRect();
         if (rect) {
           const x = ((e.clientX - rect.left) / rect.width) * 100;
           const y = ((e.clientY - rect.top) / rect.height) * 100;
-          
+
           addOverlaySticker(mediaItem.id, {
-            position: { x: Math.min(Math.max(x, 0), 100), y: Math.min(Math.max(y, 0), 100) },
-            timing: { startTime: currentTime, endTime: currentTime + 5 } // 5 second default duration
+            position: {
+              x: Math.min(Math.max(x, 0), 100),
+              y: Math.min(Math.max(y, 0), 100),
+            },
+            timing: { startTime: currentTime, endTime: currentTime + 5 }, // 5 second default duration
           });
-          
-          console.log("[StickerCanvas] ✅ DRAG-DROP FIX: Added sticker at position", { x, y });
+
+          console.log(
+            "[StickerCanvas] ✅ DRAG-DROP FIX: Added sticker at position",
+            { x, y }
+          );
         } else {
           // Fallback to center position
           addOverlaySticker(mediaItem.id, {
-            timing: { startTime: currentTime, endTime: currentTime + 5 } // 5 second default duration
+            timing: { startTime: currentTime, endTime: currentTime + 5 }, // 5 second default duration
           });
-          console.log("[StickerCanvas] ✅ DRAG-DROP FIX: Added sticker at center (fallback)");
+          console.log(
+            "[StickerCanvas] ✅ DRAG-DROP FIX: Added sticker at center (fallback)"
+          );
         }
       }
     } catch (error) {
@@ -101,7 +112,7 @@ export const StickerCanvas: React.FC<{
   // Clean up stickers with missing media items when media loads
   useEffect(() => {
     if (mediaItems.length > 0 && overlayStickers.size > 0) {
-      const mediaIds = mediaItems.map(item => item.id);
+      const mediaIds = mediaItems.map((item) => item.id);
       cleanupInvalidStickers(mediaIds);
     }
   }, [mediaItems, overlayStickers.size, cleanupInvalidStickers]);
@@ -146,14 +157,14 @@ export const StickerCanvas: React.FC<{
 
   // Get only visible stickers at current time
   const visibleStickers = getVisibleStickersAtTime(currentTime);
-  
+
   // Debug logging
   console.log("[StickerCanvas] 📊 RENDERING STATUS:", {
     totalStickers: overlayStickers.size,
     visibleStickers: visibleStickers.length,
     currentTime,
     mediaItemsCount: mediaItems.length,
-    disabled
+    disabled,
   });
 
   return (
@@ -163,10 +174,7 @@ export const StickerCanvas: React.FC<{
 
       <div
         ref={canvasRef}
-        className={cn(
-          "absolute inset-0 z-50 pointer-events-auto",
-          className
-        )}
+        className={cn("absolute inset-0 z-50 pointer-events-auto", className)}
         onClick={handleCanvasClick}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
@@ -183,7 +191,9 @@ export const StickerCanvas: React.FC<{
 
           // Skip if media item not found
           if (!mediaItem) {
-            console.warn(`[StickerCanvas] ⚠️ MEDIA MISSING: Media item not found for sticker ${sticker.id}, mediaItemId: ${sticker.mediaItemId}. Available media: ${mediaItems.length}`);
+            console.warn(
+              `[StickerCanvas] ⚠️ MEDIA MISSING: Media item not found for sticker ${sticker.id}, mediaItemId: ${sticker.mediaItemId}. Available media: ${mediaItems.length}`
+            );
             return null;
           }
 
@@ -212,9 +222,9 @@ export const StickerCanvas: React.FC<{
             <div className="text-xs bg-black/50 text-white px-2 py-1 rounded">
               Stickers: {overlayStickers.size}
             </div>
-            <Button 
-              size="sm" 
-              variant="secondary" 
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={handleManualSave}
               className="pointer-events-auto text-xs h-6"
             >

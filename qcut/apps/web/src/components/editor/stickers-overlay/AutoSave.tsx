@@ -28,7 +28,7 @@ export const StickerOverlayAutoSave = () => {
       hasLoaded: hasLoadedRef.current,
       lastProjectId: lastProjectIdRef.current,
       currentStickersCount: overlayStickers.size,
-      isProjectLoading: isLoading
+      isProjectLoading: isLoading,
     });
 
     if (!activeProject?.id) {
@@ -38,30 +38,40 @@ export const StickerOverlayAutoSave = () => {
 
     // Wait for project to finish loading first
     if (isLoading) {
-      console.log(`[AutoSave] ⏳ PROJECT STILL LOADING - waiting for completion`);
+      console.log(
+        `[AutoSave] ⏳ PROJECT STILL LOADING - waiting for completion`
+      );
       return;
     }
 
     // Reset loading flag if project changed
     if (lastProjectIdRef.current !== activeProject.id) {
-      console.log(`[AutoSave] 🔄 PROJECT CHANGED: ${lastProjectIdRef.current} → ${activeProject.id}`);
+      console.log(
+        `[AutoSave] 🔄 PROJECT CHANGED: ${lastProjectIdRef.current} → ${activeProject.id}`
+      );
       hasLoadedRef.current = false;
       lastProjectIdRef.current = activeProject.id;
     }
 
     // Only load once per project
     if (!hasLoadedRef.current) {
-      console.log(`[AutoSave] 🚀 STARTING LOAD for project: ${activeProject.id}`);
-      loadFromProject(activeProject.id).then(() => {
-        hasLoadedRef.current = true;
-        console.log(
-          `[AutoSave] ✅ PERSISTENCE FIX: Loaded ${overlayStickers.size} stickers for project: ${activeProject.id}`
-        );
-      }).catch((error) => {
-        console.error(`[AutoSave] ❌ LOAD ERROR:`, error);
-      });
+      console.log(
+        `[AutoSave] 🚀 STARTING LOAD for project: ${activeProject.id}`
+      );
+      loadFromProject(activeProject.id)
+        .then(() => {
+          hasLoadedRef.current = true;
+          console.log(
+            `[AutoSave] ✅ PERSISTENCE FIX: Loaded ${overlayStickers.size} stickers for project: ${activeProject.id}`
+          );
+        })
+        .catch((error) => {
+          console.error(`[AutoSave] ❌ LOAD ERROR:`, error);
+        });
     } else {
-      console.log(`[AutoSave] ⏭️ ALREADY LOADED - skipping for project: ${activeProject.id}`);
+      console.log(
+        `[AutoSave] ⏭️ ALREADY LOADED - skipping for project: ${activeProject.id}`
+      );
     }
 
     // Note: Removed problematic cleanup that was resetting hasLoadedRef on every render
@@ -85,13 +95,15 @@ export const StickerOverlayAutoSave = () => {
       hasLoaded: hasLoadedRef.current,
       stickersCount: overlayStickers.size,
       debouncedStringChanged: debouncedStickersString !== lastSaveRef.current,
-      lastSaveString: lastSaveRef.current.substring(0, 50) + '...',
-      currentString: debouncedStickersString.substring(0, 50) + '...',
-      isProjectLoading: isLoading
+      lastSaveString: lastSaveRef.current.substring(0, 50) + "...",
+      currentString: debouncedStickersString.substring(0, 50) + "...",
+      isProjectLoading: isLoading,
     });
 
     if (!activeProject?.id || !hasLoadedRef.current || isLoading) {
-      console.log(`[AutoSave] ⏭️ SAVE SKIPPED: no project (${!activeProject?.id}) or not loaded (${!hasLoadedRef.current}) or loading (${isLoading})`);
+      console.log(
+        `[AutoSave] ⏭️ SAVE SKIPPED: no project (${!activeProject?.id}) or not loaded (${!hasLoadedRef.current}) or loading (${isLoading})`
+      );
       return;
     }
 
@@ -109,15 +121,19 @@ export const StickerOverlayAutoSave = () => {
     }
 
     // Save to storage
-    console.log(`[AutoSave] 🚀 STARTING SAVE: ${overlayStickers.size} stickers to project: ${activeProject.id}`);
-    saveToProject(activeProject.id).then(() => {
-      lastSaveRef.current = debouncedStickersString;
-      console.log(
-        `[AutoSave] ✅ SAVE COMPLETE: ${overlayStickers.size} stickers for project: ${activeProject.id}`
-      );
-    }).catch((error) => {
-      console.error(`[AutoSave] ❌ SAVE ERROR:`, error);
-    });
+    console.log(
+      `[AutoSave] 🚀 STARTING SAVE: ${overlayStickers.size} stickers to project: ${activeProject.id}`
+    );
+    saveToProject(activeProject.id)
+      .then(() => {
+        lastSaveRef.current = debouncedStickersString;
+        console.log(
+          `[AutoSave] ✅ SAVE COMPLETE: ${overlayStickers.size} stickers for project: ${activeProject.id}`
+        );
+      })
+      .catch((error) => {
+        console.error(`[AutoSave] ❌ SAVE ERROR:`, error);
+      });
   }, [
     debouncedStickersString,
     activeProject?.id,

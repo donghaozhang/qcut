@@ -413,7 +413,10 @@ export function MediaView() {
                               useStickersOverlayStore.getState();
                             const { currentTime } = usePlaybackStore.getState();
                             addOverlaySticker(item.id, {
-                              timing: { startTime: currentTime, endTime: currentTime + 5 }
+                              timing: {
+                                startTime: currentTime,
+                                endTime: currentTime + 5,
+                              },
                             });
                             toast.success(`Added "${item.name}" as overlay`);
                           }}

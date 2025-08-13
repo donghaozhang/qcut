@@ -66,6 +66,7 @@
         "noNoninteractiveElementInteractions": "off",
         "noShadow": "off",
         "noUnknownAtRule": "off",
+        "noUselessUndefined": "off",
         "useIterableCallbackReturn": "off",
         "useParseIntRadix": "off",
         "useSortedClasses": "off"
@@ -78,6 +79,8 @@
       "style": {
         "noNestedTernary": "off",
         "noNonNullAssertion": "off",
+        "noNegationElse": "off",
+        "noUnusedTemplateLiteral": "off",
         "useAtIndex": "off",
         "useBlockStatements": "off",
         "useCollapsedElseIf": "off",

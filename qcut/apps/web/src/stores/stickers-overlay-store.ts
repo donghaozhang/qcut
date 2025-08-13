@@ -98,15 +98,21 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             newHistory.past.shift();
           }
 
-          console.log("[StickerStore] ✅ SIZE FIX: Added sticker with new smaller default size:", {
-            id,
-            mediaItemId,
-            defaultSize: { width: 8, height: 8 }, // Show the new smaller size
-            position: newSticker.position,
-            totalStickers: newStickers.size
-          });
+          console.log(
+            "[StickerStore] ✅ SIZE FIX: Added sticker with new smaller default size:",
+            {
+              id,
+              mediaItemId,
+              defaultSize: { width: 8, height: 8 }, // Show the new smaller size
+              position: newSticker.position,
+              totalStickers: newStickers.size,
+            }
+          );
 
-          console.log("[StickerStore] 🔔 PERSISTENCE DEBUG: Sticker added, triggering auto-save for new sticker count:", newStickers.size);
+          console.log(
+            "[StickerStore] 🔔 PERSISTENCE DEBUG: Sticker added, triggering auto-save for new sticker count:",
+            newStickers.size
+          );
 
           return {
             overlayStickers: newStickers,
@@ -329,15 +335,21 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             validStickers.set(id, sticker);
           } else {
             removedCount++;
-            console.log(`[StickerStore] 🧹 CLEANUP: Removing sticker ${id} with missing media ${sticker.mediaItemId}`);
+            console.log(
+              `[StickerStore] 🧹 CLEANUP: Removing sticker ${id} with missing media ${sticker.mediaItemId}`
+            );
           }
         });
 
         if (removedCount > 0) {
-          console.log(`[StickerStore] ✅ CLEANUP: Removed ${removedCount} stickers with missing media`);
-          set({ 
+          console.log(
+            `[StickerStore] ✅ CLEANUP: Removed ${removedCount} stickers with missing media`
+          );
+          set({
             overlayStickers: validStickers,
-            selectedStickerId: validStickers.has(state.selectedStickerId) ? state.selectedStickerId : null
+            selectedStickerId: validStickers.has(state.selectedStickerId)
+              ? state.selectedStickerId
+              : null,
           });
         }
       },
@@ -348,42 +360,69 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         const data = Array.from(state.overlayStickers.values());
         const key = `overlay-stickers-${projectId}`;
 
-        console.log(`[StickerStore] 💾 SAVING: ${data.length} stickers for project ${projectId}`);
-        console.log(`[StickerStore] 📦 SAVE DATA PREVIEW:`, data.map(s => ({ 
-          id: s.id, 
-          mediaId: s.mediaItemId, 
-          size: s.size 
-        })));
+        console.log(
+          `[StickerStore] 💾 SAVING: ${data.length} stickers for project ${projectId}`
+        );
+        console.log(
+          `[StickerStore] 📦 SAVE DATA PREVIEW:`,
+          data.map((s) => ({
+            id: s.id,
+            mediaId: s.mediaItemId,
+            size: s.size,
+          }))
+        );
 
         try {
           // Use Electron IPC if available, otherwise localStorage
           if (window.electronAPI?.storage) {
-            console.log(`[StickerStore] 📞 CALLING Electron IPC save with key: ${key}`);
+            console.log(
+              `[StickerStore] 📞 CALLING Electron IPC save with key: ${key}`
+            );
             await window.electronAPI.storage.save(key, data);
-            console.log(`[StickerStore] ✅ SAVED via Electron IPC: ${data.length} stickers`);
-            
+            console.log(
+              `[StickerStore] ✅ SAVED via Electron IPC: ${data.length} stickers`
+            );
+
             // Verify save by immediately reading back
             const verification = await window.electronAPI.storage.load(key);
-            console.log(`[StickerStore] 🔍 SAVE VERIFICATION: Read back ${verification?.length || 0} stickers`);
+            console.log(
+              `[StickerStore] 🔍 SAVE VERIFICATION: Read back ${verification?.length || 0} stickers`
+            );
           } else {
-            console.log(`[StickerStore] 📞 CALLING localStorage.setItem with key: ${key}`);
+            console.log(
+              `[StickerStore] 📞 CALLING localStorage.setItem with key: ${key}`
+            );
             localStorage.setItem(key, JSON.stringify(data));
-            console.log(`[StickerStore] ✅ SAVED via localStorage: ${data.length} stickers`);
-            
+            console.log(
+              `[StickerStore] ✅ SAVED via localStorage: ${data.length} stickers`
+            );
+
             // Verify save by immediately reading back
             const verification = localStorage.getItem(key);
-            const parsedVerification = verification ? JSON.parse(verification) : [];
-            console.log(`[StickerStore] 🔍 SAVE VERIFICATION: Read back ${parsedVerification.length} stickers`);
+            const parsedVerification = verification
+              ? JSON.parse(verification)
+              : [];
+            console.log(
+              `[StickerStore] 🔍 SAVE VERIFICATION: Read back ${parsedVerification.length} stickers`
+            );
           }
         } catch (error) {
-          console.error(`[StickerStore] ❌ SAVE FAILED for project ${projectId}:`, error);
+          console.error(
+            `[StickerStore] ❌ SAVE FAILED for project ${projectId}:`,
+            error
+          );
           // Try fallback to localStorage if Electron IPC fails
           if (window.electronAPI?.storage) {
             try {
               localStorage.setItem(key, JSON.stringify(data));
-              console.log(`[StickerStore] ✅ FALLBACK SAVE via localStorage: ${data.length} stickers`);
+              console.log(
+                `[StickerStore] ✅ FALLBACK SAVE via localStorage: ${data.length} stickers`
+              );
             } catch (fallbackError) {
-              console.error(`[StickerStore] ❌ FALLBACK SAVE FAILED:`, fallbackError);
+              console.error(
+                `[StickerStore] ❌ FALLBACK SAVE FAILED:`,
+                fallbackError
+              );
             }
           }
         }
@@ -393,30 +432,50 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         const key = `overlay-stickers-${projectId}`;
         let data: OverlaySticker[] = [];
 
-        console.log(`[StickerStore] 📂 LOADING: stickers for project ${projectId}`);
+        console.log(
+          `[StickerStore] 📂 LOADING: stickers for project ${projectId}`
+        );
 
         try {
           if (window.electronAPI?.storage) {
-            console.log(`[StickerStore] 📞 CALLING Electron IPC load for key: ${key}`);
+            console.log(
+              `[StickerStore] 📞 CALLING Electron IPC load for key: ${key}`
+            );
             const rawData = await window.electronAPI.storage.load(key);
-            console.log(`[StickerStore] 📦 RAW DATA from Electron IPC:`, rawData);
+            console.log(
+              `[StickerStore] 📦 RAW DATA from Electron IPC:`,
+              rawData
+            );
             data = rawData || [];
-            console.log(`[StickerStore] ✅ LOADED via Electron IPC: ${data.length} stickers`);
+            console.log(
+              `[StickerStore] ✅ LOADED via Electron IPC: ${data.length} stickers`
+            );
           } else {
-            console.log(`[StickerStore] 📞 CALLING localStorage.getItem for key: ${key}`);
+            console.log(
+              `[StickerStore] 📞 CALLING localStorage.getItem for key: ${key}`
+            );
             const stored = localStorage.getItem(key);
-            console.log(`[StickerStore] 📦 RAW DATA from localStorage:`, stored);
+            console.log(
+              `[StickerStore] 📦 RAW DATA from localStorage:`,
+              stored
+            );
             if (stored) {
               data = JSON.parse(stored);
-              console.log(`[StickerStore] ✅ LOADED via localStorage: ${data.length} stickers`);
+              console.log(
+                `[StickerStore] ✅ LOADED via localStorage: ${data.length} stickers`
+              );
             } else {
-              console.log(`[StickerStore] ℹ️ NO DATA found for project ${projectId}`);
+              console.log(
+                `[StickerStore] ℹ️ NO DATA found for project ${projectId}`
+              );
             }
           }
 
           // Validate data structure
           if (!Array.isArray(data)) {
-            console.warn(`[StickerStore] ⚠️ INVALID DATA: Expected array, got ${typeof data}`);
+            console.warn(
+              `[StickerStore] ⚠️ INVALID DATA: Expected array, got ${typeof data}`
+            );
             data = [];
           }
 
@@ -427,9 +486,14 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             history: { past: [], future: [] },
           });
 
-          console.log(`[StickerStore] ✅ LOADED COMPLETE: ${stickersMap.size} stickers applied to store`);
+          console.log(
+            `[StickerStore] ✅ LOADED COMPLETE: ${stickersMap.size} stickers applied to store`
+          );
         } catch (error) {
-          console.error(`[StickerStore] ❌ LOAD FAILED for project ${projectId}:`, error);
+          console.error(
+            `[StickerStore] ❌ LOAD FAILED for project ${projectId}:`,
+            error
+          );
           // Try fallback to localStorage if Electron IPC fails
           if (window.electronAPI?.storage) {
             try {
@@ -442,10 +506,15 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
                   selectedStickerId: null,
                   history: { past: [], future: [] },
                 });
-                console.log(`[StickerStore] ✅ FALLBACK LOAD via localStorage: ${data.length} stickers`);
+                console.log(
+                  `[StickerStore] ✅ FALLBACK LOAD via localStorage: ${data.length} stickers`
+                );
               }
             } catch (fallbackError) {
-              console.error(`[StickerStore] ❌ FALLBACK LOAD FAILED:`, fallbackError);
+              console.error(
+                `[StickerStore] ❌ FALLBACK LOAD FAILED:`,
+                fallbackError
+              );
               // Ensure clean state on total failure
               set({
                 overlayStickers: new Map(),

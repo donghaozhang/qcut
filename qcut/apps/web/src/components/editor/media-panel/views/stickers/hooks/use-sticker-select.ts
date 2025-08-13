@@ -79,7 +79,7 @@ export function useStickerSelect() {
         return mediaItemId;
       } catch (error) {
         toast.error("Failed to add sticker to project");
-        return undefined;
+        return;
       }
     },
     [activeProject, addMediaItem, addRecentSticker]

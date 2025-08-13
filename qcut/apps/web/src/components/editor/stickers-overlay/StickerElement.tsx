@@ -53,7 +53,10 @@ export const StickerElement = memo<StickerElementProps>(
      * Combined mouse down handler
      */
     const handleMouseDownWrapper = (e: React.MouseEvent) => {
-      console.log("[StickerElement] 🎯 MOUSE DOWN WRAPPER: Called for sticker", sticker.id);
+      console.log(
+        "[StickerElement] 🎯 MOUSE DOWN WRAPPER: Called for sticker",
+        sticker.id
+      );
       selectSticker(sticker.id);
       handleMouseDown(e);
     };

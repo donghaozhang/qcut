@@ -68,7 +68,10 @@ export const useStickerDrag = (
 
       if (!sticker) return;
 
-      console.log("[StickerDrag] 🖱️ MOUSE DOWN: Starting drag for sticker", stickerId);
+      console.log(
+        "[StickerDrag] 🖱️ MOUSE DOWN: Starting drag for sticker",
+        stickerId
+      );
 
       dragState.current = {
         isDragging: true,
