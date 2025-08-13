@@ -585,7 +585,7 @@ export function PreviewPanel() {
                     Add a video or image to use blur background
                   </div>
                 )}
-              
+
               {/* Sticker overlay layer - renders on top of everything */}
               <StickerCanvas className="absolute inset-0" />
             </div>

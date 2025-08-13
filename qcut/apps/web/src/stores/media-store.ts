@@ -40,7 +40,7 @@ interface MediaStore {
   addMediaItem: (
     projectId: string,
     item: Omit<MediaItem, "id">
-  ) => Promise<void>;
+  ) => Promise<string>;
   addGeneratedImages: (
     items: Array<{
       url: string;
@@ -274,12 +274,14 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
     // Save to persistent storage in background
     try {
       await storageService.saveMediaItem(projectId, newItem);
+      return newItem.id;
     } catch (error) {
       console.error("Failed to save media item:", error);
       // Remove from local state if save failed
       set((state) => ({
         mediaItems: state.mediaItems.filter((media) => media.id !== newItem.id),
       }));
+      throw error;
     }
   },
 

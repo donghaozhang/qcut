@@ -1,19 +1,19 @@
 /**
  * Stickers Overlay Store
- * 
+ *
  * Manages overlay stickers that appear on top of the video preview.
  * Separate from timeline to maintain simplicity and independence.
  */
 
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
-import type { 
-  StickerOverlayStore, 
-  OverlaySticker, 
+import { create } from "zustand";
+import { devtools } from "zustand/middleware";
+import type {
+  StickerOverlayStore,
+  OverlaySticker,
   ValidatedStickerUpdate,
   STICKER_DEFAULTS,
-  Z_INDEX
-} from '@/types/sticker-overlay';
+  Z_INDEX,
+} from "@/types/sticker-overlay";
 
 // Import constants
 const DEFAULTS = {
@@ -36,7 +36,7 @@ const generateStickerId = (): string => {
  */
 const getNextZIndex = (stickers: Map<string, OverlaySticker>): number => {
   if (stickers.size === 0) return 100;
-  const maxZ = Math.max(...Array.from(stickers.values()).map(s => s.zIndex));
+  const maxZ = Math.max(...Array.from(stickers.values()).map((s) => s.zIndex));
   return maxZ + 10;
 };
 
@@ -61,7 +61,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
       addOverlaySticker: (mediaItemId: string, options = {}) => {
         const id = generateStickerId();
         const state = get();
-        
+
         const newSticker: OverlaySticker = {
           id,
           mediaItemId,
@@ -70,30 +70,34 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
           rotation: options.rotation ?? DEFAULTS.rotation,
           opacity: options.opacity ?? DEFAULTS.opacity,
           zIndex: options.zIndex || getNextZIndex(state.overlayStickers),
-          maintainAspectRatio: options.maintainAspectRatio ?? DEFAULTS.maintainAspectRatio,
+          maintainAspectRatio:
+            options.maintainAspectRatio ?? DEFAULTS.maintainAspectRatio,
           timing: options.timing,
           metadata: {
             addedAt: Date.now(),
             lastModified: Date.now(),
-            source: options.metadata?.source || 'library',
+            source: options.metadata?.source || "library",
           },
         };
 
         set((state) => {
           const newStickers = new Map(state.overlayStickers);
           newStickers.set(id, newSticker);
-          
+
           // Add to history for undo
           const newHistory = {
-            past: [...state.history.past, Array.from(state.overlayStickers.values())],
+            past: [
+              ...state.history.past,
+              Array.from(state.overlayStickers.values()),
+            ],
             future: [], // Clear redo stack on new action
           };
-          
+
           // Limit history size to prevent memory issues
           if (newHistory.past.length > 50) {
             newHistory.past.shift();
           }
-          
+
           return {
             overlayStickers: newStickers,
             selectedStickerId: id, // Auto-select new sticker
@@ -109,17 +113,21 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         set((state) => {
           const newStickers = new Map(state.overlayStickers);
           if (!newStickers.has(id)) return state;
-          
+
           newStickers.delete(id);
-          
+
           const newHistory = {
-            past: [...state.history.past, Array.from(state.overlayStickers.values())],
+            past: [
+              ...state.history.past,
+              Array.from(state.overlayStickers.values()),
+            ],
             future: [],
           };
-          
+
           return {
             overlayStickers: newStickers,
-            selectedStickerId: state.selectedStickerId === id ? null : state.selectedStickerId,
+            selectedStickerId:
+              state.selectedStickerId === id ? null : state.selectedStickerId,
             history: newHistory,
           };
         });
@@ -137,29 +145,46 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             ...updates,
             metadata: {
               ...sticker.metadata,
+              addedAt: sticker.metadata?.addedAt || Date.now(),
               lastModified: Date.now(),
+              source: sticker.metadata?.source,
             },
           };
 
           // Validate position bounds
           if (updatedSticker.position) {
-            updatedSticker.position.x = Math.max(0, Math.min(100, updatedSticker.position.x));
-            updatedSticker.position.y = Math.max(0, Math.min(100, updatedSticker.position.y));
+            updatedSticker.position.x = Math.max(
+              0,
+              Math.min(100, updatedSticker.position.x)
+            );
+            updatedSticker.position.y = Math.max(
+              0,
+              Math.min(100, updatedSticker.position.y)
+            );
           }
 
           // Validate size bounds
           if (updatedSticker.size) {
-            updatedSticker.size.width = Math.max(5, Math.min(100, updatedSticker.size.width));
-            updatedSticker.size.height = Math.max(5, Math.min(100, updatedSticker.size.height));
+            updatedSticker.size.width = Math.max(
+              5,
+              Math.min(100, updatedSticker.size.width)
+            );
+            updatedSticker.size.height = Math.max(
+              5,
+              Math.min(100, updatedSticker.size.height)
+            );
           }
 
           // Validate opacity
-          if (typeof updatedSticker.opacity === 'number') {
-            updatedSticker.opacity = Math.max(0, Math.min(1, updatedSticker.opacity));
+          if (typeof updatedSticker.opacity === "number") {
+            updatedSticker.opacity = Math.max(
+              0,
+              Math.min(1, updatedSticker.opacity)
+            );
           }
 
           newStickers.set(id, updatedSticker);
-          
+
           return {
             overlayStickers: newStickers,
           };
@@ -172,7 +197,10 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
           overlayStickers: new Map(),
           selectedStickerId: null,
           history: {
-            past: [...state.history.past, Array.from(state.overlayStickers.values())],
+            past: [
+              ...state.history.past,
+              Array.from(state.overlayStickers.values()),
+            ],
             future: [],
           },
         }));
@@ -189,7 +217,9 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         const sticker = state.overlayStickers.get(id);
         if (!sticker) return;
 
-        const maxZ = Math.max(...Array.from(state.overlayStickers.values()).map(s => s.zIndex));
+        const maxZ = Math.max(
+          ...Array.from(state.overlayStickers.values()).map((s) => s.zIndex)
+        );
         state.updateOverlaySticker(id, { zIndex: maxZ + 10 });
       },
 
@@ -198,7 +228,9 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         const sticker = state.overlayStickers.get(id);
         if (!sticker) return;
 
-        const minZ = Math.min(...Array.from(state.overlayStickers.values()).map(s => s.zIndex));
+        const minZ = Math.min(
+          ...Array.from(state.overlayStickers.values()).map((s) => s.zIndex)
+        );
         state.updateOverlaySticker(id, { zIndex: Math.max(1, minZ - 10) });
       },
 
@@ -208,11 +240,13 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         if (!sticker) return;
 
         const higherStickers = Array.from(state.overlayStickers.values())
-          .filter(s => s.zIndex > sticker.zIndex)
+          .filter((s) => s.zIndex > sticker.zIndex)
           .sort((a, b) => a.zIndex - b.zIndex);
 
         if (higherStickers.length > 0) {
-          state.updateOverlaySticker(id, { zIndex: higherStickers[0].zIndex + 5 });
+          state.updateOverlaySticker(id, {
+            zIndex: higherStickers[0].zIndex + 5,
+          });
         }
       },
 
@@ -222,11 +256,13 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         if (!sticker) return;
 
         const lowerStickers = Array.from(state.overlayStickers.values())
-          .filter(s => s.zIndex < sticker.zIndex)
+          .filter((s) => s.zIndex < sticker.zIndex)
           .sort((a, b) => b.zIndex - a.zIndex);
 
         if (lowerStickers.length > 0) {
-          state.updateOverlaySticker(id, { zIndex: Math.max(1, lowerStickers[0].zIndex - 5) });
+          state.updateOverlaySticker(id, {
+            zIndex: Math.max(1, lowerStickers[0].zIndex - 5),
+          });
         }
       },
 
@@ -245,7 +281,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
           const currentState = Array.from(state.overlayStickers.values());
 
           return {
-            overlayStickers: new Map(previousState.map(s => [s.id, s])),
+            overlayStickers: new Map(previousState.map((s) => [s.id, s])),
             history: {
               past: newPast,
               future: [currentState, ...state.history.future],
@@ -263,7 +299,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
           const currentState = Array.from(state.overlayStickers.values());
 
           return {
-            overlayStickers: new Map(nextState.map(s => [s.id, s])),
+            overlayStickers: new Map(nextState.map((s) => [s.id, s])),
             history: {
               past: [...state.history.past, currentState],
               future: newFuture,
@@ -286,7 +322,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             localStorage.setItem(key, JSON.stringify(data));
           }
         } catch (error) {
-          console.error('Failed to save overlay stickers:', error);
+          console.error("Failed to save overlay stickers:", error);
         }
       },
 
@@ -304,28 +340,29 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             }
           }
 
-          const stickersMap = new Map(data.map(s => [s.id, s]));
+          const stickersMap = new Map(data.map((s) => [s.id, s]));
           set({
             overlayStickers: stickersMap,
             selectedStickerId: null,
             history: { past: [], future: [] },
           });
         } catch (error) {
-          console.error('Failed to load overlay stickers:', error);
+          console.error("Failed to load overlay stickers:", error);
         }
       },
 
       // Export helpers
       getStickersForExport: () => {
         const state = get();
-        return Array.from(state.overlayStickers.values())
-          .sort((a, b) => a.zIndex - b.zIndex);
+        return Array.from(state.overlayStickers.values()).sort(
+          (a, b) => a.zIndex - b.zIndex
+        );
       },
 
       getVisibleStickersAtTime: (time: number) => {
         const state = get();
         return Array.from(state.overlayStickers.values())
-          .filter(sticker => {
+          .filter((sticker) => {
             if (!sticker.timing) return true;
             const { startTime = 0, endTime = Infinity } = sticker.timing;
             return time >= startTime && time <= endTime;
@@ -334,7 +371,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
       },
     }),
     {
-      name: 'stickers-overlay-store',
+      name: "stickers-overlay-store",
     }
   )
 );

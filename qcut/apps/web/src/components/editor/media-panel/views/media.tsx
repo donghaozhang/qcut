@@ -405,10 +405,11 @@ export function MediaView() {
                     <ContextMenuContent>
                       <ContextMenuItem>Export clips</ContextMenuItem>
                       {(item.type === "image" || item.type === "video") && (
-                        <ContextMenuItem 
+                        <ContextMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            const { addOverlaySticker } = useStickersOverlayStore.getState();
+                            const { addOverlaySticker } =
+                              useStickersOverlayStore.getState();
                             addOverlaySticker(item.id);
                             toast.success(`Added "${item.name}" as overlay`);
                           }}

@@ -48,7 +48,7 @@ export type MediaStore = {
   addMediaItem: (
     projectId: string,
     item: Omit<MediaItem, "id">
-  ) => Promise<void>;
+  ) => Promise<string>;
   addGeneratedImages: (
     items: Array<{
       url: string;

@@ -250,7 +250,7 @@ export function FullscreenPreview({
               renderElement(elementData, index)
             )
           )}
-          
+
           {/* Sticker overlay in fullscreen mode */}
           <StickerCanvas className="absolute inset-0" />
           {activeProject?.backgroundType === "blur" &&

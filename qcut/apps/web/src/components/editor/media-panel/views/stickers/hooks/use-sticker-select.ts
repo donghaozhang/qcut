@@ -16,7 +16,7 @@ export function useStickerSelect() {
   const objectUrlsRef = useRef<Set<string>>(new Set());
 
   const handleStickerSelect = useCallback(
-    async (iconId: string, name: string) => {
+    async (iconId: string, name: string): Promise<string | undefined> => {
       if (!activeProject) {
         toast.error("No project selected");
         return;
@@ -39,15 +39,15 @@ export function useStickerSelect() {
 
         // For Electron (file:// protocol), use data URL instead of blob URL
         let imageUrl: string;
-        if (window.location.protocol === 'file:') {
+        if (window.location.protocol === "file:") {
           // Convert to data URL for Electron compatibility
           imageUrl = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => {
-              if (typeof reader.result === 'string') {
+              if (typeof reader.result === "string") {
                 resolve(reader.result);
               } else {
-                reject(new Error('Failed to read file as data URL'));
+                reject(new Error("Failed to read file as data URL"));
               }
             };
             reader.onerror = () => reject(reader.error);
@@ -74,16 +74,17 @@ export function useStickerSelect() {
         addRecentSticker(iconId, name);
 
         toast.success(`Added ${name} to media library`);
-        
+
         // Return the media item ID for potential overlay use
         return mediaItemId;
       } catch (error) {
         toast.error("Failed to add sticker to project");
+        return undefined;
       }
     },
     [activeProject, addMediaItem, addRecentSticker]
   );
-  
+
   // New function to add sticker directly to overlay
   const handleStickerSelectToOverlay = useCallback(
     async (iconId: string, name: string) => {

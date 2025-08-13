@@ -45,15 +45,15 @@ export async function processMediaFiles(
 
     // Create URL that works in both web and Electron environments
     let url: string;
-    if (window.location.protocol === 'file:' && fileType === 'image') {
+    if (window.location.protocol === "file:" && fileType === "image") {
       // For images in Electron, use data URL for better compatibility
       url = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
-          if (typeof reader.result === 'string') {
+          if (typeof reader.result === "string") {
             resolve(reader.result);
           } else {
-            reject(new Error('Failed to read file as data URL'));
+            reject(new Error("Failed to read file as data URL"));
           }
         };
         reader.onerror = () => reject(reader.error);

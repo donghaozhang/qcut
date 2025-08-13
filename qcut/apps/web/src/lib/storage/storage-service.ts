@@ -215,17 +215,17 @@ class StorageService {
     if (file && file.size > 0) {
       // File exists with content
       actualFile = file;
-      
+
       // In Electron (file:// protocol), convert to data URL for better compatibility
-      if (window.location.protocol === 'file:' && metadata.type === 'image') {
+      if (window.location.protocol === "file:" && metadata.type === "image") {
         // For images in Electron, use data URL
         url = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => {
-            if (typeof reader.result === 'string') {
+            if (typeof reader.result === "string") {
               resolve(reader.result);
             } else {
-              reject(new Error('Failed to read file as data URL'));
+              reject(new Error("Failed to read file as data URL"));
             }
           };
           reader.onerror = () => reject(reader.error);
