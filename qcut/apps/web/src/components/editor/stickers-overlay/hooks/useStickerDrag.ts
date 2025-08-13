@@ -5,7 +5,7 @@
  * and boundary constraints.
  */
 
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 
 interface DragState {
@@ -25,6 +25,7 @@ export const useStickerDrag = (
   canvasRef: React.RefObject<HTMLDivElement>
 ) => {
   const { updateOverlaySticker, setIsDragging } = useStickersOverlayStore();
+  const [isDragging, setIsDraggingLocal] = useState(false);
   const dragState = useRef<DragState>({
     isDragging: false,
     startX: 0,
@@ -82,6 +83,7 @@ export const useStickerDrag = (
       };
 
       setIsDragging(true);
+      setIsDraggingLocal(true);
 
       // Add cursor style
       document.body.style.cursor = "grabbing";
@@ -121,6 +123,7 @@ export const useStickerDrag = (
 
     dragState.current.isDragging = false;
     setIsDragging(false);
+    setIsDraggingLocal(false);
 
     // Reset cursor
     document.body.style.cursor = "";
@@ -184,7 +187,7 @@ export const useStickerDrag = (
   }, [handleMouseUp]);
 
   return {
-    isDragging: dragState.current.isDragging,
+    isDragging,
     handleMouseDown,
     handleTouchStart,
     handleTouchMove,

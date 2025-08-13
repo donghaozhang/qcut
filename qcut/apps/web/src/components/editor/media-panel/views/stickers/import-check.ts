@@ -34,55 +34,34 @@ export const REQUIRED_PACKAGES = {
   zustand: "zustand", // State management
 } as const;
 
-// Import test - This will fail at compile time if any import is missing
-import { useStickersStore } from "@/stores/stickers-store";
-import { useMediaStore } from "@/stores/media-store";
-import { useProjectStore } from "@/stores/project-store";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  buildIconSvgUrl,
-  downloadIconSvg,
-  createSvgBlob,
-  getCollection,
-  POPULAR_COLLECTIONS,
-  type IconSet,
-} from "@/lib/iconify-api";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-import {
-  AlertCircle,
-  Clock,
-  Grid3X3,
-  Hash,
-  Loader2,
-  Search,
-  X,
-} from "lucide-react";
+// Type-only validation (no runtime imports)
 
-// Type checks
+// Type-only checks (compile-time validation)
 type StoreCheck = {
-  stickers: typeof useStickersStore;
-  media: typeof useMediaStore;
-  project: typeof useProjectStore;
+  stickers: typeof import("@/stores/stickers-store").useStickersStore;
+  media: typeof import("@/stores/media-store").useMediaStore;
+  project: typeof import("@/stores/project-store").useProjectStore;
 };
 
 type UICheck = {
-  badge: typeof Badge;
-  button: typeof Button;
-  input: typeof Input;
-  scrollArea: typeof ScrollArea;
-  tabs: typeof Tabs;
-  tooltip: typeof Tooltip;
+  badge: typeof import("@/components/ui/badge").Badge;
+  button: typeof import("@/components/ui/button").Button;
+  input: typeof import("@/components/ui/input").Input;
+  scrollArea: typeof import("@/components/ui/scroll-area").ScrollArea;
+  tabs: typeof import("@/components/ui/tabs").Tabs;
+  tooltip: typeof import("@/components/ui/tooltip").Tooltip;
+};
+
+type LibCheck = {
+  iconifyApi: typeof import("@/lib/iconify-api");
+  utils: typeof import("@/lib/utils");
+};
+
+type ExternalCheck = {
+  react: typeof import("react");
+  lucide: typeof import("lucide-react");
+  sonner: typeof import("sonner");
+  zustand: typeof import("zustand");
 };
 
 // Export verification status
@@ -94,4 +73,3 @@ export const IMPORT_VERIFICATION = {
   overall: "✅ READY FOR INTEGRATION - All imports verified",
 } as const;
 
-console.log("🔍 Import Verification Complete:", IMPORT_VERIFICATION);

@@ -28,7 +28,7 @@ const DEFAULTS = {
  * Generate unique ID for stickers
  */
 const generateStickerId = (): string => {
-  return `sticker-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `sticker-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 };
 
 /**

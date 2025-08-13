@@ -40,10 +40,6 @@ export function StickersCollection({
     const fetchCollectionIcons = async () => {
       setLoadingCollection(true);
       try {
-        // First, check if we have this collection in our store
-        const collection = collections.find(
-          (c) => c.prefix === collectionPrefix
-        );
 
         // Try to get sample icons from POPULAR_COLLECTIONS first
         const popularCollection = POPULAR_COLLECTIONS.find(
