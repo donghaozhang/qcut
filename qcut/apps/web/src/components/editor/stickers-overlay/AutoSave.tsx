@@ -51,59 +51,12 @@ export const StickerOverlayAutoSave = () => {
   // Debounce the stickers string to avoid too frequent saves
   const debouncedStickersString = useDebounce(stickersString, 1000);
 
-  // Save when debounced value changes
+  // Auto-save is now disabled - stickers auto-save immediately when created/modified
+  // This prevents conflicts with project loading and eliminates the race condition
+  // where cleared stickers during project load would overwrite saved stickers
   useEffect(() => {
-    debugLog(`[AutoSave] 💾 SAVE EFFECT TRIGGERED:`, {
-      activeProjectId: activeProject?.id,
-      hasLoaded: hasLoadedRef.current,
-      stickersCount: overlayStickers.size,
-      debouncedStringChanged: debouncedStickersString !== lastSaveRef.current,
-      lastSaveString: lastSaveRef.current.substring(0, 50) + "...",
-      currentString: debouncedStickersString.substring(0, 50) + "...",
-      isProjectLoading: isLoading,
-    });
-
-    if (!activeProject?.id || !hasLoadedRef.current || isLoading) {
-      debugLog(
-        `[AutoSave] ⏭️ SAVE SKIPPED: no project (${!activeProject?.id}) or not loaded (${!hasLoadedRef.current}) or loading (${isLoading})`
-      );
-      return;
-    }
-
-    // Skip if nothing changed
-    if (debouncedStickersString === lastSaveRef.current) {
-      debugLog(`[AutoSave] ⏭️ SAVE SKIPPED: no changes detected`);
-      return;
-    }
-
-    // Skip initial empty state
-    if (overlayStickers.size === 0 && !lastSaveRef.current) {
-      debugLog(`[AutoSave] ⏭️ SAVE SKIPPED: initial empty state`);
-      lastSaveRef.current = debouncedStickersString;
-      return;
-    }
-
-    // Save to storage
-    debugLog(
-      `[AutoSave] 🚀 STARTING SAVE: ${overlayStickers.size} stickers to project: ${activeProject.id}`
-    );
-    saveToProject(activeProject.id)
-      .then(() => {
-        lastSaveRef.current = debouncedStickersString;
-        debugLog(
-          `[AutoSave] ✅ SAVE COMPLETE: ${overlayStickers.size} stickers for project: ${activeProject.id}`
-        );
-      })
-      .catch((error) => {
-        debugLog(`[AutoSave] ❌ SAVE ERROR:`, error);
-      });
-  }, [
-    debouncedStickersString,
-    activeProject?.id,
-    overlayStickers.size,
-    saveToProject,
-    isLoading,
-  ]);
+    debugLog(`[AutoSave] 💾 AUTO-SAVE DISABLED - immediate save on create/modify instead`);
+  }, []);
 
   // No UI, just side effects
   return null;
