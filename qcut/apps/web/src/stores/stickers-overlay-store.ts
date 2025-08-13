@@ -11,9 +11,8 @@ import type {
   StickerOverlayStore,
   OverlaySticker,
   ValidatedStickerUpdate,
-  STICKER_DEFAULTS,
-  Z_INDEX,
 } from "@/types/sticker-overlay";
+import { STICKER_DEFAULTS, Z_INDEX } from "@/types/sticker-overlay";
 
 // Import constants
 const DEFAULTS = {

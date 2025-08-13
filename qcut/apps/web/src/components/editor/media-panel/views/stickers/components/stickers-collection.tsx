@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { getCollection, POPULAR_COLLECTIONS } from "@/lib/iconify-api";
 import { StickerItem } from "./sticker-item";
 import type { CollectionContentProps } from "../types/stickers.types";
@@ -113,16 +114,18 @@ export function StickersCollection({
   }
 
   return (
-    <div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
-      {collectionIcons.map((iconName) => (
-        <StickerItem
-          key={`${collectionPrefix}:${iconName}`}
-          icon={iconName}
-          name={iconName}
-          collection={collectionPrefix}
-          onSelect={onSelect}
-        />
-      ))}
-    </div>
+    <TooltipProvider>
+      <div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
+        {collectionIcons.map((iconName) => (
+          <StickerItem
+            key={`${collectionPrefix}:${iconName}`}
+            icon={iconName}
+            name={iconName}
+            collection={collectionPrefix}
+            onSelect={onSelect}
+          />
+        ))}
+      </div>
+    </TooltipProvider>
   );
 }

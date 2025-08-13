@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useStickersStore } from "@/stores/stickers-store";
 import { POPULAR_COLLECTIONS } from "@/lib/iconify-api";
 import { StickersSearch } from "./components/stickers-search";
@@ -46,25 +47,28 @@ export function StickersView() {
     }
   }, [collections.length, fetchCollections]);
 
-  // Search functionality with debounce
+  // Debounced search query
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Search functionality with debounced query
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    if (!debouncedSearchQuery.trim()) {
       return;
     }
 
-    const timeoutId = setTimeout(async () => {
+    const performSearch = async () => {
       setIsSearching(true);
       try {
-        await searchIcons(searchQuery);
+        await searchIcons(debouncedSearchQuery);
       } catch (error) {
         toast.error("Failed to search icons");
       } finally {
         setIsSearching(false);
       }
-    }, 300);
+    };
 
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery, searchIcons]);
+    performSearch();
+  }, [debouncedSearchQuery, searchIcons]);
 
   if (error) {
     return (

@@ -5,7 +5,6 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { buildIconSvgUrl } from "@/lib/iconify-api";
@@ -47,47 +46,45 @@ export function StickerItem({
   };
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            className={cn(
-              "relative flex h-16 w-16 flex-col items-center justify-center rounded-lg border-2 border-border bg-background transition-all hover:border-primary hover:bg-accent",
-              isSelected && "border-primary bg-accent"
-            )}
-            onClick={handleClick}
-            disabled={hasError || !imageUrl}
-          >
-            {isLoading && (
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            )}
-            {hasError && !isLoading && (
-              <AlertCircle className="h-6 w-6 text-destructive" />
-            )}
-            {imageUrl && (
-              <img
-                src={imageUrl}
-                alt={name || icon}
-                className={cn(
-                  "h-8 w-8 object-contain",
-                  (isLoading || hasError) && "hidden"
-                )}
-                onLoad={() => setIsLoading(false)}
-                onError={() => {
-                  setHasError(true);
-                  setIsLoading(false);
-                }}
-              />
-            )}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">
-          <p className="text-sm font-medium">
-            {name || icon} ({collection})
-          </p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "relative flex h-16 w-16 flex-col items-center justify-center rounded-lg border-2 border-border bg-background transition-all hover:border-primary hover:bg-accent",
+            isSelected && "border-primary bg-accent"
+          )}
+          onClick={handleClick}
+          disabled={hasError || !imageUrl}
+        >
+          {isLoading && (
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          )}
+          {hasError && !isLoading && (
+            <AlertCircle className="h-6 w-6 text-destructive" />
+          )}
+          {imageUrl && (
+            <img
+              src={imageUrl}
+              alt={name || icon}
+              className={cn(
+                "h-8 w-8 object-contain",
+                (isLoading || hasError) && "hidden"
+              )}
+              onLoad={() => setIsLoading(false)}
+              onError={() => {
+                setHasError(true);
+                setIsLoading(false);
+              }}
+            />
+          )}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">
+        <p className="text-sm font-medium">
+          {name || icon} ({collection})
+        </p>
+      </TooltipContent>
+    </Tooltip>
   );
 }
