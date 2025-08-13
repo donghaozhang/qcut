@@ -471,12 +471,48 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             }
           }
 
-          // Validate data structure
+          // Validate data structure and individual sticker objects
           if (!Array.isArray(data)) {
             console.warn(
               `[StickerStore] ⚠️ INVALID DATA: Expected array, got ${typeof data}`
             );
             data = [];
+          } else {
+            // Validate each sticker object has required fields
+            const validStickers = data.filter(
+              (item: any): item is OverlaySticker => {
+                const isValid =
+                  item &&
+                  typeof item === "object" &&
+                  typeof item.id === "string" &&
+                  typeof item.mediaItemId === "string" &&
+                  item.position &&
+                  typeof item.position.x === "number" &&
+                  typeof item.position.y === "number" &&
+                  item.size &&
+                  typeof item.size.width === "number" &&
+                  typeof item.size.height === "number" &&
+                  typeof item.zIndex === "number";
+
+                if (!isValid) {
+                  console.warn(
+                    `[StickerStore] ⚠️ INVALID STICKER: Skipping malformed sticker object:`,
+                    item
+                  );
+                }
+
+                return isValid;
+              }
+            );
+
+            const filteredCount = data.length - validStickers.length;
+            if (filteredCount > 0) {
+              console.warn(
+                `[StickerStore] 🧹 VALIDATION: Filtered out ${filteredCount} invalid sticker objects`
+              );
+            }
+
+            data = validStickers;
           }
 
           const stickersMap = new Map(data.map((s) => [s.id, s]));

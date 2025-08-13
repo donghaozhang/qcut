@@ -22,4 +22,5 @@ export interface StickersViewProps {
 export interface RecentSticker {
   iconId: string;
   name: string;
+  downloadedAt: Date;
 }

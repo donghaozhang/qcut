@@ -8,12 +8,7 @@ import {
   IconSet,
   IconSearchResult,
 } from "@/lib/iconify-api";
-
-export interface RecentSticker {
-  iconId: string;
-  name: string;
-  downloadedAt: Date;
-}
+import type { RecentSticker } from "@/components/editor/media-panel/views/stickers/types/stickers.types";
 
 export interface StickersStore {
   // State
