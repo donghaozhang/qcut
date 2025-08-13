@@ -98,6 +98,13 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             newHistory.past.shift();
           }
 
+          console.log("[StickerStore] Added sticker:", {
+            id,
+            mediaItemId,
+            newSticker,
+            totalStickers: newStickers.size
+          });
+
           return {
             overlayStickers: newStickers,
             selectedStickerId: id, // Auto-select new sticker

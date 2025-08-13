@@ -81,6 +81,14 @@ export const StickerCanvas: React.FC<{
   const sortedStickers = Array.from(overlayStickers.values()).sort(
     (a, b) => a.zIndex - b.zIndex
   );
+  
+  // Debug logging
+  console.log("[StickerCanvas] Rendering with:", {
+    stickersCount: overlayStickers.size,
+    sortedStickers,
+    mediaItemsCount: mediaItems.length,
+    disabled
+  });
 
   return (
     <>
@@ -90,7 +98,7 @@ export const StickerCanvas: React.FC<{
       <div
         ref={canvasRef}
         className={cn(
-          "absolute inset-0 z-10",
+          "absolute inset-0 z-50",
           overlayStickers.size === 0
             ? "pointer-events-none"
             : "pointer-events-auto",
