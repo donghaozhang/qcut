@@ -1,540 +1,645 @@
 # Stickers Overlay Implementation Guide
 
-## Overview
-This document outlines the implementation of stickers as overlay elements in the QCut video editor, separate from the timeline complexity, with full support for positioning, resizing, persistence, and export functionality.
+## Current State Analysis
+We already have:
+- ✅ Stickers panel in media panel (`src/components/editor/media-panel/views/stickers/`)
+- ✅ Stickers store (`src/stores/stickers-store.ts`)
+- ✅ Sticker selection and adding to media (`use-sticker-select.ts`)
+- ✅ Iconify API integration for sticker library
+- ✅ Recent stickers tracking
+- ✅ Search functionality
 
-## Core Requirements
+What's missing:
+- ❌ Overlay rendering on preview
+- ❌ Drag and drop positioning
+- ❌ Resize and rotate controls
+- ❌ Persistence of overlay positions
+- ❌ Export integration
+- ❌ Custom sticker upload
 
-### 1. Separate from Timeline Implementation
-- Create a new overlay system independent of the existing timeline
-- Avoid modifying the complex timeline files
-- Use a dedicated layer system for stickers
+## Implementation Phases - Broken Down into 10-Minute Tasks
 
-### 2. Interactive Overlay Features
-- Position adjustment via drag and drop
-- Resize handles for scaling
-- Rotation support
-- Z-index management for multiple stickers
+### Phase 1: Basic Overlay Display (Total: ~40 minutes)
 
-### 3. Preserve Existing Features
-- No breaking changes to current functionality
-- Maintain backward compatibility
-- Keep timeline, media panel, and export systems intact
-
-### 4. Persistent Storage
-- Save sticker positions and properties to disk
-- Restore sticker state on project reload
-- Use IndexedDB/OPFS for storing sticker data
-
-### 5. Transparency Support
-- Maintain alpha channel for all sticker formats
-- Support transparent SVG, PNG, WebP
-- Preserve transparency in preview and export
-
-### 6. Export Integration
-- Include stickers in video export
-- Render stickers at correct positions and sizes
-- Support all export formats
-
-### 7. Custom Sticker Upload
-- Support SVG files with transparency
-- Support PNG/WebP with alpha channel
-- Support animated stickers (GIF/WebM)
-- Video stickers with chroma key support
-
-## Implementation Architecture
-
-### File Structure
-```
-src/
-├── components/
-│   └── editor/
-│       ├── stickers-overlay/
-│       │   ├── StickerCanvas.tsx       # Main overlay canvas
-│       │   ├── StickerElement.tsx      # Individual sticker component
-│       │   ├── StickerControls.tsx     # Resize/rotate handles
-│       │   ├── StickerUploader.tsx     # Custom sticker upload
-│       │   └── hooks/
-│       │       ├── useStickerDrag.ts
-│       │       ├── useStickerResize.ts
-│       │       └── useStickerRotate.ts
-│       └── preview-panel.tsx           # Modified to include overlay
-├── stores/
-│   └── stickers-overlay-store.ts       # New store for overlay stickers
-├── lib/
-│   └── stickers/
-│       ├── sticker-renderer.ts         # Rendering logic
-│       ├── sticker-exporter.ts         # Export integration
-│       └── sticker-persistence.ts      # Storage handling
-└── types/
-    └── sticker-overlay.ts              # Type definitions
-```
-
-## Detailed Implementation
-
-### 1. Sticker Overlay Store (`stickers-overlay-store.ts`)
-
+#### Task 1.1: Create Overlay Store Types (10 min)
+**File:** `src/types/sticker-overlay.ts`
 ```typescript
-interface OverlaySticker {
+export interface OverlaySticker {
   id: string;
-  type: 'svg' | 'image' | 'video';
-  url: string;           // Data URL for Electron compatibility
-  file?: File;           // Original file reference
-  position: {
-    x: number;           // Percentage of canvas width
-    y: number;           // Percentage of canvas height
-  };
-  size: {
-    width: number;       // Percentage of canvas width
-    height: number;      // Percentage of canvas height
-  };
-  rotation: number;      // Degrees
-  opacity: number;       // 0-1
-  zIndex: number;        // Layer order
-  timestamp: number;     // When to show/hide (optional)
-  duration?: number;     // How long to display (optional)
-  effects?: {
-    shadow?: boolean;
-    glow?: boolean;
-    blur?: number;
-  };
+  mediaItemId: string;  // Reference to media store item
+  position: { x: number; y: number };  // Percentage
+  size: { width: number; height: number };  // Percentage
+  rotation: number;  // Degrees
+  opacity: number;  // 0-1
+  zIndex: number;
 }
 
-interface StickersOverlayStore {
-  stickers: Map<string, OverlaySticker>;
+export interface StickerOverlayState {
+  overlayStickers: Map<string, OverlaySticker>;
   selectedStickerId: string | null;
-  isDragging: boolean;
-  isResizing: boolean;
-  
-  // Actions
-  addSticker: (sticker: Partial<OverlaySticker>) => string;
-  removeSticker: (id: string) => void;
-  updateSticker: (id: string, updates: Partial<OverlaySticker>) => void;
-  selectSticker: (id: string | null) => void;
-  bringToFront: (id: string) => void;
-  sendToBack: (id: string) => void;
-  
-  // Persistence
-  saveToStorage: (projectId: string) => Promise<void>;
-  loadFromStorage: (projectId: string) => Promise<void>;
-  
-  // Export
-  getStickersForExport: () => OverlaySticker[];
 }
 ```
 
-### 2. Sticker Canvas Component (`StickerCanvas.tsx`)
-
+#### Task 1.2: Create Overlay Store (10 min)
+**File:** `src/stores/stickers-overlay-store.ts`
 ```typescript
-const StickerCanvas: React.FC = () => {
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const { stickers, selectedStickerId } = useStickersOverlayStore();
+import { create } from 'zustand';
+import type { OverlaySticker, StickerOverlayState } from '@/types/sticker-overlay';
+
+export const useStickersOverlayStore = create<StickerOverlayState & {
+  addOverlaySticker: (mediaItemId: string) => void;
+  removeOverlaySticker: (id: string) => void;
+  updateOverlaySticker: (id: string, updates: Partial<OverlaySticker>) => void;
+  selectSticker: (id: string | null) => void;
+}>((set) => ({
+  overlayStickers: new Map(),
+  selectedStickerId: null,
+  
+  addOverlaySticker: (mediaItemId) => {
+    const id = Date.now().toString();
+    const newSticker: OverlaySticker = {
+      id,
+      mediaItemId,
+      position: { x: 50, y: 50 },
+      size: { width: 20, height: 20 },
+      rotation: 0,
+      opacity: 1,
+      zIndex: Date.now(),
+    };
+    set((state) => ({
+      overlayStickers: new Map(state.overlayStickers).set(id, newSticker),
+    }));
+  },
+  
+  removeOverlaySticker: (id) => {
+    set((state) => {
+      const newMap = new Map(state.overlayStickers);
+      newMap.delete(id);
+      return { overlayStickers: newMap };
+    });
+  },
+  
+  updateOverlaySticker: (id, updates) => {
+    set((state) => {
+      const sticker = state.overlayStickers.get(id);
+      if (!sticker) return state;
+      const newMap = new Map(state.overlayStickers);
+      newMap.set(id, { ...sticker, ...updates });
+      return { overlayStickers: newMap };
+    });
+  },
+  
+  selectSticker: (id) => {
+    set({ selectedStickerId: id });
+  },
+}));
+```
+
+#### Task 1.3: Create Simple Overlay Canvas (10 min)
+**File:** `src/components/editor/stickers-overlay/StickerCanvas.tsx`
+```typescript
+import { useStickersOverlayStore } from '@/stores/stickers-overlay-store';
+import { useMediaStore } from '@/stores/media-store';
+
+export const StickerCanvas = () => {
+  const { overlayStickers } = useStickersOverlayStore();
+  const { mediaItems } = useMediaStore();
   
   return (
-    <div 
-      ref={canvasRef}
-      className="absolute inset-0 pointer-events-none z-10"
-      style={{ isolation: 'isolate' }}
-    >
-      {Array.from(stickers.values())
-        .sort((a, b) => a.zIndex - b.zIndex)
-        .map(sticker => (
-          <StickerElement
+    <div className="absolute inset-0 pointer-events-none z-10">
+      {Array.from(overlayStickers.values()).map((sticker) => {
+        const mediaItem = mediaItems.find(item => item.id === sticker.mediaItemId);
+        if (!mediaItem) return null;
+        
+        return (
+          <div
             key={sticker.id}
-            sticker={sticker}
-            isSelected={sticker.id === selectedStickerId}
-            canvasRef={canvasRef}
-          />
-        ))}
+            className="absolute"
+            style={{
+              left: `${sticker.position.x}%`,
+              top: `${sticker.position.y}%`,
+              width: `${sticker.size.width}%`,
+              height: `${sticker.size.height}%`,
+              transform: `translate(-50%, -50%) rotate(${sticker.rotation}deg)`,
+              opacity: sticker.opacity,
+              zIndex: sticker.zIndex,
+            }}
+          >
+            <img 
+              src={mediaItem.url}
+              alt=""
+              className="w-full h-full object-contain"
+              draggable={false}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 };
 ```
 
-### 3. Individual Sticker Element (`StickerElement.tsx`)
-
+#### Task 1.4: Add Overlay to Preview Panel (10 min)
+**File:** Modify `src/components/editor/preview-panel.tsx`
 ```typescript
-const StickerElement: React.FC<Props> = ({ sticker, isSelected, canvasRef }) => {
-  const { updateSticker } = useStickersOverlayStore();
-  const elementRef = useRef<HTMLDivElement>(null);
+// Add import
+import { StickerCanvas } from './stickers-overlay/StickerCanvas';
+
+// In the render, add after the video/canvas element:
+<div className="relative">
+  {/* Existing preview content */}
+  <canvas ref={canvasRef} />
   
-  // Drag functionality
-  const { isDragging, handleMouseDown } = useStickerDrag(
-    sticker.id,
-    elementRef,
-    canvasRef
-  );
+  {/* Add sticker overlay */}
+  <StickerCanvas />
   
-  // Resize functionality
-  const { isResizing, ResizeHandles } = useStickerResize(
-    sticker.id,
-    elementRef
-  );
+  {/* Existing controls */}
+</div>
+```
+
+### Phase 2: Add to Overlay Button (Total: ~20 minutes)
+
+#### Task 2.1: Add Overlay Button to Media Items (10 min)
+**File:** Modify `src/components/editor/media-panel/views/media.tsx`
+```typescript
+// Add to existing media item actions
+import { useStickersOverlayStore } from '@/stores/stickers-overlay-store';
+
+// In component
+const { addOverlaySticker } = useStickersOverlayStore();
+
+// Add button in media item actions
+<Button
+  size="icon"
+  variant="ghost"
+  onClick={(e) => {
+    e.stopPropagation();
+    addOverlaySticker(item.id);
+    toast.success('Added to overlay');
+  }}
+  title="Add as overlay"
+>
+  <Layers className="h-4 w-4" />
+</Button>
+```
+
+#### Task 2.2: Add Overlay Button to Sticker Items (10 min)
+**File:** Modify `src/components/editor/media-panel/views/stickers/components/sticker-item.tsx`
+```typescript
+// Similar to above, add overlay button after the sticker is added to media
+// This allows direct overlay placement from sticker library
+```
+
+### Phase 3: Basic Drag Functionality (Total: ~30 minutes)
+
+#### Task 3.1: Create Simple Drag Hook (10 min)
+**File:** `src/components/editor/stickers-overlay/hooks/useStickerDrag.ts`
+```typescript
+import { useRef, useCallback } from 'react';
+import { useStickersOverlayStore } from '@/stores/stickers-overlay-store';
+
+export const useStickerDrag = (stickerId: string) => {
+  const { updateOverlaySticker } = useStickersOverlayStore();
+  const isDragging = useRef(false);
+  const startPos = useRef({ x: 0, y: 0 });
   
-  // Rotation functionality
-  const { RotationHandle } = useStickerRotate(
-    sticker.id,
-    elementRef
-  );
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    startPos.current = { x: e.clientX, y: e.clientY };
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      
+      const deltaX = ((e.clientX - startPos.current.x) / window.innerWidth) * 100;
+      const deltaY = ((e.clientY - startPos.current.y) / window.innerHeight) * 100;
+      
+      updateOverlaySticker(stickerId, {
+        position: {
+          x: Math.max(0, Math.min(100, deltaX + 50)),
+          y: Math.max(0, Math.min(100, deltaY + 50)),
+        },
+      });
+      
+      startPos.current = { x: e.clientX, y: e.clientY };
+    };
+    
+    const handleMouseUp = () => {
+      isDragging.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [stickerId, updateOverlaySticker]);
+  
+  return { handleMouseDown };
+};
+```
+
+#### Task 3.2: Create Draggable Sticker Element (10 min)
+**File:** `src/components/editor/stickers-overlay/StickerElement.tsx`
+```typescript
+import { useStickerDrag } from './hooks/useStickerDrag';
+import { useStickersOverlayStore } from '@/stores/stickers-overlay-store';
+
+export const StickerElement = ({ sticker, mediaItem }) => {
+  const { selectedStickerId, selectSticker } = useStickersOverlayStore();
+  const { handleMouseDown } = useStickerDrag(sticker.id);
+  const isSelected = selectedStickerId === sticker.id;
   
   return (
     <div
-      ref={elementRef}
-      className={cn(
-        "absolute pointer-events-auto",
-        isSelected && "ring-2 ring-primary",
-        isDragging && "cursor-move",
-        isResizing && "cursor-resize"
-      )}
+      className={`absolute pointer-events-auto cursor-move ${
+        isSelected ? 'ring-2 ring-primary' : ''
+      }`}
       style={{
         left: `${sticker.position.x}%`,
         top: `${sticker.position.y}%`,
         width: `${sticker.size.width}%`,
         height: `${sticker.size.height}%`,
-        transform: `rotate(${sticker.rotation}deg)`,
+        transform: `translate(-50%, -50%) rotate(${sticker.rotation}deg)`,
         opacity: sticker.opacity,
         zIndex: sticker.zIndex,
       }}
-      onMouseDown={handleMouseDown}
+      onMouseDown={(e) => {
+        selectSticker(sticker.id);
+        handleMouseDown(e);
+      }}
     >
-      {/* Render sticker content based on type */}
-      {sticker.type === 'svg' && (
-        <img 
-          src={sticker.url} 
-          alt=""
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-          draggable={false}
-        />
-      )}
-      
-      {sticker.type === 'image' && (
-        <img 
-          src={sticker.url}
-          alt=""
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-          draggable={false}
-        />
-      )}
-      
-      {sticker.type === 'video' && (
-        <video
-          src={sticker.url}
-          autoPlay
-          loop
-          muted
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-        />
-      )}
-      
-      {/* Controls when selected */}
-      {isSelected && (
-        <>
-          <ResizeHandles />
-          <RotationHandle />
-        </>
-      )}
-    </div>
-  );
-};
-```
-
-### 4. Custom Sticker Uploader (`StickerUploader.tsx`)
-
-```typescript
-const StickerUploader: React.FC = () => {
-  const { addSticker } = useStickersOverlayStore();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    
-    for (const file of Array.from(files)) {
-      // Validate file type
-      const isValid = validateStickerFile(file);
-      if (!isValid) {
-        toast.error(`Invalid file type: ${file.name}`);
-        continue;
-      }
-      
-      // Create appropriate URL based on environment
-      let url: string;
-      if (window.location.protocol === 'file:') {
-        // Electron: Use data URL
-        url = await fileToDataURL(file);
-      } else {
-        // Web: Use blob URL
-        url = URL.createObjectURL(file);
-      }
-      
-      // Detect file type
-      const type = detectStickerType(file);
-      
-      // Get dimensions for proper aspect ratio
-      const dimensions = await getStickerDimensions(file, type);
-      
-      // Add to overlay
-      addSticker({
-        type,
-        url,
-        file,
-        position: { x: 50, y: 50 }, // Center
-        size: {
-          width: 20, // 20% of canvas
-          height: 20 * (dimensions.height / dimensions.width)
-        },
-        rotation: 0,
-        opacity: 1,
-        zIndex: Date.now(), // Auto-increment
-      });
-    }
-    
-    // Reset input
-    e.target.value = '';
-  };
-  
-  return (
-    <div className="p-4">
-      <Button onClick={() => fileInputRef.current?.click()}>
-        <Upload className="w-4 h-4 mr-2" />
-        Upload Custom Sticker
-      </Button>
-      <input
-        ref={fileInputRef}
-        type="file"
-        hidden
-        multiple
-        accept=".svg,.png,.webp,.gif,.webm,.mp4"
-        onChange={handleFileUpload}
+      <img 
+        src={mediaItem.url}
+        alt=""
+        className="w-full h-full object-contain"
+        draggable={false}
       />
     </div>
   );
 };
 ```
 
-### 5. Storage and Persistence (`sticker-persistence.ts`)
-
+#### Task 3.3: Update Canvas to Use StickerElement (10 min)
+**File:** Update `src/components/editor/stickers-overlay/StickerCanvas.tsx`
 ```typescript
-class StickerPersistence {
-  private storageKey = (projectId: string) => `stickers-overlay-${projectId}`;
-  
-  async saveStickers(projectId: string, stickers: Map<string, OverlaySticker>) {
-    const stickersArray = Array.from(stickers.values());
-    
-    // Save to IndexedDB for web
-    if (window.location.protocol !== 'file:') {
-      await this.saveToIndexedDB(projectId, stickersArray);
-    } else {
-      // Save via Electron IPC for desktop
-      await window.electronAPI.storage.save(
-        this.storageKey(projectId),
-        stickersArray
-      );
-    }
-  }
-  
-  async loadStickers(projectId: string): Promise<OverlaySticker[]> {
-    if (window.location.protocol !== 'file:') {
-      return await this.loadFromIndexedDB(projectId);
-    } else {
-      const data = await window.electronAPI.storage.load(
-        this.storageKey(projectId)
-      );
-      return data || [];
-    }
-  }
-  
-  private async saveToIndexedDB(projectId: string, stickers: OverlaySticker[]) {
-    const db = await this.openDB();
-    const tx = db.transaction(['stickers'], 'readwrite');
-    await tx.objectStore('stickers').put({
-      projectId,
-      stickers,
-      timestamp: Date.now()
-    });
-  }
-  
-  private async loadFromIndexedDB(projectId: string): Promise<OverlaySticker[]> {
-    const db = await this.openDB();
-    const tx = db.transaction(['stickers'], 'readonly');
-    const data = await tx.objectStore('stickers').get(projectId);
-    return data?.stickers || [];
-  }
-}
-```
+// Replace the inline div with StickerElement component
+import { StickerElement } from './StickerElement';
 
-### 6. Export Integration (`sticker-exporter.ts`)
-
-```typescript
-class StickerExporter {
-  /**
-   * Render stickers onto canvas during export
-   */
-  async renderStickersToCanvas(
-    canvas: HTMLCanvasElement,
-    stickers: OverlaySticker[],
-    currentTime: number
-  ) {
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    // Sort by z-index
-    const sortedStickers = stickers.sort((a, b) => a.zIndex - b.zIndex);
-    
-    for (const sticker of sortedStickers) {
-      // Check if sticker should be visible at current time
-      if (!this.isStickerVisible(sticker, currentTime)) continue;
-      
-      // Save context state
-      ctx.save();
-      
-      // Apply transformations
-      const x = (sticker.position.x / 100) * canvas.width;
-      const y = (sticker.position.y / 100) * canvas.height;
-      const width = (sticker.size.width / 100) * canvas.width;
-      const height = (sticker.size.height / 100) * canvas.height;
-      
-      ctx.translate(x + width / 2, y + height / 2);
-      ctx.rotate((sticker.rotation * Math.PI) / 180);
-      ctx.globalAlpha = sticker.opacity;
-      
-      // Draw sticker
-      await this.drawSticker(ctx, sticker, -width / 2, -height / 2, width, height);
-      
-      // Restore context
-      ctx.restore();
-    }
-  }
-  
-  private async drawSticker(
-    ctx: CanvasRenderingContext2D,
-    sticker: OverlaySticker,
-    x: number,
-    y: number,
-    width: number,
-    height: number
-  ) {
-    if (sticker.type === 'svg' || sticker.type === 'image') {
-      const img = new Image();
-      img.src = sticker.url;
-      await new Promise(resolve => {
-        img.onload = resolve;
-      });
-      ctx.drawImage(img, x, y, width, height);
-    } else if (sticker.type === 'video') {
-      // For video stickers, we need to capture the current frame
-      const video = document.createElement('video');
-      video.src = sticker.url;
-      video.currentTime = 0; // Or calculate based on timeline
-      await new Promise(resolve => {
-        video.onseeked = resolve;
-      });
-      ctx.drawImage(video, x, y, width, height);
-    }
-  }
-}
-```
-
-### 7. Integration with Preview Panel
-
-Modify the existing `preview-panel.tsx` to include the sticker overlay:
-
-```typescript
-const PreviewPanel: React.FC = () => {
-  // Existing preview logic...
+// In render:
+{Array.from(overlayStickers.values()).map((sticker) => {
+  const mediaItem = mediaItems.find(item => item.id === sticker.mediaItemId);
+  if (!mediaItem) return null;
   
   return (
-    <div className="relative">
-      {/* Existing video/canvas preview */}
-      <canvas ref={canvasRef} />
-      
-      {/* Sticker overlay layer */}
-      <StickerCanvas />
-      
-      {/* Existing controls */}
-      <PlaybackControls />
+    <StickerElement
+      key={sticker.id}
+      sticker={sticker}
+      mediaItem={mediaItem}
+    />
+  );
+})}
+```
+
+### Phase 4: Simple Resize Handles (Total: ~30 minutes)
+
+#### Task 4.1: Add Resize State to Store (5 min)
+**File:** Update `src/stores/stickers-overlay-store.ts`
+```typescript
+// Add to store state:
+isResizing: boolean;
+
+// Add action:
+setIsResizing: (isResizing: boolean) => {
+  set({ isResizing });
+};
+```
+
+#### Task 4.2: Create Resize Handles Component (10 min)
+**File:** `src/components/editor/stickers-overlay/ResizeHandles.tsx`
+```typescript
+export const ResizeHandles = ({ stickerId, isVisible }) => {
+  const { updateOverlaySticker } = useStickersOverlayStore();
+  
+  if (!isVisible) return null;
+  
+  const handleResize = (corner: string) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Simple resize logic - just increase/decrease by 5%
+    updateOverlaySticker(stickerId, {
+      size: {
+        width: 25,  // Simplified for now
+        height: 25,
+      },
+    });
+  };
+  
+  return (
+    <>
+      <div 
+        className="absolute -top-1 -left-1 w-3 h-3 bg-white border border-gray-500 cursor-nw-resize"
+        onMouseDown={handleResize('tl')}
+      />
+      <div 
+        className="absolute -top-1 -right-1 w-3 h-3 bg-white border border-gray-500 cursor-ne-resize"
+        onMouseDown={handleResize('tr')}
+      />
+      <div 
+        className="absolute -bottom-1 -left-1 w-3 h-3 bg-white border border-gray-500 cursor-sw-resize"
+        onMouseDown={handleResize('bl')}
+      />
+      <div 
+        className="absolute -bottom-1 -right-1 w-3 h-3 bg-white border border-gray-500 cursor-se-resize"
+        onMouseDown={handleResize('br')}
+      />
+    </>
+  );
+};
+```
+
+#### Task 4.3: Add Resize Handles to StickerElement (5 min)
+**File:** Update `src/components/editor/stickers-overlay/StickerElement.tsx`
+```typescript
+import { ResizeHandles } from './ResizeHandles';
+
+// In component render:
+<div className="relative">
+  <img ... />
+  <ResizeHandles stickerId={sticker.id} isVisible={isSelected} />
+</div>
+```
+
+#### Task 4.4: Add Delete Button (10 min)
+**File:** Create `src/components/editor/stickers-overlay/StickerControls.tsx`
+```typescript
+export const StickerControls = ({ stickerId, isVisible }) => {
+  const { removeOverlaySticker } = useStickersOverlayStore();
+  
+  if (!isVisible) return null;
+  
+  return (
+    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
+      <Button
+        size="icon"
+        variant="destructive"
+        className="h-6 w-6"
+        onClick={(e) => {
+          e.stopPropagation();
+          removeOverlaySticker(stickerId);
+        }}
+      >
+        <X className="h-3 w-3" />
+      </Button>
     </div>
   );
 };
 ```
 
-## Key Implementation Considerations
+### Phase 5: Storage Integration (Total: ~20 minutes)
 
-### 1. Performance Optimization
-- Use React.memo for sticker components
-- Implement virtual rendering for many stickers
-- Debounce position updates during drag
-- Use requestAnimationFrame for smooth animations
+#### Task 5.1: Add Storage Actions to Store (10 min)
+**File:** Update `src/stores/stickers-overlay-store.ts`
+```typescript
+// Add to store:
+saveToProject: async (projectId: string) => {
+  const state = get();
+  const data = Array.from(state.overlayStickers.values());
+  
+  // Use existing storage service
+  const key = `overlay-stickers-${projectId}`;
+  if (window.electronAPI) {
+    await window.electronAPI.storage.save(key, data);
+  } else {
+    localStorage.setItem(key, JSON.stringify(data));
+  }
+},
 
-### 2. Memory Management
-- Clean up blob URLs when stickers are removed
-- Use WeakMap for caching rendered stickers
-- Implement lazy loading for video stickers
+loadFromProject: async (projectId: string) => {
+  const key = `overlay-stickers-${projectId}`;
+  let data: OverlaySticker[] = [];
+  
+  if (window.electronAPI) {
+    data = await window.electronAPI.storage.load(key) || [];
+  } else {
+    const stored = localStorage.getItem(key);
+    if (stored) data = JSON.parse(stored);
+  }
+  
+  const map = new Map(data.map(s => [s.id, s]));
+  set({ overlayStickers: map });
+},
+```
 
-### 3. Electron Compatibility
-- Always use data URLs in Electron environment
-- Handle file:// protocol restrictions
-- Use IPC for file operations
+#### Task 5.2: Auto-save on Changes (10 min)
+**File:** Create `src/components/editor/stickers-overlay/AutoSave.tsx`
+```typescript
+import { useEffect } from 'react';
+import { useStickersOverlayStore } from '@/stores/stickers-overlay-store';
+import { useProjectStore } from '@/stores/project-store';
+import { debounce } from '@/lib/utils';
 
-### 4. Export Quality
-- Render stickers at export resolution, not preview resolution
-- Maintain aspect ratios during scaling
-- Support high DPI exports
+export const StickerOverlayAutoSave = () => {
+  const { overlayStickers, saveToProject } = useStickersOverlayStore();
+  const { activeProject } = useProjectStore();
+  
+  useEffect(() => {
+    if (!activeProject) return;
+    
+    const save = debounce(() => {
+      saveToProject(activeProject.id);
+    }, 1000);
+    
+    save();
+  }, [overlayStickers, activeProject?.id]);
+  
+  return null;
+};
+```
 
-### 5. User Experience
-- Show loading states for large stickers
-- Provide undo/redo functionality
-- Add keyboard shortcuts for common operations
-- Show tooltips for controls
+### Phase 6: Export Integration (Total: ~30 minutes)
 
-## Testing Strategy
+#### Task 6.1: Create Export Helper (10 min)
+**File:** `src/lib/stickers/sticker-export-helper.ts`
+```typescript
+export const renderStickersToCanvas = async (
+  ctx: CanvasRenderingContext2D,
+  stickers: OverlaySticker[],
+  mediaItems: MediaItem[],
+  canvasWidth: number,
+  canvasHeight: number
+) => {
+  for (const sticker of stickers) {
+    const mediaItem = mediaItems.find(m => m.id === sticker.mediaItemId);
+    if (!mediaItem) continue;
+    
+    const img = new Image();
+    img.src = mediaItem.url;
+    await new Promise(resolve => img.onload = resolve);
+    
+    ctx.save();
+    
+    const x = (sticker.position.x / 100) * canvasWidth;
+    const y = (sticker.position.y / 100) * canvasHeight;
+    const width = (sticker.size.width / 100) * canvasWidth;
+    const height = (sticker.size.height / 100) * canvasHeight;
+    
+    ctx.translate(x, y);
+    ctx.rotate((sticker.rotation * Math.PI) / 180);
+    ctx.globalAlpha = sticker.opacity;
+    
+    ctx.drawImage(img, -width/2, -height/2, width, height);
+    
+    ctx.restore();
+  }
+};
+```
 
-### Unit Tests
-- Test sticker store actions
-- Test drag/resize calculations
-- Test persistence operations
+#### Task 6.2: Integrate with Export Canvas (10 min)
+**File:** Modify `src/components/export-canvas.tsx`
+```typescript
+// Add import
+import { useStickersOverlayStore } from '@/stores/stickers-overlay-store';
+import { renderStickersToCanvas } from '@/lib/stickers/sticker-export-helper';
 
-### Integration Tests
-- Test sticker rendering in different environments
-- Test export with multiple stickers
-- Test storage and retrieval
+// In component
+const { overlayStickers } = useStickersOverlayStore();
+const { mediaItems } = useMediaStore();
 
-### E2E Tests
-- Test complete workflow from upload to export
-- Test in both web and Electron environments
-- Test with various file formats
+// In render frame function, after drawing main content:
+await renderStickersToCanvas(
+  ctx,
+  Array.from(overlayStickers.values()),
+  mediaItems,
+  canvas.width,
+  canvas.height
+);
+```
 
-## Migration Path
+#### Task 6.3: Test Export with Stickers (10 min)
+- Manual testing task
+- Add a sticker to overlay
+- Export video
+- Verify sticker appears in exported video
 
-1. **Phase 1**: Implement basic overlay system
-   - Create store and basic components
-   - Add to preview without breaking existing features
+### Phase 7: Custom Upload Support (Total: ~20 minutes)
 
-2. **Phase 2**: Add interactivity
-   - Implement drag and drop
-   - Add resize and rotate
+#### Task 7.1: Add Upload Button to Stickers Panel (10 min)
+**File:** Modify `src/components/editor/media-panel/views/stickers/index.tsx`
+```typescript
+// Add upload button at the top
+const fileInputRef = useRef<HTMLInputElement>(null);
 
-3. **Phase 3**: Storage and persistence
-   - Implement storage layer
-   - Add auto-save functionality
+const handleCustomUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const files = e.target.files;
+  if (!files) return;
+  
+  // Process files using existing media processing
+  await processFiles(files);
+  toast.success('Custom stickers uploaded');
+};
 
-4. **Phase 4**: Export integration
-   - Modify export pipeline
-   - Test with all export formats
+// In render:
+<Button onClick={() => fileInputRef.current?.click()}>
+  <Upload className="w-4 h-4 mr-2" />
+  Upload Custom
+</Button>
+<input
+  ref={fileInputRef}
+  type="file"
+  hidden
+  multiple
+  accept="image/svg+xml,image/png,image/webp"
+  onChange={handleCustomUpload}
+/>
+```
 
-5. **Phase 5**: Advanced features
-   - Add effects and filters
-   - Implement animation support
-   - Add timeline integration (optional)
+#### Task 7.2: Validate Transparency (10 min)
+**File:** `src/lib/stickers/sticker-validator.ts`
+```typescript
+export const validateStickerFile = (file: File): boolean => {
+  const validTypes = [
+    'image/svg+xml',
+    'image/png',
+    'image/webp',
+    'image/gif',
+  ];
+  
+  if (!validTypes.includes(file.type)) {
+    return false;
+  }
+  
+  // Check file size (max 10MB for stickers)
+  if (file.size > 10 * 1024 * 1024) {
+    return false;
+  }
+  
+  return true;
+};
 
-## Conclusion
+export const hasTransparency = async (file: File): Promise<boolean> => {
+  // For SVG, always has transparency support
+  if (file.type === 'image/svg+xml') return true;
+  
+  // For other formats, we assume they might have transparency
+  // More complex checks would require reading pixel data
+  return true;
+};
+```
 
-This implementation provides a complete sticker overlay system that:
-- Works independently of the timeline
-- Supports full interactivity
-- Persists across sessions
-- Integrates with export
-- Maintains transparency
-- Supports custom uploads
+## Quick Start Guide
 
-The modular architecture ensures that existing features remain unaffected while providing a rich sticker experience for users.
+### For Developers
+
+1. **Start with Phase 1** - Get basic overlay working (40 min)
+2. **Add Phase 2** - Enable adding stickers to overlay (20 min)
+3. **Implement Phase 3** - Basic drag functionality (30 min)
+4. **Add Phase 4** - Simple resize controls (30 min)
+5. **Complete Phase 5** - Storage persistence (20 min)
+6. **Integrate Phase 6** - Export support (30 min)
+7. **Finish with Phase 7** - Custom uploads (20 min)
+
+**Total estimated time: ~3 hours**
+
+### Testing Checklist
+
+After each phase:
+- [ ] No existing features broken
+- [ ] Works in both web and Electron
+- [ ] Transparent backgrounds preserved
+- [ ] UI remains responsive
+
+### Common Issues & Solutions
+
+1. **Blob URLs not working in Electron**
+   - Solution: Already handled - we use data URLs in Electron
+
+2. **Stickers not appearing in export**
+   - Check z-index ordering
+   - Ensure canvas context save/restore
+
+3. **Performance with many stickers**
+   - Implement virtualization for > 20 stickers
+   - Use React.memo on components
+
+4. **Storage not persisting**
+   - Check project ID is correct
+   - Verify storage service is initialized
+
+## Notes for Implementation
+
+- Each task is designed to be completed in ~10 minutes
+- Tasks can be done independently by different developers
+- Always test after each task to ensure nothing breaks
+- Use existing patterns from the codebase
+- Avoid modifying timeline code - keep overlay separate
+- Reuse existing media store for sticker data
+- Leverage existing storage service patterns
+
+## Dependencies on Existing Code
+
+- Media store for sticker file management
+- Project store for active project ID
+- Storage service for persistence
+- Export canvas for rendering
+- Preview panel for overlay display
+
+This approach minimizes risk and maximizes reuse of existing, tested code.

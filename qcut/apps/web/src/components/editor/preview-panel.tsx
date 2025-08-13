@@ -32,6 +32,8 @@ import {
   FullscreenPreview,
   PreviewToolbar,
 } from "./preview-panel-components";
+// Import the sticker overlay canvas
+import { StickerCanvas } from "./stickers-overlay/StickerCanvas";
 
 interface ActiveElement {
   element: TimelineElement;
@@ -583,6 +585,9 @@ export function PreviewPanel() {
                     Add a video or image to use blur background
                   </div>
                 )}
+              
+              {/* Sticker overlay layer - renders on top of everything */}
+              <StickerCanvas className="absolute inset-0" />
             </div>
           ) : null}
 
