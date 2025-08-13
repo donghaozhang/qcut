@@ -122,10 +122,28 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
     );
 
     /**
+     * Get cursor style for handle
+     */
+    const getCursorForHandle = (handle: ResizeHandle): string => {
+      const cursors: Record<ResizeHandle, string> = {
+        tl: "nw-resize",
+        tr: "ne-resize",
+        bl: "sw-resize",
+        br: "se-resize",
+        t: "n-resize",
+        b: "s-resize",
+        l: "w-resize",
+        r: "e-resize",
+      };
+      return cursors[handle];
+    };
+
+    /**
      * Handle resize start
      */
     const handleResizeStart = useCallback(
       (e: React.MouseEvent, handle: ResizeHandle) => {
+        console.log(`[ResizeHandles] ✅ RESIZE FIX: Starting resize with handle: ${handle}`);
         e.stopPropagation();
         e.preventDefault();
 
@@ -147,6 +165,7 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 
         const handleMouseMove = (e: MouseEvent) => {
           if (!resizeState.current.isResizing) return;
+          console.log(`[ResizeHandles] 🔄 RESIZE ACTIVE: Moving handle ${resizeState.current.handle}`);
 
           const deltaX = e.clientX - resizeState.current.startX;
           const deltaY = e.clientY - resizeState.current.startY;
@@ -167,6 +186,7 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
         };
 
         const handleMouseUp = () => {
+          console.log(`[ResizeHandles] ✅ RESIZE COMPLETE: Finished resizing handle ${resizeState.current.handle}`);
           resizeState.current.isResizing = false;
           setIsResizing(false);
           document.body.style.cursor = "";
@@ -184,31 +204,17 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
         setIsResizing,
         updateOverlaySticker,
         calculateNewSize,
+        getCursorForHandle,
       ]
     );
 
-    /**
-     * Get cursor style for handle
-     */
-    const getCursorForHandle = (handle: ResizeHandle): string => {
-      const cursors: Record<ResizeHandle, string> = {
-        tl: "nw-resize",
-        tr: "ne-resize",
-        bl: "sw-resize",
-        br: "se-resize",
-        t: "n-resize",
-        b: "s-resize",
-        l: "w-resize",
-        r: "e-resize",
-      };
-      return cursors[handle];
-    };
-
     if (!isVisible) return null;
 
+    console.log(`[ResizeHandles] 🎯 RENDERING: 8 resize handles for sticker ${stickerId}`);
+
     const handleClass =
-      "absolute w-3 h-3 bg-white border-2 border-primary rounded-full";
-    const edgeHandleClass = "absolute bg-white border-2 border-primary";
+      "absolute w-3 h-3 bg-white border-2 border-primary rounded-full z-[10000] pointer-events-auto hover:scale-110 transition-transform";
+    const edgeHandleClass = "absolute bg-white border-2 border-primary z-[10000] pointer-events-auto hover:scale-105 transition-transform";
 
     return (
       <>

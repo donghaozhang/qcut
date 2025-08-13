@@ -83,9 +83,13 @@ export const StickerCanvas: React.FC<{
   );
   
   // Debug logging
-  console.log("[StickerCanvas] Rendering with:", {
+  console.log("[StickerCanvas] 📊 RENDERING STATUS:", {
     stickersCount: overlayStickers.size,
-    sortedStickers,
+    sortedStickers: sortedStickers.map(s => ({
+      id: s.id,
+      size: s.size, // Show actual size to verify it's 8% not 20%
+      position: s.position
+    })),
     mediaItemsCount: mediaItems.length,
     disabled
   });

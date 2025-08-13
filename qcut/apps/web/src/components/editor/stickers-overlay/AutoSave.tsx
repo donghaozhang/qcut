@@ -16,29 +16,57 @@ import { useDebounce } from "@/hooks/use-debounce";
 export const StickerOverlayAutoSave = () => {
   const { overlayStickers, saveToProject, loadFromProject } =
     useStickersOverlayStore();
-  const { activeProject } = useProjectStore();
+  const { activeProject, isLoading } = useProjectStore();
   const hasLoadedRef = useRef(false);
   const lastSaveRef = useRef<string>("");
+  const lastProjectIdRef = useRef<string | null>(null);
 
   // Load stickers on mount or project change
   useEffect(() => {
-    if (!activeProject?.id) return;
+    console.log(`[AutoSave] 🔍 EFFECT TRIGGERED:`, {
+      activeProjectId: activeProject?.id,
+      hasLoaded: hasLoadedRef.current,
+      lastProjectId: lastProjectIdRef.current,
+      currentStickersCount: overlayStickers.size,
+      isProjectLoading: isLoading
+    });
+
+    if (!activeProject?.id) {
+      console.log(`[AutoSave] ⚠️ NO ACTIVE PROJECT - skipping load`);
+      return;
+    }
+
+    // Wait for project to finish loading first
+    if (isLoading) {
+      console.log(`[AutoSave] ⏳ PROJECT STILL LOADING - waiting for completion`);
+      return;
+    }
+
+    // Reset loading flag if project changed
+    if (lastProjectIdRef.current !== activeProject.id) {
+      console.log(`[AutoSave] 🔄 PROJECT CHANGED: ${lastProjectIdRef.current} → ${activeProject.id}`);
+      hasLoadedRef.current = false;
+      lastProjectIdRef.current = activeProject.id;
+    }
 
     // Only load once per project
     if (!hasLoadedRef.current) {
+      console.log(`[AutoSave] 🚀 STARTING LOAD for project: ${activeProject.id}`);
       loadFromProject(activeProject.id).then(() => {
         hasLoadedRef.current = true;
         console.log(
-          `[AutoSave] Loaded stickers for project: ${activeProject.id}`
+          `[AutoSave] ✅ PERSISTENCE FIX: Loaded ${overlayStickers.size} stickers for project: ${activeProject.id}`
         );
+      }).catch((error) => {
+        console.error(`[AutoSave] ❌ LOAD ERROR:`, error);
       });
+    } else {
+      console.log(`[AutoSave] ⏭️ ALREADY LOADED - skipping for project: ${activeProject.id}`);
     }
 
-    // Reset on project change
-    return () => {
-      hasLoadedRef.current = false;
-    };
-  }, [activeProject?.id, loadFromProject]);
+    // Note: Removed problematic cleanup that was resetting hasLoadedRef on every render
+    // Now we only reset when the project actually changes
+  }, [activeProject?.id, loadFromProject, overlayStickers.size, isLoading]);
 
   // Create a stable string representation of stickers for comparison
   const stickersString = JSON.stringify(
@@ -52,29 +80,50 @@ export const StickerOverlayAutoSave = () => {
 
   // Save when debounced value changes
   useEffect(() => {
-    if (!activeProject?.id || !hasLoadedRef.current) return;
+    console.log(`[AutoSave] 💾 SAVE EFFECT TRIGGERED:`, {
+      activeProjectId: activeProject?.id,
+      hasLoaded: hasLoadedRef.current,
+      stickersCount: overlayStickers.size,
+      debouncedStringChanged: debouncedStickersString !== lastSaveRef.current,
+      lastSaveString: lastSaveRef.current.substring(0, 50) + '...',
+      currentString: debouncedStickersString.substring(0, 50) + '...',
+      isProjectLoading: isLoading
+    });
+
+    if (!activeProject?.id || !hasLoadedRef.current || isLoading) {
+      console.log(`[AutoSave] ⏭️ SAVE SKIPPED: no project (${!activeProject?.id}) or not loaded (${!hasLoadedRef.current}) or loading (${isLoading})`);
+      return;
+    }
 
     // Skip if nothing changed
-    if (debouncedStickersString === lastSaveRef.current) return;
+    if (debouncedStickersString === lastSaveRef.current) {
+      console.log(`[AutoSave] ⏭️ SAVE SKIPPED: no changes detected`);
+      return;
+    }
 
     // Skip initial empty state
     if (overlayStickers.size === 0 && !lastSaveRef.current) {
+      console.log(`[AutoSave] ⏭️ SAVE SKIPPED: initial empty state`);
       lastSaveRef.current = debouncedStickersString;
       return;
     }
 
     // Save to storage
+    console.log(`[AutoSave] 🚀 STARTING SAVE: ${overlayStickers.size} stickers to project: ${activeProject.id}`);
     saveToProject(activeProject.id).then(() => {
       lastSaveRef.current = debouncedStickersString;
       console.log(
-        `[AutoSave] Saved ${overlayStickers.size} stickers for project: ${activeProject.id}`
+        `[AutoSave] ✅ SAVE COMPLETE: ${overlayStickers.size} stickers for project: ${activeProject.id}`
       );
+    }).catch((error) => {
+      console.error(`[AutoSave] ❌ SAVE ERROR:`, error);
     });
   }, [
     debouncedStickersString,
     activeProject?.id,
     overlayStickers.size,
     saveToProject,
+    isLoading,
   ]);
 
   // No UI, just side effects
