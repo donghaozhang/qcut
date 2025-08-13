@@ -35,16 +35,34 @@ export function useStickerSelect() {
           type: "image/svg+xml;charset=utf-8",
         });
 
-        // Create a blob URL for preview (no data URL)
-        const blobUrl = URL.createObjectURL(svgBlob);
-        objectUrlsRef.current.add(blobUrl);
+        // For Electron (file:// protocol), use data URL instead of blob URL
+        let imageUrl: string;
+        if (window.location.protocol === 'file:') {
+          // Convert to data URL for Electron compatibility
+          imageUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              if (typeof reader.result === 'string') {
+                resolve(reader.result);
+              } else {
+                reject(new Error('Failed to read file as data URL'));
+              }
+            };
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(svgFile);
+          });
+        } else {
+          // Use blob URL for web environment
+          imageUrl = URL.createObjectURL(svgBlob);
+          objectUrlsRef.current.add(imageUrl);
+        }
 
         await addMediaItem(activeProject.id, {
           name: `${name}.svg`,
           type: "image",
           file: svgFile,
-          url: blobUrl,
-          thumbnailUrl: blobUrl,
+          url: imageUrl,
+          thumbnailUrl: imageUrl,
           width: 512,
           height: 512,
           duration: 0,

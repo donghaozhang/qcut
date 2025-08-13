@@ -213,12 +213,34 @@ class StorageService {
     let actualFile: File;
 
     if (file && file.size > 0) {
-      // File exists with content, create object URL
-      url = URL.createObjectURL(file);
+      // File exists with content
       actualFile = file;
-      debugLog(
-        `[StorageService] Created new object URL for ${metadata.name}: ${url}`
-      );
+      
+      // In Electron (file:// protocol), convert to data URL for better compatibility
+      if (window.location.protocol === 'file:' && metadata.type === 'image') {
+        // For images in Electron, use data URL
+        url = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === 'string') {
+              resolve(reader.result);
+            } else {
+              reject(new Error('Failed to read file as data URL'));
+            }
+          };
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(file);
+        });
+        debugLog(
+          `[StorageService] Created data URL for ${metadata.name} in Electron`
+        );
+      } else {
+        // Use blob URL for web environment or non-image files
+        url = URL.createObjectURL(file);
+        debugLog(
+          `[StorageService] Created object URL for ${metadata.name}: ${url}`
+        );
+      }
     } else if (metadata.url) {
       // No file or empty file, but we have a URL (e.g., generated image fallback)
       url = metadata.url;

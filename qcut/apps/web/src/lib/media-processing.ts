@@ -43,8 +43,26 @@ export async function processMediaFiles(
       continue;
     }
 
-    // Create object URL silently
-    const url = URL.createObjectURL(file);
+    // Create URL that works in both web and Electron environments
+    let url: string;
+    if (window.location.protocol === 'file:' && fileType === 'image') {
+      // For images in Electron, use data URL for better compatibility
+      url = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result);
+          } else {
+            reject(new Error('Failed to read file as data URL'));
+          }
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+    } else {
+      // Use blob URL for web environment or non-image files
+      url = URL.createObjectURL(file);
+    }
 
     let thumbnailUrl: string | undefined;
     let duration: number | undefined;
