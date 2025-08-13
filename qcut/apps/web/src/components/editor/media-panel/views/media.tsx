@@ -412,16 +412,22 @@ export function MediaView() {
                             const { addOverlaySticker } =
                               useStickersOverlayStore.getState();
                             const { currentTime } = usePlaybackStore.getState();
+                            const { getTotalDuration } = useTimelineStore.getState();
+                            const totalDuration = getTotalDuration();
+                            const start = Math.max(0, Math.min(currentTime, totalDuration));
+                            const end = Math.min(start + 5, totalDuration);
                             addOverlaySticker(item.id, {
                               timing: {
-                                startTime: currentTime,
-                                endTime: currentTime + 5,
+                                startTime: start,
+                                endTime: end,
                               },
                             });
                             toast.success(`Added "${item.name}" as overlay`);
                           }}
                         >
-                          <Layers className="h-4 w-4 mr-2" />
+                          <Layers className="h-4 w-4 mr-2" aria-hidden="true">
+                            <title>Add as overlay</title>
+                          </Layers>
                           Add as Overlay
                         </ContextMenuItem>
                       )}

@@ -35,9 +35,9 @@ const generateStickerId = (): string => {
  * Calculate next z-index for new stickers
  */
 const getNextZIndex = (stickers: Map<string, OverlaySticker>): number => {
-  if (stickers.size === 0) return 100;
+  if (stickers.size === 0) return Z_INDEX.MIN * 10; // Start at a reasonable baseline
   const maxZ = Math.max(...Array.from(stickers.values()).map((s) => s.zIndex));
-  return maxZ + 10;
+  return Math.min(maxZ + Z_INDEX.INCREMENT, Z_INDEX.MAX);
 };
 
 /**
