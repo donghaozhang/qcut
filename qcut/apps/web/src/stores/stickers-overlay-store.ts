@@ -318,6 +318,30 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         });
       },
 
+      // Clean up stickers with missing media items
+      cleanupInvalidStickers: (availableMediaIds: string[]) => {
+        const state = get();
+        const validStickers = new Map();
+        let removedCount = 0;
+
+        state.overlayStickers.forEach((sticker, id) => {
+          if (availableMediaIds.includes(sticker.mediaItemId)) {
+            validStickers.set(id, sticker);
+          } else {
+            removedCount++;
+            console.log(`[StickerStore] 🧹 CLEANUP: Removing sticker ${id} with missing media ${sticker.mediaItemId}`);
+          }
+        });
+
+        if (removedCount > 0) {
+          console.log(`[StickerStore] ✅ CLEANUP: Removed ${removedCount} stickers with missing media`);
+          set({ 
+            overlayStickers: validStickers,
+            selectedStickerId: validStickers.has(state.selectedStickerId) ? state.selectedStickerId : null
+          });
+        }
+      },
+
       // Persistence using existing storage patterns
       saveToProject: async (projectId: string) => {
         const state = get();

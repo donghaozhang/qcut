@@ -68,6 +68,8 @@ export const useStickerDrag = (
 
       if (!sticker) return;
 
+      console.log("[StickerDrag] 🖱️ MOUSE DOWN: Starting drag for sticker", stickerId);
+
       dragState.current = {
         isDragging: true,
         startX: e.clientX,
@@ -82,7 +84,7 @@ export const useStickerDrag = (
       document.body.style.cursor = "grabbing";
       document.body.style.userSelect = "none";
     },
-    [sticker, setIsDragging]
+    [sticker, setIsDragging, stickerId]
   );
 
   /**
@@ -93,6 +95,7 @@ export const useStickerDrag = (
       if (!dragState.current.isDragging || !canvasRef.current) return;
 
       const position = calculatePercentagePosition(e.clientX, e.clientY);
+      console.log("[StickerDrag] 🏃 MOUSE MOVE: New position", position);
 
       // Update sticker position with smooth movement
       requestAnimationFrame(() => {
@@ -128,13 +131,9 @@ export const useStickerDrag = (
     const handleGlobalMouseMove = (e: MouseEvent) => handleMouseMove(e);
     const handleGlobalMouseUp = () => handleMouseUp();
 
-    if (dragState.current.isDragging) {
-      document.addEventListener("mousemove", handleGlobalMouseMove);
-      document.addEventListener("mouseup", handleGlobalMouseUp);
-
-      // Also listen for mouse leave to handle edge cases
-      document.addEventListener("mouseleave", handleGlobalMouseUp);
-    }
+    document.addEventListener("mousemove", handleGlobalMouseMove);
+    document.addEventListener("mouseup", handleGlobalMouseUp);
+    document.addEventListener("mouseleave", handleGlobalMouseUp);
 
     return () => {
       document.removeEventListener("mousemove", handleGlobalMouseMove);

@@ -30,6 +30,7 @@ export const StickerCanvas: React.FC<{
     selectSticker,
     loadFromProject,
     saveToProject,
+    cleanupInvalidStickers,
   } = useStickersOverlayStore();
 
   const { mediaItems } = useMediaStore();
@@ -90,6 +91,14 @@ export const StickerCanvas: React.FC<{
     console.log("[StickerCanvas] 🔧 MANUAL SAVE: Triggered for testing");
     await saveToProject(activeProject.id);
   };
+
+  // Clean up stickers with missing media items when media loads
+  useEffect(() => {
+    if (mediaItems.length > 0 && overlayStickers.size > 0) {
+      const mediaIds = mediaItems.map(item => item.id);
+      cleanupInvalidStickers(mediaIds);
+    }
+  }, [mediaItems, overlayStickers.size, cleanupInvalidStickers]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -173,7 +182,7 @@ export const StickerCanvas: React.FC<{
 
           // Skip if media item not found
           if (!mediaItem) {
-            console.warn(`Media item not found for sticker: ${sticker.id}`);
+            console.warn(`[StickerCanvas] ⚠️ MEDIA MISSING: Media item not found for sticker ${sticker.id}, mediaItemId: ${sticker.mediaItemId}. Available media: ${mediaItems.length}`);
             return null;
           }
 
