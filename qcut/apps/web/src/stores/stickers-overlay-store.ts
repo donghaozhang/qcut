@@ -330,7 +330,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         const validStickers = new Map();
         let removedCount = 0;
 
-        state.overlayStickers.forEach((sticker, id) => {
+        for (const [id, sticker] of state.overlayStickers) {
           if (availableMediaIds.includes(sticker.mediaItemId)) {
             validStickers.set(id, sticker);
           } else {
@@ -339,7 +339,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
               `[StickerStore] 🧹 CLEANUP: Removing sticker ${id} with missing media ${sticker.mediaItemId}`
             );
           }
-        });
+        }
 
         if (removedCount > 0) {
           console.log(
