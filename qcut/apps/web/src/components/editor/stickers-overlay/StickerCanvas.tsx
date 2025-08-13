@@ -9,83 +9,8 @@ import React, { useRef, useEffect, memo } from 'react';
 import { useStickersOverlayStore } from '@/stores/stickers-overlay-store';
 import { useMediaStore } from '@/stores/media-store';
 import { cn } from '@/lib/utils';
+import { StickerElement } from './StickerElement';
 
-/**
- * Individual sticker component - extracted for performance optimization
- */
-const StickerItem = memo(({ 
-  sticker, 
-  mediaItem, 
-  isSelected,
-  onSelect 
-}: {
-  sticker: any;
-  mediaItem: any;
-  isSelected: boolean;
-  onSelect: () => void;
-}) => {
-  // Prevent unnecessary re-renders
-  const elementRef = useRef<HTMLDivElement>(null);
-
-  return (
-    <div
-      ref={elementRef}
-      className={cn(
-        "absolute pointer-events-auto transition-shadow",
-        isSelected && "ring-2 ring-primary shadow-lg"
-      )}
-      style={{
-        left: `${sticker.position.x}%`,
-        top: `${sticker.position.y}%`,
-        width: `${sticker.size.width}%`,
-        height: `${sticker.size.height}%`,
-        transform: `translate(-50%, -50%) rotate(${sticker.rotation}deg)`,
-        opacity: sticker.opacity,
-        zIndex: sticker.zIndex,
-        transformOrigin: 'center',
-      }}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect();
-      }}
-      data-sticker-id={sticker.id}
-    >
-      {/* Render based on media type */}
-      {mediaItem.type === 'image' || mediaItem.type === 'svg' ? (
-        <img 
-          src={mediaItem.url}
-          alt=""
-          className="w-full h-full object-contain select-none"
-          draggable={false}
-          style={{
-            pointerEvents: 'none', // Prevent image from interfering with drag
-          }}
-        />
-      ) : mediaItem.type === 'video' ? (
-        <video
-          src={mediaItem.url}
-          className="w-full h-full object-contain"
-          autoPlay
-          loop
-          muted
-          playsInline
-          style={{
-            pointerEvents: 'none',
-          }}
-        />
-      ) : null}
-
-      {/* Debug info in development */}
-      {process.env.NODE_ENV === 'development' && isSelected && (
-        <div className="absolute -top-6 left-0 text-xs bg-black/75 text-white px-1 rounded">
-          {Math.round(sticker.position.x)}, {Math.round(sticker.position.y)}
-        </div>
-      )}
-    </div>
-  );
-});
-
-StickerItem.displayName = 'StickerItem';
 
 /**
  * Main canvas component that manages all overlay stickers
@@ -190,7 +115,7 @@ export const StickerCanvas: React.FC<{
         isolation: 'isolate' // Create new stacking context
       }}
     >
-      {/* Render stickers */}
+      {/* Render stickers using StickerElement */}
       {sortedStickers.map((sticker) => {
         const mediaItem = mediaItems.find(item => item.id === sticker.mediaItemId);
         
@@ -201,12 +126,11 @@ export const StickerCanvas: React.FC<{
         }
         
         return (
-          <StickerItem
+          <StickerElement
             key={sticker.id}
             sticker={sticker}
             mediaItem={mediaItem}
-            isSelected={sticker.id === selectedStickerId}
-            onSelect={() => selectSticker(sticker.id)}
+            canvasRef={canvasRef}
           />
         );
       })}
