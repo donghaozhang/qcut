@@ -28,62 +28,18 @@ export const StickerOverlayAutoSave = () => {
   const lastSaveRef = useRef<string>("");
   const lastProjectIdRef = useRef<string | null>(null);
 
-  // Load stickers on mount or project change
+  // Project loading is now handled by the project store directly
+  // This AutoSave component only handles saving, not loading
   useEffect(() => {
-    debugLog(`[AutoSave] 🔍 EFFECT TRIGGERED:`, {
-      activeProjectId: activeProject?.id,
-      hasLoaded: hasLoadedRef.current,
-      lastProjectId: lastProjectIdRef.current,
-      currentStickersCount: overlayStickers.size,
-      isProjectLoading: isLoading,
-    });
-
-    if (!activeProject?.id) {
-      debugLog(`[AutoSave] ⚠️ NO ACTIVE PROJECT - skipping load`);
-      return;
-    }
-
-    // Wait for project to finish loading first
-    if (isLoading) {
+    // Reset tracking when project changes
+    if (lastProjectIdRef.current !== activeProject?.id) {
       debugLog(
-        `[AutoSave] ⏳ PROJECT STILL LOADING - waiting for completion`
+        `[AutoSave] 🔄 PROJECT CHANGED: ${lastProjectIdRef.current} → ${activeProject?.id}`
       );
-      return;
+      hasLoadedRef.current = true; // Mark as loaded since project store handles loading
+      lastProjectIdRef.current = activeProject?.id || null;
     }
-
-    // Reset loading flag if project changed
-    if (lastProjectIdRef.current !== activeProject.id) {
-      debugLog(
-        `[AutoSave] 🔄 PROJECT CHANGED: ${lastProjectIdRef.current} → ${activeProject.id}`
-      );
-      hasLoadedRef.current = false;
-      lastProjectIdRef.current = activeProject.id;
-    }
-
-    // Only load once per project
-    if (!hasLoadedRef.current) {
-      debugLog(
-        `[AutoSave] 🚀 STARTING LOAD for project: ${activeProject.id}`
-      );
-      loadFromProject(activeProject.id)
-        .then(() => {
-          hasLoadedRef.current = true;
-          debugLog(
-            `[AutoSave] ✅ PERSISTENCE FIX: Loaded ${overlayStickers.size} stickers for project: ${activeProject.id}`
-          );
-        })
-        .catch((error) => {
-          debugLog(`[AutoSave] ❌ LOAD ERROR:`, error);
-        });
-    } else {
-      debugLog(
-        `[AutoSave] ⏭️ ALREADY LOADED - skipping for project: ${activeProject.id}`
-      );
-    }
-
-    // Note: Removed problematic cleanup that was resetting hasLoadedRef on every render
-    // Now we only reset when the project actually changes
-  }, [activeProject?.id, loadFromProject, overlayStickers.size, isLoading]);
+  }, [activeProject?.id]);
 
   // Create a stable string representation of stickers for comparison
   const stickersString = JSON.stringify(

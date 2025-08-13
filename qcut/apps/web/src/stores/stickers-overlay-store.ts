@@ -14,6 +14,7 @@ import type {
 } from "@/types/sticker-overlay";
 import { Z_INDEX } from "@/types/sticker-overlay";
 import { useTimelineStore } from "./timeline-store";
+import { useProjectStore } from "./project-store";
 
 // Debug utility for conditional logging
 const debugLog = (message: string, ...args: any[]) => {
@@ -125,7 +126,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         }
 
         // Add sticker element to timeline track
-        if (stickerTrack && newSticker.timing) {
+        if (stickerTrack && newSticker.timing && newSticker.timing.endTime && newSticker.timing.startTime) {
           const duration = newSticker.timing.endTime - newSticker.timing.startTime;
           timelineStore.addElementToTrack(stickerTrack.id, {
             type: "sticker",
@@ -138,6 +139,19 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             trimEnd: 0,
           });
           debugLog(`[StickerStore] Added sticker to timeline track: ${duration}s duration`);
+        }
+
+        // Auto-save immediately after adding sticker
+        const currentProject = useProjectStore.getState().activeProject;
+        if (currentProject?.id) {
+          debugLog(`[StickerStore] Auto-saving sticker to project: ${currentProject.id}`);
+          setTimeout(() => {
+            get().saveToProject(currentProject.id).then(() => {
+              debugLog(`[StickerStore] ✅ Auto-save completed for sticker ${id}`);
+            }).catch((error) => {
+              debugLog(`[StickerStore] ❌ Auto-save failed:`, error);
+            });
+          }, 100); // Small delay to ensure state is updated
         }
 
         return id;

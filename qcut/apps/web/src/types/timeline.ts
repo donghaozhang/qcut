@@ -146,7 +146,7 @@ export function ensureMainTrack(tracks: TimelineTrack[]): TimelineTrack[] {
 
 // Timeline validation utilities
 export function canElementGoOnTrack(
-  elementType: "text" | "media",
+  elementType: "text" | "media" | "sticker",
   trackType: TrackType
 ): boolean {
   if (elementType === "text") {
@@ -155,11 +155,14 @@ export function canElementGoOnTrack(
   if (elementType === "media") {
     return trackType === "media" || trackType === "audio";
   }
+  if (elementType === "sticker") {
+    return trackType === "sticker";
+  }
   return false;
 }
 
 export function validateElementTrackCompatibility(
-  element: { type: "text" | "media" },
+  element: { type: "text" | "media" | "sticker" },
   track: { type: TrackType }
 ): { isValid: boolean; errorMessage?: string } {
   const isValid = canElementGoOnTrack(element.type, track.type);
@@ -168,7 +171,9 @@ export function validateElementTrackCompatibility(
     const errorMessage =
       element.type === "text"
         ? "Text elements can only be placed on text tracks"
-        : "Media elements can only be placed on media or audio tracks";
+        : element.type === "sticker"
+          ? "Sticker elements can only be placed on sticker tracks"
+          : "Media elements can only be placed on media or audio tracks";
 
     return { isValid: false, errorMessage };
   }

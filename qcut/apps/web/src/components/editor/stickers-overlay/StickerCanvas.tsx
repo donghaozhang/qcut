@@ -165,14 +165,6 @@ export const StickerCanvas: React.FC<{
   // Get only visible stickers at current time
   const visibleStickers = getVisibleStickersAtTime(currentTime);
 
-  // Debug logging
-  debugLog("[StickerCanvas] Rendering:", {
-    totalStickers: overlayStickers.size,
-    visibleStickers: visibleStickers.length,
-    currentTime,
-    mediaItemsCount: mediaItems.length,
-    disabled,
-  });
 
   return (
     <>
