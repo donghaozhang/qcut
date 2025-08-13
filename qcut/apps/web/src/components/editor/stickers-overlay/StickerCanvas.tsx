@@ -13,6 +13,13 @@ import { StickerElement } from "./StickerElement";
 import { StickerOverlayAutoSave } from "./AutoSave";
 import { useProjectStore } from "@/stores/project-store";
 import { usePlaybackStore } from "@/stores/playback-store";
+
+// Debug utility for conditional logging
+const debugLog = (message: string, ...args: any[]) => {
+  if (import.meta.env.DEV) {
+    console.log(message, ...args);
+  }
+};
 import { Button } from "@/components/ui/button";
 
 /**
@@ -105,7 +112,7 @@ export const StickerCanvas: React.FC<{
   // Manual save for testing
   const handleManualSave = async () => {
     if (!activeProject?.id) return;
-    console.log("[StickerCanvas] 🔧 MANUAL SAVE: Triggered for testing");
+    debugLog("[StickerCanvas] Manual save triggered");
     await saveToProject(activeProject.id);
   };
 
@@ -159,7 +166,7 @@ export const StickerCanvas: React.FC<{
   const visibleStickers = getVisibleStickersAtTime(currentTime);
 
   // Debug logging
-  console.log("[StickerCanvas] 📊 RENDERING STATUS:", {
+  debugLog("[StickerCanvas] Rendering:", {
     totalStickers: overlayStickers.size,
     visibleStickers: visibleStickers.length,
     currentTime,

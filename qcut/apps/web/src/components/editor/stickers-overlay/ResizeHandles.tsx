@@ -10,6 +10,13 @@ import { cn } from "@/lib/utils";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import type { OverlaySticker } from "@/types/sticker-overlay";
 
+// Debug utility for conditional logging
+const debugLog = (message: string, ...args: any[]) => {
+  if (import.meta.env.DEV) {
+    console.log(message, ...args);
+  }
+};
+
 interface ResizeHandlesProps {
   stickerId: string;
   isVisible: boolean;
@@ -143,9 +150,7 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
      */
     const handleResizeStart = useCallback(
       (e: React.MouseEvent, handle: ResizeHandle) => {
-        console.log(
-          `[ResizeHandles] ✅ RESIZE FIX: Starting resize with handle: ${handle}`
-        );
+        debugLog(`[ResizeHandles] Starting resize with handle: ${handle}`);
         e.stopPropagation();
         e.preventDefault();
 
@@ -167,9 +172,7 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 
         const handleMouseMove = (e: MouseEvent) => {
           if (!resizeState.current.isResizing) return;
-          console.log(
-            `[ResizeHandles] 🔄 RESIZE ACTIVE: Moving handle ${resizeState.current.handle}`
-          );
+          debugLog(`[ResizeHandles] Moving handle ${resizeState.current.handle}`);
 
           const deltaX = e.clientX - resizeState.current.startX;
           const deltaY = e.clientY - resizeState.current.startY;
@@ -190,9 +193,7 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
         };
 
         const handleMouseUp = () => {
-          console.log(
-            `[ResizeHandles] ✅ RESIZE COMPLETE: Finished resizing handle ${resizeState.current.handle}`
-          );
+          debugLog(`[ResizeHandles] Finished resizing handle ${resizeState.current.handle}`);
           resizeState.current.isResizing = false;
           setIsResizing(false);
           document.body.style.cursor = "";
@@ -216,9 +217,7 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 
     if (!isVisible) return null;
 
-    console.log(
-      `[ResizeHandles] 🎯 RENDERING: 8 resize handles for sticker ${stickerId}`
-    );
+    debugLog(`[ResizeHandles] Rendering resize handles for sticker ${stickerId}`);
 
     const handleClass =
       "absolute w-3 h-3 bg-white border-2 border-primary rounded-full z-[10000] pointer-events-auto hover:scale-110 transition-transform";
