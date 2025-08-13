@@ -4,7 +4,7 @@ import { useDragDrop } from "@/hooks/use-drag-drop";
 import { processMediaFiles } from "@/lib/media-processing";
 import { useAsyncMediaStore } from "@/hooks/use-async-media-store";
 import type { MediaItem } from "@/stores/media-store-types";
-import { Image, Loader2, Music, Plus, Video, Edit } from "lucide-react";
+import { Image, Loader2, Music, Plus, Video, Edit, Layers } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ExportAllButton } from "../export-all-button";
 import { useAdjustmentStore } from "@/stores/adjustment-store";
 import { useMediaPanelStore } from "../store";
+import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 
 export function MediaView() {
   const {
@@ -403,6 +404,19 @@ export function MediaView() {
                     </ContextMenuTrigger>
                     <ContextMenuContent>
                       <ContextMenuItem>Export clips</ContextMenuItem>
+                      {(item.type === "image" || item.type === "video") && (
+                        <ContextMenuItem 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const { addOverlaySticker } = useStickersOverlayStore.getState();
+                            addOverlaySticker(item.id);
+                            toast.success(`Added "${item.name}" as overlay`);
+                          }}
+                        >
+                          <Layers className="h-4 w-4 mr-2" />
+                          Add as Overlay
+                        </ContextMenuItem>
+                      )}
                       {item.type === "image" && (
                         <ContextMenuItem onClick={(e) => handleEdit(e, item)}>
                           <Edit className="h-4 w-4 mr-2" />

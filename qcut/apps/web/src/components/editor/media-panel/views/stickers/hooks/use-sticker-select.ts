@@ -3,12 +3,14 @@ import { toast } from "sonner";
 import { useMediaStore } from "@/stores/media-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useStickersStore } from "@/stores/stickers-store";
+import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { downloadIconSvg, createSvgBlob } from "@/lib/iconify-api";
 
 export function useStickerSelect() {
   const { addMediaItem } = useMediaStore();
   const { activeProject } = useProjectStore();
   const { addRecentSticker } = useStickersStore();
+  const { addOverlaySticker } = useStickersOverlayStore();
 
   // Track object URLs for cleanup
   const objectUrlsRef = useRef<Set<string>>(new Set());
@@ -57,7 +59,7 @@ export function useStickerSelect() {
           objectUrlsRef.current.add(imageUrl);
         }
 
-        await addMediaItem(activeProject.id, {
+        const mediaItemId = await addMediaItem(activeProject.id, {
           name: `${name}.svg`,
           type: "image",
           file: svgFile,
@@ -71,12 +73,28 @@ export function useStickerSelect() {
         // Add to recent stickers
         addRecentSticker(iconId, name);
 
-        toast.success(`Added ${name} to project`);
+        toast.success(`Added ${name} to media library`);
+        
+        // Return the media item ID for potential overlay use
+        return mediaItemId;
       } catch (error) {
         toast.error("Failed to add sticker to project");
       }
     },
     [activeProject, addMediaItem, addRecentSticker]
+  );
+  
+  // New function to add sticker directly to overlay
+  const handleStickerSelectToOverlay = useCallback(
+    async (iconId: string, name: string) => {
+      // First add to media, then to overlay
+      const mediaItemId = await handleStickerSelect(iconId, name);
+      if (mediaItemId) {
+        addOverlaySticker(mediaItemId);
+        toast.success(`Added ${name} as overlay`);
+      }
+    },
+    [handleStickerSelect, addOverlaySticker]
   );
 
   const cleanupObjectUrls = useCallback(() => {
@@ -86,6 +104,7 @@ export function useStickerSelect() {
 
   return {
     handleStickerSelect,
+    handleStickerSelectToOverlay,
     cleanupObjectUrls,
     objectUrlsRef,
   };
