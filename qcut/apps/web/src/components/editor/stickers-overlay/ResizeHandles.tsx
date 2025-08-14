@@ -105,9 +105,19 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
         ) {
           const ratio = state.aspectRatio;
           if (Math.abs(deltaXPercent) > Math.abs(deltaYPercent)) {
+            const heightDiff = newWidth / ratio - newHeight;
             newHeight = newWidth / ratio;
+            // Adjust position for top handles
+            if (handle === "tl" || handle === "tr") {
+              newY = state.startTop - (heightDiff / 2);
+            }
           } else {
+            const widthDiff = newHeight * ratio - newWidth;
             newWidth = newHeight * ratio;
+            // Adjust position for left handles
+            if (handle === "tl" || handle === "bl") {
+              newX = state.startLeft - (widthDiff / 2);
+            }
           }
         }
 

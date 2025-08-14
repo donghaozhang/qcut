@@ -163,7 +163,7 @@ export const useStickersStore = create<StickersStore>()(
           {
             iconId,
             name,
-            downloadedAt: new Date(),
+            downloadedAt: Date.now(),
           },
           ...filtered,
         ];

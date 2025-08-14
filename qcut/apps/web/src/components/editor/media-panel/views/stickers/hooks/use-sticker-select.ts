@@ -7,10 +7,10 @@ import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { downloadIconSvg, createSvgBlob } from "@/lib/iconify-api";
 
 export function useStickerSelect() {
-  const { addMediaItem } = useMediaStore();
-  const { activeProject } = useProjectStore();
-  const { addRecentSticker } = useStickersStore();
-  const { addOverlaySticker } = useStickersOverlayStore();
+  const addMediaItem = useMediaStore((s) => s.addMediaItem);
+  const activeProject = useProjectStore((s) => s.activeProject);
+  const addRecentSticker = useStickersStore((s) => s.addRecentSticker);
+  const addOverlaySticker = useStickersOverlayStore((s) => s.addOverlaySticker);
 
   // Track object URLs for cleanup
   const objectUrlsRef = useRef<Set<string>>(new Set());
@@ -22,6 +22,7 @@ export function useStickerSelect() {
         return undefined;
       }
 
+      let createdObjectUrl: string | null = null;
       try {
         // Download the actual SVG content with transparency
         const [collection, icon] = iconId.split(":");
@@ -59,7 +60,8 @@ export function useStickerSelect() {
           });
         } else {
           // Use blob URL for web environment
-          imageUrl = URL.createObjectURL(svgBlob);
+          createdObjectUrl = URL.createObjectURL(svgBlob);
+          imageUrl = createdObjectUrl;
           objectUrlsRef.current.add(imageUrl);
         }
 
@@ -82,6 +84,10 @@ export function useStickerSelect() {
         // Return the media item ID for potential overlay use
         return mediaItemId;
       } catch (error) {
+        if (createdObjectUrl) {
+          URL.revokeObjectURL(createdObjectUrl);
+          objectUrlsRef.current.delete(createdObjectUrl);
+        }
         toast.error("Failed to add sticker to project");
         return undefined;
       }
@@ -102,7 +108,9 @@ export function useStickerSelect() {
   );
 
   const cleanupObjectUrls = useCallback(() => {
-    objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    for (const url of objectUrlsRef.current) {
+      URL.revokeObjectURL(url);
+    }
     objectUrlsRef.current.clear();
   }, []);
 
