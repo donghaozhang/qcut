@@ -25,6 +25,8 @@ export const StickerCanvas: React.FC<{
 }> = memo(({ className, disabled = false }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
 
+  console.log('[STICKER DEBUG] StickerCanvas render - disabled:', disabled);
+
   // Store subscriptions
   const {
     overlayStickers,
@@ -39,6 +41,10 @@ export const StickerCanvas: React.FC<{
   const { mediaItems } = useMediaStore();
   const { activeProject } = useProjectStore();
   const { currentTime } = usePlaybackStore();
+
+  console.log('[STICKER DEBUG] StickerCanvas render - stickers:', overlayStickers.size);
+  console.log('[STICKER DEBUG] StickerCanvas render - mediaItems:', mediaItems.length);
+  console.log('[STICKER DEBUG] StickerCanvas render - currentTime:', currentTime);
 
   // Handle clicking on canvas (deselect)
   const handleCanvasClick = (e: React.MouseEvent) => {
@@ -113,9 +119,14 @@ export const StickerCanvas: React.FC<{
   // Clean up stickers with missing media items when media loads
   // Add a delay to avoid race conditions during project loading
   useEffect(() => {
+    console.log('[STICKER DEBUG] Cleanup useEffect triggered - Media:', mediaItems.length, 'Stickers:', overlayStickers.size);
+    
     if (mediaItems.length > 0 && overlayStickers.size > 0) {
       const timeoutId = setTimeout(() => {
         const mediaIds = mediaItems.map((item) => item.id);
+        console.log('[STICKER DEBUG] Cleanup check - Media IDs:', mediaIds);
+        console.log('[STICKER DEBUG] Cleanup check - Sticker media IDs:', Array.from(overlayStickers.values()).map((s) => s.mediaItemId));
+        
         debugLog(
           `[StickerCanvas] Cleanup check - Media count: ${mediaItems.length}, Sticker count: ${overlayStickers.size}`
         );
@@ -128,8 +139,10 @@ export const StickerCanvas: React.FC<{
         // Only cleanup if we're confident media has fully loaded
         // This helps prevent premature cleanup during initial load
         if (mediaItems.length > 0) {
+          console.log('[STICKER DEBUG] Running cleanup...');
           cleanupInvalidStickers(mediaIds);
         } else {
+          console.log('[STICKER DEBUG] Skipping cleanup - no media items loaded yet');
           debugLog(
             "[StickerCanvas] Skipping cleanup - no media items loaded yet"
           );
@@ -180,6 +193,7 @@ export const StickerCanvas: React.FC<{
 
   // Get only visible stickers at current time
   const visibleStickers = getVisibleStickersAtTime(currentTime);
+  console.log('[STICKER DEBUG] Visible stickers at time', currentTime, ':', visibleStickers.length);
 
   return (
     <>
@@ -205,6 +219,8 @@ export const StickerCanvas: React.FC<{
 
           // Show placeholder if media item not found (it might still be loading)
           if (!mediaItem) {
+            console.log('[STICKER DEBUG] Media item not found for sticker:', sticker.id, 'mediaItemId:', sticker.mediaItemId);
+            console.log('[STICKER DEBUG] Available media items:', mediaItems.map(m => m.id));
             debugLog(
               `[StickerCanvas] ⚠️ MEDIA MISSING: Media item not found for sticker ${sticker.id}, mediaItemId: ${sticker.mediaItemId}. Available media: ${mediaItems.length}`
             );
