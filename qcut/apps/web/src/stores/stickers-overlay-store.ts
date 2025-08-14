@@ -7,6 +7,7 @@
 
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import { debugLog } from "@/lib/debug-config";
 import type {
   StickerOverlayStore,
   OverlaySticker,
@@ -15,13 +16,6 @@ import type {
 import { Z_INDEX } from "@/types/sticker-overlay";
 import { useTimelineStore } from "./timeline-store";
 import { useProjectStore } from "./project-store";
-
-// Debug utility for conditional logging
-const debugLog = (message: string, ...args: any[]) => {
-  if (import.meta.env.DEV) {
-    console.log(message, ...args);
-  }
-};
 
 // Import constants
 const DEFAULTS = {
@@ -46,6 +40,61 @@ const getNextZIndex = (stickers: Map<string, OverlaySticker>): number => {
   if (stickers.size === 0) return Z_INDEX.MIN;
   const maxZ = Math.max(...Array.from(stickers.values()).map((s) => s.zIndex));
   return Math.min(maxZ + Z_INDEX.INCREMENT, Z_INDEX.MAX);
+};
+
+/**
+ * Validate a single sticker object
+ */
+const isValidSticker = (item: any): item is OverlaySticker => {
+  return (
+    item &&
+    typeof item === "object" &&
+    typeof item.id === "string" &&
+    typeof item.mediaItemId === "string" &&
+    item.position &&
+    typeof item.position.x === "number" &&
+    typeof item.position.y === "number" &&
+    item.size &&
+    typeof item.size.width === "number" &&
+    typeof item.size.height === "number" &&
+    typeof item.zIndex === "number"
+  );
+};
+
+/**
+ * Validate and convert sticker data to Map
+ */
+const validateAndLoadStickers = (data: any): Map<string, OverlaySticker> => {
+  // Validate data structure
+  if (!Array.isArray(data)) {
+    debugLog(
+      `[StickerStore] ⚠️ INVALID DATA: Expected array, got ${typeof data}`
+    );
+    return new Map();
+  }
+
+  // Validate each sticker object
+  const validStickers = data.filter((item: any): item is OverlaySticker => {
+    const isValid = isValidSticker(item);
+    
+    if (!isValid) {
+      debugLog(
+        `[StickerStore] ⚠️ INVALID STICKER: Skipping malformed sticker object:`,
+        item
+      );
+    }
+    
+    return isValid;
+  });
+
+  const filteredCount = data.length - validStickers.length;
+  if (filteredCount > 0) {
+    debugLog(
+      `[StickerStore] 🧹 VALIDATION: Filtered out ${filteredCount} invalid sticker objects`
+    );
+  }
+
+  return new Map(validStickers.map((s) => [s.id, s]));
 };
 
 /**
@@ -116,55 +165,13 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
           };
         });
 
-        // Create or find sticker timeline track
-        const timelineStore = useTimelineStore.getState();
-        debugLog(`[StickerStore] Timeline integration - checking timing:`, newSticker.timing);
-        
-        let stickerTrack = timelineStore.tracks.find((track) => track.type === "sticker");
-        
-        if (!stickerTrack) {
-          debugLog("[StickerStore] Creating new sticker timeline track");
-          const trackId = timelineStore.addTrack("sticker");
-          stickerTrack = timelineStore.tracks.find((track) => track.id === trackId);
-          debugLog(`[StickerStore] Created sticker track with ID: ${trackId}`);
-        } else {
-          debugLog(`[StickerStore] Found existing sticker track: ${stickerTrack.id}`);
-        }
+        // Add to timeline if timing is specified
+        get().addStickerToTimeline(newSticker);
 
-        // Add sticker element to timeline track
-        debugLog(`[StickerStore] Checking conditions - stickerTrack: ${!!stickerTrack}, timing: ${!!newSticker.timing}, startTime: ${newSticker.timing?.startTime}, endTime: ${newSticker.timing?.endTime}`);
-        
-        if (stickerTrack && newSticker.timing && newSticker.timing.endTime && newSticker.timing.startTime !== undefined) {
-          const duration = newSticker.timing.endTime - newSticker.timing.startTime;
-          debugLog(`[StickerStore] Adding sticker to timeline with duration: ${duration}s`);
-          
-          timelineStore.addElementToTrack(stickerTrack.id, {
-            type: "sticker",
-            stickerId: id,
-            mediaId: mediaItemId,
-            name: `Sticker ${get().overlayStickers.size}`,
-            duration,
-            startTime: newSticker.timing.startTime,
-            trimStart: 0,
-            trimEnd: 0,
-          });
-          debugLog(`[StickerStore] ✅ Added sticker to timeline track: ${duration}s duration`);
-        } else {
-          debugLog(`[StickerStore] ❌ Failed to add sticker to timeline - missing requirements`);
-        }
-
-        // Auto-save immediately after adding sticker
-        const currentProject = useProjectStore.getState().activeProject;
-        if (currentProject?.id) {
-          debugLog(`[StickerStore] Auto-saving sticker to project: ${currentProject.id}`);
-          setTimeout(() => {
-            get().saveToProject(currentProject.id).then(() => {
-              debugLog(`[StickerStore] ✅ Auto-save completed for sticker ${id}`);
-            }).catch((error) => {
-              debugLog(`[StickerStore] ❌ Auto-save failed:`, error);
-            });
-          }, 100); // Small delay to ensure state is updated
-        }
+        // Auto-save with a small delay to ensure state is updated
+        setTimeout(() => {
+          get().autoSaveSticker(id);
+        }, 100);
 
         return id;
       },
@@ -274,57 +281,87 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
       // Layer management with proper z-index calculation
       bringToFront: (id: string) => {
-        const state = get();
-        const sticker = state.overlayStickers.get(id);
-        if (!sticker) return;
+        set((state) => {
+          const sticker = state.overlayStickers.get(id);
+          if (!sticker) return state;
 
-        const maxZ = Math.max(
-          ...Array.from(state.overlayStickers.values()).map((s) => s.zIndex)
-        );
-        state.updateOverlaySticker(id, { zIndex: Math.min(maxZ + Z_INDEX.INCREMENT, Z_INDEX.MAX) });
+          const maxZ = Math.max(
+            ...Array.from(state.overlayStickers.values()).map((s) => s.zIndex)
+          );
+          
+          const newStickers = new Map(state.overlayStickers);
+          newStickers.set(id, { 
+            ...sticker, 
+            zIndex: Math.min(maxZ + Z_INDEX.INCREMENT, Z_INDEX.MAX) 
+          });
+          
+          return { overlayStickers: newStickers };
+        });
       },
 
       sendToBack: (id: string) => {
-        const state = get();
-        const sticker = state.overlayStickers.get(id);
-        if (!sticker) return;
+        set((state) => {
+          const sticker = state.overlayStickers.get(id);
+          if (!sticker) return state;
 
-        const minZ = Math.min(
-          ...Array.from(state.overlayStickers.values()).map((s) => s.zIndex)
-        );
-        state.updateOverlaySticker(id, { zIndex: Math.max(Z_INDEX.MIN, minZ - Z_INDEX.INCREMENT) });
+          const minZ = Math.min(
+            ...Array.from(state.overlayStickers.values()).map((s) => s.zIndex)
+          );
+          
+          const newStickers = new Map(state.overlayStickers);
+          newStickers.set(id, { 
+            ...sticker, 
+            zIndex: Math.max(Z_INDEX.MIN, minZ - Z_INDEX.INCREMENT) 
+          });
+          
+          return { overlayStickers: newStickers };
+        });
       },
 
       bringForward: (id: string) => {
-        const state = get();
-        const sticker = state.overlayStickers.get(id);
-        if (!sticker) return;
+        set((state) => {
+          const sticker = state.overlayStickers.get(id);
+          if (!sticker) return state;
 
-        const higherStickers = Array.from(state.overlayStickers.values())
-          .filter((s) => s.zIndex > sticker.zIndex)
-          .sort((a, b) => a.zIndex - b.zIndex);
+          const higherStickers = Array.from(state.overlayStickers.values())
+            .filter((s) => s.zIndex > sticker.zIndex)
+            .sort((a, b) => a.zIndex - b.zIndex);
 
-        if (higherStickers.length > 0) {
-          state.updateOverlaySticker(id, {
-            zIndex: higherStickers[0].zIndex + Z_INDEX.INCREMENT,
-          });
-        }
+          if (higherStickers.length > 0) {
+            const newStickers = new Map(state.overlayStickers);
+            newStickers.set(id, {
+              ...sticker,
+              zIndex: higherStickers[0].zIndex + Z_INDEX.INCREMENT,
+            });
+            
+            return { overlayStickers: newStickers };
+          }
+          
+          return state;
+        });
       },
 
       sendBackward: (id: string) => {
-        const state = get();
-        const sticker = state.overlayStickers.get(id);
-        if (!sticker) return;
+        set((state) => {
+          const sticker = state.overlayStickers.get(id);
+          if (!sticker) return state;
 
-        const lowerStickers = Array.from(state.overlayStickers.values())
-          .filter((s) => s.zIndex < sticker.zIndex)
-          .sort((a, b) => b.zIndex - a.zIndex);
+          const lowerStickers = Array.from(state.overlayStickers.values())
+            .filter((s) => s.zIndex < sticker.zIndex)
+            .sort((a, b) => b.zIndex - a.zIndex);
 
-        if (lowerStickers.length > 0) {
-          state.updateOverlaySticker(id, {
-            zIndex: Math.max(Z_INDEX.MIN, lowerStickers[0].zIndex - Z_INDEX.INCREMENT),
-          });
-        }
+          if (lowerStickers.length > 0) {
+            const newStickers = new Map(state.overlayStickers);
+            newStickers.set(id, {
+              ...sticker,
+              zIndex: Math.max(Z_INDEX.MIN, lowerStickers[0].zIndex - Z_INDEX.INCREMENT),
+            });
+            
+            return { overlayStickers: newStickers };
+          }
+          
+          return state;
+        });
       },
 
       // UI State management
@@ -459,51 +496,8 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             }
           }
 
-          // Validate data structure and individual sticker objects
-          if (!Array.isArray(data)) {
-            debugLog(
-              `[StickerStore] ⚠️ INVALID DATA: Expected array, got ${typeof data}`
-            );
-            data = [];
-          } else {
-            // Validate each sticker object has required fields
-            const validStickers = data.filter(
-              (item: any): item is OverlaySticker => {
-                const isValid =
-                  item &&
-                  typeof item === "object" &&
-                  typeof item.id === "string" &&
-                  typeof item.mediaItemId === "string" &&
-                  item.position &&
-                  typeof item.position.x === "number" &&
-                  typeof item.position.y === "number" &&
-                  item.size &&
-                  typeof item.size.width === "number" &&
-                  typeof item.size.height === "number" &&
-                  typeof item.zIndex === "number";
-
-                if (!isValid) {
-                  debugLog(
-                    `[StickerStore] ⚠️ INVALID STICKER: Skipping malformed sticker object:`,
-                    item
-                  );
-                }
-
-                return isValid;
-              }
-            );
-
-            const filteredCount = data.length - validStickers.length;
-            if (filteredCount > 0) {
-              debugLog(
-                `[StickerStore] 🧹 VALIDATION: Filtered out ${filteredCount} invalid sticker objects`
-              );
-            }
-
-            data = validStickers;
-          }
-
-          const stickersMap = new Map(data.map((s) => [s.id, s]));
+          // Validate and convert sticker data to Map
+          const stickersMap = validateAndLoadStickers(data);
           set({
             overlayStickers: stickersMap,
             selectedStickerId: null,
@@ -521,14 +515,14 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             try {
               const stored = localStorage.getItem(key);
               if (stored) {
-                data = JSON.parse(stored);
-                const stickersMap = new Map(data.map((s) => [s.id, s]));
+                const fallbackData = JSON.parse(stored);
+                const stickersMap = validateAndLoadStickers(fallbackData);
                 set({
                   overlayStickers: stickersMap,
                   selectedStickerId: null,
                   history: { past: [], future: [] },
                 });
-                debugLog(`[StickerStore] Fallback load: ${data.length} stickers`);
+                debugLog(`[StickerStore] Fallback load: ${stickersMap.size} stickers`);
               }
             } catch (fallbackError) {
               debugLog(
@@ -563,6 +557,58 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             return time >= startTime && time <= endTime;
           })
           .sort((a, b) => a.zIndex - b.zIndex);
+      },
+
+      // Helper: Add sticker to timeline
+      addStickerToTimeline: (sticker: OverlaySticker) => {
+        const timelineStore = useTimelineStore.getState();
+        debugLog(`[StickerStore] Timeline integration - checking timing:`, sticker.timing);
+        
+        let stickerTrack = timelineStore.tracks.find((track) => track.type === "sticker");
+        
+        if (!stickerTrack) {
+          debugLog("[StickerStore] Creating new sticker timeline track");
+          const trackId = timelineStore.addTrack("sticker");
+          stickerTrack = timelineStore.tracks.find((track) => track.id === trackId);
+          debugLog(`[StickerStore] Created sticker track with ID: ${trackId}`);
+        } else {
+          debugLog(`[StickerStore] Found existing sticker track: ${stickerTrack.id}`);
+        }
+
+        debugLog(`[StickerStore] Checking conditions - stickerTrack: ${!!stickerTrack}, timing: ${!!sticker.timing}, startTime: ${sticker.timing?.startTime}, endTime: ${sticker.timing?.endTime}`);
+        
+        if (stickerTrack && sticker.timing?.startTime !== undefined && sticker.timing?.endTime !== undefined) {
+          const duration = sticker.timing.endTime - sticker.timing.startTime;
+          debugLog(`[StickerStore] Adding sticker to timeline with duration: ${duration}s`);
+          
+          timelineStore.addElementToTrack(stickerTrack.id, {
+            type: "sticker",
+            stickerId: sticker.id,
+            mediaId: sticker.mediaItemId,
+            name: `Sticker ${get().overlayStickers.size}`,
+            duration,
+            startTime: sticker.timing.startTime,
+            trimStart: 0,
+            trimEnd: 0,
+          });
+          debugLog(`[StickerStore] ✅ Added sticker to timeline track: ${duration}s duration`);
+        } else {
+          debugLog(`[StickerStore] ❌ Failed to add sticker to timeline - missing requirements`);
+        }
+      },
+
+      // Helper: Auto-save sticker to project
+      autoSaveSticker: async (stickerId: string) => {
+        const currentProject = useProjectStore.getState().activeProject;
+        if (currentProject?.id) {
+          debugLog(`[StickerStore] Auto-saving sticker to project: ${currentProject.id}`);
+          try {
+            await get().saveToProject(currentProject.id);
+            debugLog(`[StickerStore] ✅ Auto-save completed for sticker ${stickerId}`);
+          } catch (error) {
+            debugLog(`[StickerStore] ❌ Auto-save failed:`, error);
+          }
+        }
       },
     }),
     {
