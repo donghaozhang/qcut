@@ -19,7 +19,7 @@ export function useStickerSelect() {
     async (iconId: string, name: string): Promise<string | undefined> => {
       if (!activeProject) {
         toast.error("No project selected");
-        return undefined;
+        return;
       }
 
       let createdObjectUrl: string | null = null;
@@ -28,7 +28,7 @@ export function useStickerSelect() {
         const [collection, icon] = iconId.split(":");
         if (!collection || !icon) {
           toast.error("Invalid sticker ID format");
-          return undefined;
+          return;
         }
         const svgContent = await downloadIconSvg(collection, icon, {
           // No color specified to maintain transparency
@@ -89,7 +89,7 @@ export function useStickerSelect() {
           objectUrlsRef.current.delete(createdObjectUrl);
         }
         toast.error("Failed to add sticker to project");
-        return undefined;
+        return;
       }
     },
     [activeProject, addMediaItem, addRecentSticker]

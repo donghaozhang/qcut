@@ -52,13 +52,17 @@ export const useStickerDrag = (
 
       const canvasRect = canvasRef.current.getBoundingClientRect();
       const stickerRect = elementRef.current?.getBoundingClientRect();
-      
+
       const x = ((clientX - canvasRect.left) / canvasRect.width) * 100;
       const y = ((clientY - canvasRect.top) / canvasRect.height) * 100;
 
       // Calculate sticker size as percentage of canvas
-      const stickerWidthPct = stickerRect ? (stickerRect.width / canvasRect.width) * 100 : 10; // fallback 10%
-      const stickerHeightPct = stickerRect ? (stickerRect.height / canvasRect.height) * 100 : 10; // fallback 10%
+      const stickerWidthPct = stickerRect
+        ? (stickerRect.width / canvasRect.width) * 100
+        : 10; // fallback 10%
+      const stickerHeightPct = stickerRect
+        ? (stickerRect.height / canvasRect.height) * 100
+        : 10; // fallback 10%
 
       // Constrain so sticker edges never exceed canvas bounds
       const clampedX = Math.max(
@@ -162,11 +166,13 @@ export const useStickerDrag = (
    * Set up and clean up event listeners
    */
   useEffect(() => {
-    const handleGlobalMouseMove = (e: MouseEvent) => handleMouseMoveRef.current(e);
+    const handleGlobalMouseMove = (e: MouseEvent) =>
+      handleMouseMoveRef.current(e);
     const handleGlobalMouseUp = () => handleMouseUpRef.current();
     const handleGlobalMouseOut = (e: MouseEvent) => {
       // When leaving the window (relatedTarget === null), end drag to avoid stuck state
-      const toElement = (e as unknown as { relatedTarget: Node | null }).relatedTarget ?? null;
+      const toElement =
+        (e as unknown as { relatedTarget: Node | null }).relatedTarget ?? null;
       if (toElement === null) handleMouseUpRef.current();
     };
 
@@ -188,7 +194,9 @@ export const useStickerDrag = (
     document.addEventListener("mouseout", handleGlobalMouseOut);
     window.addEventListener("blur", handleGlobalMouseUp);
     // Touch listeners (passive: false to allow preventDefault)
-    document.addEventListener("touchmove", handleGlobalTouchMove, { passive: false });
+    document.addEventListener("touchmove", handleGlobalTouchMove, {
+      passive: false,
+    });
     document.addEventListener("touchend", handleGlobalTouchEnd);
     document.addEventListener("touchcancel", handleGlobalTouchCancel);
 
@@ -235,7 +243,7 @@ export const useStickerDrag = (
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
       if (e.touches.length !== 1) return;
-      
+
       // Prevent page scroll/zoom while dragging
       e.preventDefault();
       e.stopPropagation();

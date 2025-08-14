@@ -132,7 +132,9 @@ export function MediaView() {
           throw new Error("Media store not ready");
         }
         const newItemId = await addMediaItem(activeProject.id, item);
-        console.log(`[Media View] ✅ Item ${index + 1} added successfully with ID: ${newItemId}`);
+        console.log(
+          `[Media View] ✅ Item ${index + 1} added successfully with ID: ${newItemId}`
+        );
       }
 
       console.log("[Media View] 🎉 Upload process completed successfully!");

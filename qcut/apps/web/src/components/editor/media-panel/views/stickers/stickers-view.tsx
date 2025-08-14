@@ -36,7 +36,7 @@ export function StickersView() {
   // Cleanup object URLs on unmount and navigation
   useEffect(() => {
     return cleanupObjectUrls;
-  }, []);
+  }, [cleanupObjectUrls]);
 
   // Load collections on mount
   useEffect(() => {
@@ -60,7 +60,7 @@ export function StickersView() {
       try {
         await searchIcons(debouncedSearchQuery, abortController.signal);
       } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') return;
+        if (error instanceof Error && error.name === "AbortError") return;
         toast.error("Failed to search icons");
       } finally {
         setIsSearching(false);

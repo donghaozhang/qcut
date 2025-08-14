@@ -30,7 +30,10 @@ class IconifyAPIClient {
     return controller.signal;
   }
 
-  async fetchWithFallback(path: string, signal?: AbortSignal): Promise<Response> {
+  async fetchWithFallback(
+    path: string,
+    signal?: AbortSignal
+  ): Promise<Response> {
     // Try last working host first for better performance
     const hostsToTry = [
       this.lastWorkingHost,
@@ -41,7 +44,7 @@ class IconifyAPIClient {
       try {
         // Combine timeout signal with external abort signal if provided
         const timeoutSignal = this.createTimeoutSignal(2000);
-        const combinedSignal = signal 
+        const combinedSignal = signal
           ? AbortSignal.any([timeoutSignal, signal])
           : timeoutSignal;
 
@@ -146,7 +149,10 @@ export async function searchIcons(
     pretty: "1",
   });
 
-  const response = await apiClient.fetchWithFallback(`/search?${params}`, signal);
+  const response = await apiClient.fetchWithFallback(
+    `/search?${params}`,
+    signal
+  );
   const data = (await response.json()) as IconSearchResult;
   return data;
 }

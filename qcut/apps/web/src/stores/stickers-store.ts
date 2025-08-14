@@ -97,7 +97,12 @@ export const useStickersStore = create<StickersStore>()(
         set({ isLoading: true, error: null });
 
         try {
-          const results: IconSearchResult = await searchIcons(query, 100, 0, signal);
+          const results: IconSearchResult = await searchIcons(
+            query,
+            100,
+            0,
+            signal
+          );
 
           set({
             searchResults: results.icons,
@@ -106,7 +111,7 @@ export const useStickersStore = create<StickersStore>()(
           });
         } catch (error) {
           // Don't set error state for aborted requests
-          if (error instanceof Error && error.name === 'AbortError') {
+          if (error instanceof Error && error.name === "AbortError") {
             set({ isLoading: false });
             return;
           }

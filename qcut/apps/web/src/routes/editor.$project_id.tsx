@@ -63,7 +63,9 @@ function EditorPage() {
 
       // Prevent duplicate loads for the same project_id
       if (inFlightProjectIdRef.current === project_id) {
-        debugLog(`[Editor] Early return - already loading project: ${project_id}`);
+        debugLog(
+          `[Editor] Early return - already loading project: ${project_id}`
+        );
         return;
       }
 

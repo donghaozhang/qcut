@@ -109,14 +109,14 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
             newHeight = newWidth / ratio;
             // Adjust position for top handles
             if (handle === "tl" || handle === "tr") {
-              newY = state.startTop - (heightDiff / 2);
+              newY = state.startTop - heightDiff / 2;
             }
           } else {
             const widthDiff = newHeight * ratio - newWidth;
             newWidth = newHeight * ratio;
             // Adjust position for left handles
             if (handle === "tl" || handle === "bl") {
-              newX = state.startLeft - (widthDiff / 2);
+              newX = state.startLeft - widthDiff / 2;
             }
           }
         }

@@ -39,7 +39,7 @@ export function StickersCollection({
 
   useEffect(() => {
     let isActive = true;
-    
+
     const fetchCollectionIcons = async () => {
       setLoadingCollection(true);
 
@@ -63,7 +63,7 @@ export function StickersCollection({
           const collectionInfo = await getCollection(collectionPrefix);
 
           // Try uncategorized first
-          if (collectionInfo.uncategorized?.length > 0) {
+          if (collectionInfo.uncategorized?.length) {
             icons = collectionInfo.uncategorized;
           }
           // Then try categories
@@ -102,7 +102,7 @@ export function StickersCollection({
     };
 
     fetchCollectionIcons();
-    
+
     return () => {
       isActive = false;
     };
@@ -111,10 +111,9 @@ export function StickersCollection({
   if (loadingCollection) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2
-          title="Loading icons"
-          className="h-8 w-8 animate-spin text-muted-foreground"
-        />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground">
+          <title>Loading icons</title>
+        </Loader2>
       </div>
     );
   }
@@ -122,10 +121,9 @@ export function StickersCollection({
   if (collectionIcons.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
-        <AlertCircle
-          title="No icons available"
-          className="mb-2 h-8 w-8 text-muted-foreground"
-        />
+        <AlertCircle className="mb-2 h-8 w-8 text-muted-foreground">
+          <title>No icons available</title>
+        </AlertCircle>
         <p className="text-sm text-muted-foreground">
           No icons available for this collection
         </p>

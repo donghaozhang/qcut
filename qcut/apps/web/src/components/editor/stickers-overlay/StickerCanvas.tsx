@@ -138,7 +138,7 @@ export const StickerCanvas: React.FC<{
 
       return () => clearTimeout(timeoutId);
     }
-  }, [mediaItems, overlayStickers.size, cleanupInvalidStickers]);
+  }, [mediaItems, overlayStickers.size, cleanupInvalidStickers, overlayStickers]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -216,8 +216,8 @@ export const StickerCanvas: React.FC<{
                 style={{
                   left: `${sticker.position.x}%`,
                   top: `${sticker.position.y}%`,
-                  width: `${(sticker.size?.width || 20)}%`,
-                  height: `${(sticker.size?.height || 20)}%`,
+                  width: `${sticker.size?.width || 20}%`,
+                  height: `${sticker.size?.height || 20}%`,
                   transform: `translate(-50%, -50%) rotate(${sticker.rotation || 0}deg)`,
                 }}
               >

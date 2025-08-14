@@ -102,7 +102,7 @@ export function TimelineElement({
 
   // Get media item for hook dependency (must be called at top level)
   const mediaItem =
-    (element.type === "media" || element.type === "sticker")
+    element.type === "media" || element.type === "sticker"
       ? mediaItems.find((item) => item.id === element.mediaId)
       : null;
 
