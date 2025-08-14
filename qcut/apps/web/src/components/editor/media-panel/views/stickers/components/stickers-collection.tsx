@@ -111,7 +111,10 @@ export function StickersCollection({
   if (loadingCollection) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2
+          title="Loading icons"
+          className="h-8 w-8 animate-spin text-muted-foreground"
+        />
       </div>
     );
   }
@@ -119,7 +122,10 @@ export function StickersCollection({
   if (collectionIcons.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
-        <AlertCircle className="mb-2 h-8 w-8 text-muted-foreground" />
+        <AlertCircle
+          title="No icons available"
+          className="mb-2 h-8 w-8 text-muted-foreground"
+        />
         <p className="text-sm text-muted-foreground">
           No icons available for this collection
         </p>

@@ -203,6 +203,14 @@ export const useStickerDrag = (
     };
   }, []); // Empty dependency array prevents unnecessary re-renders
 
+  // Safety: ensure body styles are reset on unmount even if a drag is in progress
+  useEffect(() => {
+    return () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, []);
+
   /**
    * Touch support for mobile/tablet
    */
