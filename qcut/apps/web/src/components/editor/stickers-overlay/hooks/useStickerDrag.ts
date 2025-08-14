@@ -7,13 +7,7 @@
 
 import { useRef, useCallback, useEffect, useState } from "react";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
-
-// Debug utility for conditional logging
-const debugLog = (message: string, ...args: any[]) => {
-  if (import.meta.env.DEV) {
-    console.log(message, ...args);
-  }
-};
+import { debugLog } from "@/lib/debug-config";
 
 interface DragState {
   isDragging: boolean;

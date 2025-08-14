@@ -7,15 +7,9 @@
 
 import React, { memo, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { debugLog } from "@/lib/debug-config";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import type { OverlaySticker } from "@/types/sticker-overlay";
-
-// Debug utility for conditional logging
-const debugLog = (message: string, ...args: any[]) => {
-  if (import.meta.env.DEV) {
-    console.log(message, ...args);
-  }
-};
 
 interface ResizeHandlesProps {
   stickerId: string;

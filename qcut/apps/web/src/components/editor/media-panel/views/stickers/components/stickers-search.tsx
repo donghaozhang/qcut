@@ -15,7 +15,10 @@ export function StickersSearch({
   return (
     <div className="border-b p-4">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+        <Search 
+          className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground"
+          aria-hidden="true"
+        />
         <Input
           placeholder="Search stickers..."
           value={searchQuery}
@@ -30,7 +33,7 @@ export function StickersSearch({
             onClick={() => onSearchChange("")}
             aria-label="Clear search"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         )}
       </div>

@@ -10,7 +10,7 @@
  * Represents a single sticker in the overlay system
  * Position and size are stored as percentages for responsive scaling
  */
-export interface OverlaySticker {
+export type OverlaySticker = {
   /** Unique identifier for the overlay sticker instance */
   id: string;
 
@@ -54,12 +54,12 @@ export interface OverlaySticker {
     lastModified: number; // Timestamp of last change
     source?: "library" | "upload" | "media"; // Where it came from
   };
-}
+};
 
 /**
  * State interface for the overlay store
  */
-export interface StickerOverlayState {
+export type StickerOverlayState = {
   /** Map of all overlay stickers by ID for efficient lookups */
   overlayStickers: Map<string, OverlaySticker>;
 
@@ -76,12 +76,12 @@ export interface StickerOverlayState {
     past: OverlaySticker[][];
     future: OverlaySticker[][];
   };
-}
+};
 
 /**
  * Actions interface for the overlay store
  */
-export interface StickerOverlayActions {
+export type StickerOverlayActions = {
   // CRUD Operations
   addOverlaySticker: (
     mediaItemId: string,
@@ -117,7 +117,7 @@ export interface StickerOverlayActions {
   // Export
   getStickersForExport: () => OverlaySticker[];
   getVisibleStickersAtTime: (time: number) => OverlaySticker[];
-}
+};
 
 /**
  * Combined type for the complete store
@@ -132,7 +132,16 @@ export type ValidatedStickerUpdate = Partial<
 >;
 
 /**
- * Constants for overlay stickers
+ * Z-index management constants
+ */
+export const Z_INDEX = {
+  MIN: 1,
+  MAX: 9999,
+  INCREMENT: 10,
+} as const;
+
+/**
+ * Constants for overlay stickers - matches OverlaySticker type
  */
 export const STICKER_DEFAULTS = {
   position: { x: 50, y: 50 },
@@ -140,15 +149,13 @@ export const STICKER_DEFAULTS = {
   rotation: 0,
   opacity: 1,
   maintainAspectRatio: true,
-  minSize: { width: 5, height: 5 },
-  maxSize: { width: 100, height: 100 },
+  zIndex: Z_INDEX.MIN,
 } as const;
 
 /**
- * Z-index management constants
+ * Constraints for sticker sizing and validation
  */
-export const Z_INDEX = {
-  MIN: 1,
-  MAX: 9999,
-  INCREMENT: 10,
+export const STICKER_CONSTRAINTS = {
+  minSize: { width: 5, height: 5 },
+  maxSize: { width: 100, height: 100 },
 } as const;

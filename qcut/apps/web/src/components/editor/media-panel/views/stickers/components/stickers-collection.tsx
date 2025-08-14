@@ -4,15 +4,9 @@ import { useEffect, useState } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getCollection, POPULAR_COLLECTIONS } from "@/lib/iconify-api";
+import { debugLog } from "@/lib/debug-config";
 import { StickerItem } from "./sticker-item";
 import type { CollectionContentProps } from "../types/stickers.types";
-
-// Debug utility for conditional logging
-const debugLog = (message: string, ...args: any[]) => {
-  if (import.meta.env.DEV) {
-    console.log(message, ...args);
-  }
-};
 
 // Fallback icons for when API calls fail or return no data
 const FALLBACK_ICONS: Record<string, string[]> = {

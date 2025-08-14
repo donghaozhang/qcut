@@ -9,17 +9,11 @@ import React, { useRef, useEffect, memo } from "react";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { useMediaStore } from "@/stores/media-store";
 import { cn } from "@/lib/utils";
+import { debugLog } from "@/lib/debug-config";
 import { StickerElement } from "./StickerElement";
 import { StickerOverlayAutoSave } from "./AutoSave";
 import { useProjectStore } from "@/stores/project-store";
 import { usePlaybackStore } from "@/stores/playback-store";
-
-// Debug utility for conditional logging
-const debugLog = (message: string, ...args: any[]) => {
-  if (import.meta.env.DEV) {
-    console.log(message, ...args);
-  }
-};
 import { Button } from "@/components/ui/button";
 
 /**

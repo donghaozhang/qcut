@@ -9,13 +9,7 @@ import { useEffect, useRef } from "react";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useDebounce } from "@/hooks/use-debounce";
-
-// Debug utility for conditional logging
-const debugLog = (message: string, ...args: any[]) => {
-  if (import.meta.env.DEV) {
-    console.log(message, ...args);
-  }
-};
+import { debugLog } from "@/lib/debug-config";
 
 /**
  * Auto-save component that monitors overlay changes and saves to storage
