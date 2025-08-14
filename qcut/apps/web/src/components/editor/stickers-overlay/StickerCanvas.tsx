@@ -120,6 +120,8 @@ export const StickerCanvas: React.FC<{
   useEffect(() => {
     if (mediaItems.length > 0 && overlayStickers.size > 0) {
       const mediaIds = mediaItems.map((item) => item.id);
+      debugLog(`[StickerCanvas] Cleanup check - Media IDs:`, mediaIds);
+      debugLog(`[StickerCanvas] Cleanup check - Sticker media IDs:`, Array.from(overlayStickers.values()).map(s => s.mediaItemId));
       cleanupInvalidStickers(mediaIds);
     }
   }, [mediaItems, overlayStickers.size, cleanupInvalidStickers]);

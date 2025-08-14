@@ -117,17 +117,26 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
         // Create or find sticker timeline track
         const timelineStore = useTimelineStore.getState();
+        debugLog(`[StickerStore] Timeline integration - checking timing:`, newSticker.timing);
+        
         let stickerTrack = timelineStore.tracks.find((track) => track.type === "sticker");
         
         if (!stickerTrack) {
           debugLog("[StickerStore] Creating new sticker timeline track");
           const trackId = timelineStore.addTrack("sticker");
           stickerTrack = timelineStore.tracks.find((track) => track.id === trackId);
+          debugLog(`[StickerStore] Created sticker track with ID: ${trackId}`);
+        } else {
+          debugLog(`[StickerStore] Found existing sticker track: ${stickerTrack.id}`);
         }
 
         // Add sticker element to timeline track
-        if (stickerTrack && newSticker.timing && newSticker.timing.endTime && newSticker.timing.startTime) {
+        debugLog(`[StickerStore] Checking conditions - stickerTrack: ${!!stickerTrack}, timing: ${!!newSticker.timing}, startTime: ${newSticker.timing?.startTime}, endTime: ${newSticker.timing?.endTime}`);
+        
+        if (stickerTrack && newSticker.timing && newSticker.timing.endTime && newSticker.timing.startTime !== undefined) {
           const duration = newSticker.timing.endTime - newSticker.timing.startTime;
+          debugLog(`[StickerStore] Adding sticker to timeline with duration: ${duration}s`);
+          
           timelineStore.addElementToTrack(stickerTrack.id, {
             type: "sticker",
             stickerId: id,
@@ -138,7 +147,9 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             trimStart: 0,
             trimEnd: 0,
           });
-          debugLog(`[StickerStore] Added sticker to timeline track: ${duration}s duration`);
+          debugLog(`[StickerStore] ✅ Added sticker to timeline track: ${duration}s duration`);
+        } else {
+          debugLog(`[StickerStore] ❌ Failed to add sticker to timeline - missing requirements`);
         }
 
         // Auto-save immediately after adding sticker
