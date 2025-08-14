@@ -32,13 +32,14 @@ const FALLBACK_ICONS: Record<string, string[]> = {
 
 export function StickersCollection({
   collectionPrefix,
-  collections,
   onSelect,
 }: CollectionContentProps) {
   const [collectionIcons, setCollectionIcons] = useState<string[]>([]);
   const [loadingCollection, setLoadingCollection] = useState(true);
 
   useEffect(() => {
+    let isActive = true;
+    
     const fetchCollectionIcons = async () => {
       setLoadingCollection(true);
 
@@ -49,7 +50,9 @@ export function StickersCollection({
         );
 
         if (popularCollection?.samples) {
-          setCollectionIcons(popularCollection.samples);
+          if (isActive) {
+            setCollectionIcons(popularCollection.samples.slice(0, 20));
+          }
           return;
         }
 
@@ -60,7 +63,7 @@ export function StickersCollection({
           const collectionInfo = await getCollection(collectionPrefix);
 
           // Try uncategorized first
-          if (collectionInfo.uncategorized && collectionInfo.uncategorized.length > 0) {
+          if (collectionInfo.uncategorized?.length > 0) {
             icons = collectionInfo.uncategorized;
           }
           // Then try categories
@@ -83,16 +86,26 @@ export function StickersCollection({
           icons = FALLBACK_ICONS[collectionPrefix] || [];
         }
 
-        setCollectionIcons(icons.slice(0, 20)); // Limit for performance
+        if (isActive) {
+          setCollectionIcons(icons.slice(0, 20)); // Limit for performance
+        }
       } catch (error) {
         debugLog("[StickersCollection] Unexpected error:", error);
-        setCollectionIcons([]);
+        if (isActive) {
+          setCollectionIcons([]);
+        }
       } finally {
-        setLoadingCollection(false);
+        if (isActive) {
+          setLoadingCollection(false);
+        }
       }
     };
 
     fetchCollectionIcons();
+    
+    return () => {
+      isActive = false;
+    };
   }, [collectionPrefix]);
 
   if (loadingCollection) {

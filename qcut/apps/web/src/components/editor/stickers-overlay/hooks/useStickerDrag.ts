@@ -164,15 +164,42 @@ export const useStickerDrag = (
   useEffect(() => {
     const handleGlobalMouseMove = (e: MouseEvent) => handleMouseMoveRef.current(e);
     const handleGlobalMouseUp = () => handleMouseUpRef.current();
+    const handleGlobalMouseOut = (e: MouseEvent) => {
+      // When leaving the window (relatedTarget === null), end drag to avoid stuck state
+      const toElement = (e as unknown as { relatedTarget: Node | null }).relatedTarget ?? null;
+      if (toElement === null) handleMouseUpRef.current();
+    };
+
+    // Touch equivalents
+    const handleGlobalTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      // Reuse the same path as mouse move
+      handleMouseMoveRef.current(
+        new MouseEvent("mousemove", { clientX: t.clientX, clientY: t.clientY })
+      );
+      e.preventDefault();
+    };
+    const handleGlobalTouchEnd = () => handleMouseUpRef.current();
+    const handleGlobalTouchCancel = () => handleMouseUpRef.current();
 
     document.addEventListener("mousemove", handleGlobalMouseMove);
     document.addEventListener("mouseup", handleGlobalMouseUp);
-    document.addEventListener("mouseleave", handleGlobalMouseUp);
+    document.addEventListener("mouseout", handleGlobalMouseOut);
+    window.addEventListener("blur", handleGlobalMouseUp);
+    // Touch listeners (passive: false to allow preventDefault)
+    document.addEventListener("touchmove", handleGlobalTouchMove, { passive: false });
+    document.addEventListener("touchend", handleGlobalTouchEnd);
+    document.addEventListener("touchcancel", handleGlobalTouchCancel);
 
     return () => {
       document.removeEventListener("mousemove", handleGlobalMouseMove);
       document.removeEventListener("mouseup", handleGlobalMouseUp);
-      document.removeEventListener("mouseleave", handleGlobalMouseUp);
+      document.removeEventListener("mouseout", handleGlobalMouseOut);
+      window.removeEventListener("blur", handleGlobalMouseUp);
+      document.removeEventListener("touchmove", handleGlobalTouchMove);
+      document.removeEventListener("touchend", handleGlobalTouchEnd);
+      document.removeEventListener("touchcancel", handleGlobalTouchCancel);
     };
   }, []); // Empty dependency array prevents unnecessary re-renders
 
@@ -200,6 +227,10 @@ export const useStickerDrag = (
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
       if (e.touches.length !== 1) return;
+      
+      // Prevent page scroll/zoom while dragging
+      e.preventDefault();
+      e.stopPropagation();
 
       const touch = e.touches[0];
       const mouseEvent = new MouseEvent("mousemove", {
