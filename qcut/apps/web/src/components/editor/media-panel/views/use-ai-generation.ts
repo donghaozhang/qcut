@@ -265,6 +265,7 @@ export function useAIGeneration(props: UseAIGenerationProps) {
                   });
 
                   debugLogger.log(
+                    "AIGeneration",
                     `Added AI video to media with ID: ${newItemId}`
                   );
 

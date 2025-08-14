@@ -60,7 +60,7 @@ export function StickersCollection({
           const collectionInfo = await getCollection(collectionPrefix);
 
           // Try uncategorized first
-          if (collectionInfo.uncategorized?.length > 0) {
+          if (collectionInfo.uncategorized && collectionInfo.uncategorized.length > 0) {
             icons = collectionInfo.uncategorized;
           }
           // Then try categories
