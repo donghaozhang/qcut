@@ -35,12 +35,11 @@ function EditorPage() {
 
   // Track current load promise to handle concurrent loads properly
   const currentLoadPromiseRef = useRef<Promise<void> | null>(null);
-  const loadAbortControllerRef = useRef<AbortController | null>(null);
+  // Track which project_id is currently being loaded to avoid duplicate loads
   const inFlightProjectIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const abortController = new AbortController();
-    loadAbortControllerRef.current = abortController;
 
     const init = async () => {
       debugLog(`[Editor] init called for project: ${project_id}`);
@@ -70,18 +69,35 @@ function EditorPage() {
 
       // Wait for any previous load to complete before starting a new one
       if (currentLoadPromiseRef.current) {
+        if (inFlightProjectIdRef.current === project_id) {
+          debugLog(
+            `[Editor] Early return - already initializing same project: ${project_id}`
+          );
+          return;
+        }
         debugLog(
           `[Editor] Waiting for previous load to complete before loading: ${project_id}`
         );
         try {
           await currentLoadPromiseRef.current;
         } catch {
-          // Previous load failed, that's ok, continue with new load
+          // Previous load handled its error path; continue.
         }
-
         // Check if we were aborted while waiting
         if (abortController.signal.aborted) {
           debugLog("[Editor] Aborted while waiting for previous load");
+          return;
+        }
+        // Re-check after waiting in case the previous load already satisfied this project
+        const latestActiveProjectId =
+          useProjectStore.getState().activeProject?.id;
+        if (
+          latestActiveProjectId === project_id ||
+          inFlightProjectIdRef.current === project_id
+        ) {
+          debugLog(
+            `[Editor] Early return - project became loaded while waiting: ${project_id}`
+          );
           return;
         }
       }

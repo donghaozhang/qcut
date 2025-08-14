@@ -178,10 +178,16 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
           );
 
           requestAnimationFrame(() => {
-            updateOverlaySticker(stickerId, {
-              size: { width: newSize.width, height: newSize.height },
-              position: { x: newSize.x, y: newSize.y },
-            });
+            try {
+              updateOverlaySticker(stickerId, {
+                size: { width: newSize.width, height: newSize.height },
+                position: { x: newSize.x, y: newSize.y },
+              });
+            } catch (error) {
+              debugLog(`[ResizeHandles] Error updating sticker: ${error}`);
+              // Optionally trigger cleanup
+              handleMouseUp();
+            }
           });
         };
 

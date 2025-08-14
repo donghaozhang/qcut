@@ -208,9 +208,22 @@ export const StickerCanvas: React.FC<{
             debugLog(
               `[StickerCanvas] ⚠️ MEDIA MISSING: Media item not found for sticker ${sticker.id}, mediaItemId: ${sticker.mediaItemId}. Available media: ${mediaItems.length}`
             );
-            // Don't render anything for now, but keep the sticker in state
-            // It might reconnect when media loads
-            return null;
+            // Show a placeholder to indicate missing media
+            return (
+              <div
+                key={sticker.id}
+                className="absolute border-2 border-dashed border-yellow-500 bg-yellow-500/10 flex items-center justify-center text-xs text-yellow-600 pointer-events-none"
+                style={{
+                  left: `${sticker.position.x}%`,
+                  top: `${sticker.position.y}%`,
+                  width: `${(sticker.size?.width || 20)}%`,
+                  height: `${(sticker.size?.height || 20)}%`,
+                  transform: `translate(-50%, -50%) rotate(${sticker.rotation || 0}deg)`,
+                }}
+              >
+                Media Missing
+              </div>
+            );
           }
 
           return (
