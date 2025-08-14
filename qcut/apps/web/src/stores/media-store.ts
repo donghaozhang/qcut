@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { debugLog } from "@/lib/debug-config";
 import { storageService } from "@/lib/storage/storage-service";
 import { useTimelineStore } from "./timeline-store";
-import { generateUUID } from "@/lib/utils";
+import { generateUUID, generateFileBasedId } from "@/lib/utils";
 import { getVideoInfo, generateThumbnail } from "@/lib/ffmpeg-utils";
 
 export type MediaType = "image" | "video" | "audio";
@@ -261,9 +261,24 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
   isLoading: false,
 
   addMediaItem: async (projectId, item) => {
+    const itemWithOptionalId = item as Omit<MediaItem, "id"> & { id?: string };
+    // Generate consistent ID based on file properties if not provided
+    let id = itemWithOptionalId.id;
+    if (!id && item.file) {
+      try {
+        id = await generateFileBasedId(item.file);
+        debugLog(`[MediaStore] Generated consistent ID for ${item.name}: ${id}`);
+      } catch (error) {
+        debugLog(`[MediaStore] Failed to generate file-based ID, using random UUID`);
+        id = generateUUID();
+      }
+    } else if (!id) {
+      id = generateUUID();
+    }
+    
     const newItem: MediaItem = {
       ...item,
-      id: generateUUID(),
+      id,
     };
 
     // Add to local state immediately for UI responsiveness
@@ -335,8 +350,9 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
           );
         }
 
+        const itemWithOptionalId = item as typeof item & { id?: string };
         return {
-          id: generateUUID(),
+          id: itemWithOptionalId.id || generateUUID(), // Preserve existing ID if provided
           name: item.name,
           type: item.type,
           file, // Now contains actual image data

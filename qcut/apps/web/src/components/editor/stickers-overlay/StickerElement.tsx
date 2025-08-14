@@ -13,6 +13,13 @@ import { StickerControls, SimpleStickerControls } from "./StickerControls";
 import type { OverlaySticker } from "@/types/sticker-overlay";
 import type { MediaItem } from "@/stores/media-store-types";
 
+// Debug utility for conditional logging
+const debugLog = (message: string, ...args: any[]) => {
+  if (import.meta.env.DEV) {
+    console.log(message, ...args);
+  }
+};
+
 interface StickerElementProps {
   sticker: OverlaySticker;
   mediaItem: MediaItem;
