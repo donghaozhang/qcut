@@ -100,7 +100,6 @@ export const useStickerDrag = (
       if (!dragState.current.isDragging || !canvasRef.current) return;
 
       const position = calculatePercentagePosition(e.clientX, e.clientY);
-      console.log("[StickerDrag] 🏃 MOUSE MOVE: New position", position);
 
       // Update sticker position with smooth movement
       requestAnimationFrame(() => {

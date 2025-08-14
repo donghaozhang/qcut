@@ -203,9 +203,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       if (project) {
         set({ activeProject: project });
 
-        // Load project-specific data in parallel, including stickers
+        // Load media first, then other data to ensure stickers have access to media items
+        await mediaStore.loadProjectMedia(id);
+        
+        // Load timeline and stickers in parallel (both may depend on media being loaded)
         await Promise.all([
-          mediaStore.loadProjectMedia(id),
           timelineStore.loadProjectTimeline(id),
           stickersStore.loadFromProject(id),
         ]);

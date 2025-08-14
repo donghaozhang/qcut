@@ -172,7 +172,6 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 
         const handleMouseMove = (e: MouseEvent) => {
           if (!resizeState.current.isResizing) return;
-          debugLog(`[ResizeHandles] Moving handle ${resizeState.current.handle}`);
 
           const deltaX = e.clientX - resizeState.current.startX;
           const deltaY = e.clientY - resizeState.current.startY;
@@ -217,7 +216,6 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 
     if (!isVisible) return null;
 
-    debugLog(`[ResizeHandles] Rendering resize handles for sticker ${stickerId}`);
 
     const handleClass =
       "absolute w-3 h-3 bg-white border-2 border-primary rounded-full z-[10000] pointer-events-auto hover:scale-110 transition-transform";
