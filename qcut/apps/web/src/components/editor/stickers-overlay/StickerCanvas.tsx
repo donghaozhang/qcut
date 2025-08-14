@@ -46,6 +46,35 @@ export const StickerCanvas: React.FC<{
   console.log('[STICKER DEBUG] StickerCanvas render - mediaItems:', mediaItems.length);
   console.log('[STICKER DEBUG] StickerCanvas render - currentTime:', currentTime);
 
+  // Migration: Fix media items with wrong MIME type
+  useEffect(() => {
+    const fixMimeTypes = () => {
+      mediaItems.forEach((mediaItem) => {
+        if (
+          mediaItem.type === "image" && 
+          mediaItem.url?.startsWith("data:application/octet-stream") &&
+          mediaItem.url.includes("PHN2ZyB4bWxu") // Base64 start of SVG
+        ) {
+          console.log('[STICKER DEBUG] Fixing MIME type for media item:', mediaItem.id);
+          // Extract the base64 data
+          const base64Data = mediaItem.url.split(',')[1];
+          if (base64Data) {
+            // Create correct data URL
+            const correctedUrl = `data:image/svg+xml;base64,${base64Data}`;
+            console.log('[STICKER DEBUG] Corrected URL:', correctedUrl.substring(0, 100) + '...');
+            
+            // Update the media item URL in place
+            mediaItem.url = correctedUrl;
+          }
+        }
+      });
+    };
+    
+    if (mediaItems.length > 0) {
+      fixMimeTypes();
+    }
+  }, [mediaItems]);
+
   // Handle clicking on canvas (deselect)
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (e.target === canvasRef.current) {
@@ -213,14 +242,18 @@ export const StickerCanvas: React.FC<{
       >
         {/* Render stickers using StickerElement */}
         {visibleStickers.map((sticker) => {
+          console.log('[STICKER DEBUG] Processing sticker for render:', sticker.id, 'mediaItemId:', sticker.mediaItemId);
+          
           const mediaItem = mediaItems.find(
             (item) => item.id === sticker.mediaItemId
           );
 
+          console.log('[STICKER DEBUG] Media item found:', !!mediaItem, mediaItem ? 'URL: ' + mediaItem.url : 'N/A');
+
           // Show placeholder if media item not found (it might still be loading)
           if (!mediaItem) {
             console.log('[STICKER DEBUG] Media item not found for sticker:', sticker.id, 'mediaItemId:', sticker.mediaItemId);
-            console.log('[STICKER DEBUG] Available media items:', mediaItems.map(m => m.id));
+            console.log('[STICKER DEBUG] Available media items:', mediaItems.map(m => ({ id: m.id, name: m.name, type: m.type })));
             debugLog(
               `[StickerCanvas] ⚠️ MEDIA MISSING: Media item not found for sticker ${sticker.id}, mediaItemId: ${sticker.mediaItemId}. Available media: ${mediaItems.length}`
             );
@@ -241,6 +274,11 @@ export const StickerCanvas: React.FC<{
               </div>
             );
           }
+
+          console.log('[STICKER DEBUG] Rendering StickerElement for:', sticker.id);
+          console.log('[STICKER DEBUG] Sticker position:', sticker.position);
+          console.log('[STICKER DEBUG] Sticker size:', sticker.size);
+          console.log('[STICKER DEBUG] Media item details:', mediaItem ? { name: mediaItem.name, url: mediaItem.url, type: mediaItem.type } : null);
 
           return (
             <StickerElement

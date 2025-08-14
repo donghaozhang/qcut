@@ -25,11 +25,16 @@ interface StickerElementProps {
  */
 export const StickerElement = memo<StickerElementProps>(
   ({ sticker, mediaItem, canvasRef }) => {
+    console.log('[STICKER DEBUG] StickerElement rendering for:', sticker.id);
+    console.log('[STICKER DEBUG] StickerElement mediaItem:', { name: mediaItem.name, url: mediaItem.url, type: mediaItem.type });
+    
     const elementRef = useRef<HTMLDivElement>(null);
 
     // Store hooks
     const { selectedStickerId, selectSticker } = useStickersOverlayStore();
     const isSelected = selectedStickerId === sticker.id;
+
+    console.log('[STICKER DEBUG] StickerElement isSelected:', isSelected);
 
     // Drag functionality
     const {
@@ -66,8 +71,12 @@ export const StickerElement = memo<StickerElementProps>(
      * Render media content based on type
      */
     const renderMediaContent = () => {
+      console.log('[STICKER DEBUG] renderMediaContent called for type:', mediaItem.type);
+      console.log('[STICKER DEBUG] renderMediaContent URL:', mediaItem.url);
+      
       switch (mediaItem.type) {
         case "image":
+          console.log('[STICKER DEBUG] Rendering image element with URL:', mediaItem.url);
           return (
             <img
               src={mediaItem.url}
@@ -78,6 +87,8 @@ export const StickerElement = memo<StickerElementProps>(
                 pointerEvents: "none",
                 imageRendering: "crisp-edges", // Better quality for small images
               }}
+              onLoad={() => console.log('[STICKER DEBUG] Image loaded successfully:', mediaItem.url)}
+              onError={(e) => console.log('[STICKER DEBUG] Image load failed:', mediaItem.url, e)}
             />
           );
 
@@ -107,6 +118,22 @@ export const StickerElement = memo<StickerElementProps>(
       }
     };
 
+    const elementStyle = {
+      left: `${sticker.position.x}%`,
+      top: `${sticker.position.y}%`,
+      width: `${sticker.size.width}%`,
+      height: `${sticker.size.height}%`,
+      transform: `translate(-50%, -50%) rotate(${sticker.rotation}deg)`,
+      opacity: sticker.opacity,
+      zIndex: isSelected ? 9999 : sticker.zIndex,
+      transformOrigin: "center",
+      // Smooth transitions except during drag
+      transition: isDragging ? "none" : "box-shadow 0.2s",
+    };
+
+    console.log('[STICKER DEBUG] StickerElement style:', elementStyle);
+    console.log('[STICKER DEBUG] StickerElement classes applied');
+
     return (
       <div
         ref={elementRef}
@@ -117,18 +144,7 @@ export const StickerElement = memo<StickerElementProps>(
           isSelected && "ring-2 ring-primary shadow-lg z-50",
           !isSelected && "hover:ring-1 hover:ring-primary/50"
         )}
-        style={{
-          left: `${sticker.position.x}%`,
-          top: `${sticker.position.y}%`,
-          width: `${sticker.size.width}%`,
-          height: `${sticker.size.height}%`,
-          transform: `translate(-50%, -50%) rotate(${sticker.rotation}deg)`,
-          opacity: sticker.opacity,
-          zIndex: isSelected ? 9999 : sticker.zIndex,
-          transformOrigin: "center",
-          // Smooth transitions except during drag
-          transition: isDragging ? "none" : "box-shadow 0.2s",
-        }}
+        style={elementStyle}
         onClick={handleClick}
         onMouseDown={handleMouseDownWrapper}
         onTouchStart={handleTouchStart}

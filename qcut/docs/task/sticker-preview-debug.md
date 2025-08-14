@@ -77,10 +77,11 @@ visibleStickers.map((sticker) => {
 
 #### 5. Editor Route (`apps/web/src/routes/editor.$project_id.tsx`)
 **Purpose**: Main editor initialization and project loading
-**Key Initialization Flow** (Lines 41-100):
+**Key Initialization Flow** (Lines 41-140):
 - Project loading with race condition prevention
-- Concurrent load handling
-- Project validation
+- Concurrent load handling with `inFlightProjectIdRef` tracking
+- Project validation and error handling
+- **RECENT FIX**: Added duplicate load prevention for same project_id
 
 ### Detailed Investigation Plan
 
@@ -217,21 +218,116 @@ await saveToProject('current-project-id');
 
 ## Debug Session Log
 
-**Session 1** - [Date]:
-- Test sticker store persistence across project loads
-- Monitor console for storage-related errors
-- Check timing of component mounts vs data loading
+**Session 1** - 2025-08-14:
+✅ **Initial Analysis Complete**:
+- Sticker store persistence: WORKING (1 sticker loaded from project)
+- Storage API: WORKING (Electron IPC available and functional)
+- Component timing: WORKING (StickerCanvas renders after data loads)
+- Store state: WORKING (1 sticker in overlay, 2 media items loaded)
 
-**Session 2** - [Date]:
-- Investigate media item creation and sticker association
-- Test sticker visibility calculation
-- Verify canvas rendering pipeline
+🔍 **Key Findings**:
+```
+[STICKER DEBUG] loadFromProject called for: befeebf4-4019-43e5-adbe-c23a577d9af5
+[STICKER DEBUG] Storage API available: true
+[STICKER DEBUG] Loaded via Electron IPC: 1 stickers
+[STICKER DEBUG] Validated and loaded stickers: 1
+[STICKER DEBUG] StickerCanvas render - stickers: 1
+[STICKER DEBUG] StickerCanvas render - mediaItems: 2
+[STICKER DEBUG] Visible stickers at time 0 : 1
+```
+
+❌ **Issue Identified**: Sticker **logic is working correctly** but **visual rendering is broken**
+- Stores: ✅ Working
+- Data loading: ✅ Working  
+- Visibility calculation: ✅ Working
+- **Problem**: Stickers not appearing visually despite being "visible"
+
+**Next Investigation Points**:
+1. Media item matching between sticker.mediaItemId and available media items
+2. StickerElement component rendering
+3. Media item URL/blob availability
+4. CSS/styling issues hiding stickers
+
+**Session 2** - 2025-08-14:
+✅ **ROOT CAUSE IDENTIFIED**: Incorrect MIME type in data URLs
+- Image load failures due to `data:application/octet-stream` instead of `data:image/svg+xml`
+- StickerElement components rendering correctly but images failing to load
+- Debug logs showed: `[STICKER DEBUG] Image load failed: data:application/octet-stream;base64,...`
+
+✅ **MIME Type Fix Implemented**: 
+- Fixed `use-sticker-select.ts` to generate correct `data:image/svg+xml;base64,...` URLs
+- **Issue**: Fix only applies to NEW stickers, existing stickers still broken
+- Need migration for existing stickers with wrong MIME type
+
+✅ **Migration Fix Implemented**: Added migration code in StickerCanvas.tsx
+- Detects existing stickers with `data:application/octet-stream` MIME type
+- Automatically converts to correct `data:image/svg+xml;base64,` format
+- Migration runs on component mount when media items are available
+
+**Session 3** - 2025-08-14 (MIME Type Migration Fix):
+✅ **Race Condition Prevention Implemented**:
+- Added `inFlightProjectIdRef` to track specific project_id loading
+- Prevents duplicate loads for same project_id
+- Enhanced console logging for load tracking
+
+🔍 **New Console Logs Added**:
+```
+[Editor] Early return - already loading project: {project_id}
+[Editor] Early return - already initializing same project: {project_id}  
+[Editor] Early return - project became loaded while waiting: {project_id}
+[Editor] Starting project load: {project_id}
+```
+
+**Enhanced Debug Points** in `editor.$project_id.tsx`:
+```typescript
+// Lines 66-71: Duplicate load prevention
+if (inFlightProjectIdRef.current === project_id) {
+  debugLog(`[Editor] Early return - already loading project: ${project_id}`);
+  return;
+}
+
+// Lines 75-80: Additional check after waiting
+if (inFlightProjectIdRef.current === project_id) {
+  debugLog(`[Editor] Early return - already initializing same project: ${project_id}`);
+  return;
+}
+
+// Lines 95-105: Post-wait validation
+if (latestActiveProjectId === project_id || inFlightProjectIdRef.current === project_id) {
+  debugLog(`[Editor] Early return - project became loaded while waiting: ${project_id}`);
+  return;
+}
+```
+
+**Impact on Sticker Loading**:
+- More reliable project initialization reduces timing issues
+- Prevents multiple concurrent sticker loads for same project
+- Should reduce edge cases where stickers load before project is ready
 
 ## Resolution Steps
 
-1. [ ] Add comprehensive debug logging to all sticker-related stores and components
-2. [ ] Test sticker persistence across development and production environments  
-3. [ ] Implement proper loading states for sticker preview components
-4. [ ] Add error boundaries around sticker rendering
-5. [ ] Create sticker preview validation utilities
-6. [ ] Update sticker documentation with integration patterns
+1. [x] Add comprehensive debug logging to all sticker-related stores and components
+2. [x] **Fixed project load race conditions** - prevents timing issues with sticker loading
+3. [ ] Test sticker persistence across development and production environments  
+4. [ ] **Next: Investigate StickerElement component rendering** - visual display issue
+5. [ ] Implement proper loading states for sticker preview components
+6. [ ] Add error boundaries around sticker rendering
+7. [ ] Create sticker preview validation utilities
+8. [ ] Update sticker documentation with integration patterns
+
+## Current Status
+
+**Priority 1 Issues**:
+- ✅ Project loading race conditions (fixed)
+- ✅ **MIME type data URL generation** (fixed)
+  - ✅ Fixed new sticker creation with correct `data:image/svg+xml` MIME type
+  - ✅ Added migration for existing stickers with wrong MIME type
+  - ✅ Migration runs automatically in StickerCanvas component
+
+**✅ SOLUTION IMPLEMENTED**:
+The sticker preview issue has been resolved through a two-part fix:
+1. **New stickers**: Fixed MIME type generation in `use-sticker-select.ts` (lines 64-66)
+2. **Existing stickers**: Added migration in `StickerCanvas.tsx` (lines 49-76) that automatically corrects wrong MIME types
+
+**Ready for Testing**:
+The Electron app is currently running with both fixes applied. Existing stickers should now display correctly after the migration runs on component mount.

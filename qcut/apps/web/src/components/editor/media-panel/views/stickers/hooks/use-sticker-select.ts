@@ -60,20 +60,10 @@ export function useStickerSelect() {
         
         if (window.location.protocol === "file:") {
           console.log('[STICKER DEBUG] Using data URL for Electron...');
-          // Convert to data URL for Electron compatibility
-          imageUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              if (typeof reader.result === "string") {
-                console.log('[STICKER DEBUG] Data URL created, length:', reader.result.length);
-                resolve(reader.result);
-              } else {
-                reject(new Error("Failed to read file as data URL"));
-              }
-            };
-            reader.onerror = () => reject(reader.error);
-            reader.readAsDataURL(svgFile);
-          });
+          // Create proper data URL with correct MIME type for SVG
+          const base64Data = btoa(svgContent);
+          imageUrl = `data:image/svg+xml;base64,${base64Data}`;
+          console.log('[STICKER DEBUG] Data URL created with correct MIME type:', imageUrl.substring(0, 100) + '...');
         } else {
           console.log('[STICKER DEBUG] Using blob URL for web...');
           // Use blob URL for web environment
