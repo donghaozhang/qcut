@@ -36,6 +36,7 @@ function EditorPage() {
   // Track current load promise to handle concurrent loads properly
   const currentLoadPromiseRef = useRef<Promise<void> | null>(null);
   const loadAbortControllerRef = useRef<AbortController | null>(null);
+  const inFlightProjectIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -61,6 +62,12 @@ function EditorPage() {
         return;
       }
 
+      // Prevent duplicate loads for the same project_id
+      if (inFlightProjectIdRef.current === project_id) {
+        debugLog(`[Editor] Early return - already loading project: ${project_id}`);
+        return;
+      }
+
       // Wait for any previous load to complete before starting a new one
       if (currentLoadPromiseRef.current) {
         debugLog(
@@ -82,6 +89,7 @@ function EditorPage() {
       debugLog(`[Editor] Starting project load: ${project_id}`);
 
       // Create load promise for this specific project
+      inFlightProjectIdRef.current = project_id;
       const loadPromise = (async () => {
         try {
           await loadProject(project_id);
@@ -117,6 +125,10 @@ function EditorPage() {
           } else {
             // Re-throw to allow retries on non-not-found errors
             throw error;
+          }
+        } finally {
+          if (inFlightProjectIdRef.current === project_id) {
+            inFlightProjectIdRef.current = null;
           }
         }
       })();

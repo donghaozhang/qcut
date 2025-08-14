@@ -587,7 +587,7 @@ export function PreviewPanel() {
                 )}
 
               {/* Sticker overlay layer - renders on top of everything */}
-              <StickerCanvas className="absolute inset-0" />
+              <StickerCanvas className="absolute inset-0" disabled={isExpanded} />
             </div>
           ) : null}
 

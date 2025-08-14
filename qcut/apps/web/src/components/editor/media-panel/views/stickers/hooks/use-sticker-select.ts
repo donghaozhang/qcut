@@ -19,12 +19,16 @@ export function useStickerSelect() {
     async (iconId: string, name: string): Promise<string | undefined> => {
       if (!activeProject) {
         toast.error("No project selected");
-        return;
+        return undefined;
       }
 
       try {
         // Download the actual SVG content with transparency
         const [collection, icon] = iconId.split(":");
+        if (!collection || !icon) {
+          toast.error("Invalid sticker ID format");
+          return undefined;
+        }
         const svgContent = await downloadIconSvg(collection, icon, {
           // No color specified to maintain transparency
           width: 512,
@@ -79,7 +83,7 @@ export function useStickerSelect() {
         return mediaItemId;
       } catch (error) {
         toast.error("Failed to add sticker to project");
-        return;
+        return undefined;
       }
     },
     [activeProject, addMediaItem, addRecentSticker]
