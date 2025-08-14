@@ -167,7 +167,8 @@ export function AdjustmentPanel() {
           if (!addMediaItem) {
             throw new Error("Media store not ready");
           }
-          await addMediaItem(projectId, mediaItem);
+          const newItemId = await addMediaItem(projectId, mediaItem);
+          console.log(`✅ Added edited image with ID: ${newItemId}`);
         } catch (error) {
           console.error(
             "❌ Failed to add edited image to media library:",

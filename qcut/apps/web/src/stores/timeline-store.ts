@@ -1182,8 +1182,9 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
         }
 
         // Add new media item to store
+        let newMediaItemId: string;
         try {
-          await mediaStore.addMediaItem(
+          newMediaItemId = await mediaStore.addMediaItem(
             projectStore.activeProject.id,
             mediaData
           );
@@ -1194,9 +1195,9 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
           };
         }
 
-        // Find the newly created media item
+        // Find the newly created media item using the returned ID
         const newMediaItem = mediaStore.mediaItems.find(
-          (item) => item.file === newFile
+          (item) => item.id === newMediaItemId
         );
 
         if (!newMediaItem) {

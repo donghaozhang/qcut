@@ -415,11 +415,10 @@ export function Timeline() {
           if (!addMediaItem) {
             throw new Error("Media store not ready");
           }
-          await addMediaItem(activeProject.id, processedItem);
+          const newItemId = await addMediaItem(activeProject.id, processedItem);
           const currentMediaItems = mediaStore?.mediaItems || [];
           const addedItem = currentMediaItems.find(
-            (item) =>
-              item.name === processedItem.name && item.url === processedItem.url
+            (item) => item.id === newItemId
           );
           if (addedItem) {
             useTimelineStore.getState().addMediaToNewTrack(addedItem);

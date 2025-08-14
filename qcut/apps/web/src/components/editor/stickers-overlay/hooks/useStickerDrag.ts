@@ -19,6 +19,9 @@ interface DragState {
 
 /**
  * Hook to handle sticker dragging with mouse events
+ * @param stickerId - The ID of the sticker being dragged
+ * @param elementRef - Reference to the sticker element (currently unused, reserved for future boundary calculations)
+ * @param canvasRef - Reference to the canvas container for position calculations
  */
 export const useStickerDrag = (
   stickerId: string,

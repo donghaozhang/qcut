@@ -254,7 +254,7 @@ export function useAIGeneration(props: UseAIGenerationProps) {
                     throw new Error("Media store not ready");
                   }
 
-                  await addMediaItem(activeProject.id, {
+                  const newItemId = await addMediaItem(activeProject.id, {
                     name: `AI: ${newVideo.prompt.substring(0, 30)}...`,
                     type: "video",
                     file,
@@ -263,6 +263,10 @@ export function useAIGeneration(props: UseAIGenerationProps) {
                     width: 1920,
                     height: 1080,
                   });
+
+                  debugLogger.log(
+                    `Added AI video to media with ID: ${newItemId}`
+                  );
 
                   debugLogger.log(
                     "AIGeneration",

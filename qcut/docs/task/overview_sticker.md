@@ -1,3 +1,4 @@
+```mermaid
 sequenceDiagram
   participant U as User
   participant MP as Media Panel
@@ -8,9 +9,13 @@ sequenceDiagram
   U->>MP: select "Add as Overlay" on media item
   MP->>PS: read currentTime
   MP->>TL: read totalDuration
+  MP->>MP: clamp startTime to [0, totalDuration]
+  MP->>MP: endTime = min(startTime + 5s, totalDuration)
   MP->>SO: addOverlaySticker(mediaItemId, { startTime, endTime })
   SO-->>U: show success toast
+```
 
+```mermaid
 sequenceDiagram
   participant U as User
   participant SC as StickerCanvas
@@ -20,9 +25,18 @@ sequenceDiagram
 
   U->>SC: drop media item onto canvas
   SC->>MS: validate media item
-  SC->>SO: addOverlaySticker({ position, timing })
-  SO->>TL: ensure sticker track exists and insert sticker element
+  alt invalid media item
+    MS-->>SC: invalid
+    SC-->>U: show error toast
+  else valid media item
+    MS-->>SC: valid
+    SC->>SO: addOverlaySticker({ position, timing })
+    SO->>SO: clamp position within canvas bounds
+    SO->>TL: ensure sticker track exists and insert sticker element
+  end
+```
 
+```mermaid
 sequenceDiagram
   participant EE as ExportEngine
   participant SO as Stickers Overlay Store
@@ -34,3 +48,4 @@ sequenceDiagram
   EE->>MS: build media items map
   EE->>SE: renderStickersToCanvas(ctx, stickers, mediaMap, opts)
   SE-->>EE: stickers rendered onto canvas
+```

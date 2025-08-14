@@ -131,8 +131,8 @@ export function MediaView() {
         if (!addMediaItem) {
           throw new Error("Media store not ready");
         }
-        await addMediaItem(activeProject.id, item);
-        console.log(`[Media View] ✅ Item ${index + 1} added successfully`);
+        const newItemId = await addMediaItem(activeProject.id, item);
+        console.log(`[Media View] ✅ Item ${index + 1} added successfully with ID: ${newItemId}`);
       }
 
       console.log("[Media View] 🎉 Upload process completed successfully!");

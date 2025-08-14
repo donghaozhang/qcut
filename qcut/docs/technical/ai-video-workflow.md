@@ -231,7 +231,7 @@ const file = await outputManager.createFileFromData(
 );
 
 // 4. Add to media panel
-await addMediaItem(projectId, {
+const newMediaItemId = await addMediaItem(projectId, {
   name: `AI (${modelName}): ${prompt}...`,
   type: "video",
   file,
@@ -239,6 +239,9 @@ await addMediaItem(projectId, {
   width: 1920,
   height: 1080
 });
+
+// The returned ID can be used to reference the media item
+console.log(`Added AI video with ID: ${newMediaItemId}`);
 ```
 
 ## Configuration
