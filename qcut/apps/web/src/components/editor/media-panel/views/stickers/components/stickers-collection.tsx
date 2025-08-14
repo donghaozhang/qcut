@@ -7,6 +7,13 @@ import { getCollection, POPULAR_COLLECTIONS } from "@/lib/iconify-api";
 import { StickerItem } from "./sticker-item";
 import type { CollectionContentProps } from "../types/stickers.types";
 
+// Debug utility for conditional logging
+const debugLog = (message: string, ...args: any[]) => {
+  if (import.meta.env.DEV) {
+    console.log(message, ...args);
+  }
+};
+
 // Fallback icons for when API calls fail or return no data
 const FALLBACK_ICONS: Record<string, string[]> = {
   "heroicons": ["home", "user", "cog", "heart", "star", "check"],
@@ -40,8 +47,8 @@ export function StickersCollection({
   useEffect(() => {
     const fetchCollectionIcons = async () => {
       setLoadingCollection(true);
+      
       try {
-
         // Try to get sample icons from POPULAR_COLLECTIONS first
         const popularCollection = POPULAR_COLLECTIONS.find(
           (c) => c.prefix === collectionPrefix
@@ -49,42 +56,39 @@ export function StickersCollection({
 
         if (popularCollection?.samples) {
           setCollectionIcons(popularCollection.samples);
-        } else {
-          // Try to fetch actual icons from the API
-          try {
-            const collectionInfo = await getCollection(collectionPrefix);
-
-            // Get icons from the collection
-            let icons: string[] = [];
-
-            // Try uncategorized first
-            if (
-              collectionInfo.uncategorized &&
-              collectionInfo.uncategorized.length > 0
-            ) {
-              icons = collectionInfo.uncategorized;
-            }
-            // Then try categories
-            else if (collectionInfo.categories) {
-              const categoryArrays = Object.values(collectionInfo.categories);
-              if (categoryArrays.length > 0) {
-                // Flatten all categories and take first 30
-                icons = categoryArrays.flat().slice(0, 30);
-              }
-            }
-
-            // If still no icons, try a fallback based on collection prefix
-            if (icons.length === 0) {
-              icons = FALLBACK_ICONS[collectionPrefix] || [];
-            }
-
-            setCollectionIcons(icons.slice(0, 20)); // Limit for performance
-          } catch (error) {
-            // Use fallback icons on error
-            setCollectionIcons(FALLBACK_ICONS[collectionPrefix] || []);
-          }
+          return;
         }
+
+        // Try to fetch actual icons from the API
+        let icons: string[] = [];
+        
+        try {
+          const collectionInfo = await getCollection(collectionPrefix);
+
+          // Try uncategorized first
+          if (collectionInfo.uncategorized?.length > 0) {
+            icons = collectionInfo.uncategorized;
+          }
+          // Then try categories
+          else if (collectionInfo.categories) {
+            const categoryArrays = Object.values(collectionInfo.categories);
+            if (categoryArrays.length > 0) {
+              // Flatten all categories and take first 30
+              icons = categoryArrays.flat().slice(0, 30);
+            }
+          }
+        } catch (apiError) {
+          debugLog(`[StickersCollection] Failed to fetch collection ${collectionPrefix}:`, apiError);
+        }
+
+        // Use fallback if no icons found
+        if (icons.length === 0) {
+          icons = FALLBACK_ICONS[collectionPrefix] || [];
+        }
+
+        setCollectionIcons(icons.slice(0, 20)); // Limit for performance
       } catch (error) {
+        debugLog(`[StickersCollection] Unexpected error:`, error);
         setCollectionIcons([]);
       } finally {
         setLoadingCollection(false);

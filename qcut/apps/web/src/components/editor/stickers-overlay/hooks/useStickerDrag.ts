@@ -8,6 +8,13 @@
 import { useRef, useCallback, useEffect, useState } from "react";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 
+// Debug utility for conditional logging
+const debugLog = (message: string, ...args: any[]) => {
+  if (import.meta.env.DEV) {
+    console.log(message, ...args);
+  }
+};
+
 interface DragState {
   isDragging: boolean;
   startX: number;
@@ -69,7 +76,7 @@ export const useStickerDrag = (
 
       if (!sticker) return;
 
-      console.log(
+      debugLog(
         "[StickerDrag] 🖱️ MOUSE DOWN: Starting drag for sticker",
         stickerId
       );

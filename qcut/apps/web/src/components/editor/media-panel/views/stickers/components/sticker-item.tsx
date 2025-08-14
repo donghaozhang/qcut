@@ -11,6 +11,13 @@ import { buildIconSvgUrl } from "@/lib/iconify-api";
 import { cn } from "@/lib/utils";
 import type { StickerItemProps } from "../types/stickers.types";
 
+// Debug utility for conditional logging
+const debugLog = (message: string, ...args: any[]) => {
+  if (import.meta.env.DEV) {
+    console.log(message, ...args);
+  }
+};
+
 export function StickerItem({
   icon,
   name,
@@ -35,6 +42,7 @@ export function StickerItem({
       });
       setImageUrl(svgUrl);
     } catch (error) {
+      debugLog(`[StickerItem] Failed to build SVG URL for ${collection}:${icon}:`, error);
       setHasError(true);
       setIsLoading(false);
     }
