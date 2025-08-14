@@ -15,7 +15,7 @@ import { EditorProvider } from "@/components/editor-provider";
 import { useProjectStore, NotFoundError } from "@/stores/project-store";
 import { usePlaybackControls } from "@/hooks/use-playback-controls";
 import { Onboarding } from "@/components/onboarding";
-import { debugError } from "@/lib/debug-config";
+import { debugError, debugLog } from "@/lib/debug-config";
 
 export const Route = createFileRoute("/editor/$project_id")({
   component: EditorPage,
@@ -40,16 +40,34 @@ function EditorPage() {
   useEffect(() => {
     let cancelled = false;
     const init = async () => {
-      if (!project_id || cancelled) return;
-      if (isInitializingRef.current) return;
-      if (activeProject?.id === project_id) return;
-      if (isInvalidProjectId(project_id)) return;
-      if (inFlightProjectIdRef.current === project_id) return;
+      debugLog(`[Editor] init called for project: ${project_id}`);
+      if (!project_id || cancelled) {
+        debugLog(`[Editor] Early return - no project_id or cancelled`);
+        return;
+      }
+      if (isInitializingRef.current) {
+        debugLog(`[Editor] Early return - already initializing`);
+        return;
+      }
+      if (activeProject?.id === project_id) {
+        debugLog(`[Editor] Early return - project already loaded: ${activeProject.id}`);
+        return;
+      }
+      if (isInvalidProjectId(project_id)) {
+        debugLog(`[Editor] Early return - invalid project ID`);
+        return;
+      }
+      if (inFlightProjectIdRef.current === project_id) {
+        debugLog(`[Editor] Early return - already in flight`);
+        return;
+      }
 
+      debugLog(`[Editor] Starting project load: ${project_id}`);
       isInitializingRef.current = true;
       inFlightProjectIdRef.current = project_id;
       try {
         await loadProject(project_id);
+        debugLog(`[Editor] Project load complete: ${project_id}`);
         if (cancelled) return;
       } catch (error) {
         const isNotFound = error instanceof NotFoundError;

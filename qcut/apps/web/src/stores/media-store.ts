@@ -462,9 +462,11 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
 
   loadProjectMedia: async (projectId) => {
     set({ isLoading: true });
+    debugLog(`[MediaStore] Loading media for project: ${projectId}`);
 
     try {
       const mediaItems = await storageService.loadAllMediaItems(projectId);
+      debugLog(`[MediaStore] Loaded ${mediaItems.length} media items from storage`);
 
       // Process media items with enhanced error handling
       const updatedMediaItems = await Promise.all(
@@ -510,6 +512,7 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
       );
 
       set({ mediaItems: updatedMediaItems });
+      debugLog(`[MediaStore] ✅ Media loading complete: ${updatedMediaItems.length} items`);
     } catch (error) {
       console.error("[Media Store] ❌ Failed to load media items:", error);
 

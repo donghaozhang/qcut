@@ -117,12 +117,17 @@ export const StickerCanvas: React.FC<{
   };
 
   // Clean up stickers with missing media items when media loads
+  // Add a delay to avoid race conditions during project loading
   useEffect(() => {
     if (mediaItems.length > 0 && overlayStickers.size > 0) {
-      const mediaIds = mediaItems.map((item) => item.id);
-      debugLog(`[StickerCanvas] Cleanup check - Media IDs:`, mediaIds);
-      debugLog(`[StickerCanvas] Cleanup check - Sticker media IDs:`, Array.from(overlayStickers.values()).map(s => s.mediaItemId));
-      cleanupInvalidStickers(mediaIds);
+      const timeoutId = setTimeout(() => {
+        const mediaIds = mediaItems.map((item) => item.id);
+        debugLog(`[StickerCanvas] Cleanup check - Media IDs:`, mediaIds);
+        debugLog(`[StickerCanvas] Cleanup check - Sticker media IDs:`, Array.from(overlayStickers.values()).map(s => s.mediaItemId));
+        cleanupInvalidStickers(mediaIds);
+      }, 1000); // 1 second delay to allow project loading to complete
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [mediaItems, overlayStickers.size, cleanupInvalidStickers]);
 

@@ -67,6 +67,7 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
       // Add sticker with smart defaults
       addOverlaySticker: (mediaItemId: string, options = {}) => {
+        debugLog(`[StickerStore] 🎯 addOverlaySticker called with mediaItemId: ${mediaItemId}, options:`, options);
         const id = generateStickerId();
         const state = get();
 

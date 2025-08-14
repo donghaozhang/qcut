@@ -6,7 +6,7 @@ import { getMediaStore } from "./media-store-loader";
 import { useTimelineStore } from "./timeline-store";
 import { useStickersOverlayStore } from "./stickers-overlay-store";
 import { generateUUID } from "@/lib/utils";
-import { debugError } from "@/lib/debug-config";
+import { debugError, debugLog } from "@/lib/debug-config";
 
 /**
  * Thrown when a requested project cannot be found in storage.
@@ -204,13 +204,16 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         set({ activeProject: project });
 
         // Load media first, then other data to ensure stickers have access to media items
+        debugLog(`[ProjectStore] Loading media for project: ${id}`);
         await mediaStore.loadProjectMedia(id);
+        debugLog(`[ProjectStore] Media loading complete, now loading timeline and stickers`);
         
         // Load timeline and stickers in parallel (both may depend on media being loaded)
         await Promise.all([
           timelineStore.loadProjectTimeline(id),
           stickersStore.loadFromProject(id),
         ]);
+        debugLog(`[ProjectStore] Project loading complete: ${id}`);
       } else {
         throw new NotFoundError(`Project ${id} not found`);
       }
