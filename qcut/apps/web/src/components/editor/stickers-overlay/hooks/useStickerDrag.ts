@@ -44,23 +44,38 @@ export const useStickerDrag = (
   );
 
   /**
-   * Calculate position as percentage of canvas
+   * Calculate position as percentage of canvas, accounting for sticker dimensions
    */
   const calculatePercentagePosition = useCallback(
     (clientX: number, clientY: number) => {
       if (!canvasRef.current) return { x: 50, y: 50 };
 
-      const rect = canvasRef.current.getBoundingClientRect();
-      const x = ((clientX - rect.left) / rect.width) * 100;
-      const y = ((clientY - rect.top) / rect.height) * 100;
+      const canvasRect = canvasRef.current.getBoundingClientRect();
+      const stickerRect = elementRef.current?.getBoundingClientRect();
+      
+      const x = ((clientX - canvasRect.left) / canvasRect.width) * 100;
+      const y = ((clientY - canvasRect.top) / canvasRect.height) * 100;
 
-      // Constrain to canvas bounds (with some padding)
+      // Calculate sticker size as percentage of canvas
+      const stickerWidthPct = stickerRect ? (stickerRect.width / canvasRect.width) * 100 : 10; // fallback 10%
+      const stickerHeightPct = stickerRect ? (stickerRect.height / canvasRect.height) * 100 : 10; // fallback 10%
+
+      // Constrain so sticker edges never exceed canvas bounds
+      const clampedX = Math.max(
+        stickerWidthPct / 2,
+        Math.min(100 - stickerWidthPct / 2, x)
+      );
+      const clampedY = Math.max(
+        stickerHeightPct / 2,
+        Math.min(100 - stickerHeightPct / 2, y)
+      );
+
       return {
-        x: Math.max(5, Math.min(95, x)),
-        y: Math.max(5, Math.min(95, y)),
+        x: clampedX,
+        y: clampedY,
       };
     },
-    [canvasRef]
+    [canvasRef, elementRef]
   );
 
   /**
@@ -133,12 +148,22 @@ export const useStickerDrag = (
     document.body.style.userSelect = "";
   }, [setIsDragging]);
 
+  // Stable refs for event handlers to prevent unnecessary re-renders
+  const handleMouseMoveRef = useRef(handleMouseMove);
+  const handleMouseUpRef = useRef(handleMouseUp);
+
+  // Update refs when handlers change
+  useEffect(() => {
+    handleMouseMoveRef.current = handleMouseMove;
+    handleMouseUpRef.current = handleMouseUp;
+  });
+
   /**
    * Set up and clean up event listeners
    */
   useEffect(() => {
-    const handleGlobalMouseMove = (e: MouseEvent) => handleMouseMove(e);
-    const handleGlobalMouseUp = () => handleMouseUp();
+    const handleGlobalMouseMove = (e: MouseEvent) => handleMouseMoveRef.current(e);
+    const handleGlobalMouseUp = () => handleMouseUpRef.current();
 
     document.addEventListener("mousemove", handleGlobalMouseMove);
     document.addEventListener("mouseup", handleGlobalMouseUp);
@@ -149,7 +174,7 @@ export const useStickerDrag = (
       document.removeEventListener("mouseup", handleGlobalMouseUp);
       document.removeEventListener("mouseleave", handleGlobalMouseUp);
     };
-  }, [handleMouseMove, handleMouseUp]);
+  }, []); // Empty dependency array prevents unnecessary re-renders
 
   /**
    * Touch support for mobile/tablet

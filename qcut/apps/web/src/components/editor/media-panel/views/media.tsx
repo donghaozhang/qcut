@@ -407,6 +407,7 @@ export function MediaView() {
                       <ContextMenuItem>Export clips</ContextMenuItem>
                       {(item.type === "image" || item.type === "video") && (
                         <ContextMenuItem
+                          aria-label="Add as overlay"
                           onClick={(e) => {
                             e.stopPropagation();
                             const { addOverlaySticker } =
@@ -429,9 +430,7 @@ export function MediaView() {
                             toast.success(`Added "${item.name}" as overlay`);
                           }}
                         >
-                          <Layers className="h-4 w-4 mr-2" aria-hidden="true">
-                            <title>Add as overlay</title>
-                          </Layers>
+                          <Layers className="h-4 w-4 mr-2" aria-hidden="true" />
                           Add as Overlay
                         </ContextMenuItem>
                       )}
