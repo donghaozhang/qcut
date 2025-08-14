@@ -159,13 +159,15 @@ export const useStickerDrag = (
       if (e.touches.length !== 1) return;
 
       const touch = e.touches[0];
-      const mouseEvent = new MouseEvent("mousedown", {
+      // Create a synthetic React mouse event
+      const syntheticEvent = {
+        preventDefault: () => e.preventDefault(),
+        stopPropagation: () => e.stopPropagation(),
         clientX: touch.clientX,
         clientY: touch.clientY,
-        bubbles: true,
-      });
+      } as React.MouseEvent;
 
-      handleMouseDown(mouseEvent as any);
+      handleMouseDown(syntheticEvent);
     },
     [handleMouseDown]
   );

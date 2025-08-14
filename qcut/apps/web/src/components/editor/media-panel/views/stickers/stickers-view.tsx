@@ -56,11 +56,13 @@ export function StickersView() {
       return;
     }
 
+    const abortController = new AbortController();
     const performSearch = async () => {
       setIsSearching(true);
       try {
-        await searchIcons(debouncedSearchQuery);
+        await searchIcons(debouncedSearchQuery, abortController.signal);
       } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return;
         toast.error("Failed to search icons");
       } finally {
         setIsSearching(false);
@@ -68,6 +70,7 @@ export function StickersView() {
     };
 
     performSearch();
+    return () => abortController.abort();
   }, [debouncedSearchQuery, searchIcons]);
 
   if (error) {

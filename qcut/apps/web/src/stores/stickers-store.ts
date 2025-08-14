@@ -25,7 +25,7 @@ export interface StickersStore {
   setSearchQuery: (query: string) => void;
   setSelectedCategory: (category: string | null) => void;
   fetchCollections: () => Promise<void>;
-  searchIcons: (query: string) => Promise<void>;
+  searchIcons: (query: string, signal?: AbortSignal) => Promise<void>;
   downloadSticker: (collection: string, icon: string) => Promise<Blob>;
   addRecentSticker: (iconId: string, name: string) => void;
   clearError: () => void;
@@ -88,7 +88,7 @@ export const useStickersStore = create<StickersStore>()(
         }
       },
 
-      searchIcons: async (query) => {
+      searchIcons: async (query, signal) => {
         if (!query.trim()) {
           set({ searchResults: [] });
           return;
@@ -97,7 +97,7 @@ export const useStickersStore = create<StickersStore>()(
         set({ isLoading: true, error: null });
 
         try {
-          const results: IconSearchResult = await searchIcons(query);
+          const results: IconSearchResult = await searchIcons(query, 100, 0, signal);
 
           set({
             searchResults: results.icons,
@@ -105,6 +105,12 @@ export const useStickersStore = create<StickersStore>()(
             error: null,
           });
         } catch (error) {
+          // Don't set error state for aborted requests
+          if (error instanceof Error && error.name === 'AbortError') {
+            set({ isLoading: false });
+            return;
+          }
+
           const errorMessage =
             error instanceof Error ? error.message : "Search failed";
 

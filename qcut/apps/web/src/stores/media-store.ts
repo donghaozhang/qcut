@@ -39,10 +39,11 @@ interface MediaStore {
   // Actions - now require projectId
   addMediaItem: (
     projectId: string,
-    item: Omit<MediaItem, "id">
+    item: Omit<MediaItem, "id"> & { id?: string }
   ) => Promise<string>;
   addGeneratedImages: (
     items: Array<{
+      id?: string;
       url: string;
       type: MediaType;
       name: string;
@@ -261,9 +262,8 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
   isLoading: false,
 
   addMediaItem: async (projectId, item) => {
-    const itemWithOptionalId = item as Omit<MediaItem, "id"> & { id?: string };
     // Generate consistent ID based on file properties if not provided
-    let id = itemWithOptionalId.id;
+    let id = item.id;
     if (!id && item.file) {
       try {
         id = await generateFileBasedId(item.file);
@@ -354,9 +354,8 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
           );
         }
 
-        const itemWithOptionalId = item as typeof item & { id?: string };
         return {
-          id: itemWithOptionalId.id || generateUUID(), // Preserve existing ID if provided
+          id: item.id ?? generateUUID(), // Preserve existing ID if provided
           name: item.name,
           type: item.type,
           file, // Now contains actual image data

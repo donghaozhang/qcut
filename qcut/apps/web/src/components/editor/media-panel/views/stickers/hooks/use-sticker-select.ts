@@ -92,7 +92,6 @@ export function useStickerSelect() {
       const mediaItemId = await handleStickerSelect(iconId, name);
       if (mediaItemId) {
         addOverlaySticker(mediaItemId);
-        toast.success(`Added ${name} as overlay`);
       }
     },
     [handleStickerSelect, addOverlaySticker]

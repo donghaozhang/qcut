@@ -45,8 +45,10 @@ export async function processMediaFiles(
 
     // Create URL that works in both web and Electron environments
     let url: string;
-    if (window.location.protocol === "file:" && fileType === "image") {
+    const isFileProtocol = typeof window !== "undefined" && window.location.protocol === "file:";
+    if (isFileProtocol && fileType === "image") {
       // For images in Electron, use data URL for better compatibility
+      debugLog(`[Media Processing] Using data URL for image in Electron: ${file.name}`);
       url = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
@@ -61,6 +63,7 @@ export async function processMediaFiles(
       });
     } else {
       // Use blob URL for web environment or non-image files
+      debugLog(`[Media Processing] Using blob URL for ${fileType}: ${file.name}`);
       url = URL.createObjectURL(file);
     }
 

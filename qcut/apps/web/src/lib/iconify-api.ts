@@ -30,7 +30,7 @@ class IconifyAPIClient {
     return controller.signal;
   }
 
-  async fetchWithFallback(path: string): Promise<Response> {
+  async fetchWithFallback(path: string, signal?: AbortSignal): Promise<Response> {
     // Try last working host first for better performance
     const hostsToTry = [
       this.lastWorkingHost,
@@ -39,15 +39,25 @@ class IconifyAPIClient {
 
     for (const host of hostsToTry) {
       try {
+        // Combine timeout signal with external abort signal if provided
+        const timeoutSignal = this.createTimeoutSignal(2000);
+        const combinedSignal = signal 
+          ? AbortSignal.any([timeoutSignal, signal])
+          : timeoutSignal;
+
         const response = await fetch(`${host}${path}`, {
-          signal: this.createTimeoutSignal(2000),
+          signal: combinedSignal,
         });
         if (response.ok) {
           this.lastWorkingHost = host;
           return response;
         }
       } catch (error) {
-        // Silent fail, try next host (consider adding debug logging if needed)
+        // If the external signal was aborted, rethrow to preserve the abort
+        if (signal?.aborted) {
+          throw error;
+        }
+        // Silent fail for network/timeout errors, try next host
       }
     }
     throw new Error("All API hosts failed");
@@ -126,7 +136,8 @@ export async function getCollection(prefix: string): Promise<CollectionInfo> {
 export async function searchIcons(
   query: string,
   limit = 100,
-  start = 0
+  start = 0,
+  signal?: AbortSignal
 ): Promise<IconSearchResult> {
   const params = new URLSearchParams({
     query,
@@ -135,7 +146,7 @@ export async function searchIcons(
     pretty: "1",
   });
 
-  const response = await apiClient.fetchWithFallback(`/search?${params}`);
+  const response = await apiClient.fetchWithFallback(`/search?${params}`, signal);
   const data = (await response.json()) as IconSearchResult;
   return data;
 }
