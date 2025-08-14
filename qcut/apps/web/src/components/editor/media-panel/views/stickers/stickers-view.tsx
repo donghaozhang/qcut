@@ -33,12 +33,10 @@ export function StickersView() {
 
   const { handleStickerSelect, cleanupObjectUrls } = useStickerSelect();
 
-  // Cleanup object URLs on unmount
+  // Cleanup object URLs on unmount and navigation
   useEffect(() => {
-    return () => {
-      cleanupObjectUrls();
-    };
-  }, [cleanupObjectUrls]);
+    return cleanupObjectUrls;
+  }, []);
 
   // Load collections on mount
   useEffect(() => {

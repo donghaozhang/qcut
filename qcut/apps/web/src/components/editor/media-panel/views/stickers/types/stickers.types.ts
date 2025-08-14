@@ -1,26 +1,26 @@
 // Sticker-related type definitions
 import type { IconSet } from "@/lib/iconify-api";
 
-export interface StickerItemProps {
+export type StickerItemProps = {
   icon: string;
   name: string;
   collection: string;
   onSelect: (iconId: string, name: string) => void;
   isSelected?: boolean;
-}
+};
 
-export interface CollectionContentProps {
+export type CollectionContentProps = {
   collectionPrefix: string;
   collections: IconSet[];
   onSelect: (iconId: string, name: string) => void;
-}
+};
 
-export interface StickersViewProps {
+export type StickersViewProps = {
   className?: string;
-}
+};
 
-export interface RecentSticker {
+export type RecentSticker = {
   iconId: string;
   name: string;
-  downloadedAt: Date;
-}
+  downloadedAt: number; // ms since epoch
+};

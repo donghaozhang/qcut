@@ -216,8 +216,8 @@ class StorageService {
       // File exists with content
       actualFile = file;
 
-      // In Electron (file:// protocol), convert to data URL for better compatibility
-      if (window.location.protocol === "file:" && metadata.type === "image") {
+      // In Electron, convert to data URL for better compatibility
+      if (this.isElectronEnvironment() && metadata.type === "image") {
         // For images in Electron, use data URL
         url = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
@@ -236,6 +236,7 @@ class StorageService {
         );
       } else {
         // Use blob URL for web environment or non-image files
+        // NOTE: Caller is responsible for revoking blob URLs via URL.revokeObjectURL()
         url = URL.createObjectURL(file);
         debugLog(
           `[StorageService] Created object URL for ${metadata.name}: ${url}`
