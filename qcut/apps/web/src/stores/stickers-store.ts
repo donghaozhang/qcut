@@ -163,7 +163,10 @@ export const useStickersStore = create<StickersStore>()(
         ];
 
         // Keep only the most recent stickers
-        const trimmed = newRecentStickers.slice(0, STICKERS_CONSTANTS.MAX_RECENT_STICKERS);
+        const trimmed = newRecentStickers.slice(
+          0,
+          STICKERS_CONSTANTS.MAX_RECENT_STICKERS
+        );
 
         set({ recentStickers: trimmed });
       },

@@ -102,11 +102,9 @@ export function TimelineElement({
 
   // Get media item for hook dependency (must be called at top level)
   const mediaItem =
-    element.type === "media"
+    (element.type === "media" || element.type === "sticker")
       ? mediaItems.find((item) => item.id === element.mediaId)
-      : element.type === "sticker"
-        ? mediaItems.find((item) => item.id === element.mediaId)
-        : null;
+      : null;
 
   // Use the media item URL directly - it's already been converted to blob if needed
   const mediaItemUrl = mediaItem?.url;
@@ -126,7 +124,10 @@ export function TimelineElement({
     );
   }
 
-  if (mediaItemsLoading && (element.type === "media" || element.type === "sticker")) {
+  if (
+    mediaItemsLoading &&
+    (element.type === "media" || element.type === "sticker")
+  ) {
     return (
       <div className="absolute bg-gray-100 border border-gray-300 rounded text-gray-600 text-xs p-1">
         Loading media...
@@ -252,8 +253,7 @@ export function TimelineElement({
       );
     }
 
-    // Render media element ->
-    const mediaItem = mediaItems.find((item) => item.id === element.mediaId);
+    // Render media element -> use outer mediaItem variable
     if (!mediaItem) {
       return (
         <span className="text-xs text-foreground/80 truncate">
@@ -464,7 +464,12 @@ export function TimelineElement({
         </ContextMenuItem>
         <ContextMenuItem onClick={handleElementDuplicateContext}>
           <Copy className="h-4 w-4 mr-2" />
-          Duplicate {element.type === "text" ? "text" : element.type === "sticker" ? "sticker" : "clip"}
+          Duplicate{" "}
+          {element.type === "text"
+            ? "text"
+            : element.type === "sticker"
+              ? "sticker"
+              : "clip"}
         </ContextMenuItem>
         {element.type === "media" && (
           <ContextMenuItem onClick={handleReplaceClip}>
@@ -478,7 +483,12 @@ export function TimelineElement({
           className="text-destructive focus:text-destructive"
         >
           <Trash2 className="h-4 w-4 mr-2" />
-          Delete {element.type === "text" ? "text" : element.type === "sticker" ? "sticker" : "clip"}
+          Delete{" "}
+          {element.type === "text"
+            ? "text"
+            : element.type === "sticker"
+              ? "sticker"
+              : "clip"}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

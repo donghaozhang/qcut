@@ -33,75 +33,112 @@ function EditorPage() {
     markProjectIdAsInvalid,
   } = useProjectStore();
 
-  // Prevent concurrent duplicate loads for the same id (allow future reloads)
-  const inFlightProjectIdRef = useRef<string | null>(null);
-  const isInitializingRef = useRef(false);
+  // Track current load promise to handle concurrent loads properly
+  const currentLoadPromiseRef = useRef<Promise<void> | null>(null);
+  const loadAbortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const abortController = new AbortController();
+    loadAbortControllerRef.current = abortController;
+
     const init = async () => {
       debugLog(`[Editor] init called for project: ${project_id}`);
-      if (!project_id || cancelled) {
-        debugLog(`[Editor] Early return - no project_id or cancelled`);
+
+      if (!project_id || abortController.signal.aborted) {
+        debugLog("[Editor] Early return - no project_id or aborted");
         return;
       }
-      if (isInitializingRef.current) {
-        debugLog(`[Editor] Early return - already initializing`);
-        return;
-      }
+
       if (activeProject?.id === project_id) {
-        debugLog(`[Editor] Early return - project already loaded: ${activeProject.id}`);
+        debugLog(
+          `[Editor] Early return - project already loaded: ${activeProject.id}`
+        );
         return;
       }
+
       if (isInvalidProjectId(project_id)) {
-        debugLog(`[Editor] Early return - invalid project ID`);
+        debugLog("[Editor] Early return - invalid project ID");
         return;
       }
-      if (inFlightProjectIdRef.current === project_id) {
-        debugLog(`[Editor] Early return - already in flight`);
-        return;
+
+      // Wait for any previous load to complete before starting a new one
+      if (currentLoadPromiseRef.current) {
+        debugLog(
+          `[Editor] Waiting for previous load to complete before loading: ${project_id}`
+        );
+        try {
+          await currentLoadPromiseRef.current;
+        } catch {
+          // Previous load failed, that's ok, continue with new load
+        }
+
+        // Check if we were aborted while waiting
+        if (abortController.signal.aborted) {
+          debugLog("[Editor] Aborted while waiting for previous load");
+          return;
+        }
       }
 
       debugLog(`[Editor] Starting project load: ${project_id}`);
-      isInitializingRef.current = true;
-      inFlightProjectIdRef.current = project_id;
-      try {
-        await loadProject(project_id);
-        debugLog(`[Editor] Project load complete: ${project_id}`);
-        if (cancelled) return;
-      } catch (error) {
-        const isNotFound = error instanceof NotFoundError;
-        if (isNotFound) {
-          markProjectIdAsInvalid(project_id);
-          try {
-            const newId = await createNewProject("Untitled Project");
-            if (cancelled) return;
-            navigate({
-              to: "/editor/$project_id",
-              params: { project_id: newId },
-            });
-          } catch (e) {
-            debugError(
-              "[Editor] createNewProject failed after NotFoundError",
-              e
-            );
+
+      // Create load promise for this specific project
+      const loadPromise = (async () => {
+        try {
+          await loadProject(project_id);
+          debugLog(`[Editor] Project load complete: ${project_id}`);
+
+          if (abortController.signal.aborted) {
+            debugLog(`[Editor] Load completed but was aborted: ${project_id}`);
+            return;
           }
-        } else {
-          // Allow retries on non-not-found errors
-          inFlightProjectIdRef.current = null;
+        } catch (error) {
+          if (abortController.signal.aborted) {
+            debugLog(`[Editor] Load failed but was aborted: ${project_id}`);
+            return;
+          }
+
+          const isNotFound = error instanceof NotFoundError;
+          if (isNotFound) {
+            markProjectIdAsInvalid(project_id);
+            try {
+              const newId = await createNewProject("Untitled Project");
+              if (abortController.signal.aborted) return;
+
+              navigate({
+                to: "/editor/$project_id",
+                params: { project_id: newId },
+              });
+            } catch (e) {
+              debugError(
+                "[Editor] createNewProject failed after NotFoundError",
+                e
+              );
+            }
+          } else {
+            // Re-throw to allow retries on non-not-found errors
+            throw error;
+          }
         }
+      })();
+
+      currentLoadPromiseRef.current = loadPromise;
+
+      try {
+        await loadPromise;
       } finally {
-        isInitializingRef.current = false;
-        // Clear in-flight flag after attempt finishes or is cancelled
-        if (inFlightProjectIdRef.current === project_id) {
-          inFlightProjectIdRef.current = null;
+        // Clear the promise ref if this was the current load
+        if (currentLoadPromiseRef.current === loadPromise) {
+          currentLoadPromiseRef.current = null;
         }
       }
     };
+
     init();
+
     return () => {
-      cancelled = true;
-      isInitializingRef.current = false;
+      debugLog(`[Editor] Cleanup - aborting loads for project: ${project_id}`);
+      abortController.abort();
+      // Don't clear currentLoadPromiseRef here - let it complete naturally
     };
   }, [
     project_id,

@@ -76,14 +76,14 @@ const validateAndLoadStickers = (data: any): Map<string, OverlaySticker> => {
   // Validate each sticker object
   const validStickers = data.filter((item: any): item is OverlaySticker => {
     const isValid = isValidSticker(item);
-    
+
     if (!isValid) {
       debugLog(
-        `[StickerStore] ⚠️ INVALID STICKER: Skipping malformed sticker object:`,
+        "[StickerStore] ⚠️ INVALID STICKER: Skipping malformed sticker object:",
         item
       );
     }
-    
+
     return isValid;
   });
 
@@ -116,7 +116,10 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
       // Add sticker with smart defaults
       addOverlaySticker: (mediaItemId: string, options = {}) => {
-        debugLog(`[StickerStore] 🎯 addOverlaySticker called with mediaItemId: ${mediaItemId}, options:`, options);
+        debugLog(
+          `[StickerStore] 🎯 addOverlaySticker called with mediaItemId: ${mediaItemId}, options:`,
+          options
+        );
         const id = generateStickerId();
         const state = get();
 
@@ -156,7 +159,9 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             newHistory.past.shift();
           }
 
-          debugLog(`[StickerStore] Added sticker: ${id} (total: ${newStickers.size})`);
+          debugLog(
+            `[StickerStore] Added sticker: ${id} (total: ${newStickers.size})`
+          );
 
           return {
             overlayStickers: newStickers,
@@ -288,13 +293,13 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
           const maxZ = Math.max(
             ...Array.from(state.overlayStickers.values()).map((s) => s.zIndex)
           );
-          
+
           const newStickers = new Map(state.overlayStickers);
-          newStickers.set(id, { 
-            ...sticker, 
-            zIndex: Math.min(maxZ + Z_INDEX.INCREMENT, Z_INDEX.MAX) 
+          newStickers.set(id, {
+            ...sticker,
+            zIndex: Math.min(maxZ + Z_INDEX.INCREMENT, Z_INDEX.MAX),
           });
-          
+
           return { overlayStickers: newStickers };
         });
       },
@@ -307,13 +312,13 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
           const minZ = Math.min(
             ...Array.from(state.overlayStickers.values()).map((s) => s.zIndex)
           );
-          
+
           const newStickers = new Map(state.overlayStickers);
-          newStickers.set(id, { 
-            ...sticker, 
-            zIndex: Math.max(Z_INDEX.MIN, minZ - Z_INDEX.INCREMENT) 
+          newStickers.set(id, {
+            ...sticker,
+            zIndex: Math.max(Z_INDEX.MIN, minZ - Z_INDEX.INCREMENT),
           });
-          
+
           return { overlayStickers: newStickers };
         });
       },
@@ -333,10 +338,10 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
               ...sticker,
               zIndex: higherStickers[0].zIndex + Z_INDEX.INCREMENT,
             });
-            
+
             return { overlayStickers: newStickers };
           }
-          
+
           return state;
         });
       },
@@ -354,12 +359,15 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             const newStickers = new Map(state.overlayStickers);
             newStickers.set(id, {
               ...sticker,
-              zIndex: Math.max(Z_INDEX.MIN, lowerStickers[0].zIndex - Z_INDEX.INCREMENT),
+              zIndex: Math.max(
+                Z_INDEX.MIN,
+                lowerStickers[0].zIndex - Z_INDEX.INCREMENT
+              ),
             });
-            
+
             return { overlayStickers: newStickers };
           }
-          
+
           return state;
         });
       },
@@ -417,12 +425,16 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             validStickers.set(id, sticker);
           } else {
             removedCount++;
-            debugLog(`[StickerStore] Removing sticker ${id} with missing media`);
+            debugLog(
+              `[StickerStore] Removing sticker ${id} with missing media`
+            );
           }
         }
 
         if (removedCount > 0) {
-          debugLog(`[StickerStore] Removed ${removedCount} stickers with missing media`);
+          debugLog(
+            `[StickerStore] Removed ${removedCount} stickers with missing media`
+          );
           set({
             overlayStickers: validStickers,
             selectedStickerId: validStickers.has(state.selectedStickerId)
@@ -438,7 +450,9 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         const data = Array.from(state.overlayStickers.values());
         const key = `overlay-stickers-${projectId}`;
 
-        debugLog(`[StickerStore] Saving ${data.length} stickers for project ${projectId}`);
+        debugLog(
+          `[StickerStore] Saving ${data.length} stickers for project ${projectId}`
+        );
 
         try {
           // Use Electron IPC if available, otherwise localStorage
@@ -467,10 +481,12 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
           if (window.electronAPI?.storage) {
             try {
               localStorage.setItem(key, JSON.stringify(data));
-              debugLog(`[StickerStore] Fallback save via localStorage: ${data.length} stickers`);
+              debugLog(
+                `[StickerStore] Fallback save via localStorage: ${data.length} stickers`
+              );
             } catch (fallbackError) {
               debugLog(
-                `[StickerStore] ❌ FALLBACK SAVE FAILED:`,
+                "[StickerStore] ❌ FALLBACK SAVE FAILED:",
                 fallbackError
               );
             }
@@ -486,13 +502,17 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
         try {
           if (window.electronAPI?.storage) {
-            data = await window.electronAPI.storage.load(key) || [];
-            debugLog(`[StickerStore] Loaded via Electron IPC: ${data.length} stickers`);
+            data = (await window.electronAPI.storage.load(key)) || [];
+            debugLog(
+              `[StickerStore] Loaded via Electron IPC: ${data.length} stickers`
+            );
           } else {
             const stored = localStorage.getItem(key);
             if (stored) {
               data = JSON.parse(stored);
-              debugLog(`[StickerStore] Loaded via localStorage: ${data.length} stickers`);
+              debugLog(
+                `[StickerStore] Loaded via localStorage: ${data.length} stickers`
+              );
             }
           }
 
@@ -522,11 +542,13 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
                   selectedStickerId: null,
                   history: { past: [], future: [] },
                 });
-                debugLog(`[StickerStore] Fallback load: ${stickersMap.size} stickers`);
+                debugLog(
+                  `[StickerStore] Fallback load: ${stickersMap.size} stickers`
+                );
               }
             } catch (fallbackError) {
               debugLog(
-                `[StickerStore] ❌ FALLBACK LOAD FAILED:`,
+                "[StickerStore] ❌ FALLBACK LOAD FAILED:",
                 fallbackError
               );
               // Ensure clean state on total failure
@@ -562,25 +584,42 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
       // Helper: Add sticker to timeline
       addStickerToTimeline: (sticker: OverlaySticker) => {
         const timelineStore = useTimelineStore.getState();
-        debugLog(`[StickerStore] Timeline integration - checking timing:`, sticker.timing);
-        
-        let stickerTrack = timelineStore.tracks.find((track) => track.type === "sticker");
-        
-        if (!stickerTrack) {
+        debugLog(
+          "[StickerStore] Timeline integration - checking timing:",
+          sticker.timing
+        );
+
+        let stickerTrack = timelineStore.tracks.find(
+          (track) => track.type === "sticker"
+        );
+
+        if (stickerTrack) {
+          debugLog(
+            `[StickerStore] Found existing sticker track: ${stickerTrack.id}`
+          );
+        } else {
           debugLog("[StickerStore] Creating new sticker timeline track");
           const trackId = timelineStore.addTrack("sticker");
-          stickerTrack = timelineStore.tracks.find((track) => track.id === trackId);
+          stickerTrack = timelineStore.tracks.find(
+            (track) => track.id === trackId
+          );
           debugLog(`[StickerStore] Created sticker track with ID: ${trackId}`);
-        } else {
-          debugLog(`[StickerStore] Found existing sticker track: ${stickerTrack.id}`);
         }
 
-        debugLog(`[StickerStore] Checking conditions - stickerTrack: ${!!stickerTrack}, timing: ${!!sticker.timing}, startTime: ${sticker.timing?.startTime}, endTime: ${sticker.timing?.endTime}`);
-        
-        if (stickerTrack && sticker.timing?.startTime !== undefined && sticker.timing?.endTime !== undefined) {
+        debugLog(
+          `[StickerStore] Checking conditions - stickerTrack: ${!!stickerTrack}, timing: ${!!sticker.timing}, startTime: ${sticker.timing?.startTime}, endTime: ${sticker.timing?.endTime}`
+        );
+
+        if (
+          stickerTrack &&
+          sticker.timing?.startTime !== undefined &&
+          sticker.timing?.endTime !== undefined
+        ) {
           const duration = sticker.timing.endTime - sticker.timing.startTime;
-          debugLog(`[StickerStore] Adding sticker to timeline with duration: ${duration}s`);
-          
+          debugLog(
+            `[StickerStore] Adding sticker to timeline with duration: ${duration}s`
+          );
+
           timelineStore.addElementToTrack(stickerTrack.id, {
             type: "sticker",
             stickerId: sticker.id,
@@ -591,9 +630,13 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             trimStart: 0,
             trimEnd: 0,
           });
-          debugLog(`[StickerStore] ✅ Added sticker to timeline track: ${duration}s duration`);
+          debugLog(
+            `[StickerStore] ✅ Added sticker to timeline track: ${duration}s duration`
+          );
         } else {
-          debugLog(`[StickerStore] ❌ Failed to add sticker to timeline - missing requirements`);
+          debugLog(
+            "[StickerStore] ❌ Failed to add sticker to timeline - missing requirements"
+          );
         }
       },
 
@@ -601,12 +644,16 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
       autoSaveSticker: async (stickerId: string) => {
         const currentProject = useProjectStore.getState().activeProject;
         if (currentProject?.id) {
-          debugLog(`[StickerStore] Auto-saving sticker to project: ${currentProject.id}`);
+          debugLog(
+            `[StickerStore] Auto-saving sticker to project: ${currentProject.id}`
+          );
           try {
             await get().saveToProject(currentProject.id);
-            debugLog(`[StickerStore] ✅ Auto-save completed for sticker ${stickerId}`);
+            debugLog(
+              `[StickerStore] ✅ Auto-save completed for sticker ${stickerId}`
+            );
           } catch (error) {
-            debugLog(`[StickerStore] ❌ Auto-save failed:`, error);
+            debugLog("[StickerStore] ❌ Auto-save failed:", error);
           }
         }
       },

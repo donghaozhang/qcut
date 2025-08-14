@@ -36,7 +36,10 @@ export function StickerItem({
       });
       setImageUrl(svgUrl);
     } catch (error) {
-      debugLog(`[StickerItem] Failed to build SVG URL for ${collection}:${icon}:`, error);
+      debugLog(
+        `[StickerItem] Failed to build SVG URL for ${collection}:${icon}:`,
+        error
+      );
       setHasError(true);
       setIsLoading(false);
     }

@@ -116,19 +116,26 @@ export const StickerCanvas: React.FC<{
     if (mediaItems.length > 0 && overlayStickers.size > 0) {
       const timeoutId = setTimeout(() => {
         const mediaIds = mediaItems.map((item) => item.id);
-        debugLog(`[StickerCanvas] Cleanup check - Media count: ${mediaItems.length}, Sticker count: ${overlayStickers.size}`);
-        debugLog(`[StickerCanvas] Cleanup check - Media IDs:`, mediaIds);
-        debugLog(`[StickerCanvas] Cleanup check - Sticker media IDs:`, Array.from(overlayStickers.values()).map(s => s.mediaItemId));
-        
+        debugLog(
+          `[StickerCanvas] Cleanup check - Media count: ${mediaItems.length}, Sticker count: ${overlayStickers.size}`
+        );
+        debugLog("[StickerCanvas] Cleanup check - Media IDs:", mediaIds);
+        debugLog(
+          "[StickerCanvas] Cleanup check - Sticker media IDs:",
+          Array.from(overlayStickers.values()).map((s) => s.mediaItemId)
+        );
+
         // Only cleanup if we're confident media has fully loaded
         // This helps prevent premature cleanup during initial load
         if (mediaItems.length > 0) {
           cleanupInvalidStickers(mediaIds);
         } else {
-          debugLog(`[StickerCanvas] Skipping cleanup - no media items loaded yet`);
+          debugLog(
+            "[StickerCanvas] Skipping cleanup - no media items loaded yet"
+          );
         }
       }, 2000); // Increased to 2 seconds to ensure media is fully loaded
-      
+
       return () => clearTimeout(timeoutId);
     }
   }, [mediaItems, overlayStickers.size, cleanupInvalidStickers]);
@@ -173,7 +180,6 @@ export const StickerCanvas: React.FC<{
 
   // Get only visible stickers at current time
   const visibleStickers = getVisibleStickersAtTime(currentTime);
-
 
   return (
     <>
@@ -227,7 +233,7 @@ export const StickerCanvas: React.FC<{
         )}
 
         {/* Debug info */}
-        {process.env.NODE_ENV === "development" && (
+        {import.meta.env.DEV && (
           <div className="absolute top-2 right-2 flex gap-2 pointer-events-none">
             <div className="text-xs bg-black/50 text-white px-2 py-1 rounded">
               Stickers: {overlayStickers.size}

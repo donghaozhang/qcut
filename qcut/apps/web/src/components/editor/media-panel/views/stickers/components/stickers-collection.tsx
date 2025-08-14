@@ -41,7 +41,7 @@ export function StickersCollection({
   useEffect(() => {
     const fetchCollectionIcons = async () => {
       setLoadingCollection(true);
-      
+
       try {
         // Try to get sample icons from POPULAR_COLLECTIONS first
         const popularCollection = POPULAR_COLLECTIONS.find(
@@ -55,7 +55,7 @@ export function StickersCollection({
 
         // Try to fetch actual icons from the API
         let icons: string[] = [];
-        
+
         try {
           const collectionInfo = await getCollection(collectionPrefix);
 
@@ -72,7 +72,10 @@ export function StickersCollection({
             }
           }
         } catch (apiError) {
-          debugLog(`[StickersCollection] Failed to fetch collection ${collectionPrefix}:`, apiError);
+          debugLog(
+            `[StickersCollection] Failed to fetch collection ${collectionPrefix}:`,
+            apiError
+          );
         }
 
         // Use fallback if no icons found
@@ -82,7 +85,7 @@ export function StickersCollection({
 
         setCollectionIcons(icons.slice(0, 20)); // Limit for performance
       } catch (error) {
-        debugLog(`[StickersCollection] Unexpected error:`, error);
+        debugLog("[StickersCollection] Unexpected error:", error);
         setCollectionIcons([]);
       } finally {
         setLoadingCollection(false);

@@ -43,7 +43,9 @@ export function StickersSearchResults({
         {searchResults.map((result) => {
           const [collection, iconName] = result.split(":");
           if (!collection || !iconName) {
-            console.warn(`[StickersSearchResults] invalid icon id: "${result}"`);
+            console.warn(
+              `[StickersSearchResults] invalid icon id: "${result}"`
+            );
             return null; // skip malformed entries
           }
           return (

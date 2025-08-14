@@ -52,7 +52,10 @@ export type TimelineElement = MediaElement | TextElement | StickerElement;
 export type CreateMediaElement = Omit<MediaElement, "id">;
 export type CreateTextElement = Omit<TextElement, "id">;
 export type CreateStickerElement = Omit<StickerElement, "id">;
-export type CreateTimelineElement = CreateMediaElement | CreateTextElement | CreateStickerElement;
+export type CreateTimelineElement =
+  | CreateMediaElement
+  | CreateTextElement
+  | CreateStickerElement;
 
 export interface TimelineElementProps {
   element: TimelineElement;
@@ -103,17 +106,31 @@ export function sortTracksByOrder(tracks: TimelineTrack[]): TimelineTrack[] {
     if (b.type === "text" && a.type !== "text") return 1;
 
     // Sticker tracks go after text, before media
-    if (a.type === "sticker" && b.type !== "sticker" && b.type !== "text") return -1;
-    if (b.type === "sticker" && a.type !== "sticker" && a.type !== "text") return 1;
+    if (a.type === "sticker" && b.type !== "sticker" && b.type !== "text")
+      return -1;
+    if (b.type === "sticker" && a.type !== "sticker" && a.type !== "text")
+      return 1;
 
     // Audio tracks always go to bottom
     if (a.type === "audio" && b.type !== "audio") return 1;
     if (b.type === "audio" && a.type !== "audio") return -1;
 
     // Main track goes above audio but below text and sticker tracks
-    if (a.isMain && !b.isMain && b.type !== "audio" && b.type !== "text" && b.type !== "sticker")
+    if (
+      a.isMain &&
+      !b.isMain &&
+      b.type !== "audio" &&
+      b.type !== "text" &&
+      b.type !== "sticker"
+    )
       return 1;
-    if (b.isMain && !a.isMain && a.type !== "audio" && a.type !== "text" && a.type !== "sticker")
+    if (
+      b.isMain &&
+      !a.isMain &&
+      a.type !== "audio" &&
+      a.type !== "text" &&
+      a.type !== "sticker"
+    )
       return -1;
 
     // Within same category, maintain creation order

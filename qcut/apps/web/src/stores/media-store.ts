@@ -267,15 +267,19 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
     if (!id && item.file) {
       try {
         id = await generateFileBasedId(item.file);
-        debugLog(`[MediaStore] Generated consistent ID for ${item.name}: ${id}`);
+        debugLog(
+          `[MediaStore] Generated consistent ID for ${item.name}: ${id}`
+        );
       } catch (error) {
-        debugLog(`[MediaStore] Failed to generate file-based ID, using random UUID`);
+        debugLog(
+          "[MediaStore] Failed to generate file-based ID, using random UUID"
+        );
         id = generateUUID();
       }
     } else if (!id) {
       id = generateUUID();
     }
-    
+
     const newItem: MediaItem = {
       ...item,
       id,
@@ -482,7 +486,9 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
 
     try {
       const mediaItems = await storageService.loadAllMediaItems(projectId);
-      debugLog(`[MediaStore] Loaded ${mediaItems.length} media items from storage`);
+      debugLog(
+        `[MediaStore] Loaded ${mediaItems.length} media items from storage`
+      );
 
       // Process media items with enhanced error handling
       const updatedMediaItems = await Promise.all(
@@ -528,7 +534,9 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
       );
 
       set({ mediaItems: updatedMediaItems });
-      debugLog(`[MediaStore] ✅ Media loading complete: ${updatedMediaItems.length} items`);
+      debugLog(
+        `[MediaStore] ✅ Media loading complete: ${updatedMediaItems.length} items`
+      );
     } catch (error) {
       console.error("[Media Store] ❌ Failed to load media items:", error);
 

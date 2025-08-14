@@ -17,7 +17,10 @@ export function StickersRecent({
   if (recentStickers.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
-        <Clock className="mb-2 h-8 w-8 text-muted-foreground" aria-hidden="true" />
+        <Clock
+          className="mb-2 h-8 w-8 text-muted-foreground"
+          aria-hidden="true"
+        />
         <p className="text-sm text-muted-foreground">No recent stickers yet</p>
       </div>
     );

@@ -15,7 +15,7 @@ export function StickersSearch({
   return (
     <div className="border-b p-4">
       <div className="relative">
-        <Search 
+        <Search
           className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground"
           aria-hidden="true"
         />

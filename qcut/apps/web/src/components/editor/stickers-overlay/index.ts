@@ -10,7 +10,7 @@ export { StickerElement } from "./StickerElement";
 export { ResizeHandles } from "./ResizeHandles";
 export { StickerControls, SimpleStickerControls } from "./StickerControls";
 export { useStickerDrag } from "./hooks/useStickerDrag";
-export { StickerOverlayAutoSave, useStickerAutoSave } from "./AutoSave";
+export { StickerOverlayAutoSave } from "./AutoSave";
 
 // Export types if needed by other components
 export type {

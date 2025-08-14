@@ -186,7 +186,9 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
         };
 
         const handleMouseUp = () => {
-          debugLog(`[ResizeHandles] Finished resizing handle ${resizeState.current.handle}`);
+          debugLog(
+            `[ResizeHandles] Finished resizing handle ${resizeState.current.handle}`
+          );
           resizeState.current.isResizing = false;
           setIsResizing(false);
           document.body.style.cursor = "";
@@ -209,7 +211,6 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
     );
 
     if (!isVisible) return null;
-
 
     const handleClass =
       "absolute w-3 h-3 bg-white border-2 border-primary rounded-full z-[10000] pointer-events-auto hover:scale-110 transition-transform";
