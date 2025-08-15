@@ -118,7 +118,7 @@ export function CaptionsView() {
       error: "Transcription cancelled by user",
     });
     toast.info("Transcription cancelled");
-  }, []);
+  }, [updateState]);
 
   // Performance: Simple cache for transcription results
   const getCachedTranscription = useCallback(
@@ -141,62 +141,7 @@ export function CaptionsView() {
     []
   );
 
-  const handleFileSelect = useCallback(
-    (files: FileList) => {
-      const file = files[0];
-      if (!file) return;
-
-      // Validate file type
-      const validTypes = [
-        "video/mp4",
-        "video/quicktime",
-        "video/x-msvideo",
-        "video/webm",
-        "video/x-matroska", // .mkv
-        "audio/mpeg",
-        "audio/wav",
-        "audio/mp4",
-        "audio/x-m4a",
-        "audio/webm",
-      ];
-      const isValidType =
-        validTypes.includes(file.type) ||
-        (file.type === "" &&
-          /\.(mp4|mov|avi|webm|mkv|mp3|wav|m4a)$/i.test(file.name));
-
-      if (!isValidType) {
-        toast.error("Please select a video or audio file");
-        return;
-      }
-
-      // Performance: Check cache first
-      const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
-      const cachedResult = getCachedTranscription(fileKey);
-
-      if (cachedResult) {
-        toast.success("Found cached transcription!");
-        setState((prev) => ({ ...prev, result: cachedResult }));
-        return;
-      }
-
-      // Enhanced file size validation with optimization hints
-      const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
-      if (file.size > maxSize) {
-        if (file.size > HARD_LIMIT_FILE_SIZE_MB * 1024 * 1024) {
-          toast.error(
-            `File too large (max ${HARD_LIMIT_FILE_SIZE_MB}MB). Please use a smaller file.`
-          );
-          return;
-        }
-        toast.info("Large file detected. This may take longer to process...");
-      }
-
-      startTranscription(file, fileKey);
-    },
-    [getCachedTranscription]
-  );
-
-  const startTranscription = async (file: File, fileKey?: string) => {
+  const startTranscription = useCallback(async (file: File, fileKey?: string) => {
     if (!configured) {
       toast.error(
         `Transcription not configured. Missing: ${missingVars.join(", ")}`
@@ -381,7 +326,62 @@ export function CaptionsView() {
         toast.error(`Transcription failed: ${errorMessage}`);
       }
     }
-  };
+  }, [configured, missingVars, updateState, startTranscriptionJob, completeTranscriptionJob, selectedLanguage]);
+
+  const handleFileSelect = useCallback(
+    (files: FileList) => {
+      const file = files[0];
+      if (!file) return;
+
+      // Validate file type
+      const validTypes = [
+        "video/mp4",
+        "video/quicktime",
+        "video/x-msvideo",
+        "video/webm",
+        "video/x-matroska", // .mkv
+        "audio/mpeg",
+        "audio/wav",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/webm",
+      ];
+      const isValidType =
+        validTypes.includes(file.type) ||
+        (file.type === "" &&
+          /\.(mp4|mov|avi|webm|mkv|mp3|wav|m4a)$/i.test(file.name));
+
+      if (!isValidType) {
+        toast.error("Please select a video or audio file");
+        return;
+      }
+
+      // Performance: Check cache first
+      const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+      const cachedResult = getCachedTranscription(fileKey);
+
+      if (cachedResult) {
+        toast.success("Found cached transcription!");
+        setState((prev) => ({ ...prev, result: cachedResult }));
+        return;
+      }
+
+      // Enhanced file size validation with optimization hints
+      const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
+      if (file.size > maxSize) {
+        if (file.size > HARD_LIMIT_FILE_SIZE_MB * 1024 * 1024) {
+          toast.error(
+            `File too large (max ${HARD_LIMIT_FILE_SIZE_MB}MB). Please use a smaller file.`
+          );
+          return;
+        }
+        toast.info("Large file detected. This may take longer to process...");
+      }
+
+      startTranscription(file, fileKey);
+    },
+    [getCachedTranscription, startTranscription]
+  );
 
   const { isDragOver, dragProps } = useDragDrop({
     onDrop: (files) => handleFileSelect(files),
