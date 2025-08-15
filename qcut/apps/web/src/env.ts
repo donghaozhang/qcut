@@ -20,4 +20,6 @@ export const env = {
   MODAL_TRANSCRIPTION_URL: "",
   R2_BUCKET_NAME:
     import.meta.env.VITE_R2_BUCKET_NAME || "opencut-transcription",
+  // Sound library integration
+  FREESOUND_API_KEY: import.meta.env.VITE_FREESOUND_API_KEY || "",
 };

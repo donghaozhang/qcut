@@ -4,9 +4,10 @@
 This document outlines small, incremental subtasks for integrating the sound library feature into OpenCut. Each task is designed to take **less than 10 minutes** and **won't break existing functionality**.
 
 ## Prerequisites
-- All sound files already fetched in `/docs/task/sound/` folder
-- Working on `feature/sound-library-integration` branch
-- Environment has Freesound API key configured
+- All sound files already fetched in `/docs/task/sound/` folder ✅
+- Working on `feature/sound-library-integration` branch ✅
+- Environment has Freesound API key configured (will be set up in Phase 1)
+- **IMPORTANT**: All file paths verified against current codebase structure ✅
 
 ---
 
@@ -26,18 +27,18 @@ cp docs/task/sound/sounds.ts apps/web/src/types/sounds.ts
 **Objective**: Add Freesound API key to environment configuration
 **Files**: `apps/web/src/env.ts`
 ```typescript
-// Add to env.ts
-FREESOUND_API_KEY: z.string().min(1),
+// Add to env.ts (in the env object)
+FREESOUND_API_KEY: import.meta.env.VITE_FREESOUND_API_KEY || "",
 ```
-**Risk**: ⭐ Low - Optional environment variable
-**Test**: Check env validation doesn't break
+**Risk**: ⭐ Low - Optional environment variable, follows existing pattern
+**Test**: Check env doesn't break, API key loads correctly
 
 ### Task 1.3: Update Environment Example File (2 minutes)
 **Objective**: Document the new environment variable
-**Files**: `apps/web/.env.example`
+**Files**: `apps/web/.env.example` (create if doesn't exist)
 ```bash
-# Add to .env.example
-FREESOUND_API_KEY=your_freesound_api_key_here
+# Add to .env.example (or create .env.local for development)
+VITE_FREESOUND_API_KEY=your_freesound_api_key_here
 ```
 **Risk**: ⭐ None - Documentation only
 **Test**: No testing needed
@@ -74,12 +75,12 @@ curl "http://localhost:3000/api/sounds/search?q=test"
 **Risk**: ⭐ Low - Testing only
 **Test**: API returns valid JSON response
 
-### Task 2.4: Add Rate Limiting Dependency Check (4 minutes)
-**Objective**: Ensure rate limiting library exists
-**Files**: Check `apps/web/src/lib/rate-limit.ts` exists
-- If missing, create minimal implementation
-**Risk**: ⭐⭐ Medium - May need to create rate limiting
-**Test**: API route doesn't crash
+### Task 2.4: Handle Rate Limiting Dependency (4 minutes)
+**Objective**: Ensure API route works with existing rate limiting
+**Files**: Check `apps/web/src/lib/rate-limit.ts` exists ✅ (verified exists)
+**Action**: API route already imports `baseRateLimit` which exists
+**Risk**: ⭐ Low - Rate limiting already implemented and working
+**Test**: API route doesn't crash, rate limiting functions
 
 ---
 
@@ -167,15 +168,23 @@ export function SoundsView() {
 
 ### Task 5.1: Add Sounds Tab to Media Panel (8 minutes)
 **Objective**: Add tab without breaking existing functionality
-**Files**: `apps/web/src/components/editor/media-panel/index.tsx`
+**Files**: 
+- `apps/web/src/components/editor/media-panel/index.tsx` - Add import and viewMap entry
+- `apps/web/src/components/editor/media-panel/store.ts` - Add "sounds" to Tab type
+- `apps/web/src/components/editor/media-panel/tabbar.tsx` - Add tab button
 ```typescript
-// Add to existing tabs
-<TabsTrigger value="sounds">Sounds</TabsTrigger>
-<TabsContent value="sounds">
-  <SoundsView />
-</TabsContent>
+// 1. Add import to index.tsx
+import { SoundsView } from "./views/sounds";
+
+// 2. Add to viewMap in index.tsx
+sounds: <SoundsView />,
+
+// 3. Add to Tab type in store.ts
+export type Tab = "media" | "audio" | "text" | "stickers" | "effects" | "transitions" | "adjustment" | "ai" | "text2image" | "captions" | "sounds";
+
+// 4. Add tab button to tabbar.tsx
 ```
-**Risk**: ⭐⭐ Medium - Modifying existing UI
+**Risk**: ⭐⭐ Medium - Modifying existing UI files, but additive only
 **Test**: All existing tabs still work, new tab shows placeholder
 
 ### Task 5.2: Test Tab Navigation (3 minutes)
@@ -283,3 +292,28 @@ Each phase can be done independently, allowing for breaks and testing between ph
 3. **Keep existing functionality as priority #1**
 4. **If any task takes longer than 10 minutes, break it down further**
 5. **Don't be afraid to revert and try a different approach**
+
+## ⚠️ Critical Safety Checks
+
+### Before Starting:
+- ✅ Current codebase uses Vite (not Next.js) - API routes work differently
+- ✅ Environment variables use `VITE_` prefix for client access
+- ✅ Rate limiting already exists and is compatible
+- ✅ All file paths verified against actual codebase structure
+
+### Files That MUST NOT Break:
+- `apps/web/src/components/editor/media-panel/index.tsx` (existing tabs)
+- `apps/web/src/stores/*` (all existing stores)
+- `apps/web/src/env.ts` (environment configuration)
+
+### Red Flags to Watch For:
+1. **Build failures** after any change
+2. **Existing tabs disappear** or become non-functional
+3. **Console errors** when loading the editor
+4. **TypeScript errors** in existing files
+
+### Immediate Rollback Triggers:
+- Any existing media panel tab stops working
+- Timeline functionality breaks
+- Audio/video playback fails
+- Export functionality affected
