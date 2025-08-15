@@ -1,13 +1,13 @@
 import modal
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 app = modal.App("opencut-transcription")
 
 class TranscribeRequest(BaseModel):
     filename: str
     language: str = "auto"
-    decryptionKey: str = None
-    iv: str = None
+    decryption_key: str | None = Field(default=None, alias="decryptionKey")
+    iv: str | None = Field(default=None, alias="iv")
 
 @app.function(
     image=modal.Image.debian_slim()
@@ -89,7 +89,8 @@ def transcribe_audio(request: TranscribeRequest):
                         f.write(decrypted_data)
                 
                 # Load Whisper model
-                model = whisper.load_model("base")
+                model_name = os.environ.get("WHISPER_MODEL", "base")
+                model = whisper.load_model(model_name)
                 
                 # Transcribe audio
                 if language == "auto":
@@ -104,12 +105,13 @@ def transcribe_audio(request: TranscribeRequest):
                 )
                 
                 # Adjust segment timing - Whisper is consistently late by ~500ms
+                SEGMENT_TIME_ADJUSTMENT_SEC = 0.5
                 adjusted_segments = []
                 for segment in result["segments"]:
                     adjusted_segment = segment.copy()
-                    # Shift start/end times earlier by 500ms, don't go below 0
-                    adjusted_segment["start"] = max(0, segment["start"] - 0.5)
-                    adjusted_segment["end"] = max(0.5, segment["end"] - 0.5)  # Ensure duration is at least 0.5s
+                    # Shift start/end times earlier by the adjustment offset, don't go below 0
+                    adjusted_segment["start"] = max(0, segment["start"] - SEGMENT_TIME_ADJUSTMENT_SEC)
+                    adjusted_segment["end"] = max(SEGMENT_TIME_ADJUSTMENT_SEC, segment["end"] - SEGMENT_TIME_ADJUSTMENT_SEC)  # Ensure duration is at least the adjustment value
                     adjusted_segments.append(adjusted_segment)
                 
                 return {
