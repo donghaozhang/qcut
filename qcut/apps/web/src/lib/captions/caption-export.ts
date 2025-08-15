@@ -148,7 +148,9 @@ export function exportTtml(segments: TranscriptionSegment[], options: Partial<Ca
   const language = options.language || "en";
   
   let content = `<?xml version="1.0" encoding="UTF-8"?>
-<tt xmlns="http://www.w3.org/ns/ttml" xml:lang="${language}">
+<tt xmlns="http://www.w3.org/ns/ttml" 
+    xmlns:tts="http://www.w3.org/ns/ttml#styling" 
+    xml:lang="${language}">
   <head>
     <styling>
       <style xml:id="defaultStyle" 

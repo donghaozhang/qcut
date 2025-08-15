@@ -139,14 +139,23 @@ export function ExportDialog() {
 
     // Export captions separately if enabled
     if (exportCaptions && hasCaptions) {
-      const captionSegments = extractCaptionSegments(tracks);
-      if (captionSegments.length > 0) {
-        downloadCaptions(
-          captionSegments,
-          captionFormat,
-          exportSettings.filename,
-          { format: captionFormat }
-        );
+      try {
+        const captionSegments = extractCaptionSegments(tracks);
+        if (captionSegments.length > 0) {
+          downloadCaptions(
+            captionSegments,
+            captionFormat,
+            exportSettings.filename,
+            { format: captionFormat }
+          );
+          debugLog("[ExportPanel] Caption export successful", {
+            segmentCount: captionSegments.length,
+            format: captionFormat
+          });
+        }
+      } catch (error) {
+        debugWarn("[ExportPanel] Caption export failed", error);
+        // Don't block video export if caption export fails
       }
     }
 
