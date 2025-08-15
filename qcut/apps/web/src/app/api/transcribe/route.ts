@@ -99,7 +99,12 @@ export async function POST(request: NextRequest) {
     const { filename, language, decryptionKey, iv } = validationResult.data;
 
     // Prepare request body for Modal
-    const modalRequestBody: any = {
+    const modalRequestBody: {
+      filename: string;
+      language?: string;
+      decryptionKey?: string;
+      iv?: string;
+    } = {
       filename,
       language,
     };
