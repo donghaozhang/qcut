@@ -30,6 +30,33 @@ class IconifyAPIClient {
     return controller.signal;
   }
 
+  // Helper to combine multiple abort signals safely
+  private combineSignals(signals: AbortSignal[]): AbortSignal {
+    const controller = new AbortController();
+    const onAbort = () => {
+      if (!controller.signal.aborted) controller.abort();
+    };
+
+    for (const s of signals) {
+      if (s.aborted) {
+        controller.abort();
+        break;
+      }
+      s.addEventListener("abort", onAbort, { once: true });
+    }
+
+    // Cleanup listeners once our combined signal aborts
+    controller.signal.addEventListener(
+      "abort",
+      () => {
+        for (const s of signals) s.removeEventListener("abort", onAbort);
+      },
+      { once: true }
+    );
+
+    return controller.signal;
+  }
+
   async fetchWithFallback(
     path: string,
     signal?: AbortSignal

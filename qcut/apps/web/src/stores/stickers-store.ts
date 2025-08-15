@@ -1,13 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import {
-  getCollections,
-  searchIcons,
-  downloadIconSvg,
-  createSvgBlob,
-  IconSet,
-  IconSearchResult,
-} from "@/lib/iconify-api";
+import { getCollections, searchIcons, downloadIconSvg, createSvgBlob } from "@/lib/iconify-api";
+import type { IconSet, IconSearchResult } from "@/lib/iconify-api";
 import { STICKERS_CONSTANTS } from "@/components/editor/media-panel/views/stickers/constants";
 import type { RecentSticker } from "@/components/editor/media-panel/views/stickers/types/stickers.types";
 
@@ -173,11 +167,12 @@ export const useStickersStore = create<StickersStore>()(
           const errorMessage =
             error instanceof Error ? error.message : "Download failed";
 
-          // console.log('[STICKER DEBUG] downloadSticker failed:', error);
-
           set({ error: errorMessage });
-
-          throw error;
+          
+          if (error instanceof Error) {
+            throw error;
+          }
+          throw new Error(errorMessage);
         }
       },
 
