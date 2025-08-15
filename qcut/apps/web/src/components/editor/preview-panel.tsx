@@ -34,6 +34,9 @@ import {
 } from "./preview-panel-components";
 // Import the sticker overlay canvas
 import { StickerCanvas } from "./stickers-overlay/StickerCanvas";
+// Import captions display
+import { CaptionsDisplay } from "@/components/captions/captions-display";
+import type { TranscriptionSegment } from "@/types/captions";
 
 interface ActiveElement {
   element: TimelineElement;
@@ -289,6 +292,33 @@ export function PreviewPanel() {
     () => getActiveElements(),
     [getActiveElements]
   );
+
+  // Extract caption segments from active elements
+  const captionSegments = useMemo(() => {
+    const segments: TranscriptionSegment[] = [];
+
+    activeElements
+      .filter((elementData) => elementData.element.type === "captions")
+      .forEach((elementData, index) => {
+        const element = elementData.element;
+        if (element.type === "captions") {
+          segments.push({
+            id: index,
+            seek: element.startTime * 1000, // Convert to milliseconds
+            start: element.startTime,
+            end: element.startTime + element.duration,
+            text: element.text,
+            tokens: [], // Empty tokens array for timeline captions
+            temperature: 0.0,
+            avg_logprob: -0.5,
+            compression_ratio: 1.0,
+            no_speech_prob: element.confidence ? 1 - element.confidence : 0.1,
+          });
+        }
+      });
+
+    return segments;
+  }, [activeElements]);
 
   // Get media elements for blur background (video/image only)
   const blurBackgroundElements = useMemo(() => {
@@ -590,6 +620,14 @@ export function PreviewPanel() {
               <StickerCanvas
                 className="absolute inset-0"
                 disabled={isExpanded}
+              />
+
+              {/* Captions overlay - renders on top of stickers */}
+              <CaptionsDisplay
+                segments={captionSegments}
+                currentTime={currentTime}
+                isVisible={captionSegments.length > 0}
+                className="absolute inset-0 pointer-events-none"
               />
             </div>
           ) : null}

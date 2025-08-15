@@ -25,6 +25,11 @@ import { useDragDrop } from "@/hooks/use-drag-drop";
 import { cn } from "@/lib/utils";
 import { isTranscriptionConfigured } from "@/lib/transcription/transcription-utils";
 import type { TranscriptionResult, TranscriptionSegment } from "@/types/captions";
+import { extractAudio } from "@/lib/ffmpeg-utils";
+import { encryptWithRandomKey } from "@/lib/transcription/zk-encryption";
+import { r2Client } from "@/lib/storage/r2-client";
+import { useTimelineStore } from "@/stores/timeline-store";
+import { useCaptionsStore } from "@/stores/captions-store";
 
 interface TranscriptionState {
   isUploading: boolean;
@@ -51,11 +56,51 @@ export function CaptionsView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Timeline and captions store hooks
+  const { addTrack, addElementToTrack } = useTimelineStore();
+  const { createCaptionElements, completeTranscriptionJob, startTranscriptionJob } = useCaptionsStore();
+
   // Check if transcription is configured
   const { configured, missingVars } = isTranscriptionConfigured();
 
   const updateState = useCallback((updates: Partial<TranscriptionState>) => {
     setState(prev => ({ ...prev, ...updates }));
+  }, []);
+
+  const addCaptionsToTimeline = useCallback((result: TranscriptionResult) => {
+    try {
+      // Create caption elements from transcription result
+      const captionElements = createCaptionElements(result);
+      
+      if (captionElements.length === 0) {
+        toast.warning("No captions were generated from the transcription");
+        return;
+      }
+
+      // Create or find a captions track
+      const trackId = addTrack("captions");
+
+      // Add all caption elements to the track
+      captionElements.forEach((captionElement) => {
+        addElementToTrack(trackId, captionElement);
+      });
+
+      toast.success(`Added ${captionElements.length} caption segments to timeline`);
+    } catch (error) {
+      console.error("Failed to add captions to timeline:", error);
+      toast.error("Failed to add captions to timeline");
+    }
+  }, [createCaptionElements, addTrack, addElementToTrack]);
+
+  const stopTranscription = useCallback(() => {
+    updateState({
+      isUploading: false,
+      isTranscribing: false,
+      uploadProgress: 0,
+      transcriptionProgress: 0,
+      error: "Transcription cancelled by user",
+    });
+    toast.info("Transcription cancelled");
   }, []);
 
   const handleFileSelect = useCallback((files: FileList) => {
@@ -96,89 +141,87 @@ export function CaptionsView() {
     });
 
     try {
-      // Simulate upload progress
-      const uploadInterval = setInterval(() => {
-        setState(prev => ({
-          ...prev,
-          uploadProgress: Math.min(prev.uploadProgress + 10, 90),
-        }));
-      }, 200);
+      // Start transcription job in store
+      const jobId = startTranscriptionJob({
+        fileName: file.name,
+        language: selectedLanguage,
+      });
 
-      // In a real implementation, you would:
-      // 1. Encrypt the file using zk-encryption
-      // 2. Upload to R2 using r2-client
-      // 3. Call the transcription API
-      
-      // For now, simulate the process
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      clearInterval(uploadInterval);
+      // Step 1: Extract audio from video file (if needed)
+      let audioFile: File;
+      if (file.type.startsWith('video/')) {
+        toast.info("Extracting audio from video...");
+        updateState({ uploadProgress: 10 });
+        
+        const audioBlob = await extractAudio(file, "wav");
+        audioFile = new File([audioBlob], `${file.name}.wav`, { type: "audio/wav" });
+        updateState({ uploadProgress: 30 });
+      } else {
+        audioFile = file;
+        updateState({ uploadProgress: 20 });
+      }
 
+      // Step 2: Encrypt the audio file using zero-knowledge encryption
+      toast.info("Encrypting audio file...");
+      const { encryptedData, key, iv } = await encryptWithRandomKey(await audioFile.arrayBuffer());
+      updateState({ uploadProgress: 50 });
+
+      // Step 3: Upload encrypted file to R2
+      toast.info("Uploading to secure storage...");
+      const r2Key = r2Client.generateTranscriptionKey(audioFile.name);
+      await r2Client.uploadFile(r2Key, encryptedData, "application/octet-stream");
+      updateState({ uploadProgress: 70 });
+
+      // Step 4: Call transcription API
+      toast.info("Starting transcription...");
       updateState({
         isUploading: false,
         uploadProgress: 100,
         isTranscribing: true,
-        transcriptionProgress: 0,
+        transcriptionProgress: 10,
       });
 
-      // Simulate transcription progress
-      const transcriptionInterval = setInterval(() => {
-        setState(prev => ({
-          ...prev,
-          transcriptionProgress: Math.min(prev.transcriptionProgress + 15, 90),
-        }));
-      }, 500);
+      const response = await fetch("/api/transcribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          filename: r2Key,
+          language: selectedLanguage,
+          decryptionKey: key,
+          iv: iv,
+        }),
+      });
 
-      // Simulate completion
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      clearInterval(transcriptionInterval);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Transcription failed");
+      }
 
-      // Mock result for demonstration
-      const mockResult: TranscriptionResult = {
-        text: "This is a sample transcription result. The audio has been processed and converted to text.",
-        segments: [
-          {
-            id: 1,
-            seek: 0,
-            start: 0.0,
-            end: 2.5,
-            text: "This is a sample transcription result.",
-            tokens: [1, 2, 3],
-            temperature: 0.0,
-            avg_logprob: -0.5,
-            compression_ratio: 1.2,
-            no_speech_prob: 0.1,
-          },
-          {
-            id: 2,
-            seek: 2500,
-            start: 2.5,
-            end: 5.0,
-            text: "The audio has been processed and converted to text.",
-            tokens: [4, 5, 6],
-            temperature: 0.0,
-            avg_logprob: -0.4,
-            compression_ratio: 1.1,
-            no_speech_prob: 0.2,
-          },
-        ],
-        language: selectedLanguage === "auto" ? "en" : selectedLanguage,
-      };
+      updateState({ transcriptionProgress: 90 });
 
+      const result: TranscriptionResult = await response.json();
+      
+      // Complete transcription job in store
+      completeTranscriptionJob(jobId, result);
+      
       updateState({
         isTranscribing: false,
         transcriptionProgress: 100,
-        result: mockResult,
+        result,
       });
 
-      toast.success("Transcription completed successfully!");
+      toast.success(`Transcription completed! Found ${result.segments.length} segments.`);
 
     } catch (error) {
+      console.error("Transcription error:", error);
       updateState({
         isUploading: false,
         isTranscribing: false,
         error: error instanceof Error ? error.message : "Transcription failed",
       });
-      toast.error("Transcription failed. Please try again.");
+      toast.error(`Transcription failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
@@ -257,6 +300,7 @@ export function CaptionsView() {
               transcriptionProgress={state.transcriptionProgress}
               isEncrypted={true}
               fileName={state.currentFile?.name}
+              onCancel={stopTranscription}
             />
           )}
 
@@ -298,7 +342,11 @@ export function CaptionsView() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label>Transcription Result</Label>
-            <Button size="sm" variant="outline">
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => state.result && addCaptionsToTimeline(state.result)}
+            >
               <Download className="size-4 mr-2" />
               Add to Timeline
             </Button>

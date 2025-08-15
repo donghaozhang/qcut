@@ -2,7 +2,6 @@ import { create } from "zustand";
 import type { 
   TranscriptionResult, 
   TranscriptionSegment, 
-  CaptionElement,
   TranscriptionStatus 
 } from "@/types/captions";
 import type { CreateCaptionElement } from "@/types/timeline";

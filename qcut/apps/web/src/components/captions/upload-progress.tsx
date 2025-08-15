@@ -1,5 +1,6 @@
-import { Loader2, Shield, Upload, CheckCircle } from "lucide-react";
+import { Loader2, Shield, Upload, CheckCircle, X } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export interface UploadProgressProps {
@@ -10,6 +11,7 @@ export interface UploadProgressProps {
   isEncrypted?: boolean;
   fileName?: string;
   className?: string;
+  onCancel?: () => void;
 }
 
 export function UploadProgress({
@@ -20,6 +22,7 @@ export function UploadProgress({
   isEncrypted = false,
   fileName,
   className,
+  onCancel,
 }: UploadProgressProps) {
   const isProcessing = isUploading || isTranscribing;
   
@@ -45,6 +48,16 @@ export function UploadProgress({
             <p className="text-xs text-muted-foreground truncate">{fileName}</p>
           )}
         </div>
+        {onCancel && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onCancel}
+            className="h-8 w-8 p-0 flex-shrink-0"
+          >
+            <X className="size-4" />
+          </Button>
+        )}
       </div>
 
       {/* Upload Progress */}
