@@ -211,7 +211,6 @@ export const StickerCanvas: React.FC<{
 
   // Get only visible stickers at current time
   const visibleStickers = getVisibleStickersAtTime(currentTime);
-  console.log('[STICKER DEBUG] Visible stickers at time', currentTime, ':', visibleStickers.length);
 
   return (
     <>
