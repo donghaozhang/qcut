@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+
+// Constants for file size validation
+const MAX_FILE_SIZE_MB = 100;
+const HARD_LIMIT_FILE_SIZE_MB = 500;
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
@@ -146,10 +150,10 @@ export function CaptionsView() {
     }
 
     // Enhanced file size validation with optimization hints
-    const maxSize = 100 * 1024 * 1024;
+    const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
     if (file.size > maxSize) {
-      if (file.size > 500 * 1024 * 1024) { // 500MB hard limit
-        toast.error("File too large (max 500MB). Please use a smaller file.");
+      if (file.size > HARD_LIMIT_FILE_SIZE_MB * 1024 * 1024) {
+        toast.error(`File too large (max ${HARD_LIMIT_FILE_SIZE_MB}MB). Please use a smaller file.`);
         return;
       }
       toast.info("Large file detected. This may take longer to process...");
