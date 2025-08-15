@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { LanguageSelect } from "@/components/captions/language-select";
 import { UploadProgress } from "@/components/captions/upload-progress";
 import { 
@@ -103,6 +104,24 @@ export function CaptionsView() {
     toast.info("Transcription cancelled");
   }, []);
 
+  // Performance: Simple cache for transcription results
+  const getCachedTranscription = useCallback((fileKey: string): TranscriptionResult | null => {
+    try {
+      const cached = localStorage.getItem(`transcription-${fileKey}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        // Cache valid for 24 hours
+        if (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
+          return parsed.result;
+        }
+        localStorage.removeItem(`transcription-${fileKey}`);
+      }
+    } catch (error) {
+      console.warn('Cache read error:', error);
+    }
+    return null;
+  }, []);
+
   const handleFileSelect = useCallback((files: FileList) => {
     const file = files[0];
     if (!file) return;
@@ -116,17 +135,30 @@ export function CaptionsView() {
       return;
     }
 
-    // Validate file size (max 100MB)
-    const maxSize = 100 * 1024 * 1024;
-    if (file.size > maxSize) {
-      toast.error("File size must be less than 100MB");
+    // Performance: Check cache first
+    const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+    const cachedResult = getCachedTranscription(fileKey);
+    
+    if (cachedResult) {
+      toast.success("Found cached transcription!");
+      setState(prev => ({ ...prev, result: cachedResult }));
       return;
     }
 
-    startTranscription(file);
-  }, []);
+    // Enhanced file size validation with optimization hints
+    const maxSize = 100 * 1024 * 1024;
+    if (file.size > maxSize) {
+      if (file.size > 500 * 1024 * 1024) { // 500MB hard limit
+        toast.error("File too large (max 500MB). Please use a smaller file.");
+        return;
+      }
+      toast.info("Large file detected. This may take longer to process...");
+    }
 
-  const startTranscription = async (file: File) => {
+    startTranscription(file, fileKey);
+  }, [getCachedTranscription]);
+
+  const startTranscription = async (file: File, fileKey?: string) => {
     if (!configured) {
       toast.error(`Transcription not configured. Missing: ${missingVars.join(", ")}`);
       return;
@@ -213,15 +245,39 @@ export function CaptionsView() {
       });
 
       toast.success(`Transcription completed! Found ${result.segments.length} segments.`);
+      
+      // Performance: Cache the result for future use
+      if (fileKey) {
+        try {
+          const cacheData = { result, timestamp: Date.now() };
+          localStorage.setItem(`transcription-${fileKey}`, JSON.stringify(cacheData));
+        } catch (error) {
+          console.warn('Failed to cache transcription:', error);
+        }
+      }
 
     } catch (error) {
       console.error("Transcription error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Transcription failed";
+      
       updateState({
         isUploading: false,
         isTranscribing: false,
-        error: error instanceof Error ? error.message : "Transcription failed",
+        error: errorMessage,
       });
-      toast.error(`Transcription failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      
+      // Enhanced error messaging with actionable suggestions
+      if (errorMessage.includes("rate limit") || errorMessage.includes("429")) {
+        toast.error("Rate limit exceeded. Please wait a moment before trying again.");
+      } else if (errorMessage.includes("503") || errorMessage.includes("not configured")) {
+        toast.error("Transcription service not configured. Check environment variables.");
+      } else if (errorMessage.includes("network") || errorMessage.includes("fetch")) {
+        toast.error("Network error. Check your internet connection and try again.");
+      } else if (errorMessage.includes("413") || errorMessage.includes("too large")) {
+        toast.error("File too large. Please use a file smaller than 100MB.");
+      } else {
+        toast.error(`Transcription failed: ${errorMessage}`);
+      }
     }
   };
 
@@ -290,6 +346,30 @@ export function CaptionsView() {
               </Button>
             </>
           )}
+          
+          {/* Loading Skeleton for Processing */}
+          {isProcessing && !state.result && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="size-12 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </div>
+              
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <Skeleton className="h-3 w-16" />
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-4/5" />
+                  <Skeleton className="h-3 w-3/4" />
+                </div>
+              </div>
+              
+              <Skeleton className="h-8 w-full" />
+            </div>
+          )}
 
           {/* Progress Display */}
           {(state.isUploading || state.isTranscribing) && (
@@ -317,21 +397,37 @@ export function CaptionsView() {
             </div>
           )}
 
-          {/* Error State */}
+          {/* Error State with Enhanced UX */}
           {state.error && (
             <div className="space-y-3">
               <AlertCircle className="size-8 mx-auto text-red-500" />
               <div>
-                <p className="text-sm font-medium text-red-500">Error</p>
+                <p className="text-sm font-medium text-red-500">Transcription Failed</p>
                 <p className="text-xs text-muted-foreground">{state.error}</p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => updateState({ error: null })}
-              >
-                Try Again
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    updateState({ error: null });
+                    toast.info("Ready to try again");
+                  }}
+                  className="flex-1"
+                >
+                  Try Again
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    updateState({ error: null });
+                    toast.info("Error cleared");
+                  }}
+                >
+                  Clear
+                </Button>
+              </div>
             </div>
           )}
         </div>
