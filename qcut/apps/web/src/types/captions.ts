@@ -79,13 +79,13 @@ export const SUPPORTED_LANGUAGES: Language[] = [
 ];
 
 // Transcription process status
-export type TranscriptionStatus = 
-  | "idle" 
-  | "preparing" 
-  | "uploading" 
-  | "processing" 
-  | "downloading" 
-  | "completed" 
+export type TranscriptionStatus =
+  | "idle"
+  | "preparing"
+  | "uploading"
+  | "processing"
+  | "downloading"
+  | "completed"
   | "error";
 
 export type TranscriptionProgress = {

@@ -174,7 +174,10 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         // Add to timeline if timing is specified (async)
         const addToTimelinePromise = get().addStickerToTimeline(newSticker);
         addToTimelinePromise.catch((error: unknown) => {
-          debugLog("[StickerStore] ❌ Failed to add sticker to timeline:", error);
+          debugLog(
+            "[StickerStore] ❌ Failed to add sticker to timeline:",
+            error
+          );
         });
 
         // Auto-save with a small delay to ensure state is updated
@@ -454,7 +457,6 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         const data = Array.from(state.overlayStickers.values());
         const key = `overlay-stickers-${projectId}`;
 
-
         debugLog(
           `[StickerStore] Saving ${data.length} stickers for project ${projectId}`
         );
@@ -611,7 +613,9 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             stickerTrack = timelineStore.tracks.find(
               (track) => track.id === trackId
             );
-            debugLog(`[StickerStore] Created sticker track with ID: ${trackId}`);
+            debugLog(
+              `[StickerStore] Created sticker track with ID: ${trackId}`
+            );
           }
 
           debugLog(

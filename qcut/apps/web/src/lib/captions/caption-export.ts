@@ -15,12 +15,14 @@ export interface CaptionExportOptions {
 /**
  * Convert timeline caption elements to caption segments
  */
-export function extractCaptionSegments(tracks: TimelineTrack[]): TranscriptionSegment[] {
+export function extractCaptionSegments(
+  tracks: TimelineTrack[]
+): TranscriptionSegment[] {
   const segments: TranscriptionSegment[] = [];
-  
+
   tracks
-    .filter(track => track.type === "captions")
-    .forEach(track => {
+    .filter((track) => track.type === "captions")
+    .forEach((track) => {
       track.elements.forEach((element, index) => {
         if (element.type === "captions") {
           segments.push({
@@ -38,7 +40,7 @@ export function extractCaptionSegments(tracks: TimelineTrack[]): TranscriptionSe
         }
       });
     });
-  
+
   return segments.sort((a, b) => a.start - b.start);
 }
 
@@ -50,8 +52,8 @@ function formatSrtTime(seconds: number): string {
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
   const ms = Math.floor((seconds % 1) * 1000);
-  
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")},${ms.toString().padStart(3, "0")}`;
 }
 
 /**
@@ -62,52 +64,61 @@ function formatVttTime(seconds: number): string {
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
   const ms = Math.floor((seconds % 1) * 1000);
-  
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}.${ms.toString().padStart(3, "0")}`;
 }
 
 /**
  * Export captions in SRT format
  */
-export function exportSrt(segments: TranscriptionSegment[], options: Partial<CaptionExportOptions> = {}): string {
+export function exportSrt(
+  segments: TranscriptionSegment[],
+  options: Partial<CaptionExportOptions> = {}
+): string {
   let content = "";
-  
+
   segments.forEach((segment, index) => {
     content += `${index + 1}\n`;
     content += `${formatSrtTime(segment.start)} --> ${formatSrtTime(segment.end)}\n`;
     content += `${segment.text.trim()}\n\n`;
   });
-  
+
   return content.trim();
 }
 
 /**
  * Export captions in VTT format
  */
-export function exportVtt(segments: TranscriptionSegment[], options: Partial<CaptionExportOptions> = {}): string {
+export function exportVtt(
+  segments: TranscriptionSegment[],
+  options: Partial<CaptionExportOptions> = {}
+): string {
   let content = "WEBVTT\n\n";
-  
+
   if (options.language) {
     content += `Language: ${options.language}\n\n`;
   }
-  
+
   segments.forEach((segment, index) => {
     content += `${index + 1}\n`;
     content += `${formatVttTime(segment.start)} --> ${formatVttTime(segment.end)}\n`;
     content += `${segment.text.trim()}\n\n`;
   });
-  
+
   return content.trim();
 }
 
 /**
  * Export captions in ASS format (Advanced SubStation Alpha)
  */
-export function exportAss(segments: TranscriptionSegment[], options: Partial<CaptionExportOptions> = {}): string {
+export function exportAss(
+  segments: TranscriptionSegment[],
+  options: Partial<CaptionExportOptions> = {}
+): string {
   const fontFamily = options.fontFamily || "Arial";
   const fontSize = options.fontSize || 16;
   const fontColor = options.fontColor || "&Hffffff";
-  
+
   let content = `[Script Info]
 Title: QCut Generated Subtitles
 ScriptType: v4.00+
@@ -125,7 +136,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     const endTime = formatAssTime(segment.end);
     content += `Dialogue: 0,${startTime},${endTime},Default,,0,0,0,,${segment.text.trim()}\n`;
   });
-  
+
   return content;
 }
 
@@ -137,16 +148,19 @@ function formatAssTime(seconds: number): string {
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
   const cs = Math.floor((seconds % 1) * 100); // centiseconds
-  
-  return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${cs.toString().padStart(2, '0')}`;
+
+  return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}.${cs.toString().padStart(2, "0")}`;
 }
 
 /**
  * Export captions in TTML format (Timed Text Markup Language)
  */
-export function exportTtml(segments: TranscriptionSegment[], options: Partial<CaptionExportOptions> = {}): string {
+export function exportTtml(
+  segments: TranscriptionSegment[],
+  options: Partial<CaptionExportOptions> = {}
+): string {
   const language = options.language || "en";
-  
+
   let content = `<?xml version="1.0" encoding="UTF-8"?>
 <tt xmlns="http://www.w3.org/ns/ttml" 
     xmlns:tts="http://www.w3.org/ns/ttml#styling" 
@@ -154,9 +168,9 @@ export function exportTtml(segments: TranscriptionSegment[], options: Partial<Ca
   <head>
     <styling>
       <style xml:id="defaultStyle" 
-             tts:fontFamily="${options.fontFamily || 'Arial'}" 
+             tts:fontFamily="${options.fontFamily || "Arial"}" 
              tts:fontSize="${options.fontSize || 16}px" 
-             tts:color="${options.fontColor || 'white'}" 
+             tts:color="${options.fontColor || "white"}" 
              tts:textAlign="center"/>
     </styling>
   </head>
@@ -173,7 +187,7 @@ export function exportTtml(segments: TranscriptionSegment[], options: Partial<Ca
   content += `    </div>
   </body>
 </tt>`;
-  
+
   return content;
 }
 
@@ -185,8 +199,8 @@ function formatTtmlTime(seconds: number): string {
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
   const ms = Math.floor((seconds % 1) * 1000);
-  
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}.${ms.toString().padStart(3, "0")}`;
 }
 
 /**
@@ -194,19 +208,19 @@ function formatTtmlTime(seconds: number): string {
  */
 function escapeXml(text: string): string {
   return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 /**
  * Main export function that handles all formats
  */
 export function exportCaptions(
-  segments: TranscriptionSegment[], 
-  format: CaptionFormat, 
+  segments: TranscriptionSegment[],
+  format: CaptionFormat,
   options: Partial<CaptionExportOptions> = {}
 ): string {
   switch (format) {
@@ -271,16 +285,16 @@ export function downloadCaptions(
   const content = exportCaptions(segments, format, options);
   const extension = getCaptionFileExtension(format);
   const mimeType = getCaptionMimeType(format);
-  
+
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
-  
-  const link = document.createElement('a');
+
+  const link = document.createElement("a");
   link.href = url;
   link.download = `${filename}.${extension}`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  
+
   URL.revokeObjectURL(url);
 }

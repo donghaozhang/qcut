@@ -55,7 +55,11 @@ export interface CaptionElement extends BaseTimelineElement {
 }
 
 // Typed timeline elements
-export type TimelineElement = MediaElement | TextElement | StickerElement | CaptionElement;
+export type TimelineElement =
+  | MediaElement
+  | TextElement
+  | StickerElement
+  | CaptionElement;
 
 // Creation types (without id, for addElementToTrack)
 export type CreateMediaElement = Omit<MediaElement, "id">;
@@ -123,9 +127,19 @@ export function sortTracksByOrder(tracks: TimelineTrack[]): TimelineTrack[] {
       return 1;
 
     // Sticker tracks go after captions, before media
-    if (a.type === "sticker" && b.type !== "sticker" && b.type !== "text" && b.type !== "captions")
+    if (
+      a.type === "sticker" &&
+      b.type !== "sticker" &&
+      b.type !== "text" &&
+      b.type !== "captions"
+    )
       return -1;
-    if (b.type === "sticker" && a.type !== "sticker" && a.type !== "text" && a.type !== "captions")
+    if (
+      b.type === "sticker" &&
+      a.type !== "sticker" &&
+      a.type !== "text" &&
+      a.type !== "captions"
+    )
       return 1;
 
     // Audio tracks always go to bottom

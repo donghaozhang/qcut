@@ -314,7 +314,7 @@ export function PreviewPanel() {
             compression_ratio: 1.0,
             // Treat 0 as a valid confidence; default only when null/undefined
             no_speech_prob:
-              element.confidence ?? element.confidence === 0
+              (element.confidence ?? element.confidence === 0)
                 ? Math.min(1, Math.max(0, 1 - (element.confidence ?? 0)))
                 : 0.1,
           });

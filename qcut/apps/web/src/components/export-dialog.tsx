@@ -24,12 +24,12 @@ import {
 import { cn } from "@/lib/utils";
 import { useElectron } from "@/hooks/useElectron";
 import { PlatformIcon } from "@/components/export-icons";
-import { 
-  extractCaptionSegments, 
-  downloadCaptions, 
+import {
+  extractCaptionSegments,
+  downloadCaptions,
   exportCaptions,
   getCaptionFileExtension,
-  type CaptionFormat 
+  type CaptionFormat,
 } from "@/lib/captions/caption-export";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
@@ -50,21 +50,33 @@ export function ExportDialog() {
     loading: mediaItemsLoading,
     error: mediaItemsError,
   } = useAsyncMediaItems();
-  
+
   // Caption export state
   const [exportCaptions, setExportCaptions] = useState(false);
   const [captionFormat, setCaptionFormat] = useState<CaptionFormat>("srt");
-  
+
   // Check if there are caption tracks available
-  const hasCaptions = tracks.some(track => 
-    track.type === "captions" && track.elements.length > 0
+  const hasCaptions = tracks.some(
+    (track) => track.type === "captions" && track.elements.length > 0
   );
-  
-  const captionFormats: { value: CaptionFormat; label: string; description: string }[] = [
+
+  const captionFormats: {
+    value: CaptionFormat;
+    label: string;
+    description: string;
+  }[] = [
     { value: "srt", label: "SRT", description: "SubRip Subtitles (.srt)" },
     { value: "vtt", label: "VTT", description: "WebVTT (.vtt)" },
-    { value: "ass", label: "ASS", description: "Advanced SubStation Alpha (.ass)" },
-    { value: "ttml", label: "TTML", description: "Timed Text Markup Language (.ttml)" },
+    {
+      value: "ass",
+      label: "ASS",
+      description: "Advanced SubStation Alpha (.ass)",
+    },
+    {
+      value: "ttml",
+      label: "TTML",
+      description: "Timed Text Markup Language (.ttml)",
+    },
   ];
 
   const canvasRef = useRef<ExportCanvasRef>(null);
@@ -150,7 +162,7 @@ export function ExportDialog() {
           );
           debugLog("[ExportPanel] Caption export successful", {
             segmentCount: captionSegments.length,
-            format: captionFormat
+            format: captionFormat,
           });
         }
       } catch (error) {
@@ -517,7 +529,7 @@ export function ExportDialog() {
               </div>
             </CardContent>
           </Card>
-          
+
           {/* Caption Export Section */}
           {hasCaptions && (
             <Card className="col-span-2">
@@ -529,30 +541,50 @@ export function ExportDialog() {
                   <Checkbox
                     id="export-captions"
                     checked={exportCaptions}
-                    onCheckedChange={(checked) => setExportCaptions(checked as boolean)}
+                    onCheckedChange={(checked) =>
+                      setExportCaptions(checked as boolean)
+                    }
                     disabled={exportProgress.progress.isExporting}
                   />
-                  <Label htmlFor="export-captions" className="text-sm cursor-pointer">
+                  <Label
+                    htmlFor="export-captions"
+                    className="text-sm cursor-pointer"
+                  >
                     Export captions as separate file
                   </Label>
                 </div>
-                
+
                 {exportCaptions && (
                   <div className="space-y-3 pl-6">
                     <div>
-                      <Label className="text-xs font-medium">Caption Format</Label>
+                      <Label className="text-xs font-medium">
+                        Caption Format
+                      </Label>
                       <RadioGroup
                         value={captionFormat}
-                        onValueChange={(value) => setCaptionFormat(value as CaptionFormat)}
+                        onValueChange={(value) =>
+                          setCaptionFormat(value as CaptionFormat)
+                        }
                         disabled={exportProgress.progress.isExporting}
                         className="mt-2"
                       >
                         {captionFormats.map((format) => (
-                          <div key={format.value} className="flex items-center space-x-2">
-                            <RadioGroupItem value={format.value} id={format.value} />
-                            <Label htmlFor={format.value} className="text-sm cursor-pointer">
+                          <div
+                            key={format.value}
+                            className="flex items-center space-x-2"
+                          >
+                            <RadioGroupItem
+                              value={format.value}
+                              id={format.value}
+                            />
+                            <Label
+                              htmlFor={format.value}
+                              className="text-sm cursor-pointer"
+                            >
                               <div>
-                                <div className="font-medium">{format.label}</div>
+                                <div className="font-medium">
+                                  {format.label}
+                                </div>
                                 <div className="text-xs text-muted-foreground">
                                   {format.description}
                                 </div>
@@ -562,9 +594,11 @@ export function ExportDialog() {
                         ))}
                       </RadioGroup>
                     </div>
-                    
+
                     <div className="text-xs text-muted-foreground">
-                      Caption file will be downloaded as: {exportSettings.filename}.{getCaptionFileExtension(captionFormat)}
+                      Caption file will be downloaded as:{" "}
+                      {exportSettings.filename}.
+                      {getCaptionFileExtension(captionFormat)}
                     </div>
                   </div>
                 )}

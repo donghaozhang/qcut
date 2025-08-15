@@ -53,7 +53,7 @@ export function CaptionsDisplay({
 
   // Find the active caption segment based on current time
   const activeSegment = segments.find(
-    segment => currentTime >= segment.start && currentTime <= segment.end
+    (segment) => currentTime >= segment.start && currentTime <= segment.end
   );
 
   if (!activeSegment) {

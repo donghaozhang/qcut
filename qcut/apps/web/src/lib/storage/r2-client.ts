@@ -1,20 +1,31 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
 import { env } from "@/env";
 
 // Cloudflare R2 Client for transcription file storage
 export class R2Client {
   private client: S3Client;
-  
+
   constructor() {
     // SECURITY NOTE: R2 credentials removed from client-side for security
     // All R2 operations should go through server API routes
-    throw new Error("R2Client should not be used client-side. Use server API routes instead.");
+    throw new Error(
+      "R2Client should not be used client-side. Use server API routes instead."
+    );
   }
 
   /**
    * Upload file to R2 bucket
    */
-  async uploadFile(key: string, file: ArrayBuffer | Uint8Array, contentType?: string): Promise<void> {
+  async uploadFile(
+    key: string,
+    file: ArrayBuffer | Uint8Array,
+    contentType?: string
+  ): Promise<void> {
     const body = file instanceof ArrayBuffer ? new Uint8Array(file) : file;
     const command = new PutObjectCommand({
       Bucket: env.R2_BUCKET_NAME,
@@ -36,7 +47,7 @@ export class R2Client {
     });
 
     const response = await this.client.send(command);
-    
+
     if (!response.Body) {
       throw new Error(`File not found: ${key}`);
     }
@@ -67,8 +78,9 @@ export class R2Client {
   generateTranscriptionKey(originalFilename: string): string {
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 15);
-    const lastDotIndex = originalFilename.lastIndexOf('.');
-    const extension = lastDotIndex > 0 ? originalFilename.slice(lastDotIndex + 1) : 'bin';
+    const lastDotIndex = originalFilename.lastIndexOf(".");
+    const extension =
+      lastDotIndex > 0 ? originalFilename.slice(lastDotIndex + 1) : "bin";
     return `transcription/${timestamp}-${random}.${extension}`;
   }
 

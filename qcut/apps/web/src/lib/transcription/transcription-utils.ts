@@ -1,6 +1,9 @@
 import { env } from "@/env";
 
-export function isTranscriptionConfigured(): { configured: boolean; missingVars: string[] } {
+export function isTranscriptionConfigured(): {
+  configured: boolean;
+  missingVars: string[];
+} {
   const missingVars: string[] = [];
 
   // SECURITY NOTE: Only check client-safe configuration

@@ -18,5 +18,6 @@ export const env = {
   R2_ACCESS_KEY_ID: "",
   R2_SECRET_ACCESS_KEY: "",
   MODAL_TRANSCRIPTION_URL: "",
-  R2_BUCKET_NAME: import.meta.env.VITE_R2_BUCKET_NAME || "opencut-transcription",
+  R2_BUCKET_NAME:
+    import.meta.env.VITE_R2_BUCKET_NAME || "opencut-transcription",
 };

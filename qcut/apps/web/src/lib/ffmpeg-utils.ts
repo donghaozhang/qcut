@@ -547,13 +547,13 @@ export const extractAudio = async (
   const ffmpeg = await initFFmpeg();
 
   // Derive input filename extension from the actual file
-  const ext = videoFile.name.split('.').pop()?.toLowerCase() ?? 'mp4';
-  const supportedExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv'];
-  
+  const ext = videoFile.name.split(".").pop()?.toLowerCase() ?? "mp4";
+  const supportedExtensions = ["mp4", "webm", "mov", "avi", "mkv"];
+
   if (!supportedExtensions.includes(ext)) {
     throw new Error(`Unsupported video format: .${ext}`);
   }
-  
+
   const inputName = `input.${ext}`;
   const outputName = `output.${format}`;
 

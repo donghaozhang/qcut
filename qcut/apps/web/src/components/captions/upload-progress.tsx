@@ -25,7 +25,7 @@ export function UploadProgress({
   onCancel,
 }: UploadProgressProps) {
   const isProcessing = isUploading || isTranscribing;
-  
+
   if (!isProcessing) return null;
 
   return (
@@ -70,7 +70,7 @@ export function UploadProgress({
             <span className="font-medium">{uploadProgress}%</span>
           </div>
           <Progress value={uploadProgress} className="h-2" />
-          
+
           {/* Encryption Status */}
           {isEncrypted && uploadProgress > 0 && (
             <div className="flex items-center gap-2 text-xs text-green-600">
@@ -85,11 +85,13 @@ export function UploadProgress({
       {isTranscribing && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Processing with AI transcription</span>
+            <span className="text-muted-foreground">
+              Processing with AI transcription
+            </span>
             <span className="font-medium">{transcriptionProgress}%</span>
           </div>
           <Progress value={transcriptionProgress} className="h-2" />
-          
+
           {/* Processing Steps */}
           <div className="space-y-1 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">

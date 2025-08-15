@@ -25,13 +25,11 @@ interface StickerElementProps {
  */
 export const StickerElement = memo<StickerElementProps>(
   ({ sticker, mediaItem, canvasRef }) => {
-    
     const elementRef = useRef<HTMLDivElement>(null);
 
     // Store hooks
     const { selectedStickerId, selectSticker } = useStickersOverlayStore();
     const isSelected = selectedStickerId === sticker.id;
-
 
     // Drag functionality
     const {
@@ -68,7 +66,6 @@ export const StickerElement = memo<StickerElementProps>(
      * Render media content based on type
      */
     const renderMediaContent = () => {
-      
       switch (mediaItem.type) {
         case "image":
           return (
@@ -122,7 +119,6 @@ export const StickerElement = memo<StickerElementProps>(
       // Smooth transitions except during drag
       transition: isDragging ? "none" : "box-shadow 0.2s",
     };
-
 
     return (
       <div

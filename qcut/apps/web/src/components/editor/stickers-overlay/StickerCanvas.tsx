@@ -25,7 +25,6 @@ export const StickerCanvas: React.FC<{
 }> = memo(({ className, disabled = false }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
 
-
   // Store subscriptions
   const {
     overlayStickers,
@@ -41,29 +40,28 @@ export const StickerCanvas: React.FC<{
   const { activeProject } = useProjectStore();
   const { currentTime } = usePlaybackStore();
 
-
   // Migration: Fix media items with wrong MIME type
   useEffect(() => {
     const fixMimeTypes = () => {
       mediaItems.forEach((mediaItem) => {
         if (
-          mediaItem.type === "image" && 
+          mediaItem.type === "image" &&
           mediaItem.url?.startsWith("data:application/octet-stream") &&
           mediaItem.url.includes("PHN2ZyB4bWxu") // Base64 start of SVG
         ) {
           // Extract the base64 data
-          const base64Data = mediaItem.url.split(',')[1];
+          const base64Data = mediaItem.url.split(",")[1];
           if (base64Data) {
             // Create correct data URL
             const correctedUrl = `data:image/svg+xml;base64,${base64Data}`;
-            
+
             // Update the media item URL in place
             mediaItem.url = correctedUrl;
           }
         }
       });
     };
-    
+
     if (mediaItems.length > 0) {
       fixMimeTypes();
     }
@@ -142,11 +140,10 @@ export const StickerCanvas: React.FC<{
   // Clean up stickers with missing media items when media loads
   // Add a delay to avoid race conditions during project loading
   useEffect(() => {
-    
     if (mediaItems.length > 0 && overlayStickers.size > 0) {
       const timeoutId = setTimeout(() => {
         const mediaIds = mediaItems.map((item) => item.id);
-        
+
         debugLog(
           `[StickerCanvas] Cleanup check - Media count: ${mediaItems.length}, Sticker count: ${overlayStickers.size}`
         );
@@ -169,7 +166,12 @@ export const StickerCanvas: React.FC<{
 
       return () => clearTimeout(timeoutId);
     }
-  }, [mediaItems, overlayStickers.size, cleanupInvalidStickers, overlayStickers]);
+  }, [
+    mediaItems,
+    overlayStickers.size,
+    cleanupInvalidStickers,
+    overlayStickers,
+  ]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -230,11 +232,9 @@ export const StickerCanvas: React.FC<{
       >
         {/* Render stickers using StickerElement */}
         {visibleStickers.map((sticker) => {
-          
           const mediaItem = mediaItems.find(
             (item) => item.id === sticker.mediaItemId
           );
-
 
           // Show placeholder if media item not found (it might still be loading)
           if (!mediaItem) {
@@ -258,7 +258,6 @@ export const StickerCanvas: React.FC<{
               </div>
             );
           }
-
 
           return (
             <StickerElement

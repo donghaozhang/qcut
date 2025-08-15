@@ -99,26 +99,15 @@ export function LanguageSelect({
         onClick={expand}
         ref={buttonRef}
       >
-        {!expanded ? (
-          <div
-            className="flex items-center justify-between w-full"
-            style={{
-              height: collapsedHeight,
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-lg">
-                {selectedLanguage?.flag || "🌐"}
-              </span>
-              <span className="pt-[0.05rem]">
-                {selectedCountry === "auto" ? "Auto" : selectedLanguage?.name}
-              </span>
-            </div>
-          </div>
-        ) : (
+        {expanded ? (
           <div className="flex flex-col gap-2 my-2.5 w-full overflow-y-auto scrollbar-hidden">
             <LanguageButton
-              language={{ code: "auto", name: "Auto", nativeName: "Auto", flag: "🌐" }}
+              language={{
+                code: "auto",
+                name: "Auto",
+                nativeName: "Auto",
+                flag: "🌐",
+              }}
               onSelect={handleSelect}
               selectedCountry={selectedCountry}
             />
@@ -130,6 +119,20 @@ export function LanguageSelect({
                 selectedCountry={selectedCountry}
               />
             ))}
+          </div>
+        ) : (
+          <div
+            className="flex items-center justify-between w-full"
+            style={{
+              height: collapsedHeight,
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{selectedLanguage?.flag || "🌐"}</span>
+              <span className="pt-[0.05rem]">
+                {selectedCountry === "auto" ? "Auto" : selectedLanguage?.name}
+              </span>
+            </div>
           </div>
         )}
       </motion.button>
@@ -167,9 +170,7 @@ function LanguageButton({
       className="flex items-center gap-2 cursor-pointer text-foreground hover:text-foreground/75"
       onClick={(e) => onSelect({ code: language.code, e })}
     >
-      <span className="text-lg">
-        {language.flag}
-      </span>
+      <span className="text-lg">{language.flag}</span>
       <span className="pt-[0.05rem]">{language.name}</span>
     </button>
   );

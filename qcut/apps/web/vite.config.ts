@@ -40,38 +40,38 @@ export default defineConfig({
           // Core vendor libraries
           "vendor-react": ["react", "react-dom"],
           "vendor-router": ["@tanstack/react-router"],
-          
+
           // UI component libraries
           "vendor-ui": [
             "@radix-ui/react-dialog",
-            "@radix-ui/react-dropdown-menu", 
+            "@radix-ui/react-dropdown-menu",
             "@radix-ui/react-select",
             "@radix-ui/react-tabs",
             "@radix-ui/react-tooltip",
-            "lucide-react"
+            "lucide-react",
           ],
-          
+
           // Media processing (heavy dependencies)
           "media-processing": [
             "@ffmpeg/ffmpeg",
-            "@ffmpeg/core", 
-            "@ffmpeg/util"
+            "@ffmpeg/core",
+            "@ffmpeg/util",
           ],
-          
+
           // Editor core stores and logic
           "editor-core": [
             "./src/stores/editor-store",
-            "./src/stores/timeline-store", 
+            "./src/stores/timeline-store",
             "./src/stores/playback-store",
             "./src/stores/panel-store",
-            "./src/stores/project-store"
+            "./src/stores/project-store",
           ],
-          
+
           // Stickers feature
           "stickers": [
             "./src/stores/stickers-store",
-            "./src/stores/stickers-overlay-store"
-          ]
+            "./src/stores/stickers-overlay-store",
+          ],
         },
       },
     },

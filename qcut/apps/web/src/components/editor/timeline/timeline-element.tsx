@@ -488,8 +488,7 @@ export function TimelineElement({
         </ContextMenuItem>
         <ContextMenuItem onClick={handleElementDuplicateContext}>
           <Copy className="h-4 w-4 mr-2" />
-          Duplicate{" "}
-          {getElementTypeName(element)}
+          Duplicate {getElementTypeName(element)}
         </ContextMenuItem>
         {element.type === "media" && (
           <ContextMenuItem onClick={handleReplaceClip}>
@@ -503,8 +502,7 @@ export function TimelineElement({
           className="text-destructive focus:text-destructive"
         >
           <Trash2 className="h-4 w-4 mr-2" />
-          Delete{" "}
-          {getElementTypeName(element)}
+          Delete {getElementTypeName(element)}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

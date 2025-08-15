@@ -17,7 +17,6 @@ export function useStickerSelect() {
 
   const handleStickerSelect = useCallback(
     async (iconId: string, name: string): Promise<string | undefined> => {
-      
       if (!activeProject) {
         toast.error("No project selected");
         return;
@@ -27,7 +26,7 @@ export function useStickerSelect() {
       try {
         // Download the actual SVG content with transparency
         const [collection, icon] = iconId.split(":");
-        
+
         if (!collection || !icon) {
           toast.error("Invalid sticker ID format");
           return;
@@ -38,17 +37,15 @@ export function useStickerSelect() {
           height: 512,
         });
 
-
         // Create a Blob from the downloaded SVG content
         const svgBlob = createSvgBlob(svgContent);
         const svgFile = new File([svgBlob], `${name}.svg`, {
           type: "image/svg+xml;charset=utf-8",
         });
 
-
         // For Electron (file:// protocol), use data URL instead of blob URL
         let imageUrl: string;
-        
+
         if (window.location.protocol === "file:") {
           // Use URL-encoded data URL to support non-ASCII SVG content
           const encoded = encodeURIComponent(svgContent);
@@ -70,7 +67,6 @@ export function useStickerSelect() {
           height: 512,
           duration: 0,
         });
-
 
         // Add to recent stickers
         addRecentSticker(iconId, name);
