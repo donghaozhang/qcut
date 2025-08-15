@@ -74,7 +74,9 @@ export function StickersView() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <AlertCircle className="mb-4 h-12 w-12 text-destructive" />
+        <AlertCircle className="mb-4 h-12 w-12 text-destructive">
+          <title>Error loading stickers</title>
+        </AlertCircle>
         <p className="text-lg font-medium">Failed to load stickers</p>
         <p className="text-muted-foreground">{error}</p>
         <Button

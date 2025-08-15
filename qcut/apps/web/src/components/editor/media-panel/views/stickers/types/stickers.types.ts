@@ -11,7 +11,6 @@ export type StickerItemProps = {
 
 export type CollectionContentProps = {
   collectionPrefix: string;
-  collections: IconSet[];
   onSelect: (iconId: string, name: string) => void;
 };
 
