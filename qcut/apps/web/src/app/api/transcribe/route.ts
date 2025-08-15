@@ -52,7 +52,11 @@ const apiResponseSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting
-    const ip = request.headers.get("x-forwarded-for") ?? "anonymous";
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const ip =
+      forwardedFor?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      "anonymous";
     const { success } = await baseRateLimit.limit(ip);
 
     if (!success) {
