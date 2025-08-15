@@ -182,6 +182,20 @@ export function CaptionsView() {
       // Step 1: Extract audio from video file (if needed)
       let audioFile: File;
       if (file.type.startsWith('video/')) {
+        // Validate supported video formats
+        const supportedVideoTypes = [
+          'video/mp4',
+          'video/webm', 
+          'video/quicktime', // .mov
+          'video/avi',
+          'video/x-msvideo', // .avi alternative MIME
+          'video/x-matroska' // .mkv
+        ];
+        
+        if (!supportedVideoTypes.includes(file.type)) {
+          throw new Error(`Unsupported video format: ${file.type}`);
+        }
+        
         toast.info("Extracting audio from video...");
         updateState({ uploadProgress: 10 });
         
