@@ -11,7 +11,7 @@ const transcribeRequestSchema = z.object({
   iv: z.string().min(1, "IV is required").optional(),
 });
 
-const modalResponseSchema = z.object({
+const transcriptionResultSchema = z.object({
   text: z.string(),
   segments: z.array(
     z.object({
@@ -30,24 +30,8 @@ const modalResponseSchema = z.object({
   language: z.string(),
 });
 
-const apiResponseSchema = z.object({
-  text: z.string(),
-  segments: z.array(
-    z.object({
-      id: z.number(),
-      seek: z.number(),
-      start: z.number(),
-      end: z.number(),
-      text: z.string(),
-      tokens: z.array(z.number()),
-      temperature: z.number(),
-      avg_logprob: z.number(),
-      compression_ratio: z.number(),
-      no_speech_prob: z.number(),
-    })
-  ),
-  language: z.string(),
-});
+const modalResponseSchema = transcriptionResultSchema;
+const apiResponseSchema = transcriptionResultSchema;
 
 export async function POST(request: NextRequest) {
   try {

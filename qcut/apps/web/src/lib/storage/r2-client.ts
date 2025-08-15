@@ -48,7 +48,10 @@ export class R2Client {
 
     // Convert stream to ArrayBuffer
     const byteArray = await response.Body.transformToByteArray();
-    return byteArray.buffer;
+    // Create a new ArrayBuffer from the Uint8Array to ensure proper type
+    const buffer = new ArrayBuffer(byteArray.byteLength);
+    new Uint8Array(buffer).set(byteArray);
+    return buffer;
   }
 
   /**
