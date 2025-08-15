@@ -110,7 +110,7 @@ function SoundEffectsView() {
 
       return () => clearTimeout(timeoutId);
     }
-  }, []); // Only run on mount
+  }, [loadSavedSounds, scrollPosition]); // Only run on mount
 
   // Track scroll position changes and handle infinite scroll
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
