@@ -50,9 +50,9 @@ export function useStickerSelect() {
         let imageUrl: string;
         
         if (window.location.protocol === "file:") {
-          // Create proper data URL with correct MIME type for SVG
-          const base64Data = btoa(svgContent);
-          imageUrl = `data:image/svg+xml;base64,${base64Data}`;
+          // Use URL-encoded data URL to support non-ASCII SVG content
+          const encoded = encodeURIComponent(svgContent);
+          imageUrl = `data:image/svg+xml;charset=utf-8,${encoded}`;
         } else {
           // Use blob URL for web environment
           createdObjectUrl = URL.createObjectURL(svgBlob);
