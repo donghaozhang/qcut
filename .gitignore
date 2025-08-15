@@ -43,6 +43,22 @@ nul
 /qcut/lint-output.txt
 /qcut/temp-lint-output.txt
 
+# Python environment files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+
 # Documentation folders
 /qcut/docs/completed/**
 !/qcut/docs/completed/.gitkeep
