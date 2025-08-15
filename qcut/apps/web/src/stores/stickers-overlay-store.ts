@@ -116,14 +116,11 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
       // Add sticker with smart defaults
       addOverlaySticker: (mediaItemId: string, options = {}) => {
-        console.log('[STICKER DEBUG] addOverlaySticker called with mediaItemId:', mediaItemId);
-        console.log('[STICKER DEBUG] addOverlaySticker options:', options);
         debugLog(
           `[StickerStore] 🎯 addOverlaySticker called with mediaItemId: ${mediaItemId}, options:`,
           options
         );
         const id = generateStickerId();
-        console.log('[STICKER DEBUG] Generated sticker ID:', id);
         const state = get();
 
         const newSticker: OverlaySticker = {
@@ -162,7 +159,6 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             newHistory.past.shift();
           }
 
-          console.log('[STICKER DEBUG] Added sticker to overlay:', id, '(total:', newStickers.size, ')');
           debugLog(
             `[StickerStore] Added sticker: ${id} (total: ${newStickers.size})`
           );
@@ -454,9 +450,6 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         const data = Array.from(state.overlayStickers.values());
         const key = `overlay-stickers-${projectId}`;
 
-        console.log('[STICKER DEBUG] saveToProject called for:', projectId);
-        console.log('[STICKER DEBUG] Saving stickers count:', data.length);
-        console.log('[STICKER DEBUG] Using storage method:', window.electronAPI?.storage ? 'Electron' : 'localStorage');
 
         debugLog(
           `[StickerStore] Saving ${data.length} stickers for project ${projectId}`
@@ -465,16 +458,12 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         try {
           // Use Electron IPC if available, otherwise localStorage
           if (window.electronAPI?.storage) {
-            console.log('[STICKER DEBUG] Saving via Electron IPC...');
             debugLog(`[StickerStore] Saving via Electron IPC: ${key}`);
             await window.electronAPI.storage.save(key, data);
-            console.log('[STICKER DEBUG] Electron save completed');
             debugLog(`[StickerStore] Saved ${data.length} stickers`);
           } else {
-            console.log('[STICKER DEBUG] Saving via localStorage...');
             debugLog(`[StickerStore] Saving via localStorage: ${key}`);
             localStorage.setItem(key, JSON.stringify(data));
-            console.log('[STICKER DEBUG] localStorage save completed');
             debugLog(`[StickerStore] Saved ${data.length} stickers`);
 
             // Verify save by immediately reading back
@@ -485,7 +474,6 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             // Verification removed for production
           }
         } catch (error) {
-          console.log('[STICKER DEBUG] saveToProject failed:', error);
           debugLog(
             `[StickerStore] ❌ SAVE FAILED for project ${projectId}:`,
             error
@@ -511,14 +499,11 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
         const key = `overlay-stickers-${projectId}`;
         let data: OverlaySticker[] = [];
 
-        console.log('[STICKER DEBUG] loadFromProject called for:', projectId);
-        console.log('[STICKER DEBUG] Storage API available:', !!window.electronAPI?.storage);
         debugLog(`[StickerStore] Loading stickers for project ${projectId}`);
 
         try {
           if (window.electronAPI?.storage) {
             data = (await window.electronAPI.storage.load(key)) || [];
-            console.log('[STICKER DEBUG] Loaded via Electron IPC:', data.length, 'stickers');
             debugLog(
               `[StickerStore] Loaded via Electron IPC: ${data.length} stickers`
             );
@@ -526,28 +511,23 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
             const stored = localStorage.getItem(key);
             if (stored) {
               data = JSON.parse(stored);
-              console.log('[STICKER DEBUG] Loaded via localStorage:', data.length, 'stickers');
               debugLog(
                 `[StickerStore] Loaded via localStorage: ${data.length} stickers`
               );
             } else {
-              console.log('[STICKER DEBUG] No stored stickers found in localStorage');
             }
           }
 
           // Validate and convert sticker data to Map
           const stickersMap = validateAndLoadStickers(data);
-          console.log('[STICKER DEBUG] Validated and loaded stickers:', stickersMap.size);
           set({
             overlayStickers: stickersMap,
             selectedStickerId: null,
             history: { past: [], future: [] },
           });
 
-          console.log('[STICKER DEBUG] loadFromProject completed, final count:', stickersMap.size);
           debugLog(`[StickerStore] Loaded ${stickersMap.size} stickers`);
         } catch (error) {
-          console.log('[STICKER DEBUG] loadFromProject failed:', error);
           debugLog(
             `[StickerStore] ❌ LOAD FAILED for project ${projectId}:`,
             error

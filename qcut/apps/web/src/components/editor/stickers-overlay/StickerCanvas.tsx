@@ -25,7 +25,6 @@ export const StickerCanvas: React.FC<{
 }> = memo(({ className, disabled = false }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  console.log('[STICKER DEBUG] StickerCanvas render - disabled:', disabled);
 
   // Store subscriptions
   const {
@@ -42,9 +41,6 @@ export const StickerCanvas: React.FC<{
   const { activeProject } = useProjectStore();
   const { currentTime } = usePlaybackStore();
 
-  console.log('[STICKER DEBUG] StickerCanvas render - stickers:', overlayStickers.size);
-  console.log('[STICKER DEBUG] StickerCanvas render - mediaItems:', mediaItems.length);
-  console.log('[STICKER DEBUG] StickerCanvas render - currentTime:', currentTime);
 
   // Migration: Fix media items with wrong MIME type
   useEffect(() => {
@@ -55,13 +51,11 @@ export const StickerCanvas: React.FC<{
           mediaItem.url?.startsWith("data:application/octet-stream") &&
           mediaItem.url.includes("PHN2ZyB4bWxu") // Base64 start of SVG
         ) {
-          console.log('[STICKER DEBUG] Fixing MIME type for media item:', mediaItem.id);
           // Extract the base64 data
           const base64Data = mediaItem.url.split(',')[1];
           if (base64Data) {
             // Create correct data URL
             const correctedUrl = `data:image/svg+xml;base64,${base64Data}`;
-            console.log('[STICKER DEBUG] Corrected URL:', correctedUrl.substring(0, 100) + '...');
             
             // Update the media item URL in place
             mediaItem.url = correctedUrl;
@@ -148,13 +142,10 @@ export const StickerCanvas: React.FC<{
   // Clean up stickers with missing media items when media loads
   // Add a delay to avoid race conditions during project loading
   useEffect(() => {
-    console.log('[STICKER DEBUG] Cleanup useEffect triggered - Media:', mediaItems.length, 'Stickers:', overlayStickers.size);
     
     if (mediaItems.length > 0 && overlayStickers.size > 0) {
       const timeoutId = setTimeout(() => {
         const mediaIds = mediaItems.map((item) => item.id);
-        console.log('[STICKER DEBUG] Cleanup check - Media IDs:', mediaIds);
-        console.log('[STICKER DEBUG] Cleanup check - Sticker media IDs:', Array.from(overlayStickers.values()).map((s) => s.mediaItemId));
         
         debugLog(
           `[StickerCanvas] Cleanup check - Media count: ${mediaItems.length}, Sticker count: ${overlayStickers.size}`
@@ -168,10 +159,8 @@ export const StickerCanvas: React.FC<{
         // Only cleanup if we're confident media has fully loaded
         // This helps prevent premature cleanup during initial load
         if (mediaItems.length > 0) {
-          console.log('[STICKER DEBUG] Running cleanup...');
           cleanupInvalidStickers(mediaIds);
         } else {
-          console.log('[STICKER DEBUG] Skipping cleanup - no media items loaded yet');
           debugLog(
             "[StickerCanvas] Skipping cleanup - no media items loaded yet"
           );
@@ -242,18 +231,14 @@ export const StickerCanvas: React.FC<{
       >
         {/* Render stickers using StickerElement */}
         {visibleStickers.map((sticker) => {
-          console.log('[STICKER DEBUG] Processing sticker for render:', sticker.id, 'mediaItemId:', sticker.mediaItemId);
           
           const mediaItem = mediaItems.find(
             (item) => item.id === sticker.mediaItemId
           );
 
-          console.log('[STICKER DEBUG] Media item found:', !!mediaItem, mediaItem ? 'URL: ' + mediaItem.url : 'N/A');
 
           // Show placeholder if media item not found (it might still be loading)
           if (!mediaItem) {
-            console.log('[STICKER DEBUG] Media item not found for sticker:', sticker.id, 'mediaItemId:', sticker.mediaItemId);
-            console.log('[STICKER DEBUG] Available media items:', mediaItems.map(m => ({ id: m.id, name: m.name, type: m.type })));
             debugLog(
               `[StickerCanvas] ⚠️ MEDIA MISSING: Media item not found for sticker ${sticker.id}, mediaItemId: ${sticker.mediaItemId}. Available media: ${mediaItems.length}`
             );
@@ -275,10 +260,6 @@ export const StickerCanvas: React.FC<{
             );
           }
 
-          console.log('[STICKER DEBUG] Rendering StickerElement for:', sticker.id);
-          console.log('[STICKER DEBUG] Sticker position:', sticker.position);
-          console.log('[STICKER DEBUG] Sticker size:', sticker.size);
-          console.log('[STICKER DEBUG] Media item details:', mediaItem ? { name: mediaItem.name, url: mediaItem.url, type: mediaItem.type } : null);
 
           return (
             <StickerElement
