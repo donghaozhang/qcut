@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     }
 
     const rawResult = await response.json();
-    console.log("Raw Modal response:", JSON.stringify(rawResult, null, 2));
+    // Intentionally not logging raw transcription payload to avoid PII leakage
 
     // Validate Modal response
     const modalValidation = modalResponseSchema.safeParse(rawResult);

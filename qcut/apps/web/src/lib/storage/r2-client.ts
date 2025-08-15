@@ -6,14 +6,9 @@ export class R2Client {
   private client: S3Client;
   
   constructor() {
-    this.client = new S3Client({
-      region: "auto", // Cloudflare R2 uses 'auto' region
-      endpoint: `https://${env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId: env.R2_ACCESS_KEY_ID,
-        secretAccessKey: env.R2_SECRET_ACCESS_KEY,
-      },
-    });
+    // SECURITY NOTE: R2 credentials removed from client-side for security
+    // All R2 operations should go through server API routes
+    throw new Error("R2Client should not be used client-side. Use server API routes instead.");
   }
 
   /**

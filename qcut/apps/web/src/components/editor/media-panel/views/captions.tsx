@@ -131,8 +131,13 @@ export function CaptionsView() {
     if (!file) return;
 
     // Validate file type
-    const validTypes = ['video/', 'audio/'];
-    const isValidType = validTypes.some(type => file.type.startsWith(type));
+    const validTypes = [
+      'video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm',
+      'video/x-matroska', // .mkv
+      'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/x-m4a', 'audio/webm'
+    ];
+    const isValidType = validTypes.includes(file.type) || 
+                        (file.type === '' && /\.(mp4|mov|avi|webm|mkv|mp3|wav|m4a)$/i.test(file.name));
     
     if (!isValidType) {
       toast.error("Please select a video or audio file");
@@ -217,6 +222,8 @@ export function CaptionsView() {
       updateState({ uploadProgress: 50 });
 
       // Step 3: Upload encrypted file to R2
+      // SECURITY TODO: Move R2 upload to server-side API route
+      // Client-side R2 access has been disabled for security
       toast.info("Uploading to secure storage...");
       const r2Key = r2Client.generateTranscriptionKey(audioFile.name);
       await r2Client.uploadFile(r2Key, encryptedData, "application/octet-stream");
@@ -461,7 +468,7 @@ export function CaptionsView() {
               variant="outline"
               onClick={() => state.result && addCaptionsToTimeline(state.result)}
             >
-              <Download className="size-4 mr-2" />
+              <Plus className="size-4 mr-2" />
               Add to Timeline
             </Button>
           </div>
