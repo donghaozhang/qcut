@@ -7,57 +7,58 @@ Step-by-step integration plan for adding auto-captions transcription feature to 
 
 ---
 
-## Phase 1: Environment Setup (30 minutes total)
+## ✅ Phase 1: Environment Setup (30 minutes total) - COMPLETED
 
-### Task 1.1: Add Environment Variables (5 minutes)
-- [ ] Add transcription variables to `qcut/apps/web/.env.example`
-- [ ] Copy variables from `caption/env-example-additions.md`
-- [ ] Update `qcut/apps/web/src/env.ts` to include new variables
-- [ ] Test environment variable loading
+### ✅ Task 1.1: Add Environment Variables (5 minutes) - COMPLETED
+- [x] Add transcription variables to `qcut/apps/web/.env.example`
+- [x] Copy variables from `caption/env-example-additions.md`
+- [x] Update `qcut/apps/web/src/env.ts` to include new variables
+- [x] Test environment variable loading
 
-### Task 1.2: Install Required Dependencies (8 minutes)
+### ✅ Task 1.2: Install Required Dependencies (8 minutes) - COMPLETED
 **Note:** `zod`, `@upstash/ratelimit`, `@upstash/redis` already exist in package.json
-- [ ] Add `@aws-sdk/client-s3` to `qcut/apps/web/package.json`
-- [ ] Run `bun install` in `qcut/` directory
-- [ ] Verify installations don't conflict with existing dependencies
+- [x] Add `@aws-sdk/client-s3` to `qcut/apps/web/package.json`
+- [x] Run `bun install` in `qcut/` directory
+- [x] Verify installations don't conflict with existing dependencies
 
-### Task 1.3: Create Transcription Directory Structure (5 minutes)
-- [ ] Create `qcut/apps/web/src/lib/transcription/` directory
-- [ ] Create `qcut/apps/web/src/components/editor/captions/` directory (not transcription)
-- [ ] Create `qcut/apps/transcription/` directory in root
+### ✅ Task 1.3: Create Transcription Directory Structure (5 minutes) - COMPLETED
+- [x] Create `qcut/apps/web/src/lib/transcription/` directory
+- [x] Create `qcut/apps/web/src/components/editor/captions/` directory (not transcription)
+- [x] Create `qcut/apps/transcription/` directory in root
 
-### Task 1.4: Setup Python Environment (10 minutes)
-- [ ] Copy `requirements.txt` to `qcut/apps/transcription/`
-- [ ] Copy `transcription.py` to `qcut/apps/transcription/`
-- [ ] Copy `transcription-README.md` to `qcut/apps/transcription/README.md`
-- [ ] Create Python virtual environment in `qcut/apps/transcription/`
-- [ ] Install Python dependencies
+### ✅ Task 1.4: Setup Python Environment (10 minutes) - COMPLETED
+- [x] Copy `requirements.txt` to `qcut/apps/transcription/`
+- [x] Copy `transcription.py` to `qcut/apps/transcription/`
+- [x] Copy `transcription-README.md` to `qcut/apps/transcription/README.md`
+- [x] Create Python virtual environment in `qcut/apps/transcription/`
+- [x] Install Python dependencies
 
 ---
 
-## Phase 2: Core Utilities Integration (25 minutes total)
+## ✅ Phase 2: Core Utilities Integration (25 minutes total) - COMPLETED
 
-### Task 2.1: Add Zero-Knowledge Encryption (5 minutes)
-- [ ] Copy `zk-encryption.ts` to `qcut/apps/web/src/lib/transcription/`
-- [ ] Update imports to use `@/lib/utils` pattern
-- [ ] Verify TypeScript compilation with `bun run build`
+### ✅ Task 2.1: Add Zero-Knowledge Encryption (5 minutes) - COMPLETED
+- [x] Copy `zk-encryption.ts` to `qcut/apps/web/src/lib/transcription/`
+- [x] Update imports to use `@/lib/utils` pattern
+- [x] Verify TypeScript compilation with `bun run build`
 
-### Task 2.2: Add Transcription Utils (5 minutes)
-- [ ] Copy `transcription-utils.ts` to `qcut/apps/web/src/lib/transcription/`
-- [ ] Update imports to match QCut's env pattern (`@/env`)
-- [ ] Test configuration validation functions
+### ✅ Task 2.2: Add Transcription Utils (5 minutes) - COMPLETED
+- [x] Copy `transcription-utils.ts` to `qcut/apps/web/src/lib/transcription/`
+- [x] Update imports to match QCut's env pattern (`@/env`)
+- [x] Test configuration validation functions
 
-### Task 2.3: Create Transcription Types (8 minutes)
-- [ ] Create `qcut/apps/web/src/types/captions.ts` (not transcription.ts)
-- [ ] Define TypeScript interfaces for caption/transcription data
-- [ ] Export types for use across components
-- [ ] Add caption track type to existing `qcut/apps/web/src/types/timeline.ts`
+### ✅ Task 2.3: Create Transcription Types (8 minutes) - COMPLETED
+- [x] Create `qcut/apps/web/src/types/captions.ts` (not transcription.ts)
+- [x] Define TypeScript interfaces for caption/transcription data
+- [x] Export types for use across components
+- [x] Add caption track type to existing `qcut/apps/web/src/types/timeline.ts`
+- [x] Update timeline constants to include captions colors and heights
 
-### Task 2.4: Verify Rate Limiting (5 minutes)
+### ✅ Task 2.4: Verify Rate Limiting (5 minutes) - COMPLETED
 **Note:** Rate limiting already exists in `qcut/apps/web/src/lib/rate-limit.ts`
-- [ ] Review existing rate limiting implementation
-- [ ] Ensure it supports transcription endpoints
-- [ ] Test rate limiting functionality
+- [x] Review existing rate limiting implementation
+- [x] Add `baseRateLimit` and `transcriptionRateLimit` for API endpoints
+- [x] Test rate limiting functionality with successful build
 
 ---
 
