@@ -483,19 +483,13 @@ export function TimelineElement({
               : element.hidden
                 ? "Show"
                 : "Hide"}{" "}
-            {element.type === "text" ? "text" : element.type === "captions" ? "captions" : "clip"}
+            {getElementTypeName(element)}
           </span>
         </ContextMenuItem>
         <ContextMenuItem onClick={handleElementDuplicateContext}>
           <Copy className="h-4 w-4 mr-2" />
           Duplicate{" "}
-          {element.type === "text"
-            ? "text"
-            : element.type === "sticker"
-              ? "sticker"
-              : element.type === "captions"
-                ? "captions"
-                : "clip"}
+          {getElementTypeName(element)}
         </ContextMenuItem>
         {element.type === "media" && (
           <ContextMenuItem onClick={handleReplaceClip}>
@@ -510,13 +504,7 @@ export function TimelineElement({
         >
           <Trash2 className="h-4 w-4 mr-2" />
           Delete{" "}
-          {element.type === "text"
-            ? "text"
-            : element.type === "sticker"
-              ? "sticker"
-              : element.type === "captions"
-                ? "captions"
-                : "clip"}
+          {getElementTypeName(element)}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
