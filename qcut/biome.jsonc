@@ -11,7 +11,19 @@
         "electron/resources/ffmpeg*.js",
         "**/ffmpeg-core.js",
         "**/*-core.js",
-        "**/*.min.js"
+        "**/*.min.js",
+        "**/node_modules/**",
+        "apps/transcription/venv/**",
+        "apps/transcription/__pycache__/**",
+        "**/venv/**",
+        "**/__pycache__/**",
+        "**/*.pyc",
+        "**/dist/**",
+        "**/build/**",
+        "**/.next/**",
+        "**/coverage/**",
+        "**/temp/**",
+        "**/tmp/**"
       ],
       "linter": {
         "enabled": false

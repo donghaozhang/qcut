@@ -9,6 +9,7 @@ import { Text2ImageView } from "./views/text2image";
 import { AdjustmentPanel } from "@/components/editor/adjustment";
 import { AiView } from "./views/ai";
 import { StickersView } from "./views/stickers";
+import { CaptionsView } from "./views/captions";
 import React from "react";
 
 export function MediaPanel() {
@@ -29,11 +30,7 @@ export function MediaPanel() {
         Transitions view coming soon...
       </div>
     ),
-    captions: (
-      <div className="p-4 text-muted-foreground">
-        Captions view coming soon...
-      </div>
-    ),
+    captions: <CaptionsView />,
     filters: (
       <div className="p-4 text-muted-foreground">
         Filters view coming soon...

@@ -6,7 +6,10 @@
  */
 
 import { useRef, useCallback, useEffect, useState } from "react";
-import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from "react";
+import type {
+  MouseEvent as ReactMouseEvent,
+  TouchEvent as ReactTouchEvent,
+} from "react";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { debugLog } from "@/lib/debug-config";
 
@@ -181,7 +184,9 @@ export const useStickerDrag = (
     const handleGlobalMouseUp = () => handleMouseUpRef.current();
     const handleGlobalMouseOut = (e: MouseEvent) => {
       // When leaving the window (relatedTarget === null), end drag to avoid stuck state
-      const toElement = ('relatedTarget' in e ? e.relatedTarget : null) as Node | null;
+      const toElement = (
+        "relatedTarget" in e ? e.relatedTarget : null
+      ) as Node | null;
       if (toElement === null) handleMouseUpRef.current();
     };
 

@@ -196,7 +196,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const mediaStore = (await getMediaStore()).useMediaStore.getState();
     const { useTimelineStore } = await import("./timeline-store");
     const timelineStore = useTimelineStore.getState();
-    const { useStickersOverlayStore } = await import("./stickers-overlay-store");
+    const { useStickersOverlayStore } = await import(
+      "./stickers-overlay-store"
+    );
     const stickersStore = useStickersOverlayStore.getState();
     mediaStore.clearAllMedia();
     timelineStore.clearTimeline();
@@ -239,7 +241,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       // Save project metadata, timeline data, and stickers in parallel
       const { useTimelineStore } = await import("./timeline-store");
       const timelineStore = useTimelineStore.getState();
-      const { useStickersOverlayStore } = await import("./stickers-overlay-store");
+      const { useStickersOverlayStore } = await import(
+        "./stickers-overlay-store"
+      );
       const stickersStore = useStickersOverlayStore.getState();
       await Promise.all([
         storageService.saveProject(activeProject),

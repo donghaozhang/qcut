@@ -17,6 +17,7 @@
     "db:push:prod": "cross-env NODE_ENV=production drizzle-kit push"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.699.0",
     "@ffmpeg/core": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
@@ -48,6 +49,7 @@
     "pg": "^8.16.2",
     "radix-ui": "^1.4.2",
     "react": "^18.3.1",
+    "react-country-flag": "^3.1.0",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.54.0",

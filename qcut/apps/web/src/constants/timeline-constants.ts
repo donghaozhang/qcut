@@ -25,6 +25,11 @@ export const TRACK_COLORS: Record<
     background: "bg-purple-500/20",
     border: "border-white/80",
   },
+  captions: {
+    solid: "bg-yellow-500",
+    background: "bg-yellow-500/20",
+    border: "border-white/80",
+  },
 } as const;
 
 // Utility functions
@@ -43,6 +48,7 @@ export const TRACK_HEIGHTS: Record<TrackType, number> = {
   text: 25,
   audio: 50,
   sticker: 40,
+  captions: 30,
 } as const;
 
 // Utility function for track heights

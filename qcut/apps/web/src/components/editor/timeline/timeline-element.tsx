@@ -25,6 +25,20 @@ import AudioWaveform from "../audio-waveform";
 import { toast } from "sonner";
 import { TimelineElementProps, TrackType } from "@/types/timeline";
 import { useTimelineElementResize } from "@/hooks/use-timeline-element-resize";
+
+// Helper function to get display name for element type
+function getElementTypeName(element: { type: string }): string {
+  switch (element.type) {
+    case "text":
+      return "text";
+    case "captions":
+      return "captions";
+    case "sticker":
+      return "sticker";
+    default:
+      return "clip";
+  }
+}
 import {
   getTrackElementClasses,
   TIMELINE_CONSTANTS,
@@ -258,6 +272,16 @@ export function TimelineElement({
       );
     }
 
+    if (element.type === "captions") {
+      return (
+        <div className="w-full h-full flex items-center justify-start pl-2">
+          <span className="text-xs text-foreground/80 truncate">
+            {element.text}
+          </span>
+        </div>
+      );
+    }
+
     // Render media element -> use outer mediaItem variable
     if (!mediaItem) {
       return (
@@ -472,17 +496,12 @@ export function TimelineElement({
               : element.hidden
                 ? "Show"
                 : "Hide"}{" "}
-            {element.type === "text" ? "text" : "clip"}
+            {getElementTypeName(element)}
           </span>
         </ContextMenuItem>
         <ContextMenuItem onClick={handleElementDuplicateContext}>
           <Copy className="h-4 w-4 mr-2" />
-          Duplicate{" "}
-          {element.type === "text"
-            ? "text"
-            : element.type === "sticker"
-              ? "sticker"
-              : "clip"}
+          Duplicate {getElementTypeName(element)}
         </ContextMenuItem>
         {element.type === "media" && (
           <ContextMenuItem onClick={handleReplaceClip}>
@@ -496,12 +515,7 @@ export function TimelineElement({
           className="text-destructive focus:text-destructive"
         >
           <Trash2 className="h-4 w-4 mr-2" />
-          Delete{" "}
-          {element.type === "text"
-            ? "text"
-            : element.type === "sticker"
-              ? "sticker"
-              : "clip"}
+          Delete {getElementTypeName(element)}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

@@ -1,0 +1,17 @@
+# Core Modal runtime
+modal>=0.63.0,<1.0.0
+
+# Whisper transcription
+openai-whisper>=20231117,<20250101
+
+# AWS S3/R2 client
+boto3>=1.34.0,<2.0.0
+
+# Data validation (v2 compatible)
+pydantic>=2.0.0,<3.0.0
+
+# Encryption support
+cryptography>=41.0.0,<43.0.0
+
+# Note: ffmpeg is installed via apt in Modal image
+# Note: PyTorch is automatically installed by openai-whisper

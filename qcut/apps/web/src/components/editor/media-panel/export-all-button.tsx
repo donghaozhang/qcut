@@ -139,7 +139,7 @@ export function ExportAllButton({
 
   const getButtonText = () => {
     if (isEmpty) return "No Media";
-    if (!isExporting) return `Export All (${mediaItems.length})`;
+    if (!isExporting) return `Download All (${mediaItems.length})`;
 
     switch (phase) {
       case "adding":

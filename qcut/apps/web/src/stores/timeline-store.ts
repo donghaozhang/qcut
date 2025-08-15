@@ -552,14 +552,19 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
         // Set project FPS from the first video element
         if (mediaItem && mediaItem.type === "video" && mediaItem.fps) {
           const fps = mediaItem.fps;
-          import("./project-store").then(({ useProjectStore }) => {
-            const projectStore = useProjectStore.getState();
-            if (projectStore.activeProject) {
-              projectStore.updateProjectFps(fps);
-            }
-          }).catch(error => {
-            console.error("Failed to access project store for FPS update:", error);
-          });
+          import("./project-store")
+            .then(({ useProjectStore }) => {
+              const projectStore = useProjectStore.getState();
+              if (projectStore.activeProject) {
+                projectStore.updateProjectFps(fps);
+              }
+            })
+            .catch((error) => {
+              console.error(
+                "Failed to access project store for FPS update:",
+                error
+              );
+            });
         }
       }
 

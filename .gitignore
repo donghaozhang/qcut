@@ -43,6 +43,40 @@ nul
 /qcut/lint-output.txt
 /qcut/temp-lint-output.txt
 
+# Python environment files
+__pycache__/
+*.py[cod]
+*$py.class
+# Native extensions built by Python (scoped to transcription app)
+qcut/apps/transcription/**/*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+# Common Python tool caches and coverage artifacts
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+.tox/
+.nox/
+.coverage
+coverage.xml
+htmlcov/
+# Misc Python/dev artifacts
+.python-version
+__pypackages__/
+.ipynb_checkpoints/
+# Packaging metadata
+*.egg-info/
+.eggs/
+
 # Documentation folders
 /qcut/docs/completed/**
 !/qcut/docs/completed/.gitkeep
