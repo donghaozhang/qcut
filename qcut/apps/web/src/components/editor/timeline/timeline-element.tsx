@@ -123,10 +123,8 @@ export function TimelineElement({
   // Use the media item URL directly - it's already been converted to blob if needed
   const mediaItemUrl = mediaItem?.url;
 
-  // Optional: Log any remaining blob URLs (should be rare now)
-  if (mediaItem && mediaItemUrl?.startsWith('blob:file:///')) {
-    console.warn("⚠️ [TIMELINE-ELEMENT] Unexpected blob URL:", mediaItemUrl);
-  }
+  // Blob URLs are expected and working correctly in Electron
+  // Removed incorrect warning about blob URLs being "unexpected"
 
   // Log if we have a media item but no URL
   if (mediaItem && !mediaItemUrl) {

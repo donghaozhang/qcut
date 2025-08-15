@@ -35,7 +35,7 @@ import type {
 } from "@/types/captions";
 import { extractAudio } from "@/lib/ffmpeg-utils";
 import { encryptWithRandomKey } from "@/lib/transcription/zk-encryption";
-import { r2Client } from "@/lib/storage/r2-client";
+// REMOVED: import { r2Client } from "@/lib/storage/r2-client";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { useCaptionsStore } from "@/stores/captions-store";
 
@@ -256,16 +256,34 @@ export function CaptionsView() {
       );
       updateState({ uploadProgress: 50 });
 
-      // Step 3: Upload encrypted file to R2
-      // SECURITY TODO: Move R2 upload to server-side API route
-      // Client-side R2 access has been disabled for security
+      // Step 3: Upload encrypted file to server
       toast.info("Uploading to secure storage...");
-      const r2Key = r2Client.generateTranscriptionKey(audioFile.name);
-      await r2Client.uploadFile(
-        r2Key,
-        encryptedData,
-        "application/octet-stream"
-      );
+      
+      // Generate unique key for the audio file
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(2, 15);
+      const lastDotIndex = audioFile.name.lastIndexOf(".");
+      const extension = lastDotIndex > 0 ? audioFile.name.slice(lastDotIndex + 1) : "wav";
+      const r2Key = `transcription/${timestamp}-${random}.${extension}`;
+
+      // Upload to server via API
+      const uploadResponse = await fetch("/api/upload-audio", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileName: r2Key,
+          audioData: Array.from(new Uint8Array(encryptedData)),
+          contentType: "application/octet-stream",
+        }),
+      });
+
+      if (!uploadResponse.ok) {
+        const uploadError = await uploadResponse.json();
+        throw new Error(uploadError.message || "Upload failed");
+      }
+
       updateState({ uploadProgress: 70 });
 
       // Step 4: Call transcription API

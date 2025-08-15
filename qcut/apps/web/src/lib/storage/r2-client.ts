@@ -97,5 +97,5 @@ export class R2Client {
   }
 }
 
-// Export singleton instance
-export const r2Client = new R2Client();
+// REMOVED: Export singleton instance - R2Client should only be used server-side
+// export const r2Client = new R2Client();
