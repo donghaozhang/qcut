@@ -47,26 +47,8 @@ export class R2Client {
     }
 
     // Convert stream to ArrayBuffer
-    const chunks: Uint8Array[] = [];
-    const reader = response.Body.transformToWebStream().getReader();
-    
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-    }
-
-    // Combine chunks into single ArrayBuffer
-    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-    const result = new Uint8Array(totalLength);
-    let offset = 0;
-    
-    for (const chunk of chunks) {
-      result.set(chunk, offset);
-      offset += chunk.length;
-    }
-
-    return result.buffer;
+    const byteArray = await response.Body.transformToByteArray();
+    return byteArray.buffer;
   }
 
   /**

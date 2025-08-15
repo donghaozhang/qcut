@@ -29,7 +29,7 @@ export interface TranscriptionRequest {
 export interface TranscriptionError {
   error: string;
   message?: string;
-  details?: any;
+  details?: unknown;
 }
 
 // Caption element for timeline integration
