@@ -6,6 +6,7 @@
  */
 
 import { useRef, useCallback, useEffect, useState } from "react";
+import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from "react";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { debugLog } from "@/lib/debug-config";
 
@@ -86,7 +87,16 @@ export const useStickerDrag = (
    * Handle mouse down - start dragging
    */
   const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+    (
+      e:
+        | ReactMouseEvent
+        | {
+            preventDefault: () => void;
+            stopPropagation: () => void;
+            clientX: number;
+            clientY: number;
+          }
+    ) => {
       e.preventDefault();
       e.stopPropagation();
 
@@ -222,7 +232,7 @@ export const useStickerDrag = (
    * Touch support for mobile/tablet
    */
   const handleTouchStart = useCallback(
-    (e: React.TouchEvent) => {
+    (e: ReactTouchEvent) => {
       if (e.touches.length !== 1) return;
 
       const touch = e.touches[0];
@@ -232,7 +242,7 @@ export const useStickerDrag = (
         stopPropagation: () => e.stopPropagation(),
         clientX: touch.clientX,
         clientY: touch.clientY,
-      } as React.MouseEvent;
+      };
 
       handleMouseDown(syntheticEvent);
     },
@@ -240,7 +250,7 @@ export const useStickerDrag = (
   );
 
   const handleTouchMove = useCallback(
-    (e: React.TouchEvent) => {
+    (e: ReactTouchEvent) => {
       if (e.touches.length !== 1) return;
 
       // Prevent page scroll/zoom while dragging
