@@ -25,6 +25,20 @@ import AudioWaveform from "../audio-waveform";
 import { toast } from "sonner";
 import { TimelineElementProps, TrackType } from "@/types/timeline";
 import { useTimelineElementResize } from "@/hooks/use-timeline-element-resize";
+
+// Helper function to get display name for element type
+function getElementTypeName(element: { type: string }): string {
+  switch (element.type) {
+    case "text":
+      return "text";
+    case "captions":
+      return "captions";
+    case "sticker":
+      return "sticker";
+    default:
+      return "clip";
+  }
+}
 import {
   getTrackElementClasses,
   TIMELINE_CONSTANTS,

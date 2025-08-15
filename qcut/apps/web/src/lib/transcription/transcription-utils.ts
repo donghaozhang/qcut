@@ -1,7 +1,7 @@
 import { env } from "@/env";
 
-export function isTranscriptionConfigured() {
-  const missingVars = [];
+export function isTranscriptionConfigured(): { configured: boolean; missingVars: string[] } {
+  const missingVars: string[] = [];
 
   if (!env.CLOUDFLARE_ACCOUNT_ID) missingVars.push("CLOUDFLARE_ACCOUNT_ID");
   if (!env.R2_ACCESS_KEY_ID) missingVars.push("R2_ACCESS_KEY_ID");

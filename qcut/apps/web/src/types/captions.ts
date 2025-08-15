@@ -1,6 +1,6 @@
 // Caption/Transcription related types
 
-export interface TranscriptionSegment {
+export type TranscriptionSegment = {
   id: number;
   seek: number;
   start: number;
@@ -11,39 +11,39 @@ export interface TranscriptionSegment {
   avg_logprob: number;
   compression_ratio: number;
   no_speech_prob: number;
-}
+};
 
-export interface TranscriptionResult {
+export type TranscriptionResult = {
   text: string;
   segments: TranscriptionSegment[];
   language: string;
-}
+};
 
-export interface TranscriptionRequest {
+export type TranscriptionRequest = {
   filename: string;
   language?: string;
   decryptionKey?: string;
   iv?: string;
-}
+};
 
-export interface TranscriptionError {
+export type TranscriptionError = {
   error: string;
   message?: string;
   details?: unknown;
-}
+};
 
 // Caption element for timeline integration
-export interface CaptionSegment {
+export type CaptionSegment = {
   id: string;
   text: string;
   startTime: number;
   endTime: number;
   duration: number;
   confidence?: number;
-}
+};
 
 // Caption track data
-export interface CaptionTrackData {
+export type CaptionTrackData = {
   id: string;
   name: string;
   language: string;
@@ -51,15 +51,15 @@ export interface CaptionTrackData {
   source: "transcription" | "manual" | "imported";
   createdAt: string;
   updatedAt: string;
-}
+};
 
 // Language selection
-export interface Language {
+export type Language = {
   code: string;
   name: string;
   nativeName: string;
   flag: string;
-}
+};
 
 // Common languages for transcription
 export const SUPPORTED_LANGUAGES: Language[] = [
@@ -88,17 +88,17 @@ export type TranscriptionStatus =
   | "completed" 
   | "error";
 
-export interface TranscriptionProgress {
+export type TranscriptionProgress = {
   status: TranscriptionStatus;
   progress: number; // 0-100
   message: string;
   estimatedTimeRemaining?: number; // seconds
-}
+};
 
 // Export formats for captions
 export type CaptionFormat = "srt" | "vtt" | "ass" | "ttml";
 
-export interface CaptionExportOptions {
+export type CaptionExportOptions = {
   format: CaptionFormat;
   includeBurnIn: boolean;
   fontSize?: number;
@@ -106,4 +106,4 @@ export interface CaptionExportOptions {
   color?: string;
   backgroundColor?: string;
   position?: "top" | "bottom" | "center";
-}
+};
