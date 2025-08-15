@@ -14,8 +14,9 @@ import type {
   ValidatedStickerUpdate,
 } from "@/types/sticker-overlay";
 import { Z_INDEX } from "@/types/sticker-overlay";
-import { useTimelineStore } from "./timeline-store";
-import { useProjectStore } from "./project-store";
+// Dynamic imports to break circular dependencies
+// import { useTimelineStore } from "./timeline-store";
+// import { useProjectStore } from "./project-store";
 
 // Import constants
 const DEFAULTS = {
@@ -170,8 +171,11 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
           };
         });
 
-        // Add to timeline if timing is specified
-        get().addStickerToTimeline(newSticker);
+        // Add to timeline if timing is specified (async)
+        const addToTimelinePromise = get().addStickerToTimeline(newSticker);
+        addToTimelinePromise.catch((error: unknown) => {
+          debugLog("[StickerStore] ❌ Failed to add sticker to timeline:", error);
+        });
 
         // Auto-save with a small delay to ensure state is updated
         setTimeout(() => {
@@ -584,79 +588,89 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
       },
 
       // Helper: Add sticker to timeline
-      addStickerToTimeline: (sticker: OverlaySticker) => {
-        const timelineStore = useTimelineStore.getState();
-        debugLog(
-          "[StickerStore] Timeline integration - checking timing:",
-          sticker.timing
-        );
-
-        let stickerTrack = timelineStore.tracks.find(
-          (track) => track.type === "sticker"
-        );
-
-        if (stickerTrack) {
+      addStickerToTimeline: async (sticker: OverlaySticker) => {
+        try {
+          const { useTimelineStore } = await import("./timeline-store");
+          const timelineStore = useTimelineStore.getState();
           debugLog(
-            `[StickerStore] Found existing sticker track: ${stickerTrack.id}`
-          );
-        } else {
-          debugLog("[StickerStore] Creating new sticker timeline track");
-          const trackId = timelineStore.addTrack("sticker");
-          stickerTrack = timelineStore.tracks.find(
-            (track) => track.id === trackId
-          );
-          debugLog(`[StickerStore] Created sticker track with ID: ${trackId}`);
-        }
-
-        debugLog(
-          `[StickerStore] Checking conditions - stickerTrack: ${!!stickerTrack}, timing: ${!!sticker.timing}, startTime: ${sticker.timing?.startTime}, endTime: ${sticker.timing?.endTime}`
-        );
-
-        if (
-          stickerTrack &&
-          sticker.timing?.startTime !== undefined &&
-          sticker.timing?.endTime !== undefined
-        ) {
-          const duration = sticker.timing.endTime - sticker.timing.startTime;
-          debugLog(
-            `[StickerStore] Adding sticker to timeline with duration: ${duration}s`
+            "[StickerStore] Timeline integration - checking timing:",
+            sticker.timing
           );
 
-          timelineStore.addElementToTrack(stickerTrack.id, {
-            type: "sticker",
-            stickerId: sticker.id,
-            mediaId: sticker.mediaItemId,
-            name: `Sticker ${get().overlayStickers.size}`,
-            duration,
-            startTime: sticker.timing.startTime,
-            trimStart: 0,
-            trimEnd: 0,
-          });
-          debugLog(
-            `[StickerStore] ✅ Added sticker to timeline track: ${duration}s duration`
+          let stickerTrack = timelineStore.tracks.find(
+            (track) => track.type === "sticker"
           );
-        } else {
+
+          if (stickerTrack) {
+            debugLog(
+              `[StickerStore] Found existing sticker track: ${stickerTrack.id}`
+            );
+          } else {
+            debugLog("[StickerStore] Creating new sticker timeline track");
+            const trackId = timelineStore.addTrack("sticker");
+            stickerTrack = timelineStore.tracks.find(
+              (track) => track.id === trackId
+            );
+            debugLog(`[StickerStore] Created sticker track with ID: ${trackId}`);
+          }
+
           debugLog(
-            "[StickerStore] ❌ Failed to add sticker to timeline - missing requirements"
+            `[StickerStore] Checking conditions - stickerTrack: ${!!stickerTrack}, timing: ${!!sticker.timing}, startTime: ${sticker.timing?.startTime}, endTime: ${sticker.timing?.endTime}`
           );
+
+          if (
+            stickerTrack &&
+            sticker.timing?.startTime !== undefined &&
+            sticker.timing?.endTime !== undefined
+          ) {
+            const duration = sticker.timing.endTime - sticker.timing.startTime;
+            debugLog(
+              `[StickerStore] Adding sticker to timeline with duration: ${duration}s`
+            );
+
+            timelineStore.addElementToTrack(stickerTrack.id, {
+              type: "sticker",
+              stickerId: sticker.id,
+              mediaId: sticker.mediaItemId,
+              name: `Sticker ${get().overlayStickers.size}`,
+              duration,
+              startTime: sticker.timing.startTime,
+              trimStart: 0,
+              trimEnd: 0,
+            });
+            debugLog(
+              `[StickerStore] ✅ Added sticker to timeline track: ${duration}s duration`
+            );
+          } else {
+            debugLog(
+              "[StickerStore] ❌ Failed to add sticker to timeline - missing requirements"
+            );
+          }
+        } catch (error) {
+          debugLog("[StickerStore] ❌ Timeline integration failed:", error);
         }
       },
 
       // Helper: Auto-save sticker to project
       autoSaveSticker: async (stickerId: string) => {
-        const currentProject = useProjectStore.getState().activeProject;
-        if (currentProject?.id) {
-          debugLog(
-            `[StickerStore] Auto-saving sticker to project: ${currentProject.id}`
-          );
-          try {
-            await get().saveToProject(currentProject.id);
+        try {
+          const { useProjectStore } = await import("./project-store");
+          const currentProject = useProjectStore.getState().activeProject;
+          if (currentProject?.id) {
             debugLog(
-              `[StickerStore] ✅ Auto-save completed for sticker ${stickerId}`
+              `[StickerStore] Auto-saving sticker to project: ${currentProject.id}`
             );
-          } catch (error) {
-            debugLog("[StickerStore] ❌ Auto-save failed:", error);
+            try {
+              await get().saveToProject(currentProject.id);
+              debugLog(
+                `[StickerStore] ✅ Auto-save completed for sticker ${stickerId}`
+              );
+            } catch (error) {
+              debugLog("[StickerStore] ❌ Auto-save failed:", error);
+            }
           }
+        } catch (error) {
+          debugLog("[StickerStore] ❌ Project store access failed:", error);
         }
       },
     }),

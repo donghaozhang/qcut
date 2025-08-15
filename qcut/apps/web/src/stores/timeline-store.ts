@@ -17,7 +17,8 @@ import {
   type MediaItem,
 } from "./media-store";
 import { storageService } from "@/lib/storage/storage-service";
-import { useProjectStore } from "./project-store";
+// Dynamic import to break circular dependency
+// import { useProjectStore } from "./project-store";
 import { generateUUID } from "@/lib/utils";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { toast } from "sonner";
@@ -226,13 +227,18 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 
   // Helper to auto-save timeline changes
   const autoSaveTimeline = async () => {
-    const activeProject = useProjectStore.getState().activeProject;
-    if (activeProject) {
-      try {
-        await storageService.saveTimeline(activeProject.id, get()._tracks);
-      } catch (error) {
-        console.error("Failed to auto-save timeline:", error);
+    try {
+      const { useProjectStore } = await import("./project-store");
+      const activeProject = useProjectStore.getState().activeProject;
+      if (activeProject) {
+        try {
+          await storageService.saveTimeline(activeProject.id, get()._tracks);
+        } catch (error) {
+          console.error("Failed to auto-save timeline:", error);
+        }
       }
+    } catch (error) {
+      console.error("Failed to access project store:", error);
     }
   };
 
@@ -545,10 +551,15 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 
         // Set project FPS from the first video element
         if (mediaItem && mediaItem.type === "video" && mediaItem.fps) {
-          const projectStore = useProjectStore.getState();
-          if (projectStore.activeProject) {
-            projectStore.updateProjectFps(mediaItem.fps);
-          }
+          const fps = mediaItem.fps;
+          import("./project-store").then(({ useProjectStore }) => {
+            const projectStore = useProjectStore.getState();
+            if (projectStore.activeProject) {
+              projectStore.updateProjectFps(fps);
+            }
+          }).catch(error => {
+            console.error("Failed to access project store for FPS update:", error);
+          });
         }
       }
 
@@ -1122,6 +1133,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 
       try {
         const mediaStore = useMediaStore.getState();
+        const { useProjectStore } = await import("./project-store");
         const projectStore = useProjectStore.getState();
 
         if (!projectStore.activeProject) {

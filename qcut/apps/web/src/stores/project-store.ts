@@ -3,8 +3,10 @@ import { create } from "zustand";
 import { storageService } from "@/lib/storage/storage-service";
 import { toast } from "sonner";
 import { getMediaStore } from "./media-store-loader";
-import { useTimelineStore } from "./timeline-store";
-import { useStickersOverlayStore } from "./stickers-overlay-store";
+// Dynamic import to break circular dependency
+// import { useTimelineStore } from "./timeline-store";
+// Dynamic import to break circular dependency
+// import { useStickersOverlayStore } from "./stickers-overlay-store";
 import { generateUUID } from "@/lib/utils";
 import { debugError, debugLog } from "@/lib/debug-config";
 
@@ -192,7 +194,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     // Clear media, timeline, and stickers immediately to prevent flickering when switching projects
     const mediaStore = (await getMediaStore()).useMediaStore.getState();
+    const { useTimelineStore } = await import("./timeline-store");
     const timelineStore = useTimelineStore.getState();
+    const { useStickersOverlayStore } = await import("./stickers-overlay-store");
     const stickersStore = useStickersOverlayStore.getState();
     mediaStore.clearAllMedia();
     timelineStore.clearTimeline();
@@ -233,7 +237,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     try {
       // Save project metadata, timeline data, and stickers in parallel
+      const { useTimelineStore } = await import("./timeline-store");
       const timelineStore = useTimelineStore.getState();
+      const { useStickersOverlayStore } = await import("./stickers-overlay-store");
       const stickersStore = useStickersOverlayStore.getState();
       await Promise.all([
         storageService.saveProject(activeProject),
@@ -276,6 +282,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       if (activeProject?.id === id) {
         set({ activeProject: null });
         const mediaStore = (await getMediaStore()).useMediaStore.getState();
+        const { useTimelineStore } = await import("./timeline-store");
         const timelineStore = useTimelineStore.getState();
         mediaStore.clearAllMedia();
         timelineStore.clearTimeline();
@@ -290,6 +297,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     // Clear data from stores when closing project
     const mediaStore = (await getMediaStore()).useMediaStore.getState();
+    const { useTimelineStore } = await import("./timeline-store");
     const timelineStore = useTimelineStore.getState();
     mediaStore.clearAllMedia();
     timelineStore.clearTimeline();

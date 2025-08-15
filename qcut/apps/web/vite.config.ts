@@ -25,6 +25,9 @@ export default defineConfig({
   build: {
     outDir: "dist",
     assetsDir: "assets",
+    // Increase chunk size warning limit from 500kB to 1MB
+    // Note: This suppresses warnings but doesn't fix performance
+    chunkSizeWarningLimit: 1000,
     // Include WASM files as assets
     assetsInclude: ["**/*.wasm"],
     // Ensure all assets use relative paths
@@ -60,18 +63,14 @@ export default defineConfig({
             "./src/stores/editor-store",
             "./src/stores/timeline-store", 
             "./src/stores/playback-store",
-            "./src/stores/panel-store"
+            "./src/stores/panel-store",
+            "./src/stores/project-store"
           ],
           
           // Stickers feature
           "stickers": [
             "./src/stores/stickers-store",
             "./src/stores/stickers-overlay-store"
-          ],
-          
-          // Project management
-          "projects": [
-            "./src/stores/project-store"
           ]
         },
       },

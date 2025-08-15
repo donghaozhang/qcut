@@ -119,7 +119,7 @@ export type StickerOverlayActions = {
   getVisibleStickersAtTime: (time: number) => OverlaySticker[];
 
   // Timeline Integration
-  addStickerToTimeline: (sticker: OverlaySticker) => void;
+  addStickerToTimeline: (sticker: OverlaySticker) => Promise<void>;
   autoSaveSticker: (stickerId: string) => Promise<void>;
 };
 
