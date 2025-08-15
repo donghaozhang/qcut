@@ -72,7 +72,8 @@ export class R2Client {
   generateTranscriptionKey(originalFilename: string): string {
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 15);
-    const extension = originalFilename.split('.').pop() || 'bin';
+    const lastDotIndex = originalFilename.lastIndexOf('.');
+    const extension = lastDotIndex > 0 ? originalFilename.slice(lastDotIndex + 1) : 'bin';
     return `transcription/${timestamp}-${random}.${extension}`;
   }
 

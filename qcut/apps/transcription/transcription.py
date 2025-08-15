@@ -28,7 +28,7 @@ def transcribe_audio(request: TranscribeRequest):
     try:
         filename = request.filename
         language = request.language
-        decryption_key = request.decryptionKey
+        decryption_key = request.decryption_key
         iv = request.iv
         
         if not filename:
@@ -127,12 +127,13 @@ def transcribe_audio(request: TranscribeRequest):
                     
     except Exception as e:
         import traceback
+        # Log the full error for internal debugging
         print(f"Transcription error: {str(e)}")
         print(f"Traceback: {traceback.format_exc()}")
         
-        # Return error response that matches expected format
+        # Return a generic error response to the client
         return {
-            "error": str(e),
+            "error": "An unexpected error occurred during transcription.",
             "text": "",
             "segments": [],
             "language": "unknown"
