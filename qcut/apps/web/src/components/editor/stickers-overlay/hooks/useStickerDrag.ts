@@ -171,8 +171,7 @@ export const useStickerDrag = (
     const handleGlobalMouseUp = () => handleMouseUpRef.current();
     const handleGlobalMouseOut = (e: MouseEvent) => {
       // When leaving the window (relatedTarget === null), end drag to avoid stuck state
-      const toElement =
-        (e as unknown as { relatedTarget: Node | null }).relatedTarget ?? null;
+      const toElement = ('relatedTarget' in e ? e.relatedTarget : null) as Node | null;
       if (toElement === null) handleMouseUpRef.current();
     };
 

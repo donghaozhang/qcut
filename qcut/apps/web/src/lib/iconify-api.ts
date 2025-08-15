@@ -8,17 +8,8 @@ export const ICONIFY_HOSTS = [
 class IconifyAPIClient {
   private lastWorkingHost: string = ICONIFY_HOSTS[0];
 
-  // Helper to create timeout signal with fallback for older browsers
+  // Helper to create timeout signal (portable implementation)
   private createTimeoutSignal(timeout: number): AbortSignal {
-    // Use native timeout if available (Chrome 94+, Firefox 93+, Node 16+)
-    if (
-      "timeout" in AbortSignal &&
-      typeof (AbortSignal as any).timeout === "function"
-    ) {
-      return AbortSignal.timeout(timeout);
-    }
-
-    // Fallback for older browsers
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -72,7 +63,7 @@ class IconifyAPIClient {
         // Combine timeout signal with external abort signal if provided
         const timeoutSignal = this.createTimeoutSignal(2000);
         const combinedSignal = signal
-          ? AbortSignal.any([timeoutSignal, signal])
+          ? this.combineSignals([timeoutSignal, signal])
           : timeoutSignal;
 
         const response = await fetch(`${host}${path}`, {

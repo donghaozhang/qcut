@@ -14,8 +14,13 @@
 - Electron (dev): `npm run electron:dev` (uses web dev server).
 - Build web: `cd apps/web && npm run build` → outputs to `apps/web/dist`.
 - Package desktop:
-  - Quick dev build: `npm run build:exe`
-  - Production installers: `npm run dist:win` or `npm run dist`
+  - Quick dev build (Windows exe): `npm run build:exe`
+  - Production installers:
+    - Windows: `npm run dist:win`
+    - Other platforms (macOS, Linux): `npm run dist`
+  - Note: The Windows installer script disables code signing by default
+    (`--win.forceCodeSigning=false`). Configure platform-specific code
+    signing certificates for production builds.
 
 ## Coding Style & Naming
 - Language: TypeScript/JavaScript, React. Prefer 2‑space indent, single quotes.

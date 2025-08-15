@@ -115,22 +115,30 @@ export function StickersView() {
           >
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="recent" className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
+                <Clock className="h-4 w-4">
+                  <title>Recent</title>
+                </Clock>
                 Recent
               </TabsTrigger>
               <TabsTrigger value="all" className="flex items-center gap-2">
-                <Grid3X3 className="h-4 w-4" />
+                <Grid3X3 className="h-4 w-4">
+                  <title>All</title>
+                </Grid3X3>
                 All
               </TabsTrigger>
               <TabsTrigger
                 value="simple-icons"
                 className="flex items-center gap-2"
               >
-                <Hash className="h-4 w-4" />
+                <Hash className="h-4 w-4">
+                  <title>Brands</title>
+                </Hash>
                 Brands
               </TabsTrigger>
               <TabsTrigger value="tabler" className="flex items-center gap-2">
-                <Hash className="h-4 w-4" />
+                <Hash className="h-4 w-4">
+                  <title>Tabler</title>
+                </Hash>
                 Tabler
               </TabsTrigger>
             </TabsList>
@@ -157,7 +165,6 @@ export function StickersView() {
                       </div>
                       <StickersCollection
                         collectionPrefix={collection.prefix}
-                        collections={collections}
                         onSelect={handleStickerSelect}
                       />
                     </div>
@@ -170,7 +177,6 @@ export function StickersView() {
               <ScrollArea className="h-full">
                 <StickersCollection
                   collectionPrefix="simple-icons"
-                  collections={collections}
                   onSelect={handleStickerSelect}
                 />
               </ScrollArea>
@@ -180,7 +186,6 @@ export function StickersView() {
               <ScrollArea className="h-full">
                 <StickersCollection
                   collectionPrefix="tabler"
-                  collections={collections}
                   onSelect={handleStickerSelect}
                 />
               </ScrollArea>
