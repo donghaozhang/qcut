@@ -3,9 +3,12 @@ import { create } from "zustand";
 import { storageService } from "@/lib/storage/storage-service";
 import { toast } from "sonner";
 import { getMediaStore } from "./media-store-loader";
-import { useTimelineStore } from "./timeline-store";
+// Dynamic import to break circular dependency
+// import { useTimelineStore } from "./timeline-store";
+// Dynamic import to break circular dependency
+// import { useStickersOverlayStore } from "./stickers-overlay-store";
 import { generateUUID } from "@/lib/utils";
-import { debugError } from "@/lib/debug-config";
+import { debugError, debugLog } from "@/lib/debug-config";
 
 /**
  * Thrown when a requested project cannot be found in storage.
@@ -189,22 +192,34 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       set({ isLoading: true });
     }
 
-    // Clear media and timeline immediately to prevent flickering when switching projects
+    // Clear media, timeline, and stickers immediately to prevent flickering when switching projects
     const mediaStore = (await getMediaStore()).useMediaStore.getState();
+    const { useTimelineStore } = await import("./timeline-store");
     const timelineStore = useTimelineStore.getState();
+    const { useStickersOverlayStore } = await import("./stickers-overlay-store");
+    const stickersStore = useStickersOverlayStore.getState();
     mediaStore.clearAllMedia();
     timelineStore.clearTimeline();
+    stickersStore.clearAllStickers();
 
     try {
       const project = await storageService.loadProject(id);
       if (project) {
         set({ activeProject: project });
 
-        // Load project-specific data in parallel
+        // Load media first, then other data to ensure stickers have access to media items
+        debugLog(`[ProjectStore] Loading media for project: ${id}`);
+        await mediaStore.loadProjectMedia(id);
+        debugLog(
+          "[ProjectStore] Media loading complete, now loading timeline and stickers"
+        );
+
+        // Load timeline and stickers in parallel (both may depend on media being loaded)
         await Promise.all([
-          mediaStore.loadProjectMedia(id),
           timelineStore.loadProjectTimeline(id),
+          stickersStore.loadFromProject(id),
         ]);
+        debugLog(`[ProjectStore] Project loading complete: ${id}`);
       } else {
         throw new NotFoundError(`Project ${id} not found`);
       }
@@ -221,11 +236,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (!activeProject) return;
 
     try {
-      // Save project metadata and timeline data in parallel
+      // Save project metadata, timeline data, and stickers in parallel
+      const { useTimelineStore } = await import("./timeline-store");
       const timelineStore = useTimelineStore.getState();
+      const { useStickersOverlayStore } = await import("./stickers-overlay-store");
+      const stickersStore = useStickersOverlayStore.getState();
       await Promise.all([
         storageService.saveProject(activeProject),
         timelineStore.saveProjectTimeline(activeProject.id),
+        stickersStore.saveToProject(activeProject.id),
       ]);
       await get().loadAllProjects(); // Refresh the list
     } catch (error) {
@@ -263,6 +282,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       if (activeProject?.id === id) {
         set({ activeProject: null });
         const mediaStore = (await getMediaStore()).useMediaStore.getState();
+        const { useTimelineStore } = await import("./timeline-store");
         const timelineStore = useTimelineStore.getState();
         mediaStore.clearAllMedia();
         timelineStore.clearTimeline();
@@ -277,6 +297,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     // Clear data from stores when closing project
     const mediaStore = (await getMediaStore()).useMediaStore.getState();
+    const { useTimelineStore } = await import("./timeline-store");
     const timelineStore = useTimelineStore.getState();
     mediaStore.clearAllMedia();
     timelineStore.clearTimeline();

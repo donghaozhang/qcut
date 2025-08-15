@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { debugLog } from "@/lib/debug-config";
 import { storageService } from "@/lib/storage/storage-service";
 import { useTimelineStore } from "./timeline-store";
-import { generateUUID } from "@/lib/utils";
+import { generateUUID, generateFileBasedId } from "@/lib/utils";
 import { getVideoInfo, generateThumbnail } from "@/lib/ffmpeg-utils";
 
 export type MediaType = "image" | "video" | "audio";
@@ -39,10 +39,11 @@ interface MediaStore {
   // Actions - now require projectId
   addMediaItem: (
     projectId: string,
-    item: Omit<MediaItem, "id">
-  ) => Promise<void>;
+    item: Omit<MediaItem, "id"> & { id?: string }
+  ) => Promise<string>;
   addGeneratedImages: (
     items: Array<{
+      id?: string;
       url: string;
       type: MediaType;
       name: string;
@@ -261,49 +262,45 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
   isLoading: false,
 
   addMediaItem: async (projectId, item) => {
-    console.error("[BLOB DEBUG] MediaStore.addMediaItem called:", {
-      projectId,
-      itemName: item.name,
-      itemType: item.type,
-      itemUrl: item.url,
-      fileSize: item.file?.size,
-      isBlobUrl: item.url?.startsWith('blob:'),
-      isDataUrl: item.url?.startsWith('data:'),
-      urlProtocol: item.url ? item.url.substring(0, 20) : 'none',
-      stack: new Error().stack
-    });
-
-    // Alert if we're adding a problematic blob URL
-    if (item.url?.startsWith('blob:file:///')) {
-      console.error("[BLOB DEBUG] ❌ ADDING PROBLEMATIC BLOB URL TO MEDIA STORE:", item.url);
-      console.error("[BLOB DEBUG] Full item:", JSON.stringify(item, null, 2));
+    // Generate consistent ID based on file properties if not provided
+    let id = item.id;
+    if (!id && item.file) {
+      try {
+        id = await generateFileBasedId(item.file);
+        debugLog(
+          `[MediaStore] Generated consistent ID for ${item.name}: ${id}`
+        );
+      } catch (error) {
+        debugLog(
+          "[MediaStore] Failed to generate file-based ID, using random UUID"
+        );
+        id = generateUUID();
+      }
+    } else if (!id) {
+      id = generateUUID();
     }
 
     const newItem: MediaItem = {
       ...item,
-      id: generateUUID(),
+      id,
     };
-
-    console.log("[MediaStore] Created new media item with ID:", newItem.id);
 
     // Add to local state immediately for UI responsiveness
     set((state) => ({
       mediaItems: [...state.mediaItems, newItem],
     }));
-    console.log("[MediaStore] Added to local state");
 
     // Save to persistent storage in background
     try {
-      console.log("[MediaStore] Saving to storage service...");
       await storageService.saveMediaItem(projectId, newItem);
-      console.log("[MediaStore] Successfully saved to storage");
+      return newItem.id;
     } catch (error) {
-      console.error("[MediaStore] Failed to save media item:", error);
+      console.error("Failed to save media item:", error);
       // Remove from local state if save failed
       set((state) => ({
         mediaItems: state.mediaItems.filter((media) => media.id !== newItem.id),
       }));
-      console.log("[MediaStore] Removed from local state due to save failure");
+      throw error;
     }
   },
 
@@ -348,28 +345,17 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
           processedUrl = item.url;
         }
 
-        // Create a data URL from the downloaded file for immediate display (no blob URLs in Electron)
+        // Create a blob URL from the downloaded file for immediate display
         let displayUrl = processedUrl;
         if (file.size > 0) {
-          try {
-            // Convert to data URL instead of blob URL for Electron compatibility
-            const reader = new FileReader();
-            displayUrl = await new Promise<string>((resolve, reject) => {
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.onerror = reject;
-              reader.readAsDataURL(file);
-            });
-            console.error(
-              `✅ [MediaStore] Created data URL for display: ${displayUrl.substring(0, 50)}...`
-            );
-          } catch (error) {
-            console.error(`❌ [MediaStore] Failed to create data URL:`, error);
-            // Keep processedUrl as fallback
-          }
+          displayUrl = URL.createObjectURL(file);
+          console.log(
+            `[MediaStore] Created object URL for display: ${displayUrl}`
+          );
         }
 
         return {
-          id: generateUUID(),
+          id: item.id ?? generateUUID(), // Preserve existing ID if provided
           name: item.name,
           type: item.type,
           file, // Now contains actual image data
@@ -495,9 +481,13 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
 
   loadProjectMedia: async (projectId) => {
     set({ isLoading: true });
+    debugLog(`[MediaStore] Loading media for project: ${projectId}`);
 
     try {
       const mediaItems = await storageService.loadAllMediaItems(projectId);
+      debugLog(
+        `[MediaStore] Loaded ${mediaItems.length} media items from storage`
+      );
 
       // Process media items with enhanced error handling
       const updatedMediaItems = await Promise.all(
@@ -543,6 +533,9 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
       );
 
       set({ mediaItems: updatedMediaItems });
+      debugLog(
+        `[MediaStore] ✅ Media loading complete: ${updatedMediaItems.length} items`
+      );
     } catch (error) {
       console.error("[Media Store] ❌ Failed to load media items:", error);
 

@@ -74,3 +74,44 @@ export function getPlatformSpecialKey() {
 export function getPlatformAlternateKey() {
   return isAppleDevice() ? "⌥" : "Alt";
 }
+
+/**
+ * Generates a consistent ID for a file based on its properties
+ * This ensures the same file always gets the same ID
+ */
+export async function generateFileBasedId(file: File): Promise<string> {
+  // Ensure Web Crypto is available
+  if (
+    typeof crypto === "undefined" ||
+    !crypto.subtle ||
+    typeof crypto.subtle.digest !== "function"
+  ) {
+    // Deterministic ID is not possible without SubtleCrypto; let caller decide fallback
+    throw new Error("Web Crypto API not available for hashing file-based ID");
+  }
+
+  // Create a unique string from normalized file properties
+  const name = file.name.trim().toLowerCase();
+  const type = file.type.trim().toLowerCase();
+  const uniqueString = `${name}-${file.size}-${file.lastModified}-${type}`;
+
+  // Use Web Crypto API to hash the string
+  const encoder = new TextEncoder();
+  const data = encoder.encode(uniqueString);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+
+  // Convert hash to hex string
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  // Format as UUID-like string (take first 32 chars and format)
+  return [
+    hashHex.slice(0, 8),
+    hashHex.slice(8, 12),
+    hashHex.slice(12, 16),
+    hashHex.slice(16, 20),
+    hashHex.slice(20, 32),
+  ].join("-");
+}

@@ -1,7 +1,7 @@
 import { MediaType } from "@/stores/media-store";
 import { generateUUID } from "@/lib/utils";
 
-export type TrackType = "media" | "text" | "audio";
+export type TrackType = "media" | "text" | "audio" | "sticker";
 
 // Base element properties
 interface BaseTimelineElement {
@@ -38,13 +38,24 @@ export interface TextElement extends BaseTimelineElement {
   opacity: number; // 0-1
 }
 
+// Sticker element that references overlay sticker data
+export interface StickerElement extends BaseTimelineElement {
+  type: "sticker";
+  stickerId: string; // References sticker in overlay store
+  mediaId: string; // References media item for the sticker
+}
+
 // Typed timeline elements
-export type TimelineElement = MediaElement | TextElement;
+export type TimelineElement = MediaElement | TextElement | StickerElement;
 
 // Creation types (without id, for addElementToTrack)
 export type CreateMediaElement = Omit<MediaElement, "id">;
 export type CreateTextElement = Omit<TextElement, "id">;
-export type CreateTimelineElement = CreateMediaElement | CreateTextElement;
+export type CreateStickerElement = Omit<StickerElement, "id">;
+export type CreateTimelineElement =
+  | CreateMediaElement
+  | CreateTextElement
+  | CreateStickerElement;
 
 export interface TimelineElementProps {
   element: TimelineElement;
@@ -94,14 +105,32 @@ export function sortTracksByOrder(tracks: TimelineTrack[]): TimelineTrack[] {
     if (a.type === "text" && b.type !== "text") return -1;
     if (b.type === "text" && a.type !== "text") return 1;
 
+    // Sticker tracks go after text, before media
+    if (a.type === "sticker" && b.type !== "sticker" && b.type !== "text")
+      return -1;
+    if (b.type === "sticker" && a.type !== "sticker" && a.type !== "text")
+      return 1;
+
     // Audio tracks always go to bottom
     if (a.type === "audio" && b.type !== "audio") return 1;
     if (b.type === "audio" && a.type !== "audio") return -1;
 
-    // Main track goes above audio but below text tracks
-    if (a.isMain && !b.isMain && b.type !== "audio" && b.type !== "text")
+    // Main track goes above audio but below text and sticker tracks
+    if (
+      a.isMain &&
+      !b.isMain &&
+      b.type !== "audio" &&
+      b.type !== "text" &&
+      b.type !== "sticker"
+    )
       return 1;
-    if (b.isMain && !a.isMain && a.type !== "audio" && a.type !== "text")
+    if (
+      b.isMain &&
+      !a.isMain &&
+      a.type !== "audio" &&
+      a.type !== "text" &&
+      a.type !== "sticker"
+    )
       return -1;
 
     // Within same category, maintain creation order
@@ -134,7 +163,7 @@ export function ensureMainTrack(tracks: TimelineTrack[]): TimelineTrack[] {
 
 // Timeline validation utilities
 export function canElementGoOnTrack(
-  elementType: "text" | "media",
+  elementType: "text" | "media" | "sticker",
   trackType: TrackType
 ): boolean {
   if (elementType === "text") {
@@ -143,11 +172,14 @@ export function canElementGoOnTrack(
   if (elementType === "media") {
     return trackType === "media" || trackType === "audio";
   }
+  if (elementType === "sticker") {
+    return trackType === "sticker";
+  }
   return false;
 }
 
 export function validateElementTrackCompatibility(
-  element: { type: "text" | "media" },
+  element: { type: "text" | "media" | "sticker" },
   track: { type: TrackType }
 ): { isValid: boolean; errorMessage?: string } {
   const isValid = canElementGoOnTrack(element.type, track.type);
@@ -156,7 +188,9 @@ export function validateElementTrackCompatibility(
     const errorMessage =
       element.type === "text"
         ? "Text elements can only be placed on text tracks"
-        : "Media elements can only be placed on media or audio tracks";
+        : element.type === "sticker"
+          ? "Sticker elements can only be placed on sticker tracks"
+          : "Media elements can only be placed on media or audio tracks";
 
     return { isValid: false, errorMessage };
   }

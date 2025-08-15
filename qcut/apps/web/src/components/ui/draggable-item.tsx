@@ -191,7 +191,20 @@ function PlusButton({
   if (tooltipText) {
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipTrigger asChild>
+          <Button
+            size="icon"
+            className={cn("absolute bottom-2 right-2 size-4", className)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClick?.();
+            }}
+            title={tooltipText}
+          >
+            <Plus className="size-3!" />
+          </Button>
+        </TooltipTrigger>
         <TooltipContent>
           <p>{tooltipText}</p>
         </TooltipContent>

@@ -4,7 +4,7 @@ import { useDragDrop } from "@/hooks/use-drag-drop";
 import { processMediaFiles } from "@/lib/media-processing";
 import { useAsyncMediaStore } from "@/hooks/use-async-media-store";
 import type { MediaItem } from "@/stores/media-store-types";
-import { Image, Loader2, Music, Plus, Video, Edit } from "lucide-react";
+import { Image, Loader2, Music, Plus, Video, Edit, Layers } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,10 +26,12 @@ import {
 import { DraggableMediaItem } from "@/components/ui/draggable-item";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline-store";
+import { usePlaybackStore } from "@/stores/playback-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ExportAllButton } from "../export-all-button";
 import { useAdjustmentStore } from "@/stores/adjustment-store";
 import { useMediaPanelStore } from "../store";
+import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 
 export function MediaView() {
   const {
@@ -129,8 +131,10 @@ export function MediaView() {
         if (!addMediaItem) {
           throw new Error("Media store not ready");
         }
-        await addMediaItem(activeProject.id, item);
-        console.log(`[Media View] ✅ Item ${index + 1} added successfully`);
+        const newItemId = await addMediaItem(activeProject.id, item);
+        console.log(
+          `[Media View] ✅ Item ${index + 1} added successfully with ID: ${newItemId}`
+        );
       }
 
       console.log("[Media View] 🎉 Upload process completed successfully!");
@@ -403,6 +407,35 @@ export function MediaView() {
                     </ContextMenuTrigger>
                     <ContextMenuContent>
                       <ContextMenuItem>Export clips</ContextMenuItem>
+                      {(item.type === "image" || item.type === "video") && (
+                        <ContextMenuItem
+                          aria-label="Add as overlay"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const { addOverlaySticker } =
+                              useStickersOverlayStore.getState();
+                            const { currentTime } = usePlaybackStore.getState();
+                            const { getTotalDuration } =
+                              useTimelineStore.getState();
+                            const totalDuration = getTotalDuration();
+                            const start = Math.max(
+                              0,
+                              Math.min(currentTime, totalDuration)
+                            );
+                            const end = Math.min(start + 5, totalDuration);
+                            addOverlaySticker(item.id, {
+                              timing: {
+                                startTime: start,
+                                endTime: end,
+                              },
+                            });
+                            toast.success(`Added "${item.name}" as overlay`);
+                          }}
+                        >
+                          <Layers className="h-4 w-4 mr-2" aria-hidden="true" />
+                          Add as Overlay
+                        </ContextMenuItem>
+                      )}
                       {item.type === "image" && (
                         <ContextMenuItem onClick={(e) => handleEdit(e, item)}>
                           <Edit className="h-4 w-4 mr-2" />

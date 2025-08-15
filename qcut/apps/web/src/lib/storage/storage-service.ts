@@ -168,27 +168,13 @@ class StorageService {
 
   // Media operations - now project-specific
   async saveMediaItem(projectId: string, mediaItem: MediaItem): Promise<void> {
-    console.log("[StorageService] saveMediaItem called:", {
-      projectId,
-      mediaItemId: mediaItem.id,
-      name: mediaItem.name,
-      type: mediaItem.type,
-      fileSize: mediaItem.file.size,
-      url: mediaItem.url,
-      isBlobUrl: mediaItem.url?.startsWith('blob:')
-    });
-
     const { mediaMetadataAdapter, mediaFilesAdapter } =
       this.getProjectMediaAdapters(projectId);
 
     // Only save file if it has actual content
     if (mediaItem.file.size > 0) {
-      console.log("[StorageService] Saving file to OPFS:", mediaItem.id);
       // Save file to project-specific OPFS
       await mediaFilesAdapter.set(mediaItem.id, mediaItem.file);
-      console.log("[StorageService] File saved to OPFS successfully");
-    } else {
-      console.warn("[StorageService] File has no content, skipping OPFS save");
     }
 
     // Save metadata to project-specific IndexedDB
@@ -201,28 +187,18 @@ class StorageService {
       width: mediaItem.width,
       height: mediaItem.height,
       duration: mediaItem.duration,
-      // Don't store blob URLs as they become invalid after page reload
-      // Store data URLs and non-blob URLs (like original URLs from external sources)
-      url: mediaItem.url && (!mediaItem.url.startsWith('blob:') || mediaItem.url.startsWith('data:')) ? mediaItem.url : undefined,
+      // Store the URL if it's a generated image (blob URL)
+      url: mediaItem.url,
       metadata: mediaItem.metadata,
     };
 
-    console.log("[StorageService] Saving metadata to IndexedDB:", {
-      id: metadata.id,
-      storedUrl: metadata.url,
-      originalUrl: mediaItem.url
-    });
-
     await mediaMetadataAdapter.set(mediaItem.id, metadata);
-    console.log("[StorageService] Metadata saved successfully");
   }
 
   async loadMediaItem(
     projectId: string,
     id: string
   ): Promise<MediaItem | null> {
-    console.error("[BLOB DEBUG] StorageService.loadMediaItem called:", { projectId, id });
-    
     const { mediaMetadataAdapter, mediaFilesAdapter } =
       this.getProjectMediaAdapters(projectId);
 
@@ -231,78 +207,60 @@ class StorageService {
       mediaMetadataAdapter.get(id),
     ]);
 
-    console.log("[StorageService] Loaded from storage:", {
-      hasFile: !!file,
-      fileSize: file?.size,
-      hasMetadata: !!metadata,
-      storedUrl: metadata?.url
-    });
+    if (!metadata) return null;
 
-    if (!metadata) {
-      console.warn("[StorageService] No metadata found for media item:", id);
-      return null;
-    }
-
-    let url: string | undefined;
+    let url: string;
     let actualFile: File;
 
-    // Prioritize stored data URLs over creating new blob URLs
-    if (metadata.url && metadata.url.startsWith('data:')) {
-      // Use stored data URL (preferred for SVG stickers)
-      url = metadata.url;
-      actualFile = file || new File([], metadata.name, {
-        type: `${metadata.type}/svg+xml`,
-      });
-      console.log(
-        `[StorageService] Using stored data URL for ${metadata.name}: ${url.substring(0, 50)}...`
-      );
-    } else if (file && file.size > 0) {
-      // NEVER create blob URLs in Electron - always use data URLs
-      try {
-        // Convert ALL files to data URLs to avoid blob:file:// issues
-        const reader = new FileReader();
+    if (file && file.size > 0) {
+      // File exists with content
+      actualFile = file;
+
+      // In Electron, convert to data URL for better compatibility
+      if (this.isElectronEnvironment() && metadata.type === "image") {
+        // For images in Electron, use data URL
         url = await new Promise<string>((resolve, reject) => {
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === "string") {
+              resolve(reader.result);
+            } else {
+              reject(new Error("Failed to read file as data URL"));
+            }
+          };
+          reader.onerror = () => reject(reader.error);
           reader.readAsDataURL(file);
         });
-        console.error(
-          `✅ [StorageService] Converted file to data URL for ${metadata.name}: ${url.substring(0, 50)}...`
+        debugLog(
+          `[StorageService] Created data URL for ${metadata.name} in Electron`
         );
-      } catch (error) {
-        console.error(`❌ [StorageService] Failed to convert to data URL:`, error);
-        // In Electron, even fallback blob URLs are broken, so don't create them
-        url = undefined;
-        console.error(`❌ [StorageService] No URL available for ${metadata.name} - blob URLs don't work in Electron`);
+      } else {
+        // Use blob URL for web environment or non-image files
+        // NOTE: Caller is responsible for revoking blob URLs via URL.revokeObjectURL()
+        url = URL.createObjectURL(file);
+        debugLog(
+          `[StorageService] Created object URL for ${metadata.name}: ${url}`
+        );
       }
-      actualFile = file;
-      debugLog(
-        `[StorageService] Processed file for ${metadata.name}: ${url?.substring(0, 50)}`
-      );
-    } else if (metadata.url && !metadata.url.startsWith('blob:')) {
-      // No file or empty file, but we have a data URL or non-blob URL (e.g., external URL)
+    } else if (metadata.url) {
+      // No file or empty file, but we have a URL (e.g., generated image fallback)
       url = metadata.url;
       // Create empty file placeholder
       actualFile = new File([], metadata.name, {
         type: `${metadata.type}/jpeg`,
       });
       console.log(
-        `[StorageService] Using stored URL for ${metadata.name}: ${url.substring(0, 50)}...`
+        `[StorageService] Using stored URL for ${metadata.name}: ${url}`
       );
     } else {
-      // No valid file or URL available
+      // No file and no URL, cannot load
       console.warn(
-        `[StorageService] No valid file or URL found for media item: ${metadata.name}, id: ${id}`
+        `[StorageService] No file or URL found for media item: ${metadata.name}`
       );
-      // Create an empty file as fallback
-      actualFile = new File([], metadata.name, {
-        type: `${metadata.type}/jpeg`,
-      });
-      // Don't set a URL if we don't have a valid one
-      url = undefined;
+      return null;
     }
 
-    const result = {
+    return {
       id: metadata.id,
       name: metadata.name,
       type: metadata.type,
@@ -314,18 +272,6 @@ class StorageService {
       metadata: metadata.metadata,
       // thumbnailUrl would need to be regenerated or cached separately
     };
-
-    console.log('[STORAGE] Loading item:', {
-      itemName: result.name,
-      url: result.url?.substring(0, 50) + '...',
-      isBlobUrl: result.url?.startsWith('blob:'),
-      isFileBlob: result.url?.startsWith('blob:file:'),
-      isDataUrl: result.url?.startsWith('data:'),
-      fileSize: result.file.size,
-      timestamp: new Date().toISOString()
-    });
-
-    return result;
   }
 
   async loadAllMediaItems(projectId: string): Promise<MediaItem[]> {
@@ -439,28 +385,6 @@ class StorageService {
 
   isFullySupported(): boolean {
     return this.isIndexedDBSupported() && this.isOPFSSupported();
-  }
-
-  /**
-   * Clear media items with problematic blob URLs
-   */
-  async clearBlobUrlMediaItems(projectId: string): Promise<number> {
-    const { mediaMetadataAdapter } = this.getProjectMediaAdapters(projectId);
-    
-    const mediaIds = await mediaMetadataAdapter.list();
-    let clearedCount = 0;
-    
-    for (const id of mediaIds) {
-      const metadata = await mediaMetadataAdapter.get(id);
-      if (metadata && metadata.url && metadata.url.startsWith('blob:file:///')) {
-        await this.deleteMediaItem(projectId, id);
-        clearedCount++;
-        console.log(`[StorageService] Cleared problematic media item: ${metadata.name}`);
-      }
-    }
-    
-    console.log(`[StorageService] Cleared ${clearedCount} media items with blob URLs`);
-    return clearedCount;
   }
 
   /**

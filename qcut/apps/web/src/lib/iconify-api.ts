@@ -8,17 +8,8 @@ export const ICONIFY_HOSTS = [
 class IconifyAPIClient {
   private lastWorkingHost: string = ICONIFY_HOSTS[0];
 
-  // Helper to create timeout signal with fallback for older browsers
+  // Helper to create timeout signal (portable implementation)
   private createTimeoutSignal(timeout: number): AbortSignal {
-    // Use native timeout if available (Chrome 94+, Firefox 93+, Node 16+)
-    if (
-      "timeout" in AbortSignal &&
-      typeof (AbortSignal as any).timeout === "function"
-    ) {
-      return AbortSignal.timeout(timeout);
-    }
-
-    // Fallback for older browsers
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -30,7 +21,37 @@ class IconifyAPIClient {
     return controller.signal;
   }
 
-  async fetchWithFallback(path: string): Promise<Response> {
+  // Helper to combine multiple abort signals safely
+  private combineSignals(signals: AbortSignal[]): AbortSignal {
+    const controller = new AbortController();
+    const onAbort = () => {
+      if (!controller.signal.aborted) controller.abort();
+    };
+
+    for (const s of signals) {
+      if (s.aborted) {
+        controller.abort();
+        break;
+      }
+      s.addEventListener("abort", onAbort, { once: true });
+    }
+
+    // Cleanup listeners once our combined signal aborts
+    controller.signal.addEventListener(
+      "abort",
+      () => {
+        for (const s of signals) s.removeEventListener("abort", onAbort);
+      },
+      { once: true }
+    );
+
+    return controller.signal;
+  }
+
+  async fetchWithFallback(
+    path: string,
+    signal?: AbortSignal
+  ): Promise<Response> {
     // Try last working host first for better performance
     const hostsToTry = [
       this.lastWorkingHost,
@@ -39,15 +60,25 @@ class IconifyAPIClient {
 
     for (const host of hostsToTry) {
       try {
+        // Combine timeout signal with external abort signal if provided
+        const timeoutSignal = this.createTimeoutSignal(2000);
+        const combinedSignal = signal
+          ? this.combineSignals([timeoutSignal, signal])
+          : timeoutSignal;
+
         const response = await fetch(`${host}${path}`, {
-          signal: this.createTimeoutSignal(2000),
+          signal: combinedSignal,
         });
         if (response.ok) {
           this.lastWorkingHost = host;
           return response;
         }
       } catch (error) {
-        // Silent fail, try next host (consider adding debug logging if needed)
+        // If the external signal was aborted, rethrow to preserve the abort
+        if (signal?.aborted) {
+          throw error;
+        }
+        // Silent fail for network/timeout errors, try next host
       }
     }
     throw new Error("All API hosts failed");
@@ -126,7 +157,8 @@ export async function getCollection(prefix: string): Promise<CollectionInfo> {
 export async function searchIcons(
   query: string,
   limit = 100,
-  start = 0
+  start = 0,
+  signal?: AbortSignal
 ): Promise<IconSearchResult> {
   const params = new URLSearchParams({
     query,
@@ -135,7 +167,10 @@ export async function searchIcons(
     pretty: "1",
   });
 
-  const response = await apiClient.fetchWithFallback(`/search?${params}`);
+  const response = await apiClient.fetchWithFallback(
+    `/search?${params}`,
+    signal
+  );
   const data = (await response.json()) as IconSearchResult;
   return data;
 }
@@ -153,7 +188,8 @@ export function buildIconSvgUrl(
 ): string {
   const params = new URLSearchParams();
 
-  if (options.color) {
+  // Don't set color to preserve transparency
+  if (options.color && options.color !== "transparent") {
     params.set("color", options.color);
   }
   if (options.width) params.set("width", options.width.toString());
@@ -180,7 +216,8 @@ export async function downloadIconSvg(
 ): Promise<string> {
   const params = new URLSearchParams();
 
-  if (options.color) {
+  // Don't set color to preserve transparency
+  if (options.color && options.color !== "transparent") {
     params.set("color", options.color);
   }
   if (options.width) params.set("width", options.width.toString());
@@ -194,6 +231,17 @@ export async function downloadIconSvg(
   const response = await apiClient.fetchWithFallback(path);
   const svgContent = await response.text();
   return svgContent;
+}
+
+// Helper function to create a Blob from SVG content
+export function createSvgBlob(svgContent: string): Blob {
+  return new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
+}
+
+// Helper function to create a transparent SVG blob URL
+export function createTransparentSvgBlobUrl(svgContent: string): string {
+  const blob = createSvgBlob(svgContent);
+  return URL.createObjectURL(blob);
 }
 
 // Popular collections with sample icons

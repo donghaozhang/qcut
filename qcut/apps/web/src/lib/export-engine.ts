@@ -12,6 +12,9 @@ import {
   isFFmpegExportEnabled,
 } from "@/lib/ffmpeg-video-recorder";
 import { debugLog, debugError, debugWarn } from "@/lib/debug-config";
+import { renderStickersToCanvas } from "@/lib/stickers/sticker-export-helper";
+import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
+import { useMediaStore } from "@/stores/media-store";
 
 // Interface for active elements at a specific time
 interface ActiveElement {
@@ -176,6 +179,9 @@ export class ExportEngine {
     for (const { element, mediaItem } of sortedElements) {
       await this.renderElement(element, mediaItem, currentTime);
     }
+
+    // Render overlay stickers on top of everything
+    await this.renderOverlayStickers(currentTime);
   }
 
   // Render individual element (media or text)
@@ -374,6 +380,38 @@ export class ExportEngine {
   }
 
   // Render text elements
+  // Render overlay stickers on top of video
+  private async renderOverlayStickers(currentTime: number): Promise<void> {
+    try {
+      // Get stickers from store
+      const stickersStore = useStickersOverlayStore.getState();
+      const visibleStickers =
+        stickersStore.getVisibleStickersAtTime(currentTime);
+
+      if (visibleStickers.length === 0) return;
+
+      // Get media items for stickers
+      const mediaStore = useMediaStore.getState();
+      const mediaItemsMap = new Map(
+        mediaStore.mediaItems.map((item) => [item.id, item])
+      );
+
+      // Render stickers to canvas
+      await renderStickersToCanvas(this.ctx, visibleStickers, mediaItemsMap, {
+        canvasWidth: this.canvas.width,
+        canvasHeight: this.canvas.height,
+        currentTime,
+      });
+
+      debugLog(
+        `[ExportEngine] Rendered ${visibleStickers.length} overlay stickers at time ${currentTime}`
+      );
+    } catch (error) {
+      debugError("[ExportEngine] Failed to render overlay stickers:", error);
+      // Continue export even if stickers fail
+    }
+  }
+
   private renderTextElement(element: TimelineElement): void {
     if (element.type !== "text") return;
 

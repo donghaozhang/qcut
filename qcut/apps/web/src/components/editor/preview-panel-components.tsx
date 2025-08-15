@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 import { formatTimeCode } from "@/lib/time";
 import { EditableTimecode } from "@/components/ui/editable-timecode";
 import { BackgroundSettings } from "../background-settings";
+// Import sticker overlay for fullscreen mode
+import { StickerCanvas } from "./stickers-overlay/StickerCanvas";
 import { TimelineElement, TimelineTrack } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media-store-types";
 
@@ -248,6 +250,9 @@ export function FullscreenPreview({
               renderElement(elementData, index)
             )
           )}
+
+          {/* Sticker overlay in fullscreen mode */}
+          <StickerCanvas className="absolute inset-0" />
           {activeProject?.backgroundType === "blur" &&
             blurBackgroundElements.length === 0 &&
             activeElements.length > 0 && (
