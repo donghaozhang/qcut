@@ -3,6 +3,16 @@ from pydantic import BaseModel
 
 app = modal.App("opencut-transcription")
 
+# Module-level model cache
+_MODEL = None
+
+def get_whisper_model():
+    global _MODEL
+    if _MODEL is None:
+        import whisper
+        _MODEL = whisper.load_model("base")
+    return _MODEL
+
 class TranscribeRequest(BaseModel):
     filename: str
     language: str = "auto"
@@ -88,8 +98,8 @@ def transcribe_audio(request: TranscribeRequest):
                     with open(temp_path, 'wb') as f:
                         f.write(decrypted_data)
                 
-                # Load Whisper model
-                model = whisper.load_model("base")
+                # Load Whisper model (cached)
+                model = get_whisper_model()
                 
                 # Transcribe audio
                 if language == "auto":
