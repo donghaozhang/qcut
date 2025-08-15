@@ -253,6 +253,16 @@ export function TimelineElement({
       );
     }
 
+    if (element.type === "captions") {
+      return (
+        <div className="w-full h-full flex items-center justify-start pl-2">
+          <span className="text-xs text-foreground/80 truncate">
+            {element.text}
+          </span>
+        </div>
+      );
+    }
+
     // Render media element -> use outer mediaItem variable
     if (!mediaItem) {
       return (
@@ -459,7 +469,7 @@ export function TimelineElement({
               : element.hidden
                 ? "Show"
                 : "Hide"}{" "}
-            {element.type === "text" ? "text" : "clip"}
+            {element.type === "text" ? "text" : element.type === "captions" ? "captions" : "clip"}
           </span>
         </ContextMenuItem>
         <ContextMenuItem onClick={handleElementDuplicateContext}>
@@ -469,7 +479,9 @@ export function TimelineElement({
             ? "text"
             : element.type === "sticker"
               ? "sticker"
-              : "clip"}
+              : element.type === "captions"
+                ? "captions"
+                : "clip"}
         </ContextMenuItem>
         {element.type === "media" && (
           <ContextMenuItem onClick={handleReplaceClip}>
@@ -488,7 +500,9 @@ export function TimelineElement({
             ? "text"
             : element.type === "sticker"
               ? "sticker"
-              : "clip"}
+              : element.type === "captions"
+                ? "captions"
+                : "clip"}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
