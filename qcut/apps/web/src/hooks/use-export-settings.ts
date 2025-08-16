@@ -102,9 +102,21 @@ export function useExportSettings() {
 
   useEffect(() => {
     // Dynamically import export engine factory for FFmpeg availability check
-    import("@/lib/export-engine-factory").then(({ ExportEngineFactory }) => {
-      ExportEngineFactory.isFFmpegAvailable().then(setFfmpegAvailable);
-    });
+    let cancelled = false;
+    import("@/lib/export-engine-factory")
+      .then(({ ExportEngineFactory }) =>
+        ExportEngineFactory.isFFmpegAvailable()
+      )
+      .then((available) => {
+        if (!cancelled) setFfmpegAvailable(available);
+      })
+      .catch((err) => {
+        debugWarn("FFmpeg availability check failed:", err);
+        if (!cancelled) setFfmpegAvailable(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleQualityChange = (newQuality: ExportQuality) => {

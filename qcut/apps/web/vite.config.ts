@@ -37,62 +37,59 @@ export default defineConfig({
         chunkFileNames: "assets/[name]-[hash].js",
         entryFileNames: "assets/[name]-[hash].js",
         manualChunks: (id) => {
-          // Core vendor libraries - always loaded
-          if (id.includes('react') || id.includes('react-dom')) {
+          // Core React ecosystem - keep together to avoid context issues
+          if (id.includes('react') || id.includes('react-dom') || 
+              id.includes('@radix-ui') || id.includes('@tanstack/react-router')) {
             return 'vendor-react';
           }
-          if (id.includes('@tanstack/react-router')) {
-            return 'vendor-router';
-          }
 
-          // UI component libraries
-          if (id.includes('@radix-ui') || id.includes('lucide-react') || 
-              id.includes('framer-motion') || id.includes('class-variance-authority') ||
+          // UI utilities and styling libraries (non-React dependent)
+          if (id.includes('lucide-react') || 
+              id.includes('class-variance-authority') ||
               id.includes('clsx') || id.includes('tailwind-merge')) {
             return 'vendor-ui';
           }
 
-          // Video/Media processing - heavy FFmpeg dependencies
-          if (id.includes('@ffmpeg') || id.includes('ffmpeg')) {
-            return 'video-processing';
-          }
+          // Video/Media processing kept in main bundle to avoid dependency issues
+          // if (id.includes('@ffmpeg') || id.includes('ffmpeg')) {
+          //   return 'video-processing';
+          // }
 
-          // AI Features - text2image and AI generation
-          if (id.includes('fal-ai-client') || id.includes('text2image-store') ||
-              id.includes('/ai.tsx') || id.includes('ai-client')) {
-            return 'ai-features';
-          }
+          // AI Features kept in main bundle to avoid dependency issues
+          // if (id.includes('fal-ai-client') || id.includes('text2image-store') ||
+          //     id.includes('/ai.tsx') || id.includes('ai-client')) {
+          //   return 'ai-features';
+          // }
 
-          // Export functionality - separate heavy export engines
-          if (id.includes('export-engine') || id.includes('export-dialog') ||
-              id.includes('/lib/export-')) {
-            return 'export-engine';
-          }
+          // Export functionality kept in main bundle to avoid React component issues
+          // if (id.includes('export-engine') || id.includes('export-dialog') ||
+          //     id.includes('/lib/export-')) {
+          //   return 'export-engine';
+          // }
 
-          // Media processing utilities
-          if (id.includes('media-processing') || id.includes('image-utils') ||
-              id.includes('media-store-loader')) {
-            return 'media-processing';
-          }
+          // Media processing utilities kept in main bundle to avoid dependency issues
+          // if (id.includes('media-processing') || id.includes('image-utils') ||
+          //     id.includes('media-store-loader')) {
+          //   return 'media-processing';
+          // }
 
-          // Stickers and overlay features
-          if (id.includes('stickers') || id.includes('overlay') ||
-              id.includes('StickerCanvas')) {
-            return 'stickers';
-          }
+          // Stickers stores kept in main bundle to avoid dependency issues
+          // if (id.includes('stickers-store') || id.includes('stickers-overlay-store')) {
+          //   return 'stickers';
+          // }
 
-          // Sounds functionality
-          if (id.includes('sounds-store') || id.includes('sound-search') ||
-              id.includes('/sounds/')) {
-            return 'sounds';
-          }
+          // Sounds functionality kept in main bundle to avoid dependency issues
+          // if (id.includes('sounds-store') || id.includes('sound-search') ||
+          //     id.includes('/sounds/')) {
+          //   return 'sounds';
+          // }
 
-          // Editor core stores - keep essential stores together
-          if (id.includes('timeline-store') || id.includes('playback-store') ||
-              id.includes('project-store') || id.includes('editor-store') ||
-              id.includes('panel-store')) {
-            return 'editor-core';
-          }
+          // Editor core stores kept in main bundle to avoid dependency issues
+          // if (id.includes('timeline-store') || id.includes('playback-store') ||
+          //     id.includes('project-store') || id.includes('editor-store') ||
+          //     id.includes('panel-store')) {
+          //   return 'editor-core';
+          // }
 
           // Form and validation libraries
           if (id.includes('react-hook-form') || id.includes('zod') ||
@@ -103,6 +100,18 @@ export default defineConfig({
           // Charts and data visualization
           if (id.includes('recharts') || id.includes('embla-carousel')) {
             return 'vendor-charts';
+          }
+
+          // Motion and animation libraries
+          if (id.includes('framer-motion') || id.includes('motion') || 
+              id.includes('@hello-pangea/dnd')) {
+            return 'vendor-motion';
+          }
+
+          // Markdown processing libraries
+          if (id.includes('react-markdown') || id.includes('rehype') || 
+              id.includes('unified') || id.includes('remark')) {
+            return 'vendor-markdown';
           }
 
           // Authentication and database
