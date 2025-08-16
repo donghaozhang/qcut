@@ -2,11 +2,7 @@ import { useRef, useState } from "react";
 import { useExportStore } from "@/stores/export-store";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
-import { ExportEngine } from "@/lib/export-engine";
-import {
-  ExportEngineFactory,
-  ExportEngineType,
-} from "@/lib/export-engine-factory";
+// Export engine types will be imported dynamically when needed
 import type { ExportFormat, ExportQuality } from "@/types/export";
 import { toast } from "sonner";
 import { useElectron } from "@/hooks/useElectron";

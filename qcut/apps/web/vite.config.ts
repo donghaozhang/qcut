@@ -36,42 +36,83 @@ export default defineConfig({
         assetFileNames: "assets/[name]-[hash][extname]",
         chunkFileNames: "assets/[name]-[hash].js",
         entryFileNames: "assets/[name]-[hash].js",
-        manualChunks: {
-          // Core vendor libraries
-          "vendor-react": ["react", "react-dom"],
-          "vendor-router": ["@tanstack/react-router"],
+        manualChunks: (id) => {
+          // Core vendor libraries - always loaded
+          if (id.includes('react') || id.includes('react-dom')) {
+            return 'vendor-react';
+          }
+          if (id.includes('@tanstack/react-router')) {
+            return 'vendor-router';
+          }
 
           // UI component libraries
-          "vendor-ui": [
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-dropdown-menu",
-            "@radix-ui/react-select",
-            "@radix-ui/react-tabs",
-            "@radix-ui/react-tooltip",
-            "lucide-react",
-          ],
+          if (id.includes('@radix-ui') || id.includes('lucide-react') || 
+              id.includes('framer-motion') || id.includes('class-variance-authority') ||
+              id.includes('clsx') || id.includes('tailwind-merge')) {
+            return 'vendor-ui';
+          }
 
-          // Media processing (heavy dependencies)
-          "media-processing": [
-            "@ffmpeg/ffmpeg",
-            "@ffmpeg/core",
-            "@ffmpeg/util",
-          ],
+          // Video/Media processing - heavy FFmpeg dependencies
+          if (id.includes('@ffmpeg') || id.includes('ffmpeg')) {
+            return 'video-processing';
+          }
 
-          // Editor core stores and logic
-          "editor-core": [
-            "./src/stores/editor-store",
-            "./src/stores/timeline-store",
-            "./src/stores/playback-store",
-            "./src/stores/panel-store",
-            "./src/stores/project-store",
-          ],
+          // AI Features - text2image and AI generation
+          if (id.includes('fal-ai-client') || id.includes('text2image-store') ||
+              id.includes('/ai.tsx') || id.includes('ai-client')) {
+            return 'ai-features';
+          }
 
-          // Stickers feature
-          "stickers": [
-            "./src/stores/stickers-store",
-            "./src/stores/stickers-overlay-store",
-          ],
+          // Export functionality - separate heavy export engines
+          if (id.includes('export-engine') || id.includes('export-dialog') ||
+              id.includes('/lib/export-')) {
+            return 'export-engine';
+          }
+
+          // Media processing utilities
+          if (id.includes('media-processing') || id.includes('image-utils') ||
+              id.includes('media-store-loader')) {
+            return 'media-processing';
+          }
+
+          // Stickers and overlay features
+          if (id.includes('stickers') || id.includes('overlay') ||
+              id.includes('StickerCanvas')) {
+            return 'stickers';
+          }
+
+          // Sounds functionality
+          if (id.includes('sounds-store') || id.includes('sound-search') ||
+              id.includes('/sounds/')) {
+            return 'sounds';
+          }
+
+          // Editor core stores - keep essential stores together
+          if (id.includes('timeline-store') || id.includes('playback-store') ||
+              id.includes('project-store') || id.includes('editor-store') ||
+              id.includes('panel-store')) {
+            return 'editor-core';
+          }
+
+          // Form and validation libraries
+          if (id.includes('react-hook-form') || id.includes('zod') ||
+              id.includes('@hookform')) {
+            return 'vendor-forms';
+          }
+
+          // Charts and data visualization
+          if (id.includes('recharts') || id.includes('embla-carousel')) {
+            return 'vendor-charts';
+          }
+
+          // Authentication and database
+          if (id.includes('better-auth') || id.includes('drizzle') ||
+              id.includes('@opencut/auth') || id.includes('@opencut/db')) {
+            return 'vendor-auth';
+          }
+
+          // Everything else stays in main chunk
+          return undefined;
         },
       },
     },
