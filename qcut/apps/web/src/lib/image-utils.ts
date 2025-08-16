@@ -219,7 +219,7 @@ export async function convertToBlob(url: string): Promise<string> {
     // ENHANCED LOGGING for blob URL debugging
     console.error('🔍 [IMAGE-UTILS] Created blob URL:', {
       originalUrl: url,
-      blobUrl: blobUrl,
+      blobUrl,
       isProblematic: blobUrl.startsWith('blob:file:///'),
       blobSize: blob.size,
       blobType: blob.type

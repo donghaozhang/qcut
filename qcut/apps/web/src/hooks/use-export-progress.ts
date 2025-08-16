@@ -2,12 +2,10 @@ import { useRef, useState } from "react";
 import { useExportStore } from "@/stores/export-store";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { useAsyncMediaItems } from "@/hooks/use-async-media-store";
-import { ExportEngine } from "@/lib/export-engine";
-import {
-  ExportEngineFactory,
-  ExportEngineType,
-} from "@/lib/export-engine-factory";
+// Export engine factory and engine types will be imported dynamically when needed
 import type { ExportFormat, ExportQuality } from "@/types/export";
+import type { ExportEngine } from "@/lib/export-engine";
+import type { ExportEngineFactory, ExportEngineType } from "@/lib/export-engine-factory";
 import { toast } from "sonner";
 import { useElectron } from "@/hooks/useElectron";
 import { debugLog, debugError, debugWarn } from "@/lib/debug-config";
@@ -72,6 +70,8 @@ export function useExportProgress() {
       }
 
       // Create export engine using factory for optimal performance
+      // Dynamically import export engine factory
+      const { ExportEngineFactory, ExportEngineType } = await import("@/lib/export-engine-factory");
       const factory = ExportEngineFactory.getInstance();
 
       // Let factory auto-recommend for Electron, otherwise use manual selection

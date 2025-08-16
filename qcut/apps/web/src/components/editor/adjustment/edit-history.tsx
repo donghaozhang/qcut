@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { downloadImage } from "@/lib/image-utils";
+// Image utilities will be imported dynamically when needed
 import { toast } from "sonner";
 import { BlobImage } from "@/components/ui/blob-image";
 
@@ -39,6 +39,9 @@ export function EditHistory() {
         .slice(0, 19)
         .replace(/[:.]/g, "-");
       const filename = `edit-${index + 1}-${item.model}-${timestamp}.png`;
+      
+      // Dynamically import image utilities
+      const { downloadImage } = await import("@/lib/image-utils");
       await downloadImage(item.editedUrl, filename);
       toast.success(`Edit ${index + 1} downloaded!`);
     } catch (error) {

@@ -35,7 +35,7 @@ import type {
 } from "@/types/captions";
 import { extractAudio } from "@/lib/ffmpeg-utils";
 import { encryptWithRandomKey } from "@/lib/transcription/zk-encryption";
-import { r2Client } from "@/lib/storage/r2-client";
+// REMOVED: import { r2Client } from "@/lib/storage/r2-client";
 import { useTimelineStore } from "@/stores/timeline-store";
 import { useCaptionsStore } from "@/stores/captions-store";
 
@@ -94,9 +94,9 @@ export function CaptionsView() {
         const trackId = addTrack("captions");
 
         // Add all caption elements to the track
-        captionElements.forEach((captionElement) => {
+        for (const captionElement of captionElements) {
           addElementToTrack(trackId, captionElement);
-        });
+        }
 
         toast.success(
           `Added ${captionElements.length} caption segments to timeline`
@@ -118,7 +118,7 @@ export function CaptionsView() {
       error: "Transcription cancelled by user",
     });
     toast.info("Transcription cancelled");
-  }, []);
+  }, [updateState]);
 
   // Performance: Simple cache for transcription results
   const getCachedTranscription = useCallback(
@@ -141,62 +141,7 @@ export function CaptionsView() {
     []
   );
 
-  const handleFileSelect = useCallback(
-    (files: FileList) => {
-      const file = files[0];
-      if (!file) return;
-
-      // Validate file type
-      const validTypes = [
-        "video/mp4",
-        "video/quicktime",
-        "video/x-msvideo",
-        "video/webm",
-        "video/x-matroska", // .mkv
-        "audio/mpeg",
-        "audio/wav",
-        "audio/mp4",
-        "audio/x-m4a",
-        "audio/webm",
-      ];
-      const isValidType =
-        validTypes.includes(file.type) ||
-        (file.type === "" &&
-          /\.(mp4|mov|avi|webm|mkv|mp3|wav|m4a)$/i.test(file.name));
-
-      if (!isValidType) {
-        toast.error("Please select a video or audio file");
-        return;
-      }
-
-      // Performance: Check cache first
-      const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
-      const cachedResult = getCachedTranscription(fileKey);
-
-      if (cachedResult) {
-        toast.success("Found cached transcription!");
-        setState((prev) => ({ ...prev, result: cachedResult }));
-        return;
-      }
-
-      // Enhanced file size validation with optimization hints
-      const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
-      if (file.size > maxSize) {
-        if (file.size > HARD_LIMIT_FILE_SIZE_MB * 1024 * 1024) {
-          toast.error(
-            `File too large (max ${HARD_LIMIT_FILE_SIZE_MB}MB). Please use a smaller file.`
-          );
-          return;
-        }
-        toast.info("Large file detected. This may take longer to process...");
-      }
-
-      startTranscription(file, fileKey);
-    },
-    [getCachedTranscription]
-  );
-
-  const startTranscription = async (file: File, fileKey?: string) => {
+  const startTranscription = useCallback(async (file: File, fileKey?: string) => {
     if (!configured) {
       toast.error(
         `Transcription not configured. Missing: ${missingVars.join(", ")}`
@@ -256,16 +201,36 @@ export function CaptionsView() {
       );
       updateState({ uploadProgress: 50 });
 
-      // Step 3: Upload encrypted file to R2
-      // SECURITY TODO: Move R2 upload to server-side API route
-      // Client-side R2 access has been disabled for security
+      // Step 3: Upload encrypted file to server
       toast.info("Uploading to secure storage...");
-      const r2Key = r2Client.generateTranscriptionKey(audioFile.name);
-      await r2Client.uploadFile(
-        r2Key,
-        encryptedData,
-        "application/octet-stream"
-      );
+      // Generate unique key for the audio file
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(2, 15);
+      const lastDotIndex = audioFile.name.lastIndexOf(".");
+      const extension = lastDotIndex > 0 ? audioFile.name.slice(lastDotIndex + 1) : "wav";
+      const r2Key = `transcription/${timestamp}-${random}.${extension}`;
+
+      // Upload to server via API using multipart form-data
+      const form = new FormData();
+      form.append("filename", r2Key);
+      form.append("file", new Blob([encryptedData], { type: "application/octet-stream" }), r2Key);
+      const uploadResponse = await fetch("/api/upload-audio", {
+        method: "POST",
+        body: form,
+      });
+
+      if (!uploadResponse.ok) {
+        let message = "Upload failed";
+        try {
+          const uploadError = await uploadResponse.json();
+          message = uploadError.message || message;
+        } catch {
+          const text = await uploadResponse.text();
+          if (text) message = text;
+        }
+        throw new Error(message);
+      }
+
       updateState({ uploadProgress: 70 });
 
       // Step 4: Call transcription API
@@ -291,8 +256,15 @@ export function CaptionsView() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Transcription failed");
+        let message = "Transcription failed";
+        try {
+          const errorData = await response.json();
+          message = errorData.message || message;
+        } catch {
+          const text = await response.text();
+          if (text) message = text;
+        }
+        throw new Error(message);
       }
 
       updateState({ transcriptionProgress: 90 });
@@ -363,7 +335,62 @@ export function CaptionsView() {
         toast.error(`Transcription failed: ${errorMessage}`);
       }
     }
-  };
+  }, [configured, missingVars, updateState, startTranscriptionJob, completeTranscriptionJob, selectedLanguage]);
+
+  const handleFileSelect = useCallback(
+    (files: FileList) => {
+      const file = files[0];
+      if (!file) return;
+
+      // Validate file type
+      const validTypes = [
+        "video/mp4",
+        "video/quicktime",
+        "video/x-msvideo",
+        "video/webm",
+        "video/x-matroska", // .mkv
+        "audio/mpeg",
+        "audio/wav",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/webm",
+      ];
+      const isValidType =
+        validTypes.includes(file.type) ||
+        (file.type === "" &&
+          /\.(mp4|mov|avi|webm|mkv|mp3|wav|m4a)$/i.test(file.name));
+
+      if (!isValidType) {
+        toast.error("Please select a video or audio file");
+        return;
+      }
+
+      // Performance: Check cache first
+      const fileKey = `${file.name}-${file.size}-${file.lastModified}`;
+      const cachedResult = getCachedTranscription(fileKey);
+
+      if (cachedResult) {
+        toast.success("Found cached transcription!");
+        setState((prev) => ({ ...prev, result: cachedResult }));
+        return;
+      }
+
+      // Enhanced file size validation with optimization hints
+      const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
+      if (file.size > maxSize) {
+        if (file.size > HARD_LIMIT_FILE_SIZE_MB * 1024 * 1024) {
+          toast.error(
+            `File too large (max ${HARD_LIMIT_FILE_SIZE_MB}MB). Please use a smaller file.`
+          );
+          return;
+        }
+        toast.info("Large file detected. This may take longer to process...");
+      }
+
+      startTranscription(file, fileKey);
+    },
+    [getCachedTranscription, startTranscription]
+  );
 
   const { isDragOver, dragProps } = useDragDrop({
     onDrop: (files) => handleFileSelect(files),

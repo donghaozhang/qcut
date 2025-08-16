@@ -11,7 +11,7 @@ import {
   uploadImageToFAL,
   type ImageEditRequest,
 } from "@/lib/image-edit-client";
-import { downloadImageAsFile, getImageInfo } from "@/lib/image-utils";
+// Image utilities will be imported dynamically when needed
 import { debugLog } from "@/lib/debug-config";
 
 // Export individual components
@@ -132,6 +132,10 @@ export function AdjustmentPanel() {
           const filename = `edited_${selectedModel}_${timestamp}.jpg`;
 
           debugLog("🔄 Starting download process...", { filename });
+          
+          // Dynamically import image utilities
+          const { downloadImageAsFile, getImageInfo } = await import("@/lib/image-utils");
+          
           const downloadedFile = await downloadImageAsFile(
             result.result_url,
             filename

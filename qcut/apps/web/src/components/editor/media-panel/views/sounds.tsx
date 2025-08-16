@@ -1,5 +1,3 @@
-"use client";
-
 import { Input } from "@/components/ui/input";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Separator } from "@/components/ui/separator";
@@ -22,15 +20,6 @@ import {
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 export function SoundsView() {
@@ -88,6 +77,7 @@ function SoundEffectsView() {
     loadMore,
     hasNextPage,
     isLoadingMore,
+    error: searchError,
   } = useSoundSearch(searchQuery, showCommercialOnly);
 
   // Audio playback state
@@ -146,9 +136,11 @@ function SoundEffectsView() {
         setPlayingId(null);
       });
       audio.addEventListener("error", (e) => {
+        console.warn("Audio playback error:", e);
         setPlayingId(null);
       });
       audio.play().catch((error) => {
+        console.warn("Audio play failed:", error);
         setPlayingId(null);
       });
 
@@ -163,11 +155,8 @@ function SoundEffectsView() {
         <Input
           placeholder="Search sound effects"
           className="bg-panel-accent w-full"
-          containerClassName="w-full"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          showClearIcon
-          onClear={() => setSearchQuery("")}
         />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -210,6 +199,14 @@ function SoundEffectsView() {
             {isSearching && searchQuery && (
               <div className="text-muted-foreground text-sm">Searching...</div>
             )}
+            {searchError && searchQuery && (
+              <div className="text-destructive text-sm">
+                {searchError.includes("API key") 
+                  ? "API key not configured. Please add your Freesound API key to enable sound search."
+                  : `Search error: ${searchError}`
+                }
+              </div>
+            )}
             {displayedSounds.map((sound) => (
               <AudioItem
                 key={sound.id}
@@ -220,9 +217,9 @@ function SoundEffectsView() {
                 onToggleSaved={() => toggleSavedSound(sound)}
               />
             ))}
-            {!isLoading && !isSearching && displayedSounds.length === 0 && (
+            {!isLoading && !isSearching && !searchError && displayedSounds.length === 0 && (
               <div className="text-muted-foreground text-sm">
-                {searchQuery ? "No sounds found" : "No sounds available"}
+                {searchQuery ? "No sounds found" : "Enter a search term to find sounds"}
               </div>
             )}
             {isLoadingMore && (
@@ -245,7 +242,6 @@ function SavedSoundsView() {
     loadSavedSounds,
     isSoundSaved,
     toggleSavedSound,
-    clearSavedSounds,
   } = useSoundsStore();
 
   // Audio playback state
@@ -253,9 +249,6 @@ function SavedSoundsView() {
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(
     null
   );
-
-  // Clear confirmation dialog state
-  const [showClearDialog, setShowClearDialog] = useState(false);
 
   // Load saved sounds when tab becomes active
   useEffect(() => {
@@ -278,9 +271,11 @@ function SavedSoundsView() {
         setPlayingId(null);
       });
       audio.addEventListener("error", (e) => {
+        console.warn("Audio playback error:", e);
         setPlayingId(null);
       });
       audio.play().catch((error) => {
+        console.warn("Audio play failed:", error);
         setPlayingId(null);
       });
 
@@ -357,40 +352,6 @@ function SavedSoundsView() {
           {savedSounds.length} saved{" "}
           {savedSounds.length === 1 ? "sound" : "sounds"}
         </p>
-        <Dialog open={showClearDialog} onOpenChange={setShowClearDialog}>
-          <DialogTrigger asChild>
-            <Button
-              variant="text"
-              size="sm"
-              className="h-auto text-muted-foreground hover:text-destructive !opacity-100"
-            >
-              Clear all
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Clear all saved sounds?</DialogTitle>
-              <DialogDescription>
-                This will permanently remove all {savedSounds.length} saved
-                sounds from your collection. This action cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="text" onClick={() => setShowClearDialog(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={async () => {
-                  await clearSavedSounds();
-                  setShowClearDialog(false);
-                }}
-              >
-                Clear all sounds
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
 
       <div className="relative h-full overflow-hidden">
@@ -416,7 +377,11 @@ function SavedSoundsView() {
 }
 
 function SongsView() {
-  return <div>Songs</div>;
+  return (
+    <div className="p-4 text-muted-foreground">
+      Songs view coming soon...
+    </div>
+  );
 }
 
 interface AudioItemProps {

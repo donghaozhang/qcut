@@ -11,6 +11,7 @@ import {
   TypeIcon,
   WandIcon,
   BotIcon,
+  VolumeXIcon,
 } from "lucide-react";
 import { create } from "zustand";
 
@@ -25,7 +26,8 @@ export type Tab =
   | "filters"
   | "adjustment"
   | "text2image"
-  | "ai";
+  | "ai"
+  | "sounds";
 
 export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
   media: {
@@ -71,6 +73,10 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
   ai: {
     icon: BotIcon,
     label: "AI Video",
+  },
+  sounds: {
+    icon: VolumeXIcon,
+    label: "Sounds",
   },
 };
 

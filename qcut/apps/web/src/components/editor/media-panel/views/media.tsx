@@ -1,7 +1,7 @@
 "use client";
 
 import { useDragDrop } from "@/hooks/use-drag-drop";
-import { processMediaFiles } from "@/lib/media-processing";
+// Media processing utilities will be imported dynamically when needed
 import { useAsyncMediaStore } from "@/hooks/use-async-media-store";
 import type { MediaItem } from "@/stores/media-store-types";
 import { Image, Loader2, Music, Plus, Video, Edit, Layers } from "lucide-react";
@@ -110,6 +110,9 @@ export function MediaView() {
 
       // Process files (extract metadata, generate thumbnails, etc.)
       console.log("[Media View] 🔧 Calling processMediaFiles...");
+      
+      // Dynamically import media processing utilities
+      const { processMediaFiles } = await import("@/lib/media-processing");
       const processedItems = await processMediaFiles(files, (p) => {
         console.log(`[Media View] 📊 Upload progress: ${p}%`);
         setProgress(p);

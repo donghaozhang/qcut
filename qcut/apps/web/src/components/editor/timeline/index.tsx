@@ -39,7 +39,7 @@ import { useAsyncMediaStore } from "@/hooks/use-async-media-store";
 import { usePlaybackStore } from "@/stores/playback-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineZoom } from "@/hooks/use-timeline-zoom";
-import { processMediaFiles } from "@/lib/media-processing";
+// Media processing utilities will be imported dynamically when needed
 import { toast } from "sonner";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { TimelineTrackContent } from "./timeline-track";
@@ -407,6 +407,8 @@ export function Timeline() {
       setIsProcessing(true);
       setProgress(0);
       try {
+        // Dynamically import media processing utilities
+        const { processMediaFiles } = await import("@/lib/media-processing");
         const processedItems = await processMediaFiles(
           e.dataTransfer.files,
           (p) => setProgress(p)

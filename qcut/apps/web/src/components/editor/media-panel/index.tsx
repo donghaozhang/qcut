@@ -10,6 +10,7 @@ import { AdjustmentPanel } from "@/components/editor/adjustment";
 import { AiView } from "./views/ai";
 import { StickersView } from "./views/stickers";
 import { CaptionsView } from "./views/captions";
+import { SoundsView } from "./views/sounds";
 import React from "react";
 
 export function MediaPanel() {
@@ -39,6 +40,7 @@ export function MediaPanel() {
     adjustment: <AdjustmentPanel />,
     text2image: <Text2ImageView />,
     ai: <AiView />,
+    sounds: <SoundsView />,
   };
 
   return (

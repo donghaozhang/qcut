@@ -9,10 +9,7 @@ import {
   getSupportedFormats,
 } from "@/types/export";
 import { useElectron } from "@/hooks/useElectron";
-import {
-  ExportEngineFactory,
-  ExportEngineType,
-} from "@/lib/export-engine-factory";
+// Export engine factory and types will be imported dynamically when needed
 import { debugLog, debugWarn } from "@/lib/debug-config";
 
 /**
@@ -49,6 +46,9 @@ export function useExportSettings() {
       let aborted = false;
       const getRecommendation = async () => {
         try {
+          // Dynamically import export engine factory
+          const { ExportEngineFactory, ExportEngineType } = await import("@/lib/export-engine-factory");
+          
           const factory = ExportEngineFactory.getInstance();
           const recommendation = await factory.getEngineRecommendation(
             {
@@ -101,7 +101,22 @@ export function useExportSettings() {
   ]);
 
   useEffect(() => {
-    ExportEngineFactory.isFFmpegAvailable().then(setFfmpegAvailable);
+    // Dynamically import export engine factory for FFmpeg availability check
+    let cancelled = false;
+    import("@/lib/export-engine-factory")
+      .then(({ ExportEngineFactory }) =>
+        ExportEngineFactory.isFFmpegAvailable()
+      )
+      .then((available) => {
+        if (!cancelled) setFfmpegAvailable(available);
+      })
+      .catch((err) => {
+        debugWarn("FFmpeg availability check failed:", err);
+        if (!cancelled) setFfmpegAvailable(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleQualityChange = (newQuality: ExportQuality) => {
