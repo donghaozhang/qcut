@@ -94,9 +94,9 @@ export function CaptionsView() {
         const trackId = addTrack("captions");
 
         // Add all caption elements to the track
-        captionElements.forEach((captionElement) => {
+        for (const captionElement of captionElements) {
           addElementToTrack(trackId, captionElement);
-        });
+        }
 
         toast.success(
           `Added ${captionElements.length} caption segments to timeline`
@@ -256,8 +256,15 @@ export function CaptionsView() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Transcription failed");
+        let message = "Transcription failed";
+        try {
+          const errorData = await response.json();
+          message = errorData.message || message;
+        } catch {
+          const text = await response.text();
+          if (text) message = text;
+        }
+        throw new Error(message);
       }
 
       updateState({ transcriptionProgress: 90 });
