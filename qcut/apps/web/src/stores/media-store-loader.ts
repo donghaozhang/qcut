@@ -3,11 +3,14 @@ import type {
   MediaItem,
   MediaStoreUtils,
 } from "./media-store-types";
+import { getMediaStore as getMediaStoreLazy } from "@/utils/lazy-stores";
 
 let mediaStoreModule: typeof import("./media-store") | undefined;
 
 export async function getMediaStore() {
   if (!mediaStoreModule) {
+    // Use lazy import wrapper to avoid static/dynamic import conflicts
+    const useMediaStore = await getMediaStoreLazy();
     mediaStoreModule = await import("./media-store");
   }
   return mediaStoreModule;

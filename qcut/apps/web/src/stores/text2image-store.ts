@@ -307,7 +307,9 @@ export const useText2ImageStore = create<Text2ImageStore>()(
           );
 
         try {
-          const { useMediaStore } = await import("@/stores/media-store");
+          // Use lazy import wrapper to avoid static/dynamic import conflicts
+          const { getMediaStore } = await import("@/utils/lazy-stores");
+          const useMediaStore = await getMediaStore();
 
           if (DEBUG_TEXT2IMAGE_STORE)
             console.log(
