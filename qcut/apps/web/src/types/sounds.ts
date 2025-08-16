@@ -1,4 +1,4 @@
-export interface SoundEffect {
+export type SoundEffect = {
   id: number;
   name: string;
   description: string;
@@ -21,7 +21,7 @@ export interface SoundEffect {
   ratingCount: number;
 }
 
-export interface SavedSound {
+export type SavedSound = {
   id: number; // freesound id
   name: string;
   username: string;
@@ -33,7 +33,7 @@ export interface SavedSound {
   savedAt: string; // iso date string
 }
 
-export interface SavedSoundsData {
+export type SavedSoundsData = {
   sounds: SavedSound[];
   lastModified: string;
 }

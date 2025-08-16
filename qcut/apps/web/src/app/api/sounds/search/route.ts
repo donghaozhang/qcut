@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { env } from "@/env";
 import { baseRateLimit } from "@/lib/rate-limit";
+
+// Server-only Freesound API key
+const FREESOUND_API_KEY = process.env.FREESOUND_API_KEY || "";
 
 const searchParamsSchema = z.object({
   q: z.string().max(500, "Query too long").optional(),
@@ -106,6 +108,7 @@ export async function GET(request: NextRequest) {
       page_size: searchParams.get("page_size") || undefined,
       sort: searchParams.get("sort") || undefined,
       min_rating: searchParams.get("min_rating") || undefined,
+      commercial_only: searchParams.get("commercial_only") || undefined,
     });
 
     if (!validationResult.success) {
@@ -141,6 +144,13 @@ export async function GET(request: NextRequest) {
 
     const baseUrl = "https://freesound.org/apiv2/search/text/";
 
+    if (!FREESOUND_API_KEY) {
+      return NextResponse.json(
+        { error: "Freesound API key not configured" },
+        { status: 503 }
+      );
+    }
+
     // Use score sorting for search queries, downloads for top sounds
     const sortParam = query
       ? sort === "score"
@@ -150,7 +160,7 @@ export async function GET(request: NextRequest) {
 
     const params = new URLSearchParams({
       query: query || "",
-      token: env.FREESOUND_API_KEY,
+      token: FREESOUND_API_KEY,
       page: page.toString(),
       page_size: pageSize.toString(),
       sort: sortParam,

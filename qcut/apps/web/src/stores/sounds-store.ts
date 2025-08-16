@@ -6,6 +6,15 @@ import { useTimelineStore } from "./timeline-store";
 import { useProjectStore } from "./project-store";
 import { usePlaybackStore } from "./playback-store";
 
+// Illegal filename characters for file system safety
+const ILLEGAL_FILENAME_CHARS = /[<>:"/\\|?*\x00-\x1f]/g;
+
+// Constants for localStorage
+const SAVED_SOUNDS_KEY = 'qcut-saved-sounds';
+
+// Browser detection for SSR safety
+const isBrowser = typeof window !== "undefined";
+
 interface SoundsStore {
   topSoundEffects: SoundEffect[];
   isLoading: boolean;
@@ -121,13 +130,17 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
   setTotalCount: (count) => set({ totalCount: count }),
   setLoadingMore: (loading) => set({ isLoadingMore: loading }),
   appendSearchResults: (results) =>
-    set((state) => ({
-      searchResults: [...state.searchResults, ...results],
-    })),
+    set((state) => {
+      const existingIds = new Set(state.searchResults.map((s) => s.id));
+      const deduped = results.filter((r) => !existingIds.has(r.id));
+      return { searchResults: [...state.searchResults, ...deduped] };
+    }),
   appendTopSounds: (results) =>
-    set((state) => ({
-      topSoundEffects: [...state.topSoundEffects, ...results],
-    })),
+    set((state) => {
+      const existingIds = new Set(state.topSoundEffects.map((s) => s.id));
+      const deduped = results.filter((r) => !existingIds.has(r.id));
+      return { topSoundEffects: [...state.topSoundEffects, ...deduped] };
+    }),
   resetPagination: () =>
     set({
       currentPage: 1,
@@ -138,12 +151,24 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 
   // Saved sounds actions (simplified - using localStorage for now)
   loadSavedSounds: async () => {
+    if (!isBrowser) return;
     if (get().isSavedSoundsLoaded) return;
 
     try {
       set({ isLoadingSavedSounds: true, savedSoundsError: null });
-      const savedSoundsJson = localStorage.getItem('qcut-saved-sounds');
-      const savedSounds = savedSoundsJson ? JSON.parse(savedSoundsJson) : [];
+      const savedSoundsJson = localStorage.getItem(SAVED_SOUNDS_KEY);
+      
+      let savedSounds: SavedSound[] = [];
+      if (savedSoundsJson) {
+        try {
+          const parsed = JSON.parse(savedSoundsJson);
+          savedSounds = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          // Invalid JSON, start with empty array
+          localStorage.removeItem(SAVED_SOUNDS_KEY);
+        }
+      }
+      
       set({
         savedSounds,
         isSavedSoundsLoaded: true,
@@ -156,7 +181,6 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
         savedSoundsError: errorMessage,
         isLoadingSavedSounds: false,
       });
-      console.error("Failed to load saved sounds:", error);
     }
   },
 
@@ -175,15 +199,20 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
       };
 
       const currentSounds = get().savedSounds;
+      // Deduplicate by id
+      if (currentSounds.some((s) => s.id === savedSound.id)) {
+        return;
+      }
       const updatedSounds = [...currentSounds, savedSound];
-      localStorage.setItem('qcut-saved-sounds', JSON.stringify(updatedSounds));
+      if (isBrowser) {
+        localStorage.setItem(SAVED_SOUNDS_KEY, JSON.stringify(updatedSounds));
+      }
       set({ savedSounds: updatedSounds });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to save sound";
       set({ savedSoundsError: errorMessage });
       toast.error("Failed to save sound");
-      console.error("Failed to save sound:", error);
     }
   },
 
@@ -191,14 +220,15 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
     try {
       const currentSounds = get().savedSounds;
       const updatedSounds = currentSounds.filter((sound) => sound.id !== soundId);
-      localStorage.setItem('qcut-saved-sounds', JSON.stringify(updatedSounds));
+      if (isBrowser) {
+        localStorage.setItem(SAVED_SOUNDS_KEY, JSON.stringify(updatedSounds));
+      }
       set({ savedSounds: updatedSounds });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to remove sound";
       set({ savedSoundsError: errorMessage });
       toast.error("Failed to remove sound");
-      console.error("Failed to remove sound:", error);
     }
   },
 
@@ -219,7 +249,9 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 
   clearSavedSounds: async () => {
     try {
-      localStorage.removeItem('qcut-saved-sounds');
+      if (isBrowser) {
+        localStorage.removeItem(SAVED_SOUNDS_KEY);
+      }
       set({
         savedSounds: [],
         savedSoundsError: null,
@@ -229,7 +261,6 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
         error instanceof Error ? error.message : "Failed to clear saved sounds";
       set({ savedSoundsError: errorMessage });
       toast.error("Failed to clear saved sounds");
-      console.error("Failed to clear saved sounds:", error);
     }
   },
 
@@ -246,27 +277,36 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
       return false;
     }
 
+    let objectUrl: string | null = null;
+
     try {
       const response = await fetch(audioUrl);
       if (!response.ok)
         throw new Error(`Failed to download audio: ${response.statusText}`);
 
       const blob = await response.blob();
-      const file = new File([blob], `${sound.name}.mp3`, {
-        type: "audio/mpeg",
-      });
+      const contentType = response.headers.get("content-type") || "audio/mpeg";
+      const ext = contentType.includes("ogg")
+        ? "ogg"
+        : contentType.includes("wav")
+        ? "wav"
+        : "mp3";
+      const safeName = sound.name.replace(ILLEGAL_FILENAME_CHARS, "_").slice(0, 100);
+      const file = new File([blob], `${safeName}.${ext}`, { type: contentType });
 
-      await useMediaStore.getState().addMediaItem(activeProject.id, {
+      objectUrl = URL.createObjectURL(file);
+
+      const mediaId = await useMediaStore.getState().addMediaItem(activeProject.id, {
         name: sound.name,
         type: "audio",
         file,
         duration: sound.duration,
-        url: URL.createObjectURL(file),
+        url: objectUrl,
       });
 
       const mediaItem = useMediaStore
         .getState()
-        .mediaItems.find((item: any) => item.file === file);
+        .mediaItems.find((item) => item.id === mediaId);
       if (!mediaItem) throw new Error("Failed to create media item");
 
       const success = useTimelineStore
@@ -278,7 +318,15 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
       }
       throw new Error("Failed to add to timeline - check for overlaps");
     } catch (error) {
-      console.error("Failed to add sound to timeline:", error);
+      // Best-effort cleanup: revoke object URL if it was created
+      if (objectUrl) {
+        try {
+          URL.revokeObjectURL(objectUrl);
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+
       toast.error(
         error instanceof Error
           ? error.message

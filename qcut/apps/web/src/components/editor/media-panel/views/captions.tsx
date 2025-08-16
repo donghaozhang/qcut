@@ -203,7 +203,6 @@ export function CaptionsView() {
 
       // Step 3: Upload encrypted file to server
       toast.info("Uploading to secure storage...");
-      
       // Generate unique key for the audio file
       const timestamp = Date.now();
       const random = Math.random().toString(36).substring(2, 15);
@@ -211,22 +210,25 @@ export function CaptionsView() {
       const extension = lastDotIndex > 0 ? audioFile.name.slice(lastDotIndex + 1) : "wav";
       const r2Key = `transcription/${timestamp}-${random}.${extension}`;
 
-      // Upload to server via API
+      // Upload to server via API using multipart form-data
+      const form = new FormData();
+      form.append("filename", r2Key);
+      form.append("file", new Blob([encryptedData], { type: "application/octet-stream" }), r2Key);
       const uploadResponse = await fetch("/api/upload-audio", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fileName: r2Key,
-          audioData: Array.from(new Uint8Array(encryptedData)),
-          contentType: "application/octet-stream",
-        }),
+        body: form,
       });
 
       if (!uploadResponse.ok) {
-        const uploadError = await uploadResponse.json();
-        throw new Error(uploadError.message || "Upload failed");
+        let message = "Upload failed";
+        try {
+          const uploadError = await uploadResponse.json();
+          message = uploadError.message || message;
+        } catch {
+          const text = await uploadResponse.text();
+          if (text) message = text;
+        }
+        throw new Error(message);
       }
 
       updateState({ uploadProgress: 70 });
