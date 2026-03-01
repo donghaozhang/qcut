@@ -65,10 +65,10 @@ The file defines ALL interfaces for the agent orchestrator system. Sections deli
 
 `types.ts` becomes a barrel file that re-exports everything:
 ```ts
-export * from './types/session-types';
-export * from './types/plugin-types';
-export * from './types/config-types';
-export * from './types/service-types';
+export * from "./types/session-types.js";
+export * from "./types/plugin-types.js";
+export * from "./types/config-types.js";
+export * from "./types/service-types.js";
 ```
 
 This preserves the existing public API — all consumers that `import { ... } from '../types.js'` continue to work with zero changes. The package's `index.ts` or any other entry point importing from `types.js` needs no modification.

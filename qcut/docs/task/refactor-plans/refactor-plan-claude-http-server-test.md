@@ -68,6 +68,6 @@ import { fetch, serverPort } from './claude-http-test-setup';
 2. Use a shared module-level variable exported from the setup file
 3. Keep all tests in a single `describe` block within one file, splitting into sub-files that are imported
 
-Option 2 (shared module with server lifecycle in setup file) is simplest. The setup file starts the server in its module-level `beforeAll` and exports the port.
+Option 1 (`globalSetup` with `provide/inject`) is the recommended approach — it starts the server once before workers launch and passes the port via serializable data. Option 2 is unreliable with default Vitest isolation (`poolOptions.threads.isolate: true`), since each test file gets its own module scope copy, resulting in multiple server instances.
 
 **Alternative simpler approach**: Since the file is only ~1058 lines (close to limit), a two-file split may suffice — extract timeline tests (~500 lines) into a separate file, leaving the rest (~550 lines) in the original.
