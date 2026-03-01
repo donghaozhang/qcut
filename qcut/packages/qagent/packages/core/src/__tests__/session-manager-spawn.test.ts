@@ -65,7 +65,14 @@ describe("spawn", () => {
 	it("uses tracker.branchName when tracker is available", async () => {
 		const mockTracker: Tracker = {
 			name: "mock-tracker",
-			getIssue: vi.fn().mockResolvedValue({}),
+			getIssue: vi.fn().mockResolvedValue({
+				id: "INT-100",
+				title: "My feature",
+				description: "",
+				url: "",
+				state: "open",
+				labels: [],
+			}),
 			isCompleted: vi.fn().mockResolvedValue(false),
 			issueUrl: vi.fn().mockReturnValue(""),
 			branchName: vi.fn().mockReturnValue("custom/INT-100-my-feature"),
