@@ -24,6 +24,7 @@ import {
 	Download,
 	RefreshCw,
 	Wand2,
+	ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useText2ImageStore } from "@/stores/ai/text2image-store";
@@ -184,7 +185,29 @@ export function Text2ImageView() {
 
 	return (
 		<div className="p-4 space-y-6">
-			<ModelTypeSelector selected={modelType} onChange={setModelType} />
+			<div className="flex items-center justify-between">
+				<ModelTypeSelector selected={modelType} onChange={setModelType} className="flex-1" />
+				<div className="flex items-center gap-1.5 ml-2 shrink-0">
+					<a
+						href="https://opennana.com/awesome-prompt-gallery"
+						target="_blank"
+						rel="noopener noreferrer"
+						className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-violet-400 hover:text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 rounded transition-colors"
+					>
+						Prompts
+						<ExternalLink className="h-2.5 w-2.5" />
+					</a>
+					<a
+						href="https://prompthero.com/"
+						target="_blank"
+						rel="noopener noreferrer"
+						className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-violet-400 hover:text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 rounded transition-colors"
+					>
+						PromptHero
+						<ExternalLink className="h-2.5 w-2.5" />
+					</a>
+				</div>
+			</div>
 			{modelType === "generation" && (
 				<>
 					{/* Generate Button */}

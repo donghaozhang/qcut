@@ -7,6 +7,7 @@ import {
 	TypeIcon,
 	ImageIcon,
 	UserIcon,
+	ExternalLink,
 } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -356,6 +357,28 @@ export function AiView({ mode }: { mode?: "upscale" | "angles" } = {}) {
 							>
 								{isCompact ? "AI" : "AI Video Generation"}
 							</h3>
+						)}
+						{!isCollapsed && !isCompact && (
+							<div className="flex items-center gap-1.5">
+								<a
+									href="https://opennana.com/awesome-prompt-gallery"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-violet-400 hover:text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 rounded transition-colors"
+								>
+									Prompts
+									<ExternalLink className="h-2.5 w-2.5" />
+								</a>
+								<a
+									href="https://prompthero.com/"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-violet-400 hover:text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 rounded transition-colors"
+								>
+									PromptHero
+									<ExternalLink className="h-2.5 w-2.5" />
+								</a>
+							</div>
 						)}
 					</div>
 					{history.hasHistory && !isCollapsed && (
