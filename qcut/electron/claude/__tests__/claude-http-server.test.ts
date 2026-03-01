@@ -1,6 +1,8 @@
 /**
  * Integration tests for the Claude HTTP Server.
  * Uses a real HTTP server on an ephemeral port, with mocked Electron and handler functions.
+ *
+ * Timeline-specific tests live in claude-http-timeline.test.ts.
  */
 
 import {
@@ -12,7 +14,6 @@ import {
 	afterAll,
 	beforeEach,
 } from "vitest";
-import * as http from "node:http";
 
 // ---------------------------------------------------------------------------
 // Mocks — must be declared before importing the server module
@@ -50,7 +51,6 @@ vi.mock("electron-log", () => ({
 	log: vi.fn(),
 }));
 
-// Mock the handler functions so we don't need real file system
 vi.mock("../handlers/claude-media-handler.js", () => ({
 	listMediaFiles: vi.fn(async () => []),
 	getMediaInfo: vi.fn(async () => null),
@@ -248,83 +248,22 @@ import {
 import { BrowserWindow } from "electron";
 import * as timelineHandler from "../handlers/claude-timeline-handler.js";
 import * as transactionHandler from "../handlers/claude-transaction-handler.js";
-import * as rangeHandler from "../handlers/claude-range-handler.js";
 import { notificationBridge } from "../notification-bridge";
-import { HttpError } from "../utils/http-router";
+import { createFetch, createMockWindow } from "./claude-http-test-helpers";
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Server lifecycle
 // ---------------------------------------------------------------------------
 
 let serverPort: number;
+const fetch = createFetch(() => serverPort);
 
-function fetch(
-	path: string,
-	options: {
-		method?: string;
-		body?: string;
-		headers?: Record<string, string>;
-	} = {}
-): Promise<{ status: number; body: any; headers: http.IncomingHttpHeaders }> {
-	return new Promise((resolve, reject) => {
-		const req = http.request(
-			{
-				hostname: "127.0.0.1",
-				port: serverPort,
-				path,
-				method: options.method || "GET",
-				headers: {
-					"Content-Type": "application/json",
-					...(options.body
-						? { "Content-Length": Buffer.byteLength(options.body) }
-						: {}),
-					...options.headers,
-				},
-			},
-			(res) => {
-				let data = "";
-				res.on("data", (chunk) => {
-					data += chunk;
-				});
-				res.on("end", () => {
-					try {
-						resolve({
-							status: res.statusCode || 0,
-							body: JSON.parse(data),
-							headers: res.headers,
-						});
-					} catch {
-						resolve({
-							status: res.statusCode || 0,
-							body: data,
-							headers: res.headers,
-						});
-					}
-				});
-			}
-		);
-		req.on("error", reject);
-		if (options.body) req.write(options.body);
-		req.end();
-	});
-}
-
-// ---------------------------------------------------------------------------
-// Test lifecycle
-// ---------------------------------------------------------------------------
-
-// Use a random ephemeral port to avoid conflicts
 beforeAll(async () => {
-	serverPort = 0; // Will be assigned by OS
-	// We need to start on port 0 and find the assigned port
-	// Since startClaudeHTTPServer uses a fixed port, we set the env var
 	serverPort = 18_765 + Math.floor(Math.random() * 1000);
 	process.env.QCUT_API_PORT = String(serverPort);
 	delete process.env.QCUT_API_TOKEN;
 
 	startClaudeHTTPServer(serverPort);
-
-	// Wait for server to be ready
 	await new Promise((resolve) => setTimeout(resolve, 100));
 });
 
@@ -334,7 +273,8 @@ afterAll(() => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests
+// Tests — Transaction, Health, Capabilities, CORS, Media, Export, Project,
+//          Diagnostics, MCP, Notifications, misc, Auth
 // ---------------------------------------------------------------------------
 
 describe("Claude HTTP Server", () => {
@@ -344,334 +284,10 @@ describe("Claude HTTP Server", () => {
 		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([]);
 	});
 
-	it("POST /api/claude/timeline/:projectId/elements/:elementId/split returns split result", async () => {
-		const mockWindow = {
-			webContents: { send: vi.fn() },
-		} as unknown as BrowserWindow;
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
-		vi.mocked(timelineHandler.requestSplitFromRenderer).mockResolvedValueOnce({
-			secondElementId: "element_split_2",
-		});
-
-		const res = await fetch(
-			"/api/claude/timeline/proj_123/elements/element_abc/split",
-			{
-				method: "POST",
-				body: JSON.stringify({ splitTime: 3.5 }),
-			}
-		);
-
-		expect(res.status).toBe(200);
-		expect(res.body.success).toBe(true);
-		expect(res.body.data.secondElementId).toBe("element_split_2");
-		expect(timelineHandler.requestSplitFromRenderer).toHaveBeenCalledWith(
-			mockWindow,
-			"element_abc",
-			3.5,
-			"split",
-			expect.any(String)
-		);
-	});
-
-	it("POST /api/claude/timeline/:projectId/elements/:elementId/split validates splitTime", async () => {
-		const res = await fetch(
-			"/api/claude/timeline/proj_123/elements/element_abc/split",
-			{
-				method: "POST",
-				body: JSON.stringify({ mode: "split" }),
-			}
-		);
-
-		expect(res.status).toBe(400);
-		expect(res.body.success).toBe(false);
-		expect(res.body.error).toContain("splitTime");
-	});
-
-	it("POST /api/claude/timeline/:projectId/elements/:elementId/split validates mode", async () => {
-		const mockWindow = {
-			webContents: { send: vi.fn() },
-		} as unknown as BrowserWindow;
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
-
-		const res = await fetch(
-			"/api/claude/timeline/proj_123/elements/element_abc/split",
-			{
-				method: "POST",
-				body: JSON.stringify({ splitTime: 3.5, mode: "invalid_mode" }),
-			}
-		);
-
-		expect(res.status).toBe(400);
-		expect(res.body.success).toBe(false);
-		expect(res.body.error).toContain("Invalid mode");
-	});
-
-	it("POST /api/claude/timeline/:projectId/elements/:elementId/move dispatches move event", async () => {
-		const send = vi.fn();
-		const mockWindow = { webContents: { send } } as unknown as BrowserWindow;
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
-
-		const res = await fetch(
-			"/api/claude/timeline/proj_123/elements/element_abc/move",
-			{
-				method: "POST",
-				body: JSON.stringify({ toTrackId: "track_2", newStartTime: 5 }),
-			}
-		);
-
-		expect(res.status).toBe(200);
-		expect(res.body.success).toBe(true);
-		expect(res.body.data.moved).toBe(true);
-		expect(send).toHaveBeenCalledWith(
-			"claude:timeline:moveElement",
-			expect.objectContaining({
-				elementId: "element_abc",
-				toTrackId: "track_2",
-				newStartTime: 5,
-			})
-		);
-	});
-
-	it("POST /api/claude/timeline/:projectId/elements/batch calls batch add handler", async () => {
-		const mockWindow = {
-			webContents: { send: vi.fn() },
-		} as unknown as BrowserWindow;
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
-		vi.mocked(timelineHandler.batchAddElements).mockResolvedValueOnce({
-			added: [{ index: 0, success: true, elementId: "el_1" }],
-			failedCount: 0,
-		});
-
-		const res = await fetch("/api/claude/timeline/proj_123/elements/batch", {
-			method: "POST",
-			body: JSON.stringify({
-				elements: [
-					{
-						type: "media",
-						trackId: "track_1",
-						startTime: 0,
-						duration: 5,
-						mediaId: "media_1",
-					},
-				],
-			}),
-		});
-
-		expect(res.status).toBe(200);
-		expect(res.body.success).toBe(true);
-		expect(res.body.data.failedCount).toBe(0);
-		expect(timelineHandler.batchAddElements).toHaveBeenCalledWith(
-			mockWindow,
-			"proj_123",
-			expect.any(Array),
-			expect.any(String)
-		);
-	});
-
-	it("PATCH /api/claude/timeline/:projectId/elements/batch calls batch update handler", async () => {
-		const mockWindow = {
-			webContents: { send: vi.fn() },
-		} as unknown as BrowserWindow;
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
-		vi.mocked(timelineHandler.batchUpdateElements).mockResolvedValueOnce({
-			updatedCount: 1,
-			failedCount: 0,
-			results: [{ index: 0, success: true }],
-		});
-
-		const res = await fetch("/api/claude/timeline/proj_123/elements/batch", {
-			method: "PATCH",
-			body: JSON.stringify({
-				updates: [{ elementId: "el_1", startTime: 3 }],
-			}),
-		});
-
-		expect(res.status).toBe(200);
-		expect(res.body.success).toBe(true);
-		expect(res.body.data.updatedCount).toBe(1);
-		expect(timelineHandler.batchUpdateElements).toHaveBeenCalledWith(
-			mockWindow,
-			[{ elementId: "el_1", startTime: 3 }],
-			expect.any(String)
-		);
-	});
-
-	it("DELETE /api/claude/timeline/:projectId/elements/batch calls batch delete handler", async () => {
-		const mockWindow = {
-			webContents: { send: vi.fn() },
-		} as unknown as BrowserWindow;
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
-		vi.mocked(timelineHandler.batchDeleteElements).mockResolvedValueOnce({
-			deletedCount: 1,
-			failedCount: 0,
-			results: [{ index: 0, success: true }],
-		});
-
-		const res = await fetch("/api/claude/timeline/proj_123/elements/batch", {
-			method: "DELETE",
-			body: JSON.stringify({
-				elements: [{ trackId: "track_1", elementId: "el_1" }],
-				ripple: true,
-			}),
-		});
-
-		expect(res.status).toBe(200);
-		expect(res.body.success).toBe(true);
-		expect(res.body.data.deletedCount).toBe(1);
-		expect(timelineHandler.batchDeleteElements).toHaveBeenCalledWith(
-			mockWindow,
-			[{ trackId: "track_1", elementId: "el_1" }],
-			true,
-			expect.any(String)
-		);
-	});
-
-	it("DELETE /api/claude/timeline/:projectId/range forwards crossTrackRipple", async () => {
-		const mockWindow = {
-			webContents: { send: vi.fn() },
-		} as unknown as BrowserWindow;
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
-		vi.mocked(rangeHandler.executeDeleteRange).mockResolvedValueOnce({
-			deletedElements: 2,
-			splitElements: 1,
-			totalRemovedDuration: 5,
-		});
-
-		const res = await fetch("/api/claude/timeline/proj_123/range", {
-			method: "DELETE",
-			body: JSON.stringify({
-				startTime: 10,
-				endTime: 15,
-				ripple: true,
-				crossTrackRipple: true,
-			}),
-		});
-
-		expect(res.status).toBe(200);
-		expect(res.body.success).toBe(true);
-		expect(res.body.data.totalRemovedDuration).toBe(5);
-		expect(rangeHandler.executeDeleteRange).toHaveBeenCalledWith(
-			mockWindow,
-			expect.objectContaining({
-				startTime: 10,
-				endTime: 15,
-				ripple: true,
-				crossTrackRipple: true,
-			})
-		);
-	});
-
-	it("POST /api/claude/timeline/:projectId/arrange calls arrange handler", async () => {
-		const mockWindow = {
-			webContents: { send: vi.fn() },
-		} as unknown as BrowserWindow;
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
-		vi.mocked(timelineHandler.arrangeTimeline).mockResolvedValueOnce({
-			arranged: [{ elementId: "el_1", newStartTime: 0 }],
-		});
-
-		const res = await fetch("/api/claude/timeline/proj_123/arrange", {
-			method: "POST",
-			body: JSON.stringify({
-				trackId: "track_1",
-				mode: "sequential",
-				gap: 0.5,
-				startOffset: 0,
-			}),
-		});
-
-		expect(res.status).toBe(200);
-		expect(res.body.success).toBe(true);
-		expect(res.body.data.arranged.length).toBe(1);
-		expect(timelineHandler.arrangeTimeline).toHaveBeenCalledWith(
-			mockWindow,
-			expect.objectContaining({
-				trackId: "track_1",
-				mode: "sequential",
-			}),
-			expect.any(String)
-		);
-	});
-
-	it("POST /api/claude/timeline/:projectId/selection dispatches selection update", async () => {
-		const send = vi.fn();
-		const mockWindow = { webContents: { send } } as unknown as BrowserWindow;
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
-		const elements = [{ trackId: "track_1", elementId: "element_abc" }];
-
-		const res = await fetch("/api/claude/timeline/proj_123/selection", {
-			method: "POST",
-			body: JSON.stringify({ elements }),
-		});
-
-		expect(res.status).toBe(200);
-		expect(res.body.success).toBe(true);
-		expect(res.body.data.selected).toBe(1);
-		expect(send).toHaveBeenCalledWith(
-			"claude:timeline:selectElements",
-			expect.objectContaining({
-				elements,
-			})
-		);
-	});
-
-	it("GET /api/claude/timeline/:projectId/selection returns renderer selection", async () => {
-		const mockWindow = {
-			webContents: { send: vi.fn() },
-		} as unknown as BrowserWindow;
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
-		vi.mocked(
-			timelineHandler.requestSelectionFromRenderer
-		).mockResolvedValueOnce([{ trackId: "track_1", elementId: "element_abc" }]);
-
-		const res = await fetch("/api/claude/timeline/proj_123/selection");
-
-		expect(res.status).toBe(200);
-		expect(res.body.success).toBe(true);
-		expect(res.body.data.elements).toEqual([
-			{ trackId: "track_1", elementId: "element_abc" },
-		]);
-		expect(timelineHandler.requestSelectionFromRenderer).toHaveBeenCalledWith(
-			mockWindow,
-			expect.any(String)
-		);
-	});
-
-	it("GET /api/claude/timeline/:projectId/selection returns 504 on renderer timeout", async () => {
-		const mockWindow = {
-			webContents: { send: vi.fn() },
-		} as unknown as BrowserWindow;
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
-		vi.mocked(
-			timelineHandler.requestSelectionFromRenderer
-		).mockRejectedValueOnce(new HttpError(504, "Renderer timed out"));
-
-		const res = await fetch("/api/claude/timeline/proj_123/selection");
-
-		expect(res.status).toBe(504);
-		expect(res.body.success).toBe(false);
-		expect(res.body.error).toContain("Renderer timed out");
-	});
-
-	it("DELETE /api/claude/timeline/:projectId/selection clears selection", async () => {
-		const send = vi.fn();
-		const mockWindow = { webContents: { send } } as unknown as BrowserWindow;
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
-
-		const res = await fetch("/api/claude/timeline/proj_123/selection", {
-			method: "DELETE",
-		});
-
-		expect(res.status).toBe(200);
-		expect(res.body.success).toBe(true);
-		expect(res.body.data.cleared).toBe(true);
-		expect(send).toHaveBeenCalledWith("claude:timeline:clearSelection");
-	});
+	// -- Transactions -------------------------------------------------------
 
 	it("POST /api/claude/transaction/begin returns transactionId", async () => {
-		const mockWindow = {
-			webContents: { send: vi.fn() },
-		} as unknown as BrowserWindow;
+		const mockWindow = createMockWindow();
 		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
 
 		const res = await fetch("/api/claude/transaction/begin", {
@@ -700,9 +316,7 @@ describe("Claude HTTP Server", () => {
 	});
 
 	it("POST /api/claude/undo proxies to handler", async () => {
-		const mockWindow = {
-			webContents: { send: vi.fn() },
-		} as unknown as BrowserWindow;
+		const mockWindow = createMockWindow();
 		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
 
 		const res = await fetch("/api/claude/undo", {
@@ -717,9 +331,7 @@ describe("Claude HTTP Server", () => {
 	});
 
 	it("GET /api/claude/history returns history summary", async () => {
-		const mockWindow = {
-			webContents: { send: vi.fn() },
-		} as unknown as BrowserWindow;
+		const mockWindow = createMockWindow();
 		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
 
 		const res = await fetch("/api/claude/history");
@@ -731,9 +343,11 @@ describe("Claude HTTP Server", () => {
 		expect(transactionHandler.getHistorySummary).toHaveBeenCalled();
 	});
 
+	// -- Import -------------------------------------------------------------
+
 	it("POST /api/claude/timeline/:projectId/import rejects malformed markdown", async () => {
 		const send = vi.fn();
-		const mockWindow = { webContents: { send } } as unknown as BrowserWindow;
+		const mockWindow = createMockWindow(send);
 		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
 		vi.mocked(timelineHandler.markdownToTimeline).mockImplementationOnce(() => {
 			throw new Error("Invalid timeline markdown: No tracks found");
@@ -751,6 +365,8 @@ describe("Claude HTTP Server", () => {
 		expect(res.body.success).toBe(false);
 		expect(res.body.error).toContain("No tracks found");
 	});
+
+	// -- Health, Capabilities, Commands -------------------------------------
 
 	it("GET /api/claude/health returns status ok", async () => {
 		const res = await fetch("/api/claude/health");
@@ -820,6 +436,8 @@ describe("Claude HTTP Server", () => {
 		expect(res.body.data.commands[0]).toHaveProperty("requiredCapability");
 	});
 
+	// -- CORS, Media, Export, Project, Diagnostics, MCP ---------------------
+
 	it("responds to CORS preflight OPTIONS requests", async () => {
 		const res = await fetch("/api/claude/project/proj_123/settings", {
 			method: "OPTIONS",
@@ -838,7 +456,6 @@ describe("Claude HTTP Server", () => {
 	});
 
 	it("POST /api/claude/media/:projectId/import validates source", async () => {
-		// Missing source
 		const res = await fetch("/api/claude/media/proj_123/import", {
 			method: "POST",
 			body: JSON.stringify({}),
@@ -932,6 +549,8 @@ describe("Claude HTTP Server", () => {
 		expect(res.body.data.forwarded).toBe(false);
 	});
 
+	// -- Notifications ------------------------------------------------------
+
 	it("GET /api/claude/notifications/status returns initial disabled state", async () => {
 		const res = await fetch("/api/claude/notifications/status");
 
@@ -986,20 +605,13 @@ describe("Claude HTTP Server", () => {
 		});
 	});
 
+	// -- Misc ---------------------------------------------------------------
+
 	it("returns 404 for unknown routes", async () => {
 		const res = await fetch("/api/claude/nonexistent");
 
 		expect(res.status).toBe(404);
 		expect(res.body.success).toBe(false);
-	});
-
-	it("returns 503 for timeline routes when no renderer window", async () => {
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([]);
-		const res = await fetch("/api/claude/timeline/proj_123");
-
-		expect(res.status).toBe(503);
-		expect(res.body.success).toBe(false);
-		expect(res.body.error).toContain("No active");
 	});
 
 	it("all responses include timestamp", async () => {
@@ -1010,11 +622,11 @@ describe("Claude HTTP Server", () => {
 	});
 });
 
-describe("Claude HTTP Server - Auth", () => {
-	beforeEach(() => {
-		// Token is cleared in beforeAll, set per-test here
-	});
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
 
+describe("Claude HTTP Server - Auth", () => {
 	it("accepts requests without token when QCUT_API_TOKEN is not set", async () => {
 		delete process.env.QCUT_API_TOKEN;
 		const res = await fetch("/api/claude/health");
