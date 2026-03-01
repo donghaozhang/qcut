@@ -155,7 +155,7 @@ Alternative: keep header as-is but pass a `variant="dark"` prop. The landing-spe
 
 | Action | File | Lines (est.) |
 |--------|------|-------------|
-| Create | `components/landing/timeline-decoration.tsx` | ~120 |
+| Create | `components/landing/timeline-decoration.tsx` | ~250 |
 | Rewrite | `components/landing/hero.tsx` | ~80 |
 | Edit | `components/header.tsx` | ~10 lines changed |
 | Edit | `routes/index.tsx` | ~5 lines changed |
@@ -180,13 +180,18 @@ Alternative: keep header as-is but pass a `variant="dark"` prop. The landing-spe
 
 ## Animations (using `motion`)
 
+### Page Load Sequence
 1. **Headline**: fade in + slide up, 0.3s delay
 2. **Subtitle**: fade in + slide up, 0.5s delay
 3. **Description**: fade in, 0.7s delay
 4. **Buttons**: fade in + slide up, 0.9s delay
 5. **Timeline**: fade in from bottom, 1.1s delay
-6. **Playhead glow**: continuous pulse animation (infinite)
-7. **Clip shimmer**: subtle left-to-right shimmer on clips (CSS animation)
+
+### Timeline Continuous Animations (after load)
+6. **Playhead crawl**: linear left→right over ~18s, loops infinitely
+7. **Clip highlight**: clips brighten (opacity 0.25→0.7) as playhead passes over them, then fade back
+8. **Auto-expand clips**: 1–2 clips grow in width when playhead reaches them, with a shimmer scan-line effect — simulates AI content generation
+9. **Playhead glow**: continuous subtle pulse on the playhead dot (infinite)
 
 ## Open Questions
 
