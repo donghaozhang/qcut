@@ -225,7 +225,7 @@ vi.mock(
 	() => ({
 		suggestCuts: vi.fn(async () => ({ suggestions: [] })),
 	}),
-	{ virtual: true },
+	{ virtual: true }
 );
 
 vi.mock("../handlers/claude-range-handler.js", () => ({
@@ -349,11 +349,9 @@ describe("Claude HTTP Server", () => {
 		const send = vi.fn();
 		const mockWindow = createMockWindow(send);
 		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
-		vi.mocked(timelineHandler.markdownToTimeline).mockImplementationOnce(
-			() => {
-				throw new Error("Invalid timeline markdown: No tracks found");
-			},
-		);
+		vi.mocked(timelineHandler.markdownToTimeline).mockImplementationOnce(() => {
+			throw new Error("Invalid timeline markdown: No tracks found");
+		});
 
 		const res = await fetch("/api/claude/timeline/proj_123/import", {
 			method: "POST",
@@ -399,8 +397,8 @@ describe("Claude HTTP Server", () => {
 		expect(Array.isArray(res.body.data.capabilities)).toBe(true);
 		expect(
 			res.body.data.capabilities.some(
-				(cap: { name: string }) => cap.name === "state.health",
-			),
+				(cap: { name: string }) => cap.name === "state.health"
+			)
 		).toBe(true);
 	});
 
@@ -413,7 +411,7 @@ describe("Claude HTTP Server", () => {
 		expect(supported.body.data.since).toBeTypeOf("string");
 
 		const unsupported = await fetch(
-			"/api/claude/capabilities/state.health?minVersion=99.0.0",
+			"/api/claude/capabilities/state.health?minVersion=99.0.0"
 		);
 		expect(unsupported.status).toBe(200);
 		expect(unsupported.body.success).toBe(true);
@@ -431,8 +429,8 @@ describe("Claude HTTP Server", () => {
 		expect(Array.isArray(res.body.data.commands)).toBe(true);
 		expect(
 			res.body.data.commands.some(
-				(cmd: { name: string }) => cmd.name === "editor:health",
-			),
+				(cmd: { name: string }) => cmd.name === "editor:health"
+			)
 		).toBe(true);
 		expect(res.body.data.commands[0]).toHaveProperty("paramsSchema");
 		expect(res.body.data.commands[0]).toHaveProperty("requiredCapability");
@@ -591,9 +589,7 @@ describe("Claude HTTP Server", () => {
 		expect(statusRes.body.data.enabled).toBe(true);
 		expect(statusRes.body.data.sessionId).toBe("pty-test-1");
 
-		const historyRes = await fetch(
-			"/api/claude/notifications/history?limit=5",
-		);
+		const historyRes = await fetch("/api/claude/notifications/history?limit=5");
 		expect(historyRes.status).toBe(200);
 		expect(historyRes.body.success).toBe(true);
 		expect(Array.isArray(historyRes.body.data)).toBe(true);

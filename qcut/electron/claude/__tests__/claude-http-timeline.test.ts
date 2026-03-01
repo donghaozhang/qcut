@@ -223,7 +223,7 @@ vi.mock(
 	() => ({
 		suggestCuts: vi.fn(async () => ({ suggestions: [] })),
 	}),
-	{ virtual: true },
+	{ virtual: true }
 );
 
 vi.mock("../handlers/claude-range-handler.js", () => ({
@@ -294,7 +294,7 @@ describe("Claude HTTP Server - Timeline", () => {
 			{
 				method: "POST",
 				body: JSON.stringify({ splitTime: 3.5 }),
-			},
+			}
 		);
 
 		expect(res.status).toBe(200);
@@ -305,7 +305,7 @@ describe("Claude HTTP Server - Timeline", () => {
 			"element_abc",
 			3.5,
 			"split",
-			expect.any(String),
+			expect.any(String)
 		);
 	});
 
@@ -315,7 +315,7 @@ describe("Claude HTTP Server - Timeline", () => {
 			{
 				method: "POST",
 				body: JSON.stringify({ mode: "split" }),
-			},
+			}
 		);
 
 		expect(res.status).toBe(400);
@@ -332,7 +332,7 @@ describe("Claude HTTP Server - Timeline", () => {
 			{
 				method: "POST",
 				body: JSON.stringify({ splitTime: 3.5, mode: "invalid_mode" }),
-			},
+			}
 		);
 
 		expect(res.status).toBe(400);
@@ -350,7 +350,7 @@ describe("Claude HTTP Server - Timeline", () => {
 			{
 				method: "POST",
 				body: JSON.stringify({ toTrackId: "track_2", newStartTime: 5 }),
-			},
+			}
 		);
 
 		expect(res.status).toBe(200);
@@ -362,7 +362,7 @@ describe("Claude HTTP Server - Timeline", () => {
 				elementId: "element_abc",
 				toTrackId: "track_2",
 				newStartTime: 5,
-			}),
+			})
 		);
 	});
 
@@ -396,7 +396,7 @@ describe("Claude HTTP Server - Timeline", () => {
 			mockWindow,
 			"proj_123",
 			expect.any(Array),
-			expect.any(String),
+			expect.any(String)
 		);
 	});
 
@@ -422,7 +422,7 @@ describe("Claude HTTP Server - Timeline", () => {
 		expect(timelineHandler.batchUpdateElements).toHaveBeenCalledWith(
 			mockWindow,
 			[{ elementId: "el_1", startTime: 3 }],
-			expect.any(String),
+			expect.any(String)
 		);
 	});
 
@@ -450,7 +450,7 @@ describe("Claude HTTP Server - Timeline", () => {
 			mockWindow,
 			[{ trackId: "track_1", elementId: "el_1" }],
 			true,
-			expect.any(String),
+			expect.any(String)
 		);
 	});
 
@@ -483,7 +483,7 @@ describe("Claude HTTP Server - Timeline", () => {
 				endTime: 15,
 				ripple: true,
 				crossTrackRipple: true,
-			}),
+			})
 		);
 	});
 
@@ -513,7 +513,7 @@ describe("Claude HTTP Server - Timeline", () => {
 				trackId: "track_1",
 				mode: "sequential",
 			}),
-			expect.any(String),
+			expect.any(String)
 		);
 	});
 
@@ -535,7 +535,7 @@ describe("Claude HTTP Server - Timeline", () => {
 			"claude:timeline:selectElements",
 			expect.objectContaining({
 				elements,
-			}),
+			})
 		);
 	});
 
@@ -543,7 +543,7 @@ describe("Claude HTTP Server - Timeline", () => {
 		const mockWindow = createMockWindow();
 		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
 		vi.mocked(
-			timelineHandler.requestSelectionFromRenderer,
+			timelineHandler.requestSelectionFromRenderer
 		).mockResolvedValueOnce([{ trackId: "track_1", elementId: "element_abc" }]);
 
 		const res = await fetch("/api/claude/timeline/proj_123/selection");
@@ -555,7 +555,7 @@ describe("Claude HTTP Server - Timeline", () => {
 		]);
 		expect(timelineHandler.requestSelectionFromRenderer).toHaveBeenCalledWith(
 			mockWindow,
-			expect.any(String),
+			expect.any(String)
 		);
 	});
 
@@ -563,7 +563,7 @@ describe("Claude HTTP Server - Timeline", () => {
 		const mockWindow = createMockWindow();
 		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
 		vi.mocked(
-			timelineHandler.requestSelectionFromRenderer,
+			timelineHandler.requestSelectionFromRenderer
 		).mockRejectedValueOnce(new HttpError(504, "Renderer timed out"));
 
 		const res = await fetch("/api/claude/timeline/proj_123/selection");

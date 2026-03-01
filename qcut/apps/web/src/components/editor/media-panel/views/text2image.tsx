@@ -186,7 +186,11 @@ export function Text2ImageView() {
 	return (
 		<div className="p-4 space-y-6">
 			<div className="flex items-center justify-between">
-				<ModelTypeSelector selected={modelType} onChange={setModelType} className="flex-1" />
+				<ModelTypeSelector
+					selected={modelType}
+					onChange={setModelType}
+					className="flex-1"
+				/>
 				<div className="flex items-center gap-1.5 ml-2 shrink-0">
 					<a
 						href="https://opennana.com/awesome-prompt-gallery"

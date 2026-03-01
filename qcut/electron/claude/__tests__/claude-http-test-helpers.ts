@@ -14,7 +14,7 @@ export function createFetch(getPort: () => number) {
 			method?: string;
 			body?: string;
 			headers?: Record<string, string>;
-		} = {},
+		} = {}
 	): Promise<{
 		status: number;
 		body: any;
@@ -55,7 +55,7 @@ export function createFetch(getPort: () => number) {
 							});
 						}
 					});
-				},
+				}
 			);
 			req.on("error", reject);
 			if (options.body) req.write(options.body);

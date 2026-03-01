@@ -188,7 +188,16 @@ function TimelineClip({
 	const clipLeft = clip.left;
 	const clipRight = clip.left + clip.width;
 	const isGenerated = !!clip.generated;
-	const clipColor = clip.generated?.color ?? "rgb(234 179 8)";
+	const isGrowing = !!clip.autoExpand || isGenerated;
+	const isRoughCut = !!clip.roughCut;
+
+	// Color logic: growing clips = blue, rough-cut clips = gold (turns red on cut)
+	const baseColor = isGrowing ? "rgb(56 189 248)" : "rgb(234 179 8)";
+	const glowRgb = isGrowing
+		? "56,189,248"
+		: isRoughCut
+			? "239,68,68"
+			: "234,179,8";
 
 	const opacity = useTransform(playheadProgress, (p) => {
 		if (isGenerated && !visibleRef.current) return 0;
@@ -199,8 +208,6 @@ function TimelineClip({
 		return clip.baseOpacity;
 	});
 
-	const glowColor = isGenerated ? "56,189,248" : "234,179,8";
-
 	const shadowOpacity = useTransform(playheadProgress, (p) => {
 		if (isGenerated && !visibleRef.current) return 0;
 		const pos = p * 100;
@@ -210,7 +217,7 @@ function TimelineClip({
 
 	const boxShadow = useTransform(
 		shadowOpacity,
-		(v) => `0 0 ${v > 0.3 ? 12 : 8}px rgba(${glowColor},${v})`
+		(v) => `0 0 ${v > 0.3 ? 12 : 8}px rgba(${glowRgb},${v})`
 	);
 
 	useAnimationFrame(() => {
@@ -275,6 +282,9 @@ function TimelineClip({
 		currentWidth = trimmed ? clip.roughCut.trimmedWidth : clip.width;
 	}
 
+	// Rough-cut: flash red then shrink
+	const currentColor = isRoughCut && trimmed ? "rgb(239 68 68)" : baseColor;
+
 	return (
 		<motion.div
 			className="absolute top-1 bottom-1 rounded-sm overflow-hidden"
@@ -282,11 +292,11 @@ function TimelineClip({
 				left: `${clip.left}%`,
 				opacity,
 				boxShadow,
-				backgroundColor: clipColor,
 			}}
 			animate={{
 				width: `${currentWidth}%`,
 				scale: isGenerated ? (visible ? 1 : 0.8) : 1,
+				backgroundColor: currentColor,
 			}}
 			transition={
 				clip.autoExpand
@@ -324,10 +334,10 @@ function TimelineClip({
 			{/* Cut flash */}
 			{cutFlash && (
 				<motion.div
-					className="absolute inset-y-0 right-0 w-px bg-white/60"
+					className="absolute inset-y-0 right-0 w-0.5 bg-red-400/80"
 					initial={{ opacity: 1 }}
 					animate={{ opacity: 0 }}
-					transition={{ duration: 0.2 }}
+					transition={{ duration: 0.3 }}
 				/>
 			)}
 		</motion.div>

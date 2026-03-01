@@ -1,6 +1,4 @@
-import type {
-	CLIRunOptions,
-} from "../native-pipeline/cli/cli-runner.js";
+import type { CLIRunOptions } from "../native-pipeline/cli/cli-runner.js";
 
 // ---------------------------------------------------------------------------
 // Mock HTTP server
@@ -14,7 +12,12 @@ export let lastCapturedUrl = "";
 export let lastCapturedBody: string | null = null;
 export let lastCapturedMethod = "";
 
-export function mockRoute(method: string, path: string, body: unknown, status = 200) {
+export function mockRoute(
+	method: string,
+	path: string,
+	body: unknown,
+	status = 200
+) {
 	routes.set(`${method} ${path}`, { status, body });
 }
 

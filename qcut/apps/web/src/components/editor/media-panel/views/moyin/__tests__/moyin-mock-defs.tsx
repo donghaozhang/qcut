@@ -17,9 +17,9 @@ export const tanstackRouter = {
 
 // ── Lucide React Icons ──
 
-const icon =
-	(name: string) =>
-	(props: Record<string, unknown>) => <span data-testid={`icon-${name}`} {...props} />;
+const icon = (name: string) => (props: Record<string, unknown>) => (
+	<span data-testid={`icon-${name}`} {...props} />
+);
 
 export const lucideReact = {
 	AlertTriangleIcon: icon("alert-triangle"),
@@ -164,7 +164,9 @@ export const uiInput = {
 };
 
 export const uiCheckbox = {
-	Checkbox: (props: Record<string, unknown>) => <input type="checkbox" {...props} />,
+	Checkbox: (props: Record<string, unknown>) => (
+		<input type="checkbox" {...props} />
+	),
 };
 
 export const uiLabel = {
@@ -182,42 +184,72 @@ export const uiSelect = {
 	}: { children: React.ReactNode } & Record<string, unknown>) => (
 		<div data-testid="select">{children}</div>
 	),
-	SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-	SelectValue: ({ placeholder }: { placeholder?: string }) => <span>{placeholder}</span>,
-	SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+	SelectTrigger: ({ children }: { children: React.ReactNode }) => (
+		<div>{children}</div>
+	),
+	SelectValue: ({ placeholder }: { placeholder?: string }) => (
+		<span>{placeholder}</span>
+	),
+	SelectContent: ({ children }: { children: React.ReactNode }) => (
+		<div>{children}</div>
+	),
 	SelectItem: ({
 		children,
-	}: { children: React.ReactNode } & Record<string, unknown>) => <div>{children}</div>,
-	SelectGroup: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-	SelectLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+	}: { children: React.ReactNode } & Record<string, unknown>) => (
+		<div>{children}</div>
+	),
+	SelectGroup: ({ children }: { children: React.ReactNode }) => (
+		<div>{children}</div>
+	),
+	SelectLabel: ({ children }: { children: React.ReactNode }) => (
+		<div>{children}</div>
+	),
 };
 
 export const uiDropdownMenu = {
 	DropdownMenu: ({
 		children,
-	}: { children: React.ReactNode } & Record<string, unknown>) => <div>{children}</div>,
+	}: { children: React.ReactNode } & Record<string, unknown>) => (
+		<div>{children}</div>
+	),
 	DropdownMenuTrigger: ({
 		children,
-	}: { children: React.ReactNode } & Record<string, unknown>) => <div>{children}</div>,
+	}: { children: React.ReactNode } & Record<string, unknown>) => (
+		<div>{children}</div>
+	),
 	DropdownMenuContent: ({
 		children,
-	}: { children: React.ReactNode } & Record<string, unknown>) => <div>{children}</div>,
+	}: { children: React.ReactNode } & Record<string, unknown>) => (
+		<div>{children}</div>
+	),
 	DropdownMenuItem: ({
 		children,
-	}: { children: React.ReactNode } & Record<string, unknown>) => <div>{children}</div>,
+	}: { children: React.ReactNode } & Record<string, unknown>) => (
+		<div>{children}</div>
+	),
 	DropdownMenuSeparator: () => <div />,
 };
 
 export const uiDialog = {
 	Dialog: ({
 		children,
-	}: { children: React.ReactNode } & Record<string, unknown>) => <div>{children}</div>,
+	}: { children: React.ReactNode } & Record<string, unknown>) => (
+		<div>{children}</div>
+	),
 	DialogContent: ({
 		children,
-	}: { children: React.ReactNode } & Record<string, unknown>) => <div>{children}</div>,
-	DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-	DialogTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-	DialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+	}: { children: React.ReactNode } & Record<string, unknown>) => (
+		<div>{children}</div>
+	),
+	DialogHeader: ({ children }: { children: React.ReactNode }) => (
+		<div>{children}</div>
+	),
+	DialogTitle: ({ children }: { children: React.ReactNode }) => (
+		<div>{children}</div>
+	),
+	DialogFooter: ({ children }: { children: React.ReactNode }) => (
+		<div>{children}</div>
+	),
 };
 
 export const uiResizable = {

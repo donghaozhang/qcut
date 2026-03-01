@@ -53,8 +53,22 @@ const BUBBLE_TEXT: Record<MascotState, string> = {
 	cutting: "Cutting ...",
 };
 
-function ThoughtBubble({ state }: { state: MascotState }) {
+function ThoughtBubble({
+	state,
+	accentColor,
+}: {
+	state: MascotState;
+	accentColor: string;
+}) {
 	if (state === "idle") return null;
+
+	const isGenerating = state === "thinking_generate" || state === "generating";
+	const isCutting = state === "thinking_cut" || state === "cutting";
+	const borderColor = isGenerating
+		? "border-sky-400/30"
+		: isCutting
+			? "border-red-400/30"
+			: "border-white/20";
 
 	return (
 		<motion.div
@@ -68,13 +82,16 @@ function ThoughtBubble({ state }: { state: MascotState }) {
 			<div className="absolute bottom-[-4px] left-2 w-1.5 h-1.5 rounded-full bg-white/10 border border-white/20" />
 			<div className="absolute bottom-[-9px] left-1 w-1 h-1 rounded-full bg-white/10 border border-white/20" />
 			{/* Bubble */}
-			<div className="rounded-lg bg-white/10 border border-white/20 px-3 py-1.5 flex items-center gap-2">
+			<div
+				className={`rounded-lg bg-white/10 border ${borderColor} px-3 py-1.5 flex items-center gap-2`}
+			>
 				<span className="text-xs text-neutral-300 font-mono">
 					{BUBBLE_TEXT[state]}
 				</span>
 				{(state === "generating" || state === "cutting") && (
 					<motion.span
-						className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-500"
+						className="inline-block w-1.5 h-1.5 rounded-full"
+						style={{ backgroundColor: accentColor }}
 						animate={{ opacity: [1, 0.3, 1] }}
 						transition={{
 							duration: 0.8,
@@ -123,18 +140,32 @@ export function Mascot({ playheadProgress }: MascotProps) {
 	});
 
 	const isActive = state === "generating" || state === "cutting";
-	const eyeColor = isActive || nearEdge ? "#EAB308" : "white";
+	const isGenerating = state === "thinking_generate" || state === "generating";
+	const isCutting = state === "thinking_cut" || state === "cutting";
 
-	// Reactive transforms:
-	// - nearEdge: glow + slight pause feel (scale down briefly)
-	// - overClip: micro lift + scale up
+	// Blue during generate, red during cut, yellow default
+	const accentColor = isGenerating
+		? "#38BDF8"
+		: isCutting
+			? "#EF4444"
+			: "#EAB308";
+	const eyeColor =
+		isActive || isGenerating || isCutting || nearEdge ? accentColor : "white";
+	const headStroke = isGenerating ? "#38BDF8" : isCutting ? "#EF4444" : "white";
+
+	// Reactive transforms
 	const reactiveScale = nearEdge ? 0.97 : overClip ? 1.03 : 1;
 	const reactiveY = overClip ? -2 : 0;
+	const glowRgb = isGenerating
+		? "56,189,248"
+		: isCutting
+			? "239,68,68"
+			: "234,179,8";
 	const glowIntensity = nearEdge
-		? "drop-shadow(0 0 6px rgba(234,179,8,0.5))"
+		? `drop-shadow(0 0 6px rgba(${glowRgb},0.5))`
 		: overClip
-			? "drop-shadow(0 0 3px rgba(234,179,8,0.25))"
-			: "drop-shadow(0 0 0px rgba(234,179,8,0))";
+			? `drop-shadow(0 0 3px rgba(${glowRgb},0.25))`
+			: `drop-shadow(0 0 0px rgba(${glowRgb},0))`;
 
 	return (
 		<motion.div
@@ -176,16 +207,17 @@ export function Mascot({ playheadProgress }: MascotProps) {
 				/>
 
 				{/* Head */}
-				<rect
+				<motion.rect
 					x="8"
 					y="8"
 					width="32"
 					height="28"
 					rx="8"
-					stroke="white"
+					animate={{ stroke: headStroke }}
 					strokeWidth="1.5"
 					opacity="0.7"
 					fill="none"
+					transition={{ duration: 0.3 }}
 				/>
 
 				{/* Eyes */}
@@ -239,7 +271,7 @@ export function Mascot({ playheadProgress }: MascotProps) {
 			</svg>
 
 			{/* Thought bubble */}
-			<ThoughtBubble state={state} />
+			<ThoughtBubble state={state} accentColor={accentColor} />
 		</motion.div>
 	);
 }
