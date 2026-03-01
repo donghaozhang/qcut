@@ -1,10 +1,34 @@
-import "./moyin-test-setup.js";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { resetStore, useMoyinStore } from "./moyin-test-setup.js";
+import { useMoyinStore } from "@/stores/moyin/moyin-store";
 
-// Import components after mocks are registered
+// ── Shared mocks (hoisted by Vitest before imports) ──
+vi.mock("@tanstack/react-router", async () => (await import("./moyin-mock-defs")).tanstackRouter);
+vi.mock("lucide-react", async () => (await import("./moyin-mock-defs")).lucideReact);
+vi.mock("@/components/ui/button", async () => (await import("./moyin-mock-defs")).uiButton);
+vi.mock("@/components/ui/textarea", async () => (await import("./moyin-mock-defs")).uiTextarea);
+vi.mock("@/components/ui/card", async () => (await import("./moyin-mock-defs")).uiCard);
+vi.mock("@/components/ui/badge", async () => (await import("./moyin-mock-defs")).uiBadge);
+vi.mock("@/components/ui/progress", async () => (await import("./moyin-mock-defs")).uiProgress);
+vi.mock("@/components/ui/input", async () => (await import("./moyin-mock-defs")).uiInput);
+vi.mock("@/components/ui/checkbox", async () => (await import("./moyin-mock-defs")).uiCheckbox);
+vi.mock("@/components/ui/label", async () => (await import("./moyin-mock-defs")).uiLabel);
+vi.mock("@/components/ui/select", async () => (await import("./moyin-mock-defs")).uiSelect);
+vi.mock("@/components/ui/dropdown-menu", async () => (await import("./moyin-mock-defs")).uiDropdownMenu);
+vi.mock("@/components/ui/dialog", async () => (await import("./moyin-mock-defs")).uiDialog);
+vi.mock("@/components/ui/resizable", async () => (await import("./moyin-mock-defs")).uiResizable);
+vi.mock("@/lib/moyin/script/example-scripts", async () => (await import("./moyin-mock-defs")).exampleScripts);
+vi.mock("@/lib/moyin/presets/visual-styles", async () => (await import("./moyin-mock-defs")).visualStyles);
+vi.mock("@/lib/moyin/presets/cinematography-profiles", async () => (await import("./moyin-mock-defs")).cinematographyProfiles);
+vi.mock("@/lib/utils", async () => (await import("./moyin-mock-defs")).utils);
+vi.mock("../batch-progress", async () => (await import("./moyin-mock-defs")).batchProgress);
+
+// ── Component imports (resolved after mocks) ──
 import { ShotBreakdown } from "../shot-breakdown";
+
+function resetStore() {
+	useMoyinStore.getState().reset();
+}
 
 // ============================================================
 // ShotBreakdown — Grid/List Toggle
