@@ -551,6 +551,15 @@ function createWindow(): void {
 		// Fallback for headless/CI environments without a display
 	}
 
+	// E2E invisible mode: make window fully transparent so tests run
+	// without stealing focus. Activated by QCUT_E2E_OFFSCREEN env var,
+	// set automatically by `bun run test:e2e:bg`.
+	if (process.env.QCUT_E2E_OFFSCREEN) {
+		mainWindow.setOpacity(0);
+		mainWindow.setIgnoreMouseEvents(true);
+		logger.log("[E2E] Window hidden (opacity=0, ignoreMouseEvents=true)");
+	}
+
 	// Load the app
 	const isDev = process.env.NODE_ENV === "development";
 	if (isDev) {

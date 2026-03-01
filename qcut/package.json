@@ -109,6 +109,7 @@
 		"check:circular": "madge --circular --extensions ts,tsx apps/web/src electron/",
 		"test": "bunx vitest run",
 		"test:e2e": "playwright test",
+		"test:e2e:bg": "bun scripts/e2e-virtual-display.ts",
 		"test:e2e:record": "bun scripts/run-e2e-record.ts",
 		"test:e2e:combine": "bun scripts/combine-e2e-videos.ts",
 		"test:e2e:ui": "playwright test --ui",

@@ -27,7 +27,8 @@ No code file longer than 800 lines, longer consider a new code file
 | Pipeline CLI | `bun run pipeline` |
 | Dist (macOS) | `bun run dist:mac` |
 | Dist (Windows) | `bun run dist:win` |
-| E2E tests | `bun run test:e2e` |
+| E2E tests (visible) | `bun run test:e2e` |
+| E2E tests (invisible) | `bun run test:e2e:bg` |
 
 ## Project Overview
 
