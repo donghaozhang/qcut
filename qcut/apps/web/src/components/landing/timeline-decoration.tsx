@@ -1,12 +1,12 @@
 "use client";
 
 import {
+	type MotionValue,
 	motion,
 	useAnimationFrame,
-	useMotionValue,
 	useTransform,
 } from "motion/react";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 type TrackClip = {
 	id: string;
@@ -19,6 +19,14 @@ type TrackClip = {
 	autoExpand?: {
 		initialWidth: number;
 		expandedWidth: number;
+	};
+	generated?: {
+		triggerAt: number;
+		color: string;
+	};
+	roughCut?: {
+		triggerAt: number;
+		trimmedWidth: number;
 	};
 };
 
@@ -43,6 +51,7 @@ const CLIPS: TrackClip[] = [
 		baseOpacity: 0.35,
 		glow: false,
 		hasWaveform: true,
+		roughCut: { triggerAt: 60, trimmedWidth: 14 },
 	},
 	{ id: "c4", track: 0, left: 65, width: 12, baseOpacity: 0.25, glow: true },
 	{ id: "c5", track: 0, left: 82, width: 16, baseOpacity: 0.3, glow: false },
@@ -57,6 +66,16 @@ const CLIPS: TrackClip[] = [
 		hasWaveform: true,
 	},
 	{ id: "c7", track: 1, left: 26, width: 10, baseOpacity: 0.3, glow: true },
+	// Generated clip — appears at 25% in an empty gap
+	{
+		id: "gen0",
+		track: 1,
+		left: 37,
+		width: 4,
+		baseOpacity: 0.4,
+		glow: true,
+		generated: { triggerAt: 25, color: "rgb(56 189 248)" },
+	},
 	{
 		id: "c8",
 		track: 1,
@@ -66,7 +85,15 @@ const CLIPS: TrackClip[] = [
 		glow: false,
 		autoExpand: { initialWidth: 5, expandedWidth: 14 },
 	},
-	{ id: "c9", track: 1, left: 58, width: 22, baseOpacity: 0.25, glow: false },
+	{
+		id: "c9",
+		track: 1,
+		left: 58,
+		width: 22,
+		baseOpacity: 0.25,
+		glow: false,
+		roughCut: { triggerAt: 60, trimmedWidth: 15 },
+	},
 	{
 		id: "c10",
 		track: 1,
@@ -96,12 +123,31 @@ const CLIPS: TrackClip[] = [
 		glow: false,
 		autoExpand: { initialWidth: 4, expandedWidth: 12 },
 	},
-	{ id: "c14", track: 2, left: 68, width: 16, baseOpacity: 0.3, glow: false },
+	{
+		id: "c14",
+		track: 2,
+		left: 68,
+		width: 16,
+		baseOpacity: 0.3,
+		glow: false,
+		roughCut: { triggerAt: 60, trimmedWidth: 10 },
+	},
 	{ id: "c15", track: 2, left: 88, width: 10, baseOpacity: 0.25, glow: true },
 ];
 
 const TRACK_COUNT = 3;
-const CYCLE_DURATION = 18000; // 18s in ms
+export const CYCLE_DURATION = 18000;
+
+// Pre-computed clip edges for mascot reactivity (unique sorted left boundaries)
+export const CLIP_EDGES: number[] = [...new Set(CLIPS.map((c) => c.left))].sort(
+	(a, b) => a - b
+);
+
+// Clip ranges: [left, right] for overlap detection
+export const CLIP_RANGES: [number, number][] = CLIPS.map((c) => [
+	c.left,
+	c.left + c.width,
+]);
 
 function WaveformSvg() {
 	return (
@@ -128,16 +174,24 @@ function TimelineClip({
 	playheadProgress,
 }: {
 	clip: TrackClip;
-	playheadProgress: ReturnType<typeof useMotionValue<number>>;
+	playheadProgress: MotionValue<number>;
 }) {
 	const [expanded, setExpanded] = useState(false);
+	const [visible, setVisible] = useState(!clip.generated);
+	const [trimmed, setTrimmed] = useState(false);
+	const [cutFlash, setCutFlash] = useState(false);
 	const expandedRef = useRef(false);
+	const visibleRef = useRef(!clip.generated);
+	const trimmedRef = useRef(false);
 	const prevProgressRef = useRef(0);
 
 	const clipLeft = clip.left;
 	const clipRight = clip.left + clip.width;
+	const isGenerated = !!clip.generated;
+	const clipColor = clip.generated?.color ?? "rgb(234 179 8)";
 
 	const opacity = useTransform(playheadProgress, (p) => {
+		if (isGenerated && !visibleRef.current) return 0;
 		const pos = p * 100;
 		if (pos >= clipLeft && pos <= clipRight) {
 			return Math.min(clip.baseOpacity + 0.45, 0.8);
@@ -145,43 +199,81 @@ function TimelineClip({
 		return clip.baseOpacity;
 	});
 
+	const glowColor = isGenerated ? "56,189,248" : "234,179,8";
+
 	const shadowOpacity = useTransform(playheadProgress, (p) => {
+		if (isGenerated && !visibleRef.current) return 0;
 		const pos = p * 100;
-		if (pos >= clipLeft && pos <= clipRight) {
-			return 0.5;
-		}
+		if (pos >= clipLeft && pos <= clipRight) return 0.5;
 		return clip.glow ? 0.2 : 0;
 	});
 
 	const boxShadow = useTransform(
 		shadowOpacity,
-		(v) => `0 0 ${v > 0.3 ? 12 : 8}px rgba(234,179,8,${v})`
+		(v) => `0 0 ${v > 0.3 ? 12 : 8}px rgba(${glowColor},${v})`
 	);
 
-	// Auto-expand: detect when playhead enters clip range
 	useAnimationFrame(() => {
-		if (!clip.autoExpand) return;
 		const p = playheadProgress.get() * 100;
 		const prev = prevProgressRef.current;
 		prevProgressRef.current = p;
 
-		// Detect playhead entering clip (crossed left boundary going right)
-		if (prev < clipLeft && p >= clipLeft && !expandedRef.current) {
+		// Reset on loop
+		if (p < prev - 50) {
+			if (clip.autoExpand) {
+				expandedRef.current = false;
+				setExpanded(false);
+			}
+			if (clip.generated) {
+				visibleRef.current = false;
+				setVisible(false);
+			}
+			if (clip.roughCut) {
+				trimmedRef.current = false;
+				setTrimmed(false);
+			}
+		}
+
+		// Auto-expand
+		if (
+			clip.autoExpand &&
+			prev < clipLeft &&
+			p >= clipLeft &&
+			!expandedRef.current
+		) {
 			expandedRef.current = true;
 			setExpanded(true);
 		}
-		// Reset when playhead loops (progress jumps backward)
-		if (p < prev - 50) {
-			expandedRef.current = false;
-			setExpanded(false);
+
+		// Generated: appear at trigger
+		if (clip.generated && !visibleRef.current) {
+			if (prev < clip.generated.triggerAt && p >= clip.generated.triggerAt) {
+				visibleRef.current = true;
+				setVisible(true);
+			}
+		}
+
+		// Rough cut: trim at trigger
+		if (clip.roughCut && !trimmedRef.current) {
+			if (prev < clip.roughCut.triggerAt && p >= clip.roughCut.triggerAt) {
+				trimmedRef.current = true;
+				setTrimmed(true);
+				setCutFlash(true);
+				setTimeout(() => setCutFlash(false), 200);
+			}
 		}
 	});
 
-	const currentWidth = clip.autoExpand
-		? expanded
+	// Determine current width
+	let currentWidth = clip.width;
+	if (clip.autoExpand) {
+		currentWidth = expanded
 			? clip.autoExpand.expandedWidth
-			: clip.autoExpand.initialWidth
-		: clip.width;
+			: clip.autoExpand.initialWidth;
+	}
+	if (clip.roughCut) {
+		currentWidth = trimmed ? clip.roughCut.trimmedWidth : clip.width;
+	}
 
 	return (
 		<motion.div
@@ -190,11 +282,20 @@ function TimelineClip({
 				left: `${clip.left}%`,
 				opacity,
 				boxShadow,
-				backgroundColor: "rgb(234 179 8)",
+				backgroundColor: clipColor,
 			}}
-			animate={{ width: `${currentWidth}%` }}
+			animate={{
+				width: `${currentWidth}%`,
+				scale: isGenerated ? (visible ? 1 : 0.8) : 1,
+			}}
 			transition={
-				clip.autoExpand ? { duration: 1.5, ease: "easeOut" } : { duration: 0 }
+				clip.autoExpand
+					? { duration: 1.5, ease: "easeOut" }
+					: clip.roughCut
+						? { duration: 0.3, ease: "easeOut" }
+						: clip.generated
+							? { duration: 0.5, ease: "easeOut" }
+							: { duration: 0 }
 			}
 		>
 			{/* Grid pattern overlay */}
@@ -220,6 +321,15 @@ function TimelineClip({
 					transition={{ duration: 1.5, ease: "easeOut" }}
 				/>
 			)}
+			{/* Cut flash */}
+			{cutFlash && (
+				<motion.div
+					className="absolute inset-y-0 right-0 w-px bg-white/60"
+					initial={{ opacity: 1 }}
+					animate={{ opacity: 0 }}
+					transition={{ duration: 0.2 }}
+				/>
+			)}
 		</motion.div>
 	);
 }
@@ -227,7 +337,7 @@ function TimelineClip({
 function Playhead({
 	playheadProgress,
 }: {
-	playheadProgress: ReturnType<typeof useMotionValue<number>>;
+	playheadProgress: MotionValue<number>;
 }) {
 	const left = useTransform(playheadProgress, (p) => `${p * 100}%`);
 
@@ -236,9 +346,7 @@ function Playhead({
 			className="absolute top-0 bottom-0 z-10 pointer-events-none"
 			style={{ left, width: "1px" }}
 		>
-			{/* Vertical line */}
 			<div className="absolute inset-0 w-px bg-white/60" />
-			{/* Glow dot at top */}
 			<motion.div
 				className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-yellow-500"
 				style={{
@@ -261,22 +369,13 @@ function Playhead({
 	);
 }
 
-export function TimelineDecoration() {
-	const playheadProgress = useMotionValue(0);
-	const startTimeRef = useRef<number | null>(null);
+interface TimelineDecorationProps {
+	playheadProgress: MotionValue<number>;
+}
 
-	const tick = useCallback(
-		(time: number) => {
-			if (startTimeRef.current === null) startTimeRef.current = time;
-			const elapsed = time - startTimeRef.current;
-			const progress = (elapsed % CYCLE_DURATION) / CYCLE_DURATION;
-			playheadProgress.set(progress);
-		},
-		[playheadProgress]
-	);
-
-	useAnimationFrame(tick);
-
+export function TimelineDecoration({
+	playheadProgress,
+}: TimelineDecorationProps) {
 	const tracks = Array.from({ length: TRACK_COUNT }, (_, i) => i);
 
 	return (

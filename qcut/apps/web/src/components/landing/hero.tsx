@@ -1,11 +1,28 @@
 "use client";
 
-import { motion } from "motion/react";
+import { motion, useAnimationFrame, useMotionValue } from "motion/react";
 import { Link } from "@tanstack/react-router";
+import { useCallback, useRef } from "react";
 import { Handlebars } from "./handlebars";
-import { TimelineDecoration } from "./timeline-decoration";
+import { Mascot } from "./mascot";
+import { CYCLE_DURATION, TimelineDecoration } from "./timeline-decoration";
 
 export function Hero() {
+	const playheadProgress = useMotionValue(0);
+	const startTimeRef = useRef<number | null>(null);
+
+	const tick = useCallback(
+		(time: number) => {
+			if (startTimeRef.current === null) startTimeRef.current = time;
+			const elapsed = time - startTimeRef.current;
+			const progress = (elapsed % CYCLE_DURATION) / CYCLE_DURATION;
+			playheadProgress.set(progress);
+		},
+		[playheadProgress]
+	);
+
+	useAnimationFrame(tick);
+
 	return (
 		<div className="min-h-[calc(100vh-4.5rem)] supports-[height:100dvh]:min-h-[calc(100dvh-4.5rem)] flex flex-col justify-between items-center text-center bg-black">
 			{/* Text content */}
@@ -67,14 +84,15 @@ export function Hero() {
 				</motion.div>
 			</motion.div>
 
-			{/* Timeline decoration */}
+			{/* Mascot + Timeline */}
 			<motion.div
 				className="w-full"
 				initial={{ opacity: 0, y: 30 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ delay: 1.1, duration: 1 }}
 			>
-				<TimelineDecoration />
+				<Mascot playheadProgress={playheadProgress} />
+				<TimelineDecoration playheadProgress={playheadProgress} />
 			</motion.div>
 		</div>
 	);

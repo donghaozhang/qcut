@@ -2,6 +2,7 @@
 
 import { type MotionValue, motion, useAnimationFrame } from "motion/react";
 import { useRef, useState } from "react";
+import { CLIP_EDGES, CLIP_RANGES } from "./timeline-decoration";
 
 type MascotState =
 	| "idle"
@@ -18,6 +19,9 @@ const THINK_CUT_AT = 55;
 const CUT_AT = 60;
 const CUT_END = 65;
 
+// How close (in %) the playhead needs to be to a clip edge to trigger a reaction
+const EDGE_PROXIMITY = 1.5;
+
 function deriveState(progress: number): MascotState {
 	const p = progress * 100;
 	if (p >= THINK_GENERATE_AT && p < GENERATE_AT) return "thinking_generate";
@@ -27,108 +31,57 @@ function deriveState(progress: number): MascotState {
 	return "idle";
 }
 
-function ThinkingDots() {
-	return (
-		<motion.g>
-			<motion.circle
-				cx="8"
-				cy="6"
-				r="1.5"
-				fill="white"
-				animate={{ opacity: [0.3, 1, 0.3] }}
-				transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, delay: 0 }}
-			/>
-			<motion.circle
-				cx="14"
-				cy="6"
-				r="1.5"
-				fill="white"
-				animate={{ opacity: [0.3, 1, 0.3] }}
-				transition={{
-					duration: 1,
-					repeat: Number.POSITIVE_INFINITY,
-					delay: 0.2,
-				}}
-			/>
-			<motion.circle
-				cx="20"
-				cy="6"
-				r="1.5"
-				fill="white"
-				animate={{ opacity: [0.3, 1, 0.3] }}
-				transition={{
-					duration: 1,
-					repeat: Number.POSITIVE_INFINITY,
-					delay: 0.4,
-				}}
-			/>
-		</motion.g>
-	);
+function isNearClipEdge(pos: number): boolean {
+	for (const edge of CLIP_EDGES) {
+		if (Math.abs(pos - edge) < EDGE_PROXIMITY) return true;
+	}
+	return false;
 }
 
-function SparkleIcon() {
-	return (
-		<motion.g
-			initial={{ scale: 0.5, opacity: 0 }}
-			animate={{ scale: 1, opacity: 1 }}
-			transition={{ duration: 0.3 }}
-		>
-			<path
-				d="M14,2 L15.5,5.5 L19,7 L15.5,8.5 L14,12 L12.5,8.5 L9,7 L12.5,5.5 Z"
-				fill="#EAB308"
-				stroke="none"
-			/>
-			<path
-				d="M21,4 L21.8,5.8 L23.5,6.5 L21.8,7.2 L21,9 L20.2,7.2 L18.5,6.5 L20.2,5.8 Z"
-				fill="#EAB308"
-				opacity="0.6"
-				stroke="none"
-			/>
-		</motion.g>
-	);
+function isOverClip(pos: number): boolean {
+	for (const [left, right] of CLIP_RANGES) {
+		if (pos >= left && pos <= right) return true;
+	}
+	return false;
 }
 
-function ScissorsIcon() {
-	return (
-		<motion.g
-			initial={{ scale: 0.5, opacity: 0 }}
-			animate={{ scale: 1, opacity: 1 }}
-			transition={{ duration: 0.3 }}
-		>
-			<circle cx="9" cy="10" r="2.5" fill="none" stroke="white" strokeWidth="1.2" />
-			<circle cx="19" cy="10" r="2.5" fill="none" stroke="white" strokeWidth="1.2" />
-			<line x1="11" y1="8.5" x2="17" y2="3" stroke="white" strokeWidth="1.2" />
-			<line x1="17" y1="8.5" x2="11" y2="3" stroke="white" strokeWidth="1.2" />
-		</motion.g>
-	);
-}
+const BUBBLE_TEXT: Record<MascotState, string> = {
+	idle: "",
+	thinking_generate: "Generate a video clip ...",
+	generating: "Generating ...",
+	thinking_cut: "Rough cut the timeline ...",
+	cutting: "Cutting ...",
+};
 
-function ThoughtBubble({
-	state,
-}: {
-	state: MascotState;
-}) {
+function ThoughtBubble({ state }: { state: MascotState }) {
 	if (state === "idle") return null;
 
 	return (
 		<motion.div
-			className="absolute -top-3 left-12 pointer-events-none"
-			initial={{ opacity: 0, scale: 0.7 }}
-			animate={{ opacity: 1, scale: 1 }}
+			className="absolute -top-2 left-[72px] pointer-events-none whitespace-nowrap"
+			initial={{ opacity: 0, scale: 0.7, x: -4 }}
+			animate={{ opacity: 1, scale: 1, x: 0 }}
 			exit={{ opacity: 0, scale: 0.7 }}
 			transition={{ duration: 0.25 }}
 		>
 			{/* Bubble tail dots */}
-			<div className="absolute bottom-[-4px] left-1 w-1.5 h-1.5 rounded-full bg-white/10 border border-white/20" />
-			<div className="absolute bottom-[-9px] left-0 w-1 h-1 rounded-full bg-white/10 border border-white/20" />
+			<div className="absolute bottom-[-4px] left-2 w-1.5 h-1.5 rounded-full bg-white/10 border border-white/20" />
+			<div className="absolute bottom-[-9px] left-1 w-1 h-1 rounded-full bg-white/10 border border-white/20" />
 			{/* Bubble */}
-			<div className="rounded-lg bg-white/10 border border-white/20 px-1 py-0.5">
-				<svg width="28" height="14" viewBox="0 0 28 14">
-					{state === "thinking_generate" && <ThinkingDots />}
-					{state === "generating" && <SparkleIcon />}
-					{state === "thinking_cut" && <ThinkingDots />}
-					{state === "cutting" && <ScissorsIcon />}
-				</svg>
+			<div className="rounded-lg bg-white/10 border border-white/20 px-3 py-1.5 flex items-center gap-2">
+				<span className="text-xs text-neutral-300 font-mono">
+					{BUBBLE_TEXT[state]}
+				</span>
+				{(state === "generating" || state === "cutting") && (
+					<motion.span
+						className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-500"
+						animate={{ opacity: [1, 0.3, 1] }}
+						transition={{
+							duration: 0.8,
+							repeat: Number.POSITIVE_INFINITY,
+						}}
+					/>
+				)}
 			</div>
 		</motion.div>
 	);
@@ -140,47 +93,86 @@ interface MascotProps {
 
 export function Mascot({ playheadProgress }: MascotProps) {
 	const [state, setState] = useState<MascotState>("idle");
+	const [nearEdge, setNearEdge] = useState(false);
+	const [overClip, setOverClip] = useState(false);
 	const prevStateRef = useRef<MascotState>("idle");
+	const prevNearRef = useRef(false);
+	const prevOverRef = useRef(false);
 
 	useAnimationFrame(() => {
-		const newState = deriveState(playheadProgress.get());
+		const p = playheadProgress.get();
+		const pos = p * 100;
+
+		const newState = deriveState(p);
 		if (newState !== prevStateRef.current) {
 			prevStateRef.current = newState;
 			setState(newState);
 		}
+
+		const near = isNearClipEdge(pos);
+		if (near !== prevNearRef.current) {
+			prevNearRef.current = near;
+			setNearEdge(near);
+		}
+
+		const over = isOverClip(pos);
+		if (over !== prevOverRef.current) {
+			prevOverRef.current = over;
+			setOverClip(over);
+		}
 	});
 
-	const isActive =
-		state === "generating" || state === "cutting";
-	const eyeColor = isActive ? "#EAB308" : "white";
+	const isActive = state === "generating" || state === "cutting";
+	const eyeColor = isActive || nearEdge ? "#EAB308" : "white";
+
+	// Reactive transforms:
+	// - nearEdge: glow + slight pause feel (scale down briefly)
+	// - overClip: micro lift + scale up
+	const reactiveScale = nearEdge ? 0.97 : overClip ? 1.03 : 1;
+	const reactiveY = overClip ? -2 : 0;
+	const glowIntensity = nearEdge
+		? "drop-shadow(0 0 6px rgba(234,179,8,0.5))"
+		: overClip
+			? "drop-shadow(0 0 3px rgba(234,179,8,0.25))"
+			: "drop-shadow(0 0 0px rgba(234,179,8,0))";
 
 	return (
-		<div className="relative w-12 h-12 ml-8 mb-2">
+		<motion.div
+			className="relative w-16 h-16 ml-8 mb-2"
+			animate={{
+				scale: reactiveScale,
+				y: reactiveY,
+				filter: glowIntensity,
+			}}
+			transition={{
+				duration: nearEdge ? 0.08 : 0.2,
+				ease: "easeOut",
+			}}
+		>
 			{/* Robot face SVG */}
 			<svg
-				width="48"
-				height="48"
+				width="64"
+				height="64"
 				viewBox="0 0 48 48"
 				fill="none"
 				aria-hidden="true"
 			>
 				{/* Antenna */}
-				<line x1="24" y1="8" x2="24" y2="2" stroke="white" strokeWidth="1" opacity="0.6" />
+				<line
+					x1="24"
+					y1="8"
+					x2="24"
+					y2="2"
+					stroke="white"
+					strokeWidth="1"
+					opacity="0.6"
+				/>
 				<motion.circle
 					cx="24"
 					cy="2"
 					r="2"
-					fill={eyeColor}
-					animate={
-						isActive
-							? {
-									boxShadow: [
-										"0 0 4px rgba(234,179,8,0.6)",
-										"0 0 8px rgba(234,179,8,0.9)",
-									],
-								}
-							: {}
-					}
+					animate={{ fill: eyeColor }}
+					transition={{ duration: 0.15 }}
 				/>
 
 				{/* Head */}
@@ -202,14 +194,14 @@ export function Mascot({ playheadProgress }: MascotProps) {
 					cy="22"
 					r="3"
 					animate={{ fill: eyeColor }}
-					transition={{ duration: 0.3 }}
+					transition={{ duration: 0.15 }}
 				/>
 				<motion.circle
 					cx="30"
 					cy="22"
 					r="3"
 					animate={{ fill: eyeColor }}
-					transition={{ duration: 0.3 }}
+					transition={{ duration: 0.15 }}
 				/>
 
 				{/* Mouth */}
@@ -222,12 +214,32 @@ export function Mascot({ playheadProgress }: MascotProps) {
 				/>
 
 				{/* Ear details */}
-				<rect x="4" y="16" width="4" height="8" rx="2" stroke="white" strokeWidth="1" opacity="0.4" fill="none" />
-				<rect x="40" y="16" width="4" height="8" rx="2" stroke="white" strokeWidth="1" opacity="0.4" fill="none" />
+				<rect
+					x="4"
+					y="16"
+					width="4"
+					height="8"
+					rx="2"
+					stroke="white"
+					strokeWidth="1"
+					opacity="0.4"
+					fill="none"
+				/>
+				<rect
+					x="40"
+					y="16"
+					width="4"
+					height="8"
+					rx="2"
+					stroke="white"
+					strokeWidth="1"
+					opacity="0.4"
+					fill="none"
+				/>
 			</svg>
 
 			{/* Thought bubble */}
 			<ThoughtBubble state={state} />
-		</div>
+		</motion.div>
 	);
 }
