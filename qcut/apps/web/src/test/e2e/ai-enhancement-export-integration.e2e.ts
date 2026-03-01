@@ -484,6 +484,15 @@ test.describe("AI Enhancement & Export Integration", () => {
 			});
 		});
 
+		// Provide a mock FAL API key via Electron storage so getFalApiKey()
+		// succeeds and the stubbed route is reached instead of throwing.
+		await page.evaluate(async () => {
+			const api = (window as any).electronAPI;
+			if (api?.apiKeys?.set) {
+				await api.apiKeys.set({ falApiKey: "test-fal-api-key-e2e" });
+			}
+		});
+
 		// Navigate to AI Images panel (text2image) which contains the upscale feature
 		await ensurePanelTabActive(page, "ai-create", "text2image");
 		await page.click('[data-testid="model-type-upscale"]');

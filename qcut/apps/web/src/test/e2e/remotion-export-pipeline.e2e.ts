@@ -187,20 +187,22 @@ test.describe("Remotion Export Pipeline", () => {
 
 			await captureTestStep(page, "remotion-export", 4, "export-dialog-opened");
 
-			// Verify the Remotion engine indicator text appears
-			const remotionIndicator = page.locator(
-				'text="Timeline contains Remotion elements"'
+			// Verify the Remotion engine indicator text appears (partial match — full text includes performance estimate)
+			const remotionIndicator = page.getByText(
+				/Timeline contains Remotion elements/
 			);
 			const hasIndicator = await remotionIndicator
+				.first()
 				.isVisible({ timeout: 5000 })
 				.catch(() => false);
 
 			// These UI elements should appear when Remotion elements are on the timeline
 			expect(hasIndicator).toBe(true);
 
-			// Also verify "Remotion Engine" text appears
-			const engineLabel = page.locator('text="Remotion Engine"');
+			// Also verify "Remotion Engine" text appears (rendered as "Remotion Engine (X Performance)")
+			const engineLabel = page.getByText(/Remotion Engine/);
 			const hasEngineLabel = await engineLabel
+				.first()
 				.isVisible({ timeout: 3000 })
 				.catch(() => false);
 

@@ -234,7 +234,7 @@ async function startExportAndWaitForCompletion({
 			.poll(
 				async () =>
 					consoleMessages.some((message) =>
-						message.includes("FFmpeg export completed successfully")
+						message.includes("FFmpeg export completed in")
 					),
 				{ timeout: EXPORT_COMPLETION_TIMEOUT_MS }
 			)
@@ -336,6 +336,11 @@ test.describe("Audio + Video Simultaneous Export", () => {
 
 			await createTestProject(page, "E2E Audio Video Simultaneous Export");
 
+			// Enable debug mode so debugLog() messages appear in the console
+			await page.evaluate(() => {
+				localStorage.setItem("qcut_debug_mode", "true");
+			});
+
 			await importTestVideo(page);
 			await importTestAudio(page);
 
@@ -412,13 +417,14 @@ test.describe("Audio + Video Simultaneous Export", () => {
 			expect(streamValidation.outputPath.length).toBeGreaterThan(0);
 			expect(streamValidation.audioExtractionFileSize).toBeGreaterThan(0);
 
+			// Verify audio files were prepared — actual log is "[CLI] Prepared N audio files for export"
 			const audioFilesLog = consoleMessages.find((message) =>
-				message.includes("Audio files:")
+				message.includes("audio files for export")
 			);
 			expect(audioFilesLog).toBeTruthy();
 
 			if (audioFilesLog) {
-				const audioFilesMatch = audioFilesLog.match(/audio files:\s*(\d+)/i);
+				const audioFilesMatch = audioFilesLog.match(/(\d+)\s+audio files/i);
 				expect(audioFilesMatch).toBeTruthy();
 				if (audioFilesMatch) {
 					const audioFilesCount = Number.parseInt(audioFilesMatch[1], 10);

@@ -903,6 +903,43 @@ export async function addStickerToCanvas(
 	}
 ): Promise<boolean> {
 	try {
+		// Step 0: Mock Iconify API so sticker items load without network access.
+		// fetchCollections() calls api.iconify.design/collections which sets error
+		// state on failure, preventing the entire sticker panel from rendering.
+		const MOCK_SVG =
+			'<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>';
+		const MOCK_COLLECTIONS = JSON.stringify({
+			"simple-icons": {
+				prefix: "simple-icons",
+				name: "Simple Icons",
+				total: 20,
+			},
+			tabler: { prefix: "tabler", name: "Tabler Icons", total: 20 },
+		});
+
+		for (const host of [
+			"https://api.iconify.design",
+			"https://api.simplesvg.com",
+			"https://api.unisvg.com",
+		]) {
+			await page.route(`${host}/**`, (route) => {
+				const url = route.request().url();
+				if (url.includes(".svg")) {
+					route.fulfill({
+						status: 200,
+						contentType: "image/svg+xml",
+						body: MOCK_SVG,
+					});
+				} else {
+					route.fulfill({
+						status: 200,
+						contentType: "application/json",
+						body: MOCK_COLLECTIONS,
+					});
+				}
+			});
+		}
+
 		// Step 1: Switch to the "edit" group which contains the stickers tab
 		const editGroup = page.locator('[data-testid="group-edit"]');
 		await editGroup

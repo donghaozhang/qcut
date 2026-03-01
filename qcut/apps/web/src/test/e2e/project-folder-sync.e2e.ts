@@ -897,15 +897,23 @@ test.describe("Project Folder Sync", () => {
 			});
 
 			// Temporarily disable electronAPI and attempt to use API-dependent functionality
+			// Note: Electron's contextBridge makes electronAPI non-configurable,
+			// so we use Object.defineProperty to force-override it for testing.
 			const result = await page.evaluate(async (pid) => {
 				const originalAPI = (window as any).electronAPI;
-
-				// Temporarily remove API
-				(window as any).electronAPI = undefined;
+				const descriptor = Object.getOwnPropertyDescriptor(
+					window,
+					"electronAPI"
+				);
 
 				try {
-					// Actually attempt to call the API (which is now undefined)
-					// This simulates what happens when running in browser without Electron
+					// Force-override the non-configurable property
+					Object.defineProperty(window, "electronAPI", {
+						value: undefined,
+						configurable: true,
+						writable: true,
+					});
+
 					const api = (window as any).electronAPI;
 
 					// Try to access projectFolder API - should return null/undefined gracefully
@@ -917,7 +925,6 @@ test.describe("Project Folder Sync", () => {
 						? await api.projectFolder.list(pid, "media")
 						: null;
 
-					// The code should handle missing API gracefully (null checks work)
 					return {
 						ensureResult,
 						listResult,
@@ -931,8 +938,12 @@ test.describe("Project Folder Sync", () => {
 						apiWasUndefined: true,
 					};
 				} finally {
-					// Restore API
-					(window as any).electronAPI = originalAPI;
+					// Restore original API
+					if (descriptor) {
+						Object.defineProperty(window, "electronAPI", descriptor);
+					} else {
+						(window as any).electronAPI = originalAPI;
+					}
 				}
 			}, projectId);
 

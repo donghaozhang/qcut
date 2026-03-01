@@ -11,9 +11,10 @@
 	"bin": {
 		"qcut-pipeline": "dist/electron/native-pipeline/cli/cli.js"
 	},
-	"packageManager": "bun@1.2.18",
+	"packageManager": "bun@1.3.10",
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.2",
+		"@vitejs/plugin-react": "^4.5.2",
 		"@emnapi/core": "^1.4.5",
 		"@emnapi/wasi-threads": "^1.1.0",
 		"@playwright/test": "^1.58.2",
@@ -48,7 +49,8 @@
 		"to-ico": "^1.1.5",
 		"turbo": "^2.8.10",
 		"typescript": "^5.9.3",
-		"ultracite": "^7.0.0"
+		"ultracite": "^7.0.0",
+		"vitest": "^4.0.0"
 	},
 	"workspaces": [
 		"apps/*",
@@ -105,7 +107,7 @@
 		"release:rc": "bun scripts/release.ts rc",
 		"release:promote": "bun scripts/release.ts promote",
 		"check:circular": "madge --circular --extensions ts,tsx apps/web/src electron/",
-		"test": "cd apps/web && bunx vitest run",
+		"test": "bunx vitest run",
 		"test:e2e": "playwright test",
 		"test:e2e:bg": "bun scripts/e2e-virtual-display.ts",
 		"test:e2e:record": "bun scripts/run-e2e-record.ts",
