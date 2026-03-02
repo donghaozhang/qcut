@@ -1,126 +1,126 @@
-# OpenAI Agent 实践 → QCut 适用性评估
+# OpenAI Agent Practices → QCut Applicability Evaluation
 
-> 逐条验证三个建议是否属实、是否适用于 QCut 当前状态
+> Verifying each suggestion against QCut's current state: is it true, and is it applicable?
 
 ---
 
-## 1. 结构化 AGENTS.md → 按需读取知识库
+## 1. Structured AGENTS.md → On-Demand Knowledge Base
 
-**结论: 部分属实，改进空间有限**
+**Verdict: Partially true, limited room for improvement**
 
-| 声明 | 实际情况 |
-|------|----------|
-| "QCut 已经在用" | CLAUDE.md 只有 **164 行**，已经很精简 |
-| "可以拆成 docs/architecture/ 等" | `docs/technical/architecture/` 已存在（4 个文件） |
-| "Claude Code 做任务时不用塞上下文" | CLAUDE.md 已通过链接指向 docs/（如 testing-guide.md） |
+| Claim | Reality |
+|-------|---------|
+| "QCut is already doing this" | CLAUDE.md is only **164 lines** — already lean |
+| "Split into docs/architecture/ etc." | `docs/technical/architecture/` already exists (4 files) |
+| "Avoid stuffing context for Claude Code" | CLAUDE.md already links to docs/ (e.g., testing-guide.md) |
 
-**当前 docs/ 结构：**
+**Current docs/ structure:**
 ```
 docs/
-├── reference/           # 3 files — 代码标准、a11y 规则、测试指南
-├── technical/           # 22 files — 架构、AI、测试、工作流
-│   ├── architecture/    # 4 files — 已经存在！
-│   ├── ai/              # 8+ files — AI 模型文档
-│   └── testing/         # 2 files — E2E + 基础设施
-├── task/                # 40 files — 活跃任务
-├── completed/           # 716 files — 历史存档
-├── pr-comments/         # 1,951 files — PR 追踪
-└── releases/            # 50+ files — 发布记录
+├── reference/           # 3 files — code standards, a11y rules, testing guide
+├── technical/           # 22 files — architecture, AI, testing, workflows
+│   ├── architecture/    # 4 files — already exists!
+│   ├── ai/              # 8+ files — AI model docs
+│   └── testing/         # 2 files — E2E + infrastructure
+├── task/                # 40 files — active tasks
+├── completed/           # 716 files — historical archive
+├── pr-comments/         # 1,951 files — PR tracking
+└── releases/            # 50+ files — release notes
 ```
 
-**评估：**
-- CLAUDE.md 本身已经是"目录"形式，164 行很合理，没有"塞一大堆上下文"的问题
-- `docs/technical/` 已经按主题分目录，和建议的 `docs/architecture/` + `docs/designs/` 本质相同
-- 真正的问题不是缺少结构，而是 `docs/completed/` 有 716 个文件、`docs/pr-comments/` 有 1,951 个文件 — 这些历史文件可以考虑归档清理
-- **可行优化**：把 `docs/reference/code-quality-rules.md` 的规则嵌入 linter 配置（见第 2 点）
+**Assessment:**
+- CLAUDE.md is already a "table of contents" style file — 164 lines is reasonable, no context bloat
+- `docs/technical/` is already organized by topic, essentially the same as the proposed `docs/architecture/` + `docs/designs/`
+- The real issue isn't missing structure — it's that `docs/completed/` has 716 files and `docs/pr-comments/` has 1,951 files — these historical files could be archived/cleaned up
+- **Viable optimization**: Embed rules from `docs/reference/code-quality-rules.md` into linter config (see point 2)
 
-**优先级：低** — 当前结构已经够用
+**Priority: Low** — current structure is sufficient
 
 ---
 
-## 2. 错误消息嵌修复指令 → Linter 自动引导修复
+## 2. Embed Fix Instructions in Error Messages → Linter-Guided Auto-Repair
 
-**结论: 属实，这是一个真实的缺口**
+**Verdict: True — this is a real gap**
 
-| 声明 | 实际情况 |
-|------|----------|
-| "linter 报错里写'怎么修'" | QCut 用 **Biome**（非 ESLint），无自定义规则消息 |
-| "IPC 边界可以加规则" | **完全没有** IPC/Electron 边界的 lint 规则 |
-| "Agent 读到错就自动改" | Biome 的默认报错消息不含项目特定修复指引 |
+| Claim | Reality |
+|-------|---------|
+| "Linter errors include how to fix" | QCut uses **Biome** (not ESLint) — no custom rule messages |
+| "IPC boundary rules can be added" | **Zero** IPC/Electron boundary lint rules exist |
+| "Agent reads the error and auto-fixes" | Biome's default error messages contain no project-specific fix guidance |
 
-**当前 Lint 配置：**
-- 主项目：`biome.jsonc`，使用 `ultracite/react` 预设
-- qagent 子包：独立 `eslint.config.js`（安全规则 + TypeScript strict）
-- IPC 边界（`window.electronAPI` ~937 处调用）完全靠**人工 review** 维护
+**Current lint configuration:**
+- Main project: `biome.jsonc` using `ultracite/react` preset
+- qagent subpackage: separate `eslint.config.js` (security rules + TypeScript strict)
+- IPC boundaries (`window.electronAPI` ~937 call sites) enforced **entirely by manual review**
 
-**可行实施方案：**
+**Viable implementation approaches:**
 
 ```jsonc
-// biome.jsonc — 添加 noRestrictedImports 或 Biome 自定义诊断
-// Biome 目前不支持自定义消息，但可以通过以下方式实现：
+// biome.jsonc — add noRestrictedImports or Biome custom diagnostics
+// Biome doesn't currently support custom messages, but alternatives exist:
 
-// 方案 A：用 ESLint no-restricted-syntax 规则（需要在根级别加 ESLint）
-// 方案 B：写 pre-commit hook 脚本检查违规模式
-// 方案 C：等 Biome 支持 custom diagnostics（roadmap 中）
+// Option A: Use ESLint no-restricted-syntax rules (requires adding ESLint at root level)
+// Option B: Write pre-commit hook scripts to check for violation patterns
+// Option C: Wait for Biome custom diagnostics support (on their roadmap)
 ```
 
-**具体可做的规则示例：**
-1. **禁止 renderer 直接 import electron 模块** → 引导用 `window.electronAPI`
-2. **禁止 `process.env` 在 client 代码中使用** → 引导用 `import.meta.env`（CLAUDE.md 已写但没有 lint 规则）
-3. **禁止 `any` 类型** → Biome 已有但设为 off，可以 warn 并附说明
+**Concrete rules that could be added:**
+1. **Ban renderer from directly importing electron modules** → guide toward `window.electronAPI`
+2. **Ban `process.env` in client code** → guide toward `import.meta.env` (documented in CLAUDE.md but no lint rule)
+3. **Ban `any` types** → Biome has this rule but it's set to off — could enable as warn with explanation
 
-**优先级：中** — 投入产出比高，但需要评估 Biome vs ESLint 的取舍
+**Priority: Medium** — high ROI, but requires evaluating Biome vs ESLint trade-offs
 
 ---
 
-## 3. CDP 截图验证 UI → Agent 视觉判断
+## 3. CDP Screenshot Verification → Agent Visual Judgment
 
-**结论: 属实，基础设施已有，但缺关键一步**
+**Verdict: True — infrastructure exists, but missing the key piece**
 
-| 声明 | 实际情况 |
-|------|----------|
-| "QCut Electron 可以用 CDP 截图" | Playwright 已能截图，**不需要**直接用 CDP |
-| "e2e 测试时截图" | `screenshot-helper.ts` 已实现 4 种截图函数 |
-| "Agent 看到截图判断 UI 对不对" | **未实现** — 截图只用于人工查看，没有 AI 视觉验证 |
-| "比纯文本断言靠谱" | 当前全部用 `expect(locator).toBeVisible()` 等文本断言 |
+| Claim | Reality |
+|-------|---------|
+| "QCut Electron can use CDP for screenshots" | Playwright already captures screenshots — **no need** for direct CDP |
+| "Screenshot during e2e tests" | `screenshot-helper.ts` implements 4 screenshot functions |
+| "Agent sees screenshot and judges if UI is correct" | **Not implemented** — screenshots only for manual review, no AI visual verification |
+| "More reliable than text assertions" | Currently all assertions use `expect(locator).toBeVisible()` etc. |
 
-**当前 E2E 能力（已有）：**
-- Playwright + Electron 自定义 fixture
-- 22 个 E2E 测试文件
-- 自动视频录制（2 FPS），每个测试生成 MP4
-- 截图工具：`captureScreenshot()`、`captureElementScreenshot()`、`captureTestStep()`、`captureErrorScreenshot()`
-- 失败时自动截图 + trace
+**Current E2E capabilities (already in place):**
+- Playwright + Electron custom fixtures
+- 22 E2E test files
+- Automatic video recording (2 FPS), each test generates an MP4
+- Screenshot utilities: `captureScreenshot()`, `captureElementScreenshot()`, `captureTestStep()`, `captureErrorScreenshot()`
+- Automatic screenshot + trace on failure
 
-**缺失（未实现）：**
-- 无视觉回归测试（`toHaveScreenshot()` / `toMatchSnapshot()` 均未使用）
-- 无基线图片对比
-- 无 AI 视觉验证（把截图发给 LLM 判断 UI 正确性）
-- 无 Percy / Applitools 等第三方视觉测试集成
+**Missing (not implemented):**
+- No visual regression testing (`toHaveScreenshot()` / `toMatchSnapshot()` both unused)
+- No baseline image comparison
+- No AI visual verification (sending screenshots to an LLM to judge UI correctness)
+- No Percy / Applitools or other third-party visual testing integration
 
-**可行实施路径：**
+**Viable implementation path:**
 
 ```
-Level 1 (简单): 启用 Playwright toHaveScreenshot()
-  → 自动生成基线截图，后续跑测试时像素对比
-  → 零成本，内置功能
+Level 1 (Simple): Enable Playwright toHaveScreenshot()
+  → Auto-generates baseline screenshots, pixel-compares on subsequent runs
+  → Zero cost, built-in feature
 
-Level 2 (中等): AI 视觉验证
-  → 截图 → 发给 Gemini/Claude Vision → 判断 UI 是否正常
-  → 适合 layout 回归检测，但速度慢、成本高
+Level 2 (Moderate): AI visual verification
+  → Screenshot → send to Gemini/Claude Vision → judge if UI looks correct
+  → Good for layout regression detection, but slow and costly
 
-Level 3 (高级): Agent 自修复循环
-  → 测试失败 → 截图 → AI 分析 → 自动提 PR 修复
-  → 这就是 OpenAI Codex 在做的事
+Level 3 (Advanced): Agent self-repair loop
+  → Test fails → screenshot → AI analysis → auto-create PR with fix
+  → This is what OpenAI Codex is doing
 ```
 
-**优先级：中高** — Level 1 几乎零成本，建议立即启用
+**Priority: Medium-High** — Level 1 is nearly zero cost, recommended to enable immediately
 
 ---
 
-## 总结
+## Summary
 
-| 建议 | 属实？ | 适用？ | 优先级 | 建议动作 |
-|------|--------|--------|--------|----------|
-| 1. 结构化知识库 | 部分 | 低 | 低 | 维持现状，清理历史文件 |
-| 2. Lint 嵌修复指引 | 是 | 是 | 中 | 先加 `process.env` 和 IPC 边界检查 |
-| 3. 截图视觉验证 | 是 | 是 | 中高 | 先启用 `toHaveScreenshot()`，后续加 AI |
+| Suggestion | True? | Applicable? | Priority | Recommended Action |
+|------------|-------|-------------|----------|--------------------|
+| 1. Structured knowledge base | Partially | Low | Low | Keep current structure, clean up historical files |
+| 2. Lint with fix instructions | Yes | Yes | Medium | Add `process.env` and IPC boundary checks first |
+| 3. Screenshot visual verification | Yes | Yes | Medium-High | Enable `toHaveScreenshot()` first, add AI later |
