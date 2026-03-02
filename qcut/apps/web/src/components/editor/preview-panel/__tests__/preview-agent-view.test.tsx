@@ -100,6 +100,27 @@ describe("PreviewAgentView", () => {
 
 	it("renders terminal emulator when connected", () => {
 		usePtyTerminalStore.setState({
+			sessions: new Map([
+				[
+					"tab-1",
+					{
+						sessionId: "test-session-123",
+						status: "connected",
+						exitCode: null,
+						error: null,
+						cliProvider: "claude",
+						selectedModel: null,
+						selectedClaudeModel: null,
+						isGeminiMode: false,
+						activeSkill: null,
+						skillPromptSent: false,
+						label: "Claude Code 1",
+						createdAt: Date.now(),
+					},
+				],
+			]),
+			sessionOrder: ["tab-1"],
+			activeSessionId: "tab-1",
 			status: "connected",
 			sessionId: "test-session-123",
 		});
@@ -113,6 +134,27 @@ describe("PreviewAgentView", () => {
 
 	it("shows Stop button when connected", () => {
 		usePtyTerminalStore.setState({
+			sessions: new Map([
+				[
+					"tab-1",
+					{
+						sessionId: "test-session",
+						status: "connected",
+						exitCode: null,
+						error: null,
+						cliProvider: "claude",
+						selectedModel: null,
+						selectedClaudeModel: null,
+						isGeminiMode: false,
+						activeSkill: null,
+						skillPromptSent: false,
+						label: "Claude Code 1",
+						createdAt: Date.now(),
+					},
+				],
+			]),
+			sessionOrder: ["tab-1"],
+			activeSessionId: "tab-1",
 			status: "connected",
 			sessionId: "test-session",
 		});
@@ -124,6 +166,27 @@ describe("PreviewAgentView", () => {
 
 	it("shows Connecting state", () => {
 		usePtyTerminalStore.setState({
+			sessions: new Map([
+				[
+					"tab-1",
+					{
+						sessionId: null,
+						status: "connecting",
+						exitCode: null,
+						error: null,
+						cliProvider: "claude",
+						selectedModel: null,
+						selectedClaudeModel: null,
+						isGeminiMode: false,
+						activeSkill: null,
+						skillPromptSent: false,
+						label: "Claude Code 1",
+						createdAt: Date.now(),
+					},
+				],
+			]),
+			sessionOrder: ["tab-1"],
+			activeSessionId: "tab-1",
 			status: "connecting",
 		});
 

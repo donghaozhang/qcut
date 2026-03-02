@@ -199,7 +199,7 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 
 		return (
 			<div
-				className={className}
+				className={`tldraw__editor ${className ?? ""}`}
 				style={{ width: "100%", height: "100%", isolation: "isolate" }}
 			>
 				<Tldraw

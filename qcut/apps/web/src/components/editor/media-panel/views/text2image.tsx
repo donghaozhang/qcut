@@ -183,10 +183,11 @@ export function Text2ImageView() {
 		clearResults();
 	};
 
-	// Draw mode needs a full-height layout (tldraw requires explicit height)
+	// Draw mode needs a full-height layout with no overflow clipping
+	// so tldraw's floating toolbar / style panel / menus render correctly
 	if (modelType === "draw") {
 		return (
-			<div className="h-full flex flex-col">
+			<div className="h-full flex flex-col overflow-hidden">
 				<div className="p-4 pb-2 shrink-0">
 					<ModelTypeSelector
 						selected={modelType}
@@ -194,7 +195,7 @@ export function Text2ImageView() {
 						className="flex-1"
 					/>
 				</div>
-				<div className="flex-1 min-h-0">
+				<div className="flex-1 min-h-0 relative">
 					<DrawView />
 				</div>
 			</div>

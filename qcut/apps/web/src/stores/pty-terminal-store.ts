@@ -621,11 +621,17 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 		},
 
 		disconnect: async (options = {}) => {
+			const userInitiated = options.userInitiated === true;
 			const { activeSessionId } = get();
-			if (!activeSessionId) return;
+			if (!activeSessionId) {
+				// Even without a session, respect user-initiated flag for auto-connect guard
+				if (userInitiated) {
+					set({ hasUserDisconnected: true });
+				}
+				return;
+			}
 
 			const session = get().sessions.get(activeSessionId);
-			const userInitiated = options.userInitiated === true;
 
 			try {
 				if (session?.sessionId) {
@@ -926,11 +932,12 @@ function initIpcRouting(): void {
 
 	window.electronAPI.pty.onData(
 		(event: { sessionId: string; data: string }) => {
-			const { sessions } = usePtyTerminalStore.getState();
-			for (const [tabId, session] of sessions) {
-				if (session.sessionId === event.sessionId) {
-					_dataCallbacks.get(tabId)?.(event.data);
-					return;
+			// Dispatch to ALL registered callbacks matching this backend sessionId.
+			// Multiple TerminalEmulator instances (e.g. media panel + preview panel)
+			// may share the same backend session under different tabIds.
+			for (const [callbackTabId, cb] of _dataCallbacks) {
+				if (_tabMatchesSession(callbackTabId, event.sessionId)) {
+					cb(event.data);
 				}
 			}
 		},
@@ -939,13 +946,40 @@ function initIpcRouting(): void {
 	window.electronAPI.pty.onExit(
 		(event: { sessionId: string; exitCode: number }) => {
 			const state = usePtyTerminalStore.getState();
+			// Find the canonical session tab for state updates
 			for (const [tabId, session] of state.sessions) {
 				if (session.sessionId === event.sessionId) {
-					_exitCallbacks.get(tabId)?.(event.exitCode);
 					state._handleSessionExit(tabId, event.exitCode);
-					return;
+					break;
+				}
+			}
+			// Dispatch exit to all registered callbacks
+			for (const [callbackTabId, cb] of _exitCallbacks) {
+				if (_tabMatchesSession(callbackTabId, event.sessionId)) {
+					cb(event.exitCode);
 				}
 			}
 		},
 	);
+}
+
+/** Check if a callback tabId is associated with a given backend sessionId. */
+function _tabMatchesSession(
+	callbackTabId: string,
+	backendSessionId: string,
+): boolean {
+	const { sessions } = usePtyTerminalStore.getState();
+
+	// Direct session tab match (e.g. "tab-1")
+	const directSession = sessions.get(callbackTabId);
+	if (directSession?.sessionId === backendSessionId) return true;
+
+	// Preview panel tab match (e.g. "preview-tab-1" → look up "tab-1")
+	if (callbackTabId.startsWith("preview-")) {
+		const sourceTabId = callbackTabId.slice("preview-".length);
+		const sourceSession = sessions.get(sourceTabId);
+		if (sourceSession?.sessionId === backendSessionId) return true;
+	}
+
+	return false;
 }

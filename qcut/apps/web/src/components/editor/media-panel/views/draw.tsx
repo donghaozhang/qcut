@@ -161,7 +161,7 @@ const DrawView: React.FC = () => {
 						onShowFiles={() => setShowFiles(true)}
 						className="mb-2 shrink-0"
 					/>
-					<div className="flex-1 min-h-0 rounded-lg overflow-hidden">
+					<div className="flex-1 min-h-0 rounded-lg">
 						<TldrawCanvas key={imageKey} ref={canvasRef} image={image} />
 					</div>
 				</>
