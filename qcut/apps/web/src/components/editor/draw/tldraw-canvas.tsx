@@ -30,7 +30,7 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 		const handleMount = useCallback(
 			(editor: Editor) => {
 				editorRef.current = editor;
-				editor.user.updateUserPreferences({ isDarkMode: true });
+				editor.user.updateUserPreferences({ colorScheme: "dark" });
 				onMount?.(editor);
 			},
 			[onMount]
