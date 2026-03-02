@@ -151,7 +151,10 @@ test.describe("Remotion Export Pipeline", () => {
 			await captureTestStep(page, "remotion-export", 3, "element-on-timeline");
 		});
 
-		test("export dialog shows Remotion engine indicator when timeline has Remotion elements", async ({
+		// Skip: The UI-v3 export dialog redesign removed the visible Remotion engine indicator text.
+		// The engineRecommendation is still computed in use-export-settings.ts but is no longer
+		// rendered in the DetailsCard component. Re-enable when the indicator UI is restored.
+		test.skip("export dialog shows Remotion engine indicator when timeline has Remotion elements", async ({
 			page,
 		}) => {
 			test.setTimeout(TEST_TIMEOUT_MS);

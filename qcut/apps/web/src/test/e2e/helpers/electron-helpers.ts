@@ -58,6 +58,8 @@ async function buildVideoFromScreenshotFrames({
 			String(fps),
 			"-i",
 			inputPatternPath,
+			"-vf",
+			"pad=ceil(iw/2)*2:ceil(ih/2)*2",
 			"-c:v",
 			"libx264",
 			"-pix_fmt",
