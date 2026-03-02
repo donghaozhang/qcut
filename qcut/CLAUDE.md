@@ -126,6 +126,17 @@ qcut/
 - Check availability: `if (window.electronAPI?.sounds)`
 - Type definitions: `src/types/electron.d.ts`
 
+### Electron Boundary Rules
+
+**NEVER in renderer code** (`apps/web/src/`):
+- `window.require("electron")` — bypasses preload bridge, security risk
+- `import { ipcRenderer } from "electron"` — use `window.electronAPI.*`
+- `import fs from "fs"` — use `window.electronAPI.files.*` via IPC
+- `process.env.NODE_ENV` — use `import.meta.env.DEV`
+- `process.env.*` — use `import.meta.env.VITE_*` or Electron IPC
+
+**Enforced by**: `bun scripts/check-boundaries.ts` (runs on pre-commit)
+
 ## Testing
 
 - **Unit**: Vitest + @testing-library/react — `bun run test`

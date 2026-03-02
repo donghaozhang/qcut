@@ -4,7 +4,7 @@ Based on: QCut Electron Architecture Layer Violation Audit (2026-03-02)
 
 **Goal**: Enforce Electron main/renderer boundaries with automated guards so violations are caught at lint-time, commit-time, and CI — not just by code review.
 
-**Status**: In progress on branch `openai-practices-impl`
+**Status**: Complete on branch `openai-practices-impl`
 
 ---
 

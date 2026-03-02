@@ -5,6 +5,31 @@
 	"overrides": [
 		{
 			"includes": [
+				"apps/web/src/components/**",
+				"apps/web/src/routes/**",
+				"apps/web/src/stores/**",
+				"apps/web/src/lib/**",
+				"apps/web/src/hooks/**",
+				"apps/web/src/services/**",
+				"apps/web/src/config/**"
+			],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedGlobals": {
+							"level": "warn",
+							"options": {
+								"deniedGlobals": {
+									"process": "Use import.meta.env.DEV or import.meta.env.VITE_* instead of process.env in renderer code."
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		{
+			"includes": [
 				"apps/web/public/ffmpeg/**",
 				"apps/web/public/ffmpeg*.js",
 				"electron/resources/ffmpeg/**",

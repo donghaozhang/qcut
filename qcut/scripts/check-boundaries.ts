@@ -11,8 +11,9 @@
  * Output is agent-friendly with fix instructions per violation.
  *
  * Usage:
- *   bun scripts/check-boundaries.ts           # scan all renderer files
- *   bun scripts/check-boundaries.ts --staged   # scan only staged files
+ *   bun scripts/check-boundaries.ts                    # scan all renderer files
+ *   bun scripts/check-boundaries.ts --staged            # scan only staged files
+ *   bun scripts/check-boundaries.ts --no-file-size      # skip file-size checks (CI mode)
  */
 
 import { readFileSync, readdirSync, statSync } from "fs";
@@ -167,6 +168,7 @@ function formatViolation(v: Violation): string {
 function main() {
 	const args = process.argv.slice(2);
 	const stagedOnly = args.includes("--staged");
+	const skipFileSize = args.includes("--no-file-size");
 
 	let files: string[];
 	if (stagedOnly) {
@@ -184,13 +186,17 @@ function main() {
 		allViolations.push(...checkFile(file));
 	}
 
-	if (allViolations.length === 0) {
+	const filtered = skipFileSize
+		? allViolations.filter((v) => v.rule !== "file-size")
+		: allViolations;
+
+	if (filtered.length === 0) {
 		console.log(`Boundary check passed (${files.length} files scanned).`);
 		process.exit(0);
 	}
 
-	console.error(`\nBoundary violations found (${allViolations.length}):\n`);
-	for (const v of allViolations) {
+	console.error(`\nBoundary violations found (${filtered.length}):\n`);
+	for (const v of filtered) {
 		console.error(formatViolation(v));
 		console.error("");
 	}
