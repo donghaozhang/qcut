@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -41,6 +41,11 @@ describe("ViMax CLI subcommands", () => {
 			consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		});
 
+		afterEach(() => {
+			exitSpy.mockRestore();
+			consoleSpy.mockRestore();
+		});
+
 		it("parses vimax:extract-characters", () => {
 			const opts = parseCliArgs([
 				"vimax:extract-characters",
@@ -49,8 +54,6 @@ describe("ViMax CLI subcommands", () => {
 			]);
 			expect(opts.command).toBe("vimax:extract-characters");
 			expect(opts.text).toBe("Once upon a time...");
-			exitSpy.mockRestore();
-			consoleSpy.mockRestore();
 		});
 
 		it("parses vimax:generate-script", () => {
@@ -61,8 +64,6 @@ describe("ViMax CLI subcommands", () => {
 			]);
 			expect(opts.command).toBe("vimax:generate-script");
 			expect(opts.idea).toBe("A space adventure");
-			exitSpy.mockRestore();
-			consoleSpy.mockRestore();
 		});
 
 		it("parses vimax:generate-storyboard", () => {
@@ -73,8 +74,6 @@ describe("ViMax CLI subcommands", () => {
 			]);
 			expect(opts.command).toBe("vimax:generate-storyboard");
 			expect(opts.script).toBe("script.json");
-			exitSpy.mockRestore();
-			consoleSpy.mockRestore();
 		});
 
 		it("parses vimax:generate-portraits", () => {
@@ -85,45 +84,33 @@ describe("ViMax CLI subcommands", () => {
 			]);
 			expect(opts.command).toBe("vimax:generate-portraits");
 			expect(opts.text).toBe("A young hero named Alice");
-			exitSpy.mockRestore();
-			consoleSpy.mockRestore();
 		});
 
 		it("parses vimax:create-registry", () => {
 			const opts = parseCliArgs(["vimax:create-registry", "-i", "./portraits"]);
 			expect(opts.command).toBe("vimax:create-registry");
 			expect(opts.input).toBe("./portraits");
-			exitSpy.mockRestore();
-			consoleSpy.mockRestore();
 		});
 
 		it("parses vimax:show-registry", () => {
 			const opts = parseCliArgs(["vimax:show-registry", "-i", "registry.json"]);
 			expect(opts.command).toBe("vimax:show-registry");
 			expect(opts.input).toBe("registry.json");
-			exitSpy.mockRestore();
-			consoleSpy.mockRestore();
 		});
 
 		it("parses vimax:list-models", () => {
 			const opts = parseCliArgs(["vimax:list-models"]);
 			expect(opts.command).toBe("vimax:list-models");
-			exitSpy.mockRestore();
-			consoleSpy.mockRestore();
 		});
 
 		it("parses --stream flag", () => {
 			const opts = parseCliArgs(["list-models", "--stream"]);
 			expect(opts.stream).toBe(true);
-			exitSpy.mockRestore();
-			consoleSpy.mockRestore();
 		});
 
 		it("parses --config-dir flag", () => {
 			const opts = parseCliArgs(["list-models", "--config-dir", "/tmp/cfg"]);
 			expect(opts.configDir).toBe("/tmp/cfg");
-			exitSpy.mockRestore();
-			consoleSpy.mockRestore();
 		});
 
 		it("parses --negative-prompt flag", () => {
@@ -133,15 +120,11 @@ describe("ViMax CLI subcommands", () => {
 				"blurry, low quality",
 			]);
 			expect(opts.negativePrompt).toBe("blurry, low quality");
-			exitSpy.mockRestore();
-			consoleSpy.mockRestore();
 		});
 
 		it("parses --voice-id flag", () => {
 			const opts = parseCliArgs(["create-video", "--voice-id", "voice_abc123"]);
 			expect(opts.voiceId).toBe("voice_abc123");
-			exitSpy.mockRestore();
-			consoleSpy.mockRestore();
 		});
 	});
 
@@ -237,18 +220,20 @@ describe("ViMax CLI subcommands", () => {
 			fs.writeFileSync(path.join(charDir, "front.png"), "fake-image");
 			fs.writeFileSync(path.join(charDir, "side.png"), "fake-image");
 
-			const runner = new CLIPipelineRunner();
-			const noop = vi.fn();
-			const result = await runner.run(
-				defaultOptions({ command: "vimax:create-registry", input: tmpDir }),
-				noop
-			);
-			expect(result.success).toBe(true);
-			expect(result.outputPath).toContain("registry.json");
-			const data = result.data as { characters: number };
-			expect(data.characters).toBe(1);
-
-			fs.rmSync(tmpDir, { recursive: true, force: true });
+			try {
+				const runner = new CLIPipelineRunner();
+				const noop = vi.fn();
+				const result = await runner.run(
+					defaultOptions({ command: "vimax:create-registry", input: tmpDir }),
+					noop
+				);
+				expect(result.success).toBe(true);
+				expect(result.outputPath).toContain("registry.json");
+				const data = result.data as { characters: number };
+				expect(data.characters).toBe(1);
+			} finally {
+				fs.rmSync(tmpDir, { recursive: true, force: true });
+			}
 		});
 
 		it("vimax:show-registry displays registry contents", async () => {
@@ -383,6 +368,11 @@ describe("CLI help includes new vimax commands", () => {
 		consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 	});
 
+	afterEach(() => {
+		exitSpy.mockRestore();
+		consoleSpy.mockRestore();
+	});
+
 	it("help text lists all 7 new vimax subcommands", () => {
 		expect(() => parseCliArgs(["--help"])).toThrow("process.exit");
 		const output = consoleSpy.mock.calls[0][0] as string;
@@ -393,7 +383,5 @@ describe("CLI help includes new vimax commands", () => {
 		expect(output).toContain("vimax:create-registry");
 		expect(output).toContain("vimax:show-registry");
 		expect(output).toContain("vimax:list-models");
-		exitSpy.mockRestore();
-		consoleSpy.mockRestore();
 	});
 });
