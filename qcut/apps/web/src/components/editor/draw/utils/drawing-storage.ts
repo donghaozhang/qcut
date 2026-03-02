@@ -38,9 +38,9 @@ export class DrawingStorage {
 			const drawingId = `${DrawingStorage.STORAGE_PREFIX}${projectId}-${Date.now()}`;
 			const actualFilename = filename || `drawing-${Date.now()}.png`;
 
-			const format = actualFilename.endsWith(".json")
-				? ("json" as const)
-				: ("png" as const);
+			const ext = actualFilename.split(".").pop()?.toLowerCase();
+			const format: DrawingMetadata["format"] =
+				ext === "json" ? "json" : ext === "jpg" || ext === "jpeg" ? "jpg" : ext === "svg" ? "svg" : "png";
 			const metadata: DrawingMetadata = {
 				filename: actualFilename,
 				projectId,

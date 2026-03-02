@@ -16,7 +16,7 @@ Currently the preview panel only switches between Video and MCP via `useMcpAppSt
 
 ### Current State
 
-```
+```text
 preview-panel.tsx renders:
   if (activeHtml)  → MCP iframe mode
   else             → Video canvas mode
@@ -26,7 +26,7 @@ State: useMcpAppStore { activeHtml, toolName, localMcpActive }
 
 ### Target State
 
-```
+```text
 preview-panel.tsx renders:
   previewMode === "mcp"   → MCP iframe mode
   previewMode === "agent"  → Embedded PTY terminal
@@ -96,7 +96,7 @@ Key consideration: The PTY terminal is already used in the media panel. Both the
 
 Replace the current "MCP Media App" / "Video Preview" / "Return to Preview" buttons with a unified 3-way `ToggleGroup`:
 
-```
+```text
 [ Video | MCP | Agent ]
 ```
 

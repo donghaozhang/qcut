@@ -77,12 +77,16 @@ export function createPersistenceOperations(
 
 				const mediaItem = firstMediaElement
 					? mediaItems.find((item) => item.id === firstMediaElement.mediaId)
-					: mediaItems.find(
-							(item) => item.type === "image" || item.type === "video"
-						);
-				if (!mediaItem) return null;
+					: undefined;
+				const fallbackItem = mediaItem
+					? undefined
+					: [...mediaItems]
+							.filter((item) => item.type === "image" || item.type === "video")
+							.sort((a, b) => (b.lastModified ?? 0) - (a.lastModified ?? 0))[0];
+				const resolvedMediaItem = mediaItem ?? fallbackItem;
+				if (!resolvedMediaItem) return null;
 
-				if (mediaItem.type === "video" && mediaItem.file) {
+				if (resolvedMediaItem.type === "video" && resolvedMediaItem.file) {
 					const { generateVideoThumbnail } = await import(
 						"@/stores/media/media-store-loader"
 					).then((m) => m.getMediaStoreUtils());
@@ -90,8 +94,8 @@ export function createPersistenceOperations(
 					return thumbnailUrl;
 				}
 				// Handle image with file but no url (non-Electron lazy blob creation)
-				if (mediaItem.type === "image" && mediaItem.file?.size > 0) {
-					return mediaItem.url || URL.createObjectURL(mediaItem.file);
+				if (resolvedMediaItem.type === "image" && resolvedMediaItem.file?.size > 0) {
+					return resolvedMediaItem.url || URL.createObjectURL(resolvedMediaItem.file);
 				}
 
 				return null;

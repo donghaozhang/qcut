@@ -183,6 +183,12 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 				if (!editor) return;
 				const snapshot = JSON.parse(snapshotJson);
 				editor.store.loadStoreSnapshot(snapshot);
+				// Re-derive imageShapeId from the loaded store
+				const shapes = [...editor.getCurrentPageShapeIds()];
+				const lockedImage = shapes
+					.map((id) => editor.getShape(id))
+					.find((s) => s?.type === "image" && s.isLocked);
+				setImageShapeId(lockedImage?.id ?? null);
 			},
 
 			clearAll: () => {

@@ -44,7 +44,7 @@ Background blur/color is a visual property of the project canvas but lives under
 
 Merge Project Info and Background into the Properties tab empty state:
 
-```
+```text
 Properties tab (nothing selected):
 ├── Project Information (collapsible, editable)
 │   ├── Name

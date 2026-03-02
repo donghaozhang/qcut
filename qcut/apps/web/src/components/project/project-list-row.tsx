@@ -36,6 +36,8 @@ export function ProjectListRow({
 			try {
 				const thumbnail = await getProjectThumbnail(project.id);
 				setDynamicThumbnail(thumbnail);
+			} catch {
+				setDynamicThumbnail(null);
 			} finally {
 				setIsLoadingThumbnail(false);
 			}
@@ -127,6 +129,7 @@ export function ProjectListRow({
 				>
 					<DropdownMenuTrigger asChild>
 						<Button
+							type="button"
 							variant="text"
 							size="sm"
 							className={`size-6 p-0 shrink-0 transition-all ${
@@ -137,6 +140,7 @@ export function ProjectListRow({
 							onClick={(e) => e.preventDefault()}
 						>
 							<MoreHorizontal className="size-4" />
+							<span className="sr-only">Project options</span>
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent

@@ -52,15 +52,22 @@ export function SessionTab({
 	return (
 		<div
 			role="tab"
+			tabIndex={0}
 			aria-selected={isActive}
 			data-testid={`session-tab-${tabId}`}
 			className={cn(
-				"group flex items-center gap-1.5 h-7 px-2 rounded text-xs cursor-pointer select-none shrink-0 max-w-[160px]",
+				"group flex items-center gap-1.5 h-7 px-2 rounded text-xs cursor-pointer select-none shrink-0 max-w-[160px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 				isActive
 					? "bg-background text-foreground shadow-sm border border-border/50"
 					: "text-muted-foreground hover:bg-muted/50",
 			)}
 			onClick={onSelect}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault();
+					onSelect();
+				}
+			}}
 			onDoubleClick={handleDoubleClick}
 		>
 			<div

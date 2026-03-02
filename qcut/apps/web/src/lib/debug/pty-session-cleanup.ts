@@ -11,11 +11,7 @@ export function cleanupPtyOnEditorExit({
 	onError = debugError,
 }: CleanupPtyOnEditorExitOptions = {}): void {
 	try {
-		const { sessions } = usePtyTerminalStore.getState();
-		if (sessions.size === 0) {
-			return;
-		}
-		// Kill all PTY sessions at once for efficiency
+		// Always attempt killAll — backend may have orphan sessions not tracked in store
 		window.electronAPI?.pty?.killAll()?.catch((error: unknown) => {
 			onError("[Editor] Failed to kill all PTY sessions on exit", error);
 		});

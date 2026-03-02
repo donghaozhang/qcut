@@ -32,7 +32,12 @@ export function PreviewAgentView() {
 	// Claim terminal mount on mount, release on unmount
 	useEffect(() => {
 		setTerminalMountedIn("preview-panel");
-		return () => setTerminalMountedIn(null);
+		return () => {
+			// Only release if we still own the mount
+			if (usePtyTerminalStore.getState().terminalMountedIn === "preview-panel") {
+				setTerminalMountedIn(null);
+			}
+		};
 	}, [setTerminalMountedIn]);
 
 	useEffect(() => {

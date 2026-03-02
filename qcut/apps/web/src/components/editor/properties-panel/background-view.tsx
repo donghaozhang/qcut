@@ -123,9 +123,10 @@ export function BackgroundView() {
 				<div className="grid grid-cols-4 gap-2 w-full">
 					<button
 						type="button"
-						className="w-full aspect-square rounded-sm cursor-pointer border border-foreground/15 hover:border-primary flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-						aria-label="Pick a custom color"
-						title="Pick a custom color"
+						disabled
+						className="w-full aspect-square rounded-sm border border-foreground/15 flex items-center justify-center opacity-40 cursor-not-allowed"
+						aria-label="Custom color picker (coming soon)"
+						title="Custom color picker (coming soon)"
 					>
 						<PipetteIcon className="size-4" />
 					</button>

@@ -9,6 +9,7 @@ import {
 import { CanvasToolbar } from "@/components/editor/draw/components/canvas-toolbar";
 import { SavedDrawings } from "@/components/editor/draw/components/saved-drawings";
 import { useProjectStore } from "@/stores/project-store";
+import { toast } from "sonner";
 
 function loadImageFile(file: File): Promise<AnnotatorImage> {
 	return new Promise((resolve, reject) => {
@@ -43,8 +44,12 @@ function ImagePicker({
 	const handleFile = useCallback(
 		async (file: File) => {
 			if (!file.type.startsWith("image/")) return;
-			const image = await loadImageFile(file);
-			onChooseImage(image);
+			try {
+				const image = await loadImageFile(file);
+				onChooseImage(image);
+			} catch {
+				toast.error("Failed to load image");
+			}
 		},
 		[onChooseImage]
 	);
@@ -145,8 +150,8 @@ const DrawView: React.FC = () => {
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() => handleChooseImage(image)}
-						title="Change image"
+						onClick={() => setImage(null)}
+						title="Choose a different image"
 					>
 						<Upload className="w-3 h-3 mr-1" />
 						New Image

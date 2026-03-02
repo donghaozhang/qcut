@@ -100,7 +100,7 @@ interface PtyTerminalActions {
 		skill: import("./pty-session-types").ActiveSkillContext | null,
 	) => void;
 	clearSkillContext: () => void;
-	sendSkillPrompt: () => void;
+	sendSkillPrompt: (targetTabId?: string) => void;
 
 	// Internal state updates
 	handleConnected: (sessionId: string) => void;
@@ -518,9 +518,9 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 					if (selectedModel) {
 						command += ` --model ${selectedModel}`;
 					}
-					if (activeSkill?.folderName && workingDirectory) {
+					if (activeSkill?.folderName && resolvedCwd) {
 						const skillFilePath = buildSkillFilePath(
-							workingDirectory,
+							resolvedCwd,
 							activeSkill.folderName,
 						);
 						const escapedPath =
@@ -590,8 +590,9 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 						!latest.skillPromptSent &&
 						cliProvider === "gemini"
 					) {
+						const capturedTabId = tabId;
 						setTimeout(() => {
-							get().sendSkillPrompt();
+							get().sendSkillPrompt(capturedTabId);
 						}, 2000);
 					}
 				} else {
@@ -807,10 +808,11 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 			}
 		},
 
-		sendSkillPrompt: () => {
+		sendSkillPrompt: (targetTabId?: string) => {
 			const { activeSessionId, sessions } = get();
-			if (!activeSessionId) return;
-			const session = sessions.get(activeSessionId);
+			const tabId = targetTabId ?? activeSessionId;
+			if (!tabId) return;
+			const session = sessions.get(tabId);
 			if (
 				!session?.activeSkill ||
 				session.skillPromptSent ||
@@ -937,7 +939,11 @@ function initIpcRouting(): void {
 			// may share the same backend session under different tabIds.
 			for (const [callbackTabId, cb] of _dataCallbacks) {
 				if (_tabMatchesSession(callbackTabId, event.sessionId)) {
-					cb(event.data);
+					try {
+						cb(event.data);
+					} catch {
+						// Isolate callback failures so other tabs still receive data
+					}
 				}
 			}
 		},
@@ -956,7 +962,11 @@ function initIpcRouting(): void {
 			// Dispatch exit to all registered callbacks
 			for (const [callbackTabId, cb] of _exitCallbacks) {
 				if (_tabMatchesSession(callbackTabId, event.sessionId)) {
-					cb(event.exitCode);
+					try {
+						cb(event.exitCode);
+					} catch {
+						// Isolate callback failures so other tabs still receive exit
+					}
 				}
 			}
 		},

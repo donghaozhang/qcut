@@ -337,7 +337,7 @@ export function PtyTerminalView() {
 								status={session.status}
 								isActive={tabId === activeSessionId}
 								onSelect={() => switchSession(tabId)}
-								onClose={() => closeSession(tabId)}
+								onClose={() => { closeSession(tabId).catch(setAsyncActionError); }}
 								onRename={(label) => renameSession(tabId, label)}
 							/>
 						);
@@ -417,7 +417,7 @@ export function PtyTerminalView() {
 							Click Start to launch {CLI_PROVIDERS[cliProvider].name}
 						</p>
 						<p className="text-xs mt-1 opacity-70">
-							Or press + to create a new session
+							Select a provider above and click Start
 						</p>
 					</div>
 				)}
