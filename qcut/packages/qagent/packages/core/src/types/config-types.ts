@@ -13,53 +13,53 @@ export type EventPriority = "urgent" | "action" | "warning" | "info";
 
 /** All orchestrator event types */
 export type EventType =
-	// Session lifecycle
-	| "session.spawned"
-	| "session.working"
-	| "session.exited"
-	| "session.killed"
-	| "session.stuck"
-	| "session.needs_input"
-	| "session.errored"
-	// PR lifecycle
-	| "pr.created"
-	| "pr.updated"
-	| "pr.merged"
-	| "pr.closed"
-	// CI
-	| "ci.passing"
-	| "ci.failing"
-	| "ci.fix_sent"
-	| "ci.fix_failed"
-	// Reviews
-	| "review.pending"
-	| "review.approved"
-	| "review.changes_requested"
-	| "review.comments_sent"
-	| "review.comments_unresolved"
-	// Automated reviews
-	| "automated_review.found"
-	| "automated_review.fix_sent"
-	// Merge
-	| "merge.ready"
-	| "merge.conflicts"
-	| "merge.completed"
-	// Reactions
-	| "reaction.triggered"
-	| "reaction.escalated"
-	// Summary
-	| "summary.all_complete";
+  // Session lifecycle
+  | "session.spawned"
+  | "session.working"
+  | "session.exited"
+  | "session.killed"
+  | "session.stuck"
+  | "session.needs_input"
+  | "session.errored"
+  // PR lifecycle
+  | "pr.created"
+  | "pr.updated"
+  | "pr.merged"
+  | "pr.closed"
+  // CI
+  | "ci.passing"
+  | "ci.failing"
+  | "ci.fix_sent"
+  | "ci.fix_failed"
+  // Reviews
+  | "review.pending"
+  | "review.approved"
+  | "review.changes_requested"
+  | "review.comments_sent"
+  | "review.comments_unresolved"
+  // Automated reviews
+  | "automated_review.found"
+  | "automated_review.fix_sent"
+  // Merge
+  | "merge.ready"
+  | "merge.conflicts"
+  | "merge.completed"
+  // Reactions
+  | "reaction.triggered"
+  | "reaction.escalated"
+  // Summary
+  | "summary.all_complete";
 
 /** An event emitted by the orchestrator */
 export interface OrchestratorEvent {
-	id: string;
-	type: EventType;
-	priority: EventPriority;
-	sessionId: SessionId;
-	projectId: string;
-	timestamp: Date;
-	message: string;
-	data: Record<string, unknown>;
+  id: string;
+  type: EventType;
+  priority: EventPriority;
+  sessionId: SessionId;
+  projectId: string;
+  timestamp: Date;
+  message: string;
+  data: Record<string, unknown>;
 }
 
 // =============================================================================
@@ -68,37 +68,37 @@ export interface OrchestratorEvent {
 
 /** A configured automatic reaction to an event */
 export interface ReactionConfig {
-	/** Whether this reaction is enabled */
-	auto: boolean;
+  /** Whether this reaction is enabled */
+  auto: boolean;
 
-	/** What to do: send message to agent, notify human, auto-merge */
-	action: "send-to-agent" | "notify" | "auto-merge" | "send-structured-review";
+  /** What to do: send message to agent, notify human, auto-merge */
+  action: "send-to-agent" | "notify" | "auto-merge" | "send-structured-review";
 
-	/** Message to send (for send-to-agent) */
-	message?: string;
+  /** Message to send (for send-to-agent) */
+  message?: string;
 
-	/** Priority for notifications */
-	priority?: EventPriority;
+  /** Priority for notifications */
+  priority?: EventPriority;
 
-	/** How many times to retry send-to-agent before escalating */
-	retries?: number;
+  /** How many times to retry send-to-agent before escalating */
+  retries?: number;
 
-	/** Escalate to human notification after this many failures or this duration */
-	escalateAfter?: number | string;
+  /** Escalate to human notification after this many failures or this duration */
+  escalateAfter?: number | string;
 
-	/** Threshold duration for time-based triggers (e.g. "10m" for stuck detection) */
-	threshold?: string;
+  /** Threshold duration for time-based triggers (e.g. "10m" for stuck detection) */
+  threshold?: string;
 
-	/** Whether to include a summary in the notification */
-	includeSummary?: boolean;
+  /** Whether to include a summary in the notification */
+  includeSummary?: boolean;
 }
 
 export interface ReactionResult {
-	reactionType: string;
-	success: boolean;
-	action: string;
-	message?: string;
-	escalated: boolean;
+  reactionType: string;
+  success: boolean;
+  action: string;
+  message?: string;
+  escalated: boolean;
 }
 
 // =============================================================================
@@ -107,119 +107,119 @@ export interface ReactionResult {
 
 /** Top-level orchestrator configuration (from qagent.yaml) */
 export interface OrchestratorConfig {
-	/**
-	 * Path to the config file (set automatically during load).
-	 * Used for hash-based directory structure.
-	 * All paths are auto-derived from this location.
-	 */
-	configPath: string;
+  /**
+   * Path to the config file (set automatically during load).
+   * Used for hash-based directory structure.
+   * All paths are auto-derived from this location.
+   */
+  configPath: string;
 
-	/** Web dashboard port (defaults to 3000) */
-	port?: number;
+  /** Web dashboard port (defaults to 3000) */
+  port?: number;
 
-	/** Terminal WebSocket server port (defaults to 3001) */
-	terminalPort?: number;
+  /** Terminal WebSocket server port (defaults to 3001) */
+  terminalPort?: number;
 
-	/** Direct terminal WebSocket server port (defaults to 3003) */
-	directTerminalPort?: number;
+  /** Direct terminal WebSocket server port (defaults to 3003) */
+  directTerminalPort?: number;
 
-	/** Milliseconds before a "ready" session becomes "idle" (default: 300000 = 5 min) */
-	readyThresholdMs: number;
+  /** Milliseconds before a "ready" session becomes "idle" (default: 300000 = 5 min) */
+  readyThresholdMs: number;
 
-	/** Default plugin selections */
-	defaults: DefaultPlugins;
+  /** Default plugin selections */
+  defaults: DefaultPlugins;
 
-	/** Project configurations */
-	projects: Record<string, ProjectConfig>;
+  /** Project configurations */
+  projects: Record<string, ProjectConfig>;
 
-	/** Notification channel configs */
-	notifiers: Record<string, NotifierConfig>;
+  /** Notification channel configs */
+  notifiers: Record<string, NotifierConfig>;
 
-	/** Notification routing by priority */
-	notificationRouting: Record<EventPriority, string[]>;
+  /** Notification routing by priority */
+  notificationRouting: Record<EventPriority, string[]>;
 
-	/** Default reaction configs */
-	reactions: Record<string, ReactionConfig>;
+  /** Default reaction configs */
+  reactions: Record<string, ReactionConfig>;
 }
 
 export interface DefaultPlugins {
-	runtime: string;
-	agent: string;
-	workspace: string;
-	notifiers: string[];
+  runtime: string;
+  agent: string;
+  workspace: string;
+  notifiers: string[];
 }
 
 export interface ProjectConfig {
-	/** Display name */
-	name: string;
+  /** Display name */
+  name: string;
 
-	/** GitHub repo in "owner/repo" format */
-	repo: string;
+  /** GitHub repo in "owner/repo" format */
+  repo: string;
 
-	/** Local path to the repo */
-	path: string;
+  /** Local path to the repo */
+  path: string;
 
-	/** Default branch (main, master, next, develop, etc.) */
-	defaultBranch: string;
+  /** Default branch (main, master, next, develop, etc.) */
+  defaultBranch: string;
 
-	/** Session name prefix (e.g. "app" → "app-1", "app-2") */
-	sessionPrefix: string;
+  /** Session name prefix (e.g. "app" → "app-1", "app-2") */
+  sessionPrefix: string;
 
-	/** Override default runtime */
-	runtime?: string;
+  /** Override default runtime */
+  runtime?: string;
 
-	/** Override default agent */
-	agent?: string;
+  /** Override default agent */
+  agent?: string;
 
-	/** Override default workspace */
-	workspace?: string;
+  /** Override default workspace */
+  workspace?: string;
 
-	/** Issue tracker configuration */
-	tracker?: TrackerConfig;
+  /** Issue tracker configuration */
+  tracker?: TrackerConfig;
 
-	/** SCM configuration (usually inferred from repo) */
-	scm?: SCMConfig;
+  /** SCM configuration (usually inferred from repo) */
+  scm?: SCMConfig;
 
-	/** Files/dirs to symlink into workspaces */
-	symlinks?: string[];
+  /** Files/dirs to symlink into workspaces */
+  symlinks?: string[];
 
-	/** Commands to run after workspace creation */
-	postCreate?: string[];
+  /** Commands to run after workspace creation */
+  postCreate?: string[];
 
-	/** Agent-specific configuration */
-	agentConfig?: AgentSpecificConfig;
+  /** Agent-specific configuration */
+  agentConfig?: AgentSpecificConfig;
 
-	/** Per-project reaction overrides */
-	reactions?: Record<string, Partial<ReactionConfig>>;
+  /** Per-project reaction overrides */
+  reactions?: Record<string, Partial<ReactionConfig>>;
 
-	/** Inline rules/instructions passed to every agent prompt */
-	agentRules?: string;
+  /** Inline rules/instructions passed to every agent prompt */
+  agentRules?: string;
 
-	/** Path to a file containing agent rules (relative to project path) */
-	agentRulesFile?: string;
+  /** Path to a file containing agent rules (relative to project path) */
+  agentRulesFile?: string;
 
-	/** Rules for the orchestrator agent (stored, reserved for future use) */
-	orchestratorRules?: string;
+  /** Rules for the orchestrator agent (stored, reserved for future use) */
+  orchestratorRules?: string;
 }
 
 export interface TrackerConfig {
-	plugin: string;
-	/** Plugin-specific config (e.g. teamId for Linear) */
-	[key: string]: unknown;
+  plugin: string;
+  /** Plugin-specific config (e.g. teamId for Linear) */
+  [key: string]: unknown;
 }
 
 export interface SCMConfig {
-	plugin: string;
-	[key: string]: unknown;
+  plugin: string;
+  [key: string]: unknown;
 }
 
 export interface NotifierConfig {
-	plugin: string;
-	[key: string]: unknown;
+  plugin: string;
+  [key: string]: unknown;
 }
 
 export interface AgentSpecificConfig {
-	permissions?: "skip" | "default";
-	model?: string;
-	[key: string]: unknown;
+  permissions?: "skip" | "default";
+  model?: string;
+  [key: string]: unknown;
 }
