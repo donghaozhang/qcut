@@ -9,8 +9,8 @@ export const Route = createFileRoute("/")({
 
 function HomePage() {
 	return (
-		<div className="bg-black min-h-screen relative">
-			<Header variant="dark" />
+		<div className="bg-background min-h-screen relative">
+			<Header variant="landing" />
 			<Hero />
 			<Footer />
 		</div>

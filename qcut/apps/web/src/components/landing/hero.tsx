@@ -24,7 +24,7 @@ export function Hero() {
 	useAnimationFrame(tick);
 
 	return (
-		<div className="min-h-[calc(100vh-4.5rem)] supports-[height:100dvh]:min-h-[calc(100dvh-4.5rem)] flex flex-col justify-between items-center text-center bg-black">
+		<div className="min-h-[calc(100vh-8rem)] supports-[height:100dvh]:min-h-[calc(100dvh-8rem)] flex flex-col justify-between items-center text-center bg-background">
 			{/* Text content */}
 			<motion.div
 				initial={{ opacity: 0 }}
@@ -43,7 +43,7 @@ export function Hero() {
 				</motion.div>
 
 				<motion.p
-					className="mt-3 text-xl md:text-2xl font-medium text-neutral-200 tracking-wide"
+					className="mt-3 text-xl md:text-2xl font-medium text-muted-foreground tracking-wide"
 					initial={{ opacity: 0, y: 20 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ delay: 0.5, duration: 0.8 }}
@@ -52,7 +52,7 @@ export function Hero() {
 				</motion.p>
 
 				<motion.p
-					className="mt-8 text-base sm:text-lg text-neutral-500 font-light tracking-wide max-w-xl mx-auto"
+					className="mt-8 text-base sm:text-lg text-muted-foreground/70 font-light tracking-wide max-w-xl mx-auto"
 					initial={{ opacity: 0 }}
 					animate={{ opacity: 1 }}
 					transition={{ delay: 0.7, duration: 0.8 }}
@@ -77,7 +77,7 @@ export function Hero() {
 						href="https://quriosity.com.au/"
 						target="_blank"
 						rel="noopener noreferrer"
-						className="inline-flex items-center justify-center px-8 py-3 rounded-lg border border-neutral-600 text-neutral-200 font-semibold text-sm hover:border-neutral-400 hover:text-white transition-colors"
+						className="inline-flex items-center justify-center px-8 py-3 rounded-lg border border-border text-foreground/80 font-semibold text-sm hover:border-foreground/40 hover:text-foreground transition-colors"
 					>
 						Learn More
 					</a>

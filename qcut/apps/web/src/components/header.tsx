@@ -8,11 +8,12 @@ import { ThemeToggle } from "./ui/theme-toggle";
 import { getAssetPath } from "@/lib/asset-path";
 
 interface HeaderProps {
-	variant?: "default" | "dark";
+	variant?: "default" | "dark" | "landing";
 }
 
 export function Header({ variant = "default" }: HeaderProps) {
 	const isDark = variant === "dark";
+	const isLanding = variant === "landing";
 
 	const leftContent = (
 		<Link to="/" className="flex items-center gap-3">
@@ -45,7 +46,7 @@ export function Header({ variant = "default" }: HeaderProps) {
 			<Link to="/projects">
 				<Button
 					size="sm"
-					className={`text-sm ml-4 ${isDark ? "bg-yellow-500 text-black hover:bg-yellow-400 border-0" : ""}`}
+					className={`text-sm ml-4 ${isLanding ? "bg-yellow-500 text-black hover:bg-yellow-400 border-0" : isDark ? "bg-yellow-500 text-black hover:bg-yellow-400 border-0" : ""}`}
 				>
 					Projects
 					<ArrowRight className="h-4 w-4" />
@@ -57,7 +58,7 @@ export function Header({ variant = "default" }: HeaderProps) {
 	return (
 		<div
 			className={
-				isDark
+				isDark || isLanding
 					? "absolute top-0 left-0 right-0 z-20 mx-4 md:mx-0"
 					: "mx-4 md:mx-0"
 			}
@@ -66,7 +67,9 @@ export function Header({ variant = "default" }: HeaderProps) {
 				className={
 					isDark
 						? "bg-transparent max-w-3xl mx-auto mt-4 pl-4 pr-[14px]"
-						: "bg-background border rounded-2xl max-w-3xl mx-auto mt-4 pl-4 pr-[14px]"
+						: isLanding
+							? "bg-background/80 backdrop-blur-sm border rounded-2xl max-w-3xl mx-auto mt-4 pl-4 pr-[14px]"
+							: "bg-background border rounded-2xl max-w-3xl mx-auto mt-4 pl-4 pr-[14px]"
 				}
 				leftContent={leftContent}
 				rightContent={rightContent}

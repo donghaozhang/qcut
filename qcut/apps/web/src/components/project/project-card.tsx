@@ -103,12 +103,12 @@ export function ProjectCard({
 
 	const cardContent = (
 		<Card
-			className={`overflow-hidden bg-background border-none p-0 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-1 ${
+			className={`overflow-hidden bg-card border border-border/50 dark:border-border p-0 shadow-sm hover:shadow-md dark:shadow-black/30 transition-all duration-200 hover:-translate-y-1 ${
 				isSelectionMode && isSelected ? "ring-2 ring-primary" : ""
 			}`}
 			data-testid="project-list-item"
 		>
-			<div className="card-vignette relative aspect-video bg-muted rounded-t-md overflow-hidden">
+			<div className="card-vignette relative aspect-video bg-muted dark:bg-muted/80 rounded-t-md overflow-hidden">
 				{isSelectionMode && (
 					<div className="absolute top-3 left-3 z-10">
 						<div className="w-5 h-5 rounded bg-background/80 backdrop-blur-xs border flex items-center justify-center">
@@ -126,7 +126,7 @@ export function ProjectCard({
 
 				<div className="absolute inset-0 group-hover:brightness-110 transition-[filter] duration-200">
 					{isLoadingThumbnail ? (
-						<div className="w-full h-full bg-gradient-to-br from-muted/60 to-muted/30 flex items-center justify-center">
+						<div className="w-full h-full bg-gradient-to-br from-muted to-muted/60 dark:from-[hsl(0,0%,18%)] dark:to-[hsl(0,0%,12%)] flex items-center justify-center">
 							<Loader2 className="h-6 w-6 text-muted-foreground animate-spin" />
 						</div>
 					) : dynamicThumbnail ? (
@@ -136,8 +136,8 @@ export function ProjectCard({
 							className="w-full h-full object-cover"
 						/>
 					) : (
-						<div className="w-full h-full bg-gradient-to-br from-muted/60 to-muted/30 flex items-center justify-center">
-							<Video className="h-6 w-6 shrink-0 text-muted-foreground/70" />
+						<div className="w-full h-full bg-gradient-to-br from-muted to-muted/60 dark:from-[hsl(0,0%,18%)] dark:to-[hsl(0,0%,12%)] flex items-center justify-center">
+							<Video className="h-6 w-6 shrink-0 text-muted-foreground" />
 						</div>
 					)}
 				</div>
