@@ -65,11 +65,12 @@ export function createPersistenceOperations(
 					.filter((element) => element.type === "media")
 					.sort((a, b) => a.startTime - b.startTime)[0];
 
-				if (!firstMediaElement) return null;
-
-				const mediaItem = mediaItems.find(
-					(item) => item.id === firstMediaElement.mediaId
-				);
+				// Use timeline element's media, or fall back to first media panel item
+				const mediaItem = firstMediaElement
+					? mediaItems.find((item) => item.id === firstMediaElement.mediaId)
+					: mediaItems.find(
+							(item) => item.type === "image" || item.type === "video"
+						);
 				if (!mediaItem) return null;
 
 				if (mediaItem.type === "video" && mediaItem.file) {

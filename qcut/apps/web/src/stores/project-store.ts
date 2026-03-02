@@ -282,8 +282,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			await sceneStore.initializeProjectScenes(project);
 
 			// Load timeline and stickers in parallel (both may depend on media being loaded)
+			const currentSceneId = useSceneStore.getState().currentScene?.id;
 			await Promise.all([
-				timelineStore.loadProjectTimeline({ projectId: id }),
+				timelineStore.loadProjectTimeline({
+					projectId: id,
+					sceneId: currentSceneId,
+				}),
 				stickersStore.loadFromProject(id),
 			]);
 
