@@ -33,6 +33,13 @@ import {
 } from "./preview-panel/mcp-media-app";
 import { useEffectsRendering } from "./preview-panel/use-effects-rendering";
 import { usePreviewDrag } from "./preview-panel/use-preview-drag";
+import {
+	usePreviewModeStore,
+	type PreviewMode,
+} from "@/stores/preview-mode-store";
+import { PreviewAgentView } from "./preview-panel/preview-agent-view";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { MonitorPlay, AppWindow, Bot } from "lucide-react";
 
 /** Main preview panel component for video playback, MCP apps, and element overlays. */
 export function PreviewPanel() {
@@ -65,6 +72,8 @@ export function PreviewPanel() {
 	const setMcpApp = useMcpAppStore((state) => state.setMcpApp);
 	const clearMcpApp = useMcpAppStore((state) => state.clearMcpApp);
 	const setLocalMcpActive = useMcpAppStore((state) => state.setLocalMcpActive);
+	const previewMode = usePreviewModeStore((state) => state.previewMode);
+	const setPreviewMode = usePreviewModeStore((state) => state.setPreviewMode);
 
 	// Local MCP: derive HTML fresh from template every render (auto-reload on HMR)
 	// External MCP: use stored HTML from IPC
@@ -139,6 +148,8 @@ export function PreviewPanel() {
 					toolName:
 						typeof payload.toolName === "string" ? payload.toolName : null,
 				});
+				// Auto-switch to MCP mode when external app pushes HTML
+				setPreviewMode("mcp");
 			} catch {
 				// Ignore malformed payloads from external tools.
 			}
@@ -157,7 +168,7 @@ export function PreviewPanel() {
 				// Listener cleanup best-effort
 			}
 		};
-	}, [setMcpApp]);
+	}, [setMcpApp, setPreviewMode]);
 
 	useEffect(() => {
 		const handleEscapeKey = (event: KeyboardEvent) => {
@@ -183,34 +194,21 @@ export function PreviewPanel() {
 		setIsExpanded((prev) => !prev);
 	}, []);
 
-	const toggleMcpMediaApp = useCallback(() => {
-		try {
-			debugLog("[MCP] toggle clicked, localMcpActive:", localMcpActive);
-			if (localMcpActive) {
+	const handleModeChange = useCallback(
+		(mode: string) => {
+			if (!mode) return;
+			const newMode = mode as PreviewMode;
+			debugLog("[PreviewMode] switching to:", newMode);
+			if (newMode === "mcp" && !activeHtml) {
+				// Activate built-in MCP app if no external HTML
+				setLocalMcpActive(true);
+			}
+			if (newMode !== "mcp" && localMcpActive) {
 				setLocalMcpActive(false);
-				debugLog("[MCP] switched OFF");
-				return;
 			}
-			setLocalMcpActive(true);
-			debugLog("[MCP] switched ON");
-		} catch {
-			// Ignore local MCP toggle errors to avoid blocking normal preview.
-		}
-	}, [localMcpActive, setLocalMcpActive]);
-
-	const handleToggleMcpKeyDown = useCallback(
-		(event: React.KeyboardEvent<HTMLButtonElement>) => {
-			try {
-				if (event.key !== "Enter" && event.key !== " ") {
-					return;
-				}
-				event.preventDefault();
-				toggleMcpMediaApp();
-			} catch {
-				// Keep keyboard handling resilient for the preview controls.
-			}
+			setPreviewMode(newMode);
 		},
-		[toggleMcpMediaApp]
+		[activeHtml, localMcpActive, setLocalMcpActive, setPreviewMode]
 	);
 
 	// Helper function to capture current preview frame
@@ -548,7 +546,31 @@ export function PreviewPanel() {
 		);
 	}
 
-	if (activeHtml) {
+	// Shared mode toggle rendered in every mode's header
+	const modeToggle = (
+		<ToggleGroup
+			type="single"
+			value={previewMode}
+			onValueChange={handleModeChange}
+			size="sm"
+			className="h-7"
+		>
+			<ToggleGroupItem value="video" aria-label="Video preview" className="px-2 py-1 text-xs gap-1">
+				<MonitorPlay className="size-3" />
+				<span className="hidden sm:inline">Video</span>
+			</ToggleGroupItem>
+			<ToggleGroupItem value="mcp" aria-label="MCP app" className="px-2 py-1 text-xs gap-1">
+				<AppWindow className="size-3" />
+				<span className="hidden sm:inline">MCP</span>
+			</ToggleGroupItem>
+			<ToggleGroupItem value="agent" aria-label="Agent terminal" className="px-2 py-1 text-xs gap-1">
+				<Bot className="size-3" />
+				<span className="hidden sm:inline">Agent</span>
+			</ToggleGroupItem>
+		</ToggleGroup>
+	);
+
+	if (previewMode === "mcp") {
 		return (
 			<div
 				className="h-full w-full flex flex-col min-h-0 min-w-0 bg-panel rounded-sm"
@@ -556,47 +578,43 @@ export function PreviewPanel() {
 			>
 				<div className="flex items-center justify-between px-3 py-2 border-b">
 					<p className="text-sm font-medium text-foreground truncate">
-						{activeToolName ? `MCP App: ${activeToolName}` : "MCP App"}
+						{activeToolName ? `MCP: ${activeToolName}` : "MCP App"}
 					</p>
-					<div className="flex items-center gap-2">
-						<button
-							type="button"
-							className="text-xs px-2 py-1 rounded border hover:bg-muted transition-colors"
-							onClick={toggleMcpMediaApp}
-							onKeyDown={handleToggleMcpKeyDown}
-							aria-label="Switch to MCP media app"
-						>
-							{isMcpMediaAppActive ? "Video Preview" : "MCP Media App"}
-						</button>
-						<button
-							type="button"
-							className="text-xs px-2 py-1 rounded border hover:bg-muted transition-colors"
-							onClick={clearMcpApp}
-							onKeyDown={(event) => {
-								try {
-									if (event.key !== "Enter" && event.key !== " ") {
-										return;
-									}
-									event.preventDefault();
-									clearMcpApp();
-								} catch {
-									// Keep dismiss action safe even if key handling fails.
-								}
-							}}
-							aria-label="Return to normal preview"
-						>
-							Return to Preview
-						</button>
-					</div>
+					{modeToggle}
 				</div>
 				<div className="flex-1 min-h-0 p-3">
-					<iframe
-						key={activeHtml?.length ?? 0}
-						title={activeToolName || "MCP app preview"}
-						srcDoc={activeHtml}
-						sandbox="allow-scripts allow-forms"
-						className="h-full w-full border rounded bg-background"
-					/>
+					{activeHtml ? (
+						<iframe
+							key={activeHtml?.length ?? 0}
+							title={activeToolName || "MCP app preview"}
+							srcDoc={activeHtml}
+							sandbox="allow-scripts allow-forms"
+							className="h-full w-full border rounded bg-background"
+						/>
+					) : (
+						<div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+							No MCP app active
+						</div>
+					)}
+				</div>
+			</div>
+		);
+	}
+
+	if (previewMode === "agent") {
+		return (
+			<div
+				className="h-full w-full flex flex-col min-h-0 min-w-0 bg-panel rounded-sm"
+				data-testid="preview-panel"
+			>
+				<div className="flex items-center justify-between px-3 py-2 border-b">
+					<p className="text-sm font-medium text-foreground truncate">
+						Agent
+					</p>
+					{modeToggle}
+				</div>
+				<div className="flex-1 min-h-0">
+					<PreviewAgentView />
 				</div>
 			</div>
 		);
@@ -609,15 +627,7 @@ export function PreviewPanel() {
 				data-testid="preview-panel"
 			>
 				<div className="flex items-center justify-end px-3 py-2 border-b">
-					<button
-						type="button"
-						className="text-xs px-2 py-1 rounded border hover:bg-muted transition-colors"
-						onClick={toggleMcpMediaApp}
-						onKeyDown={handleToggleMcpKeyDown}
-						aria-label="Switch to MCP media app"
-					>
-						MCP Media App
-					</button>
+					{modeToggle}
 				</div>
 				<div
 					ref={containerRef}

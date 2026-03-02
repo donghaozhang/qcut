@@ -51,6 +51,9 @@ interface PtyTerminalState {
 	// Skill context (for running skills with CLI agents)
 	activeSkill: ActiveSkillContext | null;
 	skillPromptSent: boolean; // Track if initial skill prompt was sent
+
+	// Terminal mount tracking — only one xterm.js instance can bind at a time
+	terminalMountedIn: "media-panel" | "preview-panel" | null;
 }
 
 interface ConnectOptions {
@@ -103,6 +106,9 @@ interface PtyTerminalActions {
 	handleDisconnected: (exitCode: number) => void;
 	handleError: (error: string) => void;
 
+	// Terminal mount tracking
+	setTerminalMountedIn: (location: "media-panel" | "preview-panel" | null) => void;
+
 	// Reset
 	reset: () => void;
 }
@@ -131,6 +137,7 @@ const initialState: PtyTerminalState = {
 	autoConnectAttemptedProjectId: null,
 	activeSkill: null,
 	skillPromptSent: false,
+	terminalMountedIn: null,
 };
 
 /**
@@ -571,6 +578,10 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => ({
 
 	handleError: (error) => {
 		set({ status: "error", error });
+	},
+
+	setTerminalMountedIn: (location) => {
+		set({ terminalMountedIn: location });
 	},
 
 	reset: () => {
