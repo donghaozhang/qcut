@@ -367,6 +367,7 @@
 		"react-dom": "^19.1.0",
 		"remotion": "4.0.424",
 		"scheduler": "^0.27.0",
+		"tldraw": "^4.4.0",
 		"wavesurfer.js": "^7.12.1"
 	},
 	"resolutions": {
