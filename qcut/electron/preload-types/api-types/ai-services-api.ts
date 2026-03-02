@@ -21,10 +21,11 @@ export interface ApiKeysAPI {
 	};
 }
 
-/** Shell operations (reveal files in OS). */
+/** Shell operations (reveal files in OS, open external URLs). */
 export interface ShellAPI {
 	shell: {
 		showItemInFolder: (filePath: string) => Promise<void>;
+		openExternal: (url: string) => Promise<void>;
 	};
 }
 

@@ -1,4 +1,3 @@
-import React, { useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
@@ -11,12 +10,11 @@ export const Route = createFileRoute("/blog")({
 
 function BlogPage() {
 	const handleRedirectToGitHub = () => {
-		if (typeof window !== "undefined" && window.require) {
-			// Running in Electron
-			const { shell } = window.require("electron");
-			shell.openExternal("https://github.com/donghaozhang/qcut");
+		if (window.electronAPI?.shell?.openExternal) {
+			window.electronAPI.shell.openExternal(
+				"https://github.com/donghaozhang/qcut"
+			);
 		} else {
-			// Running in browser
 			openInNewTab("https://github.com/donghaozhang/qcut");
 		}
 	};

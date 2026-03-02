@@ -68,6 +68,12 @@ const RULES: {
 		fix: "Use window.electronAPI.files.* via IPC bridge for file system operations",
 		docs: 'See CLAUDE.md "Electron IPC" section',
 	},
+	{
+		pattern: /\bwindow\.require\b/,
+		rule: "no-window-require",
+		fix: "Do not use window.require(). Use window.electronAPI.* via preload bridge",
+		docs: 'See CLAUDE.md "Electron Boundary Rules" section',
+	},
 ];
 
 const EXCLUDE_DIRS = ["test", "tests", "types", "__mocks__", "__tests__"];

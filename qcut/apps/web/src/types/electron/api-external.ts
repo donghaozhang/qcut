@@ -35,6 +35,7 @@ export interface ElectronApiKeyOps {
 export interface ElectronShellOps {
 	shell: {
 		showItemInFolder: (filePath: string) => Promise<void>;
+		openExternal: (url: string) => Promise<void>;
 	};
 }
 

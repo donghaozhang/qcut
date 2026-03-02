@@ -312,6 +312,8 @@ const electronAPI: ElectronAPI = {
 	shell: {
 		showItemInFolder: (filePath: string): Promise<void> =>
 			ipcRenderer.invoke("shell:showItemInFolder", filePath),
+		openExternal: (url: string): Promise<void> =>
+			ipcRenderer.invoke("shell:openExternal", url),
 	},
 
 	// GitHub operations

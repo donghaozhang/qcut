@@ -16,6 +16,18 @@ export function registerShellGithubHandlers(deps: MainIpcDeps): void {
 		}
 	);
 
+	ipcMain.handle(
+		"shell:openExternal",
+		async (_event: IpcMainInvokeEvent, url: string): Promise<void> => {
+			// Only allow http/https URLs to prevent shell injection
+			if (!/^https?:\/\//i.test(url)) {
+				logger.error(`shell:openExternal blocked non-http URL: ${url}`);
+				return;
+			}
+			await shell.openExternal(url);
+		}
+	);
+
 	ipcMain.handle("fetch-github-stars", async (): Promise<{ stars: number }> => {
 		try {
 			const https = require("https");
