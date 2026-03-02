@@ -18,36 +18,45 @@ describe("XDG directory support", () => {
 		const orig = process.env.XDG_CONFIG_HOME;
 		const testPath = path.join(os.tmpdir(), "test-xdg-config");
 		process.env.XDG_CONFIG_HOME = testPath;
-		const dir = configDir();
-		expect(dir).toContain("qcut-pipeline");
-		expect(path.normalize(dir)).toContain(path.normalize(testPath));
-		if (orig) process.env.XDG_CONFIG_HOME = orig;
-		else delete process.env.XDG_CONFIG_HOME;
-		fs.rmSync(testPath, { recursive: true, force: true });
+		try {
+			const dir = configDir();
+			expect(dir).toContain("qcut-pipeline");
+			expect(path.normalize(dir)).toContain(path.normalize(testPath));
+		} finally {
+			if (orig) process.env.XDG_CONFIG_HOME = orig;
+			else delete process.env.XDG_CONFIG_HOME;
+			fs.rmSync(testPath, { recursive: true, force: true });
+		}
 	});
 
 	it("cacheDir respects XDG_CACHE_HOME", () => {
 		const orig = process.env.XDG_CACHE_HOME;
 		const testPath = path.join(os.tmpdir(), "test-xdg-cache");
 		process.env.XDG_CACHE_HOME = testPath;
-		const dir = cacheDir();
-		expect(dir).toContain("qcut-pipeline");
-		expect(path.normalize(dir)).toContain(path.normalize(testPath));
-		if (orig) process.env.XDG_CACHE_HOME = orig;
-		else delete process.env.XDG_CACHE_HOME;
-		fs.rmSync(testPath, { recursive: true, force: true });
+		try {
+			const dir = cacheDir();
+			expect(dir).toContain("qcut-pipeline");
+			expect(path.normalize(dir)).toContain(path.normalize(testPath));
+		} finally {
+			if (orig) process.env.XDG_CACHE_HOME = orig;
+			else delete process.env.XDG_CACHE_HOME;
+			fs.rmSync(testPath, { recursive: true, force: true });
+		}
 	});
 
 	it("stateDir respects XDG_STATE_HOME", () => {
 		const orig = process.env.XDG_STATE_HOME;
 		const testPath = path.join(os.tmpdir(), "test-xdg-state");
 		process.env.XDG_STATE_HOME = testPath;
-		const dir = stateDir();
-		expect(dir).toContain("qcut-pipeline");
-		expect(path.normalize(dir)).toContain(path.normalize(testPath));
-		if (orig) process.env.XDG_STATE_HOME = orig;
-		else delete process.env.XDG_STATE_HOME;
-		fs.rmSync(testPath, { recursive: true, force: true });
+		try {
+			const dir = stateDir();
+			expect(dir).toContain("qcut-pipeline");
+			expect(path.normalize(dir)).toContain(path.normalize(testPath));
+		} finally {
+			if (orig) process.env.XDG_STATE_HOME = orig;
+			else delete process.env.XDG_STATE_HOME;
+			fs.rmSync(testPath, { recursive: true, force: true });
+		}
 	});
 
 	it("override parameter takes priority", () => {
@@ -81,6 +90,10 @@ import {
 } from "../native-pipeline/infra/platform-logger.js";
 
 describe("PlatformLogger", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
 	it("creates logger with name", () => {
 		const logger = new PlatformLogger("test");
 		expect(logger.name).toBe("test");
@@ -115,10 +128,15 @@ describe("PlatformLogger", () => {
 import { FileManager } from "../native-pipeline/infra/file-manager.js";
 
 describe("FileManager", () => {
-	const tmpDir = path.join(os.tmpdir(), `fm-test-${Date.now()}`);
+	let tmpDir: string;
 
 	beforeEach(() => {
+		tmpDir = path.join(os.tmpdir(), `fm-test-${Date.now()}`);
 		fs.mkdirSync(tmpDir, { recursive: true });
+	});
+
+	afterEach(() => {
+		fs.rmSync(tmpDir, { recursive: true, force: true });
 	});
 
 	it("writeText and readText", () => {
@@ -270,7 +288,8 @@ describe("InputValidator", () => {
 	});
 
 	it("rejects non-existent file", () => {
-		expect(() => inputValidator.validateFilePath("/no/such/file")).toThrow(
+		const fakePath = path.join(os.tmpdir(), `nonexistent-${Date.now()}.txt`);
+		expect(() => inputValidator.validateFilePath(fakePath)).toThrow(
 			"not found"
 		);
 	});
