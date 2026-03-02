@@ -1,4 +1,4 @@
-export type Provider = "google" | "openai" | "dashscope" | "replicate";
+export type Provider = "google" | "openai" | "dashscope" | "replicate" | "fal";
 export type Quality = "normal" | "2k";
 
 export type CliArgs = {
@@ -28,5 +28,6 @@ export type ExtendConfig = {
     openai: string | null;
     dashscope: string | null;
     replicate: string | null;
+    fal: string | null;
   };
 };

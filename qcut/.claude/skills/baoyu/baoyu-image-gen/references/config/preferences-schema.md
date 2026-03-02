@@ -11,7 +11,7 @@ description: EXTEND.md YAML schema for baoyu-image-gen user preferences
 ---
 version: 1
 
-default_provider: null      # google|openai|dashscope|replicate|null (null = auto-detect)
+default_provider: null      # google|openai|dashscope|replicate|fal|null (null = auto-detect)
 
 default_quality: null       # normal|2k|null (null = use default: 2k)
 
@@ -24,6 +24,7 @@ default_model:
   openai: null              # e.g., "gpt-image-1.5"
   dashscope: null           # e.g., "z-image-turbo"
   replicate: null           # e.g., "google/nano-banana-pro"
+  fal: null                 # e.g., "fal-ai/flux/dev"
 ---
 ```
 
@@ -40,6 +41,7 @@ default_model:
 | `default_model.openai` | string\|null | null | OpenAI default model |
 | `default_model.dashscope` | string\|null | null | DashScope default model |
 | `default_model.replicate` | string\|null | null | Replicate default model |
+| `default_model.fal` | string\|null | null | fal.ai default model |
 
 ## Examples
 

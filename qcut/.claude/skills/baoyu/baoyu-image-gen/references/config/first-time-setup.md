@@ -51,6 +51,8 @@ options:
     description: "Alibaba Cloud - z-image-turbo, good for Chinese content"
   - label: "Replicate"
     description: "Community models - nano-banana-pro, flexible model selection"
+  - label: "fal.ai"
+    description: "Flux models - fast generation, high quality, edit support"
 ```
 
 ### Question 2: Default Google Model
@@ -114,6 +116,7 @@ default_model:
   openai: null
   dashscope: null
   replicate: null
+  fal: null
 ---
 ```
 
@@ -171,6 +174,20 @@ options:
     description: "Google's base image model on Replicate"
 ```
 
+### fal.ai Model Selection
+
+```yaml
+header: "fal.ai Model"
+question: "Choose a default fal.ai image generation model?"
+options:
+  - label: "fal-ai/flux/dev (Recommended)"
+    description: "High quality Flux model, best for production use"
+  - label: "fal-ai/flux/schnell"
+    description: "Fast generation, good for quick previews"
+  - label: "fal-ai/nano-banana-pro"
+    description: "Quality model with edit support for reference images"
+```
+
 ### Update EXTEND.md
 
 After user selects a model:
@@ -185,6 +202,7 @@ default_model:
   openai: [value or null]
   dashscope: [value or null]
   replicate: [value or null]
+  fal: [value or null]
 ```
 
 Only set the selected provider's model; leave others as their current value or null.

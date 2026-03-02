@@ -1,11 +1,11 @@
 ---
 name: baoyu-image-gen
-description: AI image generation with OpenAI, Google, DashScope and Replicate APIs. Supports text-to-image, reference images, aspect ratios. Sequential by default; parallel generation available on request. Use when user asks to generate, create, or draw images.
+description: AI image generation with OpenAI, Google, DashScope, Replicate and fal.ai APIs. Supports text-to-image, reference images, aspect ratios. Sequential by default; parallel generation available on request. Use when user asks to generate, create, or draw images.
 ---
 
 # Image Generation (AI SDK)
 
-Official API-based image generation. Supports OpenAI, Google, DashScope (阿里通义万象) and Replicate providers.
+Official API-based image generation. Supports OpenAI, Google, DashScope (阿里通义万象), Replicate and fal.ai providers.
 
 ## Script Directory
 
@@ -72,6 +72,15 @@ npx -y bun ${SKILL_DIR}/scripts/main.ts --prompt "A cat" --image out.png --provi
 
 # Replicate with specific model
 npx -y bun ${SKILL_DIR}/scripts/main.ts --prompt "A cat" --image out.png --provider replicate --model google/nano-banana
+
+# fal.ai (Flux)
+npx -y bun ${SKILL_DIR}/scripts/main.ts --prompt "A cat" --image out.png --provider fal
+
+# fal.ai with specific model
+npx -y bun ${SKILL_DIR}/scripts/main.ts --prompt "A cat" --image out.png --provider fal --model fal-ai/flux/schnell
+
+# fal.ai with reference image (edit model)
+npx -y bun ${SKILL_DIR}/scripts/main.ts --prompt "Make it blue" --image out.png --provider fal --model fal-ai/nano-banana-pro/edit --ref source.png
 ```
 
 ## Options
@@ -81,13 +90,13 @@ npx -y bun ${SKILL_DIR}/scripts/main.ts --prompt "A cat" --image out.png --provi
 | `--prompt <text>`, `-p` | Prompt text |
 | `--promptfiles <files...>` | Read prompt from files (concatenated) |
 | `--image <path>` | Output image path (required) |
-| `--provider google\|openai\|dashscope\|replicate` | Force provider (default: google) |
+| `--provider google\|openai\|dashscope\|replicate\|fal` | Force provider (default: google) |
 | `--model <id>`, `-m` | Model ID (Google: `gemini-3-pro-image-preview`, `gemini-3.1-flash-image-preview`; OpenAI: `gpt-image-1.5`) |
 | `--ar <ratio>` | Aspect ratio (e.g., `16:9`, `1:1`, `4:3`) |
 | `--size <WxH>` | Size (e.g., `1024x1024`) |
 | `--quality normal\|2k` | Quality preset (default: 2k) |
 | `--imageSize 1K\|2K\|4K` | Image size for Google (default: from quality) |
-| `--ref <files...>` | Reference images. Supported by Google multimodal (`gemini-3-pro-image-preview`, `gemini-3-flash-preview`, `gemini-3.1-flash-image-preview`) and OpenAI edits (GPT Image models). If provider omitted: Google first, then OpenAI |
+| `--ref <files...>` | Reference images. Supported by Google multimodal (`gemini-3-pro-image-preview`, `gemini-3-flash-preview`, `gemini-3.1-flash-image-preview`), OpenAI edits (GPT Image models), and fal.ai edit models (`fal-ai/nano-banana-pro/edit`). If provider omitted: Google first, then OpenAI, fal, Replicate |
 | `--n <count>` | Number of images |
 | `--json` | JSON output |
 
@@ -99,14 +108,17 @@ npx -y bun ${SKILL_DIR}/scripts/main.ts --prompt "A cat" --image out.png --provi
 | `GOOGLE_API_KEY` | Google API key |
 | `DASHSCOPE_API_KEY` | DashScope API key (阿里云) |
 | `REPLICATE_API_TOKEN` | Replicate API token |
+| `FAL_KEY` | fal.ai API key (or `FAL_API_KEY` / `VITE_FAL_API_KEY`) |
 | `OPENAI_IMAGE_MODEL` | OpenAI model override |
 | `GOOGLE_IMAGE_MODEL` | Google model override |
 | `DASHSCOPE_IMAGE_MODEL` | DashScope model override (default: z-image-turbo) |
 | `REPLICATE_IMAGE_MODEL` | Replicate model override (default: google/nano-banana-pro) |
+| `FAL_IMAGE_MODEL` | fal.ai model override (default: fal-ai/flux/dev) |
 | `OPENAI_BASE_URL` | Custom OpenAI endpoint |
 | `GOOGLE_BASE_URL` | Custom Google endpoint |
 | `DASHSCOPE_BASE_URL` | Custom DashScope endpoint |
 | `REPLICATE_BASE_URL` | Custom Replicate endpoint |
+| `FAL_BASE_URL` | Custom fal.ai endpoint (default: https://fal.run) |
 
 **Load Priority**: CLI args > EXTEND.md > env vars > `<cwd>/.baoyu-skills/.env` > `~/.baoyu-skills/.env`
 
@@ -144,8 +156,8 @@ npx -y bun ${SKILL_DIR}/scripts/main.ts --prompt "A cat" --image out.png --provi
 
 ## Provider Selection
 
-1. `--ref` provided + no `--provider` → auto-select Google first, then OpenAI, then Replicate
-2. `--provider` specified → use it (if `--ref`, must be `google`, `openai`, or `replicate`)
+1. `--ref` provided + no `--provider` → auto-select Google first, then OpenAI, fal, then Replicate
+2. `--provider` specified → use it (if `--ref`, must be `google`, `openai`, `fal`, or `replicate`)
 3. Only one API key available → use that provider
 4. Multiple available → default to Google
 
@@ -197,7 +209,7 @@ Supported: `1:1`, `16:9`, `9:16`, `4:3`, `3:4`, `2.35:1`
 - Missing API key → error with setup instructions
 - Generation failure → auto-retry once
 - Invalid aspect ratio → warning, proceed with default
-- Reference images with unsupported provider/model → error with fix hint (switch to Google multimodal: `gemini-3-pro-image-preview`, `gemini-3.1-flash-image-preview`; or OpenAI GPT Image edits)
+- Reference images with unsupported provider/model → error with fix hint (switch to Google multimodal: `gemini-3-pro-image-preview`, `gemini-3.1-flash-image-preview`; OpenAI GPT Image edits; or fal.ai edit models: `fal-ai/nano-banana-pro/edit`)
 
 ## Extension Support
 
