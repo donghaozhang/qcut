@@ -253,12 +253,12 @@ const ImageBoundsOverlay = track(function ImageBoundsOverlay({
 		`L ${viewport.maxX + 10} ${-10}`,
 		`L ${viewport.maxX + 10} ${viewport.maxY + 10}`,
 		`L ${-10} ${viewport.maxY + 10}`,
-		`Z`,
+		"Z",
 		`M ${topLeft.x} ${topLeft.y}`,
 		`L ${bottomRight.x} ${topLeft.y}`,
 		`L ${bottomRight.x} ${bottomRight.y}`,
 		`L ${topLeft.x} ${bottomRight.y}`,
-		`Z`,
+		"Z",
 	].join(" ");
 
 	return (
