@@ -32,6 +32,19 @@ function formatDate(date: Date): string {
 	});
 }
 
+function formatRelativeTime(date: Date): string {
+	const diff = Date.now() - date.getTime();
+	const minutes = Math.floor(diff / 60000);
+	const hours = Math.floor(minutes / 60);
+	const days = Math.floor(hours / 24);
+
+	if (minutes < 1) return "just now";
+	if (minutes < 60) return `${minutes}m ago`;
+	if (hours < 24) return `${hours}h ago`;
+	if (days === 1) return "yesterday";
+	return formatDate(date);
+}
+
 export function ProjectCard({
 	project,
 	isSelectionMode = false,
@@ -95,7 +108,7 @@ export function ProjectCard({
 			}`}
 			data-testid="project-list-item"
 		>
-			<div className="relative aspect-video bg-muted rounded-t-md overflow-hidden">
+			<div className="card-vignette relative aspect-video bg-muted rounded-t-md overflow-hidden">
 				{isSelectionMode && (
 					<div className="absolute top-3 left-3 z-10">
 						<div className="w-5 h-5 rounded bg-background/80 backdrop-blur-xs border flex items-center justify-center">
@@ -111,10 +124,10 @@ export function ProjectCard({
 					</div>
 				)}
 
-				<div className="absolute inset-0">
+				<div className="absolute inset-0 group-hover:brightness-110 transition-[filter] duration-200">
 					{isLoadingThumbnail ? (
-						<div className="w-full h-full bg-muted/50 flex items-center justify-center">
-							<Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+						<div className="w-full h-full bg-gradient-to-br from-muted/60 to-muted/30 flex items-center justify-center">
+							<Loader2 className="h-6 w-6 text-muted-foreground animate-spin" />
 						</div>
 					) : dynamicThumbnail ? (
 						<img
@@ -123,8 +136,8 @@ export function ProjectCard({
 							className="w-full h-full object-cover"
 						/>
 					) : (
-						<div className="w-full h-full bg-muted/50 flex items-center justify-center">
-							<Video className="h-8 w-8 shrink-0 text-muted-foreground" />
+						<div className="w-full h-full bg-gradient-to-br from-muted/60 to-muted/30 flex items-center justify-center">
+							<Video className="h-6 w-6 shrink-0 text-muted-foreground/70" />
 						</div>
 					)}
 				</div>
@@ -200,6 +213,8 @@ export function ProjectCard({
 				<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 					<Calendar className="size-3!" />
 					<span>{formatDate(project.createdAt)}</span>
+					<span className="text-muted-foreground/50">&middot;</span>
+					<span>{formatRelativeTime(project.updatedAt)}</span>
 				</div>
 			</CardContent>
 		</Card>

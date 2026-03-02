@@ -42,4 +42,12 @@ describe("TemplateGallery", () => {
 			height: 1080,
 		});
 	});
+
+	it("renders hint labels for each template", () => {
+		render(<TemplateGallery onCreateFromTemplate={() => {}} />);
+		expect(screen.getByText("Trending format")).toBeTruthy();
+		expect(screen.getByText("Optimized for retention")).toBeTruthy();
+		expect(screen.getByText("Presentation-ready")).toBeTruthy();
+		expect(screen.getByText("Agent-ready")).toBeTruthy();
+	});
 });

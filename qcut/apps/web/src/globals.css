@@ -290,23 +290,33 @@
 	}
 }
 
-/* Studio dashboard — glow pulse for create tile */
+/* Studio dashboard — warm cinematic glow for create tile */
 .glow-tile {
-	box-shadow: 0 0 0 1px oklch(from var(--primary) l c h / 0.15);
+	box-shadow: 0 0 0 1px hsla(38, 90%, 55%, 0.15);
 	animation: glow-pulse 3s ease-in-out infinite;
 }
 
 .glow-tile:hover {
 	animation: none;
-	box-shadow: 0 0 16px 2px oklch(from var(--primary) l c h / 0.3);
+	box-shadow: 0 0 16px 2px hsla(38, 90%, 55%, 0.35);
 }
 
 @keyframes glow-pulse {
 	0%,
 	100% {
-		box-shadow: 0 0 0 1px oklch(from var(--primary) l c h / 0.1);
+		box-shadow: 0 0 0 1px hsla(38, 90%, 55%, 0.1);
 	}
 	50% {
-		box-shadow: 0 0 12px 2px oklch(from var(--primary) l c h / 0.2);
+		box-shadow: 0 0 12px 2px hsla(38, 90%, 55%, 0.2);
 	}
+}
+
+/* Studio dashboard — project card vignette overlay */
+.card-vignette::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.3);
+	pointer-events: none;
+	border-radius: inherit;
 }
