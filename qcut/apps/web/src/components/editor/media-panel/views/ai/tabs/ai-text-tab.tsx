@@ -202,8 +202,10 @@ export function AITextTab({
 					}
 					value={prompt}
 					onChange={(e) => onPromptChange(e.target.value)}
-					className="min-h-[60px] text-xs resize-none"
+					className={`${isCompact ? "min-h-[80px]" : "min-h-[120px]"} text-xs resize-none`}
 					maxLength={maxChars}
+					autoResize
+					maxHeight={isCompact ? 160 : 240}
 				/>
 				<div
 					className={`text-xs ${remainingChars < 50 ? "text-orange-500" : remainingChars < 20 ? "text-red-500" : "text-muted-foreground"} text-right`}
