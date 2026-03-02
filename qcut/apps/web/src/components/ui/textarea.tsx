@@ -10,7 +10,10 @@ export interface TextareaProps extends React.ComponentProps<"textarea"> {
 }
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-	({ className, autoResize, maxHeight = 300, ...props }, forwardedRef) => {
+	(
+		{ className, autoResize, maxHeight = 300, value, ...props },
+		forwardedRef
+	) => {
 		const internalRef = React.useRef<HTMLTextAreaElement>(null);
 
 		const setRefs = React.useCallback(
@@ -32,7 +35,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 			const el = internalRef.current;
 			el.style.height = "auto";
 			el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
-		}, [autoResize, maxHeight, props.value]);
+		}, [autoResize, maxHeight, value]);
 
 		return (
 			<textarea
@@ -42,6 +45,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 					className
 				)}
 				ref={setRefs}
+				value={value}
 				{...props}
 			/>
 		);

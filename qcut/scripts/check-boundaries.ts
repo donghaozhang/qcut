@@ -46,13 +46,15 @@ const RULES: {
 		docs: 'See CLAUDE.md "Environment Variables" section',
 	},
 	{
-		pattern: /\b(?:import\s+[^'"]+\s+from\s+|require\s*\()\s*['"]electron['"]\)?/,
+		pattern:
+			/\b(?:import\s+[^'"]+\s+from\s+|require\s*\()\s*['"]electron['"]\)?/,
 		rule: "no-electron-import",
 		fix: "Use window.electronAPI.* via IPC bridge (see src/types/electron/)",
 		docs: 'See CLAUDE.md "Electron API Best Practices" section',
 	},
 	{
-		pattern: /\b(?:import\s+[^'"]+\s+from\s+|require\s*\()\s*['"]electron\/[^'"]+['"]\)?/,
+		pattern:
+			/\b(?:import\s+[^'"]+\s+from\s+|require\s*\()\s*['"]electron\/[^'"]+['"]\)?/,
 		rule: "no-electron-import",
 		fix: "Use window.electronAPI.* via IPC bridge (see src/types/electron/)",
 		docs: 'See CLAUDE.md "Electron API Best Practices" section',
@@ -64,7 +66,8 @@ const RULES: {
 		docs: 'See CLAUDE.md "Electron API Best Practices" section',
 	},
 	{
-		pattern: /\b(?:import\s+[^'"]+\s+from\s+|require\s*\()\s*['"](node:)?fs(?:\/promises)?['"]\)?/,
+		pattern:
+			/\b(?:import\s+[^'"]+\s+from\s+|require\s*\()\s*['"](node:)?fs(?:\/promises)?['"]\)?/,
 		rule: "no-fs-import",
 		fix: "Use window.electronAPI.files.* via IPC bridge for file system operations",
 		docs: 'See CLAUDE.md "Electron IPC" section',
