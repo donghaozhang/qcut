@@ -70,6 +70,7 @@
 		"format": "npx ultracite@latest format",
 		"electron": "electron .",
 		"electron:dev": "cross-env NODE_ENV=development electron .",
+		"electron:prod": "bun run build && electron .",
 		"dist": "bun run stage-ffmpeg-binaries && bun run stage-aicp-binaries && electron-builder --publish never",
 		"dist:win": "bun run stage-ffmpeg-binaries && bun run stage-aicp-binaries && electron-builder --win --publish never -c.win.forceCodeSigning=false",
 		"dist:dir": "bun run stage-ffmpeg-binaries && bun run stage-aicp-binaries && electron-builder --dir --publish never",

@@ -24,7 +24,7 @@ export interface ProjectCardProps {
 	getProjectThumbnail: (projectId: string) => Promise<string | null>;
 }
 
-function formatDate(date: Date): string {
+export function formatDate(date: Date): string {
 	return date.toLocaleDateString("en-US", {
 		month: "short",
 		day: "numeric",
@@ -32,7 +32,7 @@ function formatDate(date: Date): string {
 	});
 }
 
-function formatRelativeTime(date: Date): string {
+export function formatRelativeTime(date: Date): string {
 	const diff = Date.now() - date.getTime();
 	const minutes = Math.floor(diff / 60000);
 	const hours = Math.floor(minutes / 60);
