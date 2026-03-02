@@ -36,15 +36,24 @@ beforeEach(() => {
 	mockText2ImageStore.mockReturnValue([]);
 });
 
-const makeProject = (
-	name: string,
-	daysAgo: number
-): TProject => ({
+const makeProject = (name: string, daysAgo: number): TProject => ({
 	id: name,
 	name,
 	thumbnail: "",
 	createdAt: new Date(Date.now() - daysAgo * 86400000),
 	updatedAt: new Date(Date.now() - daysAgo * 86400000),
+	scenes: [
+		{
+			id: "main",
+			name: "Main",
+			isMain: true,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		},
+	],
+	currentSceneId: "main",
+	canvasSize: { width: 1920, height: 1080 },
+	canvasMode: "preset",
 });
 
 describe("RecentActivity", () => {
@@ -62,9 +71,7 @@ describe("RecentActivity", () => {
 	});
 
 	it("shows last render when export history has a successful entry", () => {
-		mockExportStore.mockReturnValue([
-			{ success: true, timestamp: new Date() },
-		]);
+		mockExportStore.mockReturnValue([{ success: true, timestamp: new Date() }]);
 		const { getByText } = render(<RecentActivity projects={[]} />);
 		expect(getByText(/Last render: just now/)).toBeInTheDocument();
 	});

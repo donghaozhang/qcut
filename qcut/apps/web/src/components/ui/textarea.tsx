@@ -30,6 +30,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 			[forwardedRef]
 		);
 
+		// biome-ignore lint/correctness/useExhaustiveDependencies: value prop triggers resize recalculation
 		React.useEffect(() => {
 			if (!autoResize || !internalRef.current) return;
 			const el = internalRef.current;

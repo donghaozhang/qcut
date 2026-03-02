@@ -22,7 +22,10 @@ vi.mock("@/components/ui/button", () => ({
 		children,
 		onClick,
 		...props
-	}: { children: React.ReactNode; onClick?: () => void }) => (
+	}: {
+		children: React.ReactNode;
+		onClick?: () => void;
+	}) => (
 		<button onClick={onClick} {...props}>
 			{children}
 		</button>
@@ -45,7 +48,7 @@ beforeAll(async () => {
 afterEach(() => {
 	cleanup();
 	mockOpenInNewTab.mockClear();
-	delete (window as Record<string, unknown>).electronAPI;
+	delete (window as unknown as Record<string, unknown>).electronAPI;
 });
 
 describe("BlogPage", () => {
@@ -69,7 +72,7 @@ describe("BlogPage", () => {
 
 	it("calls electronAPI.shell.openExternal when available", async () => {
 		const mockOpenExternal = vi.fn().mockResolvedValue(undefined);
-		(window as Record<string, unknown>).electronAPI = {
+		(window as unknown as Record<string, unknown>).electronAPI = {
 			shell: { openExternal: mockOpenExternal },
 		};
 
@@ -86,7 +89,7 @@ describe("BlogPage", () => {
 
 	it("falls back to openInNewTab when electronAPI throws", async () => {
 		const mockOpenExternal = vi.fn().mockRejectedValue(new Error("fail"));
-		(window as Record<string, unknown>).electronAPI = {
+		(window as unknown as Record<string, unknown>).electronAPI = {
 			shell: { openExternal: mockOpenExternal },
 		};
 
