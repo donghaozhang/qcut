@@ -16,7 +16,7 @@
  *   bun scripts/check-boundaries.ts --no-file-size      # skip file-size checks (CI mode)
  */
 
-import { readFileSync, readdirSync, statSync } from "fs";
+import { readFileSync, readdirSync } from "fs";
 import { resolve, relative, extname } from "path";
 import { execSync } from "child_process";
 
@@ -46,13 +46,13 @@ const RULES: {
 		docs: 'See CLAUDE.md "Environment Variables" section',
 	},
 	{
-		pattern: /(?:import|require)\s*\(?['"]electron['"]\)?/,
+		pattern: /\b(?:import\s+[^'"]+\s+from\s+|require\s*\()\s*['"]electron['"]\)?/,
 		rule: "no-electron-import",
 		fix: "Use window.electronAPI.* via IPC bridge (see src/types/electron/)",
 		docs: 'See CLAUDE.md "Electron API Best Practices" section',
 	},
 	{
-		pattern: /(?:import|require)\s*\(?['"]electron\/[^'"]+['"]\)?/,
+		pattern: /\b(?:import\s+[^'"]+\s+from\s+|require\s*\()\s*['"]electron\/[^'"]+['"]\)?/,
 		rule: "no-electron-import",
 		fix: "Use window.electronAPI.* via IPC bridge (see src/types/electron/)",
 		docs: 'See CLAUDE.md "Electron API Best Practices" section',
@@ -64,7 +64,7 @@ const RULES: {
 		docs: 'See CLAUDE.md "Electron API Best Practices" section',
 	},
 	{
-		pattern: /(?:import|require)\s*\(?['"](node:)?fs(?:\/promises)?['"]\)?/,
+		pattern: /\b(?:import\s+[^'"]+\s+from\s+|require\s*\()\s*['"](node:)?fs(?:\/promises)?['"]\)?/,
 		rule: "no-fs-import",
 		fix: "Use window.electronAPI.files.* via IPC bridge for file system operations",
 		docs: 'See CLAUDE.md "Electron IPC" section',
@@ -81,7 +81,7 @@ const EXCLUDE_DIRS = ["test", "tests", "types", "__mocks__", "__tests__"];
 
 function shouldExclude(filePath: string): boolean {
 	const rel = relative(RENDERER_DIR, filePath);
-	const parts = rel.split("/");
+	const parts = rel.split(/[\\/]/);
 	return parts.some((part) => EXCLUDE_DIRS.includes(part));
 }
 
@@ -203,4 +203,6 @@ function main() {
 	process.exit(1);
 }
 
-main();
+if (import.meta.main) {
+	main();
+}
