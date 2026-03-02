@@ -82,7 +82,10 @@ export function createPersistenceOperations(
 					? undefined
 					: [...mediaItems]
 							.filter((item) => item.type === "image" || item.type === "video")
-							.sort((a, b) => (b.lastModified ?? 0) - (a.lastModified ?? 0))[0];
+							.sort(
+								(a, b) =>
+									(b.file?.lastModified ?? 0) - (a.file?.lastModified ?? 0)
+							)[0];
 				const resolvedMediaItem = mediaItem ?? fallbackItem;
 				if (!resolvedMediaItem) return null;
 
@@ -90,7 +93,9 @@ export function createPersistenceOperations(
 					const { generateVideoThumbnail } = await import(
 						"@/stores/media/media-store-loader"
 					).then((m) => m.getMediaStoreUtils());
-					const { thumbnailUrl } = await generateVideoThumbnail(mediaItem.file);
+					const { thumbnailUrl } = await generateVideoThumbnail(
+						resolvedMediaItem.file
+					);
 					return thumbnailUrl;
 				}
 				// Handle image with file but no url (non-Electron lazy blob creation)
