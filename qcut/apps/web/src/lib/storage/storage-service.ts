@@ -465,6 +465,52 @@ class StorageService {
 		return mediaItems;
 	}
 
+	/** Fast thumbnail lookup — reads only metadata (no file blobs from OPFS). */
+	async findProjectThumbnail(
+		projectId: string,
+		timelineTracks: TimelineTrack[] | null
+	): Promise<string | null> {
+		const { mediaMetadataAdapter } = this.getProjectMediaAdapters(projectId);
+		const mediaIds = await mediaMetadataAdapter.list();
+		if (!mediaIds.length) return null;
+
+		// Build ordered list: timeline media first, then all media
+		const priorityIds: string[] = [];
+		if (timelineTracks) {
+			const timelineMediaIds = timelineTracks
+				.flatMap((t) => t.elements)
+				.filter((e) => e.type === "media")
+				.sort((a, b) => a.startTime - b.startTime)
+				.map((e) => e.mediaId);
+			for (const id of timelineMediaIds) {
+				if (mediaIds.includes(id)) priorityIds.push(id);
+			}
+		}
+		// Add remaining media IDs not already in priority list
+		for (const id of mediaIds) {
+			if (!priorityIds.includes(id)) priorityIds.push(id);
+		}
+
+		// Scan metadata only — no file blob loading
+		for (const id of priorityIds) {
+			const metadata = await mediaMetadataAdapter.get(id);
+			if (!metadata) continue;
+
+			// Use persisted thumbnail data URL (videos)
+			if (metadata.thumbnailUrl) return metadata.thumbnailUrl;
+			// Use persisted non-blob URL (generated images with data URLs)
+			if (
+				metadata.url &&
+				!metadata.url.startsWith("blob:") &&
+				(metadata.type === "image" || metadata.type === "video")
+			) {
+				return metadata.url;
+			}
+		}
+
+		return null;
+	}
+
 	async deleteMediaItem(projectId: string, id: string): Promise<void> {
 		const { mediaMetadataAdapter, mediaFilesAdapter } =
 			this.getProjectMediaAdapters(projectId);

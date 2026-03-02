@@ -56,16 +56,25 @@ export function createPersistenceOperations(
 		getProjectThumbnail: async (projectId) => {
 			try {
 				const tracks = await storageService.loadTimeline({ projectId });
-				const mediaItems = await storageService.loadAllMediaItems(projectId);
 
-				if (!tracks || !mediaItems.length) return null;
+				// Fast path: check persisted thumbnails in metadata only (no file blobs)
+				const persisted = await storageService.findProjectThumbnail(
+					projectId,
+					tracks
+				);
+				if (persisted) return persisted;
+
+				// Slow path: generate thumbnail from file blob
+				const mediaItems = await storageService.loadAllMediaItems(projectId);
+				if (!mediaItems.length) return null;
 
 				const firstMediaElement = tracks
-					.flatMap((track) => track.elements)
-					.filter((element) => element.type === "media")
-					.sort((a, b) => a.startTime - b.startTime)[0];
+					? tracks
+							.flatMap((track) => track.elements)
+							.filter((element) => element.type === "media")
+							.sort((a, b) => a.startTime - b.startTime)[0]
+					: undefined;
 
-				// Use timeline element's media, or fall back to first media panel item
 				const mediaItem = firstMediaElement
 					? mediaItems.find((item) => item.id === firstMediaElement.mediaId)
 					: mediaItems.find(
@@ -80,8 +89,9 @@ export function createPersistenceOperations(
 					const { thumbnailUrl } = await generateVideoThumbnail(mediaItem.file);
 					return thumbnailUrl;
 				}
-				if (mediaItem.type === "image" && mediaItem.url) {
-					return mediaItem.url;
+				// Handle image with file but no url (non-Electron lazy blob creation)
+				if (mediaItem.type === "image" && mediaItem.file?.size > 0) {
+					return mediaItem.url || URL.createObjectURL(mediaItem.file);
 				}
 
 				return null;

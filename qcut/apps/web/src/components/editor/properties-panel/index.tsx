@@ -1,28 +1,11 @@
 "use client";
 
-import { FPS_PRESETS } from "@/constants/timeline-constants";
-import { useAspectRatio } from "@/hooks/media/use-aspect-ratio";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
-import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { TimelineElement } from "@/types/timeline";
-import { Label } from "../../ui/label";
 import { ScrollArea } from "../../ui/scroll-area";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "../../ui/select";
 import { AudioProperties } from "./audio-properties";
 import { MediaProperties } from "./media-properties";
-import {
-	PropertyItem,
-	PropertyItemLabel,
-	PropertyItemValue,
-	PropertyGroup,
-} from "./property-item";
 import { TextProperties } from "./text-properties";
 import { PanelTabs } from "./panel-tabs";
 import { useExportStore } from "@/stores/export-store";
@@ -35,10 +18,11 @@ import { TransformProperties } from "./transform-properties";
 import { RemotionProperties } from "./remotion-properties";
 import { EFFECTS_ENABLED } from "@/config/features";
 import { MarkdownProperties } from "./markdown-properties";
+import { ProjectInfoView } from "./project-info-view";
+import { BackgroundView } from "./background-view";
+import { PropertyGroup } from "./property-item";
 
 export function PropertiesPanel() {
-	const { activeProject, updateProjectFps } = useProjectStore();
-	const { getDisplayName, canvasSize } = useAspectRatio();
 	const { selectedElements, tracks } = useTimelineStore();
 	const {
 		mediaItems,
@@ -57,58 +41,13 @@ export function PropertiesPanel() {
 	const panelView = useExportStore((s) => s.panelView);
 	const setPanelView = useExportStore((s) => s.setPanelView);
 
-	const handleFpsChange = (value: string) => {
-		const fps = parseFloat(value);
-		if (!isNaN(fps) && fps > 0) {
-			updateProjectFps(fps);
-		}
-	};
-
 	const emptyView = (
 		<div className="space-y-4 p-5">
 			<PropertyGroup title="Project Information" defaultExpanded={true}>
-				<PropertyItem direction="column">
-					<PropertyItemLabel className="text-xs text-muted-foreground">
-						Name:
-					</PropertyItemLabel>
-					<PropertyItemValue className="text-xs truncate">
-						{activeProject?.name || ""}
-					</PropertyItemValue>
-				</PropertyItem>
-				<PropertyItem direction="column">
-					<PropertyItemLabel className="text-xs text-muted-foreground">
-						Aspect ratio:
-					</PropertyItemLabel>
-					<PropertyItemValue className="text-xs truncate">
-						{getDisplayName()}
-					</PropertyItemValue>
-				</PropertyItem>
-				<PropertyItem direction="column">
-					<PropertyItemLabel className="text-xs text-muted-foreground">
-						Resolution:
-					</PropertyItemLabel>
-					<PropertyItemValue className="text-xs truncate">
-						{`${canvasSize.width} × ${canvasSize.height}`}
-					</PropertyItemValue>
-				</PropertyItem>
-				<div className="flex flex-col gap-1">
-					<Label className="text-xs text-muted-foreground">Frame rate:</Label>
-					<Select
-						value={(activeProject?.fps || "N/A").toString()}
-						onValueChange={handleFpsChange}
-					>
-						<SelectTrigger className="w-32 h-6 text-xs">
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{FPS_PRESETS?.map(({ value, label }) => (
-								<SelectItem key={value} value={value} className="text-xs">
-									{label}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
+				<ProjectInfoView />
+			</PropertyGroup>
+			<PropertyGroup title="Background" defaultExpanded={false}>
+				<BackgroundView />
 			</PropertyGroup>
 		</div>
 	);

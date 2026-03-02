@@ -62,7 +62,7 @@ export function CaptionExportCard({
 	isExporting,
 }: CaptionExportCardProps) {
 	return (
-		<Card className="col-span-2">
+		<Card className="">
 			<CardHeader className="pb-3">
 				<CardTitle className="text-sm">Caption Export</CardTitle>
 			</CardHeader>
@@ -137,7 +137,7 @@ export function AudioExportCard({
 	isExporting,
 }: AudioExportCardProps) {
 	return (
-		<Card className="col-span-2">
+		<Card className="">
 			<CardHeader className="pb-3">
 				<CardTitle className="text-sm">Audio Export</CardTitle>
 			</CardHeader>
