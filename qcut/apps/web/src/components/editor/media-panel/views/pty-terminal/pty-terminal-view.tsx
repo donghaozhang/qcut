@@ -22,6 +22,7 @@ import {
 	X,
 	Bot,
 	MessageSquare,
+	MonitorPlay,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CliProvider } from "@/types/cli-provider";
@@ -44,6 +45,7 @@ export function PtyTerminalView() {
 		selectedClaudeModel,
 		activeSkill,
 		workingDirectory,
+		terminalMountedIn,
 		connect,
 		disconnect,
 		ensureAutoConnected,
@@ -52,6 +54,7 @@ export function PtyTerminalView() {
 		setSelectedClaudeModel,
 		clearSkillContext,
 		handleError,
+		setTerminalMountedIn,
 	} = usePtyTerminalStore();
 
 	const setAsyncActionError = useCallback(
@@ -92,6 +95,21 @@ export function PtyTerminalView() {
 	const isConnected = status === "connected";
 	const isConnecting = status === "connecting";
 	const isTerminalVisible = activeTab === "pty";
+	const isMountedInPreview = terminalMountedIn === "preview-panel";
+
+	// Claim terminal mount for media panel when visible (only if preview doesn't have it)
+	useEffect(() => {
+		if (!isTerminalVisible || isMountedInPreview) {
+			return;
+		}
+		setTerminalMountedIn("media-panel");
+		return () => {
+			// Only release if we're the ones who claimed it
+			if (usePtyTerminalStore.getState().terminalMountedIn === "media-panel") {
+				setTerminalMountedIn(null);
+			}
+		};
+	}, [isTerminalVisible, isMountedInPreview, setTerminalMountedIn]);
 
 	useEffect(() => {
 		if (!isTerminalVisible) {
@@ -324,7 +342,15 @@ export function PtyTerminalView() {
 
 			{/* Terminal Area */}
 			<div className="flex-1 min-h-0 bg-[#1a1a1a] overflow-hidden">
-				{isConnected || isConnecting ? (
+				{isMountedInPreview && (isConnected || isConnecting) ? (
+					<div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
+						<MonitorPlay className="h-10 w-10 opacity-50" />
+						<p className="text-sm">Agent is active in the Preview panel</p>
+						<p className="text-xs opacity-60">
+							Switch back from Agent mode in Preview to use the terminal here
+						</p>
+					</div>
+				) : isConnected || isConnecting ? (
 					<TerminalEmulator
 						sessionId={sessionId}
 						isVisible={isTerminalVisible}
