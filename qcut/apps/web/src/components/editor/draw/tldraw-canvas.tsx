@@ -202,13 +202,17 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 				className={className}
 				style={{ width: "100%", height: "100%", isolation: "isolate" }}
 			>
-				<Tldraw onMount={handleMount} inferDarkMode={false} components={{
-					PageMenu: null,
-					InFrontOfTheCanvas: useCallback(() => {
-						if (!imageShapeId) return null;
-						return <ImageBoundsOverlay imageShapeId={imageShapeId} />;
-					}, [imageShapeId]),
-				}} />
+				<Tldraw
+					onMount={handleMount}
+					inferDarkMode={false}
+					components={{
+						PageMenu: null,
+						InFrontOfTheCanvas: useCallback(() => {
+							if (!imageShapeId) return null;
+							return <ImageBoundsOverlay imageShapeId={imageShapeId} />;
+						}, [imageShapeId]),
+					}}
+				/>
 			</div>
 		);
 	}

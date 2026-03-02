@@ -85,9 +85,7 @@ function ImagePicker({
 			onDrop={handleDrop}
 		>
 			<ImageIcon className="w-12 h-12 text-gray-500 mb-4" />
-			<p className="text-gray-400 mb-2">
-				Drop an image here to annotate
-			</p>
+			<p className="text-gray-400 mb-2">Drop an image here to annotate</p>
 			<Button variant="outline" size="sm" onClick={handleFileInput}>
 				<Upload className="w-4 h-4 mr-2" />
 				Choose Image
@@ -109,10 +107,7 @@ const DrawView: React.FC = () => {
 	}, []);
 
 	const handleLoadDrawing = useCallback((drawingData: string) => {
-		if (
-			canvasRef.current &&
-			drawingData.startsWith("{")
-		) {
+		if (canvasRef.current && drawingData.startsWith("{")) {
 			canvasRef.current.loadSnapshot(drawingData);
 		}
 		setShowFiles(false);
@@ -167,11 +162,7 @@ const DrawView: React.FC = () => {
 						className="mb-2 shrink-0"
 					/>
 					<div className="flex-1 min-h-0 rounded-lg overflow-hidden">
-						<TldrawCanvas
-							key={imageKey}
-							ref={canvasRef}
-							image={image}
-						/>
+						<TldrawCanvas key={imageKey} ref={canvasRef} image={image} />
 					</div>
 				</>
 			) : (
