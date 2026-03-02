@@ -183,6 +183,24 @@ export function Text2ImageView() {
 		clearResults();
 	};
 
+	// Draw mode needs a full-height layout (tldraw requires explicit height)
+	if (modelType === "draw") {
+		return (
+			<div className="h-full flex flex-col">
+				<div className="p-4 pb-2 shrink-0">
+					<ModelTypeSelector
+						selected={modelType}
+						onChange={setModelType}
+						className="flex-1"
+					/>
+				</div>
+				<div className="flex-1 min-h-0">
+					<DrawView />
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="p-4 space-y-6">
 			<div className="flex items-center justify-between">
@@ -618,7 +636,7 @@ export function Text2ImageView() {
 			{modelType === "angles" && <AiView mode="angles" />}
 			{modelType === "adjustment" && <AdjustmentPanel />}
 			{modelType === "camera" && <CameraSelectorView />}
-			{modelType === "draw" && <DrawView />}
+
 			{modelType === "upscale" && (
 				<div className="space-y-4" data-testid="upscale-panel">
 					<Card className="border-0 shadow-none">

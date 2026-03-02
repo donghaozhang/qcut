@@ -10,7 +10,7 @@ interface DrawingMetadata {
 	created: string;
 	modified: string;
 	size: number;
-	format: "png" | "jpg" | "svg";
+	format: "png" | "jpg" | "svg" | "json";
 	tags?: string[];
 }
 
@@ -38,13 +38,16 @@ export class DrawingStorage {
 			const drawingId = `${DrawingStorage.STORAGE_PREFIX}${projectId}-${Date.now()}`;
 			const actualFilename = filename || `drawing-${Date.now()}.png`;
 
+			const format = actualFilename.endsWith(".json")
+				? ("json" as const)
+				: ("png" as const);
 			const metadata: DrawingMetadata = {
 				filename: actualFilename,
 				projectId,
 				created: new Date().toISOString(),
 				modified: new Date().toISOString(),
 				size: drawingData.length,
-				format: "png",
+				format,
 				tags: tags || [],
 			};
 
