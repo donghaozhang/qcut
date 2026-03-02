@@ -118,14 +118,8 @@ function getDefaultTempDir(): string {
 	) {
 		return "C:\\Users\\Public\\AppData\\Local\\Temp\\qcut-remotion-export";
 	}
-	// Check for TEMP/TMP environment variables (available in some contexts)
-	if (typeof process !== "undefined" && process.env) {
-		const envTemp = process.env.TEMP || process.env.TMP || process.env.TMPDIR;
-		if (envTemp) {
-			return `${envTemp}/qcut-remotion-export`;
-		}
-	}
-	// Default Unix path
+	// Default Unix path — callers should override via remotionConfig.tempDir
+	// using app.getPath('temp') from the main process via IPC
 	return "/tmp/qcut-remotion-export";
 }
 

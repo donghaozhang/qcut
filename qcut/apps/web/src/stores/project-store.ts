@@ -52,7 +52,10 @@ interface ProjectStore {
 	invalidProjectIds?: Set<string>;
 
 	// Actions
-	createNewProject: (name: string) => Promise<string>;
+	createNewProject: (
+		name: string,
+		options?: { canvasSize?: CanvasSize }
+	) => Promise<string>;
 	loadProject: (id: string) => Promise<void>;
 	saveCurrentProject: () => Promise<void>;
 	loadAllProjects: () => Promise<void>;
@@ -185,7 +188,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		}
 	},
 
-	createNewProject: async (name: string) => {
+	createNewProject: async (
+		name: string,
+		options?: { canvasSize?: CanvasSize }
+	) => {
 		const mainScene = createMainScene();
 
 		const newProject: TProject = {
@@ -201,7 +207,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			blurIntensity: 8,
 			bookmarks: [],
 			fps: DEFAULT_FPS,
-			canvasSize: DEFAULT_CANVAS_SIZE,
+			canvasSize: options?.canvasSize ?? DEFAULT_CANVAS_SIZE,
 			canvasMode: "preset",
 		};
 

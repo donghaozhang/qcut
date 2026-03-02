@@ -117,7 +117,7 @@ console.log('==================================');
 };
 
 // Make debug functions globally available in development
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+if (typeof window !== "undefined" && import.meta.env.DEV) {
 	(window as any).debugStickerOverlay = debugStickerOverlay;
 	console.log("🐛 Sticker overlay debug utilities loaded");
 	console.log("📖 Run debugStickerOverlay.help() for instructions");

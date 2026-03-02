@@ -85,7 +85,7 @@ function ThoughtBubble({
 			<div
 				className={`rounded-lg bg-white/10 border ${borderColor} px-3 py-1.5 flex items-center gap-2`}
 			>
-				<span className="text-xs text-neutral-300 font-mono">
+				<span className="text-xs text-muted-foreground font-mono">
 					{BUBBLE_TEXT[state]}
 				</span>
 				{(state === "generating" || state === "cutting") && (

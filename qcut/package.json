@@ -114,7 +114,10 @@
 		"test:e2e:combine": "bun scripts/combine-e2e-videos.ts",
 		"test:e2e:ui": "playwright test --ui",
 		"test:e2e:headed": "playwright test --headed",
-		"test:e2e:workflow": "playwright test project-workflow"
+		"test:e2e:workflow": "playwright test project-workflow",
+		"test:e2e:visual": "playwright test visual-regression",
+		"test:e2e:visual:update": "playwright test visual-regression --update-snapshots",
+		"check-boundaries": "bun scripts/check-boundaries.ts"
 	},
 	"build": {
 		"appId": "com.qcut.videoeditor",

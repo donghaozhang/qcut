@@ -184,6 +184,7 @@ export const mockElectronAPI: ElectronAPI = {
 	// Shell operations
 	shell: {
 		showItemInFolder: vi.fn().mockResolvedValue(undefined),
+		openExternal: vi.fn().mockResolvedValue(undefined),
 	},
 
 	// GitHub operations

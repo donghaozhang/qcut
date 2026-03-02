@@ -37,6 +37,9 @@ jobs:
       - name: Lint
         run: bun run lint:clean
 
+      - name: Check Electron boundaries
+        run: bun scripts/check-boundaries.ts --no-file-size
+
       - name: Check circular dependencies
         run: bun run check:circular
 

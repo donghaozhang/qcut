@@ -57,7 +57,7 @@ import {
 } from "./ai/constants/model-provider-logos";
 
 // Debug flag - set to false to disable console logs
-const DEBUG_TEXT2IMAGE = process.env.NODE_ENV === "development" && false;
+const DEBUG_TEXT2IMAGE = import.meta.env.DEV && false;
 
 /** AI Images panel with generation, upscale, angles, adjustment, and camera sub-views. */
 export function Text2ImageView() {
