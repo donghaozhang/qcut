@@ -46,9 +46,9 @@ test.describe("Visual Regression — Editor", () => {
 		await importTestVideo(page);
 
 		// Wait for media to appear in the panel
-		await expect(
-			page.locator("text=sample-video.mp4").first()
-		).toBeVisible({ timeout: 5000 });
+		await expect(page.locator("text=sample-video.mp4").first()).toBeVisible({
+			timeout: 5000,
+		});
 		await page.waitForTimeout(500);
 
 		await assertScreenshot(page, "editor-with-media");

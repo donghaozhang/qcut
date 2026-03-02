@@ -33,9 +33,7 @@ describe("check-boundaries script", () => {
 	it("runs without crashing on full scan", () => {
 		const result = run();
 		// Should either pass cleanly or report violations (not crash)
-		expect(result.code === 0 || result.stderr.includes("ERROR")).toBe(
-			true
-		);
+		expect(result.code === 0 || result.stderr.includes("ERROR")).toBe(true);
 	});
 
 	it("prints passed message when no violations found on staged (empty staging)", () => {

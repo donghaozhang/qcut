@@ -63,8 +63,7 @@ const RULES: {
 		docs: 'See CLAUDE.md "Electron API Best Practices" section',
 	},
 	{
-		pattern:
-			/(?:import|require)\s*\(?['"](node:)?fs(?:\/promises)?['"]\)?/,
+		pattern: /(?:import|require)\s*\(?['"](node:)?fs(?:\/promises)?['"]\)?/,
 		rule: "no-fs-import",
 		fix: "Use window.electronAPI.files.* via IPC bridge for file system operations",
 		docs: 'See CLAUDE.md "Electron IPC" section',
@@ -104,9 +103,7 @@ function getStagedFiles(): string[] {
 		.filter(Boolean)
 		.map((f) => resolve(ROOT, f))
 		.filter(
-			(f) =>
-				f.startsWith(RENDERER_DIR) &&
-				[".ts", ".tsx"].includes(extname(f))
+			(f) => f.startsWith(RENDERER_DIR) && [".ts", ".tsx"].includes(extname(f))
 		);
 }
 
@@ -182,9 +179,7 @@ function main() {
 	}
 
 	if (allViolations.length === 0) {
-		console.log(
-			`Boundary check passed (${files.length} files scanned).`
-		);
+		console.log(`Boundary check passed (${files.length} files scanned).`);
 		process.exit(0);
 	}
 
