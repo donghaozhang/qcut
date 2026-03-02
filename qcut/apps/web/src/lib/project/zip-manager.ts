@@ -2,7 +2,7 @@ import JSZip from "jszip";
 import type { MediaItem } from "@/stores/media/media-store";
 
 // Debug flag - set to true to enable console logging
-const DEBUG_ZIP_MANAGER = process.env.NODE_ENV === "development" && false;
+const DEBUG_ZIP_MANAGER = import.meta.env.DEV && false;
 const logDebug = (...args: Parameters<typeof console.log>) => {
 	if (DEBUG_ZIP_MANAGER) console.log(...args);
 };

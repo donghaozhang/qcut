@@ -12,6 +12,11 @@ export default defineConfig({
 	timeout: 60_000, // 1 minute timeout for E2E tests
 	expect: {
 		timeout: 10_000, // 10 seconds for assertions
+		toHaveScreenshot: {
+			maxDiffPixelRatio: 0.01, // Allow 1% pixel diff (anti-aliasing)
+			animations: "disabled", // Freeze animations for stable screenshots
+			caret: "hide", // Hide blinking cursor
+		},
 	},
 	use: {
 		trace: "on-first-retry",

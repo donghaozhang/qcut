@@ -64,7 +64,7 @@ export const listFeatures = () => {
 };
 
 // Auto-expose feature controls in development
-if (process.env.NODE_ENV === "development") {
+if (import.meta.env.DEV) {
 	if (typeof window !== "undefined") {
 		(window as any).qcutFeatures = {
 			list: listFeatures,

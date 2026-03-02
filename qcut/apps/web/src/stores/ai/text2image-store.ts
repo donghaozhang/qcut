@@ -22,7 +22,7 @@ import type {
 } from "@/lib/ai-clients/image-edit-client";
 
 // Debug flag - set to false to disable console logs
-const DEBUG_TEXT2IMAGE_STORE = process.env.NODE_ENV === "development" && false;
+const DEBUG_TEXT2IMAGE_STORE = import.meta.env.DEV && false;
 
 const clamp = (value: number, min: number, max: number) =>
 	Math.min(Math.max(value, min), max);

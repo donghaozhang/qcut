@@ -233,7 +233,7 @@ export const StickerElement = memo<StickerElementProps>(
 				)}
 
 				{/* Debug info in development */}
-				{process.env.NODE_ENV === "development" && isSelected && (
+				{import.meta.env.DEV && isSelected && (
 					<div className="absolute -bottom-8 left-0 text-xs bg-black/75 text-white px-1 rounded whitespace-nowrap">
 						{Math.round(sticker.position.x)}, {Math.round(sticker.position.y)} |{" "}
 						{Math.round(sticker.size.width)}x{Math.round(sticker.size.height)}

@@ -324,11 +324,6 @@ class FalAIClient {
 		// Determine source of API key
 		let source = "unknown";
 		if (import.meta.env.VITE_FAL_API_KEY) source = "VITE_FAL_API_KEY";
-		else if (
-			typeof window !== "undefined" &&
-			(window as any).process?.env?.FAL_API_KEY
-		)
-			source = "window.process.env.FAL_API_KEY";
 		else if (typeof window !== "undefined" && window.electronAPI?.apiKeys)
 			source = "electron_storage";
 		else source = "manually_set";

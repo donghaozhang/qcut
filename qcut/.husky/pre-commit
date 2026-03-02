@@ -1,1 +1,2 @@
 npx ultracite format
+bun scripts/check-boundaries.ts --staged
