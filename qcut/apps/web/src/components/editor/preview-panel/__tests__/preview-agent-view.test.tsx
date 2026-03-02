@@ -49,6 +49,9 @@ vi.mock("@/lib/utils", () => ({
 
 const resetStore = () => {
 	usePtyTerminalStore.setState({
+		sessions: new Map(),
+		sessionOrder: [],
+		activeSessionId: null,
 		sessionId: null,
 		status: "disconnected",
 		exitCode: null,
