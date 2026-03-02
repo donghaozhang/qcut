@@ -40,7 +40,13 @@ export class DrawingStorage {
 
 			const ext = actualFilename.split(".").pop()?.toLowerCase();
 			const format: DrawingMetadata["format"] =
-				ext === "json" ? "json" : ext === "jpg" || ext === "jpeg" ? "jpg" : ext === "svg" ? "svg" : "png";
+				ext === "json"
+					? "json"
+					: ext === "jpg" || ext === "jpeg"
+						? "jpg"
+						: ext === "svg"
+							? "svg"
+							: "png";
 			const metadata: DrawingMetadata = {
 				filename: actualFilename,
 				projectId,

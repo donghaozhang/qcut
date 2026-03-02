@@ -34,7 +34,9 @@ export function PreviewAgentView() {
 		setTerminalMountedIn("preview-panel");
 		return () => {
 			// Only release if we still own the mount
-			if (usePtyTerminalStore.getState().terminalMountedIn === "preview-panel") {
+			if (
+				usePtyTerminalStore.getState().terminalMountedIn === "preview-panel"
+			) {
 				setTerminalMountedIn(null);
 			}
 		};
@@ -100,7 +102,11 @@ export function PreviewAgentView() {
 			{/* Terminal or idle state */}
 			<div className="flex-1 min-h-0">
 				{isConnected && sessionId && activeSessionId ? (
-					<TerminalEmulator tabId={`preview-${activeSessionId}`} sessionId={sessionId} isVisible />
+					<TerminalEmulator
+						tabId={`preview-${activeSessionId}`}
+						sessionId={sessionId}
+						isVisible
+					/>
 				) : (
 					<div className="h-full flex flex-col items-center justify-center gap-3 text-[#888]">
 						<Bot className="size-8" />

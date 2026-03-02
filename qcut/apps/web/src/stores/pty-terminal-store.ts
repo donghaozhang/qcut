@@ -97,7 +97,7 @@ interface PtyTerminalActions {
 
 	// Skill context management (active session)
 	setActiveSkill: (
-		skill: import("./pty-session-types").ActiveSkillContext | null,
+		skill: import("./pty-session-types").ActiveSkillContext | null
 	) => void;
 	clearSkillContext: () => void;
 	sendSkillPrompt: (targetTabId?: string) => void;
@@ -110,16 +110,13 @@ interface PtyTerminalActions {
 
 	// Terminal mount tracking
 	setTerminalMountedIn: (
-		location: "media-panel" | "preview-panel" | null,
+		location: "media-panel" | "preview-panel" | null
 	) => void;
 
 	// IPC callback registry
 	registerDataCallback: (tabId: string, cb: (data: string) => void) => void;
 	unregisterDataCallback: (tabId: string) => void;
-	registerExitCallback: (
-		tabId: string,
-		cb: (exitCode: number) => void,
-	) => void;
+	registerExitCallback: (tabId: string, cb: (exitCode: number) => void) => void;
 	unregisterExitCallback: (tabId: string) => void;
 
 	// Reset
@@ -138,12 +135,12 @@ function generateTabId(): string {
 
 function generateSessionLabel(
 	provider: CliProvider,
-	sessions: Map<string, SessionState>,
+	sessions: Map<string, SessionState>
 ): string {
 	const providerName = CLI_PROVIDERS[provider].name;
 	let n = 1;
 	const existingLabels = new Set(
-		Array.from(sessions.values()).map((s) => s.label),
+		Array.from(sessions.values()).map((s) => s.label)
 	);
 	while (existingLabels.has(`${providerName} ${n}`)) {
 		n++;
@@ -153,7 +150,7 @@ function generateSessionLabel(
 
 function createDefaultSession(
 	provider: CliProvider,
-	label: string,
+	label: string
 ): SessionState {
 	return {
 		sessionId: null,
@@ -173,7 +170,7 @@ function createDefaultSession(
 
 /** Sync backward-compat flat fields from a session (or defaults if null) */
 function flatFieldsFrom(
-	session: SessionState | null | undefined,
+	session: SessionState | null | undefined
 ): Pick<
 	PtyTerminalState,
 	| "sessionId"
@@ -216,7 +213,7 @@ function flatFieldsFrom(
 }
 
 function buildSkillPrompt(
-	skill: import("./pty-session-types").ActiveSkillContext,
+	skill: import("./pty-session-types").ActiveSkillContext
 ): string {
 	return `I'm using the "${skill.name}" skill. Here are the instructions I need you to follow:
 
@@ -225,10 +222,7 @@ ${skill.content}
 Please acknowledge that you understand these instructions and are ready to help me with tasks using this skill.`;
 }
 
-function escapeStringForShell(
-	content: string,
-	escapeNewlines = false,
-): string {
+function escapeStringForShell(content: string, escapeNewlines = false): string {
 	let escaped = content
 		.replace(/\\/g, "\\\\")
 		.replace(/"/g, '\\"')
@@ -243,7 +237,10 @@ function escapeStringForShell(
 function getConnectErrorMessage({
 	cliProvider,
 	message,
-}: { cliProvider: CliProvider; message: string }): string {
+}: {
+	cliProvider: CliProvider;
+	message: string;
+}): string {
 	const normalizedMessage = message.toLowerCase();
 	const isBinaryMissing =
 		normalizedMessage.includes("enoent") ||
@@ -257,7 +254,7 @@ function getConnectErrorMessage({
 
 function buildSkillFilePath(
 	workingDirectory: string,
-	skillFolderName: string,
+	skillFolderName: string
 ): string {
 	if (
 		skillFolderName.includes("..") ||
@@ -307,10 +304,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 	/**
 	 * Update a session in the Map and sync backward-compat fields if it's active.
 	 */
-	const setSession = (
-		tabId: string,
-		updates: Partial<SessionState>,
-	): void => {
+	const setSession = (tabId: string, updates: Partial<SessionState>): void => {
 		const state = get();
 		const session = state.sessions.get(tabId);
 		if (!session) return;
@@ -404,12 +398,11 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 			// Switch active if we closed the active tab
 			if (state.activeSessionId === tabId) {
 				const idx = state.sessionOrder.indexOf(tabId);
-				const nextId =
-					newOrder[Math.min(idx, newOrder.length - 1)] ?? null;
+				const nextId = newOrder[Math.min(idx, newOrder.length - 1)] ?? null;
 				stateUpdate.activeSessionId = nextId;
 				Object.assign(
 					stateUpdate,
-					flatFieldsFrom(nextId ? newSessions.get(nextId) : null),
+					flatFieldsFrom(nextId ? newSessions.get(nextId) : null)
 				);
 			}
 
@@ -472,20 +465,14 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 				const currentSession = get().sessions.get(tabId);
 				if (!currentSession) return;
 
-				const {
-					cliProvider,
-					selectedModel,
-					activeSkill,
-					selectedClaudeModel,
-				} = currentSession;
+				const { cliProvider, selectedModel, activeSkill, selectedClaudeModel } =
+					currentSession;
 
 				const providerConfig = CLI_PROVIDERS[cliProvider];
 				let command: string | undefined;
 				const env: Record<string, string> = {};
-				const resolvedProjectId =
-					options.projectId || projectId || undefined;
-				const resolvedCwd =
-					options.cwd || workingDirectory || undefined;
+				const resolvedProjectId = options.projectId || projectId || undefined;
+				const resolvedCwd = options.cwd || workingDirectory || undefined;
 
 				// Build command based on provider
 				if (cliProvider === "codex") {
@@ -509,7 +496,8 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 					if (!apiKeys?.openRouterApiKey) {
 						setSession(tabId, {
 							status: "error",
-							error: "OpenRouter API key not configured. Go to Settings > API Keys.",
+							error:
+								"OpenRouter API key not configured. Go to Settings > API Keys.",
 						});
 						return;
 					}
@@ -521,20 +509,17 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 					if (activeSkill?.folderName && resolvedCwd) {
 						const skillFilePath = buildSkillFilePath(
 							resolvedCwd,
-							activeSkill.folderName,
+							activeSkill.folderName
 						);
-						const escapedPath =
-							escapeStringForShell(skillFilePath);
+						const escapedPath = escapeStringForShell(skillFilePath);
 						command += ` --project-doc "${escapedPath}"`;
 					}
 				} else if (cliProvider === "claude") {
 					if (window.electronAPI?.apiKeys) {
 						try {
-							const apiKeys =
-								await window.electronAPI.apiKeys.get();
+							const apiKeys = await window.electronAPI.apiKeys.get();
 							if (apiKeys?.anthropicApiKey) {
-								env.ANTHROPIC_API_KEY =
-									apiKeys.anthropicApiKey;
+								env.ANTHROPIC_API_KEY = apiKeys.anthropicApiKey;
 							}
 						} catch {
 							// Continue without API key
@@ -566,8 +551,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 				// Initialize IPC routing before first spawn
 				initIpcRouting();
 
-				const result =
-					await window.electronAPI.pty.spawn(spawnOptions);
+				const result = await window.electronAPI.pty.spawn(spawnOptions);
 
 				if (result?.success && result.sessionId) {
 					setSession(tabId, {
@@ -578,9 +562,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 						hasUserDisconnected: false,
 						projectId: resolvedProjectId ?? projectId,
 						autoConnectAttemptedProjectId:
-							resolvedProjectId ??
-							projectId ??
-							AUTO_CONNECT_GLOBAL_KEY,
+							resolvedProjectId ?? projectId ?? AUTO_CONNECT_GLOBAL_KEY,
 					});
 
 					// Gemini skill prompt injection
@@ -596,8 +578,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 						}, 2000);
 					}
 				} else {
-					const rawError =
-						result?.error ?? "Failed to spawn PTY session";
+					const rawError = result?.error ?? "Failed to spawn PTY session";
 					setSession(tabId, {
 						status: "error",
 						error: getConnectErrorMessage({
@@ -672,8 +653,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 				? sessions.get(activeSessionId)
 				: null;
 			const activeStatus = activeSession?.status ?? "disconnected";
-			if (activeStatus === "connected" || activeStatus === "connecting")
-				return;
+			if (activeStatus === "connected" || activeStatus === "connecting") return;
 
 			const resolvedProjectId = options.projectId || projectId || null;
 			const attemptKey = resolvedProjectId || AUTO_CONNECT_GLOBAL_KEY;
@@ -706,16 +686,10 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 
 		resize: async () => {
 			const { activeSessionId, sessions, cols, rows } = get();
-			const session = activeSessionId
-				? sessions.get(activeSessionId)
-				: null;
+			const session = activeSessionId ? sessions.get(activeSessionId) : null;
 			if (session?.sessionId) {
 				try {
-					await window.electronAPI?.pty?.resize(
-						session.sessionId,
-						cols,
-						rows,
-					);
+					await window.electronAPI?.pty?.resize(session.sessionId, cols, rows);
 				} catch (error: unknown) {
 					const message =
 						error instanceof Error
@@ -775,8 +749,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 				const projectChanged = state.projectId !== projectId;
 				return {
 					projectId,
-					workingDirectory:
-						workingDirectory ?? state.workingDirectory,
+					workingDirectory: workingDirectory ?? state.workingDirectory,
 					hasUserDisconnected: projectChanged
 						? false
 						: state.hasUserDisconnected,
@@ -825,7 +798,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 			try {
 				const writeResult = window.electronAPI?.pty?.write(
 					session.sessionId,
-					`${prompt}\n`,
+					`${prompt}\n`
 				);
 				setActiveSession({ skillPromptSent: true });
 				if (writeResult && typeof writeResult.catch === "function") {
@@ -867,7 +840,12 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 					skillPromptSent: false,
 				});
 			} else {
-				set({ sessionId: null, status: "disconnected", exitCode, skillPromptSent: false });
+				set({
+					sessionId: null,
+					status: "disconnected",
+					exitCode,
+					skillPromptSent: false,
+				});
 			}
 		},
 
@@ -946,7 +924,7 @@ function initIpcRouting(): void {
 					}
 				}
 			}
-		},
+		}
 	);
 
 	window.electronAPI.pty.onExit(
@@ -969,14 +947,14 @@ function initIpcRouting(): void {
 					}
 				}
 			}
-		},
+		}
 	);
 }
 
 /** Check if a callback tabId is associated with a given backend sessionId. */
 function _tabMatchesSession(
 	callbackTabId: string,
-	backendSessionId: string,
+	backendSessionId: string
 ): boolean {
 	const { sessions } = usePtyTerminalStore.getState();
 

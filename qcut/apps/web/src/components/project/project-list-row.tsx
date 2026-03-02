@@ -97,7 +97,9 @@ export function ProjectListRow({
 	const rowContent = (
 		<div
 			className={`flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/40 transition-colors ${
-				isSelectionMode && isSelected ? "bg-primary/5 ring-1 ring-primary/30" : ""
+				isSelectionMode && isSelected
+					? "bg-primary/5 ring-1 ring-primary/30"
+					: ""
 			}`}
 			data-testid="project-list-item"
 		>
@@ -123,10 +125,7 @@ export function ProjectListRow({
 			</span>
 
 			{!isSelectionMode && (
-				<DropdownMenu
-					open={isDropdownOpen}
-					onOpenChange={setIsDropdownOpen}
-				>
+				<DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
 					<DropdownMenuTrigger asChild>
 						<Button
 							type="button"

@@ -555,15 +555,27 @@ export function PreviewPanel() {
 			size="sm"
 			className="h-7"
 		>
-			<ToggleGroupItem value="video" aria-label="Video preview" className="px-2 py-1 text-xs gap-1">
+			<ToggleGroupItem
+				value="video"
+				aria-label="Video preview"
+				className="px-2 py-1 text-xs gap-1"
+			>
 				<MonitorPlay className="size-3" />
 				<span className="hidden sm:inline">Video</span>
 			</ToggleGroupItem>
-			<ToggleGroupItem value="mcp" aria-label="MCP app" className="px-2 py-1 text-xs gap-1">
+			<ToggleGroupItem
+				value="mcp"
+				aria-label="MCP app"
+				className="px-2 py-1 text-xs gap-1"
+			>
 				<AppWindow className="size-3" />
 				<span className="hidden sm:inline">MCP</span>
 			</ToggleGroupItem>
-			<ToggleGroupItem value="agent" aria-label="Agent terminal" className="px-2 py-1 text-xs gap-1">
+			<ToggleGroupItem
+				value="agent"
+				aria-label="Agent terminal"
+				className="px-2 py-1 text-xs gap-1"
+			>
 				<Bot className="size-3" />
 				<span className="hidden sm:inline">Agent</span>
 			</ToggleGroupItem>
@@ -608,9 +620,7 @@ export function PreviewPanel() {
 				data-testid="preview-panel"
 			>
 				<div className="flex items-center justify-between px-3 py-2 border-b">
-					<p className="text-sm font-medium text-foreground truncate">
-						Agent
-					</p>
+					<p className="text-sm font-medium text-foreground truncate">Agent</p>
 					{modeToggle}
 				</div>
 				<div className="flex-1 min-h-0">

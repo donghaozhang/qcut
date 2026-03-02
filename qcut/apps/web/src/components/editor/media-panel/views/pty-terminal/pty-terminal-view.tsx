@@ -337,7 +337,9 @@ export function PtyTerminalView() {
 								status={session.status}
 								isActive={tabId === activeSessionId}
 								onSelect={() => switchSession(tabId)}
-								onClose={() => { closeSession(tabId).catch(setAsyncActionError); }}
+								onClose={() => {
+									closeSession(tabId).catch(setAsyncActionError);
+								}}
 								onRename={(label) => renameSession(tabId, label)}
 							/>
 						);
@@ -384,8 +386,7 @@ export function PtyTerminalView() {
 						if (!session) return null;
 						const isActiveTab = tabId === activeSessionId;
 						const isSessionReady =
-							session.status === "connected" ||
-							session.status === "connecting";
+							session.status === "connected" || session.status === "connecting";
 
 						return (
 							<div

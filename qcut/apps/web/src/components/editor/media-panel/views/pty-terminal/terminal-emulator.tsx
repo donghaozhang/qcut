@@ -41,8 +41,14 @@ export function TerminalEmulator({
 	// Keep sessionId ref current for use in callbacks
 	sessionIdRef.current = sessionId;
 
-	const { setDimensions, resize, registerDataCallback, unregisterDataCallback, registerExitCallback, unregisterExitCallback } =
-		usePtyTerminalStore();
+	const {
+		setDimensions,
+		resize,
+		registerDataCallback,
+		unregisterDataCallback,
+		registerExitCallback,
+		unregisterExitCallback,
+	} = usePtyTerminalStore();
 
 	const fitTerminal = useCallback(() => {
 		const fitAddon = fitAddonRef.current;
@@ -117,9 +123,11 @@ export function TerminalEmulator({
 		terminal.onData((data) => {
 			const currentSessionId = sessionIdRef.current;
 			if (currentSessionId) {
-				window.electronAPI?.pty?.write?.(currentSessionId, data)?.catch((error) => {
-					debugError("[Terminal] Failed to write to PTY:", error);
-				});
+				window.electronAPI?.pty
+					?.write?.(currentSessionId, data)
+					?.catch((error) => {
+						debugError("[Terminal] Failed to write to PTY:", error);
+					});
 			}
 		});
 
@@ -137,9 +145,11 @@ export function TerminalEmulator({
 			const currentSessionId = sessionIdRef.current;
 			if (text && currentSessionId) {
 				isPasting = true;
-				window.electronAPI?.pty?.write?.(currentSessionId, text)?.catch((error) => {
-					debugError("[Terminal] Failed to paste into PTY:", error);
-				});
+				window.electronAPI?.pty
+					?.write?.(currentSessionId, text)
+					?.catch((error) => {
+						debugError("[Terminal] Failed to paste into PTY:", error);
+					});
 				setTimeout(() => {
 					isPasting = false;
 				}, 100);

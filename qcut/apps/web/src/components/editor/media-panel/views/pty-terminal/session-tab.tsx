@@ -59,7 +59,7 @@ export function SessionTab({
 				"group flex items-center gap-1.5 h-7 px-2 rounded text-xs cursor-pointer select-none shrink-0 max-w-[160px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 				isActive
 					? "bg-background text-foreground shadow-sm border border-border/50"
-					: "text-muted-foreground hover:bg-muted/50",
+					: "text-muted-foreground hover:bg-muted/50"
 			)}
 			onClick={onSelect}
 			onKeyDown={(e) => {
@@ -71,7 +71,10 @@ export function SessionTab({
 			onDoubleClick={handleDoubleClick}
 		>
 			<div
-				className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusColorMap[status])}
+				className={cn(
+					"h-1.5 w-1.5 rounded-full shrink-0",
+					statusColorMap[status]
+				)}
 				aria-label={`Status: ${status}`}
 			/>
 
@@ -103,7 +106,7 @@ export function SessionTab({
 					"shrink-0 rounded p-0.5 transition-colors",
 					isActive
 						? "opacity-60 hover:opacity-100 hover:bg-muted"
-						: "opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-muted",
+						: "opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-muted"
 				)}
 				aria-label={`Close ${label}`}
 			>

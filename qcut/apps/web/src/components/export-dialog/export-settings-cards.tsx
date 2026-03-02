@@ -183,8 +183,7 @@ export function PresetGrid({
 					{selectedPreset && (
 						<div className="flex items-center justify-between mt-2 p-2 bg-muted/50 rounded-md">
 							<span className="text-xs">
-								Using{" "}
-								<span className="font-medium">{selectedPreset.name}</span>
+								Using <span className="font-medium">{selectedPreset.name}</span>
 							</span>
 							<Button
 								variant="text"

@@ -94,8 +94,13 @@ export function createPersistenceOperations(
 					return thumbnailUrl;
 				}
 				// Handle image with file but no url (non-Electron lazy blob creation)
-				if (resolvedMediaItem.type === "image" && resolvedMediaItem.file?.size > 0) {
-					return resolvedMediaItem.url || URL.createObjectURL(resolvedMediaItem.file);
+				if (
+					resolvedMediaItem.type === "image" &&
+					resolvedMediaItem.file?.size > 0
+				) {
+					return (
+						resolvedMediaItem.url || URL.createObjectURL(resolvedMediaItem.file)
+					);
 				}
 
 				return null;
