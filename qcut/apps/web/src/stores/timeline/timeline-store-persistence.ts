@@ -56,31 +56,56 @@ export function createPersistenceOperations(
 		getProjectThumbnail: async (projectId) => {
 			try {
 				const tracks = await storageService.loadTimeline({ projectId });
-				const mediaItems = await storageService.loadAllMediaItems(projectId);
 
-				if (!tracks || !mediaItems.length) return null;
+				// Fast path: check persisted thumbnails in metadata only (no file blobs)
+				const persisted = await storageService.findProjectThumbnail(
+					projectId,
+					tracks
+				);
+				if (persisted) return persisted;
+
+				// Slow path: generate thumbnail from file blob
+				const mediaItems = await storageService.loadAllMediaItems(projectId);
+				if (!mediaItems.length) return null;
 
 				const firstMediaElement = tracks
-					.flatMap((track) => track.elements)
-					.filter((element) => element.type === "media")
-					.sort((a, b) => a.startTime - b.startTime)[0];
+					? tracks
+							.flatMap((track) => track.elements)
+							.filter((element) => element.type === "media")
+							.sort((a, b) => a.startTime - b.startTime)[0]
+					: undefined;
 
-				if (!firstMediaElement) return null;
+				const mediaItem = firstMediaElement
+					? mediaItems.find((item) => item.id === firstMediaElement.mediaId)
+					: undefined;
+				const fallbackItem = mediaItem
+					? undefined
+					: [...mediaItems]
+							.filter((item) => item.type === "image" || item.type === "video")
+							.sort(
+								(a, b) =>
+									(b.file?.lastModified ?? 0) - (a.file?.lastModified ?? 0)
+							)[0];
+				const resolvedMediaItem = mediaItem ?? fallbackItem;
+				if (!resolvedMediaItem) return null;
 
-				const mediaItem = mediaItems.find(
-					(item) => item.id === firstMediaElement.mediaId
-				);
-				if (!mediaItem) return null;
-
-				if (mediaItem.type === "video" && mediaItem.file) {
+				if (resolvedMediaItem.type === "video" && resolvedMediaItem.file) {
 					const { generateVideoThumbnail } = await import(
 						"@/stores/media/media-store-loader"
 					).then((m) => m.getMediaStoreUtils());
-					const { thumbnailUrl } = await generateVideoThumbnail(mediaItem.file);
+					const { thumbnailUrl } = await generateVideoThumbnail(
+						resolvedMediaItem.file
+					);
 					return thumbnailUrl;
 				}
-				if (mediaItem.type === "image" && mediaItem.url) {
-					return mediaItem.url;
+				// Handle image with file but no url (non-Electron lazy blob creation)
+				if (
+					resolvedMediaItem.type === "image" &&
+					resolvedMediaItem.file?.size > 0
+				) {
+					return (
+						resolvedMediaItem.url || URL.createObjectURL(resolvedMediaItem.file)
+					);
 				}
 
 				return null;

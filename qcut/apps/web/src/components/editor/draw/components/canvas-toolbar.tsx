@@ -1,92 +1,44 @@
-import React, { useState } from "react";
+import { useState, type RefObject } from "react";
 import { Button } from "@/components/ui/button";
-import {
-	Download,
-	Upload,
-	RotateCcw,
-	Trash2,
-	Save,
-	Film,
-	FolderOpen,
-} from "lucide-react";
-import { useWhiteDrawStore } from "@/stores/editor/white-draw-store";
+import { Download, Save, Film, FolderOpen, Trash2 } from "lucide-react";
 import { useProjectStore } from "@/stores/project-store";
 import { TimelineIntegration } from "../utils/timeline-integration";
 import { DrawingStorage } from "../utils/drawing-storage";
-import { downloadDrawing, clearCanvas } from "../utils/canvas-utils";
-import { GroupControls } from "./group-controls";
+import { downloadDrawing } from "../utils/canvas-utils";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import type { DrawingCanvasHandle } from "../canvas/drawing-canvas";
-
-// Debug logging function that only logs in development mode when enabled
-const debug = (...args: unknown[]) => {
-	if (import.meta.env.DEV && import.meta.env.VITE_DEBUG_TOOLBAR === "1") {
-		// eslint-disable-next-line no-console
-		console.log(...args);
-	}
-};
+import type { TldrawCanvasHandle } from "../tldraw-canvas";
 
 interface CanvasToolbarProps {
-	canvasRef: React.RefObject<DrawingCanvasHandle | null>;
+	canvasRef: RefObject<TldrawCanvasHandle | null>;
+	onShowFiles?: () => void;
 	className?: string;
-	onImageUpload?: (imageFile: File) => void;
-	selectedCount?: number;
-	hasGroups?: boolean;
-	onCreateGroup?: () => void;
-	onUngroup?: () => void;
 }
 
 export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 	canvasRef,
+	onShowFiles,
 	className,
-	onImageUpload,
-	selectedCount = 0,
-	hasGroups = false,
-	onCreateGroup,
-	onUngroup,
 }) => {
 	const [isExporting, setIsExporting] = useState(false);
 	const [isSaving, setIsSaving] = useState(false);
-	const { undo, redo, clear, history, historyIndex, setActiveTab } =
-		useWhiteDrawStore();
 	const { activeProject } = useProjectStore();
 
-	// Helper function to get canvas data URL using the typed DrawingCanvasHandle
-	const getCanvasDataUrl = (): string | null => {
-		if (!canvasRef.current) {
-			debug("❌ Canvas ref is null or undefined");
-			return null;
-		}
-
-		// Use the properly typed getCanvasDataUrl method
+	const getDataUrl = async (): Promise<string | null> => {
+		if (!canvasRef.current) return null;
 		return canvasRef.current.getCanvasDataUrl();
 	};
 
 	const handleDownload = async () => {
-		debug("🎯 Download button clicked - starting download process");
-
 		try {
-			const dataUrl = getCanvasDataUrl();
-
+			const dataUrl = await getDataUrl();
 			if (!dataUrl) {
-				debug("❌ Could not generate canvas data URL");
-				toast.error("Failed to generate image data");
+				toast.error("Nothing to export — draw something first");
 				return;
 			}
-
-			const filename = `drawing-${Date.now()}.png`;
-			debug("📱 Data URL generated:", {
-				filename,
-				dataUrlLength: dataUrl.length,
-				isValidDataUrl: dataUrl.startsWith("data:image/png;base64,"),
-			});
-
-			await downloadDrawing(dataUrl, filename);
-			debug("✅ Download completed successfully");
-			toast.success("Drawing downloaded successfully");
-		} catch (error) {
-			debug("❌ Download failed:", error);
+			downloadDrawing(dataUrl, `drawing-${Date.now()}.png`);
+			toast.success("Drawing downloaded");
+		} catch {
 			toast.error("Failed to download drawing");
 		}
 	};
@@ -99,15 +51,13 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 
 		setIsExporting(true);
 		try {
-			const dataUrl = getCanvasDataUrl();
-
+			const dataUrl = await getDataUrl();
 			if (!dataUrl) {
-				toast.error("Failed to generate image data");
+				toast.error("Nothing to export — draw something first");
 				return;
 			}
-
 			await TimelineIntegration.quickExport(dataUrl);
-		} catch (error) {
+		} catch {
 			toast.error("Failed to export to timeline");
 		} finally {
 			setIsExporting(false);
@@ -122,54 +72,29 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 
 		setIsSaving(true);
 		try {
-			const dataUrl = getCanvasDataUrl();
-
-			if (!dataUrl) {
-				toast.error("Failed to generate image data");
+			// Save tldraw snapshot (JSON) instead of data URL
+			const snapshot = canvasRef.current?.getSnapshot();
+			if (!snapshot) {
+				toast.error("Nothing to save — draw something first");
 				return;
 			}
 
-			const filename = `quick-save-${new Date().toISOString().slice(0, 19).replace(/[:-]/g, "")}.png`;
-
-			await DrawingStorage.saveDrawing(dataUrl, activeProject.id, filename, [
+			const filename = `drawing-${new Date().toISOString().slice(0, 19).replace(/[:-]/g, "")}.json`;
+			await DrawingStorage.saveDrawing(snapshot, activeProject.id, filename, [
 				"quick-save",
 			]);
 			toast.success("Drawing saved!");
-		} catch (error) {
+		} catch {
 			toast.error("Failed to save drawing");
 		} finally {
 			setIsSaving(false);
 		}
 	};
 
-	const handleClearCanvas = () => {
-		if (!canvasRef.current) {
-			toast.error("Canvas not available");
-			return;
-		}
-
-		// Use the properly typed clearAll method from DrawingCanvasHandle
-		canvasRef.current.clearAll();
-		clear(); // Update store
+	const handleClear = () => {
+		canvasRef.current?.clearAll();
 		toast.success("Canvas cleared");
 	};
-
-	const handleImageUpload = () => {
-		const input = document.createElement("input");
-		input.type = "file";
-		input.accept = "image/*";
-		input.onchange = (e) => {
-			const file = (e.target as HTMLInputElement).files?.[0];
-			if (file && onImageUpload) {
-				onImageUpload(file);
-				toast.success("Image uploaded to canvas");
-			}
-		};
-		input.click();
-	};
-
-	const canUndo = history.length > 0 && historyIndex > 0;
-	const canRedo = history.length > 0 && historyIndex < history.length - 1;
 
 	return (
 		<div
@@ -178,45 +103,11 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 				className
 			)}
 		>
-			{/* History Controls */}
 			<div className="flex items-center gap-1 border-r border-gray-600 pr-2">
 				<Button
 					variant="text"
 					size="sm"
-					onClick={undo}
-					disabled={!canUndo}
-					title="Undo (Ctrl+Z)"
-					className="h-8 w-8 p-0"
-				>
-					<RotateCcw size={14} />
-				</Button>
-				<Button
-					variant="text"
-					size="sm"
-					onClick={redo}
-					disabled={!canRedo}
-					title="Redo (Ctrl+Y)"
-					className="h-8 w-8 p-0"
-				>
-					<RotateCcw size={14} className="scale-x-[-1]" />
-				</Button>
-			</div>
-
-			{/* Canvas Actions */}
-			<div className="flex items-center gap-1 border-r border-gray-600 pr-2">
-				<Button
-					variant="text"
-					size="sm"
-					onClick={handleImageUpload}
-					title="Upload Image"
-					className="h-8 w-8 p-0"
-				>
-					<Upload size={14} />
-				</Button>
-				<Button
-					variant="text"
-					size="sm"
-					onClick={handleClearCanvas}
+					onClick={handleClear}
 					title="Clear Canvas"
 					className="h-8 w-8 p-0"
 				>
@@ -224,19 +115,6 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 				</Button>
 			</div>
 
-			{/* Group Controls - Only show if we have selection functionality */}
-			{(onCreateGroup || onUngroup) && (
-				<div className="flex items-center border-r border-gray-600 pr-2">
-					<GroupControls
-						selectedCount={selectedCount}
-						hasGroups={hasGroups}
-						onCreateGroup={onCreateGroup || (() => {})}
-						onUngroup={onUngroup || (() => {})}
-					/>
-				</div>
-			)}
-
-			{/* Export Actions */}
 			<div className="flex items-center gap-1">
 				<Button
 					variant="text"
@@ -278,15 +156,14 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 				<Button
 					variant="text"
 					size="sm"
-					onClick={() => setActiveTab("files")}
-					title="Open Files Tab"
+					onClick={onShowFiles}
+					title="Saved Drawings"
 					className="h-8 w-8 p-0"
 				>
 					<FolderOpen size={14} />
 				</Button>
 			</div>
 
-			{/* Status Indicator */}
 			<div className="ml-auto text-xs text-gray-400">
 				{TimelineIntegration.isAvailable() ? (
 					<span className="text-green-400">Timeline Ready</span>

@@ -111,6 +111,27 @@ describe("persistent PTY terminal in MediaPanel", () => {
 			aiActiveTab: "text",
 		});
 		usePtyTerminalStore.setState({
+			sessions: new Map([
+				[
+					"tab-1",
+					{
+						sessionId: "test-pty-session",
+						status: "connected",
+						exitCode: null,
+						error: null,
+						cliProvider: "claude",
+						selectedModel: "anthropic/claude-sonnet-4",
+						selectedClaudeModel: "opus",
+						isGeminiMode: false,
+						activeSkill: null,
+						skillPromptSent: false,
+						label: "Claude Code 1",
+						createdAt: Date.now(),
+					},
+				],
+			]),
+			sessionOrder: ["tab-1"],
+			activeSessionId: "tab-1",
 			sessionId: "test-pty-session",
 			status: "connected",
 			exitCode: null,

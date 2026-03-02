@@ -1,13 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-	Save,
 	FolderOpen,
 	Trash2,
 	Download,
-	Edit3,
 	FileImage,
 	Calendar,
 	HardDrive,
@@ -18,13 +14,11 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface SavedDrawingsProps {
-	currentDrawingData?: string;
 	onLoadDrawing?: (drawingData: string) => void;
 	className?: string;
 }
 
 export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
-	currentDrawingData,
 	onLoadDrawing,
 	className,
 }) => {
@@ -32,7 +26,6 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 		Array<{ id: string; metadata: DrawingMetadata }>
 	>([]);
 	const [isLoading, setIsLoading] = useState(false);
-	const [saveFilename, setSaveFilename] = useState("");
 	const [selectedDrawing, setSelectedDrawing] = useState<string | null>(null);
 	const [storageStats, setStorageStats] = useState<{
 		count: number;
@@ -41,7 +34,6 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 
 	const { activeProject } = useProjectStore();
 
-	// Load saved drawings when component mounts or project changes
 	const loadSavedDrawings = useCallback(async () => {
 		if (!activeProject?.id) return;
 
@@ -51,7 +43,7 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 				activeProject.id
 			);
 			setSavedDrawings(drawings);
-		} catch (error) {
+		} catch {
 			toast.error("Failed to load saved drawings");
 		} finally {
 			setIsLoading(false);
@@ -64,7 +56,7 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 		try {
 			const stats = await DrawingStorage.getStorageStats(activeProject.id);
 			setStorageStats(stats);
-		} catch (error) {
+		} catch {
 			// Silent fail for stats
 		}
 	}, [activeProject?.id]);
@@ -75,41 +67,6 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 			loadStorageStats();
 		}
 	}, [activeProject?.id, loadSavedDrawings, loadStorageStats]);
-
-	const handleSaveDrawing = async () => {
-		if (!activeProject?.id || !currentDrawingData) {
-			toast.error("No active project or drawing to save");
-			return;
-		}
-
-		if (!saveFilename.trim()) {
-			toast.error("Please enter a filename");
-			return;
-		}
-
-		try {
-			setIsLoading(true);
-			const filename = saveFilename.endsWith(".png")
-				? saveFilename
-				: `${saveFilename}.png`;
-
-			await DrawingStorage.saveDrawing(
-				currentDrawingData,
-				activeProject.id,
-				filename,
-				["user-created"]
-			);
-
-			toast.success(`Drawing saved as "${filename}"`);
-			setSaveFilename("");
-			await loadSavedDrawings();
-			await loadStorageStats();
-		} catch (error) {
-			toast.error("Failed to save drawing");
-		} finally {
-			setIsLoading(false);
-		}
-	};
 
 	const handleLoadDrawing = async (drawingId: string) => {
 		try {
@@ -123,7 +80,7 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 			} else {
 				toast.error("Failed to load drawing");
 			}
-		} catch (error) {
+		} catch {
 			toast.error("Failed to load drawing");
 		} finally {
 			setIsLoading(false);
@@ -149,7 +106,7 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 			} else {
 				toast.error("Failed to delete drawing");
 			}
-		} catch (error) {
+		} catch {
 			toast.error("Failed to delete drawing");
 		} finally {
 			setIsLoading(false);
@@ -165,7 +122,7 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 			} else {
 				toast.error("Failed to load drawing for export");
 			}
-		} catch (error) {
+		} catch {
 			toast.error("Failed to export drawing");
 		}
 	};
@@ -199,39 +156,8 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 
 	return (
 		<div className={cn("p-4 h-full flex flex-col space-y-4", className)}>
-			{/* Save New Drawing */}
-			<div className="space-y-3 pb-4 border-b border-gray-700">
-				<h3 className="text-sm font-medium text-gray-300">
-					Save Current Drawing
-				</h3>
-				<div className="flex gap-2">
-					<div className="flex-1">
-						<Label htmlFor="filename" className="text-xs text-gray-400">
-							Filename
-						</Label>
-						<Input
-							id="filename"
-							value={saveFilename}
-							onChange={(e) => setSaveFilename(e.target.value)}
-							placeholder="my-drawing.png"
-							className="text-sm"
-							disabled={isLoading || !currentDrawingData}
-						/>
-					</div>
-					<Button
-						onClick={handleSaveDrawing}
-						disabled={isLoading || !currentDrawingData || !saveFilename.trim()}
-						size="sm"
-						className="mt-5"
-					>
-						<Save size={14} className="mr-1" />
-						Save
-					</Button>
-				</div>
-			</div>
-
 			{/* Storage Stats */}
-			{storageStats && (
+			{storageStats && storageStats.count > 0 && (
 				<div className="text-xs text-gray-400 flex items-center gap-4 pb-2">
 					<div className="flex items-center gap-1">
 						<HardDrive size={12} />
@@ -243,10 +169,6 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 
 			{/* Saved Drawings List */}
 			<div className="flex-1 overflow-y-auto">
-				<h3 className="text-sm font-medium text-gray-300 mb-3">
-					Saved Drawings
-				</h3>
-
 				{isLoading ? (
 					<div className="text-center py-8 text-gray-400">
 						<div className="w-6 h-6 border border-gray-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
@@ -256,7 +178,9 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 					<div className="text-center py-8 text-gray-400">
 						<FileImage size={32} className="mx-auto mb-2 opacity-50" />
 						<p className="text-sm">No saved drawings</p>
-						<p className="text-xs">Save your first drawing above</p>
+						<p className="text-xs">
+							Use the Save button in the toolbar to save drawings
+						</p>
 					</div>
 				) : (
 					<div className="space-y-2">
@@ -278,7 +202,7 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 										<div className="flex items-center gap-2 text-xs text-gray-400">
 											<Calendar size={10} />
 											<span>{formatDate(drawing.metadata.created)}</span>
-											<span>•</span>
+											<span>-</span>
 											<span>{formatFileSize(drawing.metadata.size)}</span>
 										</div>
 									</div>

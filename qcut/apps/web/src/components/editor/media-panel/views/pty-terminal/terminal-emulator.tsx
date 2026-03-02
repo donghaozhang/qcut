@@ -12,6 +12,8 @@ import { usePtyTerminalStore } from "@/stores/pty-terminal-store";
  * Props for the TerminalEmulator component.
  */
 interface TerminalEmulatorProps {
+	/** Internal tab ID for callback registry */
+	tabId: string;
 	/** PTY session ID to connect to, null if not connected */
 	sessionId: string | null;
 	/** Callback fired when terminal is initialized and ready */
@@ -23,9 +25,10 @@ interface TerminalEmulatorProps {
 /**
  * Terminal emulator component using xterm.js.
  * Provides a full terminal experience with ANSI color support, clipboard operations,
- * and automatic resizing. Connects to a PTY session via Electron IPC.
+ * and automatic resizing. Connects to a PTY session via the store's callback registry.
  */
 export function TerminalEmulator({
+	tabId,
 	sessionId,
 	onReady,
 	isVisible = true,
@@ -33,8 +36,19 @@ export function TerminalEmulator({
 	const containerRef = useRef<HTMLDivElement>(null);
 	const terminalRef = useRef<Terminal | null>(null);
 	const fitAddonRef = useRef<FitAddon | null>(null);
+	const sessionIdRef = useRef(sessionId);
 
-	const { setDimensions, resize, handleDisconnected } = usePtyTerminalStore();
+	// Keep sessionId ref current for use in callbacks
+	sessionIdRef.current = sessionId;
+
+	const {
+		setDimensions,
+		resize,
+		registerDataCallback,
+		unregisterDataCallback,
+		registerExitCallback,
+		unregisterExitCallback,
+	} = usePtyTerminalStore();
 
 	const fitTerminal = useCallback(() => {
 		const fitAddon = fitAddonRef.current;
@@ -53,32 +67,7 @@ export function TerminalEmulator({
 		}
 	}, [setDimensions, resize]);
 
-	// Handle terminal output
-	const handleData = useCallback(
-		(data: { sessionId: string; data: string }) => {
-			if (data.sessionId === sessionId && terminalRef.current) {
-				terminalRef.current.write(data.data);
-			}
-		},
-		[sessionId]
-	);
-
-	// Handle terminal exit
-	const handleExit = useCallback(
-		(data: { sessionId: string; exitCode: number }) => {
-			if (data.sessionId === sessionId) {
-				if (terminalRef.current) {
-					terminalRef.current.write(
-						`\r\n\x1b[90m[Process exited with code ${data.exitCode}]\x1b[0m\r\n`
-					);
-				}
-				handleDisconnected(data.exitCode);
-			}
-		},
-		[sessionId, handleDisconnected]
-	);
-
-	// Initialize terminal
+	// Initialize terminal (runs once per mount, independent of sessionId changes)
 	useEffect(() => {
 		if (!containerRef.current) return;
 		// Create terminal instance
@@ -132,10 +121,13 @@ export function TerminalEmulator({
 
 		// Handle user input - send to PTY
 		terminal.onData((data) => {
-			if (sessionId) {
-				window.electronAPI?.pty?.write?.(sessionId, data)?.catch((error) => {
-					debugError("[Terminal] Failed to write to PTY:", error);
-				});
+			const currentSessionId = sessionIdRef.current;
+			if (currentSessionId) {
+				window.electronAPI?.pty
+					?.write?.(currentSessionId, data)
+					?.catch((error) => {
+						debugError("[Terminal] Failed to write to PTY:", error);
+					});
 			}
 		});
 
@@ -150,11 +142,14 @@ export function TerminalEmulator({
 			if (isPasting) return;
 
 			const text = e.clipboardData?.getData("text");
-			if (text && sessionId) {
+			const currentSessionId = sessionIdRef.current;
+			if (text && currentSessionId) {
 				isPasting = true;
-				window.electronAPI?.pty?.write?.(sessionId, text)?.catch((error) => {
-					debugError("[Terminal] Failed to paste into PTY:", error);
-				});
+				window.electronAPI?.pty
+					?.write?.(currentSessionId, text)
+					?.catch((error) => {
+						debugError("[Terminal] Failed to paste into PTY:", error);
+					});
 				setTimeout(() => {
 					isPasting = false;
 				}, 100);
@@ -187,9 +182,10 @@ export function TerminalEmulator({
 					navigator.clipboard
 						.readText()
 						.then((text) => {
-							if (text && sessionId) {
+							const currentSessionId = sessionIdRef.current;
+							if (text && currentSessionId) {
 								window.electronAPI?.pty
-									?.write?.(sessionId, text)
+									?.write?.(currentSessionId, text)
 									?.catch((error) => {
 										debugError(
 											"[Terminal] Failed to write clipboard text:",
@@ -239,9 +235,16 @@ export function TerminalEmulator({
 			return true;
 		});
 
-		// Setup IPC listeners for PTY data
-		window.electronAPI?.pty?.onData(handleData);
-		window.electronAPI?.pty?.onExit(handleExit);
+		// Register callbacks with store's IPC routing
+		registerDataCallback(tabId, (data: string) => {
+			terminalRef.current?.write(data);
+		});
+
+		registerExitCallback(tabId, (exitCode: number) => {
+			terminalRef.current?.write(
+				`\r\n\x1b[90m[Process exited with code ${exitCode}]\x1b[0m\r\n`
+			);
+		});
 
 		// Notify ready
 		onReady?.();
@@ -250,10 +253,13 @@ export function TerminalEmulator({
 		return () => {
 			clearInterval(textareaCheckInterval);
 			terminal.textarea?.removeEventListener("paste", handlePaste, true);
-			window.electronAPI?.pty?.removeListeners();
+			unregisterDataCallback(tabId);
+			unregisterExitCallback(tabId);
 			terminal.dispose();
 		};
-	}, [sessionId, handleData, handleExit, fitTerminal, onReady]);
+		// tabId is stable for the lifetime of a session tab
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [tabId]);
 
 	// Handle resize
 	useEffect(() => {

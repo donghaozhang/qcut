@@ -304,73 +304,72 @@ export function ExportDialog() {
 			</div>
 
 			{/* Settings Section - Scrollable Content */}
-			<div className="flex-1 overflow-auto p-4 space-y-4">
+			<div className="flex-1 overflow-auto p-4 space-y-2">
+				<FilenameCard
+					filename={exportSettings.filename}
+					onFilenameChange={exportSettings.handleFilenameChange}
+					hasValidFilename={exportValidation.hasValidFilename}
+					isExporting={isExporting}
+				/>
+
+				<QualityCard
+					quality={exportSettings.quality}
+					estimatedSize={exportSettings.estimatedSize}
+					onQualityChange={exportSettings.handleQualityChange}
+					isExporting={isExporting}
+				/>
+
+				<EngineCard
+					engineType={exportSettings.engineType}
+					ffmpegAvailable={exportSettings.ffmpegAvailable}
+					isElectron={isElectron()}
+					onEngineTypeChange={exportSettings.setEngineType}
+					isExporting={isExporting}
+				/>
+
+				<FormatCard
+					format={exportSettings.format}
+					supportedFormats={exportSettings.supportedFormats}
+					onFormatChange={exportSettings.handleFormatChange}
+					isExporting={isExporting}
+				/>
+
+				<DetailsCard
+					resolution={exportSettings.resolution}
+					estimatedSize={exportSettings.estimatedSize}
+					timelineDuration={exportSettings.timelineDuration}
+					format={exportSettings.format}
+					engineRecommendation={exportSettings.engineRecommendation}
+				/>
+
+				{/* Caption Export Section */}
+				{hasCaptions && (
+					<CaptionExportCard
+						exportCaptionsEnabled={exportCaptionsEnabled}
+						onExportCaptionsChange={setExportCaptionsEnabled}
+						captionFormat={captionFormat}
+						onCaptionFormatChange={setCaptionFormat}
+						filename={exportSettings.filename}
+						isExporting={isExporting}
+					/>
+				)}
+
+				{/* Audio Export Section */}
+				{hasAudio && (
+					<AudioExportCard
+						includeAudio={includeAudio}
+						onIncludeAudioChange={setIncludeAudio}
+						isExporting={isExporting}
+					/>
+				)}
+
+				{/* Templates at bottom, collapsed by default */}
 				<PresetGrid
 					selectedPreset={exportPresets.selectedPreset}
 					onPresetSelect={exportPresets.handlePresetSelect}
 					onClearPreset={exportPresets.clearPreset}
 					isExporting={isExporting}
 				/>
-
-				<div className="grid grid-cols-2 gap-3">
-					<FilenameCard
-						filename={exportSettings.filename}
-						onFilenameChange={exportSettings.handleFilenameChange}
-						hasValidFilename={exportValidation.hasValidFilename}
-						isExporting={isExporting}
-					/>
-
-					<QualityCard
-						quality={exportSettings.quality}
-						estimatedSize={exportSettings.estimatedSize}
-						onQualityChange={exportSettings.handleQualityChange}
-						isExporting={isExporting}
-					/>
-
-					<EngineCard
-						engineType={exportSettings.engineType}
-						ffmpegAvailable={exportSettings.ffmpegAvailable}
-						isElectron={isElectron()}
-						onEngineTypeChange={exportSettings.setEngineType}
-						isExporting={isExporting}
-					/>
-
-					<FormatCard
-						format={exportSettings.format}
-						supportedFormats={exportSettings.supportedFormats}
-						onFormatChange={exportSettings.handleFormatChange}
-						isExporting={isExporting}
-					/>
-
-					<DetailsCard
-						resolution={exportSettings.resolution}
-						estimatedSize={exportSettings.estimatedSize}
-						timelineDuration={exportSettings.timelineDuration}
-						format={exportSettings.format}
-						engineRecommendation={exportSettings.engineRecommendation}
-					/>
-
-					{/* Caption Export Section */}
-					{hasCaptions && (
-						<CaptionExportCard
-							exportCaptionsEnabled={exportCaptionsEnabled}
-							onExportCaptionsChange={setExportCaptionsEnabled}
-							captionFormat={captionFormat}
-							onCaptionFormatChange={setCaptionFormat}
-							filename={exportSettings.filename}
-							isExporting={isExporting}
-						/>
-					)}
-
-					{/* Audio Export Section */}
-					{hasAudio && (
-						<AudioExportCard
-							includeAudio={includeAudio}
-							onIncludeAudioChange={setIncludeAudio}
-							isExporting={isExporting}
-						/>
-					)}
-				</div>
 
 				<ExportWarnings
 					memoryWarning={exportValidation.memoryWarning}

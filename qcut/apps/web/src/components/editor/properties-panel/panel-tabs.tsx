@@ -60,7 +60,7 @@ export function PanelTabs({ activeTab, onTabChange }: PanelTabsProps) {
 						: "border-transparent text-muted-foreground hover:text-foreground"
 				)}
 			>
-				Settings
+				API Keys
 			</button>
 		</div>
 	);

@@ -24,7 +24,7 @@ export interface ProjectCardProps {
 	getProjectThumbnail: (projectId: string) => Promise<string | null>;
 }
 
-function formatDate(date: Date): string {
+export function formatDate(date: Date): string {
 	return date.toLocaleDateString("en-US", {
 		month: "short",
 		day: "numeric",
@@ -32,7 +32,7 @@ function formatDate(date: Date): string {
 	});
 }
 
-function formatRelativeTime(date: Date): string {
+export function formatRelativeTime(date: Date): string {
 	const diff = Date.now() - date.getTime();
 	const minutes = Math.floor(diff / 60000);
 	const hours = Math.floor(minutes / 60);
@@ -103,7 +103,7 @@ export function ProjectCard({
 
 	const cardContent = (
 		<Card
-			className={`overflow-hidden bg-card border border-border/50 dark:border-border p-0 shadow-sm hover:shadow-md dark:shadow-black/30 transition-all duration-200 hover:-translate-y-1 ${
+			className={`overflow-hidden bg-card border-2 border-border/60 dark:border-border/80 p-0 shadow-sm hover:shadow-md dark:shadow-black/30 transition-all duration-200 hover:-translate-y-1 ${
 				isSelectionMode && isSelected ? "ring-2 ring-primary" : ""
 			}`}
 			data-testid="project-list-item"

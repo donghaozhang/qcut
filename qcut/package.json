@@ -70,6 +70,7 @@
 		"format": "npx ultracite@latest format",
 		"electron": "electron .",
 		"electron:dev": "cross-env NODE_ENV=development electron .",
+		"electron:prod": "bun run build && electron .",
 		"dist": "bun run stage-ffmpeg-binaries && bun run stage-aicp-binaries && electron-builder --publish never",
 		"dist:win": "bun run stage-ffmpeg-binaries && bun run stage-aicp-binaries && electron-builder --win --publish never -c.win.forceCodeSigning=false",
 		"dist:dir": "bun run stage-ffmpeg-binaries && bun run stage-aicp-binaries && electron-builder --dir --publish never",
@@ -366,6 +367,7 @@
 		"react-dom": "^19.1.0",
 		"remotion": "4.0.424",
 		"scheduler": "^0.27.0",
+		"tldraw": "^4.4.0",
 		"wavesurfer.js": "^7.12.1"
 	},
 	"resolutions": {

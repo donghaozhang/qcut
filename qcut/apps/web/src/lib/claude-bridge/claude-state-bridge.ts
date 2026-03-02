@@ -2,7 +2,7 @@ import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { useExportStore } from "@/stores/export-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
-import { useWhiteDrawStore } from "@/stores/editor/white-draw-store";
+
 import { useMediaStore } from "@/stores/media/media-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
@@ -128,21 +128,6 @@ function getUnknownBoolean({
 	try {
 		const value = record[key];
 		return typeof value === "boolean" ? value : undefined;
-	} catch {
-		return;
-	}
-}
-
-function getUnknownString({
-	record,
-	key,
-}: {
-	record: Record<string, unknown>;
-	key: string;
-}): string | undefined {
-	try {
-		const value = record[key];
-		return typeof value === "string" ? value : undefined;
 	} catch {
 		return;
 	}
@@ -412,7 +397,6 @@ function buildEditorStateSnapshot({
 	if (includeEditor) {
 		const editorStore = useEditorStore.getState();
 		const panelStore = useMediaPanelStore.getState();
-		const whiteDrawStore = useWhiteDrawStore.getState();
 		const exportStore = useExportStore.getState();
 		const timelineStore = useTimelineStore.getState();
 		const modals = collectOpenDialogs();
@@ -425,11 +409,6 @@ function buildEditorStateSnapshot({
 		}
 		if (mediaUnsavedCount > 0) dirtySources.push("media:unsaved-items");
 
-		const currentToolRecord = whiteDrawStore.currentTool as unknown as Record<
-			string,
-			unknown
-		>;
-
 		snapshot.state.editor = {
 			activePanel: {
 				group: panelStore.activeGroup ?? null,
@@ -438,10 +417,9 @@ function buildEditorStateSnapshot({
 				aiTab: panelStore.aiActiveTab ?? null,
 			},
 			activeTool: {
-				id: getUnknownString({ record: currentToolRecord, key: "id" }) ?? null,
-				name:
-					getUnknownString({ record: currentToolRecord, key: "name" }) ?? null,
-				source: whiteDrawStore.currentTool ? "white-draw" : null,
+				id: null,
+				name: null,
+				source: null,
 			},
 			modals: {
 				exportDialogOpen: exportStore.isDialogOpen,

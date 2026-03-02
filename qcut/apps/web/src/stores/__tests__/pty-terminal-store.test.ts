@@ -16,6 +16,9 @@ describe("usePtyTerminalStore", () => {
 
 		// Reset store state
 		usePtyTerminalStore.setState({
+			sessions: new Map(),
+			sessionOrder: [],
+			activeSessionId: null,
 			sessionId: null,
 			status: "disconnected",
 			exitCode: null,
@@ -33,6 +36,7 @@ describe("usePtyTerminalStore", () => {
 			autoConnectAttemptedProjectId: null,
 			activeSkill: null,
 			skillPromptSent: false,
+			terminalMountedIn: null,
 		});
 
 		// Reset all mocks
@@ -725,6 +729,165 @@ describe("usePtyTerminalStore", () => {
 			expect(result.current.autoConnectOnLoad).toBe(true);
 			expect(result.current.hasUserDisconnected).toBe(false);
 			expect(result.current.activeSkill).toBeNull();
+			expect(result.current.sessions.size).toBe(0);
+			expect(result.current.sessionOrder).toEqual([]);
+			expect(result.current.activeSessionId).toBeNull();
+		});
+	});
+
+	describe("multi-session management", () => {
+		it("should create a session and set it as active", () => {
+			const { result } = renderHook(() => usePtyTerminalStore());
+
+			let tabId: string;
+			act(() => {
+				tabId = result.current.createSession();
+			});
+
+			expect(result.current.sessions.size).toBe(1);
+			expect(result.current.sessionOrder).toHaveLength(1);
+			expect(result.current.activeSessionId).toBe(tabId!);
+
+			const session = result.current.sessions.get(tabId!);
+			expect(session).toBeDefined();
+			expect(session!.status).toBe("disconnected");
+			expect(session!.cliProvider).toBe("claude");
+			expect(session!.label).toContain("Claude Code");
+		});
+
+		it("should create multiple sessions", () => {
+			const { result } = renderHook(() => usePtyTerminalStore());
+
+			let tab1: string;
+			let tab2: string;
+			act(() => {
+				tab1 = result.current.createSession();
+				tab2 = result.current.createSession("shell");
+			});
+
+			expect(result.current.sessions.size).toBe(2);
+			expect(result.current.sessionOrder).toEqual([tab1!, tab2!]);
+			// First session is active
+			expect(result.current.activeSessionId).toBe(tab1!);
+
+			const shellSession = result.current.sessions.get(tab2!);
+			expect(shellSession!.cliProvider).toBe("shell");
+			expect(shellSession!.label).toContain("Shell");
+		});
+
+		it("should enforce max sessions limit", () => {
+			const { result } = renderHook(() => usePtyTerminalStore());
+
+			act(() => {
+				for (let i = 0; i < 7; i++) {
+					result.current.createSession();
+				}
+			});
+
+			expect(result.current.sessions.size).toBe(5);
+		});
+
+		it("should switch between sessions", () => {
+			const { result } = renderHook(() => usePtyTerminalStore());
+
+			let tab1: string;
+			let tab2: string;
+			act(() => {
+				tab1 = result.current.createSession();
+				tab2 = result.current.createSession("shell");
+			});
+
+			expect(result.current.activeSessionId).toBe(tab1!);
+			expect(result.current.cliProvider).toBe("claude");
+
+			act(() => {
+				result.current.switchSession(tab2!);
+			});
+
+			expect(result.current.activeSessionId).toBe(tab2!);
+			expect(result.current.cliProvider).toBe("shell");
+		});
+
+		it("should close a session and switch to next", async () => {
+			const { result } = renderHook(() => usePtyTerminalStore());
+
+			let tab1: string;
+			let tab2: string;
+			act(() => {
+				tab1 = result.current.createSession();
+				tab2 = result.current.createSession("shell");
+			});
+
+			// Close the active session (tab1)
+			await act(async () => {
+				await result.current.closeSession(tab1!);
+			});
+
+			expect(result.current.sessions.size).toBe(1);
+			expect(result.current.activeSessionId).toBe(tab2!);
+			expect(result.current.cliProvider).toBe("shell");
+		});
+
+		it("should close last session and reset to null", async () => {
+			const { result } = renderHook(() => usePtyTerminalStore());
+
+			let tabId: string;
+			act(() => {
+				tabId = result.current.createSession();
+			});
+
+			await act(async () => {
+				await result.current.closeSession(tabId!);
+			});
+
+			expect(result.current.sessions.size).toBe(0);
+			expect(result.current.activeSessionId).toBeNull();
+			expect(result.current.status).toBe("disconnected");
+		});
+
+		it("should rename a session", () => {
+			const { result } = renderHook(() => usePtyTerminalStore());
+
+			let tabId: string;
+			act(() => {
+				tabId = result.current.createSession();
+			});
+
+			act(() => {
+				result.current.renameSession(tabId!, "My Agent");
+			});
+
+			expect(result.current.sessions.get(tabId!)!.label).toBe("My Agent");
+		});
+
+		it("should inherit flat field provider when creating a session", () => {
+			const { result } = renderHook(() => usePtyTerminalStore());
+
+			// Set provider before any session exists
+			act(() => {
+				result.current.setCliProvider("gemini");
+			});
+
+			let tabId: string;
+			act(() => {
+				tabId = result.current.createSession();
+			});
+
+			const session = result.current.sessions.get(tabId!);
+			expect(session!.cliProvider).toBe("gemini");
+		});
+
+		it("should connect creates session if none exist", async () => {
+			const { result } = renderHook(() => usePtyTerminalStore());
+
+			expect(result.current.sessions.size).toBe(0);
+
+			await act(async () => {
+				await result.current.connect({ manual: true });
+			});
+
+			expect(result.current.sessions.size).toBe(1);
+			expect(result.current.status).toBe("connected");
 		});
 	});
 });

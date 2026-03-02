@@ -87,7 +87,9 @@ export function MediaPanel() {
 				<PtyTerminalView />
 			</div>
 			{activeNonPtyTab && (
-				<div className="flex-1 overflow-y-auto">{viewMap[activeNonPtyTab]}</div>
+				<div className="flex-1 min-h-0 overflow-y-auto">
+					{viewMap[activeNonPtyTab]}
+				</div>
 			)}
 		</div>
 	);

@@ -1,12 +1,21 @@
 import { useCallback, useState } from "react";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, Plus, Search, Trash2, X } from "lucide-react";
+import {
+	ChevronLeft,
+	LayoutGrid,
+	List,
+	Plus,
+	Search,
+	Trash2,
+	X,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { DeleteProjectDialog } from "@/components/delete-project-dialog";
 import { AiStatusIndicator } from "@/components/project/ai-status-indicator";
 import { CreateProjectTile } from "@/components/project/create-project-tile";
 import { NoProjects, NoResults } from "@/components/project/empty-state";
 import { ProjectCard } from "@/components/project/project-card";
+import { ProjectListRow } from "@/components/project/project-list-row";
 import { RecentActivity } from "@/components/project/recent-activity";
 import { StudioBackground } from "@/components/project/studio-background";
 import { TemplateGallery } from "@/components/project/template-gallery";
@@ -21,6 +30,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { CanvasSize } from "@/types/editor";
@@ -51,6 +61,7 @@ function ProjectsPage() {
 	const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [sortOption, setSortOption] = useState("createdAt-desc");
+	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 	const navigate = useNavigate();
 
 	const getProjectThumbnail = useCallback(
@@ -131,8 +142,9 @@ function ProjectsPage() {
 	const someSelected =
 		selectedProjects.size > 0 && selectedProjects.size < sortedProjects.length;
 
-	// Center grid when few projects (including create tile)
-	const useFlexLayout = sortedProjects.length <= 2 && !isSelectionMode;
+	// Center grid when few projects (including create tile) — grid mode only
+	const useFlexLayout =
+		viewMode === "grid" && sortedProjects.length <= 2 && !isSelectionMode;
 
 	return (
 		<div className="relative min-h-screen bg-background">
@@ -252,6 +264,30 @@ function ProjectsPage() {
 							className="pl-8 bg-background border-none"
 						/>
 					</div>
+					<ToggleGroup
+						type="single"
+						value={viewMode}
+						onValueChange={(v) => {
+							if (v) setViewMode(v as "grid" | "list");
+						}}
+						size="sm"
+						className="bg-background rounded-md p-0.5"
+					>
+						<ToggleGroupItem
+							value="grid"
+							aria-label="Grid view"
+							className="px-2 py-1.5"
+						>
+							<LayoutGrid className="size-4" />
+						</ToggleGroupItem>
+						<ToggleGroupItem
+							value="list"
+							aria-label="List view"
+							className="px-2 py-1.5"
+						>
+							<List className="size-4" />
+						</ToggleGroupItem>
+					</ToggleGroup>
 					<Select value={sortOption} onValueChange={setSortOption}>
 						<SelectTrigger className="w-[170px] bg-background border-none">
 							<SelectValue placeholder="Sort by" />
@@ -289,22 +325,37 @@ function ProjectsPage() {
 					</button>
 				)}
 
-				{/* Project grid */}
+				{/* Project grid / list */}
 				{isLoading || !isInitialized ? (
-					<div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
-						{Array.from({ length: 8 }, (_, index) => (
-							<div
-								key={`skeleton-${index}`}
-								className="overflow-hidden bg-background rounded-md"
-							>
-								<Skeleton className="aspect-video w-full bg-muted/50" />
-								<div className="px-3 pt-3 pb-2 flex flex-col gap-1">
-									<Skeleton className="h-4 w-3/4 bg-muted/50" />
+					viewMode === "list" ? (
+						<div className="space-y-1">
+							{Array.from({ length: 6 }, (_, index) => (
+								<div
+									key={`skeleton-${index}`}
+									className="flex items-center gap-3 px-3 py-2"
+								>
+									<Skeleton className="w-16 h-9 rounded bg-muted/50 shrink-0" />
+									<Skeleton className="h-4 flex-1 bg-muted/50" />
 									<Skeleton className="h-3 w-24 bg-muted/50" />
 								</div>
-							</div>
-						))}
-					</div>
+							))}
+						</div>
+					) : (
+						<div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+							{Array.from({ length: 8 }, (_, index) => (
+								<div
+									key={`skeleton-${index}`}
+									className="overflow-hidden bg-background rounded-md"
+								>
+									<Skeleton className="aspect-video w-full bg-muted/50" />
+									<div className="px-3 pt-3 pb-2 flex flex-col gap-1">
+										<Skeleton className="h-4 w-3/4 bg-muted/50" />
+										<Skeleton className="h-3 w-24 bg-muted/50" />
+									</div>
+								</div>
+							))}
+						</div>
+					)
 				) : savedProjects.length === 0 ? (
 					<NoProjects onCreateProject={handleCreateProject} />
 				) : sortedProjects.length === 0 ? (
@@ -312,6 +363,29 @@ function ProjectsPage() {
 						searchQuery={searchQuery}
 						onClearSearch={() => setSearchQuery("")}
 					/>
+				) : viewMode === "list" ? (
+					<div className="rounded-lg border border-border/50 divide-y divide-border/30 overflow-hidden">
+						{sortedProjects.map((project, index) => (
+							<motion.div
+								key={project.id}
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								transition={{
+									duration: 0.2,
+									delay: index * 0.03,
+									ease: "easeOut",
+								}}
+							>
+								<ProjectListRow
+									project={project}
+									isSelectionMode={isSelectionMode}
+									isSelected={selectedProjects.has(project.id)}
+									onSelect={handleSelectProject}
+									getProjectThumbnail={getProjectThumbnail}
+								/>
+							</motion.div>
+						))}
+					</div>
 				) : (
 					<div
 						className={
