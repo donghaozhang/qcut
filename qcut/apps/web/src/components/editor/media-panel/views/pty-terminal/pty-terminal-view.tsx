@@ -3,6 +3,7 @@
 import { useCallback, useEffect } from "react";
 import { usePtyTerminalStore } from "@/stores/pty-terminal-store";
 import { TerminalEmulator } from "./terminal-emulator";
+import { SessionTab } from "./session-tab";
 import { Button } from "@/components/ui/button";
 import {
 	Select,
@@ -22,7 +23,7 @@ import {
 	X,
 	Bot,
 	MessageSquare,
-	MonitorPlay,
+	Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CliProvider } from "@/types/cli-provider";
@@ -36,7 +37,9 @@ import { useMediaPanelStore } from "../../store";
 export function PtyTerminalView() {
 	const activeTab = useMediaPanelStore((state) => state.activeTab);
 	const {
-		sessionId,
+		sessions,
+		sessionOrder,
+		activeSessionId,
 		status,
 		exitCode,
 		error,
@@ -45,16 +48,18 @@ export function PtyTerminalView() {
 		selectedClaudeModel,
 		activeSkill,
 		workingDirectory,
-		terminalMountedIn,
 		connect,
 		disconnect,
 		ensureAutoConnected,
+		createSession,
+		closeSession,
+		switchSession,
+		renameSession,
 		setCliProvider,
 		setSelectedModel,
 		setSelectedClaudeModel,
 		clearSkillContext,
 		handleError,
-		setTerminalMountedIn,
 	} = usePtyTerminalStore();
 
 	const setAsyncActionError = useCallback(
@@ -92,24 +97,14 @@ export function PtyTerminalView() {
 		}
 	};
 
+	const handleNewSession = () => {
+		createSession();
+	};
+
 	const isConnected = status === "connected";
 	const isConnecting = status === "connecting";
 	const isTerminalVisible = activeTab === "pty";
-	const isMountedInPreview = terminalMountedIn === "preview-panel";
-
-	// Claim terminal mount for media panel when visible (only if preview doesn't have it)
-	useEffect(() => {
-		if (!isTerminalVisible || isMountedInPreview) {
-			return;
-		}
-		setTerminalMountedIn("media-panel");
-		return () => {
-			// Only release if we're the ones who claimed it
-			if (usePtyTerminalStore.getState().terminalMountedIn === "media-panel") {
-				setTerminalMountedIn(null);
-			}
-		};
-	}, [isTerminalVisible, isMountedInPreview, setTerminalMountedIn]);
+	const hasSessions = sessionOrder.length > 0;
 
 	useEffect(() => {
 		if (!isTerminalVisible) {
@@ -324,6 +319,47 @@ export function PtyTerminalView() {
 				</div>
 			</div>
 
+			{/* Session Tab Bar */}
+			{hasSessions && (
+				<div
+					className="flex items-center gap-0.5 px-2 py-1 border-b bg-muted/20 overflow-x-auto"
+					role="tablist"
+					aria-label="Terminal sessions"
+				>
+					{sessionOrder.map((tabId) => {
+						const session = sessions.get(tabId);
+						if (!session) return null;
+						return (
+							<SessionTab
+								key={tabId}
+								tabId={tabId}
+								label={session.label}
+								status={session.status}
+								isActive={tabId === activeSessionId}
+								onSelect={() => switchSession(tabId)}
+								onClose={() => closeSession(tabId)}
+								onRename={(label) => renameSession(tabId, label)}
+							/>
+						);
+					})}
+					<button
+						type="button"
+						onClick={handleNewSession}
+						disabled={sessions.size >= 5}
+						className={cn(
+							"h-7 w-7 flex items-center justify-center rounded shrink-0",
+							sessions.size >= 5
+								? "opacity-30 cursor-not-allowed"
+								: "hover:bg-muted/50 text-muted-foreground"
+						)}
+						aria-label="New terminal session"
+						data-testid="new-session-button"
+					>
+						<Plus className="h-3.5 w-3.5" />
+					</button>
+				</div>
+			)}
+
 			{/* Error Display */}
 			{error && (
 				<div className="p-2 bg-destructive/10 border-b border-destructive/20">
@@ -340,85 +376,129 @@ export function PtyTerminalView() {
 				</div>
 			)}
 
-			{/* Terminal Area */}
-			<div className="flex-1 min-h-0 bg-[#1a1a1a] overflow-hidden">
-				{isMountedInPreview && (isConnected || isConnecting) ? (
-					<div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-2">
-						<MonitorPlay className="h-10 w-10 opacity-50" />
-						<p className="text-sm">Agent is active in the Preview panel</p>
-						<p className="text-xs opacity-60">
-							Switch back from Agent mode in Preview to use the terminal here
-						</p>
-					</div>
-				) : isConnected || isConnecting ? (
-					<TerminalEmulator
-						sessionId={sessionId}
-						isVisible={isTerminalVisible}
-					/>
+			{/* Terminal Area — all sessions mounted, only active visible */}
+			<div className="flex-1 min-h-0 bg-[#1a1a1a] overflow-hidden relative">
+				{hasSessions ? (
+					sessionOrder.map((tabId) => {
+						const session = sessions.get(tabId);
+						if (!session) return null;
+						const isActiveTab = tabId === activeSessionId;
+						const isSessionReady =
+							session.status === "connected" ||
+							session.status === "connecting";
+
+						return (
+							<div
+								key={tabId}
+								className="absolute inset-0"
+								style={{ display: isActiveTab ? "block" : "none" }}
+							>
+								{isSessionReady ? (
+									<TerminalEmulator
+										tabId={tabId}
+										sessionId={session.sessionId}
+										isVisible={isActiveTab && isTerminalVisible}
+									/>
+								) : (
+									<SessionPlaceholder
+										session={session}
+										cliProvider={session.cliProvider}
+										selectedModel={session.selectedModel}
+										selectedClaudeModel={session.selectedClaudeModel}
+									/>
+								)}
+							</div>
+						);
+					})
 				) : (
 					<div className="h-full flex flex-col items-center justify-center text-muted-foreground">
-						{activeSkill ? (
-							<>
-								<Brain className="h-12 w-12 mb-4 text-purple-500" />
-								<p className="text-sm font-medium text-foreground">
-									{activeSkill.name}
-								</p>
-								<p className="text-xs mt-1 opacity-70">
-									Click Start to run with {CLI_PROVIDERS[cliProvider].name}
-								</p>
-								{cliProvider === "codex" && (
-									<p className="text-xs mt-2 text-blue-400">
-										Using model: {selectedModel || "default"}
-									</p>
-								)}
-								{cliProvider === "claude" && (
-									<p className="text-xs mt-2 text-orange-400">
-										Using model: {selectedClaudeModel || "sonnet"}
-									</p>
-								)}
-								{cliProvider === "gemini" && (
-									<p className="text-xs mt-2 text-purple-400">
-										Skill instructions will be sent automatically
-									</p>
-								)}
-							</>
-						) : (
-							<>
-								{cliProvider === "gemini" && (
-									<Sparkles className="h-12 w-12 mb-4 opacity-50" />
-								)}
-								{cliProvider === "codex" && (
-									<Bot className="h-12 w-12 mb-4 opacity-50" />
-								)}
-								{cliProvider === "claude" && (
-									<MessageSquare className="h-12 w-12 mb-4 opacity-50" />
-								)}
-								{cliProvider === "shell" && (
-									<TerminalIcon className="h-12 w-12 mb-4 opacity-50" />
-								)}
-								<p className="text-sm">
-									Click Start to launch {CLI_PROVIDERS[cliProvider].name}
-								</p>
-								{cliProvider === "gemini" && (
-									<p className="text-xs mt-1 opacity-70">
-										Requires Google account authentication on first use
-									</p>
-								)}
-								{cliProvider === "codex" && (
-									<p className="text-xs mt-1 opacity-70">
-										Requires OpenRouter API key in Settings
-									</p>
-								)}
-								{cliProvider === "claude" && (
-									<p className="text-xs mt-1 opacity-70">
-										Uses Claude Pro/Max login (API key optional)
-									</p>
-								)}
-							</>
-						)}
+						<TerminalIcon className="h-12 w-12 mb-4 opacity-50" />
+						<p className="text-sm">
+							Click Start to launch {CLI_PROVIDERS[cliProvider].name}
+						</p>
+						<p className="text-xs mt-1 opacity-70">
+							Or press + to create a new session
+						</p>
 					</div>
 				)}
 			</div>
+		</div>
+	);
+}
+
+/** Placeholder shown when a session tab is selected but not connected */
+function SessionPlaceholder({
+	session,
+	cliProvider,
+	selectedModel,
+	selectedClaudeModel,
+}: {
+	session: import("@/stores/pty-session-types").SessionState;
+	cliProvider: CliProvider;
+	selectedModel: string | null;
+	selectedClaudeModel: string | null;
+}) {
+	return (
+		<div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+			{session.activeSkill ? (
+				<>
+					<Brain className="h-12 w-12 mb-4 text-purple-500" />
+					<p className="text-sm font-medium text-foreground">
+						{session.activeSkill.name}
+					</p>
+					<p className="text-xs mt-1 opacity-70">
+						Click Start to run with {CLI_PROVIDERS[cliProvider].name}
+					</p>
+					{cliProvider === "codex" && (
+						<p className="text-xs mt-2 text-blue-400">
+							Using model: {selectedModel || "default"}
+						</p>
+					)}
+					{cliProvider === "claude" && (
+						<p className="text-xs mt-2 text-orange-400">
+							Using model: {selectedClaudeModel || "sonnet"}
+						</p>
+					)}
+					{cliProvider === "gemini" && (
+						<p className="text-xs mt-2 text-purple-400">
+							Skill instructions will be sent automatically
+						</p>
+					)}
+				</>
+			) : (
+				<>
+					{cliProvider === "gemini" && (
+						<Sparkles className="h-12 w-12 mb-4 opacity-50" />
+					)}
+					{cliProvider === "codex" && (
+						<Bot className="h-12 w-12 mb-4 opacity-50" />
+					)}
+					{cliProvider === "claude" && (
+						<MessageSquare className="h-12 w-12 mb-4 opacity-50" />
+					)}
+					{cliProvider === "shell" && (
+						<TerminalIcon className="h-12 w-12 mb-4 opacity-50" />
+					)}
+					<p className="text-sm">
+						Click Start to launch {CLI_PROVIDERS[cliProvider].name}
+					</p>
+					{cliProvider === "gemini" && (
+						<p className="text-xs mt-1 opacity-70">
+							Requires Google account authentication on first use
+						</p>
+					)}
+					{cliProvider === "codex" && (
+						<p className="text-xs mt-1 opacity-70">
+							Requires OpenRouter API key in Settings
+						</p>
+					)}
+					{cliProvider === "claude" && (
+						<p className="text-xs mt-1 opacity-70">
+							Uses Claude Pro/Max login (API key optional)
+						</p>
+					)}
+				</>
+			)}
 		</div>
 	);
 }

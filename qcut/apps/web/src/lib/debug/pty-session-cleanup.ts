@@ -11,12 +11,13 @@ export function cleanupPtyOnEditorExit({
 	onError = debugError,
 }: CleanupPtyOnEditorExitOptions = {}): void {
 	try {
-		const { sessionId, disconnect } = usePtyTerminalStore.getState();
-		if (!sessionId) {
+		const { sessions } = usePtyTerminalStore.getState();
+		if (sessions.size === 0) {
 			return;
 		}
-		disconnect().catch((error) => {
-			onError("[Editor] Failed to disconnect PTY on editor unmount", error);
+		// Kill all PTY sessions at once for efficiency
+		window.electronAPI?.pty?.killAll()?.catch((error: unknown) => {
+			onError("[Editor] Failed to kill all PTY sessions on exit", error);
 		});
 	} catch (error) {
 		onError("[Editor] Unexpected PTY cleanup failure", error);
