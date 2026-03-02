@@ -73,10 +73,9 @@ test.describe("Visual Regression — Editor", () => {
 
 		// Open export dialog
 		const exportButton = page.getByTestId("export-button").first();
-		if (await exportButton.isVisible().catch(() => false)) {
-			await exportButton.click();
-			await page.waitForTimeout(500);
-			await assertScreenshot(page, "editor-export-dialog");
-		}
+		await expect(exportButton).toBeVisible({ timeout: 5000 });
+		await exportButton.click();
+		await page.waitForTimeout(500);
+		await assertScreenshot(page, "editor-export-dialog");
 	});
 });

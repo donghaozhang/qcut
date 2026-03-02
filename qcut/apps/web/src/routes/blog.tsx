@@ -9,14 +9,17 @@ export const Route = createFileRoute("/blog")({
 });
 
 function BlogPage() {
-	const handleRedirectToGitHub = () => {
+	const handleRedirectToGitHub = async () => {
+		const url = "https://github.com/donghaozhang/qcut";
 		if (window.electronAPI?.shell?.openExternal) {
-			window.electronAPI.shell.openExternal(
-				"https://github.com/donghaozhang/qcut"
-			);
-		} else {
-			openInNewTab("https://github.com/donghaozhang/qcut");
+			try {
+				await window.electronAPI.shell.openExternal(url);
+				return;
+			} catch {
+				// fallback below
+			}
 		}
+		openInNewTab(url);
 	};
 
 	return (

@@ -21,8 +21,8 @@ export function registerShellGithubHandlers(deps: MainIpcDeps): void {
 		async (_event: IpcMainInvokeEvent, url: string): Promise<void> => {
 			// Only allow http/https URLs to prevent shell injection
 			if (!/^https?:\/\//i.test(url)) {
-				logger.error(`shell:openExternal blocked non-http URL: ${url}`);
-				return;
+				logger.warn("shell:openExternal blocked non-http(s) URL");
+				throw new Error("Only http/https URLs are allowed");
 			}
 			await shell.openExternal(url);
 		}

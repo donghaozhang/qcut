@@ -164,7 +164,7 @@ All `process.env` violations are resolved.
 
 ## Task Dependencies
 
-```
+```text
 Task 1 (fix blog.tsx) ─── no deps, do first
 Task 2 (window.require rule) ─── do after Task 1 (validates the fix)
 Task 3 (Biome rule) ─── independent, research needed

@@ -94,7 +94,9 @@ export interface PluginRegistry {
  */
 export function isIssueNotFoundError(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
-  const message = (err as Error).message?.toLowerCase() || "";
+  const raw = (err as Record<string, unknown>).message;
+  if (typeof raw !== "string") return false;
+  const message = raw.toLowerCase();
 
   // Match issue-specific not-found patterns
   return (
