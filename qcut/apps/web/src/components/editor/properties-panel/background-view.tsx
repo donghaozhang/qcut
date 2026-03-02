@@ -59,16 +59,24 @@ export function BackgroundView() {
 
 	const handleBlurSelect = useCallback(
 		async (blurIntensity: number) => {
-			await updateBackgroundType("blur", {
-				blurIntensity: blurIntensity as BlurIntensity,
-			});
+			try {
+				await updateBackgroundType("blur", {
+					blurIntensity: blurIntensity as BlurIntensity,
+				});
+			} catch (error) {
+				console.error("Failed to update blur background:", error);
+			}
 		},
 		[updateBackgroundType]
 	);
 
 	const handleColorSelect = useCallback(
 		async (color: string) => {
-			await updateBackgroundType("color", { backgroundColor: color });
+			try {
+				await updateBackgroundType("color", { backgroundColor: color });
+			} catch (error) {
+				console.error("Failed to update color background:", error);
+			}
 		},
 		[updateBackgroundType]
 	);

@@ -12,7 +12,7 @@ Replace the current hand-rolled dual-canvas drawing system ("White Draw") with t
 
 ## Current Architecture (to be replaced)
 
-```
+```text
 apps/web/src/components/editor/draw/     # 22 files, ~5,500 LOC
 ├── canvas/                               # Dual HTMLCanvas rendering engine
 ├── components/                           # Toolbar, tool selector, saved drawings

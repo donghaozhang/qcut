@@ -63,6 +63,7 @@ export function ApiKeyField({
 					</div>
 					{onTest && (
 						<Button
+							type="button"
 							onClick={onTest}
 							disabled={!value || isTesting}
 							variant="outline"
