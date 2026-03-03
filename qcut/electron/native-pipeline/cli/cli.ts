@@ -23,7 +23,7 @@ import { CLIOutput } from "../cli/cli-output.js";
 import { StreamEmitter, NullEmitter } from "../infra/stream-emitter.js";
 import { formatCommandOutput } from "./cli-output-formatters.js";
 import { runSession } from "./cli-runner/session.js";
-import { jsonOk, jsonError } from "./json-output.js";
+import { emitJsonResult } from "./json-output.js";
 
 const VERSION = "1.0.0";
 
@@ -818,18 +818,7 @@ export async function main(
 	const result = await runner.run(options, reporter);
 
 	if (options.json) {
-		if (result.success) {
-			jsonOk({
-				schema_version: "1",
-				command: options.command,
-				...result,
-			});
-		} else {
-			jsonError(
-				result.error || "Unknown error",
-				`${options.command}:failed`
-			);
-		}
+		emitJsonResult(options.command, result);
 	} else if (result.success) {
 		if (result.outputPath) {
 			output.success(`Output: ${result.outputPath}`);

@@ -9,8 +9,6 @@
  * @module electron/native-pipeline/cli-output
  */
 
-const SCHEMA_VERSION = "1";
-
 // -- ANSI Color Helpers --
 
 const SUPPORTS_COLOR =
@@ -81,33 +79,6 @@ export function formatTable(
 	return [header, separator, ...dataRows].join("\n");
 }
 
-// -- JSON Envelope --
-
-export interface JsonEnvelope {
-	schema_version: string;
-	command: string;
-	data?: unknown;
-	items?: unknown[];
-	count?: number;
-}
-
-function createEnvelope(
-	command: string,
-	data?: unknown,
-	items?: unknown[]
-): JsonEnvelope {
-	const envelope: JsonEnvelope = {
-		schema_version: SCHEMA_VERSION,
-		command,
-	};
-	if (data !== undefined) envelope.data = data;
-	if (items !== undefined) {
-		envelope.items = items;
-		envelope.count = items.length;
-	}
-	return envelope;
-}
-
 // -- CLIOutput Class --
 
 export interface CLIOutputOptions {
@@ -168,31 +139,4 @@ export class CLIOutput {
 		console.log(colorize(`  Cost: $${amount.toFixed(4)} ${currency}`, "dim"));
 	}
 
-	/** Emit final result as JSON envelope or human-readable format. */
-	result(data: Record<string, unknown>, command?: string): void {
-		if (this.jsonMode) {
-			const envelope = createEnvelope(command ?? "result", data);
-			console.log(JSON.stringify(envelope, null, 2));
-		} else if (!this.quiet) {
-			for (const [key, value] of Object.entries(data)) {
-				console.log(
-					`${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`
-				);
-			}
-		}
-	}
-
-	/** Emit tabular data as JSON array or formatted table. */
-	table(
-		rows: Record<string, unknown>[],
-		headers?: TableColumn[],
-		command?: string
-	): void {
-		if (this.jsonMode) {
-			const envelope = createEnvelope(command ?? "table", undefined, rows);
-			console.log(JSON.stringify(envelope, null, 2));
-		} else if (!this.quiet) {
-			console.log(formatTable(rows, headers));
-		}
-	}
 }

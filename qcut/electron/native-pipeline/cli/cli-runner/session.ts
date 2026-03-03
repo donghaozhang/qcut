@@ -29,7 +29,7 @@ import {
 	EditorApiClient,
 	createEditorClient,
 } from "../../editor/editor-api-client.js";
-import { jsonOk, jsonError } from "../json-output.js";
+import { emitJsonResult } from "../json-output.js";
 
 /**
  * Shared editor client for session mode.
@@ -302,18 +302,9 @@ export async function runSession(
 			const result = await runner.run(options, onProgress);
 
 			if (output === "json") {
-				if (result.success) {
-					jsonOk({
-						command: options.command,
-						...result,
-						sessionDuration: (Date.now() - startTime) / 1000,
-					});
-				} else {
-					jsonError(
-						result.error || "Unknown error",
-						`${options.command}:failed`
-					);
-				}
+				emitJsonResult(options.command, result, {
+					sessionDuration: (Date.now() - startTime) / 1000,
+				});
 			} else if (result.success) {
 				if (result.outputPath) {
 					process.stderr.write(`Output: ${result.outputPath}\n`);

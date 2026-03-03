@@ -114,7 +114,7 @@ The `jsonOk`/`jsonError` helpers from `json-output.ts` are **only called in 2 pl
 
 ## 3. Identified Issues & Improvements
 
-### Issue 1: Redundant `success` field in JSON envelope
+### Issue 1: Redundant `success` field in JSON envelope — DONE
 
 The current `jsonOk()` wrapping spreads the entire CLIResult into `data`:
 
@@ -131,7 +131,9 @@ Problems:
 **Files to change**: `cli.ts` (lines 820-832), `session.ts` (lines 304-315)
 **Estimated LOC**: ~20 lines
 
-### Issue 2: `jsonError` loses CLIResult metadata on failure
+**Resolution**: Added `emitJsonResult()` helper in `json-output.ts` that strips `success` before wrapping. Both `cli.ts` and `session.ts` now call `emitJsonResult()`.
+
+### Issue 2: `jsonError` loses CLIResult metadata on failure — DONE
 
 When a command fails, only the error message and code are emitted:
 
@@ -146,7 +148,9 @@ But some failures include useful metadata (`duration`, `data` with partial resul
 **Files to change**: `json-output.ts` (interface + function), `cli.ts`, `session.ts`
 **Estimated LOC**: ~15 lines
 
-### Issue 3: `run-pipeline` data field lacks step details
+**Resolution**: Added optional `data?: Record<string, unknown>` to `JsonErrorEnvelope` and `jsonError()`. The `emitJsonResult()` helper passes remaining CLIResult fields (duration, data, etc.) to error envelopes.
+
+### Issue 3: `run-pipeline` data field lacks step details — DONE
 
 The `handler-pipeline.ts` returns `data: { stepsCompleted, totalSteps }` but doesn't include per-step output paths or costs.
 
@@ -155,13 +159,15 @@ The `handler-pipeline.ts` returns `data: { stepsCompleted, totalSteps }` but doe
 **Files to change**: `cli-runner/handler-pipeline.ts`
 **Estimated LOC**: ~15 lines
 
+**Resolution**: Added `steps` array mapped from `result.stepResults` with per-step `{ step, success, outputPath, duration, cost, error }`.
+
 ### Issue 4: `cli-output-formatters.ts` uses `console.log` (stdout) in non-JSON mode
 
 This is **correct behavior** (only runs when `--json` is false), but if the check were ever bypassed, it would corrupt JSON output. The `formatCommandOutput()` function is called inside the `else if (result.success)` branch (line 843), not inside the `if (options.json)` branch.
 
 **Status**: No change needed. Architecture is correct.
 
-### Issue 5: `CLIOutput.result()` uses a different envelope format
+### Issue 5: `CLIOutput.result()` uses a different envelope format — DONE
 
 The `CLIOutput` class has its own `createEnvelope()` function (`cli-output.ts:94-109`) that creates a different JSON shape than `jsonOk()`. This class is instantiated in `cli.ts` but its `.result()` method is never called — only `.success()`, `.info()`, `.cost()`, `.error()` are used.
 
@@ -170,7 +176,9 @@ The `CLIOutput` class has its own `createEnvelope()` function (`cli-output.ts:94
 **Files to change**: `cli-output.ts`
 **Estimated LOC**: ~20 lines (removal)
 
-### Issue 6: No `jsonPending` usage yet
+**Resolution**: Removed `SCHEMA_VERSION`, `JsonEnvelope` interface, `createEnvelope()`, `result()`, and `table()` from `cli-output.ts`. All were unused.
+
+### Issue 6: No `jsonPending` usage yet — DONE
 
 The `jsonPending()` helper exists in `json-output.ts` but is never used. Commands with async polling (auto-edit, transcribe:start, generate:start, export:start) could emit a pending envelope before polling begins.
 
@@ -179,7 +187,9 @@ The `jsonPending()` helper exists in `json-output.ts` but is never used. Command
 **Files to change**: `editor-handlers-timeline.ts` (auto-edit, suggest-cuts), `editor-handlers-analysis.ts` (transcribe:start), `editor-handlers-generate.ts` (generate:start, export:start)
 **Estimated LOC**: ~30 lines
 
-### Issue 7: Session mode mirrors main() JSON wrapping — keep in sync
+**Resolution**: Added `if (opts.json) jsonPending(startResult.jobId)` before polling in all 5 async handlers: auto-edit, suggest-cuts, transcribe:start, generate:start, export:start.
+
+### Issue 7: Session mode mirrors main() JSON wrapping — keep in sync — DONE
 
 Both `cli.ts main()` and `session.ts runSession()` independently wrap results with `jsonOk`/`jsonError`. They should stay in sync.
 
@@ -187,6 +197,8 @@ Both `cli.ts main()` and `session.ts runSession()` independently wrap results wi
 
 **Files to change**: `json-output.ts` (new function), `cli.ts`, `session.ts`
 **Estimated LOC**: ~25 lines
+
+**Resolution**: Added `emitJsonResult(command, result, extra?)` in `json-output.ts`. Both `cli.ts` and `session.ts` now call this single shared helper.
 
 ---
 
@@ -208,21 +220,21 @@ Both `cli.ts main()` and `session.ts runSession()` independently wrap results wi
 
 ## 5. Priority Order
 
-1. **P0 — Consolidate JSON wrapping** (Issues 1, 2, 7)
+1. **P0 — Consolidate JSON wrapping** (Issues 1, 2, 7) — DONE
    - `json-output.ts`, `cli.ts`, `session.ts`
    - Fixes the redundant `success`/`data.data` nesting
    - Adds partial-result data to error envelopes
    - Single source of truth for envelope creation
 
-2. **P1 — Remove duplicate envelope code** (Issue 5)
+2. **P1 — Remove duplicate envelope code** (Issue 5) — DONE
    - `cli-output.ts`
    - Eliminates confusion between two envelope formats
 
-3. **P2 — Enrich pipeline data** (Issue 3)
+3. **P2 — Enrich pipeline data** (Issue 3) — DONE
    - `cli-runner/handler-pipeline.ts`
    - Better programmatic consumption of pipeline results
 
-4. **P3 — Use jsonPending for async commands** (Issue 6)
+4. **P3 — Use jsonPending for async commands** (Issue 6) — DONE
    - Editor handler files
    - Progressive output for long-running jobs
 
