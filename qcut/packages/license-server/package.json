@@ -8,6 +8,7 @@
 		"deploy": "wrangler deploy"
 	},
 	"dependencies": {
+		"@supabase/supabase-js": "^2.49.0",
 		"hono": "^4.0.0",
 		"stripe": "^17.0.0",
 		"@qcut/db": "workspace:*"
