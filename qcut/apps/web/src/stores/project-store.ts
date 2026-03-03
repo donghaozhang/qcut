@@ -293,6 +293,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			]);
 
 			syncProjectSkillsForClaude({ projectId: id });
+
+			// Regenerate project.json on every load to ensure freshness
+			window.electronAPI?.projectJson?.write(id);
+
 			debugLog(`[ProjectStore] Project loading complete: ${id}`);
 		} catch (error) {
 			// Rollback to previous state if we had a project open
