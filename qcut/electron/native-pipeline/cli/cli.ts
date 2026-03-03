@@ -23,6 +23,7 @@ import { CLIOutput } from "../cli/cli-output.js";
 import { StreamEmitter, NullEmitter } from "../infra/stream-emitter.js";
 import { formatCommandOutput } from "./cli-output-formatters.js";
 import { runSession } from "./cli-runner/session.js";
+import { jsonOk, jsonError } from "./json-output.js";
 
 const VERSION = "1.0.0";
 
@@ -153,6 +154,13 @@ const COMMANDS = [
 	"editor:project:delete",
 	"editor:project:rename",
 	"editor:project:duplicate",
+	// New unified JSON API commands
+	"editor:project:list",
+	"editor:project:info",
+	"editor:timeline:info",
+	"editor:timeline:add-clip",
+	"editor:timeline:trim",
+	"pipeline:status",
 ] as const;
 
 type Command = (typeof COMMANDS)[number];
@@ -267,6 +275,12 @@ Editor Commands (requires running QCut — use --project-id for all):
   editor:project:delete      Delete project (--project-id)
   editor:project:rename      Rename project (--project-id --new-name)
   editor:project:duplicate   Duplicate project (--project-id)
+  editor:project:list        List all projects
+  editor:project:info        Get project info (--project-id)
+  editor:timeline:info       Get timeline state (--project-id)
+  editor:timeline:add-clip   Add media clip to timeline (--project-id --media-id)
+  editor:timeline:trim       Trim element (--project-id --element-id --start-time --end-time)
+  pipeline:status            Get pipeline job status (--job-id)
 
 Global Options:
   --output-dir, -o    Output directory (default: ./output)
@@ -493,6 +507,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			prompts: { type: "string", multiple: true },
 			// batch import convenience
 			sources: { type: "string" },
+			// format alias (for editor:export --format)
+			format: { type: "string" },
 			// performance flags
 			"skip-health": { type: "boolean", default: false },
 			"no-capability-check": { type: "boolean", default: false },
@@ -715,6 +731,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		prompts: values.prompts as string[] | undefined,
 		// batch import convenience
 		sources: values.sources as string | undefined,
+		format: values.format as string | undefined,
 		// performance flags
 		skipHealth: (values["skip-health"] as boolean) ?? false,
 		noCapabilityCheck: (values["no-capability-check"] as boolean) ?? false,
@@ -801,17 +818,18 @@ export async function main(
 	const result = await runner.run(options, reporter);
 
 	if (options.json) {
-		console.log(
-			JSON.stringify(
-				{
-					schema_version: "1",
-					command: options.command,
-					...result,
-				},
-				null,
-				2
-			)
-		);
+		if (result.success) {
+			jsonOk({
+				schema_version: "1",
+				command: options.command,
+				...result,
+			});
+		} else {
+			jsonError(
+				result.error || "Unknown error",
+				`${options.command}:failed`
+			);
+		}
 	} else if (result.success) {
 		if (result.outputPath) {
 			output.success(`Output: ${result.outputPath}`);
