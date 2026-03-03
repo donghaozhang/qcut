@@ -116,6 +116,13 @@ export interface MediaImportAPI {
 	};
 }
 
+/** Project JSON auto-sync (write project.json to disk). */
+export interface ProjectJsonAPI {
+	projectJson?: {
+		write: (projectId: string) => Promise<{ ok: boolean }>;
+	};
+}
+
 /** Project folder operations (scan, list, ensure structure). */
 export interface ProjectFolderAPI {
 	projectFolder?: {

@@ -127,4 +127,9 @@ export interface ElectronAPI
 			projectId: string
 		) => Promise<{ created: string[]; existing: string[] }>;
 	};
+
+	// Project JSON auto-sync
+	projectJson?: {
+		write: (projectId: string) => Promise<{ ok: boolean }>;
+	};
 }

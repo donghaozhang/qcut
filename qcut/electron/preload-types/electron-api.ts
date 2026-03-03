@@ -30,6 +30,7 @@ import type {
 	SkillsAPI,
 	AIPipelineAPI,
 	MediaImportAPI,
+	ProjectJsonAPI,
 	ProjectFolderAPI,
 } from "./api-types/features-api";
 import type {
@@ -81,6 +82,7 @@ export interface ElectronAPI
 		SkillsAPI,
 		AIPipelineAPI,
 		MediaImportAPI,
+		ProjectJsonAPI,
 		ProjectFolderAPI,
 		RemotionFolderAPI,
 		MoyinAPI,
