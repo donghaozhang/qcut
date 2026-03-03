@@ -628,7 +628,17 @@ export function getCommandFlag(
 ): FlagDef | undefined {
 	const cmd = COMMANDS_REGISTRY[commandName];
 	if (!cmd) return undefined;
-	const normalized = flagName.startsWith("--") ? flagName : `--${flagName}`;
+
+	// Support short flags (e.g. "-m") and bare names (e.g. "model")
+	const isShort = flagName.startsWith("-") && !flagName.startsWith("--");
+	const normalized = flagName.startsWith("--") ? flagName : (isShort ? flagName : `--${flagName}`);
+
+	if (isShort) {
+		return (
+			cmd.flags.find((fl) => fl.short === normalized) ??
+			GLOBAL_FLAGS.find((fl) => fl.short === normalized)
+		);
+	}
 	return (
 		cmd.flags.find((fl) => fl.name === normalized) ??
 		GLOBAL_FLAGS.find((fl) => fl.name === normalized)

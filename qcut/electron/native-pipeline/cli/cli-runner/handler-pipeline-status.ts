@@ -18,18 +18,23 @@ export async function handlePipelineStatus(
 
 	const client = createEditorClient(options);
 
-	const healthy = await client.checkHealth();
-	if (!healthy) {
-		const host = options.host ?? process.env.QCUT_API_HOST ?? "127.0.0.1";
-		const port = options.port ?? process.env.QCUT_API_PORT ?? "8765";
+	try {
+		const healthy = await client.checkHealth();
+		if (!healthy) {
+			return {
+				success: false,
+				error: `QCut editor not reachable\nStart QCut with: bun run electron:dev`,
+			};
+		}
+
+		const data = await client.get(
+			`/api/claude/pipeline/jobs/${encodeURIComponent(options.jobId)}`
+		);
+		return { success: true, data };
+	} catch (err) {
 		return {
 			success: false,
-			error: `QCut editor not running at http://${host}:${port}\nStart QCut with: bun run electron:dev`,
+			error: err instanceof Error ? err.message : String(err),
 		};
 	}
-
-	const data = await client.get(
-		`/api/claude/pipeline/jobs/${options.jobId}`
-	);
-	return { success: true, data };
 }

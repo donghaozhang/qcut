@@ -10,7 +10,7 @@
 
 The CLI has a two-level output architecture:
 
-```
+```text
 Handler (returns CLIResult) → Runner (cli.ts main / session.ts) → jsonOk/jsonError envelope
 ```
 
@@ -371,7 +371,7 @@ Note: This requires the handler to be aware of `options.json`, which breaks the 
 | P3 | jsonPending for async | ~30 | Medium — adds new output lines, needs docs |
 | **Total** | | **~115 lines** | |
 
-All changes are backward-compatible. The P0 change removes `success: true` from the OK envelope data, but since `status: "ok"` already conveys success, consumers should not break.
+All changes are backward-compatible. The P0 change removes `data.success` from the OK envelope data, but since `status: "ok"` already conveys success, consumers should not break. **Note**: This is potentially breaking for consumers that rely on `data.success` being present. To migrate, check `status === "ok"` at the envelope level instead of `data.success`.
 
 ---
 

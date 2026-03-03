@@ -48,7 +48,7 @@ All existing command outputs now route through `jsonOk`/`jsonError` when `--json
 
 ### 5. JSON Envelope Format
 
-```
+```json
 Success:  { "status": "ok",      "data": { ... } }
 Error:    { "status": "error",   "error": "message", "code": "command:failed" }
 Pending:  { "status": "pending", "jobId": "abc-123" }

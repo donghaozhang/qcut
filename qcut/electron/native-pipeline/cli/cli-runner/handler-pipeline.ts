@@ -136,7 +136,7 @@ export async function handleRunPipeline(
 			data: {
 				stepsCompleted: result.stepsCompleted,
 				totalSteps: result.totalSteps,
-				steps: result.stepResults.map((s, i) => ({
+				steps: (result.stepResults ?? []).map((s, i) => ({
 					step: i + 1,
 					success: s.success,
 					outputPath: s.outputPath,

@@ -560,7 +560,7 @@ async function timelineInfo(
 	opts: CLIRunOptions
 ): Promise<CLIResult> {
 	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
-	const data = await client.get(`/api/claude/timeline/${opts.projectId}`);
+	const data = await client.get(`/api/claude/timeline/${encodeURIComponent(opts.projectId)}`);
 	return { success: true, data };
 }
 
@@ -579,7 +579,7 @@ async function timelineAddClip(
 	if (opts.startTime !== undefined) body.startTime = opts.startTime;
 
 	const data = await client.post(
-		`/api/claude/timeline/${opts.projectId}/elements`,
+		`/api/claude/timeline/${encodeURIComponent(opts.projectId)}/elements`,
 		body
 	);
 	return { success: true, data };
@@ -597,13 +597,29 @@ async function timelineTrim(
 			error: "Missing --start-time and/or --end-time",
 		};
 	}
+	if (opts.startTime !== undefined && !Number.isFinite(opts.startTime)) {
+		return { success: false, error: "--start-time must be a finite number" };
+	}
+	if (opts.endTime !== undefined && !Number.isFinite(opts.endTime)) {
+		return { success: false, error: "--end-time must be a finite number" };
+	}
+	if (
+		opts.startTime !== undefined &&
+		opts.endTime !== undefined &&
+		opts.startTime >= opts.endTime
+	) {
+		return {
+			success: false,
+			error: "--start-time must be less than --end-time",
+		};
+	}
 
 	const changes: Record<string, unknown> = {};
 	if (opts.startTime !== undefined) changes.startTime = opts.startTime;
 	if (opts.endTime !== undefined) changes.endTime = opts.endTime;
 
 	const data = await client.patch(
-		`/api/claude/timeline/${opts.projectId}/elements/${opts.elementId}`,
+		`/api/claude/timeline/${encodeURIComponent(opts.projectId)}/elements/${encodeURIComponent(opts.elementId)}`,
 		{ changes }
 	);
 	return { success: true, data };

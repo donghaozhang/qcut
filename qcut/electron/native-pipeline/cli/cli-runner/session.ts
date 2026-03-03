@@ -317,7 +317,14 @@ export async function runSession(
 			}
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
-			process.stderr.write(`Error: ${msg}\n`);
+			if (output === "json") {
+				emitJsonResult(options.command, {
+					success: false,
+					error: msg,
+				});
+			} else {
+				process.stderr.write(`Error: ${msg}\n`);
+			}
 		}
 
 		if (isInteractive) rl.prompt();

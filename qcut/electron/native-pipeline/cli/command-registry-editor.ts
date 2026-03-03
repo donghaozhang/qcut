@@ -36,12 +36,16 @@ function ed(
 	flags: FlagDef[],
 	examples?: string[]
 ): CommandDef {
+	const hasProjectId = flags.some((fl) => fl.name === "--project-id");
+	const defaultExample = hasProjectId
+		? `qcut-pipeline ${name} --project-id <id> --json`
+		: `qcut-pipeline ${name} --json`;
 	return {
 		name,
 		description,
 		category: "editor",
 		flags,
-		examples: examples ?? [`qcut-pipeline ${name} --project-id <id> --json`],
+		examples: examples ?? [defaultExample],
 	};
 }
 

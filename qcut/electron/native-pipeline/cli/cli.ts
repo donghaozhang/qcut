@@ -438,6 +438,13 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				// Level 2: <command> --help --json
 				printCommandHelpJson(command);
 			}
+			// Exit non-zero if jsonError was emitted (unknown command/param)
+			const def = getCommand(command);
+			if (!def) process.exit(1);
+			if (helpParam) {
+				const flag = getCommandFlag(command, helpParam);
+				if (!flag) process.exit(1);
+			}
 		} else {
 			printHelp();
 		}
@@ -744,6 +751,9 @@ export async function main(
 
 	if (options.json) {
 		emitJsonResult(options.command, result);
+		if (!result.success) {
+			process.exit(1);
+		}
 	} else if (result.success) {
 		if (result.outputPath) {
 			output.success(`Output: ${result.outputPath}`);

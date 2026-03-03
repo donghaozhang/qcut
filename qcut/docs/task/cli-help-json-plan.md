@@ -175,7 +175,7 @@ Created as three files to stay within the 800-line-per-file limit:
 - `electron/native-pipeline/cli/command-registry.ts` — global flags, categories, non-editor commands (38), lookup helpers
 - `electron/native-pipeline/cli/command-registry-editor.ts` — editor commands (87)
 
-Total: 125 commands registered with full metadata.
+Total: 131 commands registered with full metadata.
 
 ### 3.1 Type Definitions
 

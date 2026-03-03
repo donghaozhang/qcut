@@ -352,7 +352,7 @@ async function projectSettings(
 ): Promise<CLIResult> {
 	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
 	const data = await client.get(
-		`/api/claude/project/${opts.projectId}/settings`
+		`/api/claude/project/${encodeURIComponent(opts.projectId)}/settings`
 	);
 	return { success: true, data };
 }
