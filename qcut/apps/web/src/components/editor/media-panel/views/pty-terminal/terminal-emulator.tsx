@@ -68,6 +68,7 @@ export function TerminalEmulator({
 	}, [setDimensions, resize]);
 
 	// Initialize terminal (runs once per mount, independent of sessionId changes)
+	// biome-ignore lint/correctness/useExhaustiveDependencies: initialization effect — adding fitTerminal would reinitialize terminal
 	useEffect(() => {
 		if (!containerRef.current) return;
 		// Create terminal instance
