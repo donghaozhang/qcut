@@ -42,9 +42,7 @@ async function verifyLocalPath(
 	if (!localPath || !api?.verifyFile) return localPath;
 	const exists = await api.verifyFile(localPath);
 	if (!exists) {
-		logger(
-			`[VideoSources] File missing on disk, will recreate: ${localPath}`
-		);
+		logger(`[VideoSources] File missing on disk, will recreate: ${localPath}`);
 		return undefined;
 	}
 	return localPath;
