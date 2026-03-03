@@ -1,6 +1,8 @@
-# Project.json Auto-Sync Plan
+# Project.json Auto-Sync Plan — DONE
 
 > Auto-update `project.json` whenever project state changes — from GUI, CLI, or MCP.
+>
+> **Status: IMPLEMENTED** — All components shipped.
 
 ## 1. Architecture: Event-Driven Auto-Sync
 
