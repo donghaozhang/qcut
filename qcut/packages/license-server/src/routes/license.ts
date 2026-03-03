@@ -83,6 +83,60 @@ licenseRoutes.post("/activate", async (c) => {
 	}
 });
 
+licenseRoutes.post("/validate", async (c) => {
+	try {
+		const userId = c.get("userId") as string;
+		const license = await getLicenseByUserId({ userId });
+		const credits = await getCreditBalanceByUserId({ userId });
+		const isValid =
+			license.status === "active" || license.status === "past_due";
+		return c.json({
+			valid: isValid,
+			license: {
+				plan: license.plan,
+				status: license.status,
+				currentPeriodEnd: license.currentPeriodEnd?.toISOString(),
+				credits,
+			},
+		});
+	} catch (error) {
+		return c.json(
+			{
+				error:
+					error instanceof Error ? error.message : "Failed to validate license",
+			},
+			500
+		);
+	}
+});
+
+licenseRoutes.get("/status", async (c) => {
+	try {
+		const userId = c.get("userId") as string;
+		const license = await getLicenseByUserId({ userId });
+		const devices = await getActiveDevices({ licenseId: license.id });
+		const credits = await getCreditBalanceByUserId({ userId });
+		return c.json({
+			plan: license.plan,
+			status: license.status,
+			currentPeriodEnd: license.currentPeriodEnd?.toISOString(),
+			maxDevices: license.maxDevices,
+			activeDevices: devices.length,
+			credits,
+		});
+	} catch (error) {
+		return c.json(
+			{
+				error:
+					error instanceof Error
+						? error.message
+						: "Failed to get license status",
+			},
+			500
+		);
+	}
+});
+
 licenseRoutes.delete("/deactivate", async (c) => {
 	try {
 		const userId = c.get("userId") as string;

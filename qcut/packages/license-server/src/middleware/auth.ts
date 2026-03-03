@@ -2,6 +2,7 @@ import { and, eq, gte } from "drizzle-orm";
 import type { Context, Next } from "hono";
 import { db } from "@qcut/db";
 import { sessions } from "@qcut/db/schema";
+import { isMockMode } from "./mock";
 
 function extractBearerToken({ authHeader }: { authHeader?: string }): string {
 	if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -43,6 +44,13 @@ function tryDecodeJwtUserId({ token }: { token: string }): string | null {
 }
 
 export async function authMiddleware(c: Context, next: Next) {
+	// Mock mode: skip real auth, use mock user ID
+	if (isMockMode()) {
+		c.set("userId", "mock-user-001");
+		await next();
+		return;
+	}
+
 	const token = extractBearerToken({
 		authHeader: c.req.header("Authorization"),
 	});

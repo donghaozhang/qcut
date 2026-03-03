@@ -151,7 +151,11 @@ export async function startExportJob({
 		}
 
 		const settings = resolveExportSettings({ request });
-		const segments = collectExportSegments({ timeline, mediaFiles });
+		const segments = await collectExportSegments({
+			timeline,
+			mediaFiles,
+			projectId,
+		});
 
 		if (segments.length === 0) {
 			throw new Error(

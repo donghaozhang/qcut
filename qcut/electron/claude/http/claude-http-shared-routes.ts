@@ -14,6 +14,7 @@
  * - getAppVersion(): returns app version string
  */
 
+import * as fsPromises from "node:fs/promises";
 import * as path from "node:path";
 import type { Router } from "../utils/http-router.js";
 import { HttpError } from "../utils/http-router.js";
@@ -21,7 +22,12 @@ import { isValidSourcePath } from "../utils/helpers.js";
 import type {
 	Transaction,
 	TransactionRequest,
+	MediaFile,
 } from "../../types/claude-api.js";
+import type {
+	EditorStateRequest,
+	EditorStateSnapshot,
+} from "../../types/claude-state-api.js";
 
 import {
 	listMediaFiles,
@@ -144,6 +150,73 @@ export interface WindowAccessor {
 	redoTimeline(): Promise<ClaudeUndoRedoResponse>;
 	/** Read renderer history summary */
 	getHistorySummary(): Promise<ClaudeHistorySummary>;
+	/** Request editor state snapshot (optional, for media-path fallback) */
+	requestStateSnapshot?(
+		request?: EditorStateRequest
+	): Promise<EditorStateSnapshot>;
+}
+
+async function listMediaFilesWithRendererFallback({
+	projectId,
+	accessor,
+}: {
+	projectId: string;
+	accessor: WindowAccessor;
+}): Promise<MediaFile[]> {
+	const diskMedia = await listMediaFiles(projectId);
+	if (!accessor.requestStateSnapshot) return diskMedia;
+
+	let snapshot: EditorStateSnapshot | null = null;
+	try {
+		snapshot = await accessor.requestStateSnapshot({ include: ["media"] });
+	} catch {
+		return diskMedia;
+	}
+
+	const mediaItems = snapshot?.state?.media?.items;
+	if (!Array.isArray(mediaItems) || mediaItems.length === 0) return diskMedia;
+
+	const merged = new Map<string, MediaFile>();
+	for (const media of diskMedia) {
+		merged.set(media.id, media);
+	}
+
+	for (const item of mediaItems) {
+		if (
+			!(item.type === "video" || item.type === "image" || item.type === "audio")
+		) {
+			continue;
+		}
+		if (typeof item.localPath !== "string" || !item.localPath.trim()) {
+			continue;
+		}
+
+		const localPath = item.localPath.trim();
+		if (!isValidSourcePath(localPath)) {
+			continue;
+		}
+		try {
+			const stat = await fsPromises.stat(localPath);
+			merged.set(item.id, {
+				id: item.id,
+				name: item.name,
+				type: item.type,
+				path: localPath,
+				size: stat.size,
+				duration: item.duration,
+				dimensions:
+					typeof item.width === "number" && typeof item.height === "number"
+						? { width: item.width, height: item.height }
+						: undefined,
+				createdAt: stat.birthtimeMs,
+				modifiedAt: stat.mtimeMs,
+			});
+		} catch {
+			// Ignore stale localPath entries
+		}
+	}
+
+	return [...merged.values()];
 }
 
 /**
@@ -701,7 +774,10 @@ export function registerSharedRoutes(
 					)
 				),
 			]);
-			const mediaFiles = await listMediaFiles(req.params.projectId);
+			const mediaFiles = await listMediaFilesWithRendererFallback({
+				projectId: req.params.projectId,
+				accessor,
+			});
 			return await startExportJob({
 				projectId: req.params.projectId,
 				request: req.body || {},
