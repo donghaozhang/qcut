@@ -147,9 +147,7 @@ async function processFile(
   const outputSize = statSync(tempOutput).size;
 
   if (!opts.keep && absInput !== output) {
-    const ext = extname(absInput);
-    const base = absInput.slice(0, -ext.length);
-    renameSync(absInput, `${base}_original${ext}`);
+    unlinkSync(absInput);
   }
   renameSync(tempOutput, output);
 

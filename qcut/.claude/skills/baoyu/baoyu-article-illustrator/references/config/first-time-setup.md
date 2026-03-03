@@ -101,12 +101,12 @@ options:
 ---
 version: 1
 watermark:
-  enabled: [true/false]
-  content: "[user input or empty]"
+  enabled: false
+  content: ""
   position: bottom-right
   opacity: 0.7
 preferred_style:
-  name: [selected style or null]
+  name: null
   description: ""
 language: null
 custom_styles: []
