@@ -1,7 +1,7 @@
 name: CI
 
-# Runner toggle: set repository variable USE_BLACKSMITH=true to use Blacksmith runners
-# Default: GitHub-hosted runners (free for public repos)
+# Runners: GitHub-hosted by default
+# To use Blacksmith: set repo variable USE_BLACKSMITH=true
 
 on:
   pull_request:
@@ -16,7 +16,7 @@ defaults:
 jobs:
   lint:
     name: Lint
-    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2204' || 'ubuntu-latest' }}
+    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -51,11 +51,17 @@ jobs:
 
   build:
     needs: lint
-    runs-on: ${{ matrix.os == 'ubuntu-latest' && vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2204' || matrix.os }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - runner: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
+            os: ubuntu
+          - runner: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-windows-2025' || 'windows-latest' }}
+            os: windows
+          - runner: macos-latest
+            os: macos
 
     steps:
       - name: Checkout repository
@@ -85,7 +91,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu'
         uses: codecov/codecov-action@v5
         with:
           files: qcut/apps/web/coverage/lcov.info

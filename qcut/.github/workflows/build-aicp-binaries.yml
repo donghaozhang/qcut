@@ -1,7 +1,7 @@
 name: Build AICP Binaries
 
-# Runner toggle: set repository variable USE_BLACKSMITH=true to use Blacksmith runners
-# Default: GitHub-hosted runners (free for public repos)
+# Runners: GitHub-hosted by default
+# To use Blacksmith: set repo variable USE_BLACKSMITH=true
 
 on:
   workflow_dispatch:
@@ -24,21 +24,25 @@ permissions:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os == 'ubuntu-latest' && vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2204' || matrix.os }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - runner: macos-14
+            os: macos-14
             target: darwin-arm64
             binary_name: aicp
-          - os: macos-13
+          - runner: macos-13
+            os: macos-13
             target: darwin-x64
             binary_name: aicp
-          - os: windows-latest
+          - runner: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-windows-2025' || 'windows-latest' }}
+            os: windows-latest
             target: win32-x64
             binary_name: aicp.exe
-          - os: ubuntu-latest
+          - runner: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
+            os: ubuntu-24.04
             target: linux-x64
             binary_name: aicp
 
@@ -102,7 +106,7 @@ PY
 
   release:
     needs: build
-    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2204' || 'ubuntu-latest' }}
+    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
     if: startsWith(github.ref, 'refs/tags/aicp-v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.upload_release_assets == 'true')
     steps:
       - name: Download artifacts

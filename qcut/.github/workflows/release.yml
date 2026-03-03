@@ -1,7 +1,7 @@
 name: Release
 
-# Runner toggle: set repository variable USE_BLACKSMITH=true to use Blacksmith runners
-# Default: GitHub-hosted runners (free for public repos)
+# Runners: GitHub-hosted by default
+# To use Blacksmith: set repo variable USE_BLACKSMITH=true
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
 jobs:
   # Extract version info once, share across jobs
   prepare:
-    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2204' || 'ubuntu-latest' }}
+    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
       is_prerelease: ${{ steps.version.outputs.IS_PRERELEASE }}
@@ -47,7 +47,7 @@ jobs:
   # Windows build
   build-windows:
     needs: prepare
-    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-windows-latest' || 'windows-latest' }}
+    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-windows-2025' || 'windows-latest' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -98,7 +98,7 @@ jobs:
   # macOS build
   build-macos:
     needs: prepare
-    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-macos-latest' || 'macos-latest' }}
+    runs-on: macos-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -150,7 +150,7 @@ jobs:
   # Linux build
   build-linux:
     needs: prepare
-    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2204' || 'ubuntu-latest' }}
+    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -202,7 +202,7 @@ jobs:
   # Create release with all artifacts
   release:
     needs: [prepare, build-windows, build-macos, build-linux]
-    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2204' || 'ubuntu-latest' }}
+    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
