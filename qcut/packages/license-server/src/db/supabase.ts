@@ -15,9 +15,7 @@ export function getSupabase(): SupabaseClient {
 	const serviceKey = process.env.SUPABASE_SERVICE_KEY || "";
 
 	if (url.length === 0 || serviceKey.length === 0) {
-		throw new Error(
-			"SUPABASE_URL and SUPABASE_SERVICE_KEY must be configured"
-		);
+		throw new Error("SUPABASE_URL and SUPABASE_SERVICE_KEY must be configured");
 	}
 
 	_client = createClient(url, serviceKey, {

@@ -103,9 +103,7 @@ licenseRoutes.post("/validate", async (c) => {
 		return c.json(
 			{
 				error:
-					error instanceof Error
-						? error.message
-						: "Failed to validate license",
+					error instanceof Error ? error.message : "Failed to validate license",
 			},
 			500
 		);

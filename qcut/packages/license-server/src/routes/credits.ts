@@ -136,8 +136,7 @@ creditsRoutes.post("/use", async (c) => {
 	} catch (error) {
 		return c.json(
 			{
-				error:
-					error instanceof Error ? error.message : "Failed to use credits",
+				error: error instanceof Error ? error.message : "Failed to use credits",
 			},
 			500
 		);

@@ -182,7 +182,9 @@ async function listMediaFilesWithRendererFallback({
 	}
 
 	for (const item of mediaItems) {
-		if (!(item.type === "video" || item.type === "image" || item.type === "audio")) {
+		if (
+			!(item.type === "video" || item.type === "image" || item.type === "audio")
+		) {
 			continue;
 		}
 		if (typeof item.localPath !== "string" || !item.localPath.trim()) {
