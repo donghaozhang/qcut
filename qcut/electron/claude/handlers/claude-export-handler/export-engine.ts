@@ -227,7 +227,7 @@ export async function collectExportSegments({
 					} else {
 						claudeLog.info(
 							HANDLER_NAME,
-							`Media library lookup failed for "${element.sourceName}", trying disk fallback`,
+							`Media library lookup failed for "${element.sourceName}", trying disk fallback`
 						);
 						media = await resolveMediaFromDisk({
 							projectId,
@@ -237,7 +237,7 @@ export async function collectExportSegments({
 						if (media) {
 							claudeLog.info(
 								HANDLER_NAME,
-								`Disk fallback resolved "${element.sourceName}" → ${media.path}`,
+								`Disk fallback resolved "${element.sourceName}" → ${media.path}`
 							);
 						}
 					}
