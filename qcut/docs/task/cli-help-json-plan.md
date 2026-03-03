@@ -2,7 +2,7 @@
 
 **Date**: 2026-03-04
 **Branch**: `json`
-**Status**: Planning (not implemented)
+**Status**: DONE
 
 ## 3-Level Progressive Help System (Token-Efficient for Agents)
 
@@ -168,9 +168,14 @@ This enables programmatic CLI discovery: tools, IDE extensions, and AI agents ca
 
 ---
 
-## 3. Command Registry
+## 3. Command Registry — DONE
 
-Create `electron/native-pipeline/cli/command-registry.ts` — a single source of truth for all command metadata.
+Created as three files to stay within the 800-line-per-file limit:
+- `electron/native-pipeline/cli/command-registry-types.ts` — shared types (FlagDef, CommandDef, CategoryDef)
+- `electron/native-pipeline/cli/command-registry.ts` — global flags, categories, non-editor commands (38), lookup helpers
+- `electron/native-pipeline/cli/command-registry-editor.ts` — editor commands (87)
+
+Total: 125 commands registered with full metadata.
 
 ### 3.1 Type Definitions
 
@@ -210,9 +215,9 @@ export const GLOBAL_FLAGS: FlagDef[] = [ ... ];
 
 ---
 
-## 4. Implementation Plan
+## 4. Implementation Plan — DONE
 
-### Step 1: Create `command-registry.ts` (~400 lines)
+### Step 1: Create `command-registry.ts` (~400 lines) — DONE
 
 - Define `FlagDef`, `CommandDef`, `CategoryDef` types
 - Define `GLOBAL_FLAGS` array (13 flags)
@@ -220,7 +225,7 @@ export const GLOBAL_FLAGS: FlagDef[] = [ ... ];
 - Define `COMMANDS_REGISTRY` with metadata for all ~131 commands
 - Each entry has: name, description, category, flags (with types/defaults), examples
 
-### Step 2: Update `printHelp()` in `cli.ts` (~30 lines)
+### Step 2: Update `printHelp()` in `cli.ts` (~30 lines) — DONE
 
 - Import `COMMANDS_REGISTRY`, `CATEGORIES`, `GLOBAL_FLAGS` from registry
 - Check if `--json` flag is present alongside `--help`
@@ -247,7 +252,7 @@ if (!command || command === "--help" || command === "-h") {
 }
 ```
 
-### Step 3: Add per-command `--help --json` (~20 lines)
+### Step 3: Add per-command `--help --json` (~20 lines) — DONE
 
 After parsing the command name but before executing, check if `--help` was passed:
 
@@ -270,7 +275,7 @@ if (values.help) {
 }
 ```
 
-### Step 4: Helper Functions (~40 lines)
+### Step 4: Helper Functions (~40 lines) — DONE
 
 ```typescript
 function printHelpJson(): void {
@@ -299,7 +304,7 @@ function printCommandHelpJson(command: string): void {
 }
 ```
 
-### Step 5: Replace `COMMANDS` array with registry-derived list (~5 lines)
+### Step 5: Replace `COMMANDS` array with registry-derived list (~5 lines) — DONE
 
 ```typescript
 // Current: const COMMANDS = ["generate-image", "create-video", ...] as const;

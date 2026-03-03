@@ -23,147 +23,20 @@ import { CLIOutput } from "../cli/cli-output.js";
 import { StreamEmitter, NullEmitter } from "../infra/stream-emitter.js";
 import { formatCommandOutput } from "./cli-output-formatters.js";
 import { runSession } from "./cli-runner/session.js";
-import { emitJsonResult } from "./json-output.js";
-
+import { emitJsonResult, jsonOk, jsonError } from "./json-output.js";
+import {
+	COMMANDS_REGISTRY,
+	CATEGORIES,
+	GLOBAL_FLAGS,
+	getCommand,
+	getCommandFlag,
+} from "./command-registry.js";
 const VERSION = "1.0.0";
 
-const COMMANDS = [
-	"generate-image",
-	"create-video",
-	"generate-avatar",
-	"run-pipeline",
-	"list-models",
-	"estimate-cost",
-	"analyze-video",
-	"query-video",
-	"transcribe",
-	"generate-remotion",
-	"transfer-motion",
-	"generate-grid",
-	"upscale-image",
-	"setup",
-	"set-key",
-	"get-key",
-	"delete-key",
-	"check-keys",
-	"init-project",
-	"organize-project",
-	"structure-info",
-	"create-examples",
-	// Moyin commands — script parsing
-	"moyin:parse-script",
-	"vimax:idea2video",
-	"vimax:script2video",
-	"vimax:novel2movie",
-	"vimax:extract-characters",
-	"vimax:generate-script",
-	"vimax:generate-storyboard",
-	"vimax:generate-portraits",
-	"vimax:create-registry",
-	"vimax:show-registry",
-	"vimax:list-models",
-	"list-avatar-models",
-	"list-video-models",
-	"list-motion-models",
-	"list-speech-models",
-	// Editor commands — proxy to running QCut HTTP API
-	"editor:health",
-	"editor:media:list",
-	"editor:media:info",
-	"editor:media:import",
-	"editor:media:import-url",
-	"editor:media:batch-import",
-	"editor:media:extract-frame",
-	"editor:media:rename",
-	"editor:media:delete",
-	"editor:project:settings",
-	"editor:project:update-settings",
-	"editor:project:stats",
-	"editor:project:summary",
-	"editor:project:report",
-	"editor:timeline:export",
-	"editor:timeline:import",
-	"editor:timeline:add-element",
-	"editor:timeline:batch-add",
-	"editor:timeline:update-element",
-	"editor:timeline:batch-update",
-	"editor:timeline:delete-element",
-	"editor:timeline:batch-delete",
-	"editor:timeline:split",
-	"editor:timeline:move",
-	"editor:timeline:arrange",
-	"editor:timeline:select",
-	"editor:timeline:get-selection",
-	"editor:timeline:clear-selection",
-	"editor:timeline:play",
-	"editor:timeline:pause",
-	"editor:timeline:toggle-play",
-	"editor:timeline:seek",
-	"editor:editing:batch-cuts",
-	"editor:editing:delete-range",
-	"editor:editing:auto-edit",
-	"editor:editing:auto-edit-status",
-	"editor:editing:auto-edit-list",
-	"editor:editing:suggest-cuts",
-	"editor:editing:suggest-status",
-	// Analysis + transcription commands
-	"editor:analyze:video",
-	"editor:analyze:models",
-	"editor:analyze:scenes",
-	"editor:analyze:frames",
-	"editor:analyze:fillers",
-	"editor:transcribe:run",
-	"editor:transcribe:start",
-	"editor:transcribe:status",
-	"editor:transcribe:list-jobs",
-	"editor:transcribe:cancel",
-	// Generate + export + diagnostics + MCP commands
-	"editor:generate:start",
-	"editor:generate:status",
-	"editor:generate:list-jobs",
-	"editor:generate:cancel",
-	"editor:generate:models",
-	"editor:generate:estimate-cost",
-	"editor:export:presets",
-	"editor:export:recommend",
-	"editor:export:start",
-	"editor:export:status",
-	"editor:export:list-jobs",
-	"editor:diagnostics:analyze",
-	"editor:mcp:forward-html",
-	// Navigator commands — project listing + editor navigation
-	"editor:navigator:projects",
-	"editor:navigator:open",
-	// Screen recording commands
-	"editor:screen-recording:sources",
-	"editor:screen-recording:start",
-	"editor:screen-recording:stop",
-	"editor:screen-recording:force-stop",
-	"editor:screen-recording:status",
-	// Remotion element commands
-	"editor:remotion:list",
-	"editor:remotion:inspect",
-	"editor:remotion:update-props",
-	"editor:remotion:export",
-	"editor:ui:switch-panel",
-	"editor:moyin:set-script",
-	"editor:moyin:parse",
-	"editor:moyin:status",
-	"editor:screenshot:capture",
-	"editor:project:create",
-	"editor:project:delete",
-	"editor:project:rename",
-	"editor:project:duplicate",
-	// New unified JSON API commands
-	"editor:project:list",
-	"editor:project:info",
-	"editor:timeline:info",
-	"editor:timeline:add-clip",
-	"editor:timeline:trim",
-	"pipeline:status",
-] as const;
+/** Command list derived from the central registry. */
+const COMMANDS = Object.keys(COMMANDS_REGISTRY);
 
-type Command = (typeof COMMANDS)[number];
+type Command = string;
 
 function printHelp(): void {
 	console.log(
@@ -212,75 +85,34 @@ ViMax Commands:
   list-avatar-models  List avatar/video/motion/speech models
   list-video-models   list-motion-models  list-speech-models
 
-Editor Commands (requires running QCut — use --project-id for all):
-  editor:health              Check editor connectivity
-  editor:media:list/info     List or inspect media files
-  editor:media:import        Import local file (--source)
-  editor:media:import-url    Import from URL (--url)
-  editor:media:batch-import  Batch import (--items or --sources, max 20)
-  editor:media:extract-frame Extract video frame (--timestamp)
-  editor:media:rename/delete Rename or delete media
-  editor:project:settings    Get/update project settings
-  editor:project:stats       Get project statistics
-  editor:project:summary     Get project summary (markdown)
-  editor:project:report      Generate pipeline report
-  editor:timeline:export     Export timeline (--output-format)
-  editor:timeline:import     Import timeline data (--data)
-  editor:timeline:add-element    Add element (--data)
-  editor:timeline:batch-add      Batch add (--elements, max 50)
-  editor:timeline:update-element/batch-update   Update elements
-  editor:timeline:delete-element/batch-delete   Delete elements
-  editor:timeline:split/move/arrange  Manipulate elements
-  editor:timeline:select/get-selection/clear-selection
-  editor:timeline:play/pause/toggle-play/seek  Playback controls
-  editor:editing:batch-cuts/delete-range  Cut operations
-  editor:editing:auto-edit   Auto-edit (fillers/silences)
-  editor:editing:auto-edit-status/list  Check or list jobs
-  editor:editing:suggest-cuts/status    AI-suggest cuts
-  editor:analyze:video       Analyze video with AI vision
-  editor:analyze:models      List analysis models
-  editor:analyze:scenes      Detect scene changes
-  editor:analyze:frames      Analyze video frames
-  editor:analyze:fillers     Detect filler words/silences
-  editor:transcribe:run      Transcribe media (sync)
-  editor:transcribe:start    Transcribe media (async, --poll)
-  editor:transcribe:status/list-jobs/cancel  Job management
-  editor:generate:start      Start AI generation (--poll)
-  editor:generate:status/list-jobs/cancel    Job management
-  editor:generate:models     List generation models
-  editor:generate:estimate-cost  Estimate generation cost
-  editor:export:presets      List export presets
-  editor:export:recommend    Recommend settings (--target)
-  editor:export:start        Export project (--poll)
-  editor:export:status/list-jobs  Job management
-  editor:diagnostics:analyze Analyze error (--message)
-  editor:mcp:forward-html    Forward HTML to MCP preview
-  editor:navigator:projects  List saved projects
-  editor:navigator:open      Open a project (--project-id)
-  editor:screen-recording:sources  List capture sources
-  editor:screen-recording:start    Start recording (--source-id, --force)
-  editor:screen-recording:stop     Stop recording (--discard)
-  editor:screen-recording:force-stop Force-stop active recording
-  editor:screen-recording:status   Get recording status
-  editor:remotion:list       List Remotion elements on timeline
-  editor:remotion:inspect    Inspect a Remotion element (--element-id)
-  editor:remotion:update-props  Update element props (--element-id --data)
-  editor:remotion:export     Export with Remotion engine (--preset)
-  editor:ui:switch-panel     Switch editor panel (--panel, --tab for moyin)
-  editor:moyin:set-script    Push script text to director panel (--text/--script)
-  editor:moyin:parse         Trigger "Parse Script" button
-  editor:moyin:status        Get pipeline progress (parseStatus, steps)
-  editor:screenshot:capture  Take a screenshot of QCut window (--filename)
-  editor:project:create      Create project (--new-name)
-  editor:project:delete      Delete project (--project-id)
-  editor:project:rename      Rename project (--project-id --new-name)
-  editor:project:duplicate   Duplicate project (--project-id)
-  editor:project:list        List all projects
-  editor:project:info        Get project info (--project-id)
-  editor:timeline:info       Get timeline state (--project-id)
-  editor:timeline:add-clip   Add media clip to timeline (--project-id --media-id)
-  editor:timeline:trim       Trim element (--project-id --element-id --start-time --end-time)
-  pipeline:status            Get pipeline job status (--job-id)
+Editor Commands (requires running QCut — use --project-id for most):
+  editor:health                     Check editor connectivity
+  editor:media:*                    list, info, import, import-url, batch-import,
+                                    extract-frame, rename, delete
+  editor:project:*                  settings, update-settings, stats, summary,
+                                    report, create, delete, rename, duplicate, list, info
+  editor:timeline:*                 export, import, add-element, batch-add,
+                                    update-element, batch-update, delete-element,
+                                    batch-delete, split, move, arrange, select,
+                                    get-selection, clear-selection, play, pause,
+                                    toggle-play, seek, info, add-clip, trim
+  editor:editing:*                  batch-cuts, delete-range, auto-edit,
+                                    auto-edit-status, auto-edit-list, suggest-cuts, suggest-status
+  editor:analyze:*                  video, models, scenes, frames, fillers
+  editor:transcribe:*               run, start, status, list-jobs, cancel
+  editor:generate:*                 start, status, list-jobs, cancel, models, estimate-cost
+  editor:export:*                   presets, recommend, start, status, list-jobs
+  editor:diagnostics:analyze        Analyze error (--message)
+  editor:mcp:forward-html           Forward HTML to MCP preview
+  editor:navigator:projects/open    List or open projects
+  editor:screen-recording:*         sources, start, stop, force-stop, status
+  editor:remotion:*                 list, inspect, update-props, export
+  editor:ui:switch-panel            Switch editor panel (--panel, --tab)
+  editor:moyin:*                    set-script, parse, status
+  editor:screenshot:capture         Take screenshot (--filename)
+  pipeline:status                   Get pipeline job status (--job-id)
+
+  Use <command> --help --json for detailed flag info per command.
 
 Global Options:
   --output-dir, -o    Output directory (default: ./output)
@@ -340,12 +172,88 @@ Examples:
 	);
 }
 
+// ─── JSON Help Output (3-Level Progressive) ─────────────────────────
+
+/** Level 1: Root overview — version, categories, command list. */
+function printHelpJson(): void {
+	const commands = Object.values(COMMANDS_REGISTRY).map((cmd) => ({
+		name: cmd.name,
+		description: cmd.description,
+		category: cmd.category,
+	}));
+	jsonOk({
+		version: VERSION,
+		description: "AI content generation CLI",
+		categories: CATEGORIES,
+		commands,
+		globalFlags: GLOBAL_FLAGS,
+	});
+}
+
+/** Level 2: Command detail — flags, examples, usage. */
+function printCommandHelpJson(command: string): void {
+	const def = getCommand(command);
+	if (!def) {
+		jsonError(`Unknown command: ${command}`, "help:unknown-command");
+		return;
+	}
+	const required = def.flags.filter((fl) => fl.required);
+	const optional = def.flags.filter((fl) => !fl.required);
+	jsonOk({
+		command: def.name,
+		description: def.description,
+		category: def.category,
+		usage: def.usage ?? `qcut-pipeline ${def.name} [options]`,
+		required,
+		optional,
+		examples: def.examples,
+	});
+}
+
+/** Level 3: Single parameter detail — type, enum, default. */
+function printParamHelpJson(command: string, paramName: string): void {
+	const flag = getCommandFlag(command, paramName);
+	if (!flag) {
+		jsonError(
+			`Unknown parameter '${paramName}' for command '${command}'`,
+			"help:unknown-param"
+		);
+		return;
+	}
+	const data: Record<string, unknown> = {
+		name: flag.name,
+		type: flag.type,
+		description: flag.description,
+	};
+	if (flag.short) data.short = flag.short;
+	if (flag.required) data.required = flag.required;
+	if (flag.default !== undefined) data.default = flag.default;
+	if (flag.enum) data.enum = flag.enum;
+	jsonOk(data);
+}
+
+/**
+ * Find a bare parameter name after --help in argv.
+ * e.g. ["--help", "model", "--json"] → "model"
+ */
+function findHelpParam(argv: string[]): string | null {
+	const helpIdx = argv.indexOf("--help");
+	if (helpIdx === -1) return null;
+	const next = argv[helpIdx + 1];
+	if (next && !next.startsWith("-")) return next;
+	return null;
+}
+
 /** Parse process argv into CLIRunOptions, exiting on --help/--version. */
 export function parseCliArgs(argv: string[]): CLIRunOptions {
 	const command = argv[0];
 
 	if (!command || command === "--help" || command === "-h") {
-		printHelp();
+		if (argv.includes("--json")) {
+			printHelpJson();
+		} else {
+			printHelp();
+		}
 		process.exit(0);
 	}
 
@@ -354,7 +262,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		process.exit(0);
 	}
 
-	if (!COMMANDS.includes(command as Command)) {
+	if (!COMMANDS.includes(command)) {
 		console.error(`Unknown command: ${command}`);
 		console.error("Run with --help for usage.");
 		process.exit(2);
@@ -518,7 +426,18 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 	});
 
 	if (values.help) {
-		printHelp();
+		if (values.json) {
+			// Level 3: <command> --help <param> --json
+			const helpParam = findHelpParam(argv.slice(1));
+			if (helpParam) {
+				printParamHelpJson(command, helpParam);
+			} else {
+				// Level 2: <command> --help --json
+				printCommandHelpJson(command);
+			}
+		} else {
+			printHelp();
+		}
 		process.exit(0);
 	}
 
