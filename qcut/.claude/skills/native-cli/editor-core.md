@@ -164,6 +164,54 @@ bun run pipeline editor:project:rename --project-id <id> --new-name "New Name"
 bun run pipeline editor:project:duplicate --project-id <id>
 ```
 
+### List all projects
+
+```bash
+bun run pipeline editor:project:list --json
+```
+
+Returns all projects with `id`, `name`, `createdAt`, `updatedAt`.
+
+### Get project info (project.json)
+
+```bash
+# Minimal (~200 tokens): counts + settings only
+bun run pipeline editor:project:info --project-id <id> --json
+
+# Full (~2000 tokens): includes media[], subtitles[], generated[], exports[], jobs[]
+bun run pipeline editor:project:info --project-id <id> --full --json
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--project-id` | string | | Project ID (required) |
+| `--full` | boolean | `false` | Include all arrays (media, subtitles, generated, exports, jobs) |
+
+### Export project state to disk
+
+```bash
+bun run pipeline editor:project:export-state --project-id <id>
+bun run pipeline editor:project:export-state --project-id <id> --output ./state.json
+```
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--project-id` | string | | Project ID (required) |
+| `--output` | string | `./output/project-<id>.json` | Output file path |
+
+### Import project state (planned)
+
+```bash
+bun run pipeline editor:project:import-state --project-id <id> --data @state.json
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--project-id` | string | Project ID (required) |
+| `--data` | string | JSON input (`@file.json`, inline, or `-` for stdin) (required) |
+
+**Note**: This command is defined but not yet implemented.
+
 ---
 
 ## Timeline Commands
@@ -301,6 +349,50 @@ bun run pipeline editor:timeline:select \
 
 bun run pipeline editor:timeline:get-selection --project-id <id>
 bun run pipeline editor:timeline:clear-selection --project-id <id>
+```
+
+### Get timeline info
+
+```bash
+bun run pipeline editor:timeline:info --project-id <id> --json
+```
+
+Returns timeline state: tracks, elements, duration, playhead position.
+
+### Add media clip to timeline
+
+```bash
+bun run pipeline editor:timeline:add-clip --project-id <id> --media-id <media-id>
+bun run pipeline editor:timeline:add-clip --project-id <id> --media-id <media-id> --track-id <track-id> --start-time 5.0
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--project-id` | string | Project ID (required) |
+| `--media-id` | string | Media ID to add (required) |
+| `--track-id` | string | Target track ID |
+| `--start-time` | number | Start position in seconds |
+
+### Trim element
+
+```bash
+bun run pipeline editor:timeline:trim --project-id <id> --element-id <eid> --start-time 2.0 --end-time 8.0
+```
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--project-id` | string | Project ID (required) |
+| `--element-id` | string | Element ID (required) |
+| `--start-time` | number | New start time in seconds (required) |
+| `--end-time` | number | New end time in seconds (required) |
+
+### Playback controls
+
+```bash
+bun run pipeline editor:timeline:play --project-id <id>
+bun run pipeline editor:timeline:pause --project-id <id>
+bun run pipeline editor:timeline:toggle-play --project-id <id>
+bun run pipeline editor:timeline:seek --project-id <id> --time 15.0
 ```
 
 ---
@@ -590,6 +682,63 @@ bun run pipeline editor:screenshot:capture --filename "qcut-screenshot.png"
 ```
 
 Takes a screenshot of the QCut editor window.
+
+---
+
+## project.json Schema
+
+The `editor:project:info` command returns structured project state in two modes:
+
+### Minimal mode (default, ~200 tokens)
+
+```json
+{
+  "version": "1.0",
+  "projectId": "abc-123",
+  "name": "My Project",
+  "createdAt": "2026-03-01T00:00:00.000Z",
+  "updatedAt": "2026-03-04T12:00:00.000Z",
+  "settings": {
+    "width": 1920, "height": 1080, "fps": 30,
+    "aspectRatio": "16:9", "outputFormat": "mp4"
+  },
+  "counts": {
+    "media": { "video": 3, "audio": 1, "image": 2 },
+    "subtitles": 0, "generated": 0, "tracks": 2, "elements": 5
+  },
+  "totalDuration": 120.5,
+  "lastExport": null,
+  "apiKeys": {
+    "fal": true, "elevenlabs": false, "openrouter": true,
+    "gemini": true, "anthropic": true, "openai": false, "freesound": false
+  }
+}
+```
+
+### Full mode (`--full`, ~2000 tokens)
+
+Adds these arrays to the minimal schema:
+
+| Array | Entry fields |
+|-------|-------------|
+| `media[]` | `id`, `type`, `name`, `path`, `duration`, `width`, `height`, `fps`, `importedAt` |
+| `subtitles[]` | `id`, `mediaId`, `path`, `language`, `wordCount`, `generatedAt` |
+| `generated[]` | `id`, `type`, `model`, `prompt`, `path`, `cost`, `generatedAt` |
+| `exports[]` | `id`, `path`, `preset`, `format`, `width`, `height`, `size`, `duration`, `exportedAt` |
+| `jobs[]` | `jobId`, `command`, `status`, `startedAt`, `completedAt`, `error` |
+
+Also includes full `settings` with `backgroundColor`, `backgroundType`, `outputQuality`, `trackCount`, `elementCount`, `totalDuration`.
+
+### API key status
+
+The `apiKeys` object shows which keys are configured (boolean). Never exposes actual key values. Checked keys: `fal`, `elevenlabs`, `openrouter`, `gemini`, `anthropic`, `openai`, `freesound`.
+
+### Source files
+
+| Component | File |
+|-----------|------|
+| Schema types | `electron/native-pipeline/cli/project-json-types.ts` |
+| Builder | `electron/native-pipeline/cli/project-json-builder.ts` |
 
 ---
 

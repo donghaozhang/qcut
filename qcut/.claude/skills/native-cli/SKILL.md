@@ -92,6 +92,58 @@ bun run pipeline check-keys     # Check configured keys
 
 **Supported keys:** `FAL_KEY`, `GEMINI_API_KEY`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY`, `ELEVENLABS_API_KEY`, `OPENAI_API_KEY`, `RUNWAY_API_KEY`, `HEYGEN_API_KEY`, `DID_API_KEY`, `SYNTHESIA_API_KEY`
 
+## Unified JSON Output
+
+All commands support `--json` for machine-readable output using a consistent envelope:
+
+```bash
+bun run pipeline generate-image -t "A cat" --json
+```
+
+Three possible envelope shapes:
+
+| Status | Shape | When |
+|--------|-------|------|
+| `ok` | `{ "status": "ok", "data": { ... } }` | Command succeeded |
+| `error` | `{ "status": "error", "error": "msg", "code": "cmd:failed" }` | Command failed |
+| `pending` | `{ "status": "pending", "jobId": "abc-123" }` | Async job started |
+
+See [REFERENCE.md](REFERENCE.md) for full envelope docs.
+
+## 3-Level Progressive Help (JSON)
+
+The CLI provides structured help at three levels when using `--help --json`:
+
+```bash
+# Level 1: Root — list all commands, categories, global flags
+bun run pipeline --help --json
+
+# Level 2: Command — flags (required/optional), examples, usage
+bun run pipeline generate-image --help --json
+
+# Level 3: Parameter — type, enum values, default, description
+bun run pipeline generate-image --help model --json
+```
+
+Each level returns a JSON envelope (`{ "status": "ok", "data": { ... } }`).
+
+## project.json — Agent-Readable Project State
+
+Two CLI commands export the full project state as structured JSON:
+
+```bash
+# Minimal (~200 tokens): counts + settings only
+bun run pipeline editor:project:info --project-id <id> --json
+
+# Full (~2000 tokens): settings + media[] + subtitles[] + generated[] + exports[] + jobs[]
+bun run pipeline editor:project:info --project-id <id> --full --json
+
+# Dump to disk
+bun run pipeline editor:project:export-state --project-id <id>
+```
+
+See [editor-core.md](editor-core.md) for the full project.json schema.
+
 ## Global Options
 
 | Flag | Short | Description |
@@ -103,6 +155,9 @@ bun run pipeline check-keys     # Check configured keys
 | `--verbose` | `-v` | Debug logging |
 | `--stream` | | JSONL progress events on stderr |
 | `--help` | `-h` | Print help |
+| `--session` | | Session mode: read commands from stdin |
+| `--skip-health` | | Skip editor health check |
+| `--no-capability-check` | | Skip per-request capability warnings |
 
 ## Key Source Files
 
@@ -110,6 +165,12 @@ bun run pipeline check-keys     # Check configured keys
 |-----------|------|
 | CLI entry point | `electron/native-pipeline/cli/cli.ts` |
 | Command router | `electron/native-pipeline/cli/cli-runner/runner.ts` |
+| Command registry (core) | `electron/native-pipeline/cli/command-registry.ts` |
+| Command registry (editor) | `electron/native-pipeline/cli/command-registry-editor.ts` |
+| Command registry types | `electron/native-pipeline/cli/command-registry-types.ts` |
+| JSON output helpers | `electron/native-pipeline/cli/json-output.ts` |
+| project.json types | `electron/native-pipeline/cli/project-json-types.ts` |
+| project.json builder | `electron/native-pipeline/cli/project-json-builder.ts` |
 | Editor dispatch | `electron/native-pipeline/cli/cli-handlers-editor.ts` |
 | Admin handlers | `electron/native-pipeline/cli/cli-handlers-admin.ts` |
 | Media handlers | `electron/native-pipeline/cli/cli-handlers-media.ts` |

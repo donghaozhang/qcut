@@ -503,6 +503,33 @@ Trim an element's start/end times.
 | `--start-time` | float | New start time (seconds) |
 | `--end-time` | float | New end time (seconds) |
 
+### `editor:project:export-state`
+
+Dump the full project.json to disk (settings, media, subtitles, generated, exports, jobs).
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--project-id` | string | | Project ID (required) |
+| `--output` | string | `./output/project-<id>.json` | Output file path |
+
+```bash
+bun run pipeline editor:project:export-state --project-id my-proj
+bun run pipeline editor:project:export-state --project-id my-proj --output ./state.json
+```
+
+### `editor:project:import-state`
+
+Load a project.json file into the editor (not yet implemented).
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--project-id` | string | Project ID (required) |
+| `--data` | string | JSON input (`@file.json`, inline, or `-` for stdin) (required) |
+
+```bash
+bun run pipeline editor:project:import-state --project-id my-proj --data @state.json
+```
+
 ### `pipeline:status`
 
 Get pipeline job status/progress.
@@ -510,6 +537,38 @@ Get pipeline job status/progress.
 | Flag | Type | Description |
 |------|------|-------------|
 | `--job-id` | string | Job ID to check (required) |
+
+---
+
+## 3-Level Progressive Help (JSON)
+
+Use `--help --json` at any level to get structured JSON help output:
+
+### Level 1: Root overview
+
+```bash
+bun run pipeline --help --json
+```
+
+Returns version, all categories, every command (name + description + category), and global flags.
+
+### Level 2: Command detail
+
+```bash
+bun run pipeline generate-image --help --json
+```
+
+Returns command name, description, category, usage string, required flags, optional flags, and examples.
+
+### Level 3: Parameter detail
+
+```bash
+bun run pipeline generate-image --help model --json
+```
+
+Returns a single flag's name, type, description, short alias, required status, default value, and enum values.
+
+All levels return a unified JSON envelope: `{ "status": "ok", "data": { ... } }`.
 
 ---
 
