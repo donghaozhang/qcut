@@ -607,10 +607,47 @@ const CLI_KEY_COMMANDS = ["set-key", "check-keys", "delete-key"];
 const cliArgs = process.argv.slice(app.isPackaged ? 1 : 2);
 const isCliKeyCommand = CLI_KEY_COMMANDS.includes(cliArgs[0]);
 
+// Register qcut:// deep link protocol for license activation
+if (!app.isDefaultProtocolClient("qcut")) {
+	app.setAsDefaultProtocolClient("qcut");
+}
+
 if (!isCliKeyCommand) {
 	consumeActivationTokenFromArgs(process.argv);
 }
 
+// Windows/Linux: handle deep links via second-instance (single instance lock)
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+	app.quit();
+} else {
+	app.on("second-instance", (_event, commandLine) => {
+		try {
+			for (const arg of commandLine) {
+				const token = extractActivationTokenFromUrl(arg);
+				if (!token) {
+					continue;
+				}
+				deliverActivationTokenToRenderer(token);
+				break;
+			}
+		} catch (error) {
+			logger.warn(
+				"[DeepLink] Failed to handle second-instance args:",
+				error
+			);
+		}
+
+		if (mainWindow) {
+			if (mainWindow.isMinimized()) {
+				mainWindow.restore();
+			}
+			mainWindow.focus();
+		}
+	});
+}
+
+// macOS: handle deep links via open-url event
 app.on("open-url", (event, url) => {
 	try {
 		event.preventDefault();
