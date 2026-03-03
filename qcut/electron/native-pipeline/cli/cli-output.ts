@@ -139,4 +139,38 @@ export class CLIOutput {
 		console.log(colorize(`  Cost: $${amount.toFixed(4)} ${currency}`, "dim"));
 	}
 
+	/** Emit a structured result as JSON envelope (json mode) or pretty-print (normal mode). */
+	result(data: Record<string, unknown>, command?: string): void {
+		if (this.jsonMode) {
+			const envelope: Record<string, unknown> = {
+				schema_version: "1",
+				command: command ?? "unknown",
+				data,
+			};
+			console.log(JSON.stringify(envelope));
+		} else {
+			console.log(JSON.stringify(data, null, 2));
+		}
+	}
+
+	/** Emit tabular data as JSON envelope (json mode) or formatted table (normal mode). */
+	table(
+		items: Record<string, unknown>[],
+		columns?: TableColumn[],
+		command?: string
+	): void {
+		if (this.jsonMode) {
+			const envelope: Record<string, unknown> = {
+				schema_version: "1",
+				command: command ?? "unknown",
+				items,
+				count: items.length,
+			};
+			console.log(JSON.stringify(envelope));
+		} else {
+			const formatted = formatTable(items, columns);
+			if (formatted) console.log(formatted);
+		}
+	}
+
 }
