@@ -190,6 +190,9 @@ async function listMediaFilesWithRendererFallback({
 		}
 
 		const localPath = item.localPath.trim();
+		if (!isValidSourcePath(localPath)) {
+			continue;
+		}
 		try {
 			const stat = await fsPromises.stat(localPath);
 			merged.set(item.id, {

@@ -81,27 +81,36 @@ async function scanMediaDirectory(
 			}
 		}
 
-		const stat = await fs.stat(filePath);
-		const ext = path.extname(entryName);
-
-		const type = getMediaType(ext);
-		if (!type) continue;
+		let stat: import("fs").Stats;
+		try {
+			stat = await fs.stat(filePath);
+		} catch {
+			continue; // Inaccessible file — skip without aborting scan
+		}
 
 		// For symlinks, resolve the original filename for better name-based matching.
 		// Files in media/imported/ are named by mediaId, but the symlink target
 		// has the original filename that matches timeline element sourceName.
 		let displayName = entryName;
+		let resolvedExt = path.extname(entryName);
 		if (entry.isSymbolicLink()) {
 			try {
 				const target = await fs.readlink(filePath);
 				const targetBasename = path.basename(String(target));
 				if (targetBasename) {
 					displayName = targetBasename;
+					// Use target extension when entry name is extensionless (e.g. ID-named symlinks)
+					if (!resolvedExt) {
+						resolvedExt = path.extname(targetBasename);
+					}
 				}
 			} catch {
 				// Keep entryName as fallback
 			}
 		}
+
+		const type = getMediaType(resolvedExt);
+		if (!type) continue;
 
 		const deterministicId = `media_${Buffer.from(entryName).toString("base64url")}`;
 		files.push({

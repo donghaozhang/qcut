@@ -162,7 +162,8 @@ async function resolveMediaFromDisk({
 			// Validate file exists (follows symlinks)
 			try {
 				const stat = await fsPromises.stat(filePath);
-				const ext = path.extname(entryName);
+				// Use sourceName extension as fallback for extensionless symlinks
+				const ext = path.extname(entryName) || path.extname(sourceName);
 				const type = getMediaType(ext);
 				if (!type) continue;
 
