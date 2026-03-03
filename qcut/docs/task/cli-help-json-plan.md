@@ -4,6 +4,46 @@
 **Branch**: `json`
 **Status**: Planning (not implemented)
 
+## 3-Level Progressive Help System (Token-Efficient for Agents)
+
+### Level 1: Root Overview (~200 tokens)
+```bash
+qcut --help --json
+```
+```json
+{"status":"ok","data":{"version":"2026.3.4","commands":["generate-image","create-video","editor:media:list",...],
+"categories":{"generation":["generate-image","create-video","generate-avatar","upscale-image","generate-grid"],
+"editor":["editor:media:list","editor:timeline:export","editor:project:list","editor:timeline:info"],
+"vimax":["vimax:idea2video","vimax:script2video","vimax:novel2movie"],
+"pipeline":["run-pipeline","pipeline:status","transcribe","analyze-video"]}}}
+```
+
+### Level 2: Command Detail (~300 tokens)
+```bash
+qcut generate-image --help --json
+```
+```json
+{"status":"ok","data":{"command":"generate-image","description":"Generate an image from text",
+"required":[{"name":"text","short":"t","type":"string"}],
+"optional":[{"name":"model","short":"m","type":"string","default":"flux-1-dev"},{"name":"seed","type":"number"},{"name":"aspect-ratio","type":"string","default":"16:9"}],
+"examples":["qcut generate-image -t 'sunset over ocean' -m kling"]}}
+```
+
+### Level 3: Parameter Detail (rare, for enum/complex params)
+```bash
+qcut generate-image --help model --json
+```
+```json
+{"status":"ok","data":{"name":"model","type":"string","enum":["flux-1-dev","kling-2.6-pro","recraft-v4","ideogram-3","dall-e-3"],
+"default":"flux-1-dev","description":"AI model to use for image generation"}}
+```
+
+### Design Principles
+- **Minimize tokens**: Agent gets just enough info at each level
+- **Progressive disclosure**: L1 for discovery, L2 for usage, L3 for edge cases
+- **Categories**: Group related commands for Agent navigation
+- **Enum values**: For model/format params so Agent knows valid options without trial-and-error
+
 ---
 
 ## 1. Goal
