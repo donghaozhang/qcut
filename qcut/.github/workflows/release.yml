@@ -1,5 +1,8 @@
 name: Release
 
+# Runner toggle: set repository variable USE_BLACKSMITH=true to use Blacksmith runners
+# Default: GitHub-hosted runners (free for public repos)
+
 on:
   push:
     tags:
@@ -11,7 +14,7 @@ permissions:
 jobs:
   # Extract version info once, share across jobs
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2204' || 'ubuntu-latest' }}
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
       is_prerelease: ${{ steps.version.outputs.IS_PRERELEASE }}
@@ -44,7 +47,7 @@ jobs:
   # Windows build
   build-windows:
     needs: prepare
-    runs-on: windows-latest
+    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-windows-latest' || 'windows-latest' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -95,7 +98,7 @@ jobs:
   # macOS build
   build-macos:
     needs: prepare
-    runs-on: macos-latest
+    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-macos-latest' || 'macos-latest' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -147,7 +150,7 @@ jobs:
   # Linux build
   build-linux:
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2204' || 'ubuntu-latest' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -199,7 +202,7 @@ jobs:
   # Create release with all artifacts
   release:
     needs: [prepare, build-windows, build-macos, build-linux]
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2204' || 'ubuntu-latest' }}
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
