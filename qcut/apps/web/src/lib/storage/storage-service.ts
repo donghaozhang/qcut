@@ -390,22 +390,40 @@ class StorageService {
 			return null;
 		}
 
-		// Regenerate localPath for videos that don't have it (legacy data migration)
+		// Verify or regenerate localPath for videos
+		// Temp files in /tmp may be cleaned up by the OS between sessions
 		let localPath = metadata.localPath;
 		if (
 			metadata.type === "video" &&
-			!localPath &&
 			actualFile &&
-			actualFile.size > 0
+			actualFile.size > 0 &&
+			this.isElectronEnvironment() &&
+			(window as any).electronAPI?.video?.saveTemp
 		) {
-			if (
-				this.isElectronEnvironment() &&
-				(window as any).electronAPI?.video?.saveTemp
-			) {
+			// Verify existing localPath still points to a real file
+			let needsRegeneration = !localPath;
+			if (localPath && (window as any).electronAPI?.video?.verifyFile) {
 				try {
-					debugLog(
-						`[StorageService] Regenerating localPath for video: ${metadata.name}`
+					const exists = await (window as any).electronAPI.video.verifyFile(
+						localPath
 					);
+					if (!exists) {
+						debugLog(
+							`[StorageService] Temp file missing, will recreate: ${metadata.name}`
+						);
+						needsRegeneration = true;
+					}
+				} catch (error) {
+					debugWarn(
+						`[StorageService] Error verifying temp file, will recreate: ${localPath}`,
+						error
+					);
+					needsRegeneration = true;
+				}
+			}
+
+			if (needsRegeneration) {
+				try {
 					const arrayBuffer = await actualFile.arrayBuffer();
 					const uint8Array = new Uint8Array(arrayBuffer);
 					localPath = await (window as any).electronAPI.video.saveTemp(
@@ -417,9 +435,7 @@ class StorageService {
 					if (localPath) {
 						metadata.localPath = localPath;
 						await mediaMetadataAdapter.set(id, metadata);
-						debugLog(
-							`[StorageService] Regenerated and saved localPath: ${localPath}`
-						);
+						debugLog(`[StorageService] Regenerated localPath: ${localPath}`);
 					}
 				} catch (error) {
 					debugWarn(

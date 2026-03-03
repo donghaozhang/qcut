@@ -25,6 +25,27 @@ interface VideoSaveTempAPI {
 		filename: string,
 		sessionId?: string
 	) => Promise<string>;
+	verifyFile?: (filePath: string) => Promise<boolean>;
+}
+
+/**
+ * Verify a local file path still exists on disk.
+ * Temp files in /tmp may be cleaned up by the OS between sessions.
+ *
+ * @returns The path if it exists, undefined if missing or unverifiable
+ */
+async function verifyLocalPath(
+	localPath: string | undefined,
+	api: VideoSaveTempAPI | undefined,
+	logger: LogFn
+): Promise<string | undefined> {
+	if (!localPath || !api?.verifyFile) return localPath;
+	const exists = await api.verifyFile(localPath);
+	if (!exists) {
+		logger(`[VideoSources] File missing on disk, will recreate: ${localPath}`);
+		return undefined;
+	}
+	return localPath;
 }
 
 /**
@@ -97,7 +118,10 @@ export async function extractVideoSources(
 
 			let localPath = mediaItem.localPath;
 
-			// Create temp file from blob if no localPath
+			// Verify localPath still exists on disk (temp files may be cleaned up)
+			localPath = await verifyLocalPath(localPath, api, logger);
+
+			// Create temp file from blob if no localPath or file was deleted
 			if (!localPath && mediaItem.file && mediaItem.file.size > 0) {
 				localPath = await createTempFileFromBlob(
 					mediaItem,
@@ -181,7 +205,10 @@ export async function extractVideoInputPath(
 
 	let localPath = mediaItem.localPath;
 
-	// Create temp file from blob if needed
+	// Verify localPath still exists on disk (temp files may be cleaned up)
+	localPath = await verifyLocalPath(localPath, api, logger);
+
+	// Create temp file from blob if needed or file was deleted
 	if (!localPath && mediaItem.file && mediaItem.file.size > 0) {
 		localPath = await createTempFileFromBlob(mediaItem, sessionId, api, logger);
 	}
