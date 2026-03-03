@@ -1,5 +1,8 @@
 name: CI
 
+# Runner toggle: set repository variable USE_BLACKSMITH=true to use Blacksmith runners
+# Default: GitHub-hosted runners (free for public repos)
+
 on:
   pull_request:
     branches: [master]
@@ -13,7 +16,7 @@ defaults:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2204' || 'ubuntu-latest' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,7 +51,7 @@ jobs:
 
   build:
     needs: lint
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os == 'ubuntu-latest' && vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2204' || matrix.os }}
     strategy:
       fail-fast: false
       matrix:

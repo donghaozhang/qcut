@@ -58,6 +58,8 @@ async function buildVideoFromScreenshotFrames({
 			String(fps),
 			"-i",
 			inputPatternPath,
+			"-vf",
+			"pad=ceil(iw/2)*2:ceil(ih/2)*2",
 			"-c:v",
 			"libx264",
 			"-pix_fmt",
@@ -1018,6 +1020,14 @@ export async function addStickerToCanvas(
 		// The stickers panel only adds to media library, not overlay,
 		// so we manually call addOverlaySticker with the latest image media item
 		// Uses window.stickerTest.getStores() exposed by sticker-test-helper.ts
+
+		// Wait for sticker-test-helper.ts async setup to complete
+		await page.waitForFunction(
+			() => (window as any).stickerTestReady instanceof Promise,
+			{ timeout: 5000 }
+		);
+		await page.evaluate(() => (window as any).stickerTestReady);
+
 		const added = await page.evaluate(async () => {
 			const stickerTest = (window as any).stickerTest;
 			if (!stickerTest?.getStores) {

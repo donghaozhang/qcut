@@ -7,6 +7,9 @@
 /apps/web/.next/
 /apps/web/out/
 
+# generated content
+/slide-deck/
+
 # build outputs
 /apps/web/dist/
 /dist/
@@ -149,3 +152,6 @@ packages/qagent/**/.next/
 packages/qagent/**/dist/
 packages/qagent/packages/web/screenshots/
 *-context.md
+
+# Local comic workspace
+/comic/

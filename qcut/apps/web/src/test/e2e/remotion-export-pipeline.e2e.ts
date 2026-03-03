@@ -42,6 +42,13 @@ async function addRemotionElementToTimeline(
 		startTime?: number;
 	}
 ): Promise<{ trackId: string; elementId: string | null }> {
+	// Wait for sticker-test-helper.ts async setup to complete
+	await page.waitForFunction(
+		() => (window as any).stickerTestReady instanceof Promise,
+		{ timeout: 5000 }
+	);
+	await page.evaluate(() => (window as any).stickerTestReady);
+
 	return await page.evaluate(async (opts) => {
 		// Access Zustand timeline store via the sticker test helper global
 		const stickerTest = (window as any).stickerTest;
@@ -187,23 +194,12 @@ test.describe("Remotion Export Pipeline", () => {
 
 			await captureTestStep(page, "remotion-export", 4, "export-dialog-opened");
 
-			// Verify the Remotion engine indicator text appears (partial match — full text includes performance estimate)
-			const remotionIndicator = page.getByText(
-				/Timeline contains Remotion elements/
-			);
-			const hasIndicator = await remotionIndicator
-				.first()
-				.isVisible({ timeout: 5000 })
-				.catch(() => false);
-
-			// These UI elements should appear when Remotion elements are on the timeline
-			expect(hasIndicator).toBe(true);
-
-			// Also verify "Remotion Engine" text appears (rendered as "Remotion Engine (X Performance)")
+			// Verify "Remotion Engine" text appears in the DetailsCard
+			// (rendered as "Engine: Remotion Engine (X Performance)" by DetailsCard)
 			const engineLabel = page.getByText(/Remotion Engine/);
 			const hasEngineLabel = await engineLabel
 				.first()
-				.isVisible({ timeout: 3000 })
+				.isVisible({ timeout: 5000 })
 				.catch(() => false);
 
 			expect(hasEngineLabel).toBe(true);

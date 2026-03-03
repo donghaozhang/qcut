@@ -4,7 +4,12 @@
  * Tests navigation to the editor page to isolate crash issues
  */
 
-import { test, expect } from "./helpers/electron-helpers";
+import {
+	test,
+	expect,
+	createTestProject,
+	navigateToProjects,
+} from "./helpers/electron-helpers";
 
 test.describe("Editor Navigation Test", () => {
 	test("should detect existing project on projects page", async ({ page }) => {
@@ -30,12 +35,15 @@ test.describe("Editor Navigation Test", () => {
 	test("should attempt to open existing project without crash", async ({
 		page,
 	}) => {
-		// Check if there are existing projects
-		const projectCards = page.getByTestId("project-list-item");
-		const projectCount = await projectCards.count();
+		// Create a project first so we always have one to open
+		await createTestProject(page, "Navigation Test Project");
 
-		// Properly skip test if no projects exist
-		test.skip(projectCount === 0, "No existing projects to test with");
+		// Navigate back to projects list
+		await navigateToProjects(page);
+
+		// Verify projects exist now
+		const projectCards = page.getByTestId("project-list-item");
+		await projectCards.first().waitFor({ state: "visible", timeout: 10_000 });
 
 		// Setup a listener for console errors
 		const errors: string[] = [];

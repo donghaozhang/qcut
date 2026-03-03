@@ -887,7 +887,12 @@ test.describe("Project Folder Sync", () => {
 		/**
 		 * Test 6.1: Graceful handling when electronAPI is not available
 		 */
-		test("should handle missing electronAPI gracefully", async ({ page }) => {
+		// Skip: Electron's contextBridge exposes electronAPI as non-configurable/non-writable.
+		// Object.defineProperty cannot override it in E2E context, so the graceful-degradation
+		// path is never exercised. This scenario should be tested in a unit test with a mocked window.
+		test.skip("should handle missing electronAPI gracefully", async ({
+			page,
+		}) => {
 			await createTestProject(page, "Missing API Test");
 
 			// Get project ID for testing

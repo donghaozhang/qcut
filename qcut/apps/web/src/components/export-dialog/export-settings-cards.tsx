@@ -454,6 +454,11 @@ export function DetailsCard({
 					<span className="text-muted-foreground">Format</span>
 					<span className="font-medium">{FORMAT_INFO[format].label}</span>
 				</div>
+				{engineRecommendation && (
+					<div className="col-span-2 text-blue-600 dark:text-blue-400">
+						Engine: {engineRecommendation}
+					</div>
+				)}
 			</div>
 		</div>
 	);
