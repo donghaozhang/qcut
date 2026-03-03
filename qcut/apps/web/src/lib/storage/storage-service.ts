@@ -413,7 +413,11 @@ class StorageService {
 						);
 						needsRegeneration = true;
 					}
-				} catch {
+				} catch (error) {
+					debugWarn(
+						`[StorageService] Error verifying temp file, will recreate: ${localPath}`,
+						error
+					);
 					needsRegeneration = true;
 				}
 			}
