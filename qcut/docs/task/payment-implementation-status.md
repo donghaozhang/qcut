@@ -6,7 +6,7 @@ The QCut payment system connects the Electron app, a Hono-based License Server, 
 
 ## Architecture
 
-```
+```text
 QCut App (Electron) ──► License Server (Hono API) ◄── Stripe Webhooks
      │                        │
      │ license:check          │ Supabase / PostgreSQL

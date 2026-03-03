@@ -203,6 +203,7 @@ export async function collectExportSegments({
 		}
 
 		const segments: ExportSegment[] = [];
+		const diskFallbackCache = new Map<string, MediaFile | null>();
 
 		for (const track of timeline.tracks) {
 			for (const element of track.elements) {
@@ -221,19 +222,24 @@ export async function collectExportSegments({
 				// Disk-based fallback: if media library lookup failed and we have
 				// a projectId + sourceName, try resolving directly from disk
 				if (!media && projectId && element.sourceName) {
-					claudeLog.info(
-						HANDLER_NAME,
-						`Media library lookup failed for "${element.sourceName}", trying disk fallback`
-					);
-					media = await resolveMediaFromDisk({
-						projectId,
-						sourceName: element.sourceName,
-					});
-					if (media) {
+					if (diskFallbackCache.has(element.sourceName)) {
+						media = diskFallbackCache.get(element.sourceName) ?? null;
+					} else {
 						claudeLog.info(
 							HANDLER_NAME,
-							`Disk fallback resolved "${element.sourceName}" → ${media.path}`
+							`Media library lookup failed for "${element.sourceName}", trying disk fallback`,
 						);
+						media = await resolveMediaFromDisk({
+							projectId,
+							sourceName: element.sourceName,
+						});
+						diskFallbackCache.set(element.sourceName, media);
+						if (media) {
+							claudeLog.info(
+								HANDLER_NAME,
+								`Disk fallback resolved "${element.sourceName}" → ${media.path}`,
+							);
+						}
 					}
 				}
 

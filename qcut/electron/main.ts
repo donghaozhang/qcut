@@ -618,9 +618,7 @@ if (!isCliKeyCommand) {
 
 // Windows/Linux: handle deep links via second-instance (single instance lock)
 const gotTheLock = app.requestSingleInstanceLock();
-if (!gotTheLock) {
-	app.quit();
-} else {
+if (gotTheLock) {
 	app.on("second-instance", (_event, commandLine) => {
 		try {
 			for (const arg of commandLine) {
@@ -642,6 +640,8 @@ if (!gotTheLock) {
 			mainWindow.focus();
 		}
 	});
+} else {
+	app.quit();
 }
 
 // macOS: handle deep links via open-url event

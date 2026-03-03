@@ -4,7 +4,7 @@ let _client: SupabaseClient | null = null;
 
 /**
  * Returns a Supabase client using service-role key for server-side operations.
- * Falls back to a mock client when SUPABASE_URL is not configured (dev/test).
+ * Throws if SUPABASE_URL or SUPABASE_SERVICE_KEY are not configured.
  */
 export function getSupabase(): SupabaseClient {
 	if (_client) {
