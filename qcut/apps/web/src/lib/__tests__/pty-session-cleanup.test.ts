@@ -41,7 +41,7 @@ describe("cleanupPtyOnEditorExit", () => {
 		expect(mockKillAll).toHaveBeenCalledTimes(1);
 		expect(onError).toHaveBeenCalledWith(
 			"[Editor] Failed to kill all PTY sessions on exit",
-			killError,
+			killError
 		);
 	});
 
