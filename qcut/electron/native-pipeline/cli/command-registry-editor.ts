@@ -96,7 +96,18 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	]),
 	"editor:project:duplicate": ed("editor:project:duplicate", "Duplicate project", [PID]),
 	"editor:project:list": ed("editor:project:list", "List all projects", []),
-	"editor:project:info": ed("editor:project:info", "Get project info", [PID]),
+	"editor:project:info": ed("editor:project:info", "Get project info as JSON", [
+		PID,
+		f("--full", "boolean", "Include all arrays (media, subtitles, generated, exports, jobs)", { default: false }),
+	]),
+	"editor:project:export-state": ed("editor:project:export-state", "Dump full project.json to disk", [
+		PID,
+		f("--output", "string", "Output file path (default: ./output/project-<id>.json)"),
+	]),
+	"editor:project:import-state": ed("editor:project:import-state", "Load project.json into editor (not yet implemented)", [
+		PID,
+		DATA_REQ,
+	]),
 
 	// ── Timeline ──
 	"editor:timeline:export": ed("editor:timeline:export", "Export timeline", [

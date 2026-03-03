@@ -148,6 +148,10 @@ export interface CLIRunOptions {
 	count?: number;
 	/** Prompts for batch generation (alternative to --count with same --text) */
 	prompts?: string[];
+	/** Include full arrays in project info output */
+	full?: boolean;
+	/** Output file path for export commands */
+	output?: string;
 	/** Skip editor health check (caller guarantees editor is up) */
 	skipHealth?: boolean;
 	/** Session mode: read commands from stdin, one per line */

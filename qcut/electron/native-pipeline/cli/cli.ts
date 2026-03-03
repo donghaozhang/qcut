@@ -417,6 +417,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			sources: { type: "string" },
 			// format alias (for editor:export --format)
 			format: { type: "string" },
+			// project-json flags
+			full: { type: "boolean", default: false },
+			output: { type: "string" },
 			// performance flags
 			"skip-health": { type: "boolean", default: false },
 			"no-capability-check": { type: "boolean", default: false },
@@ -651,6 +654,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		// batch import convenience
 		sources: values.sources as string | undefined,
 		format: values.format as string | undefined,
+		// project-json flags
+		full: (values.full as boolean) ?? false,
+		output: values.output as string | undefined,
 		// performance flags
 		skipHealth: (values["skip-health"] as boolean) ?? false,
 		noCapabilityCheck: (values["no-capability-check"] as boolean) ?? false,

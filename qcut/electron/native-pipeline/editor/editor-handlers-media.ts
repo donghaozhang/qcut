@@ -8,9 +8,14 @@
  */
 
 import * as fs from "fs";
+import * as path from "path";
 import type { EditorApiClient } from "../editor/editor-api-client.js";
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
 import { resolveJsonInput } from "./editor-api-types.js";
+import {
+	buildProjectJSON,
+	buildProjectJSONMinimal,
+} from "../cli/project-json-builder.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -329,10 +334,14 @@ async function dispatchProject(
 			return projectList(client);
 		case "info":
 			return projectInfo(client, opts);
+		case "export-state":
+			return projectExportState(client, opts);
+		case "import-state":
+			return projectImportState();
 		default:
 			return {
 				success: false,
-				error: `Unknown project action: ${action}. Available: settings, update-settings, stats, summary, report, create, delete, rename, duplicate, list, info`,
+				error: `Unknown project action: ${action}. Available: settings, update-settings, stats, summary, report, create, delete, rename, duplicate, list, info, export-state, import-state`,
 			};
 	}
 }
@@ -464,8 +473,48 @@ async function projectInfo(
 	opts: CLIRunOptions
 ): Promise<CLIResult> {
 	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
-	const data = await client.get(
-		`/api/claude/project/${opts.projectId}/settings`
-	);
+
+	const isFull = opts.full === true;
+
+	if (isFull) {
+		const data = await buildProjectJSON(client, opts.projectId);
+		return { success: true, data };
+	}
+
+	const data = await buildProjectJSONMinimal(client, opts.projectId);
 	return { success: true, data };
+}
+
+async function projectExportState(
+	client: EditorApiClient,
+	opts: CLIRunOptions
+): Promise<CLIResult> {
+	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
+
+	const fullState = await buildProjectJSON(client, opts.projectId);
+	const json = JSON.stringify(fullState, null, 2);
+
+	const outputPath =
+		opts.output ?? path.join(opts.outputDir, `project-${opts.projectId}.json`);
+
+	const dir = path.dirname(outputPath);
+	if (!fs.existsSync(dir)) {
+		fs.mkdirSync(dir, { recursive: true });
+	}
+
+	fs.writeFileSync(outputPath, json, "utf-8");
+
+	return {
+		success: true,
+		data: { path: outputPath, size: json.length },
+		outputPath,
+	};
+}
+
+function projectImportState(): CLIResult {
+	// TODO: Implement import-state (P1) — read project.json and apply to editor
+	return {
+		success: false,
+		error: "editor:project:import-state is not yet implemented. Coming in a future release.",
+	};
 }

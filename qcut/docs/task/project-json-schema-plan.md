@@ -1,6 +1,6 @@
 # project.json Schema — Agent-Readable Project State
 
-**Status**: Design
+**Status**: P0 DONE — Phases 1 & 2 implemented
 **Branch**: `json`
 **Date**: 2026-03-04
 
@@ -698,10 +698,10 @@ Persistent job log for agent workflow continuity.
 
 ### Total Effort: ~18 hours across 5 phases
 
-| Phase | Effort | Priority |
-|-------|--------|----------|
-| 1. Minimal project.json | ~3h | P0 — agents need this immediately |
-| 2. Full project.json | ~5h | P0 — required for stateful workflows |
-| 3. AI generation metadata | ~3h | P1 — enriches generated[] |
-| 4. Export/import state | ~4h | P1 — enables persistence |
-| 5. Job tracking | ~3h | P2 — enables multi-session agents |
+| Phase | Effort | Priority | Status |
+|-------|--------|----------|--------|
+| 1. Minimal project.json | ~3h | P0 — agents need this immediately | **DONE** |
+| 2. Full project.json | ~5h | P0 — required for stateful workflows | **DONE** |
+| 3. AI generation metadata | ~3h | P1 — enriches generated[] | Pending |
+| 4. Export/import state | ~4h | P1 — enables persistence | **export-state DONE**, import-state stubbed |
+| 5. Job tracking | ~3h | P2 — enables multi-session agents | Pending |
