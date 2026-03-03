@@ -114,10 +114,16 @@ async function dispatchTimeline(
 			return timelinePlayback(client, opts, "toggle");
 		case "seek":
 			return timelineSeek(client, opts);
+		case "info":
+			return timelineInfo(client, opts);
+		case "add-clip":
+			return timelineAddClip(client, opts);
+		case "trim":
+			return timelineTrim(client, opts);
 		default:
 			return {
 				success: false,
-				error: `Unknown timeline action: ${action}. Available: ${TIMELINE_ACTIONS.join(", ")}`,
+				error: `Unknown timeline action: ${action}. Available: ${TIMELINE_ACTIONS.join(", ")}, info, add-clip, trim`,
 			};
 	}
 }
@@ -540,6 +546,64 @@ async function timelineSeek(
 	const data = await client.post(
 		`/api/claude/timeline/${opts.projectId}/playback`,
 		{ action: "seek", time: seekTime }
+	);
+	return { success: true, data };
+}
+
+// ---------------------------------------------------------------------------
+// Timeline info / add-clip / trim (unified JSON API)
+// ---------------------------------------------------------------------------
+
+async function timelineInfo(
+	client: EditorApiClient,
+	opts: CLIRunOptions
+): Promise<CLIResult> {
+	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
+	const data = await client.get(`/api/claude/timeline/${opts.projectId}`);
+	return { success: true, data };
+}
+
+async function timelineAddClip(
+	client: EditorApiClient,
+	opts: CLIRunOptions
+): Promise<CLIResult> {
+	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
+	if (!opts.mediaId) return { success: false, error: "Missing --media-id" };
+
+	const body: Record<string, unknown> = {
+		type: "media",
+		sourceId: opts.mediaId,
+	};
+	if (opts.trackId) body.trackId = opts.trackId;
+	if (opts.startTime !== undefined) body.startTime = opts.startTime;
+
+	const data = await client.post(
+		`/api/claude/timeline/${opts.projectId}/elements`,
+		body
+	);
+	return { success: true, data };
+}
+
+async function timelineTrim(
+	client: EditorApiClient,
+	opts: CLIRunOptions
+): Promise<CLIResult> {
+	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
+	if (!opts.elementId) return { success: false, error: "Missing --element-id" };
+	if (opts.startTime === undefined && opts.endTime === undefined) {
+		return {
+			success: false,
+			error: "Missing --start-time and/or --end-time",
+		};
+	}
+
+	const changes: Record<string, unknown> = {};
+	if (opts.startTime !== undefined) changes.startTime = opts.startTime;
+	if (opts.endTime !== undefined) changes.endTime = opts.endTime;
+
+	const data = await client.patch(
+		`/api/claude/timeline/${opts.projectId}/elements/${opts.elementId}`,
+		{ changes }
 	);
 	return { success: true, data };
 }

@@ -325,10 +325,14 @@ async function dispatchProject(
 			return projectRename(client, opts);
 		case "duplicate":
 			return projectDuplicate(client, opts);
+		case "list":
+			return projectList(client);
+		case "info":
+			return projectInfo(client, opts);
 		default:
 			return {
 				success: false,
-				error: `Unknown project action: ${action}. Available: settings, update-settings, stats, summary, report, create, delete, rename, duplicate`,
+				error: `Unknown project action: ${action}. Available: settings, update-settings, stats, summary, report, create, delete, rename, duplicate, list, info`,
 			};
 	}
 }
@@ -447,5 +451,21 @@ async function projectDuplicate(
 	const data = await client.post("/api/claude/project/duplicate", {
 		projectId: opts.projectId,
 	});
+	return { success: true, data };
+}
+
+async function projectList(client: EditorApiClient): Promise<CLIResult> {
+	const data = await client.get("/api/claude/projects");
+	return { success: true, data };
+}
+
+async function projectInfo(
+	client: EditorApiClient,
+	opts: CLIRunOptions
+): Promise<CLIResult> {
+	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
+	const data = await client.get(
+		`/api/claude/project/${opts.projectId}/settings`
+	);
 	return { success: true, data };
 }

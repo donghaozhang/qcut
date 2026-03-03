@@ -49,6 +49,7 @@ import { handleRunPipeline } from "./handler-pipeline.js";
 import { handleTransferMotion } from "./handler-transfer.js";
 import { handleGenerateGrid } from "./handler-grid.js";
 import { handleUpscaleImage } from "./handler-upscale.js";
+import { handlePipelineStatus } from "./handler-pipeline-status.js";
 
 export class CLIPipelineRunner {
 	private executor = new PipelineExecutor();
@@ -200,6 +201,8 @@ export class CLIPipelineRunner {
 					...options,
 					category: "text_to_speech",
 				});
+			case "pipeline:status":
+				return handlePipelineStatus(options);
 			default:
 				if (options.command.startsWith("editor:")) {
 					return handleEditorCommand(options, onProgress);

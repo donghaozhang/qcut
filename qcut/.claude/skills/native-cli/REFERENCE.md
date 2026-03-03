@@ -455,20 +455,99 @@ List ViMax-relevant models (image, video, image-to-video, image-to-image).
 
 ---
 
+## New Unified JSON API Commands
+
+### `editor:project:list`
+
+List all projects in the editor.
+
+| Flag | Type | Description |
+|------|------|-------------|
+| (none) | | No additional flags required |
+
+### `editor:project:info`
+
+Get project info (settings, metadata).
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--project-id` | string | Project ID (required) |
+
+### `editor:timeline:info`
+
+Get timeline state for a project (tracks, elements, duration).
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--project-id` | string | Project ID (required) |
+
+### `editor:timeline:add-clip`
+
+Add a media clip to the timeline.
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--project-id` | string | Project ID (required) |
+| `--media-id` | string | Media ID to add (required) |
+| `--track-id` | string | Target track ID |
+| `--start-time` | float | Start position (seconds) |
+
+### `editor:timeline:trim`
+
+Trim an element's start/end times.
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--project-id` | string | Project ID (required) |
+| `--element-id` | string | Element ID (required) |
+| `--start-time` | float | New start time (seconds) |
+| `--end-time` | float | New end time (seconds) |
+
+### `pipeline:status`
+
+Get pipeline job status/progress.
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--job-id` | string | Job ID to check (required) |
+
+---
+
 ## Output Formats
 
 **Default (TTY):** Progress bar + final output path.
 
-**`--json`:** Single JSON object:
+**`--json`:** Unified JSON envelope with `status` field:
 
+Success:
 ```json
 {
-  "schema_version": "1",
-  "command": "generate-image",
-  "success": true,
-  "outputPath": "./output/cli-1234/output_1234.png",
-  "cost": 0.005,
-  "duration": 8.3
+  "status": "ok",
+  "data": {
+    "schema_version": "1",
+    "command": "generate-image",
+    "success": true,
+    "outputPath": "./output/cli-1234/output_1234.png",
+    "cost": 0.005,
+    "duration": 8.3
+  }
+}
+```
+
+Error:
+```json
+{
+  "status": "error",
+  "error": "Missing --project-id",
+  "code": "editor:project:info:failed"
+}
+```
+
+Pending (async jobs):
+```json
+{
+  "status": "pending",
+  "jobId": "abc-123"
 }
 ```
 

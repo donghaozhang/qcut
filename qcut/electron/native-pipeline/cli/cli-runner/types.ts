@@ -156,6 +156,8 @@ export interface CLIRunOptions {
 	sources?: string;
 	/** Skip capability warnings on every request (saves ~1-2s in E2E flows) */
 	noCapabilityCheck?: boolean;
+	/** Export format (e.g. "mp4", "webm") */
+	format?: string;
 }
 
 export interface CLIResult {
