@@ -2,6 +2,7 @@ name: Release
 
 # Runners: GitHub-hosted by default
 # To use Blacksmith: set repo variable USE_BLACKSMITH=true
+# To use self-hosted Mac: set repo variable USE_SELF_HOSTED_MAC=true
 
 on:
   push:
@@ -104,17 +105,31 @@ jobs:
   # macOS build
   build-macos:
     needs: prepare
-    runs-on: macos-latest
+    runs-on: ${{ vars.USE_SELF_HOSTED_MAC == 'true' && fromJSON('["self-hosted", "macOS", "ARM64"]') || 'macos-latest' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Clean previous build artifacts
+        if: ${{ vars.USE_SELF_HOSTED_MAC == 'true' }}
+        run: |
+          rm -rf dist-electron dist apps/web/dist
+          git clean -fdx -e node_modules -e .bun
+
       - name: Install Bun
+        if: ${{ vars.USE_SELF_HOSTED_MAC != 'true' }}
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.10
 
+      - name: Verify Bun (self-hosted)
+        if: ${{ vars.USE_SELF_HOSTED_MAC == 'true' }}
+        run: |
+          echo "Bun: $(bun --version)"
+          echo "Node: $(node --version)"
+
       - name: Cache Bun modules
+        if: ${{ vars.USE_SELF_HOSTED_MAC != 'true' }}
         uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
@@ -137,24 +152,8 @@ jobs:
       - name: Build afterPack script
         run: cd scripts && bunx tsc
 
-      - name: Generate macOS icon
-        run: |
-          brew install imagemagick
-          mkdir -p build/icon.iconset
-          # Extract largest image from ICO and resize to all required sizes
-          magick 'build/icon.ico[0]' -resize 16x16 -background none -gravity center -extent 16x16 build/icon.iconset/icon_16x16.png
-          magick 'build/icon.ico[0]' -resize 32x32 -background none -gravity center -extent 32x32 build/icon.iconset/icon_16x16@2x.png
-          magick 'build/icon.ico[0]' -resize 32x32 -background none -gravity center -extent 32x32 build/icon.iconset/icon_32x32.png
-          magick 'build/icon.ico[0]' -resize 64x64 -background none -gravity center -extent 64x64 build/icon.iconset/icon_32x32@2x.png
-          magick 'build/icon.ico[0]' -resize 128x128 -background none -gravity center -extent 128x128 build/icon.iconset/icon_128x128.png
-          magick 'build/icon.ico[0]' -resize 256x256 -background none -gravity center -extent 256x256 build/icon.iconset/icon_128x128@2x.png
-          magick 'build/icon.ico[0]' -resize 256x256 -background none -gravity center -extent 256x256 build/icon.iconset/icon_256x256.png
-          magick 'build/icon.ico[0]' -resize 512x512 -background none -gravity center -extent 512x512 build/icon.iconset/icon_256x256@2x.png
-          magick 'build/icon.ico[0]' -resize 512x512 -background none -gravity center -extent 512x512 build/icon.iconset/icon_512x512.png
-          magick 'build/icon.ico[0]' -resize 1024x1024 -background none -gravity center -extent 1024x1024 build/icon.iconset/icon_512x512@2x.png
-          iconutil -c icns build/icon.iconset -o build/icon.icns
-
       - name: Cache Electron binary
+        if: ${{ vars.USE_SELF_HOSTED_MAC != 'true' }}
         uses: actions/cache@v4
         with:
           path: ~/Library/Caches/electron
