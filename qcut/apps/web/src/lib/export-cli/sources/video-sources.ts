@@ -25,6 +25,7 @@ interface VideoSaveTempAPI {
 		filename: string,
 		sessionId?: string
 	) => Promise<string>;
+	verifyFile?: (filePath: string) => Promise<boolean>;
 }
 
 /**
@@ -97,7 +98,18 @@ export async function extractVideoSources(
 
 			let localPath = mediaItem.localPath;
 
-			// Create temp file from blob if no localPath
+			// Verify localPath still exists on disk (temp files may be cleaned up)
+			if (localPath && api?.verifyFile) {
+				const exists = await api.verifyFile(localPath);
+				if (!exists) {
+					logger(
+						`[VideoSources] File missing on disk, will recreate: ${localPath}`
+					);
+					localPath = undefined;
+				}
+			}
+
+			// Create temp file from blob if no localPath or file was deleted
 			if (!localPath && mediaItem.file && mediaItem.file.size > 0) {
 				localPath = await createTempFileFromBlob(
 					mediaItem,
@@ -181,7 +193,18 @@ export async function extractVideoInputPath(
 
 	let localPath = mediaItem.localPath;
 
-	// Create temp file from blob if needed
+	// Verify localPath still exists on disk (temp files may be cleaned up)
+	if (localPath && api?.verifyFile) {
+		const exists = await api.verifyFile(localPath);
+		if (!exists) {
+			logger(
+				`[VideoSources] File missing on disk, will recreate: ${localPath}`
+			);
+			localPath = undefined;
+		}
+	}
+
+	// Create temp file from blob if needed or file was deleted
 	if (!localPath && mediaItem.file && mediaItem.file.size > 0) {
 		localPath = await createTempFileFromBlob(mediaItem, sessionId, api, logger);
 	}
