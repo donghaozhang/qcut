@@ -141,6 +141,8 @@ export function startClaudeHTTPServer(
 		undoTimeline: () => undoTimeline({ win: getWindow() }),
 		redoTimeline: () => redoTimeline({ win: getWindow() }),
 		getHistorySummary: () => getHistorySummary({ win: getWindow() }),
+		requestStateSnapshot: (request) =>
+			requestEditorStateSnapshotFromRenderer(getWindow(), request),
 	};
 
 	// Register all shared routes

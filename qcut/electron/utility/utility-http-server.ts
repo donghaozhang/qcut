@@ -152,6 +152,10 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 			requestFromMain("timeline:redo", {}) as Promise<ClaudeUndoRedoResponse>,
 		getHistorySummary: () =>
 			requestFromMain("timeline:history", {}) as Promise<ClaudeHistorySummary>,
+		requestStateSnapshot: (request) =>
+			requestFromMain("get-editor-state-snapshot", {
+				request,
+			}) as Promise<EditorStateSnapshot>,
 	};
 
 	// Register all shared routes

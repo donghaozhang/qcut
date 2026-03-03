@@ -51,14 +51,82 @@ async function getUniqueFilePath(
 }
 
 /**
- * List media files in a project — shared between IPC and HTTP handlers
+ * Scan a single directory for media files and append to the results array.
+ * For symlinks, resolves the original filename for name-based matching.
+ */
+async function scanMediaDirectory(
+	dirPath: string,
+	files: MediaFile[]
+): Promise<void> {
+	let dirEntries: import("fs").Dirent[];
+	try {
+		dirEntries = await fs.readdir(dirPath, { withFileTypes: true });
+	} catch {
+		return; // Directory doesn't exist or isn't readable
+	}
+
+	for (const entry of dirEntries) {
+		if (!entry.isFile() && !entry.isSymbolicLink()) continue;
+
+		const entryName = String(entry.name);
+		const filePath = path.join(dirPath, entryName);
+
+		// Validate symlink targets — skip broken symlinks
+		if (entry.isSymbolicLink()) {
+			try {
+				await fs.stat(filePath); // follows symlinks, throws if target missing
+			} catch {
+				claudeLog.warn(HANDLER_NAME, `Skipping broken symlink: ${entryName}`);
+				continue;
+			}
+		}
+
+		const stat = await fs.stat(filePath);
+		const ext = path.extname(entryName);
+
+		const type = getMediaType(ext);
+		if (!type) continue;
+
+		// For symlinks, resolve the original filename for better name-based matching.
+		// Files in media/imported/ are named by mediaId, but the symlink target
+		// has the original filename that matches timeline element sourceName.
+		let displayName = entryName;
+		if (entry.isSymbolicLink()) {
+			try {
+				const target = await fs.readlink(filePath);
+				const targetBasename = path.basename(String(target));
+				if (targetBasename) {
+					displayName = targetBasename;
+				}
+			} catch {
+				// Keep entryName as fallback
+			}
+		}
+
+		const deterministicId = `media_${Buffer.from(entryName).toString("base64url")}`;
+		files.push({
+			id: deterministicId,
+			name: displayName,
+			type,
+			path: filePath,
+			size: stat.size,
+			createdAt: stat.birthtimeMs,
+			modifiedAt: stat.mtimeMs,
+		});
+	}
+}
+
+/**
+ * List media files in a project — shared between IPC and HTTP handlers.
+ * Scans both the top-level media/ directory and media/imported/ subdirectory,
+ * since the UI's media import handler stores files in the latter.
  */
 export async function listMediaFiles(projectId: string): Promise<MediaFile[]> {
 	const mediaPath = getMediaPath(projectId);
 	const files: MediaFile[] = [];
 
 	try {
-		// Check if directory exists
+		// Check if base media directory exists
 		try {
 			await fs.access(mediaPath);
 		} catch {
@@ -69,30 +137,12 @@ export async function listMediaFiles(projectId: string): Promise<MediaFile[]> {
 			return [];
 		}
 
-		const entries = await fs.readdir(mediaPath, { withFileTypes: true });
+		// Scan top-level media directory
+		await scanMediaDirectory(mediaPath, files);
 
-		for (const entry of entries) {
-			if (!entry.isFile()) continue;
-
-			const filePath = path.join(mediaPath, entry.name);
-			const stat = await fs.stat(filePath);
-			const ext = path.extname(entry.name);
-
-			const type = getMediaType(ext);
-			if (!type) continue;
-
-			// Use deterministic ID based on filename for consistent lookups
-			const deterministicId = `media_${Buffer.from(entry.name).toString("base64url")}`;
-			files.push({
-				id: deterministicId,
-				name: entry.name,
-				type,
-				path: filePath,
-				size: stat.size,
-				createdAt: stat.birthtimeMs,
-				modifiedAt: stat.mtimeMs,
-			});
-		}
+		// Also scan media/imported/ — where the UI's media-import-handler stores files
+		const importedPath = path.join(mediaPath, "imported");
+		await scanMediaDirectory(importedPath, files);
 
 		claudeLog.info(HANDLER_NAME, `Found ${files.length} media files`);
 		return files;

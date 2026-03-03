@@ -12,6 +12,7 @@ import { getFFmpegPath, parseProgress } from "../../../ffmpeg/utils.js";
 import { claudeLog } from "../../utils/logger.js";
 import { logOperation } from "../../claude-operation-log.js";
 import { emitClaudeEvent } from "../claude-events-handler.js";
+import { getMediaPath, getMediaType } from "../../utils/helpers.js";
 import type {
 	ClaudeTimeline,
 	ClaudeElement,
@@ -113,13 +114,85 @@ function findMediaForElement({
 	return null;
 }
 
-export function collectExportSegments({
+/**
+ * Disk-based fallback: scan project media directories for a file matching sourceName.
+ * Checks media/ and media/imported/ directories. For symlinks, also checks
+ * the symlink target's basename to match against original filenames.
+ */
+async function resolveMediaFromDisk({
+	projectId,
+	sourceName,
+}: {
+	projectId: string;
+	sourceName: string;
+}): Promise<MediaFile | null> {
+	const mediaPath = getMediaPath(projectId);
+	const dirsToScan = [mediaPath, path.join(mediaPath, "imported")];
+
+	for (const dirPath of dirsToScan) {
+		let dirEntries: import("fs").Dirent[];
+		try {
+			dirEntries = await fsPromises.readdir(dirPath, { withFileTypes: true });
+		} catch {
+			continue;
+		}
+
+		for (const entry of dirEntries) {
+			if (!entry.isFile() && !entry.isSymbolicLink()) continue;
+
+			const entryName = String(entry.name);
+			const filePath = path.join(dirPath, entryName);
+
+			// Check direct filename match
+			let matched = entryName === sourceName;
+
+			// For symlinks, also check the target's basename
+			if (!matched && entry.isSymbolicLink()) {
+				try {
+					const target = await fsPromises.readlink(filePath);
+					const targetBasename = path.basename(String(target));
+					matched = targetBasename === sourceName;
+				} catch {
+					// Can't read symlink target
+				}
+			}
+
+			if (!matched) continue;
+
+			// Validate file exists (follows symlinks)
+			try {
+				const stat = await fsPromises.stat(filePath);
+				const ext = path.extname(entryName);
+				const type = getMediaType(ext);
+				if (!type) continue;
+
+				return {
+					id: `media_${Buffer.from(entryName).toString("base64url")}`,
+					name: sourceName,
+					type,
+					path: filePath,
+					size: stat.size,
+					createdAt: stat.birthtimeMs,
+					modifiedAt: stat.mtimeMs,
+				};
+			} catch {
+				continue; // Broken symlink or inaccessible
+			}
+		}
+	}
+
+	return null;
+}
+
+export async function collectExportSegments({
 	timeline,
 	mediaFiles,
+	projectId,
 }: {
 	timeline: ClaudeTimeline;
 	mediaFiles: MediaFile[];
-}): ExportSegment[] {
+	projectId?: string;
+}): Promise<ExportSegment[]> {
 	try {
 		const mediaById = new Map<string, MediaFile>();
 		const mediaByName = new Map<string, MediaFile>();
@@ -142,7 +215,27 @@ export function collectExportSegments({
 					continue;
 				}
 
-				const media = findMediaForElement({ element, mediaById, mediaByName });
+				let media = findMediaForElement({ element, mediaById, mediaByName });
+
+				// Disk-based fallback: if media library lookup failed and we have
+				// a projectId + sourceName, try resolving directly from disk
+				if (!media && projectId && element.sourceName) {
+					claudeLog.info(
+						HANDLER_NAME,
+						`Media library lookup failed for "${element.sourceName}", trying disk fallback`
+					);
+					media = await resolveMediaFromDisk({
+						projectId,
+						sourceName: element.sourceName,
+					});
+					if (media) {
+						claudeLog.info(
+							HANDLER_NAME,
+							`Disk fallback resolved "${element.sourceName}" → ${media.path}`
+						);
+					}
+				}
+
 				if (!media || (media.type !== "video" && media.type !== "image")) {
 					continue;
 				}
