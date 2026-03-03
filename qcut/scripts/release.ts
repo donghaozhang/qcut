@@ -384,13 +384,13 @@ function getDistCommand(): string {
 		"bun run stage-ffmpeg-binaries && bun run stage-aicp-binaries";
 	switch (process.platform) {
 		case "darwin":
-			return `${stageCmd} && electron-builder --mac --publish never`;
+			return `${stageCmd} && npx electron-builder --mac --publish never`;
 		case "linux":
-			return `${stageCmd} && electron-builder --linux --publish never`;
+			return `${stageCmd} && npx electron-builder --linux --publish never`;
 		case "win32":
 			return "bun run dist:win:release";
 		default:
-			return `${stageCmd} && electron-builder --mac --publish never`;
+			return `${stageCmd} && npx electron-builder --mac --publish never`;
 	}
 }
 
