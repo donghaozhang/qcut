@@ -423,6 +423,7 @@ describe("extractFrame", () => {
 			{
 				name: "video.mp4",
 				isFile: () => true,
+				isSymbolicLink: () => false,
 			},
 		]);
 		mockStat.mockResolvedValue({
@@ -444,6 +445,7 @@ describe("extractFrame", () => {
 			{
 				name: "audio.mp3",
 				isFile: () => true,
+				isSymbolicLink: () => false,
 			},
 		]);
 
