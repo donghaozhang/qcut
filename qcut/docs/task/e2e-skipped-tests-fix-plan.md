@@ -211,3 +211,40 @@ test("should attempt to open existing project without crash", async ({ page }) =
 | **—** | PTY / Remotion Debug | 3 | — | — | Working as designed (env-gated) |
 
 **Impact summary**: Fixing P0 alone unblocks 12/18 tests (67%). Fixing P0+P1+P2 unblocks 14/18 tests (78%). The remaining 4 tests are intentionally gated by environment/API availability and don't need fixes.
+
+---
+
+## Implementation Results (2026-03-03)
+
+### Fixes Applied
+
+| Fix | Tests Unskipped | Status | Files Changed |
+|-----|----------------|--------|---------------|
+| **P0: Sticker Canvas Race Condition** | 12 | Done | `sticker-test-helper.ts`, `electron-helpers.ts` |
+| **P1: Remotion Engine Indicator** | 1 | Done | `export-settings-cards.tsx`, `remotion-export-pipeline.e2e.ts` |
+| **P2: Editor Navigation** | 1 | Done | `editor-navigation.e2e.ts` |
+
+**Total tests unskipped: 14/18 (78%)**
+
+### Fix Details
+
+#### P0: Sticker Canvas Race Condition (12 tests)
+- **`sticker-test-helper.ts`**: Added a readiness promise (`stickerTestReady`) that resolves after async store imports complete. Exposed on `window.stickerTestReady` so E2E tests can await it. Also added `.catch()` error handling on the setup call — on failure, the promise still resolves (tests fail on missing stores instead of hanging).
+- **`electron-helpers.ts`**: Added `waitForFunction` + `evaluate` calls in `addStickerToCanvas()` to await `window.stickerTestReady` before accessing `window.stickerTest`.
+- **`remotion-export-pipeline.e2e.ts`**: Added same readiness wait in `addRemotionElementToTimeline()` since it also accesses `window.stickerTest`.
+
+#### P1: Remotion Engine Indicator (1 test)
+- **`export-settings-cards.tsx`**: Added conditional rendering of `engineRecommendation` in `DetailsCard`'s grid — displays as `"Engine: Remotion Engine (X Performance)"` in blue text when present.
+- **`remotion-export-pipeline.e2e.ts`**: Unskipped the test. Simplified assertion to only check for `/Remotion Engine/` text (removed the old `/Timeline contains Remotion elements/` badge check which was from the pre-v3 UI).
+
+#### P2: Editor Navigation (1 test)
+- **`editor-navigation.e2e.ts`**: Replaced conditional skip with proactive setup — test now creates a project via `createTestProject()`, navigates back to projects list via `navigateToProjects()`, then proceeds with the open-project test. Added `createTestProject` and `navigateToProjects` to imports.
+
+### Tests Remaining Skipped (4 — intentional)
+
+| # | Test | Reason | Action |
+|---|------|--------|--------|
+| 1 | AI upscale (1 test) | Requires `VITE_FAL_API_KEY` | Working as designed |
+| 2 | Missing electronAPI (1 test) | Electron contextBridge prevents override | Should be unit test (future) |
+| 3 | PTY terminal (2 tests) | Gated by `PTY_AVAILABLE=true` | Working as designed; node-pty is installed, set env var to run locally |
+| 4 | Remotion debug (2 tests) | Gated by `REMOTION_PROJECT_PATH` | Debug-only, manual use |

@@ -5,6 +5,14 @@
 
 import { debugLog } from "@/lib/debug/debug-config";
 
+// Readiness promise — E2E tests wait on this to avoid the race condition
+// where window.stickerTest is accessed before async setup completes.
+let resolveReady: () => void;
+const stickerTestReady = new Promise<void>((r) => {
+	resolveReady = r;
+});
+(window as any).stickerTestReady = stickerTestReady;
+
 export function setupStickerTest() {
 	// Make stores available globally for testing
 	const setupTestEnvironment = async () => {
@@ -116,6 +124,9 @@ export function setupStickerTest() {
 			},
 		};
 
+		// Signal readiness — E2E tests wait on this promise
+		resolveReady();
+
 		debugLog("🚀 Sticker test helper loaded!");
 		debugLog("Commands:");
 		debugLog("  stickerTest.cleanup() - Clean orphaned stickers");
@@ -124,7 +135,11 @@ export function setupStickerTest() {
 		debugLog("  stickerTest.getStores() - Get current store states");
 	};
 
-	setupTestEnvironment();
+	setupTestEnvironment().catch((err) => {
+		console.error("[sticker-test-helper] setup failed:", err);
+		// Still resolve so tests don't hang — they'll fail on missing stores instead
+		resolveReady();
+	});
 }
 
 // Always setup test helpers - needed for E2E tests which run against production builds
