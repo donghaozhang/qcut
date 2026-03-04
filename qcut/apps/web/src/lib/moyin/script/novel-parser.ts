@@ -115,8 +115,10 @@ const SCREENPLAY_MAX_TOKENS = 2200;
 
 /** Simple language detection based on Chinese character ratio. */
 export function detectLanguage(text: string): "zh" | "en" {
-	const chineseChars = (text.match(/[\u4e00-\u9fff]/g) || []).length;
-	return chineseChars / text.length > 0.1 ? "zh" : "en";
+	const normalized = text.trim();
+	if (!normalized) return "en";
+	const chineseChars = (normalized.match(/[\u4e00-\u9fff]/g) || []).length;
+	return chineseChars / normalized.length > 0.1 ? "zh" : "en";
 }
 
 function applyTemplate(
@@ -254,53 +256,61 @@ export async function splitNovelIntoClips(
 	let lastError: Error | null = null;
 
 	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-		const response = await callLLM(
-			"You are a professional screenwriter.",
-			prompt,
-			{ maxTokens: 2600 }
-		);
+		try {
+			const response = await callLLM(
+				"You are a professional screenwriter.",
+				prompt,
+				{ maxTokens: 2600 }
+			);
 
-		const rawClips = repairAndParseJSONArray<Record<string, unknown>>(response);
-		if (rawClips.length === 0) {
-			lastError = new Error("split_clips returned empty clips");
-			continue;
-		}
-
-		const matcher = createClipContentMatcher(text);
-		const clips: NovelClip[] = [];
-		let searchFrom = 0;
-		let failed = false;
-
-		for (let index = 0; index < rawClips.length; index += 1) {
-			const item = rawClips[index];
-			const startText = asString(item.start);
-			const endText = asString(item.end);
-			const clipId = `clip_${index + 1}`;
-
-			const match = matcher.matchBoundary(startText, endText, searchFrom);
-			if (!match) {
-				lastError = new Error(
-					`Boundary matching failed at ${clipId}: start="${startText}" end="${endText}"`
-				);
-				failed = true;
-				break;
+			const rawClips =
+				repairAndParseJSONArray<Record<string, unknown>>(response);
+			if (rawClips.length === 0) {
+				lastError = new Error("split_clips returned empty clips");
+				continue;
 			}
 
-			clips.push({
-				id: clipId,
-				startText,
-				endText,
-				summary: asString(item.summary),
-				location: asString(item.location) || null,
-				characters: toStringArray(item.characters),
-				content: text.slice(match.startIndex, match.endIndex),
-				matchLevel: match.level,
-				matchConfidence: match.confidence,
-			});
-			searchFrom = match.endIndex;
-		}
+			const matcher = createClipContentMatcher(text);
+			const clips: NovelClip[] = [];
+			let searchFrom = 0;
+			let failed = false;
 
-		if (!failed) return clips;
+			for (let index = 0; index < rawClips.length; index += 1) {
+				const item = rawClips[index];
+				const startText = asString(item.start);
+				const endText = asString(item.end);
+				const clipId = `clip_${index + 1}`;
+
+				const match = matcher.matchBoundary(startText, endText, searchFrom);
+				if (!match) {
+					lastError = new Error(
+						`Boundary matching failed at ${clipId}: start="${startText}" end="${endText}"`
+					);
+					failed = true;
+					break;
+				}
+
+				clips.push({
+					id: clipId,
+					startText,
+					endText,
+					summary: asString(item.summary),
+					location: asString(item.location) || null,
+					characters: toStringArray(item.characters),
+					content: text.slice(match.startIndex, match.endIndex),
+					matchLevel: match.level,
+					matchConfidence: match.confidence,
+				});
+				searchFrom = match.endIndex;
+			}
+
+			if (!failed) return clips;
+		} catch (error) {
+			lastError =
+				error instanceof Error
+					? error
+					: new Error(`split_clips failed: ${String(error)}`);
+		}
 	}
 
 	throw lastError ?? new Error("split_clips boundary matching failed");
@@ -374,6 +384,17 @@ export async function parseNovel(
 	config: NovelParseConfig
 ): Promise<NovelParseResult> {
 	const { text, language = "auto", callLLM, onProgress } = config;
+	const reportStepError = ({
+		step,
+		error,
+	}: {
+		step: NovelParseStep;
+		error: unknown;
+	}): string => {
+		const message = error instanceof Error ? error.message : String(error);
+		config.onStepError?.(step, message);
+		return message;
+	};
 
 	if (!text || !text.trim()) {
 		throw new Error("Novel text is empty");
@@ -381,54 +402,111 @@ export async function parseNovel(
 
 	// Detect language if auto
 	const lang = language === "auto" ? detectLanguage(text) : language;
+	const maxClips =
+		typeof config.maxClips === "number" && Number.isFinite(config.maxClips)
+			? Math.max(0, Math.floor(config.maxClips))
+			: undefined;
 
 	// Step 1: Parallel character + location analysis
 	onProgress?.("analyze_characters", 0);
 	onProgress?.("analyze_locations", 0);
+	const characterPromise = analyzeCharacters(
+		text,
+		config.existingCharacters ?? [],
+		callLLM,
+		lang
+	).catch((error) => {
+		reportStepError({ step: "analyze_characters", error });
+		throw error;
+	});
+	const locationPromise = analyzeLocations(
+		text,
+		config.existingLocations ?? [],
+		callLLM,
+		lang
+	).catch((error) => {
+		reportStepError({ step: "analyze_locations", error });
+		throw error;
+	});
 	const [characters, locations] = await Promise.all([
-		analyzeCharacters(text, config.existingCharacters ?? [], callLLM, lang),
-		analyzeLocations(text, config.existingLocations ?? [], callLLM, lang),
+		characterPromise,
+		locationPromise,
 	]);
 	onProgress?.("analyze_characters", 100);
 	onProgress?.("analyze_locations", 100);
 
 	// Step 2: Split into clips with boundary validation
 	onProgress?.("split_clips", 0);
-	const clips = await splitNovelIntoClips(
-		text,
-		characters.map((c) => c.name),
-		locations.map((l) => l.name),
-		callLLM,
-		lang
-	);
+	let clips: NovelClip[];
+	try {
+		clips = await splitNovelIntoClips(
+			text,
+			characters.map((c) => c.name),
+			locations.map((l) => l.name),
+			callLLM,
+			lang
+		);
+	} catch (error) {
+		reportStepError({ step: "split_clips", error });
+		throw error;
+	}
 	onProgress?.("split_clips", 100);
+	const clipsToConvert =
+		maxClips != null && maxClips < clips.length
+			? clips.slice(0, maxClips)
+			: clips;
 
 	// Step 3: Convert each clip to screenplay (parallel)
 	onProgress?.("screenplay_conversion", 0);
+	if (clipsToConvert.length === 0) {
+		onProgress?.("screenplay_conversion", 100);
+	}
 	const screenplays = await Promise.all(
-		clips.map((clip, i) =>
+		clipsToConvert.map((clip, i) =>
 			convertClipToScreenplay(
 				clip,
 				characters.map((c) => c.name),
 				locations.map((l) => l.name),
 				callLLM,
 				lang
-			).then((result) => {
-				onProgress?.("screenplay_conversion", ((i + 1) / clips.length) * 100);
-				return result;
-			})
+			)
+				.then((result) => {
+					if (!result.success && result.error) {
+						reportStepError({
+							step: "screenplay_conversion",
+							error: `Clip ${clip.id}: ${result.error}`,
+						});
+					}
+					onProgress?.(
+						"screenplay_conversion",
+						((i + 1) / clipsToConvert.length) * 100
+					);
+					return result;
+				})
+				.catch((error) => {
+					const message = reportStepError({
+						step: "screenplay_conversion",
+						error,
+					});
+					return {
+						clipId: clip.id,
+						success: false,
+						sceneCount: 0,
+						error: message,
+					};
+				})
 		)
 	);
 
 	return {
 		characters,
 		locations,
-		clips,
+		clips: clipsToConvert,
 		screenplays,
 		summary: {
 			characterCount: characters.length,
 			locationCount: locations.length,
-			clipCount: clips.length,
+			clipCount: clipsToConvert.length,
 			screenplaySuccessCount: screenplays.filter((s) => s.success).length,
 			screenplayFailedCount: screenplays.filter((s) => !s.success).length,
 			totalScenes: screenplays.reduce((sum, s) => sum + s.sceneCount, 0),

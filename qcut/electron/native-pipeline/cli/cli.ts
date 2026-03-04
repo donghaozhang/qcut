@@ -303,6 +303,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			novel: { type: "string" },
 			title: { type: "string" },
 			"max-scenes": { type: "string" },
+			"max-clips": { type: "string" },
 			"scripts-only": { type: "boolean", default: false },
 			"storyboard-only": { type: "boolean", default: false },
 			"no-portraits": { type: "boolean", default: false },

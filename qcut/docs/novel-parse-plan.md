@@ -33,7 +33,7 @@ Novel Text (string)
     │
     ▼
 ┌──────────────────────┐  ┌──────────────────┐
-│ GUI: Director Panel  │  │ CLI: novel:parse │
+│ GUI: Director Panel  │  │ CLI: editor:novel:parse │
 │ "Import Novel" btn   │  │ --input --output │
 └──────────────────────┘  └──────────────────┘
 ```
@@ -44,7 +44,7 @@ Novel Text (string)
 
 | File | Purpose | Est. |
 |------|---------|------|
-| `apps/web/src/lib/moyin/script/novel-parser.ts` | Main orchestrator (4-step pipeline) | 1.5d |
+| `apps/web/src/lib/moyin/script/novel-parser.ts` | Main orchestrator (3-step pipeline) | 1.5d |
 | `apps/web/src/lib/moyin/script/clip-matching.ts` | 3-level text boundary matching | 1d |
 | `apps/web/src/lib/moyin/script/json-repair.ts` | LLM JSON output repair (3-level) | 0.5d |
 | `apps/web/src/lib/moyin/script/novel-prompts.ts` | Prompt templates (CN/EN) | 0.5d |
@@ -86,6 +86,9 @@ export type NovelParseStep =
   | 'analyze_locations' 
   | 'split_clips'
   | 'screenplay_conversion';
+
+/** Language detection helper for auto mode */
+export function detectLanguage(text: string): 'zh' | 'en';
 
 /** Single extracted character */
 export interface ExtractedCharacter {
@@ -424,9 +427,12 @@ export async function handleNovelParse(flags: Record<string, unknown>): Promise<
   const output = JSON.stringify(result, null, 2);
   if (outputPath) {
     await fs.writeFile(outputPath, output, 'utf-8');
-    jsonOk({ message: `Wrote ${outputPath}`, summary: result.summary });
+    emitJsonResult('editor:novel:parse', {
+      success: true,
+      data: { message: `Wrote ${outputPath}`, summary: result.summary },
+    });
   } else {
-    jsonOk(result);
+    emitJsonResult('editor:novel:parse', { success: true, data: result });
   }
 }
 ```
@@ -487,8 +493,8 @@ interface NovelImportState {
 | `llm-adapter.ts` → `callFeatureAPI()` | Use as LLM backend for GUI mode |
 | `character-bible.ts` | Import extracted characters into project bible |
 | `director-presets/` | Apply presets to generated screenplay shots |
-| `command-registry-editor.ts` | Register novel:parse command |
-| `json-output.ts` → `jsonOk/jsonError` | CLI output formatting |
+| `command-registry-editor.ts` | Register editor:novel:parse command |
+| `json-output.ts` → `emitJsonResult` | CLI output formatting |
 
 ---
 
@@ -496,7 +502,7 @@ interface NovelImportState {
 
 ```typescript
 function estimateTokens(text: string): number {
-  // Rough estimate: 1 Chinese char ≈ 1.5 tokens, 1 English word ≈ 1.3 tokens
+  // Rough estimate: 1 Chinese char ≈ 1.5 tokens, 1 non-Chinese char ≈ 0.4 tokens
   const chineseChars = (text.match(/[\u4e00-\u9fff]/g) || []).length;
   const otherChars = text.length - chineseChars;
   return Math.ceil(chineseChars * 1.5 + otherChars * 0.4);
