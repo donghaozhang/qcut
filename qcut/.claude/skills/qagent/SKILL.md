@@ -1,6 +1,7 @@
 ---
 name: qagent
 description: Orchestrate parallel AI agents for Qcut development. Use when spawning agents on issues, checking session status, handling CI failures, managing PRs, or batch-processing multiple tasks. Covers all qagent CLI commands configured for Qcut.
+argument-hint: [command] [args...]
 ---
 
 # QAgent — Agent Orchestrator for Qcut

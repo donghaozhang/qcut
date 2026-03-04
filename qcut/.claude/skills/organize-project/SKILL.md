@@ -1,6 +1,7 @@
 ---
 name: organize-project
 description: Organize files and folders with QCut's native pipeline CLI. Use for project setup, media categorization, and structure audits.
+disable-model-invocation: true
 ---
 
 # Organize Project (CLI First)

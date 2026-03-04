@@ -1,5 +1,5 @@
 ---
-name: videocut:talk-edit
+name: videocut-talk-edit
 description: Talking-head video transcription and speech error detection. Generates review page and deletion task list. Triggers: edit talking head, process video, detect speech errors, 剪口播, 处理视频, 识别口误
 ---
 

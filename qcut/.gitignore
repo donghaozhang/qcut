@@ -155,3 +155,5 @@ packages/qagent/packages/web/screenshots/
 
 # Local comic workspace
 /comic/
+
+e2e-output.txt

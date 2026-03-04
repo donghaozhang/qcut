@@ -1,5 +1,5 @@
 ---
-name: videocut:subtitles
+name: videocut-subtitles
 description: Subtitle generation and burn-in. Volcengine transcription → dictionary correction → review → burn-in. Triggers: add subtitles, generate subtitles, 加字幕, 生成字幕, 字幕
 ---
 
