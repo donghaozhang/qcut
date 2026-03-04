@@ -59,6 +59,9 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		f("--status-only", "boolean", "Return compact status output", {
 			default: false,
 		}),
+		f("--deep", "boolean", "Run deep cross-process health probes", {
+			default: false,
+		}),
 	]),
 
 	// ── Media ──
@@ -309,6 +312,9 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 			}),
 			f("--remove-silences", "boolean", "Remove silences", { default: false }),
 			f("--threshold", "number", "Detection threshold"),
+			f("--debug-trace", "boolean", "Show detailed failure trace context", {
+				default: false,
+			}),
 			POLL,
 		]
 	),

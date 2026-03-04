@@ -48,6 +48,7 @@ vi.mock("electron-log", () => ({
 import { ipcMain, BrowserWindow } from "electron";
 import {
 	executeBatchCuts,
+	probeBatchCutExecutionReadiness,
 	validateBatchCutRequest,
 } from "../claude/handlers/claude-cuts-handler";
 
@@ -378,6 +379,30 @@ describe("claude-cuts-handler", () => {
 				"claude:timeline:executeCuts:response",
 				expect.any(Function)
 			);
+		});
+	});
+
+	describe("probeBatchCutExecutionReadiness", () => {
+		it("passes when ipc and renderer are ready", async () => {
+			const mockWindow = {
+				webContents: { send: vi.fn() },
+				isDestroyed: vi.fn(() => false),
+			} as unknown as BrowserWindow;
+
+			await expect(
+				probeBatchCutExecutionReadiness({ win: mockWindow })
+			).resolves.toBeUndefined();
+		});
+
+		it("fails when renderer bridge is missing", async () => {
+			const mockWindow = {
+				webContents: {},
+				isDestroyed: vi.fn(() => false),
+			} as unknown as BrowserWindow;
+
+			await expect(
+				probeBatchCutExecutionReadiness({ win: mockWindow })
+			).rejects.toThrow("Editor renderer not available for batch cut readiness probe");
 		});
 	});
 });

@@ -107,10 +107,14 @@ export interface CLIRunOptions {
 	timestamps?: string;
 	/** Return compact health payload for editor:health */
 	statusOnly?: boolean;
+	/** Include deep, cross-process probes in editor:health */
+	deep?: boolean;
 	host?: string;
 	port?: string;
 	token?: string;
 	poll?: boolean;
+	/** Include full failure trace context for async polling commands */
+	debugTrace?: boolean;
 	pollInterval?: number;
 	replace?: boolean;
 	ripple?: boolean;

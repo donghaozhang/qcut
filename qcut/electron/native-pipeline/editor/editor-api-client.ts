@@ -50,13 +50,16 @@ interface JobStatus {
 	progress?: number;
 	message?: string;
 	result?: unknown;
+	correlationId?: string;
 	errorDetails?: {
 		stage?: string;
 		process?: string;
 		action?: string;
+		guard?: string;
 		hint?: string;
 		statusCode?: number;
 		cause?: string;
+		timestamp?: number;
 	};
 	[key: string]: unknown;
 }
@@ -75,6 +78,7 @@ interface EndpointCapabilityRequirement {
 export interface PollOptions {
 	interval?: number;
 	timeout?: number;
+	debugTrace?: boolean;
 	onProgress?: (progress: {
 		status: string;
 		progress?: number;
@@ -291,7 +295,10 @@ export class EditorApiClient {
 				return job as T;
 			}
 			if (job.status === "failed") {
-				const context = this.buildJobFailureContext({ job });
+				const context = this.buildJobFailureContext({
+					job,
+					debugTrace: options.debugTrace === true,
+				});
 				const message = context
 					? `${job.message ?? "Job failed"} [${context}]`
 					: job.message ?? "Job failed";
@@ -374,24 +381,52 @@ export class EditorApiClient {
 		}
 	}
 
-	private buildJobFailureContext({ job }: { job: JobStatus }): string | null {
+	private buildJobFailureContext({
+		job,
+		debugTrace,
+	}: {
+		job: JobStatus;
+		debugTrace: boolean;
+	}): string | null {
 		try {
 			const details = job.errorDetails;
-			if (!details || typeof details !== "object") {
-				return null;
-			}
 			const parts: string[] = [];
-			if (typeof details.stage === "string" && details.stage.trim()) {
-				parts.push(`stage=${details.stage.trim()}`);
+			if (details && typeof details === "object") {
+				if (typeof details.stage === "string" && details.stage.trim()) {
+					parts.push(`stage=${details.stage.trim()}`);
+				}
+				if (typeof details.process === "string" && details.process.trim()) {
+					parts.push(`process=${details.process.trim()}`);
+				}
+				if (typeof details.action === "string" && details.action.trim()) {
+					parts.push(`action=${details.action.trim()}`);
+				}
+				if (typeof details.guard === "string" && details.guard.trim()) {
+					parts.push(`guard=${details.guard.trim()}`);
+				}
+				if (typeof details.hint === "string" && details.hint.trim()) {
+					parts.push(`hint=${details.hint.trim()}`);
+				}
+				if (debugTrace) {
+					if (typeof details.statusCode === "number") {
+						parts.push(`statusCode=${details.statusCode}`);
+					}
+					if (typeof details.cause === "string" && details.cause.trim()) {
+						parts.push(`cause=${details.cause.trim()}`);
+					}
+					if (
+						typeof details.timestamp === "number" &&
+						Number.isFinite(details.timestamp)
+					) {
+						parts.push(`errorTs=${details.timestamp}`);
+					}
+				}
 			}
-			if (typeof details.process === "string" && details.process.trim()) {
-				parts.push(`process=${details.process.trim()}`);
-			}
-			if (typeof details.action === "string" && details.action.trim()) {
-				parts.push(`action=${details.action.trim()}`);
-			}
-			if (typeof details.hint === "string" && details.hint.trim()) {
-				parts.push(`hint=${details.hint.trim()}`);
+			if (
+				typeof job.correlationId === "string" &&
+				job.correlationId.trim()
+			) {
+				parts.push(`correlationId=${job.correlationId.trim()}`);
 			}
 			return parts.length > 0 ? parts.join(", ") : null;
 		} catch {

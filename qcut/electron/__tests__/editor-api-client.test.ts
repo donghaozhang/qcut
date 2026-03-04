@@ -397,6 +397,7 @@ describe("EditorApiClient", () => {
 								stage: "apply-cuts",
 								process: "main",
 								action: "auto-edit pipeline execution",
+								guard: "ipc-main-ready",
 								hint: "Check batch-cuts IPC bridge and renderer cut execution handlers.",
 							},
 						},
@@ -407,7 +408,46 @@ describe("EditorApiClient", () => {
 
 			await expect(
 				client.pollJob("/api/claude/jobs/j4", { interval: 10 })
-			).rejects.toThrow("stage=apply-cuts");
+			).rejects.toThrow("guard=ipc-main-ready");
+
+			globalThis.fetch = origFetch;
+			installFetchMock(BASE_URL);
+		});
+
+		it("includes debug trace context when enabled", async () => {
+			const origFetch = globalThis.fetch;
+			globalThis.fetch = async () => {
+				return new Response(
+					JSON.stringify({
+						success: true,
+						data: {
+							status: "failed",
+							message: "Auto-edit pipeline failed",
+							correlationId: "corr_abc123",
+							errorDetails: {
+								stage: "apply-cuts",
+								process: "main",
+								action: "auto-edit pipeline execution",
+								guard: "ipc-main-ready",
+								hint: "Check bridge",
+								statusCode: 503,
+								cause: "IPC bridge unavailable for batch cut execution",
+								timestamp: 1_700_000_000_000,
+							},
+						},
+					}),
+					{ headers: { "Content-Type": "application/json" } }
+				);
+			};
+
+			await expect(
+				client.pollJob("/api/claude/jobs/j5", {
+					interval: 10,
+					debugTrace: true,
+				})
+			).rejects.toThrow(
+				"statusCode=503, cause=IPC bridge unavailable for batch cut execution, errorTs=1700000000000, correlationId=corr_abc123"
+			);
 
 			globalThis.fetch = origFetch;
 			installFetchMock(BASE_URL);
@@ -529,6 +569,30 @@ describe("Media handlers", () => {
 		const result = await handleEditorHealth(client);
 		expect(result.success).toBe(true);
 		expect((result.data as { status: string }).status).toBe("ok");
+	});
+
+	it("editor:health --status-only --deep includes deepStatus", async () => {
+		mockRoute("GET", "/api/claude/health", {
+			success: true,
+			data: {
+				status: "ok",
+				version: "1.0.0",
+				apiVersion: "1.1.0",
+				deepStatus: "degraded",
+			},
+		});
+		const result = await handleEditorHealth(
+			client,
+			makeOpts({
+				command: "editor:health",
+				statusOnly: true,
+				deep: true,
+			})
+		);
+		expect(result.success).toBe(true);
+		expect((result.data as { deepStatus?: string }).deepStatus).toBe(
+			"degraded"
+		);
 	});
 
 	it("editor:media:list requires project-id", async () => {

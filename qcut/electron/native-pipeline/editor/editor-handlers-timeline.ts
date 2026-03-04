@@ -768,6 +768,7 @@ async function editingAutoEdit(
 		const result = await client.pollJob(
 			`/api/claude/timeline/${opts.projectId}/auto-edit/jobs/${startResult.jobId}`,
 			{
+				debugTrace: opts.debugTrace === true,
 				interval: (opts.pollInterval ?? 3) * 1000,
 				timeout: (opts.timeout ?? 300) * 1000,
 				onProgress: (job) => {

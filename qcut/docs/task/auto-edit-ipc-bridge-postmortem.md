@@ -121,3 +121,48 @@ What is still weak:
 - The code fix works, but reliable verification required process refresh plus direct path checks.
 - Next reliability gains should focus on observability and deterministic cross-process diagnostics.
 
+## 8. Implementation Follow-up (Completed on 2026-03-05)
+
+The following reliability items from Section 6 are now implemented:
+
+1. Structured stage/process/guard failure payloads surfaced in CLI failures  
+   Files:
+   - `electron/types/claude-api.ts`
+   - `electron/claude/handlers/claude-auto-edit-handler.ts`
+   - `electron/native-pipeline/editor/editor-api-client.ts`
+
+2. `editor:editing:auto-edit --debug-trace` for richer failure context  
+   Files:
+   - `electron/native-pipeline/cli/command-registry-editor.ts`
+   - `electron/native-pipeline/cli/cli.ts`
+   - `electron/native-pipeline/editor/editor-handlers-timeline.ts`
+   - `electron/native-pipeline/editor/editor-api-client.ts`
+
+3. Deep health checks via `editor:health --deep` (`/api/claude/health?deep=1`)  
+   Checks included:
+   - `ipcMain-ready`
+   - `utility-main bridge`
+   - `renderer responders`
+   - `auto-edit apply-cuts probe`
+   Files:
+   - `electron/claude/handlers/claude-health-handler.ts`
+   - `electron/claude/http/claude-http-meta-routes.ts`
+   - `electron/claude/http/claude-http-shared-routes.ts`
+   - `electron/claude/http/claude-http-server.ts`
+   - `electron/utility/utility-http-server.ts`
+   - `electron/utility/utility-bridge.ts`
+   - `electron/claude/handlers/claude-cuts-handler.ts`
+
+4. Auto-edit correlation propagation into async jobs and apply-cuts IPC payloads  
+   Files:
+   - `electron/claude/http/claude-http-analysis-routes.ts`
+   - `electron/claude/handlers/claude-auto-edit-handler.ts`
+   - `electron/claude/handlers/claude-cuts-handler.ts`
+   - `electron/types/claude-api.ts`
+
+Validation tests (added/updated):
+- `electron/__tests__/editor-api-client.test.ts`
+- `electron/__tests__/editor-cli-args-debug-health.test.ts`
+- `electron/__tests__/claude-auto-edit-handler.test.ts`
+- `electron/__tests__/claude-cuts-handler.test.ts`
+- `electron/claude/__tests__/claude-http-server.test.ts`

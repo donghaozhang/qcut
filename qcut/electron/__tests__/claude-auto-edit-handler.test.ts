@@ -355,12 +355,14 @@ describe("auto-edit async jobs", () => {
 		const { jobId } = startAutoEditJob("proj_1", {
 			elementId: "el_1",
 			mediaId: "media_1",
+			correlationId: "corr_test_1",
 			dryRun: true,
 		});
 		const job = getAutoEditJobStatus(jobId);
 		expect(job).not.toBeNull();
 		expect(job!.projectId).toBe("proj_1");
 		expect(job!.elementId).toBe("el_1");
+		expect(job!.correlationId).toBe("corr_test_1");
 	});
 
 	it("getAutoEditJobStatus returns null for unknown job", () => {
@@ -404,6 +406,7 @@ describe("auto-edit async jobs", () => {
 		expect(job?.errorDetails).toBeDefined();
 		expect(job?.errorDetails?.stage).toBe("transcribe");
 		expect(job?.errorDetails?.process).toBe("unknown");
+		expect(job?.errorDetails?.guard).toBe("transcription-provider-ready");
 		expect(job?.errorDetails?.cause).toBe("API error");
 	});
 
@@ -432,6 +435,7 @@ describe("auto-edit async jobs", () => {
 		expect(job?.errorDetails).toBeDefined();
 		expect(job?.errorDetails?.stage).toBe("apply-cuts");
 		expect(job?.errorDetails?.process).toBe("main");
+		expect(job?.errorDetails?.guard).toBe("ipc-main-ready");
 		expect(job?.errorDetails?.statusCode).toBe(503);
 	});
 

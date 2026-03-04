@@ -240,7 +240,7 @@ export function startAutoEditJob(
 
 	claudeLog.info(
 		HANDLER_NAME,
-		`Job ${jobId} created for project ${projectId}, element ${request.elementId}`
+		`Job ${jobId} created for project ${projectId}, element ${request.elementId}, correlationId=${request.correlationId ?? "n/a"}`
 	);
 
 	// Fire-and-forget — run pipeline in background

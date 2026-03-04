@@ -119,11 +119,7 @@ function buildSkippedDeepHealthCheck({
 	}
 }
 
-function isDeepHealthReport({
-	value,
-}: {
-	value: unknown;
-}): value is DeepHealthReport {
+function isDeepHealthReport(value: unknown): value is DeepHealthReport {
 	try {
 		if (typeof value !== "object" || value === null) {
 			return false;
@@ -293,7 +289,7 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 					message: "Utility-to-main bridge roundtrip succeeded.",
 					durationMs: Date.now() - startedAt,
 				});
-				if (!isDeepHealthReport({ value: mainReport })) {
+				if (!isDeepHealthReport(mainReport)) {
 					return buildDeepHealthReport({
 						checks: {
 							...buildUnavailableMainChecks({

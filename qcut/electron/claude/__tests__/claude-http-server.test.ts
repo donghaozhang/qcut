@@ -386,6 +386,21 @@ describe("Claude HTTP Server", () => {
 		expect(res.headers["access-control-allow-origin"]).toBe("*");
 	});
 
+	it("GET /api/claude/health?deep=1 returns deep health report", async () => {
+		const res = await fetch("/api/claude/health?deep=1");
+
+		expect(res.status).toBe(200);
+		expect(res.body.success).toBe(true);
+		expect(res.body.data.status).toBe("ok");
+		expect(typeof res.body.data.deepStatus).toBe("string");
+		expect(res.body.data.deepChecks).toBeDefined();
+		expect(res.body.data.deepChecks.summary).toBeDefined();
+		expect(res.body.data.deepChecks.checks.ipcMainReady).toBeDefined();
+		expect(res.body.data.deepChecks.checks.rendererResponders).toBeDefined();
+		expect(res.body.data.deepChecks.checks.utilityMainBridge).toBeDefined();
+		expect(res.body.data.deepChecks.checks.autoEditApplyCutsProbe).toBeDefined();
+	});
+
 	it("GET /api/claude/capabilities returns capability manifest", async () => {
 		const res = await fetch("/api/claude/capabilities");
 

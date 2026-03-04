@@ -63,7 +63,12 @@ export async function handleEditorHealth(
 	opts?: CLIRunOptions
 ): Promise<CLIResult> {
 	try {
-		const data = await client.get<Record<string, unknown>>("/api/claude/health");
+		const healthQuery =
+			opts?.deep === true ? { deep: "1" } : undefined;
+		const data = await client.get<Record<string, unknown>>(
+			"/api/claude/health",
+			healthQuery
+		);
 		if (opts?.statusOnly) {
 			return {
 				success: true,
@@ -72,6 +77,7 @@ export async function handleEditorHealth(
 					version: data?.version,
 					apiVersion: data?.apiVersion,
 					uptime: data?.uptime,
+					deepStatus: data?.deepStatus,
 				},
 			};
 		}
