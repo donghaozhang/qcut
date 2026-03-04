@@ -1,4 +1,4 @@
-# QCut Editor — State Control & Automation (HTTP-only)
+# QCut Editor — State Control & Automation (HTTP-first)
 
 Advanced editor state control via HTTP API. For basic state operations, prefer the CLI:
 
@@ -11,14 +11,16 @@ bun run pipeline editor:state:snapshot --include timeline,playhead --json  # Par
 
 The endpoints below have no CLI wrappers — use `curl` directly. Requires QCut running.
 
+> **Note:** In curl examples below, `...` is shorthand for `http://127.0.0.1:8765/api/claude`.
+
 ---
 
 ## Event Streaming
 
 ```bash
-curl http://127.0.0.1:8765/api/claude/events                              # Last 100 events
-curl "http://127.0.0.1:8765/api/claude/events?category=timeline&limit=50" # Filtered
-curl -N http://127.0.0.1:8765/api/claude/events/stream                    # SSE real-time
+curl .../events                              # Last 100 events
+curl ".../events?category=timeline&limit=50" # Filtered
+curl -N .../events/stream                    # SSE real-time
 ```
 
 **Query params**: `limit` (max 1000), `category` (prefix match), `source` (exact match), `after` (event ID cursor)
@@ -45,8 +47,8 @@ curl ".../notifications/history?limit=20"                                  # Rec
 Every API response includes `correlationId` (header + body) for tracking.
 
 ```bash
-curl http://127.0.0.1:8765/api/claude/commands/<correlationId>       # Command status
-curl http://127.0.0.1:8765/api/claude/commands/<correlationId>/wait  # Long-poll (29s timeout)
+curl .../commands/<correlationId>       # Command status
+curl .../commands/<correlationId>/wait  # Long-poll (29s timeout)
 ```
 
 **States**: `pending` → `accepted` → `applying` → `applied` | `failed`
@@ -71,9 +73,9 @@ curl .../transaction/<id>                                                       
 ## Capability Negotiation
 
 ```bash
-curl http://127.0.0.1:8765/api/claude/capabilities                              # Full manifest
-curl http://127.0.0.1:8765/api/claude/capabilities/timeline.batch               # Check specific
-curl http://127.0.0.1:8765/api/claude/commands/registry                         # All commands + schemas
+curl .../capabilities                              # Full manifest
+curl .../capabilities/timeline.batch               # Check specific
+curl .../commands/registry                         # All commands + schemas
 ```
 
 **Capability categories**: `STATE`, `MEDIA`, `TIMELINE`, `PROJECT`, `ANALYSIS`, `EXPORT`, `EVENTS`, `TRANSACTIONS`
@@ -83,5 +85,5 @@ curl http://127.0.0.1:8765/api/claude/commands/registry                         
 ## Undo/Redo History (HTTP)
 
 ```bash
-curl http://127.0.0.1:8765/api/claude/history    # { undoCount, redoCount, entries[] }
+curl .../history    # { undoCount, redoCount, entries[] }
 ```
