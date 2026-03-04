@@ -39,6 +39,7 @@ import {
 import { claudeLog } from "../utils/logger.js";
 import { logOperation } from "../claude-operation-log.js";
 import { getMediaInfo } from "../handlers/claude-media-handler.js";
+import { getRequestCorrelationId } from "./claude-http-meta-routes.js";
 import type { BrowserWindow } from "electron";
 import type {
 	AutoEditRequest,
@@ -553,11 +554,13 @@ export function registerAnalysisRoutes(
 		}
 		const win = accessor.getWindow();
 		try {
+			const correlationId = getRequestCorrelationId({ req });
 			return await autoEdit(
 				req.params.projectId,
 				{
 					elementId: req.body.elementId,
 					mediaId: req.body.mediaId,
+					correlationId,
 					removeFillers: req.body.removeFillers,
 					removeSilences: req.body.removeSilences,
 					silenceThreshold: req.body.silenceThreshold,
@@ -671,6 +674,7 @@ export function registerAnalysisRoutes(
 			const autoEditRequest: AutoEditRequest = {
 				elementId: req.body.elementId,
 				mediaId: req.body.mediaId,
+				correlationId: getRequestCorrelationId({ req }),
 				removeFillers: req.body.removeFillers,
 				removeSilences: req.body.removeSilences,
 				silenceThreshold: req.body.silenceThreshold,

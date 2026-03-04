@@ -36,6 +36,7 @@ import {
 	listAutoEditJobs,
 	cancelAutoEditJob,
 } from "../claude/handlers/claude-auto-edit-handler.js";
+import { runMainProcessDeepHealthChecks } from "../claude/handlers/claude-health-handler.js";
 import {
 	beginTransaction,
 	commitTransaction,
@@ -350,6 +351,18 @@ async function handleMainRequest(
 	if (channel === "notifications:history") {
 		const req = data as { limit?: number };
 		return notificationBridge.getHistory({ limit: req.limit });
+	}
+	if (channel === "health:deep-checks") {
+		return await runMainProcessDeepHealthChecks({
+			getWindow: () => {
+				const win = getWindow();
+				if (!win) {
+					throw new Error("No active window");
+				}
+				return win;
+			},
+			requestTimeline: async ({ win }) => await requestTimelineFromRenderer(win),
+		});
 	}
 
 	const win = getWindow();

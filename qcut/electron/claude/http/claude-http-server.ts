@@ -61,6 +61,7 @@ import {
 	handleClaudeEventsStreamRequest,
 	registerClaudeEventsRoutes,
 } from "./claude-http-events-routes.js";
+import { runMainProcessDeepHealthChecks } from "../handlers/claude-health-handler.js";
 
 let server: Server | null = null;
 
@@ -196,7 +197,19 @@ export function startClaudeHTTPServer(
 	};
 
 	// Register all shared routes
-	registerSharedRoutes(router, accessor);
+	registerSharedRoutes(router, accessor, {
+		runDeepHealthChecks: async () => {
+			try {
+				return await runMainProcessDeepHealthChecks({
+					getWindow,
+					requestTimeline: async ({ win }) =>
+						await requestTimelineFromRenderer(win),
+				});
+			} catch (error) {
+				throw error;
+			}
+		},
+	});
 	registerStateRoutes(router, {
 		requestSnapshot: (request) =>
 			requestEditorStateSnapshotFromRenderer(getWindow(), request),

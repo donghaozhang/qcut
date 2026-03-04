@@ -84,6 +84,39 @@ function inferAutoEditFailureProcess({
 	}
 }
 
+function inferAutoEditFailureGuard({
+	stage,
+	cause,
+}: {
+	stage: AutoEditFailureStage;
+	cause: string;
+}): string | undefined {
+	try {
+		const normalizedCause = cause.toLowerCase();
+		if (
+			stage === AUTO_EDIT_FAILURE_STAGES.APPLY_CUTS &&
+			normalizedCause.includes("ipc bridge unavailable")
+		) {
+			return "ipc-main-ready";
+		}
+		if (
+			normalizedCause.includes("editor window") ||
+			normalizedCause.includes("renderer")
+		) {
+			return "renderer-window-ready";
+		}
+		if (stage === AUTO_EDIT_FAILURE_STAGES.TRANSCRIBE) {
+			return "transcription-provider-ready";
+		}
+		if (stage === AUTO_EDIT_FAILURE_STAGES.ANALYZE) {
+			return "filler-analyzer-ready";
+		}
+		return undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 function toAutoEditStageError({
 	error,
 	stage,
@@ -109,6 +142,7 @@ function toAutoEditStageError({
 			stage,
 			process: inferAutoEditFailureProcess({ message: cause }),
 			action,
+			guard: inferAutoEditFailureGuard({ stage, cause }),
 			message: baseMessage,
 			hint:
 				AUTO_EDIT_FAILURE_HINTS[stage] ??
@@ -127,6 +161,7 @@ function toAutoEditStageError({
 			stage: AUTO_EDIT_FAILURE_STAGES.UNKNOWN,
 			process: "unknown",
 			action,
+			guard: "unknown",
 			message: "Auto-edit pipeline failed",
 			hint: AUTO_EDIT_FAILURE_HINTS[AUTO_EDIT_FAILURE_STAGES.UNKNOWN],
 			statusCode: 500,
@@ -193,6 +228,7 @@ export function startAutoEditJob(
 		projectId,
 		mediaId: request.mediaId,
 		elementId: request.elementId,
+		correlationId: request.correlationId,
 		status: "queued",
 		progress: 0,
 		message: "Queued",
@@ -470,6 +506,7 @@ export async function autoEdit(
 				elementId: request.elementId,
 				cuts: cutIntervals,
 				ripple: true,
+				correlationId: request.correlationId,
 			});
 			applied = true;
 

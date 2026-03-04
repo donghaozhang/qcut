@@ -360,6 +360,7 @@ export interface BatchCutRequest {
 	elementId: string;
 	cuts: CutInterval[];
 	ripple?: boolean; // default true
+	correlationId?: CorrelationId;
 }
 
 export interface BatchCutResponse {
@@ -380,6 +381,7 @@ export interface BatchCutResponse {
 export interface AutoEditRequest {
 	elementId: string;
 	mediaId: string;
+	correlationId?: CorrelationId;
 	removeFillers?: boolean; // default true
 	removeSilences?: boolean; // default true
 	silenceThreshold?: number; // seconds, default 1.0
@@ -426,6 +428,7 @@ export interface AutoEditFailureDetails {
 	stage: AutoEditFailureStage;
 	process: "main" | "utility" | "renderer" | "unknown";
 	action: string;
+	guard?: string;
 	message: string;
 	hint: string;
 	statusCode?: number;
@@ -496,6 +499,7 @@ export interface AutoEditJob {
 	projectId: string;
 	mediaId: string;
 	elementId: string;
+	correlationId?: CorrelationId;
 	status: "queued" | "processing" | "completed" | "failed" | "cancelled";
 	progress: number;
 	message: string;

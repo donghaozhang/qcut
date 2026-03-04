@@ -80,6 +80,7 @@ import {
 	registerMetaRoutes,
 	wrapRouterWithCorrelationTracking,
 } from "./claude-http-meta-routes.js";
+import type { DeepHealthReport } from "../handlers/claude-health-handler.js";
 import {
 	registerTransactionRoutes,
 	type ClaudeHistorySummary,
@@ -179,6 +180,10 @@ export interface WindowAccessor {
 	cancelAutoEditJob?(jobId: string): Promise<boolean>;
 }
 
+export interface SharedRouteOptions {
+	runDeepHealthChecks?: () => Promise<DeepHealthReport>;
+}
+
 async function listMediaFilesWithRendererFallback({
 	projectId,
 	accessor,
@@ -248,12 +253,14 @@ async function listMediaFilesWithRendererFallback({
  */
 export function registerSharedRoutes(
 	router: Router,
-	accessor: WindowAccessor
+	accessor: WindowAccessor,
+	options?: SharedRouteOptions
 ): void {
 	wrapRouterWithCorrelationTracking({ router });
 	registerMetaRoutes({
 		router,
 		getAppVersion: () => accessor.getAppVersion(),
+		runDeepHealthChecks: options?.runDeepHealthChecks,
 	});
 
 	// ==========================================================================

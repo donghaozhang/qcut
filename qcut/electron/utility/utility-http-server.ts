@@ -30,6 +30,16 @@ import type {
 	ClaudeRangeDeleteResponse,
 	AutoEditJob,
 } from "../types/claude-api.js";
+import {
+	buildDeepHealthReport,
+	buildUtilityMainBridgeCheck,
+	DEEP_HEALTH_CHECK_STATUSES,
+} from "../claude/handlers/claude-health-handler.js";
+import type {
+	DeepHealthCheckResult,
+	DeepHealthChecks,
+	DeepHealthReport,
+} from "../claude/handlers/claude-health-handler.js";
 import type {
 	ClaudeHistorySummary,
 	ClaudeUndoRedoResponse,
@@ -87,6 +97,64 @@ interface UtilityHttpConfig {
 	port: number;
 	appVersion: string;
 	requestFromMain: RequestFromMainFn;
+}
+
+function buildSkippedDeepHealthCheck({
+	message,
+}: {
+	message: string;
+}): DeepHealthCheckResult {
+	try {
+		return {
+			status: DEEP_HEALTH_CHECK_STATUSES.SKIP,
+			message,
+			durationMs: 0,
+		};
+	} catch {
+		return {
+			status: DEEP_HEALTH_CHECK_STATUSES.SKIP,
+			message: "Skipped",
+			durationMs: 0,
+		};
+	}
+}
+
+function isDeepHealthReport({
+	value,
+}: {
+	value: unknown;
+}): value is DeepHealthReport {
+	try {
+		if (typeof value !== "object" || value === null) {
+			return false;
+		}
+		const candidate = value as { checks?: unknown; summary?: unknown };
+		if (typeof candidate.checks !== "object" || candidate.checks === null) {
+			return false;
+		}
+		if (typeof candidate.summary !== "object" || candidate.summary === null) {
+			return false;
+		}
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function buildUnavailableMainChecks({
+	message,
+}: {
+	message: string;
+}): DeepHealthChecks {
+	const skipped = buildSkippedDeepHealthCheck({
+		message: `Unavailable via main process: ${message}`,
+	});
+	return {
+		ipcMainReady: skipped,
+		utilityMainBridge: skipped,
+		rendererResponders: skipped,
+		autoEditApplyCutsProbe: skipped,
+	};
 }
 
 /** Start the HTTP server in the utility process that proxies Claude API routes. */
@@ -215,7 +283,53 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	};
 
 	// Register all shared routes
-	registerSharedRoutes(router, accessor);
+	registerSharedRoutes(router, accessor, {
+		runDeepHealthChecks: async () => {
+			const startedAt = Date.now();
+			try {
+				const mainReport = await requestFromMain("health:deep-checks", {});
+				const bridgeCheck = buildUtilityMainBridgeCheck({
+					failed: false,
+					message: "Utility-to-main bridge roundtrip succeeded.",
+					durationMs: Date.now() - startedAt,
+				});
+				if (!isDeepHealthReport({ value: mainReport })) {
+					return buildDeepHealthReport({
+						checks: {
+							...buildUnavailableMainChecks({
+								message: "Invalid deep health payload from main process",
+							}),
+							utilityMainBridge: bridgeCheck,
+						},
+					});
+				}
+				return buildDeepHealthReport({
+					checks: {
+						...(mainReport.checks as DeepHealthChecks),
+						utilityMainBridge: bridgeCheck,
+					},
+				});
+			} catch (error) {
+				const bridgeCheck = buildUtilityMainBridgeCheck({
+					failed: true,
+					message:
+						error instanceof Error
+							? `Utility-to-main bridge probe failed: ${error.message}`
+							: "Utility-to-main bridge probe failed",
+					durationMs: Date.now() - startedAt,
+				});
+				return buildDeepHealthReport({
+					checks: {
+						...buildUnavailableMainChecks({
+							message:
+								error instanceof Error ? error.message : "Bridge request failed",
+						}),
+						utilityMainBridge: bridgeCheck,
+					},
+				});
+			}
+		},
+	});
 	registerStateRoutes(router, {
 		requestSnapshot: async (request) =>
 			(await requestFromMain("get-editor-state-snapshot", {

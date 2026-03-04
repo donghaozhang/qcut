@@ -22,6 +22,22 @@ import type {
 const HANDLER_NAME = "Cuts";
 const BATCH_CUT_TIMEOUT = 30_000;
 
+function buildBatchCutRequestId({
+	correlationId,
+}: {
+	correlationId?: string;
+}): string {
+	try {
+		const baseRequestId = generateId("req");
+		if (!correlationId || !correlationId.trim()) {
+			return baseRequestId;
+		}
+		return `${correlationId.trim()}-${baseRequestId}`;
+	} catch {
+		return `req_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+	}
+}
+
 async function getIpcMainForBatchCutExecution(): Promise<IpcMain> {
 	try {
 		const ipcMainInstance = ipcMain;
@@ -95,12 +111,14 @@ export async function executeBatchCuts(
 
 	claudeLog.info(
 		HANDLER_NAME,
-		`Batch cuts: element=${request.elementId}, cuts=${request.cuts.length}, ripple=${request.ripple ?? true}`
+		`Batch cuts: element=${request.elementId}, cuts=${request.cuts.length}, ripple=${request.ripple ?? true}, correlationId=${request.correlationId ?? "n/a"}`
 	);
 
 	return new Promise((resolve, reject) => {
 		let resolved = false;
-		const requestId = generateId("req");
+		const requestId = buildBatchCutRequestId({
+			correlationId: request.correlationId,
+		});
 		const responseChannel = "claude:timeline:executeCuts:response";
 		let timeout: NodeJS.Timeout | undefined;
 
@@ -136,6 +154,7 @@ export async function executeBatchCuts(
 			ipcMainInstance.on(responseChannel, handler);
 			win.webContents.send("claude:timeline:executeCuts", {
 				requestId,
+				correlationId: request.correlationId,
 				elementId: request.elementId,
 				cuts: request.cuts,
 				ripple: request.ripple ?? true,
@@ -150,5 +169,28 @@ export async function executeBatchCuts(
 	});
 }
 
+export async function probeBatchCutExecutionReadiness({
+	win,
+}: {
+	win: BrowserWindow;
+}): Promise<void> {
+	try {
+		await getIpcMainForBatchCutExecution();
+		assertRendererWindowReady({
+			win,
+			action: "batch cut readiness probe",
+		});
+	} catch (error) {
+		if (error instanceof HttpError) {
+			throw error;
+		}
+		throw new HttpError(503, "Batch cut readiness probe failed");
+	}
+}
+
 // CommonJS export for compatibility
-module.exports = { executeBatchCuts, validateBatchCutRequest };
+module.exports = {
+	executeBatchCuts,
+	validateBatchCutRequest,
+	probeBatchCutExecutionReadiness,
+};
