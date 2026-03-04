@@ -13,6 +13,8 @@ All `vimax:*` commands share these override flags:
 | `--video-model` | Override video generation model |
 | `--output-dir`, `-o` | Output directory |
 
+## Commands
+
 ### `vimax:idea2video`
 
 Full pipeline: idea -> screenplay -> characters -> portraits -> storyboard -> video.
