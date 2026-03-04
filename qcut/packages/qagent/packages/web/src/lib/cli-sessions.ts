@@ -227,7 +227,10 @@ export async function findCLISession(
 		resolveProcessActivity(pid),
 		detectTerminalApp(pid),
 	]);
-	const branch = cwd ? await resolveGitBranch(cwd) : null;
+	const [branch, terminalName] = await Promise.all([
+		cwd ? resolveGitBranch(cwd) : Promise.resolve(null),
+		readTerminalTabName(proc.tty, terminalApp),
+	]);
 	return cliProcessToDashboard(
 		proc,
 		cwd,
@@ -235,6 +238,7 @@ export async function findCLISession(
 		processInfo.activity,
 		processInfo.cpu,
 		terminalApp,
+		terminalName,
 	);
 }
 
@@ -282,10 +286,15 @@ export async function mergeWithUnmanagedCLI(
 		Promise.all(unmanaged.map((p) => detectTerminalApp(p.pid))),
 	]);
 
-	// Resolve git branches in parallel for processes with a CWD
-	const branches = await Promise.all(
-		cwds.map((cwd) => (cwd ? resolveGitBranch(cwd) : Promise.resolve(null))),
-	);
+	// Resolve git branches and terminal tab names in parallel
+	const [branches, terminalNames] = await Promise.all([
+		Promise.all(
+			cwds.map((cwd) => (cwd ? resolveGitBranch(cwd) : Promise.resolve(null))),
+		),
+		Promise.all(
+			unmanaged.map((p, i) => readTerminalTabName(p.tty, terminalApps[i] ?? null)),
+		),
+	]);
 
 	const unmanagedSessions = unmanaged.map((p, i) =>
 		cliProcessToDashboard(
@@ -295,6 +304,7 @@ export async function mergeWithUnmanagedCLI(
 			processInfos[i]!.activity,
 			processInfos[i]!.cpu,
 			terminalApps[i] ?? null,
+			terminalNames[i] ?? null,
 		),
 	);
 
