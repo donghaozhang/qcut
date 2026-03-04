@@ -292,13 +292,13 @@ bun run pipeline editor:timeline:delete-element \
 # Simple: plain element ID array
 bun run pipeline editor:timeline:batch-delete \
   --project-id <id> \
-  --elements '["elem1","elem2","elem3"]' \
+  --cuts '["elem1","elem2","elem3"]' \
   --ripple
 
 # Explicit: with trackId per element
 bun run pipeline editor:timeline:batch-delete \
   --project-id <id> \
-  --elements '[{"trackId":"t1","elementId":"elem1"}]' \
+  --cuts '[{"trackId":"t1","elementId":"elem1"}]' \
   --ripple
 ```
 
@@ -317,11 +317,8 @@ bun run pipeline editor:timeline:split \
 bun run pipeline editor:timeline:move \
   --project-id <id> \
   --element-id <id> \
-  --to-track <track-id> \
-  --start-time 15.0
+  --time 15.0
 ```
-
-**Known issue**: Moving within the same track may cause the element to disappear. Use different `--to-track` values.
 
 ### Arrange elements on a track
 
@@ -545,7 +542,6 @@ bun run pipeline editor:mcp:forward-html \
 | `--element-id` | string | Timeline element identifier |
 | `--job-id` | string | Async job identifier |
 | `--track-id` | string | Track identifier (comma-separated for multiple) |
-| `--to-track` | string | Target track for move operations |
 | `--split-time` | number | Split point in seconds |
 | `--start-time` | number | Start time in seconds |
 | `--end-time` | number | End time in seconds |
