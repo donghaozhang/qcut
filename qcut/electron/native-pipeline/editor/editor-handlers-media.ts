@@ -59,10 +59,22 @@ export async function handleMediaProjectCommand(
 
 /** Check editor health via the `/api/claude/health` endpoint. */
 export async function handleEditorHealth(
-	client: EditorApiClient
+	client: EditorApiClient,
+	opts?: CLIRunOptions
 ): Promise<CLIResult> {
 	try {
-		const data = await client.get("/api/claude/health");
+		const data = await client.get<Record<string, unknown>>("/api/claude/health");
+		if (opts?.statusOnly) {
+			return {
+				success: true,
+				data: {
+					status: data?.status ?? "ok",
+					version: data?.version,
+					apiVersion: data?.apiVersion,
+					uptime: data?.uptime,
+				},
+			};
+		}
 		return { success: true, data };
 	} catch (err) {
 		return {

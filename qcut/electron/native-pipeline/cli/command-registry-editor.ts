@@ -55,7 +55,11 @@ function ed(
 
 export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	// ── Health ──
-	"editor:health": ed("editor:health", "Check editor connectivity", []),
+	"editor:health": ed("editor:health", "Check editor connectivity", [
+		f("--status-only", "boolean", "Return compact status output", {
+			default: false,
+		}),
+	]),
 
 	// ── Media ──
 	"editor:media:list": ed("editor:media:list", "List media files", [PID]),

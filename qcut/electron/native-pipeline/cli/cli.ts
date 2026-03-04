@@ -428,6 +428,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			include: { type: "string" },
 			// performance flags
 			"skip-health": { type: "boolean", default: false },
+			"status-only": { type: "boolean", default: false },
 			"no-capability-check": { type: "boolean", default: false },
 			session: { type: "boolean", default: false },
 		},
@@ -679,6 +680,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		include: values.include as string | undefined,
 		// performance flags
 		skipHealth: (values["skip-health"] as boolean) ?? false,
+		statusOnly: (values["status-only"] as boolean) ?? false,
 		noCapabilityCheck: (values["no-capability-check"] as boolean) ?? false,
 		session: (values.session as boolean) ?? false,
 	};

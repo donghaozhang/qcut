@@ -105,6 +105,8 @@ export interface CLIRunOptions {
 	preset?: string;
 	threshold?: number;
 	timestamps?: string;
+	/** Return compact health payload for editor:health */
+	statusOnly?: boolean;
 	host?: string;
 	port?: string;
 	token?: string;

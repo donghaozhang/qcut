@@ -187,7 +187,7 @@ export async function handleEditorCommand(
 	try {
 		switch (module) {
 			case "health":
-				return await handleEditorHealth(client);
+				return await handleEditorHealth(client, options);
 
 			case "media":
 			case "project":
