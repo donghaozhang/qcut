@@ -283,8 +283,12 @@ function SessionTerminal({
 		);
 	}
 
-	// 2. Unmanaged CLI + claude-code + has CWD → ConversationViewer (JSONL)
-	if (session.metadata?.agent === "claude-code" && session.metadata?.cwd) {
+	// 2. Unmanaged CLI + claude-code/codex → ConversationViewer (JSONL)
+	const agent = session.metadata?.agent;
+	if (
+		(agent === "claude-code" && session.metadata?.cwd) ||
+		agent === "codex"
+	) {
 		return (
 			<ConversationViewer
 				sessionId={session.id}

@@ -273,38 +273,45 @@ export function registerAnalysisRoutes(
 				) {
 					throw new HttpError(500, "Transcription produced no words");
 				}
+				const sourceDesc =
+					req.body.source?.filePath || req.body.mediaId || "unknown";
 				const win = getWindow();
 				win.webContents.send("claude:speech:load", {
 					text: buildTextFromWords(result.words),
 					language_code: result.language ?? "unknown",
 					language_probability: 0,
 					words: normalizeWords(result.words),
-					fileName: `transcription_${req.body.mediaId}.json`,
+					fileName: `transcription_${sourceDesc.replace(/[/\\]/g, "_")}.json`,
 				});
-				// Add media to timeline
-				const media = await getMediaInfo(
-					req.params.projectId,
-					req.body.mediaId
-				);
-				if (media) {
-					const elementId = `element_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-					win.webContents.send("claude:timeline:addElement", {
-						id: elementId,
-						type: "media",
-						mediaId: req.body.mediaId,
-						startTime: 0,
-						duration: media.duration ?? result.duration ?? 0,
-						sourceName: media.name,
-					});
+				// Add media to timeline (only when using mediaId, not path source)
+				if (req.body.mediaId) {
+					const media = await getMediaInfo(
+						req.params.projectId,
+						req.body.mediaId
+					);
+					if (media) {
+						const elementId = `element_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+						win.webContents.send("claude:timeline:addElement", {
+							id: elementId,
+							type: "media",
+							mediaId: req.body.mediaId,
+							startTime: 0,
+							duration: media.duration ?? result.duration ?? 0,
+							sourceName: media.name,
+						});
+					}
 				}
 
 				logOperation({
 					stage: 2,
 					action: "transcribe-and-load",
-					details: `Transcribed and loaded to Smart Speech: ${req.body.mediaId}`,
+					details: `Transcribed and loaded to Smart Speech: ${sourceDesc}`,
 					timestamp: Date.now(),
 					projectId: req.params.projectId,
-					metadata: { mediaId: req.body.mediaId },
+					metadata: {
+						mediaId: req.body.mediaId,
+						source: req.body.source,
+					},
 				});
 				return {
 					loaded: true,

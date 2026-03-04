@@ -339,10 +339,11 @@ async function transcribeStart(
 		? jobResult.result.words
 		: undefined;
 	if (opts.loadSpeech && words?.length) {
+		const sourceDesc = opts.source || opts.mediaId || "unknown";
 		await client.post(`/api/claude/transcribe/${opts.projectId}/load-speech`, {
 			words,
 			language: jobResult.result?.language,
-			fileName: `transcription_${opts.mediaId}.json`,
+			fileName: `transcription_${sourceDesc.replace(/[/\\:]/g, "_")}.json`,
 			mediaId: opts.mediaId,
 		});
 	}

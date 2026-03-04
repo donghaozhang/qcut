@@ -1,9 +1,8 @@
 /**
  * GET /api/sessions/:id/conversation
  *
- * Read the Claude Code JSONL session file for a CLI session and return
- * parsed conversation entries. Only works for claude-code agent sessions
- * that have a CWD (needed to resolve the JSONL path).
+ * Read the JSONL session file for a CLI session (Claude Code or Codex)
+ * and return parsed conversation entries.
  */
 
 import { type NextRequest, NextResponse } from "next/server";
@@ -11,6 +10,8 @@ import { findCLISession } from "@/lib/cli-sessions";
 import {
 	resolveClaudeProjectDir,
 	findLatestSessionFile,
+	findLatestCodexSessionFile,
+	normalizeCodexEntries,
 	parseJsonlFileTail,
 	type JsonlEntry,
 } from "@/lib/claude-jsonl";
@@ -26,10 +27,63 @@ const VISIBLE_TYPES = new Set([
 	"error",
 ]);
 
-/** Slim down entries to only the fields the UI needs. */
+/** Extract tool detail from a Claude Code tool_use content block input. */
+function extractToolDetail(input: Record<string, unknown>): string | undefined {
+	if (input.command) return String(input.command);
+	if (input.file_path) return String(input.file_path);
+	if (input.pattern) return String(input.pattern);
+	if (input.query) return String(input.query);
+	return undefined;
+}
+
+/**
+ * Expand Claude Code assistant entries that contain tool_use content blocks
+ * into separate tool_use entries with detail, then filter to visible types.
+ */
 function filterEntries(entries: JsonlEntry[], limit: number): JsonlEntry[] {
-	const visible = entries.filter((e) => e.type && VISIBLE_TYPES.has(e.type));
-	return visible.slice(-limit);
+	const expanded: JsonlEntry[] = [];
+	for (const entry of entries) {
+		if (!entry.type || !VISIBLE_TYPES.has(entry.type)) continue;
+
+		if (entry.type === "assistant") {
+			const content = entry.message?.content;
+			if (Array.isArray(content)) {
+				// Split: text blocks → assistant entry, tool_use blocks → tool_use entries
+				const textParts: string[] = [];
+				const toolBlocks: JsonlEntry[] = [];
+				for (const block of content) {
+					if (typeof block === "string") {
+						textParts.push(block);
+					} else if (typeof block === "object" && block !== null) {
+						const b = block as Record<string, unknown>;
+						if (b.type === "tool_use") {
+							const input = (b.input ?? {}) as Record<string, unknown>;
+							toolBlocks.push({
+								type: "tool_use",
+								toolName: (b.name as string) ?? "unknown",
+								toolDetail: extractToolDetail(input),
+							});
+						} else if (b.type === "text" && b.text) {
+							textParts.push(String(b.text));
+						}
+					}
+				}
+				const text = textParts.join("").trim();
+				if (text) {
+					expanded.push({
+						type: "assistant",
+						message: { role: "assistant", content: text },
+					});
+				}
+				expanded.push(...toolBlocks);
+			} else {
+				expanded.push(entry);
+			}
+		} else {
+			expanded.push(entry);
+		}
+	}
+	return expanded.slice(-limit);
 }
 
 export async function GET(
@@ -46,23 +100,30 @@ export async function GET(
 		);
 	}
 
-	if (session.metadata.agent !== "claude-code") {
+	const agent = session.metadata.agent;
+	if (agent !== "claude-code" && agent !== "codex") {
 		return NextResponse.json(
-			{ error: "Conversation view is only available for Claude Code sessions" },
+			{ error: "Conversation view is only available for Claude Code and Codex sessions" },
 			{ status: 400 },
 		);
 	}
 
 	const cwd = session.metadata.cwd;
-	if (!cwd) {
-		return NextResponse.json(
-			{ error: "No working directory available for this session" },
-			{ status: 400 },
-		);
-	}
 
-	const projectDir = resolveClaudeProjectDir(cwd);
-	const sessionFile = await findLatestSessionFile(projectDir);
+	// Resolve session file based on agent type
+	let sessionFile: string | null = null;
+	if (agent === "claude-code") {
+		if (!cwd) {
+			return NextResponse.json(
+				{ error: "No working directory available for this session" },
+				{ status: 400 },
+			);
+		}
+		const projectDir = resolveClaudeProjectDir(cwd);
+		sessionFile = await findLatestSessionFile(projectDir);
+	} else {
+		sessionFile = await findLatestCodexSessionFile();
+	}
 
 	if (!sessionFile) {
 		return NextResponse.json(
@@ -78,13 +139,15 @@ export async function GET(
 	);
 
 	const allEntries = await parseJsonlFileTail(sessionFile, 262_144);
-	const entries = filterEntries(allEntries, limit);
+	const normalized =
+		agent === "codex" ? normalizeCodexEntries(allEntries) : allEntries;
+	const entries = filterEntries(normalized, limit);
 
 	return NextResponse.json({
 		sessionId: id,
-		cwd,
+		cwd: cwd ?? null,
 		entries,
-		total: allEntries.length,
+		total: normalized.length,
 		updatedAt: new Date().toISOString(),
 	});
 }

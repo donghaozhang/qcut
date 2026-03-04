@@ -113,11 +113,17 @@ function EntryRow({ entry }: { entry: JsonlEntry }) {
 
 	if (type === "tool_use") {
 		const name = entry.toolName ?? entry.tool_name ?? "unknown";
+		const detail = entry.toolDetail;
 		return (
-			<div className="px-3 py-1.5 flex items-center gap-2">
-				<span className="rounded px-1.5 py-0.5 text-[10px] font-mono font-medium bg-[rgba(255,255,255,0.06)] text-[var(--color-text-tertiary)]">
+			<div className="px-3 py-1.5 flex items-center gap-2 min-w-0">
+				<span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-mono font-medium bg-[rgba(255,255,255,0.06)] text-[var(--color-text-tertiary)]">
 					{name}
 				</span>
+				{detail && (
+					<span className="truncate font-mono text-[10px] text-[var(--color-text-muted)] opacity-70">
+						{detail}
+					</span>
+				)}
 			</div>
 		);
 	}

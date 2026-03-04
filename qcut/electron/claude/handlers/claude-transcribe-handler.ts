@@ -8,7 +8,8 @@
 
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, basename } from "node:path";
+import { tmpdir } from "node:os";
 import { app } from "electron";
 import { getMediaInfo } from "./claude-media-handler.js";
 import { claudeLog } from "../utils/logger.js";
@@ -139,7 +140,13 @@ export async function extractAudio(videoPath: string): Promise<string> {
 	}
 
 	const ffmpegPath = getFFmpegPath();
-	const tempDir = join(app.getPath("temp"), "qcut-transcribe");
+	let tempBase: string;
+	try {
+		tempBase = app.getPath("temp");
+	} catch {
+		tempBase = tmpdir();
+	}
+	const tempDir = join(tempBase, "qcut-transcribe");
 	if (!existsSync(tempDir)) {
 		mkdirSync(tempDir, { recursive: true });
 	}
