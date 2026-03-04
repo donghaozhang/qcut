@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { BrowserWindow } from "electron";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -267,6 +268,29 @@ describe("claude-auto-edit-handler", () => {
 			});
 
 			expect(result.applied).toBe(false);
+			expect(mockExecuteBatchCuts).not.toHaveBeenCalled();
+		});
+
+		it("rejects when editor window is not ready for cut execution", async () => {
+			const mockWindow = {
+				isDestroyed: () => false,
+				webContents: {
+					send: vi.fn(),
+					isDestroyed: () => true,
+				},
+			} as unknown as BrowserWindow;
+
+			await expect(
+				autoEdit(
+					"proj_1",
+					{
+						elementId: "el_1",
+						mediaId: "media_1",
+						dryRun: false,
+					},
+					mockWindow
+				)
+			).rejects.toThrow("Editor window not ready");
 			expect(mockExecuteBatchCuts).not.toHaveBeenCalled();
 		});
 

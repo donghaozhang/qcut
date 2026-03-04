@@ -23,6 +23,12 @@ import type {
 	Transaction,
 	TransactionRequest,
 	MediaFile,
+	BatchCutRequest,
+	BatchCutResponse,
+	ClaudeRangeDeleteRequest,
+	ClaudeRangeDeleteResponse,
+	AutoEditRequest,
+	AutoEditJob,
 } from "../../types/claude-api.js";
 import type {
 	EditorStateRequest,
@@ -154,6 +160,23 @@ export interface WindowAccessor {
 	requestStateSnapshot?(
 		request?: EditorStateRequest
 	): Promise<EditorStateSnapshot>;
+	/** Execute batch timeline cuts (optional utility-process bridge hook) */
+	executeBatchCuts?(request: BatchCutRequest): Promise<BatchCutResponse>;
+	/** Execute range delete (optional utility-process bridge hook) */
+	executeDeleteRange?(
+		request: ClaudeRangeDeleteRequest
+	): Promise<ClaudeRangeDeleteResponse>;
+	/** Start an auto-edit async job (optional utility-process bridge hook) */
+	startAutoEditJob?(
+		projectId: string,
+		request: AutoEditRequest
+	): Promise<{ jobId: string }>;
+	/** Read async auto-edit job status (optional utility-process bridge hook) */
+	getAutoEditJobStatus?(jobId: string): Promise<AutoEditJob | null>;
+	/** List async auto-edit jobs (optional utility-process bridge hook) */
+	listAutoEditJobs?(): Promise<AutoEditJob[]>;
+	/** Cancel async auto-edit job (optional utility-process bridge hook) */
+	cancelAutoEditJob?(jobId: string): Promise<boolean>;
 }
 
 async function listMediaFilesWithRendererFallback({
@@ -816,7 +839,7 @@ export function registerSharedRoutes(
 	// ==========================================================================
 	// Analysis routes
 	// ==========================================================================
-	registerAnalysisRoutes(router, () => accessor.getWindow());
+	registerAnalysisRoutes(router, accessor);
 
 	// ==========================================================================
 	// PersonaPlex

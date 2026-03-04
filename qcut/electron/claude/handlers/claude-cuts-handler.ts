@@ -4,8 +4,7 @@
  * executing all cuts atomically with single-undo support.
  */
 
-import { ipcMain } from "electron";
-import type { BrowserWindow, IpcMainEvent } from "electron";
+import type { BrowserWindow, IpcMain, IpcMainEvent } from "electron";
 import { generateId } from "../utils/helpers.js";
 import { claudeLog } from "../utils/logger.js";
 import { HttpError } from "../utils/http-router.js";
@@ -21,6 +20,24 @@ import type {
 
 const HANDLER_NAME = "Cuts";
 const BATCH_CUT_TIMEOUT = 30_000;
+
+async function getIpcMainForBatchCutExecution(): Promise<IpcMain> {
+	try {
+		const electronModule = await import("electron");
+		const ipcMainInstance = electronModule.ipcMain;
+		assertIpcMainReady({
+			ipcMainInstance,
+			action: "batch cut execution",
+			requiresOnce: false,
+		});
+		return ipcMainInstance;
+	} catch (error) {
+		if (error instanceof HttpError) {
+			throw error;
+		}
+		throw new HttpError(503, "IPC bridge unavailable for batch cut execution");
+	}
+}
 
 /**
  * Validate the batch cut request and reject invalid inputs.
@@ -70,11 +87,7 @@ export async function executeBatchCuts(
 	request: BatchCutRequest
 ): Promise<BatchCutResponse> {
 	validateBatchCutRequest(request);
-	assertIpcMainReady({
-		ipcMainInstance: ipcMain,
-		action: "batch cut execution",
-		requiresOnce: false,
-	});
+	const ipcMainInstance = await getIpcMainForBatchCutExecution();
 	assertRendererWindowReady({
 		win,
 		action: "batch cut execution",
@@ -95,7 +108,7 @@ export async function executeBatchCuts(
 			if (timeout) {
 				clearTimeout(timeout);
 			}
-			ipcMain.removeListener(responseChannel, handler);
+			ipcMainInstance.removeListener(responseChannel, handler);
 		};
 
 		const rejectOnce = ({ error }: { error: Error }): void => {
@@ -120,7 +133,7 @@ export async function executeBatchCuts(
 		};
 
 		try {
-			ipcMain.on(responseChannel, handler);
+			ipcMainInstance.on(responseChannel, handler);
 			win.webContents.send("claude:timeline:executeCuts", {
 				requestId,
 				elementId: request.elementId,

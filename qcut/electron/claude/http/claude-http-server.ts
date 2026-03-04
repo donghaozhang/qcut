@@ -34,6 +34,14 @@ import {
 	getHistorySummary,
 } from "../handlers/claude-transaction-handler.js";
 import { getProjectStats } from "../handlers/claude-project-handler.js";
+import { executeBatchCuts } from "../handlers/claude-cuts-handler.js";
+import { executeDeleteRange } from "../handlers/claude-range-handler.js";
+import {
+	startAutoEditJob,
+	getAutoEditJobStatus,
+	listAutoEditJobs,
+	cancelAutoEditJob,
+} from "../handlers/claude-auto-edit-handler.js";
 import {
 	registerSharedRoutes,
 	type WindowAccessor,
@@ -143,6 +151,48 @@ export function startClaudeHTTPServer(
 		getHistorySummary: () => getHistorySummary({ win: getWindow() }),
 		requestStateSnapshot: (request) =>
 			requestEditorStateSnapshotFromRenderer(getWindow(), request),
+		startAutoEditJob: async (projectId, request) => {
+			try {
+				return startAutoEditJob(projectId, request, getWindow());
+			} catch (error) {
+				throw error;
+			}
+		},
+		getAutoEditJobStatus: async (jobId) => {
+			try {
+				return getAutoEditJobStatus(jobId);
+			} catch (error) {
+				throw error;
+			}
+		},
+		listAutoEditJobs: async () => {
+			try {
+				return listAutoEditJobs();
+			} catch (error) {
+				throw error;
+			}
+		},
+		cancelAutoEditJob: async (jobId) => {
+			try {
+				return cancelAutoEditJob(jobId);
+			} catch (error) {
+				throw error;
+			}
+		},
+		executeBatchCuts: async (request) => {
+			try {
+				return await executeBatchCuts(getWindow(), request);
+			} catch (error) {
+				throw error;
+			}
+		},
+		executeDeleteRange: async (request) => {
+			try {
+				return await executeDeleteRange(getWindow(), request);
+			} catch (error) {
+				throw error;
+			}
+		},
 	};
 
 	// Register all shared routes

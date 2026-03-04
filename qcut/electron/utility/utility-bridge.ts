@@ -28,6 +28,14 @@ import {
 	batchDeleteElements,
 	arrangeTimeline,
 } from "../claude/handlers/claude-timeline-handler.js";
+import { executeBatchCuts } from "../claude/handlers/claude-cuts-handler.js";
+import { executeDeleteRange } from "../claude/handlers/claude-range-handler.js";
+import {
+	startAutoEditJob,
+	getAutoEditJobStatus,
+	listAutoEditJobs,
+	cancelAutoEditJob,
+} from "../claude/handlers/claude-auto-edit-handler.js";
 import {
 	beginTransaction,
 	commitTransaction,
@@ -38,7 +46,12 @@ import {
 	getHistorySummary,
 } from "../claude/handlers/claude-transaction-handler.js";
 import { requestEditorStateSnapshotFromRenderer } from "../claude/handlers/claude-state-handler.js";
-import type { EditorStateRequest } from "../types/claude-api.js";
+import type {
+	EditorStateRequest,
+	BatchCutRequest,
+	ClaudeRangeDeleteRequest,
+	AutoEditRequest,
+} from "../types/claude-api.js";
 import { getProjectStats } from "../claude/handlers/claude-project-handler.js";
 import {
 	requestProjectsFromRenderer,
@@ -375,6 +388,56 @@ async function handleMainRequest(
 		case "get-project-stats": {
 			const req = data as unknown as GetProjectStatsRequest;
 			return getProjectStats(win, req.projectId);
+		}
+
+		case "timeline:batch-cuts": {
+			const req = data as { request?: BatchCutRequest };
+			if (!req.request) {
+				throw new Error("Missing 'request' payload for timeline:batch-cuts");
+			}
+			return executeBatchCuts(win, req.request);
+		}
+
+		case "timeline:delete-range": {
+			const req = data as { request?: ClaudeRangeDeleteRequest };
+			if (!req.request) {
+				throw new Error("Missing 'request' payload for timeline:delete-range");
+			}
+			return executeDeleteRange(win, req.request);
+		}
+
+		case "timeline:auto-edit:start": {
+			const req = data as {
+				projectId?: string;
+				request?: AutoEditRequest;
+			};
+			if (typeof req.projectId !== "string" || !req.projectId.trim()) {
+				throw new Error("Missing 'projectId' for timeline:auto-edit:start");
+			}
+			if (!req.request) {
+				throw new Error("Missing 'request' payload for timeline:auto-edit:start");
+			}
+			return startAutoEditJob(req.projectId.trim(), req.request, win);
+		}
+
+		case "timeline:auto-edit:status": {
+			const req = data as { jobId?: string };
+			if (typeof req.jobId !== "string" || !req.jobId.trim()) {
+				throw new Error("Missing 'jobId' for timeline:auto-edit:status");
+			}
+			return getAutoEditJobStatus(req.jobId.trim());
+		}
+
+		case "timeline:auto-edit:list": {
+			return listAutoEditJobs();
+		}
+
+		case "timeline:auto-edit:cancel": {
+			const req = data as { jobId?: string };
+			if (typeof req.jobId !== "string" || !req.jobId.trim()) {
+				throw new Error("Missing 'jobId' for timeline:auto-edit:cancel");
+			}
+			return cancelAutoEditJob(req.jobId.trim());
 		}
 
 		case "batch-add-elements": {

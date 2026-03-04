@@ -26,6 +26,9 @@ import type {
 	EditorEvent,
 	EditorStateSnapshot,
 	Transaction,
+	BatchCutResponse,
+	ClaudeRangeDeleteResponse,
+	AutoEditJob,
 } from "../types/claude-api.js";
 import type {
 	ClaudeHistorySummary,
@@ -156,6 +159,59 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 			requestFromMain("get-editor-state-snapshot", {
 				request,
 			}) as Promise<EditorStateSnapshot>,
+		executeBatchCuts: async (request) => {
+			try {
+				return (await requestFromMain("timeline:batch-cuts", {
+					request,
+				})) as BatchCutResponse;
+			} catch (error) {
+				throw error;
+			}
+		},
+		executeDeleteRange: async (request) => {
+			try {
+				return (await requestFromMain("timeline:delete-range", {
+					request,
+				})) as ClaudeRangeDeleteResponse;
+			} catch (error) {
+				throw error;
+			}
+		},
+		startAutoEditJob: async (projectId, request) => {
+			try {
+				return (await requestFromMain("timeline:auto-edit:start", {
+					projectId,
+					request,
+				})) as { jobId: string };
+			} catch (error) {
+				throw error;
+			}
+		},
+		getAutoEditJobStatus: async (jobId) => {
+			try {
+				return (await requestFromMain("timeline:auto-edit:status", {
+					jobId,
+				})) as AutoEditJob | null;
+			} catch (error) {
+				throw error;
+			}
+		},
+		listAutoEditJobs: async () => {
+			try {
+				return (await requestFromMain("timeline:auto-edit:list", {})) as AutoEditJob[];
+			} catch (error) {
+				throw error;
+			}
+		},
+		cancelAutoEditJob: async (jobId) => {
+			try {
+				return (await requestFromMain("timeline:auto-edit:cancel", {
+					jobId,
+				})) as boolean;
+			} catch (error) {
+				throw error;
+			}
+		},
 	};
 
 	// Register all shared routes

@@ -163,6 +163,10 @@ describe("claude-cuts-handler", () => {
 				ripple: true,
 			});
 
+			await vi.waitFor(() => {
+				expect(send).toHaveBeenCalledTimes(1);
+			});
+
 			// Verify IPC was sent
 			expect(send).toHaveBeenCalledWith(
 				"claude:timeline:executeCuts",
@@ -219,6 +223,10 @@ describe("claude-cuts-handler", () => {
 				cuts: [{ start: 1, end: 2 }],
 			});
 
+			await vi.waitFor(() => {
+				expect(send).toHaveBeenCalledTimes(1);
+			});
+
 			// Send wrong requestId — should be ignored
 			ipcCallback(
 				{},
@@ -271,6 +279,10 @@ describe("claude-cuts-handler", () => {
 				cuts: [{ start: 1, end: 2 }],
 			});
 
+			await vi.waitFor(() => {
+				expect(send).toHaveBeenCalledTimes(1);
+			});
+
 			expect(send).toHaveBeenCalledWith(
 				"claude:timeline:executeCuts",
 				expect.objectContaining({ ripple: true })
@@ -319,6 +331,29 @@ describe("claude-cuts-handler", () => {
 					cuts: [{ start: 1, end: 2 }],
 				})
 			).rejects.toThrow("Editor renderer not available for batch cut execution");
+		});
+
+		it("rejects when ipcMain bridge is unavailable", async () => {
+			const mockWindow = {
+				webContents: { send: vi.fn() },
+			} as unknown as BrowserWindow;
+			type MutableIpcMain = {
+				on?: typeof ipcMain.on;
+			};
+			const mutableIpcMain = ipcMain as unknown as MutableIpcMain;
+			const originalOn = mutableIpcMain.on;
+			mutableIpcMain.on = undefined;
+
+			try {
+				await expect(
+					executeBatchCuts(mockWindow, {
+						elementId: "el_abc",
+						cuts: [{ start: 1, end: 2 }],
+					})
+				).rejects.toThrow("IPC bridge unavailable for batch cut execution");
+			} finally {
+				mutableIpcMain.on = originalOn;
+			}
 		});
 
 		it("rejects when sending IPC throws", async () => {

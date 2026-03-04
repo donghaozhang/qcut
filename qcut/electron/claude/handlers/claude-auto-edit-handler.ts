@@ -12,6 +12,7 @@ import { transcribeMedia } from "./claude-transcribe-handler.js";
 import { analyzeFillers } from "./claude-filler-handler.js";
 import { executeBatchCuts } from "./claude-cuts-handler.js";
 import { requestTimelineFromRenderer } from "./claude-timeline-handler.js";
+import { assertRendererWindowReady } from "../utils/renderer-ipc-guard.js";
 import type {
 	AutoEditJob,
 	AutoEditRequest,
@@ -299,7 +300,22 @@ export async function autoEdit(
 		let applied = false;
 		let result: BatchCutResponse | undefined;
 
-		if (!dryRun && mergedCuts.length > 0 && win) {
+		if (!dryRun && mergedCuts.length > 0) {
+			try {
+				assertRendererWindowReady({
+					win,
+					action: "auto-edit cut execution",
+				});
+			} catch (error) {
+				if (error instanceof HttpError && error.status === 503) {
+					throw new HttpError(503, "Editor window not ready");
+				}
+				throw error;
+			}
+			if (!win) {
+				throw new HttpError(503, "Editor window not ready");
+			}
+
 			const cutIntervals: CutInterval[] = mergedCuts.map((c) => ({
 				start: c.start,
 				end: c.end,
