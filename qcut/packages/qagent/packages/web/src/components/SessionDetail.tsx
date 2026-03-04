@@ -448,6 +448,32 @@ export function SessionDetail({
 										{session.issueLabel || session.issueUrl}
 									</a>
 								)}
+
+								{session.metadata?.terminalApp && (
+									<>
+										{(session.projectId || pr || session.branch || session.issueUrl) && (
+											<span className="text-[var(--color-text-tertiary)]">
+												&middot;
+											</span>
+										)}
+										<span className="rounded-[4px] border border-[var(--color-border-subtle)] bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-[11px] text-[var(--color-text-secondary)]">
+											{session.metadata.terminalApp}
+										</span>
+									</>
+								)}
+
+								{session.metadata?.cpu && (
+									<>
+										{(session.projectId || pr || session.branch || session.issueUrl || session.metadata?.terminalApp) && (
+											<span className="text-[var(--color-text-tertiary)]">
+												&middot;
+											</span>
+										)}
+										<span className="rounded-[4px] border border-[var(--color-border-subtle)] bg-[rgba(255,255,255,0.04)] px-2 py-0.5 font-[var(--font-mono)] text-[10px] text-[var(--color-text-secondary)]">
+											CPU {session.metadata.cpu}%
+										</span>
+									</>
+								)}
 							</div>
 
 							<ClientTimestamps

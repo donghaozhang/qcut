@@ -9,6 +9,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { DashboardSession } from "./types.js";
+import { detectTerminalApp } from "./terminal-utils";
 
 const execFileAsync = promisify(execFile);
 
@@ -97,23 +98,30 @@ async function getTmuxPaneTTYs(): Promise<Set<string>> {
 	}
 }
 
+interface ProcessActivity {
+	activity: "active" | "idle";
+	cpu: string;
+}
+
 /**
  * Detect whether a process is active or idle via CPU usage.
- * Returns "active" if %CPU > 1, "idle" otherwise.
+ * Returns activity status and the raw CPU percentage string.
  */
-async function resolveProcessActivity(
-	pid: number,
-): Promise<"active" | "idle"> {
+async function resolveProcessActivity(pid: number): Promise<ProcessActivity> {
 	try {
 		const { stdout } = await execFileAsync(
 			"ps",
 			["-o", "%cpu=", "-p", String(pid)],
 			{ timeout: 3_000 },
 		);
-		const cpu = parseFloat(stdout.trim());
-		return Number.isFinite(cpu) && cpu > 1 ? "active" : "idle";
+		const cpuRaw = parseFloat(stdout.trim());
+		const cpu = Number.isFinite(cpuRaw) ? cpuRaw.toFixed(1) : "0.0";
+		return {
+			activity: Number.isFinite(cpuRaw) && cpuRaw > 1 ? "active" : "idle",
+			cpu,
+		};
 	} catch {
-		return "idle";
+		return { activity: "idle", cpu: "0.0" };
 	}
 }
 
@@ -162,6 +170,8 @@ function cliProcessToDashboard(
 	cwd: string | null,
 	branch: string | null,
 	activity: "active" | "idle" = "idle",
+	cpu = "0.0",
+	terminalApp: string | null = null,
 ): DashboardSession {
 	const now = new Date().toISOString();
 	return {
@@ -185,6 +195,8 @@ function cliProcessToDashboard(
 			agent: proc.agent,
 			command: proc.args,
 			...(cwd ? { cwd } : {}),
+			cpu,
+			...(terminalApp ? { terminalApp } : {}),
 		},
 		managed: false,
 	};
@@ -208,12 +220,20 @@ export async function findCLISession(
 	const proc = processes.find((p) => p.agent === agent && p.pid === pid);
 	if (!proc) return null;
 
-	const [cwd, activity] = await Promise.all([
+	const [cwd, processInfo, terminalApp] = await Promise.all([
 		resolveProcessCwd(pid),
 		resolveProcessActivity(pid),
+		detectTerminalApp(pid),
 	]);
 	const branch = cwd ? await resolveGitBranch(cwd) : null;
-	return cliProcessToDashboard(proc, cwd, branch, activity);
+	return cliProcessToDashboard(
+		proc,
+		cwd,
+		branch,
+		processInfo.activity,
+		processInfo.cpu,
+		terminalApp,
+	);
 }
 
 /**
@@ -253,10 +273,11 @@ export async function mergeWithUnmanagedCLI(
 
 	if (unmanaged.length === 0) return managedSessions;
 
-	// Resolve CWDs and activity in parallel
-	const [cwds, activities] = await Promise.all([
+	// Resolve CWDs, activity, and terminal apps in parallel
+	const [cwds, processInfos, terminalApps] = await Promise.all([
 		Promise.all(unmanaged.map((p) => resolveProcessCwd(p.pid))),
 		Promise.all(unmanaged.map((p) => resolveProcessActivity(p.pid))),
+		Promise.all(unmanaged.map((p) => detectTerminalApp(p.pid))),
 	]);
 
 	// Resolve git branches in parallel for processes with a CWD
@@ -265,7 +286,14 @@ export async function mergeWithUnmanagedCLI(
 	);
 
 	const unmanagedSessions = unmanaged.map((p, i) =>
-		cliProcessToDashboard(p, cwds[i] ?? null, branches[i] ?? null, activities[i]),
+		cliProcessToDashboard(
+			p,
+			cwds[i] ?? null,
+			branches[i] ?? null,
+			processInfos[i]!.activity,
+			processInfos[i]!.cpu,
+			terminalApps[i] ?? null,
+		),
 	);
 
 	return [...managedSessions, ...unmanagedSessions];
