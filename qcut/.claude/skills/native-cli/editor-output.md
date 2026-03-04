@@ -18,7 +18,7 @@ bun run pipeline editor:export:presets
 bun run pipeline editor:export:recommend --project-id <id> --target tiktok
 ```
 
-Targets: `youtube`, `tiktok`, `instagram-reel`, `twitter`, etc.
+Targets: `youtube` (YouTube), `tiktok` (TikTok), `instagram-reel` (Instagram Reels), `twitter` (X/Twitter), etc.
 
 ### Start export
 
