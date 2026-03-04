@@ -33,6 +33,7 @@ export interface CLIRunOptions {
 	novel?: string;
 	title?: string;
 	maxScenes?: number;
+	maxClips?: number;
 	scriptsOnly?: boolean;
 	storyboardOnly?: boolean;
 	noPortraits?: boolean;

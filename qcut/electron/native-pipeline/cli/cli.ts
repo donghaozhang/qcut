@@ -494,6 +494,11 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				? undefined
 				: parseInt(values["max-scenes"] as string, 10)
 			: undefined,
+		maxClips: values["max-clips"]
+			? Number.isNaN(parseInt(values["max-clips"] as string, 10))
+				? undefined
+				: parseInt(values["max-clips"] as string, 10)
+			: undefined,
 		scriptsOnly: (values["scripts-only"] as boolean) ?? false,
 		storyboardOnly: (values["storyboard-only"] as boolean) ?? false,
 		noPortraits: (values["no-portraits"] as boolean) ?? false,
