@@ -5,7 +5,6 @@ description: |
   mentions "Seedance", "seedance", "即梦", "即梦平台", "视频提示词", "视频生成", "AI视频", "AI video",
   "短剧", "广告视频", "视频延长", "video prompt", "video generation", or discusses video prompt engineering,
   AI video generation, or Seedance 2.0 workflows. Supports both English and Chinese interactions.
-version: 2.0.0
 ---
 
 # Seedance 2.0 Video Prompt Generator / 视频提示词生成器

@@ -1,3 +1,8 @@
+---
+name: codexit
+description: Decision matrix for delegating tasks between Claude Code and Codex CLI. Guides when to handle tasks directly vs. delegate to Codex.
+---
+
 # Codex Delegation Skill
 
 When to handle tasks yourself vs. delegate to Codex CLI.

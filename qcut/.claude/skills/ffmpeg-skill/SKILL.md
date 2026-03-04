@@ -1,7 +1,7 @@
 ---
-name: FFmpeg Media Processing
+name: ffmpeg-skill
 description: Use when user asks to convert, compress, trim, resize, extract audio, add subtitles, create GIFs, or process video/audio files
-dependencies: ffmpeg
+allowed-tools: Bash(ffmpeg *), Bash(ffprobe *)
 ---
 
 # FFmpeg Media Processing Skill
