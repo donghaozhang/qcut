@@ -307,5 +307,42 @@ describe("claude-cuts-handler", () => {
 
 			expect(mockWindow.webContents.send).not.toHaveBeenCalled();
 		});
+
+		it("rejects when renderer webContents is unavailable", async () => {
+			const mockWindow = {
+				webContents: {},
+			} as unknown as BrowserWindow;
+
+			await expect(
+				executeBatchCuts(mockWindow, {
+					elementId: "el_abc",
+					cuts: [{ start: 1, end: 2 }],
+				})
+			).rejects.toThrow("Editor renderer not available for batch cut execution");
+		});
+
+		it("rejects when sending IPC throws", async () => {
+			const sendError = new Error("renderer send failed");
+			const send = vi.fn(() => {
+				throw sendError;
+			});
+			const mockWindow = {
+				webContents: { send },
+			} as unknown as BrowserWindow;
+
+			vi.mocked(ipcMain.on).mockImplementation(() => ipcMain);
+
+			await expect(
+				executeBatchCuts(mockWindow, {
+					elementId: "el_abc",
+					cuts: [{ start: 1, end: 2 }],
+				})
+			).rejects.toThrow("renderer send failed");
+
+			expect(ipcMain.removeListener).toHaveBeenCalledWith(
+				"claude:timeline:executeCuts:response",
+				expect.any(Function)
+			);
+		});
 	});
 });

@@ -9,6 +9,10 @@ import type { BrowserWindow, IpcMainEvent } from "electron";
 import { generateId } from "../utils/helpers.js";
 import { claudeLog } from "../utils/logger.js";
 import { HttpError } from "../utils/http-router.js";
+import {
+	assertIpcMainReady,
+	assertRendererWindowReady,
+} from "../utils/renderer-ipc-guard.js";
 import type {
 	CutInterval,
 	BatchCutRequest,
@@ -66,6 +70,15 @@ export async function executeBatchCuts(
 	request: BatchCutRequest
 ): Promise<BatchCutResponse> {
 	validateBatchCutRequest(request);
+	assertIpcMainReady({
+		ipcMainInstance: ipcMain,
+		action: "batch cut execution",
+		requiresOnce: false,
+	});
+	assertRendererWindowReady({
+		win,
+		action: "batch cut execution",
+	});
 
 	claudeLog.info(
 		HANDLER_NAME,
@@ -75,12 +88,25 @@ export async function executeBatchCuts(
 	return new Promise((resolve, reject) => {
 		let resolved = false;
 		const requestId = generateId("req");
+		const responseChannel = "claude:timeline:executeCuts:response";
+		let timeout: NodeJS.Timeout | undefined;
 
-		const timeout = setTimeout(() => {
+		const cleanup = (): void => {
+			if (timeout) {
+				clearTimeout(timeout);
+			}
+			ipcMain.removeListener(responseChannel, handler);
+		};
+
+		const rejectOnce = ({ error }: { error: Error }): void => {
 			if (resolved) return;
 			resolved = true;
-			ipcMain.removeListener("claude:timeline:executeCuts:response", handler);
-			reject(new Error("Timeout waiting for batch cut result"));
+			cleanup();
+			reject(error);
+		};
+
+		timeout = setTimeout(() => {
+			rejectOnce({ error: new Error("Timeout waiting for batch cut result") });
 		}, BATCH_CUT_TIMEOUT);
 
 		const handler = (
@@ -89,18 +115,25 @@ export async function executeBatchCuts(
 		) => {
 			if (data.requestId !== requestId || resolved) return;
 			resolved = true;
-			clearTimeout(timeout);
-			ipcMain.removeListener("claude:timeline:executeCuts:response", handler);
+			cleanup();
 			resolve(data.result);
 		};
 
-		ipcMain.on("claude:timeline:executeCuts:response", handler);
-		win.webContents.send("claude:timeline:executeCuts", {
-			requestId,
-			elementId: request.elementId,
-			cuts: request.cuts,
-			ripple: request.ripple ?? true,
-		});
+		try {
+			ipcMain.on(responseChannel, handler);
+			win.webContents.send("claude:timeline:executeCuts", {
+				requestId,
+				elementId: request.elementId,
+				cuts: request.cuts,
+				ripple: request.ripple ?? true,
+			});
+		} catch (error) {
+			const failure =
+				error instanceof Error
+					? error
+					: new Error("Failed to execute batch cut request");
+			rejectOnce({ error: failure });
+		}
 	});
 }
 

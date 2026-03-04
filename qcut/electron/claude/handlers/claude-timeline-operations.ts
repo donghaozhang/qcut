@@ -7,6 +7,10 @@
 
 import { ipcMain, BrowserWindow, IpcMainEvent } from "electron";
 import { generateId } from "../utils/helpers.js";
+import {
+	assertIpcMainReady,
+	assertRendererWindowReady,
+} from "../utils/renderer-ipc-guard.js";
 import type {
 	ClaudeTimeline,
 	ClaudeBatchAddElementRequest,
@@ -32,25 +36,56 @@ const TIMELINE_REQUEST_TIMEOUT_MS = 5000;
 export async function requestTimelineFromRenderer(
 	win: BrowserWindow
 ): Promise<ClaudeTimeline> {
+	assertIpcMainReady({
+		ipcMainInstance: ipcMain,
+		action: "timeline request",
+		requiresOnce: true,
+	});
+	assertRendererWindowReady({
+		win,
+		action: "timeline request",
+	});
+
 	return new Promise((resolve, reject) => {
 		let resolved = false;
+		let timeout: NodeJS.Timeout | undefined;
+		const responseChannel = "claude:timeline:response";
 
-		const timeout = setTimeout(() => {
+		const cleanup = (): void => {
+			if (timeout) {
+				clearTimeout(timeout);
+			}
+			ipcMain.removeListener(responseChannel, handler);
+		};
+
+		const rejectOnce = ({ error }: { error: Error }): void => {
 			if (resolved) return;
 			resolved = true;
-			ipcMain.removeListener("claude:timeline:response", handler);
-			reject(new Error("Timeout waiting for timeline data"));
+			cleanup();
+			reject(error);
+		};
+
+		timeout = setTimeout(() => {
+			rejectOnce({ error: new Error("Timeout waiting for timeline data") });
 		}, 5000);
 
 		const handler = (_event: IpcMainEvent, timeline: ClaudeTimeline) => {
 			if (resolved) return;
 			resolved = true;
-			clearTimeout(timeout);
+			cleanup();
 			resolve(timeline);
 		};
 
-		ipcMain.once("claude:timeline:response", handler);
-		win.webContents.send("claude:timeline:request");
+		try {
+			ipcMain.once(responseChannel, handler);
+			win.webContents.send("claude:timeline:request");
+		} catch (error) {
+			const failure =
+				error instanceof Error
+					? error
+					: new Error("Failed to request timeline from renderer");
+			rejectOnce({ error: failure });
+		}
 	});
 }
 
@@ -149,15 +184,37 @@ async function requestRendererResult<T>({
 	timeoutErrorMessage: string;
 	correlationId?: string;
 }): Promise<T> {
+	assertIpcMainReady({
+		ipcMainInstance: ipcMain,
+		action: requestChannel,
+		requiresOnce: false,
+	});
+	assertRendererWindowReady({
+		win,
+		action: requestChannel,
+	});
+
 	return new Promise((resolve, reject) => {
 		let resolved = false;
 		const requestId = generateId("req");
+		let timeout: NodeJS.Timeout | undefined;
 
-		const timeout = setTimeout(() => {
+		const cleanup = (): void => {
+			if (timeout) {
+				clearTimeout(timeout);
+			}
+			ipcMain.removeListener(responseChannel, responseHandler);
+		};
+
+		const rejectOnce = ({ error }: { error: Error }): void => {
 			if (resolved) return;
 			resolved = true;
-			ipcMain.removeListener(responseChannel, responseHandler);
-			reject(new Error(timeoutErrorMessage));
+			cleanup();
+			reject(error);
+		};
+
+		timeout = setTimeout(() => {
+			rejectOnce({ error: new Error(timeoutErrorMessage) });
 		}, TIMELINE_REQUEST_TIMEOUT_MS);
 
 		const responseHandler = (
@@ -168,17 +225,24 @@ async function requestRendererResult<T>({
 				return;
 			}
 			resolved = true;
-			clearTimeout(timeout);
-			ipcMain.removeListener(responseChannel, responseHandler);
+			cleanup();
 			resolve(data.result);
 		};
 
-		ipcMain.on(responseChannel, responseHandler);
-		win.webContents.send(requestChannel, {
-			requestId,
-			correlationId,
-			...payload,
-		});
+		try {
+			ipcMain.on(responseChannel, responseHandler);
+			win.webContents.send(requestChannel, {
+				requestId,
+				correlationId,
+				...payload,
+			});
+		} catch (error) {
+			const failure =
+				error instanceof Error
+					? error
+					: new Error(`Failed renderer request: ${requestChannel}`);
+			rejectOnce({ error: failure });
+		}
 	});
 }
 
