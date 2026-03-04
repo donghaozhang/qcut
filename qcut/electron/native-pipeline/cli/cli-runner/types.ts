@@ -152,6 +152,8 @@ export interface CLIRunOptions {
 	full?: boolean;
 	/** Output file path for export commands */
 	output?: string;
+	/** Comma-separated state sections for editor:state:snapshot */
+	include?: string;
 	/** Skip editor health check (caller guarantees editor is up) */
 	skipHealth?: boolean;
 	/** Session mode: read commands from stdin, one per line */

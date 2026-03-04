@@ -600,6 +600,21 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	),
 	"editor:moyin:status": ed("editor:moyin:status", "Get pipeline progress", []),
 
+	// ── State Control ──
+	"editor:undo": ed("editor:undo", "Undo last action", []),
+	"editor:redo": ed("editor:redo", "Redo last undone action", []),
+	"editor:state:snapshot": ed(
+		"editor:state:snapshot",
+		"Get editor state snapshot (full or partial)",
+		[
+			f(
+				"--include",
+				"string",
+				"Comma-separated sections: timeline,selection,playhead,media,editor,project"
+			),
+		]
+	),
+
 	// ── Screenshot ──
 	"editor:screenshot:capture": ed(
 		"editor:screenshot:capture",
