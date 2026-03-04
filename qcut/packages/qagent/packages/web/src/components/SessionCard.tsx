@@ -213,7 +213,7 @@ export function SessionCard({
 				</p>
 			</div>
 
-			{/* Meta row: branch + PR pills */}
+			{/* Meta row: branch + PR pills + CPU + terminal app */}
 			<div className="flex flex-wrap items-center gap-1.5 px-4 pb-2.5">
 				{session.branch && (
 					<span className="inline-flex items-center gap-1.5 rounded-[4px] bg-[rgba(136,192,208,0.08)] px-1.5 py-0.5 text-[10px]">
@@ -229,6 +229,38 @@ export function SessionCard({
 					</span>
 				)}
 				{pr && <PRStatus pr={pr} />}
+				{session.metadata?.terminalApp && (
+					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
+						<svg className="h-2.5 w-2.5 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+							<path d="M4 17l6-5-6-5M12 19h8" />
+						</svg>
+						<span className="text-[var(--color-text-muted)]">
+							{session.metadata.terminalApp}
+						</span>
+					</span>
+				)}
+				{session.metadata?.cpu && parseFloat(session.metadata.cpu) > 0 && (
+					<span
+						className="inline-flex items-center gap-1 rounded-[4px] px-1.5 py-0.5 font-[var(--font-mono)] text-[10px] tabular-nums"
+						style={{
+							color: parseFloat(session.metadata.cpu) > 50
+								? "var(--color-status-error)"
+								: parseFloat(session.metadata.cpu) > 10
+									? "var(--color-status-attention)"
+									: "var(--color-text-muted)",
+							background: parseFloat(session.metadata.cpu) > 50
+								? "rgba(248,81,73,0.1)"
+								: parseFloat(session.metadata.cpu) > 10
+									? "rgba(210,153,34,0.1)"
+									: "rgba(255,255,255,0.04)",
+						}}
+					>
+						<svg className="h-2.5 w-2.5" viewBox="0 0 16 16" fill="currentColor">
+							<path d="M6 1h4v2h3v3h2v4h-2v3h-3v2H6v-2H3v-3H1V6h2V3h3V1zm1 2v2H5v2H3v2h2v2h2v2h2v-2h2V9h2V7h-2V5H9V3H7z" />
+						</svg>
+						{session.metadata.cpu}%
+					</span>
+				)}
 			</div>
 
 			{/* Rate limited indicator */}

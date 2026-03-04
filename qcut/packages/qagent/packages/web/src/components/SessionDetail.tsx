@@ -198,6 +198,61 @@ function OrchestratorStatusStrip({
 	);
 }
 
+// ── CPU indicator ─────────────────────────────────────────────────────
+
+/** Compact CPU usage indicator with radial gauge. */
+function CPUIndicator({ cpu }: { cpu: string }) {
+	const value = parseFloat(cpu);
+	const pct = Math.min(value, 100);
+	const radius = 18;
+	const circumference = 2 * Math.PI * radius;
+	const offset = circumference - (pct / 100) * circumference;
+	const color =
+		pct > 50
+			? "var(--color-status-error)"
+			: pct > 10
+				? "var(--color-status-attention)"
+				: "var(--color-text-tertiary)";
+
+	return (
+		<div className="flex flex-col items-center gap-0.5 shrink-0">
+			<div className="relative h-[48px] w-[48px]">
+				<svg className="h-full w-full -rotate-90" viewBox="0 0 44 44">
+					<circle
+						cx="22"
+						cy="22"
+						r={radius}
+						fill="none"
+						stroke="rgba(255,255,255,0.06)"
+						strokeWidth="3"
+					/>
+					<circle
+						cx="22"
+						cy="22"
+						r={radius}
+						fill="none"
+						stroke={color}
+						strokeWidth="3"
+						strokeLinecap="round"
+						strokeDasharray={circumference}
+						strokeDashoffset={offset}
+						style={{ transition: "stroke-dashoffset 0.5s ease" }}
+					/>
+				</svg>
+				<span
+					className="absolute inset-0 flex items-center justify-center font-[var(--font-mono)] text-[12px] font-bold tabular-nums"
+					style={{ color }}
+				>
+					{Math.round(pct)}
+				</span>
+			</div>
+			<span className="text-[9px] font-medium uppercase tracking-[0.06em] text-[var(--color-text-tertiary)]">
+				CPU %
+			</span>
+		</div>
+	);
+}
+
 // ── Terminal viewer selector ──────────────────────────────────────────
 
 /** Select the appropriate terminal viewer for a session. */
@@ -239,8 +294,12 @@ function SessionTerminal({
 		);
 	}
 
-	// 3. Unmanaged CLI + any agent + has TTY → TerminalMirror (AppleScript)
-	if (session.metadata?.agent && session.metadata?.tty) {
+	// 3. Unmanaged CLI + any agent + has TTY + in iTerm/Terminal → TerminalMirror
+	const termApp = session.metadata?.terminalApp;
+	const canMirror =
+		session.metadata?.tty &&
+		(!termApp || termApp === "iTerm" || termApp === "Terminal");
+	if (session.metadata?.agent && canMirror) {
 		return (
 			<TerminalMirror
 				session={session}
@@ -250,7 +309,7 @@ function SessionTerminal({
 		);
 	}
 
-	// 4. Unmanaged CLI + agent but no TTY/CWD → CLITerminalPanel
+	// 4. Unmanaged CLI + agent but no viewer available → CLITerminalPanel
 	if (session.metadata?.agent) {
 		return <CLITerminalPanel session={session} />;
 	}
@@ -364,6 +423,17 @@ export function SessionDetail({
 										{activity.label}
 									</span>
 								</div>
+								{/* Terminal app badge */}
+								{session.metadata?.terminalApp && (
+									<div className="flex items-center gap-1.5 rounded-full bg-[rgba(255,255,255,0.06)] px-2.5 py-0.5 border border-[var(--color-border-subtle)]">
+										<svg className="h-3 w-3 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+											<path d="M4 17l6-5-6-5M12 19h8" />
+										</svg>
+										<span className="text-[11px] font-medium text-[var(--color-text-secondary)]">
+											{session.metadata.terminalApp}
+										</span>
+									</div>
+								)}
 							</div>
 
 							{session.summary && (
@@ -448,32 +518,6 @@ export function SessionDetail({
 										{session.issueLabel || session.issueUrl}
 									</a>
 								)}
-
-								{session.metadata?.terminalApp && (
-									<>
-										{(session.projectId || pr || session.branch || session.issueUrl) && (
-											<span className="text-[var(--color-text-tertiary)]">
-												&middot;
-											</span>
-										)}
-										<span className="rounded-[4px] border border-[var(--color-border-subtle)] bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-[11px] text-[var(--color-text-secondary)]">
-											{session.metadata.terminalApp}
-										</span>
-									</>
-								)}
-
-								{session.metadata?.cpu && (
-									<>
-										{(session.projectId || pr || session.branch || session.issueUrl || session.metadata?.terminalApp) && (
-											<span className="text-[var(--color-text-tertiary)]">
-												&middot;
-											</span>
-										)}
-										<span className="rounded-[4px] border border-[var(--color-border-subtle)] bg-[rgba(255,255,255,0.04)] px-2 py-0.5 font-[var(--font-mono)] text-[10px] text-[var(--color-text-secondary)]">
-											CPU {session.metadata.cpu}%
-										</span>
-									</>
-								)}
 							</div>
 
 							<ClientTimestamps
@@ -482,6 +526,11 @@ export function SessionDetail({
 								lastActivityAt={session.lastActivityAt}
 							/>
 						</div>
+
+						{/* CPU usage indicator — right side */}
+						{session.metadata?.cpu && (
+							<CPUIndicator cpu={session.metadata.cpu} />
+						)}
 					</div>
 				</div>
 
