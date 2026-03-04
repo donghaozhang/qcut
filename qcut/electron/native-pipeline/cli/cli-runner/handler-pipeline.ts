@@ -15,6 +15,7 @@ import { resolveOutputDir } from "../../output/output-utils.js";
 import { isInteractive, confirm } from "../interactive.js";
 import type { CLIRunOptions, CLIResult, ProgressFn } from "./types.js";
 
+/** Execute a YAML pipeline config through the pipeline executor. */
 export async function handleRunPipeline(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,

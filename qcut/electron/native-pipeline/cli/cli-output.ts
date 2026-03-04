@@ -27,6 +27,7 @@ export const ansi = {
 	cyan: SUPPORTS_COLOR ? "\x1b[36m" : "",
 } as const;
 
+/** Wrap text in ANSI color codes (no-op when color is unsupported). */
 export function colorize(text: string, color: keyof typeof ansi): string {
 	if (!SUPPORTS_COLOR) return text;
 	return `${ansi[color]}${text}${ansi.reset}`;
@@ -40,6 +41,7 @@ export interface TableColumn {
 	align?: "left" | "right";
 }
 
+/** Format an array of row objects as an aligned text table. */
 export function formatTable(
 	rows: Record<string, unknown>[],
 	columns?: TableColumn[]

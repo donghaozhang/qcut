@@ -24,6 +24,7 @@ type ProgressFn = (progress: {
 // Dispatcher
 // ---------------------------------------------------------------------------
 
+/** Dispatch generate and export sub-commands to their handlers. */
 export async function handleGenerateExportCommand(
 	client: EditorApiClient,
 	options: CLIRunOptions,

@@ -9,6 +9,7 @@
 import type { CLIRunOptions, CLIResult } from "./types.js";
 import { createEditorClient } from "../../editor/editor-api-client.js";
 
+/** Query pipeline job progress via the editor HTTP API. */
 export async function handlePipelineStatus(
 	options: CLIRunOptions
 ): Promise<CLIResult> {

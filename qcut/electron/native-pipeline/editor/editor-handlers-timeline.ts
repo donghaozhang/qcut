@@ -44,6 +44,7 @@ const TIMELINE_ACTIONS = [
 // Dispatcher
 // ---------------------------------------------------------------------------
 
+/** Dispatch timeline and editing sub-commands to their handlers. */
 export async function handleTimelineEditingCommand(
 	client: EditorApiClient,
 	options: CLIRunOptions,

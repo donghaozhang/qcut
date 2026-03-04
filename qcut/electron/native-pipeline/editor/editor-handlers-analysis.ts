@@ -29,6 +29,7 @@ interface AnalyzeSource {
 	filePath?: string;
 }
 
+/** Parse a source string like "media:id" or "path:/file" into an AnalyzeSource. */
 export function parseSource(sourceStr: string): AnalyzeSource {
 	const [type, ...rest] = sourceStr.split(":");
 	const id = rest.join(":");
@@ -48,6 +49,7 @@ export function parseSource(sourceStr: string): AnalyzeSource {
 // Dispatcher
 // ---------------------------------------------------------------------------
 
+/** Dispatch analysis and transcription sub-commands to their handlers. */
 export async function handleAnalysisCommand(
 	client: EditorApiClient,
 	options: CLIRunOptions,

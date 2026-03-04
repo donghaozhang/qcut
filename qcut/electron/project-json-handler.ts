@@ -23,6 +23,7 @@ function getProjectDir(projectId: string): string {
 	return path.join(app.getPath("documents"), "QCut", "Projects", sanitized);
 }
 
+/** Register IPC handlers for writing and reading project.json snapshots. */
 export function setupProjectJsonIPC(): void {
 	ipcMain.handle(
 		"project-json:write",
