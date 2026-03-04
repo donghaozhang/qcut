@@ -409,6 +409,10 @@ const electronAPI: ElectronAPI = {
 	aiPipeline: createAIPipelineAPI(),
 	mediaImport: createMediaImportAPI(),
 	projectFolder: createProjectFolderAPI(),
+	projectJson: {
+		write: (projectId: string) =>
+			ipcRenderer.invoke("project-json:write", projectId),
+	},
 	claude: createClaudeAPI(),
 	remotionFolder: createRemotionFolderAPI(),
 	moyin: createMoyinAPI(),

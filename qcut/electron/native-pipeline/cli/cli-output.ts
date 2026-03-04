@@ -9,8 +9,6 @@
  * @module electron/native-pipeline/cli-output
  */
 
-const SCHEMA_VERSION = "1";
-
 // -- ANSI Color Helpers --
 
 const SUPPORTS_COLOR =
@@ -29,6 +27,7 @@ export const ansi = {
 	cyan: SUPPORTS_COLOR ? "\x1b[36m" : "",
 } as const;
 
+/** Wrap text in ANSI color codes (no-op when color is unsupported). */
 export function colorize(text: string, color: keyof typeof ansi): string {
 	if (!SUPPORTS_COLOR) return text;
 	return `${ansi[color]}${text}${ansi.reset}`;
@@ -42,6 +41,7 @@ export interface TableColumn {
 	align?: "left" | "right";
 }
 
+/** Format an array of row objects as an aligned text table. */
 export function formatTable(
 	rows: Record<string, unknown>[],
 	columns?: TableColumn[]
@@ -79,33 +79,6 @@ export function formatTable(
 	);
 
 	return [header, separator, ...dataRows].join("\n");
-}
-
-// -- JSON Envelope --
-
-export interface JsonEnvelope {
-	schema_version: string;
-	command: string;
-	data?: unknown;
-	items?: unknown[];
-	count?: number;
-}
-
-function createEnvelope(
-	command: string,
-	data?: unknown,
-	items?: unknown[]
-): JsonEnvelope {
-	const envelope: JsonEnvelope = {
-		schema_version: SCHEMA_VERSION,
-		command,
-	};
-	if (data !== undefined) envelope.data = data;
-	if (items !== undefined) {
-		envelope.items = items;
-		envelope.count = items.length;
-	}
-	return envelope;
 }
 
 // -- CLIOutput Class --
@@ -168,31 +141,37 @@ export class CLIOutput {
 		console.log(colorize(`  Cost: $${amount.toFixed(4)} ${currency}`, "dim"));
 	}
 
-	/** Emit final result as JSON envelope or human-readable format. */
+	/** Emit a structured result as JSON envelope (json mode) or pretty-print (normal mode). */
 	result(data: Record<string, unknown>, command?: string): void {
 		if (this.jsonMode) {
-			const envelope = createEnvelope(command ?? "result", data);
-			console.log(JSON.stringify(envelope, null, 2));
-		} else if (!this.quiet) {
-			for (const [key, value] of Object.entries(data)) {
-				console.log(
-					`${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`
-				);
-			}
+			const envelope: Record<string, unknown> = {
+				schema_version: "1",
+				command: command ?? "unknown",
+				data,
+			};
+			console.log(JSON.stringify(envelope));
+		} else {
+			console.log(JSON.stringify(data, null, 2));
 		}
 	}
 
-	/** Emit tabular data as JSON array or formatted table. */
+	/** Emit tabular data as JSON envelope (json mode) or formatted table (normal mode). */
 	table(
-		rows: Record<string, unknown>[],
-		headers?: TableColumn[],
+		items: Record<string, unknown>[],
+		columns?: TableColumn[],
 		command?: string
 	): void {
 		if (this.jsonMode) {
-			const envelope = createEnvelope(command ?? "table", undefined, rows);
-			console.log(JSON.stringify(envelope, null, 2));
-		} else if (!this.quiet) {
-			console.log(formatTable(rows, headers));
+			const envelope: Record<string, unknown> = {
+				schema_version: "1",
+				command: command ?? "unknown",
+				items,
+				count: items.length,
+			};
+			console.log(JSON.stringify(envelope));
+		} else {
+			const formatted = formatTable(items, columns);
+			if (formatted) console.log(formatted);
 		}
 	}
 }

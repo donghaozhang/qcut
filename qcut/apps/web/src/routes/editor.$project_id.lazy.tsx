@@ -6,6 +6,7 @@ import { EditorProvider } from "@/components/editor-provider";
 import { useProjectStore, NotFoundError } from "@/stores/project-store";
 import { usePlaybackControls } from "@/hooks/timeline/use-playback-controls";
 import { useSaveOnVisibilityChange } from "@/hooks/use-save-on-visibility-change";
+import { useProjectJsonSync } from "@/hooks/use-project-json-sync";
 import { Onboarding } from "@/components/onboarding";
 import { debugError, debugLog } from "@/lib/debug/debug-config";
 import { useSkillsStore } from "@/stores/skills-store";
@@ -52,6 +53,9 @@ function EditorPage() {
 
 	// Save timeline when page becomes hidden (tab switch, close, etc.)
 	useSaveOnVisibilityChange();
+
+	// Auto-sync project.json on any store change (debounced 1s)
+	useProjectJsonSync();
 
 	// Load skills when project changes
 	const { loadSkills } = useSkillsStore();

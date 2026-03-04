@@ -12,6 +12,7 @@ import * as fs from "fs";
 import type { EditorApiClient } from "../editor/editor-api-client.js";
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
 import { resolveJsonInput } from "./editor-api-types.js";
+import { jsonPending } from "../cli/json-output.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -23,6 +24,7 @@ type ProgressFn = (progress: {
 // Dispatcher
 // ---------------------------------------------------------------------------
 
+/** Dispatch generate and export sub-commands to their handlers. */
 export async function handleGenerateExportCommand(
 	client: EditorApiClient,
 	options: CLIRunOptions,
@@ -118,6 +120,7 @@ async function generateStart(
 		return { success: true, data: startResult };
 	}
 
+	if (opts.json) jsonPending(startResult.jobId);
 	onProgress({
 		stage: "polling",
 		percent: 0,
@@ -275,6 +278,7 @@ async function exportStart(
 		return { success: true, data: startResult };
 	}
 
+	if (opts.json) jsonPending(startResult.jobId);
 	onProgress({
 		stage: "polling",
 		percent: 0,

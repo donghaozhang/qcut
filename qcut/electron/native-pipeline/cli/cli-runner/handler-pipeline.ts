@@ -15,6 +15,7 @@ import { resolveOutputDir } from "../../output/output-utils.js";
 import { isInteractive, confirm } from "../interactive.js";
 import type { CLIRunOptions, CLIResult, ProgressFn } from "./types.js";
 
+/** Execute a YAML pipeline config through the pipeline executor. */
 export async function handleRunPipeline(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
@@ -136,6 +137,14 @@ export async function handleRunPipeline(
 			data: {
 				stepsCompleted: result.stepsCompleted,
 				totalSteps: result.totalSteps,
+				steps: (result.stepResults ?? []).map((s, i) => ({
+					step: i + 1,
+					success: s.success,
+					outputPath: s.outputPath,
+					duration: s.duration,
+					cost: s.cost,
+					error: s.error,
+				})),
 			},
 		};
 	} catch (error: unknown) {

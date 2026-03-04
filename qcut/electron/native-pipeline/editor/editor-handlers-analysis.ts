@@ -10,6 +10,7 @@
 import type { EditorApiClient } from "../editor/editor-api-client.js";
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
 import { resolveJsonInput } from "./editor-api-types.js";
+import { jsonPending } from "../cli/json-output.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -28,6 +29,7 @@ interface AnalyzeSource {
 	filePath?: string;
 }
 
+/** Parse a source string like "media:id" or "path:/file" into an AnalyzeSource. */
 export function parseSource(sourceStr: string): AnalyzeSource {
 	const [type, ...rest] = sourceStr.split(":");
 	const id = rest.join(":");
@@ -47,6 +49,7 @@ export function parseSource(sourceStr: string): AnalyzeSource {
 // Dispatcher
 // ---------------------------------------------------------------------------
 
+/** Dispatch analysis and transcription sub-commands to their handlers. */
 export async function handleAnalysisCommand(
 	client: EditorApiClient,
 	options: CLIRunOptions,
@@ -287,6 +290,7 @@ async function transcribeStart(
 		return { success: true, data: startResult };
 	}
 
+	if (opts.json) jsonPending(startResult.jobId);
 	onProgress({
 		stage: "polling",
 		percent: 0,

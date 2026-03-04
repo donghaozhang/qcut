@@ -29,6 +29,7 @@ import {
 	EditorApiClient,
 	createEditorClient,
 } from "../../editor/editor-api-client.js";
+import { emitJsonResult } from "../json-output.js";
 
 /**
  * Shared editor client for session mode.
@@ -301,13 +302,9 @@ export async function runSession(
 			const result = await runner.run(options, onProgress);
 
 			if (output === "json") {
-				console.log(
-					JSON.stringify({
-						command: options.command,
-						...result,
-						sessionDuration: (Date.now() - startTime) / 1000,
-					})
-				);
+				emitJsonResult(options.command, result, {
+					sessionDuration: (Date.now() - startTime) / 1000,
+				});
 			} else if (result.success) {
 				if (result.outputPath) {
 					process.stderr.write(`Output: ${result.outputPath}\n`);
@@ -320,7 +317,14 @@ export async function runSession(
 			}
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
-			process.stderr.write(`Error: ${msg}\n`);
+			if (output === "json") {
+				emitJsonResult(options.command, {
+					success: false,
+					error: msg,
+				});
+			} else {
+				process.stderr.write(`Error: ${msg}\n`);
+			}
 		}
 
 		if (isInteractive) rl.prompt();

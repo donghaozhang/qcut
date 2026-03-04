@@ -455,20 +455,158 @@ List ViMax-relevant models (image, video, image-to-video, image-to-image).
 
 ---
 
+## New Unified JSON API Commands
+
+### `editor:project:list`
+
+List all projects in the editor.
+
+| Flag | Type | Description |
+|------|------|-------------|
+| (none) | | No additional flags required |
+
+### `editor:project:info`
+
+Get project info (settings, metadata).
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--project-id` | string | Project ID (required) |
+
+### `editor:timeline:info`
+
+Get timeline state for a project (tracks, elements, duration).
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--project-id` | string | Project ID (required) |
+
+### `editor:timeline:add-clip`
+
+Add a media clip to the timeline.
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--project-id` | string | Project ID (required) |
+| `--media-id` | string | Media ID to add (required) |
+| `--track-id` | string | Target track ID |
+| `--start-time` | float | Start position (seconds) |
+
+### `editor:timeline:trim`
+
+Trim an element's start/end times.
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--project-id` | string | Project ID (required) |
+| `--element-id` | string | Element ID (required) |
+| `--start-time` | float | New start time (seconds) |
+| `--end-time` | float | New end time (seconds) |
+
+### `editor:project:export-state`
+
+Dump the full project.json to disk (settings, media, subtitles, generated, exports, jobs).
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--project-id` | string | | Project ID (required) |
+| `--output` | string | `./output/project-<id>.json` | Output file path |
+
+```bash
+bun run pipeline editor:project:export-state --project-id my-proj
+bun run pipeline editor:project:export-state --project-id my-proj --output ./state.json
+```
+
+### `editor:project:import-state`
+
+Load a project.json file into the editor (not yet implemented).
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--project-id` | string | Project ID (required) |
+| `--data` | string | JSON input (`@file.json`, inline, or `-` for stdin) (required) |
+
+```bash
+bun run pipeline editor:project:import-state --project-id my-proj --data @state.json
+```
+
+### `pipeline:status`
+
+Get pipeline job status/progress.
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--job-id` | string | Job ID to check (required) |
+
+---
+
+## 3-Level Progressive Help (JSON)
+
+Use `--help --json` at any level to get structured JSON help output:
+
+### Level 1: Root overview
+
+```bash
+bun run pipeline --help --json
+```
+
+Returns version, all categories, every command (name + description + category), and global flags.
+
+### Level 2: Command detail
+
+```bash
+bun run pipeline generate-image --help --json
+```
+
+Returns command name, description, category, usage string, required flags, optional flags, and examples.
+
+### Level 3: Parameter detail
+
+```bash
+bun run pipeline generate-image --help model --json
+```
+
+Returns a single flag's name, type, description, short alias, required status, default value, and enum values.
+
+All levels return a unified JSON envelope: `{ "status": "ok", "data": { ... } }`.
+
+---
+
 ## Output Formats
 
 **Default (TTY):** Progress bar + final output path.
 
-**`--json`:** Single JSON object:
+**`--json`:** Unified JSON envelope with `status` field:
 
+Success:
 ```json
 {
-  "schema_version": "1",
-  "command": "generate-image",
-  "success": true,
-  "outputPath": "./output/cli-1234/output_1234.png",
-  "cost": 0.005,
-  "duration": 8.3
+  "status": "ok",
+  "data": {
+    "schema_version": "1",
+    "command": "generate-image",
+    "success": true,
+    "outputPath": "./output/cli-1234/output_1234.png",
+    "cost": 0.005,
+    "duration": 8.3
+  }
+}
+```
+
+Error:
+```json
+{
+  "status": "error",
+  "error": "Missing --project-id",
+  "code": "editor:project:info:failed"
+}
+```
+
+Pending (async jobs):
+```json
+{
+  "status": "pending",
+  "jobId": "abc-123"
 }
 ```
 

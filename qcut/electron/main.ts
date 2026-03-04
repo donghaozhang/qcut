@@ -122,6 +122,7 @@ const {
 	registerElevenLabsTranscribeHandler,
 } = require("./elevenlabs-transcribe-handler.js");
 const { setupProjectFolderIPC } = require("./project-folder-handler.js");
+const { setupProjectJsonIPC } = require("./project-json-handler.js");
 const { setupAllClaudeIPC } = require("./claude/index.js");
 const { setupRemotionFolderIPC } = require("./remotion-folder-handler.js");
 const { setupScreenRecordingIPC } = require("./screen-recording-handler.js");
@@ -811,6 +812,7 @@ if (!isCliKeyCommand) {
 			["AIPipelineIPC", setupAIPipelineIPC],
 			["MediaImportIPC", setupMediaImportIPC],
 			["ProjectFolderIPC", setupProjectFolderIPC],
+			["ProjectJsonIPC", setupProjectJsonIPC],
 			["ClaudeIPC", setupAllClaudeIPC],
 			["RemotionFolderIPC", setupRemotionFolderIPC],
 			["ScreenRecordingIPC", setupScreenRecordingIPC],

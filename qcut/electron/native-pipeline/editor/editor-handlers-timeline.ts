@@ -10,6 +10,7 @@
 import type { EditorApiClient } from "../editor/editor-api-client.js";
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
 import { resolveJsonInput } from "./editor-api-types.js";
+import { jsonPending } from "../cli/json-output.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -43,6 +44,7 @@ const TIMELINE_ACTIONS = [
 // Dispatcher
 // ---------------------------------------------------------------------------
 
+/** Dispatch timeline and editing sub-commands to their handlers. */
 export async function handleTimelineEditingCommand(
 	client: EditorApiClient,
 	options: CLIRunOptions,
@@ -114,10 +116,16 @@ async function dispatchTimeline(
 			return timelinePlayback(client, opts, "toggle");
 		case "seek":
 			return timelineSeek(client, opts);
+		case "info":
+			return timelineInfo(client, opts);
+		case "add-clip":
+			return timelineAddClip(client, opts);
+		case "trim":
+			return timelineTrim(client, opts);
 		default:
 			return {
 				success: false,
-				error: `Unknown timeline action: ${action}. Available: ${TIMELINE_ACTIONS.join(", ")}`,
+				error: `Unknown timeline action: ${action}. Available: ${TIMELINE_ACTIONS.join(", ")}, info, add-clip, trim`,
 			};
 	}
 }
@@ -545,6 +553,82 @@ async function timelineSeek(
 }
 
 // ---------------------------------------------------------------------------
+// Timeline info / add-clip / trim (unified JSON API)
+// ---------------------------------------------------------------------------
+
+async function timelineInfo(
+	client: EditorApiClient,
+	opts: CLIRunOptions
+): Promise<CLIResult> {
+	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
+	const data = await client.get(
+		`/api/claude/timeline/${encodeURIComponent(opts.projectId)}`
+	);
+	return { success: true, data };
+}
+
+async function timelineAddClip(
+	client: EditorApiClient,
+	opts: CLIRunOptions
+): Promise<CLIResult> {
+	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
+	if (!opts.mediaId) return { success: false, error: "Missing --media-id" };
+
+	const body: Record<string, unknown> = {
+		type: "media",
+		sourceId: opts.mediaId,
+	};
+	if (opts.trackId) body.trackId = opts.trackId;
+	if (opts.startTime !== undefined) body.startTime = opts.startTime;
+
+	const data = await client.post(
+		`/api/claude/timeline/${encodeURIComponent(opts.projectId)}/elements`,
+		body
+	);
+	return { success: true, data };
+}
+
+async function timelineTrim(
+	client: EditorApiClient,
+	opts: CLIRunOptions
+): Promise<CLIResult> {
+	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
+	if (!opts.elementId) return { success: false, error: "Missing --element-id" };
+	if (opts.startTime === undefined && opts.endTime === undefined) {
+		return {
+			success: false,
+			error: "Missing --start-time and/or --end-time",
+		};
+	}
+	if (opts.startTime !== undefined && !Number.isFinite(opts.startTime)) {
+		return { success: false, error: "--start-time must be a finite number" };
+	}
+	if (opts.endTime !== undefined && !Number.isFinite(opts.endTime)) {
+		return { success: false, error: "--end-time must be a finite number" };
+	}
+	if (
+		opts.startTime !== undefined &&
+		opts.endTime !== undefined &&
+		opts.startTime >= opts.endTime
+	) {
+		return {
+			success: false,
+			error: "--start-time must be less than --end-time",
+		};
+	}
+
+	const changes: Record<string, unknown> = {};
+	if (opts.startTime !== undefined) changes.startTime = opts.startTime;
+	if (opts.endTime !== undefined) changes.endTime = opts.endTime;
+
+	const data = await client.patch(
+		`/api/claude/timeline/${encodeURIComponent(opts.projectId)}/elements/${encodeURIComponent(opts.elementId)}`,
+		{ changes }
+	);
+	return { success: true, data };
+}
+
+// ---------------------------------------------------------------------------
 // Editing dispatcher
 // ---------------------------------------------------------------------------
 
@@ -674,6 +758,7 @@ async function editingAutoEdit(
 			body
 		);
 
+		if (opts.json) jsonPending(startResult.jobId);
 		onProgress({
 			stage: "polling",
 			percent: 0,
@@ -758,6 +843,7 @@ async function editingSuggestCuts(
 			body
 		);
 
+		if (opts.json) jsonPending(startResult.jobId);
 		onProgress({
 			stage: "polling",
 			percent: 0,
