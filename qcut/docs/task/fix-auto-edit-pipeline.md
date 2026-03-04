@@ -208,3 +208,48 @@ error: script "pipeline" exited with code 1
 - Retest confirms transcription path is healthy.
 - Auto-edit still fails in pipeline execution stage after job creation.
 - Standalone filler analysis completes but reports no fillers for this media.
+
+## Test Run: executeBatchCuts Guard Fix Verification (2026-03-05 02:29 AEDT)
+
+| Step | Command | Pass/Fail | Key output |
+|------|---------|-----------|------------|
+| 1 | `bunx vitest run electron/__tests__/claude-cuts-handler.test.ts electron/__tests__/claude-auto-edit-handler.test.ts` | ✅ Pass | 40/40 tests passed, including new IPC/window readiness regression tests |
+| 2 | `bun run build` | ✅ Pass | Build completed successfully (`turbo run build` + `build:electron`) |
+| 3 | `bun run pipeline editor:editing:auto-edit --project-id 59084b5d-fac6-472f-89a6-203bfa2b461b --element-id 0a21e95d-49e3-4f17-a875-38f5f2e7abeb --media-id media_YWktbmV3cy10ZXN0Lm1wNA --remove-fillers --poll --json` | ❌ Fail | No crash; now fails with explicit error: `IPC bridge unavailable for batch cut execution` |
+
+### CLI Output (Step 3)
+
+```json
+{
+  "status": "pending",
+  "jobId": "autoedit_1772638152028_dqb8w"
+}
+{
+  "status": "error",
+  "error": "IPC bridge unavailable for batch cut execution",
+  "code": "editor:editing:auto-edit:failed"
+}
+```
+
+### Log Confirmation (`~/Library/Logs/qcut/main.log`)
+
+- Transcription and filler analysis still succeed.
+- Cut list is built (`Built 9 cuts (10.8s total)`).
+- Failure is now deterministic and guarded:
+  - `Job ... failed: HttpError: IPC bridge unavailable for batch cut execution`
+- Previous crash signature (`Cannot read properties of undefined (reading 'on')`) did not appear in this run.
+
+## Test Run: Post ipcMain lazy-import fix (2026-03-05 02:35 AEDT)
+
+| Step | Command | Pass/Fail | Key output |
+|------|---------|-----------|------------|
+| 1 | `bun run pipeline editor:health --status-only --json` | ✅ Pass | `status: ok`, `version: 2026.03.04.4`, `apiVersion: 1.1.0` |
+| 2a | `bun run pipeline editor:navigator:projects --json` | ✅ Pass | `activeProjectId: 59084b5d-fac6-472f-89a6-203bfa2b461b` |
+| 2b | `bun run pipeline editor:timeline:export --project-id 59084b5d-fac6-472f-89a6-203bfa2b461b --json` | ✅ Pass | Main track exported; first element id used for auto-edit: `0a21e95d-49e3-4f17-a875-38f5f2e7abeb` |
+| 2c | `bun run pipeline editor:media:list --project-id 59084b5d-fac6-472f-89a6-203bfa2b461b --json` | ✅ Pass | `mediaId: media_YWktbmV3cy10ZXN0Lm1wNA` (`ai-news-test.mp4`) |
+| 3 | `bun run pipeline editor:editing:auto-edit --project-id 59084b5d-fac6-472f-89a6-203bfa2b461b --element-id 0a21e95d-49e3-4f17-a875-38f5f2e7abeb --media-id media_YWktbmV3cy10ZXN0Lm1wNA --remove-fillers --poll --json` | ❌ Fail | Returned `pending` with `jobId: autoedit_1772638630796_mzntn`, then failed with `IPC bridge unavailable for batch cut execution` |
+| 4 | `bun run pipeline editor:analyze:fillers --project-id 59084b5d-fac6-472f-89a6-203bfa2b461b --media-id media_YWktbmV3cy10ZXN0Lm1wNA --json` | ✅ Pass | `fillers: []`, `silences: 4`, `totalFillerTime: 0`, `totalSilenceTime: 6.5` |
+
+**Notes**
+- Key test still fails at cut execution with the guarded IPC bridge error.
+- Standalone filler analysis endpoint succeeds, but reports no fillers for this media.
