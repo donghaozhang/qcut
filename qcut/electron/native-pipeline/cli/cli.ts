@@ -110,6 +110,9 @@ Editor Commands (requires running QCut — use --project-id for most):
   editor:ui:switch-panel            Switch editor panel (--panel, --tab)
   editor:moyin:*                    set-script, parse, status
   editor:screenshot:capture         Take screenshot (--filename)
+  editor:undo                       Undo last action
+  editor:redo                       Redo last undone action
+  editor:state:snapshot             Get editor state snapshot (--include)
   pipeline:status                   Get pipeline job status (--job-id)
 
   Use <command> --help --json for detailed flag info per command.
@@ -420,6 +423,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// project-json flags
 			full: { type: "boolean", default: false },
 			output: { type: "string" },
+			// state snapshot flags
+			include: { type: "string" },
 			// performance flags
 			"skip-health": { type: "boolean", default: false },
 			"no-capability-check": { type: "boolean", default: false },
@@ -664,6 +669,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		// project-json flags
 		full: (values.full as boolean) ?? false,
 		output: values.output as string | undefined,
+		// state snapshot flags
+		include: values.include as string | undefined,
 		// performance flags
 		skipHealth: (values["skip-health"] as boolean) ?? false,
 		noCapabilityCheck: (values["no-capability-check"] as boolean) ?? false,

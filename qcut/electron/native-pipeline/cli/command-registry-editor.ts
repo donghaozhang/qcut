@@ -376,7 +376,8 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		"Transcribe media (sync)",
 		[
 			PID,
-			MID,
+			f("--media-id", "string", "Media ID"),
+			f("--source", "string", "Source (path:/file.mp4 or media:id)"),
 			f("--model", "string", "Model key", { short: "-m" }),
 			f("--language", "string", "Language code"),
 		]
@@ -384,7 +385,13 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	"editor:transcribe:start": ed(
 		"editor:transcribe:start",
 		"Transcribe media (async)",
-		[PID, MID, f("--model", "string", "Model key", { short: "-m" }), POLL]
+		[
+			PID,
+			f("--media-id", "string", "Media ID"),
+			f("--source", "string", "Source (path:/file.mp4 or media:id)"),
+			f("--model", "string", "Model key", { short: "-m" }),
+			POLL,
+		]
 	),
 	"editor:transcribe:status": ed(
 		"editor:transcribe:status",
@@ -576,6 +583,9 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 					"project-folder",
 					"upscale",
 					"moyin",
+					"properties",
+					"export",
+					"api-keys",
 				],
 			}),
 			f("--tab", "string", "Inner tab (for moyin panel)", {
@@ -619,6 +629,21 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		[]
 	),
 	"editor:moyin:status": ed("editor:moyin:status", "Get pipeline progress", []),
+
+	// ── State Control ──
+	"editor:undo": ed("editor:undo", "Undo last action", []),
+	"editor:redo": ed("editor:redo", "Redo last undone action", []),
+	"editor:state:snapshot": ed(
+		"editor:state:snapshot",
+		"Get editor state snapshot (full or partial)",
+		[
+			f(
+				"--include",
+				"string",
+				"Comma-separated sections: timeline,selection,playhead,media,editor,project"
+			),
+		]
+	),
 
 	// ── Screenshot ──
 	"editor:screenshot:capture": ed(

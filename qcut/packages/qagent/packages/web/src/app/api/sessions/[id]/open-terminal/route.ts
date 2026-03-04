@@ -3,52 +3,13 @@ import { promisify } from "node:util";
 import { platform } from "node:os";
 import { type NextRequest, NextResponse } from "next/server";
 import { findCLISession } from "@/lib/cli-sessions";
+import {
+	escapeAppleScript,
+	normalizeTTY,
+	detectTerminalApp,
+} from "@/lib/terminal-utils";
 
 const execFileAsync = promisify(execFile);
-
-/** Escape a string for safe embedding in AppleScript double-quoted strings. */
-function escapeAppleScript(s: string): string {
-	return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-}
-
-/** Normalize a TTY identifier to its full /dev/ path. */
-function normalizeTTY(tty: string): string {
-	if (tty.startsWith("/dev/")) return tty;
-	return tty.startsWith("tty") ? `/dev/${tty}` : `/dev/tty${tty}`;
-}
-
-/**
- * Walk the process tree to find which app owns the TTY.
- * Returns the app name (e.g. "Cursor", "Code", "Terminal") or null.
- */
-async function detectTerminalApp(pid: number): Promise<string | null> {
-	let current = pid;
-	for (let depth = 0; depth < 10; depth++) {
-		try {
-			const { stdout } = await execFileAsync(
-				"ps",
-				["-o", "ppid=,comm=", "-p", String(current)],
-				{ timeout: 3_000 },
-			);
-			const trimmed = stdout.trim();
-			if (!trimmed) return null;
-			const match = trimmed.match(/^\s*(\d+)\s+(.+)$/);
-			if (!match) return null;
-			const ppid = parseInt(match[1]!, 10);
-			const comm = match[2]!;
-			// Check for known terminal hosts
-			if (/Cursor/i.test(comm)) return "Cursor";
-			if (/Code Helper|Visual Studio Code/i.test(comm)) return "Code";
-			if (/Terminal$/i.test(comm)) return "Terminal";
-			if (/iTerm/i.test(comm)) return "iTerm";
-			if (ppid <= 1) return null;
-			current = ppid;
-		} catch {
-			return null;
-		}
-	}
-	return null;
-}
 
 /** Bring a macOS app to the foreground via AppleScript. */
 async function activateApp(appName: string): Promise<boolean> {

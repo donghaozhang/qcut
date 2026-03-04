@@ -210,6 +210,11 @@ export async function handleEditorCommand(
 			case "remotion":
 				return await handleRemotionCommand(client, options);
 
+			case "undo":
+			case "redo":
+			case "state":
+				return await handleStateCommand(client, options);
+
 			case "navigator":
 				return await handleNavigatorCommand(client, options);
 
@@ -228,17 +233,58 @@ export async function handleEditorCommand(
 			case "screenshot":
 				return await handleScreenshotCommand(client, options);
 
-			default:
-				return {
-					success: false,
-					error: `Unknown editor module: ${module}. Available: health, media, project, timeline, editing, analyze, transcribe, generate, export, diagnostics, mcp, remotion, navigator, screen-recording, ui, moyin, novel, screenshot`,
-				};
-		}
+				default:
+					return {
+						success: false,
+						error: `Unknown editor module: ${module}. Available: health, media, project, timeline, editing, analyze, transcribe, generate, export, diagnostics, mcp, remotion, navigator, screen-recording, ui, moyin, novel, screenshot, undo, redo, state`,
+					};
+			}
 	} catch (err) {
 		return {
 			success: false,
 			error: err instanceof Error ? err.message : String(err),
 		};
+	}
+}
+
+/**
+ * Handle `editor:undo`, `editor:redo`, and `editor:state:*` commands.
+ */
+async function handleStateCommand(
+	client: EditorApiClient,
+	options: CLIRunOptions
+): Promise<CLIResult> {
+	const parts = options.command.split(":");
+	const module = parts[1]; // "undo", "redo", or "state"
+
+	switch (module) {
+		case "undo": {
+			const data = await client.post("/api/claude/undo", {});
+			return { success: true, data };
+		}
+		case "redo": {
+			const data = await client.post("/api/claude/redo", {});
+			return { success: true, data };
+		}
+		case "state": {
+			const action = parts[2]; // "snapshot"
+			if (action !== "snapshot") {
+				return {
+					success: false,
+					error: `Unknown state action: ${action}. Available: snapshot`,
+				};
+			}
+			const queryParams = options.include
+				? `?include=${encodeURIComponent(options.include)}`
+				: "";
+			const data = await client.get(`/api/claude/state${queryParams}`);
+			return { success: true, data };
+		}
+		default:
+			return {
+				success: false,
+				error: `Unknown state module: ${module}`,
+			};
 	}
 }
 

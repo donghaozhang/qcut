@@ -10,8 +10,13 @@ Run QCut's built-in TypeScript pipeline CLI (`qcut-pipeline` / `bun run pipeline
 
 ## Additional resources
 
-- For standalone CLI commands (generate, analyze, transcribe, pipelines, ViMax, project management, API keys), see [REFERENCE.md](REFERENCE.md)
-- For editor commands: media, project, timeline, editing, export, diagnostics, MCP, see [editor-core.md](editor-core.md)
+- For standalone CLI commands (generate, analyze, transcribe, models, help, output formats), see [REFERENCE.md](REFERENCE.md)
+- For YAML pipelines, API key management, project management, see [reference-pipelines.md](reference-pipelines.md)
+- For ViMax commands (idea2video, script2video, novel2movie, portraits), see [reference-vimax.md](reference-vimax.md)
+- For editor core reference: connection, flags, batch limits, env vars, common workflows, see [editor-core.md](editor-core.md)
+- For editor media & project commands, project.json schema, see [editor-media.md](editor-media.md)
+- For editor timeline & editing commands, see [editor-timeline.md](editor-timeline.md)
+- For editor export, diagnostics, MCP, screen recording, UI, Moyin, screenshots, state control, see [editor-output.md](editor-output.md)
 - For editor AI commands: video analysis, transcription, AI generation, Remotion, navigator, see [editor-ai.md](editor-ai.md)
 - For editor state automation: snapshots, event streams, correlation IDs, transactions, capabilities, and notification bridge endpoints, see [editor-state-control.md](editor-state-control.md)
 
@@ -43,10 +48,13 @@ bun run pipeline editor:navigator:projects
 # 2. Open a project (navigates the editor)
 bun run pipeline editor:navigator:open --project-id <project-id>
 
-# 3. List media → get media-id values
+# 3. Switch to editor panel (navigator:open lands on the landing page, NOT the editor)
+bun run pipeline editor:ui:switch-panel --panel video-edit
+
+# 4. List media → get media-id values
 bun run pipeline editor:media:list --project-id <project-id> --json
 
-# 4. Export timeline → get track-id and element-id values
+# 5. Export timeline → get track-id and element-id values
 bun run pipeline editor:timeline:export --project-id <project-id> --json
 ```
 
@@ -143,7 +151,7 @@ bun run pipeline editor:project:info --project-id <id> --full --json
 bun run pipeline editor:project:export-state --project-id <id>
 ```
 
-See [editor-core.md](editor-core.md) for the full project.json schema.
+See [editor-media.md](editor-media.md) for the full project.json schema.
 
 ## Global Options
 

@@ -88,7 +88,7 @@ jobs:
 
       - name: Build Electron application
         run: |
-          npx electron-builder --win --config.win.forceCodeSigning=false --config.win.verifyUpdateCodeSignature=false --config.publish.channel=${{ needs.prepare.outputs.channel }}
+          npx electron-builder --win --publish never --config.win.forceCodeSigning=false --config.win.verifyUpdateCodeSignature=false --config.publish.channel=${{ needs.prepare.outputs.channel }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -163,7 +163,7 @@ jobs:
         run: |
           rm -rf dist-electron
           echo "::group::Electron Builder"
-          time npx electron-builder --mac --config.publish.channel=${{ needs.prepare.outputs.channel }}
+          time npx electron-builder --mac --publish never --config.publish.channel=${{ needs.prepare.outputs.channel }}
           echo "::endgroup::"
           ls -lah dist-electron/
         env:
@@ -226,7 +226,7 @@ jobs:
 
       - name: Build Electron application
         run: |
-          npx electron-builder --linux --config.publish.channel=${{ needs.prepare.outputs.channel }}
+          npx electron-builder --linux --publish never --config.publish.channel=${{ needs.prepare.outputs.channel }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

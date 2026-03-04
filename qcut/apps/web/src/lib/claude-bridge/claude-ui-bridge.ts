@@ -13,6 +13,16 @@ import {
 	tabs,
 	type Tab,
 } from "@/components/editor/media-panel/store";
+import { useExportStore } from "@/stores/export-store";
+
+const propertiesPanelTabs: Record<
+	string,
+	"properties" | "export" | "settings"
+> = {
+	properties: "properties",
+	export: "export",
+	"api-keys": "settings",
+};
 
 export function setupClaudeUiBridge(): void {
 	const bridge = window.electronAPI?.claude?.ui;
@@ -20,12 +30,24 @@ export function setupClaudeUiBridge(): void {
 
 	bridge.onSwitchPanelRequest((data) => {
 		try {
+			// Handle properties panel sub-tabs (Properties, Export, API Keys)
+			const propTab = propertiesPanelTabs[data.panel];
+			if (propTab) {
+				useExportStore.getState().setPanelView(propTab);
+				bridge.sendSwitchPanelResponse(data.requestId, {
+					switched: true,
+					panel: data.panel,
+					group: "properties",
+				});
+				return;
+			}
+
 			const panelTab = data.panel as Tab;
 			if (!(panelTab in tabs)) {
 				bridge.sendSwitchPanelResponse(
 					data.requestId,
 					undefined,
-					`Unknown panel: ${data.panel}. Available: ${Object.keys(tabs).join(", ")}`
+					`Unknown panel: ${data.panel}. Available: ${Object.keys(tabs).join(", ")}, ${Object.keys(propertiesPanelTabs).join(", ")}`
 				);
 				return;
 			}

@@ -660,7 +660,8 @@ export interface TranscriptionResult {
 }
 
 export interface TranscribeRequest {
-	mediaId: string;
+	mediaId?: string;
+	source?: { type: "media" | "path"; mediaId?: string; filePath?: string };
 	provider?: "elevenlabs" | "gemini";
 	language?: string;
 	diarize?: boolean;
@@ -669,7 +670,7 @@ export interface TranscribeRequest {
 export interface TranscribeJob {
 	jobId: string;
 	projectId: string;
-	mediaId: string;
+	mediaId?: string;
 	status: "queued" | "processing" | "completed" | "failed" | "cancelled";
 	progress: number;
 	message: string;

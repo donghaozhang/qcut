@@ -1,12 +1,11 @@
 /**
  * Claude Video Analysis Handler
- * Runs AICP video analysis on videos from timeline, media panel, or file paths.
+ * Runs video analysis via the native pipeline executor (FAL API).
  * Returns structured markdown/JSON for LLM consumption.
  */
 
 import { ipcMain, BrowserWindow } from "electron";
-import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 import {
 	getProjectPath,
@@ -16,8 +15,9 @@ import {
 import { claudeLog } from "../utils/logger.js";
 import { getMediaInfo } from "./claude-media-handler.js";
 import { requestTimelineFromRenderer } from "./claude-timeline-handler.js";
-import { AIPipelineManager } from "../../ai-pipeline-handler.js";
-import { getDecryptedApiKeys } from "../../api-key-handler.js";
+import { PipelineExecutor } from "../../native-pipeline/execution/executor.js";
+import type { PipelineStep } from "../../native-pipeline/execution/executor.js";
+import { ModelRegistry } from "../../native-pipeline/infra/registry.js";
 import type {
 	AnalyzeSource,
 	AnalyzeOptions,
@@ -27,6 +27,9 @@ import type {
 } from "../../types/claude-api";
 
 const HANDLER_NAME = "Analyze";
+
+/** Default native model for video analysis */
+const NATIVE_MODEL = "fal_video_qa";
 
 /** Available models for video analysis */
 const ANALYZE_MODELS: AnalyzeModel[] = [
@@ -56,7 +59,21 @@ const ANALYZE_MODELS: AnalyzeModel[] = [
 	},
 ];
 
-const ANALYSIS_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+/** Map editor model keys to OpenRouter model IDs for the FAL endpoint */
+const MODEL_ID_MAP: Record<string, string> = {
+	"gemini-2.5-flash": "google/gemini-2.5-flash",
+	"gemini-2.5-pro": "google/gemini-2.5-pro",
+	"gemini-3-pro": "google/gemini-3-pro-preview",
+};
+
+/** Analysis type → default prompt */
+const ANALYSIS_PROMPTS: Record<string, string> = {
+	timeline:
+		'Analyze this video and return a JSON array of timestamped events. Each entry should have "start" (seconds), "end" (seconds), "label" (short description), and "tags" (array of keywords). Example: [{"start":0,"end":2.5,"label":"City skyline establishing shot","tags":["establishing","city"]}]. Return ONLY valid JSON, no markdown.',
+	summary: "Provide a comprehensive summary of this video",
+	description: "Describe this video in detail",
+	transcript: "Transcribe all spoken words in this video",
+};
 
 /**
  * Resolve a video source to an absolute file path.
@@ -148,43 +165,7 @@ export async function resolveVideoPath(
 }
 
 /**
- * Find the aicp binary command and base args.
- * Reuses AIPipelineManager's detection logic.
- */
-async function findAicpCommand(): Promise<{ cmd: string; baseArgs: string[] }> {
-	const manager = new AIPipelineManager();
-	const status = await manager.getStatus();
-	if (!status.available) {
-		throw new Error(
-			"AICP binary not available. Install aicp or ensure the bundled binary is present."
-		);
-	}
-
-	return manager.getCommand();
-}
-
-/**
- * Build the spawn environment with decrypted API keys.
- */
-async function buildAnalyzeEnv(): Promise<NodeJS.ProcessEnv> {
-	const env: NodeJS.ProcessEnv = { ...process.env };
-	try {
-		const keys = await getDecryptedApiKeys();
-		if (keys.falApiKey) {
-			env.FAL_KEY = keys.falApiKey;
-			env.FAL_API_KEY = keys.falApiKey;
-		}
-		if (keys.geminiApiKey) {
-			env.GEMINI_API_KEY = keys.geminiApiKey;
-		}
-	} catch (error) {
-		claudeLog.warn(HANDLER_NAME, "Failed to load API keys:", error);
-	}
-	return env;
-}
-
-/**
- * Run AICP video analysis and return results.
+ * Run video analysis via native pipeline executor and return results.
  */
 export async function analyzeVideo(
 	projectId: string,
@@ -198,46 +179,56 @@ export async function analyzeVideo(
 		const videoPath = await resolveVideoPath(safeProjectId, options.source);
 		claudeLog.info(HANDLER_NAME, `Resolved video: ${videoPath}`);
 
-		// 2. Find aicp binary
-		const { cmd, baseArgs } = await findAicpCommand();
-
-		// 3. Prepare output directory
+		// 2. Prepare output directory
 		const outputDir = join(getProjectPath(safeProjectId), "analysis");
 		mkdirSync(outputDir, { recursive: true });
 
-		// 4. Build args
+		// 3. Determine model and prompt
+		const modelKey = options.model || "gemini-2.5-flash";
 		const analysisType = options.analysisType || "timeline";
-		const model = options.model || "gemini-2.5-flash";
-		const format = options.format || "md";
-		const args = [
-			...baseArgs,
-			"analyze-video",
-			"-i",
-			videoPath,
-			"-t",
-			analysisType,
-			"-m",
-			model,
-			"-o",
-			outputDir,
-			"-f",
-			format === "md" || format === "json" ? format : "both",
-		];
+		const prompt =
+			ANALYSIS_PROMPTS[analysisType] || "Describe this video in detail";
 
-		// 5. Build environment
-		const spawnEnv = await buildAnalyzeEnv();
-		if (!spawnEnv.FAL_KEY && model !== "gemini-direct") {
+		// 4. Check native model is available
+		if (!ModelRegistry.has(NATIVE_MODEL)) {
 			return {
 				success: false,
-				error:
-					"FAL API key not configured. Go to Settings -> API Keys to set it.",
+				error: `Analysis model '${NATIVE_MODEL}' not registered in native pipeline`,
 			};
 		}
 
-		claudeLog.info(HANDLER_NAME, `Executing: ${cmd} ${args.join(" ")}`);
+		// 5. Build pipeline step with model override if needed
+		const stepParams: Record<string, unknown> = {
+			prompt,
+			analysis_type: analysisType,
+		};
+		const routedModelId = MODEL_ID_MAP[modelKey];
+		if (routedModelId) {
+			stepParams.model = routedModelId;
+		}
 
-		// 6. Spawn and collect output
-		const result = await spawnAnalysis(cmd, args, spawnEnv);
+		const step: PipelineStep = {
+			type: "image_understanding",
+			model: NATIVE_MODEL,
+			params: stepParams,
+			enabled: true,
+			retryCount: 0,
+		};
+
+		claudeLog.info(
+			HANDLER_NAME,
+			`Executing native analysis: model=${modelKey}, type=${analysisType}`
+		);
+
+		// 6. Execute via native pipeline (handles FAL upload + API call)
+		const executor = new PipelineExecutor();
+		const result = await executor.executeStep(
+			step,
+			{ videoUrl: videoPath },
+			{
+				outputDir,
+			}
+		);
 		const duration = (Date.now() - startTime) / 1000;
 
 		if (!result.success) {
@@ -248,10 +239,42 @@ export async function analyzeVideo(
 			};
 		}
 
-		// 7. Read output files
+		// 7. Process results
+		const content = result.text || result.data;
+		let markdown: string | undefined;
+		let json: Record<string, unknown> | undefined;
+
+		if (typeof content === "string") {
+			markdown = content;
+			// Try to parse JSON from the response
+			try {
+				const cleaned = content
+					.replace(/^```(?:json)?\n?/m, "")
+					.replace(/\n?```$/m, "")
+					.trim();
+				json = JSON.parse(cleaned);
+			} catch {
+				// Not JSON, keep as markdown
+			}
+		} else if (typeof content === "object" && content !== null) {
+			json = content as Record<string, unknown>;
+			markdown = JSON.stringify(content, null, 2);
+		}
+
+		// 8. Save output files
 		const videoStem = basename(videoPath, extname(videoPath));
-		const outputFiles = findOutputFiles(outputDir, videoStem);
-		const { markdown, json } = readAnalysisResults(outputFiles);
+		const outputFiles: string[] = [];
+
+		if (markdown) {
+			const mdPath = join(outputDir, `${videoStem}_analysis.md`);
+			writeFileSync(mdPath, markdown);
+			outputFiles.push(mdPath);
+		}
+		if (json) {
+			const jsonPath = join(outputDir, `${videoStem}_analysis.json`);
+			writeFileSync(jsonPath, JSON.stringify(json, null, 2));
+			outputFiles.push(jsonPath);
+		}
 
 		return {
 			success: true,
@@ -260,9 +283,7 @@ export async function analyzeVideo(
 			outputFiles,
 			videoPath,
 			duration,
-			cost: json?.usage
-				? (json.usage as Record<string, number>).cost
-				: undefined,
+			cost: result.cost,
 		};
 	} catch (error) {
 		const duration = (Date.now() - startTime) / 1000;
@@ -270,125 +291,6 @@ export async function analyzeVideo(
 		claudeLog.error(HANDLER_NAME, message);
 		return { success: false, error: message, duration };
 	}
-}
-
-/**
- * Spawn the aicp process and wait for completion.
- */
-function spawnAnalysis(
-	cmd: string,
-	args: string[],
-	env: NodeJS.ProcessEnv
-): Promise<{
-	success: boolean;
-	stdout: string;
-	stderr: string;
-	error?: string;
-}> {
-	return new Promise((resolve) => {
-		const proc = spawn(cmd, args, {
-			windowsHide: true,
-			stdio: ["ignore", "pipe", "pipe"],
-			env,
-		});
-
-		let stdout = "";
-		let stderr = "";
-		let settled = false;
-
-		const timeoutId = setTimeout(() => {
-			if (!settled) {
-				settled = true;
-				try {
-					proc.kill("SIGTERM");
-				} catch {
-					/* ignore */
-				}
-				resolve({
-					success: false,
-					stdout,
-					stderr,
-					error: `Analysis timed out after ${ANALYSIS_TIMEOUT_MS / 1000}s`,
-				});
-			}
-		}, ANALYSIS_TIMEOUT_MS);
-
-		proc.stdout?.on("data", (chunk: Buffer) => {
-			stdout += chunk.toString();
-		});
-
-		proc.stderr?.on("data", (chunk: Buffer) => {
-			stderr += chunk.toString();
-		});
-
-		proc.on("close", (code) => {
-			if (settled) return;
-			settled = true;
-			clearTimeout(timeoutId);
-
-			if (code === 0) {
-				resolve({ success: true, stdout, stderr });
-			} else {
-				const errorLine = stderr
-					.split("\n")
-					.find((l) => l.includes("❌") || l.includes("Error"));
-				resolve({
-					success: false,
-					stdout,
-					stderr,
-					error: errorLine || `aicp exited with code ${code}`,
-				});
-			}
-		});
-
-		proc.on("error", (err) => {
-			if (settled) return;
-			settled = true;
-			clearTimeout(timeoutId);
-			resolve({ success: false, stdout, stderr, error: err.message });
-		});
-	});
-}
-
-/**
- * Find analysis output files matching the video stem in the output directory.
- */
-function findOutputFiles(outputDir: string, videoStem: string): string[] {
-	try {
-		const entries = readdirSync(outputDir);
-		return entries
-			.filter((name) => name.startsWith(videoStem) && !name.startsWith("."))
-			.map((name) => join(outputDir, name))
-			.sort();
-	} catch {
-		return [];
-	}
-}
-
-/**
- * Read markdown and JSON results from output files.
- */
-function readAnalysisResults(outputFiles: string[]): {
-	markdown?: string;
-	json?: Record<string, unknown>;
-} {
-	let markdown: string | undefined;
-	let json: Record<string, unknown> | undefined;
-
-	for (const filePath of outputFiles) {
-		try {
-			if (filePath.endsWith(".md")) {
-				markdown = readFileSync(filePath, "utf-8");
-			} else if (filePath.endsWith(".json")) {
-				const content = readFileSync(filePath, "utf-8");
-				json = JSON.parse(content);
-			}
-		} catch (error) {
-			claudeLog.warn(HANDLER_NAME, `Failed to read ${filePath}:`, error);
-		}
-	}
-
-	return { markdown, json };
 }
 
 /**
