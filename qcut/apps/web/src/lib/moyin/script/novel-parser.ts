@@ -1,0 +1,528 @@
+/**
+ * Novel-to-Script Parser — main orchestrator.
+ *
+ * 3-step pipeline:
+ * 1. Parallel character + location analysis
+ * 2. Clip splitting with boundary validation (clip-matching.ts)
+ * 3. Parallel screenplay conversion per clip
+ *
+ * Uses LLMAdapter from script-parser.ts for all LLM calls.
+ */
+
+import type { LLMAdapter } from "./script-parser";
+import { createClipContentMatcher, type ClipMatchLevel } from "./clip-matching";
+import { repairAndParseJSON, repairAndParseJSONArray } from "./json-repair";
+import {
+	getCharacterAnalysisPrompt,
+	getLocationAnalysisPrompt,
+	getClipSplitPrompt,
+	getScreenplayConversionPrompt,
+} from "./novel-prompts";
+
+// ─── Types ──────────────────────────────────────────────────────────
+
+export type NovelParseStep =
+	| "analyze_characters"
+	| "analyze_locations"
+	| "split_clips"
+	| "screenplay_conversion";
+
+export interface NovelParseConfig {
+	/** Raw novel/story text */
+	text: string;
+	/** Language hint */
+	language?: "zh" | "en" | "auto";
+	/** Max clips to generate (default: auto based on length) */
+	maxClips?: number;
+	/** Existing characters to preserve (from project) */
+	existingCharacters?: string[];
+	/** Existing locations to preserve */
+	existingLocations?: string[];
+	/** LLM adapter function */
+	callLLM: LLMAdapter;
+	/** Progress callback */
+	onProgress?: (step: NovelParseStep, progress: number) => void;
+	/** Step error callback */
+	onStepError?: (step: NovelParseStep, error: string) => void;
+}
+
+export interface ExtractedCharacter {
+	name: string;
+	introduction: string;
+	visualTraits?: string;
+	gender?: string;
+	age?: string;
+}
+
+export interface ExtractedLocation {
+	name: string;
+	description: string;
+	time?: string;
+	atmosphere?: string;
+}
+
+export interface NovelClip {
+	id: string;
+	startText: string;
+	endText: string;
+	content: string;
+	summary: string;
+	characters: string[];
+	location: string | null;
+	matchLevel: ClipMatchLevel;
+	matchConfidence: number;
+}
+
+export interface ClipScreenplay {
+	clipId: string;
+	success: boolean;
+	sceneCount: number;
+	screenplay?: {
+		scenes: Array<{
+			location: string;
+			time: string;
+			action: string;
+			dialogue: Array<{
+				character: string;
+				line: string;
+				direction?: string;
+			}>;
+		}>;
+	};
+	error?: string;
+}
+
+export interface NovelParseResult {
+	characters: ExtractedCharacter[];
+	locations: ExtractedLocation[];
+	clips: NovelClip[];
+	screenplays: ClipScreenplay[];
+	summary: {
+		characterCount: number;
+		locationCount: number;
+		clipCount: number;
+		screenplaySuccessCount: number;
+		screenplayFailedCount: number;
+		totalScenes: number;
+	};
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────
+
+const MAX_SPLIT_BOUNDARY_ATTEMPTS = 2;
+const ANALYSIS_MAX_TOKENS = 2200;
+const SCREENPLAY_MAX_TOKENS = 2200;
+
+/** Simple language detection based on Chinese character ratio. */
+export function detectLanguage(text: string): "zh" | "en" {
+	const normalized = text.trim();
+	if (!normalized) return "en";
+	const chineseChars = (normalized.match(/[\u4e00-\u9fff]/g) || []).length;
+	return chineseChars / normalized.length > 0.1 ? "zh" : "en";
+}
+
+/** Replace `{placeholder}` tokens in a prompt template. */
+function applyTemplate(
+	template: string,
+	replacements: Record<string, string>
+): string {
+	let result = template;
+	for (const [key, value] of Object.entries(replacements)) {
+		result = result.replace(new RegExp(`\\{${key}\\}`, "g"), value);
+	}
+	return result;
+}
+
+/** Convert unknown value to string, defaulting to empty string. */
+function asString(value: unknown): string {
+	return typeof value === "string" ? value : "";
+}
+
+/** Keep only non-empty string items from an unknown array value. */
+function toStringArray(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+	return value
+		.map((item) => (typeof item === "string" ? item.trim() : ""))
+		.filter(Boolean);
+}
+
+/** Keep only plain object entries from an unknown array value. */
+function toObjectArray(value: unknown): Array<Record<string, unknown>> {
+	if (!Array.isArray(value)) return [];
+	return value.filter(
+		(item): item is Record<string, unknown> =>
+			!!item && typeof item === "object"
+	);
+}
+
+// ─── Step 1: Character Analysis ─────────────────────────────────────
+
+/** Extract characters from novel text via the character-analysis prompt. */
+export async function analyzeCharacters(
+	text: string,
+	existingCharacters: string[],
+	callLLM: LLMAdapter,
+	language: string
+): Promise<ExtractedCharacter[]> {
+	const template = getCharacterAnalysisPrompt(language);
+	const existingText =
+		existingCharacters.length > 0
+			? existingCharacters.join(language === "zh" ? "\u3001" : ", ")
+			: language === "zh"
+				? "\u65E0"
+				: "None";
+
+	const prompt = applyTemplate(template, {
+		input: text,
+		characters_lib_name: existingText,
+	});
+
+	const response = await callLLM(
+		"You are a professional screenwriter.",
+		prompt,
+		{ maxTokens: ANALYSIS_MAX_TOKENS }
+	);
+
+	const parsed = repairAndParseJSON<Record<string, unknown>>(response);
+	const characters = toObjectArray(parsed.characters ?? parsed.new_characters);
+
+	return characters.map((c) => ({
+		name: asString(c.name),
+		introduction: asString(c.introduction),
+		visualTraits: asString(c.visualTraits) || undefined,
+		gender: asString(c.gender) || undefined,
+		age: asString(c.age) || undefined,
+	}));
+}
+
+// ─── Step 1: Location Analysis ──────────────────────────────────────
+
+/** Extract locations from novel text via the location-analysis prompt. */
+export async function analyzeLocations(
+	text: string,
+	existingLocations: string[],
+	callLLM: LLMAdapter,
+	language: string
+): Promise<ExtractedLocation[]> {
+	const template = getLocationAnalysisPrompt(language);
+	const existingText =
+		existingLocations.length > 0
+			? existingLocations.join(language === "zh" ? "\u3001" : ", ")
+			: language === "zh"
+				? "\u65E0"
+				: "None";
+
+	const prompt = applyTemplate(template, {
+		input: text,
+		locations_lib_name: existingText,
+	});
+
+	const response = await callLLM(
+		"You are a professional screenwriter.",
+		prompt,
+		{ maxTokens: ANALYSIS_MAX_TOKENS }
+	);
+
+	const parsed = repairAndParseJSON<Record<string, unknown>>(response);
+	const locations = toObjectArray(parsed.locations);
+
+	return locations.map((l) => ({
+		name: asString(l.name),
+		description: asString(l.description),
+		time: asString(l.time) || undefined,
+		atmosphere: asString(l.atmosphere) || undefined,
+	}));
+}
+
+// ─── Step 2: Clip Splitting ─────────────────────────────────────────
+
+/**
+ * Split novel text into ordered clips and validate each boundary against
+ * source text with multi-level matching.
+ */
+export async function splitNovelIntoClips(
+	text: string,
+	characters: string[],
+	locations: string[],
+	callLLM: LLMAdapter,
+	language: string,
+	maxAttempts: number = MAX_SPLIT_BOUNDARY_ATTEMPTS
+): Promise<NovelClip[]> {
+	const template = getClipSplitPrompt(language);
+	const sep = language === "zh" ? "\u3001" : ", ";
+	const none = language === "zh" ? "\u65E0" : "None";
+	const noIntro =
+		language === "zh"
+			? "\u6682\u65E0\u89D2\u8272\u4ECB\u7ECD"
+			: "No character introductions available";
+
+	const prompt = applyTemplate(template, {
+		input: text,
+		characters_lib_name: characters.length > 0 ? characters.join(sep) : none,
+		locations_lib_name: locations.length > 0 ? locations.join(sep) : none,
+		characters_introduction: noIntro,
+	});
+
+	let lastError: Error | null = null;
+
+	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+		try {
+			const response = await callLLM(
+				"You are a professional screenwriter.",
+				prompt,
+				{ maxTokens: 2600 }
+			);
+
+			const rawClips =
+				repairAndParseJSONArray<Record<string, unknown>>(response);
+			if (rawClips.length === 0) {
+				lastError = new Error("split_clips returned empty clips");
+				continue;
+			}
+
+			const matcher = createClipContentMatcher(text);
+			const clips: NovelClip[] = [];
+			let searchFrom = 0;
+			let failed = false;
+
+			for (let index = 0; index < rawClips.length; index += 1) {
+				const item = rawClips[index];
+				const startText = asString(item.start);
+				const endText = asString(item.end);
+				const clipId = `clip_${index + 1}`;
+
+				const match = matcher.matchBoundary(startText, endText, searchFrom);
+				if (!match) {
+					lastError = new Error(
+						`Boundary matching failed at ${clipId}: start="${startText}" end="${endText}"`
+					);
+					failed = true;
+					break;
+				}
+
+				clips.push({
+					id: clipId,
+					startText,
+					endText,
+					summary: asString(item.summary),
+					location: asString(item.location) || null,
+					characters: toStringArray(item.characters),
+					content: text.slice(match.startIndex, match.endIndex),
+					matchLevel: match.level,
+					matchConfidence: match.confidence,
+				});
+				searchFrom = match.endIndex;
+			}
+
+			if (!failed) return clips;
+		} catch (error) {
+			lastError =
+				error instanceof Error
+					? error
+					: new Error(`split_clips failed: ${String(error)}`);
+		}
+	}
+
+	throw lastError ?? new Error("split_clips boundary matching failed");
+}
+
+// ─── Step 3: Screenplay Conversion ──────────────────────────────────
+
+/** Convert a single clip into screenplay scenes using the conversion prompt. */
+export async function convertClipToScreenplay(
+	clip: NovelClip,
+	characters: string[],
+	locations: string[],
+	callLLM: LLMAdapter,
+	language: string
+): Promise<ClipScreenplay> {
+	try {
+		const template = getScreenplayConversionPrompt(language);
+		const sep = language === "zh" ? "\u3001" : ", ";
+		const none = language === "zh" ? "\u65E0" : "None";
+		const noIntro =
+			language === "zh"
+				? "\u6682\u65E0\u89D2\u8272\u4ECB\u7ECD"
+				: "No character introductions available";
+
+		const prompt = applyTemplate(template, {
+			clip_content: clip.content,
+			characters_lib_name: characters.length > 0 ? characters.join(sep) : none,
+			locations_lib_name: locations.length > 0 ? locations.join(sep) : none,
+			characters_introduction: noIntro,
+		});
+
+		const response = await callLLM(
+			"You are a professional screenwriter.",
+			prompt,
+			{ maxTokens: SCREENPLAY_MAX_TOKENS }
+		);
+
+		const parsed = repairAndParseJSON<Record<string, unknown>>(response);
+		const scenes = Array.isArray(parsed.scenes) ? parsed.scenes : [];
+
+		return {
+			clipId: clip.id,
+			success: true,
+			sceneCount: scenes.length,
+			screenplay: {
+				scenes: scenes.map((s: Record<string, unknown>) => ({
+					location: asString(s.location),
+					time: asString(s.time),
+					action: asString(s.action),
+					dialogue: toObjectArray(s.dialogue).map((d) => ({
+						character: asString(d.character),
+						line: asString(d.line),
+						direction: asString(d.direction) || undefined,
+					})),
+				})),
+			},
+		};
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		return {
+			clipId: clip.id,
+			success: false,
+			sceneCount: 0,
+			error: message,
+		};
+	}
+}
+
+// ─── Main Orchestrator ──────────────────────────────────────────────
+
+/** Run the end-to-end novel parsing pipeline and return structured output. */
+export async function parseNovel(
+	config: NovelParseConfig
+): Promise<NovelParseResult> {
+	const { text, language = "auto", callLLM, onProgress } = config;
+	/** Report per-step errors through config callback and return message text. */
+	const reportStepError = ({
+		step,
+		error,
+	}: {
+		step: NovelParseStep;
+		error: unknown;
+	}): string => {
+		const message = error instanceof Error ? error.message : String(error);
+		config.onStepError?.(step, message);
+		return message;
+	};
+
+	if (!text || !text.trim()) {
+		throw new Error("Novel text is empty");
+	}
+
+	// Detect language if auto
+	const lang = language === "auto" ? detectLanguage(text) : language;
+	const maxClips =
+		typeof config.maxClips === "number" && Number.isFinite(config.maxClips)
+			? Math.max(0, Math.floor(config.maxClips))
+			: undefined;
+
+	// Step 1: Parallel character + location analysis
+	onProgress?.("analyze_characters", 0);
+	onProgress?.("analyze_locations", 0);
+	const characterPromise = analyzeCharacters(
+		text,
+		config.existingCharacters ?? [],
+		callLLM,
+		lang
+	).catch((error) => {
+		reportStepError({ step: "analyze_characters", error });
+		throw error;
+	});
+	const locationPromise = analyzeLocations(
+		text,
+		config.existingLocations ?? [],
+		callLLM,
+		lang
+	).catch((error) => {
+		reportStepError({ step: "analyze_locations", error });
+		throw error;
+	});
+	const [characters, locations] = await Promise.all([
+		characterPromise,
+		locationPromise,
+	]);
+	onProgress?.("analyze_characters", 100);
+	onProgress?.("analyze_locations", 100);
+
+	// Step 2: Split into clips with boundary validation
+	onProgress?.("split_clips", 0);
+	let clips: NovelClip[];
+	try {
+		clips = await splitNovelIntoClips(
+			text,
+			characters.map((c) => c.name),
+			locations.map((l) => l.name),
+			callLLM,
+			lang
+		);
+	} catch (error) {
+		reportStepError({ step: "split_clips", error });
+		throw error;
+	}
+	onProgress?.("split_clips", 100);
+	const clipsToConvert =
+		maxClips != null && maxClips < clips.length
+			? clips.slice(0, maxClips)
+			: clips;
+
+	// Step 3: Convert each clip to screenplay (parallel)
+	onProgress?.("screenplay_conversion", 0);
+	if (clipsToConvert.length === 0) {
+		onProgress?.("screenplay_conversion", 100);
+	}
+	const screenplays = await Promise.all(
+		clipsToConvert.map((clip, i) =>
+			convertClipToScreenplay(
+				clip,
+				characters.map((c) => c.name),
+				locations.map((l) => l.name),
+				callLLM,
+				lang
+			)
+				.then((result) => {
+					if (!result.success && result.error) {
+						reportStepError({
+							step: "screenplay_conversion",
+							error: `Clip ${clip.id}: ${result.error}`,
+						});
+					}
+					onProgress?.(
+						"screenplay_conversion",
+						((i + 1) / clipsToConvert.length) * 100
+					);
+					return result;
+				})
+				.catch((error) => {
+					const message = reportStepError({
+						step: "screenplay_conversion",
+						error,
+					});
+					return {
+						clipId: clip.id,
+						success: false,
+						sceneCount: 0,
+						error: message,
+					};
+				})
+		)
+	);
+
+	return {
+		characters,
+		locations,
+		clips: clipsToConvert,
+		screenplays,
+		summary: {
+			characterCount: characters.length,
+			locationCount: locations.length,
+			clipCount: clipsToConvert.length,
+			screenplaySuccessCount: screenplays.filter((s) => s.success).length,
+			screenplayFailedCount: screenplays.filter((s) => !s.success).length,
+			totalScenes: screenplays.reduce((sum, s) => sum + s.sceneCount, 0),
+		},
+	};
+}

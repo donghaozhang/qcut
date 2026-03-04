@@ -227,13 +227,16 @@ export async function handleEditorCommand(
 			case "moyin":
 				return await handleMoyinCommand(client, options);
 
+			case "novel":
+				return await handleNovelCommand(client, options, onProgress);
+
 			case "screenshot":
 				return await handleScreenshotCommand(client, options);
 
 			default:
 				return {
 					success: false,
-					error: `Unknown editor module: ${module}. Available: health, media, project, timeline, editing, analyze, transcribe, generate, export, diagnostics, mcp, remotion, navigator, screen-recording, ui, moyin, screenshot, undo, redo, state`,
+					error: `Unknown editor module: ${module}. Available: health, media, project, timeline, editing, analyze, transcribe, generate, export, diagnostics, mcp, remotion, navigator, screen-recording, ui, moyin, novel, screenshot, undo, redo, state`,
 				};
 		}
 	} catch (err) {
@@ -508,6 +511,88 @@ async function handleMoyinCommand(
 			return {
 				success: false,
 				error: `Unknown moyin action: ${action}. Available: set-script, parse, status`,
+			};
+	}
+}
+
+/**
+ * Handle `editor:novel:parse` command.
+ * Reads a novel text file and sends it to the editor for parsing.
+ */
+async function handleNovelCommand(
+	client: EditorApiClient,
+	options: CLIRunOptions,
+	onProgress: ProgressFn
+): Promise<CLIResult> {
+	const parts = options.command.split(":");
+	const action = parts[2]; // "parse"
+
+	switch (action) {
+		case "parse": {
+			if (!options.input) {
+				return {
+					success: false,
+					error: "Missing --input. Provide path to a novel text file.",
+				};
+			}
+
+			let text: string;
+			try {
+				const fs = await import("node:fs/promises");
+				text = await fs.readFile(options.input, "utf-8");
+			} catch (error) {
+				const reason = error instanceof Error ? error.message : String(error);
+				return {
+					success: false,
+					error: `Failed to read input file: ${options.input}. ${reason}`,
+				};
+			}
+
+			if (!text.trim()) {
+				return { success: false, error: "Input file is empty." };
+			}
+
+			onProgress({
+				stage: "novel-parse",
+				percent: 10,
+				message: `Parsing novel (${text.length} chars)...`,
+			});
+
+			const body: Record<string, unknown> = {
+				text,
+				language: options.language ?? "auto",
+			};
+			if (options.maxClips != null) body.maxClips = options.maxClips;
+
+			const data = await client.post("/api/claude/novel/parse", body);
+
+			onProgress({
+				stage: "novel-parse",
+				percent: 100,
+				message: "Novel parsing complete.",
+			});
+
+			// Write to output file if specified
+			if (options.output) {
+				const fs = await import("node:fs/promises");
+				await fs.writeFile(
+					options.output,
+					JSON.stringify(data, null, 2),
+					"utf-8"
+				);
+				return {
+					success: true,
+					data: { message: `Wrote ${options.output}`, result: data },
+					outputPath: options.output,
+				};
+			}
+
+			return { success: true, data };
+		}
+		default:
+			return {
+				success: false,
+				error: `Unknown novel action: ${action}. Available: parse`,
 			};
 	}
 }

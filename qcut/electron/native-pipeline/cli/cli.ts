@@ -303,6 +303,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			novel: { type: "string" },
 			title: { type: "string" },
 			"max-scenes": { type: "string" },
+			"max-clips": { type: "string" },
 			"scripts-only": { type: "boolean", default: false },
 			"storyboard-only": { type: "boolean", default: false },
 			"no-portraits": { type: "boolean", default: false },
@@ -493,6 +494,11 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			? Number.isNaN(parseInt(values["max-scenes"] as string, 10))
 				? undefined
 				: parseInt(values["max-scenes"] as string, 10)
+			: undefined,
+		maxClips: values["max-clips"]
+			? Number.isNaN(parseInt(values["max-clips"] as string, 10))
+				? undefined
+				: parseInt(values["max-clips"] as string, 10)
 			: undefined,
 		scriptsOnly: (values["scripts-only"] as boolean) ?? false,
 		storyboardOnly: (values["storyboard-only"] as boolean) ?? false,

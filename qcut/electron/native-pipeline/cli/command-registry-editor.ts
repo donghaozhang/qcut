@@ -594,6 +594,26 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		]
 	),
 
+	// ── Novel Parse ──
+	"editor:novel:parse": ed(
+		"editor:novel:parse",
+		"Parse novel text into structured screenplay",
+		[
+			f("--input", "string", "Path to novel text file", { required: true }),
+			f("--output", "string", "Output JSON path (default: stdout)"),
+			f("--language", "string", "Language hint (zh/en/auto)", {
+				default: "auto",
+				enum: ["zh", "en", "auto"],
+			}),
+			f("--max-clips", "number", "Maximum clips to generate"),
+			f("--json", "boolean", "JSON output format"),
+		],
+		[
+			"qcut-pipeline editor:novel:parse --input novel.txt --output screenplay.json --language zh",
+			"qcut-pipeline editor:novel:parse --input story.txt --json",
+		]
+	),
+
 	// ── Moyin (editor) ──
 	"editor:moyin:set-script": ed(
 		"editor:moyin:set-script",
