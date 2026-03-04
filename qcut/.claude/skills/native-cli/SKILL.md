@@ -1,7 +1,6 @@
 ---
 name: native-cli
 description: Run QCut's native TypeScript pipeline CLI for AI content generation, video analysis, transcription, YAML pipelines, ViMax agentic video production, and project management. Also use for editor HTTP automation tasks (state snapshots, events, transactions, and notification bridge control) when user needs deterministic state-aware control.
-allowed-tools: Bash, Read, Grep
 argument-hint: [command] [--flags]
 ---
 

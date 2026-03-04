@@ -1,7 +1,6 @@
 ---
 name: ai-content-pipeline
 description: Generate AI content (images, videos, audio, avatars) and analyze videos with AICP in QCut. Primary mode uses QCut's bundled AICP binary with secure API key injection.
-allowed-tools: Bash, Read, Grep
 ---
 
 # AI Content Pipeline Skill
