@@ -165,3 +165,29 @@ error: script "pipeline" exited with code 1
 - CLI preflight failed on editor connectivity for all step 3/4 commands.
 - No transcription, auto-edit, or filler analysis job was started because the editor endpoint was unreachable.
 - This run conflicts with the expected "QCut already running" state and should be re-run after restoring editor availability at `127.0.0.1:8765`.
+
+## Test Run: 2026-03-05 01:55 AEDT (Codex with --dangerously-bypass-approvals-and-sandbox)
+
+### Results Summary
+| Step | Command | Status | Notes |
+|------|---------|--------|-------|
+| 0 | editor:health --status-only | ✅ | ok, v2026.03.04.4, apiVersion 1.1.0 |
+| 1 | editor:navigator:projects | ✅ | Active project: 59084b5d-fac6-472f-89a6-203bfa2b461b |
+| 1b | editor:timeline:export | ✅ | ai-news-test.mp4, 130.561s, 2 elements on timeline |
+| 1c | editor:media:list | ✅ | media_YWktbmV3cy10ZXN0Lm1wNA |
+| 2 | editor:transcribe:start --poll --load-speech | ✅ | Job transcribe_1772636069526_jbobj completed, provider: elevenlabs |
+| 3a | editor:editing:auto-edit --remove-fillers --poll | ❌ | 'Auto-edit pipeline failed' - job stuck at progress 10, same ipcMain.on bug |
+| 3b | editor:analyze:fillers | ⚠️ | fillers: [] (empty!), but found silences: 4, totalSilenceTime: 6.5s |
+| 4 | Save transcription text | ✅ | /Users/peter/.openclaw/workspace/transcription-output.txt (2196 bytes) |
+
+### Error Details
+- auto-edit: Job created (autoedit_xxx) but immediately failed at progress 10
+- Same root cause: Cannot read properties of undefined (reading 'on') in executeBatchCuts
+- analyze:fillers returns 0 fillers even though auto-edit internally found 6 fillers in previous run — suggests the standalone filler endpoint uses different detection logic or requires pre-existing transcription data passed differently
+
+### Key Observations
+1. **New --status-only flag works** — compact health check saves tokens
+2. **Transcription works reliably** — elevenlabs provider, completes in ~20s
+3. **auto-edit pipeline still broken** — same ipcMain/BrowserWindow bug as before
+4. **analyze:fillers inconsistent** — returns empty fillers but finds silences; the auto-edit internal pipeline finds fillers fine (6 fillers, 3.1s in earlier run)
+5. **Two elements on timeline** — duplicate ai-news-test.mp4 entries (from manual + CLI add)
