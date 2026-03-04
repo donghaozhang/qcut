@@ -117,3 +117,51 @@ Check `getWindow()` implementation — it may be returning a window reference th
 
 - The `editor:analyze:fillers` CLI command (standalone) returns empty results even when the auto-edit pipeline successfully finds 6 fillers internally — may be a separate bug in the filler analysis endpoint.
 - Codex attempted a fix (2026-03-05) but modified `claude-media-handler.ts` (media ID resolution) — unrelated to this bug. Those changes should be reviewed separately.
+
+## Test Run: 2026-03-05 01:14 AEDT (Codex)
+
+### Results Summary
+| Step | Command | Status | Notes |
+|------|---------|--------|-------|
+| 0 | QCut health | ❌ | `curl http://127.0.0.1:8765` failed: connection refused |
+| 1 | yt-dlp download | ✅ | /tmp/ai-news-test.mp4 (131s) |
+| 2 | project + import + timeline | ✅ | Already done |
+| 3 | transcribe | ❌ | `editor:transcribe:start:failed` (`QCut editor not running at http://127.0.0.1:8765`) |
+| 4a | auto-edit --remove-fillers | ❌ | `editor:editing:auto-edit:failed` (`QCut editor not running at http://127.0.0.1:8765`) |
+| 4b | analyze:fillers | ❌ | `editor:analyze:fillers:failed` (`QCut editor not running at http://127.0.0.1:8765`) |
+
+### Error Details
+
+```text
+$ curl -i --max-time 5 http://127.0.0.1:8765
+curl: (7) Failed to connect to 127.0.0.1 port 8765 after 0 ms: Couldn't connect to server
+
+$ bun run pipeline editor:transcribe:start --project-id 59084b5d-fac6-472f-89a6-203bfa2b461b --media-id media_YWktbmV3cy10ZXN0Lm1wNA --language en --poll --poll-interval 3 --load-speech --json
+{
+  "status": "error",
+  "error": "QCut editor not running at http://127.0.0.1:8765\nStart QCut with: bun run electron:dev",
+  "code": "editor:transcribe:start:failed"
+}
+error: script "pipeline" exited with code 1
+
+$ bun run pipeline editor:editing:auto-edit --project-id 59084b5d-fac6-472f-89a6-203bfa2b461b --element-id element_1772633573844_rxxflaa --media-id media_YWktbmV3cy10ZXN0Lm1wNA --remove-fillers --poll --json
+{
+  "status": "error",
+  "error": "QCut editor not running at http://127.0.0.1:8765\nStart QCut with: bun run electron:dev",
+  "code": "editor:editing:auto-edit:failed"
+}
+error: script "pipeline" exited with code 1
+
+$ bun run pipeline editor:analyze:fillers --project-id 59084b5d-fac6-472f-89a6-203bfa2b461b --media-id media_YWktbmV3cy10ZXN0Lm1wNA --json
+{
+  "status": "error",
+  "error": "QCut editor not running at http://127.0.0.1:8765\nStart QCut with: bun run electron:dev",
+  "code": "editor:analyze:fillers:failed"
+}
+error: script "pipeline" exited with code 1
+```
+
+### Observations
+- CLI preflight failed on editor connectivity for all step 3/4 commands.
+- No transcription, auto-edit, or filler analysis job was started because the editor endpoint was unreachable.
+- This run conflicts with the expected "QCut already running" state and should be re-run after restoring editor availability at `127.0.0.1:8765`.
