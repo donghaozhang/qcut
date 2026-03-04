@@ -216,25 +216,34 @@ async function matchVSCodeTaskLabel(
 		const orderedLabels = launcher?.dependsOn ?? config.tasks.filter((t) => t.command).map((t) => t.label!);
 
 		// 5. Build ordered commands list from tasks
-		const orderedTasks: { label: string; bin: string }[] = [];
+		const orderedTasks: { label: string; bin: string; command: string }[] = [];
 		for (const label of orderedLabels) {
 			const task = taskMap.get(label);
 			if (!task?.command) continue;
 			const bin = task.command.trim().split(/\s+/)[0] ?? "";
-			orderedTasks.push({ label, bin });
+			orderedTasks.push({ label, bin, command: task.command.trim() });
 		}
 
-		// 6. Match siblings to tasks by command binary, in order
-		// Walk through siblings, for each one that matches the next expected task command, assign the label
+		// 6. Match siblings to tasks by command, in order.
+		// A sibling matches a task if:
+		//   - The sibling's binary (basename) matches the task's binary AND
+		//   - The sibling's args are a substring of the task command or vice versa
+		// This prevents "/bin/zsh -il" (interactive shell) from matching a "zsh" task.
 		let taskIdx = 0;
 		for (const sibling of siblings) {
 			if (taskIdx >= orderedTasks.length) break;
-			const sibBin = (sibling.args.trim().split(/\s+/)[0] ?? "").split("/").pop() ?? "";
+			const sibParts = sibling.args.trim().split(/\s+/);
+			const sibBin = (sibParts[0] ?? "").split("/").pop() ?? "";
 			const expected = orderedTasks[taskIdx]!;
-			if (sibBin === expected.bin || sibling.args.includes(expected.bin)) {
-				if (sibling.pid === pid) return expected.label;
-				taskIdx++;
-			}
+
+			if (sibBin !== expected.bin) continue;
+
+			// For single-word commands (e.g. "zsh"), require no extra flags in process args
+			// to avoid matching interactive shells like "/bin/zsh -il"
+			if (!expected.command.includes(" ") && sibParts.length > 1) continue;
+
+			if (sibling.pid === pid) return expected.label;
+			taskIdx++;
 		}
 	} catch {
 		// Malformed tasks.json
