@@ -15,7 +15,10 @@ import {
 } from "@/components/editor/media-panel/store";
 import { useExportStore } from "@/stores/export-store";
 
-const propertiesPanelTabs: Record<string, "properties" | "export" | "settings"> = {
+const propertiesPanelTabs: Record<
+	string,
+	"properties" | "export" | "settings"
+> = {
 	properties: "properties",
 	export: "export",
 	"api-keys": "settings",

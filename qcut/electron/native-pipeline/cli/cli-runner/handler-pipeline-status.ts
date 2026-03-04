@@ -24,7 +24,8 @@ export async function handlePipelineStatus(
 		if (!healthy) {
 			return {
 				success: false,
-				error: `QCut editor not reachable\nStart QCut with: bun run electron:dev`,
+				error:
+					"QCut editor not reachable\nStart QCut with: bun run electron:dev",
 			};
 		}
 

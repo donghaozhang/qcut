@@ -222,9 +222,13 @@ export async function analyzeVideo(
 
 		// 6. Execute via native pipeline (handles FAL upload + API call)
 		const executor = new PipelineExecutor();
-		const result = await executor.executeStep(step, { videoUrl: videoPath }, {
-			outputDir,
-		});
+		const result = await executor.executeStep(
+			step,
+			{ videoUrl: videoPath },
+			{
+				outputDir,
+			}
+		);
 		const duration = (Date.now() - startTime) / 1000;
 
 		if (!result.success) {

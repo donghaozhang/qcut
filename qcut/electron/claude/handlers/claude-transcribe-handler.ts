@@ -668,10 +668,7 @@ export async function transcribeMedia(
 		if (request.source.type === "path" && request.source.filePath) {
 			resolved = resolveFilePath(request.source.filePath);
 		} else if (request.source.type === "media" && request.source.mediaId) {
-			resolved = await resolveMediaPath(
-				safeProjectId,
-				request.source.mediaId
-			);
+			resolved = await resolveMediaPath(safeProjectId, request.source.mediaId);
 		} else {
 			throw new Error(
 				`Invalid source: type=${request.source.type}, provide filePath or mediaId`

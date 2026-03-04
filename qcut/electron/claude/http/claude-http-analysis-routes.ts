@@ -119,10 +119,7 @@ export function registerAnalysisRoutes(
 	// ==========================================================================
 	router.post("/api/claude/transcribe/:projectId", async (req) => {
 		if (!req.body?.mediaId && !req.body?.source) {
-			throw new HttpError(
-				400,
-				"Missing 'mediaId' or 'source' in request body"
-			);
+			throw new HttpError(400, "Missing 'mediaId' or 'source' in request body");
 		}
 		try {
 			const result = await transcribeMedia(req.params.projectId, {
@@ -159,10 +156,7 @@ export function registerAnalysisRoutes(
 	// Async transcription routes (preferred — avoids 30s HTTP timeout)
 	router.post("/api/claude/transcribe/:projectId/start", async (req) => {
 		if (!req.body?.mediaId && !req.body?.source) {
-			throw new HttpError(
-				400,
-				"Missing 'mediaId' or 'source' in request body"
-			);
+			throw new HttpError(400, "Missing 'mediaId' or 'source' in request body");
 		}
 		const { jobId } = startTranscribeJob(req.params.projectId, {
 			mediaId: req.body.mediaId,
