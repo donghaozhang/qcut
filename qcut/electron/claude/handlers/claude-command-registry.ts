@@ -781,8 +781,7 @@ function getCommandParamsSchema({
 
 		if (module === "transcribe") {
 			if (action === "run" || action === "start") {
-				required.push("mediaId");
-				add("provider", "language", "loadSpeech");
+				add("mediaId", "source", "provider", "language", "loadSpeech");
 			}
 			if (action === "status" || action === "cancel") required.push("jobId");
 			if (action === "list-jobs") {

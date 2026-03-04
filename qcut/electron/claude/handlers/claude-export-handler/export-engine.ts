@@ -176,9 +176,7 @@ async function resolveMediaFromDisk({
 					createdAt: stat.birthtimeMs,
 					modifiedAt: stat.mtimeMs,
 				};
-			} catch {
-				continue; // Broken symlink or inaccessible
-			}
+			} catch {}
 		}
 	}
 

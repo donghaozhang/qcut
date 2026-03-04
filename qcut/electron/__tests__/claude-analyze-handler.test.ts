@@ -85,25 +85,28 @@ vi.mock("node:fs", async (importOriginal) => {
 	};
 });
 
-vi.mock("../api-key-handler", () => ({
-	getDecryptedApiKeys: vi.fn(async () => ({
-		falApiKey: "test-fal-key",
-		geminiApiKey: null,
+vi.mock("../native-pipeline/execution/executor", () => ({
+	PipelineExecutor: vi.fn().mockImplementation(() => ({
+		executeStep: vi.fn(async () => ({
+			success: true,
+			text: "Test analysis result",
+			duration: 1.5,
+			cost: 0.003,
+		})),
 	})),
 }));
 
-vi.mock("../ai-pipeline-handler", () => ({
-	AIPipelineManager: vi.fn().mockImplementation(() => ({
-		getStatus: vi.fn(async () => ({
-			available: true,
-			version: "1.0.29",
-			source: "system",
-			compatible: true,
-			features: {},
+vi.mock("../native-pipeline/infra/registry", () => ({
+	ModelRegistry: {
+		has: vi.fn(() => true),
+		get: vi.fn(() => ({
+			key: "fal_video_qa",
+			name: "FAL Video Q&A",
+			provider: "fal",
+			endpoint: "openrouter/router/video/enterprise",
+			categories: ["image_understanding"],
 		})),
-		isAvailable: vi.fn(async () => true),
-		getCommand: vi.fn(() => ({ cmd: "aicp", baseArgs: [] })),
-	})),
+	},
 }));
 
 vi.mock("../claude/handlers/claude-media-handler", () => ({

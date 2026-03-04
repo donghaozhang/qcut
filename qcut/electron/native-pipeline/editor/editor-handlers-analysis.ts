@@ -241,7 +241,12 @@ async function dispatchTranscribe(
 // ---------------------------------------------------------------------------
 
 function buildTranscribeBody(opts: CLIRunOptions): Record<string, unknown> {
-	const body: Record<string, unknown> = { mediaId: opts.mediaId };
+	const body: Record<string, unknown> = {};
+	if (opts.source) {
+		body.source = parseSource(opts.source);
+	} else {
+		body.mediaId = opts.mediaId;
+	}
 	if (opts.provider) body.provider = opts.provider;
 	if (opts.language) body.language = opts.language;
 	if (opts.noDiarize) body.diarize = false;
@@ -253,7 +258,16 @@ async function transcribeRun(
 	opts: CLIRunOptions
 ): Promise<CLIResult> {
 	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
-	if (!opts.mediaId) return { success: false, error: "Missing --media-id" };
+	if (!opts.source && !opts.mediaId)
+		return {
+			success: false,
+			error: "Missing --source or --media-id",
+		};
+	if (opts.source && opts.mediaId)
+		return {
+			success: false,
+			error: "--source and --media-id are mutually exclusive",
+		};
 
 	const body = buildTranscribeBody(opts);
 
@@ -279,7 +293,13 @@ async function transcribeStart(
 	onProgress: ProgressFn
 ): Promise<CLIResult> {
 	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
-	if (!opts.mediaId) return { success: false, error: "Missing --media-id" };
+	if (!opts.source && !opts.mediaId)
+		return { success: false, error: "Missing --source or --media-id" };
+	if (opts.source && opts.mediaId)
+		return {
+			success: false,
+			error: "--source and --media-id are mutually exclusive",
+		};
 
 	const startResult = await client.post<{ jobId: string }>(
 		`/api/claude/transcribe/${opts.projectId}/start`,
@@ -319,10 +339,11 @@ async function transcribeStart(
 		? jobResult.result.words
 		: undefined;
 	if (opts.loadSpeech && words?.length) {
+		const sourceDesc = opts.source || opts.mediaId || "unknown";
 		await client.post(`/api/claude/transcribe/${opts.projectId}/load-speech`, {
 			words,
 			language: jobResult.result?.language,
-			fileName: `transcription_${opts.mediaId}.json`,
+			fileName: `transcription_${sourceDesc.replace(/[/\\:]/g, "_")}.json`,
 			mediaId: opts.mediaId,
 		});
 	}

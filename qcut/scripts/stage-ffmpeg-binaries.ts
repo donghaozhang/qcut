@@ -238,7 +238,12 @@ async function ensureBinary({
 			}
 		}
 		if (!body || lastError) {
-			throw lastError ?? new Error(`Failed to download ${tool} after ${DOWNLOAD_MAX_RETRIES} attempts`);
+			throw (
+				lastError ??
+				new Error(
+					`Failed to download ${tool} after ${DOWNLOAD_MAX_RETRIES} attempts`
+				)
+			);
 		}
 		if (body.length < MIN_BINARY_SIZE_BYTES) {
 			throw new Error(

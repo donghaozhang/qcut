@@ -118,23 +118,30 @@ export function registerAnalysisRoutes(
 	// Transcription routes (Stage 2)
 	// ==========================================================================
 	router.post("/api/claude/transcribe/:projectId", async (req) => {
-		if (!req.body?.mediaId) {
-			throw new HttpError(400, "Missing 'mediaId' in request body");
+		if (!req.body?.mediaId && !req.body?.source) {
+			throw new HttpError(400, "Missing 'mediaId' or 'source' in request body");
 		}
 		try {
 			const result = await transcribeMedia(req.params.projectId, {
 				mediaId: req.body.mediaId,
+				source: req.body.source,
 				provider: req.body.provider,
 				language: req.body.language,
 				diarize: req.body.diarize,
 			});
+			const sourceDesc =
+				req.body.source?.filePath || req.body.mediaId || "unknown";
 			logOperation({
 				stage: 2,
 				action: "transcribe",
-				details: `Transcribed media ${req.body.mediaId}`,
+				details: `Transcribed media ${sourceDesc}`,
 				timestamp: Date.now(),
 				projectId: req.params.projectId,
-				metadata: { mediaId: req.body.mediaId, provider: req.body.provider },
+				metadata: {
+					mediaId: req.body.mediaId,
+					source: req.body.source,
+					provider: req.body.provider,
+				},
 			});
 			return result;
 		} catch (error) {
@@ -148,11 +155,12 @@ export function registerAnalysisRoutes(
 
 	// Async transcription routes (preferred — avoids 30s HTTP timeout)
 	router.post("/api/claude/transcribe/:projectId/start", async (req) => {
-		if (!req.body?.mediaId) {
-			throw new HttpError(400, "Missing 'mediaId' in request body");
+		if (!req.body?.mediaId && !req.body?.source) {
+			throw new HttpError(400, "Missing 'mediaId' or 'source' in request body");
 		}
 		const { jobId } = startTranscribeJob(req.params.projectId, {
 			mediaId: req.body.mediaId,
+			source: req.body.source,
 			provider: req.body.provider,
 			language: req.body.language,
 			diarize: req.body.diarize,
@@ -238,12 +246,16 @@ export function registerAnalysisRoutes(
 	router.post(
 		"/api/claude/transcribe/:projectId/transcribe-and-load",
 		async (req) => {
-			if (!req.body?.mediaId) {
-				throw new HttpError(400, "Missing 'mediaId' in request body");
+			if (!req.body?.mediaId && !req.body?.source) {
+				throw new HttpError(
+					400,
+					"Missing 'mediaId' or 'source' in request body"
+				);
 			}
 			try {
 				const result = await transcribeMedia(req.params.projectId, {
 					mediaId: req.body.mediaId,
+					source: req.body.source,
 					provider: req.body.provider,
 					language: req.body.language,
 					diarize: req.body.diarize,
@@ -255,38 +267,45 @@ export function registerAnalysisRoutes(
 				) {
 					throw new HttpError(500, "Transcription produced no words");
 				}
+				const sourceDesc =
+					req.body.source?.filePath || req.body.mediaId || "unknown";
 				const win = getWindow();
 				win.webContents.send("claude:speech:load", {
 					text: buildTextFromWords(result.words),
 					language_code: result.language ?? "unknown",
 					language_probability: 0,
 					words: normalizeWords(result.words),
-					fileName: `transcription_${req.body.mediaId}.json`,
+					fileName: `transcription_${sourceDesc.replace(/[/\\]/g, "_")}.json`,
 				});
-				// Add media to timeline
-				const media = await getMediaInfo(
-					req.params.projectId,
-					req.body.mediaId
-				);
-				if (media) {
-					const elementId = `element_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-					win.webContents.send("claude:timeline:addElement", {
-						id: elementId,
-						type: "media",
-						mediaId: req.body.mediaId,
-						startTime: 0,
-						duration: media.duration ?? result.duration ?? 0,
-						sourceName: media.name,
-					});
+				// Add media to timeline (only when using mediaId, not path source)
+				if (req.body.mediaId) {
+					const media = await getMediaInfo(
+						req.params.projectId,
+						req.body.mediaId
+					);
+					if (media) {
+						const elementId = `element_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+						win.webContents.send("claude:timeline:addElement", {
+							id: elementId,
+							type: "media",
+							mediaId: req.body.mediaId,
+							startTime: 0,
+							duration: media.duration ?? result.duration ?? 0,
+							sourceName: media.name,
+						});
+					}
 				}
 
 				logOperation({
 					stage: 2,
 					action: "transcribe-and-load",
-					details: `Transcribed and loaded to Smart Speech: ${req.body.mediaId}`,
+					details: `Transcribed and loaded to Smart Speech: ${sourceDesc}`,
 					timestamp: Date.now(),
 					projectId: req.params.projectId,
-					metadata: { mediaId: req.body.mediaId },
+					metadata: {
+						mediaId: req.body.mediaId,
+						source: req.body.source,
+					},
 				});
 				return {
 					loaded: true,
