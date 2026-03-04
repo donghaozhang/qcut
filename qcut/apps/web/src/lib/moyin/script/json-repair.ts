@@ -202,11 +202,7 @@ export function repairAndParseJSONArray<T>(text: string): T[] {
 	// Try parsing as array with progressive repair
 	const firstBracket = cleaned.indexOf("[");
 	const lastBracket = cleaned.lastIndexOf("]");
-	if (
-		firstBracket !== -1 &&
-		lastBracket !== -1 &&
-		lastBracket > firstBracket
-	) {
+	if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
 		const arrayStr = cleaned.slice(firstBracket, lastBracket + 1);
 		const repairs = [
 			(v: string) => v,

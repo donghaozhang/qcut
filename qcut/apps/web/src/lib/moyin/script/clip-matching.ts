@@ -166,10 +166,7 @@ function tryExactNormalizedMatch(
 ): ClipBoundaryMatch | null {
 	let startNormCursor = findNormIndexForRaw(normalized, fromIndex);
 	while (startNormCursor < normalized.text.length) {
-		const startNormIndex = normalized.text.indexOf(
-			startQuery,
-			startNormCursor
-		);
+		const startNormIndex = normalized.text.indexOf(startQuery, startNormCursor);
 		if (startNormIndex === -1) return null;
 
 		const rawStart = normalized.rawStartByNorm[startNormIndex];
@@ -225,10 +222,7 @@ function collectApproximateStarts(
 	const candidates = new Set<number>();
 	const queryLength = query.length;
 	const anchorLength = Math.min(4, queryLength);
-	const midOffset = Math.max(
-		0,
-		Math.floor((queryLength - anchorLength) / 2)
-	);
+	const midOffset = Math.max(0, Math.floor((queryLength - anchorLength) / 2));
 	const endOffset = Math.max(0, queryLength - anchorLength);
 	const anchors = [
 		{ text: query.slice(0, anchorLength), offset: 0 },
@@ -310,10 +304,7 @@ function levenshteinDistance(
 	return prev[bLen];
 }
 
-function scoreApproximateSimilarity(
-	query: string,
-	candidate: string
-): number {
+function scoreApproximateSimilarity(query: string, candidate: string): number {
 	const maxLen = Math.max(query.length, candidate.length);
 	if (maxLen === 0) return 0;
 	const allowedDistance = Math.floor(
@@ -365,8 +356,7 @@ function tryApproximateNormalizedMatch(
 	if (rawStart < fromIndex) return null;
 
 	const startRawEnd =
-		normalized.rawEndByNorm[Math.max(0, startApprox.endNorm - 1)] ??
-		rawStart;
+		normalized.rawEndByNorm[Math.max(0, startApprox.endNorm - 1)] ?? rawStart;
 	const endApprox = findApproximateMatch(
 		normalized,
 		endQuery,
@@ -374,8 +364,7 @@ function tryApproximateNormalizedMatch(
 	);
 	if (!endApprox) return null;
 
-	const rawEnd =
-		normalized.rawEndByNorm[Math.max(0, endApprox.endNorm - 1)];
+	const rawEnd = normalized.rawEndByNorm[Math.max(0, endApprox.endNorm - 1)];
 	if (rawEnd <= rawStart) return null;
 
 	return {

@@ -141,9 +141,7 @@ function toStringArray(value: unknown): string[] {
 		.filter(Boolean);
 }
 
-function toObjectArray(
-	value: unknown
-): Array<Record<string, unknown>> {
+function toObjectArray(value: unknown): Array<Record<string, unknown>> {
 	if (!Array.isArray(value)) return [];
 	return value.filter(
 		(item): item is Record<string, unknown> =>
@@ -242,7 +240,9 @@ export async function splitNovelIntoClips(
 	const sep = language === "zh" ? "\u3001" : ", ";
 	const none = language === "zh" ? "\u65E0" : "None";
 	const noIntro =
-		language === "zh" ? "\u6682\u65E0\u89D2\u8272\u4ECB\u7ECD" : "No character introductions available";
+		language === "zh"
+			? "\u6682\u65E0\u89D2\u8272\u4ECB\u7ECD"
+			: "No character introductions available";
 
 	const prompt = applyTemplate(template, {
 		input: text,
@@ -260,8 +260,7 @@ export async function splitNovelIntoClips(
 			{ maxTokens: 2600 }
 		);
 
-		const rawClips =
-			repairAndParseJSONArray<Record<string, unknown>>(response);
+		const rawClips = repairAndParseJSONArray<Record<string, unknown>>(response);
 		if (rawClips.length === 0) {
 			lastError = new Error("split_clips returned empty clips");
 			continue;
@@ -321,14 +320,14 @@ export async function convertClipToScreenplay(
 		const sep = language === "zh" ? "\u3001" : ", ";
 		const none = language === "zh" ? "\u65E0" : "None";
 		const noIntro =
-			language === "zh" ? "\u6682\u65E0\u89D2\u8272\u4ECB\u7ECD" : "No character introductions available";
+			language === "zh"
+				? "\u6682\u65E0\u89D2\u8272\u4ECB\u7ECD"
+				: "No character introductions available";
 
 		const prompt = applyTemplate(template, {
 			clip_content: clip.content,
-			characters_lib_name:
-				characters.length > 0 ? characters.join(sep) : none,
-			locations_lib_name:
-				locations.length > 0 ? locations.join(sep) : none,
+			characters_lib_name: characters.length > 0 ? characters.join(sep) : none,
+			locations_lib_name: locations.length > 0 ? locations.join(sep) : none,
 			characters_introduction: noIntro,
 		});
 
@@ -387,18 +386,8 @@ export async function parseNovel(
 	onProgress?.("analyze_characters", 0);
 	onProgress?.("analyze_locations", 0);
 	const [characters, locations] = await Promise.all([
-		analyzeCharacters(
-			text,
-			config.existingCharacters ?? [],
-			callLLM,
-			lang
-		),
-		analyzeLocations(
-			text,
-			config.existingLocations ?? [],
-			callLLM,
-			lang
-		),
+		analyzeCharacters(text, config.existingCharacters ?? [], callLLM, lang),
+		analyzeLocations(text, config.existingLocations ?? [], callLLM, lang),
 	]);
 	onProgress?.("analyze_characters", 100);
 	onProgress?.("analyze_locations", 100);
@@ -425,10 +414,7 @@ export async function parseNovel(
 				callLLM,
 				lang
 			).then((result) => {
-				onProgress?.(
-					"screenplay_conversion",
-					((i + 1) / clips.length) * 100
-				);
+				onProgress?.("screenplay_conversion", ((i + 1) / clips.length) * 100);
 				return result;
 			})
 		)
@@ -445,10 +431,7 @@ export async function parseNovel(
 			clipCount: clips.length,
 			screenplaySuccessCount: screenplays.filter((s) => s.success).length,
 			screenplayFailedCount: screenplays.filter((s) => !s.success).length,
-			totalScenes: screenplays.reduce(
-				(sum, s) => sum + s.sceneCount,
-				0
-			),
+			totalScenes: screenplays.reduce((sum, s) => sum + s.sceneCount, 0),
 		},
 	};
 }

@@ -233,12 +233,12 @@ export async function handleEditorCommand(
 			case "screenshot":
 				return await handleScreenshotCommand(client, options);
 
-				default:
-					return {
-						success: false,
-						error: `Unknown editor module: ${module}. Available: health, media, project, timeline, editing, analyze, transcribe, generate, export, diagnostics, mcp, remotion, navigator, screen-recording, ui, moyin, novel, screenshot, undo, redo, state`,
-					};
-			}
+			default:
+				return {
+					success: false,
+					error: `Unknown editor module: ${module}. Available: health, media, project, timeline, editing, analyze, transcribe, generate, export, diagnostics, mcp, remotion, navigator, screen-recording, ui, moyin, novel, screenshot, undo, redo, state`,
+				};
+		}
 	} catch (err) {
 		return {
 			success: false,
@@ -541,8 +541,7 @@ async function handleNovelCommand(
 				const fs = await import("node:fs/promises");
 				text = await fs.readFile(options.input, "utf-8");
 			} catch (error) {
-				const reason =
-					error instanceof Error ? error.message : String(error);
+				const reason = error instanceof Error ? error.message : String(error);
 				return {
 					success: false,
 					error: `Failed to read input file: ${options.input}. ${reason}`,
@@ -565,10 +564,7 @@ async function handleNovelCommand(
 			};
 			if (options.maxClips != null) body.maxClips = options.maxClips;
 
-			const data = await client.post(
-				"/api/claude/novel/parse",
-				body
-			);
+			const data = await client.post("/api/claude/novel/parse", body);
 
 			onProgress({
 				stage: "novel-parse",

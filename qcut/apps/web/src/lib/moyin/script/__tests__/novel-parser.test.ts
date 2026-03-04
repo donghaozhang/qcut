@@ -16,17 +16,13 @@ import type { LLMAdapter } from "../script-parser";
  * Create a mock LLM adapter that returns predefined responses
  * based on the user prompt content.
  */
-function createMockLLM(
-	responses: Record<string, string>
-): LLMAdapter {
-	return vi.fn(
-		async (_system: string, user: string): Promise<string> => {
-			for (const [keyword, response] of Object.entries(responses)) {
-				if (user.includes(keyword)) return response;
-			}
-			return '{"error": "No mock response matched"}';
+function createMockLLM(responses: Record<string, string>): LLMAdapter {
+	return vi.fn(async (_system: string, user: string): Promise<string> => {
+		for (const [keyword, response] of Object.entries(responses)) {
+			if (user.includes(keyword)) return response;
 		}
-	);
+		return '{"error": "No mock response matched"}';
+	});
 }
 
 // ─── Sample Data ────────────────────────────────────────────────────
@@ -36,7 +32,7 @@ const SAMPLE_ZH_NOVEL =
 // "张三推开酒馆的门，向里面望去。李四坐在角落，他放下了酒杯。张三走过去说："好久不见。"李四笑了笑："是啊，坐吧。""
 
 const SAMPLE_EN_NOVEL =
-	"John pushed open the tavern door and looked inside. Mary sat in the corner with her wine glass. John walked over and said, \"Long time no see.\" Mary smiled warmly, \"Indeed, have a seat.\"";
+	'John pushed open the tavern door and looked inside. Mary sat in the corner with her wine glass. John walked over and said, "Long time no see." Mary smiled warmly, "Indeed, have a seat."';
 
 const MOCK_CHARACTERS_ZH = JSON.stringify({
 	characters: [
@@ -72,7 +68,8 @@ const MOCK_CLIPS_ZH = JSON.stringify([
 	{
 		start: "\u5F20\u4E09\u63A8\u5F00\u9152\u9986\u7684\u95E8",
 		end: "\u4ED6\u653E\u4E0B\u4E86\u9152\u676F\u3002",
-		summary: "\u5F20\u4E09\u8FDB\u5165\u9152\u9986\uFF0C\u770B\u5230\u674E\u56DB",
+		summary:
+			"\u5F20\u4E09\u8FDB\u5165\u9152\u9986\uFF0C\u770B\u5230\u674E\u56DB",
 		characters: ["\u5F20\u4E09", "\u674E\u56DB"],
 		location: "\u9152\u9986",
 	},
@@ -141,7 +138,7 @@ const MOCK_CLIPS_EN = JSON.stringify([
 		location: "Tavern",
 	},
 	{
-		start: 'John walked over and said,',
+		start: "John walked over and said,",
 		end: '"Indeed, have a seat."',
 		summary: "The two friends reunite",
 		characters: ["John", "Mary"],
@@ -184,12 +181,7 @@ describe("analyzeCharacters", () => {
 			"\u5F20\u4E09\u63A8\u5F00\u9152\u9986": MOCK_CHARACTERS_ZH,
 		});
 
-		const chars = await analyzeCharacters(
-			SAMPLE_ZH_NOVEL,
-			[],
-			callLLM,
-			"zh"
-		);
+		const chars = await analyzeCharacters(SAMPLE_ZH_NOVEL, [], callLLM, "zh");
 
 		expect(chars).toHaveLength(2);
 		expect(chars[0].name).toBe("\u5F20\u4E09");
@@ -202,12 +194,7 @@ describe("analyzeCharacters", () => {
 			"\u5F20\u4E09\u63A8\u5F00\u9152\u9986": MOCK_CHARACTERS_ZH,
 		});
 
-		await analyzeCharacters(
-			SAMPLE_ZH_NOVEL,
-			["\u5F20\u4E09"],
-			callLLM,
-			"zh"
-		);
+		await analyzeCharacters(SAMPLE_ZH_NOVEL, ["\u5F20\u4E09"], callLLM, "zh");
 
 		const calledWith = (callLLM as ReturnType<typeof vi.fn>).mock
 			.calls[0][1] as string;
@@ -221,12 +208,7 @@ describe("analyzeLocations", () => {
 			"\u5F20\u4E09\u63A8\u5F00\u9152\u9986": MOCK_LOCATIONS_ZH,
 		});
 
-		const locs = await analyzeLocations(
-			SAMPLE_ZH_NOVEL,
-			[],
-			callLLM,
-			"zh"
-		);
+		const locs = await analyzeLocations(SAMPLE_ZH_NOVEL, [], callLLM, "zh");
 
 		expect(locs).toHaveLength(1);
 		expect(locs[0].name).toBe("\u9152\u9986");
@@ -332,13 +314,7 @@ describe("convertClipToScreenplay", () => {
 			matchConfidence: 1,
 		};
 
-		const result = await convertClipToScreenplay(
-			clip,
-			[],
-			[],
-			callLLM,
-			"en"
-		);
+		const result = await convertClipToScreenplay(clip, [], [], callLLM, "en");
 
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("LLM timeout");
@@ -411,13 +387,13 @@ describe("parseNovel — full pipeline", () => {
 	it("throws on empty text", async () => {
 		const callLLM = vi.fn(async () => "{}");
 
-		await expect(
-			parseNovel({ text: "", callLLM })
-		).rejects.toThrow("Novel text is empty");
+		await expect(parseNovel({ text: "", callLLM })).rejects.toThrow(
+			"Novel text is empty"
+		);
 
-		await expect(
-			parseNovel({ text: "   ", callLLM })
-		).rejects.toThrow("Novel text is empty");
+		await expect(parseNovel({ text: "   ", callLLM })).rejects.toThrow(
+			"Novel text is empty"
+		);
 	});
 
 	it("auto-detects language", async () => {
@@ -454,8 +430,9 @@ describe("parseNovel — full pipeline", () => {
 		});
 
 		// Existing character 王五 should be passed to prompt
-		const calledPrompts = (callLLM as ReturnType<typeof vi.fn>).mock
-			.calls.map((c: unknown[]) => c[1] as string);
+		const calledPrompts = (callLLM as ReturnType<typeof vi.fn>).mock.calls.map(
+			(c: unknown[]) => c[1] as string
+		);
 		const characterPrompt = calledPrompts.find((p: string) =>
 			p.includes("\u89D2\u8272")
 		);
@@ -470,12 +447,7 @@ describe("JSON repair integration", () => {
 			"\u5F20\u4E09\u63A8\u5F00\u9152\u9986": wrappedResponse,
 		});
 
-		const chars = await analyzeCharacters(
-			SAMPLE_ZH_NOVEL,
-			[],
-			callLLM,
-			"zh"
-		);
+		const chars = await analyzeCharacters(SAMPLE_ZH_NOVEL, [], callLLM, "zh");
 		expect(chars).toHaveLength(2);
 	});
 });

@@ -88,7 +88,7 @@ describe("clip-matching", () => {
 		it("matches Chinese punctuation → English mapping", () => {
 			// Content uses Chinese quotes 「」
 			const content =
-				'\u4ED6\u8BF4\u300C\u4F60\u597D\u300D\u3002\u5979\u56DE\u7B54\u300C\u518D\u89C1\u300D\u3002';
+				"\u4ED6\u8BF4\u300C\u4F60\u597D\u300D\u3002\u5979\u56DE\u7B54\u300C\u518D\u89C1\u300D\u3002";
 			const matcher = createClipContentMatcher(content);
 
 			// Query uses English double quotes
