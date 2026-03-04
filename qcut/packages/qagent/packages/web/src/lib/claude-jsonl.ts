@@ -57,6 +57,10 @@ export interface JsonlEntry {
 	tool_name?: string;
 	/** Short detail string for tool_use (file path, command, pattern, etc.) */
 	toolDetail?: string;
+	/** Compact tool output/result summary (for tool_result rows). */
+	toolResult?: string;
+	/** Whether the tool result represents an error/failure. */
+	toolResultError?: boolean;
 	// tool_use content blocks
 	content?: unknown[];
 }
@@ -191,6 +195,7 @@ export async function findLatestCodexSessionFile(): Promise<string | null> {
  */
 export function normalizeCodexEntries(raw: JsonlEntry[]): JsonlEntry[] {
 	const entries: JsonlEntry[] = [];
+	const toolNameByCallId = new Map<string, string>();
 	for (const entry of raw) {
 		const topType = (entry as Record<string, unknown>).type as string;
 		const payload = (entry as Record<string, unknown>).payload as
@@ -244,18 +249,19 @@ export function normalizeCodexEntries(raw: JsonlEntry[]): JsonlEntry[] {
 					});
 				}
 			}
-		} else if (topType === "response_item" && payloadType === "function_call") {
+		} else if (
+			topType === "response_item" &&
+			(payloadType === "function_call" || payloadType === "custom_tool_call")
+		) {
 			const toolName = (payload.name as string) ?? "unknown";
-			let toolDetail: string | undefined;
-			try {
-				const args = JSON.parse(
-					(payload.arguments as string) ?? "{}",
-				) as Record<string, unknown>;
-				if (args.cmd) toolDetail = String(args.cmd);
-				else if (args.file_path) toolDetail = String(args.file_path);
-				else if (args.pattern) toolDetail = String(args.pattern);
-			} catch {
-				// malformed arguments
+			const toolDetail =
+				payloadType === "function_call"
+					? extractFunctionCallToolDetail({ payload })
+					: extractCustomToolCallDetail({ payload });
+			const callId =
+				typeof payload.call_id === "string" ? payload.call_id : null;
+			if (callId) {
+				toolNameByCallId.set(callId, toolName);
 			}
 			entries.push({
 				type: "tool_use",
@@ -264,10 +270,157 @@ export function normalizeCodexEntries(raw: JsonlEntry[]): JsonlEntry[] {
 			});
 		} else if (
 			topType === "response_item" &&
-			payloadType === "function_call_output"
+			(payloadType === "function_call_output" ||
+				payloadType === "custom_tool_call_output")
 		) {
-			entries.push({ type: "tool_result" });
+			const callId =
+				typeof payload.call_id === "string" ? payload.call_id : null;
+			const outputToolName = callId
+				? toolNameByCallId.get(callId) ?? undefined
+				: undefined;
+			const { toolResult, toolResultError } = extractToolResultSummary({
+				payload,
+			});
+			entries.push({
+				type: "tool_result",
+				toolName: outputToolName,
+				toolResult,
+				toolResultError,
+			});
 		}
 	}
 	return entries;
+}
+
+function extractFunctionCallToolDetail({
+	payload,
+}: {
+	payload: Record<string, unknown>;
+}): string | undefined {
+	try {
+		const args = JSON.parse(
+			(payload.arguments as string) ?? "{}",
+		) as Record<string, unknown>;
+		if (args.cmd) return String(args.cmd);
+		if (args.file_path) return String(args.file_path);
+		if (args.pattern) return String(args.pattern);
+		if (args.query) return String(args.query);
+		return compactValue({ value: args });
+	} catch {
+		return undefined;
+	}
+}
+
+function extractCustomToolCallDetail({
+	payload,
+}: {
+	payload: Record<string, unknown>;
+}): string | undefined {
+	try {
+		const input = payload.input;
+		return compactValue({ value: input });
+	} catch {
+		return undefined;
+	}
+}
+
+function extractToolResultSummary({
+	payload,
+}: {
+	payload: Record<string, unknown>;
+}): { toolResult?: string; toolResultError: boolean } {
+	try {
+		let toolResultError = false;
+		const status = typeof payload.status === "string" ? payload.status : null;
+		if (
+			status === "failed" ||
+			status === "errored" ||
+			status === "error" ||
+			status === "denied"
+		) {
+			toolResultError = true;
+		}
+
+		const outputValue = parseMaybeJson({ value: payload.output });
+		const outputRecord = toRecord({ value: outputValue });
+
+		let detail: string | undefined;
+		if (outputRecord !== null) {
+			const outputText = outputRecord["output"];
+			const errorText = outputRecord["error"];
+			if (typeof outputText === "string") {
+				detail = outputText;
+			} else if (typeof errorText === "string") {
+				detail = errorText;
+				toolResultError = true;
+			} else {
+				detail = compactValue({ value: outputRecord });
+			}
+
+			const metadata = toRecord({ value: outputRecord["metadata"] });
+			const exitCodeValue = metadata?.["exit_code"];
+			const exitCode =
+				typeof exitCodeValue === "number" ? exitCodeValue : null;
+			if (exitCode !== null) {
+				if (exitCode !== 0) toolResultError = true;
+				const exitPrefix = `[exit ${exitCode}]`;
+				detail = detail ? `${exitPrefix} ${detail}` : exitPrefix;
+			}
+		} else if (typeof outputValue === "string") {
+			detail = outputValue;
+		} else {
+			detail = compactValue({ value: outputValue });
+		}
+
+		return {
+			toolResult: detail,
+			toolResultError,
+		};
+	} catch {
+		return { toolResultError: true };
+	}
+}
+
+function parseMaybeJson({ value }: { value: unknown }): unknown {
+	try {
+		if (typeof value !== "string") return value;
+		const trimmed = value.trim();
+		if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return value;
+		return JSON.parse(trimmed) as unknown;
+	} catch {
+		return value;
+	}
+}
+
+function toRecord({ value }: { value: unknown }): Record<string, unknown> | null {
+	try {
+		if (typeof value !== "object" || value === null || Array.isArray(value)) {
+			return null;
+		}
+		return value as Record<string, unknown>;
+	} catch {
+		return null;
+	}
+}
+
+function compactValue({ value }: { value: unknown }): string | undefined {
+	try {
+		if (value === null || value === undefined) return undefined;
+		if (typeof value === "string") return compactText({ text: value });
+		return compactText({ text: JSON.stringify(value) });
+	} catch {
+		return undefined;
+	}
+}
+
+function compactText({ text }: { text: string }): string | undefined {
+	try {
+		const singleLine = text.replace(/\s+/g, " ").trim();
+		if (!singleLine) return undefined;
+		const maxLength = 220;
+		if (singleLine.length <= maxLength) return singleLine;
+		return `${singleLine.slice(0, maxLength - 1)}…`;
+	} catch {
+		return undefined;
+	}
 }

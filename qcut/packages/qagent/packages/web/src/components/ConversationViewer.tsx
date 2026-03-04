@@ -18,6 +18,123 @@ interface ConversationResponse {
 	cwd: string;
 }
 
+interface ToolTheme {
+	border: string;
+	background: string;
+	text: string;
+	rowBackground: string;
+	detailText: string;
+}
+
+const TOOL_THEME_PALETTE: ToolTheme[] = [
+	{
+		border: "#5ea0ff",
+		background: "rgba(94, 160, 255, 0.2)",
+		text: "#dcebff",
+		rowBackground: "rgba(94, 160, 255, 0.08)",
+		detailText: "#b9d4ff",
+	},
+	{
+		border: "#ffb55a",
+		background: "rgba(255, 181, 90, 0.2)",
+		text: "#ffe3bc",
+		rowBackground: "rgba(255, 181, 90, 0.08)",
+		detailText: "#ffd39a",
+	},
+	{
+		border: "#57d38c",
+		background: "rgba(87, 211, 140, 0.2)",
+		text: "#d3ffe5",
+		rowBackground: "rgba(87, 211, 140, 0.08)",
+		detailText: "#aef2cb",
+	},
+	{
+		border: "#f27ca0",
+		background: "rgba(242, 124, 160, 0.2)",
+		text: "#ffd8e6",
+		rowBackground: "rgba(242, 124, 160, 0.08)",
+		detailText: "#fcb8d1",
+	},
+	{
+		border: "#9d86ff",
+		background: "rgba(157, 134, 255, 0.2)",
+		text: "#ebe3ff",
+		rowBackground: "rgba(157, 134, 255, 0.08)",
+		detailText: "#d2c5ff",
+	},
+	{
+		border: "#52d6d0",
+		background: "rgba(82, 214, 208, 0.2)",
+		text: "#d3fffc",
+		rowBackground: "rgba(82, 214, 208, 0.08)",
+		detailText: "#9ff6ef",
+	},
+	{
+		border: "#ff7d7d",
+		background: "rgba(255, 125, 125, 0.2)",
+		text: "#ffe1e1",
+		rowBackground: "rgba(255, 125, 125, 0.08)",
+		detailText: "#ffb9b9",
+	},
+];
+
+const TOOL_THEME_BY_NAME: Record<string, ToolTheme> = {
+	exec_command: TOOL_THEME_PALETTE[0],
+	write_stdin: TOOL_THEME_PALETTE[0],
+	apply_patch: TOOL_THEME_PALETTE[1],
+	open: TOOL_THEME_PALETTE[2],
+	click: TOOL_THEME_PALETTE[2],
+	find: TOOL_THEME_PALETTE[2],
+	search_query: TOOL_THEME_PALETTE[3],
+	image_query: TOOL_THEME_PALETTE[3],
+	finance: TOOL_THEME_PALETTE[3],
+	weather: TOOL_THEME_PALETTE[3],
+	sports: TOOL_THEME_PALETTE[3],
+	time: TOOL_THEME_PALETTE[3],
+	list_mcp_resources: TOOL_THEME_PALETTE[4],
+	list_mcp_resource_templates: TOOL_THEME_PALETTE[4],
+	read_mcp_resource: TOOL_THEME_PALETTE[4],
+	search_tool_bm25: TOOL_THEME_PALETTE[4],
+	spawn_agent: TOOL_THEME_PALETTE[5],
+	send_input: TOOL_THEME_PALETTE[5],
+	wait: TOOL_THEME_PALETTE[5],
+	close_agent: TOOL_THEME_PALETTE[5],
+	resume_agent: TOOL_THEME_PALETTE[5],
+	parallel: TOOL_THEME_PALETTE[5],
+};
+
+function normalizeToolName({ name }: { name: string }): string {
+	try {
+		return name.trim().toLowerCase();
+	} catch {
+		return "unknown";
+	}
+}
+
+function hashToolName({ value }: { value: string }): number {
+	try {
+		let hash = 0;
+		for (const char of value) {
+			hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+		}
+		return hash;
+	} catch {
+		return 0;
+	}
+}
+
+function getToolTheme({ name }: { name: string }): ToolTheme {
+	try {
+		const normalized = normalizeToolName({ name });
+		const mapped = TOOL_THEME_BY_NAME[normalized];
+		if (mapped) return mapped;
+		const paletteIndex = hashToolName({ value: normalized }) % TOOL_THEME_PALETTE.length;
+		return TOOL_THEME_PALETTE[paletteIndex]!;
+	} catch {
+		return TOOL_THEME_PALETTE[0]!;
+	}
+}
+
 /** Extract displayable text from a message content field. */
 function extractText(content: string | unknown[] | undefined): string {
 	if (!content) return "";
@@ -114,13 +231,30 @@ function EntryRow({ entry }: { entry: JsonlEntry }) {
 	if (type === "tool_use") {
 		const name = entry.toolName ?? entry.tool_name ?? "unknown";
 		const detail = entry.toolDetail;
+		const theme = getToolTheme({ name });
 		return (
-			<div className="px-3 py-1.5 flex items-center gap-2 min-w-0">
-				<span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-mono font-medium bg-[rgba(255,255,255,0.06)] text-[var(--color-text-tertiary)]">
+			<div
+				className="px-3 py-1.5 flex items-center gap-2 min-w-0 border-l-2"
+				style={{
+					borderLeftColor: theme.border,
+					background: theme.rowBackground,
+				}}
+			>
+				<span
+					className="shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-mono font-semibold"
+					style={{
+						borderColor: theme.border,
+						background: theme.background,
+						color: theme.text,
+					}}
+				>
 					{name}
 				</span>
 				{detail && (
-					<span className="truncate font-mono text-[10px] text-[var(--color-text-muted)] opacity-70">
+					<span
+						className="truncate font-mono text-[10px] opacity-95"
+						style={{ color: theme.detailText }}
+					>
 						{detail}
 					</span>
 				)}
@@ -129,7 +263,57 @@ function EntryRow({ entry }: { entry: JsonlEntry }) {
 	}
 
 	if (type === "tool_result") {
-		return null; // Skip tool results unless they're errors
+		const detail = entry.toolResult ?? entry.toolDetail ?? "completed";
+		const isError = entry.toolResultError === true;
+		const theme = entry.toolName
+			? getToolTheme({ name: entry.toolName })
+			: null;
+		return (
+			<div
+				className={cn(
+					"px-3 py-1.5 flex items-start gap-2 min-w-0 border-l-2",
+					isError && "bg-[rgba(248,81,73,0.05)]"
+				)}
+				style={{
+					borderLeftColor: theme?.border ?? "rgba(255,255,255,0.08)",
+					background:
+						theme && !isError
+							? theme.rowBackground
+							: undefined,
+				}}
+			>
+				<span
+					className={cn(
+						"shrink-0 rounded px-1.5 py-0.5 text-[10px] font-mono font-medium",
+						isError
+							? "bg-[rgba(248,81,73,0.14)] text-[var(--color-status-error)]"
+							: "bg-[rgba(255,255,255,0.06)] text-[var(--color-text-tertiary)]"
+					)}
+					style={
+						!isError && theme
+							? {
+									borderColor: theme.border,
+									background: theme.background,
+									color: theme.text,
+								}
+							: undefined
+					}
+				>
+					result
+				</span>
+				<span
+					className={cn(
+						"min-w-0 whitespace-pre-wrap break-words font-mono text-[10px]",
+						isError
+							? "text-[var(--color-status-error)]"
+							: "text-[var(--color-text-muted)] opacity-80"
+					)}
+					style={!isError && theme ? { color: theme.detailText } : undefined}
+				>
+					<TruncatedText text={detail} maxLength={380} />
+				</span>
+			</div>
+		);
 	}
 
 	if (type === "error") {
