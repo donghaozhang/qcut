@@ -231,6 +231,23 @@ describe("SessionCard", () => {
 		expect(link).toHaveAttribute("href", "/sessions/backend-5");
 	});
 
+	it("uses distinct badge styles for claude and codex cli sessions", () => {
+		const claudeSession = makeSession({
+			managed: false,
+			metadata: { agent: "claude-code" },
+		});
+		const { unmount } = render(<SessionCard session={claudeSession} />);
+		expect(screen.getByText("claude")).toHaveClass("agent-badge-claude");
+		unmount();
+
+		const codexSession = makeSession({
+			managed: false,
+			metadata: { agent: "codex" },
+		});
+		render(<SessionCard session={codexSession} />);
+		expect(screen.getByText("codex")).toHaveClass("agent-badge-codex");
+	});
+
 	it("shows restore button when agent has exited", () => {
 		const session = makeSession({ activity: "exited" });
 		render(<SessionCard session={session} />);
