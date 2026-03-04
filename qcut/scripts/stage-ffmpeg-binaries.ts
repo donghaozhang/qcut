@@ -33,6 +33,8 @@ const DEFAULT_BASE_URL =
 const FALLBACK_RELEASE_TAG = "b6.1.2-rc.1";
 const MIN_BINARY_SIZE_BYTES = 1_000_000;
 const VERSION_CHECK_TIMEOUT_MS = 8000;
+const DOWNLOAD_MAX_RETRIES = 3;
+const DOWNLOAD_RETRY_DELAY_MS = 2000;
 const STAGING_ROOT = join(process.cwd(), "electron", "resources", "ffmpeg");
 
 function getErrorMessage({ error }: { error: unknown }): string {
@@ -212,14 +214,32 @@ async function ensureBinary({
 		}
 
 		const downloadUrl = `${baseReleaseUrl}/${tool}-${target.platform}-${target.arch}`;
-		const response = await fetch(downloadUrl);
-		if (!response.ok) {
-			throw new Error(
-				`Download failed (${response.status} ${response.statusText}): ${downloadUrl}`
-			);
+		let lastError: Error | null = null;
+		let body: Buffer | null = null;
+		for (let attempt = 1; attempt <= DOWNLOAD_MAX_RETRIES; attempt++) {
+			try {
+				const response = await fetch(downloadUrl);
+				if (!response.ok) {
+					throw new Error(
+						`Download failed (${response.status} ${response.statusText}): ${downloadUrl}`
+					);
+				}
+				body = Buffer.from(await response.arrayBuffer());
+				lastError = null;
+				break;
+			} catch (err: unknown) {
+				lastError = err instanceof Error ? err : new Error(String(err));
+				if (attempt < DOWNLOAD_MAX_RETRIES) {
+					console.warn(
+						`[stage-ffmpeg] ${tool} ${target.key} attempt ${attempt}/${DOWNLOAD_MAX_RETRIES} failed: ${lastError.message}. Retrying in ${DOWNLOAD_RETRY_DELAY_MS}ms...`
+					);
+					await new Promise((r) => setTimeout(r, DOWNLOAD_RETRY_DELAY_MS));
+				}
+			}
 		}
-
-		const body = Buffer.from(await response.arrayBuffer());
+		if (!body || lastError) {
+			throw lastError ?? new Error(`Failed to download ${tool} after ${DOWNLOAD_MAX_RETRIES} attempts`);
+		}
 		if (body.length < MIN_BINARY_SIZE_BYTES) {
 			throw new Error(
 				`Downloaded ${tool} binary is unexpectedly small (${body.length} bytes)`
