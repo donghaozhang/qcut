@@ -373,7 +373,7 @@ async function projectUpdateSettings(
 
 	const settings = await resolveJsonInput(dataStr);
 	const data = await client.patch(
-		`/api/claude/project/${opts.projectId}/settings`,
+		`/api/claude/project/${encodeURIComponent(opts.projectId)}/settings`,
 		settings
 	);
 	return { success: true, data };
@@ -384,7 +384,7 @@ async function projectStats(
 	opts: CLIRunOptions
 ): Promise<CLIResult> {
 	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
-	const data = await client.get(`/api/claude/project/${opts.projectId}/stats`);
+	const data = await client.get(`/api/claude/project/${encodeURIComponent(opts.projectId)}/stats`);
 	return { success: true, data };
 }
 
@@ -394,7 +394,7 @@ async function projectSummary(
 ): Promise<CLIResult> {
 	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
 	const data = await client.get(
-		`/api/claude/project/${opts.projectId}/summary`
+		`/api/claude/project/${encodeURIComponent(opts.projectId)}/summary`
 	);
 	return { success: true, data };
 }
@@ -413,7 +413,7 @@ async function projectReport(
 	if (o.clearLog) body.clearLog = true;
 
 	const data = await client.post(
-		`/api/claude/project/${opts.projectId}/report`,
+		`/api/claude/project/${encodeURIComponent(opts.projectId)}/report`,
 		body
 	);
 	return { success: true, data };
