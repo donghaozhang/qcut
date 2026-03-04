@@ -576,6 +576,9 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 					"project-folder",
 					"upscale",
 					"moyin",
+					"properties",
+					"export",
+					"api-keys",
 				],
 			}),
 			f("--tab", "string", "Inner tab (for moyin panel)", {

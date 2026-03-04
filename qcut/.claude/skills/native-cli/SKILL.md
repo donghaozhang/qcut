@@ -47,10 +47,13 @@ bun run pipeline editor:navigator:projects
 # 2. Open a project (navigates the editor)
 bun run pipeline editor:navigator:open --project-id <project-id>
 
-# 3. List media → get media-id values
+# 3. Switch to editor panel (navigator:open lands on the landing page, NOT the editor)
+bun run pipeline editor:ui:switch-panel --panel video-edit
+
+# 4. List media → get media-id values
 bun run pipeline editor:media:list --project-id <project-id> --json
 
-# 4. Export timeline → get track-id and element-id values
+# 5. Export timeline → get track-id and element-id values
 bun run pipeline editor:timeline:export --project-id <project-id> --json
 ```
 

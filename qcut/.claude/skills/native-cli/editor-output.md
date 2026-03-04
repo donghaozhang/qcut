@@ -109,7 +109,17 @@ bun run pipeline editor:screen-recording:status
 bun run pipeline editor:ui:switch-panel --panel media
 ```
 
-Available panels: `media`, `text`, `stickers`, `video-edit`, `effects`, `transitions`, `filters`, `text2image`, `nano-edit`, `ai`, `sounds`, `segmentation`, `remotion`, `pty`, `word-timeline`, `project-folder`, `upscale`, `moyin`
+Available left panels: `media`, `text`, `stickers`, `video-edit`, `effects`, `transitions`, `filters`, `text2image`, `nano-edit`, `ai`, `sounds`, `segmentation`, `remotion`, `pty`, `word-timeline`, `project-folder`, `upscale`, `moyin`
+
+### Switch properties panel tab
+
+```bash
+bun run pipeline editor:ui:switch-panel --panel export
+bun run pipeline editor:ui:switch-panel --panel api-keys
+bun run pipeline editor:ui:switch-panel --panel properties
+```
+
+Available properties sub-tabs: `properties`, `export`, `api-keys`
 
 ---
 

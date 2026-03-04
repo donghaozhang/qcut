@@ -32,6 +32,9 @@ const VALID_PANELS = [
 	"project-folder",
 	"upscale",
 	"moyin",
+	"properties",
+	"export",
+	"api-keys",
 ] as const;
 
 /** Friendly aliases → actual panel IDs. */
