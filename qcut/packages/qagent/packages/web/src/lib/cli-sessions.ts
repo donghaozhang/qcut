@@ -20,8 +20,10 @@ interface CLIProcess {
 	agent: "claude-code" | "codex";
 }
 
-const CLAUDE_RE = /(?:^|\/)claude(?:\s|$)/;
-const CODEX_RE = /(?:^|\/)codex(?:\s|$)/;
+const CLAUDE_RE = /(?:^|[\s/])claude(?:\s|$)/;
+const CODEX_RE = /(?:^|[\s/])codex(?:\s|$)/;
+const CLAUDE_WRAPPER_RE = /(?:^|\s)--agent(?:=|\s+)(?:claude-code|claude)(?:\s|$)/;
+const CODEX_WRAPPER_RE = /(?:^|\s)--agent(?:=|\s+)codex(?:\s|$)/;
 
 /**
  * Discover claude and codex processes via `ps`.
@@ -58,9 +60,7 @@ async function discoverCLIProcesses(): Promise<CLIProcess[]> {
 		if (args.includes("--output-format stream-json")) continue;
 		if (args.includes("--permission-prompt-tool stdio")) continue;
 
-		let agent: "claude-code" | "codex" | null = null;
-		if (CLAUDE_RE.test(args)) agent = "claude-code";
-		else if (CODEX_RE.test(args)) agent = "codex";
+		const agent = resolveAgentFromArgs({ args });
 
 		if (agent && Number.isFinite(pid)) {
 			processes.push({ pid, tty, args, agent });
@@ -68,6 +68,24 @@ async function discoverCLIProcesses(): Promise<CLIProcess[]> {
 	}
 
 	return processes;
+}
+
+function resolveAgentFromArgs({
+	args,
+}: {
+	args: string;
+}): "claude-code" | "codex" | null {
+	try {
+		if (CLAUDE_RE.test(args) || CLAUDE_WRAPPER_RE.test(args)) {
+			return "claude-code";
+		}
+		if (CODEX_RE.test(args) || CODEX_WRAPPER_RE.test(args)) {
+			return "codex";
+		}
+		return null;
+	} catch {
+		return null;
+	}
 }
 
 /**
@@ -164,6 +182,26 @@ async function resolveProcessCwd(pid: number): Promise<string | null> {
 	}
 }
 
+/**
+ * Resolve process start timestamp via ps lstart.
+ */
+async function resolveProcessStartedAt(pid: number): Promise<string | null> {
+	try {
+		const { stdout } = await execFileAsync(
+			"ps",
+			["-o", "lstart=", "-p", String(pid)],
+			{ timeout: 3_000 },
+		);
+		const startedAtRaw = stdout.trim();
+		if (!startedAtRaw) return null;
+		const startedAtMs = Date.parse(startedAtRaw);
+		if (!Number.isFinite(startedAtMs)) return null;
+		return new Date(startedAtMs).toISOString();
+	} catch {
+		return null;
+	}
+}
+
 /** Convert a discovered CLI process into a DashboardSession object. */
 function cliProcessToDashboard(
 	proc: CLIProcess,
@@ -173,6 +211,7 @@ function cliProcessToDashboard(
 	cpu = "0.0",
 	terminalApp: string | null = null,
 	terminalName: string | null = null,
+	processStartedAt: string | null = null,
 ): DashboardSession {
 	const now = new Date().toISOString();
 	return {
@@ -199,6 +238,7 @@ function cliProcessToDashboard(
 			cpu,
 			...(terminalApp ? { terminalApp } : {}),
 			...(terminalName ? { terminalName } : {}),
+			...(processStartedAt ? { processStartedAt } : {}),
 		},
 		managed: false,
 	};
@@ -222,10 +262,11 @@ export async function findCLISession(
 	const proc = processes.find((p) => p.agent === agent && p.pid === pid);
 	if (!proc) return null;
 
-	const [cwd, processInfo, terminalApp] = await Promise.all([
+	const [cwd, processInfo, terminalApp, processStartedAt] = await Promise.all([
 		resolveProcessCwd(pid),
 		resolveProcessActivity(pid),
 		detectTerminalApp(pid),
+		resolveProcessStartedAt(pid),
 	]);
 	const [branch, terminalName] = await Promise.all([
 		cwd ? resolveGitBranch(cwd) : Promise.resolve(null),
@@ -239,6 +280,7 @@ export async function findCLISession(
 		processInfo.cpu,
 		terminalApp,
 		terminalName,
+		processStartedAt,
 	);
 }
 
@@ -280,10 +322,11 @@ export async function mergeWithUnmanagedCLI(
 	if (unmanaged.length === 0) return managedSessions;
 
 	// Resolve CWDs, activity, and terminal apps in parallel
-	const [cwds, processInfos, terminalApps] = await Promise.all([
+	const [cwds, processInfos, terminalApps, processStartedAts] = await Promise.all([
 		Promise.all(unmanaged.map((p) => resolveProcessCwd(p.pid))),
 		Promise.all(unmanaged.map((p) => resolveProcessActivity(p.pid))),
 		Promise.all(unmanaged.map((p) => detectTerminalApp(p.pid))),
+		Promise.all(unmanaged.map((p) => resolveProcessStartedAt(p.pid))),
 	]);
 
 	// Resolve git branches and terminal tab names in parallel
@@ -305,6 +348,7 @@ export async function mergeWithUnmanagedCLI(
 			processInfos[i]!.cpu,
 			terminalApps[i] ?? null,
 			terminalNames[i] ?? null,
+			processStartedAts[i] ?? null,
 		),
 	);
 

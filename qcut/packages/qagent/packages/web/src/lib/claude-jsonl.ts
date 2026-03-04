@@ -9,6 +9,15 @@ import { readdir, readFile, stat, open } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+const CODEX_SESSION_SCAN_LIMIT = 160;
+const CODEX_SESSION_META_MAX_SCAN_BYTES = 1_048_576;
+const CODEX_SESSION_LOOKUP_CACHE_TTL_MS = 15_000;
+
+const codexSessionLookupCache = new Map<
+	string,
+	{ path: string; expiresAt: number }
+>();
+
 /**
  * Encode a workspace path into Claude Code's project directory name.
  * Claude stores sessions at ~/.claude/projects/{encoded-path}/*.jsonl
@@ -132,11 +141,90 @@ export function resolveClaudeProjectDir(cwd: string): string {
  * Codex stores at ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl
  */
 export async function findLatestCodexSessionFile(): Promise<string | null> {
+	try {
+		const files = await listRecentCodexSessionFiles({ maxFiles: 1 });
+		return files[0]?.path ?? null;
+	} catch {
+		return null;
+	}
+}
+
+export async function findCodexSessionFileForContext({
+	cwd,
+	processStartedAt,
+}: {
+	cwd?: string | null;
+	processStartedAt?: string | null;
+}): Promise<string | null> {
+	try {
+		const cacheKey = buildCodexLookupCacheKey({
+			cwd: cwd ?? null,
+			processStartedAt: processStartedAt ?? null,
+		});
+		const now = Date.now();
+		const cached = codexSessionLookupCache.get(cacheKey);
+		if (cached && cached.expiresAt > now) {
+			const exists = await pathExists({ path: cached.path });
+			if (exists) return cached.path;
+			codexSessionLookupCache.delete(cacheKey);
+		}
+
+		const files = await listRecentCodexSessionFiles({
+			maxFiles: CODEX_SESSION_SCAN_LIMIT,
+		});
+		if (files.length === 0) return null;
+
+		const candidates = await Promise.all(
+			files.map(async (file) => {
+				const meta = await readCodexSessionMeta({ filePath: file.path });
+				return { ...file, meta };
+			}),
+		);
+
+		const selected = selectBestCodexCandidate({
+			candidates,
+			cwd: cwd ?? null,
+			processStartedAt: processStartedAt ?? null,
+		});
+		const selectedPath = selected?.path ?? files[0]?.path ?? null;
+		if (!selectedPath) return null;
+
+		codexSessionLookupCache.set(cacheKey, {
+			path: selectedPath,
+			expiresAt: now + CODEX_SESSION_LOOKUP_CACHE_TTL_MS,
+		});
+		return selectedPath;
+	} catch {
+		return null;
+	}
+}
+
+interface CodexSessionFile {
+	path: string;
+	mtime: number;
+}
+
+interface CodexSessionMeta {
+	id: string | null;
+	cwd: string | null;
+	timestampMs: number | null;
+}
+
+interface CodexSessionCandidate extends CodexSessionFile {
+	meta: CodexSessionMeta | null;
+}
+
+async function listRecentCodexSessionFiles({
+	maxFiles,
+}: {
+	maxFiles: number;
+}): Promise<CodexSessionFile[]> {
 	const sessionsDir = join(homedir(), ".codex", "sessions");
 	try {
-		// Walk year/month/day directories in reverse to find most recent
+		const collected: CodexSessionFile[] = [];
 		const years = await readdir(sessionsDir);
 		years.sort().reverse();
+
 		for (const year of years) {
 			const monthsDir = join(sessionsDir, year);
 			let months: string[];
@@ -146,6 +234,7 @@ export async function findLatestCodexSessionFile(): Promise<string | null> {
 				continue;
 			}
 			months.sort().reverse();
+
 			for (const month of months) {
 				const daysDir = join(sessionsDir, year, month);
 				let days: string[];
@@ -155,6 +244,7 @@ export async function findLatestCodexSessionFile(): Promise<string | null> {
 					continue;
 				}
 				days.sort().reverse();
+
 				for (const day of days) {
 					const dayDir = join(sessionsDir, year, month, day);
 					let files: string[];
@@ -163,28 +253,247 @@ export async function findLatestCodexSessionFile(): Promise<string | null> {
 					} catch {
 						continue;
 					}
-					const jsonlFiles = files.filter((f) => f.endsWith(".jsonl"));
+					const jsonlFiles = files.filter((file) => file.endsWith(".jsonl"));
 					if (jsonlFiles.length === 0) continue;
-					// Find newest by mtime within the day
+
 					const withStats = await Promise.all(
-						jsonlFiles.map(async (f) => {
-							const p = join(dayDir, f);
+						jsonlFiles.map(async (file) => {
+							const path = join(dayDir, file);
 							try {
-								const s = await stat(p);
-								return { path: p, mtime: s.mtimeMs };
+								const fileStats = await stat(path);
+								return { path, mtime: fileStats.mtimeMs };
 							} catch {
-								return { path: p, mtime: 0 };
+								return null;
 							}
 						}),
 					);
-					withStats.sort((a, b) => b.mtime - a.mtime);
-					return withStats[0]?.path ?? null;
+					for (const file of withStats) {
+						if (!file) continue;
+						collected.push(file);
+					}
+					if (collected.length >= maxFiles * 2) {
+						return collected
+							.sort((fileA, fileB) => fileB.mtime - fileA.mtime)
+							.slice(0, maxFiles);
+					}
 				}
 			}
 		}
-		return null;
+
+		return collected
+			.sort((fileA, fileB) => fileB.mtime - fileA.mtime)
+			.slice(0, maxFiles);
+	} catch {
+		return [];
+	}
+}
+
+async function readCodexSessionMeta({
+	filePath,
+}: {
+	filePath: string;
+}): Promise<CodexSessionMeta | null> {
+	try {
+		const firstLine = await readJsonlFirstLine({
+			filePath,
+			maxBytes: CODEX_SESSION_META_MAX_SCAN_BYTES,
+		});
+		if (!firstLine) return null;
+
+		const parsed = JSON.parse(firstLine) as unknown;
+		const record = toRecord({ value: parsed });
+		if (!record) return null;
+		if (record.type !== "session_meta") return null;
+
+		const payload = toRecord({ value: record.payload });
+		if (!payload) return null;
+		return {
+			id: typeof payload.id === "string" ? payload.id : null,
+			cwd: typeof payload.cwd === "string" ? payload.cwd : null,
+			timestampMs: parseTimestampMs({ value: payload.timestamp }),
+		};
 	} catch {
 		return null;
+	}
+}
+
+async function readJsonlFirstLine({
+	filePath,
+	maxBytes,
+}: {
+	filePath: string;
+	maxBytes: number;
+}): Promise<string | null> {
+	try {
+		if (maxBytes <= 0) return null;
+		const fileStats = await stat(filePath);
+		const bytesToScan = Math.max(0, Math.min(maxBytes, fileStats.size));
+		if (bytesToScan === 0) return null;
+		const handle = await open(filePath, "r");
+		try {
+			const chunks: Buffer[] = [];
+			const chunkSize = 16_384;
+			let bytesReadTotal = 0;
+
+			while (bytesReadTotal < bytesToScan) {
+				const nextChunkSize = Math.min(chunkSize, bytesToScan - bytesReadTotal);
+				const chunk = Buffer.allocUnsafe(nextChunkSize);
+				const { bytesRead } = await handle.read(
+					chunk,
+					0,
+					nextChunkSize,
+					bytesReadTotal,
+				);
+				if (bytesRead <= 0) break;
+				bytesReadTotal += bytesRead;
+
+				const slice = chunk.subarray(0, bytesRead);
+				const newlineIndex = slice.indexOf(10);
+				if (newlineIndex >= 0) {
+					chunks.push(slice.subarray(0, newlineIndex));
+					const line = Buffer.concat(chunks).toString("utf-8").trim();
+					return line || null;
+				}
+				chunks.push(slice);
+			}
+
+			if (chunks.length === 0) return null;
+			const content = Buffer.concat(chunks).toString("utf-8").trim();
+			return content || null;
+		} finally {
+			await handle.close();
+		}
+	} catch {
+		return null;
+	}
+}
+
+function selectBestCodexCandidate({
+	candidates,
+	cwd,
+	processStartedAt,
+}: {
+	candidates: CodexSessionCandidate[];
+	cwd: string | null;
+	processStartedAt: string | null;
+}): CodexSessionCandidate | null {
+	try {
+		if (candidates.length === 0) return null;
+		const processStartedAtMs = parseTimestampMs({ value: processStartedAt });
+		let best: { score: number; candidate: CodexSessionCandidate } | null = null;
+		for (const candidate of candidates) {
+			const score = scoreCodexCandidate({
+				candidate,
+				cwd,
+				processStartedAtMs,
+			});
+			if (!best || score > best.score) {
+				best = { score, candidate };
+			}
+		}
+		return best?.candidate ?? null;
+	} catch {
+		return null;
+	}
+}
+
+function scoreCodexCandidate({
+	candidate,
+	cwd,
+	processStartedAtMs,
+}: {
+	candidate: CodexSessionCandidate;
+	cwd: string | null;
+	processStartedAtMs: number | null;
+}): number {
+	try {
+		let score = 0;
+		const normalizedCwd = normalizePathForMatch({ path: cwd });
+		const normalizedMetaCwd = normalizePathForMatch({
+			path: candidate.meta?.cwd ?? null,
+		});
+		if (normalizedCwd && normalizedMetaCwd) {
+			if (normalizedCwd === normalizedMetaCwd) score += 10_000;
+			else if (
+				normalizedMetaCwd.startsWith(normalizedCwd) ||
+				normalizedCwd.startsWith(normalizedMetaCwd)
+			) {
+				score += 6_000;
+			} else {
+				score -= 2_000;
+			}
+		}
+
+		const metaTimestampMs = candidate.meta?.timestampMs ?? null;
+		if (processStartedAtMs !== null && metaTimestampMs !== null) {
+			const diffMs = Math.abs(metaTimestampMs - processStartedAtMs);
+			if (diffMs <= 60_000) score += 5_000;
+			else if (diffMs <= 5 * 60_000) score += 3_500;
+			else if (diffMs <= 30 * 60_000) score += 2_000;
+			else if (diffMs <= 2 * 60 * 60_000) score += 1_000;
+			else if (diffMs <= 24 * 60 * 60_000) score += 250;
+			else score -= 500;
+		}
+
+		const ageMinutes = Math.max(0, Math.floor((Date.now() - candidate.mtime) / 60_000));
+		score += Math.max(0, 500 - ageMinutes);
+		if (candidate.meta?.id) score += 20;
+		return score;
+	} catch {
+		return Number.NEGATIVE_INFINITY;
+	}
+}
+
+function buildCodexLookupCacheKey({
+	cwd,
+	processStartedAt,
+}: {
+	cwd: string | null;
+	processStartedAt: string | null;
+}): string {
+	try {
+		const normalizedCwd = normalizePathForMatch({ path: cwd }) ?? "";
+		const startedAt = processStartedAt ?? "";
+		return `${normalizedCwd}|${startedAt}`;
+	} catch {
+		return "";
+	}
+}
+
+function normalizePathForMatch({ path }: { path: string | null }): string | null {
+	try {
+		if (!path) return null;
+		return path.replace(/\\/g, "/").replace(/\/+$/g, "");
+	} catch {
+		return null;
+	}
+}
+
+function parseTimestampMs({ value }: { value: unknown }): number | null {
+	try {
+		if (typeof value === "number" && Number.isFinite(value)) {
+			// Accept both unix seconds and unix milliseconds.
+			return value >= 1_000_000_000_000 ? value : value * 1000;
+		}
+		if (typeof value !== "string") return null;
+
+		const direct = Date.parse(value);
+		if (Number.isFinite(direct)) return direct;
+
+		const numeric = Number(value);
+		if (!Number.isFinite(numeric)) return null;
+		return numeric >= 1_000_000_000_000 ? numeric : numeric * 1000;
+	} catch {
+		return null;
+	}
+}
+
+async function pathExists({ path }: { path: string }): Promise<boolean> {
+	try {
+		await stat(path);
+		return true;
+	} catch {
+		return false;
 	}
 }
 
