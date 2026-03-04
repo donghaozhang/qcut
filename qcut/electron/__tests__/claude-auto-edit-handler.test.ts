@@ -79,6 +79,7 @@ import {
 	cancelAutoEditJob,
 	_clearAutoEditJobs,
 } from "../claude/handlers/claude-auto-edit-handler";
+import { HttpError } from "../claude/utils/http-router";
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -400,6 +401,38 @@ describe("auto-edit async jobs", () => {
 
 		const job = getAutoEditJobStatus(jobId);
 		expect(job?.message).toBe("Auto-edit pipeline failed");
+		expect(job?.errorDetails).toBeDefined();
+		expect(job?.errorDetails?.stage).toBe("transcribe");
+		expect(job?.errorDetails?.process).toBe("unknown");
+		expect(job?.errorDetails?.cause).toBe("API error");
+	});
+
+	it("captures apply-cuts failure details for IPC errors", async () => {
+		mockExecuteBatchCuts.mockRejectedValue(
+			new HttpError(503, "IPC bridge unavailable for batch cut execution")
+		);
+		const mockWindow = {
+			webContents: { send: vi.fn() },
+			isDestroyed: vi.fn(() => false),
+		} as unknown as BrowserWindow;
+
+		const { jobId } = startAutoEditJob("proj_1", {
+			elementId: "el_1",
+			mediaId: "media_1",
+			dryRun: false,
+		}, mockWindow);
+
+		await vi.waitFor(() => {
+			const job = getAutoEditJobStatus(jobId);
+			expect(job?.status).toBe("failed");
+		});
+
+		const job = getAutoEditJobStatus(jobId);
+		expect(job?.message).toBe("IPC bridge unavailable for batch cut execution");
+		expect(job?.errorDetails).toBeDefined();
+		expect(job?.errorDetails?.stage).toBe("apply-cuts");
+		expect(job?.errorDetails?.process).toBe("main");
+		expect(job?.errorDetails?.statusCode).toBe(503);
 	});
 
 	it("cancelAutoEditJob marks job as cancelled", () => {

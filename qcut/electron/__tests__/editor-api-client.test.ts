@@ -384,6 +384,35 @@ describe("EditorApiClient", () => {
 			installFetchMock(BASE_URL);
 		});
 
+		it("includes structured failure context when available", async () => {
+			const origFetch = globalThis.fetch;
+			globalThis.fetch = async () => {
+				return new Response(
+					JSON.stringify({
+						success: true,
+						data: {
+							status: "failed",
+							message: "Auto-edit pipeline failed",
+							errorDetails: {
+								stage: "apply-cuts",
+								process: "main",
+								action: "auto-edit pipeline execution",
+								hint: "Check batch-cuts IPC bridge and renderer cut execution handlers.",
+							},
+						},
+					}),
+					{ headers: { "Content-Type": "application/json" } }
+				);
+			};
+
+			await expect(
+				client.pollJob("/api/claude/jobs/j4", { interval: 10 })
+			).rejects.toThrow("stage=apply-cuts");
+
+			globalThis.fetch = origFetch;
+			installFetchMock(BASE_URL);
+		});
+
 		it("times out after configured timeout", async () => {
 			const origFetch = globalThis.fetch;
 			globalThis.fetch = async () => {

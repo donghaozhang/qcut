@@ -409,6 +409,30 @@ export interface AutoEditResponse {
 	result?: BatchCutResponse;
 }
 
+export const AUTO_EDIT_FAILURE_STAGES = {
+	PREPARE: "prepare",
+	TIMELINE: "timeline",
+	TRANSCRIBE: "transcribe",
+	ANALYZE: "analyze",
+	BUILD_CUTS: "build-cuts",
+	APPLY_CUTS: "apply-cuts",
+	UNKNOWN: "unknown",
+} as const;
+
+export type AutoEditFailureStage =
+	(typeof AUTO_EDIT_FAILURE_STAGES)[keyof typeof AUTO_EDIT_FAILURE_STAGES];
+
+export interface AutoEditFailureDetails {
+	stage: AutoEditFailureStage;
+	process: "main" | "utility" | "renderer" | "unknown";
+	action: string;
+	message: string;
+	hint: string;
+	statusCode?: number;
+	cause?: string;
+	timestamp: number;
+}
+
 // ============================================================================
 // Cut Suggestion Types (Stage 3)
 // ============================================================================
@@ -475,6 +499,7 @@ export interface AutoEditJob {
 	status: "queued" | "processing" | "completed" | "failed" | "cancelled";
 	progress: number;
 	message: string;
+	errorDetails?: AutoEditFailureDetails;
 	result?: AutoEditResponse;
 	createdAt: number;
 	completedAt?: number;

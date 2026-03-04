@@ -36,6 +36,7 @@ import {
 	listSuggestJobs,
 	cancelSuggestJob,
 } from "../handlers/claude-suggest-handler.js";
+import { claudeLog } from "../utils/logger.js";
 import { logOperation } from "../claude-operation-log.js";
 import { getMediaInfo } from "../handlers/claude-media-handler.js";
 import type { BrowserWindow } from "electron";
@@ -47,6 +48,16 @@ import type {
 	ClaudeRangeDeleteRequest,
 	ClaudeRangeDeleteResponse,
 } from "../../types/claude-api.js";
+
+const HANDLER_NAME = "AnalysisRoutes";
+
+function debugRouteLog({ message }: { message: string }): void {
+	try {
+		claudeLog.debug(HANDLER_NAME, message);
+	} catch {
+		// Ignore logging failures to keep route behavior stable.
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Helpers for word normalization (used by load-speech + transcribe-and-load)
@@ -473,6 +484,9 @@ export function registerAnalysisRoutes(
 		const batchCutPromise = accessor.executeBatchCuts
 			? accessor.executeBatchCuts(batchCutRequest)
 			: executeBatchCuts(accessor.getWindow(), batchCutRequest);
+		debugRouteLog({
+			message: `/timeline/${req.params.projectId}/cuts using ${accessor.executeBatchCuts ? "accessor.executeBatchCuts" : "local.executeBatchCuts"}`,
+		});
 		return Promise.race([
 			batchCutPromise,
 			new Promise<never>((_, reject) =>
@@ -507,6 +521,9 @@ export function registerAnalysisRoutes(
 		const deleteRangePromise = accessor.executeDeleteRange
 			? accessor.executeDeleteRange(deleteRangeRequest)
 			: executeDeleteRange(accessor.getWindow(), deleteRangeRequest);
+		debugRouteLog({
+			message: `/timeline/${req.params.projectId}/range using ${accessor.executeDeleteRange ? "accessor.executeDeleteRange" : "local.executeDeleteRange"}`,
+		});
 		return Promise.race([
 			deleteRangePromise,
 			new Promise<never>((_, reject) =>
@@ -663,12 +680,18 @@ export function registerAnalysisRoutes(
 				language: req.body.language,
 			};
 			if (accessor.startAutoEditJob) {
+				debugRouteLog({
+					message: `/timeline/${req.params.projectId}/auto-edit/start using accessor.startAutoEditJob`,
+				});
 				const { jobId } = await accessor.startAutoEditJob(
 					req.params.projectId,
 					autoEditRequest
 				);
 				return { jobId };
 			}
+			debugRouteLog({
+				message: `/timeline/${req.params.projectId}/auto-edit/start using local.startAutoEditJob`,
+			});
 			const win = accessor.getWindow();
 			const { jobId } = startAutoEditJob(
 				req.params.projectId,
@@ -682,6 +705,9 @@ export function registerAnalysisRoutes(
 	router.get(
 		"/api/claude/timeline/:projectId/auto-edit/jobs/:jobId",
 		async (req) => {
+			debugRouteLog({
+				message: `/timeline/${req.params.projectId}/auto-edit/jobs/${req.params.jobId} using ${accessor.getAutoEditJobStatus ? "accessor.getAutoEditJobStatus" : "local.getAutoEditJobStatus"}`,
+			});
 			const job = accessor.getAutoEditJobStatus
 				? await accessor.getAutoEditJobStatus(req.params.jobId)
 				: getAutoEditJobStatus(req.params.jobId);
@@ -693,6 +719,9 @@ export function registerAnalysisRoutes(
 	);
 
 	router.get("/api/claude/timeline/:projectId/auto-edit/jobs", async (req) => {
+		debugRouteLog({
+			message: `/timeline/${req.params.projectId}/auto-edit/jobs using ${accessor.listAutoEditJobs ? "accessor.listAutoEditJobs" : "local.listAutoEditJobs"}`,
+		});
 		const allJobs = accessor.listAutoEditJobs
 			? await accessor.listAutoEditJobs()
 			: listAutoEditJobs();
@@ -702,6 +731,9 @@ export function registerAnalysisRoutes(
 	router.post(
 		"/api/claude/timeline/:projectId/auto-edit/jobs/:jobId/cancel",
 		async (req) => {
+			debugRouteLog({
+				message: `/timeline/${req.params.projectId}/auto-edit/jobs/${req.params.jobId}/cancel using ${accessor.cancelAutoEditJob ? "accessor.cancelAutoEditJob" : "local.cancelAutoEditJob"}`,
+			});
 			const cancelled = accessor.cancelAutoEditJob
 				? await accessor.cancelAutoEditJob(req.params.jobId)
 				: cancelAutoEditJob(req.params.jobId);

@@ -20,9 +20,144 @@ import type {
 	AutoEditCutInfo,
 	CutInterval,
 	BatchCutResponse,
+	AutoEditFailureDetails,
+	AutoEditFailureStage,
 } from "../../types/claude-api";
+import { AUTO_EDIT_FAILURE_STAGES } from "../../types/claude-api";
 
 const HANDLER_NAME = "AutoEdit";
+
+const AUTO_EDIT_FAILURE_HINTS: Record<AutoEditFailureStage, string> = {
+	[AUTO_EDIT_FAILURE_STAGES.PREPARE]:
+		"Validate request payload and media/element identifiers.",
+	[AUTO_EDIT_FAILURE_STAGES.TIMELINE]:
+		"Check renderer timeline IPC responders and window readiness.",
+	[AUTO_EDIT_FAILURE_STAGES.TRANSCRIBE]:
+		"Check transcription provider/API key and media file accessibility.",
+	[AUTO_EDIT_FAILURE_STAGES.ANALYZE]:
+		"Check filler analysis inputs and analyzer service availability.",
+	[AUTO_EDIT_FAILURE_STAGES.BUILD_CUTS]:
+		"Verify timing data and silence threshold/padding configuration.",
+	[AUTO_EDIT_FAILURE_STAGES.APPLY_CUTS]:
+		"Check batch-cuts IPC bridge and renderer cut execution handlers.",
+	[AUTO_EDIT_FAILURE_STAGES.UNKNOWN]:
+		"Inspect auto-edit logs around transcription, analysis, and cut execution.",
+};
+
+class AutoEditStageError extends HttpError {
+	details: AutoEditFailureDetails;
+
+	constructor({
+		status,
+		message,
+		details,
+	}: {
+		status: number;
+		message: string;
+		details: AutoEditFailureDetails;
+	}) {
+		super(status, message);
+		this.details = details;
+	}
+}
+
+function inferAutoEditFailureProcess({
+	message,
+}: {
+	message: string;
+}): "main" | "utility" | "renderer" | "unknown" {
+	try {
+		const normalized = message.toLowerCase();
+		if (
+			normalized.includes("editor window") ||
+			normalized.includes("renderer") ||
+			normalized.includes("timeline")
+		) {
+			return "renderer";
+		}
+		if (normalized.includes("ipc bridge")) {
+			return "main";
+		}
+		return "unknown";
+	} catch {
+		return "unknown";
+	}
+}
+
+function toAutoEditStageError({
+	error,
+	stage,
+	action,
+}: {
+	error: unknown;
+	stage: AutoEditFailureStage;
+	action: string;
+}): AutoEditStageError {
+	try {
+		const status = error instanceof HttpError ? error.status : 500;
+		const baseMessage =
+			error instanceof HttpError
+				? error.message
+				: "Auto-edit pipeline failed";
+		const cause =
+			error instanceof Error
+				? error.message
+				: typeof error === "string"
+					? error
+					: "Unknown auto-edit error";
+		const details: AutoEditFailureDetails = {
+			stage,
+			process: inferAutoEditFailureProcess({ message: cause }),
+			action,
+			message: baseMessage,
+			hint:
+				AUTO_EDIT_FAILURE_HINTS[stage] ??
+				AUTO_EDIT_FAILURE_HINTS[AUTO_EDIT_FAILURE_STAGES.UNKNOWN],
+			statusCode: status,
+			cause,
+			timestamp: Date.now(),
+		};
+		return new AutoEditStageError({
+			status,
+			message: baseMessage,
+			details,
+		});
+	} catch (conversionError) {
+		const fallbackDetails: AutoEditFailureDetails = {
+			stage: AUTO_EDIT_FAILURE_STAGES.UNKNOWN,
+			process: "unknown",
+			action,
+			message: "Auto-edit pipeline failed",
+			hint: AUTO_EDIT_FAILURE_HINTS[AUTO_EDIT_FAILURE_STAGES.UNKNOWN],
+			statusCode: 500,
+			cause:
+				conversionError instanceof Error
+					? conversionError.message
+					: "Unknown conversion error",
+			timestamp: Date.now(),
+		};
+		return new AutoEditStageError({
+			status: 500,
+			message: "Auto-edit pipeline failed",
+			details: fallbackDetails,
+		});
+	}
+}
+
+function getAutoEditFailureDetails({
+	error,
+}: {
+	error: unknown;
+}): AutoEditFailureDetails | undefined {
+	try {
+		if (error instanceof AutoEditStageError) {
+			return error.details;
+		}
+		return undefined;
+	} catch {
+		return undefined;
+	}
+}
 
 // ============================================================================
 // Async Job Tracking
@@ -139,8 +274,12 @@ async function runAutoEditJob(
 		);
 	} catch (err) {
 		if (autoEditJobs.get(jobId)?.status === "cancelled") return;
+		const failureDetails = getAutoEditFailureDetails({ error: err });
 		job.status = "failed";
-		job.message = err instanceof Error ? err.message : "Auto-edit failed";
+		job.message = failureDetails?.message ?? "Auto-edit failed";
+		if (failureDetails) {
+			job.errorDetails = failureDetails;
+		}
 		job.completedAt = Date.now();
 		claudeLog.error(HANDLER_NAME, `Job ${jobId} failed:`, err);
 	}
@@ -180,6 +319,7 @@ export async function autoEdit(
 	request: AutoEditRequest,
 	win?: BrowserWindow
 ): Promise<AutoEditResponse> {
+	let currentStage: AutoEditFailureStage = AUTO_EDIT_FAILURE_STAGES.PREPARE;
 	const safeProjectId = sanitizeProjectId(projectId);
 
 	if (!request.elementId) {
@@ -205,6 +345,7 @@ export async function autoEdit(
 	let elementTrimStart = 0;
 	if (win) {
 		try {
+			currentStage = AUTO_EDIT_FAILURE_STAGES.TIMELINE;
 			const timeline = await requestTimelineFromRenderer(win);
 			for (const track of timeline.tracks) {
 				const el = track.elements.find((e) => e.id === request.elementId);
@@ -221,6 +362,7 @@ export async function autoEdit(
 
 	try {
 		// Step 2: Transcribe
+		currentStage = AUTO_EDIT_FAILURE_STAGES.TRANSCRIBE;
 		const transcription = await transcribeMedia(safeProjectId, {
 			mediaId: request.mediaId,
 			provider: request.provider,
@@ -242,6 +384,7 @@ export async function autoEdit(
 			speaker_id: w.speaker ?? undefined,
 		}));
 
+		currentStage = AUTO_EDIT_FAILURE_STAGES.ANALYZE;
 		const analysis = await analyzeFillers(safeProjectId, {
 			mediaId: request.mediaId,
 			words: fillerInput,
@@ -253,6 +396,7 @@ export async function autoEdit(
 		);
 
 		// Step 4: Build cut list from fillers and silences
+		currentStage = AUTO_EDIT_FAILURE_STAGES.BUILD_CUTS;
 		const cuts: AutoEditCutInfo[] = [];
 
 		if (removeFillers) {
@@ -301,6 +445,7 @@ export async function autoEdit(
 		let result: BatchCutResponse | undefined;
 
 		if (!dryRun && mergedCuts.length > 0) {
+			currentStage = AUTO_EDIT_FAILURE_STAGES.APPLY_CUTS;
 			try {
 				assertRendererWindowReady({
 					win,
@@ -350,12 +495,15 @@ export async function autoEdit(
 			result,
 		};
 	} catch (error) {
-		if (error instanceof HttpError) {
-			throw error;
-		}
-		const errorMessage =
-			error instanceof Error ? error.message : "Unknown auto-edit error";
-		claudeLog.error(HANDLER_NAME, `Auto-edit pipeline failed: ${errorMessage}`);
-		throw new HttpError(500, "Auto-edit pipeline failed");
+		const wrappedError = toAutoEditStageError({
+			error,
+			stage: currentStage,
+			action: "auto-edit pipeline execution",
+		});
+		claudeLog.error(
+			HANDLER_NAME,
+			`Auto-edit pipeline failed at stage '${wrappedError.details.stage}': ${wrappedError.details.cause ?? wrappedError.message}`
+		);
+		throw wrappedError;
 	}
 }

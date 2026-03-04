@@ -50,6 +50,14 @@ interface JobStatus {
 	progress?: number;
 	message?: string;
 	result?: unknown;
+	errorDetails?: {
+		stage?: string;
+		process?: string;
+		action?: string;
+		hint?: string;
+		statusCode?: number;
+		cause?: string;
+	};
 	[key: string]: unknown;
 }
 
@@ -283,10 +291,14 @@ export class EditorApiClient {
 				return job as T;
 			}
 			if (job.status === "failed") {
+				const context = this.buildJobFailureContext({ job });
+				const message = context
+					? `${job.message ?? "Job failed"} [${context}]`
+					: job.message ?? "Job failed";
 				throw new EditorApiError(
-					job.message ?? "Job failed",
+					message,
 					undefined,
-					job.message
+					context ?? job.message
 				);
 			}
 			if (job.status === "cancelled") {
@@ -359,6 +371,31 @@ export class EditorApiClient {
 			}
 		} catch {
 			// Capability checks should never block requests.
+		}
+	}
+
+	private buildJobFailureContext({ job }: { job: JobStatus }): string | null {
+		try {
+			const details = job.errorDetails;
+			if (!details || typeof details !== "object") {
+				return null;
+			}
+			const parts: string[] = [];
+			if (typeof details.stage === "string" && details.stage.trim()) {
+				parts.push(`stage=${details.stage.trim()}`);
+			}
+			if (typeof details.process === "string" && details.process.trim()) {
+				parts.push(`process=${details.process.trim()}`);
+			}
+			if (typeof details.action === "string" && details.action.trim()) {
+				parts.push(`action=${details.action.trim()}`);
+			}
+			if (typeof details.hint === "string" && details.hint.trim()) {
+				parts.push(`hint=${details.hint.trim()}`);
+			}
+			return parts.length > 0 ? parts.join(", ") : null;
+		} catch {
+			return null;
 		}
 	}
 
