@@ -9,8 +9,16 @@
  */
 
 import { EDITOR_COMMANDS } from "./command-registry-editor.js";
-export type { FlagDef, CommandDef, CategoryDef } from "./command-registry-types.js";
-import type { FlagDef, CommandDef, CategoryDef } from "./command-registry-types.js";
+export type {
+	FlagDef,
+	CommandDef,
+	CategoryDef,
+} from "./command-registry-types.js";
+import type {
+	FlagDef,
+	CommandDef,
+	CategoryDef,
+} from "./command-registry-types.js";
 
 /** Shorthand flag builder. */
 function f(
@@ -25,16 +33,31 @@ function f(
 // ─── Global Flags ────────────────────────────────────────────────────
 
 export const GLOBAL_FLAGS: FlagDef[] = [
-	f("--output-dir", "string", "Output directory", { short: "-o", default: "./output" }),
-	f("--model", "string", "Model key (e.g. kling_2_6_pro, flux_dev)", { short: "-m" }),
+	f("--output-dir", "string", "Output directory", {
+		short: "-o",
+		default: "./output",
+	}),
+	f("--model", "string", "Model key (e.g. kling_2_6_pro, flux_dev)", {
+		short: "-m",
+	}),
 	f("--json", "boolean", "Output results as JSON", { default: false }),
-	f("--quiet", "boolean", "Suppress progress output", { short: "-q", default: false }),
+	f("--quiet", "boolean", "Suppress progress output", {
+		short: "-q",
+		default: false,
+	}),
 	f("--verbose", "boolean", "Verbose output", { short: "-v", default: false }),
 	f("--help", "boolean", "Show help", { short: "-h" }),
 	f("--version", "boolean", "Show version"),
-	f("--session", "boolean", "Session mode: read commands from stdin", { default: false }),
+	f("--session", "boolean", "Session mode: read commands from stdin", {
+		default: false,
+	}),
 	f("--skip-health", "boolean", "Skip editor health check", { default: false }),
-	f("--no-capability-check", "boolean", "Skip per-request capability warnings", { default: false }),
+	f(
+		"--no-capability-check",
+		"boolean",
+		"Skip per-request capability warnings",
+		{ default: false }
+	),
 	f("--host", "string", "Editor API host (default: 127.0.0.1)"),
 	f("--port", "string", "Editor API port (default: 8765)"),
 	f("--token", "string", "Editor API auth token"),
@@ -47,8 +70,13 @@ export const CATEGORIES: CategoryDef[] = [
 		name: "generation",
 		label: "Generation Commands",
 		commands: [
-			"generate-image", "create-video", "generate-avatar",
-			"generate-grid", "upscale-image", "transfer-motion", "generate-remotion",
+			"generate-image",
+			"create-video",
+			"generate-avatar",
+			"generate-grid",
+			"upscale-image",
+			"transfer-motion",
+			"generate-remotion",
 		],
 	},
 	{
@@ -65,8 +93,12 @@ export const CATEGORIES: CategoryDef[] = [
 		name: "models",
 		label: "Model Listing",
 		commands: [
-			"list-models", "list-avatar-models", "list-video-models",
-			"list-motion-models", "list-speech-models", "estimate-cost",
+			"list-models",
+			"list-avatar-models",
+			"list-video-models",
+			"list-motion-models",
+			"list-speech-models",
+			"estimate-cost",
 		],
 	},
 	{
@@ -77,7 +109,12 @@ export const CATEGORIES: CategoryDef[] = [
 	{
 		name: "project",
 		label: "Project Setup",
-		commands: ["init-project", "organize-project", "structure-info", "create-examples"],
+		commands: [
+			"init-project",
+			"organize-project",
+			"structure-info",
+			"create-examples",
+		],
 	},
 	{
 		name: "moyin",
@@ -88,9 +125,15 @@ export const CATEGORIES: CategoryDef[] = [
 		name: "vimax",
 		label: "ViMax Commands",
 		commands: [
-			"vimax:idea2video", "vimax:script2video", "vimax:novel2movie",
-			"vimax:extract-characters", "vimax:generate-script", "vimax:generate-storyboard",
-			"vimax:generate-portraits", "vimax:create-registry", "vimax:show-registry",
+			"vimax:idea2video",
+			"vimax:script2video",
+			"vimax:novel2movie",
+			"vimax:extract-characters",
+			"vimax:generate-script",
+			"vimax:generate-storyboard",
+			"vimax:generate-portraits",
+			"vimax:create-registry",
+			"vimax:show-registry",
 			"vimax:list-models",
 		],
 	},
@@ -111,12 +154,27 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		category: "generation",
 		flags: [
 			f("--text", "string", "Text prompt", { short: "-t", required: true }),
-			f("--model", "string", "Model key", { short: "-m", default: "flux_dev", enum: ["flux_dev", "flux_pro", "kling_2_6_pro", "recraft_v4", "ideogram_3", "dall_e_3"] }),
+			f("--model", "string", "Model key", {
+				short: "-m",
+				default: "flux_dev",
+				enum: [
+					"flux_dev",
+					"flux_pro",
+					"kling_2_6_pro",
+					"recraft_v4",
+					"ideogram_3",
+					"dall_e_3",
+				],
+			}),
 			f("--aspect-ratio", "string", "Aspect ratio (e.g. 16:9, 9:16)"),
 			f("--resolution", "string", "Resolution (e.g. 1080p, 720p)"),
 			f("--negative-prompt", "string", "Negative prompt"),
 			f("--count", "number", "Generate N copies in parallel"),
-			f("--prompts", "string[]", "Multiple prompts for batch generation (repeatable)"),
+			f(
+				"--prompts",
+				"string[]",
+				"Multiple prompts for batch generation (repeatable)"
+			),
 			f("--image-url", "string", "Reference image URL"),
 		],
 		examples: [
@@ -131,7 +189,20 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		category: "generation",
 		flags: [
 			f("--text", "string", "Text prompt", { short: "-t", required: true }),
-			f("--model", "string", "Model key", { short: "-m", default: "kling_2_6_pro", enum: ["kling_2_6_pro", "kling_2_6_standard", "minimax_video_01", "runway_gen4", "veo_2", "wan_x", "seedance_1_0", "luma_ray2"] }),
+			f("--model", "string", "Model key", {
+				short: "-m",
+				default: "kling_2_6_pro",
+				enum: [
+					"kling_2_6_pro",
+					"kling_2_6_standard",
+					"minimax_video_01",
+					"runway_gen4",
+					"veo_2",
+					"wan_x",
+					"seedance_1_0",
+					"luma_ray2",
+				],
+			}),
 			f("--duration", "string", "Duration (e.g. 5s)", { short: "-d" }),
 			f("--aspect-ratio", "string", "Aspect ratio"),
 			f("--resolution", "string", "Resolution"),
@@ -150,7 +221,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		description: "Generate a talking avatar video",
 		category: "generation",
 		flags: [
-			f("--text", "string", "Script/speech text", { short: "-t", required: true }),
+			f("--text", "string", "Script/speech text", {
+				short: "-t",
+				required: true,
+			}),
 			f("--model", "string", "Model key", { short: "-m" }),
 			f("--image-url", "string", "Avatar face image URL"),
 			f("--audio-url", "string", "Audio URL for lip sync"),
@@ -167,9 +241,15 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		description: "Generate an image grid",
 		category: "generation",
 		flags: [
-			f("--text", "string", "Text prompt for grid images", { short: "-t", required: true }),
+			f("--text", "string", "Text prompt for grid images", {
+				short: "-t",
+				required: true,
+			}),
 			f("--model", "string", "Model key", { short: "-m", default: "flux_dev" }),
-			f("--layout", "string", "Grid layout", { default: "2x2", enum: ["2x2", "3x3", "2x3", "3x2", "1x2", "2x1"] }),
+			f("--layout", "string", "Grid layout", {
+				default: "2x2",
+				enum: ["2x2", "3x3", "2x3", "3x2", "1x2", "2x1"],
+			}),
 			f("--count", "number", "Override grid count"),
 			f("--grid-upscale", "number", "Upscale factor for grid"),
 		],
@@ -201,7 +281,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		flags: [
 			f("--image-url", "string", "Source image URL", { required: true }),
 			f("--video-url", "string", "Motion source video URL", { required: true }),
-			f("--model", "string", "Model key", { short: "-m", default: "kling_motion_control" }),
+			f("--model", "string", "Model key", {
+				short: "-m",
+				default: "kling_motion_control",
+			}),
 			f("--text", "string", "Prompt text", { short: "-t" }),
 			f("--prompt", "string", "Prompt text (alias)"),
 			f("--orientation", "string", "Orientation setting"),
@@ -216,7 +299,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		description: "Generate a Remotion component from a prompt",
 		category: "generation",
 		flags: [
-			f("--text", "string", "Component description", { short: "-t", required: true }),
+			f("--text", "string", "Component description", {
+				short: "-t",
+				required: true,
+			}),
 			f("--export", "boolean", "Export after generate", { default: false }),
 			f("--export-format", "string", "Export format"),
 			f("--fps", "number", "Frames per second"),
@@ -235,14 +321,23 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		description: "Run a multi-step YAML pipeline",
 		category: "pipeline",
 		flags: [
-			f("--config", "string", "Path to YAML pipeline config", { short: "-c", required: true }),
+			f("--config", "string", "Path to YAML pipeline config", {
+				short: "-c",
+				required: true,
+			}),
 			f("--input", "string", "Pipeline input text or file", { short: "-i" }),
 			f("--text", "string", "Pipeline input text (alias)", { short: "-t" }),
 			f("--prompt-file", "string", "Read prompt from file"),
-			f("--save-intermediates", "boolean", "Save intermediate outputs", { default: false }),
-			f("--parallel", "boolean", "Enable parallel execution", { default: false }),
+			f("--save-intermediates", "boolean", "Save intermediate outputs", {
+				default: false,
+			}),
+			f("--parallel", "boolean", "Enable parallel execution", {
+				default: false,
+			}),
 			f("--max-workers", "number", "Max concurrent workers", { default: 8 }),
-			f("--no-confirm", "boolean", "Skip confirmation prompt", { default: false }),
+			f("--no-confirm", "boolean", "Skip confirmation prompt", {
+				default: false,
+			}),
 			f("--stream", "boolean", "Stream progress to stderr", { default: false }),
 		],
 		examples: [
@@ -254,12 +349,8 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		name: "pipeline:status",
 		description: "Get pipeline job status",
 		category: "pipeline",
-		flags: [
-			f("--job-id", "string", "Pipeline job ID", { required: true }),
-		],
-		examples: [
-			"qcut-pipeline pipeline:status --job-id abc-123 --json",
-		],
+		flags: [f("--job-id", "string", "Pipeline job ID", { required: true })],
+		examples: ["qcut-pipeline pipeline:status --job-id abc-123 --json"],
 	},
 
 	// ── Analysis ──
@@ -268,9 +359,17 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		description: "Analyze a video with AI vision",
 		category: "analysis",
 		flags: [
-			f("--input", "string", "Video path or URL", { short: "-i", required: true }),
-			f("--model", "string", "Model key", { short: "-m", default: "fal_video_qa" }),
-			f("--analysis-type", "string", "Analysis type", { enum: ["timeline", "summary", "description", "transcript"] }),
+			f("--input", "string", "Video path or URL", {
+				short: "-i",
+				required: true,
+			}),
+			f("--model", "string", "Model key", {
+				short: "-m",
+				default: "fal_video_qa",
+			}),
+			f("--analysis-type", "string", "Analysis type", {
+				enum: ["timeline", "summary", "description", "transcript"],
+			}),
 			f("--output-format", "string", "Output format", { short: "-f" }),
 		],
 		examples: [
@@ -282,7 +381,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		description: "Query a video with custom prompt (keep/cut segments)",
 		category: "analysis",
 		flags: [
-			f("--input", "string", "Video path or URL", { short: "-i", required: true }),
+			f("--input", "string", "Video path or URL", {
+				short: "-i",
+				required: true,
+			}),
 			f("--prompt", "string", "Custom query prompt"),
 			f("--text", "string", "Query text (alias)", { short: "-t" }),
 			f("--model", "string", "Model key", { short: "-m" }),
@@ -296,11 +398,18 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		description: "Transcribe audio to text",
 		category: "analysis",
 		flags: [
-			f("--input", "string", "Audio path or URL", { short: "-i", required: true }),
+			f("--input", "string", "Audio path or URL", {
+				short: "-i",
+				required: true,
+			}),
 			f("--model", "string", "Model key", { short: "-m" }),
 			f("--language", "string", "Language code"),
-			f("--no-diarize", "boolean", "Disable speaker diarization", { default: false }),
-			f("--no-tag-events", "boolean", "Don't tag timestamps", { default: false }),
+			f("--no-diarize", "boolean", "Disable speaker diarization", {
+				default: false,
+			}),
+			f("--no-tag-events", "boolean", "Don't tag timestamps", {
+				default: false,
+			}),
 			f("--keyterms", "string[]", "Key terms (repeatable)"),
 			f("--srt", "boolean", "Generate SRT subtitle", { default: false }),
 			f("--srt-max-words", "number", "Max words per SRT line"),
@@ -319,9 +428,23 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		description: "List available AI models",
 		category: "models",
 		flags: [
-			f("--category", "string", "Filter by category", { enum: ["image", "video", "avatar", "speech", "music", "motion", "upscale", "analysis"] }),
+			f("--category", "string", "Filter by category", {
+				enum: [
+					"image",
+					"video",
+					"avatar",
+					"speech",
+					"music",
+					"motion",
+					"upscale",
+					"analysis",
+				],
+			}),
 		],
-		examples: ["qcut-pipeline list-models --json", "qcut-pipeline list-models --category video"],
+		examples: [
+			"qcut-pipeline list-models --json",
+			"qcut-pipeline list-models --category video",
+		],
 	},
 	"list-avatar-models": {
 		name: "list-avatar-models",
@@ -390,15 +513,16 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--name", "string", "Key name", { required: true }),
 			f("--reveal", "boolean", "Show unmasked value", { default: false }),
 		],
-		examples: ["qcut-pipeline get-key --name FAL_KEY", "qcut-pipeline get-key --name FAL_KEY --reveal"],
+		examples: [
+			"qcut-pipeline get-key --name FAL_KEY",
+			"qcut-pipeline get-key --name FAL_KEY --reveal",
+		],
 	},
 	"delete-key": {
 		name: "delete-key",
 		description: "Delete a stored API key",
 		category: "keys",
-		flags: [
-			f("--name", "string", "Key name", { required: true }),
-		],
+		flags: [f("--name", "string", "Key name", { required: true })],
 		examples: ["qcut-pipeline delete-key --name FAL_KEY"],
 	},
 	"check-keys": {
@@ -414,9 +538,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		name: "init-project",
 		description: "Initialize project directory structure",
 		category: "project",
-		flags: [
-			f("--directory", "string", "Project directory", { default: "." }),
-		],
+		flags: [f("--directory", "string", "Project directory", { default: "." })],
 		examples: ["qcut-pipeline init-project --directory ./my-project"],
 	},
 	"organize-project": {
@@ -425,8 +547,12 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		category: "project",
 		flags: [
 			f("--directory", "string", "Project directory", { default: "." }),
-			f("--dry-run", "boolean", "Preview without moving files", { default: false }),
-			f("--recursive", "boolean", "Recurse into subdirectories", { default: false }),
+			f("--dry-run", "boolean", "Preview without moving files", {
+				default: false,
+			}),
+			f("--recursive", "boolean", "Recurse into subdirectories", {
+				default: false,
+			}),
 		],
 		examples: ["qcut-pipeline organize-project --directory . --dry-run"],
 	},
@@ -436,7 +562,9 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		category: "project",
 		flags: [
 			f("--directory", "string", "Project directory", { default: "." }),
-			f("--include-output", "boolean", "Include output directory", { default: false }),
+			f("--include-output", "boolean", "Include output directory", {
+				default: false,
+			}),
 		],
 		examples: ["qcut-pipeline structure-info --json"],
 	},
@@ -478,13 +606,21 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--idea", "string", "The idea/concept", { required: true }),
 			f("--title", "string", "Project title"),
 			f("--max-scenes", "number", "Max scenes"),
-			f("--scripts-only", "boolean", "Generate scripts only", { default: false }),
-			f("--storyboard-only", "boolean", "Stop after storyboard", { default: false }),
-			f("--no-portraits", "boolean", "Skip portrait generation", { default: false }),
+			f("--scripts-only", "boolean", "Generate scripts only", {
+				default: false,
+			}),
+			f("--storyboard-only", "boolean", "Stop after storyboard", {
+				default: false,
+			}),
+			f("--no-portraits", "boolean", "Skip portrait generation", {
+				default: false,
+			}),
 			f("--llm-model", "string", "LLM model"),
 			f("--image-model", "string", "Image generation model"),
 			f("--video-model", "string", "Video generation model"),
-			f("--no-references", "boolean", "Skip reference images", { default: false }),
+			f("--no-references", "boolean", "Skip reference images", {
+				default: false,
+			}),
 		],
 		examples: [
 			"qcut-pipeline vimax:idea2video --idea 'A short film about a robot learning to paint'",
@@ -497,15 +633,19 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		flags: [
 			f("--script", "string", "Script file path", { required: true }),
 			f("--title", "string", "Project title"),
-			f("--storyboard-only", "boolean", "Stop after storyboard", { default: false }),
-			f("--no-portraits", "boolean", "Skip portrait generation", { default: false }),
+			f("--storyboard-only", "boolean", "Stop after storyboard", {
+				default: false,
+			}),
+			f("--no-portraits", "boolean", "Skip portrait generation", {
+				default: false,
+			}),
 			f("--image-model", "string", "Image generation model"),
 			f("--video-model", "string", "Video generation model"),
-			f("--no-references", "boolean", "Skip reference images", { default: false }),
+			f("--no-references", "boolean", "Skip reference images", {
+				default: false,
+			}),
 		],
-		examples: [
-			"qcut-pipeline vimax:script2video --script screenplay.txt",
-		],
+		examples: ["qcut-pipeline vimax:script2video --script screenplay.txt"],
 	},
 	"vimax:novel2movie": {
 		name: "vimax:novel2movie",
@@ -515,8 +655,12 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--novel", "string", "Novel file path", { required: true }),
 			f("--title", "string", "Project title"),
 			f("--max-scenes", "number", "Max scenes"),
-			f("--scripts-only", "boolean", "Generate scripts only", { default: false }),
-			f("--no-portraits", "boolean", "Skip portrait generation", { default: false }),
+			f("--scripts-only", "boolean", "Generate scripts only", {
+				default: false,
+			}),
+			f("--no-portraits", "boolean", "Skip portrait generation", {
+				default: false,
+			}),
 			f("--llm-model", "string", "LLM model"),
 			f("--image-model", "string", "Image generation model"),
 			f("--video-model", "string", "Video generation model"),
@@ -530,9 +674,14 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		description: "Extract characters from text",
 		category: "vimax",
 		flags: [
-			f("--text", "string", "Text to extract from", { short: "-t", required: true }),
+			f("--text", "string", "Text to extract from", {
+				short: "-t",
+				required: true,
+			}),
 		],
-		examples: ["qcut-pipeline vimax:extract-characters -t 'John met Alice at...'"],
+		examples: [
+			"qcut-pipeline vimax:extract-characters -t 'John met Alice at...'",
+		],
 	},
 	"vimax:generate-script": {
 		name: "vimax:generate-script",
@@ -544,7 +693,9 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--max-scenes", "number", "Max scenes"),
 			f("--llm-model", "string", "LLM model"),
 		],
-		examples: ["qcut-pipeline vimax:generate-script --idea 'A heist story set in space'"],
+		examples: [
+			"qcut-pipeline vimax:generate-script --idea 'A heist story set in space'",
+		],
 	},
 	"vimax:generate-storyboard": {
 		name: "vimax:generate-storyboard",
@@ -554,21 +705,28 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--script", "string", "Script file path", { required: true }),
 			f("--image-model", "string", "Image generation model"),
 		],
-		examples: ["qcut-pipeline vimax:generate-storyboard --script screenplay.txt"],
+		examples: [
+			"qcut-pipeline vimax:generate-storyboard --script screenplay.txt",
+		],
 	},
 	"vimax:generate-portraits": {
 		name: "vimax:generate-portraits",
 		description: "Generate character portraits",
 		category: "vimax",
 		flags: [
-			f("--portraits", "string", "Character JSON", { short: "-p", required: true }),
+			f("--portraits", "string", "Character JSON", {
+				short: "-p",
+				required: true,
+			}),
 			f("--max-characters", "number", "Max characters to generate"),
 			f("--image-model", "string", "Image generation model"),
 			f("--style", "string", "Art style"),
 			f("--reference-model", "string", "Reference model"),
 			f("--reference-strength", "number", "Reference strength (0-1)"),
 			f("--views", "string", "Portrait views to generate"),
-			f("--save-registry", "boolean", "Save portrait registry", { default: true }),
+			f("--save-registry", "boolean", "Save portrait registry", {
+				default: true,
+			}),
 		],
 		examples: ["qcut-pipeline vimax:generate-portraits -p characters.json"],
 	},
@@ -577,7 +735,9 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		description: "Create portrait registry from files",
 		category: "vimax",
 		flags: [
-			f("--directory", "string", "Directory with portrait images", { required: true }),
+			f("--directory", "string", "Directory with portrait images", {
+				required: true,
+			}),
 			f("--save-registry", "boolean", "Save registry file", { default: true }),
 		],
 		examples: ["qcut-pipeline vimax:create-registry --directory ./portraits"],
@@ -586,9 +746,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		name: "vimax:show-registry",
 		description: "Display registry contents",
 		category: "vimax",
-		flags: [
-			f("--project-id", "string", "Project ID or directory"),
-		],
+		flags: [f("--project-id", "string", "Project ID or directory")],
 		examples: ["qcut-pipeline vimax:show-registry --json"],
 	},
 	"vimax:list-models": {
@@ -631,7 +789,11 @@ export function getCommandFlag(
 
 	// Support short flags (e.g. "-m") and bare names (e.g. "model")
 	const isShort = flagName.startsWith("-") && !flagName.startsWith("--");
-	const normalized = flagName.startsWith("--") ? flagName : (isShort ? flagName : `--${flagName}`);
+	const normalized = flagName.startsWith("--")
+		? flagName
+		: isShort
+			? flagName
+			: `--${flagName}`;
 
 	if (isShort) {
 		return (

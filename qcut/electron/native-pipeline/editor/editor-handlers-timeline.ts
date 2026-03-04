@@ -560,7 +560,9 @@ async function timelineInfo(
 	opts: CLIRunOptions
 ): Promise<CLIResult> {
 	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
-	const data = await client.get(`/api/claude/timeline/${encodeURIComponent(opts.projectId)}`);
+	const data = await client.get(
+		`/api/claude/timeline/${encodeURIComponent(opts.projectId)}`
+	);
 	return { success: true, data };
 }
 

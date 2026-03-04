@@ -384,7 +384,9 @@ async function projectStats(
 	opts: CLIRunOptions
 ): Promise<CLIResult> {
 	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
-	const data = await client.get(`/api/claude/project/${encodeURIComponent(opts.projectId)}/stats`);
+	const data = await client.get(
+		`/api/claude/project/${encodeURIComponent(opts.projectId)}/stats`
+	);
 	return { success: true, data };
 }
 
@@ -515,6 +517,7 @@ function projectImportState(): CLIResult {
 	// TODO: Implement import-state (P1) — read project.json and apply to editor
 	return {
 		success: false,
-		error: "editor:project:import-state is not yet implemented. Coming in a future release.",
+		error:
+			"editor:project:import-state is not yet implemented. Coming in a future release.",
 	};
 }

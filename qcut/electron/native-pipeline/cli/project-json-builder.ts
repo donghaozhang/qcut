@@ -65,10 +65,7 @@ export async function buildProjectJSONMinimal(
 			height: num(settings.height, 1080),
 			fps: num(settings.fps, 30),
 			aspectRatio: str(settings.aspectRatio, "16:9"),
-			outputFormat: str(
-				settings.exportFormat ?? settings.outputFormat,
-				"mp4"
-			),
+			outputFormat: str(settings.exportFormat ?? settings.outputFormat, "mp4"),
 		},
 		counts: {
 			media: parseMediaCounts(stats.mediaCount),
@@ -102,9 +99,7 @@ export async function buildProjectJSON(
 		client.get<Record<string, unknown>>(
 			`/api/claude/project/${projectId}/stats`
 		),
-		client.get<Record<string, unknown>[]>(
-			`/api/claude/media/${projectId}`
-		),
+		client.get<Record<string, unknown>[]>(`/api/claude/media/${projectId}`),
 	]);
 
 	const now = new Date().toISOString();
@@ -130,8 +125,12 @@ export async function buildProjectJSON(
 		aspectRatio: str(settings.aspectRatio, "16:9"),
 		backgroundColor: str(settings.backgroundColor, "#000000"),
 		backgroundType: settings.backgroundType === "blur" ? "blur" : "color",
-		outputFormat: parseOutputFormat(settings.exportFormat ?? settings.outputFormat),
-		outputQuality: parseOutputQuality(settings.exportQuality ?? settings.outputQuality),
+		outputFormat: parseOutputFormat(
+			settings.exportFormat ?? settings.outputFormat
+		),
+		outputQuality: parseOutputQuality(
+			settings.exportQuality ?? settings.outputQuality
+		),
 		trackCount: num(stats.trackCount, 0),
 		elementCount: num(stats.elementCount, 0),
 		totalDuration: num(stats.totalDuration, 0),
@@ -158,9 +157,7 @@ export async function buildProjectJSON(
 // ---------------------------------------------------------------------------
 
 function str(value: unknown, fallback: string): string {
-	return typeof value === "string" && value.length > 0
-		? value
-		: fallback;
+	return typeof value === "string" && value.length > 0 ? value : fallback;
 }
 
 function num(value: unknown, fallback: number): number {
@@ -172,9 +169,11 @@ function num(value: unknown, fallback: number): number {
 	return fallback;
 }
 
-function parseMediaCounts(
-	raw: unknown
-): { video: number; audio: number; image: number } {
+function parseMediaCounts(raw: unknown): {
+	video: number;
+	audio: number;
+	image: number;
+} {
 	if (raw && typeof raw === "object") {
 		const obj = raw as Record<string, unknown>;
 		return {

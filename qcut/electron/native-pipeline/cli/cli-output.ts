@@ -172,5 +172,4 @@ export class CLIOutput {
 			if (formatted) console.log(formatted);
 		}
 	}
-
 }
