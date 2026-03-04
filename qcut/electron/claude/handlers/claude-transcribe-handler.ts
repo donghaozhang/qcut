@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { app } from "electron";
 import { getMediaInfo } from "./claude-media-handler.js";
 import { claudeLog } from "../utils/logger.js";
-import { sanitizeProjectId } from "../utils/helpers.js";
+import { sanitizeProjectId, isValidSourcePath } from "../utils/helpers.js";
 import { getFFmpegPath, getFFprobePath } from "../../ffmpeg/utils.js";
 import { getDecryptedApiKeys } from "../../api-key-handler.js";
 import type {
@@ -54,6 +54,28 @@ async function resolveMediaPath(
 	const ext = media.name.slice(media.name.lastIndexOf(".")).toLowerCase();
 	return {
 		path: media.path,
+		needsExtraction: VIDEO_EXTENSIONS.has(ext),
+	};
+}
+
+/**
+ * Resolve a raw file path and determine if audio extraction is needed.
+ */
+function resolveFilePath(filePath: string): {
+	path: string;
+	needsExtraction: boolean;
+} {
+	if (!isValidSourcePath(filePath)) {
+		throw new Error(
+			"Invalid file path: must be an absolute path without null bytes"
+		);
+	}
+	if (!existsSync(filePath)) {
+		throw new Error(`File not found: ${filePath}`);
+	}
+	const ext = filePath.slice(filePath.lastIndexOf(".")).toLowerCase();
+	return {
+		path: filePath,
 		needsExtraction: VIDEO_EXTENSIONS.has(ext),
 	};
 }
@@ -529,7 +551,7 @@ export function startTranscribeJob(
 
 	claudeLog.info(
 		HANDLER_NAME,
-		`Job ${jobId} created: ${provider} for project ${projectId}, media ${request.mediaId}`
+		`Job ${jobId} created: ${provider} for project ${projectId}, source ${request.source?.filePath || request.mediaId || "unknown"}`
 	);
 
 	// Fire-and-forget — run transcription in background
@@ -626,17 +648,34 @@ export async function transcribeMedia(
 	const safeProjectId = sanitizeProjectId(projectId);
 	const provider = request.provider || "elevenlabs";
 
+	const sourceDesc = request.source?.filePath || request.mediaId || "unknown";
 	claudeLog.info(
 		HANDLER_NAME,
-		`Transcription request: project=${safeProjectId}, media=${request.mediaId}, provider=${provider}`
+		`Transcription request: project=${safeProjectId}, source=${sourceDesc}, provider=${provider}`
 	);
 
-	// 1. Resolve media path
+	// 1. Resolve media path — from source object or legacy mediaId
 	onProgress?.({ percent: 10, message: "Resolving media..." });
-	const { path: mediaPath, needsExtraction } = await resolveMediaPath(
-		safeProjectId,
-		request.mediaId
-	);
+	let resolved: { path: string; needsExtraction: boolean };
+	if (request.source) {
+		if (request.source.type === "path" && request.source.filePath) {
+			resolved = resolveFilePath(request.source.filePath);
+		} else if (request.source.type === "media" && request.source.mediaId) {
+			resolved = await resolveMediaPath(
+				safeProjectId,
+				request.source.mediaId
+			);
+		} else {
+			throw new Error(
+				`Invalid source: type=${request.source.type}, provide filePath or mediaId`
+			);
+		}
+	} else if (request.mediaId) {
+		resolved = await resolveMediaPath(safeProjectId, request.mediaId);
+	} else {
+		throw new Error("Missing media source: provide 'source' or 'mediaId'");
+	}
+	const { path: mediaPath, needsExtraction } = resolved;
 	claudeLog.info(HANDLER_NAME, `Resolved media: ${mediaPath}`);
 
 	// 2. Extract audio if video

@@ -376,7 +376,8 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		"Transcribe media (sync)",
 		[
 			PID,
-			MID,
+			f("--media-id", "string", "Media ID"),
+			f("--source", "string", "Source (path:/file.mp4 or media:id)"),
 			f("--model", "string", "Model key", { short: "-m" }),
 			f("--language", "string", "Language code"),
 		]
@@ -384,7 +385,13 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	"editor:transcribe:start": ed(
 		"editor:transcribe:start",
 		"Transcribe media (async)",
-		[PID, MID, f("--model", "string", "Model key", { short: "-m" }), POLL]
+		[
+			PID,
+			f("--media-id", "string", "Media ID"),
+			f("--source", "string", "Source (path:/file.mp4 or media:id)"),
+			f("--model", "string", "Model key", { short: "-m" }),
+			POLL,
+		]
 	),
 	"editor:transcribe:status": ed(
 		"editor:transcribe:status",
