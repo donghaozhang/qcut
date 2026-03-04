@@ -172,8 +172,49 @@ export async function getMediaInfo(
 		HANDLER_NAME,
 		`Getting info for media in project ${projectId}`
 	);
-	const allMedia = await listMediaFiles(projectId);
-	return allMedia.find((m) => m.id === mediaId) || null;
+
+	try {
+		const normalizedMediaId = mediaId.trim();
+		if (!normalizedMediaId) {
+			return null;
+		}
+
+		const allMedia = await listMediaFiles(projectId);
+		for (const media of allMedia) {
+			if (media.id === normalizedMediaId) {
+				return media;
+			}
+		}
+
+		for (const media of allMedia) {
+			try {
+				const fileName = path.basename(media.path);
+				const fileStem = path.basename(fileName, path.extname(fileName));
+				if (
+					fileStem === normalizedMediaId ||
+					fileName === normalizedMediaId ||
+					media.name === normalizedMediaId
+				) {
+					claudeLog.info(
+						HANDLER_NAME,
+						`Resolved mediaId ${normalizedMediaId} via filename fallback (${fileName})`
+					);
+					return media;
+				}
+			} catch {
+				// Skip malformed file paths and continue matching.
+			}
+		}
+
+		return null;
+	} catch (error) {
+		claudeLog.error(
+			HANDLER_NAME,
+			`Failed to resolve media info for ${mediaId}:`,
+			error
+		);
+		return null;
+	}
 }
 
 /**
