@@ -9,7 +9,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { DashboardSession } from "./types.js";
-import { detectTerminalApp } from "./terminal-utils";
+import { detectTerminalApp, readTerminalTabName } from "./terminal-utils";
 
 const execFileAsync = promisify(execFile);
 
@@ -172,6 +172,7 @@ function cliProcessToDashboard(
 	activity: "active" | "idle" = "idle",
 	cpu = "0.0",
 	terminalApp: string | null = null,
+	terminalName: string | null = null,
 ): DashboardSession {
 	const now = new Date().toISOString();
 	return {
@@ -197,6 +198,7 @@ function cliProcessToDashboard(
 			...(cwd ? { cwd } : {}),
 			cpu,
 			...(terminalApp ? { terminalApp } : {}),
+			...(terminalName ? { terminalName } : {}),
 		},
 		managed: false,
 	};

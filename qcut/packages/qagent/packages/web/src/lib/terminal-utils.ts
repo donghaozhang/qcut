@@ -55,6 +55,59 @@ export async function detectTerminalApp(
 }
 
 /**
+ * Read the tab/session name from iTerm2 or Terminal.app for a given TTY.
+ * Returns the name or null if not found or not applicable.
+ */
+export async function readTerminalTabName(
+	tty: string,
+	app: string | null,
+): Promise<string | null> {
+	if (!app || (app !== "iTerm" && app !== "Terminal")) return null;
+	const fullTTY = escapeAppleScript(normalizeTTY(tty));
+
+	const script =
+		app === "iTerm"
+			? `
+tell application "iTerm2"
+	repeat with aWindow in windows
+		repeat with aTab in tabs of aWindow
+			repeat with aSession in sessions of aTab
+				try
+					if tty of aSession ends with "${fullTTY}" then
+						return name of aSession
+					end if
+				end try
+			end repeat
+		end repeat
+	end repeat
+	return "NOT_FOUND"
+end tell`
+			: `
+tell application "Terminal"
+	repeat with aWindow in windows
+		repeat with aTab in tabs of aWindow
+			try
+				if tty of aTab ends with "${fullTTY}" then
+					return custom title of aTab
+				end if
+			end try
+		end repeat
+	end repeat
+	return "NOT_FOUND"
+end tell`;
+
+	try {
+		const { stdout } = await execFileAsync("osascript", ["-e", script], {
+			timeout: 5_000,
+		});
+		const name = stdout.trim();
+		return name && name !== "NOT_FOUND" ? name : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Read the scrollback content of an iTerm2 session matching the given TTY.
  * Returns the text content or null if not found.
  */
