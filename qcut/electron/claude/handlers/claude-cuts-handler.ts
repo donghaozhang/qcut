@@ -4,6 +4,7 @@
  * executing all cuts atomically with single-undo support.
  */
 
+import { ipcMain } from "electron";
 import type { BrowserWindow, IpcMain, IpcMainEvent } from "electron";
 import { generateId } from "../utils/helpers.js";
 import { claudeLog } from "../utils/logger.js";
@@ -23,8 +24,7 @@ const BATCH_CUT_TIMEOUT = 30_000;
 
 async function getIpcMainForBatchCutExecution(): Promise<IpcMain> {
 	try {
-		const electronModule = await import("electron");
-		const ipcMainInstance = electronModule.ipcMain;
+		const ipcMainInstance = ipcMain;
 		assertIpcMainReady({
 			ipcMainInstance,
 			action: "batch cut execution",
