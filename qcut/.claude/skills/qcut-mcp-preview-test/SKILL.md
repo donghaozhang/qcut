@@ -1,6 +1,7 @@
 ---
 name: qcut-mcp-preview-test
 description: Switch QCut's center Preview Panel between normal video preview and MCP app mode, validate iframe rendering, and debug MCP HTML delivery through IPC and HTTP endpoints. Use when asked to test, demo, or troubleshoot MCP app preview behavior, the "MCP Media App" toggle, `mcp:app-html` events, `/api/claude/mcp/app`, or to craft prompts for Claude that modify the MCP media app UI safely.
+allowed-tools: Bash(curl *), Read, Grep
 ---
 
 # QCut MCP Preview Test

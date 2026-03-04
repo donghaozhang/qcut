@@ -1,5 +1,5 @@
 ---
-name: videocut:self-evolve
+name: videocut-self-evolve
 description: Self-evolving skills. Record user feedback, update methodology and rules. Triggers: update rules, record feedback, improve skill, 更新规则, 记录反馈, 改进skill
 ---
 

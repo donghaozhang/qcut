@@ -1,5 +1,5 @@
 ---
-name: videocut:setup
+name: videocut-setup
 description: Environment setup. Install dependencies, configure API keys, verify environment. Triggers: install, setup, initialize, 安装, 环境准备, 初始化
 ---
 

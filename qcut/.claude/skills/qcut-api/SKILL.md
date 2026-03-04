@@ -2,6 +2,7 @@
 name: qcut-api
 description: Control QCut editor programmatically via its REST API and Electron IPC. Use when the user asks to manipulate media files, timeline elements, project settings, export presets, video analysis, transcription, auto-editing, or diagnose errors in a running QCut instance.
 argument-hint: [action description or project ID]
+allowed-tools: Bash(curl *), Read, Grep
 ---
 
 # QCut Editor Control API
