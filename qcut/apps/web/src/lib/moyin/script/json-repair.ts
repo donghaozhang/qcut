@@ -11,6 +11,7 @@
 
 // ─── Markdown Fence Stripping ───────────────────────────────────────
 
+/** Remove surrounding markdown code fences from LLM output text. */
 function stripMarkdownCodeFence(text: string): string {
 	let cleaned = text.trim();
 	cleaned = cleaned
@@ -23,6 +24,7 @@ function stripMarkdownCodeFence(text: string): string {
 
 // ─── Level 2: Escape Control Chars ──────────────────────────────────
 
+/** Escape control characters found inside JSON string literals. */
 function escapeControlCharsInJsonStrings(input: string): string {
 	let out = "";
 	let inString = false;

@@ -121,6 +121,7 @@ export function detectLanguage(text: string): "zh" | "en" {
 	return chineseChars / normalized.length > 0.1 ? "zh" : "en";
 }
 
+/** Replace `{placeholder}` tokens in a prompt template. */
 function applyTemplate(
 	template: string,
 	replacements: Record<string, string>
@@ -132,10 +133,12 @@ function applyTemplate(
 	return result;
 }
 
+/** Convert unknown value to string, defaulting to empty string. */
 function asString(value: unknown): string {
 	return typeof value === "string" ? value : "";
 }
 
+/** Keep only non-empty string items from an unknown array value. */
 function toStringArray(value: unknown): string[] {
 	if (!Array.isArray(value)) return [];
 	return value
@@ -143,6 +146,7 @@ function toStringArray(value: unknown): string[] {
 		.filter(Boolean);
 }
 
+/** Keep only plain object entries from an unknown array value. */
 function toObjectArray(value: unknown): Array<Record<string, unknown>> {
 	if (!Array.isArray(value)) return [];
 	return value.filter(
@@ -153,6 +157,7 @@ function toObjectArray(value: unknown): Array<Record<string, unknown>> {
 
 // ─── Step 1: Character Analysis ─────────────────────────────────────
 
+/** Extract characters from novel text via the character-analysis prompt. */
 export async function analyzeCharacters(
 	text: string,
 	existingCharacters: string[],
@@ -192,6 +197,7 @@ export async function analyzeCharacters(
 
 // ─── Step 1: Location Analysis ──────────────────────────────────────
 
+/** Extract locations from novel text via the location-analysis prompt. */
 export async function analyzeLocations(
 	text: string,
 	existingLocations: string[],
@@ -230,6 +236,10 @@ export async function analyzeLocations(
 
 // ─── Step 2: Clip Splitting ─────────────────────────────────────────
 
+/**
+ * Split novel text into ordered clips and validate each boundary against
+ * source text with multi-level matching.
+ */
 export async function splitNovelIntoClips(
 	text: string,
 	characters: string[],
@@ -318,6 +328,7 @@ export async function splitNovelIntoClips(
 
 // ─── Step 3: Screenplay Conversion ──────────────────────────────────
 
+/** Convert a single clip into screenplay scenes using the conversion prompt. */
 export async function convertClipToScreenplay(
 	clip: NovelClip,
 	characters: string[],
@@ -380,10 +391,12 @@ export async function convertClipToScreenplay(
 
 // ─── Main Orchestrator ──────────────────────────────────────────────
 
+/** Run the end-to-end novel parsing pipeline and return structured output. */
 export async function parseNovel(
 	config: NovelParseConfig
 ): Promise<NovelParseResult> {
 	const { text, language = "auto", callLLM, onProgress } = config;
+	/** Report per-step errors through config callback and return message text. */
 	const reportStepError = ({
 		step,
 		error,

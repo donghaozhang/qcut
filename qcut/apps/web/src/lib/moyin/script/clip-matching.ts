@@ -71,6 +71,7 @@ const PUNCTUATION_MAP: Record<string, string> = {
 
 // ─── Normalization ──────────────────────────────────────────────────
 
+/** Normalize one character to a lowercase, punctuation-mapped form. */
 function normalizeChar(ch: string): string {
 	const code = ch.charCodeAt(0);
 	let normalized = ch;
@@ -85,10 +86,12 @@ function normalizeChar(ch: string): string {
 	return (mapped ?? normalized).toLowerCase();
 }
 
+/** Check whether the character should be ignored as whitespace. */
 function isWhitespace(ch: string): boolean {
 	return /\s/u.test(ch);
 }
 
+/** Build normalized text and index maps back to raw string offsets. */
 function buildNormalizedContent(raw: string): NormalizedContent {
 	const rawStartByNorm: number[] = [];
 	const rawEndByNorm: number[] = [];
@@ -108,10 +111,12 @@ function buildNormalizedContent(raw: string): NormalizedContent {
 	return { text, rawStartByNorm, rawEndByNorm };
 }
 
+/** Normalize query text with the same pipeline used for source content. */
 function normalizeQuery(text: string): string {
 	return buildNormalizedContent(text).text;
 }
 
+/** Find the normalized cursor position that corresponds to a raw index. */
 function findNormIndexForRaw(
 	normalized: NormalizedContent,
 	rawIndex: number
@@ -132,6 +137,7 @@ function findNormIndexForRaw(
 
 // ─── L1: Exact Raw Match ────────────────────────────────────────────
 
+/** Attempt exact raw boundary matching with no normalization. */
 function tryExactRawMatch(
 	content: string,
 	startText: string,
@@ -158,6 +164,7 @@ function tryExactRawMatch(
 
 // ─── L2: Exact Normalized Match ─────────────────────────────────────
 
+/** Attempt exact matching on normalized text and map result back to raw. */
 function tryExactNormalizedMatch(
 	normalized: NormalizedContent,
 	startQuery: string,
@@ -199,6 +206,7 @@ function tryExactNormalizedMatch(
 
 // ─── L3: Approximate Levenshtein Match ──────────────────────────────
 
+/** Build candidate lengths around base query length for fuzzy matching. */
 function buildLengthCandidates(baseLength: number): number[] {
 	const delta = Math.max(2, Math.floor(baseLength * 0.2));
 	const half = Math.max(1, Math.floor(delta / 2));
@@ -213,6 +221,7 @@ function buildLengthCandidates(baseLength: number): number[] {
 	return [...new Set(candidates)];
 }
 
+/** Collect likely normalized start offsets using anchor snippets. */
 function collectApproximateStarts(
 	haystack: string,
 	query: string,
@@ -270,6 +279,7 @@ function collectApproximateStarts(
 	return sampled;
 }
 
+/** Compute edit distance with an early-stop threshold. */
 function levenshteinDistance(
 	a: string,
 	b: string,
@@ -304,6 +314,7 @@ function levenshteinDistance(
 	return prev[bLen];
 }
 
+/** Convert edit-distance result into a normalized similarity score. */
 function scoreApproximateSimilarity(query: string, candidate: string): number {
 	const maxLen = Math.max(query.length, candidate.length);
 	if (maxLen === 0) return 0;
@@ -316,6 +327,7 @@ function scoreApproximateSimilarity(query: string, candidate: string): number {
 	return 1 - distance / maxLen;
 }
 
+/** Find the best fuzzy match for a normalized query from a raw offset. */
 function findApproximateMatch(
 	normalized: NormalizedContent,
 	query: string,
@@ -343,6 +355,7 @@ function findApproximateMatch(
 	return best;
 }
 
+/** Attempt fuzzy boundary matching on normalized content. */
 function tryApproximateNormalizedMatch(
 	normalized: NormalizedContent,
 	startQuery: string,
@@ -377,6 +390,7 @@ function tryApproximateNormalizedMatch(
 
 // ─── Public API ─────────────────────────────────────────────────────
 
+/** Create a boundary matcher that tries L1 → L2 → L3 strategies in order. */
 export function createClipContentMatcher(content: string): ClipContentMatcher {
 	const normalized = buildNormalizedContent(content);
 

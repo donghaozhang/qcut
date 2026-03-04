@@ -248,19 +248,23 @@ Novel clip:
 
 // ─── Public API ─────────────────────────────────────────────────────
 
+/** Return the character-analysis prompt template for the target language. */
 export function getCharacterAnalysisPrompt(language: string): string {
 	return language === "zh" ? CHARACTER_ANALYSIS_ZH : CHARACTER_ANALYSIS_EN;
 }
 
+/** Return the location-analysis prompt template for the target language. */
 export function getLocationAnalysisPrompt(language: string): string {
 	return language === "zh" ? LOCATION_ANALYSIS_ZH : LOCATION_ANALYSIS_EN;
 }
 
+/** Return the clip-splitting prompt plus boundary constraints suffix. */
 export function getClipSplitPrompt(language: string): string {
 	const base = language === "zh" ? CLIP_SPLIT_ZH : CLIP_SPLIT_EN;
 	return base + CLIP_BOUNDARY_SUFFIX;
 }
 
+/** Return the screenplay-conversion prompt template for the language. */
 export function getScreenplayConversionPrompt(language: string): string {
 	return language === "zh"
 		? SCREENPLAY_CONVERSION_ZH
