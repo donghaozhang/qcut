@@ -191,3 +191,20 @@ error: script "pipeline" exited with code 1
 3. **auto-edit pipeline still broken** — same ipcMain/BrowserWindow bug as before
 4. **analyze:fillers inconsistent** — returns empty fillers but finds silences; the auto-edit internal pipeline finds fillers fine (6 fillers, 3.1s in earlier run)
 5. **Two elements on timeline** — duplicate ai-news-test.mp4 entries (from manual + CLI add)
+
+## Test Run: Retest after fix (2026-03-05 02:14 AEDT)
+
+| Step | Command | Pass/Fail | Key output |
+|------|---------|-----------|------------|
+| 1 | `editor:health --status-only --json` | ✅ Pass | `status: ok`, `version: 2026.03.04.4`, `apiVersion: 1.1.0` |
+| 2a | `editor:navigator:projects --json` | ✅ Pass | `activeProjectId: 59084b5d-fac6-472f-89a6-203bfa2b461b` |
+| 2b | `editor:timeline:export --project-id ... --json` | ✅ Pass | Main track has 5 media elements; used `elementId: 0a21e95d-49e3-4f17-a875-38f5f2e7abeb` |
+| 2c | `editor:media:list --project-id ... --json` | ✅ Pass | `mediaId: media_YWktbmV3cy10ZXN0Lm1wNA` (`ai-news-test.mp4`) |
+| 3 | `editor:transcribe:start --poll --load-speech --json` | ✅ Pass | Job `transcribe_1772637352098_0b4ry` completed (`provider: elevenlabs`, `progress: 100`) |
+| 4 | `editor:editing:auto-edit --remove-fillers --poll --json` | ❌ Fail | Job `autoedit_1772637382240_sl5ce` created, then `error: Auto-edit pipeline failed` (`code: editor:editing:auto-edit:failed`) |
+| 5 | `editor:analyze:fillers --json` | ✅ Pass | `fillers: []`, `silences: 4`, `totalFillerTime: 0`, `totalSilenceTime: 6.5` |
+
+**Notes**
+- Retest confirms transcription path is healthy.
+- Auto-edit still fails in pipeline execution stage after job creation.
+- Standalone filler analysis completes but reports no fillers for this media.
