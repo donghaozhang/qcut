@@ -34,7 +34,7 @@ curl -N .../events/stream                    # SSE real-time
 One-way bridge: forwards user actions from QCut into an active Claude PTY session as `[QCut] HH:MM:SS - description` context lines.
 
 ```bash
-curl http://127.0.0.1:8765/api/claude/notifications/status                # Check status
+curl .../notifications/status                                              # Check status
 curl -X POST .../notifications/enable -d '{"sessionId":"pty-123abc"}'     # Enable
 curl -X POST .../notifications/disable                                     # Disable
 curl ".../notifications/history?limit=20"                                  # Recent history
