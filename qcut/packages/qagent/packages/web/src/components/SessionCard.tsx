@@ -237,6 +237,14 @@ export function SessionCard({
 						<span className="text-[var(--color-text-muted)]">
 							{session.metadata.terminalApp}
 						</span>
+						{session.metadata?.terminalName && (
+							<>
+								<span className="text-[var(--color-text-tertiary)]">&middot;</span>
+								<span className="text-[var(--color-text-muted)]">
+									{session.metadata.terminalName}
+								</span>
+							</>
+						)}
 					</span>
 				)}
 				{session.metadata?.cpu && parseFloat(session.metadata.cpu) > 0 && (

@@ -436,6 +436,14 @@ export function SessionDetail({
 										<span className="text-[11px] font-medium text-[var(--color-text-secondary)]">
 											{session.metadata.terminalApp}
 										</span>
+										{session.metadata?.terminalName && (
+											<>
+												<span className="text-[var(--color-text-tertiary)]">&middot;</span>
+												<span className="text-[11px] text-[var(--color-text-muted)]">
+													{session.metadata.terminalName}
+												</span>
+											</>
+										)}
 									</div>
 								)}
 							</div>

@@ -229,7 +229,7 @@ export async function findCLISession(
 	]);
 	const [branch, terminalName] = await Promise.all([
 		cwd ? resolveGitBranch(cwd) : Promise.resolve(null),
-		readTerminalTabName(proc.tty, terminalApp),
+		readTerminalTabName(proc.tty, terminalApp, { pid, cwd: cwd ?? undefined }),
 	]);
 	return cliProcessToDashboard(
 		proc,
@@ -292,7 +292,7 @@ export async function mergeWithUnmanagedCLI(
 			cwds.map((cwd) => (cwd ? resolveGitBranch(cwd) : Promise.resolve(null))),
 		),
 		Promise.all(
-			unmanaged.map((p, i) => readTerminalTabName(p.tty, terminalApps[i] ?? null)),
+			unmanaged.map((p, i) => readTerminalTabName(p.tty, terminalApps[i] ?? null, { pid: p.pid, cwd: cwds[i] ?? undefined })),
 		),
 	]);
 
