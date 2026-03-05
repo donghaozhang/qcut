@@ -482,19 +482,15 @@ export async function autoEdit(
 
 		if (!dryRun && mergedCuts.length > 0) {
 			currentStage = AUTO_EDIT_FAILURE_STAGES.APPLY_CUTS;
-			try {
-				assertRendererWindowReady({
-					win,
-					action: "auto-edit cut execution",
-				});
-			} catch (error) {
-				if (error instanceof HttpError && error.status === 503) {
-					throw new HttpError(503, "Editor window not ready");
-				}
-				throw error;
-			}
+			assertRendererWindowReady({
+				win,
+				action: "auto-edit cut execution",
+			});
 			if (!win) {
-				throw new HttpError(503, "Editor window not ready");
+				throw new HttpError(
+					503,
+					"Editor window not available for auto-edit cut execution"
+				);
 			}
 
 			const cutIntervals: CutInterval[] = mergedCuts.map((c) => ({

@@ -152,63 +152,24 @@ export function startClaudeHTTPServer(
 		getHistorySummary: () => getHistorySummary({ win: getWindow() }),
 		requestStateSnapshot: (request) =>
 			requestEditorStateSnapshotFromRenderer(getWindow(), request),
-		startAutoEditJob: async (projectId, request) => {
-			try {
-				return startAutoEditJob(projectId, request, getWindow());
-			} catch (error) {
-				throw error;
-			}
-		},
-		getAutoEditJobStatus: async (jobId) => {
-			try {
-				return getAutoEditJobStatus(jobId);
-			} catch (error) {
-				throw error;
-			}
-		},
-		listAutoEditJobs: async () => {
-			try {
-				return listAutoEditJobs();
-			} catch (error) {
-				throw error;
-			}
-		},
-		cancelAutoEditJob: async (jobId) => {
-			try {
-				return cancelAutoEditJob(jobId);
-			} catch (error) {
-				throw error;
-			}
-		},
-		executeBatchCuts: async (request) => {
-			try {
-				return await executeBatchCuts(getWindow(), request);
-			} catch (error) {
-				throw error;
-			}
-		},
-		executeDeleteRange: async (request) => {
-			try {
-				return await executeDeleteRange(getWindow(), request);
-			} catch (error) {
-				throw error;
-			}
-		},
+		startAutoEditJob: async (projectId, request) =>
+			startAutoEditJob(projectId, request, getWindow()),
+		getAutoEditJobStatus: async (jobId) => getAutoEditJobStatus(jobId),
+		listAutoEditJobs: async () => listAutoEditJobs(),
+		cancelAutoEditJob: async (jobId) => cancelAutoEditJob(jobId),
+		executeBatchCuts: async (request) => executeBatchCuts(getWindow(), request),
+		executeDeleteRange: async (request) =>
+			executeDeleteRange(getWindow(), request),
 	};
 
 	// Register all shared routes
 	registerSharedRoutes(router, accessor, {
-		runDeepHealthChecks: async () => {
-			try {
-				return await runMainProcessDeepHealthChecks({
-					getWindow,
-					requestTimeline: async ({ win }) =>
-						await requestTimelineFromRenderer(win),
-				});
-			} catch (error) {
-				throw error;
-			}
-		},
+		runDeepHealthChecks: async () =>
+			runMainProcessDeepHealthChecks({
+				getWindow,
+				requestTimeline: async ({ win }) =>
+					await requestTimelineFromRenderer(win),
+			}),
 	});
 	registerStateRoutes(router, {
 		requestSnapshot: (request) =>

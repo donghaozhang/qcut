@@ -1,9 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { normalizeCodexEntries, type JsonlEntry } from "../claude-jsonl";
 
+interface RawCodexEntry extends JsonlEntry {
+	type: "response_item";
+	payload: Record<string, unknown> & {
+		type: string;
+	};
+}
+
 describe("normalizeCodexEntries", () => {
 	it("maps custom_tool_call to tool_use", () => {
-		const raw = [
+		const raw: RawCodexEntry[] = [
 			{
 				type: "response_item",
 				payload: {
@@ -12,7 +19,7 @@ describe("normalizeCodexEntries", () => {
 					input: "*** Begin Patch\n*** End Patch\n",
 				},
 			},
-		] as unknown as JsonlEntry[];
+		];
 
 		const normalized = normalizeCodexEntries(raw);
 		expect(normalized).toHaveLength(1);
@@ -22,7 +29,7 @@ describe("normalizeCodexEntries", () => {
 	});
 
 	it("maps custom_tool_call_output to tool_result with exit code summary", () => {
-		const raw = [
+		const raw: RawCodexEntry[] = [
 			{
 				type: "response_item",
 				payload: {
@@ -43,7 +50,7 @@ describe("normalizeCodexEntries", () => {
 					}),
 				},
 			},
-		] as unknown as JsonlEntry[];
+		];
 
 		const normalized = normalizeCodexEntries(raw);
 		expect(normalized).toHaveLength(2);
@@ -55,7 +62,7 @@ describe("normalizeCodexEntries", () => {
 	});
 
 	it("maps standalone custom_tool_call_output when no call context exists", () => {
-		const raw = [
+		const raw: RawCodexEntry[] = [
 			{
 				type: "response_item",
 				payload: {
@@ -66,7 +73,7 @@ describe("normalizeCodexEntries", () => {
 					}),
 				},
 			},
-		] as unknown as JsonlEntry[];
+		];
 
 		const normalized = normalizeCodexEntries(raw);
 		expect(normalized).toHaveLength(1);
@@ -78,7 +85,7 @@ describe("normalizeCodexEntries", () => {
 	});
 
 	it("marks tool_result as error when exit code is non-zero", () => {
-		const raw = [
+		const raw: RawCodexEntry[] = [
 			{
 				type: "response_item",
 				payload: {
@@ -89,7 +96,7 @@ describe("normalizeCodexEntries", () => {
 					}),
 				},
 			},
-		] as unknown as JsonlEntry[];
+		];
 
 		const normalized = normalizeCodexEntries(raw);
 		expect(normalized).toHaveLength(1);
@@ -99,7 +106,7 @@ describe("normalizeCodexEntries", () => {
 	});
 
 	it("keeps function_call and function_call_output mapping", () => {
-		const raw = [
+		const raw: RawCodexEntry[] = [
 			{
 				type: "response_item",
 				payload: {
@@ -115,7 +122,7 @@ describe("normalizeCodexEntries", () => {
 					output: "ok",
 				},
 			},
-		] as unknown as JsonlEntry[];
+		];
 
 		const normalized = normalizeCodexEntries(raw);
 		expect(normalized).toHaveLength(2);

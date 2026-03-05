@@ -40,10 +40,7 @@ export function assertRendererWindowReady({
 			!candidateWebContents ||
 			typeof candidateWebContents.send !== "function"
 		) {
-			throw new HttpError(
-				503,
-				`Editor renderer not available for ${action}`
-			);
+			throw new HttpError(503, `Editor renderer not available for ${action}`);
 		}
 
 		if (

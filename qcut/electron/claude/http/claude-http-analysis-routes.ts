@@ -120,6 +120,17 @@ export function registerAnalysisRoutes(
 	router: Router,
 	accessor: AnalysisRoutesAccessor
 ): void {
+	const getAutoEditJobForRequest = async ({
+		jobId,
+	}: {
+		jobId: string;
+	}): Promise<AutoEditJob | null> => {
+		if (accessor.getAutoEditJobStatus) {
+			return await accessor.getAutoEditJobStatus(jobId);
+		}
+		return getAutoEditJobStatus(jobId);
+	};
+
 	// ==========================================================================
 	// Video Analysis routes
 	// ==========================================================================
@@ -712,9 +723,9 @@ export function registerAnalysisRoutes(
 			debugRouteLog({
 				message: `/timeline/${req.params.projectId}/auto-edit/jobs/${req.params.jobId} using ${accessor.getAutoEditJobStatus ? "accessor.getAutoEditJobStatus" : "local.getAutoEditJobStatus"}`,
 			});
-			const job = accessor.getAutoEditJobStatus
-				? await accessor.getAutoEditJobStatus(req.params.jobId)
-				: getAutoEditJobStatus(req.params.jobId);
+			const job = await getAutoEditJobForRequest({
+				jobId: req.params.jobId,
+			});
 			if (!job || job.projectId !== req.params.projectId) {
 				throw new HttpError(404, `Job not found: ${req.params.jobId}`);
 			}
@@ -738,6 +749,12 @@ export function registerAnalysisRoutes(
 			debugRouteLog({
 				message: `/timeline/${req.params.projectId}/auto-edit/jobs/${req.params.jobId}/cancel using ${accessor.cancelAutoEditJob ? "accessor.cancelAutoEditJob" : "local.cancelAutoEditJob"}`,
 			});
+			const job = await getAutoEditJobForRequest({
+				jobId: req.params.jobId,
+			});
+			if (!job || job.projectId !== req.params.projectId) {
+				throw new HttpError(404, `Job not found: ${req.params.jobId}`);
+			}
 			const cancelled = accessor.cancelAutoEditJob
 				? await accessor.cancelAutoEditJob(req.params.jobId)
 				: cancelAutoEditJob(req.params.jobId);

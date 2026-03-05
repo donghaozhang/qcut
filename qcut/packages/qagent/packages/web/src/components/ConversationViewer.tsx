@@ -26,14 +26,16 @@ interface ToolTheme {
 	detailText: string;
 }
 
+const DEFAULT_TOOL_THEME: ToolTheme = {
+	border: "#5ea0ff",
+	background: "rgba(94, 160, 255, 0.2)",
+	text: "#dcebff",
+	rowBackground: "rgba(94, 160, 255, 0.08)",
+	detailText: "#b9d4ff",
+};
+
 const TOOL_THEME_PALETTE: ToolTheme[] = [
-	{
-		border: "#5ea0ff",
-		background: "rgba(94, 160, 255, 0.2)",
-		text: "#dcebff",
-		rowBackground: "rgba(94, 160, 255, 0.08)",
-		detailText: "#b9d4ff",
-	},
+	DEFAULT_TOOL_THEME,
 	{
 		border: "#ffb55a",
 		background: "rgba(255, 181, 90, 0.2)",
@@ -129,9 +131,9 @@ function getToolTheme({ name }: { name: string }): ToolTheme {
 		const mapped = TOOL_THEME_BY_NAME[normalized];
 		if (mapped) return mapped;
 		const paletteIndex = hashToolName({ value: normalized }) % TOOL_THEME_PALETTE.length;
-		return TOOL_THEME_PALETTE[paletteIndex]!;
+		return TOOL_THEME_PALETTE[paletteIndex] ?? DEFAULT_TOOL_THEME;
 	} catch {
-		return TOOL_THEME_PALETTE[0]!;
+		return DEFAULT_TOOL_THEME;
 	}
 }
 
@@ -265,8 +267,9 @@ function EntryRow({ entry }: { entry: JsonlEntry }) {
 	if (type === "tool_result") {
 		const detail = entry.toolResult ?? entry.toolDetail ?? "completed";
 		const isError = entry.toolResultError === true;
-		const theme = entry.toolName
-			? getToolTheme({ name: entry.toolName })
+		const toolName = entry.toolName ?? entry.tool_name;
+		const theme = toolName
+			? getToolTheme({ name: toolName })
 			: null;
 		return (
 			<div
@@ -284,7 +287,7 @@ function EntryRow({ entry }: { entry: JsonlEntry }) {
 			>
 				<span
 					className={cn(
-						"shrink-0 rounded px-1.5 py-0.5 text-[10px] font-mono font-medium",
+						"shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-mono font-medium",
 						isError
 							? "bg-[rgba(248,81,73,0.14)] text-[var(--color-status-error)]"
 							: "bg-[rgba(255,255,255,0.06)] text-[var(--color-text-tertiary)]"

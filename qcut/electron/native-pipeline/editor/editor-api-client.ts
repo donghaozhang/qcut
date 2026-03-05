@@ -302,11 +302,7 @@ export class EditorApiClient {
 				const message = context
 					? `${job.message ?? "Job failed"} [${context}]`
 					: job.message ?? "Job failed";
-				throw new EditorApiError(
-					message,
-					undefined,
-					context ?? job.message
-				);
+				throw new EditorApiError(message, undefined, context ?? job.message);
 			}
 			if (job.status === "cancelled") {
 				throw new EditorApiError("Job was cancelled");

@@ -223,59 +223,29 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 			requestFromMain("get-editor-state-snapshot", {
 				request,
 			}) as Promise<EditorStateSnapshot>,
-		executeBatchCuts: async (request) => {
-			try {
-				return (await requestFromMain("timeline:batch-cuts", {
-					request,
-				})) as BatchCutResponse;
-			} catch (error) {
-				throw error;
-			}
-		},
-		executeDeleteRange: async (request) => {
-			try {
-				return (await requestFromMain("timeline:delete-range", {
-					request,
-				})) as ClaudeRangeDeleteResponse;
-			} catch (error) {
-				throw error;
-			}
-		},
-		startAutoEditJob: async (projectId, request) => {
-			try {
-				return (await requestFromMain("timeline:auto-edit:start", {
-					projectId,
-					request,
-				})) as { jobId: string };
-			} catch (error) {
-				throw error;
-			}
-		},
-		getAutoEditJobStatus: async (jobId) => {
-			try {
-				return (await requestFromMain("timeline:auto-edit:status", {
-					jobId,
-				})) as AutoEditJob | null;
-			} catch (error) {
-				throw error;
-			}
-		},
-		listAutoEditJobs: async () => {
-			try {
-				return (await requestFromMain("timeline:auto-edit:list", {})) as AutoEditJob[];
-			} catch (error) {
-				throw error;
-			}
-		},
-		cancelAutoEditJob: async (jobId) => {
-			try {
-				return (await requestFromMain("timeline:auto-edit:cancel", {
-					jobId,
-				})) as boolean;
-			} catch (error) {
-				throw error;
-			}
-		},
+		executeBatchCuts: async (request) =>
+			(await requestFromMain("timeline:batch-cuts", {
+				request,
+			})) as BatchCutResponse,
+		executeDeleteRange: async (request) =>
+			(await requestFromMain("timeline:delete-range", {
+				request,
+			})) as ClaudeRangeDeleteResponse,
+		startAutoEditJob: async (projectId, request) =>
+			(await requestFromMain("timeline:auto-edit:start", {
+				projectId,
+				request,
+			})) as { jobId: string },
+		getAutoEditJobStatus: async (jobId) =>
+			(await requestFromMain("timeline:auto-edit:status", {
+				jobId,
+			})) as AutoEditJob | null,
+		listAutoEditJobs: async () =>
+			(await requestFromMain("timeline:auto-edit:list", {})) as AutoEditJob[],
+		cancelAutoEditJob: async (jobId) =>
+			(await requestFromMain("timeline:auto-edit:cancel", {
+				jobId,
+			})) as boolean,
 	};
 
 	// Register all shared routes

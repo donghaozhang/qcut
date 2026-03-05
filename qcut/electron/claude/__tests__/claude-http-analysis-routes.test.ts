@@ -219,11 +219,18 @@ async function startRoutesServer({
 	serverPort = 20_000 + Math.floor(Math.random() * 1000);
 
 	await new Promise<void>((resolve, reject) => {
-		server?.listen(serverPort, "127.0.0.1", (error?: Error) => {
-			if (error) {
-				reject(error);
-				return;
-			}
+		if (!server) {
+			reject(new Error("Server was not initialized"));
+			return;
+		}
+
+		const handleError = (error: Error) => {
+			server?.off("error", handleError);
+			reject(error);
+		};
+		server.once("error", handleError);
+		server.listen(serverPort, "127.0.0.1", () => {
+			server?.off("error", handleError);
 			resolve();
 		});
 	});

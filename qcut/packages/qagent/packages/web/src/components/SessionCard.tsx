@@ -37,7 +37,9 @@ const AGENT_BADGE_CLASS_BY_AGENT = {
 	"claude-code": "agent-badge agent-badge-claude",
 	codex: "agent-badge agent-badge-codex",
 	tmux: "agent-badge agent-badge-tmux",
+	unknown: "agent-badge",
 } as const;
+type UnmanagedAgent = keyof typeof AGENT_BADGE_CLASS_BY_AGENT;
 
 /** Compact session card with inline label editing, activity dot, and action buttons. */
 export function SessionCard({
@@ -96,10 +98,12 @@ export function SessionCard({
 		TERMINAL_STATUSES.has(session.status) ||
 		(session.activity !== null && TERMINAL_ACTIVITIES.has(session.activity));
 	const isRestorable = isTerminal && session.status !== "merged";
-	const unmanagedAgent =
-		session.metadata.agent === "claude-code" || session.metadata.agent === "codex"
+	const unmanagedAgent: UnmanagedAgent =
+		session.metadata.agent === "claude-code" ||
+		session.metadata.agent === "codex" ||
+		session.metadata.agent === "tmux"
 			? session.metadata.agent
-			: "tmux";
+			: "unknown";
 	const unmanagedAgentLabel =
 		unmanagedAgent === "claude-code" ? "claude" : unmanagedAgent;
 	const unmanagedAgentBadgeClass = AGENT_BADGE_CLASS_BY_AGENT[unmanagedAgent];

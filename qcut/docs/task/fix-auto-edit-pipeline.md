@@ -22,7 +22,7 @@ Returns `pending` with a jobId, then immediately fails with `Auto-edit pipeline 
 
 ## Error Log (from ~/Library/Logs/qcut/main.log)
 
-```
+```text
 [2026-03-05 00:44:22.528] [info]  [AutoEdit] Auto-edit: project=..., element=..., fillers=true, silences=true, dryRun=false
 [2026-03-05 00:44:22.528] [warn]  [AutoEdit] Could not get timeline, using offset 0
 [2026-03-05 00:44:44.097] [info]  [AutoEdit] Transcribed: 925 words, 161.98s
@@ -121,6 +121,7 @@ Check `getWindow()` implementation — it may be returning a window reference th
 ## Test Run: 2026-03-05 01:14 AEDT (Codex)
 
 ### Results Summary
+
 | Step | Command | Status | Notes |
 |------|---------|--------|-------|
 | 0 | QCut health | ❌ | `curl http://127.0.0.1:8765` failed: connection refused |
@@ -129,6 +130,7 @@ Check `getWindow()` implementation — it may be returning a window reference th
 | 3 | transcribe | ❌ | `editor:transcribe:start:failed` (`QCut editor not running at http://127.0.0.1:8765`) |
 | 4a | auto-edit --remove-fillers | ❌ | `editor:editing:auto-edit:failed` (`QCut editor not running at http://127.0.0.1:8765`) |
 | 4b | analyze:fillers | ❌ | `editor:analyze:fillers:failed` (`QCut editor not running at http://127.0.0.1:8765`) |
+
 
 ### Error Details
 
@@ -169,6 +171,7 @@ error: script "pipeline" exited with code 1
 ## Test Run: 2026-03-05 01:55 AEDT (Codex with --dangerously-bypass-approvals-and-sandbox)
 
 ### Results Summary
+
 | Step | Command | Status | Notes |
 |------|---------|--------|-------|
 | 0 | editor:health --status-only | ✅ | ok, v2026.03.04.4, apiVersion 1.1.0 |
@@ -179,6 +182,7 @@ error: script "pipeline" exited with code 1
 | 3a | editor:editing:auto-edit --remove-fillers --poll | ❌ | 'Auto-edit pipeline failed' - job stuck at progress 10, same ipcMain.on bug |
 | 3b | editor:analyze:fillers | ⚠️ | fillers: [] (empty!), but found silences: 4, totalSilenceTime: 6.5s |
 | 4 | Save transcription text | ✅ | /Users/peter/.openclaw/workspace/transcription-output.txt (2196 bytes) |
+
 
 ### Error Details
 - auto-edit: Job created (autoedit_xxx) but immediately failed at progress 10

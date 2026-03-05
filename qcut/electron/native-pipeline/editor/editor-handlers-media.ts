@@ -63,8 +63,7 @@ export async function handleEditorHealth(
 	opts?: CLIRunOptions
 ): Promise<CLIResult> {
 	try {
-		const healthQuery =
-			opts?.deep === true ? { deep: "1" } : undefined;
+		const healthQuery = opts?.deep === true ? { deep: "1" } : undefined;
 		const data = await client.get<Record<string, unknown>>(
 			"/api/claude/health",
 			healthQuery
