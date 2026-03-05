@@ -14,6 +14,10 @@ const { execFileSync, spawn } = require("child_process");
 const PORT = process.argv[2] || 8898;
 const VIDEO_PATH = process.argv[3] || "";
 const SUBTITLES_FILE = "./subtitles_with_time.json";
+const ALLOWED_ORIGINS = new Set([
+  `http://127.0.0.1:${PORT}`,
+  `http://localhost:${PORT}`,
+]);
 
 // 读取字幕数据
 let subtitles = [];
@@ -37,12 +41,22 @@ if (fs.existsSync(DICT_FILE)) {
 }
 
 const server = http.createServer((req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const requestOrigin = typeof req.headers.origin === "string" ? req.headers.origin : "";
+  const isAllowedOrigin = requestOrigin && ALLOWED_ORIGINS.has(requestOrigin);
+  if (isAllowedOrigin) {
+    res.setHeader("Access-Control-Allow-Origin", requestOrigin);
+  }
+  res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
-    res.writeHead(200);
+    if (requestOrigin && !isAllowedOrigin) {
+      res.writeHead(403);
+      res.end();
+      return;
+    }
+    res.writeHead(204);
     res.end();
     return;
   }
@@ -482,15 +496,17 @@ function generateHTML() {
     function renderSubtitles(filter = '') {
       const list = document.getElementById('subtitleList');
       list.innerHTML = subtitles.map((s, i) => {
-        if (filter && !s.text.includes(filter)) return '';
+        const rawText = typeof s.text === 'string' ? s.text : '';
+        if (filter && !rawText.includes(filter)) return '';
+        const escapedText = escapeHtmlForDom(rawText);
         const isEditing = i === editingIdx;
         return \`
           <div class="subtitle-item \${isEditing ? 'editing' : ''}" data-idx="\${i}" onclick="jumpTo(\${i})">
             <div class="sub-time">\${i + 1}. \${formatTime(s.start)} → \${formatTime(s.end)}</div>
             <div class="sub-text">
               \${isEditing
-                ? \`<input type="text" value="\${s.text}" onblur="finishEdit(\${i}, this.value)" onkeydown="if(event.key==='Enter')this.blur()">\`
-                : \`<span ondblclick="startEdit(\${i})">\${s.text}</span>\`
+                ? \`<input type="text" value="\${escapedText}" onblur="finishEdit(\${i}, this.value)" onkeydown="if(event.key==='Enter')this.blur()">\`
+                : \`<span ondblclick="startEdit(\${i})">\${escapedText}</span>\`
               }
             </div>
           </div>
@@ -507,6 +523,16 @@ function generateHTML() {
       const m = Math.floor(s / 60);
       const sec = (s % 60).toFixed(2);
       return m.toString().padStart(2, '0') + ':' + sec.padStart(5, '0');
+    }
+
+    function escapeHtmlForDom(value) {
+      return String(value).replace(/[&<>"']/g, c => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[c]);
     }
 
     function jumpTo(idx) {
@@ -661,10 +687,10 @@ function generateHTML() {
 </html>`;
 }
 
-server.listen(PORT, () => {
+server.listen(PORT, "127.0.0.1", () => {
   console.log(`
 🎬 字幕审核服务器已启动
-📍 地址: http://localhost:${PORT}
+📍 地址: http://127.0.0.1:${PORT}
 📹 视频: ${VIDEO_PATH}
 
 操作说明:

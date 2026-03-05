@@ -93,7 +93,7 @@ export async function spawnSession({
 	}
 
 	let num = getNextSessionNumber(existingSessions, project.sessionPrefix);
-	let sessionId: string | null = null;
+	let sessionId = `${project.sessionPrefix}-${num}`;
 	let tmuxName: string | undefined;
 	for (let attempts = 0; attempts < 10; attempts++) {
 		sessionId = issueSlug
@@ -117,12 +117,6 @@ export async function spawnSession({
 				`Failed to reserve session ID after 10 attempts (prefix: ${project.sessionPrefix})`
 			);
 		}
-	}
-
-	if (!sessionId) {
-		throw new Error(
-			`Failed to reserve session ID after 10 attempts (prefix: ${project.sessionPrefix})`
-		);
 	}
 
 	let branch: string;

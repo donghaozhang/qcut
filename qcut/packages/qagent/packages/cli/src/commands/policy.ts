@@ -288,19 +288,13 @@ export function registerPolicy(program: Command): void {
 							config,
 							project,
 						});
-						if (!workflowContract) {
-							console.log(
-								`${chalk.yellow("WARN")} ${id}: contract path resolved but file is unavailable`
-							);
-							continue;
-						}
 						const effective = resolveEffectiveWorkflowPolicy({
 							config,
 							project,
 							contract: workflowContract,
 						});
 						console.log(
-							`${chalk.green("OK")} ${id}: ${workflowContract.path} mode=${effective.mode}`
+							`${chalk.green("OK")} ${id}: ${contractPathResult.path} mode=${effective.mode}`
 						);
 						console.log(
 							`    reviewGate(enabled=${String(effective.policy.reviewGate.enabled)}, requireSweep=${String(effective.policy.reviewGate.requireReviewSweep)}, maxUnresolved=${String(effective.policy.reviewGate.maxUnresolvedComments)})`
