@@ -3,7 +3,6 @@ name: Release
 # Runners: GitHub-hosted by default
 # To use Blacksmith: set repo variable USE_BLACKSMITH=true
 # To use self-hosted Mac: set repo variable USE_SELF_HOSTED_MAC=true
-# To use self-hosted Windows (uni runner): set repo variable USE_SELF_HOSTED_WIN=true
 # To use self-hosted Linux (school ubuntu-builder): set repo variable USE_SELF_HOSTED_LINUX=true
 
 on:
@@ -55,7 +54,7 @@ jobs:
   # Windows build
   build-windows:
     needs: prepare
-    runs-on: ${{ vars.USE_SELF_HOSTED_WIN == 'true' && fromJSON('["self-hosted", "windows", "x64", "uni"]') || (vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-windows-2025' || 'windows-latest') }}
+    runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
