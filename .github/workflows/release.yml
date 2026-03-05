@@ -61,55 +61,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Bun
-        if: ${{ vars.USE_SELF_HOSTED_WIN != 'true' }}
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.10
-
-      - name: Setup Bun PATH (self-hosted Windows)
-        if: ${{ vars.USE_SELF_HOSTED_WIN == 'true' }}
-        shell: powershell -NoProfile -ExecutionPolicy Bypass -File {0}
-        run: |
-          try {
-            $candidates = @()
-            if ($env:BUN_INSTALL) {
-              $candidates += (Join-Path $env:BUN_INSTALL "bin")
-            }
-            $candidates += @(
-              "$env:USERPROFILE\.bun\bin",
-              "C:\Users\peterzhang\.bun\bin",
-              "C:\Users\Administrator\.bun\bin",
-              "C:\actions-runner\.bun\bin",
-              "C:\Windows\ServiceProfiles\NetworkService\.bun\bin"
-            )
-            $candidates += ($env:PATH -split ';')
-            $candidates = $candidates | Where-Object { $_ } | Select-Object -Unique
-
-            $bunDir = $null
-            foreach ($dir in $candidates) {
-              try {
-                if (Test-Path -Path (Join-Path $dir "bun.exe") -PathType Leaf -ErrorAction Stop) {
-                  $bunDir = $dir
-                  break
-                }
-              } catch {
-                continue
-              }
-            }
-
-            if (-not $bunDir) {
-              throw "bun.exe not found on self-hosted Windows runner. Checked: $($candidates -join ', ')"
-            }
-
-            # GITHUB_PATH applies to later steps; prepend PATH now for immediate use in this step.
-            $env:PATH = "$bunDir;$env:PATH"
-            "$bunDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-            Write-Host "Using Bun from: $bunDir"
-            & (Join-Path $bunDir "bun.exe") --version
-          } catch {
-            Write-Error "Failed to configure Bun on self-hosted Windows runner: $($_.Exception.Message)"
-            throw
-          }
 
       - name: Cache Bun modules
         uses: actions/cache@v4
