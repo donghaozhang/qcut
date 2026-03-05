@@ -208,7 +208,7 @@ jobs:
         run: bun install
 
       - name: Generate route tree
-        run: cd apps/web && bunx @tanstack/router-cli generate
+        run: cd apps/web && bunx --bun @tanstack/router-cli generate
 
       - name: Build web application
         run: bun run build
