@@ -9,6 +9,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { DashboardSession } from "./types.js";
+import { emptyDashboardTokenUsage } from "./token-usage";
 import { detectTerminalApp, readTerminalTabName } from "./terminal-utils";
 
 const execFileAsync = promisify(execFile);
@@ -229,7 +230,7 @@ function cliProcessToDashboard(
 		summaryIsFallback: false,
 		createdAt: now,
 		lastActivityAt: now,
-		tokenUsage: null,
+		tokenUsage: emptyDashboardTokenUsage(),
 		pr: null,
 		metadata: {
 			pid: String(proc.pid),

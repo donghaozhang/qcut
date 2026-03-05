@@ -277,7 +277,12 @@ describe("enrichSessionAgentSummary", () => {
 	it("should set token usage from agent session info", async () => {
 		const core = createCoreSession();
 		const dashboard = sessionToDashboard(core);
-		expect(dashboard.tokenUsage).toBeNull();
+		expect(dashboard.tokenUsage).toEqual({
+			inputTokens: 0,
+			outputTokens: 0,
+			totalTokens: 0,
+			estimatedCostUsd: 0,
+		});
 
 		const agent = createMockAgent({
 			cost: {

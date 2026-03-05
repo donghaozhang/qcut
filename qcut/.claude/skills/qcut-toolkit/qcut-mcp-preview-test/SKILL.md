@@ -29,7 +29,7 @@ QCut's preview panel supports two rendering modes: **Video Preview** (default) a
 
 Data Flow (External MCP):
   Claude Code → HTTP POST /api/claude/mcp/app
-    → claude-http-server.ts forwards via IPC
+    → claude-http-shared-routes.ts forwards via IPC
     → preview-panel.tsx receives via onAppHtml()
     → useMcpAppStore.setMcpApp({html, toolName})
     → <iframe srcDoc={activeHtml}>
@@ -37,16 +37,18 @@ Data Flow (External MCP):
 Data Flow (Local Template):
   User clicks "MCP Media App" button
     → useMcpAppStore.setLocalMcpActive(true)
-    → Renders MCP_MEDIA_APP_TEMPLATE (PersonaPlex)
+    → preview-panel.tsx calls buildMcpMediaAppHtml()
+    → Renders MCP_MEDIA_APP_TEMPLATE from preview-panel/mcp-media-app.ts
 ```
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `apps/web/src/components/editor/preview-panel.tsx` | Preview panel with MCP toggle, iframe rendering, PersonaPlex template |
+| `apps/web/src/components/editor/preview-panel.tsx` | Preview panel with MCP toggle and iframe rendering |
+| `apps/web/src/components/editor/preview-panel/mcp-media-app.ts` | PersonaPlex template (`MCP_MEDIA_APP_TEMPLATE`) and HTML builder |
 | `apps/web/src/stores/mcp-app-store.ts` | Zustand store: `activeHtml`, `toolName`, `localMcpActive` |
-| `electron/claude/claude-http-server.ts` | HTTP endpoint `POST /api/claude/mcp/app` → IPC forward |
+| `electron/claude/http/claude-http-shared-routes.ts` | HTTP endpoint `POST /api/claude/mcp/app` → IPC forward |
 | `electron/mcp/qcut-mcp-server.ts` | MCP tools: `configure-media`, `show-export-settings`, `preview-project-stats` |
 | `electron/mcp/apps/*.html` | HTML templates for each MCP tool |
 | `apps/web/src/types/electron.d.ts` | Type: `window.electronAPI.mcp.onAppHtml()` |
@@ -104,9 +106,9 @@ Then ask Claude to call: `configure-media`, `show-export-settings`, or `preview-
 ## How To Modify The MCP App Template
 
 ### Rules
-- **Target file**: `apps/web/src/components/editor/preview-panel.tsx`
+- **Target file**: `apps/web/src/components/editor/preview-panel/mcp-media-app.ts`
 - **Template variable**: `MCP_MEDIA_APP_TEMPLATE` (PersonaPlex speech-to-speech UI)
-- **Do NOT change**: toggle button behavior, `clearMcpApp()` logic, IPC listener
+- **Do NOT change**: toggle button behavior in `preview-panel.tsx`, `clearMcpApp()` logic, IPC listener
 - **Keep intact**: `PATCH /api/claude/project/{projectId}/settings` endpoint usage
 - **Keep intact**: `try/catch` error handling in inline scripts
 - **Verify after changes**: `cd apps/web && bunx tsc --noEmit`
@@ -115,7 +117,7 @@ Then ask Claude to call: `configure-media`, `show-export-settings`, or `preview-
 
 **Visual redesign:**
 ```text
-In preview-panel.tsx, redesign MCP_MEDIA_APP_TEMPLATE layout:
+In preview-panel/mcp-media-app.ts, redesign MCP_MEDIA_APP_TEMPLATE layout:
 - Two-column on desktop, single-column on mobile
 - Add card backgrounds for each control group
 - Keep all existing controls and API payload keys unchanged
@@ -125,7 +127,7 @@ Run: cd apps/web && bunx tsc --noEmit
 
 **Add new control:**
 ```text
-In preview-panel.tsx, extend MCP_MEDIA_APP_TEMPLATE with a "Background Type" select (color|blur).
+In preview-panel/mcp-media-app.ts, extend MCP_MEDIA_APP_TEMPLATE with a "Background Type" select (color|blur).
 On Apply, include backgroundType in PATCH payload to /api/claude/project/{projectId}/settings.
 Keep current controls and behavior unchanged.
 Run type check: cd apps/web && bunx tsc --noEmit
@@ -133,7 +135,7 @@ Run type check: cd apps/web && bunx tsc --noEmit
 
 **Behavior tweak:**
 ```text
-Update MCP media app behavior in preview-panel.tsx:
+Update MCP media app behavior in preview-panel/mcp-media-app.ts:
 - Disable Apply button while request is in flight
 - Show success/error status messages
 - Keep endpoint and payload schema unchanged
@@ -150,7 +152,7 @@ Run: cd apps/web && bunx tsc --noEmit
 ### External MCP app doesn't render
 1. Verify QCut MCP server registered: `claude mcp list`
 2. Test HTTP endpoint directly with curl (see above)
-3. Check `electron/claude/claude-http-server.ts` route at `POST /api/claude/mcp/app`
+3. Check `electron/claude/http/claude-http-shared-routes.ts` route at `POST /api/claude/mcp/app`
 4. Check that `win.webContents.send("mcp:app-html", ...)` is called
 
 ### Local template renders but iframe is blank

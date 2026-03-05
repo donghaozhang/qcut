@@ -62,7 +62,7 @@ Handles:
 ### 5. qcut-mcp-preview-test — MCP Preview Testing
 **When:** Testing MCP app preview, toggling "MCP Media App" mode, debugging iframe rendering, troubleshooting `mcp:app-html` events or `/api/claude/mcp/app`
 **Invoke:** `/qcut-mcp-preview-test`
-**Skill path:** `.claude/skills/qcut-mcp-preview-test/SKILL.md`
+**Skill path:** `.claude/skills/qcut-toolkit/qcut-mcp-preview-test/SKILL.md`
 
 Handles:
 - Switching preview panel between video preview and MCP app mode

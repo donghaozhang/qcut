@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	toDashboardTokenUsage,
+	toDisplayTokenUsage,
 	formatTokenCountCompact,
 	formatTokenCountFull,
 	formatUsd,
@@ -38,6 +39,15 @@ describe("toDashboardTokenUsage", () => {
 				},
 			})
 		).toEqual({
+			inputTokens: 0,
+			outputTokens: 0,
+			totalTokens: 0,
+			estimatedCostUsd: 0,
+		});
+	});
+
+	it("returns zero fallback for missing display usage", () => {
+		expect(toDisplayTokenUsage({ usage: null })).toEqual({
 			inputTokens: 0,
 			outputTokens: 0,
 			totalTokens: 0,

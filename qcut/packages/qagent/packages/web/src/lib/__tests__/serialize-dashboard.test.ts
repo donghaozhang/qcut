@@ -22,7 +22,12 @@ describe("sessionToDashboard", () => {
 		expect(dashboard.branch).toBe("feat/test");
 		expect(dashboard.createdAt).toBe("2025-01-01T00:00:00.000Z");
 		expect(dashboard.lastActivityAt).toBe("2025-01-01T01:00:00.000Z");
-		expect(dashboard.tokenUsage).toBeNull();
+		expect(dashboard.tokenUsage).toEqual({
+			inputTokens: 0,
+			outputTokens: 0,
+			totalTokens: 0,
+			estimatedCostUsd: 0,
+		});
 	});
 
 	it("should use agentInfo summary with summaryIsFallback false", () => {

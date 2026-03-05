@@ -17,7 +17,10 @@ import type {
 } from "@composio/ao-core";
 import type { DashboardSession, DashboardPR, DashboardStats } from "./types.js";
 import { TTLCache, prCache, prCacheKey, type PREnrichmentData } from "./cache";
-import { toDashboardTokenUsage } from "./token-usage";
+import {
+	emptyDashboardTokenUsage,
+	toDashboardTokenUsage,
+} from "./token-usage";
 
 /** Cache for issue titles (5 min TTL — issue titles rarely change) */
 const issueTitleCache = new TTLCache<string>(300_000);
@@ -63,7 +66,9 @@ export function sessionToDashboard(session: Session): DashboardSession {
 			: false,
 		createdAt: session.createdAt.toISOString(),
 		lastActivityAt: session.lastActivityAt.toISOString(),
-		tokenUsage: toDashboardTokenUsage({ usage: session.agentInfo?.cost }),
+		tokenUsage:
+			toDashboardTokenUsage({ usage: session.agentInfo?.cost }) ??
+			emptyDashboardTokenUsage(),
 		pr: session.pr ? basicPRToDashboard(session.pr) : null,
 		metadata: session.metadata,
 		managed: true,
@@ -296,7 +301,10 @@ export async function enrichSessionAgentSummary(
 	agent: Agent
 ): Promise<void> {
 	const needsSummary = !dashboard.summary;
-	const needsTokenUsage = !dashboard.tokenUsage;
+	const needsTokenUsage =
+		!dashboard.tokenUsage ||
+		(dashboard.tokenUsage.totalTokens === 0 &&
+			dashboard.tokenUsage.estimatedCostUsd === 0);
 	if (!needsSummary && !needsTokenUsage) return;
 
 	try {
@@ -377,7 +385,11 @@ export async function enrichSessionsMetadata(
 
 	// Enrich agent summaries (reads agent's JSONL — local I/O, not an API call)
 	const summaryPromises = coreSessions.map((core, i) => {
-		if (dashboardSessions[i].summary && dashboardSessions[i].tokenUsage) {
+		const tokenUsage = dashboardSessions[i].tokenUsage;
+		const hasReportedTokenUsage =
+			tokenUsage &&
+			(tokenUsage.totalTokens > 0 || tokenUsage.estimatedCostUsd > 0);
+		if (dashboardSessions[i].summary && hasReportedTokenUsage) {
 			return Promise.resolve();
 		}
 		const agentName = projects[i]?.agent ?? config.defaults.agent;
