@@ -55,21 +55,28 @@ export async function buildProjectJSONMinimal(
 	client: EditorApiClient,
 	projectId: string
 ): Promise<ProjectJSONMinimal> {
+	const settingsFallback: Record<string, unknown> = {};
+	const statsFallback: Record<string, unknown> = {};
+	const navigatorFallback: NavigatorProjectsPayload = {
+		projects: [],
+		activeProjectId: null,
+	};
+
 	const [settings, stats, navigator] = await Promise.all([
-		safeGet({
+		safeGet<Record<string, unknown>>({
 			client,
 			path: `/api/claude/project/${projectId}/settings`,
-			fallback: {},
+			fallback: settingsFallback,
 		}),
-		safeGet({
+		safeGet<Record<string, unknown>>({
 			client,
 			path: `/api/claude/project/${projectId}/stats`,
-			fallback: {},
+			fallback: statsFallback,
 		}),
-		safeGet({
+		safeGet<NavigatorProjectsPayload>({
 			client,
 			path: "/api/claude/navigator/projects",
-			fallback: { projects: [], activeProjectId: null },
+			fallback: navigatorFallback,
 		}),
 	]);
 	const projectMeta = findProjectInNavigator({
@@ -123,26 +130,34 @@ export async function buildProjectJSON(
 	client: EditorApiClient,
 	projectId: string
 ): Promise<ProjectJSON> {
+	const settingsFallback: Record<string, unknown> = {};
+	const statsFallback: Record<string, unknown> = {};
+	const mediaFallback: Record<string, unknown>[] = [];
+	const navigatorFallback: NavigatorProjectsPayload = {
+		projects: [],
+		activeProjectId: null,
+	};
+
 	const [settings, stats, mediaList, navigator] = await Promise.all([
-		safeGet({
+		safeGet<Record<string, unknown>>({
 			client,
 			path: `/api/claude/project/${projectId}/settings`,
-			fallback: {},
+			fallback: settingsFallback,
 		}),
-		safeGet({
+		safeGet<Record<string, unknown>>({
 			client,
 			path: `/api/claude/project/${projectId}/stats`,
-			fallback: {},
+			fallback: statsFallback,
 		}),
-		safeGet({
+		safeGet<Record<string, unknown>[]>({
 			client,
 			path: `/api/claude/media/${projectId}`,
-			fallback: [],
+			fallback: mediaFallback,
 		}),
-		safeGet({
+		safeGet<NavigatorProjectsPayload>({
 			client,
 			path: "/api/claude/navigator/projects",
-			fallback: { projects: [], activeProjectId: null },
+			fallback: navigatorFallback,
 		}),
 	]);
 	const projectMeta = findProjectInNavigator({
