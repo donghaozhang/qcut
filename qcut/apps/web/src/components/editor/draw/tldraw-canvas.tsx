@@ -23,6 +23,7 @@ import {
 	ErrorCategory,
 	ErrorSeverity,
 } from "@/lib/debug/error-handler";
+import { normalizeImageMimeType } from "@/components/editor/draw/utils/image-file";
 
 /** Image to annotate */
 export interface AnnotatorImage {
@@ -43,6 +44,44 @@ export interface TldrawCanvasHandle {
 interface TldrawCanvasProps {
 	image: AnnotatorImage;
 	className?: string;
+}
+
+function isLockedImageShape(shape: unknown): shape is TLImageShape {
+	try {
+		if (!shape || typeof shape !== "object") return false;
+		const candidate = shape as { type?: string; isLocked?: boolean };
+		return candidate.type === "image" && candidate.isLocked === true;
+	} catch {
+		return false;
+	}
+}
+
+function resolveBackgroundImageShapeId({
+	editor,
+	preferredId,
+}: {
+	editor: Editor;
+	preferredId: TLShapeId | null;
+}): TLShapeId | null {
+	try {
+		if (preferredId) {
+			const preferred = editor.getShape(preferredId);
+			if (isLockedImageShape(preferred)) {
+				return preferredId;
+			}
+		}
+
+		const shapeIds = [...editor.getCurrentPageShapeIds()];
+		for (const shapeId of shapeIds) {
+			const shape = editor.getShape(shapeId);
+			if (isLockedImageShape(shape)) {
+				return shapeId;
+			}
+		}
+		return null;
+	} catch {
+		return null;
+	}
 }
 
 export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
@@ -76,6 +115,17 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 			let rmChange = () => {};
 			let rmLock = () => {};
 			try {
+				const width = Math.max(1, Math.round(image.width));
+				const height = Math.max(1, Math.round(image.height));
+				if (!image.src) {
+					throw new Error("Missing source image");
+				}
+
+				const mimeType = normalizeImageMimeType({
+					declaredType: image.type,
+					dataUrl: image.src,
+				});
+
 				const assetId = AssetRecordType.createId();
 				activeEditor.createAssets([
 					{
@@ -84,9 +134,9 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 						type: "image",
 						meta: {},
 						props: {
-							w: image.width,
-							h: image.height,
-							mimeType: image.type,
+							w: width,
+							h: height,
+							mimeType,
 							src: image.src,
 							name: "background",
 							isAnimated: false,
@@ -101,7 +151,7 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 					x: 0,
 					y: 0,
 					isLocked: true,
-					props: { w: image.width, h: image.height, assetId },
+					props: { w: width, h: height, assetId },
 				});
 
 				// Keep image at the bottom of the z-order
@@ -161,7 +211,12 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 		// Camera constraints — keep image in view
 		useEffect(() => {
 			const editor = editorRef.current;
-			if (!editor || !imageShapeId) return;
+			if (!editor) return;
+			const resolvedImageShapeId = resolveBackgroundImageShapeId({
+				editor,
+				preferredId: imageShapeId,
+			});
+			if (!resolvedImageShapeId) return;
 
 			editor.setCameraOptions({
 				constraints: {
@@ -180,24 +235,39 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 			getEditor: () => editorRef.current,
 
 			getCanvasDataUrl: async () => {
-				const editor = editorRef.current;
-				if (!editor || !imageShapeId) return null;
+				try {
+					const editor = editorRef.current;
+					if (!editor) return image.src || null;
 
-				const shapeIds = [...editor.getCurrentPageShapeIds()];
-				if (shapeIds.length === 0) return null;
+					const resolvedImageShapeId = resolveBackgroundImageShapeId({
+						editor,
+						preferredId: imageShapeId,
+					});
+					if (!resolvedImageShapeId) return image.src || null;
 
-				// Export only the image bounds area (annotations included)
-				const bounds = editor.getShapePageBounds(imageShapeId);
-				if (!bounds) return null;
+					const shapeIds = [...editor.getCurrentPageShapeIds()];
+					if (shapeIds.length === 0) return image.src || null;
 
-				const result = await editor.toImageDataUrl(shapeIds, {
-					format: "png",
-					background: true,
-					bounds,
-					padding: 0,
-					scale: 1,
-				});
-				return result?.url ?? null;
+					const bounds = editor.getShapePageBounds(resolvedImageShapeId);
+					if (!bounds) return image.src || null;
+
+					const result = await editor.toImage(shapeIds, {
+						format: "png",
+						background: true,
+						bounds,
+						padding: 0,
+						scale: 1,
+					});
+					if (!result?.blob) return image.src || null;
+					return URL.createObjectURL(result.blob);
+				} catch (error) {
+					handleError(error, {
+						operation: "draw panel image export",
+						category: ErrorCategory.UI,
+						severity: ErrorSeverity.MEDIUM,
+					});
+					return image.src || null;
+				}
 			},
 
 			getSnapshot: () => {
@@ -213,11 +283,11 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 					const snapshot = JSON.parse(snapshotJson);
 					editor.store.loadStoreSnapshot(snapshot);
 					// Re-derive imageShapeId from the loaded store
-					const shapes = [...editor.getCurrentPageShapeIds()];
-					const lockedImage = shapes
-						.map((id) => editor.getShape(id))
-						.find((s) => s?.type === "image" && s.isLocked);
-					setImageShapeId(lockedImage?.id ?? null);
+					const resolvedImageShapeId = resolveBackgroundImageShapeId({
+						editor,
+						preferredId: null,
+					});
+					setImageShapeId(resolvedImageShapeId);
 				} catch (error) {
 					handleError(error, {
 						operation: "draw panel snapshot load",
@@ -229,10 +299,15 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 
 			clearAll: () => {
 				const editor = editorRef.current;
-				if (!editor || !imageShapeId) return;
+				if (!editor) return;
+				const resolvedImageShapeId = resolveBackgroundImageShapeId({
+					editor,
+					preferredId: imageShapeId,
+				});
+				if (!resolvedImageShapeId) return;
 				// Delete all shapes EXCEPT the background image
 				const allIds = [...editor.getCurrentPageShapeIds()];
-				const toDelete = allIds.filter((id) => id !== imageShapeId);
+				const toDelete = allIds.filter((id) => id !== resolvedImageShapeId);
 				if (toDelete.length > 0) {
 					editor.deleteShapes(toDelete);
 				}

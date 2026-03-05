@@ -21,6 +21,7 @@ const CUT_END = 65;
 
 // How close (in %) the playhead needs to be to a clip edge to trigger a reaction
 const EDGE_PROXIMITY = 1.5;
+const WHITE_HEX = "#FFFFFF";
 
 function deriveState(progress: number): MascotState {
 	const p = progress * 100;
@@ -150,8 +151,12 @@ export function Mascot({ playheadProgress }: MascotProps) {
 			? "#EF4444"
 			: "#EAB308";
 	const eyeColor =
-		isActive || isGenerating || isCutting || nearEdge ? accentColor : "white";
-	const headStroke = isGenerating ? "#38BDF8" : isCutting ? "#EF4444" : "white";
+		isActive || isGenerating || isCutting || nearEdge ? accentColor : WHITE_HEX;
+	const headStroke = isGenerating
+		? "#38BDF8"
+		: isCutting
+			? "#EF4444"
+			: WHITE_HEX;
 
 	// Reactive transforms
 	const reactiveScale = nearEdge ? 0.97 : overClip ? 1.03 : 1;
