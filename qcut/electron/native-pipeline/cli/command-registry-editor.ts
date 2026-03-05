@@ -55,7 +55,14 @@ function ed(
 
 export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	// ── Health ──
-	"editor:health": ed("editor:health", "Check editor connectivity", []),
+	"editor:health": ed("editor:health", "Check editor connectivity", [
+		f("--status-only", "boolean", "Return compact status output", {
+			default: false,
+		}),
+		f("--deep", "boolean", "Run deep cross-process health probes", {
+			default: false,
+		}),
+	]),
 
 	// ── Media ──
 	"editor:media:list": ed("editor:media:list", "List media files", [PID]),
@@ -305,6 +312,9 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 			}),
 			f("--remove-silences", "boolean", "Remove silences", { default: false }),
 			f("--threshold", "number", "Detection threshold"),
+			f("--debug-trace", "boolean", "Show detailed failure trace context", {
+				default: false,
+			}),
 			POLL,
 		]
 	),

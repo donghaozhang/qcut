@@ -26,6 +26,7 @@ export interface EditorApiConfig {
 	skipCapabilityCheck?: boolean;
 }
 
+/** EditorApiError class. */
 export class EditorApiError extends Error {
 	statusCode?: number;
 	apiError?: string;
@@ -50,6 +51,17 @@ interface JobStatus {
 	progress?: number;
 	message?: string;
 	result?: unknown;
+	correlationId?: string;
+	errorDetails?: {
+		stage?: string;
+		process?: string;
+		action?: string;
+		guard?: string;
+		hint?: string;
+		statusCode?: number;
+		cause?: string;
+		timestamp?: number;
+	};
 	[key: string]: unknown;
 }
 
@@ -67,6 +79,7 @@ interface EndpointCapabilityRequirement {
 export interface PollOptions {
 	interval?: number;
 	timeout?: number;
+	debugTrace?: boolean;
 	onProgress?: (progress: {
 		status: string;
 		progress?: number;
@@ -79,6 +92,7 @@ export interface PollOptions {
 // Client
 // ---------------------------------------------------------------------------
 
+/** EditorApiClient class. */
 export class EditorApiClient {
 	private config: EditorApiConfig;
 	private capabilityManifestCache: CapabilityManifest | null | undefined;
@@ -283,11 +297,14 @@ export class EditorApiClient {
 				return job as T;
 			}
 			if (job.status === "failed") {
-				throw new EditorApiError(
-					job.message ?? "Job failed",
-					undefined,
-					job.message
-				);
+				const context = this.buildJobFailureContext({
+					job,
+					debugTrace: options.debugTrace === true,
+				});
+				const message = context
+					? `${job.message ?? "Job failed"} [${context}]`
+					: (job.message ?? "Job failed");
+				throw new EditorApiError(message, undefined, context ?? job.message);
 			}
 			if (job.status === "cancelled") {
 				throw new EditorApiError("Job was cancelled");
@@ -359,6 +376,56 @@ export class EditorApiClient {
 			}
 		} catch {
 			// Capability checks should never block requests.
+		}
+	}
+
+	private buildJobFailureContext({
+		job,
+		debugTrace,
+	}: {
+		job: JobStatus;
+		debugTrace: boolean;
+	}): string | null {
+		try {
+			const details = job.errorDetails;
+			const parts: string[] = [];
+			if (details && typeof details === "object") {
+				if (typeof details.stage === "string" && details.stage.trim()) {
+					parts.push(`stage=${details.stage.trim()}`);
+				}
+				if (typeof details.process === "string" && details.process.trim()) {
+					parts.push(`process=${details.process.trim()}`);
+				}
+				if (typeof details.action === "string" && details.action.trim()) {
+					parts.push(`action=${details.action.trim()}`);
+				}
+				if (typeof details.guard === "string" && details.guard.trim()) {
+					parts.push(`guard=${details.guard.trim()}`);
+				}
+				if (typeof details.hint === "string" && details.hint.trim()) {
+					parts.push(`hint=${details.hint.trim()}`);
+				}
+				if (debugTrace) {
+					if (typeof details.statusCode === "number") {
+						parts.push(`statusCode=${details.statusCode}`);
+					}
+					if (typeof details.cause === "string" && details.cause.trim()) {
+						parts.push(`cause=${details.cause.trim()}`);
+					}
+					if (
+						typeof details.timestamp === "number" &&
+						Number.isFinite(details.timestamp)
+					) {
+						parts.push(`errorTs=${details.timestamp}`);
+					}
+				}
+			}
+			if (typeof job.correlationId === "string" && job.correlationId.trim()) {
+				parts.push(`correlationId=${job.correlationId.trim()}`);
+			}
+			return parts.length > 0 ? parts.join(", ") : null;
+		} catch {
+			return null;
 		}
 	}
 
@@ -662,6 +729,7 @@ export function createEditorClient(options: CLIRunOptions): EditorApiClient {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Handle sleep. */
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }

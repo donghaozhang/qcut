@@ -26,7 +26,20 @@ import type {
 	EditorEvent,
 	EditorStateSnapshot,
 	Transaction,
+	BatchCutResponse,
+	ClaudeRangeDeleteResponse,
+	AutoEditJob,
 } from "../types/claude-api.js";
+import {
+	buildDeepHealthReport,
+	buildUtilityMainBridgeCheck,
+	DEEP_HEALTH_CHECK_STATUSES,
+} from "../claude/handlers/claude-health-handler.js";
+import type {
+	DeepHealthCheckResult,
+	DeepHealthChecks,
+	DeepHealthReport,
+} from "../claude/handlers/claude-health-handler.js";
 import type {
 	ClaudeHistorySummary,
 	ClaudeUndoRedoResponse,
@@ -84,6 +97,63 @@ interface UtilityHttpConfig {
 	port: number;
 	appVersion: string;
 	requestFromMain: RequestFromMainFn;
+}
+
+/** Build skipped deep health check. */
+function buildSkippedDeepHealthCheck({
+	message,
+}: {
+	message: string;
+}): DeepHealthCheckResult {
+	try {
+		return {
+			status: DEEP_HEALTH_CHECK_STATUSES.SKIP,
+			message,
+			durationMs: 0,
+		};
+	} catch {
+		return {
+			status: DEEP_HEALTH_CHECK_STATUSES.SKIP,
+			message: "Skipped",
+			durationMs: 0,
+		};
+	}
+}
+
+/** Handle is deep health report. */
+function isDeepHealthReport(value: unknown): value is DeepHealthReport {
+	try {
+		if (typeof value !== "object" || value === null) {
+			return false;
+		}
+		const candidate = value as { checks?: unknown; summary?: unknown };
+		if (typeof candidate.checks !== "object" || candidate.checks === null) {
+			return false;
+		}
+		if (typeof candidate.summary !== "object" || candidate.summary === null) {
+			return false;
+		}
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/** Build unavailable main checks. */
+function buildUnavailableMainChecks({
+	message,
+}: {
+	message: string;
+}): DeepHealthChecks {
+	const skipped = buildSkippedDeepHealthCheck({
+		message: `Unavailable via main process: ${message}`,
+	});
+	return {
+		ipcMainReady: skipped,
+		utilityMainBridge: skipped,
+		rendererResponders: skipped,
+		autoEditApplyCutsProbe: skipped,
+	};
 }
 
 /** Start the HTTP server in the utility process that proxies Claude API routes. */
@@ -156,10 +226,81 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 			requestFromMain("get-editor-state-snapshot", {
 				request,
 			}) as Promise<EditorStateSnapshot>,
+		executeBatchCuts: async (request) =>
+			(await requestFromMain("timeline:batch-cuts", {
+				request,
+			})) as BatchCutResponse,
+		executeDeleteRange: async (request) =>
+			(await requestFromMain("timeline:delete-range", {
+				request,
+			})) as ClaudeRangeDeleteResponse,
+		startAutoEditJob: async (projectId, request) =>
+			(await requestFromMain("timeline:auto-edit:start", {
+				projectId,
+				request,
+			})) as { jobId: string },
+		getAutoEditJobStatus: async (jobId) =>
+			(await requestFromMain("timeline:auto-edit:status", {
+				jobId,
+			})) as AutoEditJob | null,
+		listAutoEditJobs: async () =>
+			(await requestFromMain("timeline:auto-edit:list", {})) as AutoEditJob[],
+		cancelAutoEditJob: async (jobId) =>
+			(await requestFromMain("timeline:auto-edit:cancel", {
+				jobId,
+			})) as boolean,
 	};
 
 	// Register all shared routes
-	registerSharedRoutes(router, accessor);
+	registerSharedRoutes(router, accessor, {
+		runDeepHealthChecks: async () => {
+			const startedAt = Date.now();
+			try {
+				const mainReport = await requestFromMain("health:deep-checks", {});
+				const bridgeCheck = buildUtilityMainBridgeCheck({
+					failed: false,
+					message: "Utility-to-main bridge roundtrip succeeded.",
+					durationMs: Date.now() - startedAt,
+				});
+				if (!isDeepHealthReport(mainReport)) {
+					return buildDeepHealthReport({
+						checks: {
+							...buildUnavailableMainChecks({
+								message: "Invalid deep health payload from main process",
+							}),
+							utilityMainBridge: bridgeCheck,
+						},
+					});
+				}
+				return buildDeepHealthReport({
+					checks: {
+						...(mainReport.checks as DeepHealthChecks),
+						utilityMainBridge: bridgeCheck,
+					},
+				});
+			} catch (error) {
+				const bridgeCheck = buildUtilityMainBridgeCheck({
+					failed: true,
+					message:
+						error instanceof Error
+							? `Utility-to-main bridge probe failed: ${error.message}`
+							: "Utility-to-main bridge probe failed",
+					durationMs: Date.now() - startedAt,
+				});
+				return buildDeepHealthReport({
+					checks: {
+						...buildUnavailableMainChecks({
+							message:
+								error instanceof Error
+									? error.message
+									: "Bridge request failed",
+						}),
+						utilityMainBridge: bridgeCheck,
+					},
+				});
+			}
+		},
+	});
 	registerStateRoutes(router, {
 		requestSnapshot: async (request) =>
 			(await requestFromMain("get-editor-state-snapshot", {
@@ -361,6 +502,7 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	});
 
 	// Auth check
+	/** Handle check auth. */
 	function checkAuth(req: IncomingMessage): boolean {
 		const token = process.env.QCUT_API_TOKEN;
 		if (!token) return true;
@@ -368,6 +510,7 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	}
 
 	// CORS
+	/** Set cors headers. */
 	function setCorsHeaders(res: ServerResponse): void {
 		res.setHeader("Access-Control-Allow-Origin", "*");
 		res.setHeader(
@@ -443,6 +586,7 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	});
 }
 
+/** Stop utility http server. */
 export function stopUtilityHttpServer(): void {
 	if (server) {
 		server.close();

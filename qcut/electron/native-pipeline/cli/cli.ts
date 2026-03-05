@@ -38,6 +38,7 @@ const COMMANDS = Object.keys(COMMANDS_REGISTRY);
 
 type Command = string;
 
+/** Handle print help. */
 function printHelp(): void {
 	console.log(
 		`
@@ -379,6 +380,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			port: { type: "string" },
 			token: { type: "string" },
 			poll: { type: "boolean", default: false },
+			"debug-trace": { type: "boolean", default: false },
 			"poll-interval": { type: "string" },
 			replace: { type: "boolean", default: false },
 			ripple: { type: "boolean", default: false },
@@ -428,6 +430,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			include: { type: "string" },
 			// performance flags
 			"skip-health": { type: "boolean", default: false },
+			"status-only": { type: "boolean", default: false },
+			deep: { type: "boolean", default: false },
 			"no-capability-check": { type: "boolean", default: false },
 			session: { type: "boolean", default: false },
 		},
@@ -615,6 +619,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		port: values.port as string | undefined,
 		token: values.token as string | undefined,
 		poll: (values.poll as boolean) ?? false,
+		debugTrace: (values["debug-trace"] as boolean) ?? false,
 		pollInterval: values["poll-interval"]
 			? Number.isNaN(parseFloat(values["poll-interval"] as string))
 				? undefined
@@ -679,6 +684,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		include: values.include as string | undefined,
 		// performance flags
 		skipHealth: (values["skip-health"] as boolean) ?? false,
+		statusOnly: (values["status-only"] as boolean) ?? false,
+		deep: (values.deep as boolean) ?? false,
 		noCapabilityCheck: (values["no-capability-check"] as boolean) ?? false,
 		session: (values.session as boolean) ?? false,
 	};

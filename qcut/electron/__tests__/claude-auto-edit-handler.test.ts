@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { BrowserWindow } from "electron";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -78,11 +79,13 @@ import {
 	cancelAutoEditJob,
 	_clearAutoEditJobs,
 } from "../claude/handlers/claude-auto-edit-handler";
+import { HttpError } from "../claude/utils/http-router";
 
 // ---------------------------------------------------------------------------
 // Test data
 // ---------------------------------------------------------------------------
 
+/** Create transcription result fixture. */
 const makeTranscriptionResult = () => ({
 	words: [
 		{ text: "Hello", start: 0.0, end: 0.5, type: "word" as const },
@@ -98,6 +101,7 @@ const makeTranscriptionResult = () => ({
 	duration: 4.0,
 });
 
+/** Create filler result fixture. */
 const makeFillerResult = () => ({
 	fillers: [{ word: "um", start: 0.6, end: 0.9, reason: "filler word" }],
 	silences: [{ start: 1.5, end: 3.5, duration: 2.0 }],
@@ -270,6 +274,31 @@ describe("claude-auto-edit-handler", () => {
 			expect(mockExecuteBatchCuts).not.toHaveBeenCalled();
 		});
 
+		it("rejects when editor window is not ready for cut execution", async () => {
+			const mockWindow = {
+				isDestroyed: () => false,
+				webContents: {
+					send: vi.fn(),
+					isDestroyed: () => true,
+				},
+			} as unknown as BrowserWindow;
+
+			await expect(
+				autoEdit(
+					"proj_1",
+					{
+						elementId: "el_1",
+						mediaId: "media_1",
+						dryRun: false,
+					},
+					mockWindow
+				)
+			).rejects.toThrow(
+				"Editor renderer closed during auto-edit cut execution"
+			);
+			expect(mockExecuteBatchCuts).not.toHaveBeenCalled();
+		});
+
 		it("calls transcribeMedia with correct parameters", async () => {
 			await autoEdit("proj_1", {
 				elementId: "el_1",
@@ -330,12 +359,14 @@ describe("auto-edit async jobs", () => {
 		const { jobId } = startAutoEditJob("proj_1", {
 			elementId: "el_1",
 			mediaId: "media_1",
+			correlationId: "corr_test_1",
 			dryRun: true,
 		});
 		const job = getAutoEditJobStatus(jobId);
 		expect(job).not.toBeNull();
 		expect(job!.projectId).toBe("proj_1");
 		expect(job!.elementId).toBe("el_1");
+		expect(job!.correlationId).toBe("corr_test_1");
 	});
 
 	it("getAutoEditJobStatus returns null for unknown job", () => {
@@ -376,6 +407,44 @@ describe("auto-edit async jobs", () => {
 
 		const job = getAutoEditJobStatus(jobId);
 		expect(job?.message).toBe("Auto-edit pipeline failed");
+		expect(job?.errorDetails).toBeDefined();
+		expect(job?.errorDetails?.stage).toBe("transcribe");
+		expect(job?.errorDetails?.process).toBe("unknown");
+		expect(job?.errorDetails?.guard).toBe("transcription-provider-ready");
+		expect(job?.errorDetails?.cause).toBe("API error");
+	});
+
+	it("captures apply-cuts failure details for IPC errors", async () => {
+		mockExecuteBatchCuts.mockRejectedValue(
+			new HttpError(503, "IPC bridge unavailable for batch cut execution")
+		);
+		const mockWindow = {
+			webContents: { send: vi.fn() },
+			isDestroyed: vi.fn(() => false),
+		} as unknown as BrowserWindow;
+
+		const { jobId } = startAutoEditJob(
+			"proj_1",
+			{
+				elementId: "el_1",
+				mediaId: "media_1",
+				dryRun: false,
+			},
+			mockWindow
+		);
+
+		await vi.waitFor(() => {
+			const job = getAutoEditJobStatus(jobId);
+			expect(job?.status).toBe("failed");
+		});
+
+		const job = getAutoEditJobStatus(jobId);
+		expect(job?.message).toBe("IPC bridge unavailable for batch cut execution");
+		expect(job?.errorDetails).toBeDefined();
+		expect(job?.errorDetails?.stage).toBe("apply-cuts");
+		expect(job?.errorDetails?.process).toBe("main");
+		expect(job?.errorDetails?.guard).toBe("ipc-main-ready");
+		expect(job?.errorDetails?.statusCode).toBe(503);
 	});
 
 	it("cancelAutoEditJob marks job as cancelled", () => {

@@ -360,6 +360,7 @@ export interface BatchCutRequest {
 	elementId: string;
 	cuts: CutInterval[];
 	ripple?: boolean; // default true
+	correlationId?: CorrelationId;
 }
 
 export interface BatchCutResponse {
@@ -380,6 +381,7 @@ export interface BatchCutResponse {
 export interface AutoEditRequest {
 	elementId: string;
 	mediaId: string;
+	correlationId?: CorrelationId;
 	removeFillers?: boolean; // default true
 	removeSilences?: boolean; // default true
 	silenceThreshold?: number; // seconds, default 1.0
@@ -407,6 +409,31 @@ export interface AutoEditResponse {
 	cuts: AutoEditCutInfo[];
 	applied: boolean;
 	result?: BatchCutResponse;
+}
+
+export const AUTO_EDIT_FAILURE_STAGES = {
+	PREPARE: "prepare",
+	TIMELINE: "timeline",
+	TRANSCRIBE: "transcribe",
+	ANALYZE: "analyze",
+	BUILD_CUTS: "build-cuts",
+	APPLY_CUTS: "apply-cuts",
+	UNKNOWN: "unknown",
+} as const;
+
+export type AutoEditFailureStage =
+	(typeof AUTO_EDIT_FAILURE_STAGES)[keyof typeof AUTO_EDIT_FAILURE_STAGES];
+
+export interface AutoEditFailureDetails {
+	stage: AutoEditFailureStage;
+	process: "main" | "utility" | "renderer" | "unknown";
+	action: string;
+	guard?: string;
+	message: string;
+	hint: string;
+	statusCode?: number;
+	cause?: string;
+	timestamp: number;
 }
 
 // ============================================================================
@@ -472,9 +499,11 @@ export interface AutoEditJob {
 	projectId: string;
 	mediaId: string;
 	elementId: string;
+	correlationId?: CorrelationId;
 	status: "queued" | "processing" | "completed" | "failed" | "cancelled";
 	progress: number;
 	message: string;
+	errorDetails?: AutoEditFailureDetails;
 	result?: AutoEditResponse;
 	createdAt: number;
 	completedAt?: number;

@@ -114,6 +114,7 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Create mock response. */
 function createMockResponse(options: {
 	ok?: boolean;
 	status?: number;
@@ -404,6 +405,55 @@ describe("batchImportMedia", () => {
 		expect(results[0].success).toBe(true);
 		expect(results[1].success).toBe(false);
 		expect(results[1].error).toContain("HTTP 500");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Media Lookup Tests
+// ---------------------------------------------------------------------------
+
+describe("getMediaInfo", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockAccess.mockResolvedValue(undefined);
+		mockStat.mockResolvedValue({
+			size: 1024,
+			birthtimeMs: Date.now(),
+			mtimeMs: Date.now(),
+		});
+		mockReaddir.mockImplementation(async (dirPath: string) => {
+			if (String(dirPath).endsWith("/media")) {
+				return [];
+			}
+			if (String(dirPath).endsWith("/media/imported")) {
+				return [
+					{
+						name: "550e8400-e29b-41d4-a716-446655440000.mp4",
+						isFile: () => true,
+						isSymbolicLink: () => false,
+					},
+				];
+			}
+			return [];
+		});
+	});
+
+	it("resolves imported media by raw mediaId filename stem", async () => {
+		const media = await getMediaInfo(
+			"proj_1",
+			"550e8400-e29b-41d4-a716-446655440000"
+		);
+		expect(media).not.toBeNull();
+		expect(media?.path).toContain("550e8400-e29b-41d4-a716-446655440000.mp4");
+	});
+
+	it("resolves imported media by exact filename", async () => {
+		const media = await getMediaInfo(
+			"proj_1",
+			"550e8400-e29b-41d4-a716-446655440000.mp4"
+		);
+		expect(media).not.toBeNull();
+		expect(media?.path).toContain("550e8400-e29b-41d4-a716-446655440000.mp4");
 	});
 });
 

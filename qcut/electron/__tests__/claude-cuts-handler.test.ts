@@ -48,6 +48,7 @@ vi.mock("electron-log", () => ({
 import { ipcMain, BrowserWindow } from "electron";
 import {
 	executeBatchCuts,
+	probeBatchCutExecutionReadiness,
 	validateBatchCutRequest,
 } from "../claude/handlers/claude-cuts-handler";
 
@@ -163,6 +164,10 @@ describe("claude-cuts-handler", () => {
 				ripple: true,
 			});
 
+			await vi.waitFor(() => {
+				expect(send).toHaveBeenCalledTimes(1);
+			});
+
 			// Verify IPC was sent
 			expect(send).toHaveBeenCalledWith(
 				"claude:timeline:executeCuts",
@@ -219,6 +224,10 @@ describe("claude-cuts-handler", () => {
 				cuts: [{ start: 1, end: 2 }],
 			});
 
+			await vi.waitFor(() => {
+				expect(send).toHaveBeenCalledTimes(1);
+			});
+
 			// Send wrong requestId — should be ignored
 			ipcCallback(
 				{},
@@ -271,6 +280,10 @@ describe("claude-cuts-handler", () => {
 				cuts: [{ start: 1, end: 2 }],
 			});
 
+			await vi.waitFor(() => {
+				expect(send).toHaveBeenCalledTimes(1);
+			});
+
 			expect(send).toHaveBeenCalledWith(
 				"claude:timeline:executeCuts",
 				expect.objectContaining({ ripple: true })
@@ -306,6 +319,94 @@ describe("claude-cuts-handler", () => {
 			).rejects.toThrow("Missing or invalid 'elementId'");
 
 			expect(mockWindow.webContents.send).not.toHaveBeenCalled();
+		});
+
+		it("rejects when renderer webContents is unavailable", async () => {
+			const mockWindow = {
+				webContents: {},
+			} as unknown as BrowserWindow;
+
+			await expect(
+				executeBatchCuts(mockWindow, {
+					elementId: "el_abc",
+					cuts: [{ start: 1, end: 2 }],
+				})
+			).rejects.toThrow(
+				"Editor renderer not available for batch cut execution"
+			);
+		});
+
+		it("rejects when ipcMain bridge is unavailable", async () => {
+			const mockWindow = {
+				webContents: { send: vi.fn() },
+			} as unknown as BrowserWindow;
+			type MutableIpcMain = {
+				on?: typeof ipcMain.on;
+			};
+			const mutableIpcMain = ipcMain as unknown as MutableIpcMain;
+			const originalOn = mutableIpcMain.on;
+			mutableIpcMain.on = undefined;
+
+			try {
+				await expect(
+					executeBatchCuts(mockWindow, {
+						elementId: "el_abc",
+						cuts: [{ start: 1, end: 2 }],
+					})
+				).rejects.toThrow("IPC bridge unavailable for batch cut execution");
+			} finally {
+				mutableIpcMain.on = originalOn;
+			}
+		});
+
+		it("rejects when sending IPC throws", async () => {
+			const sendError = new Error("renderer send failed");
+			const send = vi.fn(() => {
+				throw sendError;
+			});
+			const mockWindow = {
+				webContents: { send },
+			} as unknown as BrowserWindow;
+
+			vi.mocked(ipcMain.on).mockImplementation(() => ipcMain);
+
+			await expect(
+				executeBatchCuts(mockWindow, {
+					elementId: "el_abc",
+					cuts: [{ start: 1, end: 2 }],
+				})
+			).rejects.toThrow("renderer send failed");
+
+			expect(ipcMain.removeListener).toHaveBeenCalledWith(
+				"claude:timeline:executeCuts:response",
+				expect.any(Function)
+			);
+		});
+	});
+
+	describe("probeBatchCutExecutionReadiness", () => {
+		it("passes when ipc and renderer are ready", async () => {
+			const mockWindow = {
+				webContents: { send: vi.fn() },
+				isDestroyed: vi.fn(() => false),
+			} as unknown as BrowserWindow;
+
+			await expect(
+				probeBatchCutExecutionReadiness({ win: mockWindow })
+			).resolves.toBeUndefined();
+		});
+
+		it("fails when renderer bridge is missing", async () => {
+			const mockWindow = {
+				webContents: {},
+				isDestroyed: vi.fn(() => false),
+			} as unknown as BrowserWindow;
+
+			await expect(
+				probeBatchCutExecutionReadiness({ win: mockWindow })
+			).rejects.toThrow(
+				"Editor renderer not available for batch cut readiness probe"
+			);
 		});
 	});
 });

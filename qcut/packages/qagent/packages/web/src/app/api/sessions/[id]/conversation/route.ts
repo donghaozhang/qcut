@@ -11,6 +11,7 @@ import {
 	resolveClaudeProjectDir,
 	findLatestSessionFile,
 	findLatestCodexSessionFile,
+	findCodexSessionFileForContext,
 	normalizeCodexEntries,
 	parseJsonlFileTail,
 	type JsonlEntry,
@@ -86,68 +87,86 @@ function filterEntries(entries: JsonlEntry[], limit: number): JsonlEntry[] {
 	return expanded.slice(-limit);
 }
 
+/** Handle get. */
 export async function GET(
 	request: NextRequest,
 	{ params }: { params: Promise<{ id: string }> },
 ) {
-	const { id } = await params;
-	const session = await findCLISession(id);
+	try {
+		const { id } = await params;
+		const session = await findCLISession(id);
 
-	if (!session) {
-		return NextResponse.json(
-			{ error: "CLI session not found" },
-			{ status: 404 },
-		);
-	}
-
-	const agent = session.metadata.agent;
-	if (agent !== "claude-code" && agent !== "codex") {
-		return NextResponse.json(
-			{ error: "Conversation view is only available for Claude Code and Codex sessions" },
-			{ status: 400 },
-		);
-	}
-
-	const cwd = session.metadata.cwd;
-
-	// Resolve session file based on agent type
-	let sessionFile: string | null = null;
-	if (agent === "claude-code") {
-		if (!cwd) {
+		if (!session) {
 			return NextResponse.json(
-				{ error: "No working directory available for this session" },
+				{ error: "CLI session not found" },
+				{ status: 404 },
+			);
+		}
+
+		const agent = session.metadata.agent;
+		if (agent !== "claude-code" && agent !== "codex") {
+			return NextResponse.json(
+				{
+					error:
+						"Conversation view is only available for Claude Code and Codex sessions",
+				},
 				{ status: 400 },
 			);
 		}
-		const projectDir = resolveClaudeProjectDir(cwd);
-		sessionFile = await findLatestSessionFile(projectDir);
-	} else {
-		sessionFile = await findLatestCodexSessionFile();
-	}
 
-	if (!sessionFile) {
+		const cwd = session.metadata.cwd;
+
+		// Resolve session file based on agent type
+		let sessionFile: string | null = null;
+		if (agent === "claude-code") {
+			if (!cwd) {
+				return NextResponse.json(
+					{ error: "No working directory available for this session" },
+					{ status: 400 },
+				);
+			}
+			const projectDir = resolveClaudeProjectDir(cwd);
+			sessionFile = await findLatestSessionFile(projectDir);
+		} else {
+			const processStartedAt = session.metadata.processStartedAt ?? null;
+			sessionFile = await findCodexSessionFileForContext({
+				cwd,
+				processStartedAt,
+			});
+			if (!sessionFile) {
+				sessionFile = await findLatestCodexSessionFile();
+			}
+		}
+
+		if (!sessionFile) {
+			return NextResponse.json(
+				{ error: "No JSONL session file found" },
+				{ status: 404 },
+			);
+		}
+
+		const limitParam = request.nextUrl.searchParams.get("limit");
+		const limit = Math.min(
+			Math.max(parseInt(limitParam ?? "100", 10) || 100, 1),
+			500,
+		);
+
+		const allEntries = await parseJsonlFileTail(sessionFile, 262_144);
+		const normalized =
+			agent === "codex" ? normalizeCodexEntries(allEntries) : allEntries;
+		const entries = filterEntries(normalized, limit);
+
+		return NextResponse.json({
+			sessionId: id,
+			cwd: cwd ?? null,
+			entries,
+			total: normalized.length,
+			updatedAt: new Date().toISOString(),
+		});
+	} catch {
 		return NextResponse.json(
-			{ error: "No JSONL session file found" },
-			{ status: 404 },
+			{ error: "Failed to load session conversation" },
+			{ status: 500 },
 		);
 	}
-
-	const limitParam = request.nextUrl.searchParams.get("limit");
-	const limit = Math.min(
-		Math.max(parseInt(limitParam ?? "100", 10) || 100, 1),
-		500,
-	);
-
-	const allEntries = await parseJsonlFileTail(sessionFile, 262_144);
-	const normalized =
-		agent === "codex" ? normalizeCodexEntries(allEntries) : allEntries;
-	const entries = filterEntries(normalized, limit);
-
-	return NextResponse.json({
-		sessionId: id,
-		cwd: cwd ?? null,
-		entries,
-		total: normalized.length,
-		updatedAt: new Date().toISOString(),
-	});
 }

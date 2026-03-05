@@ -26,7 +26,7 @@ Before any `editor:*` command, check if QCut is running. If not, build and launc
 
 ```bash
 # Check if QCut is running
-curl -s --connect-timeout 2 http://127.0.0.1:8765/api/claude/health || echo "NOT_RUNNING"
+bun run pipeline editor:health --status-only --json || echo "NOT_RUNNING"
 ```
 
 If NOT_RUNNING:

@@ -30,6 +30,12 @@ const KANBAN_LEVELS = [
 	"merge",
 ] as const;
 const RELAY_SESSION_PREFIX = "relay-";
+const SESSION_SORT_MODE = {
+	DEFAULT: "default",
+	CPU: "cpu",
+} as const;
+type SessionSortMode =
+	(typeof SESSION_SORT_MODE)[keyof typeof SESSION_SORT_MODE];
 
 /** Main dashboard view with kanban-style session grouping and live SSE updates. */
 export function Dashboard({
@@ -38,6 +44,9 @@ export function Dashboard({
 	projectName,
 }: DashboardProps) {
 	const [showRelaySessions, setShowRelaySessions] = useState(false);
+	const [sessionSortMode, setSessionSortMode] = useState<SessionSortMode>(
+		SESSION_SORT_MODE.DEFAULT
+	);
 	const [labelOverrides, setLabelOverrides] = useState<
 		Record<string, string | null>
 	>({});
@@ -102,6 +111,18 @@ export function Dashboard({
 		() => sessions.filter((session) => !isRelaySession({ session })),
 		[sessions]
 	);
+	const sortedVisibleSessions = useMemo(() => {
+		if (sessionSortMode !== SESSION_SORT_MODE.CPU) {
+			return visibleSessions;
+		}
+		return sortSessionsByCpuUsage({ sessions: visibleSessions });
+	}, [visibleSessions, sessionSortMode]);
+	const sortedRelaySessions = useMemo(() => {
+		if (sessionSortMode !== SESSION_SORT_MODE.CPU) {
+			return relaySessions;
+		}
+		return sortSessionsByCpuUsage({ sessions: relaySessions });
+	}, [relaySessions, sessionSortMode]);
 	const [rateLimitDismissed, setRateLimitDismissed] = useState(false);
 	const grouped = useMemo(() => {
 		const zones: Record<AttentionLevel, DashboardSession[]> = {
@@ -112,11 +133,11 @@ export function Dashboard({
 			working: [],
 			done: [],
 		};
-		for (const session of visibleSessions) {
+		for (const session of sortedVisibleSessions) {
 			zones[getAttentionLevel(session)].push(session);
 		}
 		return zones;
-	}, [visibleSessions]);
+	}, [sortedVisibleSessions]);
 
 	const openPRs = useMemo(() => {
 		return visibleSessions
@@ -128,6 +149,7 @@ export function Dashboard({
 			.sort((a, b) => mergeScore(a) - mergeScore(b));
 	}, [visibleSessions]);
 
+	/** Handle send. */
 	const handleSend = async (sessionId: string, message: string) => {
 		const res = await fetch(
 			`/api/sessions/${encodeURIComponent(sessionId)}/send`,
@@ -145,6 +167,7 @@ export function Dashboard({
 		}
 	};
 
+	/** Handle kill. */
 	const handleKill = async (sessionId: string) => {
 		if (!confirm(`Kill session ${sessionId}?`)) return;
 		const res = await fetch(
@@ -158,6 +181,7 @@ export function Dashboard({
 		}
 	};
 
+	/** Handle merge. */
 	const handleMerge = async (prNumber: number) => {
 		const res = await fetch(`/api/prs/${prNumber}/merge`, { method: "POST" });
 		if (!res.ok) {
@@ -165,6 +189,7 @@ export function Dashboard({
 		}
 	};
 
+	/** Handle restore. */
 	const handleRestore = async (sessionId: string) => {
 		if (!confirm(`Restore session ${sessionId}?`)) return;
 		const res = await fetch(
@@ -226,6 +251,16 @@ export function Dashboard({
 		() => visibleSessions.some((s) => s.pr && isPRRateLimited(s.pr)),
 		[visibleSessions]
 	);
+	const isCpuSortEnabled = sessionSortMode === SESSION_SORT_MODE.CPU;
+
+	/** Handle sort toggle. */
+	const handleSortToggle = () => {
+		setSessionSortMode((previousSortMode) =>
+			previousSortMode === SESSION_SORT_MODE.CPU
+				? SESSION_SORT_MODE.DEFAULT
+				: SESSION_SORT_MODE.CPU
+		);
+	};
 
 	return (
 		<div className="px-8 py-7">
@@ -239,6 +274,33 @@ export function Dashboard({
 					<StatusLine stats={liveStats} />
 				</div>
 				<div className="flex items-center gap-3">
+					<button
+						type="button"
+						onClick={handleSortToggle}
+						aria-pressed={isCpuSortEnabled}
+						aria-label={
+							isCpuSortEnabled
+								? "Disable CPU usage sorting"
+								: "Sort sessions by CPU usage"
+						}
+						className="inline-flex items-center gap-1.5 rounded-[7px] border border-[var(--color-border-subtle)] bg-[rgba(255,255,255,0.02)] px-3 py-1.5 text-[11px] text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-border-strong)]"
+					>
+						<svg
+							className="h-3.5 w-3.5"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							viewBox="0 0 24 24"
+						>
+							<path d="M4 8h16M7 4l-3 4 3 4M20 16H4M17 12l3 4-3 4" />
+						</svg>
+						<span className="uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">
+							Sort
+						</span>
+						<span className="rounded-[4px] bg-[rgba(255,255,255,0.05)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-text-primary)]">
+							{isCpuSortEnabled ? "CPU%" : "Default"}
+						</span>
+					</button>
 					{relaySessions.length > 0 && (
 						<label className="flex cursor-pointer items-center gap-2 rounded-[7px] border border-[var(--color-border-subtle)] bg-[rgba(255,255,255,0.02)] px-3 py-1.5 text-[11px] text-[var(--color-text-secondary)]">
 							<input
@@ -354,7 +416,7 @@ export function Dashboard({
 
 			{showRelaySessions && relaySessions.length > 0 && (
 				<div className="mb-8">
-					<RelaySessionsPanel sessions={relaySessions} />
+					<RelaySessionsPanel sessions={sortedRelaySessions} />
 				</div>
 			)}
 
@@ -403,6 +465,7 @@ export function Dashboard({
 	);
 }
 
+/** Handle is relay session. */
 function isRelaySession({
 	session,
 }: {
@@ -411,6 +474,7 @@ function isRelaySession({
 	return session.id.startsWith(RELAY_SESSION_PREFIX);
 }
 
+/** Handle relay sessions panel. */
 function RelaySessionsPanel({
 	sessions,
 }: {
@@ -512,4 +576,39 @@ function mergeScore(
 	else if (pr.reviewDecision !== "approved") score += 10;
 	score += pr.unresolvedThreads * 5;
 	return score;
+}
+
+/** Handle sort sessions by cpu usage. */
+function sortSessionsByCpuUsage({
+	sessions,
+}: {
+	sessions: DashboardSession[];
+}): DashboardSession[] {
+	try {
+		return [...sessions].sort((sessionA, sessionB) => {
+			const cpuDifference =
+				getSessionCpuPercent({ session: sessionB }) -
+				getSessionCpuPercent({ session: sessionA });
+			if (cpuDifference !== 0) return cpuDifference;
+			return sessionA.id.localeCompare(sessionB.id);
+		});
+	} catch {
+		return sessions;
+	}
+}
+
+/** Get session cpu percent. */
+function getSessionCpuPercent({
+	session,
+}: {
+	session: Pick<DashboardSession, "metadata">;
+}): number {
+	try {
+		const rawCpu = session.metadata.cpu ?? "0";
+		const parsedCpu = Number.parseFloat(rawCpu);
+		if (!Number.isFinite(parsedCpu)) return 0;
+		return parsedCpu;
+	} catch {
+		return 0;
+	}
 }

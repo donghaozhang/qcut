@@ -36,9 +36,30 @@ import {
 	listSuggestJobs,
 	cancelSuggestJob,
 } from "../handlers/claude-suggest-handler.js";
+import { claudeLog } from "../utils/logger.js";
 import { logOperation } from "../claude-operation-log.js";
 import { getMediaInfo } from "../handlers/claude-media-handler.js";
+import { getRequestCorrelationId } from "./claude-http-meta-routes.js";
 import type { BrowserWindow } from "electron";
+import type {
+	AutoEditRequest,
+	AutoEditJob,
+	BatchCutRequest,
+	BatchCutResponse,
+	ClaudeRangeDeleteRequest,
+	ClaudeRangeDeleteResponse,
+} from "../../types/claude-api.js";
+
+const HANDLER_NAME = "AnalysisRoutes";
+
+/** Handle debug route log. */
+function debugRouteLog({ message }: { message: string }): void {
+	try {
+		claudeLog.debug(HANDLER_NAME, message);
+	} catch {
+		// Ignore logging failures to keep route behavior stable.
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Helpers for word normalization (used by load-speech + transcribe-and-load)
@@ -53,6 +74,7 @@ interface RawWord {
 	speaker?: string;
 }
 
+/** Build text from words. */
 function buildTextFromWords(words: RawWord[]): string {
 	return words
 		.filter((w) => (w.type ?? "word") === "word" || w.type === "spacing")
@@ -60,6 +82,7 @@ function buildTextFromWords(words: RawWord[]): string {
 		.join("");
 }
 
+/** Normalize words. */
 function normalizeWords(words: RawWord[]): Array<{
 	text: string;
 	start: number;
@@ -76,13 +99,39 @@ function normalizeWords(words: RawWord[]): Array<{
 	}));
 }
 
+interface AnalysisRoutesAccessor {
+	getWindow: () => BrowserWindow;
+	executeBatchCuts?: (request: BatchCutRequest) => Promise<BatchCutResponse>;
+	executeDeleteRange?: (
+		request: ClaudeRangeDeleteRequest
+	) => Promise<ClaudeRangeDeleteResponse>;
+	startAutoEditJob?: (
+		projectId: string,
+		request: AutoEditRequest
+	) => Promise<{ jobId: string }>;
+	getAutoEditJobStatus?: (jobId: string) => Promise<AutoEditJob | null>;
+	listAutoEditJobs?: () => Promise<AutoEditJob[]>;
+	cancelAutoEditJob?: (jobId: string) => Promise<boolean>;
+}
+
 /**
  * Register analysis, transcription, and Stage 3 editing routes on the router.
  */
 export function registerAnalysisRoutes(
 	router: Router,
-	getWindow: () => BrowserWindow
+	accessor: AnalysisRoutesAccessor
 ): void {
+	const getAutoEditJobForRequest = async ({
+		jobId,
+	}: {
+		jobId: string;
+	}): Promise<AutoEditJob | null> => {
+		if (accessor.getAutoEditJobStatus) {
+			return await accessor.getAutoEditJobStatus(jobId);
+		}
+		return getAutoEditJobStatus(jobId);
+	};
+
 	// ==========================================================================
 	// Video Analysis routes
 	// ==========================================================================
@@ -202,7 +251,7 @@ export function registerAnalysisRoutes(
 			throw new HttpError(400, "Empty 'words' array in request body");
 		}
 		try {
-			const win = getWindow();
+			const win = accessor.getWindow();
 			const words: RawWord[] = req.body.words;
 			win.webContents.send("claude:speech:load", {
 				text: req.body.text ?? buildTextFromWords(words),
@@ -269,7 +318,7 @@ export function registerAnalysisRoutes(
 				}
 				const sourceDesc =
 					req.body.source?.filePath || req.body.mediaId || "unknown";
-				const win = getWindow();
+				const win = accessor.getWindow();
 				win.webContents.send("claude:speech:load", {
 					text: buildTextFromWords(result.words),
 					language_code: result.language ?? "unknown",
@@ -440,13 +489,19 @@ export function registerAnalysisRoutes(
 				"Missing 'elementId' and 'cuts' array in request body"
 			);
 		}
-		const win = getWindow();
+		const batchCutRequest: BatchCutRequest = {
+			elementId: req.body.elementId,
+			cuts: req.body.cuts,
+			ripple: req.body.ripple,
+		};
+		const batchCutPromise = accessor.executeBatchCuts
+			? accessor.executeBatchCuts(batchCutRequest)
+			: executeBatchCuts(accessor.getWindow(), batchCutRequest);
+		debugRouteLog({
+			message: `/timeline/${req.params.projectId}/cuts using ${accessor.executeBatchCuts ? "accessor.executeBatchCuts" : "local.executeBatchCuts"}`,
+		});
 		return Promise.race([
-			executeBatchCuts(win, {
-				elementId: req.body.elementId,
-				cuts: req.body.cuts,
-				ripple: req.body.ripple,
-			}),
+			batchCutPromise,
 			new Promise<never>((_, reject) =>
 				setTimeout(
 					() => reject(new HttpError(504, "Renderer timed out")),
@@ -469,15 +524,21 @@ export function registerAnalysisRoutes(
 				"Missing 'startTime' and 'endTime' in request body"
 			);
 		}
-		const win = getWindow();
+		const deleteRangeRequest: ClaudeRangeDeleteRequest = {
+			startTime: req.body.startTime,
+			endTime: req.body.endTime,
+			trackIds: req.body.trackIds,
+			ripple: req.body.ripple,
+			crossTrackRipple: req.body.crossTrackRipple,
+		};
+		const deleteRangePromise = accessor.executeDeleteRange
+			? accessor.executeDeleteRange(deleteRangeRequest)
+			: executeDeleteRange(accessor.getWindow(), deleteRangeRequest);
+		debugRouteLog({
+			message: `/timeline/${req.params.projectId}/range using ${accessor.executeDeleteRange ? "accessor.executeDeleteRange" : "local.executeDeleteRange"}`,
+		});
 		return Promise.race([
-			executeDeleteRange(win, {
-				startTime: req.body.startTime,
-				endTime: req.body.endTime,
-				trackIds: req.body.trackIds,
-				ripple: req.body.ripple,
-				crossTrackRipple: req.body.crossTrackRipple,
-			}),
+			deleteRangePromise,
 			new Promise<never>((_, reject) =>
 				setTimeout(
 					() => reject(new HttpError(504, "Renderer timed out")),
@@ -503,13 +564,15 @@ export function registerAnalysisRoutes(
 		if (!req.body?.mediaId) {
 			throw new HttpError(400, "Missing 'mediaId' in request body");
 		}
-		const win = getWindow();
+		const win = accessor.getWindow();
 		try {
+			const correlationId = getRequestCorrelationId({ req });
 			return await autoEdit(
 				req.params.projectId,
 				{
 					elementId: req.body.elementId,
 					mediaId: req.body.mediaId,
+					correlationId,
 					removeFillers: req.body.removeFillers,
 					removeSilences: req.body.removeSilences,
 					silenceThreshold: req.body.silenceThreshold,
@@ -620,20 +683,35 @@ export function registerAnalysisRoutes(
 			if (!req.body?.mediaId) {
 				throw new HttpError(400, "Missing 'mediaId' in request body");
 			}
-			const win = getWindow();
+			const autoEditRequest: AutoEditRequest = {
+				elementId: req.body.elementId,
+				mediaId: req.body.mediaId,
+				correlationId: getRequestCorrelationId({ req }),
+				removeFillers: req.body.removeFillers,
+				removeSilences: req.body.removeSilences,
+				silenceThreshold: req.body.silenceThreshold,
+				keepSilencePadding: req.body.keepSilencePadding,
+				dryRun: req.body.dryRun,
+				provider: req.body.provider,
+				language: req.body.language,
+			};
+			if (accessor.startAutoEditJob) {
+				debugRouteLog({
+					message: `/timeline/${req.params.projectId}/auto-edit/start using accessor.startAutoEditJob`,
+				});
+				const { jobId } = await accessor.startAutoEditJob(
+					req.params.projectId,
+					autoEditRequest
+				);
+				return { jobId };
+			}
+			debugRouteLog({
+				message: `/timeline/${req.params.projectId}/auto-edit/start using local.startAutoEditJob`,
+			});
+			const win = accessor.getWindow();
 			const { jobId } = startAutoEditJob(
 				req.params.projectId,
-				{
-					elementId: req.body.elementId,
-					mediaId: req.body.mediaId,
-					removeFillers: req.body.removeFillers,
-					removeSilences: req.body.removeSilences,
-					silenceThreshold: req.body.silenceThreshold,
-					keepSilencePadding: req.body.keepSilencePadding,
-					dryRun: req.body.dryRun,
-					provider: req.body.provider,
-					language: req.body.language,
-				},
+				autoEditRequest,
 				win
 			);
 			return { jobId };
@@ -643,7 +721,12 @@ export function registerAnalysisRoutes(
 	router.get(
 		"/api/claude/timeline/:projectId/auto-edit/jobs/:jobId",
 		async (req) => {
-			const job = getAutoEditJobStatus(req.params.jobId);
+			debugRouteLog({
+				message: `/timeline/${req.params.projectId}/auto-edit/jobs/${req.params.jobId} using ${accessor.getAutoEditJobStatus ? "accessor.getAutoEditJobStatus" : "local.getAutoEditJobStatus"}`,
+			});
+			const job = await getAutoEditJobForRequest({
+				jobId: req.params.jobId,
+			});
 			if (!job || job.projectId !== req.params.projectId) {
 				throw new HttpError(404, `Job not found: ${req.params.jobId}`);
 			}
@@ -652,14 +735,30 @@ export function registerAnalysisRoutes(
 	);
 
 	router.get("/api/claude/timeline/:projectId/auto-edit/jobs", async (req) => {
-		const allJobs = listAutoEditJobs();
+		debugRouteLog({
+			message: `/timeline/${req.params.projectId}/auto-edit/jobs using ${accessor.listAutoEditJobs ? "accessor.listAutoEditJobs" : "local.listAutoEditJobs"}`,
+		});
+		const allJobs = accessor.listAutoEditJobs
+			? await accessor.listAutoEditJobs()
+			: listAutoEditJobs();
 		return allJobs.filter((job) => job.projectId === req.params.projectId);
 	});
 
 	router.post(
 		"/api/claude/timeline/:projectId/auto-edit/jobs/:jobId/cancel",
 		async (req) => {
-			const cancelled = cancelAutoEditJob(req.params.jobId);
+			debugRouteLog({
+				message: `/timeline/${req.params.projectId}/auto-edit/jobs/${req.params.jobId}/cancel using ${accessor.cancelAutoEditJob ? "accessor.cancelAutoEditJob" : "local.cancelAutoEditJob"}`,
+			});
+			const job = await getAutoEditJobForRequest({
+				jobId: req.params.jobId,
+			});
+			if (!job || job.projectId !== req.params.projectId) {
+				throw new HttpError(404, `Job not found: ${req.params.jobId}`);
+			}
+			const cancelled = accessor.cancelAutoEditJob
+				? await accessor.cancelAutoEditJob(req.params.jobId)
+				: cancelAutoEditJob(req.params.jobId);
 			return { cancelled };
 		}
 	);

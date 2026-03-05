@@ -13,9 +13,46 @@ import {
 } from "../handlers/claude-capability-handler.js";
 import { getClaudeCommandRegistry } from "../handlers/claude-command-registry.js";
 import type { CommandRecord, CorrelationId } from "../../types/claude-api.js";
+import type { DeepHealthReport } from "../handlers/claude-health-handler.js";
 
 const COMMAND_WAIT_TIMEOUT_MS = 29_000;
 
+/** Handle should run deep health. */
+function shouldRunDeepHealth({
+	value,
+}: {
+	value: string | undefined;
+}): boolean {
+	try {
+		if (!value) {
+			return false;
+		}
+		const normalized = value.trim().toLowerCase();
+		return (
+			normalized === "1" ||
+			normalized === "true" ||
+			normalized === "yes" ||
+			normalized === "on"
+		);
+	} catch {
+		return false;
+	}
+}
+
+/** Handle derive deep health status. */
+function deriveDeepHealthStatus({
+	report,
+}: {
+	report: DeepHealthReport;
+}): "ok" | "degraded" {
+	try {
+		return report.summary.failed > 0 ? "degraded" : "ok";
+	} catch {
+		return "degraded";
+	}
+}
+
+/** Handle should skip correlation tracking. */
 function shouldSkipCorrelationTracking({
 	pathname,
 }: {
@@ -31,6 +68,7 @@ function shouldSkipCorrelationTracking({
 	}
 }
 
+/** Build tracked command params. */
 function buildTrackedCommandParams({
 	req,
 }: {
@@ -53,6 +91,7 @@ function buildTrackedCommandParams({
 	}
 }
 
+/** Set request command meta. */
 function setRequestCommandMeta({
 	req,
 	record,
@@ -69,6 +108,7 @@ function setRequestCommandMeta({
 	}
 }
 
+/** Get request correlation id. */
 export function getRequestCorrelationId({
 	req,
 }: {
@@ -81,6 +121,7 @@ export function getRequestCorrelationId({
 	}
 }
 
+/** Handle is terminal command. */
 function isTerminalCommand({ record }: { record: CommandRecord }): boolean {
 	try {
 		return record.state === "applied" || record.state === "failed";
@@ -89,6 +130,7 @@ function isTerminalCommand({ record }: { record: CommandRecord }): boolean {
 	}
 }
 
+/** Handle wrap router with correlation tracking. */
 export function wrapRouterWithCorrelationTracking({
 	router,
 }: {
@@ -178,16 +220,23 @@ export function wrapRouterWithCorrelationTracking({
 	}
 }
 
+/** Register meta routes. */
 export function registerMetaRoutes({
 	router,
 	getAppVersion,
+	runDeepHealthChecks,
 }: {
 	router: Router;
 	getAppVersion: () => string;
+	runDeepHealthChecks?: () => Promise<DeepHealthReport>;
 }): void {
 	try {
-		router.get("/api/claude/health", async () => {
+		router.get("/api/claude/health", async (req) => {
 			try {
+				const deepRequested = shouldRunDeepHealth({
+					value:
+						typeof req.query.deep === "string" ? req.query.deep : undefined,
+				});
 				const appVersion = getAppVersion();
 				const electronVersion = process.versions.electron ?? "unknown";
 				const apiVersionInfo = getApiVersionInfo({
@@ -201,7 +250,7 @@ export function registerMetaRoutes({
 					deprecated: capability.deprecated === true,
 				}));
 
-				return {
+				const response: Record<string, unknown> = {
 					status: "ok",
 					version: appVersion,
 					uptime: process.uptime(),
@@ -211,6 +260,27 @@ export function registerMetaRoutes({
 					electronVersion: apiVersionInfo.electronVersion,
 					capabilities,
 				};
+
+				if (deepRequested) {
+					if (runDeepHealthChecks) {
+						try {
+							const report = await runDeepHealthChecks();
+							response.deepStatus = deriveDeepHealthStatus({ report });
+							response.deepChecks = report;
+						} catch (error) {
+							response.deepStatus = "degraded";
+							response.deepError =
+								error instanceof Error
+									? error.message
+									: "Deep health checks failed";
+						}
+					} else {
+						response.deepStatus = "unsupported";
+						response.deepError = "Deep health checks are not available";
+					}
+				}
+
+				return response;
 			} catch (error) {
 				throw new HttpError(
 					500,

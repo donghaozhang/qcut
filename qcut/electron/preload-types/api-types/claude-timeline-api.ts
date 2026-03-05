@@ -155,6 +155,7 @@ export interface ClaudeTimelineAPI {
 		onExecuteCuts: (
 			callback: (data: {
 				requestId: string;
+				correlationId?: string;
 				elementId: string;
 				cuts: Array<{ start: number; end: number }>;
 				ripple: boolean;

@@ -5,10 +5,14 @@
  */
 
 import { ipcMain } from "electron";
-import type { BrowserWindow, IpcMainEvent } from "electron";
+import type { BrowserWindow, IpcMain, IpcMainEvent } from "electron";
 import { generateId } from "../utils/helpers.js";
 import { claudeLog } from "../utils/logger.js";
 import { HttpError } from "../utils/http-router.js";
+import {
+	assertIpcMainReady,
+	assertRendererWindowReady,
+} from "../utils/renderer-ipc-guard.js";
 import type {
 	CutInterval,
 	BatchCutRequest,
@@ -17,6 +21,41 @@ import type {
 
 const HANDLER_NAME = "Cuts";
 const BATCH_CUT_TIMEOUT = 30_000;
+
+/** Build batch cut request id. */
+function buildBatchCutRequestId({
+	correlationId,
+}: {
+	correlationId?: string;
+}): string {
+	try {
+		const baseRequestId = generateId("req");
+		if (!correlationId || !correlationId.trim()) {
+			return baseRequestId;
+		}
+		return `${correlationId.trim()}-${baseRequestId}`;
+	} catch {
+		return `req_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+	}
+}
+
+/** Get ipc main for batch cut execution. */
+async function getIpcMainForBatchCutExecution(): Promise<IpcMain> {
+	try {
+		const ipcMainInstance = ipcMain;
+		assertIpcMainReady({
+			ipcMainInstance,
+			action: "batch cut execution",
+			requiresOnce: false,
+		});
+		return ipcMainInstance;
+	} catch (error) {
+		if (error instanceof HttpError) {
+			throw error;
+		}
+		throw new HttpError(503, "IPC bridge unavailable for batch cut execution");
+	}
+}
 
 /**
  * Validate the batch cut request and reject invalid inputs.
@@ -66,21 +105,41 @@ export async function executeBatchCuts(
 	request: BatchCutRequest
 ): Promise<BatchCutResponse> {
 	validateBatchCutRequest(request);
+	const ipcMainInstance = await getIpcMainForBatchCutExecution();
+	assertRendererWindowReady({
+		win,
+		action: "batch cut execution",
+	});
 
 	claudeLog.info(
 		HANDLER_NAME,
-		`Batch cuts: element=${request.elementId}, cuts=${request.cuts.length}, ripple=${request.ripple ?? true}`
+		`Batch cuts: element=${request.elementId}, cuts=${request.cuts.length}, ripple=${request.ripple ?? true}, correlationId=${request.correlationId ?? "n/a"}`
 	);
 
 	return new Promise((resolve, reject) => {
 		let resolved = false;
-		const requestId = generateId("req");
+		const requestId = buildBatchCutRequestId({
+			correlationId: request.correlationId,
+		});
+		const responseChannel = "claude:timeline:executeCuts:response";
+		let timeout: NodeJS.Timeout | undefined;
 
-		const timeout = setTimeout(() => {
+		const cleanup = (): void => {
+			if (timeout) {
+				clearTimeout(timeout);
+			}
+			ipcMainInstance.removeListener(responseChannel, handler);
+		};
+
+		const rejectOnce = ({ error }: { error: Error }): void => {
 			if (resolved) return;
 			resolved = true;
-			ipcMain.removeListener("claude:timeline:executeCuts:response", handler);
-			reject(new Error("Timeout waiting for batch cut result"));
+			cleanup();
+			reject(error);
+		};
+
+		timeout = setTimeout(() => {
+			rejectOnce({ error: new Error("Timeout waiting for batch cut result") });
 		}, BATCH_CUT_TIMEOUT);
 
 		const handler = (
@@ -89,20 +148,52 @@ export async function executeBatchCuts(
 		) => {
 			if (data.requestId !== requestId || resolved) return;
 			resolved = true;
-			clearTimeout(timeout);
-			ipcMain.removeListener("claude:timeline:executeCuts:response", handler);
+			cleanup();
 			resolve(data.result);
 		};
 
-		ipcMain.on("claude:timeline:executeCuts:response", handler);
-		win.webContents.send("claude:timeline:executeCuts", {
-			requestId,
-			elementId: request.elementId,
-			cuts: request.cuts,
-			ripple: request.ripple ?? true,
-		});
+		try {
+			ipcMainInstance.on(responseChannel, handler);
+			win.webContents.send("claude:timeline:executeCuts", {
+				requestId,
+				correlationId: request.correlationId,
+				elementId: request.elementId,
+				cuts: request.cuts,
+				ripple: request.ripple ?? true,
+			});
+		} catch (error) {
+			const failure =
+				error instanceof Error
+					? error
+					: new Error("Failed to execute batch cut request");
+			rejectOnce({ error: failure });
+		}
 	});
 }
 
+/** Handle probe batch cut execution readiness. */
+export async function probeBatchCutExecutionReadiness({
+	win,
+}: {
+	win: BrowserWindow;
+}): Promise<void> {
+	try {
+		await getIpcMainForBatchCutExecution();
+		assertRendererWindowReady({
+			win,
+			action: "batch cut readiness probe",
+		});
+	} catch (error) {
+		if (error instanceof HttpError) {
+			throw error;
+		}
+		throw new HttpError(503, "Batch cut readiness probe failed");
+	}
+}
+
 // CommonJS export for compatibility
-module.exports = { executeBatchCuts, validateBatchCutRequest };
+module.exports = {
+	executeBatchCuts,
+	validateBatchCutRequest,
+	probeBatchCutExecutionReadiness,
+};

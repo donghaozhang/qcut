@@ -33,6 +33,13 @@ const borderColorByLevel: Record<AttentionLevel, string> = {
 	working: "border-l-[var(--color-status-working)]",
 	done: "border-l-[var(--color-border-default)]",
 };
+const AGENT_BADGE_CLASS_BY_AGENT = {
+	"claude-code": "agent-badge agent-badge-claude",
+	codex: "agent-badge agent-badge-codex",
+	tmux: "agent-badge agent-badge-tmux",
+	unknown: "agent-badge",
+} as const;
+type UnmanagedAgent = keyof typeof AGENT_BADGE_CLASS_BY_AGENT;
 
 /** Compact session card with inline label editing, activity dot, and action buttons. */
 export function SessionCard({
@@ -65,6 +72,7 @@ export function SessionCard({
 		}
 	}, [editingLabel]);
 
+	/** Handle commit label. */
 	const commitLabel = () => {
 		// Read directly from input to avoid stale closure with batched state updates
 		const trimmed = (labelInputRef.current?.value ?? labelDraft).trim();
@@ -76,6 +84,7 @@ export function SessionCard({
 		}
 	};
 
+	/** Handle action. */
 	const handleAction = async (action: string, message: string) => {
 		setSendingAction(action);
 		onSend?.(session.id, message);
@@ -91,6 +100,15 @@ export function SessionCard({
 		TERMINAL_STATUSES.has(session.status) ||
 		(session.activity !== null && TERMINAL_ACTIVITIES.has(session.activity));
 	const isRestorable = isTerminal && session.status !== "merged";
+	const unmanagedAgent: UnmanagedAgent =
+		session.metadata.agent === "claude-code" ||
+		session.metadata.agent === "codex" ||
+		session.metadata.agent === "tmux"
+			? session.metadata.agent
+			: "unknown";
+	const unmanagedAgentLabel =
+		unmanagedAgent === "claude-code" ? "claude" : unmanagedAgent;
+	const unmanagedAgentBadgeClass = AGENT_BADGE_CLASS_BY_AGENT[unmanagedAgent];
 
 	const title = getSessionTitle(session);
 
@@ -168,12 +186,8 @@ export function SessionCard({
 					</span>
 				</div>
 				{!session.managed && (
-					<span className="rounded-sm bg-[rgba(139,92,246,0.15)] px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wider text-[rgba(139,92,246,0.8)]">
-						{session.metadata.agent === "claude-code"
-							? "claude"
-							: session.metadata.agent === "codex"
-								? "codex"
-								: "tmux"}
+					<span className={unmanagedAgentBadgeClass}>
+						{unmanagedAgentLabel}
 					</span>
 				)}
 				<div className="flex-1" />

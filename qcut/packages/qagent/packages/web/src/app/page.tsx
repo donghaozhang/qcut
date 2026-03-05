@@ -7,7 +7,6 @@ import {
 	resolveProject,
 	enrichSessionPR,
 	enrichSessionsMetadata,
-	computeStats,
 } from "@/lib/serialize";
 import { prCache, prCacheKey } from "@/lib/cache";
 import { getProjectName } from "@/lib/project-name";
@@ -137,7 +136,6 @@ export default async function Home() {
 	return (
 		<Dashboard
 			sessions={sessions}
-			stats={computeStats(sessions)}
 			orchestratorId={orchestratorId}
 			projectName={projectName}
 		/>

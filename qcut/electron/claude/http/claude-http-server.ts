@@ -34,6 +34,14 @@ import {
 	getHistorySummary,
 } from "../handlers/claude-transaction-handler.js";
 import { getProjectStats } from "../handlers/claude-project-handler.js";
+import { executeBatchCuts } from "../handlers/claude-cuts-handler.js";
+import { executeDeleteRange } from "../handlers/claude-range-handler.js";
+import {
+	startAutoEditJob,
+	getAutoEditJobStatus,
+	listAutoEditJobs,
+	cancelAutoEditJob,
+} from "../handlers/claude-auto-edit-handler.js";
 import {
 	registerSharedRoutes,
 	type WindowAccessor,
@@ -53,6 +61,7 @@ import {
 	handleClaudeEventsStreamRequest,
 	registerClaudeEventsRoutes,
 } from "./claude-http-events-routes.js";
+import { runMainProcessDeepHealthChecks } from "../handlers/claude-health-handler.js";
 
 let server: Server | null = null;
 
@@ -143,10 +152,25 @@ export function startClaudeHTTPServer(
 		getHistorySummary: () => getHistorySummary({ win: getWindow() }),
 		requestStateSnapshot: (request) =>
 			requestEditorStateSnapshotFromRenderer(getWindow(), request),
+		startAutoEditJob: async (projectId, request) =>
+			startAutoEditJob(projectId, request, getWindow()),
+		getAutoEditJobStatus: async (jobId) => getAutoEditJobStatus(jobId),
+		listAutoEditJobs: async () => listAutoEditJobs(),
+		cancelAutoEditJob: async (jobId) => cancelAutoEditJob(jobId),
+		executeBatchCuts: async (request) => executeBatchCuts(getWindow(), request),
+		executeDeleteRange: async (request) =>
+			executeDeleteRange(getWindow(), request),
 	};
 
 	// Register all shared routes
-	registerSharedRoutes(router, accessor);
+	registerSharedRoutes(router, accessor, {
+		runDeepHealthChecks: async () =>
+			runMainProcessDeepHealthChecks({
+				getWindow,
+				requestTimeline: async ({ win }) =>
+					await requestTimelineFromRenderer(win),
+			}),
+	});
 	registerStateRoutes(router, {
 		requestSnapshot: (request) =>
 			requestEditorStateSnapshotFromRenderer(getWindow(), request),

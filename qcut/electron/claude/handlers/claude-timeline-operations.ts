@@ -7,6 +7,10 @@
 
 import { ipcMain, BrowserWindow, IpcMainEvent } from "electron";
 import { generateId } from "../utils/helpers.js";
+import {
+	assertIpcMainReady,
+	assertRendererWindowReady,
+} from "../utils/renderer-ipc-guard.js";
 import type {
 	ClaudeTimeline,
 	ClaudeBatchAddElementRequest,
@@ -32,25 +36,57 @@ const TIMELINE_REQUEST_TIMEOUT_MS = 5000;
 export async function requestTimelineFromRenderer(
 	win: BrowserWindow
 ): Promise<ClaudeTimeline> {
+	assertIpcMainReady({
+		ipcMainInstance: ipcMain,
+		action: "timeline request",
+		requiresOnce: true,
+	});
+	assertRendererWindowReady({
+		win,
+		action: "timeline request",
+	});
+
 	return new Promise((resolve, reject) => {
 		let resolved = false;
+		let timeout: NodeJS.Timeout | undefined;
+		const responseChannel = "claude:timeline:response";
 
-		const timeout = setTimeout(() => {
+		const cleanup = (): void => {
+			if (timeout) {
+				clearTimeout(timeout);
+			}
+			ipcMain.removeListener(responseChannel, handler);
+		};
+
+		const rejectOnce = ({ error }: { error: Error }): void => {
 			if (resolved) return;
 			resolved = true;
-			ipcMain.removeListener("claude:timeline:response", handler);
-			reject(new Error("Timeout waiting for timeline data"));
+			cleanup();
+			reject(error);
+		};
+
+		timeout = setTimeout(() => {
+			rejectOnce({ error: new Error("Timeout waiting for timeline data") });
 		}, 5000);
 
+		/** Handle handler. */
 		const handler = (_event: IpcMainEvent, timeline: ClaudeTimeline) => {
 			if (resolved) return;
 			resolved = true;
-			clearTimeout(timeout);
+			cleanup();
 			resolve(timeline);
 		};
 
-		ipcMain.once("claude:timeline:response", handler);
-		win.webContents.send("claude:timeline:request");
+		try {
+			ipcMain.once(responseChannel, handler);
+			win.webContents.send("claude:timeline:request");
+		} catch (error) {
+			const failure =
+				error instanceof Error
+					? error
+					: new Error("Failed to request timeline from renderer");
+			rejectOnce({ error: failure });
+		}
 	});
 }
 
@@ -149,15 +185,37 @@ async function requestRendererResult<T>({
 	timeoutErrorMessage: string;
 	correlationId?: string;
 }): Promise<T> {
+	assertIpcMainReady({
+		ipcMainInstance: ipcMain,
+		action: requestChannel,
+		requiresOnce: false,
+	});
+	assertRendererWindowReady({
+		win,
+		action: requestChannel,
+	});
+
 	return new Promise((resolve, reject) => {
 		let resolved = false;
 		const requestId = generateId("req");
+		let timeout: NodeJS.Timeout | undefined;
 
-		const timeout = setTimeout(() => {
+		const cleanup = (): void => {
+			if (timeout) {
+				clearTimeout(timeout);
+			}
+			ipcMain.removeListener(responseChannel, responseHandler);
+		};
+
+		const rejectOnce = ({ error }: { error: Error }): void => {
 			if (resolved) return;
 			resolved = true;
-			ipcMain.removeListener(responseChannel, responseHandler);
-			reject(new Error(timeoutErrorMessage));
+			cleanup();
+			reject(error);
+		};
+
+		timeout = setTimeout(() => {
+			rejectOnce({ error: new Error(timeoutErrorMessage) });
 		}, TIMELINE_REQUEST_TIMEOUT_MS);
 
 		const responseHandler = (
@@ -168,20 +226,28 @@ async function requestRendererResult<T>({
 				return;
 			}
 			resolved = true;
-			clearTimeout(timeout);
-			ipcMain.removeListener(responseChannel, responseHandler);
+			cleanup();
 			resolve(data.result);
 		};
 
-		ipcMain.on(responseChannel, responseHandler);
-		win.webContents.send(requestChannel, {
-			requestId,
-			correlationId,
-			...payload,
-		});
+		try {
+			ipcMain.on(responseChannel, responseHandler);
+			win.webContents.send(requestChannel, {
+				requestId,
+				correlationId,
+				...payload,
+			});
+		} catch (error) {
+			const failure =
+				error instanceof Error
+					? error
+					: new Error(`Failed renderer request: ${requestChannel}`);
+			rejectOnce({ error: failure });
+		}
 	});
 }
 
+/** Normalize batch track element type. */
 function normalizeBatchTrackElementType({
 	type,
 }: {
@@ -203,6 +269,7 @@ function normalizeBatchTrackElementType({
 	return "media";
 }
 
+/** Handle is track compatible with element type. */
 function isTrackCompatibleWithElementType({
 	trackType,
 	elementType,
@@ -222,6 +289,7 @@ function isTrackCompatibleWithElementType({
 	return trackType === "media" || trackType === "audio";
 }
 
+/** Handle request batch add elements from renderer. */
 export async function requestBatchAddElementsFromRenderer(
 	win: BrowserWindow,
 	elements: ClaudeBatchAddElementRequest[],
@@ -237,6 +305,7 @@ export async function requestBatchAddElementsFromRenderer(
 	});
 }
 
+/** Handle request batch update elements from renderer. */
 export async function requestBatchUpdateElementsFromRenderer(
 	win: BrowserWindow,
 	updates: ClaudeBatchUpdateItemRequest[],
@@ -252,6 +321,7 @@ export async function requestBatchUpdateElementsFromRenderer(
 	});
 }
 
+/** Handle request batch delete elements from renderer. */
 export async function requestBatchDeleteElementsFromRenderer(
 	win: BrowserWindow,
 	elements: ClaudeBatchDeleteItemRequest[],
@@ -268,6 +338,7 @@ export async function requestBatchDeleteElementsFromRenderer(
 	});
 }
 
+/** Handle request delete range from renderer. */
 export async function requestDeleteRangeFromRenderer(
 	win: BrowserWindow,
 	request: ClaudeRangeDeleteRequest,
@@ -283,6 +354,7 @@ export async function requestDeleteRangeFromRenderer(
 	});
 }
 
+/** Handle request arrange from renderer. */
 export async function requestArrangeFromRenderer(
 	win: BrowserWindow,
 	request: ClaudeArrangeRequest,
@@ -298,6 +370,7 @@ export async function requestArrangeFromRenderer(
 	});
 }
 
+/** Handle batch add elements. */
 export async function batchAddElements(
 	win: BrowserWindow,
 	_projectId: string,
@@ -372,6 +445,7 @@ export async function batchAddElements(
 	}
 }
 
+/** Handle batch update elements. */
 export async function batchUpdateElements(
 	win: BrowserWindow,
 	updates: ClaudeBatchUpdateItemRequest[],
@@ -399,6 +473,7 @@ export async function batchUpdateElements(
 	}
 }
 
+/** Handle batch delete elements. */
 export async function batchDeleteElements(
 	win: BrowserWindow,
 	elements: ClaudeBatchDeleteItemRequest[],
@@ -435,6 +510,7 @@ export async function batchDeleteElements(
 	}
 }
 
+/** Handle delete timeline range. */
 export async function deleteTimelineRange(
 	win: BrowserWindow,
 	request: ClaudeRangeDeleteRequest,
@@ -458,6 +534,7 @@ export async function deleteTimelineRange(
 	}
 }
 
+/** Handle arrange timeline. */
 export async function arrangeTimeline(
 	win: BrowserWindow,
 	request: ClaudeArrangeRequest,

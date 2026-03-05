@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { Dashboard } from "@/components/Dashboard";
 import { makeSession } from "./helpers";
 
+/** MockEventSource class. */
 class MockEventSource {
 	onmessage: ((event: MessageEvent) => void) | null = null;
 
@@ -15,6 +16,17 @@ describe("Dashboard relay visibility", () => {
 	beforeEach(() => {
 		vi.stubGlobal("EventSource", MockEventSource as typeof EventSource);
 	});
+
+	/** Get visible session order. */
+	function getVisibleSessionOrder({
+		container,
+	}: {
+		container: HTMLElement;
+	}): string[] {
+		return Array.from(
+			container.querySelectorAll<HTMLAnchorElement>('a[href^="/sessions/"]')
+		).map((anchor) => anchor.getAttribute("href")?.replace("/sessions/", "") ?? "");
+	}
 
 	it("hides relay sessions from main board by default", () => {
 		render(
@@ -65,5 +77,42 @@ describe("Dashboard relay visibility", () => {
 
 		expect(screen.getByText("Relay Daemons")).toBeInTheDocument();
 		expect(screen.getByText("relay-dgame0228223652-a")).toBeInTheDocument();
+	});
+
+	it("sorts sessions by CPU usage when sort toggle is enabled", () => {
+		const sessions = [
+			makeSession({
+				id: "worker-low",
+				summary: "low cpu",
+				metadata: { cpu: "2.1" },
+			}),
+			makeSession({
+				id: "worker-high",
+				summary: "high cpu",
+				metadata: { cpu: "78.4" },
+			}),
+			makeSession({
+				id: "worker-mid",
+				summary: "mid cpu",
+				metadata: { cpu: "12.0" },
+			}),
+		];
+		const { container } = render(<Dashboard sessions={sessions} />);
+
+		expect(getVisibleSessionOrder({ container })).toEqual([
+			"worker-low",
+			"worker-high",
+			"worker-mid",
+		]);
+
+		fireEvent.click(
+			screen.getByRole("button", { name: "Sort sessions by CPU usage" })
+		);
+
+		expect(getVisibleSessionOrder({ container })).toEqual([
+			"worker-high",
+			"worker-mid",
+			"worker-low",
+		]);
 	});
 });
