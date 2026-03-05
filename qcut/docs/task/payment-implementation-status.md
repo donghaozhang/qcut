@@ -23,6 +23,28 @@ The system is **implementation-ready for Stripe test-mode validation**, but **no
 
 ## Implemented Changes (By Area)
 
+### 0) Google OAuth Login Flow (Website + Auth Backend)
+
+- Enabled real Google OAuth provider in Better Auth config.
+- Added license-server auth routing for:
+  - OAuth start endpoint (`/api/auth/google/start`)
+  - token bridge callback endpoint (`/api/auth/oauth/token-bridge`)
+  - pass-through Better Auth handler under `/api/auth/*`
+- Updated static website login page to:
+  - show a real Google sign-in button
+  - start OAuth through backend
+  - capture callback token (`auth_token`) and redirect to account page
+  - surface callback errors (`auth_error`) to users
+- Files:
+  - `packages/auth/src/keys.ts`
+  - `packages/auth/src/server.ts`
+  - `packages/license-server/src/routes/auth.ts`
+  - `packages/license-server/src/index.ts`
+  - `packages/license-server/.env.example`
+  - `packages/license-server/package.json`
+  - `packages/nexusai-website/account/login.html`
+  - `packages/license-server/src/routes/auth.test.ts`
+
 ### 1) Auth Security Hardening
 
 - Verified JWT fallback instead of trusting unverified payloads.
@@ -111,6 +133,7 @@ Defined in `packages/license-server/.env.example`:
 
 - `packages/license-server/src/middleware/auth-jwt.test.ts`
 - `packages/license-server/src/services/payment-config.test.ts`
+- `packages/license-server/src/routes/auth.test.ts`
 
 ### Test Scripts
 

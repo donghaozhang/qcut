@@ -1,4 +1,3 @@
-import { auth } from "@qcut/auth/server";
 import { Hono } from "hono";
 import {
 	getAllowedCorsOrigins,
@@ -19,6 +18,19 @@ interface AuthRouteDependencies {
 	getSessionFromHeaders: ({ headers }: { headers: Headers }) => Promise<SessionPayload | null>;
 	getAllowedOrigins: () => string[];
 	getWebBaseUrl: () => string;
+}
+
+interface BetterAuthInstance {
+	handler: (request: Request) => Promise<Response>;
+	api: {
+		getSession: ({
+			headers,
+			asResponse,
+		}: {
+			headers: Headers;
+			asResponse?: boolean;
+		}) => Promise<SessionPayload | null>;
+	};
 }
 
 interface ResolvedAuthUrls {
@@ -181,6 +193,28 @@ function buildRedirectTargetFromPath({
 	}
 }
 
+let cachedAuthInstance: BetterAuthInstance | null = null;
+
+async function getAuthInstance(): Promise<BetterAuthInstance> {
+	try {
+		if (cachedAuthInstance) {
+			return cachedAuthInstance;
+		}
+
+		const module = (await import("@qcut/auth/server")) as {
+			auth: BetterAuthInstance;
+		};
+		cachedAuthInstance = module.auth;
+		return cachedAuthInstance;
+	} catch (error) {
+		throw new Error(
+			error instanceof Error
+				? `Failed to load auth module: ${error.message}`
+				: "Failed to load auth module"
+		);
+	}
+}
+
 export function createAuthRoutes({
 	dependencies,
 }: {
@@ -190,6 +224,7 @@ export function createAuthRoutes({
 	const resolvedDependencies: AuthRouteDependencies = {
 		handleAuthRequest: async ({ request }) => {
 			try {
+				const auth = await getAuthInstance();
 				return await auth.handler(request);
 			} catch (error) {
 				return new Response(
@@ -210,6 +245,7 @@ export function createAuthRoutes({
 		},
 		getSessionFromHeaders: async ({ headers }) => {
 			try {
+				const auth = await getAuthInstance();
 				const session = await auth.api.getSession({
 					headers,
 					asResponse: false,
