@@ -37,7 +37,7 @@ Handles:
 ### 3. ai-content-pipeline — AI Content Generation & Analysis
 **When:** Generating images/videos/avatars, transcribing audio, analyzing video, running AI pipelines
 **Invoke:** `/ai-content-pipeline`
-**Skill path:** `.claude/skills/ai-content-pipeline/Skill.md`
+**Skill path:** `.claude/skills/qcut-toolkit/ai-content-pipeline/SKILL.md`
 
 Handles:
 - Text-to-image (FLUX, Imagen 4, Nano Banana Pro, GPT Image)
