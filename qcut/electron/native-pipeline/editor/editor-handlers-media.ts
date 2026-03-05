@@ -93,6 +93,7 @@ export async function handleEditorHealth(
 // Media handlers
 // ---------------------------------------------------------------------------
 
+/** Handle dispatch media. */
 async function dispatchMedia(
 	client: EditorApiClient,
 	action: string,
@@ -120,6 +121,7 @@ async function dispatchMedia(
 	}
 }
 
+/** Handle media list. */
 async function mediaList(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -129,6 +131,7 @@ async function mediaList(
 	return { success: true, data };
 }
 
+/** Handle media info. */
 async function mediaInfo(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -142,6 +145,7 @@ async function mediaInfo(
 	return { success: true, data };
 }
 
+/** Handle media import. */
 async function mediaImport(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -159,6 +163,7 @@ async function mediaImport(
 	return { success: true, data };
 }
 
+/** Handle media import url. */
 async function mediaImportUrl(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -257,6 +262,7 @@ async function mediaBatchImport(
 	return { success: true, data };
 }
 
+/** Handle media extract frame. */
 async function mediaExtractFrame(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -286,6 +292,7 @@ async function mediaExtractFrame(
 	return { success: true, data };
 }
 
+/** Handle media rename. */
 async function mediaRename(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -305,6 +312,7 @@ async function mediaRename(
 	return { success: true, data };
 }
 
+/** Handle media delete. */
 async function mediaDelete(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -323,6 +331,7 @@ async function mediaDelete(
 // Project handlers
 // ---------------------------------------------------------------------------
 
+/** Handle dispatch project. */
 async function dispatchProject(
 	client: EditorApiClient,
 	action: string,
@@ -363,6 +372,7 @@ async function dispatchProject(
 	}
 }
 
+/** Handle project settings. */
 async function projectSettings(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -374,6 +384,7 @@ async function projectSettings(
 	return { success: true, data };
 }
 
+/** Handle project update settings. */
 async function projectUpdateSettings(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -396,6 +407,7 @@ async function projectUpdateSettings(
 	return { success: true, data };
 }
 
+/** Handle project stats. */
 async function projectStats(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -407,6 +419,7 @@ async function projectStats(
 	return { success: true, data };
 }
 
+/** Handle project summary. */
 async function projectSummary(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -418,6 +431,7 @@ async function projectSummary(
 	return { success: true, data };
 }
 
+/** Handle project report. */
 async function projectReport(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -438,6 +452,7 @@ async function projectReport(
 	return { success: true, data };
 }
 
+/** Handle project create. */
 async function projectCreate(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -447,6 +462,7 @@ async function projectCreate(
 	return { success: true, data };
 }
 
+/** Handle project delete. */
 async function projectDelete(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -458,6 +474,7 @@ async function projectDelete(
 	return { success: true, data };
 }
 
+/** Handle project rename. */
 async function projectRename(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -471,6 +488,7 @@ async function projectRename(
 	return { success: true, data };
 }
 
+/** Handle project duplicate. */
 async function projectDuplicate(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -482,11 +500,13 @@ async function projectDuplicate(
 	return { success: true, data };
 }
 
+/** Handle project list. */
 async function projectList(client: EditorApiClient): Promise<CLIResult> {
 	const data = await client.get("/api/claude/projects");
 	return { success: true, data };
 }
 
+/** Handle project info. */
 async function projectInfo(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -504,6 +524,7 @@ async function projectInfo(
 	return { success: true, data };
 }
 
+/** Handle project export state. */
 async function projectExportState(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -530,6 +551,7 @@ async function projectExportState(
 	};
 }
 
+/** Handle project import state. */
 function projectImportState(): CLIResult {
 	// TODO: Implement import-state (P1) — read project.json and apply to editor
 	return {

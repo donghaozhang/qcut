@@ -70,6 +70,7 @@ async function discoverCLIProcesses(): Promise<CLIProcess[]> {
 	return processes;
 }
 
+/** Resolve agent from args. */
 function resolveAgentFromArgs({
 	args,
 }: {

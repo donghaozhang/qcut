@@ -87,6 +87,7 @@ function filterEntries(entries: JsonlEntry[], limit: number): JsonlEntry[] {
 	return expanded.slice(-limit);
 }
 
+/** Handle get. */
 export async function GET(
 	request: NextRequest,
 	{ params }: { params: Promise<{ id: string }> },

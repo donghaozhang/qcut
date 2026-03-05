@@ -26,6 +26,7 @@ export interface EditorApiConfig {
 	skipCapabilityCheck?: boolean;
 }
 
+/** EditorApiError class. */
 export class EditorApiError extends Error {
 	statusCode?: number;
 	apiError?: string;
@@ -91,6 +92,7 @@ export interface PollOptions {
 // Client
 // ---------------------------------------------------------------------------
 
+/** EditorApiClient class. */
 export class EditorApiClient {
 	private config: EditorApiConfig;
 	private capabilityManifestCache: CapabilityManifest | null | undefined;
@@ -727,6 +729,7 @@ export function createEditorClient(options: CLIRunOptions): EditorApiClient {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Handle sleep. */
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }

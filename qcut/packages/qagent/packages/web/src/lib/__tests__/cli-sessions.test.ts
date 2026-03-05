@@ -65,6 +65,7 @@ const {
 	};
 });
 
+/** Handle command key. */
 function commandKey({
 	command,
 	args,
@@ -75,6 +76,7 @@ function commandKey({
 	return `${command} ${args.join(" ")}`;
 }
 
+/** Register command result. */
 function registerCommandResult({
 	command,
 	args,

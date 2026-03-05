@@ -88,6 +88,7 @@ import * as autoEditHandler from "../handlers/claude-auto-edit-handler.js";
 import * as cutsHandler from "../handlers/claude-cuts-handler.js";
 import * as rangeHandler from "../handlers/claude-range-handler.js";
 
+/** Create fetch. */
 function createFetch({ getPort }: { getPort: () => number }): (
 	path: string,
 	options?: {
@@ -168,6 +169,7 @@ afterEach(async () => {
 	vi.clearAllMocks();
 });
 
+/** Start routes server. */
 async function startRoutesServer({
 	accessor,
 }: {
@@ -220,6 +222,7 @@ async function startRoutesServer({
 			return;
 		}
 
+		/** Handle error. */
 		const handleError = (error: Error) => {
 			server?.off("error", handleError);
 			reject(error);

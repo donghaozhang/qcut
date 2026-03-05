@@ -38,6 +38,7 @@ const COMMANDS = Object.keys(COMMANDS_REGISTRY);
 
 type Command = string;
 
+/** Handle print help. */
 function printHelp(): void {
 	console.log(
 		`

@@ -105,6 +105,7 @@ const TOOL_THEME_BY_NAME: Record<string, ToolTheme> = {
 	parallel: TOOL_THEME_PALETTE[5],
 };
 
+/** Normalize tool name. */
 function normalizeToolName({ name }: { name: string }): string {
 	try {
 		return name.trim().toLowerCase();
@@ -113,6 +114,7 @@ function normalizeToolName({ name }: { name: string }): string {
 	}
 }
 
+/** Handle hash tool name. */
 function hashToolName({ value }: { value: string }): number {
 	try {
 		let hash = 0;
@@ -125,6 +127,7 @@ function hashToolName({ value }: { value: string }): number {
 	}
 }
 
+/** Get tool theme. */
 function getToolTheme({ name }: { name: string }): ToolTheme {
 	try {
 		const normalized = normalizeToolName({ name });
@@ -396,6 +399,7 @@ export function ConversationViewer({
 		const container = scrollRef.current;
 		if (!container) return;
 
+		/** Handle scroll. */
 		const handleScroll = () => {
 			const { scrollTop, scrollHeight, clientHeight } = container;
 			const atBottom = scrollHeight - scrollTop - clientHeight < 60;

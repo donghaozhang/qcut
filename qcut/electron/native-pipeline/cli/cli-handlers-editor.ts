@@ -38,6 +38,7 @@ interface ScreenRecordingStatusResponse {
 const SCREEN_RECORDING_STATUS_MAX_ATTEMPTS = 3;
 const SCREEN_RECORDING_STATUS_RETRY_DELAY_MS = 250;
 
+/** Handle to object record. */
 function toObjectRecord({
 	value,
 }: {
@@ -53,6 +54,7 @@ function toObjectRecord({
 	}
 }
 
+/** Handle is recording active. */
 function isRecordingActive({ status }: { status: unknown }): boolean {
 	try {
 		const statusRecord = toObjectRecord({ value: status });
@@ -65,6 +67,7 @@ function isRecordingActive({ status }: { status: unknown }): boolean {
 	}
 }
 
+/** Handle wait ms. */
 async function waitMs({ delayMs }: { delayMs: number }): Promise<void> {
 	try {
 		await new Promise<void>((resolve) => {
@@ -77,6 +80,7 @@ async function waitMs({ delayMs }: { delayMs: number }): Promise<void> {
 	}
 }
 
+/** Handle fetch status with retry. */
 async function fetchStatusWithRetry({
 	client,
 	remainingAttempts,
@@ -105,6 +109,7 @@ async function fetchStatusWithRetry({
 	}
 }
 
+/** Handle verify screen recording stopped. */
 async function verifyScreenRecordingStopped({
 	client,
 }: {

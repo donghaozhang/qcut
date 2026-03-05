@@ -46,6 +46,7 @@ export interface MainProcessDeepHealthInput {
 	utilityMainBridge?: DeepHealthCheckResult;
 }
 
+/** Build status summary. */
 function buildStatusSummary({
 	checks,
 }: {
@@ -75,6 +76,7 @@ function buildStatusSummary({
 	}
 }
 
+/** Build deep health report. */
 export function buildDeepHealthReport({
 	checks,
 }: {
@@ -95,6 +97,7 @@ export function buildDeepHealthReport({
 	}
 }
 
+/** Build skipped check. */
 function buildSkippedCheck({
 	message,
 }: {
@@ -115,6 +118,7 @@ function buildSkippedCheck({
 	}
 }
 
+/** Handle run deep health check. */
 async function runDeepHealthCheck({
 	run,
 	successMessage,
@@ -142,6 +146,7 @@ async function runDeepHealthCheck({
 	}
 }
 
+/** Handle ensure timeline shape. */
 function ensureTimelineShape({ timeline }: { timeline: unknown }): void {
 	try {
 		if (typeof timeline !== "object" || timeline === null) {
@@ -159,6 +164,7 @@ function ensureTimelineShape({ timeline }: { timeline: unknown }): void {
 	}
 }
 
+/** Handle run main process deep health checks. */
 export async function runMainProcessDeepHealthChecks({
 	getWindow,
 	requestTimeline,
@@ -215,6 +221,7 @@ export async function runMainProcessDeepHealthChecks({
 	});
 }
 
+/** Build utility main bridge check. */
 export function buildUtilityMainBridgeCheck({
 	message,
 	failed,

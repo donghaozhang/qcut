@@ -184,6 +184,7 @@ export interface SharedRouteOptions {
 	runDeepHealthChecks?: () => Promise<DeepHealthReport>;
 }
 
+/** Handle list media files with renderer fallback. */
 async function listMediaFilesWithRendererFallback({
 	projectId,
 	accessor,

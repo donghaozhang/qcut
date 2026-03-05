@@ -69,6 +69,7 @@ export async function requestTimelineFromRenderer(
 			rejectOnce({ error: new Error("Timeout waiting for timeline data") });
 		}, 5000);
 
+		/** Handle handler. */
 		const handler = (_event: IpcMainEvent, timeline: ClaudeTimeline) => {
 			if (resolved) return;
 			resolved = true;
@@ -246,6 +247,7 @@ async function requestRendererResult<T>({
 	});
 }
 
+/** Normalize batch track element type. */
 function normalizeBatchTrackElementType({
 	type,
 }: {
@@ -267,6 +269,7 @@ function normalizeBatchTrackElementType({
 	return "media";
 }
 
+/** Handle is track compatible with element type. */
 function isTrackCompatibleWithElementType({
 	trackType,
 	elementType,
@@ -286,6 +289,7 @@ function isTrackCompatibleWithElementType({
 	return trackType === "media" || trackType === "audio";
 }
 
+/** Handle request batch add elements from renderer. */
 export async function requestBatchAddElementsFromRenderer(
 	win: BrowserWindow,
 	elements: ClaudeBatchAddElementRequest[],
@@ -301,6 +305,7 @@ export async function requestBatchAddElementsFromRenderer(
 	});
 }
 
+/** Handle request batch update elements from renderer. */
 export async function requestBatchUpdateElementsFromRenderer(
 	win: BrowserWindow,
 	updates: ClaudeBatchUpdateItemRequest[],
@@ -316,6 +321,7 @@ export async function requestBatchUpdateElementsFromRenderer(
 	});
 }
 
+/** Handle request batch delete elements from renderer. */
 export async function requestBatchDeleteElementsFromRenderer(
 	win: BrowserWindow,
 	elements: ClaudeBatchDeleteItemRequest[],
@@ -332,6 +338,7 @@ export async function requestBatchDeleteElementsFromRenderer(
 	});
 }
 
+/** Handle request delete range from renderer. */
 export async function requestDeleteRangeFromRenderer(
 	win: BrowserWindow,
 	request: ClaudeRangeDeleteRequest,
@@ -347,6 +354,7 @@ export async function requestDeleteRangeFromRenderer(
 	});
 }
 
+/** Handle request arrange from renderer. */
 export async function requestArrangeFromRenderer(
 	win: BrowserWindow,
 	request: ClaudeArrangeRequest,
@@ -362,6 +370,7 @@ export async function requestArrangeFromRenderer(
 	});
 }
 
+/** Handle batch add elements. */
 export async function batchAddElements(
 	win: BrowserWindow,
 	_projectId: string,
@@ -436,6 +445,7 @@ export async function batchAddElements(
 	}
 }
 
+/** Handle batch update elements. */
 export async function batchUpdateElements(
 	win: BrowserWindow,
 	updates: ClaudeBatchUpdateItemRequest[],
@@ -463,6 +473,7 @@ export async function batchUpdateElements(
 	}
 }
 
+/** Handle batch delete elements. */
 export async function batchDeleteElements(
 	win: BrowserWindow,
 	elements: ClaudeBatchDeleteItemRequest[],
@@ -499,6 +510,7 @@ export async function batchDeleteElements(
 	}
 }
 
+/** Handle delete timeline range. */
 export async function deleteTimelineRange(
 	win: BrowserWindow,
 	request: ClaudeRangeDeleteRequest,
@@ -522,6 +534,7 @@ export async function deleteTimelineRange(
 	}
 }
 
+/** Handle arrange timeline. */
 export async function arrangeTimeline(
 	win: BrowserWindow,
 	request: ClaudeArrangeRequest,

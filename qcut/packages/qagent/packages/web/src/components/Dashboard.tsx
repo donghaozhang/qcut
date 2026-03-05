@@ -149,6 +149,7 @@ export function Dashboard({
 			.sort((a, b) => mergeScore(a) - mergeScore(b));
 	}, [visibleSessions]);
 
+	/** Handle send. */
 	const handleSend = async (sessionId: string, message: string) => {
 		const res = await fetch(
 			`/api/sessions/${encodeURIComponent(sessionId)}/send`,
@@ -166,6 +167,7 @@ export function Dashboard({
 		}
 	};
 
+	/** Handle kill. */
 	const handleKill = async (sessionId: string) => {
 		if (!confirm(`Kill session ${sessionId}?`)) return;
 		const res = await fetch(
@@ -179,6 +181,7 @@ export function Dashboard({
 		}
 	};
 
+	/** Handle merge. */
 	const handleMerge = async (prNumber: number) => {
 		const res = await fetch(`/api/prs/${prNumber}/merge`, { method: "POST" });
 		if (!res.ok) {
@@ -186,6 +189,7 @@ export function Dashboard({
 		}
 	};
 
+	/** Handle restore. */
 	const handleRestore = async (sessionId: string) => {
 		if (!confirm(`Restore session ${sessionId}?`)) return;
 		const res = await fetch(
@@ -249,6 +253,7 @@ export function Dashboard({
 	);
 	const isCpuSortEnabled = sessionSortMode === SESSION_SORT_MODE.CPU;
 
+	/** Handle sort toggle. */
 	const handleSortToggle = () => {
 		setSessionSortMode((previousSortMode) =>
 			previousSortMode === SESSION_SORT_MODE.CPU
@@ -460,6 +465,7 @@ export function Dashboard({
 	);
 }
 
+/** Handle is relay session. */
 function isRelaySession({
 	session,
 }: {
@@ -468,6 +474,7 @@ function isRelaySession({
 	return session.id.startsWith(RELAY_SESSION_PREFIX);
 }
 
+/** Handle relay sessions panel. */
 function RelaySessionsPanel({
 	sessions,
 }: {
@@ -571,6 +578,7 @@ function mergeScore(
 	return score;
 }
 
+/** Handle sort sessions by cpu usage. */
 function sortSessionsByCpuUsage({
 	sessions,
 }: {
@@ -589,6 +597,7 @@ function sortSessionsByCpuUsage({
 	}
 }
 
+/** Get session cpu percent. */
 function getSessionCpuPercent({
 	session,
 }: {

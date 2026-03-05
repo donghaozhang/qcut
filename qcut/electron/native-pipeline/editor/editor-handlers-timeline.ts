@@ -74,6 +74,7 @@ export async function handleTimelineEditingCommand(
 // Timeline dispatcher
 // ---------------------------------------------------------------------------
 
+/** Handle dispatch timeline. */
 async function dispatchTimeline(
 	client: EditorApiClient,
 	action: string,
@@ -134,6 +135,7 @@ async function dispatchTimeline(
 // Timeline read/export
 // ---------------------------------------------------------------------------
 
+/** Handle timeline export. */
 async function timelineExport(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -151,6 +153,7 @@ async function timelineExport(
 	return { success: true, data };
 }
 
+/** Handle timeline import. */
 async function timelineImport(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -202,6 +205,7 @@ async function timelineImport(
 // Timeline element CRUD
 // ---------------------------------------------------------------------------
 
+/** Handle timeline add element. */
 async function timelineAddElement(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -222,6 +226,7 @@ async function timelineAddElement(
 	return { success: true, data };
 }
 
+/** Handle timeline batch add. */
 async function timelineBatchAdd(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -263,6 +268,7 @@ async function timelineBatchAdd(
 	return { success: true, data };
 }
 
+/** Handle timeline update element. */
 async function timelineUpdateElement(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -285,6 +291,7 @@ async function timelineUpdateElement(
 	return { success: true, data };
 }
 
+/** Handle timeline batch update. */
 async function timelineBatchUpdate(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -317,6 +324,7 @@ async function timelineBatchUpdate(
 	return { success: true, data };
 }
 
+/** Handle timeline delete element. */
 async function timelineDeleteElement(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -330,6 +338,7 @@ async function timelineDeleteElement(
 	return { success: true, data };
 }
 
+/** Handle timeline batch delete. */
 async function timelineBatchDelete(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -385,6 +394,7 @@ async function timelineBatchDelete(
 // Timeline manipulation
 // ---------------------------------------------------------------------------
 
+/** Handle timeline split. */
 async function timelineSplit(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -404,6 +414,7 @@ async function timelineSplit(
 	return { success: true, data };
 }
 
+/** Handle timeline move. */
 async function timelineMove(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -422,6 +433,7 @@ async function timelineMove(
 	return { success: true, data };
 }
 
+/** Handle timeline arrange. */
 async function timelineArrange(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -469,6 +481,7 @@ async function timelineArrange(
 	return { success: true, data };
 }
 
+/** Handle timeline select. */
 async function timelineSelect(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -492,6 +505,7 @@ async function timelineSelect(
 	return { success: true, data };
 }
 
+/** Handle timeline get selection. */
 async function timelineGetSelection(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -503,6 +517,7 @@ async function timelineGetSelection(
 	return { success: true, data };
 }
 
+/** Handle timeline clear selection. */
 async function timelineClearSelection(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -514,6 +529,7 @@ async function timelineClearSelection(
 	return { success: true, data };
 }
 
+/** Handle timeline playback. */
 async function timelinePlayback(
 	client: EditorApiClient,
 	opts: CLIRunOptions,
@@ -527,6 +543,7 @@ async function timelinePlayback(
 	return { success: true, data };
 }
 
+/** Handle timeline seek. */
 async function timelineSeek(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -556,6 +573,7 @@ async function timelineSeek(
 // Timeline info / add-clip / trim (unified JSON API)
 // ---------------------------------------------------------------------------
 
+/** Handle timeline info. */
 async function timelineInfo(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -567,6 +585,7 @@ async function timelineInfo(
 	return { success: true, data };
 }
 
+/** Handle timeline add clip. */
 async function timelineAddClip(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -588,6 +607,7 @@ async function timelineAddClip(
 	return { success: true, data };
 }
 
+/** Handle timeline trim. */
 async function timelineTrim(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -632,6 +652,7 @@ async function timelineTrim(
 // Editing dispatcher
 // ---------------------------------------------------------------------------
 
+/** Handle dispatch editing. */
 async function dispatchEditing(
 	client: EditorApiClient,
 	action: string,
@@ -665,6 +686,7 @@ async function dispatchEditing(
 // Editing — Cuts & Range
 // ---------------------------------------------------------------------------
 
+/** Handle editing batch cuts. */
 async function editingBatchCuts(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -694,6 +716,7 @@ async function editingBatchCuts(
 	return { success: true, data };
 }
 
+/** Handle editing delete range. */
 async function editingDeleteRange(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -731,6 +754,7 @@ async function editingDeleteRange(
 // Editing — Auto-Edit
 // ---------------------------------------------------------------------------
 
+/** Handle editing auto edit. */
 async function editingAutoEdit(
 	client: EditorApiClient,
 	opts: CLIRunOptions,
@@ -792,6 +816,7 @@ async function editingAutoEdit(
 	return { success: true, data };
 }
 
+/** Handle editing auto edit status. */
 async function editingAutoEditStatus(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -805,6 +830,7 @@ async function editingAutoEditStatus(
 	return { success: true, data };
 }
 
+/** Handle editing auto edit list. */
 async function editingAutoEditList(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -821,6 +847,7 @@ async function editingAutoEditList(
 // Editing — Suggest Cuts
 // ---------------------------------------------------------------------------
 
+/** Handle editing suggest cuts. */
 async function editingSuggestCuts(
 	client: EditorApiClient,
 	opts: CLIRunOptions,
@@ -877,6 +904,7 @@ async function editingSuggestCuts(
 	return { success: true, data };
 }
 
+/** Handle editing suggest status. */
 async function editingSuggestStatus(
 	client: EditorApiClient,
 	opts: CLIRunOptions

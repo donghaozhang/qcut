@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { Dashboard } from "@/components/Dashboard";
 import { makeSession } from "./helpers";
 
+/** MockEventSource class. */
 class MockEventSource {
 	onmessage: ((event: MessageEvent) => void) | null = null;
 
@@ -16,6 +17,7 @@ describe("Dashboard relay visibility", () => {
 		vi.stubGlobal("EventSource", MockEventSource as typeof EventSource);
 	});
 
+	/** Get visible session order. */
 	function getVisibleSessionOrder({
 		container,
 	}: {

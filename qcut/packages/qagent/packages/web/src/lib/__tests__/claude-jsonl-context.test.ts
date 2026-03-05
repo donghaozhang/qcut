@@ -14,6 +14,7 @@ interface CodexSessionSeed {
 	baseInstructionSize?: number;
 }
 
+/** Handle seed codex session file. */
 async function seedCodexSessionFile({
 	homeDir,
 	fileName,
@@ -56,6 +57,7 @@ async function seedCodexSessionFile({
 	return filePath;
 }
 
+/** Handle import jsonl module. */
 async function importJsonlModule({
 	homeDir,
 }: {

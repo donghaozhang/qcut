@@ -15,6 +15,7 @@ type IpcMainLike = {
 	removeListener?: (...args: unknown[]) => unknown;
 };
 
+/** Handle assert renderer window ready. */
 export function assertRendererWindowReady({
 	win,
 	action,
@@ -57,6 +58,7 @@ export function assertRendererWindowReady({
 	}
 }
 
+/** Handle assert ipc main ready. */
 export function assertIpcMainReady({
 	ipcMainInstance,
 	action,

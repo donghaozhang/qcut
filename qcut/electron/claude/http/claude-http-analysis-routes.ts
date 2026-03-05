@@ -52,6 +52,7 @@ import type {
 
 const HANDLER_NAME = "AnalysisRoutes";
 
+/** Handle debug route log. */
 function debugRouteLog({ message }: { message: string }): void {
 	try {
 		claudeLog.debug(HANDLER_NAME, message);
@@ -73,6 +74,7 @@ interface RawWord {
 	speaker?: string;
 }
 
+/** Build text from words. */
 function buildTextFromWords(words: RawWord[]): string {
 	return words
 		.filter((w) => (w.type ?? "word") === "word" || w.type === "spacing")
@@ -80,6 +82,7 @@ function buildTextFromWords(words: RawWord[]): string {
 		.join("");
 }
 
+/** Normalize words. */
 function normalizeWords(words: RawWord[]): Array<{
 	text: string;
 	start: number;

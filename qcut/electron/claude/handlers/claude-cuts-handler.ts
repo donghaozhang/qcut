@@ -22,6 +22,7 @@ import type {
 const HANDLER_NAME = "Cuts";
 const BATCH_CUT_TIMEOUT = 30_000;
 
+/** Build batch cut request id. */
 function buildBatchCutRequestId({
 	correlationId,
 }: {
@@ -38,6 +39,7 @@ function buildBatchCutRequestId({
 	}
 }
 
+/** Get ipc main for batch cut execution. */
 async function getIpcMainForBatchCutExecution(): Promise<IpcMain> {
 	try {
 		const ipcMainInstance = ipcMain;
@@ -169,6 +171,7 @@ export async function executeBatchCuts(
 	});
 }
 
+/** Handle probe batch cut execution readiness. */
 export async function probeBatchCutExecutionReadiness({
 	win,
 }: {

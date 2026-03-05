@@ -149,6 +149,7 @@ export async function findLatestCodexSessionFile(): Promise<string | null> {
 	}
 }
 
+/** Handle find codex session file for context. */
 export async function findCodexSessionFileForContext({
 	cwd,
 	processStartedAt,
@@ -214,6 +215,7 @@ interface CodexSessionCandidate extends CodexSessionFile {
 	meta: CodexSessionMeta | null;
 }
 
+/** Handle list recent codex session files. */
 async function listRecentCodexSessionFiles({
 	maxFiles,
 }: {
@@ -288,6 +290,7 @@ async function listRecentCodexSessionFiles({
 	}
 }
 
+/** Handle read codex session meta. */
 async function readCodexSessionMeta({
 	filePath,
 }: {
@@ -317,6 +320,7 @@ async function readCodexSessionMeta({
 	}
 }
 
+/** Handle read jsonl first line. */
 async function readJsonlFirstLine({
 	filePath,
 	maxBytes,
@@ -368,6 +372,7 @@ async function readJsonlFirstLine({
 	}
 }
 
+/** Handle select best codex candidate. */
 function selectBestCodexCandidate({
 	candidates,
 	cwd,
@@ -397,6 +402,7 @@ function selectBestCodexCandidate({
 	}
 }
 
+/** Handle score codex candidate. */
 function scoreCodexCandidate({
 	candidate,
 	cwd,
@@ -444,6 +450,7 @@ function scoreCodexCandidate({
 	}
 }
 
+/** Build codex lookup cache key. */
 function buildCodexLookupCacheKey({
 	cwd,
 	processStartedAt,
@@ -460,6 +467,7 @@ function buildCodexLookupCacheKey({
 	}
 }
 
+/** Normalize path for match. */
 function normalizePathForMatch({ path }: { path: string | null }): string | null {
 	try {
 		if (!path) return null;
@@ -469,6 +477,7 @@ function normalizePathForMatch({ path }: { path: string | null }): string | null
 	}
 }
 
+/** Handle parse timestamp ms. */
 function parseTimestampMs({ value }: { value: unknown }): number | null {
 	try {
 		if (typeof value === "number" && Number.isFinite(value)) {
@@ -488,6 +497,7 @@ function parseTimestampMs({ value }: { value: unknown }): number | null {
 	}
 }
 
+/** Handle path exists. */
 async function pathExists({ path }: { path: string }): Promise<boolean> {
 	try {
 		await stat(path);
@@ -601,6 +611,7 @@ export function normalizeCodexEntries(raw: JsonlEntry[]): JsonlEntry[] {
 	return entries;
 }
 
+/** Handle extract function call tool detail. */
 function extractFunctionCallToolDetail({
 	payload,
 }: {
@@ -620,6 +631,7 @@ function extractFunctionCallToolDetail({
 	}
 }
 
+/** Handle extract custom tool call detail. */
 function extractCustomToolCallDetail({
 	payload,
 }: {
@@ -633,6 +645,7 @@ function extractCustomToolCallDetail({
 	}
 }
 
+/** Handle extract tool result summary. */
 function extractToolResultSummary({
 	payload,
 }: {
@@ -690,6 +703,7 @@ function extractToolResultSummary({
 	}
 }
 
+/** Handle parse maybe json. */
 function parseMaybeJson({ value }: { value: unknown }): unknown {
 	try {
 		if (typeof value !== "string") return value;
@@ -701,6 +715,7 @@ function parseMaybeJson({ value }: { value: unknown }): unknown {
 	}
 }
 
+/** Handle to record. */
 function toRecord({ value }: { value: unknown }): Record<string, unknown> | null {
 	try {
 		if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -712,6 +727,7 @@ function toRecord({ value }: { value: unknown }): Record<string, unknown> | null
 	}
 }
 
+/** Handle compact value. */
 function compactValue({ value }: { value: unknown }): string | undefined {
 	try {
 		if (value === null || value === undefined) return undefined;
@@ -722,6 +738,7 @@ function compactValue({ value }: { value: unknown }): string | undefined {
 	}
 }
 
+/** Handle compact text. */
 function compactText({ text }: { text: string }): string | undefined {
 	try {
 		const singleLine = text.replace(/\s+/g, " ").trim();

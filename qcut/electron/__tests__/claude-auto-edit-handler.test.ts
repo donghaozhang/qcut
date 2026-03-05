@@ -85,6 +85,7 @@ import { HttpError } from "../claude/utils/http-router";
 // Test data
 // ---------------------------------------------------------------------------
 
+/** Create transcription result fixture. */
 const makeTranscriptionResult = () => ({
 	words: [
 		{ text: "Hello", start: 0.0, end: 0.5, type: "word" as const },
@@ -100,6 +101,7 @@ const makeTranscriptionResult = () => ({
 	duration: 4.0,
 });
 
+/** Create filler result fixture. */
 const makeFillerResult = () => ({
 	fillers: [{ word: "um", start: 0.6, end: 0.9, reason: "filler word" }],
 	silences: [{ start: 1.5, end: 3.5, duration: 2.0 }],

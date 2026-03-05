@@ -99,6 +99,7 @@ interface UtilityHttpConfig {
 	requestFromMain: RequestFromMainFn;
 }
 
+/** Build skipped deep health check. */
 function buildSkippedDeepHealthCheck({
 	message,
 }: {
@@ -119,6 +120,7 @@ function buildSkippedDeepHealthCheck({
 	}
 }
 
+/** Handle is deep health report. */
 function isDeepHealthReport(value: unknown): value is DeepHealthReport {
 	try {
 		if (typeof value !== "object" || value === null) {
@@ -137,6 +139,7 @@ function isDeepHealthReport(value: unknown): value is DeepHealthReport {
 	}
 }
 
+/** Build unavailable main checks. */
 function buildUnavailableMainChecks({
 	message,
 }: {
@@ -499,6 +502,7 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	});
 
 	// Auth check
+	/** Handle check auth. */
 	function checkAuth(req: IncomingMessage): boolean {
 		const token = process.env.QCUT_API_TOKEN;
 		if (!token) return true;
@@ -506,6 +510,7 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	}
 
 	// CORS
+	/** Set cors headers. */
 	function setCorsHeaders(res: ServerResponse): void {
 		res.setHeader("Access-Control-Allow-Origin", "*");
 		res.setHeader(
@@ -581,6 +586,7 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	});
 }
 
+/** Stop utility http server. */
 export function stopUtilityHttpServer(): void {
 	if (server) {
 		server.close();

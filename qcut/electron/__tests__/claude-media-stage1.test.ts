@@ -114,6 +114,7 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Create mock response. */
 function createMockResponse(options: {
 	ok?: boolean;
 	status?: number;

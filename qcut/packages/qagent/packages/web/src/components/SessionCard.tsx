@@ -72,6 +72,7 @@ export function SessionCard({
 		}
 	}, [editingLabel]);
 
+	/** Handle commit label. */
 	const commitLabel = () => {
 		// Read directly from input to avoid stale closure with batched state updates
 		const trimmed = (labelInputRef.current?.value ?? labelDraft).trim();
@@ -83,6 +84,7 @@ export function SessionCard({
 		}
 	};
 
+	/** Handle action. */
 	const handleAction = async (action: string, message: string) => {
 		setSendingAction(action);
 		onSend?.(session.id, message);

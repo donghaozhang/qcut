@@ -190,6 +190,7 @@ function startHeartbeat(): void {
 	}, HEARTBEAT_INTERVAL_MS);
 }
 
+/** Stop heartbeat. */
 function stopHeartbeat(): void {
 	if (heartbeatTimer) {
 		clearInterval(heartbeatTimer);
@@ -202,6 +203,7 @@ function stopHeartbeat(): void {
 	heartbeatPending = false;
 }
 
+/** Handle force restart utility. */
 function forceRestartUtility(): void {
 	if (utilityChild) {
 		try {
@@ -243,6 +245,7 @@ function flushMessageQueue(): void {
 	}
 }
 
+/** Handle write to pty session output. */
 export function writeToPtySessionOutput({
 	sessionId,
 	data,
@@ -274,6 +277,7 @@ export function writeToPtySessionOutput({
 	}
 }
 
+/** Handle configure notification bridge writer. */
 function configureNotificationBridgeWriter(): void {
 	try {
 		notificationBridge.setWriter({

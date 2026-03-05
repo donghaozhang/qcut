@@ -44,6 +44,7 @@ const AUTO_EDIT_FAILURE_HINTS: Record<AutoEditFailureStage, string> = {
 		"Inspect auto-edit logs around transcription, analysis, and cut execution.",
 };
 
+/** AutoEditStageError class. */
 class AutoEditStageError extends HttpError {
 	details: AutoEditFailureDetails;
 
@@ -61,6 +62,7 @@ class AutoEditStageError extends HttpError {
 	}
 }
 
+/** Handle infer auto edit failure process. */
 function inferAutoEditFailureProcess({
 	message,
 }: {
@@ -84,6 +86,7 @@ function inferAutoEditFailureProcess({
 	}
 }
 
+/** Handle infer auto edit failure guard. */
 function inferAutoEditFailureGuard({
 	stage,
 	cause,
@@ -117,6 +120,7 @@ function inferAutoEditFailureGuard({
 	}
 }
 
+/** Handle to auto edit stage error. */
 function toAutoEditStageError({
 	error,
 	stage,
@@ -177,6 +181,7 @@ function toAutoEditStageError({
 	}
 }
 
+/** Get auto edit failure details. */
 function getAutoEditFailureDetails({
 	error,
 }: {
@@ -199,6 +204,7 @@ function getAutoEditFailureDetails({
 const autoEditJobs = new Map<string, AutoEditJob>();
 const MAX_AUTO_EDIT_JOBS = 50;
 
+/** Handle prune old auto edit jobs. */
 function pruneOldAutoEditJobs(): void {
 	if (autoEditJobs.size <= MAX_AUTO_EDIT_JOBS) return;
 	const entries = [...autoEditJobs.entries()].sort(

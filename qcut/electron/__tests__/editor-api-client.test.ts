@@ -28,16 +28,19 @@ import * as path from "path";
 
 const routes = new Map<string, { status: number; body: unknown }>();
 
+/** Handle mock route. */
 function mockRoute(method: string, path: string, body: unknown, status = 200) {
 	routes.set(`${method} ${path}`, { status, body });
 }
 
+/** Handle clear routes. */
 function clearRoutes() {
 	routes.clear();
 }
 
 const originalFetch = globalThis.fetch;
 
+/** Handle install fetch mock. */
 function installFetchMock(baseUrl: string) {
 	globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
 		const url = typeof input === "string" ? input : input.toString();
@@ -547,6 +550,7 @@ describe("Media handlers", () => {
 		globalThis.fetch = originalFetch;
 	});
 
+	/** Create opts fixture. */
 	function makeOpts(overrides: Partial<CLIRunOptions>): CLIRunOptions {
 		return {
 			command: "editor:media:list",
@@ -559,6 +563,7 @@ describe("Media handlers", () => {
 		} as CLIRunOptions;
 	}
 
+	/** Handle noop progress. */
 	const noopProgress = () => {};
 
 	it("editor:health returns health data", async () => {
@@ -669,6 +674,7 @@ describe("Project handlers", () => {
 		globalThis.fetch = originalFetch;
 	});
 
+	/** Create opts fixture. */
 	function makeOpts(overrides: Partial<CLIRunOptions>): CLIRunOptions {
 		return {
 			command: "editor:project:settings",
@@ -681,6 +687,7 @@ describe("Project handlers", () => {
 		} as CLIRunOptions;
 	}
 
+	/** Handle noop progress. */
 	const noopProgress = () => {};
 
 	it("editor:project:settings calls GET endpoint", async () => {

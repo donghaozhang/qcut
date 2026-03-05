@@ -17,6 +17,7 @@ import type { DeepHealthReport } from "../handlers/claude-health-handler.js";
 
 const COMMAND_WAIT_TIMEOUT_MS = 29_000;
 
+/** Handle should run deep health. */
 function shouldRunDeepHealth({
 	value,
 }: {
@@ -38,6 +39,7 @@ function shouldRunDeepHealth({
 	}
 }
 
+/** Handle derive deep health status. */
 function deriveDeepHealthStatus({
 	report,
 }: {
@@ -50,6 +52,7 @@ function deriveDeepHealthStatus({
 	}
 }
 
+/** Handle should skip correlation tracking. */
 function shouldSkipCorrelationTracking({
 	pathname,
 }: {
@@ -65,6 +68,7 @@ function shouldSkipCorrelationTracking({
 	}
 }
 
+/** Build tracked command params. */
 function buildTrackedCommandParams({
 	req,
 }: {
@@ -87,6 +91,7 @@ function buildTrackedCommandParams({
 	}
 }
 
+/** Set request command meta. */
 function setRequestCommandMeta({
 	req,
 	record,
@@ -103,6 +108,7 @@ function setRequestCommandMeta({
 	}
 }
 
+/** Get request correlation id. */
 export function getRequestCorrelationId({
 	req,
 }: {
@@ -115,6 +121,7 @@ export function getRequestCorrelationId({
 	}
 }
 
+/** Handle is terminal command. */
 function isTerminalCommand({ record }: { record: CommandRecord }): boolean {
 	try {
 		return record.state === "applied" || record.state === "failed";
@@ -123,6 +130,7 @@ function isTerminalCommand({ record }: { record: CommandRecord }): boolean {
 	}
 }
 
+/** Handle wrap router with correlation tracking. */
 export function wrapRouterWithCorrelationTracking({
 	router,
 }: {
@@ -212,6 +220,7 @@ export function wrapRouterWithCorrelationTracking({
 	}
 }
 
+/** Register meta routes. */
 export function registerMetaRoutes({
 	router,
 	getAppVersion,
