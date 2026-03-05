@@ -17,7 +17,7 @@ vi.mock("electron", () => ({
 
 import { syncSkillsForClaudeProject } from "../skills-sync-handler";
 
-const MANAGED_SKILLS = ["qcut-toolkit", "qcut-api"] as const;
+const MANAGED_SKILLS = ["qcut-toolkit", "native-cli"] as const;
 const tempDirs: string[] = [];
 
 function createTempDir({ prefix }: { prefix: string }): string {
@@ -69,8 +69,8 @@ describe("syncSkillsForClaudeProject", () => {
 		});
 		await writeSkillFile({
 			rootPath: bundledSkillsPath,
-			skillName: "qcut-api",
-			content: "# qcut-api\n",
+			skillName: "native-cli",
+			content: "# native-cli\n",
 		});
 
 		const result = await syncSkillsForClaudeProject({
@@ -100,9 +100,9 @@ describe("syncSkillsForClaudeProject", () => {
 		await expect(
 			readSkillFile({
 				rootPath: canonicalSkillsPath,
-				skillName: "qcut-api",
+				skillName: "native-cli",
 			})
-		).resolves.toBe("# qcut-api\n");
+		).resolves.toBe("# native-cli\n");
 
 		await expect(
 			readSkillFile({
@@ -113,9 +113,9 @@ describe("syncSkillsForClaudeProject", () => {
 		await expect(
 			readSkillFile({
 				rootPath: claudeMirrorSkillsPath,
-				skillName: "qcut-api",
+				skillName: "native-cli",
 			})
-		).resolves.toBe("# qcut-api\n");
+		).resolves.toBe("# native-cli\n");
 
 		await expect(
 			fs.readFile(
@@ -166,8 +166,8 @@ describe("syncSkillsForClaudeProject", () => {
 		});
 		await writeSkillFile({
 			rootPath: bundledSkillsPath,
-			skillName: "qcut-api",
-			content: "# stable api\n",
+			skillName: "native-cli",
+			content: "# stable native-cli\n",
 		});
 
 		await syncSkillsForClaudeProject({
@@ -211,9 +211,9 @@ describe("syncSkillsForClaudeProject", () => {
 		await expect(
 			readSkillFile({
 				rootPath: canonicalSkillsPath,
-				skillName: "qcut-api",
+				skillName: "native-cli",
 			})
-		).resolves.toBe("# stable api\n");
+		).resolves.toBe("# stable native-cli\n");
 
 		await expect(
 			readSkillFile({
@@ -224,9 +224,9 @@ describe("syncSkillsForClaudeProject", () => {
 		await expect(
 			readSkillFile({
 				rootPath: claudeMirrorSkillsPath,
-				skillName: "qcut-api",
+				skillName: "native-cli",
 			})
-		).resolves.toBe("# stable api\n");
+		).resolves.toBe("# stable native-cli\n");
 	});
 
 	it("returns warning and no-op when bundled source is missing", async () => {

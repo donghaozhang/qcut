@@ -1,12 +1,12 @@
 ---
 name: qcut-toolkit
-description: Unified QCut media toolkit — organize project files, process media with FFmpeg, generate AI content, control the QCut editor via API, generate video prompts, and test MCP preview. Use when the user asks about any media workflow, file organization, video processing, AI generation, editor control, video prompts, or content pipeline task.
+description: Unified QCut media toolkit — organize project files, process media with FFmpeg, generate AI content, control the QCut editor with native CLI commands, generate video prompts, and test MCP preview. Use when the user asks about any media workflow, file organization, video processing, AI generation, editor control, video prompts, or content pipeline task.
 argument-hint: [task description]
 ---
 
 # QCut Toolkit
 
-Unified entry point for QCut's seven sub-skills. Route tasks to the appropriate sub-skill based on what the user needs.
+Unified entry point for QCut's six sub-skills. Route tasks to the appropriate sub-skill based on what the user needs.
 
 ## Sub-Skills
 
@@ -19,12 +19,13 @@ Handles:
 - Initializing the standard project layout (`input/*`, `output/*`, `config/`)
 - Organizing media by extension with `organize-project`
 - Running structure audits with `structure-info`
+- Running editor media/timeline/export/diagnostic commands (`editor:*`)
 - Running additional native pipeline commands when needed
 
 ### 2. ffmpeg-skill — Media Processing
 **When:** Converting, compressing, trimming, resizing, extracting audio, adding subtitles, creating GIFs, applying effects
 **Invoke:** `/ffmpeg-skill`
-**Skill path:** `.claude/skills/ffmpeg-skill/Skill.md`
+**Skill path:** `.claude/skills/qcut-toolkit/ffmpeg-skill/SKILL.md`
 
 Handles:
 - Format conversion (MP4, MKV, WebM, MP3, etc.)
@@ -47,23 +48,10 @@ Handles:
 - YAML pipeline orchestration with parallel execution
 - Motion transfer between images and videos
 
-### 4. qcut-api — Editor Control API
-**When:** Controlling QCut programmatically, managing media/timeline/project via REST or IPC, getting export presets, diagnosing errors
-**Invoke:** `/qcut-api`
-**Skill path:** `.claude/skills/qcut-api/SKILL.md`
-
-Handles:
-- HTTP REST API at `http://127.0.0.1:8765/api/claude/*` (18 endpoints)
-- Media management (list, import, delete, rename files)
-- Timeline read/write (export JSON/Markdown, add/update/remove elements)
-- Project settings (get/update name, resolution, FPS, format)
-- Export presets and platform recommendations (YouTube, TikTok, Instagram, etc.)
-- Error diagnostics with system info
-
-### 5. seedance — Video Prompt Engineering
+### 4. seedance — Video Prompt Engineering
 **When:** Writing video prompts, Seedance/即梦 workflows, AI video prompt generation, video descriptions (Chinese or English)
 **Invoke:** `/seedance`
-**Skill path:** `.claude/skills/seedance/SKILL.md`
+**Skill path:** `.claude/skills/qcut-toolkit/seedance/SKILL.md`
 
 Handles:
 - Seedance 2.0 (即梦) prompt generation in Chinese
@@ -71,7 +59,7 @@ Handles:
 - Short drama (短剧), advertising video, and cinematic prompt templates
 - Prompt engineering best practices for ByteDance video models
 
-### 6. qcut-mcp-preview-test — MCP Preview Testing
+### 5. qcut-mcp-preview-test — MCP Preview Testing
 **When:** Testing MCP app preview, toggling "MCP Media App" mode, debugging iframe rendering, troubleshooting `mcp:app-html` events or `/api/claude/mcp/app`
 **Invoke:** `/qcut-mcp-preview-test`
 **Skill path:** `.claude/skills/qcut-mcp-preview-test/SKILL.md`
@@ -82,7 +70,7 @@ Handles:
 - Debugging IPC (`mcp:app-html`) and HTTP (`/api/claude/mcp/app`) delivery
 - Crafting prompts that modify MCP media app UI safely
 
-### 7. pr-comments — PR Review Processing
+### 6. pr-comments — PR Review Processing
 **When:** Exporting PR comments, evaluating code reviews, fixing review feedback from CodeRabbit/Gemini bots
 **Invoke:** `/pr-comments`
 **Skill path:** `.claude/skills/pr-comments/SKILL.md`
@@ -103,7 +91,7 @@ When the user's request involves multiple sub-skills, chain them in this order:
 2. **Process with FFmpeg** — Convert, trim, or prepare source media
 3. **Generate with AI** — Create new content or analyze existing media
 4. **Write prompts** — Generate video prompts for Seedance/即梦 if needed
-5. **Control editor** — Use the API to update timeline, settings, or import results
+5. **Control editor** — Use native-cli `editor:*` commands to update timeline, settings, or import results
 6. **Organize output** — Place results in `media/generated/` or `output/`
 
 ### Quick Routing Table
@@ -113,14 +101,14 @@ When the user's request involves multiple sub-skills, chain them in this order:
 | "organize", "set up project", "clean up files" | native-cli |
 | "convert", "compress", "trim", "resize", "extract audio", "gif", "subtitle" | ffmpeg-skill |
 | "generate image", "generate video", "avatar", "lipsync", "transcribe", "analyze video", "AI pipeline" | ai-content-pipeline |
-| "add to timeline", "update project settings", "list media", "export preset", "configure for TikTok" | qcut-api |
-| "import media via API", "get project stats", "diagnose error" | qcut-api |
+| "add to timeline", "update project settings", "list media", "export preset", "configure for TikTok" | native-cli |
+| "import media", "get project stats", "diagnose error" | native-cli |
 | "video prompt", "Seedance", "即梦", "视频提示词", "write video description" | seedance |
 | "test MCP preview", "MCP app mode", "debug iframe", "mcp:app-html" | qcut-mcp-preview-test |
 | "export PR comments", "fix review feedback", "process code review" | pr-comments |
 | "process this video and generate thumbnails" | ffmpeg-skill → ai-content-pipeline |
 | "import media and organize" | native-cli |
-| "generate content and add to timeline" | ai-content-pipeline → qcut-api |
+| "generate content and add to timeline" | ai-content-pipeline → native-cli |
 | "set up project then generate content" | native-cli → ai-content-pipeline |
 | "write prompt then generate video" | seedance → ai-content-pipeline |
 

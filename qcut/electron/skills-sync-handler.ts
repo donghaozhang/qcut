@@ -28,10 +28,8 @@ export interface SkillsSyncForClaudeResult {
 
 const MANAGED_SKILL_FOLDERS = [
 	"qcut-toolkit",
-	"organize-project",
-	"ffmpeg-skill",
+	"native-cli",
 	"ai-content-pipeline",
-	"qcut-api",
 ] as const;
 
 const SYNC_MANIFEST_VERSION = 1;

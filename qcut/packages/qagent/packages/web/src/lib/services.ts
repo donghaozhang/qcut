@@ -16,6 +16,7 @@ import {
 	createSessionManager,
 	type OrchestratorConfig,
 	type PluginRegistry,
+	type PluginModule,
 	type SessionManager,
 	type SCM,
 	type ProjectConfig,
@@ -27,7 +28,6 @@ import pluginAgentClaudeCode from "@composio/ao-plugin-agent-claude-code";
 import pluginWorkspaceWorktree from "@composio/ao-plugin-workspace-worktree";
 import pluginScmGithub from "@composio/ao-plugin-scm-github";
 import pluginTrackerGithub from "@composio/ao-plugin-tracker-github";
-import pluginTrackerLinear from "@composio/ao-plugin-tracker-linear";
 
 export interface Services {
 	config: OrchestratorConfig;
@@ -67,13 +67,66 @@ async function initServices(): Promise<Services> {
 	registry.register(pluginWorkspaceWorktree);
 	registry.register(pluginScmGithub);
 	registry.register(pluginTrackerGithub);
-	registry.register(pluginTrackerLinear);
+	await registerOptionalLinearTracker({ registry, config });
 
 	const sessionManager = createSessionManager({ config, registry });
 
 	const services = { config, registry, sessionManager };
 	globalForServices._aoServices = services;
 	return services;
+}
+
+function isPluginModule(value: unknown): value is PluginModule {
+	try {
+		if (!value || typeof value !== "object") {
+			return false;
+		}
+		const module = value as Record<string, unknown>;
+		const manifest = module.manifest as Record<string, unknown> | undefined;
+		const create = module.create;
+		return (
+			Boolean(manifest) &&
+			typeof manifest?.name === "string" &&
+			typeof manifest?.slot === "string" &&
+			typeof create === "function"
+		);
+	} catch {
+		return false;
+	}
+}
+
+async function registerOptionalLinearTracker({
+	registry,
+	config,
+}: {
+	registry: PluginRegistry;
+	config: OrchestratorConfig;
+}): Promise<void> {
+	const needsLinearTracker = Object.values(config.projects).some(
+		(project) => project.tracker?.plugin === "linear"
+	);
+	if (!needsLinearTracker) {
+		return;
+	}
+
+	try {
+		// Keep Linear optional in web builds where @composio/core may be absent.
+		const maybeModule = await import(
+			/* webpackIgnore: true */ "@composio/ao-plugin-tracker-linear"
+		);
+		const plugin = (maybeModule as { default?: unknown }).default;
+		if (isPluginModule(plugin)) {
+			registry.register(plugin);
+			return;
+		}
+		console.warn(
+			"[ao-web] Linear tracker plugin was requested but did not export a valid plugin module."
+		);
+	} catch (error) {
+		console.warn(
+			`[ao-web] Linear tracker plugin is unavailable: ${error instanceof Error ? error.message : String(error)}`
+		);
+	}
 }
 
 /** Resolve the SCM plugin for a project. Returns null if not configured. */

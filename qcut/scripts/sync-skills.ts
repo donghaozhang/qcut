@@ -16,9 +16,7 @@ const TARGET_DIR = "resources/default-skills";
 // Skills to sync (add new bundled skills here)
 const BUNDLED_SKILLS = [
 	"ai-content-pipeline",
-	"ffmpeg-skill",
-	"organize-project",
-	"qcut-api",
+	"native-cli",
 	"qcut-toolkit",
 ];
 
