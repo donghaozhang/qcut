@@ -18,6 +18,11 @@ import {
 	type TLShapeId,
 } from "tldraw";
 import "tldraw/tldraw.css";
+import {
+	handleError,
+	ErrorCategory,
+	ErrorSeverity,
+} from "@/lib/debug/error-handler";
 
 /** Image to annotate */
 export interface AnnotatorImage {
@@ -43,92 +48,115 @@ interface TldrawCanvasProps {
 export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 	({ image, className }, ref) => {
 		const editorRef = useRef<Editor | null>(null);
+		const [mountedEditor, setMountedEditor] = useState<Editor | null>(null);
 		const [imageShapeId, setImageShapeId] = useState<TLShapeId | null>(null);
 
 		const handleMount = useCallback((editor: Editor) => {
-			editorRef.current = editor;
-			editor.user.updateUserPreferences({ colorScheme: "dark" });
+			try {
+				editorRef.current = editor;
+				setMountedEditor(editor);
+				editor.user.updateUserPreferences({ colorScheme: "dark" });
+			} catch (error) {
+				handleError(error, {
+					operation: "tldraw editor mount",
+					category: ErrorCategory.UI,
+					severity: ErrorSeverity.MEDIUM,
+					showToast: false,
+				});
+			}
 		}, []);
 
 		// Create locked background image + side effects
 		useEffect(() => {
-			const editor = editorRef.current;
+			const editor = mountedEditor;
 			if (!editor) return;
+			const activeEditor: Editor = editor;
 
-			const assetId = AssetRecordType.createId();
-			editor.createAssets([
-				{
-					id: assetId,
-					typeName: "asset",
-					type: "image",
-					meta: {},
-					props: {
-						w: image.width,
-						h: image.height,
-						mimeType: image.type,
-						src: image.src,
-						name: "background",
-						isAnimated: false,
+			let rmCreate = () => {};
+			let rmChange = () => {};
+			let rmLock = () => {};
+			try {
+				const assetId = AssetRecordType.createId();
+				activeEditor.createAssets([
+					{
+						id: assetId,
+						typeName: "asset",
+						type: "image",
+						meta: {},
+						props: {
+							w: image.width,
+							h: image.height,
+							mimeType: image.type,
+							src: image.src,
+							name: "background",
+							isAnimated: false,
+						},
 					},
-				},
-			]);
+				]);
 
-			const shapeId = createShapeId();
-			editor.createShape({
-				id: shapeId,
-				type: "image",
-				x: 0,
-				y: 0,
-				isLocked: true,
-				props: { w: image.width, h: image.height, assetId },
-			});
+				const shapeId = createShapeId();
+				activeEditor.createShape({
+					id: shapeId,
+					type: "image",
+					x: 0,
+					y: 0,
+					isLocked: true,
+					props: { w: image.width, h: image.height, assetId },
+				});
 
-			// Keep image at the bottom of the z-order
-			function keepAtBottom() {
-				if (!editor) return;
-				const shape = editor.getShape(shapeId);
-				if (!shape) return;
+				// Keep image at the bottom of the z-order
+				function keepAtBottom() {
+					const shape = activeEditor.getShape(shapeId);
+					if (!shape) return;
 
-				const pageId = editor.getCurrentPageId();
-				if (shape.parentId !== pageId) {
-					editor.moveShapesToPage([shape], pageId);
+					const pageId = activeEditor.getCurrentPageId();
+					if (shape.parentId !== pageId) {
+						activeEditor.moveShapesToPage([shape], pageId);
+					}
+					const siblings = activeEditor.getSortedChildIdsForParent(pageId);
+					const bottom = activeEditor.getShape(siblings[0]);
+					if (bottom && bottom.id !== shapeId) {
+						activeEditor.sendToBack([shape]);
+					}
 				}
-				const siblings = editor.getSortedChildIdsForParent(pageId);
-				const bottom = editor.getShape(siblings[0]);
-				if (bottom && bottom.id !== shapeId) {
-					editor.sendToBack([shape]);
-				}
+				keepAtBottom();
+
+				rmCreate = activeEditor.sideEffects.registerAfterCreateHandler(
+					"shape",
+					keepAtBottom
+				);
+				rmChange = activeEditor.sideEffects.registerAfterChangeHandler(
+					"shape",
+					keepAtBottom
+				);
+
+				// Prevent unlocking the background image
+				rmLock = activeEditor.sideEffects.registerBeforeChangeHandler(
+					"shape",
+					(prev, next) => {
+						if (next.id !== shapeId) return next;
+						if (next.isLocked) return next;
+						return { ...prev, isLocked: true };
+					}
+				);
+
+				activeEditor.clearHistory();
+				setImageShapeId(shapeId);
+			} catch (error) {
+				setImageShapeId(null);
+				handleError(error, {
+					operation: "draw panel image setup",
+					category: ErrorCategory.UI,
+					severity: ErrorSeverity.MEDIUM,
+				});
 			}
-			keepAtBottom();
-
-			const rmCreate = editor.sideEffects.registerAfterCreateHandler(
-				"shape",
-				keepAtBottom
-			);
-			const rmChange = editor.sideEffects.registerAfterChangeHandler(
-				"shape",
-				keepAtBottom
-			);
-
-			// Prevent unlocking the background image
-			const rmLock = editor.sideEffects.registerBeforeChangeHandler(
-				"shape",
-				(prev, next) => {
-					if (next.id !== shapeId) return next;
-					if (next.isLocked) return next;
-					return { ...prev, isLocked: true };
-				}
-			);
-
-			editor.clearHistory();
-			setImageShapeId(shapeId);
 
 			return () => {
 				rmCreate();
 				rmChange();
 				rmLock();
 			};
-		}, [image]);
+		}, [image, mountedEditor]);
 
 		// Camera constraints — keep image in view
 		useEffect(() => {
@@ -181,14 +209,22 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 			loadSnapshot: (snapshotJson: string) => {
 				const editor = editorRef.current;
 				if (!editor) return;
-				const snapshot = JSON.parse(snapshotJson);
-				editor.store.loadStoreSnapshot(snapshot);
-				// Re-derive imageShapeId from the loaded store
-				const shapes = [...editor.getCurrentPageShapeIds()];
-				const lockedImage = shapes
-					.map((id) => editor.getShape(id))
-					.find((s) => s?.type === "image" && s.isLocked);
-				setImageShapeId(lockedImage?.id ?? null);
+				try {
+					const snapshot = JSON.parse(snapshotJson);
+					editor.store.loadStoreSnapshot(snapshot);
+					// Re-derive imageShapeId from the loaded store
+					const shapes = [...editor.getCurrentPageShapeIds()];
+					const lockedImage = shapes
+						.map((id) => editor.getShape(id))
+						.find((s) => s?.type === "image" && s.isLocked);
+					setImageShapeId(lockedImage?.id ?? null);
+				} catch (error) {
+					handleError(error, {
+						operation: "draw panel snapshot load",
+						category: ErrorCategory.STORAGE,
+						severity: ErrorSeverity.MEDIUM,
+					});
+				}
 			},
 
 			clearAll: () => {

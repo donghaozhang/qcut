@@ -1,0 +1,4 @@
+interface:
+  display_name: "QCut MCP Preview Test"
+  short_description: "Switch and validate QCut MCP preview mode safely"
+  default_prompt: "Use this skill to switch between video preview and MCP test app in QCut, validate layout behavior, and troubleshoot MCP iframe rendering."
