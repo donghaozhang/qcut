@@ -287,8 +287,9 @@ export function createLifecycleManager(
 			policyGateBySession.set(session.id, policyGate);
 			return policyGate;
 		} catch (error) {
+			const fallbackMode = project.policyMode ?? config.policyMode ?? "advisory";
 			const fallback: PolicyGateResult = {
-				mode: "advisory",
+				mode: fallbackMode,
 				passed: false,
 				violations: [
 					{

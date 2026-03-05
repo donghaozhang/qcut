@@ -56,8 +56,8 @@ These remain documented in `editor-state-control.md` as `curl` examples, no CLI 
 |------|--------|
 | `electron/native-pipeline/cli/command-registry-editor.ts` | Register 3 new commands |
 | `electron/native-pipeline/cli/cli-handlers-editor.ts` | Add handler functions |
-| `.claude/skills/native-cli/editor-state-control.md` | Trim redundant sections |
-| `.claude/skills/native-cli/editor-core.md` | Add undo/redo/snapshot to command table |
+| `.claude/skills/native-cli/editor/editor-state-control.md` | Trim redundant sections |
+| `.claude/skills/native-cli/editor/editor-core.md` | Add undo/redo/snapshot to command table |
 
 ## Acceptance criteria
 

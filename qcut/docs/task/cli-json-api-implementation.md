@@ -44,7 +44,7 @@ All existing command outputs now route through `jsonOk`/`jsonError` when `--json
 | `electron/native-pipeline/cli/cli-runner/session.ts` | Unified JSON wrapping in session mode |
 | `electron/native-pipeline/editor/editor-handlers-media.ts` | Added `project:list`, `project:info` handlers |
 | `electron/native-pipeline/editor/editor-handlers-timeline.ts` | Added `timeline:info`, `timeline:add-clip`, `timeline:trim` handlers |
-| `.claude/skills/native-cli/REFERENCE.md` | Documented all new commands and updated JSON format docs |
+| `.claude/skills/native-cli/references/REFERENCE.md` | Documented all new commands and updated JSON format docs |
 
 ### 5. JSON Envelope Format
 
