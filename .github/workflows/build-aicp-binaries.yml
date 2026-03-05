@@ -80,22 +80,22 @@ jobs:
           cp build/aicp/dist/${{ matrix.binary_name }} build/aicp/artifacts/${{ matrix.target }}/${{ matrix.binary_name }}
 
           python - <<'PY'
-import hashlib
-import pathlib
+          import hashlib
+          import pathlib
 
-binary_path = pathlib.Path("build/aicp/artifacts/${{ matrix.target }}/${{ matrix.binary_name }}")
-hash_value = hashlib.sha256(binary_path.read_bytes()).hexdigest()
-size_value = binary_path.stat().st_size
+          binary_path = pathlib.Path("build/aicp/artifacts/${{ matrix.target }}/${{ matrix.binary_name }}")
+          hash_value = hashlib.sha256(binary_path.read_bytes()).hexdigest()
+          size_value = binary_path.stat().st_size
 
-checksums_path = pathlib.Path("build/aicp/artifacts/${{ matrix.target }}/checksums.txt")
-checksums_path.write_text(
-    f"target=${{ matrix.target }}\n"
-    f"filename=${{ matrix.binary_name }}\n"
-    f"sha256={hash_value}\n"
-    f"size={size_value}\n",
-    encoding="utf-8",
-)
-PY
+          checksums_path = pathlib.Path("build/aicp/artifacts/${{ matrix.target }}/checksums.txt")
+          checksums_path.write_text(
+              f"target=${{ matrix.target }}\n"
+              f"filename=${{ matrix.binary_name }}\n"
+              f"sha256={hash_value}\n"
+              f"size={size_value}\n",
+              encoding="utf-8",
+          )
+          PY
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
