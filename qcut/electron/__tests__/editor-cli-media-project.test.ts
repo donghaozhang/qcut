@@ -327,6 +327,36 @@ describe("Project handlers — uncovered actions", () => {
 		});
 	});
 
+	describe("project:list", () => {
+		it("calls navigator projects endpoint", async () => {
+			mockRoute("GET", "/api/claude/navigator/projects", {
+				success: true,
+				data: {
+					projects: [
+						{
+							id: "p1",
+							name: "Project 1",
+							createdAt: "2026-03-01T10:00:00.000Z",
+							updatedAt: "2026-03-01T10:00:00.000Z",
+						},
+					],
+					activeProjectId: "p1",
+				},
+			});
+
+			const result = await handleMediaProjectCommand(
+				client,
+				makeOpts({ command: "editor:project:list" }),
+				noopProgress
+			);
+
+			expect(result.success).toBe(true);
+			expect(
+				(result.data as { projects: Array<{ id: string }> }).projects[0]?.id
+			).toBe("p1");
+		});
+	});
+
 	describe("unknown project action", () => {
 		it("returns error for unknown action", async () => {
 			const result = await handleMediaProjectCommand(

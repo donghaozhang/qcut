@@ -139,7 +139,12 @@ async function ensureProjectDiskScaffold({
 		const scaffold: Record<string, unknown> = {
 			...existing,
 			projectId,
-			name: projectName || getStringValue({ value: existing.name, fallback: DEFAULT_PROJECT_NAME }),
+			name:
+				projectName ||
+				getStringValue({
+					value: existing.name,
+					fallback: DEFAULT_PROJECT_NAME,
+				}),
 			createdAt: getStringValue({
 				value: existing.createdAt,
 				fallback: nowIso,
@@ -182,7 +187,11 @@ async function ensureProjectDiskScaffold({
 			scaffold.settings = {};
 		}
 
-		await fs.writeFile(settingsPath, JSON.stringify(scaffold, null, 2), "utf-8");
+		await fs.writeFile(
+			settingsPath,
+			JSON.stringify(scaffold, null, 2),
+			"utf-8"
+		);
 	} catch (error) {
 		throw new Error(
 			`Failed to ensure project scaffold for ${projectId}: ${

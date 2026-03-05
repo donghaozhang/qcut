@@ -47,11 +47,7 @@ function getStringValue({
 		: fallback;
 }
 
-function getPositiveNumber({
-	value,
-}: {
-	value: unknown;
-}): number | null {
+function getPositiveNumber({ value }: { value: unknown }): number | null {
 	try {
 		if (typeof value === "number" && Number.isFinite(value) && value > 0) {
 			return value;
@@ -335,16 +331,14 @@ export async function updateProjectSettings(
 					nextHeight = Math.max(
 						1,
 						Math.round(
-							nextWidth *
-								(parsedAspectRatio.height / parsedAspectRatio.width)
+							nextWidth * (parsedAspectRatio.height / parsedAspectRatio.width)
 						)
 					);
 				} else {
 					nextWidth = Math.max(
 						1,
 						Math.round(
-							nextHeight *
-								(parsedAspectRatio.width / parsedAspectRatio.height)
+							nextHeight * (parsedAspectRatio.width / parsedAspectRatio.height)
 						)
 					);
 				}
