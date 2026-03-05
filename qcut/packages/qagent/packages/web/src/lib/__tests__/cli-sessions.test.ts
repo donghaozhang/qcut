@@ -19,6 +19,7 @@ const {
 	execFileMock,
 	detectTerminalAppMock,
 	readTerminalTabNameMock,
+	resolveCLISessionTokenUsageMock,
 } = vi.hoisted(() => {
 	const hoistedCommandResults = new Map<string, CommandResult>();
 	const hoistedExecFileMock = vi.fn(
@@ -62,6 +63,7 @@ const {
 		execFileMock: hoistedExecFileMock,
 		detectTerminalAppMock: vi.fn(),
 		readTerminalTabNameMock: vi.fn(),
+		resolveCLISessionTokenUsageMock: vi.fn(),
 	};
 });
 
@@ -98,6 +100,10 @@ vi.mock("../terminal-utils", () => ({
 	readTerminalTabName: readTerminalTabNameMock,
 }));
 
+vi.mock("../claude-jsonl", () => ({
+	resolveCLISessionTokenUsage: resolveCLISessionTokenUsageMock,
+}));
+
 import { findCLISession } from "../cli-sessions";
 
 describe("findCLISession", () => {
@@ -106,6 +112,7 @@ describe("findCLISession", () => {
 		execFileMock.mockClear();
 		detectTerminalAppMock.mockReset();
 		readTerminalTabNameMock.mockReset();
+		resolveCLISessionTokenUsageMock.mockReset();
 	});
 
 	it("discovers wrapper-launched --agent claude-code sessions", async () => {
@@ -149,6 +156,11 @@ describe("findCLISession", () => {
 		});
 		detectTerminalAppMock.mockResolvedValue("Warp");
 		readTerminalTabNameMock.mockResolvedValue("qagent-smoke");
+		resolveCLISessionTokenUsageMock.mockResolvedValue({
+			inputTokens: 1200,
+			outputTokens: 430,
+			estimatedCostUsd: 0.013,
+		});
 
 		const session = await findCLISession("claude-code:4242");
 		expect(session).not.toBeNull();
@@ -164,5 +176,17 @@ describe("findCLISession", () => {
 		expect(Number.isFinite(Date.parse(metadata.processStartedAt ?? ""))).toBe(
 			true,
 		);
+		expect(resolveCLISessionTokenUsageMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				agent: "claude-code",
+				cwd: "/Users/peter/Desktop/code/qcut/qcut",
+			}),
+		);
+		expect(session?.tokenUsage).toEqual({
+			inputTokens: 1200,
+			outputTokens: 430,
+			totalTokens: 1630,
+			estimatedCostUsd: 0.013,
+		});
 	});
 });
