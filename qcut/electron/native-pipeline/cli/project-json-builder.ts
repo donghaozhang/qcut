@@ -98,8 +98,8 @@ export async function buildProjectJSONMinimal(
     version: "1.0",
     projectId,
     name: resolvedName,
-    createdAt: str(settings.createdAt, projectMeta?.createdAt ?? now),
-    updatedAt: str(settings.updatedAt, projectMeta?.updatedAt ?? now),
+    createdAt: str(settings.createdAt, str(projectMeta?.createdAt, now)),
+    updatedAt: str(settings.updatedAt, str(projectMeta?.updatedAt, now)),
     settings: {
       width: num(settings.width, 1920),
       height: num(settings.height, 1080),
@@ -213,8 +213,8 @@ export async function buildProjectJSON(
     version: "1.0",
     projectId,
     name: resolvedName,
-    createdAt: str(settings.createdAt, projectMeta?.createdAt ?? now),
-    updatedAt: str(settings.updatedAt, projectMeta?.updatedAt ?? now),
+    createdAt: str(settings.createdAt, str(projectMeta?.createdAt, now)),
+    updatedAt: str(settings.updatedAt, str(projectMeta?.updatedAt, now)),
     settings: projectSettings,
     media,
     subtitles: [], // TODO: extract from CaptionElement timeline data

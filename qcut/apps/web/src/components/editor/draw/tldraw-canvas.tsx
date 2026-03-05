@@ -85,11 +85,24 @@ function resolveBackgroundImageShapeId({
   }
 }
 
+function sanitizeDimension({ value }: { value: number }): number {
+  if (!Number.isFinite(value)) {
+    return 1;
+  }
+  return Math.max(1, Math.round(value));
+}
+
 export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
   ({ image, className }, ref) => {
     const editorRef = useRef<Editor | null>(null);
     const [mountedEditor, setMountedEditor] = useState<Editor | null>(null);
     const [imageShapeId, setImageShapeId] = useState<TLShapeId | null>(null);
+    const imageShapeIdRef = useRef<TLShapeId | null>(null);
+
+    const setResolvedImageShapeId = useCallback((nextId: TLShapeId | null) => {
+      imageShapeIdRef.current = nextId;
+      setImageShapeId(nextId);
+    }, []);
 
     const handleMount = useCallback((editor: Editor) => {
       try {
@@ -116,8 +129,8 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
       let rmChange = () => {};
       let rmLock = () => {};
       try {
-        const width = Math.max(1, Math.round(image.width));
-        const height = Math.max(1, Math.round(image.height));
+        const width = sanitizeDimension({ value: image.width });
+        const height = sanitizeDimension({ value: image.height });
         if (!image.src) {
           throw new Error("Missing source image");
         }
@@ -127,37 +140,84 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
           dataUrl: image.src,
         });
 
-        const assetId = AssetRecordType.createId();
-        activeEditor.createAssets([
-          {
-            id: assetId,
-            typeName: "asset",
-            type: "image",
-            meta: {},
-            props: {
-              w: width,
-              h: height,
-              mimeType,
-              src: image.src,
-              name: "background",
-              isAnimated: false,
-            },
-          },
-        ]);
-
-        const shapeId = createShapeId();
-        activeEditor.createShape({
-          id: shapeId,
-          type: "image",
-          x: 0,
-          y: 0,
-          isLocked: true,
-          props: { w: width, h: height, assetId },
+        const existingShapeId = resolveBackgroundImageShapeId({
+          editor: activeEditor,
+          preferredId: imageShapeIdRef.current,
         });
+        const existingShape = existingShapeId
+          ? activeEditor.getShape(existingShapeId)
+          : null;
+
+        let shapeId = existingShapeId;
+        let assetId = isLockedImageShape(existingShape)
+          ? existingShape.props.assetId
+          : null;
+        const existingAsset = assetId ? activeEditor.getAsset(assetId) : null;
+        const shouldCreateAsset =
+          !assetId ||
+          !existingAsset ||
+          existingAsset.type !== "image" ||
+          existingAsset.props.src !== image.src ||
+          existingAsset.props.w !== width ||
+          existingAsset.props.h !== height ||
+          existingAsset.props.mimeType !== mimeType;
+
+        if (shouldCreateAsset) {
+          assetId = AssetRecordType.createId();
+          activeEditor.createAssets([
+            {
+              id: assetId,
+              typeName: "asset",
+              type: "image",
+              meta: {},
+              props: {
+                w: width,
+                h: height,
+                mimeType,
+                src: image.src,
+                name: "background",
+                isAnimated: false,
+              },
+            },
+          ]);
+        }
+
+        if (!assetId) {
+          throw new Error("Failed to prepare background asset");
+        }
+
+        if (shapeId && isLockedImageShape(existingShape)) {
+          activeEditor.updateShapes([
+            {
+              id: shapeId,
+              type: "image",
+              x: 0,
+              y: 0,
+              isLocked: true,
+              props: { w: width, h: height, assetId },
+            },
+          ]);
+        } else {
+          shapeId = createShapeId();
+          activeEditor.createShape({
+            id: shapeId,
+            type: "image",
+            x: 0,
+            y: 0,
+            isLocked: true,
+            props: { w: width, h: height, assetId },
+          });
+        }
 
         // Keep image at the bottom of the z-order
         function keepAtBottom() {
-          const shape = activeEditor.getShape(shapeId);
+          const currentShapeId = resolveBackgroundImageShapeId({
+            editor: activeEditor,
+            preferredId: imageShapeIdRef.current,
+          });
+          if (!currentShapeId) return;
+
+          const shape = activeEditor.getShape(currentShapeId);
           if (!shape) return;
 
           const pageId = activeEditor.getCurrentPageId();
@@ -166,7 +226,7 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
           }
           const siblings = activeEditor.getSortedChildIdsForParent(pageId);
           const bottom = activeEditor.getShape(siblings[0]);
-          if (bottom && bottom.id !== shapeId) {
+          if (bottom && bottom.id !== currentShapeId) {
             activeEditor.sendToBack([shape]);
           }
         }
@@ -185,16 +245,20 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
         rmLock = activeEditor.sideEffects.registerBeforeChangeHandler(
           "shape",
           (prev, next) => {
-            if (next.id !== shapeId) return next;
+            const currentShapeId = resolveBackgroundImageShapeId({
+              editor: activeEditor,
+              preferredId: imageShapeIdRef.current,
+            });
+            if (!currentShapeId || next.id !== currentShapeId) return next;
             if (next.isLocked) return next;
             return { ...prev, isLocked: true };
           },
         );
 
         activeEditor.clearHistory();
-        setImageShapeId(shapeId);
+        setResolvedImageShapeId(shapeId);
       } catch (error) {
-        setImageShapeId(null);
+        setResolvedImageShapeId(null);
         handleError(error, {
           operation: "draw panel image setup",
           category: ErrorCategory.UI,
@@ -207,7 +271,14 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
         rmChange();
         rmLock();
       };
-    }, [image, mountedEditor]);
+    }, [
+      mountedEditor,
+      image.src,
+      image.width,
+      image.height,
+      image.type,
+      setResolvedImageShapeId,
+    ]);
 
     // Camera constraints — keep image in view
     useEffect(() => {
@@ -219,18 +290,20 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
       });
       if (!resolvedImageShapeId) return;
 
+      const width = sanitizeDimension({ value: image.width });
+      const height = sanitizeDimension({ value: image.height });
       editor.setCameraOptions({
         constraints: {
           initialZoom: "fit-min-100",
           baseZoom: "fit-min-100",
-          bounds: { x: 0, y: 0, w: image.width, h: image.height },
+          bounds: { x: 0, y: 0, w: width, h: height },
           padding: { x: 16, y: 16 },
           origin: { x: 0.5, y: 0.5 },
           behavior: "contain",
         },
       });
       editor.setCamera(editor.getCamera(), { reset: true });
-    }, [imageShapeId, image]);
+    }, [imageShapeId, image.width, image.height]);
 
     useImperativeHandle(ref, () => ({
       getEditor: () => editorRef.current,
@@ -288,7 +361,7 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
             editor,
             preferredId: null,
           });
-          setImageShapeId(resolvedImageShapeId);
+          setResolvedImageShapeId(resolvedImageShapeId);
         } catch (error) {
           handleError(error, {
             operation: "draw panel snapshot load",

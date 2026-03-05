@@ -65,13 +65,14 @@ try {
 		command: `git -C "${path.join(repoRoot, EXPECTED_SUBMODULE.path)}" branch --show-current`,
 	});
 	assertCondition({
-		condition: branchLine === EXPECTED_SUBMODULE.branch,
-		message: `Unexpected checked out branch: ${branchLine}`,
+		condition:
+			branchLine === EXPECTED_SUBMODULE.branch || branchLine.length === 0,
+		message: `Unexpected checked out branch: ${branchLine || "<detached-head>"}`,
 	});
 
-	console.log("NexusAI submodule verification passed.");
+	process.stdout.write("NexusAI submodule verification passed.\n");
 } catch (error) {
 	const message = error instanceof Error ? error.message : String(error);
-	console.error(`NexusAI submodule verification failed: ${message}`);
+	process.stderr.write(`NexusAI submodule verification failed: ${message}\n`);
 	process.exit(1);
 }

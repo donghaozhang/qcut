@@ -35,10 +35,14 @@ For direct API calls (not using the CLI), use these endpoint formats:
 
 ```python
 import requests
+import os
 
 url = "https://fal.run/fal-ai/nano-banana-pro"
+fal_key = os.getenv("FAL_KEY")
+if not fal_key:
+    raise RuntimeError("FAL_KEY is not set")
 headers = {
-    "Authorization": f"Key {FAL_KEY}",
+    "Authorization": f"Key {fal_key}",
     "Content-Type": "application/json"
 }
 payload = {

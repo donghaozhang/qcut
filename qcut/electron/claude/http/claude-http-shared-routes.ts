@@ -23,6 +23,18 @@ import type {
   Transaction,
   TransactionRequest,
   MediaFile,
+  ClaudeTimeline,
+  ClaudeSelectionItem,
+  ClaudeSplitResponse,
+  ProjectStats,
+  ClaudeBatchAddElementRequest,
+  ClaudeBatchAddResponse,
+  ClaudeBatchUpdateItemRequest,
+  ClaudeBatchUpdateResponse,
+  ClaudeBatchDeleteItemRequest,
+  ClaudeBatchDeleteResponse,
+  ClaudeArrangeRequest,
+  ClaudeArrangeResponse,
   BatchCutRequest,
   BatchCutResponse,
   ClaudeRangeDeleteRequest,
@@ -90,23 +102,29 @@ import { EditorApiClient } from "../../native-pipeline/editor/editor-api-client.
 import { buildProjectJSON } from "../../native-pipeline/cli/project-json-builder.js";
 import { claudeLog } from "../utils/logger.js";
 
+export interface WindowProxy {
+  webContents: {
+    send(channel: string, ...args: unknown[]): void;
+  };
+}
+
 /** Abstraction over how the server accesses renderer-dependent features */
 export interface WindowAccessor {
   /** Get a BrowserWindow or proxy with webContents.send capability */
-  getWindow(): any;
+  getWindow(): WindowProxy;
   /** Request full timeline data from renderer */
-  requestTimeline(): Promise<any>;
+  requestTimeline(): Promise<ClaudeTimeline>;
   /** Request current selection from renderer */
-  requestSelection(correlationId?: string): Promise<any>;
+  requestSelection(correlationId?: string): Promise<ClaudeSelectionItem[]>;
   /** Request an element split from renderer */
   requestSplit(
     elementId: string,
     splitTime: number,
     mode: string,
     correlationId?: string,
-  ): Promise<any>;
+  ): Promise<ClaudeSplitResponse>;
   /** Get project stats (may need renderer) */
-  getProjectStats(projectId: string): Promise<any>;
+  getProjectStats(projectId: string): Promise<ProjectStats>;
   /** Get the app version string */
   getAppVersion(): string;
   /** Enable operation notifications to a PTY session */
@@ -128,19 +146,25 @@ export interface WindowAccessor {
   /** Batch add elements (may need BrowserWindow or proxy) */
   batchAddElements(
     projectId: string,
-    elements: any[],
+    elements: ClaudeBatchAddElementRequest[],
     correlationId?: string,
-  ): Promise<any>;
+  ): Promise<ClaudeBatchAddResponse>;
   /** Batch update elements */
-  batchUpdateElements(updates: any[], correlationId?: string): Promise<any>;
+  batchUpdateElements(
+    updates: ClaudeBatchUpdateItemRequest[],
+    correlationId?: string,
+  ): Promise<ClaudeBatchUpdateResponse>;
   /** Batch delete elements */
   batchDeleteElements(
-    elements: any[],
+    elements: ClaudeBatchDeleteItemRequest[],
     ripple: boolean,
     correlationId?: string,
-  ): Promise<any>;
+  ): Promise<ClaudeBatchDeleteResponse>;
   /** Arrange timeline */
-  arrangeTimeline(data: any, correlationId?: string): Promise<any>;
+  arrangeTimeline(
+    data: ClaudeArrangeRequest,
+    correlationId?: string,
+  ): Promise<ClaudeArrangeResponse>;
   /** Begin a grouped transaction */
   beginTransaction(request?: TransactionRequest): Promise<Transaction>;
   /** Commit a grouped transaction */

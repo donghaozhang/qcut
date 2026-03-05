@@ -9,6 +9,7 @@ import {
   IpcMainInvokeEvent,
   IpcMainEvent,
 } from "electron";
+import { randomUUID } from "node:crypto";
 import * as fs from "fs/promises";
 import { getProjectPath, getProjectSettingsPath } from "../utils/helpers.js";
 import { claudeLog } from "../utils/logger.js";
@@ -414,19 +415,7 @@ export function broadcastProjectSettingsUpdate({
   settings: Partial<ProjectSettings>;
 }): void {
   try {
-    const browserWindowApi = BrowserWindow as unknown as
-      | {
-          getAllWindows?: () => BrowserWindow[];
-        }
-      | undefined;
-    if (
-      !browserWindowApi ||
-      typeof browserWindowApi.getAllWindows !== "function"
-    ) {
-      return;
-    }
-
-    const windows = browserWindowApi.getAllWindows();
+    const windows = BrowserWindow.getAllWindows();
     for (const win of windows) {
       try {
         win.webContents.send("claude:project:updated", projectId, settings);
@@ -454,7 +443,7 @@ export async function getProjectStats(
   claudeLog.info(HANDLER_NAME, `Getting stats for project: ${projectId}`);
 
   return new Promise((resolve) => {
-    const requestId = `${Date.now()}-${win.webContents.id}`;
+    const requestId = `${Date.now()}-${win.webContents.id}-${randomUUID()}`;
 
     const handler = (
       responseEvent: IpcMainEvent,

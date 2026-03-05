@@ -42,9 +42,13 @@ export async function authMiddleware(c: Context, next: Next) {
 			return;
 		}
 
+		const betterAuthSecret = process.env.BETTER_AUTH_SECRET;
+		if (!betterAuthSecret) {
+			return c.json({ error: "Auth middleware misconfigured" }, 500);
+		}
 		const fallbackUserId = await verifyJwtAndExtractUserId({
 			token,
-			secret: process.env.BETTER_AUTH_SECRET || "",
+			secret: betterAuthSecret,
 		});
 		if (fallbackUserId) {
 			c.set("userId", fallbackUserId);

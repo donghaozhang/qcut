@@ -367,15 +367,24 @@ export function createAuthRoutes({
 					key: "auth_error",
 					value: "no_session",
 				});
-				return c.redirect(loginRedirect.toString(), 302);
+				const response = c.redirect(loginRedirect.toString(), 302);
+				response.headers.set("Cache-Control", "no-store");
+				response.headers.set("Pragma", "no-cache");
+				return response;
 			}
 
+			// Token bridge supports static web clients that cannot access the auth cookie domain.
+			// Keep this query param flow, but reduce leakage via no-store/no-referrer headers.
 			addQueryParam({
 				target: dashboardRedirect,
 				key: "auth_token",
 				value: session.session.token,
 			});
-			return c.redirect(dashboardRedirect.toString(), 302);
+			const response = c.redirect(dashboardRedirect.toString(), 302);
+			response.headers.set("Cache-Control", "no-store");
+			response.headers.set("Pragma", "no-cache");
+			response.headers.set("Referrer-Policy", "no-referrer");
+			return response;
 		} catch (error) {
 			return c.json(
 				{

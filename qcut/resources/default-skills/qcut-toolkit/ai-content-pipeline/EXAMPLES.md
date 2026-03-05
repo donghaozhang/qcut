@@ -124,7 +124,7 @@ steps:
     params:
       parallel: true # Process all images concurrently
       max_workers: 4 # Maximum concurrent generations
-      duration: "5"
+      duration: 5
       prompts: # Optional per-image prompts
         - "Scene 1 motion: camera push in, dramatic reveal"
         - "Scene 2 motion: slow pan left, ambient movement"

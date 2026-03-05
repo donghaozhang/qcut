@@ -8,8 +8,8 @@
  */
 
 import { ipcMain, BrowserWindow, type IpcMainEvent } from "electron";
-import * as fs from "fs/promises";
-import * as path from "path";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import {
   generateId,
   getProjectPath,
@@ -216,9 +216,13 @@ function requestFromRenderer<T>(
       ipcMain.removeListener(responseChannel, handler);
       if (data.error) {
         reject(new Error(data.error));
-      } else {
-        resolve(data.result!);
+        return;
       }
+      if (data.result === undefined) {
+        reject(new Error(`Missing result payload for ${channel}`));
+        return;
+      }
+      resolve(data.result);
     };
 
     ipcMain.on(responseChannel, handler);

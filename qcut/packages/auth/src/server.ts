@@ -16,28 +16,43 @@ function parseTrustedOrigins({
 }: {
 	value?: string;
 }): string[] {
-	try {
-		if (typeof value !== "string") {
-			return [];
-		}
-
-		return value
-			.split(",")
-			.map((origin) => origin.trim())
-			.filter((origin) => origin.length > 0);
-	} catch {
+	if (typeof value !== "string") {
 		return [];
 	}
+
+	const origins: string[] = [];
+	for (const entry of value.split(",")) {
+		const candidate = entry.trim();
+		if (candidate.length === 0) {
+			continue;
+		}
+		try {
+			origins.push(new URL(candidate).origin);
+		} catch {
+			throw new Error(
+				`Invalid BETTER_AUTH_TRUSTED_ORIGINS entry: ${candidate}`
+			);
+		}
+	}
+	return origins;
 }
 
-const DEFAULT_TRUSTED_ORIGINS = [
-	"http://localhost:3000",
-	"http://localhost:4173",
-	"http://localhost:5173",
+const PROD_TRUSTED_ORIGINS = [
 	"https://quriosity.com.au",
 	"https://www.quriosity.com.au",
 	"https://donghaozhang.github.io",
 ];
+
+const LOCALHOST_TRUSTED_ORIGINS = [
+	"http://localhost:3000",
+	"http://localhost:4173",
+	"http://localhost:5173",
+];
+
+const DEFAULT_TRUSTED_ORIGINS =
+	process.env.NODE_ENV === "production"
+		? PROD_TRUSTED_ORIGINS
+		: [...PROD_TRUSTED_ORIGINS, ...LOCALHOST_TRUSTED_ORIGINS];
 
 const configuredTrustedOrigins = parseTrustedOrigins({
 	value: BETTER_AUTH_TRUSTED_ORIGINS,

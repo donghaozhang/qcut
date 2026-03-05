@@ -116,6 +116,8 @@ describe("auth routes", () => {
 		expect(location).toContain("https://quriosity.com.au/account/dashboard.html");
 		expect(location).toContain("from=login");
 		expect(location).toContain("auth_token=session-token-123");
+		expect(response.headers.get("cache-control")).toBe("no-store");
+		expect(response.headers.get("referrer-policy")).toBe("no-referrer");
 	});
 
 	it("redirects to login with auth_error when no active session exists", async () => {
@@ -138,5 +140,6 @@ describe("auth routes", () => {
 		expect(location).toContain("/account/login.html");
 		expect(location).toContain("auth_error=no_session");
 		expect(location).toContain("redirect=%2Faccount%2Fpricing.html");
+		expect(response.headers.get("cache-control")).toBe("no-store");
 	});
 });

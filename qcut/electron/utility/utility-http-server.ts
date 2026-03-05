@@ -26,6 +26,14 @@ import type {
 	EditorEvent,
 	EditorStateSnapshot,
 	Transaction,
+	ClaudeTimeline,
+	ClaudeSelectionItem,
+	ClaudeSplitResponse,
+	ProjectStats,
+	ClaudeBatchAddResponse,
+	ClaudeBatchUpdateResponse,
+	ClaudeBatchDeleteResponse,
+	ClaudeArrangeResponse,
 	BatchCutResponse,
 	ClaudeRangeDeleteResponse,
 	AutoEditJob,
@@ -170,12 +178,18 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	// Create WindowAccessor that proxies through main process
 	const accessor: WindowAccessor = {
 		getWindow: () => createWindowProxy(requestFromMain),
-		requestTimeline: () => requestFromMain("get-timeline", {}),
-		requestSelection: () => requestFromMain("get-selection", {}),
+		requestTimeline: () =>
+			requestFromMain("get-timeline", {}) as Promise<ClaudeTimeline>,
+		requestSelection: () =>
+			requestFromMain("get-selection", {}) as Promise<ClaudeSelectionItem[]>,
 		requestSplit: (elementId, splitTime, mode) =>
-			requestFromMain("split-element", { elementId, splitTime, mode }),
+			requestFromMain("split-element", {
+				elementId,
+				splitTime,
+				mode,
+			}) as Promise<ClaudeSplitResponse>,
 		getProjectStats: (projectId) =>
-			requestFromMain("get-project-stats", { projectId }),
+			requestFromMain("get-project-stats", { projectId }) as Promise<ProjectStats>,
 		getAppVersion: () => appVersion,
 		enableNotifications: (sessionId) =>
 			requestFromMain("notifications:enable", { sessionId }) as Promise<{
@@ -195,12 +209,27 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 		getNotificationsHistory: (limit) =>
 			requestFromMain("notifications:history", { limit }) as Promise<string[]>,
 		batchAddElements: (projectId, elements) =>
-			requestFromMain("batch-add-elements", { projectId, elements }),
+			requestFromMain("batch-add-elements", {
+				projectId,
+				elements,
+			}) as Promise<ClaudeBatchAddResponse>,
 		batchUpdateElements: (updates) =>
-			requestFromMain("batch-update-elements", { updates }),
+			requestFromMain("batch-update-elements", {
+				updates,
+			}) as Promise<ClaudeBatchUpdateResponse>,
 		batchDeleteElements: (elements, ripple) =>
-			requestFromMain("batch-delete-elements", { elements, ripple }),
-		arrangeTimeline: (data) => requestFromMain("arrange-timeline", data),
+			requestFromMain("batch-delete-elements", {
+				elements,
+				ripple,
+			}) as Promise<ClaudeBatchDeleteResponse>,
+		arrangeTimeline: (data) =>
+			requestFromMain("arrange-timeline", {
+				trackId: data.trackId,
+				mode: data.mode,
+				gap: data.gap,
+				order: data.order,
+				startOffset: data.startOffset,
+			}) as Promise<ClaudeArrangeResponse>,
 		beginTransaction: (request) =>
 			requestFromMain("transaction:begin", { request }) as Promise<Transaction>,
 		commitTransaction: (transactionId) =>
