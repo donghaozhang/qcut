@@ -3,7 +3,6 @@ name: Release
 # Runners: GitHub-hosted by default
 # To use Blacksmith: set repo variable USE_BLACKSMITH=true
 # To use self-hosted Mac: set repo variable USE_SELF_HOSTED_MAC=true
-# To use self-hosted Linux (school ubuntu-builder): set repo variable USE_SELF_HOSTED_LINUX=true
 
 on:
   push:
@@ -185,7 +184,7 @@ jobs:
   # Linux build
   build-linux:
     needs: prepare
-    runs-on: ${{ vars.USE_SELF_HOSTED_LINUX == 'true' && fromJSON('["self-hosted", "linux", "x64"]') || (vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04') }}
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
