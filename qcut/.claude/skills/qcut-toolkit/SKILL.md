@@ -10,16 +10,16 @@ Unified entry point for QCut's seven sub-skills. Route tasks to the appropriate 
 
 ## Sub-Skills
 
-### 1. organize-project — File & Folder Organization
+### 1. native-cli — Project Setup & Native Pipeline Commands
 **When:** Setting up a project, cleaning up files, organizing workspace, importing media
-**Invoke:** `/organize-project`
-**Skill path:** `.claude/skills/organize-project/SKILL.md`
+**Invoke:** `/native-cli`
+**Skill path:** `.claude/skills/native-cli/SKILL.md`
 
 Handles:
-- Creating QCut's standard folder structure (`media/imported/`, `media/generated/`, `output/`, etc.)
-- Hybrid symlink/copy import system for media files
-- Virtual folder system for metadata-only organization
-- Cleaning up temp files and empty directories
+- Initializing the standard project layout (`input/*`, `output/*`, `config/`)
+- Organizing media by extension with `organize-project`
+- Running structure audits with `structure-info`
+- Running additional native pipeline commands when needed
 
 ### 2. ffmpeg-skill — Media Processing
 **When:** Converting, compressing, trimming, resizing, extracting audio, adding subtitles, creating GIFs, applying effects
@@ -110,7 +110,7 @@ When the user's request involves multiple sub-skills, chain them in this order:
 
 | User says | Route to |
 |-----------|----------|
-| "organize", "set up project", "clean up files" | organize-project |
+| "organize", "set up project", "clean up files" | native-cli |
 | "convert", "compress", "trim", "resize", "extract audio", "gif", "subtitle" | ffmpeg-skill |
 | "generate image", "generate video", "avatar", "lipsync", "transcribe", "analyze video", "AI pipeline" | ai-content-pipeline |
 | "add to timeline", "update project settings", "list media", "export preset", "configure for TikTok" | qcut-api |
@@ -119,19 +119,19 @@ When the user's request involves multiple sub-skills, chain them in this order:
 | "test MCP preview", "MCP app mode", "debug iframe", "mcp:app-html" | qcut-mcp-preview-test |
 | "export PR comments", "fix review feedback", "process code review" | pr-comments |
 | "process this video and generate thumbnails" | ffmpeg-skill → ai-content-pipeline |
-| "import media and organize" | organize-project |
+| "import media and organize" | native-cli |
 | "generate content and add to timeline" | ai-content-pipeline → qcut-api |
-| "set up project then generate content" | organize-project → ai-content-pipeline |
+| "set up project then generate content" | native-cli → ai-content-pipeline |
 | "write prompt then generate video" | seedance → ai-content-pipeline |
 
 ### Multi-Step Workflow Example
 
 User: "Take my raw footage, trim the first 30 seconds, compress it, then generate AI thumbnails"
 
-1. `/organize-project` — Ensure `media/imported/` has the source file
+1. `/native-cli` — Run `init-project` / `organize-project` to prepare the project structure and source media
 2. `/ffmpeg-skill` — `ffmpeg -ss 00:00:30 -i input.mp4 -c copy trimmed.mp4` then compress
 3. `/ai-content-pipeline` — Extract a frame, generate styled thumbnail with `flux_dev`
-4. Place output in `media/generated/images/` and `output/`
+4. Place output in `input/`, `output/`, or `media/generated/` as needed
 
 ## Output Structure
 
@@ -139,14 +139,18 @@ All sub-skills follow the same project structure:
 
 ```
 Documents/QCut/Projects/{project-name}/
-├── media/imported/     ← organize-project (symlinks/copies)
-├── media/generated/    ← ai-content-pipeline output
+├── input/              ← native-cli init-project / organize-project
+│   ├── images/
+│   ├── videos/
+│   ├── audio/
+│   ├── text/
+│   └── pipelines/
+├── output/             ← final exports
 │   ├── images/
 │   ├── videos/
 │   └── audio/
-├── media/temp/         ← ffmpeg-skill intermediates
-├── output/             ← final exports (ffmpeg-skill)
-└── cache/              ← processing cache
+├── config/
+└── media/generated/    ← ai-content-pipeline outputs (when used)
 ```
 
 ## Full Production Workflow

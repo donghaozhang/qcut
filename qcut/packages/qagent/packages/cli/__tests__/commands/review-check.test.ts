@@ -11,6 +11,7 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
+	type PRInfo,
 	type Session,
 	type SessionManager,
 	getSessionsDir,
@@ -19,15 +20,23 @@ import {
 const {
 	mockTmux,
 	mockExec,
-	mockGh,
 	mockConfigRef,
+	mockDetectPR,
+	mockGetReviewDecision,
+	mockGetPendingComments,
+	mockGetAutomatedComments,
+	mockRegistryGet,
 	mockSessionManager,
 	sessionsDirRef,
 } = vi.hoisted(() => ({
 	mockTmux: vi.fn(),
 	mockExec: vi.fn(),
-	mockGh: vi.fn(),
 	mockConfigRef: { current: null as Record<string, unknown> | null },
+	mockDetectPR: vi.fn(),
+	mockGetReviewDecision: vi.fn(),
+	mockGetPendingComments: vi.fn(),
+	mockGetAutomatedComments: vi.fn(),
+	mockRegistryGet: vi.fn(),
 	mockSessionManager: {
 		list: vi.fn(),
 		kill: vi.fn(),
@@ -45,7 +54,7 @@ vi.mock("../../src/lib/shell.js", () => ({
 	exec: mockExec,
 	execSilent: vi.fn(),
 	git: vi.fn(),
-	gh: mockGh,
+	gh: vi.fn(),
 	getTmuxSessions: async () => {
 		const output = await mockTmux("list-sessions", "-F", "#{session_name}");
 		if (!output) return [];
@@ -85,6 +94,31 @@ function parseMetadata(content: string): Record<string, string> {
 	return meta;
 }
 
+function parsePRFromMetadata({
+	meta,
+}: {
+	meta: Record<string, string>;
+}): PRInfo | null {
+	const prUrl = meta.pr;
+	if (!prUrl) {
+		return null;
+	}
+	const prNumber = Number(prUrl.match(/(\d+)\s*$/)?.[1] ?? NaN);
+	if (!Number.isInteger(prNumber) || prNumber <= 0) {
+		return null;
+	}
+	return {
+		number: prNumber,
+		url: prUrl,
+		title: `PR #${String(prNumber)}`,
+		owner: "org",
+		repo: "my-app",
+		branch: meta.branch || "feat/fix",
+		baseBranch: "main",
+		isDraft: false,
+	};
+}
+
 /** Build Session objects from metadata files in sessionsDir. */
 function buildSessionsFromDir(dir: string, projectId: string): Session[] {
 	if (!existsSync(dir)) return [];
@@ -101,7 +135,7 @@ function buildSessionsFromDir(dir: string, projectId: string): Session[] {
 			activity: null,
 			branch: meta.branch || null,
 			issueId: meta.issue || null,
-			pr: null,
+			pr: parsePRFromMetadata({ meta }),
 			workspacePath: meta.worktree || null,
 			runtimeHandle: { id: name, runtimeName: "tmux", data: {} },
 			agentInfo: null,
@@ -115,6 +149,9 @@ function buildSessionsFromDir(dir: string, projectId: string): Session[] {
 vi.mock("../../src/lib/create-session-manager.js", () => ({
 	getSessionManager: async (): Promise<SessionManager> =>
 		mockSessionManager as SessionManager,
+	getPluginRegistry: async () => ({
+		get: mockRegistryGet,
+	}),
 }));
 
 let tmpDir: string;
@@ -148,6 +185,9 @@ beforeEach(() => {
 				path: join(tmpDir, "main-repo"),
 				defaultBranch: "main",
 				sessionPrefix: "app",
+				scm: {
+					plugin: "github",
+				},
 			},
 		},
 		notifiers: {},
@@ -155,7 +195,6 @@ beforeEach(() => {
 		reactions: {},
 	} as Record<string, unknown>;
 
-	// Calculate and create sessions directory for hash-based architecture
 	sessionsDir = getSessionsDir(configPath, join(tmpDir, "main-repo"));
 	mkdirSync(sessionsDir, { recursive: true });
 	sessionsDirRef.current = sessionsDir;
@@ -171,8 +210,23 @@ beforeEach(() => {
 
 	mockTmux.mockReset();
 	mockExec.mockReset();
-	mockGh.mockReset();
+	mockDetectPR.mockReset();
+	mockGetReviewDecision.mockReset();
+	mockGetPendingComments.mockReset();
+	mockGetAutomatedComments.mockReset();
+	mockRegistryGet.mockReset();
 	mockExec.mockResolvedValue({ stdout: "", stderr: "" });
+	mockDetectPR.mockResolvedValue(null);
+	mockGetReviewDecision.mockResolvedValue("approved");
+	mockGetPendingComments.mockResolvedValue([]);
+	mockGetAutomatedComments.mockResolvedValue([]);
+	mockRegistryGet.mockReturnValue({
+		detectPR: mockDetectPR,
+		getReviewDecision: mockGetReviewDecision,
+		getPendingComments: mockGetPendingComments,
+		getAutomatedComments: mockGetAutomatedComments,
+	});
+
 	mockSessionManager.list.mockReset();
 	mockSessionManager.kill.mockReset();
 	mockSessionManager.cleanup.mockReset();
@@ -180,7 +234,6 @@ beforeEach(() => {
 	mockSessionManager.spawn.mockReset();
 	mockSessionManager.send.mockReset();
 
-	// Default: list reads from sessionsDir
 	mockSessionManager.list.mockImplementation(async () => {
 		return buildSessionsFromDir(sessionsDirRef.current, "my-app");
 	});
@@ -198,32 +251,33 @@ describe("review-check command", () => {
 			"branch=feat/fix\npr=https://github.com/org/my-app/pull/10\n"
 		);
 
-		// All threads resolved, no changes requested
-		mockGh.mockResolvedValue(
-			JSON.stringify({
-				reviewDecision: "APPROVED",
-				reviewThreads: { nodes: [{ isResolved: true }] },
-			})
-		);
-
 		await program.parseAsync(["node", "test", "review-check"]);
 
 		const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
 		expect(output).toContain("No pending review comments");
+		expect(mockGetReviewDecision).toHaveBeenCalledTimes(1);
 	});
 
 	it("finds sessions with pending review comments", async () => {
+		const createdAt = new Date();
 		writeFileSync(
 			join(sessionsDir, "app-1"),
 			"branch=feat/fix\npr=https://github.com/org/my-app/pull/10\n"
 		);
 
-		mockGh.mockResolvedValue(
-			JSON.stringify({
-				reviewDecision: "CHANGES_REQUESTED",
-				reviewThreads: { nodes: [{ isResolved: false }, { isResolved: true }] },
-			})
-		);
+		mockGetReviewDecision.mockResolvedValue("changes_requested");
+		mockGetPendingComments.mockResolvedValue([
+			{
+				id: "human-1",
+				author: "reviewer",
+				body: "Please fix this.",
+				path: "src/file.ts",
+				line: 10,
+				isResolved: false,
+				createdAt,
+				url: "https://example.com/comment/1",
+			},
+		]);
 
 		await program.parseAsync(["node", "test", "review-check", "--dry-run"]);
 
@@ -231,24 +285,21 @@ describe("review-check command", () => {
 		expect(output).toContain("app-1");
 		expect(output).toContain("PR #10");
 		expect(output).toContain("CHANGES_REQUESTED");
+		expect(output).toContain("Actionable items: 2");
 		expect(output).toContain("dry run");
 	});
 
-	it("skips sessions without PR metadata", async () => {
-		writeFileSync(
-			join(sessionsDir, "app-1"),
-			"branch=feat/fix\nstatus=working\n"
-		);
+	it("skips sessions without branch or PR", async () => {
+		writeFileSync(join(sessionsDir, "app-1"), "status=working\n");
 
 		await program.parseAsync(["node", "test", "review-check"]);
 
 		const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
 		expect(output).toContain("No pending review comments");
-		// gh should never be called since there's no PR
-		expect(mockGh).not.toHaveBeenCalled();
+		expect(mockGetReviewDecision).not.toHaveBeenCalled();
 	});
 
-	it("skips sessions with non-matching prefix", async () => {
+	it("handles sessions with non-matching prefix", async () => {
 		writeFileSync(
 			join(sessionsDir, "other-1"),
 			"branch=feat/fix\npr=https://github.com/org/my-app/pull/10\n"
@@ -257,35 +308,35 @@ describe("review-check command", () => {
 		await program.parseAsync(["node", "test", "review-check"]);
 
 		const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
-		// The session manager returns all sessions in the project dir, including other-1
-		// But review-check iterates over them — other-1 has a PR, so it will be checked.
-		// However, with the session manager, project matching is done differently.
-		// other-1 is in the my-app sessions dir so it will be found and its PR checked.
-		// The test outcome depends on the gh mock — default mockGh is reset (returns undefined).
-		// With no valid gh response, the PR check will return {pendingComments: 0, reviewDecision: null}
-		// So no pending reviews found.
 		expect(output).toContain("No pending review comments");
+		expect(mockGetReviewDecision).toHaveBeenCalledTimes(1);
 	});
 
 	it("sends fix prompt when not in dry-run mode", async () => {
+		const createdAt = new Date();
 		writeFileSync(
 			join(sessionsDir, "app-1"),
 			"branch=feat/fix\npr=https://github.com/org/my-app/pull/10\n"
 		);
 
-		mockGh.mockResolvedValue(
-			JSON.stringify({
-				reviewDecision: null,
-				reviewThreads: { nodes: [{ isResolved: false }] },
-			})
-		);
+		mockGetReviewDecision.mockResolvedValue("approved");
+		mockGetPendingComments.mockResolvedValue([
+			{
+				id: "human-1",
+				author: "reviewer",
+				body: "Please fix this.",
+				path: "src/file.ts",
+				line: 10,
+				isResolved: false,
+				createdAt,
+				url: "https://example.com/comment/1",
+			},
+		]);
 
 		await program.parseAsync(["node", "test", "review-check"]);
 
 		const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
 		expect(output).toContain("Fix prompt sent");
-
-		// Should have sent C-c, C-u, message, Enter
 		expect(mockExec).toHaveBeenCalledWith("tmux", [
 			"send-keys",
 			"-t",
@@ -303,7 +354,7 @@ describe("review-check command", () => {
 			"-t",
 			"app-1",
 			"-l",
-			expect.stringContaining("review comments"),
+			expect.stringContaining("full PR feedback sweep"),
 		]);
 		expect(mockExec).toHaveBeenCalledWith("tmux", [
 			"send-keys",
@@ -313,13 +364,13 @@ describe("review-check command", () => {
 		]);
 	});
 
-	it("handles gh returning null (API failure)", async () => {
+	it("handles feedback sweep failures gracefully", async () => {
 		writeFileSync(
 			join(sessionsDir, "app-1"),
 			"branch=feat/fix\npr=https://github.com/org/my-app/pull/10\n"
 		);
 
-		mockGh.mockResolvedValue(null);
+		mockGetPendingComments.mockRejectedValue(new Error("sweep failed"));
 
 		await program.parseAsync(["node", "test", "review-check"]);
 
@@ -327,18 +378,16 @@ describe("review-check command", () => {
 		expect(output).toContain("No pending review comments");
 	});
 
-	it("handles malformed GraphQL response gracefully", async () => {
-		writeFileSync(
-			join(sessionsDir, "app-1"),
-			"branch=feat/fix\npr=https://github.com/org/my-app/pull/10\n"
-		);
+	it("handles detectPR errors gracefully", async () => {
+		writeFileSync(join(sessionsDir, "app-1"), "branch=feat/fix\n");
 
-		mockGh.mockResolvedValue("not valid json {{{");
+		mockDetectPR.mockRejectedValue(new Error("detect PR failed"));
 
 		await program.parseAsync(["node", "test", "review-check"]);
 
 		const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
 		expect(output).toContain("No pending review comments");
+		expect(mockGetReviewDecision).not.toHaveBeenCalled();
 	});
 
 	it("rejects unknown project ID", async () => {

@@ -36,10 +36,14 @@ import {
 	type Session,
 	type EventPriority,
 	type AutomatedComment,
-	type ProjectConfig as _ProjectConfig,
 } from "./types.js";
 import { updateMetadata } from "./metadata.js";
 import { getSessionsDir } from "./paths.js";
+import { evaluatePolicyGate, type PolicyGateResult } from "./policy-gate.js";
+import {
+	loadWorkflowContract,
+	resolveEffectiveWorkflowPolicy,
+} from "./workflow-contract.js";
 
 /** Parse a duration string like "10m", "30s", "1h" to milliseconds. */
 function parseDuration(str: string): number {
@@ -217,6 +221,7 @@ export function createLifecycleManager(
 	}
 
 	const botCommentStates = new Map<SessionId, BotCommentState>();
+	const policyGateBySession = new Map<SessionId, PolicyGateResult>();
 
 	/** Settle time: wait this long after last new bot comment before triggering. */
 	const BOT_COMMENT_SETTLE_MS = 120_000; // 2 minutes
@@ -235,6 +240,73 @@ export function createLifecycleManager(
 		"ci_failed",
 		"changes_requested",
 	]);
+
+	function summarizePolicyGate({
+		policyGate,
+	}: {
+		policyGate: PolicyGateResult;
+	}): string {
+		const details = policyGate.violations
+			.slice(0, 3)
+			.map((violation) => violation.message)
+			.join("; ");
+		return details || "Policy gate failed";
+	}
+
+	async function evaluateSessionPolicyGate({
+		session,
+		project,
+		scm,
+	}: {
+		session: Session;
+		project: OrchestratorConfig["projects"][string];
+		scm: SCM;
+	}): Promise<PolicyGateResult | null> {
+		if (!session.pr) {
+			policyGateBySession.delete(session.id);
+			return null;
+		}
+
+		try {
+			const workflowContract = loadWorkflowContract({
+				config,
+				project,
+			});
+			const effectivePolicy = resolveEffectiveWorkflowPolicy({
+				config,
+				project,
+				contract: workflowContract,
+			});
+
+			const policyGate = await evaluatePolicyGate({
+				scm,
+				pr: session.pr,
+				mode: effectivePolicy.mode,
+				policy: effectivePolicy.policy,
+			});
+			policyGateBySession.set(session.id, policyGate);
+			return policyGate;
+		} catch (error) {
+			const fallback: PolicyGateResult = {
+				mode: "advisory",
+				passed: false,
+				violations: [
+					{
+						code: "policy_evaluation_error",
+						message: `Policy gate evaluation failed: ${error}`,
+						blockerClass: "policy_gate_failed",
+					},
+				],
+				reviewSweep: null,
+				ciStatus: null,
+				mergeability: null,
+				requiredChecks: [],
+				checkedAt: new Date(),
+			};
+			policyGateBySession.set(session.id, fallback);
+			return fallback;
+		}
+	}
 
 	/** Determine current status for a session by polling plugins. */
 	async function determineStatus(session: Session): Promise<SessionStatus> {
@@ -332,20 +404,39 @@ export function createLifecycleManager(
 
 				// Check reviews
 				const reviewDecision = await scm.getReviewDecision(session.pr);
-				if (reviewDecision === "changes_requested") return "changes_requested";
+				if (reviewDecision === "changes_requested") {
+					policyGateBySession.delete(session.id);
+					return "changes_requested";
+				}
 				if (reviewDecision === "approved") {
 					// Check merge readiness
 					const mergeReady = await scm.getMergeability(session.pr);
-					if (mergeReady.mergeable) return "mergeable";
+					if (mergeReady.mergeable) {
+						const policyGate = await evaluateSessionPolicyGate({
+							session,
+							project,
+							scm,
+						});
+						if (policyGate && policyGate.mode === "enforced" && !policyGate.passed) {
+							return "approved";
+						}
+						return "mergeable";
+					}
+					policyGateBySession.delete(session.id);
 					return "approved";
 				}
-				if (reviewDecision === "pending") return "review_pending";
+				if (reviewDecision === "pending") {
+					policyGateBySession.delete(session.id);
+					return "review_pending";
+				}
 
+				policyGateBySession.delete(session.id);
 				return "pr_open";
 			} catch {
 				// SCM check failed — keep current status
 			}
 		}
+		policyGateBySession.delete(session.id);
 
 		// 5. Default: if agent is active, it's working
 		if (
@@ -653,6 +744,35 @@ export function createLifecycleManager(
 					}
 				}
 			}
+
+			const policyGate = policyGateBySession.get(session.id);
+			if (policyGate && !policyGate.passed) {
+				const enforcedBlockedMerge =
+					policyGate.mode === "enforced" &&
+					oldStatus !== "approved" &&
+					newStatus === "approved";
+				const advisoryViolation =
+					policyGate.mode === "advisory" && newStatus === "mergeable";
+
+				if (enforcedBlockedMerge || advisoryViolation) {
+					const event = createEvent("review.comments_unresolved", {
+						sessionId: session.id,
+						projectId: session.projectId,
+						message: `${session.id}: workflow policy gate failed (${policyGate.mode}) — ${summarizePolicyGate(
+							{
+								policyGate,
+							}
+						)}`,
+						data: {
+							mode: policyGate.mode,
+							oldStatus,
+							newStatus,
+							violations: policyGate.violations,
+						},
+					});
+					await notifyHuman(event, "warning");
+				}
+			}
 		} else {
 			// No transition but track current state
 			states.set(session.id, newStatus);
@@ -797,6 +917,33 @@ export function createLifecycleManager(
 					const ciStatus = await scm.getCISummary(session.pr);
 					console.log(`[botcheck] ${session.id}: CI status = ${ciStatus}`);
 					if (ciStatus === CI_STATUS.PASSING) {
+						const policyGate = await evaluateSessionPolicyGate({
+							session,
+							project,
+							scm,
+						});
+						if (policyGate && !policyGate.passed) {
+							const event = createEvent("review.comments_unresolved", {
+								sessionId: session.id,
+								projectId: session.projectId,
+								message: `PR #${session.pr.number}: workflow policy gate failed (${policyGate.mode}) — ${summarizePolicyGate(
+									{
+										policyGate,
+									}
+								)}`,
+								data: {
+									mode: policyGate.mode,
+									violations: policyGate.violations,
+								},
+							});
+							await notifyHuman(event, "warning");
+
+							if (policyGate.mode === "enforced") {
+								prev.mergeNotified = true;
+								return;
+							}
+						}
+
 						prev.mergeNotified = true;
 
 						// Check if auto-merge is enabled via approved-and-green reaction
@@ -916,6 +1063,11 @@ export function createLifecycleManager(
 			for (const trackedId of botCommentStates.keys()) {
 				if (!currentSessionIds.has(trackedId)) {
 					botCommentStates.delete(trackedId);
+				}
+			}
+			for (const trackedId of policyGateBySession.keys()) {
+				if (!currentSessionIds.has(trackedId)) {
+					policyGateBySession.delete(trackedId);
 				}
 			}
 

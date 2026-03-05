@@ -1,62 +1,48 @@
 import chalk from "chalk";
 import ora from "ora";
 import type { Command } from "commander";
-import { loadConfig } from "@composio/ao-core";
-import { exec, gh } from "../lib/shell.js";
-import { getSessionManager } from "../lib/create-session-manager.js";
+import {
+	collectPRFeedbackSweep,
+	loadConfig,
+	type PRInfo,
+	type ProjectConfig,
+	type SCM,
+	type Session,
+} from "@composio/ao-core";
+import { exec } from "../lib/shell.js";
+import {
+	getPluginRegistry,
+	getSessionManager,
+} from "../lib/create-session-manager.js";
 
 interface ReviewInfo {
 	sessionId: string;
 	tmuxTarget: string;
-	prNumber: string;
+	prNumber: number;
 	pendingComments: number;
-	reviewDecision: string | null;
+	reviewDecision: string;
+	actionableCount: number;
 }
 
-async function checkPRReviews(
-	repo: string,
-	prNumber: string
-): Promise<{ pendingComments: number; reviewDecision: string | null }> {
-	const [owner, name] = repo.split("/");
-	if (!owner || !name) {
-		return { pendingComments: 0, reviewDecision: null };
-	}
-
-	// Use GraphQL with variable passing (-F) to avoid injection via repo names
-	const query =
-		"query($owner:String!,$name:String!,$pr:Int!){repository(owner:$owner,name:$name){pullRequest(number:$pr){reviewDecision reviewThreads(first:100){nodes{isResolved}}}}}";
-	const result = await gh([
-		"api",
-		"graphql",
-		"-f",
-		`query=${query}`,
-		"-f",
-		`owner=${owner}`,
-		"-f",
-		`name=${name}`,
-		"-F",
-		`pr=${prNumber}`,
-		"--jq",
-		".data.repository.pullRequest",
-	]);
-
-	if (!result) {
-		return { pendingComments: 0, reviewDecision: null };
-	}
-
+async function resolveSessionPR({
+	scm,
+	session,
+	project,
+}: {
+	scm: Pick<SCM, "detectPR">;
+	session: Session;
+	project: ProjectConfig;
+}): Promise<PRInfo | null> {
 	try {
-		const data = JSON.parse(result);
-		const unresolvedCount = Array.isArray(data.reviewThreads?.nodes)
-			? data.reviewThreads.nodes.filter(
-					(t: { isResolved: boolean }) => !t.isResolved
-				).length
-			: 0;
-		return {
-			pendingComments: unresolvedCount,
-			reviewDecision: data.reviewDecision || null,
-		};
+		if (session.pr && session.pr.number > 0) {
+			return session.pr;
+		}
+		if (!session.branch) {
+			return null;
+		}
+		return await scm.detectPR(session, project);
 	} catch {
-		return { pendingComments: 0, reviewDecision: null };
+		return null;
 	}
 }
 
@@ -70,85 +56,105 @@ export function registerReviewCheck(program: Command): void {
 		.option("--dry-run", "Show what would be done without sending messages")
 		.action(
 			async (projectId: string | undefined, opts: { dryRun?: boolean }) => {
-				const config = loadConfig();
+				try {
+					const config = loadConfig();
 
-				if (projectId && !config.projects[projectId]) {
-					console.error(chalk.red(`Unknown project: ${projectId}`));
-					process.exit(1);
-				}
+					if (projectId && !config.projects[projectId]) {
+						console.error(chalk.red(`Unknown project: ${projectId}`));
+						process.exit(1);
+					}
 
-				const sm = await getSessionManager(config);
-				const sessions = await sm.list(projectId);
+					const [sm, registry] = await Promise.all([
+						getSessionManager(config),
+						getPluginRegistry(config),
+					]);
+					const sessions = await sm.list(projectId);
 
-				const spinner = ora("Checking PRs for review comments...").start();
-				const results: ReviewInfo[] = [];
+					const spinner = ora("Checking PRs for review comments...").start();
+					const results: ReviewInfo[] = [];
 
-				for (const session of sessions) {
-					const prUrl = session.metadata.pr;
-					if (!prUrl) continue;
+					for (const session of sessions) {
+						const project = config.projects[session.projectId];
+						if (!project?.scm) {
+							continue;
+						}
 
-					const project = config.projects[session.projectId];
-					if (!project?.repo) continue;
+						const scm = registry.get<SCM>("scm", project.scm.plugin);
+						if (!scm) {
+							continue;
+						}
 
-					const prNum = prUrl.match(/(\d+)\s*$/)?.[1];
-					if (!prNum) continue;
+						const pr = await resolveSessionPR({
+							scm,
+							session,
+							project,
+						});
+						if (!pr) {
+							continue;
+						}
 
-					try {
-						const { pendingComments, reviewDecision } = await checkPRReviews(
-							project.repo,
-							prNum
-						);
-						if (pendingComments > 0 || reviewDecision === "CHANGES_REQUESTED") {
+						try {
+							const sweep = await collectPRFeedbackSweep({ scm, pr });
+							if (!sweep.hasBlockingFeedback) {
+								continue;
+							}
+
 							results.push({
 								sessionId: session.id,
 								tmuxTarget: session.runtimeHandle?.id ?? session.id,
-								prNumber: prNum,
-								pendingComments,
-								reviewDecision,
+								prNumber: pr.number,
+								pendingComments: sweep.actionableHumanComments.length,
+								reviewDecision: sweep.reviewDecision,
+								actionableCount: sweep.actionableCount,
 							});
+						} catch {
+							// Skip PRs we can't access this cycle
 						}
-					} catch {
-						// Skip PRs we can't access
 					}
-				}
 
-				spinner.stop();
+					spinner.stop();
 
-				if (results.length === 0) {
-					console.log(chalk.green("No pending review comments found."));
-					return;
-				}
+					if (results.length === 0) {
+						console.log(chalk.green("No pending review comments found."));
+						return;
+					}
 
-				console.log(
-					chalk.bold(
-						`\nFound ${results.length} session${results.length > 1 ? "s" : ""} with pending reviews:\n`
-					)
-				);
-
-				for (const result of results) {
 					console.log(
-						`  ${chalk.green(result.sessionId)}  PR #${result.prNumber}`
+						chalk.bold(
+							`\nFound ${results.length} session${results.length > 1 ? "s" : ""} with pending reviews:\n`
+						)
 					);
-					if (result.reviewDecision) {
-						console.log(`    Decision: ${chalk.yellow(result.reviewDecision)}`);
-					}
-					if (result.pendingComments > 0) {
-						console.log(
-							`    Comments: ${chalk.yellow(String(result.pendingComments))}`
-						);
-					}
 
-					if (opts.dryRun) {
-						console.log(chalk.dim("    (dry run — would send fix prompt)"));
-					} else {
+					for (const result of results) {
+						console.log(
+							`  ${chalk.green(result.sessionId)}  PR #${String(result.prNumber)}`
+						);
+						console.log(
+							`    Actionable items: ${chalk.yellow(String(result.actionableCount))}`
+						);
+						if (result.reviewDecision) {
+							console.log(
+								`    Decision: ${chalk.yellow(result.reviewDecision.toUpperCase())}`
+							);
+						}
+						if (result.pendingComments > 0) {
+							console.log(
+								`    Human comments: ${chalk.yellow(String(result.pendingComments))}`
+							);
+						}
+
+						if (opts.dryRun) {
+							console.log(chalk.dim("    (dry run — would send fix prompt)"));
+							continue;
+						}
+
 						try {
-							// Interrupt busy agent and clear partial input before sending
 							await exec("tmux", ["send-keys", "-t", result.tmuxTarget, "C-c"]);
 							await new Promise((resolve) => setTimeout(resolve, 500));
 							await exec("tmux", ["send-keys", "-t", result.tmuxTarget, "C-u"]);
 							await new Promise((resolve) => setTimeout(resolve, 200));
 							const message =
-								"There are review comments on your PR. Check with `gh pr view --comments` and `gh api` for inline comments. Address each one, push fixes, and reply.";
+								"There are review comments on your PR. Run a full PR feedback sweep (top-level, inline, and bot comments), address each actionable item or post explicit pushback, rerun validation, then push updates.";
 							await exec("tmux", [
 								"send-keys",
 								"-t",
@@ -164,12 +170,19 @@ export function registerReviewCheck(program: Command): void {
 								"Enter",
 							]);
 							console.log(chalk.green("    -> Fix prompt sent"));
-						} catch (err) {
-							console.error(chalk.red(`    -> Failed to send: ${err}`));
+						} catch (error) {
+							console.error(chalk.red(`    -> Failed to send: ${error}`));
 						}
 					}
+					console.log();
+				} catch (error) {
+					console.error(
+						chalk.red(
+							`review-check failed: ${error instanceof Error ? error.message : String(error)}`
+						)
+					);
+					process.exit(1);
 				}
-				console.log();
 			}
 		);
 }

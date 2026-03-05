@@ -4,6 +4,9 @@
 
 import type { SessionId } from "./session-types.js";
 
+/** Workflow policy mode for delivery gates */
+export type PolicyMode = "advisory" | "enforced";
+
 // =============================================================================
 // EVENTS
 // =============================================================================
@@ -126,6 +129,12 @@ export interface OrchestratorConfig {
   /** Milliseconds before a "ready" session becomes "idle" (default: 300000 = 5 min) */
   readyThresholdMs: number;
 
+  /** Optional global workflow contract path (resolved relative to each project path) */
+  workflowContractPath?: string;
+
+  /** Optional global policy mode (project/contract may override) */
+  policyMode?: PolicyMode;
+
   /** Default plugin selections */
   defaults: DefaultPlugins;
 
@@ -200,6 +209,12 @@ export interface ProjectConfig {
 
   /** Rules for the orchestrator agent (stored, reserved for future use) */
   orchestratorRules?: string;
+
+  /** Optional workflow contract path for this project (relative to project.path if not absolute) */
+  workflowContractPath?: string;
+
+  /** Optional policy mode override for this project */
+  policyMode?: PolicyMode;
 }
 
 export interface TrackerConfig {

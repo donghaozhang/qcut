@@ -22,7 +22,7 @@ let registryPromise: Promise<PluginRegistry> | null = null;
  * Caches the Promise (not the resolved value) so concurrent callers
  * await the same initialization rather than racing.
  */
-async function getRegistry(
+export async function getPluginRegistry(
 	config: OrchestratorConfig
 ): Promise<PluginRegistry> {
 	if (!registryPromise) {
@@ -45,6 +45,6 @@ async function getRegistry(
 export async function getSessionManager(
 	config: OrchestratorConfig
 ): Promise<SessionManager> {
-	const registry = await getRegistry(config);
+	const registry = await getPluginRegistry(config);
 	return createSessionManager({ config, registry });
 }

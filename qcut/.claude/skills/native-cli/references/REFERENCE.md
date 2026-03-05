@@ -8,7 +8,7 @@ Split across these files:
 - [reference-pipelines.md](reference-pipelines.md) — YAML Pipelines, API Key Management, Project Management
 - [reference-vimax.md](reference-vimax.md) — ViMax Commands
 
-For editor commands, see [editor-core.md](editor-core.md) and linked files.
+For editor commands, see [editor-core.md](../editor/editor-core.md) and linked files.
 
 ## Generation Commands
 

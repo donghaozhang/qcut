@@ -65,6 +65,8 @@ const ProjectConfigSchema = z.object({
 	repo: z.string(),
 	path: z.string(),
 	defaultBranch: z.string().default("main"),
+	workflowContractPath: z.string().optional(),
+	policyMode: z.enum(["advisory", "enforced"]).optional(),
 	sessionPrefix: z
 		.string()
 		.regex(/^[a-zA-Z0-9_-]+$/, "sessionPrefix must match [a-zA-Z0-9_-]+")
@@ -95,6 +97,8 @@ const OrchestratorConfigSchema = z.object({
 	terminalPort: z.number().optional(),
 	directTerminalPort: z.number().optional(),
 	readyThresholdMs: z.number().nonnegative().default(300_000),
+	workflowContractPath: z.string().optional(),
+	policyMode: z.enum(["advisory", "enforced"]).optional(),
 	defaults: DefaultPluginsSchema.default({}),
 	projects: z.record(ProjectConfigSchema),
 	notifiers: z.record(NotifierConfigSchema).default({}),

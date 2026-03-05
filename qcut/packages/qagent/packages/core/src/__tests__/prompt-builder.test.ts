@@ -169,6 +169,19 @@ describe("buildPrompt", () => {
 		expect(result).toContain("Just explore the codebase.");
 	});
 
+	it("includes workflow contract prompt body when provided", () => {
+		const result = buildPrompt({
+			project,
+			projectId: "test-app",
+			workflowContractPath: "/tmp/WORKFLOW.md",
+			workflowContractPrompt:
+				"Use a single workpad artifact and complete PR feedback sweeps.",
+		});
+		expect(result).not.toBeNull();
+		expect(result).toContain("## Workflow Contract (/tmp/WORKFLOW.md)");
+		expect(result).toContain("single workpad artifact");
+	});
+
 	it("includes tracker info in context", () => {
 		project.tracker = { plugin: "linear" };
 		const result = buildPrompt({

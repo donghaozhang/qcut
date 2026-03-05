@@ -10,15 +10,15 @@ Run QCut's built-in TypeScript pipeline CLI (`qcut-pipeline` / `bun run pipeline
 
 ## Additional resources
 
-- For standalone CLI commands (generate, analyze, transcribe, models, help, output formats), see [REFERENCE.md](REFERENCE.md)
-- For YAML pipelines, API key management, project management, see [reference-pipelines.md](reference-pipelines.md)
-- For ViMax commands (idea2video, script2video, novel2movie, portraits), see [reference-vimax.md](reference-vimax.md)
-- For editor core reference: connection, flags, batch limits, env vars, common workflows, see [editor-core.md](editor-core.md)
-- For editor media & project commands, project.json schema, see [editor-media.md](editor-media.md)
-- For editor timeline & editing commands, see [editor-timeline.md](editor-timeline.md)
-- For editor export, diagnostics, MCP, screen recording, UI, Moyin, screenshots, state control, see [editor-output.md](editor-output.md)
-- For editor AI commands: video analysis, transcription, AI generation, Remotion, navigator, see [editor-ai.md](editor-ai.md)
-- For editor state automation: snapshots, event streams, correlation IDs, transactions, capabilities, and notification bridge endpoints, see [editor-state-control.md](editor-state-control.md)
+- For standalone CLI commands (generate, analyze, transcribe, models, help, output formats), see [REFERENCE.md](references/REFERENCE.md)
+- For YAML pipelines, API key management, project management, see [reference-pipelines.md](references/reference-pipelines.md)
+- For ViMax commands (idea2video, script2video, novel2movie, portraits), see [reference-vimax.md](references/reference-vimax.md)
+- For editor core reference: connection, flags, batch limits, env vars, common workflows, see [editor-core.md](editor/editor-core.md)
+- For editor media & project commands, project.json schema, see [editor-media.md](editor/editor-media.md)
+- For editor timeline & editing commands, see [editor-timeline.md](editor/editor-timeline.md)
+- For editor export, diagnostics, MCP, screen recording, UI, Moyin, screenshots, state control, see [editor-output.md](editor/editor-output.md)
+- For editor AI commands: video analysis, transcription, AI generation, Remotion, navigator, see [editor-ai.md](editor/editor-ai.md)
+- For editor state automation: snapshots, event streams, correlation IDs, transactions, capabilities, and notification bridge endpoints, see [editor-state-control.md](editor/editor-state-control.md)
 
 ## Step 1: Ensure QCut is Running
 
@@ -67,6 +67,61 @@ bun run pipeline <command> [options]            # Dev (recommended)
 bun run electron/native-pipeline/cli/cli.ts <command> [options]  # Direct source
 qcut-pipeline <command> [options]               # Production binary
 ```
+
+## Project Setup & Organization
+
+Use these commands for project setup, file categorization, and structure audits:
+
+- `bun run pipeline init-project`
+- `bun run pipeline organize-project`
+- `bun run pipeline structure-info`
+
+Standard structure:
+
+```text
+{project-dir}/
+├── input/
+│   ├── images/
+│   ├── videos/
+│   ├── audio/
+│   ├── text/
+│   └── pipelines/
+├── output/
+│   ├── images/
+│   ├── videos/
+│   └── audio/
+└── config/
+```
+
+Safe default workflow:
+
+```bash
+# 1) Create missing folders
+bun run pipeline init-project --directory ./my-project
+
+# 2) Preview file moves first
+bun run pipeline organize-project \
+  --directory ./my-project \
+  --source ./incoming-media \
+  --recursive \
+  --dry-run
+
+# 3) Execute organization
+bun run pipeline organize-project \
+  --directory ./my-project \
+  --source ./incoming-media \
+  --recursive
+
+# 4) Verify final structure and counts
+bun run pipeline structure-info --directory ./my-project --json
+```
+
+Safety rules:
+
+- Run `--dry-run` before moving user files.
+- Use `--source` for external ingest folders.
+- Use `--recursive` only when nested scan is needed.
+- Avoid `--include-output` unless reorganizing output is intentional.
 
 ## Quick Commands
 
@@ -117,7 +172,7 @@ Three possible envelope shapes:
 | `error` | `{ "status": "error", "error": "msg", "code": "cmd:failed" }` | Command failed |
 | `pending` | `{ "status": "pending", "jobId": "abc-123" }` | Async job started |
 
-See [REFERENCE.md](REFERENCE.md) for full envelope docs.
+See [REFERENCE.md](references/REFERENCE.md) for full envelope docs.
 
 ## 3-Level Progressive Help (JSON)
 
@@ -151,7 +206,7 @@ bun run pipeline editor:project:info --project-id <id> --full --json
 bun run pipeline editor:project:export-state --project-id <id>
 ```
 
-See [editor-media.md](editor-media.md) for the full project.json schema.
+See [editor-media.md](editor/editor-media.md) for the full project.json schema.
 
 ## Global Options
 

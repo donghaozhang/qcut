@@ -208,7 +208,7 @@ media/generated/
 └── audio/
 ```
 
-This aligns with organize-project conventions.
+This aligns with native-cli project-organization commands (`init-project`, `organize-project`, `structure-info`).
 
 ## FAL API Direct Access
 

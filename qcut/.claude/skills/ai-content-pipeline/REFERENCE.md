@@ -506,4 +506,4 @@ Results JSON contains:
 - Output file paths
 - Cost breakdown
 
-**Note:** This structure aligns with QCut's organize-project skill for consistent project organization.
+**Note:** This structure aligns with QCut's native-cli project-organization commands (`init-project`, `organize-project`, `structure-info`).
