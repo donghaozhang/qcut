@@ -3,8 +3,6 @@ name: Release
 # Runners: GitHub-hosted by default
 # To use Blacksmith: set repo variable USE_BLACKSMITH=true
 # To use self-hosted Mac: set repo variable USE_SELF_HOSTED_MAC=true
-# To use self-hosted Windows (uni runner): set repo variable USE_SELF_HOSTED_WIN=true
-# To use self-hosted Linux (school ubuntu-builder): set repo variable USE_SELF_HOSTED_LINUX=true
 
 on:
   push:
@@ -55,7 +53,7 @@ jobs:
   # Windows build
   build-windows:
     needs: prepare
-    runs-on: ${{ vars.USE_SELF_HOSTED_WIN == 'true' && fromJSON('["self-hosted", "windows", "x64", "uni"]') || (vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-windows-2025' || 'windows-latest') }}
+    runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -77,7 +75,7 @@ jobs:
         run: bun install
 
       - name: Generate route tree
-        run: cd apps/web && bunx @tanstack/router-cli generate
+        run: cd apps/web && bunx --bun @tanstack/router-cli generate
 
       - name: Build web application
         run: bun run build
@@ -186,10 +184,18 @@ jobs:
   # Linux build
   build-linux:
     needs: prepare
-    runs-on: ${{ vars.USE_SELF_HOSTED_LINUX == 'true' && fromJSON('["self-hosted", "linux", "x64"]') || (vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04') }}
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Verify Node
+        run: node -v
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
@@ -208,7 +214,7 @@ jobs:
         run: bun install
 
       - name: Generate route tree
-        run: cd apps/web && bunx @tanstack/router-cli generate
+        run: cd apps/web && bunx --bun @tanstack/router-cli generate
 
       - name: Build web application
         run: bun run build
@@ -221,10 +227,24 @@ jobs:
 
       - name: Generate Linux icons
         run: |
-          sudo apt-get update && sudo apt-get install -y imagemagick
+          set -euo pipefail
           mkdir -p build/icons
-          convert build/icon.ico[0] -resize 256x256 build/icons/256x256.png
-          convert build/icon.ico[0] -resize 512x512 build/icons/512x512.png
+          if [ -f build/icon.png ]; then
+            cp build/icon.png build/icons/256x256.png
+            cp build/icon.png build/icons/512x512.png
+          elif [ -f build/icon.ico ] && command -v python3 >/dev/null 2>&1; then
+            python3 -m pip install --user --quiet pillow
+            python3 -c "from PIL import Image; from pathlib import Path; icon_dir = Path('build/icons'); icon_dir.mkdir(parents=True, exist_ok=True); img = Image.open('build/icon.ico'); resample = getattr(Image, 'Resampling', Image).LANCZOS; img.resize((256, 256), resample).save(icon_dir / '256x256.png'); img.resize((512, 512), resample).save(icon_dir / '512x512.png')"
+          elif command -v convert >/dev/null 2>&1; then
+            convert "build/icon.ico[0]" -resize 256x256 build/icons/256x256.png
+            convert "build/icon.ico[0]" -resize 512x512 build/icons/512x512.png
+          elif command -v magick >/dev/null 2>&1; then
+            magick convert "build/icon.ico[0]" -resize 256x256 build/icons/256x256.png
+            magick convert "build/icon.ico[0]" -resize 512x512 build/icons/512x512.png
+          else
+            echo "No supported icon source/tool found (need build/icon.png, python3+pillow, or ImageMagick)"
+            exit 1
+          fi
 
       - name: Build Electron application
         run: |

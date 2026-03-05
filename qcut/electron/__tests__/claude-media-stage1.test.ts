@@ -422,10 +422,11 @@ describe("getMediaInfo", () => {
 			mtimeMs: Date.now(),
 		});
 		mockReaddir.mockImplementation(async (dirPath: string) => {
-			if (String(dirPath).endsWith("/media")) {
+			const normalizedPath = String(dirPath).replace(/\\/g, "/");
+			if (normalizedPath.endsWith("/media")) {
 				return [];
 			}
-			if (String(dirPath).endsWith("/media/imported")) {
+			if (normalizedPath.endsWith("/media/imported")) {
 				return [
 					{
 						name: "550e8400-e29b-41d4-a716-446655440000.mp4",
