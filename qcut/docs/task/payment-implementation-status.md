@@ -10,16 +10,16 @@ The system is **implementation-ready for Stripe test-mode validation**, but **no
 
 ## Blocker Status (From Real-Test Review)
 
-| # | Item | Status | Notes |
-|---|------|--------|-------|
-| 1 | Auth security (JWT fallback impersonation risk) | ✅ Resolved | JWT fallback now requires signature verification with `BETTER_AUTH_SECRET`. |
-| 2 | Refund + reconciliation flow | ✅ Resolved (backend path) | `charge.refunded` webhook now reconciles top-up credits via payment ID. |
-| 3 | Canary guardrails (allowlist + kill switches) | ✅ Resolved | Added checkout/webhook feature flags and internal tester allowlist enforcement. |
-| 4 | Stripe write idempotency keys | ✅ Resolved | Checkout/top-up/portal calls now use Stripe idempotency keys. |
-| 5 | Automated payment test coverage | ⚠️ Partial | Added backend unit tests and test scripts; Stripe test-mode E2E/live canary execution still required. |
-| 6 | Data integrity + concurrency hardening | ✅ Resolved | One-license-per-user uniqueness added; credit deduction changed to atomic DB update. |
-| 7 | Domain/config consistency | ✅ Resolved | Redirect/cancel/portal URLs and CORS origins moved to config with consistent defaults. |
-| 8 | Incident auditability | ✅ Resolved | Failed webhook lock records now retain `lastError` instead of deleting lock rows. |
+| #   | Item                                            | Status                     | Notes                                                                                                 |
+| --- | ----------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1   | Auth security (JWT fallback impersonation risk) | ✅ Resolved                | JWT fallback now requires signature verification with `BETTER_AUTH_SECRET`.                           |
+| 2   | Refund + reconciliation flow                    | ✅ Resolved (backend path) | `charge.refunded` webhook now reconciles top-up credits via payment ID.                               |
+| 3   | Canary guardrails (allowlist + kill switches)   | ✅ Resolved                | Added checkout/webhook feature flags and internal tester allowlist enforcement.                       |
+| 4   | Stripe write idempotency keys                   | ✅ Resolved                | Checkout/top-up/portal calls now use Stripe idempotency keys.                                         |
+| 5   | Automated payment test coverage                 | ⚠️ Partial                 | Added backend unit tests and test scripts; Stripe test-mode E2E/live canary execution still required. |
+| 6   | Data integrity + concurrency hardening          | ✅ Resolved                | One-license-per-user uniqueness added; credit deduction changed to atomic DB update.                  |
+| 7   | Domain/config consistency                       | ✅ Resolved                | Redirect/cancel/portal URLs and CORS origins moved to config with consistent defaults.                |
+| 8   | Incident auditability                           | ✅ Resolved                | Failed webhook lock records now retain `lastError` instead of deleting lock rows.                     |
 
 ## Implemented Changes (By Area)
 
@@ -79,7 +79,7 @@ The system is **implementation-ready for Stripe test-mode validation**, but **no
 
 ### 6) Domain/Config Consistency
 
-- Removed hardcoded `github.io` payment redirects from Stripe service logic.
+- Removed hardcoded GitHub Pages (`github.io`) payment redirects from Stripe service logic.
 - Introduced configurable web base URL and CORS origin management.
 - Files:
   - `packages/license-server/src/services/payment-config.ts`

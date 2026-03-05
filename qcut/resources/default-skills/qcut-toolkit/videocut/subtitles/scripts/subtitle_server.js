@@ -12,8 +12,13 @@ const path = require("path");
 const { execFileSync, spawn } = require("child_process");
 
 const PORT = process.argv[2] || 8898;
+const HOST = process.env.SUBTITLE_SERVER_HOST || "127.0.0.1";
 const VIDEO_PATH = process.argv[3] || "";
 const SUBTITLES_FILE = "./subtitles_with_time.json";
+const ALLOWED_ORIGINS = new Set([
+  `http://127.0.0.1:${PORT}`,
+  `http://localhost:${PORT}`,
+]);
 
 // 读取字幕数据
 let subtitles = [];
@@ -37,13 +42,33 @@ if (fs.existsSync(DICT_FILE)) {
 }
 
 const server = http.createServer((req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  const requestOrigin =
+    typeof req.headers.origin === "string" ? req.headers.origin : "";
+  const isAllowedOrigin = requestOrigin
+    ? ALLOWED_ORIGINS.has(requestOrigin)
+    : false;
+
+  if (isAllowedOrigin) {
+    res.setHeader("Access-Control-Allow-Origin", requestOrigin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  }
 
   if (req.method === "OPTIONS") {
+    if (requestOrigin && !isAllowedOrigin) {
+      res.writeHead(403);
+      res.end("Origin not allowed");
+      return;
+    }
     res.writeHead(200);
     res.end();
+    return;
+  }
+
+  if (requestOrigin && !isAllowedOrigin) {
+    res.writeHead(403, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Origin not allowed" }));
     return;
   }
 
@@ -109,14 +134,32 @@ const server = http.createServer((req, res) => {
       const dur = parseFloat(
         execFileSync(
           "ffprobe",
-          ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", `file:${VIDEO_PATH}`],
-          { encoding: "utf8" }
-        ).trim()
+          [
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "csv=p=0",
+            `file:${VIDEO_PATH}`,
+          ],
+          { encoding: "utf8" },
+        ).trim(),
       );
       const streamInfo = execFileSync(
         "ffprobe",
-        ["-v", "error", "-show_entries", "stream=width,height,r_frame_rate", "-select_streams", "v:0", "-of", "csv=p=0", `file:${VIDEO_PATH}`],
-        { encoding: "utf8" }
+        [
+          "-v",
+          "error",
+          "-show_entries",
+          "stream=width,height,r_frame_rate",
+          "-select_streams",
+          "v:0",
+          "-of",
+          "csv=p=0",
+          `file:${VIDEO_PATH}`,
+        ],
+        { encoding: "utf8" },
       ).trim();
       const parts = streamInfo.split(",");
       const width = parseInt(parts[0]) || 1920;
@@ -129,12 +172,12 @@ const server = http.createServer((req, res) => {
           : parseFloat(fpsStr);
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
-        JSON.stringify({ duration: dur, width, height, fps: Math.round(fps) })
+        JSON.stringify({ duration: dur, width, height, fps: Math.round(fps) }),
       );
     } catch (err) {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
-        JSON.stringify({ duration: 0, width: 1920, height: 1080, fps: 30 })
+        JSON.stringify({ duration: 0, width: 1920, height: 1080, fps: 30 }),
       );
     }
     return;
@@ -175,14 +218,32 @@ const server = http.createServer((req, res) => {
           const dur = parseFloat(
             execFileSync(
               "ffprobe",
-              ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", `file:${VIDEO_PATH}`],
-              { encoding: "utf8" }
-            ).trim()
+              [
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "csv=p=0",
+                `file:${VIDEO_PATH}`,
+              ],
+              { encoding: "utf8" },
+            ).trim(),
           );
           const fpsStr = execFileSync(
             "ffprobe",
-            ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=r_frame_rate", "-of", "csv=p=0", `file:${VIDEO_PATH}`],
-            { encoding: "utf8" }
+            [
+              "-v",
+              "error",
+              "-select_streams",
+              "v:0",
+              "-show_entries",
+              "stream=r_frame_rate",
+              "-of",
+              "csv=p=0",
+              `file:${VIDEO_PATH}`,
+            ],
+            { encoding: "utf8" },
           ).trim();
           const fpsParts = fpsStr.split("/");
           const fps =
@@ -198,7 +259,7 @@ const server = http.createServer((req, res) => {
         res.writeHead(200, {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
-          "Connection": "keep-alive",
+          Connection: "keep-alive",
         });
 
         const outputPath = "./3_输出/" + baseName + "_字幕.mp4";
@@ -257,12 +318,12 @@ const server = http.createServer((req, res) => {
           if (code === 0) {
             console.log(`✅ 完成: ${outputPath} (耗时 ${elapsed}s)`);
             res.write(
-              `data: ${JSON.stringify({ done: true, path: outputPath, srtPath, readablePath, elapsed })}\n\n`
+              `data: ${JSON.stringify({ done: true, path: outputPath, srtPath, readablePath, elapsed })}\n\n`,
             );
           } else {
             console.error(`❌ 烧录失败 (exit code ${code})`);
             res.write(
-              `data: ${JSON.stringify({ error: `ffmpeg exit code ${code}` })}\n\n`
+              `data: ${JSON.stringify({ error: `ffmpeg exit code ${code}` })}\n\n`,
             );
           }
           res.end();
@@ -303,7 +364,9 @@ const server = http.createServer((req, res) => {
         "Content-Length": end - start + 1,
       });
       const stream = fs.createReadStream(VIDEO_PATH, { start, end });
-      stream.on("error", () => { res.end(); });
+      stream.on("error", () => {
+        res.end();
+      });
       stream.pipe(res);
     } else {
       res.writeHead(200, {
@@ -312,7 +375,9 @@ const server = http.createServer((req, res) => {
         "Accept-Ranges": "bytes",
       });
       const stream = fs.createReadStream(VIDEO_PATH);
-      stream.on("error", () => { res.end(); });
+      stream.on("error", () => {
+        res.end();
+      });
       stream.pipe(res);
     }
     return;
@@ -341,7 +406,7 @@ function generateSRT(subs) {
   return subs
     .map(
       (s, i) =>
-        `${i + 1}\n${formatSrtTime(s.start)} --> ${formatSrtTime(s.end)}\n${s.text}\n`
+        `${i + 1}\n${formatSrtTime(s.start)} --> ${formatSrtTime(s.end)}\n${s.text}\n`,
     )
     .join("\n");
 }
@@ -364,11 +429,17 @@ function formatReadableTime(seconds) {
 }
 
 function escapeHtml(str) {
-  return str.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  return str.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
 }
 
 function escapeJs(str) {
-  return str.replace(/[\\']/g, '\\$&');
+  return str.replace(/[\\']/g, "\\$&");
 }
 
 function escapeFilterPath(p) {
@@ -482,15 +553,17 @@ function generateHTML() {
     function renderSubtitles(filter = '') {
       const list = document.getElementById('subtitleList');
       list.innerHTML = subtitles.map((s, i) => {
-        if (filter && !s.text.includes(filter)) return '';
+        const subtitleText = normalizeSubtitleText(s.text);
+        if (filter && !subtitleText.includes(filter)) return '';
         const isEditing = i === editingIdx;
+        const escapedText = escapeHtmlForDom(subtitleText);
         return \`
           <div class="subtitle-item \${isEditing ? 'editing' : ''}" data-idx="\${i}" onclick="jumpTo(\${i})">
             <div class="sub-time">\${i + 1}. \${formatTime(s.start)} → \${formatTime(s.end)}</div>
             <div class="sub-text">
               \${isEditing
-                ? \`<input type="text" value="\${s.text}" onblur="finishEdit(\${i}, this.value)" onkeydown="if(event.key==='Enter')this.blur()">\`
-                : \`<span ondblclick="startEdit(\${i})">\${s.text}</span>\`
+                ? \`<input type="text" value="\${escapedText}" onblur="finishEdit(\${i}, this.value)" onkeydown="if(event.key==='Enter')this.blur()">\`
+                : \`<span ondblclick="startEdit(\${i})">\${escapedText}</span>\`
               }
             </div>
           </div>
@@ -507,6 +580,20 @@ function generateHTML() {
       const m = Math.floor(s / 60);
       const sec = (s % 60).toFixed(2);
       return m.toString().padStart(2, '0') + ':' + sec.padStart(5, '0');
+    }
+
+    function normalizeSubtitleText(value) {
+      return typeof value === 'string' ? value : '';
+    }
+
+    function escapeHtmlForDom(value) {
+      return value.replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[char]);
     }
 
     function jumpTo(idx) {
@@ -661,10 +748,10 @@ function generateHTML() {
 </html>`;
 }
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
   console.log(`
 🎬 字幕审核服务器已启动
-📍 地址: http://localhost:${PORT}
+📍 地址: http://${HOST}:${PORT}
 📹 视频: ${VIDEO_PATH}
 
 操作说明:

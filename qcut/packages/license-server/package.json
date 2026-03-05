@@ -10,6 +10,7 @@
 		"test:watch": "bunx vitest --config vitest.config.ts"
 	},
 	"dependencies": {
+		"@qcut/auth": "workspace:*",
 		"@supabase/supabase-js": "^2.49.0",
 		"hono": "^4.0.0",
 		"stripe": "^17.0.0",
