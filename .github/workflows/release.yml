@@ -71,17 +71,29 @@ jobs:
         shell: powershell -NoProfile -ExecutionPolicy Bypass -File {0}
         run: |
           try {
-            $candidates = @(
+            $candidates = @()
+            if ($env:BUN_INSTALL) {
+              $candidates += (Join-Path $env:BUN_INSTALL "bin")
+            }
+            $candidates += @(
               "$env:USERPROFILE\.bun\bin",
               "C:\Users\peterzhang\.bun\bin",
+              "C:\Users\Administrator\.bun\bin",
+              "C:\actions-runner\.bun\bin",
               "C:\Windows\ServiceProfiles\NetworkService\.bun\bin"
             )
+            $candidates += ($env:PATH -split ';')
+            $candidates = $candidates | Where-Object { $_ } | Select-Object -Unique
 
             $bunDir = $null
             foreach ($dir in $candidates) {
-              if (Test-Path (Join-Path $dir "bun.exe")) {
-                $bunDir = $dir
-                break
+              try {
+                if (Test-Path -Path (Join-Path $dir "bun.exe") -PathType Leaf -ErrorAction Stop) {
+                  $bunDir = $dir
+                  break
+                }
+              } catch {
+                continue
               }
             }
 
@@ -264,33 +276,33 @@ jobs:
       - name: Generate Linux icons
         run: |
           set -euo pipefail
-          if command -v convert >/dev/null 2>&1; then
-            echo "ImageMagick convert already available"
-          elif command -v apt-get >/dev/null 2>&1; then
-            if command -v sudo >/dev/null 2>&1; then
-              sudo apt-get update
-              sudo apt-get install -y imagemagick
-            else
-              apt-get update
-              apt-get install -y imagemagick
-            fi
-          else
-            echo "convert is missing and apt-get is unavailable on this runner"
-            exit 1
-          fi
-
-          if command -v convert >/dev/null 2>&1; then
-            convert_cmd=(convert)
-          elif command -v magick >/dev/null 2>&1; then
-            convert_cmd=(magick convert)
-          else
-            echo "Neither convert nor magick is available after ImageMagick setup"
-            exit 1
-          fi
-
           mkdir -p build/icons
-          "${convert_cmd[@]}" "build/icon.ico[0]" -resize 256x256 build/icons/256x256.png
-          "${convert_cmd[@]}" "build/icon.ico[0]" -resize 512x512 build/icons/512x512.png
+          if [ -f build/icon.png ]; then
+            bun -e '
+              import sharp from "sharp";
+
+              async function main() {
+                try {
+                  await sharp("build/icon.png").resize(256, 256).png().toFile("build/icons/256x256.png");
+                  await sharp("build/icon.png").resize(512, 512).png().toFile("build/icons/512x512.png");
+                } catch (error) {
+                  console.error("Failed to generate Linux icons from build/icon.png", error);
+                  process.exit(1);
+                }
+              }
+
+              await main();
+            '
+          elif command -v convert >/dev/null 2>&1; then
+            convert "build/icon.ico[0]" -resize 256x256 build/icons/256x256.png
+            convert "build/icon.ico[0]" -resize 512x512 build/icons/512x512.png
+          elif command -v magick >/dev/null 2>&1; then
+            magick convert "build/icon.ico[0]" -resize 256x256 build/icons/256x256.png
+            magick convert "build/icon.ico[0]" -resize 512x512 build/icons/512x512.png
+          else
+            echo "No supported icon source/tool found (missing build/icon.png and ImageMagick)"
+            exit 1
+          fi
 
       - name: Build Electron application
         run: |
