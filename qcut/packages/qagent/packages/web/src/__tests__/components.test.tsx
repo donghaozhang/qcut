@@ -231,6 +231,20 @@ describe("SessionCard", () => {
 		expect(link).toHaveAttribute("href", "/sessions/backend-5");
 	});
 
+	it("renders token usage when available", () => {
+		const session = makeSession({
+			tokenUsage: {
+				inputTokens: 1200,
+				outputTokens: 300,
+				totalTokens: 1500,
+				estimatedCostUsd: 0.1234,
+			},
+		});
+		render(<SessionCard session={session} />);
+		expect(screen.getByText(/1\.5.?k tok/i)).toBeInTheDocument();
+		expect(screen.getByText("$0.1234")).toBeInTheDocument();
+	});
+
 	it("uses distinct badge styles for claude and codex cli sessions", () => {
 		const claudeSession = makeSession({
 			managed: false,

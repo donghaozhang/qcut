@@ -28,6 +28,7 @@ function tmuxInfoToDashboard(info: TmuxSessionInfo): DashboardSession {
 		summaryIsFallback: false,
 		createdAt: info.created || now,
 		lastActivityAt: info.created || now,
+		tokenUsage: null,
 		pr: null,
 		metadata: {
 			windows: String(info.windows),

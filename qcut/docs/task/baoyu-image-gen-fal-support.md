@@ -31,7 +31,7 @@ baoyu-image-gen/
 ## Implementation Steps
 
 ### Step 1: Update `types.ts`
-**File**: `.claude/skills/baoyu/baoyu-image-gen/scripts/types.ts`
+**File**: `.claude/skills/qcut-toolkit/baoyu/baoyu-image-gen/scripts/types.ts`
 
 Add `"fal"` to the `Provider` type union and `default_model` config:
 
@@ -46,7 +46,7 @@ type Provider = "google" | "openai" | "dashscope" | "replicate" | "fal";
 Add `fal: string | null` to `default_model` in `ExtendConfig`.
 
 ### Step 2: Create `providers/fal.ts`
-**File**: `.claude/skills/baoyu/baoyu-image-gen/scripts/providers/fal.ts`
+**File**: `.claude/skills/qcut-toolkit/baoyu/baoyu-image-gen/scripts/providers/fal.ts`
 
 Follow the existing provider pattern (see `dashscope.ts` or `replicate.ts` as template):
 
@@ -79,7 +79,7 @@ export async function generateImage(
 - Reference pattern from: `electron/native-pipeline/infra/api-caller.ts` (lines for FAL provider)
 
 ### Step 3: Update `main.ts`
-**File**: `.claude/skills/baoyu/baoyu-image-gen/scripts/main.ts`
+**File**: `.claude/skills/qcut-toolkit/baoyu/baoyu-image-gen/scripts/main.ts`
 
 Three changes needed:
 
@@ -104,7 +104,7 @@ if (provider === "fal") model = extendConfig.default_model.fal ?? null;
 ```
 
 ### Step 4: Update `SKILL.md`
-**File**: `.claude/skills/baoyu/baoyu-image-gen/SKILL.md`
+**File**: `.claude/skills/qcut-toolkit/baoyu/baoyu-image-gen/SKILL.md`
 
 Updates needed:
 - Add `fal` to description and provider list
@@ -121,10 +121,10 @@ Updates needed:
 - Add fal models to reference images support list (`fal-ai/nano-banana-pro/edit`)
 
 ### Step 5: Update config references
-**File**: `.claude/skills/baoyu/baoyu-image-gen/references/config/first-time-setup.md`
+**File**: `.claude/skills/qcut-toolkit/baoyu/baoyu-image-gen/references/config/first-time-setup.md`
 - Add fal as a provider option in the first-time setup flow
 
-**File**: `.claude/skills/baoyu/baoyu-image-gen/references/config/preferences-schema.md`
+**File**: `.claude/skills/qcut-toolkit/baoyu/baoyu-image-gen/references/config/preferences-schema.md`
 - Add `fal` to `default_provider` enum
 - Add `fal: string | null` to `default_model` schema
 

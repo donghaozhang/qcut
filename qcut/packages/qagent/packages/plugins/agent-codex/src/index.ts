@@ -11,13 +11,21 @@ import {
 	type WorkspaceHooksConfig,
 } from "@composio/ao-core";
 import { execFile } from "node:child_process";
-import { writeFile, mkdir, readFile, rename } from "node:fs/promises";
+import {
+	writeFile,
+	mkdir,
+	readFile,
+	rename,
+	readdir,
+	stat,
+} from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { randomBytes } from "node:crypto";
 
 const execFileAsync = promisify(execFile);
+const CODEX_SESSIONS_DIR = join(homedir(), ".codex", "sessions");
 
 /** Shared bin directory for qagent shell wrappers (prepended to PATH) */
 const QAGENT_BIN_DIR = join(homedir(), ".qagent", "bin");
@@ -274,6 +282,260 @@ async function setupCodexWorkspace(workspacePath: string): Promise<void> {
 	}
 }
 
+interface CodexSessionMetaLine {
+	type: "session_meta";
+	timestamp?: string;
+	payload?: {
+		id?: string;
+		timestamp?: string;
+		cwd?: string;
+	};
+}
+
+interface CodexTokenCountUsage {
+	input_tokens?: number;
+	output_tokens?: number;
+	total_tokens?: number;
+}
+
+interface CodexTokenCountLine {
+	type: "event_msg";
+	payload?: {
+		type?: string;
+		info?: {
+			total_token_usage?: CodexTokenCountUsage;
+			last_token_usage?: CodexTokenCountUsage;
+		};
+	};
+}
+
+function safeFiniteNumber({ value }: { value: unknown }): number {
+	try {
+		if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+		if (value < 0) return 0;
+		return value;
+	} catch {
+		return 0;
+	}
+}
+
+function firstLine({ content }: { content: string }): string {
+	try {
+		const line = content.split("\n")[0];
+		return line ?? "";
+	} catch {
+		return "";
+	}
+}
+
+function parseJsonRecord({ line }: { line: string }): Record<string, unknown> | null {
+	try {
+		const parsed: unknown = JSON.parse(line);
+		if (
+			typeof parsed === "object" &&
+			parsed !== null &&
+			!Array.isArray(parsed)
+		) {
+			return parsed as Record<string, unknown>;
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
+
+function toEpochMs({ value }: { value: string | Date | undefined | null }): number {
+	try {
+		if (!value) return 0;
+		const input = value instanceof Date ? value.toISOString() : value;
+		const epochMs = Date.parse(input);
+		return Number.isFinite(epochMs) ? epochMs : 0;
+	} catch {
+		return 0;
+	}
+}
+
+function dayPath({
+	base,
+	offsetDays,
+}: {
+	base: Date;
+	offsetDays: number;
+}): string {
+	const d = new Date(base);
+	d.setUTCDate(d.getUTCDate() + offsetDays);
+	const yyyy = d.getUTCFullYear().toString();
+	const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+	const dd = String(d.getUTCDate()).padStart(2, "0");
+	return join(CODEX_SESSIONS_DIR, yyyy, mm, dd);
+}
+
+async function listCandidateRolloutFiles({
+	around,
+}: {
+	around: Date;
+}): Promise<string[]> {
+	try {
+		const dayOffsets = [0, -1, 1, -2, 2];
+		const files = await Promise.all(
+			dayOffsets.map(async (offsetDays) => {
+				try {
+					const dir = dayPath({ base: around, offsetDays });
+					const entries = await readdir(dir);
+					return entries
+						.filter((name) => name.endsWith(".jsonl"))
+						.map((name) => join(dir, name));
+				} catch {
+					return [];
+				}
+			})
+		);
+		return files.flat();
+	} catch {
+		return [];
+	}
+}
+
+async function readCodexSessionMeta({
+	filePath,
+}: {
+	filePath: string;
+}): Promise<CodexSessionMetaLine | null> {
+	try {
+		const content = await readFile(filePath, "utf-8");
+		const line = firstLine({ content }).trim();
+		if (!line) return null;
+		const parsed = parseJsonRecord({ line });
+		if (!parsed || parsed.type !== "session_meta") return null;
+		return parsed as unknown as CodexSessionMetaLine;
+	} catch {
+		return null;
+	}
+}
+
+async function findCodexRolloutForWorkspace({
+	workspacePath,
+	createdAt,
+}: {
+	workspacePath: string;
+	createdAt: Date;
+}): Promise<{ filePath: string; sessionId: string | null } | null> {
+	try {
+		const candidates = await listCandidateRolloutFiles({ around: createdAt });
+		if (candidates.length === 0) return null;
+
+		const matching: Array<{
+			filePath: string;
+			sessionId: string | null;
+			diffMs: number;
+			mtimeMs: number;
+		}> = [];
+
+		const createdAtMs = toEpochMs({ value: createdAt });
+
+		for (const filePath of candidates) {
+			try {
+				const [meta, stats] = await Promise.all([
+					readCodexSessionMeta({ filePath }),
+					stat(filePath),
+				]);
+				const cwd = meta?.payload?.cwd;
+				if (cwd !== workspacePath) continue;
+
+				const sessionTimestampMs = toEpochMs({
+					value: meta?.payload?.timestamp ?? meta?.timestamp ?? null,
+				});
+				const diffMs =
+					createdAtMs > 0 && sessionTimestampMs > 0
+						? Math.abs(sessionTimestampMs - createdAtMs)
+						: Number.MAX_SAFE_INTEGER;
+
+				matching.push({
+					filePath,
+					sessionId: meta?.payload?.id ?? null,
+					diffMs,
+					mtimeMs: safeFiniteNumber({ value: stats.mtimeMs }),
+				});
+			} catch {
+				continue;
+			}
+		}
+
+		if (matching.length === 0) return null;
+
+		matching.sort((a, b) => {
+			if (a.diffMs !== b.diffMs) return a.diffMs - b.diffMs;
+			return b.mtimeMs - a.mtimeMs;
+		});
+
+		const best = matching[0];
+		return { filePath: best.filePath, sessionId: best.sessionId };
+	} catch {
+		return null;
+	}
+}
+
+function usageFromTokenCountLine({
+	record,
+}: {
+	record: CodexTokenCountLine;
+}): CodexTokenCountUsage | null {
+	try {
+		if (record.type !== "event_msg") return null;
+		if (record.payload?.type !== "token_count") return null;
+		return (
+			record.payload.info?.total_token_usage ??
+			record.payload.info?.last_token_usage ??
+			null
+		);
+	} catch {
+		return null;
+	}
+}
+
+async function extractCodexUsage({
+	filePath,
+}: {
+	filePath: string;
+}): Promise<{ inputTokens: number; outputTokens: number } | null> {
+	try {
+		const content = await readFile(filePath, "utf-8");
+		const lines = content.split("\n");
+
+		let usage: CodexTokenCountUsage | null = null;
+		for (const line of lines) {
+			const trimmed = line.trim();
+			if (!trimmed) continue;
+			const parsed = parseJsonRecord({ line: trimmed });
+			if (!parsed) continue;
+
+			const tokenUsage = usageFromTokenCountLine({
+				record: parsed as unknown as CodexTokenCountLine,
+			});
+			if (!tokenUsage) continue;
+			usage = tokenUsage;
+		}
+
+		if (!usage) return null;
+
+		const inputTokens = Math.round(safeFiniteNumber({ value: usage.input_tokens }));
+		const outputFromUsage = Math.round(
+			safeFiniteNumber({ value: usage.output_tokens })
+		);
+		const totalFromUsage = Math.round(
+			safeFiniteNumber({ value: usage.total_tokens })
+		);
+		const outputTokens =
+			totalFromUsage > 0
+				? Math.max(0, totalFromUsage - inputTokens)
+				: outputFromUsage;
+
+		return { inputTokens, outputTokens };
+	} catch {
+		return null;
+	}
+}
+
 // =============================================================================
 // Agent Implementation
 // =============================================================================
@@ -427,9 +689,33 @@ function createCodexAgent(): Agent {
 			}
 		},
 
-		async getSessionInfo(_session: Session): Promise<AgentSessionInfo | null> {
-			// Codex doesn't have JSONL session files for introspection yet
-			return null;
+		async getSessionInfo(session: Session): Promise<AgentSessionInfo | null> {
+			try {
+				if (!session.workspacePath) return null;
+
+				const rollout = await findCodexRolloutForWorkspace({
+					workspacePath: session.workspacePath,
+					createdAt: session.createdAt,
+				});
+				if (!rollout) return null;
+
+				const usage = await extractCodexUsage({ filePath: rollout.filePath });
+				return {
+					summary: null,
+					agentSessionId: rollout.sessionId,
+					...(usage
+						? {
+								cost: {
+									inputTokens: usage.inputTokens,
+									outputTokens: usage.outputTokens,
+									estimatedCostUsd: 0,
+								},
+							}
+						: {}),
+				};
+			} catch {
+				return null;
+			}
 		},
 
 		async setupWorkspaceHooks(

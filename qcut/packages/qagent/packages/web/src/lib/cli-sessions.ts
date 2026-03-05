@@ -229,6 +229,7 @@ function cliProcessToDashboard(
 		summaryIsFallback: false,
 		createdAt: now,
 		lastActivityAt: now,
+		tokenUsage: null,
 		pr: null,
 		metadata: {
 			pid: String(proc.pid),

@@ -171,8 +171,10 @@ describe("enrichSessionPR", () => {
 			summaryIsFallback: false,
 			createdAt: new Date().toISOString(),
 			lastActivityAt: new Date().toISOString(),
+			tokenUsage: null,
 			pr: null,
 			metadata: {},
+			managed: true,
 		};
 		const pr = createPRInfo();
 		const scm = createMockSCM();
@@ -218,6 +220,7 @@ describe("enrichSessionAgentSummary", () => {
 							summary: info.summary ?? null,
 							summaryIsFallback: info.summaryIsFallback,
 							agentSessionId: info.agentSessionId ?? null,
+							cost: info.cost,
 						}
 					: null
 			),
@@ -271,16 +274,50 @@ describe("enrichSessionAgentSummary", () => {
 		expect(dashboard.summaryIsFallback).toBe(false);
 	});
 
-	it("should skip enrichment when dashboard already has a summary", async () => {
+	it("should set token usage from agent session info", async () => {
+		const core = createCoreSession();
+		const dashboard = sessionToDashboard(core);
+		expect(dashboard.tokenUsage).toBeNull();
+
+		const agent = createMockAgent({
+			cost: {
+				inputTokens: 2000,
+				outputTokens: 750,
+				estimatedCostUsd: 0.042,
+			},
+		});
+
+		await enrichSessionAgentSummary(dashboard, core, agent);
+
+		expect(dashboard.tokenUsage).toEqual({
+			inputTokens: 2000,
+			outputTokens: 750,
+			totalTokens: 2750,
+			estimatedCostUsd: 0.042,
+		});
+	});
+
+	it("should skip enrichment when summary and token usage already exist", async () => {
 		const core = createCoreSession({
 			agentInfo: {
 				summary: "Existing summary",
 				summaryIsFallback: false,
 				agentSessionId: "abc",
+				cost: {
+					inputTokens: 1000,
+					outputTokens: 500,
+					estimatedCostUsd: 0.01,
+				},
 			},
 		});
 		const dashboard = sessionToDashboard(core);
 		expect(dashboard.summary).toBe("Existing summary");
+		expect(dashboard.tokenUsage).toEqual({
+			inputTokens: 1000,
+			outputTokens: 500,
+			totalTokens: 1500,
+			estimatedCostUsd: 0.01,
+		});
 
 		const agent = createMockAgent({
 			summary: "New summary from agent",
@@ -382,8 +419,10 @@ describe("enrichSessionIssueTitle", () => {
 			summaryIsFallback: false,
 			createdAt: new Date().toISOString(),
 			lastActivityAt: new Date().toISOString(),
+			tokenUsage: null,
 			pr: null,
 			metadata: {},
+			managed: true,
 			...overrides,
 		};
 	}
@@ -613,6 +652,11 @@ describe("enrichSessionsMetadata", () => {
 				summary: "Existing summary",
 				summaryIsFallback: false,
 				agentSessionId: "x",
+				cost: {
+					inputTokens: 100,
+					outputTokens: 20,
+					estimatedCostUsd: 0.001,
+				},
 			},
 		});
 		const dashboard = sessionToDashboard(core);
@@ -696,6 +740,11 @@ describe("enrichSessionsMetadata", () => {
 					summary: "Already has one",
 					summaryIsFallback: false,
 					agentSessionId: "y",
+					cost: {
+						inputTokens: 50,
+						outputTokens: 10,
+						estimatedCostUsd: 0.0005,
+					},
 				},
 			}),
 		];
