@@ -1,96 +1,77 @@
-# JSON Implementation Test Results
+# JSON Implementation Test Results (Live)
 
-**Date**: 2026-03-04
-**Branch**: `json`
-**Tester**: Claude Code
+**Date**: 2026-03-06  
+**Branch**: `openclaw-cli-v5`  
+**Tester**: Codex (GPT-5)
 
-## Build
+## Environment
+
+- CLI invocation used for JSON checks: `bun electron/native-pipeline/cli/cli.ts ...`
+- QCut runtime for editor tests: `bun run electron` (required for renderer-backed IPC)
+
+## 1. Build
 
 | Step | Result |
 |------|--------|
-| `bun run build` | PASS (built in ~55s, no errors) |
+| `bun run build` | PASS |
 
-Warnings: Two chunks exceed 1000 kB (index, editor.lazy) — existing, not related to JSON changes.
+Notes:
+- Vite build completed (`✓ built in 12.34s`) and Electron preload bundle built successfully.
+- Existing warnings remain: large chunks (`index` and `editor._project_id.lazy`) over 1000 kB.
 
-## 1. Three-Level Help JSON
-
-| Test | Command | Result |
-|------|---------|--------|
-| Level 1: Top-level help | `--help --json` | PASS — returns `{status:"ok", data:{categories, commands, globalFlags}}` |
-| Level 2: Command help | `generate-image --help --json` | PASS — returns `{required, optional, examples}` with enum values |
-| Level 2: Editor command | `editor:project:list --help --json` | PASS — returns command info with empty required/optional |
-| Level 3: Flag detail | `generate-image --help model --json` | PASS — returns single flag with enum array |
-
-All help levels return valid JSON wrapped in `{status:"ok", data:{...}}`.
-
-## 2. Unified JSON Output
+## 2. Three-Level Help JSON
 
 | Test | Command | Result |
 |------|---------|--------|
-| list-models | `list-models --json` | PASS — returns 79 models with `{schema_version, command, data:{models, count}}` |
-| check-keys | `check-keys --json` | PASS — returns key status with `configured`, `source`, `masked` fields |
-| estimate-cost (valid) | `estimate-cost --model flux_dev --json` | PASS — returns `{cost, breakdown, currency}` |
-| estimate-cost (invalid) | `estimate-cost --model flux-1-dev --json` | PASS — returns `{status:"error", error:"Unknown model...", code:"estimate-cost:failed"}` |
+| Level 1: Top-level help | `--help --json` | PASS — envelope `{status:"ok", data:{...}}`, with 9 categories, 131 commands, 13 global flags |
+| Level 2: Command help | `generate-image --help --json` | PASS — returns `{required, optional, examples}`; model option enum count = 6 |
+| Level 2: Editor command help | `editor:project:list --help --json` | PASS — required/optional arrays present and both empty |
+| Level 3: Flag detail | `generate-image --help model --json` | PASS — returns single flag detail with enum list |
 
-Error responses correctly use `{status:"error", error, code}` envelope.
+## 3. Unified JSON Output
 
-## 3. Editor Commands (QCut Running)
+| Test | Command | Result |
+|------|---------|--------|
+| list-models | `list-models --json` | PASS — returns `count: 79` with schema envelope |
+| check-keys | `check-keys --json` | PASS — key entries include `configured`, `source`, `masked` (10 keys total, 2 configured) |
+| estimate-cost (valid) | `estimate-cost --model flux_dev --json` | PASS — returns `cost: 0.003`, breakdown, `currency: "USD"` |
+| estimate-cost (invalid) | `estimate-cost --model flux-1-dev --json` | PASS — returns `{status:"error", code:"estimate-cost:failed"}` and exits non-zero |
 
-QCut was running (v2026.03.02.2, uptime: ~62k seconds).
+## 4. Editor Commands (Live QCut Runtime)
 
-| Test | Command | Result | Notes |
-|------|---------|--------|-------|
-| Health check | `curl /api/claude/health` | PASS | 38 capabilities reported |
-| navigator:projects | `editor:navigator:projects --json` | PASS | Returns 2 projects with activeProjectId |
-| project:list | `editor:project:list --json` | FAIL | 404 — `/api/claude/projects` endpoint not registered in running build |
-| timeline:info | `editor:timeline:info --project-id <id> --json` | PASS | Returns tracks, dimensions, fps |
-
-`editor:project:list` fails because the running QCut was built before this branch's changes. The endpoint needs to be registered in `claude-http-server.ts`. After rebuilding QCut with the json branch, it should work.
-
-## 4. Project.json Builder
+Health endpoint: `GET http://127.0.0.1:8765/api/claude/health` returned success with 38 capabilities.
 
 | Test | Command | Result | Notes |
 |------|---------|--------|-------|
-| project:info | `editor:project:info --project-id <id> --json` | FAIL | "Failed to read project" — endpoint not in running build |
-| project:info --full | `editor:project:info --project-id <id> --json --full` | FAIL | Same — endpoint missing |
+| navigator:projects | `editor:navigator:projects --json` | PASS | 11 projects returned, `activeProjectId: null` |
+| project:list | `editor:project:list --json` | PASS | 11 projects returned |
+| timeline:info | `editor:timeline:info --project-id c8e1cca6-1a5c-414f-9768-3cef96bb79f2 --json` | PASS | `1920x1080`, `fps: 30`, `tracks: 1` |
 
-Same root cause as `project:list` — the running QCut doesn't have the new project info/list HTTP endpoints. Requires rebuilding and restarting QCut with the json branch.
+## 5. Project.json Builder
 
-## 5. Unit Tests
+| Test | Command | Result | Notes |
+|------|---------|--------|-------|
+| project:info | `editor:project:info --project-id c8e1cca6-1a5c-414f-9768-3cef96bb79f2 --json` | PASS | Returns project metadata, settings, counts, key-status block |
+| project:info --full | `editor:project:info --project-id c8e1cca6-1a5c-414f-9768-3cef96bb79f2 --full --json` | PASS | Returns expanded payload (`media/subtitles/generated/exports/jobs`) |
 
-| Metric | Count |
-|--------|-------|
-| Test files passed | 257 |
-| Test files failed | 3 → 1 (after fix) |
-| Tests passed | 3709 → 3711 |
-| Tests failed | 3 → 1 |
-| Tests skipped | 22 |
+## 6. Unit Tests
 
-### Fixed Failures
+| Command | Result |
+|---------|--------|
+| `bun run test` | PASS |
 
-| Test | Error | Fix |
-|------|-------|-----|
-| `CLIOutput.result emits JSON envelope` | `out.result is not a function` | Added `result()` method to `CLIOutput` |
-| `CLIOutput.table emits JSON envelope` | `out.table is not a function` | Added `table()` method to `CLIOutput` |
+Vitest summary:
+- Test Files: **267 passed / 267 total**
+- Tests: **3794 passed / 3794 total**
+- Duration: **18.37s**
 
-### Pre-existing Failures (Not Related to JSON Branch)
-
-| Test | Error | Notes |
-|------|-------|-------|
-| `sticker-export-real.test.ts` | Real FFmpeg E2E | Environment-dependent, requires FFmpeg binaries |
-| `use-debounce.test.ts` | Timing flake — `waitFor` timeout | Flaky timing test, unrelated |
+Additional note:
+- `check-boundaries.test.ts` logs six existing file-size boundary violations in output, but the suite still passes.
 
 ## Summary
 
-- **3-level help JSON**: All 4 tests PASS
-- **Unified JSON output**: All 4 tests PASS (including error envelope)
-- **Editor commands**: 2/4 PASS (2 fail due to running QCut needing rebuild)
-- **Project.json builder**: 0/2 PASS (same rebuild issue)
-- **Unit tests**: 2 failures FIXED (`CLIOutput.result`, `CLIOutput.table`); 2 pre-existing flakes remain
-
-## Recommendations
-
-1. **Rebuild QCut** with json branch to test `editor:project:list` and `editor:project:info` endpoints
-2. **Register `/api/claude/projects` route** in `claude-http-server.ts` if not already done
-3. **Fix `use-debounce.test.ts`** flaky timing (pre-existing, low priority)
-4. **Consider** adding integration tests for the new JSON envelope format
+- **3-level help JSON**: 4/4 PASS
+- **Unified JSON output**: 4/4 PASS (including error envelope behavior)
+- **Editor commands**: 3/3 PASS in live QCut runtime
+- **Project.json builder**: 2/2 PASS
+- **Unit tests**: 267/267 files PASS, 3794/3794 tests PASS
