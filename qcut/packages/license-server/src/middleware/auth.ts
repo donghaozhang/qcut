@@ -42,13 +42,13 @@ export async function authMiddleware(c: Context, next: Next) {
 			return;
 		}
 
-			const fallbackUserId = await verifyJwtAndExtractUserId({
-				token,
-				secret: process.env.BETTER_AUTH_SECRET || "",
-			});
-			if (fallbackUserId) {
-				c.set("userId", fallbackUserId);
-				await next();
+		const fallbackUserId = await verifyJwtAndExtractUserId({
+			token,
+			secret: process.env.BETTER_AUTH_SECRET || "",
+		});
+		if (fallbackUserId) {
+			c.set("userId", fallbackUserId);
+			await next();
 			return;
 		}
 
