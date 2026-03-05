@@ -519,7 +519,7 @@ LOG_LEVEL=DEBUG aicp run-chain --config config.yaml
 
 Generated files follow QCut's standard project structure:
 
-```text
+```
 media/
 ├── generated/
 │   ├── images/           # AI-generated images
@@ -534,7 +534,7 @@ media/
 
 Pipeline metadata is saved to:
 
-```text
+```
 media/generated/pipeline_results.json
 ```
 

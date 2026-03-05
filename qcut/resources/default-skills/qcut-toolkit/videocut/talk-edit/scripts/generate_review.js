@@ -13,29 +13,6 @@ const subtitlesFile = process.argv[2] || "subtitles_words.json";
 const autoSelectedFile = process.argv[3] || "auto_selected.json";
 const audioFile = process.argv[4] || "audio.mp3";
 
-function escapeForInlineScript(value) {
-  return JSON.stringify(value)
-    .replace(/</g, "\\u003c")
-    .replace(/>/g, "\\u003e")
-    .replace(/&/g, "\\u0026")
-    .replace(/\u2028/g, "\\u2028")
-    .replace(/\u2029/g, "\\u2029");
-}
-
-function readJsonFile({ filePath, label, fallbackValue }) {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    if (fallbackValue !== undefined) {
-      console.warn(`⚠️ 无法解析${label}，使用默认值:`, errorMessage);
-      return fallbackValue;
-    }
-    console.error(`❌ 无法解析${label}:`, errorMessage);
-    process.exit(1);
-  }
-}
-
 // 复制音频文件到当前目录（避免相对路径问题）
 const audioBaseName = "audio.mp3";
 if (audioFile !== audioBaseName && fs.existsSync(audioFile)) {
@@ -48,28 +25,11 @@ if (!fs.existsSync(subtitlesFile)) {
   process.exit(1);
 }
 
-const parsedWords = readJsonFile({
-  filePath: subtitlesFile,
-  label: "字幕文件",
-});
-if (!Array.isArray(parsedWords)) {
-  console.error("❌ 字幕文件格式错误: 需要数组");
-  process.exit(1);
-}
-const words = parsedWords;
+const words = JSON.parse(fs.readFileSync(subtitlesFile, "utf8"));
 let autoSelected = [];
 
 if (fs.existsSync(autoSelectedFile)) {
-  const parsedAutoSelected = readJsonFile({
-    filePath: autoSelectedFile,
-    label: "AI预选文件",
-    fallbackValue: [],
-  });
-  if (Array.isArray(parsedAutoSelected)) {
-    autoSelected = parsedAutoSelected;
-  } else {
-    console.warn("⚠️ AI预选文件格式错误: 需要数组，已回退为空列表");
-  }
+  autoSelected = JSON.parse(fs.readFileSync(autoSelectedFile, "utf8"));
   console.log("AI 预选:", autoSelected.length, "个元素");
 }
 
@@ -297,8 +257,8 @@ const html = `<!DOCTYPE html>
   <div class="stats" id="stats"></div>
 
   <script>
-    const words = ${escapeForInlineScript(words)};
-    const autoSelected = new Set(${escapeForInlineScript(autoSelected)});
+    const words = ${JSON.stringify(words)};
+    const autoSelected = new Set(${JSON.stringify(autoSelected)});
     const selected = new Set(autoSelected);
 
     // 初始化 wavesurfer

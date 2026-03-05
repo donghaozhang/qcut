@@ -17,6 +17,12 @@ import {
   sanitizeProjectId,
 } from "../utils/helpers.js";
 import { claudeLog } from "../utils/logger.js";
+import {
+  getStringValue,
+  isErrnoNoEntry,
+  isRecord,
+  parsePositiveNumber,
+} from "./claude-project-shared.js";
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const HANDLER_NAME = "ProjectCrud";
@@ -53,27 +59,6 @@ export interface DuplicateProjectResponse {
   sourceProjectId: string;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function isErrnoNoEntry(error: unknown): boolean {
-  if (!isRecord(error)) return false;
-  return error.code === "ENOENT";
-}
-
-function getStringValue({
-  value,
-  fallback,
-}: {
-  value: unknown;
-  fallback: string;
-}): string {
-  return typeof value === "string" && value.trim().length > 0
-    ? value
-    : fallback;
-}
-
 function getPositiveNumber({
   value,
   fallback,
@@ -81,16 +66,7 @@ function getPositiveNumber({
   value: unknown;
   fallback: number;
 }): number {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return value;
-  }
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
-    }
-  }
-  return fallback;
+  return parsePositiveNumber({ value }) ?? fallback;
 }
 
 function normalizeProjectId({ projectId }: { projectId: string }): string {

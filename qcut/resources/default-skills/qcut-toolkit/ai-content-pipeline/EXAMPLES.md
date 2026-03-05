@@ -281,7 +281,7 @@ aicp run-chain --config pipeline.yaml --input "custom prompt text"
 
 Generated files follow QCut's standard project structure:
 
-```text
+```
 media/
 ├── generated/
 │   ├── images/           # AI-generated images
@@ -296,7 +296,7 @@ media/
 
 Pipeline metadata:
 
-```text
+```
 media/generated/pipeline_results.json
 ```
 

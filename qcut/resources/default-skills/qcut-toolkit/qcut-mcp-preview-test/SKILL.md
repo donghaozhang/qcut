@@ -10,7 +10,7 @@ allowed-tools: Bash(curl *), Read, Grep
 
 QCut's preview panel supports two rendering modes: **Video Preview** (default) and **MCP App** (interactive iframe). The MCP system has two independent input paths:
 
-```text
+```
 ┌─────────────────────────────────────────────────┐
 │  Preview Panel (preview-panel.tsx)               │
 │                                                  │

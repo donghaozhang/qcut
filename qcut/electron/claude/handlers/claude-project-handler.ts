@@ -13,6 +13,12 @@ import * as fs from "fs/promises";
 import { getProjectPath, getProjectSettingsPath } from "../utils/helpers.js";
 import { claudeLog } from "../utils/logger.js";
 import type { ProjectSettings, ProjectStats } from "../../types/claude-api";
+import {
+  getStringValue,
+  isErrnoNoEntry,
+  isRecord,
+  parsePositiveNumber,
+} from "./claude-project-shared.js";
 
 const HANDLER_NAME = "Project";
 const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
@@ -30,42 +36,8 @@ interface UpdateProjectSettingsOptions {
   broadcast?: boolean;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function isErrnoNoEntry(error: unknown): boolean {
-  if (!isRecord(error)) return false;
-  return error.code === "ENOENT";
-}
-
-function getStringValue({
-  value,
-  fallback,
-}: {
-  value: unknown;
-  fallback: string;
-}): string {
-  return typeof value === "string" && value.trim().length > 0
-    ? value
-    : fallback;
-}
-
 function getPositiveNumber({ value }: { value: unknown }): number | null {
-  try {
-    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-      return value;
-    }
-    if (typeof value === "string" && value.trim().length > 0) {
-      const parsed = Number(value);
-      if (Number.isFinite(parsed) && parsed > 0) {
-        return parsed;
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  return parsePositiveNumber({ value });
 }
 
 function getNestedRecord({

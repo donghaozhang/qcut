@@ -40,8 +40,7 @@ export const accounts = pgTable("accounts", {
   providerId: text("provider_id").notNull(),
   userId: text("user_id")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" })
-    .unique(),
+    .references(() => users.id, { onDelete: "cascade" }),
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
   idToken: text("id_token"),
@@ -80,7 +79,8 @@ export const licenses = pgTable("licenses", {
   id: text("id").primaryKey(),
   userId: text("user_id")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    .references(() => users.id, { onDelete: "cascade" })
+    .unique(),
   plan: text("plan", { enum: ["free", "pro", "team"] })
     .notNull()
     .default("free"),

@@ -252,6 +252,7 @@ async function listMediaFilesWithRendererFallback({
 }
 
 const PROJECT_JSON_SYNC_DEBOUNCE_MS = 1000;
+const TIMELINE_SYNC_BARRIER_TIMEOUT_MS = 5000;
 const projectJsonSyncTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const projectJsonSyncInFlight = new Map<string, Promise<void>>();
 
@@ -320,6 +321,25 @@ function scheduleProjectJsonAutoSync({
     projectJsonSyncTimers.set(normalizedProjectId, timer);
   } catch {
     // Best-effort sync scheduling only.
+  }
+}
+
+async function waitForTimelineMutationBarrier({
+  accessor,
+}: {
+  accessor: WindowAccessor;
+}): Promise<void> {
+  try {
+    await Promise.race([
+      accessor.requestTimeline(),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error("Timeline mutation barrier timed out"));
+        }, TIMELINE_SYNC_BARRIER_TIMEOUT_MS);
+      }),
+    ]);
+  } catch {
+    // Best-effort ordering only.
   }
 }
 
@@ -555,6 +575,7 @@ export function registerSharedRoutes(
       timeline,
       replace: req.body.replace === true,
     });
+    await waitForTimelineMutationBarrier({ accessor });
     scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
     return { imported: true };
   });
@@ -572,6 +593,7 @@ export function registerSharedRoutes(
       ...req.body,
       id: elementId,
     });
+    await waitForTimelineMutationBarrier({ accessor });
     scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
     return { elementId };
   });
@@ -626,6 +648,7 @@ export function registerSharedRoutes(
         elementId: req.params.elementId,
         changes: req.body || {},
       });
+      await waitForTimelineMutationBarrier({ accessor });
       scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
       return { updated: true };
     },
@@ -661,6 +684,7 @@ export function registerSharedRoutes(
         "claude:timeline:removeElement",
         req.params.elementId,
       );
+      await waitForTimelineMutationBarrier({ accessor });
       scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
       return { removed: true };
     },
@@ -735,6 +759,7 @@ export function registerSharedRoutes(
         toTrackId: req.body.toTrackId,
         newStartTime: req.body.newStartTime,
       });
+      await waitForTimelineMutationBarrier({ accessor });
       scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
       return { moved: true };
     },
