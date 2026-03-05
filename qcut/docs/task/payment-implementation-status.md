@@ -1,147 +1,153 @@
 # Payment System Implementation Status
 
+Last updated: 2026-03-06
+
 ## Summary
 
-The QCut payment system connects the Electron app, a Hono-based License Server, and Stripe for subscription/credit management. This document tracks what has been implemented.
+QCut payment infrastructure is implemented end-to-end (Electron + License Server + Stripe + DB), and the top launch blockers from the real-test review have now been addressed in code.
 
-## Architecture
+The system is **implementation-ready for Stripe test-mode validation**, but **not yet launch-ready** until the staged real-test execution is completed (test-mode E2E + controlled live canary).
 
-```text
-QCut App (Electron) ──► License Server (Hono API) ◄── Stripe Webhooks
-     │                        │
-     │ license:check          │ Supabase / PostgreSQL
-     │ license:activate       │
-     │ credits:deduct         │
-     └────────────────────────┘
-```
+## Blocker Status (From Real-Test Review)
 
-## Completed
+| # | Item | Status | Notes |
+|---|------|--------|-------|
+| 1 | Auth security (JWT fallback impersonation risk) | ✅ Resolved | JWT fallback now requires signature verification with `BETTER_AUTH_SECRET`. |
+| 2 | Refund + reconciliation flow | ✅ Resolved (backend path) | `charge.refunded` webhook now reconciles top-up credits via payment ID. |
+| 3 | Canary guardrails (allowlist + kill switches) | ✅ Resolved | Added checkout/webhook feature flags and internal tester allowlist enforcement. |
+| 4 | Stripe write idempotency keys | ✅ Resolved | Checkout/top-up/portal calls now use Stripe idempotency keys. |
+| 5 | Automated payment test coverage | ⚠️ Partial | Added backend unit tests and test scripts; Stripe test-mode E2E/live canary execution still required. |
+| 6 | Data integrity + concurrency hardening | ✅ Resolved | One-license-per-user uniqueness added; credit deduction changed to atomic DB update. |
+| 7 | Domain/config consistency | ✅ Resolved | Redirect/cancel/portal URLs and CORS origins moved to config with consistent defaults. |
+| 8 | Incident auditability | ✅ Resolved | Failed webhook lock records now retain `lastError` instead of deleting lock rows. |
 
-### 1. Supabase Database Setup
-- **Client**: `packages/license-server/src/db/supabase.ts` — Supabase service-role client
-- **Dependency**: `@supabase/supabase-js ^2.49.0` added to license-server
-- **Migration SQL files** in `packages/license-server/supabase/migrations/`:
-  - `001_users.sql` — users + sessions tables with RLS
-  - `002_licenses.sql` — licenses + device_activations with indexes
-  - `003_credits.sql` — credit_balances + credit_transactions with audit trail
-  - `004_usage_and_webhooks.sql` — usage_records + stripe_webhook_events idempotency
+## Implemented Changes (By Area)
 
-### 2. Stripe Integration (License Server)
-- **Package**: `stripe ^17.0.0` (already present)
-- **Routes** (`src/routes/stripe.ts`):
-  - `POST /api/stripe/checkout` — create Stripe Checkout session (pro/team, month/year)
-  - `POST /api/stripe/topup` — create one-time credit pack checkout
-  - `POST /api/stripe/portal` — create Stripe Customer Portal session
-  - `POST /api/stripe/webhook` — handle Stripe webhooks with signature verification
-- **Webhook events handled**:
-  - `checkout.session.completed` — activates subscription or adds top-up credits
-  - `customer.subscription.updated` — syncs plan/status changes
-  - `customer.subscription.deleted` — downgrades to free
-  - `invoice.payment_succeeded` — resets monthly credits
-  - `invoice.payment_failed` — marks license as past_due
-- **Idempotency**: `stripe_webhook_events` table with event locking + stale lock recovery
+### 1) Auth Security Hardening
 
-### 3. License Server API
-All routes require Bearer token auth (session or JWT fallback).
+- Verified JWT fallback instead of trusting unverified payloads.
+- Files:
+  - `packages/license-server/src/middleware/auth.ts`
+  - `packages/license-server/src/middleware/auth-jwt.ts`
+  - `packages/license-server/src/middleware/auth-jwt.test.ts`
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/license` | Get license info + active devices |
-| POST | `/api/license/validate` | Validate license, returns `valid: boolean` |
-| GET | `/api/license/status` | Full status: plan, devices, credits |
-| POST | `/api/license/activate` | Activate device (fingerprint + name) |
-| DELETE | `/api/license/deactivate` | Deactivate a device |
-| GET | `/api/credits` | Get credit balance |
-| GET | `/api/credits/balance` | Get credit balance (alias) |
-| POST | `/api/credits/deduct` | Deduct credits (amount, modelKey, description) |
-| POST | `/api/credits/use` | Deduct credits (alias, description optional) |
-| GET | `/api/credits/history` | Credit transaction history |
-| POST | `/api/credits/topup` | Create top-up checkout session |
-| GET | `/api/usage` | Get monthly usage counts |
-| POST | `/api/usage/track` | Track usage event |
+### 2) Refund + Reconciliation
 
-### 4. QCut App Integration
+- Added refund reconciliation logic keyed by Stripe payment ID.
+- Added webhook handling for `charge.refunded`.
+- Files:
+  - `packages/license-server/src/services/credit-service.ts`
+  - `packages/license-server/src/services/stripe-service.ts`
 
-#### Electron License Handler (`electron/license-handler.ts`)
-- IPC handlers: `license:check`, `license:activate`, `license:deduct-credits`, etc.
-- Auth token resolution: in-memory → env var → browser cookies
-- Device fingerprint: `${platform}-${hostname}`
+### 3) Canary Guardrails + Kill Switches
 
-#### 7-Day Offline Cache
-- Encrypted cache via `safeStorage` (fallback: file with 0o600 permissions)
-- Cache stored at `userData/license-cache.enc`
-- Expired cache → falls back to free plan (50 credits)
+- Added canary allowlist checks (internal testers only when enabled).
+- Added fast shutdown toggles for checkout creation and webhook processing.
+- Files:
+  - `packages/license-server/src/services/payment-config.ts`
+  - `packages/license-server/src/services/payment-access.ts`
+  - `packages/license-server/src/routes/stripe.ts`
+  - `packages/license-server/src/routes/credits.ts`
+  - `packages/license-server/.env.example`
 
-#### Deep Link Protocol (`electron/main.ts`)
-- Registered `qcut://` protocol via `setAsDefaultProtocolClient("qcut")`
-- macOS: `open-url` event handler
-- Windows/Linux: `second-instance` handler with single-instance lock
-- URL format: `qcut://activate?token=<JWT>`
-- Token delivered to renderer via `license:activation-token` IPC
+### 4) Stripe Idempotency Keys
 
-#### License Store (`apps/web/src/stores/license-store.ts`)
-- Zustand store with: `checkLicense()`, `canUseFeature()`, `hasCredits()`, `deductCredits()`
-- Upgrade buttons open browser: `https://quriosity.com.au/pricing`
+- Added idempotency key support for:
+  - `checkout.sessions.create`
+  - `billingPortal.sessions.create`
+- Integrated `Idempotency-Key` header support with deterministic fallback keys.
+- Files:
+  - `packages/license-server/src/services/stripe-service.ts`
+  - `packages/license-server/src/services/payment-config.ts`
+  - `packages/license-server/src/routes/stripe.ts`
+  - `packages/license-server/src/routes/credits.ts`
+  - `packages/license-server/src/index.ts`
 
-#### Feature Gates (`apps/web/src/lib/feature-gates.ts`)
-- `ai-generation`: all plans (free has credit limits)
-- `export-4k`, `no-watermark`, `all-templates`: pro + team
-- `team-collab`, `api-access`: team only
+### 5) Data Integrity + Concurrency
 
-### 5. Mock Mode
-- Set `MOCK_MODE=true` in environment to bypass Stripe/Supabase
-- Mock middleware intercepts all `/api/*` routes with canned responses
-- Auth middleware skips token validation, uses `mock-user-001`
-- Health endpoint shows `mock: true` indicator
-- All mock responses simulate a Pro plan with 500 credits
+- Enforced one license row per user:
+  - schema + migrations updated.
+- Reworked credit deduction to atomic SQL update in transaction (prevents race-driven overspend).
+- Files:
+  - `packages/db/src/schema.ts`
+  - `packages/db/migrations/0003_payment_guardrails_and_integrity.sql`
+  - `packages/db/migrations/meta/_journal.json`
+  - `packages/license-server/supabase/migrations/002_licenses.sql`
+  - `packages/license-server/supabase/migrations/005_payment_hardening.sql`
+  - `packages/license-server/src/services/license-service.ts`
+  - `packages/license-server/src/services/credit-service.ts`
 
-### 6. Environment Configuration
-`.env.example` includes all required keys:
-- `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` — database
-- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` — payments
-- 8 Stripe price IDs (4 subscriptions + 4 top-up packs)
-- `MOCK_MODE` — toggle for local development
-- `DATABASE_URL` — legacy Drizzle ORM compatibility
+### 6) Domain/Config Consistency
 
-## Pricing
+- Removed hardcoded `github.io` payment redirects from Stripe service logic.
+- Introduced configurable web base URL and CORS origin management.
+- Files:
+  - `packages/license-server/src/services/payment-config.ts`
+  - `packages/license-server/src/services/stripe-service.ts`
+  - `packages/license-server/src/index.ts`
+  - `packages/license-server/.env.example`
 
-| Plan | Monthly | Yearly | Credits/Month |
-|------|---------|--------|---------------|
-| Free | $0 | — | 50 |
-| Pro | $9.99 | $99 | 500 |
-| Team | $29.99 | $299 | 2000 |
+### 7) Incident Auditability
 
-**Top-Up Packs**: Starter (50), Standard (120), Pro (350), Mega (800)
+- Failed webhook processing now preserves lock rows and writes error details to `lastError`.
+- Files:
+  - `packages/license-server/src/services/stripe-service.ts`
 
-## Key Files
+## Environment Variables Added
 
-| Component | Path |
-|-----------|------|
-| License Server entry | `packages/license-server/src/index.ts` |
-| Stripe service | `packages/license-server/src/services/stripe-service.ts` |
-| Credit service | `packages/license-server/src/services/credit-service.ts` |
-| License service | `packages/license-server/src/services/license-service.ts` |
-| Mock middleware | `packages/license-server/src/middleware/mock.ts` |
-| Supabase client | `packages/license-server/src/db/supabase.ts` |
-| SQL migrations | `packages/license-server/supabase/migrations/` |
-| Electron handler | `electron/license-handler.ts` |
-| Deep link (main.ts) | `electron/main.ts:610-650` |
-| License store | `apps/web/src/stores/license-store.ts` |
-| Feature gates | `apps/web/src/lib/feature-gates.ts` |
-| DB schema | `packages/db/src/schema.ts` |
+Defined in `packages/license-server/.env.example`:
 
-## Testing
+- `BETTER_AUTH_SECRET`
+- `PAYMENTS_WEB_BASE_URL`
+- `PAYMENTS_CHECKOUT_ENABLED`
+- `PAYMENTS_WEBHOOK_ENABLED`
+- `PAYMENTS_CANARY_ONLY`
+- `PAYMENTS_EMAIL_ALLOWLIST`
+- `CORS_ALLOWED_ORIGINS`
 
-### Local Development (Mock Mode)
+## Automated Test Coverage Added
+
+### License Server Unit Tests
+
+- `packages/license-server/src/middleware/auth-jwt.test.ts`
+- `packages/license-server/src/services/payment-config.test.ts`
+
+### Test Scripts
+
+- `packages/license-server/package.json`
+  - `test`
+  - `test:watch`
+- Root `package.json`
+  - `test:payments`
+
+### How To Run
+
 ```bash
+# from repo root
+bun run test:payments
+
+# or directly
 cd packages/license-server
-MOCK_MODE=true bun dev
-# Server runs on localhost:3000 with mock responses
-curl http://localhost:3000/health  # { mock: true }
-curl -H "Authorization: Bearer any" http://localhost:3000/api/license/status
+bun run test
 ```
 
-### With Real Keys
-1. Create Supabase project, run migration SQL files in order
-2. Create Stripe products + prices, copy IDs to `.env`
-3. Use `stripe listen --forward-to localhost:3000/api/stripe/webhook` for local webhook testing
+## Remaining Required Work Before Public Billing
+
+1. Run Stripe test-mode E2E for the staged scenarios in `docs/task/qcut-payment-system-real-test.md`.
+2. Execute a controlled live canary with internal allowlist enabled.
+3. Validate operational rollback/refund procedures in real environment logs and DB.
+4. Keep runbook current: `docs/task/payment-refund-rollback-runbook.md`.
+
+## Key Payment Files (Current)
+
+- `packages/license-server/src/index.ts`
+- `packages/license-server/src/routes/stripe.ts`
+- `packages/license-server/src/routes/credits.ts`
+- `packages/license-server/src/services/stripe-service.ts`
+- `packages/license-server/src/services/credit-service.ts`
+- `packages/license-server/src/services/license-service.ts`
+- `packages/license-server/src/services/payment-config.ts`
+- `packages/license-server/src/services/payment-access.ts`
+- `packages/license-server/src/middleware/auth.ts`
+- `packages/license-server/src/middleware/auth-jwt.ts`
+- `packages/db/src/schema.ts`

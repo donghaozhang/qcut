@@ -8,6 +8,11 @@ argument-hint: [command] [--flags]
 
 Run QCut's built-in TypeScript pipeline CLI (`qcut-pipeline` / `bun run pipeline`).
 
+## Active CLI Version
+
+- Active native CLI version: `1.0.0`
+- Verify with: `bun run pipeline --version`
+
 ## Additional resources
 
 - For standalone CLI commands (generate, analyze, transcribe, models, help, output formats), see [REFERENCE.md](references/REFERENCE.md)

@@ -5,19 +5,16 @@ import { usageRoutes } from "./routes/usage";
 import { stripeRoutes } from "./routes/stripe";
 import { creditsRoutes } from "./routes/credits";
 import { getMockResponse, isMockMode } from "./middleware/mock";
+import { getAllowedCorsOrigins } from "./services/payment-config";
 
 const app = new Hono();
 
 app.use(
 	"/*",
 	cors({
-		origin: [
-			"https://donghaozhang.github.io",
-			"http://localhost:3000",
-			"app://qcut",
-		],
+		origin: getAllowedCorsOrigins(),
 		allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
-		allowHeaders: ["Content-Type", "Authorization"],
+		allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
 	})
 );
 

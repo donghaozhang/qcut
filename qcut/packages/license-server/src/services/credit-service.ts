@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@qcut/db";
 import { creditBalances, creditTransactions, licenses } from "@qcut/db/schema";
 
@@ -213,6 +213,34 @@ function validatePositiveAmount({ amount }: { amount: number }): void {
 	}
 }
 
+function roundCredits({ amount }: { amount: number }): number {
+	return Number(amount.toFixed(3));
+}
+
+function resolveRefundTargetCredits({
+	totalGrantedCredits,
+	chargeAmount,
+	chargeRefundedAmount,
+}: {
+	totalGrantedCredits: number;
+	chargeAmount?: number | null;
+	chargeRefundedAmount?: number | null;
+}): number {
+	if (
+		typeof chargeAmount !== "number" ||
+		!Number.isFinite(chargeAmount) ||
+		chargeAmount <= 0 ||
+		typeof chargeRefundedAmount !== "number" ||
+		!Number.isFinite(chargeRefundedAmount) ||
+		chargeRefundedAmount < 0
+	) {
+		return totalGrantedCredits;
+	}
+
+	const refundRatio = Math.min(chargeRefundedAmount / chargeAmount, 1);
+	return roundCredits({ amount: totalGrantedCredits * refundRatio });
+}
+
 function sanitizeHistoryLimit({ limit }: { limit?: number }): number {
 	if (!limit || !Number.isInteger(limit)) {
 		return 50;
@@ -255,46 +283,60 @@ export async function deductCreditsForUser({
 }): Promise<{ success: boolean; balance: CreditBalanceInfo }> {
 	try {
 		validatePositiveAmount({ amount });
+		const normalizedAmount = roundCredits({ amount });
+		validatePositiveAmount({ amount: normalizedAmount });
 		const balance = await ensureCreditBalance({ userId });
 		const refreshed = await resetPlanCreditsIfDue({ userId, balance });
 
 		const totalAvailable = refreshed.planCredits + refreshed.topUpCredits;
-		if (totalAvailable < amount) {
+		if (totalAvailable < normalizedAmount) {
 			return {
 				success: false,
 				balance: buildCreditBalanceInfo({ balance: refreshed }),
 			};
 		}
+		const updated = await db.transaction(async (tx) => {
+			const now = new Date();
+			const [nextBalance] = await tx
+				.update(creditBalances)
+				.set({
+					planCredits: sql`GREATEST(${creditBalances.planCredits} - ${normalizedAmount}, 0)`,
+					topUpCredits: sql`CASE
+						WHEN ${creditBalances.planCredits} >= ${normalizedAmount}
+						THEN ${creditBalances.topUpCredits}
+						ELSE ${creditBalances.topUpCredits} - (${normalizedAmount} - ${creditBalances.planCredits})
+					END`,
+					updatedAt: now,
+				})
+				.where(
+					and(
+						eq(creditBalances.id, refreshed.id),
+						sql`${creditBalances.planCredits} + ${creditBalances.topUpCredits} >= ${normalizedAmount}`
+					)
+				)
+				.returning();
 
-		const planDeduction = Math.min(refreshed.planCredits, amount);
-		const topUpDeduction = amount - planDeduction;
-		const nextPlanCredits = refreshed.planCredits - planDeduction;
-		const nextTopUpCredits = refreshed.topUpCredits - topUpDeduction;
-		const now = new Date();
+			if (!nextBalance) {
+				return null;
+			}
 
-		const [updated] = await db
-			.update(creditBalances)
-			.set({
-				planCredits: nextPlanCredits,
-				topUpCredits: nextTopUpCredits,
-				updatedAt: now,
-			})
-			.where(eq(creditBalances.id, refreshed.id))
-			.returning();
+			await tx.insert(creditTransactions).values({
+				id: crypto.randomUUID(),
+				userId,
+				type: "deduction",
+				amount: -normalizedAmount,
+				balanceAfter: nextBalance.planCredits + nextBalance.topUpCredits,
+				description,
+				modelKey,
+			});
+
+			return nextBalance;
+		});
 
 		if (!updated) {
-			throw new Error("Credit deduction update returned no row");
+			const latestBalance = await getCreditBalanceByUserId({ userId });
+			return { success: false, balance: latestBalance };
 		}
-
-		await db.insert(creditTransactions).values({
-			id: crypto.randomUUID(),
-			userId,
-			type: "deduction",
-			amount: -amount,
-			balanceAfter: nextPlanCredits + nextTopUpCredits,
-			description,
-			modelKey,
-		});
 
 		return {
 			success: true,
@@ -504,6 +546,179 @@ export async function downgradeToFreeCreditsForUser({
 	} catch (error) {
 		throw new Error(
 			`Failed to downgrade credits for user ${userId}: ${error instanceof Error ? error.message : "Unknown error"}`
+		);
+	}
+}
+
+export async function reconcileTopUpRefundByStripePaymentId({
+	stripePaymentId,
+	chargeAmount,
+	chargeRefundedAmount,
+}: {
+	stripePaymentId: string;
+	chargeAmount?: number | null;
+	chargeRefundedAmount?: number | null;
+}): Promise<{
+	applied: boolean;
+	userId: string | null;
+	refundedCredits: number;
+	shortfallCredits: number;
+}> {
+	try {
+		const normalizedPaymentId = stripePaymentId.trim();
+		if (normalizedPaymentId.length === 0) {
+			return {
+				applied: false,
+				userId: null,
+				refundedCredits: 0,
+				shortfallCredits: 0,
+			};
+		}
+
+		const grantedRows = await db
+			.select({
+				userId: creditTransactions.userId,
+				amount: creditTransactions.amount,
+			})
+			.from(creditTransactions)
+			.where(
+				and(
+					eq(creditTransactions.type, "top_up"),
+					eq(creditTransactions.stripePaymentId, normalizedPaymentId)
+				)
+			);
+
+		if (grantedRows.length === 0) {
+			return {
+				applied: false,
+				userId: null,
+				refundedCredits: 0,
+				shortfallCredits: 0,
+			};
+		}
+
+		const resolvedUserId = grantedRows[0]?.userId ?? null;
+		if (!resolvedUserId) {
+			return {
+				applied: false,
+				userId: null,
+				refundedCredits: 0,
+				shortfallCredits: 0,
+			};
+		}
+
+		const hasMultipleUsers = grantedRows.some(
+			(row) => row.userId !== resolvedUserId
+		);
+		if (hasMultipleUsers) {
+			throw new Error(
+				`Top-up transactions for ${normalizedPaymentId} span multiple users`
+			);
+		}
+
+		const totalGrantedCredits = roundCredits({
+			amount: grantedRows.reduce((sum, row) => sum + row.amount, 0),
+		});
+		const refundRows = await db
+			.select({ amount: creditTransactions.amount })
+			.from(creditTransactions)
+			.where(
+				and(
+					eq(creditTransactions.userId, resolvedUserId),
+					eq(creditTransactions.type, "refund"),
+					eq(creditTransactions.stripePaymentId, normalizedPaymentId)
+				)
+			);
+		const alreadyRefundedCredits = roundCredits({
+			amount: refundRows.reduce((sum, row) => sum + Math.abs(row.amount), 0),
+		});
+
+		const targetRefundCredits = resolveRefundTargetCredits({
+			totalGrantedCredits,
+			chargeAmount,
+			chargeRefundedAmount,
+		});
+		const requiredRefundCredits = roundCredits({
+			amount: targetRefundCredits - alreadyRefundedCredits,
+		});
+
+		if (requiredRefundCredits <= 0) {
+			return {
+				applied: false,
+				userId: resolvedUserId,
+				refundedCredits: 0,
+				shortfallCredits: 0,
+			};
+		}
+
+		const balance = await ensureCreditBalance({ userId: resolvedUserId });
+		const refreshed = await resetPlanCreditsIfDue({
+			userId: resolvedUserId,
+			balance,
+		});
+		const availableCredits = roundCredits({
+			amount: refreshed.planCredits + refreshed.topUpCredits,
+		});
+		const creditsToApply = roundCredits({
+			amount: Math.min(requiredRefundCredits, availableCredits),
+		});
+		const shortfallCredits = roundCredits({
+			amount: requiredRefundCredits - creditsToApply,
+		});
+
+		if (creditsToApply <= 0) {
+			return {
+				applied: false,
+				userId: resolvedUserId,
+				refundedCredits: 0,
+				shortfallCredits,
+			};
+		}
+
+		await db.transaction(async (tx) => {
+			const now = new Date();
+			const [nextBalance] = await tx
+				.update(creditBalances)
+				.set({
+					planCredits: sql`GREATEST(${creditBalances.planCredits} - ${creditsToApply}, 0)`,
+					topUpCredits: sql`CASE
+						WHEN ${creditBalances.planCredits} >= ${creditsToApply}
+						THEN ${creditBalances.topUpCredits}
+						ELSE ${creditBalances.topUpCredits} - (${creditsToApply} - ${creditBalances.planCredits})
+					END`,
+					updatedAt: now,
+				})
+				.where(eq(creditBalances.id, refreshed.id))
+				.returning();
+
+			if (!nextBalance) {
+				throw new Error("Refund balance update returned no row");
+			}
+
+			const shortfallMessage =
+				shortfallCredits > 0
+					? `; unreconciled_shortfall_credits=${shortfallCredits}`
+					: "";
+			await tx.insert(creditTransactions).values({
+				id: crypto.randomUUID(),
+				userId: resolvedUserId,
+				type: "refund",
+				amount: -creditsToApply,
+				balanceAfter: nextBalance.planCredits + nextBalance.topUpCredits,
+				description: `Stripe refund reconciliation for ${normalizedPaymentId}${shortfallMessage}`,
+				stripePaymentId: normalizedPaymentId,
+			});
+		});
+
+		return {
+			applied: true,
+			userId: resolvedUserId,
+			refundedCredits: creditsToApply,
+			shortfallCredits,
+		};
+	} catch (error) {
+		throw new Error(
+			`Failed to reconcile refund for payment ${stripePaymentId}: ${error instanceof Error ? error.message : "Unknown error"}`
 		);
 	}
 }

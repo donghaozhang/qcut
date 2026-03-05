@@ -5,7 +5,9 @@
 	"scripts": {
 		"dev": "bun run --watch src/index.ts",
 		"start": "bun run src/index.ts",
-		"deploy": "wrangler deploy"
+		"deploy": "wrangler deploy",
+		"test": "bunx vitest run --config vitest.config.ts",
+		"test:watch": "bunx vitest --config vitest.config.ts"
 	},
 	"dependencies": {
 		"@supabase/supabase-js": "^2.49.0",
@@ -15,6 +17,7 @@
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
+		"vitest": "^4.0.0",
 		"wrangler": "^3.0.0"
 	}
 }

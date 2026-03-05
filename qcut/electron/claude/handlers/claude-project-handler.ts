@@ -26,6 +26,10 @@ const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
 	exportQuality: "high",
 };
 
+interface UpdateProjectSettingsOptions {
+	broadcast?: boolean;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -249,7 +253,8 @@ export async function getProjectSettings(
  */
 export async function updateProjectSettings(
 	projectId: string,
-	settings: Partial<ProjectSettings>
+	settings: Partial<ProjectSettings>,
+	options: UpdateProjectSettingsOptions = {}
 ): Promise<void> {
 	claudeLog.info(HANDLER_NAME, `Updating settings for project: ${projectId}`);
 
@@ -394,11 +399,16 @@ export async function updateProjectSettings(
 			"utf-8"
 		);
 
-		const broadcastSettings = {
-			...settings,
-			canvasSize: nextCanvasSize,
-		};
-		broadcastProjectSettingsUpdate({ projectId, settings: broadcastSettings });
+		if (options.broadcast !== false) {
+			const broadcastSettings = {
+				...settings,
+				canvasSize: nextCanvasSize,
+			};
+			broadcastProjectSettingsUpdate({
+				projectId,
+				settings: broadcastSettings,
+			});
+		}
 
 		claudeLog.info(HANDLER_NAME, `Successfully updated project: ${projectId}`);
 	} catch (error) {
@@ -416,7 +426,19 @@ export function broadcastProjectSettingsUpdate({
 	settings: Partial<ProjectSettings>;
 }): void {
 	try {
-		const windows = BrowserWindow.getAllWindows();
+		const browserWindowApi = BrowserWindow as unknown as
+			| {
+					getAllWindows?: () => BrowserWindow[];
+			  }
+			| undefined;
+		if (
+			!browserWindowApi ||
+			typeof browserWindowApi.getAllWindows !== "function"
+		) {
+			return;
+		}
+
+		const windows = browserWindowApi.getAllWindows();
 		for (const win of windows) {
 			try {
 				win.webContents.send("claude:project:updated", projectId, settings);

@@ -54,7 +54,7 @@ export async function createLicense({
 }): Promise<typeof licenses.$inferSelect> {
 	try {
 		const parsedPlan = parsePlan({ plan });
-		const [license] = await db
+		const [inserted] = await db
 			.insert(licenses)
 			.values({
 				id: crypto.randomUUID(),
@@ -63,13 +63,22 @@ export async function createLicense({
 				status: "active",
 				maxDevices: getMaxDevicesForPlan({ plan: parsedPlan }),
 			})
+			.onConflictDoNothing({ target: licenses.userId })
 			.returning();
 
-		if (!license) {
-			throw new Error("Insert returned no license row");
+		if (inserted) {
+			return inserted;
 		}
 
-		return license;
+		const [existing] = await db
+			.select()
+			.from(licenses)
+			.where(eq(licenses.userId, userId))
+			.limit(1);
+		if (!existing) {
+			throw new Error("License upsert fallback returned no row");
+		}
+		return existing;
 	} catch (error) {
 		throw new Error(
 			`Failed to create license for user ${userId}: ${error instanceof Error ? error.message : "Unknown error"}`
