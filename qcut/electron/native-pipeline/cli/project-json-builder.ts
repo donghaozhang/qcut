@@ -210,6 +210,83 @@ export async function buildProjectJSON(
 // Helpers
 // ---------------------------------------------------------------------------
 
+async function safeGet<T>({
+	client,
+	path,
+	fallback,
+}: {
+	client: EditorApiClient;
+	path: string;
+	fallback: T;
+}): Promise<T> {
+	try {
+		return await client.get<T>(path);
+	} catch {
+		return fallback;
+	}
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function findProjectInNavigator({
+	payload,
+	projectId,
+}: {
+	payload: unknown;
+	projectId: string;
+}): NavigatorProject | null {
+	try {
+		const normalized = normalizeNavigatorPayload({ payload });
+		if (!normalized) return null;
+
+		for (const project of normalized.projects) {
+			if (project.id === projectId) {
+				return project;
+			}
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
+
+function normalizeNavigatorPayload({
+	payload,
+}: {
+	payload: unknown;
+}): NavigatorProjectsPayload | null {
+	try {
+		if (!isRecord(payload)) return null;
+		if (!Array.isArray(payload.projects)) return null;
+
+		const projects: NavigatorProject[] = [];
+		for (const entry of payload.projects) {
+			if (!isRecord(entry)) continue;
+			const id = str(entry.id, "");
+			if (!id) continue;
+
+			projects.push({
+				id,
+				name: str(entry.name, "Untitled Project"),
+				createdAt: str(entry.createdAt, ""),
+				updatedAt: str(entry.updatedAt, ""),
+			});
+		}
+
+		return {
+			projects,
+			activeProjectId:
+				typeof payload.activeProjectId === "string"
+					? payload.activeProjectId
+					: null,
+		};
+	} catch {
+		return null;
+	}
+}
+
 function str(value: unknown, fallback: string): string {
 	return typeof value === "string" && value.length > 0 ? value : fallback;
 }
