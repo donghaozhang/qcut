@@ -235,19 +235,7 @@ jobs:
             cp build/icon.png build/icons/512x512.png
           elif [ -f build/icon.ico ] && command -v python3 >/dev/null 2>&1; then
             python3 -m pip install --user --quiet pillow
-            python3 - <<'PY'
-from PIL import Image
-from pathlib import Path
-
-icon_dir = Path("build/icons")
-icon_dir.mkdir(parents=True, exist_ok=True)
-
-source = Path("build/icon.ico")
-img = Image.open(source)
-resample = getattr(Image, "Resampling", Image).LANCZOS
-img.resize((256, 256), resample).save(icon_dir / "256x256.png")
-img.resize((512, 512), resample).save(icon_dir / "512x512.png")
-PY
+            python3 -c "from PIL import Image; from pathlib import Path; icon_dir = Path('build/icons'); icon_dir.mkdir(parents=True, exist_ok=True); img = Image.open('build/icon.ico'); resample = getattr(Image, 'Resampling', Image).LANCZOS; img.resize((256, 256), resample).save(icon_dir / '256x256.png'); img.resize((512, 512), resample).save(icon_dir / '512x512.png')"
           elif command -v convert >/dev/null 2>&1; then
             convert "build/icon.ico[0]" -resize 256x256 build/icons/256x256.png
             convert "build/icon.ico[0]" -resize 512x512 build/icons/512x512.png
