@@ -398,7 +398,9 @@ describe("Claude HTTP Server", () => {
 		expect(res.body.data.deepChecks.checks.ipcMainReady).toBeDefined();
 		expect(res.body.data.deepChecks.checks.rendererResponders).toBeDefined();
 		expect(res.body.data.deepChecks.checks.utilityMainBridge).toBeDefined();
-		expect(res.body.data.deepChecks.checks.autoEditApplyCutsProbe).toBeDefined();
+		expect(
+			res.body.data.deepChecks.checks.autoEditApplyCutsProbe
+		).toBeDefined();
 	});
 
 	it("GET /api/claude/capabilities returns capability manifest", async () => {

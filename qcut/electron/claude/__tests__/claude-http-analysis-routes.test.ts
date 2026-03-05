@@ -88,11 +88,7 @@ import * as autoEditHandler from "../handlers/claude-auto-edit-handler.js";
 import * as cutsHandler from "../handlers/claude-cuts-handler.js";
 import * as rangeHandler from "../handlers/claude-range-handler.js";
 
-function createFetch({
-	getPort,
-}: {
-	getPort: () => number;
-}): (
+function createFetch({ getPort }: { getPort: () => number }): (
 	path: string,
 	options?: {
 		method?: string;
@@ -256,20 +252,23 @@ describe("registerAnalysisRoutes proxy hooks", () => {
 			},
 		});
 
-		const response = await fetchJson("/api/claude/timeline/proj_1/auto-edit/start", {
-			method: "POST",
-			body: JSON.stringify({
-				elementId: "el_1",
-				mediaId: "media_1",
-				removeFillers: true,
-			}),
-		});
+		const response = await fetchJson(
+			"/api/claude/timeline/proj_1/auto-edit/start",
+			{
+				method: "POST",
+				body: JSON.stringify({
+					elementId: "el_1",
+					mediaId: "media_1",
+					removeFillers: true,
+				}),
+			}
+		);
 
 		expect(response.status).toBe(200);
 		expect((response.body as { success: boolean }).success).toBe(true);
-		expect(
-			(response.body as { data: { jobId: string } }).data.jobId
-		).toBe("proxy_job_1");
+		expect((response.body as { data: { jobId: string } }).data.jobId).toBe(
+			"proxy_job_1"
+		);
 		expect(startAutoEditJobProxy).toHaveBeenCalledWith(
 			"proj_1",
 			expect.objectContaining({

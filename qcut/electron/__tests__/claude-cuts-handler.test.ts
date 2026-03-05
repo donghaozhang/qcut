@@ -331,7 +331,9 @@ describe("claude-cuts-handler", () => {
 					elementId: "el_abc",
 					cuts: [{ start: 1, end: 2 }],
 				})
-			).rejects.toThrow("Editor renderer not available for batch cut execution");
+			).rejects.toThrow(
+				"Editor renderer not available for batch cut execution"
+			);
 		});
 
 		it("rejects when ipcMain bridge is unavailable", async () => {
@@ -402,7 +404,9 @@ describe("claude-cuts-handler", () => {
 
 			await expect(
 				probeBatchCutExecutionReadiness({ win: mockWindow })
-			).rejects.toThrow("Editor renderer not available for batch cut readiness probe");
+			).rejects.toThrow(
+				"Editor renderer not available for batch cut readiness probe"
+			);
 		});
 	});
 });

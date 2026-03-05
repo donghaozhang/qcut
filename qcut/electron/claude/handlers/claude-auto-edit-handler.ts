@@ -129,9 +129,7 @@ function toAutoEditStageError({
 	try {
 		const status = error instanceof HttpError ? error.status : 500;
 		const baseMessage =
-			error instanceof HttpError
-				? error.message
-				: "Auto-edit pipeline failed";
+			error instanceof HttpError ? error.message : "Auto-edit pipeline failed";
 		const cause =
 			error instanceof Error
 				? error.message

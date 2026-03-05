@@ -288,7 +288,9 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 					checks: {
 						...buildUnavailableMainChecks({
 							message:
-								error instanceof Error ? error.message : "Bridge request failed",
+								error instanceof Error
+									? error.message
+									: "Bridge request failed",
 						}),
 						utilityMainBridge: bridgeCheck,
 					},

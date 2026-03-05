@@ -301,7 +301,7 @@ export class EditorApiClient {
 				});
 				const message = context
 					? `${job.message ?? "Job failed"} [${context}]`
-					: job.message ?? "Job failed";
+					: (job.message ?? "Job failed");
 				throw new EditorApiError(message, undefined, context ?? job.message);
 			}
 			if (job.status === "cancelled") {
@@ -418,10 +418,7 @@ export class EditorApiClient {
 					}
 				}
 			}
-			if (
-				typeof job.correlationId === "string" &&
-				job.correlationId.trim()
-			) {
+			if (typeof job.correlationId === "string" && job.correlationId.trim()) {
 				parts.push(`correlationId=${job.correlationId.trim()}`);
 			}
 			return parts.length > 0 ? parts.join(", ") : null;

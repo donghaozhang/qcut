@@ -281,19 +281,21 @@ describe("claude-auto-edit-handler", () => {
 				},
 			} as unknown as BrowserWindow;
 
-				await expect(
-					autoEdit(
-						"proj_1",
+			await expect(
+				autoEdit(
+					"proj_1",
 					{
 						elementId: "el_1",
 						mediaId: "media_1",
 						dryRun: false,
 					},
-						mockWindow
-					)
-				).rejects.toThrow("Editor renderer closed during auto-edit cut execution");
-				expect(mockExecuteBatchCuts).not.toHaveBeenCalled();
-			});
+					mockWindow
+				)
+			).rejects.toThrow(
+				"Editor renderer closed during auto-edit cut execution"
+			);
+			expect(mockExecuteBatchCuts).not.toHaveBeenCalled();
+		});
 
 		it("calls transcribeMedia with correct parameters", async () => {
 			await autoEdit("proj_1", {
@@ -419,11 +421,15 @@ describe("auto-edit async jobs", () => {
 			isDestroyed: vi.fn(() => false),
 		} as unknown as BrowserWindow;
 
-		const { jobId } = startAutoEditJob("proj_1", {
-			elementId: "el_1",
-			mediaId: "media_1",
-			dryRun: false,
-		}, mockWindow);
+		const { jobId } = startAutoEditJob(
+			"proj_1",
+			{
+				elementId: "el_1",
+				mediaId: "media_1",
+				dryRun: false,
+			},
+			mockWindow
+		);
 
 		await vi.waitFor(() => {
 			const job = getAutoEditJobStatus(jobId);

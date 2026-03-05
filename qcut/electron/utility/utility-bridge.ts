@@ -361,7 +361,8 @@ async function handleMainRequest(
 				}
 				return win;
 			},
-			requestTimeline: async ({ win }) => await requestTimelineFromRenderer(win),
+			requestTimeline: async ({ win }) =>
+				await requestTimelineFromRenderer(win),
 		});
 	}
 
@@ -428,7 +429,9 @@ async function handleMainRequest(
 				throw new Error("Missing 'projectId' for timeline:auto-edit:start");
 			}
 			if (!req.request) {
-				throw new Error("Missing 'request' payload for timeline:auto-edit:start");
+				throw new Error(
+					"Missing 'request' payload for timeline:auto-edit:start"
+				);
 			}
 			return startAutoEditJob(req.projectId.trim(), req.request, win);
 		}

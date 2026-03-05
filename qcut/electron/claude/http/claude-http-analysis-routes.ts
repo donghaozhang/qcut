@@ -98,9 +98,7 @@ function normalizeWords(words: RawWord[]): Array<{
 
 interface AnalysisRoutesAccessor {
 	getWindow: () => BrowserWindow;
-	executeBatchCuts?: (
-		request: BatchCutRequest
-	) => Promise<BatchCutResponse>;
+	executeBatchCuts?: (request: BatchCutRequest) => Promise<BatchCutResponse>;
 	executeDeleteRange?: (
 		request: ClaudeRangeDeleteRequest
 	) => Promise<ClaudeRangeDeleteResponse>;

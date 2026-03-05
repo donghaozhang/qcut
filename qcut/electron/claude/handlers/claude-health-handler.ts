@@ -1,6 +1,9 @@
 import { ipcMain } from "electron";
 import type { BrowserWindow } from "electron";
-import { assertIpcMainReady, assertRendererWindowReady } from "../utils/renderer-ipc-guard.js";
+import {
+	assertIpcMainReady,
+	assertRendererWindowReady,
+} from "../utils/renderer-ipc-guard.js";
 import { probeBatchCutExecutionReadiness } from "./claude-cuts-handler.js";
 
 export const DEEP_HEALTH_CHECK_STATUSES = {
@@ -139,11 +142,7 @@ async function runDeepHealthCheck({
 	}
 }
 
-function ensureTimelineShape({
-	timeline,
-}: {
-	timeline: unknown;
-}): void {
+function ensureTimelineShape({ timeline }: { timeline: unknown }): void {
 	try {
 		if (typeof timeline !== "object" || timeline === null) {
 			throw new Error("Timeline payload missing");
