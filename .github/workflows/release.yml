@@ -231,21 +231,23 @@ jobs:
           set -euo pipefail
           mkdir -p build/icons
           if [ -f build/icon.png ]; then
-            bun -e '
-              import sharp from "sharp";
+            cp build/icon.png build/icons/256x256.png
+            cp build/icon.png build/icons/512x512.png
+          elif [ -f build/icon.ico ] && command -v python3 >/dev/null 2>&1; then
+            python3 -m pip install --user --quiet pillow
+            python3 - <<'PY'
+from PIL import Image
+from pathlib import Path
 
-              async function main() {
-                try {
-                  await sharp("build/icon.png").resize(256, 256).png().toFile("build/icons/256x256.png");
-                  await sharp("build/icon.png").resize(512, 512).png().toFile("build/icons/512x512.png");
-                } catch (error) {
-                  console.error("Failed to generate Linux icons from build/icon.png", error);
-                  process.exit(1);
-                }
-              }
+icon_dir = Path("build/icons")
+icon_dir.mkdir(parents=True, exist_ok=True)
 
-              await main();
-            '
+source = Path("build/icon.ico")
+img = Image.open(source)
+resample = getattr(Image, "Resampling", Image).LANCZOS
+img.resize((256, 256), resample).save(icon_dir / "256x256.png")
+img.resize((512, 512), resample).save(icon_dir / "512x512.png")
+PY
           elif command -v convert >/dev/null 2>&1; then
             convert "build/icon.ico[0]" -resize 256x256 build/icons/256x256.png
             convert "build/icon.ico[0]" -resize 512x512 build/icons/512x512.png
@@ -253,7 +255,7 @@ jobs:
             magick convert "build/icon.ico[0]" -resize 256x256 build/icons/256x256.png
             magick convert "build/icon.ico[0]" -resize 512x512 build/icons/512x512.png
           else
-            echo "No supported icon source/tool found (missing build/icon.png and ImageMagick)"
+            echo "No supported icon source/tool found (need build/icon.png, python3+pillow, or ImageMagick)"
             exit 1
           fi
 
