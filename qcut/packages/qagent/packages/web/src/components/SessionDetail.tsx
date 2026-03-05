@@ -9,6 +9,12 @@ import { TerminalMirror } from "./TerminalMirror";
 import { CLITerminalPanel } from "./CLITerminalPanel";
 import { PRCard, buildGitHubBranchUrl, buildGitHubRepoUrl } from "./PRCard";
 import { ActivityDot } from "./ActivityDot";
+import {
+	formatTokenCountCompact,
+	formatTokenCountFull,
+	formatUsd,
+	toDisplayTokenUsage,
+} from "@/lib/token-usage";
 
 interface OrchestratorZones {
 	merge: number;
@@ -345,6 +351,20 @@ export function SessionDetail({
 		label: session.activity ?? "unknown",
 		color: "var(--color-text-muted)",
 	};
+	const tokenUsage = toDisplayTokenUsage({ usage: session.tokenUsage });
+	const totalTokensLabel = formatTokenCountCompact({
+		tokens: tokenUsage.totalTokens,
+	});
+	const inputTokensLabel = formatTokenCountFull({
+		tokens: tokenUsage.inputTokens,
+	});
+	const outputTokensLabel = formatTokenCountFull({
+		tokens: tokenUsage.outputTokens,
+	});
+	const hasEstimatedCost = tokenUsage.estimatedCostUsd > 0;
+	const costLabel = hasEstimatedCost
+		? formatUsd({ usd: tokenUsage.estimatedCostUsd })
+		: null;
 
 	const accentColor = "var(--color-accent)";
 
@@ -530,6 +550,27 @@ export function SessionDetail({
 										{session.issueLabel || session.issueUrl}
 									</a>
 								)}
+
+								{totalTokensLabel && inputTokensLabel && outputTokensLabel && (
+										<>
+											{session.issueUrl && (
+												<span className="text-[var(--color-text-tertiary)]">
+													&middot;
+												</span>
+											)}
+											<span
+												className="rounded-[4px] border border-[rgba(88,166,255,0.35)] bg-[rgba(88,166,255,0.08)] px-2 py-0.5 font-[var(--font-mono)] text-[10px] text-[var(--color-accent)]"
+												title={`${inputTokensLabel} in · ${outputTokensLabel} out`}
+											>
+												{totalTokensLabel} tok
+											</span>
+											{costLabel && (
+												<span className="rounded-[4px] border border-[var(--color-border-subtle)] bg-[rgba(255,255,255,0.04)] px-2 py-0.5 font-[var(--font-mono)] text-[10px] text-[var(--color-text-secondary)]">
+													{costLabel}
+												</span>
+											)}
+										</>
+									)}
 							</div>
 
 							<ClientTimestamps

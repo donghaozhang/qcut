@@ -14,13 +14,7 @@ const SOURCE_DIR = ".claude/skills";
 const TARGET_DIR = "resources/default-skills";
 
 // Skills to sync (add new bundled skills here)
-const BUNDLED_SKILLS = [
-	"ai-content-pipeline",
-	"ffmpeg-skill",
-	"organize-project",
-	"qcut-api",
-	"qcut-toolkit",
-];
+const BUNDLED_SKILLS = ["ai-content-pipeline", "native-cli", "qcut-toolkit"];
 
 function syncSkills() {
 	process.stdout.write(

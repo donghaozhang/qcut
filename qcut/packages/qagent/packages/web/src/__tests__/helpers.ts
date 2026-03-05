@@ -17,8 +17,10 @@ export function makeSession(
 		summaryIsFallback: false,
 		createdAt: new Date().toISOString(),
 		lastActivityAt: new Date().toISOString(),
+		tokenUsage: null,
 		pr: null,
 		metadata: {},
+		managed: true,
 		...overrides,
 	};
 }

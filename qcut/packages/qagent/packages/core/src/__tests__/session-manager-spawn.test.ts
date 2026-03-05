@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createSessionManager } from "../session-manager.js";
 import { writeMetadata, readMetadata, readMetadataRaw } from "../metadata.js";
@@ -406,6 +406,26 @@ describe("spawn", () => {
 		// Uses session/{sessionId} to avoid conflicts with default branch
 		expect(session.branch).toMatch(/^session\/app-\d+$/);
 		expect(session.branch).not.toBe("main");
+	});
+
+	it("includes workflow contract prompt in spawned agent prompt", async () => {
+		const workflowDir = join(env.tmpDir, "my-app", ".qagent");
+		mkdirSync(workflowDir, { recursive: true });
+		writeFileSync(
+			join(workflowDir, "WORKFLOW.md"),
+			"---\\npolicy_mode: enforced\\n---\\nAlways update the single workpad."
+		);
+
+		const sm = createSessionManager({
+			config: env.config,
+			registry: env.mockRegistry,
+		});
+
+		await sm.spawn({ projectId: "my-app", issueId: "INT-100" });
+
+		const launchArg = vi.mocked(env.mockAgent.getLaunchCommand).mock.calls[0]?.[0];
+		expect(launchArg?.prompt).toContain("## Workflow Contract");
+		expect(launchArg?.prompt).toContain("Always update the single workpad.");
 	});
 });
 

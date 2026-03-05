@@ -8,6 +8,7 @@
 
 import { listTmuxSessions, type TmuxSessionInfo } from "@composio/ao-core";
 import type { DashboardSession } from "./types.js";
+import { emptyDashboardTokenUsage } from "./token-usage";
 
 /**
  * Build a minimal DashboardSession for an unmanaged tmux session.
@@ -28,6 +29,7 @@ function tmuxInfoToDashboard(info: TmuxSessionInfo): DashboardSession {
 		summaryIsFallback: false,
 		createdAt: info.created || now,
 		lastActivityAt: info.created || now,
+		tokenUsage: emptyDashboardTokenUsage(),
 		pr: null,
 		metadata: {
 			windows: String(info.windows),

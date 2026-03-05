@@ -35,6 +35,7 @@ async function registerOptionalCommands(prog: Command): Promise<void> {
 		{ module: "./commands/dashboard.js", fns: ["registerDashboard"] },
 		{ module: "./commands/open.js", fns: ["registerOpen"] },
 		{ module: "./commands/pr-comments.js", fns: ["registerPRComments"] },
+		{ module: "./commands/policy.js", fns: ["registerPolicy"] },
 		{ module: "./commands/team.js", fns: ["registerTeam"] },
 		{ module: "./commands/harness.js", fns: ["registerHarness"] },
 	];

@@ -57,6 +57,78 @@ async function seedCodexSessionFile({
 	return filePath;
 }
 
+/** Handle encode claude project path. */
+function encodeClaudeProjectPath({
+	cwd,
+}: {
+	cwd: string;
+}): string {
+	try {
+		const normalized = cwd.replace(/\\/g, "/");
+		return normalized.replace(/:/g, "").replace(/[/.]/g, "-");
+	} catch {
+		return "";
+	}
+}
+
+/** Handle seed claude session file. */
+async function seedClaudeSessionFile({
+	homeDir,
+	cwd,
+	fileName,
+	startedAt,
+	usageLines,
+	mtimeMs,
+}: {
+	homeDir: string;
+	cwd: string;
+	fileName: string;
+	startedAt: string;
+	usageLines: Array<{
+		inputTokens?: number;
+		outputTokens?: number;
+		cacheReadInputTokens?: number;
+		cacheCreationInputTokens?: number;
+	}>;
+	mtimeMs: number;
+}): Promise<string> {
+	const encoded = encodeClaudeProjectPath({ cwd });
+	const dir = join(homeDir, ".claude", "projects", encoded);
+	await mkdir(dir, { recursive: true });
+	const filePath = join(dir, fileName);
+
+	const records: string[] = [];
+	records.push(
+		JSON.stringify({
+			type: "system",
+			timestamp: startedAt,
+			sessionId: fileName.replace(".jsonl", ""),
+			cwd,
+		}),
+	);
+	for (const usage of usageLines) {
+		records.push(
+			JSON.stringify({
+				type: "assistant",
+				timestamp: startedAt,
+				message: {
+					role: "assistant",
+					usage: {
+						input_tokens: usage.inputTokens ?? 0,
+						output_tokens: usage.outputTokens ?? 0,
+						cache_read_input_tokens: usage.cacheReadInputTokens ?? 0,
+						cache_creation_input_tokens: usage.cacheCreationInputTokens ?? 0,
+					},
+				},
+			}),
+		);
+	}
+	await writeFile(filePath, `${records.join("\n")}\n`, "utf-8");
+	const mtime = new Date(mtimeMs);
+	await utimes(filePath, mtime, mtime);
+	return filePath;
+}
+
 /** Handle import jsonl module. */
 async function importJsonlModule({
 	homeDir,
@@ -168,5 +240,104 @@ describe("findCodexSessionFileForContext", () => {
 
 		expect(selected).toBe(matchingNumericTimestamp);
 	});
-});
 
+	it("extracts codex token usage from matching session file", async () => {
+		const cwd = "/repo/qcut/codex-usage";
+		const filePath = await seedCodexSessionFile({
+			homeDir: tempHomeDir,
+			fileName: "rollout-codex-usage.jsonl",
+			cwd,
+			timestamp: "2026-03-05T06:00:00.000Z",
+			mtimeMs: Date.parse("2026-03-05T06:05:00.000Z"),
+		});
+		await writeFile(
+			filePath,
+			[
+				JSON.stringify({
+					type: "session_meta",
+					timestamp: "2026-03-05T06:00:00.000Z",
+					payload: {
+						id: "rollout-codex-usage",
+						timestamp: "2026-03-05T06:00:00.000Z",
+						cwd,
+					},
+				}),
+				JSON.stringify({
+					type: "event_msg",
+					payload: {
+						type: "token_count",
+						info: {
+							total_token_usage: {
+								input_tokens: 10_000,
+								output_tokens: 2_000,
+								total_tokens: 12_000,
+							},
+						},
+					},
+				}),
+			].join("\n") + "\n",
+			"utf-8",
+		);
+
+		const { resolveCLISessionTokenUsage } = await importJsonlModule({
+			homeDir: tempHomeDir,
+		});
+		const usage = await resolveCLISessionTokenUsage({
+			agent: "codex",
+			cwd,
+			processStartedAt: "2026-03-05T06:00:01.000Z",
+		});
+
+		expect(usage).toEqual({
+			inputTokens: 10_000,
+			outputTokens: 2_000,
+			estimatedCostUsd: 0,
+		});
+	});
+
+	it("selects claude file by process start time and aggregates usage", async () => {
+		const cwd = "/repo/qcut/claude-usage";
+		await seedClaudeSessionFile({
+			homeDir: tempHomeDir,
+			cwd,
+			fileName: "session-newer.jsonl",
+			startedAt: "2026-03-05T10:00:00.000Z",
+			usageLines: [{ inputTokens: 5, outputTokens: 3 }],
+			mtimeMs: Date.parse("2026-03-05T10:30:00.000Z"),
+		});
+		await seedClaudeSessionFile({
+			homeDir: tempHomeDir,
+			cwd,
+			fileName: "session-target.jsonl",
+			startedAt: "2026-03-05T08:00:00.000Z",
+			usageLines: [
+				{
+					inputTokens: 120,
+					outputTokens: 30,
+					cacheReadInputTokens: 20,
+					cacheCreationInputTokens: 10,
+				},
+				{
+					inputTokens: 80,
+					outputTokens: 15,
+				},
+			],
+			mtimeMs: Date.parse("2026-03-05T09:00:00.000Z"),
+		});
+
+		const { resolveCLISessionTokenUsage } = await importJsonlModule({
+			homeDir: tempHomeDir,
+		});
+		const usage = await resolveCLISessionTokenUsage({
+			agent: "claude-code",
+			cwd,
+			processStartedAt: "2026-03-05T08:00:02.000Z",
+		});
+
+		expect(usage).toEqual({
+			inputTokens: 230,
+			outputTokens: 45,
+			estimatedCostUsd: (230 / 1_000_000) * 3.0 + (45 / 1_000_000) * 15.0,
+		});
+	});
+});

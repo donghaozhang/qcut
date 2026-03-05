@@ -292,6 +292,31 @@ export interface Tracker {
 
   /** Optional: create a new issue */
   createIssue?(input: CreateIssueInput, project: ProjectConfig): Promise<Issue>;
+
+  /** Optional: read the canonical workpad/progress artifact for an issue */
+  getWorkpad?(
+    identifier: string,
+    project: ProjectConfig,
+  ): Promise<Workpad | null>;
+
+  /** Optional: create or update a canonical workpad/progress artifact */
+  upsertWorkpad?(
+    input: UpsertWorkpadInput,
+    project: ProjectConfig,
+  ): Promise<Workpad>;
+
+  /** Optional: transition tracker issue state via normalized state name */
+  transitionIssueState?(
+    identifier: string,
+    state: string,
+    project: ProjectConfig,
+  ): Promise<void>;
+
+  /** Optional: list unresolved actionable review items for an issue */
+  listActionableReviewItems?(
+    identifier: string,
+    project: ProjectConfig,
+  ): Promise<ActionableReviewItem[]>;
 }
 
 export interface Issue {
@@ -325,6 +350,30 @@ export interface CreateIssueInput {
   labels?: string[];
   assignee?: string;
   priority?: number;
+}
+
+export interface Workpad {
+  id: string;
+  body: string;
+  url?: string;
+  updatedAt?: Date;
+}
+
+export interface UpsertWorkpadInput {
+  identifier: string;
+  body: string;
+  id?: string;
+}
+
+export interface ActionableReviewItem {
+  id: string;
+  source: "human" | "automated";
+  summary: string;
+  url?: string;
+  path?: string;
+  line?: number;
+  severity?: "error" | "warning" | "info";
+  isResolved: boolean;
 }
 
 // =============================================================================

@@ -73,6 +73,37 @@ export type {
 export { buildPrompt, BASE_AGENT_PROMPT } from "./prompt-builder.js";
 export type { PromptBuildConfig } from "./prompt-builder.js";
 
+// Workflow contract + policy gates
+export {
+	DEFAULT_WORKFLOW_POLICY,
+	POLICY_BLOCKER_CLASS,
+	loadWorkflowContract,
+	parseWorkflowContract,
+	resolveEffectiveWorkflowPolicy,
+	resolveWorkflowContractPath,
+} from "./workflow-contract.js";
+export type {
+	PolicyBlockerClass,
+	WorkflowPolicy,
+	WorkflowReviewGate,
+	WorkflowMergeGate,
+	WorkflowBlockedPolicy,
+	WorkflowContract,
+	WorkflowContractPathResult,
+	EffectiveWorkflowPolicy,
+} from "./workflow-contract.js";
+export { collectPRFeedbackSweep } from "./review-sweep.js";
+export type {
+	PRFeedbackActionItem,
+	PRFeedbackSweepResult,
+} from "./review-sweep.js";
+export { evaluatePolicyGate } from "./policy-gate.js";
+export type {
+	PolicyGateViolation,
+	RequiredCheckStatus,
+	PolicyGateResult,
+} from "./policy-gate.js";
+
 // Orchestrator prompt — generates orchestrator context for `ao start`
 export { generateOrchestratorPrompt } from "./orchestrator-prompt.js";
 export type { OrchestratorPromptConfig } from "./orchestrator-prompt.js";

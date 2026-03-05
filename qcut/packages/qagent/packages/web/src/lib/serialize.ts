@@ -17,6 +17,10 @@ import type {
 } from "@composio/ao-core";
 import type { DashboardSession, DashboardPR, DashboardStats } from "./types.js";
 import { TTLCache, prCache, prCacheKey, type PREnrichmentData } from "./cache";
+import {
+	emptyDashboardTokenUsage,
+	toDashboardTokenUsage,
+} from "./token-usage";
 
 /** Cache for issue titles (5 min TTL — issue titles rarely change) */
 const issueTitleCache = new TTLCache<string>(300_000);
@@ -62,6 +66,9 @@ export function sessionToDashboard(session: Session): DashboardSession {
 			: false,
 		createdAt: session.createdAt.toISOString(),
 		lastActivityAt: session.lastActivityAt.toISOString(),
+		tokenUsage:
+			toDashboardTokenUsage({ usage: session.agentInfo?.cost }) ??
+			emptyDashboardTokenUsage(),
 		pr: session.pr ? basicPRToDashboard(session.pr) : null,
 		metadata: session.metadata,
 		managed: true,
@@ -284,8 +291,8 @@ export function enrichSessionIssue(
 }
 
 /**
- * Enrich a DashboardSession's summary by calling agent.getSessionInfo().
- * Only fetches when the session doesn't already have a summary.
+ * Enrich a DashboardSession's summary/token usage by calling agent.getSessionInfo().
+ * Only fetches when at least one of summary/token usage is missing.
  * Reads the agent's JSONL file on disk — fast local I/O, not an API call.
  */
 export async function enrichSessionAgentSummary(
@@ -293,12 +300,27 @@ export async function enrichSessionAgentSummary(
 	coreSession: Session,
 	agent: Agent
 ): Promise<void> {
-	if (dashboard.summary) return;
+	const needsSummary = !dashboard.summary;
+	const needsTokenUsage =
+		!dashboard.tokenUsage ||
+		(dashboard.tokenUsage.totalTokens === 0 &&
+			dashboard.tokenUsage.estimatedCostUsd === 0);
+	if (!needsSummary && !needsTokenUsage) return;
+
 	try {
 		const info = await agent.getSessionInfo(coreSession);
-		if (info?.summary) {
+		if (!info) return;
+
+		if (needsSummary && info.summary) {
 			dashboard.summary = info.summary;
 			dashboard.summaryIsFallback = info.summaryIsFallback ?? false;
+		}
+
+		if (needsTokenUsage) {
+			const tokenUsage = toDashboardTokenUsage({ usage: info.cost });
+			if (tokenUsage) {
+				dashboard.tokenUsage = tokenUsage;
+			}
 		}
 	} catch {
 		// Can't read agent session info — keep summary null
@@ -363,7 +385,13 @@ export async function enrichSessionsMetadata(
 
 	// Enrich agent summaries (reads agent's JSONL — local I/O, not an API call)
 	const summaryPromises = coreSessions.map((core, i) => {
-		if (dashboardSessions[i].summary) return Promise.resolve();
+		const tokenUsage = dashboardSessions[i].tokenUsage;
+		const hasReportedTokenUsage =
+			tokenUsage &&
+			(tokenUsage.totalTokens > 0 || tokenUsage.estimatedCostUsd > 0);
+		if (dashboardSessions[i].summary && hasReportedTokenUsage) {
+			return Promise.resolve();
+		}
 		const agentName = projects[i]?.agent ?? config.defaults.agent;
 		if (!agentName) return Promise.resolve();
 		const agent = registry.get<Agent>("agent", agentName);

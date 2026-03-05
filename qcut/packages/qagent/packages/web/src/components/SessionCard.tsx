@@ -12,6 +12,12 @@ import {
 import { CI_STATUS } from "@composio/ao-core/types";
 import { cn } from "@/lib/cn";
 import { getSessionTitle } from "@/lib/format";
+import {
+	formatTokenCountCompact,
+	formatTokenCountFull,
+	formatUsd,
+	toDisplayTokenUsage,
+} from "@/lib/token-usage";
 import { PRStatus } from "./PRStatus";
 import { CICheckList } from "./CIBadge";
 import { ActivityDot } from "./ActivityDot";
@@ -111,6 +117,20 @@ export function SessionCard({
 	const unmanagedAgentBadgeClass = AGENT_BADGE_CLASS_BY_AGENT[unmanagedAgent];
 
 	const title = getSessionTitle(session);
+	const tokenUsage = toDisplayTokenUsage({ usage: session.tokenUsage });
+	const totalTokensLabel = formatTokenCountCompact({
+		tokens: tokenUsage.totalTokens,
+	});
+	const inputTokensLabel = formatTokenCountFull({
+		tokens: tokenUsage.inputTokens,
+	});
+	const outputTokensLabel = formatTokenCountFull({
+		tokens: tokenUsage.outputTokens,
+	});
+	const hasEstimatedCost = tokenUsage.estimatedCostUsd > 0;
+	const costLabel = hasEstimatedCost
+		? formatUsd({ usd: tokenUsage.estimatedCostUsd })
+		: null;
 
 	return (
 		<div
@@ -243,6 +263,22 @@ export function SessionCard({
 					</span>
 				)}
 				{pr && <PRStatus pr={pr} />}
+				{totalTokensLabel && (
+					<span
+						className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(88,166,255,0.1)] px-1.5 py-0.5 text-[10px] text-[var(--color-accent)]"
+						title={`${inputTokensLabel} in · ${outputTokensLabel} out`}
+					>
+						<span className="font-[var(--font-mono)]">{totalTokensLabel} tok</span>
+						{costLabel && (
+							<>
+								<span className="text-[var(--color-text-tertiary)]">
+									&middot;
+								</span>
+								<span>{costLabel}</span>
+							</>
+						)}
+					</span>
+				)}
 				{session.metadata?.terminalApp && (
 					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
 						<svg className="h-2.5 w-2.5 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -391,6 +427,27 @@ export function SessionCard({
 								{session.issueLabel || session.issueUrl}
 								{session.issueTitle && `: ${session.issueTitle}`}
 							</a>
+						</DetailSection>
+					)}
+
+					{inputTokensLabel && outputTokensLabel && totalTokensLabel && (
+						<DetailSection label="Usage">
+							<p className="text-[12px] text-[var(--color-text-secondary)]">
+								<span className="font-[var(--font-mono)]">{inputTokensLabel}</span>{" "}
+								in ·{" "}
+								<span className="font-[var(--font-mono)]">{outputTokensLabel}</span>{" "}
+								out ·{" "}
+								<span className="font-[var(--font-mono)]">
+									{totalTokensLabel}
+								</span>{" "}
+								total
+								{costLabel && (
+									<>
+										{" · "}
+										<span className="font-[var(--font-mono)]">{costLabel}</span>
+									</>
+								)}
+							</p>
 						</DetailSection>
 					)}
 

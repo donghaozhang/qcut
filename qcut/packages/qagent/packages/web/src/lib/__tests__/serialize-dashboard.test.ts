@@ -22,6 +22,12 @@ describe("sessionToDashboard", () => {
 		expect(dashboard.branch).toBe("feat/test");
 		expect(dashboard.createdAt).toBe("2025-01-01T00:00:00.000Z");
 		expect(dashboard.lastActivityAt).toBe("2025-01-01T01:00:00.000Z");
+		expect(dashboard.tokenUsage).toEqual({
+			inputTokens: 0,
+			outputTokens: 0,
+			totalTokens: 0,
+			estimatedCostUsd: 0,
+		});
 	});
 
 	it("should use agentInfo summary with summaryIsFallback false", () => {
@@ -86,6 +92,28 @@ describe("sessionToDashboard", () => {
 
 		expect(dashboard.summary).toBeNull();
 		expect(dashboard.summaryIsFallback).toBe(false);
+	});
+
+	it("should map agent cost into token usage", () => {
+		const coreSession = createCoreSession({
+			agentInfo: {
+				summary: "Working on feature X",
+				agentSessionId: "abc123",
+				cost: {
+					inputTokens: 1200,
+					outputTokens: 300,
+					estimatedCostUsd: 0.0195,
+				},
+			},
+		});
+		const dashboard = sessionToDashboard(coreSession);
+
+		expect(dashboard.tokenUsage).toEqual({
+			inputTokens: 1200,
+			outputTokens: 300,
+			totalTokens: 1500,
+			estimatedCostUsd: 0.0195,
+		});
 	});
 
 	it("should convert PRInfo to DashboardPR with defaults", () => {

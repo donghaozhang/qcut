@@ -9,6 +9,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { DashboardSession } from "./types.js";
+import { resolveCLISessionTokenUsage } from "./claude-jsonl";
+import { emptyDashboardTokenUsage, toDashboardTokenUsage } from "./token-usage";
 import { detectTerminalApp, readTerminalTabName } from "./terminal-utils";
 
 const execFileAsync = promisify(execFile);
@@ -210,6 +212,7 @@ function cliProcessToDashboard(
 	branch: string | null,
 	activity: "active" | "idle" = "idle",
 	cpu = "0.0",
+	tokenUsage: DashboardSession["tokenUsage"] = emptyDashboardTokenUsage(),
 	terminalApp: string | null = null,
 	terminalName: string | null = null,
 	processStartedAt: string | null = null,
@@ -229,6 +232,7 @@ function cliProcessToDashboard(
 		summaryIsFallback: false,
 		createdAt: now,
 		lastActivityAt: now,
+		tokenUsage,
 		pr: null,
 		metadata: {
 			pid: String(proc.pid),
@@ -269,16 +273,25 @@ export async function findCLISession(
 		detectTerminalApp(pid),
 		resolveProcessStartedAt(pid),
 	]);
-	const [branch, terminalName] = await Promise.all([
+	const [branch, terminalName, rawTokenUsage] = await Promise.all([
 		cwd ? resolveGitBranch(cwd) : Promise.resolve(null),
 		readTerminalTabName(proc.tty, terminalApp, { pid, cwd: cwd ?? undefined }),
+		resolveCLISessionTokenUsage({
+			agent: proc.agent,
+			cwd,
+			processStartedAt,
+		}),
 	]);
+	const tokenUsage =
+		toDashboardTokenUsage({ usage: rawTokenUsage }) ??
+		emptyDashboardTokenUsage();
 	return cliProcessToDashboard(
 		proc,
 		cwd,
 		branch,
 		processInfo.activity,
 		processInfo.cpu,
+		tokenUsage,
 		terminalApp,
 		terminalName,
 		processStartedAt,
@@ -339,6 +352,15 @@ export async function mergeWithUnmanagedCLI(
 			unmanaged.map((p, i) => readTerminalTabName(p.tty, terminalApps[i] ?? null, { pid: p.pid, cwd: cwds[i] ?? undefined })),
 		),
 	]);
+	const rawTokenUsages = await Promise.all(
+		unmanaged.map((proc, i) =>
+			resolveCLISessionTokenUsage({
+				agent: proc.agent,
+				cwd: cwds[i] ?? null,
+				processStartedAt: processStartedAts[i] ?? null,
+			}),
+		),
+	);
 
 	const unmanagedSessions = unmanaged.map((p, i) =>
 		cliProcessToDashboard(
@@ -347,6 +369,8 @@ export async function mergeWithUnmanagedCLI(
 			branches[i] ?? null,
 			processInfos[i]!.activity,
 			processInfos[i]!.cpu,
+			toDashboardTokenUsage({ usage: rawTokenUsages[i] }) ??
+				emptyDashboardTokenUsage(),
 			terminalApps[i] ?? null,
 			terminalNames[i] ?? null,
 			processStartedAts[i] ?? null,

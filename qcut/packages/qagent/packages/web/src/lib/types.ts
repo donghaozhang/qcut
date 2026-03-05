@@ -76,11 +76,19 @@ export interface DashboardSession {
 	summaryIsFallback: boolean;
 	createdAt: string;
 	lastActivityAt: string;
+	tokenUsage: DashboardTokenUsage | null;
 	pr: DashboardPR | null;
 	metadata: Record<string, string>;
 	managed: boolean;
 	/** User-assigned custom label for this session */
 	label?: string | null;
+}
+
+export interface DashboardTokenUsage {
+	inputTokens: number;
+	outputTokens: number;
+	totalTokens: number;
+	estimatedCostUsd: number;
 }
 
 /**

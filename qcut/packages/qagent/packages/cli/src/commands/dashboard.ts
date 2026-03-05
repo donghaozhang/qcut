@@ -87,7 +87,7 @@ export function registerDashboard(program: Command): void {
 					config.directTerminalPort
 				);
 
-				const child = spawn("npx", ["next", "dev", "-p", String(port)], {
+				const child = spawn("bun", ["run", "dev:next"], {
 					cwd: webDir,
 					stdio: ["inherit", "inherit", "pipe"],
 					env,

@@ -17,6 +17,10 @@ import {
 } from "./metadata.js";
 import { buildPrompt } from "./prompt-builder.js";
 import {
+	loadWorkflowContract,
+	resolveEffectiveWorkflowPolicy,
+} from "./workflow-contract.js";
+import {
 	generateConfigHash,
 	generateTmuxName,
 	getProjectBaseDir,
@@ -89,7 +93,7 @@ export async function spawnSession({
 	}
 
 	let num = getNextSessionNumber(existingSessions, project.sessionPrefix);
-	let sessionId: string;
+	let sessionId = `${project.sessionPrefix}-${num}`;
 	let tmuxName: string | undefined;
 	for (let attempts = 0; attempts < 10; attempts++) {
 		sessionId = issueSlug
@@ -114,8 +118,6 @@ export async function spawnSession({
 			);
 		}
 	}
-
-	// sessionId and tmuxName are already set from the reservation loop above
 
 	let branch: string;
 	if (spawnConfig.branch) {
@@ -175,12 +177,33 @@ export async function spawnSession({
 		}
 	}
 
+	let workflowContractPrompt: string | null = null;
+	let workflowContractPath: string | undefined;
+	try {
+		const workflowContract = loadWorkflowContract({
+			config,
+			project,
+		});
+		const effectivePolicy = resolveEffectiveWorkflowPolicy({
+			config,
+			project,
+			contract: workflowContract,
+		});
+		workflowContractPrompt = effectivePolicy.promptTemplate;
+		workflowContractPath = workflowContract?.path;
+	} catch {
+		workflowContractPrompt = null;
+		workflowContractPath = undefined;
+	}
+
 	const composedPrompt = buildPrompt({
 		project,
 		projectId: spawnConfig.projectId,
 		issueId: spawnConfig.issueId,
 		issueContext,
 		userPrompt: spawnConfig.prompt,
+		workflowContractPrompt,
+		workflowContractPath,
 	});
 
 	const agentLaunchConfig = {
