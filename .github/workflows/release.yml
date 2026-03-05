@@ -68,30 +68,36 @@ jobs:
 
       - name: Setup Bun PATH (self-hosted Windows)
         if: ${{ vars.USE_SELF_HOSTED_WIN == 'true' }}
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -File {0}
         run: |
-          $candidates = @(
-            "$env:USERPROFILE\.bun\bin",
-            "C:\Users\peterzhang\.bun\bin",
-            "C:\Windows\ServiceProfiles\NetworkService\.bun\bin"
-          )
+          try {
+            $candidates = @(
+              "$env:USERPROFILE\.bun\bin",
+              "C:\Users\peterzhang\.bun\bin",
+              "C:\Windows\ServiceProfiles\NetworkService\.bun\bin"
+            )
 
-          $bunDir = $null
-          foreach ($dir in $candidates) {
-            if (Test-Path (Join-Path $dir "bun.exe")) {
-              $bunDir = $dir
-              break
+            $bunDir = $null
+            foreach ($dir in $candidates) {
+              if (Test-Path (Join-Path $dir "bun.exe")) {
+                $bunDir = $dir
+                break
+              }
             }
-          }
 
-          if (-not $bunDir) {
-            throw "bun.exe not found on self-hosted Windows runner. Checked: $($candidates -join ', ')"
-          }
+            if (-not $bunDir) {
+              throw "bun.exe not found on self-hosted Windows runner. Checked: $($candidates -join ', ')"
+            }
 
-          "$bunDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          Write-Host "Using Bun from: $bunDir"
-          where.exe bun
-          & (Join-Path $bunDir "bun.exe") --version
+            # GITHUB_PATH applies to later steps; prepend PATH now for immediate use in this step.
+            $env:PATH = "$bunDir;$env:PATH"
+            "$bunDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            Write-Host "Using Bun from: $bunDir"
+            & (Join-Path $bunDir "bun.exe") --version
+          } catch {
+            Write-Error "Failed to configure Bun on self-hosted Windows runner: $($_.Exception.Message)"
+            throw
+          }
 
       - name: Cache Bun modules
         uses: actions/cache@v4
@@ -257,10 +263,34 @@ jobs:
 
       - name: Generate Linux icons
         run: |
-          sudo apt-get update && sudo apt-get install -y imagemagick
+          set -euo pipefail
+          if command -v convert >/dev/null 2>&1; then
+            echo "ImageMagick convert already available"
+          elif command -v apt-get >/dev/null 2>&1; then
+            if command -v sudo >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo apt-get install -y imagemagick
+            else
+              apt-get update
+              apt-get install -y imagemagick
+            fi
+          else
+            echo "convert is missing and apt-get is unavailable on this runner"
+            exit 1
+          fi
+
+          if command -v convert >/dev/null 2>&1; then
+            convert_cmd=(convert)
+          elif command -v magick >/dev/null 2>&1; then
+            convert_cmd=(magick convert)
+          else
+            echo "Neither convert nor magick is available after ImageMagick setup"
+            exit 1
+          fi
+
           mkdir -p build/icons
-          convert build/icon.ico[0] -resize 256x256 build/icons/256x256.png
-          convert build/icon.ico[0] -resize 512x512 build/icons/512x512.png
+          "${convert_cmd[@]}" "build/icon.ico[0]" -resize 256x256 build/icons/256x256.png
+          "${convert_cmd[@]}" "build/icon.ico[0]" -resize 512x512 build/icons/512x512.png
 
       - name: Build Electron application
         run: |
