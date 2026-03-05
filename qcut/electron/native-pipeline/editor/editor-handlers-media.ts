@@ -502,7 +502,7 @@ async function projectDuplicate(
 
 /** Handle project list. */
 async function projectList(client: EditorApiClient): Promise<CLIResult> {
-	const data = await client.get("/api/claude/projects");
+	const data = await client.get("/api/claude/navigator/projects");
 	return { success: true, data };
 }
 

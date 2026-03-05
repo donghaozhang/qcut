@@ -14,6 +14,18 @@ import type {
 	ProjectSettings,
 } from "./project-json-types.js";
 
+interface NavigatorProject {
+	id: string;
+	name: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+interface NavigatorProjectsPayload {
+	projects: NavigatorProject[];
+	activeProjectId: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // API key status
 // ---------------------------------------------------------------------------
@@ -43,23 +55,42 @@ export async function buildProjectJSONMinimal(
 	client: EditorApiClient,
 	projectId: string
 ): Promise<ProjectJSONMinimal> {
-	const [settings, stats] = await Promise.all([
-		client.get<Record<string, unknown>>(
-			`/api/claude/project/${projectId}/settings`
-		),
-		client.get<Record<string, unknown>>(
-			`/api/claude/project/${projectId}/stats`
-		),
+	const [settings, stats, navigator] = await Promise.all([
+		safeGet({
+			client,
+			path: `/api/claude/project/${projectId}/settings`,
+			fallback: {},
+		}),
+		safeGet({
+			client,
+			path: `/api/claude/project/${projectId}/stats`,
+			fallback: {},
+		}),
+		safeGet({
+			client,
+			path: "/api/claude/navigator/projects",
+			fallback: { projects: [], activeProjectId: null },
+		}),
 	]);
+	const projectMeta = findProjectInNavigator({
+		payload: navigator,
+		projectId,
+	});
 
 	const now = new Date().toISOString();
+	const defaultName = "Untitled Project";
+	const settingsName = str(settings.name, defaultName);
+	const resolvedName =
+		settingsName === defaultName && projectMeta
+			? str(projectMeta.name, defaultName)
+			: settingsName;
 
 	return {
 		version: "1.0",
 		projectId,
-		name: str(settings.name, "Untitled"),
-		createdAt: str(settings.createdAt, now),
-		updatedAt: str(settings.updatedAt, now),
+		name: resolvedName,
+		createdAt: str(settings.createdAt, projectMeta?.createdAt ?? now),
+		updatedAt: str(settings.updatedAt, projectMeta?.updatedAt ?? now),
 		settings: {
 			width: num(settings.width, 1920),
 			height: num(settings.height, 1080),
@@ -92,17 +123,40 @@ export async function buildProjectJSON(
 	client: EditorApiClient,
 	projectId: string
 ): Promise<ProjectJSON> {
-	const [settings, stats, mediaList] = await Promise.all([
-		client.get<Record<string, unknown>>(
-			`/api/claude/project/${projectId}/settings`
-		),
-		client.get<Record<string, unknown>>(
-			`/api/claude/project/${projectId}/stats`
-		),
-		client.get<Record<string, unknown>[]>(`/api/claude/media/${projectId}`),
+	const [settings, stats, mediaList, navigator] = await Promise.all([
+		safeGet({
+			client,
+			path: `/api/claude/project/${projectId}/settings`,
+			fallback: {},
+		}),
+		safeGet({
+			client,
+			path: `/api/claude/project/${projectId}/stats`,
+			fallback: {},
+		}),
+		safeGet({
+			client,
+			path: `/api/claude/media/${projectId}`,
+			fallback: [],
+		}),
+		safeGet({
+			client,
+			path: "/api/claude/navigator/projects",
+			fallback: { projects: [], activeProjectId: null },
+		}),
 	]);
+	const projectMeta = findProjectInNavigator({
+		payload: navigator,
+		projectId,
+	});
 
 	const now = new Date().toISOString();
+	const defaultName = "Untitled Project";
+	const settingsName = str(settings.name, defaultName);
+	const resolvedName =
+		settingsName === defaultName && projectMeta
+			? str(projectMeta.name, defaultName)
+			: settingsName;
 
 	const media: MediaEntry[] = Array.isArray(mediaList)
 		? mediaList.map((m) => ({
@@ -139,9 +193,9 @@ export async function buildProjectJSON(
 	return {
 		version: "1.0",
 		projectId,
-		name: str(settings.name, "Untitled"),
-		createdAt: str(settings.createdAt, now),
-		updatedAt: str(settings.updatedAt, now),
+		name: resolvedName,
+		createdAt: str(settings.createdAt, projectMeta?.createdAt ?? now),
+		updatedAt: str(settings.updatedAt, projectMeta?.updatedAt ?? now),
 		settings: projectSettings,
 		media,
 		subtitles: [], // TODO: extract from CaptionElement timeline data

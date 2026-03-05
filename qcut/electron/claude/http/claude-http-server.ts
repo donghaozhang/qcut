@@ -192,6 +192,17 @@ export function startClaudeHTTPServer(
 		]);
 	});
 
+	// Backward-compatible alias used by older CLI builds.
+	router.get("/api/claude/projects", async () => {
+		const win = getWindow();
+		return await Promise.race([
+			requestProjectsFromRenderer(win),
+			new Promise<never>((_, reject) =>
+				setTimeout(() => reject(new HttpError(504, "Renderer timed out")), 5000)
+			),
+		]);
+	});
+
 	router.post("/api/claude/navigator/open", async (req) => {
 		if (!req.body?.projectId || typeof req.body.projectId !== "string") {
 			throw new HttpError(400, "Missing 'projectId' in request body");

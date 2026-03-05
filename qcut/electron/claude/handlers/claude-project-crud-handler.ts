@@ -8,9 +8,27 @@
  */
 
 import { ipcMain, BrowserWindow, type IpcMainEvent } from "electron";
-import { generateId } from "../utils/helpers.js";
+import * as fs from "fs/promises";
+import * as path from "path";
+import {
+	generateId,
+	getProjectPath,
+	getProjectSettingsPath,
+} from "../utils/helpers.js";
+import { claudeLog } from "../utils/logger.js";
 
 const REQUEST_TIMEOUT_MS = 10_000;
+const HANDLER_NAME = "ProjectCrud";
+const DEFAULT_PROJECT_NAME = "Untitled Project";
+const DEFAULT_CANVAS_SIZE = { width: 1920, height: 1080 };
+const DEFAULT_FPS = 30;
+const PROJECT_SUBDIRECTORIES = [
+	"media",
+	"media/imported",
+	"media/generated",
+	"output",
+	"cache",
+] as const;
 
 export interface CreateProjectResponse {
 	projectId: string;
@@ -32,6 +50,146 @@ export interface DuplicateProjectResponse {
 	projectId: string;
 	name: string;
 	sourceProjectId: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isErrnoNoEntry(error: unknown): boolean {
+	if (!isRecord(error)) return false;
+	return error.code === "ENOENT";
+}
+
+function getStringValue({
+	value,
+	fallback,
+}: {
+	value: unknown;
+	fallback: string;
+}): string {
+	return typeof value === "string" && value.trim().length > 0
+		? value
+		: fallback;
+}
+
+function getPositiveNumber({
+	value,
+	fallback,
+}: {
+	value: unknown;
+	fallback: number;
+}): number {
+	if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+		return value;
+	}
+	if (typeof value === "string" && value.trim().length > 0) {
+		const parsed = Number(value);
+		if (Number.isFinite(parsed) && parsed > 0) {
+			return parsed;
+		}
+	}
+	return fallback;
+}
+
+async function ensureProjectDiskScaffold({
+	projectId,
+	projectName,
+}: {
+	projectId: string;
+	projectName: string;
+}): Promise<void> {
+	const projectPath = getProjectPath(projectId);
+	const settingsPath = getProjectSettingsPath(projectId);
+	const nowIso = new Date().toISOString();
+
+	try {
+		await fs.mkdir(projectPath, { recursive: true });
+		for (const folder of PROJECT_SUBDIRECTORIES) {
+			await fs.mkdir(path.join(projectPath, folder), { recursive: true });
+		}
+
+		let existing: Record<string, unknown> = {};
+		try {
+			const content = await fs.readFile(settingsPath, "utf-8");
+			const parsed = JSON.parse(content);
+			if (isRecord(parsed)) {
+				existing = parsed;
+			}
+		} catch (error) {
+			if (!isErrnoNoEntry(error)) {
+				claudeLog.warn(
+					HANDLER_NAME,
+					`Failed to parse existing project.qcut for ${projectId}, recreating`,
+					error
+				);
+			}
+		}
+
+		const canvasRaw = isRecord(existing.canvasSize) ? existing.canvasSize : {};
+		const width = getPositiveNumber({
+			value: canvasRaw.width ?? existing.width,
+			fallback: DEFAULT_CANVAS_SIZE.width,
+		});
+		const height = getPositiveNumber({
+			value: canvasRaw.height ?? existing.height,
+			fallback: DEFAULT_CANVAS_SIZE.height,
+		});
+
+		const scaffold: Record<string, unknown> = {
+			...existing,
+			projectId,
+			name: projectName || getStringValue({ value: existing.name, fallback: DEFAULT_PROJECT_NAME }),
+			createdAt: getStringValue({
+				value: existing.createdAt,
+				fallback: nowIso,
+			}),
+			updatedAt: nowIso,
+			version: getStringValue({ value: existing.version, fallback: "1.0" }),
+			fps: getPositiveNumber({ value: existing.fps, fallback: DEFAULT_FPS }),
+			aspectRatio: getStringValue({
+				value: existing.aspectRatio,
+				fallback: `${width}:${height}`,
+			}),
+			backgroundColor: getStringValue({
+				value: existing.backgroundColor,
+				fallback: "#000000",
+			}),
+			backgroundType: getStringValue({
+				value: existing.backgroundType,
+				fallback: "color",
+			}),
+			exportFormat: getStringValue({
+				value: existing.exportFormat,
+				fallback: "mp4",
+			}),
+			exportQuality: getStringValue({
+				value: existing.exportQuality,
+				fallback: "high",
+			}),
+			canvasSize: { width, height },
+			width,
+			height,
+		};
+
+		if (!Array.isArray(scaffold.media)) {
+			scaffold.media = [];
+		}
+		if (!Array.isArray(scaffold.timeline)) {
+			scaffold.timeline = [];
+		}
+		if (!isRecord(scaffold.settings)) {
+			scaffold.settings = {};
+		}
+
+		await fs.writeFile(settingsPath, JSON.stringify(scaffold, null, 2), "utf-8");
+	} catch (error) {
+		throw new Error(
+			`Failed to ensure project scaffold for ${projectId}: ${
+				error instanceof Error ? error.message : String(error)
+			}`
+		);
+	}
 }
 
 function requestFromRenderer<T>(
@@ -76,7 +234,28 @@ export function requestCreateProject(
 	win: BrowserWindow,
 	name: string
 ): Promise<CreateProjectResponse> {
-	return requestFromRenderer(win, "claude:project:create", { name });
+	return (async () => {
+		const result = await requestFromRenderer<CreateProjectResponse>(
+			win,
+			"claude:project:create",
+			{ name }
+		);
+
+		try {
+			await ensureProjectDiskScaffold({
+				projectId: result.projectId,
+				projectName: result.name || name,
+			});
+		} catch (error) {
+			claudeLog.warn(
+				HANDLER_NAME,
+				"Project created but disk scaffold sync failed:",
+				error
+			);
+		}
+
+		return result;
+	})();
 }
 
 export function requestDeleteProject(
@@ -91,15 +270,57 @@ export function requestRenameProject(
 	projectId: string,
 	name: string
 ): Promise<RenameProjectResponse> {
-	return requestFromRenderer(win, "claude:project:rename", {
-		projectId,
-		name,
-	});
+	return (async () => {
+		const result = await requestFromRenderer<RenameProjectResponse>(
+			win,
+			"claude:project:rename",
+			{
+				projectId,
+				name,
+			}
+		);
+
+		try {
+			await ensureProjectDiskScaffold({
+				projectId: result.projectId,
+				projectName: result.name || name,
+			});
+		} catch (error) {
+			claudeLog.warn(
+				HANDLER_NAME,
+				"Project renamed but disk scaffold sync failed:",
+				error
+			);
+		}
+
+		return result;
+	})();
 }
 
 export function requestDuplicateProject(
 	win: BrowserWindow,
 	projectId: string
 ): Promise<DuplicateProjectResponse> {
-	return requestFromRenderer(win, "claude:project:duplicate", { projectId });
+	return (async () => {
+		const result = await requestFromRenderer<DuplicateProjectResponse>(
+			win,
+			"claude:project:duplicate",
+			{ projectId }
+		);
+
+		try {
+			await ensureProjectDiskScaffold({
+				projectId: result.projectId,
+				projectName: result.name,
+			});
+		} catch (error) {
+			claudeLog.warn(
+				HANDLER_NAME,
+				"Project duplicated but disk scaffold sync failed:",
+				error
+			);
+		}
+
+		return result;
+	})();
 }

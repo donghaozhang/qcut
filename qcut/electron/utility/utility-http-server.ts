@@ -326,6 +326,15 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 		);
 	});
 
+	// Backward-compatible alias used by older CLI builds.
+	router.get("/api/claude/projects", async () => {
+		return await withTimeout(
+			requestFromMain("get-projects", {}),
+			10_000,
+			"Renderer timed out"
+		);
+	});
+
 	router.post("/api/claude/navigator/open", async (req) => {
 		if (!req.body?.projectId || typeof req.body.projectId !== "string") {
 			throw new HttpError(400, "Missing 'projectId' in request body");
