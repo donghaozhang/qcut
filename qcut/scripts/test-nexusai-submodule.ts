@@ -7,17 +7,35 @@ const EXPECTED_SUBMODULE = {
 	branch: "master",
 } as const;
 
-function runCommand({ command, cwd }: { command: string; cwd?: string }): string {
+function runCommand({
+	command,
+	cwd,
+}: {
+	command: string;
+	cwd?: string;
+}): string {
 	return execSync(command, { cwd, encoding: "utf8" }).trim();
 }
 
-function assertCondition({ condition, message }: { condition: boolean; message: string }): void {
+function assertCondition({
+	condition,
+	message,
+}: {
+	condition: boolean;
+	message: string;
+}): void {
 	if (!condition) {
 		throw new Error(message);
 	}
 }
 
-function readGitModuleConfig({ gitmodulesPath, key }: { gitmodulesPath: string; key: string }): string {
+function readGitModuleConfig({
+	gitmodulesPath,
+	key,
+}: {
+	gitmodulesPath: string;
+	key: string;
+}): string {
 	const command = `git config -f "${gitmodulesPath}" --get ${key}`;
 	return runCommand({ command });
 }

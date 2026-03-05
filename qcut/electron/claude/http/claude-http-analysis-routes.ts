@@ -587,9 +587,9 @@ export function registerAnalysisRoutes(
 					dryRun: req.body.dryRun,
 					provider: req.body.provider,
 					language: req.body.language,
-					},
-					win as BrowserWindow
-				);
+				},
+				win as BrowserWindow
+			);
 		} catch (error) {
 			if (error instanceof HttpError) throw error;
 			throw new HttpError(

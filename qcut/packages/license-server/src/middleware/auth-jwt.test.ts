@@ -30,7 +30,11 @@ async function signHs256({
 	return toBase64UrlFromBytes({ bytes: new Uint8Array(signature) });
 }
 
-function encodeObjectToBase64Url({ value }: { value: Record<string, unknown> }): string {
+function encodeObjectToBase64Url({
+	value,
+}: {
+	value: Record<string, unknown>;
+}): string {
 	const json = JSON.stringify(value);
 	const base64 = Buffer.from(json, "utf-8").toString("base64");
 	return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");

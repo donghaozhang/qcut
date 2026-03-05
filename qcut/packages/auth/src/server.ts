@@ -11,11 +11,7 @@ const {
 	BETTER_AUTH_TRUSTED_ORIGINS,
 } = keys();
 
-function parseTrustedOrigins({
-	value,
-}: {
-	value?: string;
-}): string[] {
+function parseTrustedOrigins({ value }: { value?: string }): string[] {
 	if (typeof value !== "string") {
 		return [];
 	}
@@ -58,7 +54,9 @@ const configuredTrustedOrigins = parseTrustedOrigins({
 	value: BETTER_AUTH_TRUSTED_ORIGINS,
 });
 
-const trustedOrigins = [...new Set([...DEFAULT_TRUSTED_ORIGINS, ...configuredTrustedOrigins])];
+const trustedOrigins = [
+	...new Set([...DEFAULT_TRUSTED_ORIGINS, ...configuredTrustedOrigins]),
+];
 
 export const auth = betterAuth({
 	database: drizzleAdapter(db, {

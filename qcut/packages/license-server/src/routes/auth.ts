@@ -15,7 +15,11 @@ interface SessionPayload {
 
 interface AuthRouteDependencies {
 	handleAuthRequest: ({ request }: { request: Request }) => Promise<Response>;
-	getSessionFromHeaders: ({ headers }: { headers: Headers }) => Promise<SessionPayload | null>;
+	getSessionFromHeaders: ({
+		headers,
+	}: {
+		headers: Headers;
+	}) => Promise<SessionPayload | null>;
 	getAllowedOrigins: () => string[];
 	getWebBaseUrl: () => string;
 }
@@ -55,7 +59,11 @@ function normalizeOrigin({ value }: { value: string }): string {
 	}
 }
 
-function normalizeUrlWithoutTrailingSlash({ value }: { value: string }): string {
+function normalizeUrlWithoutTrailingSlash({
+	value,
+}: {
+	value: string;
+}): string {
 	try {
 		const url = new URL(value);
 		const pathname = url.pathname.endsWith("/")
@@ -135,7 +143,10 @@ function resolveRedirectUrl({
 			return new URL(fallback);
 		}
 
-		if (parsedCandidate.protocol !== "https:" && parsedCandidate.protocol !== "http:") {
+		if (
+			parsedCandidate.protocol !== "https:" &&
+			parsedCandidate.protocol !== "http:"
+		) {
 			return new URL(fallback);
 		}
 
@@ -301,7 +312,10 @@ export function createAuthRoutes({
 				"/api/auth/oauth/token-bridge",
 				requestUrl.origin
 			);
-			callbackBridge.searchParams.set("redirect_url", dashboardRedirect.toString());
+			callbackBridge.searchParams.set(
+				"redirect_url",
+				dashboardRedirect.toString()
+			);
 
 			const errorRedirect = addQueryParam({
 				target: loginRedirect,
@@ -326,7 +340,9 @@ export function createAuthRoutes({
 				}
 			);
 
-			return await resolvedDependencies.handleAuthRequest({ request: authRequest });
+			return await resolvedDependencies.handleAuthRequest({
+				request: authRequest,
+			});
 		} catch (error) {
 			return c.json(
 				{
@@ -360,8 +376,13 @@ export function createAuthRoutes({
 			});
 			if (!session?.session?.token) {
 				const loginRedirect = new URL(defaultUrls.loginUrl);
-				const redirectPath = dashboardRedirect.pathname + dashboardRedirect.search;
-				addQueryParam({ target: loginRedirect, key: "redirect", value: redirectPath });
+				const redirectPath =
+					dashboardRedirect.pathname + dashboardRedirect.search;
+				addQueryParam({
+					target: loginRedirect,
+					key: "redirect",
+					value: redirectPath,
+				});
 				addQueryParam({
 					target: loginRedirect,
 					key: "auth_error",
@@ -419,8 +440,16 @@ export function createAuthRoutes({
 			});
 
 			const authError = c.req.query("error") ?? "oauth_failed";
-			addQueryParam({ target: loginRedirect, key: "redirect", value: redirectPath });
-			addQueryParam({ target: loginRedirect, key: "auth_error", value: authError });
+			addQueryParam({
+				target: loginRedirect,
+				key: "redirect",
+				value: redirectPath,
+			});
+			addQueryParam({
+				target: loginRedirect,
+				key: "auth_error",
+				value: authError,
+			});
 			return c.redirect(loginRedirect.toString(), 302);
 		} catch (error) {
 			return c.json(
@@ -437,7 +466,9 @@ export function createAuthRoutes({
 
 	authRoutes.all("/*", async (c) => {
 		try {
-			return await resolvedDependencies.handleAuthRequest({ request: c.req.raw });
+			return await resolvedDependencies.handleAuthRequest({
+				request: c.req.raw,
+			});
 		} catch (error) {
 			return c.json(
 				{

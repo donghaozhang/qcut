@@ -189,7 +189,9 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 				mode,
 			}) as Promise<ClaudeSplitResponse>,
 		getProjectStats: (projectId) =>
-			requestFromMain("get-project-stats", { projectId }) as Promise<ProjectStats>,
+			requestFromMain("get-project-stats", {
+				projectId,
+			}) as Promise<ProjectStats>,
 		getAppVersion: () => appVersion,
 		enableNotifications: (sessionId) =>
 			requestFromMain("notifications:enable", { sessionId }) as Promise<{

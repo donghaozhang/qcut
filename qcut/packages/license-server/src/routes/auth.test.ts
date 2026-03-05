@@ -21,12 +21,16 @@ describe("auth routes", () => {
 		const authRoutes = createAuthRoutes({
 			dependencies: {
 				handleAuthRequest: async ({ request }) => {
-					capturedRequestBody = (await request.json()) as Record<string, unknown>;
+					capturedRequestBody = (await request.json()) as Record<
+						string,
+						unknown
+					>;
 					capturedRequestCookie = request.headers.get("cookie") ?? "";
 					return new Response(null, {
 						status: 302,
 						headers: {
-							location: "https://accounts.google.com/o/oauth2/v2/auth?example=1",
+							location:
+								"https://accounts.google.com/o/oauth2/v2/auth?example=1",
 						},
 					});
 				},
@@ -68,11 +72,15 @@ describe("auth routes", () => {
 		const authRoutes = createAuthRoutes({
 			dependencies: {
 				handleAuthRequest: async ({ request }) => {
-					capturedRequestBody = (await request.json()) as Record<string, unknown>;
+					capturedRequestBody = (await request.json()) as Record<
+						string,
+						unknown
+					>;
 					return new Response(null, {
 						status: 302,
 						headers: {
-							location: "https://accounts.google.com/o/oauth2/v2/auth?example=1",
+							location:
+								"https://accounts.google.com/o/oauth2/v2/auth?example=1",
 						},
 					});
 				},
@@ -95,7 +103,8 @@ describe("auth routes", () => {
 	it("bridges session token to redirect URL", async () => {
 		const authRoutes = createAuthRoutes({
 			dependencies: {
-				handleAuthRequest: async () => new Response("unreachable", { status: 500 }),
+				handleAuthRequest: async () =>
+					new Response("unreachable", { status: 500 }),
 				getSessionFromHeaders: async () => ({
 					session: {
 						token: "session-token-123",
@@ -113,7 +122,9 @@ describe("auth routes", () => {
 
 		expect(response.status).toBe(302);
 		const location = response.headers.get("location") ?? "";
-		expect(location).toContain("https://quriosity.com.au/account/dashboard.html");
+		expect(location).toContain(
+			"https://quriosity.com.au/account/dashboard.html"
+		);
 		expect(location).toContain("from=login");
 		expect(location).toContain("auth_token=session-token-123");
 		expect(response.headers.get("cache-control")).toBe("no-store");
@@ -123,7 +134,8 @@ describe("auth routes", () => {
 	it("redirects to login with auth_error when no active session exists", async () => {
 		const authRoutes = createAuthRoutes({
 			dependencies: {
-				handleAuthRequest: async () => new Response("unreachable", { status: 500 }),
+				handleAuthRequest: async () =>
+					new Response("unreachable", { status: 500 }),
 				getSessionFromHeaders: async () => null,
 				getAllowedOrigins: () => ["https://quriosity.com.au"],
 				getWebBaseUrl: () => "https://quriosity.com.au",

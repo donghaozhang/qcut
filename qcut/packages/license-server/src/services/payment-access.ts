@@ -29,7 +29,9 @@ export async function ensureCanaryUserAllowed({
 	userId,
 }: {
 	userId: string;
-}): Promise<{ allowed: true } | { allowed: false; status: number; error: string }> {
+}): Promise<
+	{ allowed: true } | { allowed: false; status: number; error: string }
+> {
 	try {
 		if (!isCanaryModeEnabled()) {
 			return { allowed: true };
