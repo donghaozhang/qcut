@@ -68,10 +68,11 @@ jobs:
 
       - name: Setup Bun PATH (self-hosted Windows)
         if: ${{ vars.USE_SELF_HOSTED_WIN == 'true' }}
-        shell: pwsh
+        shell: powershell
         run: |
           $candidates = @(
             "$env:USERPROFILE\.bun\bin",
+            "C:\Users\peterzhang\.bun\bin",
             "C:\Windows\ServiceProfiles\NetworkService\.bun\bin"
           )
 
@@ -88,6 +89,8 @@ jobs:
           }
 
           "$bunDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          Write-Host "Using Bun from: $bunDir"
+          where.exe bun
           & (Join-Path $bunDir "bun.exe") --version
 
       - name: Cache Bun modules
@@ -215,6 +218,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Verify Node
+        run: node -v
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
