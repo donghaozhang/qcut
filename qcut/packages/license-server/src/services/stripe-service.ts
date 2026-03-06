@@ -680,24 +680,24 @@ export async function handleWebhook({
 						subscription: event.data.object as Stripe.Subscription,
 					});
 					break;
-					case "invoice.payment_succeeded":
-						await handleInvoicePaymentSucceeded({
-							invoice: event.data.object as Stripe.Invoice,
-						});
-						break;
-					case "invoice.payment_failed":
-						await handleInvoicePaymentFailed({
-							invoice: event.data.object as Stripe.Invoice,
-						});
-						break;
-					case "charge.refunded":
-						await handleChargeRefunded({
-							charge: event.data.object as Stripe.Charge,
-						});
-						break;
-					default:
-						break;
-				}
+				case "invoice.payment_succeeded":
+					await handleInvoicePaymentSucceeded({
+						invoice: event.data.object as Stripe.Invoice,
+					});
+					break;
+				case "invoice.payment_failed":
+					await handleInvoicePaymentFailed({
+						invoice: event.data.object as Stripe.Invoice,
+					});
+					break;
+				case "charge.refunded":
+					await handleChargeRefunded({
+						charge: event.data.object as Stripe.Charge,
+					});
+					break;
+				default:
+					break;
+			}
 
 			await markWebhookEventProcessed({ eventId: event.id });
 			return { received: true };
