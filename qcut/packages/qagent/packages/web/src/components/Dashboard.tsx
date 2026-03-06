@@ -434,10 +434,10 @@ export function Dashboard({
 
 			{/* Kanban columns for active zones */}
 			{hasKanbanSessions && (
-				<div className="mb-8 flex gap-4 overflow-x-auto pb-2">
+				<div className="mb-8 flex flex-col gap-4">
 					{KANBAN_LEVELS.map((level) =>
 						grouped[level].length > 0 ? (
-							<div key={level} className="min-w-[200px] flex-1">
+							<div key={level} className="">
 								<AttentionZone
 									level={level}
 									sessions={grouped[level]}

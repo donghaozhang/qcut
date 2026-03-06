@@ -116,7 +116,7 @@ export function AttentionZone({
 				</button>
 
 				{!collapsed && (
-					<div className="flex flex-col gap-2">
+					<div className="grid grid-cols-2 gap-2">
 						{sessions.map((session) => (
 							<SessionCard
 								key={session.id}
