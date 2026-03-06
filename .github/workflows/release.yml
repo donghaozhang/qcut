@@ -54,6 +54,8 @@ jobs:
   build-windows:
     needs: prepare
     runs-on: windows-latest
+    env:
+      FFMPEG_STAGE_TARGETS: win32-x64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -106,6 +108,8 @@ jobs:
   build-macos:
     needs: prepare
     runs-on: ${{ vars.USE_SELF_HOSTED_MAC == 'true' && fromJSON('["self-hosted", "macOS", "ARM64"]') || 'macos-latest' }}
+    env:
+      FFMPEG_STAGE_TARGETS: darwin-arm64,darwin-x64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -185,6 +189,8 @@ jobs:
   build-linux:
     needs: prepare
     runs-on: ubuntu-24.04
+    env:
+      FFMPEG_STAGE_TARGETS: linux-x64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

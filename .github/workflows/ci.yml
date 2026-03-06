@@ -22,10 +22,13 @@ jobs:
         include:
           - runner: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
             os: ubuntu
+            ffmpeg_targets: linux-x64
           - runner: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-windows-2025' || 'windows-latest' }}
             os: windows
+            ffmpeg_targets: win32-x64
           - runner: macos-latest
             os: macos
+            ffmpeg_targets: darwin-arm64,darwin-x64
 
     steps:
       - name: Checkout repository
@@ -55,6 +58,8 @@ jobs:
 
       - name: Build
         run: bun run build
+        env:
+          FFMPEG_STAGE_TARGETS: ${{ matrix.ffmpeg_targets }}
 
       - name: Run tests with coverage
         run: cd apps/web && bunx vitest run --coverage
