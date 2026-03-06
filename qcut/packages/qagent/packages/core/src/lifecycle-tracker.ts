@@ -251,6 +251,10 @@ export async function syncSessionWorkpad({
 			message: `${session.id}: failed to sync workpad for status ${status}: ${error}`,
 			data: { status },
 		});
-		await notifyHuman(event, "warning");
+		try {
+			await notifyHuman(event, "warning");
+		} catch {
+			// ignore secondary notification failure
+		}
 	}
 }

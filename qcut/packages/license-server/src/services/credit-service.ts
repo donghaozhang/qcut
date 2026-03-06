@@ -736,11 +736,15 @@ export async function reconcileTopUpRefundByStripePaymentId({
 				shortfallCredits > 0
 					? `; unreconciled_shortfall_credits=${shortfallCredits}`
 					: "";
-			await tx.insert(creditTransactions).values({
+			const actualDeducted =
+				refreshed.planCredits +
+				refreshed.topUpCredits -
+				(nextBalance.planCredits + nextBalance.topUpCredits);
+		await tx.insert(creditTransactions).values({
 				id: crypto.randomUUID(),
 				userId: resolvedUserId,
 				type: "refund",
-				amount: -creditsToApply,
+				amount: -actualDeducted,
 				balanceAfter: nextBalance.planCredits + nextBalance.topUpCredits,
 				description: `Stripe refund reconciliation for ${normalizedPaymentId}${shortfallMessage}`,
 				stripePaymentId: normalizedPaymentId,

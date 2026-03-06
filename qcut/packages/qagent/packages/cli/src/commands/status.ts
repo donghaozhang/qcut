@@ -132,7 +132,7 @@ async function gatherSessionInfo(
 		reviewDecision,
 		pendingThreads,
 		activity,
-		workpadUrl: session.metadata["workpadUrl"] ?? null,
+		workpadUrl: typeof session.metadata["workpadUrl"] === "string" ? session.metadata["workpadUrl"].trim() : null,
 	};
 }
 

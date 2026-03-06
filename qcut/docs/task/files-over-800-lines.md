@@ -10,7 +10,7 @@ Per CLAUDE.md: "No code file should exceed 800 lines; if it does, split it into 
 
 ## Snapshot Changes Since 2026-03-02
 
-- 5 files dropped below 800 or removed:
+- 4 files dropped below 800 or removed:
   - `packages/qagent/packages/web/src/components/SessionDetail.tsx`: 993 -> 657
   - `packages/qagent/packages/core/src/types.ts`: 1126 -> 11
   - `electron/__tests__/remaining-gaps.test.ts`: 1130 -> removed

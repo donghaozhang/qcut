@@ -114,7 +114,7 @@ export function shouldBlockMergeTransition({
 		}
 		return evaluation.effectivePolicy.policy.blockedPolicy.escalation === "block";
 	} catch {
-		return false;
+		return true;
 	}
 }
 
