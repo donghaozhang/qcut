@@ -357,9 +357,19 @@ export function createAuthRoutes({
 				}
 			);
 
-			return await resolvedDependencies.handleAuthRequest({
+			const authResponse = await resolvedDependencies.handleAuthRequest({
 				request: authRequest,
 			});
+			// better-auth returns {url, redirect:true} when called with accept:application/json.
+			// Convert that into a real 302 redirect so the browser follows it.
+			if (authResponse.ok) {
+				const body = await authResponse.json().catch(() => null);
+				const redirectUrl = body?.url;
+				if (typeof redirectUrl === "string" && redirectUrl.startsWith("https://")) {
+					return c.redirect(redirectUrl, 302);
+				}
+			}
+			return authResponse;
 		} catch (error) {
 			return c.json(
 				{
