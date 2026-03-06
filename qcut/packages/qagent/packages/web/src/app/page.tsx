@@ -128,6 +128,49 @@ export default async function Home() {
 		// Merge with unmanaged tmux sessions, then unmanaged CLI agents
 		sessions = await mergeWithUnmanagedTmux(sessions);
 		sessions = await mergeWithUnmanagedCLI(sessions);
+
+		// Discover PRs for unmanaged sessions that have a branch but no PR
+		const firstProject = Object.values(config.projects)[0];
+		const discoverScm = firstProject ? getSCM(registry, firstProject) : null;
+		if (discoverScm && firstProject) {
+			const discoverPromises = sessions.map(async (s, i) => {
+				if (s.pr || !s.branch) return;
+				try {
+					const stubSession = { branch: s.branch } as import("@composio/ao-core").Session;
+					console.log(`[pr-discover] ${s.id} branch=${s.branch}`);
+					const prInfo = await discoverScm.detectPR(stubSession, firstProject);
+					console.log(`[pr-discover] ${s.id} result=`, prInfo ? `PR #${prInfo.number}` : "null");
+					if (prInfo) {
+						sessions[i].pr = {
+							number: prInfo.number,
+							url: prInfo.url,
+							title: prInfo.title,
+							owner: prInfo.owner,
+							repo: prInfo.repo,
+							branch: prInfo.branch,
+							baseBranch: prInfo.baseBranch,
+							isDraft: prInfo.isDraft,
+							state: "open",
+							additions: 0,
+							deletions: 0,
+							ciStatus: "none",
+							reviewDecision: "none",
+							ciChecks: [],
+							mergeability: { mergeable: false, noConflicts: true, ciPassing: false, approved: false, blockers: [] },
+							unresolvedThreads: 0,
+							unresolvedComments: [],
+						};
+						// Enrich with live data
+						await enrichSessionPR(sessions[i], discoverScm, prInfo);
+					}
+				} catch (err) {
+					console.error(`[pr-discover] ${s.id} error:`, err);
+				}
+			});
+			const discoverTimeout = new Promise<void>((r) => setTimeout(r, 3_000));
+			await Promise.race([Promise.allSettled(discoverPromises), discoverTimeout]);
+		}
+
 		await applyLabels(sessions);
 	} catch {
 		// Config not found or services unavailable — show empty dashboard

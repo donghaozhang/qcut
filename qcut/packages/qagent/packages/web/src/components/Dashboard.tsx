@@ -105,7 +105,7 @@ export function Dashboard({
 					...(live?.status ? { status: live.status as DashboardSession["status"] } : {}),
 					...(live?.activity ? { activity: live.activity as DashboardSession["activity"] } : {}),
 					...(live && "branch" in live ? { branch: live.branch } : {}),
-					...(live && "pr" in live ? { pr: live.pr } : {}),
+					...(live?.pr ? { pr: live.pr } : {}),
 				};
 			}),
 		[initialSessions, labelOverrides, liveOverrides]
@@ -145,12 +145,19 @@ export function Dashboard({
 	}, [sortedVisibleSessions]);
 
 	const openPRs = useMemo(() => {
+		const seen = new Set<string>();
 		return visibleSessions
 			.filter(
 				(s): s is DashboardSession & { pr: DashboardPR } =>
 					s.pr?.state === "open"
 			)
 			.map((s) => s.pr)
+			.filter((pr) => {
+				const key = String(pr.number);
+				if (seen.has(key)) return false;
+				seen.add(key);
+				return true;
+			})
 			.sort((a, b) => mergeScore(a) - mergeScore(b));
 	}, [visibleSessions]);
 
