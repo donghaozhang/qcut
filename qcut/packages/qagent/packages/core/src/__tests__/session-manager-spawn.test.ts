@@ -77,6 +77,8 @@ describe("spawn", () => {
 			issueUrl: vi.fn().mockReturnValue(""),
 			branchName: vi.fn().mockReturnValue("custom/INT-100-my-feature"),
 			generatePrompt: vi.fn().mockResolvedValue(""),
+			getWorkpad: vi.fn().mockResolvedValue(null),
+			upsertWorkpad: vi.fn().mockResolvedValue({ id: "wp-1", snapshot: {} }),
 		};
 
 		const registryWithTracker: PluginRegistry = {
@@ -288,6 +290,8 @@ describe("spawn", () => {
 				.mockReturnValue("https://linear.app/test/issue/INT-100"),
 			branchName: vi.fn().mockReturnValue("feat/INT-100"),
 			generatePrompt: vi.fn().mockResolvedValue("Work on INT-100"),
+			getWorkpad: vi.fn().mockResolvedValue(null),
+			upsertWorkpad: vi.fn().mockResolvedValue({ id: "wp-1", snapshot: {} }),
 		};
 
 		const registryWithTracker: PluginRegistry = {
@@ -328,6 +332,8 @@ describe("spawn", () => {
 			issueUrl: vi.fn().mockReturnValue(""),
 			branchName: vi.fn().mockReturnValue("feat/INT-9999"),
 			generatePrompt: vi.fn().mockResolvedValue(""),
+			getWorkpad: vi.fn().mockResolvedValue(null),
+			upsertWorkpad: vi.fn().mockResolvedValue({ id: "wp-1", snapshot: {} }),
 		};
 
 		const registryWithTracker: PluginRegistry = {
@@ -367,6 +373,8 @@ describe("spawn", () => {
 			issueUrl: vi.fn().mockReturnValue(""),
 			branchName: vi.fn().mockReturnValue("feat/INT-100"),
 			generatePrompt: vi.fn().mockResolvedValue(""),
+			getWorkpad: vi.fn().mockResolvedValue(null),
+			upsertWorkpad: vi.fn().mockResolvedValue({ id: "wp-1", snapshot: {} }),
 		};
 
 		const registryWithTracker: PluginRegistry = {

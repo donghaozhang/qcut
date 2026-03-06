@@ -17,6 +17,14 @@ import { updateMetadata } from "./metadata.js";
 import { getSessionsDir } from "./paths.js";
 import { createEvent } from "./lifecycle-events.js";
 import type { SessionPolicyEvaluation } from "./lifecycle-policy.js";
+import {
+	buildWorkpadSnapshot,
+	renderWorkpadBody,
+	type WorkpadSnapshot,
+	type WorkpadPolicyGate,
+} from "./workpad-schema.js";
+
+export type { WorkpadSnapshot };
 
 export function normalizeTrackerIssueIdentifier({
 	issueId,
@@ -72,6 +80,30 @@ export async function syncIssueStateRouting({
 	// issueStateRouting was removed from WorkflowPolicy; feature is disabled
 }
 
+/** Build WorkpadPolicyGate from a SessionPolicyEvaluation. */
+function buildWorkpadPolicyGate(
+	policyEvaluation: SessionPolicyEvaluation | null
+): WorkpadPolicyGate | null {
+	if (!policyEvaluation) return null;
+	const gate = policyEvaluation.gate;
+	return {
+		mode: gate.mode,
+		passed: gate.passed,
+		ciStatus: gate.ciStatus ?? null,
+		reviewDecision: gate.reviewSweep?.reviewDecision ?? null,
+		violations: gate.violations.map((v) => ({
+			code: v.code,
+			message: v.message,
+			blockerClass: v.blockerClass,
+		})),
+		failingChecks: gate.requiredChecks.filter((c) => !c.passed).map((c) => c.name),
+	};
+}
+
+/**
+ * Build a structured WorkpadSnapshot from session state and return both the
+ * snapshot and its rendered Markdown body.
+ */
 export function buildWorkpadBody({
 	session,
 	status,
@@ -80,116 +112,20 @@ export function buildWorkpadBody({
 	session: Session;
 	status: SessionStatus;
 	policyEvaluation: SessionPolicyEvaluation | null;
-}): string {
-	const now = new Date().toISOString();
-	const sections: string[] = [];
-
-	// Environment stamp (Symphony-style single source of truth)
-	const envStamp = `${session.id}:${session.branch ?? "no-branch"}@${status}`;
-	sections.push(`# QAgent Workpad\n\n\`\`\`text\n${envStamp}\n\`\`\``);
-
-	// Status section
-	const statusLines = [
-		"### Status",
-		"",
-		`- **Session**: ${session.id}`,
-		`- **Status**: \`${status}\``,
-		`- **Branch**: ${session.branch ?? "n/a"}`,
-		`- **Updated**: ${now}`,
-	];
-	if (session.issueId) {
-		statusLines.push(`- **Issue**: ${session.issueId}`);
-	}
-	if (session.pr) {
-		statusLines.push(`- **PR**: [#${String(session.pr.number)}](${session.pr.url})`);
-	}
-	if (session.agentInfo?.summary) {
-		statusLines.push(`- **Summary**: ${session.agentInfo.summary.replace(/\n/g, " ")}`);
-	}
-	if (session.metadata.issueState) {
-		statusLines.push(`- **Tracker State**: ${session.metadata.issueState}`);
-	}
-	sections.push(statusLines.join("\n"));
-
-	// Policy Gate section (when evaluated)
-	if (policyEvaluation) {
-		const passIcon = policyEvaluation.gate.passed ? "✅" : "❌";
-		const gateLines = [
-			"### Policy Gate",
-			"",
-			`- Mode: \`${policyEvaluation.gate.mode}\` ${passIcon} ${policyEvaluation.gate.passed ? "pass" : "fail"}`,
-		];
-		if (policyEvaluation.gate.ciStatus) {
-			gateLines.push(`- CI: \`${policyEvaluation.gate.ciStatus}\``);
-		}
-		if (policyEvaluation.gate.reviewSweep) {
-			const sweep = policyEvaluation.gate.reviewSweep;
-			gateLines.push(`- Review decision: \`${sweep.reviewDecision ?? "pending"}\``);
-			if (sweep.actionableCount > 0) {
-				gateLines.push(`- Unresolved actionable comments: ${sweep.actionableCount}`);
-			}
-		}
-		if (!policyEvaluation.gate.passed && policyEvaluation.gate.violations.length > 0) {
-			gateLines.push("- **Violations**:");
-			for (const v of policyEvaluation.gate.violations.slice(0, 5)) {
-				gateLines.push(`  - \`${v.code}\` [${v.blockerClass}]: ${v.message}`);
-			}
-		}
-		const failingChecks = policyEvaluation.gate.requiredChecks.filter((c) => !c.passed);
-		if (failingChecks.length > 0) {
-			gateLines.push(
-				`- Failing required checks: ${failingChecks.map((c) => `\`${c.name}\``).join(", ")}`
-			);
-		}
-		sections.push(gateLines.join("\n"));
-	}
-
-	// Blocker Brief — Symphony's blocked-access escape hatch pattern, adapted for qagent
-	const BLOCKED_STATUSES = new Set<SessionStatus>([
-		"ci_failed",
-		"changes_requested",
-		"needs_input",
-		"stuck",
-		"errored",
-	]);
-	if (BLOCKED_STATUSES.has(status)) {
-		const blockerLines = ["### Blocker Brief", ""];
-		switch (status) {
-			case "ci_failed":
-				blockerLines.push("- **What**: CI checks are failing on the PR");
-				blockerLines.push("- **Why it blocks**: PR cannot merge with failing CI");
-				blockerLines.push("- **Action needed**: Review CI output and fix failing checks");
-				break;
-			case "changes_requested":
-				blockerLines.push("- **What**: Reviewer has requested changes on the PR");
-				blockerLines.push("- **Why it blocks**: Changes must be addressed before approval");
-				blockerLines.push("- **Action needed**: Review PR feedback and implement requested changes");
-				break;
-			case "needs_input":
-				blockerLines.push("- **What**: Agent is waiting for human input");
-				blockerLines.push("- **Why it blocks**: Agent cannot proceed without clarification");
-				blockerLines.push("- **Action needed**: Attach to session and provide the required input");
-				break;
-			case "stuck":
-				blockerLines.push("- **What**: Agent appears unresponsive or stuck");
-				blockerLines.push("- **Why it blocks**: No progress is being made");
-				blockerLines.push(
-					"- **Action needed**: Attach to session to investigate; consider sending guidance or re-spawning"
-				);
-				break;
-			case "errored":
-				blockerLines.push("- **What**: Agent session encountered an error");
-				blockerLines.push("- **Why it blocks**: Execution halted unexpectedly");
-				blockerLines.push("- **Action needed**: Check session logs and re-spawn if necessary");
-				break;
-		}
-		sections.push(blockerLines.join("\n"));
-	}
-
-	// Notes
-	sections.push(`### Notes\n\n- Status transitioned to \`${status}\` at ${now}`);
-
-	return sections.join("\n\n");
+}): { snapshot: WorkpadSnapshot; body: string } {
+	const policyGate = buildWorkpadPolicyGate(policyEvaluation);
+	const snapshot = buildWorkpadSnapshot({
+		sessionId: session.id,
+		status,
+		branch: session.branch,
+		issueId: session.issueId,
+		prNumber: session.pr?.number ?? null,
+		prUrl: session.pr?.url ?? null,
+		agentSummary: session.agentInfo?.summary ?? null,
+		trackerState: session.metadata.issueState ?? null,
+		policyGate,
+	});
+	return { snapshot, body: renderWorkpadBody(snapshot) };
 }
 
 export async function syncSessionWorkpad({
@@ -214,7 +150,7 @@ export async function syncSessionWorkpad({
 	}
 
 	const tracker = registry.get<Tracker>("tracker", project.tracker.plugin);
-	if (!tracker?.upsertWorkpad) {
+	if (!tracker) {
 		return;
 	}
 
@@ -224,18 +160,10 @@ export async function syncSessionWorkpad({
 			project,
 			tracker,
 		});
-		const existingWorkpad = tracker.getWorkpad
-			? await tracker.getWorkpad(trackerIdentifier, project)
-			: null;
+		const existingWorkpad = await tracker.getWorkpad(trackerIdentifier, project);
 		const policyEvaluation = policyEvaluationBySession.get(session.id) ?? null;
-		const workpad = await tracker.upsertWorkpad(
-			{
-				identifier: trackerIdentifier,
-				id: existingWorkpad?.id,
-				body: buildWorkpadBody({ session, status, policyEvaluation }),
-			},
-			project
-		);
+		const { snapshot } = buildWorkpadBody({ session, status, policyEvaluation });
+		const workpad = await tracker.upsertWorkpad(snapshot, project, existingWorkpad?.id);
 
 		const sessionsDir = getSessionsDir(config.configPath, project.path);
 		updateMetadata(sessionsDir, session.id, {

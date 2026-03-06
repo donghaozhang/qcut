@@ -108,6 +108,36 @@ export type {
 export { generateOrchestratorPrompt } from "./orchestrator-prompt.js";
 export type { OrchestratorPromptConfig } from "./orchestrator-prompt.js";
 
+// Reconciliation loop — drift detection and auto-correction
+export { ReconciliationLoop } from "./reconciliation-loop.js";
+export type { ReconciliationDeps } from "./reconciliation-loop.js";
+
+// Workpad schema — canonical WorkpadSnapshot type and rendering helpers
+export {
+	buildWorkpadSnapshot,
+	renderWorkpadBody,
+	parseWorkpadSnapshot,
+} from "./workpad-schema.js";
+export type {
+	WorkpadSnapshot,
+	WorkpadPolicyGate,
+	WorkpadBlockerBrief,
+	WorkpadRef,
+} from "./workpad-schema.js";
+
+// Escalation templates — per-project/per-severity notification playbooks
+export {
+	resolveEscalationTemplate,
+	renderEscalationMessage,
+	parseEscalationTemplates,
+} from "./escalation-template.js";
+export type {
+	EscalationTemplate,
+	EscalationSeverity,
+	EscalationAutoAction,
+	EscalationContext,
+} from "./escalation-template.js";
+
 // Shared utilities
 export {
 	shellEscape,

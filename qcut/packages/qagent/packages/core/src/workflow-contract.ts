@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import type { OrchestratorConfig, PolicyMode, ProjectConfig } from "./types.js";
+import { parseEscalationTemplates, type EscalationTemplate } from "./escalation-template.js";
 
 export type PolicyBlockerClass =
 	| "auth_missing"
@@ -35,6 +36,8 @@ export interface WorkflowMergeGate {
 export interface WorkflowBlockedPolicy {
 	escalation: "notify" | "block";
 	classes: PolicyBlockerClass[];
+	/** Per-severity escalation templates (parsed from WORKFLOW.md front matter or qagent.yaml). */
+	templates?: EscalationTemplate[];
 }
 
 export interface WorkflowPolicy {
@@ -104,6 +107,9 @@ function clonePolicy({ policy }: { policy: WorkflowPolicy }): WorkflowPolicy {
 		blockedPolicy: {
 			...policy.blockedPolicy,
 			classes: [...policy.blockedPolicy.classes],
+			templates: policy.blockedPolicy.templates
+				? [...policy.blockedPolicy.templates]
+				: undefined,
 		},
 	};
 }
@@ -379,6 +385,17 @@ function parseWorkflowPolicy({
 		value: pickFirst({ record: blockedRecord, keys: ["classes"] }),
 		fallback: defaults.blockedPolicy.classes,
 	});
+
+	const rawTemplates = pickFirst({
+		record: blockedRecord,
+		keys: ["templates"],
+	});
+	if (rawTemplates !== undefined) {
+		const parsed = parseEscalationTemplates({ raw: rawTemplates });
+		if (parsed.length > 0) {
+			defaults.blockedPolicy.templates = parsed;
+		}
+	}
 
 	return defaults;
 }

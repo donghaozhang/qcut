@@ -72,6 +72,7 @@ export function sessionToDashboard(session: Session): DashboardSession {
 		pr: session.pr ? basicPRToDashboard(session.pr) : null,
 		metadata: session.metadata,
 		managed: true,
+		policyGateSummary: null, // Populated lazily via GateBlockerPanelLoader or future enrichment
 	};
 }
 

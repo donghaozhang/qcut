@@ -10,6 +10,7 @@ import type {
   ActivityDetection,
 } from "./session-types.js";
 import type { ProjectConfig, OrchestratorEvent } from "./config-types.js";
+import type { WorkpadRef, WorkpadSnapshot } from "../workpad-schema.js";
 
 // =============================================================================
 // RUNTIME — Plugin Slot 1
@@ -293,17 +294,18 @@ export interface Tracker {
   /** Optional: create a new issue */
   createIssue?(input: CreateIssueInput, project: ProjectConfig): Promise<Issue>;
 
-  /** Optional: read the canonical workpad/progress artifact for an issue */
-  getWorkpad?(
+  /** Read the canonical workpad/progress artifact for an issue */
+  getWorkpad(
     identifier: string,
     project: ProjectConfig,
-  ): Promise<Workpad | null>;
+  ): Promise<WorkpadRef | null>;
 
-  /** Optional: create or update a canonical workpad/progress artifact */
-  upsertWorkpad?(
-    input: UpsertWorkpadInput,
+  /** Create or update a canonical workpad/progress artifact */
+  upsertWorkpad(
+    snapshot: WorkpadSnapshot,
     project: ProjectConfig,
-  ): Promise<Workpad>;
+    existingId?: string,
+  ): Promise<WorkpadRef>;
 
   /** Optional: transition tracker issue state via normalized state name */
   transitionIssueState?(
@@ -352,6 +354,7 @@ export interface CreateIssueInput {
   priority?: number;
 }
 
+/** @deprecated Use WorkpadRef from workpad-schema.ts */
 export interface Workpad {
   id: string;
   body: string;
@@ -359,11 +362,8 @@ export interface Workpad {
   updatedAt?: Date;
 }
 
-export interface UpsertWorkpadInput {
-  identifier: string;
-  body: string;
-  id?: string;
-}
+/** Re-exported for plugin implementors that import from plugin-types */
+export type { WorkpadRef, WorkpadSnapshot } from "../workpad-schema.js";
 
 export interface ActionableReviewItem {
   id: string;

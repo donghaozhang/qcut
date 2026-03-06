@@ -19,6 +19,11 @@ import type {
 	Notifier,
 } from "./types.js";
 import { parseDuration, createEvent } from "./lifecycle-events.js";
+import {
+	resolveEscalationTemplate,
+	renderEscalationMessage,
+	type EscalationTemplate,
+} from "./escalation-template.js";
 
 export interface ReactionTracker {
 	attempts: number;
@@ -59,6 +64,8 @@ export interface ExecuteReactionDeps {
 	sessionManager: SessionManager;
 	reactionTrackers: Map<string, ReactionTracker>;
 	notifyHuman: NotifyHumanFn;
+	/** Optional escalation templates from the project's workflow policy. */
+	escalationTemplates?: EscalationTemplate[];
 }
 
 /**
@@ -158,18 +165,44 @@ export async function executeReaction(
 	}
 
 	if (shouldEscalate) {
-		const escalationMessage = buildEscalationMessage({
-			reactionKey,
-			attempts: tracker.attempts,
-			sessionId,
-		});
+		// Try to find a matching escalation template from the workflow policy
+		const template = deps.escalationTemplates
+			? resolveEscalationTemplate({
+					violations: [
+						{
+							code: reactionKey,
+							message: `Reaction '${reactionKey}' escalated after ${tracker.attempts} attempts`,
+							blockerClass: "policy_gate_failed",
+						},
+					],
+					templates: deps.escalationTemplates,
+				})
+			: null;
+
+		const escalationMessage = template
+			? renderEscalationMessage({
+					template,
+					context: {
+						sessionId,
+						projectId,
+						violationCode: reactionKey,
+						violationMessage: `Escalated after ${tracker.attempts} automated attempt${tracker.attempts !== 1 ? "s" : ""}`,
+					},
+				})
+			: buildEscalationMessage({
+					reactionKey,
+					attempts: tracker.attempts,
+					sessionId,
+				});
+
+		const priority = template?.severity ?? reactionConfig.priority ?? "urgent";
 		const event = createEvent("reaction.escalated", {
 			sessionId,
 			projectId,
 			message: escalationMessage,
 			data: { reactionKey, attempts: tracker.attempts },
 		});
-		await deps.notifyHuman(event, reactionConfig.priority ?? "urgent");
+		await deps.notifyHuman(event, priority);
 		return {
 			reactionType: reactionKey,
 			success: true,

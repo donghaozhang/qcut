@@ -8,6 +8,7 @@ import { ConversationViewer } from "./ConversationViewer";
 import { TerminalMirror } from "./TerminalMirror";
 import { CLITerminalPanel } from "./CLITerminalPanel";
 import { PRCard, buildGitHubBranchUrl, buildGitHubRepoUrl } from "./PRCard";
+import { GateBlockerPanelLoader } from "./GateBlockerPanel";
 import { ActivityDot } from "./ActivityDot";
 import {
 	formatTokenCountCompact,
@@ -589,6 +590,11 @@ export function SessionDetail({
 
 				{/* ── PR Card ─────────────────────────────────────────────── */}
 				{pr && <PRCard pr={pr} sessionId={session.id} />}
+
+				{/* ── Policy Gate ──────────────────────────────────────────── */}
+				{session.managed && (
+					<GateBlockerPanelLoader sessionId={session.id} />
+				)}
 
 				{/* ── Terminal ─────────────────────────────────────────────── */}
 				<div className={pr ? "mt-6" : ""}>

@@ -50,6 +50,10 @@ export type EventType =
   // Reactions
   | "reaction.triggered"
   | "reaction.escalated"
+  // Reconciliation drift
+  | "drift.detected"
+  | "drift.corrected"
+  | "drift.escalated"
   // Summary
   | "summary.all_complete";
 
@@ -131,6 +135,12 @@ export interface OrchestratorConfig {
 
   /** Optional global workflow contract path (resolved relative to each project path) */
   workflowContractPath?: string;
+
+  /**
+   * How often the reconciliation loop runs (ms). Defaults to 5× the main poll interval.
+   * Set to 0 to disable reconciliation.
+   */
+  reconciliationIntervalMs?: number;
 
   /** Optional global policy mode (project/contract may override) */
   policyMode?: PolicyMode;
@@ -215,6 +225,14 @@ export interface ProjectConfig {
 
   /** Optional policy mode override for this project */
   policyMode?: PolicyMode;
+
+  /**
+   * Escalation templates for per-project notification playbooks.
+   * When a reaction escalates, these templates are checked first before
+   * falling back to the built-in escalation messages.
+   * May also be parsed from WORKFLOW.md front matter `blocked_policy.templates`.
+   */
+  escalationTemplates?: import("../escalation-template.js").EscalationTemplate[];
 }
 
 export interface TrackerConfig {

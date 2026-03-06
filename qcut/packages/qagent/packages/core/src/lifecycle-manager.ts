@@ -59,6 +59,10 @@ import {
 	type BotCommentState,
 	type CheckBotCommentsDeps,
 } from "./lifecycle-bot-comments.js";
+import {
+	ReconciliationLoop,
+	type ReconciliationDeps,
+} from "./reconciliation-loop.js";
 
 export interface LifecycleManagerDeps {
 	config: OrchestratorConfig;
@@ -79,8 +83,11 @@ export function createLifecycleManager(
 	/** Tracks how many consecutive polls a session has remained in the same non-terminal status. */
 	const stalenessCounts = new Map<SessionId, number>();
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
+	let reconciliationTimer: ReturnType<typeof setInterval> | null = null;
 	let polling = false;
+	let reconciling = false;
 	let allCompleteEmitted = false;
+	const reconciliationLoop = new ReconciliationLoop();
 
 	/** Poll counts before a session is considered drifted by status. */
 	const STALENESS_THRESHOLDS: Partial<Record<SessionStatus, number>> = {
@@ -511,17 +518,63 @@ export function createLifecycleManager(
 		}
 	}
 
+	/** Run the reconciliation pass across all active sessions. */
+	async function runReconciliation(): Promise<void> {
+		if (polling || reconciling) return;
+		reconciling = true;
+		try {
+			const sessions = await sessionManager.list();
+			const reconciliationDeps: ReconciliationDeps = {
+				config,
+				registry,
+				sessionManager,
+				applyStatus: async (session, newStatus) => {
+					// Directly apply the reconciled status without re-running the poll cycle.
+					// Calling checkSession here would re-determine status and emit events
+					// based on the calculated (possibly different) status before overwriting.
+					states.set(session.id, newStatus);
+					stalenessCounts.delete(session.id);
+					const project = config.projects[session.projectId];
+					if (project) {
+						const sessionsDir = getSessionsDir(config.configPath, project.path);
+						updateMetadata(sessionsDir, session.id, { status: newStatus });
+					}
+				},
+				notifyHuman,
+			};
+			await reconciliationLoop.run(sessions, reconciliationDeps);
+		} catch {
+			// Reconciliation errors are non-fatal — the next pass will retry
+		} finally {
+			reconciling = false;
+		}
+	}
+
 	return {
 		start(intervalMs = 30_000): void {
 			if (pollTimer) return;
 			pollTimer = setInterval(() => void pollAll(), intervalMs);
 			void pollAll();
+
+			// Start reconciliation at 5× the main poll interval (configurable)
+			const reconInterval =
+				config.reconciliationIntervalMs ?? intervalMs * 5;
+			if (reconInterval > 0) {
+				reconciliationTimer = setInterval(
+					() => void runReconciliation(),
+					reconInterval
+				);
+			}
 		},
 
 		stop(): void {
 			if (pollTimer) {
 				clearInterval(pollTimer);
 				pollTimer = null;
+			}
+			if (reconciliationTimer) {
+				clearInterval(reconciliationTimer);
+				reconciliationTimer = null;
 			}
 		},
 

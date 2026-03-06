@@ -14,6 +14,12 @@ import type {
 	IssueUpdate,
 	CreateIssueInput,
 	ProjectConfig,
+	WorkpadSnapshot,
+	WorkpadRef,
+} from "@composio/ao-core";
+import {
+	renderWorkpadBody,
+	parseWorkpadSnapshot,
 } from "@composio/ao-core";
 
 const execFileAsync = promisify(execFile);
@@ -279,6 +285,98 @@ function createGitHubTracker(): Tracker {
 					update.comment,
 				]);
 			}
+		},
+
+		async getWorkpad(
+			identifier: string,
+			project: ProjectConfig
+		): Promise<WorkpadRef | null> {
+			// List comments on the issue and find one posted by github-actions[bot]
+			// or any comment that contains our snapshot marker
+			try {
+				const raw = await gh([
+					"issue",
+					"view",
+					identifier,
+					"--repo",
+					project.repo,
+					"--json",
+					"comments",
+				]);
+				const data: {
+					comments: Array<{ id: string; url: string; body: string; databaseId: number; authorAssociation: string }>;
+				} = JSON.parse(raw);
+
+				// Only trust snapshots from repo collaborators/owners/members, not arbitrary
+				// external users who could inject forged workpad state.
+				const TRUSTED_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR", "FIRST_TIME_CONTRIBUTOR"]);
+				// Iterate all comments and keep the LATEST parseable snapshot to avoid
+				// returning stale state when multiple workpad comments exist.
+				let latest: WorkpadRef | null = null;
+				for (const comment of data.comments) {
+					if (!TRUSTED_ASSOCIATIONS.has(comment.authorAssociation)) continue;
+					const snapshot = parseWorkpadSnapshot(comment.body);
+					if (snapshot) {
+						latest = {
+							id: String(comment.databaseId),
+							url: comment.url,
+							snapshot,
+						};
+					}
+				}
+				return latest;
+			} catch {
+				return null;
+			}
+		},
+
+		async upsertWorkpad(
+			snapshot: WorkpadSnapshot,
+			project: ProjectConfig,
+			existingId?: string
+		): Promise<WorkpadRef> {
+			const issueNumber = snapshot.issueId?.replace(/^#/, "") ?? "";
+			if (!issueNumber) {
+				throw new Error("WorkpadSnapshot.issueId is required for GitHub upsertWorkpad");
+			}
+			const body = renderWorkpadBody(snapshot);
+
+			if (existingId) {
+				// Edit the existing comment
+				try {
+					await gh([
+						"api",
+						`repos/${project.repo}/issues/comments/${existingId}`,
+						"--method",
+						"PATCH",
+						"--field",
+						`body=${body}`,
+					]);
+					return { id: existingId, snapshot };
+				} catch {
+					// Fall through to create a new comment if edit fails
+				}
+			}
+
+			// Create a new comment
+			const raw = await gh([
+				"issue",
+				"comment",
+				issueNumber,
+				"--repo",
+				project.repo,
+				"--body",
+				body,
+			]);
+
+			// gh issue comment outputs the web URL: https://github.com/owner/repo/issues/42#issuecomment-123
+			// Extract the numeric comment ID — required for the PATCH API endpoint.
+			const url = raw.trim();
+			const match = url.match(/\/comments\/(\d+)$/) ?? url.match(/issuecomment-(\d+)/);
+			if (!match) {
+				throw new Error(`Could not extract comment ID from GitHub URL: ${url}`);
+			}
+			return { id: match[1], url, snapshot };
 		},
 
 		async createIssue(
