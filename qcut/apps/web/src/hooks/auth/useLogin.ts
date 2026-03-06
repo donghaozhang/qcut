@@ -65,9 +65,7 @@ export function useLogin() {
 			await checkLicense();
 			navigate({ to: "/projects" });
 		} catch (err) {
-			setError(
-				err instanceof Error ? err.message : "Login failed"
-			);
+			setError(err instanceof Error ? err.message : "Login failed");
 		} finally {
 			setIsEmailLoading(false);
 		}

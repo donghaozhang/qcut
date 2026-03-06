@@ -4,13 +4,14 @@ Create a GitHub issue and a matching branch with Linear integration. Default wor
 
 ## Steps (Default: GitHub → Linear)
 
-1. Ask the user for: issue title, description (optional), and Linear issue ID (e.g. `QUR-XX`). If no Linear ID is provided, auto-assign one.
-2. Create a GitHub issue using `gh issue create` with the title and description. Include `Part of QUR-XX` in the body.
-3. **Sync the numbers**: After the GitHub issue is created, get its number (e.g. `#42`). Use the **same number** for QUR — i.e. `QUR-42`. This keeps GitHub and Linear issue numbers aligned.
-4. Create a new git branch from the current branch. Use the naming convention: `<username>/qur-XX-short-description` (kebab-case, lowercase), where XX matches the GitHub issue number.
-5. Push the branch to remote with `git push -u origin <branch>`.
-6. Report the issue URL, branch name, and Linear ID (`QUR-XX` = GitHub issue number).
-7. Linear auto-links via magic words in commits/PRs ✅
+1. Ask the user for: issue title, description (optional), and Linear issue ID (e.g. `QUR-XX`). If no Linear ID is provided, auto-assign one after step 2.
+2. Create a GitHub issue using `gh issue create` with the title and description (without `QUR-XX` yet).
+3. **Sync the numbers**: Get the newly created GitHub issue number (e.g. `#42`). Use the **same number** for QUR — i.e. `QUR-42`. This keeps GitHub and Linear issue numbers aligned.
+4. **Update the issue body**: Edit the GitHub issue to include `Part of QUR-42` using `gh issue edit`.
+5. Create a new git branch from the current branch. Use the naming convention: `<username>/qur-XX-short-description` (kebab-case, lowercase), where XX matches the GitHub issue number.
+6. Push the branch to remote with `git push -u origin <branch>`.
+7. Report the issue URL, branch name, and Linear ID (`QUR-XX` = GitHub issue number).
+8. Linear auto-links via magic words in commits/PRs ✅
 
 ## Workflow Reference
 

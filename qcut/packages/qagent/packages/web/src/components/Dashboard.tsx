@@ -153,7 +153,7 @@ export function Dashboard({
 			)
 			.map((s) => s.pr)
 			.filter((pr) => {
-				const key = String(pr.number);
+				const key = `${pr.owner}/${pr.repo}#${pr.number}`;
 				if (seen.has(key)) return false;
 				seen.add(key);
 				return true;
