@@ -5,7 +5,7 @@
 The `packages/license-server` is a Hono app deployed to Cloudflare Workers at
 `https://qcut-license-server.zdhpeter.workers.dev`.
 
-**Status (2026-03-07):** Worker is fully configured and live. All 16 secrets set. Stripe test products and prices created (AUD, test mode). DB migrations applied to Supabase. Auth flow ready for end-to-end testing.
+**Status (2026-03-07):** Worker is fully configured and live. All 16 secrets set. Stripe test products and prices created (AUD, test mode). DB migrations applied to Supabase. Google OAuth end-to-end verified (`zdhpeter@gmail.com` user + session created). Email sign-up/sign-in also verified.
 
 ---
 
@@ -186,6 +186,28 @@ available at request time via the `nodejs_compat` flag. Earlier dates cause
 
 All `process.env` access must be inside function bodies (not at module level),
 because CF Workers validate module-level code before `process` is injected.
+
+---
+
+## Troubleshooting — issues encountered during deployment
+
+### RLS blocking INSERTs (all tables)
+- **Symptom**: `Failed query: insert into "verifications" ...`
+- **Cause**: Drizzle migrations enable RLS on all tables but create no policies. Even though Hyperdrive connects as `postgres` (BYPASSRLS=true), the connection was being blocked.
+- **Fix**: Disabled RLS on all 11 tables via Supabase SQL API — these are server-side tables with no user-facing row isolation needed.
+
+### Stale Hyperdrive connections in warm isolates
+- **Symptom**: INSERT works on `/google/start` but SELECT fails on `/callback/google` (same `_db` singleton reused in warm CF Worker isolate).
+- **Cause**: CF Workers reuse V8 isolates across requests. The singleton postgres.js client holds a stale Hyperdrive TCP connection.
+- **Fix**: Removed `_db` singleton — `getDb()` now creates a fresh postgres.js client per call. The `db` Proxy ensures each query gets a live connection.
+
+### better-auth 302 treated as error
+- **Symptom**: `{"error":"Auth upstream 302","detail":"{\"code\":\"FOUND\"}"}`
+- **Cause**: `handleAuthRequest` used `response.ok` which is false for 3xx status codes. better-auth returns 302 redirects on successful OAuth callbacks.
+- **Fix**: Changed to `response.status < 400` — only 4xx/5xx are treated as errors.
+
+### Hyperdrive query caching
+- **Fix**: Disabled via `npx wrangler hyperdrive update <id> --caching-disabled` to avoid cached empty results for auth state lookups.
 
 ---
 
