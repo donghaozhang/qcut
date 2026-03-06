@@ -473,10 +473,7 @@ export function createAuthRoutes({
 				headers: c.req.raw.headers,
 			});
 			if (!session?.session?.token) {
-				const response = c.redirect(
-					"qcut://activate?error=no_session",
-					302
-				);
+				const response = c.redirect("qcut://activate?error=no_session", 302);
 				response.headers.set("Cache-Control", "no-store");
 				return response;
 			}

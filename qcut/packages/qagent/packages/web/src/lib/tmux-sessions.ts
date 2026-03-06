@@ -21,10 +21,11 @@ async function resolveTmuxPaneInfo(
 	try {
 		const { stdout } = await execFileAsync(
 			"tmux",
-			["list-panes", "-t", sessionName, "-F", "#{pane_pid} #{pane_current_path}"],
+			["list-panes", "-t", sessionName, "-F", "#{pane_active} #{pane_pid} #{pane_current_path}"],
 			{ timeout: 3_000 },
 		);
-		const first = stdout.split("\n")[0]?.trim();
+		const activeLine = stdout.split("\n").find((l) => l.startsWith("1 "));
+		const first = activeLine?.slice(2).trim() ?? stdout.split("\n")[0]?.trim();
 		if (!first) return { pid: null, cwd: null };
 		const spaceIdx = first.indexOf(" ");
 		if (spaceIdx === -1) return { pid: first, cwd: null };

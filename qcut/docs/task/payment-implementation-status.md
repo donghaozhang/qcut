@@ -12,7 +12,7 @@ Payment infrastructure is implemented end-to-end and **deployed to production** 
 
 ## Architecture
 
-```
+```text
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
 │   QCut App      │────▶│  License Server   │◀────│   QCut Web      │
 │   (Electron)    │     │  (CF Workers)     │     │  (quriosity.au) │
@@ -129,7 +129,7 @@ Payment infrastructure is implemented end-to-end and **deployed to production** 
 
 ### Google OAuth (Web)
 
-```
+```text
 User clicks "Continue with Google" on login.html
   → GET /api/auth/google/start?redirect_url=<dashboard>
     → Better Auth /api/auth/sign-in/social (Google)
@@ -143,7 +143,7 @@ User clicks "Continue with Google" on login.html
 
 ### Google OAuth (Desktop)
 
-```
+```text
 User clicks "Continue with Google" in Electron app
   → shell.openExternal(/api/auth/google/start?redirect_url=<desktop-bridge>)
     → Same Google OAuth flow as web
@@ -155,7 +155,7 @@ User clicks "Continue with Google" in Electron app
 
 ### Email Auth (Desktop)
 
-```
+```text
 User enters email/password in Electron login page
   → IPC: license:email-login → POST /api/auth/sign-in/email
     → Returns session token → stored in memory → license activated
