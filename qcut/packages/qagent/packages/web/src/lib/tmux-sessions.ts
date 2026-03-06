@@ -91,7 +91,8 @@ function tmuxInfoToDashboard(
  * @returns Combined list: managed first, then unmanaged sorted by name
  */
 export async function mergeWithUnmanagedTmux(
-	managedSessions: DashboardSession[]
+	managedSessions: DashboardSession[],
+	excludeIds?: Set<string>,
 ): Promise<DashboardSession[]> {
 	let allTmux: TmuxSessionInfo[];
 	try {
@@ -102,7 +103,7 @@ export async function mergeWithUnmanagedTmux(
 
 	if (allTmux.length === 0) return managedSessions;
 
-	const claimedTmuxNames = new Set<string>();
+	const claimedTmuxNames = new Set<string>(excludeIds);
 	for (const s of managedSessions) {
 		claimedTmuxNames.add(s.id);
 		if (s.metadata.tmuxName) {

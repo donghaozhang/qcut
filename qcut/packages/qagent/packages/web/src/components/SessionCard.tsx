@@ -421,7 +421,7 @@ export function SessionCard({
 						)}
 					</span>
 				)}
-				{!session.managed && session.metadata?.pid && (
+				{session.metadata?.pid && (
 					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
 						<span className="text-[var(--color-text-tertiary)]">pid</span>
 						<span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">
@@ -429,11 +429,11 @@ export function SessionCard({
 						</span>
 					</span>
 				)}
-				{!session.managed && session.metadata?.cwd && (
+				{(session.metadata?.cwd || session.metadata?.worktree) && (
 					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
 						<span className="text-[var(--color-text-tertiary)]">cwd</span>
-						<span className="font-[var(--font-mono)] text-[var(--color-text-muted)] truncate max-w-[200px]" title={session.metadata.cwd}>
-							{session.metadata.cwd.split("/").slice(-2).join("/")}
+						<span className="font-[var(--font-mono)] text-[var(--color-text-muted)] truncate max-w-[200px]" title={session.metadata.cwd || session.metadata.worktree}>
+							{(session.metadata.cwd || session.metadata.worktree || "").split("/").slice(-2).join("/")}
 						</span>
 					</span>
 				)}

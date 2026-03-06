@@ -24,9 +24,13 @@ export async function GET(): Promise<Response> {
 				try {
 					const { sessionManager } = await getServices();
 					const sessions = await sessionManager.list();
-					const dashboardSessions = sessions.map(sessionToDashboard);
+					const orchId = sessions.find((s) => s.id.endsWith("-orchestrator"))?.id;
+					const excludeIds = orchId ? new Set([orchId]) : undefined;
+					const dashboardSessions = sessions
+						.filter((s) => !s.id.endsWith("-orchestrator"))
+						.map(sessionToDashboard);
 					const allSessions = await mergeWithUnmanagedCLI(
-						await mergeWithUnmanagedTmux(dashboardSessions),
+						await mergeWithUnmanagedTmux(dashboardSessions, excludeIds),
 					);
 
 					const initialEvent = {
@@ -71,9 +75,13 @@ export async function GET(): Promise<Response> {
 					try {
 						const { sessionManager } = await getServices();
 						const sessions = await sessionManager.list();
-						dashboardSessions = sessions.map(sessionToDashboard);
+						const oId = sessions.find((s) => s.id.endsWith("-orchestrator"))?.id;
+						const exIds = oId ? new Set([oId]) : undefined;
+						dashboardSessions = sessions
+							.filter((s) => !s.id.endsWith("-orchestrator"))
+							.map(sessionToDashboard);
 						dashboardSessions = await mergeWithUnmanagedCLI(
-							await mergeWithUnmanagedTmux(dashboardSessions),
+							await mergeWithUnmanagedTmux(dashboardSessions, exIds),
 						);
 					} catch {
 						// Transient service error — skip this poll, retry on next interval

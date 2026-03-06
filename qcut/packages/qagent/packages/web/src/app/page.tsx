@@ -126,7 +126,8 @@ export default async function Home() {
 		await Promise.race([Promise.allSettled(enrichPromises), enrichTimeout]);
 
 		// Merge with unmanaged tmux sessions, then unmanaged CLI agents
-		sessions = await mergeWithUnmanagedTmux(sessions);
+		const excludeFromTmux = orchestratorId ? new Set([orchestratorId]) : undefined;
+		sessions = await mergeWithUnmanagedTmux(sessions, excludeFromTmux);
 		sessions = await mergeWithUnmanagedCLI(sessions);
 
 		// Discover PRs for unmanaged sessions that have a branch but no PR

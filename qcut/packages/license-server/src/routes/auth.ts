@@ -82,9 +82,11 @@ function normalizeUrlWithoutTrailingSlash({
 function resolveAllowedOrigins({
 	allowedOrigins,
 	webBaseUrl,
+	requestOrigin,
 }: {
 	allowedOrigins: string[];
 	webBaseUrl: string;
+	requestOrigin?: string;
 }): Set<string> {
 	try {
 		const origins = new Set<string>();
@@ -99,6 +101,15 @@ function resolveAllowedOrigins({
 		const normalizedWebOrigin = normalizeOrigin({ value: webBaseUrl });
 		if (normalizedWebOrigin.length > 0) {
 			origins.add(normalizedWebOrigin);
+		}
+
+		if (typeof requestOrigin === "string" && requestOrigin.length > 0) {
+			const normalizedRequestOrigin = normalizeOrigin({
+				value: requestOrigin,
+			});
+			if (normalizedRequestOrigin.length > 0) {
+				origins.add(normalizedRequestOrigin);
+			}
 		}
 
 		return origins;
@@ -311,9 +322,11 @@ export function createAuthRoutes({
 		try {
 			const webBaseUrl = resolvedDependencies.getWebBaseUrl();
 			const defaultUrls = resolveDefaultAuthUrls({ webBaseUrl });
+			const requestUrl = new URL(c.req.url);
 			const allowedOrigins = resolveAllowedOrigins({
 				allowedOrigins: resolvedDependencies.getAllowedOrigins(),
 				webBaseUrl,
+				requestOrigin: requestUrl.origin,
 			});
 
 			const dashboardRedirect = resolveRedirectUrl({
@@ -328,7 +341,6 @@ export function createAuthRoutes({
 				allowedOrigins,
 			});
 
-			const requestUrl = new URL(c.req.url);
 			const callbackBridge = new URL(
 				"/api/auth/oauth/token-bridge",
 				requestUrl.origin
@@ -394,9 +406,11 @@ export function createAuthRoutes({
 		try {
 			const webBaseUrl = resolvedDependencies.getWebBaseUrl();
 			const defaultUrls = resolveDefaultAuthUrls({ webBaseUrl });
+			const tokenBridgeRequestUrl = new URL(c.req.url);
 			const allowedOrigins = resolveAllowedOrigins({
 				allowedOrigins: resolvedDependencies.getAllowedOrigins(),
 				webBaseUrl,
+				requestOrigin: tokenBridgeRequestUrl.origin,
 			});
 
 			const dashboardRedirect = resolveRedirectUrl({
