@@ -1,12 +1,26 @@
 # Payment System Implementation Status
 
-Last updated: 2026-03-06 (Australia/Melbourne)
+Last updated: 2026-03-07 (Australia/Melbourne)
 
 ## Summary
 
-QCut payment infrastructure is implemented end-to-end (Electron + License Server + Stripe + DB), and the top launch blockers from the real-test review have now been addressed in code.
+QCut payment infrastructure is implemented end-to-end and **deployed to production** on Cloudflare Workers. The license server is live at `https://qcut-license-server.zdhpeter.workers.dev` with all secrets configured, database migrations applied, and Google OAuth verified end-to-end.
 
-The system is **implementation-ready for Stripe test-mode validation**, but **not yet launch-ready** until the staged real-test execution is completed (test-mode E2E + controlled live canary).
+**Current state: Ready for Stripe test-mode E2E validation.** All code-level blockers are resolved. The remaining work is operational testing (Stripe test-mode E2E, live canary).
+
+## Deployment Status
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| CF Worker | ✅ Live | `https://qcut-license-server.zdhpeter.workers.dev` |
+| Hyperdrive (DB proxy) | ✅ Active | ID `70804d32fc714532a36dd1a0620da9ae`, caching disabled |
+| Supabase DB | ✅ Migrated | All 11 tables created, RLS disabled for server access |
+| Google OAuth | ✅ Verified | End-to-end flow working (`zdhpeter@gmail.com` user created) |
+| Email Auth | ✅ Verified | Sign-up and sign-in working |
+| Stripe Products | ✅ Created | 6 products, 10 prices (AUD, test mode) |
+| Stripe Webhook | ⚠️ Endpoint ready | Needs webhook registration in Stripe Dashboard |
+| Website (quriosity.com.au) | ✅ Fixed | HTTPS enforced, correct API URL, dashboard loads |
+| Secrets (16 total) | ✅ All set | See `docs/task/license-server-cloudflare-deploy.md` |
 
 ## Blocker Status (From Real-Test Review)
 
@@ -20,6 +34,28 @@ The system is **implementation-ready for Stripe test-mode validation**, but **no
 | 6   | Data integrity + concurrency hardening          | ✅ Resolved                | One-license-per-user uniqueness added; credit deduction changed to atomic DB update.                  |
 | 7   | Domain/config consistency                       | ✅ Resolved                | Redirect/cancel/portal URLs and CORS origins moved to config with consistent defaults.                |
 | 8   | Incident auditability                           | ✅ Resolved                | Failed webhook lock records now retain `lastError` instead of deleting lock rows.                     |
+
+## Deployment Fixes Applied (2026-03-07)
+
+### CF Worker-specific issues fixed during deployment:
+
+1. **`process.env` not populated** — CF Workers doesn't auto-populate `process.env` from secrets. Fixed by adding middleware that copies `c.env` to `process.env` on each request.
+
+2. **postgres.js TCP in CF Workers** — postgres.js uses `node:net` which needs Hyperdrive proxy. Set up Cloudflare Hyperdrive with direct Supabase DB URL.
+
+3. **Stale Hyperdrive connections** — Warm CF Worker isolates reused singleton DB connections that went stale. Fixed by removing `_db` singleton; each query gets a fresh postgres.js client.
+
+4. **RLS blocking INSERTs** — Drizzle migrations enable RLS but create no policies. Disabled RLS on all tables (server-side service, no row-level isolation needed).
+
+5. **better-auth 302 treated as error** — `handleAuthRequest` used `response.ok` (false for 3xx). Fixed to pass through redirects and only treat 4xx/5xx as errors.
+
+6. **better-auth version mismatch** — v1.5.4 requires Zod v4 but workspace has Zod v3. Downgraded to v1.1.6.
+
+7. **Local auth module** — `@qcut/auth/server` uses module-level `betterAuth()` call + `@t3-oss/env-nextjs` (Next.js-specific). Created `src/auth/better-auth.ts` with lazy `getAuth()`.
+
+8. **Website SSL** — GitHub Pages hadn't provisioned the cert for `quriosity.com.au`. Re-provisioned and enabled HTTPS enforcement.
+
+9. **Wrong API URL** — `payment.js` pointed to `qcut-license-server.workers.dev` instead of `qcut-license-server.zdhpeter.workers.dev`.
 
 ## Implemented Changes (By Area)
 
@@ -39,10 +75,12 @@ The system is **implementation-ready for Stripe test-mode validation**, but **no
   - `packages/auth/src/keys.ts`
   - `packages/auth/src/server.ts`
   - `packages/license-server/src/routes/auth.ts`
+  - `packages/license-server/src/auth/better-auth.ts` (NEW — local lazy auth instance)
+  - `packages/license-server/src/db/drizzle.ts` (per-request fresh connections)
   - `packages/license-server/src/index.ts`
-  - `packages/license-server/.env.example`
-  - `packages/license-server/package.json`
   - `packages/nexusai-website/account/login.html`
+  - `packages/nexusai-website/account/dashboard.html`
+  - `packages/nexusai-website/js/payment.js`
   - `packages/license-server/src/routes/auth.test.ts`
 
 ### 1) Auth Security Hardening
@@ -94,8 +132,6 @@ The system is **implementation-ready for Stripe test-mode validation**, but **no
   - `packages/db/src/schema.ts`
   - `packages/db/migrations/0003_payment_guardrails_and_integrity.sql`
   - `packages/db/migrations/meta/_journal.json`
-  - `packages/license-server/supabase/migrations/002_licenses.sql`
-  - `packages/license-server/supabase/migrations/005_payment_hardening.sql`
   - `packages/license-server/src/services/license-service.ts`
   - `packages/license-server/src/services/credit-service.ts`
 
@@ -156,14 +192,20 @@ bun run test
 
 ## Remaining Required Work Before Public Billing
 
-1. Run Stripe test-mode E2E for the staged scenarios in `docs/task/qcut-payment-system-real-test.md`.
-2. Execute a controlled live canary with internal allowlist enabled.
-3. Validate operational rollback/refund procedures in real environment logs and DB.
-4. Keep runbook current: `docs/task/payment-refund-rollback-runbook.md`.
+1. **Register Stripe webhook endpoint** in Stripe Dashboard:
+   - URL: `https://qcut-license-server.zdhpeter.workers.dev/api/stripe/webhook`
+   - Events: `checkout.session.completed`, `invoice.payment_succeeded`, `customer.subscription.deleted`, `charge.refunded`
+2. Run Stripe test-mode E2E for the staged scenarios in `docs/task/qcut-payment-system-real-test.md`.
+3. Execute a controlled live canary with internal allowlist enabled.
+4. Validate operational rollback/refund procedures in real environment logs and DB.
+5. Keep runbook current: `docs/task/payment-refund-rollback-runbook.md`.
 
 ## Key Payment Files (Current)
 
 - `packages/license-server/src/index.ts`
+- `packages/license-server/src/auth/better-auth.ts`
+- `packages/license-server/src/db/drizzle.ts`
+- `packages/license-server/src/routes/auth.ts`
 - `packages/license-server/src/routes/stripe.ts`
 - `packages/license-server/src/routes/credits.ts`
 - `packages/license-server/src/services/stripe-service.ts`
@@ -174,3 +216,4 @@ bun run test
 - `packages/license-server/src/middleware/auth.ts`
 - `packages/license-server/src/middleware/auth-jwt.ts`
 - `packages/db/src/schema.ts`
+- `packages/nexusai-website/js/payment.js`
