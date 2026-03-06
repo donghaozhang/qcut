@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "@qcut/db";
+import { db } from "../db/drizzle";
 import { deviceActivations, licenses } from "@qcut/db/schema";
 
 export type LicensePlan = "free" | "pro" | "team";

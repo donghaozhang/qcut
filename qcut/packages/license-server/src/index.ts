@@ -13,7 +13,10 @@ const app = new Hono();
 app.use(
 	"/*",
 	cors({
-		origin: getAllowedCorsOrigins(),
+		origin: (origin) => {
+			const allowed = getAllowedCorsOrigins();
+			return allowed.includes(origin) ? origin : null;
+		},
 		allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
 		allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
 	})

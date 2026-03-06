@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { db } from "@qcut/db";
+import { db } from "../db/drizzle";
 import { users } from "@qcut/db/schema";
 import { isCanaryModeEnabled, isEmailAllowedForCanary } from "./payment-config";
 

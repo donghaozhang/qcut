@@ -1,6 +1,6 @@
 import { and, eq, isNull, lt, or, type SQL } from "drizzle-orm";
 import Stripe from "stripe";
-import { db } from "@qcut/db";
+import { db } from "../db/drizzle";
 import { licenses, stripeWebhookEvents } from "@qcut/db/schema";
 import {
 	addTopUpPackCreditsForUser,
@@ -17,7 +17,6 @@ import {
 	resolveStripeIdempotencyKey,
 } from "./payment-config";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 const WEBHOOK_LOCK_STALE_MS = 5 * 60 * 1000;
 
 const WEBHOOK_LOCK_RESULT = {
@@ -29,26 +28,31 @@ const WEBHOOK_LOCK_RESULT = {
 type WebhookLockResult =
 	(typeof WEBHOOK_LOCK_RESULT)[keyof typeof WEBHOOK_LOCK_RESULT];
 
-const SUBSCRIPTION_PRICE_IDS: Record<string, string> = {
-	pro_month: process.env.STRIPE_PRO_MONTHLY_PRICE_ID || "",
-	pro_year: process.env.STRIPE_PRO_YEARLY_PRICE_ID || "",
-	team_month: process.env.STRIPE_TEAM_MONTHLY_PRICE_ID || "",
-	team_year: process.env.STRIPE_TEAM_YEARLY_PRICE_ID || "",
-};
+let _stripe: Stripe | null = null;
+function getStripe(): Stripe {
+	if (!_stripe) {
+		_stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+	}
+	return _stripe;
+}
 
-const TOP_UP_PRICE_IDS: Record<string, string> = {
-	starter: process.env.STRIPE_TOPUP_STARTER_PRICE_ID || "",
-	standard: process.env.STRIPE_TOPUP_STANDARD_PRICE_ID || "",
-	pro: process.env.STRIPE_TOPUP_PRO_PRICE_ID || "",
-	mega: process.env.STRIPE_TOPUP_MEGA_PRICE_ID || "",
-};
+function getSubscriptionPriceIds(): Record<string, string> {
+	return {
+		pro_month: process.env.STRIPE_PRO_MONTHLY_PRICE_ID || "",
+		pro_year: process.env.STRIPE_PRO_YEARLY_PRICE_ID || "",
+		team_month: process.env.STRIPE_TEAM_MONTHLY_PRICE_ID || "",
+		team_year: process.env.STRIPE_TEAM_YEARLY_PRICE_ID || "",
+	};
+}
 
-const SUBSCRIPTION_PRICE_TO_PLAN: Record<string, "pro" | "team"> = {
-	[SUBSCRIPTION_PRICE_IDS.pro_month]: "pro",
-	[SUBSCRIPTION_PRICE_IDS.pro_year]: "pro",
-	[SUBSCRIPTION_PRICE_IDS.team_month]: "team",
-	[SUBSCRIPTION_PRICE_IDS.team_year]: "team",
-};
+function getTopUpPriceIds(): Record<string, string> {
+	return {
+		starter: process.env.STRIPE_TOPUP_STARTER_PRICE_ID || "",
+		standard: process.env.STRIPE_TOPUP_STANDARD_PRICE_ID || "",
+		pro: process.env.STRIPE_TOPUP_PRO_PRICE_ID || "",
+		mega: process.env.STRIPE_TOPUP_MEGA_PRICE_ID || "",
+	};
+}
 
 const SUBSCRIPTION_STATUS_TO_LICENSE: Record<
 	Stripe.Subscription.Status,
@@ -82,7 +86,14 @@ function resolvePlanFromPriceId({
 	if (!priceId) {
 		return null;
 	}
-	return SUBSCRIPTION_PRICE_TO_PLAN[priceId] ?? null;
+	const ids = getSubscriptionPriceIds();
+	const map: Record<string, "pro" | "team"> = {
+		[ids.pro_month]: "pro",
+		[ids.pro_year]: "pro",
+		[ids.team_month]: "team",
+		[ids.team_year]: "team",
+	};
+	return map[priceId] ?? null;
 }
 
 /** Maps each plan to its device allowance. */
@@ -293,7 +304,7 @@ export async function createCheckoutSession({
 	idempotencyKey?: string;
 }): Promise<Stripe.Checkout.Session> {
 	try {
-		const priceId = SUBSCRIPTION_PRICE_IDS[`${plan}_${interval}`];
+		const priceId = getSubscriptionPriceIds()[`${plan}_${interval}`];
 		assertConfiguredPriceId({
 			priceId,
 			errorMessage: `Missing Stripe price ID for ${plan}/${interval}`,
@@ -309,7 +320,7 @@ export async function createCheckoutSession({
 		const license = await getLicenseByUserId({ userId });
 		const existingCustomerId = license.stripeCustomerId ?? undefined;
 
-		return await stripe.checkout.sessions.create(
+		return await getStripe().checkout.sessions.create(
 			{
 				mode: "subscription",
 				payment_method_types: ["card"],
@@ -344,7 +355,7 @@ export async function createTopUpCheckoutSession({
 	idempotencyKey?: string;
 }): Promise<Stripe.Checkout.Session> {
 	try {
-		const priceId = TOP_UP_PRICE_IDS[pack];
+		const priceId = getTopUpPriceIds()[pack];
 		assertConfiguredPriceId({
 			priceId,
 			errorMessage: `Missing Stripe top-up price ID for pack ${pack}`,
@@ -357,7 +368,7 @@ export async function createTopUpCheckoutSession({
 			payloadParts: [pack],
 		});
 
-		return await stripe.checkout.sessions.create(
+		return await getStripe().checkout.sessions.create(
 			{
 				mode: "payment",
 				payment_method_types: ["card"],
@@ -395,7 +406,7 @@ export async function createPortalSession({
 			payloadParts: ["billing-portal"],
 		});
 
-		return await stripe.billingPortal.sessions.create(
+		return await getStripe().billingPortal.sessions.create(
 			{
 				customer: stripeCustomerId,
 				return_url: getPaymentPortalReturnUrl(),
@@ -674,7 +685,7 @@ export async function handleWebhook({
 			throw new Error("STRIPE_WEBHOOK_SECRET is not configured");
 		}
 
-		const event = stripe.webhooks.constructEvent(
+		const event = getStripe().webhooks.constructEvent(
 			body,
 			signature,
 			webhookSecret
