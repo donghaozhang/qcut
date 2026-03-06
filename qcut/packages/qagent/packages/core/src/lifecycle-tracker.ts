@@ -36,7 +36,8 @@ export function normalizeTrackerIssueIdentifier({
 			return label.replace(/^#/, "");
 		}
 		const urlParts = issueId.split("/");
-		return (urlParts[urlParts.length - 1] ?? issueId).replace(/^#/, "");
+		const last = urlParts[urlParts.length - 1] ?? "";
+		return (last || issueId).replace(/^#/, "");
 	} catch {
 		return issueId.replace(/^#/, "");
 	}
@@ -103,7 +104,7 @@ export function buildWorkpadBody({
 		statusLines.push(`- **PR**: [#${String(session.pr.number)}](${session.pr.url})`);
 	}
 	if (session.agentInfo?.summary) {
-		statusLines.push(`- **Summary**: ${session.agentInfo.summary}`);
+		statusLines.push(`- **Summary**: ${session.agentInfo.summary.replace(/\n/g, " ")}`);
 	}
 	if (session.metadata.issueState) {
 		statusLines.push(`- **Tracker State**: ${session.metadata.issueState}`);
@@ -238,13 +239,11 @@ export async function syncSessionWorkpad({
 
 		const sessionsDir = getSessionsDir(config.configPath, project.path);
 		updateMetadata(sessionsDir, session.id, {
-			workpadId: workpad.id,
-			workpadUrl: workpad.url ?? "",
+			workpadId: workpad.id.replace(/\n/g, " "),
+			workpadUrl: (workpad.url ?? "").replace(/\n/g, " "),
 		});
 		session.metadata.workpadId = workpad.id;
-		if (workpad.url) {
-			session.metadata.workpadUrl = workpad.url;
-		}
+		session.metadata.workpadUrl = workpad.url ?? "";
 	} catch (error) {
 		const event = createEvent("reaction.escalated", {
 			sessionId: session.id,

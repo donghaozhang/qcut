@@ -418,7 +418,7 @@ export async function addTopUpCreditsForUser({
 			const [nextBalance] = await tx
 				.update(creditBalances)
 				.set({
-					topUpCredits: refreshed.topUpCredits + credits,
+					topUpCredits: sql`${creditBalances.topUpCredits} + ${credits}`,
 					updatedAt: now,
 				})
 				.where(eq(creditBalances.id, refreshed.id))

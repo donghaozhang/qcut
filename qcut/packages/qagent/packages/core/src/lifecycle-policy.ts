@@ -181,7 +181,7 @@ export async function evaluateSessionPolicyGate({
 			violations: [
 				{
 					code: "policy_evaluation_error",
-					message: `Policy gate evaluation failed: ${error}`,
+					message: `Policy gate evaluation failed: ${String(error).replace(/\n/g, " ")}`,
 					blockerClass: "policy_gate_failed",
 				},
 			],

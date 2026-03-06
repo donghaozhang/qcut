@@ -101,43 +101,33 @@ export async function checkBotComments(
 	} = deps;
 
 	if (!session.pr) {
-		console.log(`[botcheck] ${session.id}: no PR`);
+		botCommentStates.delete(session.id);
 		return;
 	}
 
 	const currentStatus = states.get(session.id);
 	if (!currentStatus || !BOT_CHECK_STATUSES.has(currentStatus)) {
-		console.log(
-			`[botcheck] ${session.id}: status=${currentStatus} not in BOT_CHECK_STATUSES`
-		);
+		botCommentStates.delete(session.id);
 		return;
 	}
 
 	const project = config.projects[session.projectId];
 	if (!project?.scm) {
-		console.log(`[botcheck] ${session.id}: no scm config`);
 		return;
 	}
 
 	const scm = registry.get<SCM>("scm", project.scm.plugin);
 	if (!scm) {
-		console.log(`[botcheck] ${session.id}: scm plugin not found`);
 		return;
 	}
 
 	let comments: Awaited<ReturnType<SCM["getAutomatedComments"]>>;
 	try {
 		comments = await scm.getAutomatedComments(session.pr);
-	} catch (err) {
-		console.log(
-			`[botcheck] ${session.id}: getAutomatedComments failed: ${err}`
-		);
+	} catch {
 		return;
 	}
 
-	console.log(
-		`[botcheck] ${session.id}: found ${comments.length} bot comments`
-	);
 	if (comments.length === 0) return;
 
 	const now = new Date();
@@ -149,9 +139,6 @@ export async function checkBotComments(
 	const prev = botCommentStates.get(session.id);
 
 	if (!prev) {
-		console.log(
-			`[botcheck] ${session.id}: first detection, ${comments.length} comments, starting settle timer`
-		);
 		botCommentStates.set(session.id, {
 			lastSeenCount: comments.length,
 			latestCommentAt: latestComment,
@@ -187,13 +174,7 @@ export async function checkBotComments(
 		// Step 1: Send /buildit after review loop converges
 		if (!prev.buildSent && prev.reactionFiredAt) {
 			const sinceReaction = now.getTime() - prev.reactionFiredAt.getTime();
-			console.log(
-				`[botcheck] ${session.id}: waiting for build check... ${Math.round(sinceReaction / 1000)}s / ${BUILD_CHECK_DELAY_MS / 1000}s`
-			);
 			if (sinceReaction >= BUILD_CHECK_DELAY_MS) {
-				console.log(`[botcheck] ${session.id}: sending /buildit instructions`);
-				prev.buildSent = true;
-				prev.buildSentAt = now;
 				await sessionManager.send(
 					session.id,
 					"# Monitor and Fix CI Build\n\n" +
@@ -211,6 +192,8 @@ export async function checkBotComments(
 						"- Only fix what's needed to pass CI — no unrelated changes.\n" +
 						"- Run `bun run lint && bun run typecheck` locally before pushing.\n"
 				);
+				prev.buildSent = true;
+				prev.buildSentAt = now;
 			}
 			return;
 		}
@@ -219,15 +202,11 @@ export async function checkBotComments(
 		if (prev.buildSent && !prev.mergeNotified && prev.buildSentAt) {
 			const sinceBuild = now.getTime() - prev.buildSentAt.getTime();
 			if (sinceBuild < CI_POLL_DELAY_MS) {
-				console.log(
-					`[botcheck] ${session.id}: waiting for CI poll... ${Math.round(sinceBuild / 1000)}s / ${CI_POLL_DELAY_MS / 1000}s`
-				);
 				return;
 			}
 
 			try {
 				const ciStatus = await scm.getCISummary(session.pr);
-				console.log(`[botcheck] ${session.id}: CI status = ${ciStatus}`);
 				if (ciStatus === CI_STATUS.PASSING) {
 					const policyEvaluation = await evaluateSessionPolicyGate({
 						session,
@@ -305,15 +284,9 @@ export async function checkBotComments(
 
 	const settleElapsed = now.getTime() - prev.lastNewCommentDetectedAt.getTime();
 	if (settleElapsed < BOT_COMMENT_SETTLE_MS) {
-		console.log(
-			`[botcheck] ${session.id}: settling... ${Math.round(settleElapsed / 1000)}s / ${BOT_COMMENT_SETTLE_MS / 1000}s`
-		);
 		return;
 	}
 
-	console.log(
-		`[botcheck] ${session.id}: SETTLED after ${Math.round(settleElapsed / 1000)}s — firing bugbot-comments reaction`
-	);
 	prev.reactionFired = true;
 	prev.reactionFiredAt = now;
 
@@ -333,11 +306,15 @@ export async function checkBotComments(
 		reactionTrackers,
 		notifyHuman: notify,
 	};
-	await executeReaction(
-		session.id,
-		session.projectId,
-		reactionKey,
-		reactionConfig as ReactionConfig,
-		executeDeps
-	);
+	try {
+		await executeReaction(
+			session.id,
+			session.projectId,
+			reactionKey,
+			reactionConfig as ReactionConfig,
+			executeDeps
+		);
+	} catch {
+		// plugin error — do not abort the polling cycle
+	}
 }

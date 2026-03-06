@@ -261,7 +261,7 @@ export async function executeReaction(
 				}
 				return {
 					reactionType: reactionKey,
-					success: true,
+					success: false,
 					action: "send-structured-review",
 					escalated: false,
 				};

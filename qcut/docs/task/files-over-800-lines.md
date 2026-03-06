@@ -29,7 +29,7 @@ Per CLAUDE.md: "No code file should exceed 800 lines; if it does, split it into 
 
 ## Historical Refactors (below 800)
 
-These 28 files were refactored below the 800-line limit in prior passes:
+These 28 files were addressed from the over-800 list (refactored, removed, or split):
 
 | Was | Now | File |
 |-----|-----|------|
