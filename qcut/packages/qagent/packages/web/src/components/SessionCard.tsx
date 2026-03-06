@@ -30,6 +30,7 @@ interface SessionCardProps {
 	onMerge?: (prNumber: number) => void;
 	onRestore?: (sessionId: string) => void;
 	onLabelChange?: (sessionId: string, label: string | null) => void;
+	onGitit?: (sessionId: string) => void;
 }
 
 const borderColorByLevel: Record<AttentionLevel, string> = {
@@ -56,9 +57,11 @@ export function SessionCard({
 	onMerge,
 	onRestore,
 	onLabelChange,
+	onGitit,
 }: SessionCardProps) {
 	const [expanded, setExpanded] = useState(false);
 	const [sendingAction, setSendingAction] = useState<string | null>(null);
+	const [gititState, setGititState] = useState<"idle" | "loading" | "done" | "error">("idle");
 	const [editingLabel, setEditingLabel] = useState(false);
 	const [labelDraft, setLabelDraft] = useState(session.label ?? "");
 	const labelInputRef = useRef<HTMLInputElement>(null);
@@ -221,6 +224,26 @@ export function SessionCard({
 						className="rounded border border-[rgba(88,166,255,0.35)] px-2 py-0.5 text-[11px] text-[var(--color-accent)] transition-colors hover:bg-[rgba(88,166,255,0.1)]"
 					>
 						restore
+					</button>
+				)}
+				{onGitit && (
+					<button
+						onClick={(e) => {
+							e.stopPropagation();
+							if (gititState === "loading") return;
+							setGititState("loading");
+							Promise.resolve(onGitit(session.id)).then(() => {
+								setGititState("done");
+								setTimeout(() => setGititState("idle"), 2000);
+							}).catch(() => {
+								setGititState("error");
+								setTimeout(() => setGititState("idle"), 2000);
+							});
+						}}
+						disabled={gititState === "loading"}
+						className="rounded border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-2.5 py-0.5 text-[11px] text-[var(--color-text-muted)] transition-colors hover:border-[rgba(136,192,208,0.5)] hover:text-[rgba(136,192,208,0.9)] hover:no-underline disabled:opacity-50"
+					>
+						{gititState === "loading" ? "…" : gititState === "done" ? "✓" : gititState === "error" ? "✗" : "gitit"}
 					</button>
 				)}
 				{(!isTerminal || !session.managed) && (
@@ -578,7 +601,7 @@ export function SessionCard({
 								terminate
 							</button>
 						)}
-					</div>}
+						</div>}
 				</div>
 			)}
 		</div>

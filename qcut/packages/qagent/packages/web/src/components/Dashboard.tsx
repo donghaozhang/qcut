@@ -50,7 +50,6 @@ export function Dashboard({
 	const [labelOverrides, setLabelOverrides] = useState<
 		Record<string, string | null>
 	>({});
-	const [gititState, setGititState] = useState<"idle" | "loading" | "done" | "error">("idle");
 
 	// Live activity/status overrides from SSE stream
 	const [liveOverrides, setLiveOverrides] = useState<
@@ -254,21 +253,16 @@ export function Dashboard({
 	);
 	const isCpuSortEnabled = sessionSortMode === SESSION_SORT_MODE.CPU;
 
-	/** Send the gitit.md instruction to the orchestrator session. */
-	const handleGitit = async () => {
-		if (!orchestratorId || gititState === "loading") return;
-		setGititState("loading");
-		try {
-			const res = await fetch("/api/commands/gitit", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ sessionId: orchestratorId }),
-			});
-			setGititState(res.ok ? "done" : "error");
-		} catch {
-			setGititState("error");
+	/** Send the gitit.md instruction to an individual session. */
+	const handleGitit = async (sessionId: string) => {
+		const res = await fetch("/api/commands/gitit", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ sessionId }),
+		});
+		if (!res.ok) {
+			throw new Error(await res.text());
 		}
-		setTimeout(() => setGititState("idle"), 2000);
 	};
 
 	/** Handle sort toggle. */
@@ -337,34 +331,6 @@ export function Dashboard({
 								{relaySessions.length}
 							</span>
 						</label>
-					)}
-					{orchestratorId && (
-						<button
-							type="button"
-							onClick={() => void handleGitit()}
-							disabled={gititState === "loading" || !orchestratorId}
-							aria-label="Run gitit — stage, commit, and push all changes"
-							className="inline-flex items-center gap-1.5 rounded-[7px] border border-[var(--color-border-subtle)] bg-[rgba(255,255,255,0.02)] px-3 py-1.5 text-[11px] text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-border-strong)] disabled:opacity-50"
-						>
-							<svg
-								className="h-3.5 w-3.5"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth="2"
-								viewBox="0 0 24 24"
-							>
-								<path d="M5 12h14M12 5l7 7-7 7" />
-							</svg>
-							<span className="uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">
-								{gititState === "loading"
-									? "Sending…"
-									: gititState === "done"
-										? "Sent ✓"
-										: gititState === "error"
-											? "Error ✗"
-											: "gitit"}
-							</span>
-						</button>
 					)}
 					{orchestratorId && (
 						<a
@@ -437,6 +403,7 @@ export function Dashboard({
 									onMerge={handleMerge}
 									onRestore={handleRestore}
 									onLabelChange={handleLabelChange}
+									onGitit={handleGitit}
 								/>
 							</div>
 						) : null
@@ -456,6 +423,7 @@ export function Dashboard({
 						onMerge={handleMerge}
 						onRestore={handleRestore}
 						onLabelChange={handleLabelChange}
+						onGitit={handleGitit}
 					/>
 				</div>
 			)}
