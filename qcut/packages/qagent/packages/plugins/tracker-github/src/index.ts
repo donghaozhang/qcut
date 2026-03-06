@@ -304,20 +304,27 @@ function createGitHubTracker(): Tracker {
 					"comments",
 				]);
 				const data: {
-					comments: Array<{ id: string; url: string; body: string; databaseId: number }>;
+					comments: Array<{ id: string; url: string; body: string; databaseId: number; authorAssociation: string }>;
 				} = JSON.parse(raw);
 
+				// Only trust snapshots from repo collaborators/owners/members, not arbitrary
+				// external users who could inject forged workpad state.
+				const TRUSTED_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR", "FIRST_TIME_CONTRIBUTOR"]);
+				// Iterate all comments and keep the LATEST parseable snapshot to avoid
+				// returning stale state when multiple workpad comments exist.
+				let latest: WorkpadRef | null = null;
 				for (const comment of data.comments) {
+					if (!TRUSTED_ASSOCIATIONS.has(comment.authorAssociation)) continue;
 					const snapshot = parseWorkpadSnapshot(comment.body);
 					if (snapshot) {
-						return {
+						latest = {
 							id: String(comment.databaseId),
 							url: comment.url,
 							snapshot,
 						};
 					}
 				}
-				return null;
+				return latest;
 			} catch {
 				return null;
 			}
@@ -362,12 +369,14 @@ function createGitHubTracker(): Tracker {
 				body,
 			]);
 
-			// gh issue comment outputs the comment URL
+			// gh issue comment outputs the web URL: https://github.com/owner/repo/issues/42#issuecomment-123
+			// Extract the numeric comment ID — required for the PATCH API endpoint.
 			const url = raw.trim();
-			// Extract comment ID from URL (last numeric segment)
-			const match = url.match(/\/comments\/(\d+)$/);
-			const id = match ? match[1] : url;
-			return { id, url, snapshot };
+			const match = url.match(/\/comments\/(\d+)$/) ?? url.match(/issuecomment-(\d+)/);
+			if (!match) {
+				throw new Error(`Could not extract comment ID from GitHub URL: ${url}`);
+			}
+			return { id: match[1], url, snapshot };
 		},
 
 		async createIssue(

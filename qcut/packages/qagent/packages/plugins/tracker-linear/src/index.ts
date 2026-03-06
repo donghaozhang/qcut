@@ -758,21 +758,21 @@ function createLinearTracker(query: GraphQLTransport): Tracker {
 			_identifier: string,
 			_project: ProjectConfig
 		): Promise<WorkpadRef | null> {
-			// Linear does not have a direct equivalent of GitHub issue comments for workpads.
-			// Workpad data is not persisted to Linear at this time.
-			console.error("[tracker-linear] getWorkpad: not implemented — Linear workpad storage is not yet supported");
+			// Linear workpad storage is not yet supported — return null so callers
+			// treat this session as having no existing workpad.
 			return null;
 		},
 
 		async upsertWorkpad(
-			snapshot: WorkpadSnapshot,
+			_snapshot: WorkpadSnapshot,
 			_project: ProjectConfig,
 			_existingId?: string
 		): Promise<WorkpadRef> {
-			// Linear does not have a direct equivalent of GitHub issue comments for workpads.
-			// Return a no-op ref using the envStamp as the ID.
-			console.error("[tracker-linear] upsertWorkpad: not implemented — Linear workpad storage is not yet supported");
-			return { id: snapshot.envStamp, snapshot };
+			// Linear workpad storage is not supported. Throw so callers can catch
+			// and skip workpad sync for non-GitHub trackers, preserving contract integrity.
+			throw new Error(
+				"tracker-linear: upsertWorkpad is not supported — Linear workpad storage is not yet implemented. Use the GitHub tracker for workpad persistence."
+			);
 		},
 	};
 }

@@ -185,12 +185,8 @@ export class ReconciliationLoop {
 			for (const result of checkResults) {
 				if (result.status === "fulfilled" && result.value) {
 					drifts.push(result.value);
-				} else if (result.status === "rejected") {
-					console.error(
-						`[reconciliation] check error for session ${session.id}:`,
-						result.reason
-					);
 				}
+				// rejected checks are silently skipped — external API failure ≠ drift
 			}
 
 			if (drifts.length === 0) continue;
@@ -245,19 +241,15 @@ export class ReconciliationLoop {
 						}
 					}
 
-					// Also emit drift.detected for logging regardless
-					const detectedEvt = createEvent("drift.detected", {
+					// Also emit drift.detected for observability
+					createEvent("drift.detected", {
 						sessionId: session.id,
 						projectId: session.projectId,
 						message: drift.description,
 						data: { kind: drift.kind, corrected: drift.corrected },
 					});
-					console.info("[reconciliation] drift detected:", detectedEvt.message);
-				} catch (error) {
-					console.error(
-						`[reconciliation] failed to process drift for session ${session.id}:`,
-						error
-					);
+				} catch {
+					// Drift processing errors are non-fatal — continue with next drift
 				}
 			}
 

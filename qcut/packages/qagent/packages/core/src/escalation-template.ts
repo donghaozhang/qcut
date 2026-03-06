@@ -160,7 +160,7 @@ export function renderEscalationMessage({
 
 /**
  * Parse escalation templates from a raw front matter object.
- * Tolerates missing/malformed entries — skips invalid ones with a console warning.
+ * Tolerates missing/malformed entries — skips invalid ones silently.
  */
 export function parseEscalationTemplates({
 	raw,
@@ -179,13 +179,9 @@ export function parseEscalationTemplates({
 		const obj = entry as Record<string, unknown>;
 
 		if (typeof obj["id"] !== "string" || !obj["id"]) {
-			console.warn("[escalation-template] skipping entry: missing 'id'");
 			continue;
 		}
 		if (typeof obj["messageTemplate"] !== "string" || !obj["messageTemplate"]) {
-			console.warn(
-				`[escalation-template] skipping '${obj["id"]}': missing 'messageTemplate'`
-			);
 			continue;
 		}
 

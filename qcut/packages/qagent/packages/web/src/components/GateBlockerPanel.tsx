@@ -70,8 +70,8 @@ export function GateBlockerPanel({ sessionId, gate }: GateBlockerPanelProps) {
 				</button>
 			</div>
 			<ul className="mt-1 space-y-0.5">
-				{current.violations.map((v, i) => (
-					<li key={`${v.code}-${i}`} className="opacity-90">
+				{current.violations.map((v) => (
+					<li key={`${v.code}:${v.message}`} className="opacity-90">
 						<code className="opacity-70">{v.code}</code>
 						{v.blockerClass && (
 							<span className="ml-1 opacity-50">[{v.blockerClass}]</span>

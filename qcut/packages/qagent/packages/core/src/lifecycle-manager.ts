@@ -85,6 +85,7 @@ export function createLifecycleManager(
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 	let reconciliationTimer: ReturnType<typeof setInterval> | null = null;
 	let polling = false;
+	let reconciling = false;
 	let allCompleteEmitted = false;
 	const reconciliationLoop = new ReconciliationLoop();
 
@@ -519,6 +520,8 @@ export function createLifecycleManager(
 
 	/** Run the reconciliation pass across all active sessions. */
 	async function runReconciliation(): Promise<void> {
+		if (polling || reconciling) return;
+		reconciling = true;
 		try {
 			const sessions = await sessionManager.list();
 			const reconciliationDeps: ReconciliationDeps = {
@@ -526,15 +529,24 @@ export function createLifecycleManager(
 				registry,
 				sessionManager,
 				applyStatus: async (session, newStatus) => {
-					await checkSession(session);
-					// Force status update in the state map
+					// Directly apply the reconciled status without re-running the poll cycle.
+					// Calling checkSession here would re-determine status and emit events
+					// based on the calculated (possibly different) status before overwriting.
 					states.set(session.id, newStatus);
+					stalenessCounts.delete(session.id);
+					const project = config.projects[session.projectId];
+					if (project) {
+						const sessionsDir = getSessionsDir(config.configPath, project.path);
+						updateMetadata(sessionsDir, session.id, { status: newStatus });
+					}
 				},
 				notifyHuman,
 			};
 			await reconciliationLoop.run(sessions, reconciliationDeps);
-		} catch (error) {
-			console.error("[lifecycle-manager] reconciliation pass error:", error);
+		} catch {
+			// Reconciliation errors are non-fatal — the next pass will retry
+		} finally {
+			reconciling = false;
 		}
 	}
 

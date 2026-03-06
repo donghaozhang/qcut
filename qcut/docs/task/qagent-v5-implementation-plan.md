@@ -90,7 +90,7 @@ QAgent v5 extends the governance layer built in the previous sprint. The workflo
 2. Update `buildWorkpadBody` in `lifecycle-tracker.ts` to return `WorkpadSnapshot` (keep string rendering via `renderWorkpadBody`).
 3. Update `Tracker` plugin interface: `upsertWorkpad(snapshot: WorkpadSnapshot, project): Promise<WorkpadRef>` and `getWorkpad(issueId, project): Promise<WorkpadRef | null>`.
 4. Migrate `tracker-github` plugin: store `snapshot` as structured JSON in a hidden HTML comment inside the workpad body so it can be round-tripped on `getWorkpad`.
-5. Add Linear plugin stub (noop if `upsertWorkpad` not feasible, with a clear error log).
+5. Add Linear plugin stub: `getWorkpad` returns `null` (no-op — no persistent storage). `upsertWorkpad` must **throw** an error (not silently noop) to maintain the `Tracker` contract — callers must catch and skip workpad sync for unsupported trackers. A silent noop ref breaks cross-tracker parity and is treated as a contract violation.
 6. Update `syncSessionWorkpad` to pass the snapshot directly.
 
 #### Acceptance criteria
