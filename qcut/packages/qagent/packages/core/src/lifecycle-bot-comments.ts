@@ -237,8 +237,8 @@ export async function checkBotComments(
 						policyEvaluationBySession,
 					});
 					const policyGate = policyEvaluation?.gate;
-					if (policyGate && !policyGate.passed) {
-						const blockedViolations = getBlockedPolicyViolations({ policyGate });
+					if (policyEvaluation && policyGate && !policyGate.passed) {
+						const blockedViolations = getBlockedPolicyViolations({ evaluation: policyEvaluation });
 						const violationsForEvent =
 							blockedViolations.length > 0
 								? blockedViolations
@@ -252,16 +252,13 @@ export async function checkBotComments(
 							message: `PR #${session.pr.number}: workflow policy gate failed (${policyGate.mode}) — ${summarizePolicyGate({ policyGate })}`,
 							data: {
 								mode: policyGate.mode,
-								blockedPolicy: policyGate.blockedPolicy,
+								blockedPolicy: policyEvaluation.effectivePolicy.policy.blockedPolicy,
 								violations: violationsForEvent,
 							},
 						});
 						await notify(event, priority);
 
-						if (
-							policyEvaluation &&
-							shouldBlockMergeTransition({ evaluation: policyEvaluation })
-						) {
+						if (shouldBlockMergeTransition({ evaluation: policyEvaluation })) {
 							prev.mergeNotified = true;
 							return;
 						}

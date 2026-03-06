@@ -56,17 +56,19 @@ export function toWarningPriorityForBlockerClass({
 }
 
 export function getBlockedPolicyViolations({
-	policyGate,
+	evaluation,
 }: {
-	policyGate: PolicyGateResult;
+	evaluation: SessionPolicyEvaluation;
 }): PolicyGateResult["violations"] {
 	try {
-		const enabledClasses = new Set(policyGate.blockedPolicy.classes);
-		return policyGate.violations.filter((violation) =>
+		const enabledClasses = new Set(
+			evaluation.effectivePolicy.policy.blockedPolicy.classes
+		);
+		return evaluation.gate.violations.filter((violation) =>
 			enabledClasses.has(violation.blockerClass)
 		);
 	} catch {
-		return policyGate.violations;
+		return evaluation.gate.violations;
 	}
 }
 
@@ -106,13 +108,11 @@ export function shouldBlockMergeTransition({
 		if (evaluation.gate.mode === "enforced") {
 			return true;
 		}
-		const blockedViolations = getBlockedPolicyViolations({
-			policyGate: evaluation.gate,
-		});
+		const blockedViolations = getBlockedPolicyViolations({ evaluation });
 		if (blockedViolations.length === 0) {
 			return false;
 		}
-		return evaluation.gate.blockedPolicy.escalation === "block";
+		return evaluation.effectivePolicy.policy.blockedPolicy.escalation === "block";
 	} catch {
 		return false;
 	}
@@ -185,10 +185,6 @@ export async function evaluateSessionPolicyGate({
 					blockerClass: "policy_gate_failed",
 				},
 			],
-			blockedPolicy: {
-				escalation: fallbackPolicy.blockedPolicy.escalation,
-				classes: [...fallbackPolicy.blockedPolicy.classes],
-			},
 			reviewSweep: null,
 			ciStatus: null,
 			mergeability: null,

@@ -16,10 +16,7 @@ import type {
 import { updateMetadata } from "./metadata.js";
 import { getSessionsDir } from "./paths.js";
 import { createEvent } from "./lifecycle-events.js";
-import {
-	resolveProjectWorkflowPolicy,
-	type SessionPolicyEvaluation,
-} from "./lifecycle-policy.js";
+import type { SessionPolicyEvaluation } from "./lifecycle-policy.js";
 
 export function normalizeTrackerIssueIdentifier({
 	issueId,
@@ -71,19 +68,8 @@ export async function syncIssueStateRouting({
 		return;
 	}
 
-	const effectivePolicy = resolveProjectWorkflowPolicy({ config, project });
-	if (!effectivePolicy.policy.issueStateRouting.enabled) {
-		return;
-	}
-
-	const targetState = effectivePolicy.policy.issueStateRouting.stateMap[newStatus];
-	if (!targetState) {
-		return;
-	}
-
-	if (session.metadata.issueState === targetState) {
-		return;
-	}
+	// issueStateRouting was removed from WorkflowPolicy; no state map available
+	return;
 
 	try {
 		const trackerIdentifier = normalizeTrackerIssueIdentifier({

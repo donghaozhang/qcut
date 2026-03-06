@@ -341,11 +341,10 @@ export function createLifecycleManager(
 
 			const policyEvaluation = policyEvaluationBySession.get(session.id);
 			const policyGate = policyEvaluation?.gate;
-			if (policyGate && !policyGate.passed) {
-				const blockedViolations = getBlockedPolicyViolations({ policyGate });
+			if (policyEvaluation && policyGate && !policyGate.passed) {
+				const blockedViolations = getBlockedPolicyViolations({ evaluation: policyEvaluation });
 				const hasBlockedViolations = blockedViolations.length > 0;
 				const enforcedBlockedMerge =
-					policyEvaluation &&
 					shouldBlockMergeTransition({ evaluation: policyEvaluation }) &&
 					oldStatus !== "approved" &&
 					newStatus === "approved";
@@ -353,7 +352,7 @@ export function createLifecycleManager(
 					policyGate.mode === "advisory" && newStatus === "mergeable";
 				const notifyBlockedViolations =
 					hasBlockedViolations &&
-					policyGate.blockedPolicy.escalation === "notify";
+					policyEvaluation.effectivePolicy.policy.blockedPolicy.escalation === "notify";
 
 				if (enforcedBlockedMerge || advisoryViolation || notifyBlockedViolations) {
 					const violationsForEvent = hasBlockedViolations
@@ -370,7 +369,7 @@ export function createLifecycleManager(
 							mode: policyGate.mode,
 							oldStatus,
 							newStatus,
-							blockedPolicy: policyGate.blockedPolicy,
+							blockedPolicy: policyEvaluation.effectivePolicy.policy.blockedPolicy,
 							violations: violationsForEvent,
 						},
 					});
