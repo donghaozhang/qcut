@@ -278,14 +278,16 @@ async function matchVSCodeTaskLabelAndIndex(
 export async function readITerm2Content(
 	tty: string,
 ): Promise<string | null> {
-	const fullTTY = escapeAppleScript(normalizeTTY(tty));
+	const fullTTY = normalizeTTY(tty);
 	const script = `
+on run argv
+set fullTTY to item 1 of argv
 tell application "iTerm2"
 	repeat with aWindow in windows
 		repeat with aTab in tabs of aWindow
 			repeat with aSession in sessions of aTab
 				try
-					if tty of aSession ends with "${fullTTY}" then
+					if tty of aSession ends with fullTTY then
 						return contents of aSession
 					end if
 				end try
@@ -293,9 +295,10 @@ tell application "iTerm2"
 		end repeat
 	end repeat
 	return "NOT_FOUND"
-end tell`;
+end tell
+end run`;
 	try {
-		const { stdout } = await execFileAsync("osascript", ["-e", script], {
+		const { stdout } = await execFileAsync("osascript", ["-e", script, fullTTY], {
 			timeout: 8_000,
 		});
 		const content = stdout.trimEnd();
@@ -313,17 +316,19 @@ export async function sendITerm2Text(
 	tty: string,
 	text: string,
 ): Promise<boolean> {
-	const fullTTY = escapeAppleScript(normalizeTTY(tty));
-	const escapedText = escapeAppleScript(text);
+	const fullTTY = normalizeTTY(tty);
 	const script = `
+on run argv
+set fullTTY to item 1 of argv
+set payload to item 2 of argv
 tell application "iTerm2"
 	repeat with aWindow in windows
 		repeat with aTab in tabs of aWindow
 			repeat with aSession in sessions of aTab
 				try
-					if tty of aSession ends with "${fullTTY}" then
+					if tty of aSession ends with fullTTY then
 						tell aSession
-							write text "${escapedText}"
+							write text payload
 						end tell
 						return "OK"
 					end if
@@ -332,9 +337,10 @@ tell application "iTerm2"
 		end repeat
 	end repeat
 	return "NOT_FOUND"
-end tell`;
+end tell
+end run`;
 	try {
-		const { stdout } = await execFileAsync("osascript", ["-e", script], {
+		const { stdout } = await execFileAsync("osascript", ["-e", script, fullTTY, text], {
 			timeout: 8_000,
 		});
 		return stdout.trim() === "OK";
@@ -350,24 +356,27 @@ export async function sendTerminalAppText(
 	tty: string,
 	text: string,
 ): Promise<boolean> {
-	const fullTTY = escapeAppleScript(normalizeTTY(tty));
-	const escapedText = escapeAppleScript(text);
+	const fullTTY = normalizeTTY(tty);
 	const script = `
+on run argv
+set fullTTY to item 1 of argv
+set payload to item 2 of argv
 tell application "Terminal"
 	repeat with aWindow in windows
 		repeat with aTab in tabs of aWindow
 			try
-				if tty of aTab ends with "${fullTTY}" then
-					do script "${escapedText}" in aTab
+				if tty of aTab ends with fullTTY then
+					do script payload in aTab
 					return "OK"
 				end if
 			end try
 		end repeat
 	end repeat
 	return "NOT_FOUND"
-end tell`;
+end tell
+end run`;
 	try {
-		const { stdout } = await execFileAsync("osascript", ["-e", script], {
+		const { stdout } = await execFileAsync("osascript", ["-e", script, fullTTY, text], {
 			timeout: 8_000,
 		});
 		return stdout.trim() === "OK";
