@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { DashboardPolicyGate } from "@/lib/types";
 
 interface GateBlockerPanelProps {
@@ -111,11 +111,10 @@ export function GateBlockerPanelLoader({ sessionId }: GateBlockerPanelLoaderProp
 		return null;
 	});
 
-	// Fetch on first render if not cached
-	const [fetched, setFetched] = useState(gate !== null);
-
-	if (!fetched) {
-		setFetched(true);
+	// Fetch on mount if not already cached
+	useEffect(() => {
+		const cached = gateCache.get(sessionId);
+		if (cached && Date.now() - cached.fetchedAt < GATE_CACHE_TTL) return;
 		void (async () => {
 			try {
 				const res = await fetch(`/api/sessions/${sessionId}/policy`);
@@ -128,7 +127,7 @@ export function GateBlockerPanelLoader({ sessionId }: GateBlockerPanelLoaderProp
 				// Ignore
 			}
 		})();
-	}
+	}, [sessionId]);
 
 	if (!gate || gate.violations.length === 0) return null;
 

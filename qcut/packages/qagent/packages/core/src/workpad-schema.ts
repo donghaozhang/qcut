@@ -181,7 +181,8 @@ export function renderWorkpadBody(snapshot: WorkpadSnapshot): string {
 	sections.push(`### Notes\n\n- Status transitioned to \`${snapshot.status}\` at ${snapshot.updatedAt}`);
 
 	// Hidden structured data for round-trip (parseable by getWorkpad)
-	const json = JSON.stringify(snapshot);
+	// Escape "-->" so it cannot break the HTML comment delimiter
+	const json = JSON.stringify(snapshot).replace(/-->/g, "--\\>");
 	sections.push(`<!-- qagent-workpad-snapshot\n${json}\n-->`);
 
 	return sections.join("\n\n");
@@ -194,11 +195,26 @@ export function parseWorkpadSnapshot(body: string): WorkpadSnapshot | null {
 		return null;
 	}
 	try {
-		const parsed: unknown = JSON.parse(match[1]);
-		if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-			return parsed as WorkpadSnapshot;
+		// Unescape "-->" that was escaped during serialization
+		const raw = match[1].replace(/--\\>/g, "-->");
+		const parsed: unknown = JSON.parse(raw);
+		if (
+			parsed === null ||
+			typeof parsed !== "object" ||
+			Array.isArray(parsed)
+		) {
+			return null;
 		}
-		return null;
+		const obj = parsed as Record<string, unknown>;
+		// Validate required fields before trusting the payload
+		if (
+			typeof obj["sessionId"] !== "string" ||
+			typeof obj["status"] !== "string" ||
+			typeof obj["updatedAt"] !== "string"
+		) {
+			return null;
+		}
+		return obj as unknown as WorkpadSnapshot;
 	} catch {
 		return null;
 	}

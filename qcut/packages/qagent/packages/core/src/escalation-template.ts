@@ -7,7 +7,7 @@
  * so each team can define their own notify/escalate/action playbook.
  */
 
-import type { PolicyBlockerClass } from "./workflow-contract.js";
+import { POLICY_BLOCKER_CLASS, type PolicyBlockerClass } from "./workflow-contract.js";
 
 // =============================================================================
 // Types
@@ -195,10 +195,11 @@ export function parseEscalationTemplates({
 				? severity
 				: "warning";
 
+		const validBlockerClasses = new Set<string>(Object.values(POLICY_BLOCKER_CLASS));
 		const blockerClasses: PolicyBlockerClass[] = [];
 		if (Array.isArray(obj["blockerClasses"])) {
 			for (const bc of obj["blockerClasses"]) {
-				if (typeof bc === "string") {
+				if (typeof bc === "string" && validBlockerClasses.has(bc)) {
 					blockerClasses.push(bc as PolicyBlockerClass);
 				}
 			}

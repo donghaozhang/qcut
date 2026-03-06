@@ -238,6 +238,9 @@ Gate violations are currently only surfaced via `qagent policy explain <session>
      messageTemplate: string;                           // Handlebars-lite: {{sessionId}}, {{violation}}, etc.
      notifyChannels?: string[];                         // Notifier plugin names
      autoAction?: "resend_prompt" | "kill" | "none";   // automated response
+     // resend_prompt: re-send the session's original promptTemplate (from WorkflowContract)
+     // kill: terminate the agent session immediately
+     // none: notify only, no automated action
    }
    ```
 2. Add `templates?: EscalationTemplate[]` to `WorkflowBlockedPolicy`.
@@ -272,7 +275,7 @@ These are configuration/process changes, not code. They should be done alongside
 
 ## Dependencies
 
-```
+```text
 W1 (Workpad schema)
   └── W2 (Reconciliation loop)   — needs typed WorkpadSnapshot for drift reporting
   └── W3 (Dashboard gate UI)     — snapshot feeds SSE; typed gate for API route
@@ -300,7 +303,7 @@ W4 is independent of W2, W3 but should share WorkpadBlockerBrief context from W1
 
 ## Suggested Implementation Order
 
-```
+```text
 Sprint 1
   W1 — Workpad schema  (P0, unblocks everything)
 
@@ -319,8 +322,8 @@ Sprint 3
 
 ## Key File Reference
 
-```
-packages/qagent/packages/core/src/
+```text
+packages/core/src/
   workflow-contract.ts          — WorkflowPolicy, WorkflowContract, PolicyMode
   policy-gate.ts                — evaluatePolicyGate, PolicyGateResult, PolicyGateViolation
   lifecycle-manager.ts          — main polling loop, state machine
@@ -331,10 +334,10 @@ packages/qagent/packages/core/src/
   types/session-types.ts        — Session, SessionStatus, SessionMetadata
   types/config-types.ts         — OrchestratorConfig, ProjectConfig
 
-packages/qagent/packages/cli/src/commands/
+packages/cli/src/commands/
   policy.ts                     — policy check / explain / workflow lint
 
-packages/qagent/packages/web/src/
+packages/web/src/
   components/Dashboard.tsx      — main dashboard, SSE consumer
   components/SessionCard.tsx    — per-session card
   components/SessionDetail.tsx  — detail view

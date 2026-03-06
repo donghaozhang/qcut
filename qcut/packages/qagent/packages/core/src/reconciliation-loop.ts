@@ -102,7 +102,8 @@ async function checkPRClosedDrift(
 				projectId: session.projectId,
 				kind: "pr_closed_externally",
 				description: `PR #${session.pr.number} was closed (not merged) externally while session status was '${session.status}'`,
-				corrected: false, // Requires human judgment
+				corrected: true,
+				newStatus: "errored",
 				timestamp: new Date(),
 			};
 		}
@@ -194,10 +195,13 @@ export class ReconciliationLoop {
 
 			if (drifts.length === 0) continue;
 
-			// Process drift events
+			// Process drift events — apply at most one status correction per session to avoid conflicts
+			let statusApplied = false;
 			for (const drift of drifts) {
 				try {
 					if (drift.corrected && drift.newStatus) {
+						if (statusApplied) continue;
+						statusApplied = true;
 						// Auto-correct the session status
 						await applyStatus(session, drift.newStatus);
 
