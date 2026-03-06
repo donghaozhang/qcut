@@ -5,7 +5,7 @@
 The `packages/license-server` is a Hono app deployed to Cloudflare Workers at
 `https://qcut-license-server.zdhpeter.workers.dev`.
 
-**Status (2026-03-07):** Worker is fully configured and live. All 16 secrets set. Stripe test products and prices created (AUD, test mode). Ready for end-to-end testing.
+**Status (2026-03-07):** Worker is fully configured and live. All 16 secrets set. Stripe test products and prices created (AUD, test mode). DB migrations applied to Supabase. Auth flow ready for end-to-end testing.
 
 ---
 
@@ -124,6 +124,30 @@ npx wrangler deploy
 curl https://qcut-license-server.zdhpeter.workers.dev/health
 # Expected: {"status":"healthy","timestamp":"...","mock":false}
 ```
+
+---
+
+## Database Migrations
+
+Drizzle migrations live in `packages/db/migrations/`. To apply them to Supabase, the combined SQL is copied into the Supabase CLI migrations directory and pushed.
+
+**Supabase project ref:** `kbrtxitvavpuimuihppz`
+**Supabase CLI migrations dir:** `packages/db/supabase/migrations/`
+
+```bash
+cd packages/db
+# Link (one-time)
+SUPABASE_ACCESS_TOKEN=<token> supabase link --project-ref kbrtxitvavpuimuihppz
+
+# Push migrations
+SUPABASE_ACCESS_TOKEN=<token> supabase db push
+
+# Check migration status
+SUPABASE_ACCESS_TOKEN=<token> supabase migration list
+```
+
+**Current status:** ✅ Migration `20260306151923` applied — all tables created:
+`users`, `sessions`, `accounts`, `verifications`, `waitlist`, `licenses`, `device_activations`, `credit_balances`, `credit_transactions`, `stripe_webhook_events`, `usage_records`
 
 ---
 
