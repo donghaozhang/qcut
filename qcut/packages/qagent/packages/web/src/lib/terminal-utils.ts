@@ -387,28 +387,7 @@ export async function sendCursorText(
 ): Promise<boolean> {
 	const escapedText = escapeAppleScript(text);
 
-	// Navigate to the right terminal tab:
-	// 1. Press Ctrl+PageUp 20× to reset to tab 0
-	// 2. Press Ctrl+PageDown N× to reach the target index
 	const idx = terminalIndex ?? 0;
-	const resetPresses = 20;
-	const forwardPresses = idx;
-
-	const navigateScript = `
-	-- Focus the terminal panel
-	keystroke "\`" using control down
-	delay 0.15
-	-- Reset to first terminal
-	repeat ${resetPresses} times
-		key code 116 using control down
-		delay 0.04
-	end repeat
-	-- Navigate forward to target index
-	repeat ${forwardPresses} times
-		key code 121 using control down
-		delay 0.04
-	end repeat
-	delay 0.1`;
 
 	const script = `
 -- Save existing clipboard
@@ -423,11 +402,32 @@ delay 0.1
 tell application "Cursor"
 	activate
 end tell
-delay 0.3
+delay 0.4
 
 tell application "System Events"
 	tell process "Cursor"
-		${navigateScript}
+		-- Use command palette to focus terminal WITHOUT creating a new one
+		-- (Ctrl+backtick creates a new terminal if panel is not focused)
+		keystroke "p" using {command down, shift down}
+		delay 0.5
+		keystroke "workbench.action.terminal.focus"
+		delay 0.5
+		key code 36
+		delay 0.6
+
+		-- Reset to first terminal tab (Ctrl+PageUp x20)
+		repeat 20 times
+			key code 116 using control down
+			delay 0.03
+		end repeat
+
+		-- Navigate forward to target index (Ctrl+PageDown x N)
+		repeat ${idx} times
+			key code 121 using control down
+			delay 0.05
+		end repeat
+		delay 0.2
+
 		-- Paste and submit
 		keystroke "v" using command down
 		delay 0.2
