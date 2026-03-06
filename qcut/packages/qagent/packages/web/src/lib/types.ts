@@ -82,6 +82,12 @@ export interface DashboardSession {
 	managed: boolean;
 	/** User-assigned custom label for this session */
 	label?: string | null;
+	/**
+	 * Compact gate summary for SSE/dashboard indicator dot.
+	 * Populated when gate state is available from cached evaluation.
+	 * null means not yet evaluated (use GateBlockerPanelLoader for on-demand fetch).
+	 */
+	policyGateSummary?: { passed: boolean; violationCount: number; mode: string } | null;
 }
 
 export interface DashboardTokenUsage {
@@ -135,6 +141,20 @@ export interface DashboardUnresolvedComment {
 	path: string;
 	author: string;
 	body: string;
+}
+
+/**
+ * Policy gate state for a session — returned by `/api/sessions/[id]/policy`.
+ * Mirrors `WorkpadPolicyGate` but is serializable to JSON (no Date objects).
+ */
+export interface DashboardPolicyGate {
+	passed: boolean;
+	mode: "advisory" | "enforced";
+	violations: Array<{ code: string; message: string; blockerClass?: string }>;
+	/** Failing required check names (e.g. CI check names that must pass) */
+	failingChecks?: string[];
+	/** ISO timestamp of when the gate was evaluated */
+	checkedAt: string;
 }
 
 export interface DashboardStats {

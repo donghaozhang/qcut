@@ -21,6 +21,7 @@ import {
 import { PRStatus } from "./PRStatus";
 import { CICheckList } from "./CIBadge";
 import { ActivityDot } from "./ActivityDot";
+import { GateBlockerPanelLoader } from "./GateBlockerPanel";
 
 interface SessionCardProps {
 	session: DashboardSession;
@@ -337,6 +338,13 @@ export function SessionCard({
 						</svg>
 						PR data rate limited
 					</span>
+				</div>
+			)}
+
+			{/* Gate blocker callout — fetched on mount per card, cached 30s */}
+			{session.managed && (
+				<div className="px-4">
+					<GateBlockerPanelLoader sessionId={session.id} />
 				</div>
 			)}
 
