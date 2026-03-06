@@ -7,7 +7,9 @@ import { describe, expect, it } from "vitest";
 
 // Re-export of the billing_reason guard rule as a pure predicate so tests can
 // assert the skip condition without instantiating DB or Stripe clients.
-function shouldSkipInvoiceCredits(billingReason: string | null | undefined): boolean {
+function shouldSkipInvoiceCredits(
+	billingReason: string | null | undefined
+): boolean {
 	return billingReason === "subscription_create";
 }
 
@@ -38,7 +40,9 @@ describe("invoice.payment_succeeded billing_reason guard", () => {
 
 describe("createCheckoutSession customer linking", () => {
 	it("passes existing customer ID when user has a stripeCustomerId", () => {
-		expect(resolveCheckoutCustomer("cus_existing_123")).toBe("cus_existing_123");
+		expect(resolveCheckoutCustomer("cus_existing_123")).toBe(
+			"cus_existing_123"
+		);
 	});
 
 	it("returns undefined when user has no stripeCustomerId (null)", () => {

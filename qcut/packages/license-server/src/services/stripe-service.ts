@@ -316,9 +316,7 @@ export async function createCheckoutSession({
 				line_items: [{ price: priceId, quantity: 1 }],
 				success_url: getPaymentSuccessUrl({ type: "subscription" }),
 				cancel_url: getPaymentCancelUrl({ type: "subscription" }),
-				...(existingCustomerId
-					? { customer: existingCustomerId }
-					: {}),
+				...(existingCustomerId ? { customer: existingCustomerId } : {}),
 				metadata: {
 					type: "subscription",
 					userId,

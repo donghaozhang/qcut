@@ -740,7 +740,7 @@ export async function reconcileTopUpRefundByStripePaymentId({
 				refreshed.planCredits +
 				refreshed.topUpCredits -
 				(nextBalance.planCredits + nextBalance.topUpCredits);
-		await tx.insert(creditTransactions).values({
+			await tx.insert(creditTransactions).values({
 				id: crypto.randomUUID(),
 				userId: resolvedUserId,
 				type: "refund",
