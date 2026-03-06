@@ -32,6 +32,7 @@ interface SessionCardProps {
 	onLabelChange?: (sessionId: string, label: string | null) => void;
 	onGitit?: (sessionId: string) => void;
 	onMergeit?: (sessionId: string) => void;
+	onPrit?: (sessionId: string) => void;
 }
 
 const borderColorByLevel: Record<AttentionLevel, string> = {
@@ -60,11 +61,13 @@ export function SessionCard({
 	onLabelChange,
 	onGitit,
 	onMergeit,
+	onPrit,
 }: SessionCardProps) {
 	const [expanded, setExpanded] = useState(false);
 	const [sendingAction, setSendingAction] = useState<string | null>(null);
 	const [gititState, setGititState] = useState<"idle" | "loading" | "done" | "error">("idle");
 	const [mergeitState, setMergeitState] = useState<"idle" | "loading" | "done" | "error">("idle");
+	const [pritState, setPritState] = useState<"idle" | "loading" | "done" | "error">("idle");
 	const [editingLabel, setEditingLabel] = useState(false);
 	const [labelDraft, setLabelDraft] = useState(session.label ?? "");
 	const labelInputRef = useRef<HTMLInputElement>(null);
@@ -267,6 +270,26 @@ export function SessionCard({
 						className="rounded border border-[rgba(63,185,80,0.3)] bg-[rgba(63,185,80,0.06)] px-2.5 py-0.5 text-[11px] text-[rgba(63,185,80,0.7)] transition-colors hover:border-[rgba(63,185,80,0.6)] hover:text-[rgba(63,185,80,1)] hover:no-underline disabled:opacity-50"
 					>
 						{mergeitState === "loading" ? "…" : mergeitState === "done" ? "✓" : mergeitState === "error" ? "✗" : "mergeit"}
+					</button>
+				)}
+				{onPrit && (
+					<button
+						onClick={(e) => {
+							e.stopPropagation();
+							if (pritState === "loading") return;
+							setPritState("loading");
+							Promise.resolve(onPrit(session.id)).then(() => {
+								setPritState("done");
+								setTimeout(() => setPritState("idle"), 2000);
+							}).catch(() => {
+								setPritState("error");
+								setTimeout(() => setPritState("idle"), 2000);
+							});
+						}}
+						disabled={pritState === "loading"}
+						className="rounded border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.06)] px-2.5 py-0.5 text-[11px] text-[rgba(245,158,11,0.7)] transition-colors hover:border-[rgba(245,158,11,0.6)] hover:text-[rgba(245,158,11,1)] hover:no-underline disabled:opacity-50"
+					>
+						{pritState === "loading" ? "…" : pritState === "done" ? "✓" : pritState === "error" ? "✗" : "prit"}
 					</button>
 				)}
 				{(!isTerminal || !session.managed) && (

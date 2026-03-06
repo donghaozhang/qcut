@@ -15,6 +15,7 @@ interface AttentionZoneProps {
 	onLabelChange?: (sessionId: string, label: string | null) => void;
 	onGitit?: (sessionId: string) => void;
 	onMergeit?: (sessionId: string) => void;
+	onPrit?: (sessionId: string) => void;
 }
 
 const zoneConfig: Record<
@@ -69,6 +70,7 @@ export function AttentionZone({
 	onLabelChange,
 	onGitit,
 	onMergeit,
+	onPrit,
 }: AttentionZoneProps) {
 	const config = zoneConfig[level];
 	const [collapsed, setCollapsed] = useState(config.defaultCollapsed);
@@ -122,6 +124,7 @@ export function AttentionZone({
 								onLabelChange={onLabelChange}
 								onGitit={onGitit}
 								onMergeit={onMergeit}
+								onPrit={onPrit}
 							/>
 						))}
 					</div>
@@ -178,6 +181,7 @@ export function AttentionZone({
 							onLabelChange={onLabelChange}
 							onGitit={onGitit}
 							onMergeit={onMergeit}
+							onPrit={onPrit}
 						/>
 					))}
 				</div>
