@@ -289,6 +289,18 @@ export function Dashboard({
 		}
 	};
 
+	/** Send the buildit.md instruction to an individual session. */
+	const handleBuildit = async (sessionId: string) => {
+		const res = await fetch("/api/commands/buildit", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ sessionId }),
+		});
+		if (!res.ok) {
+			throw new Error(await res.text());
+		}
+	};
+
 	/** Handle sort toggle — cycles TOKEN → CPU → DEFAULT → TOKEN. */
 	const handleSortToggle = () => {
 		setSessionSortMode((prev) => {
@@ -426,6 +438,7 @@ export function Dashboard({
 									onGitit={handleGitit}
 									onMergeit={handleMergeit}
 									onPrit={handlePrit}
+									onBuildit={handleBuildit}
 								/>
 							</div>
 						) : null
@@ -448,6 +461,7 @@ export function Dashboard({
 						onGitit={handleGitit}
 						onMergeit={handleMergeit}
 						onPrit={handlePrit}
+						onBuildit={handleBuildit}
 					/>
 				</div>
 			)}
