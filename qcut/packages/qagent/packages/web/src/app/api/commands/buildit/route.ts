@@ -83,8 +83,9 @@ export async function POST(request: NextRequest) {
 		} else if (termApp === "Cursor" || termApp === "Code") {
 			const pid = cliSession.metadata.pid ? parseInt(cliSession.metadata.pid, 10) : undefined;
 			const cwd = cliSession.metadata.cwd ?? undefined;
+			const terminalName = cliSession.metadata.terminalName ?? null;
 			const terminalIndex = pid ? await matchVSCodeTaskIndex(pid, cwd) : null;
-			sent = await sendCursorText(instruction, terminalIndex, termApp as "Cursor" | "Code");
+			sent = await sendCursorText(instruction, terminalIndex, termApp as "Cursor" | "Code", terminalName);
 		}
 
 		if (!sent) {
