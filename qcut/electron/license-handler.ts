@@ -358,9 +358,10 @@ export function setupLicenseIPC(): void {
 					}
 				);
 				if (!response.ok) {
-					const body = (await response
-						.json()
-						.catch(() => null)) as Record<string, unknown> | null;
+					const body = (await response.json().catch(() => null)) as Record<
+						string,
+						unknown
+					> | null;
 					const message =
 						(body?.message as string) ||
 						(body?.error as string) ||
@@ -368,11 +369,8 @@ export function setupLicenseIPC(): void {
 					return { success: false, error: message };
 				}
 				const body = (await response.json()) as Record<string, unknown>;
-				const session = body?.session as
-					| Record<string, unknown>
-					| undefined;
-				const token =
-					(body?.token as string) || (session?.token as string);
+				const session = body?.session as Record<string, unknown> | undefined;
+				const token = (body?.token as string) || (session?.token as string);
 				if (typeof token !== "string" || token.length === 0) {
 					return { success: false, error: "No session token received" };
 				}
@@ -381,10 +379,7 @@ export function setupLicenseIPC(): void {
 			} catch (error) {
 				return {
 					success: false,
-					error:
-						error instanceof Error
-							? error.message
-							: "Login failed",
+					error: error instanceof Error ? error.message : "Login failed",
 				};
 			}
 		}
@@ -428,9 +423,10 @@ export function setupLicenseIPC(): void {
 					}
 				);
 				if (!response.ok) {
-					const body = (await response
-						.json()
-						.catch(() => null)) as Record<string, unknown> | null;
+					const body = (await response.json().catch(() => null)) as Record<
+						string,
+						unknown
+					> | null;
 					const message =
 						(body?.message as string) ||
 						(body?.error as string) ||
@@ -438,11 +434,8 @@ export function setupLicenseIPC(): void {
 					return { success: false, error: message };
 				}
 				const body = (await response.json()) as Record<string, unknown>;
-				const session = body?.session as
-					| Record<string, unknown>
-					| undefined;
-				const token =
-					(body?.token as string) || (session?.token as string);
+				const session = body?.session as Record<string, unknown> | undefined;
+				const token = (body?.token as string) || (session?.token as string);
 				if (typeof token !== "string" || token.length === 0) {
 					return { success: false, error: "No session token received" };
 				}
@@ -451,10 +444,7 @@ export function setupLicenseIPC(): void {
 			} catch (error) {
 				return {
 					success: false,
-					error:
-						error instanceof Error
-							? error.message
-							: "Sign up failed",
+					error: error instanceof Error ? error.message : "Sign up failed",
 				};
 			}
 		}

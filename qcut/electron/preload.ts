@@ -404,8 +404,7 @@ const electronAPI: ElectronAPI = {
 			ipcRenderer.invoke("license:email-login", { email, password }),
 		emailSignup: (name: string, email: string, password: string) =>
 			ipcRenderer.invoke("license:email-signup", { name, email, password }),
-		getGoogleLoginUrl: () =>
-			ipcRenderer.invoke("license:get-google-login-url"),
+		getGoogleLoginUrl: () => ipcRenderer.invoke("license:get-google-login-url"),
 	},
 
 	// Integration API groups (from preload-integrations.ts)
