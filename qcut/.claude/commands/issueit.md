@@ -7,7 +7,7 @@ Create a GitHub issue and a matching branch with Linear integration. Default wor
 1. Ask the user for: issue title, description (optional), and Linear issue ID (e.g. `QUR-XX`). If no Linear ID is provided, auto-assign one.
 2. Create a GitHub issue using `gh issue create` with the title and description. Include `Part of QUR-XX` in the body.
 3. **Sync the numbers**: After the GitHub issue is created, get its number (e.g. `#42`). Use the **same number** for QUR — i.e. `QUR-42`. This keeps GitHub and Linear issue numbers aligned.
-4. Create a new git branch from the current branch. Use the naming convention: `peter/qur-XX-short-description` (kebab-case, lowercase), where XX matches the GitHub issue number.
+4. Create a new git branch from the current branch. Use the naming convention: `<username>/qur-XX-short-description` (kebab-case, lowercase), where XX matches the GitHub issue number.
 5. Push the branch to remote with `git push -u origin <branch>`.
 6. Report the issue URL, branch name, and Linear ID (`QUR-XX` = GitHub issue number).
 7. Linear auto-links via magic words in commits/PRs ✅
@@ -16,7 +16,7 @@ Create a GitHub issue and a matching branch with Linear integration. Default wor
 
 ### Method A: GitHub → Linear (Default)
 
-```
+```text
 Create GitHub issue with QUR-XX in body
     ↓
 Create branch → write code → commit with "Part of QUR-XX"
@@ -28,11 +28,11 @@ Linear auto-links ✅
 
 ### Method B: Linear → GitHub
 
-```
+```text
 Linear: create issue (e.g. QUR-11: Add export feature)
     ↓
 Linear: click "Copy git branch name"
-    → auto-generates: peter/qur-11-add-export
+    → auto-generates: <username>/qur-11-add-export
     ↓
 Create branch → write code → submit PR
     ↓
