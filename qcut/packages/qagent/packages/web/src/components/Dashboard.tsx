@@ -33,6 +33,7 @@ const RELAY_SESSION_PREFIX = "relay-";
 const SESSION_SORT_MODE = {
 	DEFAULT: "default",
 	CPU: "cpu",
+	TOKEN: "token",
 } as const;
 type SessionSortMode =
 	(typeof SESSION_SORT_MODE)[keyof typeof SESSION_SORT_MODE];
@@ -45,7 +46,7 @@ export function Dashboard({
 }: DashboardProps) {
 	const [showRelaySessions, setShowRelaySessions] = useState(false);
 	const [sessionSortMode, setSessionSortMode] = useState<SessionSortMode>(
-		SESSION_SORT_MODE.CPU
+		SESSION_SORT_MODE.TOKEN
 	);
 	const [labelOverrides, setLabelOverrides] = useState<
 		Record<string, string | null>
@@ -112,16 +113,14 @@ export function Dashboard({
 		[sessions]
 	);
 	const sortedVisibleSessions = useMemo(() => {
-		if (sessionSortMode !== SESSION_SORT_MODE.CPU) {
-			return visibleSessions;
-		}
-		return sortSessionsByCpuUsage({ sessions: visibleSessions });
+		if (sessionSortMode === SESSION_SORT_MODE.CPU) return sortSessionsByCpuUsage({ sessions: visibleSessions });
+		if (sessionSortMode === SESSION_SORT_MODE.TOKEN) return sortSessionsByTokenUsage({ sessions: visibleSessions });
+		return visibleSessions;
 	}, [visibleSessions, sessionSortMode]);
 	const sortedRelaySessions = useMemo(() => {
-		if (sessionSortMode !== SESSION_SORT_MODE.CPU) {
-			return relaySessions;
-		}
-		return sortSessionsByCpuUsage({ sessions: relaySessions });
+		if (sessionSortMode === SESSION_SORT_MODE.CPU) return sortSessionsByCpuUsage({ sessions: relaySessions });
+		if (sessionSortMode === SESSION_SORT_MODE.TOKEN) return sortSessionsByTokenUsage({ sessions: relaySessions });
+		return relaySessions;
 	}, [relaySessions, sessionSortMode]);
 	const [rateLimitDismissed, setRateLimitDismissed] = useState(false);
 	const grouped = useMemo(() => {
@@ -252,6 +251,7 @@ export function Dashboard({
 		[visibleSessions]
 	);
 	const isCpuSortEnabled = sessionSortMode === SESSION_SORT_MODE.CPU;
+	const isTokenSortEnabled = sessionSortMode === SESSION_SORT_MODE.TOKEN;
 
 	/** Send the gitit.md instruction to an individual session. */
 	const handleGitit = async (sessionId: string) => {
@@ -265,13 +265,13 @@ export function Dashboard({
 		}
 	};
 
-	/** Handle sort toggle. */
+	/** Handle sort toggle — cycles TOKEN → CPU → DEFAULT → TOKEN. */
 	const handleSortToggle = () => {
-		setSessionSortMode((previousSortMode) =>
-			previousSortMode === SESSION_SORT_MODE.CPU
-				? SESSION_SORT_MODE.DEFAULT
-				: SESSION_SORT_MODE.CPU
-		);
+		setSessionSortMode((prev) => {
+			if (prev === SESSION_SORT_MODE.TOKEN) return SESSION_SORT_MODE.CPU;
+			if (prev === SESSION_SORT_MODE.CPU) return SESSION_SORT_MODE.DEFAULT;
+			return SESSION_SORT_MODE.TOKEN;
+		});
 	};
 
 	return (
@@ -289,12 +289,8 @@ export function Dashboard({
 					<button
 						type="button"
 						onClick={handleSortToggle}
-						aria-pressed={isCpuSortEnabled}
-						aria-label={
-							isCpuSortEnabled
-								? "Disable CPU usage sorting"
-								: "Sort sessions by CPU usage"
-						}
+						aria-pressed={isCpuSortEnabled || isTokenSortEnabled}
+						aria-label="Cycle sort mode"
 						className="inline-flex items-center gap-1.5 rounded-[7px] border border-[var(--color-border-subtle)] bg-[rgba(255,255,255,0.02)] px-3 py-1.5 text-[11px] text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-border-strong)]"
 					>
 						<svg
@@ -310,7 +306,7 @@ export function Dashboard({
 							Sort
 						</span>
 						<span className="rounded-[4px] bg-[rgba(255,255,255,0.05)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-text-primary)]">
-							{isCpuSortEnabled ? "CPU%" : "Default"}
+							{isTokenSortEnabled ? "Tokens" : isCpuSortEnabled ? "CPU%" : "Default"}
 						</span>
 					</button>
 					{relaySessions.length > 0 && (
@@ -605,6 +601,24 @@ function sortSessionsByCpuUsage({
 				getSessionCpuPercent({ session: sessionA });
 			if (cpuDifference !== 0) return cpuDifference;
 			return sessionA.id.localeCompare(sessionB.id);
+		});
+	} catch {
+		return sessions;
+	}
+}
+
+/** Sort sessions by total token usage descending. */
+function sortSessionsByTokenUsage({
+	sessions,
+}: {
+	sessions: DashboardSession[];
+}): DashboardSession[] {
+	try {
+		return [...sessions].sort((a, b) => {
+			const tokA = (a.tokenUsage?.inputTokens ?? 0) + (a.tokenUsage?.outputTokens ?? 0);
+			const tokB = (b.tokenUsage?.inputTokens ?? 0) + (b.tokenUsage?.outputTokens ?? 0);
+			if (tokB !== tokA) return tokB - tokA;
+			return a.id.localeCompare(b.id);
 		});
 	} catch {
 		return sessions;
