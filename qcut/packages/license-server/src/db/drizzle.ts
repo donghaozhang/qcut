@@ -15,7 +15,12 @@ function getDb(): Db {
 	if (!url) {
 		throw new Error("DATABASE_URL is not configured");
 	}
-	const client = postgres(url);
+	// Supabase transaction pooler requires SSL and no prepared statements
+	const client = postgres(url, {
+		ssl: "require",
+		prepare: false,
+		max: 1,
+	});
 	_db = drizzle(client, { schema });
 	return _db;
 }
