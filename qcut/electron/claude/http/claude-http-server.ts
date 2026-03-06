@@ -111,10 +111,14 @@ export function startClaudeHTTPServer(
 
 	// Create WindowAccessor for direct main-process BrowserWindow access
 	const accessor: WindowAccessor = {
+		/** Returns the main-process BrowserWindow for route handlers. */
 		getWindow,
+		/** Requests the current timeline from the renderer. */
 		requestTimeline: () => requestTimelineFromRenderer(getWindow()),
+		/** Requests the current renderer selection. */
 		requestSelection: (correlationId) =>
 			requestSelectionFromRenderer(getWindow(), correlationId),
+		/** Sends a split request to the renderer timeline. */
 		requestSplit: (elementId, splitTime, mode, correlationId) =>
 			requestSplitFromRenderer(
 				getWindow(),
@@ -123,59 +127,87 @@ export function startClaudeHTTPServer(
 				mode,
 				correlationId
 			),
+		/** Fetches project stats from the renderer. */
 		getProjectStats: (projectId) => getProjectStats(getWindow(), projectId),
+		/** Returns the current app version. */
 		getAppVersion: () => app.getVersion(),
+		/** Enables notification forwarding for a session. */
 		enableNotifications: (sessionId) =>
 			Promise.resolve(notificationBridge.enable({ sessionId })),
+		/** Disables notification forwarding. */
 		disableNotifications: () => Promise.resolve(notificationBridge.disable()),
+		/** Returns the current notification bridge status. */
 		getNotificationsStatus: () =>
 			Promise.resolve(notificationBridge.getStatus()),
+		/** Returns recent notification bridge history entries. */
 		getNotificationsHistory: (limit) =>
 			Promise.resolve(notificationBridge.getHistory({ limit })),
+		/** Adds multiple elements in one renderer mutation. */
 		batchAddElements: (projectId, elements, correlationId) =>
 			batchAddElements(getWindow(), projectId, elements, correlationId),
+		/** Applies a batch of element updates. */
 		batchUpdateElements: (updates, correlationId) =>
 			batchUpdateElements(getWindow(), updates, correlationId),
+		/** Deletes multiple elements in one renderer mutation. */
 		batchDeleteElements: (elements, ripple, correlationId) =>
 			batchDeleteElements(getWindow(), elements, ripple, correlationId),
+		/** Applies automatic arrangement to the timeline. */
 		arrangeTimeline: (data, correlationId) =>
 			arrangeTimeline(getWindow(), data, correlationId),
+		/** Starts a transactional timeline mutation. */
 		beginTransaction: (request) =>
 			beginTransaction({ win: getWindow(), request }),
+		/** Commits a pending timeline transaction. */
 		commitTransaction: (transactionId) => commitTransaction({ transactionId }),
+		/** Rolls back a pending timeline transaction. */
 		rollbackTransaction: (transactionId, reason) =>
 			rollbackTransaction({ transactionId, reason }),
+		/** Returns the current state of a timeline transaction. */
 		getTransactionStatus: (transactionId) =>
 			Promise.resolve(getTransactionStatus({ transactionId })),
+		/** Undoes the last timeline mutation. */
 		undoTimeline: () => undoTimeline({ win: getWindow() }),
+		/** Redoes the last undone timeline mutation. */
 		redoTimeline: () => redoTimeline({ win: getWindow() }),
+		/** Returns a summary of undo and redo history. */
 		getHistorySummary: () => getHistorySummary({ win: getWindow() }),
+		/** Requests an editor state snapshot from the renderer. */
 		requestStateSnapshot: (request) =>
 			requestEditorStateSnapshotFromRenderer(getWindow(), request),
+		/** Starts an auto-edit job in the main process. */
 		startAutoEditJob: async (projectId, request) =>
 			startAutoEditJob(projectId, request, getWindow()),
+		/** Returns the current status for an auto-edit job. */
 		getAutoEditJobStatus: async (jobId) => getAutoEditJobStatus(jobId),
+		/** Lists active and recent auto-edit jobs. */
 		listAutoEditJobs: async () => listAutoEditJobs(),
+		/** Cancels an auto-edit job. */
 		cancelAutoEditJob: async (jobId) => cancelAutoEditJob(jobId),
+		/** Executes batched cut operations. */
 		executeBatchCuts: async (request) => executeBatchCuts(getWindow(), request),
+		/** Executes a range deletion operation. */
 		executeDeleteRange: async (request) =>
 			executeDeleteRange(getWindow(), request),
 	};
 
 	// Register all shared routes
 	registerSharedRoutes(router, accessor, {
+		/** Runs deep health checks against the main process and renderer bridge. */
 		runDeepHealthChecks: async () =>
 			runMainProcessDeepHealthChecks({
 				getWindow,
+				/** Re-requests the timeline from the renderer during health probes. */
 				requestTimeline: async ({ win }) =>
 					await requestTimelineFromRenderer(win),
 			}),
 	});
 	registerStateRoutes(router, {
+		/** Returns the current editor snapshot for state routes. */
 		requestSnapshot: (request) =>
 			requestEditorStateSnapshotFromRenderer(getWindow(), request),
 	});
 	registerClaudeEventsRoutes(router, {
+		/** Lists recorded Claude/editor events. */
 		listEvents: async (filter) => getClaudeEvents(filter),
 	});
 

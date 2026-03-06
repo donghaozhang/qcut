@@ -3,6 +3,7 @@ import { db } from "@qcut/db";
 import { users } from "@qcut/db/schema";
 import { isCanaryModeEnabled, isEmailAllowedForCanary } from "./payment-config";
 
+/** Looks up the normalized email used by the canary allowlist. */
 async function getUserEmailById({
 	userId,
 }: {
@@ -25,6 +26,7 @@ async function getUserEmailById({
 	}
 }
 
+/** Blocks payment flows for users outside the payment canary allowlist. */
 export async function ensureCanaryUserAllowed({
 	userId,
 }: {

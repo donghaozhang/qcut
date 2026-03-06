@@ -122,6 +122,7 @@ export function registerAnalysisRoutes(
 	router: Router,
 	accessor: AnalysisRoutesAccessor
 ): void {
+	/** Resolves an auto-edit job through the accessor when available. */
 	const getAutoEditJobForRequest = async ({
 		jobId,
 	}: {

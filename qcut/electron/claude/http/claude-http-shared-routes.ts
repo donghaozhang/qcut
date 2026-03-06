@@ -280,6 +280,7 @@ const TIMELINE_SYNC_BARRIER_TIMEOUT_MS = 5000;
 const projectJsonSyncTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const projectJsonSyncInFlight = new Map<string, Promise<void>>();
 
+/** Rebuild project.json from the live editor API and persist it beside the project. */
 async function writeProjectJsonSnapshot({
 	projectId,
 }: {
@@ -313,6 +314,7 @@ async function writeProjectJsonSnapshot({
 	}
 }
 
+/** Debounce best-effort project.json regeneration after timeline mutations. */
 function scheduleProjectJsonAutoSync({
 	projectId,
 }: {
@@ -348,6 +350,7 @@ function scheduleProjectJsonAutoSync({
 	}
 }
 
+/** Wait for a renderer roundtrip so timeline writes settle before reading project state. */
 async function waitForTimelineMutationBarrier({
 	accessor,
 }: {
@@ -379,6 +382,7 @@ export function registerSharedRoutes(
 	wrapRouterWithCorrelationTracking({ router });
 	registerMetaRoutes({
 		router,
+		/** Returns the current application version for metadata routes. */
 		getAppVersion: () => accessor.getAppVersion(),
 		runDeepHealthChecks: options?.runDeepHealthChecks,
 	});

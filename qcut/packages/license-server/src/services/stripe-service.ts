@@ -64,6 +64,7 @@ const SUBSCRIPTION_STATUS_TO_LICENSE: Record<
 	paused: "past_due",
 };
 
+/** Maps Stripe subscription status values to license status. */
 function resolveLicenseStatus({
 	status,
 }: {
@@ -72,6 +73,7 @@ function resolveLicenseStatus({
 	return SUBSCRIPTION_STATUS_TO_LICENSE[status] ?? "past_due";
 }
 
+/** Infers the paid plan from a Stripe price ID. */
 function resolvePlanFromPriceId({
 	priceId,
 }: {
@@ -83,6 +85,7 @@ function resolvePlanFromPriceId({
 	return SUBSCRIPTION_PRICE_TO_PLAN[priceId] ?? null;
 }
 
+/** Maps each plan to its device allowance. */
 function getMaxDevicesForPlan({
 	plan,
 }: {
@@ -97,6 +100,7 @@ function getMaxDevicesForPlan({
 	return 1;
 }
 
+/** Throws when a required Stripe price ID is missing. */
 function assertConfiguredPriceId({
 	priceId,
 	errorMessage,
@@ -109,6 +113,7 @@ function assertConfiguredPriceId({
 	}
 }
 
+/** Finds a license by its stored Stripe customer or subscription IDs. */
 async function findLicenseByStripeIds({
 	customerId,
 	subscriptionId,
@@ -147,6 +152,7 @@ async function findLicenseByStripeIds({
 	}
 }
 
+/** Claims a webhook event row so concurrent deliveries do not double-process. */
 async function acquireWebhookEventLock({
 	eventId,
 	eventType,
@@ -215,6 +221,7 @@ async function acquireWebhookEventLock({
 	}
 }
 
+/** Marks a webhook event as successfully processed. */
 async function markWebhookEventProcessed({
 	eventId,
 }: {
@@ -242,6 +249,7 @@ async function markWebhookEventProcessed({
 	}
 }
 
+/** Stores the last processing error without clearing the lock row. */
 async function releaseWebhookEventLock({
 	eventId,
 	errorMessage,
@@ -272,6 +280,7 @@ async function releaseWebhookEventLock({
 	}
 }
 
+/** Creates a Stripe Checkout session for subscription purchases. */
 export async function createCheckoutSession({
 	userId,
 	plan,
@@ -320,6 +329,7 @@ export async function createCheckoutSession({
 	}
 }
 
+/** Creates a Stripe Checkout session for one-time credit packs. */
 export async function createTopUpCheckoutSession({
 	userId,
 	pack,
@@ -365,6 +375,7 @@ export async function createTopUpCheckoutSession({
 	}
 }
 
+/** Creates a Stripe billing-portal session for an existing customer. */
 export async function createPortalSession({
 	stripeCustomerId,
 	idempotencyKey,
@@ -394,6 +405,7 @@ export async function createPortalSession({
 	}
 }
 
+/** Applies the effects of a completed checkout session. */
 async function handleCheckoutCompleted({
 	session,
 }: {
@@ -460,6 +472,7 @@ async function handleCheckoutCompleted({
 	}
 }
 
+/** Syncs license fields from subscription state changes. */
 async function handleSubscriptionUpdated({
 	subscription,
 }: {
@@ -505,6 +518,7 @@ async function handleSubscriptionUpdated({
 	}
 }
 
+/** Downgrades licenses and credits after subscription cancellation. */
 async function handleSubscriptionDeleted({
 	subscription,
 }: {
@@ -544,6 +558,7 @@ async function handleSubscriptionDeleted({
 	}
 }
 
+/** Refreshes monthly credits after a successful renewal invoice. */
 async function handleInvoicePaymentSucceeded({
 	invoice,
 }: {
@@ -577,6 +592,7 @@ async function handleInvoicePaymentSucceeded({
 	}
 }
 
+/** Marks licenses past due when renewal payment fails. */
 async function handleInvoicePaymentFailed({
 	invoice,
 }: {
@@ -608,6 +624,7 @@ async function handleInvoicePaymentFailed({
 	}
 }
 
+/** Reconciles top-up credits after a refunded charge. */
 async function handleChargeRefunded({
 	charge,
 }: {
@@ -634,6 +651,7 @@ async function handleChargeRefunded({
 	}
 }
 
+/** Verifies, deduplicates, and dispatches Stripe webhook events. */
 export async function handleWebhook({
 	body,
 	signature,

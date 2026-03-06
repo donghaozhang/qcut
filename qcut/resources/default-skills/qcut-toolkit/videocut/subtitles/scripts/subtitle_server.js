@@ -369,6 +369,7 @@ const server = http.createServer((req, res) => {
   res.end("Not Found");
 });
 
+/** Format seconds as an SRT timestamp. */
 function formatSrtTime(seconds) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -377,6 +378,7 @@ function formatSrtTime(seconds) {
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")},${ms.toString().padStart(3, "0")}`;
 }
 
+/** Serialize subtitle rows into SRT content. */
 function generateSRT(subs) {
   return subs
     .map(
@@ -387,6 +389,7 @@ function generateSRT(subs) {
 }
 
 // 生成人工校对格式的字幕文件
+/** Serialize subtitle rows into a proofreading-friendly text export. */
 function generateReadableSubtitles(subs) {
   return subs
     .map((s, i) => {
@@ -397,12 +400,14 @@ function generateReadableSubtitles(subs) {
     .join("\n");
 }
 
+/** Format seconds for the readable subtitle export. */
 function formatReadableTime(seconds) {
   const m = Math.floor(seconds / 60);
   const s = (seconds % 60).toFixed(2);
   return m.toString().padStart(2, "0") + ":" + s.padStart(5, "0");
 }
 
+/** Escape subtitle text before interpolating it into HTML. */
 function escapeHtml(str) {
   return str.replace(
     /[&<>"']/g,
@@ -413,14 +418,17 @@ function escapeHtml(str) {
   );
 }
 
+/** Escape strings before embedding them in inline script calls. */
 function escapeJs(str) {
   return str.replace(/[\\']/g, "\\$&");
 }
 
+/** Escape filter paths for shell-safe ffmpeg arguments. */
 function escapeFilterPath(p) {
   return p.replace(/'/g, "'\\''");
 }
 
+/** Build the browser UI served by the local subtitle review server. */
 function generateHTML() {
   return `<!DOCTYPE html>
 <html lang="zh-CN">

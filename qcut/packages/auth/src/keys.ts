@@ -1,6 +1,7 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
+/** Builds the typed auth environment accessor. */
 export const keys = () =>
 	createEnv({
 		server: {

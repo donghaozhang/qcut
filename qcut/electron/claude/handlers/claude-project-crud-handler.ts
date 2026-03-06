@@ -59,6 +59,7 @@ export interface DuplicateProjectResponse {
 	sourceProjectId: string;
 }
 
+/** Parse a positive number or fall back to the provided default. */
 function getPositiveNumber({
 	value,
 	fallback,
@@ -69,6 +70,7 @@ function getPositiveNumber({
 	return parsePositiveNumber({ value }) ?? fallback;
 }
 
+/** Sanitize project ids before using them in filesystem paths. */
 function normalizeProjectId({ projectId }: { projectId: string }): string {
 	const trimmed = projectId.trim();
 	const sanitized = sanitizeProjectId(trimmed);
@@ -78,6 +80,7 @@ function normalizeProjectId({ projectId }: { projectId: string }): string {
 	return sanitized;
 }
 
+/** Ensure every renderer-created project also has the expected on-disk scaffold. */
 async function ensureProjectDiskScaffold({
 	projectId,
 	projectName,
@@ -188,6 +191,7 @@ async function ensureProjectDiskScaffold({
 	}
 }
 
+/** Proxy a renderer request over IPC and await the correlated response. */
 function requestFromRenderer<T>(
 	win: BrowserWindow,
 	channel: string,
@@ -230,6 +234,7 @@ function requestFromRenderer<T>(
 	});
 }
 
+/** Create a project through the renderer and backfill its disk scaffold. */
 export function requestCreateProject(
 	win: BrowserWindow,
 	name: string
@@ -258,6 +263,7 @@ export function requestCreateProject(
 	})();
 }
 
+/** Delete a project through the renderer-owned store. */
 export function requestDeleteProject(
 	win: BrowserWindow,
 	projectId: string
@@ -265,6 +271,7 @@ export function requestDeleteProject(
 	return requestFromRenderer(win, "claude:project:delete", { projectId });
 }
 
+/** Rename a project and sync the scaffold metadata on disk. */
 export function requestRenameProject(
 	win: BrowserWindow,
 	projectId: string,
@@ -297,6 +304,7 @@ export function requestRenameProject(
 	})();
 }
 
+/** Duplicate a project and materialize the duplicated scaffold on disk. */
 export function requestDuplicateProject(
 	win: BrowserWindow,
 	projectId: string

@@ -1,12 +1,15 @@
+/** Narrow unknown values to plain record objects. */
 export function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+/** Match missing-file errors without assuming the thrown shape. */
 export function isErrnoNoEntry(error: unknown): boolean {
 	if (!isRecord(error)) return false;
 	return error.code === "ENOENT";
 }
 
+/** Return a non-empty string value or the supplied fallback. */
 export function getStringValue({
 	value,
 	fallback,
@@ -19,6 +22,7 @@ export function getStringValue({
 		: fallback;
 }
 
+/** Parse positive numbers from numeric or string input. */
 export function parsePositiveNumber({
 	value,
 }: {

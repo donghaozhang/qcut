@@ -7,6 +7,7 @@ const EXPECTED_SUBMODULE = {
 	branch: "master",
 } as const;
 
+/** Execute a shell command and trim its UTF-8 stdout. */
 function runCommand({
 	command,
 	cwd,
@@ -17,6 +18,7 @@ function runCommand({
 	return execSync(command, { cwd, encoding: "utf8" }).trim();
 }
 
+/** Throw when an expected submodule invariant does not hold. */
 function assertCondition({
 	condition,
 	message,
@@ -29,6 +31,7 @@ function assertCondition({
 	}
 }
 
+/** Read a single value from .gitmodules using git-config parsing. */
 function readGitModuleConfig({
 	gitmodulesPath,
 	key,

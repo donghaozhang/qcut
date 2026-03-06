@@ -32,6 +32,7 @@ interface NormalizeImageMimeTypeOptions {
 	filename?: string | null;
 }
 
+/** Extract a lowercase filename extension when one is present. */
 function getFileExtension(filename: string): string | null {
 	try {
 		const trimmed = filename.trim();
@@ -45,6 +46,7 @@ function getFileExtension(filename: string): string | null {
 	}
 }
 
+/** Read the media type prefix from a data URL when available. */
 export function extractMimeTypeFromDataUrl(dataUrl: string): string | null {
 	try {
 		if (!dataUrl.startsWith("data:")) return null;
@@ -63,6 +65,7 @@ export function extractMimeTypeFromDataUrl(dataUrl: string): string | null {
 	}
 }
 
+/** Check whether a file-like object looks like an image from type or extension. */
 export function isLikelyImageFile({ name, type }: FileLike): boolean {
 	try {
 		const normalizedType = (type ?? "").trim().toLowerCase();
@@ -76,6 +79,7 @@ export function isLikelyImageFile({ name, type }: FileLike): boolean {
 	}
 }
 
+/** Normalize image MIME types across uploads, drag-drop data URLs, and filenames. */
 export function normalizeImageMimeType({
 	declaredType,
 	dataUrl,

@@ -42,6 +42,7 @@ interface ResolvedAuthUrls {
 	dashboardUrl: string;
 }
 
+/** Parses a URL string without throwing. */
 function toUrlOrNull({ value }: { value: string }): URL | null {
 	try {
 		return new URL(value);
@@ -50,6 +51,7 @@ function toUrlOrNull({ value }: { value: string }): URL | null {
 	}
 }
 
+/** Extracts the origin portion of a URL string. */
 function normalizeOrigin({ value }: { value: string }): string {
 	try {
 		const url = new URL(value);
@@ -59,6 +61,7 @@ function normalizeOrigin({ value }: { value: string }): string {
 	}
 }
 
+/** Canonicalizes a URL while trimming a trailing slash from its path. */
 function normalizeUrlWithoutTrailingSlash({
 	value,
 }: {
@@ -75,6 +78,7 @@ function normalizeUrlWithoutTrailingSlash({
 	}
 }
 
+/** Builds the OAuth redirect allowlist from config and the web base URL. */
 function resolveAllowedOrigins({
 	allowedOrigins,
 	webBaseUrl,
@@ -103,6 +107,7 @@ function resolveAllowedOrigins({
 	}
 }
 
+/** Computes default login and dashboard redirects for auth flows. */
 function resolveDefaultAuthUrls({
 	webBaseUrl,
 }: {
@@ -124,6 +129,7 @@ function resolveDefaultAuthUrls({
 	}
 }
 
+/** Accepts only allowlisted HTTP(S) redirect targets. */
 function resolveRedirectUrl({
 	candidate,
 	fallback,
@@ -160,6 +166,7 @@ function resolveRedirectUrl({
 	}
 }
 
+/** Appends or replaces a single query parameter on a URL. */
 function addQueryParam({
 	target,
 	key,
@@ -177,6 +184,7 @@ function addQueryParam({
 	}
 }
 
+/** Constrains bridge redirects to same-origin absolute paths. */
 function buildRedirectTargetFromPath({
 	path,
 	defaultTarget,
@@ -206,6 +214,7 @@ function buildRedirectTargetFromPath({
 
 let cachedAuthInstance: BetterAuthInstance | null = null;
 
+/** Lazily loads and caches the shared Better Auth instance. */
 async function getAuthInstance(): Promise<BetterAuthInstance> {
 	try {
 		if (cachedAuthInstance) {
@@ -226,6 +235,7 @@ async function getAuthInstance(): Promise<BetterAuthInstance> {
 	}
 }
 
+/** Creates the auth bridge routes used by web and desktop clients. */
 export function createAuthRoutes({
 	dependencies,
 }: {
@@ -233,6 +243,7 @@ export function createAuthRoutes({
 } = {}) {
 	const authRoutes = new Hono();
 	const resolvedDependencies: AuthRouteDependencies = {
+		/** Proxies incoming auth requests to the shared Better Auth handler. */
 		handleAuthRequest: async ({ request }) => {
 			try {
 				const auth = await getAuthInstance();
@@ -254,6 +265,7 @@ export function createAuthRoutes({
 				);
 			}
 		},
+		/** Resolves session data from request headers when auth is available. */
 		getSessionFromHeaders: async ({ headers }) => {
 			try {
 				const auth = await getAuthInstance();
@@ -269,6 +281,7 @@ export function createAuthRoutes({
 				return null;
 			}
 		},
+		/** Returns the allowlisted origins used for auth redirects. */
 		getAllowedOrigins: () => {
 			try {
 				return getAllowedCorsOrigins();
@@ -276,6 +289,7 @@ export function createAuthRoutes({
 				return [];
 			}
 		},
+		/** Returns the canonical web base URL used in auth redirects. */
 		getWebBaseUrl: () => {
 			try {
 				return getPaymentWebBaseUrl();

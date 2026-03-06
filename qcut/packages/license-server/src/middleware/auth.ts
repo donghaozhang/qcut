@@ -5,6 +5,7 @@ import { sessions } from "@qcut/db/schema";
 import { isMockMode } from "./mock";
 import { verifyJwtAndExtractUserId } from "./auth-jwt";
 
+/** Pulls the bearer token value out of an Authorization header. */
 function extractBearerToken({ authHeader }: { authHeader?: string }): string {
 	if (!authHeader || !authHeader.startsWith("Bearer ")) {
 		return "";
@@ -12,6 +13,7 @@ function extractBearerToken({ authHeader }: { authHeader?: string }): string {
 	return authHeader.slice("Bearer ".length).trim();
 }
 
+/** Resolves the request user from the session store or HS256 JWT fallback. */
 export async function authMiddleware(c: Context, next: Next) {
 	// Mock mode: skip real auth, use mock user ID
 	if (isMockMode()) {

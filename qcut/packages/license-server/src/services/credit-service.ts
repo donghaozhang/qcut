@@ -48,6 +48,7 @@ export interface CreditHistoryItem {
 	createdAt: string;
 }
 
+/** Shapes a balance row for API responses. */
 function buildCreditBalanceInfo({
 	balance,
 }: {
@@ -66,12 +67,14 @@ function buildCreditBalanceInfo({
 	};
 }
 
+/** Schedules the next monthly plan-credit reset. */
 function getNextResetAt({ now }: { now: Date }): Date {
 	const nextResetAt = new Date(now);
 	nextResetAt.setMonth(nextResetAt.getMonth() + 1);
 	return nextResetAt;
 }
 
+/** Constrains nullable plan strings to supported credit plans. */
 function parsePlan({ plan }: { plan: string | null | undefined }): Plan {
 	if (plan === "pro" || plan === "team") {
 		return plan;
@@ -79,6 +82,7 @@ function parsePlan({ plan }: { plan: string | null | undefined }): Plan {
 	return "free";
 }
 
+/** Reads the current license plan that drives monthly credits. */
 async function getPlanByUserId({ userId }: { userId: string }): Promise<Plan> {
 	try {
 		const [license] = await db
@@ -94,6 +98,7 @@ async function getPlanByUserId({ userId }: { userId: string }): Promise<Plan> {
 	}
 }
 
+/** Creates the first credit balance and seed grant for a user. */
 async function createInitialBalance({
 	userId,
 	plan,
@@ -136,6 +141,7 @@ async function createInitialBalance({
 	}
 }
 
+/** Returns the user's balance, creating it on first use. */
 async function ensureCreditBalance({
 	userId,
 }: {
@@ -161,6 +167,7 @@ async function ensureCreditBalance({
 	}
 }
 
+/** Refreshes monthly plan credits once the reset timestamp passes. */
 async function resetPlanCreditsIfDue({
 	userId,
 	balance,
@@ -207,16 +214,19 @@ async function resetPlanCreditsIfDue({
 	}
 }
 
+/** Rejects non-finite or non-positive credit deltas. */
 function validatePositiveAmount({ amount }: { amount: number }): void {
 	if (!Number.isFinite(amount) || amount <= 0) {
 		throw new Error("Credit amount must be a positive number");
 	}
 }
 
+/** Rounds credit amounts to the persisted precision. */
 function roundCredits({ amount }: { amount: number }): number {
 	return Number(amount.toFixed(3));
 }
 
+/** Translates a Stripe refund amount into the credit amount to claw back. */
 function resolveRefundTargetCredits({
 	totalGrantedCredits,
 	chargeAmount,
@@ -241,6 +251,7 @@ function resolveRefundTargetCredits({
 	return roundCredits({ amount: totalGrantedCredits * refundRatio });
 }
 
+/** Bounds credit history queries to a sane page size. */
 function sanitizeHistoryLimit({ limit }: { limit?: number }): number {
 	if (!limit || !Number.isInteger(limit)) {
 		return 50;
@@ -254,6 +265,7 @@ function sanitizeHistoryLimit({ limit }: { limit?: number }): number {
 	return limit;
 }
 
+/** Returns the current balance after applying any due reset. */
 export async function getCreditBalanceByUserId({
 	userId,
 }: {
@@ -270,6 +282,7 @@ export async function getCreditBalanceByUserId({
 	}
 }
 
+/** Atomically spends credits from plan balance before top-ups. */
 export async function deductCreditsForUser({
 	userId,
 	amount,
@@ -349,6 +362,7 @@ export async function deductCreditsForUser({
 	}
 }
 
+/** Returns recent credit transactions in reverse chronological order. */
 export async function listCreditHistoryByUserId({
 	userId,
 	limit,
@@ -382,6 +396,7 @@ export async function listCreditHistoryByUserId({
 	}
 }
 
+/** Adds purchased credits and records the top-up transaction. */
 export async function addTopUpCreditsForUser({
 	userId,
 	credits,
@@ -430,6 +445,7 @@ export async function addTopUpCreditsForUser({
 	}
 }
 
+/** Credits a predefined pack by its configured amount. */
 export async function addTopUpPackCreditsForUser({
 	userId,
 	pack,
@@ -458,6 +474,7 @@ export async function addTopUpPackCreditsForUser({
 	}
 }
 
+/** Grants the monthly plan allocation immediately. */
 export async function resetPlanCreditsForUser({
 	userId,
 	plan,
@@ -508,6 +525,7 @@ export async function resetPlanCreditsForUser({
 	}
 }
 
+/** Downgrades a user back to the free-plan balance. */
 export async function downgradeToFreeCreditsForUser({
 	userId,
 	description,
@@ -550,6 +568,7 @@ export async function downgradeToFreeCreditsForUser({
 	}
 }
 
+/** Claws back purchased credits when Stripe refunds a top-up payment. */
 export async function reconcileTopUpRefundByStripePaymentId({
 	stripePaymentId,
 	chargeAmount,
@@ -723,10 +742,12 @@ export async function reconcileTopUpRefundByStripePaymentId({
 	}
 }
 
+/** Returns the configured credit amount for a named top-up pack. */
 export function getTopUpPackCredits({ pack }: { pack: TopUpPack }): number {
 	return TOP_UP_PACK_CREDITS[pack];
 }
 
+/** Narrows arbitrary strings to supported top-up pack names. */
 export function isTopUpPack(pack: string): pack is TopUpPack {
 	return pack in TOP_UP_PACK_CREDITS;
 }

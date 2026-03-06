@@ -23,6 +23,7 @@ const CUT_END = 65;
 const EDGE_PROXIMITY = 1.5;
 const WHITE_HEX = "#FFFFFF";
 
+/** Map playhead progress to the mascot's scripted animation state. */
 function deriveState(progress: number): MascotState {
 	const p = progress * 100;
 	if (p >= THINK_GENERATE_AT && p < GENERATE_AT) return "thinking_generate";
@@ -32,6 +33,7 @@ function deriveState(progress: number): MascotState {
 	return "idle";
 }
 
+/** Detect when the playhead is close enough to a clip edge to react. */
 function isNearClipEdge(pos: number): boolean {
 	for (const edge of CLIP_EDGES) {
 		if (Math.abs(pos - edge) < EDGE_PROXIMITY) return true;
@@ -39,6 +41,7 @@ function isNearClipEdge(pos: number): boolean {
 	return false;
 }
 
+/** Detect whether the playhead is currently over any decorated clip range. */
 function isOverClip(pos: number): boolean {
 	for (const [left, right] of CLIP_RANGES) {
 		if (pos >= left && pos <= right) return true;
@@ -54,6 +57,7 @@ const BUBBLE_TEXT: Record<MascotState, string> = {
 	cutting: "Cutting ...",
 };
 
+/** Render the mascot's transient thought bubble for the current timeline state. */
 function ThoughtBubble({
 	state,
 	accentColor,
@@ -109,6 +113,7 @@ interface MascotProps {
 	playheadProgress: MotionValue<number>;
 }
 
+/** Animate the landing-page mascot against the timeline playhead position. */
 export function Mascot({ playheadProgress }: MascotProps) {
 	const [state, setState] = useState<MascotState>("idle");
 	const [nearEdge, setNearEdge] = useState(false);

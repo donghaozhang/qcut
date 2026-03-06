@@ -47,6 +47,7 @@ interface TldrawCanvasProps {
 	className?: string;
 }
 
+/** Detect the locked background image shape used by the annotator. */
 function isLockedImageShape(shape: unknown): shape is TLImageShape {
 	try {
 		if (!shape || typeof shape !== "object") return false;
@@ -57,6 +58,7 @@ function isLockedImageShape(shape: unknown): shape is TLImageShape {
 	}
 }
 
+/** Resolve the current background image shape, preferring the cached id when valid. */
 function resolveBackgroundImageShapeId({
 	editor,
 	preferredId,
@@ -85,6 +87,7 @@ function resolveBackgroundImageShapeId({
 	}
 }
 
+/** Clamp canvas dimensions to positive integers before passing them to tldraw. */
 function sanitizeDimension({ value }: { value: number }): number {
 	if (!Number.isFinite(value)) {
 		return 1;
@@ -125,8 +128,11 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 			if (!editor) return;
 			const activeEditor: Editor = editor;
 
+			/** Cleans up the after-create background ordering hook. */
 			let rmCreate = () => {};
+			/** Cleans up the after-change background ordering hook. */
 			let rmChange = () => {};
+			/** Cleans up the lock-enforcement hook for the background image. */
 			let rmLock = () => {};
 			try {
 				const width = sanitizeDimension({ value: image.width });
@@ -210,6 +216,7 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 				}
 
 				// Keep image at the bottom of the z-order
+				/** Keeps the locked background image behind all user-drawn shapes. */
 				function keepAtBottom() {
 					const currentShapeId = resolveBackgroundImageShapeId({
 						editor: activeEditor,
@@ -306,8 +313,10 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 		}, [imageShapeId, image.width, image.height]);
 
 		useImperativeHandle(ref, () => ({
+			/** Returns the mounted tldraw editor instance, if available. */
 			getEditor: () => editorRef.current,
 
+			/** Exports the canvas as a blob URL; callers should revoke it after use. */
 			getCanvasDataUrl: async () => {
 				try {
 					const editor = editorRef.current;
@@ -344,12 +353,14 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 				}
 			},
 
+			/** Serializes the current tldraw store snapshot. */
 			getSnapshot: () => {
 				const editor = editorRef.current;
 				if (!editor) return null;
 				return JSON.stringify(editor.store.getStoreSnapshot());
 			},
 
+			/** Loads a serialized tldraw store snapshot into the editor. */
 			loadSnapshot: (snapshotJson: string) => {
 				const editor = editorRef.current;
 				if (!editor) return;
@@ -371,6 +382,7 @@ export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 				}
 			},
 
+			/** Removes all annotations while preserving the background image. */
 			clearAll: () => {
 				const editor = editorRef.current;
 				if (!editor) return;

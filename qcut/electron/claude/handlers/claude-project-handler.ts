@@ -37,10 +37,12 @@ interface UpdateProjectSettingsOptions {
 	broadcast?: boolean;
 }
 
+/** Parse a positive number from project metadata when present. */
 function getPositiveNumber({ value }: { value: unknown }): number | null {
 	return parsePositiveNumber({ value });
 }
 
+/** Safely read a nested plain object from a parent record. */
 function getNestedRecord({
 	value,
 	key,
@@ -93,6 +95,7 @@ function getEmptyStats(): ProjectStats {
 	};
 }
 
+/** Normalize mixed-shape project.qcut payloads into the runtime settings model. */
 function parseProjectSettings({
 	project,
 }: {
@@ -155,6 +158,7 @@ function parseProjectSettings({
 	}
 }
 
+/** Build a minimal project.qcut scaffold when no valid document exists yet. */
 function buildProjectScaffoldDocument({
 	projectId,
 	projectName,

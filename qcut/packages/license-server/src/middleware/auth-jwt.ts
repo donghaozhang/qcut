@@ -10,6 +10,7 @@ interface JwtPayload {
 	nbf?: unknown;
 }
 
+/** Encodes raw bytes as base64 across browser and Node runtimes. */
 function toBase64FromBytes({ bytes }: { bytes: Uint8Array }): string {
 	try {
 		const btoaFn = (globalThis as { btoa?: (value: string) => string }).btoa;
@@ -27,6 +28,7 @@ function toBase64FromBytes({ bytes }: { bytes: Uint8Array }): string {
 	}
 }
 
+/** Decodes a base64 string into bytes across browser and Node runtimes. */
 function fromBase64ToBytes({ base64 }: { base64: string }): Uint8Array | null {
 	try {
 		const atobFn = (globalThis as { atob?: (value: string) => string }).atob;
@@ -45,15 +47,18 @@ function fromBase64ToBytes({ base64 }: { base64: string }): Uint8Array | null {
 	}
 }
 
+/** Converts a base64 string into the JWT-safe base64url form. */
 function toBase64Url({ value }: { value: string }): string {
 	return value.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
+/** Restores padding and alphabet from a base64url segment. */
 function fromBase64Url({ value }: { value: string }): string {
 	const padded = value.padEnd(Math.ceil(value.length / 4) * 4, "=");
 	return padded.replace(/-/g, "+").replace(/_/g, "/");
 }
 
+/** Decodes a base64url segment into UTF-8 text. */
 function decodeBase64UrlToString({ value }: { value: string }): string | null {
 	try {
 		const base64 = fromBase64Url({ value });
@@ -68,6 +73,7 @@ function decodeBase64UrlToString({ value }: { value: string }): string | null {
 	}
 }
 
+/** Compares equal-length signatures without early exit. */
 function constantTimeEqual({
 	left,
 	right,
@@ -86,6 +92,7 @@ function constantTimeEqual({
 	return mismatch === 0;
 }
 
+/** Reads numeric JWT claims only when they are finite. */
 function parseNumericClaim({ claim }: { claim: unknown }): number | null {
 	if (typeof claim !== "number" || !Number.isFinite(claim)) {
 		return null;
@@ -93,6 +100,7 @@ function parseNumericClaim({ claim }: { claim: unknown }): number | null {
 	return claim;
 }
 
+/** Signs a JWT message with HS256. */
 async function signHs256({
 	input,
 	secret,
@@ -125,6 +133,7 @@ async function signHs256({
 	}
 }
 
+/** Prefers sub and falls back to userId for legacy tokens. */
 function extractUserIdFromPayload({
 	payload,
 }: {
@@ -139,6 +148,7 @@ function extractUserIdFromPayload({
 	return null;
 }
 
+/** Validates an HS256 JWT and returns its user identifier. */
 export async function verifyJwtAndExtractUserId({
 	token,
 	secret,

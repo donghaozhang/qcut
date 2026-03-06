@@ -15,6 +15,7 @@ import {
 import { useProjectStore } from "@/stores/project-store";
 import { toast } from "sonner";
 
+/** Load an image file into the annotator's normalized image payload. */
 function loadImageFile(file: File): Promise<AnnotatorImage> {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
@@ -111,6 +112,7 @@ function ImagePicker({
 	);
 }
 
+/** Renders the image annotation workspace and saved drawing browser. */
 const DrawView: React.FC = () => {
 	const canvasRef = useRef<TldrawCanvasHandle | null>(null);
 	const [image, setImage] = useState<AnnotatorImage | null>(null);

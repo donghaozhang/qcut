@@ -11,6 +11,7 @@ const {
 	BETTER_AUTH_TRUSTED_ORIGINS,
 } = keys();
 
+/** Normalizes BETTER_AUTH_TRUSTED_ORIGINS into a list of origins. */
 function parseTrustedOrigins({ value }: { value?: string }): string[] {
 	if (typeof value !== "string") {
 		return [];

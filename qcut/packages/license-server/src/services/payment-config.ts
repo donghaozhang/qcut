@@ -9,6 +9,7 @@ const DEFAULT_CORS_ORIGINS = [
 const PAYMENT_WEB_BASE_URL = "https://quriosity.com.au";
 const IDEMPOTENCY_TIME_BUCKET_MS = 5 * 60 * 1000;
 
+/** Parses boolean env flags with a safe default. */
 function parseBooleanEnv({
 	value,
 	defaultValue,
@@ -29,6 +30,7 @@ function parseBooleanEnv({
 	return defaultValue;
 }
 
+/** Splits comma-delimited env values into trimmed entries. */
 function parseCsv({ value }: { value: string | undefined }): string[] {
 	if (typeof value !== "string") {
 		return [];
@@ -40,6 +42,7 @@ function parseCsv({ value }: { value: string | undefined }): string[] {
 		.filter((item) => item.length > 0);
 }
 
+/** Removes a trailing slash from configured base URLs. */
 function normalizeBaseUrl({ value }: { value: string }): string {
 	const trimmed = value.trim();
 	if (trimmed.endsWith("/")) {
@@ -48,10 +51,12 @@ function normalizeBaseUrl({ value }: { value: string }): string {
 	return trimmed;
 }
 
+/** Sanitizes idempotency-key fragments to Stripe-safe characters. */
 function sanitizeKeyPart({ value }: { value: string }): string {
 	return value.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
+/** Builds a time-bucketed idempotency key when the caller did not supply one. */
 function buildFallbackIdempotencyKey({
 	scope,
 	ownerId,
@@ -70,6 +75,7 @@ function buildFallbackIdempotencyKey({
 	return parts.join(":").slice(0, 255);
 }
 
+/** Returns the canonical web base URL for hosted payment redirects. */
 export function getPaymentWebBaseUrl(): string {
 	const configured = process.env.PAYMENTS_WEB_BASE_URL;
 	if (typeof configured === "string" && configured.trim().length > 0) {
@@ -78,6 +84,7 @@ export function getPaymentWebBaseUrl(): string {
 	return PAYMENT_WEB_BASE_URL;
 }
 
+/** Builds the checkout success URL for the requested payment flow. */
 export function getPaymentSuccessUrl({
 	type,
 }: {
@@ -90,6 +97,7 @@ export function getPaymentSuccessUrl({
 	return `${baseUrl}/account/success.html?session_id={CHECKOUT_SESSION_ID}`;
 }
 
+/** Builds the checkout cancel URL for the requested payment flow. */
 export function getPaymentCancelUrl({
 	type,
 }: {
@@ -102,11 +110,13 @@ export function getPaymentCancelUrl({
 	return `${baseUrl}/account/pricing.html`;
 }
 
+/** Returns the billing-portal return target. */
 export function getPaymentPortalReturnUrl(): string {
 	const baseUrl = getPaymentWebBaseUrl();
 	return `${baseUrl}/account/dashboard.html`;
 }
 
+/** Reports whether checkout session creation is enabled. */
 export function isCheckoutCreationEnabled(): boolean {
 	return parseBooleanEnv({
 		value: process.env.PAYMENTS_CHECKOUT_ENABLED,
@@ -114,6 +124,7 @@ export function isCheckoutCreationEnabled(): boolean {
 	});
 }
 
+/** Reports whether Stripe webhook processing is enabled. */
 export function isWebhookProcessingEnabled(): boolean {
 	return parseBooleanEnv({
 		value: process.env.PAYMENTS_WEBHOOK_ENABLED,
@@ -121,6 +132,7 @@ export function isWebhookProcessingEnabled(): boolean {
 	});
 }
 
+/** Reports whether payments are limited to the canary allowlist. */
 export function isCanaryModeEnabled(): boolean {
 	return parseBooleanEnv({
 		value: process.env.PAYMENTS_CANARY_ONLY,
@@ -128,12 +140,14 @@ export function isCanaryModeEnabled(): boolean {
 	});
 }
 
+/** Returns the normalized payment canary allowlist. */
 export function getPaymentEmailAllowlist(): string[] {
 	return parseCsv({ value: process.env.PAYMENTS_EMAIL_ALLOWLIST }).map(
 		(email) => email.toLowerCase()
 	);
 }
 
+/** Checks whether an email is permitted while canary mode is active. */
 export function isEmailAllowedForCanary({
 	email,
 }: {
@@ -153,6 +167,7 @@ export function isEmailAllowedForCanary({
 	return allowlist.includes(email.trim().toLowerCase());
 }
 
+/** Builds the de-duplicated CORS allowlist for payment endpoints. */
 export function getAllowedCorsOrigins(): string[] {
 	const configured = parseCsv({ value: process.env.CORS_ALLOWED_ORIGINS });
 	const combined = [...DEFAULT_CORS_ORIGINS, ...configured];
@@ -166,6 +181,7 @@ export function getAllowedCorsOrigins(): string[] {
 	return [...seen];
 }
 
+/** Prefers a caller-supplied idempotency key and falls back to a generated one. */
 export function resolveStripeIdempotencyKey({
 	providedKey,
 	scope,

@@ -229,6 +229,7 @@ export async function buildProjectJSON(
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Read an editor endpoint with an optional required/fallback policy. */
 async function safeGet<T>({
 	client,
 	path,
@@ -254,10 +255,12 @@ async function safeGet<T>({
 	}
 }
 
+/** Narrow unknown JSON payloads to plain record objects. */
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+/** Find the requested project inside the navigator payload when it is available. */
 function findProjectInNavigator({
 	payload,
 	projectId,
@@ -280,6 +283,7 @@ function findProjectInNavigator({
 	}
 }
 
+/** Normalize navigator API responses into the shape expected by the builder. */
 function normalizeNavigatorPayload({
 	payload,
 }: {
@@ -315,10 +319,12 @@ function normalizeNavigatorPayload({
 	}
 }
 
+/** Read a non-empty string or fall back to a default value. */
 function str(value: unknown, fallback: string): string {
 	return typeof value === "string" && value.length > 0 ? value : fallback;
 }
 
+/** Parse numbers from loosely typed API payloads. */
 function num(value: unknown, fallback: number): number {
 	if (typeof value === "number" && !Number.isNaN(value)) return value;
 	if (typeof value === "string") {
@@ -328,6 +334,7 @@ function num(value: unknown, fallback: number): number {
 	return fallback;
 }
 
+/** Normalize media-count summaries from partial API responses. */
 function parseMediaCounts(raw: unknown): {
 	video: number;
 	audio: number;
@@ -344,18 +351,21 @@ function parseMediaCounts(raw: unknown): {
 	return { video: 0, audio: 0, image: 0 };
 }
 
+/** Coerce media types into the supported project.json union. */
 function parseMediaType(raw: unknown): "video" | "audio" | "image" {
 	const s = String(raw).toLowerCase();
 	if (s === "video" || s === "audio" || s === "image") return s;
 	return "video";
 }
 
+/** Coerce export formats into the supported project.json union. */
 function parseOutputFormat(raw: unknown): "mp4" | "webm" | "mov" {
 	const s = String(raw).toLowerCase();
 	if (s === "mp4" || s === "webm" || s === "mov") return s;
 	return "mp4";
 }
 
+/** Coerce export quality values into the supported project.json union. */
 function parseOutputQuality(raw: unknown): "1080p" | "720p" | "480p" {
 	const s = String(raw).toLowerCase();
 	if (s === "1080p" || s === "720p" || s === "480p") return s;
