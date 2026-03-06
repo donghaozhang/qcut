@@ -238,8 +238,20 @@ export function createAuthRoutes({
 		handleAuthRequest: async ({ request }) => {
 			try {
 				const auth = await getAuthInstance();
-				return await auth.handler(request);
+				const response = await auth.handler(request);
+				if (!response.ok) {
+					const body = await response.text();
+					console.error(
+						`[auth] better-auth ${response.status} for ${request.method} ${request.url} body="${body}"`
+					);
+					return new Response(
+						JSON.stringify({ error: `Auth upstream ${response.status}`, detail: body }),
+						{ status: response.status, headers: { "content-type": "application/json" } }
+					);
+				}
+				return response;
 			} catch (error) {
+				console.error("[auth] handler threw:", error);
 				return new Response(
 					JSON.stringify({
 						error:
