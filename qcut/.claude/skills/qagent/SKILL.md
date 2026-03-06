@@ -41,13 +41,13 @@ qagent status
 ```bash
 qagent spawn qcut <issue-number>
 ```
-This creates a git worktree, launches a Claude Code session, and starts working on the issue. The agent gets Qcut-specific rules (Bun, Biome, Electron conventions) injected automatically.
+Creates a git worktree, launches a Claude Code session, and starts working on the issue. The agent gets Qcut-specific rules (Bun, Biome, Electron conventions) injected automatically.
 
 ### Batch spawn for parallel development
 ```bash
 qagent batch-spawn qcut 170 171 172 173
 ```
-Spawns 4 agents working simultaneously in isolated worktrees. Each gets its own branch, PR, and CI pipeline.
+Spawns 4 agents simultaneously in isolated worktrees. Each gets its own branch, PR, and CI pipeline. Duplicate detection prevents re-spawning already-active issues.
 
 ### Monitor all sessions
 ```bash
@@ -65,6 +65,8 @@ qagent send qcut-170 "CI is failing on lint, please fix"
 ### Team inbox messaging (filesystem queue)
 ```bash
 qagent team init qcut-team team-lead observer
+qagent team add-member qcut-team reviewer       # Add member to existing team
+qagent team members qcut-team                   # List team members
 qagent team send qcut-team observer team-lead "Observer reporting in"
 qagent team send qcut-team observer team-lead --protocol idle_notification --payload '{"idleReason":"available"}'
 qagent team inbox qcut-team team-lead --unread --json
@@ -74,32 +76,52 @@ qagent team ack qcut-team team-lead
 ### Harness-style runtime controls
 ```bash
 qagent harness spawn codex "Audit failing tests and fix them"
-qagent harness status
+qagent harness status                         # Show current harness state
+qagent harness sessions                       # List all harness sessions
 qagent harness steer "tighten logs and continue"
 qagent harness cancel
 qagent harness model openai/gpt-5.2
 qagent harness permissions strict
+qagent harness timeout 120                    # Set timeout in seconds
+qagent harness cwd /path/to/dir              # Set working directory
+qagent harness set <key> <value>             # Set generic runtime option
+qagent harness reset-options                 # Clear all runtime overrides
 qagent harness relay --team qcut-team --member codex
 qagent harness close
+qagent harness doctor                        # Health check environment
+qagent harness install                       # Print setup instructions
+```
+
+### Inspect workflow policy gates
+```bash
+qagent policy check                          # Check all sessions
+qagent policy check -p qcut                  # Qcut sessions only
+qagent policy check qcut-170                 # One session
+qagent policy explain qcut-170               # Why session passes/fails gates
+qagent policy workflow lint                  # Validate workflow contract files
 ```
 
 ### Check and handle PR reviews automatically
 ```bash
-qagent review-check qcut         # Check all Qcut PRs for review comments
-qagent review-check qcut --dry-run  # Preview what would happen
+qagent review-check qcut                     # Check all Qcut PRs for review comments
+qagent review-check qcut --dry-run           # Preview what would happen
 ```
 
 ### Export and forward PR comments
 ```bash
-qagent pr-comments export Quriosity-agent/qcut 170
-qagent pr-comments forward qcut-170
+qagent pr-comments export Quriosity-agent/qcut 170        # Export to markdown
+qagent pr-comments export-all Quriosity-agent/qcut 170    # Include thread + review
+qagent pr-comments forward qcut-170                        # Export + send to agent
+qagent pr-comments preprocess <dir>                        # Convert to task files
+qagent pr-comments analyze <dir>                           # Group by source file
+qagent pr-comments resolve Quriosity-agent/qcut 170 <id>  # Resolve a thread
 ```
 
 ### Session management
 ```bash
 qagent session ls                # List all sessions
 qagent session kill qcut-170     # Kill a session and clean up worktree
-qagent session cleanup qcut      # Kill sessions where PR is merged
+qagent session cleanup qcut      # Kill sessions where PR is merged or issue closed
 qagent session restore qcut-170  # Restore a crashed session
 ```
 
@@ -116,20 +138,25 @@ qagent stop qcut                 # Stop everything
 
 ## What Happens Automatically
 
-When `qagent start` is running, the orchestrator:
+When `qagent start` is running, the orchestrator polls all sessions and:
 - **CI failures**: Sends fix instructions to the agent (retries 2x, then notifies you)
-- **Review comments**: Forwards CodeRabbit and human review comments to the agent
-- **Approved + green**: Sends you a desktop notification to merge
-- **Agent stuck**: Notifies you if an agent is idle for 10+ minutes
+- **Bot review comments** (CodeRabbit etc.): Waits 2 min for comments to settle, then forwards them to the agent as structured tasks. After the review loop converges, sends `/buildit` instructions to verify CI, then notifies you when ready to merge.
+- **Review changes requested**: Forwards human review comments to the agent
+- **Approved + green**: Sends desktop notification to merge (or auto-merges if configured)
+- **Agent stuck**: Notifies you if an agent needs input or is stuck
+- **Policy gates**: Blocks or warns on merge if workflow policy violations exist (enforced/advisory modes)
+- **All complete**: Notifies when every session has merged or been killed
 
 ## Setup (first time)
 
 ```bash
-bun run qagent:setup    # Install deps + build qagent
+qagent init                      # Interactive setup wizard (creates qagent.yaml)
 ```
 
 Or manually:
 ```bash
+bun run qagent:setup             # Install deps + build qagent
+# or
 cd packages/qagent
 bun install
 bun run build
