@@ -108,6 +108,10 @@ export type {
 export { generateOrchestratorPrompt } from "./orchestrator-prompt.js";
 export type { OrchestratorPromptConfig } from "./orchestrator-prompt.js";
 
+// Reconciliation loop — drift detection and auto-correction
+export { ReconciliationLoop } from "./reconciliation-loop.js";
+export type { ReconciliationDeps } from "./reconciliation-loop.js";
+
 // Workpad schema — canonical WorkpadSnapshot type and rendering helpers
 export {
 	buildWorkpadSnapshot,

@@ -111,6 +111,38 @@ export function isIssueNotFoundError(err: unknown): boolean {
   );
 }
 
+// =============================================================================
+// RECONCILIATION TYPES
+// =============================================================================
+
+export type DriftKind =
+  | "pr_merged_externally"
+  | "pr_closed_externally"
+  | "issue_closed_externally"
+  | "policy_gate_changed";
+
+export interface DriftEvent {
+  sessionId: SessionId;
+  projectId: string;
+  kind: DriftKind;
+  /** Human-readable description of what drifted */
+  description: string;
+  /** Whether the reconciliation loop corrected it automatically */
+  corrected: boolean;
+  /** New status applied (if corrected) */
+  newStatus?: SessionStatus;
+  timestamp: Date;
+}
+
+export interface ReconciliationResult {
+  sessionId: SessionId;
+  drifts: DriftEvent[];
+}
+
+// =============================================================================
+// ERRORS
+// =============================================================================
+
 /** Thrown when a session cannot be restored (e.g. merged, still working). */
 export class SessionNotRestorableError extends Error {
   constructor(

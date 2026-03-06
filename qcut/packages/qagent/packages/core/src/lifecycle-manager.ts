@@ -59,6 +59,10 @@ import {
 	type BotCommentState,
 	type CheckBotCommentsDeps,
 } from "./lifecycle-bot-comments.js";
+import {
+	ReconciliationLoop,
+	type ReconciliationDeps,
+} from "./reconciliation-loop.js";
 
 export interface LifecycleManagerDeps {
 	config: OrchestratorConfig;
@@ -79,8 +83,10 @@ export function createLifecycleManager(
 	/** Tracks how many consecutive polls a session has remained in the same non-terminal status. */
 	const stalenessCounts = new Map<SessionId, number>();
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
+	let reconciliationTimer: ReturnType<typeof setInterval> | null = null;
 	let polling = false;
 	let allCompleteEmitted = false;
+	const reconciliationLoop = new ReconciliationLoop();
 
 	/** Poll counts before a session is considered drifted by status. */
 	const STALENESS_THRESHOLDS: Partial<Record<SessionStatus, number>> = {
@@ -511,17 +517,52 @@ export function createLifecycleManager(
 		}
 	}
 
+	/** Run the reconciliation pass across all active sessions. */
+	async function runReconciliation(): Promise<void> {
+		try {
+			const sessions = await sessionManager.list();
+			const reconciliationDeps: ReconciliationDeps = {
+				config,
+				registry,
+				sessionManager,
+				applyStatus: async (session, newStatus) => {
+					await checkSession(session);
+					// Force status update in the state map
+					states.set(session.id, newStatus);
+				},
+				notifyHuman,
+			};
+			await reconciliationLoop.run(sessions, reconciliationDeps);
+		} catch (error) {
+			console.error("[lifecycle-manager] reconciliation pass error:", error);
+		}
+	}
+
 	return {
 		start(intervalMs = 30_000): void {
 			if (pollTimer) return;
 			pollTimer = setInterval(() => void pollAll(), intervalMs);
 			void pollAll();
+
+			// Start reconciliation at 5× the main poll interval (configurable)
+			const reconInterval =
+				config.reconciliationIntervalMs ?? intervalMs * 5;
+			if (reconInterval > 0) {
+				reconciliationTimer = setInterval(
+					() => void runReconciliation(),
+					reconInterval
+				);
+			}
 		},
 
 		stop(): void {
 			if (pollTimer) {
 				clearInterval(pollTimer);
 				pollTimer = null;
+			}
+			if (reconciliationTimer) {
+				clearInterval(reconciliationTimer);
+				reconciliationTimer = null;
 			}
 		},
 
