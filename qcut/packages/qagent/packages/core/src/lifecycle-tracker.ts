@@ -80,39 +80,115 @@ export function buildWorkpadBody({
 	status: SessionStatus;
 	policyEvaluation: SessionPolicyEvaluation | null;
 }): string {
-	const lines = [
-		"# QAgent Workpad",
-		"",
-		`- Session: ${session.id}`,
-		`- Status: ${status}`,
-		`- Branch: ${session.branch ?? "n/a"}`,
-		`- Updated At: ${new Date().toISOString()}`,
-	];
+	const now = new Date().toISOString();
+	const sections: string[] = [];
 
+	// Environment stamp (Symphony-style single source of truth)
+	const envStamp = `${session.id}:${session.branch ?? "no-branch"}@${status}`;
+	sections.push(`# QAgent Workpad\n\n\`\`\`text\n${envStamp}\n\`\`\``);
+
+	// Status section
+	const statusLines = [
+		"### Status",
+		"",
+		`- **Session**: ${session.id}`,
+		`- **Status**: \`${status}\``,
+		`- **Branch**: ${session.branch ?? "n/a"}`,
+		`- **Updated**: ${now}`,
+	];
+	if (session.issueId) {
+		statusLines.push(`- **Issue**: ${session.issueId}`);
+	}
 	if (session.pr) {
-		lines.push(`- PR: #${String(session.pr.number)} ${session.pr.url}`);
+		statusLines.push(`- **PR**: [#${String(session.pr.number)}](${session.pr.url})`);
 	}
 	if (session.agentInfo?.summary) {
-		lines.push(`- Summary: ${session.agentInfo.summary}`);
+		statusLines.push(`- **Summary**: ${session.agentInfo.summary}`);
 	}
 	if (session.metadata.issueState) {
-		lines.push(`- Tracker State: ${session.metadata.issueState}`);
+		statusLines.push(`- **Tracker State**: ${session.metadata.issueState}`);
 	}
+	sections.push(statusLines.join("\n"));
 
+	// Policy Gate section (when evaluated)
 	if (policyEvaluation) {
-		lines.push(
-			`- Policy: ${policyEvaluation.gate.mode} / ${policyEvaluation.gate.passed ? "pass" : "fail"}`
-		);
-		if (!policyEvaluation.gate.passed) {
-			const violations = policyEvaluation.gate.violations
-				.slice(0, 5)
-				.map((violation) => `  - ${violation.code}: ${violation.message}`);
-			lines.push("- Policy Violations:");
-			lines.push(...violations);
+		const passIcon = policyEvaluation.gate.passed ? "✅" : "❌";
+		const gateLines = [
+			"### Policy Gate",
+			"",
+			`- Mode: \`${policyEvaluation.gate.mode}\` ${passIcon} ${policyEvaluation.gate.passed ? "pass" : "fail"}`,
+		];
+		if (policyEvaluation.gate.ciStatus) {
+			gateLines.push(`- CI: \`${policyEvaluation.gate.ciStatus}\``);
 		}
+		if (policyEvaluation.gate.reviewSweep) {
+			const sweep = policyEvaluation.gate.reviewSweep;
+			gateLines.push(`- Review decision: \`${sweep.reviewDecision ?? "pending"}\``);
+			if (sweep.actionableCount > 0) {
+				gateLines.push(`- Unresolved actionable comments: ${sweep.actionableCount}`);
+			}
+		}
+		if (!policyEvaluation.gate.passed && policyEvaluation.gate.violations.length > 0) {
+			gateLines.push("- **Violations**:");
+			for (const v of policyEvaluation.gate.violations.slice(0, 5)) {
+				gateLines.push(`  - \`${v.code}\` [${v.blockerClass}]: ${v.message}`);
+			}
+		}
+		const failingChecks = policyEvaluation.gate.requiredChecks.filter((c) => !c.passed);
+		if (failingChecks.length > 0) {
+			gateLines.push(
+				`- Failing required checks: ${failingChecks.map((c) => `\`${c.name}\``).join(", ")}`
+			);
+		}
+		sections.push(gateLines.join("\n"));
 	}
 
-	return lines.join("\n");
+	// Blocker Brief — Symphony's blocked-access escape hatch pattern, adapted for qagent
+	const BLOCKED_STATUSES = new Set<SessionStatus>([
+		"ci_failed",
+		"changes_requested",
+		"needs_input",
+		"stuck",
+		"errored",
+	]);
+	if (BLOCKED_STATUSES.has(status)) {
+		const blockerLines = ["### Blocker Brief", ""];
+		switch (status) {
+			case "ci_failed":
+				blockerLines.push("- **What**: CI checks are failing on the PR");
+				blockerLines.push("- **Why it blocks**: PR cannot merge with failing CI");
+				blockerLines.push("- **Action needed**: Review CI output and fix failing checks");
+				break;
+			case "changes_requested":
+				blockerLines.push("- **What**: Reviewer has requested changes on the PR");
+				blockerLines.push("- **Why it blocks**: Changes must be addressed before approval");
+				blockerLines.push("- **Action needed**: Review PR feedback and implement requested changes");
+				break;
+			case "needs_input":
+				blockerLines.push("- **What**: Agent is waiting for human input");
+				blockerLines.push("- **Why it blocks**: Agent cannot proceed without clarification");
+				blockerLines.push("- **Action needed**: Attach to session and provide the required input");
+				break;
+			case "stuck":
+				blockerLines.push("- **What**: Agent appears unresponsive or stuck");
+				blockerLines.push("- **Why it blocks**: No progress is being made");
+				blockerLines.push(
+					"- **Action needed**: Attach to session to investigate; consider sending guidance or re-spawning"
+				);
+				break;
+			case "errored":
+				blockerLines.push("- **What**: Agent session encountered an error");
+				blockerLines.push("- **Why it blocks**: Execution halted unexpectedly");
+				blockerLines.push("- **Action needed**: Check session logs and re-spawn if necessary");
+				break;
+		}
+		sections.push(blockerLines.join("\n"));
+	}
+
+	// Notes
+	sections.push(`### Notes\n\n- Status transitioned to \`${status}\` at ${now}`);
+
+	return sections.join("\n\n");
 }
 
 export async function syncSessionWorkpad({

@@ -76,9 +76,35 @@ export function createLifecycleManager(
 	const reactionTrackers = new Map<string, ReactionTracker>();
 	const botCommentStates = new Map<SessionId, BotCommentState>();
 	const policyEvaluationBySession = new Map<SessionId, SessionPolicyEvaluation>();
+	/** Tracks how many consecutive polls a session has remained in the same non-terminal status. */
+	const stalenessCounts = new Map<SessionId, number>();
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 	let polling = false;
 	let allCompleteEmitted = false;
+
+	/** Poll counts before a session is considered drifted by status. */
+	const STALENESS_THRESHOLDS: Partial<Record<SessionStatus, number>> = {
+		working: 20,        // ~10 min at 30s poll
+		stuck: 5,           // ~2.5 min — needs faster attention
+		needs_input: 5,
+		ci_failed: 10,      // ~5 min
+		changes_requested: 20,
+		pr_open: 20,
+		review_pending: 40, // ~20 min — normal to wait for human review
+		approved: 10,       // policy gate blocking — escalate sooner
+	};
+
+	/** Emit a reconciliation notification when a session has drifted. */
+	async function emitDriftEvent(session: Session, status: SessionStatus, count: number): Promise<void> {
+		const event = createEvent("reaction.escalated", {
+			sessionId: session.id,
+			projectId: session.projectId,
+			message: `Session \`${session.id}\` has been in \`${status}\` for ${count} consecutive polls without change — possible drift or stuck state.`,
+			data: { status, pollCount: count },
+		});
+		const priority = status === "stuck" || status === "needs_input" ? "urgent" : "warning";
+		await notifyHuman(event, priority);
+	}
 
 	function notifyHuman(
 		event: OrchestratorEvent,
@@ -255,6 +281,7 @@ export function createLifecycleManager(
 
 		if (newStatus !== oldStatus) {
 			states.set(session.id, newStatus);
+			stalenessCounts.delete(session.id); // reset drift counter on any status change
 
 			if (project) {
 				const sessionsDir = getSessionsDir(config.configPath, project.path);
@@ -378,6 +405,18 @@ export function createLifecycleManager(
 			}
 		} else {
 			states.set(session.id, newStatus);
+
+			// Drift detection: track consecutive same-status polls for non-terminal sessions
+			const threshold = STALENESS_THRESHOLDS[newStatus];
+			if (threshold !== undefined) {
+				const prev = stalenessCounts.get(session.id) ?? 0;
+				const next = prev + 1;
+				stalenessCounts.set(session.id, next);
+				// Fire once when threshold is exactly crossed to avoid spam
+				if (next === threshold) {
+					await emitDriftEvent(session, newStatus, next).catch(() => undefined);
+				}
+			}
 		}
 	}
 
@@ -430,6 +469,9 @@ export function createLifecycleManager(
 			}
 			for (const trackedId of policyEvaluationBySession.keys()) {
 				if (!currentSessionIds.has(trackedId)) policyEvaluationBySession.delete(trackedId);
+			}
+			for (const trackedId of stalenessCounts.keys()) {
+				if (!currentSessionIds.has(trackedId)) stalenessCounts.delete(trackedId);
 			}
 
 			// Check if all sessions are complete (trigger reaction only once)

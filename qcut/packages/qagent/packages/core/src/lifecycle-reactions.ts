@@ -61,6 +61,59 @@ export interface ExecuteReactionDeps {
 	notifyHuman: NotifyHumanFn;
 }
 
+/**
+ * Build a structured escalation message per reaction key.
+ * Mirrors Symphony's blocked-access escape hatch: what's missing, why it blocks, exact action.
+ */
+function buildEscalationMessage({
+	reactionKey,
+	attempts,
+	sessionId,
+}: {
+	reactionKey: string;
+	attempts: number;
+	sessionId: SessionId;
+}): string {
+	const attemptNote = `after ${attempts} automated attempt${attempts !== 1 ? "s" : ""}`;
+	const header = `**Session \`${sessionId}\`** — reaction \`${reactionKey}\` escalated ${attemptNote}.`;
+
+	switch (reactionKey) {
+		case "ci-failed":
+			return [
+				header,
+				"",
+				"**What failed**: CI checks continue to fail on the PR.",
+				"**Why it blocks**: Automated fix attempts have been exhausted without resolving the failure.",
+				"**Action needed**: Review CI logs directly, provide targeted guidance via `qagent send`, or manually fix and push the fix.",
+			].join("\n");
+		case "changes-requested":
+			return [
+				header,
+				"",
+				"**What failed**: PR review feedback has not been fully addressed.",
+				"**Why it blocks**: All automated address attempts are exhausted.",
+				"**Action needed**: Review the open PR comments directly, resolve or explicitly push back on each, then re-trigger the agent.",
+			].join("\n");
+		case "agent-stuck":
+			return [
+				header,
+				"",
+				"**What failed**: Agent session is unresponsive or stuck.",
+				"**Why it blocks**: No progress is being made and the session cannot self-recover.",
+				"**Action needed**: Attach to the session (`qagent session attach`), investigate terminal output, send clarification, or kill and re-spawn.",
+			].join("\n");
+		case "approved-and-green":
+			return [
+				header,
+				"",
+				"**Status**: PR is approved and CI is green — ready to merge.",
+				"**Action needed**: Review and merge the PR.",
+			].join("\n");
+		default:
+			return `${header}\n\n**Action needed**: Manual intervention required for reaction \`${reactionKey}\`.`;
+	}
+}
+
 /** Execute a reaction for a session. */
 export async function executeReaction(
 	sessionId: SessionId,
@@ -105,10 +158,15 @@ export async function executeReaction(
 	}
 
 	if (shouldEscalate) {
+		const escalationMessage = buildEscalationMessage({
+			reactionKey,
+			attempts: tracker.attempts,
+			sessionId,
+		});
 		const event = createEvent("reaction.escalated", {
 			sessionId,
 			projectId,
-			message: `Reaction '${reactionKey}' escalated after ${tracker.attempts} attempts`,
+			message: escalationMessage,
 			data: { reactionKey, attempts: tracker.attempts },
 		});
 		await deps.notifyHuman(event, reactionConfig.priority ?? "urgent");
