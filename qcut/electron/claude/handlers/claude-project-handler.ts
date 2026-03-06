@@ -9,13 +9,55 @@ import {
 	IpcMainInvokeEvent,
 	IpcMainEvent,
 } from "electron";
+import { randomUUID } from "node:crypto";
 import * as fs from "fs/promises";
-import * as path from "path";
 import { getProjectPath, getProjectSettingsPath } from "../utils/helpers.js";
 import { claudeLog } from "../utils/logger.js";
 import type { ProjectSettings, ProjectStats } from "../../types/claude-api";
+import {
+	getStringValue,
+	isErrnoNoEntry,
+	isRecord,
+	parsePositiveNumber,
+} from "./claude-project-shared.js";
 
 const HANDLER_NAME = "Project";
+const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
+	name: "Untitled Project",
+	width: 1920,
+	height: 1080,
+	fps: 30,
+	aspectRatio: "16:9",
+	backgroundColor: "#000000",
+	exportFormat: "mp4",
+	exportQuality: "high",
+};
+
+interface UpdateProjectSettingsOptions {
+	broadcast?: boolean;
+}
+
+/** Parse a positive number from project metadata when present. */
+function getPositiveNumber({ value }: { value: unknown }): number | null {
+	return parsePositiveNumber({ value });
+}
+
+/** Safely read a nested plain object from a parent record. */
+function getNestedRecord({
+	value,
+	key,
+}: {
+	value: Record<string, unknown> | null;
+	key: string;
+}): Record<string, unknown> | null {
+	try {
+		if (!value) return null;
+		const nested = value[key];
+		return isRecord(nested) ? nested : null;
+	} catch {
+		return null;
+	}
+}
 
 /** Parse an "W:H" aspect ratio string into width/height numbers, or null if invalid. */
 function parseAspectRatio({
@@ -53,6 +95,102 @@ function getEmptyStats(): ProjectStats {
 	};
 }
 
+/** Normalize mixed-shape project.qcut payloads into the runtime settings model. */
+function parseProjectSettings({
+	project,
+}: {
+	project: unknown;
+}): ProjectSettings {
+	try {
+		if (!isRecord(project)) {
+			return { ...DEFAULT_PROJECT_SETTINGS };
+		}
+
+		const settings = getNestedRecord({ value: project, key: "settings" });
+		const canvasSize =
+			getNestedRecord({ value: project, key: "canvasSize" }) ??
+			getNestedRecord({ value: settings, key: "canvasSize" });
+
+		const width =
+			getPositiveNumber({ value: canvasSize?.width }) ??
+			getPositiveNumber({ value: project.width }) ??
+			getPositiveNumber({ value: settings?.width }) ??
+			DEFAULT_PROJECT_SETTINGS.width;
+
+		const height =
+			getPositiveNumber({ value: canvasSize?.height }) ??
+			getPositiveNumber({ value: project.height }) ??
+			getPositiveNumber({ value: settings?.height }) ??
+			DEFAULT_PROJECT_SETTINGS.height;
+
+		const fps =
+			getPositiveNumber({ value: project.fps }) ??
+			getPositiveNumber({ value: settings?.fps }) ??
+			DEFAULT_PROJECT_SETTINGS.fps;
+
+		return {
+			name: getStringValue({
+				value: project.name ?? settings?.name,
+				fallback: DEFAULT_PROJECT_SETTINGS.name,
+			}),
+			width,
+			height,
+			fps,
+			aspectRatio: getStringValue({
+				value: project.aspectRatio ?? settings?.aspectRatio,
+				fallback: `${width}:${height}`,
+			}),
+			backgroundColor: getStringValue({
+				value: project.backgroundColor ?? settings?.backgroundColor,
+				fallback: DEFAULT_PROJECT_SETTINGS.backgroundColor,
+			}),
+			exportFormat: getStringValue({
+				value: project.exportFormat ?? settings?.exportFormat,
+				fallback: DEFAULT_PROJECT_SETTINGS.exportFormat,
+			}),
+			exportQuality: getStringValue({
+				value: project.exportQuality ?? settings?.exportQuality,
+				fallback: DEFAULT_PROJECT_SETTINGS.exportQuality,
+			}),
+		};
+	} catch {
+		return { ...DEFAULT_PROJECT_SETTINGS };
+	}
+}
+
+/** Build a minimal project.qcut scaffold when no valid document exists yet. */
+function buildProjectScaffoldDocument({
+	projectId,
+	projectName,
+}: {
+	projectId: string;
+	projectName: string;
+}): Record<string, unknown> {
+	const nowIso = new Date().toISOString();
+	return {
+		projectId,
+		name: projectName,
+		createdAt: nowIso,
+		updatedAt: nowIso,
+		version: "1.0",
+		fps: DEFAULT_PROJECT_SETTINGS.fps,
+		aspectRatio: DEFAULT_PROJECT_SETTINGS.aspectRatio,
+		backgroundColor: DEFAULT_PROJECT_SETTINGS.backgroundColor,
+		backgroundType: "color",
+		exportFormat: DEFAULT_PROJECT_SETTINGS.exportFormat,
+		exportQuality: DEFAULT_PROJECT_SETTINGS.exportQuality,
+		canvasSize: {
+			width: DEFAULT_PROJECT_SETTINGS.width,
+			height: DEFAULT_PROJECT_SETTINGS.height,
+		},
+		width: DEFAULT_PROJECT_SETTINGS.width,
+		height: DEFAULT_PROJECT_SETTINGS.height,
+		media: [],
+		timeline: [],
+		settings: {},
+	};
+}
+
 /**
  * Get project settings from disk
  */
@@ -62,27 +200,27 @@ export async function getProjectSettings(
 	claudeLog.info(HANDLER_NAME, `Getting settings for project: ${projectId}`);
 
 	const settingsPath = getProjectSettingsPath(projectId);
+	const fallbackSettings = { ...DEFAULT_PROJECT_SETTINGS };
 
 	try {
 		const content = await fs.readFile(settingsPath, "utf-8");
 		const project = JSON.parse(content);
-
-		const width = project.canvasSize?.width || project.width || 1920;
-		const height = project.canvasSize?.height || project.height || 1080;
-
-		return {
-			name: project.name || "Untitled",
-			width,
-			height,
-			fps: project.fps || 30,
-			aspectRatio: project.aspectRatio || `${width}:${height}`,
-			backgroundColor: project.backgroundColor || "#000000",
-			exportFormat: project.exportFormat || "mp4",
-			exportQuality: project.exportQuality || "high",
-		};
+		return parseProjectSettings({ project });
 	} catch (error) {
-		claudeLog.error(HANDLER_NAME, "Failed to read project settings:", error);
-		throw new Error(`Failed to read project: ${projectId}`);
+		if (isErrnoNoEntry(error)) {
+			claudeLog.warn(
+				HANDLER_NAME,
+				`project.qcut missing for ${projectId}; using default settings`
+			);
+			return fallbackSettings;
+		}
+
+		claudeLog.error(
+			HANDLER_NAME,
+			"Failed to read project settings; using defaults:",
+			error
+		);
+		return fallbackSettings;
 	}
 }
 
@@ -92,78 +230,177 @@ export async function getProjectSettings(
  */
 export async function updateProjectSettings(
 	projectId: string,
-	settings: Partial<ProjectSettings>
+	settings: Partial<ProjectSettings>,
+	options: UpdateProjectSettingsOptions = {}
 ): Promise<void> {
 	claudeLog.info(HANDLER_NAME, `Updating settings for project: ${projectId}`);
 
 	const settingsPath = getProjectSettingsPath(projectId);
+	const projectPath = getProjectPath(projectId);
 
 	try {
-		const content = await fs.readFile(settingsPath, "utf-8");
-		const project = JSON.parse(content);
+		let projectDoc: Record<string, unknown> = buildProjectScaffoldDocument({
+			projectId,
+			projectName: DEFAULT_PROJECT_SETTINGS.name,
+		});
 
-		if (settings.name !== undefined) project.name = settings.name;
-		if (settings.fps !== undefined) project.fps = settings.fps;
-		if (settings.backgroundColor !== undefined)
-			project.backgroundColor = settings.backgroundColor;
-		if (settings.exportFormat !== undefined)
-			project.exportFormat = settings.exportFormat;
-		if (settings.exportQuality !== undefined)
-			project.exportQuality = settings.exportQuality;
-		if (settings.aspectRatio !== undefined)
-			project.aspectRatio = settings.aspectRatio;
-
-		if (settings.width !== undefined || settings.height !== undefined) {
-			if (!project.canvasSize) {
-				project.canvasSize = { width: 1920, height: 1080 };
+		try {
+			const content = await fs.readFile(settingsPath, "utf-8");
+			const parsed = JSON.parse(content);
+			if (isRecord(parsed)) {
+				projectDoc = { ...projectDoc, ...parsed };
 			}
-			if (settings.width !== undefined)
-				project.canvasSize.width = settings.width;
-			if (settings.height !== undefined)
-				project.canvasSize.height = settings.height;
-		} else if (typeof settings.aspectRatio === "string") {
-			const parsedAspectRatio = parseAspectRatio({
-				aspectRatio: settings.aspectRatio,
-			});
-			if (parsedAspectRatio) {
-				const currentWidth = project.canvasSize?.width ?? 1920;
-				const currentHeight = project.canvasSize?.height ?? 1080;
-
-				if (parsedAspectRatio.width >= parsedAspectRatio.height) {
-					const recalculatedHeight = Math.max(
-						1,
-						Math.round(
-							currentWidth *
-								(parsedAspectRatio.height / parsedAspectRatio.width)
-						)
-					);
-					project.canvasSize = {
-						width: currentWidth,
-						height: recalculatedHeight,
-					};
-				} else {
-					const recalculatedWidth = Math.max(
-						1,
-						Math.round(
-							currentHeight *
-								(parsedAspectRatio.width / parsedAspectRatio.height)
-						)
-					);
-					project.canvasSize = {
-						width: recalculatedWidth,
-						height: currentHeight,
-					};
-				}
+		} catch (error) {
+			if (isErrnoNoEntry(error)) {
+				claudeLog.warn(
+					HANDLER_NAME,
+					`project.qcut missing for ${projectId}; creating a new settings file`
+				);
+			} else {
+				claudeLog.warn(
+					HANDLER_NAME,
+					`project.qcut unreadable for ${projectId}; rebuilding from defaults`,
+					error
+				);
 			}
 		}
 
-		project.updatedAt = new Date().toISOString();
+		const parsedSettings = parseProjectSettings({ project: projectDoc });
 
-		await fs.writeFile(settingsPath, JSON.stringify(project, null, 2), "utf-8");
-		const broadcastSettings = project.canvasSize
-			? { ...settings, canvasSize: project.canvasSize }
-			: settings;
-		broadcastProjectSettingsUpdate({ projectId, settings: broadcastSettings });
+		let nextName = parsedSettings.name;
+		let nextWidth = parsedSettings.width;
+		let nextHeight = parsedSettings.height;
+		let nextFps = parsedSettings.fps;
+		let nextAspectRatio = parsedSettings.aspectRatio;
+		let nextBackgroundColor = parsedSettings.backgroundColor;
+		let nextExportFormat = parsedSettings.exportFormat;
+		let nextExportQuality = parsedSettings.exportQuality;
+
+		if (typeof settings.name === "string" && settings.name.trim().length > 0) {
+			nextName = settings.name.trim();
+		}
+
+		const providedWidth = getPositiveNumber({ value: settings.width });
+		const providedHeight = getPositiveNumber({ value: settings.height });
+		const providedFps = getPositiveNumber({ value: settings.fps });
+		if (providedWidth !== null) nextWidth = providedWidth;
+		if (providedHeight !== null) nextHeight = providedHeight;
+		if (providedFps !== null) nextFps = providedFps;
+
+		if (typeof settings.backgroundColor === "string") {
+			nextBackgroundColor = settings.backgroundColor;
+		}
+		if (typeof settings.exportFormat === "string") {
+			nextExportFormat = settings.exportFormat;
+		}
+		if (typeof settings.exportQuality === "string") {
+			nextExportQuality = settings.exportQuality;
+		}
+		const requestedAspectRatio =
+			typeof settings.aspectRatio === "string"
+				? settings.aspectRatio.trim()
+				: "";
+		if (requestedAspectRatio) {
+			const parsedAspectRatio = parseAspectRatio({
+				aspectRatio: requestedAspectRatio,
+			});
+			if (parsedAspectRatio) {
+				nextAspectRatio = requestedAspectRatio;
+				if (providedWidth === null && providedHeight === null) {
+					if (parsedAspectRatio.width >= parsedAspectRatio.height) {
+						nextHeight = Math.max(
+							1,
+							Math.round(
+								nextWidth * (parsedAspectRatio.height / parsedAspectRatio.width)
+							)
+						);
+					} else {
+						nextWidth = Math.max(
+							1,
+							Math.round(
+								nextHeight *
+									(parsedAspectRatio.width / parsedAspectRatio.height)
+							)
+						);
+					}
+				}
+			}
+		}
+		const parsedCurrentAspectRatio = parseAspectRatio({
+			aspectRatio: nextAspectRatio,
+		});
+		if (!parsedCurrentAspectRatio) {
+			nextAspectRatio = `${nextWidth}:${nextHeight}`;
+		}
+
+		const nowIso = new Date().toISOString();
+		const createdAt = getStringValue({
+			value: projectDoc.createdAt,
+			fallback: nowIso,
+		});
+		const nextCanvasSize = {
+			width: nextWidth,
+			height: nextHeight,
+		};
+
+		const updatedProjectDoc: Record<string, unknown> = {
+			...projectDoc,
+			projectId,
+			name: nextName,
+			createdAt,
+			updatedAt: nowIso,
+			version: getStringValue({ value: projectDoc.version, fallback: "1.0" }),
+			fps: nextFps,
+			aspectRatio: nextAspectRatio,
+			backgroundColor: nextBackgroundColor,
+			backgroundType: getStringValue({
+				value: projectDoc.backgroundType,
+				fallback: "color",
+			}),
+			exportFormat: nextExportFormat,
+			exportQuality: nextExportQuality,
+			canvasSize: nextCanvasSize,
+			width: nextWidth,
+			height: nextHeight,
+		};
+		const normalizedSettings: ProjectSettings = {
+			name: nextName,
+			width: nextWidth,
+			height: nextHeight,
+			fps: nextFps,
+			aspectRatio: nextAspectRatio,
+			backgroundColor: nextBackgroundColor,
+			exportFormat: nextExportFormat,
+			exportQuality: nextExportQuality,
+		};
+
+		if (!Array.isArray(updatedProjectDoc.media)) {
+			updatedProjectDoc.media = [];
+		}
+		if (!Array.isArray(updatedProjectDoc.timeline)) {
+			updatedProjectDoc.timeline = [];
+		}
+		if (!isRecord(updatedProjectDoc.settings)) {
+			updatedProjectDoc.settings = {};
+		}
+
+		await fs.mkdir(projectPath, { recursive: true });
+		await fs.writeFile(
+			settingsPath,
+			JSON.stringify(updatedProjectDoc, null, 2),
+			"utf-8"
+		);
+
+		if (options.broadcast !== false) {
+			const broadcastSettings = {
+				...normalizedSettings,
+				canvasSize: nextCanvasSize,
+			};
+			broadcastProjectSettingsUpdate({
+				projectId,
+				settings: broadcastSettings,
+			});
+		}
 
 		claudeLog.info(HANDLER_NAME, `Successfully updated project: ${projectId}`);
 	} catch (error) {
@@ -209,7 +446,7 @@ export async function getProjectStats(
 	claudeLog.info(HANDLER_NAME, `Getting stats for project: ${projectId}`);
 
 	return new Promise((resolve) => {
-		const requestId = `${Date.now()}-${win.webContents.id}`;
+		const requestId = `${Date.now()}-${win.webContents.id}-${randomUUID()}`;
 
 		const handler = (
 			responseEvent: IpcMainEvent,

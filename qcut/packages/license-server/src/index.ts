@@ -4,20 +4,18 @@ import { licenseRoutes } from "./routes/license";
 import { usageRoutes } from "./routes/usage";
 import { stripeRoutes } from "./routes/stripe";
 import { creditsRoutes } from "./routes/credits";
+import { authRoutes } from "./routes/auth";
 import { getMockResponse, isMockMode } from "./middleware/mock";
+import { getAllowedCorsOrigins } from "./services/payment-config";
 
 const app = new Hono();
 
 app.use(
 	"/*",
 	cors({
-		origin: [
-			"https://donghaozhang.github.io",
-			"http://localhost:3000",
-			"app://qcut",
-		],
+		origin: getAllowedCorsOrigins(),
 		allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
-		allowHeaders: ["Content-Type", "Authorization"],
+		allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
 	})
 );
 
@@ -49,5 +47,6 @@ app.route("/api/license", licenseRoutes);
 app.route("/api/usage", usageRoutes);
 app.route("/api/credits", creditsRoutes);
 app.route("/api/stripe", stripeRoutes);
+app.route("/api/auth", authRoutes);
 
 export default app;

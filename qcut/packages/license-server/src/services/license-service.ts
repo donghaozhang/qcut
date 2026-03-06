@@ -4,6 +4,7 @@ import { deviceActivations, licenses } from "@qcut/db/schema";
 
 export type LicensePlan = "free" | "pro" | "team";
 
+/** Constrains persisted plan strings to the supported license plans. */
 function parsePlan({ plan }: { plan: string }): LicensePlan {
 	if (plan === "pro" || plan === "team") {
 		return plan;
@@ -11,6 +12,7 @@ function parsePlan({ plan }: { plan: string }): LicensePlan {
 	return "free";
 }
 
+/** Maps each plan to its device allowance. */
 function getMaxDevicesForPlan({ plan }: { plan: LicensePlan }): number {
 	if (plan === "team") {
 		return 10;
@@ -21,6 +23,7 @@ function getMaxDevicesForPlan({ plan }: { plan: LicensePlan }): number {
 	return 1;
 }
 
+/** Loads a user's license, creating the free default on first access. */
 export async function getLicenseByUserId({
 	userId,
 }: {
@@ -45,6 +48,7 @@ export async function getLicenseByUserId({
 	}
 }
 
+/** Creates the canonical license row for a user if it does not exist. */
 export async function createLicense({
 	userId,
 	plan,
@@ -54,7 +58,7 @@ export async function createLicense({
 }): Promise<typeof licenses.$inferSelect> {
 	try {
 		const parsedPlan = parsePlan({ plan });
-		const [license] = await db
+		const [inserted] = await db
 			.insert(licenses)
 			.values({
 				id: crypto.randomUUID(),
@@ -63,13 +67,22 @@ export async function createLicense({
 				status: "active",
 				maxDevices: getMaxDevicesForPlan({ plan: parsedPlan }),
 			})
+			.onConflictDoNothing({ target: licenses.userId })
 			.returning();
 
-		if (!license) {
-			throw new Error("Insert returned no license row");
+		if (inserted) {
+			return inserted;
 		}
 
-		return license;
+		const [existing] = await db
+			.select()
+			.from(licenses)
+			.where(eq(licenses.userId, userId))
+			.limit(1);
+		if (!existing) {
+			throw new Error("License upsert fallback returned no row");
+		}
+		return existing;
 	} catch (error) {
 		throw new Error(
 			`Failed to create license for user ${userId}: ${error instanceof Error ? error.message : "Unknown error"}`
@@ -77,6 +90,7 @@ export async function createLicense({
 	}
 }
 
+/** Applies partial updates to an existing license row. */
 export async function updateLicense({
 	licenseId,
 	updates,
@@ -103,6 +117,7 @@ export async function updateLicense({
 	}
 }
 
+/** Registers or reactivates a device under a license. */
 export async function activateDevice({
 	licenseId,
 	fingerprint,
@@ -165,6 +180,7 @@ export async function activateDevice({
 	}
 }
 
+/** Marks a device activation inactive for a specific license. */
 export async function deactivateDevice({
 	activationId,
 	licenseId,
@@ -196,6 +212,7 @@ export async function deactivateDevice({
 	}
 }
 
+/** Returns the currently active devices for a license. */
 export async function getActiveDevices({
 	licenseId,
 }: {
@@ -218,6 +235,7 @@ export async function getActiveDevices({
 	}
 }
 
+/** Reports whether a license can accept another active device. */
 export async function checkDeviceLimit({
 	licenseId,
 }: {

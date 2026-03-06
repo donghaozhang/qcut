@@ -2,3 +2,7 @@
 	path = qcut/packages/video-agent-skill
 	url = https://github.com/donghaozhang/video-agent-skill.git
 	branch = main
+[submodule "qcut/packages/nexusai-website"]
+	path = qcut/packages/nexusai-website
+	url = https://github.com/donghaozhang/nexusai-website.git
+	branch = master

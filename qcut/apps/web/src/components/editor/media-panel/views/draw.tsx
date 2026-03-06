@@ -8,9 +8,14 @@ import {
 } from "@/components/editor/draw/tldraw-canvas";
 import { CanvasToolbar } from "@/components/editor/draw/components/canvas-toolbar";
 import { SavedDrawings } from "@/components/editor/draw/components/saved-drawings";
+import {
+	isLikelyImageFile,
+	normalizeImageMimeType,
+} from "@/components/editor/draw/utils/image-file";
 import { useProjectStore } from "@/stores/project-store";
 import { toast } from "sonner";
 
+/** Load an image file into the annotator's normalized image payload. */
 function loadImageFile(file: File): Promise<AnnotatorImage> {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
@@ -20,11 +25,16 @@ function loadImageFile(file: File): Promise<AnnotatorImage> {
 			const img = new Image();
 			img.onerror = () => reject(new Error("Failed to load image"));
 			img.onload = () => {
+				const normalizedType = normalizeImageMimeType({
+					declaredType: file.type,
+					dataUrl: src,
+					filename: file.name,
+				});
 				resolve({
 					src,
 					width: img.naturalWidth,
 					height: img.naturalHeight,
-					type: file.type,
+					type: normalizedType,
 				});
 			};
 			img.src = src;
@@ -43,7 +53,10 @@ function ImagePicker({
 
 	const handleFile = useCallback(
 		async (file: File) => {
-			if (!file.type.startsWith("image/")) return;
+			if (!isLikelyImageFile({ name: file.name, type: file.type })) {
+				toast.error("Please upload an image file");
+				return;
+			}
 			try {
 				const image = await loadImageFile(file);
 				onChooseImage(image);
@@ -99,6 +112,7 @@ function ImagePicker({
 	);
 }
 
+/** Renders the image annotation workspace and saved drawing browser. */
 const DrawView: React.FC = () => {
 	const canvasRef = useRef<TldrawCanvasHandle | null>(null);
 	const [image, setImage] = useState<AnnotatorImage | null>(null);

@@ -8,12 +8,27 @@ import {
 	handleWebhook,
 } from "../services/stripe-service";
 import { isTopUpPack } from "../services/credit-service";
+import { ensureCanaryUserAllowed } from "../services/payment-access";
+import {
+	isCheckoutCreationEnabled,
+	isWebhookProcessingEnabled,
+	resolveStripeIdempotencyKey,
+} from "../services/payment-config";
 
 const stripeRoutes = new Hono();
 
 stripeRoutes.post("/checkout", authMiddleware, async (c) => {
 	try {
+		if (!isCheckoutCreationEnabled()) {
+			return c.json({ error: "Checkout is temporarily disabled" }, 503);
+		}
+
 		const userId = c.get("userId") as string;
+		const canaryGuard = await ensureCanaryUserAllowed({ userId });
+		if (!canaryGuard.allowed) {
+			return c.json({ error: canaryGuard.error }, canaryGuard.status);
+		}
+
 		const payload = await c.req.json();
 		const plan = typeof payload?.plan === "string" ? payload.plan.trim() : "";
 		const interval =
@@ -30,6 +45,12 @@ stripeRoutes.post("/checkout", authMiddleware, async (c) => {
 			userId,
 			plan,
 			interval,
+			idempotencyKey: resolveStripeIdempotencyKey({
+				providedKey: c.req.header("Idempotency-Key"),
+				scope: "checkout",
+				ownerId: userId,
+				payloadParts: [plan, interval],
+			}),
 		});
 		return c.json({ url: session.url });
 	} catch (error) {
@@ -47,7 +68,16 @@ stripeRoutes.post("/checkout", authMiddleware, async (c) => {
 
 stripeRoutes.post("/topup", authMiddleware, async (c) => {
 	try {
+		if (!isCheckoutCreationEnabled()) {
+			return c.json({ error: "Checkout is temporarily disabled" }, 503);
+		}
+
 		const userId = c.get("userId") as string;
+		const canaryGuard = await ensureCanaryUserAllowed({ userId });
+		if (!canaryGuard.allowed) {
+			return c.json({ error: canaryGuard.error }, canaryGuard.status);
+		}
+
 		const payload = await c.req.json();
 		const pack = typeof payload?.pack === "string" ? payload.pack.trim() : "";
 
@@ -55,7 +85,16 @@ stripeRoutes.post("/topup", authMiddleware, async (c) => {
 			return c.json({ error: "Invalid top-up pack" }, 400);
 		}
 
-		const session = await createTopUpCheckoutSession({ userId, pack });
+		const session = await createTopUpCheckoutSession({
+			userId,
+			pack,
+			idempotencyKey: resolveStripeIdempotencyKey({
+				providedKey: c.req.header("Idempotency-Key"),
+				scope: "topup",
+				ownerId: userId,
+				payloadParts: [pack],
+			}),
+		});
 		return c.json({ url: session.url });
 	} catch (error) {
 		return c.json(
@@ -73,6 +112,11 @@ stripeRoutes.post("/topup", authMiddleware, async (c) => {
 stripeRoutes.post("/portal", authMiddleware, async (c) => {
 	try {
 		const userId = c.get("userId") as string;
+		const canaryGuard = await ensureCanaryUserAllowed({ userId });
+		if (!canaryGuard.allowed) {
+			return c.json({ error: canaryGuard.error }, canaryGuard.status);
+		}
+
 		const license = await getLicenseByUserId({ userId });
 
 		if (!license.stripeCustomerId) {
@@ -81,6 +125,12 @@ stripeRoutes.post("/portal", authMiddleware, async (c) => {
 
 		const session = await createPortalSession({
 			stripeCustomerId: license.stripeCustomerId,
+			idempotencyKey: resolveStripeIdempotencyKey({
+				providedKey: c.req.header("Idempotency-Key"),
+				scope: "portal",
+				ownerId: userId,
+				payloadParts: [license.stripeCustomerId],
+			}),
 		});
 		return c.json({ url: session.url });
 	} catch (error) {
@@ -98,6 +148,10 @@ stripeRoutes.post("/portal", authMiddleware, async (c) => {
 
 stripeRoutes.post("/webhook", async (c) => {
 	try {
+		if (!isWebhookProcessingEnabled()) {
+			return c.json({ error: "Webhook processing is currently paused" }, 503);
+		}
+
 		const body = await c.req.text();
 		const signature = c.req.header("stripe-signature");
 

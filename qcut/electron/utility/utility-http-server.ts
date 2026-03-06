@@ -26,6 +26,14 @@ import type {
 	EditorEvent,
 	EditorStateSnapshot,
 	Transaction,
+	ClaudeTimeline,
+	ClaudeSelectionItem,
+	ClaudeSplitResponse,
+	ProjectStats,
+	ClaudeBatchAddResponse,
+	ClaudeBatchUpdateResponse,
+	ClaudeBatchDeleteResponse,
+	ClaudeArrangeResponse,
 	BatchCutResponse,
 	ClaudeRangeDeleteResponse,
 	AutoEditJob,
@@ -64,6 +72,7 @@ interface WindowProxy {
 function createWindowProxy(requestFromMain: RequestFromMainFn): WindowProxy {
 	return {
 		webContents: {
+			/** Forwards renderer events through the main-process bridge. */
 			send(channel: string, ...args: unknown[]) {
 				// Fire-and-forget to main process
 				requestFromMain("webcontents-send", { channel, args }).catch(
@@ -169,82 +178,133 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 
 	// Create WindowAccessor that proxies through main process
 	const accessor: WindowAccessor = {
+		/** Creates a BrowserWindow-like proxy backed by main-process IPC. */
 		getWindow: () => createWindowProxy(requestFromMain),
-		requestTimeline: () => requestFromMain("get-timeline", {}),
-		requestSelection: () => requestFromMain("get-selection", {}),
+		/** Requests the current timeline through the main-process bridge. */
+		requestTimeline: () =>
+			requestFromMain("get-timeline", {}) as Promise<ClaudeTimeline>,
+		/** Requests the current editor selection through the bridge. */
+		requestSelection: () =>
+			requestFromMain("get-selection", {}) as Promise<ClaudeSelectionItem[]>,
+		/** Sends a split request through the bridge. */
 		requestSplit: (elementId, splitTime, mode) =>
-			requestFromMain("split-element", { elementId, splitTime, mode }),
+			requestFromMain("split-element", {
+				elementId,
+				splitTime,
+				mode,
+			}) as Promise<ClaudeSplitResponse>,
+		/** Fetches project stats through the bridge. */
 		getProjectStats: (projectId) =>
-			requestFromMain("get-project-stats", { projectId }),
+			requestFromMain("get-project-stats", {
+				projectId,
+			}) as Promise<ProjectStats>,
+		/** Returns the app version reported by the utility process. */
 		getAppVersion: () => appVersion,
+		/** Enables notification forwarding for the given session. */
 		enableNotifications: (sessionId) =>
 			requestFromMain("notifications:enable", { sessionId }) as Promise<{
 				enabled: boolean;
 				sessionId: string | null;
 			}>,
+		/** Disables notification forwarding. */
 		disableNotifications: () =>
 			requestFromMain("notifications:disable", {}) as Promise<{
 				enabled: boolean;
 				sessionId: string | null;
 			}>,
+		/** Returns the current notification bridge status. */
 		getNotificationsStatus: () =>
 			requestFromMain("notifications:status", {}) as Promise<{
 				enabled: boolean;
 				sessionId: string | null;
 			}>,
+		/** Returns recent notification bridge history entries. */
 		getNotificationsHistory: (limit) =>
 			requestFromMain("notifications:history", { limit }) as Promise<string[]>,
+		/** Adds multiple elements through the main-process bridge. */
 		batchAddElements: (projectId, elements) =>
-			requestFromMain("batch-add-elements", { projectId, elements }),
+			requestFromMain("batch-add-elements", {
+				projectId,
+				elements,
+			}) as Promise<ClaudeBatchAddResponse>,
+		/** Applies a batch of element updates through the bridge. */
 		batchUpdateElements: (updates) =>
-			requestFromMain("batch-update-elements", { updates }),
+			requestFromMain("batch-update-elements", {
+				updates,
+			}) as Promise<ClaudeBatchUpdateResponse>,
+		/** Deletes multiple elements through the bridge. */
 		batchDeleteElements: (elements, ripple) =>
-			requestFromMain("batch-delete-elements", { elements, ripple }),
-		arrangeTimeline: (data) => requestFromMain("arrange-timeline", data),
+			requestFromMain("batch-delete-elements", {
+				elements,
+				ripple,
+			}) as Promise<ClaudeBatchDeleteResponse>,
+		/** Applies automatic arrangement to the timeline. */
+		arrangeTimeline: (data) =>
+			requestFromMain("arrange-timeline", {
+				trackId: data.trackId,
+				mode: data.mode,
+				gap: data.gap,
+				order: data.order,
+				startOffset: data.startOffset,
+			}) as Promise<ClaudeArrangeResponse>,
+		/** Starts a transactional timeline mutation. */
 		beginTransaction: (request) =>
 			requestFromMain("transaction:begin", { request }) as Promise<Transaction>,
+		/** Commits a pending timeline transaction. */
 		commitTransaction: (transactionId) =>
 			requestFromMain("transaction:commit", {
 				transactionId,
 			}) as Promise<{ transaction: Transaction; historyEntryAdded: boolean }>,
+		/** Rolls back a pending timeline transaction. */
 		rollbackTransaction: (transactionId, reason) =>
 			requestFromMain("transaction:rollback", {
 				transactionId,
 				reason,
 			}) as Promise<{ transaction: Transaction }>,
+		/** Returns the current state of a timeline transaction. */
 		getTransactionStatus: (transactionId) =>
 			requestFromMain("transaction:status", {
 				transactionId,
 			}) as Promise<Transaction | null>,
+		/** Undoes the last timeline mutation. */
 		undoTimeline: () =>
 			requestFromMain("timeline:undo", {}) as Promise<ClaudeUndoRedoResponse>,
+		/** Redoes the last undone timeline mutation. */
 		redoTimeline: () =>
 			requestFromMain("timeline:redo", {}) as Promise<ClaudeUndoRedoResponse>,
+		/** Returns a summary of undo and redo history. */
 		getHistorySummary: () =>
 			requestFromMain("timeline:history", {}) as Promise<ClaudeHistorySummary>,
+		/** Requests an editor state snapshot through the bridge. */
 		requestStateSnapshot: (request) =>
 			requestFromMain("get-editor-state-snapshot", {
 				request,
 			}) as Promise<EditorStateSnapshot>,
+		/** Executes batched cut operations through the bridge. */
 		executeBatchCuts: async (request) =>
 			(await requestFromMain("timeline:batch-cuts", {
 				request,
 			})) as BatchCutResponse,
+		/** Executes a range deletion operation through the bridge. */
 		executeDeleteRange: async (request) =>
 			(await requestFromMain("timeline:delete-range", {
 				request,
 			})) as ClaudeRangeDeleteResponse,
+		/** Starts an auto-edit job through the bridge. */
 		startAutoEditJob: async (projectId, request) =>
 			(await requestFromMain("timeline:auto-edit:start", {
 				projectId,
 				request,
 			})) as { jobId: string },
+		/** Returns the current status for an auto-edit job. */
 		getAutoEditJobStatus: async (jobId) =>
 			(await requestFromMain("timeline:auto-edit:status", {
 				jobId,
 			})) as AutoEditJob | null,
+		/** Lists active and recent auto-edit jobs. */
 		listAutoEditJobs: async () =>
 			(await requestFromMain("timeline:auto-edit:list", {})) as AutoEditJob[],
+		/** Cancels an auto-edit job. */
 		cancelAutoEditJob: async (jobId) =>
 			(await requestFromMain("timeline:auto-edit:cancel", {
 				jobId,
@@ -253,6 +313,7 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 
 	// Register all shared routes
 	registerSharedRoutes(router, accessor, {
+		/** Runs deep health checks through the main-process bridge. */
 		runDeepHealthChecks: async () => {
 			const startedAt = Date.now();
 			try {
@@ -302,6 +363,7 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 		},
 	});
 	registerStateRoutes(router, {
+		/** Returns the current editor snapshot for state routes. */
 		requestSnapshot: async (request) =>
 			(await requestFromMain("get-editor-state-snapshot", {
 				request,
@@ -309,6 +371,7 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 		timeoutMs: 10_000,
 	});
 	registerClaudeEventsRoutes(router, {
+		/** Lists recorded Claude/editor events through the bridge. */
 		listEvents: async (filter) =>
 			(await requestFromMain("events:list", {
 				...(filter as unknown as Record<string, unknown>),
@@ -319,6 +382,15 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	// Navigator routes (project listing + editor navigation)
 	// ==========================================================================
 	router.get("/api/claude/navigator/projects", async () => {
+		return await withTimeout(
+			requestFromMain("get-projects", {}),
+			10_000,
+			"Renderer timed out"
+		);
+	});
+
+	// Backward-compatible alias used by older CLI builds.
+	router.get("/api/claude/projects", async () => {
 		return await withTimeout(
 			requestFromMain("get-projects", {}),
 			10_000,

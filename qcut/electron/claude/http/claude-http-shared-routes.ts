@@ -18,11 +18,23 @@ import * as fsPromises from "node:fs/promises";
 import * as path from "node:path";
 import type { Router } from "../utils/http-router.js";
 import { HttpError } from "../utils/http-router.js";
-import { isValidSourcePath } from "../utils/helpers.js";
+import { getProjectPath, isValidSourcePath } from "../utils/helpers.js";
 import type {
 	Transaction,
 	TransactionRequest,
 	MediaFile,
+	ClaudeTimeline,
+	ClaudeSelectionItem,
+	ClaudeSplitResponse,
+	ProjectStats,
+	ClaudeBatchAddElementRequest,
+	ClaudeBatchAddResponse,
+	ClaudeBatchUpdateItemRequest,
+	ClaudeBatchUpdateResponse,
+	ClaudeBatchDeleteItemRequest,
+	ClaudeBatchDeleteResponse,
+	ClaudeArrangeRequest,
+	ClaudeArrangeResponse,
 	BatchCutRequest,
 	BatchCutResponse,
 	ClaudeRangeDeleteRequest,
@@ -86,24 +98,33 @@ import {
 	type ClaudeHistorySummary,
 	type ClaudeUndoRedoResponse,
 } from "./claude-http-transaction-routes.js";
+import { EditorApiClient } from "../../native-pipeline/editor/editor-api-client.js";
+import { buildProjectJSON } from "../../native-pipeline/cli/project-json-builder.js";
+import { claudeLog } from "../utils/logger.js";
+
+export interface WindowProxy {
+	webContents: {
+		send(channel: string, ...args: unknown[]): void;
+	};
+}
 
 /** Abstraction over how the server accesses renderer-dependent features */
 export interface WindowAccessor {
 	/** Get a BrowserWindow or proxy with webContents.send capability */
-	getWindow(): any;
+	getWindow(): WindowProxy;
 	/** Request full timeline data from renderer */
-	requestTimeline(): Promise<any>;
+	requestTimeline(): Promise<ClaudeTimeline>;
 	/** Request current selection from renderer */
-	requestSelection(correlationId?: string): Promise<any>;
+	requestSelection(correlationId?: string): Promise<ClaudeSelectionItem[]>;
 	/** Request an element split from renderer */
 	requestSplit(
 		elementId: string,
 		splitTime: number,
 		mode: string,
 		correlationId?: string
-	): Promise<any>;
+	): Promise<ClaudeSplitResponse>;
 	/** Get project stats (may need renderer) */
-	getProjectStats(projectId: string): Promise<any>;
+	getProjectStats(projectId: string): Promise<ProjectStats>;
 	/** Get the app version string */
 	getAppVersion(): string;
 	/** Enable operation notifications to a PTY session */
@@ -125,19 +146,25 @@ export interface WindowAccessor {
 	/** Batch add elements (may need BrowserWindow or proxy) */
 	batchAddElements(
 		projectId: string,
-		elements: any[],
+		elements: ClaudeBatchAddElementRequest[],
 		correlationId?: string
-	): Promise<any>;
+	): Promise<ClaudeBatchAddResponse>;
 	/** Batch update elements */
-	batchUpdateElements(updates: any[], correlationId?: string): Promise<any>;
+	batchUpdateElements(
+		updates: ClaudeBatchUpdateItemRequest[],
+		correlationId?: string
+	): Promise<ClaudeBatchUpdateResponse>;
 	/** Batch delete elements */
 	batchDeleteElements(
-		elements: any[],
+		elements: ClaudeBatchDeleteItemRequest[],
 		ripple: boolean,
 		correlationId?: string
-	): Promise<any>;
+	): Promise<ClaudeBatchDeleteResponse>;
 	/** Arrange timeline */
-	arrangeTimeline(data: any, correlationId?: string): Promise<any>;
+	arrangeTimeline(
+		data: ClaudeArrangeRequest,
+		correlationId?: string
+	): Promise<ClaudeArrangeResponse>;
 	/** Begin a grouped transaction */
 	beginTransaction(request?: TransactionRequest): Promise<Transaction>;
 	/** Commit a grouped transaction */
@@ -248,6 +275,101 @@ async function listMediaFilesWithRendererFallback({
 	return [...merged.values()];
 }
 
+const PROJECT_JSON_SYNC_DEBOUNCE_MS = 1000;
+const TIMELINE_SYNC_BARRIER_TIMEOUT_MS = 5000;
+const projectJsonSyncTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const projectJsonSyncInFlight = new Map<string, Promise<void>>();
+
+/** Rebuild project.json from the live editor API and persist it beside the project. */
+async function writeProjectJsonSnapshot({
+	projectId,
+}: {
+	projectId: string;
+}): Promise<void> {
+	try {
+		const client = new EditorApiClient({
+			baseUrl: "http://127.0.0.1:8765",
+			timeout: 5000,
+			skipCapabilityCheck: true,
+		});
+		const snapshot = await buildProjectJSON(client, projectId);
+		const projectDir = getProjectPath(projectId);
+		await fsPromises.mkdir(projectDir, { recursive: true });
+		await fsPromises.writeFile(
+			path.join(projectDir, "project.json"),
+			JSON.stringify(snapshot, null, 2),
+			"utf-8"
+		);
+		claudeLog.info(
+			"HTTP",
+			`[ProjectJSON] Auto-synced project.json for ${projectId}`
+		);
+	} catch (error) {
+		claudeLog.warn(
+			"HTTP",
+			`[ProjectJSON] Auto-sync failed for ${projectId}: ${
+				error instanceof Error ? error.message : String(error)
+			}`
+		);
+	}
+}
+
+/** Debounce best-effort project.json regeneration after timeline mutations. */
+function scheduleProjectJsonAutoSync({
+	projectId,
+}: {
+	projectId: string;
+}): void {
+	try {
+		const normalizedProjectId = projectId.trim();
+		if (!normalizedProjectId) return;
+
+		const existingTimer = projectJsonSyncTimers.get(normalizedProjectId);
+		if (existingTimer) clearTimeout(existingTimer);
+
+		const timer = setTimeout(() => {
+			projectJsonSyncTimers.delete(normalizedProjectId);
+			const previousWrite =
+				projectJsonSyncInFlight.get(normalizedProjectId) ?? Promise.resolve();
+			const nextWrite = previousWrite
+				.catch(() => undefined)
+				.then(() =>
+					writeProjectJsonSnapshot({ projectId: normalizedProjectId })
+				)
+				.finally(() => {
+					if (projectJsonSyncInFlight.get(normalizedProjectId) === nextWrite) {
+						projectJsonSyncInFlight.delete(normalizedProjectId);
+					}
+				});
+			projectJsonSyncInFlight.set(normalizedProjectId, nextWrite);
+		}, PROJECT_JSON_SYNC_DEBOUNCE_MS);
+
+		projectJsonSyncTimers.set(normalizedProjectId, timer);
+	} catch {
+		// Best-effort sync scheduling only.
+	}
+}
+
+/** Wait for a renderer roundtrip so timeline writes settle before reading project state. */
+async function waitForTimelineMutationBarrier({
+	accessor,
+}: {
+	accessor: WindowAccessor;
+}): Promise<void> {
+	try {
+		await Promise.race([
+			accessor.requestTimeline(),
+			new Promise<never>((_, reject) => {
+				setTimeout(() => {
+					reject(new Error("Timeline mutation barrier timed out"));
+				}, TIMELINE_SYNC_BARRIER_TIMEOUT_MS);
+			}),
+		]);
+	} catch {
+		// Best-effort ordering only.
+	}
+}
+
 /**
  * Register all shared API routes onto the given router.
  * The WindowAccessor abstracts over direct vs proxied BrowserWindow access.
@@ -260,6 +382,7 @@ export function registerSharedRoutes(
 	wrapRouterWithCorrelationTracking({ router });
 	registerMetaRoutes({
 		router,
+		/** Returns the current application version for metadata routes. */
 		getAppVersion: () => accessor.getAppVersion(),
 		runDeepHealthChecks: options?.runDeepHealthChecks,
 	});
@@ -346,21 +469,29 @@ export function registerSharedRoutes(
 				/* non-fatal */
 			}
 		}
+		scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
 		return media;
 	});
 
-	router.delete("/api/claude/media/:projectId/:mediaId", async (req) =>
-		deleteMediaFile(req.params.projectId, req.params.mediaId)
-	);
+	router.delete("/api/claude/media/:projectId/:mediaId", async (req) => {
+		const result = await deleteMediaFile(
+			req.params.projectId,
+			req.params.mediaId
+		);
+		scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
+		return result;
+	});
 
 	router.patch("/api/claude/media/:projectId/:mediaId/rename", async (req) => {
 		if (!req.body?.newName)
 			throw new HttpError(400, "Missing 'newName' in request body");
-		return renameMediaFile(
+		const result = await renameMediaFile(
 			req.params.projectId,
 			req.params.mediaId,
 			req.body.newName
 		);
+		scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
+		return result;
 	});
 
 	router.post("/api/claude/media/:projectId/import-from-url", async (req) => {
@@ -378,6 +509,7 @@ export function registerSharedRoutes(
 			timestamp: Date.now(),
 			projectId: req.params.projectId,
 		});
+		scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
 		return result;
 	});
 
@@ -392,6 +524,7 @@ export function registerSharedRoutes(
 			timestamp: Date.now(),
 			projectId: req.params.projectId,
 		});
+		scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
 		return result;
 	});
 
@@ -403,12 +536,14 @@ export function registerSharedRoutes(
 					400,
 					"Missing 'timestamp' (number) in request body"
 				);
-			return extractFrame(
+			const result = await extractFrame(
 				req.params.projectId,
 				req.params.mediaId,
 				req.body.timestamp,
 				req.body.format
 			);
+			scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
+			return result;
 		}
 	);
 
@@ -465,6 +600,8 @@ export function registerSharedRoutes(
 			timeline,
 			replace: req.body.replace === true,
 		});
+		await waitForTimelineMutationBarrier({ accessor });
+		scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
 		return { imported: true };
 	});
 
@@ -481,6 +618,8 @@ export function registerSharedRoutes(
 			...req.body,
 			id: elementId,
 		});
+		await waitForTimelineMutationBarrier({ accessor });
+		scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
 		return { elementId };
 	});
 
@@ -488,11 +627,13 @@ export function registerSharedRoutes(
 		if (!Array.isArray(req.body?.elements))
 			throw new HttpError(400, "Missing 'elements' array in request body");
 		try {
-			return await accessor.batchAddElements(
+			const result = await accessor.batchAddElements(
 				req.params.projectId,
 				req.body.elements,
 				getRequestCorrelationId({ req })
 			);
+			scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
+			return result;
 		} catch (error) {
 			throw new HttpError(
 				400,
@@ -507,10 +648,12 @@ export function registerSharedRoutes(
 			if (!Array.isArray(req.body?.updates))
 				throw new HttpError(400, "Missing 'updates' array in request body");
 			try {
-				return await accessor.batchUpdateElements(
+				const result = await accessor.batchUpdateElements(
 					req.body.updates,
 					getRequestCorrelationId({ req })
 				);
+				scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
+				return result;
 			} catch (error) {
 				throw new HttpError(
 					400,
@@ -530,6 +673,8 @@ export function registerSharedRoutes(
 				elementId: req.params.elementId,
 				changes: req.body || {},
 			});
+			await waitForTimelineMutationBarrier({ accessor });
+			scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
 			return { updated: true };
 		}
 	);
@@ -540,11 +685,13 @@ export function registerSharedRoutes(
 			if (!Array.isArray(req.body?.elements))
 				throw new HttpError(400, "Missing 'elements' array in request body");
 			try {
-				return await accessor.batchDeleteElements(
+				const result = await accessor.batchDeleteElements(
 					req.body.elements,
 					Boolean(req.body.ripple),
 					getRequestCorrelationId({ req })
 				);
+				scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
+				return result;
 			} catch (error) {
 				throw new HttpError(
 					400,
@@ -562,6 +709,8 @@ export function registerSharedRoutes(
 				"claude:timeline:removeElement",
 				req.params.elementId
 			);
+			await waitForTimelineMutationBarrier({ accessor });
+			scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
 			return { removed: true };
 		}
 	);
@@ -577,7 +726,7 @@ export function registerSharedRoutes(
 				"Invalid mode. Use sequential, spaced, or manual"
 			);
 		try {
-			return await accessor.arrangeTimeline(
+			const result = await accessor.arrangeTimeline(
 				{
 					trackId: req.body.trackId,
 					mode: req.body.mode,
@@ -587,6 +736,8 @@ export function registerSharedRoutes(
 				},
 				getRequestCorrelationId({ req })
 			);
+			scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
+			return result;
 		} catch (error) {
 			throw new HttpError(
 				400,
@@ -609,12 +760,14 @@ export function registerSharedRoutes(
 					400,
 					"Invalid mode. Use 'split', 'keepLeft', or 'keepRight'"
 				);
-			return accessor.requestSplit(
+			const result = await accessor.requestSplit(
 				req.params.elementId,
 				req.body.splitTime,
 				mode,
 				getRequestCorrelationId({ req })
 			);
+			scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
+			return result;
 		}
 	);
 
@@ -631,6 +784,8 @@ export function registerSharedRoutes(
 				toTrackId: req.body.toTrackId,
 				newStartTime: req.body.newStartTime,
 			});
+			await waitForTimelineMutationBarrier({ accessor });
+			scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
 			return { moved: true };
 		}
 	);
@@ -688,7 +843,20 @@ export function registerSharedRoutes(
 
 	router.patch("/api/claude/project/:projectId/settings", async (req) => {
 		if (!req.body) throw new HttpError(400, "Missing settings in request body");
-		await updateProjectSettings(req.params.projectId, req.body);
+		await updateProjectSettings(req.params.projectId, req.body, {
+			broadcast: false,
+		});
+		try {
+			const win = accessor.getWindow();
+			win.webContents.send(
+				"claude:project:updated",
+				req.params.projectId,
+				req.body
+			);
+		} catch {
+			// Non-fatal: direct file sync below still updates project.json
+		}
+		scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
 		return { updated: true };
 	});
 

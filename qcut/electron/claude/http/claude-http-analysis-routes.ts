@@ -41,6 +41,7 @@ import { logOperation } from "../claude-operation-log.js";
 import { getMediaInfo } from "../handlers/claude-media-handler.js";
 import { getRequestCorrelationId } from "./claude-http-meta-routes.js";
 import type { BrowserWindow } from "electron";
+import type { WindowProxy } from "./claude-http-shared-routes.js";
 import type {
 	AutoEditRequest,
 	AutoEditJob,
@@ -100,7 +101,7 @@ function normalizeWords(words: RawWord[]): Array<{
 }
 
 interface AnalysisRoutesAccessor {
-	getWindow: () => BrowserWindow;
+	getWindow: () => WindowProxy;
 	executeBatchCuts?: (request: BatchCutRequest) => Promise<BatchCutResponse>;
 	executeDeleteRange?: (
 		request: ClaudeRangeDeleteRequest
@@ -121,6 +122,7 @@ export function registerAnalysisRoutes(
 	router: Router,
 	accessor: AnalysisRoutesAccessor
 ): void {
+	/** Resolves an auto-edit job through the accessor when available. */
 	const getAutoEditJobForRequest = async ({
 		jobId,
 	}: {
@@ -496,7 +498,10 @@ export function registerAnalysisRoutes(
 		};
 		const batchCutPromise = accessor.executeBatchCuts
 			? accessor.executeBatchCuts(batchCutRequest)
-			: executeBatchCuts(accessor.getWindow(), batchCutRequest);
+			: executeBatchCuts(
+					accessor.getWindow() as BrowserWindow,
+					batchCutRequest
+				);
 		debugRouteLog({
 			message: `/timeline/${req.params.projectId}/cuts using ${accessor.executeBatchCuts ? "accessor.executeBatchCuts" : "local.executeBatchCuts"}`,
 		});
@@ -533,7 +538,10 @@ export function registerAnalysisRoutes(
 		};
 		const deleteRangePromise = accessor.executeDeleteRange
 			? accessor.executeDeleteRange(deleteRangeRequest)
-			: executeDeleteRange(accessor.getWindow(), deleteRangeRequest);
+			: executeDeleteRange(
+					accessor.getWindow() as BrowserWindow,
+					deleteRangeRequest
+				);
 		debugRouteLog({
 			message: `/timeline/${req.params.projectId}/range using ${accessor.executeDeleteRange ? "accessor.executeDeleteRange" : "local.executeDeleteRange"}`,
 		});
@@ -581,7 +589,7 @@ export function registerAnalysisRoutes(
 					provider: req.body.provider,
 					language: req.body.language,
 				},
-				win
+				win as BrowserWindow
 			);
 		} catch (error) {
 			if (error instanceof HttpError) throw error;
@@ -712,7 +720,7 @@ export function registerAnalysisRoutes(
 			const { jobId } = startAutoEditJob(
 				req.params.projectId,
 				autoEditRequest,
-				win
+				win as BrowserWindow
 			);
 			return { jobId };
 		}

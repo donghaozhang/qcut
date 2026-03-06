@@ -3,7 +3,9 @@ import type { Context, Next } from "hono";
 import { db } from "@qcut/db";
 import { sessions } from "@qcut/db/schema";
 import { isMockMode } from "./mock";
+import { verifyJwtAndExtractUserId } from "./auth-jwt";
 
+/** Pulls the bearer token value out of an Authorization header. */
 function extractBearerToken({ authHeader }: { authHeader?: string }): string {
 	if (!authHeader || !authHeader.startsWith("Bearer ")) {
 		return "";
@@ -11,38 +13,7 @@ function extractBearerToken({ authHeader }: { authHeader?: string }): string {
 	return authHeader.slice("Bearer ".length).trim();
 }
 
-function tryDecodeJwtUserId({ token }: { token: string }): string | null {
-	try {
-		const tokenParts = token.split(".");
-		if (tokenParts.length !== 3) {
-			return null;
-		}
-
-		const base64 = tokenParts[1]
-			.replace(/-/g, "+")
-			.replace(/_/g, "/")
-			.padEnd(Math.ceil(tokenParts[1].length / 4) * 4, "=");
-		const atobFn = (globalThis as { atob?: (value: string) => string }).atob;
-		const payloadRaw =
-			typeof atobFn === "function"
-				? atobFn(base64)
-				: Buffer.from(base64, "base64").toString("utf-8");
-		const payload = JSON.parse(payloadRaw) as {
-			sub?: unknown;
-			userId?: unknown;
-		};
-		if (typeof payload.sub === "string") {
-			return payload.sub;
-		}
-		if (typeof payload.userId === "string") {
-			return payload.userId;
-		}
-		return null;
-	} catch {
-		return null;
-	}
-}
-
+/** Resolves the request user from the session store or HS256 JWT fallback. */
 export async function authMiddleware(c: Context, next: Next) {
 	// Mock mode: skip real auth, use mock user ID
 	if (isMockMode()) {
@@ -73,7 +44,14 @@ export async function authMiddleware(c: Context, next: Next) {
 			return;
 		}
 
-		const fallbackUserId = tryDecodeJwtUserId({ token });
+		const betterAuthSecret = process.env.BETTER_AUTH_SECRET;
+		if (!betterAuthSecret) {
+			return c.json({ error: "Auth middleware misconfigured" }, 500);
+		}
+		const fallbackUserId = await verifyJwtAndExtractUserId({
+			token,
+			secret: betterAuthSecret,
+		});
 		if (fallbackUserId) {
 			c.set("userId", fallbackUserId);
 			await next();

@@ -84,3 +84,4 @@ docs/technical/
 | Document | Description |
 |----------|-------------|
 | [build-commands.md](guides/build-commands.md) | Build, run, and deploy commands |
+| [nexusai-website-submodule.md](guides/nexusai-website-submodule.md) | NexusAI website submodule workflow |

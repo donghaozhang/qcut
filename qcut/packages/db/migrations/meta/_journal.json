@@ -22,6 +22,13 @@
 			"when": 1762012800000,
 			"tag": "0002_payment_reliability_updates",
 			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "7",
+			"when": 1762603200000,
+			"tag": "0003_payment_guardrails_and_integrity",
+			"breakpoints": true
 		}
 	]
 }

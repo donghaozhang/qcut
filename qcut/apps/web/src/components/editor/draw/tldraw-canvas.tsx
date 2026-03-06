@@ -18,6 +18,12 @@ import {
 	type TLShapeId,
 } from "tldraw";
 import "tldraw/tldraw.css";
+import {
+	handleError,
+	ErrorCategory,
+	ErrorSeverity,
+} from "@/lib/debug/error-handler";
+import { normalizeImageMimeType } from "@/components/editor/draw/utils/image-file";
 
 /** Image to annotate */
 export interface AnnotatorImage {
@@ -29,6 +35,7 @@ export interface AnnotatorImage {
 
 export interface TldrawCanvasHandle {
 	getEditor(): Editor | null;
+	/** Returns a data URL or an object URL. Object URLs must be revoked by callers. */
 	getCanvasDataUrl(): Promise<string | null>;
 	getSnapshot(): string | null;
 	loadSnapshot(snapshotJson: string): void;
@@ -40,163 +47,353 @@ interface TldrawCanvasProps {
 	className?: string;
 }
 
+/** Detect the locked background image shape used by the annotator. */
+function isLockedImageShape(shape: unknown): shape is TLImageShape {
+	try {
+		if (!shape || typeof shape !== "object") return false;
+		const candidate = shape as { type?: string; isLocked?: boolean };
+		return candidate.type === "image" && candidate.isLocked === true;
+	} catch {
+		return false;
+	}
+}
+
+/** Resolve the current background image shape, preferring the cached id when valid. */
+function resolveBackgroundImageShapeId({
+	editor,
+	preferredId,
+}: {
+	editor: Editor;
+	preferredId: TLShapeId | null;
+}): TLShapeId | null {
+	try {
+		if (preferredId) {
+			const preferred = editor.getShape(preferredId);
+			if (isLockedImageShape(preferred)) {
+				return preferredId;
+			}
+		}
+
+		const shapeIds = [...editor.getCurrentPageShapeIds()];
+		for (const shapeId of shapeIds) {
+			const shape = editor.getShape(shapeId);
+			if (isLockedImageShape(shape)) {
+				return shapeId;
+			}
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
+
+/** Clamp canvas dimensions to positive integers before passing them to tldraw. */
+function sanitizeDimension({ value }: { value: number }): number {
+	if (!Number.isFinite(value)) {
+		return 1;
+	}
+	return Math.max(1, Math.round(value));
+}
+
 export const TldrawCanvas = forwardRef<TldrawCanvasHandle, TldrawCanvasProps>(
 	({ image, className }, ref) => {
 		const editorRef = useRef<Editor | null>(null);
+		const [mountedEditor, setMountedEditor] = useState<Editor | null>(null);
 		const [imageShapeId, setImageShapeId] = useState<TLShapeId | null>(null);
+		const imageShapeIdRef = useRef<TLShapeId | null>(null);
+
+		const setResolvedImageShapeId = useCallback((nextId: TLShapeId | null) => {
+			imageShapeIdRef.current = nextId;
+			setImageShapeId(nextId);
+		}, []);
 
 		const handleMount = useCallback((editor: Editor) => {
-			editorRef.current = editor;
-			editor.user.updateUserPreferences({ colorScheme: "dark" });
+			try {
+				editorRef.current = editor;
+				setMountedEditor(editor);
+				editor.user.updateUserPreferences({ colorScheme: "dark" });
+			} catch (error) {
+				handleError(error, {
+					operation: "tldraw editor mount",
+					category: ErrorCategory.UI,
+					severity: ErrorSeverity.MEDIUM,
+					showToast: false,
+				});
+			}
 		}, []);
 
 		// Create locked background image + side effects
 		useEffect(() => {
-			const editor = editorRef.current;
+			const editor = mountedEditor;
 			if (!editor) return;
+			const activeEditor: Editor = editor;
 
-			const assetId = AssetRecordType.createId();
-			editor.createAssets([
-				{
-					id: assetId,
-					typeName: "asset",
-					type: "image",
-					meta: {},
-					props: {
-						w: image.width,
-						h: image.height,
-						mimeType: image.type,
-						src: image.src,
-						name: "background",
-						isAnimated: false,
-					},
-				},
-			]);
-
-			const shapeId = createShapeId();
-			editor.createShape({
-				id: shapeId,
-				type: "image",
-				x: 0,
-				y: 0,
-				isLocked: true,
-				props: { w: image.width, h: image.height, assetId },
-			});
-
-			// Keep image at the bottom of the z-order
-			function keepAtBottom() {
-				if (!editor) return;
-				const shape = editor.getShape(shapeId);
-				if (!shape) return;
-
-				const pageId = editor.getCurrentPageId();
-				if (shape.parentId !== pageId) {
-					editor.moveShapesToPage([shape], pageId);
+			/** Cleans up the after-create background ordering hook. */
+			let rmCreate = () => {};
+			/** Cleans up the after-change background ordering hook. */
+			let rmChange = () => {};
+			/** Cleans up the lock-enforcement hook for the background image. */
+			let rmLock = () => {};
+			try {
+				const width = sanitizeDimension({ value: image.width });
+				const height = sanitizeDimension({ value: image.height });
+				if (!image.src) {
+					throw new Error("Missing source image");
 				}
-				const siblings = editor.getSortedChildIdsForParent(pageId);
-				const bottom = editor.getShape(siblings[0]);
-				if (bottom && bottom.id !== shapeId) {
-					editor.sendToBack([shape]);
+
+				const mimeType = normalizeImageMimeType({
+					declaredType: image.type,
+					dataUrl: image.src,
+				});
+
+				const existingShapeId = resolveBackgroundImageShapeId({
+					editor: activeEditor,
+					preferredId: imageShapeIdRef.current,
+				});
+				const existingShape = existingShapeId
+					? activeEditor.getShape(existingShapeId)
+					: null;
+
+				let shapeId = existingShapeId;
+				let assetId = isLockedImageShape(existingShape)
+					? existingShape.props.assetId
+					: null;
+				const existingAsset = assetId ? activeEditor.getAsset(assetId) : null;
+				const shouldCreateAsset =
+					!assetId ||
+					!existingAsset ||
+					existingAsset.type !== "image" ||
+					existingAsset.props.src !== image.src ||
+					existingAsset.props.w !== width ||
+					existingAsset.props.h !== height ||
+					existingAsset.props.mimeType !== mimeType;
+
+				if (shouldCreateAsset) {
+					assetId = AssetRecordType.createId();
+					activeEditor.createAssets([
+						{
+							id: assetId,
+							typeName: "asset",
+							type: "image",
+							meta: {},
+							props: {
+								w: width,
+								h: height,
+								mimeType,
+								src: image.src,
+								name: "background",
+								isAnimated: false,
+							},
+						},
+					]);
 				}
+
+				if (!assetId) {
+					throw new Error("Failed to prepare background asset");
+				}
+
+				if (shapeId && isLockedImageShape(existingShape)) {
+					activeEditor.updateShapes([
+						{
+							id: shapeId,
+							type: "image",
+							x: 0,
+							y: 0,
+							isLocked: true,
+							props: { w: width, h: height, assetId },
+						},
+					]);
+				} else {
+					shapeId = createShapeId();
+					activeEditor.createShape({
+						id: shapeId,
+						type: "image",
+						x: 0,
+						y: 0,
+						isLocked: true,
+						props: { w: width, h: height, assetId },
+					});
+				}
+
+				// Keep image at the bottom of the z-order
+				/** Keeps the locked background image behind all user-drawn shapes. */
+				function keepAtBottom() {
+					const currentShapeId = resolveBackgroundImageShapeId({
+						editor: activeEditor,
+						preferredId: imageShapeIdRef.current,
+					});
+					if (!currentShapeId) return;
+
+					const shape = activeEditor.getShape(currentShapeId);
+					if (!shape) return;
+
+					const pageId = activeEditor.getCurrentPageId();
+					if (shape.parentId !== pageId) {
+						activeEditor.moveShapesToPage([shape], pageId);
+					}
+					const siblings = activeEditor.getSortedChildIdsForParent(pageId);
+					const bottom = activeEditor.getShape(siblings[0]);
+					if (bottom && bottom.id !== currentShapeId) {
+						activeEditor.sendToBack([shape]);
+					}
+				}
+				keepAtBottom();
+
+				rmCreate = activeEditor.sideEffects.registerAfterCreateHandler(
+					"shape",
+					keepAtBottom
+				);
+				rmChange = activeEditor.sideEffects.registerAfterChangeHandler(
+					"shape",
+					keepAtBottom
+				);
+
+				// Prevent unlocking the background image
+				rmLock = activeEditor.sideEffects.registerBeforeChangeHandler(
+					"shape",
+					(prev, next) => {
+						const currentShapeId = resolveBackgroundImageShapeId({
+							editor: activeEditor,
+							preferredId: imageShapeIdRef.current,
+						});
+						if (!currentShapeId || next.id !== currentShapeId) return next;
+						if (next.isLocked) return next;
+						return { ...prev, isLocked: true };
+					}
+				);
+
+				activeEditor.clearHistory();
+				setResolvedImageShapeId(shapeId);
+			} catch (error) {
+				setResolvedImageShapeId(null);
+				handleError(error, {
+					operation: "draw panel image setup",
+					category: ErrorCategory.UI,
+					severity: ErrorSeverity.MEDIUM,
+				});
 			}
-			keepAtBottom();
-
-			const rmCreate = editor.sideEffects.registerAfterCreateHandler(
-				"shape",
-				keepAtBottom
-			);
-			const rmChange = editor.sideEffects.registerAfterChangeHandler(
-				"shape",
-				keepAtBottom
-			);
-
-			// Prevent unlocking the background image
-			const rmLock = editor.sideEffects.registerBeforeChangeHandler(
-				"shape",
-				(prev, next) => {
-					if (next.id !== shapeId) return next;
-					if (next.isLocked) return next;
-					return { ...prev, isLocked: true };
-				}
-			);
-
-			editor.clearHistory();
-			setImageShapeId(shapeId);
 
 			return () => {
 				rmCreate();
 				rmChange();
 				rmLock();
 			};
-		}, [image]);
+		}, [
+			mountedEditor,
+			image.src,
+			image.width,
+			image.height,
+			image.type,
+			setResolvedImageShapeId,
+		]);
 
 		// Camera constraints — keep image in view
 		useEffect(() => {
 			const editor = editorRef.current;
-			if (!editor || !imageShapeId) return;
+			if (!editor) return;
+			const resolvedImageShapeId = resolveBackgroundImageShapeId({
+				editor,
+				preferredId: imageShapeId,
+			});
+			if (!resolvedImageShapeId) return;
 
+			const width = sanitizeDimension({ value: image.width });
+			const height = sanitizeDimension({ value: image.height });
 			editor.setCameraOptions({
 				constraints: {
 					initialZoom: "fit-min-100",
 					baseZoom: "fit-min-100",
-					bounds: { x: 0, y: 0, w: image.width, h: image.height },
+					bounds: { x: 0, y: 0, w: width, h: height },
 					padding: { x: 16, y: 16 },
 					origin: { x: 0.5, y: 0.5 },
 					behavior: "contain",
 				},
 			});
 			editor.setCamera(editor.getCamera(), { reset: true });
-		}, [imageShapeId, image]);
+		}, [imageShapeId, image.width, image.height]);
 
 		useImperativeHandle(ref, () => ({
+			/** Returns the mounted tldraw editor instance, if available. */
 			getEditor: () => editorRef.current,
 
+			/** Exports the canvas as a blob URL; callers should revoke it after use. */
 			getCanvasDataUrl: async () => {
-				const editor = editorRef.current;
-				if (!editor || !imageShapeId) return null;
+				try {
+					const editor = editorRef.current;
+					if (!editor) return image.src || null;
 
-				const shapeIds = [...editor.getCurrentPageShapeIds()];
-				if (shapeIds.length === 0) return null;
+					const resolvedImageShapeId = resolveBackgroundImageShapeId({
+						editor,
+						preferredId: imageShapeId,
+					});
+					if (!resolvedImageShapeId) return image.src || null;
 
-				// Export only the image bounds area (annotations included)
-				const bounds = editor.getShapePageBounds(imageShapeId);
-				if (!bounds) return null;
+					const shapeIds = [...editor.getCurrentPageShapeIds()];
+					if (shapeIds.length === 0) return image.src || null;
 
-				const result = await editor.toImageDataUrl(shapeIds, {
-					format: "png",
-					background: true,
-					bounds,
-					padding: 0,
-					scale: 1,
-				});
-				return result?.url ?? null;
+					const bounds = editor.getShapePageBounds(resolvedImageShapeId);
+					if (!bounds) return image.src || null;
+
+					const result = await editor.toImage(shapeIds, {
+						format: "png",
+						background: true,
+						bounds,
+						padding: 0,
+						scale: 1,
+					});
+					if (!result?.blob) return image.src || null;
+					return URL.createObjectURL(result.blob);
+				} catch (error) {
+					handleError(error, {
+						operation: "draw panel image export",
+						category: ErrorCategory.UI,
+						severity: ErrorSeverity.MEDIUM,
+					});
+					return image.src || null;
+				}
 			},
 
+			/** Serializes the current tldraw store snapshot. */
 			getSnapshot: () => {
 				const editor = editorRef.current;
 				if (!editor) return null;
 				return JSON.stringify(editor.store.getStoreSnapshot());
 			},
 
+			/** Loads a serialized tldraw store snapshot into the editor. */
 			loadSnapshot: (snapshotJson: string) => {
 				const editor = editorRef.current;
 				if (!editor) return;
-				const snapshot = JSON.parse(snapshotJson);
-				editor.store.loadStoreSnapshot(snapshot);
-				// Re-derive imageShapeId from the loaded store
-				const shapes = [...editor.getCurrentPageShapeIds()];
-				const lockedImage = shapes
-					.map((id) => editor.getShape(id))
-					.find((s) => s?.type === "image" && s.isLocked);
-				setImageShapeId(lockedImage?.id ?? null);
+				try {
+					const snapshot = JSON.parse(snapshotJson);
+					editor.store.loadStoreSnapshot(snapshot);
+					// Re-derive imageShapeId from the loaded store
+					const resolvedImageShapeId = resolveBackgroundImageShapeId({
+						editor,
+						preferredId: null,
+					});
+					setResolvedImageShapeId(resolvedImageShapeId);
+				} catch (error) {
+					handleError(error, {
+						operation: "draw panel snapshot load",
+						category: ErrorCategory.STORAGE,
+						severity: ErrorSeverity.MEDIUM,
+					});
+				}
 			},
 
+			/** Removes all annotations while preserving the background image. */
 			clearAll: () => {
 				const editor = editorRef.current;
-				if (!editor || !imageShapeId) return;
+				if (!editor) return;
+				const resolvedImageShapeId = resolveBackgroundImageShapeId({
+					editor,
+					preferredId: imageShapeId,
+				});
+				if (!resolvedImageShapeId) return;
 				// Delete all shapes EXCEPT the background image
 				const allIds = [...editor.getCurrentPageShapeIds()];
-				const toDelete = allIds.filter((id) => id !== imageShapeId);
+				const toDelete = allIds.filter((id) => id !== resolvedImageShapeId);
 				if (toDelete.length > 0) {
 					editor.deleteShapes(toDelete);
 				}

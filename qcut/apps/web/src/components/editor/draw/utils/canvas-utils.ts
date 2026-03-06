@@ -11,6 +11,7 @@ export const dataUrlToFile = async (
 	dataUrl: string,
 	filename: string
 ): Promise<File> => {
+	const isBlobUrl = dataUrl.startsWith("blob:");
 	try {
 		const res = await fetch(dataUrl);
 		const blob = await res.blob();
@@ -22,6 +23,10 @@ export const dataUrlToFile = async (
 			severity: ErrorSeverity.MEDIUM,
 		});
 		throw error;
+	} finally {
+		if (isBlobUrl) {
+			URL.revokeObjectURL(dataUrl);
+		}
 	}
 };
 

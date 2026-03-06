@@ -33,18 +33,6 @@ if (fs.existsSync(autoSelectedFile)) {
   console.log("AI 预选:", autoSelected.length, "个元素");
 }
 
-function escapeForInlineScript({ value }) {
-  return JSON.stringify(value)
-    .replace(/</g, "\\u003C")
-    .replace(/>/g, "\\u003E")
-    .replace(/&/g, "\\u0026")
-    .replace(/\u2028/g, "\\u2028")
-    .replace(/\u2029/g, "\\u2029");
-}
-
-const wordsJson = escapeForInlineScript({ value: words });
-const autoSelectedJson = escapeForInlineScript({ value: autoSelected });
-
 const html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -269,8 +257,8 @@ const html = `<!DOCTYPE html>
   <div class="stats" id="stats"></div>
 
   <script>
-    const words = ${wordsJson};
-    const autoSelected = new Set(${autoSelectedJson});
+    const words = ${JSON.stringify(words)};
+    const autoSelected = new Set(${JSON.stringify(autoSelected)});
     const selected = new Set(autoSelected);
 
     // 初始化 wavesurfer

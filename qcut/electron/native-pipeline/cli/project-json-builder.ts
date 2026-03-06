@@ -14,6 +14,18 @@ import type {
 	ProjectSettings,
 } from "./project-json-types.js";
 
+interface NavigatorProject {
+	id: string;
+	name: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+interface NavigatorProjectsPayload {
+	projects: NavigatorProject[];
+	activeProjectId: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // API key status
 // ---------------------------------------------------------------------------
@@ -43,23 +55,51 @@ export async function buildProjectJSONMinimal(
 	client: EditorApiClient,
 	projectId: string
 ): Promise<ProjectJSONMinimal> {
-	const [settings, stats] = await Promise.all([
-		client.get<Record<string, unknown>>(
-			`/api/claude/project/${projectId}/settings`
-		),
-		client.get<Record<string, unknown>>(
-			`/api/claude/project/${projectId}/stats`
-		),
+	const settingsFallback: Record<string, unknown> = {};
+	const statsFallback: Record<string, unknown> = {};
+	const navigatorFallback: NavigatorProjectsPayload = {
+		projects: [],
+		activeProjectId: null,
+	};
+
+	const [settings, stats, navigator] = await Promise.all([
+		safeGet<Record<string, unknown>>({
+			client,
+			path: `/api/claude/project/${projectId}/settings`,
+			fallback: settingsFallback,
+			required: true,
+		}),
+		safeGet<Record<string, unknown>>({
+			client,
+			path: `/api/claude/project/${projectId}/stats`,
+			fallback: statsFallback,
+			required: true,
+		}),
+		safeGet<NavigatorProjectsPayload>({
+			client,
+			path: "/api/claude/navigator/projects",
+			fallback: navigatorFallback,
+		}),
 	]);
+	const projectMeta = findProjectInNavigator({
+		payload: navigator,
+		projectId,
+	});
 
 	const now = new Date().toISOString();
+	const defaultName = "Untitled Project";
+	const settingsName = str(settings.name, defaultName);
+	const resolvedName =
+		settingsName === defaultName && projectMeta
+			? str(projectMeta.name, defaultName)
+			: settingsName;
 
 	return {
 		version: "1.0",
 		projectId,
-		name: str(settings.name, "Untitled"),
-		createdAt: str(settings.createdAt, now),
-		updatedAt: str(settings.updatedAt, now),
+		name: resolvedName,
+		createdAt: str(settings.createdAt, str(projectMeta?.createdAt, now)),
+		updatedAt: str(settings.updatedAt, str(projectMeta?.updatedAt, now)),
 		settings: {
 			width: num(settings.width, 1920),
 			height: num(settings.height, 1080),
@@ -92,17 +132,50 @@ export async function buildProjectJSON(
 	client: EditorApiClient,
 	projectId: string
 ): Promise<ProjectJSON> {
-	const [settings, stats, mediaList] = await Promise.all([
-		client.get<Record<string, unknown>>(
-			`/api/claude/project/${projectId}/settings`
-		),
-		client.get<Record<string, unknown>>(
-			`/api/claude/project/${projectId}/stats`
-		),
-		client.get<Record<string, unknown>[]>(`/api/claude/media/${projectId}`),
+	const settingsFallback: Record<string, unknown> = {};
+	const statsFallback: Record<string, unknown> = {};
+	const mediaFallback: Record<string, unknown>[] = [];
+	const navigatorFallback: NavigatorProjectsPayload = {
+		projects: [],
+		activeProjectId: null,
+	};
+
+	const [settings, stats, mediaList, navigator] = await Promise.all([
+		safeGet<Record<string, unknown>>({
+			client,
+			path: `/api/claude/project/${projectId}/settings`,
+			fallback: settingsFallback,
+			required: true,
+		}),
+		safeGet<Record<string, unknown>>({
+			client,
+			path: `/api/claude/project/${projectId}/stats`,
+			fallback: statsFallback,
+			required: true,
+		}),
+		safeGet<Record<string, unknown>[]>({
+			client,
+			path: `/api/claude/media/${projectId}`,
+			fallback: mediaFallback,
+		}),
+		safeGet<NavigatorProjectsPayload>({
+			client,
+			path: "/api/claude/navigator/projects",
+			fallback: navigatorFallback,
+		}),
 	]);
+	const projectMeta = findProjectInNavigator({
+		payload: navigator,
+		projectId,
+	});
 
 	const now = new Date().toISOString();
+	const defaultName = "Untitled Project";
+	const settingsName = str(settings.name, defaultName);
+	const resolvedName =
+		settingsName === defaultName && projectMeta
+			? str(projectMeta.name, defaultName)
+			: settingsName;
 
 	const media: MediaEntry[] = Array.isArray(mediaList)
 		? mediaList.map((m) => ({
@@ -139,9 +212,9 @@ export async function buildProjectJSON(
 	return {
 		version: "1.0",
 		projectId,
-		name: str(settings.name, "Untitled"),
-		createdAt: str(settings.createdAt, now),
-		updatedAt: str(settings.updatedAt, now),
+		name: resolvedName,
+		createdAt: str(settings.createdAt, str(projectMeta?.createdAt, now)),
+		updatedAt: str(settings.updatedAt, str(projectMeta?.updatedAt, now)),
 		settings: projectSettings,
 		media,
 		subtitles: [], // TODO: extract from CaptionElement timeline data
@@ -156,10 +229,102 @@ export async function buildProjectJSON(
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Read an editor endpoint with an optional required/fallback policy. */
+async function safeGet<T>({
+	client,
+	path,
+	fallback,
+	required = false,
+}: {
+	client: EditorApiClient;
+	path: string;
+	fallback: T;
+	required?: boolean;
+}): Promise<T> {
+	try {
+		return await client.get<T>(path);
+	} catch (error) {
+		if (required) {
+			throw new Error(
+				`Failed to fetch required endpoint ${path}: ${
+					error instanceof Error ? error.message : String(error)
+				}`
+			);
+		}
+		return fallback;
+	}
+}
+
+/** Narrow unknown JSON payloads to plain record objects. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/** Find the requested project inside the navigator payload when it is available. */
+function findProjectInNavigator({
+	payload,
+	projectId,
+}: {
+	payload: unknown;
+	projectId: string;
+}): NavigatorProject | null {
+	try {
+		const normalized = normalizeNavigatorPayload({ payload });
+		if (!normalized) return null;
+
+		for (const project of normalized.projects) {
+			if (project.id === projectId) {
+				return project;
+			}
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
+
+/** Normalize navigator API responses into the shape expected by the builder. */
+function normalizeNavigatorPayload({
+	payload,
+}: {
+	payload: unknown;
+}): NavigatorProjectsPayload | null {
+	try {
+		if (!isRecord(payload)) return null;
+		if (!Array.isArray(payload.projects)) return null;
+
+		const projects: NavigatorProject[] = [];
+		for (const entry of payload.projects) {
+			if (!isRecord(entry)) continue;
+			const id = str(entry.id, "");
+			if (!id) continue;
+
+			projects.push({
+				id,
+				name: str(entry.name, "Untitled Project"),
+				createdAt: str(entry.createdAt, ""),
+				updatedAt: str(entry.updatedAt, ""),
+			});
+		}
+
+		return {
+			projects,
+			activeProjectId:
+				typeof payload.activeProjectId === "string"
+					? payload.activeProjectId
+					: null,
+		};
+	} catch {
+		return null;
+	}
+}
+
+/** Read a non-empty string or fall back to a default value. */
 function str(value: unknown, fallback: string): string {
 	return typeof value === "string" && value.length > 0 ? value : fallback;
 }
 
+/** Parse numbers from loosely typed API payloads. */
 function num(value: unknown, fallback: number): number {
 	if (typeof value === "number" && !Number.isNaN(value)) return value;
 	if (typeof value === "string") {
@@ -169,6 +334,7 @@ function num(value: unknown, fallback: number): number {
 	return fallback;
 }
 
+/** Normalize media-count summaries from partial API responses. */
 function parseMediaCounts(raw: unknown): {
 	video: number;
 	audio: number;
@@ -185,18 +351,21 @@ function parseMediaCounts(raw: unknown): {
 	return { video: 0, audio: 0, image: 0 };
 }
 
+/** Coerce media types into the supported project.json union. */
 function parseMediaType(raw: unknown): "video" | "audio" | "image" {
 	const s = String(raw).toLowerCase();
 	if (s === "video" || s === "audio" || s === "image") return s;
 	return "video";
 }
 
+/** Coerce export formats into the supported project.json union. */
 function parseOutputFormat(raw: unknown): "mp4" | "webm" | "mov" {
 	const s = String(raw).toLowerCase();
 	if (s === "mp4" || s === "webm" || s === "mov") return s;
 	return "mp4";
 }
 
+/** Coerce export quality values into the supported project.json union. */
 function parseOutputQuality(raw: unknown): "1080p" | "720p" | "480p" {
 	const s = String(raw).toLowerCase();
 	if (s === "1080p" || s === "720p" || s === "480p") return s;

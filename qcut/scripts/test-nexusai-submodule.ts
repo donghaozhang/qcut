@@ -1,0 +1,99 @@
+import { execSync } from "node:child_process";
+import path from "node:path";
+
+const EXPECTED_SUBMODULE = {
+	path: "qcut/packages/nexusai-website",
+	url: "https://github.com/donghaozhang/nexusai-website.git",
+	branch: "master",
+} as const;
+
+/** Execute a shell command and trim its UTF-8 stdout. */
+function runCommand({
+	command,
+	cwd,
+}: {
+	command: string;
+	cwd?: string;
+}): string {
+	return execSync(command, { cwd, encoding: "utf8" }).trim();
+}
+
+/** Throw when an expected submodule invariant does not hold. */
+function assertCondition({
+	condition,
+	message,
+}: {
+	condition: boolean;
+	message: string;
+}): void {
+	if (!condition) {
+		throw new Error(message);
+	}
+}
+
+/** Read a single value from .gitmodules using git-config parsing. */
+function readGitModuleConfig({
+	gitmodulesPath,
+	key,
+}: {
+	gitmodulesPath: string;
+	key: string;
+}): string {
+	const command = `git config -f "${gitmodulesPath}" --get ${key}`;
+	return runCommand({ command });
+}
+
+try {
+	const repoRoot = runCommand({ command: "git rev-parse --show-toplevel" });
+	const gitmodulesPath = path.join(repoRoot, ".gitmodules");
+
+	const pathValue = readGitModuleConfig({
+		gitmodulesPath,
+		key: 'submodule."qcut/packages/nexusai-website".path',
+	});
+	const urlValue = readGitModuleConfig({
+		gitmodulesPath,
+		key: 'submodule."qcut/packages/nexusai-website".url',
+	});
+	const branchValue = readGitModuleConfig({
+		gitmodulesPath,
+		key: 'submodule."qcut/packages/nexusai-website".branch',
+	});
+
+	assertCondition({
+		condition: pathValue === EXPECTED_SUBMODULE.path,
+		message: `Unexpected submodule path: ${pathValue}`,
+	});
+	assertCondition({
+		condition: urlValue === EXPECTED_SUBMODULE.url,
+		message: `Unexpected submodule url: ${urlValue}`,
+	});
+	assertCondition({
+		condition: branchValue === EXPECTED_SUBMODULE.branch,
+		message: `Unexpected submodule branch: ${branchValue}`,
+	});
+
+	const statusLine = runCommand({
+		command: `git submodule status ${EXPECTED_SUBMODULE.path}`,
+		cwd: repoRoot,
+	});
+	assertCondition({
+		condition: statusLine.includes(EXPECTED_SUBMODULE.path),
+		message: "Submodule status does not include expected path",
+	});
+
+	const branchLine = runCommand({
+		command: `git -C "${path.join(repoRoot, EXPECTED_SUBMODULE.path)}" branch --show-current`,
+	});
+	assertCondition({
+		condition:
+			branchLine === EXPECTED_SUBMODULE.branch || branchLine.length === 0,
+		message: `Unexpected checked out branch: ${branchLine || "<detached-head>"}`,
+	});
+
+	process.stdout.write("NexusAI submodule verification passed.\n");
+} catch (error) {
+	const message = error instanceof Error ? error.message : String(error);
+	process.stderr.write(`NexusAI submodule verification failed: ${message}\n`);
+	process.exit(1);
+}

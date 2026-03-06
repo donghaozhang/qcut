@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS licenses (
 
 ALTER TABLE licenses ENABLE ROW LEVEL SECURITY;
 
-CREATE INDEX IF NOT EXISTS idx_licenses_user_id ON licenses(user_id);
+DROP INDEX IF EXISTS idx_licenses_user_id;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_licenses_user_unique ON licenses(user_id);
 CREATE INDEX IF NOT EXISTS idx_licenses_stripe_customer ON licenses(stripe_customer_id);
 CREATE INDEX IF NOT EXISTS idx_licenses_stripe_subscription ON licenses(stripe_subscription_id);
 

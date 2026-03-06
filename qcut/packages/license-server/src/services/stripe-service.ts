@@ -6,9 +6,16 @@ import {
 	addTopUpPackCreditsForUser,
 	downgradeToFreeCreditsForUser,
 	isTopUpPack,
+	reconcileTopUpRefundByStripePaymentId,
 	resetPlanCreditsForUser,
 } from "./credit-service";
 import { getLicenseByUserId, updateLicense } from "./license-service";
+import {
+	getPaymentCancelUrl,
+	getPaymentPortalReturnUrl,
+	getPaymentSuccessUrl,
+	resolveStripeIdempotencyKey,
+} from "./payment-config";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 const WEBHOOK_LOCK_STALE_MS = 5 * 60 * 1000;
@@ -57,6 +64,7 @@ const SUBSCRIPTION_STATUS_TO_LICENSE: Record<
 	paused: "past_due",
 };
 
+/** Maps Stripe subscription status values to license status. */
 function resolveLicenseStatus({
 	status,
 }: {
@@ -65,6 +73,7 @@ function resolveLicenseStatus({
 	return SUBSCRIPTION_STATUS_TO_LICENSE[status] ?? "past_due";
 }
 
+/** Infers the paid plan from a Stripe price ID. */
 function resolvePlanFromPriceId({
 	priceId,
 }: {
@@ -76,6 +85,7 @@ function resolvePlanFromPriceId({
 	return SUBSCRIPTION_PRICE_TO_PLAN[priceId] ?? null;
 }
 
+/** Maps each plan to its device allowance. */
 function getMaxDevicesForPlan({
 	plan,
 }: {
@@ -90,6 +100,7 @@ function getMaxDevicesForPlan({
 	return 1;
 }
 
+/** Throws when a required Stripe price ID is missing. */
 function assertConfiguredPriceId({
 	priceId,
 	errorMessage,
@@ -102,6 +113,7 @@ function assertConfiguredPriceId({
 	}
 }
 
+/** Finds a license by its stored Stripe customer or subscription IDs. */
 async function findLicenseByStripeIds({
 	customerId,
 	subscriptionId,
@@ -140,6 +152,7 @@ async function findLicenseByStripeIds({
 	}
 }
 
+/** Claims a webhook event row so concurrent deliveries do not double-process. */
 async function acquireWebhookEventLock({
 	eventId,
 	eventType,
@@ -208,6 +221,7 @@ async function acquireWebhookEventLock({
 	}
 }
 
+/** Marks a webhook event as successfully processed. */
 async function markWebhookEventProcessed({
 	eventId,
 }: {
@@ -235,6 +249,7 @@ async function markWebhookEventProcessed({
 	}
 }
 
+/** Stores the last processing error without clearing the lock row. */
 async function releaseWebhookEventLock({
 	eventId,
 	errorMessage,
@@ -243,8 +258,13 @@ async function releaseWebhookEventLock({
 	errorMessage: string;
 }): Promise<void> {
 	try {
+		const now = new Date();
 		await db
-			.delete(stripeWebhookEvents)
+			.update(stripeWebhookEvents)
+			.set({
+				lastError: errorMessage,
+				updatedAt: now,
+			})
 			.where(
 				and(
 					eq(stripeWebhookEvents.eventId, eventId),
@@ -260,14 +280,17 @@ async function releaseWebhookEventLock({
 	}
 }
 
+/** Creates a Stripe Checkout session for subscription purchases. */
 export async function createCheckoutSession({
 	userId,
 	plan,
 	interval,
+	idempotencyKey,
 }: {
 	userId: string;
 	plan: "pro" | "team";
 	interval: "month" | "year";
+	idempotencyKey?: string;
 }): Promise<Stripe.Checkout.Session> {
 	try {
 		const priceId = SUBSCRIPTION_PRICE_IDS[`${plan}_${interval}`];
@@ -276,21 +299,29 @@ export async function createCheckoutSession({
 			errorMessage: `Missing Stripe price ID for ${plan}/${interval}`,
 		});
 
-		return await stripe.checkout.sessions.create({
-			mode: "subscription",
-			payment_method_types: ["card"],
-			line_items: [{ price: priceId, quantity: 1 }],
-			success_url:
-				"https://donghaozhang.github.io/nexusai-website/account/success.html?session_id={CHECKOUT_SESSION_ID}",
-			cancel_url:
-				"https://donghaozhang.github.io/nexusai-website/account/pricing.html",
-			metadata: {
-				type: "subscription",
-				userId,
-				plan,
-				interval,
-			},
+		const resolvedIdempotencyKey = resolveStripeIdempotencyKey({
+			providedKey: idempotencyKey,
+			scope: "checkout",
+			ownerId: userId,
+			payloadParts: [plan, interval],
 		});
+
+		return await stripe.checkout.sessions.create(
+			{
+				mode: "subscription",
+				payment_method_types: ["card"],
+				line_items: [{ price: priceId, quantity: 1 }],
+				success_url: getPaymentSuccessUrl({ type: "subscription" }),
+				cancel_url: getPaymentCancelUrl({ type: "subscription" }),
+				metadata: {
+					type: "subscription",
+					userId,
+					plan,
+					interval,
+				},
+			},
+			{ idempotencyKey: resolvedIdempotencyKey }
+		);
 	} catch (error) {
 		throw new Error(
 			`Failed to create subscription checkout session: ${error instanceof Error ? error.message : "Unknown error"}`
@@ -298,12 +329,15 @@ export async function createCheckoutSession({
 	}
 }
 
+/** Creates a Stripe Checkout session for one-time credit packs. */
 export async function createTopUpCheckoutSession({
 	userId,
 	pack,
+	idempotencyKey,
 }: {
 	userId: string;
 	pack: "starter" | "standard" | "pro" | "mega";
+	idempotencyKey?: string;
 }): Promise<Stripe.Checkout.Session> {
 	try {
 		const priceId = TOP_UP_PRICE_IDS[pack];
@@ -312,20 +346,28 @@ export async function createTopUpCheckoutSession({
 			errorMessage: `Missing Stripe top-up price ID for pack ${pack}`,
 		});
 
-		return await stripe.checkout.sessions.create({
-			mode: "payment",
-			payment_method_types: ["card"],
-			line_items: [{ price: priceId, quantity: 1 }],
-			success_url:
-				"https://donghaozhang.github.io/nexusai-website/account/success.html?session_id={CHECKOUT_SESSION_ID}&type=topup",
-			cancel_url:
-				"https://donghaozhang.github.io/nexusai-website/account/pricing.html#credits",
-			metadata: {
-				type: "topup",
-				userId,
-				pack,
-			},
+		const resolvedIdempotencyKey = resolveStripeIdempotencyKey({
+			providedKey: idempotencyKey,
+			scope: "topup",
+			ownerId: userId,
+			payloadParts: [pack],
 		});
+
+		return await stripe.checkout.sessions.create(
+			{
+				mode: "payment",
+				payment_method_types: ["card"],
+				line_items: [{ price: priceId, quantity: 1 }],
+				success_url: getPaymentSuccessUrl({ type: "topup" }),
+				cancel_url: getPaymentCancelUrl({ type: "topup" }),
+				metadata: {
+					type: "topup",
+					userId,
+					pack,
+				},
+			},
+			{ idempotencyKey: resolvedIdempotencyKey }
+		);
 	} catch (error) {
 		throw new Error(
 			`Failed to create top-up checkout session: ${error instanceof Error ? error.message : "Unknown error"}`
@@ -333,17 +375,29 @@ export async function createTopUpCheckoutSession({
 	}
 }
 
+/** Creates a Stripe billing-portal session for an existing customer. */
 export async function createPortalSession({
 	stripeCustomerId,
+	idempotencyKey,
 }: {
 	stripeCustomerId: string;
+	idempotencyKey?: string;
 }): Promise<Stripe.BillingPortal.Session> {
 	try {
-		return await stripe.billingPortal.sessions.create({
-			customer: stripeCustomerId,
-			return_url:
-				"https://donghaozhang.github.io/nexusai-website/account/dashboard.html",
+		const resolvedIdempotencyKey = resolveStripeIdempotencyKey({
+			providedKey: idempotencyKey,
+			scope: "portal",
+			ownerId: stripeCustomerId,
+			payloadParts: ["billing-portal"],
 		});
+
+		return await stripe.billingPortal.sessions.create(
+			{
+				customer: stripeCustomerId,
+				return_url: getPaymentPortalReturnUrl(),
+			},
+			{ idempotencyKey: resolvedIdempotencyKey }
+		);
 	} catch (error) {
 		throw new Error(
 			`Failed to create portal session: ${error instanceof Error ? error.message : "Unknown error"}`
@@ -351,6 +405,7 @@ export async function createPortalSession({
 	}
 }
 
+/** Applies the effects of a completed checkout session. */
 async function handleCheckoutCompleted({
 	session,
 }: {
@@ -417,6 +472,7 @@ async function handleCheckoutCompleted({
 	}
 }
 
+/** Syncs license fields from subscription state changes. */
 async function handleSubscriptionUpdated({
 	subscription,
 }: {
@@ -462,6 +518,7 @@ async function handleSubscriptionUpdated({
 	}
 }
 
+/** Downgrades licenses and credits after subscription cancellation. */
 async function handleSubscriptionDeleted({
 	subscription,
 }: {
@@ -501,6 +558,7 @@ async function handleSubscriptionDeleted({
 	}
 }
 
+/** Refreshes monthly credits after a successful renewal invoice. */
 async function handleInvoicePaymentSucceeded({
 	invoice,
 }: {
@@ -534,6 +592,7 @@ async function handleInvoicePaymentSucceeded({
 	}
 }
 
+/** Marks licenses past due when renewal payment fails. */
 async function handleInvoicePaymentFailed({
 	invoice,
 }: {
@@ -565,6 +624,34 @@ async function handleInvoicePaymentFailed({
 	}
 }
 
+/** Reconciles top-up credits after a refunded charge. */
+async function handleChargeRefunded({
+	charge,
+}: {
+	charge: Stripe.Charge;
+}): Promise<void> {
+	try {
+		const paymentIntentId =
+			typeof charge.payment_intent === "string"
+				? charge.payment_intent
+				: undefined;
+		if (!paymentIntentId) {
+			return;
+		}
+
+		await reconcileTopUpRefundByStripePaymentId({
+			stripePaymentId: paymentIntentId,
+			chargeAmount: charge.amount,
+			chargeRefundedAmount: charge.amount_refunded,
+		});
+	} catch (error) {
+		throw new Error(
+			`Failed to process charge.refunded webhook: ${error instanceof Error ? error.message : "Unknown error"}`
+		);
+	}
+}
+
+/** Verifies, deduplicates, and dispatches Stripe webhook events. */
 export async function handleWebhook({
 	body,
 	signature,
@@ -619,6 +706,11 @@ export async function handleWebhook({
 				case "invoice.payment_failed":
 					await handleInvoicePaymentFailed({
 						invoice: event.data.object as Stripe.Invoice,
+					});
+					break;
+				case "charge.refunded":
+					await handleChargeRefunded({
+						charge: event.data.object as Stripe.Charge,
 					});
 					break;
 				default:
