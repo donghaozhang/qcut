@@ -21,7 +21,10 @@ function getBaseUrl(): string {
 function getTrustedOrigins(): string[] {
 	const env = process.env.BETTER_AUTH_TRUSTED_ORIGINS;
 	if (env?.trim()) {
-		return env.split(",").map((v) => v.trim()).filter(Boolean);
+		return env
+			.split(",")
+			.map((v) => v.trim())
+			.filter(Boolean);
 	}
 	return DEFAULT_TRUSTED_ORIGINS;
 }

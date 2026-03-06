@@ -249,7 +249,10 @@ export function createAuthRoutes({
 				);
 				return new Response(
 					JSON.stringify({ error: `Auth upstream ${response.status}` }),
-					{ status: response.status, headers: { "content-type": "application/json" } }
+					{
+						status: response.status,
+						headers: { "content-type": "application/json" },
+					}
 				);
 			} catch (error) {
 				console.error("[auth] handler threw:", error);
@@ -366,7 +369,10 @@ export function createAuthRoutes({
 			if (authResponse.ok) {
 				const body = await authResponse.json().catch(() => null);
 				const redirectUrl = body?.url;
-				if (typeof redirectUrl === "string" && redirectUrl.startsWith("https://")) {
+				if (
+					typeof redirectUrl === "string" &&
+					redirectUrl.startsWith("https://")
+				) {
 					return c.redirect(redirectUrl, 302);
 				}
 			}

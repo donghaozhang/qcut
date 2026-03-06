@@ -22,7 +22,9 @@ app.use("/*", async (c, next) => {
 		}
 		// Hyperdrive provides a local connection string that postgres.js can use
 		// via standard TCP (Cloudflare's network handles the actual DB connection).
-		const hyperdrive = env.HYPERDRIVE as { connectionString?: string } | undefined;
+		const hyperdrive = env.HYPERDRIVE as
+			| { connectionString?: string }
+			| undefined;
 		if (hyperdrive?.connectionString) {
 			process.env.DATABASE_URL = hyperdrive.connectionString;
 		}
