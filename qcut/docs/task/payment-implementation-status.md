@@ -1,12 +1,14 @@
-# Payment System Implementation Status
+# Payment System — Status & Next Steps
 
-Last updated: 2026-03-07 (Australia/Melbourne)
+Last updated: 2026-03-07
 
 ## Summary
 
-QCut payment infrastructure is implemented end-to-end and **deployed to production** on Cloudflare Workers. The license server is live at `https://qcut-license-server.zdhpeter.workers.dev` with all secrets configured, database migrations applied, and Google OAuth verified end-to-end.
+QCut payment infrastructure is implemented end-to-end and **deployed to production** on Cloudflare Workers. Desktop app login (Google OAuth + email) is working. The license server is live with all secrets configured, database migrations applied, and auth verified.
 
-**Current state: Ready for Stripe test-mode E2E validation.** All code-level blockers are resolved. The remaining work is operational testing (Stripe test-mode E2E, live canary).
+**Current state: Ready for Stripe test-mode E2E.** Register the webhook, then run through checkout/subscription/refund flows.
+
+---
 
 ## Deployment Status
 
@@ -15,193 +17,148 @@ QCut payment infrastructure is implemented end-to-end and **deployed to producti
 | CF Worker | ✅ Live | `https://qcut-license-server.zdhpeter.workers.dev` |
 | Hyperdrive (DB proxy) | ✅ Active | ID `70804d32fc714532a36dd1a0620da9ae`, caching disabled |
 | Supabase DB | ✅ Migrated | All 11 tables created, RLS disabled for server access |
-| Google OAuth | ✅ Verified | End-to-end flow working (`zdhpeter@gmail.com` user created) |
-| Email Auth | ✅ Verified | Sign-up and sign-in working |
+| Google OAuth (web) | ✅ Verified | End-to-end flow working (`zdhpeter@gmail.com` user created) |
+| Google OAuth (desktop) | ✅ Working | Opens browser → OAuth → `qcut://activate` deep link back |
+| Email Auth (web + desktop) | ✅ Verified | Sign-up and sign-in working in both |
+| Desktop Login UI | ✅ Done | Login/signup routes wired, "Sign in" link in header |
 | Stripe Products | ✅ Created | 6 products, 10 prices (AUD, test mode) |
-| Stripe Webhook | ⚠️ Endpoint ready | Needs webhook registration in Stripe Dashboard |
+| Stripe Webhook | ⚠️ Endpoint ready | **Needs webhook registration in Stripe Dashboard** |
 | Website (quriosity.com.au) | ✅ Fixed | HTTPS enforced, correct API URL, dashboard loads |
 | Secrets (16 total) | ✅ All set | See `docs/task/license-server-cloudflare-deploy.md` |
 
-## Blocker Status (From Real-Test Review)
+---
 
-| #   | Item                                            | Status                     | Notes                                                                                                 |
-| --- | ----------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------- |
-| 1   | Auth security (JWT fallback impersonation risk) | ✅ Resolved                | JWT fallback now requires signature verification with `BETTER_AUTH_SECRET`.                           |
-| 2   | Refund + reconciliation flow                    | ✅ Resolved (backend path) | `charge.refunded` webhook now reconciles top-up credits via payment ID.                               |
-| 3   | Canary guardrails (allowlist + kill switches)   | ✅ Resolved                | Added checkout/webhook feature flags and internal tester allowlist enforcement.                       |
-| 4   | Stripe write idempotency keys                   | ✅ Resolved                | Checkout/top-up/portal calls now use Stripe idempotency keys.                                         |
-| 5   | Automated payment test coverage                 | ⚠️ Partial                 | Added backend unit tests and test scripts; Stripe test-mode E2E/live canary execution still required. |
-| 6   | Data integrity + concurrency hardening          | ✅ Resolved                | One-license-per-user uniqueness added; credit deduction changed to atomic DB update.                  |
-| 7   | Domain/config consistency                       | ✅ Resolved                | Redirect/cancel/portal URLs and CORS origins moved to config with consistent defaults.                |
-| 8   | Incident auditability                           | ✅ Resolved                | Failed webhook lock records now retain `lastError` instead of deleting lock rows.                     |
+## Next Steps (In Order)
 
-## Deployment Fixes Applied (2026-03-07)
+### Step 1: Register Stripe Webhook
 
-### CF Worker-specific issues fixed during deployment:
+1. Go to [Stripe Dashboard → Developers → Webhooks](https://dashboard.stripe.com/test/webhooks)
+2. Add endpoint: `https://qcut-license-server.zdhpeter.workers.dev/api/stripe/webhook`
+3. Events: `checkout.session.completed`, `invoice.payment_succeeded`, `customer.subscription.deleted`, `charge.refunded`
+4. Copy signing secret (`whsec_...`) and update:
+   ```bash
+   cd packages/license-server
+   npx wrangler secret put STRIPE_WEBHOOK_SECRET
+   npx wrangler deploy
+   ```
 
-1. **`process.env` not populated** — CF Workers doesn't auto-populate `process.env` from secrets. Fixed by adding middleware that copies `c.env` to `process.env` on each request.
+### Step 2: Test Credit Top-Up
 
-2. **postgres.js TCP in CF Workers** — postgres.js uses `node:net` which needs Hyperdrive proxy. Set up Cloudflare Hyperdrive with direct Supabase DB URL.
+1. Log in at `https://quriosity.com.au/account/dashboard.html`
+2. Buy Starter pack (A$5 / 50 credits)
+3. Use test card: `4242 4242 4242 4242`, any future expiry, any CVC
+4. Verify credits increased on dashboard
 
-3. **Stale Hyperdrive connections** — Warm CF Worker isolates reused singleton DB connections that went stale. Fixed by removing `_db` singleton; each query gets a fresh postgres.js client.
+### Step 3: Test Pro Subscription
 
-4. **RLS blocking INSERTs** — Drizzle migrations enable RLS but create no policies. Disabled RLS on all tables (server-side service, no row-level isolation needed).
+1. Upgrade to Pro Monthly (A$19/mo) with test card
+2. Verify plan = "Pro" and credits updated
+3. Open billing portal → verify subscription visible
 
-5. **better-auth 302 treated as error** — `handleAuthRequest` used `response.ok` (false for 3xx). Fixed to pass through redirects and only treat 4xx/5xx as errors.
+### Step 4: Test Cancellation
 
-6. **better-auth version mismatch** — v1.5.4 requires Zod v4 but workspace has Zod v3. Downgraded to v1.1.6.
+1. Billing portal → cancel subscription
+2. Verify plan reverts to "Free"
 
-7. **Local auth module** — `@qcut/auth/server` uses module-level `betterAuth()` call + `@t3-oss/env-nextjs` (Next.js-specific). Created `src/auth/better-auth.ts` with lazy `getAuth()`.
+### Step 5: Test Refund
 
-8. **Website SSL** — GitHub Pages hadn't provisioned the cert for `quriosity.com.au`. Re-provisioned and enabled HTTPS enforcement.
+1. Stripe Dashboard → Payments → find the top-up → Refund
+2. Verify credits deducted by refunded amount
 
-9. **Wrong API URL** — `payment.js` pointed to `qcut-license-server.workers.dev` instead of `qcut-license-server.zdhpeter.workers.dev`.
+### Step 6: Test Desktop License Sync
 
-## Implemented Changes (By Area)
+1. Sign in via QCut desktop (Google or email)
+2. Verify license/plan matches web dashboard
+3. Verify credit balance matches
+4. Use an AI feature to confirm credits deduct
 
-### 0) Google OAuth Login Flow (Website + Auth Backend)
+### Step 7: Edge Cases
 
-- Enabled real Google OAuth provider in Better Auth config.
-- Added license-server auth routing for:
-  - OAuth start endpoint (`/api/auth/google/start`)
-  - token bridge callback endpoint (`/api/auth/oauth/token-bridge`)
-  - pass-through Better Auth handler under `/api/auth/*`
-- Updated static website login page to:
-  - show a real Google sign-in button
-  - start OAuth through backend
-  - capture callback token (`auth_token`) and redirect to account page
-  - surface callback errors (`auth_error`) to users
-- Files:
-  - `packages/auth/src/keys.ts`
-  - `packages/auth/src/server.ts`
-  - `packages/license-server/src/routes/auth.ts`
-  - `packages/license-server/src/auth/better-auth.ts` (NEW — local lazy auth instance)
-  - `packages/license-server/src/db/drizzle.ts` (per-request fresh connections)
-  - `packages/license-server/src/index.ts`
-  - `packages/nexusai-website/account/login.html`
-  - `packages/nexusai-website/account/dashboard.html`
-  - `packages/nexusai-website/js/payment.js`
-  - `packages/license-server/src/routes/auth.test.ts`
+| Test Card | Scenario |
+|-----------|----------|
+| `4242 4242 4242 4242` | Succeeds |
+| `4000 0000 0000 0002` | Declined |
+| `4000 0000 0000 9995` | Insufficient funds |
+| `4000 0027 6000 3184` | Requires 3D Secure |
 
-### 1) Auth Security Hardening
+### After All Tests Pass → Go Live
 
-- Verified JWT fallback instead of trusting unverified payloads.
-- Files:
-  - `packages/license-server/src/middleware/auth.ts`
-  - `packages/license-server/src/middleware/auth-jwt.ts`
-  - `packages/license-server/src/middleware/auth-jwt.test.ts`
+1. Switch Stripe to live mode, create live products/prices
+2. Update all `STRIPE_*` secrets to live keys
+3. Re-register webhook with live endpoint
+4. Enable canary: `PAYMENTS_CANARY_ONLY=true`, `PAYMENTS_EMAIL_ALLOWLIST=zdhpeter@gmail.com`
+5. Do one real A$5 purchase, then refund yourself
+6. Disable canary → public billing live
 
-### 2) Refund + Reconciliation
+---
 
-- Added refund reconciliation logic keyed by Stripe payment ID.
-- Added webhook handling for `charge.refunded`.
-- Files:
-  - `packages/license-server/src/services/credit-service.ts`
-  - `packages/license-server/src/services/stripe-service.ts`
+## Safety Guardrails (Built In)
 
-### 3) Canary Guardrails + Kill Switches
+| Guardrail | Status |
+|-----------|--------|
+| JWT auth verification | ✅ `BETTER_AUTH_SECRET` signature check |
+| Stripe idempotency keys | ✅ On all checkout/portal/top-up calls |
+| Webhook deduplication | ✅ `event.id` lock in `stripe_webhook_events` table |
+| Refund reconciliation | ✅ `charge.refunded` webhook reconciles credits by payment ID |
+| Kill switches | ✅ `PAYMENTS_CHECKOUT_ENABLED`, `PAYMENTS_WEBHOOK_ENABLED` |
+| Canary allowlist | ✅ `PAYMENTS_CANARY_ONLY` + `PAYMENTS_EMAIL_ALLOWLIST` |
+| Atomic credit deduction | ✅ SQL transaction prevents race-driven overspend |
+| One license per user | ✅ Unique constraint enforced |
+| Incident auditability | ✅ Failed webhooks retain `lastError` |
 
-- Added canary allowlist checks (internal testers only when enabled).
-- Added fast shutdown toggles for checkout creation and webhook processing.
-- Files:
-  - `packages/license-server/src/services/payment-config.ts`
-  - `packages/license-server/src/services/payment-access.ts`
-  - `packages/license-server/src/routes/stripe.ts`
-  - `packages/license-server/src/routes/credits.ts`
-  - `packages/license-server/.env.example`
+### No-Go Conditions
 
-### 4) Stripe Idempotency Keys
+Do not open public billing if any are true:
+- Webhook idempotency is missing or unproven
+- Refund path is manual and undocumented
+- Deep-link activation fails intermittently
+- License and credit data diverge under retry/replay
 
-- Added idempotency key support for:
-  - `checkout.sessions.create`
-  - `billingPortal.sessions.create`
-- Integrated `Idempotency-Key` header support with deterministic fallback keys.
-- Files:
-  - `packages/license-server/src/services/stripe-service.ts`
-  - `packages/license-server/src/services/payment-config.ts`
-  - `packages/license-server/src/routes/stripe.ts`
-  - `packages/license-server/src/routes/credits.ts`
-  - `packages/license-server/src/index.ts`
+---
 
-### 5) Data Integrity + Concurrency
+## Architecture
 
-- Enforced one license row per user:
-  - schema + migrations updated.
-- Reworked credit deduction to atomic SQL update in transaction (prevents race-driven overspend).
-- Files:
-  - `packages/db/src/schema.ts`
-  - `packages/db/migrations/0003_payment_guardrails_and_integrity.sql`
-  - `packages/db/migrations/meta/_journal.json`
-  - `packages/license-server/src/services/license-service.ts`
-  - `packages/license-server/src/services/credit-service.ts`
-
-### 6) Domain/Config Consistency
-
-- Removed hardcoded GitHub Pages (`github.io`) payment redirects from Stripe service logic.
-- Introduced configurable web base URL and CORS origin management.
-- Files:
-  - `packages/license-server/src/services/payment-config.ts`
-  - `packages/license-server/src/services/stripe-service.ts`
-  - `packages/license-server/src/index.ts`
-  - `packages/license-server/.env.example`
-
-### 7) Incident Auditability
-
-- Failed webhook processing now preserves lock rows and writes error details to `lastError`.
-- Files:
-  - `packages/license-server/src/services/stripe-service.ts`
-
-## Environment Variables Added
-
-Defined in `packages/license-server/.env.example`:
-
-- `BETTER_AUTH_SECRET`
-- `PAYMENTS_WEB_BASE_URL`
-- `PAYMENTS_CHECKOUT_ENABLED`
-- `PAYMENTS_WEBHOOK_ENABLED`
-- `PAYMENTS_CANARY_ONLY`
-- `PAYMENTS_EMAIL_ALLOWLIST`
-- `CORS_ALLOWED_ORIGINS`
-
-## Automated Test Coverage Added
-
-### License Server Unit Tests
-
-- `packages/license-server/src/middleware/auth-jwt.test.ts`
-- `packages/license-server/src/services/payment-config.test.ts`
-- `packages/license-server/src/routes/auth.test.ts`
-
-### Test Scripts
-
-- `packages/license-server/package.json`
-  - `test`
-  - `test:watch`
-- Root `package.json`
-  - `test:payments`
-
-### How To Run
-
-```bash
-# from repo root
-bun run test:payments
-
-# or directly
-cd packages/license-server
-bun run test
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│   QCut App      │────▶│  License Server   │◀────│   QCut Web      │
+│   (Electron)    │     │  (CF Workers)     │     │  (quriosity.au) │
+│                 │     │                   │     │                 │
+│ • Login (Google │     │ • Better Auth     │     │ • Login page    │
+│   + email)      │     │ • Stripe webhooks │     │ • Dashboard     │
+│ • License check │     │ • Usage tracking  │     │ • Pricing       │
+│ • Feature gates │     │ • Credit system   │     │ • Stripe Checkout│
+│ • Deep link ✅  │     │ • OAuth bridge    │     │                 │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+                              │
+                              ▼
+                     ┌──────────────────┐
+                     │  Supabase (DB)   │
+                     │  Stripe (API)    │
+                     └──────────────────┘
 ```
 
-## Remaining Required Work Before Public Billing
+---
 
-1. **Register Stripe webhook endpoint** in Stripe Dashboard:
-   - URL: `https://qcut-license-server.zdhpeter.workers.dev/api/stripe/webhook`
-   - Events: `checkout.session.completed`, `invoice.payment_succeeded`, `customer.subscription.deleted`, `charge.refunded`
-2. Run Stripe test-mode E2E for the staged scenarios in `docs/task/qcut-payment-system-real-test.md`.
-3. Execute a controlled live canary with internal allowlist enabled.
-4. Validate operational rollback/refund procedures in real environment logs and DB.
-5. Keep runbook current: `docs/task/payment-refund-rollback-runbook.md`.
+## Pricing (AUD, Test Mode)
 
-## Key Payment Files (Current)
+| Plan | Monthly | Yearly | Credits/month |
+|------|---------|--------|---------------|
+| Free | $0 | — | 50 |
+| Pro | A$19 | A$190 | 500 |
+| Team | A$49 | A$490 | 2000 |
 
+| Top-Up Pack | Price | Credits |
+|-------------|-------|---------|
+| Starter | A$5 | 50 |
+| Standard | A$10 | 120 |
+| Pro | A$25 | 350 |
+| Mega | A$50 | 800 |
+
+---
+
+## Key Files
+
+### License Server
 - `packages/license-server/src/index.ts`
 - `packages/license-server/src/auth/better-auth.ts`
 - `packages/license-server/src/db/drizzle.ts`
@@ -215,5 +172,33 @@ bun run test
 - `packages/license-server/src/services/payment-access.ts`
 - `packages/license-server/src/middleware/auth.ts`
 - `packages/license-server/src/middleware/auth-jwt.ts`
+
+### Desktop App (Auth)
+- `electron/license-handler.ts`
+- `electron/preload.ts`
+- `apps/web/src/hooks/auth/useLogin.ts`
+- `apps/web/src/hooks/auth/useSignUp.ts`
+- `apps/web/src/stores/license-store.ts`
+- `apps/web/src/types/electron/api-license.ts`
+
+### Database & Website
 - `packages/db/src/schema.ts`
 - `packages/nexusai-website/js/payment.js`
+
+## Tests
+
+```bash
+bun run test:payments          # License server unit tests
+cd packages/license-server && bun run test   # Direct
+```
+
+## Deployment
+
+```bash
+cd packages/license-server
+npx wrangler deploy            # Deploy server
+npx wrangler tail              # Live logs
+npx wrangler secret list       # Check secrets
+```
+
+See `docs/task/license-server-cloudflare-deploy.md` for full deployment guide.
