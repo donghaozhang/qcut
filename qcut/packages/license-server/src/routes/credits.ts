@@ -3,15 +3,8 @@ import { authMiddleware } from "../middleware/auth";
 import {
 	deductCreditsForUser,
 	getCreditBalanceByUserId,
-	isTopUpPack,
 	listCreditHistoryByUserId,
 } from "../services/credit-service";
-import { ensureCanaryUserAllowed } from "../services/payment-access";
-import {
-	isCheckoutCreationEnabled,
-	resolveStripeIdempotencyKey,
-} from "../services/payment-config";
-import { createTopUpCheckoutSession } from "../services/stripe-service";
 
 const creditsRoutes = new Hono();
 
@@ -162,49 +155,6 @@ creditsRoutes.get("/history", async (c) => {
 					error instanceof Error
 						? error.message
 						: "Failed to load credit history",
-			},
-			500
-		);
-	}
-});
-
-creditsRoutes.post("/topup", async (c) => {
-	try {
-		if (!isCheckoutCreationEnabled()) {
-			return c.json({ error: "Checkout is temporarily disabled" }, 503);
-		}
-
-		const userId = c.get("userId") as string;
-		const canaryGuard = await ensureCanaryUserAllowed({ userId });
-		if (!canaryGuard.allowed) {
-			return c.json({ error: canaryGuard.error }, canaryGuard.status);
-		}
-
-		const payload = await c.req.json();
-		const pack = typeof payload?.pack === "string" ? payload.pack.trim() : "";
-
-		if (!isTopUpPack(pack)) {
-			return c.json({ error: "Invalid top-up pack" }, 400);
-		}
-
-		const session = await createTopUpCheckoutSession({
-			userId,
-			pack,
-			idempotencyKey: resolveStripeIdempotencyKey({
-				providedKey: c.req.header("Idempotency-Key"),
-				scope: "topup",
-				ownerId: userId,
-				payloadParts: [pack],
-			}),
-		});
-		return c.json({ url: session.url });
-	} catch (error) {
-		return c.json(
-			{
-				error:
-					error instanceof Error
-						? error.message
-						: "Failed to create top-up checkout session",
 			},
 			500
 		);

@@ -38,6 +38,7 @@ interface SessionInfo {
 	reviewDecision: ReviewDecision | null;
 	pendingThreads: number | null;
 	activity: ActivityState | null;
+	workpadUrl: string | null;
 }
 
 async function gatherSessionInfo(
@@ -131,6 +132,7 @@ async function gatherSessionInfo(
 		reviewDecision,
 		pendingThreads,
 		activity,
+		workpadUrl: typeof session.metadata["workpadUrl"] === "string" ? session.metadata["workpadUrl"].trim() : null,
 	};
 }
 
@@ -145,6 +147,26 @@ const COL = {
 	activity: 9,
 	age: 8,
 };
+
+/** Returns a short human-readable explanation of why a session is blocked. */
+function getBlockerHint(status: string | null): string | null {
+	switch (status) {
+		case "ci_failed":
+			return "CI checks failing — agent will retry or needs manual guidance";
+		case "changes_requested":
+			return "Reviewer requested changes — agent is addressing feedback";
+		case "needs_input":
+			return "Waiting for human input — attach and provide clarification";
+		case "stuck":
+			return "Agent appears stuck — attach to investigate or re-spawn";
+		case "errored":
+			return "Session errored — check logs and re-spawn if needed";
+		case "approved":
+			return "Policy gate may be blocking merge — check workpad for violations";
+		default:
+			return null;
+	}
+}
 
 function printTableHeader(): void {
 	const hdr =
@@ -169,7 +191,7 @@ function printTableHeader(): void {
 	console.log(chalk.dim(`  ${"─".repeat(totalWidth)}`));
 }
 
-function printSessionRow(info: SessionInfo): void {
+function printSessionRow(info: SessionInfo, verbose = false): void {
 	const prStr = info.prNumber ? `#${info.prNumber}` : "-";
 
 	const row =
@@ -196,6 +218,18 @@ function printSessionRow(info: SessionInfo): void {
 			`  ${" ".repeat(COL.session)}${chalk.dim(displaySummary.slice(0, 60))}`
 		);
 	}
+
+	// Verbose: show "why blocked?" and workpad link
+	if (verbose) {
+		const indent = `  ${" ".repeat(COL.session)}`;
+		const blockerHint = getBlockerHint(info.status);
+		if (blockerHint) {
+			console.log(`${indent}${chalk.yellow("⚠")} ${chalk.yellow(blockerHint)}`);
+		}
+		if (info.workpadUrl) {
+			console.log(`${indent}${chalk.dim("Workpad:")} ${chalk.dim(info.workpadUrl)}`);
+		}
+	}
 }
 
 export function registerStatus(program: Command): void {
@@ -204,7 +238,8 @@ export function registerStatus(program: Command): void {
 		.description("Show all sessions with branch, activity, PR, and CI status")
 		.option("-p, --project <id>", "Filter by project ID")
 		.option("--json", "Output as JSON")
-		.action(async (opts: { project?: string; json?: boolean }) => {
+		.option("-v, --verbose", "Show blocker hints and workpad URLs per session")
+		.action(async (opts: { project?: string; json?: boolean; verbose?: boolean }) => {
 			let config: ReturnType<typeof loadConfig>;
 			try {
 				config = loadConfig();
@@ -285,7 +320,7 @@ export function registerStatus(program: Command): void {
 					if (opts.json) {
 						jsonOutput.push(info);
 					} else {
-						printSessionRow(info);
+						printSessionRow(info, opts.verbose);
 					}
 				}
 

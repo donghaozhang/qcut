@@ -412,29 +412,33 @@ export async function addTopUpCreditsForUser({
 		validatePositiveAmount({ amount: credits });
 		const balance = await ensureCreditBalance({ userId });
 		const refreshed = await resetPlanCreditsIfDue({ userId, balance });
-		const now = new Date();
 
-		const [updated] = await db
-			.update(creditBalances)
-			.set({
-				topUpCredits: refreshed.topUpCredits + credits,
-				updatedAt: now,
-			})
-			.where(eq(creditBalances.id, refreshed.id))
-			.returning();
+		const updated = await db.transaction(async (tx) => {
+			const now = new Date();
+			const [nextBalance] = await tx
+				.update(creditBalances)
+				.set({
+					topUpCredits: sql`${creditBalances.topUpCredits} + ${credits}`,
+					updatedAt: now,
+				})
+				.where(eq(creditBalances.id, refreshed.id))
+				.returning();
 
-		if (!updated) {
-			throw new Error("Top-up update returned no row");
-		}
+			if (!nextBalance) {
+				throw new Error("Top-up update returned no row");
+			}
 
-		await db.insert(creditTransactions).values({
-			id: crypto.randomUUID(),
-			userId,
-			type: "top_up",
-			amount: credits,
-			balanceAfter: updated.planCredits + updated.topUpCredits,
-			description: description ?? "Credit top-up",
-			stripePaymentId,
+			await tx.insert(creditTransactions).values({
+				id: crypto.randomUUID(),
+				userId,
+				type: "top_up",
+				amount: credits,
+				balanceAfter: nextBalance.planCredits + nextBalance.topUpCredits,
+				description: description ?? "Credit top-up",
+				stripePaymentId,
+			});
+
+			return nextBalance;
 		});
 
 		return buildCreditBalanceInfo({ balance: updated });
@@ -490,31 +494,35 @@ export async function resetPlanCreditsForUser({
 		const resolvedPlan = plan ?? (await getPlanByUserId({ userId }));
 		const refreshedPlanCredits = PLAN_CREDITS[resolvedPlan];
 		const balance = await ensureCreditBalance({ userId });
-		const now = new Date();
 
-		const [updated] = await db
-			.update(creditBalances)
-			.set({
-				planCredits: refreshedPlanCredits,
-				planCreditsResetAt: getNextResetAt({ now }),
-				updatedAt: now,
-			})
-			.where(eq(creditBalances.id, balance.id))
-			.returning();
+		const updated = await db.transaction(async (tx) => {
+			const now = new Date();
+			const [nextBalance] = await tx
+				.update(creditBalances)
+				.set({
+					planCredits: refreshedPlanCredits,
+					planCreditsResetAt: getNextResetAt({ now }),
+					updatedAt: now,
+				})
+				.where(eq(creditBalances.id, balance.id))
+				.returning();
 
-		if (!updated) {
-			throw new Error("Plan credit refresh update returned no row");
-		}
+			if (!nextBalance) {
+				throw new Error("Plan credit refresh update returned no row");
+			}
 
-		await db.insert(creditTransactions).values({
-			id: crypto.randomUUID(),
-			userId,
-			type: "plan_grant",
-			amount: refreshedPlanCredits,
-			balanceAfter: updated.planCredits + updated.topUpCredits,
-			description:
-				description ?? `${resolvedPlan} plan credits granted for new period`,
-			stripePaymentId,
+			await tx.insert(creditTransactions).values({
+				id: crypto.randomUUID(),
+				userId,
+				type: "plan_grant",
+				amount: refreshedPlanCredits,
+				balanceAfter: nextBalance.planCredits + nextBalance.topUpCredits,
+				description:
+					description ?? `${resolvedPlan} plan credits granted for new period`,
+				stripePaymentId,
+			});
+
+			return nextBalance;
 		});
 
 		return buildCreditBalanceInfo({ balance: updated });
@@ -536,28 +544,33 @@ export async function downgradeToFreeCreditsForUser({
 	try {
 		const freeCredits = PLAN_CREDITS.free;
 		const balance = await ensureCreditBalance({ userId });
-		const now = new Date();
-		const [updated] = await db
-			.update(creditBalances)
-			.set({
-				planCredits: freeCredits,
-				planCreditsResetAt: getNextResetAt({ now }),
-				updatedAt: now,
-			})
-			.where(eq(creditBalances.id, balance.id))
-			.returning();
 
-		if (!updated) {
-			throw new Error("Free-plan downgrade update returned no row");
-		}
+		const updated = await db.transaction(async (tx) => {
+			const now = new Date();
+			const [nextBalance] = await tx
+				.update(creditBalances)
+				.set({
+					planCredits: freeCredits,
+					planCreditsResetAt: getNextResetAt({ now }),
+					updatedAt: now,
+				})
+				.where(eq(creditBalances.id, balance.id))
+				.returning();
 
-		await db.insert(creditTransactions).values({
-			id: crypto.randomUUID(),
-			userId,
-			type: "expiry",
-			amount: 0,
-			balanceAfter: updated.planCredits + updated.topUpCredits,
-			description: description ?? "Downgraded to free plan credits",
+			if (!nextBalance) {
+				throw new Error("Free-plan downgrade update returned no row");
+			}
+
+			await tx.insert(creditTransactions).values({
+				id: crypto.randomUUID(),
+				userId,
+				type: "expiry",
+				amount: 0,
+				balanceAfter: nextBalance.planCredits + nextBalance.topUpCredits,
+				description: description ?? "Downgraded to free plan credits",
+			});
+
+			return nextBalance;
 		});
 
 		return buildCreditBalanceInfo({ balance: updated });
@@ -700,14 +713,19 @@ export async function reconcileTopUpRefundByStripePaymentId({
 				.update(creditBalances)
 				.set({
 					planCredits: sql`GREATEST(${creditBalances.planCredits} - ${creditsToApply}, 0)`,
-					topUpCredits: sql`CASE
+					topUpCredits: sql`GREATEST(CASE
 						WHEN ${creditBalances.planCredits} >= ${creditsToApply}
 						THEN ${creditBalances.topUpCredits}
 						ELSE ${creditBalances.topUpCredits} - (${creditsToApply} - ${creditBalances.planCredits})
-					END`,
+					END, 0)`,
 					updatedAt: now,
 				})
-				.where(eq(creditBalances.id, refreshed.id))
+				.where(
+					and(
+						eq(creditBalances.id, refreshed.id),
+						sql`${creditBalances.planCredits} + ${creditBalances.topUpCredits} >= 0`
+					)
+				)
 				.returning();
 
 			if (!nextBalance) {
@@ -718,11 +736,15 @@ export async function reconcileTopUpRefundByStripePaymentId({
 				shortfallCredits > 0
 					? `; unreconciled_shortfall_credits=${shortfallCredits}`
 					: "";
+			const actualDeducted =
+				refreshed.planCredits +
+				refreshed.topUpCredits -
+				(nextBalance.planCredits + nextBalance.topUpCredits);
 			await tx.insert(creditTransactions).values({
 				id: crypto.randomUUID(),
 				userId: resolvedUserId,
 				type: "refund",
-				amount: -creditsToApply,
+				amount: -actualDeducted,
 				balanceAfter: nextBalance.planCredits + nextBalance.topUpCredits,
 				description: `Stripe refund reconciliation for ${normalizedPaymentId}${shortfallMessage}`,
 				stripePaymentId: normalizedPaymentId,

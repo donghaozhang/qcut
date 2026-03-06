@@ -306,6 +306,9 @@ export async function createCheckoutSession({
 			payloadParts: [plan, interval],
 		});
 
+		const license = await getLicenseByUserId({ userId });
+		const existingCustomerId = license.stripeCustomerId ?? undefined;
+
 		return await stripe.checkout.sessions.create(
 			{
 				mode: "subscription",
@@ -313,6 +316,7 @@ export async function createCheckoutSession({
 				line_items: [{ price: priceId, quantity: 1 }],
 				success_url: getPaymentSuccessUrl({ type: "subscription" }),
 				cancel_url: getPaymentCancelUrl({ type: "subscription" }),
+				...(existingCustomerId ? { customer: existingCustomerId } : {}),
 				metadata: {
 					type: "subscription",
 					userId,
@@ -565,6 +569,11 @@ async function handleInvoicePaymentSucceeded({
 	invoice: Stripe.Invoice;
 }): Promise<void> {
 	try {
+		// Skip the initial invoice — handleCheckoutCompleted already grants credits.
+		if (invoice.billing_reason === "subscription_create") {
+			return;
+		}
+
 		const subscriptionId =
 			typeof invoice.subscription === "string"
 				? invoice.subscription
