@@ -17,3 +17,12 @@ Review all changes, stage them, create a commit with a clear message, and push t
 - Use conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
 - Do not stage `.env` files or secrets
 - If there are no changes, report "Nothing to commit" and stop
+
+## Linear Integration
+
+Append a Linear magic word to the commit message when a Linear issue is active on the current branch. Use the format:
+
+- `Part of QUR-XX` — for incremental work on an issue
+- `Fixes QUR-XX` / `Closes QUR-XX` — when the commit fully resolves the issue
+
+Check the branch name or recent commits for the issue ID (e.g. `QUR-10`). If no issue ID is found, omit the magic word.
