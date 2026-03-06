@@ -118,6 +118,7 @@ export function AttentionZone({
 								onMerge={onMerge}
 								onRestore={onRestore}
 								onLabelChange={onLabelChange}
+								onGitit={onGitit}
 							/>
 						))}
 					</div>

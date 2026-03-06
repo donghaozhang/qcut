@@ -45,7 +45,7 @@ export function Dashboard({
 }: DashboardProps) {
 	const [showRelaySessions, setShowRelaySessions] = useState(false);
 	const [sessionSortMode, setSessionSortMode] = useState<SessionSortMode>(
-		SESSION_SORT_MODE.DEFAULT
+		SESSION_SORT_MODE.CPU
 	);
 	const [labelOverrides, setLabelOverrides] = useState<
 		Record<string, string | null>

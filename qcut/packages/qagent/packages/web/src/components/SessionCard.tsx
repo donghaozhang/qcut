@@ -226,7 +226,7 @@ export function SessionCard({
 						restore
 					</button>
 				)}
-				{onGitit && (
+				{onGitit && session.managed && (
 					<button
 						onClick={(e) => {
 							e.stopPropagation();

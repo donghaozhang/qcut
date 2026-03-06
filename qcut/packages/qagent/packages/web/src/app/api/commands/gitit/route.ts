@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { type NextRequest, NextResponse } from "next/server";
-import { validateIdentifier } from "@/lib/validation";
+import { validateString } from "@/lib/validation";
 import { getServices } from "@/lib/services";
 
 /** POST /api/commands/gitit — Read gitit.md and send it to a session */
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 	> | null;
 
 	const sessionId = String(body?.sessionId ?? "");
-	const idErr = validateIdentifier(sessionId, "sessionId");
+	const idErr = validateString(sessionId, "sessionId", 256);
 	if (idErr) {
 		return NextResponse.json({ error: idErr }, { status: 400 });
 	}
