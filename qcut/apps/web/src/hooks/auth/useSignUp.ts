@@ -66,9 +66,7 @@ export function useSignUp() {
 			await checkLicense();
 			navigate({ to: "/projects" });
 		} catch (err) {
-			setError(
-				err instanceof Error ? err.message : "Sign up failed"
-			);
+			setError(err instanceof Error ? err.message : "Sign up failed");
 		} finally {
 			setIsEmailLoading(false);
 		}
@@ -96,9 +94,7 @@ export function useSignUp() {
 			setIsWaitingForBrowser(true);
 		} catch (err) {
 			setError(
-				err instanceof Error
-					? err.message
-					: "Failed to open Google sign up"
+				err instanceof Error ? err.message : "Failed to open Google sign up"
 			);
 			setIsGoogleLoading(false);
 			setIsWaitingForBrowser(false);

@@ -71,11 +71,7 @@ const LoginPageComponent = () => {
 										<ExternalLink className="h-4 w-4" />
 										Complete sign-in in your browser
 									</div>
-									<Button
-										variant="text"
-										size="sm"
-										onClick={cancelBrowserLogin}
-									>
+									<Button variant="text" size="sm" onClick={cancelBrowserLogin}>
 										Cancel
 									</Button>
 								</div>
