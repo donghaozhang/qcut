@@ -5,7 +5,7 @@
 The `packages/license-server` is a Hono app deployed to Cloudflare Workers at
 `https://qcut-license-server.zdhpeter.workers.dev`.
 
-**Status (2026-03-07):** Worker is live and healthy. Secrets set: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `STRIPE_SECRET_KEY`. Still needed: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `STRIPE_WEBHOOK_SECRET`, all Stripe price IDs.
+**Status (2026-03-07):** Worker is fully configured and live. All 16 secrets set. Stripe test products and prices created (AUD, test mode). Ready for end-to-end testing.
 
 ---
 
@@ -36,7 +36,7 @@ encrypted in Cloudflare and injected as `process.env.*` at runtime.
 |--------|----------------------|--------|
 | `SUPABASE_URL` | `https://kbrtxitvavpuimuihppz.supabase.co` | ✅ set |
 | `SUPABASE_SERVICE_KEY` | Supabase → Project Settings → API Keys → Legacy → `service_role` → Reveal | ✅ set |
-| `DATABASE_URL` | Supabase → Project Settings → Database → Connection string (reset password if needed) | ❌ needed |
+| `DATABASE_URL` | `postgresql://postgres.kbrtxitvavpuimuihppz:***@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres` | ✅ set |
 
 ```bash
 echo "https://kbrtxitvavpuimuihppz.supabase.co" | npx wrangler secret put SUPABASE_URL
@@ -48,9 +48,9 @@ echo "postgresql://postgres.kbrtxitvavpuimuihppz:<PASSWORD>@aws-0-ap-southeast-2
 
 | Secret | Where to find | Status |
 |--------|---------------|--------|
-| `BETTER_AUTH_SECRET` | Generate: `openssl rand -hex 32` | ❌ needed |
-| `GOOGLE_CLIENT_ID` | Google Cloud Console → APIs & Services → Credentials | ❌ needed |
-| `GOOGLE_CLIENT_SECRET` | Same OAuth 2.0 Client | ❌ needed |
+| `BETTER_AUTH_SECRET` | Generate: `openssl rand -hex 32` | ✅ set |
+| `GOOGLE_CLIENT_ID` | OAuth client: "QCut License Server" in Google Cloud Console | ✅ set |
+| `GOOGLE_CLIENT_SECRET` | Same OAuth 2.0 Client | ✅ set |
 
 ```bash
 echo "<better_auth_secret>" | npx wrangler secret put BETTER_AUTH_SECRET
@@ -63,15 +63,15 @@ echo "<google_client_secret>" | npx wrangler secret put GOOGLE_CLIENT_SECRET
 | Secret | Where to find | Status |
 |--------|---------------|--------|
 | `STRIPE_SECRET_KEY` | Stripe Dashboard → Developers → API keys → Secret key | ✅ set (test key) |
-| `STRIPE_WEBHOOK_SECRET` | Stripe → Developers → Webhooks → endpoint → Signing secret | ❌ needed |
-| `STRIPE_PRO_MONTHLY_PRICE_ID` | Stripe → Products → Pro plan → Monthly price ID | ❌ needed |
-| `STRIPE_PRO_YEARLY_PRICE_ID` | Stripe → Products → Pro plan → Yearly price ID | ❌ needed |
-| `STRIPE_TEAM_MONTHLY_PRICE_ID` | Stripe → Products → Team plan → Monthly price ID | ❌ needed |
-| `STRIPE_TEAM_YEARLY_PRICE_ID` | Stripe → Products → Team plan → Yearly price ID | ❌ needed |
-| `STRIPE_TOPUP_STARTER_PRICE_ID` | Stripe → Products → Top-up Starter | ❌ needed |
-| `STRIPE_TOPUP_STANDARD_PRICE_ID` | Stripe → Products → Top-up Standard | ❌ needed |
-| `STRIPE_TOPUP_PRO_PRICE_ID` | Stripe → Products → Top-up Pro | ❌ needed |
-| `STRIPE_TOPUP_MEGA_PRICE_ID` | Stripe → Products → Top-up Mega | ❌ needed |
+| `STRIPE_WEBHOOK_SECRET` | Stripe → Developers → Webhooks → endpoint → Signing secret | ✅ set |
+| `STRIPE_PRO_MONTHLY_PRICE_ID` | `price_1T7zQaELR0vJaZKXqLFVlqkj` — A$19/mo | ✅ set |
+| `STRIPE_PRO_YEARLY_PRICE_ID` | `price_1T7zQbELR0vJaZKXrX7mBsfw` — A$190/yr | ✅ set |
+| `STRIPE_TEAM_MONTHLY_PRICE_ID` | `price_1T7zQkELR0vJaZKXEfp9Zia4` — A$49/mo | ✅ set |
+| `STRIPE_TEAM_YEARLY_PRICE_ID` | `price_1T7zQlELR0vJaZKXtj8U23Ca` — A$490/yr | ✅ set |
+| `STRIPE_TOPUP_STARTER_PRICE_ID` | `price_1T7zQyELR0vJaZKXnyYJ522L` — A$5 (50 credits) | ✅ set |
+| `STRIPE_TOPUP_STANDARD_PRICE_ID` | `price_1T7zR0ELR0vJaZKXuDGYGGnp` — A$10 (120 credits) | ✅ set |
+| `STRIPE_TOPUP_PRO_PRICE_ID` | `price_1T7zR1ELR0vJaZKXxIV9FeLe` — A$25 (350 credits) | ✅ set |
+| `STRIPE_TOPUP_MEGA_PRICE_ID` | `price_1T7zR3ELR0vJaZKXPi0aj3l4` — A$50 (800 credits) | ✅ set |
 
 ```bash
 echo "<sk_live_...>" | npx wrangler secret put STRIPE_SECRET_KEY
