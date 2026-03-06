@@ -1,6 +1,6 @@
 import { and, eq, gte } from "drizzle-orm";
 import type { Context, Next } from "hono";
-import { db } from "@qcut/db";
+import { db } from "../db/drizzle";
 import { sessions } from "@qcut/db/schema";
 import { isMockMode } from "./mock";
 import { verifyJwtAndExtractUserId } from "./auth-jwt";

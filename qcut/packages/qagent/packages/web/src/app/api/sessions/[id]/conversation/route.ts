@@ -9,6 +9,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { findCLISession } from "@/lib/cli-sessions";
 import {
 	resolveClaudeProjectDir,
+	findClaudeSessionFileForContext,
 	findLatestSessionFile,
 	findLatestCodexSessionFile,
 	findCodexSessionFileForContext,
@@ -125,8 +126,12 @@ export async function GET(
 					{ status: 400 },
 				);
 			}
-			const projectDir = resolveClaudeProjectDir(cwd);
-			sessionFile = await findLatestSessionFile(projectDir);
+			const processStartedAt = session.metadata.processStartedAt ?? null;
+			sessionFile = await findClaudeSessionFileForContext({ cwd, processStartedAt });
+			if (!sessionFile) {
+				const projectDir = resolveClaudeProjectDir(cwd);
+				sessionFile = await findLatestSessionFile(projectDir);
+			}
 		} else {
 			const processStartedAt = session.metadata.processStartedAt ?? null;
 			sessionFile = await findCodexSessionFileForContext({

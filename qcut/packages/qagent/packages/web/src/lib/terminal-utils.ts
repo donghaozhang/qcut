@@ -75,17 +75,19 @@ export async function readTerminalTabName(
 	}
 
 	if (app !== "iTerm" && app !== "Terminal") return null;
-	const fullTTY = escapeAppleScript(normalizeTTY(tty));
+	const fullTTY = normalizeTTY(tty);
 
 	const script =
 		app === "iTerm"
 			? `
+on run argv
+set fullTTY to item 1 of argv
 tell application "iTerm2"
 	repeat with aWindow in windows
 		repeat with aTab in tabs of aWindow
 			repeat with aSession in sessions of aTab
 				try
-					if tty of aSession ends with "${fullTTY}" then
+					if tty of aSession ends with fullTTY then
 						return name of aSession
 					end if
 				end try
@@ -93,23 +95,27 @@ tell application "iTerm2"
 		end repeat
 	end repeat
 	return "NOT_FOUND"
-end tell`
+end tell
+end run`
 			: `
+on run argv
+set fullTTY to item 1 of argv
 tell application "Terminal"
 	repeat with aWindow in windows
 		repeat with aTab in tabs of aWindow
 			try
-				if tty of aTab ends with "${fullTTY}" then
+				if tty of aTab ends with fullTTY then
 					return custom title of aTab
 				end if
 			end try
 		end repeat
 	end repeat
 	return "NOT_FOUND"
-end tell`;
+end tell
+end run`;
 
 	try {
-		const { stdout } = await execFileAsync("osascript", ["-e", script], {
+		const { stdout } = await execFileAsync("osascript", ["-e", script, fullTTY], {
 			timeout: 5_000,
 		});
 		const name = stdout.trim();
@@ -132,10 +138,30 @@ interface VSCodeTask {
  * Cursor's pty-host spawns one child process per terminal tab. The children
  * appear in PID order matching the task launch order from tasks.json.
  */
+/**
+ * Return the 0-based terminal tab index for a PID in a Cursor/VS Code pty-host.
+ * Used to focus the exact terminal tab before sending text.
+ */
+export async function matchVSCodeTaskIndex(
+	pid?: number,
+	cwd?: string,
+): Promise<number | null> {
+	const result = await matchVSCodeTaskLabelAndIndex(pid, cwd);
+	return result?.index ?? null;
+}
+
 async function matchVSCodeTaskLabel(
 	pid?: number,
 	cwd?: string,
 ): Promise<string | null> {
+	const result = await matchVSCodeTaskLabelAndIndex(pid, cwd);
+	return result?.label ?? null;
+}
+
+async function matchVSCodeTaskLabelAndIndex(
+	pid?: number,
+	cwd?: string,
+): Promise<{ label: string; index: number } | null> {
 	if (!pid || !cwd) return null;
 
 	// 1. Walk up to find the pty-host parent
@@ -242,7 +268,7 @@ async function matchVSCodeTaskLabel(
 			// to avoid matching interactive shells like "/bin/zsh -il"
 			if (!expected.command.includes(" ") && sibParts.length > 1) continue;
 
-			if (sibling.pid === pid) return expected.label;
+			if (sibling.pid === pid) return { label: expected.label, index: taskIdx };
 			taskIdx++;
 		}
 	} catch {
@@ -258,14 +284,16 @@ async function matchVSCodeTaskLabel(
 export async function readITerm2Content(
 	tty: string,
 ): Promise<string | null> {
-	const fullTTY = escapeAppleScript(normalizeTTY(tty));
+	const fullTTY = normalizeTTY(tty);
 	const script = `
+on run argv
+set fullTTY to item 1 of argv
 tell application "iTerm2"
 	repeat with aWindow in windows
 		repeat with aTab in tabs of aWindow
 			repeat with aSession in sessions of aTab
 				try
-					if tty of aSession ends with "${fullTTY}" then
+					if tty of aSession ends with fullTTY then
 						return contents of aSession
 					end if
 				end try
@@ -273,9 +301,10 @@ tell application "iTerm2"
 		end repeat
 	end repeat
 	return "NOT_FOUND"
-end tell`;
+end tell
+end run`;
 	try {
-		const { stdout } = await execFileAsync("osascript", ["-e", script], {
+		const { stdout } = await execFileAsync("osascript", ["-e", script, fullTTY], {
 			timeout: 8_000,
 		});
 		const content = stdout.trimEnd();
@@ -286,28 +315,194 @@ end tell`;
 }
 
 /**
+ * Send text to an iTerm2 session matching the given TTY.
+ * Uses AppleScript `write text` which injects text as if typed and submits it.
+ */
+export async function sendITerm2Text(
+	tty: string,
+	text: string,
+): Promise<boolean> {
+	const fullTTY = normalizeTTY(tty);
+	const script = `
+on run argv
+set fullTTY to item 1 of argv
+set payload to item 2 of argv
+tell application "iTerm2"
+	repeat with aWindow in windows
+		repeat with aTab in tabs of aWindow
+			repeat with aSession in sessions of aTab
+				try
+					if tty of aSession ends with fullTTY then
+						tell aSession
+							write text payload
+						end tell
+						return "OK"
+					end if
+				end try
+			end repeat
+		end repeat
+	end repeat
+	return "NOT_FOUND"
+end tell
+end run`;
+	try {
+		const { stdout } = await execFileAsync("osascript", ["-e", script, fullTTY, text], {
+			timeout: 8_000,
+		});
+		return stdout.trim() === "OK";
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Send text to a Terminal.app tab matching the given TTY.
+ */
+export async function sendTerminalAppText(
+	tty: string,
+	text: string,
+): Promise<boolean> {
+	const fullTTY = normalizeTTY(tty);
+	const script = `
+on run argv
+set fullTTY to item 1 of argv
+set payload to item 2 of argv
+tell application "Terminal"
+	repeat with aWindow in windows
+		repeat with aTab in tabs of aWindow
+			try
+				if tty of aTab ends with fullTTY then
+					do script payload in aTab
+					return "OK"
+				end if
+			end try
+		end repeat
+	end repeat
+	return "NOT_FOUND"
+end tell
+end run`;
+	try {
+		const { stdout } = await execFileAsync("osascript", ["-e", script, fullTTY, text], {
+			timeout: 8_000,
+		});
+		return stdout.trim() === "OK";
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Send text to a Cursor/VS Code integrated terminal by pasting via clipboard.
+ * Navigates to the terminal tab by index (Ctrl+PageUp to reset, then Ctrl+PageDown × N).
+ * Saves and restores the previous clipboard content.
+ */
+export async function sendCursorText(
+	text: string,
+	terminalIndex: number | null,
+	appName: "Cursor" | "Code" = "Cursor",
+): Promise<boolean> {
+	const idx = terminalIndex ?? 0;
+
+	// Map app name to System Events process name
+	const processName = appName === "Code" ? "Code" : "Cursor";
+
+	const script = `
+on run argv
+set payload to item 1 of argv
+set appName to item 2 of argv
+set processName to item 3 of argv
+set idx to item 4 of argv as integer
+
+-- Save existing clipboard
+set prevClip to ""
+try
+	set prevClip to the clipboard
+end try
+
+set the clipboard to payload
+delay 0.1
+
+tell application appName
+	activate
+end tell
+delay 0.4
+
+tell application "System Events"
+	tell process processName
+		-- Use command palette to focus terminal WITHOUT creating a new one
+		-- (Ctrl+backtick creates a new terminal if panel is not focused)
+		keystroke "p" using {command down, shift down}
+		delay 0.5
+		keystroke "workbench.action.terminal.focus"
+		delay 0.5
+		key code 36
+		delay 0.6
+
+		-- Reset to first terminal tab (Ctrl+PageUp x20)
+		repeat 20 times
+			key code 116 using control down
+			delay 0.03
+		end repeat
+
+		-- Navigate forward to target index (Ctrl+PageDown x N)
+		repeat idx times
+			key code 121 using control down
+			delay 0.05
+		end repeat
+		delay 0.2
+
+		-- Paste and submit
+		keystroke "v" using command down
+		delay 0.2
+		key code 36
+	end tell
+end tell
+delay 0.1
+
+try
+	set the clipboard to prevClip
+end try
+return "OK"
+end run`;
+
+	try {
+		const { stdout } = await execFileAsync(
+			"osascript",
+			["-e", script, text, appName, processName, String(idx)],
+			{ timeout: 10_000 },
+		);
+		return stdout.trim() === "OK";
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Read the scrollback content of a Terminal.app tab matching the given TTY.
  * Returns the text content or null if not found.
  */
 export async function readTerminalAppContent(
 	tty: string,
 ): Promise<string | null> {
-	const fullTTY = escapeAppleScript(normalizeTTY(tty));
+	const fullTTY = normalizeTTY(tty);
 	const script = `
+on run argv
+set fullTTY to item 1 of argv
 tell application "Terminal"
 	repeat with aWindow in windows
 		repeat with aTab in tabs of aWindow
 			try
-				if tty of aTab ends with "${fullTTY}" then
+				if tty of aTab ends with fullTTY then
 					return contents of aTab
 				end if
 			end try
 		end repeat
 	end repeat
 	return "NOT_FOUND"
-end tell`;
+end tell
+end run`;
 	try {
-		const { stdout } = await execFileAsync("osascript", ["-e", script], {
+		const { stdout } = await execFileAsync("osascript", ["-e", script, fullTTY], {
 			timeout: 8_000,
 		});
 		const content = stdout.trimEnd();

@@ -1,5 +1,5 @@
 import { and, eq, gte, lte } from "drizzle-orm";
-import { db } from "@qcut/db";
+import { db } from "../db/drizzle";
 import { licenses, usageRecords } from "@qcut/db/schema";
 
 const USAGE_LIMITS: Record<string, Record<string, number>> = {

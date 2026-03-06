@@ -13,6 +13,11 @@ interface AttentionZoneProps {
 	onMerge?: (prNumber: number) => void;
 	onRestore?: (sessionId: string) => void;
 	onLabelChange?: (sessionId: string, label: string | null) => void;
+	onGitit?: (sessionId: string) => void;
+	onMergeit?: (sessionId: string) => void;
+	onPrit?: (sessionId: string) => void;
+	onBuildit?: (sessionId: string) => void;
+	onPrtaskit?: (sessionId: string) => void;
 }
 
 const zoneConfig: Record<
@@ -65,6 +70,11 @@ export function AttentionZone({
 	onMerge,
 	onRestore,
 	onLabelChange,
+	onGitit,
+	onMergeit,
+	onPrit,
+	onBuildit,
+	onPrtaskit,
 }: AttentionZoneProps) {
 	const config = zoneConfig[level];
 	const [collapsed, setCollapsed] = useState(config.defaultCollapsed);
@@ -116,6 +126,11 @@ export function AttentionZone({
 								onMerge={onMerge}
 								onRestore={onRestore}
 								onLabelChange={onLabelChange}
+								onGitit={onGitit}
+								onMergeit={onMergeit}
+								onPrit={onPrit}
+								onBuildit={onBuildit}
+								onPrtaskit={onPrtaskit}
 							/>
 						))}
 					</div>
@@ -170,6 +185,11 @@ export function AttentionZone({
 							onMerge={onMerge}
 							onRestore={onRestore}
 							onLabelChange={onLabelChange}
+							onGitit={onGitit}
+							onMergeit={onMergeit}
+							onPrit={onPrit}
+							onBuildit={onBuildit}
+							onPrtaskit={onPrtaskit}
 						/>
 					))}
 				</div>

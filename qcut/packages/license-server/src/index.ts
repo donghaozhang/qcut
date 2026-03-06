@@ -10,10 +10,35 @@ import { getAllowedCorsOrigins } from "./services/payment-config";
 
 const app = new Hono();
 
+// CF Workers passes secrets/vars via the env object, not process.env.
+// This middleware syncs them so all existing process.env usage works.
+app.use("/*", async (c, next) => {
+	const env = c.env as Record<string, unknown>;
+	if (env && typeof env === "object") {
+		for (const [key, value] of Object.entries(env)) {
+			if (typeof value === "string") {
+				process.env[key] = value;
+			}
+		}
+		// Hyperdrive provides a local connection string that postgres.js can use
+		// via standard TCP (Cloudflare's network handles the actual DB connection).
+		const hyperdrive = env.HYPERDRIVE as
+			| { connectionString?: string }
+			| undefined;
+		if (hyperdrive?.connectionString) {
+			process.env.DATABASE_URL = hyperdrive.connectionString;
+		}
+	}
+	await next();
+});
+
 app.use(
 	"/*",
 	cors({
-		origin: getAllowedCorsOrigins(),
+		origin: (origin) => {
+			const allowed = getAllowedCorsOrigins();
+			return allowed.includes(origin) ? origin : null;
+		},
 		allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
 		allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
 	})

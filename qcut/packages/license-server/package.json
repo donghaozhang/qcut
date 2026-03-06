@@ -1,4 +1,4 @@
-﻿{
+{
 	"name": "@qcut/license-server",
 	"version": "0.0.1",
 	"private": true,
@@ -11,10 +11,13 @@
 	},
 	"dependencies": {
 		"@qcut/auth": "workspace:*",
+		"@qcut/db": "workspace:*",
 		"@supabase/supabase-js": "^2.49.0",
+		"better-auth": "1.1.6",
+		"drizzle-orm": "^0.45.1",
 		"hono": "^4.0.0",
-		"stripe": "^17.0.0",
-		"@qcut/db": "workspace:*"
+		"postgres": "^3.4.8",
+		"stripe": "^17.0.0"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

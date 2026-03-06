@@ -212,20 +212,11 @@ function buildRedirectTargetFromPath({
 	}
 }
 
-let cachedAuthInstance: BetterAuthInstance | null = null;
-
 /** Lazily loads and caches the shared Better Auth instance. */
 async function getAuthInstance(): Promise<BetterAuthInstance> {
 	try {
-		if (cachedAuthInstance) {
-			return cachedAuthInstance;
-		}
-
-		const module = (await import("@qcut/auth/server")) as {
-			auth: BetterAuthInstance;
-		};
-		cachedAuthInstance = module.auth;
-		return cachedAuthInstance;
+		const { getAuth } = await import("../auth/better-auth");
+		return getAuth() as BetterAuthInstance;
 	} catch (error) {
 		throw new Error(
 			error instanceof Error
@@ -247,8 +238,24 @@ export function createAuthRoutes({
 		handleAuthRequest: async ({ request }) => {
 			try {
 				const auth = await getAuthInstance();
-				return await auth.handler(request);
+				const response = await auth.handler(request);
+				// Pass through 2xx and 3xx (redirects) directly.
+				if (response.status < 400) {
+					return response;
+				}
+				const body = await response.text();
+				console.error(
+					`[auth] better-auth ${response.status} for ${request.method} ${request.url} body="${body}"`
+				);
+				return new Response(
+					JSON.stringify({ error: `Auth upstream ${response.status}` }),
+					{
+						status: response.status,
+						headers: { "content-type": "application/json" },
+					}
+				);
 			} catch (error) {
+				console.error("[auth] handler threw:", error);
 				return new Response(
 					JSON.stringify({
 						error:
@@ -354,9 +361,22 @@ export function createAuthRoutes({
 				}
 			);
 
-			return await resolvedDependencies.handleAuthRequest({
+			const authResponse = await resolvedDependencies.handleAuthRequest({
 				request: authRequest,
 			});
+			// better-auth returns {url, redirect:true} when called with accept:application/json.
+			// Convert that into a real 302 redirect so the browser follows it.
+			if (authResponse.ok) {
+				const body = await authResponse.json().catch(() => null);
+				const redirectUrl = body?.url;
+				if (
+					typeof redirectUrl === "string" &&
+					redirectUrl.startsWith("https://")
+				) {
+					return c.redirect(redirectUrl, 302);
+				}
+			}
+			return authResponse;
 		} catch (error) {
 			return c.json(
 				{

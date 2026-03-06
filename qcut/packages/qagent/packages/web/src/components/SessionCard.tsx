@@ -30,6 +30,11 @@ interface SessionCardProps {
 	onMerge?: (prNumber: number) => void;
 	onRestore?: (sessionId: string) => void;
 	onLabelChange?: (sessionId: string, label: string | null) => void;
+	onGitit?: (sessionId: string) => void;
+	onMergeit?: (sessionId: string) => void;
+	onPrit?: (sessionId: string) => void;
+	onBuildit?: (sessionId: string) => void;
+	onPrtaskit?: (sessionId: string) => void;
 }
 
 const borderColorByLevel: Record<AttentionLevel, string> = {
@@ -56,19 +61,32 @@ export function SessionCard({
 	onMerge,
 	onRestore,
 	onLabelChange,
+	onGitit,
+	onMergeit,
+	onPrit,
+	onBuildit,
+	onPrtaskit,
 }: SessionCardProps) {
 	const [expanded, setExpanded] = useState(false);
 	const [sendingAction, setSendingAction] = useState<string | null>(null);
+	const [gititState, setGititState] = useState<"idle" | "loading" | "done" | "error">("idle");
+	const [mergeitState, setMergeitState] = useState<"idle" | "loading" | "done" | "error">("idle");
+	const [pritState, setPritState] = useState<"idle" | "loading" | "done" | "error">("idle");
+	const [prtaskitState, setPrtaskitState] = useState<"idle" | "loading" | "done" | "error">("idle");
+	const [builditState, setBuilditState] = useState<"idle" | "loading" | "done" | "error">("idle");
 	const [editingLabel, setEditingLabel] = useState(false);
 	const [labelDraft, setLabelDraft] = useState(session.label ?? "");
 	const labelInputRef = useRef<HTMLInputElement>(null);
 	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const actionTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 	const level = getAttentionLevel(session);
 	const pr = session.pr;
 
 	useEffect(() => {
 		return () => {
 			if (timerRef.current) clearTimeout(timerRef.current);
+			for (const t of actionTimersRef.current) clearTimeout(t);
+			actionTimersRef.current.clear();
 		};
 	}, []);
 
@@ -97,6 +115,14 @@ export function SessionCard({
 		onSend?.(session.id, message);
 		if (timerRef.current) clearTimeout(timerRef.current);
 		timerRef.current = setTimeout(() => setSendingAction(null), 2000);
+	};
+
+	const trackedTimeout = (fn: () => void, ms: number) => {
+		const id = setTimeout(() => {
+			actionTimersRef.current.delete(id);
+			fn();
+		}, ms);
+		actionTimersRef.current.add(id);
 	};
 
 	const rateLimited = pr ? isPRRateLimited(pr) : false;
@@ -221,6 +247,111 @@ export function SessionCard({
 						className="rounded border border-[rgba(88,166,255,0.35)] px-2 py-0.5 text-[11px] text-[var(--color-accent)] transition-colors hover:bg-[rgba(88,166,255,0.1)]"
 					>
 						restore
+					</button>
+				)}
+				{onGitit && (
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							if (gititState === "loading") return;
+							setGititState("loading");
+							Promise.resolve(onGitit(session.id)).then(() => {
+								setGititState("done");
+								trackedTimeout(() => setGititState("idle"), 2000);
+							}).catch(() => {
+								setGititState("error");
+								trackedTimeout(() => setGititState("idle"), 2000);
+							});
+						}}
+						disabled={gititState === "loading"}
+						className="rounded border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-2.5 py-0.5 text-[11px] text-[var(--color-text-muted)] transition-colors hover:border-[rgba(136,192,208,0.5)] hover:text-[rgba(136,192,208,0.9)] hover:no-underline disabled:opacity-50"
+					>
+						{gititState === "loading" ? "…" : gititState === "done" ? "✓" : gititState === "error" ? "✗" : "gitit"}
+					</button>
+				)}
+				{onMergeit && (
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							if (mergeitState === "loading") return;
+							setMergeitState("loading");
+							Promise.resolve(onMergeit(session.id)).then(() => {
+								setMergeitState("done");
+								trackedTimeout(() => setMergeitState("idle"), 2000);
+							}).catch(() => {
+								setMergeitState("error");
+								trackedTimeout(() => setMergeitState("idle"), 2000);
+							});
+						}}
+						disabled={mergeitState === "loading"}
+						className="rounded border border-[rgba(63,185,80,0.3)] bg-[rgba(63,185,80,0.06)] px-2.5 py-0.5 text-[11px] text-[rgba(63,185,80,0.7)] transition-colors hover:border-[rgba(63,185,80,0.6)] hover:text-[rgba(63,185,80,1)] hover:no-underline disabled:opacity-50"
+					>
+						{mergeitState === "loading" ? "…" : mergeitState === "done" ? "✓" : mergeitState === "error" ? "✗" : "mergeit"}
+					</button>
+				)}
+				{onPrit && (
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							if (pritState === "loading") return;
+							setPritState("loading");
+							Promise.resolve(onPrit(session.id)).then(() => {
+								setPritState("done");
+								trackedTimeout(() => setPritState("idle"), 2000);
+							}).catch(() => {
+								setPritState("error");
+								trackedTimeout(() => setPritState("idle"), 2000);
+							});
+						}}
+						disabled={pritState === "loading"}
+						className="rounded border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.06)] px-2.5 py-0.5 text-[11px] text-[rgba(245,158,11,0.7)] transition-colors hover:border-[rgba(245,158,11,0.6)] hover:text-[rgba(245,158,11,1)] hover:no-underline disabled:opacity-50"
+					>
+						{pritState === "loading" ? "…" : pritState === "done" ? "✓" : pritState === "error" ? "✗" : "prit"}
+					</button>
+				)}
+				{onBuildit && (
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							if (builditState === "loading") return;
+							setBuilditState("loading");
+							Promise.resolve(onBuildit(session.id)).then(() => {
+								setBuilditState("done");
+								trackedTimeout(() => setBuilditState("idle"), 2000);
+							}).catch(() => {
+								setBuilditState("error");
+								trackedTimeout(() => setBuilditState("idle"), 2000);
+							});
+						}}
+						disabled={builditState === "loading"}
+						className="rounded border border-[rgba(139,92,246,0.3)] bg-[rgba(139,92,246,0.06)] px-2.5 py-0.5 text-[11px] text-[rgba(139,92,246,0.7)] transition-colors hover:border-[rgba(139,92,246,0.6)] hover:text-[rgba(139,92,246,1)] hover:no-underline disabled:opacity-50"
+					>
+						{builditState === "loading" ? "…" : builditState === "done" ? "✓" : builditState === "error" ? "✗" : "buildit"}
+					</button>
+				)}
+				{onPrtaskit && (
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							if (prtaskitState === "loading") return;
+							setPrtaskitState("loading");
+							Promise.resolve(onPrtaskit(session.id)).then(() => {
+								setPrtaskitState("done");
+								trackedTimeout(() => setPrtaskitState("idle"), 2000);
+							}).catch(() => {
+								setPrtaskitState("error");
+								trackedTimeout(() => setPrtaskitState("idle"), 2000);
+							});
+						}}
+						disabled={prtaskitState === "loading"}
+						className="rounded border border-[rgba(6,182,212,0.3)] bg-[rgba(6,182,212,0.06)] px-2.5 py-0.5 text-[11px] text-[rgba(6,182,212,0.7)] transition-colors hover:border-[rgba(6,182,212,0.6)] hover:text-[rgba(6,182,212,1)] hover:no-underline disabled:opacity-50"
+					>
+						{prtaskitState === "loading" ? "…" : prtaskitState === "done" ? "✓" : prtaskitState === "error" ? "✗" : "prtaskit"}
 					</button>
 				)}
 				{(!isTerminal || !session.managed) && (
@@ -578,7 +709,7 @@ export function SessionCard({
 								terminate
 							</button>
 						)}
-					</div>}
+						</div>}
 				</div>
 			)}
 		</div>
