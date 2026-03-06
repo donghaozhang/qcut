@@ -68,33 +68,7 @@ export async function syncIssueStateRouting({
 		return;
 	}
 
-	// issueStateRouting was removed from WorkflowPolicy; no state map available
-	return;
-
-	try {
-		const trackerIdentifier = normalizeTrackerIssueIdentifier({
-			issueId: session.issueId,
-			project,
-			tracker,
-		});
-		await tracker.transitionIssueState(trackerIdentifier, targetState, project);
-
-		const sessionsDir = getSessionsDir(config.configPath, project.path);
-		updateMetadata(sessionsDir, session.id, {
-			issueState: targetState,
-			issueStateFromStatus: newStatus,
-		});
-		session.metadata.issueState = targetState;
-		session.metadata.issueStateFromStatus = newStatus;
-	} catch (error) {
-		const event = createEvent("reaction.escalated", {
-			sessionId: session.id,
-			projectId: session.projectId,
-			message: `${session.id}: failed to sync tracker issue state ${oldStatus} -> ${newStatus}: ${error}`,
-			data: { oldStatus, newStatus, targetState },
-		});
-		await notifyHuman(event, "warning");
-	}
+	// issueStateRouting was removed from WorkflowPolicy; feature is disabled
 }
 
 export function buildWorkpadBody({
