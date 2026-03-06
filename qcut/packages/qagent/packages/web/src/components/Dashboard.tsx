@@ -52,9 +52,9 @@ export function Dashboard({
 		Record<string, string | null>
 	>({});
 
-	// Live activity/status overrides from SSE stream
+	// Live activity/status/branch/pr overrides from SSE stream
 	const [liveOverrides, setLiveOverrides] = useState<
-		Record<string, { status?: string; activity?: string }>
+		Record<string, { status?: string; activity?: string; branch?: string | null; pr?: DashboardPR | null }>
 	>({});
 
 	useEffect(() => {
@@ -67,17 +67,21 @@ export function Dashboard({
 						id: string;
 						status?: string;
 						activity?: string;
+						branch?: string | null;
+						pr?: DashboardPR | null;
 					}>;
 				};
 				if (data.type === "snapshot" && data.sessions) {
 					const overrides: Record<
 						string,
-						{ status?: string; activity?: string }
+						{ status?: string; activity?: string; branch?: string | null; pr?: DashboardPR | null }
 					> = {};
 					for (const s of data.sessions) {
 						overrides[s.id] = {
 							status: s.status,
 							activity: s.activity,
+							branch: s.branch,
+							pr: s.pr,
 						};
 					}
 					setLiveOverrides(overrides);
@@ -100,6 +104,8 @@ export function Dashboard({
 					...(label !== undefined ? { label } : {}),
 					...(live?.status ? { status: live.status as DashboardSession["status"] } : {}),
 					...(live?.activity ? { activity: live.activity as DashboardSession["activity"] } : {}),
+					...(live && "branch" in live ? { branch: live.branch } : {}),
+					...(live && "pr" in live ? { pr: live.pr } : {}),
 				};
 			}),
 		[initialSessions, labelOverrides, liveOverrides]

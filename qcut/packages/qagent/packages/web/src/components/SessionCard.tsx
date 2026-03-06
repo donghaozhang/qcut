@@ -22,6 +22,7 @@ import { PRStatus } from "./PRStatus";
 import { CICheckList } from "./CIBadge";
 import { ActivityDot } from "./ActivityDot";
 import { GateBlockerPanelLoader } from "./GateBlockerPanel";
+import { InlineTerminal } from "./InlineTerminal";
 
 interface SessionCardProps {
 	session: DashboardSession;
@@ -68,6 +69,7 @@ export function SessionCard({
 	onPrtaskit,
 }: SessionCardProps) {
 	const [expanded, setExpanded] = useState(false);
+	const [terminalOpen, setTerminalOpen] = useState(false);
 	const [sendingAction, setSendingAction] = useState<string | null>(null);
 	const [gititState, setGititState] = useState<"idle" | "loading" | "done" | "error">("idle");
 	const [mergeitState, setMergeitState] = useState<"idle" | "loading" | "done" | "error">("idle");
@@ -355,13 +357,21 @@ export function SessionCard({
 					</button>
 				)}
 				{(!isTerminal || !session.managed) && (
-					<a
-						href={`/sessions/${encodeURIComponent(session.id)}`}
-						onClick={(e) => e.stopPropagation()}
-						className="rounded border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-2.5 py-0.5 text-[11px] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] hover:no-underline"
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							setTerminalOpen((prev) => !prev);
+						}}
+						className={cn(
+							"rounded border px-2.5 py-0.5 text-[11px] transition-colors hover:no-underline",
+							terminalOpen
+								? "border-[var(--color-accent)] text-[var(--color-accent)] bg-[rgba(88,166,255,0.1)]"
+								: "border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] text-[var(--color-text-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+						)}
 					>
 						terminal
-					</a>
+					</button>
 				)}
 			</div>
 
@@ -541,6 +551,32 @@ export function SessionCard({
 							))}
 						</div>
 					)}
+				</div>
+			)}
+
+			{/* Inline terminal panel */}
+			{terminalOpen && (
+				<div className="border-t border-[var(--color-border-subtle)]">
+					{pr && (
+						<div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--color-border-subtle)] bg-[rgba(255,255,255,0.02)]">
+							<span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">PR</span>
+							<a
+								href={pr.url}
+								target="_blank"
+								rel="noopener noreferrer"
+								onClick={(e) => e.stopPropagation()}
+								className="text-[12px] text-[var(--color-accent)] hover:underline truncate"
+							>
+								#{pr.number} {pr.title}
+							</a>
+							<span className="text-[11px] text-[var(--color-text-muted)]">
+								<span className="text-[var(--color-status-ready)]">+{pr.additions}</span>{" "}
+								<span className="text-[var(--color-status-error)]">-{pr.deletions}</span>
+							</span>
+							<PRStatus pr={pr} />
+						</div>
+					)}
+					<InlineTerminal session={session} />
 				</div>
 			)}
 

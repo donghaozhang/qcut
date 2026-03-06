@@ -37,6 +37,8 @@ export async function GET(): Promise<Response> {
 							activity: s.activity,
 							attentionLevel: getAttentionLevel(s),
 							lastActivityAt: s.lastActivityAt,
+							branch: s.branch,
+							pr: s.pr,
 						})),
 					};
 					controller.enqueue(
@@ -87,6 +89,8 @@ export async function GET(): Promise<Response> {
 								activity: s.activity,
 								attentionLevel: getAttentionLevel(s),
 								lastActivityAt: s.lastActivityAt,
+								branch: s.branch,
+								pr: s.pr,
 							})),
 						};
 						controller.enqueue(
