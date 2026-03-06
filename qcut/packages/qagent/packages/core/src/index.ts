@@ -125,6 +125,19 @@ export type {
 	WorkpadRef,
 } from "./workpad-schema.js";
 
+// Escalation templates — per-project/per-severity notification playbooks
+export {
+	resolveEscalationTemplate,
+	renderEscalationMessage,
+	parseEscalationTemplates,
+} from "./escalation-template.js";
+export type {
+	EscalationTemplate,
+	EscalationSeverity,
+	EscalationAutoAction,
+	EscalationContext,
+} from "./escalation-template.js";
+
 // Shared utilities
 export {
 	shellEscape,

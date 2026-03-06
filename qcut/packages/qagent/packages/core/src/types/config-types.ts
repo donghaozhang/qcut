@@ -225,6 +225,14 @@ export interface ProjectConfig {
 
   /** Optional policy mode override for this project */
   policyMode?: PolicyMode;
+
+  /**
+   * Escalation templates for per-project notification playbooks.
+   * When a reaction escalates, these templates are checked first before
+   * falling back to the built-in escalation messages.
+   * May also be parsed from WORKFLOW.md front matter `blocked_policy.templates`.
+   */
+  escalationTemplates?: import("../escalation-template.js").EscalationTemplate[];
 }
 
 export interface TrackerConfig {

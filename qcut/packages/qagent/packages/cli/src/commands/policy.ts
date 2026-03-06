@@ -7,6 +7,8 @@ import {
 	loadWorkflowContract,
 	resolveEffectiveWorkflowPolicy,
 	resolveWorkflowContractPath,
+	resolveEscalationTemplate,
+	renderEscalationMessage,
 	type PolicyGateResult,
 	type SCM,
 	type Session,
@@ -240,6 +242,124 @@ export function registerPolicy(program: Command): void {
 				console.error(
 					chalk.red(
 						`policy explain failed: ${error instanceof Error ? error.message : String(error)}`
+					)
+				);
+				process.exit(1);
+			}
+		});
+
+	policy
+		.command("escalate")
+		.argument("<session>", "Session ID")
+		.description(
+			"Resolve and display the escalation template that would fire for a session"
+		)
+		.option("--execute", "Actually send the escalation notification (default: dry-run)")
+		.action(async (sessionId: string, opts: { execute?: boolean }) => {
+			try {
+				const config = loadConfig();
+				const [sessionManager, registry] = await Promise.all([
+					getSessionManager(config),
+					getPluginRegistry(config),
+				]);
+
+				const session = await sessionManager.get(sessionId);
+				if (!session) {
+					throw new Error(`Session '${sessionId}' not found`);
+				}
+
+				const report = await evaluateSessionPolicy({
+					config,
+					registry,
+					session,
+				});
+
+				if (!report) {
+					console.log(
+						chalk.yellow(
+							"Session has no PR or SCM — cannot evaluate escalation template."
+						)
+					);
+					return;
+				}
+
+				const project = config.projects[session.projectId];
+				const workflowContract = project
+					? loadWorkflowContract({ config, project })
+					: null;
+				const templates =
+					workflowContract?.policy.blockedPolicy.templates ??
+					project?.escalationTemplates ??
+					[];
+
+				if (templates.length === 0) {
+					console.log(
+						chalk.yellow(
+							"No escalation templates configured. Add templates to WORKFLOW.md `blocked_policy.templates` or qagent.yaml `escalationTemplates`."
+						)
+					);
+					return;
+				}
+
+				const matchingTemplate = resolveEscalationTemplate({
+					violations: report.result.violations.map((v) => ({
+						code: v.code,
+						message: v.message,
+						blockerClass: v.blockerClass,
+					})),
+					templates,
+				});
+
+				if (!matchingTemplate) {
+					console.log(
+						chalk.yellow("No template matched the current violations.")
+					);
+					return;
+				}
+
+				const firstViolation = report.result.violations[0];
+				const rendered = renderEscalationMessage({
+					template: matchingTemplate,
+					context: {
+						sessionId: session.id,
+						projectId: session.projectId,
+						prNumber: session.pr?.number,
+						violationCode: firstViolation?.code,
+						violationMessage: firstViolation?.message,
+						blockerClass: firstViolation?.blockerClass,
+					},
+				});
+
+				console.log(chalk.bold(`Template: ${matchingTemplate.id}`));
+				console.log(
+					chalk.dim(`Severity: ${matchingTemplate.severity}`)
+				);
+				if (matchingTemplate.notifyChannels?.length) {
+					console.log(
+						chalk.dim(
+							`Channels: ${matchingTemplate.notifyChannels.join(", ")}`
+						)
+					);
+				}
+				console.log("");
+				console.log(chalk.bold("Rendered message:"));
+				console.log(rendered);
+
+				if (opts.execute) {
+					console.log(
+						chalk.yellow(
+							"\n--execute is not yet wired to notifiers (use notifications via lifecycle reactions)"
+						)
+					);
+				} else {
+					console.log(
+						chalk.dim("\n(dry-run: pass --execute to send the notification)")
+					);
+				}
+			} catch (error) {
+				console.error(
+					chalk.red(
+						`policy escalate failed: ${error instanceof Error ? error.message : String(error)}`
 					)
 				);
 				process.exit(1);
