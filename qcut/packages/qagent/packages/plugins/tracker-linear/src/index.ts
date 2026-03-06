@@ -17,6 +17,8 @@ import type {
 	IssueUpdate,
 	CreateIssueInput,
 	ProjectConfig,
+	WorkpadSnapshot,
+	WorkpadRef,
 } from "@composio/ao-core";
 import type { Composio } from "@composio/core";
 
@@ -750,6 +752,27 @@ function createLinearTracker(query: GraphQLTransport): Tracker {
 			}
 
 			return issue;
+		},
+
+		async getWorkpad(
+			_identifier: string,
+			_project: ProjectConfig
+		): Promise<WorkpadRef | null> {
+			// Linear does not have a direct equivalent of GitHub issue comments for workpads.
+			// Workpad data is not persisted to Linear at this time.
+			console.error("[tracker-linear] getWorkpad: not implemented — Linear workpad storage is not yet supported");
+			return null;
+		},
+
+		async upsertWorkpad(
+			snapshot: WorkpadSnapshot,
+			_project: ProjectConfig,
+			_existingId?: string
+		): Promise<WorkpadRef> {
+			// Linear does not have a direct equivalent of GitHub issue comments for workpads.
+			// Return a no-op ref using the envStamp as the ID.
+			console.error("[tracker-linear] upsertWorkpad: not implemented — Linear workpad storage is not yet supported");
+			return { id: snapshot.envStamp, snapshot };
 		},
 	};
 }

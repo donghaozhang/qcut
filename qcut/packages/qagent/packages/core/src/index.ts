@@ -108,6 +108,19 @@ export type {
 export { generateOrchestratorPrompt } from "./orchestrator-prompt.js";
 export type { OrchestratorPromptConfig } from "./orchestrator-prompt.js";
 
+// Workpad schema — canonical WorkpadSnapshot type and rendering helpers
+export {
+	buildWorkpadSnapshot,
+	renderWorkpadBody,
+	parseWorkpadSnapshot,
+} from "./workpad-schema.js";
+export type {
+	WorkpadSnapshot,
+	WorkpadPolicyGate,
+	WorkpadBlockerBrief,
+	WorkpadRef,
+} from "./workpad-schema.js";
+
 // Shared utilities
 export {
 	shellEscape,
