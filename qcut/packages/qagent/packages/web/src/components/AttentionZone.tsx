@@ -14,6 +14,7 @@ interface AttentionZoneProps {
 	onRestore?: (sessionId: string) => void;
 	onLabelChange?: (sessionId: string, label: string | null) => void;
 	onGitit?: (sessionId: string) => void;
+	onMergeit?: (sessionId: string) => void;
 }
 
 const zoneConfig: Record<
@@ -67,6 +68,7 @@ export function AttentionZone({
 	onRestore,
 	onLabelChange,
 	onGitit,
+	onMergeit,
 }: AttentionZoneProps) {
 	const config = zoneConfig[level];
 	const [collapsed, setCollapsed] = useState(config.defaultCollapsed);
@@ -174,6 +176,7 @@ export function AttentionZone({
 							onRestore={onRestore}
 							onLabelChange={onLabelChange}
 							onGitit={onGitit}
+							onMergeit={onMergeit}
 						/>
 					))}
 				</div>

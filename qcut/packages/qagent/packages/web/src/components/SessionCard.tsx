@@ -31,6 +31,7 @@ interface SessionCardProps {
 	onRestore?: (sessionId: string) => void;
 	onLabelChange?: (sessionId: string, label: string | null) => void;
 	onGitit?: (sessionId: string) => void;
+	onMergeit?: (sessionId: string) => void;
 }
 
 const borderColorByLevel: Record<AttentionLevel, string> = {
@@ -58,10 +59,12 @@ export function SessionCard({
 	onRestore,
 	onLabelChange,
 	onGitit,
+	onMergeit,
 }: SessionCardProps) {
 	const [expanded, setExpanded] = useState(false);
 	const [sendingAction, setSendingAction] = useState<string | null>(null);
 	const [gititState, setGititState] = useState<"idle" | "loading" | "done" | "error">("idle");
+	const [mergeitState, setMergeitState] = useState<"idle" | "loading" | "done" | "error">("idle");
 	const [editingLabel, setEditingLabel] = useState(false);
 	const [labelDraft, setLabelDraft] = useState(session.label ?? "");
 	const labelInputRef = useRef<HTMLInputElement>(null);
@@ -244,6 +247,26 @@ export function SessionCard({
 						className="rounded border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-2.5 py-0.5 text-[11px] text-[var(--color-text-muted)] transition-colors hover:border-[rgba(136,192,208,0.5)] hover:text-[rgba(136,192,208,0.9)] hover:no-underline disabled:opacity-50"
 					>
 						{gititState === "loading" ? "…" : gititState === "done" ? "✓" : gititState === "error" ? "✗" : "gitit"}
+					</button>
+				)}
+				{onMergeit && (
+					<button
+						onClick={(e) => {
+							e.stopPropagation();
+							if (mergeitState === "loading") return;
+							setMergeitState("loading");
+							Promise.resolve(onMergeit(session.id)).then(() => {
+								setMergeitState("done");
+								setTimeout(() => setMergeitState("idle"), 2000);
+							}).catch(() => {
+								setMergeitState("error");
+								setTimeout(() => setMergeitState("idle"), 2000);
+							});
+						}}
+						disabled={mergeitState === "loading"}
+						className="rounded border border-[rgba(63,185,80,0.3)] bg-[rgba(63,185,80,0.06)] px-2.5 py-0.5 text-[11px] text-[rgba(63,185,80,0.7)] transition-colors hover:border-[rgba(63,185,80,0.6)] hover:text-[rgba(63,185,80,1)] hover:no-underline disabled:opacity-50"
+					>
+						{mergeitState === "loading" ? "…" : mergeitState === "done" ? "✓" : mergeitState === "error" ? "✗" : "mergeit"}
 					</button>
 				)}
 				{(!isTerminal || !session.managed) && (

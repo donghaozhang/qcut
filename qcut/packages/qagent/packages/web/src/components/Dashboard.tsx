@@ -265,6 +265,18 @@ export function Dashboard({
 		}
 	};
 
+	/** Send the mergeit.md instruction to an individual session. */
+	const handleMergeit = async (sessionId: string) => {
+		const res = await fetch("/api/commands/mergeit", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ sessionId }),
+		});
+		if (!res.ok) {
+			throw new Error(await res.text());
+		}
+	};
+
 	/** Handle sort toggle — cycles TOKEN → CPU → DEFAULT → TOKEN. */
 	const handleSortToggle = () => {
 		setSessionSortMode((prev) => {
@@ -400,6 +412,7 @@ export function Dashboard({
 									onRestore={handleRestore}
 									onLabelChange={handleLabelChange}
 									onGitit={handleGitit}
+									onMergeit={handleMergeit}
 								/>
 							</div>
 						) : null
@@ -420,6 +433,7 @@ export function Dashboard({
 						onRestore={handleRestore}
 						onLabelChange={handleLabelChange}
 						onGitit={handleGitit}
+						onMergeit={handleMergeit}
 					/>
 				</div>
 			)}
