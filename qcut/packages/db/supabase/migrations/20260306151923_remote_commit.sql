@@ -140,3 +140,19 @@ CREATE TABLE "stripe_webhook_events" (
 );;
 ALTER TABLE "stripe_webhook_events" ENABLE ROW LEVEL SECURITY;
 CREATE UNIQUE INDEX IF NOT EXISTS "licenses_user_id_unique" ON "licenses" ("user_id");;
+
+-- RLS policies: all tables accessed via service_role from Cloudflare Worker
+CREATE POLICY "service_role_all" ON "accounts" FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_all" ON "sessions" FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_all" ON "users" FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_all" ON "verifications" FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_all" ON "waitlist" FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_all" ON "licenses" FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_all" ON "device_activations" FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_all" ON "credit_balances" FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_all" ON "credit_transactions" FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_all" ON "usage_records" FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_role_all" ON "stripe_webhook_events" FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- Prevent duplicate device activation rows per license+fingerprint
+ALTER TABLE "device_activations" ADD CONSTRAINT "device_activations_license_fingerprint_unique" UNIQUE ("license_id", "device_fingerprint");

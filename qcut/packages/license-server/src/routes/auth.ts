@@ -248,7 +248,7 @@ export function createAuthRoutes({
 					`[auth] better-auth ${response.status} for ${request.method} ${request.url} body="${body}"`
 				);
 				return new Response(
-					JSON.stringify({ error: `Auth upstream ${response.status}`, detail: body }),
+					JSON.stringify({ error: `Auth upstream ${response.status}` }),
 					{ status: response.status, headers: { "content-type": "application/json" } }
 				);
 			} catch (error) {

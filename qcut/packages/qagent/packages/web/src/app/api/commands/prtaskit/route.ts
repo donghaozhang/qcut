@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 			const pid = cliSession.metadata.pid ? parseInt(cliSession.metadata.pid, 10) : undefined;
 			const cwd = cliSession.metadata.cwd ?? undefined;
 			const terminalIndex = pid ? await matchVSCodeTaskIndex(pid, cwd) : null;
-			sent = await sendCursorText(instruction, terminalIndex);
+			sent = await sendCursorText(instruction, terminalIndex, termApp as "Cursor" | "Code");
 		}
 
 		if (!sent) {
@@ -92,10 +92,10 @@ export async function POST(request: NextRequest) {
 
 		return NextResponse.json({ ok: true, sessionId, method: termApp ?? "tty" });
 	} catch (err) {
-		const msg =
-			err instanceof Error ? err.message : "Failed to send prtaskit instruction";
-		const status =
-			msg.includes("not found") || msg.includes("ENOENT") ? 404 : 500;
+		const raw = err instanceof Error ? err.message : "";
+		const status = raw.includes("not found") || raw.includes("ENOENT") ? 404 : 500;
+		const msg = status === 404 ? "Resource not found" : "Failed to send prtaskit instruction";
+		console.error("[prtaskit]", raw);
 		return NextResponse.json({ error: msg }, { status });
 	}
 }

@@ -75,17 +75,19 @@ export async function readTerminalTabName(
 	}
 
 	if (app !== "iTerm" && app !== "Terminal") return null;
-	const fullTTY = escapeAppleScript(normalizeTTY(tty));
+	const fullTTY = normalizeTTY(tty);
 
 	const script =
 		app === "iTerm"
 			? `
+on run argv
+set fullTTY to item 1 of argv
 tell application "iTerm2"
 	repeat with aWindow in windows
 		repeat with aTab in tabs of aWindow
 			repeat with aSession in sessions of aTab
 				try
-					if tty of aSession ends with "${fullTTY}" then
+					if tty of aSession ends with fullTTY then
 						return name of aSession
 					end if
 				end try
@@ -93,23 +95,27 @@ tell application "iTerm2"
 		end repeat
 	end repeat
 	return "NOT_FOUND"
-end tell`
+end tell
+end run`
 			: `
+on run argv
+set fullTTY to item 1 of argv
 tell application "Terminal"
 	repeat with aWindow in windows
 		repeat with aTab in tabs of aWindow
 			try
-				if tty of aTab ends with "${fullTTY}" then
+				if tty of aTab ends with fullTTY then
 					return custom title of aTab
 				end if
 			end try
 		end repeat
 	end repeat
 	return "NOT_FOUND"
-end tell`;
+end tell
+end run`;
 
 	try {
-		const { stdout } = await execFileAsync("osascript", ["-e", script], {
+		const { stdout } = await execFileAsync("osascript", ["-e", script, fullTTY], {
 			timeout: 5_000,
 		});
 		const name = stdout.trim();
@@ -393,28 +399,36 @@ end run`;
 export async function sendCursorText(
 	text: string,
 	terminalIndex: number | null,
+	appName: "Cursor" | "Code" = "Cursor",
 ): Promise<boolean> {
-	const escapedText = escapeAppleScript(text);
-
 	const idx = terminalIndex ?? 0;
 
+	// Map app name to System Events process name
+	const processName = appName === "Code" ? "Code" : "Cursor";
+
 	const script = `
+on run argv
+set payload to item 1 of argv
+set appName to item 2 of argv
+set processName to item 3 of argv
+set idx to item 4 of argv as integer
+
 -- Save existing clipboard
 set prevClip to ""
 try
 	set prevClip to the clipboard
 end try
 
-set the clipboard to "${escapedText}"
+set the clipboard to payload
 delay 0.1
 
-tell application "Cursor"
+tell application appName
 	activate
 end tell
 delay 0.4
 
 tell application "System Events"
-	tell process "Cursor"
+	tell process processName
 		-- Use command palette to focus terminal WITHOUT creating a new one
 		-- (Ctrl+backtick creates a new terminal if panel is not focused)
 		keystroke "p" using {command down, shift down}
@@ -431,7 +445,7 @@ tell application "System Events"
 		end repeat
 
 		-- Navigate forward to target index (Ctrl+PageDown x N)
-		repeat ${idx} times
+		repeat idx times
 			key code 121 using control down
 			delay 0.05
 		end repeat
@@ -448,12 +462,15 @@ delay 0.1
 try
 	set the clipboard to prevClip
 end try
-return "OK"`;
+return "OK"
+end run`;
 
 	try {
-		const { stdout } = await execFileAsync("osascript", ["-e", script], {
-			timeout: 10_000,
-		});
+		const { stdout } = await execFileAsync(
+			"osascript",
+			["-e", script, text, appName, processName, String(idx)],
+			{ timeout: 10_000 },
+		);
 		return stdout.trim() === "OK";
 	} catch {
 		return false;
@@ -467,22 +484,25 @@ return "OK"`;
 export async function readTerminalAppContent(
 	tty: string,
 ): Promise<string | null> {
-	const fullTTY = escapeAppleScript(normalizeTTY(tty));
+	const fullTTY = normalizeTTY(tty);
 	const script = `
+on run argv
+set fullTTY to item 1 of argv
 tell application "Terminal"
 	repeat with aWindow in windows
 		repeat with aTab in tabs of aWindow
 			try
-				if tty of aTab ends with "${fullTTY}" then
+				if tty of aTab ends with fullTTY then
 					return contents of aTab
 				end if
 			end try
 		end repeat
 	end repeat
 	return "NOT_FOUND"
-end tell`;
+end tell
+end run`;
 	try {
-		const { stdout } = await execFileAsync("osascript", ["-e", script], {
+		const { stdout } = await execFileAsync("osascript", ["-e", script, fullTTY], {
 			timeout: 8_000,
 		});
 		const content = stdout.trimEnd();

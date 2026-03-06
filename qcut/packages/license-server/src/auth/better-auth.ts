@@ -6,15 +6,25 @@ type Auth = ReturnType<typeof betterAuth>;
 
 let _auth: Auth | null = null;
 
-const WORKER_BASE_URL = "https://qcut-license-server.zdhpeter.workers.dev";
-
-const TRUSTED_ORIGINS = [
+const DEFAULT_BASE_URL = "https://qcut-license-server.zdhpeter.workers.dev";
+const DEFAULT_TRUSTED_ORIGINS = [
 	"https://quriosity.com.au",
 	"https://www.quriosity.com.au",
 	"https://donghaozhang.github.io",
-	"http://localhost:3000",
-	"http://localhost:5173",
 ];
+
+function getBaseUrl(): string {
+	const env = process.env.BETTER_AUTH_URL;
+	return env?.trim() || DEFAULT_BASE_URL;
+}
+
+function getTrustedOrigins(): string[] {
+	const env = process.env.BETTER_AUTH_TRUSTED_ORIGINS;
+	if (env?.trim()) {
+		return env.split(",").map((v) => v.trim()).filter(Boolean);
+	}
+	return DEFAULT_TRUSTED_ORIGINS;
+}
 
 /** Lazily creates and caches the Better Auth instance. Reads env vars only on first call. */
 export function getAuth(): Auth {
@@ -39,7 +49,7 @@ export function getAuth(): Auth {
 			usePlural: true,
 		}),
 		secret,
-		baseURL: WORKER_BASE_URL,
+		baseURL: getBaseUrl(),
 		appName: "QCut",
 		user: {
 			deleteUser: {
@@ -55,7 +65,7 @@ export function getAuth(): Auth {
 				clientSecret: googleClientSecret,
 			},
 		},
-		trustedOrigins: TRUSTED_ORIGINS,
+		trustedOrigins: getTrustedOrigins(),
 	});
 
 	return _auth;

@@ -78,12 +78,15 @@ export function SessionCard({
 	const [labelDraft, setLabelDraft] = useState(session.label ?? "");
 	const labelInputRef = useRef<HTMLInputElement>(null);
 	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const actionTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 	const level = getAttentionLevel(session);
 	const pr = session.pr;
 
 	useEffect(() => {
 		return () => {
 			if (timerRef.current) clearTimeout(timerRef.current);
+			for (const t of actionTimersRef.current) clearTimeout(t);
+			actionTimersRef.current.clear();
 		};
 	}, []);
 
@@ -112,6 +115,14 @@ export function SessionCard({
 		onSend?.(session.id, message);
 		if (timerRef.current) clearTimeout(timerRef.current);
 		timerRef.current = setTimeout(() => setSendingAction(null), 2000);
+	};
+
+	const trackedTimeout = (fn: () => void, ms: number) => {
+		const id = setTimeout(() => {
+			actionTimersRef.current.delete(id);
+			fn();
+		}, ms);
+		actionTimersRef.current.add(id);
 	};
 
 	const rateLimited = pr ? isPRRateLimited(pr) : false;
@@ -240,16 +251,17 @@ export function SessionCard({
 				)}
 				{onGitit && (
 					<button
+						type="button"
 						onClick={(e) => {
 							e.stopPropagation();
 							if (gititState === "loading") return;
 							setGititState("loading");
 							Promise.resolve(onGitit(session.id)).then(() => {
 								setGititState("done");
-								setTimeout(() => setGititState("idle"), 2000);
+								trackedTimeout(() => setGititState("idle"), 2000);
 							}).catch(() => {
 								setGititState("error");
-								setTimeout(() => setGititState("idle"), 2000);
+								trackedTimeout(() => setGititState("idle"), 2000);
 							});
 						}}
 						disabled={gititState === "loading"}
@@ -260,16 +272,17 @@ export function SessionCard({
 				)}
 				{onMergeit && (
 					<button
+						type="button"
 						onClick={(e) => {
 							e.stopPropagation();
 							if (mergeitState === "loading") return;
 							setMergeitState("loading");
 							Promise.resolve(onMergeit(session.id)).then(() => {
 								setMergeitState("done");
-								setTimeout(() => setMergeitState("idle"), 2000);
+								trackedTimeout(() => setMergeitState("idle"), 2000);
 							}).catch(() => {
 								setMergeitState("error");
-								setTimeout(() => setMergeitState("idle"), 2000);
+								trackedTimeout(() => setMergeitState("idle"), 2000);
 							});
 						}}
 						disabled={mergeitState === "loading"}
@@ -280,16 +293,17 @@ export function SessionCard({
 				)}
 				{onPrit && (
 					<button
+						type="button"
 						onClick={(e) => {
 							e.stopPropagation();
 							if (pritState === "loading") return;
 							setPritState("loading");
 							Promise.resolve(onPrit(session.id)).then(() => {
 								setPritState("done");
-								setTimeout(() => setPritState("idle"), 2000);
+								trackedTimeout(() => setPritState("idle"), 2000);
 							}).catch(() => {
 								setPritState("error");
-								setTimeout(() => setPritState("idle"), 2000);
+								trackedTimeout(() => setPritState("idle"), 2000);
 							});
 						}}
 						disabled={pritState === "loading"}
@@ -300,16 +314,17 @@ export function SessionCard({
 				)}
 				{onBuildit && (
 					<button
+						type="button"
 						onClick={(e) => {
 							e.stopPropagation();
 							if (builditState === "loading") return;
 							setBuilditState("loading");
 							Promise.resolve(onBuildit(session.id)).then(() => {
 								setBuilditState("done");
-								setTimeout(() => setBuilditState("idle"), 2000);
+								trackedTimeout(() => setBuilditState("idle"), 2000);
 							}).catch(() => {
 								setBuilditState("error");
-								setTimeout(() => setBuilditState("idle"), 2000);
+								trackedTimeout(() => setBuilditState("idle"), 2000);
 							});
 						}}
 						disabled={builditState === "loading"}
@@ -320,16 +335,17 @@ export function SessionCard({
 				)}
 				{onPrtaskit && (
 					<button
+						type="button"
 						onClick={(e) => {
 							e.stopPropagation();
 							if (prtaskitState === "loading") return;
 							setPrtaskitState("loading");
 							Promise.resolve(onPrtaskit(session.id)).then(() => {
 								setPrtaskitState("done");
-								setTimeout(() => setPrtaskitState("idle"), 2000);
+								trackedTimeout(() => setPrtaskitState("idle"), 2000);
 							}).catch(() => {
 								setPrtaskitState("error");
-								setTimeout(() => setPrtaskitState("idle"), 2000);
+								trackedTimeout(() => setPrtaskitState("idle"), 2000);
 							});
 						}}
 						disabled={prtaskitState === "loading"}
