@@ -453,6 +453,39 @@ export function createAuthRoutes({
 		}
 	});
 
+	authRoutes.get("/oauth/desktop-bridge", async (c) => {
+		try {
+			const session = await resolvedDependencies.getSessionFromHeaders({
+				headers: c.req.raw.headers,
+			});
+			if (!session?.session?.token) {
+				const response = c.redirect(
+					"qcut://activate?error=no_session",
+					302
+				);
+				response.headers.set("Cache-Control", "no-store");
+				return response;
+			}
+
+			const target = new URL("qcut://activate");
+			target.searchParams.set("token", session.session.token);
+			const response = c.redirect(target.toString(), 302);
+			response.headers.set("Cache-Control", "no-store");
+			response.headers.set("Referrer-Policy", "no-referrer");
+			return response;
+		} catch (error) {
+			return c.json(
+				{
+					error:
+						error instanceof Error
+							? `Desktop bridge failed: ${error.message}`
+							: "Desktop bridge failed",
+				},
+				500
+			);
+		}
+	});
+
 	authRoutes.get("/oauth/error-bridge", async (c) => {
 		try {
 			const webBaseUrl = resolvedDependencies.getWebBaseUrl();

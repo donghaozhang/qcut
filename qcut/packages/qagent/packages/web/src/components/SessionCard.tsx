@@ -421,6 +421,22 @@ export function SessionCard({
 						)}
 					</span>
 				)}
+				{!session.managed && session.metadata?.pid && (
+					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
+						<span className="text-[var(--color-text-tertiary)]">pid</span>
+						<span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">
+							{session.metadata.pid}
+						</span>
+					</span>
+				)}
+				{!session.managed && session.metadata?.cwd && (
+					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
+						<span className="text-[var(--color-text-tertiary)]">cwd</span>
+						<span className="font-[var(--font-mono)] text-[var(--color-text-muted)] truncate max-w-[200px]" title={session.metadata.cwd}>
+							{session.metadata.cwd.split("/").slice(-2).join("/")}
+						</span>
+					</span>
+				)}
 				{session.metadata?.terminalApp && (
 					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
 						<svg className="h-2.5 w-2.5 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

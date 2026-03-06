@@ -11,7 +11,7 @@ import path from "node:path";
 
 const LICENSE_SERVER_URL =
 	process.env.QCUT_LICENSE_SERVER_URL ||
-	"https://qcut-license-server.workers.dev";
+	"https://qcut-license-server.zdhpeter.workers.dev";
 const CACHE_FILE = "license-cache.enc";
 const OFFLINE_GRACE_DAYS = 7;
 
@@ -331,6 +331,136 @@ export function setupLicenseIPC(): void {
 		} catch {
 			return false;
 		}
+	});
+
+	ipcMain.handle(
+		"license:email-login",
+		async (
+			_event: IpcMainInvokeEvent,
+			{ email, password }: { email: string; password: string }
+		): Promise<{ success: boolean; error?: string }> => {
+			if (
+				typeof email !== "string" ||
+				email.trim().length === 0 ||
+				typeof password !== "string" ||
+				password.length === 0
+			) {
+				return { success: false, error: "Email and password are required" };
+			}
+			try {
+				const response = await fetch(
+					`${LICENSE_SERVER_URL}/api/auth/sign-in/email`,
+					{
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ email: email.trim(), password }),
+					}
+				);
+				if (!response.ok) {
+					const body = (await response
+						.json()
+						.catch(() => null)) as Record<string, unknown> | null;
+					const message =
+						(body?.message as string) ||
+						(body?.error as string) ||
+						"Invalid email or password";
+					return { success: false, error: message };
+				}
+				const body = (await response.json()) as Record<string, unknown>;
+				const session = body?.session as
+					| Record<string, unknown>
+					| undefined;
+				const token =
+					(body?.token as string) || (session?.token as string);
+				if (typeof token !== "string" || token.length === 0) {
+					return { success: false, error: "No session token received" };
+				}
+				setAuthToken({ token });
+				return { success: true };
+			} catch (error) {
+				return {
+					success: false,
+					error:
+						error instanceof Error
+							? error.message
+							: "Login failed",
+				};
+			}
+		}
+	);
+
+	ipcMain.handle(
+		"license:email-signup",
+		async (
+			_event: IpcMainInvokeEvent,
+			{
+				name,
+				email,
+				password,
+			}: { name: string; email: string; password: string }
+		): Promise<{ success: boolean; error?: string }> => {
+			if (
+				typeof name !== "string" ||
+				name.trim().length === 0 ||
+				typeof email !== "string" ||
+				email.trim().length === 0 ||
+				typeof password !== "string" ||
+				password.length === 0
+			) {
+				return {
+					success: false,
+					error: "Name, email and password are required",
+				};
+			}
+			try {
+				const response = await fetch(
+					`${LICENSE_SERVER_URL}/api/auth/sign-up/email`,
+					{
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							name: name.trim(),
+							email: email.trim(),
+							password,
+						}),
+					}
+				);
+				if (!response.ok) {
+					const body = (await response
+						.json()
+						.catch(() => null)) as Record<string, unknown> | null;
+					const message =
+						(body?.message as string) ||
+						(body?.error as string) ||
+						"Sign up failed";
+					return { success: false, error: message };
+				}
+				const body = (await response.json()) as Record<string, unknown>;
+				const session = body?.session as
+					| Record<string, unknown>
+					| undefined;
+				const token =
+					(body?.token as string) || (session?.token as string);
+				if (typeof token !== "string" || token.length === 0) {
+					return { success: false, error: "No session token received" };
+				}
+				setAuthToken({ token });
+				return { success: true };
+			} catch (error) {
+				return {
+					success: false,
+					error:
+						error instanceof Error
+							? error.message
+							: "Sign up failed",
+				};
+			}
+		}
+	);
+
+	ipcMain.handle("license:get-google-login-url", async (): Promise<string> => {
+		const desktopBridge = `${LICENSE_SERVER_URL}/api/auth/oauth/desktop-bridge`;
+		return `${LICENSE_SERVER_URL}/api/auth/google/start?redirect_url=${encodeURIComponent(desktopBridge)}`;
 	});
 }
 
