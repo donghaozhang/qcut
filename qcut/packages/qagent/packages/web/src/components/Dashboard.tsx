@@ -301,6 +301,18 @@ export function Dashboard({
 		}
 	};
 
+	/** Send the prtaskit.md instruction to an individual session. */
+	const handlePrtaskit = async (sessionId: string) => {
+		const res = await fetch("/api/commands/prtaskit", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ sessionId }),
+		});
+		if (!res.ok) {
+			throw new Error(await res.text());
+		}
+	};
+
 	/** Handle sort toggle — cycles TOKEN → CPU → DEFAULT → TOKEN. */
 	const handleSortToggle = () => {
 		setSessionSortMode((prev) => {
@@ -439,6 +451,7 @@ export function Dashboard({
 									onMergeit={handleMergeit}
 									onPrit={handlePrit}
 									onBuildit={handleBuildit}
+									onPrtaskit={handlePrtaskit}
 								/>
 							</div>
 						) : null
@@ -462,6 +475,7 @@ export function Dashboard({
 						onMergeit={handleMergeit}
 						onPrit={handlePrit}
 						onBuildit={handleBuildit}
+						onPrtaskit={handlePrtaskit}
 					/>
 				</div>
 			)}

@@ -34,6 +34,7 @@ interface SessionCardProps {
 	onMergeit?: (sessionId: string) => void;
 	onPrit?: (sessionId: string) => void;
 	onBuildit?: (sessionId: string) => void;
+	onPrtaskit?: (sessionId: string) => void;
 }
 
 const borderColorByLevel: Record<AttentionLevel, string> = {
@@ -64,12 +65,14 @@ export function SessionCard({
 	onMergeit,
 	onPrit,
 	onBuildit,
+	onPrtaskit,
 }: SessionCardProps) {
 	const [expanded, setExpanded] = useState(false);
 	const [sendingAction, setSendingAction] = useState<string | null>(null);
 	const [gititState, setGititState] = useState<"idle" | "loading" | "done" | "error">("idle");
 	const [mergeitState, setMergeitState] = useState<"idle" | "loading" | "done" | "error">("idle");
 	const [pritState, setPritState] = useState<"idle" | "loading" | "done" | "error">("idle");
+	const [prtaskitState, setPrtaskitState] = useState<"idle" | "loading" | "done" | "error">("idle");
 	const [builditState, setBuilditState] = useState<"idle" | "loading" | "done" | "error">("idle");
 	const [editingLabel, setEditingLabel] = useState(false);
 	const [labelDraft, setLabelDraft] = useState(session.label ?? "");
@@ -313,6 +316,26 @@ export function SessionCard({
 						className="rounded border border-[rgba(139,92,246,0.3)] bg-[rgba(139,92,246,0.06)] px-2.5 py-0.5 text-[11px] text-[rgba(139,92,246,0.7)] transition-colors hover:border-[rgba(139,92,246,0.6)] hover:text-[rgba(139,92,246,1)] hover:no-underline disabled:opacity-50"
 					>
 						{builditState === "loading" ? "…" : builditState === "done" ? "✓" : builditState === "error" ? "✗" : "buildit"}
+					</button>
+				)}
+				{onPrtaskit && (
+					<button
+						onClick={(e) => {
+							e.stopPropagation();
+							if (prtaskitState === "loading") return;
+							setPrtaskitState("loading");
+							Promise.resolve(onPrtaskit(session.id)).then(() => {
+								setPrtaskitState("done");
+								setTimeout(() => setPrtaskitState("idle"), 2000);
+							}).catch(() => {
+								setPrtaskitState("error");
+								setTimeout(() => setPrtaskitState("idle"), 2000);
+							});
+						}}
+						disabled={prtaskitState === "loading"}
+						className="rounded border border-[rgba(6,182,212,0.3)] bg-[rgba(6,182,212,0.06)] px-2.5 py-0.5 text-[11px] text-[rgba(6,182,212,0.7)] transition-colors hover:border-[rgba(6,182,212,0.6)] hover:text-[rgba(6,182,212,1)] hover:no-underline disabled:opacity-50"
+					>
+						{prtaskitState === "loading" ? "…" : prtaskitState === "done" ? "✓" : prtaskitState === "error" ? "✗" : "prtaskit"}
 					</button>
 				)}
 				{(!isTerminal || !session.managed) && (
