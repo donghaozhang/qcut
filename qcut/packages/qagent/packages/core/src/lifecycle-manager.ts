@@ -10,11 +10,6 @@
  * Reference: scripts/claude-session-status, scripts/claude-review-check
  */
 
-import { randomUUID } from "node:crypto";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import {
 	SESSION_STATUS,
 	PR_STATE,
@@ -23,169 +18,52 @@ import {
 	type SessionManager,
 	type SessionId,
 	type SessionStatus,
-	type EventType,
 	type OrchestratorEvent,
 	type OrchestratorConfig,
 	type ReactionConfig,
-	type ReactionResult,
 	type PluginRegistry,
 	type Runtime,
 	type Agent,
 	type SCM,
-	type Notifier,
-	type Session,
 	type EventPriority,
-	type AutomatedComment,
+	type Session,
 } from "./types.js";
 import { updateMetadata } from "./metadata.js";
 import { getSessionsDir } from "./paths.js";
-import { evaluatePolicyGate, type PolicyGateResult } from "./policy-gate.js";
 import {
-	loadWorkflowContract,
-	resolveEffectiveWorkflowPolicy,
-} from "./workflow-contract.js";
-
-/** Parse a duration string like "10m", "30s", "1h" to milliseconds. */
-function parseDuration(str: string): number {
-	const match = str.match(/^(\d+)(s|m|h)$/);
-	if (!match) return 0;
-	const value = parseInt(match[1], 10);
-	switch (match[2]) {
-		case "s":
-			return value * 1000;
-		case "m":
-			return value * 60_000;
-		case "h":
-			return value * 3_600_000;
-		default:
-			return 0;
-	}
-}
-
-/** Infer a reasonable priority from event type. */
-function inferPriority(type: EventType): EventPriority {
-	if (
-		type.includes("stuck") ||
-		type.includes("needs_input") ||
-		type.includes("errored")
-	) {
-		return "urgent";
-	}
-	if (type.startsWith("summary.")) {
-		return "info";
-	}
-	if (
-		type.includes("approved") ||
-		type.includes("ready") ||
-		type.includes("merged") ||
-		type.includes("completed")
-	) {
-		return "action";
-	}
-	if (
-		type.includes("fail") ||
-		type.includes("changes_requested") ||
-		type.includes("conflicts")
-	) {
-		return "warning";
-	}
-	return "info";
-}
-
-/** Create an OrchestratorEvent with defaults filled in. */
-function createEvent(
-	type: EventType,
-	opts: {
-		sessionId: SessionId;
-		projectId: string;
-		message: string;
-		priority?: EventPriority;
-		data?: Record<string, unknown>;
-	}
-): OrchestratorEvent {
-	return {
-		id: randomUUID(),
-		type,
-		priority: opts.priority ?? inferPriority(type),
-		sessionId: opts.sessionId,
-		projectId: opts.projectId,
-		timestamp: new Date(),
-		message: opts.message,
-		data: opts.data ?? {},
-	};
-}
-
-/** Determine which event type corresponds to a status transition. */
-function statusToEventType(
-	_from: SessionStatus | undefined,
-	to: SessionStatus
-): EventType | null {
-	switch (to) {
-		case "working":
-			return "session.working";
-		case "pr_open":
-			return "pr.created";
-		case "ci_failed":
-			return "ci.failing";
-		case "review_pending":
-			return "review.pending";
-		case "changes_requested":
-			return "review.changes_requested";
-		case "approved":
-			return "review.approved";
-		case "mergeable":
-			return "merge.ready";
-		case "merged":
-			return "merge.completed";
-		case "needs_input":
-			return "session.needs_input";
-		case "stuck":
-			return "session.stuck";
-		case "errored":
-			return "session.errored";
-		case "killed":
-			return "session.killed";
-		default:
-			return null;
-	}
-}
-
-/** Map event type to reaction config key. */
-function eventToReactionKey(eventType: EventType): string | null {
-	switch (eventType) {
-		case "ci.failing":
-			return "ci-failed";
-		case "review.changes_requested":
-			return "changes-requested";
-		case "automated_review.found":
-			return "bugbot-comments";
-		case "merge.conflicts":
-			return "merge-conflicts";
-		case "merge.ready":
-			return "approved-and-green";
-		case "session.stuck":
-			return "agent-stuck";
-		case "session.needs_input":
-			return "agent-needs-input";
-		case "session.killed":
-			return "agent-exited";
-		case "summary.all_complete":
-			return "all-complete";
-		default:
-			return null;
-	}
-}
+	createEvent,
+	statusToEventType,
+	eventToReactionKey,
+	inferPriority,
+} from "./lifecycle-events.js";
+import {
+	evaluateSessionPolicyGate,
+	shouldBlockMergeTransition,
+	getBlockedPolicyViolations,
+	resolveViolationPriority,
+	summarizePolicyGate,
+	type SessionPolicyEvaluation,
+} from "./lifecycle-policy.js";
+import {
+	syncIssueStateRouting,
+	syncSessionWorkpad,
+} from "./lifecycle-tracker.js";
+import {
+	notifyHuman as notifyHumanImpl,
+	executeReaction,
+	type ReactionTracker,
+	type ExecuteReactionDeps,
+} from "./lifecycle-reactions.js";
+import {
+	checkBotComments,
+	type BotCommentState,
+	type CheckBotCommentsDeps,
+} from "./lifecycle-bot-comments.js";
 
 export interface LifecycleManagerDeps {
 	config: OrchestratorConfig;
 	registry: PluginRegistry;
 	sessionManager: SessionManager;
-}
-
-/** Track attempt counts for reactions per session. */
-interface ReactionTracker {
-	attempts: number;
-	firstTriggered: Date;
 }
 
 /** Create a LifecycleManager instance. */
@@ -195,118 +73,22 @@ export function createLifecycleManager(
 	const { config, registry, sessionManager } = deps;
 
 	const states = new Map<SessionId, SessionStatus>();
-	const reactionTrackers = new Map<string, ReactionTracker>(); // "sessionId:reactionKey"
-	let pollTimer: ReturnType<typeof setInterval> | null = null;
-	let polling = false; // re-entrancy guard
-	let allCompleteEmitted = false; // guard against repeated all_complete
-
-	/** Track bot comment state per session for debounce/settle logic. */
-	interface BotCommentState {
-		/** Number of bot comments seen last time we checked */
-		lastSeenCount: number;
-		/** Timestamp of the most recent bot comment */
-		latestCommentAt: Date;
-		/** When we last detected new comments (for settle timer) */
-		lastNewCommentDetectedAt: Date;
-		/** Whether we already fired the reaction for this batch */
-		reactionFired: boolean;
-		/** When the reaction was last fired (for build-check delay) */
-		reactionFiredAt: Date | null;
-		/** Whether we already sent the build-check after the review loop converged */
-		buildSent: boolean;
-		/** When the build-check was sent (for CI poll delay) */
-		buildSentAt: Date | null;
-		/** Whether we already notified the user that the PR is ready to merge */
-		mergeNotified: boolean;
-	}
-
+	const reactionTrackers = new Map<string, ReactionTracker>();
 	const botCommentStates = new Map<SessionId, BotCommentState>();
-	const policyGateBySession = new Map<SessionId, PolicyGateResult>();
+	const policyEvaluationBySession = new Map<SessionId, SessionPolicyEvaluation>();
+	let pollTimer: ReturnType<typeof setInterval> | null = null;
+	let polling = false;
+	let allCompleteEmitted = false;
 
-	/** Settle time: wait this long after last new bot comment before triggering. */
-	const BOT_COMMENT_SETTLE_MS = 120_000; // 2 minutes
-
-	/** After firing review reaction, wait this long for new comments before sending build check. */
-	const BUILD_CHECK_DELAY_MS = 180_000; // 3 minutes
-
-	/** After sending build check, wait this long before polling CI status. */
-	const CI_POLL_DELAY_MS = 180_000; // 3 minutes
-
-	/** Statuses where bot comment detection should run. */
-	const BOT_CHECK_STATUSES = new Set<SessionStatus>([
-		"working",
-		"pr_open",
-		"review_pending",
-		"ci_failed",
-		"changes_requested",
-	]);
-
-	function summarizePolicyGate({
-		policyGate,
-	}: {
-		policyGate: PolicyGateResult;
-	}): string {
-		const details = policyGate.violations
-			.slice(0, 3)
-			.map((violation) => violation.message)
-			.join("; ");
-		return details || "Policy gate failed";
+	function notifyHuman(
+		event: OrchestratorEvent,
+		priority: EventPriority
+	): Promise<void> {
+		return notifyHumanImpl(event, priority, config, registry);
 	}
 
-	async function evaluateSessionPolicyGate({
-		session,
-		project,
-		scm,
-	}: {
-		session: Session;
-		project: OrchestratorConfig["projects"][string];
-		scm: SCM;
-	}): Promise<PolicyGateResult | null> {
-		if (!session.pr) {
-			policyGateBySession.delete(session.id);
-			return null;
-		}
-
-		try {
-			const workflowContract = loadWorkflowContract({
-				config,
-				project,
-			});
-			const effectivePolicy = resolveEffectiveWorkflowPolicy({
-				config,
-				project,
-				contract: workflowContract,
-			});
-
-			const policyGate = await evaluatePolicyGate({
-				scm,
-				pr: session.pr,
-				mode: effectivePolicy.mode,
-				policy: effectivePolicy.policy,
-			});
-			policyGateBySession.set(session.id, policyGate);
-			return policyGate;
-		} catch (error) {
-			const fallbackMode = project.policyMode ?? config.policyMode ?? "advisory";
-			const fallback: PolicyGateResult = {
-				mode: fallbackMode,
-				passed: false,
-				violations: [
-					{
-						code: "policy_evaluation_error",
-						message: `Policy gate evaluation failed: ${error}`,
-						blockerClass: "policy_gate_failed",
-					},
-				],
-				reviewSweep: null,
-				ciStatus: null,
-				mergeability: null,
-				requiredChecks: [],
-				checkedAt: new Date(),
-			};
-			policyGateBySession.set(session.id, fallback);
-			return fallback;
-		}
+	function makeReactionDeps(): ExecuteReactionDeps {
+		return { config, registry, sessionManager, reactionTrackers, notifyHuman };
 	}
 
 	/** Determine current status for a session by polling plugins. */
@@ -354,8 +136,6 @@ export function createLifecycleManager(
 					// Check whether the agent process is still alive. Some agents
 					// (codex, aider, opencode) return "active" for any non-empty
 					// terminal output, including the shell prompt visible after exit.
-					// Checking isProcessRunning for both "idle" and "active" ensures
-					// exit detection works regardless of the agent's classifier.
 					const processAlive = await agent.isProcessRunning(
 						session.runtimeHandle
 					);
@@ -374,16 +154,12 @@ export function createLifecycleManager(
 		}
 
 		// 3. Auto-detect PR by branch if metadata.pr is missing.
-		//    This is critical for agents without auto-hook systems (Codex, Aider,
-		//    OpenCode) that can't reliably write pr=<url> to metadata on their own.
+		//    Critical for agents without auto-hook systems (Codex, Aider, OpenCode).
 		if (!session.pr && scm && session.branch) {
 			try {
 				const detectedPR = await scm.detectPR(session, project);
 				if (detectedPR) {
 					session.pr = detectedPR;
-					// Persist PR URL so subsequent polls don't need to re-query.
-					// Don't write status here — step 4 below will determine the
-					// correct status (merged, ci_failed, etc.) on this same cycle.
 					const sessionsDir = getSessionsDir(config.configPath, project.path);
 					updateMetadata(sessionsDir, session.id, { pr: detectedPR.url });
 				}
@@ -398,46 +174,63 @@ export function createLifecycleManager(
 				const prState = await scm.getPRState(session.pr);
 				if (prState === PR_STATE.MERGED) return "merged";
 				if (prState === PR_STATE.CLOSED) return "killed";
+			} catch {
+				return session.status;
+			}
 
-				// Check CI
-				const ciStatus = await scm.getCISummary(session.pr);
-				if (ciStatus === CI_STATUS.FAILING) return "ci_failed";
+			let ciStatus: string | null = null;
+			try {
+				ciStatus = await scm.getCISummary(session.pr);
+			} catch {
+				ciStatus = null;
+			}
+			if (ciStatus === CI_STATUS.FAILING) return "ci_failed";
 
-				// Check reviews
-				const reviewDecision = await scm.getReviewDecision(session.pr);
-				if (reviewDecision === "changes_requested") {
-					policyGateBySession.delete(session.id);
-					return "changes_requested";
-				}
-				if (reviewDecision === "approved") {
-					// Check merge readiness
+			let reviewDecision: string;
+			try {
+				reviewDecision = await scm.getReviewDecision(session.pr);
+			} catch {
+				return session.status;
+			}
+
+			if (reviewDecision === "changes_requested") {
+				policyEvaluationBySession.delete(session.id);
+				return "changes_requested";
+			}
+			if (reviewDecision === "approved") {
+				try {
 					const mergeReady = await scm.getMergeability(session.pr);
 					if (mergeReady.mergeable) {
-						const policyGate = await evaluateSessionPolicyGate({
+						const policyEvaluation = await evaluateSessionPolicyGate({
 							session,
 							project,
 							scm,
+							config,
+							policyEvaluationBySession,
 						});
-						if (policyGate && policyGate.mode === "enforced" && !policyGate.passed) {
+						if (
+							policyEvaluation &&
+							shouldBlockMergeTransition({ evaluation: policyEvaluation })
+						) {
 							return "approved";
 						}
 						return "mergeable";
 					}
-					policyGateBySession.delete(session.id);
+				} catch {
 					return "approved";
 				}
-				if (reviewDecision === "pending") {
-					policyGateBySession.delete(session.id);
-					return "review_pending";
-				}
-
-				policyGateBySession.delete(session.id);
-				return "pr_open";
-			} catch {
-				// SCM check failed — keep current status
+				policyEvaluationBySession.delete(session.id);
+				return "approved";
 			}
+			if (reviewDecision === "pending") {
+				policyEvaluationBySession.delete(session.id);
+				return "review_pending";
+			}
+
+			policyEvaluationBySession.delete(session.id);
+			return "pr_open";
 		}
-		policyGateBySession.delete(session.id);
+		policyEvaluationBySession.delete(session.id);
 
 		// 5. Default: if agent is active, it's working
 		if (
@@ -450,232 +243,19 @@ export function createLifecycleManager(
 		return session.status;
 	}
 
-	/** Execute a reaction for a session. */
-	async function executeReaction(
-		sessionId: SessionId,
-		projectId: string,
-		reactionKey: string,
-		reactionConfig: ReactionConfig
-	): Promise<ReactionResult> {
-		const trackerKey = `${sessionId}:${reactionKey}`;
-		let tracker = reactionTrackers.get(trackerKey);
-
-		if (!tracker) {
-			tracker = { attempts: 0, firstTriggered: new Date() };
-			reactionTrackers.set(trackerKey, tracker);
-		}
-
-		// Increment attempts before checking escalation
-		tracker.attempts++;
-
-		// Check if we should escalate
-		const maxRetries = reactionConfig.retries ?? Infinity;
-		const escalateAfter = reactionConfig.escalateAfter;
-		let shouldEscalate = false;
-
-		if (tracker.attempts > maxRetries) {
-			shouldEscalate = true;
-		}
-
-		if (typeof escalateAfter === "string") {
-			const durationMs = parseDuration(escalateAfter);
-			if (
-				durationMs > 0 &&
-				Date.now() - tracker.firstTriggered.getTime() > durationMs
-			) {
-				shouldEscalate = true;
-			}
-		}
-
-		if (typeof escalateAfter === "number" && tracker.attempts > escalateAfter) {
-			shouldEscalate = true;
-		}
-
-		if (shouldEscalate) {
-			// Escalate to human
-			const event = createEvent("reaction.escalated", {
-				sessionId,
-				projectId,
-				message: `Reaction '${reactionKey}' escalated after ${tracker.attempts} attempts`,
-				data: { reactionKey, attempts: tracker.attempts },
-			});
-			await notifyHuman(event, reactionConfig.priority ?? "urgent");
-			return {
-				reactionType: reactionKey,
-				success: true,
-				action: "escalated",
-				escalated: true,
-			};
-		}
-
-		// Execute the reaction action
-		const action = reactionConfig.action ?? "notify";
-
-		switch (action) {
-			case "send-to-agent": {
-				if (reactionConfig.message) {
-					try {
-						await sessionManager.send(sessionId, reactionConfig.message);
-
-						return {
-							reactionType: reactionKey,
-							success: true,
-							action: "send-to-agent",
-							message: reactionConfig.message,
-							escalated: false,
-						};
-					} catch {
-						// Send failed — allow retry on next poll cycle (don't escalate immediately)
-						return {
-							reactionType: reactionKey,
-							success: false,
-							action: "send-to-agent",
-							escalated: false,
-						};
-					}
-				}
-				break;
-			}
-
-			case "notify": {
-				const event = createEvent("reaction.triggered", {
-					sessionId,
-					projectId,
-					message: `Reaction '${reactionKey}' triggered notification`,
-					data: { reactionKey },
-				});
-				await notifyHuman(event, reactionConfig.priority ?? "info");
-				return {
-					reactionType: reactionKey,
-					success: true,
-					action: "notify",
-					escalated: false,
-				};
-			}
-
-			case "send-structured-review": {
-				// Export PR comments as structured tasks and send to agent
-				try {
-					const session = await sessionManager.get(sessionId);
-					if (!session?.pr) {
-						return {
-							reactionType: reactionKey,
-							success: false,
-							action,
-							escalated: false,
-						};
-					}
-
-					const project = config.projects[projectId];
-					const repo = project?.repo ?? "";
-					const prNumber = String(session.pr.number);
-
-					const execFileAsync = promisify(execFile);
-					const coreDir = dirname(fileURLToPath(import.meta.url));
-					const scriptPath = resolve(
-						coreDir,
-						"../../../scripts/pr-comments/forward-to-agent.sh"
-					);
-
-					const { stdout } = await execFileAsync(
-						"bash",
-						[scriptPath, repo, prNumber],
-						{
-							timeout: 30_000,
-						}
-					);
-
-					if (stdout.trim()) {
-						await sessionManager.send(sessionId, stdout.trim());
-					}
-
-					return {
-						reactionType: reactionKey,
-						success: true,
-						action: "send-structured-review",
-						message: `Sent ${stdout.split("###").length - 1} structured review comments`,
-						escalated: false,
-					};
-				} catch {
-					// Fall back to simple message
-					if (reactionConfig.message) {
-						await sessionManager.send(sessionId, reactionConfig.message);
-					}
-					return {
-						reactionType: reactionKey,
-						success: true,
-						action: "send-structured-review",
-						escalated: false,
-					};
-				}
-			}
-
-			case "auto-merge": {
-				// Auto-merge is handled by the SCM plugin
-				// For now, just notify
-				const event = createEvent("reaction.triggered", {
-					sessionId,
-					projectId,
-					message: `Reaction '${reactionKey}' triggered auto-merge`,
-					data: { reactionKey },
-				});
-				await notifyHuman(event, "action");
-				return {
-					reactionType: reactionKey,
-					success: true,
-					action: "auto-merge",
-					escalated: false,
-				};
-			}
-		}
-
-		return {
-			reactionType: reactionKey,
-			success: false,
-			action,
-			escalated: false,
-		};
-	}
-
-	/** Send a notification to all configured notifiers. */
-	async function notifyHuman(
-		event: OrchestratorEvent,
-		priority: EventPriority
-	): Promise<void> {
-		const eventWithPriority = { ...event, priority };
-		const notifierNames =
-			config.notificationRouting[priority] ?? config.defaults.notifiers;
-
-		for (const name of notifierNames) {
-			const notifier = registry.get<Notifier>("notifier", name);
-			if (notifier) {
-				try {
-					await notifier.notify(eventWithPriority);
-				} catch {
-					// Notifier failed — not much we can do
-				}
-			}
-		}
-	}
-
 	/** Poll a single session and handle state transitions. */
 	async function checkSession(session: Session): Promise<void> {
-		// Use tracked state if available; otherwise use the persisted metadata status
-		// (not session.status, which list() may have already overwritten for dead runtimes).
-		// This ensures transitions are detected after a lifecycle manager restart.
 		const tracked = states.get(session.id);
 		const oldStatus =
 			tracked ??
 			((session.metadata?.status as SessionStatus | undefined) ||
 				session.status);
 		const newStatus = await determineStatus(session);
+		const project = config.projects[session.projectId];
 
 		if (newStatus !== oldStatus) {
-			// State transition detected
 			states.set(session.id, newStatus);
 
-			// Update metadata — session.projectId is the config key (e.g., "my-app")
-			const project = config.projects[session.projectId];
 			if (project) {
 				const sessionsDir = getSessionsDir(config.configPath, project.path);
 				updateMetadata(sessionsDir, session.id, { status: newStatus });
@@ -695,15 +275,33 @@ export function createLifecycleManager(
 				}
 			}
 
-			// Handle transition: notify humans and/or trigger reactions
+			if (project) {
+				await syncIssueStateRouting({
+					session,
+					project,
+					oldStatus,
+					newStatus,
+					config,
+					registry,
+					notifyHuman,
+				});
+				await syncSessionWorkpad({
+					session,
+					project,
+					status: newStatus,
+					config,
+					registry,
+					policyEvaluationBySession,
+					notifyHuman,
+				});
+			}
+
 			const eventType = statusToEventType(oldStatus, newStatus);
 			if (eventType) {
 				let reactionHandledNotify = false;
 				const reactionKey = eventToReactionKey(eventType);
 
 				if (reactionKey) {
-					// Merge project-specific overrides with global defaults
-					const project = config.projects[session.projectId];
 					const globalReaction = config.reactions[reactionKey];
 					const projectReaction = project?.reactions?.[reactionKey];
 					const reactionConfig = projectReaction
@@ -711,7 +309,6 @@ export function createLifecycleManager(
 						: globalReaction;
 
 					if (reactionConfig && reactionConfig.action) {
-						// auto: false skips automated agent actions but still allows notifications
 						if (
 							reactionConfig.auto !== false ||
 							reactionConfig.action === "notify"
@@ -720,18 +317,14 @@ export function createLifecycleManager(
 								session.id,
 								session.projectId,
 								reactionKey,
-								reactionConfig as ReactionConfig
+								reactionConfig as ReactionConfig,
+								makeReactionDeps()
 							);
-							// Reaction is handling this event — suppress immediate human notification.
-							// "send-to-agent" retries + escalates on its own; "notify"/"auto-merge"
-							// already call notifyHuman internally. Notifying here would bypass the
-							// delayed escalation behaviour configured via retries/escalateAfter.
 							reactionHandledNotify = true;
 						}
 					}
 				}
 
-				// For significant transitions not already notified by a reaction, notify humans
 				if (!reactionHandledNotify) {
 					const priority = inferPriority(eventType);
 					if (priority !== "info") {
@@ -746,314 +339,86 @@ export function createLifecycleManager(
 				}
 			}
 
-			const policyGate = policyGateBySession.get(session.id);
+			const policyEvaluation = policyEvaluationBySession.get(session.id);
+			const policyGate = policyEvaluation?.gate;
 			if (policyGate && !policyGate.passed) {
+				const blockedViolations = getBlockedPolicyViolations({ policyGate });
+				const hasBlockedViolations = blockedViolations.length > 0;
 				const enforcedBlockedMerge =
-					policyGate.mode === "enforced" &&
+					policyEvaluation &&
+					shouldBlockMergeTransition({ evaluation: policyEvaluation }) &&
 					oldStatus !== "approved" &&
 					newStatus === "approved";
 				const advisoryViolation =
 					policyGate.mode === "advisory" && newStatus === "mergeable";
+				const notifyBlockedViolations =
+					hasBlockedViolations &&
+					policyGate.blockedPolicy.escalation === "notify";
 
-				if (enforcedBlockedMerge || advisoryViolation) {
+				if (enforcedBlockedMerge || advisoryViolation || notifyBlockedViolations) {
+					const violationsForEvent = hasBlockedViolations
+						? blockedViolations
+						: policyGate.violations;
+					const priority = resolveViolationPriority({
+						violations: violationsForEvent,
+					});
 					const event = createEvent("review.comments_unresolved", {
 						sessionId: session.id,
 						projectId: session.projectId,
-						message: `${session.id}: workflow policy gate failed (${policyGate.mode}) — ${summarizePolicyGate(
-							{
-								policyGate,
-							}
-						)}`,
+						message: `${session.id}: workflow policy gate failed (${policyGate.mode}) — ${summarizePolicyGate({ policyGate })}`,
 						data: {
 							mode: policyGate.mode,
 							oldStatus,
 							newStatus,
-							violations: policyGate.violations,
+							blockedPolicy: policyGate.blockedPolicy,
+							violations: violationsForEvent,
 						},
 					});
-					await notifyHuman(event, "warning");
+					await notifyHuman(event, priority);
 				}
 			}
 		} else {
-			// No transition but track current state
 			states.set(session.id, newStatus);
 		}
 	}
 
-	/** Check for settled bot review comments on a session's PR and trigger reaction. */
-	async function checkBotComments(session: Session): Promise<void> {
-		if (!session.pr) {
-			console.log(`[botcheck] ${session.id}: no PR`);
-			return;
-		}
-
-		const currentStatus = states.get(session.id);
-		if (!currentStatus || !BOT_CHECK_STATUSES.has(currentStatus)) {
-			console.log(
-				`[botcheck] ${session.id}: status=${currentStatus} not in BOT_CHECK_STATUSES`
-			);
-			return;
-		}
-
-		const project = config.projects[session.projectId];
-		if (!project?.scm) {
-			console.log(`[botcheck] ${session.id}: no scm config`);
-			return;
-		}
-
-		const scm = registry.get<SCM>("scm", project.scm.plugin);
-		if (!scm) {
-			console.log(`[botcheck] ${session.id}: scm plugin not found`);
-			return;
-		}
-
-		let comments: AutomatedComment[];
-		try {
-			comments = await scm.getAutomatedComments(session.pr);
-		} catch (err) {
-			console.log(
-				`[botcheck] ${session.id}: getAutomatedComments failed: ${err}`
-			);
-			return; // Fetch failed, try next cycle
-		}
-
-		console.log(
-			`[botcheck] ${session.id}: found ${comments.length} bot comments`
-		);
-		if (comments.length === 0) return;
-
-		const now = new Date();
-		const latestComment = comments.reduce(
-			(latest, c) => (c.createdAt > latest ? c.createdAt : latest),
-			new Date(0)
-		);
-
-		const prev = botCommentStates.get(session.id);
-
-		if (!prev) {
-			// First time seeing bot comments for this session — start settle timer
-			console.log(
-				`[botcheck] ${session.id}: first detection, ${comments.length} comments, starting settle timer`
-			);
-			botCommentStates.set(session.id, {
-				lastSeenCount: comments.length,
-				latestCommentAt: latestComment,
-				lastNewCommentDetectedAt: now,
-				reactionFired: false,
-				reactionFiredAt: null,
-				buildSent: false,
-				buildSentAt: null,
-				mergeNotified: false,
-			});
-			return;
-		}
-
-		// Check if new comments arrived since last check
-		const newCommentsArrived =
-			comments.length > prev.lastSeenCount ||
-			latestComment > prev.latestCommentAt;
-
-		if (newCommentsArrived) {
-			// Reset settle timer — more comments still coming in
-			prev.lastSeenCount = comments.length;
-			prev.latestCommentAt = latestComment;
-			prev.lastNewCommentDetectedAt = now;
-			// Allow re-firing if we already fired for a previous batch
-			if (prev.reactionFired) {
-				prev.reactionFired = false;
-				prev.reactionFiredAt = null;
-				prev.buildSent = false;
-				prev.buildSentAt = null;
-				prev.mergeNotified = false;
-			}
-			return;
-		}
-
-		// No new comments — check if we should send build check or merge notification
-		if (prev.reactionFired) {
-			// Step 1: Send /buildit after review loop converges
-			if (!prev.buildSent && prev.reactionFiredAt) {
-				const sinceReaction = now.getTime() - prev.reactionFiredAt.getTime();
-				console.log(
-					`[botcheck] ${session.id}: waiting for build check... ${Math.round(sinceReaction / 1000)}s / ${BUILD_CHECK_DELAY_MS / 1000}s`
-				);
-				if (sinceReaction >= BUILD_CHECK_DELAY_MS) {
-					console.log(
-						`[botcheck] ${session.id}: sending /buildit instructions`
-					);
-					prev.buildSent = true;
-					prev.buildSentAt = now;
-					await sessionManager.send(
-						session.id,
-						"# Monitor and Fix CI Build\n\n" +
-							"The review comment loop has converged — no new bot comments. " +
-							"Now verify the CI build passes.\n\n" +
-							"## Steps\n\n" +
-							"1. Get the current PR with `gh pr view --json number --jq .number`.\n" +
-							"2. Check CI status with `gh pr checks`.\n" +
-							"3. If all checks pass, report success and stop.\n" +
-							"4. If a check fails, get the logs with `gh run view <run-id> --log-failed`.\n" +
-							"5. Diagnose the failure (lint, typecheck, test, build).\n" +
-							"6. Fix the code and push the fix.\n" +
-							"7. Re-check CI after the push.\n\n" +
-							"## Rules\n\n" +
-							"- Only fix what's needed to pass CI — no unrelated changes.\n" +
-							"- Run `bun run lint && bun run typecheck` locally before pushing.\n"
-					);
-				}
-				return;
-			}
-
-			// Step 2: After build check sent, poll CI and notify/merge when green
-			if (prev.buildSent && !prev.mergeNotified && prev.buildSentAt) {
-				const sinceBuild = now.getTime() - prev.buildSentAt.getTime();
-				if (sinceBuild < CI_POLL_DELAY_MS) {
-					console.log(
-						`[botcheck] ${session.id}: waiting for CI poll... ${Math.round(sinceBuild / 1000)}s / ${CI_POLL_DELAY_MS / 1000}s`
-					);
-					return;
-				}
-
-				try {
-					const ciStatus = await scm.getCISummary(session.pr);
-					console.log(`[botcheck] ${session.id}: CI status = ${ciStatus}`);
-					if (ciStatus === CI_STATUS.PASSING) {
-						const policyGate = await evaluateSessionPolicyGate({
-							session,
-							project,
-							scm,
-						});
-						if (policyGate && !policyGate.passed) {
-							const event = createEvent("review.comments_unresolved", {
-								sessionId: session.id,
-								projectId: session.projectId,
-								message: `PR #${session.pr.number}: workflow policy gate failed (${policyGate.mode}) — ${summarizePolicyGate(
-									{
-										policyGate,
-									}
-								)}`,
-								data: {
-									mode: policyGate.mode,
-									violations: policyGate.violations,
-								},
-							});
-							await notifyHuman(event, "warning");
-
-							if (policyGate.mode === "enforced") {
-								prev.mergeNotified = true;
-								return;
-							}
-						}
-
-						prev.mergeNotified = true;
-
-						// Check if auto-merge is enabled via approved-and-green reaction
-						const mergeReaction =
-							project.reactions?.["approved-and-green"] ??
-							config.reactions["approved-and-green"];
-
-						if (mergeReaction?.auto === true) {
-							// Auto-merge
-							try {
-								await scm.mergePR(session.pr);
-								const event = createEvent("merge.completed", {
-									sessionId: session.id,
-									projectId: session.projectId,
-									message: `PR #${session.pr.number} auto-merged after bot review loop converged and CI passed`,
-								});
-								await notifyHuman(event, "action");
-							} catch {
-								// Merge failed — notify user to handle manually
-								const event = createEvent("merge.ready", {
-									sessionId: session.id,
-									projectId: session.projectId,
-									message: `PR #${session.pr.number}: bot reviews addressed, CI passing — auto-merge failed, please merge manually`,
-								});
-								await notifyHuman(event, "action");
-							}
-						} else {
-							// Notify user to decide
-							const event = createEvent("merge.ready", {
-								sessionId: session.id,
-								projectId: session.projectId,
-								message: `PR #${session.pr.number}: all bot review comments addressed, CI passing — ready to merge`,
-							});
-							await notifyHuman(event, "action");
-						}
-					}
-					// If CI is still pending or failing, we'll check again next cycle
-				} catch {
-					// SCM check failed — retry next cycle
-				}
-			}
-			return;
-		}
-
-		const settleElapsed =
-			now.getTime() - prev.lastNewCommentDetectedAt.getTime();
-		if (settleElapsed < BOT_COMMENT_SETTLE_MS) {
-			console.log(
-				`[botcheck] ${session.id}: settling... ${Math.round(settleElapsed / 1000)}s / ${BOT_COMMENT_SETTLE_MS / 1000}s`
-			);
-			return;
-		}
-
-		// Comments have settled — trigger the bugbot-comments reaction
-		console.log(
-			`[botcheck] ${session.id}: SETTLED after ${Math.round(settleElapsed / 1000)}s — firing bugbot-comments reaction`
-		);
-		prev.reactionFired = true;
-		prev.reactionFiredAt = now;
-
-		const reactionKey = "bugbot-comments";
-		const globalReaction = config.reactions[reactionKey];
-		const projectReaction = project.reactions?.[reactionKey];
-		const reactionConfig = projectReaction
-			? { ...globalReaction, ...projectReaction }
-			: globalReaction;
-
-		if (!reactionConfig || reactionConfig.auto === false) return;
-
-		await executeReaction(
-			session.id,
-			session.projectId,
-			reactionKey,
-			reactionConfig as ReactionConfig
-		);
-	}
-
 	/** Run one polling cycle across all sessions. */
 	async function pollAll(): Promise<void> {
-		// Re-entrancy guard: skip if previous poll is still running
 		if (polling) return;
 		polling = true;
 
 		try {
 			const sessions = await sessionManager.list();
 
-			// Include sessions that are active OR whose status changed from what we last saw
-			// (e.g., list() detected a dead runtime and marked it "killed" — we need to
-			// process that transition even though the new status is terminal)
 			const sessionsToCheck = sessions.filter((s) => {
 				if (s.status !== "merged" && s.status !== "killed") return true;
 				const tracked = states.get(s.id);
 				return tracked !== undefined && tracked !== s.status;
 			});
 
-			// Poll all sessions concurrently
 			await Promise.allSettled(sessionsToCheck.map((s) => checkSession(s)));
 
 			// Parallel check: detect settled bot review comments on open PRs
 			const sessionsWithPRs = sessionsToCheck.filter((s) => s.pr != null);
-			await Promise.allSettled(sessionsWithPRs.map((s) => checkBotComments(s)));
+			const botDeps: CheckBotCommentsDeps = {
+				config,
+				registry,
+				sessionManager,
+				states,
+				botCommentStates,
+				policyEvaluationBySession,
+				reactionTrackers,
+				notifyHuman,
+				executeReaction,
+			};
+			await Promise.allSettled(
+				sessionsWithPRs.map((s) => checkBotComments(s, botDeps))
+			);
 
-			// Prune stale entries from states, reactionTrackers, and botCommentStates
-			// for sessions that no longer appear in the session list (e.g., after kill/cleanup)
+			// Prune stale entries for sessions no longer in the list
 			const currentSessionIds = new Set(sessions.map((s) => s.id));
 			for (const trackedId of states.keys()) {
-				if (!currentSessionIds.has(trackedId)) {
-					states.delete(trackedId);
-				}
+				if (!currentSessionIds.has(trackedId)) states.delete(trackedId);
 			}
 			for (const trackerKey of reactionTrackers.keys()) {
 				const sessionId = trackerKey.split(":")[0];
@@ -1062,14 +427,10 @@ export function createLifecycleManager(
 				}
 			}
 			for (const trackedId of botCommentStates.keys()) {
-				if (!currentSessionIds.has(trackedId)) {
-					botCommentStates.delete(trackedId);
-				}
+				if (!currentSessionIds.has(trackedId)) botCommentStates.delete(trackedId);
 			}
-			for (const trackedId of policyGateBySession.keys()) {
-				if (!currentSessionIds.has(trackedId)) {
-					policyGateBySession.delete(trackedId);
-				}
+			for (const trackedId of policyEvaluationBySession.keys()) {
+				if (!currentSessionIds.has(trackedId)) policyEvaluationBySession.delete(trackedId);
 			}
 
 			// Check if all sessions are complete (trigger reaction only once)
@@ -1083,7 +444,6 @@ export function createLifecycleManager(
 			) {
 				allCompleteEmitted = true;
 
-				// Execute all-complete reaction if configured
 				const reactionKey = eventToReactionKey("summary.all_complete");
 				if (reactionKey) {
 					const reactionConfig = config.reactions[reactionKey];
@@ -1096,7 +456,8 @@ export function createLifecycleManager(
 								"system",
 								"all",
 								reactionKey,
-								reactionConfig as ReactionConfig
+								reactionConfig as ReactionConfig,
+								makeReactionDeps()
 							);
 						}
 					}
@@ -1111,9 +472,8 @@ export function createLifecycleManager(
 
 	return {
 		start(intervalMs = 30_000): void {
-			if (pollTimer) return; // Already running
+			if (pollTimer) return;
 			pollTimer = setInterval(() => void pollAll(), intervalMs);
-			// Run immediately on start
 			void pollAll();
 		},
 

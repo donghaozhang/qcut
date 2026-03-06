@@ -9,3 +9,6 @@
 [submodule "qcut/.claude/skills/qcut-toolkit/Generative-Media-Skills"]
 	path = qcut/.claude/skills/qcut-toolkit/Generative-Media-Skills
 	url = https://github.com/donghaozhang/Generative-Media-Skills
+[submodule "qcut/resources/default-skills/qcut-toolkit/Generative-Media-Skills"]
+	path = qcut/resources/default-skills/qcut-toolkit/Generative-Media-Skills
+	url = https://github.com/donghaozhang/Generative-Media-Skills
