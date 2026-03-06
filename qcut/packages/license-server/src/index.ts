@@ -10,6 +10,20 @@ import { getAllowedCorsOrigins } from "./services/payment-config";
 
 const app = new Hono();
 
+// CF Workers passes secrets/vars via the env object, not process.env.
+// This middleware syncs them so all existing process.env usage works.
+app.use("/*", async (c, next) => {
+	const env = c.env as Record<string, unknown>;
+	if (env && typeof env === "object") {
+		for (const [key, value] of Object.entries(env)) {
+			if (typeof value === "string") {
+				process.env[key] = value;
+			}
+		}
+	}
+	await next();
+});
+
 app.use(
 	"/*",
 	cors({

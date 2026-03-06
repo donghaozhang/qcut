@@ -212,20 +212,11 @@ function buildRedirectTargetFromPath({
 	}
 }
 
-let cachedAuthInstance: BetterAuthInstance | null = null;
-
 /** Lazily loads and caches the shared Better Auth instance. */
 async function getAuthInstance(): Promise<BetterAuthInstance> {
 	try {
-		if (cachedAuthInstance) {
-			return cachedAuthInstance;
-		}
-
-		const module = (await import("@qcut/auth/server")) as {
-			auth: BetterAuthInstance;
-		};
-		cachedAuthInstance = module.auth;
-		return cachedAuthInstance;
+		const { getAuth } = await import("../auth/better-auth");
+		return getAuth() as BetterAuthInstance;
 	} catch (error) {
 		throw new Error(
 			error instanceof Error
