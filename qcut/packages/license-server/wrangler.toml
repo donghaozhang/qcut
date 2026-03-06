@@ -3,6 +3,10 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "70804d32fc714532a36dd1a0620da9ae"
+
 [vars]
 ENVIRONMENT = "production"
 PAYMENTS_WEB_BASE_URL = "https://quriosity.com.au"

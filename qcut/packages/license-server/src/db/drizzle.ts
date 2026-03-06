@@ -15,9 +15,8 @@ function getDb(): Db {
 	if (!url) {
 		throw new Error("DATABASE_URL is not configured");
 	}
-	// Supabase transaction pooler requires SSL and no prepared statements
+	// prepare: false required for Hyperdrive / transaction pooler
 	const client = postgres(url, {
-		ssl: "require",
 		prepare: false,
 		max: 1,
 	});
