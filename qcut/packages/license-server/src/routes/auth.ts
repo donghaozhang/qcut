@@ -239,17 +239,18 @@ export function createAuthRoutes({
 			try {
 				const auth = await getAuthInstance();
 				const response = await auth.handler(request);
-				if (!response.ok) {
-					const body = await response.text();
-					console.error(
-						`[auth] better-auth ${response.status} for ${request.method} ${request.url} body="${body}"`
-					);
-					return new Response(
-						JSON.stringify({ error: `Auth upstream ${response.status}`, detail: body }),
-						{ status: response.status, headers: { "content-type": "application/json" } }
-					);
+				// Pass through 2xx and 3xx (redirects) directly.
+				if (response.status < 400) {
+					return response;
 				}
-				return response;
+				const body = await response.text();
+				console.error(
+					`[auth] better-auth ${response.status} for ${request.method} ${request.url} body="${body}"`
+				);
+				return new Response(
+					JSON.stringify({ error: `Auth upstream ${response.status}`, detail: body }),
+					{ status: response.status, headers: { "content-type": "application/json" } }
+				);
 			} catch (error) {
 				console.error("[auth] handler threw:", error);
 				return new Response(
