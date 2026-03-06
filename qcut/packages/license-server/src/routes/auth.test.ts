@@ -44,7 +44,7 @@ describe("auth routes", () => {
 		});
 
 		const response = await authRoutes.request(
-			"https://qcut-license-server.workers.dev/google/start?redirect_url=https%3A%2F%2Fquriosity.com.au%2Faccount%2Fdashboard.html",
+			"https://qcut-license-server.workers.dev/google/start?redirect_url=https%3A%2F%2Fquriosity.com.au%2Faccount%2Fdashboard",
 			{
 				method: "GET",
 				headers: buildHeaders({ cookie: "state-cookie=abc" }),
@@ -62,7 +62,7 @@ describe("auth routes", () => {
 			"/api/auth/oauth/token-bridge"
 		);
 		expect(String(capturedRequestBody?.callbackURL)).toContain(
-			"redirect_url=https%3A%2F%2Fquriosity.com.au%2Faccount%2Fdashboard.html"
+			"redirect_url=https%3A%2F%2Fquriosity.com.au%2Faccount%2Fdashboard"
 		);
 	});
 
@@ -96,7 +96,7 @@ describe("auth routes", () => {
 		);
 
 		expect(String(capturedRequestBody?.callbackURL)).toContain(
-			"redirect_url=https%3A%2F%2Fquriosity.com.au%2Faccount%2Fdashboard.html"
+			"redirect_url=https%3A%2F%2Fquriosity.com.au%2Faccount%2Fdashboard"
 		);
 	});
 
@@ -116,14 +116,14 @@ describe("auth routes", () => {
 		});
 
 		const response = await authRoutes.request(
-			"https://qcut-license-server.workers.dev/oauth/token-bridge?redirect_url=https%3A%2F%2Fquriosity.com.au%2Faccount%2Fdashboard.html%3Ffrom%3Dlogin",
+			"https://qcut-license-server.workers.dev/oauth/token-bridge?redirect_url=https%3A%2F%2Fquriosity.com.au%2Faccount%2Fdashboard%3Ffrom%3Dlogin",
 			{ method: "GET" }
 		);
 
 		expect(response.status).toBe(302);
 		const location = response.headers.get("location") ?? "";
 		expect(location).toContain(
-			"https://quriosity.com.au/account/dashboard.html"
+			"https://quriosity.com.au/account/dashboard"
 		);
 		expect(location).toContain("from=login");
 		expect(location).toContain("auth_token=session-token-123");
@@ -143,15 +143,15 @@ describe("auth routes", () => {
 		});
 
 		const response = await authRoutes.request(
-			"https://qcut-license-server.workers.dev/oauth/token-bridge?redirect_url=https%3A%2F%2Fquriosity.com.au%2Faccount%2Fpricing.html",
+			"https://qcut-license-server.workers.dev/oauth/token-bridge?redirect_url=https%3A%2F%2Fquriosity.com.au%2Faccount%2Fpricing",
 			{ method: "GET" }
 		);
 
 		expect(response.status).toBe(302);
 		const location = response.headers.get("location") ?? "";
-		expect(location).toContain("/account/login.html");
+		expect(location).toContain("/account/login");
 		expect(location).toContain("auth_error=no_session");
-		expect(location).toContain("redirect=%2Faccount%2Fpricing.html");
+		expect(location).toContain("redirect=%2Faccount%2Fpricing");
 		expect(response.headers.get("cache-control")).toBe("no-store");
 	});
 });

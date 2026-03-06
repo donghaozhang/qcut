@@ -92,9 +92,9 @@ export function getPaymentSuccessUrl({
 }): string {
 	const baseUrl = getPaymentWebBaseUrl();
 	if (type === "topup") {
-		return `${baseUrl}/account/success.html?session_id={CHECKOUT_SESSION_ID}&type=topup`;
+		return `${baseUrl}/account/success?session_id={CHECKOUT_SESSION_ID}&type=topup`;
 	}
-	return `${baseUrl}/account/success.html?session_id={CHECKOUT_SESSION_ID}`;
+	return `${baseUrl}/account/success?session_id={CHECKOUT_SESSION_ID}`;
 }
 
 /** Builds the checkout cancel URL for the requested payment flow. */
@@ -105,15 +105,15 @@ export function getPaymentCancelUrl({
 }): string {
 	const baseUrl = getPaymentWebBaseUrl();
 	if (type === "topup") {
-		return `${baseUrl}/account/pricing.html#credits`;
+		return `${baseUrl}/account/pricing#credits`;
 	}
-	return `${baseUrl}/account/pricing.html`;
+	return `${baseUrl}/account/pricing`;
 }
 
 /** Returns the billing-portal return target. */
 export function getPaymentPortalReturnUrl(): string {
 	const baseUrl = getPaymentWebBaseUrl();
-	return `${baseUrl}/account/dashboard.html`;
+	return `${baseUrl}/account/dashboard`;
 }
 
 /** Reports whether checkout session creation is enabled. */

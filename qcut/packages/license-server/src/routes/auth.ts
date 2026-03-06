@@ -4,8 +4,8 @@ import {
 	getPaymentWebBaseUrl,
 } from "../services/payment-config";
 
-const DEFAULT_LOGIN_PATH = "/account/login.html";
-const DEFAULT_DASHBOARD_PATH = "/account/dashboard.html";
+const DEFAULT_LOGIN_PATH = "/account/login";
+const DEFAULT_DASHBOARD_PATH = "/account/dashboard";
 
 interface SessionPayload {
 	session: {
