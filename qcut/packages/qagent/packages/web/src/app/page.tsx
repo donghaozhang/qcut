@@ -138,9 +138,7 @@ export default async function Home() {
 				if (s.pr || !s.branch) return;
 				try {
 					const stubSession = { branch: s.branch } as import("@composio/ao-core").Session;
-					console.log(`[pr-discover] ${s.id} branch=${s.branch}`);
 					const prInfo = await discoverScm.detectPR(stubSession, firstProject);
-					console.log(`[pr-discover] ${s.id} result=`, prInfo ? `PR #${prInfo.number}` : "null");
 					if (prInfo) {
 						sessions[i].pr = {
 							number: prInfo.number,

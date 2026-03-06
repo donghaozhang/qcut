@@ -86,7 +86,12 @@ export function useLogin() {
 			}
 
 			const url = await licenseApi.getGoogleLoginUrl();
-			await window.electronAPI?.shell?.openExternal(url);
+			const opened = await window.electronAPI?.shell?.openExternal(url);
+			if (opened === false || !window.electronAPI?.shell) {
+				setError("Could not open browser for Google login");
+				setIsGoogleLoading(false);
+				return;
+			}
 			setIsWaitingForBrowser(true);
 		} catch (err) {
 			setError(

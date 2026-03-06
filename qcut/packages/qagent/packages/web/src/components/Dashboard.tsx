@@ -105,7 +105,7 @@ export function Dashboard({
 					...(live?.status ? { status: live.status as DashboardSession["status"] } : {}),
 					...(live?.activity ? { activity: live.activity as DashboardSession["activity"] } : {}),
 					...(live && "branch" in live ? { branch: live.branch } : {}),
-					...(live?.pr ? { pr: live.pr } : {}),
+					...(live && "pr" in live ? { pr: live.pr } : {}),
 				};
 			}),
 		[initialSessions, labelOverrides, liveOverrides]

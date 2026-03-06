@@ -87,7 +87,12 @@ export function useSignUp() {
 			}
 
 			const url = await licenseApi.getGoogleLoginUrl();
-			await window.electronAPI?.shell?.openExternal(url);
+			const opened = await window.electronAPI?.shell?.openExternal(url);
+			if (opened === false || !window.electronAPI?.shell) {
+				setError("Could not open browser for Google sign up");
+				setIsGoogleLoading(false);
+				return;
+			}
 			setIsWaitingForBrowser(true);
 		} catch (err) {
 			setError(

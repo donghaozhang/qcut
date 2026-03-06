@@ -181,7 +181,7 @@ export function SessionCard({
 						: undefined,
 			}}
 			onClick={(e) => {
-				if ((e.target as HTMLElement).closest("a, button, textarea")) return;
+				if ((e.target as HTMLElement).closest("a, button, textarea, [data-terminal]")) return;
 				setExpanded(!expanded);
 			}}
 		>
@@ -592,7 +592,9 @@ export function SessionCard({
 							<PRStatus pr={pr} />
 						</div>
 					)}
+					<div data-terminal="" onClick={(e) => e.stopPropagation()}>
 					<InlineTerminal session={session} />
+				</div>
 				</div>
 			)}
 

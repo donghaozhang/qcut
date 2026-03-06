@@ -354,6 +354,7 @@ export function setupLicenseIPC(): void {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
 						body: JSON.stringify({ email: email.trim(), password }),
+						signal: AbortSignal.timeout(15_000),
 					}
 				);
 				if (!response.ok) {
@@ -423,6 +424,7 @@ export function setupLicenseIPC(): void {
 							email: email.trim(),
 							password,
 						}),
+						signal: AbortSignal.timeout(15_000),
 					}
 				);
 				if (!response.ok) {
