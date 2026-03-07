@@ -96,6 +96,16 @@ const PER_SECOND_COSTS: Record<string, CreditCost> = {
 		label: "LTX V2 Fast 1080p",
 		unit: "per second",
 	},
+	"ltx23-pro-1080p": {
+		credits: 0.6,
+		label: "LTX 2.3 Pro 1080p",
+		unit: "per second",
+	},
+	"ltx23-fast-1080p": {
+		credits: 0.4,
+		label: "LTX 2.3 Fast 1080p",
+		unit: "per second",
+	},
 	"kling-v2.6-pro": {
 		credits: 0.7,
 		label: "Kling v2.6 Pro",

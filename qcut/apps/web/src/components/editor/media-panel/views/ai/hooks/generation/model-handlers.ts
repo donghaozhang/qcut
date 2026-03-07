@@ -12,6 +12,8 @@ import {
 	handleHailuo23T2V,
 	handleLTXV2ProT2V,
 	handleLTXV2FastT2V,
+	handleLTX23ProT2V,
+	handleLTX23FastT2V,
 	handleViduQ3T2V,
 	handleWAN26T2V,
 	handleGenericT2V,
@@ -24,6 +26,7 @@ import {
 	handleViduQ2I2V,
 	handleLTXV2I2V,
 	handleLTXV2FastI2V,
+	handleLTX23FastI2V,
 	handleSeedanceProFastI2V,
 	handleSeedanceProI2V,
 	handleKlingV25I2V,
@@ -105,6 +108,9 @@ function getTextToVideoDurationSeconds({
 	if (modelId === "ltxv2_fast_t2v") {
 		return settings.ltxv2FastDuration;
 	}
+	if (modelId === "ltx23_pro_t2v" || modelId === "ltx23_fast_t2v") {
+		return settings.ltx23Duration;
+	}
 	if (modelId === "wan_26_t2v") {
 		return settings.wan26T2VDuration;
 	}
@@ -132,6 +138,9 @@ function getImageToVideoDurationSeconds({
 	}
 	if (modelId === "ltxv2_fast_i2v") {
 		return settings.ltxv2ImageDuration;
+	}
+	if (modelId === "ltx23_fast_i2v") {
+		return settings.ltx23I2VDuration;
 	}
 	if (modelId === "seedance_pro_fast_i2v" || modelId === "seedance_pro_i2v") {
 		return settings.seedanceDuration;
@@ -230,6 +239,10 @@ export async function routeTextToVideoHandler(
 			return handleLTXV2ProT2V(ctx, settings);
 		case "ltxv2_fast_t2v":
 			return handleLTXV2FastT2V(ctx, settings);
+		case "ltx23_pro_t2v":
+			return handleLTX23ProT2V(ctx, settings);
+		case "ltx23_fast_t2v":
+			return handleLTX23FastT2V(ctx, settings);
 		case "wan_26_t2v":
 			return handleWAN26T2V(ctx, settings);
 		case "vidu_q3_t2v":
@@ -275,6 +288,8 @@ export async function routeImageToVideoHandler(
 			return handleLTXV2I2V(ctx, settings);
 		case "ltxv2_fast_i2v":
 			return handleLTXV2FastI2V(ctx, settings);
+		case "ltx23_fast_i2v":
+			return handleLTX23FastI2V(ctx, settings);
 		case "seedance_pro_fast_i2v":
 			return handleSeedanceProFastI2V(ctx, settings);
 		case "seedance_pro_i2v":

@@ -4,10 +4,15 @@
 
 import type {
 	LTXV2I2VRequest,
+	LTX23I2VRequest,
+	LTX23A2VRequest,
 	SeedanceI2VRequest,
 	VideoGenerationResponse,
 } from "@/components/editor/media-panel/views/ai/types/ai-types";
-import { ERROR_MESSAGES } from "@/components/editor/media-panel/views/ai/constants/ai-constants";
+import {
+	ERROR_MESSAGES,
+	LTX23_CONFIG,
+} from "@/components/editor/media-panel/views/ai/constants/ai-constants";
 import {
 	generateJobId,
 	getFalApiKeyAsync,
@@ -19,6 +24,10 @@ import {
 	validateLTXV2FastExtendedConstraints,
 	validateLTXV2I2VDuration,
 	validateLTXV2I2VResolution,
+	validateLTX23Resolution,
+	validateLTX23Duration,
+	validateLTX23FastExtendedConstraints,
+	validateLTX23A2VDuration,
 } from "../validation/validators";
 import { getModelConfig, withErrorHandling } from "./base-generator";
 
@@ -110,6 +119,162 @@ export async function generateLTXV2ImageVideo(
 
 			if (!response.ok) {
 				await handleFalResponse(response, "Generate LTX Video 2.0 I2V");
+			}
+
+			const result = await response.json();
+
+			return {
+				job_id: jobId,
+				status: "completed",
+				message: `Video generated successfully with ${request.model}`,
+				estimated_time: 0,
+				video_url: result.video?.url || result.video || result.url,
+				video_data: result,
+			};
+		}
+	);
+}
+
+/**
+ * Generate video from image using LTX Video 2.3 Fast.
+ * Supports end_image_url for transition generation.
+ */
+export async function generateLTX23ImageVideo(
+	request: LTX23I2VRequest
+): Promise<VideoGenerationResponse> {
+	return withErrorHandling(
+		"Generate LTX Video 2.3 I2V",
+		{ operation: "generateLTX23ImageVideo", model: request.model },
+		async () => {
+			const falApiKey = await getFalApiKeyAsync();
+			if (!falApiKey) {
+				throw new Error(
+					"FAL API key not configured. Please set VITE_FAL_API_KEY environment variable or configure it in Settings."
+				);
+			}
+
+			const trimmedPrompt = request.prompt?.trim() ?? "";
+			if (!trimmedPrompt) {
+				throw new Error(ERROR_MESSAGES.LTX23_EMPTY_PROMPT);
+			}
+
+			if (!request.image_url) {
+				throw new Error(ERROR_MESSAGES.LTX23_I2V_MISSING_IMAGE);
+			}
+
+			const modelConfig = getModelConfig(request.model);
+			if (!modelConfig) {
+				throw new Error(`Unknown model: ${request.model}`);
+			}
+
+			const endpoint = modelConfig.endpoints.image_to_video;
+			if (!endpoint) {
+				throw new Error(
+					`Model ${request.model} does not support image-to-video generation`
+				);
+			}
+
+			const duration =
+				request.duration ??
+				(modelConfig.default_params?.duration as number) ??
+				6;
+			const resolution =
+				request.resolution ??
+				(modelConfig.default_params?.resolution as string) ??
+				"1080p";
+			const fps =
+				request.fps ?? (modelConfig.default_params?.fps as number) ?? 25;
+			const generateAudio = request.generate_audio ?? true;
+
+			validateLTX23Resolution(resolution);
+			validateLTX23Duration(duration, request.model);
+			validateLTX23FastExtendedConstraints(duration, resolution, fps);
+
+			const payload: Record<string, unknown> = {
+				prompt: trimmedPrompt,
+				image_url: request.image_url,
+				duration,
+				resolution,
+				fps,
+				generate_audio: generateAudio,
+				...(request.aspect_ratio && { aspect_ratio: request.aspect_ratio }),
+				...(request.end_image_url && {
+					end_image_url: request.end_image_url,
+				}),
+			};
+
+			const jobId = generateJobId();
+			const response = await makeFalRequest(endpoint, payload);
+
+			if (!response.ok) {
+				await handleFalResponse(response, "Generate LTX Video 2.3 I2V");
+			}
+
+			const result = await response.json();
+
+			return {
+				job_id: jobId,
+				status: "completed",
+				message: `Video generated successfully with ${request.model}`,
+				estimated_time: 0,
+				video_url: result.video?.url || result.video || result.url,
+				video_data: result,
+			};
+		}
+	);
+}
+
+/**
+ * Generate video from audio using LTX Video 2.3.
+ * First audio-to-video model in QCut.
+ */
+export async function generateLTX23AudioVideo(
+	request: LTX23A2VRequest
+): Promise<VideoGenerationResponse> {
+	return withErrorHandling(
+		"Generate LTX Video 2.3 A2V",
+		{ operation: "generateLTX23AudioVideo", model: request.model },
+		async () => {
+			const falApiKey = await getFalApiKeyAsync();
+			if (!falApiKey) {
+				throw new Error(
+					"FAL API key not configured. Please set VITE_FAL_API_KEY environment variable or configure it in Settings."
+				);
+			}
+
+			if (!request.audio_url) {
+				throw new Error(ERROR_MESSAGES.LTX23_A2V_MISSING_AUDIO);
+			}
+
+			const duration =
+				request.duration ?? LTX23_CONFIG.AUDIO_TO_VIDEO.DURATIONS[0];
+			validateLTX23A2VDuration(duration);
+
+			if (request.resolution) {
+				validateLTX23Resolution(request.resolution);
+			}
+
+			const guidanceScale =
+				request.guidance_scale ??
+				LTX23_CONFIG.AUDIO_TO_VIDEO.DEFAULT_GUIDANCE_SCALE;
+
+			const payload: Record<string, unknown> = {
+				audio_url: request.audio_url,
+				duration,
+				guidance_scale: guidanceScale,
+				...(request.prompt && { prompt: request.prompt.trim() }),
+				...(request.image_url && { image_url: request.image_url }),
+				...(request.resolution && { resolution: request.resolution }),
+				...(request.aspect_ratio && { aspect_ratio: request.aspect_ratio }),
+				...(request.fps && { fps: request.fps }),
+			};
+
+			const jobId = generateJobId();
+			const endpoint = LTX23_CONFIG.AUDIO_TO_VIDEO.ENDPOINT;
+			const response = await makeFalRequest(endpoint, payload);
+
+			if (!response.ok) {
+				await handleFalResponse(response, "Generate LTX Video 2.3 A2V");
 			}
 
 			const result = await response.json();

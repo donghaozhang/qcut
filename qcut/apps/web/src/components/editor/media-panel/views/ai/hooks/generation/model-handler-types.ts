@@ -40,6 +40,11 @@ export interface TextToVideoSettings {
 	ltxv2FastResolution: string;
 	ltxv2FastFPS: number;
 	ltxv2FastGenerateAudio: boolean;
+	ltx23Duration: number;
+	ltx23Resolution: string;
+	ltx23FPS: number;
+	ltx23GenerateAudio: boolean;
+	ltx23AspectRatio: string;
 	unifiedParams: Record<string, unknown>;
 	duration?: number;
 	aspectRatio?: "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9";
@@ -79,6 +84,13 @@ export interface ImageToVideoSettings {
 	ltxv2ImageResolution: string;
 	ltxv2ImageFPS: number;
 	ltxv2ImageGenerateAudio: boolean;
+	ltx23I2VDuration: number;
+	ltx23I2VResolution: string;
+	ltx23I2VFPS: number;
+	ltx23I2VGenerateAudio: boolean;
+	ltx23I2VAspectRatio: string;
+	ltx23I2VEndImageUrl: string | null;
+	ltx23I2VEndImageFile: File | null;
 	seedanceDuration: number;
 	seedanceResolution: string;
 	seedanceAspectRatio: string;

@@ -164,6 +164,34 @@ export const I2V_MODELS = {
 		supportedResolutions: ["1080p", "1440p", "2160p"],
 		supportedDurations: [6, 8, 10, 12, 14, 16, 18, 20],
 	},
+	ltx23_fast_i2v: {
+		id: "ltx23_fast_i2v",
+		name: "LTX Video 2.3 Fast I2V",
+		description:
+			"Image-to-video with 4K, audio, and end-frame transitions (6-20s)",
+		price: "0.04-0.16",
+		resolution: "1080p",
+		max_duration: 20,
+		category: "image",
+		endpoints: {
+			image_to_video: "fal-ai/ltx-2.3/image-to-video/fast",
+		},
+		default_params: {
+			duration: 6,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+			fps: 25,
+			generate_audio: true,
+		},
+		supportedResolutions: ["1080p", "1440p", "2160p"],
+		supportedDurations: [6, 8, 10, 12, 14, 16, 18, 20],
+		supportedAspectRatios: ["16:9", "9:16", "auto"],
+		perSecondPricing: {
+			"1080p": 0.04,
+			"1440p": 0.08,
+			"2160p": 0.16,
+		},
+	},
 	seedance_pro_fast_i2v: {
 		id: "seedance_pro_fast_i2v",
 		name: "Seedance v1 Pro Fast I2V",
@@ -517,6 +545,7 @@ export const I2V_MODEL_ORDER: readonly I2VModelId[] = [
 	"kling_v3_pro_i2v",
 	"kling_v26_pro_i2v",
 	"veo31_image_to_video",
+	"ltx23_fast_i2v",
 	"ltxv2_i2v",
 	"hailuo23_pro",
 	"seedance_pro_i2v",

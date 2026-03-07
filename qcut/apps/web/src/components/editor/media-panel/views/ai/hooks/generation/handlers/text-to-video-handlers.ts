@@ -7,6 +7,7 @@ import {
 	generateVideo,
 	generateVideoFromText,
 	generateLTXV2Video,
+	generateLTX23TextVideo,
 	generateViduQ3TextVideo,
 	generateWAN26TextVideo,
 } from "@/lib/ai-video";
@@ -27,6 +28,10 @@ type ViduQ3AspectRatio = "16:9" | "9:16" | "4:3" | "3:4" | "1:1";
 type WAN26Duration = 5 | 10 | 15;
 type WAN26T2VResolution = "720p" | "1080p";
 type WAN26AspectRatio = "16:9" | "9:16" | "1:1" | "4:3" | "3:4";
+type LTX23Duration = 6 | 8 | 10 | 12 | 14 | 16 | 18 | 20;
+type LTX23Resolution = "1080p" | "1440p" | "2160p";
+type LTX23FPS = 24 | 25 | 48 | 50;
+type LTX23AspectRatio = "16:9" | "9:16";
 
 export async function handleVeo31FastT2V(
 	ctx: ModelHandlerContext,
@@ -181,6 +186,86 @@ export async function handleLTXV2FastT2V(
 			resolution: settings.ltxv2FastResolution as LTXV2Resolution,
 			fps: settings.ltxv2FastFPS as LTXV2FPS,
 			generate_audio: settings.ltxv2FastGenerateAudio,
+		});
+
+		ctx.progressCallback({
+			status: "completed",
+			progress: 100,
+			message: `Video with audio generated using ${ctx.modelName}`,
+		});
+
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/**
+ * Handle LTX Video 2.3 Pro text-to-video generation
+ */
+export async function handleLTX23ProT2V(
+	ctx: ModelHandlerContext,
+	settings: TextToVideoSettings
+): Promise<ModelHandlerResult> {
+	ctx.progressCallback({
+		status: "processing",
+		progress: 10,
+		message: `Submitting ${ctx.modelName} request...`,
+	});
+
+	try {
+		const response = await generateLTX23TextVideo({
+			model: ctx.modelId,
+			prompt: ctx.prompt,
+			duration: settings.ltx23Duration as LTX23Duration,
+			resolution: settings.ltx23Resolution as LTX23Resolution,
+			fps: settings.ltx23FPS as LTX23FPS,
+			generate_audio: settings.ltx23GenerateAudio,
+			aspect_ratio: settings.ltx23AspectRatio as LTX23AspectRatio,
+		});
+
+		ctx.progressCallback({
+			status: "completed",
+			progress: 100,
+			message: `Video with audio generated using ${ctx.modelName}`,
+		});
+
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/**
+ * Handle LTX Video 2.3 Fast text-to-video generation
+ */
+export async function handleLTX23FastT2V(
+	ctx: ModelHandlerContext,
+	settings: TextToVideoSettings
+): Promise<ModelHandlerResult> {
+	ctx.progressCallback({
+		status: "processing",
+		progress: 10,
+		message: `Submitting ${ctx.modelName} request...`,
+	});
+
+	try {
+		const response = await generateLTX23TextVideo({
+			model: ctx.modelId,
+			prompt: ctx.prompt,
+			duration: settings.ltx23Duration as LTX23Duration,
+			resolution: settings.ltx23Resolution as LTX23Resolution,
+			fps: settings.ltx23FPS as LTX23FPS,
+			generate_audio: settings.ltx23GenerateAudio,
+			aspect_ratio: settings.ltx23AspectRatio as LTX23AspectRatio,
 		});
 
 		ctx.progressCallback({

@@ -263,6 +263,46 @@ export const LTXV2_FAST_CONFIG = {
 } as const;
 
 /**
+ * LTX Video 2.3 model-specific configuration.
+ * Shares extended-duration constraints with v2 but adds 9:16 aspect ratio
+ * and 48/50 FPS options.
+ */
+export const LTX23_CONFIG = {
+	PRO_DURATIONS: [6, 8, 10] as const,
+	FAST_DURATIONS: [6, 8, 10, 12, 14, 16, 18, 20] as const,
+	RESOLUTIONS: {
+		STANDARD: ["1080p", "1440p", "2160p"] as const,
+		EXTENDED: ["1080p"] as const,
+	},
+	FPS_OPTIONS: {
+		STANDARD: [24, 25, 48, 50] as const,
+		EXTENDED: [25] as const,
+	},
+	ASPECT_RATIOS: ["16:9", "9:16"] as const,
+	EXTENDED_DURATION_THRESHOLD: 10,
+	PRICING: {
+		PRO: {
+			"1080p": 0.06,
+			"1440p": 0.12,
+			"2160p": 0.24,
+		},
+		FAST: {
+			"1080p": 0.04,
+			"1440p": 0.08,
+			"2160p": 0.16,
+		},
+		AUDIO_TO_VIDEO: 0.1,
+	},
+	AUDIO_TO_VIDEO: {
+		DURATIONS: [6, 8, 10] as const,
+		MIN_AUDIO_DURATION_SEC: 2,
+		MAX_AUDIO_DURATION_SEC: 20,
+		DEFAULT_GUIDANCE_SCALE: 7,
+		ENDPOINT: "fal-ai/ltx-2.3/audio-to-video",
+	},
+} as const;
+
+/**
  * User-facing status messages for video generation workflow.
  * Displayed in the UI during different stages of generation.
  */

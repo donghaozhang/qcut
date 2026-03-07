@@ -4,6 +4,9 @@ import { useLicenseStore } from "@/stores/license-store";
 
 const MODEL_TO_COST_KEY: Record<string, string> = {
 	ltxv2_fast_t2v: "ltxv2-fast-1080p",
+	ltx23_pro_t2v: "ltx23-pro-1080p",
+	ltx23_fast_t2v: "ltx23-fast-1080p",
+	ltx23_fast_i2v: "ltx23-fast-1080p",
 	kling_v26_pro_t2v: "kling-v2.6-pro",
 	wan_26_t2v: "wan-v2.6-1080p",
 	veo31_text_to_video: "veo-3",

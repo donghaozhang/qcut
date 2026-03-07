@@ -174,5 +174,7 @@ export {
 } from "./vidu-generators";
 export {
 	generateLTXV2ImageVideo,
+	generateLTX23ImageVideo,
+	generateLTX23AudioVideo,
 	generateSeedanceVideo,
 } from "./misc-generators";

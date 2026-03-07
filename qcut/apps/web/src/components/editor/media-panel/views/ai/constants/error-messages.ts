@@ -93,6 +93,28 @@ export const ERROR_MESSAGES = {
 	LTXV2_I2V_MISSING_IMAGE:
 		"Image is required for LTX Video 2.0 Fast image-to-video generation",
 
+	// LTX Video 2.3 errors
+	LTX23_PRO_INVALID_DURATION:
+		"Duration must be 6, 8, or 10 seconds for LTX Video 2.3 Pro",
+	LTX23_FAST_INVALID_DURATION:
+		"Duration must be 6, 8, 10, 12, 14, 16, 18, or 20 seconds for LTX Video 2.3 Fast",
+	LTX23_INVALID_RESOLUTION:
+		"Resolution must be 1080p, 1440p, or 2160p for LTX Video 2.3",
+	LTX23_EXTENDED_DURATION_CONSTRAINT:
+		"Videos longer than 10 seconds require 1080p resolution and 25 FPS for LTX Video 2.3 Fast",
+	LTX23_EMPTY_PROMPT:
+		"Please enter a text prompt for LTX Video 2.3 generation",
+	LTX23_I2V_MISSING_IMAGE:
+		"Image is required for LTX Video 2.3 image-to-video generation",
+	LTX23_A2V_MISSING_AUDIO:
+		"Audio file is required for LTX Video 2.3 audio-to-video generation",
+	LTX23_A2V_INVALID_DURATION:
+		"Duration must be 6, 8, or 10 seconds for LTX Video 2.3 audio-to-video",
+	LTX23_A2V_AUDIO_TOO_SHORT:
+		"Audio must be at least 2 seconds for LTX Video 2.3 audio-to-video",
+	LTX23_A2V_AUDIO_TOO_LONG:
+		"Audio must be no longer than 20 seconds for LTX Video 2.3 audio-to-video",
+
 	// Seeddream 4.5 errors
 	SEEDDREAM45_EMPTY_PROMPT: "Please enter a prompt for image generation",
 	SEEDDREAM45_EDIT_NO_IMAGES: "Please select at least one image to edit",
