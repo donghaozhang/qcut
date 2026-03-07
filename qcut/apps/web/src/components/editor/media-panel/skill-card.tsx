@@ -126,8 +126,8 @@ export function SkillCard({ skill, onDelete }: SkillCardProps) {
 	return (
 		<div className="border border-border rounded-lg p-3 bg-card hover:bg-accent/5 transition-colors">
 			<div className="flex items-start gap-3">
-				<div className="p-2 rounded-lg bg-purple-500/10">
-					<Brain className="h-5 w-5 text-purple-500" />
+				<div className="p-2 rounded-lg bg-primary/10">
+					<Brain className="h-5 w-5 text-primary" />
 				</div>
 
 				<div className="flex-1 min-w-0">
@@ -166,7 +166,7 @@ export function SkillCard({ skill, onDelete }: SkillCardProps) {
 					<div className="mt-2 space-y-1 pl-1">
 						{/* Skill Folder Path */}
 						<div className="flex items-center gap-1 group">
-							<Folder className="h-3 w-3 text-yellow-500 flex-shrink-0" />
+							<Folder className="h-3 w-3 text-muted-foreground flex-shrink-0" />
 							<span className="text-xs text-muted-foreground truncate flex-1 font-mono">
 								{skill.folderName}/
 							</span>
@@ -201,7 +201,7 @@ export function SkillCard({ skill, onDelete }: SkillCardProps) {
 									<FileText
 										className={cn(
 											"h-3 w-3 flex-shrink-0",
-											isMain ? "text-purple-400" : "text-blue-400"
+											isMain ? "text-primary" : "text-muted-foreground"
 										)}
 									/>
 									<span className="text-xs text-muted-foreground truncate flex-1 font-mono">

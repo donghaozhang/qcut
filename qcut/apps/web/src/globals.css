@@ -43,7 +43,7 @@
 	--sidebar-ring: hsl(0 0% 3.9%);
 
 	/* Brand accent */
-	--brand: hsl(180 96% 40%);
+	--brand: hsl(45 96% 53%);
 
 	/* Terminal palette (always dark, theme-independent) */
 	--terminal-bg: hsl(0 0% 10%);
@@ -53,7 +53,7 @@
 	--terminal-muted: hsl(0 0% 53%);
 
 	/* Timeline clip background */
-	--timeline-clip: hsl(183 100% 16%);
+	--timeline-clip: hsl(45 80% 18%);
 
 	/* Radius base */
 	--radius: 1rem;

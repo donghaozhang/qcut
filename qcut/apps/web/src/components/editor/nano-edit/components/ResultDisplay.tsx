@@ -31,7 +31,7 @@ const ViewSwitcher: React.FC<ViewSwitcherProps> = ({
 					onClick={() => onViewModeChange(mode)}
 					className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors duration-200 ${
 						viewMode === mode
-							? "bg-gradient-to-r from-orange-500 to-yellow-400 text-black"
+							? "bg-yellow-500 text-black"
 							: "text-gray-300 hover:bg-gray-700"
 					}`}
 				>
@@ -227,7 +227,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
 								onClick={() => setTwoStepViewMode(mode)}
 								className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors duration-200 ${
 									twoStepViewMode === mode
-										? "bg-gradient-to-r from-orange-500 to-yellow-400 text-black"
+										? "bg-yellow-500 text-black"
 										: "text-gray-300 hover:bg-gray-700"
 								}`}
 							>
@@ -307,7 +307,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
 							<button
 								type="button"
 								onClick={() => onUseImageAsInput(content.imageUrl!)}
-								className="flex-1 py-2 px-4 bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold rounded-lg shadow-md shadow-orange-500/20 hover:from-orange-600 hover:to-yellow-500 transition-all duration-200 flex items-center justify-center gap-2"
+								className="flex-1 py-2 px-4 bg-yellow-500 text-black font-semibold rounded-lg shadow-md shadow-yellow-500/20 hover:bg-yellow-400 transition-all duration-200 flex items-center justify-center gap-2"
 							>
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
@@ -412,10 +412,10 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
 								/>
 							</div>
 							<div
-								className="absolute top-0 bottom-0 bg-orange-500 w-1 cursor-ew-resize"
+								className="absolute top-0 bottom-0 bg-yellow-500 w-1 cursor-ew-resize"
 								style={{ left: `calc(${sliderPosition}% - 2px)` }}
 							>
-								<div className="absolute top-1/2 -translate-y-1/2 -left-3.5 bg-orange-500 h-8 w-8 rounded-full border-2 border-black flex items-center justify-center text-black">
+								<div className="absolute top-1/2 -translate-y-1/2 -left-3.5 bg-yellow-500 h-8 w-8 rounded-full border-2 border-black flex items-center justify-center text-black">
 									<svg
 										xmlns="http://www.w3.org/2000/svg"
 										className="h-4 w-4"
@@ -458,7 +458,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
 						<button
 							type="button"
 							onClick={() => onUseImageAsInput(content.imageUrl!)}
-							className="flex-1 py-2 px-4 bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold rounded-lg shadow-md shadow-orange-500/20 hover:from-orange-600 hover:to-yellow-500 transition-all duration-200 flex items-center justify-center gap-2"
+							className="flex-1 py-2 px-4 bg-yellow-500 text-black font-semibold rounded-lg shadow-md shadow-yellow-500/20 hover:bg-yellow-400 transition-all duration-200 flex items-center justify-center gap-2"
 						>
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
@@ -577,10 +577,10 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
 							/>
 						</div>
 						<div
-							className="absolute top-0 bottom-0 bg-orange-500 w-1 cursor-ew-resize"
+							className="absolute top-0 bottom-0 bg-yellow-500 w-1 cursor-ew-resize"
 							style={{ left: `calc(${sliderPosition}% - 2px)` }}
 						>
-							<div className="absolute top-1/2 -translate-y-1/2 -left-3.5 bg-orange-500 h-8 w-8 rounded-full border-2 border-black flex items-center justify-center text-black">
+							<div className="absolute top-1/2 -translate-y-1/2 -left-3.5 bg-yellow-500 h-8 w-8 rounded-full border-2 border-black flex items-center justify-center text-black">
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
 									className="h-4 w-4"
@@ -646,7 +646,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
 						<button
 							type="button"
 							onClick={() => onUseImageAsInput(content.imageUrl!)}
-							className="flex-1 py-2 px-4 bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold rounded-lg shadow-md shadow-orange-500/20 hover:from-orange-600 hover:to-yellow-500 transition-all duration-200 flex items-center justify-center gap-2"
+							className="flex-1 py-2 px-4 bg-yellow-500 text-black font-semibold rounded-lg shadow-md shadow-yellow-500/20 hover:bg-yellow-400 transition-all duration-200 flex items-center justify-center gap-2"
 						>
 							<svg
 								xmlns="http://www.w3.org/2000/svg"

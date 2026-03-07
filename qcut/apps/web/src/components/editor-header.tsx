@@ -82,7 +82,7 @@ export function EditorHeader() {
 						data-testid="project-menu-button"
 					>
 						<ChevronDown className="text-muted-foreground" />
-						<span className="text-[0.85rem] mr-2 truncate max-w-48">{activeProject?.name}</span>
+						<span className="text-sm mr-2 truncate max-w-48">{activeProject?.name}</span>
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="start" className="w-40">
@@ -159,7 +159,7 @@ export function EditorHeader() {
 			<Button
 				type="button"
 				size="sm"
-				className="h-7 text-xs !bg-linear-to-r from-cyan-400 to-blue-500 text-white hover:opacity-85 transition-opacity"
+				className="h-7 text-xs bg-yellow-500 text-black hover:bg-yellow-400 transition-colors"
 				onClick={handleExport}
 				onKeyDown={handleExportKeyDown}
 				data-testid="export-button"

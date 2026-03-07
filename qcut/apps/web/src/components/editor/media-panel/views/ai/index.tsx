@@ -383,7 +383,7 @@ export function AiView({ mode }: { mode?: "upscale" | "angles" } = {}) {
 									href="https://opennana.com/awesome-prompt-gallery"
 									target="_blank"
 									rel="noopener noreferrer"
-									className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-violet-400 hover:text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 rounded transition-colors"
+									className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground bg-muted hover:bg-accent rounded transition-colors"
 								>
 									Prompts
 									<ExternalLink className="h-2.5 w-2.5" />
@@ -392,7 +392,7 @@ export function AiView({ mode }: { mode?: "upscale" | "angles" } = {}) {
 									href="https://prompthero.com/"
 									target="_blank"
 									rel="noopener noreferrer"
-									className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-violet-400 hover:text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 rounded transition-colors"
+									className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground bg-muted hover:bg-accent rounded transition-colors"
 								>
 									PromptHero
 									<ExternalLink className="h-2.5 w-2.5" />

@@ -20,7 +20,7 @@ export function NoProjects({
 			<Button
 				variant="primary"
 				size="lg"
-				className="gap-2 animate-pulse hover:animate-none"
+				className="gap-2"
 				onClick={onCreateProject}
 				data-testid="new-project-button-empty-state"
 			>

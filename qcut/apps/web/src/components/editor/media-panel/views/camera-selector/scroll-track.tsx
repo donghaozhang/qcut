@@ -51,12 +51,12 @@ export function ScrollTrack<T>({
 
 	return (
 		<div className="mb-3">
-			<div className="text-[10px] text-muted-foreground/60 tracking-[1.5px] uppercase mb-1.5 pl-1">
+			<div className="text-xs text-muted-foreground/60 tracking-[1.5px] uppercase mb-1.5 pl-1">
 				{label}
 			</div>
 			<div
 				ref={trackRef}
-				className="flex gap-2.5 overflow-x-auto py-1.5 px-0.5 scroll-smooth snap-x snap-mandatory [scrollbar-width:thin] [scrollbar-color:#333_transparent]"
+				className="flex gap-2.5 overflow-x-auto py-1.5 px-0.5 scroll-smooth snap-x snap-mandatory [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]"
 			>
 				{items.map((item, i) => (
 					<button
@@ -79,7 +79,7 @@ export function ScrollTrack<T>({
 							"shrink-0 w-[100px] rounded-xl p-3 pt-2.5 text-center cursor-pointer transition-all duration-200 border-2 border-transparent snap-center flex flex-col items-center gap-1",
 							"bg-muted/40 hover:bg-muted/60 hover:border-muted-foreground/20",
 							i === selectedIndex &&
-								"border-emerald-500/60 bg-emerald-950/30 scale-105 hover:bg-emerald-950/30 hover:border-emerald-500/60"
+								"border-primary/60 bg-primary/10 scale-105 hover:bg-primary/10 hover:border-primary/60"
 						)}
 					>
 						{renderItem(item, i, i === selectedIndex)}
