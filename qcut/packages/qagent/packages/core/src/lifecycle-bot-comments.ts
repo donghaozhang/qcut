@@ -175,7 +175,7 @@ export async function checkBotComments(
 		if (!prev.buildSent && prev.reactionFiredAt) {
 			const sinceReaction = now.getTime() - prev.reactionFiredAt.getTime();
 			if (sinceReaction >= BUILD_CHECK_DELAY_MS) {
-				await sessionManager.send(
+				await sessionManager.sendOrRestart(
 					session.id,
 					"# Monitor and Fix CI Build\n\n" +
 						"The review comment loop has converged — no new bot comments. " +
