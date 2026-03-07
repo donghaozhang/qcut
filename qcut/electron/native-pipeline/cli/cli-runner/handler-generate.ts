@@ -163,7 +163,13 @@ export async function handleGenerate(
 	const outputDir = resolveOutputDir(options.outputDir, sessionId);
 
 	const params: Record<string, unknown> = {};
-	if (options.duration) params.duration = options.duration;
+	if (options.duration) {
+		// Coerce pure-numeric durations ("6", "10") to numbers for APIs that
+		// require integers. Keep string durations like "8s" (Veo) as-is.
+		const stripped = options.duration.replace(/s$/, "");
+		const asNum = Number(stripped);
+		params.duration = Number.isFinite(asNum) ? asNum : options.duration;
+	}
 	if (options.aspectRatio) params.aspect_ratio = options.aspectRatio;
 	if (options.resolution) params.resolution = options.resolution;
 	if (options.negativePrompt) params.negative_prompt = options.negativePrompt;

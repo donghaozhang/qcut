@@ -32,6 +32,11 @@ const BUILTIN_PLUGINS: Array<{ slot: PluginSlot; name: string; pkg: string }> =
 			name: "process",
 			pkg: "@composio/ao-plugin-runtime-process",
 		},
+		{
+			slot: "runtime",
+			name: "acp",
+			pkg: "@composio/ao-plugin-runtime-acp",
+		},
 		// Agents
 		{
 			slot: "agent",
@@ -40,6 +45,7 @@ const BUILTIN_PLUGINS: Array<{ slot: PluginSlot; name: string; pkg: string }> =
 		},
 		{ slot: "agent", name: "codex", pkg: "@composio/ao-plugin-agent-codex" },
 		{ slot: "agent", name: "aider", pkg: "@composio/ao-plugin-agent-aider" },
+		{ slot: "agent", name: "acp", pkg: "@composio/ao-plugin-agent-acp" },
 		// Workspaces
 		{
 			slot: "workspace",

@@ -72,21 +72,28 @@ function createClaudeCodeAgent(): Agent {
 			}
 
 			if (config.systemPromptFile) {
-				// Use shell command substitution to read from file at launch time.
-				// This avoids tmux truncation when inlining 2000+ char prompts.
-				// The double quotes allow $() expansion; inner path is single-quoted for safety.
+				// Tell agent to read the system prompt file itself.
+				// Avoids $(cat) expansion flooding tmux/process args.
 				parts.push(
 					"--append-system-prompt",
-					`"$(cat ${shellEscape(config.systemPromptFile)})"`
+					shellEscape(
+						`Read and follow ALL instructions in ${config.systemPromptFile}`
+					)
 				);
 			} else if (config.systemPrompt) {
 				parts.push("--append-system-prompt", shellEscape(config.systemPrompt));
 			}
 
 			if (config.promptFile) {
-				// Read from file at launch time via shell substitution.
-				// Avoids tmux scrollback flood and shell argument length limits.
-				parts.push("-p", `"$(cat ${shellEscape(config.promptFile)})"`);
+				// Tell the agent to read the prompt file itself.
+				// This keeps the shell command tiny — no $(cat) expansion flooding
+				// tmux scrollback or process args with 10KB+ of prompt text.
+				parts.push(
+					"-p",
+					shellEscape(
+						`Read and follow ALL instructions in ${config.promptFile}`
+					)
+				);
 			} else if (config.prompt) {
 				parts.push("-p", shellEscape(config.prompt));
 			}
