@@ -36,10 +36,14 @@ import {
 	EXAMPLE_SCRIPTS,
 	type ExampleScriptStructure,
 } from "@/lib/moyin/script/example-scripts";
+import {
+	EXAMPLE_NOVEL_EN,
+	EXAMPLE_NOVEL_ZH,
+} from "@/stores/moyin/moyin-novel-import";
 import { VISUAL_STYLE_PRESETS } from "@/lib/moyin/presets/visual-styles";
 import { CINEMATOGRAPHY_PROFILES } from "@/lib/moyin/presets/cinematography-profiles";
 
-type InputTab = "import" | "create";
+type InputTab = "import" | "create" | "novel";
 
 const GENRE_OPTIONS = [
 	{ value: "drama", label: "Drama" },
@@ -110,12 +114,14 @@ export function ScriptInput() {
 	const [createIdea, setCreateIdea] = useState("");
 	const [createGenre, setCreateGenre] = useState("drama");
 	const [createDuration, setCreateDuration] = useState("60s");
+	const [novelText, setNovelText] = useState("");
 
 	const rawScript = useMoyinStore((s) => s.rawScript);
 	const setRawScript = useMoyinStore((s) => s.setRawScript);
 	const parseStatus = useMoyinStore((s) => s.parseStatus);
 	const parseError = useMoyinStore((s) => s.parseError);
 	const parseScript = useMoyinStore((s) => s.parseScript);
+	const parseNovel = useMoyinStore((s) => s.parseNovel);
 	const clearScript = useMoyinStore((s) => s.clearScript);
 	const chatConfigured = useMoyinStore((s) => s.chatConfigured);
 	const generateScript = useMoyinStore((s) => s.generateScript);
@@ -191,38 +197,26 @@ export function ScriptInput() {
 				</div>
 			)}
 
-			{/* Import / Create tabs */}
+			{/* Import / Create / Novel tabs */}
 			<div className="flex border-b" role="tablist">
-				<button
-					type="button"
-					role="tab"
-					id="tab-button-import"
-					aria-selected={activeTab === "import"}
-					aria-controls="tab-import"
-					onClick={() => setActiveTab("import")}
-					className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
-						activeTab === "import"
-							? "border-primary text-primary"
-							: "border-transparent text-muted-foreground hover:text-foreground"
-					}`}
-				>
-					Import
-				</button>
-				<button
-					type="button"
-					role="tab"
-					id="tab-button-create"
-					aria-selected={activeTab === "create"}
-					aria-controls="tab-create"
-					onClick={() => setActiveTab("create")}
-					className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
-						activeTab === "create"
-							? "border-primary text-primary"
-							: "border-transparent text-muted-foreground hover:text-foreground"
-					}`}
-				>
-					Create
-				</button>
+				{(["import", "create", "novel"] as const).map((tab) => (
+					<button
+						key={tab}
+						type="button"
+						role="tab"
+						id={`tab-button-${tab}`}
+						aria-selected={activeTab === tab}
+						aria-controls={`tab-${tab}`}
+						onClick={() => setActiveTab(tab)}
+						className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
+							activeTab === tab
+								? "border-primary text-primary"
+								: "border-transparent text-muted-foreground hover:text-foreground"
+						}`}
+					>
+						{tab === "import" ? "Import" : tab === "create" ? "Create" : "Novel"}
+					</button>
+				))}
 			</div>
 
 			{/* Tab content */}

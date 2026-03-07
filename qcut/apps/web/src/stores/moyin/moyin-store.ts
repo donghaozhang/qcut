@@ -52,6 +52,7 @@ import {
 	getPendingTempScriptPath,
 	clearPendingParse,
 } from "./moyin-parse-actions";
+import { parseNovelImport } from "./moyin-novel-import";
 
 // Types
 
@@ -113,6 +114,7 @@ interface MoyinActions {
 	setActiveStep: (step: MoyinStep) => void;
 	setRawScript: (text: string) => void;
 	parseScript: () => Promise<void>;
+	parseNovel: (novelText: string, language?: "zh" | "en" | "auto") => Promise<void>;
 	clearScript: () => void;
 	generateScript: (
 		idea: string,
@@ -363,6 +365,10 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 						error instanceof Error ? error.message : "Unknown parse error",
 				});
 			}
+		},
+
+		parseNovel: async (novelText, language = "auto") => {
+			await parseNovelImport(novelText, language, get, set);
 		},
 
 		clearScript: () => {

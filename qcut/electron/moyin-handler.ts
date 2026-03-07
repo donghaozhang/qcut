@@ -144,11 +144,13 @@ export async function callLLM(
 	const openaiKey = keys.openRouterApiKey;
 	const googleKey = keys.geminiApiKey;
 
-	const provider = openaiKey
-		? "OpenRouter"
-		: googleKey
-			? "Gemini"
-			: "Claude CLI";
+	if (!openaiKey && !googleKey) {
+		throw new Error(
+			"No LLM API key configured. Set OPENROUTER_API_KEY or GEMINI_API_KEY in Settings or ~/.qcut/.env"
+		);
+	}
+
+	const provider = openaiKey ? "OpenRouter" : "Gemini";
 	log.info(
 		`[Moyin] callLLM using ${provider} (prompt: ${userPrompt.length} chars)`
 	);
@@ -157,12 +159,7 @@ export async function callLLM(
 		return callOpenAICompatible(openaiKey, systemPrompt, userPrompt, options);
 	}
 
-	if (googleKey) {
-		return callGemini(googleKey, systemPrompt, userPrompt);
-	}
-
-	// Fallback to Claude CLI (no API key required)
-	return callClaudeCLI(systemPrompt, userPrompt);
+	return callGemini(googleKey!, systemPrompt, userPrompt);
 }
 
 /** Call an OpenAI-compatible API (OpenRouter or direct OpenAI). */
