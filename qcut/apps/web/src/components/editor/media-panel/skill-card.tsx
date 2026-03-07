@@ -149,6 +149,7 @@ export function SkillCard({ skill, onDelete }: SkillCardProps) {
 				<button
 					type="button"
 					onClick={() => setIsExpanded(!isExpanded)}
+					aria-expanded={isExpanded}
 					className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
 				>
 					{isExpanded ? (

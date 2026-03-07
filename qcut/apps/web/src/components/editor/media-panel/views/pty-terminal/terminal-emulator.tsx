@@ -303,8 +303,7 @@ export function TerminalEmulator({
 	return (
 		<div
 			ref={containerRef}
-			className="h-full w-full [&_.xterm]:h-full [&_.xterm-viewport]:!bg-[#1a1a1a] [&_.xterm-screen]:!bg-[#1a1a1a]"
-			style={{ backgroundColor: "#1a1a1a" }}
+			className="h-full w-full bg-terminal-bg [&_.xterm]:h-full [&_.xterm-viewport]:!bg-terminal-bg [&_.xterm-screen]:!bg-terminal-bg"
 			role="application"
 			aria-label="Terminal emulator"
 			data-testid="terminal-emulator"
