@@ -430,25 +430,25 @@ export function SessionCard({
 					</span>
 				)}
 				{(session.metadata?.cwd || session.metadata?.worktree) && (
-					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
-						<span className="text-[var(--color-text-tertiary)]">cwd</span>
-						<span className="font-[var(--font-mono)] text-[var(--color-text-muted)] truncate max-w-[200px]" title={session.metadata.cwd || session.metadata.worktree}>
+					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(136,192,208,0.08)] px-1.5 py-0.5 text-[10px]">
+						<span className="text-[rgba(136,192,208,0.5)]">cwd</span>
+						<span className="font-[var(--font-mono)] text-[rgba(136,192,208,0.85)] truncate max-w-[200px]" title={session.metadata.cwd || session.metadata.worktree}>
 							{(session.metadata.cwd || session.metadata.worktree || "").split("/").slice(-2).join("/")}
 						</span>
 					</span>
 				)}
 				{session.metadata?.terminalApp && (
-					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
-						<svg className="h-2.5 w-2.5 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(192,132,252,0.08)] px-1.5 py-0.5 text-[10px]">
+						<svg className="h-2.5 w-2.5 text-[rgba(192,132,252,0.5)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
 							<path d="M4 17l6-5-6-5M12 19h8" />
 						</svg>
-						<span className="text-[var(--color-text-muted)]">
+						<span className="text-[rgba(192,132,252,0.85)]">
 							{session.metadata.terminalApp}
 						</span>
 						{session.metadata?.terminalName && (
 							<>
-								<span className="text-[var(--color-text-tertiary)]">&middot;</span>
-								<span className="text-[var(--color-text-muted)]">
+								<span className="text-[rgba(192,132,252,0.4)]">&middot;</span>
+								<span className="font-medium text-[rgba(192,132,252,0.95)]">
 									{session.metadata.terminalName}
 								</span>
 							</>
