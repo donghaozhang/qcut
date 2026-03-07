@@ -6,8 +6,8 @@ This document defines the agent workflow for autonomous issue execution in QCut.
 
 ```
 Todo → In Progress → Human Review → Merging → Done
-                         ↓
-                      Rework → 重新开始
+                         ↓              ↑
+                      Rework       Merge & Release
 ```
 
 - **Todo**: queued; immediately transition to In Progress before active work.
@@ -40,26 +40,28 @@ Todo → In Progress → Human Review → Merging → Done
 
 ## Step 1: Kickoff (Todo → In Progress)
 
-1. Find or create a single persistent **Workpad** comment on the issue:
+**MANDATORY**: You MUST create a Workpad comment before starting any implementation.
+
+1. Find or create a single persistent **Workpad** comment on the issue using `gh issue comment <number> --body "..."`:
    ```markdown
    ## Agent Workpad
-   
+
    ### Plan
    - [ ] 1. Parent task
      - [ ] 1.1 Child task
      - [ ] 1.2 Child task
    - [ ] 2. Parent task
-   
+
    ### Acceptance Criteria
    - [ ] Criterion 1
    - [ ] Criterion 2
-   
+
    ### Validation
    - [ ] targeted tests: `<command>`
-   
+
    ### Notes
    - <progress note>
-   
+
    ### Confusions
    - <only include when something was confusing>
    ```
@@ -68,6 +70,8 @@ Todo → In Progress → Human Review → Merging → Done
 4. Run a self-review of the plan and refine it.
 5. Capture a concrete reproduction signal before implementing.
 6. Run the `pull` skill to sync with latest `origin/main`.
+
+Do NOT skip the workpad — it is required for all tasks regardless of complexity.
 
 ## Step 2: Execution (In Progress → Human Review)
 
@@ -85,10 +89,16 @@ Todo → In Progress → Human Review → Merging → Done
 4. Re-check all acceptance criteria and close gaps.
 5. Before every `git push`: run validation, confirm it passes, then commit and push.
 6. Create/update PR with `gh pr create` or `gh pr edit`.
-7. Merge latest `origin/main` into branch, resolve conflicts, rerun checks.
-8. Update workpad with final checklist status and validation notes.
-9. Run PR feedback sweep: check all review comments are addressed.
-10. Only then move issue to Human Review.
+7. **MANDATORY — CI Watch**: Do NOT proceed until CI is checked.
+   - Run `gh pr checks <PR-number> --watch --fail-fast` to wait for CI results.
+   - If any check fails: read failure logs (`gh run view <run-id> --log-failed`), fix the code, commit, push, and re-run `gh pr checks --watch --fail-fast`.
+   - If all checks pass, continue to step 8.
+   - If CI takes longer than 10 minutes, continue to step 8 — the lifecycle manager will handle late CI failures.
+   - **Never exit the session with failing CI if you can fix it.**
+8. Merge latest `origin/main` into branch, resolve conflicts, rerun checks.
+9. Update workpad with final checklist status and validation notes.
+10. Run PR feedback sweep: check all review comments are addressed.
+11. When CI is green and all checks pass → proceed to **Step 5: Merge & Release**.
 
 ## Step 3: Human Review → Merge
 
@@ -97,6 +107,21 @@ Todo → In Progress → Human Review → Merging → Done
 3. If review feedback requires changes → move to Rework.
 4. If approved → follow the `land` skill to merge.
 5. After merge → move issue to Done.
+
+## Step 5: Merge & Release (CI Green → Done)
+
+When all CI checks pass and no human review is required (or already approved):
+
+1. Merge the current PR to the default branch (squash merge). Keep the feature branch.
+2. Switch to the default branch and pull latest.
+3. If the PR is linked to a GitHub issue, close the issue.
+4. Trigger the GitHub Release workflow: `gh workflow run release.yml`.
+5. Monitor the release: `gh run watch <run-id> --exit-status`.
+6. If the release fails, diagnose and fix the issue. Do NOT proceed to cleanup until the release succeeds.
+7. Confirm the release was created: `gh release list --limit 1` — verify the tag matches.
+8. Update the workpad with merge and release status.
+9. Move issue to Done.
+10. Clean up: delete the worktree by running `git -C <source-repo-path> worktree remove <worktree-path>` (must run from outside the worktree). Only do this after confirming the release succeeded.
 
 ## Step 4: Rework
 
@@ -128,9 +153,11 @@ Before moving to Human Review:
 - Use exactly one persistent workpad comment per issue.
 - Temporary proof edits are allowed for local verification but must be reverted before commit.
 - Do not move to Human Review unless the completion bar is met:
+  - ✅ Workpad comment created on the issue
   - ✅ Plan checklist fully complete in workpad
   - ✅ Acceptance criteria complete
   - ✅ Validation/tests green
+  - ✅ CI checks watched via `gh pr checks --watch` (waited or confirmed green)
   - ✅ PR feedback sweep complete
   - ✅ PR checks green, branch pushed, PR linked
 

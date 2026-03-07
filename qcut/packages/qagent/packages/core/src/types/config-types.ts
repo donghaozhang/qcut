@@ -227,6 +227,25 @@ export interface ProjectConfig {
   policyMode?: PolicyMode;
 
   /**
+   * Auto-discovery: automatically poll tracker for new issues and spawn agents.
+   * Disabled by default. Set `enabled: true` to activate.
+   */
+  autoDiscovery?: {
+    /** Enable auto-discovery. Default: false */
+    enabled: boolean;
+    /** Only discover issues with this label. Default: "agent-ready" */
+    label?: string;
+    /** Max concurrent auto-spawned sessions. Default: 5 */
+    maxConcurrent?: number;
+    /** Poll interval in ms. Default: 60000 (1 min) */
+    intervalMs?: number;
+    /** Log what would spawn without actually spawning. Default: false */
+    dryRun?: boolean;
+    /** Issue states to consider. Default: ["Todo"] */
+    states?: string[];
+  };
+
+  /**
    * Escalation templates for per-project notification playbooks.
    * When a reaction escalates, these templates are checked first before
    * falling back to the built-in escalation messages.

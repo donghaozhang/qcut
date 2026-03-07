@@ -110,6 +110,7 @@ beforeEach(() => {
 		kill: vi.fn().mockResolvedValue(undefined),
 		cleanup: vi.fn(),
 		send: vi.fn().mockResolvedValue(undefined),
+		sendOrRestart: vi.fn().mockResolvedValue({ restarted: false }),
 	};
 
 	config = {
@@ -779,7 +780,7 @@ describe("reactions", () => {
 
 		await lm.check("app-1");
 
-		expect(mockSessionManager.send).toHaveBeenCalledWith(
+		expect(mockSessionManager.sendOrRestart).toHaveBeenCalledWith(
 			"app-1",
 			"CI is failing. Fix it."
 		);
@@ -907,7 +908,7 @@ describe("reactions", () => {
 
 		expect(lm.getStates().get("app-1")).toBe("ci_failed");
 		// send-to-agent reaction should have been executed
-		expect(mockSessionManager.send).toHaveBeenCalledWith("app-1", "Fix CI");
+		expect(mockSessionManager.sendOrRestart).toHaveBeenCalledWith("app-1", "Fix CI");
 		// Notifier should NOT have been called — the reaction is handling it
 		expect(mockNotifier.notify).not.toHaveBeenCalled();
 	});

@@ -639,6 +639,17 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		[]
 	),
 	"editor:moyin:status": ed("editor:moyin:status", "Get pipeline progress", []),
+	"editor:moyin:generate": ed(
+		"editor:moyin:generate",
+		"Generate a script from a description/idea",
+		[
+			f("--idea", "string", "Description or idea for the script", {
+				short: "-i",
+			}),
+			f("--genre", "string", "Genre hint (e.g. drama, comedy)"),
+			f("--target-duration", "string", "Target duration (e.g. 30s, 1m)"),
+		]
+	),
 
 	// ── State Control ──
 	"editor:undo": ed("editor:undo", "Undo last action", []),

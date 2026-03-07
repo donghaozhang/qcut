@@ -133,7 +133,7 @@ Important requirements:
 const REQUEST_TIMEOUT_MS = 60_000;
 
 /** Route an LLM call to OpenRouter, Gemini, or Claude CLI based on available keys. */
-async function callLLM(
+export async function callLLM(
 	systemPrompt: string,
 	userPrompt: string,
 	options: { temperature?: number; maxTokens?: number } = {}
@@ -144,11 +144,13 @@ async function callLLM(
 	const openaiKey = keys.openRouterApiKey;
 	const googleKey = keys.geminiApiKey;
 
-	const provider = openaiKey
-		? "OpenRouter"
-		: googleKey
-			? "Gemini"
-			: "Claude CLI";
+	if (!openaiKey && !googleKey) {
+		throw new Error(
+			"No LLM API key configured. Set OPENROUTER_API_KEY or GEMINI_API_KEY in Settings or ~/.qcut/.env"
+		);
+	}
+
+	const provider = openaiKey ? "OpenRouter" : "Gemini";
 	log.info(
 		`[Moyin] callLLM using ${provider} (prompt: ${userPrompt.length} chars)`
 	);
@@ -157,12 +159,7 @@ async function callLLM(
 		return callOpenAICompatible(openaiKey, systemPrompt, userPrompt, options);
 	}
 
-	if (googleKey) {
-		return callGemini(googleKey, systemPrompt, userPrompt);
-	}
-
-	// Fallback to Claude CLI (no API key required)
-	return callClaudeCLI(systemPrompt, userPrompt);
+	return callGemini(googleKey!, systemPrompt, userPrompt);
 }
 
 /** Call an OpenAI-compatible API (OpenRouter or direct OpenAI). */
@@ -603,5 +600,5 @@ export function setupMoyinIPC(): void {
 }
 
 // CommonJS export for compiled JavaScript compatibility
-module.exports = { setupMoyinIPC };
-export default { setupMoyinIPC };
+module.exports = { setupMoyinIPC, callLLM };
+export default { setupMoyinIPC, callLLM };

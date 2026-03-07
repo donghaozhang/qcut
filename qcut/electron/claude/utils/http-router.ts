@@ -23,11 +23,16 @@ export class HttpError extends Error {
 	}
 }
 
+/** Sentinel value: handler already wrote the response (e.g. streaming). */
+export const RESPONSE_HANDLED = Symbol("RESPONSE_HANDLED");
+
 export interface ParsedRequest {
 	params: Record<string, string>;
 	query: Record<string, string>;
 	body: any;
 	responseMeta?: RouteResponseMeta;
+	/** Raw Node ServerResponse — use for streaming responses. */
+	rawRes: ServerResponse;
 }
 
 export interface RouteResponseMeta {
@@ -170,7 +175,9 @@ export function createRouter(): Router {
 					query,
 					body,
 					responseMeta,
+					rawRes: res,
 				});
+				if (result === RESPONSE_HANDLED) return;
 				sendJson({
 					res,
 					status: 200,

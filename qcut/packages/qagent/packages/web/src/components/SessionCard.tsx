@@ -379,7 +379,7 @@ export function SessionCard({
 			<div className="px-4 pb-3">
 				<p
 					className={cn(
-						"leading-snug [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3] overflow-hidden",
+						"leading-[1.4] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3] overflow-hidden tracking-[-0.01em]",
 						level === "working"
 							? "text-[17px] font-medium text-[var(--color-text-secondary)]"
 							: "text-[18px] font-semibold text-[var(--color-text-primary)]"
@@ -390,11 +390,11 @@ export function SessionCard({
 			</div>
 
 			{/* Meta row: branch + PR pills + CPU + terminal app */}
-			<div className="flex flex-wrap items-center gap-1.5 px-4 pb-2.5">
+			<div className="flex flex-wrap items-center gap-2 px-4 pb-2.5">
 				{session.branch && (
 					<span className="inline-flex items-center gap-1.5 rounded-[4px] bg-[rgba(136,192,208,0.08)] px-1.5 py-0.5 text-[12px]">
 						<span className="text-[var(--color-text-tertiary)]">branch</span>
-						<span className="font-[var(--font-mono)] text-[rgba(136,192,208,0.75)]">
+						<span className="font-[var(--font-mono)] text-[rgba(136,192,208,0.9)]">
 							{session.branch}
 						</span>
 					</span>
@@ -424,7 +424,7 @@ export function SessionCard({
 				{session.metadata?.pid && (
 					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[12px]">
 						<span className="text-[var(--color-text-tertiary)]">pid</span>
-						<span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">
+						<span className="font-[var(--font-mono)] text-[var(--color-text-secondary)]">
 							{session.metadata.pid}
 						</span>
 					</span>
@@ -433,7 +433,7 @@ export function SessionCard({
 					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[12px]">
 						<span className="text-[var(--color-text-tertiary)]">cwd</span>
 						<span className="font-[var(--font-mono)] text-[var(--color-text-muted)] truncate max-w-[200px]" title={session.metadata.cwd || session.metadata.worktree}>
-							{(session.metadata.cwd || session.metadata.worktree || "").split("/").slice(-2).join("/")}
+							{(session.metadata.cwd || session.metadata.worktree || "").replace(/\\/g, "/").split("/").slice(-2).join("/")}
 						</span>
 					</span>
 				)}
@@ -442,13 +442,13 @@ export function SessionCard({
 						<svg className="h-2.5 w-2.5 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
 							<path d="M4 17l6-5-6-5M12 19h8" />
 						</svg>
-						<span className="text-[var(--color-text-muted)]">
+						<span className="text-[rgba(192,132,252,0.85)]">
 							{session.metadata.terminalApp}
 						</span>
 						{session.metadata?.terminalName && (
 							<>
-								<span className="text-[var(--color-text-tertiary)]">&middot;</span>
-								<span className="text-[var(--color-text-muted)]">
+								<span className="text-[rgba(192,132,252,0.4)]">&middot;</span>
+								<span className="font-medium text-[rgba(192,132,252,0.95)]">
 									{session.metadata.terminalName}
 								</span>
 							</>

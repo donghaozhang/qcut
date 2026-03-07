@@ -38,6 +38,7 @@ import os
 import requests
 
 FAL_KEY = os.environ["FAL_KEY"]
+
 url = "https://fal.run/fal-ai/nano-banana-pro"
 headers = {
     "Authorization": f"Key {FAL_KEY}",

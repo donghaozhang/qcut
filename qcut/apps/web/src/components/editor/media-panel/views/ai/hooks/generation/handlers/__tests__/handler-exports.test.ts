@@ -24,14 +24,14 @@ function getHandlerExports({
 }
 
 describe("handler module exports", () => {
-	it("text-to-video-handlers exports exactly 8 functions", () => {
+	it("text-to-video-handlers exports exactly 10 functions", () => {
 		const names = getHandlerExports({ moduleExports: textToVideoHandlers });
-		expect(names).toHaveLength(8);
+		expect(names).toHaveLength(10);
 	});
 
-	it("image-to-video-handlers exports exactly 15 functions", () => {
+	it("image-to-video-handlers exports exactly 16 functions", () => {
 		const names = getHandlerExports({ moduleExports: imageToVideoHandlers });
-		expect(names).toHaveLength(15);
+		expect(names).toHaveLength(16);
 	});
 
 	it("upscale-handlers exports exactly 2 functions", () => {
@@ -44,14 +44,14 @@ describe("handler module exports", () => {
 		expect(names).toHaveLength(8);
 	});
 
-	it("all 33 handlers are functions", () => {
+	it("all 36 handlers are functions", () => {
 		const allNames = [
 			...getHandlerExports({ moduleExports: textToVideoHandlers }),
 			...getHandlerExports({ moduleExports: imageToVideoHandlers }),
 			...getHandlerExports({ moduleExports: upscaleHandlers }),
 			...getHandlerExports({ moduleExports: avatarHandlers }),
 		];
-		expect(allNames).toHaveLength(33);
+		expect(allNames).toHaveLength(36);
 	});
 
 	it("handleWAN26T2V is in text-to-video, not image-to-video", () => {

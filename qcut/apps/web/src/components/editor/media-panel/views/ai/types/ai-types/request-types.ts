@@ -116,6 +116,49 @@ export interface LTXV2I2VRequest {
 }
 
 /**
+ * Request parameters for LTX Video 2.3 text-to-video
+ */
+export interface LTX23T2VRequest {
+	model: string;
+	prompt: string;
+	duration?: 6 | 8 | 10 | 12 | 14 | 16 | 18 | 20;
+	resolution?: "1080p" | "1440p" | "2160p";
+	aspect_ratio?: "16:9" | "9:16";
+	fps?: 24 | 25 | 48 | 50;
+	generate_audio?: boolean;
+}
+
+/**
+ * Request parameters for LTX Video 2.3 image-to-video
+ */
+export interface LTX23I2VRequest {
+	model: string;
+	prompt: string;
+	image_url: string;
+	end_image_url?: string;
+	duration?: 6 | 8 | 10 | 12 | 14 | 16 | 18 | 20;
+	resolution?: "1080p" | "1440p" | "2160p";
+	aspect_ratio?: "16:9" | "9:16" | "auto";
+	fps?: 24 | 25 | 48 | 50;
+	generate_audio?: boolean;
+}
+
+/**
+ * Request parameters for LTX Video 2.3 audio-to-video
+ */
+export interface LTX23A2VRequest {
+	model: string;
+	audio_url: string;
+	image_url?: string;
+	prompt?: string;
+	guidance_scale?: number;
+	duration?: 6 | 8 | 10;
+	resolution?: "1080p" | "1440p" | "2160p";
+	aspect_ratio?: "16:9" | "9:16";
+	fps?: 24 | 25 | 48 | 50;
+}
+
+/**
  * Request parameters for avatar video generation
  */
 export interface AvatarVideoRequest {

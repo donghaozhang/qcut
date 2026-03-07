@@ -16,6 +16,7 @@ import type {
   PluginManifest,
   PluginModule,
 } from "./plugin-types.js";
+import type { IssueDiscoveryResult } from "../issue-discovery.js";
 
 // =============================================================================
 // SERVICE INTERFACES (core, not pluggable)
@@ -34,6 +35,8 @@ export interface SessionManager {
     options?: { dryRun?: boolean },
   ): Promise<CleanupResult>;
   send(sessionId: SessionId, message: string): Promise<void>;
+  /** Send message to agent, re-launching if agent process has exited */
+  sendOrRestart(sessionId: SessionId, message: string): Promise<{ restarted: boolean }>;
 }
 
 export interface CleanupResult {
@@ -55,6 +58,9 @@ export interface LifecycleManager {
 
   /** Force-check a specific session now */
   check(sessionId: SessionId): Promise<void>;
+
+  /** Run one issue discovery cycle across all enabled projects */
+  runDiscovery(): Promise<IssueDiscoveryResult[]>;
 }
 
 /** Plugin registry — discovery + loading */

@@ -1052,4 +1052,60 @@ export function registerSharedRoutes(
 		win.webContents.send("claude:moyin:parsed", req.body.scriptData);
 		return { imported: true };
 	});
+
+	// ── Novel Parse ───────────────────────────────────────────────────
+	router.post("/api/claude/novel/parse", async (req) => {
+		if (
+			!req.body?.text ||
+			typeof req.body.text !== "string" ||
+			!req.body.text.trim()
+		)
+			throw new HttpError(400, "Missing or empty 'text' in request body");
+
+		const { handleNovelParse } = await import(
+			"../../moyin/novel-parse-handler.js"
+		);
+		const { RESPONSE_HANDLED } = await import("../utils/http-router.js");
+
+		// Streaming mode: write ndjson lines with progress, then result
+		if (req.body.stream === true) {
+			const res = req.rawRes;
+			res.writeHead(200, {
+				"Content-Type": "application/x-ndjson",
+				"Cache-Control": "no-cache",
+				Connection: "keep-alive",
+				"X-Accel-Buffering": "no",
+			});
+			if (typeof res.flushHeaders === "function") res.flushHeaders();
+
+			try {
+				const result = await handleNovelParse(
+					{
+						text: req.body.text,
+						language: req.body.language,
+						maxClips: req.body.maxClips,
+					},
+					(progress) => {
+						try {
+							res.write(
+								JSON.stringify({ type: "progress", ...progress }) + "\n"
+							);
+						} catch {}
+					}
+				);
+				res.write(JSON.stringify({ type: "result", ...result }) + "\n");
+			} catch (error) {
+				const msg = error instanceof Error ? error.message : String(error);
+				res.write(JSON.stringify({ type: "error", error: msg }) + "\n");
+			}
+			res.end();
+			return RESPONSE_HANDLED;
+		}
+
+		return handleNovelParse({
+			text: req.body.text,
+			language: req.body.language,
+			maxClips: req.body.maxClips,
+		});
+	});
 }

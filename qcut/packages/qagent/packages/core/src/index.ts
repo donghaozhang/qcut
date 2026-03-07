@@ -112,6 +112,20 @@ export type { OrchestratorPromptConfig } from "./orchestrator-prompt.js";
 export { ReconciliationLoop } from "./reconciliation-loop.js";
 export type { ReconciliationDeps } from "./reconciliation-loop.js";
 
+// Issue discovery — auto-spawn agents for new issues (disabled by default)
+export {
+	createIssueDiscoveryLoop,
+	discoverAndSpawn,
+	resolveAutoDiscoveryConfig,
+} from "./issue-discovery.js";
+export type {
+	AutoDiscoveryConfig,
+	DiscoveredIssue,
+	IssueDiscoveryResult,
+	IssueDiscoveryDeps,
+	IssueDiscoveryLoop,
+} from "./issue-discovery.js";
+
 // Workpad schema — canonical WorkpadSnapshot type and rendering helpers
 export {
 	buildWorkpadSnapshot,
@@ -161,5 +175,6 @@ export {
 	generateTmuxName,
 	parseTmuxName,
 	expandHome,
+	getDaemonPidPath,
 	validateAndStoreOrigin,
 } from "./paths.js";

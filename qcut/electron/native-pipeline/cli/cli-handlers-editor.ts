@@ -512,17 +512,32 @@ async function handleMoyinCommand(
 			const data = await client.get("/api/claude/moyin/status");
 			return { success: true, data };
 		}
+		case "generate": {
+			if (!options.idea) {
+				return {
+					success: false,
+					error:
+						"Missing --idea. Provide a description/idea for script generation.",
+				};
+			}
+			const body: Record<string, string> = { idea: options.idea };
+			if (options.genre) body.genre = options.genre;
+			if (options.targetDuration) body.targetDuration = options.targetDuration;
+			const data = await client.post("/api/claude/moyin/generate", body);
+			return { success: true, data };
+		}
 		default:
 			return {
 				success: false,
-				error: `Unknown moyin action: ${action}. Available: set-script, parse, status`,
+				error: `Unknown moyin action: ${action}. Available: set-script, parse, status, generate`,
 			};
 	}
 }
 
 /**
  * Handle `editor:novel:parse` command.
- * Reads a novel text file and sends it to the editor for parsing.
+ * Sends novel text to the running editor for parsing via HTTP,
+ * using ndjson streaming to show step-by-step progress.
  */
 async function handleNovelCommand(
 	client: EditorApiClient,
@@ -534,22 +549,32 @@ async function handleNovelCommand(
 
 	switch (action) {
 		case "parse": {
-			if (!options.input) {
-				return {
-					success: false,
-					error: "Missing --input. Provide path to a novel text file.",
-				};
-			}
-
 			let text: string;
-			try {
-				const fs = await import("node:fs/promises");
-				text = await fs.readFile(options.input, "utf-8");
-			} catch (error) {
-				const reason = error instanceof Error ? error.message : String(error);
+			let source: string;
+
+			if (options.example) {
+				const { EXAMPLE_NOVEL_EN } = await import(
+					"../../moyin/novel-parse-example.js"
+				);
+				text = EXAMPLE_NOVEL_EN;
+				source = "built-in example";
+			} else if (options.input) {
+				try {
+					const fs = await import("node:fs/promises");
+					text = await fs.readFile(options.input, "utf-8");
+				} catch (error) {
+					const reason = error instanceof Error ? error.message : String(error);
+					return {
+						success: false,
+						error: `Failed to read input file: ${options.input}. ${reason}`,
+					};
+				}
+				source = options.input;
+			} else {
 				return {
 					success: false,
-					error: `Failed to read input file: ${options.input}. ${reason}`,
+					error:
+						"Missing --input or --example. Provide a novel text file or use --example to try the built-in demo.",
 				};
 			}
 
@@ -559,23 +584,33 @@ async function handleNovelCommand(
 
 			onProgress({
 				stage: "novel-parse",
-				percent: 10,
-				message: `Parsing novel (${text.length} chars)...`,
+				percent: 5,
+				message: `Read ${text.length} chars from ${source}`,
 			});
 
 			const body: Record<string, unknown> = {
 				text,
 				language: options.language ?? "auto",
+				stream: true,
 			};
 			if (options.maxClips != null) body.maxClips = options.maxClips;
 
-			const data = await client.post("/api/claude/novel/parse", body);
-
-			onProgress({
-				stage: "novel-parse",
-				percent: 100,
-				message: "Novel parsing complete.",
-			});
+			const data = await client.postStream(
+				"/api/claude/novel/parse",
+				body,
+				(line) => {
+					try {
+						const msg = JSON.parse(line);
+						if (msg.type === "progress") {
+							onProgress({
+								stage: msg.step,
+								percent: msg.percent,
+								message: msg.message,
+							});
+						}
+					} catch {}
+				}
+			);
 
 			// Write to output file if specified
 			if (options.output) {

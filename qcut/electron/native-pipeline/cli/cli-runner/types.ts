@@ -29,6 +29,8 @@ export interface CLIRunOptions {
 	keyName?: string;
 	keyValue?: string;
 	idea?: string;
+	genre?: string;
+	targetDuration?: string;
 	script?: string;
 	novel?: string;
 	title?: string;
@@ -157,6 +159,8 @@ export interface CLIRunOptions {
 	prompts?: string[];
 	/** Include full arrays in project info output */
 	full?: boolean;
+	/** Use built-in example input (e.g. for novel:parse) */
+	example?: boolean;
 	/** Output file path for export commands */
 	output?: string;
 	/** Comma-separated state sections for editor:state:snapshot */

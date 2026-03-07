@@ -27,12 +27,15 @@ projects:
     defaultBranch: master
     sessionPrefix: qcut
 
-    # Files to symlink into worktrees (share agent config only; avoid symlinking secrets like .env)
-    symlinks: [.claude]
+    # Symphony workflow — injected at Layer 2.5 of every spawn prompt
+    workflowContractPath: .claude/skills/qagent/symphony-ref/workflow.md
+
+    # .claude is git-tracked, so it's already in worktrees — no symlinks needed
+    # symlinks: [.claude]
 
     # Run after worktree creation
     postCreate:
-      - "bun install"
+      - "cd qcut && bun install"
 
     # Agent configuration
     agentConfig:

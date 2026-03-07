@@ -1,56 +1,57 @@
 # Create Issue & Branch
 
-Create a GitHub issue and a matching branch with Linear integration. Default workflow: GitHub → Linear.
+Create a GitHub issue, a matching Linear issue, and a branch.
 
-## Steps (Default: GitHub → Linear)
+## Steps
 
-1. Ask the user for: issue title, description (optional), and Linear issue ID (e.g. `QUR-XX`). If no Linear ID is provided, auto-assign one after step 2.
-2. Create a GitHub issue using `gh issue create` with the title and description (without `QUR-XX` yet).
-3. **Sync the numbers**: Get the newly created GitHub issue number (e.g. `#42`). Use the **same number** for QUR — i.e. `QUR-42`. This keeps GitHub and Linear issue numbers aligned.
-4. **Update the issue body**: Edit the GitHub issue to include `Part of QUR-42` using `gh issue edit`.
-5. Create a new git branch from the current branch. Use the naming convention: `<username>/qur-XX-short-description` (kebab-case, lowercase), where XX matches the GitHub issue number.
-6. Push the branch to remote with `git push -u origin <branch>`.
-7. Report the issue URL, branch name, and Linear ID (`QUR-XX` = GitHub issue number).
-8. Linear auto-links via magic words in commits/PRs ✅
+1. Ask the user for: issue title and description (optional).
+2. Check for existing duplicates: search GitHub (`gh issue list -S "<title keywords>"`) and Linear (`linear issue list --all-states`) for similar issues. If a potential duplicate is found, confirm with the user before proceeding.
+3. Create a GitHub issue using `gh issue create` with the title and description.
+4. Get the GitHub issue number (e.g. `#215`).
+5. Create a matching Linear issue using `linear issue create` with:
+   - `--title` and `--description` (or `--description-file` for multiline)
+   - `--priority urgent`
+   - `--status "In Progress"`
+   - `--project QCut`
+   - `--label <label>` — pick the best label(s) based on the issue content
+   - Include the GitHub issue link in the description
+6. Get the Linear issue identifier (e.g. `QUR-215`).
+7. Update the GitHub issue body to include `Part of QUR-XXX` using `gh issue edit`.
+8. Create a new git branch from the current branch: `<username>/qur-XXX-short-description` (kebab-case, lowercase).
+9. Push the branch to remote with `git push -u origin <branch>`.
+10. Report: GitHub issue URL, Linear issue URL, and branch name.
 
-## Workflow Reference
+## Label Selection
 
-### Method A: GitHub → Linear (Default)
+Pick the most relevant label(s) from the issue content. Available labels:
 
-```text
-Create GitHub issue with QUR-XX in body
-    ↓
-Create branch → write code → commit with "Part of QUR-XX"
-    ↓
-Submit PR with QUR-XX in title or description
-    ↓
-Linear auto-links ✅
-```
+| Label | Use when |
+|-------|----------|
+| Bug | Defect, broken behavior, regression |
+| Feature | New capability or functionality |
+| Improvement | Enhancement to existing feature |
+| Performance | Speed, memory, optimization |
+| UX | Design, usability, user experience |
+| Infrastructure | CI/CD, build, tooling, devops |
+| Documentation | Docs, READMEs, guides |
+| Security | Auth vulnerabilities, data safety |
+| AI/Pipeline | AICP, ViMax, video generation, AI agents |
+| Electron | Main process, IPC, preload, packaging |
+| Editor | Timeline, panels, playback, media UI |
 
-### Method B: Linear → GitHub
+Apply multiple labels when appropriate (e.g. a bug in the editor = Bug + Editor).
 
-```text
-Linear: create issue (e.g. QUR-11: Add export feature)
-    ↓
-Linear: click "Copy git branch name"
-    → auto-generates: <username>/qur-11-add-export
-    ↓
-Create branch → write code → submit PR
-    ↓
-Linear auto-tracks ✅
-```
+## Linear Auto-Linking
 
-## Linear Magic Words
+Linear automatically links when it sees magic words in commits, PR titles, or PR descriptions:
 
-Use these in commit messages, PR titles, or PR descriptions:
-
-- `Part of QUR-XX` — incremental work on an issue
-- `Fixes QUR-XX` / `Closes QUR-XX` — fully resolves the issue
-- `Resolves QUR-XX` — also fully resolves the issue
+- `Part of QUR-XX` — incremental work
+- `Fixes QUR-XX` / `Closes QUR-XX` — fully resolves
 
 ## Rules
 
-- **QUR number = GitHub issue number** — always sync them (e.g. GitHub #42 → QUR-42)
+- GitHub issue is created first, Linear second
 - Branch names must be kebab-case and include the Linear issue ID
-- Always include the Linear issue ID in the GitHub issue body
 - Do not create duplicate issues — check existing issues first
+- Priority is always **urgent**, status is always **In Progress**
+- Always assign to project **QCut**

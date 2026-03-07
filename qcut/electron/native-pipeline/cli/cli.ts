@@ -300,6 +300,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			name: { type: "string" },
 			value: { type: "string" },
 			idea: { type: "string" },
+			genre: { type: "string" },
+			"target-duration": { type: "string" },
 			script: { type: "string" },
 			novel: { type: "string" },
 			title: { type: "string" },
@@ -424,6 +426,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// format alias (for editor:export --format)
 			format: { type: "string" },
 			// project-json flags
+			example: { type: "boolean", default: false },
 			full: { type: "boolean", default: false },
 			output: { type: "string" },
 			// state snapshot flags
@@ -491,6 +494,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		keyName: values.name as string | undefined,
 		keyValue: values.value as string | undefined,
 		idea: values.idea as string | undefined,
+		genre: values.genre as string | undefined,
+		targetDuration: values["target-duration"] as string | undefined,
 		script: values.script as string | undefined,
 		novel: values.novel as string | undefined,
 		title: values.title as string | undefined,
@@ -677,6 +682,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		// batch import convenience
 		sources: values.sources as string | undefined,
 		format: values.format as string | undefined,
+		// novel example flag
+		example: (values.example as boolean) ?? false,
 		// project-json flags
 		full: (values.full as boolean) ?? false,
 		output: values.output as string | undefined,

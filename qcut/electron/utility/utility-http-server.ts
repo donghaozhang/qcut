@@ -565,6 +565,20 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 		);
 	});
 
+	router.post("/api/claude/moyin/generate", async (req) => {
+		if (!req.body?.idea || typeof req.body.idea !== "string")
+			throw new HttpError(400, "Missing 'idea' in request body");
+		return await withTimeout(
+			requestFromMain("moyin:generate-script", {
+				idea: req.body.idea,
+				genre: req.body.genre,
+				targetDuration: req.body.targetDuration,
+			}),
+			10_000,
+			"Generate script timed out"
+		);
+	});
+
 	router.get("/api/claude/moyin/status", async () => {
 		return await withTimeout(
 			requestFromMain("moyin:status", {}),

@@ -124,6 +124,38 @@ export const T2V_MODEL_CAPABILITIES: Record<T2VModelId, T2VModelCapabilities> =
 			defaultDuration: 6,
 		},
 
+		ltx23_pro_t2v: {
+			supportsAspectRatio: true,
+			supportedAspectRatios: ["16:9", "9:16"],
+			supportsResolution: true,
+			supportedResolutions: ["1080p", "1440p", "2160p"],
+			supportsDuration: true,
+			supportedDurations: [6, 8, 10],
+			supportsNegativePrompt: true,
+			supportsPromptExpansion: false,
+			supportsSeed: true,
+			supportsSafetyChecker: false,
+			defaultAspectRatio: "16:9",
+			defaultResolution: "1080p",
+			defaultDuration: 6,
+		},
+
+		ltx23_fast_t2v: {
+			supportsAspectRatio: true,
+			supportedAspectRatios: ["16:9", "9:16"],
+			supportsResolution: true,
+			supportedResolutions: ["1080p", "1440p", "2160p"],
+			supportsDuration: true,
+			supportedDurations: [6, 8, 10, 12, 14, 16, 18, 20],
+			supportsNegativePrompt: false,
+			supportsPromptExpansion: false,
+			supportsSeed: true,
+			supportsSafetyChecker: false,
+			defaultAspectRatio: "16:9",
+			defaultResolution: "1080p",
+			defaultDuration: 6,
+		},
+
 		veo31_fast_text_to_video: {
 			supportsAspectRatio: true,
 			supportedAspectRatios: ["16:9", "9:16", "1:1"],

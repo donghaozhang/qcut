@@ -152,7 +152,7 @@ export const tabGroups: { [key in TabGroup]: TabGroupDef } = {
 	"ai-create": {
 		icon: SparklesIcon,
 		label: "Create",
-		tabs: ["ai", "text2image", "sounds", "moyin"],
+		tabs: ["ai", "text2image", "moyin", "sounds"],
 	},
 	edit: {
 		icon: ScissorsIcon,

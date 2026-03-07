@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createSessionManager } from "../session-manager.js";
 import { writeMetadata, readMetadata, readMetadataRaw } from "../metadata.js";
@@ -432,8 +432,12 @@ describe("spawn", () => {
 		await sm.spawn({ projectId: "my-app", issueId: "INT-100" });
 
 		const launchArg = vi.mocked(env.mockAgent.getLaunchCommand).mock.calls[0]?.[0];
-		expect(launchArg?.prompt).toContain("## Workflow Contract");
-		expect(launchArg?.prompt).toContain("Always update the single workpad.");
+		// Prompt is now written to a file (promptFile) instead of inlined
+		const promptContent = launchArg?.promptFile
+			? readFileSync(launchArg.promptFile, "utf-8")
+			: launchArg?.prompt;
+		expect(promptContent).toContain("## Workflow Contract");
+		expect(promptContent).toContain("Always update the single workpad.");
 	});
 });
 

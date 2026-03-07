@@ -246,23 +246,70 @@ async function loadElectronStoredKeys(): Promise<ApiKeys> {
 }
 
 /**
- * Get decrypted API keys with 3-tier fallback:
- *   1. Environment variables (handled at spawn time by ai-pipeline-handler)
+ * Load keys from ~/.qcut/.env (Tier 3b — native CLI credential store).
+ */
+function loadQcutEnvKeys(): Partial<ApiKeys> {
+	try {
+		const home = process.env.HOME || process.env.USERPROFILE || "";
+		const envPath = path.join(home, ".qcut", ".env");
+		if (!fs.existsSync(envPath)) return {};
+		const result: Partial<ApiKeys> = {};
+		for (const line of fs.readFileSync(envPath, "utf-8").split("\n")) {
+			const trimmed = line.trim();
+			if (!trimmed || trimmed.startsWith("#")) continue;
+			const eqIdx = trimmed.indexOf("=");
+			if (eqIdx <= 0) continue;
+			const varName = trimmed.slice(0, eqIdx);
+			const value = trimmed.slice(eqIdx + 1);
+			const field = AICP_KEY_MAP[varName];
+			if (field && value) {
+				result[field] = value;
+			}
+		}
+		return result;
+	} catch {
+		return {};
+	}
+}
+
+/**
+ * Get decrypted API keys with 4-tier fallback:
+ *   1. Environment variables (process.env)
  *   2. QCut Electron safeStorage store
  *   3. AICP CLI credential store (~/.config/video-ai-studio/credentials.env)
+ *   4. QCut native CLI store (~/.qcut/.env)
  */
 export async function getDecryptedApiKeys(): Promise<ApiKeys> {
 	const electronKeys = await loadElectronStoredKeys();
 	const aicpKeys = loadAicpCredentials();
+	const qcutEnvKeys = loadQcutEnvKeys();
 
 	return {
-		falApiKey: electronKeys.falApiKey || aicpKeys.falApiKey || "",
-		freesoundApiKey: electronKeys.freesoundApiKey || "",
-		geminiApiKey: electronKeys.geminiApiKey || aicpKeys.geminiApiKey || "",
+		falApiKey:
+			process.env.FAL_KEY ||
+			process.env.FAL_API_KEY ||
+			electronKeys.falApiKey ||
+			aicpKeys.falApiKey ||
+			qcutEnvKeys.falApiKey ||
+			"",
+		freesoundApiKey:
+			process.env.FREESOUND_API_KEY || electronKeys.freesoundApiKey || "",
+		geminiApiKey:
+			process.env.GEMINI_API_KEY ||
+			electronKeys.geminiApiKey ||
+			aicpKeys.geminiApiKey ||
+			qcutEnvKeys.geminiApiKey ||
+			"",
 		openRouterApiKey:
-			electronKeys.openRouterApiKey || aicpKeys.openRouterApiKey || "",
-		anthropicApiKey: electronKeys.anthropicApiKey || "",
-		elevenLabsApiKey: electronKeys.elevenLabsApiKey || "",
+			process.env.OPENROUTER_API_KEY ||
+			electronKeys.openRouterApiKey ||
+			aicpKeys.openRouterApiKey ||
+			qcutEnvKeys.openRouterApiKey ||
+			"",
+		anthropicApiKey:
+			process.env.ANTHROPIC_API_KEY || electronKeys.anthropicApiKey || "",
+		elevenLabsApiKey:
+			process.env.ELEVENLABS_API_KEY || electronKeys.elevenLabsApiKey || "",
 	};
 }
 

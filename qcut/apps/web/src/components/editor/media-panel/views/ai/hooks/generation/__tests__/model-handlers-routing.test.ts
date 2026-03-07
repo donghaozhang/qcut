@@ -19,6 +19,8 @@ vi.mock("../handlers/text-to-video-handlers", () => ({
 	handleHailuo23T2V: vi.fn().mockResolvedValue({ response: undefined }),
 	handleLTXV2ProT2V: vi.fn().mockResolvedValue({ response: undefined }),
 	handleLTXV2FastT2V: vi.fn().mockResolvedValue({ response: undefined }),
+	handleLTX23ProT2V: vi.fn().mockResolvedValue({ response: undefined }),
+	handleLTX23FastT2V: vi.fn().mockResolvedValue({ response: undefined }),
 	handleViduQ3T2V: vi.fn().mockResolvedValue({ response: undefined }),
 	handleWAN26T2V: vi.fn().mockResolvedValue({ response: undefined }),
 	handleGenericT2V: vi.fn().mockResolvedValue({ response: undefined }),
@@ -74,6 +76,24 @@ describe("model handler routing regression", () => {
 		expect(result.skipReason).toBe(
 			"frame-to-video requires selected first and last frames"
 		);
+	});
+
+	it("routeTextToVideoHandler maps ltx23_pro_t2v to LTX 2.3 Pro handler", async () => {
+		const mock = vi.mocked(textToVideoHandlers.handleLTX23ProT2V);
+		await routeTextToVideoHandler(
+			createContext({ modelId: "ltx23_pro_t2v" }),
+			{} as TextToVideoSettings
+		);
+		expect(mock).toHaveBeenCalledTimes(1);
+	});
+
+	it("routeTextToVideoHandler maps ltx23_fast_t2v to LTX 2.3 Fast handler", async () => {
+		const mock = vi.mocked(textToVideoHandlers.handleLTX23FastT2V);
+		await routeTextToVideoHandler(
+			createContext({ modelId: "ltx23_fast_t2v" }),
+			{} as TextToVideoSettings
+		);
+		expect(mock).toHaveBeenCalledTimes(1);
 	});
 
 	it("routeAvatarHandler unknown model falls back to generic", async () => {

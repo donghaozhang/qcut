@@ -242,6 +242,95 @@ export class EditorApiClient {
 		);
 	}
 
+	/**
+	 * POST with ndjson streaming — reads lines as they arrive, calling
+	 * `onLine` for each, and returns the final "result" line parsed.
+	 */
+	async postStream<T = unknown>(
+		path: string,
+		body: unknown,
+		onLine: (line: string) => void,
+		options?: { timeout?: number }
+	): Promise<T> {
+		const headers: Record<string, string> = {
+			"Content-Type": "application/json",
+		};
+		if (this.config.token) {
+			headers.Authorization = `Bearer ${this.config.token}`;
+		}
+
+		const url = `${this.config.baseUrl}${path}`;
+		let response: Response;
+		try {
+			response = await fetch(url, {
+				method: "POST",
+				headers,
+				body: JSON.stringify(body),
+				signal: AbortSignal.timeout(options?.timeout ?? 300_000),
+			});
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
+				throw new EditorApiError(
+					`Cannot connect to QCut at ${this.config.baseUrl}`
+				);
+			}
+			throw new EditorApiError(`HTTP request failed: ${msg}`);
+		}
+
+		if (!response.body) {
+			throw new EditorApiError("No response body for streaming request");
+		}
+
+		let resultData: T | undefined;
+		const reader = response.body.getReader();
+		const decoder = new TextDecoder();
+		let buffer = "";
+
+		for (;;) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			buffer += decoder.decode(value, { stream: true });
+
+			const lines = buffer.split("\n");
+			buffer = lines.pop() ?? "";
+
+			for (const line of lines) {
+				const trimmed = line.trim();
+				if (!trimmed) continue;
+				onLine(trimmed);
+				try {
+					const parsed = JSON.parse(trimmed);
+					if (parsed.type === "result") {
+						resultData = parsed as T;
+					} else if (parsed.type === "error") {
+						throw new EditorApiError(parsed.error ?? "Stream error");
+					}
+				} catch (e) {
+					if (e instanceof EditorApiError) throw e;
+				}
+			}
+		}
+
+		// Process remaining buffer
+		if (buffer.trim()) {
+			onLine(buffer.trim());
+			try {
+				const parsed = JSON.parse(buffer.trim());
+				if (parsed.type === "result") resultData = parsed as T;
+				else if (parsed.type === "error")
+					throw new EditorApiError(parsed.error ?? "Stream error");
+			} catch (e) {
+				if (e instanceof EditorApiError) throw e;
+			}
+		}
+
+		if (resultData === undefined) {
+			throw new EditorApiError("No result received from streaming response");
+		}
+		return resultData;
+	}
+
 	async patch<T = unknown>(path: string, body?: unknown): Promise<T> {
 		await this.warnIfCapabilityLikelyUnsupported({
 			method: "PATCH",

@@ -63,6 +63,10 @@ import {
 	ReconciliationLoop,
 	type ReconciliationDeps,
 } from "./reconciliation-loop.js";
+import {
+	createIssueDiscoveryLoop,
+	type IssueDiscoveryLoop,
+} from "./issue-discovery.js";
 
 export interface LifecycleManagerDeps {
 	config: OrchestratorConfig;
@@ -84,6 +88,7 @@ export function createLifecycleManager(
 	const stalenessCounts = new Map<SessionId, number>();
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
 	let reconciliationTimer: ReturnType<typeof setInterval> | null = null;
+	let discoveryLoop: IssueDiscoveryLoop | null = null;
 	let polling = false;
 	let reconciling = false;
 	let allCompleteEmitted = false;
@@ -172,7 +177,10 @@ export function createLifecycleManager(
 					const processAlive = await agent.isProcessRunning(
 						session.runtimeHandle
 					);
-					if (!processAlive) return "killed";
+					// If agent is dead but a PR exists, fall through to PR state
+					// checking — the lifecycle should monitor PR CI/review state
+					// even after the agent exits.
+					if (!processAlive && !session.pr) return "killed";
 				}
 			} catch {
 				// On probe failure, preserve current stuck/needs_input state rather
@@ -565,6 +573,15 @@ export function createLifecycleManager(
 					reconInterval
 				);
 			}
+
+			// Start issue discovery loop for projects with autoDiscovery enabled
+			discoveryLoop = createIssueDiscoveryLoop({
+				config,
+				registry,
+				sessionManager,
+				notifyHuman,
+			});
+			discoveryLoop.start();
 		},
 
 		stop(): void {
@@ -576,6 +593,10 @@ export function createLifecycleManager(
 				clearInterval(reconciliationTimer);
 				reconciliationTimer = null;
 			}
+			if (discoveryLoop) {
+				discoveryLoop.stop();
+				discoveryLoop = null;
+			}
 		},
 
 		getStates(): Map<SessionId, SessionStatus> {
@@ -586,6 +607,20 @@ export function createLifecycleManager(
 			const session = await sessionManager.get(sessionId);
 			if (!session) throw new Error(`Session ${sessionId} not found`);
 			await checkSession(session);
+		},
+
+		async runDiscovery() {
+			if (!discoveryLoop) {
+				// Create a one-shot loop for manual runs when lifecycle isn't started
+				const oneShot = createIssueDiscoveryLoop({
+					config,
+					registry,
+					sessionManager,
+					notifyHuman,
+				});
+				return oneShot.runOnce();
+			}
+			return discoveryLoop.runOnce();
 		},
 	};
 }

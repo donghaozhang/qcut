@@ -902,6 +902,22 @@ export function createMoyinAPI(): NonNullable<ElectronAPI["moyin"]> {
 			ipcRenderer.removeAllListeners("claude:moyin:trigger-parse");
 			ipcRenderer.on("claude:moyin:trigger-parse", () => callback());
 		},
+		onGenerateScript: (
+			callback: (data: {
+				idea: string;
+				genre?: string;
+				targetDuration?: string;
+			}) => void
+		) => {
+			ipcRenderer.removeAllListeners("claude:moyin:generate-script");
+			ipcRenderer.on(
+				"claude:moyin:generate-script",
+				(
+					_: unknown,
+					data: { idea: string; genre?: string; targetDuration?: string }
+				) => callback(data)
+			);
+		},
 		onStatusRequest: (callback: (data: { requestId: string }) => void) => {
 			ipcRenderer.removeAllListeners("claude:moyin:status:request");
 			ipcRenderer.on(
@@ -923,6 +939,7 @@ export function createMoyinAPI(): NonNullable<ElectronAPI["moyin"]> {
 		removeMoyinBridgeListeners: () => {
 			ipcRenderer.removeAllListeners("claude:moyin:set-script");
 			ipcRenderer.removeAllListeners("claude:moyin:trigger-parse");
+			ipcRenderer.removeAllListeners("claude:moyin:generate-script");
 			ipcRenderer.removeAllListeners("claude:moyin:status:request");
 		},
 	};

@@ -198,7 +198,7 @@ describe("ReconciliationLoop.run", () => {
 		expect(notifyHuman).toHaveBeenCalled();
 	});
 
-	it("detects PR closed externally and escalates (no auto-correct)", async () => {
+	it("detects PR closed externally and auto-corrects to errored", async () => {
 		const session = makeSession({ status: "pr_open" });
 		const applyStatus = vi.fn().mockResolvedValue(undefined);
 		const notifyHuman = vi.fn().mockResolvedValue(undefined);
@@ -212,10 +212,11 @@ describe("ReconciliationLoop.run", () => {
 		const results = await loop.run([session], deps);
 		const drift = results[0]?.drifts.find((d) => d.kind === "pr_closed_externally");
 		expect(drift).toBeDefined();
-		expect(drift?.corrected).toBe(false);
-		// Should NOT auto-apply status
-		expect(applyStatus).not.toHaveBeenCalled();
-		// Should have escalated to human
+		expect(drift?.corrected).toBe(true);
+		expect(drift?.newStatus).toBe("errored");
+		// Should auto-apply errored status
+		expect(applyStatus).toHaveBeenCalledWith(session, "errored");
+		// Should have notified human
 		expect(notifyHuman).toHaveBeenCalled();
 	});
 

@@ -61,6 +61,18 @@ export interface UseAIGenerationProps {
 	ltxv2FastResolution?: "1080p" | "1440p" | "2160p";
 	ltxv2FastFPS?: 25 | 50;
 	ltxv2FastGenerateAudio?: boolean;
+	// LTX Video 2.3 Pro text-to-video options
+	ltx23Duration?: 6 | 8 | 10 | 12 | 14 | 16 | 18 | 20;
+	ltx23Resolution?: "1080p" | "1440p" | "2160p";
+	ltx23FPS?: 24 | 25 | 48 | 50;
+	ltx23GenerateAudio?: boolean;
+	ltx23AspectRatio?: "16:9" | "9:16";
+	// LTX Video 2.3 Fast text-to-video options
+	ltx23FastDuration?: 6 | 8 | 10 | 12 | 14 | 16 | 18 | 20;
+	ltx23FastResolution?: "1080p" | "1440p" | "2160p";
+	ltx23FastFPS?: 24 | 25 | 48 | 50;
+	ltx23FastGenerateAudio?: boolean;
+	ltx23FastAspectRatio?: "16:9" | "9:16";
 	// LTX Video 2.0 standard image-to-video options
 	ltxv2I2VDuration?: 6 | 8 | 10;
 	ltxv2I2VResolution?: "1080p" | "1440p" | "2160p";
@@ -71,6 +83,14 @@ export interface UseAIGenerationProps {
 	ltxv2ImageResolution?: "1080p" | "1440p" | "2160p"; // Fast I2V supports 1080p/1440p/2160p, not 720p
 	ltxv2ImageFPS?: 25 | 50;
 	ltxv2ImageGenerateAudio?: boolean;
+	// LTX Video 2.3 image-to-video options
+	ltx23I2VDuration?: 6 | 8 | 10 | 12 | 14 | 16 | 18 | 20;
+	ltx23I2VResolution?: "1080p" | "1440p" | "2160p";
+	ltx23I2VFPS?: 24 | 25 | 48 | 50;
+	ltx23I2VGenerateAudio?: boolean;
+	ltx23I2VAspectRatio?: "16:9" | "9:16" | "auto";
+	ltx23I2VEndImageUrl?: string | null;
+	ltx23I2VEndImageFile?: File | null;
 	// Seedance image-to-video options
 	seedanceDuration?: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 	seedanceResolution?: "480p" | "720p" | "1080p";

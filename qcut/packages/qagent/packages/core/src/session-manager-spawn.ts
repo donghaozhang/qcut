@@ -1,5 +1,7 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import {
 	isIssueNotFoundError,
 	type Agent,
@@ -23,11 +25,70 @@ import {
 import {
 	generateConfigHash,
 	generateTmuxName,
+	getDaemonPidPath,
 	getProjectBaseDir,
 	validateAndStoreOrigin,
 } from "./paths.js";
 import type { SessionManagerContext } from "./session-manager-internal-types.js";
 import { getNextSessionNumber } from "./session-manager-utils.js";
+
+/**
+ * Check if a process with the given PID is still running.
+ */
+function isProcessAlive(pid: number): boolean {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Ensure the lifecycle daemon is running for this config.
+ * If no daemon is running, spawns one as a detached background process.
+ */
+export function ensureLifecycleDaemon(configPath: string): void {
+	const pidPath = getDaemonPidPath(configPath);
+
+	// Check if a daemon is already running
+	if (existsSync(pidPath)) {
+		try {
+			const pid = parseInt(readFileSync(pidPath, "utf-8").trim(), 10);
+			if (!isNaN(pid) && isProcessAlive(pid)) {
+				return; // Daemon is already running
+			}
+		} catch {
+			// PID file unreadable — start a new daemon
+		}
+	}
+
+	// Spawn the daemon as a detached background process.
+	// The daemon must run from the CLI package (where plugins are resolvable),
+	// not from core. Search for it relative to the CLI entry point first.
+	const candidates = [
+		// When invoked via CLI: sibling to the CLI's index.js
+		process.argv[1] ? join(dirname(process.argv[1]), "lifecycle-daemon.js") : "",
+		// Fallback: relative path from core to CLI dist
+		join(dirname(fileURLToPath(import.meta.url)), "../../../cli/dist/lifecycle-daemon.js"),
+		// Last resort: core's own copy (won't have plugins but won't crash)
+		join(dirname(fileURLToPath(import.meta.url)), "lifecycle-daemon.js"),
+	].filter(Boolean);
+
+	const daemonScript = candidates.find(p => existsSync(p));
+	if (!daemonScript) {
+		return;
+	}
+
+	const child = spawn("node", [daemonScript], {
+		env: { ...process.env, QAGENT_CONFIG: configPath },
+		detached: true,
+		stdio: "ignore",
+	});
+
+	// Detach so the parent process can exit without waiting for the daemon
+	child.unref();
+}
 
 export async function spawnSession({
 	context,
@@ -206,11 +267,23 @@ export async function spawnSession({
 		workflowContractPath,
 	});
 
+	// Write prompt to a file to avoid shell argument length limits and tmux scrollback flood.
+	// The agent plugin reads it via $(cat ...) shell substitution.
+	let promptFile: string | undefined;
+	const effectivePrompt = composedPrompt ?? spawnConfig.prompt;
+	if (effectivePrompt && config.configPath) {
+		const baseDir = getProjectBaseDir(config.configPath, project.path);
+		mkdirSync(baseDir, { recursive: true });
+		promptFile = join(baseDir, `${sessionId}-prompt.md`);
+		writeFileSync(promptFile, effectivePrompt, "utf-8");
+	}
+
 	const agentLaunchConfig = {
 		sessionId,
 		projectConfig: project,
 		issueId: spawnConfig.issueId,
-		prompt: composedPrompt ?? spawnConfig.prompt,
+		prompt: promptFile ? undefined : effectivePrompt,
+		promptFile,
 		permissions: project.agentConfig?.permissions,
 		model: project.agentConfig?.model,
 	};
@@ -299,6 +372,15 @@ export async function spawnSession({
 			/* best effort */
 		}
 		throw err;
+	}
+
+	// Auto-start lifecycle daemon if not already running
+	if (config.configPath) {
+		try {
+			ensureLifecycleDaemon(config.configPath);
+		} catch {
+			// Non-fatal — daemon start failure shouldn't block spawn
+		}
 	}
 
 	return session;

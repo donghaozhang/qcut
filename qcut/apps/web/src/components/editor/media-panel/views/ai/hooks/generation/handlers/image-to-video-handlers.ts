@@ -8,6 +8,7 @@ import {
 	generateVideoFromImage,
 	generateViduQ2Video,
 	generateLTXV2ImageVideo,
+	generateLTX23ImageVideo,
 	generateSeedanceVideo,
 	generateKlingImageVideo,
 	generateKling26ImageVideo,
@@ -28,6 +29,10 @@ type ViduQ2MovementAmplitude = "auto" | "small" | "medium" | "large";
 type LTXV2Duration = 6 | 8 | 10 | 12 | 14 | 16 | 18 | 20;
 type LTXV2Resolution = "1080p" | "1440p" | "2160p";
 type LTXV2FPS = 25 | 50;
+type LTX23Duration = 6 | 8 | 10 | 12 | 14 | 16 | 18 | 20;
+type LTX23Resolution = "1080p" | "1440p" | "2160p";
+type LTX23FPS = 24 | 25 | 48 | 50;
+type LTX23AspectRatio = "16:9" | "9:16" | "auto";
 type SeedanceDuration = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 type SeedanceResolution = "480p" | "720p" | "1080p";
 type SeedanceAspectRatio =
@@ -346,6 +351,67 @@ export async function handleLTXV2FastI2V(
 			resolution: settings.ltxv2ImageResolution as LTXV2Resolution,
 			fps: settings.ltxv2ImageFPS as LTXV2FPS,
 			generate_audio: settings.ltxv2ImageGenerateAudio,
+		});
+
+		ctx.progressCallback({
+			status: "completed",
+			progress: 100,
+			message: `Video with audio generated using ${ctx.modelName}`,
+		});
+
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/**
+ * Handle LTX Video 2.3 Fast image-to-video generation
+ */
+export async function handleLTX23FastI2V(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.selectedImage) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "LTX 2.3 Fast I2V requires a selected image",
+		};
+	}
+
+	try {
+		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+
+		let endImageUrl: string | undefined;
+		if (settings.ltx23I2VEndImageFile) {
+			endImageUrl = await settings.uploadImageToFal(
+				settings.ltx23I2VEndImageFile
+			);
+		} else if (settings.ltx23I2VEndImageUrl) {
+			endImageUrl = settings.ltx23I2VEndImageUrl;
+		}
+
+		ctx.progressCallback({
+			status: "processing",
+			progress: 10,
+			message: `Submitting ${ctx.modelName} request...`,
+		});
+
+		const response = await generateLTX23ImageVideo({
+			model: ctx.modelId,
+			prompt: ctx.prompt,
+			image_url: imageUrl,
+			end_image_url: endImageUrl,
+			duration: settings.ltx23I2VDuration as LTX23Duration,
+			resolution: settings.ltx23I2VResolution as LTX23Resolution,
+			fps: settings.ltx23I2VFPS as LTX23FPS,
+			generate_audio: settings.ltx23I2VGenerateAudio,
+			aspect_ratio: settings.ltx23I2VAspectRatio as LTX23AspectRatio,
 		});
 
 		ctx.progressCallback({

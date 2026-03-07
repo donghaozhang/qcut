@@ -155,6 +155,12 @@ export interface AgentLaunchConfig {
   projectConfig: ProjectConfig;
   issueId?: string;
   prompt?: string;
+  /**
+   * Path to a file containing the prompt.
+   * Preferred over inline prompt to avoid shell/tmux argument length issues.
+   * When set, takes precedence over prompt.
+   */
+  promptFile?: string;
   permissions?: "skip" | "default";
   model?: string;
   /**

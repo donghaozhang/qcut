@@ -14,7 +14,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useFileWithPreview } from "./use-ai-tab-state-base";
-import { LTXV2_FAST_CONFIG } from "../constants/ai-constants";
+import { LTXV2_FAST_CONFIG, LTX23_CONFIG } from "../constants/ai-constants";
 import type {
 	LTXV2FastDuration,
 	LTXV2FastResolution,
@@ -27,6 +27,11 @@ import type {
 	Wan25Resolution,
 	Wan25Duration,
 } from "../constants/ai-model-options";
+import type {
+	LTX23Duration,
+	LTX23Resolution,
+	LTX23FPS,
+} from "../components/ai-ltx23-settings";
 
 // ============================================
 // Types
@@ -51,6 +56,16 @@ export interface LTXV2ImageSettings {
 	resolution: LTXV2FastResolution;
 	fps: LTXV2FastFps;
 	generateAudio: boolean;
+}
+
+export interface LTX23I2VSettings {
+	duration: LTX23Duration;
+	resolution: LTX23Resolution;
+	fps: LTX23FPS;
+	generateAudio: boolean;
+	aspectRatio: string;
+	endImageFile: File | null;
+	endImagePreview: string | null;
 }
 
 export interface SeedanceSettings {
@@ -101,6 +116,7 @@ export interface ImageTabState {
 	viduQ2: ViduQ2Settings;
 	ltxv2I2V: LTXV2I2VSettings;
 	ltxv2Image: LTXV2ImageSettings;
+	ltx23I2V: LTX23I2VSettings;
 	seedance: SeedanceSettings;
 	kling: KlingSettings;
 	kling26: Kling26Settings;
@@ -135,6 +151,14 @@ export interface ImageTabSetters {
 	setLTXV2ImageResolution: (value: LTXV2FastResolution) => void;
 	setLTXV2ImageFPS: (value: LTXV2FastFps) => void;
 	setLTXV2ImageGenerateAudio: (value: boolean) => void;
+
+	// LTX 2.3 I2V
+	setLTX23I2VDuration: (value: LTX23Duration) => void;
+	setLTX23I2VResolution: (value: LTX23Resolution) => void;
+	setLTX23I2VFPS: (value: LTX23FPS) => void;
+	setLTX23I2VGenerateAudio: (value: boolean) => void;
+	setLTX23I2VAspectRatio: (value: string) => void;
+	setLTX23I2VEndImageFile: (file: File | null) => void;
 
 	// Seedance
 	setSeedanceDuration: (value: SeedanceDuration) => void;
@@ -258,6 +282,17 @@ export function useImageTabState({
 	);
 	const [ltxv2ImageGenerateAudio, setLTXV2ImageGenerateAudio] = useState(true);
 
+	// LTX 2.3 I2V settings
+	const [ltx23I2VDuration, setLTX23I2VDuration] = useState<LTX23Duration>(
+		LTX23_CONFIG.FAST_DURATIONS[0]
+	);
+	const [ltx23I2VResolution, setLTX23I2VResolution] =
+		useState<LTX23Resolution>("1080p");
+	const [ltx23I2VFPS, setLTX23I2VFPS] = useState<LTX23FPS>(25);
+	const [ltx23I2VGenerateAudio, setLTX23I2VGenerateAudio] = useState(true);
+	const [ltx23I2VAspectRatio, setLTX23I2VAspectRatio] = useState("auto");
+	const ltx23I2VEndImageState = useFileWithPreview();
+
 	// Seedance settings
 	const [seedanceDuration, setSeedanceDuration] = useState<SeedanceDuration>(5);
 	const [seedanceResolution, setSeedanceResolution] =
@@ -305,6 +340,7 @@ export function useImageTabState({
 	const viduQ2Selected = selectedModels.includes("vidu_q2_turbo_i2v");
 	const ltxv2I2VSelected = selectedModels.includes("ltxv2_i2v");
 	const ltxv2ImageSelected = selectedModels.includes("ltxv2_fast_i2v");
+	const ltx23I2VSelected = selectedModels.includes("ltx23_fast_i2v");
 	const seedanceFastSelected = selectedModels.includes("seedance_pro_fast_i2v");
 	const seedanceProSelected = selectedModels.includes("seedance_pro_i2v");
 	const seedanceSelected = seedanceFastSelected || seedanceProSelected;
@@ -374,6 +410,32 @@ export function useImageTabState({
 			}
 		}
 	}, [ltxv2ImageDuration, ltxv2ImageResolution, ltxv2ImageFPS]);
+
+	// Reset LTX 2.3 I2V settings when model is deselected
+	useEffect(() => {
+		if (!ltx23I2VSelected) {
+			setLTX23I2VDuration(LTX23_CONFIG.FAST_DURATIONS[0]);
+			setLTX23I2VResolution("1080p");
+			setLTX23I2VFPS(25);
+			setLTX23I2VGenerateAudio(true);
+			setLTX23I2VAspectRatio("auto");
+			ltx23I2VEndImageState.reset();
+		}
+	}, [ltx23I2VSelected, ltx23I2VEndImageState.reset]);
+
+	// Auto-correct LTX 2.3 I2V resolution/FPS for extended durations
+	useEffect(() => {
+		if (ltx23I2VDuration > LTX23_CONFIG.EXTENDED_DURATION_THRESHOLD) {
+			const validRes = LTX23_CONFIG.RESOLUTIONS.EXTENDED;
+			if (!validRes.includes(ltx23I2VResolution as (typeof validRes)[number])) {
+				setLTX23I2VResolution(validRes[0]);
+			}
+			const validFps = LTX23_CONFIG.FPS_OPTIONS.EXTENDED;
+			if (!validFps.includes(ltx23I2VFPS as (typeof validFps)[number])) {
+				setLTX23I2VFPS(validFps[0]);
+			}
+		}
+	}, [ltx23I2VDuration, ltx23I2VResolution, ltx23I2VFPS]);
 
 	// Reset Seedance settings when model is deselected
 	useEffect(() => {
@@ -460,6 +522,15 @@ export function useImageTabState({
 				fps: ltxv2ImageFPS,
 				generateAudio: ltxv2ImageGenerateAudio,
 			},
+			ltx23I2V: {
+				duration: ltx23I2VDuration,
+				resolution: ltx23I2VResolution,
+				fps: ltx23I2VFPS,
+				generateAudio: ltx23I2VGenerateAudio,
+				aspectRatio: ltx23I2VAspectRatio,
+				endImageFile: ltx23I2VEndImageState.file,
+				endImagePreview: ltx23I2VEndImageState.preview,
+			},
 			seedance: {
 				duration: seedanceDuration,
 				resolution: seedanceResolution,
@@ -510,6 +581,12 @@ export function useImageTabState({
 			setLTXV2ImageResolution,
 			setLTXV2ImageFPS,
 			setLTXV2ImageGenerateAudio,
+			setLTX23I2VDuration,
+			setLTX23I2VResolution,
+			setLTX23I2VFPS,
+			setLTX23I2VGenerateAudio,
+			setLTX23I2VAspectRatio,
+			setLTX23I2VEndImageFile: ltx23I2VEndImageState.setFile,
 			setSeedanceDuration,
 			setSeedanceResolution,
 			setSeedanceAspectRatio,

@@ -300,6 +300,98 @@ export function registerTextToVideoModels(): void {
 	});
 
 	ModelRegistry.register({
+		key: "ltx23_pro_t2v",
+		name: "LTX Video 2.3 Pro T2V",
+		provider: "Lightricks (via FAL)",
+		endpoint: "fal-ai/ltx-2.3/text-to-video",
+		categories: ["text_to_video"],
+		description: "Text-to-video with native audio and 4K support (6-10s)",
+		pricing: {
+			type: "per_second",
+			cost_1080p: 0.06,
+			cost_1440p: 0.12,
+			cost_2160p: 0.24,
+		},
+		durationOptions: ["6", "8", "10"],
+		aspectRatios: ["16:9", "9:16"],
+		resolutions: ["1080p", "1440p", "2160p"],
+		defaults: {
+			duration: 6,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+			fps: 25,
+			generate_audio: true,
+		},
+		features: [
+			"audio_generation",
+			"4k_resolution",
+			"aspect_ratio",
+			"fps_control",
+		],
+		maxDuration: 10,
+		costEstimate: 0.36,
+		processingTime: 90,
+	});
+
+	ModelRegistry.register({
+		key: "ltx23_fast_t2v",
+		name: "LTX Video 2.3 Fast T2V",
+		provider: "Lightricks (via FAL)",
+		endpoint: "fal-ai/ltx-2.3/text-to-video/fast",
+		categories: ["text_to_video"],
+		description:
+			"Fast text-to-video with 4K support and native audio, up to 20s",
+		pricing: {
+			type: "per_second",
+			cost_1080p: 0.04,
+			cost_1440p: 0.08,
+			cost_2160p: 0.16,
+		},
+		durationOptions: ["6", "8", "10", "12", "14", "16", "18", "20"],
+		aspectRatios: ["16:9", "9:16"],
+		resolutions: ["1080p", "1440p", "2160p"],
+		defaults: {
+			duration: 6,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+			fps: 25,
+			generate_audio: true,
+		},
+		features: [
+			"audio_generation",
+			"4k_resolution",
+			"long_duration",
+			"aspect_ratio",
+			"fps_control",
+			"fast_processing",
+		],
+		maxDuration: 20,
+		costEstimate: 0.24,
+		processingTime: 60,
+	});
+
+	ModelRegistry.register({
+		key: "ltx23_a2v",
+		name: "LTX Video 2.3 Audio-to-Video",
+		provider: "Lightricks (via FAL)",
+		endpoint: "fal-ai/ltx-2.3/audio-to-video",
+		categories: ["text_to_video"],
+		description: "Generate video from audio input with text guidance (6-10s)",
+		pricing: { type: "per_second", cost: 0.1 },
+		durationOptions: ["6", "8", "10"],
+		resolutions: ["1080p"],
+		defaults: {
+			duration: 6,
+			resolution: "1080p",
+			guidance_scale: 7,
+		},
+		features: ["audio_input", "text_guidance"],
+		maxDuration: 10,
+		costEstimate: 0.6,
+		processingTime: 90,
+	});
+
+	ModelRegistry.register({
 		key: "grok_imagine",
 		name: "xAI Grok Imagine Video",
 		provider: "xAI (via FAL)",

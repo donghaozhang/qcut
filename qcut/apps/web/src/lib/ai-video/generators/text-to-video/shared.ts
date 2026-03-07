@@ -35,6 +35,7 @@ export type {
 	VideoGenerationResponse,
 	TextToVideoRequest,
 	LTXV2T2VRequest,
+	LTX23T2VRequest,
 	WAN26T2VRequest,
 	ViduQ3T2VRequest,
 	ProgressCallback,

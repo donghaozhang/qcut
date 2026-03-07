@@ -270,6 +270,38 @@ export function calculateWan26Cost(
 }
 
 /**
+ * Calculate LTX Video 2.3 cost based on resolution and duration
+ * @param resolution - 1080p, 1440p, or 2160p
+ * @param duration - Duration in seconds
+ * @param variant - 'pro' or 'fast'
+ * @returns Estimated cost in dollars
+ */
+export function calculateLTX23Cost(
+	resolution: string,
+	duration: number,
+	variant: "pro" | "fast"
+): number {
+	const fastPricing: Record<string, number> = {
+		"1080p": 0.04,
+		"1440p": 0.08,
+		"2160p": 0.16,
+	};
+
+	const proPricing: Record<string, number> = {
+		"1080p": 0.06,
+		"1440p": 0.12,
+		"2160p": 0.24,
+	};
+
+	const perSecondRate =
+		variant === "fast"
+			? (fastPricing[resolution] ?? 0.04)
+			: (proPricing[resolution] ?? 0.06);
+
+	return duration * perSecondRate;
+}
+
+/**
  * Calculate Veo 3.1 extend-video cost
  * @param variant - "fast" or "standard"
  * @param generateAudio - Whether audio is generated
