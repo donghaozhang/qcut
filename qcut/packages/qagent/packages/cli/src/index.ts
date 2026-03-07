@@ -38,6 +38,7 @@ async function registerOptionalCommands(prog: Command): Promise<void> {
 		{ module: "./commands/policy.js", fns: ["registerPolicy"] },
 		{ module: "./commands/team.js", fns: ["registerTeam"] },
 		{ module: "./commands/harness.js", fns: ["registerHarness"] },
+		{ module: "./commands/discover.js", fns: ["registerDiscover"] },
 	];
 
 	const skipped: string[] = [];

@@ -535,22 +535,32 @@ async function handleNovelCommand(
 
 	switch (action) {
 		case "parse": {
-			if (!options.input) {
-				return {
-					success: false,
-					error: "Missing --input. Provide path to a novel text file.",
-				};
-			}
-
 			let text: string;
-			try {
-				const fs = await import("node:fs/promises");
-				text = await fs.readFile(options.input, "utf-8");
-			} catch (error) {
-				const reason = error instanceof Error ? error.message : String(error);
+			let source: string;
+
+			if (options.example) {
+				const { EXAMPLE_NOVEL_EN } = await import(
+					"../../moyin/novel-parse-example.js"
+				);
+				text = EXAMPLE_NOVEL_EN;
+				source = "built-in example";
+			} else if (options.input) {
+				try {
+					const fs = await import("node:fs/promises");
+					text = await fs.readFile(options.input, "utf-8");
+				} catch (error) {
+					const reason = error instanceof Error ? error.message : String(error);
+					return {
+						success: false,
+						error: `Failed to read input file: ${options.input}. ${reason}`,
+					};
+				}
+				source = options.input;
+			} else {
 				return {
 					success: false,
-					error: `Failed to read input file: ${options.input}. ${reason}`,
+					error:
+						"Missing --input or --example. Provide a novel text file or use --example to try the built-in demo.",
 				};
 			}
 
@@ -561,7 +571,7 @@ async function handleNovelCommand(
 			onProgress({
 				stage: "novel-parse",
 				percent: 5,
-				message: `Read ${text.length} chars from ${options.input}`,
+				message: `Read ${text.length} chars from ${source}`,
 			});
 
 			const body: Record<string, unknown> = {

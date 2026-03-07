@@ -39,6 +39,22 @@ export function requestTriggerParse(win: BrowserWindow): void {
 }
 
 /**
+ * Trigger the "Generate Script" action in the moyin panel.
+ * Fire-and-forget — renderer calls generateScript() on the store.
+ */
+export function requestGenerateScript(
+	win: BrowserWindow,
+	idea: string,
+	options?: { genre?: string; targetDuration?: string }
+): void {
+	win.webContents.send("claude:moyin:generate-script", {
+		idea,
+		genre: options?.genre,
+		targetDuration: options?.targetDuration,
+	});
+}
+
+/**
  * Request current moyin pipeline status from renderer.
  * Uses request-response IPC pattern with timeout.
  */

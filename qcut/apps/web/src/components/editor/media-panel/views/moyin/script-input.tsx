@@ -214,7 +214,11 @@ export function ScriptInput() {
 								: "border-transparent text-muted-foreground hover:text-foreground"
 						}`}
 					>
-						{tab === "import" ? "Import" : tab === "create" ? "Create" : "Novel"}
+						{tab === "import"
+							? "Import"
+							: tab === "create"
+								? "Create"
+								: "Novel"}
 					</button>
 				))}
 			</div>
@@ -282,8 +286,8 @@ export function ScriptInput() {
 					</Button>
 
 					<p className="text-xs text-muted-foreground">
-						AI will analyze characters, locations, and convert your story into
-						a structured screenplay.
+						AI will analyze characters, locations, and convert your story into a
+						structured screenplay.
 					</p>
 
 					<ImportProgress />

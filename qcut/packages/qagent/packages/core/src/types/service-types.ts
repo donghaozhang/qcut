@@ -16,6 +16,7 @@ import type {
   PluginManifest,
   PluginModule,
 } from "./plugin-types.js";
+import type { IssueDiscoveryResult } from "../issue-discovery.js";
 
 // =============================================================================
 // SERVICE INTERFACES (core, not pluggable)
@@ -55,6 +56,9 @@ export interface LifecycleManager {
 
   /** Force-check a specific session now */
   check(sessionId: SessionId): Promise<void>;
+
+  /** Run one issue discovery cycle across all enabled projects */
+  runDiscovery(): Promise<IssueDiscoveryResult[]>;
 }
 
 /** Plugin registry — discovery + loading */

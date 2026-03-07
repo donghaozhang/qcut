@@ -114,7 +114,10 @@ interface MoyinActions {
 	setActiveStep: (step: MoyinStep) => void;
 	setRawScript: (text: string) => void;
 	parseScript: () => Promise<void>;
-	parseNovel: (novelText: string, language?: "zh" | "en" | "auto") => Promise<void>;
+	parseNovel: (
+		novelText: string,
+		language?: "zh" | "en" | "auto"
+	) => Promise<void>;
 	clearScript: () => void;
 	generateScript: (
 		idea: string,

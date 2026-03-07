@@ -72,6 +72,7 @@ import {
 import {
 	requestSetScript,
 	requestTriggerParse,
+	requestGenerateScript,
 	requestMoyinStatus,
 } from "../claude/handlers/claude-moyin-handler.js";
 import { captureScreenshot } from "../claude/handlers/claude-screenshot-handler.js";
@@ -591,6 +592,19 @@ async function handleMainRequest(
 
 		case "moyin:trigger-parse": {
 			requestTriggerParse(win);
+			return { triggered: true };
+		}
+
+		case "moyin:generate-script": {
+			const req = data as {
+				idea: string;
+				genre?: string;
+				targetDuration?: string;
+			};
+			requestGenerateScript(win, req.idea, {
+				genre: req.genre,
+				targetDuration: req.targetDuration,
+			});
 			return { triggered: true };
 		}
 
