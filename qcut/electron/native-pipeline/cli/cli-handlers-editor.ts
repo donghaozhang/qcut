@@ -522,7 +522,8 @@ async function handleMoyinCommand(
 
 /**
  * Handle `editor:novel:parse` command.
- * Reads a novel text file and sends it to the editor for parsing.
+ * Sends novel text to the running editor for parsing via HTTP,
+ * using ndjson streaming to show step-by-step progress.
  */
 async function handleNovelCommand(
 	client: EditorApiClient,
@@ -559,23 +560,33 @@ async function handleNovelCommand(
 
 			onProgress({
 				stage: "novel-parse",
-				percent: 10,
-				message: `Parsing novel (${text.length} chars)...`,
+				percent: 5,
+				message: `Read ${text.length} chars from ${options.input}`,
 			});
 
 			const body: Record<string, unknown> = {
 				text,
 				language: options.language ?? "auto",
+				stream: true,
 			};
 			if (options.maxClips != null) body.maxClips = options.maxClips;
 
-			const data = await client.post("/api/claude/novel/parse", body);
-
-			onProgress({
-				stage: "novel-parse",
-				percent: 100,
-				message: "Novel parsing complete.",
-			});
+			const data = await client.postStream(
+				"/api/claude/novel/parse",
+				body,
+				(line) => {
+					try {
+						const msg = JSON.parse(line);
+						if (msg.type === "progress") {
+							onProgress({
+								stage: msg.step,
+								percent: msg.percent,
+								message: msg.message,
+							});
+						}
+					} catch {}
+				}
+			);
 
 			// Write to output file if specified
 			if (options.output) {
