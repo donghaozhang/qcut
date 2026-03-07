@@ -10,12 +10,17 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { LTXV2_FAST_CONFIG } from "../constants/ai-constants";
+import { LTXV2_FAST_CONFIG, LTX23_CONFIG } from "../constants/ai-constants";
 import type {
 	LTXV2FastDuration,
 	LTXV2FastResolution,
 	LTXV2FastFps,
 } from "../constants/ai-model-options";
+import type {
+	LTX23Duration,
+	LTX23Resolution,
+	LTX23FPS,
+} from "../components/ai-ltx23-settings";
 
 // ============================================
 // Types
@@ -57,6 +62,20 @@ export interface TextTabState {
 	ltxv2FastResolution: LTXV2FastResolution;
 	ltxv2FastFPS: LTXV2FastFps;
 	ltxv2FastGenerateAudio: boolean;
+
+	// LTX Video 2.3 Pro settings
+	ltx23ProDuration: LTX23Duration;
+	ltx23ProResolution: LTX23Resolution;
+	ltx23ProFPS: LTX23FPS;
+	ltx23ProGenerateAudio: boolean;
+	ltx23ProAspectRatio: string;
+
+	// LTX Video 2.3 Fast settings
+	ltx23FastDuration: LTX23Duration;
+	ltx23FastResolution: LTX23Resolution;
+	ltx23FastFPS: LTX23FPS;
+	ltx23FastGenerateAudio: boolean;
+	ltx23FastAspectRatio: string;
 }
 
 export interface TextTabSetters {
@@ -84,6 +103,20 @@ export interface TextTabSetters {
 	setLTXV2FastResolution: (value: LTXV2FastResolution) => void;
 	setLTXV2FastFPS: (value: LTXV2FastFps) => void;
 	setLTXV2FastGenerateAudio: (value: boolean) => void;
+
+	// LTX Video 2.3 Pro settings
+	setLTX23ProDuration: (value: LTX23Duration) => void;
+	setLTX23ProResolution: (value: LTX23Resolution) => void;
+	setLTX23ProFPS: (value: LTX23FPS) => void;
+	setLTX23ProGenerateAudio: (value: boolean) => void;
+	setLTX23ProAspectRatio: (value: string) => void;
+
+	// LTX Video 2.3 Fast settings
+	setLTX23FastDuration: (value: LTX23Duration) => void;
+	setLTX23FastResolution: (value: LTX23Resolution) => void;
+	setLTX23FastFPS: (value: LTX23FPS) => void;
+	setLTX23FastGenerateAudio: (value: boolean) => void;
+	setLTX23FastAspectRatio: (value: string) => void;
 }
 
 export interface TextTabHelpers {
@@ -170,12 +203,34 @@ export function useTextTabState({
 	);
 	const [ltxv2FastGenerateAudio, setLTXV2FastGenerateAudio] = useState(true);
 
+	// LTX Video 2.3 Pro settings
+	const [ltx23ProDuration, setLTX23ProDuration] = useState<LTX23Duration>(
+		LTX23_CONFIG.PRO_DURATIONS[0],
+	);
+	const [ltx23ProResolution, setLTX23ProResolution] =
+		useState<LTX23Resolution>("1080p");
+	const [ltx23ProFPS, setLTX23ProFPS] = useState<LTX23FPS>(25);
+	const [ltx23ProGenerateAudio, setLTX23ProGenerateAudio] = useState(true);
+	const [ltx23ProAspectRatio, setLTX23ProAspectRatio] = useState("16:9");
+
+	// LTX Video 2.3 Fast settings
+	const [ltx23FastDuration, setLTX23FastDuration] = useState<LTX23Duration>(
+		LTX23_CONFIG.FAST_DURATIONS[0],
+	);
+	const [ltx23FastResolution, setLTX23FastResolution] =
+		useState<LTX23Resolution>("1080p");
+	const [ltx23FastFPS, setLTX23FastFPS] = useState<LTX23FPS>(25);
+	const [ltx23FastGenerateAudio, setLTX23FastGenerateAudio] = useState(true);
+	const [ltx23FastAspectRatio, setLTX23FastAspectRatio] = useState("16:9");
+
 	// Model selection helpers
 	const hailuoSelected =
 		selectedModels.includes("hailuo23_standard_t2v") ||
 		selectedModels.includes("hailuo23_pro_t2v");
 	const ltxv2ProTextSelected = selectedModels.includes("ltxv2_pro_t2v");
 	const ltxv2FastTextSelected = selectedModels.includes("ltxv2_fast_t2v");
+	const ltx23ProSelected = selectedModels.includes("ltx23_pro_t2v");
+	const ltx23FastSelected = selectedModels.includes("ltx23_fast_t2v");
 
 	// Reset Hailuo settings when model is deselected
 	useEffect(() => {
@@ -203,6 +258,50 @@ export function useTextTabState({
 			setLTXV2FastGenerateAudio(true);
 		}
 	}, [ltxv2FastTextSelected]);
+
+	// Reset LTX 2.3 Pro settings when model is deselected
+	useEffect(() => {
+		if (!ltx23ProSelected) {
+			setLTX23ProDuration(LTX23_CONFIG.PRO_DURATIONS[0]);
+			setLTX23ProResolution("1080p");
+			setLTX23ProFPS(25);
+			setLTX23ProGenerateAudio(true);
+			setLTX23ProAspectRatio("16:9");
+		}
+	}, [ltx23ProSelected]);
+
+	// Reset LTX 2.3 Fast settings when model is deselected
+	useEffect(() => {
+		if (!ltx23FastSelected) {
+			setLTX23FastDuration(LTX23_CONFIG.FAST_DURATIONS[0]);
+			setLTX23FastResolution("1080p");
+			setLTX23FastFPS(25);
+			setLTX23FastGenerateAudio(true);
+			setLTX23FastAspectRatio("16:9");
+		}
+	}, [ltx23FastSelected]);
+
+	// Auto-correct LTX 2.3 Fast resolution/FPS when duration crosses threshold
+	useEffect(() => {
+		if (
+			ltx23FastDuration > LTX23_CONFIG.EXTENDED_DURATION_THRESHOLD
+		) {
+			const validRes = LTX23_CONFIG.RESOLUTIONS.EXTENDED;
+			if (
+				!validRes.includes(
+					ltx23FastResolution as (typeof validRes)[number],
+				)
+			) {
+				setLTX23FastResolution(validRes[0]);
+			}
+			const validFps = LTX23_CONFIG.FPS_OPTIONS.EXTENDED;
+			if (
+				!validFps.includes(ltx23FastFPS as (typeof validFps)[number])
+			) {
+				setLTX23FastFPS(validFps[0]);
+			}
+		}
+	}, [ltx23FastDuration, ltx23FastResolution, ltx23FastFPS]);
 
 	// Calculate active settings count
 	const activeSettingsCount = useMemo(() => {
@@ -259,6 +358,16 @@ export function useTextTabState({
 			ltxv2FastResolution,
 			ltxv2FastFPS,
 			ltxv2FastGenerateAudio,
+			ltx23ProDuration,
+			ltx23ProResolution,
+			ltx23ProFPS,
+			ltx23ProGenerateAudio,
+			ltx23ProAspectRatio,
+			ltx23FastDuration,
+			ltx23FastResolution,
+			ltx23FastFPS,
+			ltx23FastGenerateAudio,
+			ltx23FastAspectRatio,
 		},
 		setters: {
 			setT2vAspectRatio,
@@ -278,6 +387,16 @@ export function useTextTabState({
 			setLTXV2FastResolution,
 			setLTXV2FastFPS,
 			setLTXV2FastGenerateAudio,
+			setLTX23ProDuration,
+			setLTX23ProResolution,
+			setLTX23ProFPS,
+			setLTX23ProGenerateAudio,
+			setLTX23ProAspectRatio,
+			setLTX23FastDuration,
+			setLTX23FastResolution,
+			setLTX23FastFPS,
+			setLTX23FastGenerateAudio,
+			setLTX23FastAspectRatio,
 		},
 		helpers: {
 			activeSettingsCount,

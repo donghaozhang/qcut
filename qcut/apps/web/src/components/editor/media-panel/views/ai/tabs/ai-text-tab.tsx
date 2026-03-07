@@ -40,6 +40,12 @@ import {
 } from "../constants/ai-model-options";
 import type { T2VModelCapabilities } from "../constants/text2video-models-config";
 import { calculateLTXV2Cost } from "../utils/ai-cost-calculators";
+import {
+	AiLtx23Settings,
+	type LTX23Duration,
+	type LTX23Resolution,
+	type LTX23FPS,
+} from "../components/ai-ltx23-settings";
 
 // ============================================
 // Types
@@ -104,6 +110,30 @@ export interface AITextTabProps {
 	onLTXV2FastFPSChange: (value: LTXV2FastFps) => void;
 	ltxv2FastGenerateAudio: boolean;
 	onLTXV2FastGenerateAudioChange: (value: boolean) => void;
+
+	// LTX Video 2.3 Pro settings
+	ltx23ProDuration: LTX23Duration;
+	onLTX23ProDurationChange: (value: LTX23Duration) => void;
+	ltx23ProResolution: LTX23Resolution;
+	onLTX23ProResolutionChange: (value: LTX23Resolution) => void;
+	ltx23ProFPS: LTX23FPS;
+	onLTX23ProFPSChange: (value: LTX23FPS) => void;
+	ltx23ProGenerateAudio: boolean;
+	onLTX23ProGenerateAudioChange: (value: boolean) => void;
+	ltx23ProAspectRatio: string;
+	onLTX23ProAspectRatioChange: (value: string) => void;
+
+	// LTX Video 2.3 Fast settings
+	ltx23FastDuration: LTX23Duration;
+	onLTX23FastDurationChange: (value: LTX23Duration) => void;
+	ltx23FastResolution: LTX23Resolution;
+	onLTX23FastResolutionChange: (value: LTX23Resolution) => void;
+	ltx23FastFPS: LTX23FPS;
+	onLTX23FastFPSChange: (value: LTX23FPS) => void;
+	ltx23FastGenerateAudio: boolean;
+	onLTX23FastGenerateAudioChange: (value: boolean) => void;
+	ltx23FastAspectRatio: string;
+	onLTX23FastAspectRatioChange: (value: string) => void;
 }
 
 // ============================================
@@ -169,6 +199,26 @@ export function AITextTab({
 	onLTXV2FastFPSChange,
 	ltxv2FastGenerateAudio,
 	onLTXV2FastGenerateAudioChange,
+	ltx23ProDuration,
+	onLTX23ProDurationChange,
+	ltx23ProResolution,
+	onLTX23ProResolutionChange,
+	ltx23ProFPS,
+	onLTX23ProFPSChange,
+	ltx23ProGenerateAudio,
+	onLTX23ProGenerateAudioChange,
+	ltx23ProAspectRatio,
+	onLTX23ProAspectRatioChange,
+	ltx23FastDuration,
+	onLTX23FastDurationChange,
+	ltx23FastResolution,
+	onLTX23FastResolutionChange,
+	ltx23FastFPS,
+	onLTX23FastFPSChange,
+	ltx23FastGenerateAudio,
+	onLTX23FastGenerateAudioChange,
+	ltx23FastAspectRatio,
+	onLTX23FastAspectRatioChange,
 }: AITextTabProps) {
 	// Model selection helpers
 	const hailuoStandardSelected = selectedModels.includes(
@@ -177,6 +227,8 @@ export function AITextTab({
 	const hailuoProSelected = selectedModels.includes("hailuo23_pro_t2v");
 	const ltxv2ProTextSelected = selectedModels.includes("ltxv2_pro_t2v");
 	const ltxv2FastTextSelected = selectedModels.includes("ltxv2_fast_t2v");
+	const ltx23ProSelected = selectedModels.includes("ltx23_pro_t2v");
+	const ltx23FastSelected = selectedModels.includes("ltx23_fast_t2v");
 
 	// LTX Fast extended duration constraints
 	const ltxv2FastExtendedResolutions = LTXV2_FAST_CONFIG.RESOLUTIONS.EXTENDED;
@@ -714,6 +766,42 @@ export function AITextTab({
 							automatically use 1080p at 25 FPS.
 						</div>
 					</div>
+				)}
+
+				{/* LTX Video 2.3 Pro Settings */}
+				{ltx23ProSelected && (
+					<AiLtx23Settings
+						variant="pro"
+						mode="t2v"
+						duration={ltx23ProDuration}
+						onDurationChange={onLTX23ProDurationChange}
+						resolution={ltx23ProResolution}
+						onResolutionChange={onLTX23ProResolutionChange}
+						fps={ltx23ProFPS}
+						onFpsChange={onLTX23ProFPSChange}
+						generateAudio={ltx23ProGenerateAudio}
+						onGenerateAudioChange={onLTX23ProGenerateAudioChange}
+						aspectRatio={ltx23ProAspectRatio}
+						onAspectRatioChange={onLTX23ProAspectRatioChange}
+					/>
+				)}
+
+				{/* LTX Video 2.3 Fast Settings */}
+				{ltx23FastSelected && (
+					<AiLtx23Settings
+						variant="fast"
+						mode="t2v"
+						duration={ltx23FastDuration}
+						onDurationChange={onLTX23FastDurationChange}
+						resolution={ltx23FastResolution}
+						onResolutionChange={onLTX23FastResolutionChange}
+						fps={ltx23FastFPS}
+						onFpsChange={onLTX23FastFPSChange}
+						generateAudio={ltx23FastGenerateAudio}
+						onGenerateAudioChange={onLTX23FastGenerateAudioChange}
+						aspectRatio={ltx23FastAspectRatio}
+						onAspectRatioChange={onLTX23FastAspectRatioChange}
+					/>
 				)}
 			</div>
 		</div>
