@@ -217,12 +217,17 @@ export async function executeReaction(
 		case "send-to-agent": {
 			if (reactionConfig.message) {
 				try {
-					await sessionManager.send(sessionId, reactionConfig.message);
+					const { restarted } = await sessionManager.sendOrRestart(
+						sessionId,
+						reactionConfig.message,
+					);
 					return {
 						reactionType: reactionKey,
 						success: true,
 						action: "send-to-agent",
-						message: reactionConfig.message,
+						message: restarted
+							? `[restarted agent] ${reactionConfig.message}`
+							: reactionConfig.message,
 						escalated: false,
 					};
 				} catch {

@@ -17,7 +17,7 @@ import {
 
 const HANDLER_NAME = "ScreenRecording";
 const START_TIMEOUT_MS = 30_000;
-const RENDERER_STOP_TIMEOUT_MS = 15_000;
+const RENDERER_STOP_TIMEOUT_MS = 30_000;
 
 export interface StartRecordingRequest {
 	sourceId?: string;

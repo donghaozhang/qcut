@@ -11,6 +11,7 @@ import {
 	NON_RESTORABLE_STATUSES,
 	PR_STATE,
 	SessionNotRestorableError,
+	type Agent,
 	type CleanupResult,
 	type ProjectConfig,
 	type Runtime,
@@ -266,6 +267,83 @@ export async function sendToSession({
 	}
 
 	await runtimePlugin.sendMessage(handle, message);
+}
+
+/**
+ * Send a message to a session's agent, re-launching the agent if it has exited.
+ * This is critical for reactions like `send-to-agent` — if CI fails after the
+ * agent created a PR and exited, we need to re-launch it to fix the failure.
+ */
+export async function sendOrRestartAgent({
+	context,
+	sessionId,
+	message,
+}: {
+	context: SessionManagerContext;
+	sessionId: SessionId;
+	message: string;
+}): Promise<{ restarted: boolean }> {
+	const located = findActiveSessionLocation({ context, sessionId });
+	if (!located) {
+		throw new Error(`Session ${sessionId} not found`);
+	}
+
+	const { raw, project, sessionsDir, projectId } = located;
+	const plugins = context.resolvePlugins(project, raw.agent);
+
+	if (!plugins.runtime || !plugins.agent) {
+		// Fall back to basic send
+		await sendToSession({ context, sessionId, message });
+		return { restarted: false };
+	}
+
+	// Check if the agent process is still alive
+	let agentAlive = false;
+	if (raw.runtimeHandle) {
+		const handle = safeJsonParse<RuntimeHandle>(raw.runtimeHandle);
+		if (handle) {
+			try {
+				agentAlive = await plugins.agent.isProcessRunning(handle);
+			} catch {
+				// Can't determine — assume dead
+			}
+		}
+	}
+
+	if (agentAlive) {
+		// Agent is alive — just send the message
+		await sendToSession({ context, sessionId, message });
+		return { restarted: false };
+	}
+
+	// Agent is dead — re-launch it in the existing tmux session with a focused prompt
+	const handle = raw.runtimeHandle
+		? safeJsonParse<RuntimeHandle>(raw.runtimeHandle)
+		: null;
+
+	if (!handle) {
+		throw new Error(`No runtime handle for session ${sessionId}`);
+	}
+
+	const workspacePath = raw.worktree || project.path;
+	const launchCommand = plugins.agent.getLaunchCommand({
+		sessionId,
+		projectConfig: project,
+		issueId: raw.issue ?? undefined,
+		prompt: message,
+		permissions: project.agentConfig?.permissions as "skip" | "default" | undefined,
+		model: project.agentConfig?.model,
+	});
+
+	// Send the launch command into the tmux session to start a new Claude Code process
+	await plugins.runtime.sendMessage(handle, launchCommand);
+
+	updateMetadata(sessionsDir, sessionId, {
+		status: "spawning",
+		restartedAt: new Date().toISOString(),
+	});
+
+	return { restarted: true };
 }
 
 export async function restoreSession({

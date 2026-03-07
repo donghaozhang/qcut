@@ -35,6 +35,8 @@ export interface SessionManager {
     options?: { dryRun?: boolean },
   ): Promise<CleanupResult>;
   send(sessionId: SessionId, message: string): Promise<void>;
+  /** Send message to agent, re-launching if agent process has exited */
+  sendOrRestart(sessionId: SessionId, message: string): Promise<{ restarted: boolean }>;
 }
 
 export interface CleanupResult {

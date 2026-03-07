@@ -177,7 +177,10 @@ export function createLifecycleManager(
 					const processAlive = await agent.isProcessRunning(
 						session.runtimeHandle
 					);
-					if (!processAlive) return "killed";
+					// If agent is dead but a PR exists, fall through to PR state
+					// checking — the lifecycle should monitor PR CI/review state
+					// even after the agent exits.
+					if (!processAlive && !session.pr) return "killed";
 				}
 			} catch {
 				// On probe failure, preserve current stuck/needs_input state rather

@@ -182,6 +182,17 @@ export function parseTmuxName(tmuxName: string): {
 }
 
 /**
+ * Get the PID file path for the lifecycle daemon.
+ * Format: ~/.qagent/lifecycle-{hash}.pid
+ */
+export function getDaemonPidPath(configPath: string): string {
+	const hash = generateConfigHash(configPath);
+	const dir = join(homedir(), ".qagent");
+	mkdirSync(dir, { recursive: true });
+	return join(dir, `lifecycle-${hash}.pid`);
+}
+
+/**
  * Expand ~ to home directory.
  */
 export function expandHome(filepath: string): string {

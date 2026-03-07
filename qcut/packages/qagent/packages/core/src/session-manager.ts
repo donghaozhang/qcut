@@ -31,6 +31,7 @@ import {
 	killSession,
 	restoreSession,
 	sendToSession,
+	sendOrRestartAgent,
 } from "./session-manager-maintenance.js";
 import {
 	spawnOrchestratorSession,
@@ -211,5 +212,7 @@ export function createSessionManager(deps: SessionManagerDeps): SessionManager {
 			cleanupSessions({ context, projectId, options }),
 		send: async (sessionId, message) =>
 			sendToSession({ context, sessionId, message }),
+		sendOrRestart: async (sessionId, message) =>
+			sendOrRestartAgent({ context, sessionId, message }),
 	};
 }

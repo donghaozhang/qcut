@@ -90,6 +90,20 @@ Todo → In Progress → Human Review → Merging → Done
 9. Run PR feedback sweep: check all review comments are addressed.
 10. Only then move issue to Human Review.
 
+## Post-PR CI Watch
+
+After creating or updating the PR, do NOT exit immediately. Wait for CI:
+
+1. Run `gh pr checks <PR-number> --watch --fail-fast` to wait for CI results.
+2. If any check fails:
+   - Read failure logs: `gh run view <run-id> --log-failed`
+   - Fix the code, commit, and push.
+   - Re-run `gh pr checks --watch --fail-fast`.
+3. If all checks pass, proceed to the PR feedback sweep.
+4. If CI takes longer than 10 minutes, proceed to PR feedback sweep anyway — the lifecycle manager will handle late CI failures.
+
+This step is critical: never exit with failing CI if you can fix it.
+
 ## Step 3: Human Review → Merge
 
 1. In Human Review, do not code or change content.

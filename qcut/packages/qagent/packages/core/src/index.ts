@@ -175,5 +175,6 @@ export {
 	generateTmuxName,
 	parseTmuxName,
 	expandHome,
+	getDaemonPidPath,
 	validateAndStoreOrigin,
 } from "./paths.js";

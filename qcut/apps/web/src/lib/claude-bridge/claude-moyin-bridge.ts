@@ -66,6 +66,8 @@ export function setupClaudeMoyinBridge(): void {
 			const state = useMoyinStore.getState();
 			moyin.sendStatusResponse(requestId, {
 				parseStatus: state.parseStatus,
+				createStatus: state.createStatus,
+				createError: state.createError,
 				activeStep: state.activeStep,
 				pipelineProgress: state.pipelineProgress,
 				characters: state.characters.length,
