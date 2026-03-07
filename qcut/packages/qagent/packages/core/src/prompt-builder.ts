@@ -24,9 +24,10 @@ export const BASE_AGENT_PROMPT = `You are an AI coding agent managed by the Agen
 
 ## Session Lifecycle
 - You are running inside a managed session. Focus on the assigned task.
-- When you finish your work, create a PR and push it. The orchestrator will handle CI monitoring and review routing.
-- If CI fails, the orchestrator will send you the failures — fix them and push again.
+- After creating a PR, you MUST wait for CI to finish before exiting. Run \`gh pr checks <PR-number> --watch --fail-fast\` and fix any failures.
+- If CI fails after you exit, the orchestrator will send you the failures — fix them and push again.
 - If reviewers request changes, the orchestrator will forward their comments — address each one, push fixes, and reply to the comments.
+- Do NOT exit until CI is green or you have waited at least 10 minutes for CI to start.
 
 ## Git Workflow
 - Always create a feature branch from the default branch (never commit directly to it).
@@ -37,7 +38,7 @@ export const BASE_AGENT_PROMPT = `You are an AI coding agent managed by the Agen
 ## PR Best Practices
 - Write a clear PR title and description explaining what changed and why.
 - Link the issue in the PR description so it auto-closes when merged.
-- If the repo has CI checks, make sure they pass before requesting review.
+- After pushing, wait for CI checks to pass before considering your work done.
 - Respond to every review comment, even if just to acknowledge it.`;
 
 // =============================================================================

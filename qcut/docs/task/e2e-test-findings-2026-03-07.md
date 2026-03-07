@@ -111,7 +111,8 @@ if (!processAlive) {
 |----------|-------|--------|--------|
 | ~~**P0**~~ | ~~Agent death overrides PR state~~ | **FIXED** — `lifecycle-manager.ts:180` | Was blocking entire lifecycle |
 | ~~**P1**~~ | ~~Daemon not loading plugins~~ | **FIXED** — moved daemon to CLI package | Was preventing all daemon monitoring |
-| **P2** | Agent doesn't wait for CI | Prompt engineering | Reduces CI catch rate |
+| ~~**P2**~~ | ~~Agent doesn't wait for CI~~ | **FIXED** — BASE_AGENT_PROMPT + workflow.md | Reduces CI catch rate |
+| ~~**P3**~~ | ~~Agent doesn't create workpad~~ | **FIXED** — workflow.md mandatory language | Reduces visibility |
 
 ---
 
