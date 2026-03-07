@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -133,161 +132,159 @@ export function ComponentCard({
 		CATEGORY_ICON_COLORS[component.category] || CATEGORY_ICON_COLORS.template;
 
 	return (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger asChild>
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<div
+					className={cn(
+						"relative group rounded-lg border border-border/80 bg-slate-800/50",
+						"transition-all cursor-pointer overflow-hidden",
+						"hover:border-violet-500/50 hover:bg-slate-700/70",
+						"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500",
+						className
+					)}
+					onMouseEnter={handleMouseEnter}
+					onMouseLeave={handleMouseLeave}
+					onClick={() => onAdd(component)}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							onAdd(component);
+						}
+					}}
+					tabIndex={0}
+					role="button"
+					aria-label={`Add ${component.name} to timeline`}
+					data-testid={`component-card-${component.id}`}
+				>
+					{/* Thumbnail / Preview */}
 					<div
 						className={cn(
-							"relative group rounded-lg border border-border/80 bg-slate-800/50",
-							"transition-all cursor-pointer overflow-hidden",
-							"hover:border-violet-500/50 hover:bg-slate-700/70",
-							"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500",
-							className
+							"relative bg-gradient-to-br flex items-center justify-center",
+							gradientClass,
+							compact ? "aspect-square" : "aspect-video"
 						)}
-						onMouseEnter={handleMouseEnter}
-						onMouseLeave={handleMouseLeave}
-						onClick={() => onAdd(component)}
-						onKeyDown={(e) => {
-							if (e.key === "Enter" || e.key === " ") {
-								e.preventDefault();
-								onAdd(component);
-							}
-						}}
-						tabIndex={0}
-						role="button"
-						aria-label={`Add ${component.name} to timeline`}
-						data-testid={`component-card-${component.id}`}
 					>
-						{/* Thumbnail / Preview */}
-						<div
-							className={cn(
-								"relative bg-gradient-to-br flex items-center justify-center",
-								gradientClass,
-								compact ? "aspect-square" : "aspect-video"
-							)}
-						>
-							{showPlayer && !playerError ? (
-								<PlayerErrorBoundary onError={() => setPlayerError(true)}>
-									<Player
-										component={component.component}
-										inputProps={component.defaultProps}
-										durationInFrames={component.durationInFrames}
-										compositionWidth={component.width}
-										compositionHeight={component.height}
-										fps={component.fps}
-										style={{ width: "100%", height: "100%" }}
-										controls={false}
-										loop
-										autoPlay
-									/>
-								</PlayerErrorBoundary>
-							) : component.thumbnail ? (
-								<img
-									src={component.thumbnail}
-									alt={component.name}
-									className="w-full h-full object-cover"
+						{showPlayer && !playerError ? (
+							<PlayerErrorBoundary onError={() => setPlayerError(true)}>
+								<Player
+									component={component.component}
+									inputProps={component.defaultProps}
+									durationInFrames={component.durationInFrames}
+									compositionWidth={component.width}
+									compositionHeight={component.height}
+									fps={component.fps}
+									style={{ width: "100%", height: "100%" }}
+									controls={false}
+									loop
+									autoPlay
 								/>
-							) : (
-								<Layers className={cn("w-8 h-8", iconColorClass)} />
-							)}
+							</PlayerErrorBoundary>
+						) : component.thumbnail ? (
+							<img
+								src={component.thumbnail}
+								alt={component.name}
+								className="w-full h-full object-cover"
+							/>
+						) : (
+							<Layers className={cn("w-8 h-8", iconColorClass)} />
+						)}
 
-							{/* Hover overlay with actions */}
-							{isHovered && (
-								<div className="absolute inset-0 bg-black/60 flex items-center justify-center gap-2 transition-opacity">
+						{/* Hover overlay with actions */}
+						{isHovered && (
+							<div className="absolute inset-0 bg-black/60 flex items-center justify-center gap-2 transition-opacity">
+								<Button
+									size="sm"
+									variant="secondary"
+									className="gap-1 h-8"
+									onClick={(e) => {
+										e.stopPropagation();
+										onAdd(component);
+									}}
+								>
+									<Plus className="w-3 h-3" />
+									Add
+								</Button>
+								{onPreview && (
 									<Button
 										size="sm"
-										variant="secondary"
+										variant="outline"
 										className="gap-1 h-8"
 										onClick={(e) => {
 											e.stopPropagation();
-											onAdd(component);
+											onPreview(component);
 										}}
 									>
-										<Plus className="w-3 h-3" />
-										Add
+										<Eye className="w-3 h-3" />
 									</Button>
-									{onPreview && (
-										<Button
-											size="sm"
-											variant="outline"
-											className="gap-1 h-8"
-											onClick={(e) => {
-												e.stopPropagation();
-												onPreview(component);
-											}}
-										>
-											<Eye className="w-3 h-3" />
-										</Button>
-									)}
-								</div>
-							)}
-
-							{/* Duration badge — hidden while player is active */}
-							{!showPlayer && (
-								<Badge
-									variant="secondary"
-									className={cn(
-										"absolute top-1 right-1 text-[10px] px-1 py-0 opacity-80",
-										isHovered && "opacity-0"
-									)}
-								>
-									{durationSeconds}s
-								</Badge>
-							)}
-						</div>
-
-						{/* Component Info */}
-						<div className={cn("p-2", compact && "p-1.5")}>
-							<div className="flex items-center justify-between gap-1">
-								<span
-									className={cn(
-										"font-medium text-foreground truncate",
-										compact ? "text-[10px]" : "text-xs"
-									)}
-								>
-									{component.name}
-								</span>
+								)}
 							</div>
-							{!compact && component.description && (
-								<p className="text-[10px] text-muted-foreground truncate mt-0.5">
-									{component.description}
-								</p>
-							)}
-						</div>
+						)}
+
+						{/* Duration badge — hidden while player is active */}
+						{!showPlayer && (
+							<Badge
+								variant="secondary"
+								className={cn(
+									"absolute top-1 right-1 text-[10px] px-1 py-0 opacity-80",
+									isHovered && "opacity-0"
+								)}
+							>
+								{durationSeconds}s
+							</Badge>
+						)}
 					</div>
-				</TooltipTrigger>
-				<TooltipContent side="bottom" className="max-w-xs">
-					<div className="space-y-1">
-						<p className="font-medium">{component.name}</p>
-						{component.description && (
-							<p className="text-xs text-muted-foreground">
+
+					{/* Component Info */}
+					<div className={cn("p-2", compact && "p-1.5")}>
+						<div className="flex items-center justify-between gap-1">
+							<span
+								className={cn(
+									"font-medium text-foreground truncate",
+									compact ? "text-[10px]" : "text-xs"
+								)}
+							>
+								{component.name}
+							</span>
+						</div>
+						{!compact && component.description && (
+							<p className="text-[10px] text-muted-foreground truncate mt-0.5">
 								{component.description}
 							</p>
 						)}
-						<div className="flex gap-2 text-xs text-muted-foreground">
-							<span>
-								{component.width}×{component.height}
-							</span>
-							<span>{component.fps}fps</span>
-							<span>{component.durationInFrames} frames</span>
-						</div>
-						{component.tags && component.tags.length > 0 && (
-							<div className="flex flex-wrap gap-1 mt-1">
-								{component.tags.slice(0, 5).map((tag) => (
-									<Badge
-										key={tag}
-										variant="outline"
-										className="text-[9px] px-1 py-0"
-									>
-										{tag}
-									</Badge>
-								))}
-							</div>
-						)}
 					</div>
-				</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
+				</div>
+			</TooltipTrigger>
+			<TooltipContent side="bottom" className="max-w-xs">
+				<div className="space-y-1">
+					<p className="font-medium">{component.name}</p>
+					{component.description && (
+						<p className="text-xs text-muted-foreground">
+							{component.description}
+						</p>
+					)}
+					<div className="flex gap-2 text-xs text-muted-foreground">
+						<span>
+							{component.width}×{component.height}
+						</span>
+						<span>{component.fps}fps</span>
+						<span>{component.durationInFrames} frames</span>
+					</div>
+					{component.tags && component.tags.length > 0 && (
+						<div className="flex flex-wrap gap-1 mt-1">
+							{component.tags.slice(0, 5).map((tag) => (
+								<Badge
+									key={tag}
+									variant="outline"
+									className="text-[9px] px-1 py-0"
+								>
+									{tag}
+								</Badge>
+							))}
+						</div>
+					)}
+				</div>
+			</TooltipContent>
+		</Tooltip>
 	);
 }
 

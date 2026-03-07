@@ -16,7 +16,6 @@ import {
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
@@ -178,98 +177,88 @@ export function EffectManagement({
 
 									<div className="flex items-center space-x-1">
 										{/* Reorder Buttons */}
-										<TooltipProvider>
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<Button
-														type="button"
-														variant="text"
-														size="icon"
-														className="h-6 w-6"
-														aria-label="Move effect up"
-														onClick={() => handleMoveEffect(effect.id, "up")}
-														disabled={index === 0}
-													>
-														<ChevronUp className="h-3 w-3" />
-													</Button>
-												</TooltipTrigger>
-												<TooltipContent>Move Up</TooltipContent>
-											</Tooltip>
-										</TooltipProvider>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<Button
+													type="button"
+													variant="text"
+													size="icon"
+													className="h-6 w-6"
+													aria-label="Move effect up"
+													onClick={() => handleMoveEffect(effect.id, "up")}
+													disabled={index === 0}
+												>
+													<ChevronUp className="h-3 w-3" />
+												</Button>
+											</TooltipTrigger>
+											<TooltipContent>Move Up</TooltipContent>
+										</Tooltip>
 
-										<TooltipProvider>
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<Button
-														type="button"
-														variant="text"
-														size="icon"
-														className="h-6 w-6"
-														aria-label="Move effect down"
-														onClick={() => handleMoveEffect(effect.id, "down")}
-														disabled={index === effects.length - 1}
-													>
-														<ChevronDown className="h-3 w-3" />
-													</Button>
-												</TooltipTrigger>
-												<TooltipContent>Move Down</TooltipContent>
-											</Tooltip>
-										</TooltipProvider>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<Button
+													type="button"
+													variant="text"
+													size="icon"
+													className="h-6 w-6"
+													aria-label="Move effect down"
+													onClick={() => handleMoveEffect(effect.id, "down")}
+													disabled={index === effects.length - 1}
+												>
+													<ChevronDown className="h-3 w-3" />
+												</Button>
+											</TooltipTrigger>
+											<TooltipContent>Move Down</TooltipContent>
+										</Tooltip>
 
 										{/* Action Buttons */}
-										<TooltipProvider>
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<Button
-														type="button"
-														variant="text"
-														size="icon"
-														className="h-6 w-6"
-														aria-label="Duplicate effect"
-														onClick={() => handleDuplicateEffect(effect)}
-													>
-														<Copy className="h-3 w-3" />
-													</Button>
-												</TooltipTrigger>
-												<TooltipContent>Duplicate Effect</TooltipContent>
-											</Tooltip>
-										</TooltipProvider>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<Button
+													type="button"
+													variant="text"
+													size="icon"
+													className="h-6 w-6"
+													aria-label="Duplicate effect"
+													onClick={() => handleDuplicateEffect(effect)}
+												>
+													<Copy className="h-3 w-3" />
+												</Button>
+											</TooltipTrigger>
+											<TooltipContent>Duplicate Effect</TooltipContent>
+										</Tooltip>
 
-										<TooltipProvider>
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<Button
-														type="button"
-														variant="text"
-														size="icon"
-														className="h-6 w-6"
-														aria-label="Reset effect to defaults"
-														onClick={() => handleResetEffect(effect.id)}
-													>
-														<RotateCcw className="h-3 w-3" />
-													</Button>
-												</TooltipTrigger>
-												<TooltipContent>Reset to Defaults</TooltipContent>
-											</Tooltip>
-										</TooltipProvider>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<Button
+													type="button"
+													variant="text"
+													size="icon"
+													className="h-6 w-6"
+													aria-label="Reset effect to defaults"
+													onClick={() => handleResetEffect(effect.id)}
+												>
+													<RotateCcw className="h-3 w-3" />
+												</Button>
+											</TooltipTrigger>
+											<TooltipContent>Reset to Defaults</TooltipContent>
+										</Tooltip>
 
-										<TooltipProvider>
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<Button
-														type="button"
-														variant="text"
-														size="icon"
-														className="h-6 w-6"
-														aria-label="Remove effect"
-														onClick={() => removeEffect(elementId, effect.id)}
-													>
-														<Trash2 className="h-3 w-3" />
-													</Button>
-												</TooltipTrigger>
-												<TooltipContent>Remove Effect</TooltipContent>
-											</Tooltip>
-										</TooltipProvider>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<Button
+													type="button"
+													variant="text"
+													size="icon"
+													className="h-6 w-6"
+													aria-label="Remove effect"
+													onClick={() => removeEffect(elementId, effect.id)}
+												>
+													<Trash2 className="h-3 w-3" />
+												</Button>
+											</TooltipTrigger>
+											<TooltipContent>Remove Effect</TooltipContent>
+										</Tooltip>
 
 										{/* Expand/Collapse */}
 										<Button

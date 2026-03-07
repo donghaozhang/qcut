@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef } from "react";
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -65,37 +64,35 @@ export function WordChip({
 	}, [isSelected]);
 
 	return (
-		<TooltipProvider delayDuration={300}>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<button
-						ref={buttonRef}
-						type="button"
-						onClick={handleClick}
-						onContextMenu={handleRightClick}
-						onKeyDown={handleKeyDown}
-						className={cn(
-							"inline-flex items-center px-2 py-1 text-sm rounded transition-all",
-							"hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring",
-							getChipColor({ filterState: word.filterState }),
-							isSelected && "ring-2 ring-primary ring-offset-1"
-						)}
-					>
-						{word.text}
-					</button>
-				</TooltipTrigger>
-				<TooltipContent side="bottom" className="text-xs">
-					<p className="font-mono">
-						{formatTime(word.start)} - {formatTime(word.end)}
-					</p>
-					{word.filterReason && (
-						<p className="text-muted-foreground mt-1">{word.filterReason}</p>
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<button
+					ref={buttonRef}
+					type="button"
+					onClick={handleClick}
+					onContextMenu={handleRightClick}
+					onKeyDown={handleKeyDown}
+					className={cn(
+						"inline-flex items-center px-2 py-1 text-sm rounded transition-all",
+						"hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring",
+						getChipColor({ filterState: word.filterState }),
+						isSelected && "ring-2 ring-primary ring-offset-1"
 					)}
-					<p className="text-muted-foreground mt-1">
-						{getChipHelpText({ word })}
-					</p>
-				</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
+				>
+					{word.text}
+				</button>
+			</TooltipTrigger>
+			<TooltipContent side="bottom" className="text-xs">
+				<p className="font-mono">
+					{formatTime(word.start)} - {formatTime(word.end)}
+				</p>
+				{word.filterReason && (
+					<p className="text-muted-foreground mt-1">{word.filterReason}</p>
+				)}
+				<p className="text-muted-foreground mt-1">
+					{getChipHelpText({ word })}
+				</p>
+			</TooltipContent>
+		</Tooltip>
 	);
 }

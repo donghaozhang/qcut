@@ -1,7 +1,6 @@
 "use client";
 
 import { Loader2, Search } from "lucide-react";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { StickerItem } from "./sticker-item";
 
 interface StickersSearchResultsProps {
@@ -38,24 +37,22 @@ export function StickersSearchResults({
 	}
 
 	return (
-		<TooltipProvider>
-			<div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
-				{searchResults.map((result) => {
-					const [collection, iconName] = result.split(":");
-					if (!collection || !iconName) {
-						return null; // skip malformed entries
-					}
-					return (
-						<StickerItem
-							key={result}
-							icon={iconName}
-							name={iconName}
-							collection={collection}
-							onSelect={onSelect}
-						/>
-					);
-				})}
-			</div>
-		</TooltipProvider>
+		<div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
+			{searchResults.map((result) => {
+				const [collection, iconName] = result.split(":");
+				if (!collection || !iconName) {
+					return null; // skip malformed entries
+				}
+				return (
+					<StickerItem
+						key={result}
+						icon={iconName}
+						name={iconName}
+						collection={collection}
+						onSelect={onSelect}
+					/>
+				);
+			})}
+		</div>
 	);
 }

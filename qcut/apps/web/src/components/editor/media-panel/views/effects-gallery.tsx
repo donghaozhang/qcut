@@ -5,7 +5,6 @@ import { Card } from "@/components/ui/card";
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
@@ -137,56 +136,52 @@ export function EffectsGallery({
 									</div>
 								</div>
 								<div className="flex items-center gap-1">
-									<TooltipProvider>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<Button
-													type="button"
-													variant="text"
-													size="icon"
-													className="h-8 w-8"
-													aria-label={
-														favorites.has(preset.id)
-															? "Remove from favorites"
-															: "Add to favorites"
-													}
-													aria-pressed={favorites.has(preset.id)}
-													onClick={(e) => toggleFavorite(e, preset.id)}
-												>
-													<Star
-														className={cn(
-															"h-4 w-4",
-															favorites.has(preset.id) &&
-																"fill-yellow-500 text-yellow-500"
-														)}
-													/>
-												</Button>
-											</TooltipTrigger>
-											<TooltipContent>
-												{favorites.has(preset.id)
-													? "Remove from favorites"
-													: "Add to favorites"}
-											</TooltipContent>
-										</Tooltip>
-									</TooltipProvider>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<Button
+												type="button"
+												variant="text"
+												size="icon"
+												className="h-8 w-8"
+												aria-label={
+													favorites.has(preset.id)
+														? "Remove from favorites"
+														: "Add to favorites"
+												}
+												aria-pressed={favorites.has(preset.id)}
+												onClick={(e) => toggleFavorite(e, preset.id)}
+											>
+												<Star
+													className={cn(
+														"h-4 w-4",
+														favorites.has(preset.id) &&
+															"fill-yellow-500 text-yellow-500"
+													)}
+												/>
+											</Button>
+										</TooltipTrigger>
+										<TooltipContent>
+											{favorites.has(preset.id)
+												? "Remove from favorites"
+												: "Add to favorites"}
+										</TooltipContent>
+									</Tooltip>
 
-									<TooltipProvider>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<Button
-													type="button"
-													variant="text"
-													size="icon"
-													className="h-8 w-8"
-													aria-label="Preview effect"
-													onClick={(e) => handlePreview(e, preset)}
-												>
-													<Info className="h-4 w-4" />
-												</Button>
-											</TooltipTrigger>
-											<TooltipContent>Preview effect</TooltipContent>
-										</Tooltip>
-									</TooltipProvider>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<Button
+												type="button"
+												variant="text"
+												size="icon"
+												className="h-8 w-8"
+												aria-label="Preview effect"
+												onClick={(e) => handlePreview(e, preset)}
+											>
+												<Info className="h-4 w-4" />
+											</Button>
+										</TooltipTrigger>
+										<TooltipContent>Preview effect</TooltipContent>
+									</Tooltip>
 								</div>
 							</div>
 						</Card>

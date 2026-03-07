@@ -22,7 +22,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useStickersStore } from "@/stores/stickers-store";
@@ -86,51 +85,49 @@ function StickerItem({
 	};
 
 	return (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<button
-						type="button"
-						className={cn(
-							"relative flex h-14 w-14 flex-col items-center justify-center rounded-md border border-border/80 bg-slate-800/50 transition-colors hover:border-primary hover:bg-slate-700/70 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-							isSelected && "border-primary bg-slate-700/70"
-						)}
-						onClick={handleClick}
-						disabled={hasError || !imageUrl}
-						data-testid="sticker-item"
-					>
-						{isLoading && (
-							<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-						)}
-						{hasError && !isLoading && (
-							<AlertCircle className="h-6 w-6 text-destructive" />
-						)}
-						{imageUrl && (
-							<img
-								src={imageUrl}
-								alt={name || icon}
-								className={cn(
-									"h-8 w-8 object-contain",
-									(isLoading || hasError) && "hidden"
-								)}
-								onLoad={() => {
-									setIsLoading(false);
-								}}
-								onError={() => {
-									setHasError(true);
-									setIsLoading(false);
-								}}
-							/>
-						)}
-					</button>
-				</TooltipTrigger>
-				<TooltipContent side="bottom">
-					<p className="text-sm font-medium">
-						{name || icon} ({collection})
-					</p>
-				</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<button
+					type="button"
+					className={cn(
+						"relative flex h-14 w-14 flex-col items-center justify-center rounded-md border border-border/80 bg-slate-800/50 transition-colors hover:border-primary hover:bg-slate-700/70 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+						isSelected && "border-primary bg-slate-700/70"
+					)}
+					onClick={handleClick}
+					disabled={hasError || !imageUrl}
+					data-testid="sticker-item"
+				>
+					{isLoading && (
+						<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+					)}
+					{hasError && !isLoading && (
+						<AlertCircle className="h-6 w-6 text-destructive" />
+					)}
+					{imageUrl && (
+						<img
+							src={imageUrl}
+							alt={name || icon}
+							className={cn(
+								"h-8 w-8 object-contain",
+								(isLoading || hasError) && "hidden"
+							)}
+							onLoad={() => {
+								setIsLoading(false);
+							}}
+							onError={() => {
+								setHasError(true);
+								setIsLoading(false);
+							}}
+						/>
+					)}
+				</button>
+			</TooltipTrigger>
+			<TooltipContent side="bottom">
+				<p className="text-sm font-medium">
+					{name || icon} ({collection})
+				</p>
+			</TooltipContent>
+		</Tooltip>
 	);
 }
 
@@ -553,22 +550,20 @@ export function StickersView() {
 							</button>
 						)}
 					</div>
-					<TooltipProvider>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									type="button"
-									size="icon"
-									variant="outline"
-									className="h-9 w-9 shrink-0"
-									onClick={() => fileInputRef.current?.click()}
-								>
-									<Upload className="h-4 w-4" />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>Upload your own sticker</TooltipContent>
-						</Tooltip>
-					</TooltipProvider>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								size="icon"
+								variant="outline"
+								className="h-9 w-9 shrink-0"
+								onClick={() => fileInputRef.current?.click()}
+							>
+								<Upload className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>Upload your own sticker</TooltipContent>
+					</Tooltip>
 					<input
 						ref={fileInputRef}
 						type="file"

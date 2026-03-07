@@ -20,12 +20,7 @@ import {
 	FileText,
 } from "lucide-react";
 import { Button } from "../../ui/button";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-	TooltipProvider,
-} from "../../ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip";
 import {
 	SplitButton,
 	SplitButtonLeft,
@@ -290,278 +285,267 @@ export function TimelineToolbar({
 			data-testid="timeline-toolbar"
 		>
 			<div className="flex items-center gap-1">
-				<TooltipProvider delayDuration={500}>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="text"
-								size="icon"
-								type="button"
-								onClick={handleAddMarkdown}
-								data-testid="add-markdown-button"
-							>
-								<FileText className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Add markdown at playhead</TooltipContent>
-					</Tooltip>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							variant="text"
+							size="icon"
+							type="button"
+							onClick={handleAddMarkdown}
+							data-testid="add-markdown-button"
+						>
+							<FileText className="h-4 w-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Add markdown at playhead</TooltipContent>
+				</Tooltip>
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="text"
-								size="icon"
-								onClick={toggle}
-								className="mr-2"
-								data-testid={
-									isPlaying ? "timeline-pause-button" : "timeline-play-button"
-								}
-								data-playing={isPlaying}
-							>
-								{isPlaying ? (
-									<Pause className="h-4 w-4" />
-								) : (
-									<Play className="h-4 w-4" />
-								)}
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>
-							{isPlaying ? "Pause (Space)" : "Play (Space)"}
-						</TooltipContent>
-					</Tooltip>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							variant="text"
+							size="icon"
+							onClick={toggle}
+							className="mr-2"
+							data-testid={
+								isPlaying ? "timeline-pause-button" : "timeline-play-button"
+							}
+							data-playing={isPlaying}
+						>
+							{isPlaying ? (
+								<Pause className="h-4 w-4" />
+							) : (
+								<Play className="h-4 w-4" />
+							)}
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>
+						{isPlaying ? "Pause (Space)" : "Play (Space)"}
+					</TooltipContent>
+				</Tooltip>
 
-					<div className="w-px h-6 bg-border mx-1" />
-					<div
-						className="text-xs text-muted-foreground font-mono px-2"
-						style={{ minWidth: "18ch", textAlign: "center" }}
-						data-testid="current-time-display"
-					>
-						{currentTime.toFixed(1)}s / {duration.toFixed(1)}s
-					</div>
+				<div className="w-px h-6 bg-border mx-1" />
+				<div
+					className="text-xs text-muted-foreground font-mono px-2"
+					style={{ minWidth: "18ch", textAlign: "center" }}
+					data-testid="current-time-display"
+				>
+					{currentTime.toFixed(1)}s / {duration.toFixed(1)}s
+				</div>
 
-					{scenes.length > 0 && (
-						<>
-							<div className="w-px h-6 bg-border mx-1" />
-							<ScenesView>
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button variant="text" size="icon">
-											<LayersIcon className="h-4 w-4" />
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent>
-										Scenes ({scenes.length}) -{" "}
-										{currentScene?.name || "No scene"}
-									</TooltipContent>
-								</Tooltip>
-							</ScenesView>
-						</>
-					)}
-
-					{tracks.length === 0 && (
-						<>
-							<div className="w-px h-6 bg-border mx-1" />
+				{scenes.length > 0 && (
+					<>
+						<div className="w-px h-6 bg-border mx-1" />
+						<ScenesView>
 							<Tooltip>
 								<TooltipTrigger asChild>
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={() => {
-											const trackId = addTrack("media");
-											addElementToTrack(trackId, {
-												type: "media",
-												mediaId: TEST_MEDIA_ID,
-												name: "Test Clip",
-												duration: TIMELINE_CONSTANTS.DEFAULT_TEXT_DURATION,
-												startTime: 0,
-												trimStart: 0,
-												trimEnd: 0,
-											});
-										}}
-										className="text-xs"
-									>
-										Add Test Clip
+									<Button variant="text" size="icon">
+										<LayersIcon className="h-4 w-4" />
 									</Button>
 								</TooltipTrigger>
-								<TooltipContent>Add a test clip to try playback</TooltipContent>
+								<TooltipContent>
+									Scenes ({scenes.length}) - {currentScene?.name || "No scene"}
+								</TooltipContent>
 							</Tooltip>
-						</>
-					)}
+						</ScenesView>
+					</>
+				)}
 
-					<div className="w-px h-6 bg-border mx-1" />
+				{tracks.length === 0 && (
+					<>
+						<div className="w-px h-6 bg-border mx-1" />
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => {
+										const trackId = addTrack("media");
+										addElementToTrack(trackId, {
+											type: "media",
+											mediaId: TEST_MEDIA_ID,
+											name: "Test Clip",
+											duration: TIMELINE_CONSTANTS.DEFAULT_TEXT_DURATION,
+											startTime: 0,
+											trimStart: 0,
+											trimEnd: 0,
+										});
+									}}
+									className="text-xs"
+								>
+									Add Test Clip
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Add a test clip to try playback</TooltipContent>
+						</Tooltip>
+					</>
+				)}
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="text"
-								size="icon"
-								onClick={handleSplitSelected}
-								data-testid="split-clip-button"
-							>
-								<Scissors className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Split element (Ctrl+S)</TooltipContent>
-					</Tooltip>
+				<div className="w-px h-6 bg-border mx-1" />
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="text"
-								size="icon"
-								onClick={handleSplitAndKeepLeft}
-							>
-								<ArrowLeftToLine className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Split and keep left (Ctrl+Q)</TooltipContent>
-					</Tooltip>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							variant="text"
+							size="icon"
+							onClick={handleSplitSelected}
+							data-testid="split-clip-button"
+						>
+							<Scissors className="h-4 w-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Split element (Ctrl+S)</TooltipContent>
+				</Tooltip>
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="text"
-								size="icon"
-								onClick={handleSplitAndKeepRight}
-							>
-								<ArrowRightToLine className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Split and keep right (Ctrl+W)</TooltipContent>
-					</Tooltip>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button variant="text" size="icon" onClick={handleSplitAndKeepLeft}>
+							<ArrowLeftToLine className="h-4 w-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Split and keep left (Ctrl+Q)</TooltipContent>
+				</Tooltip>
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={handleSeparateAudio}>
-								<SplitSquareHorizontal className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Separate audio (Ctrl+D)</TooltipContent>
-					</Tooltip>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							variant="text"
+							size="icon"
+							onClick={handleSplitAndKeepRight}
+						>
+							<ArrowRightToLine className="h-4 w-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Split and keep right (Ctrl+W)</TooltipContent>
+				</Tooltip>
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="text"
-								size="icon"
-								onClick={handleDuplicateSelected}
-							>
-								<Copy className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Duplicate element (Ctrl+D)</TooltipContent>
-					</Tooltip>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button variant="text" size="icon" onClick={handleSeparateAudio}>
+							<SplitSquareHorizontal className="h-4 w-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Separate audio (Ctrl+D)</TooltipContent>
+				</Tooltip>
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={handleFreezeSelected}>
-								<Snowflake className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Freeze frame (F)</TooltipContent>
-					</Tooltip>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							variant="text"
+							size="icon"
+							onClick={handleDuplicateSelected}
+						>
+							<Copy className="h-4 w-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Duplicate element (Ctrl+D)</TooltipContent>
+				</Tooltip>
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={handleDeleteSelected}>
-								<Trash2 className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Delete element (Delete)</TooltipContent>
-					</Tooltip>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button variant="text" size="icon" onClick={handleFreezeSelected}>
+							<Snowflake className="h-4 w-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Freeze frame (F)</TooltipContent>
+				</Tooltip>
 
-					<div className="w-px h-6 bg-border mx-1" />
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button variant="text" size="icon" onClick={handleDeleteSelected}>
+							<Trash2 className="h-4 w-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Delete element (Delete)</TooltipContent>
+				</Tooltip>
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={handleToggleBookmark}>
-								<Bookmark
-									className={`h-4 w-4 ${currentBookmarked ? "fill-primary text-primary" : ""}`}
-								/>
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>
-							{currentBookmarked ? "Remove bookmark" : "Add bookmark"}
-						</TooltipContent>
-					</Tooltip>
-				</TooltipProvider>
+				<div className="w-px h-6 bg-border mx-1" />
+
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button variant="text" size="icon" onClick={handleToggleBookmark}>
+							<Bookmark
+								className={`h-4 w-4 ${currentBookmarked ? "fill-primary text-primary" : ""}`}
+							/>
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>
+						{currentBookmarked ? "Remove bookmark" : "Add bookmark"}
+					</TooltipContent>
+				</Tooltip>
 			</div>
 
 			<div>
-				<TooltipProvider delayDuration={500}>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<SplitButton>
-								<SplitButtonLeft disabled>
-									{currentScene?.name || "Main scene"}
-								</SplitButtonLeft>
-								<SplitButtonSeparator />
-								<SplitButtonRight
-									type="button"
-									aria-label="Open scenes menu"
-									onClick={handleSceneManagement}
-								>
-									<LayersIcon className="h-4 w-4" aria-hidden="true" />
-								</SplitButtonRight>
-							</SplitButton>
-						</TooltipTrigger>
-						<TooltipContent>
-							Scene: {currentScene?.name || "Main scene"} • Click layers to
-							manage scenes
-						</TooltipContent>
-					</Tooltip>
-				</TooltipProvider>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<SplitButton>
+							<SplitButtonLeft disabled>
+								{currentScene?.name || "Main scene"}
+							</SplitButtonLeft>
+							<SplitButtonSeparator />
+							<SplitButtonRight
+								type="button"
+								aria-label="Open scenes menu"
+								onClick={handleSceneManagement}
+							>
+								<LayersIcon className="h-4 w-4" aria-hidden="true" />
+							</SplitButtonRight>
+						</SplitButton>
+					</TooltipTrigger>
+					<TooltipContent>
+						Scene: {currentScene?.name || "Main scene"} • Click layers to manage
+						scenes
+					</TooltipContent>
+				</Tooltip>
 			</div>
 
 			<div className="flex items-center gap-1">
-				<TooltipProvider delayDuration={500}>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={toggleSnapping}>
-								{snappingEnabled ? (
-									<Magnet className="h-4 w-4 text-primary" />
-								) : (
-									<Magnet className="h-4 w-4" />
-								)}
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Auto snapping</TooltipContent>
-					</Tooltip>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button variant="text" size="icon" onClick={toggleSnapping}>
+							{snappingEnabled ? (
+								<Magnet className="h-4 w-4 text-primary" />
+							) : (
+								<Magnet className="h-4 w-4" />
+							)}
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Auto snapping</TooltipContent>
+				</Tooltip>
 
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button variant="text" size="icon" onClick={toggleRippleEditing}>
+							<Link
+								className={`h-4 w-4 ${
+									rippleEditingEnabled ? "text-primary" : ""
+								}`}
+							/>
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>
+						{rippleEditingEnabled
+							? "Disable Ripple Editing"
+							: "Enable Ripple Editing"}
+					</TooltipContent>
+				</Tooltip>
+
+				{EFFECTS_ENABLED && (
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={toggleRippleEditing}>
-								<Link
+							<Button variant="text" size="icon" onClick={toggleEffectsTrack}>
+								<Sparkles
 									className={`h-4 w-4 ${
-										rippleEditingEnabled ? "text-primary" : ""
+										showEffectsTrack ? "text-primary" : ""
 									}`}
 								/>
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
-							{rippleEditingEnabled
-								? "Disable Ripple Editing"
-								: "Enable Ripple Editing"}
+							{showEffectsTrack ? "Hide Effects Track" : "Show Effects Track"}
 						</TooltipContent>
 					</Tooltip>
-
-					{EFFECTS_ENABLED && (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button variant="text" size="icon" onClick={toggleEffectsTrack}>
-									<Sparkles
-										className={`h-4 w-4 ${
-											showEffectsTrack ? "text-primary" : ""
-										}`}
-									/>
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>
-								{showEffectsTrack ? "Hide Effects Track" : "Show Effects Track"}
-							</TooltipContent>
-						</Tooltip>
-					)}
-				</TooltipProvider>
+				)}
 
 				<div className="h-6 w-px bg-border mx-1" />
 

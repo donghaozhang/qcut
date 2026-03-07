@@ -43,7 +43,7 @@ export const Route = createRootRoute({
 		<ThemeProvider attribute="class" defaultTheme="dark">
 			<RemotionInitializer />
 			<ClaudeInitializer />
-			<TooltipProvider>
+			<TooltipProvider delayDuration={300}>
 				<ErrorBoundary>
 					<StorageProvider>
 						<BlobUrlCleanup>

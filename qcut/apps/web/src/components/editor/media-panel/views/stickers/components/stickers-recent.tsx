@@ -1,7 +1,6 @@
 "use client";
 
 import { Clock } from "lucide-react";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { StickerItem } from "./sticker-item";
 import type { RecentSticker } from "../types/stickers.types";
 
@@ -27,21 +26,19 @@ export function StickersRecent({
 	}
 
 	return (
-		<TooltipProvider>
-			<div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
-				{recentStickers.map((sticker) => {
-					const [collection, iconName] = sticker.iconId.split(":");
-					return (
-						<StickerItem
-							key={sticker.iconId}
-							icon={iconName}
-							name={sticker.name}
-							collection={collection}
-							onSelect={onSelect}
-						/>
-					);
-				})}
-			</div>
-		</TooltipProvider>
+		<div className="grid grid-cols-6 gap-2 p-4 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
+			{recentStickers.map((sticker) => {
+				const [collection, iconName] = sticker.iconId.split(":");
+				return (
+					<StickerItem
+						key={sticker.iconId}
+						icon={iconName}
+						name={sticker.name}
+						collection={collection}
+						onSelect={onSelect}
+					/>
+				);
+			})}
+		</div>
 	);
 }

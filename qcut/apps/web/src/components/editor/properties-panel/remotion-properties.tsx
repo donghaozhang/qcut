@@ -16,7 +16,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -87,22 +86,20 @@ function ComponentHeader({
 				</div>
 			</div>
 
-			<TooltipProvider>
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<Button
-							variant="outline"
-							size="icon"
-							className="h-7 w-7"
-							onClick={onReset}
-							disabled={!hasChanges}
-						>
-							<RotateCcw className="w-3.5 h-3.5" />
-						</Button>
-					</TooltipTrigger>
-					<TooltipContent>Reset to defaults</TooltipContent>
-				</Tooltip>
-			</TooltipProvider>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<Button
+						variant="outline"
+						size="icon"
+						className="h-7 w-7"
+						onClick={onReset}
+						disabled={!hasChanges}
+					>
+						<RotateCcw className="w-3.5 h-3.5" />
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent>Reset to defaults</TooltipContent>
+			</Tooltip>
 		</div>
 	);
 }

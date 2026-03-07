@@ -20,7 +20,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -345,42 +344,38 @@ export function RemotionView() {
 							</button>
 						)}
 					</div>
-					<TooltipProvider>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="outline"
-									size="icon"
-									className="h-9 w-9 shrink-0"
-									onClick={() => setIsFolderImportDialogOpen(true)}
-									data-testid="import-folder-button"
-								>
-									<FolderOpen className="h-4 w-4" />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>
-								<p>Import Remotion folder</p>
-							</TooltipContent>
-						</Tooltip>
-					</TooltipProvider>
-					<TooltipProvider>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="outline"
-									size="icon"
-									className="h-9 w-9 shrink-0"
-									onClick={() => setIsImportDialogOpen(true)}
-									data-testid="import-component-button"
-								>
-									<Plus className="h-4 w-4" />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>
-								<p>Import custom component</p>
-							</TooltipContent>
-						</Tooltip>
-					</TooltipProvider>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="outline"
+								size="icon"
+								className="h-9 w-9 shrink-0"
+								onClick={() => setIsFolderImportDialogOpen(true)}
+								data-testid="import-folder-button"
+							>
+								<FolderOpen className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							<p>Import Remotion folder</p>
+						</TooltipContent>
+					</Tooltip>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="outline"
+								size="icon"
+								className="h-9 w-9 shrink-0"
+								onClick={() => setIsImportDialogOpen(true)}
+								data-testid="import-component-button"
+							>
+								<Plus className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							<p>Import custom component</p>
+						</TooltipContent>
+					</Tooltip>
 				</div>
 			</div>
 

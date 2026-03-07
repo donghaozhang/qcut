@@ -12,7 +12,6 @@ import { Slider } from "@/components/ui/slider";
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
@@ -99,103 +98,101 @@ export const StickerControls = memo<StickerControlsProps>(
 		};
 
 		return (
-			<TooltipProvider>
-				<div className="absolute -top-12 left-1/2 transform -translate-x-1/2 flex items-center gap-1 bg-background/95 backdrop-blur-sm border rounded-lg p-1 shadow-lg z-50">
-					{/* Delete button */}
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								size="icon"
-								variant="outline"
-								className="h-7 w-7"
-								onClick={handleDelete}
-							>
-								<X className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Delete sticker (Del)</TooltipContent>
-					</Tooltip>
+			<div className="absolute -top-12 left-1/2 transform -translate-x-1/2 flex items-center gap-1 bg-background/95 backdrop-blur-sm border rounded-lg p-1 shadow-lg z-50">
+				{/* Delete button */}
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							size="icon"
+							variant="outline"
+							className="h-7 w-7"
+							onClick={handleDelete}
+						>
+							<X className="h-4 w-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Delete sticker (Del)</TooltipContent>
+				</Tooltip>
 
-					{/* Duplicate button */}
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								size="icon"
-								variant="outline"
-								className="h-7 w-7"
-								onClick={handleDuplicate}
-							>
-								<Copy className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Duplicate sticker</TooltipContent>
-					</Tooltip>
+				{/* Duplicate button */}
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							size="icon"
+							variant="outline"
+							className="h-7 w-7"
+							onClick={handleDuplicate}
+						>
+							<Copy className="h-4 w-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Duplicate sticker</TooltipContent>
+				</Tooltip>
 
-					{/* Rotate button */}
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								size="icon"
-								variant="outline"
-								className="h-7 w-7"
-								onClick={handleRotate}
-							>
-								<RotateCw className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Rotate 45°</TooltipContent>
-					</Tooltip>
+				{/* Rotate button */}
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							size="icon"
+							variant="outline"
+							className="h-7 w-7"
+							onClick={handleRotate}
+						>
+							<RotateCw className="h-4 w-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Rotate 45°</TooltipContent>
+				</Tooltip>
 
-					<div className="w-px h-5 bg-border" />
+				<div className="w-px h-5 bg-border" />
 
-					{/* Layer controls */}
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								size="icon"
-								variant="outline"
-								className="h-7 w-7"
-								onClick={handleBringToFront}
-							>
-								<ArrowUp className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Bring to front</TooltipContent>
-					</Tooltip>
+				{/* Layer controls */}
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							size="icon"
+							variant="outline"
+							className="h-7 w-7"
+							onClick={handleBringToFront}
+						>
+							<ArrowUp className="h-4 w-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Bring to front</TooltipContent>
+				</Tooltip>
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								size="icon"
-								variant="outline"
-								className="h-7 w-7"
-								onClick={handleSendToBack}
-							>
-								<ArrowDown className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Send to back</TooltipContent>
-					</Tooltip>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							size="icon"
+							variant="outline"
+							className="h-7 w-7"
+							onClick={handleSendToBack}
+						>
+							<ArrowDown className="h-4 w-4" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>Send to back</TooltipContent>
+				</Tooltip>
 
-					<div className="w-px h-5 bg-border" />
+				<div className="w-px h-5 bg-border" />
 
-					{/* Opacity slider */}
-					<div className="flex items-center gap-2 px-2">
-						<Layers className="h-3 w-3 text-muted-foreground" />
-						<Slider
-							className="w-20"
-							value={[sticker.opacity * 100]}
-							onValueChange={handleOpacityChange}
-							max={100}
-							min={0}
-							step={5}
-						/>
-						<span className="text-xs text-muted-foreground w-8">
-							{Math.round(sticker.opacity * 100)}%
-						</span>
-					</div>
+				{/* Opacity slider */}
+				<div className="flex items-center gap-2 px-2">
+					<Layers className="h-3 w-3 text-muted-foreground" />
+					<Slider
+						className="w-20"
+						value={[sticker.opacity * 100]}
+						onValueChange={handleOpacityChange}
+						max={100}
+						min={0}
+						step={5}
+					/>
+					<span className="text-xs text-muted-foreground w-8">
+						{Math.round(sticker.opacity * 100)}%
+					</span>
 				</div>
-			</TooltipProvider>
+			</div>
 		);
 	}
 );

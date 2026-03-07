@@ -24,7 +24,6 @@ import {
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
@@ -110,43 +109,41 @@ function KeyframeDiamond({
 	disabled,
 }: KeyframeDiamondProps) {
 	return (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<button
-						type="button"
-						className={cn(
-							"absolute top-1/2 -translate-y-1/2 -translate-x-1/2",
-							"w-3 h-3 transform rotate-45",
-							"border-2 transition-colors",
-							isSelected
-								? "bg-violet-500 border-violet-400"
-								: "bg-violet-500/60 border-violet-500/40",
-							!disabled &&
-								"hover:bg-violet-400 hover:border-violet-300 cursor-pointer",
-							disabled && "opacity-50 cursor-not-allowed"
-						)}
-						style={{ left: `${position}%` }}
-						onClick={onClick}
-						onKeyDown={(e) => {
-							if ((e.key === "Delete" || e.key === "Backspace") && !disabled) {
-								e.preventDefault();
-								onDelete();
-							}
-						}}
-						disabled={disabled}
-						aria-label={`Keyframe at frame ${keyframe.frame}. Press Delete to remove.`}
-					/>
-				</TooltipTrigger>
-				<TooltipContent side="top" className="text-xs">
-					<div>Frame {keyframe.frame}</div>
-					<div className="text-muted-foreground">
-						Value: {String(keyframe.value)}
-					</div>
-					<div className="text-muted-foreground">Easing: {keyframe.easing}</div>
-				</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<button
+					type="button"
+					className={cn(
+						"absolute top-1/2 -translate-y-1/2 -translate-x-1/2",
+						"w-3 h-3 transform rotate-45",
+						"border-2 transition-colors",
+						isSelected
+							? "bg-violet-500 border-violet-400"
+							: "bg-violet-500/60 border-violet-500/40",
+						!disabled &&
+							"hover:bg-violet-400 hover:border-violet-300 cursor-pointer",
+						disabled && "opacity-50 cursor-not-allowed"
+					)}
+					style={{ left: `${position}%` }}
+					onClick={onClick}
+					onKeyDown={(e) => {
+						if ((e.key === "Delete" || e.key === "Backspace") && !disabled) {
+							e.preventDefault();
+							onDelete();
+						}
+					}}
+					disabled={disabled}
+					aria-label={`Keyframe at frame ${keyframe.frame}. Press Delete to remove.`}
+				/>
+			</TooltipTrigger>
+			<TooltipContent side="top" className="text-xs">
+				<div>Frame {keyframe.frame}</div>
+				<div className="text-muted-foreground">
+					Value: {String(keyframe.value)}
+				</div>
+				<div className="text-muted-foreground">Easing: {keyframe.easing}</div>
+			</TooltipContent>
+		</Tooltip>
 	);
 }
 
@@ -427,25 +424,23 @@ export function KeyframeEditor({
 							(currentValue as number).toFixed(2)
 						)}
 					</span>
-					<TooltipProvider>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="outline"
-									size="icon"
-									className="h-5 w-5"
-									onClick={(e) => {
-										e.stopPropagation();
-										handleAddKeyframe();
-									}}
-									disabled={disabled}
-								>
-									<Plus className="w-3 h-3" />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>Add keyframe at current frame</TooltipContent>
-						</Tooltip>
-					</TooltipProvider>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="outline"
+								size="icon"
+								className="h-5 w-5"
+								onClick={(e) => {
+									e.stopPropagation();
+									handleAddKeyframe();
+								}}
+								disabled={disabled}
+							>
+								<Plus className="w-3 h-3" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>Add keyframe at current frame</TooltipContent>
+					</Tooltip>
 				</div>
 			</button>
 

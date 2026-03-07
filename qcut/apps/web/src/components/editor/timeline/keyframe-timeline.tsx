@@ -25,7 +25,6 @@ import {
 import {
 	Tooltip,
 	TooltipContent,
-	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
@@ -515,42 +514,40 @@ export function KeyframeTimeline({
 
 					{/* Keyframes */}
 					{animation?.keyframes.map((keyframe, index) => (
-						<TooltipProvider key={index}>
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<button
-										type="button"
+						<Tooltip key={index}>
+							<TooltipTrigger asChild>
+								<button
+									type="button"
+									className={cn(
+										"absolute top-6 w-4 h-4 -ml-2 cursor-pointer p-0 border-0 bg-transparent",
+										selectedKeyframe?.time === keyframe.time &&
+											"ring-2 ring-primary"
+									)}
+									style={{ left: `${keyframe.time * pixelsPerSecond}px` }}
+									onMouseDown={(e) => handleKeyframeDrag(keyframe, e)}
+									onClick={() => setSelectedKeyframe(keyframe)}
+									aria-label={`Keyframe at ${keyframe.time.toFixed(2)} seconds`}
+								>
+									<Diamond
 										className={cn(
-											"absolute top-6 w-4 h-4 -ml-2 cursor-pointer p-0 border-0 bg-transparent",
-											selectedKeyframe?.time === keyframe.time &&
-												"ring-2 ring-primary"
+											"w-4 h-4",
+											selectedKeyframe?.time === keyframe.time
+												? "text-primary fill-primary"
+												: "text-foreground fill-foreground"
 										)}
-										style={{ left: `${keyframe.time * pixelsPerSecond}px` }}
-										onMouseDown={(e) => handleKeyframeDrag(keyframe, e)}
-										onClick={() => setSelectedKeyframe(keyframe)}
-										aria-label={`Keyframe at ${keyframe.time.toFixed(2)} seconds`}
-									>
-										<Diamond
-											className={cn(
-												"w-4 h-4",
-												selectedKeyframe?.time === keyframe.time
-													? "text-primary fill-primary"
-													: "text-foreground fill-foreground"
-											)}
-											aria-hidden="true"
-											focusable="false"
-										/>
-									</button>
-								</TooltipTrigger>
-								<TooltipContent>
-									<div className="text-xs">
-										<div>Time: {keyframe.time.toFixed(2)}s</div>
-										<div>Value: {keyframe.value}</div>
-										{keyframe.easing && <div>Easing: {keyframe.easing}</div>}
-									</div>
-								</TooltipContent>
-							</Tooltip>
-						</TooltipProvider>
+										aria-hidden="true"
+										focusable="false"
+									/>
+								</button>
+							</TooltipTrigger>
+							<TooltipContent>
+								<div className="text-xs">
+									<div>Time: {keyframe.time.toFixed(2)}s</div>
+									<div>Value: {keyframe.value}</div>
+									{keyframe.easing && <div>Easing: {keyframe.easing}</div>}
+								</div>
+							</TooltipContent>
+						</Tooltip>
 					))}
 
 					{/* Playhead */}
