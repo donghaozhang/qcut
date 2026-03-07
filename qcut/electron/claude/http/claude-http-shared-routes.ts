@@ -1052,4 +1052,18 @@ export function registerSharedRoutes(
 		win.webContents.send("claude:moyin:parsed", req.body.scriptData);
 		return { imported: true };
 	});
+
+	// ── Novel Parse ───────────────────────────────────────────────────
+	router.post("/api/claude/novel/parse", async (req) => {
+		if (!req.body?.text || typeof req.body.text !== "string")
+			throw new HttpError(400, "Missing 'text' in request body");
+		const { handleNovelParse } = await import(
+			"../../moyin/novel-parse-handler.js"
+		);
+		return handleNovelParse({
+			text: req.body.text,
+			language: req.body.language,
+			maxClips: req.body.maxClips,
+		});
+	});
 }

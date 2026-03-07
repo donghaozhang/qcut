@@ -133,7 +133,7 @@ Important requirements:
 const REQUEST_TIMEOUT_MS = 60_000;
 
 /** Route an LLM call to OpenRouter, Gemini, or Claude CLI based on available keys. */
-async function callLLM(
+export async function callLLM(
 	systemPrompt: string,
 	userPrompt: string,
 	options: { temperature?: number; maxTokens?: number } = {}
@@ -603,5 +603,5 @@ export function setupMoyinIPC(): void {
 }
 
 // CommonJS export for compiled JavaScript compatibility
-module.exports = { setupMoyinIPC };
-export default { setupMoyinIPC };
+module.exports = { setupMoyinIPC, callLLM };
+export default { setupMoyinIPC, callLLM };
