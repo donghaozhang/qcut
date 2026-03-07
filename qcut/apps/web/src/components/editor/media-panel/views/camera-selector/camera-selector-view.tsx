@@ -31,12 +31,12 @@ function CameraItem({ cam, selected }: { cam: CameraBody; selected: boolean }) {
 					className="max-w-full max-h-full object-contain"
 				/>
 			</div>
-			<span className="text-[8px] text-muted-foreground/60 tracking-[0.5px] bg-white/5 px-1.5 py-px rounded">
+			<span className="text-[10px] text-muted-foreground/60 tracking-[0.5px] bg-white/5 px-1.5 py-px rounded">
 				{cam.type}
 			</span>
 			<span
 				className={cn(
-					"text-[11px] font-medium transition-colors",
+					"text-xs font-medium transition-colors",
 					selected ? "text-foreground" : "text-muted-foreground"
 				)}
 			>
@@ -57,12 +57,12 @@ function LensItem({ lens, selected }: { lens: Lens; selected: boolean }) {
 					className="max-w-full max-h-full object-contain"
 				/>
 			</div>
-			<span className="text-[8px] text-muted-foreground/60 tracking-[0.5px] bg-white/5 px-1.5 py-px rounded">
+			<span className="text-[10px] text-muted-foreground/60 tracking-[0.5px] bg-white/5 px-1.5 py-px rounded">
 				{lens.type}
 			</span>
 			<span
 				className={cn(
-					"text-[11px] font-medium transition-colors",
+					"text-xs font-medium transition-colors",
 					selected ? "text-foreground" : "text-muted-foreground"
 				)}
 			>
@@ -106,7 +106,7 @@ function ApertureItem({
 			</div>
 			<span
 				className={cn(
-					"text-[11px] font-medium transition-colors",
+					"text-xs font-medium transition-colors",
 					selected ? "text-foreground" : "text-muted-foreground"
 				)}
 			>

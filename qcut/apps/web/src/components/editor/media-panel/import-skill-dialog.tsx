@@ -123,7 +123,7 @@ export function ImportSkillDialog({
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
-						<Brain className="h-5 w-5 text-purple-500" />
+						<Brain className="h-5 w-5 text-primary" />
 						Import Skill
 					</DialogTitle>
 					<DialogDescription>
@@ -165,7 +165,7 @@ export function ImportSkillDialog({
 												disabled={isLoading || imported || !activeProject}
 											>
 												<div className="flex items-center gap-2">
-													<Brain className="h-4 w-4 text-purple-500 flex-shrink-0" />
+													<Brain className="h-4 w-4 text-primary flex-shrink-0" />
 													<span className="font-medium text-sm truncate">
 														{skill.name}
 													</span>

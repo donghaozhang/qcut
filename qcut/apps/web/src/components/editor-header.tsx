@@ -13,7 +13,6 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { HeaderBase } from "./header-base";
 import { formatTimeCode } from "@/lib/time";
 import { useProjectStore } from "@/stores/project-store";
-import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
 import { useState } from "react";
 import {
 	DropdownMenu,
@@ -25,14 +24,15 @@ import {
 import { Link, useNavigate } from "@tanstack/react-router";
 import { RenameProjectDialog } from "./rename-project-dialog";
 import { DeleteProjectDialog } from "./delete-project-dialog";
-import { FaDiscord, FaGithub } from "react-icons/fa6";
+import { FaDiscord } from "react-icons/fa6";
 import { useExportStore } from "@/stores/export-store";
 import { PanelPresetSelector } from "./panel-preset-selector";
 import { AutoSaveIndicator } from "./editor/auto-save-indicator";
 import { ScreenRecordingControl } from "./editor/screen-recording-control";
-import { ScreenshotControl } from "./editor/screenshot-control";
 import type { KeyboardEvent } from "react";
 import { CreditBalance } from "./license/credit-balance";
+import { KeyboardShortcutsHelp } from "./keyboard-shortcuts-help";
+import { ScreenshotControl } from "./editor/screenshot-control";
 
 /** Editor header bar with project name, export, screenshot, and recording controls. */
 export function EditorHeader() {
@@ -82,7 +82,9 @@ export function EditorHeader() {
 						data-testid="project-menu-button"
 					>
 						<ChevronDown className="text-muted-foreground" />
-						<span className="text-sm mr-2 truncate max-w-48">{activeProject?.name}</span>
+						<span className="text-sm mr-2 truncate max-w-48">
+							{activeProject?.name}
+						</span>
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="start" className="w-40">
@@ -119,6 +121,9 @@ export function EditorHeader() {
 							Discord
 						</a>
 					</DropdownMenuItem>
+					<DropdownMenuSeparator />
+					<ScreenshotControl variant="menu-item" />
+					<KeyboardShortcutsHelp variant="menu-item" />
 				</DropdownMenuContent>
 			</DropdownMenu>
 			<RenameProjectDialog
@@ -153,9 +158,7 @@ export function EditorHeader() {
 			<AutoSaveIndicator className="whitespace-nowrap" />
 			<CreditBalance />
 			<PanelPresetSelector />
-			<ScreenshotControl />
 			<ScreenRecordingControl />
-			<KeyboardShortcutsHelp />
 			<Button
 				type="button"
 				size="sm"

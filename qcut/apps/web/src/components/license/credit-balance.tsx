@@ -23,24 +23,18 @@ export function CreditBalance() {
 	const colors = getCreditColors(totalCredits, planMax);
 
 	return (
-		<div className="flex items-center gap-1.5">
-			<div
-				className={cn(
-					"flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-					colors.bg,
-					colors.text
-				)}
-			>
-				<Coins className="h-3 w-3" aria-hidden="true" />
-				<span>{totalCredits}</span>
-			</div>
-			<button
-				type="button"
-				onClick={openBuyCreditsPage}
-				className="rounded-md border border-input bg-background px-2 py-0.5 text-xs font-medium text-foreground shadow-xs hover:bg-accent hover:text-accent-foreground transition-colors"
-			>
-				Buy More
-			</button>
-		</div>
+		<button
+			type="button"
+			onClick={openBuyCreditsPage}
+			className={cn(
+				"flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium cursor-pointer transition-colors hover:opacity-80",
+				colors.bg,
+				colors.text
+			)}
+			title="Buy more credits"
+		>
+			<Coins className="h-3 w-3" aria-hidden="true" />
+			<span>{totalCredits}</span>
+		</button>
 	);
 }

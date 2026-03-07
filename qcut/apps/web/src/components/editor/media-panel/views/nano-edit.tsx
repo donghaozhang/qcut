@@ -9,7 +9,7 @@ const NanoEditView: FC = () => {
 			{/* Header */}
 			<div className="mb-6">
 				<div className="flex items-center gap-3 mb-2">
-					<h2 className="text-2xl font-bold text-white">🍌 Nano Edit</h2>
+					<h2 className="text-sm font-medium">Nano Edit</h2>
 					<div className="flex items-center gap-2">
 						<a
 							href="https://opennana.com/awesome-prompt-gallery"
@@ -40,7 +40,9 @@ const NanoEditView: FC = () => {
 						</a>
 					</div>
 				</div>
-				<p className="text-gray-400">AI-powered image and video enhancement</p>
+				<p className="text-xs text-muted-foreground">
+					AI-powered image and video enhancement
+				</p>
 			</div>
 
 			{/* Single content area (tabs removed) */}
