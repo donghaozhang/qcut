@@ -499,6 +499,7 @@ export function TimelineToolbar({
 								variant="text"
 								size="icon"
 								onClick={handleToggleBookmark}
+								aria-pressed={currentBookmarked}
 								aria-label={
 									currentBookmarked ? "Remove bookmark" : "Add bookmark"
 								}
