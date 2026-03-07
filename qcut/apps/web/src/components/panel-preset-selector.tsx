@@ -34,14 +34,11 @@ export function PanelPresetSelector() {
 					variant="secondary"
 					size="sm"
 					className="h-8 px-2 text-xs"
-					title="Panel Presets"
+					aria-label={`Panel preset: ${PRESET_LABELS[activePreset]}`}
 				>
-					<LayoutPanelTop className="h-4 w-4 mr-1" aria-label="Panel presets" />
+					<LayoutPanelTop className="h-4 w-4 mr-1" aria-hidden="true" />
 					{PRESET_LABELS[activePreset]}
-					<ChevronDown
-						className="h-3 w-3 ml-1"
-						aria-label="Open presets menu"
-					/>
+					<ChevronDown className="h-3 w-3 ml-1" aria-hidden="true" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
@@ -67,7 +64,7 @@ export function PanelPresetSelector() {
 							title={`Reset ${PRESET_LABELS[preset]} preset`}
 							aria-label={`Reset ${PRESET_LABELS[preset]} preset`}
 						>
-							<RotateCcw className="h-3 w-3" aria-label="Reset preset" />
+							<RotateCcw className="h-3 w-3" aria-hidden="true" />
 						</Button>
 					</DropdownMenuItem>
 				))}

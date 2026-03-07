@@ -228,13 +228,16 @@ export function ScreenRecordingControl() {
 			disabled={isBusy}
 			data-testid="screen-recording-toggle-button"
 			title="Toggle screen recording (Ctrl/Cmd + Shift + R)"
+			aria-label={
+				recordingActive ? "Stop screen recording" : "Start screen recording"
+			}
 		>
 			{isBusy ? (
-				<Loader2 className="h-4 w-4 animate-spin" />
+				<Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
 			) : recordingActive ? (
-				<Square className="h-4 w-4 fill-current" />
+				<Square className="h-4 w-4 fill-current" aria-hidden="true" />
 			) : (
-				<Circle className="h-4 w-4" />
+				<Circle className="h-4 w-4" aria-hidden="true" />
 			)}
 			<span className="text-sm">{buttonLabel}</span>
 		</Button>

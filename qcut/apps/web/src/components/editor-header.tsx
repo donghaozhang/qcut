@@ -80,8 +80,9 @@ export function EditorHeader() {
 						variant="secondary"
 						className="h-auto py-1.5 px-2.5 flex items-center justify-center"
 						data-testid="project-menu-button"
+						aria-label={`Project menu: ${activeProject?.name}`}
 					>
-						<ChevronDown className="text-muted-foreground" />
+						<ChevronDown className="text-muted-foreground" aria-hidden="true" />
 						<span className="text-[0.85rem] mr-2">{activeProject?.name}</span>
 					</Button>
 				</DropdownMenuTrigger>
@@ -149,7 +150,7 @@ export function EditorHeader() {
 	);
 
 	const rightContent = (
-		<nav className="flex items-center gap-2">
+		<nav className="flex items-center gap-2" aria-label="Editor controls">
 			<AutoSaveIndicator className="whitespace-nowrap" />
 			<CreditBalance />
 			<PanelPresetSelector />
@@ -164,7 +165,7 @@ export function EditorHeader() {
 				onKeyDown={handleExportKeyDown}
 				data-testid="export-button"
 			>
-				<Download className="h-4 w-4" />
+				<Download className="h-4 w-4" aria-hidden="true" />
 				<span className="text-sm">Export</span>
 			</Button>
 		</nav>

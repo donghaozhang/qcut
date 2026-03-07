@@ -299,8 +299,9 @@ export function TimelineToolbar({
 								type="button"
 								onClick={handleAddMarkdown}
 								data-testid="add-markdown-button"
+								aria-label="Add markdown at playhead"
 							>
-								<FileText className="h-4 w-4" />
+								<FileText className="h-4 w-4" aria-hidden="true" />
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>Add markdown at playhead</TooltipContent>
@@ -317,11 +318,12 @@ export function TimelineToolbar({
 									isPlaying ? "timeline-pause-button" : "timeline-play-button"
 								}
 								data-playing={isPlaying}
+								aria-label={isPlaying ? "Pause" : "Play"}
 							>
 								{isPlaying ? (
-									<Pause className="h-4 w-4" />
+									<Pause className="h-4 w-4" aria-hidden="true" />
 								) : (
-									<Play className="h-4 w-4" />
+									<Play className="h-4 w-4" aria-hidden="true" />
 								)}
 							</Button>
 						</TooltipTrigger>
@@ -345,8 +347,8 @@ export function TimelineToolbar({
 							<ScenesView>
 								<Tooltip>
 									<TooltipTrigger asChild>
-										<Button variant="text" size="icon">
-											<LayersIcon className="h-4 w-4" />
+										<Button variant="text" size="icon" aria-label="Scenes">
+											<LayersIcon className="h-4 w-4" aria-hidden="true" />
 										</Button>
 									</TooltipTrigger>
 									<TooltipContent>
@@ -397,8 +399,9 @@ export function TimelineToolbar({
 								size="icon"
 								onClick={handleSplitSelected}
 								data-testid="split-clip-button"
+								aria-label="Split element"
 							>
-								<Scissors className="h-4 w-4" />
+								<Scissors className="h-4 w-4" aria-hidden="true" />
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>Split element (Ctrl+S)</TooltipContent>
@@ -410,8 +413,9 @@ export function TimelineToolbar({
 								variant="text"
 								size="icon"
 								onClick={handleSplitAndKeepLeft}
+								aria-label="Split and keep left"
 							>
-								<ArrowLeftToLine className="h-4 w-4" />
+								<ArrowLeftToLine className="h-4 w-4" aria-hidden="true" />
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>Split and keep left (Ctrl+Q)</TooltipContent>
@@ -423,8 +427,9 @@ export function TimelineToolbar({
 								variant="text"
 								size="icon"
 								onClick={handleSplitAndKeepRight}
+								aria-label="Split and keep right"
 							>
-								<ArrowRightToLine className="h-4 w-4" />
+								<ArrowRightToLine className="h-4 w-4" aria-hidden="true" />
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>Split and keep right (Ctrl+W)</TooltipContent>
@@ -432,8 +437,13 @@ export function TimelineToolbar({
 
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={handleSeparateAudio}>
-								<SplitSquareHorizontal className="h-4 w-4" />
+							<Button
+								variant="text"
+								size="icon"
+								onClick={handleSeparateAudio}
+								aria-label="Separate audio"
+							>
+								<SplitSquareHorizontal className="h-4 w-4" aria-hidden="true" />
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>Separate audio (Ctrl+D)</TooltipContent>
@@ -445,8 +455,9 @@ export function TimelineToolbar({
 								variant="text"
 								size="icon"
 								onClick={handleDuplicateSelected}
+								aria-label="Duplicate element"
 							>
-								<Copy className="h-4 w-4" />
+								<Copy className="h-4 w-4" aria-hidden="true" />
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>Duplicate element (Ctrl+D)</TooltipContent>
@@ -454,8 +465,13 @@ export function TimelineToolbar({
 
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={handleFreezeSelected}>
-								<Snowflake className="h-4 w-4" />
+							<Button
+								variant="text"
+								size="icon"
+								onClick={handleFreezeSelected}
+								aria-label="Freeze frame"
+							>
+								<Snowflake className="h-4 w-4" aria-hidden="true" />
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>Freeze frame (F)</TooltipContent>
@@ -463,8 +479,13 @@ export function TimelineToolbar({
 
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={handleDeleteSelected}>
-								<Trash2 className="h-4 w-4" />
+							<Button
+								variant="text"
+								size="icon"
+								onClick={handleDeleteSelected}
+								aria-label="Delete element"
+							>
+								<Trash2 className="h-4 w-4" aria-hidden="true" />
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>Delete element (Delete)</TooltipContent>
@@ -474,9 +495,17 @@ export function TimelineToolbar({
 
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={handleToggleBookmark}>
+							<Button
+								variant="text"
+								size="icon"
+								onClick={handleToggleBookmark}
+								aria-label={
+									currentBookmarked ? "Remove bookmark" : "Add bookmark"
+								}
+							>
 								<Bookmark
 									className={`h-4 w-4 ${currentBookmarked ? "fill-primary text-primary" : ""}`}
+									aria-hidden="true"
 								/>
 							</Button>
 						</TooltipTrigger>
@@ -517,11 +546,19 @@ export function TimelineToolbar({
 				<TooltipProvider delayDuration={500}>
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={toggleSnapping}>
+							<Button
+								variant="text"
+								size="icon"
+								onClick={toggleSnapping}
+								aria-label={
+									snappingEnabled ? "Disable snapping" : "Enable snapping"
+								}
+								aria-pressed={snappingEnabled}
+							>
 								{snappingEnabled ? (
-									<Magnet className="h-4 w-4 text-primary" />
+									<Magnet className="h-4 w-4 text-primary" aria-hidden="true" />
 								) : (
-									<Magnet className="h-4 w-4" />
+									<Magnet className="h-4 w-4" aria-hidden="true" />
 								)}
 							</Button>
 						</TooltipTrigger>
@@ -530,11 +567,22 @@ export function TimelineToolbar({
 
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button variant="text" size="icon" onClick={toggleRippleEditing}>
+							<Button
+								variant="text"
+								size="icon"
+								onClick={toggleRippleEditing}
+								aria-label={
+									rippleEditingEnabled
+										? "Disable ripple editing"
+										: "Enable ripple editing"
+								}
+								aria-pressed={rippleEditingEnabled}
+							>
 								<Link
 									className={`h-4 w-4 ${
 										rippleEditingEnabled ? "text-primary" : ""
 									}`}
+									aria-hidden="true"
 								/>
 							</Button>
 						</TooltipTrigger>
@@ -548,11 +596,22 @@ export function TimelineToolbar({
 					{EFFECTS_ENABLED && (
 						<Tooltip>
 							<TooltipTrigger asChild>
-								<Button variant="text" size="icon" onClick={toggleEffectsTrack}>
+								<Button
+									variant="text"
+									size="icon"
+									onClick={toggleEffectsTrack}
+									aria-label={
+										showEffectsTrack
+											? "Hide effects track"
+											: "Show effects track"
+									}
+									aria-pressed={showEffectsTrack}
+								>
 									<Sparkles
 										className={`h-4 w-4 ${
 											showEffectsTrack ? "text-primary" : ""
 										}`}
+										aria-hidden="true"
 									/>
 								</Button>
 							</TooltipTrigger>
@@ -571,8 +630,9 @@ export function TimelineToolbar({
 						size="icon"
 						onClick={handleZoomOut}
 						data-testid="zoom-out-button"
+						aria-label="Zoom out"
 					>
-						<ZoomOut className="h-4 w-4" />
+						<ZoomOut className="h-4 w-4" aria-hidden="true" />
 					</Button>
 					<Slider
 						className="w-24"
@@ -582,14 +642,16 @@ export function TimelineToolbar({
 						max={4}
 						step={0.05}
 						data-zoom-level={zoomLevel}
+						aria-label="Timeline zoom level"
 					/>
 					<Button
 						variant="text"
 						size="icon"
 						onClick={handleZoomIn}
 						data-testid="zoom-in-button"
+						aria-label="Zoom in"
 					>
-						<ZoomIn className="h-4 w-4" />
+						<ZoomIn className="h-4 w-4" aria-hidden="true" />
 					</Button>
 				</div>
 			</div>

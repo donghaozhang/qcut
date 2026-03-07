@@ -24,8 +24,9 @@ const contextMenuItemVariants = cva(
 	{
 		variants: {
 			variant: {
-				default: "focus:opacity-65 focus:text-accent-foreground",
-				destructive: "text-destructive focus:text-destructive/80",
+				default: "focus:bg-accent focus:text-accent-foreground",
+				destructive:
+					"text-destructive focus:bg-destructive/10 focus:text-destructive/80",
 			},
 		},
 		defaultVariants: {

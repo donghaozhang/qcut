@@ -63,7 +63,7 @@ export function EffectChainManager({ elementId }: EffectChainManagerProps) {
 			{/* Effect Chain Header */}
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-2">
-					<Layers className="h-5 w-5" />
+					<Layers className="h-5 w-5" aria-hidden="true" />
 					<h3 className="font-semibold">Effect Chains</h3>
 				</div>
 				<Button
@@ -185,8 +185,9 @@ export function EffectChainManager({ elementId }: EffectChainManagerProps) {
 										size="icon"
 										variant="text"
 										onClick={() => removeChain(elementId, chain.id)}
+										aria-label={`Remove ${chain.name} chain`}
 									>
-										<Trash2 className="h-4 w-4" />
+										<Trash2 className="h-4 w-4" aria-hidden="true" />
 									</Button>
 								</div>
 							</div>
@@ -212,9 +213,9 @@ export function EffectChainManager({ elementId }: EffectChainManagerProps) {
 											}
 										>
 											{effect.enabled ? (
-												<Eye className="h-3 w-3" />
+												<Eye className="h-3 w-3" aria-hidden="true" />
 											) : (
-												<EyeOff className="h-3 w-3" />
+												<EyeOff className="h-3 w-3" aria-hidden="true" />
 											)}
 										</Button>
 									</div>
@@ -243,8 +244,9 @@ export function EffectChainManager({ elementId }: EffectChainManagerProps) {
 											variant="text"
 											disabled={index === 0}
 											onClick={() => handleMoveEffect(effect.id, "up")}
+											aria-label={`Move ${effect.name} up`}
 										>
-											<Move className="h-3 w-3 rotate-180" />
+											<Move className="h-3 w-3 rotate-180" aria-hidden="true" />
 										</Button>
 										<Button
 											type="button"
@@ -252,8 +254,9 @@ export function EffectChainManager({ elementId }: EffectChainManagerProps) {
 											variant="text"
 											disabled={index === effects.length - 1}
 											onClick={() => handleMoveEffect(effect.id, "down")}
+											aria-label={`Move ${effect.name} down`}
 										>
-											<Move className="h-3 w-3" />
+											<Move className="h-3 w-3" aria-hidden="true" />
 										</Button>
 									</div>
 									<span className="font-medium">
@@ -272,9 +275,9 @@ export function EffectChainManager({ elementId }: EffectChainManagerProps) {
 										onClick={() => toggleEffect(elementId, effect.id)}
 									>
 										{effect.enabled ? (
-											<Eye className="h-4 w-4" />
+											<Eye className="h-4 w-4" aria-hidden="true" />
 										) : (
-											<EyeOff className="h-4 w-4" />
+											<EyeOff className="h-4 w-4" aria-hidden="true" />
 										)}
 									</Button>
 									<Button
@@ -284,7 +287,7 @@ export function EffectChainManager({ elementId }: EffectChainManagerProps) {
 										aria-label="Remove effect"
 										onClick={() => removeEffect(elementId, effect.id)}
 									>
-										<Trash2 className="h-4 w-4" />
+										<Trash2 className="h-4 w-4" aria-hidden="true" />
 									</Button>
 								</div>
 							</div>

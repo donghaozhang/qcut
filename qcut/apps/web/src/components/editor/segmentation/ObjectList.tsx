@@ -73,6 +73,7 @@ function ObjectListItem({ object }: { object: SegmentedObject }) {
 			<div
 				className="w-3 h-3 rounded-full flex-shrink-0"
 				style={{ backgroundColor: color.hex }}
+				aria-hidden="true"
 			/>
 
 			{/* Thumbnail or placeholder (use blob URLs to bypass COEP) */}
@@ -138,11 +139,16 @@ function ObjectListItem({ object }: { object: SegmentedObject }) {
 						e.stopPropagation();
 						toggleObjectVisibility(object.id);
 					}}
+					aria-label={
+						object.visible === false
+							? `Show ${object.name}`
+							: `Hide ${object.name}`
+					}
 				>
 					{object.visible === false ? (
-						<EyeOff className="w-3 h-3" />
+						<EyeOff className="w-3 h-3" aria-hidden="true" />
 					) : (
-						<Eye className="w-3 h-3" />
+						<Eye className="w-3 h-3" aria-hidden="true" />
 					)}
 				</Button>
 
@@ -155,8 +161,9 @@ function ObjectListItem({ object }: { object: SegmentedObject }) {
 						e.stopPropagation();
 						removeObject(object.id);
 					}}
+					aria-label={`Delete ${object.name}`}
 				>
-					<Trash2 className="w-3 h-3" />
+					<Trash2 className="w-3 h-3" aria-hidden="true" />
 				</Button>
 			</div>
 		</div>

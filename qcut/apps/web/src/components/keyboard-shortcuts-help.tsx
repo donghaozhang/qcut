@@ -196,15 +196,20 @@ export const KeyboardShortcutsHelp = () => {
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
-				<Button variant="text" size="sm" className="gap-2">
-					<Keyboard className="w-4 h-4" />
+				<Button
+					variant="text"
+					size="sm"
+					className="gap-2"
+					aria-label="Keyboard shortcuts"
+				>
+					<Keyboard className="w-4 h-4" aria-hidden="true" />
 					Shortcuts
 				</Button>
 			</DialogTrigger>
 			<DialogContent className="max-w-2xl overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
-						<Keyboard className="w-5 h-5" />
+						<Keyboard className="w-5 h-5" aria-hidden="true" />
 						Keyboard Shortcuts
 					</DialogTitle>
 					<DialogDescription>

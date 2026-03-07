@@ -200,8 +200,9 @@ function PlusButton({
 				onClick?.();
 			}}
 			title={tooltipText}
+			aria-label={tooltipText || "Add to timeline"}
 		>
-			<Plus className="size-3!" />
+			<Plus className="size-3!" aria-hidden="true" />
 		</Button>
 	);
 
@@ -218,8 +219,9 @@ function PlusButton({
 							onClick?.();
 						}}
 						title={tooltipText}
+						aria-label={tooltipText}
 					>
-						<Plus className="size-3!" />
+						<Plus className="size-3!" aria-hidden="true" />
 					</Button>
 				</TooltipTrigger>
 				<TooltipContent>

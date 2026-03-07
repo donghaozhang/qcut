@@ -109,9 +109,10 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 					size="sm"
 					onClick={handleClear}
 					title="Clear Canvas"
+					aria-label="Clear canvas"
 					className="h-8 w-8 p-0"
 				>
-					<Trash2 size={14} />
+					<Trash2 size={14} aria-hidden="true" />
 				</Button>
 			</div>
 
@@ -122,12 +123,16 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 					onClick={handleQuickSave}
 					disabled={isSaving || !activeProject}
 					title="Quick Save"
+					aria-label="Quick save"
 					className="h-8 w-8 p-0"
 				>
 					{isSaving ? (
-						<div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+						<div
+							className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"
+							aria-hidden="true"
+						/>
 					) : (
-						<Save size={14} />
+						<Save size={14} aria-hidden="true" />
 					)}
 				</Button>
 				<Button
@@ -135,9 +140,10 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 					size="sm"
 					onClick={handleDownload}
 					title="Download as PNG"
+					aria-label="Download as PNG"
 					className="h-8 w-8 p-0"
 				>
-					<Download size={14} />
+					<Download size={14} aria-hidden="true" />
 				</Button>
 				<Button
 					variant="text"
@@ -145,12 +151,16 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 					onClick={handleExportToTimeline}
 					disabled={isExporting}
 					title="Export to Timeline"
+					aria-label="Export to timeline"
 					className="h-8 w-8 p-0"
 				>
 					{isExporting ? (
-						<div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+						<div
+							className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"
+							aria-hidden="true"
+						/>
 					) : (
-						<Film size={14} />
+						<Film size={14} aria-hidden="true" />
 					)}
 				</Button>
 				<Button
@@ -158,9 +168,10 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 					size="sm"
 					onClick={onShowFiles}
 					title="Saved Drawings"
+					aria-label="Saved drawings"
 					className="h-8 w-8 p-0"
 				>
-					<FolderOpen size={14} />
+					<FolderOpen size={14} aria-hidden="true" />
 				</Button>
 			</div>
 

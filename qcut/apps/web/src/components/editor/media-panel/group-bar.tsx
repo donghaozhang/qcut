@@ -12,6 +12,8 @@ export function GroupBar() {
 		<div
 			className="flex items-center bg-panel-accent border-b border-border/50"
 			data-testid="group-bar"
+			role="tablist"
+			aria-label="Media panel groups"
 		>
 			{groupKeys.map((groupKey) => {
 				const group = tabGroups[groupKey];
@@ -19,6 +21,9 @@ export function GroupBar() {
 				return (
 					<button
 						type="button"
+						role="tab"
+						aria-selected={isActive}
+						aria-label={group.label}
 						className={cn(
 							"flex-1 flex flex-col items-center gap-0.5 py-1.5 px-1 cursor-pointer transition-colors",
 							isActive
@@ -29,7 +34,7 @@ export function GroupBar() {
 						key={groupKey}
 						data-testid={`group-${groupKey}`}
 					>
-						<group.icon className="size-4! shrink-0" />
+						<group.icon className="size-4! shrink-0" aria-hidden="true" />
 						<span className="text-[0.6rem] leading-tight whitespace-nowrap">
 							{group.label}
 						</span>

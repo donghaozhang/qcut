@@ -127,7 +127,7 @@ export function SkillCard({ skill, onDelete }: SkillCardProps) {
 		<div className="border border-border rounded-lg p-3 bg-card hover:bg-accent/5 transition-colors">
 			<div className="flex items-start gap-3">
 				<div className="p-2 rounded-lg bg-purple-500/10">
-					<Brain className="h-5 w-5 text-purple-500" />
+					<Brain className="h-5 w-5 text-purple-500" aria-hidden="true" />
 				</div>
 
 				<div className="flex-1 min-w-0">
@@ -150,11 +150,13 @@ export function SkillCard({ skill, onDelete }: SkillCardProps) {
 					type="button"
 					onClick={() => setIsExpanded(!isExpanded)}
 					className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+					aria-expanded={isExpanded}
+					aria-label={`${isExpanded ? "Collapse" : "Expand"} file list`}
 				>
 					{isExpanded ? (
-						<ChevronDown className="h-3 w-3" />
+						<ChevronDown className="h-3 w-3" aria-hidden="true" />
 					) : (
-						<ChevronRight className="h-3 w-3" />
+						<ChevronRight className="h-3 w-3" aria-hidden="true" />
 					)}
 					<span>
 						{allFiles.length} file{allFiles.length > 1 ? "s" : ""}
@@ -179,6 +181,7 @@ export function SkillCard({ skill, onDelete }: SkillCardProps) {
 										: "text-muted-foreground hover:text-foreground"
 								)}
 								title="Copy folder path"
+								aria-label="Copy folder path"
 							>
 								{copiedPath === getSkillFolderPath() ? (
 									<Check className="h-3 w-3" />
@@ -216,6 +219,7 @@ export function SkillCard({ skill, onDelete }: SkillCardProps) {
 												: "text-muted-foreground hover:text-foreground"
 										)}
 										title="Copy file path"
+										aria-label="Copy file path"
 									>
 										{copiedPath === filePath ? (
 											<Check className="h-3 w-3" />
@@ -240,7 +244,7 @@ export function SkillCard({ skill, onDelete }: SkillCardProps) {
 						className="flex-1 rounded-r-none border-r-0"
 						onClick={handleRunWithClaude}
 					>
-						<Play className="h-3 w-3 mr-1" />
+						<Play className="h-3 w-3 mr-1" aria-hidden="true" />
 						Run with Claude
 					</Button>
 					<DropdownMenu>
@@ -252,7 +256,7 @@ export function SkillCard({ skill, onDelete }: SkillCardProps) {
 								className="px-2 rounded-l-none border-l border-primary-foreground/20"
 								aria-label="More run options"
 							>
-								<ChevronDown className="h-3 w-3" />
+								<ChevronDown className="h-3 w-3" aria-hidden="true" />
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
@@ -274,7 +278,7 @@ export function SkillCard({ skill, onDelete }: SkillCardProps) {
 					onClick={handleDelete}
 					aria-label="Delete skill"
 				>
-					<Trash2 className="h-3 w-3" />
+					<Trash2 className="h-3 w-3" aria-hidden="true" />
 				</Button>
 			</div>
 		</div>
