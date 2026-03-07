@@ -62,7 +62,7 @@ describe("validateLTX23Resolution", () => {
 
 	it("rejects invalid resolutions", () => {
 		expect(() => validateLTX23Resolution("720p")).toThrow(
-			"Resolution must be 1080p, 1440p, or 2160p",
+			"Resolution must be 1080p, 1440p, or 2160p"
 		);
 		expect(() => validateLTX23Resolution("4k")).toThrow();
 	});
@@ -81,22 +81,20 @@ describe("validateLTX23Duration", () => {
 
 	it("rejects invalid Pro durations", () => {
 		expect(() => validateLTX23Duration(12, "ltx23_pro_t2v")).toThrow(
-			"Duration must be 6, 8, or 10 seconds for LTX Video 2.3 Pro",
+			"Duration must be 6, 8, or 10 seconds for LTX Video 2.3 Pro"
 		);
 		expect(() => validateLTX23Duration(20, "ltx23_pro_t2v")).toThrow();
 	});
 
 	it("accepts valid Fast durations (6-20 even)", () => {
 		for (const d of [6, 8, 10, 12, 14, 16, 18, 20]) {
-			expect(() =>
-				validateLTX23Duration(d, "ltx23_fast_t2v"),
-			).not.toThrow();
+			expect(() => validateLTX23Duration(d, "ltx23_fast_t2v")).not.toThrow();
 		}
 	});
 
 	it("rejects invalid Fast durations", () => {
 		expect(() => validateLTX23Duration(5, "ltx23_fast_t2v")).toThrow(
-			"LTX Video 2.3 Fast",
+			"LTX Video 2.3 Fast"
 		);
 		expect(() => validateLTX23Duration(22, "ltx23_fast_t2v")).toThrow();
 	});
@@ -109,32 +107,32 @@ describe("validateLTX23Duration", () => {
 describe("validateLTX23FastExtendedConstraints", () => {
 	it("allows any resolution/fps for durations <= 10s", () => {
 		expect(() =>
-			validateLTX23FastExtendedConstraints(10, "2160p", 50),
+			validateLTX23FastExtendedConstraints(10, "2160p", 50)
 		).not.toThrow();
 		expect(() =>
-			validateLTX23FastExtendedConstraints(6, "1440p", 48),
+			validateLTX23FastExtendedConstraints(6, "1440p", 48)
 		).not.toThrow();
 	});
 
 	it("allows 1080p + 25fps for durations > 10s", () => {
 		expect(() =>
-			validateLTX23FastExtendedConstraints(12, "1080p", 25),
+			validateLTX23FastExtendedConstraints(12, "1080p", 25)
 		).not.toThrow();
 		expect(() =>
-			validateLTX23FastExtendedConstraints(20, "1080p", 25),
+			validateLTX23FastExtendedConstraints(20, "1080p", 25)
 		).not.toThrow();
 	});
 
 	it("rejects high resolution for durations > 10s", () => {
-		expect(() =>
-			validateLTX23FastExtendedConstraints(12, "2160p", 25),
-		).toThrow("Videos longer than 10 seconds require 1080p resolution");
+		expect(() => validateLTX23FastExtendedConstraints(12, "2160p", 25)).toThrow(
+			"Videos longer than 10 seconds require 1080p resolution"
+		);
 	});
 
 	it("rejects high fps for durations > 10s", () => {
-		expect(() =>
-			validateLTX23FastExtendedConstraints(14, "1080p", 50),
-		).toThrow("Videos longer than 10 seconds require 1080p resolution");
+		expect(() => validateLTX23FastExtendedConstraints(14, "1080p", 50)).toThrow(
+			"Videos longer than 10 seconds require 1080p resolution"
+		);
 	});
 });
 
@@ -151,7 +149,7 @@ describe("validateLTX23A2VDuration", () => {
 
 	it("rejects invalid A2V durations", () => {
 		expect(() => validateLTX23A2VDuration(12)).toThrow(
-			"Duration must be 6, 8, or 10 seconds for LTX Video 2.3 audio-to-video",
+			"Duration must be 6, 8, or 10 seconds for LTX Video 2.3 audio-to-video"
 		);
 		expect(() => validateLTX23A2VDuration(4)).toThrow();
 	});

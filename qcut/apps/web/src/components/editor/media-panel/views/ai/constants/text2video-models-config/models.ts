@@ -189,8 +189,7 @@ export const T2V_MODELS = {
 	ltx23_pro_t2v: {
 		id: "ltx23_pro_t2v",
 		name: "LTX Video 2.3 Pro T2V",
-		description:
-			"Text-to-video with native audio and 4K support (6-10s)",
+		description: "Text-to-video with native audio and 4K support (6-10s)",
 		price: "0.06-0.24",
 		resolution: "1080p",
 		max_duration: 10,

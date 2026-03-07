@@ -151,10 +151,7 @@ function tryExactNormalizedMatch(
 ): ClipBoundaryMatch | null {
 	let startNormCursor = findNormIndexForRaw(normalized, fromIndex);
 	while (startNormCursor < normalized.text.length) {
-		const startNormIndex = normalized.text.indexOf(
-			startQuery,
-			startNormCursor
-		);
+		const startNormIndex = normalized.text.indexOf(startQuery, startNormCursor);
 		if (startNormIndex === -1) return null;
 
 		const rawStart = normalized.rawStartByNorm[startNormIndex];
@@ -341,8 +338,7 @@ function tryApproximateNormalizedMatch(
 	if (rawStart < fromIndex) return null;
 
 	const startRawEnd =
-		normalized.rawEndByNorm[Math.max(0, startApprox.endNorm - 1)] ??
-		rawStart;
+		normalized.rawEndByNorm[Math.max(0, startApprox.endNorm - 1)] ?? rawStart;
 	const endApprox = findApproximateMatch(
 		normalized,
 		endQuery,
@@ -350,8 +346,7 @@ function tryApproximateNormalizedMatch(
 	);
 	if (!endApprox) return null;
 
-	const rawEnd =
-		normalized.rawEndByNorm[Math.max(0, endApprox.endNorm - 1)];
+	const rawEnd = normalized.rawEndByNorm[Math.max(0, endApprox.endNorm - 1)];
 	if (rawEnd <= rawStart) return null;
 
 	return {

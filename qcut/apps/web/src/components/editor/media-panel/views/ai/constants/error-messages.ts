@@ -102,8 +102,7 @@ export const ERROR_MESSAGES = {
 		"Resolution must be 1080p, 1440p, or 2160p for LTX Video 2.3",
 	LTX23_EXTENDED_DURATION_CONSTRAINT:
 		"Videos longer than 10 seconds require 1080p resolution and 25 FPS for LTX Video 2.3 Fast",
-	LTX23_EMPTY_PROMPT:
-		"Please enter a text prompt for LTX Video 2.3 generation",
+	LTX23_EMPTY_PROMPT: "Please enter a text prompt for LTX Video 2.3 generation",
 	LTX23_I2V_MISSING_IMAGE:
 		"Image is required for LTX Video 2.3 image-to-video generation",
 	LTX23_A2V_MISSING_AUDIO:

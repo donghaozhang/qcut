@@ -271,7 +271,9 @@ export class EditorApiClient {
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-				throw new EditorApiError(`Cannot connect to QCut at ${this.config.baseUrl}`);
+				throw new EditorApiError(
+					`Cannot connect to QCut at ${this.config.baseUrl}`
+				);
 			}
 			throw new EditorApiError(`HTTP request failed: ${msg}`);
 		}

@@ -1055,15 +1055,17 @@ export function registerSharedRoutes(
 
 	// ── Novel Parse ───────────────────────────────────────────────────
 	router.post("/api/claude/novel/parse", async (req) => {
-		if (!req.body?.text || typeof req.body.text !== "string" || !req.body.text.trim())
+		if (
+			!req.body?.text ||
+			typeof req.body.text !== "string" ||
+			!req.body.text.trim()
+		)
 			throw new HttpError(400, "Missing or empty 'text' in request body");
 
 		const { handleNovelParse } = await import(
 			"../../moyin/novel-parse-handler.js"
 		);
-		const { RESPONSE_HANDLED } = await import(
-			"../utils/http-router.js"
-		);
+		const { RESPONSE_HANDLED } = await import("../utils/http-router.js");
 
 		// Streaming mode: write ndjson lines with progress, then result
 		if (req.body.stream === true) {
@@ -1078,9 +1080,17 @@ export function registerSharedRoutes(
 
 			try {
 				const result = await handleNovelParse(
-					{ text: req.body.text, language: req.body.language, maxClips: req.body.maxClips },
+					{
+						text: req.body.text,
+						language: req.body.language,
+						maxClips: req.body.maxClips,
+					},
 					(progress) => {
-						try { res.write(JSON.stringify({ type: "progress", ...progress }) + "\n"); } catch {}
+						try {
+							res.write(
+								JSON.stringify({ type: "progress", ...progress }) + "\n"
+							);
+						} catch {}
 					}
 				);
 				res.write(JSON.stringify({ type: "result", ...result }) + "\n");

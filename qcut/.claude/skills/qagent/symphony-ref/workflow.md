@@ -117,10 +117,11 @@ When all CI checks pass and no human review is required (or already approved):
 3. If the PR is linked to a GitHub issue, close the issue.
 4. Trigger the GitHub Release workflow: `gh workflow run release.yml`.
 5. Monitor the release: `gh run watch <run-id> --exit-status`.
-6. If the release fails, diagnose and fix the issue.
-7. Update the workpad with merge and release status.
-8. Move issue to Done.
-9. Clean up: delete the worktree by running `git -C <source-repo-path> worktree remove <worktree-path>` (must run from outside the worktree).
+6. If the release fails, diagnose and fix the issue. Do NOT proceed to cleanup until the release succeeds.
+7. Confirm the release was created: `gh release list --limit 1` — verify the tag matches.
+8. Update the workpad with merge and release status.
+9. Move issue to Done.
+10. Clean up: delete the worktree by running `git -C <source-repo-path> worktree remove <worktree-path>` (must run from outside the worktree). Only do this after confirming the release succeeded.
 
 ## Step 4: Rework
 

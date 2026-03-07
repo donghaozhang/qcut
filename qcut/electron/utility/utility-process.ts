@@ -79,7 +79,9 @@ export function requestFromMain(
 	return new Promise((resolve, reject) => {
 		const id = `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 		// Screen recording stop can take up to 30s (MediaRecorder flush + chunk writes)
-		const timeoutMs = channel.includes("screen-recording:stop") ? 35_000 : 10_000;
+		const timeoutMs = channel.includes("screen-recording:stop")
+			? 35_000
+			: 10_000;
 		const timer = setTimeout(() => {
 			pendingRequests.delete(id);
 			reject(new Error(`Main process request timed out: ${channel}`));

@@ -120,7 +120,10 @@ function applyTemplate(
 ): string {
 	let result = template;
 	for (const [key, value] of Object.entries(replacements)) {
-		result = result.replace(new RegExp(`\\{${escapeRegex(key)}\\}`, "g"), value);
+		result = result.replace(
+			new RegExp(`\\{${escapeRegex(key)}\\}`, "g"),
+			value
+		);
 	}
 	return result;
 }
@@ -160,9 +163,7 @@ async function analyzeCharacters(
 		maxTokens: MAX_TOKENS,
 	});
 	const parsed = repairAndParseJSON<Record<string, unknown>>(response);
-	const characters = toObjectArray(
-		parsed.characters ?? parsed.new_characters
-	);
+	const characters = toObjectArray(parsed.characters ?? parsed.new_characters);
 	return characters.map((c) => ({
 		name: asString(c.name),
 		introduction: asString(c.introduction),
@@ -243,9 +244,7 @@ async function splitIntoClips(
 
 				const match = matcher.matchBoundary(startText, endText, searchFrom);
 				if (!match) {
-					lastError = new Error(
-						`Boundary matching failed at ${clipId}`
-					);
+					lastError = new Error(`Boundary matching failed at ${clipId}`);
 					failed = true;
 					break;
 				}
@@ -293,10 +292,8 @@ async function convertClipToScreenplay(
 
 		const prompt = applyTemplate(template, {
 			clip_content: clip.content,
-			characters_lib_name:
-				characters.length > 0 ? characters.join(sep) : none,
-			locations_lib_name:
-				locations.length > 0 ? locations.join(sep) : none,
+			characters_lib_name: characters.length > 0 ? characters.join(sep) : none,
+			locations_lib_name: locations.length > 0 ? locations.join(sep) : none,
 			characters_introduction: noIntro,
 		});
 
@@ -357,18 +354,34 @@ export async function handleNovelParse(
 	}
 
 	const lang = language === "auto" ? detectLanguage(text) : language;
-	onProgress({ step: "init", percent: 5, message: `Detected language: ${lang}, text length: ${text.length} chars` });
+	onProgress({
+		step: "init",
+		percent: 5,
+		message: `Detected language: ${lang}, text length: ${text.length} chars`,
+	});
 
 	// Step 1: Parallel character + location analysis
-	onProgress({ step: "characters", percent: 10, message: "Analyzing characters and locations..." });
+	onProgress({
+		step: "characters",
+		percent: 10,
+		message: "Analyzing characters and locations...",
+	});
 	const [characters, locations] = await Promise.all([
 		analyzeCharacters(text, lang),
 		analyzeLocations(text, lang),
 	]);
-	onProgress({ step: "characters", percent: 30, message: `Found ${characters.length} characters, ${locations.length} locations` });
+	onProgress({
+		step: "characters",
+		percent: 30,
+		message: `Found ${characters.length} characters, ${locations.length} locations`,
+	});
 
 	// Step 2: Split into clips with boundary validation
-	onProgress({ step: "clips", percent: 35, message: "Splitting text into clips..." });
+	onProgress({
+		step: "clips",
+		percent: 35,
+		message: "Splitting text into clips...",
+	});
 	const allClips = await splitIntoClips(
 		text,
 		characters.map((c) => c.name),
@@ -384,14 +397,26 @@ export async function handleNovelParse(
 		maxClips != null && maxClips < allClips.length
 			? allClips.slice(0, maxClips)
 			: allClips;
-	onProgress({ step: "clips", percent: 50, message: `Split into ${clips.length} clips` });
+	onProgress({
+		step: "clips",
+		percent: 50,
+		message: `Split into ${clips.length} clips`,
+	});
 
 	// Step 3: Convert each clip to screenplay (sequential to avoid LLM fan-out)
-	onProgress({ step: "screenplay", percent: 55, message: `Converting ${clips.length} clips to screenplay...` });
+	onProgress({
+		step: "screenplay",
+		percent: 55,
+		message: `Converting ${clips.length} clips to screenplay...`,
+	});
 	const screenplays: ClipScreenplay[] = [];
 	for (let i = 0; i < clips.length; i += 1) {
 		const clip = clips[i];
-		onProgress({ step: "screenplay", percent: 55 + Math.round((i / clips.length) * 40), message: `Converting clip ${i + 1}/${clips.length}: ${clip.id}` });
+		onProgress({
+			step: "screenplay",
+			percent: 55 + Math.round((i / clips.length) * 40),
+			message: `Converting clip ${i + 1}/${clips.length}: ${clip.id}`,
+		});
 		const result = await convertClipToScreenplay(
 			clip,
 			characters.map((c) => c.name),
@@ -409,7 +434,11 @@ export async function handleNovelParse(
 		screenplayFailedCount: screenplays.filter((s) => !s.success).length,
 		totalScenes: screenplays.reduce((sum, s) => sum + s.sceneCount, 0),
 	};
-	onProgress({ step: "done", percent: 100, message: `Complete: ${summary.totalScenes} scenes from ${summary.clipCount} clips` });
+	onProgress({
+		step: "done",
+		percent: 100,
+		message: `Complete: ${summary.totalScenes} scenes from ${summary.clipCount} clips`,
+	});
 
 	return { characters, locations, clips, screenplays, summary };
 }

@@ -284,7 +284,7 @@ export function useImageTabState({
 
 	// LTX 2.3 I2V settings
 	const [ltx23I2VDuration, setLTX23I2VDuration] = useState<LTX23Duration>(
-		LTX23_CONFIG.FAST_DURATIONS[0],
+		LTX23_CONFIG.FAST_DURATIONS[0]
 	);
 	const [ltx23I2VResolution, setLTX23I2VResolution] =
 		useState<LTX23Resolution>("1080p");
@@ -427,17 +427,11 @@ export function useImageTabState({
 	useEffect(() => {
 		if (ltx23I2VDuration > LTX23_CONFIG.EXTENDED_DURATION_THRESHOLD) {
 			const validRes = LTX23_CONFIG.RESOLUTIONS.EXTENDED;
-			if (
-				!validRes.includes(
-					ltx23I2VResolution as (typeof validRes)[number],
-				)
-			) {
+			if (!validRes.includes(ltx23I2VResolution as (typeof validRes)[number])) {
 				setLTX23I2VResolution(validRes[0]);
 			}
 			const validFps = LTX23_CONFIG.FPS_OPTIONS.EXTENDED;
-			if (
-				!validFps.includes(ltx23I2VFPS as (typeof validFps)[number])
-			) {
+			if (!validFps.includes(ltx23I2VFPS as (typeof validFps)[number])) {
 				setLTX23I2VFPS(validFps[0]);
 			}
 		}

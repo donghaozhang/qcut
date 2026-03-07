@@ -208,7 +208,10 @@ export function AiView({ mode }: { mode?: "upscale" | "angles" } = {}) {
 		ltx23I2VResolution: imageState.ltx23I2V.resolution,
 		ltx23I2VFPS: imageState.ltx23I2V.fps,
 		ltx23I2VGenerateAudio: imageState.ltx23I2V.generateAudio,
-		ltx23I2VAspectRatio: imageState.ltx23I2V.aspectRatio as "auto" | "16:9" | "9:16",
+		ltx23I2VAspectRatio: imageState.ltx23I2V.aspectRatio as
+			| "auto"
+			| "16:9"
+			| "9:16",
 		ltx23I2VEndImageFile: imageState.ltx23I2V.endImageFile,
 		seedanceDuration: imageState.seedance.duration,
 		seedanceResolution: imageState.seedance.resolution,

@@ -205,7 +205,7 @@ export function useTextTabState({
 
 	// LTX Video 2.3 Pro settings
 	const [ltx23ProDuration, setLTX23ProDuration] = useState<LTX23Duration>(
-		LTX23_CONFIG.PRO_DURATIONS[0],
+		LTX23_CONFIG.PRO_DURATIONS[0]
 	);
 	const [ltx23ProResolution, setLTX23ProResolution] =
 		useState<LTX23Resolution>("1080p");
@@ -215,7 +215,7 @@ export function useTextTabState({
 
 	// LTX Video 2.3 Fast settings
 	const [ltx23FastDuration, setLTX23FastDuration] = useState<LTX23Duration>(
-		LTX23_CONFIG.FAST_DURATIONS[0],
+		LTX23_CONFIG.FAST_DURATIONS[0]
 	);
 	const [ltx23FastResolution, setLTX23FastResolution] =
 		useState<LTX23Resolution>("1080p");
@@ -283,21 +283,15 @@ export function useTextTabState({
 
 	// Auto-correct LTX 2.3 Fast resolution/FPS when duration crosses threshold
 	useEffect(() => {
-		if (
-			ltx23FastDuration > LTX23_CONFIG.EXTENDED_DURATION_THRESHOLD
-		) {
+		if (ltx23FastDuration > LTX23_CONFIG.EXTENDED_DURATION_THRESHOLD) {
 			const validRes = LTX23_CONFIG.RESOLUTIONS.EXTENDED;
 			if (
-				!validRes.includes(
-					ltx23FastResolution as (typeof validRes)[number],
-				)
+				!validRes.includes(ltx23FastResolution as (typeof validRes)[number])
 			) {
 				setLTX23FastResolution(validRes[0]);
 			}
 			const validFps = LTX23_CONFIG.FPS_OPTIONS.EXTENDED;
-			if (
-				!validFps.includes(ltx23FastFPS as (typeof validFps)[number])
-			) {
+			if (!validFps.includes(ltx23FastFPS as (typeof validFps)[number])) {
 				setLTX23FastFPS(validFps[0]);
 			}
 		}

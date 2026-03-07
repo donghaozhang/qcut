@@ -68,8 +68,11 @@ export function novelResultToScriptData(
 
 	// Process successful screenplays into scenes
 	const successScreenplays = result.screenplays.filter(
-		(sp): sp is ClipScreenplay & { screenplay: NonNullable<ClipScreenplay["screenplay"]> } =>
-			sp.success && sp.screenplay != null
+		(
+			sp
+		): sp is ClipScreenplay & {
+			screenplay: NonNullable<ClipScreenplay["screenplay"]>;
+		} => sp.success && sp.screenplay != null
 	);
 
 	for (const sp of successScreenplays) {

@@ -305,8 +305,7 @@ export function registerTextToVideoModels(): void {
 		provider: "Lightricks (via FAL)",
 		endpoint: "fal-ai/ltx-2.3/text-to-video",
 		categories: ["text_to_video"],
-		description:
-			"Text-to-video with native audio and 4K support (6-10s)",
+		description: "Text-to-video with native audio and 4K support (6-10s)",
 		pricing: {
 			type: "per_second",
 			cost_1080p: 0.06,
@@ -377,8 +376,7 @@ export function registerTextToVideoModels(): void {
 		provider: "Lightricks (via FAL)",
 		endpoint: "fal-ai/ltx-2.3/audio-to-video",
 		categories: ["text_to_video"],
-		description:
-			"Generate video from audio input with text guidance (6-10s)",
+		description: "Generate video from audio input with text guidance (6-10s)",
 		pricing: { type: "per_second", cost: 0.1 },
 		durationOptions: ["6", "8", "10"],
 		resolutions: ["1080p"],

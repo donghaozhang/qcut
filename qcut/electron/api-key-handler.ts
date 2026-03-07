@@ -293,9 +293,7 @@ export async function getDecryptedApiKeys(): Promise<ApiKeys> {
 			qcutEnvKeys.falApiKey ||
 			"",
 		freesoundApiKey:
-			process.env.FREESOUND_API_KEY ||
-			electronKeys.freesoundApiKey ||
-			"",
+			process.env.FREESOUND_API_KEY || electronKeys.freesoundApiKey || "",
 		geminiApiKey:
 			process.env.GEMINI_API_KEY ||
 			electronKeys.geminiApiKey ||
@@ -309,13 +307,9 @@ export async function getDecryptedApiKeys(): Promise<ApiKeys> {
 			qcutEnvKeys.openRouterApiKey ||
 			"",
 		anthropicApiKey:
-			process.env.ANTHROPIC_API_KEY ||
-			electronKeys.anthropicApiKey ||
-			"",
+			process.env.ANTHROPIC_API_KEY || electronKeys.anthropicApiKey || "",
 		elevenLabsApiKey:
-			process.env.ELEVENLABS_API_KEY ||
-			electronKeys.elevenLabsApiKey ||
-			"",
+			process.env.ELEVENLABS_API_KEY || electronKeys.elevenLabsApiKey || "",
 	};
 }
 

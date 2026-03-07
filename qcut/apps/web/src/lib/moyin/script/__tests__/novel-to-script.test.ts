@@ -1,18 +1,27 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-	novelResultToScriptData,
-	resetIdCounter,
-} from "../novel-to-script";
+import { novelResultToScriptData, resetIdCounter } from "../novel-to-script";
 import type { NovelParseResult } from "../novel-parser";
 
-function makeResult(overrides: Partial<NovelParseResult> = {}): NovelParseResult {
+function makeResult(
+	overrides: Partial<NovelParseResult> = {}
+): NovelParseResult {
 	return {
 		characters: [
-			{ name: "Zhang San", introduction: "A brave warrior", gender: "male", age: "30" },
+			{
+				name: "Zhang San",
+				introduction: "A brave warrior",
+				gender: "male",
+				age: "30",
+			},
 			{ name: "Li Si", introduction: "A cunning merchant" },
 		],
 		locations: [
-			{ name: "Tavern", description: "A dusty old tavern", time: "night", atmosphere: "tense" },
+			{
+				name: "Tavern",
+				description: "A dusty old tavern",
+				time: "night",
+				atmosphere: "tense",
+			},
 			{ name: "Market", description: "Bustling market square" },
 		],
 		clips: [
@@ -40,7 +49,11 @@ function makeResult(overrides: Partial<NovelParseResult> = {}): NovelParseResult
 							time: "night",
 							action: "Zhang San pushes open the door.",
 							dialogue: [
-								{ character: "Zhang San", line: "Anyone here?", direction: "shouting" },
+								{
+									character: "Zhang San",
+									line: "Anyone here?",
+									direction: "shouting",
+								},
 								{ character: "Li Si", line: "Over here, old friend." },
 							],
 						},
@@ -89,15 +102,24 @@ describe("novelResultToScriptData", () => {
 
 		// 1 action + 2 dialogue = 3 paragraphs
 		expect(data.storyParagraphs).toHaveLength(3);
-		expect(data.storyParagraphs[0].text).toBe("Zhang San pushes open the door.");
-		expect(data.storyParagraphs[1].text).toBe("Zhang San (shouting): Anyone here?");
+		expect(data.storyParagraphs[0].text).toBe(
+			"Zhang San pushes open the door."
+		);
+		expect(data.storyParagraphs[1].text).toBe(
+			"Zhang San (shouting): Anyone here?"
+		);
 		expect(data.storyParagraphs[2].text).toBe("Li Si: Over here, old friend.");
 	});
 
 	it("skips failed screenplays gracefully", () => {
 		const result = makeResult({
 			screenplays: [
-				{ clipId: "clip_1", success: false, sceneCount: 0, error: "LLM failed" },
+				{
+					clipId: "clip_1",
+					success: false,
+					sceneCount: 0,
+					error: "LLM failed",
+				},
 			],
 		});
 		const data = novelResultToScriptData(result);
