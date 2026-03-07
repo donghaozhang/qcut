@@ -51,7 +51,11 @@ export function AIHistoryPanel({
 	return (
 		<>
 			{/* Backdrop */}
-			<div className="fixed inset-0 bg-background/20 z-40" role="presentation" onClick={onClose} />
+			<div
+				className="fixed inset-0 bg-background/20 z-40"
+				role="presentation"
+				onClick={onClose}
+			/>
 
 			{/* Sliding Panel */}
 			<div

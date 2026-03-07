@@ -78,7 +78,9 @@ export function ModelSelector() {
 								<span
 									className={cn(
 										"text-[10px] font-medium ml-2 flex-shrink-0 border border-transparent",
-										isSelected ? "text-[var(--brand)]/80" : "text-muted-foreground"
+										isSelected
+											? "text-[var(--brand)]/80"
+											: "text-muted-foreground"
 									)}
 								>
 									{model.estimatedCost}
