@@ -202,7 +202,7 @@ export function SessionCard({
 									setEditingLabel(false);
 								}
 							}}
-							className="w-28 rounded border border-[var(--color-accent)] bg-transparent px-1 py-0 font-[var(--font-mono)] text-[11px] text-[var(--color-text-primary)] outline-none"
+							className="w-28 rounded border border-[var(--color-accent)] bg-transparent px-1 py-0 font-[var(--font-mono)] text-[13px] text-[var(--color-text-primary)] outline-none"
 							placeholder="label…"
 						/>
 					) : session.label ? (
@@ -212,7 +212,7 @@ export function SessionCard({
 								setLabelDraft(session.label ?? "");
 								setEditingLabel(true);
 							}}
-							className="truncate rounded px-1 py-0 text-[11px] font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg-subtle)]"
+							className="truncate rounded px-1 py-0 text-[13px] font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg-subtle)]"
 							title="Click to edit label"
 						>
 							{session.label}
@@ -230,7 +230,7 @@ export function SessionCard({
 							+label
 						</button>
 					)}
-					<span className="font-[var(--font-mono)] text-[11px] tracking-wide text-[var(--color-text-muted)]">
+					<span className="font-[var(--font-mono)] text-[12px] tracking-wide text-[var(--color-text-muted)]">
 						{session.label ? `(${session.id})` : session.id}
 					</span>
 				</div>
@@ -381,8 +381,8 @@ export function SessionCard({
 					className={cn(
 						"leading-snug [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3] overflow-hidden",
 						level === "working"
-							? "text-[13px] font-medium text-[var(--color-text-secondary)]"
-							: "text-[14px] font-semibold text-[var(--color-text-primary)]"
+							? "text-[14px] font-medium text-[var(--color-text-secondary)]"
+							: "text-[15px] font-semibold text-[var(--color-text-primary)]"
 					)}
 				>
 					{title}
@@ -392,7 +392,7 @@ export function SessionCard({
 			{/* Meta row: branch + PR pills + CPU + terminal app */}
 			<div className="flex flex-wrap items-center gap-1.5 px-4 pb-2.5">
 				{session.branch && (
-					<span className="inline-flex items-center gap-1.5 rounded-[4px] bg-[rgba(136,192,208,0.08)] px-1.5 py-0.5 text-[10px]">
+					<span className="inline-flex items-center gap-1.5 rounded-[4px] bg-[rgba(136,192,208,0.08)] px-1.5 py-0.5 text-[11px]">
 						<span className="text-[var(--color-text-tertiary)]">branch</span>
 						<span className="font-[var(--font-mono)] text-[rgba(136,192,208,0.75)]">
 							{session.branch}
@@ -407,7 +407,7 @@ export function SessionCard({
 				{pr && <PRStatus pr={pr} />}
 				{totalTokensLabel && (
 					<span
-						className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(88,166,255,0.1)] px-1.5 py-0.5 text-[10px] text-[var(--color-accent)]"
+						className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(88,166,255,0.1)] px-1.5 py-0.5 text-[11px] text-[var(--color-accent)]"
 						title={`${inputTokensLabel} in · ${outputTokensLabel} out`}
 					>
 						<span className="font-[var(--font-mono)]">{totalTokensLabel} tok</span>
@@ -422,7 +422,7 @@ export function SessionCard({
 					</span>
 				)}
 				{session.metadata?.pid && (
-					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
+					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[11px]">
 						<span className="text-[var(--color-text-tertiary)]">pid</span>
 						<span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">
 							{session.metadata.pid}
@@ -430,7 +430,7 @@ export function SessionCard({
 					</span>
 				)}
 				{(session.metadata?.cwd || session.metadata?.worktree) && (
-					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
+					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[11px]">
 						<span className="text-[var(--color-text-tertiary)]">cwd</span>
 						<span className="font-[var(--font-mono)] text-[var(--color-text-muted)] truncate max-w-[200px]" title={session.metadata.cwd || session.metadata.worktree}>
 							{(session.metadata.cwd || session.metadata.worktree || "").split("/").slice(-2).join("/")}
@@ -438,7 +438,7 @@ export function SessionCard({
 					</span>
 				)}
 				{session.metadata?.terminalApp && (
-					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
+					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[11px]">
 						<svg className="h-2.5 w-2.5 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
 							<path d="M4 17l6-5-6-5M12 19h8" />
 						</svg>
@@ -457,7 +457,7 @@ export function SessionCard({
 				)}
 				{session.metadata?.cpu && parseFloat(session.metadata.cpu) > 0 && (
 					<span
-						className="inline-flex items-center gap-1 rounded-[4px] px-1.5 py-0.5 font-[var(--font-mono)] text-[10px] tabular-nums"
+						className="inline-flex items-center gap-1 rounded-[4px] px-1.5 py-0.5 font-[var(--font-mono)] text-[11px] tabular-nums"
 						style={{
 							color: parseFloat(session.metadata.cpu) > 50
 								? "var(--color-status-error)"
@@ -575,7 +575,7 @@ export function SessionCard({
 				<div className="border-t border-[var(--color-border-subtle)]">
 					{pr && (
 						<div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--color-border-subtle)] bg-[rgba(255,255,255,0.02)]">
-							<span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">PR</span>
+							<span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">PR</span>
 							<a
 								href={pr.url}
 								target="_blank"
@@ -780,7 +780,7 @@ function DetailSection({
 }) {
 	return (
 		<div className="mb-2.5">
-			<div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">
+			<div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">
 				{label}
 			</div>
 			{children}
