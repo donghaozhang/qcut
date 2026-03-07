@@ -148,7 +148,7 @@ export async function discoverAndSpawn(
 	try {
 		const rawIssues = await tracker.listIssues(
 			{
-				state: "open",
+				state: discoveryConfig.states.length > 0 ? discoveryConfig.states[0] : "open",
 				labels: discoveryConfig.label ? [discoveryConfig.label] : undefined,
 			},
 			project
@@ -301,7 +301,37 @@ export function createIssueDiscoveryLoop(
 ): IssueDiscoveryLoop {
 	const { config } = deps;
 	const timers = new Map<string, ReturnType<typeof setInterval>>();
+	const projectRunning = new Set<string>();
 	let running = false;
+
+	async function runForProject(projectId: string, project: ProjectConfig): Promise<IssueDiscoveryResult | null> {
+		// Guard: prevent overlapping runs for the same project
+		if (projectRunning.has(projectId)) return null;
+		projectRunning.add(projectId);
+
+		try {
+			const result = await discoverAndSpawn(projectId, project, deps);
+
+			// Log dry-run results so they're observable in the timer-driven path
+			if (result.issues.some(i => i.action === "skipped_dry_run")) {
+				const dryRunIssues = result.issues.filter(i => i.action === "skipped_dry_run");
+				const event = createEvent("session.spawned", {
+					sessionId: "auto-discovery-dry-run",
+					projectId,
+					message: `Issue Discovery (dry run): would spawn ${dryRunIssues.length} agent(s) for ${dryRunIssues.map(i => i.identifier).join(", ")}`,
+					data: { autoDiscovery: true, dryRun: true, issues: dryRunIssues },
+				});
+				await deps.notifyHuman(event, "info");
+			}
+
+			return result;
+		} catch {
+			// Per-project errors are non-fatal
+			return null;
+		} finally {
+			projectRunning.delete(projectId);
+		}
+	}
 
 	async function runAll(): Promise<IssueDiscoveryResult[]> {
 		if (running) return [];
@@ -314,12 +344,8 @@ export function createIssueDiscoveryLoop(
 				const discoveryConfig = resolveAutoDiscoveryConfig(project);
 				if (!discoveryConfig.enabled) continue;
 
-				try {
-					const result = await discoverAndSpawn(projectId, project, deps);
-					results.push(result);
-				} catch {
-					// Per-project errors are non-fatal
-				}
+				const result = await runForProject(projectId, project);
+				if (result) results.push(result);
 			}
 		} finally {
 			running = false;
@@ -340,11 +366,11 @@ export function createIssueDiscoveryLoop(
 				const interval = discoveryConfig.intervalMs;
 				timers.set(
 					projectId,
-					setInterval(() => void discoverAndSpawn(projectId, project, deps), interval)
+					setInterval(() => void runForProject(projectId, project), interval)
 				);
 
 				// Run immediately on start
-				void discoverAndSpawn(projectId, project, deps);
+				void runForProject(projectId, project);
 			}
 		},
 

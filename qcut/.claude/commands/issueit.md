@@ -5,20 +5,21 @@ Create a GitHub issue, a matching Linear issue, and a branch.
 ## Steps
 
 1. Ask the user for: issue title and description (optional).
-2. Create a GitHub issue using `gh issue create` with the title and description.
-3. Get the GitHub issue number (e.g. `#215`).
-4. Create a matching Linear issue using `linear issue create` with:
+2. Check for existing duplicates: search GitHub (`gh issue list -S "<title keywords>"`) and Linear (`linear issue list --all-states`) for similar issues. If a potential duplicate is found, confirm with the user before proceeding.
+3. Create a GitHub issue using `gh issue create` with the title and description.
+4. Get the GitHub issue number (e.g. `#215`).
+5. Create a matching Linear issue using `linear issue create` with:
    - `--title` and `--description` (or `--description-file` for multiline)
    - `--priority urgent`
    - `--status "In Progress"`
    - `--project QCut`
    - `--label <label>` — pick the best label(s) based on the issue content
    - Include the GitHub issue link in the description
-5. Get the Linear issue identifier (e.g. `QUR-215`).
-6. Update the GitHub issue body to include `Part of QUR-XXX` using `gh issue edit`.
-7. Create a new git branch from the current branch: `<username>/qur-XXX-short-description` (kebab-case, lowercase).
-8. Push the branch to remote with `git push -u origin <branch>`.
-9. Report: GitHub issue URL, Linear issue URL, and branch name.
+6. Get the Linear issue identifier (e.g. `QUR-215`).
+7. Update the GitHub issue body to include `Part of QUR-XXX` using `gh issue edit`.
+8. Create a new git branch from the current branch: `<username>/qur-XXX-short-description` (kebab-case, lowercase).
+9. Push the branch to remote with `git push -u origin <branch>`.
+10. Report: GitHub issue URL, Linear issue URL, and branch name.
 
 ## Label Selection
 

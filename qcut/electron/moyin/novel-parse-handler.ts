@@ -110,13 +110,17 @@ function detectLanguage(text: string): "zh" | "en" {
 	return chineseChars / text.length > 0.1 ? "zh" : "en";
 }
 
+function escapeRegex(str: string): string {
+	return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function applyTemplate(
 	template: string,
 	replacements: Record<string, string>
 ): string {
 	let result = template;
 	for (const [key, value] of Object.entries(replacements)) {
-		result = result.replace(new RegExp(`\\{${key}\\}`, "g"), value);
+		result = result.replace(new RegExp(`\\{${escapeRegex(key)}\\}`, "g"), value);
 	}
 	return result;
 }
@@ -300,7 +304,15 @@ async function convertClipToScreenplay(
 			maxTokens: MAX_TOKENS,
 		});
 		const parsed = repairAndParseJSON<Record<string, unknown>>(response);
-		const scenes = Array.isArray(parsed.scenes) ? parsed.scenes : [];
+		if (!Array.isArray(parsed.scenes)) {
+			return {
+				clipId: clip.id,
+				success: false,
+				sceneCount: 0,
+				error: "LLM output missing 'scenes' array",
+			};
+		}
+		const scenes = parsed.scenes;
 
 		return {
 			clipId: clip.id,
@@ -374,7 +386,7 @@ export async function handleNovelParse(
 			: allClips;
 	onProgress({ step: "clips", percent: 50, message: `Split into ${clips.length} clips` });
 
-	// Step 3: Convert each clip to screenplay (parallel)
+	// Step 3: Convert each clip to screenplay (sequential to avoid LLM fan-out)
 	onProgress({ step: "screenplay", percent: 55, message: `Converting ${clips.length} clips to screenplay...` });
 	const screenplays: ClipScreenplay[] = [];
 	for (let i = 0; i < clips.length; i += 1) {

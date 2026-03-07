@@ -81,7 +81,7 @@ listIssues?(filters: IssueFilters, project: ProjectConfig): Promise<Issue[]>;
 
 ## 2. Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                        ao start                             │
 │                     (CLI entry point)                       │
@@ -132,7 +132,7 @@ listIssues?(filters: IssueFilters, project: ProjectConfig): Promise<Issue[]>;
 
 ### Data Flow for a Single Discovery Cycle
 
-```
+```text
 Tracker (GitHub/Linear)          Issue Discovery           Session Manager
         │                              │                         │
         │◄── listIssues(filters) ──────│                         │
@@ -797,7 +797,7 @@ The `label` field (default: `"agent-ready"`) acts as a human-controlled gate:
 
 The `maxConcurrent` setting (default: 5) prevents runaway spawning:
 
-```
+```text
 availableSlots = maxConcurrent - currentActiveSessionCount
 ```
 

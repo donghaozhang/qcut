@@ -6,8 +6,8 @@ This document defines the agent workflow for autonomous issue execution in QCut.
 
 ```
 Todo → In Progress → Human Review → Merging → Done
-                         ↓
-                      Rework → 重新开始
+                         ↓              ↑
+                      Rework       Merge & Release
 ```
 
 - **Todo**: queued; immediately transition to In Progress before active work.
@@ -98,7 +98,7 @@ Do NOT skip the workpad — it is required for all tasks regardless of complexit
 8. Merge latest `origin/main` into branch, resolve conflicts, rerun checks.
 9. Update workpad with final checklist status and validation notes.
 10. Run PR feedback sweep: check all review comments are addressed.
-11. Only then move issue to Human Review.
+11. When CI is green and all checks pass → proceed to **Step 5: Merge & Release**.
 
 ## Step 3: Human Review → Merge
 
@@ -107,6 +107,20 @@ Do NOT skip the workpad — it is required for all tasks regardless of complexit
 3. If review feedback requires changes → move to Rework.
 4. If approved → follow the `land` skill to merge.
 5. After merge → move issue to Done.
+
+## Step 5: Merge & Release (CI Green → Done)
+
+When all CI checks pass and no human review is required (or already approved):
+
+1. Merge the current PR to the default branch (squash merge). Keep the feature branch.
+2. Switch to the default branch and pull latest.
+3. If the PR is linked to a GitHub issue, close the issue.
+4. Trigger the GitHub Release workflow: `gh workflow run release.yml`.
+5. Monitor the release: `gh run watch <run-id> --exit-status`.
+6. If the release fails, diagnose and fix the issue.
+7. Update the workpad with merge and release status.
+8. Move issue to Done.
+9. Clean up: delete the worktree by running `git -C <source-repo-path> worktree remove <worktree-path>` (must run from outside the worktree).
 
 ## Step 4: Rework
 

@@ -4,7 +4,7 @@
 
 ## Usage
 
-```
+```text
 Usage:   linear schema
 Version: 1.11.1       
 

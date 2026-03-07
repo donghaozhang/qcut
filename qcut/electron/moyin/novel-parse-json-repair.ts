@@ -106,7 +106,7 @@ function fixUnescapedQuotesInJson(input: string): string {
 				inString = false;
 				out += ch;
 			} else {
-				out += "\u201C";
+				out += '\\"';
 			}
 			continue;
 		}

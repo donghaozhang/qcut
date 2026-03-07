@@ -1055,8 +1055,8 @@ export function registerSharedRoutes(
 
 	// ── Novel Parse ───────────────────────────────────────────────────
 	router.post("/api/claude/novel/parse", async (req) => {
-		if (!req.body?.text || typeof req.body.text !== "string")
-			throw new HttpError(400, "Missing 'text' in request body");
+		if (!req.body?.text || typeof req.body.text !== "string" || !req.body.text.trim())
+			throw new HttpError(400, "Missing or empty 'text' in request body");
 
 		const { handleNovelParse } = await import(
 			"../../moyin/novel-parse-handler.js"

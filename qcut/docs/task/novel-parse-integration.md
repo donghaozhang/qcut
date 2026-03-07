@@ -15,7 +15,7 @@ The novel-parser core pipeline is implemented and tests pass (33/33).
 - No progress UI for novel parsing steps
 - Store action `parseNovel` not yet added to moyin-store
 
-**Branch**: `novel-parse-integration`
+**Branch**: `donghao/qur-210-openclaw-cli-v6`
 
 ---
 
@@ -29,8 +29,10 @@ The novel-parser core pipeline is implemented and tests pass (33/33).
 | Prompt templates | Done | `apps/web/src/lib/moyin/script/novel-prompts.ts` |
 | Unit tests | Done (27/27) | `apps/web/src/lib/moyin/script/__tests__/novel-parser.test.ts`, `clip-matching.test.ts` |
 | CLI command registration | Done | `electron/native-pipeline/cli/command-registry-editor.ts:608` |
-| CLI handler | Done (calls missing HTTP route) | `electron/native-pipeline/cli/cli-handlers-editor.ts:527` |
-| HTTP route | **Missing** | Needs: `electron/claude/http/claude-http-shared-routes.ts` |
+| CLI handler | Done | `electron/native-pipeline/cli/cli-handlers-editor.ts:527` |
+| HTTP route | Done | `electron/claude/http/claude-http-shared-routes.ts` |
+| Main-process handler | Done | `electron/moyin/novel-parse-handler.ts` |
+| NovelParseResult converter | Done | `apps/web/src/lib/moyin/script/novel-to-script.ts` |
 | GUI button | **Missing** | Needs: `apps/web/src/components/editor/media-panel/views/moyin/script-input.tsx` |
 | Store actions | **Missing** | Needs: `apps/web/src/stores/moyin/moyin-store.ts` or `moyin-parse-actions.ts` |
 

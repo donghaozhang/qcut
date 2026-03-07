@@ -47,15 +47,17 @@ export function novelResultToScriptData(
 		personality: c.introduction,
 	}));
 
-	// Build a location name → ScriptScene map to deduplicate
+	// Build a location+time → ScriptScene map to deduplicate
 	const sceneMap = new Map<string, ScriptScene>();
 	for (const loc of result.locations) {
 		const id = nextId("scene");
-		sceneMap.set(loc.name, {
+		const time = normalizeTimeValue(loc.time);
+		const key = `${loc.name}|${time}`;
+		sceneMap.set(key, {
 			id,
 			name: loc.name,
 			location: loc.name,
-			time: normalizeTimeValue(loc.time),
+			time,
 			atmosphere: loc.atmosphere ?? "",
 			notes: loc.description,
 		});
@@ -72,19 +74,21 @@ export function novelResultToScriptData(
 
 	for (const sp of successScreenplays) {
 		for (const scene of sp.screenplay.scenes) {
-			// Ensure we have a ScriptScene for this location
-			if (!sceneMap.has(scene.location) && scene.location) {
+			// Ensure we have a ScriptScene for this location+time
+			const time = normalizeTimeValue(scene.time);
+			const sceneKey = scene.location ? `${scene.location}|${time}` : "";
+			if (sceneKey && !sceneMap.has(sceneKey)) {
 				const id = nextId("scene");
-				sceneMap.set(scene.location, {
+				sceneMap.set(sceneKey, {
 					id,
 					name: scene.location,
 					location: scene.location,
-					time: normalizeTimeValue(scene.time),
+					time,
 					atmosphere: "",
 				});
 			}
 
-			const sceneRef = sceneMap.get(scene.location);
+			const sceneRef = sceneKey ? sceneMap.get(sceneKey) : undefined;
 			const sceneRefId = sceneRef?.id ?? "scene_unknown";
 
 			// Action as a paragraph

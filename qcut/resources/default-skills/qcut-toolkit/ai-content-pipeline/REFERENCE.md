@@ -34,7 +34,10 @@ For direct API calls (not using the CLI), use these endpoint formats:
 ### Direct API Example
 
 ```python
+import os
 import requests
+
+FAL_KEY = os.environ["FAL_KEY"]
 
 url = "https://fal.run/fal-ai/nano-banana-pro"
 headers = {

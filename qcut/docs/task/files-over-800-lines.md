@@ -10,12 +10,13 @@ Per CLAUDE.md: "No code file should exceed 800 lines; if it does, split it into 
 
 ## Snapshot Changes Since 2026-03-06
 
-- 5 files dropped below 800 or removed:
+- 3 files dropped below 800 or removed:
   - `packages/qagent/packages/core/src/lifecycle-manager.ts`: 1137 -> 591
   - `apps/web/src/test/e2e/helpers/electron-helpers.ts`: 1221 -> 651
   - `electron/native-pipeline/editor/editor-handlers-timeline.ts`: 919 -> removed from list (check if split)
-  - `electron/main.ts`: 918 -> still 918 (kept)
-  - `electron/types/claude-api.ts`: 858 -> still 858 (kept)
+- 2 files still over 800 (unchanged):
+  - `electron/main.ts`: 918 (kept, needs refactor)
+  - `electron/types/claude-api.ts`: 858 (kept, needs refactor)
 - New entries:
   - `electron/claude/http/claude-http-shared-routes.ts`: 1055 (new)
   - `apps/web/src/stores/pty-terminal-store.ts`: 973 (new)
@@ -57,7 +58,7 @@ Per CLAUDE.md: "No code file should exceed 800 lines; if it does, split it into 
 | 966 | `packages/qagent/packages/plugins/scm-github/test/index.test.ts` | Split test suites |
 | 957 | `apps/web/src/lib/remotion/__tests__/component-validator.test.ts` | Split test suites |
 | 938 | `electron/claude/handlers/claude-command-registry.ts` | Extract command groups into separate files |
-| 919 | `electron/native-pipeline/editor/editor-handlers-timeline.ts` | Extract handler groups |
+| 919 | `electron/native-pipeline/editor/editor-handlers-timeline.ts` | Extract handler groups (check if already split) |
 | 918 | `electron/main.ts` | Extract window management or handler registration |
 | 909 | `packages/qagent/packages/plugins/tracker-linear/test/index.test.ts` | Split test suites |
 | 905 | `apps/web/src/components/editor/media-panel/views/moyin/__tests__/moyin-round11.test.tsx` | Merge into main test or split |

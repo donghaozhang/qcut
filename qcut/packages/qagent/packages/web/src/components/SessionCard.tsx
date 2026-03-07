@@ -230,7 +230,7 @@ export function SessionCard({
 							+label
 						</button>
 					)}
-					<span className="font-[var(--font-mono)] text-[11px] tracking-wide text-[12px] text-[var(--color-text-secondary)]">
+					<span className="font-[var(--font-mono)] tracking-wide text-[12px] text-[var(--color-text-secondary)]">
 						{session.label ? `(${session.id})` : session.id}
 					</span>
 				</div>
@@ -433,7 +433,7 @@ export function SessionCard({
 					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(136,192,208,0.08)] px-2 py-0.5 text-[11px]">
 						<span className="text-[rgba(136,192,208,0.5)]">cwd</span>
 						<span className="font-[var(--font-mono)] text-[rgba(136,192,208,0.85)] truncate max-w-[200px]" title={session.metadata.cwd || session.metadata.worktree}>
-							{(session.metadata.cwd || session.metadata.worktree || "").split("/").slice(-2).join("/")}
+							{(session.metadata.cwd || session.metadata.worktree || "").replace(/\\/g, "/").split("/").slice(-2).join("/")}
 						</span>
 					</span>
 				)}

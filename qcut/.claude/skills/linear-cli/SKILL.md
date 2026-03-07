@@ -1,7 +1,7 @@
 ---
 name: linear-cli
 description: Manage Linear issues from the command line using the linear cli. This skill allows automating linear management.
-allowed-tools: Bash(linear:*), Bash(curl:*)
+allowed-tools: Bash(linear:*), Bash(cat:*), Bash(grep:*), Bash(jq:*)
 ---
 
 # Linear CLI
@@ -61,7 +61,7 @@ linear issue comment add ENG-123 --body-file /tmp/comment.md
 
 ## Available Commands
 
-```
+```text
 linear auth               # Manage Linear authentication
 linear issue              # Manage Linear issues
 linear team               # Manage Linear teams
