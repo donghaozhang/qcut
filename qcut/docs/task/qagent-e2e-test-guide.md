@@ -218,19 +218,18 @@ cd <WORKTREE> && git log --oneline -5
 $QAGENT status
 ```
 
-### Known issue: send vs sendOrRestart
+### Known issue: review reaction fires while agent is still alive
 
-`lifecycle-reactions.ts:286` uses `sessionManager.send()` instead of `sessionManager.sendOrRestart()` for the `send-structured-review` action. If the agent has exited, `send()` just writes to tmux with no process listening.
+**Fixed in run 2**: `send-structured-review` now uses `sendOrRestart()` (was `send()`).
 
-**Workaround**: Manually restart the agent with review feedback:
-```bash
-$QAGENT send <SESSION> "Check PR review comments with gh api and address them"
-```
+**Remaining issue**: The `bugbot-comments` reaction fires as soon as the 2-min settle timer expires, which is typically BEFORE the first agent exits. `sendOrRestart()` finds the agent alive and sends the review text via tmux `send-keys` — but a running Claude Code TUI ignores raw terminal input. The reviews are never processed.
 
-Or use the `pr-comments forward` command:
+**Workaround until P0 fix**: Manually forward reviews after agent exits:
 ```bash
 $QAGENT pr-comments forward <SESSION>
 ```
+
+**P0 fix needed**: Only fire `bugbot-comments` after `session.activity === "exited"`. See `docs/task/qagent-e2e-test-2026-03-08-run2.md` for details.
 
 ## Phase 5: Verify Results
 
@@ -334,11 +333,22 @@ reactions:
 
 Tracked bugs and gaps found during testing:
 
-### Bug: `send-structured-review` uses `send()` not `sendOrRestart()`
+### Fixed: `send-structured-review` uses `send()` not `sendOrRestart()`
 
 **File**: `packages/qagent/packages/core/src/lifecycle-reactions.ts:286`
-**Impact**: Bot review reaction cannot restart a dead agent
-**Fix**: Change `sessionManager.send()` to `sessionManager.sendOrRestart()`
+**Status**: Fixed in this session (both `send-structured-review` and `lifecycle-bot-comments.ts` build-check)
+
+### Bug: Review reaction fires while agent is still alive
+
+**File**: `packages/qagent/packages/core/src/lifecycle-bot-comments.ts:109`
+**Impact**: `sendOrRestart()` finds agent alive, sends review text via tmux `send-keys` into a running Claude TUI — text is lost. Reviews never processed.
+**Fix**: Add activity check — only fire `bugbot-comments` when `session.activity === "exited"`. Or skip sessions where `BOT_CHECK_STATUSES` matches but agent is still alive.
+
+### Bug: Build-check fires without verifying reviews were addressed
+
+**File**: `packages/qagent/packages/core/src/lifecycle-bot-comments.ts:175`
+**Impact**: Build-check assumes review loop converged, but reviews may never have been processed.
+**Fix**: Track `commitAtReaction` SHA. Only send build-check if HEAD changed since reaction fired. Otherwise, re-fire the review reaction.
 
 ### Gap: `qagent spawn` does not auto-start lifecycle daemon
 
