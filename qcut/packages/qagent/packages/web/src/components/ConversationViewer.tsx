@@ -191,7 +191,7 @@ function TruncatedText({
 			<button
 				type="button"
 				onClick={() => setExpanded(!expanded)}
-				className="ml-1 text-[var(--color-accent)] hover:underline text-[11px]"
+				className="ml-1 text-[var(--color-accent)] hover:underline text-[12px]"
 			>
 				{expanded ? "show less" : "show more"}
 			</button>
@@ -208,7 +208,7 @@ function EntryRow({ entry }: { entry: JsonlEntry }) {
 		if (!text) return null;
 		return (
 			<div className="px-3 py-2 border-l-2 border-[var(--color-accent)] bg-[rgba(91,126,248,0.04)]">
-				<div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--color-accent)] mb-1">
+				<div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--color-accent)] mb-1">
 					User
 				</div>
 				<div className="text-[12px] text-[var(--color-text-primary)] leading-relaxed">
@@ -223,7 +223,7 @@ function EntryRow({ entry }: { entry: JsonlEntry }) {
 		if (!text) return null;
 		return (
 			<div className="px-3 py-2">
-				<div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--color-status-ready)] mb-1">
+				<div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--color-status-ready)] mb-1">
 					Assistant
 				</div>
 				<div className="text-[12px] text-[var(--color-text-secondary)] leading-relaxed">
@@ -246,7 +246,7 @@ function EntryRow({ entry }: { entry: JsonlEntry }) {
 				}}
 			>
 				<span
-					className="shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-mono font-semibold"
+					className="shrink-0 rounded border px-1.5 py-0.5 text-[11px] font-mono font-semibold"
 					style={{
 						borderColor: theme.border,
 						background: theme.background,
@@ -257,7 +257,7 @@ function EntryRow({ entry }: { entry: JsonlEntry }) {
 				</span>
 				{detail && (
 					<span
-						className="truncate font-mono text-[10px] opacity-95"
+						className="truncate font-mono text-[11px] opacity-95"
 						style={{ color: theme.detailText }}
 					>
 						{detail}
@@ -290,7 +290,7 @@ function EntryRow({ entry }: { entry: JsonlEntry }) {
 			>
 				<span
 					className={cn(
-						"shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-mono font-medium",
+						"shrink-0 rounded border px-1.5 py-0.5 text-[11px] font-mono font-medium",
 						isError
 							? "bg-[rgba(248,81,73,0.14)] text-[var(--color-status-error)]"
 							: "bg-[rgba(255,255,255,0.06)] text-[var(--color-text-tertiary)]"
@@ -309,7 +309,7 @@ function EntryRow({ entry }: { entry: JsonlEntry }) {
 				</span>
 				<span
 					className={cn(
-						"min-w-0 whitespace-pre-wrap break-words font-mono text-[10px]",
+						"min-w-0 whitespace-pre-wrap break-words font-mono text-[11px]",
 						isError
 							? "text-[var(--color-status-error)]"
 							: "text-[var(--color-text-muted)] opacity-80"
@@ -326,7 +326,7 @@ function EntryRow({ entry }: { entry: JsonlEntry }) {
 		const text = extractText(entry.message?.content);
 		return (
 			<div className="px-3 py-2 border-l-2 border-[var(--color-status-error)] bg-[rgba(248,81,73,0.06)]">
-				<div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--color-status-error)] mb-1">
+				<div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--color-status-error)] mb-1">
 					Error
 				</div>
 				<div className="text-[12px] text-[var(--color-status-error)] leading-relaxed font-mono">
@@ -339,7 +339,7 @@ function EntryRow({ entry }: { entry: JsonlEntry }) {
 	if (type === "permission_request") {
 		return (
 			<div className="px-3 py-2 border-l-2 border-[var(--color-status-attention)] bg-[rgba(245,158,11,0.06)]">
-				<div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--color-status-attention)]">
+				<div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--color-status-attention)]">
 					Waiting for permission
 				</div>
 			</div>
@@ -349,7 +349,7 @@ function EntryRow({ entry }: { entry: JsonlEntry }) {
 	if (type === "summary") {
 		return (
 			<div className="px-3 py-1.5">
-				<div className="text-[11px] italic text-[var(--color-text-tertiary)]">
+				<div className="text-[12px] italic text-[var(--color-text-tertiary)]">
 					{entry.summary ?? "Session summary"}
 				</div>
 			</div>
@@ -482,14 +482,14 @@ export function ConversationViewer({
 			{/* Chrome bar */}
 			<div className="flex items-center gap-2 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] px-3 py-2">
 				<div className={cn("h-2 w-2 shrink-0 rounded-full", statusDotClass)} />
-				<span className="font-[var(--font-mono)] text-[11px] text-[var(--color-accent)]">
+				<span className="font-[var(--font-mono)] text-[12px] text-[var(--color-accent)]">
 					{sessionId}
 				</span>
-				<span className={cn("text-[10px] font-medium", statusTextColor)}>
+				<span className={cn("text-[11px] font-medium", statusTextColor)}>
 					{statusText}
 				</span>
 				<span
-					className="rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.06em]"
+					className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em]"
 					style={{
 						color: "var(--color-accent)",
 						background: "color-mix(in srgb, var(--color-accent) 12%, transparent)",
@@ -507,14 +507,14 @@ export function ConversationViewer({
 								container.scrollTop = container.scrollHeight;
 							}
 						}}
-						className="text-[10px] text-[var(--color-accent)] hover:underline"
+						className="text-[11px] text-[var(--color-accent)] hover:underline"
 					>
 						scroll to bottom
 					</button>
 				)}
 				<button
 					onClick={() => setFullscreen(!fullscreen)}
-					className="ml-auto flex items-center gap-1 rounded px-2 py-0.5 text-[11px] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-text-primary)]"
+					className="ml-auto flex items-center gap-1 rounded px-2 py-0.5 text-[12px] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-text-primary)]"
 				>
 					{fullscreen ? (
 						<>

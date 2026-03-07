@@ -141,13 +141,13 @@ function IssuesList({ pr }: { pr: DashboardPR }) {
 
 	return (
 		<div className="space-y-1.5">
-			<h4 className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">
+			<h4 className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">
 				Blockers
 			</h4>
 			{issues.map((issue) => (
 				<div key={issue.text} className="flex items-center gap-2.5 text-[12px]">
 					<span
-						className="w-3 shrink-0 text-center text-[11px]"
+						className="w-3 shrink-0 text-center text-[12px]"
 						style={{ color: issue.color }}
 					>
 						{issue.icon}
@@ -271,7 +271,7 @@ export function PRCard({ pr, sessionId }: { pr: DashboardPR; sessionId: string }
 				>
 					PR #{pr.number}: {pr.title}
 				</a>
-				<div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
+				<div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px]">
 					<span>
 						<span className="text-[var(--color-status-ready)]">
 							+{pr.additions}
@@ -296,7 +296,7 @@ export function PRCard({ pr, sessionId }: { pr: DashboardPR; sessionId: string }
 								&middot;
 							</span>
 							<span
-								className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+								className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
 								style={{
 									color: "#a371f7",
 									background: "rgba(163,113,247,0.12)",
@@ -344,10 +344,10 @@ export function PRCard({ pr, sessionId }: { pr: DashboardPR; sessionId: string }
 				{/* Unresolved comments */}
 				{pr.unresolvedComments.length > 0 && (
 					<div className="mt-4 border-t border-[var(--color-border-subtle)] pt-4">
-						<h4 className="mb-2.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">
+						<h4 className="mb-2.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">
 							Unresolved Comments
 							<span
-								className="rounded-full px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal"
+								className="rounded-full px-1.5 py-0.5 text-[11px] font-bold normal-case tracking-normal"
 								style={{ color: "#f85149", background: "rgba(248,81,73,0.12)" }}
 							>
 								{pr.unresolvedThreads}
@@ -379,13 +379,13 @@ export function PRCard({ pr, sessionId }: { pr: DashboardPR; sessionId: string }
 												target="_blank"
 												rel="noopener noreferrer"
 												onClick={(e) => e.stopPropagation()}
-												className="ml-auto text-[10px] text-[var(--color-accent)] hover:underline"
+												className="ml-auto text-[11px] text-[var(--color-accent)] hover:underline"
 											>
 												view →
 											</a>
 										</summary>
 										<div className="ml-5 mt-1 space-y-1.5 px-2 pb-2">
-											<div className="font-[var(--font-mono)] text-[10px] text-[var(--color-text-tertiary)]">
+											<div className="font-[var(--font-mono)] text-[11px] text-[var(--color-text-tertiary)]">
 												{c.path}
 											</div>
 											<p className="border-l-2 border-[var(--color-border-default)] pl-3 text-[12px] leading-relaxed text-[var(--color-text-secondary)]">
@@ -395,7 +395,7 @@ export function PRCard({ pr, sessionId }: { pr: DashboardPR; sessionId: string }
 												onClick={() => handleAskAgentToFix(c)}
 												disabled={sendingComments.has(c.url)}
 												className={cn(
-													"mt-1.5 rounded-[4px] px-3 py-1 text-[11px] font-semibold transition-all",
+													"mt-1.5 rounded-[4px] px-3 py-1 text-[12px] font-semibold transition-all",
 													sentComments.has(c.url)
 														? "bg-[var(--color-status-ready)] text-white"
 														: errorComments.has(c.url)

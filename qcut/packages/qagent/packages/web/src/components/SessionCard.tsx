@@ -202,7 +202,7 @@ export function SessionCard({
 									setEditingLabel(false);
 								}
 							}}
-							className="w-28 rounded border border-[var(--color-accent)] bg-transparent px-1 py-0 font-[var(--font-mono)] text-[11px] text-[var(--color-text-primary)] outline-none"
+							className="w-28 rounded border border-[var(--color-accent)] bg-transparent px-1 py-0 font-[var(--font-mono)] text-[12px] text-[var(--color-text-primary)] outline-none"
 							placeholder="label…"
 						/>
 					) : session.label ? (
@@ -212,7 +212,7 @@ export function SessionCard({
 								setLabelDraft(session.label ?? "");
 								setEditingLabel(true);
 							}}
-							className="truncate rounded px-1 py-0 text-[11px] font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg-subtle)]"
+							className="truncate rounded px-1 py-0 text-[12px] font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg-subtle)]"
 							title="Click to edit label"
 						>
 							{session.label}
@@ -224,13 +224,13 @@ export function SessionCard({
 								setLabelDraft("");
 								setEditingLabel(true);
 							}}
-							className="hidden rounded px-1 py-0 text-[10px] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-text-muted)] group-hover:inline-block"
+							className="hidden rounded px-1 py-0 text-[11px] text-[var(--color-text-tertiary)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-text-muted)] group-hover:inline-block"
 							title="Add label"
 						>
 							+label
 						</button>
 					)}
-					<span className="font-[var(--font-mono)] text-[11px] tracking-wide text-[var(--color-text-muted)]">
+					<span className="font-[var(--font-mono)] text-[12px] tracking-wide text-[var(--color-text-muted)]">
 						{session.label ? `(${session.id})` : session.id}
 					</span>
 				</div>
@@ -246,7 +246,7 @@ export function SessionCard({
 							e.stopPropagation();
 							onRestore?.(session.id);
 						}}
-						className="rounded border border-[rgba(88,166,255,0.35)] px-2 py-0.5 text-[11px] text-[var(--color-accent)] transition-colors hover:bg-[rgba(88,166,255,0.1)]"
+						className="rounded border border-[rgba(88,166,255,0.35)] px-2 py-0.5 text-[12px] text-[var(--color-accent)] transition-colors hover:bg-[rgba(88,166,255,0.1)]"
 					>
 						restore
 					</button>
@@ -267,7 +267,7 @@ export function SessionCard({
 							});
 						}}
 						disabled={gititState === "loading"}
-						className="rounded border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-2.5 py-0.5 text-[11px] text-[var(--color-text-muted)] transition-colors hover:border-[rgba(136,192,208,0.5)] hover:text-[rgba(136,192,208,0.9)] hover:no-underline disabled:opacity-50"
+						className="rounded border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-2.5 py-0.5 text-[12px] text-[var(--color-text-muted)] transition-colors hover:border-[rgba(136,192,208,0.5)] hover:text-[rgba(136,192,208,0.9)] hover:no-underline disabled:opacity-50"
 					>
 						{gititState === "loading" ? "…" : gititState === "done" ? "✓" : gititState === "error" ? "✗" : "gitit"}
 					</button>
@@ -288,7 +288,7 @@ export function SessionCard({
 							});
 						}}
 						disabled={mergeitState === "loading"}
-						className="rounded border border-[rgba(63,185,80,0.3)] bg-[rgba(63,185,80,0.06)] px-2.5 py-0.5 text-[11px] text-[rgba(63,185,80,0.7)] transition-colors hover:border-[rgba(63,185,80,0.6)] hover:text-[rgba(63,185,80,1)] hover:no-underline disabled:opacity-50"
+						className="rounded border border-[rgba(63,185,80,0.3)] bg-[rgba(63,185,80,0.06)] px-2.5 py-0.5 text-[12px] text-[rgba(63,185,80,0.7)] transition-colors hover:border-[rgba(63,185,80,0.6)] hover:text-[rgba(63,185,80,1)] hover:no-underline disabled:opacity-50"
 					>
 						{mergeitState === "loading" ? "…" : mergeitState === "done" ? "✓" : mergeitState === "error" ? "✗" : "mergeit"}
 					</button>
@@ -309,7 +309,7 @@ export function SessionCard({
 							});
 						}}
 						disabled={pritState === "loading"}
-						className="rounded border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.06)] px-2.5 py-0.5 text-[11px] text-[rgba(245,158,11,0.7)] transition-colors hover:border-[rgba(245,158,11,0.6)] hover:text-[rgba(245,158,11,1)] hover:no-underline disabled:opacity-50"
+						className="rounded border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.06)] px-2.5 py-0.5 text-[12px] text-[rgba(245,158,11,0.7)] transition-colors hover:border-[rgba(245,158,11,0.6)] hover:text-[rgba(245,158,11,1)] hover:no-underline disabled:opacity-50"
 					>
 						{pritState === "loading" ? "…" : pritState === "done" ? "✓" : pritState === "error" ? "✗" : "prit"}
 					</button>
@@ -330,7 +330,7 @@ export function SessionCard({
 							});
 						}}
 						disabled={builditState === "loading"}
-						className="rounded border border-[rgba(139,92,246,0.3)] bg-[rgba(139,92,246,0.06)] px-2.5 py-0.5 text-[11px] text-[rgba(139,92,246,0.7)] transition-colors hover:border-[rgba(139,92,246,0.6)] hover:text-[rgba(139,92,246,1)] hover:no-underline disabled:opacity-50"
+						className="rounded border border-[rgba(139,92,246,0.3)] bg-[rgba(139,92,246,0.06)] px-2.5 py-0.5 text-[12px] text-[rgba(139,92,246,0.7)] transition-colors hover:border-[rgba(139,92,246,0.6)] hover:text-[rgba(139,92,246,1)] hover:no-underline disabled:opacity-50"
 					>
 						{builditState === "loading" ? "…" : builditState === "done" ? "✓" : builditState === "error" ? "✗" : "buildit"}
 					</button>
@@ -351,7 +351,7 @@ export function SessionCard({
 							});
 						}}
 						disabled={prtaskitState === "loading"}
-						className="rounded border border-[rgba(6,182,212,0.3)] bg-[rgba(6,182,212,0.06)] px-2.5 py-0.5 text-[11px] text-[rgba(6,182,212,0.7)] transition-colors hover:border-[rgba(6,182,212,0.6)] hover:text-[rgba(6,182,212,1)] hover:no-underline disabled:opacity-50"
+						className="rounded border border-[rgba(6,182,212,0.3)] bg-[rgba(6,182,212,0.06)] px-2.5 py-0.5 text-[12px] text-[rgba(6,182,212,0.7)] transition-colors hover:border-[rgba(6,182,212,0.6)] hover:text-[rgba(6,182,212,1)] hover:no-underline disabled:opacity-50"
 					>
 						{prtaskitState === "loading" ? "…" : prtaskitState === "done" ? "✓" : prtaskitState === "error" ? "✗" : "prtaskit"}
 					</button>
@@ -364,7 +364,7 @@ export function SessionCard({
 							setTerminalOpen((prev) => !prev);
 						}}
 						className={cn(
-							"rounded border px-2.5 py-0.5 text-[11px] transition-colors hover:no-underline",
+							"rounded border px-2.5 py-0.5 text-[12px] transition-colors hover:no-underline",
 							terminalOpen
 								? "border-[var(--color-accent)] text-[var(--color-accent)] bg-[rgba(88,166,255,0.1)]"
 								: "border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] text-[var(--color-text-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
@@ -392,7 +392,7 @@ export function SessionCard({
 			{/* Meta row: branch + PR pills + CPU + terminal app */}
 			<div className="flex flex-wrap items-center gap-1.5 px-4 pb-2.5">
 				{session.branch && (
-					<span className="inline-flex items-center gap-1.5 rounded-[4px] bg-[rgba(136,192,208,0.08)] px-1.5 py-0.5 text-[10px]">
+					<span className="inline-flex items-center gap-1.5 rounded-[4px] bg-[rgba(136,192,208,0.08)] px-1.5 py-0.5 text-[11px]">
 						<span className="text-[var(--color-text-tertiary)]">branch</span>
 						<span className="font-[var(--font-mono)] text-[rgba(136,192,208,0.75)]">
 							{session.branch}
@@ -400,14 +400,14 @@ export function SessionCard({
 					</span>
 				)}
 				{session.branch && pr && (
-					<span className="text-[9px] text-[var(--color-border-strong)]">
+					<span className="text-[10px] text-[var(--color-border-strong)]">
 						&middot;
 					</span>
 				)}
 				{pr && <PRStatus pr={pr} />}
 				{totalTokensLabel && (
 					<span
-						className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(88,166,255,0.1)] px-1.5 py-0.5 text-[10px] text-[var(--color-accent)]"
+						className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(88,166,255,0.1)] px-1.5 py-0.5 text-[11px] text-[var(--color-accent)]"
 						title={`${inputTokensLabel} in · ${outputTokensLabel} out`}
 					>
 						<span className="font-[var(--font-mono)]">{totalTokensLabel} tok</span>
@@ -422,7 +422,7 @@ export function SessionCard({
 					</span>
 				)}
 				{session.metadata?.pid && (
-					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
+					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[11px]">
 						<span className="text-[var(--color-text-tertiary)]">pid</span>
 						<span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">
 							{session.metadata.pid}
@@ -430,7 +430,7 @@ export function SessionCard({
 					</span>
 				)}
 				{(session.metadata?.cwd || session.metadata?.worktree) && (
-					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
+					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[11px]">
 						<span className="text-[var(--color-text-tertiary)]">cwd</span>
 						<span className="font-[var(--font-mono)] text-[var(--color-text-muted)] truncate max-w-[200px]" title={session.metadata.cwd || session.metadata.worktree}>
 							{(session.metadata.cwd || session.metadata.worktree || "").split("/").slice(-2).join("/")}
@@ -438,7 +438,7 @@ export function SessionCard({
 					</span>
 				)}
 				{session.metadata?.terminalApp && (
-					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
+					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[11px]">
 						<svg className="h-2.5 w-2.5 text-[var(--color-text-tertiary)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
 							<path d="M4 17l6-5-6-5M12 19h8" />
 						</svg>
@@ -457,7 +457,7 @@ export function SessionCard({
 				)}
 				{session.metadata?.cpu && parseFloat(session.metadata.cpu) > 0 && (
 					<span
-						className="inline-flex items-center gap-1 rounded-[4px] px-1.5 py-0.5 font-[var(--font-mono)] text-[10px] tabular-nums"
+						className="inline-flex items-center gap-1 rounded-[4px] px-1.5 py-0.5 font-[var(--font-mono)] text-[11px] tabular-nums"
 						style={{
 							color: parseFloat(session.metadata.cpu) > 50
 								? "var(--color-status-error)"
@@ -482,7 +482,7 @@ export function SessionCard({
 			{/* Rate limited indicator */}
 			{rateLimited && pr?.state === "open" && (
 				<div className="px-4 pb-3">
-					<span className="inline-flex items-center gap-1 text-[10px] text-[var(--color-text-muted)]">
+					<span className="inline-flex items-center gap-1 text-[11px] text-[var(--color-text-muted)]">
 						<svg
 							className="h-3 w-3 text-[var(--color-text-tertiary)]"
 							fill="none"
@@ -540,7 +540,7 @@ export function SessionCard({
 										rel="noopener noreferrer"
 										onClick={(e) => e.stopPropagation()}
 										className={cn(
-											"inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-medium hover:brightness-125 hover:no-underline",
+											"inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[12px] font-medium hover:brightness-125 hover:no-underline",
 											alert.className
 										)}
 									>
@@ -556,7 +556,7 @@ export function SessionCard({
 												handleAction(alert.key, alert.actionMessage ?? "");
 											}}
 											disabled={sendingAction === alert.key}
-											className="rounded border border-[rgba(88,166,255,0.25)] px-2 py-0.5 text-[11px] text-[var(--color-accent)] transition-colors hover:bg-[rgba(88,166,255,0.1)] disabled:opacity-50"
+											className="rounded border border-[rgba(88,166,255,0.25)] px-2 py-0.5 text-[12px] text-[var(--color-accent)] transition-colors hover:bg-[rgba(88,166,255,0.1)] disabled:opacity-50"
 										>
 											{sendingAction === alert.key
 												? "sent!"
@@ -575,7 +575,7 @@ export function SessionCard({
 				<div className="border-t border-[var(--color-border-subtle)]">
 					{pr && (
 						<div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--color-border-subtle)] bg-[rgba(255,255,255,0.02)]">
-							<span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">PR</span>
+							<span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">PR</span>
 							<a
 								href={pr.url}
 								target="_blank"
@@ -585,7 +585,7 @@ export function SessionCard({
 							>
 								#{pr.number} {pr.title}
 							</a>
-							<span className="text-[11px] text-[var(--color-text-muted)]">
+							<span className="text-[12px] text-[var(--color-text-muted)]">
 								<span className="text-[var(--color-status-ready)]">+{pr.additions}</span>{" "}
 								<span className="text-[var(--color-status-error)]">-{pr.deletions}</span>
 							</span>
@@ -661,14 +661,14 @@ export function SessionCard({
 										<span className="w-3 shrink-0 text-center text-[var(--color-status-error)]">
 											●
 										</span>
-										<span className="min-w-0 flex-1 truncate font-[var(--font-mono)] text-[10px] text-[var(--color-text-secondary)]">
+										<span className="min-w-0 flex-1 truncate font-[var(--font-mono)] text-[11px] text-[var(--color-text-secondary)]">
 											{c.path}
 										</span>
 										<a
 											href={c.url}
 											target="_blank"
 											rel="noopener noreferrer"
-											className="shrink-0 text-[11px] text-[var(--color-accent)] hover:underline"
+											className="shrink-0 text-[12px] text-[var(--color-accent)] hover:underline"
 										>
 											view →
 										</a>
@@ -719,7 +719,7 @@ export function SessionCard({
 											: "Codex"}{" "}
 										session — not tracked by qagent.
 									</p>
-									<p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+									<p className="mt-1 text-[12px] text-[var(--color-text-muted)]">
 										PID {session.metadata.pid}
 										{session.metadata.tty ? ` · ${session.metadata.tty}` : ""}
 										{session.metadata.cwd ? ` · ${session.metadata.cwd}` : ""}
@@ -730,7 +730,7 @@ export function SessionCard({
 									<p className="text-[12px] text-[var(--color-text-tertiary)]">
 										Unmanaged tmux session — not tracked by qagent.
 									</p>
-									<p className="mt-1 text-[11px] text-[var(--color-text-muted)]">
+									<p className="mt-1 text-[12px] text-[var(--color-text-muted)]">
 										{session.metadata.windows} window
 										{session.metadata.windows !== "1" ? "s" : ""}
 										{session.metadata.attached === "true" ? " · attached" : ""}
@@ -747,7 +747,7 @@ export function SessionCard({
 									e.stopPropagation();
 									onRestore?.(session.id);
 								}}
-								className="rounded border border-[rgba(88,166,255,0.35)] px-2.5 py-1 text-[11px] text-[var(--color-accent)] transition-colors hover:bg-[rgba(88,166,255,0.1)]"
+								className="rounded border border-[rgba(88,166,255,0.35)] px-2.5 py-1 text-[12px] text-[var(--color-accent)] transition-colors hover:bg-[rgba(88,166,255,0.1)]"
 							>
 								restore session
 							</button>
@@ -758,7 +758,7 @@ export function SessionCard({
 									e.stopPropagation();
 									onKill?.(session.id);
 								}}
-								className="rounded border border-[rgba(239,68,68,0.35)] px-2.5 py-1 text-[11px] text-[var(--color-status-error)] transition-colors hover:bg-[rgba(239,68,68,0.1)]"
+								className="rounded border border-[rgba(239,68,68,0.35)] px-2.5 py-1 text-[12px] text-[var(--color-status-error)] transition-colors hover:bg-[rgba(239,68,68,0.1)]"
 							>
 								terminate
 							</button>
@@ -780,7 +780,7 @@ function DetailSection({
 }) {
 	return (
 		<div className="mb-2.5">
-			<div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">
+			<div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-tertiary)]">
 				{label}
 			</div>
 			{children}
