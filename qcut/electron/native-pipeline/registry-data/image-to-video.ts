@@ -543,6 +543,53 @@ export function registerImageToVideoModels(): void {
 	});
 
 	ModelRegistry.register({
+		key: "ltx23_fast_i2v",
+		name: "LTX Video 2.3 Fast I2V",
+		provider: "Lightricks (via FAL)",
+		endpoint: "fal-ai/ltx-2.3/image-to-video/fast",
+		categories: ["image_to_video"],
+		description:
+			"Image-to-video with 4K, audio, and end-frame transitions (6-20s)",
+		pricing: {
+			type: "per_second",
+			cost_1080p: 0.04,
+			cost_1440p: 0.08,
+			cost_2160p: 0.16,
+		},
+		durationOptions: ["6", "8", "10", "12", "14", "16", "18", "20"],
+		aspectRatios: ["16:9", "9:16", "auto"],
+		resolutions: ["1080p", "1440p", "2160p"],
+		defaults: {
+			duration: 6,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+			fps: 25,
+			generate_audio: true,
+		},
+		features: [
+			"audio_generation",
+			"4k_resolution",
+			"long_duration",
+			"end_frame",
+			"aspect_ratio",
+			"fps_control",
+			"fast_processing",
+		],
+		maxDuration: 20,
+		extendedParams: ["start_frame", "end_frame", "audio_generate"],
+		extendedFeatures: {
+			start_frame: true,
+			end_frame: true,
+			ref_images: false,
+			audio_input: false,
+			audio_generate: true,
+			ref_video: false,
+		},
+		costEstimate: 0.24,
+		processingTime: 60,
+	});
+
+	ModelRegistry.register({
 		key: "grok_imagine_i2v",
 		name: "xAI Grok Imagine Video",
 		provider: "xAI (via FAL)",

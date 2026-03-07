@@ -290,6 +290,7 @@ export function AIImageTab({
 	const viduQ2Selected = selectedModels.includes("vidu_q2_turbo_i2v");
 	const ltxv2I2VSelected = selectedModels.includes("ltxv2_i2v");
 	const ltxv2ImageSelected = selectedModels.includes("ltxv2_fast_i2v");
+	const ltx23I2VSelected = selectedModels.includes("ltx23_fast_i2v");
 	const ltxv2FastTextSelected = selectedModels.includes("ltxv2_fast_t2v");
 	const seedanceFastSelected = selectedModels.includes("seedance_pro_fast_i2v");
 	const seedanceProSelected = selectedModels.includes("seedance_pro_i2v");
@@ -390,6 +391,24 @@ export function AIImageTab({
 					generateAudio={ltxv2ImageGenerateAudio}
 					onGenerateAudioChange={onLTXV2ImageGenerateAudioChange}
 					isCompact={isCompact}
+				/>
+			)}
+
+			{/* LTX 2.3 Fast I2V Settings */}
+			{ltx23I2VSelected && (
+				<AiLtx23Settings
+					variant="fast"
+					mode="i2v"
+					duration={ltx23I2VDuration}
+					onDurationChange={onLTX23I2VDurationChange}
+					resolution={ltx23I2VResolution}
+					onResolutionChange={onLTX23I2VResolutionChange}
+					fps={ltx23I2VFPS}
+					onFpsChange={onLTX23I2VFPSChange}
+					generateAudio={ltx23I2VGenerateAudio}
+					onGenerateAudioChange={onLTX23I2VGenerateAudioChange}
+					aspectRatio={ltx23I2VAspectRatio}
+					onAspectRatioChange={onLTX23I2VAspectRatioChange}
 				/>
 			)}
 

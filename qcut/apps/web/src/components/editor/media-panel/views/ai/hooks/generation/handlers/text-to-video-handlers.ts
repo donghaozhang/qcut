@@ -261,11 +261,11 @@ export async function handleLTX23FastT2V(
 		const response = await generateLTX23TextVideo({
 			model: ctx.modelId,
 			prompt: ctx.prompt,
-			duration: settings.ltx23Duration as LTX23Duration,
-			resolution: settings.ltx23Resolution as LTX23Resolution,
-			fps: settings.ltx23FPS as LTX23FPS,
-			generate_audio: settings.ltx23GenerateAudio,
-			aspect_ratio: settings.ltx23AspectRatio as LTX23AspectRatio,
+			duration: settings.ltx23FastDuration as LTX23Duration,
+			resolution: settings.ltx23FastResolution as LTX23Resolution,
+			fps: settings.ltx23FastFPS as LTX23FPS,
+			generate_audio: settings.ltx23FastGenerateAudio,
+			aspect_ratio: settings.ltx23FastAspectRatio as LTX23AspectRatio,
 		});
 
 		ctx.progressCallback({

@@ -108,8 +108,11 @@ function getTextToVideoDurationSeconds({
 	if (modelId === "ltxv2_fast_t2v") {
 		return settings.ltxv2FastDuration;
 	}
-	if (modelId === "ltx23_pro_t2v" || modelId === "ltx23_fast_t2v") {
+	if (modelId === "ltx23_pro_t2v") {
 		return settings.ltx23Duration;
+	}
+	if (modelId === "ltx23_fast_t2v") {
+		return settings.ltx23FastDuration;
 	}
 	if (modelId === "wan_26_t2v") {
 		return settings.wan26T2VDuration;

@@ -114,6 +114,26 @@ export function AITabsContent({
 					onLTXV2FastFPSChange={textSetters.setLTXV2FastFPS}
 					ltxv2FastGenerateAudio={textState.ltxv2FastGenerateAudio}
 					onLTXV2FastGenerateAudioChange={textSetters.setLTXV2FastGenerateAudio}
+					ltx23ProDuration={textState.ltx23ProDuration}
+					onLTX23ProDurationChange={textSetters.setLTX23ProDuration}
+					ltx23ProResolution={textState.ltx23ProResolution}
+					onLTX23ProResolutionChange={textSetters.setLTX23ProResolution}
+					ltx23ProFPS={textState.ltx23ProFPS}
+					onLTX23ProFPSChange={textSetters.setLTX23ProFPS}
+					ltx23ProGenerateAudio={textState.ltx23ProGenerateAudio}
+					onLTX23ProGenerateAudioChange={textSetters.setLTX23ProGenerateAudio}
+					ltx23ProAspectRatio={textState.ltx23ProAspectRatio}
+					onLTX23ProAspectRatioChange={textSetters.setLTX23ProAspectRatio}
+					ltx23FastDuration={textState.ltx23FastDuration}
+					onLTX23FastDurationChange={textSetters.setLTX23FastDuration}
+					ltx23FastResolution={textState.ltx23FastResolution}
+					onLTX23FastResolutionChange={textSetters.setLTX23FastResolution}
+					ltx23FastFPS={textState.ltx23FastFPS}
+					onLTX23FastFPSChange={textSetters.setLTX23FastFPS}
+					ltx23FastGenerateAudio={textState.ltx23FastGenerateAudio}
+					onLTX23FastGenerateAudioChange={textSetters.setLTX23FastGenerateAudio}
+					ltx23FastAspectRatio={textState.ltx23FastAspectRatio}
+					onLTX23FastAspectRatioChange={textSetters.setLTX23FastAspectRatio}
 				/>
 			</TabsContent>
 
@@ -165,6 +185,16 @@ export function AITabsContent({
 					onLTXV2I2VFPSChange={imageSetters.setLTXV2I2VFPS}
 					ltxv2I2VGenerateAudio={imageState.ltxv2I2V.generateAudio}
 					onLTXV2I2VGenerateAudioChange={imageSetters.setLTXV2I2VGenerateAudio}
+					ltx23I2VDuration={imageState.ltx23I2V.duration}
+					onLTX23I2VDurationChange={imageSetters.setLTX23I2VDuration}
+					ltx23I2VResolution={imageState.ltx23I2V.resolution}
+					onLTX23I2VResolutionChange={imageSetters.setLTX23I2VResolution}
+					ltx23I2VFPS={imageState.ltx23I2V.fps}
+					onLTX23I2VFPSChange={imageSetters.setLTX23I2VFPS}
+					ltx23I2VGenerateAudio={imageState.ltx23I2V.generateAudio}
+					onLTX23I2VGenerateAudioChange={imageSetters.setLTX23I2VGenerateAudio}
+					ltx23I2VAspectRatio={imageState.ltx23I2V.aspectRatio}
+					onLTX23I2VAspectRatioChange={imageSetters.setLTX23I2VAspectRatio}
 					ltxv2ImageDuration={imageState.ltxv2Image.duration}
 					onLTXV2ImageDurationChange={imageSetters.setLTXV2ImageDuration}
 					ltxv2ImageResolution={imageState.ltxv2Image.resolution}

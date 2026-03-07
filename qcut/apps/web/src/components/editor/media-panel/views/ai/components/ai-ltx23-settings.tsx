@@ -125,7 +125,7 @@ export function AiLtx23Settings({
 							const disabled =
 								isExtendedDuration &&
 								!extendedResolutions.includes(
-									r as (typeof extendedResolutions)[number],
+									r as (typeof extendedResolutions)[number]
 								);
 							return (
 								<SelectItem key={r} value={r} disabled={disabled}>
@@ -157,9 +157,7 @@ export function AiLtx23Settings({
 						{LTX23_CONFIG.FPS_OPTIONS.STANDARD.map((f) => {
 							const disabled =
 								isExtendedDuration &&
-								!extendedFps.includes(
-									f as (typeof extendedFps)[number],
-								);
+								!extendedFps.includes(f as (typeof extendedFps)[number]);
 							return (
 								<SelectItem key={f} value={f.toString()} disabled={disabled}>
 									{f} FPS
@@ -200,9 +198,7 @@ export function AiLtx23Settings({
 				<Checkbox
 					id={`${idPrefix}-audio`}
 					checked={generateAudio}
-					onCheckedChange={(checked) =>
-						onGenerateAudioChange(Boolean(checked))
-					}
+					onCheckedChange={(checked) => onGenerateAudioChange(Boolean(checked))}
 				/>
 				<Label htmlFor={`${idPrefix}-audio`} className="text-xs">
 					Generate audio

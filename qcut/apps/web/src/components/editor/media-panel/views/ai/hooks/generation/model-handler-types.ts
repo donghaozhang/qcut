@@ -45,6 +45,11 @@ export interface TextToVideoSettings {
 	ltx23FPS: number;
 	ltx23GenerateAudio: boolean;
 	ltx23AspectRatio: string;
+	ltx23FastDuration: number;
+	ltx23FastResolution: string;
+	ltx23FastFPS: number;
+	ltx23FastGenerateAudio: boolean;
+	ltx23FastAspectRatio: string;
 	unifiedParams: Record<string, unknown>;
 	duration?: number;
 	aspectRatio?: "16:9" | "9:16" | "1:1" | "4:3" | "3:4" | "21:9";

@@ -267,11 +267,23 @@ export async function spawnSession({
 		workflowContractPath,
 	});
 
+	// Write prompt to a file to avoid shell argument length limits and tmux scrollback flood.
+	// The agent plugin reads it via $(cat ...) shell substitution.
+	let promptFile: string | undefined;
+	const effectivePrompt = composedPrompt ?? spawnConfig.prompt;
+	if (effectivePrompt && config.configPath) {
+		const baseDir = getProjectBaseDir(config.configPath, project.path);
+		mkdirSync(baseDir, { recursive: true });
+		promptFile = join(baseDir, `${sessionId}-prompt.md`);
+		writeFileSync(promptFile, effectivePrompt, "utf-8");
+	}
+
 	const agentLaunchConfig = {
 		sessionId,
 		projectConfig: project,
 		issueId: spawnConfig.issueId,
-		prompt: composedPrompt ?? spawnConfig.prompt,
+		prompt: promptFile ? undefined : effectivePrompt,
+		promptFile,
 		permissions: project.agentConfig?.permissions,
 		model: project.agentConfig?.model,
 	};
