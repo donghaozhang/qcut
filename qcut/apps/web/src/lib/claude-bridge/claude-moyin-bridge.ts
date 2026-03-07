@@ -38,6 +38,25 @@ export function setupClaudeMoyinBridge(): void {
 		});
 	});
 
+	moyin.onGenerateScript((data) => {
+		if (!data.idea?.trim()) {
+			toast.error("Cannot generate: no idea/description provided");
+			return;
+		}
+		toast.info("Generate Script triggered via CLI");
+		useMoyinStore
+			.getState()
+			.generateScript(data.idea, {
+				genre: data.genre,
+				targetDuration: data.targetDuration,
+			})
+			.catch((err: unknown) => {
+				const message =
+					err instanceof Error ? err.message : "Unknown generate error";
+				toast.error(`Generate failed: ${message}`);
+			});
+	});
+
 	moyin.onStatusRequest((data) => {
 		const requestId = typeof data?.requestId === "string" ? data.requestId : "";
 		try {

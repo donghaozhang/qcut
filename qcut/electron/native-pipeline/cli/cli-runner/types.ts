@@ -29,6 +29,8 @@ export interface CLIRunOptions {
 	keyName?: string;
 	keyValue?: string;
 	idea?: string;
+	genre?: string;
+	targetDuration?: string;
 	script?: string;
 	novel?: string;
 	title?: string;

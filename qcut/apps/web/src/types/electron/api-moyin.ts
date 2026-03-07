@@ -43,6 +43,13 @@ export interface ElectronMoyinOps {
 		removeParseListener: () => void;
 		onSetScript: (callback: (data: { text: string }) => void) => void;
 		onTriggerParse: (callback: () => void) => void;
+		onGenerateScript: (
+			callback: (data: {
+				idea: string;
+				genre?: string;
+				targetDuration?: string;
+			}) => void
+		) => void;
 		onStatusRequest: (callback: (data: { requestId: string }) => void) => void;
 		sendStatusResponse: (
 			requestId: string,

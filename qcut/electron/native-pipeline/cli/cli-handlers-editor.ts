@@ -512,10 +512,24 @@ async function handleMoyinCommand(
 			const data = await client.get("/api/claude/moyin/status");
 			return { success: true, data };
 		}
+		case "generate": {
+			if (!options.idea) {
+				return {
+					success: false,
+					error:
+						"Missing --idea. Provide a description/idea for script generation.",
+				};
+			}
+			const body: Record<string, string> = { idea: options.idea };
+			if (options.genre) body.genre = options.genre;
+			if (options.targetDuration) body.targetDuration = options.targetDuration;
+			const data = await client.post("/api/claude/moyin/generate", body);
+			return { success: true, data };
+		}
 		default:
 			return {
 				success: false,
-				error: `Unknown moyin action: ${action}. Available: set-script, parse, status`,
+				error: `Unknown moyin action: ${action}. Available: set-script, parse, status, generate`,
 			};
 	}
 }
