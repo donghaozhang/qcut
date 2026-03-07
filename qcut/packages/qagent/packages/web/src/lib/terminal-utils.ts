@@ -400,18 +400,23 @@ export async function sendCursorText(
 	text: string,
 	terminalIndex: number | null,
 	appName: "Cursor" | "Code" = "Cursor",
+	terminalName?: string | null,
 ): Promise<boolean> {
-	const idx = terminalIndex ?? 0;
-
 	// Map app name to System Events process name
 	const processName = appName === "Code" ? "Code" : "Cursor";
+
+	// If we have a terminal name, search for it by name in command palette
+	// Otherwise fall back to index-based navigation
+	const navMethod = terminalName ? "name" : "index";
+	const idx = terminalIndex ?? 0;
 
 	const script = `
 on run argv
 set payload to item 1 of argv
 set appName to item 2 of argv
 set processName to item 3 of argv
-set idx to item 4 of argv as integer
+set navMethod to item 4 of argv
+set navTarget to item 5 of argv
 
 -- Save existing clipboard
 set prevClip to ""
@@ -429,27 +434,42 @@ delay 0.4
 
 tell application "System Events"
 	tell process processName
-		-- Use command palette to focus terminal WITHOUT creating a new one
-		-- (Ctrl+backtick creates a new terminal if panel is not focused)
-		keystroke "p" using {command down, shift down}
-		delay 0.5
-		keystroke "workbench.action.terminal.focus"
-		delay 0.5
-		key code 36
-		delay 0.6
+		if navMethod is "name" then
+			-- Switch to terminal by name using command palette
+			keystroke "p" using {command down, shift down}
+			delay 0.5
+			keystroke "Terminal: Switch Active Terminal"
+			delay 0.5
+			key code 36
+			delay 0.5
+			-- Type the terminal name to filter the picker
+			keystroke navTarget
+			delay 0.3
+			key code 36
+			delay 0.4
+		else
+			-- Focus terminal panel via command palette
+			keystroke "p" using {command down, shift down}
+			delay 0.5
+			keystroke "workbench.action.terminal.focus"
+			delay 0.5
+			key code 36
+			delay 0.6
 
-		-- Reset to first terminal tab (Ctrl+PageUp x20)
-		repeat 20 times
-			key code 116 using control down
-			delay 0.03
-		end repeat
+			-- Reset to first terminal tab (Ctrl+PageUp x20)
+			set idx to navTarget as integer
+			repeat 20 times
+				key code 116 using control down
+				delay 0.03
+			end repeat
 
-		-- Navigate forward to target index (Ctrl+PageDown x N)
-		repeat idx times
-			key code 121 using control down
-			delay 0.05
-		end repeat
-		delay 0.2
+			-- Navigate forward to target index (Ctrl+PageDown x N)
+			repeat idx times
+				key code 121 using control down
+				delay 0.05
+			end repeat
+			delay 0.2
+		end if
 
 		-- Paste and submit
 		keystroke "v" using command down
@@ -468,8 +488,8 @@ end run`;
 	try {
 		const { stdout } = await execFileAsync(
 			"osascript",
-			["-e", script, text, appName, processName, String(idx)],
-			{ timeout: 10_000 },
+			["-e", script, text, appName, processName, navMethod, terminalName ?? String(idx)],
+			{ timeout: 15_000 },
 		);
 		return stdout.trim() === "OK";
 	} catch {

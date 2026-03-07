@@ -52,9 +52,9 @@ export function Dashboard({
 		Record<string, string | null>
 	>({});
 
-	// Live activity/status overrides from SSE stream
+	// Live activity/status/branch/pr overrides from SSE stream
 	const [liveOverrides, setLiveOverrides] = useState<
-		Record<string, { status?: string; activity?: string }>
+		Record<string, { status?: string; activity?: string; branch?: string | null; pr?: DashboardPR | null }>
 	>({});
 
 	useEffect(() => {
@@ -67,17 +67,21 @@ export function Dashboard({
 						id: string;
 						status?: string;
 						activity?: string;
+						branch?: string | null;
+						pr?: DashboardPR | null;
 					}>;
 				};
 				if (data.type === "snapshot" && data.sessions) {
 					const overrides: Record<
 						string,
-						{ status?: string; activity?: string }
+						{ status?: string; activity?: string; branch?: string | null; pr?: DashboardPR | null }
 					> = {};
 					for (const s of data.sessions) {
 						overrides[s.id] = {
 							status: s.status,
 							activity: s.activity,
+							branch: s.branch,
+							pr: s.pr,
 						};
 					}
 					setLiveOverrides(overrides);
@@ -100,6 +104,8 @@ export function Dashboard({
 					...(label !== undefined ? { label } : {}),
 					...(live?.status ? { status: live.status as DashboardSession["status"] } : {}),
 					...(live?.activity ? { activity: live.activity as DashboardSession["activity"] } : {}),
+					...(live && "branch" in live ? { branch: live.branch } : {}),
+					...(live && "pr" in live ? { pr: live.pr } : {}),
 				};
 			}),
 		[initialSessions, labelOverrides, liveOverrides]
@@ -139,12 +145,19 @@ export function Dashboard({
 	}, [sortedVisibleSessions]);
 
 	const openPRs = useMemo(() => {
+		const seen = new Set<string>();
 		return visibleSessions
 			.filter(
 				(s): s is DashboardSession & { pr: DashboardPR } =>
 					s.pr?.state === "open"
 			)
 			.map((s) => s.pr)
+			.filter((pr) => {
+				const key = `${pr.owner}/${pr.repo}#${pr.number}`;
+				if (seen.has(key)) return false;
+				seen.add(key);
+				return true;
+			})
 			.sort((a, b) => mergeScore(a) - mergeScore(b));
 	}, [visibleSessions]);
 
@@ -434,10 +447,10 @@ export function Dashboard({
 
 			{/* Kanban columns for active zones */}
 			{hasKanbanSessions && (
-				<div className="mb-8 flex gap-4 overflow-x-auto pb-2">
+				<div className="mb-8 flex flex-col gap-4">
 					{KANBAN_LEVELS.map((level) =>
 						grouped[level].length > 0 ? (
-							<div key={level} className="min-w-[200px] flex-1">
+							<div key={level} className="">
 								<AttentionZone
 									level={level}
 									sessions={grouped[level]}

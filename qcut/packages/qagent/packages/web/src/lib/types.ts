@@ -192,7 +192,7 @@ export interface SSEActivityEvent {
  * may be stale defaults — don't make decisions based on them.
  */
 export function isPRRateLimited(pr: DashboardPR): boolean {
-	return pr.mergeability.blockers.includes("API rate limited or unavailable");
+	return pr.mergeability.blockers?.includes("API rate limited or unavailable") ?? false;
 }
 
 /** Determines which attention zone a session belongs to */

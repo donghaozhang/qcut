@@ -28,5 +28,15 @@ export interface ElectronLicenseOps {
 		clearAuthToken: () => Promise<boolean>;
 		onActivationToken: (callback: (token: string) => void) => () => void;
 		deactivate: () => Promise<boolean>;
+		emailLogin: (
+			email: string,
+			password: string
+		) => Promise<{ success: boolean; error?: string }>;
+		emailSignup: (
+			name: string,
+			email: string,
+			password: string
+		) => Promise<{ success: boolean; error?: string }>;
+		getGoogleLoginUrl: () => Promise<string>;
 	};
 }

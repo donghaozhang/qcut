@@ -126,8 +126,50 @@ export default async function Home() {
 		await Promise.race([Promise.allSettled(enrichPromises), enrichTimeout]);
 
 		// Merge with unmanaged tmux sessions, then unmanaged CLI agents
-		sessions = await mergeWithUnmanagedTmux(sessions);
+		const excludeFromTmux = orchestratorId ? new Set([orchestratorId]) : undefined;
+		sessions = await mergeWithUnmanagedTmux(sessions, excludeFromTmux);
 		sessions = await mergeWithUnmanagedCLI(sessions);
+
+		// Discover PRs for unmanaged sessions that have a branch but no PR
+		const firstProject = Object.values(config.projects)[0];
+		const discoverScm = firstProject ? getSCM(registry, firstProject) : null;
+		if (discoverScm && firstProject) {
+			const discoverPromises = sessions.map(async (s, i) => {
+				if (s.pr || !s.branch) return;
+				try {
+					const stubSession = { branch: s.branch } as import("@composio/ao-core").Session;
+					const prInfo = await discoverScm.detectPR(stubSession, firstProject);
+					if (prInfo) {
+						sessions[i].pr = {
+							number: prInfo.number,
+							url: prInfo.url,
+							title: prInfo.title,
+							owner: prInfo.owner,
+							repo: prInfo.repo,
+							branch: prInfo.branch,
+							baseBranch: prInfo.baseBranch,
+							isDraft: prInfo.isDraft,
+							state: "open",
+							additions: 0,
+							deletions: 0,
+							ciStatus: "none",
+							reviewDecision: "none",
+							ciChecks: [],
+							mergeability: { mergeable: false, noConflicts: true, ciPassing: false, approved: false, blockers: [] },
+							unresolvedThreads: 0,
+							unresolvedComments: [],
+						};
+						// Enrich with live data
+						await enrichSessionPR(sessions[i], discoverScm, prInfo);
+					}
+				} catch (err) {
+					console.error(`[pr-discover] ${s.id} error:`, err);
+				}
+			});
+			const discoverTimeout = new Promise<void>((r) => setTimeout(r, 3_000));
+			await Promise.race([Promise.allSettled(discoverPromises), discoverTimeout]);
+		}
+
 		await applyLabels(sessions);
 	} catch {
 		// Config not found or services unavailable — show empty dashboard

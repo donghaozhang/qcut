@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, Loader2 } from "lucide-react";
 import { GoogleIcon } from "@/components/icons";
 import { useSignUp } from "@/hooks/auth/useSignUp";
 
@@ -29,8 +29,10 @@ const SignUpPageComponent = () => {
 		isAnyLoading,
 		isEmailLoading,
 		isGoogleLoading,
+		isWaitingForBrowser,
 		handleSignUp,
 		handleGoogleSignUp,
+		cancelBrowserSignup,
 	} = useSignUp();
 
 	return (
@@ -66,19 +68,35 @@ const SignUpPageComponent = () => {
 									<AlertDescription>{error}</AlertDescription>
 								</Alert>
 							)}
-							<Button
-								onClick={handleGoogleSignUp}
-								variant="outline"
-								size="lg"
-								disabled={isAnyLoading}
-							>
-								{isGoogleLoading ? (
-									<Loader2 className="animate-spin" />
-								) : (
-									<GoogleIcon />
-								)}{" "}
-								Continue with Google
-							</Button>
+							{isWaitingForBrowser ? (
+								<div className="flex flex-col items-center gap-3 py-2">
+									<div className="flex items-center gap-2 text-sm text-muted-foreground">
+										<ExternalLink className="h-4 w-4" />
+										Complete sign-up in your browser
+									</div>
+									<Button
+										variant="text"
+										size="sm"
+										onClick={cancelBrowserSignup}
+									>
+										Cancel
+									</Button>
+								</div>
+							) : (
+								<Button
+									onClick={handleGoogleSignUp}
+									variant="outline"
+									size="lg"
+									disabled={isAnyLoading}
+								>
+									{isGoogleLoading ? (
+										<Loader2 className="animate-spin" />
+									) : (
+										<GoogleIcon />
+									)}{" "}
+									Continue with Google
+								</Button>
+							)}
 							<div className="relative">
 								<div className="absolute inset-0 flex items-center">
 									<Separator className="w-full" />

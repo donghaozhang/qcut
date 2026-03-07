@@ -34,7 +34,7 @@ const CODEX_WRAPPER_RE = /(?:^|\s)--agent(?:=|\s+)codex(?:\s|$)/;
 async function discoverCLIProcesses(): Promise<CLIProcess[]> {
 	let stdout: string;
 	try {
-		const result = await execFileAsync("ps", ["-eo", "pid,tty,args"], {
+		const result = await execFileAsync("ps", ["-eo", "pid,ppid,tty,args"], {
 			timeout: 5_000,
 		});
 		stdout = result.stdout;
@@ -42,15 +42,24 @@ async function discoverCLIProcesses(): Promise<CLIProcess[]> {
 		return [];
 	}
 
+	// Build a map of pid → args for parent lookups
+	const pidArgs = new Map<number, string>();
+	const lines = stdout.split("\n");
+	for (const line of lines) {
+		const m = line.trim().match(/^(\d+)\s+(\d+)\s+\S+\s+(.+)$/);
+		if (m) pidArgs.set(parseInt(m[1]!, 10), m[3]!);
+	}
+
 	const processes: CLIProcess[] = [];
-	for (const line of stdout.split("\n")) {
+	for (const line of lines) {
 		const trimmed = line.trimStart();
 		const cols = trimmed.split(/\s+/);
-		if (cols.length < 3) continue;
+		if (cols.length < 4) continue;
 
 		const pid = parseInt(cols[0]!, 10);
-		const tty = cols[1]!;
-		const args = cols.slice(2).join(" ");
+		const ppid = parseInt(cols[1]!, 10);
+		const tty = cols[2]!;
+		const args = cols.slice(3).join(" ");
 
 		// Skip background processes (Claude Desktop, daemons)
 		if (tty === "??" || tty === "-") continue;
@@ -61,6 +70,10 @@ async function discoverCLIProcesses(): Promise<CLIProcess[]> {
 		// Skip Claude Desktop API-mode instances (spawned by Claude Desktop, not user CLI)
 		if (args.includes("--output-format stream-json")) continue;
 		if (args.includes("--permission-prompt-tool stdio")) continue;
+
+		// Skip processes spawned by Electron (QCut app's built-in Claude)
+		const parentArgs = pidArgs.get(ppid) ?? "";
+		if (parentArgs.includes("Electron") || parentArgs.includes(".app/Contents/")) continue;
 
 		const agent = resolveAgentFromArgs({ args });
 
@@ -105,11 +118,11 @@ async function getTmuxPaneTTYs(): Promise<Set<string>> {
 		for (const line of stdout.split("\n")) {
 			const tty = line.trim();
 			if (tty) {
-				// ps shows short TTY (e.g. "s009"), tmux shows full path (e.g. "/dev/ttys009")
-				// Normalize: extract the short form
-				const short = tty.replace(/^\/dev\/tty/, "");
-				ttys.add(short);
-				ttys.add(tty);
+				// tmux shows "/dev/ttys012", ps shows "ttys012"
+				// Add all forms: full path, with "tty" prefix, short
+				ttys.add(tty);                                  // /dev/ttys012
+				ttys.add(tty.replace(/^\/dev\//, ""));          // ttys012
+				ttys.add(tty.replace(/^\/dev\/tty/, ""));       // s012
 			}
 		}
 		return ttys;

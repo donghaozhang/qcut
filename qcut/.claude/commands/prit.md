@@ -1,2 +1,1 @@
-# Create a project command
-echo ".claude/skills/pr-comments/SKILL.md use this skill to export preprocess current pr"
+Read .claude/skills/pr-comments/SKILL.md and use that skill to export and preprocess the current PR comments.

@@ -1,2 +1,1 @@
-# Create a project command
-echo ".claude/skills/pr-comments/SKILL.md use this skill to process all tasks one by one, fix resolve git"
+Read .claude/skills/pr-comments/SKILL.md and use that skill to process all PR tasks one by one. Fix issues, resolve comments, and commit with git.

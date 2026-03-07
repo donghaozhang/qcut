@@ -42,6 +42,12 @@ export function Header({ variant = "default" }: HeaderProps) {
 				>
 					Blog
 				</a>
+				<Link
+					to="/login"
+					className={`text-sm p-0 transition-colors ${isDark ? "text-neutral-400 hover:text-white" : "text-muted-foreground hover:text-foreground"}`}
+				>
+					Sign in
+				</Link>
 			</div>
 			<Link to="/projects">
 				<Button
