@@ -379,7 +379,7 @@ export function PtyTerminalView() {
 			)}
 
 			{/* Terminal Area — all sessions mounted, only active visible */}
-			<div className="flex-1 min-h-0 bg-[#1a1a1a] overflow-hidden relative">
+			<div className="flex-1 min-h-0 bg-terminal-bg overflow-hidden relative">
 				{hasSessions ? (
 					sessionOrder.map((tabId) => {
 						const session = sessions.get(tabId);

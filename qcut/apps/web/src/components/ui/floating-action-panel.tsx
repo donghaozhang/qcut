@@ -266,7 +266,7 @@ export const FloatingActionPanelCheckbox = React.forwardRef<
 			id={id}
 			onClick={handleClick}
 			className={cn(
-				"peer h-4 w-4 shrink-0 rounded border border-gray-300 shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#05c7c7] disabled:cursor-not-allowed disabled:opacity-50 bg-transparent data-[state=checked]:bg-[#05c7c7] data-[state=checked]:border-[#05c7c7] data-[state=checked]:text-white",
+				"peer h-4 w-4 shrink-0 rounded border border-gray-300 shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-50 bg-transparent data-[state=checked]:bg-[var(--brand)] data-[state=checked]:border-[var(--brand)] data-[state=checked]:text-white",
 				className
 			)}
 		>
@@ -336,7 +336,7 @@ export function FloatingActionPanelModelOption({
 			tabIndex={0}
 			className={`flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 hover:bg-opacity-50 rounded-md cursor-pointer transition-colors border ${
 				checked
-					? "bg-transparent border-[#05c7c7]/50"
+					? "bg-transparent border-[var(--brand)]/50"
 					: "bg-transparent border-gray-100 dark:border-gray-700"
 			}`}
 			onClick={handleToggle}
@@ -365,7 +365,7 @@ export function FloatingActionPanelModelOption({
 			)}
 			<label
 				className={`text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 font-medium cursor-pointer flex-1 ${
-					checked ? "text-[#05c7c7]" : "text-gray-900 dark:text-gray-100"
+					checked ? "text-[var(--brand)]" : "text-gray-900 dark:text-gray-100"
 				}`}
 				htmlFor={id}
 			>

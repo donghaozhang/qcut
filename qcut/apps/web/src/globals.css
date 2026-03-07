@@ -42,6 +42,19 @@
 	--sidebar-border: hsl(0 0% 89.8%);
 	--sidebar-ring: hsl(0 0% 3.9%);
 
+	/* Brand accent */
+	--brand: hsl(180 96% 40%);
+
+	/* Terminal palette (always dark, theme-independent) */
+	--terminal-bg: hsl(0 0% 10%);
+	--terminal-header: hsl(0 0% 13.3%);
+	--terminal-border: hsl(0 0% 20%);
+	--terminal-fg: hsl(0 0% 88%);
+	--terminal-muted: hsl(0 0% 53%);
+
+	/* Timeline clip background */
+	--timeline-clip: hsl(183 100% 16%);
+
 	/* Radius base */
 	--radius: 1rem;
 }
@@ -178,6 +191,19 @@
   --color-panel: var(--panel-background);
   --color-panel-accent: var(--panel-accent);
 
+  /* Brand */
+  --color-brand: var(--brand);
+
+  /* Terminal */
+  --color-terminal-bg: var(--terminal-bg);
+  --color-terminal-header: var(--terminal-header);
+  --color-terminal-border: var(--terminal-border);
+  --color-terminal-fg: var(--terminal-fg);
+  --color-terminal-muted: var(--terminal-muted);
+
+  /* Timeline */
+  --color-timeline-clip: var(--timeline-clip);
+
   /* Animations */
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
@@ -260,16 +286,16 @@
 }
 
 .xterm-viewport::-webkit-scrollbar-track {
-	background: #1a1a1a;
+	background: var(--terminal-bg);
 }
 
 .xterm-viewport::-webkit-scrollbar-thumb {
-	background: #3a3a3a;
+	background: var(--terminal-border);
 	border-radius: 4px;
 }
 
 .xterm-viewport::-webkit-scrollbar-thumb:hover {
-	background: #4a4a4a;
+	background: var(--terminal-muted);
 }
 
 /* Studio dashboard — animated background grid */

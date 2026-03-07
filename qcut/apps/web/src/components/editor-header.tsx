@@ -82,7 +82,7 @@ export function EditorHeader() {
 						data-testid="project-menu-button"
 					>
 						<ChevronDown className="text-muted-foreground" />
-						<span className="text-[0.85rem] mr-2">{activeProject?.name}</span>
+						<span className="text-[0.85rem] mr-2 truncate max-w-48">{activeProject?.name}</span>
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="start" className="w-40">

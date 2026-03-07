@@ -520,6 +520,8 @@ function createWindow(): void {
 	mainWindow = new BrowserWindow({
 		width: 1600,
 		height: 1000,
+		minWidth: 960,
+		minHeight: 640,
 		icon: path.join(
 			app.isPackaged ? process.resourcesPath : __dirname,
 			process.platform === "darwin"

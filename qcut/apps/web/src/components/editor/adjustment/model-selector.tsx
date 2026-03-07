@@ -39,7 +39,7 @@ export function ModelSelector() {
 								className={cn(
 									"w-full h-6 px-2 rounded-md border text-left cursor-pointer transition-all duration-200 flex items-center justify-between",
 									isSelected
-										? "bg-transparent text-[#05c7c7] border-[#05c7c7] shadow-sm"
+										? "bg-transparent text-[var(--brand)] border-[var(--brand)] shadow-sm"
 										: "bg-card hover:bg-muted/50 border-muted-foreground/20 hover:border-muted-foreground/40"
 								)}
 								onClick={() => setSelectedModel(model.id as ImageEditModelId)}
@@ -78,7 +78,7 @@ export function ModelSelector() {
 								<span
 									className={cn(
 										"text-[10px] font-medium ml-2 flex-shrink-0 border border-transparent",
-										isSelected ? "text-[#05c7c7]/80" : "text-muted-foreground"
+										isSelected ? "text-[var(--brand)]/80" : "text-muted-foreground"
 									)}
 								>
 									{model.estimatedCost}

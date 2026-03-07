@@ -34,7 +34,7 @@ const LoginPageComponent = () => {
 	} = useLogin();
 
 	return (
-		<div className="flex h-screen items-center justify-center relative">
+		<div className="flex h-screen items-center justify-center relative px-4">
 			<Button
 				variant="text"
 				onClick={() => navigate({ to: "/" })}
@@ -42,7 +42,7 @@ const LoginPageComponent = () => {
 			>
 				<ArrowLeft className="h-5 w-5" /> Back
 			</Button>
-			<Card className="w-[400px] shadow-lg border-0">
+			<Card className="w-full max-w-[400px] shadow-lg border-0">
 				<CardHeader className="text-center pb-4">
 					<CardTitle className="text-2xl font-semibold">Welcome back</CardTitle>
 					<CardDescription className="text-base">
