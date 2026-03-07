@@ -9,8 +9,9 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("@/stores/license-store", () => ({
-	useLicenseStore: (selector: (s: { checkLicense: () => Promise<void> }) => unknown) =>
-		selector({ checkLicense: mockCheckLicense }),
+	useLicenseStore: (
+		selector: (s: { checkLicense: () => Promise<void> }) => unknown
+	) => selector({ checkLicense: mockCheckLicense }),
 }));
 
 import { useLogin } from "../useLogin";
@@ -63,7 +64,10 @@ describe("useLogin", () => {
 
 			await act(() => result.current.handleLogin());
 
-			expect(mockLicenseApi.emailLogin).toHaveBeenCalledWith("test@example.com", "pass123");
+			expect(mockLicenseApi.emailLogin).toHaveBeenCalledWith(
+				"test@example.com",
+				"pass123"
+			);
 			expect(mockCheckLicense).toHaveBeenCalled();
 			expect(mockNavigate).toHaveBeenCalledWith({ to: "/projects" });
 			expect(result.current.isEmailLoading).toBe(false);
@@ -76,7 +80,9 @@ describe("useLogin", () => {
 
 			await act(() => result.current.handleLogin());
 
-			expect(result.current.error).toBe("Login is not available in this environment");
+			expect(result.current.error).toBe(
+				"Login is not available in this environment"
+			);
 			expect(result.current.isEmailLoading).toBe(false);
 		});
 
@@ -130,7 +136,7 @@ describe("useLogin", () => {
 
 			expect(mockLicenseApi.getGoogleLoginUrl).toHaveBeenCalled();
 			expect(window.electronAPI!.shell!.openExternal).toHaveBeenCalledWith(
-				"https://google.com/oauth",
+				"https://google.com/oauth"
 			);
 			expect(result.current.isWaitingForBrowser).toBe(true);
 			expect(result.current.isGoogleLoading).toBe(true);
@@ -142,7 +148,9 @@ describe("useLogin", () => {
 
 			await act(() => result.current.handleGoogleLogin());
 
-			expect(result.current.error).toBe("Google login is not available in this environment");
+			expect(result.current.error).toBe(
+				"Google login is not available in this environment"
+			);
 			expect(result.current.isGoogleLoading).toBe(false);
 		});
 
@@ -152,12 +160,16 @@ describe("useLogin", () => {
 
 			await act(() => result.current.handleGoogleLogin());
 
-			expect(result.current.error).toBe("Could not open browser for Google login");
+			expect(result.current.error).toBe(
+				"Could not open browser for Google login"
+			);
 			expect(result.current.isGoogleLoading).toBe(false);
 		});
 
 		it("catches thrown errors", async () => {
-			mockLicenseApi.getGoogleLoginUrl.mockRejectedValue(new Error("OAuth error"));
+			mockLicenseApi.getGoogleLoginUrl.mockRejectedValue(
+				new Error("OAuth error")
+			);
 			const { result } = renderHook(() => useLogin());
 
 			await act(() => result.current.handleGoogleLogin());
@@ -194,7 +206,9 @@ describe("useLogin", () => {
 	describe("deep link token listener", () => {
 		it("registers onActivationToken listener on mount", () => {
 			renderHook(() => useLogin());
-			expect(mockLicenseApi.onActivationToken).toHaveBeenCalledWith(expect.any(Function));
+			expect(mockLicenseApi.onActivationToken).toHaveBeenCalledWith(
+				expect.any(Function)
+			);
 		});
 
 		it("activates and navigates when token is received", async () => {
@@ -203,7 +217,7 @@ describe("useLogin", () => {
 				(cb: (token: string) => Promise<void>) => {
 					tokenCallback = cb;
 					return () => {};
-				},
+				}
 			);
 
 			renderHook(() => useLogin());
@@ -224,7 +238,7 @@ describe("useLogin", () => {
 				(cb: (token: string) => Promise<void>) => {
 					tokenCallback = cb;
 					return () => {};
-				},
+				}
 			);
 			mockLicenseApi.activate.mockRejectedValue(new Error("fail"));
 
@@ -234,7 +248,9 @@ describe("useLogin", () => {
 				await tokenCallback!("bad-token");
 			});
 
-			expect(result.current.error).toBe("Failed to activate license after login");
+			expect(result.current.error).toBe(
+				"Failed to activate license after login"
+			);
 		});
 
 		it("skips listener when onActivationToken is unavailable", () => {
@@ -260,7 +276,7 @@ describe("useLogin", () => {
 			mockLicenseApi.emailLogin.mockReturnValue(
 				new Promise((r) => {
 					resolveLogin = r;
-				}),
+				})
 			);
 
 			const { result } = renderHook(() => useLogin());
