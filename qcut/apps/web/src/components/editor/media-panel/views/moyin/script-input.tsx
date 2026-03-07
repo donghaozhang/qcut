@@ -220,7 +220,76 @@ export function ScriptInput() {
 			</div>
 
 			{/* Tab content */}
-			{activeTab === "import" ? (
+			{activeTab === "novel" && (
+				<div
+					id="tab-novel"
+					role="tabpanel"
+					aria-labelledby="tab-button-novel"
+					className="space-y-3"
+				>
+					<Textarea
+						value={novelText}
+						onChange={(e) => setNovelText(e.target.value)}
+						placeholder="Paste novel or story text here... AI will convert it into a screenplay."
+						className="min-h-[160px] resize-y text-sm font-mono"
+						disabled={isParsing}
+					/>
+
+					{!novelText.trim() && !isParsing && (
+						<div className="flex gap-2">
+							<Button
+								variant="outline"
+								size="sm"
+								className="flex-1"
+								onClick={() => setNovelText(EXAMPLE_NOVEL_EN)}
+							>
+								<BookOpenIcon className="mr-1.5 h-3.5 w-3.5" />
+								Try Example
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setNovelText(EXAMPLE_NOVEL_ZH)}
+							>
+								中文
+							</Button>
+						</div>
+					)}
+
+					{parseError && activeTab === "novel" && (
+						<div className="rounded-md border border-destructive/50 bg-destructive/10 p-2 text-xs text-destructive">
+							{parseError}
+						</div>
+					)}
+
+					<Button
+						onClick={() => parseNovel(novelText)}
+						disabled={!novelText.trim() || isParsing}
+						className="w-full"
+						size="sm"
+					>
+						{isParsing ? (
+							<>
+								<Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+								Converting...
+							</>
+						) : (
+							<>
+								<SparklesIcon className="mr-1.5 h-3.5 w-3.5" />
+								Convert to Screenplay
+							</>
+						)}
+					</Button>
+
+					<p className="text-xs text-muted-foreground">
+						AI will analyze characters, locations, and convert your story into
+						a structured screenplay.
+					</p>
+
+					<ImportProgress />
+				</div>
+			)}
+			{activeTab === "import" && (
 				<div
 					id="tab-import"
 					role="tabpanel"
@@ -311,7 +380,8 @@ export function ScriptInput() {
 
 					<ImportProgress />
 				</div>
-			) : (
+			)}
+			{activeTab === "create" && (
 				<div
 					id="tab-create"
 					role="tabpanel"
