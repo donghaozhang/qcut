@@ -20,12 +20,13 @@ const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 
 const dropdownMenuItemVariants = cva(
-	"relative flex cursor-pointer select-none items-center gap-2 px-2 py-1.5 text-sm outline-hidden transition-opacity data-disabled:pointer-events-none data-disabled:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0",
+	"relative flex cursor-pointer select-none items-center gap-2 px-2 py-1.5 text-sm outline-hidden data-disabled:pointer-events-none data-disabled:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0",
 	{
 		variants: {
 			variant: {
-				default: "focus:opacity-65 focus:text-accent-foreground",
-				destructive: "text-destructive focus:text-destructive/80",
+				default: "focus:bg-accent focus:text-accent-foreground",
+				destructive:
+					"text-destructive focus:bg-destructive/10 focus:text-destructive/80",
 			},
 		},
 		defaultVariants: {
@@ -45,7 +46,7 @@ const DropdownMenuSubTrigger = React.forwardRef<
 		ref={ref}
 		className={cn(
 			dropdownMenuItemVariants({ variant }),
-			"data-[state=open]:bg-accent data-[state=open]:opacity-65",
+			"data-[state=open]:bg-accent",
 			inset && "pl-8",
 			className
 		)}
@@ -204,7 +205,10 @@ const DropdownMenuShortcut = ({
 }: React.HTMLAttributes<HTMLSpanElement>) => {
 	return (
 		<span
-			className={cn("ml-auto text-xs tracking-widest opacity-60", className)}
+			className={cn(
+				"ml-auto text-xs tracking-widest text-muted-foreground",
+				className
+			)}
 			{...props}
 		/>
 	);

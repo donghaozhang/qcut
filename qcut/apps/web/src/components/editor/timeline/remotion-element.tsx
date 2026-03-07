@@ -310,7 +310,7 @@ export function RemotionTimelineElement({
 						{component.name}
 					</div>
 					{width > 80 && (
-						<div className="text-[10px] text-white/70 truncate">
+						<div className="text-[10px] text-white/80 truncate">
 							{component.category}
 						</div>
 					)}

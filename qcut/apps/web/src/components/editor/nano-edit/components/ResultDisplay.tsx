@@ -32,7 +32,7 @@ const ViewSwitcher: React.FC<ViewSwitcherProps> = ({
 					className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors duration-200 ${
 						viewMode === mode
 							? "bg-gradient-to-r from-orange-500 to-yellow-400 text-black"
-							: "text-gray-300 hover:bg-gray-700"
+							: "text-gray-200 hover:bg-gray-700"
 					}`}
 				>
 					{mode.replace("-", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
@@ -228,7 +228,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
 								className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors duration-200 ${
 									twoStepViewMode === mode
 										? "bg-gradient-to-r from-orange-500 to-yellow-400 text-black"
-										: "text-gray-300 hover:bg-gray-700"
+										: "text-gray-200 hover:bg-gray-700"
 								}`}
 							>
 								{mode.replace(/\b\w/g, (l) => l.toUpperCase())}
@@ -669,7 +669,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
 			</div>
 
 			{content.text && (
-				<p className="w-full text-center text-gray-400 bg-gray-900/50 p-3 rounded-md italic mt-4">
+				<p className="w-full text-center text-gray-300 bg-gray-900/50 p-3 rounded-md italic mt-4">
 					"{content.text}"
 				</p>
 			)}

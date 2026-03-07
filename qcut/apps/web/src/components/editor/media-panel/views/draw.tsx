@@ -102,8 +102,10 @@ function ImagePicker({
 			onDragLeave={() => setIsDragging(false)}
 			onDrop={handleDrop}
 		>
-			<ImageIcon className="w-12 h-12 text-gray-500 mb-4" />
-			<p className="text-gray-400 mb-2">Drop an image here to annotate</p>
+			<ImageIcon className="w-12 h-12 text-muted-foreground mb-4" />
+			<p className="text-muted-foreground mb-2">
+				Drop an image here to annotate
+			</p>
 			<Button variant="outline" size="sm" onClick={handleFileInput}>
 				<Upload className="w-4 h-4 mr-2" />
 				Choose Image
@@ -143,7 +145,7 @@ const DrawView: React.FC = () => {
 					<button
 						type="button"
 						onClick={() => setShowFiles(false)}
-						className="text-sm text-gray-400 hover:text-white px-3 py-1 rounded-md hover:bg-gray-700 transition-colors"
+						className="text-sm text-muted-foreground hover:text-foreground px-3 py-1 rounded-md hover:bg-muted transition-colors"
 					>
 						Back to Canvas
 					</button>

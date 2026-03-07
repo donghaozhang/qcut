@@ -305,7 +305,7 @@ const NanoEditMain: React.FC = () => {
 		(!isSingleImageReady && !isMultiImageReady);
 
 	return (
-		<div className="min-h-full bg-black text-gray-300">
+		<div className="min-h-full bg-black text-gray-200">
 			{selectedTransformation ? (
 				<div className="container mx-auto p-4 md:p-8 animate-fade-in">
 					<div className="mb-8">
@@ -351,7 +351,7 @@ const NanoEditMain: React.FC = () => {
 											className="w-full mt-2 p-3 bg-gray-900 border border-white/20 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors placeholder-gray-500"
 										/>
 									) : (
-										<p className="text-gray-400">
+										<p className="text-gray-300">
 											{selectedTransformation.description}
 										</p>
 									)}

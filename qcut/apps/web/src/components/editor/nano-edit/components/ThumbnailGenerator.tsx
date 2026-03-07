@@ -63,7 +63,7 @@ export const ThumbnailGenerator: React.FC = () => {
 				<div className="text-2xl">🖼️</div>
 				<div>
 					<h4 className="font-semibold text-white">Thumbnail Generator</h4>
-					<p className="text-sm text-gray-400">
+					<p className="text-sm text-gray-200">
 						Create eye-catching YouTube thumbnails
 					</p>
 				</div>
@@ -94,7 +94,7 @@ export const ThumbnailGenerator: React.FC = () => {
 			{/* Generated Thumbnails */}
 			{thumbnailAssets.length > 0 && (
 				<div className="space-y-3">
-					<h5 className="text-sm font-medium text-gray-300">
+					<h5 className="text-sm font-medium text-gray-200">
 						Generated Thumbnails ({thumbnailAssets.length})
 					</h5>
 					<div className="grid grid-cols-2 gap-3">
@@ -122,7 +122,7 @@ export const ThumbnailGenerator: React.FC = () => {
 						))}
 					</div>
 					{thumbnailAssets.length > 4 && (
-						<div className="text-xs text-gray-400 text-center">
+						<div className="text-xs text-gray-200 text-center">
 							+{thumbnailAssets.length - 4} more thumbnails
 						</div>
 					)}
@@ -130,7 +130,7 @@ export const ThumbnailGenerator: React.FC = () => {
 			)}
 
 			{/* Tips */}
-			<div className="text-xs text-gray-400 bg-gray-900 p-3 rounded">
+			<div className="text-xs text-gray-200 bg-gray-900 p-3 rounded">
 				<strong>💡 Tips:</strong> Be specific about colors, emotions, and key
 				elements. Examples: "bright red gaming setup", "smiling chef with fresh
 				vegetables"

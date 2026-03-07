@@ -146,7 +146,7 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 
 	if (!activeProject) {
 		return (
-			<div className={cn("p-4 text-center text-gray-400", className)}>
+			<div className={cn("p-4 text-center text-muted-foreground", className)}>
 				<FileImage size={48} className="mx-auto mb-2 opacity-50" />
 				<p>No active project</p>
 				<p className="text-sm">Open a project to save and load drawings</p>
@@ -158,7 +158,7 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 		<div className={cn("p-4 h-full flex flex-col space-y-4", className)}>
 			{/* Storage Stats */}
 			{storageStats && storageStats.count > 0 && (
-				<div className="text-xs text-gray-400 flex items-center gap-4 pb-2">
+				<div className="text-xs text-muted-foreground flex items-center gap-4 pb-2">
 					<div className="flex items-center gap-1">
 						<HardDrive size={12} />
 						<span>{storageStats.count} drawings</span>
@@ -170,12 +170,12 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 			{/* Saved Drawings List */}
 			<div className="flex-1 overflow-y-auto">
 				{isLoading ? (
-					<div className="text-center py-8 text-gray-400">
-						<div className="w-6 h-6 border border-gray-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+					<div className="text-center py-8 text-muted-foreground">
+						<div className="w-6 h-6 border border-muted-foreground border-t-transparent rounded-full animate-spin mx-auto mb-2" />
 						<p className="text-sm">Loading...</p>
 					</div>
 				) : savedDrawings.length === 0 ? (
-					<div className="text-center py-8 text-gray-400">
+					<div className="text-center py-8 text-muted-foreground">
 						<FileImage size={32} className="mx-auto mb-2 opacity-50" />
 						<p className="text-sm">No saved drawings</p>
 						<p className="text-xs">
@@ -199,7 +199,7 @@ export const SavedDrawings: React.FC<SavedDrawingsProps> = ({
 										<p className="text-sm font-medium text-white truncate">
 											{drawing.metadata.filename}
 										</p>
-										<div className="flex items-center gap-2 text-xs text-gray-400">
+										<div className="flex items-center gap-2 text-xs text-muted-foreground">
 											<Calendar size={10} />
 											<span>{formatDate(drawing.metadata.created)}</span>
 											<span>-</span>

@@ -413,11 +413,11 @@ export function PtyTerminalView() {
 					})
 				) : (
 					<div className="h-full flex flex-col items-center justify-center text-muted-foreground">
-						<TerminalIcon className="h-12 w-12 mb-4 opacity-50" />
+						<TerminalIcon className="h-12 w-12 mb-4 opacity-70" />
 						<p className="text-sm">
 							Click Start to launch {CLI_PROVIDERS[cliProvider].name}
 						</p>
-						<p className="text-xs mt-1 opacity-70">
+						<p className="text-xs mt-1 opacity-80">
 							Select a provider above and click Start
 						</p>
 					</div>
@@ -447,7 +447,7 @@ function SessionPlaceholder({
 					<p className="text-sm font-medium text-foreground">
 						{session.activeSkill.name}
 					</p>
-					<p className="text-xs mt-1 opacity-70">
+					<p className="text-xs mt-1 opacity-80">
 						Click Start to run with {CLI_PROVIDERS[cliProvider].name}
 					</p>
 					{cliProvider === "codex" && (
@@ -469,32 +469,32 @@ function SessionPlaceholder({
 			) : (
 				<>
 					{cliProvider === "gemini" && (
-						<Sparkles className="h-12 w-12 mb-4 opacity-50" />
+						<Sparkles className="h-12 w-12 mb-4 opacity-70" />
 					)}
 					{cliProvider === "codex" && (
-						<Bot className="h-12 w-12 mb-4 opacity-50" />
+						<Bot className="h-12 w-12 mb-4 opacity-70" />
 					)}
 					{cliProvider === "claude" && (
-						<MessageSquare className="h-12 w-12 mb-4 opacity-50" />
+						<MessageSquare className="h-12 w-12 mb-4 opacity-70" />
 					)}
 					{cliProvider === "shell" && (
-						<TerminalIcon className="h-12 w-12 mb-4 opacity-50" />
+						<TerminalIcon className="h-12 w-12 mb-4 opacity-70" />
 					)}
 					<p className="text-sm">
 						Click Start to launch {CLI_PROVIDERS[cliProvider].name}
 					</p>
 					{cliProvider === "gemini" && (
-						<p className="text-xs mt-1 opacity-70">
+						<p className="text-xs mt-1 opacity-80">
 							Requires Google account authentication on first use
 						</p>
 					)}
 					{cliProvider === "codex" && (
-						<p className="text-xs mt-1 opacity-70">
+						<p className="text-xs mt-1 opacity-80">
 							Requires OpenRouter API key in Settings
 						</p>
 					)}
 					{cliProvider === "claude" && (
-						<p className="text-xs mt-1 opacity-70">
+						<p className="text-xs mt-1 opacity-80">
 							Uses Claude Pro/Max login (API key optional)
 						</p>
 					)}

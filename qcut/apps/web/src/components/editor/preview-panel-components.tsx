@@ -117,7 +117,7 @@ export function FullscreenToolbar({
 					disabled={!hasAnyElements}
 					className="text-white/90 hover:bg-white/10"
 				/>
-				<span className="opacity-50">/</span>
+				<span className="opacity-70">/</span>
 				<span>
 					{formatTimeCode(
 						totalDuration,
@@ -248,7 +248,7 @@ export function FullscreenPreview({
 				>
 					{renderBlurBackground()}
 					{activeElements.length === 0 ? (
-						<div className="absolute inset-0 flex items-center justify-center text-white/60">
+						<div className="absolute inset-0 flex items-center justify-center text-white/80">
 							No elements at current time
 						</div>
 					) : (
@@ -378,7 +378,7 @@ export function PreviewToolbar({
 						onTimeChange={seek}
 						disabled={!hasAnyElements}
 					/>
-					<span className="opacity-50">/</span>
+					<span className="opacity-70">/</span>
 					<span className="tabular-nums">
 						{formatTimeCode(
 							getTotalDuration(),

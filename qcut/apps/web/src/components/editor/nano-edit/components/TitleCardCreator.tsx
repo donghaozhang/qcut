@@ -46,7 +46,7 @@ export const TitleCardCreator: React.FC = () => {
 				<div className="text-2xl">🎬</div>
 				<div>
 					<h4 className="font-semibold text-white">Title Card Creator</h4>
-					<p className="text-sm text-gray-400">
+					<p className="text-sm text-gray-200">
 						Design professional title cards and intros
 					</p>
 				</div>
@@ -69,7 +69,7 @@ export const TitleCardCreator: React.FC = () => {
 			{/* Generated Title Cards */}
 			{titleCardAssets.length > 0 && (
 				<div className="space-y-3">
-					<h5 className="text-sm font-medium text-gray-300">
+					<h5 className="text-sm font-medium text-gray-200">
 						Generated Title Cards ({titleCardAssets.length})
 					</h5>
 					<div className="grid grid-cols-1 gap-3">
@@ -98,7 +98,7 @@ export const TitleCardCreator: React.FC = () => {
 						))}
 					</div>
 					{titleCardAssets.length > 3 && (
-						<div className="text-xs text-gray-400 text-center">
+						<div className="text-xs text-gray-200 text-center">
 							+{titleCardAssets.length - 3} more title cards
 						</div>
 					)}
@@ -106,7 +106,7 @@ export const TitleCardCreator: React.FC = () => {
 			)}
 
 			{/* Tips */}
-			<div className="text-xs text-gray-400 bg-gray-900 p-3 rounded">
+			<div className="text-xs text-gray-200 bg-gray-900 p-3 rounded">
 				<strong>💡 Tips:</strong> Include style preferences, colors, and mood.
 				Examples: "dark cinematic style", "bright corporate design", "retro 80s
 				aesthetic"

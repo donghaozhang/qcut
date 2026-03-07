@@ -322,7 +322,7 @@ const ImageEditorCanvas: React.FC<ImageEditorCanvasProps> = ({
 			</div>
 			{initialImageUrl && isMaskToolActive && (
 				<div className="p-3 bg-black/60 backdrop-blur-md rounded-lg flex flex-col gap-4 border border-white/10 animate-fade-in-fast">
-					<p className="text-xs text-gray-400 -mb-2">
+					<p className="text-xs text-gray-300 -mb-2">
 						Draw on the image to create a mask for localized edits.
 					</p>
 					<div className="flex items-center gap-4">

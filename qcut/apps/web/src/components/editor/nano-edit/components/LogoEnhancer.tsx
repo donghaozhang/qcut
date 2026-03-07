@@ -65,7 +65,7 @@ export const LogoEnhancer: React.FC = () => {
 				<div className="text-2xl">✨</div>
 				<div>
 					<h4 className="font-semibold text-white">Logo Enhancer</h4>
-					<p className="text-sm text-gray-400">
+					<p className="text-sm text-gray-200">
 						Create or enhance logos and brand assets
 					</p>
 				</div>
@@ -73,7 +73,7 @@ export const LogoEnhancer: React.FC = () => {
 
 			{/* File Upload (Optional) */}
 			<div className="space-y-2">
-				<label className="block text-sm font-medium text-gray-300">
+				<label className="block text-sm font-medium text-gray-200">
 					Upload Existing Logo (Optional)
 				</label>
 				<input
@@ -115,7 +115,7 @@ export const LogoEnhancer: React.FC = () => {
 			{/* Generated Logos */}
 			{logoAssets.length > 0 && (
 				<div className="space-y-3">
-					<h5 className="text-sm font-medium text-gray-300">
+					<h5 className="text-sm font-medium text-gray-200">
 						Generated Logos ({logoAssets.length})
 					</h5>
 					<div className="grid grid-cols-3 gap-3">
@@ -145,7 +145,7 @@ export const LogoEnhancer: React.FC = () => {
 						))}
 					</div>
 					{logoAssets.length > 6 && (
-						<div className="text-xs text-gray-400 text-center">
+						<div className="text-xs text-gray-200 text-center">
 							+{logoAssets.length - 6} more logos
 						</div>
 					)}
@@ -153,7 +153,7 @@ export const LogoEnhancer: React.FC = () => {
 			)}
 
 			{/* Tips */}
-			<div className="text-xs text-gray-400 bg-gray-900 p-3 rounded">
+			<div className="text-xs text-gray-200 bg-gray-900 p-3 rounded">
 				<strong>💡 Tips:</strong>{" "}
 				{uploadedImage
 					? "Describe specific improvements or style changes you want to see."

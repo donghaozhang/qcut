@@ -20,12 +20,13 @@ const ContextMenuSub = ContextMenuPrimitive.Sub;
 const ContextMenuRadioGroup = ContextMenuPrimitive.RadioGroup;
 
 const contextMenuItemVariants = cva(
-	"relative flex cursor-pointer select-none items-center gap-2 px-2 py-1.5 text-sm outline-hidden transition-opacity data-disabled:pointer-events-none data-disabled:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0",
+	"relative flex cursor-pointer select-none items-center gap-2 px-2 py-1.5 text-sm outline-hidden data-disabled:pointer-events-none data-disabled:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0",
 	{
 		variants: {
 			variant: {
-				default: "focus:opacity-65 focus:text-accent-foreground",
-				destructive: "text-destructive focus:text-destructive/80",
+				default: "focus:bg-accent focus:text-accent-foreground",
+				destructive:
+					"text-destructive focus:bg-destructive/10 focus:text-destructive/80",
 			},
 		},
 		defaultVariants: {
@@ -45,7 +46,7 @@ const ContextMenuSubTrigger = React.forwardRef<
 		ref={ref}
 		className={cn(
 			contextMenuItemVariants({ variant }),
-			"data-[state=open]:bg-accent data-[state=open]:opacity-65",
+			"data-[state=open]:bg-accent",
 			inset && "pl-8",
 			className
 		)}
@@ -189,7 +190,10 @@ const ContextMenuShortcut = ({
 }: React.HTMLAttributes<HTMLSpanElement>) => {
 	return (
 		<span
-			className={cn("ml-auto text-xs tracking-widest opacity-60", className)}
+			className={cn(
+				"ml-auto text-xs tracking-widest text-muted-foreground",
+				className
+			)}
 			{...props}
 		/>
 	);

@@ -72,7 +72,7 @@ const TransformationSelector: React.FC<TransformationSelectorProps> = ({
 			<h2 className="text-3xl font-bold text-center mb-4 text-orange-500">
 				Let's Go Bananas!
 			</h2>
-			<p className="text-lg text-center text-gray-400 mb-8 max-w-2xl mx-auto">
+			<p className="text-lg text-center text-gray-300 mb-8 max-w-2xl mx-auto">
 				{hasPreviousResult
 					? "That was fun! Your last creation is ready for another round. Select a new effect to keep the chain going."
 					: "Ready to remix your reality? Pick an effect to start the magic. You can also drag and drop to reorder your favorite effects."}

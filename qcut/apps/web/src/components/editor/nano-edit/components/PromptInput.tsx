@@ -33,7 +33,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 			<div>
 				<label
 					htmlFor={inputId}
-					className="block text-sm font-medium text-gray-300 mb-2"
+					className="block text-sm font-medium text-gray-200 mb-2"
 				>
 					{label}
 				</label>
@@ -43,7 +43,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 					onChange={(e) => setPrompt(e.target.value)}
 					placeholder={placeholder}
 					disabled={isProcessing}
-					className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+					className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
 					rows={3}
 				/>
 			</div>

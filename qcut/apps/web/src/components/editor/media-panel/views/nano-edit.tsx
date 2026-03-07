@@ -40,7 +40,9 @@ const NanoEditView: FC = () => {
 						</a>
 					</div>
 				</div>
-				<p className="text-gray-400">AI-powered image and video enhancement</p>
+				<p className="text-muted-foreground">
+					AI-powered image and video enhancement
+				</p>
 			</div>
 
 			{/* Single content area (tabs removed) */}

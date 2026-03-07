@@ -164,7 +164,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 				</Button>
 			</div>
 
-			<div className="ml-auto text-xs text-gray-400">
+			<div className="ml-auto text-xs text-muted-foreground">
 				{TimelineIntegration.isAvailable() ? (
 					<span className="text-green-400">Timeline Ready</span>
 				) : (

@@ -37,7 +37,7 @@ function VideoPreview({ item }: MediaPreviewProps) {
 					{isGenerating ? "Generating..." : "Video"}
 				</span>
 				{item.duration && (
-					<span className="text-xs opacity-70">
+					<span className="text-xs opacity-80">
 						{formatDuration(item.duration)}
 					</span>
 				)}
@@ -106,7 +106,7 @@ export function MediaPreview({ item }: MediaPreviewProps) {
 				<Music className="h-6 w-6 mb-1" />
 				<span className="text-xs">Audio</span>
 				{item.duration && (
-					<span className="text-xs opacity-70">
+					<span className="text-xs opacity-80">
 						{formatDuration(item.duration)}
 					</span>
 				)}

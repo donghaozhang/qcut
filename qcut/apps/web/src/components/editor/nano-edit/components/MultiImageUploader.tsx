@@ -54,7 +54,7 @@ const UploaderBox: React.FC<UploaderBoxProps> = ({
 
 	return (
 		<div className="flex flex-col gap-2">
-			<h3 className="text-sm font-semibold text-gray-300">{title}</h3>
+			<h3 className="text-sm font-semibold text-gray-200">{title}</h3>
 			<div
 				onDrop={handleDrop}
 				onDragOver={handleDragOver}
