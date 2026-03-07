@@ -84,6 +84,7 @@ export function ProjectListRow({
 				<img
 					src={dynamicThumbnail}
 					alt="Project thumbnail"
+					loading="lazy"
 					className="w-full h-full object-cover"
 				/>
 			) : (

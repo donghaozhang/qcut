@@ -109,6 +109,7 @@ function StickerItem({
 							<img
 								src={imageUrl}
 								alt={name || icon}
+								loading="lazy"
 								className={cn(
 									"h-8 w-8 object-contain",
 									(isLoading || hasError) && "hidden"

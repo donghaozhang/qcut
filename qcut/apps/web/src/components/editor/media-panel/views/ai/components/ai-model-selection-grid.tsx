@@ -62,6 +62,7 @@ export function AIModelSelectionGrid({
 									<img
 										src={logo}
 										alt={`${getProviderName(model.id) ?? model.name} logo`}
+										loading="lazy"
 										className="w-5 h-5 shrink-0 rounded-sm"
 									/>
 								) : null;

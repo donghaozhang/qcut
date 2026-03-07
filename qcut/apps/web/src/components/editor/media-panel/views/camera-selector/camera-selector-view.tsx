@@ -27,6 +27,7 @@ function CameraItem({ cam, selected }: { cam: CameraBody; selected: boolean }) {
 				<img
 					src={cam.img}
 					alt={cam.name}
+					loading="lazy"
 					className="max-w-full max-h-full object-contain"
 				/>
 			</div>
@@ -52,6 +53,7 @@ function LensItem({ lens, selected }: { lens: Lens; selected: boolean }) {
 				<img
 					src={lens.img}
 					alt={lens.name}
+					loading="lazy"
 					className="max-w-full max-h-full object-contain"
 				/>
 			</div>
