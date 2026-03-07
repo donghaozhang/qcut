@@ -230,7 +230,7 @@ export function SessionCard({
 							+label
 						</button>
 					)}
-					<span className="font-[var(--font-mono)] text-[11px] tracking-wide text-[var(--color-text-muted)]">
+					<span className="font-[var(--font-mono)] text-[11px] tracking-wide text-[12px] text-[var(--color-text-secondary)]">
 						{session.label ? `(${session.id})` : session.id}
 					</span>
 				</div>
@@ -379,10 +379,10 @@ export function SessionCard({
 			<div className="px-4 pb-3">
 				<p
 					className={cn(
-						"leading-snug [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3] overflow-hidden",
+						"leading-[1.4] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3] overflow-hidden tracking-[-0.01em]",
 						level === "working"
-							? "text-[13px] font-medium text-[var(--color-text-secondary)]"
-							: "text-[14px] font-semibold text-[var(--color-text-primary)]"
+							? "text-[15px] font-medium text-[var(--color-text-secondary)]"
+							: "text-[16px] font-semibold text-[var(--color-text-primary)]"
 					)}
 				>
 					{title}
@@ -390,11 +390,11 @@ export function SessionCard({
 			</div>
 
 			{/* Meta row: branch + PR pills + CPU + terminal app */}
-			<div className="flex flex-wrap items-center gap-1.5 px-4 pb-2.5">
+			<div className="flex flex-wrap items-center gap-2 px-4 pb-2.5">
 				{session.branch && (
-					<span className="inline-flex items-center gap-1.5 rounded-[4px] bg-[rgba(136,192,208,0.08)] px-1.5 py-0.5 text-[10px]">
+					<span className="inline-flex items-center gap-1.5 rounded-[4px] bg-[rgba(136,192,208,0.08)] px-2 py-0.5 text-[11px]">
 						<span className="text-[var(--color-text-tertiary)]">branch</span>
-						<span className="font-[var(--font-mono)] text-[rgba(136,192,208,0.75)]">
+						<span className="font-[var(--font-mono)] text-[rgba(136,192,208,0.9)]">
 							{session.branch}
 						</span>
 					</span>
@@ -407,7 +407,7 @@ export function SessionCard({
 				{pr && <PRStatus pr={pr} />}
 				{totalTokensLabel && (
 					<span
-						className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(88,166,255,0.1)] px-1.5 py-0.5 text-[10px] text-[var(--color-accent)]"
+						className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(88,166,255,0.1)] px-2 py-0.5 text-[11px] text-[var(--color-accent)]"
 						title={`${inputTokensLabel} in · ${outputTokensLabel} out`}
 					>
 						<span className="font-[var(--font-mono)]">{totalTokensLabel} tok</span>
@@ -422,15 +422,15 @@ export function SessionCard({
 					</span>
 				)}
 				{session.metadata?.pid && (
-					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 text-[10px]">
+					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(255,255,255,0.04)] px-2 py-0.5 text-[11px]">
 						<span className="text-[var(--color-text-tertiary)]">pid</span>
-						<span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">
+						<span className="font-[var(--font-mono)] text-[var(--color-text-secondary)]">
 							{session.metadata.pid}
 						</span>
 					</span>
 				)}
 				{(session.metadata?.cwd || session.metadata?.worktree) && (
-					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(136,192,208,0.08)] px-1.5 py-0.5 text-[10px]">
+					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(136,192,208,0.08)] px-2 py-0.5 text-[11px]">
 						<span className="text-[rgba(136,192,208,0.5)]">cwd</span>
 						<span className="font-[var(--font-mono)] text-[rgba(136,192,208,0.85)] truncate max-w-[200px]" title={session.metadata.cwd || session.metadata.worktree}>
 							{(session.metadata.cwd || session.metadata.worktree || "").split("/").slice(-2).join("/")}
@@ -438,8 +438,8 @@ export function SessionCard({
 					</span>
 				)}
 				{session.metadata?.terminalApp && (
-					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(192,132,252,0.08)] px-1.5 py-0.5 text-[10px]">
-						<svg className="h-2.5 w-2.5 text-[rgba(192,132,252,0.5)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+					<span className="inline-flex items-center gap-1 rounded-[4px] bg-[rgba(192,132,252,0.08)] px-2 py-0.5 text-[11px]">
+						<svg className="h-3 w-3 text-[rgba(192,132,252,0.5)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
 							<path d="M4 17l6-5-6-5M12 19h8" />
 						</svg>
 						<span className="text-[rgba(192,132,252,0.85)]">
@@ -457,7 +457,7 @@ export function SessionCard({
 				)}
 				{session.metadata?.cpu && parseFloat(session.metadata.cpu) > 0 && (
 					<span
-						className="inline-flex items-center gap-1 rounded-[4px] px-1.5 py-0.5 font-[var(--font-mono)] text-[10px] tabular-nums"
+						className="inline-flex items-center gap-1 rounded-[4px] px-2 py-0.5 font-[var(--font-mono)] text-[11px] tabular-nums"
 						style={{
 							color: parseFloat(session.metadata.cpu) > 50
 								? "var(--color-status-error)"
