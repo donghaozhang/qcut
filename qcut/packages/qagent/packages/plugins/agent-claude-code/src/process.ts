@@ -11,6 +11,30 @@ import type { RuntimeHandle } from "@composio/ao-core";
 const execFileAsync = promisify(execFile);
 
 /**
+ * Short-lived cache for `ps -eo pid,tty,args` output.
+ * Multiple concurrent `isProcessRunning` calls (one per tmux session during
+ * lifecycle polling) share a single `ps` invocation instead of spawning N
+ * processes in parallel.  TTL is 5 seconds — long enough to coalesce a
+ * polling sweep, short enough to reflect reality.
+ */
+let psCache: { promise: Promise<string>; expiry: number } | null = null;
+
+export function getCachedPsList(): Promise<string> {
+	const now = Date.now();
+	if (psCache && now < psCache.expiry) return psCache.promise;
+	const promise = execFileAsync("ps", ["-eo", "pid,tty,args"], {
+		timeout: 5_000,
+	}).then((r) => r.stdout);
+	psCache = { promise, expiry: now + 5_000 };
+	return promise;
+}
+
+/** Invalidate the ps cache (useful for tests). */
+export function clearPsCache(): void {
+	psCache = null;
+}
+
+/**
  * Check if a process named "claude" is running in the given runtime handle's context.
  * Uses ps to find processes by TTY (for tmux) or by PID.
  */
@@ -36,13 +60,7 @@ export async function findClaudeProcess(
 			// Use `args` instead of `comm` so we can match the CLI name even when
 			// the process runs via a wrapper (e.g. node, python).  `comm` would
 			// report "node" instead of "claude" in those cases.
-			const { stdout: psOut } = await execFileAsync(
-				"ps",
-				["-eo", "pid,tty,args"],
-				{
-					timeout: 30_000,
-				}
-			);
+			const psOut = await getCachedPsList();
 			const ttySet = new Set(ttys.map((t) => t.replace(/^\/dev\//, "")));
 			// Match "claude" as a word boundary — prevents false positives on
 			// names like "claude-code" or paths that merely contain the substring.

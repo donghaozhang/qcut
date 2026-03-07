@@ -35,6 +35,7 @@ vi.mock("node:os", () => ({
 }));
 
 import { create, manifest, default as defaultExport } from "./index.js";
+import { clearPsCache } from "./process.js";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -122,6 +123,7 @@ function mockJsonlFiles(
 // ---------------------------------------------------------------------------
 beforeEach(() => {
 	vi.clearAllMocks();
+	clearPsCache();
 	mockHomedir.mockReturnValue("/mock/home");
 });
 
