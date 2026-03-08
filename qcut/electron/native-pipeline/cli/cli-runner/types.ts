@@ -175,6 +175,8 @@ export interface CLIRunOptions {
 	noCapabilityCheck?: boolean;
 	/** Export format (e.g. "mp4", "webm") */
 	format?: string;
+	/** Set value (e.g. for editor:auth:token --set) */
+	set?: string;
 }
 
 export interface CLIResult {

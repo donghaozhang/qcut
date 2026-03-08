@@ -303,8 +303,11 @@ export function startClaudeHTTPServer(
 				`Activation failed: ${text || response.statusText}`
 			);
 		}
-		const data = await response.json().catch(() => ({}));
-		return { success: true, ...data };
+		const data = (await response.json().catch(() => ({}))) as Record<
+			string,
+			unknown
+		>;
+		return { activated: true, ...data };
 	});
 
 	// ==========================================================================
