@@ -43,6 +43,31 @@ function getImageSize({ aspectRatio }: { aspectRatio: string }): { width: number
 	}
 }
 
+function buildPayload({
+	model,
+	prompt,
+	aspectRatio,
+}: {
+	model: string;
+	prompt: string;
+	aspectRatio: string;
+}): Record<string, unknown> {
+	if (model === "fal-ai/nano-banana-2") {
+		return {
+			prompt,
+			aspect_ratio: aspectRatio,
+			output_format: "png",
+			resolution: "2K",
+			limit_generations: true,
+		};
+	}
+
+	return {
+		prompt,
+		image_size: getImageSize({ aspectRatio }),
+	};
+}
+
 type FalResponse = {
 	images?: Array<{ url: string }>;
 	image?: { url: string };
@@ -138,10 +163,7 @@ export async function generateFalImage({
 	aspectRatio: string;
 }): Promise<Uint8Array> {
 	const apiKey = getApiKey();
-	const payload = {
-		prompt,
-		image_size: getImageSize({ aspectRatio }),
-	};
+	const payload = buildPayload({ model, prompt, aspectRatio });
 	const url = `${getBaseUrl()}/${model}`;
 
 	console.log(`Generating image with fal.ai (${model})...`);
