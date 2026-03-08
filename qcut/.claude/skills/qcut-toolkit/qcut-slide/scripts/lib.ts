@@ -8,11 +8,30 @@ export type Audience =
 	| "experts"
 	| "executives"
 	| "general";
+export type Texture = "clean" | "grid" | "organic" | "pixel" | "paper";
+export type Mood =
+	| "professional"
+	| "warm"
+	| "cool"
+	| "vibrant"
+	| "dark"
+	| "neutral";
+export type Typography =
+	| "geometric"
+	| "humanist"
+	| "handwritten"
+	| "editorial"
+	| "technical";
+export type Density = "minimal" | "balanced" | "dense";
 
 export interface CLIOptions {
 	input: string;
 	style?: string;
 	audience: Audience;
+	texture?: Texture;
+	mood?: Mood;
+	typography?: Typography;
+	density?: Density;
 	lang?: string;
 	slides?: number;
 	outlineOnly: boolean;
@@ -34,7 +53,12 @@ export interface AnalysisResult {
 	language: string;
 	audience: Audience;
 	style: string;
+	stylePreset?: string;
 	styleReason: string;
+	texture: Texture;
+	mood: Mood;
+	typography: Typography;
+	density: Density;
 	recommendedSlides: number;
 	targetSlides: number;
 	coreMessage: string;
@@ -72,6 +96,42 @@ const DEFAULT_STYLE = "blueprint";
 const DEFAULT_SLIDES = 10;
 const MIN_SLIDES = 5;
 const MAX_SLIDES = 30;
+const VALID_TEXTURES = ["clean", "grid", "organic", "pixel", "paper"] as const;
+const VALID_MOODS = ["professional", "warm", "cool", "vibrant", "dark", "neutral"] as const;
+const VALID_TYPOGRAPHIES = [
+	"geometric",
+	"humanist",
+	"handwritten",
+	"editorial",
+	"technical",
+] as const;
+const VALID_DENSITIES = ["minimal", "balanced", "dense"] as const;
+const PRESET_DIMENSIONS: Record<
+	string,
+	{
+		texture: Texture;
+		mood: Mood;
+		typography: Typography;
+		density: Density;
+	}
+> = {
+	blueprint: { texture: "grid", mood: "cool", typography: "technical", density: "balanced" },
+	chalkboard: { texture: "organic", mood: "warm", typography: "handwritten", density: "balanced" },
+	corporate: { texture: "clean", mood: "professional", typography: "geometric", density: "balanced" },
+	minimal: { texture: "clean", mood: "neutral", typography: "geometric", density: "minimal" },
+	"sketch-notes": { texture: "organic", mood: "warm", typography: "handwritten", density: "balanced" },
+	watercolor: { texture: "organic", mood: "warm", typography: "humanist", density: "minimal" },
+	"dark-atmospheric": { texture: "clean", mood: "dark", typography: "editorial", density: "balanced" },
+	notion: { texture: "clean", mood: "neutral", typography: "geometric", density: "dense" },
+	"bold-editorial": { texture: "clean", mood: "vibrant", typography: "editorial", density: "balanced" },
+	"editorial-infographic": { texture: "clean", mood: "cool", typography: "editorial", density: "dense" },
+	"fantasy-animation": { texture: "organic", mood: "vibrant", typography: "handwritten", density: "minimal" },
+	"intuition-machine": { texture: "clean", mood: "cool", typography: "technical", density: "dense" },
+	"pixel-art": { texture: "pixel", mood: "vibrant", typography: "technical", density: "balanced" },
+	scientific: { texture: "clean", mood: "cool", typography: "technical", density: "dense" },
+	"vector-illustration": { texture: "clean", mood: "vibrant", typography: "humanist", density: "balanced" },
+	vintage: { texture: "paper", mood: "warm", typography: "editorial", density: "balanced" },
+};
 
 const STYLE_SIGNAL_MAP: Array<{ preset: string; keywords: Array<string> }> = [
 	{ preset: "sketch-notes", keywords: ["tutorial", "learn", "education", "guide", "beginner"] },
@@ -97,6 +157,10 @@ export function parseArgs({ argv }: { argv: Array<string> }): CLIOptions {
 	let input = "";
 	let style: string | undefined;
 	let audience = DEFAULT_AUDIENCE;
+	let texture: Texture | undefined;
+	let mood: Mood | undefined;
+	let typography: Typography | undefined;
+	let density: Density | undefined;
 	let lang: string | undefined;
 	let slides: number | undefined;
 	let outlineOnly = false;
@@ -126,10 +190,51 @@ export function parseArgs({ argv }: { argv: Array<string> }): CLIOptions {
 		}
 
 		if (value === "--audience") {
-			const nextValue = args[index + 1] as Audience | undefined;
-			if (nextValue) {
-				audience = nextValue;
-			}
+			audience = parseEnum({
+				value: args[index + 1],
+				valid: ["beginners", "intermediate", "experts", "executives", "general"] as const,
+				flag: "--audience",
+			}) as Audience;
+			index += 1;
+			continue;
+		}
+
+		if (value === "--texture") {
+			texture = parseEnum({
+				value: args[index + 1],
+				valid: VALID_TEXTURES,
+				flag: "--texture",
+			}) as Texture;
+			index += 1;
+			continue;
+		}
+
+		if (value === "--mood") {
+			mood = parseEnum({
+				value: args[index + 1],
+				valid: VALID_MOODS,
+				flag: "--mood",
+			}) as Mood;
+			index += 1;
+			continue;
+		}
+
+		if (value === "--typography") {
+			typography = parseEnum({
+				value: args[index + 1],
+				valid: VALID_TYPOGRAPHIES,
+				flag: "--typography",
+			}) as Typography;
+			index += 1;
+			continue;
+		}
+
+		if (value === "--density") {
+			density = parseEnum({
+				value: args[index + 1],
+				valid: VALID_DENSITIES,
+				flag: "--density",
+			}) as Density;
 			index += 1;
 			continue;
 		}
@@ -201,6 +306,10 @@ export function parseArgs({ argv }: { argv: Array<string> }): CLIOptions {
 		input,
 		style,
 		audience,
+		texture,
+		mood,
+		typography,
+		density,
 		lang,
 		slides,
 		outlineOnly,
@@ -212,6 +321,24 @@ export function parseArgs({ argv }: { argv: Array<string> }): CLIOptions {
 		model,
 		dryRun,
 	};
+}
+
+function parseEnum({
+	value,
+	valid,
+	flag,
+}: {
+	value?: string;
+	valid: readonly string[];
+	flag: string;
+}): string {
+	if (!value?.trim()) {
+		throw new Error(`Missing value for ${flag}`);
+	}
+	if (!valid.includes(value as (typeof valid)[number])) {
+		throw new Error(`Invalid value for ${flag}: ${value}`);
+	}
+	return value;
 }
 
 export function parseSlideList({ value }: { value?: string }): Array<number> {
@@ -313,7 +440,7 @@ function detectStyle({
 	content: string;
 	explicit?: string;
 }): { preset: string; reason: string } {
-	if (explicit?.trim()) {
+	if (explicit?.trim() && explicit.trim() !== "custom") {
 		return { preset: explicit.trim(), reason: "explicit --style flag" };
 	}
 
@@ -325,6 +452,59 @@ function detectStyle({
 	}
 
 	return { preset: DEFAULT_STYLE, reason: "default fallback" };
+}
+
+function resolveStyleConfig({
+	content,
+	options,
+}: {
+	content: string;
+	options: CLIOptions;
+}): {
+	style: string;
+	stylePreset?: string;
+	styleReason: string;
+	texture: Texture;
+	mood: Mood;
+	typography: Typography;
+	density: Density;
+} {
+	const detected = detectStyle({ content, explicit: options.style });
+	const basePreset = PRESET_DIMENSIONS[detected.preset] ? detected.preset : DEFAULT_STYLE;
+	const base = PRESET_DIMENSIONS[basePreset];
+	const hasCustomDimensions = Boolean(
+		options.style === "custom" ||
+			options.texture ||
+			options.mood ||
+			options.typography ||
+			options.density,
+	);
+
+	const resolved = {
+		texture: options.texture || base.texture,
+		mood: options.mood || base.mood,
+		typography: options.typography || base.typography,
+		density: options.density || base.density,
+	};
+
+	if (hasCustomDimensions) {
+		return {
+			style: `custom:${resolved.texture}+${resolved.mood}+${resolved.typography}+${resolved.density}`,
+			stylePreset: undefined,
+			styleReason:
+				options.style === "custom"
+					? "explicit --style custom with dimension composition"
+					: `custom dimension override on preset ${basePreset}`,
+			...resolved,
+		};
+	}
+
+	return {
+		style: basePreset,
+		stylePreset: basePreset,
+		styleReason: detected.reason,
+		...resolved,
+	};
 }
 
 function extractSupportingPoints({ content }: { content: string }): Array<string> {
@@ -421,7 +601,7 @@ export function analyzeSource({ options }: { options: CLIOptions }): AnalysisRes
 	const rawContent = readFileSync(sourcePath, "utf8");
 	const content = stripFrontmatter({ content: rawContent });
 	const title = extractTitle({ content, sourcePath });
-	const styleResult = detectStyle({ content, explicit: options.style });
+	const styleConfig = resolveStyleConfig({ content, options });
 	const wordCount = content.split(/\s+/).filter(Boolean).length;
 	const recommended = recommendSlides({ wordCount });
 	const targetSlides = resolveSlideCount({ explicit: options.slides, recommended });
@@ -436,8 +616,13 @@ export function analyzeSource({ options }: { options: CLIOptions }): AnalysisRes
 		wordCount,
 		language: detectLanguage({ content, explicit: options.lang }),
 		audience: options.audience,
-		style: styleResult.preset,
-		styleReason: styleResult.reason,
+		style: styleConfig.style,
+		stylePreset: styleConfig.stylePreset,
+		styleReason: styleConfig.styleReason,
+		texture: styleConfig.texture,
+		mood: styleConfig.mood,
+		typography: styleConfig.typography,
+		density: styleConfig.density,
 		recommendedSlides: recommended,
 		targetSlides,
 		coreMessage: deriveCoreMessage({ title, supportingPoints }),
@@ -456,12 +641,84 @@ function styleReferencePath({ preset }: { preset: string }): string {
 	);
 }
 
-export function loadStyleInstructions({ preset }: { preset: string }): string {
-	const referencePath = styleReferencePath({ preset });
-	if (existsSync(referencePath)) {
-		return readFileSync(referencePath, "utf8").trim();
+function dimensionReferencePath({
+	name,
+}: {
+	name: "texture" | "mood" | "typography" | "density";
+}): string {
+	return resolve(import.meta.dir, "..", "references", "dimensions", `${name}.md`);
+}
+
+function extractDimensionSection({
+	name,
+	option,
+}: {
+	name: "texture" | "mood" | "typography" | "density";
+	option: string;
+}): string {
+	const referencePath = dimensionReferencePath({ name });
+	if (!existsSync(referencePath)) {
+		return `${name}: ${option}`;
 	}
-	return `# ${preset}\n\nUse a clear, high-contrast editorial slide style with disciplined layout, strong hierarchy, and legible text.`;
+
+	const content = readFileSync(referencePath, "utf8");
+	const marker = `### ${option}`;
+	const start = content.indexOf(marker);
+	if (start === -1) {
+		return `${name}: ${option}`;
+	}
+
+	const afterStart = content.slice(start + marker.length);
+	const nextHeading = afterStart.match(/\n###\s+/);
+	const end = nextHeading ? start + marker.length + (nextHeading.index ?? 0) : content.length;
+	return content.slice(start, end).trim();
+}
+
+export function loadStyleInstructions({
+	style,
+	stylePreset,
+	texture,
+	mood,
+	typography,
+	density,
+}: {
+	style: string;
+	stylePreset?: string;
+	texture: Texture;
+	mood: Mood;
+	typography: Typography;
+	density: Density;
+}): string {
+	if (stylePreset) {
+		const referencePath = styleReferencePath({ preset: stylePreset });
+		if (existsSync(referencePath)) {
+			return readFileSync(referencePath, "utf8").trim();
+		}
+	}
+
+	return [
+		`# ${style}`,
+		"",
+		"Custom dimension-composed slide style.",
+		"",
+		"## Dimension Summary",
+		`- Texture: ${texture}`,
+		`- Mood: ${mood}`,
+		`- Typography: ${typography}`,
+		`- Density: ${density}`,
+		"",
+		"## Texture",
+		extractDimensionSection({ name: "texture", option: texture }),
+		"",
+		"## Mood",
+		extractDimensionSection({ name: "mood", option: mood }),
+		"",
+		"## Typography",
+		extractDimensionSection({ name: "typography", option: typography }),
+		"",
+		"## Density",
+		extractDimensionSection({ name: "density", option: density }),
+	].join("\n");
 }
 
 function selectLayout({ section, index, total }: { section?: Section; index: number; total: number }): string {
@@ -591,6 +848,10 @@ export function writeAnalysis({
 		`- Recommended Slides: ${analysis.recommendedSlides}`,
 		`- Target Slides: ${analysis.targetSlides}`,
 		`- Style: ${analysis.style}`,
+		`- Texture: ${analysis.texture}`,
+		`- Mood: ${analysis.mood}`,
+		`- Typography: ${analysis.typography}`,
+		`- Density: ${analysis.density}`,
 		`- Style Reason: ${analysis.styleReason}`,
 		`- Core Message: ${analysis.coreMessage}`,
 		"",
@@ -729,7 +990,14 @@ export function planDeck({ options }: { options: CLIOptions }): DeckPlan {
 	const analysis = analyzeSource({ options });
 	const deckDir = resolveDeckDir({ analysis, outputDir: options.outputDir });
 	const promptsDir = join(deckDir, "prompts");
-	const styleInstructions = loadStyleInstructions({ preset: analysis.style });
+	const styleInstructions = loadStyleInstructions({
+		style: analysis.style,
+		stylePreset: analysis.stylePreset,
+		texture: analysis.texture,
+		mood: analysis.mood,
+		typography: analysis.typography,
+		density: analysis.density,
+	});
 	const slides = buildSlides({ analysis });
 
 	return {

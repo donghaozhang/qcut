@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildSlides, parseSlideList, slugify } from "./lib";
+import { buildSlides, loadStyleInstructions, parseArgs, parseSlideList, slugify } from "./lib";
 
 describe("qcut-slide helpers", () => {
 	test("parseSlideList deduplicates and sorts", () => {
@@ -46,5 +46,46 @@ describe("qcut-slide helpers", () => {
 		expect(slides[0]?.type).toBe("cover");
 		expect(slides.at(-1)?.type).toBe("closing");
 		expect(slides.length).toBeGreaterThanOrEqual(3);
+	});
+
+	test("parseArgs supports custom dimensions", () => {
+		const options = parseArgs({
+			argv: [
+				"bun",
+				"main.ts",
+				"article.md",
+				"--style",
+				"custom",
+				"--texture",
+				"paper",
+				"--mood",
+				"warm",
+				"--typography",
+				"editorial",
+				"--density",
+				"balanced",
+			],
+		});
+
+		expect(options.style).toBe("custom");
+		expect(options.texture).toBe("paper");
+		expect(options.mood).toBe("warm");
+		expect(options.typography).toBe("editorial");
+		expect(options.density).toBe("balanced");
+	});
+
+	test("loadStyleInstructions composes custom dimensions", () => {
+		const instructions = loadStyleInstructions({
+			style: "custom:paper+warm+editorial+balanced",
+			texture: "paper",
+			mood: "warm",
+			typography: "editorial",
+			density: "balanced",
+		});
+
+		expect(instructions).toContain("Custom dimension-composed slide style.");
+		expect(instructions).toContain("Texture: paper");
+		expect(instructions).toContain("### paper");
+		expect(instructions).toContain("### warm");
 	});
 });
