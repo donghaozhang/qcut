@@ -390,10 +390,21 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 					shotCount,
 					selectedStyleId,
 				});
+				// Preserve targetDuration so shot calibration can respect it
+				const currentSD = get().scriptData;
 				set({
 					rawScript: generatedText,
 					createStatus: "done",
 					createError: null,
+					scriptData: {
+						...(currentSD ?? {
+							title: "",
+							characters: [],
+							scenes: [],
+							episodes: [],
+						}),
+						targetDuration: options.targetDuration,
+					},
 				});
 			} catch (error) {
 				set({

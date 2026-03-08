@@ -64,12 +64,18 @@ export async function runCalibrationPipeline(
 		store.setState({ pipelineStep: step, pipelineProgress: progress });
 	};
 
-	// Set data immediately so user can see results while calibration runs
+	// Set data immediately so user can see results while calibration runs.
+	// Preserve targetDuration from the generate step if the parsed data lacks it.
+	const existingSD = store.getState().scriptData;
+	const mergedData = {
+		...data,
+		targetDuration: data.targetDuration ?? existingSD?.targetDuration,
+	};
 	store.setState({
-		scriptData: data,
-		characters: data.characters ?? [],
-		scenes: data.scenes ?? [],
-		episodes: data.episodes ?? [],
+		scriptData: mergedData,
+		characters: mergedData.characters ?? [],
+		scenes: mergedData.scenes ?? [],
+		episodes: mergedData.episodes ?? [],
 		shots: [],
 	});
 
