@@ -1,5 +1,8 @@
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
-import { buildShots, loadStyleInstructions, parseArgs, parseNumberList, slugify } from "./lib";
+import { analyzeSource, buildShots, loadStyleInstructions, parseArgs, parseNumberList, slugify } from "./lib";
 
 describe("qcut-shot helpers", () => {
 	test("parseNumberList deduplicates and sorts", () => {
@@ -92,5 +95,26 @@ describe("qcut-shot helpers", () => {
 		expect(instructions).toContain("Custom shot style composed from dimensions.");
 		expect(instructions).toContain("Framing: macro");
 		expect(instructions).toContain("### slider");
+	});
+
+	test("analyzeSource prefers recurring hero props from content", () => {
+		const dir = mkdtempSync(join(tmpdir(), "qcut-shot-test-"));
+		const source = join(dir, "arena.md");
+		writeFileSync(
+			source,
+			"# Arena\n\nThe contender sees giant screens above the arena and runs toward a bow. The bow becomes the only thing that matters.\n",
+		);
+
+		const analysis = analyzeSource({
+			options: {
+				input: source,
+				promptsOnly: false,
+				imagesOnly: false,
+				dryRun: true,
+			},
+		});
+
+		expect(analysis.visualAnchors.propId).toBe("bow-01");
+		expect(analysis.visualAnchors.propAnchor).toContain("same bow design");
 	});
 });

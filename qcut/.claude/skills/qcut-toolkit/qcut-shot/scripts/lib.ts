@@ -513,6 +513,23 @@ function firstMatchingTerm({
 	return null;
 }
 
+function preferredToken({
+	content,
+	fallbackTerms,
+	candidates,
+}: {
+	content: string;
+	fallbackTerms: Array<string>;
+	candidates: Array<string>;
+}): string | null {
+	for (const candidate of candidates) {
+		if (content.includes(candidate)) {
+			return candidate;
+		}
+	}
+	return firstMatchingTerm({ terms: fallbackTerms, candidates });
+}
+
 function buildVisualAnchors({
 	content,
 	title,
@@ -532,19 +549,22 @@ function buildVisualAnchors({
 	const terms = collectFrequentTerms({ text: `${title} ${content}` });
 	const lower = content.toLowerCase();
 	const subjectTerm =
-		firstMatchingTerm({
-			terms,
-			candidates: ["contender", "hero", "runner", "girl", "boy", "teen", "archer", "fighter", "survivor", "protagonist"],
+		preferredToken({
+			content: lower,
+			fallbackTerms: terms,
+			candidates: ["archer", "contender", "hero", "runner", "survivor", "fighter", "teen", "girl", "boy", "protagonist"],
 		}) ?? "contender";
 	const locationTerm =
-		firstMatchingTerm({
-			terms,
+		preferredToken({
+			content: lower,
+			fallbackTerms: terms,
 			candidates: ["arena", "valley", "platform", "forest", "city", "warehouse", "corridor", "stage", "lab"],
 		}) ?? "arena";
 	const propTerm =
-		firstMatchingTerm({
-			terms,
-			candidates: ["bow", "crate", "blade", "sword", "device", "screen", "drones", "rifle", "mask"],
+		preferredToken({
+			content: lower,
+			fallbackTerms: terms,
+			candidates: ["bow", "blade", "sword", "rifle", "mask", "device", "crate", "screen", "drones"],
 		}) ?? "signature gear";
 	const paletteSeed =
 		firstMatchingTerm({
@@ -566,8 +586,10 @@ function buildVisualAnchors({
 	].join(" ");
 	const propAnchor = [
 		`Keep the ${propTerm} visually consistent whenever it appears.`,
-		lower.includes("bow")
+		propTerm === "bow"
 			? "Use the same bow design, grip wrap, and survival-worn finish in every shot."
+			: propTerm === "screen"
+				? "Use the same giant arena screen design, support structure, and glow treatment across the sequence."
 			: "Do not swap the hero prop design between shots.",
 	].join(" ");
 	const continuityRules = [
@@ -1098,6 +1120,7 @@ function writePrompts({
 			"",
 			"## Rendering Rules",
 			"- One frame only.",
+			"- Fill the full frame edge to edge with no cinematic black bars or letterboxing.",
 			"- Maintain cinematic readability.",
 			"- No subtitles, UI, logos, or watermarks.",
 			`- Negative constraints: ${shot.negativePrompt}.`,
