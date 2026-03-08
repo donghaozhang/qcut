@@ -587,6 +587,14 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 		);
 	});
 
+	router.get("/api/claude/moyin/export", async () => {
+		return await withTimeout(
+			requestFromMain("moyin:export", {}),
+			10_000,
+			"Moyin export timed out"
+		);
+	});
+
 	// Auth check
 	/** Handle check auth. */
 	function checkAuth(req: IncomingMessage): boolean {

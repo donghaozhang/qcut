@@ -74,6 +74,7 @@ import {
 	requestTriggerParse,
 	requestGenerateScript,
 	requestMoyinStatus,
+	requestMoyinExport,
 } from "../claude/handlers/claude-moyin-handler.js";
 import { captureScreenshot } from "../claude/handlers/claude-screenshot-handler.js";
 import {
@@ -610,6 +611,10 @@ async function handleMainRequest(
 
 		case "moyin:status": {
 			return requestMoyinStatus(win);
+		}
+
+		case "moyin:export": {
+			return requestMoyinExport(win);
 		}
 
 		case "project:create": {

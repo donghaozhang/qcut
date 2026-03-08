@@ -175,6 +175,12 @@ async function getOnlineLicense(): Promise<LicenseInfo | null> {
 	}
 }
 
+/** Returns the current auth token (for HTTP API). */
+export { getAuthToken };
+
+/** Sets the in-memory auth token (for HTTP API). */
+export { setAuthToken };
+
 export function setupLicenseIPC(): void {
 	ipcMain.handle("license:set-auth-token", async (_event, token: string) => {
 		if (typeof token !== "string") {

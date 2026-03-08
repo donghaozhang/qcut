@@ -54,6 +54,35 @@ function ed(
 // ─── Editor Commands ─────────────────────────────────────────────────
 
 export const EDITOR_COMMANDS: Record<string, CommandDef> = {
+	// ── Auth ──
+	"editor:auth:token": ed(
+		"editor:auth:token",
+		"Auth: Get or set the current auth token",
+		[
+			f("--set", "string", "Set token to this value"),
+			f("--reveal", "boolean", "Show full token (default: masked)", {
+				default: false,
+			}),
+		],
+		[
+			"qcut-pipeline editor:auth:token --json",
+			"qcut-pipeline editor:auth:token --reveal --json",
+			"qcut-pipeline editor:auth:token --set <token> --json",
+		]
+	),
+	"editor:auth:activate": ed(
+		"editor:auth:activate",
+		"Auth: Set token and activate license on this device",
+		[f("--token", "string", "Auth token", { required: true })],
+		["qcut-pipeline editor:auth:activate --token <token> --json"]
+	),
+	"editor:auth:logout": ed(
+		"editor:auth:logout",
+		"Auth: Clear the current auth token",
+		[],
+		["qcut-pipeline editor:auth:logout --json"]
+	),
+
 	// ── Health ──
 	"editor:health": ed("editor:health", "Check editor connectivity", [
 		f("--status-only", "boolean", "Return compact status output", {
@@ -639,6 +668,19 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		[]
 	),
 	"editor:moyin:status": ed("editor:moyin:status", "Get pipeline progress", []),
+	"editor:moyin:export": ed(
+		"editor:moyin:export",
+		"Export Script Director data as JSON",
+		[
+			f("--output", "string", "Output file path (default: moyin-export.json)", {
+				short: "-o",
+			}),
+		],
+		[
+			"qcut-pipeline editor:moyin:export --json",
+			"qcut-pipeline editor:moyin:export -o screenplay.json",
+		]
+	),
 	"editor:moyin:generate": ed(
 		"editor:moyin:generate",
 		"Generate a script from a description/idea",

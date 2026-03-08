@@ -97,3 +97,59 @@ export async function requestMoyinStatus(
 		win.webContents.send("claude:moyin:status:request", { requestId });
 	});
 }
+
+export interface MoyinExportResponse {
+	title: string;
+	genre?: string;
+	logline?: string;
+	language: string;
+	targetDuration?: string;
+	characters: Record<string, unknown>[];
+	scenes: Record<string, unknown>[];
+	episodes: Record<string, unknown>[];
+	shots: Record<string, unknown>[];
+}
+
+/**
+ * Request full moyin script data export from renderer.
+ * Uses request-response IPC pattern with timeout.
+ */
+export async function requestMoyinExport(
+	win: BrowserWindow
+): Promise<MoyinExportResponse> {
+	return new Promise((resolve, reject) => {
+		let resolved = false;
+		const requestId = generateId("req");
+
+		const timeout = setTimeout(() => {
+			if (resolved) return;
+			resolved = true;
+			ipcMain.removeListener("claude:moyin:export:response", handler);
+			reject(new Error("Timeout waiting for moyin export"));
+		}, REQUEST_TIMEOUT_MS);
+
+		const handler = (
+			_event: IpcMainEvent,
+			data: {
+				requestId: string;
+				result?: MoyinExportResponse;
+				error?: string;
+			}
+		) => {
+			if (data.requestId !== requestId || resolved) return;
+			resolved = true;
+			clearTimeout(timeout);
+			ipcMain.removeListener("claude:moyin:export:response", handler);
+			if (data.error) {
+				reject(new Error(data.error));
+			} else if (data.result) {
+				resolve(data.result);
+			} else {
+				reject(new Error("Renderer returned empty moyin export"));
+			}
+		};
+
+		ipcMain.on("claude:moyin:export:response", handler);
+		win.webContents.send("claude:moyin:export:request", { requestId });
+	});
+}

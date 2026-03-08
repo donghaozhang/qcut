@@ -86,6 +86,12 @@ export interface MoyinAPI {
 			result?: Record<string, unknown>,
 			error?: string
 		) => void;
+		onExportRequest: (callback: (data: { requestId: string }) => void) => void;
+		sendExportResponse: (
+			requestId: string,
+			result?: Record<string, unknown>,
+			error?: string
+		) => void;
 		removeMoyinBridgeListeners: () => void;
 	};
 }
