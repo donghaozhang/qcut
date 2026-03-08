@@ -136,6 +136,17 @@ Focus on scenes with strong visual potential. Limit to {max_scenes} scenes.`;
 // Helpers
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Novel size limits (in characters)
+// ---------------------------------------------------------------------------
+
+/** ~150K words — fits in Gemini 3 Flash context window */
+const NOVEL_WARN_THRESHOLD = 600_000;
+/** ~500K words — too large to process reliably */
+const NOVEL_MAX_THRESHOLD = 2_000_000;
+/** Target size per split file when novel exceeds max */
+const SPLIT_FILE_SIZE = 500_000;
+
 function safeSlug(value: string): string {
 	const safe = value.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_|_$/g, "");
 	return safe || "untitled";
@@ -216,7 +227,58 @@ export class Novel2MoviePipeline {
 			errors: [],
 		};
 
-		console.log(`[novel2movie] Starting pipeline for: ${title}`);
+		const charCount = novelText.length;
+		const wordEstimate = Math.round(charCount / 4);
+
+		// --- Novel size validation ---
+		if (charCount > NOVEL_MAX_THRESHOLD) {
+			console.log(
+				`[novel2movie] Novel too large (~${wordEstimate.toLocaleString()} words, ${charCount.toLocaleString()} chars).`
+			);
+			console.log(
+				`[novel2movie] Maximum supported size is ~${(NOVEL_MAX_THRESHOLD / 4).toLocaleString()} words.`
+			);
+			console.log("[novel2movie] Splitting into smaller files...");
+
+			const splitDir = path.join(this.config.output_dir, safeSlug(title), "split_parts");
+			fs.mkdirSync(splitDir, { recursive: true });
+
+			const partCount = Math.ceil(charCount / SPLIT_FILE_SIZE);
+			for (let i = 0; i < partCount; i++) {
+				let start = i * SPLIT_FILE_SIZE;
+				let end = Math.min(start + SPLIT_FILE_SIZE, charCount);
+
+				// Try to split at paragraph boundary
+				if (end < charCount) {
+					const chunk = novelText.slice(start, end);
+					const lastParagraph = chunk.lastIndexOf("\n\n");
+					if (lastParagraph > SPLIT_FILE_SIZE * 0.8) {
+						end = start + lastParagraph + 2;
+					}
+				}
+
+				const partFile = path.join(splitDir, `part_${String(i + 1).padStart(2, "0")}.txt`);
+				fs.writeFileSync(partFile, novelText.slice(start, end));
+			}
+
+			console.log(`[novel2movie] Split into ${partCount} files at: ${splitDir}`);
+			console.log("[novel2movie] Run novel2movie on each part separately:");
+			console.log(`  bun run pipeline vimax:novel2movie --novel ${splitDir}/part_01.txt --title "${title} Part 1"`);
+
+			result.errors.push(
+				`Novel too large (${wordEstimate.toLocaleString()} words). Split into ${partCount} files at ${splitDir}`
+			);
+			return result;
+		}
+
+		if (charCount > NOVEL_WARN_THRESHOLD) {
+			console.warn(
+				`[novel2movie] ⚠ Large novel (~${wordEstimate.toLocaleString()} words). ` +
+					"Processing may be slow and use more API credits. Consider using --max-scenes to limit output."
+			);
+		}
+
+		console.log(`[novel2movie] Starting pipeline for: ${title} (~${wordEstimate.toLocaleString()} words)`);
 
 		try {
 			const safeTitle = safeSlug(title);

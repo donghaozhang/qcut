@@ -379,6 +379,7 @@ const electronAPI: ElectronAPI = {
 	// License operations
 	license: {
 		check: () => ipcRenderer.invoke("license:check"),
+		getAuthToken: () => ipcRenderer.invoke("license:get-auth-token"),
 		activate: (token: string) => ipcRenderer.invoke("license:activate", token),
 		trackUsage: (type: "ai_generation" | "export" | "render") =>
 			ipcRenderer.invoke("license:track-usage", type),

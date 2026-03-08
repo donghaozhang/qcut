@@ -25,6 +25,7 @@ export interface ElectronLicenseOps {
 			description: string
 		) => Promise<boolean>;
 		setAuthToken: (token: string) => Promise<boolean>;
+		getAuthToken: () => Promise<string>;
 		clearAuthToken: () => Promise<boolean>;
 		onActivationToken: (callback: (token: string) => void) => () => void;
 		deactivate: () => Promise<boolean>;
