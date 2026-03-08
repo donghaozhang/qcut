@@ -7,6 +7,8 @@ export const VALID_FRAMINGS = ["wide", "medium", "close", "macro", "overhead"] a
 export const VALID_MOVEMENTS = ["locked-off", "handheld", "dolly", "slider", "crane", "dynamic"] as const;
 export const VALID_LIGHTINGS = ["natural", "bright", "dramatic", "low-key", "neon", "soft"] as const;
 export const VALID_MOODS = ["grounded", "warm", "tense", "moody", "polished", "heightened"] as const;
+export const VALID_MEDIA = ["live-action", "animation", "hybrid", "cgi"] as const;
+export const VALID_FORMATS = ["film", "tv-series", "documentary", "variety", "short-film", "short-video"] as const;
 
 export const PRESETS: Record<
 	string,
@@ -32,4 +34,20 @@ export const STYLE_SIGNAL_MAP: Array<{ preset: string; keywords: string[] }> = [
 	{ preset: "noir", keywords: ["crime", "noir", "shadow", "mystery", "detective"] },
 	{ preset: "product", keywords: ["device", "product", "feature", "unboxing", "detail"] },
 	{ preset: "cinematic", keywords: ["story", "scene", "cinematic", "film", "character"] },
+];
+
+export const MEDIUM_SIGNAL_MAP: Array<{ medium: (typeof VALID_MEDIA)[number]; keywords: string[] }> = [
+	{ medium: "animation", keywords: ["animated", "animation", "anime", "cartoon", "stylized", "illustrated"] },
+	{ medium: "hybrid", keywords: ["hybrid", "mixed media", "live action + animation", "live-action + animation"] },
+	{ medium: "cgi", keywords: ["cgi", "cg", "fully cg", "full cg", "3d render", "rendered"] },
+	{ medium: "live-action", keywords: ["live action", "live-action", "cinematography", "practical", "actor"] },
+];
+
+export const FORMAT_SIGNAL_MAP: Array<{ format: (typeof VALID_FORMATS)[number]; keywords: string[] }> = [
+	{ format: "tv-series", keywords: ["series", "episode", "pilot", "season", "showrunner"] },
+	{ format: "documentary", keywords: ["documentary", "doc", "interview", "observational", "archive"] },
+	{ format: "variety", keywords: ["variety", "competition show", "talk show", "reality show", "segment"] },
+	{ format: "short-film", keywords: ["short film", "festival short", "short narrative"] },
+	{ format: "short-video", keywords: ["short video", "social video", "reel", "tiktok", "vertical short"] },
+	{ format: "film", keywords: ["feature", "film", "movie", "cinema", "theatrical"] },
 ];

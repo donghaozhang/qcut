@@ -2,10 +2,14 @@ export type Framing = "wide" | "medium" | "close" | "macro" | "overhead";
 export type Movement = "locked-off" | "handheld" | "dolly" | "slider" | "crane" | "dynamic";
 export type Lighting = "natural" | "bright" | "dramatic" | "low-key" | "neon" | "soft";
 export type ShotMood = "grounded" | "warm" | "tense" | "moody" | "polished" | "heightened";
+export type Medium = "live-action" | "animation" | "hybrid" | "cgi";
+export type ContentFormat = "film" | "tv-series" | "documentary" | "variety" | "short-film" | "short-video";
 
 export interface CLIOptions {
 	input: string;
 	style?: string;
+	medium?: Medium;
+	format?: ContentFormat;
 	framing?: Framing;
 	movement?: Movement;
 	lighting?: Lighting;
@@ -48,6 +52,11 @@ export interface AnalysisResult {
 	style: string;
 	stylePreset?: string;
 	styleReason: string;
+	medium: Medium;
+	mediumReason: string;
+	format: ContentFormat;
+	formatReason: string;
+	productionRules: string[];
 	framing: Framing;
 	movement: Movement;
 	lighting: Lighting;

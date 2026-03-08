@@ -1,5 +1,5 @@
-import { VALID_FRAMINGS, VALID_LIGHTINGS, VALID_MOODS, VALID_MOVEMENTS } from "./constants";
-import type { CLIOptions, Framing, Lighting, Movement, ShotMood } from "./types";
+import { VALID_FORMATS, VALID_FRAMINGS, VALID_LIGHTINGS, VALID_MEDIA, VALID_MOODS, VALID_MOVEMENTS } from "./constants";
+import type { CLIOptions, ContentFormat, Framing, Lighting, Medium, Movement, ShotMood } from "./types";
 import { parseNumberList } from "./utils";
 
 function parseEnum({
@@ -24,6 +24,8 @@ export function parseArgs({ argv }: { argv: string[] }): CLIOptions {
 	const args = argv.slice(2);
 	let input = "";
 	let style: string | undefined;
+	let medium: Medium | undefined;
+	let format: ContentFormat | undefined;
 	let framing: Framing | undefined;
 	let movement: Movement | undefined;
 	let lighting: Lighting | undefined;
@@ -48,6 +50,16 @@ export function parseArgs({ argv }: { argv: string[] }): CLIOptions {
 
 		if (value === "--style") {
 			style = args[index + 1];
+			index += 1;
+			continue;
+		}
+		if (value === "--medium") {
+			medium = parseEnum({ value: args[index + 1], valid: VALID_MEDIA, flag: "--medium" }) as Medium;
+			index += 1;
+			continue;
+		}
+		if (value === "--format") {
+			format = parseEnum({ value: args[index + 1], valid: VALID_FORMATS, flag: "--format" }) as ContentFormat;
 			index += 1;
 			continue;
 		}
@@ -124,6 +136,8 @@ export function parseArgs({ argv }: { argv: string[] }): CLIOptions {
 	return {
 		input,
 		style,
+		medium,
+		format,
 		framing,
 		movement,
 		lighting,
