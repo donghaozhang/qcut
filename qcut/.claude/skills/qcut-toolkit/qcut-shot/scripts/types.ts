@@ -39,7 +39,15 @@ export interface VisualAnchors {
 	propId: string;
 	propAnchor: string;
 	paletteAnchor: string;
+	characterAnchors: CharacterAnchor[];
+	relationshipAnchor: string;
 	continuityRules: string[];
+}
+
+export interface CharacterAnchor {
+	id: string;
+	role: string;
+	description: string;
 }
 
 export interface AnalysisResult {
@@ -57,6 +65,7 @@ export interface AnalysisResult {
 	format: ContentFormat;
 	formatReason: string;
 	productionRules: string[];
+	genreRules: string[];
 	framing: Framing;
 	movement: Movement;
 	lighting: Lighting;

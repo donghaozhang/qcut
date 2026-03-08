@@ -13,6 +13,7 @@ import type {
 	AnalysisResult,
 	Beat,
 	CLIOptions,
+	CharacterAnchor,
 	ContentFormat,
 	Framing,
 	Lighting,
@@ -122,12 +123,33 @@ function collectFrequentTerms({ text }: { text: string }): string[] {
 
 function extractBeats({ content }: { content: string }): Beat[] {
 	const normalized = stripFrontmatter({ content });
-	const headingMatches = [...normalized.matchAll(/^#{2,3}\s+(.+)$/gm)];
+	const withoutPrimaryTitle = normalized.replace(/^#\s+.+\n*/u, "").trim();
+	const labeledParagraphs = withoutPrimaryTitle
+		.split(/\n{2,}/)
+		.map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
+		.filter(Boolean)
+		.map((paragraph) => {
+			const match = paragraph.match(/^([A-Za-z][A-Za-z\s-]{2,40}):\s*(.+)$/u);
+			if (!match) {
+				return null;
+			}
+			return {
+				title: match[1].trim().replace(/\s+/g, " "),
+				body: match[2].trim(),
+				keywords: collectKeywords({ text: paragraph }),
+			};
+		})
+		.filter(Boolean) as Beat[];
+	if (labeledParagraphs.length >= 3) {
+		return labeledParagraphs;
+	}
+
+	const headingMatches = [...withoutPrimaryTitle.matchAll(/^#{2,3}\s+(.+)$/gm)];
 	if (headingMatches.length > 0) {
 		return headingMatches.map((heading, index) => {
 			const start = heading.index ?? 0;
-			const end = headingMatches[index + 1]?.index ?? normalized.length;
-			const body = normalized
+			const end = headingMatches[index + 1]?.index ?? withoutPrimaryTitle.length;
+			const body = withoutPrimaryTitle
 				.slice(start, end)
 				.split("\n")
 				.slice(1)
@@ -142,7 +164,7 @@ function extractBeats({ content }: { content: string }): Beat[] {
 		});
 	}
 
-	return normalized
+	return withoutPrimaryTitle
 		.split(/\n{2,}/)
 		.map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
 		.filter(Boolean)
@@ -270,6 +292,32 @@ function buildProductionRules({
 	return [...mediumRules[medium], ...formatRules[format]];
 }
 
+function buildGenreRules({ content }: { content: string }): string[] {
+	const lower = content.toLowerCase();
+	const rules: string[] = [];
+	const isRomance =
+		lower.includes("love story") ||
+		lower.includes("romance") ||
+		lower.includes("romantic") ||
+		lower.includes("attraction");
+	const isFashion =
+		lower.includes("fashion") ||
+		lower.includes("supermodel") ||
+		lower.includes("photographer") ||
+		lower.includes("veil");
+
+	if (isRomance) {
+		rules.push("Keep the stakes emotional and intimate, not militarized, apocalyptic, or survival-driven.");
+		rules.push("Favor longing glances, proximity, and tenderness over confrontation or threat spectacle.");
+	}
+	if (isFashion) {
+		rules.push("Preserve a luxury fashion-world aesthetic with couture wardrobe, production lights, and polished city surfaces.");
+		rules.push("Do not introduce tactical gear, weapons, dystopian ruins, or combat staging unless the source explicitly requests them.");
+	}
+
+	return rules;
+}
+
 function resolveStyle({
 	content,
 	options,
@@ -356,10 +404,54 @@ function preferredToken({
 	return firstMatchingTerm({ terms: fallbackTerms, candidates });
 }
 
+function buildCharacterAnchors({
+	content,
+	medium,
+}: {
+	content: string;
+	medium: Medium;
+}): CharacterAnchor[] {
+	const lower = content.toLowerCase();
+	const anchors: CharacterAnchor[] = [];
+	const performerSurface =
+		medium === "live-action"
+			? "read as the same photographed performer in every shot"
+			: "keep the same designed face, silhouette, and costume in every shot";
+
+	if (lower.includes("supermodel")) {
+		anchors.push({
+			id: "supermodel-01",
+			role: "romantic lead",
+			description:
+				"Same supermodel in every shot: elegant young woman, striking cheekbones, refined high-fashion wardrobe, wet hair or controlled glamour styling, poised but emotionally vulnerable, must " +
+				performerSurface,
+		});
+	}
+	if (lower.includes("photographer")) {
+		anchors.push({
+			id: "photographer-01",
+			role: "romantic counterpart",
+			description:
+				"Same photographer in every shot: understated young man, dark tailored coat or shoot-crew layers, observant posture, soft romantic restraint, camera-world credibility, must " +
+				performerSurface,
+		});
+	}
+	if (anchors.length === 0) {
+		anchors.push({
+			id: "lead-01",
+			role: "primary subject",
+			description:
+				"Same primary lead in every shot: keep face, body type, wardrobe family, and screen presence stable so the sequence reads as one person throughout.",
+		});
+	}
+	return anchors;
+}
+
 function buildVisualAnchors({
 	content,
 	title,
 	style,
+	medium,
 	beats,
 }: {
 	content: string;
@@ -370,39 +462,50 @@ function buildVisualAnchors({
 		lighting: Lighting;
 		mood: ShotMood;
 	};
+	medium: Medium;
 	beats: Beat[];
 }): VisualAnchors {
 	const terms = collectFrequentTerms({ text: `${title} ${content}` });
 	const lower = content.toLowerCase();
+	const characterAnchors = buildCharacterAnchors({ content, medium });
+	const primaryCharacter = characterAnchors[0];
 	const subjectTerm =
-		preferredToken({
+		primaryCharacter?.id.replace(/-\d+$/u, "") ??
+		(preferredToken({
 			content: lower,
 			fallbackTerms: terms,
-			candidates: ["archer", "contender", "hero", "runner", "survivor", "fighter", "teen", "girl", "boy", "protagonist"],
-		}) ?? "contender";
+			candidates: ["supermodel", "photographer", "archer", "contender", "hero", "runner", "survivor", "fighter", "teen", "girl", "boy", "protagonist"],
+		}) ?? "contender");
 	const locationTerm =
 		preferredToken({
 			content: lower,
 			fallbackTerms: terms,
-			candidates: ["arena", "valley", "platform", "forest", "city", "warehouse", "corridor", "stage", "lab"],
+			candidates: ["rooftop", "fashion shoot", "city", "studio", "arena", "valley", "platform", "forest", "warehouse", "corridor", "stage", "lab"],
 		}) ?? "arena";
 	const propTerm =
 		preferredToken({
 			content: lower,
 			fallbackTerms: terms,
-			candidates: ["bow", "blade", "sword", "rifle", "mask", "device", "crate", "screen", "drones"],
+			candidates: ["veil", "camera", "bow", "blade", "sword", "rifle", "mask", "device", "crate", "screen", "drones"],
 		}) ?? "signature gear";
 	const paletteSeed =
 		firstMatchingTerm({
 			terms,
-			candidates: ["orange", "blue", "amber", "fog", "neon", "ash", "green", "steel", "gold"],
-		}) ?? (style.lighting === "dramatic" ? "steel-blue shadows with ember highlights" : "controlled neutral palette");
+			candidates: ["rain", "city", "silver", "orange", "blue", "amber", "fog", "neon", "ash", "green", "steel", "gold"],
+		}) ??
+		(lower.includes("rain") || lower.includes("city")
+			? "rain-glossed blue city tones with warm amber practical lights"
+			: style.lighting === "dramatic"
+				? "steel-blue shadows with ember highlights"
+				: "controlled neutral palette");
 	const openingBeat = beats[0]?.body || title;
 	const subjectAnchor = [
 		`Same central ${subjectTerm} across the full sequence.`,
-		"Keep one readable silhouette, age band, and wardrobe language from shot to shot.",
+		"Keep one readable face, silhouette, age band, and wardrobe language from shot to shot.",
 		lower.includes("bow")
 			? "The subject is a lean survival archer in worn tactical layers, dirt and sweat visible."
+			: lower.includes("supermodel")
+				? "The lead should remain fashion-world glamorous and emotionally readable, never turning into an action heroine or unrelated archetype."
 			: `The subject reads as a resilient ${subjectTerm} under pressure, never a generic crowd extra.`,
 	].join(" ");
 	const locationAnchor = [
@@ -414,25 +517,36 @@ function buildVisualAnchors({
 		`Keep the ${propTerm} visually consistent whenever it appears.`,
 		propTerm === "bow"
 			? "Use the same bow design, grip wrap, and survival-worn finish in every shot."
+			: propTerm === "veil"
+				? "Use the same delicate veil fabric, translucency, and movement language in every shot."
+				: propTerm === "camera"
+					? "Use the same photographer camera body, strap, and handling style whenever it appears."
 			: propTerm === "screen"
 				? "Use the same giant arena screen design, support structure, and glow treatment across the sequence."
 				: "Do not swap the hero prop design between shots.",
 	].join(" ");
+	const relationshipAnchor =
+		characterAnchors.length >= 2
+			? `Keep the same romantic pair throughout: ${characterAnchors[0]?.id} and ${characterAnchors[1]?.id} should remain visually and emotionally consistent across every frame.`
+			: `Keep ${characterAnchors[0]?.id} emotionally and visually consistent across every frame.`;
 	const continuityRules = [
 		"Do not change protagonist identity, costume family, or body type between shots.",
 		"Do not relocate the scene into a different world or architecture style.",
 		"Keep recurring props, insignia, and screen technology consistent.",
 		`Maintain a ${paletteSeed} palette bias unless a beat explicitly requires contrast.`,
+		relationshipAnchor,
 	];
 
 	return {
-		subjectId: `${slugify({ value: subjectTerm }).slice(0, 24) || "subject"}-01`,
+		subjectId: primaryCharacter?.id ?? `${slugify({ value: subjectTerm }).slice(0, 24) || "subject"}-01`,
 		subjectAnchor,
 		locationId: `${slugify({ value: locationTerm }).slice(0, 24) || "location"}-01`,
 		locationAnchor,
 		propId: `${slugify({ value: propTerm }).slice(0, 24) || "prop"}-01`,
 		propAnchor,
 		paletteAnchor: paletteSeed,
+		characterAnchors,
+		relationshipAnchor,
 		continuityRules,
 	};
 }
@@ -459,8 +573,9 @@ export function analyzeSource({ options }: { options: CLIOptions }): AnalysisRes
 	const recommendedShots = recommendShots({ wordCount });
 	const targetShots = resolveShotCount({ explicit: options.shots, recommended: recommendedShots });
 	const beats = extractBeats({ content });
-	const visualAnchors = buildVisualAnchors({ content, title, style, beats });
+	const visualAnchors = buildVisualAnchors({ content, title, style, medium: medium.medium, beats });
 	const productionRules = buildProductionRules({ medium: medium.medium, format: format.format });
+	const genreRules = buildGenreRules({ content });
 
 	return {
 		title,
@@ -477,6 +592,7 @@ export function analyzeSource({ options }: { options: CLIOptions }): AnalysisRes
 		format: format.format,
 		formatReason: format.reason,
 		productionRules,
+		genreRules,
 		framing: style.framing,
 		movement: style.movement,
 		lighting: style.lighting,

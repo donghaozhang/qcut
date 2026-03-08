@@ -95,8 +95,10 @@ function continuityNotesForShot({
 
 function negativePromptForShot({
 	shotType,
+	analysis,
 }: {
 	shotType: ShotPlan["shotType"];
+	analysis: AnalysisResult;
 }): string {
 	const shared = [
 		"no extra hero characters",
@@ -110,6 +112,16 @@ function negativePromptForShot({
 	}
 	if (shotType === "opening" || shotType === "closing") {
 		shared.push("no cluttered collage composition", "no disconnected background elements");
+	}
+	if (
+		analysis.genreRules.some(
+			(rule) =>
+				rule.includes("militarized") ||
+				rule.includes("luxury fashion-world") ||
+				rule.includes("Do not introduce tactical gear"),
+		)
+	) {
+		shared.push("no tactical gear", "no weapons", "no dystopian ruins", "no survival-arena staging");
 	}
 	return shared.join("; ");
 }
@@ -156,7 +168,7 @@ export function buildShots({ analysis }: { analysis: AnalysisResult }): ShotPlan
 			beat: beat.body,
 			visualDirection: buildShotVisual({ beat, type: shotType }),
 			shotRoleGuidance: shotRoleGuidance({ shotType, anchors: analysis.visualAnchors }),
-			negativePrompt: negativePromptForShot({ shotType }),
+			negativePrompt: negativePromptForShot({ shotType, analysis }),
 		});
 	}
 

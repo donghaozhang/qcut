@@ -62,6 +62,7 @@ describe("qcut-shot helpers", () => {
 				format: "film",
 				formatReason: "explicit",
 				productionRules: ["Render as fully synthetic cinema."],
+				genreRules: [],
 				framing: "macro",
 				movement: "slider",
 				lighting: "bright",
@@ -81,6 +82,14 @@ describe("qcut-shot helpers", () => {
 					propId: "hero-product-01",
 					propAnchor: "Same product design and finish.",
 					paletteAnchor: "bright neutral palette",
+					characterAnchors: [
+						{
+							id: "device-01",
+							role: "hero product",
+							description: "Same hero device across the sequence.",
+						},
+					],
+					relationshipAnchor: "Keep the same device identity throughout.",
 					continuityRules: ["Do not change the product identity between shots."],
 				},
 			},
@@ -149,5 +158,42 @@ describe("qcut-shot helpers", () => {
 		expect(analysis.medium).toBe("animation");
 		expect(analysis.format).toBe("documentary");
 		expect(analysis.productionRules.join(" ")).toContain("observational credibility");
+	});
+
+	test("analyzeSource parses labeled beats and stable romantic leads", () => {
+		const dir = mkdtempSync(join(tmpdir(), "qcut-shot-test-"));
+		const source = join(dir, "love.md");
+		writeFileSync(
+			source,
+			[
+				"# Love Story",
+				"",
+				"A beautiful supermodel and a quiet photographer fall in love during a late-night fashion shoot.",
+				"",
+				"Opening tension: establish the rooftop set above the city.",
+				"",
+				"First move: the photographer adjusts the veil and lingers.",
+				"",
+				"Closing image: the pair remain alone above the city lights.",
+				"",
+			].join("\n"),
+		);
+
+		const analysis = analyzeSource({
+			options: {
+				input: source,
+				medium: "live-action",
+				format: "film",
+				promptsOnly: false,
+				imagesOnly: false,
+				dryRun: true,
+			},
+		});
+
+		expect(analysis.beats[0]?.title).toBe("Opening tension");
+		expect(analysis.beats[1]?.title).toBe("First move");
+		expect(analysis.visualAnchors.characterAnchors[0]?.id).toBe("supermodel-01");
+		expect(analysis.visualAnchors.characterAnchors[1]?.id).toBe("photographer-01");
+		expect(analysis.genreRules.join(" ")).toContain("Do not introduce tactical gear");
 	});
 });

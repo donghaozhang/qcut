@@ -28,7 +28,7 @@ export const PRESETS: Record<
 };
 
 export const STYLE_SIGNAL_MAP: Array<{ preset: string; keywords: string[] }> = [
-	{ preset: "documentary", keywords: ["real", "interview", "documentary", "truth", "observation"] },
+	{ preset: "documentary", keywords: ["interview", "documentary", "truth", "observation", "archive footage"] },
 	{ preset: "commercial", keywords: ["brand", "product", "launch", "premium", "marketing"] },
 	{ preset: "anime-storyboard", keywords: ["anime", "fantasy", "hero", "battle", "magic"] },
 	{ preset: "noir", keywords: ["crime", "noir", "shadow", "mystery", "detective"] },

@@ -15,6 +15,7 @@ export type {
 	AnalysisResult,
 	Beat,
 	CLIOptions,
+	CharacterAnchor,
 	ContentFormat,
 	Framing,
 	Lighting,
