@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, extname, join } from "node:path";
+import { basename, join } from "node:path";
 import PptxGenJS from "pptxgenjs";
 
 interface SlideInfo {
@@ -78,9 +78,9 @@ async function createPptx({
 
 	for (const slide of slides) {
 		const presentationSlide = pptx.addSlide();
-		const imageData = readFileSync(slide.path).toString("base64");
-		const extension = extname(slide.filename).toLowerCase();
-		const mimeType = extension === ".png" ? "image/png" : "image/jpeg";
+		const imageBuffer = readFileSync(slide.path);
+		const imageData = imageBuffer.toString("base64");
+		const mimeType = detectMimeType({ bytes: imageBuffer });
 
 		presentationSlide.addImage({
 			data: `data:${mimeType};base64,${imageData}`,
@@ -97,6 +97,23 @@ async function createPptx({
 	}
 
 	await pptx.writeFile({ fileName: outputPath });
+}
+
+function detectMimeType({ bytes }: { bytes: Uint8Array }): "image/png" | "image/jpeg" {
+	if (
+		bytes[0] === 0x89 &&
+		bytes[1] === 0x50 &&
+		bytes[2] === 0x4e &&
+		bytes[3] === 0x47
+	) {
+		return "image/png";
+	}
+
+	if (bytes[0] === 0xff && bytes[1] === 0xd8) {
+		return "image/jpeg";
+	}
+
+	throw new Error("Unsupported image format. Expected PNG or JPEG bytes.");
 }
 
 async function main(): Promise<void> {

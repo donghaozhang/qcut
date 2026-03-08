@@ -70,9 +70,13 @@ async function createPdf({
 
 	for (const slide of slides) {
 		const bytes = readFileSync(slide.path);
-		const image = slide.filename.toLowerCase().endsWith(".png")
+		const image = isPng({ bytes })
 			? await pdf.embedPng(bytes)
-			: await pdf.embedJpg(bytes);
+			: isJpeg({ bytes })
+				? await pdf.embedJpg(bytes)
+				: (() => {
+						throw new Error(`Unsupported image format for ${slide.filename}`);
+					})();
 		const page = pdf.addPage([image.width, image.height]);
 		page.drawImage(image, {
 			x: 0,
@@ -83,6 +87,19 @@ async function createPdf({
 	}
 
 	await Bun.write(outputPath, await pdf.save());
+}
+
+function isPng({ bytes }: { bytes: Uint8Array }): boolean {
+	return (
+		bytes[0] === 0x89 &&
+		bytes[1] === 0x50 &&
+		bytes[2] === 0x4e &&
+		bytes[3] === 0x47
+	);
+}
+
+function isJpeg({ bytes }: { bytes: Uint8Array }): boolean {
+	return bytes[0] === 0xff && bytes[1] === 0xd8;
 }
 
 async function main(): Promise<void> {
