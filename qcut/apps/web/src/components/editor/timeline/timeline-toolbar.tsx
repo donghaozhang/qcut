@@ -581,6 +581,7 @@ export function TimelineToolbar({
 						min={0.05}
 						max={4}
 						step={0.05}
+						aria-label="Timeline zoom"
 						data-zoom-level={zoomLevel}
 					/>
 					<Button
