@@ -1,5 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { CLIRunOptions, ProgressFn } from "../native-pipeline/cli/cli-runner/types.js";
+import type {
+	CLIRunOptions,
+	ProgressFn,
+} from "../native-pipeline/cli/cli-runner/types.js";
 
 // Mock fs module
 vi.mock("fs", () => ({
@@ -42,7 +45,7 @@ describe("handleYouTubeUpload", () => {
 	it("returns error when --input is missing", async () => {
 		const result = await handleYouTubeUpload(
 			makeOptions({ title: "Test" }),
-			mockProgress,
+			mockProgress
 		);
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("--input");
@@ -51,7 +54,7 @@ describe("handleYouTubeUpload", () => {
 	it("returns error when --title is missing", async () => {
 		const result = await handleYouTubeUpload(
 			makeOptions({ input: "video.mp4" }),
-			mockProgress,
+			mockProgress
 		);
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("--title");
@@ -62,7 +65,7 @@ describe("handleYouTubeUpload", () => {
 
 		const result = await handleYouTubeUpload(
 			makeOptions({ input: "nonexistent.mp4", title: "Test" }),
-			mockProgress,
+			mockProgress
 		);
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("File not found");
@@ -73,7 +76,7 @@ describe("handleYouTubeUpload", () => {
 
 		const result = await handleYouTubeUpload(
 			makeOptions({ input: "video.flv", title: "Test" }),
-			mockProgress,
+			mockProgress
 		);
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("Unsupported format");
@@ -88,7 +91,7 @@ describe("handleYouTubeUpload", () => {
 
 		const result = await handleYouTubeUpload(
 			makeOptions({ input: "video.mp4", title: "Test" }),
-			mockProgress,
+			mockProgress
 		);
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("Not authenticated");

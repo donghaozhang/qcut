@@ -161,40 +161,40 @@ function ProjectsPage() {
 					<span className="text-sm font-medium">Back</span>
 				</Link>
 				<div className="flex items-center gap-3">
-				<ProjectsUserAvatar />
-				<div className="block md:hidden">
-					{isSelectionMode ? (
-						<div className="flex items-center gap-2">
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={handleCancelSelection}
-							>
-								<X className="size-4!" />
-								Cancel
-							</Button>
-							{selectedProjects.size > 0 && (
+					<ProjectsUserAvatar />
+					<div className="block md:hidden">
+						{isSelectionMode ? (
+							<div className="flex items-center gap-2">
 								<Button
-									variant="destructive"
+									variant="outline"
 									size="sm"
-									onClick={() => setIsBulkDeleteDialogOpen(true)}
+									onClick={handleCancelSelection}
 								>
-									<Trash2 className="size-4!" />
-									Delete ({selectedProjects.size})
+									<X className="size-4!" />
+									Cancel
 								</Button>
-							)}
-						</div>
-					) : (
-						<Button
-							variant="primary"
-							onClick={handleCreateProject}
-							data-testid="new-project-button-mobile"
-						>
-							<Plus className="size-4!" />
-							<span className="text-sm font-medium">New Project</span>
-						</Button>
-					)}
-				</div>
+								{selectedProjects.size > 0 && (
+									<Button
+										variant="destructive"
+										size="sm"
+										onClick={() => setIsBulkDeleteDialogOpen(true)}
+									>
+										<Trash2 className="size-4!" />
+										Delete ({selectedProjects.size})
+									</Button>
+								)}
+							</div>
+						) : (
+							<Button
+								variant="primary"
+								onClick={handleCreateProject}
+								data-testid="new-project-button-mobile"
+							>
+								<Plus className="size-4!" />
+								<span className="text-sm font-medium">New Project</span>
+							</Button>
+						)}
+					</div>
 				</div>
 			</div>
 

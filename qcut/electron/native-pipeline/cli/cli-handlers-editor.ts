@@ -517,15 +517,27 @@ async function handleMoyinCommand(
 		}
 		case "export": {
 			const data = await client.get("/api/claude/moyin/export");
-			// Save to file by default
-			const outputPath = options.output ?? "moyin-export.json";
 			const fs = await import("node:fs/promises");
 			const path = await import("node:path");
+			const os = await import("node:os");
+			// Default: ~/Documents/QCut/exports/moyin-export-{timestamp}.json
+			let outputPath = options.output;
+			if (!outputPath) {
+				const docsDir = path.join(os.homedir(), "Documents", "QCut", "exports");
+				const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+				outputPath = path.join(docsDir, `moyin-export-${ts}.json`);
+			}
 			const absPath = path.resolve(outputPath);
 			await fs.mkdir(path.dirname(absPath), { recursive: true });
 			await fs.writeFile(absPath, JSON.stringify(data, null, 2));
 			const exportData = typeof data === "object" && data !== null ? data : {};
-			return { success: true, data: { ...(exportData as Record<string, unknown>), exportedTo: absPath } };
+			return {
+				success: true,
+				data: {
+					...(exportData as Record<string, unknown>),
+					exportedTo: absPath,
+				},
+			};
 		}
 		case "generate": {
 			if (!options.idea) {

@@ -672,9 +672,11 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		"editor:moyin:export",
 		"Export Script Director data as JSON",
 		[
-			f("--output", "string", "Output file path (default: moyin-export.json)", {
-				short: "-o",
-			}),
+			f(
+				"--output",
+				"string",
+				"Output file path (default: ~/Documents/QCut/exports/)"
+			),
 		],
 		[
 			"qcut-pipeline editor:moyin:export --json",

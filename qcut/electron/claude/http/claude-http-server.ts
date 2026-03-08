@@ -62,10 +62,7 @@ import {
 	registerClaudeEventsRoutes,
 } from "./claude-http-events-routes.js";
 import { runMainProcessDeepHealthChecks } from "../handlers/claude-health-handler.js";
-import {
-	getAuthToken,
-	setAuthToken,
-} from "../../license-handler.js";
+import { getAuthToken, setAuthToken } from "../../license-handler.js";
 
 let server: Server | null = null;
 

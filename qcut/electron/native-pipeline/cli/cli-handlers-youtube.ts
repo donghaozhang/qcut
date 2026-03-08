@@ -10,7 +10,11 @@
 import * as fs from "fs";
 import * as path from "path";
 import { getKey } from "../infra/key-manager.js";
-import type { CLIRunOptions, CLIResult, ProgressFn } from "./cli-runner/types.js";
+import type {
+	CLIRunOptions,
+	CLIResult,
+	ProgressFn,
+} from "./cli-runner/types.js";
 
 const LICENSE_SERVER_URL =
 	process.env.QCUT_LICENSE_SERVER_URL ||
@@ -58,8 +62,7 @@ async function getGoogleAccessToken(authToken: string): Promise<string> {
 			string,
 			unknown
 		> | null;
-		const message =
-			(body?.error as string) || `HTTP ${response.status}`;
+		const message = (body?.error as string) || `HTTP ${response.status}`;
 		throw new Error(message);
 	}
 
@@ -75,7 +78,7 @@ async function initiateResumableUpload(
 	accessToken: string,
 	metadata: YouTubeUploadMetadata,
 	fileSize: number,
-	mimeType: string,
+	mimeType: string
 ): Promise<string> {
 	const response = await fetch(
 		"https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
@@ -88,13 +91,13 @@ async function initiateResumableUpload(
 				"X-Upload-Content-Type": mimeType,
 			},
 			body: JSON.stringify(metadata),
-		},
+		}
 	);
 
 	if (!response.ok) {
 		const errorBody = await response.text().catch(() => "");
 		throw new Error(
-			`Failed to initiate upload (${response.status}): ${errorBody}`,
+			`Failed to initiate upload (${response.status}): ${errorBody}`
 		);
 	}
 
@@ -111,7 +114,7 @@ async function uploadFileInChunks(
 	filePath: string,
 	fileSize: number,
 	mimeType: string,
-	onProgress: ProgressFn,
+	onProgress: ProgressFn
 ): Promise<Record<string, unknown>> {
 	const fd = fs.openSync(filePath, "r");
 	let offset = 0;
@@ -159,7 +162,7 @@ async function uploadFileInChunks(
 			// Unexpected status
 			const errorBody = await response.text().catch(() => "");
 			throw new Error(
-				`Upload failed at offset ${offset} (${response.status}): ${errorBody}`,
+				`Upload failed at offset ${offset} (${response.status}): ${errorBody}`
 			);
 		}
 	} finally {
@@ -173,7 +176,7 @@ async function uploadFileInChunks(
 async function uploadThumbnail(
 	accessToken: string,
 	videoId: string,
-	thumbnailPath: string,
+	thumbnailPath: string
 ): Promise<void> {
 	const data = fs.readFileSync(thumbnailPath);
 	const ext = path.extname(thumbnailPath).toLowerCase();
@@ -194,13 +197,13 @@ async function uploadThumbnail(
 				"Content-Length": String(data.length),
 			},
 			body: data,
-		},
+		}
 	);
 
 	if (!response.ok) {
 		const errorBody = await response.text().catch(() => "");
 		throw new Error(
-			`Failed to upload thumbnail (${response.status}): ${errorBody}`,
+			`Failed to upload thumbnail (${response.status}): ${errorBody}`
 		);
 	}
 }
@@ -208,7 +211,7 @@ async function uploadThumbnail(
 /** Main handler for the youtube:upload CLI command. */
 export async function handleYouTubeUpload(
 	options: CLIRunOptions,
-	onProgress: ProgressFn,
+	onProgress: ProgressFn
 ): Promise<CLIResult> {
 	const filePath = options.input;
 	const title = options.title;
@@ -272,12 +275,13 @@ export async function handleYouTubeUpload(
 			...options.data
 				.split(",")
 				.map((t) => t.trim())
-				.filter(Boolean),
+				.filter(Boolean)
 		);
 	}
 
 	// Build metadata
-	const privacy = (options.mode as "public" | "unlisted" | "private") || "public";
+	const privacy =
+		(options.mode as "public" | "unlisted" | "private") || "public";
 	const categoryId = options.category || "22";
 	const description = options.text || "";
 
@@ -306,7 +310,7 @@ export async function handleYouTubeUpload(
 			accessToken,
 			metadata,
 			stat.size,
-			mimeType,
+			mimeType
 		);
 	} catch (err) {
 		return {
@@ -323,7 +327,7 @@ export async function handleYouTubeUpload(
 			resolvedPath,
 			stat.size,
 			mimeType,
-			onProgress,
+			onProgress
 		);
 	} catch (err) {
 		return {

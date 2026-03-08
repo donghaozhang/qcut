@@ -279,7 +279,10 @@ async function loadElectronStoredKeys(): Promise<ApiKeys> {
 
 // Reverse of QCUT_ENV_MAP: env var name → ApiKeys field (for reading ~/.qcut/.env)
 const QCUT_ENV_READ_MAP: Record<string, keyof ApiKeys> = Object.fromEntries(
-	Object.entries(QCUT_ENV_MAP).map(([field, envName]) => [envName, field as keyof ApiKeys])
+	Object.entries(QCUT_ENV_MAP).map(([field, envName]) => [
+		envName,
+		field as keyof ApiKeys,
+	])
 ) as Record<string, keyof ApiKeys>;
 
 /**

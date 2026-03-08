@@ -432,12 +432,7 @@ async function executeImageUnderstanding(
 ): Promise<StepOutput> {
 	// Volcengine Ark uses OpenAI-compatible Chat Completions format
 	if (provider === "volcengine") {
-		return executeVolcengineVideoUnderstanding(
-			model,
-			input,
-			payload,
-			options
-		);
+		return executeVolcengineVideoUnderstanding(model, input, payload, options);
 	}
 
 	if (input.imageUrl) {
@@ -505,8 +500,7 @@ async function executeVolcengineVideoUnderstanding(
 		};
 	}
 
-	const prompt =
-		(payload.prompt as string) || "Describe this video in detail";
+	const prompt = (payload.prompt as string) || "Describe this video in detail";
 	const fps = (payload.fps as number) || 1;
 	const arkModel = (payload.model as string) || "doubao-seed-1-6-251015";
 	const arkApi = (payload.ark_api as string) || "chat";
