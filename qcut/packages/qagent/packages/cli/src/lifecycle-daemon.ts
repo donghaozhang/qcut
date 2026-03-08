@@ -60,6 +60,8 @@ function cleanup(): void {
 process.on("exit", cleanup);
 process.on("SIGINT", () => { cleanup(); process.exit(0); });
 process.on("SIGTERM", () => { cleanup(); process.exit(0); });
+// Ignore SIGHUP so the daemon survives when launched from a script/shell that exits
+process.on("SIGHUP", () => {});
 
 // ── Start lifecycle manager ─────────────────────────────────────────────────
 
@@ -74,7 +76,14 @@ let lastActiveSeen = Date.now();
 setInterval(async () => {
 	try {
 		const sessions = await sessionManager.list();
-		const active = sessions.filter(s => !TERMINAL_STATUSES.has(s.status));
+		// A session is "active" if it hasn't reached a terminal status.
+		// This includes sessions where the agent exited but the PR is still open —
+		// the daemon may still need to fire build-check or merge notifications.
+		const active = sessions.filter(s =>
+			!TERMINAL_STATUSES.has(s.status) ||
+			// Also keep alive for sessions with open PRs (bot review loop may be in progress)
+			(s.pr != null && s.status !== "merged")
+		);
 
 		if (active.length > 0) {
 			lastActiveSeen = Date.now();
