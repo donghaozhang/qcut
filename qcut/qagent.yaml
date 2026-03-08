@@ -81,8 +81,8 @@ reactions:
     escalateAfter: 30m
 
   approved-and-green:
-    auto: false
-    action: notify
+    auto: true
+    action: auto-merge
     priority: action
 
   agent-stuck:

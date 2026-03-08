@@ -65,6 +65,8 @@ export const BOT_CHECK_STATUSES = new Set<SessionStatus>([
 	"review_pending",
 	"ci_failed",
 	"changes_requested",
+	"approved",
+	"mergeable",
 ]);
 
 export interface CheckBotCommentsDeps {

@@ -73,11 +73,31 @@ export async function syncIssueStateRouting({
 	}
 
 	const tracker = registry.get<Tracker>("tracker", project.tracker.plugin);
-	if (!tracker?.transitionIssueState) {
+	if (!tracker) {
 		return;
 	}
 
-	// issueStateRouting was removed from WorkflowPolicy; feature is disabled
+	// Auto-close the issue when the PR is merged
+	if (newStatus === "merged" && tracker.updateIssue) {
+		const identifier = normalizeTrackerIssueIdentifier({
+			issueId: session.issueId,
+			project,
+			tracker,
+		});
+		try {
+			const issue = await tracker.getIssue(identifier, project);
+			if (issue.state !== "closed") {
+				await tracker.updateIssue(identifier, { state: "closed" }, project);
+			}
+		} catch (error) {
+			const event = createEvent("reaction.escalated", {
+				sessionId: session.id,
+				projectId: session.projectId,
+				message: `${session.id}: failed to close issue after merge: ${error}`,
+			});
+			await notifyHuman(event, "warning");
+		}
+	}
 }
 
 /** Build WorkpadPolicyGate from a SessionPolicyEvaluation. */
