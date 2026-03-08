@@ -85,9 +85,10 @@ export function getOutputDataType(category: ModelCategory): DataType {
 
 function getProviderForEndpoint(
 	endpoint: string
-): "fal" | "elevenlabs" | "google" | "openrouter" {
+): "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine" {
 	if (endpoint.startsWith("elevenlabs/")) return "elevenlabs";
 	if (endpoint.startsWith("google/")) return "google";
+	if (endpoint.startsWith("volcengine/")) return "volcengine";
 	if (
 		endpoint.startsWith("openrouter/") &&
 		!endpoint.startsWith("openrouter/router/")
@@ -152,7 +153,7 @@ async function executeTextToImage(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter",
+	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -174,7 +175,7 @@ async function executeTextToVideo(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter",
+	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -213,7 +214,7 @@ async function executeImageToVideo(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter",
+	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -246,7 +247,7 @@ async function executeImageToImage(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter",
+	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -294,7 +295,7 @@ async function executeVideoToVideo(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter",
+	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -321,7 +322,7 @@ async function executeAvatar(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter",
+	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -351,7 +352,7 @@ async function executeTTS(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter",
+	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -389,7 +390,7 @@ async function executeSTT(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter",
+	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -422,13 +423,18 @@ async function executeImageUnderstanding(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter",
+	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
 		signal?: AbortSignal;
 	}
 ): Promise<StepOutput> {
+	// Volcengine Ark uses OpenAI-compatible Chat Completions format
+	if (provider === "volcengine") {
+		return executeVolcengineVideoUnderstanding(model, input, payload, options);
+	}
+
 	if (input.imageUrl) {
 		payload.image_url = input.imageUrl;
 	}
@@ -468,11 +474,150 @@ async function executeImageUnderstanding(
 	return { success: false, error: result.error, duration: result.duration };
 }
 
+/**
+ * Execute video/image understanding via Volcengine Ark APIs.
+ *
+ * Supports two API formats:
+ * - Chat Completions API (Seed 1.6): video_url/text content types
+ * - Responses API (Seed 2.0 Pro/Lite): input_video/input_image/input_text content types
+ */
+async function executeVolcengineVideoUnderstanding(
+	model: ModelDefinition,
+	input: StepInput,
+	payload: Record<string, unknown>,
+	options: {
+		outputDir?: string;
+		onProgress?: (p: number, m: string) => void;
+		signal?: AbortSignal;
+	}
+): Promise<StepOutput> {
+	const mediaUrl = input.videoUrl || input.imageUrl;
+	if (!mediaUrl) {
+		return {
+			success: false,
+			error: "Volcengine understanding requires a video or image URL",
+			duration: 0,
+		};
+	}
+
+	const prompt = (payload.prompt as string) || "Describe this video in detail";
+	const fps = (payload.fps as number) || 1;
+	const arkModel = (payload.model as string) || "doubao-seed-1-6-251015";
+	const arkApi = (payload.ark_api as string) || "chat";
+
+	let apiPayload: Record<string, unknown>;
+
+	if (arkApi === "responses") {
+		// Responses API format (Seed 2.0 Pro/Lite)
+		const contentItems: Record<string, unknown>[] = [];
+
+		if (input.videoUrl) {
+			contentItems.push({
+				type: "input_video",
+				video_url: mediaUrl,
+				fps,
+			});
+		} else {
+			contentItems.push({
+				type: "input_image",
+				image_url: mediaUrl,
+			});
+		}
+
+		contentItems.push({
+			type: "input_text",
+			text: prompt,
+		});
+
+		apiPayload = {
+			model: arkModel,
+			input: [
+				{
+					role: "user",
+					content: contentItems,
+				},
+			],
+		};
+	} else {
+		// Chat Completions API format (Seed 1.6)
+		const contentItems: Record<string, unknown>[] = [];
+
+		if (input.videoUrl) {
+			contentItems.push({
+				type: "video_url",
+				video_url: { url: mediaUrl, fps },
+			});
+		} else {
+			contentItems.push({
+				type: "image_url",
+				image_url: { url: mediaUrl },
+			});
+		}
+
+		contentItems.push({ type: "text", text: prompt });
+
+		apiPayload = {
+			model: arkModel,
+			messages: [{ role: "user", content: contentItems }],
+			max_tokens: (payload.max_tokens as number) || 4096,
+		};
+	}
+
+	const result = await callModelApi({
+		endpoint: model.endpoint,
+		payload: apiPayload,
+		provider: "volcengine",
+		async: false,
+		onProgress: options.onProgress,
+		signal: options.signal,
+	});
+
+	if (result.success) {
+		const text = extractVolcengineText(result.data, arkApi);
+		return {
+			success: true,
+			text,
+			data: result.data,
+			duration: result.duration,
+		};
+	}
+	return { success: false, error: result.error, duration: result.duration };
+}
+
+/** Extract text from Volcengine API response (Chat or Responses format). */
+function extractVolcengineText(
+	data: unknown,
+	arkApi: string
+): string | undefined {
+	if (!data || typeof data !== "object") return;
+	const obj = data as Record<string, unknown>;
+
+	// Responses API: output[].content[].text
+	if (arkApi === "responses" && Array.isArray(obj.output)) {
+		for (const item of obj.output) {
+			const outputItem = item as Record<string, unknown>;
+			if (Array.isArray(outputItem.content)) {
+				for (const part of outputItem.content) {
+					const contentPart = part as Record<string, unknown>;
+					if (typeof contentPart.text === "string") {
+						return contentPart.text;
+					}
+				}
+			}
+			// Some responses have text directly on the output item
+			if (typeof outputItem.text === "string") return outputItem.text;
+		}
+	}
+
+	// Chat API: choices[0].message.content
+	return extractTextFromResult(data);
+}
+
 async function executePromptGeneration(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter",
+	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;

@@ -110,6 +110,27 @@ echo '{"type":"text"}' | ... --data -         # From stdin
 
 ---
 
+## Auth Commands
+
+| Command | Description |
+|---------|-------------|
+| `editor:auth:token` | Get current token (`--reveal` for full value, `--set <val>` to set) |
+| `editor:auth:activate` | Set token and activate license (`--token <val>`) |
+| `editor:auth:logout` | Clear the current auth token |
+
+```bash
+# Check auth status
+bun run pipeline editor:auth:token --json
+
+# Set token and activate
+bun run pipeline editor:auth:activate --token <token> --json
+
+# Logout
+bun run pipeline editor:auth:logout --json
+```
+
+---
+
 ## Common Workflows
 
 ### Import media and add to timeline

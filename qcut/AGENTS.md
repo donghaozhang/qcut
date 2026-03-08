@@ -1,8 +1,3 @@
-- No TypeScript enums, use const objects
-- Always include error handling with try-catch
-
-## Coding Guidelines & Rules
-
 ## My Engineering Preferences
 
 > Use these to guide your recommendations:

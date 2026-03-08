@@ -542,6 +542,36 @@ export function createAuthRoutes({
 		}
 	});
 
+	// OAuth provider callbacks arrive as GET redirects with an external Referer
+	// (e.g. accounts.google.com). Better Auth's CSRF middleware rejects requests
+	// whose Origin/Referer isn't in trustedOrigins when cookies are present.
+	// Strip those headers so the CSRF check is skipped — the OAuth `state` param
+	// already protects against forgery.
+	authRoutes.get("/callback/:provider", async (c) => {
+		try {
+			const headers = new Headers(c.req.raw.headers);
+			headers.delete("origin");
+			headers.delete("referer");
+			const sanitized = new Request(c.req.raw.url, {
+				method: c.req.raw.method,
+				headers,
+			});
+			return await resolvedDependencies.handleAuthRequest({
+				request: sanitized,
+			});
+		} catch (error) {
+			return c.json(
+				{
+					error:
+						error instanceof Error
+							? `OAuth callback failed: ${error.message}`
+							: "OAuth callback failed",
+				},
+				500
+			);
+		}
+	});
+
 	authRoutes.all("/*", async (c) => {
 		try {
 			return await resolvedDependencies.handleAuthRequest({

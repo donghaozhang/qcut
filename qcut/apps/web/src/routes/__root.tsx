@@ -9,6 +9,7 @@ import { FFmpegHealthNotification } from "@/components/ffmpeg-health-notificatio
 import { ErrorBoundary } from "@/components/error-boundary";
 import { BlobUrlCleanup } from "@/components/providers/migrators/blob-url-cleanup";
 import { initializeRemotionStore } from "@/stores/ai/remotion-store";
+import { useLicenseStore } from "@/stores/license-store";
 import { setupClaudeBridgeLifecycle } from "@/lib/claude-bridge/claude-bridge-lifecycle";
 import { debugLog } from "@/lib/debug/debug-config";
 import "@/lib/media/blob-url-debug"; // Enable blob URL debugging in development
@@ -38,11 +39,25 @@ function ClaudeInitializer() {
 	return null;
 }
 
+/**
+ * License Initializer
+ * Fetches license + user profile at app startup so auth state
+ * is available on all pages (header avatar, projects page, etc.)
+ */
+function LicenseInitializer() {
+	const checkLicense = useLicenseStore((s) => s.checkLicense);
+	useEffect(() => {
+		checkLicense();
+	}, [checkLicense]);
+	return null;
+}
+
 export const Route = createRootRoute({
 	component: () => (
 		<ThemeProvider attribute="class" defaultTheme="dark">
 			<RemotionInitializer />
 			<ClaudeInitializer />
+			<LicenseInitializer />
 			<TooltipProvider>
 				<ErrorBoundary>
 					<StorageProvider>

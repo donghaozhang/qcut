@@ -13,15 +13,19 @@ import * as os from "os";
 
 const KEY_NAMES = [
 	"FAL_KEY",
+	"FREESOUND_API_KEY",
 	"GEMINI_API_KEY",
 	"GOOGLE_AI_API_KEY",
 	"OPENROUTER_API_KEY",
+	"ANTHROPIC_API_KEY",
 	"ELEVENLABS_API_KEY",
 	"OPENAI_API_KEY",
 	"RUNWAY_API_KEY",
 	"HEYGEN_API_KEY",
 	"DID_API_KEY",
 	"SYNTHESIA_API_KEY",
+	"ARK_API_KEY",
+	"QCUT_AUTH_TOKEN",
 ] as const;
 
 export type ApiKeyName = (typeof KEY_NAMES)[number];

@@ -191,6 +191,9 @@ export async function handleEditorCommand(
 
 	try {
 		switch (module) {
+			case "auth":
+				return await handleAuthCommand(client, options);
+
 			case "health":
 				return await handleEditorHealth(client, options);
 
@@ -241,7 +244,7 @@ export async function handleEditorCommand(
 			default:
 				return {
 					success: false,
-					error: `Unknown editor module: ${module}. Available: health, media, project, timeline, editing, analyze, transcribe, generate, export, diagnostics, mcp, remotion, navigator, screen-recording, ui, moyin, novel, screenshot, undo, redo, state`,
+					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, analyze, transcribe, generate, export, diagnostics, mcp, remotion, navigator, screen-recording, ui, moyin, novel, screenshot, undo, redo, state`,
 				};
 		}
 	} catch (err) {
@@ -512,6 +515,39 @@ async function handleMoyinCommand(
 			const data = await client.get("/api/claude/moyin/status");
 			return { success: true, data };
 		}
+		case "export": {
+			const data = await client.get("/api/claude/moyin/export");
+			const fs = await import("node:fs/promises");
+			const path = await import("node:path");
+			const os = await import("node:os");
+			// Default: ~/Documents/QCut/exports/moyin-export-{timestamp}.json
+			let outputPath = options.output;
+			if (!outputPath) {
+				const docsDir = path.join(os.homedir(), "Documents", "QCut", "exports");
+				const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+				outputPath = path.join(docsDir, `moyin-export-${ts}.json`);
+			}
+			try {
+				const absPath = path.resolve(outputPath);
+				await fs.mkdir(path.dirname(absPath), { recursive: true });
+				await fs.writeFile(absPath, JSON.stringify(data, null, 2));
+				const exportData =
+					typeof data === "object" && data !== null ? data : {};
+				return {
+					success: true,
+					data: {
+						...(exportData as Record<string, unknown>),
+						exportedTo: absPath,
+					},
+				};
+			} catch (error) {
+				const reason = error instanceof Error ? error.message : String(error);
+				return {
+					success: false,
+					error: `Failed to write export file: ${outputPath}. ${reason}`,
+				};
+			}
+		}
 		case "generate": {
 			if (!options.idea) {
 				return {
@@ -529,7 +565,7 @@ async function handleMoyinCommand(
 		default:
 			return {
 				success: false,
-				error: `Unknown moyin action: ${action}. Available: set-script, parse, status, generate`,
+				error: `Unknown moyin action: ${action}. Available: set-script, parse, status, export, generate`,
 			};
 	}
 }
@@ -659,6 +695,59 @@ async function handleScreenshotCommand(
 			return {
 				success: false,
 				error: `Unknown screenshot action: ${action}. Available: capture`,
+			};
+	}
+}
+
+/**
+ * Handle `editor:auth:*` commands.
+ * - `token` — get or set the current auth token
+ * - `activate` — set token and activate license
+ * - `logout` — clear the auth token
+ */
+async function handleAuthCommand(
+	client: EditorApiClient,
+	options: CLIRunOptions
+): Promise<CLIResult> {
+	const parts = options.command.split(":");
+	const action = parts[2];
+
+	switch (action) {
+		case "token": {
+			if (options.set) {
+				const data = await client.post("/api/claude/auth/token", {
+					token: options.set,
+				});
+				return { success: true, data };
+			}
+			const data = await client.get<{ token: string; authenticated: boolean }>(
+				"/api/claude/auth/token"
+			);
+			if (!options.reveal && data.token && data.token.length > 8) {
+				data.token =
+					data.token.substring(0, 4) +
+					"..." +
+					data.token.substring(data.token.length - 4);
+			}
+			return { success: true, data };
+		}
+		case "activate": {
+			if (!options.token) {
+				return { success: false, error: "Missing --token" };
+			}
+			const data = await client.post("/api/claude/auth/activate", {
+				token: options.token,
+			});
+			return { success: true, data };
+		}
+		case "logout": {
+			const data = await client.delete("/api/claude/auth/token");
+			return { success: true, data };
+		}
+		default:
+			return {
+				success: false,
+				error: `Unknown auth action: ${action}. Available: token, activate, logout`,
 			};
 	}
 }

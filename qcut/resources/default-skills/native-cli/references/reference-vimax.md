@@ -13,6 +13,26 @@ All `vimax:*` commands share these override flags:
 | `--video-model` | Override video generation model |
 | `--output-dir`, `-o` | Output directory |
 
+## Default LLM Model
+
+The default LLM for all ViMax agents is `google/gemini-3-flash-preview` (via OpenRouter). Common alternatives:
+
+| Alias | OpenRouter ID | Notes |
+|-------|---------------|-------|
+| `gemini-3-flash` | `google/gemini-3-flash-preview` | **Default** — fast, good structured output |
+| `gemini-2.5-flash` | `google/gemini-2.5-flash` | Stable, slightly slower |
+| `gpt-4o` | `openai/gpt-4o` | High quality, higher cost |
+| `claude-3.5-sonnet` | `anthropic/claude-3.5-sonnet` | High quality, higher cost |
+| `kimi-k2.5` | `moonshotai/kimi-k2.5` | Cheap but slow (reasoning model, may timeout) |
+
+```bash
+# Use default (Gemini 3 Flash)
+bun run pipeline vimax:generate-script --idea "..."
+
+# Override with a specific model
+bun run pipeline vimax:generate-script --idea "..." --llm-model "gpt-4o"
+```
+
 ## Commands
 
 ### `vimax:idea2video`

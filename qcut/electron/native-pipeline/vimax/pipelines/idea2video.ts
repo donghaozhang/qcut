@@ -65,7 +65,7 @@ export function createIdea2VideoConfig(
 		target_duration: 60.0,
 		video_model: "kling",
 		image_model: "nano_banana_pro",
-		llm_model: "kimi-k2.5",
+		llm_model: "google/gemini-3-flash-preview",
 		generate_portraits: true,
 		use_character_references: true,
 		parallel_generation: false,

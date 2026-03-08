@@ -6,6 +6,8 @@ import { ArrowRight } from "lucide-react";
 import { HeaderBase } from "./header-base";
 import { ThemeToggle } from "./ui/theme-toggle";
 import { getAssetPath } from "@/lib/asset-path";
+import { useLicenseStore } from "@/stores/license-store";
+import { UserAvatar } from "./user-avatar";
 
 interface HeaderProps {
 	variant?: "default" | "dark" | "landing";
@@ -14,6 +16,7 @@ interface HeaderProps {
 export function Header({ variant = "default" }: HeaderProps) {
 	const isDark = variant === "dark";
 	const isLanding = variant === "landing";
+	const user = useLicenseStore((s) => s.license?.user);
 
 	const leftContent = (
 		<Link to="/" className="flex items-center gap-3">
@@ -42,12 +45,16 @@ export function Header({ variant = "default" }: HeaderProps) {
 				>
 					Blog
 				</a>
-				<Link
-					to="/login"
-					className={`text-sm p-0 transition-colors ${isDark ? "text-neutral-400 hover:text-white" : "text-muted-foreground hover:text-foreground"}`}
-				>
-					Sign in
-				</Link>
+				{user ? (
+					<UserAvatar user={user} isDark={isDark} />
+				) : (
+					<Link
+						to="/login"
+						className={`text-sm p-0 transition-colors ${isDark ? "text-neutral-400 hover:text-white" : "text-muted-foreground hover:text-foreground"}`}
+					>
+						Sign in
+					</Link>
+				)}
 			</div>
 			<Link to="/projects">
 				<Button

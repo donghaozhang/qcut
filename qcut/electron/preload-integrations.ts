@@ -936,11 +936,30 @@ export function createMoyinAPI(): NonNullable<ElectronAPI["moyin"]> {
 				error,
 			});
 		},
+		onExportRequest: (callback: (data: { requestId: string }) => void) => {
+			ipcRenderer.removeAllListeners("claude:moyin:export:request");
+			ipcRenderer.on(
+				"claude:moyin:export:request",
+				(_: unknown, data: { requestId: string }) => callback(data)
+			);
+		},
+		sendExportResponse: (
+			requestId: string,
+			result?: Record<string, unknown>,
+			error?: string
+		) => {
+			ipcRenderer.send("claude:moyin:export:response", {
+				requestId,
+				result,
+				error,
+			});
+		},
 		removeMoyinBridgeListeners: () => {
 			ipcRenderer.removeAllListeners("claude:moyin:set-script");
 			ipcRenderer.removeAllListeners("claude:moyin:trigger-parse");
 			ipcRenderer.removeAllListeners("claude:moyin:generate-script");
 			ipcRenderer.removeAllListeners("claude:moyin:status:request");
+			ipcRenderer.removeAllListeners("claude:moyin:export:request");
 		},
 	};
 }

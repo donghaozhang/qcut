@@ -7,6 +7,9 @@ import {
 	getLicenseByUserId,
 } from "../services/license-service";
 import { getCreditBalanceByUserId } from "../services/credit-service";
+import { db } from "../db/drizzle";
+import { users } from "@qcut/db/schema";
+import { eq } from "drizzle-orm";
 
 const licenseRoutes = new Hono();
 
@@ -18,6 +21,12 @@ licenseRoutes.get("/", async (c) => {
 		const license = await getLicenseByUserId({ userId });
 		const devices = await getActiveDevices({ licenseId: license.id });
 		const credits = await getCreditBalanceByUserId({ userId });
+		const [user] = await db
+			.select({ name: users.name, email: users.email, image: users.image })
+			.from(users)
+			.where(eq(users.id, userId))
+			.limit(1);
+
 		return c.json({
 			license: {
 				plan: license.plan,
@@ -25,6 +34,9 @@ licenseRoutes.get("/", async (c) => {
 				currentPeriodEnd: license.currentPeriodEnd?.toISOString(),
 				credits,
 			},
+			user: user
+				? { name: user.name, email: user.email, image: user.image }
+				: null,
 			devices,
 		});
 	} catch (error) {

@@ -8,7 +8,13 @@ import {
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import {
+	setKey as persistKey,
+	getKey as loadKey,
+	deleteKey as removeKey,
+} from "./native-pipeline/infra/key-manager.js";
 
+const AUTH_KEY_NAME = "QCUT_AUTH_TOKEN";
 const LICENSE_SERVER_URL =
 	process.env.QCUT_LICENSE_SERVER_URL ||
 	"https://qcut-license-server.zdhpeter.workers.dev";
@@ -22,18 +28,36 @@ interface CreditBalance {
 	planCreditsResetAt: string;
 }
 
+interface UserProfile {
+	name: string;
+	email: string;
+	image: string | null;
+}
+
 interface LicenseInfo {
 	plan: "free" | "pro" | "team";
 	status: "active" | "past_due" | "cancelled" | "expired";
 	currentPeriodEnd?: string;
 	credits: CreditBalance;
+	user?: UserProfile | null;
 	cachedAt?: number;
 }
 
 let authToken = "";
 
 function setAuthToken({ token }: { token: string }): void {
-	authToken = token.trim();
+	const trimmed = token.trim();
+	authToken = trimmed;
+	// Persist to ~/.qcut/.env so token survives app restarts
+	try {
+		if (trimmed.length > 0) {
+			persistKey(AUTH_KEY_NAME, trimmed);
+		} else {
+			removeKey(AUTH_KEY_NAME);
+		}
+	} catch {
+		// Non-fatal: in-memory token still works for this session
+	}
 }
 
 async function getAuthToken(): Promise<string> {
@@ -42,9 +66,20 @@ async function getAuthToken(): Promise<string> {
 			return authToken;
 		}
 
-		const envToken = process.env.QCUT_AUTH_TOKEN;
+		const envToken = process.env[AUTH_KEY_NAME];
 		if (typeof envToken === "string" && envToken.trim().length > 0) {
 			return envToken.trim();
+		}
+
+		// Check persisted token in ~/.qcut/.env
+		try {
+			const persisted = loadKey(AUTH_KEY_NAME);
+			if (persisted && persisted.trim().length > 0) {
+				authToken = persisted.trim();
+				return authToken;
+			}
+		} catch {
+			// Fall through to cookie check
 		}
 
 		const cookieNames = [
@@ -163,17 +198,28 @@ async function getOnlineLicense(): Promise<LicenseInfo | null> {
 
 		const payload = (await response.json()) as {
 			license?: LicenseInfo;
+			user?: UserProfile | null;
 		};
 		if (!payload.license) {
 			return null;
 		}
 
-		cacheLicense({ license: payload.license });
-		return payload.license;
+		const licenseWithUser: LicenseInfo = {
+			...payload.license,
+			user: payload.user ?? null,
+		};
+		cacheLicense({ license: licenseWithUser });
+		return licenseWithUser;
 	} catch {
 		return null;
 	}
 }
+
+/** Returns the current auth token (for HTTP API). */
+export { getAuthToken };
+
+/** Sets the in-memory auth token (for HTTP API). */
+export { setAuthToken };
 
 export function setupLicenseIPC(): void {
 	ipcMain.handle("license:set-auth-token", async (_event, token: string) => {
@@ -187,6 +233,10 @@ export function setupLicenseIPC(): void {
 	ipcMain.handle("license:clear-auth-token", async () => {
 		setAuthToken({ token: "" });
 		return true;
+	});
+
+	ipcMain.handle("license:get-auth-token", async () => {
+		return getAuthToken();
 	});
 
 	ipcMain.handle("license:check", async (): Promise<LicenseInfo> => {

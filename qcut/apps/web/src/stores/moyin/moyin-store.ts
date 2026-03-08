@@ -108,6 +108,8 @@ interface MoyinState {
 	createError: string | null;
 	selectedShotIds: Set<string>;
 	parseModel: string;
+	/** Preserved from generate step so shot calibration can respect it. */
+	lastTargetDuration: string | undefined;
 }
 
 interface MoyinActions {
@@ -221,6 +223,7 @@ const initialState: MoyinState = {
 	createError: null,
 	selectedShotIds: new Set<string>(),
 	parseModel: "minimax",
+	lastTargetDuration: undefined,
 };
 
 /** Module-scoped: timeout ID for the 3-minute PTY parse guard. */
@@ -390,10 +393,25 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 					shotCount,
 					selectedStyleId,
 				});
+				// Preserve targetDuration so shot calibration can respect it
+				const currentSD = get().scriptData;
+				const updatedSD: import("@/types/moyin-script").ScriptData = {
+					...(currentSD ?? {
+						title: "",
+						language: "auto",
+						characters: [],
+						scenes: [],
+						episodes: [],
+						storyParagraphs: [],
+					}),
+					targetDuration: options.targetDuration,
+				};
 				set({
 					rawScript: generatedText,
 					createStatus: "done",
 					createError: null,
+					scriptData: updatedSD,
+					lastTargetDuration: options.targetDuration,
 				});
 			} catch (error) {
 				set({

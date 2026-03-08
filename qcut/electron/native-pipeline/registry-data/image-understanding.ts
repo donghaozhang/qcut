@@ -118,4 +118,83 @@ export function registerImageUnderstandingModels(): void {
 		costEstimate: 0.003,
 		processingTime: 15,
 	});
+
+	ModelRegistry.register({
+		key: "doubao_video_understanding",
+		name: "Doubao Video Understanding",
+		provider: "Volcengine",
+		endpoint: "volcengine/chat/completions",
+		categories: ["image_understanding"],
+		description:
+			"Video understanding via Volcengine Ark Doubao Seed 1.6 (Chat API), supports URL input up to 50MB",
+		pricing: { per_request: 0.005 },
+		defaults: {
+			model: "doubao-seed-1-6-251015",
+			ark_api: "chat",
+			fps: 1,
+			max_tokens: 4096,
+		},
+		features: [
+			"qa",
+			"video_analysis",
+			"interactive",
+			"temporal_awareness",
+			"timestamped_events",
+		],
+		costEstimate: 0.005,
+		processingTime: 20,
+	});
+
+	ModelRegistry.register({
+		key: "doubao_seed_2_pro",
+		name: "Doubao Seed 2.0 Pro",
+		provider: "Volcengine",
+		endpoint: "volcengine/responses",
+		categories: ["image_understanding"],
+		description:
+			"Doubao Seed 2.0 Pro via Responses API — high-capability video/image understanding with deep thinking, up to 1280 frames",
+		pricing: { per_request: 0.008 },
+		defaults: {
+			model: "doubao-seed-2-0-pro-260215",
+			ark_api: "responses",
+			fps: 1,
+		},
+		features: [
+			"qa",
+			"video_analysis",
+			"image_analysis",
+			"interactive",
+			"temporal_awareness",
+			"timestamped_events",
+			"deep_thinking",
+		],
+		costEstimate: 0.008,
+		processingTime: 25,
+	});
+
+	ModelRegistry.register({
+		key: "doubao_seed_2_lite",
+		name: "Doubao Seed 2.0 Lite",
+		provider: "Volcengine",
+		endpoint: "volcengine/responses",
+		categories: ["image_understanding"],
+		description:
+			"Doubao Seed 2.0 Lite via Responses API — fast, cost-effective video/image understanding, up to 1280 frames",
+		pricing: { per_request: 0.003 },
+		defaults: {
+			model: "doubao-seed-2-0-lite-260215",
+			ark_api: "responses",
+			fps: 1,
+		},
+		features: [
+			"qa",
+			"video_analysis",
+			"image_analysis",
+			"interactive",
+			"temporal_awareness",
+			"timestamped_events",
+		],
+		costEstimate: 0.003,
+		processingTime: 15,
+	});
 }

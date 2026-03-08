@@ -1,6 +1,10 @@
 import { ipcMain, safeStorage, app, IpcMainInvokeEvent } from "electron";
 import path from "path";
 import fs from "fs";
+import {
+	setKey as persistToQcutEnv,
+	deleteKey as removeFromQcutEnv,
+} from "./native-pipeline/infra/key-manager.js";
 
 // Type definitions for API key management
 interface ApiKeys {
@@ -58,6 +62,16 @@ const AICP_REVERSE_MAP: Partial<Record<keyof ApiKeys, string>> = {
 	falApiKey: "FAL_KEY",
 	geminiApiKey: "GEMINI_API_KEY",
 	openRouterApiKey: "OPENROUTER_API_KEY",
+};
+
+// QCut ApiKeys field → ~/.qcut/.env key name (for syncing to native CLI store)
+const QCUT_ENV_MAP: Partial<Record<keyof ApiKeys, string>> = {
+	falApiKey: "FAL_KEY",
+	freesoundApiKey: "FREESOUND_API_KEY",
+	geminiApiKey: "GEMINI_API_KEY",
+	openRouterApiKey: "OPENROUTER_API_KEY",
+	anthropicApiKey: "ANTHROPIC_API_KEY",
+	elevenLabsApiKey: "ELEVENLABS_API_KEY",
 };
 
 const EMPTY_API_KEYS: ApiKeys = {
@@ -228,6 +242,24 @@ function syncToAicpCredentials(keys: Partial<ApiKeys>): void {
 }
 
 /**
+ * Sync keys to ~/.qcut/.env so the native CLI can read them.
+ */
+function syncToQcutEnv(keys: Partial<ApiKeys>): void {
+	try {
+		for (const [field, envName] of Object.entries(QCUT_ENV_MAP)) {
+			const value = keys[field as keyof ApiKeys];
+			if (value) {
+				persistToQcutEnv(envName, value);
+			} else {
+				removeFromQcutEnv(envName);
+			}
+		}
+	} catch (error) {
+		console.warn("[API Keys] Failed to sync to ~/.qcut/.env:", error);
+	}
+}
+
+/**
  * Load keys from QCut's Electron safeStorage store (Tier 2).
  */
 async function loadElectronStoredKeys(): Promise<ApiKeys> {
@@ -245,6 +277,14 @@ async function loadElectronStoredKeys(): Promise<ApiKeys> {
 	}
 }
 
+// Reverse of QCUT_ENV_MAP: env var name → ApiKeys field (for reading ~/.qcut/.env)
+const QCUT_ENV_READ_MAP: Record<string, keyof ApiKeys> = Object.fromEntries(
+	Object.entries(QCUT_ENV_MAP).map(([field, envName]) => [
+		envName,
+		field as keyof ApiKeys,
+	])
+) as Record<string, keyof ApiKeys>;
+
 /**
  * Load keys from ~/.qcut/.env (Tier 3b — native CLI credential store).
  */
@@ -261,7 +301,7 @@ function loadQcutEnvKeys(): Partial<ApiKeys> {
 			if (eqIdx <= 0) continue;
 			const varName = trimmed.slice(0, eqIdx);
 			const value = trimmed.slice(eqIdx + 1);
-			const field = AICP_KEY_MAP[varName];
+			const field = QCUT_ENV_READ_MAP[varName] || AICP_KEY_MAP[varName];
 			if (field && value) {
 				result[field] = value;
 			}
@@ -293,7 +333,10 @@ export async function getDecryptedApiKeys(): Promise<ApiKeys> {
 			qcutEnvKeys.falApiKey ||
 			"",
 		freesoundApiKey:
-			process.env.FREESOUND_API_KEY || electronKeys.freesoundApiKey || "",
+			process.env.FREESOUND_API_KEY ||
+			electronKeys.freesoundApiKey ||
+			qcutEnvKeys.freesoundApiKey ||
+			"",
 		geminiApiKey:
 			process.env.GEMINI_API_KEY ||
 			electronKeys.geminiApiKey ||
@@ -307,9 +350,15 @@ export async function getDecryptedApiKeys(): Promise<ApiKeys> {
 			qcutEnvKeys.openRouterApiKey ||
 			"",
 		anthropicApiKey:
-			process.env.ANTHROPIC_API_KEY || electronKeys.anthropicApiKey || "",
+			process.env.ANTHROPIC_API_KEY ||
+			electronKeys.anthropicApiKey ||
+			qcutEnvKeys.anthropicApiKey ||
+			"",
 		elevenLabsApiKey:
-			process.env.ELEVENLABS_API_KEY || electronKeys.elevenLabsApiKey || "",
+			process.env.ELEVENLABS_API_KEY ||
+			electronKeys.elevenLabsApiKey ||
+			qcutEnvKeys.elevenLabsApiKey ||
+			"",
 	};
 }
 
@@ -328,6 +377,7 @@ export function setupApiKeyIPC(): void {
 				keys.falApiKey || keys.geminiApiKey || keys.openRouterApiKey;
 			if (hasKeys) {
 				syncToAicpCredentials(keys);
+				syncToQcutEnv(keys);
 			}
 		})
 		.catch((error) => {
@@ -393,6 +443,7 @@ export function setupApiKeyIPC(): void {
 
 				// Sync plaintext keys to AICP credential store so CLI tools can read them
 				syncToAicpCredentials(keys);
+				syncToQcutEnv(keys);
 
 				return true;
 			} catch (error: any) {

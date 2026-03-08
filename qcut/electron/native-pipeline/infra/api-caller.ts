@@ -12,7 +12,12 @@ import * as path from "path";
 import { pipeline } from "stream/promises";
 import { Readable } from "stream";
 
-export type ProviderName = "fal" | "elevenlabs" | "google" | "openrouter";
+export type ProviderName =
+	| "fal"
+	| "elevenlabs"
+	| "google"
+	| "openrouter"
+	| "volcengine";
 export type ApiKeyProvider = (provider: ProviderName) => Promise<string>;
 
 export interface ApiCallOptions {
@@ -157,6 +162,7 @@ export async function uploadToFalStorage(
 const ELEVENLABS_BASE = "https://api.elevenlabs.io/v1";
 export const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 export const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
+export const VOLCENGINE_BASE = "https://ark.cn-beijing.volces.com/api/v3";
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_RETRIES = 2;
@@ -190,6 +196,8 @@ export function envApiKeyProvider(provider: ProviderName): Promise<string> {
 			);
 		case "openrouter":
 			return Promise.resolve(process.env.OPENROUTER_API_KEY || "");
+		case "volcengine":
+			return Promise.resolve(process.env.ARK_API_KEY || "");
 	}
 }
 
@@ -214,6 +222,8 @@ async function defaultApiKeyProvider(provider: ProviderName): Promise<string> {
 				);
 			case "openrouter":
 				return process.env.OPENROUTER_API_KEY || keys.openRouterApiKey || "";
+			case "volcengine":
+				return process.env.ARK_API_KEY || "";
 		}
 	} catch {
 		// Not in Electron — fall through to env vars
@@ -254,6 +264,9 @@ function buildHeaders(
 		case "openrouter":
 			headers.Authorization = `Bearer ${apiKey}`;
 			break;
+		case "volcengine":
+			headers.Authorization = `Bearer ${apiKey}`;
+			break;
 	}
 	return headers;
 }
@@ -272,6 +285,9 @@ function buildUrl(
 			return `${GEMINI_BASE}/${endpoint}`;
 		case "openrouter":
 			return `${OPENROUTER_BASE}/${endpoint}`;
+		case "volcengine":
+			// Strip the "volcengine/" routing prefix from the endpoint
+			return `${VOLCENGINE_BASE}/${endpoint.replace(/^volcengine\//, "")}`;
 	}
 }
 

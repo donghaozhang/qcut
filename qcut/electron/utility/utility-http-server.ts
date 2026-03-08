@@ -587,6 +587,55 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 		);
 	});
 
+	router.get("/api/claude/moyin/export", async () => {
+		return await withTimeout(
+			requestFromMain("moyin:export", {}),
+			10_000,
+			"Moyin export timed out"
+		);
+	});
+
+	// ==========================================================================
+	// Auth routes (token management)
+	// ==========================================================================
+	router.get("/api/claude/auth/token", async () => {
+		return await withTimeout(
+			requestFromMain("auth:get-token", {}),
+			5_000,
+			"Get auth token timed out"
+		);
+	});
+
+	router.post("/api/claude/auth/token", async (req) => {
+		if (!req.body?.token || typeof req.body.token !== "string") {
+			throw new HttpError(400, "Missing 'token' in request body");
+		}
+		return await withTimeout(
+			requestFromMain("auth:set-token", { token: req.body.token }),
+			5_000,
+			"Set auth token timed out"
+		);
+	});
+
+	router.delete("/api/claude/auth/token", async () => {
+		return await withTimeout(
+			requestFromMain("auth:set-token", { token: "" }),
+			5_000,
+			"Clear auth token timed out"
+		);
+	});
+
+	router.post("/api/claude/auth/activate", async (req) => {
+		if (!req.body?.token || typeof req.body.token !== "string") {
+			throw new HttpError(400, "Missing 'token' in request body");
+		}
+		return await withTimeout(
+			requestFromMain("auth:activate", { token: req.body.token }),
+			15_000,
+			"License activation timed out"
+		);
+	});
+
 	// Auth check
 	/** Handle check auth. */
 	function checkAuth(req: IncomingMessage): boolean {

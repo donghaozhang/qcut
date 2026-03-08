@@ -40,6 +40,7 @@ interface StoreRef {
 		shots: import("@/types/moyin-script").Shot[];
 		pipelineProgress: Record<PipelineStep, PipelineStepStatus>;
 		pipelineStep: PipelineStep | null;
+		lastTargetDuration?: string;
 	};
 	setState: (
 		partial:
@@ -64,12 +65,21 @@ export async function runCalibrationPipeline(
 		store.setState({ pipelineStep: step, pipelineProgress: progress });
 	};
 
-	// Set data immediately so user can see results while calibration runs
+	// Set data immediately so user can see results while calibration runs.
+	// Preserve targetDuration from the generate step if the parsed data lacks it.
+	const existingSD = store.getState().scriptData;
+	const mergedData = {
+		...data,
+		targetDuration:
+			data.targetDuration ||
+			existingSD?.targetDuration ||
+			store.getState().lastTargetDuration,
+	};
 	store.setState({
-		scriptData: data,
-		characters: data.characters ?? [],
-		scenes: data.scenes ?? [],
-		episodes: data.episodes ?? [],
+		scriptData: mergedData,
+		characters: mergedData.characters ?? [],
+		scenes: mergedData.scenes ?? [],
+		episodes: mergedData.episodes ?? [],
 		shots: [],
 	});
 
@@ -112,10 +122,13 @@ export async function runCalibrationPipeline(
 		for (const ep of episodes) {
 			const epScenes = scenes.filter((s) => ep.sceneIds.includes(s.id));
 			if (epScenes.length === 0) continue;
+			const targetDur =
+				sd?.targetDuration || store.getState().lastTargetDuration;
 			const newShots = await generateShotsForEpisodeAction(
 				epScenes,
 				ep.title,
-				sd?.title || "Unknown"
+				sd?.title || "Unknown",
+				targetDur
 			);
 			allNewShots.push(...newShots);
 		}

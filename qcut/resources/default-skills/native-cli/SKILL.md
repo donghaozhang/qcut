@@ -141,6 +141,79 @@ bun run pipeline run-pipeline -c pipeline.yaml -i "A sunset" --no-confirm
 bun run pipeline estimate-cost -m veo3 -d 8s
 ```
 
+## Auth Token Management
+
+Get, set, or clear the QCut auth token directly from the CLI. No need for DevTools.
+
+```bash
+# Get current token (masked by default)
+bun run pipeline editor:auth:token --json
+
+# Get token with full value revealed
+bun run pipeline editor:auth:token --reveal --json
+
+# Set a token
+bun run pipeline editor:auth:token --set <token> --json
+
+# Activate license on this device
+bun run pipeline editor:auth:activate --token <token> --json
+
+# Clear token (logout)
+bun run pipeline editor:auth:logout --json
+```
+
+| Command | Description |
+|---------|-------------|
+| `editor:auth:token` | Get current token (add `--reveal` for full value, `--set <val>` to set) |
+| `editor:auth:activate` | Set token and activate license on this device |
+| `editor:auth:logout` | Clear the current auth token |
+
+## YouTube Upload
+
+Upload videos to YouTube after authenticating with Google OAuth.
+
+**Prerequisites:**
+- Logged in via Google OAuth in QCut app
+- YouTube Data API v3 enabled in Google Cloud Console
+- YouTube channel created on the Google account
+- Auth token set (use `bun run pipeline editor:auth:token --reveal --json` to check)
+
+```bash
+# Set auth token for CLI usage (preferred: use editor:auth:token --set)
+bun run pipeline editor:auth:token --set <token> --json
+
+# Upload a video (private by default)
+bun run pipeline youtube:upload -i video.mp4 --title "My Video"
+
+# Upload with all options
+bun run pipeline youtube:upload \
+  -i video.mp4 \
+  --title "My Video" \
+  --text "Video description" \
+  --mode unlisted \
+  --data "tag1,tag2,tag3" \
+  --category 22 \
+  --image thumbnail.jpg \
+  --json
+```
+
+| Flag | Description |
+|------|-------------|
+| `--input`, `-i` | Path to video file (required) |
+| `--title` | Video title (required) |
+| `--text` | Video description |
+| `--data` | Comma-separated tags |
+| `--mode` | Privacy: `public`, `unlisted`, `private` (default: `public`) |
+| `--category` | YouTube category ID (default: `22` = People & Blogs) |
+| `--image` | Path to thumbnail image |
+
+**Auth flow:** CLI token → license server `/api/youtube/token` → Google access token → YouTube Data API v3 resumable upload.
+
+**Key files:**
+- CLI handler: `electron/native-pipeline/cli/cli-handlers-youtube.ts`
+- License server endpoint: `packages/license-server/src/routes/youtube.ts`
+- Electron IPC handler: `electron/youtube-handler.ts`
+
 ## ViMax Quick Start
 
 ```bash
@@ -159,7 +232,7 @@ bun run pipeline set-key --name FAL_KEY   # Set a key (interactive)
 bun run pipeline check-keys     # Check configured keys
 ```
 
-**Supported keys:** `FAL_KEY`, `GEMINI_API_KEY`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY`, `ELEVENLABS_API_KEY`, `OPENAI_API_KEY`, `RUNWAY_API_KEY`, `HEYGEN_API_KEY`, `DID_API_KEY`, `SYNTHESIA_API_KEY`
+**Supported keys:** `FAL_KEY`, `GEMINI_API_KEY`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY`, `ELEVENLABS_API_KEY`, `OPENAI_API_KEY`, `RUNWAY_API_KEY`, `HEYGEN_API_KEY`, `DID_API_KEY`, `SYNTHESIA_API_KEY`, `QCUT_AUTH_TOKEN`
 
 ## Unified JSON Output
 
@@ -246,4 +319,9 @@ See [editor-media.md](editor/editor-media.md) for the full project.json schema.
 | ViMax handlers | `electron/native-pipeline/cli/vimax-cli-handlers.ts` |
 | Remotion handler | `electron/native-pipeline/cli/cli-handlers-remotion.ts` |
 | Moyin handler | `electron/native-pipeline/cli/cli-handlers-moyin.ts` |
+| YouTube handler | `electron/native-pipeline/cli/cli-handlers-youtube.ts` |
+| Auth routes (HTTP) | `electron/claude/http/claude-http-server.ts` |
+| Auth routes (utility) | `electron/utility/utility-http-server.ts` |
+| Auth bridge | `electron/utility/utility-bridge.ts` |
+| License handler | `electron/license-handler.ts` |
 | Key manager | `electron/native-pipeline/key-manager.ts` |

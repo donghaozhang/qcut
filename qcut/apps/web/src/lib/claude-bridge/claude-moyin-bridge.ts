@@ -85,6 +85,35 @@ export function setupClaudeMoyinBridge(): void {
 			}
 		}
 	});
+
+	moyin.onExportRequest((data) => {
+		const requestId = typeof data?.requestId === "string" ? data.requestId : "";
+		try {
+			if (!requestId) {
+				throw new Error("Invalid export request: missing requestId");
+			}
+			const state = useMoyinStore.getState();
+			moyin.sendExportResponse(requestId, {
+				title: state.scriptData?.title ?? "Untitled",
+				genre: state.scriptData?.genre,
+				logline: state.scriptData?.logline,
+				language: state.scriptData?.language ?? "auto",
+				targetDuration: state.scriptData?.targetDuration,
+				characters: state.characters,
+				scenes: state.scenes,
+				episodes: state.episodes,
+				shots: state.shots,
+			});
+		} catch (err) {
+			if (requestId) {
+				moyin.sendExportResponse(
+					requestId,
+					undefined,
+					err instanceof Error ? err.message : String(err)
+				);
+			}
+		}
+	});
 }
 
 export function cleanupClaudeMoyinBridge(): void {

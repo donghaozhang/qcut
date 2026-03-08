@@ -62,6 +62,7 @@ import {
 	registerClaudeEventsRoutes,
 } from "./claude-http-events-routes.js";
 import { runMainProcessDeepHealthChecks } from "../handlers/claude-health-handler.js";
+import { getAuthToken, setAuthToken } from "../../license-handler.js";
 
 let server: Server | null = null;
 
@@ -246,6 +247,67 @@ export function startClaudeHTTPServer(
 				setTimeout(() => reject(new HttpError(504, "Renderer timed out")), 5000)
 			),
 		]);
+	});
+
+	// ==========================================================================
+	// Auth routes (token management)
+	// ==========================================================================
+	router.get("/api/claude/auth/token", async () => {
+		const token = await getAuthToken();
+		return {
+			authenticated: token.length > 0,
+		};
+	});
+
+	router.post("/api/claude/auth/token", async (req) => {
+		if (!req.body?.token || typeof req.body.token !== "string") {
+			throw new HttpError(400, "Missing 'token' in request body");
+		}
+		setAuthToken({ token: req.body.token });
+		return { success: true };
+	});
+
+	router.delete("/api/claude/auth/token", async () => {
+		setAuthToken({ token: "" });
+		return { success: true };
+	});
+
+	router.post("/api/claude/auth/activate", async (req) => {
+		if (!req.body?.token || typeof req.body.token !== "string") {
+			throw new HttpError(400, "Missing 'token' in request body");
+		}
+		const token = req.body.token.trim();
+		if (!token) {
+			throw new HttpError(400, "Token cannot be empty");
+		}
+		const LICENSE_SERVER_URL =
+			process.env.QCUT_LICENSE_SERVER_URL ||
+			"https://qcut-license-server.zdhpeter.workers.dev";
+		const hostname = require("node:os").hostname();
+		const response = await fetch(`${LICENSE_SERVER_URL}/api/license/activate`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${token}`,
+			},
+			body: JSON.stringify({
+				deviceFingerprint: `cli-${hostname}`,
+				deviceName: hostname,
+			}),
+		});
+		if (!response.ok) {
+			const text = await response.text().catch(() => "");
+			throw new HttpError(
+				response.status,
+				`Activation failed: ${text || response.statusText}`
+			);
+		}
+		const data = (await response.json().catch(() => ({}))) as Record<
+			string,
+			unknown
+		>;
+		setAuthToken({ token });
+		return { activated: true, ...data };
 	});
 
 	// ==========================================================================
