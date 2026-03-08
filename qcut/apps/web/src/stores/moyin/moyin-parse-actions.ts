@@ -40,6 +40,7 @@ interface StoreRef {
 		shots: import("@/types/moyin-script").Shot[];
 		pipelineProgress: Record<PipelineStep, PipelineStepStatus>;
 		pipelineStep: PipelineStep | null;
+		lastTargetDuration?: string;
 	};
 	setState: (
 		partial:
@@ -69,7 +70,10 @@ export async function runCalibrationPipeline(
 	const existingSD = store.getState().scriptData;
 	const mergedData = {
 		...data,
-		targetDuration: data.targetDuration ?? existingSD?.targetDuration,
+		targetDuration:
+			data.targetDuration ||
+			existingSD?.targetDuration ||
+			store.getState().lastTargetDuration,
 	};
 	store.setState({
 		scriptData: mergedData,
@@ -118,11 +122,13 @@ export async function runCalibrationPipeline(
 		for (const ep of episodes) {
 			const epScenes = scenes.filter((s) => ep.sceneIds.includes(s.id));
 			if (epScenes.length === 0) continue;
+			const targetDur =
+				sd?.targetDuration || store.getState().lastTargetDuration;
 			const newShots = await generateShotsForEpisodeAction(
 				epScenes,
 				ep.title,
 				sd?.title || "Unknown",
-				sd?.targetDuration
+				targetDur
 			);
 			allNewShots.push(...newShots);
 		}
