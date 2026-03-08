@@ -79,6 +79,7 @@ See `references/dimensions/density.md` for full density dimension specs.
 - White space is strategic, not filler
 
 **Density by Slide Type**:
+
 | Slide Type | Recommended Density |
 |------------|-------------------|
 | Cover/Title | minimal |
@@ -99,6 +100,7 @@ See `references/dimensions/mood.md` for full mood dimension specs.
 4. Ensure strong contrast for readability
 
 **Quick Palette Guide**:
+
 | Content Type | Recommended Mood |
 |--------------|-----------------|
 | Technical/Architecture | cool |
@@ -123,6 +125,7 @@ See `references/dimensions/typography.md` for full typography dimension specs.
 ## Font Recommendations
 
 **English Fonts**:
+
 | Font | Style | Best For |
 |------|-------|----------|
 | Liter | Sans-serif, geometric | Modern, clean, technical |
@@ -132,6 +135,7 @@ See `references/dimensions/typography.md` for full typography dimension specs.
 | Coda | Round sans-serif | Friendly, approachable |
 
 **Chinese Fonts**:
+
 | Font | Style | Best For |
 |------|-------|----------|
 | MiSans | Modern sans-serif | Clean, versatile, screen-optimized |

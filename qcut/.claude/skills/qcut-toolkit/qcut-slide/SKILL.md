@@ -10,7 +10,7 @@ CLI-first slide deck generation.
 ## Usage
 
 ```bash
-export QCUT_SLIDE_ROOT="/Users/peter/Desktop/code/qcut/qcut/.claude/skills/qcut-toolkit/qcut-slide"
+export QCUT_SLIDE_ROOT=".claude/skills/qcut-toolkit/qcut-slide"
 
 npx -y bun "$QCUT_SLIDE_ROOT/scripts/main.ts" article.md
 npx -y bun "$QCUT_SLIDE_ROOT/scripts/main.ts" article.md --style blueprint --audience executives --slides 10

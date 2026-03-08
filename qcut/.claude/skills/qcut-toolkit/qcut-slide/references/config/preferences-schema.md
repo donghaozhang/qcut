@@ -66,7 +66,7 @@ custom_styles:
     description: "Optional description"
 ```
 
-Then use with: `/qcut-slide content.md --style style-name`
+Then use with: `bun $QCUT_SLIDE_ROOT/scripts/main.ts content.md --style style-name`
 
 ## Minimal Examples
 
