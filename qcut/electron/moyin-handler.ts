@@ -174,7 +174,7 @@ async function callOpenAICompatible(
 	const baseUrl = isOpenRouter
 		? "https://openrouter.ai/api/v1"
 		: "https://api.openai.com/v1";
-	const model = isOpenRouter ? "google/gemini-2.5-flash" : "gpt-4o-mini";
+	const model = isOpenRouter ? "google/gemini-3-flash-preview" : "gpt-4o-mini";
 
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
