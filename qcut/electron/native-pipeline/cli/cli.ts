@@ -437,6 +437,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			deep: { type: "boolean", default: false },
 			"no-capability-check": { type: "boolean", default: false },
 			session: { type: "boolean", default: false },
+			set: { type: "string" },
 		},
 		strict: false,
 	});
@@ -694,6 +695,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		statusOnly: (values["status-only"] as boolean) ?? false,
 		deep: (values.deep as boolean) ?? false,
 		noCapabilityCheck: (values["no-capability-check"] as boolean) ?? false,
+		set: values.set as string | undefined,
 		session: (values.session as boolean) ?? false,
 	};
 }

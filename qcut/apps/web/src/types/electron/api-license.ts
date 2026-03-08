@@ -5,11 +5,18 @@ export interface CreditBalance {
 	planCreditsResetAt: string;
 }
 
+export interface UserProfile {
+	name: string;
+	email: string;
+	image: string | null;
+}
+
 export interface LicenseInfo {
 	plan: "free" | "pro" | "team";
 	status: "active" | "past_due" | "cancelled" | "expired";
 	currentPeriodEnd?: string;
 	credits: CreditBalance;
+	user?: UserProfile | null;
 }
 
 export interface ElectronLicenseOps {

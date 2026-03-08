@@ -32,7 +32,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useProjectStore } from "@/stores/project-store";
+import { useLicenseStore } from "@/stores/license-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { UserAvatar } from "@/components/user-avatar";
 import type { CanvasSize } from "@/types/editor";
 
 export const Route = createLazyFileRoute("/projects")({
@@ -158,6 +160,8 @@ function ProjectsPage() {
 					<ChevronLeft className="size-5! shrink-0" />
 					<span className="text-sm font-medium">Back</span>
 				</Link>
+				<div className="flex items-center gap-3">
+				<ProjectsUserAvatar />
 				<div className="block md:hidden">
 					{isSelectionMode ? (
 						<div className="flex items-center gap-2">
@@ -190,6 +194,7 @@ function ProjectsPage() {
 							<span className="text-sm font-medium">New Project</span>
 						</Button>
 					)}
+				</div>
 				</div>
 			</div>
 
@@ -450,4 +455,10 @@ function ProjectsPage() {
 			/>
 		</div>
 	);
+}
+
+function ProjectsUserAvatar() {
+	const user = useLicenseStore((s) => s.license?.user);
+	if (!user) return null;
+	return <UserAvatar user={user} />;
 }

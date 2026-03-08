@@ -9,11 +9,18 @@ interface CreditBalance {
 	planCreditsResetAt: string;
 }
 
+interface UserProfile {
+	name: string;
+	email: string;
+	image: string | null;
+}
+
 interface LicenseInfo {
 	plan: Plan;
 	status: "active" | "past_due" | "cancelled" | "expired";
 	currentPeriodEnd?: string;
 	credits: CreditBalance;
+	user?: UserProfile | null;
 }
 
 interface LicenseState {

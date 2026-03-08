@@ -28,11 +28,18 @@ interface CreditBalance {
 	planCreditsResetAt: string;
 }
 
+interface UserProfile {
+	name: string;
+	email: string;
+	image: string | null;
+}
+
 interface LicenseInfo {
 	plan: "free" | "pro" | "team";
 	status: "active" | "past_due" | "cancelled" | "expired";
 	currentPeriodEnd?: string;
 	credits: CreditBalance;
+	user?: UserProfile | null;
 	cachedAt?: number;
 }
 
@@ -191,13 +198,18 @@ async function getOnlineLicense(): Promise<LicenseInfo | null> {
 
 		const payload = (await response.json()) as {
 			license?: LicenseInfo;
+			user?: UserProfile | null;
 		};
 		if (!payload.license) {
 			return null;
 		}
 
-		cacheLicense({ license: payload.license });
-		return payload.license;
+		const licenseWithUser: LicenseInfo = {
+			...payload.license,
+			user: payload.user ?? null,
+		};
+		cacheLicense({ license: licenseWithUser });
+		return licenseWithUser;
 	} catch {
 		return null;
 	}
