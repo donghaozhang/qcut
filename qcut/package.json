@@ -25,6 +25,7 @@
 		"@types/js-yaml": "^4.0.9",
 		"@types/jsdom": "^21.1.7",
 		"@types/jszip": "^3.4.1",
+		"@types/node": "^24.10.13",
 		"@types/react": "^19.1.8",
 		"@types/react-dom": "^19.1.6",
 		"@types/sharp": "^0.32.0",
@@ -43,6 +44,8 @@
 		"jsdom": "^28.1.0",
 		"madge": "^8.0.0",
 		"patch-package": "^8.0.1",
+		"pdf-lib": "^1.17.1",
+		"pptxgenjs": "^4.0.1",
 		"playwright": "^1.58.2",
 		"rollup-plugin-visualizer": "^6.0.5",
 		"to-ico": "^1.1.5",
@@ -350,7 +353,6 @@
 		]
 	},
 	"dependencies": {
-		"@types/node": "^24.10.13",
 		"@ffmpeg/core": "^0.12.10",
 		"@ffmpeg/ffmpeg": "^0.12.15",
 		"@ffmpeg/util": "^0.12.2",
@@ -366,8 +368,6 @@
 		"jszip": "^3.10.1",
 		"next": "^16.0.0",
 		"node-pty": "^1.1.0",
-		"pdf-lib": "^1.17.1",
-		"pptxgenjs": "^4.0.1",
 		"react": "^19.1.0",
 		"react-dom": "^19.1.0",
 		"remotion": "4.0.424",
