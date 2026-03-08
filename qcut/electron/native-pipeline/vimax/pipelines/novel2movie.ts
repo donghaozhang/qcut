@@ -240,34 +240,42 @@ export class Novel2MoviePipeline {
 			);
 			console.log("[novel2movie] Splitting into smaller files...");
 
-			const splitDir = path.join(this.config.output_dir, safeSlug(title), "split_parts");
-			fs.mkdirSync(splitDir, { recursive: true });
+			try {
+				const splitDir = path.join(this.config.output_dir, safeSlug(title), "split_parts");
+				fs.mkdirSync(splitDir, { recursive: true });
 
-			const partCount = Math.ceil(charCount / SPLIT_FILE_SIZE);
-			for (let i = 0; i < partCount; i++) {
-				let start = i * SPLIT_FILE_SIZE;
-				let end = Math.min(start + SPLIT_FILE_SIZE, charCount);
+				let partIndex = 0;
+				let start = 0;
+				while (start < charCount) {
+					let end = Math.min(start + SPLIT_FILE_SIZE, charCount);
 
-				// Try to split at paragraph boundary
-				if (end < charCount) {
-					const chunk = novelText.slice(start, end);
-					const lastParagraph = chunk.lastIndexOf("\n\n");
-					if (lastParagraph > SPLIT_FILE_SIZE * 0.8) {
-						end = start + lastParagraph + 2;
+					// Try to split at paragraph boundary
+					if (end < charCount) {
+						const chunk = novelText.slice(start, end);
+						const lastParagraph = chunk.lastIndexOf("\n\n");
+						if (lastParagraph > SPLIT_FILE_SIZE * 0.8) {
+							end = start + lastParagraph + 2;
+						}
 					}
+
+					const partFile = path.join(splitDir, `part_${String(partIndex + 1).padStart(2, "0")}.txt`);
+					fs.writeFileSync(partFile, novelText.slice(start, end));
+					start = end;
+					partIndex++;
 				}
 
-				const partFile = path.join(splitDir, `part_${String(i + 1).padStart(2, "0")}.txt`);
-				fs.writeFileSync(partFile, novelText.slice(start, end));
+				console.log(`[novel2movie] Split into ${partIndex} files at: ${splitDir}`);
+				console.log("[novel2movie] Run novel2movie on each part separately:");
+				console.log(`  bun run pipeline vimax:novel2movie --novel ${splitDir}/part_01.txt --title "${title} Part 1"`);
+
+				result.errors.push(
+					`Novel too large (${wordEstimate.toLocaleString()} words). Split into ${partIndex} files at ${splitDir}`
+				);
+			} catch (err) {
+				result.errors.push(
+					`Novel too large (${wordEstimate.toLocaleString()} words) and splitting failed: ${err instanceof Error ? err.message : String(err)}`
+				);
 			}
-
-			console.log(`[novel2movie] Split into ${partCount} files at: ${splitDir}`);
-			console.log("[novel2movie] Run novel2movie on each part separately:");
-			console.log(`  bun run pipeline vimax:novel2movie --novel ${splitDir}/part_01.txt --title "${title} Part 1"`);
-
-			result.errors.push(
-				`Novel too large (${wordEstimate.toLocaleString()} words). Split into ${partCount} files at ${splitDir}`
-			);
 			return result;
 		}
 

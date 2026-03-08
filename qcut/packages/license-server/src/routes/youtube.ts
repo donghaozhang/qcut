@@ -32,6 +32,7 @@ async function refreshGoogleToken({
 			refresh_token: refreshToken,
 			grant_type: "refresh_token",
 		}),
+		signal: AbortSignal.timeout(15_000),
 	});
 
 	if (!response.ok) {

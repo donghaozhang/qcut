@@ -336,14 +336,13 @@ export async function handleYouTubeUpload(
 	const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
 	// Upload thumbnail if provided
+	let thumbnailWarning: string | undefined;
 	if (options.image) {
 		try {
 			await uploadThumbnail(accessToken, videoId, path.resolve(options.image));
 		} catch (err) {
-			// Non-fatal: video uploaded but thumbnail failed
-			console.error(
-				`Warning: thumbnail upload failed: ${err instanceof Error ? err.message : String(err)}`,
-			);
+			thumbnailWarning = `Thumbnail upload failed: ${err instanceof Error ? err.message : String(err)}`;
+			console.error(`Warning: ${thumbnailWarning}`);
 		}
 	}
 
@@ -354,6 +353,7 @@ export async function handleYouTubeUpload(
 			url: videoUrl,
 			title,
 			privacy,
+			...(thumbnailWarning ? { warning: thumbnailWarning } : {}),
 		},
 	};
 }
