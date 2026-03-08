@@ -1,7 +1,26 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename, extname, resolve } from "node:path";
-import { DEFAULT_STYLE, MAX_SHOTS, MIN_SHOTS, PRESETS, STYLE_SIGNAL_MAP } from "./constants";
-import type { AnalysisResult, Beat, CLIOptions, Framing, Lighting, Movement, ShotMood, VisualAnchors } from "./types";
+import {
+	DEFAULT_STYLE,
+	FORMAT_SIGNAL_MAP,
+	MAX_SHOTS,
+	MEDIUM_SIGNAL_MAP,
+	MIN_SHOTS,
+	PRESETS,
+	STYLE_SIGNAL_MAP,
+} from "./constants";
+import type {
+	AnalysisResult,
+	Beat,
+	CLIOptions,
+	ContentFormat,
+	Framing,
+	Lighting,
+	Medium,
+	Movement,
+	ShotMood,
+	VisualAnchors,
+} from "./types";
 import { slugify } from "./utils";
 
 function stripFrontmatter({ content }: { content: string }): string {
@@ -138,12 +157,22 @@ function extractBeats({ content }: { content: string }): Beat[] {
 function detectPreset({
 	content,
 	explicit,
+	medium,
+	format,
 }: {
 	content: string;
 	explicit?: string;
+	medium: Medium;
+	format: ContentFormat;
 }): { preset: string; reason: string } {
 	if (explicit?.trim() && explicit.trim() !== "custom") {
 		return { preset: explicit.trim(), reason: "explicit --style flag" };
+	}
+	if (format === "documentary") {
+		return { preset: "documentary", reason: "documentary format default" };
+	}
+	if (medium === "animation" && PRESETS["anime-storyboard"]) {
+		return { preset: "anime-storyboard", reason: "animation medium default" };
 	}
 	const lower = content.toLowerCase();
 	for (const entry of STYLE_SIGNAL_MAP) {
@@ -154,12 +183,103 @@ function detectPreset({
 	return { preset: DEFAULT_STYLE, reason: "default fallback" };
 }
 
+function detectMedium({
+	content,
+	explicit,
+}: {
+	content: string;
+	explicit?: Medium;
+}): { medium: Medium; reason: string } {
+	if (explicit) {
+		return { medium: explicit, reason: "explicit --medium flag" };
+	}
+	const lower = content.toLowerCase();
+	for (const entry of MEDIUM_SIGNAL_MAP) {
+		if (entry.keywords.some((keyword) => lower.includes(keyword))) {
+			return { medium: entry.medium, reason: `matched content signal: ${entry.keywords.join(", ")}` };
+		}
+	}
+	return { medium: "live-action", reason: "default medium fallback" };
+}
+
+function detectFormat({
+	content,
+	explicit,
+}: {
+	content: string;
+	explicit?: ContentFormat;
+}): { format: ContentFormat; reason: string } {
+	if (explicit) {
+		return { format: explicit, reason: "explicit --format flag" };
+	}
+	const lower = content.toLowerCase();
+	for (const entry of FORMAT_SIGNAL_MAP) {
+		if (entry.keywords.some((keyword) => lower.includes(keyword))) {
+			return { format: entry.format, reason: `matched content signal: ${entry.keywords.join(", ")}` };
+		}
+	}
+	return { format: "film", reason: "default format fallback" };
+}
+
+function buildProductionRules({
+	medium,
+	format,
+}: {
+	medium: Medium;
+	format: ContentFormat;
+}): string[] {
+	const mediumRules: Record<Medium, string[]> = {
+		"live-action": [
+			"Use physically plausible lighting, lens behavior, and wardrobe materials.",
+			"Characters should read like photographed performers, not illustrated or synthetic avatars.",
+		],
+		animation: [
+			"Lean into stylized shape language, controlled exaggeration, and designed motion readability.",
+			"Do not force photoreal skin or live-action lens realism unless the beat explicitly requires it.",
+		],
+		hybrid: [
+			"Blend photographed realism with deliberate animated augmentation in a coherent single frame.",
+			"Keep the compositing logic intentional so live-action and animated elements feel designed together.",
+		],
+		cgi: [
+			"Render as fully synthetic cinema with deliberate 3D worldbuilding and controlled surface detail.",
+			"Do not imply photographed actors or practical set capture.",
+		],
+	};
+	const formatRules: Record<ContentFormat, string[]> = {
+		film: [
+			"Favor cinematic scale, visual intent, and stronger standalone composition per shot.",
+		],
+		"tv-series": [
+			"Keep coverage practical and repeatable for episodic storytelling rather than only poster-like frames.",
+		],
+		documentary: [
+			"Prioritize observational credibility and restrained composition over glossy spectacle.",
+		],
+		variety: [
+			"Keep the frame presentational, performance-aware, and suitable for multi-segment entertainment pacing.",
+		],
+		"short-film": [
+			"Compress story information efficiently; every frame should carry narrative weight quickly.",
+		],
+		"short-video": [
+			"Make the frame immediately readable with fast hook value and minimal visual ambiguity.",
+		],
+	};
+
+	return [...mediumRules[medium], ...formatRules[format]];
+}
+
 function resolveStyle({
 	content,
 	options,
+	medium,
+	format,
 }: {
 	content: string;
 	options: CLIOptions;
+	medium: Medium;
+	format: ContentFormat;
 }): {
 	style: string;
 	stylePreset?: string;
@@ -169,7 +289,7 @@ function resolveStyle({
 	lighting: Lighting;
 	mood: ShotMood;
 } {
-	const detected = detectPreset({ content, explicit: options.style });
+	const detected = detectPreset({ content, explicit: options.style, medium, format });
 	const basePreset = PRESETS[detected.preset] ? detected.preset : DEFAULT_STYLE;
 	const base = PRESETS[basePreset];
 	const hasCustom = Boolean(
@@ -332,12 +452,15 @@ export function analyzeSource({ options }: { options: CLIOptions }): AnalysisRes
 	const rawContent = readFileSync(sourcePath, "utf8");
 	const content = stripFrontmatter({ content: rawContent });
 	const title = extractTitle({ content, sourcePath });
-	const style = resolveStyle({ content, options });
+	const medium = detectMedium({ content, explicit: options.medium });
+	const format = detectFormat({ content, explicit: options.format });
+	const style = resolveStyle({ content, options, medium: medium.medium, format: format.format });
 	const wordCount = content.split(/\s+/).filter(Boolean).length;
 	const recommendedShots = recommendShots({ wordCount });
 	const targetShots = resolveShotCount({ explicit: options.shots, recommended: recommendedShots });
 	const beats = extractBeats({ content });
 	const visualAnchors = buildVisualAnchors({ content, title, style, beats });
+	const productionRules = buildProductionRules({ medium: medium.medium, format: format.format });
 
 	return {
 		title,
@@ -349,6 +472,11 @@ export function analyzeSource({ options }: { options: CLIOptions }): AnalysisRes
 		style: style.style,
 		stylePreset: style.stylePreset,
 		styleReason: style.styleReason,
+		medium: medium.medium,
+		mediumReason: medium.reason,
+		format: format.format,
+		formatReason: format.reason,
+		productionRules,
 		framing: style.framing,
 		movement: style.movement,
 		lighting: style.lighting,

@@ -14,6 +14,8 @@ export QCUT_SHOT_ROOT="/Users/peter/Desktop/code/qcut/qcut/.claude/skills/qcut-t
 
 npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" story.md
 npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" story.md --style cinematic --shots 8
+npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" story.md --medium live-action --format film
+npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" story.md --medium animation --format short-film --style custom --framing macro --movement slider --lighting bright --mood polished
 npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" story.md --style custom --framing macro --movement slider --lighting bright --mood polished
 npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" story.md --prompts-only
 npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" shot-plan/my-story --images-only
@@ -25,6 +27,8 @@ npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" shot-plan/my-story --regenerate 2,5
 | Option | Description |
 |---|---|
 | `--style <name>` | Preset style or `custom` |
+| `--medium <name>` | `live-action`, `animation`, `hybrid`, `cgi` |
+| `--format <name>` | `film`, `tv-series`, `documentary`, `variety`, `short-film`, `short-video` |
 | `--framing <name>` | `wide`, `medium`, `close`, `macro`, `overhead` |
 | `--movement <name>` | `locked-off`, `handheld`, `dolly`, `slider`, `crane`, `dynamic` |
 | `--lighting <name>` | `natural`, `bright`, `dramatic`, `low-key`, `neon`, `soft` |

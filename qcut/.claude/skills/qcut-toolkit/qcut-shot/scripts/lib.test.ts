@@ -21,6 +21,10 @@ describe("qcut-shot helpers", () => {
 				"story.md",
 				"--style",
 				"custom",
+				"--medium",
+				"animation",
+				"--format",
+				"short-film",
 				"--framing",
 				"macro",
 				"--movement",
@@ -33,6 +37,8 @@ describe("qcut-shot helpers", () => {
 		});
 
 		expect(options.style).toBe("custom");
+		expect(options.medium).toBe("animation");
+		expect(options.format).toBe("short-film");
 		expect(options.framing).toBe("macro");
 		expect(options.movement).toBe("slider");
 		expect(options.lighting).toBe("bright");
@@ -51,6 +57,11 @@ describe("qcut-shot helpers", () => {
 				style: "product",
 				stylePreset: "product",
 				styleReason: "explicit",
+				medium: "cgi",
+				mediumReason: "explicit",
+				format: "film",
+				formatReason: "explicit",
+				productionRules: ["Render as fully synthetic cinema."],
 				framing: "macro",
 				movement: "slider",
 				lighting: "bright",
@@ -116,5 +127,27 @@ describe("qcut-shot helpers", () => {
 
 		expect(analysis.visualAnchors.propId).toBe("bow-01");
 		expect(analysis.visualAnchors.propAnchor).toContain("same bow design");
+	});
+
+	test("analyzeSource supports medium and format inference", () => {
+		const dir = mkdtempSync(join(tmpdir(), "qcut-shot-test-"));
+		const source = join(dir, "doc.md");
+		writeFileSync(
+			source,
+			"# Arena Doc\n\nAn animated documentary short follows one survivor through the arena with observational interviews and archive footage cues.\n",
+		);
+
+		const analysis = analyzeSource({
+			options: {
+				input: source,
+				promptsOnly: false,
+				imagesOnly: false,
+				dryRun: true,
+			},
+		});
+
+		expect(analysis.medium).toBe("animation");
+		expect(analysis.format).toBe("documentary");
+		expect(analysis.productionRules.join(" ")).toContain("observational credibility");
 	});
 });
