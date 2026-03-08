@@ -277,7 +277,7 @@ export async function handleYouTubeUpload(
 	}
 
 	// Build metadata
-	const privacy = (options.mode as "public" | "unlisted" | "private") || "private";
+	const privacy = (options.mode as "public" | "unlisted" | "private") || "public";
 	const categoryId = options.category || "22";
 	const description = options.text || "";
 

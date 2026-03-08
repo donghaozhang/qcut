@@ -141,6 +141,33 @@ bun run pipeline run-pipeline -c pipeline.yaml -i "A sunset" --no-confirm
 bun run pipeline estimate-cost -m veo3 -d 8s
 ```
 
+## Auth Token Management
+
+Get, set, or clear the QCut auth token directly from the CLI. No need for DevTools.
+
+```bash
+# Get current token (masked by default)
+bun run pipeline editor:auth:token --json
+
+# Get token with full value revealed
+bun run pipeline editor:auth:token --reveal --json
+
+# Set a token
+bun run pipeline editor:auth:token --set <token> --json
+
+# Activate license on this device
+bun run pipeline editor:auth:activate --token <token> --json
+
+# Clear token (logout)
+bun run pipeline editor:auth:logout --json
+```
+
+| Command | Description |
+|---------|-------------|
+| `editor:auth:token` | Get current token (add `--reveal` for full value, `--set <val>` to set) |
+| `editor:auth:activate` | Set token and activate license on this device |
+| `editor:auth:logout` | Clear the current auth token |
+
 ## YouTube Upload
 
 Upload videos to YouTube after authenticating with Google OAuth.
@@ -149,11 +176,11 @@ Upload videos to YouTube after authenticating with Google OAuth.
 - Logged in via Google OAuth in QCut app
 - YouTube Data API v3 enabled in Google Cloud Console
 - YouTube channel created on the Google account
-- `QCUT_AUTH_TOKEN` set (get from app DevTools: `await window.electronAPI.license.getAuthToken()`)
+- Auth token set (use `bun run pipeline editor:auth:token --reveal --json` to check)
 
 ```bash
-# Set auth token for CLI usage
-bun run pipeline set-key --name QCUT_AUTH_TOKEN --value <token>
+# Set auth token for CLI usage (preferred: use editor:auth:token --set)
+bun run pipeline editor:auth:token --set <token> --json
 
 # Upload a video (private by default)
 bun run pipeline youtube:upload -i video.mp4 --title "My Video"
@@ -176,7 +203,7 @@ bun run pipeline youtube:upload \
 | `--title` | Video title (required) |
 | `--text` | Video description |
 | `--data` | Comma-separated tags |
-| `--mode` | Privacy: `public`, `unlisted`, `private` (default: `private`) |
+| `--mode` | Privacy: `public`, `unlisted`, `private` (default: `public`) |
 | `--category` | YouTube category ID (default: `22` = People & Blogs) |
 | `--image` | Path to thumbnail image |
 
@@ -293,4 +320,8 @@ See [editor-media.md](editor/editor-media.md) for the full project.json schema.
 | Remotion handler | `electron/native-pipeline/cli/cli-handlers-remotion.ts` |
 | Moyin handler | `electron/native-pipeline/cli/cli-handlers-moyin.ts` |
 | YouTube handler | `electron/native-pipeline/cli/cli-handlers-youtube.ts` |
+| Auth routes (HTTP) | `electron/claude/http/claude-http-server.ts` |
+| Auth routes (utility) | `electron/utility/utility-http-server.ts` |
+| Auth bridge | `electron/utility/utility-bridge.ts` |
+| License handler | `electron/license-handler.ts` |
 | Key manager | `electron/native-pipeline/key-manager.ts` |

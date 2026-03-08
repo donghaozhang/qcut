@@ -637,6 +637,56 @@ async function handleMainRequest(
 			return requestDuplicateProject(win, req.projectId);
 		}
 
+		case "auth:get-token": {
+			const { getAuthToken } = await import("../license-handler.js");
+			const token = await getAuthToken();
+			return { token, authenticated: token.length > 0 };
+		}
+
+		case "auth:set-token": {
+			const { setAuthToken } = await import("../license-handler.js");
+			const req = data as { token: string };
+			setAuthToken({ token: req.token });
+			return { success: true };
+		}
+
+		case "auth:activate": {
+			const { getAuthToken, setAuthToken } = await import(
+				"../license-handler.js"
+			);
+			const req = data as { token: string };
+			setAuthToken({ token: req.token.trim() });
+			const LICENSE_SERVER_URL =
+				process.env.QCUT_LICENSE_SERVER_URL ||
+				"https://qcut-license-server.zdhpeter.workers.dev";
+			const os = await import("node:os");
+			const response = await fetch(
+				`${LICENSE_SERVER_URL}/api/license/activate`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${req.token.trim()}`,
+					},
+					body: JSON.stringify({
+						deviceFingerprint: `cli-${Date.now()}`,
+						deviceName: os.hostname(),
+					}),
+				}
+			);
+			if (!response.ok) {
+				const text = await response.text().catch(() => "");
+				throw new Error(
+					`Activation failed (${response.status}): ${text || response.statusText}`
+				);
+			}
+			const result = (await response.json().catch(() => ({}))) as Record<
+				string,
+				unknown
+			>;
+			return { activated: true, ...result };
+		}
+
 		default:
 			throw new Error(`Unknown main-request channel: ${channel}`);
 	}

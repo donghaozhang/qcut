@@ -8,7 +8,13 @@ import {
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import {
+	setKey as persistKey,
+	getKey as loadKey,
+	deleteKey as removeKey,
+} from "./native-pipeline/infra/key-manager.js";
 
+const AUTH_KEY_NAME = "QCUT_AUTH_TOKEN";
 const LICENSE_SERVER_URL =
 	process.env.QCUT_LICENSE_SERVER_URL ||
 	"https://qcut-license-server.zdhpeter.workers.dev";
@@ -33,7 +39,18 @@ interface LicenseInfo {
 let authToken = "";
 
 function setAuthToken({ token }: { token: string }): void {
-	authToken = token.trim();
+	const trimmed = token.trim();
+	authToken = trimmed;
+	// Persist to ~/.qcut/.env so token survives app restarts
+	try {
+		if (trimmed.length > 0) {
+			persistKey(AUTH_KEY_NAME, trimmed);
+		} else {
+			removeKey(AUTH_KEY_NAME);
+		}
+	} catch {
+		// Non-fatal: in-memory token still works for this session
+	}
 }
 
 async function getAuthToken(): Promise<string> {
@@ -42,9 +59,20 @@ async function getAuthToken(): Promise<string> {
 			return authToken;
 		}
 
-		const envToken = process.env.QCUT_AUTH_TOKEN;
+		const envToken = process.env[AUTH_KEY_NAME];
 		if (typeof envToken === "string" && envToken.trim().length > 0) {
 			return envToken.trim();
+		}
+
+		// Check persisted token in ~/.qcut/.env
+		try {
+			const persisted = loadKey(AUTH_KEY_NAME);
+			if (persisted && persisted.trim().length > 0) {
+				authToken = persisted.trim();
+				return authToken;
+			}
+		} catch {
+			// Fall through to cookie check
 		}
 
 		const cookieNames = [

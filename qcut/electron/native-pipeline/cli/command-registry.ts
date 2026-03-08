@@ -620,7 +620,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--text", "string", "Video description"),
 			f("--data", "string", "Comma-separated tags"),
 			f("--mode", "string", "Privacy status", {
-				default: "private",
+				default: "public",
 				enum: ["public", "unlisted", "private"],
 			}),
 			f("--category", "string", "YouTube category ID (default: 22)", {
