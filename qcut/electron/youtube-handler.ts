@@ -21,8 +21,9 @@ export function setupYouTubeIPC(getMainWindow?: () => BrowserWindow | null): voi
 	ipcMain.handle(
 		"youtube:check-auth",
 		async (): Promise<{ authorized: boolean }> => {
-			const token =
-				process.env.QCUT_AUTH_TOKEN || "";
+			// Use the same token lookup as the upload path (key-manager first, then env)
+			const { getKey } = await import("./native-pipeline/infra/key-manager.js");
+			const token = getKey("QCUT_AUTH_TOKEN") || process.env.QCUT_AUTH_TOKEN || "";
 			return { authorized: token.length > 0 };
 		},
 	);
@@ -58,7 +59,7 @@ export function setupYouTubeIPC(getMainWindow?: () => BrowserWindow | null): voi
 			};
 
 			const result = await handleYouTubeUpload(cliOptions, (progress) => {
-				const win = mainWindow || (getMainWindow?.() ?? null);
+				const win = getMainWindow?.() ?? mainWindow;
 				if (win && !win.isDestroyed()) {
 					win.webContents.send("youtube:upload-progress", {
 						percent: progress.percent,

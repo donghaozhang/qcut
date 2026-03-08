@@ -821,7 +821,7 @@ if (!isCliKeyCommand) {
 			["ScreenRecordingIPC", setupScreenRecordingIPC],
 			["MoyinIPC", setupMoyinIPC],
 			["LicenseIPC", setupLicenseIPC],
-			["YouTubeIPC", setupYouTubeIPC],
+			["YouTubeIPC", () => setupYouTubeIPC(() => mainWindow)],
 		];
 
 		for (const [name, setup] of handlers) {

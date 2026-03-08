@@ -2,40 +2,94 @@
 
 ## Test Results (March 2026)
 
-### Analysis Time by Model
+### YouTube Video Benchmarks (Files API upload, FPS=1)
 
-| Model | Model ID | Video | Video Length | FPS | Analysis Time |
-|-------|----------|-------|-------------|-----|--------------|
-| Seed 2.0 Lite | `doubao-seed-2-0-lite-260215` | Big Ben timelapse | 5s | 1 | **12.0s** |
-| Seed 1.6 | `doubao-seed-1-6-251015` | Big Ben timelapse | 5s | 1 | **13.7s** |
-| Seed 2.0 Pro | `doubao-seed-2-0-pro-260215` | Big Ben timelapse | 5s | 1 | **20.5s** |
-| Seed 2.0 Pro | `doubao-seed-2-0-pro-260215` | Boxing match | 5s | 1 | **23.0s** |
-| Seed 2.0 Pro | `doubao-seed-2-0-pro-260215` | YouTube cats (base64) | 15s | 2 | **~30s** |
+4 YouTube videos, each trimmed to 15s, uploaded via Ark Files API, tested with both models:
 
-### Speed Ranking
+| Video | Duration | Model | Analysis Time | Input Tokens | Output Tokens | Total Tokens |
+|-------|----------|-------|--------------|-------------|--------------|-------------|
+| Cooking | 15s | Seed 2.0 Lite | **5.3s** | 1,782 | 142 | 1,924 |
+| Cooking | 15s | Seed 2.0 Pro | **20.4s** | 1,782 | 375 | 2,157 |
+| Parkour (The Office) | 15s | Seed 2.0 Lite | **5.2s** | 2,215 | 241 | 2,456 |
+| Parkour (The Office) | 15s | Seed 2.0 Pro | **8.2s** | 2,215 | 266 | 2,481 |
+| Dog (wedding) | 15s | Seed 2.0 Lite | **5.7s** | 2,358 | 127 | 2,485 |
+| Dog (wedding) | 15s | Seed 2.0 Pro | **18.9s** | 2,358 | 371 | 2,729 |
+| Dance | 15s | Seed 2.0 Lite | **7.4s** | 2,358 | 109 | 2,467 |
+| Dance | 15s | Seed 2.0 Pro | **13.3s** | 2,358 | 458 | 2,816 |
 
-1. **Seed 2.0 Lite** — ~12s (fastest, good for bulk processing)
-2. **Seed 1.6** — ~14s (legacy, Chat API only)
-3. **Seed 2.0 Pro** — ~20–30s (slowest, most detailed, has deep thinking)
+### Sample Video Benchmarks (URL input, FPS=1)
+
+Volcengine's sample videos tested via direct URL:
+
+| Video | Duration | Model | Analysis Time |
+|-------|----------|-------|--------------|
+| Big Ben timelapse | 5s | Seed 2.0 Lite | **12.0s** |
+| Big Ben timelapse | 5s | Seed 1.6 | **13.7s** |
+| Big Ben timelapse | 5s | Seed 2.0 Pro | **20.5s** |
+| Boxing match | 5s | Seed 2.0 Pro | **23.0s** |
+| YouTube cats (base64) | 15s | Seed 2.0 Pro | **~30s** |
+
+### Summary: Average Analysis Time
+
+| Model | Avg Time (15s video, Files API) | Avg Time (5s video, URL) |
+|-------|---------------------------------|--------------------------|
+| **Seed 2.0 Lite** | **5.9s** | ~12s |
+| **Seed 1.6** | — | ~14s |
+| **Seed 2.0 Pro** | **15.2s** | ~22s |
+
+> Files API is significantly faster for analysis because the video is pre-processed server-side during upload.
+> URL input requires server-side download + processing at request time.
 
 ---
 
-## Input Length vs Analysis Time
+## Input Method Performance Comparison
 
-### Estimated Processing Time by Video Length
+| Method | Upload Time | Analysis Time (15s video, Lite) | Total | Notes |
+|--------|-----------|--------------------------------|-------|-------|
+| **Files API** | ~5 min (one-time) | **5.3s** | 5.3s per query | Best for repeated analysis |
+| **Video URL** | 0 | **~12s** | ~12s | Best for one-off, public URLs |
+| **Base64** | 0 | **~445s** | ~445s | Extremely slow — avoid |
 
-| Video Length | Frames (FPS=1) | Frames (FPS=2) | Est. Time (Lite) | Est. Time (Pro) |
-|-------------|----------------|----------------|-------------------|-----------------|
-| 5s | 6 | 11 | ~12s | ~20s |
-| 15s | 16 | 31 | ~15s | ~30s |
-| 30s | 31 | 61 | ~20s | ~40s |
-| 1 min | 61 | 121 | ~25s | ~50s |
-| 5 min | 301 | 601 | ~45s | ~90s |
-| 10 min | 601 | 1201 | ~60s | ~120s |
+**Recommendation**: Use Files API for local files, URL for public videos. Never use base64 for videos.
 
-> Times are estimates based on observed scaling. Actual time depends on video complexity and server load.
+---
 
-### Frame Count Limits
+## Token Usage (Observed)
+
+### Actual Token Counts (15s videos, FPS=1)
+
+| Video | Input Tokens | Output Tokens (Lite) | Output Tokens (Pro) |
+|-------|-------------|---------------------|---------------------|
+| Cooking (108KB) | 1,782 | 142 | 375 |
+| Parkour (666KB) | 2,215 | 241 | 266 |
+| Dog (1.1MB) | 2,358 | 127 | 371 |
+| Dance (422KB) | 2,358 | 109 | 458 |
+
+**Key observations:**
+- Input tokens scale with video complexity, not file size (Dog 1.1MB and Dance 422KB both use 2,358 input tokens)
+- Pro generates 2–4x more output tokens than Lite
+- 15s video at FPS=1 uses ~1,800–2,400 input tokens
+
+### Token Budget
+
+- **Max tokens per video**: 80,000
+- Seed 2.0: 64–384 tokens per frame (continuous)
+- Seed 1.6: 128–640 tokens per frame (discrete)
+
+### Estimated Token Usage by Video Length
+
+| Video Length | FPS | Est. Input Tokens (Seed 2.0) |
+|-------------|-----|------------------------------|
+| 5s | 1 | ~600–800 |
+| 15s | 1 | ~1,800–2,400 |
+| 30s | 1 | ~3,500–4,800 |
+| 1 min | 1 | ~7,000–9,600 |
+| 5 min | 1 | ~35,000–48,000 |
+| 10 min | 1 | ~70,000–80,000 (near limit) |
+
+---
+
+## Frame Count Limits
 
 | Model | Max Frames | Max Video Length (FPS=1) | Max Video Length (FPS=0.5) |
 |-------|-----------|-------------------------|---------------------------|
@@ -46,70 +100,42 @@ When frame count exceeds the limit, the system uniformly samples down to max fra
 
 ---
 
-## Token Usage
+## FPS Impact
 
-### Token Budget
-
-- **Max tokens per video**: 80,000
-- Tokens per frame varies by model (64–640 tokens/frame)
-
-### Estimated Token Usage
-
-| Video Length | FPS | Frames | Tokens (Seed 1.6, 128/frame) | Tokens (Seed 2.0, 64/frame) |
-|-------------|-----|--------|------------------------------|------------------------------|
-| 5s | 1 | 6 | ~768 | ~384 |
-| 15s | 1 | 16 | ~2,048 | ~1,024 |
-| 30s | 2 | 61 | ~7,808 | ~3,904 |
-| 1 min | 1 | 61 | ~7,808 | ~3,904 |
-| 5 min | 1 | 301 | ~38,528 | ~19,264 |
-| 10 min | 1 | 601 | ~76,928 (near limit) | ~38,464 |
-
-### FPS Impact on Tokens
-
-| FPS | 1 min video frames | Tokens (Seed 2.0) | Notes |
-|-----|-------------------|-------------------|-------|
-| 0.2 | 12 | ~768 | Minimal, static scenes |
-| 0.5 | 30 | ~1,920 | Low detail |
-| 1 | 60 | ~3,840 | Default, balanced |
-| 2 | 120 | ~7,680 | Good detail |
-| 5 | 300 | ~19,200 | Max detail, fast action |
-
----
-
-## Input Method Performance
-
-| Method | Max File Size | Overhead | Best For |
-|--------|-------------|----------|----------|
-| Video URL | 50 MB | None (server fetches) | Public URLs, fastest |
-| Base64 | 50 MB (body ≤ 64MB) | Upload time for large payloads | Small local files |
-| Files API | 512 MB | Upload + processing wait | Large files, reuse across requests |
-
-### Base64 Payload Size
-
-| Video File Size | Base64 Size | Within 64MB body limit? |
-|----------------|-------------|------------------------|
-| 1 MB | ~1.33 MB | Yes |
-| 10 MB | ~13.3 MB | Yes |
-| 30 MB | ~40 MB | Yes |
-| 50 MB | ~66.7 MB | No — use Files API |
+| FPS | Use Case | Speed Impact | Token Impact |
+|-----|----------|-------------|-------------|
+| 0.2 | Static scenes, counting people | Fastest | Lowest |
+| 0.5 | Slow-changing content | Fast | Low |
+| 1 (default) | General purpose | Balanced | Balanced |
+| 2 | Action, sports | Slower | ~2x |
+| 5 (max) | Fast action, counting movements | Slowest | ~5x |
 
 ---
 
 ## Quality vs Speed Trade-offs
 
-| Priority | Recommended Model | FPS | Expected Time |
-|----------|------------------|-----|---------------|
-| **Speed** | Seed 2.0 Lite | 0.5–1 | 10–15s |
-| **Balanced** | Seed 2.0 Lite | 1–2 | 15–25s |
-| **Quality** | Seed 2.0 Pro | 2–5 | 25–60s |
-| **Max detail** | Seed 2.0 Pro | 5 | 30–120s |
+| Priority | Recommended Model | FPS | Expected Time (15s) |
+|----------|------------------|-----|---------------------|
+| **Speed** | Seed 2.0 Lite | 1 | ~5s |
+| **Balanced** | Seed 2.0 Lite | 2 | ~8s |
+| **Quality** | Seed 2.0 Pro | 1 | ~15s |
+| **Max detail** | Seed 2.0 Pro | 2–5 | ~25–40s |
 
-### Output Quality Comparison (Big Ben video)
+### Output Quality Comparison
 
-**Seed 2.0 Lite** (12s):
-> "This is a time-lapse video featuring Big Ben. Vehicles including a classic red double-decker bus continuously flow forward on the adjacent bridge. Clouds drift slowly across the twilight sky."
+**Cooking video — Seed 2.0 Lite** (5.3s):
+> "The video opens with a nighttime view showing a crescent moon above a traffic light, then cuts to a silhouetted person cooking food in a pan at a dimly lit setting."
 
-**Seed 2.0 Pro** (20.5s):
-> "This is a time-lapse footage of the Elizabeth Tower (commonly known as Big Ben). 1) The clock hands spin rapidly, showing time passing at accelerated speed. 2) Traffic including the iconic London red double-decker bus flows fast along the bridge, with vehicle lights clearly visible as light dims. 3) Clouds drift quickly across the twilight sky, and warm low light of the setting sun illuminates the whole city scene."
+**Cooking video — Seed 2.0 Pro** (20.4s):
+> "The video starts with a nighttime outdoor view of a crescent moon in the dark sky above an illuminated yellow traffic light. It then cuts to a close-up of a hand using tongs to flip a sausage that is sizzling in oil in a frying pan."
 
-Pro provides structured breakdown, more specific details (clock hands spinning, vehicle lights, sunset direction).
+**Dog video — Seed 2.0 Lite** (5.7s):
+> "This clip takes place during an outdoor wedding group photo. One of the groom's leashed black dogs mounts another black dog, surprising everyone, and the small dog scurries past the laughing bride."
+
+**Dog video — Seed 2.0 Pro** (18.9s):
+> "At an outdoor wedding, the bride and groom stand with their two leashed black dogs in front of their attending guests. A small loose black-and-white dog approaches the group, and one of the couple's bigger dogs mounts it..."
+
+**Dance video — Seed 2.0 Pro** (13.3s):
+> "Three dancers in a dance studio begin performing a synchronized choreographed routine in unison. Partway through the routine, the dancer positioned furthest to the right stops dancing and drops out of sync..."
+
+Pro consistently provides more specific details (specific objects, colors, spatial relationships) and longer descriptions.

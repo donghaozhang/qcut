@@ -616,7 +616,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				short: "-i",
 				required: true,
 			}),
-			f("--title", "string", "Video title", { required: true }),
+			f("--title", "string", "Video title", { short: "-t", required: true }),
 			f("--text", "string", "Video description"),
 			f("--data", "string", "Comma-separated tags"),
 			f("--mode", "string", "Privacy status", {
