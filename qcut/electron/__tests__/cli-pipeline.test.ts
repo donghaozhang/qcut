@@ -133,9 +133,13 @@ describe("CLI pipeline", () => {
 			expect(opts.json).toBe(true);
 		});
 
-		it("defaults output-dir to ./output when not specified", () => {
+		it("defaults output-dir to ~/Documents/QCut/exports when not specified", () => {
+			const os = require("node:os");
+			const path = require("node:path");
 			const opts = parseCliArgs(["list-models"]);
-			expect(opts.outputDir).toBe("./output");
+			expect(opts.outputDir).toBe(
+				path.join(os.homedir(), "Documents", "QCut", "exports")
+			);
 		});
 
 		it("uses custom --output-dir value", () => {
