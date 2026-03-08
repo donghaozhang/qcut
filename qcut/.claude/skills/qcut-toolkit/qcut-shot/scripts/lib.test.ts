@@ -1,0 +1,83 @@
+import { describe, expect, test } from "bun:test";
+import { buildShots, loadStyleInstructions, parseArgs, parseNumberList, slugify } from "./lib";
+
+describe("qcut-shot helpers", () => {
+	test("parseNumberList deduplicates and sorts", () => {
+		expect(parseNumberList({ value: "5,2,5,8" })).toEqual([2, 5, 8]);
+	});
+
+	test("slugify keeps stable ASCII output", () => {
+		expect(slugify({ value: "Detective Night Scene" })).toBe("detective-night-scene");
+	});
+
+	test("parseArgs supports custom shot dimensions", () => {
+		const options = parseArgs({
+			argv: [
+				"bun",
+				"main.ts",
+				"story.md",
+				"--style",
+				"custom",
+				"--framing",
+				"macro",
+				"--movement",
+				"slider",
+				"--lighting",
+				"bright",
+				"--mood",
+				"polished",
+			],
+		});
+
+		expect(options.style).toBe("custom");
+		expect(options.framing).toBe("macro");
+		expect(options.movement).toBe("slider");
+		expect(options.lighting).toBe("bright");
+		expect(options.mood).toBe("polished");
+	});
+
+	test("buildShots creates opening and closing beats", () => {
+		const shots = buildShots({
+			analysis: {
+				title: "Product Reveal",
+				topicSlug: "product-reveal",
+				sourcePath: "/tmp/story.md",
+				sourceExtension: ".md",
+				wordCount: 900,
+				language: "en",
+				style: "product",
+				stylePreset: "product",
+				styleReason: "explicit",
+				framing: "macro",
+				movement: "slider",
+				lighting: "bright",
+				mood: "polished",
+				recommendedShots: 6,
+				targetShots: 5,
+				coreThroughline: "Show the product clearly",
+				beats: [
+					{ title: "Opening", body: "Show the room and product table.", keywords: ["room", "product"] },
+					{ title: "Reveal", body: "Move to the hero detail.", keywords: ["detail", "reveal"] },
+				],
+			},
+		});
+
+		expect(shots[0]?.shotType).toBe("opening");
+		expect(shots.at(-1)?.shotType).toBe("closing");
+		expect(shots.length).toBe(5);
+	});
+
+	test("loadStyleInstructions composes custom shot dimensions", () => {
+		const instructions = loadStyleInstructions({
+			style: "custom:macro+slider+bright+polished",
+			framing: "macro",
+			movement: "slider",
+			lighting: "bright",
+			mood: "polished",
+		});
+
+		expect(instructions).toContain("Custom shot style composed from dimensions.");
+		expect(instructions).toContain("Framing: macro");
+		expect(instructions).toContain("### slider");
+	});
+});
