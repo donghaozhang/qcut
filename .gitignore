@@ -101,3 +101,4 @@ __pypackages__/
 # Caption implementation examples (sensitive files)
 /qcut/docs/issues/caption-implementation/.env
 /qcut/docs/issues/caption-implementation/output.srt
+.turbo/
