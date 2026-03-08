@@ -13,7 +13,9 @@ import { handleYouTubeUpload } from "./native-pipeline/cli/cli-handlers-youtube.
 
 let mainWindow: BrowserWindow | null = null;
 
-export function setupYouTubeIPC(getMainWindow?: () => BrowserWindow | null): void {
+export function setupYouTubeIPC(
+	getMainWindow?: () => BrowserWindow | null
+): void {
 	if (getMainWindow) {
 		mainWindow = getMainWindow();
 	}
@@ -23,9 +25,10 @@ export function setupYouTubeIPC(getMainWindow?: () => BrowserWindow | null): voi
 		async (): Promise<{ authorized: boolean }> => {
 			// Use the same token lookup as the upload path (key-manager first, then env)
 			const { getKey } = await import("./native-pipeline/infra/key-manager.js");
-			const token = getKey("QCUT_AUTH_TOKEN") || process.env.QCUT_AUTH_TOKEN || "";
+			const token =
+				getKey("QCUT_AUTH_TOKEN") || process.env.QCUT_AUTH_TOKEN || "";
 			return { authorized: token.length > 0 };
-		},
+		}
 	);
 
 	ipcMain.handle(
@@ -40,7 +43,7 @@ export function setupYouTubeIPC(getMainWindow?: () => BrowserWindow | null): voi
 				privacy?: "public" | "unlisted" | "private";
 				categoryId?: string;
 				thumbnailPath?: string;
-			},
+			}
 		): Promise<{ videoId: string; url: string }> => {
 			const cliOptions: CLIRunOptions = {
 				command: "youtube:upload",
@@ -77,6 +80,6 @@ export function setupYouTubeIPC(getMainWindow?: () => BrowserWindow | null): voi
 				url: string;
 			};
 			return { videoId: data.videoId, url: data.url };
-		},
+		}
 	);
 }

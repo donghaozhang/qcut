@@ -70,14 +70,14 @@ youtubeRoutes.get("/token", async (c) => {
 			})
 			.from(accounts)
 			.where(
-				and(eq(accounts.userId, userId), eq(accounts.providerId, "google")),
+				and(eq(accounts.userId, userId), eq(accounts.providerId, "google"))
 			)
 			.limit(1);
 
 		if (!account) {
 			return c.json(
 				{ error: "No Google account linked. Please sign in with Google." },
-				403,
+				403
 			);
 		}
 
@@ -98,7 +98,7 @@ youtubeRoutes.get("/token", async (c) => {
 					error:
 						"Google refresh token not available. Please re-authenticate with Google.",
 				},
-				403,
+				403
 			);
 		}
 
@@ -111,7 +111,7 @@ youtubeRoutes.get("/token", async (c) => {
 					error:
 						"Failed to refresh Google token. Please re-authenticate with Google.",
 				},
-				403,
+				403
 			);
 		}
 
@@ -120,12 +120,10 @@ youtubeRoutes.get("/token", async (c) => {
 			.update(accounts)
 			.set({
 				accessToken: refreshed.accessToken,
-				accessTokenExpiresAt: new Date(
-					Date.now() + refreshed.expiresIn * 1000,
-				),
+				accessTokenExpiresAt: new Date(Date.now() + refreshed.expiresIn * 1000),
 			})
 			.where(
-				and(eq(accounts.userId, userId), eq(accounts.providerId, "google")),
+				and(eq(accounts.userId, userId), eq(accounts.providerId, "google"))
 			);
 
 		return c.json({ accessToken: refreshed.accessToken });
@@ -137,7 +135,7 @@ youtubeRoutes.get("/token", async (c) => {
 						? `Failed to get YouTube token: ${error.message}`
 						: "Failed to get YouTube token",
 			},
-			500,
+			500
 		);
 	}
 });
