@@ -75,16 +75,17 @@ async function main(): Promise<void> {
 	}
 
 	const deckPlan = planDeck({ options });
-	renderDeckArtifacts({ deckPlan });
+	renderDeckArtifacts({ deckPlan, skipPrompts: options.outlineOnly });
 
 	console.log(`Deck directory: ${deckPlan.deckDir}`);
 	console.log(`Outline: ${resolve(deckPlan.deckDir, "outline.md")}`);
-	console.log(`Prompts: ${deckPlan.promptsDir}`);
 
 	if (options.outlineOnly) {
 		console.log("Stopped after outline generation because --outline-only was provided.");
 		return;
 	}
+
+	console.log(`Prompts: ${deckPlan.promptsDir}`);
 
 	if (options.promptsOnly) {
 		console.log("Stopped after prompt generation because --prompts-only was provided.");

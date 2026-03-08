@@ -17,7 +17,11 @@ function parseArgs(): { dir: string; output?: string } {
 	for (let index = 0; index < args.length; index += 1) {
 		const value = args[index];
 		if (value === "--output" || value === "-o") {
-			output = args[index + 1];
+			const next = args[index + 1];
+			if (!next || next.startsWith("-")) {
+				throw new Error("Missing value for --output");
+			}
+			output = next;
 			index += 1;
 			continue;
 		}

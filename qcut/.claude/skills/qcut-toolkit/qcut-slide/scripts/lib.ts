@@ -178,13 +178,18 @@ export function parseArgs({ argv }: { argv: Array<string> }): CLIOptions {
 			continue;
 		}
 
+		if (value === "--help" || value === "-h") {
+			input = "";
+			break;
+		}
+
 		if (!value.startsWith("-")) {
 			input = value;
 			continue;
 		}
 
 		if (value === "--style") {
-			style = args[index + 1];
+			style = requireValue({ args, index, flag: "--style" });
 			index += 1;
 			continue;
 		}
@@ -240,7 +245,7 @@ export function parseArgs({ argv }: { argv: Array<string> }): CLIOptions {
 		}
 
 		if (value === "--lang") {
-			lang = args[index + 1];
+			lang = requireValue({ args, index, flag: "--lang" });
 			index += 1;
 			continue;
 		}
@@ -261,19 +266,19 @@ export function parseArgs({ argv }: { argv: Array<string> }): CLIOptions {
 		}
 
 		if (value === "--output-dir") {
-			outputDir = args[index + 1];
+			outputDir = requireValue({ args, index, flag: "--output-dir" });
 			index += 1;
 			continue;
 		}
 
 		if (value === "--provider") {
-			provider = args[index + 1];
+			provider = requireValue({ args, index, flag: "--provider" });
 			index += 1;
 			continue;
 		}
 
 		if (value === "--model") {
-			model = args[index + 1];
+			model = requireValue({ args, index, flag: "--model" });
 			index += 1;
 			continue;
 		}
@@ -299,7 +304,26 @@ export function parseArgs({ argv }: { argv: Array<string> }): CLIOptions {
 	}
 
 	if (!input) {
-		throw new Error("Usage: bun main.ts <content-file|deck-dir> [options]");
+		throw new Error(
+			"Usage: bun main.ts <content-file|deck-dir> [options]\n\n" +
+				"Options:\n" +
+				"  --style <name>       Preset style or 'custom'\n" +
+				"  --audience <type>    beginners | intermediate | experts | executives | general\n" +
+				"  --texture <name>     clean | grid | organic | pixel | paper\n" +
+				"  --mood <name>        professional | warm | cool | vibrant | dark | neutral\n" +
+				"  --typography <name>  geometric | humanist | handwritten | editorial | technical\n" +
+				"  --density <name>     minimal | balanced | dense\n" +
+				"  --lang <code>        Output language\n" +
+				"  --slides <number>    Target slide count (5-30)\n" +
+				"  --outline-only       Stop after outline\n" +
+				"  --prompts-only       Stop after prompts\n" +
+				"  --images-only        Render from existing deck\n" +
+				"  --regenerate <list>  Re-render selected slides (e.g. 2,5)\n" +
+				"  --provider <name>    Image provider (fal)\n" +
+				"  --model <id>         Override image model\n" +
+				"  --output-dir <path>  Output directory\n" +
+				"  --dry-run            Skip rendering",
+		);
 	}
 
 	return {
@@ -341,9 +365,17 @@ function parseEnum({
 	return value;
 }
 
+function requireValue({ args, index, flag }: { args: Array<string>; index: number; flag: string }): string {
+	const next = args[index + 1];
+	if (!next || next.startsWith("-")) {
+		throw new Error(`Missing value for ${flag}`);
+	}
+	return next;
+}
+
 export function parseSlideList({ value }: { value?: string }): Array<number> {
 	if (!value?.trim()) {
-		return [];
+		throw new Error("Missing value for --regenerate (e.g. --regenerate 2,5)");
 	}
 
 	const unique = new Set<number>();
@@ -352,6 +384,9 @@ export function parseSlideList({ value }: { value?: string }): Array<number> {
 		if (Number.isInteger(parsed) && parsed > 0) {
 			unique.add(parsed);
 		}
+	}
+	if (unique.size === 0) {
+		throw new Error(`Invalid slide list for --regenerate: ${value}`);
 	}
 	return [...unique].sort((left, right) => left - right);
 }
@@ -365,10 +400,10 @@ export function ensureDir({ path }: { path: string }): void {
 export function slugify({ value }: { value: string }): string {
 	const normalized = value
 		.toLowerCase()
-		.replace(/[`"'“”‘’]/g, "")
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "");
-	return normalized || "slide-deck";
+		.replace(/[`”’””’’]/g, “”)
+		.replace(/[^a-z0-9\u3040-\u30ff\u3400-\u9fff\u4e00-\u9fff]+/gu, “-”)
+		.replace(/^-+|-+$/g, “”);
+	return normalized || “slide-deck”;
 }
 
 export function timestamp(): string {
@@ -560,9 +595,9 @@ function extractSections({ content }: { content: string }): Array<Section> {
 function collectKeywords({ text }: { text: string }): Array<string> {
 	const words = text
 		.toLowerCase()
-		.replace(/[^a-z0-9\s-]/g, " ")
+		.replace(/[^\p{L}\p{N}\s-]/gu, " ")
 		.split(/\s+/)
-		.filter((word) => word.length >= 5);
+		.filter((word) => word.length >= 2);
 	const counts = new Map<string, number>();
 	for (const word of words) {
 		counts.set(word, (counts.get(word) ?? 0) + 1);
@@ -1023,8 +1058,10 @@ export function planDeck({ options }: { options: CLIOptions }): DeckPlan {
 
 export function renderDeckArtifacts({
 	deckPlan,
+	skipPrompts,
 }: {
 	deckPlan: DeckPlan;
+	skipPrompts?: boolean;
 }): void {
 	ensureDir({ path: deckPlan.deckDir });
 	writeSourceCopy({ deckDir: deckPlan.deckDir, analysis: deckPlan.analysis });
@@ -1035,13 +1072,15 @@ export function renderDeckArtifacts({
 		slides: deckPlan.slides,
 		styleInstructions: deckPlan.styleInstructions,
 	});
-	writePrompts({
-		deckDir: deckPlan.deckDir,
-		promptsDir: deckPlan.promptsDir,
-		slides: deckPlan.slides,
-		styleInstructions: deckPlan.styleInstructions,
-		analysis: deckPlan.analysis,
-	});
+	if (!skipPrompts) {
+		writePrompts({
+			deckDir: deckPlan.deckDir,
+			promptsDir: deckPlan.promptsDir,
+			slides: deckPlan.slides,
+			styleInstructions: deckPlan.styleInstructions,
+			analysis: deckPlan.analysis,
+		});
+	}
 }
 
 function parsePromptSlideNumber({ filename }: { filename: string }): number | null {
@@ -1082,6 +1121,16 @@ export function discoverPromptFiles({
 	}
 
 	return promptFiles;
+}
+
+function detectImageExtension({ bytes }: { bytes: Uint8Array }): string {
+	if (bytes.length >= 4 && bytes[0] === 0x89 && bytes[1] === 0x50) {
+		return ".png";
+	}
+	if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xd8) {
+		return ".jpeg";
+	}
+	return ".png";
 }
 
 export function imageOutputPath({
@@ -1132,12 +1181,12 @@ export async function runImageGeneration({
 		}
 
 		const prompt = readFileSync(promptFile, "utf8");
-		await writeRenderedImage({
+		const actualPath = await writeRenderedImage({
 			prompt,
 			model: model?.trim() || getDefaultFalModel(),
 			outputPath,
 		});
-		generated.push(outputPath);
+		generated.push(actualPath);
 	}
 
 	return { generated, skipped: null };
@@ -1151,13 +1200,16 @@ async function writeRenderedImage({
 	prompt: string;
 	model: string;
 	outputPath: string;
-}): Promise<void> {
+}): Promise<string> {
 	const bytes = await generateFalImage({
 		prompt,
 		model,
 		aspectRatio: "16:9",
 	});
-	await Bun.write(outputPath, bytes);
+	const ext = detectImageExtension({ bytes });
+	const actualPath = outputPath.replace(/\.png$/i, ext);
+	await Bun.write(actualPath, bytes);
+	return actualPath;
 }
 
 export function mergeOutputs({

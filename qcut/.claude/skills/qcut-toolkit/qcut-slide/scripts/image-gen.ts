@@ -27,17 +27,29 @@ function parseArgs({
 			continue;
 		}
 		if (value === "--image") {
-			outputPath = args[index + 1] ?? "";
+			const next = args[index + 1];
+			if (!next || next.startsWith("-")) {
+				throw new Error("Missing value for --image");
+			}
+			outputPath = next;
 			index += 1;
 			continue;
 		}
 		if (value === "--model") {
-			model = args[index + 1] ?? model;
+			const next = args[index + 1];
+			if (!next || next.startsWith("-")) {
+				throw new Error("Missing value for --model");
+			}
+			model = next;
 			index += 1;
 			continue;
 		}
 		if (value === "--ar") {
-			aspectRatio = args[index + 1] ?? aspectRatio;
+			const next = args[index + 1];
+			if (!next || next.startsWith("-")) {
+				throw new Error("Missing value for --ar");
+			}
+			aspectRatio = next;
 			index += 1;
 		}
 	}

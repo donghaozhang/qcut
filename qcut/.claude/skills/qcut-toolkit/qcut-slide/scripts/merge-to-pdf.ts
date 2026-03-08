@@ -16,7 +16,11 @@ function parseArgs(): { dir: string; output?: string } {
 	for (let index = 0; index < args.length; index += 1) {
 		const value = args[index];
 		if (value === "--output" || value === "-o") {
-			output = args[index + 1];
+			const next = args[index + 1];
+			if (!next || next.startsWith("-")) {
+				throw new Error("Missing value for --output");
+			}
+			output = next;
 			index += 1;
 			continue;
 		}
@@ -91,6 +95,7 @@ async function createPdf({
 
 function isPng({ bytes }: { bytes: Uint8Array }): boolean {
 	return (
+		bytes.length >= 4 &&
 		bytes[0] === 0x89 &&
 		bytes[1] === 0x50 &&
 		bytes[2] === 0x4e &&
@@ -99,7 +104,7 @@ function isPng({ bytes }: { bytes: Uint8Array }): boolean {
 }
 
 function isJpeg({ bytes }: { bytes: Uint8Array }): boolean {
-	return bytes[0] === 0xff && bytes[1] === 0xd8;
+	return bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xd8;
 }
 
 async function main(): Promise<void> {
