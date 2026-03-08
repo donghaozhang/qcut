@@ -8,7 +8,7 @@ Regenerate a specific slide with modified content:
 
 1. Identify slide to edit (e.g., `03-slide-key-findings.png`)
 2. Update prompt in `prompts/03-slide-key-findings.md`
-3. If content changes significantly, update slug in filename
+3. If content changes significantly, update slug in **both** the prompt file (`prompts/NN-slide-slug.md`) and the image file (`NN-slide-slug.png`) — they must share the same basename
 4. Regenerate image using same session ID
 5. Regenerate PPTX and PDF
 
@@ -41,7 +41,7 @@ Remove a slide and renumber:
 
 Files use meaningful slugs for better readability:
 
-```
+```text
 NN-slide-[slug].png
 NN-slide-[slug].md (in prompts/)
 ```

@@ -59,12 +59,25 @@ describe("qcut-shot helpers", () => {
 					{ title: "Opening", body: "Show the room and product table.", keywords: ["room", "product"] },
 					{ title: "Reveal", body: "Move to the hero detail.", keywords: ["detail", "reveal"] },
 				],
+				visualAnchors: {
+					subjectId: "device-01",
+					subjectAnchor: "Same hero device across the sequence.",
+					locationId: "studio-01",
+					locationAnchor: "Same studio geography across the sequence.",
+					propId: "hero-product-01",
+					propAnchor: "Same product design and finish.",
+					paletteAnchor: "bright neutral palette",
+					continuityRules: ["Do not change the product identity between shots."],
+				},
 			},
 		});
 
 		expect(shots[0]?.shotType).toBe("opening");
 		expect(shots.at(-1)?.shotType).toBe("closing");
 		expect(shots.length).toBe(5);
+		expect(shots[0]?.continuity.subjectId).toBe("device-01");
+		expect(shots[2]?.shotRoleGuidance).toContain("hero-product-01");
+		expect(shots[0]?.negativePrompt).toContain("no extra hero characters");
 	});
 
 	test("loadStyleInstructions composes custom shot dimensions", () => {

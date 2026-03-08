@@ -15,7 +15,7 @@ Classic classroom chalkboard aesthetic with hand-drawn chalk illustrations. Nost
 
 ### Primary Font (Headlines)
 
-Hand-drawn chalk lettering style. Bold, slightly uneven strokes with visible chalk texture. Imperfect baseline adds authenticity. White or bright colored chalk for emphasis.
+Hand-drawn chalk lettering style. Bold, slightly uneven strokes with visible chalk texture. Imperfect baseline adds authenticity. White or bright-colored chalk for emphasis.
 
 ### Secondary Font (Body)
 

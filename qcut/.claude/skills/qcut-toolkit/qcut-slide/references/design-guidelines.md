@@ -145,6 +145,7 @@ See `references/dimensions/typography.md` for full typography dimension specs.
 | LXGW Bright | Song-Kai hybrid | Warm, readable |
 
 **Multilingual Pairing**:
+
 | Use Case | English | Chinese |
 |----------|---------|---------|
 | Technical | Liter | MiSans |

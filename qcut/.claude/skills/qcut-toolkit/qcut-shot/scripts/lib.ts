@@ -49,6 +49,7 @@ export interface AnalysisResult {
 	targetShots: number;
 	coreThroughline: string;
 	beats: Array<Beat>;
+	visualAnchors: VisualAnchors;
 }
 
 export interface ShotPlan {
@@ -56,6 +57,7 @@ export interface ShotPlan {
 	title: string;
 	fileStem: string;
 	shotType: "opening" | "action" | "detail" | "reaction" | "closing";
+	continuity: ShotContinuity;
 	framing: Framing;
 	movement: Movement;
 	lighting: Lighting;
@@ -63,6 +65,26 @@ export interface ShotPlan {
 	purpose: string;
 	beat: string;
 	visualDirection: string;
+	shotRoleGuidance: string;
+	negativePrompt: string;
+}
+
+export interface VisualAnchors {
+	subjectId: string;
+	subjectAnchor: string;
+	locationId: string;
+	locationAnchor: string;
+	propId: string;
+	propAnchor: string;
+	paletteAnchor: string;
+	continuityRules: Array<string>;
+}
+
+export interface ShotContinuity {
+	subjectId: string;
+	locationId: string;
+	propId: string;
+	continuityNotes: Array<string>;
 }
 
 export interface ShotProject {
@@ -323,6 +345,52 @@ function collectKeywords({ text }: { text: string }): Array<string> {
 		.map(([word]) => word);
 }
 
+function collectFrequentTerms({ text }: { text: string }): Array<string> {
+	const words = text
+		.toLowerCase()
+		.replace(/[^a-z0-9\s-]/g, " ")
+		.split(/\s+/)
+		.filter((word) => word.length >= 4);
+	const stopWords = new Set([
+		"that",
+		"this",
+		"with",
+		"from",
+		"into",
+		"their",
+		"there",
+		"about",
+		"while",
+		"should",
+		"could",
+		"would",
+		"other",
+		"first",
+		"final",
+		"through",
+		"where",
+		"being",
+		"every",
+		"scene",
+		"camera",
+		"frame",
+		"image",
+		"story",
+		"visual",
+		"shots",
+		"render",
+	]);
+	const counts = new Map<string, number>();
+	for (const word of words) {
+		if (stopWords.has(word)) continue;
+		counts.set(word, (counts.get(word) ?? 0) + 1);
+	}
+	return [...counts.entries()]
+		.sort((left, right) => right[1] - left[1])
+		.slice(0, 12)
+		.map(([word]) => word);
+}
+
 function extractBeats({ content }: { content: string }): Array<Beat> {
 	const normalized = stripFrontmatter({ content });
 	const headingMatches = [...normalized.matchAll(/^#{2,3}\s+(.+)$/gm)];
@@ -428,6 +496,99 @@ function resolveStyle({
 	};
 }
 
+function firstMatchingTerm({
+	terms,
+	candidates,
+}: {
+	terms: Array<string>;
+	candidates: Array<string>;
+}): string | null {
+	for (const term of terms) {
+		for (const candidate of candidates) {
+			if (term.includes(candidate) || candidate.includes(term)) {
+				return term;
+			}
+		}
+	}
+	return null;
+}
+
+function buildVisualAnchors({
+	content,
+	title,
+	style,
+	beats,
+}: {
+	content: string;
+	title: string;
+	style: {
+		framing: Framing;
+		movement: Movement;
+		lighting: Lighting;
+		mood: ShotMood;
+	};
+	beats: Array<Beat>;
+}): VisualAnchors {
+	const terms = collectFrequentTerms({ text: `${title} ${content}` });
+	const lower = content.toLowerCase();
+	const subjectTerm =
+		firstMatchingTerm({
+			terms,
+			candidates: ["contender", "hero", "runner", "girl", "boy", "teen", "archer", "fighter", "survivor", "protagonist"],
+		}) ?? "contender";
+	const locationTerm =
+		firstMatchingTerm({
+			terms,
+			candidates: ["arena", "valley", "platform", "forest", "city", "warehouse", "corridor", "stage", "lab"],
+		}) ?? "arena";
+	const propTerm =
+		firstMatchingTerm({
+			terms,
+			candidates: ["bow", "crate", "blade", "sword", "device", "screen", "drones", "rifle", "mask"],
+		}) ?? "signature gear";
+	const paletteSeed =
+		firstMatchingTerm({
+			terms,
+			candidates: ["orange", "blue", "amber", "fog", "neon", "ash", "green", "steel", "gold"],
+		}) ?? (style.lighting === "dramatic" ? "steel-blue shadows with ember highlights" : "controlled neutral palette");
+	const openingBeat = beats[0]?.body || title;
+	const subjectAnchor = [
+		`Same central ${subjectTerm} across the full sequence.`,
+		"Keep one readable silhouette, age band, and wardrobe language from shot to shot.",
+		lower.includes("bow")
+			? "The subject is a lean survival archer in worn tactical layers, dirt and sweat visible."
+			: `The subject reads as a resilient ${subjectTerm} under pressure, never a generic crowd extra.`,
+	].join(" ");
+	const locationAnchor = [
+		`Treat the location as one continuous ${locationTerm}-world.`,
+		openingBeat,
+		"Repeat key materials, elevation logic, and background structures so shots feel adjacent in the same geography.",
+	].join(" ");
+	const propAnchor = [
+		`Keep the ${propTerm} visually consistent whenever it appears.`,
+		lower.includes("bow")
+			? "Use the same bow design, grip wrap, and survival-worn finish in every shot."
+			: "Do not swap the hero prop design between shots.",
+	].join(" ");
+	const continuityRules = [
+		"Do not change protagonist identity, costume family, or body type between shots.",
+		"Do not relocate the scene into a different world or architecture style.",
+		"Keep recurring props, insignia, and screen technology consistent.",
+		`Maintain a ${paletteSeed} palette bias unless a beat explicitly requires contrast.`,
+	];
+
+	return {
+		subjectId: `${slugify({ value: subjectTerm }).slice(0, 24) || "subject"}-01`,
+		subjectAnchor,
+		locationId: `${slugify({ value: locationTerm }).slice(0, 24) || "location"}-01`,
+		locationAnchor,
+		propId: `${slugify({ value: propTerm }).slice(0, 24) || "prop"}-01`,
+		propAnchor,
+		paletteAnchor: paletteSeed,
+		continuityRules,
+	};
+}
+
 export function analyzeSource({ options }: { options: CLIOptions }): AnalysisResult {
 	const sourcePath = resolve(options.input);
 	if (!existsSync(sourcePath)) {
@@ -448,6 +609,7 @@ export function analyzeSource({ options }: { options: CLIOptions }): AnalysisRes
 	const recommendedShots = recommendShots({ wordCount });
 	const targetShots = resolveShotCount({ explicit: options.shots, recommended: recommendedShots });
 	const beats = extractBeats({ content });
+	const visualAnchors = buildVisualAnchors({ content, title, style, beats });
 
 	return {
 		title,
@@ -467,6 +629,7 @@ export function analyzeSource({ options }: { options: CLIOptions }): AnalysisRes
 		targetShots,
 		coreThroughline: beats[0]?.title || title,
 		beats,
+		visualAnchors,
 	};
 }
 
@@ -612,6 +775,73 @@ function buildShotVisual({
 	return `Visualize the active beat in ${beat.title} with clear subject emphasis.`;
 }
 
+function shotRoleGuidance({
+	shotType,
+	anchors,
+}: {
+	shotType: ShotPlan["shotType"];
+	anchors: VisualAnchors;
+}): string {
+	if (shotType === "opening") {
+		return `Open with clear geography. Introduce ${anchors.subjectId} inside ${anchors.locationId} and make the world readable before action details.`;
+	}
+	if (shotType === "detail") {
+		return `Stay tight on a tactile story clue linked to ${anchors.propId}. Preserve the same wardrobe, skin texture, and prop design established earlier.`;
+	}
+	if (shotType === "closing") {
+		return `Deliver payoff by echoing the opening geography, but with escalated emotion and the same ${anchors.subjectId} now clearly transformed by the beat.`;
+	}
+	if (shotType === "reaction") {
+		return `Prioritize subject psychology. Keep the face, posture, and costume language tied to ${anchors.subjectId} rather than inventing a new character.`;
+	}
+	return `Stage decisive movement inside the established ${anchors.locationId}. Motion should clarify stakes, not replace continuity.`;
+}
+
+function continuityNotesForShot({
+	shotType,
+	anchors,
+}: {
+	shotType: ShotPlan["shotType"];
+	anchors: VisualAnchors;
+}): Array<string> {
+	const notes = [
+		`Use subject ${anchors.subjectId} consistently.`,
+		`Keep location ${anchors.locationId} coherent.`,
+		`Reuse prop ${anchors.propId} when visible.`,
+	];
+	if (shotType === "opening") {
+		notes.push("Introduce the anchor palette and architecture clearly.");
+	}
+	if (shotType === "detail") {
+		notes.push("Crop closer without losing continuity of costume, hands, and prop materials.");
+	}
+	if (shotType === "closing") {
+		notes.push("Echo the opening geography so the sequence feels complete.");
+	}
+	return notes;
+}
+
+function negativePromptForShot({
+	shotType,
+}: {
+	shotType: ShotPlan["shotType"];
+}): string {
+	const shared = [
+		"no extra hero characters",
+		"no wardrobe reset",
+		"no unrelated architecture style",
+		"no futuristic UI overlays or text",
+		"no logo, watermark, or subtitle",
+	];
+	if (shotType === "detail") {
+		shared.push("no random second prop", "no anatomy distortion", "no faceless mannequin hands");
+	}
+	if (shotType === "opening" || shotType === "closing") {
+		shared.push("no cluttered collage composition", "no disconnected background elements");
+	}
+	return shared.join("; ");
+}
+
 export function buildShots({ analysis }: { analysis: AnalysisResult }): Array<ShotPlan> {
 	const shotCount = analysis.targetShots;
 	const shots: Array<ShotPlan> = [];
@@ -630,6 +860,15 @@ export function buildShots({ analysis }: { analysis: AnalysisResult }): Array<Sh
 			title: beat.title,
 			fileStem: `${String(shotIndex).padStart(2, "0")}-shot-${stem || `beat-${shotIndex}`}`,
 			shotType,
+			continuity: {
+				subjectId: analysis.visualAnchors.subjectId,
+				locationId: analysis.visualAnchors.locationId,
+				propId: analysis.visualAnchors.propId,
+				continuityNotes: continuityNotesForShot({
+					shotType,
+					anchors: analysis.visualAnchors,
+				}),
+			},
 			framing: framingForShot({ base: analysis.framing, type: shotType }),
 			movement: shotType === "detail" ? "slider" : analysis.movement,
 			lighting: analysis.lighting,
@@ -644,6 +883,8 @@ export function buildShots({ analysis }: { analysis: AnalysisResult }): Array<Sh
 							: "Advance the scene beat",
 			beat: beat.body,
 			visualDirection: buildShotVisual({ beat, type: shotType }),
+			shotRoleGuidance: shotRoleGuidance({ shotType, anchors: analysis.visualAnchors }),
+			negativePrompt: negativePromptForShot({ shotType }),
 		});
 	}
 
@@ -696,6 +937,20 @@ function writeAnalysis({
 		`- Style Reason: ${analysis.styleReason}`,
 		`- Core Throughline: ${analysis.coreThroughline}`,
 		"",
+		"## Visual Anchors",
+		"",
+		`- Subject ID: ${analysis.visualAnchors.subjectId}`,
+		`- Subject Anchor: ${analysis.visualAnchors.subjectAnchor}`,
+		`- Location ID: ${analysis.visualAnchors.locationId}`,
+		`- Location Anchor: ${analysis.visualAnchors.locationAnchor}`,
+		`- Prop ID: ${analysis.visualAnchors.propId}`,
+		`- Prop Anchor: ${analysis.visualAnchors.propAnchor}`,
+		`- Palette Anchor: ${analysis.visualAnchors.paletteAnchor}`,
+		"",
+		"## Continuity Rules",
+		"",
+		...analysis.visualAnchors.continuityRules.map((rule) => `- ${rule}`),
+		"",
 		"## Beats",
 		"",
 		...analysis.beats.map((beat, index) => `### ${index + 1}. ${beat.title}\n\n${beat.body}\n`),
@@ -735,6 +990,9 @@ function writeShotsMd({
 		lines.push("");
 		lines.push(`- Filename: ${shot.fileStem}.png`);
 		lines.push(`- Type: ${shot.shotType}`);
+		lines.push(`- Subject ID: ${shot.continuity.subjectId}`);
+		lines.push(`- Location ID: ${shot.continuity.locationId}`);
+		lines.push(`- Prop ID: ${shot.continuity.propId}`);
 		lines.push(`- Framing: ${shot.framing}`);
 		lines.push(`- Movement: ${shot.movement}`);
 		lines.push(`- Lighting: ${shot.lighting}`);
@@ -742,6 +1000,9 @@ function writeShotsMd({
 		lines.push(`- Purpose: ${shot.purpose}`);
 		lines.push(`- Beat: ${shot.beat}`);
 		lines.push(`- Visual: ${shot.visualDirection}`);
+		lines.push(`- Shot Role: ${shot.shotRoleGuidance}`);
+		lines.push(`- Negative Prompt: ${shot.negativePrompt}`);
+		lines.push(`- Continuity Notes: ${shot.continuity.continuityNotes.join(" | ")}`);
 		lines.push("");
 	}
 
@@ -800,10 +1061,31 @@ function writePrompts({
 			"## Shot Metadata",
 			`- Language: ${analysis.language}`,
 			`- Type: ${shot.shotType}`,
+			`- Subject ID: ${shot.continuity.subjectId}`,
+			`- Location ID: ${shot.continuity.locationId}`,
+			`- Prop ID: ${shot.continuity.propId}`,
 			`- Framing: ${shot.framing}`,
 			`- Movement: ${shot.movement}`,
 			`- Lighting: ${shot.lighting}`,
 			`- Mood: ${shot.mood}`,
+			"",
+			"## Visual Anchors",
+			analysis.visualAnchors.subjectAnchor,
+			"",
+			analysis.visualAnchors.locationAnchor,
+			"",
+			analysis.visualAnchors.propAnchor,
+			"",
+			`Palette anchor: ${analysis.visualAnchors.paletteAnchor}`,
+			"",
+			"## Continuity Rules",
+			...analysis.visualAnchors.continuityRules.map((rule) => `- ${rule}`),
+			"",
+			"## Shot Role Guidance",
+			shot.shotRoleGuidance,
+			"",
+			"## Continuity Notes",
+			...shot.continuity.continuityNotes.map((note) => `- ${note}`),
 			"",
 			"## Story Beat",
 			shot.beat,
@@ -818,6 +1100,7 @@ function writePrompts({
 			"- One frame only.",
 			"- Maintain cinematic readability.",
 			"- No subtitles, UI, logos, or watermarks.",
+			`- Negative constraints: ${shot.negativePrompt}.`,
 		];
 		writeFileSync(join(promptsDir, `${shot.fileStem}.md`), `${content.join("\n").trim()}\n`);
 	}
