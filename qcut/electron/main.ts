@@ -506,7 +506,7 @@ function createWindow(): void {
 					"font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com; " +
 					`connect-src 'self' blob: app: http://localhost:${staticServerPort} ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://api.github.com https://fal.run https://queue.fal.run https://rest.alpha.fal.ai https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://freesound.org https://cdn.freesound.org https://cdn.tldraw.com; ` +
 					"media-src 'self' blob: data: app: https://freesound.org https://cdn.freesound.org https://fal.media https://v3.fal.media https://v3b.fal.media; " +
-					"img-src 'self' blob: data: app: https://fal.run https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://avatars.githubusercontent.com https://i.ibb.co https://cdn.tldraw.com;",
+					"img-src 'self' blob: data: app: https://fal.run https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://avatars.githubusercontent.com https://i.ibb.co https://cdn.tldraw.com https://lh3.googleusercontent.com;",
 			];
 
 			// Add COOP/COEP headers to support SharedArrayBuffer (required for FFmpeg WASM)

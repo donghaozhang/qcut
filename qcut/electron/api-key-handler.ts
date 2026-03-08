@@ -1,6 +1,10 @@
 import { ipcMain, safeStorage, app, IpcMainInvokeEvent } from "electron";
 import path from "path";
 import fs from "fs";
+import {
+	setKey as persistToQcutEnv,
+	deleteKey as removeFromQcutEnv,
+} from "./native-pipeline/infra/key-manager.js";
 
 // Type definitions for API key management
 interface ApiKeys {
@@ -58,6 +62,16 @@ const AICP_REVERSE_MAP: Partial<Record<keyof ApiKeys, string>> = {
 	falApiKey: "FAL_KEY",
 	geminiApiKey: "GEMINI_API_KEY",
 	openRouterApiKey: "OPENROUTER_API_KEY",
+};
+
+// QCut ApiKeys field → ~/.qcut/.env key name (for syncing to native CLI store)
+const QCUT_ENV_MAP: Partial<Record<keyof ApiKeys, string>> = {
+	falApiKey: "FAL_KEY",
+	freesoundApiKey: "FREESOUND_API_KEY",
+	geminiApiKey: "GEMINI_API_KEY",
+	openRouterApiKey: "OPENROUTER_API_KEY",
+	anthropicApiKey: "ANTHROPIC_API_KEY",
+	elevenLabsApiKey: "ELEVENLABS_API_KEY",
 };
 
 const EMPTY_API_KEYS: ApiKeys = {
@@ -228,6 +242,24 @@ function syncToAicpCredentials(keys: Partial<ApiKeys>): void {
 }
 
 /**
+ * Sync keys to ~/.qcut/.env so the native CLI can read them.
+ */
+function syncToQcutEnv(keys: Partial<ApiKeys>): void {
+	try {
+		for (const [field, envName] of Object.entries(QCUT_ENV_MAP)) {
+			const value = keys[field as keyof ApiKeys];
+			if (value) {
+				persistToQcutEnv(envName, value);
+			} else {
+				removeFromQcutEnv(envName);
+			}
+		}
+	} catch (error) {
+		console.warn("[API Keys] Failed to sync to ~/.qcut/.env:", error);
+	}
+}
+
+/**
  * Load keys from QCut's Electron safeStorage store (Tier 2).
  */
 async function loadElectronStoredKeys(): Promise<ApiKeys> {
@@ -328,6 +360,7 @@ export function setupApiKeyIPC(): void {
 				keys.falApiKey || keys.geminiApiKey || keys.openRouterApiKey;
 			if (hasKeys) {
 				syncToAicpCredentials(keys);
+				syncToQcutEnv(keys);
 			}
 		})
 		.catch((error) => {
@@ -393,6 +426,7 @@ export function setupApiKeyIPC(): void {
 
 				// Sync plaintext keys to AICP credential store so CLI tools can read them
 				syncToAicpCredentials(keys);
+				syncToQcutEnv(keys);
 
 				return true;
 			} catch (error: any) {
