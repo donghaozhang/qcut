@@ -755,7 +755,16 @@ function buildBodyPoints({ text }: { text: string }): Array<string> {
 		.map((sentence) => sentence.trim())
 		.filter(Boolean)
 		.slice(0, 3)
-		.map((sentence) => sentence.replace(/\s+/g, " "));
+		.map((sentence) => shortenToPhrase({ sentence }));
+}
+
+/** Shorten a sentence to a max ~8 word phrase suitable for slide rendering. */
+function shortenToPhrase({ sentence }: { sentence: string }): string {
+	const words = sentence.replace(/\s+/g, " ").split(" ");
+	if (words.length <= 8) {
+		return words.join(" ");
+	}
+	return `${words.slice(0, 7).join(" ")}…`;
 }
 
 export function buildSlides({ analysis }: { analysis: AnalysisResult }): Array<SlidePlan> {
@@ -770,8 +779,8 @@ export function buildSlides({ analysis }: { analysis: AnalysisResult }): Array<S
 		type: "cover",
 		layout: "title-hero",
 		narrativeGoal: "Introduce the topic and establish the deck's visual tone.",
-		bodyPoints: analysis.supportingPoints.slice(0, 2),
-		visualDescription: `Create a bold opening frame for "${analysis.title}" with a single dominant metaphor tied to ${analysis.coreMessage}.`,
+		bodyPoints: analysis.supportingPoints.slice(0, 2).map((p) => shortenToPhrase({ sentence: p })),
+		visualDescription: `Create a bold opening frame for "${analysis.title}" with a single dominant visual metaphor. Minimize text — show the concept visually.`,
 	});
 
 	for (let index = 0; index < sections.length; index += 1) {
@@ -798,8 +807,8 @@ export function buildSlides({ analysis }: { analysis: AnalysisResult }): Array<S
 		type: "closing",
 		layout: "quote-callout",
 		narrativeGoal: "Close the deck with a concise synthesis and a clear next step.",
-		bodyPoints: analysis.supportingPoints.slice(0, 3),
-		visualDescription: `End with a memorable synthesis frame that reinforces ${analysis.coreMessage}.`,
+		bodyPoints: analysis.supportingPoints.slice(0, 3).map((p) => shortenToPhrase({ sentence: p })),
+		visualDescription: `End with a memorable visual synthesis. Use icons or a single powerful image — avoid text-heavy closing.`,
 	});
 
 	return slides;
@@ -966,16 +975,19 @@ export function writePrompts({
 			`- Type: ${slide.type}`,
 			"",
 			"## Slide Content",
-			`- Title: ${slide.title}`,
+			`- Title (render as text, 2-4 words): ${slide.title}`,
 			`- Narrative Goal: ${slide.narrativeGoal}`,
 			`- Visual Direction: ${slide.visualDescription}`,
-			"- Body Points:",
+			"- Concepts to illustrate as ICONS/VISUALS (do NOT render as text):",
 			...slide.bodyPoints.map((point) => `  - ${point}`),
 			"",
-			"## Rendering Rules",
+			"## Rendering Rules (CRITICAL)",
 			"- Keep 16:9 slide composition.",
 			"- Do not include slide numbers, logos, headers, or footers.",
-			"- Keep text short, legible, and aligned to the selected style.",
+			"- ALMOST NO TEXT: only the title (2-4 words) and at most one short label.",
+			"- DO NOT render body points as text. Convert them to icons, pictograms, or diagrams.",
+			"- The slide must be 80%+ visual content (illustrations, icons, diagrams, charts).",
+			"- DO NOT write sentences or paragraphs anywhere on the slide.",
 		];
 		writeFileSync(join(promptsDir, `${slide.fileStem}.md`), `${prompt.join("\n").trim()}\n`);
 	}

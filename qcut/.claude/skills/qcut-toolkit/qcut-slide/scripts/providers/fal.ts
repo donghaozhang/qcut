@@ -1,4 +1,4 @@
-const DEFAULT_MODEL = "fal-ai/flux/dev";
+const DEFAULT_MODEL = "fal-ai/nano-banana-2";
 const POLL_MAX_MS = 300_000;
 
 export function hasFalCredentials(): boolean {
