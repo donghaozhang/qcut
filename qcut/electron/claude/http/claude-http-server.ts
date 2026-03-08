@@ -255,7 +255,6 @@ export function startClaudeHTTPServer(
 	router.get("/api/claude/auth/token", async () => {
 		const token = await getAuthToken();
 		return {
-			token,
 			authenticated: token.length > 0,
 		};
 	});
@@ -278,10 +277,13 @@ export function startClaudeHTTPServer(
 			throw new HttpError(400, "Missing 'token' in request body");
 		}
 		const token = req.body.token.trim();
-		setAuthToken({ token });
+		if (!token) {
+			throw new HttpError(400, "Token cannot be empty");
+		}
 		const LICENSE_SERVER_URL =
 			process.env.QCUT_LICENSE_SERVER_URL ||
 			"https://qcut-license-server.zdhpeter.workers.dev";
+		const hostname = require("node:os").hostname();
 		const response = await fetch(`${LICENSE_SERVER_URL}/api/license/activate`, {
 			method: "POST",
 			headers: {
@@ -289,8 +291,8 @@ export function startClaudeHTTPServer(
 				Authorization: `Bearer ${token}`,
 			},
 			body: JSON.stringify({
-				deviceFingerprint: `cli-${Date.now()}`,
-				deviceName: require("node:os").hostname(),
+				deviceFingerprint: `cli-${hostname}`,
+				deviceName: hostname,
 			}),
 		});
 		if (!response.ok) {
@@ -304,6 +306,7 @@ export function startClaudeHTTPServer(
 			string,
 			unknown
 		>;
+		setAuthToken({ token });
 		return { activated: true, ...data };
 	});
 

@@ -13,7 +13,7 @@ All `vimax:*` commands share these override flags:
 | `--video-model` | Override video generation model |
 | `--output-dir`, `-o` | Output directory |
 
-### Default LLM Model
+## Default LLM Model
 
 The default LLM for all ViMax agents is `google/gemini-3-flash-preview` (via OpenRouter). Common alternatives:
 

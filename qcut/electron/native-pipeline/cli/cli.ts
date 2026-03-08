@@ -12,6 +12,8 @@
  */
 
 import { parseArgs } from "node:util";
+import os from "node:os";
+import path from "node:path";
 import { initRegistry } from "../init.js";
 import {
 	CLIPipelineRunner,
@@ -119,7 +121,7 @@ Editor Commands (requires running QCut — use --project-id for most):
   Use <command> --help --json for detailed flag info per command.
 
 Global Options:
-  --output-dir, -o    Output directory (default: ./output)
+  --output-dir, -o    Output directory (default: ~/Documents/QCut/exports)
   --model, -m         Model key (e.g. kling_2_6_pro, flux_dev)
   --json              Output results as JSON
   --quiet, -q         Suppress progress output
@@ -472,7 +474,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		imageUrl: values["image-url"] as string | undefined,
 		videoUrl: values["video-url"] as string | undefined,
 		audioUrl: values["audio-url"] as string | undefined,
-		outputDir: (values["output-dir"] as string) || "./output",
+		outputDir:
+			(values["output-dir"] as string) ||
+			path.join(os.homedir(), "Documents", "QCut", "exports"),
 		duration: values.duration as string | undefined,
 		aspectRatio: values["aspect-ratio"] as string | undefined,
 		resolution: values.resolution as string | undefined,

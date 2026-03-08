@@ -527,17 +527,26 @@ async function handleMoyinCommand(
 				const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 				outputPath = path.join(docsDir, `moyin-export-${ts}.json`);
 			}
-			const absPath = path.resolve(outputPath);
-			await fs.mkdir(path.dirname(absPath), { recursive: true });
-			await fs.writeFile(absPath, JSON.stringify(data, null, 2));
-			const exportData = typeof data === "object" && data !== null ? data : {};
-			return {
-				success: true,
-				data: {
-					...(exportData as Record<string, unknown>),
-					exportedTo: absPath,
-				},
-			};
+			try {
+				const absPath = path.resolve(outputPath);
+				await fs.mkdir(path.dirname(absPath), { recursive: true });
+				await fs.writeFile(absPath, JSON.stringify(data, null, 2));
+				const exportData =
+					typeof data === "object" && data !== null ? data : {};
+				return {
+					success: true,
+					data: {
+						...(exportData as Record<string, unknown>),
+						exportedTo: absPath,
+					},
+				};
+			} catch (error) {
+				const reason = error instanceof Error ? error.message : String(error);
+				return {
+					success: false,
+					error: `Failed to write export file: ${outputPath}. ${reason}`,
+				};
+			}
 		}
 		case "generate": {
 			if (!options.idea) {
