@@ -431,7 +431,7 @@ function TimelineElementComponent({
 				mediaItem.thumbnailStatus === "pending"
 			) {
 				return (
-					<div className="w-full h-full flex items-center justify-center bg-timeline-clip">
+					<div className="w-full h-full flex items-center justify-center bg-[var(--color-timeline-video-clip)]">
 						<span className="text-xs text-foreground/60 truncate px-2">
 							{element.name} (loading...)
 						</span>
@@ -446,7 +446,7 @@ function TimelineElementComponent({
 			if (hasFilmstrip || mediaItem.thumbnailUrl) {
 				return (
 					<div className="w-full h-full flex items-center justify-center">
-						<div className="bg-timeline-clip py-3 w-full h-full relative">
+						<div className="bg-[var(--color-timeline-video-clip)] py-3 w-full h-full relative">
 							{/* Filmstrip frame tiles */}
 							<div
 								className="absolute top-3 bottom-3 left-0 right-0 flex flex-row overflow-hidden pointer-events-none"
@@ -489,7 +489,7 @@ function TimelineElementComponent({
 
 			// Fallback: no thumbnail
 			return (
-				<div className="w-full h-full flex items-center justify-center bg-timeline-clip">
+				<div className="w-full h-full flex items-center justify-center bg-[var(--color-timeline-video-clip)]">
 					<span className="text-xs text-foreground/80 truncate px-2">
 						{element.name}
 					</span>

@@ -43,6 +43,7 @@ import {
 	handleVimaxScript2Video,
 	handleVimaxNovel2Movie,
 } from "../vimax-cli-handlers.js";
+import { handleYouTubeUpload } from "../cli-handlers-youtube.js";
 import type { CLIRunOptions, CLIResult, ProgressFn } from "./types.js";
 import { handleGenerate } from "./handler-generate.js";
 import { handleRunPipeline } from "./handler-pipeline.js";
@@ -203,6 +204,8 @@ export class CLIPipelineRunner {
 				});
 			case "pipeline:status":
 				return handlePipelineStatus(options);
+			case "youtube:upload":
+				return handleYouTubeUpload(options, onProgress);
 			default:
 				if (options.command.startsWith("editor:")) {
 					return handleEditorCommand(options, onProgress);

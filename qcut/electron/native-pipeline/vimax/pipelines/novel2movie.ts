@@ -72,7 +72,7 @@ export function createNovel2MovieConfig(
 		scene_duration: 30.0,
 		video_model: "kling",
 		image_model: "nano_banana_pro",
-		llm_model: "kimi-k2.5",
+		llm_model: "google/gemini-3-flash-preview",
 		generate_portraits: true,
 		use_character_references: true,
 		max_characters: 5,

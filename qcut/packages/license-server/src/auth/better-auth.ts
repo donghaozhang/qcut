@@ -11,6 +11,7 @@ const DEFAULT_TRUSTED_ORIGINS = [
 	"https://quriosity.com.au",
 	"https://www.quriosity.com.au",
 	"https://donghaozhang.github.io",
+	"https://qcut-license-server.zdhpeter.workers.dev",
 ];
 
 function getBaseUrl(): string {
@@ -19,14 +20,19 @@ function getBaseUrl(): string {
 }
 
 function getTrustedOrigins(): string[] {
+	const baseUrl = getBaseUrl();
 	const env = process.env.BETTER_AUTH_TRUSTED_ORIGINS;
-	if (env?.trim()) {
-		return env
-			.split(",")
-			.map((v) => v.trim())
-			.filter(Boolean);
+	const origins = env?.trim()
+		? env
+				.split(",")
+				.map((v) => v.trim())
+				.filter(Boolean)
+		: [...DEFAULT_TRUSTED_ORIGINS];
+	// Always include the server's own origin so OAuth callbacks are accepted.
+	if (!origins.includes(baseUrl)) {
+		origins.push(baseUrl);
 	}
-	return DEFAULT_TRUSTED_ORIGINS;
+	return origins;
 }
 
 /** Lazily creates and caches the Better Auth instance. Reads env vars only on first call. */
@@ -66,6 +72,12 @@ export function getAuth(): Auth {
 			google: {
 				clientId: googleClientId,
 				clientSecret: googleClientSecret,
+				scope: [
+					"openid",
+					"email",
+					"profile",
+					"https://www.googleapis.com/auth/youtube.upload",
+				],
 			},
 		},
 		trustedOrigins: getTrustedOrigins(),

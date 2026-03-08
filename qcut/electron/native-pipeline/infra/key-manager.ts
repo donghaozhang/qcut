@@ -22,6 +22,7 @@ const KEY_NAMES = [
 	"HEYGEN_API_KEY",
 	"DID_API_KEY",
 	"SYNTHESIA_API_KEY",
+	"QCUT_AUTH_TOKEN",
 ] as const;
 
 export type ApiKeyName = (typeof KEY_NAMES)[number];

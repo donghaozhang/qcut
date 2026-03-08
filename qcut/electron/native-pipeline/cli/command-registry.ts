@@ -122,6 +122,11 @@ export const CATEGORIES: CategoryDef[] = [
 		commands: ["moyin:parse-script"],
 	},
 	{
+		name: "youtube",
+		label: "YouTube Commands",
+		commands: ["youtube:upload"],
+	},
+	{
 		name: "vimax",
 		label: "ViMax Commands",
 		commands: [
@@ -598,6 +603,34 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		examples: [
 			"qcut-pipeline moyin:parse-script --script screenplay.txt --json",
 			"qcut-pipeline moyin:parse-script --script screenplay.txt --model kimi --stream",
+		],
+	},
+
+	// ── YouTube ──
+	"youtube:upload": {
+		name: "youtube:upload",
+		description: "Upload a video to YouTube",
+		category: "youtube",
+		flags: [
+			f("--input", "string", "Path to video file", {
+				short: "-i",
+				required: true,
+			}),
+			f("--title", "string", "Video title", { required: true }),
+			f("--text", "string", "Video description"),
+			f("--data", "string", "Comma-separated tags"),
+			f("--mode", "string", "Privacy status", {
+				default: "private",
+				enum: ["public", "unlisted", "private"],
+			}),
+			f("--category", "string", "YouTube category ID (default: 22)", {
+				default: "22",
+			}),
+			f("--image", "string", "Path to thumbnail image"),
+		],
+		examples: [
+			'bun run pipeline youtube:upload -i video.mp4 -t "My Video"',
+			'bun run pipeline youtube:upload -i video.mp4 -t "My Video" --mode unlisted --data "vlog,travel"',
 		],
 	},
 

@@ -422,6 +422,9 @@ export function createAuthRoutes({
 			const session = await resolvedDependencies.getSessionFromHeaders({
 				headers: c.req.raw.headers,
 			});
+			console.log(
+				`[auth] token-bridge — session=${session?.session?.token ? "found" : "MISSING"} hasCookie=${c.req.raw.headers.has("cookie")} redirect_url=${c.req.query("redirect_url") ?? "(none)"}`
+			);
 			if (!session?.session?.token) {
 				const loginRedirect = new URL(defaultUrls.loginUrl);
 				const redirectPath =
@@ -536,6 +539,45 @@ export function createAuthRoutes({
 						error instanceof Error
 							? `Failed to bridge OAuth error: ${error.message}`
 							: "Failed to bridge OAuth error",
+				},
+				500
+			);
+		}
+	});
+
+	// OAuth provider callbacks arrive as GET redirects with an external Referer
+	// (e.g. accounts.google.com). Better Auth's CSRF middleware rejects requests
+	// whose Origin/Referer isn't in trustedOrigins when cookies are present.
+	// Strip those headers so the CSRF check is skipped — the OAuth `state` param
+	// already protects against forgery.
+	authRoutes.get("/callback/:provider", async (c) => {
+		try {
+			const provider = c.req.param("provider");
+			console.log(
+				`[auth] callback/${provider} — stripping origin/referer for CSRF bypass`
+			);
+			const headers = new Headers(c.req.raw.headers);
+			headers.delete("origin");
+			headers.delete("referer");
+			const sanitized = new Request(c.req.raw.url, {
+				method: c.req.raw.method,
+				headers,
+			});
+			const response = await resolvedDependencies.handleAuthRequest({
+				request: sanitized,
+			});
+			console.log(
+				`[auth] callback/${provider} — response status=${response.status} location=${response.headers.get("location") ?? "(none)"} set-cookie=${response.headers.has("set-cookie")}`
+			);
+			return response;
+		} catch (error) {
+			console.error("[auth] callback handler threw:", error);
+			return c.json(
+				{
+					error:
+						error instanceof Error
+							? `OAuth callback failed: ${error.message}`
+							: "OAuth callback failed",
 				},
 				500
 			);

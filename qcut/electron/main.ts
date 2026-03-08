@@ -128,6 +128,7 @@ const { setupRemotionFolderIPC } = require("./remotion-folder-handler.js");
 const { setupScreenRecordingIPC } = require("./screen-recording-handler.js");
 const { setupMoyinIPC } = require("./moyin-handler.js");
 const { setupLicenseIPC } = require("./license-handler.js");
+const { setupYouTubeIPC } = require("./youtube-handler.js");
 const {
 	captureScreenshot,
 } = require("./claude/handlers/claude-screenshot-handler.js");
@@ -820,6 +821,7 @@ if (!isCliKeyCommand) {
 			["ScreenRecordingIPC", setupScreenRecordingIPC],
 			["MoyinIPC", setupMoyinIPC],
 			["LicenseIPC", setupLicenseIPC],
+			["YouTubeIPC", setupYouTubeIPC],
 		];
 
 		for (const [name, setup] of handlers) {

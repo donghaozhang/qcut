@@ -53,7 +53,8 @@
 	--terminal-muted: hsl(0 0% 53%);
 
 	/* Timeline clip background */
-	--timeline-clip: hsl(45 80% 18%);
+	--timeline-clip: hsl(45 96% 46%);
+	--timeline-video-clip: hsl(45 96% 46%);
 
 	/* Radius base */
 	--radius: 1rem;
@@ -203,6 +204,7 @@
 
   /* Timeline */
   --color-timeline-clip: var(--timeline-clip);
+  --color-timeline-video-clip: var(--timeline-video-clip);
 
   /* Animations */
   --animate-accordion-down: accordion-down 0.2s ease-out;

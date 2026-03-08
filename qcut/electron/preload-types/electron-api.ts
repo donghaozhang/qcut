@@ -56,6 +56,7 @@ import type {
 	MoyinAPI,
 } from "./api-types/remotion-moyin-api";
 import type { UpdatesAPI, LicenseAPI } from "./api-types/system-api";
+import type { YouTubeApi } from "./api-types/youtube-api";
 
 // ============================================================================
 // Master ElectronAPI interface
@@ -87,7 +88,8 @@ export interface ElectronAPI
 		RemotionFolderAPI,
 		MoyinAPI,
 		UpdatesAPI,
-		LicenseAPI {
+		LicenseAPI,
+		YouTubeApi {
 	platform: NodeJS.Platform;
 	isElectron: boolean;
 

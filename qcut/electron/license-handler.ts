@@ -189,6 +189,10 @@ export function setupLicenseIPC(): void {
 		return true;
 	});
 
+	ipcMain.handle("license:get-auth-token", async () => {
+		return getAuthToken();
+	});
+
 	ipcMain.handle("license:check", async (): Promise<LicenseInfo> => {
 		try {
 			const onlineLicense = await getOnlineLicense();

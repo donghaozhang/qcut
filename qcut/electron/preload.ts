@@ -423,6 +423,32 @@ const electronAPI: ElectronAPI = {
 	moyin: createMoyinAPI(),
 	updates: createUpdatesAPI(),
 
+	// YouTube upload
+	youtube: {
+		upload: (options: {
+			filePath: string;
+			title: string;
+			description?: string;
+			tags?: string[];
+			privacy?: "public" | "unlisted" | "private";
+			categoryId?: string;
+			thumbnailPath?: string;
+		}) => ipcRenderer.invoke("youtube:upload", options),
+		checkAuth: () => ipcRenderer.invoke("youtube:check-auth"),
+		onUploadProgress: (
+			callback: (progress: { percent: number; message: string }) => void,
+		) => {
+			const listener = (
+				_event: Electron.IpcRendererEvent,
+				progress: { percent: number; message: string },
+			) => callback(progress);
+			ipcRenderer.on("youtube:upload-progress", listener);
+			return () => {
+				ipcRenderer.removeListener("youtube:upload-progress", listener);
+			};
+		},
+	},
+
 	// File path utility (Electron 37+ removed File.path)
 	getPathForFile: (file: File): string => webUtils.getPathForFile(file),
 

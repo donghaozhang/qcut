@@ -26,7 +26,7 @@ export function createLLMAdapterConfig(
 	return {
 		...createAdapterConfig({
 			provider: "openrouter",
-			model: "moonshotai/kimi-k2.5",
+			model: "google/gemini-3-flash-preview",
 		}),
 		temperature: 0.7,
 		max_tokens: 8192,
@@ -49,6 +49,8 @@ export interface LLMResponse {
 
 /** Common model aliases resolved to OpenRouter model IDs. */
 const MODEL_ALIASES: Record<string, string> = {
+	"gemini-3-flash": "google/gemini-3-flash-preview",
+	"gemini-2.5-flash": "google/gemini-2.5-flash",
 	"kimi-k2.5": "moonshotai/kimi-k2.5",
 	kimi: "moonshotai/kimi-k2.5",
 	"claude-3.5-sonnet": "anthropic/claude-3.5-sonnet",
@@ -60,6 +62,8 @@ const MODEL_ALIASES: Record<string, string> = {
 
 /** Approximate costs per 1K tokens (input, output). */
 const COST_TABLE: Record<string, [number, number]> = {
+	"google/gemini-3-flash-preview": [0.000_1, 0.000_4],
+	"google/gemini-2.5-flash": [0.000_15, 0.000_6],
 	"moonshotai/kimi-k2.5": [0.0005, 0.0028],
 	"anthropic/claude-3.5-sonnet": [0.003, 0.015],
 	"anthropic/claude-3-opus": [0.015, 0.075],
