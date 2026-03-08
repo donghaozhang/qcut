@@ -1,6 +1,6 @@
 ---
 name: qcut-slide
-description: CLI-first slide deck generator for QCut. Analyzes markdown or text content, creates a slide outline, generates per-slide image prompts, optionally renders slide images through baoyu-image-gen, and merges the results into PPTX or PDF. Use when the user wants a real command-line slide workflow rather than an interactive slash-skill flow.
+description: CLI-first slide deck generator for QCut. Analyzes markdown or text content, creates a slide outline, generates per-slide image prompts, renders slide images through its own local fal-backed renderer, and merges the results into PPTX or PDF. Ships with its own local slide references instead of depending on baoyu-slide-deck references. Use when the user wants a real command-line slide workflow rather than an interactive slash-skill flow.
 ---
 
 # QCut Slide
@@ -46,6 +46,6 @@ slide-deck/{topic-slug}/
 
 ## Notes
 
-- Style reference text is loaded from `baoyu/baoyu-slide-deck/references/styles/`.
-- Image generation is delegated to `baoyu-image-gen` when available and configured.
+- Style and prompt references live locally in `qcut-slide/references/`.
+- Image generation uses the local `qcut-slide/scripts/image-gen.ts` renderer.
 - If image generation cannot run, the command still produces `analysis.md`, `outline.md`, and prompt files.

@@ -50,7 +50,7 @@ async function main(): Promise<void> {
 			deckDir,
 			selectedSlides: options.regenerate,
 		});
-		const result = runImageGeneration({
+		const result = await runImageGeneration({
 			deckDir,
 			promptFiles,
 			provider: options.provider,
@@ -92,7 +92,7 @@ async function main(): Promise<void> {
 	}
 
 	const promptFiles = discoverPromptFiles({ deckDir: deckPlan.deckDir });
-	const imageResult = runImageGeneration({
+	const imageResult = await runImageGeneration({
 		deckDir: deckPlan.deckDir,
 		promptFiles,
 		provider: options.provider,

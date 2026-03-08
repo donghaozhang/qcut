@@ -1,5 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, extname, join, resolve } from "node:path";
+import { generateFalImage, getDefaultFalModel, hasFalCredentials } from "./providers/fal";
 
 export type Audience =
 	| "beginners"
@@ -449,9 +450,6 @@ function styleReferencePath({ preset }: { preset: string }): string {
 	return resolve(
 		import.meta.dir,
 		"..",
-		"..",
-		"baoyu",
-		"baoyu-slide-deck",
 		"references",
 		"styles",
 		`${preset}.md`,
@@ -663,9 +661,6 @@ function loadBasePrompt(): string {
 	const path = resolve(
 		import.meta.dir,
 		"..",
-		"..",
-		"baoyu",
-		"baoyu-slide-deck",
 		"references",
 		"base-prompt.md",
 	);
@@ -809,17 +804,6 @@ export function discoverPromptFiles({
 	return promptFiles;
 }
 
-function hasImageGenerationCredentials(): boolean {
-	return Boolean(
-		process.env.OPENAI_API_KEY ||
-			process.env.GOOGLE_API_KEY ||
-			process.env.DASHSCOPE_API_KEY ||
-			process.env.REPLICATE_API_TOKEN ||
-			process.env.FAL_KEY ||
-			process.env.FAL_API_KEY,
-	);
-}
-
 export function imageOutputPath({
 	deckDir,
 	promptFile,
@@ -830,7 +814,7 @@ export function imageOutputPath({
 	return join(deckDir, `${basename(promptFile, ".md")}.png`);
 }
 
-export function runImageGeneration({
+export async function runImageGeneration({
 	deckDir,
 	promptFiles,
 	provider,
@@ -842,67 +826,58 @@ export function runImageGeneration({
 	provider?: string;
 	model?: string;
 	dryRun: boolean;
-}): { generated: Array<string>; skipped: string | null } {
-	if (!hasImageGenerationCredentials()) {
+}): Promise<{ generated: Array<string>; skipped: string | null }> {
+	const resolvedProvider = provider?.trim() || "fal";
+	if (resolvedProvider !== "fal") {
 		return {
 			generated: [],
-			skipped: "No image-generation API key found. Generated outline and prompts only.",
+			skipped: `qcut-slide local rendering currently supports only the fal provider. Received: ${resolvedProvider}`,
 		};
 	}
 
-	const imageGenPath = resolve(
-		import.meta.dir,
-		"..",
-		"..",
-		"baoyu",
-		"baoyu-image-gen",
-		"scripts",
-		"main.ts",
-	);
-	if (!existsSync(imageGenPath)) {
+	if (!hasFalCredentials()) {
 		return {
 			generated: [],
-			skipped: `baoyu-image-gen entrypoint not found: ${imageGenPath}`,
+			skipped: "No FAL_KEY or FAL_API_KEY found. Generated outline and prompts only.",
 		};
 	}
 
 	const generated: Array<string> = [];
 	for (const promptFile of promptFiles) {
 		const outputPath = imageOutputPath({ deckDir, promptFile });
-		const command = [
-			"bun",
-			imageGenPath,
-			"--promptfiles",
-			promptFile,
-			"--image",
-			outputPath,
-			"--ar",
-			"16:9",
-		];
-		if (provider) {
-			command.push("--provider", provider);
-		}
-		if (model) {
-			command.push("--model", model);
-		}
 
 		if (dryRun) {
 			generated.push(outputPath);
 			continue;
 		}
 
-		const result = Bun.spawnSync({
-			cmd: command,
-			stdout: "inherit",
-			stderr: "inherit",
+		const prompt = readFileSync(promptFile, "utf8");
+		await writeRenderedImage({
+			prompt,
+			model: model?.trim() || getDefaultFalModel(),
+			outputPath,
 		});
-		if (result.exitCode !== 0) {
-			throw new Error(`Image generation failed for ${basename(promptFile)}`);
-		}
 		generated.push(outputPath);
 	}
 
 	return { generated, skipped: null };
+}
+
+async function writeRenderedImage({
+	prompt,
+	model,
+	outputPath,
+}: {
+	prompt: string;
+	model: string;
+	outputPath: string;
+}): Promise<void> {
+	const bytes = await generateFalImage({
+		prompt,
+		model,
+		aspectRatio: "16:9",
+	});
+	await Bun.write(outputPath, bytes);
 }
 
 export function mergeOutputs({
