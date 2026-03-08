@@ -34,6 +34,19 @@ export interface ScriptGenerationOptions extends ParseOptions {
 	styleId?: string;
 }
 
+// ==================== Helpers ====================
+
+/** Parse a duration string like "30s", "2m", "1.5m", "120" into seconds. */
+function parseDurationToSeconds(duration: string): number {
+	const trimmed = duration.trim().toLowerCase();
+	const mMatch = trimmed.match(/^([\d.]+)\s*m(?:in)?$/);
+	if (mMatch) return Math.round(parseFloat(mMatch[1]) * 60);
+	const sMatch = trimmed.match(/^([\d.]+)\s*s(?:ec)?$/);
+	if (sMatch) return Math.round(parseFloat(sMatch[1]));
+	const num = parseFloat(trimmed);
+	return Number.isFinite(num) ? Math.round(num) : 0;
+}
+
 // ==================== Pure Functions ====================
 
 /**
@@ -204,6 +217,14 @@ export async function generateScriptFromIdea(
 			? CREATIVE_SCRIPT_PROMPT + STORYBOARD_STRUCTURE_PROMPT
 			: CREATIVE_SCRIPT_PROMPT;
 
+	// Calculate recommended shot count from duration if not explicitly set.
+	// Each AI video clip is 6–15 seconds, average ~10s per shot.
+	const durationSecs = parseDurationToSeconds(targetDuration);
+	const recommendedShots =
+		!shotCount && durationSecs > 0
+			? Math.max(2, Math.round(durationSecs / 10))
+			: undefined;
+
 	const userPrompt = [
 		"Generate a complete screenplay from this creative input:",
 		"",
@@ -214,6 +235,9 @@ export async function generateScriptFromIdea(
 		"",
 		"[Requirements]",
 		`- Target duration: ${targetDuration}`,
+		recommendedShots
+			? `- IMPORTANT: Each shot becomes a 6-15 second AI video clip (~10s average). For ${targetDuration} target, generate exactly ${recommendedShots} shots total across all scenes.`
+			: "",
 		originalShotCount > 0
 			? `- Scene count: must have ${originalShotCount} (matching original shots)`
 			: sceneCount

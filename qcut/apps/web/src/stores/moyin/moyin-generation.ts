@@ -15,6 +15,28 @@ import { calculateGrid } from "@/lib/moyin/storyboard/grid-calculator";
 import { VISUAL_STYLE_PRESETS } from "@/lib/moyin/presets/visual-styles";
 import { generateFalImage } from "./moyin-shot-generation";
 
+// ==================== Helpers ====================
+
+/** Parse duration string to a shot budget. Each shot ≈ 10s of AI video. */
+function parseShotBudget(
+	duration: string,
+	sceneCount: number
+): number | undefined {
+	const trimmed = duration.trim().toLowerCase();
+	let seconds = 0;
+	const mMatch = trimmed.match(/^([\d.]+)\s*m(?:in)?$/);
+	if (mMatch) seconds = Math.round(parseFloat(mMatch[1]) * 60);
+	const sMatch = trimmed.match(/^([\d.]+)\s*s(?:ec)?$/);
+	if (sMatch) seconds = Math.round(parseFloat(sMatch[1]));
+	if (!seconds) {
+		const num = parseFloat(trimmed);
+		if (Number.isFinite(num)) seconds = Math.round(num);
+	}
+	if (seconds <= 0) return undefined;
+	// ~10s per shot, minimum 2 shots, at least 1 per scene
+	return Math.max(Math.max(2, sceneCount), Math.round(seconds / 10));
+}
+
 // ==================== Types ====================
 
 interface StoryboardResult {
@@ -186,12 +208,22 @@ export async function splitAndApplyAction(
 export async function generateShotsForEpisodeAction(
 	episodeScenes: ScriptScene[],
 	episodeTitle: string,
-	scriptTitle: string
+	scriptTitle: string,
+	targetDuration?: string
 ): Promise<Shot[]> {
 	const api = window.electronAPI?.moyin;
 	if (!api?.callLLM) {
 		throw new Error("Moyin API not available.");
 	}
+
+	// Calculate shot budget from target duration.
+	// Each AI video clip is 6-15 seconds (~10s average).
+	const totalShotBudget = targetDuration
+		? parseShotBudget(targetDuration, episodeScenes.length)
+		: undefined;
+	const shotsPerSceneHint = totalShotBudget
+		? `Generate approximately ${totalShotBudget} shots total across all ${episodeScenes.length} scenes (target duration: ${targetDuration}, each shot ≈ 10 seconds of video).`
+		: "Break each scene into 3-6 shots.";
 
 	const sceneDescs = episodeScenes
 		.map(
@@ -201,7 +233,7 @@ export async function generateShotsForEpisodeAction(
 		.join("\n");
 
 	const result = await api.callLLM({
-		systemPrompt: `You are a professional storyboard artist. Break each scene into 3-6 shots.
+		systemPrompt: `You are a professional storyboard artist. ${shotsPerSceneHint}
 
 Return JSON array:
 [{ "id": "shot_001", "sceneRefId": "scene_id", "index": 0, "actionSummary": "description", "shotSize": "MS/CU/WS/etc", "cameraMovement": "pan/tilt/static/etc", "characterIds": [], "characterVariations": {}, "imageStatus": "idle", "imageProgress": 0, "videoStatus": "idle", "videoProgress": 0 }]
@@ -212,7 +244,7 @@ Only return the JSON array.`,
 Scenes:
 ${sceneDescs}
 
-Generate shots for each scene with proper camera language and visual storytelling.`,
+Generate shots for each scene with proper camera language and visual storytelling.${totalShotBudget ? ` IMPORTANT: Total shot count must be approximately ${totalShotBudget} shots.` : ""}`,
 		temperature: 0.5,
 		maxTokens: 8192,
 	});

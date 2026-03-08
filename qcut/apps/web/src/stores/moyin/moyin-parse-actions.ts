@@ -115,7 +115,8 @@ export async function runCalibrationPipeline(
 			const newShots = await generateShotsForEpisodeAction(
 				epScenes,
 				ep.title,
-				sd?.title || "Unknown"
+				sd?.title || "Unknown",
+				sd?.targetDuration
 			);
 			allNewShots.push(...newShots);
 		}

@@ -277,6 +277,11 @@ async function loadElectronStoredKeys(): Promise<ApiKeys> {
 	}
 }
 
+// Reverse of QCUT_ENV_MAP: env var name → ApiKeys field (for reading ~/.qcut/.env)
+const QCUT_ENV_READ_MAP: Record<string, keyof ApiKeys> = Object.fromEntries(
+	Object.entries(QCUT_ENV_MAP).map(([field, envName]) => [envName, field as keyof ApiKeys])
+) as Record<string, keyof ApiKeys>;
+
 /**
  * Load keys from ~/.qcut/.env (Tier 3b — native CLI credential store).
  */
@@ -293,7 +298,7 @@ function loadQcutEnvKeys(): Partial<ApiKeys> {
 			if (eqIdx <= 0) continue;
 			const varName = trimmed.slice(0, eqIdx);
 			const value = trimmed.slice(eqIdx + 1);
-			const field = AICP_KEY_MAP[varName];
+			const field = QCUT_ENV_READ_MAP[varName] || AICP_KEY_MAP[varName];
 			if (field && value) {
 				result[field] = value;
 			}
@@ -325,7 +330,10 @@ export async function getDecryptedApiKeys(): Promise<ApiKeys> {
 			qcutEnvKeys.falApiKey ||
 			"",
 		freesoundApiKey:
-			process.env.FREESOUND_API_KEY || electronKeys.freesoundApiKey || "",
+			process.env.FREESOUND_API_KEY ||
+			electronKeys.freesoundApiKey ||
+			qcutEnvKeys.freesoundApiKey ||
+			"",
 		geminiApiKey:
 			process.env.GEMINI_API_KEY ||
 			electronKeys.geminiApiKey ||
@@ -339,9 +347,15 @@ export async function getDecryptedApiKeys(): Promise<ApiKeys> {
 			qcutEnvKeys.openRouterApiKey ||
 			"",
 		anthropicApiKey:
-			process.env.ANTHROPIC_API_KEY || electronKeys.anthropicApiKey || "",
+			process.env.ANTHROPIC_API_KEY ||
+			electronKeys.anthropicApiKey ||
+			qcutEnvKeys.anthropicApiKey ||
+			"",
 		elevenLabsApiKey:
-			process.env.ELEVENLABS_API_KEY || electronKeys.elevenLabsApiKey || "",
+			process.env.ELEVENLABS_API_KEY ||
+			electronKeys.elevenLabsApiKey ||
+			qcutEnvKeys.elevenLabsApiKey ||
+			"",
 	};
 }
 
