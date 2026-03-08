@@ -26,6 +26,7 @@ import {
 	mkdirSync,
 	unlinkSync,
 	readdirSync,
+	renameSync,
 	statSync,
 	openSync,
 	closeSync,
@@ -61,6 +62,17 @@ function serializeMetadata(data: Record<string, string>): string {
 			.map(([k, v]) => `${k}=${v}`)
 			.join("\n") + "\n"
 	);
+}
+
+/**
+ * Write file atomically via tmp + rename.
+ * POSIX rename is atomic on the same filesystem — prevents
+ * half-written metadata on crash or concurrent writes.
+ */
+function atomicWriteFileSync(filePath: string, data: string): void {
+	const tmpPath = `${filePath}.tmp.${process.pid}.${Date.now()}`;
+	writeFileSync(tmpPath, data, "utf-8");
+	renameSync(tmpPath, filePath);
 }
 
 /** Validate sessionId to prevent path traversal. */
@@ -159,7 +171,7 @@ export function writeMetadata(
 	if (metadata.directTerminalWsPort !== undefined)
 		data.directTerminalWsPort = String(metadata.directTerminalWsPort);
 
-	writeFileSync(path, serializeMetadata(data), "utf-8");
+	atomicWriteFileSync(path, serializeMetadata(data));
 }
 
 /**
@@ -190,7 +202,7 @@ export function updateMetadata(
 	}
 
 	mkdirSync(dirname(path), { recursive: true });
-	writeFileSync(path, serializeMetadata(existing), "utf-8");
+	atomicWriteFileSync(path, serializeMetadata(existing));
 }
 
 /**
@@ -210,7 +222,7 @@ export function deleteMetadata(
 		mkdirSync(archiveDir, { recursive: true });
 		const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 		const archivePath = join(archiveDir, `${sessionId}_${timestamp}`);
-		writeFileSync(archivePath, readFileSync(path, "utf-8"));
+		atomicWriteFileSync(archivePath, readFileSync(path, "utf-8"));
 	}
 
 	unlinkSync(path);

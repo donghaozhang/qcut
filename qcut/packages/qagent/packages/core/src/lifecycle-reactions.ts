@@ -283,7 +283,7 @@ export async function executeReaction(
 				);
 
 				if (stdout.trim()) {
-					await sessionManager.send(sessionId, stdout.trim());
+					await sessionManager.sendOrRestart(sessionId, stdout.trim());
 				}
 
 				return {
@@ -295,7 +295,7 @@ export async function executeReaction(
 				};
 			} catch {
 				if (reactionConfig.message) {
-					await sessionManager.send(sessionId, reactionConfig.message);
+					await sessionManager.sendOrRestart(sessionId, reactionConfig.message);
 				}
 				return {
 					reactionType: reactionKey,

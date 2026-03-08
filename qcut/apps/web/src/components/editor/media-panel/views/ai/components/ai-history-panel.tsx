@@ -2,7 +2,7 @@
 
 import { History, Play, Trash2, X, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface GeneratedVideo {
 	jobId: string;
@@ -37,12 +37,25 @@ export function AIHistoryPanel({
 	onRemoveFromHistory,
 	aiModels,
 }: AIHistoryPanelProps) {
+	useEffect(() => {
+		if (!isOpen) return;
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === "Escape") onClose();
+		};
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, [isOpen, onClose]);
+
 	if (!isOpen) return null;
 
 	return (
 		<>
 			{/* Backdrop */}
-			<div className="fixed inset-0 bg-background/20 z-40" onClick={onClose} />
+			<div
+				className="fixed inset-0 bg-background/20 z-40"
+				role="presentation"
+				onClick={onClose}
+			/>
 
 			{/* Sliding Panel */}
 			<div
@@ -62,6 +75,7 @@ export function AIHistoryPanel({
 						size="sm"
 						variant="text"
 						onClick={onClose}
+						aria-label="Close history panel"
 						className="h-8 w-8 p-0"
 					>
 						<X className="size-4" />

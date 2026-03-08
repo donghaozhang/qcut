@@ -171,6 +171,7 @@ function BlurView({
 					<img
 						src={blurImage}
 						alt={`Blur preview ${blur.label}`}
+						loading="lazy"
 						className="absolute inset-0 w-full h-full object-cover"
 						style={{ filter: `blur(${blur.value}px)` }}
 					/>

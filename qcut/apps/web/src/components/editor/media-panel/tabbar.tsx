@@ -16,7 +16,7 @@ export function TabBar() {
 		setActiveEditSubgroup,
 	} = useMediaPanelStore();
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
-	const tabRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+	const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
 	const groupDef = tabGroups[activeGroup];
 	const subgroups = activeGroup === "edit" ? groupDef.subgroups : undefined;
@@ -77,7 +77,8 @@ export function TabBar() {
 					{tabKeys.map((tabKey) => {
 						const tab = tabs[tabKey];
 						return (
-							<div
+							<button
+								type="button"
 								ref={(el) => {
 									if (el) tabRefs.current.set(tabKey, el);
 								}}
@@ -89,13 +90,14 @@ export function TabBar() {
 								)}
 								onClick={() => setActiveTab(tabKey)}
 								key={tabKey}
+								aria-pressed={activeTab === tabKey}
 								data-testid={`${tabKey}-panel-tab`}
 							>
 								<tab.icon className="size-[1.1rem]! shrink-0" />
 								<span className="text-[0.65rem] whitespace-nowrap">
 									{tab.label}
 								</span>
-							</div>
+							</button>
 						);
 					})}
 				</div>
@@ -123,6 +125,7 @@ function NavButton({
 		<div className="bg-panel-accent w-12 h-full flex items-center justify-center">
 			<Button
 				size="icon"
+				aria-label={direction === "left" ? "Previous tab" : "Next tab"}
 				className="rounded-[0.4rem] w-4 h-7 bg-foreground/10!"
 				onClick={onClick}
 			>

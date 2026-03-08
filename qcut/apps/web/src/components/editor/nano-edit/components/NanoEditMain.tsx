@@ -312,7 +312,7 @@ const NanoEditMain: React.FC = () => {
 						<button
 							type="button"
 							onClick={handleBackToSelection}
-							className="flex items-center gap-2 text-orange-500 hover:text-orange-400 transition-colors duration-200 py-2 px-4 rounded-lg hover:bg-gray-900"
+							className="flex items-center gap-2 text-yellow-500 hover:text-yellow-400 transition-colors duration-200 py-2 px-4 rounded-lg hover:bg-gray-900"
 						>
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
@@ -336,7 +336,7 @@ const NanoEditMain: React.FC = () => {
 						<div className="flex flex-col gap-6 p-6 bg-gray-950/60 backdrop-blur-lg rounded-xl border border-white/10 shadow-2xl shadow-black/20">
 							<div>
 								<div className="mb-4">
-									<h2 className="text-xl font-semibold mb-1 text-orange-500 flex items-center gap-3">
+									<h2 className="text-xl font-semibold mb-1 text-yellow-500 flex items-center gap-3">
 										<span className="text-3xl">
 											{selectedTransformation.emoji}
 										</span>
@@ -348,7 +348,7 @@ const NanoEditMain: React.FC = () => {
 											onChange={(e) => setCustomPrompt(e.target.value)}
 											placeholder="e.g., 'make the sky a vibrant sunset' or 'add a small red boat on the water'"
 											rows={3}
-											className="w-full mt-2 p-3 bg-gray-900 border border-white/20 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors placeholder-gray-500"
+											className="w-full mt-2 p-3 bg-gray-900 border border-white/20 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors placeholder-gray-500"
 										/>
 									) : (
 										<p className="text-gray-400">
@@ -393,7 +393,7 @@ const NanoEditMain: React.FC = () => {
 											onClick={toggleMaskTool}
 											className={`w-full flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold rounded-md transition-colors duration-200 ${
 												activeTool === "mask"
-													? "bg-gradient-to-r from-orange-500 to-yellow-400 text-black"
+													? "bg-yellow-500 text-black"
 													: "bg-gray-800 hover:bg-gray-700"
 											}`}
 										>
@@ -421,7 +421,7 @@ const NanoEditMain: React.FC = () => {
 									type="button"
 									onClick={handleGenerate}
 									disabled={isGenerateDisabled}
-									className="w-full mt-6 py-3 px-4 bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold rounded-lg shadow-lg shadow-orange-500/20 hover:from-orange-600 hover:to-yellow-500 disabled:bg-gray-800 disabled:from-gray-800 disabled:to-gray-800 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
+									className="w-full mt-6 py-3 px-4 bg-yellow-500 text-black font-semibold rounded-lg shadow-lg shadow-yellow-500/20 hover:bg-yellow-400 disabled:bg-gray-800 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
 								>
 									{isProcessing ? (
 										<>
@@ -468,7 +468,7 @@ const NanoEditMain: React.FC = () => {
 
 						{/* Output Column */}
 						<div className="flex flex-col p-6 bg-gray-950/60 backdrop-blur-lg rounded-xl border border-white/10 shadow-2xl shadow-black/20">
-							<h2 className="text-xl font-semibold mb-4 text-orange-500 self-start">
+							<h2 className="text-xl font-semibold mb-4 text-yellow-500 self-start">
 								Result
 							</h2>
 							{isProcessing && (

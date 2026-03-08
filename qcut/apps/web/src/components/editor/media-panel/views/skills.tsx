@@ -33,7 +33,7 @@ export function SkillsView() {
 			{/* Header */}
 			<div className="p-3 border-b border-border flex items-center justify-between">
 				<div className="flex items-center gap-2">
-					<Brain className="h-4 w-4 text-purple-500" />
+					<Brain className="h-4 w-4 text-primary" />
 					<span className="font-medium text-sm">Skills</span>
 				</div>
 				<Button

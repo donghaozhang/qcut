@@ -18,6 +18,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "./ui/dialog";
+import { DropdownMenuItem } from "./ui/dropdown-menu";
 
 const ShortcutItem = ({
 	shortcut,
@@ -108,7 +109,11 @@ const EditableShortcutKey = ({
 	);
 };
 
-export const KeyboardShortcutsHelp = () => {
+export const KeyboardShortcutsHelp = ({
+	variant,
+}: {
+	variant?: "menu-item";
+} = {}) => {
 	const [open, setOpen] = useState(false);
 	const [recordingShortcut, setRecordingShortcut] =
 		useState<KeyboardShortcut | null>(null);
@@ -196,10 +201,20 @@ export const KeyboardShortcutsHelp = () => {
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
-				<Button variant="text" size="sm" className="gap-2">
-					<Keyboard className="w-4 h-4" />
-					Shortcuts
-				</Button>
+				{variant === "menu-item" ? (
+					<DropdownMenuItem
+						className="flex items-center gap-1.5"
+						onSelect={(e) => e.preventDefault()}
+					>
+						<Keyboard className="w-4 h-4" />
+						Shortcuts
+					</DropdownMenuItem>
+				) : (
+					<Button variant="text" size="sm" className="gap-2">
+						<Keyboard className="w-4 h-4" />
+						Shortcuts
+					</Button>
+				)}
 			</DialogTrigger>
 			<DialogContent className="max-w-2xl overflow-y-auto">
 				<DialogHeader>

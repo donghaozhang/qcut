@@ -1,3 +1,4 @@
+import React from "react";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { MediaFolder } from "@/stores/media/media-store-types";
 import {
@@ -41,7 +42,7 @@ interface MediaItemCardProps {
 }
 
 /** Individual media item with drag support, selection ring, and context menu. */
-export function MediaItemCard({
+export const MediaItemCard = React.memo(function MediaItemCard({
 	item,
 	isSelected,
 	filteredMediaItems,
@@ -258,4 +259,4 @@ export function MediaItemCard({
 			</ContextMenuContent>
 		</ContextMenu>
 	);
-}
+});

@@ -18,6 +18,8 @@ import type {
 } from "./types.js";
 import { CI_STATUS } from "./types.js";
 import { createEvent } from "./lifecycle-events.js";
+import { updateMetadata } from "./metadata.js";
+import { getSessionsDir } from "./paths.js";
 import {
 	evaluateSessionPolicyGate,
 	getBlockedPolicyViolations,
@@ -139,15 +141,22 @@ export async function checkBotComments(
 	const prev = botCommentStates.get(session.id);
 
 	if (!prev) {
+		// Restore reaction state from metadata to survive daemon restarts.
+		// If we already fired a reaction for this comment count, don't re-fire.
+		const firedCount = session.metadata?.botReactionFiredCount
+			? Number(session.metadata.botReactionFiredCount)
+			: 0;
+		const alreadyFired = firedCount > 0 && comments.length <= firedCount;
+
 		botCommentStates.set(session.id, {
 			lastSeenCount: comments.length,
 			latestCommentAt: latestComment,
 			lastNewCommentDetectedAt: now,
-			reactionFired: false,
-			reactionFiredAt: null,
-			buildSent: false,
-			buildSentAt: null,
-			mergeNotified: false,
+			reactionFired: alreadyFired,
+			reactionFiredAt: alreadyFired ? now : null,
+			buildSent: session.metadata?.botBuildSent === "true",
+			buildSentAt: session.metadata?.botBuildSent === "true" ? now : null,
+			mergeNotified: session.metadata?.botMergeNotified === "true",
 		});
 		return;
 	}
@@ -166,6 +175,15 @@ export async function checkBotComments(
 			prev.buildSent = false;
 			prev.buildSentAt = null;
 			prev.mergeNotified = false;
+			// Clear persisted state so the reaction can re-fire for new comments
+			if (project.path) {
+				const sessionsDir = getSessionsDir(config.configPath, project.path);
+				updateMetadata(sessionsDir, session.id, {
+					botReactionFiredCount: "",
+					botBuildSent: "",
+					botMergeNotified: "",
+				});
+			}
 		}
 		return;
 	}
@@ -173,9 +191,13 @@ export async function checkBotComments(
 	if (prev.reactionFired) {
 		// Step 1: Send /buildit after review loop converges
 		if (!prev.buildSent && prev.reactionFiredAt) {
+			// Wait for the review-fix agent to exit before sending build-check
+			if (session.activity !== "exited") {
+				return;
+			}
 			const sinceReaction = now.getTime() - prev.reactionFiredAt.getTime();
 			if (sinceReaction >= BUILD_CHECK_DELAY_MS) {
-				await sessionManager.send(
+				await sessionManager.sendOrRestart(
 					session.id,
 					"# Monitor and Fix CI Build\n\n" +
 						"The review comment loop has converged — no new bot comments. " +
@@ -194,6 +216,10 @@ export async function checkBotComments(
 				);
 				prev.buildSent = true;
 				prev.buildSentAt = now;
+				if (project.path) {
+					const sessionsDir = getSessionsDir(config.configPath, project.path);
+					updateMetadata(sessionsDir, session.id, { botBuildSent: "true" });
+				}
 			}
 			return;
 		}
@@ -244,6 +270,10 @@ export async function checkBotComments(
 					}
 
 					prev.mergeNotified = true;
+					if (project.path) {
+						const sessionsDir = getSessionsDir(config.configPath, project.path);
+						updateMetadata(sessionsDir, session.id, { botMergeNotified: "true" });
+					}
 
 					const mergeReaction =
 						project.reactions?.["approved-and-green"] ??
@@ -287,8 +317,24 @@ export async function checkBotComments(
 		return;
 	}
 
+	// Only fire the reaction after the agent has exited.
+	// If the agent is still alive, sendOrRestart() would use tmux send-keys
+	// into the running Claude TUI, which silently drops the text.
+	// Wait for the agent to exit so sendOrRestart() does a clean re-launch.
+	if (session.activity !== "exited") {
+		return;
+	}
+
 	prev.reactionFired = true;
 	prev.reactionFiredAt = now;
+
+	// Persist to metadata so daemon restart won't re-fire for the same comments
+	if (project.path) {
+		const sessionsDir = getSessionsDir(config.configPath, project.path);
+		updateMetadata(sessionsDir, session.id, {
+			botReactionFiredCount: String(comments.length),
+		});
+	}
 
 	const reactionKey = "bugbot-comments";
 	const globalReaction = config.reactions[reactionKey];

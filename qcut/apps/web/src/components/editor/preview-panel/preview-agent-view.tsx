@@ -56,12 +56,12 @@ export function PreviewAgentView() {
 					: "bg-muted-foreground/40";
 
 	return (
-		<div className="h-full w-full flex flex-col min-h-0 bg-[#1a1a1a] rounded-sm overflow-hidden">
+		<div className="h-full w-full flex flex-col min-h-0 bg-terminal-bg rounded-sm overflow-hidden">
 			{/* Minimal header */}
-			<div className="flex items-center justify-between px-3 py-1.5 bg-[#222] border-b border-[#333] shrink-0">
+			<div className="flex items-center justify-between px-3 py-1.5 bg-terminal-header border-b border-terminal-border shrink-0">
 				<div className="flex items-center gap-2">
 					<Bot className="size-3.5 text-muted-foreground" />
-					<span className="text-xs font-medium text-[#e0e0e0]">
+					<span className="text-xs font-medium text-terminal-fg">
 						{providerLabel}
 					</span>
 					<div
@@ -75,7 +75,7 @@ export function PreviewAgentView() {
 							variant="text"
 							size="sm"
 							onClick={() => disconnect({ userInitiated: true })}
-							className="h-6 px-2 text-xs text-[#e0e0e0] hover:bg-[#333]"
+							className="h-6 px-2 text-xs text-terminal-fg hover:bg-terminal-border"
 						>
 							<Square className="size-3 mr-1" />
 							Stop
@@ -86,7 +86,7 @@ export function PreviewAgentView() {
 							size="sm"
 							onClick={() => connect({ manual: true })}
 							disabled={isConnecting}
-							className="h-6 px-2 text-xs text-[#e0e0e0] hover:bg-[#333]"
+							className="h-6 px-2 text-xs text-terminal-fg hover:bg-terminal-border"
 						>
 							{isConnecting ? (
 								<Loader2 className="size-3 mr-1 animate-spin" />
@@ -108,7 +108,7 @@ export function PreviewAgentView() {
 						isVisible
 					/>
 				) : (
-					<div className="h-full flex flex-col items-center justify-center gap-3 text-[#888]">
+					<div className="h-full flex flex-col items-center justify-center gap-3 text-terminal-muted">
 						<Bot className="size-8" />
 						<p className="text-sm">No agent running</p>
 						<Button
@@ -116,7 +116,7 @@ export function PreviewAgentView() {
 							size="sm"
 							onClick={() => connect({ manual: true })}
 							disabled={isConnecting}
-							className="border-[#444] text-[#ccc] hover:bg-[#333]"
+							className="border-terminal-border text-terminal-fg hover:bg-terminal-border"
 						>
 							{isConnecting ? (
 								<>

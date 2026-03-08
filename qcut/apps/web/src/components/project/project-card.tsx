@@ -133,6 +133,7 @@ export function ProjectCard({
 						<img
 							src={dynamicThumbnail}
 							alt="Project thumbnail"
+							loading="lazy"
 							className="w-full h-full object-cover"
 						/>
 					) : (
@@ -157,6 +158,7 @@ export function ProjectCard({
 								<Button
 									variant="text"
 									size="sm"
+									aria-label="Project options"
 									className={`size-6 p-0 transition-all shrink-0 ml-2 ${
 										isDropdownOpen
 											? "opacity-100"

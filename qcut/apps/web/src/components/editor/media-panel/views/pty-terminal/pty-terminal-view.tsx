@@ -248,15 +248,15 @@ export function PtyTerminalView() {
 
 					{/* Active Skill Badge */}
 					{activeSkill && (
-						<div className="flex items-center gap-1 px-2 py-0.5 bg-purple-500/10 rounded-full">
-							<Brain className="h-3 w-3 text-purple-500" aria-hidden="true" />
-							<span className="text-xs text-purple-600 font-medium truncate max-w-[120px]">
+						<div className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 rounded-full">
+							<Brain className="h-3 w-3 text-primary" aria-hidden="true" />
+							<span className="text-xs text-primary font-medium truncate max-w-[120px]">
 								{activeSkill.name}
 							</span>
 							<button
 								type="button"
 								onClick={clearSkillContext}
-								className="ml-0.5 text-purple-400 hover:text-destructive transition-colors"
+								className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors"
 								aria-label="Clear skill context"
 							>
 								<X className="h-3 w-3" aria-hidden="true" />
@@ -379,7 +379,7 @@ export function PtyTerminalView() {
 			)}
 
 			{/* Terminal Area — all sessions mounted, only active visible */}
-			<div className="flex-1 min-h-0 bg-[#1a1a1a] overflow-hidden relative">
+			<div className="flex-1 min-h-0 bg-terminal-bg overflow-hidden relative">
 				{hasSessions ? (
 					sessionOrder.map((tabId) => {
 						const session = sessions.get(tabId);
@@ -443,7 +443,7 @@ function SessionPlaceholder({
 		<div className="h-full flex flex-col items-center justify-center text-muted-foreground">
 			{session.activeSkill ? (
 				<>
-					<Brain className="h-12 w-12 mb-4 text-purple-500" />
+					<Brain className="h-12 w-12 mb-4 text-primary" />
 					<p className="text-sm font-medium text-foreground">
 						{session.activeSkill.name}
 					</p>
@@ -451,17 +451,17 @@ function SessionPlaceholder({
 						Click Start to run with {CLI_PROVIDERS[cliProvider].name}
 					</p>
 					{cliProvider === "codex" && (
-						<p className="text-xs mt-2 text-blue-400">
+						<p className="text-xs mt-2 text-muted-foreground">
 							Using model: {selectedModel || "default"}
 						</p>
 					)}
 					{cliProvider === "claude" && (
-						<p className="text-xs mt-2 text-orange-400">
+						<p className="text-xs mt-2 text-muted-foreground">
 							Using model: {selectedClaudeModel || "sonnet"}
 						</p>
 					)}
 					{cliProvider === "gemini" && (
-						<p className="text-xs mt-2 text-purple-400">
+						<p className="text-xs mt-2 text-muted-foreground">
 							Skill instructions will be sent automatically
 						</p>
 					)}
