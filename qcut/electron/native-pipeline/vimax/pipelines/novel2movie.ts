@@ -241,7 +241,11 @@ export class Novel2MoviePipeline {
 			console.log("[novel2movie] Splitting into smaller files...");
 
 			try {
-				const splitDir = path.join(this.config.output_dir, safeSlug(title), "split_parts");
+				const splitDir = path.join(
+					this.config.output_dir,
+					safeSlug(title),
+					"split_parts"
+				);
 				fs.mkdirSync(splitDir, { recursive: true });
 
 				let partIndex = 0;
@@ -258,15 +262,22 @@ export class Novel2MoviePipeline {
 						}
 					}
 
-					const partFile = path.join(splitDir, `part_${String(partIndex + 1).padStart(2, "0")}.txt`);
+					const partFile = path.join(
+						splitDir,
+						`part_${String(partIndex + 1).padStart(2, "0")}.txt`
+					);
 					fs.writeFileSync(partFile, novelText.slice(start, end));
 					start = end;
 					partIndex++;
 				}
 
-				console.log(`[novel2movie] Split into ${partIndex} files at: ${splitDir}`);
+				console.log(
+					`[novel2movie] Split into ${partIndex} files at: ${splitDir}`
+				);
 				console.log("[novel2movie] Run novel2movie on each part separately:");
-				console.log(`  bun run pipeline vimax:novel2movie --novel ${splitDir}/part_01.txt --title "${title} Part 1"`);
+				console.log(
+					`  bun run pipeline vimax:novel2movie --novel ${splitDir}/part_01.txt --title "${title} Part 1"`
+				);
 
 				result.errors.push(
 					`Novel too large (${wordEstimate.toLocaleString()} words). Split into ${partIndex} files at ${splitDir}`
@@ -286,7 +297,9 @@ export class Novel2MoviePipeline {
 			);
 		}
 
-		console.log(`[novel2movie] Starting pipeline for: ${title} (~${wordEstimate.toLocaleString()} words)`);
+		console.log(
+			`[novel2movie] Starting pipeline for: ${title} (~${wordEstimate.toLocaleString()} words)`
+		);
 
 		try {
 			const safeTitle = safeSlug(title);

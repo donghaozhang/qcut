@@ -15,7 +15,7 @@ export interface YouTubeApi {
 		}>;
 		checkAuth(): Promise<{ authorized: boolean }>;
 		onUploadProgress(
-			callback: (progress: { percent: number; message: string }) => void,
+			callback: (progress: { percent: number; message: string }) => void
 		): () => void;
 	};
 }

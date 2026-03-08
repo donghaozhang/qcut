@@ -436,11 +436,11 @@ const electronAPI: ElectronAPI = {
 		}) => ipcRenderer.invoke("youtube:upload", options),
 		checkAuth: () => ipcRenderer.invoke("youtube:check-auth"),
 		onUploadProgress: (
-			callback: (progress: { percent: number; message: string }) => void,
+			callback: (progress: { percent: number; message: string }) => void
 		) => {
 			const listener = (
 				_event: Electron.IpcRendererEvent,
-				progress: { percent: number; message: string },
+				progress: { percent: number; message: string }
 			) => callback(progress);
 			ipcRenderer.on("youtube:upload-progress", listener);
 			return () => {
