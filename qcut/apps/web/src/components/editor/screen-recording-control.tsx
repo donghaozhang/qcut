@@ -227,6 +227,7 @@ export function ScreenRecordingControl() {
 			onKeyDown={handleButtonKeyDown}
 			disabled={isBusy}
 			data-testid="screen-recording-toggle-button"
+			aria-label={recordingActive ? "Stop recording" : "Start recording"}
 			title="Toggle screen recording (Ctrl/Cmd + Shift + R)"
 		>
 			{isBusy ? (
