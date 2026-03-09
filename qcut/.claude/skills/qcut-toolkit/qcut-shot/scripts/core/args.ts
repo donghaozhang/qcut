@@ -20,6 +20,7 @@ function parseEnum({
 	return value;
 }
 
+/** Parses CLI arguments into structured options. */
 export function parseArgs({ argv }: { argv: string[] }): CLIOptions {
 	const args = argv.slice(2);
 	let input = "";

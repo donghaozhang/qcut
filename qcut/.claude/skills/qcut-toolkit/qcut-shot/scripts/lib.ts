@@ -31,6 +31,7 @@ export type {
 } from "./core/types";
 export { parseNumberList, slugify } from "./core/utils";
 
+/** Runs the full shot planning pipeline: analyze source, plan scenes, validate breakdown. */
 export async function planShotsAsync({ options }: { options: CLIOptions }): Promise<ShotProject> {
 	const analysis = analyzeSource({ options });
 	const shotDir = shotsDir({ analysis, outputDir: options.outputDir, projectId: options.projectId });

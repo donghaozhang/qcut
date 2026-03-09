@@ -863,6 +863,7 @@ function qcutBasePath(): string {
 	return join(homedir(), "Documents", "QCut");
 }
 
+/** Resolves the output directory for slide deck artifacts. */
 export function resolveDeckDir({
 	analysis,
 	outputDir,

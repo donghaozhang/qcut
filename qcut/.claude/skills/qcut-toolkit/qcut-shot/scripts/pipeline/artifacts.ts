@@ -9,6 +9,7 @@ function qcutBasePath(): string {
 	return join(homedir(), "Documents", "QCut");
 }
 
+/** Resolves the output directory for shot plan artifacts. */
 export function shotsDir({
 	analysis,
 	outputDir,
@@ -332,6 +333,7 @@ function writePrompts({
 	);
 }
 
+/** Writes all shot plan artifacts (analysis, shots, prompts, manifest) to disk. */
 export function renderShotArtifacts({
 	project,
 }: {

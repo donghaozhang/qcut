@@ -29,6 +29,7 @@ function extractDimensionSection({
 	return content.slice(start, end).trim();
 }
 
+/** Loads style instructions from reference dimension files for prompt rendering. */
 export function loadStyleInstructions({
 	style,
 	stylePreset,
@@ -94,6 +95,7 @@ export function loadStyleInstructions({
 	].join("\n");
 }
 
+/** Loads the base rendering prompt from the references directory. */
 export function loadBasePrompt(): string {
 	const path = referencePath({ parts: ["base-prompt.md"] });
 	return existsSync(path)

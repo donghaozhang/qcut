@@ -1,6 +1,7 @@
 import type { Scene, SceneBreakdown } from "../core/types";
 import { slugify } from "../core/utils";
 
+/** Validates and normalizes a scene breakdown, filling defaults for missing fields. */
 export function validateBreakdown({ breakdown }: { breakdown: SceneBreakdown }): SceneBreakdown {
 	const characterIds = new Set(breakdown.characters.map((c) => c.id));
 

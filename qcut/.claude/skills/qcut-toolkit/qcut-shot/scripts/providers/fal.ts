@@ -26,6 +26,7 @@ export interface FalGeneratedImage {
 	model: string;
 }
 
+/** Returns true if FAL API credentials are available in env or credential files. */
 export function hasFalCredentials(): boolean {
 	return Boolean(
 		process.env.FAL_KEY ||
@@ -35,6 +36,7 @@ export function hasFalCredentials(): boolean {
 	);
 }
 
+/** Returns the default FAL image model from env or built-in default. */
 export function getDefaultFalModel(): string {
 	return process.env.FAL_IMAGE_MODEL || DEFAULT_MODEL;
 }
@@ -233,6 +235,7 @@ async function download({ url }: { url: string }): Promise<Uint8Array> {
 	return new Uint8Array(await response.arrayBuffer());
 }
 
+/** Generates an image via FAL and returns the asset with URL, model info, and bytes. */
 export async function generateFalImageAsset({
 	prompt,
 	model,
@@ -323,6 +326,7 @@ export async function generateFalImageAsset({
 	};
 }
 
+/** Generates an image via FAL and returns the raw bytes. */
 export async function generateFalImage({
 	prompt,
 	model,

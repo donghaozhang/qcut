@@ -14,6 +14,7 @@ interface CharacterReferenceRecord {
 
 type CharacterReferenceManifest = Record<string, CharacterReferenceRecord>;
 
+/** Discovers prompt markdown files in the shot directory, optionally filtered by shot number. */
 export function discoverPromptFiles({
 	shotDir,
 	selectedShots,
@@ -41,6 +42,7 @@ export function discoverPromptFiles({
 	return promptFiles;
 }
 
+/** Returns the output PNG path for a given prompt file. */
 export function imageOutputPath({
 	shotDir,
 	promptFile,
@@ -296,6 +298,7 @@ function buildScenePrompt({
 	return parts.join(" ");
 }
 
+/** Generates images for all prompt files using the configured provider and model. */
 export async function runImageGeneration({
 	shotDir,
 	promptFiles,

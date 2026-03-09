@@ -140,6 +140,7 @@ function normalizeScenes({ scenes }: { scenes: Scene[] }): Scene[] {
 	});
 }
 
+/** Plans scenes by sending source content to an LLM via OpenRouter and parsing the scene breakdown. */
 export async function planScenes({
 	sourceContent,
 	targetShots,

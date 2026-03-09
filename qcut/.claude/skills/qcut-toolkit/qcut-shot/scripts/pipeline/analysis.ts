@@ -250,6 +250,7 @@ function resolveStyle({
 	};
 }
 
+/** Analyzes a source content file and returns structured metadata for shot planning. */
 export function analyzeSource({ options }: { options: CLIOptions }): AnalysisResult {
 	const sourcePath = resolve(options.input);
 	if (!existsSync(sourcePath)) {
