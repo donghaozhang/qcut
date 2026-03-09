@@ -8,7 +8,7 @@ import {
 	MIN_SHOTS,
 	PRESETS,
 	STYLE_SIGNAL_MAP,
-} from "./constants";
+} from "../core/constants";
 import type {
 	AnalysisResult,
 	CLIOptions,
@@ -18,8 +18,8 @@ import type {
 	Medium,
 	Movement,
 	ShotMood,
-} from "./types";
-import { slugify } from "./utils";
+} from "../core/types";
+import { slugify } from "../core/utils";
 
 function stripFrontmatter({ content }: { content: string }): string {
 	return content.replace(/^---\n[\s\S]*?\n---\n*/u, "");

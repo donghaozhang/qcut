@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import type { ContentFormat, Medium, Scene, SceneBreakdown } from "./types";
-import { slugify } from "./utils";
+import type { ContentFormat, Medium, Scene, SceneBreakdown } from "../core/types";
+import { slugify } from "../core/utils";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const DEFAULT_MODEL = "google/gemini-2.5-flash";

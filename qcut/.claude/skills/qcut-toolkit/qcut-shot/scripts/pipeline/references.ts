@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { Framing, Lighting, Movement, ShotMood } from "./types";
+import type { Framing, Lighting, Movement, ShotMood } from "../core/types";
 
 function referencePath({ parts }: { parts: string[] }): string {
-	return resolve(import.meta.dir, "..", "references", ...parts);
+	return resolve(import.meta.dir, "../..", "references", ...parts);
 }
 
 function extractDimensionSection({

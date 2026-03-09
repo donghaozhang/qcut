@@ -1,5 +1,5 @@
-import type { Scene, SceneBreakdown } from "./types";
-import { slugify } from "./utils";
+import type { Scene, SceneBreakdown } from "../core/types";
+import { slugify } from "../core/utils";
 
 export function validateBreakdown({ breakdown }: { breakdown: SceneBreakdown }): SceneBreakdown {
 	const characterIds = new Set(breakdown.characters.map((c) => c.id));

@@ -1,8 +1,8 @@
 import { basename, join } from "node:path";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { ensureDir, slugify } from "./utils";
-import { generateFalImage, generateFalImageAsset, getDefaultFalModel, hasFalCredentials } from "./providers/fal";
-import type { Character, Scene, ShotRenderManifest } from "./types";
+import { ensureDir, slugify } from "../core/utils";
+import { generateFalImage, generateFalImageAsset, getDefaultFalModel, hasFalCredentials } from "../providers/fal";
+import type { Character, Scene, ShotRenderManifest } from "../core/types";
 
 interface CharacterReferenceRecord {
 	characterId: string;

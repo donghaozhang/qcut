@@ -2,8 +2,8 @@ import { copyFileSync, existsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { loadBasePrompt } from "./references";
-import type { AnalysisResult, Scene, SceneBreakdown, ShotRenderManifest } from "./types";
-import { ensureDir } from "./utils";
+import type { AnalysisResult, Scene, SceneBreakdown, ShotRenderManifest } from "../core/types";
+import { ensureDir } from "../core/utils";
 
 function qcutBasePath(): string {
 	return join(homedir(), "Documents", "QCut");
