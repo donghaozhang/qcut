@@ -72,6 +72,8 @@ export function getAuth(): Auth {
 			google: {
 				clientId: googleClientId,
 				clientSecret: googleClientSecret,
+				accessType: "offline",
+				prompt: "consent",
 				scope: [
 					"openid",
 					"email",
