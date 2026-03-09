@@ -9,9 +9,10 @@ export function validateBreakdown({ breakdown }: { breakdown: SceneBreakdown }):
 		const sceneIndex = scene.index || index + 1;
 		const title = scene.title || `Scene ${sceneIndex}`;
 		const stem = slugify({ value: title }).split("-").slice(0, 5).join("-");
-		const fileStem =
+		const rawStem =
 			scene.fileStem ||
 			`${String(sceneIndex).padStart(2, "0")}-${stem || `scene-${sceneIndex}`}`;
+		const fileStem = rawStem.replace(/[^a-zA-Z0-9_-]/g, "-").replace(/-+/g, "-");
 
 		const sceneCharacterIds = Array.isArray(scene.characterIds) ? scene.characterIds : [];
 		const validCharacterIds = sceneCharacterIds.filter((id) => characterIds.has(id));

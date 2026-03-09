@@ -127,12 +127,14 @@ function normalizeScenes({ scenes }: { scenes: Scene[] }): Scene[] {
 		const sceneIndex = scene.index || index + 1;
 		const title = scene.title || `Scene ${sceneIndex}`;
 		const stem = slugify({ value: title }).split("-").slice(0, 5).join("-");
+		const rawStem =
+			scene.fileStem ||
+			`${String(sceneIndex).padStart(2, "0")}-${stem || `scene-${sceneIndex}`}`;
+		const fileStem = rawStem.replace(/[^a-zA-Z0-9_-]/g, "-").replace(/-+/g, "-");
 		return {
 			...scene,
 			index: sceneIndex,
-			fileStem:
-				scene.fileStem ||
-				`${String(sceneIndex).padStart(2, "0")}-${stem || `scene-${sceneIndex}`}`,
+			fileStem,
 			characterIds: Array.isArray(scene.characterIds) ? scene.characterIds : [],
 			props: Array.isArray(scene.props) ? scene.props : [],
 			negative: scene.negative || "no text, no watermark, no collage, no UI overlay",

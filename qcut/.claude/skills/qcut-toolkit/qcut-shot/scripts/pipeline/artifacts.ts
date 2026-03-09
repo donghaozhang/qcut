@@ -178,10 +178,11 @@ function writeManifestCsv({
 	breakdown: SceneBreakdown;
 }): void {
 	const escapeCsv = (value: string): string => {
-		if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-			return `"${value.replace(/"/g, '""')}"`;
+		const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+		if (safe.includes(",") || safe.includes('"') || safe.includes("\n")) {
+			return `"${safe.replace(/"/g, '""')}"`;
 		}
-		return value;
+		return safe;
 	};
 	const headers = ["id", "role", "description"];
 	const rows = breakdown.characters.map((c) =>
@@ -228,10 +229,11 @@ function writeShotsCsv({
 		"negative",
 	];
 	const escapeCsv = (value: string): string => {
-		if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-			return `"${value.replace(/"/g, '""')}"`;
+		const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+		if (safe.includes(",") || safe.includes('"') || safe.includes("\n")) {
+			return `"${safe.replace(/"/g, '""')}"`;
 		}
-		return value;
+		return safe;
 	};
 	const rows = breakdown.scenes.map((scene) =>
 		[
