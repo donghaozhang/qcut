@@ -1,17 +1,29 @@
 import { copyFileSync, existsSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { loadBasePrompt } from "./references";
 import type { AnalysisResult, Scene, SceneBreakdown, ShotRenderManifest } from "./types";
 import { ensureDir } from "./utils";
 
+function qcutBasePath(): string {
+	return join(homedir(), "Documents", "QCut");
+}
+
 export function shotsDir({
 	analysis,
 	outputDir,
+	projectId,
 }: {
 	analysis: AnalysisResult;
 	outputDir?: string;
+	projectId?: string;
 }): string {
-	return outputDir ? resolve(outputDir) : resolve(process.cwd(), "shot-plan", analysis.topicSlug);
+	if (outputDir) return resolve(outputDir);
+	if (projectId) {
+		const sanitized = projectId.replace(/[/\\]/g, "").replace(/\.\./g, "");
+		return join(qcutBasePath(), "Projects", sanitized, "shot-plan", analysis.topicSlug);
+	}
+	return join(qcutBasePath(), "shot-plan", analysis.topicSlug);
 }
 
 function copySource({

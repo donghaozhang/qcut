@@ -36,6 +36,7 @@ export function parseArgs({ argv }: { argv: string[] }): CLIOptions {
 	let imagesOnly = false;
 	let regenerate: number[] | undefined;
 	let outputDir: string | undefined;
+	let projectId: string | undefined;
 	let provider: string | undefined;
 	let model: string | undefined;
 	let dryRun = false;
@@ -114,6 +115,11 @@ export function parseArgs({ argv }: { argv: string[] }): CLIOptions {
 			index += 1;
 			continue;
 		}
+		if (value === "--project-id") {
+			projectId = args[index + 1];
+			index += 1;
+			continue;
+		}
 		if (value === "--provider") {
 			provider = args[index + 1];
 			index += 1;
@@ -148,6 +154,7 @@ export function parseArgs({ argv }: { argv: string[] }): CLIOptions {
 		imagesOnly,
 		regenerate,
 		outputDir,
+		projectId,
 		provider,
 		model,
 		dryRun,

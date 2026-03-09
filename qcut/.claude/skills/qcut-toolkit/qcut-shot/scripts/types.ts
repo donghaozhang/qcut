@@ -20,6 +20,7 @@ export interface CLIOptions {
 	imagesOnly: boolean;
 	regenerate?: number[];
 	outputDir?: string;
+	projectId?: string;
 	provider?: string;
 	model?: string;
 	dryRun: boolean;

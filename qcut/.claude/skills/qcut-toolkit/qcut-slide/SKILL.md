@@ -40,6 +40,7 @@ npx -y bun "$QCUT_SLIDE_ROOT/scripts/main.ts" slide-deck/my-topic --regenerate 2
 | `--provider <name>` | Currently `fal` only |
 | `--model <id>` | Override the fal model |
 | `--output-dir <path>` | Write artifacts to a specific directory |
+| `--project-id <id>` | Save into QCut project folder |
 | `--dry-run` | Skip actual rendering and export work |
 
 ## Modes
@@ -53,6 +54,12 @@ npx -y bun "$QCUT_SLIDE_ROOT/scripts/main.ts" slide-deck/my-topic --regenerate 2
 | `--regenerate 2,5` | Regenerate selected slides only |
 
 ## Output
+
+Default save location (priority order):
+
+1. `--output-dir <path>` — explicit override
+2. `--project-id <id>` — `~/Documents/QCut/Projects/<id>/slide-deck/{slug}/`
+3. No flags — `~/Documents/QCut/slide-deck/{slug}/`
 
 ```text
 slide-deck/{topic-slug}/

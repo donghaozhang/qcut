@@ -33,7 +33,7 @@ export { parseNumberList, slugify } from "./utils";
 
 export async function planShotsAsync({ options }: { options: CLIOptions }): Promise<ShotProject> {
 	const analysis = analyzeSource({ options });
-	const shotDir = shotsDir({ analysis, outputDir: options.outputDir });
+	const shotDir = shotsDir({ analysis, outputDir: options.outputDir, projectId: options.projectId });
 	const promptsDir = join(shotDir, "prompts");
 	const styleInstructions = loadStyleInstructions({
 		style: analysis.style,
