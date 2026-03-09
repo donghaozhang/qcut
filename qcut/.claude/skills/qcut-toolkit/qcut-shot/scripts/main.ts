@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import {
 	discoverPromptFiles,
 	parseArgs,
-	planShots,
+	planShotsAsync,
 	renderShotArtifacts,
 	runImageGeneration,
 } from "./lib";
@@ -77,7 +77,7 @@ async function main(): Promise<void> {
 		return;
 	}
 
-	const project = planShots({ options });
+	const project = await planShotsAsync({ options });
 	renderShotArtifacts({ project });
 
 	console.log(`Shot directory: ${project.shotDir}`);

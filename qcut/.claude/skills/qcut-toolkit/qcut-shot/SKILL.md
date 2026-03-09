@@ -41,9 +41,16 @@ npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" shot-plan/my-story --regenerate 2,5
 | `--provider <name>` | Currently `fal` only |
 | `--model <id>` | Override the fal model |
 | `--output-dir <path>` | Write artifacts to a specific directory |
+| `--project-id <id>` | Save into QCut project folder |
 | `--dry-run` | Skip rendering work |
 
 ## Output
+
+Default save location (priority order):
+
+1. `--output-dir <path>` — explicit override
+2. `--project-id <id>` — `~/Documents/QCut/Projects/<id>/shot-plan/{slug}/`
+3. No flags — `~/Documents/QCut/shot-plan/{slug}/`
 
 ```text
 shot-plan/{topic-slug}/
@@ -51,6 +58,8 @@ shot-plan/{topic-slug}/
 ├── analysis.md
 ├── shots.md
 ├── shots.json
+├── shots.csv
+├── manifest.csv
 ├── prompts/
 │   └── 01-shot-opening.md
 ├── 01-shot-opening.png

@@ -1,4 +1,5 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { basename, extname, join, resolve } from "node:path";
 import { generateFalImage, getDefaultFalModel, hasFalCredentials } from "./providers/fal";
 
@@ -39,6 +40,7 @@ export interface CLIOptions {
 	imagesOnly: boolean;
 	regenerate?: Array<number>;
 	outputDir?: string;
+	projectId?: string;
 	provider?: string;
 	model?: string;
 	dryRun: boolean;
@@ -168,6 +170,7 @@ export function parseArgs({ argv }: { argv: Array<string> }): CLIOptions {
 	let imagesOnly = false;
 	let regenerate: Array<number> | undefined;
 	let outputDir: string | undefined;
+	let projectId: string | undefined;
 	let provider: string | undefined;
 	let model: string | undefined;
 	let dryRun = false;
@@ -270,6 +273,11 @@ export function parseArgs({ argv }: { argv: Array<string> }): CLIOptions {
 			index += 1;
 			continue;
 		}
+		if (value === "--project-id") {
+			projectId = requireValue({ args, index, flag: "--project-id" });
+			index += 1;
+			continue;
+		}
 
 		if (value === "--provider") {
 			provider = requireValue({ args, index, flag: "--provider" });
@@ -322,6 +330,7 @@ export function parseArgs({ argv }: { argv: Array<string> }): CLIOptions {
 				"  --provider <name>    Image provider (fal)\n" +
 				"  --model <id>         Override image model\n" +
 				"  --output-dir <path>  Output directory\n" +
+				"  --project-id <id>    Save into QCut project folder\n" +
 				"  --dry-run            Skip rendering",
 		);
 	}
@@ -341,6 +350,7 @@ export function parseArgs({ argv }: { argv: Array<string> }): CLIOptions {
 		imagesOnly,
 		regenerate,
 		outputDir,
+		projectId,
 		provider,
 		model,
 		dryRun,
@@ -849,17 +859,28 @@ export function buildSlides({ analysis }: { analysis: AnalysisResult }): Array<S
 	return slides;
 }
 
+function qcutBasePath(): string {
+	return join(homedir(), "Documents", "QCut");
+}
+
+/** Resolves the output directory for slide deck artifacts. */
 export function resolveDeckDir({
 	analysis,
 	outputDir,
+	projectId,
 }: {
 	analysis: AnalysisResult;
 	outputDir?: string;
+	projectId?: string;
 }): string {
-	const baseDir = outputDir
-		? resolve(outputDir)
-		: resolve(process.cwd(), "slide-deck", analysis.topicSlug);
-	return baseDir;
+	if (outputDir) return resolve(outputDir);
+	if (projectId) {
+		if (!/^[a-zA-Z0-9_-]+$/.test(projectId)) {
+			throw new Error(`Invalid project ID "${projectId}". Use only letters, numbers, hyphens, and underscores.`);
+		}
+		return join(qcutBasePath(), "Projects", projectId, "slide-deck", analysis.topicSlug);
+	}
+	return join(qcutBasePath(), "slide-deck", analysis.topicSlug);
 }
 
 export function writeSourceCopy({
@@ -1035,7 +1056,7 @@ export function writePrompts({
 
 export function planDeck({ options }: { options: CLIOptions }): DeckPlan {
 	const analysis = analyzeSource({ options });
-	const deckDir = resolveDeckDir({ analysis, outputDir: options.outputDir });
+	const deckDir = resolveDeckDir({ analysis, outputDir: options.outputDir, projectId: options.projectId });
 	const promptsDir = join(deckDir, "prompts");
 	const styleInstructions = loadStyleInstructions({
 		style: analysis.style,

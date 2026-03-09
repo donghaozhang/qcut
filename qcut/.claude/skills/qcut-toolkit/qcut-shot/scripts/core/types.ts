@@ -20,34 +20,44 @@ export interface CLIOptions {
 	imagesOnly: boolean;
 	regenerate?: number[];
 	outputDir?: string;
+	projectId?: string;
 	provider?: string;
 	model?: string;
 	dryRun: boolean;
 }
 
-export interface Beat {
-	title: string;
-	body: string;
-	keywords: string[];
-}
-
-export interface VisualAnchors {
-	subjectId: string;
-	subjectAnchor: string;
-	locationId: string;
-	locationAnchor: string;
-	propId: string;
-	propAnchor: string;
-	paletteAnchor: string;
-	characterAnchors: CharacterAnchor[];
-	relationshipAnchor: string;
-	continuityRules: string[];
-}
-
-export interface CharacterAnchor {
+export interface Character {
 	id: string;
 	role: string;
 	description: string;
+}
+
+export interface SceneCamera {
+	lens: string;
+	framing: string;
+	movement: string;
+	angle: string;
+}
+
+export interface Scene {
+	index: number;
+	title: string;
+	fileStem: string;
+	camera: SceneCamera;
+	lighting: string;
+	location: string;
+	action: string;
+	characterIds: string[];
+	mood: string;
+	props: string[];
+	colorPalette: string;
+	negative: string;
+}
+
+export interface SceneBreakdown {
+	characters: Character[];
+	continuityNotes: string[];
+	scenes: Scene[];
 }
 
 export interface AnalysisResult {
@@ -55,6 +65,7 @@ export interface AnalysisResult {
 	topicSlug: string;
 	sourcePath: string;
 	sourceExtension: string;
+	sourceContent: string;
 	wordCount: number;
 	language: string;
 	style: string;
@@ -72,39 +83,25 @@ export interface AnalysisResult {
 	mood: ShotMood;
 	recommendedShots: number;
 	targetShots: number;
-	coreThroughline: string;
-	beats: Beat[];
-	visualAnchors: VisualAnchors;
-}
-
-export interface ShotContinuity {
-	subjectId: string;
-	locationId: string;
-	propId: string;
-	continuityNotes: string[];
-}
-
-export interface ShotPlan {
-	index: number;
-	title: string;
-	fileStem: string;
-	shotType: "opening" | "action" | "detail" | "reaction" | "closing";
-	continuity: ShotContinuity;
-	framing: Framing;
-	movement: Movement;
-	lighting: Lighting;
-	mood: ShotMood;
-	purpose: string;
-	beat: string;
-	visualDirection: string;
-	shotRoleGuidance: string;
-	negativePrompt: string;
 }
 
 export interface ShotProject {
 	shotDir: string;
 	promptsDir: string;
 	analysis: AnalysisResult;
-	shots: ShotPlan[];
+	breakdown: SceneBreakdown;
 	styleInstructions: string;
+}
+
+export interface ShotRenderManifest {
+	title: string;
+	style: string;
+	language: string;
+	medium: Medium;
+	format: ContentFormat;
+	productionRules: string[];
+	genreRules: string[];
+	characters: Character[];
+	continuityNotes: string[];
+	scenes: Scene[];
 }

@@ -8,21 +8,18 @@ import {
 	MIN_SHOTS,
 	PRESETS,
 	STYLE_SIGNAL_MAP,
-} from "./constants";
+} from "../core/constants";
 import type {
 	AnalysisResult,
-	Beat,
 	CLIOptions,
-	CharacterAnchor,
 	ContentFormat,
 	Framing,
 	Lighting,
 	Medium,
 	Movement,
 	ShotMood,
-	VisualAnchors,
-} from "./types";
-import { slugify } from "./utils";
+} from "../core/types";
+import { slugify } from "../core/utils";
 
 function stripFrontmatter({ content }: { content: string }): string {
 	return content.replace(/^---\n[\s\S]*?\n---\n*/u, "");
@@ -57,123 +54,6 @@ function recommendShots({ wordCount }: { wordCount: number }): number {
 function resolveShotCount({ explicit, recommended }: { explicit?: number; recommended: number }): number {
 	if (!explicit) return recommended;
 	return Math.max(MIN_SHOTS, Math.min(MAX_SHOTS, explicit));
-}
-
-function collectKeywords({ text }: { text: string }): string[] {
-	const words = text
-		.toLowerCase()
-		.replace(/[^a-z0-9\s-]/g, " ")
-		.split(/\s+/)
-		.filter((word) => word.length >= 5);
-	const counts = new Map<string, number>();
-	for (const word of words) {
-		counts.set(word, (counts.get(word) ?? 0) + 1);
-	}
-	return [...counts.entries()]
-		.sort((left, right) => right[1] - left[1])
-		.slice(0, 5)
-		.map(([word]) => word);
-}
-
-function collectFrequentTerms({ text }: { text: string }): string[] {
-	const words = text
-		.toLowerCase()
-		.replace(/[^a-z0-9\s-]/g, " ")
-		.split(/\s+/)
-		.filter((word) => word.length >= 4);
-	const stopWords = new Set([
-		"that",
-		"this",
-		"with",
-		"from",
-		"into",
-		"their",
-		"there",
-		"about",
-		"while",
-		"should",
-		"could",
-		"would",
-		"other",
-		"first",
-		"final",
-		"through",
-		"where",
-		"being",
-		"every",
-		"scene",
-		"camera",
-		"frame",
-		"image",
-		"story",
-		"visual",
-		"shots",
-		"render",
-	]);
-	const counts = new Map<string, number>();
-	for (const word of words) {
-		if (stopWords.has(word)) continue;
-		counts.set(word, (counts.get(word) ?? 0) + 1);
-	}
-	return [...counts.entries()]
-		.sort((left, right) => right[1] - left[1])
-		.slice(0, 12)
-		.map(([word]) => word);
-}
-
-function extractBeats({ content }: { content: string }): Beat[] {
-	const normalized = stripFrontmatter({ content });
-	const withoutPrimaryTitle = normalized.replace(/^#\s+.+\n*/u, "").trim();
-	const labeledParagraphs = withoutPrimaryTitle
-		.split(/\n{2,}/)
-		.map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
-		.filter(Boolean)
-		.map((paragraph) => {
-			const match = paragraph.match(/^([A-Za-z][A-Za-z\s-]{2,40}):\s*(.+)$/u);
-			if (!match) {
-				return null;
-			}
-			return {
-				title: match[1].trim().replace(/\s+/g, " "),
-				body: match[2].trim(),
-				keywords: collectKeywords({ text: paragraph }),
-			};
-		})
-		.filter(Boolean) as Beat[];
-	if (labeledParagraphs.length >= 3) {
-		return labeledParagraphs;
-	}
-
-	const headingMatches = [...withoutPrimaryTitle.matchAll(/^#{2,3}\s+(.+)$/gm)];
-	if (headingMatches.length > 0) {
-		return headingMatches.map((heading, index) => {
-			const start = heading.index ?? 0;
-			const end = headingMatches[index + 1]?.index ?? withoutPrimaryTitle.length;
-			const body = withoutPrimaryTitle
-				.slice(start, end)
-				.split("\n")
-				.slice(1)
-				.join("\n")
-				.replace(/\s+/g, " ")
-				.trim();
-			return {
-				title: heading[1].trim(),
-				body,
-				keywords: collectKeywords({ text: `${heading[1]} ${body}` }),
-			};
-		});
-	}
-
-	return withoutPrimaryTitle
-		.split(/\n{2,}/)
-		.map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
-		.filter(Boolean)
-		.slice(0, 12)
-		.map((paragraph, index) => ({
-			title: `Beat ${index + 1}`,
-			body: paragraph,
-			keywords: collectKeywords({ text: paragraph }),
-		}));
 }
 
 function detectPreset({
@@ -370,187 +250,7 @@ function resolveStyle({
 	};
 }
 
-function firstMatchingTerm({
-	terms,
-	candidates,
-}: {
-	terms: string[];
-	candidates: string[];
-}): string | null {
-	for (const term of terms) {
-		for (const candidate of candidates) {
-			if (term.includes(candidate) || candidate.includes(term)) {
-				return term;
-			}
-		}
-	}
-	return null;
-}
-
-function preferredToken({
-	content,
-	fallbackTerms,
-	candidates,
-}: {
-	content: string;
-	fallbackTerms: string[];
-	candidates: string[];
-}): string | null {
-	for (const candidate of candidates) {
-		if (content.includes(candidate)) {
-			return candidate;
-		}
-	}
-	return firstMatchingTerm({ terms: fallbackTerms, candidates });
-}
-
-function buildCharacterAnchors({
-	content,
-	medium,
-}: {
-	content: string;
-	medium: Medium;
-}): CharacterAnchor[] {
-	const lower = content.toLowerCase();
-	const anchors: CharacterAnchor[] = [];
-	const performerSurface =
-		medium === "live-action"
-			? "read as the same photographed performer in every shot"
-			: "keep the same designed face, silhouette, and costume in every shot";
-
-	if (lower.includes("supermodel")) {
-		anchors.push({
-			id: "supermodel-01",
-			role: "romantic lead",
-			description:
-				"Same supermodel in every shot: elegant young woman, striking cheekbones, refined high-fashion wardrobe, wet hair or controlled glamour styling, poised but emotionally vulnerable, must " +
-				performerSurface,
-		});
-	}
-	if (lower.includes("photographer")) {
-		anchors.push({
-			id: "photographer-01",
-			role: "romantic counterpart",
-			description:
-				"Same photographer in every shot: understated young man, dark tailored coat or shoot-crew layers, observant posture, soft romantic restraint, camera-world credibility, must " +
-				performerSurface,
-		});
-	}
-	if (anchors.length === 0) {
-		anchors.push({
-			id: "lead-01",
-			role: "primary subject",
-			description:
-				"Same primary lead in every shot: keep face, body type, wardrobe family, and screen presence stable so the sequence reads as one person throughout.",
-		});
-	}
-	return anchors;
-}
-
-function buildVisualAnchors({
-	content,
-	title,
-	style,
-	medium,
-	beats,
-}: {
-	content: string;
-	title: string;
-	style: {
-		framing: Framing;
-		movement: Movement;
-		lighting: Lighting;
-		mood: ShotMood;
-	};
-	medium: Medium;
-	beats: Beat[];
-}): VisualAnchors {
-	const terms = collectFrequentTerms({ text: `${title} ${content}` });
-	const lower = content.toLowerCase();
-	const characterAnchors = buildCharacterAnchors({ content, medium });
-	const primaryCharacter = characterAnchors[0];
-	const subjectTerm =
-		primaryCharacter?.id.replace(/-\d+$/u, "") ??
-		(preferredToken({
-			content: lower,
-			fallbackTerms: terms,
-			candidates: ["supermodel", "photographer", "archer", "contender", "hero", "runner", "survivor", "fighter", "teen", "girl", "boy", "protagonist"],
-		}) ?? "contender");
-	const locationTerm =
-		preferredToken({
-			content: lower,
-			fallbackTerms: terms,
-			candidates: ["rooftop", "fashion shoot", "city", "studio", "arena", "valley", "platform", "forest", "warehouse", "corridor", "stage", "lab"],
-		}) ?? "arena";
-	const propTerm =
-		preferredToken({
-			content: lower,
-			fallbackTerms: terms,
-			candidates: ["veil", "camera", "bow", "blade", "sword", "rifle", "mask", "device", "crate", "screen", "drones"],
-		}) ?? "signature gear";
-	const paletteSeed =
-		firstMatchingTerm({
-			terms,
-			candidates: ["rain", "city", "silver", "orange", "blue", "amber", "fog", "neon", "ash", "green", "steel", "gold"],
-		}) ??
-		(lower.includes("rain") || lower.includes("city")
-			? "rain-glossed blue city tones with warm amber practical lights"
-			: style.lighting === "dramatic"
-				? "steel-blue shadows with ember highlights"
-				: "controlled neutral palette");
-	const openingBeat = beats[0]?.body || title;
-	const subjectAnchor = [
-		`Same central ${subjectTerm} across the full sequence.`,
-		"Keep one readable face, silhouette, age band, and wardrobe language from shot to shot.",
-		lower.includes("bow")
-			? "The subject is a lean survival archer in worn tactical layers, dirt and sweat visible."
-			: lower.includes("supermodel")
-				? "The lead should remain fashion-world glamorous and emotionally readable, never turning into an action heroine or unrelated archetype."
-			: `The subject reads as a resilient ${subjectTerm} under pressure, never a generic crowd extra.`,
-	].join(" ");
-	const locationAnchor = [
-		`Treat the location as one continuous ${locationTerm}-world.`,
-		openingBeat,
-		"Repeat key materials, elevation logic, and background structures so shots feel adjacent in the same geography.",
-	].join(" ");
-	const propAnchor = [
-		`Keep the ${propTerm} visually consistent whenever it appears.`,
-		propTerm === "bow"
-			? "Use the same bow design, grip wrap, and survival-worn finish in every shot."
-			: propTerm === "veil"
-				? "Use the same delicate veil fabric, translucency, and movement language in every shot."
-				: propTerm === "camera"
-					? "Use the same photographer camera body, strap, and handling style whenever it appears."
-			: propTerm === "screen"
-				? "Use the same giant arena screen design, support structure, and glow treatment across the sequence."
-				: "Do not swap the hero prop design between shots.",
-	].join(" ");
-	const relationshipAnchor =
-		characterAnchors.length >= 2
-			? `Keep the same romantic pair throughout: ${characterAnchors[0]?.id} and ${characterAnchors[1]?.id} should remain visually and emotionally consistent across every frame.`
-			: `Keep ${characterAnchors[0]?.id} emotionally and visually consistent across every frame.`;
-	const continuityRules = [
-		"Do not change protagonist identity, costume family, or body type between shots.",
-		"Do not relocate the scene into a different world or architecture style.",
-		"Keep recurring props, insignia, and screen technology consistent.",
-		`Maintain a ${paletteSeed} palette bias unless a beat explicitly requires contrast.`,
-		relationshipAnchor,
-	];
-
-	return {
-		subjectId: primaryCharacter?.id ?? `${slugify({ value: subjectTerm }).slice(0, 24) || "subject"}-01`,
-		subjectAnchor,
-		locationId: `${slugify({ value: locationTerm }).slice(0, 24) || "location"}-01`,
-		locationAnchor,
-		propId: `${slugify({ value: propTerm }).slice(0, 24) || "prop"}-01`,
-		propAnchor,
-		paletteAnchor: paletteSeed,
-		characterAnchors,
-		relationshipAnchor,
-		continuityRules,
-	};
-}
-
+/** Analyzes a source content file and returns structured metadata for shot planning. */
 export function analyzeSource({ options }: { options: CLIOptions }): AnalysisResult {
 	const sourcePath = resolve(options.input);
 	if (!existsSync(sourcePath)) {
@@ -572,8 +272,6 @@ export function analyzeSource({ options }: { options: CLIOptions }): AnalysisRes
 	const wordCount = content.split(/\s+/).filter(Boolean).length;
 	const recommendedShots = recommendShots({ wordCount });
 	const targetShots = resolveShotCount({ explicit: options.shots, recommended: recommendedShots });
-	const beats = extractBeats({ content });
-	const visualAnchors = buildVisualAnchors({ content, title, style, medium: medium.medium, beats });
 	const productionRules = buildProductionRules({ medium: medium.medium, format: format.format });
 	const genreRules = buildGenreRules({ content });
 
@@ -582,6 +280,7 @@ export function analyzeSource({ options }: { options: CLIOptions }): AnalysisRes
 		topicSlug: slugify({ value: title }).split("-").slice(0, 4).join("-") || "shot-plan",
 		sourcePath,
 		sourceExtension,
+		sourceContent: content,
 		wordCount,
 		language: detectLanguage({ content, explicit: options.lang }),
 		style: style.style,
@@ -599,8 +298,5 @@ export function analyzeSource({ options }: { options: CLIOptions }): AnalysisRes
 		mood: style.mood,
 		recommendedShots,
 		targetShots,
-		coreThroughline: beats[0]?.title || title,
-		beats,
-		visualAnchors,
 	};
 }

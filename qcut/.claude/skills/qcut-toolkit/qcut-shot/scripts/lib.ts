@@ -1,37 +1,40 @@
 import { join } from "node:path";
-import { analyzeSource } from "./analysis";
-import { parseArgs } from "./args";
-import { renderShotArtifacts, shotsDir } from "./artifacts";
-import { loadStyleInstructions } from "./references";
-import { buildShots } from "./shots";
-import type { CLIOptions, ShotProject } from "./types";
+import { analyzeSource } from "./pipeline/analysis";
+import { parseArgs } from "./core/args";
+import { renderShotArtifacts, shotsDir } from "./pipeline/artifacts";
+import { loadStyleInstructions } from "./pipeline/references";
+import { planScenes } from "./pipeline/scene-planner";
+import { validateBreakdown } from "./pipeline/shots";
+import type { CLIOptions, ShotProject } from "./core/types";
 
-export { analyzeSource } from "./analysis";
-export { parseArgs } from "./args";
-export { discoverPromptFiles, imageOutputPath, runImageGeneration } from "./render";
-export { loadStyleInstructions } from "./references";
-export { buildShots } from "./shots";
+export { analyzeSource } from "./pipeline/analysis";
+export { parseArgs } from "./core/args";
+export { discoverPromptFiles, imageOutputPath, runImageGeneration } from "./pipeline/render";
+export { loadStyleInstructions } from "./pipeline/references";
+export { planScenes } from "./pipeline/scene-planner";
+export { validateBreakdown } from "./pipeline/shots";
 export type {
 	AnalysisResult,
-	Beat,
 	CLIOptions,
-	CharacterAnchor,
+	Character,
 	ContentFormat,
 	Framing,
 	Lighting,
 	Medium,
 	Movement,
-	ShotContinuity,
+	Scene,
+	SceneBreakdown,
+	SceneCamera,
 	ShotMood,
-	ShotPlan,
 	ShotProject,
-	VisualAnchors,
-} from "./types";
-export { parseNumberList, slugify } from "./utils";
+	ShotRenderManifest,
+} from "./core/types";
+export { parseNumberList, slugify } from "./core/utils";
 
-export function planShots({ options }: { options: CLIOptions }): ShotProject {
+/** Runs the full shot planning pipeline: analyze source, plan scenes, validate breakdown. */
+export async function planShotsAsync({ options }: { options: CLIOptions }): Promise<ShotProject> {
 	const analysis = analyzeSource({ options });
-	const shotDir = shotsDir({ analysis, outputDir: options.outputDir });
+	const shotDir = shotsDir({ analysis, outputDir: options.outputDir, projectId: options.projectId });
 	const promptsDir = join(shotDir, "prompts");
 	const styleInstructions = loadStyleInstructions({
 		style: analysis.style,
@@ -41,13 +44,20 @@ export function planShots({ options }: { options: CLIOptions }): ShotProject {
 		lighting: analysis.lighting,
 		mood: analysis.mood,
 	});
-	const shots = buildShots({ analysis });
+
+	const rawBreakdown = await planScenes({
+		sourceContent: analysis.sourceContent,
+		targetShots: analysis.targetShots,
+		medium: analysis.medium,
+		format: analysis.format,
+	});
+	const breakdown = validateBreakdown({ breakdown: rawBreakdown });
 
 	return {
 		shotDir,
 		promptsDir,
 		analysis,
-		shots,
+		breakdown,
 		styleInstructions,
 	};
 }
