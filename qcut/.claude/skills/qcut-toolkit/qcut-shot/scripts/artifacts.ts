@@ -20,8 +20,10 @@ export function shotsDir({
 }): string {
 	if (outputDir) return resolve(outputDir);
 	if (projectId) {
-		const sanitized = projectId.replace(/[^a-zA-Z0-9_-]/g, "");
-		return join(qcutBasePath(), "Projects", sanitized, "shot-plan", analysis.topicSlug);
+		if (!/^[a-zA-Z0-9_-]+$/.test(projectId)) {
+			throw new Error(`Invalid project ID "${projectId}". Use only letters, numbers, hyphens, and underscores.`);
+		}
+		return join(qcutBasePath(), "Projects", projectId, "shot-plan", analysis.topicSlug);
 	}
 	return join(qcutBasePath(), "shot-plan", analysis.topicSlug);
 }

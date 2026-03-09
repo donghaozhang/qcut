@@ -874,10 +874,10 @@ export function resolveDeckDir({
 }): string {
 	if (outputDir) return resolve(outputDir);
 	if (projectId) {
-		const sanitized = projectId.replace(/[^a-zA-Z0-9_-]/g, "");
-		if (sanitized) {
-			return join(qcutBasePath(), "Projects", sanitized, "slide-deck", analysis.topicSlug);
+		if (!/^[a-zA-Z0-9_-]+$/.test(projectId)) {
+			throw new Error(`Invalid project ID "${projectId}". Use only letters, numbers, hyphens, and underscores.`);
 		}
+		return join(qcutBasePath(), "Projects", projectId, "slide-deck", analysis.topicSlug);
 	}
 	return join(qcutBasePath(), "slide-deck", analysis.topicSlug);
 }

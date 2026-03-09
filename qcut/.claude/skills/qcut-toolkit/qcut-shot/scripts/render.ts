@@ -235,7 +235,7 @@ function sceneForPromptFile({
 		return null;
 	}
 	const index = sceneIndexFromPromptFile({ promptFile });
-	if (!index) {
+	if (index === null) {
 		return null;
 	}
 	return manifest.scenes.find((scene) => scene.index === index) ?? null;

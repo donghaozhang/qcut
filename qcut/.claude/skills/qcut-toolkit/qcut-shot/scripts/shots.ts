@@ -6,25 +6,32 @@ export function validateBreakdown({ breakdown }: { breakdown: SceneBreakdown }):
 
 	const scenes: Scene[] = breakdown.scenes.map((scene, index) => {
 		const sceneIndex = scene.index || index + 1;
-		const stem = slugify({ value: scene.title }).split("-").slice(0, 5).join("-");
+		const title = scene.title || `Scene ${sceneIndex}`;
+		const stem = slugify({ value: title }).split("-").slice(0, 5).join("-");
 		const fileStem =
 			scene.fileStem ||
 			`${String(sceneIndex).padStart(2, "0")}-${stem || `scene-${sceneIndex}`}`;
 
-		const validCharacterIds = scene.characterIds.filter((id) => characterIds.has(id));
+		const sceneCharacterIds = Array.isArray(scene.characterIds) ? scene.characterIds : [];
+		const validCharacterIds = sceneCharacterIds.filter((id) => characterIds.has(id));
 		if (validCharacterIds.length === 0 && breakdown.characters.length > 0) {
-			console.warn(`Warning: Scene ${sceneIndex} ("${scene.title}") has no valid characters, defaulting to "${breakdown.characters[0].id}".`);
+			console.warn(`Warning: Scene ${sceneIndex} ("${title}") has no valid characters, defaulting to "${breakdown.characters[0].id}".`);
 			validCharacterIds.push(breakdown.characters[0].id);
 		}
 
 		return {
 			index: sceneIndex,
-			title: scene.title || `Scene ${sceneIndex}`,
+			title,
 			fileStem,
-			camera: scene.camera || { lens: "35mm", framing: "medium shot", movement: "locked-off", angle: "eye level" },
+			camera: {
+				lens: scene.camera?.lens || "35mm",
+				framing: scene.camera?.framing || "medium shot",
+				movement: scene.camera?.movement || "locked-off",
+				angle: scene.camera?.angle || "eye level",
+			},
 			lighting: scene.lighting || "natural ambient lighting",
 			location: scene.location || "unspecified location",
-			action: scene.action || scene.title || "Scene action",
+			action: scene.action || title || "Scene action",
 			characterIds: validCharacterIds,
 			mood: scene.mood || "neutral",
 			props: Array.isArray(scene.props) ? scene.props : [],

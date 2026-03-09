@@ -16,7 +16,7 @@ function loadKeyFromFiles({ envName }: { envName: string }): string | undefined 
 	for (const filePath of CREDENTIAL_PATHS) {
 		if (!existsSync(filePath)) continue;
 		const content = readFileSync(filePath, "utf8");
-		const match = content.match(new RegExp(`^${envName}=(.+)$`, "m"));
+		const match = content.match(new RegExp(`^(?:export\\s+)?${envName}=["']?(.+?)["']?$`, "m"));
 		if (match?.[1]?.trim()) return match[1].trim();
 	}
 	return undefined;
@@ -125,7 +125,8 @@ function extractJson({ text }: { text: string }): string {
 function normalizeScenes({ scenes }: { scenes: Scene[] }): Scene[] {
 	return scenes.map((scene, index) => {
 		const sceneIndex = scene.index || index + 1;
-		const stem = slugify({ value: scene.title }).split("-").slice(0, 5).join("-");
+		const title = scene.title || `Scene ${sceneIndex}`;
+		const stem = slugify({ value: title }).split("-").slice(0, 5).join("-");
 		return {
 			...scene,
 			index: sceneIndex,
@@ -156,21 +157,35 @@ export async function planScenes({
 
 	console.log(`Planning ${targetShots} scenes with ${model} via OpenRouter...`);
 
-	const response = await fetch(OPENROUTER_API_URL, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-			Authorization: `Bearer ${apiKey}`,
-		},
-		body: JSON.stringify({
-			model,
-			max_tokens: 8192,
-			messages: [
-				{ role: "system", content: systemPrompt },
-				{ role: "user", content: sourceContent },
-			],
-		}),
-	});
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 60_000);
+
+	let response: Response;
+	try {
+		response = await fetch(OPENROUTER_API_URL, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${apiKey}`,
+			},
+			body: JSON.stringify({
+				model,
+				max_tokens: 8192,
+				messages: [
+					{ role: "system", content: systemPrompt },
+					{ role: "user", content: sourceContent },
+				],
+			}),
+			signal: controller.signal,
+		});
+	} catch (error) {
+		clearTimeout(timeout);
+		if (error instanceof Error && error.name === "AbortError") {
+			throw new Error("OpenRouter request timed out after 60 seconds");
+		}
+		throw error;
+	}
+	clearTimeout(timeout);
 
 	if (!response.ok) {
 		const text = await response.text();
