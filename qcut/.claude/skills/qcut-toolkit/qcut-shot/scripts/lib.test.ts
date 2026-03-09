@@ -1,8 +1,17 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
-import { analyzeSource, buildShots, loadStyleInstructions, parseArgs, parseNumberList, slugify } from "./lib";
+import {
+	analyzeSource,
+	loadStyleInstructions,
+	parseArgs,
+	parseNumberList,
+	renderShotArtifacts,
+	slugify,
+	validateBreakdown,
+} from "./lib";
+import type { SceneBreakdown } from "./types";
 
 describe("qcut-shot helpers", () => {
 	test("parseNumberList deduplicates and sorts", () => {
@@ -45,64 +54,6 @@ describe("qcut-shot helpers", () => {
 		expect(options.mood).toBe("polished");
 	});
 
-	test("buildShots creates opening and closing beats", () => {
-		const shots = buildShots({
-			analysis: {
-				title: "Product Reveal",
-				topicSlug: "product-reveal",
-				sourcePath: "/tmp/story.md",
-				sourceExtension: ".md",
-				wordCount: 900,
-				language: "en",
-				style: "product",
-				stylePreset: "product",
-				styleReason: "explicit",
-				medium: "cgi",
-				mediumReason: "explicit",
-				format: "film",
-				formatReason: "explicit",
-				productionRules: ["Render as fully synthetic cinema."],
-				genreRules: [],
-				framing: "macro",
-				movement: "slider",
-				lighting: "bright",
-				mood: "polished",
-				recommendedShots: 6,
-				targetShots: 5,
-				coreThroughline: "Show the product clearly",
-				beats: [
-					{ title: "Opening", body: "Show the room and product table.", keywords: ["room", "product"] },
-					{ title: "Reveal", body: "Move to the hero detail.", keywords: ["detail", "reveal"] },
-				],
-				visualAnchors: {
-					subjectId: "device-01",
-					subjectAnchor: "Same hero device across the sequence.",
-					locationId: "studio-01",
-					locationAnchor: "Same studio geography across the sequence.",
-					propId: "hero-product-01",
-					propAnchor: "Same product design and finish.",
-					paletteAnchor: "bright neutral palette",
-					characterAnchors: [
-						{
-							id: "device-01",
-							role: "hero product",
-							description: "Same hero device across the sequence.",
-						},
-					],
-					relationshipAnchor: "Keep the same device identity throughout.",
-					continuityRules: ["Do not change the product identity between shots."],
-				},
-			},
-		});
-
-		expect(shots[0]?.shotType).toBe("opening");
-		expect(shots.at(-1)?.shotType).toBe("closing");
-		expect(shots.length).toBe(5);
-		expect(shots[0]?.continuity.subjectId).toBe("device-01");
-		expect(shots[2]?.shotRoleGuidance).toContain("hero-product-01");
-		expect(shots[0]?.negativePrompt).toContain("no extra hero characters");
-	});
-
 	test("loadStyleInstructions composes custom shot dimensions", () => {
 		const instructions = loadStyleInstructions({
 			style: "custom:macro+slider+bright+polished",
@@ -117,25 +68,30 @@ describe("qcut-shot helpers", () => {
 		expect(instructions).toContain("### slider");
 	});
 
-	test("analyzeSource prefers recurring hero props from content", () => {
+	test("analyzeSource extracts metadata without visual anchors", () => {
 		const dir = mkdtempSync(join(tmpdir(), "qcut-shot-test-"));
-		const source = join(dir, "arena.md");
+		const source = join(dir, "story.md");
 		writeFileSync(
 			source,
-			"# Arena\n\nThe contender sees giant screens above the arena and runs toward a bow. The bow becomes the only thing that matters.\n",
+			"# Love Story\n\nA beautiful supermodel and a quiet photographer fall in love during a late-night fashion shoot.\n",
 		);
 
 		const analysis = analyzeSource({
 			options: {
 				input: source,
+				medium: "live-action",
+				format: "film",
 				promptsOnly: false,
 				imagesOnly: false,
 				dryRun: true,
 			},
 		});
 
-		expect(analysis.visualAnchors.propId).toBe("bow-01");
-		expect(analysis.visualAnchors.propAnchor).toContain("same bow design");
+		expect(analysis.title).toBe("Love Story");
+		expect(analysis.medium).toBe("live-action");
+		expect(analysis.format).toBe("film");
+		expect(analysis.sourceContent).toContain("supermodel");
+		expect(analysis.genreRules.join(" ")).toContain("Do not introduce tactical gear");
 	});
 
 	test("analyzeSource supports medium and format inference", () => {
@@ -160,40 +116,141 @@ describe("qcut-shot helpers", () => {
 		expect(analysis.productionRules.join(" ")).toContain("observational credibility");
 	});
 
-	test("analyzeSource parses labeled beats and stable romantic leads", () => {
+	test("validateBreakdown normalizes scene data", () => {
+		const raw: SceneBreakdown = {
+			characters: [
+				{ id: "valentina", role: "lead", description: "Elegant supermodel" },
+				{ id: "painter", role: "love interest", description: "Street painter" },
+			],
+			continuityNotes: ["Keep Valentina's dress consistent"],
+			scenes: [
+				{
+					index: 1,
+					title: "Golden Hour on the Seine",
+					fileStem: "",
+					camera: { lens: "35mm", framing: "wide establishing", movement: "slow dolly", angle: "eye level" },
+					lighting: "golden hour backlight",
+					location: "Pont des Arts, Paris",
+					action: "Valentina walks across the bridge",
+					characterIds: ["valentina"],
+					mood: "lonely elegance",
+					props: ["silk dress", "river reflections"],
+					colorPalette: "warm gold, amber",
+					negative: "no crowd",
+				},
+				{
+					index: 2,
+					title: "The Painter's Gaze",
+					fileStem: "",
+					camera: { lens: "85mm", framing: "medium two-shot", movement: "locked-off", angle: "eye level" },
+					lighting: "soft diffused afternoon",
+					location: "Pont des Arts, Paris",
+					action: "The painter looks up from his canvas",
+					characterIds: ["painter", "unknown-character"],
+					mood: "curious wonder",
+					props: ["easel", "canvas", "paint brushes"],
+					colorPalette: "warm earth tones",
+					negative: "no modern elements",
+				},
+			],
+		};
+
+		const validated = validateBreakdown({ breakdown: raw });
+
+		expect(validated.scenes[0].fileStem).toBe("01-golden-hour-on-the-seine");
+		expect(validated.scenes[1].fileStem).toBe("02-the-painters-gaze");
+		expect(validated.scenes[1].characterIds).toEqual(["painter"]);
+	});
+
+	test("validateBreakdown assigns default character when none match", () => {
+		const raw: SceneBreakdown = {
+			characters: [{ id: "hero", role: "lead", description: "The hero" }],
+			continuityNotes: [],
+			scenes: [
+				{
+					index: 1,
+					title: "Opening",
+					fileStem: "",
+					camera: { lens: "24mm", framing: "wide", movement: "crane", angle: "high" },
+					lighting: "dawn",
+					location: "rooftop",
+					action: "A figure stands alone",
+					characterIds: [],
+					mood: "solitary",
+					props: [],
+					colorPalette: "cool blue",
+					negative: "",
+				},
+			],
+		};
+
+		const validated = validateBreakdown({ breakdown: raw });
+		expect(validated.scenes[0].characterIds).toEqual(["hero"]);
+	});
+
+	test("renderShotArtifacts writes scene manifest", () => {
 		const dir = mkdtempSync(join(tmpdir(), "qcut-shot-test-"));
-		const source = join(dir, "love.md");
-		writeFileSync(
-			source,
-			[
-				"# Love Story",
-				"",
-				"A beautiful supermodel and a quiet photographer fall in love during a late-night fashion shoot.",
-				"",
-				"Opening tension: establish the rooftop set above the city.",
-				"",
-				"First move: the photographer adjusts the veil and lingers.",
-				"",
-				"Closing image: the pair remain alone above the city lights.",
-				"",
-			].join("\n"),
-		);
+		const source = join(dir, "story.md");
+		writeFileSync(source, "# Test Story\n\nA short test story.\n");
 
 		const analysis = analyzeSource({
 			options: {
 				input: source,
-				medium: "live-action",
-				format: "film",
+				outputDir: join(dir, "shot-plan"),
 				promptsOnly: false,
 				imagesOnly: false,
 				dryRun: true,
 			},
 		});
 
-		expect(analysis.beats[0]?.title).toBe("Opening tension");
-		expect(analysis.beats[1]?.title).toBe("First move");
-		expect(analysis.visualAnchors.characterAnchors[0]?.id).toBe("supermodel-01");
-		expect(analysis.visualAnchors.characterAnchors[1]?.id).toBe("photographer-01");
-		expect(analysis.genreRules.join(" ")).toContain("Do not introduce tactical gear");
+		const breakdown: SceneBreakdown = {
+			characters: [{ id: "hero", role: "lead", description: "The main character" }],
+			continuityNotes: ["Keep hero consistent"],
+			scenes: [
+				{
+					index: 1,
+					title: "Opening Scene",
+					fileStem: "01-opening-scene",
+					camera: { lens: "24mm", framing: "wide", movement: "dolly", angle: "eye level" },
+					lighting: "natural morning light",
+					location: "city street",
+					action: "Hero walks down the street",
+					characterIds: ["hero"],
+					mood: "contemplative",
+					props: ["briefcase"],
+					colorPalette: "muted grays, warm highlights",
+					negative: "no crowd, no text",
+				},
+			],
+		};
+
+		const styleInstructions = loadStyleInstructions({
+			style: analysis.style,
+			stylePreset: analysis.stylePreset,
+			framing: analysis.framing,
+			movement: analysis.movement,
+			lighting: analysis.lighting,
+			mood: analysis.mood,
+		});
+
+		renderShotArtifacts({
+			project: {
+				shotDir: join(dir, "shot-plan"),
+				promptsDir: join(dir, "shot-plan", "prompts"),
+				analysis,
+				breakdown,
+				styleInstructions,
+			},
+		});
+
+		const manifest = JSON.parse(
+			readFileSync(join(dir, "shot-plan", "shots.json"), "utf8"),
+		) as {
+			characters: Array<{ id: string }>;
+			scenes: Array<{ characterIds: string[] }>;
+		};
+
+		expect(manifest.characters.map((c) => c.id)).toEqual(["hero"]);
+		expect(manifest.scenes[0]?.characterIds).toEqual(["hero"]);
 	});
 });

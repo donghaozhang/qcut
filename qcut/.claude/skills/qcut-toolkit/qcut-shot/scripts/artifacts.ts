@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { loadBasePrompt } from "./references";
-import type { AnalysisResult, ShotPlan } from "./types";
+import type { AnalysisResult, Scene, SceneBreakdown, ShotRenderManifest } from "./types";
 import { ensureDir } from "./utils";
 
 export function shotsDir({
@@ -30,9 +30,11 @@ function copySource({
 function writeAnalysis({
 	shotDir,
 	analysis,
+	breakdown,
 }: {
 	shotDir: string;
 	analysis: AnalysisResult;
+	breakdown: SceneBreakdown;
 }): void {
 	const lines = [
 		"# Analysis",
@@ -47,12 +49,7 @@ function writeAnalysis({
 		`- Medium Reason: ${analysis.mediumReason}`,
 		`- Format: ${analysis.format}`,
 		`- Format Reason: ${analysis.formatReason}`,
-		`- Framing: ${analysis.framing}`,
-		`- Movement: ${analysis.movement}`,
-		`- Lighting: ${analysis.lighting}`,
-		`- Mood: ${analysis.mood}`,
 		`- Style Reason: ${analysis.styleReason}`,
-		`- Core Throughline: ${analysis.coreThroughline}`,
 		"",
 		"## Production Rules",
 		"",
@@ -62,30 +59,15 @@ function writeAnalysis({
 		"",
 		...analysis.genreRules.map((rule) => `- ${rule}`),
 		"",
-		"## Visual Anchors",
+		"## Characters",
 		"",
-		`- Subject ID: ${analysis.visualAnchors.subjectId}`,
-		`- Subject Anchor: ${analysis.visualAnchors.subjectAnchor}`,
-		`- Location ID: ${analysis.visualAnchors.locationId}`,
-		`- Location Anchor: ${analysis.visualAnchors.locationAnchor}`,
-		`- Prop ID: ${analysis.visualAnchors.propId}`,
-		`- Prop Anchor: ${analysis.visualAnchors.propAnchor}`,
-		`- Palette Anchor: ${analysis.visualAnchors.paletteAnchor}`,
-		`- Relationship Anchor: ${analysis.visualAnchors.relationshipAnchor}`,
-		"",
-		"## Character Anchors",
-		"",
-		...analysis.visualAnchors.characterAnchors.map(
-			(character) => `- ${character.id} (${character.role}): ${character.description}`,
+		...breakdown.characters.map(
+			(character) => `### ${character.id} (${character.role})\n\n${character.description}\n`,
 		),
+		"## Continuity Notes",
 		"",
-		"## Continuity Rules",
+		...breakdown.continuityNotes.map((note) => `- ${note}`),
 		"",
-		...analysis.visualAnchors.continuityRules.map((rule) => `- ${rule}`),
-		"",
-		"## Beats",
-		"",
-		...analysis.beats.map((beat, index) => `### ${index + 1}. ${beat.title}\n\n${beat.body}\n`),
 	];
 	writeFileSync(join(shotDir, "analysis.md"), `${lines.join("\n").trim()}\n`);
 }
@@ -93,12 +75,12 @@ function writeAnalysis({
 function writeShotsMd({
 	shotDir,
 	analysis,
-	shots,
+	breakdown,
 	styleInstructions,
 }: {
 	shotDir: string;
 	analysis: AnalysisResult;
-	shots: ShotPlan[];
+	breakdown: SceneBreakdown;
 	styleInstructions: string;
 }): void {
 	const lines = [
@@ -108,7 +90,7 @@ function writeShotsMd({
 		`medium: ${analysis.medium}`,
 		`format: ${analysis.format}`,
 		`language: ${analysis.language}`,
-		`shots: ${shots.length}`,
+		`shots: ${breakdown.scenes.length}`,
 		"---",
 		"",
 		"# Shot Plan",
@@ -117,26 +99,27 @@ function writeShotsMd({
 		styleInstructions,
 		"</STYLE_INSTRUCTIONS>",
 		"",
+		"## Characters",
+		"",
+		...breakdown.characters.map(
+			(c) => `- **${c.id}** (${c.role}): ${c.description}`,
+		),
+		"",
 	];
 
-	for (const shot of shots) {
-		lines.push(`## Shot ${shot.index}: ${shot.title}`);
+	for (const scene of breakdown.scenes) {
+		lines.push(`## Scene ${scene.index}: ${scene.title}`);
 		lines.push("");
-		lines.push(`- Filename: ${shot.fileStem}.png`);
-		lines.push(`- Type: ${shot.shotType}`);
-		lines.push(`- Subject ID: ${shot.continuity.subjectId}`);
-		lines.push(`- Location ID: ${shot.continuity.locationId}`);
-		lines.push(`- Prop ID: ${shot.continuity.propId}`);
-		lines.push(`- Framing: ${shot.framing}`);
-		lines.push(`- Movement: ${shot.movement}`);
-		lines.push(`- Lighting: ${shot.lighting}`);
-		lines.push(`- Mood: ${shot.mood}`);
-		lines.push(`- Purpose: ${shot.purpose}`);
-		lines.push(`- Beat: ${shot.beat}`);
-		lines.push(`- Visual: ${shot.visualDirection}`);
-		lines.push(`- Shot Role: ${shot.shotRoleGuidance}`);
-		lines.push(`- Negative Prompt: ${shot.negativePrompt}`);
-		lines.push(`- Continuity Notes: ${shot.continuity.continuityNotes.join(" | ")}`);
+		lines.push(`- Filename: ${scene.fileStem}.png`);
+		lines.push(`- Camera: ${scene.camera.lens}, ${scene.camera.framing}, ${scene.camera.movement}, ${scene.camera.angle}`);
+		lines.push(`- Lighting: ${scene.lighting}`);
+		lines.push(`- Location: ${scene.location}`);
+		lines.push(`- Characters: ${scene.characterIds.join(", ")}`);
+		lines.push(`- Mood: ${scene.mood}`);
+		lines.push(`- Props: ${scene.props.join(", ") || "none"}`);
+		lines.push(`- Color Palette: ${scene.colorPalette}`);
+		lines.push(`- Action: ${scene.action}`);
+		lines.push(`- Negative: ${scene.negative}`);
 		lines.push("");
 	}
 
@@ -146,15 +129,27 @@ function writeShotsMd({
 function writeShotsJson({
 	shotDir,
 	analysis,
-	shots,
+	breakdown,
 }: {
 	shotDir: string;
 	analysis: AnalysisResult;
-	shots: ShotPlan[];
+	breakdown: SceneBreakdown;
 }): void {
+	const manifest: ShotRenderManifest = {
+		title: analysis.title,
+		style: analysis.style,
+		language: analysis.language,
+		medium: analysis.medium,
+		format: analysis.format,
+		productionRules: analysis.productionRules,
+		genreRules: analysis.genreRules,
+		characters: breakdown.characters,
+		continuityNotes: breakdown.continuityNotes,
+		scenes: breakdown.scenes,
+	};
 	writeFileSync(
 		join(shotDir, "shots.json"),
-		`${JSON.stringify({ title: analysis.title, style: analysis.style, shots }, null, 2)}\n`,
+		`${JSON.stringify(manifest, null, 2)}\n`,
 	);
 }
 
@@ -162,41 +157,41 @@ function writePrompts({
 	shotDir,
 	promptsDir,
 	analysis,
-	shots,
+	breakdown,
 	styleInstructions,
 }: {
 	shotDir: string;
 	promptsDir: string;
 	analysis: AnalysisResult;
-	shots: ShotPlan[];
+	breakdown: SceneBreakdown;
 	styleInstructions: string;
 }): void {
 	ensureDir({ path: promptsDir });
 	const promptPrelude = loadBasePrompt();
-	for (const shot of shots) {
+	for (const scene of breakdown.scenes) {
+		const activeCharacters = breakdown.characters.filter((c) =>
+			scene.characterIds.includes(c.id),
+		);
 		const content = [
 			promptPrelude,
 			"",
 			"---",
 			"",
-			`# Shot ${shot.index}: ${shot.title}`,
+			`# Scene ${scene.index}: ${scene.title}`,
 			"",
 			"<STYLE_INSTRUCTIONS>",
 			styleInstructions,
 			"</STYLE_INSTRUCTIONS>",
 			"",
-			"## Shot Metadata",
+			"## Scene Metadata",
 			`- Language: ${analysis.language}`,
 			`- Medium: ${analysis.medium}`,
 			`- Format: ${analysis.format}`,
-			`- Type: ${shot.shotType}`,
-			`- Subject ID: ${shot.continuity.subjectId}`,
-			`- Location ID: ${shot.continuity.locationId}`,
-			`- Prop ID: ${shot.continuity.propId}`,
-			`- Framing: ${shot.framing}`,
-			`- Movement: ${shot.movement}`,
-			`- Lighting: ${shot.lighting}`,
-			`- Mood: ${shot.mood}`,
+			`- Camera: ${scene.camera.lens} lens, ${scene.camera.framing}, ${scene.camera.movement}, ${scene.camera.angle}`,
+			`- Lighting: ${scene.lighting}`,
+			`- Location: ${scene.location}`,
+			`- Mood: ${scene.mood}`,
+			`- Color Palette: ${scene.colorPalette}`,
 			"",
 			"## Production Rules",
 			...analysis.productionRules.map((rule) => `- ${rule}`),
@@ -204,52 +199,32 @@ function writePrompts({
 			"## Genre Rules",
 			...analysis.genreRules.map((rule) => `- ${rule}`),
 			"",
-			"## Visual Anchors",
-			analysis.visualAnchors.subjectAnchor,
-			"",
-			analysis.visualAnchors.locationAnchor,
-			"",
-			analysis.visualAnchors.propAnchor,
-			"",
-			analysis.visualAnchors.relationshipAnchor,
-			"",
-			`Palette anchor: ${analysis.visualAnchors.paletteAnchor}`,
-			"",
-			"## Character Anchors",
-			...analysis.visualAnchors.characterAnchors.map(
-				(character) => `- ${character.id} (${character.role}): ${character.description}`,
+			"## Characters in Scene",
+			...activeCharacters.map(
+				(c) => `- **${c.id}** (${c.role}): ${c.description}`,
 			),
 			"",
-			"## Continuity Rules",
-			...analysis.visualAnchors.continuityRules.map((rule) => `- ${rule}`),
-			"",
-			"## Shot Role Guidance",
-			shot.shotRoleGuidance,
-			"",
 			"## Continuity Notes",
-			...shot.continuity.continuityNotes.map((note) => `- ${note}`),
+			...breakdown.continuityNotes.map((note) => `- ${note}`),
 			"",
-			"## Story Beat",
-			shot.beat,
+			"## Action",
+			scene.action,
 			"",
-			"## Shot Objective",
-			shot.purpose,
-			"",
-			"## Visual Direction",
-			shot.visualDirection,
+			"## Props",
+			...(scene.props.length > 0 ? scene.props.map((p) => `- ${p}`) : ["- none"]),
 			"",
 			"## Rendering Rules",
 			"- One frame only.",
 			"- Fill the full frame edge to edge with no cinematic black bars or letterboxing.",
 			"- Maintain cinematic readability.",
 			"- No subtitles, UI, logos, or watermarks.",
-			`- Negative constraints: ${shot.negativePrompt}.`,
+			`- Negative constraints: ${scene.negative}.`,
 		];
-		writeFileSync(join(promptsDir, `${shot.fileStem}.md`), `${content.join("\n").trim()}\n`);
+		writeFileSync(join(promptsDir, `${scene.fileStem}.md`), `${content.join("\n").trim()}\n`);
 	}
 	writeFileSync(
 		join(shotDir, "prompts.md"),
-		`# Prompt Index\n\n${shots.map((shot) => `- ${shot.index}. ${shot.title} -> prompts/${shot.fileStem}.md`).join("\n")}\n`,
+		`# Prompt Index\n\n${breakdown.scenes.map((s) => `- ${s.index}. ${s.title} -> prompts/${s.fileStem}.md`).join("\n")}\n`,
 	);
 }
 
@@ -260,25 +235,25 @@ export function renderShotArtifacts({
 		shotDir: string;
 		promptsDir: string;
 		analysis: AnalysisResult;
-		shots: ShotPlan[];
+		breakdown: SceneBreakdown;
 		styleInstructions: string;
 	};
 }): void {
 	ensureDir({ path: project.shotDir });
 	copySource({ shotDir: project.shotDir, analysis: project.analysis });
-	writeAnalysis({ shotDir: project.shotDir, analysis: project.analysis });
+	writeAnalysis({ shotDir: project.shotDir, analysis: project.analysis, breakdown: project.breakdown });
 	writeShotsMd({
 		shotDir: project.shotDir,
 		analysis: project.analysis,
-		shots: project.shots,
+		breakdown: project.breakdown,
 		styleInstructions: project.styleInstructions,
 	});
-	writeShotsJson({ shotDir: project.shotDir, analysis: project.analysis, shots: project.shots });
+	writeShotsJson({ shotDir: project.shotDir, analysis: project.analysis, breakdown: project.breakdown });
 	writePrompts({
 		shotDir: project.shotDir,
 		promptsDir: project.promptsDir,
 		analysis: project.analysis,
-		shots: project.shots,
+		breakdown: project.breakdown,
 		styleInstructions: project.styleInstructions,
 	});
 }

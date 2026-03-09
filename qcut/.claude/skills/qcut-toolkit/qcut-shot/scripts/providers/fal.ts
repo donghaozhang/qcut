@@ -1,8 +1,38 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
+
 const DEFAULT_MODEL = "fal-ai/nano-banana-2";
 const POLL_MAX_MS = 300_000;
 
+const CREDENTIAL_PATHS = [
+	join(homedir(), ".qcut", ".env"),
+	join(homedir(), ".config", "video-ai-studio", "credentials.env"),
+];
+
+function loadKeyFromFiles({ envName }: { envName: string }): string | undefined {
+	for (const filePath of CREDENTIAL_PATHS) {
+		if (!existsSync(filePath)) continue;
+		const content = readFileSync(filePath, "utf8");
+		const match = content.match(new RegExp(`^${envName}=(.+)$`, "m"));
+		if (match?.[1]?.trim()) return match[1].trim();
+	}
+	return undefined;
+}
+
+export interface FalGeneratedImage {
+	bytes: Uint8Array;
+	url: string;
+	model: string;
+}
+
 export function hasFalCredentials(): boolean {
-	return Boolean(process.env.FAL_KEY || process.env.FAL_API_KEY || process.env.VITE_FAL_API_KEY);
+	return Boolean(
+		process.env.FAL_KEY ||
+		process.env.FAL_API_KEY ||
+		process.env.VITE_FAL_API_KEY ||
+		loadKeyFromFiles({ envName: "FAL_KEY" }),
+	);
 }
 
 export function getDefaultFalModel(): string {
@@ -10,9 +40,13 @@ export function getDefaultFalModel(): string {
 }
 
 function getApiKey(): string {
-	const key = process.env.FAL_KEY || process.env.FAL_API_KEY || process.env.VITE_FAL_API_KEY;
+	const key =
+		process.env.FAL_KEY ||
+		process.env.FAL_API_KEY ||
+		process.env.VITE_FAL_API_KEY ||
+		loadKeyFromFiles({ envName: "FAL_KEY" });
 	if (!key) {
-		throw new Error("FAL_KEY or FAL_API_KEY is required.");
+		throw new Error("FAL_KEY or FAL_API_KEY is required. Set it in your environment or ~/.qcut/.env.");
 	}
 	return key;
 }
@@ -43,22 +77,68 @@ function getImageSize({ aspectRatio }: { aspectRatio: string }): { width: number
 	}
 }
 
+function trimEditSuffix({ model }: { model: string }): string {
+	return model.replace(/\/edit$/u, "");
+}
+
+function supportsNativeEditModel({ model }: { model: string }): boolean {
+	const baseModel = trimEditSuffix({ model });
+	return baseModel === "fal-ai/nano-banana" || baseModel === "fal-ai/nano-banana-2";
+}
+
+function resolveModel({
+	model,
+	referenceImageUrls,
+}: {
+	model: string;
+	referenceImageUrls?: string[];
+}): string {
+	const trimmedModel = model.trim();
+	if ((referenceImageUrls?.length ?? 0) === 0) {
+		return trimEditSuffix({ model: trimmedModel });
+	}
+	if (trimmedModel.endsWith("/edit")) {
+		return trimmedModel;
+	}
+	if (supportsNativeEditModel({ model: trimmedModel })) {
+		return `${trimEditSuffix({ model: trimmedModel })}/edit`;
+	}
+	return trimmedModel;
+}
+
 function buildPayload({
 	model,
 	prompt,
 	aspectRatio,
+	referenceImageUrls,
 }: {
 	model: string;
 	prompt: string;
 	aspectRatio: string;
+	referenceImageUrls?: string[];
 }): Record<string, unknown> {
-	if (model === "fal-ai/nano-banana-2") {
+	if (model === "fal-ai/nano-banana-2" || model === "fal-ai/nano-banana-2/edit") {
 		return {
 			prompt,
+			...(referenceImageUrls && referenceImageUrls.length > 0
+				? { image_urls: referenceImageUrls.slice(0, 10) }
+				: {}),
 			aspect_ratio: aspectRatio,
 			output_format: "png",
 			resolution: "2K",
 			limit_generations: true,
+		};
+	}
+
+	if (model === "fal-ai/nano-banana" || model === "fal-ai/nano-banana/edit") {
+		return {
+			prompt,
+			...(referenceImageUrls && referenceImageUrls.length > 0
+				? { image_urls: referenceImageUrls.slice(0, 10) }
+				: {}),
+			num_images: 1,
+			output_format: "png",
+			sync_mode: true,
 		};
 	}
 
@@ -153,20 +233,28 @@ async function download({ url }: { url: string }): Promise<Uint8Array> {
 	return new Uint8Array(await response.arrayBuffer());
 }
 
-export async function generateFalImage({
+export async function generateFalImageAsset({
 	prompt,
 	model,
 	aspectRatio,
+	referenceImageUrls,
 }: {
 	prompt: string;
 	model: string;
 	aspectRatio: string;
-}): Promise<Uint8Array> {
+	referenceImageUrls?: string[];
+}): Promise<FalGeneratedImage> {
 	const apiKey = getApiKey();
-	const payload = buildPayload({ model, prompt, aspectRatio });
-	const url = `${getBaseUrl()}/${model}`;
+	const resolvedModel = resolveModel({ model, referenceImageUrls });
+	const payload = buildPayload({
+		model: resolvedModel,
+		prompt,
+		aspectRatio,
+		referenceImageUrls,
+	});
+	const url = `${getBaseUrl()}/${resolvedModel}`;
 
-	console.log(`Generating image with fal.ai (${model})...`);
+	console.log(`Generating image with fal.ai (${resolvedModel})...`);
 
 	const response = await fetch(url, {
 		method: "POST",
@@ -181,7 +269,7 @@ export async function generateFalImage({
 		const text = await response.text();
 		if (response.status === 422 || response.status === 408) {
 			console.log("Generation failed, retrying...");
-			const queueResponse = await fetch(`${getQueueBaseUrl()}/${model}`, {
+			const queueResponse = await fetch(`${getQueueBaseUrl()}/${resolvedModel}`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
@@ -195,11 +283,16 @@ export async function generateFalImage({
 			const queueData = (await queueResponse.json()) as { request_id: string };
 			const queuedResult = await poll({
 				apiKey,
-				model,
+				model: resolvedModel,
 				requestId: queueData.request_id,
 			});
+			const generatedUrl = imageUrl({ result: queuedResult });
 			console.log("Generation completed.");
-			return download({ url: imageUrl({ result: queuedResult }) });
+			return {
+				bytes: await download({ url: generatedUrl }),
+				url: generatedUrl,
+				model: resolvedModel,
+			};
 		}
 
 		throw new Error(`fal.ai API error (${response.status}): ${text}`);
@@ -209,13 +302,43 @@ export async function generateFalImage({
 	if (result.request_id && result.status && result.status !== "COMPLETED") {
 		const queuedResult = await poll({
 			apiKey,
-			model,
+			model: resolvedModel,
 			requestId: result.request_id,
 		});
+		const generatedUrl = imageUrl({ result: queuedResult });
 		console.log("Generation completed.");
-		return download({ url: imageUrl({ result: queuedResult }) });
+		return {
+			bytes: await download({ url: generatedUrl }),
+			url: generatedUrl,
+			model: resolvedModel,
+		};
 	}
 
+	const generatedUrl = imageUrl({ result });
 	console.log("Generation completed.");
-	return download({ url: imageUrl({ result }) });
+	return {
+		bytes: await download({ url: generatedUrl }),
+		url: generatedUrl,
+		model: resolvedModel,
+	};
+}
+
+export async function generateFalImage({
+	prompt,
+	model,
+	aspectRatio,
+	referenceImageUrls,
+}: {
+	prompt: string;
+	model: string;
+	aspectRatio: string;
+	referenceImageUrls?: string[];
+}): Promise<Uint8Array> {
+	const result = await generateFalImageAsset({
+		prompt,
+		model,
+		aspectRatio,
+		referenceImageUrls,
+	});
+	return result.bytes;
 }
