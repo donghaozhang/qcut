@@ -189,7 +189,12 @@ export async function planScenes({
 	}
 
 	const jsonText = extractJson({ text: content });
-	const parsed = JSON.parse(jsonText) as Partial<SceneBreakdown>;
+	let parsed: Partial<SceneBreakdown>;
+	try {
+		parsed = JSON.parse(jsonText) as Partial<SceneBreakdown>;
+	} catch (error) {
+		throw new Error(`Failed to parse scene planner JSON output: ${error instanceof Error ? error.message : String(error)}`);
+	}
 
 	if (!Array.isArray(parsed.scenes) || parsed.scenes.length === 0) {
 		throw new Error("Scene planner returned no scenes");

@@ -13,6 +13,7 @@ export function validateBreakdown({ breakdown }: { breakdown: SceneBreakdown }):
 
 		const validCharacterIds = scene.characterIds.filter((id) => characterIds.has(id));
 		if (validCharacterIds.length === 0 && breakdown.characters.length > 0) {
+			console.warn(`Warning: Scene ${sceneIndex} ("${scene.title}") has no valid characters, defaulting to "${breakdown.characters[0].id}".`);
 			validCharacterIds.push(breakdown.characters[0].id);
 		}
 

@@ -99,4 +99,4 @@ Valentina’s eyes are open, focused, but deeply thoughtful. The previous wearin
 - Fill the full frame edge to edge with no cinematic black bars or letterboxing.
 - Maintain cinematic readability.
 - No subtitles, UI, logos, or watermarks.
-- Negative constraints: No harsh artificial light, no other passengers, no obvious reflections of camera equipment, no sadness or regret, only a knowing peace..
+- Negative constraints: No harsh artificial light, no other passengers, no obvious reflections of camera equipment, no sadness or regret, only a knowing peace.

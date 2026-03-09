@@ -99,4 +99,4 @@ Valentina clutches a phone in her hand, but her gaze is fixed on the river. Her 
 - Fill the full frame edge to edge with no cinematic black bars or letterboxing.
 - Maintain cinematic readability.
 - No subtitles, UI, logos, or watermarks.
-- Negative constraints: No other people on the bridge distracting from Valentina, no direct sunlight, no cheerful expression, no blurred phone brand names..
+- Negative constraints: No other people on the bridge distracting from Valentina, no direct sunlight, no cheerful expression, no blurred phone brand names.

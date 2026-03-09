@@ -79,7 +79,7 @@ Custom shot style composed from dimensions.
 
 ## Characters in Scene
 - **valentina** (supermodel): Tall, slender woman with high cheekbones and striking, emerald green eyes. Long, wavy auburn hair. Wears sophisticated, flowing silk dresses in muted jewel tones, often paired with simple, elegant jewelry. Appears effortlessly beautiful, but with a subtle weariness in her posture and expression that becomes more relaxed over time. Her fingers are delicate, eventually with slight paint smudges.
-- **street-painter** (artist): Medium build man, late 20s to early 30s, with kind, observant dark brown eyes and a permanent, gentle smile. Dark, slightly unruly curly hair. Wears practical, paint-splattered work clothes – a denim artist's smock over a simple t-shirt, worn canvas trousers, and sturdy boots. His hands are strong and agile, often stained with various paint colors.
+- **street-painter** (artist): Medium-build man, late 20s to early 30s, with kind, observant dark brown eyes and a permanent, gentle smile. Dark, slightly unruly curly hair. Wears practical, paint-splattered work clothes – a denim artist's smock over a simple t-shirt, worn canvas trousers, and sturdy boots. His hands are strong and agile, often stained with various paint colors.
 
 ## Continuity Notes
 - Valentina's hair style and makeup should remain consistent throughout, transitioning from polished to slightly more natural.
@@ -102,4 +102,4 @@ Valentina sits casually on a small folding stool, slightly leaning towards the s
 - Fill the full frame edge to edge with no cinematic black bars or letterboxing.
 - Maintain cinematic readability.
 - No subtitles, UI, logos, or watermarks.
-- Negative constraints: No overexposed highlights, no artificial lighting, no distant crowds dominating the shot, no 'dirty' feeling, only subtle paint stains..
+- Negative constraints: No overexposed highlights, no artificial lighting, no distant crowds dominating the shot, no 'dirty' feeling, only subtle paint stains.

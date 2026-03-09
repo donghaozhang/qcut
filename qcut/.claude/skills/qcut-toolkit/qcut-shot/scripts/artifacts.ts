@@ -20,7 +20,7 @@ export function shotsDir({
 }): string {
 	if (outputDir) return resolve(outputDir);
 	if (projectId) {
-		const sanitized = projectId.replace(/[/\\]/g, "").replace(/\.\./g, "");
+		const sanitized = projectId.replace(/[^a-zA-Z0-9_-]/g, "");
 		return join(qcutBasePath(), "Projects", sanitized, "shot-plan", analysis.topicSlug);
 	}
 	return join(qcutBasePath(), "shot-plan", analysis.topicSlug);
@@ -165,6 +165,96 @@ function writeShotsJson({
 	);
 }
 
+function writeManifestCsv({
+	shotDir,
+	analysis,
+	breakdown,
+}: {
+	shotDir: string;
+	analysis: AnalysisResult;
+	breakdown: SceneBreakdown;
+}): void {
+	const escapeCsv = (value: string): string => {
+		if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+			return `"${value.replace(/"/g, '""')}"`;
+		}
+		return value;
+	};
+	const headers = ["id", "role", "description"];
+	const rows = breakdown.characters.map((c) =>
+		[c.id, c.role, c.description].map(escapeCsv).join(","),
+	);
+	const meta = [
+		`# title,${escapeCsv(analysis.title)}`,
+		`# style,${escapeCsv(analysis.style)}`,
+		`# medium,${escapeCsv(analysis.medium)}`,
+		`# format,${escapeCsv(analysis.format)}`,
+		`# language,${escapeCsv(analysis.language)}`,
+		`# productionRules,${escapeCsv(analysis.productionRules.join("; "))}`,
+		`# genreRules,${escapeCsv(analysis.genreRules.join("; "))}`,
+		`# continuityNotes,${escapeCsv(breakdown.continuityNotes.join("; "))}`,
+	];
+	writeFileSync(
+		join(shotDir, "manifest.csv"),
+		`${[...meta, headers.join(","), ...rows].join("\n")}\n`,
+	);
+}
+
+function writeShotsCsv({
+	shotDir,
+	breakdown,
+}: {
+	shotDir: string;
+	breakdown: SceneBreakdown;
+}): void {
+	const headers = [
+		"index",
+		"title",
+		"fileStem",
+		"lens",
+		"framing",
+		"movement",
+		"angle",
+		"lighting",
+		"location",
+		"characters",
+		"mood",
+		"props",
+		"colorPalette",
+		"action",
+		"negative",
+	];
+	const escapeCsv = (value: string): string => {
+		if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+			return `"${value.replace(/"/g, '""')}"`;
+		}
+		return value;
+	};
+	const rows = breakdown.scenes.map((scene) =>
+		[
+			String(scene.index),
+			scene.title,
+			scene.fileStem,
+			scene.camera.lens,
+			scene.camera.framing,
+			scene.camera.movement,
+			scene.camera.angle,
+			scene.lighting,
+			scene.location,
+			scene.characterIds.join("; "),
+			scene.mood,
+			scene.props.join("; "),
+			scene.colorPalette,
+			scene.action,
+			scene.negative,
+		].map(escapeCsv).join(","),
+	);
+	writeFileSync(
+		join(shotDir, "shots.csv"),
+		`${[headers.join(","), ...rows].join("\n")}\n`,
+	);
+}
+
 function writePrompts({
 	shotDir,
 	promptsDir,
@@ -261,6 +351,8 @@ export function renderShotArtifacts({
 		styleInstructions: project.styleInstructions,
 	});
 	writeShotsJson({ shotDir: project.shotDir, analysis: project.analysis, breakdown: project.breakdown });
+	writeShotsCsv({ shotDir: project.shotDir, breakdown: project.breakdown });
+	writeManifestCsv({ shotDir: project.shotDir, analysis: project.analysis, breakdown: project.breakdown });
 	writePrompts({
 		shotDir: project.shotDir,
 		promptsDir: project.promptsDir,

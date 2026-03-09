@@ -62,7 +62,13 @@ function loadShotRenderManifest({ shotDir }: { shotDir: string }): ShotRenderMan
 		return null;
 	}
 
-	const parsed = JSON.parse(readFileSync(manifestPath, "utf8")) as Partial<ShotRenderManifest>;
+	let parsed: Partial<ShotRenderManifest>;
+	try {
+		parsed = JSON.parse(readFileSync(manifestPath, "utf8")) as Partial<ShotRenderManifest>;
+	} catch {
+		console.warn(`Warning: malformed JSON in ${manifestPath}, skipping shot manifest.`);
+		return null;
+	}
 	if (!parsed) {
 		return null;
 	}
@@ -99,7 +105,12 @@ function loadCharacterReferenceManifest({ shotDir }: { shotDir: string }): Chara
 	if (!existsSync(manifestPath)) {
 		return {};
 	}
-	return JSON.parse(readFileSync(manifestPath, "utf8")) as CharacterReferenceManifest;
+	try {
+		return JSON.parse(readFileSync(manifestPath, "utf8")) as CharacterReferenceManifest;
+	} catch {
+		console.warn(`Warning: malformed JSON in ${manifestPath}, ignoring character references.`);
+		return {};
+	}
 }
 
 function saveCharacterReferenceManifest({
@@ -331,10 +342,14 @@ export async function runImageGeneration({
 			continue;
 		}
 		const scene = sceneForPromptFile({ manifest: shotManifest, promptFile });
-		const prompt =
-			scene && shotManifest
-				? buildScenePrompt({ scene, manifest: shotManifest })
-				: readFileSync(promptFile, "utf8");
+		let prompt: string;
+		if (scene && shotManifest) {
+			prompt = buildScenePrompt({ scene, manifest: shotManifest });
+			console.log(`Using prompt for scene ${scene.index} from shots.json.`);
+		} else {
+			prompt = readFileSync(promptFile, "utf8");
+			console.log(`Using prompt from file: ${basename(promptFile)}.`);
+		}
 		const bytes = await generateFalImage({
 			prompt,
 			model: resolvedModel,
