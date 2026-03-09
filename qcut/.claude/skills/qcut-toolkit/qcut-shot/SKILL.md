@@ -58,6 +58,8 @@ shot-plan/{topic-slug}/
 ├── analysis.md
 ├── shots.md
 ├── shots.json
+├── shots.csv
+├── manifest.csv
 ├── prompts/
 │   └── 01-shot-opening.md
 ├── 01-shot-opening.png
