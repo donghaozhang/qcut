@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import { useCallback, useRef, useState } from "react";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import { toast } from "sonner";
@@ -27,6 +28,38 @@ interface UseMediaActionsParams {
 	setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
 }
 
+/**
+ * Provide actions and state for managing media items within a project.
+ *
+ * This hook exposes handlers for uploading, syncing, selecting, editing, deleting,
+ * downloading, and applying media items to a timeline, along with related UI state.
+ *
+ * @param mediaItems - All media items for the current context
+ * @param filteredMediaItems - Media items currently visible after filtering/sorting (used for range selection)
+ * @param activeProjectId - ID of the currently active project, or `undefined` if none
+ * @param addMediaItem - Optional function to persist a media item to a project
+ * @param removeMediaItem - Optional function to remove a media item from a project
+ * @param mediaStoreHasInitialized - Indicates whether the media store has finished initializing (used for auto-sync)
+ * @param selectedIds - Set of currently selected media item IDs
+ * @param setSelectedIds - Setter to update the selected IDs set
+ * @returns An object with refs, state flags, and action handlers:
+ * - fileInputRef: ref to the hidden file input element
+ * - isProcessing: whether files are currently being processed/uploaded
+ * - progress: numeric progress value for file processing
+ * - isSyncing: whether a project-folder sync is in progress
+ * - processFiles(files): process and upload the given files to the active project
+ * - handleFileSelect(): open the hidden file input
+ * - handleSync(): manually trigger a project-folder sync
+ * - triggerAutoSync(): perform a one-time auto-sync when conditions are met
+ * - toggleSelect(id, e?): toggle selection for an item (supports shift/meta/ctrl modifiers)
+ * - clearSelection(): clear all selections
+ * - handleAddSelectedToTimeline(): add selected items to the timeline at current time
+ * - handleDeleteSelected(): delete selected items from the active project
+ * - handleDownloadSelected(): download selected items
+ * - handleFileChange(e): file input change handler that processes selected files
+ * - handleRemove(e, id): remove a single media item by id
+ * - handleEdit(e, item): open an image item for editing in the AI Images tab
+ */
 export function useMediaActions({
 	mediaItems,
 	filteredMediaItems,
@@ -117,7 +150,7 @@ export function useMediaActions({
 			!hasSyncedRef.current &&
 			mediaStoreHasInitialized &&
 			activeProjectId &&
-			window.electronAPI?.projectFolder
+			platform().projectFolder
 		) {
 			hasSyncedRef.current = true;
 			import("@/lib/project/project-folder-sync")

@@ -7,6 +7,7 @@
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useMediaStore, type MediaItem } from "@/stores/media/media-store";
+import { platform } from "@qcut/platform-core";
 import type { TimelineElement, TimelineTrack } from "@/types/timeline";
 import type {
 	ClaudeTimeline,
@@ -247,7 +248,13 @@ export async function syncProjectMediaIfNeeded({
 	await syncPromise;
 }
 
-/** Resolve a media item for an element, syncing project media if needed. */
+/**
+ * Locate the MediaItem that corresponds to a Claude timeline element, performing a project media sync when necessary.
+ *
+ * @param element - The Claude element to resolve a media item for (may be partial).
+ * @param projectId - The current project ID used to trigger a media sync if the item is not already present; if omitted no sync will be attempted.
+ * @returns The matching `MediaItem` when found, or `null` if no match could be resolved.
+ */
 async function resolveMediaItemForElement({
 	element,
 	projectId,
@@ -264,7 +271,7 @@ async function resolveMediaItemForElement({
 			return mediaBeforeSync;
 		}
 
-		if (!projectId || !window.electronAPI?.projectFolder) {
+		if (!projectId || !platform().projectFolder) {
 			return null;
 		}
 
@@ -457,7 +464,15 @@ const DEFAULT_REMOTION_DURATION_SECONDS = 5;
 
 /**
  * Bundle, load, and register a Remotion component from a .tsx file path.
- * Returns the registered componentId on success, or null on failure.
+ *
+ * @param componentPath - Filesystem path to the source .tsx component to bundle
+ * @param componentId - Identifier to assign to the registered component
+ * @param componentName - Human-readable name for the registered component
+ * @param durationInFrames - Duration of the component in frames (default: 150)
+ * @param fps - Frames per second for the component (default: 30)
+ * @param width - Width in pixels for the component (default: 1920)
+ * @param height - Height in pixels for the component (default: 1080)
+ * @returns The `componentId` if the component was bundled, loaded, and registered successfully, `null` otherwise.
  */
 async function bundleAndRegisterComponent({
 	componentPath,
@@ -477,7 +492,7 @@ async function bundleAndRegisterComponent({
 	height?: number;
 }): Promise<string | null> {
 	try {
-		const api = window.electronAPI?.remotionFolder;
+		const api = platform().remotionFolder;
 		if (!api?.bundleFile) {
 			debugWarn(
 				"[ClaudeTimelineBridge] remotionFolder.bundleFile not available"
@@ -539,9 +554,10 @@ async function bundleAndRegisterComponent({
 }
 
 /**
- * Import a Remotion folder using the existing folder import pipeline.
- * Scans Root.tsx, bundles all compositions, loads components, registers in store.
- * Returns the list of registered component IDs.
+ * Imports a Remotion project folder, loads its compositions, and registers bundled components in the remotion store.
+ *
+ * @param folderPath - Filesystem path to the Remotion project root (folder containing Root.tsx and compositions)
+ * @returns An array of registered component IDs; returns an empty array if the import or registration fails or no components were found
  */
 async function importRemotionFolder({
 	folderPath,
@@ -549,7 +565,7 @@ async function importRemotionFolder({
 	folderPath: string;
 }): Promise<string[]> {
 	try {
-		const api = window.electronAPI?.remotionFolder;
+		const api = platform().remotionFolder;
 		if (!api?.import) {
 			debugWarn("[ClaudeTimelineBridge] remotionFolder.import not available");
 			return [];
@@ -573,10 +589,11 @@ async function importRemotionFolder({
 		const { loadComponentsFromFolder } = await import(
 			"@/lib/remotion/component-loader"
 		);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const loadResult = await loadComponentsFromFolder(
 			folderPath,
-			importResult.scan.compositions,
-			importResult.bundle.results
+			importResult.scan!.compositions as any,
+			importResult.bundle!.results as any
 		);
 
 		if (!loadResult.success || loadResult.components.length === 0) {

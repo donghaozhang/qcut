@@ -13,6 +13,7 @@ import type {
 	ProjectBackground,
 	EpisodeRawScript,
 } from "@/types/moyin-script";
+import { platform } from "@qcut/platform-core";
 
 interface LLMResult {
 	success: boolean;
@@ -29,9 +30,14 @@ interface MoyinApi {
 	}) => Promise<LLMResult>;
 }
 
-/** Get the Moyin Electron API, throwing if unavailable. */
+/**
+ * Retrieve the Moyin Electron API instance from the platform.
+ *
+ * @returns The MoyinApi instance exposing `callLLM`.
+ * @throws Error if the Moyin API or its `callLLM` method is unavailable (for example, when not running in Electron).
+ */
 function getMoyinApi(): MoyinApi {
-	const api = window.electronAPI?.moyin;
+	const api = platform().moyin;
 	if (!api?.callLLM) {
 		throw new Error("Moyin API not available. Please run in Electron.");
 	}

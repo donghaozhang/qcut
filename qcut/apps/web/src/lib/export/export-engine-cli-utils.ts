@@ -1,4 +1,5 @@
 import { debugWarn } from "@/lib/debug/debug-config";
+import { platform } from "@qcut/platform-core";
 
 export type ElectronInvoke = (
 	channel: string,
@@ -19,16 +20,18 @@ export interface AudioValidationLike {
 	valid?: boolean;
 }
 
-/** Get the optional Electron IPC invoke function, or null if unavailable. */
+/**
+ * Retrieve the platform's optional Electron IPC `invoke` function if present.
+ *
+ * Returns the `invoke` function exposed by the platform API, or `null` when the function is not present or cannot be accessed.
+ *
+ * @returns The platform IPC `invoke` function, or `null` if unavailable or access fails.
+ */
 export function getOptionalInvoke(): ElectronInvoke | null {
 	try {
-		const maybeInvoke = (
-			window.electronAPI as typeof window.electronAPI & {
-				invoke?: ElectronInvoke;
-			}
-		)?.invoke;
-		if (typeof maybeInvoke === "function") {
-			return maybeInvoke;
+		const p = platform() as unknown as { invoke?: ElectronInvoke };
+		if (typeof p.invoke === "function") {
+			return p.invoke;
 		}
 		return null;
 	} catch (error) {
@@ -37,7 +40,13 @@ export function getOptionalInvoke(): ElectronInvoke | null {
 	}
 }
 
-/** Invoke an Electron IPC channel if available, returning null on failure or absence. */
+/**
+ * Invoke an IPC channel through the platform's optional invoke function when available.
+ *
+ * @param channel - The IPC channel name to invoke
+ * @param args - Optional arguments to pass to the invoked channel
+ * @returns The result returned by the invoked channel, or `null` if the invoke function is unavailable or the call fails
+ */
 export async function invokeIfAvailable({
 	args = [],
 	channel,
@@ -60,17 +69,19 @@ export async function invokeIfAvailable({
 	}
 }
 
-/** Get file size info via Electron API, returning null if unavailable. */
+/**
+ * Retrieve file metadata (including size) for the specified path via the platform API.
+ *
+ * @param filePath - The path to the file to inspect
+ * @returns The file info object containing a numeric `size`, or `null` if unavailable, invalid, or an error occurred
+ */
 export async function getFileInfo({
 	filePath,
 }: {
 	filePath: string;
 }): Promise<FileInfoLike | null> {
 	try {
-		if (!window.electronAPI) {
-			return null;
-		}
-		const fileInfo = await window.electronAPI.getFileInfo(filePath);
+		const fileInfo = await platform().files.getFileInfo(filePath);
 		if (!fileInfo || typeof fileInfo.size !== "number") {
 			return null;
 		}

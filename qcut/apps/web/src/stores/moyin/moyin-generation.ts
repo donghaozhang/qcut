@@ -10,6 +10,7 @@ import type {
 	ScriptData,
 	Shot,
 } from "@/types/moyin-script";
+import { platform } from "@qcut/platform-core";
 import { buildStoryboardPrompt } from "@/lib/moyin/storyboard/prompt-builder";
 import { calculateGrid } from "@/lib/moyin/storyboard/grid-calculator";
 import { VISUAL_STYLE_PRESETS } from "@/lib/moyin/presets/visual-styles";
@@ -203,7 +204,16 @@ export async function splitAndApplyAction(
 	return { shots: updatedShots };
 }
 
-// ==================== Shot Generation for Episode ====================
+/**
+ * Generate a list of shot definitions for an episode from its scenes and optional target duration.
+ *
+ * @param episodeScenes - Array of scene objects to base shot generation on
+ * @param episodeTitle - Title of the episode used in prompts
+ * @param scriptTitle - Title of the overall script/project used in prompts
+ * @param targetDuration - Optional target duration string (e.g., "5m", "90s", or a numeric value). When provided, the function computes an approximate total shot budget and asks the LLM to produce roughly that many shots across all scenes.
+ * @returns An array of Shot objects describing each generated shot (id, sceneRefId, index, actionSummary, shotSize, cameraMovement, characterIds, characterVariations, image/video status and progress, etc.)
+ * @throws Error if the Moyin API is not available or if the LLM call fails or returns no usable text
+ */
 
 export async function generateShotsForEpisodeAction(
 	episodeScenes: ScriptScene[],
@@ -211,7 +221,7 @@ export async function generateShotsForEpisodeAction(
 	scriptTitle: string,
 	targetDuration?: string
 ): Promise<Shot[]> {
-	const api = window.electronAPI?.moyin;
+	const api = platform().moyin;
 	if (!api?.callLLM) {
 		throw new Error("Moyin API not available.");
 	}
@@ -266,14 +276,23 @@ Generate shots for each scene with proper camera language and visual storytellin
 	return JSON.parse(cleaned) as Shot[];
 }
 
-// ==================== Script Generation ====================
+/**
+ * Generate a screenplay/script from a short design idea by invoking the Moyin LLM.
+ *
+ * @param idea - A short design idea or prompt that the script will be based on.
+ * @param options - Optional generation parameters. `options.targetDuration` is a duration hint (e.g., "60s"); `options.genre` is an optional genre hint.
+ * @param config - Generation controls. Use `"auto"` for `sceneCount` or `shotCount` to let the generator decide; `selectedStyleId` selects a visual/style preset.
+ * @returns The generated script text.
+ * @throws If the Moyin API is unavailable (e.g., not running in Electron).
+ * @throws If an underlying LLM call fails or returns an error.
+ */
 
 export async function generateScriptAction(
 	idea: string,
 	options: { genre?: string; targetDuration?: string },
 	config: { sceneCount: string; shotCount: string; selectedStyleId: string }
 ): Promise<string> {
-	const api = window.electronAPI?.moyin;
+	const api = platform().moyin;
 	if (!api?.callLLM) {
 		throw new Error("Moyin API not available. Please run in Electron.");
 	}

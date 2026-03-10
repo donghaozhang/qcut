@@ -1,4 +1,5 @@
 import { debugError, debugLog, debugWarn } from "@/lib/debug/debug-config";
+import { platform } from "@qcut/platform-core";
 import { MediaItem } from "@/stores/media/media-store";
 import { TimelineTrack } from "@/types/timeline";
 import {
@@ -109,7 +110,16 @@ export async function resolveAudioPreparationInputs({
 	}
 }
 
-/** Extract and persist audio files from timeline tracks for FFmpeg export. */
+/**
+ * Prepare audio files referenced by timeline tracks for FFmpeg export.
+ *
+ * @param fileExists - Checks whether a file exists at the given path.
+ * @param invokeIfAvailable - Invokes an alternate IPC/channel endpoint when platform APIs are unavailable.
+ * @param mediaItems - List of media items available to resolve track references.
+ * @param sessionId - Optional session identifier used during extraction.
+ * @param tracks - Timeline tracks to scan for exportable audio sources.
+ * @returns An array of `AudioFileInput` entries describing audio files persisted to temporary paths; returns an empty array if no audio files were prepared or export is not possible (e.g., non-Electron environment or on error).
+ */
 export async function prepareAudioFilesForExport({
 	fileExists,
 	invokeIfAvailable,
@@ -130,7 +140,7 @@ export async function prepareAudioFilesForExport({
 	tracks: TimelineTrack[];
 }): Promise<AudioFileInput[]> {
 	try {
-		if (!window.electronAPI) {
+		if (!platform().isElectron) {
 			return [];
 		}
 
@@ -163,8 +173,8 @@ export async function prepareAudioFilesForExport({
 					filename: string;
 				}): Promise<{ success: boolean; path?: string; error?: string }> => {
 					try {
-						if (window.electronAPI?.audio?.saveTemp) {
-							const path = await window.electronAPI.audio.saveTemp(
+						try {
+							const path = await platform().audio.saveTemp(
 								new Uint8Array(audioData),
 								filename
 							);
@@ -174,6 +184,8 @@ export async function prepareAudioFilesForExport({
 									path,
 								};
 							}
+						} catch {
+							// audio.saveTemp not available, fall through to IPC fallback
 						}
 
 						const result = await invokeIfAvailable({

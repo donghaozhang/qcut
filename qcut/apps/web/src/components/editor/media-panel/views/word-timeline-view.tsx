@@ -1,5 +1,7 @@
 "use client";
 
+import { platform } from "@qcut/platform-core";
+
 /**
  * Word Timeline View Component
  *
@@ -34,7 +36,15 @@ import {
 import { WordChip } from "./word-timeline/word-chip";
 import { DropZone } from "./word-timeline/drop-zone";
 
-/** Main word timeline view for transcription editing and filler word filtering. */
+/**
+ * Render the word timeline UI for editing transcriptions and managing filler-word filters.
+ *
+ * The component synchronizes selection with playback, allows accepting/resetting AI filter
+ * suggestions, supports importing media/JSON and triggering transcription, provides keyboard
+ * shortcuts for common actions, and shows error/empty states and removal statistics.
+ *
+ * @returns The React element for the word timeline view
+ */
 export function WordTimelineView() {
 	const {
 		data,
@@ -255,8 +265,8 @@ export function WordTimelineView() {
 						: `audio/${ext.slice(1)}`;
 
 					let file: File;
-					if (window.electronAPI?.readFile) {
-						const buffer = await window.electronAPI.readFile(filePath);
+					if (platform().files?.readFile) {
+						const buffer = await platform().files.readFile(filePath);
 						if (buffer) {
 							const blob = new Blob([new Uint8Array(buffer)], {
 								type: mimeType,

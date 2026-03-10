@@ -14,6 +14,7 @@ import {
 	type Tab,
 } from "@/components/editor/media-panel/store";
 import { useExportStore } from "@/stores/export-store";
+import { platform } from "@qcut/platform-core";
 
 const propertiesPanelTabs: Record<
 	string,
@@ -24,8 +25,15 @@ const propertiesPanelTabs: Record<
 	"api-keys": "settings",
 };
 
+/**
+ * Registers a handler on the Claude UI bridge to handle panel switch requests from the main process.
+ *
+ * When a switch request arrives, the handler routes requests for properties-related sub-panels to the export store,
+ * validates and activates regular editor panels via the media panel store, optionally dispatches an inner tab switch
+ * event, and sends success or error responses back through the bridge.
+ */
 export function setupClaudeUiBridge(): void {
-	const bridge = window.electronAPI?.claude?.ui;
+	const bridge = platform().claude?.ui;
 	if (!bridge) return;
 
 	bridge.onSwitchPanelRequest((data) => {
@@ -81,6 +89,11 @@ export function setupClaudeUiBridge(): void {
 	});
 }
 
+/**
+ * Remove all registered listeners from the Claude UI bridge.
+ *
+ * If the bridge is not available, this function does nothing.
+ */
 export function cleanupClaudeUiBridge(): void {
-	window.electronAPI?.claude?.ui?.removeListeners();
+	platform().claude?.ui?.removeListeners();
 }

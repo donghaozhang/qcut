@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import { useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
@@ -26,13 +27,20 @@ function getInitials(name: string): string {
 		.slice(0, 2);
 }
 
+/**
+ * Render a user avatar button that opens a dropdown showing account details and a sign-out action.
+ *
+ * @param user - The user's display data: `name`, `email`, and optional `image` used for the avatar.
+ * @param isDark - If `true`, apply dark styling to the avatar fallback.
+ * @returns A JSX element containing the avatar trigger and a dropdown menu with the user's name, email, and a "Sign out" item.
+ */
 export function UserAvatar({ user, isDark }: UserAvatarProps) {
 	const navigate = useNavigate();
 	const clearLicense = useLicenseStore((s) => s.clearLicense);
 
 	const handleLogout = useCallback(async () => {
 		try {
-			const licenseApi = window.electronAPI?.license;
+			const licenseApi = platform().license;
 			if (licenseApi) {
 				await licenseApi.clearAuthToken();
 			}

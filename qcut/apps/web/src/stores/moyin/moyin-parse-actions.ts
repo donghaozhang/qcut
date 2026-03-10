@@ -177,6 +177,7 @@ export async function runCalibrationPipeline(
 
 import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { usePtyTerminalStore } from "@/stores/pty-terminal-store";
+import { platform } from "@qcut/platform-core";
 
 /** Module-scoped state for the active PTY parse run. */
 let pendingTempScriptPath: string | null = null;
@@ -197,17 +198,19 @@ export function clearPendingParse(): void {
 }
 
 /**
- * Attempt to run parse-script via PTY terminal for streaming output.
- * Returns true if successfully initiated; data arrives via onParsed listener.
- * Returns false if PTY unavailable (caller should fall back to IPC).
+ * Initiates a PTY-based streaming parse of the provided script.
+ *
+ * @param rawScript - The full script text to parse
+ * @param model - The model identifier to use for parsing
+ * @returns `{ success: true, tempPath: string }` when a PTY parse was started and the temporary script path is provided, `{ success: false }` otherwise
  */
 export async function attemptPtyParse(
 	rawScript: string,
 	model: string
 ): Promise<{ success: boolean; tempPath?: string }> {
 	try {
-		const api = window.electronAPI?.moyin;
-		const ptyApi = window.electronAPI?.pty;
+		const api = platform().moyin;
+		const ptyApi = platform().pty;
 		if (!api?.saveTempScript || !ptyApi) return { success: false };
 
 		// 1. Save script to temp file

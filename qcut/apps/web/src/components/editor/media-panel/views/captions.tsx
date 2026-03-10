@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { platform } from "@qcut/platform-core";
 
 // Constants for file size validation
 const MAX_FILE_SIZE_MB = 100;
@@ -69,6 +70,13 @@ interface TranscriptionState {
 	currentFile: File | null;
 }
 
+/**
+ * Render a UI for uploading audio or video, running Gemini transcription, and adding generated captions to the timeline.
+ *
+ * The component provides language selection, drag-and-drop / file selection, cached results lookup, file validation and size hints, audio extraction for video files, progress and error states, and actions to add transcription segments as caption elements to the timeline store.
+ *
+ * @returns The rendered React element for the captions transcription panel
+ */
 export function CaptionsView() {
 	const [selectedLanguage, setSelectedLanguage] = useState("auto");
 	const [state, setState] = useState<TranscriptionState>({
@@ -225,12 +233,12 @@ export function CaptionsView() {
 					toast.info("Extracting audio from video...");
 
 					// Save video file to temp location first
-					if (!window.electronAPI?.audio?.saveTemp) {
+					if (!platform().audio?.saveTemp) {
 						throw new Error("Electron audio API not available");
 					}
 
 					const videoBuffer = await file.arrayBuffer();
-					const videoTempPath = await window.electronAPI.audio.saveTemp(
+					const videoTempPath = await platform().audio.saveTemp(
 						new Uint8Array(videoBuffer),
 						file.name
 					);
@@ -240,12 +248,12 @@ export function CaptionsView() {
 					);
 
 					// Extract audio using FFmpeg CLI (much faster than WebAssembly!)
-					if (!window.electronAPI?.ffmpeg?.extractAudio) {
+					if (!platform().ffmpeg?.extractAudio) {
 						throw new Error("Electron FFmpeg API not available");
 					}
 
 					const { audioPath, fileSize } =
-						await window.electronAPI.ffmpeg.extractAudio({
+						await platform().ffmpeg.extractAudio({
 							videoPath: videoTempPath,
 							format: "wav",
 						});
@@ -264,12 +272,12 @@ export function CaptionsView() {
 						"[Gemini Transcription] Processing audio file directly..."
 					);
 
-					if (!window.electronAPI?.audio?.saveTemp) {
+					if (!platform().audio?.saveTemp) {
 						throw new Error("Electron audio API not available");
 					}
 
 					const audioBuffer = await file.arrayBuffer();
-					audioFilePath = await window.electronAPI.audio.saveTemp(
+					audioFilePath = await platform().audio.saveTemp(
 						new Uint8Array(audioBuffer),
 						file.name
 					);
@@ -366,12 +374,12 @@ export function CaptionsView() {
 					isTranscribing: true,
 				});
 
-				if (!window.electronAPI?.transcribe?.transcribe) {
+				if (!platform().transcription?.transcribe) {
 					throw new Error("Electron transcribe API not available");
 				}
 
 				const startTime = Date.now();
-				const result = await window.electronAPI.transcribe.transcribe({
+				const result = await platform().transcription.transcribe({
 					audioPath: audioFilePath,
 					language: selectedLanguage,
 				});

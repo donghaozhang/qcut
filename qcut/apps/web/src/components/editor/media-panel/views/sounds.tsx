@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Separator } from "@/components/ui/separator";
@@ -63,6 +64,13 @@ export function SoundsView() {
 	);
 }
 
+/**
+ * Renders the Sound Effects tab UI with search, filtering, infinite scrolling, and audio preview playback.
+ *
+ * Loads saved sounds on mount and restores the previous scroll position when available. Provides controls for searching sounds, toggling a commercial-license filter, paginating results via infinite scroll, playing sound previews (uses the platform abstraction to support local preview playback when available), and saving/unsaving sounds.
+ *
+ * @returns The rendered React element for the Sound Effects view.
+ */
 function SoundEffectsView() {
 	const {
 		topSoundEffects,
@@ -147,9 +155,9 @@ function SoundEffectsView() {
 				let audioUrl = sound.previewUrl;
 
 				// If in Electron, download preview first to avoid CORS issues
-				if (window.electronAPI?.sounds) {
+				if (platform().sounds) {
 					console.log("Downloading preview for local playback...");
-					const result = await window.electronAPI.sounds.downloadPreview({
+					const result = await platform().sounds.downloadPreview({
 						url: sound.previewUrl,
 						id: sound.id,
 					});

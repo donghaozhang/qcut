@@ -5,6 +5,7 @@
  * Currently supports Seeddream 4.5 text-to-image and edit.
  */
 
+import { platform } from "@qcut/platform-core";
 import { handleAIServiceError } from "@/lib/debug/error-handler";
 import type {
 	Seeddream45ImageSize,
@@ -202,11 +203,13 @@ export async function editSeeddream45Image(
 }
 
 /**
- * Upload image to FAL storage for use with Seeddream 4.5 edit
- * Uses Electron IPC to bypass CORS restrictions
+ * Upload a File to FAL storage for use with Seeddream 4.5 edit.
  *
- * @param imageFile - Image file to upload
- * @returns FAL storage URL for use in image_urls
+ * Uses the platform's Electron IPC uploader to bypass browser CORS restrictions and returns a storage URL usable in `image_urls`.
+ *
+ * @returns FAL storage URL for the uploaded image
+ * @throws Error if the FAL API key is not configured
+ * @throws Error if an Electron IPC uploader is not available (browser environments will not work)
  */
 export async function uploadImageForSeeddream45Edit(
 	imageFile: File
@@ -220,13 +223,13 @@ export async function uploadImageForSeeddream45Edit(
 		}
 
 		// Use Electron IPC upload if available (bypasses CORS)
-		if (window.electronAPI?.fal?.uploadImage) {
+		if (platform().fal?.uploadImage) {
 			console.log(
 				`📤 [Seeddream 4.5] Uploading image via Electron IPC: ${imageFile.name}`
 			);
 
 			const arrayBuffer = await imageFile.arrayBuffer();
-			const result = await window.electronAPI.fal.uploadImage(
+			const result = await platform().fal.uploadImage(
 				new Uint8Array(arrayBuffer),
 				imageFile.name,
 				apiKey

@@ -1,17 +1,26 @@
+import { platform } from "@qcut/platform-core";
 import {
 	handleError,
 	ErrorCategory,
 	ErrorSeverity,
 } from "./debug/error-handler";
 
+/**
+ * Retrieve the repository's GitHub stargazer count and format it as a concise string.
+ *
+ * The formatted string uses "M" for millions (e.g., "1.5M"), "k" for thousands (e.g., "1.5k"),
+ * or the exact numeric count when less than 1,000. On error, a fallback value of "1.5k" is returned.
+ *
+ * @returns The formatted stargazer count string.
+ */
 export async function getStars(): Promise<string> {
 	try {
 		let count: number;
 
 		// Check if we're in Electron environment
-		if (typeof window !== "undefined" && window.electronAPI?.github) {
+		if (platform().isElectron) {
 			// Use IPC to fetch GitHub stars through Electron main process
-			const result = await window.electronAPI.github.fetchStars();
+			const result = await platform().github.fetchStars();
 			count = result.stars || 0;
 		} else {
 			// Fallback to direct fetch (for web/dev environment)

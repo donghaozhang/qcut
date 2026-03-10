@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import { useEffect } from "react";
 import { useEditorStore } from "@/stores/editor/editor-store";
 import { useProjectStore } from "@/stores/project-store";
@@ -10,6 +11,11 @@ interface ClaudeProjectSettingsUpdate {
 	backgroundColor?: string;
 }
 
+/**
+ * Subscribes to platform Claude project update events for the given project and applies incoming settings to the active project and editor canvas.
+ *
+ * @param projectId - The project identifier to listen for updates for; if falsy no subscription is created
+ */
 export function useClaudeProjectUpdates({
 	projectId,
 }: {
@@ -20,7 +26,7 @@ export function useClaudeProjectUpdates({
 			return;
 		}
 
-		const projectApi = window.electronAPI?.claude?.project;
+		const projectApi = platform().claude?.project;
 		if (!projectApi?.onUpdated) {
 			return;
 		}
