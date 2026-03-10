@@ -560,9 +560,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		minScore: values["min-score"]
 			? parseFloat(values["min-score"] as string)
 			: undefined,
-		autoclipStep: values.step
-			? parseInt(values.step as string, 10)
-			: undefined,
+		autoclipStep: values.step ? parseInt(values.step as string, 10) : undefined,
 		chunkMinutes: values["chunk-minutes"]
 			? parseInt(values["chunk-minutes"] as string, 10)
 			: undefined,

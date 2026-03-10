@@ -73,7 +73,8 @@ export function parseJsonResponse(response: string): unknown {
 	const braceIdx = cleaned.indexOf("{");
 	if (bracketIdx !== -1) jsonStart = Math.min(jsonStart, bracketIdx);
 	if (braceIdx !== -1) jsonStart = Math.min(jsonStart, braceIdx);
-	const stripped = jsonStart < cleaned.length ? cleaned.substring(jsonStart) : cleaned;
+	const stripped =
+		jsonStart < cleaned.length ? cleaned.substring(jsonStart) : cleaned;
 
 	// 3. Try direct parse
 	try {

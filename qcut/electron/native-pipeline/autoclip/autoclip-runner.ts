@@ -22,12 +22,13 @@ import {
 	extractTimeline,
 	type TimelineSegment,
 } from "./steps/step-timeline.js";
-import {
-	scoreSegments,
-	type ScoredSegment,
-} from "./steps/step-scoring.js";
+import { scoreSegments, type ScoredSegment } from "./steps/step-scoring.js";
 import { cutSegments, type CutResult } from "./steps/step-cut.js";
-import type { CLIRunOptions, CLIResult, ProgressFn } from "../cli/cli-runner/types.js";
+import type {
+	CLIRunOptions,
+	CLIResult,
+	ProgressFn,
+} from "../cli/cli-runner/types.js";
 
 export interface AutoclipOptions {
 	input: string; // Video file path
@@ -111,7 +112,8 @@ export async function runAutoclip(
 	if (!srtPath || !fs.existsSync(srtPath)) {
 		return {
 			success: false,
-			error: `No subtitle file found. Provide --srt flag or place .srt/.vtt next to the video.`,
+			error:
+				"No subtitle file found. Provide --srt flag or place .srt/.vtt next to the video.",
 		};
 	}
 
@@ -309,12 +311,9 @@ export async function runAutoclip(
 				message: `Cutting ${highScore.length} highlight clips`,
 			});
 
-			const cutResults = await cutSegments(
-				highScore,
-				input,
-				outputDir,
-				{ onProgress }
-			);
+			const cutResults = await cutSegments(highScore, input, outputDir, {
+				onProgress,
+			});
 
 			const succeeded = cutResults.filter((r) => r.success);
 			const failed = cutResults.filter((r) => !r.success);

@@ -271,7 +271,10 @@ async function exportStart(
 		const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 		const basename = opts.filename || `export-${ts}`;
 		const hasExt = path.extname(basename).length > 1;
-		body.outputPath = path.join(opts.outputDir, hasExt ? basename : `${basename}.${ext}`);
+		body.outputPath = path.join(
+			opts.outputDir,
+			hasExt ? basename : `${basename}.${ext}`
+		);
 	}
 
 	const startResult = await client.post<{ jobId: string }>(

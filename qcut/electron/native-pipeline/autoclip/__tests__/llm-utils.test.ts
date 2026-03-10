@@ -38,7 +38,7 @@ describe("parseJsonResponse", () => {
 	});
 
 	it("fixes Chinese quotes", () => {
-		const input = '[{\u201ckey\u201d: \u201cvalue\u201d}]';
+		const input = "[{\u201ckey\u201d: \u201cvalue\u201d}]";
 		expect(parseJsonResponse(input)).toEqual([{ key: "value" }]);
 	});
 

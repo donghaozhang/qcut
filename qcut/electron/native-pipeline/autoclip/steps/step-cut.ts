@@ -74,8 +74,7 @@ async function extractOneClip(
 	endTime: string
 ): Promise<{ success: boolean; error?: string }> {
 	const ffmpegStart = srtTimeToFfmpeg(startTime);
-	const duration =
-		timeToSeconds(endTime) - timeToSeconds(startTime);
+	const duration = timeToSeconds(endTime) - timeToSeconds(startTime);
 
 	if (duration <= 0) {
 		return { success: false, error: `Invalid duration: ${duration}s` };
@@ -89,12 +88,18 @@ async function extractOneClip(
 	// Try stream copy first (fast)
 	try {
 		await execFileAsync(ffmpegPath, [
-			"-ss", ffmpegStart,
-			"-i", inputVideo,
-			"-t", String(duration),
-			"-c:v", "copy",
-			"-c:a", "copy",
-			"-avoid_negative_ts", "make_zero",
+			"-ss",
+			ffmpegStart,
+			"-i",
+			inputVideo,
+			"-t",
+			String(duration),
+			"-c:v",
+			"copy",
+			"-c:a",
+			"copy",
+			"-avoid_negative_ts",
+			"make_zero",
 			"-y",
 			outputPath,
 		]);
@@ -103,15 +108,24 @@ async function extractOneClip(
 		// Fall back to re-encode if copy fails (keyframe issues)
 		try {
 			await execFileAsync(ffmpegPath, [
-				"-ss", ffmpegStart,
-				"-i", inputVideo,
-				"-t", String(duration),
-				"-c:v", "libx264",
-				"-preset", "fast",
-				"-crf", "23",
-				"-c:a", "aac",
-				"-b:a", "128k",
-				"-avoid_negative_ts", "make_zero",
+				"-ss",
+				ffmpegStart,
+				"-i",
+				inputVideo,
+				"-t",
+				String(duration),
+				"-c:v",
+				"libx264",
+				"-preset",
+				"fast",
+				"-crf",
+				"23",
+				"-c:a",
+				"aac",
+				"-b:a",
+				"128k",
+				"-avoid_negative_ts",
+				"make_zero",
 				"-y",
 				outputPath,
 			]);

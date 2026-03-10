@@ -190,10 +190,7 @@ describe("chunkByInterval", () => {
 	it("preserves all entries across chunks", () => {
 		const entries = makeEntries(60, 60);
 		const chunks = chunkByInterval(entries, 30);
-		const totalEntries = chunks.reduce(
-			(sum, c) => sum + c.entries.length,
-			0
-		);
+		const totalEntries = chunks.reduce((sum, c) => sum + c.entries.length, 0);
 		expect(totalEntries).toBe(60);
 	});
 

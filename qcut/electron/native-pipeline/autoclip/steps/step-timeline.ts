@@ -41,11 +41,7 @@ function isValidTimeFormat(time: string): boolean {
 }
 
 /** Clamp a timestamp to be within [min, max] bounds. */
-function clampTime(
-	time: string,
-	minTime: string,
-	maxTime: string
-): string {
+function clampTime(time: string, minTime: string, maxTime: string): string {
 	const sec = timeToSeconds(time);
 	const minSec = timeToSeconds(minTime);
 	const maxSec = timeToSeconds(maxTime);
@@ -165,9 +161,10 @@ export async function extractTimeline(
 				);
 				const clampedEnd = clampTime(endTime, chunk.startTime, chunk.endTime);
 
-				const outline = typeof item.outline === "string"
-					? item.outline
-					: JSON.stringify(item.outline);
+				const outline =
+					typeof item.outline === "string"
+						? item.outline
+						: JSON.stringify(item.outline);
 				const content = Array.isArray(item.content)
 					? (item.content as string[])
 					: [String(item.content ?? "")];

@@ -433,21 +433,30 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 
 	"autoclip": {
 		name: "autoclip",
-		description:
-			"Extract highlight clips from video using subtitle analysis",
+		description: "Extract highlight clips from video using subtitle analysis",
 		category: "analysis",
 		flags: [
 			f("--input", "string", "Input video file path", {
 				short: "-i",
 				required: true,
 			}),
-			f("--srt-file", "string", "SRT/VTT subtitle file (auto-detects if omitted)", {
-				short: "-s",
-			}),
+			f(
+				"--srt-file",
+				"string",
+				"SRT/VTT subtitle file (auto-detects if omitted)",
+				{
+					short: "-s",
+				}
+			),
 			f("--output", "string", "Output directory", { short: "-o" }),
-			f("--model", "string", "LLM model (default: google/gemini-3-flash-preview)", {
-				short: "-m",
-			}),
+			f(
+				"--model",
+				"string",
+				"LLM model (default: google/gemini-3-flash-preview)",
+				{
+					short: "-m",
+				}
+			),
 			f("--min-score", "number", "Minimum score threshold 0-1 (default: 0.7)"),
 			f("--step", "number", "Run only a specific step (1-4)"),
 			f(
