@@ -51,7 +51,7 @@ function isEditableTarget({ target }: { target: EventTarget | null }): boolean {
 
 export function ScreenRecordingControl() {
 	const reportError = useErrorReporter("ScreenRecordingControl");
-	const [status, setStatus] = useState<ScreenRecordingStatus>(
+	const [status, setStatus] = useState<ScreenRecordingStatus | null>(
 		getCachedScreenRecordingStatus()
 	);
 	const [isBusy, setIsBusy] = useState(false);
@@ -91,7 +91,7 @@ export function ScreenRecordingControl() {
 	}, [refreshStatus, reportError]);
 
 	useEffect(() => {
-		if (!status.recording) {
+		if (!status?.recording) {
 			return;
 		}
 
@@ -102,15 +102,15 @@ export function ScreenRecordingControl() {
 		return () => {
 			window.clearInterval(intervalId);
 		};
-	}, [status.recording]);
+	}, [status?.recording]);
 
 	const elapsedLabel = useMemo(() => {
-		if (!status.recording || !status.startedAt) {
+		if (!status?.recording || !status?.startedAt) {
 			return "00:00";
 		}
-		const durationMs = Math.max(0, tickMs - status.startedAt);
+		const durationMs = Math.max(0, tickMs - status?.startedAt);
 		return formatDurationLabel({ durationMs });
-	}, [status.recording, status.startedAt, tickMs]);
+	}, [status?.recording, status?.startedAt, tickMs]);
 
 	const handleToggleRecording = useCallback(async (): Promise<void> => {
 		if (isBusy) {
@@ -119,7 +119,7 @@ export function ScreenRecordingControl() {
 
 		setIsBusy(true);
 		try {
-			if (status.recording) {
+			if (status?.recording) {
 				const stopResult = await stopScreenRecording();
 				if (stopResult.filePath) {
 					toast("Screen recording saved", {
@@ -145,7 +145,7 @@ export function ScreenRecordingControl() {
 		} finally {
 			setIsBusy(false);
 		}
-	}, [isBusy, refreshStatus, status.recording, reportError]);
+	}, [isBusy, refreshStatus, status?.recording, reportError]);
 
 	const handleButtonKeyDown = useCallback(
 		({ key }: KeyboardEvent<HTMLButtonElement>): void => {
@@ -208,7 +208,7 @@ export function ScreenRecordingControl() {
 		}
 	}, [handleGlobalShortcut, reportError]);
 
-	const recordingActive = status.recording;
+	const recordingActive = status?.recording;
 	const buttonLabel = recordingActive ? `REC ${elapsedLabel}` : "Record";
 
 	return (

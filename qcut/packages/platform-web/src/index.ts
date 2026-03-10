@@ -444,9 +444,8 @@ const skillsStub = createUnsupportedNamespace<PlatformSkillsAPI>(
 const projectFolderStub = createUnsupportedNamespace<PlatformProjectFolderAPI>(
 	PlatformCapability.ProjectFolder
 );
-const projectJsonStub = createUnsupportedNamespace<PlatformProjectJsonAPI>(
-	PlatformCapability.ProjectJson
-);
+// projectJson uses graceful stub — called during project load, must not crash
+const projectJsonGraceful = createGracefulNamespace<PlatformProjectJsonAPI>();
 const remotionFolderStub =
 	createUnsupportedNamespace<PlatformRemotionFolderAPI>(
 		PlatformCapability.RemotionFolder
@@ -499,7 +498,7 @@ export function createWebAdapter(): PlatformAPI {
 		mcp: mcpStub,
 		skills: skillsStub,
 		projectFolder: projectFolderStub,
-		projectJson: projectJsonStub,
+		projectJson: projectJsonGraceful,
 		remotionFolder: remotionFolderStub,
 		moyin: moyinStub,
 		updates: updatesStub,
