@@ -39,7 +39,7 @@ import { revokeObjectURL as revokeManagedObjectURL } from "@/lib/media/blob-mana
 import { HEYGEN_TRANSLATE_LANGUAGES } from "@/lib/ai-video/validation/validators/translate-validators";
 
 const DEFAULT_ESTIMATED_DURATION_SECONDS = 10;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_BYTES;
+const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024;
 
 export function TranslateTab() {
 	const [sourceVideo, setSourceVideo] = useState<File | null>(null);

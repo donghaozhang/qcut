@@ -107,8 +107,7 @@ export function TimelinePlayhead({
 		const handleTick = (e: Event) => {
 			const time = (e as CustomEvent).detail?.time;
 			if (time == null) return;
-			const pos =
-				time * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
+			const pos = time * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
 			const tracksEl = tracksScrollRef.current as HTMLElement;
 			const scroll = tracksEl?.scrollLeft ?? 0;
 			const viewportW = tracksEl?.clientWidth ?? 1000;
