@@ -31,18 +31,22 @@ export function useSignUp() {
 
 	// Listen for deep link tokens (Google OAuth callback)
 	useEffect(() => {
-		const licenseApi = platform().license;
-		if (!licenseApi?.onActivationToken) {
-			return;
+		try {
+			const licenseApi = platform().license;
+			if (!licenseApi?.onActivationToken) {
+				return;
+			}
+
+			const unsubscribe = licenseApi.onActivationToken(async (token) => {
+				setIsGoogleLoading(false);
+				setIsWaitingForBrowser(false);
+				await activateAndNavigate(token);
+			});
+
+			return () => unsubscribe?.();
+		} catch {
+			// License API not available on this platform — skip listener
 		}
-
-		const unsubscribe = licenseApi.onActivationToken(async (token) => {
-			setIsGoogleLoading(false);
-			setIsWaitingForBrowser(false);
-			await activateAndNavigate(token);
-		});
-
-		return () => unsubscribe?.();
 	}, [activateAndNavigate]);
 
 	const handleSignUp = useCallback(async () => {
