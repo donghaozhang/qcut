@@ -64,6 +64,11 @@ export interface CLIRunOptions {
 	style?: string;
 	referenceModel?: string;
 	referenceStrength?: number;
+	// autoclip options
+	srtFile?: string;
+	minScore?: number;
+	autoclipStep?: number;
+	chunkMinutes?: number;
 	// transcribe options
 	language?: string;
 	noDiarize?: boolean;
