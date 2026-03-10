@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { platform } from "@qcut/platform-core";
 import {
 	extractHighlights,
 	fetchReleaseNotes,
@@ -38,8 +39,7 @@ export function UpdateNotification() {
 	});
 
 	const handleInstall = useCallback(() => {
-		if (!window.electronAPI?.updates) return;
-		window.electronAPI.updates.installUpdate().catch(() => {
+		platform().updates.installUpdate().catch(() => {
 			toast.error("Failed to install update. Please restart manually.");
 		});
 	}, []);
@@ -50,8 +50,7 @@ export function UpdateNotification() {
 	}, []);
 
 	useEffect(() => {
-		const api = window.electronAPI?.updates;
-		if (!api) return;
+		const api = platform().updates;
 
 		const unsubAvailable = api.onUpdateAvailable(async (data) => {
 			if (isVersionDismissed(data.version)) return;
@@ -111,13 +110,11 @@ export function UpdateNotification() {
 				action: {
 					label: "Restart Now",
 					onClick: () => {
-						if (window.electronAPI?.updates) {
-							window.electronAPI.updates.installUpdate().catch(() => {
-								toast.error(
-									"Failed to install update. Please restart manually."
-								);
-							});
-						}
+						platform().updates.installUpdate().catch(() => {
+							toast.error(
+								"Failed to install update. Please restart manually."
+							);
+						});
 					},
 				},
 				duration: 15_000,

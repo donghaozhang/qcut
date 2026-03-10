@@ -3,6 +3,7 @@
 import { useCallback, useState, useEffect } from "react";
 import { KeyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { platform } from "@qcut/platform-core";
 import {
 	handleError,
 	ErrorCategory,
@@ -30,19 +31,18 @@ export function ApiKeysView() {
 
 	const loadApiKeys = useCallback(async () => {
 		try {
-			if (window.electronAPI?.apiKeys) {
-				const keys = await window.electronAPI.apiKeys.get();
-				if (keys) {
-					setFalApiKey(keys.falApiKey || "");
-					setFreesoundApiKey(keys.freesoundApiKey || "");
-					setGeminiApiKey(keys.geminiApiKey || "");
-					setOpenRouterApiKey(keys.openRouterApiKey || "");
-					setAnthropicApiKey(keys.anthropicApiKey || "");
-				}
-				if (window.electronAPI.apiKeys.status) {
-					const statuses = await window.electronAPI.apiKeys.status();
-					setKeyStatuses(statuses);
-				}
+			const apiKeys = platform().apiKeys;
+			const keys = await apiKeys.get();
+			if (keys) {
+				setFalApiKey(keys.falApiKey || "");
+				setFreesoundApiKey(keys.freesoundApiKey || "");
+				setGeminiApiKey(keys.geminiApiKey || "");
+				setOpenRouterApiKey(keys.openRouterApiKey || "");
+				setAnthropicApiKey(keys.anthropicApiKey || "");
+			}
+			if (apiKeys.status) {
+				const statuses = await apiKeys.status();
+				setKeyStatuses(statuses);
 			}
 		} catch (error) {
 			handleError(error, {
@@ -59,11 +59,9 @@ export function ApiKeysView() {
 
 	const saveApiKeys = useCallback(async () => {
 		try {
-			if (!window.electronAPI?.apiKeys) {
-				throw new Error("Electron API not available");
-			}
+			const apiKeys = platform().apiKeys;
 
-			await window.electronAPI.apiKeys.set({
+			await apiKeys.set({
 				falApiKey: falApiKey.trim(),
 				freesoundApiKey: freesoundApiKey.trim(),
 				geminiApiKey: geminiApiKey.trim(),
@@ -72,8 +70,8 @@ export function ApiKeysView() {
 			});
 
 			setFreesoundTestResult(null);
-			if (window.electronAPI?.apiKeys?.status) {
-				const statuses = await window.electronAPI.apiKeys.status();
+			if (apiKeys.status) {
+				const statuses = await apiKeys.status();
 				setKeyStatuses(statuses);
 			}
 		} catch (error) {
@@ -96,13 +94,11 @@ export function ApiKeysView() {
 		setIsTestingFreesound(true);
 		setFreesoundTestResult(null);
 		try {
-			if (window.electronAPI?.sounds) {
-				const result = await window.electronAPI.sounds.search({ q: "test" });
-				setFreesoundTestResult({
-					success: result.success,
-					message: result.message || "Test completed",
-				});
-			}
+			const result = await platform().sounds.search({ q: "test" });
+			setFreesoundTestResult({
+				success: result.success,
+				message: result.message || "Test completed",
+			});
 		} catch {
 			setFreesoundTestResult({ success: false, message: "Test failed" });
 		} finally {

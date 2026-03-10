@@ -230,55 +230,59 @@ const mediaImportAdapter: PlatformMediaImportAPI = {
 	getMediaPath: (id) => api().mediaImport.getMediaPath(id),
 };
 
-const projectFolderAdapter: PlatformProjectFolderAPI = {
-	getRoot: (id) => api().projectFolder.getRoot(id),
-	scan: (id, p?, o?) => api().projectFolder.scan(id, p, o),
-	list: (id, p?) => api().projectFolder.list(id, p),
-	ensureStructure: (id) => api().projectFolder.ensureStructure(id),
-};
+// These adapters use pass-through delegation with type casts because the
+// PlatformAPI interface uses simplified types that don't exactly match the
+// Electron preload types. The runtime behavior is identical — the adapter
+// just forwards calls to window.electronAPI.
+const projectFolderAdapter = {
+	getRoot: (id: string) => api().projectFolder!.getRoot(id),
+	scan: (id: string, p?: string, o?: Record<string, unknown>) => api().projectFolder!.scan(id, p, o),
+	list: (id: string, p?: string) => api().projectFolder!.list(id, p),
+	ensureStructure: (id: string) => api().projectFolder!.ensureStructure(id),
+} as unknown as PlatformProjectFolderAPI;
 
-const projectJsonAdapter: PlatformProjectJsonAPI = {
-	write: (id) => api().projectJson.write(id),
-};
+const projectJsonAdapter = {
+	write: (id: string) => api().projectJson!.write(id),
+} as unknown as PlatformProjectJsonAPI;
 
-const remotionFolderAdapter: PlatformRemotionFolderAPI = {
-	select: () => api().remotionFolder.select(),
-	scan: (p) => api().remotionFolder.scan(p),
-	bundle: (p, ids?) => api().remotionFolder.bundle(p, ids),
-	import: (p) => api().remotionFolder.import(p),
-	checkBundler: () => api().remotionFolder.checkBundler(),
-	validate: (p) => api().remotionFolder.validate(p),
-	bundleFile: (p, id) => api().remotionFolder.bundleFile(p, id),
-};
+const remotionFolderAdapter = {
+	select: () => api().remotionFolder!.select(),
+	scan: (p: string) => api().remotionFolder!.scan(p),
+	bundle: (p: string, ids?: string[]) => api().remotionFolder!.bundle(p, ids),
+	import: (p: string) => api().remotionFolder!.import(p),
+	checkBundler: () => api().remotionFolder!.checkBundler(),
+	validate: (p: string) => api().remotionFolder!.validate(p),
+	bundleFile: (p: string, id: string) => api().remotionFolder!.bundleFile(p, id),
+} as unknown as PlatformRemotionFolderAPI;
 
-const moyinAdapter: PlatformMoyinAPI = {
-	parseScript: (o) => api().moyin.parseScript(o),
-	generateStoryboard: (o) => api().moyin.generateStoryboard(o),
-	callLLM: (o) => api().moyin.callLLM(o),
-	isClaudeAvailable: () => api().moyin.isClaudeAvailable(),
-	saveTempScript: (o) => api().moyin.saveTempScript(o),
-	cleanupTempScript: (p) => api().moyin.cleanupTempScript(p),
-	onParsed: (cb) => api().moyin.onParsed(cb),
-	removeParseListener: () => api().moyin.removeParseListener(),
-	onSetScript: (cb) => api().moyin.onSetScript(cb),
-	onTriggerParse: (cb) => api().moyin.onTriggerParse(cb),
-	onGenerateScript: (cb) => api().moyin.onGenerateScript(cb),
-	onStatusRequest: (cb) => api().moyin.onStatusRequest(cb),
-	sendStatusResponse: (id, r?, e?) => api().moyin.sendStatusResponse(id, r, e),
-	onExportRequest: (cb) => api().moyin.onExportRequest(cb),
-	sendExportResponse: (id, r?, e?) => api().moyin.sendExportResponse(id, r, e),
-	removeMoyinBridgeListeners: () => api().moyin.removeMoyinBridgeListeners(),
-};
+const moyinAdapter = {
+	parseScript: (o: Record<string, unknown>) => api().moyin!.parseScript(o as never),
+	generateStoryboard: (o: Record<string, unknown>) => api().moyin!.generateStoryboard(o as never),
+	callLLM: (o: Record<string, unknown>) => api().moyin!.callLLM(o as never),
+	isClaudeAvailable: () => api().moyin!.isClaudeAvailable(),
+	saveTempScript: (o: { rawScript: string }) => api().moyin!.saveTempScript(o),
+	cleanupTempScript: (p: string) => api().moyin!.cleanupTempScript(p),
+	onParsed: (cb: (data: unknown) => void) => api().moyin!.onParsed(cb),
+	removeParseListener: () => api().moyin!.removeParseListener(),
+	onSetScript: (cb: (data: { text: string }) => void) => api().moyin!.onSetScript(cb),
+	onTriggerParse: (cb: () => void) => api().moyin!.onTriggerParse(cb),
+	onGenerateScript: (cb: (data: { idea: string; genre?: string; targetDuration?: string }) => void) => api().moyin!.onGenerateScript(cb),
+	onStatusRequest: (cb: (data: { requestId: string }) => void) => api().moyin!.onStatusRequest(cb),
+	sendStatusResponse: (id: string, r?: Record<string, unknown>, e?: string) => api().moyin!.sendStatusResponse(id, r, e),
+	onExportRequest: (cb: (data: { requestId: string }) => void) => api().moyin!.onExportRequest(cb),
+	sendExportResponse: (id: string, r?: Record<string, unknown>, e?: string) => api().moyin!.sendExportResponse(id, r, e),
+	removeMoyinBridgeListeners: () => api().moyin!.removeMoyinBridgeListeners(),
+} as unknown as PlatformMoyinAPI;
 
-const updatesAdapter: PlatformUpdatesAPI = {
-	checkForUpdates: () => api().updates.checkForUpdates(),
-	installUpdate: () => api().updates.installUpdate(),
-	getReleaseNotes: (v?) => api().updates.getReleaseNotes(v),
-	getChangelog: () => api().updates.getChangelog(),
-	onUpdateAvailable: (cb) => api().updates.onUpdateAvailable(cb),
-	onDownloadProgress: (cb) => api().updates.onDownloadProgress(cb),
-	onUpdateDownloaded: (cb) => api().updates.onUpdateDownloaded(cb),
-};
+const updatesAdapter = {
+	checkForUpdates: () => api().updates!.checkForUpdates(),
+	installUpdate: () => api().updates!.installUpdate(),
+	getReleaseNotes: (v?: string) => api().updates!.getReleaseNotes(v),
+	getChangelog: () => api().updates!.getChangelog(),
+	onUpdateAvailable: (cb: (data: { version: string; releaseNotes?: string; releaseDate?: string }) => void) => api().updates!.onUpdateAvailable(cb),
+	onDownloadProgress: (cb: (data: { percent: number; transferred: number; total: number }) => void) => api().updates!.onDownloadProgress(cb),
+	onUpdateDownloaded: (cb: (data: { version: string }) => void) => api().updates!.onUpdateDownloaded(cb),
+} as unknown as PlatformUpdatesAPI;
 
 function createClaudeAdapter(): PlatformClaudeAPI | undefined {
 	const c = api().claude;

@@ -193,7 +193,8 @@ const filesAdapter: PlatformFilesAPI = {
 	},
 	async saveBlob(data, defaultFilename) {
 		try {
-			const blob = new Blob([data]);
+			const blobData = data instanceof Uint8Array ? new Uint8Array(data) : data;
+			const blob = new Blob([blobData as BlobPart]);
 			const url = URL.createObjectURL(blob);
 			const a = document.createElement("a");
 			a.href = url;
@@ -247,7 +248,7 @@ const apiKeysAdapter: PlatformApiKeysAPI = {
 // Desktop-only stubs (throw PlatformUnsupportedError)
 // ---------------------------------------------------------------------------
 
-function createUnsupportedNamespace<T>(cap: PlatformCapability): T {
+function createUnsupportedNamespace<T extends object>(cap: PlatformCapability): T {
 	return new Proxy({} as T, {
 		get(_, prop) {
 			if (typeof prop === "string") {

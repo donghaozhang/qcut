@@ -7,6 +7,7 @@
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useMediaStore } from "@/stores/media/media-store";
+import { platform } from "@qcut/platform-core";
 import type {
 	ClaudeElement,
 	ClaudeBatchAddElementRequest,
@@ -146,20 +147,21 @@ export type ClaudeTimelineBridgeSharedUtils = {
  * Call this once during app initialization
  */
 export function setupClaudeTimelineBridge(): void {
-	if (!window.electronAPI?.claude?.timeline) {
+	const claude = platform().claude;
+	if (!claude?.timeline) {
 		debugWarn("[ClaudeTimelineBridge] Claude Timeline API not available");
 		return;
 	}
 
-	const claudeAPI = window.electronAPI.claude.timeline;
+	const claudeAPI = claude.timeline;
 	debugLog("[ClaudeTimelineBridge] Setting up bridge...");
 
 	// Listen for media imports so the renderer store gets the File object (needed for preview)
-	if (window.electronAPI.claude.media?.onMediaImported) {
-		window.electronAPI.claude.media.onMediaImported(async (data) => {
+	if (claude.media?.onMediaImported) {
+		claude.media.onMediaImported(async (data) => {
 			try {
 				const projectId = useProjectStore.getState().activeProject?.id;
-				if (!projectId || !window.electronAPI?.readFile) return;
+				if (!projectId) return;
 
 				// Check if already in store by ID or path (avoid duplicates)
 				const existing = useMediaStore
@@ -176,7 +178,7 @@ export function setupClaudeTimelineBridge(): void {
 					data.name
 				);
 
-				const buffer = await window.electronAPI.readFile(data.path);
+				const buffer = await platform().files.readFile(data.path);
 				if (!buffer) return;
 
 				const ext = data.name.split(".").pop()?.toLowerCase() || "";
@@ -694,8 +696,13 @@ export function setupClaudeTimelineBridge(): void {
  * Cleanup bridge listeners
  */
 export function cleanupClaudeTimelineBridge(): void {
-	if (window.electronAPI?.claude?.timeline?.removeListeners) {
-		window.electronAPI.claude.timeline.removeListeners();
+	try {
+		const claude = platform().claude;
+		if (claude?.timeline?.removeListeners) {
+			claude.timeline.removeListeners();
+		}
+	} catch {
+		// Platform may not be initialized during cleanup
 	}
 	debugLog("[ClaudeTimelineBridge] Bridge cleanup complete");
 }
@@ -704,11 +711,12 @@ export function cleanupClaudeTimelineBridge(): void {
  * Setup Claude Project Bridge (for stats requests)
  */
 export function setupClaudeProjectBridge(): void {
-	if (!window.electronAPI?.claude?.project) {
+	const claude = platform().claude;
+	if (!claude?.project) {
 		return;
 	}
 
-	const projectAPI = window.electronAPI.claude.project;
+	const projectAPI = claude.project;
 
 	// Respond to stats request (must forward requestId for main process matching)
 	projectAPI.onStatsRequest((_projectId: string, requestId: string) => {
@@ -754,7 +762,12 @@ export function setupClaudeProjectBridge(): void {
  * Cleanup project bridge listeners
  */
 export function cleanupClaudeProjectBridge(): void {
-	if (window.electronAPI?.claude?.project?.removeListeners) {
-		window.electronAPI.claude.project.removeListeners();
+	try {
+		const claude = platform().claude;
+		if (claude?.project?.removeListeners) {
+			claude.project.removeListeners();
+		}
+	} catch {
+		// Platform may not be initialized during cleanup
 	}
 }
