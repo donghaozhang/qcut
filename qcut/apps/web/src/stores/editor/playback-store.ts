@@ -71,8 +71,10 @@ let playbackTimer: number | null = null;
  */
 let _mutableCurrentTime = 0;
 
-/** How often (ms) to sync mutable time → Zustand store for UI updates */
-const STORE_SYNC_INTERVAL_MS = 50;
+/** How often (ms) to sync mutable time → Zustand store for UI updates.
+ * Each sync triggers a full React re-render (~200ms on iPad).
+ * 500ms = 2 re-renders/sec — balances timecode accuracy and performance. */
+const STORE_SYNC_INTERVAL_MS = 500;
 
 const startTimer = (store: () => PlaybackStore) => {
 	if (playbackTimer) cancelAnimationFrame(playbackTimer);
@@ -123,7 +125,14 @@ const startTimer = (store: () => PlaybackStore) => {
 					})
 				);
 
-				// Throttle Zustand store updates for UI (timecode, cursor)
+				// Throttle Zustand store updates for UI (timecode, cursor).
+				// Dispatch a lightweight DOM event for the playhead cursor instead of
+				// triggering React re-renders on every tick.
+				window.dispatchEvent(
+					new CustomEvent("playback-tick", { detail: { time: newTime } })
+				);
+
+				// Sync to Zustand store at reduced frequency for timecode display
 				if (now - lastStoreSyncTime >= STORE_SYNC_INTERVAL_MS) {
 					state.setCurrentTime(newTime);
 					lastStoreSyncTime = now;
