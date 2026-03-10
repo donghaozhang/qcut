@@ -7,11 +7,24 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ReactNode, useState, useRef, useEffect, useCallback } from "react";
+import {
+	ReactNode,
+	useState,
+	useRef,
+	useEffect,
+	useCallback,
+	useMemo,
+} from "react";
 import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
+
+/** Detect iOS/iPadOS where HTML5 Drag API is unsupported in WKWebView */
+const isIOS =
+	typeof navigator !== "undefined" &&
+	(/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+		(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
 export interface DraggableMediaItemProps {
 	name: string;
@@ -121,7 +134,10 @@ export function DraggableMediaItem({
 
 	const handlePointerDown = useCallback(
 		(e: React.PointerEvent) => {
-			if (e.pointerType !== "touch" || !isDraggable) return;
+			// On iOS, handle both touch and mouse (simulator sends mouse events)
+			// On desktop, only handle touch (mouse uses HTML5 drag API)
+			if (!isDraggable) return;
+			if (!isIOS && e.pointerType !== "touch") return;
 
 			const startX = e.clientX;
 			const startY = e.clientY;
@@ -259,9 +275,9 @@ export function DraggableMediaItem({
 							rounded && "rounded-md",
 							"[&::-webkit-drag-ghost]:opacity-0" // Webkit-specific ghost hiding
 						)}
-						draggable={isDraggable}
-						onDragStart={isDraggable ? handleDragStart : undefined}
-						onDragEnd={isDraggable ? handleDragEnd : undefined}
+						draggable={isDraggable && !isIOS}
+						onDragStart={isDraggable && !isIOS ? handleDragStart : undefined}
+						onDragEnd={isDraggable && !isIOS ? handleDragEnd : undefined}
 						onPointerDown={isDraggable ? handlePointerDown : undefined}
 					>
 						{preview}

@@ -79,68 +79,56 @@ const STORE_SYNC_INTERVAL_MS = 500;
 const startTimer = (store: () => PlaybackStore) => {
 	if (playbackTimer) cancelAnimationFrame(playbackTimer);
 
-	// Cache store references outside the loop
-	const cachedProjectStore = getProjectStoreSync();
-	const cachedTimelineStore = getTimelineStoreSync();
+	// Cache values that don't change during playback
+	const projectStore = getProjectStoreSync();
+	const timelineStore = getTimelineStoreSync();
+	const fps = projectStore?.getState()?.activeProject?.fps ?? 30;
+	const frameOffset = 1 / fps;
 
-	let lastStoreSyncTime = 0;
+	// Cache effective duration once (doesn't change during playback)
+	const storeDuration = store().duration;
+	const actualContentDuration =
+		timelineStore?.getState()?.getTotalDuration() ?? storeDuration;
+	const effectiveDuration =
+		actualContentDuration > 0 ? actualContentDuration : storeDuration;
 
+	// Reuse event detail object to reduce GC pressure
+	const eventDetail = { time: 0 };
+
+	let lastUpdate = performance.now();
 	const updateTime = () => {
 		const state = store();
-		if (state.isPlaying && _mutableCurrentTime < state.duration) {
-			const now = performance.now();
-			const delta = (now - lastUpdate) / 1000;
-			lastUpdate = now;
+		if (!state.isPlaying || _mutableCurrentTime >= effectiveDuration) {
+			playbackTimer = requestAnimationFrame(updateTime);
+			return;
+		}
 
-			const newTime = _mutableCurrentTime + delta * state.speed;
-			const projectStore = cachedProjectStore ?? getProjectStoreSync();
-			const timelineStore = cachedTimelineStore ?? getTimelineStoreSync();
-			const projectFps = projectStore?.getState()?.activeProject?.fps ?? 30;
+		const now = performance.now();
+		const delta = (now - lastUpdate) / 1000;
+		lastUpdate = now;
 
-			const actualContentDuration =
-				timelineStore?.getState()?.getTotalDuration() ?? state.duration;
-			const effectiveDuration =
-				actualContentDuration > 0 ? actualContentDuration : state.duration;
+		const newTime = _mutableCurrentTime + delta * state.speed;
 
-			if (newTime >= effectiveDuration) {
-				const fps = projectStore?.getState()?.activeProject?.fps ?? 30;
-				const frameOffset = 1 / fps;
-				const stopTime = Math.max(0, effectiveDuration - frameOffset);
+		if (newTime >= effectiveDuration) {
+			const stopTime = Math.max(0, effectiveDuration - frameOffset);
+			_mutableCurrentTime = stopTime;
+			state.pause();
+			state.setCurrentTime(stopTime);
+			window.dispatchEvent(
+				new CustomEvent("playback-seek", { detail: { time: stopTime } })
+			);
+		} else {
+			_mutableCurrentTime = newTime;
+			eventDetail.time = newTime;
 
-				_mutableCurrentTime = stopTime;
-				state.pause();
-				state.setCurrentTime(stopTime);
-				window.dispatchEvent(
-					new CustomEvent("playback-seek", {
-						detail: { time: stopTime },
-					})
-				);
-			} else {
-				_mutableCurrentTime = newTime;
-
-				// Dispatch event every frame for video/audio sync (lightweight, no React)
-				window.dispatchEvent(
-					new CustomEvent("playback-update", {
-						detail: { time: newTime },
-					})
-				);
-
-				// Throttle Zustand store updates for UI (timecode, cursor).
-				// Dispatch a lightweight DOM event for the playhead cursor instead of
-				// triggering React re-renders on every tick.
-				window.dispatchEvent(
-					new CustomEvent("playback-tick", { detail: { time: newTime } })
-				);
-
-				// No Zustand store updates during playback — each update triggers
-				// ~200ms of React re-renders on iPad. Store is synced on pause only.
-				// UI elements (timecode, playhead) use playback-tick events instead.
-			}
+			// Single combined event for all playback listeners (video/audio sync + UI)
+			window.dispatchEvent(
+				new CustomEvent("playback-update", { detail: eventDetail })
+			);
 		}
 		playbackTimer = requestAnimationFrame(updateTime);
 	};
 
-	let lastUpdate = performance.now();
 	playbackTimer = requestAnimationFrame(updateTime);
 };
 

@@ -99,7 +99,7 @@ export function TimelinePlayhead({
 		Math.min(rightBoundary, rawLeftPosition)
 	);
 
-	// Listen to playback-tick events for smooth playhead movement without React re-renders
+	// Listen to playback-update events for smooth playhead movement without React re-renders
 	useEffect(() => {
 		const el = playheadRef.current;
 		if (!el) return;
@@ -115,8 +115,8 @@ export function TimelinePlayhead({
 			el.style.left = `${Math.max(trackLabelsWidth, rawLeft)}px`;
 		};
 
-		window.addEventListener("playback-tick", handleTick);
-		return () => window.removeEventListener("playback-tick", handleTick);
+		window.addEventListener("playback-update", handleTick);
+		return () => window.removeEventListener("playback-update", handleTick);
 	}, [zoomLevel, trackLabelsWidth, tracksScrollRef, playheadRef]);
 
 	return (
