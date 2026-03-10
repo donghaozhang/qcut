@@ -243,6 +243,9 @@ function syncToAicpCredentials(keys: Partial<ApiKeys>): void {
 
 /**
  * Sync keys to ~/.qcut/.env so the native CLI can read them.
+ * Only writes keys that have a value — never deletes keys that are
+ * simply absent from the source (e.g. Electron store) so that keys
+ * added directly to ~/.qcut/.env are preserved across restarts.
  */
 function syncToQcutEnv(keys: Partial<ApiKeys>): void {
 	try {
@@ -250,9 +253,11 @@ function syncToQcutEnv(keys: Partial<ApiKeys>): void {
 			const value = keys[field as keyof ApiKeys];
 			if (value) {
 				persistToQcutEnv(envName, value);
-			} else {
+			} else if (field in keys && value === "") {
+				// Explicitly cleared — remove from env file
 				removeFromQcutEnv(envName);
 			}
+			// If field is absent (undefined), preserve existing env value
 		}
 	} catch (error) {
 		console.warn("[API Keys] Failed to sync to ~/.qcut/.env:", error);

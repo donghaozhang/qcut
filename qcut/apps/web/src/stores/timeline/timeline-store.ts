@@ -207,3 +207,6 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 		}),
 	};
 });
+
+// Expose for iPad CLI debugging (qcut://eval)
+(window as any).__timelineStore = useTimelineStore;

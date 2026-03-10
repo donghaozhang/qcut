@@ -338,7 +338,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"reference-model": { type: "string" },
 			"reference-strength": { type: "string" },
 			// transcribe options
-			language: { type: "string" },
+			language: { type: "string", short: "l" },
 			"no-diarize": { type: "boolean", default: false },
 			"no-tag-events": { type: "boolean", default: false },
 			keyterms: { type: "string", multiple: true },
@@ -351,6 +351,10 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"min-score": { type: "string" },
 			step: { type: "string" },
 			"chunk-minutes": { type: "string" },
+			// translate-video options
+			"audio-only": { type: "boolean", default: false },
+			"no-dynamic-duration": { type: "boolean", default: false },
+			speakers: { type: "string" },
 			// transfer-motion options
 			orientation: { type: "string" },
 			"no-sound": { type: "boolean", default: false },
@@ -563,6 +567,14 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		autoclipStep: values.step ? parseInt(values.step as string, 10) : undefined,
 		chunkMinutes: values["chunk-minutes"]
 			? parseInt(values["chunk-minutes"] as string, 10)
+			: undefined,
+		// translate-video options
+		audioOnly: (values["audio-only"] as boolean) ?? false,
+		noDynamicDuration: (values["no-dynamic-duration"] as boolean) ?? false,
+		speakers: values.speakers
+			? Number.isNaN(parseInt(values.speakers as string, 10))
+				? undefined
+				: parseInt(values.speakers as string, 10)
 			: undefined,
 		// transcribe options
 		language: values.language as string | undefined,

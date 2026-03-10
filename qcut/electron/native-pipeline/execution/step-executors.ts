@@ -50,6 +50,7 @@ export function getInputDataType(category: ModelCategory): DataType {
 		case "video_to_video":
 		case "upscale_video":
 		case "add_audio":
+		case "translate":
 			return "video";
 		case "prompt_generation":
 			return "text";
@@ -71,6 +72,7 @@ export function getOutputDataType(category: ModelCategory): DataType {
 		case "upscale_video":
 		case "add_audio":
 		case "avatar":
+		case "translate":
 			return "video";
 		case "text_to_speech":
 			return "audio";

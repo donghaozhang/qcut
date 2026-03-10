@@ -182,6 +182,10 @@ export interface CLIRunOptions {
 	format?: string;
 	/** Set value (e.g. for editor:auth:token --set) */
 	set?: string;
+	// translate-video options
+	noDynamicDuration?: boolean;
+	audioOnly?: boolean;
+	speakers?: number;
 }
 
 export interface CLIResult {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect } from "react";
 import {
 	Scissors,
 	ArrowLeftToLine,
@@ -86,6 +87,30 @@ export function TimelineToolbar({
 	const toggleBookmark = useProjectStore((s) => s.toggleBookmark);
 	const isBookmarked = useProjectStore((s) => s.isBookmarked);
 	const { scenes, currentScene } = useSceneStore();
+
+	// DOM-direct timecode update during playback (avoids React re-renders)
+	const timecodeRef = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		const el = timecodeRef.current;
+		if (!el) return;
+		const handleTick = (e: Event) => {
+			const time = (e as CustomEvent).detail?.time;
+			if (time != null) {
+				el.textContent = `${time.toFixed(1)}s / ${duration.toFixed(1)}s`;
+			}
+		};
+		// Also sync on pause (store updates currentTime on pause)
+		const handleUpdate = () => {
+			const t = usePlaybackStore.getState().currentTime;
+			el.textContent = `${t.toFixed(1)}s / ${duration.toFixed(1)}s`;
+		};
+		window.addEventListener("playback-update", handleTick);
+		window.addEventListener("playback-seek", handleUpdate);
+		return () => {
+			window.removeEventListener("playback-update", handleTick);
+			window.removeEventListener("playback-seek", handleUpdate);
+		};
+	}, [duration]);
 
 	const handleSplitSelected = () => {
 		if (selectedElements.length === 0) return;
@@ -332,6 +357,7 @@ export function TimelineToolbar({
 
 					<div className="w-px h-6 bg-border mx-1" />
 					<div
+						ref={timecodeRef}
 						className="text-xs text-muted-foreground font-mono px-2"
 						style={{ minWidth: "18ch", textAlign: "center" }}
 						data-testid="current-time-display"

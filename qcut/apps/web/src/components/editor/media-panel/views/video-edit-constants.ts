@@ -159,6 +159,14 @@ export const VIDEO_EDIT_HELPERS = {
 	},
 
 	/**
+	 * Calculate HeyGen Translate cost
+	 * WHY: $0.05 per second of output video
+	 */
+	calculateTranslateCost: (durationSeconds: number): number => {
+		return durationSeconds * 0.05;
+	},
+
+	/**
 	 * Format cost for display
 	 */
 	formatCost: (cost: number): string => {

@@ -118,3 +118,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 		set({ canvasSize: newCanvasSize, canvasMode: "custom" });
 	},
 }));
+
+// Expose for iPad CLI debugging (qcut://eval)
+(window as any).__editorStore = useEditorStore;

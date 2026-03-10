@@ -90,6 +90,22 @@ export function StructurePanel() {
 		}
 	}, [activeStep, activeTab]);
 
+	// Listen for qcut://panel subpanel switching (iPad CLI)
+	useEffect(() => {
+		const handler = (e: Event) => {
+			const detail = (e as CustomEvent).detail;
+			if (
+				detail?.panel === "moyin" &&
+				typeof detail?.subpanel === "string" &&
+				VALID_STRUCTURE_TABS.includes(detail.subpanel as StructureTab)
+			) {
+				setActiveTab(detail.subpanel as StructureTab);
+			}
+		};
+		window.addEventListener("qcut:switch-subpanel", handler);
+		return () => window.removeEventListener("qcut:switch-subpanel", handler);
+	}, []);
+
 	const handleTabChange = useCallback(
 		(tab: StructureTab) => {
 			setActiveTab(tab);

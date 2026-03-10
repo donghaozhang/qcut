@@ -390,6 +390,17 @@ export interface FlashVSRUpscaleRequest {
 }
 
 /**
+ * HeyGen Translate request parameters
+ */
+export interface HeyGenTranslateRequest {
+	video_url: string;
+	output_language: string;
+	translate_audio_only?: boolean;
+	enable_dynamic_duration?: boolean;
+	speaker_num?: number;
+}
+
+/**
  * Topaz video upscaler request parameters
  */
 export interface TopazUpscaleRequest {

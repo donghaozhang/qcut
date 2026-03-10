@@ -37,6 +37,21 @@ export function registerHeyGenModels(): void {
 		costEstimate: 1.0,
 		processingTime: 90,
 	});
+
+	ModelRegistry.register({
+		key: "heygen_translate_speed",
+		name: "HeyGen Translate (Speed)",
+		provider: "HeyGen",
+		endpoint: "fal-ai/heygen/v2/translate/speed",
+		categories: ["translate"],
+		description: "Translate video speech into another language with lip sync",
+		pricing: { per_second: 0.05 },
+		defaults: {},
+		features: ["video_translation", "lip_sync", "multi_language"],
+		maxDuration: 300,
+		costEstimate: 0.5,
+		processingTime: 120,
+	});
 }
 
 export function registerDIDModels(): void {

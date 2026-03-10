@@ -21,12 +21,14 @@ import type {
 	KlingVideoToAudioParams,
 	MMAudioV2Params,
 	TopazUpscaleParams,
+	HeyGenTranslateParams,
 } from "./video-edit-types";
 
 type VideoEditParams =
 	| Partial<KlingVideoToAudioParams>
 	| Partial<MMAudioV2Params>
-	| Partial<TopazUpscaleParams>;
+	| Partial<TopazUpscaleParams>
+	| Partial<HeyGenTranslateParams>;
 import {
 	VIDEO_EDIT_ERROR_MESSAGES,
 	VIDEO_EDIT_STATUS_MESSAGES,

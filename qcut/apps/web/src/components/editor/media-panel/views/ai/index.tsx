@@ -100,6 +100,19 @@ export function AiView({ mode }: { mode?: "upscale" | "angles" } = {}) {
 		}
 	}, [activeTab]);
 
+	// Listen for qcut://panel subpanel switching (iPad CLI)
+	useEffect(() => {
+		const VALID_AI_TABS = ["text", "image", "avatar", "upscale", "angles"];
+		const handler = (e: Event) => {
+			const detail = (e as CustomEvent).detail;
+			if (detail?.panel === "ai" && VALID_AI_TABS.includes(detail?.subpanel)) {
+				setActiveTab(detail.subpanel);
+			}
+		};
+		window.addEventListener("qcut:switch-subpanel", handler);
+		return () => window.removeEventListener("qcut:switch-subpanel", handler);
+	}, [setActiveTab]);
+
 	// Get project store
 	const { activeProject } = useProjectStore();
 

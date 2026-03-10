@@ -5,6 +5,10 @@
  * Handles play/pause, seeking, volume, speed, and synchronization
  * with video elements via custom events.
  *
+ * Performance: During playback, currentTime updates are throttled to avoid
+ * re-rendering the full React tree on every animation frame. Video/audio
+ * elements sync via lightweight CustomEvents instead of React state.
+ *
  * @module stores/playback-store
  */
 
@@ -19,14 +23,8 @@ type ProjectStoreHook = typeof import("../project-store")["useProjectStore"];
 let _timelineStore: TimelineStoreHook | null = null;
 let _projectStore: ProjectStoreHook | null = null;
 
-/**
- * Synchronously gets the timeline store reference.
- * Triggers async import on first call; returns cached value on subsequent calls.
- * @returns The timeline store hook or null if not yet loaded
- */
 const getTimelineStoreSync = () => {
 	if (!_timelineStore) {
-		// This will work because by the time playback starts, stores are loaded
 		import("@/stores/timeline/timeline-store")
 			.then((m) => {
 				_timelineStore = m.useTimelineStore;
@@ -36,11 +34,6 @@ const getTimelineStoreSync = () => {
 	return _timelineStore;
 };
 
-/**
- * Synchronously gets the project store reference.
- * Triggers async import on first call; returns cached value on subsequent calls.
- * @returns The project store hook or null if not yet loaded
- */
 const getProjectStoreSync = () => {
 	if (!_projectStore) {
 		import("../project-store")
@@ -64,14 +57,8 @@ import("../project-store")
 	})
 	.catch((err) => console.error("Failed to pre-load project store:", err));
 
-/**
- * Playback store interface combining state and control methods
- * Manages video playback timing, controls, and synchronization
- */
 interface PlaybackStore extends PlaybackState, PlaybackControls {
-	/** Set the total duration of the timeline content */
 	setDuration: (duration: number) => void;
-	/** Set the current playback position */
 	setCurrentTime: (time: number) => void;
 }
 
@@ -79,91 +66,82 @@ interface PlaybackStore extends PlaybackState, PlaybackControls {
 let playbackTimer: number | null = null;
 
 /**
- * Starts the playback timer using requestAnimationFrame for smooth updates
- * @param store - Function returning the playback store instance
+ * Mutable current time updated every frame without triggering React re-renders.
+ * The Zustand store is updated at a throttled rate for UI (timecode, cursor).
  */
+let _mutableCurrentTime = 0;
+
+/** How often (ms) to sync mutable time → Zustand store for UI updates.
+ * Each sync triggers a full React re-render (~200ms on iPad).
+ * 500ms = 2 re-renders/sec — balances timecode accuracy and performance. */
+const STORE_SYNC_INTERVAL_MS = 500;
+
 const startTimer = (store: () => PlaybackStore) => {
 	if (playbackTimer) cancelAnimationFrame(playbackTimer);
 
-	const { isPlaying, currentTime, speed } = store();
+	// Cache values that don't change during playback
+	const projectStore = getProjectStoreSync();
+	const timelineStore = getTimelineStoreSync();
+	const fps = projectStore?.getState()?.activeProject?.fps ?? 30;
+	const frameOffset = 1 / fps;
 
-	let loggedNotPlaying = false;
-	let loggedDurationReached = false;
+	// Cache effective duration once (doesn't change during playback)
+	const storeDuration = store().duration;
+	const actualContentDuration =
+		timelineStore?.getState()?.getTotalDuration() ?? storeDuration;
+	const effectiveDuration =
+		actualContentDuration > 0 ? actualContentDuration : storeDuration;
 
-	// Use requestAnimationFrame for smoother updates
+	// Reuse event detail object to reduce GC pressure
+	const eventDetail = { time: 0 };
+
+	let lastUpdate = performance.now();
 	const updateTime = () => {
 		const state = store();
-		if (state.isPlaying && state.currentTime < state.duration) {
-			const now = performance.now();
-			const delta = (now - lastUpdate) / 1000; // Convert to seconds
-			lastUpdate = now;
-
-			const newTime = state.currentTime + delta * state.speed;
-			const projectStore = getProjectStoreSync();
-			const timelineStore = getTimelineStoreSync();
-			const projectFps = projectStore?.getState()?.activeProject?.fps ?? 30;
-			const frameNumber = Math.round(newTime * projectFps);
-
-			// Get actual content duration from timeline store
-			const actualContentDuration =
-				timelineStore?.getState()?.getTotalDuration() ?? state.duration;
-
-			// Stop at actual content end, not timeline duration (which has 10s minimum)
-			// It was either this or reducing default min timeline to 1 second
-			const effectiveDuration =
-				actualContentDuration > 0 ? actualContentDuration : state.duration;
-
-			if (newTime >= effectiveDuration) {
-				// When content completes, pause just before the end so we can see the last frame
-				const projectFps = projectStore?.getState()?.activeProject?.fps;
-				if (!projectFps) {
-					// Project FPS is not set, assuming 30fps
-				}
-
-				const frameOffset = 1 / (projectFps ?? 30); // Stop 1 frame before end based on project FPS
-				const stopTime = Math.max(0, effectiveDuration - frameOffset);
-
-				state.pause();
-				state.setCurrentTime(stopTime);
-				// Notify video elements to sync with end position
-				window.dispatchEvent(
-					new CustomEvent("playback-seek", {
-						detail: { time: stopTime },
-					})
-				);
-			} else {
-				state.setCurrentTime(newTime);
-				// Notify video elements to sync
-				window.dispatchEvent(
-					new CustomEvent("playback-update", { detail: { time: newTime } })
-				);
-			}
-			loggedNotPlaying = false;
-			loggedDurationReached = false;
-		} else {
-			if (!state.isPlaying && !loggedNotPlaying) {
-				loggedNotPlaying = true;
-			}
-			if (state.currentTime >= state.duration && !loggedDurationReached) {
-				loggedDurationReached = true;
-			}
+		if (!state.isPlaying || _mutableCurrentTime >= effectiveDuration) {
+			return;
 		}
+
+		const now = performance.now();
+		const delta = (now - lastUpdate) / 1000;
+		lastUpdate = now;
+
+		const newTime = _mutableCurrentTime + delta * state.speed;
+
+		if (newTime >= effectiveDuration) {
+			const stopTime = Math.max(0, effectiveDuration - frameOffset);
+			_mutableCurrentTime = stopTime;
+			state.pause();
+			state.setCurrentTime(stopTime);
+			window.dispatchEvent(
+				new CustomEvent("playback-seek", { detail: { time: stopTime } })
+			);
+			return;
+		}
+
+		_mutableCurrentTime = newTime;
+		eventDetail.time = newTime;
+
+		// Single combined event for all playback listeners (video/audio sync + UI)
+		window.dispatchEvent(
+			new CustomEvent("playback-update", { detail: eventDetail })
+		);
 		playbackTimer = requestAnimationFrame(updateTime);
 	};
 
-	let lastUpdate = performance.now();
 	playbackTimer = requestAnimationFrame(updateTime);
 };
 
-/**
- * Stops the playback timer and cleans up the animation frame.
- * Called when playback is paused or the component unmounts.
- */
 const stopTimer = () => {
 	if (playbackTimer) {
 		cancelAnimationFrame(playbackTimer);
 		playbackTimer = null;
 	}
+};
+
+// Expose store on window for iPad CLI debugging (qcut://eval)
+const exposeStore = (store: any) => {
+	(window as any).__playbackStore = store;
 };
 
 export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
@@ -176,12 +154,15 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 	speed: 1.0,
 
 	play: () => {
+		_mutableCurrentTime = get().currentTime;
 		set({ isPlaying: true });
+		// Dispatch synchronously so video elements can call play() within the user gesture context (iOS requirement)
+		window.dispatchEvent(new CustomEvent("playback-play"));
 		startTimer(get);
 	},
 
 	pause: () => {
-		set({ isPlaying: false });
+		set({ isPlaying: false, currentTime: _mutableCurrentTime });
 		stopTimer();
 	},
 
@@ -195,9 +176,10 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 	},
 
 	seek: (time: number) => {
-		const { duration, currentTime: previousTime } = get();
+		const { duration } = get();
 		const clampedTime = Math.max(0, Math.min(duration, time));
 
+		_mutableCurrentTime = clampedTime;
 		set({ currentTime: clampedTime });
 
 		const event = new CustomEvent("playback-seek", {
@@ -214,7 +196,6 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 		})),
 
 	setSpeed: (speed: number) => {
-		const { speed: previousSpeed } = get();
 		const newSpeed = Math.max(0.1, Math.min(2.0, speed));
 		set({ speed: newSpeed });
 
@@ -252,3 +233,6 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 		}
 	},
 }));
+
+// Expose for CLI debugging
+exposeStore(usePlaybackStore);

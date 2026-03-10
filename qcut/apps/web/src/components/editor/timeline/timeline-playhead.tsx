@@ -99,6 +99,27 @@ export function TimelinePlayhead({
 		Math.min(rightBoundary, rawLeftPosition)
 	);
 
+	// Listen to playback-update events for smooth playhead movement without React re-renders
+	useEffect(() => {
+		const el = playheadRef.current;
+		if (!el) return;
+
+		const handleTick = (e: Event) => {
+			const time = (e as CustomEvent).detail?.time;
+			if (time == null) return;
+			const pos = time * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
+			const tracksEl = tracksScrollRef.current as HTMLElement;
+			const scroll = tracksEl?.scrollLeft ?? 0;
+			const viewportW = tracksEl?.clientWidth ?? 1000;
+			const rawLeft = trackLabelsWidth + pos - scroll;
+			const rightBound = trackLabelsWidth + viewportW;
+			el.style.left = `${Math.max(trackLabelsWidth, Math.min(rightBound, rawLeft))}px`;
+		};
+
+		window.addEventListener("playback-update", handleTick);
+		return () => window.removeEventListener("playback-update", handleTick);
+	}, [zoomLevel, trackLabelsWidth, tracksScrollRef, playheadRef]);
+
 	return (
 		<div
 			ref={playheadRef}

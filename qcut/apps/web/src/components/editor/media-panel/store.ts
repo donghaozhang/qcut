@@ -261,3 +261,6 @@ export const useMediaPanelStore = create<MediaPanelStore>((set) => ({
 	aiActiveTab: "text",
 	setAiActiveTab: (tab) => set({ aiActiveTab: tab }),
 }));
+
+// Expose for iPad CLI debugging (qcut://eval, qcut://panel)
+(window as any).__mediaPanelStore = useMediaPanelStore;

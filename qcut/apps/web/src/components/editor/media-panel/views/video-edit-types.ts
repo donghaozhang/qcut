@@ -12,7 +12,7 @@ import type { TProject } from "@/types/project";
 /**
  * Tab discriminator for the three video edit models
  */
-export type VideoEditTab = "audio-gen" | "audio-sync" | "upscale";
+export type VideoEditTab = "audio-gen" | "audio-sync" | "upscale" | "translate";
 
 /**
  * Kling Video to Audio Parameters
@@ -71,6 +71,22 @@ export interface TopazUpscaleParams {
 	upscale_factor?: number; // 1.0-8.0, default 2.0
 	target_fps?: number; // 24/30/60/120
 	H264_output?: boolean; // Default false (H265)
+}
+
+/**
+ * HeyGen Translate Parameters
+ *
+ * WHY each field:
+ * - output_language: Target language for translation (40+ supported)
+ * - translate_audio_only: Skip lip-sync, only translate voice
+ * - enable_dynamic_duration: Adjust duration for different speaking rates
+ * - speaker_num: Number of speakers in the video (auto-detected if omitted)
+ */
+export interface HeyGenTranslateParams {
+	output_language: string;
+	translate_audio_only?: boolean;
+	enable_dynamic_duration?: boolean;
+	speaker_num?: number;
 }
 
 /**

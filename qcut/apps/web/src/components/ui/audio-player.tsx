@@ -96,11 +96,28 @@ export function AudioPlayer({
 		const audio = audioRef.current;
 		if (!audio) return;
 
-		if (isPlaying && isInClipRange && !trackMuted) {
+		const tryPlay = () => {
 			audio.play().catch(() => {});
+		};
+
+		if (isPlaying && isInClipRange && !trackMuted) {
+			tryPlay();
 		} else {
 			audio.pause();
 		}
+
+		// Listen for direct play trigger to preserve user gesture context on iOS
+		const handleDirectPlay = () => {
+			if (isInClipRange && !trackMuted) {
+				tryPlay();
+			}
+		};
+
+		window.addEventListener("playback-play", handleDirectPlay);
+
+		return () => {
+			window.removeEventListener("playback-play", handleDirectPlay);
+		};
 	}, [isPlaying, isInClipRange, trackMuted]);
 
 	// Sync volume and speed

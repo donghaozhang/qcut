@@ -673,3 +673,6 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
 		}
 	},
 }));
+
+// Expose for iPad CLI debugging (qcut://eval)
+(window as any).__mediaStore = useMediaStore;

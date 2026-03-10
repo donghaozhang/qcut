@@ -409,3 +409,6 @@ export const useExportStore = create<ExportStore>()(
 		}
 	)
 );
+
+// Expose for iPad CLI debugging (qcut://eval, qcut://panel)
+(window as any).__exportStore = useExportStore;

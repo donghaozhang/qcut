@@ -638,3 +638,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 		set({ invalidProjectIds: new Set() });
 	},
 }));
+
+// Expose for iPad CLI debugging (qcut://eval)
+(window as any).__projectStore = useProjectStore;
