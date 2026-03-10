@@ -20,8 +20,11 @@ import { handleAIServiceError } from "@/lib/debug/error-handler";
 import { streamVideoDownload, type StreamOptions } from "./streaming";
 
 /**
- * Fetches from queue.fal.run, using Electron IPC to bypass CORS when available.
- * Falls back to direct fetch for browser environments.
+ * Fetches a FAL queue endpoint using an Electron IPC proxy when available; otherwise performs a direct HTTP fetch.
+ *
+ * @param url - The full queue/status or result URL to request.
+ * @param apiKey - FAL API key to include in the Authorization header or to pass to the IPC proxy.
+ * @returns An object containing `ok` (response success), HTTP `status`, and parsed `data` (response body or `{}` if parsing fails).
  */
 async function fetchQueue(
 	url: string,

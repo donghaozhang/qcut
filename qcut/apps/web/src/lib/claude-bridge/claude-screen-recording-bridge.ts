@@ -29,8 +29,13 @@ function debugError(...args: unknown[]): void {
 }
 
 /**
- * Setup Claude Screen Recording Bridge.
- * Listens for start/stop requests from main process.
+ * Attach handlers to Claude's screen recording bridge to handle start and stop requests from the main process.
+ *
+ * Registers asynchronous listeners on platform().claude?.screenRecordingBridge (if available) that:
+ * - handle start requests and send a start response with the session result or an error message, and
+ * - handle stop requests and send a stop response with the file result or an error message.
+ *
+ * If the bridge API is not available, the function logs a warning and returns without registering listeners.
  */
 export function setupClaudeScreenRecordingBridge(): void {
 	const srAPI = platform().claude?.screenRecordingBridge;
@@ -90,7 +95,12 @@ export function setupClaudeScreenRecordingBridge(): void {
 	debugLog("Bridge setup complete");
 }
 
-/** Cleanup screen recording bridge listeners. */
+/**
+ * Remove any attached listeners from the Claude screen recording bridge, if present.
+ *
+ * This detaches bridge event handlers exposed by platform().claude?.screenRecordingBridge to prevent
+ * further start/stop request callbacks.
+ */
 export function cleanupClaudeScreenRecordingBridge(): void {
 	platform().claude?.screenRecordingBridge?.removeListeners?.();
 	debugLog("Bridge cleanup complete");

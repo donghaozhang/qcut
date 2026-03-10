@@ -110,7 +110,16 @@ export async function resolveAudioPreparationInputs({
 	}
 }
 
-/** Extract and persist audio files from timeline tracks for FFmpeg export. */
+/**
+ * Prepare audio files referenced by timeline tracks for FFmpeg export.
+ *
+ * @param fileExists - Checks whether a file exists at the given path.
+ * @param invokeIfAvailable - Invokes an alternate IPC/channel endpoint when platform APIs are unavailable.
+ * @param mediaItems - List of media items available to resolve track references.
+ * @param sessionId - Optional session identifier used during extraction.
+ * @param tracks - Timeline tracks to scan for exportable audio sources.
+ * @returns An array of `AudioFileInput` entries describing audio files persisted to temporary paths; returns an empty array if no audio files were prepared or export is not possible (e.g., non-Electron environment or on error).
+ */
 export async function prepareAudioFilesForExport({
 	fileExists,
 	invokeIfAvailable,

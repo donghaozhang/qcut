@@ -7,7 +7,14 @@ import { Camera, Loader2 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
-/** Button that captures a screenshot of the QCut window and saves it as PNG. */
+/**
+ * UI control that captures a screenshot of the QCut window and saves it as a PNG file.
+ *
+ * While a capture is in progress the control is disabled and shows a busy indicator.
+ * On success a toast is shown with the saved file path; on failure an error toast is shown.
+ *
+ * @param variant - When set to `"menu-item"`, renders as a dropdown menu item; otherwise renders as a toolbar button.
+ */
 export function ScreenshotControl({ variant }: { variant?: "menu-item" } = {}) {
 	const [isBusy, setIsBusy] = useState(false);
 

@@ -11,6 +11,11 @@ interface ClaudeProjectSettingsUpdate {
 	backgroundColor?: string;
 }
 
+/**
+ * Subscribes to platform Claude project update events for the given project and applies incoming settings to the active project and editor canvas.
+ *
+ * @param projectId - The project identifier to listen for updates for; if falsy no subscription is created
+ */
 export function useClaudeProjectUpdates({
 	projectId,
 }: {

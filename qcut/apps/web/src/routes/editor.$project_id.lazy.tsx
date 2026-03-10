@@ -29,6 +29,11 @@ export const Route = createLazyFileRoute("/editor/$project_id")({
 	component: EditorPage,
 });
 
+/**
+ * Render the editor UI for a project and manage project lifecycle side effects such as loading projects, initializing the Claude terminal, syncing project JSON, and setting up playback and panel layouts.
+ *
+ * @returns The Editor page React element containing the header, the currently selected layout, and the onboarding component
+ */
 function EditorPage() {
 	const navigate = useNavigate();
 	const { project_id } = Route.useParams();

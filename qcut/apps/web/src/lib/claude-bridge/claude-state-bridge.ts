@@ -458,6 +458,11 @@ function buildEditorStateSnapshot({
 	return snapshot;
 }
 
+/**
+ * Retrieve the renderer bridge API for Claude state from the platform, if present.
+ *
+ * @returns The `ClaudeStateRendererBridgeAPI` instance exposed by the platform, or `null` if it is not available or an error occurs while accessing it.
+ */
 function getClaudeStateBridge(): ClaudeStateRendererBridgeAPI | null {
 	try {
 		const claude = platform().claude as

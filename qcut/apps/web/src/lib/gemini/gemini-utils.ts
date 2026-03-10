@@ -13,17 +13,11 @@ interface ConfigurationStatus {
 }
 
 /**
- * Check if Gemini API is properly configured
+ * Determines whether the Gemini API is properly configured for the current environment.
  *
- * @returns Object with configuration status and missing variables
+ * Returns an object describing overall configuration status and any missing configuration indicators.
  *
- * @example
- * ```typescript
- * const { configured, missingVars } = isGeminiConfigured();
- * if (!configured) {
- *   console.error(`Missing: ${missingVars.join(', ')}`);
- * }
- * ```
+ * @returns `configured` is `true` if all required environment indicators are present, `false` otherwise; `missingVars` lists the names of any missing configuration indicators.
  */
 export function isGeminiConfigured(): ConfigurationStatus {
 	const missingVars: string[] = [];
@@ -61,9 +55,10 @@ export function getGeminiSetupInstructions(): string {
 }
 
 /**
- * Validate if the current environment supports Gemini transcription
+ * Ensure the current runtime environment is compatible with Gemini transcription.
  *
- * @throws Error if Gemini is not supported in current environment
+ * @throws Error if not running in a browser environment (`"Gemini transcription requires browser environment"`).
+ * @throws Error if Electron transcription support is unavailable (`"Gemini transcription requires Electron environment"`).
  */
 export function validateGeminiEnvironment(): void {
 	if (typeof window === "undefined") {

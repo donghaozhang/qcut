@@ -16,6 +16,15 @@ interface EditorProviderProps {
 	children: React.ReactNode;
 }
 
+/**
+ * Manage editor startup lifecycle, license activation tokens, keybindings, and render the editor UI.
+ *
+ * Initializes the application, performs a license check, subscribes to deep-link activation tokens (activating and re-checking the license when provided),
+ * disables keybindings while the editor is initializing or panels are not ready, and sets up editor actions and keybinding listeners.
+ *
+ * @param children - Rendered editor content shown after initialization and scene migration
+ * @returns The editor UI: a full-screen loading screen while initialization or panel readiness is pending, otherwise `children` wrapped in `ScenesMigrator`
+ */
 export function EditorProvider({ children }: EditorProviderProps) {
 	const { isInitializing, isPanelsReady, initializeApp } = useEditorStore();
 	const { disableKeybindings, enableKeybindings } = useKeybindingDisabler();

@@ -8,17 +8,18 @@ import { useProjectStore } from "@/stores/project-store";
 import type { CliProvider } from "@/types/cli-provider";
 
 /**
- * Hook to run a skill with the configured CLI provider.
+ * Provides a runSkill function that starts a skill in the PTY terminal using the configured CLI provider.
  *
- * When a skill is run:
- * 1. Sets the skill as active context in the PTY terminal store
- * 2. Sets the CLI provider (Gemini, Codex, or Claude if specified)
- * 3. Sets the working directory to the project's skills folder
- * 4. Switches to the PTY terminal tab
- * 5. Auto-connects if not already connected
- * 6. For Gemini: Sends the skill prompt after connection
- * 7. For Codex: Skill is injected via --project-doc flag at spawn time
- * 8. For Claude: Skill is injected via --append-system-prompt flag at spawn time
+ * Updates terminal active skill context, optionally updates the CLI provider and working directory,
+ * switches to the PTY terminal tab, and ensures the CLI connection is started or restarted as needed.
+ */
+
+/**
+ * Start the specified skill in the PTY terminal using the specified or current CLI provider.
+ *
+ * @param skillId - The ID of the skill to run
+ * @param preferredProvider - Optional provider to use: "gemini", "codex", or "claude". If omitted, uses the current provider.
+ * @returns No value.
  */
 export function useSkillRunner() {
 	const { skills } = useSkillsStore();

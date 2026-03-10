@@ -230,6 +230,11 @@ function buildEditorCanvasSnapshot(): EditorCanvasSnapshot {
 	}
 }
 
+/**
+ * Access the Claude events API exposed by the platform runtime.
+ *
+ * @returns The Claude events API object if available, `undefined` otherwise.
+ */
 function getClaudeEventsApi() {
 	try {
 		return platform().claude?.events;

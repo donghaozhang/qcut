@@ -137,18 +137,21 @@ async function downloadStickerToTemp(
 }
 
 /**
- * Extract sticker sources from overlay store for FFmpeg processing.
- * Downloads blob/data URLs to temp files since FFmpeg CLI cannot read them.
+ * Prepare sticker sources from the overlay store for use with FFmpeg overlays.
  *
- * @param mediaItems - Media items to look up sticker paths
- * @param sessionId - Export session ID for temp file naming
- * @param canvasWidth - Canvas width for position calculation
- * @param canvasHeight - Canvas height for position calculation
- * @param totalDuration - Total video duration for timing defaults
- * @param stickersStoreGetter - Function to get stickers store state
- * @param stickerAPI - Electron sticker export API
- * @param logger - Logger function
- * @returns Array of sticker sources sorted by z-index
+ * Downloads sticker blobs or data URLs to temporary files (SVGs are rasterized to PNG),
+ * computes pixel position and size from percentage-based sticker coordinates, and
+ * attaches timing and transform metadata for each sticker.
+ *
+ * @param mediaItems - Media items used to resolve sticker media URLs/paths
+ * @param sessionId - Export session ID; if falsy, extraction is skipped and an empty array is returned
+ * @param canvasWidth - Canvas width used to convert sticker positions from percent to pixels
+ * @param canvasHeight - Canvas height used to convert sticker positions from percent to pixels
+ * @param totalDuration - Fallback end time for stickers when timeline timing is unavailable
+ * @param stickersStoreGetter - Optional function that returns the stickers store state; when omitted the default overlay store is imported dynamically
+ * @param stickerAPI - Optional sticker export API used to save downloaded sticker files; when omitted the platform FFmpeg export client is used
+ * @param logger - Optional logger function used for diagnostic messages
+ * @returns Array of prepared sticker source entries sorted by ascending zIndex, ready for FFmpeg overlay filters
  */
 export async function extractStickerSources(
 	mediaItems: MediaItem[],

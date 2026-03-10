@@ -65,7 +65,13 @@ function getFileIcon(entry: ProjectFolderFileInfo) {
 }
 
 /**
- * Project Folder View Component
+ * Renders a browsable UI for inspecting the current project folder and importing media files.
+ *
+ * The view shows breadcrumbs, folder and file entries (with icons and sizes), selection controls
+ * for media files, import actions with per-file import reporting, scanning/error states, and a
+ * scan summary when available.
+ *
+ * @returns The React element representing the project folder view.
  */
 export function ProjectFolderView() {
 	const {

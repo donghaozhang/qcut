@@ -5,6 +5,14 @@ import {
 	ErrorSeverity,
 } from "./debug/error-handler";
 
+/**
+ * Retrieve the repository's GitHub stargazer count and format it as a concise string.
+ *
+ * The formatted string uses "M" for millions (e.g., "1.5M"), "k" for thousands (e.g., "1.5k"),
+ * or the exact numeric count when less than 1,000. On error, a fallback value of "1.5k" is returned.
+ *
+ * @returns The formatted stargazer count string.
+ */
 export async function getStars(): Promise<string> {
 	try {
 		let count: number;

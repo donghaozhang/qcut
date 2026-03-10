@@ -55,18 +55,16 @@ const FONTCONFIG_MAP: Record<string, { mac: string; linux: string }> = {
 export const WINDOWS_FONT_BASE_PATH = "C:/Windows/Fonts/";
 
 /**
- * Resolve font family to FFmpeg-compatible font configuration.
+ * Resolve a CSS font selection to an FFmpeg-compatible font specification for the given platform.
  *
- * Platform-specific approach:
- * - **Linux/macOS**: Use fontconfig (font='Arial:style=Bold')
- * - **Windows**: Use explicit fontfile path (no fontconfig support)
+ * On macOS/Linux this returns a fontconfig-style name (e.g., "Helvetica:style=Bold Italic"); on Windows it returns an absolute font file path under the Windows fonts directory.
  *
- * @param fontFamily - CSS font family name (e.g., 'Arial', 'Times New Roman')
- * @param fontWeight - CSS font weight (e.g., 'bold')
- * @param fontStyle - CSS font style (e.g., 'italic')
- * @param platform - Platform string (e.g., 'darwin', 'win32', 'linux')
- * @returns FontConfig object with platform-appropriate font specifier
- * @throws Error if platform detection fails (Electron API unavailable)
+ * @param fontFamily - CSS font family name (e.g., "Arial" or "Times New Roman")
+ * @param fontWeight - CSS font weight (use "bold" to select bold variants)
+ * @param fontStyle - CSS font style (use "italic" to select italic variants)
+ * @param platform - Platform string (e.g., "darwin", "win32", "linux"); must be provided
+ * @returns A FontConfig describing either a fontconfig name ({ useFontconfig: true, fontName }) or a Windows font file path ({ useFontconfig: false, fontPath })
+ * @throws Error if the platform parameter is not provided
  */
 export function resolveFontPath(
 	fontFamily: string,

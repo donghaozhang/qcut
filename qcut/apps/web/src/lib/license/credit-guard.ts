@@ -44,8 +44,19 @@ function normalizeRequiredCredits({ credits }: { credits: number }): number {
 }
 
 /**
- * Enforces credit deduction for non-BYOK generation.
- * BYOK users are allowed through without deduction.
+ * Enforces and (when permitted) deducts the license credits required to perform a generation for the specified model.
+ *
+ * This function permits the operation without deduction when executed on the server, when no license API is available,
+ * or when a valid Fal API key (BYOK) is present. Otherwise it estimates the credit cost, ensures sufficient credits exist,
+ * and attempts to deduct them before allowing the operation.
+ *
+ * @param modelId - The model identifier used to determine the cost key for credit estimation.
+ * @param durationSeconds - Optional generation duration in seconds used when estimating credit cost.
+ * @param description - Optional human-readable description to record with the credit deduction.
+ * @returns An object with:
+ *   - `allowed`: `true` if the operation was permitted and required credits were deducted, `false` otherwise.
+ *   - `requiredCredits`: The number of credits required for the operation.
+ *   - `reason` (optional): A human-readable explanation when `allowed` is `false`.
  */
 export async function enforceCreditRequirement({
 	modelId,

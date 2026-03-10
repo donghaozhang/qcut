@@ -3,6 +3,24 @@ import { useNavigate } from "@tanstack/react-router";
 import { platform } from "@qcut/platform-core";
 import { useLicenseStore } from "@/stores/license-store";
 
+/**
+ * Custom React hook that manages email/password and Google login flows, license activation, and related UI state.
+ *
+ * The hook initiates authentication (email or Google), listens for deep-link activation tokens (Google OAuth callback),
+ * activates the license and triggers license verification, and navigates to the projects view on successful activation.
+ *
+ * @returns An object with:
+ * - `email`, `setEmail` — current email and setter
+ * - `password`, `setPassword` — current password and setter
+ * - `error` — last error message or `null`
+ * - `isEmailLoading` — `true` while email login is in progress
+ * - `isGoogleLoading` — `true` while Google login is in progress
+ * - `isAnyLoading` — `true` if either email or Google login is in progress
+ * - `isWaitingForBrowser` — `true` after opening an external browser for Google login and before callback
+ * - `handleLogin` — starts the email/password login flow
+ * - `handleGoogleLogin` — starts the Google OAuth flow by opening the external browser
+ * - `cancelBrowserLogin` — cancels the browser-driven Google login state
+ */
 export function useLogin() {
 	const navigate = useNavigate();
 	const checkLicense = useLicenseStore((s) => s.checkLicense);

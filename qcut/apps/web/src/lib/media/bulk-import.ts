@@ -49,12 +49,12 @@ export interface BulkImportOptions {
 }
 
 /**
- * Import multiple files from project folder into media store.
+ * Imports media files from a project folder into the media store, reporting progress and collecting failures.
  *
- * @param projectId - Project ID to import into
- * @param files - Array of file information from project folder scan
- * @param options - Import options
- * @returns Import result with success/failure counts
+ * @param projectId - Project identifier to import files into
+ * @param files - Scanned project-folder file entries; directories and files with type `"unknown"` are skipped
+ * @param options - Optional settings; `onProgress` is called with BulkImportProgress updates, `autoOrganize` and `targetFolderId` control post-import organization
+ * @returns An object with `imported` count, `failed` count, and an `errors` array containing failure messages
  */
 export async function bulkImportFiles(
 	projectId: string,

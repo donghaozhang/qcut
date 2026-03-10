@@ -17,10 +17,22 @@ const CHANNELS = [
 	"claude:project:duplicate:request",
 ] as const;
 
+/**
+ * Accesses the Claude project CRUD API from the platform integration.
+ *
+ * @returns The Claude project CRUD API object if available, `undefined` otherwise.
+ */
 function getApi() {
 	return platform().claude?.projectCrud;
 }
 
+/**
+ * Register handlers that bridge platform Claude project CRUD requests to the application's project store.
+ *
+ * Registers listeners for create, delete, rename, and duplicate project requests from the Claude platform API
+ * and sends back corresponding responses reflecting success or error. If the platform CRUD API is unavailable,
+ * the function exits without registering listeners.
+ */
 export function setupClaudeProjectCrudBridge(): void {
 	const api = getApi();
 	if (!api) return;

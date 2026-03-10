@@ -27,6 +27,13 @@ function getInitials(name: string): string {
 		.slice(0, 2);
 }
 
+/**
+ * Render a user avatar button that opens a dropdown showing account details and a sign-out action.
+ *
+ * @param user - The user's display data: `name`, `email`, and optional `image` used for the avatar.
+ * @param isDark - If `true`, apply dark styling to the avatar fallback.
+ * @returns A JSX element containing the avatar trigger and a dropdown menu with the user's name, email, and a "Sign out" item.
+ */
 export function UserAvatar({ user, isDark }: UserAvatarProps) {
 	const navigate = useNavigate();
 	const clearLicense = useLicenseStore((s) => s.clearLicense);

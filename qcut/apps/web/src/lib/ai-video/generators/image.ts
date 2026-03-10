@@ -203,11 +203,13 @@ export async function editSeeddream45Image(
 }
 
 /**
- * Upload image to FAL storage for use with Seeddream 4.5 edit
- * Uses Electron IPC to bypass CORS restrictions
+ * Upload a File to FAL storage for use with Seeddream 4.5 edit.
  *
- * @param imageFile - Image file to upload
- * @returns FAL storage URL for use in image_urls
+ * Uses the platform's Electron IPC uploader to bypass browser CORS restrictions and returns a storage URL usable in `image_urls`.
+ *
+ * @returns FAL storage URL for the uploaded image
+ * @throws Error if the FAL API key is not configured
+ * @throws Error if an Electron IPC uploader is not available (browser environments will not work)
  */
 export async function uploadImageForSeeddream45Edit(
 	imageFile: File

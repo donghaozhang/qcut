@@ -28,6 +28,15 @@ interface AvailableSkill {
 	bundled?: boolean;
 }
 
+/**
+ * Displays a dialog allowing a user to import skills into the active project.
+ *
+ * Presents skills discovered in the user's .claude/skills folder, lets the user
+ * browse for a custom skill folder, and imports the selected skill into the
+ * currently active project while providing success/error feedback.
+ *
+ * @returns A React element rendering the Import Skill dialog UI
+ */
 export function ImportSkillDialog({
 	open,
 	onOpenChange,

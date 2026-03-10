@@ -208,14 +208,20 @@ export async function loadComponentsFromFolder(
 }
 
 /**
- * Check if the Electron API for folder import is available
+ * Determines whether the Electron folder-import IPC API is available.
+ *
+ * @returns `true` if the Electron folder-import API is accessible via platform().remotionFolder, `false` otherwise.
  */
 export function isFolderImportAvailable(): boolean {
 	return !!(typeof window !== "undefined" && platform().remotionFolder);
 }
 
 /**
- * Import components from a Remotion folder via Electron IPC.
+ * Orchestrates importing Remotion components from a folder, prompting the user to select a folder when no path is provided.
+ *
+ * @param folderPath - Optional path of the folder to import; if omitted the user will be prompted to select a folder.
+ * @param options - Load options that control component creation and storage behavior.
+ * @returns A FolderLoadResult containing loaded component definitions, success/error counts, any error messages, timing information, and the resolved folderPath.
  */
 export async function importFromFolder(
 	folderPath?: string,

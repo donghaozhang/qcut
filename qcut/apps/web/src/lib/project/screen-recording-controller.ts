@@ -70,6 +70,14 @@ function getIdleStatus(): ScreenRecordingStatus {
 	};
 }
 
+/**
+ * Normalize an unknown value into an Error instance.
+ *
+ * If `error` is already an `Error`, it is returned unchanged; otherwise a new `Error` is created from the value's string representation.
+ *
+ * @param error - Value to convert into an Error
+ * @returns An `Error` instance representing `error`
+ */
 function toError({ error }: { error: unknown }): Error {
 	if (error instanceof Error) {
 		return error;
@@ -77,10 +85,21 @@ function toError({ error }: { error: unknown }): Error {
 	return new Error(typeof error === "string" ? error : String(error));
 }
 
+/**
+ * Accesses the platform-provided screen recording API.
+ *
+ * @returns The platform's `screenRecording` API object if available, otherwise `undefined`.
+ */
 function getRecordingApi() {
 	return platform().screenRecording;
 }
 
+/**
+ * Retrieve the platform screen recording API, throwing if it is not available.
+ *
+ * @returns The screen recording API implementation exposed by the platform.
+ * @throws An Error if the screen recording API is not available in the current environment.
+ */
 function getRequiredRecordingApi() {
 	const recordingApi = getRecordingApi();
 	if (!recordingApi) {

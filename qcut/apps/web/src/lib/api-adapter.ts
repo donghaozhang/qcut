@@ -113,6 +113,21 @@ async function legacyTranscribe(
 	return { success: false, error: "API call failed after retries" };
 }
 
+/**
+ * Perform a sound search using the preferred platform API with a resilient fallback to the legacy HTTP implementation.
+ *
+ * @param query - Free-text search query for sounds
+ * @param options - Optional settings and search filters
+ * @param options.retryCount - Number of retry attempts for the legacy HTTP path (default: 3)
+ * @param options.fallbackToOld - Whether to fall back to the legacy HTTP implementation on IPC failure (default: true)
+ * @param options.type - Filter by sound type: `"effects"` or `"songs"`
+ * @param options.page - Result page number for pagination
+ * @param options.page_size - Number of results per page
+ * @param options.sort - Sort criteria: `"downloads"`, `"rating"`, `"created"`, or `"score"`
+ * @param options.min_rating - Minimum rating threshold to include results
+ * @param options.commercial_only - If true, include only sounds marked for commercial use
+ * @returns The search result object; contains `success` and either result data on success or an `error` payload on failure
+ */
 export async function searchSounds(
 	query: string,
 	options: {
@@ -164,6 +179,22 @@ export async function searchSounds(
 	return legacySoundSearch(query, searchParams, retryCount);
 }
 
+/**
+ * Transcribes an audio file, using the legacy HTTP-based transcribe implementation unless the Electron feature is enabled.
+ *
+ * When the feature flag `USE_ELECTRON_API` is enabled this function throws a deprecation error indicating the platform transcription API must be used instead.
+ *
+ * @param requestData - Object describing the file to transcribe:
+ *   - filename: path or identifier of the audio file
+ *   - language: optional ISO language code for the transcription
+ *   - decryptionKey: optional key to decrypt the file before transcription
+ *   - iv: optional initialization vector for decryption
+ * @param options - Optional settings:
+ *   - retryCount: maximum number of attempts for the legacy HTTP call (default: 3)
+ *   - fallbackToOld: reserved for parity with other APIs; not used here
+ * @returns The transcription result object on success, or an object of the form `{ success: false, error: string }` if all retry attempts fail.
+ * @throws Error when the `USE_ELECTRON_API` feature flag is enabled (legacy transcribe API is deprecated).
+ */
 export async function transcribeAudio(
 	requestData: {
 		filename: string;

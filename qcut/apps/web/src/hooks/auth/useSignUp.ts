@@ -3,6 +3,22 @@ import { useNavigate } from "@tanstack/react-router";
 import { platform } from "@qcut/platform-core";
 import { useLicenseStore } from "@/stores/license-store";
 
+/**
+ * Manages user signup flows (email and Google) and license activation, exposing state and handlers for use in signup UI.
+ *
+ * @returns An object containing signup state and action handlers:
+ * - `name` / `setName`: current name and setter.
+ * - `email` / `setEmail`: current email and setter.
+ * - `password` / `setPassword`: current password and setter.
+ * - `error`: last error message or `null`.
+ * - `isEmailLoading`: `true` while an email signup request is in progress.
+ * - `isGoogleLoading`: `true` while initiating Google signup.
+ * - `isAnyLoading`: `true` if either `isEmailLoading` or `isGoogleLoading` is `true`.
+ * - `isWaitingForBrowser`: `true` after opening the browser for Google OAuth and awaiting a callback.
+ * - `handleSignUp`: performs email signup, activates the license, refreshes license state, and navigates on success.
+ * - `handleGoogleSignUp`: starts Google signup by opening the OAuth URL in the system browser and awaits activation token via deep link.
+ * - `cancelBrowserSignup`: cancels the in-browser Google signup waiting state.
+ */
 export function useSignUp() {
 	const navigate = useNavigate();
 	const checkLicense = useLicenseStore((s) => s.checkLicense);

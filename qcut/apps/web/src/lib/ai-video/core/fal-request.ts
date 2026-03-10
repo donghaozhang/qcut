@@ -32,15 +32,13 @@ let cachedElectronApiKey: string | null = null;
 let electronKeyFetchPromise: Promise<string | null> | null = null;
 
 /**
- * Retrieves the FAL API key from environment variable or Electron storage.
+ * Retrieve the FAL API key from the environment or Electron secure storage.
  *
- * Checks in order:
- * 1. VITE_FAL_API_KEY environment variable (for development/CI)
- * 2. Electron secure storage (for production desktop app)
+ * Checks the VITE_FAL_API_KEY environment variable first; if absent, attempts to read
+ * the key from Electron secure storage via platform().apiKeys and caches that result
+ * for the session to avoid repeated storage reads.
  *
- * Results from Electron storage are cached for the session.
- *
- * @returns Promise resolving to the API key or undefined if not configured
+ * @returns The FAL API key if configured, or `undefined` if not found.
  */
 export async function getFalApiKeyAsync(): Promise<string | undefined> {
 	// First try environment variable (instant, no async needed)

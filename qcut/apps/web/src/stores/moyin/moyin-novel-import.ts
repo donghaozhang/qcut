@@ -11,7 +11,13 @@ import { parseNovel } from "@/lib/moyin/script/novel-parser";
 import { novelResultToScriptData } from "@/lib/moyin/script/novel-to-script";
 import type { MoyinStore } from "./moyin-store";
 
-/** Create an LLMAdapter that delegates to the Electron IPC moyin.callLLM. */
+/**
+ * Create an LLM adapter that forwards prompts to the platform Moyin callLLM API.
+ *
+ * @returns An LLMAdapter function that sends the given system and user prompts (and optional temperature/maxTokens)
+ *          to Moyin and returns the model's text output.
+ * @throws If the platform Moyin API or its `callLLM` method is not available.
+ */
 function createElectronLLMAdapter(): LLMAdapter {
 	const api = platform().moyin;
 	if (!api?.callLLM) {

@@ -16,7 +16,26 @@ import type {
 } from "@/types/electron";
 
 /**
- * Hook for managing project folder navigation and operations.
+ * Provides navigation, listing, and scanning operations for a project's folder.
+ *
+ * Exposes state and actions for browsing and managing a project's directory tree,
+ * including non-recursive directory listing, recursive media scanning, and helpers
+ * for navigation and breadcrumbs.
+ *
+ * @returns An object containing:
+ * - `projectId`: the active project's id or `undefined`
+ * - `currentPath`: the currently viewed directory path
+ * - `entries`: array of directory entries (`ProjectFolderFileInfo[]`)
+ * - `scanResult`: result of the last scan (`ProjectFolderScanResult | null`)
+ * - `isScanning`: `true` when an operation is in progress
+ * - `error`: last error message or `null`
+ * - `listDirectory(subPath?)`: list contents of `subPath` (non-recursive)
+ * - `navigateTo(subPath)`: navigate to `subPath`
+ * - `navigateUp()`: navigate to the parent directory
+ * - `refresh()`: re-list the current directory
+ * - `getBreadcrumbs()`: return breadcrumb segments for the current path
+ * - `scanForMedia(subPath?)`: recursively scan `subPath` for media files and return the scan result or `null` on failure
+ * - `ensureStructure()`: ensure required project folder structure exists and return the result or `null` on failure
  */
 export function useProjectFolder() {
 	const { activeProject } = useProjectStore();

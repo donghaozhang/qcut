@@ -8,6 +8,11 @@ interface CleanupPtyOnEditorExitOptions {
 	onError?: CleanupErrorHandler;
 }
 
+/**
+ * Attempts to terminate all platform PTY sessions when the editor exits and reports failures.
+ *
+ * @param onError - Callback invoked with a descriptive message and the caught error when PTY termination fails; defaults to debugError.
+ */
 export function cleanupPtyOnEditorExit({
 	onError = debugError,
 }: CleanupPtyOnEditorExitOptions = {}): void {

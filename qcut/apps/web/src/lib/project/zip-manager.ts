@@ -559,7 +559,17 @@ export class ZipManager {
 	}
 }
 
-// Safe download utility to replace the problematic one
+/**
+ * Save a ZIP Blob to the user's filesystem using platform and browser fallbacks.
+ *
+ * Attempts to save via the platform API first; if that fails or is canceled,
+ * falls back to the browser File System Access API (when available), and finally
+ * to a traditional download approach that creates an object URL and triggers a
+ * hidden iframe-based download.
+ *
+ * @param blob - The ZIP data to save
+ * @param filename - Suggested filename for the saved ZIP (e.g., "archive.zip")
+ */
 export async function downloadZipSafely(
 	blob: Blob,
 	filename: string

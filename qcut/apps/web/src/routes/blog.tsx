@@ -9,6 +9,14 @@ export const Route = createFileRoute("/blog")({
 	component: BlogPage,
 });
 
+/**
+ * Render the Blog page containing latest updates and a control to open the QCut GitHub repository.
+ *
+ * The "Visit QCut on GitHub" button attempts to open the repository URL via the platform shell when available;
+ * if that fails, it falls back to opening the URL in a new browser tab.
+ *
+ * @returns The JSX element for the Blog page.
+ */
 function BlogPage() {
 	const handleRedirectToGitHub = async () => {
 		const url = "https://github.com/donghaozhang/qcut";

@@ -70,6 +70,13 @@ interface TranscriptionState {
 	currentFile: File | null;
 }
 
+/**
+ * Render a UI for uploading audio or video, running Gemini transcription, and adding generated captions to the timeline.
+ *
+ * The component provides language selection, drag-and-drop / file selection, cached results lookup, file validation and size hints, audio extraction for video files, progress and error states, and actions to add transcription segments as caption elements to the timeline store.
+ *
+ * @returns The rendered React element for the captions transcription panel
+ */
 export function CaptionsView() {
 	const [selectedLanguage, setSelectedLanguage] = useState("auto");
 	const [state, setState] = useState<TranscriptionState>({

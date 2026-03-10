@@ -33,6 +33,15 @@ interface SkillCardProps {
 	onDelete: () => void;
 }
 
+/**
+ * Renders a card for a skill with controls to view file paths, copy paths to clipboard, run the skill with different Runners, and delete the skill.
+ *
+ * Displays skill metadata (name, description, dependencies), an expandable file list showing the skill folder and files (with copy buttons), and action controls for running with Claude/Codex/Gemini and deleting the skill.
+ *
+ * @param skill - The skill to display (includes name, description, folderName, mainFile, additionalFiles, dependencies, and id)
+ * @param onDelete - Callback invoked when the user confirms deletion of the skill
+ * @returns The Skill card React element
+ */
 export function SkillCard({ skill, onDelete }: SkillCardProps) {
 	const { runSkill } = useSkillRunner();
 	const { activeProject } = useProjectStore();

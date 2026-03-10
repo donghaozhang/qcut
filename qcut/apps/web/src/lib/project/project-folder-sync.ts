@@ -151,8 +151,15 @@ function encodeDeterministicMediaId({
 // ============================================================================
 
 /**
- * Scans the project folder on disk and imports any untracked media files
- * into the media store with appropriate virtual folder assignments.
+ * Scan the project's media folder on disk and import any untracked media files into the media store with appropriate virtual folder assignments.
+ *
+ * @param projectId - The identifier of the project whose folder should be synchronized
+ * @returns A SyncResult object containing import statistics:
+ * - `imported`: number of files imported
+ * - `skipped`: number of files already tracked and skipped
+ * - `errors`: array of error messages encountered during import
+ * - `scanTime`: elapsed time of the sync in milliseconds
+ * - `totalDiskFiles`: total number of media files discovered on disk
  */
 export async function syncProjectFolder(
 	projectId: string

@@ -198,9 +198,11 @@ export function clearPendingParse(): void {
 }
 
 /**
- * Attempt to run parse-script via PTY terminal for streaming output.
- * Returns true if successfully initiated; data arrives via onParsed listener.
- * Returns false if PTY unavailable (caller should fall back to IPC).
+ * Initiates a PTY-based streaming parse of the provided script.
+ *
+ * @param rawScript - The full script text to parse
+ * @param model - The model identifier to use for parsing
+ * @returns `{ success: true, tempPath: string }` when a PTY parse was started and the temporary script path is provided, `{ success: false }` otherwise
  */
 export async function attemptPtyParse(
 	rawScript: string,

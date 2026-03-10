@@ -30,7 +30,12 @@ interface MoyinApi {
 	}) => Promise<LLMResult>;
 }
 
-/** Get the Moyin Electron API, throwing if unavailable. */
+/**
+ * Retrieve the Moyin Electron API instance from the platform.
+ *
+ * @returns The MoyinApi instance exposing `callLLM`.
+ * @throws Error if the Moyin API or its `callLLM` method is unavailable (for example, when not running in Electron).
+ */
 function getMoyinApi(): MoyinApi {
 	const api = platform().moyin;
 	if (!api?.callLLM) {

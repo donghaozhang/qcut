@@ -11,6 +11,17 @@ import { useMoyinStore } from "@/stores/moyin/moyin-store";
 import { platform } from "@qcut/platform-core";
 import { toast } from "sonner";
 
+/**
+ * Registers Moyin bridge handlers on the platform integration to wire CLI/API requests to the Moyin store and workflows.
+ *
+ * When a platform Moyin instance is available, this function sets up listeners that:
+ * - update the store's raw script from incoming script text,
+ * - trigger script parsing and generation using the store's APIs,
+ * - respond to status requests with current pipeline/status counts,
+ * - respond to export requests with current script metadata and content.
+ *
+ * The function is a no-op if no platform Moyin integration is present.
+ */
 export function setupClaudeMoyinBridge(): void {
 	const moyin = platform().moyin;
 	if (!moyin) return;
@@ -117,6 +128,12 @@ export function setupClaudeMoyinBridge(): void {
 	});
 }
 
+/**
+ * Removes any registered Claude–Moyin bridge listeners from the platform Moyin integration.
+ *
+ * Ensures the Moyin bridge no longer receives CLI/API requests by calling the platform's
+ * removal helper when a Moyin instance is present.
+ */
 export function cleanupClaudeMoyinBridge(): void {
 	platform().moyin?.removeMoyinBridgeListeners();
 }

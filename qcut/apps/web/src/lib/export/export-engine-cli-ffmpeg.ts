@@ -8,7 +8,19 @@
 import { debugLog, debugError } from "@/lib/debug/debug-config";
 import { platform } from "@qcut/platform-core";
 
-/** Logs the full export configuration (dimensions, quality, filters, sources) via debug logger. */
+/**
+ * Log the FFmpeg export configuration for the current session.
+ *
+ * Logs a structured configuration object containing sessionId, dimensions (WxH), fps, duration,
+ * quality, audio/video/word-filter counts, overlay flags/counts for text/sticker/image, and the
+ * directCopy flag. If text filters are present, logs an additional message with the text filter
+ * chain length in characters.
+ *
+ * @param exportOptions - Export settings including sessionId, dimensions, fps, duration, quality,
+ *   and optional arrays for audioFiles, videoSources, and wordFilterSegments.
+ * @param context - Flags and counts describing which filters/overlays are present and the text
+ *   filter chain length.
+ */
 export function logExportConfiguration(
 	exportOptions: {
 		sessionId: string;
@@ -55,7 +67,14 @@ export function logExportConfiguration(
 	}
 }
 
-/** Invokes FFmpeg CLI export via Electron IPC and returns the output file path. */
+/**
+ * Invoke the platform FFmpeg CLI export with the provided options.
+ *
+ * @param exportOptions - Key/value options to pass to the FFmpeg CLI export implementation.
+ * @returns The export output file path if provided by the platform, otherwise an empty string.
+ * @throws Error if the platform CLI export function is unavailable.
+ * @throws Any error thrown by the platform's FFmpeg export implementation.
+ */
 export async function invokeFFmpegExport(
 	exportOptions: Record<string, any>
 ): Promise<string> {

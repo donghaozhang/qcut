@@ -9,6 +9,19 @@ import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 
 export interface ProcessedMediaItem extends Omit<MediaItem, "id"> {}
 
+/**
+ * Process a list of File objects into an array of media items enriched with preview URLs and metadata.
+ *
+ * Processes each provided file to produce ProcessedMediaItem objects containing fields such as
+ * name, type, file, url, thumbnailUrl, duration, width, height, fps, and localPath. Unsupported
+ * files are skipped (with a warning) and per-file errors result in a conservative fallback item
+ * so processing continues for the remaining files. Progress updates are delivered via the optional
+ * callback.
+ *
+ * @param files - A FileList or array of File objects to process
+ * @param onProgress - Optional callback invoked with an integer percent (0–100) as files are processed
+ * @returns An array of ProcessedMediaItem for the successfully processed or minimally-fallbacked files
+ */
 export async function processMediaFiles(
 	files: FileList | File[],
 	onProgress?: (progress: number) => void

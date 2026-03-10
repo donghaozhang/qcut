@@ -51,7 +51,11 @@ export function isVersionDismissed(version: string): boolean {
 }
 
 /**
- * Dismiss the update notification for a specific version.
+ * Record that the user dismissed update notifications for a specific release version.
+ *
+ * If persistent storage is unavailable (for example, localStorage is inaccessible), the call is a no-op.
+ *
+ * @param version - The release version to mark as dismissed
  */
 export function dismissVersion(version: string): void {
 	try {
@@ -62,7 +66,10 @@ export function dismissVersion(version: string): void {
 }
 
 /**
- * Fetch release notes via platform API, with graceful fallback.
+ * Retrieve release notes for a specific version or the latest available.
+ *
+ * @param version - Optional version identifier to fetch release notes for; when omitted, fetches the latest release notes
+ * @returns The release notes for the requested version, or `null` if not found or an error occurred
  */
 export async function fetchReleaseNotes(
 	version?: string
@@ -75,7 +82,9 @@ export async function fetchReleaseNotes(
 }
 
 /**
- * Fetch the full changelog via platform API.
+ * Retrieve the application's full changelog from the platform update API.
+ *
+ * @returns An array of `ReleaseNote` objects representing changelog entries; an empty array if retrieval fails.
  */
 export async function fetchChangelog(): Promise<ReleaseNote[]> {
 	try {

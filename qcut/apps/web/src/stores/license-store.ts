@@ -52,6 +52,11 @@ const FREE_FALLBACK: LicenseInfo = {
 	},
 };
 
+/**
+ * Retrieve the license API client from the platform runtime.
+ *
+ * @returns The license API object from `platform()` or `undefined` if it is not available.
+ */
 function getLicenseApi() {
 	return platform().license;
 }

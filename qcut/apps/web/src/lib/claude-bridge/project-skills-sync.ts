@@ -4,6 +4,14 @@ interface SyncProjectSkillsForClaudeInput {
 	projectId: string;
 }
 
+/**
+ * Initiates syncing of a project's skills with Claude.
+ *
+ * If the platform integration is unavailable the function returns immediately.
+ * If the sync operation fails, a warning is logged.
+ *
+ * @param projectId - The project identifier whose skills should be synchronized
+ */
 export function syncProjectSkillsForClaude({
 	projectId,
 }: SyncProjectSkillsForClaudeInput): void {

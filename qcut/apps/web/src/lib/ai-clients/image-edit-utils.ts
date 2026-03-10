@@ -17,8 +17,11 @@ let cachedFalApiKey: string | null = null;
 let apiKeyFetchPromise: Promise<string | null> | null = null;
 
 /**
- * Get FAL API key from environment variable or Electron storage.
- * Results are cached for the session.
+ * Retrieve the FAL API key, checking environment, then session cache, then Electron storage.
+ *
+ * The first available source is returned and a found key is cached for the session to avoid repeated lookups.
+ *
+ * @returns The FAL API key as a string if found, `null` otherwise.
  */
 export async function getFalApiKey(): Promise<string | null> {
 	// First try environment variable (instant)
