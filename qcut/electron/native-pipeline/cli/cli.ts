@@ -572,9 +572,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		audioOnly: (values["audio-only"] as boolean) ?? false,
 		noDynamicDuration: (values["no-dynamic-duration"] as boolean) ?? false,
 		speakers: values.speakers
-			? (Number.isNaN(parseInt(values.speakers as string, 10))
-					? undefined
-					: parseInt(values.speakers as string, 10))
+			? Number.isNaN(parseInt(values.speakers as string, 10))
+				? undefined
+				: parseInt(values.speakers as string, 10)
 			: undefined,
 		// transcribe options
 		language: values.language as string | undefined,
