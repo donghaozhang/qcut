@@ -132,11 +132,9 @@ const startTimer = (store: () => PlaybackStore) => {
 					new CustomEvent("playback-tick", { detail: { time: newTime } })
 				);
 
-				// Sync to Zustand store at reduced frequency for timecode display
-				if (now - lastStoreSyncTime >= STORE_SYNC_INTERVAL_MS) {
-					state.setCurrentTime(newTime);
-					lastStoreSyncTime = now;
-				}
+				// No Zustand store updates during playback — each update triggers
+				// ~200ms of React re-renders on iPad. Store is synced on pause only.
+				// UI elements (timecode, playhead) use playback-tick events instead.
 			}
 		}
 		playbackTimer = requestAnimationFrame(updateTime);
