@@ -9,6 +9,7 @@
  */
 
 import * as fs from "fs";
+import * as path from "path";
 import type { EditorApiClient } from "../editor/editor-api-client.js";
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
 import { resolveJsonInput } from "./editor-api-types.js";
@@ -266,7 +267,11 @@ async function exportStart(
 		body.settings = settings;
 	}
 	if (opts.outputDir && opts.outputDir !== "./output") {
-		body.outputPath = opts.outputDir;
+		const ext = opts.exportFormat || opts.format || "mp4";
+		const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+		const basename = opts.filename || `export-${ts}`;
+		const hasExt = path.extname(basename).length > 1;
+		body.outputPath = path.join(opts.outputDir, hasExt ? basename : `${basename}.${ext}`);
 	}
 
 	const startResult = await client.post<{ jobId: string }>(
