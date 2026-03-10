@@ -576,8 +576,8 @@ async function importRemotionFolder({
 		);
 		const loadResult = await loadComponentsFromFolder(
 			folderPath,
-			importResult.scan.compositions,
-			importResult.bundle.results
+			importResult.scan!.compositions as unknown[],
+			importResult.bundle!.results as unknown[]
 		);
 
 		if (!loadResult.success || loadResult.components.length === 0) {
