@@ -22,6 +22,7 @@
 		"test:ui:dev": "vitest --ui --config vitest.config.watch.ts"
 	},
 	"dependencies": {
+		"@qcut/editor-core": "workspace:*",
 		"@aws-sdk/client-s3": "^3.993.0",
 		"@babel/parser": "^7.29.0",
 		"@babel/traverse": "^7.29.0",

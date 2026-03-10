@@ -1,59 +1,21 @@
-// Caption/Transcription related types
+// Domain types re-exported from @qcut/editor-core
+export type {
+	TranscriptionSegment,
+	TranscriptionResult,
+	TranscriptionRequest,
+	TranscriptionError,
+	CaptionSegment,
+	CaptionTrackData,
+	TranscriptionStatus,
+	TranscriptionProgress,
+	CaptionFormat,
+	CaptionExportOptions,
+} from "@qcut/editor-core";
 
-export type TranscriptionSegment = {
-	id: number;
-	seek: number;
-	start: number;
-	end: number;
-	text: string;
-	tokens: number[];
-	temperature: number;
-	avg_logprob: number;
-	compression_ratio: number;
-	no_speech_prob: number;
-};
+// ---------------------------------------------------------------------------
+// UI-specific types (stay in apps/web, not in editor-core)
+// ---------------------------------------------------------------------------
 
-export type TranscriptionResult = {
-	text: string;
-	segments: TranscriptionSegment[];
-	language: string;
-};
-
-export type TranscriptionRequest = {
-	filename: string;
-	language?: string;
-	decryptionKey?: string;
-	iv?: string;
-};
-
-export type TranscriptionError = {
-	error: string;
-	message?: string;
-	details?: unknown;
-};
-
-// Caption element for timeline integration
-export type CaptionSegment = {
-	id: string;
-	text: string;
-	startTime: number;
-	endTime: number;
-	duration: number;
-	confidence?: number;
-};
-
-// Caption track data
-export type CaptionTrackData = {
-	id: string;
-	name: string;
-	language: string;
-	segments: CaptionSegment[];
-	source: "transcription" | "manual" | "imported";
-	createdAt: string;
-	updatedAt: string;
-};
-
-// Language selection
 export type Language = {
 	code: string;
 	name: string;
@@ -61,7 +23,6 @@ export type Language = {
 	flag: string;
 };
 
-// Common languages for transcription
 export const SUPPORTED_LANGUAGES: Language[] = [
 	{ code: "auto", name: "Auto-detect", nativeName: "Auto-detect", flag: "🌐" },
 	{ code: "en", name: "English", nativeName: "English", flag: "🇺🇸" },
@@ -77,33 +38,3 @@ export const SUPPORTED_LANGUAGES: Language[] = [
 	{ code: "ar", name: "Arabic", nativeName: "العربية", flag: "🇸🇦" },
 	{ code: "hi", name: "Hindi", nativeName: "हिन्दी", flag: "🇮🇳" },
 ];
-
-// Transcription process status
-export type TranscriptionStatus =
-	| "idle"
-	| "preparing"
-	| "uploading"
-	| "processing"
-	| "downloading"
-	| "completed"
-	| "error";
-
-export type TranscriptionProgress = {
-	status: TranscriptionStatus;
-	progress: number; // 0-100
-	message: string;
-	estimatedTimeRemaining?: number; // seconds
-};
-
-// Export formats for captions
-export type CaptionFormat = "srt" | "vtt" | "ass" | "ttml";
-
-export type CaptionExportOptions = {
-	format: CaptionFormat;
-	includeBurnIn: boolean;
-	fontSize?: number;
-	fontFamily?: string;
-	color?: string;
-	backgroundColor?: string;
-	position?: "top" | "bottom" | "center";
-};
