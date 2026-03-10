@@ -231,8 +231,7 @@ function EditorPage() {
 			let projectRoot = "";
 			try {
 				projectRoot =
-					(await platform().projectFolder?.getRoot?.(project_id)) ||
-					"";
+					(await platform().projectFolder?.getRoot?.(project_id)) || "";
 			} catch {
 				projectRoot = "";
 			}

@@ -14,13 +14,21 @@ describe("DesktopOnly", () => {
 	});
 
 	it("hides children on web by default", () => {
-		render(<DesktopOnly><span>secret</span></DesktopOnly>);
+		render(
+			<DesktopOnly>
+				<span>secret</span>
+			</DesktopOnly>
+		);
 		expect(screen.queryByText("secret")).toBeNull();
 	});
 
 	it("shows children on desktop", () => {
 		vi.mocked(useIsDesktop).mockReturnValue(true);
-		render(<DesktopOnly><span>visible</span></DesktopOnly>);
+		render(
+			<DesktopOnly>
+				<span>visible</span>
+			</DesktopOnly>
+		);
 		expect(screen.getByText("visible")).toBeDefined();
 	});
 
@@ -38,6 +46,8 @@ describe("DesktopOnly", () => {
 describe("WebUnavailable", () => {
 	it("shows feature name in message", () => {
 		render(<WebUnavailable feature="Terminal" />);
-		expect(screen.getByText(/Terminal requires the QCut desktop app/)).toBeDefined();
+		expect(
+			screen.getByText(/Terminal requires the QCut desktop app/)
+		).toBeDefined();
 	});
 });

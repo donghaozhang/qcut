@@ -43,8 +43,7 @@ export async function debugStickerPersistence() {
 	try {
 		if (platform().storage) {
 			savedStickers =
-				((await platform().storage!.load(storageKey)) as any[] | null) ||
-				[];
+				((await platform().storage!.load(storageKey)) as any[] | null) || [];
 			console.log("📦 Storage type: Electron IPC");
 		} else {
 			const stored = localStorage.getItem(storageKey);

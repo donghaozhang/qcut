@@ -52,9 +52,7 @@ export function SkillCard({ skill, onDelete }: SkillCardProps) {
 	// Get the skills folder path when expanded
 	useEffect(() => {
 		if (isExpanded && activeProject && !skillsBasePath) {
-			const getPathPromise = platform().skills?.getPath?.(
-				activeProject.id
-			);
+			const getPathPromise = platform().skills?.getPath?.(activeProject.id);
 			getPathPromise
 				?.then((path) => {
 					if (path) {

@@ -39,8 +39,7 @@ export function DropZone({
 				}
 
 				// Use webUtils.getPathForFile via preload (Electron 37+ removed File.path)
-				const filePath =
-					platform().getPathForFile?.(file) ?? undefined;
+				const filePath = platform().getPathForFile?.(file) ?? undefined;
 
 				debugLog("[WordTimeline] File dropped:", {
 					name: file.name,

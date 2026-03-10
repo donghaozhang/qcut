@@ -23,9 +23,7 @@ export async function getStars(): Promise<string> {
 			const result = await platform().github.fetchStars();
 			const stars = result.stars;
 			if (typeof stars !== "number" || !Number.isFinite(stars)) {
-				throw new Error(
-					"Invalid stargazers_count from platform GitHub bridge",
-				);
+				throw new Error("Invalid stargazers_count from platform GitHub bridge");
 			}
 			count = stars;
 		} else {

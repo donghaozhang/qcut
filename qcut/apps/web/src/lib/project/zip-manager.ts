@@ -148,10 +148,7 @@ export class ZipManager {
 				const shouldUseLocalPath =
 					isAIGenerated || (item.type === "video" && item.localPath);
 
-				if (
-					shouldUseLocalPath &&
-					item.localPath
-				) {
+				if (shouldUseLocalPath && item.localPath) {
 					logDebug(
 						"step 9b-ai: AI video detected, prioritizing localPath read",
 						{
@@ -163,9 +160,7 @@ export class ZipManager {
 					);
 
 					try {
-						const fileBuffer = await platform().files.readFile(
-							item.localPath
-						);
+						const fileBuffer = await platform().files.readFile(item.localPath);
 						logDebug("step 9b-ai-read: readFile returned for AI video", {
 							bufferExists: !!fileBuffer,
 							bufferLength: fileBuffer ? fileBuffer.length : 0,
@@ -239,9 +234,7 @@ export class ZipManager {
 						readFileAvailable: typeof platform().files?.readFile === "function",
 					});
 					try {
-						const fileBuffer = await platform().files.readFile(
-							item.localPath
-						);
+						const fileBuffer = await platform().files.readFile(item.localPath);
 						logDebug("step 9e: readFile returned", {
 							bufferExists: !!fileBuffer,
 							bufferType: fileBuffer

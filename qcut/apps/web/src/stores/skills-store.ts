@@ -68,10 +68,7 @@ export const useSkillsStore = create<SkillsStore>((set, get) => ({
 
 	importSkill: async (projectId, sourcePath) => {
 		try {
-			const skill = await platform().skills.import(
-				projectId,
-				sourcePath
-			);
+			const skill = await platform().skills.import(projectId, sourcePath);
 			if (skill) {
 				set((state) => ({ skills: [...state.skills, skill] }));
 				debugLog("[SkillsStore] Imported skill:", {

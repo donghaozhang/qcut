@@ -516,9 +516,8 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 
 				try {
 					data =
-						((await platform().storage.load(key)) as
-							| OverlaySticker[]
-							| null) || [];
+						((await platform().storage.load(key)) as OverlaySticker[] | null) ||
+						[];
 					debugLog(
 						`[StickerStore] Loaded via platform storage: ${data.length} stickers`
 					);

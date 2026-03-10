@@ -290,10 +290,7 @@ export class ExportEngineFactory {
 				if (this.isElectron()) {
 					try {
 						console.log("✅ Electron detected - Loading CLI FFmpeg engine");
-						console.log(
-							"  - platform isElectron:",
-							platform().isElectron
-						);
+						console.log("  - platform isElectron:", platform().isElectron);
 						console.log(
 							"  - ffmpeg.exportVideoCLI available:",
 							typeof platform().ffmpeg.exportVideoCLI === "function"
@@ -632,18 +629,13 @@ export class ExportEngineFactory {
 		if (isElectron) {
 			console.log("  - ffmpeg exists:", !!p.ffmpeg);
 			if (p.ffmpeg) {
-				console.log(
-					"  - exportVideoCLI type:",
-					typeof p.ffmpeg.exportVideoCLI
-				);
+				console.log("  - exportVideoCLI type:", typeof p.ffmpeg.exportVideoCLI);
 			}
 		}
 
 		// Check for specific FFmpeg CLI method availability
 		const hasFFmpegCLI =
-			isElectron &&
-			p.ffmpeg &&
-			typeof p.ffmpeg.exportVideoCLI === "function";
+			isElectron && p.ffmpeg && typeof p.ffmpeg.exportVideoCLI === "function";
 
 		console.log(
 			`🔍 ENVIRONMENT CHECK: isElectron: ${isElectron}, ffmpeg.exportVideoCLI: ${typeof p.ffmpeg?.exportVideoCLI}`

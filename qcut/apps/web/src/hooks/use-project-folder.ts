@@ -62,10 +62,7 @@ export function useProjectFolder() {
 			setError(null);
 
 			try {
-				const result = await platform().projectFolder.list(
-					projectId,
-					subPath
-				);
+				const result = await platform().projectFolder.list(projectId, subPath);
 				setEntries(result);
 				setCurrentPath(subPath);
 			} catch (err) {
@@ -92,14 +89,10 @@ export function useProjectFolder() {
 			setError(null);
 
 			try {
-				const result = await platform().projectFolder.scan(
-					projectId,
-					subPath,
-					{
-						recursive: true,
-						mediaOnly: true,
-					}
-				);
+				const result = await platform().projectFolder.scan(projectId, subPath, {
+					recursive: true,
+					mediaOnly: true,
+				});
 				setScanResult(result);
 				return result;
 			} catch (err) {
@@ -123,8 +116,7 @@ export function useProjectFolder() {
 		}
 
 		try {
-			const result =
-				await platform().projectFolder.ensureStructure(projectId);
+			const result = await platform().projectFolder.ensureStructure(projectId);
 			return result;
 		} catch (err) {
 			const message =

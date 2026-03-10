@@ -196,10 +196,7 @@ export async function processMediaFiles(
 						const uint8Array = new Uint8Array(arrayBuffer);
 
 						// Save to temp directory via Electron IPC
-						localPath = await platform().video.saveTemp(
-							uint8Array,
-							file.name
-						);
+						localPath = await platform().video.saveTemp(uint8Array, file.name);
 
 						// Validate returned path
 						if (!localPath || localPath.trim() === "") {

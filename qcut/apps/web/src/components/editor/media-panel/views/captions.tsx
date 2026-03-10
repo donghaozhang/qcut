@@ -252,11 +252,10 @@ export function CaptionsView() {
 						throw new Error("Electron FFmpeg API not available");
 					}
 
-					const { audioPath, fileSize } =
-						await platform().ffmpeg.extractAudio({
-							videoPath: videoTempPath,
-							format: "wav",
-						});
+					const { audioPath, fileSize } = await platform().ffmpeg.extractAudio({
+						videoPath: videoTempPath,
+						format: "wav",
+					});
 
 					console.log(
 						"[Gemini Transcription] ✅ Audio extracted:",

@@ -75,7 +75,9 @@ export async function fetchReleaseNotes(
 	version?: string
 ): Promise<ReleaseNote | null> {
 	try {
-		return (await platform().updates.getReleaseNotes(version)) as ReleaseNote | null;
+		return (await platform().updates.getReleaseNotes(
+			version
+		)) as ReleaseNote | null;
 	} catch {
 		return null;
 	}
