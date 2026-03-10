@@ -250,7 +250,7 @@ export function CaptionsView() {
 					// Extract audio using FFmpeg CLI (much faster than WebAssembly!)
 					if (!platform().ffmpeg?.extractAudio) {
 						throw new Error(
-							"FFmpeg audio extraction not available on this platform",
+							"FFmpeg audio extraction not available on this platform"
 						);
 					}
 
