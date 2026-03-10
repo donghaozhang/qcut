@@ -7,6 +7,8 @@
  * This replaces moyin-creator's `@/lib/ai/feature-router` import.
  */
 
+import { platform } from "@qcut/platform-core";
+
 export interface LLMCallOptions {
 	temperature?: number;
 	maxTokens?: number;
@@ -27,7 +29,7 @@ export async function callFeatureAPI(
 	userPrompt: string,
 	options?: LLMCallOptions
 ): Promise<string> {
-	const api = window.electronAPI?.moyin;
+	const api = platform().moyin;
 	if (!api?.callLLM) {
 		throw new Error(
 			"LLM not available. Please configure an API key in Settings."

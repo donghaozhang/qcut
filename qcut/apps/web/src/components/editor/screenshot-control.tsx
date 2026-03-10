@@ -1,5 +1,6 @@
 "use client";
 
+import { platform } from "@qcut/platform-core";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Camera, Loader2 } from "lucide-react";
@@ -13,7 +14,7 @@ export function ScreenshotControl({ variant }: { variant?: "menu-item" } = {}) {
 	const handleCapture = useCallback(async (): Promise<void> => {
 		if (isBusy) return;
 
-		const api = window.electronAPI?.screenshot;
+		const api = platform().screenshot;
 		if (!api) {
 			toast.error("Screenshot not available");
 			return;

@@ -1,5 +1,6 @@
 "use client";
 
+import { platform } from "@qcut/platform-core";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { useEditorStore } from "@/stores/editor/editor-store";
@@ -46,7 +47,7 @@ export function EditorProvider({ children }: EditorProviderProps) {
 
 	// Handle deep-link activation tokens delivered by the main process.
 	useEffect(() => {
-		const licenseApi = window.electronAPI?.license;
+		const licenseApi = platform().license;
 		if (!licenseApi?.onActivationToken) {
 			return;
 		}
@@ -63,7 +64,7 @@ export function EditorProvider({ children }: EditorProviderProps) {
 		});
 
 		return () => {
-			unsubscribe();
+			unsubscribe?.();
 		};
 	}, [checkLicense]);
 

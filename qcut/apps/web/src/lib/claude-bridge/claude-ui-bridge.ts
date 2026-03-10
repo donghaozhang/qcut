@@ -14,6 +14,7 @@ import {
 	type Tab,
 } from "@/components/editor/media-panel/store";
 import { useExportStore } from "@/stores/export-store";
+import { platform } from "@qcut/platform-core";
 
 const propertiesPanelTabs: Record<
 	string,
@@ -25,7 +26,7 @@ const propertiesPanelTabs: Record<
 };
 
 export function setupClaudeUiBridge(): void {
-	const bridge = window.electronAPI?.claude?.ui;
+	const bridge = platform().claude?.ui;
 	if (!bridge) return;
 
 	bridge.onSwitchPanelRequest((data) => {
@@ -82,5 +83,5 @@ export function setupClaudeUiBridge(): void {
 }
 
 export function cleanupClaudeUiBridge(): void {
-	window.electronAPI?.claude?.ui?.removeListeners();
+	platform().claude?.ui?.removeListeners();
 }

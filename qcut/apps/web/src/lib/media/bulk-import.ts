@@ -7,6 +7,7 @@
  * @module lib/bulk-import
  */
 
+import { platform } from "@qcut/platform-core";
 import type { ProjectFolderFileInfo } from "@/types/electron";
 
 /**
@@ -90,7 +91,7 @@ export async function bulkImportFiles(
 			const mediaId = crypto.randomUUID();
 
 			// Import file via Electron IPC (symlink/copy)
-			const importResult = await window.electronAPI?.mediaImport?.import({
+			const importResult = await platform().mediaImport?.import({
 				sourcePath: file.path,
 				projectId,
 				mediaId,

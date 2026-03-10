@@ -7,6 +7,7 @@
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useMediaStore, type MediaItem } from "@/stores/media/media-store";
+import { platform } from "@qcut/platform-core";
 import type { TimelineElement, TimelineTrack } from "@/types/timeline";
 import type {
 	ClaudeTimeline,
@@ -264,7 +265,7 @@ async function resolveMediaItemForElement({
 			return mediaBeforeSync;
 		}
 
-		if (!projectId || !window.electronAPI?.projectFolder) {
+		if (!projectId || !platform().projectFolder) {
 			return null;
 		}
 
@@ -477,7 +478,7 @@ async function bundleAndRegisterComponent({
 	height?: number;
 }): Promise<string | null> {
 	try {
-		const api = window.electronAPI?.remotionFolder;
+		const api = platform().remotionFolder;
 		if (!api?.bundleFile) {
 			debugWarn(
 				"[ClaudeTimelineBridge] remotionFolder.bundleFile not available"
@@ -549,7 +550,7 @@ async function importRemotionFolder({
 	folderPath: string;
 }): Promise<string[]> {
 	try {
-		const api = window.electronAPI?.remotionFolder;
+		const api = platform().remotionFolder;
 		if (!api?.import) {
 			debugWarn("[ClaudeTimelineBridge] remotionFolder.import not available");
 			return [];

@@ -4,6 +4,7 @@
  * Handles long-running FAL AI job status polling with progress updates.
  */
 
+import { platform } from "@qcut/platform-core";
 import {
 	getFalApiKeyAsync,
 	FAL_QUEUE_BASE,
@@ -26,8 +27,7 @@ async function fetchQueue(
 	url: string,
 	apiKey: string
 ): Promise<{ ok: boolean; status: number; data: unknown }> {
-	const electronFal =
-		typeof window !== "undefined" ? window.electronAPI?.fal : undefined;
+	const electronFal = platform().fal;
 	if (electronFal?.queueFetch) {
 		console.log(`[Queue Poll] Using Electron IPC proxy for: ${url}`);
 		const result = await electronFal.queueFetch(url, apiKey);

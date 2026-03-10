@@ -10,6 +10,7 @@
 import type { ImageSourceInput } from "../types";
 import type { TimelineTrack, TimelineElement } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store";
+import { platform } from "@qcut/platform-core";
 
 /**
  * Logger function type for dependency injection.
@@ -69,7 +70,7 @@ async function createTempFileFromBlob(
  * @param tracks - Timeline tracks to extract image elements from
  * @param mediaItems - Media items to look up image paths
  * @param sessionId - Export session ID for temp file naming
- * @param imageAPI - Electron image API (defaults to window.electronAPI.video for temp file creation)
+ * @param imageAPI - Electron image API (defaults to platform().video for temp file creation)
  * @param logger - Logger function (defaults to console.log)
  * @returns Array of image sources sorted by start time
  */
@@ -80,7 +81,7 @@ export async function extractImageSources(
 	imageAPI?: ImageSaveTempAPI,
 	logger: LogFn = console.log
 ): Promise<ImageSourceInput[]> {
-	const api = imageAPI ?? (window.electronAPI?.video as ImageSaveTempAPI);
+	const api = imageAPI ?? (platform().video as unknown as ImageSaveTempAPI);
 	const imageSources: ImageSourceInput[] = [];
 
 	for (const track of tracks) {

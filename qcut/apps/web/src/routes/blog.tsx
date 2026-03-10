@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import { createFileRoute } from "@tanstack/react-router";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
@@ -11,9 +12,9 @@ export const Route = createFileRoute("/blog")({
 function BlogPage() {
 	const handleRedirectToGitHub = async () => {
 		const url = "https://github.com/donghaozhang/qcut";
-		if (window.electronAPI?.shell?.openExternal) {
+		if (platform().shell?.openExternal) {
 			try {
-				await window.electronAPI.shell.openExternal(url);
+				await platform().shell.openExternal(url);
 				return;
 			} catch {
 				// fallback below

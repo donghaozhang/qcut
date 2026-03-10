@@ -3,6 +3,7 @@
  * Extracted from image-edit-client.ts for modularity
  */
 
+import { platform } from "@qcut/platform-core";
 import {
 	handleError,
 	ErrorCategory,
@@ -32,8 +33,7 @@ export async function getFalApiKey(): Promise<string | null> {
 	}
 
 	// Check Electron storage (async)
-	const electronApiKeys =
-		typeof window !== "undefined" ? window.electronAPI?.apiKeys : undefined;
+	const electronApiKeys = platform().apiKeys;
 	if (electronApiKeys) {
 		// Deduplicate concurrent calls
 		if (!apiKeyFetchPromise) {

@@ -64,7 +64,7 @@ export const WINDOWS_FONT_BASE_PATH = "C:/Windows/Fonts/";
  * @param fontFamily - CSS font family name (e.g., 'Arial', 'Times New Roman')
  * @param fontWeight - CSS font weight (e.g., 'bold')
  * @param fontStyle - CSS font style (e.g., 'italic')
- * @param platform - Platform string from Electron API (defaults to window.electronAPI.platform)
+ * @param platform - Platform string (e.g., 'darwin', 'win32', 'linux')
  * @returns FontConfig object with platform-appropriate font specifier
  * @throws Error if platform detection fails (Electron API unavailable)
  */
@@ -79,10 +79,10 @@ export function resolveFontPath(
 	const isItalic = fontStyle === "italic";
 
 	// Get platform from parameter or Electron API
-	const detectedPlatform = platform ?? window.electronAPI?.platform;
+	const detectedPlatform = platform;
 	if (!detectedPlatform) {
 		throw new Error(
-			"Platform information not available. Ensure Electron API is initialized or pass platform parameter."
+			"Platform information not available. Pass platform parameter explicitly."
 		);
 	}
 

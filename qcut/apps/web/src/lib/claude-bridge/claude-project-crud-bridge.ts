@@ -8,6 +8,7 @@
  */
 
 import { useProjectStore } from "@/stores/project-store";
+import { platform } from "@qcut/platform-core";
 
 const CHANNELS = [
 	"claude:project:create:request",
@@ -17,7 +18,7 @@ const CHANNELS = [
 ] as const;
 
 function getApi() {
-	return window.electronAPI?.claude?.projectCrud;
+	return platform().claude?.projectCrud;
 }
 
 export function setupClaudeProjectCrudBridge(): void {

@@ -11,6 +11,7 @@ import {
 	startScreenRecording,
 	stopScreenRecording,
 } from "@/lib/project/screen-recording-controller";
+import { platform } from "@qcut/platform-core";
 
 const DEBUG = false;
 const PREFIX = "[ClaudeScreenRecordingBridge]";
@@ -32,7 +33,7 @@ function debugError(...args: unknown[]): void {
  * Listens for start/stop requests from main process.
  */
 export function setupClaudeScreenRecordingBridge(): void {
-	const srAPI = window.electronAPI?.claude?.screenRecordingBridge;
+	const srAPI = platform().claude?.screenRecordingBridge;
 	if (!srAPI) {
 		debugWarn("Claude Screen Recording Bridge API not available");
 		return;
@@ -91,6 +92,6 @@ export function setupClaudeScreenRecordingBridge(): void {
 
 /** Cleanup screen recording bridge listeners. */
 export function cleanupClaudeScreenRecordingBridge(): void {
-	window.electronAPI?.claude?.screenRecordingBridge?.removeListeners?.();
+	platform().claude?.screenRecordingBridge?.removeListeners?.();
 	debugLog("Bridge cleanup complete");
 }

@@ -8,6 +8,7 @@
  * @module hooks/use-project-json-sync
  */
 
+import { platform } from "@qcut/platform-core";
 import { useEffect } from "react";
 import { useProjectStore } from "@/stores/project-store";
 
@@ -26,7 +27,7 @@ export function useProjectJsonSync() {
 				const current = useProjectStore.getState().activeProject?.id;
 				// Guard: skip if project changed since scheduling
 				if (current !== projectId) return;
-				window.electronAPI?.projectJson?.write(projectId);
+				platform().projectJson?.write(projectId);
 			}, 1000);
 		};
 

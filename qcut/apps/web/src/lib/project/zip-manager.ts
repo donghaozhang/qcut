@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import type { MediaItem } from "@/stores/media/media-store";
+import { platform } from "@qcut/platform-core";
 
 // Debug flag - set to true to enable console logging
 const DEBUG_ZIP_MANAGER = import.meta.env.DEV && false;
@@ -43,8 +44,8 @@ export class ZipManager {
 			itemsWithFile: items.filter((item) => !!item.file).length,
 			itemsWithLocalPath: items.filter((item) => !!item.localPath).length,
 			itemsWithUrl: items.filter((item) => !!item.url).length,
-			electronAPIAvailable: !!window.electronAPI,
-			readFileAvailable: !!window.electronAPI?.readFile,
+			electronAPIAvailable: true,
+			readFileAvailable: true,
 		});
 
 		logDebug("?? ZIP-MANAGER: Starting to add media items", {
@@ -149,8 +150,7 @@ export class ZipManager {
 
 				if (
 					shouldUseLocalPath &&
-					item.localPath &&
-					window.electronAPI?.readFile
+					item.localPath
 				) {
 					logDebug(
 						"step 9b-ai: AI video detected, prioritizing localPath read",
@@ -163,7 +163,7 @@ export class ZipManager {
 					);
 
 					try {
-						const fileBuffer = await window.electronAPI.readFile(
+						const fileBuffer = await platform().files.readFile(
 							item.localPath
 						);
 						logDebug("step 9b-ai-read: readFile returned for AI video", {
@@ -231,15 +231,15 @@ export class ZipManager {
 						);
 				}
 				// PRIORITY 3: Non-AI files with localPath
-				if (!addedToZip && item.localPath && window.electronAPI?.readFile) {
+				if (!addedToZip && item.localPath) {
 					// Handle local file path for Electron (AI videos saved to disk)
 					logDebug("step 9d: attempting to read local file", {
 						localPath: item.localPath,
-						electronAPIAvailable: !!window.electronAPI,
-						readFileAvailable: !!window.electronAPI?.readFile,
+						electronAPIAvailable: true,
+						readFileAvailable: true,
 					});
 					try {
-						const fileBuffer = await window.electronAPI.readFile(
+						const fileBuffer = await platform().files.readFile(
 							item.localPath
 						);
 						logDebug("step 9e: readFile returned", {
@@ -568,53 +568,49 @@ export async function downloadZipSafely(
 		blobSize: blob.size,
 		blobType: blob.type,
 		filename,
-		electronAPIAvailable: !!window.electronAPI,
-		saveBlobAvailable: !!window.electronAPI?.saveBlob,
+		electronAPIAvailable: true,
+		saveBlobAvailable: true,
 	});
 
-	// Check if running in Electron
-	if (window.electronAPI?.saveBlob) {
-		try {
-			logDebug("step 11a: converting blob to array buffer");
-			// Convert blob to array buffer for Electron
-			const arrayBuffer = await blob.arrayBuffer();
-			logDebug("step 11b: arrayBuffer created", {
-				byteLength: arrayBuffer.byteLength,
-			});
+	// Try platform save
+	try {
+		logDebug("step 11a: converting blob to array buffer");
+		// Convert blob to array buffer for Electron
+		const arrayBuffer = await blob.arrayBuffer();
+		logDebug("step 11b: arrayBuffer created", {
+			byteLength: arrayBuffer.byteLength,
+		});
 
-			const uint8Array = new Uint8Array(arrayBuffer);
-			logDebug("step 11c: calling electronAPI.saveBlob", {
-				uint8ArrayLength: uint8Array.length,
-				uint8ArrayByteLength: uint8Array.byteLength,
-				filename,
-			});
+		const uint8Array = new Uint8Array(arrayBuffer);
+		logDebug("step 11c: calling platform().files.saveBlob", {
+			uint8ArrayLength: uint8Array.length,
+			uint8ArrayByteLength: uint8Array.byteLength,
+			filename,
+		});
 
-			const result = await window.electronAPI.saveBlob(uint8Array, filename);
-			logDebug("step 11d: saveBlob returned", {
-				success: result.success,
-				filePath: result.filePath,
-				canceled: result.canceled,
-				error: result.error,
-			});
+		const result = await platform().files.saveBlob(uint8Array, filename);
+		logDebug("step 11d: saveBlob returned", {
+			success: result.success,
+			filePath: result.filePath,
+			canceled: result.canceled,
+			error: result.error,
+		});
 
-			if (result.success) {
-				logDebug("✅ ZIP saved successfully via Electron:", result.filePath);
-				return;
-			}
-			if (result.canceled) {
-				logDebug("ZIP save canceled by user");
-				return;
-			}
-			console.error("Failed to save ZIP via Electron:", result.error);
-		} catch (error) {
-			console.error("step 11e: Electron save failed", {
-				error: error instanceof Error ? error.message : String(error),
-				errorStack: error instanceof Error ? error.stack : undefined,
-			});
-			// Fall through to browser methods
+		if (result.success) {
+			logDebug("ZIP saved successfully via platform:", result.filePath);
+			return;
 		}
-	} else {
-		logDebug("step 11f: Electron API not available, using browser methods");
+		if (result.canceled) {
+			logDebug("ZIP save canceled by user");
+			return;
+		}
+		console.error("Failed to save ZIP via platform:", result.error);
+	} catch (error) {
+		console.error("step 11e: Platform save failed", {
+			error: error instanceof Error ? error.message : String(error),
+			errorStack: error instanceof Error ? error.stack : undefined,
+		});
+		// Fall through to browser methods
 	}
 
 	// Use modern File System Access API if available (browser)

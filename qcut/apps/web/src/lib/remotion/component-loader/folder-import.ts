@@ -7,6 +7,7 @@ import type {
 	RemotionComponentDefinition,
 	RemotionComponentCategory,
 } from "../types";
+import { platform } from "@qcut/platform-core";
 import {
 	getSequenceAnalysisService,
 	type AnalysisResult,
@@ -210,9 +211,7 @@ export async function loadComponentsFromFolder(
  * Check if the Electron API for folder import is available
  */
 export function isFolderImportAvailable(): boolean {
-	return !!(
-		typeof window !== "undefined" && window.electronAPI?.remotionFolder
-	);
+	return !!(typeof window !== "undefined" && platform().remotionFolder);
 }
 
 /**
@@ -233,7 +232,7 @@ export async function importFromFolder(
 		};
 	}
 
-	const api = window.electronAPI!.remotionFolder!;
+	const api = platform().remotionFolder!;
 
 	try {
 		let targetPath = folderPath;

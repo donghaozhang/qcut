@@ -10,6 +10,7 @@
  * duplicated 3x in use-ai-generation.ts handleGenerate function.
  */
 
+import { platform } from "@qcut/platform-core";
 import { debugLogger } from "@/lib/debug/debug-logger";
 import type { GeneratedVideo } from "../../types/ai-types";
 
@@ -150,7 +151,7 @@ export async function integrateVideoToMediaStore(
 		// Step 2: Save to local disk (MANDATORY - no fallback)
 		console.log("step 6e: MANDATORY save to local disk starting");
 
-		if (!window.electronAPI?.video?.saveToDisk) {
+		if (!platform().video?.saveToDisk) {
 			const error =
 				"CRITICAL ERROR: Electron API not available - cannot save video to disk";
 			console.error("🚨", error);
@@ -159,7 +160,7 @@ export async function integrateVideoToMediaStore(
 		}
 
 		const arrayBuffer = await blob.arrayBuffer();
-		const saveResult = await window.electronAPI.video.saveToDisk({
+		const saveResult = await platform().video.saveToDisk({
 			fileName: filename,
 			fileData: arrayBuffer,
 			projectId,

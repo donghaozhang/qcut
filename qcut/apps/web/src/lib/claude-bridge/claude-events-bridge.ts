@@ -1,4 +1,5 @@
 import { debugError, debugWarn } from "@/lib/debug/debug-config";
+import { platform } from "@qcut/platform-core";
 import { useEditorStore } from "@/stores/editor/editor-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useMediaStore, type MediaItem } from "@/stores/media/media-store";
@@ -231,7 +232,7 @@ function buildEditorCanvasSnapshot(): EditorCanvasSnapshot {
 
 function getClaudeEventsApi() {
 	try {
-		return window.electronAPI?.claude?.events;
+		return platform().claude?.events;
 	} catch {
 		return undefined;
 	}

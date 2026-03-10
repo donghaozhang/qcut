@@ -5,6 +5,8 @@
  * Replaces legacy Modal Whisper + R2 configuration utilities.
  */
 
+import { platform } from "@qcut/platform-core";
+
 interface ConfigurationStatus {
 	configured: boolean;
 	missingVars: string[];
@@ -29,7 +31,7 @@ export function isGeminiConfigured(): ConfigurationStatus {
 	// Check for Gemini API key in Electron environment
 	// Note: The API key is stored in the main process, not accessible from renderer
 	// This check validates that the Electron API is available
-	if (typeof window === "undefined" || !window.electronAPI?.transcribe) {
+	if (typeof window === "undefined" || !platform().transcription) {
 		missingVars.push("Electron IPC not available");
 	}
 
@@ -68,7 +70,7 @@ export function validateGeminiEnvironment(): void {
 		throw new Error("Gemini transcription requires browser environment");
 	}
 
-	if (!window.electronAPI?.transcribe) {
+	if (!platform().transcription) {
 		throw new Error("Gemini transcription requires Electron environment");
 	}
 }

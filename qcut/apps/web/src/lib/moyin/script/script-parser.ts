@@ -154,7 +154,7 @@ export function countShotMarkers(input: string): number {
  * Usage (Phase 2):
  * ```ts
  * const adapter: LLMAdapter = (system, user) =>
- *   window.electronAPI.moyin.parseScript({ system, user });
+ *   platform().moyin.parseScript({ system, user });
  * const data = await parseScript(rawText, adapter, { language: 'en' });
  * ```
  */

@@ -5,6 +5,7 @@ import type {
 	StopScreenRecordingOptions,
 	StopScreenRecordingResult,
 } from "@/types/electron";
+import { platform } from "@qcut/platform-core";
 
 const SCREEN_RECORDING_EVENT_NAME = "qcut:screen-recording-status";
 
@@ -77,7 +78,7 @@ function toError({ error }: { error: unknown }): Error {
 }
 
 function getRecordingApi() {
-	return window.electronAPI?.screenRecording;
+	return platform().screenRecording;
 }
 
 function getRequiredRecordingApi() {

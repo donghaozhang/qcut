@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import { useEffect } from "react";
 import { toast } from "sonner";
 
@@ -9,7 +10,7 @@ import { toast } from "sonner";
  */
 export function FFmpegHealthNotification() {
 	useEffect(() => {
-		const checkHealth = window.electronAPI?.ffmpeg?.checkHealth;
+		const checkHealth = platform().ffmpeg?.checkHealth;
 		if (!checkHealth) return;
 
 		checkHealth()

@@ -1,5 +1,7 @@
 "use client";
 
+import { platform } from "@qcut/platform-core";
+
 /**
  * Word Timeline View Component
  *
@@ -255,8 +257,8 @@ export function WordTimelineView() {
 						: `audio/${ext.slice(1)}`;
 
 					let file: File;
-					if (window.electronAPI?.readFile) {
-						const buffer = await window.electronAPI.readFile(filePath);
+					if (platform().files?.readFile) {
+						const buffer = await platform().files.readFile(filePath);
 						if (buffer) {
 							const blob = new Blob([new Uint8Array(buffer)], {
 								type: mimeType,

@@ -27,6 +27,7 @@ import type {
 	ReveEditOutput,
 } from "@/types/ai-generation";
 import type { VideoGenerationResponse } from "./ai-video-client";
+import { platform } from "@qcut/platform-core";
 import {
 	uploadFileToFal as uploadFileToFalCore,
 	type FalUploadFileType,
@@ -105,22 +106,20 @@ class FalAIClient {
 	 * Called lazily when env var is not set.
 	 */
 	private async initApiKeyFromElectron(): Promise<void> {
-		if (typeof window !== "undefined" && window.electronAPI?.apiKeys) {
-			try {
-				const keys = await window.electronAPI.apiKeys.get();
-				if (keys?.falApiKey) {
-					this.apiKey = keys.falApiKey;
-					debugLogger.log(FAL_LOG_COMPONENT, "API_KEY_LOADED_FROM_ELECTRON", {
-						keyLength: keys.falApiKey.length,
-					});
-				}
-			} catch (error) {
-				debugLogger.error(
-					FAL_LOG_COMPONENT,
-					"API_KEY_ELECTRON_LOAD_FAILED",
-					error instanceof Error ? error.message : "Unknown error"
-				);
+		try {
+			const keys = await platform().apiKeys.get();
+			if (keys?.falApiKey) {
+				this.apiKey = keys.falApiKey;
+				debugLogger.log(FAL_LOG_COMPONENT, "API_KEY_LOADED_FROM_ELECTRON", {
+					keyLength: keys.falApiKey.length,
+				});
 			}
+		} catch (error) {
+			debugLogger.error(
+				FAL_LOG_COMPONENT,
+				"API_KEY_ELECTRON_LOAD_FAILED",
+				error instanceof Error ? error.message : "Unknown error"
+			);
 		}
 
 		if (!this.apiKey) {
@@ -324,7 +323,7 @@ class FalAIClient {
 		// Determine source of API key
 		let source = "unknown";
 		if (import.meta.env.VITE_FAL_API_KEY) source = "VITE_FAL_API_KEY";
-		else if (typeof window !== "undefined" && window.electronAPI?.apiKeys)
+		else if (platform().isElectron)
 			source = "electron_storage";
 		else source = "manually_set";
 

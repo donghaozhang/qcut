@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import { create } from "zustand";
 import { FEATURE_GATES } from "@/lib/feature-gates";
 import type { FeatureName, Plan } from "@/lib/feature-gates";
@@ -52,7 +53,7 @@ const FREE_FALLBACK: LicenseInfo = {
 };
 
 function getLicenseApi() {
-	return window.electronAPI?.license;
+	return platform().license;
 }
 
 export const useLicenseStore = create<LicenseState>((set, get) => ({

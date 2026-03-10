@@ -1,18 +1,19 @@
 /**
  * Novel Import Action — bridges the novel-parser pipeline into the moyin store.
  *
- * Wraps `window.electronAPI.moyin.callLLM` as an LLMAdapter, runs `parseNovel`,
+ * Wraps `platform().moyin.callLLM` as an LLMAdapter, runs `parseNovel`,
  * converts the result to ScriptData, and sets the store state.
  */
 
 import type { LLMAdapter } from "@/lib/moyin/script/script-parser";
+import { platform } from "@qcut/platform-core";
 import { parseNovel } from "@/lib/moyin/script/novel-parser";
 import { novelResultToScriptData } from "@/lib/moyin/script/novel-to-script";
 import type { MoyinStore } from "./moyin-store";
 
 /** Create an LLMAdapter that delegates to the Electron IPC moyin.callLLM. */
 function createElectronLLMAdapter(): LLMAdapter {
-	const api = window.electronAPI?.moyin;
+	const api = platform().moyin;
 	if (!api?.callLLM) {
 		throw new Error("Moyin API not available. Please run in Electron.");
 	}

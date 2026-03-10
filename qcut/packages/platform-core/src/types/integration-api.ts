@@ -15,17 +15,17 @@ export interface PlatformFalAPI {
 		videoData: Uint8Array,
 		filename: string,
 		apiKey: string
-	): Promise<{ url: string }>;
+	): Promise<{ success: boolean; url?: string; error?: string }>;
 	uploadImage(
 		imageData: Uint8Array,
 		filename: string,
 		apiKey: string
-	): Promise<{ url: string }>;
+	): Promise<{ success: boolean; url?: string; error?: string }>;
 	uploadAudio(
 		audioData: Uint8Array,
 		filename: string,
 		apiKey: string
-	): Promise<{ url: string }>;
+	): Promise<{ success: boolean; url?: string; error?: string }>;
 	queueFetch(
 		url: string,
 		apiKey: string
@@ -53,7 +53,7 @@ export interface PlatformGeminiChatAPI {
 // ---------------------------------------------------------------------------
 
 export interface PlatformGitHubAPI {
-	fetchStars(): Promise<{ stars: number; url: string }>;
+	fetchStars(): Promise<{ stars: number; url?: string }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -114,10 +114,30 @@ export interface PlatformMcpAPI {
 // Skills
 // ---------------------------------------------------------------------------
 
+export interface PlatformSkillItem {
+	id: string;
+	name: string;
+	description: string;
+	dependencies?: string;
+	folderName: string;
+	mainFile: string;
+	additionalFiles: string[];
+	content: string;
+	createdAt: number;
+	updatedAt: number;
+}
+
+export interface PlatformAvailableSkill {
+	path: string;
+	name: string;
+	description: string;
+	bundled?: boolean;
+}
+
 export interface PlatformSkillsAPI {
-	list(projectId: string): Promise<unknown[]>;
-	import(projectId: string, sourcePath: string): Promise<unknown>;
-	delete(projectId: string, skillId: string): Promise<boolean>;
+	list(projectId: string): Promise<PlatformSkillItem[]>;
+	import(projectId: string, sourcePath: string): Promise<PlatformSkillItem | null>;
+	delete(projectId: string, skillId: string): Promise<boolean | void>;
 	getContent(
 		projectId: string,
 		skillId: string,
@@ -125,8 +145,15 @@ export interface PlatformSkillsAPI {
 	): Promise<string | null>;
 	browse(): Promise<string | null>;
 	getPath(projectId: string): Promise<string>;
-	scanGlobal(): Promise<unknown[]>;
-	syncForClaude(projectId: string): Promise<unknown>;
+	scanGlobal(): Promise<PlatformAvailableSkill[]>;
+	syncForClaude(projectId: string): Promise<{
+		synced: boolean;
+		copied: number;
+		skipped: number;
+		removed: number;
+		warnings: string[];
+		error?: string;
+	}>;
 }
 
 // ---------------------------------------------------------------------------
@@ -134,13 +161,39 @@ export interface PlatformSkillsAPI {
 // ---------------------------------------------------------------------------
 
 export interface PlatformAIPipelineAPI {
-	check(): Promise<{ available: boolean; models?: string[] }>;
-	status(): Promise<unknown>;
-	generate(options: Record<string, unknown>): Promise<unknown>;
-	listModels(): Promise<unknown[]>;
+	check(): Promise<{ available: boolean; models?: string[]; error?: string }>;
+	status(): Promise<{
+		available: boolean;
+		version: string | null;
+		source: "native" | "bundled" | "system" | "python" | "unavailable";
+		compatible: boolean;
+		features: Record<string, boolean>;
+		error?: string;
+	}>;
+	generate(options: Record<string, unknown>): Promise<{
+		success: boolean;
+		outputPath?: string;
+		outputPaths?: string[];
+		error?: string;
+		errorCode?: string;
+		duration?: number;
+		cost?: number;
+		models?: string[];
+		data?: unknown;
+		mediaId?: string;
+		importedPath?: string;
+	}>;
+	listModels(): Promise<unknown>;
 	estimateCost(options: Record<string, unknown>): Promise<unknown>;
 	cancel(sessionId: string): Promise<boolean>;
-	refresh(): Promise<void>;
+	refresh(): Promise<{
+		available: boolean;
+		version?: string | null;
+		source?: string;
+		compatible?: boolean;
+		features?: Record<string, boolean>;
+		error?: string;
+	} | void>;
 	onProgress(
 		callback: (progress: {
 			stage: string;
@@ -159,10 +212,21 @@ export interface PlatformAIPipelineAPI {
 
 export interface PlatformMediaImportAPI {
 	import(options: {
+		sourcePath?: string;
 		projectId: string;
-		filePaths: string[];
+		filePaths?: string[];
+		mediaId?: string;
+		preferSymlink?: boolean;
 		useSymlinks?: boolean;
-	}): Promise<{ imported: Array<{ id: string; path: string }> }>;
+	}): Promise<{
+		success?: boolean;
+		imported?: Array<{ id: string; path: string }>;
+		targetPath?: string;
+		importMethod?: "symlink" | "copy";
+		originalPath?: string;
+		fileSize?: number;
+		error?: string;
+	}>;
 	validateSymlink(path: string): Promise<{ valid: boolean; target?: string }>;
 	locateOriginal(mediaPath: string): Promise<string | null>;
 	relinkMedia(
@@ -185,8 +249,34 @@ export interface PlatformProjectFolderAPI {
 		projectId: string,
 		subPath?: string,
 		options?: Record<string, unknown>
-	): Promise<unknown>;
-	list(projectId: string, subPath?: string): Promise<unknown[]>;
+	): Promise<{
+		files: Array<{
+			name: string;
+			path: string;
+			relativePath: string;
+			type: "video" | "audio" | "image" | "unknown";
+			size: number;
+			modifiedAt: number;
+			isDirectory: boolean;
+		}>;
+		folders: string[];
+		totalSize: number;
+		scanTime: number;
+	}>;
+	list(
+		projectId: string,
+		subPath?: string
+	): Promise<
+		Array<{
+			name: string;
+			path: string;
+			relativePath: string;
+			type: "video" | "audio" | "image" | "unknown";
+			size: number;
+			modifiedAt: number;
+			isDirectory: boolean;
+		}>
+	>;
 	ensureStructure(projectId: string): Promise<void>;
 }
 
@@ -203,19 +293,62 @@ export interface PlatformProjectJsonAPI {
 // ---------------------------------------------------------------------------
 
 export interface PlatformRemotionFolderAPI {
-	select(): Promise<string | null>;
-	scan(folderPath: string): Promise<unknown>;
+	select(): Promise<{
+		success: boolean;
+		folderPath?: string;
+		cancelled?: boolean;
+		error?: string;
+	}>;
+	scan(folderPath: string): Promise<{
+		isValid: boolean;
+		rootFilePath: string | null;
+		compositions: Array<{
+			id: string;
+			name: string;
+			durationInFrames: number;
+			fps: number;
+			width: number;
+			height: number;
+			componentPath: string;
+			importPath: string;
+			line: number;
+		}>;
+		error?: string;
+	}>;
 	bundle(
 		folderPath: string,
 		compositionIds?: string[]
-	): Promise<{ success: boolean; bundlePath?: string; error?: string }>;
-	import(folderPath: string): Promise<unknown>;
+	): Promise<{
+		success: boolean;
+		bundlePath?: string;
+		error?: string;
+	}>;
+	import(folderPath: string): Promise<{
+		success: boolean;
+		compositions?: Array<{
+			id: string;
+			name: string;
+			[key: string]: unknown;
+		}>;
+		scan?: unknown;
+		bundle?: unknown;
+		importTime?: number;
+		error?: string;
+	}>;
 	checkBundler(): Promise<{ available: boolean }>;
-	validate(folderPath: string): Promise<{ valid: boolean; errors?: string[] }>;
+	validate(
+		folderPath: string
+	): Promise<{ isValid: boolean; valid?: boolean; error?: string; errors?: string[] }>;
 	bundleFile(
 		filePath: string,
 		compositionId: string
-	): Promise<{ success: boolean; bundlePath?: string; error?: string }>;
+	): Promise<{
+		compositionId?: string;
+		success: boolean;
+		code?: string;
+		bundlePath?: string;
+		error?: string;
+	}>;
 }
 
 // ---------------------------------------------------------------------------
@@ -223,13 +356,30 @@ export interface PlatformRemotionFolderAPI {
 // ---------------------------------------------------------------------------
 
 export interface PlatformMoyinAPI {
-	parseScript(options: Record<string, unknown>): Promise<unknown>;
-	generateStoryboard(options: Record<string, unknown>): Promise<unknown>;
-	callLLM(options: Record<string, unknown>): Promise<unknown>;
+	parseScript(options: Record<string, unknown>): Promise<{
+		success: boolean;
+		data?: Record<string, unknown>;
+		error?: string;
+	}>;
+	generateStoryboard(options: Record<string, unknown>): Promise<{
+		success: boolean;
+		outputPaths?: string[];
+		error?: string;
+	}>;
+	callLLM(options: Record<string, unknown>): Promise<{
+		success: boolean;
+		text?: string;
+		error?: string;
+	}>;
 	isClaudeAvailable(): Promise<boolean>;
-	saveTempScript(options: { rawScript: string }): Promise<string>;
+	saveTempScript(options: { rawScript: string }): Promise<{
+		success: boolean;
+		filePath?: string;
+		projectRoot?: string;
+		error?: string;
+	}>;
 	cleanupTempScript(filePath: string): Promise<void>;
-	onParsed(callback: (data: unknown) => void): void;
+	onParsed(callback: (data: Record<string, unknown>) => void): void;
 	removeParseListener(): void;
 	onSetScript(callback: (data: { text: string }) => void): void;
 	onTriggerParse(callback: () => void): void;
@@ -256,14 +406,41 @@ export interface PlatformMoyinAPI {
 }
 
 // ---------------------------------------------------------------------------
+// Remotion Pre-Render (separate from folder operations)
+// ---------------------------------------------------------------------------
+
+export interface PlatformRemotionAPI {
+	preRender(options: {
+		elementId: string;
+		componentId: string;
+		props: Record<string, unknown>;
+		outputDir: string;
+		format: string;
+		quality: number;
+		width: number;
+		height: number;
+		fps: number;
+		totalFrames: number;
+	}): Promise<{
+		success: boolean;
+		frames: Record<string, string>;
+		error?: string;
+	}>;
+	onPreRenderProgress(
+		callback: (data: { elementId: string; frame: number }) => void
+	): () => void;
+	cleanup(sessionId: string): Promise<void>;
+}
+
+// ---------------------------------------------------------------------------
 // Updates
 // ---------------------------------------------------------------------------
 
 export interface PlatformUpdatesAPI {
 	checkForUpdates(): Promise<unknown>;
 	installUpdate(): Promise<void>;
-	getReleaseNotes(version?: string): Promise<string>;
-	getChangelog(): Promise<string>;
+	getReleaseNotes(version?: string): Promise<unknown>;
+	getChangelog(): Promise<unknown>;
 	onUpdateAvailable(
 		callback: (data: {
 			version: string;

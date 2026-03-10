@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
+import { platform } from "@qcut/platform-core";
 import { debugError } from "@/lib/debug/debug-config";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -124,8 +125,8 @@ export function TerminalEmulator({
 		terminal.onData((data) => {
 			const currentSessionId = sessionIdRef.current;
 			if (currentSessionId) {
-				window.electronAPI?.pty
-					?.write?.(currentSessionId, data)
+				platform()
+					.pty?.write?.(currentSessionId, data)
 					?.catch((error) => {
 						debugError("[Terminal] Failed to write to PTY:", error);
 					});
@@ -146,8 +147,8 @@ export function TerminalEmulator({
 			const currentSessionId = sessionIdRef.current;
 			if (text && currentSessionId) {
 				isPasting = true;
-				window.electronAPI?.pty
-					?.write?.(currentSessionId, text)
+				platform()
+					.pty?.write?.(currentSessionId, text)
 					?.catch((error) => {
 						debugError("[Terminal] Failed to paste into PTY:", error);
 					});
@@ -185,8 +186,8 @@ export function TerminalEmulator({
 						.then((text) => {
 							const currentSessionId = sessionIdRef.current;
 							if (text && currentSessionId) {
-								window.electronAPI?.pty
-									?.write?.(currentSessionId, text)
+								platform()
+									.pty?.write?.(currentSessionId, text)
 									?.catch((error) => {
 										debugError(
 											"[Terminal] Failed to write clipboard text:",

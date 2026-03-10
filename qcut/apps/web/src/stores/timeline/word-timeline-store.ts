@@ -7,6 +7,7 @@
  * @module stores/word-timeline-store
  */
 
+import { platform } from "@qcut/platform-core";
 import { create } from "zustand";
 import type {
 	WordTimelineData,
@@ -393,7 +394,7 @@ export const useWordTimelineStore = create<WordTimelineStore>((set, get) => ({
 
 		set({ isAnalyzing: true, analysisError: null });
 		try {
-			const analyzer = window.electronAPI?.analyzeFillers;
+			const analyzer = platform().analyzeFillers;
 			if (!analyzer) {
 				set({ isAnalyzing: false });
 				return;

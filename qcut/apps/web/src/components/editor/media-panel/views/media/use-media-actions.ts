@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import { useCallback, useRef, useState } from "react";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import { toast } from "sonner";
@@ -117,7 +118,7 @@ export function useMediaActions({
 			!hasSyncedRef.current &&
 			mediaStoreHasInitialized &&
 			activeProjectId &&
-			window.electronAPI?.projectFolder
+			platform().projectFolder
 		) {
 			hasSyncedRef.current = true;
 			import("@/lib/project/project-folder-sync")

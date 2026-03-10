@@ -1,4 +1,5 @@
 import { useMediaPanelStore } from "@/components/editor/media-panel/store";
+import { platform } from "@qcut/platform-core";
 import { useExportStore } from "@/stores/export-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
@@ -459,7 +460,7 @@ function buildEditorStateSnapshot({
 
 function getClaudeStateBridge(): ClaudeStateRendererBridgeAPI | null {
 	try {
-		const claude = window.electronAPI?.claude as
+		const claude = platform().claude as
 			| ({ state?: ClaudeStateRendererBridgeAPI } & Record<string, unknown>)
 			| undefined;
 		return claude?.state ?? null;

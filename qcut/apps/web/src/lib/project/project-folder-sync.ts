@@ -8,6 +8,7 @@
  * @module lib/project-folder-sync
  */
 
+import { platform } from "@qcut/platform-core";
 import {
 	DEFAULT_FOLDER_IDS,
 	type MediaItem,
@@ -165,21 +166,13 @@ export async function syncProjectFolder(
 		totalDiskFiles: 0,
 	};
 
-	// Guard: Electron API must be available
-	if (!window.electronAPI?.projectFolder) {
-		debugLog(
-			"[ProjectFolderSync] electronAPI.projectFolder not available, skipping sync"
-		);
-		return result;
-	}
-
 	try {
 		// Ensure project directory structure exists
-		await window.electronAPI.projectFolder.ensureStructure(projectId);
+		await platform().projectFolder.ensureStructure(projectId);
 
 		// Scan for all media files recursively
 		const scanResult: ProjectFolderScanResult =
-			await window.electronAPI.projectFolder.scan(projectId, "media", {
+			await platform().projectFolder.scan(projectId, "media", {
 				recursive: true,
 				mediaOnly: true,
 			});
@@ -214,7 +207,7 @@ export async function syncProjectFolder(
 		for (const file of untrackedFiles) {
 			try {
 				// Read file bytes from disk
-				const buffer = await window.electronAPI.readFile(file.path);
+				const buffer = await platform().files.readFile(file.path);
 				if (!buffer) {
 					throw new Error("readFile returned null");
 				}

@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import React, { useEffect, useRef } from "react";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { EditorHeader } from "@/components/editor-header";
@@ -225,7 +226,7 @@ function EditorPage() {
 			let projectRoot = "";
 			try {
 				projectRoot =
-					(await window.electronAPI?.projectFolder?.getRoot?.(project_id)) ||
+					(await platform().projectFolder?.getRoot?.(project_id)) ||
 					"";
 			} catch {
 				projectRoot = "";

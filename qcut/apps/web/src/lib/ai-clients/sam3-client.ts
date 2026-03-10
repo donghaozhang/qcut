@@ -11,6 +11,7 @@
  * @module Sam3Client
  */
 
+import { platform } from "@qcut/platform-core";
 import { handleAIServiceError } from "../debug/error-handler";
 import { debugLogger } from "../debug/debug-logger";
 import type {
@@ -49,13 +50,9 @@ class Sam3Client {
 		this.apiKey = FAL_API_KEY || null;
 
 		// Try Electron API if available
-		if (
-			!this.apiKey &&
-			typeof window !== "undefined" &&
-			window.electronAPI?.apiKeys
-		) {
+		if (!this.apiKey) {
 			try {
-				const keys = await window.electronAPI.apiKeys.get();
+				const keys = await platform().apiKeys.get();
 				if (keys?.falApiKey) {
 					this.apiKey = keys.falApiKey;
 				}

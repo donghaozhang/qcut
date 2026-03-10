@@ -5,6 +5,7 @@
  * Centralizes authentication, error handling, and response parsing.
  */
 
+import { platform } from "@qcut/platform-core";
 import { handleAIServiceError } from "@/lib/debug/error-handler";
 
 // Direct FAL AI integration - no backend needed
@@ -54,8 +55,7 @@ export async function getFalApiKeyAsync(): Promise<string | undefined> {
 	}
 
 	// Check Electron storage (async)
-	const electronApiKeys =
-		typeof window !== "undefined" ? window.electronAPI?.apiKeys : undefined;
+	const electronApiKeys = platform().apiKeys;
 	if (electronApiKeys) {
 		// Deduplicate concurrent calls
 		if (!electronKeyFetchPromise) {

@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import { getFalApiKeyAsync } from "@/lib/ai-video/core/fal-request";
 import { estimateCreditCost } from "@/lib/credit-costs";
 import { useLicenseStore } from "@/stores/license-store";
@@ -56,7 +57,7 @@ export async function enforceCreditRequirement({
 			return { allowed: true, requiredCredits: 0 };
 		}
 
-		const licenseApi = window.electronAPI?.license;
+		const licenseApi = platform().license;
 		if (!licenseApi) {
 			return { allowed: true, requiredCredits: 0 };
 		}

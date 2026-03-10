@@ -1,5 +1,6 @@
 "use client";
 
+import { platform } from "@qcut/platform-core";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { RemotionElement, TimelineElement } from "@/types/timeline";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
@@ -127,7 +128,7 @@ export function PreviewPanel() {
 	});
 
 	useEffect(() => {
-		const mcpApi = window.electronAPI?.mcp;
+		const mcpApi = platform().mcp;
 		if (!mcpApi?.onAppHtml) {
 			return;
 		}

@@ -10,6 +10,7 @@
 import type { VideoSourceInput } from "../types";
 import type { TimelineTrack, TimelineElement } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store";
+import { platform } from "@qcut/platform-core";
 
 /**
  * Logger function type for dependency injection.
@@ -90,7 +91,7 @@ async function createTempFileFromBlob(
  * @param tracks - Timeline tracks to extract video elements from
  * @param mediaItems - Media items to look up video paths
  * @param sessionId - Export session ID for temp file naming
- * @param videoAPI - Electron video API (defaults to window.electronAPI.video)
+ * @param videoAPI - Electron video API (defaults to platform().video)
  * @param logger - Logger function (defaults to console.log)
  * @returns Array of video sources sorted by start time
  */
@@ -101,7 +102,7 @@ export async function extractVideoSources(
 	videoAPI?: VideoSaveTempAPI,
 	logger: LogFn = console.log
 ): Promise<VideoSourceInput[]> {
-	const api = videoAPI ?? (window.electronAPI?.video as VideoSaveTempAPI);
+	const api = videoAPI ?? (platform().video as unknown as VideoSaveTempAPI);
 	const videoSources: VideoSourceInput[] = [];
 
 	for (const track of tracks) {
@@ -158,7 +159,7 @@ export async function extractVideoSources(
  * @param tracks - Timeline tracks to search
  * @param mediaItems - Media items to look up paths
  * @param sessionId - Export session ID for temp file creation
- * @param videoAPI - Electron video API (defaults to window.electronAPI.video)
+ * @param videoAPI - Electron video API (defaults to platform().video)
  * @param logger - Logger function (defaults to console.log)
  * @returns Video input info or null if Mode 2 not applicable
  */
@@ -169,7 +170,7 @@ export async function extractVideoInputPath(
 	videoAPI?: VideoSaveTempAPI,
 	logger: LogFn = console.log
 ): Promise<{ path: string; trimStart: number; trimEnd: number } | null> {
-	const api = videoAPI ?? (window.electronAPI?.video as VideoSaveTempAPI);
+	const api = videoAPI ?? (platform().video as unknown as VideoSaveTempAPI);
 	logger("[VideoSources] Extracting video input path for Mode 2...");
 
 	let videoElement: TimelineElement | null = null;

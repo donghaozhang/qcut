@@ -10,6 +10,7 @@ import type {
 	ScriptData,
 	Shot,
 } from "@/types/moyin-script";
+import { platform } from "@qcut/platform-core";
 import { buildStoryboardPrompt } from "@/lib/moyin/storyboard/prompt-builder";
 import { calculateGrid } from "@/lib/moyin/storyboard/grid-calculator";
 import { VISUAL_STYLE_PRESETS } from "@/lib/moyin/presets/visual-styles";
@@ -211,7 +212,7 @@ export async function generateShotsForEpisodeAction(
 	scriptTitle: string,
 	targetDuration?: string
 ): Promise<Shot[]> {
-	const api = window.electronAPI?.moyin;
+	const api = platform().moyin;
 	if (!api?.callLLM) {
 		throw new Error("Moyin API not available.");
 	}
@@ -273,7 +274,7 @@ export async function generateScriptAction(
 	options: { genre?: string; targetDuration?: string },
 	config: { sceneCount: string; shotCount: string; selectedStyleId: string }
 ): Promise<string> {
-	const api = window.electronAPI?.moyin;
+	const api = platform().moyin;
 	if (!api?.callLLM) {
 		throw new Error("Moyin API not available. Please run in Electron.");
 	}

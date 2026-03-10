@@ -1,4 +1,5 @@
 import { debugWarn } from "@/lib/debug/debug-config";
+import { platform } from "@qcut/platform-core";
 
 export type ElectronInvoke = (
 	channel: string,
@@ -22,13 +23,9 @@ export interface AudioValidationLike {
 /** Get the optional Electron IPC invoke function, or null if unavailable. */
 export function getOptionalInvoke(): ElectronInvoke | null {
 	try {
-		const maybeInvoke = (
-			window.electronAPI as typeof window.electronAPI & {
-				invoke?: ElectronInvoke;
-			}
-		)?.invoke;
-		if (typeof maybeInvoke === "function") {
-			return maybeInvoke;
+		const p = platform() as unknown as { invoke?: ElectronInvoke };
+		if (typeof p.invoke === "function") {
+			return p.invoke;
 		}
 		return null;
 	} catch (error) {
@@ -60,17 +57,14 @@ export async function invokeIfAvailable({
 	}
 }
 
-/** Get file size info via Electron API, returning null if unavailable. */
+/** Get file size info via platform API, returning null if unavailable. */
 export async function getFileInfo({
 	filePath,
 }: {
 	filePath: string;
 }): Promise<FileInfoLike | null> {
 	try {
-		if (!window.electronAPI) {
-			return null;
-		}
-		const fileInfo = await window.electronAPI.getFileInfo(filePath);
+		const fileInfo = await platform().files.getFileInfo(filePath);
 		if (!fileInfo || typeof fileInfo.size !== "number") {
 			return null;
 		}

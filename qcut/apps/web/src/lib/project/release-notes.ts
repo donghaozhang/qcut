@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import type { ReleaseNote } from "@/types/electron";
 
 const DISMISSED_VERSION_KEY = "qcut-update-dismissed-version";
@@ -61,26 +62,24 @@ export function dismissVersion(version: string): void {
 }
 
 /**
- * Fetch release notes via Electron IPC, with graceful fallback.
+ * Fetch release notes via platform API, with graceful fallback.
  */
 export async function fetchReleaseNotes(
 	version?: string
 ): Promise<ReleaseNote | null> {
-	if (!window.electronAPI?.updates) return null;
 	try {
-		return await window.electronAPI.updates.getReleaseNotes(version);
+		return (await platform().updates.getReleaseNotes(version)) as ReleaseNote | null;
 	} catch {
 		return null;
 	}
 }
 
 /**
- * Fetch the full changelog via Electron IPC.
+ * Fetch the full changelog via platform API.
  */
 export async function fetchChangelog(): Promise<ReleaseNote[]> {
-	if (!window.electronAPI?.updates) return [];
 	try {
-		return await window.electronAPI.updates.getChangelog();
+		return (await platform().updates.getChangelog()) as ReleaseNote[];
 	} catch {
 		return [];
 	}

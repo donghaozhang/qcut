@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import { useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
@@ -32,7 +33,7 @@ export function UserAvatar({ user, isDark }: UserAvatarProps) {
 
 	const handleLogout = useCallback(async () => {
 		try {
-			const licenseApi = window.electronAPI?.license;
+			const licenseApi = platform().license;
 			if (licenseApi) {
 				await licenseApi.clearAuthToken();
 			}

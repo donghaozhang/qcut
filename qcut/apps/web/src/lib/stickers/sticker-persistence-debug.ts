@@ -2,6 +2,8 @@
  * Debug utilities for sticker persistence issues
  */
 
+import { platform } from "@qcut/platform-core";
+
 export async function debugStickerPersistence() {
 	const { useStickersOverlayStore } = await import(
 		"@/stores/stickers-overlay-store"
@@ -27,9 +29,9 @@ export async function debugStickerPersistence() {
 	let savedStickers: any[] = [];
 
 	try {
-		if (window.electronAPI?.storage) {
+		if (platform().storage) {
 			savedStickers =
-				((await window.electronAPI.storage.load(storageKey)) as any[] | null) ||
+				((await platform().storage!.load(storageKey)) as any[] | null) ||
 				[];
 			console.log("📦 Storage type: Electron IPC");
 		} else {

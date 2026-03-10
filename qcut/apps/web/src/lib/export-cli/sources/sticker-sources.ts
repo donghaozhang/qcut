@@ -11,6 +11,7 @@ import type { StickerSourceForFilter } from "../types";
 import type { MediaItem } from "@/stores/media/media-store";
 import { getStickerTimingMap } from "@/lib/stickers/sticker-timeline-query";
 import { rasterizeSvgToPng, isSvgContent } from "./svg-rasterizer";
+import { platform } from "@qcut/platform-core";
 
 /**
  * Logger function type for dependency injection.
@@ -192,7 +193,7 @@ export async function extractStickerSources(
 
 		// Get API - use provided or default
 		const api =
-			stickerAPI ?? (window.electronAPI?.ffmpeg as unknown as StickerExportAPI);
+			stickerAPI ?? (platform().ffmpeg as unknown as StickerExportAPI);
 		if (!api?.saveStickerForExport) {
 			logger("[StickerSources] Sticker export API not available");
 			return [];

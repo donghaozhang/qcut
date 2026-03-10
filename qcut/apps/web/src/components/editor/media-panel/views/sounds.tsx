@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Separator } from "@/components/ui/separator";
@@ -147,9 +148,9 @@ function SoundEffectsView() {
 				let audioUrl = sound.previewUrl;
 
 				// If in Electron, download preview first to avoid CORS issues
-				if (window.electronAPI?.sounds) {
+				if (platform().sounds) {
 					console.log("Downloading preview for local playback...");
-					const result = await window.electronAPI.sounds.downloadPreview({
+					const result = await platform().sounds.downloadPreview({
 						url: sound.previewUrl,
 						id: sound.id,
 					});

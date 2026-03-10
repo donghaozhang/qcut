@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import { toast } from "sonner";
 import {
 	getMediaStoreUtils,
@@ -162,7 +163,7 @@ export async function processMediaFiles(
 				}
 
 				// Save video files to temp directory for FFmpeg direct copy optimization
-				if (fileType === "video" && window.electronAPI?.video?.saveTemp) {
+				if (fileType === "video" && platform().video?.saveTemp) {
 					// Check file size to prevent memory issues
 					const MAX_INSTANT_LOAD = 500 * 1024 * 1024; // 500MB
 
@@ -182,7 +183,7 @@ export async function processMediaFiles(
 						const uint8Array = new Uint8Array(arrayBuffer);
 
 						// Save to temp directory via Electron IPC
-						localPath = await window.electronAPI.video.saveTemp(
+						localPath = await platform().video.saveTemp(
 							uint8Array,
 							file.name
 						);

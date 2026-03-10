@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { platform } from "@qcut/platform-core";
 import { toast } from "sonner";
 import { useSkillsStore } from "@/stores/skills-store";
 import { usePtyTerminalStore } from "@/stores/pty-terminal-store";
@@ -61,11 +62,7 @@ export function useSkillRunner() {
 			// 1. Get the project's skills folder path
 			let skillsPath = "";
 			try {
-				if (window.electronAPI?.skills?.getPath) {
-					skillsPath = await window.electronAPI.skills.getPath(
-						activeProject.id
-					);
-				}
+				skillsPath = await platform().skills.getPath(activeProject.id);
 			} catch {
 				// Ignore - skills path is optional
 			}

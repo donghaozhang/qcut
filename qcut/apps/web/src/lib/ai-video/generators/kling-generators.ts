@@ -2,6 +2,7 @@
  * Kling Image-to-Video Generators
  */
 
+import { platform } from "@qcut/platform-core";
 import type {
 	Kling26I2VRequest,
 	KlingI2VRequest,
@@ -225,9 +226,9 @@ export async function generateKlingO1Video(
 			// Upload video via Electron IPC if available
 			let videoUrl: string;
 
-			if (window.electronAPI?.fal?.uploadVideo) {
+			if (platform().fal?.uploadVideo) {
 				const videoBuffer = await request.sourceVideo.arrayBuffer();
-				const uploadResult = await window.electronAPI.fal.uploadVideo(
+				const uploadResult = await platform().fal.uploadVideo(
 					new Uint8Array(videoBuffer),
 					request.sourceVideo.name,
 					falApiKey

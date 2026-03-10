@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import { isFeatureEnabled } from "./feature-flags";
 import {
 	handleError,
@@ -130,7 +131,7 @@ export async function searchSounds(
 	if (isFeatureEnabled("USE_ELECTRON_API")) {
 		try {
 			// New Electron IPC implementation
-			const result = await window.electronAPI?.sounds.search({
+			const result = await platform().sounds.search({
 				q: query,
 				...searchParams,
 			});
@@ -179,10 +180,10 @@ export async function transcribeAudio(
 
 	if (isFeatureEnabled("USE_ELECTRON_API")) {
 		// DEPRECATED: This code path is no longer used after Gemini migration
-		// Transcription now happens directly via window.electronAPI.transcribe.transcribe()
+		// Transcription now happens directly via platform().transcription.transcribe()
 		// in captions.tsx (see Phase 2 implementation)
 		throw new Error(
-			"Legacy transcribe API deprecated. Use window.electronAPI.transcribe.transcribe() directly."
+			"Legacy transcribe API deprecated. Use platform().transcription.transcribe() directly."
 		);
 	}
 

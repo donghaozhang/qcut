@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { platform } from "@qcut/platform-core";
 import { useSkillsStore } from "@/stores/skills-store";
 import { useProjectStore } from "@/stores/project-store";
 import {
@@ -38,13 +39,9 @@ export function ImportSkillDialog({
 	const [availableSkills, setAvailableSkills] = useState<AvailableSkill[]>([]);
 
 	const scanGlobalSkills = useCallback(async () => {
-		if (!window.electronAPI?.skills?.scanGlobal) {
-			return;
-		}
-
 		setIsScanning(true);
 		try {
-			const skills = await window.electronAPI.skills.scanGlobal();
+			const skills = await platform().skills.scanGlobal();
 			setAvailableSkills(skills);
 		} catch {
 			// Silently handle - global folder may not exist
@@ -81,13 +78,6 @@ export function ImportSkillDialog({
 	};
 
 	const handleBrowse = async () => {
-		if (!window.electronAPI?.skills?.browse) {
-			toast.error("Browse not available", {
-				description: "This feature requires the Electron desktop app",
-			});
-			return;
-		}
-
 		if (!activeProject) {
 			toast.error("No active project", {
 				description: "Please open a project first",
@@ -95,20 +85,26 @@ export function ImportSkillDialog({
 			return;
 		}
 
-		const path = await window.electronAPI.skills.browse();
-		if (path) {
-			setIsLoading(true);
-			const skillId = await importSkill(activeProject.id, path);
-			setIsLoading(false);
+		try {
+			const path = await platform().skills.browse();
+			if (path) {
+				setIsLoading(true);
+				const skillId = await importSkill(activeProject.id, path);
+				setIsLoading(false);
 
-			if (skillId) {
-				toast.success("Skill imported successfully");
-				onOpenChange(false);
-			} else {
-				toast.error("Failed to import skill", {
-					description: "Make sure the folder contains a valid Skill.md file",
-				});
+				if (skillId) {
+					toast.success("Skill imported successfully");
+					onOpenChange(false);
+				} else {
+					toast.error("Failed to import skill", {
+						description: "Make sure the folder contains a valid Skill.md file",
+					});
+				}
 			}
+		} catch {
+			toast.error("Browse not available", {
+				description: "This feature requires the Electron desktop app",
+			});
 		}
 	};
 

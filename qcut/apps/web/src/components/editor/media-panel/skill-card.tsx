@@ -1,5 +1,6 @@
 "use client";
 
+import { platform } from "@qcut/platform-core";
 import { useState, useEffect } from "react";
 import type { Skill } from "@/types/skill";
 import { Button } from "@/components/ui/button";
@@ -42,7 +43,7 @@ export function SkillCard({ skill, onDelete }: SkillCardProps) {
 	// Get the skills folder path when expanded
 	useEffect(() => {
 		if (isExpanded && activeProject && !skillsBasePath) {
-			const getPathPromise = window.electronAPI?.skills?.getPath?.(
+			const getPathPromise = platform().skills?.getPath?.(
 				activeProject.id
 			);
 			getPathPromise

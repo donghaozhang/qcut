@@ -13,6 +13,7 @@ import type {
 	ProjectBackground,
 	EpisodeRawScript,
 } from "@/types/moyin-script";
+import { platform } from "@qcut/platform-core";
 
 interface LLMResult {
 	success: boolean;
@@ -31,7 +32,7 @@ interface MoyinApi {
 
 /** Get the Moyin Electron API, throwing if unavailable. */
 function getMoyinApi(): MoyinApi {
-	const api = window.electronAPI?.moyin;
+	const api = platform().moyin;
 	if (!api?.callLLM) {
 		throw new Error("Moyin API not available. Please run in Electron.");
 	}

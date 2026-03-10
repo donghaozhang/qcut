@@ -1,10 +1,11 @@
 import { debugError, debugLog, debugWarn } from "@/lib/debug/debug-config";
+import { platform } from "@qcut/platform-core";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { TimelineTrack } from "@/types/timeline";
 import type { TimelineStore } from "@/stores/timeline/types";
 
 type ClaudeTransactionAPI = NonNullable<
-	NonNullable<NonNullable<typeof window.electronAPI>["claude"]>["transaction"]
+	NonNullable<ReturnType<typeof platform>["claude"]>["transaction"]
 >;
 
 type TransactionHistoryEntry = {
@@ -255,10 +256,10 @@ function restoreHistoryPatches(): void {
 }
 
 function getTransactionAPI(): ClaudeTransactionAPI | null {
-	if (!window.electronAPI?.claude?.transaction) {
+	if (!platform().claude?.transaction) {
 		return null;
 	}
-	return window.electronAPI.claude.transaction;
+	return platform().claude!.transaction!;
 }
 
 function sendBeginResponse({

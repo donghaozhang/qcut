@@ -1,4 +1,5 @@
 import { debugError, debugLog, debugWarn } from "@/lib/debug/debug-config";
+import { platform } from "@qcut/platform-core";
 import { MediaItem } from "@/stores/media/media-store";
 import { TimelineTrack } from "@/types/timeline";
 import {
@@ -130,7 +131,7 @@ export async function prepareAudioFilesForExport({
 	tracks: TimelineTrack[];
 }): Promise<AudioFileInput[]> {
 	try {
-		if (!window.electronAPI) {
+		if (!platform().isElectron) {
 			return [];
 		}
 
@@ -163,8 +164,8 @@ export async function prepareAudioFilesForExport({
 					filename: string;
 				}): Promise<{ success: boolean; path?: string; error?: string }> => {
 					try {
-						if (window.electronAPI?.audio?.saveTemp) {
-							const path = await window.electronAPI.audio.saveTemp(
+						try {
+							const path = await platform().audio.saveTemp(
 								new Uint8Array(audioData),
 								filename
 							);
@@ -174,6 +175,8 @@ export async function prepareAudioFilesForExport({
 									path,
 								};
 							}
+						} catch {
+							// audio.saveTemp not available, fall through to IPC fallback
 						}
 
 						const result = await invokeIfAvailable({

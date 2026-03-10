@@ -8,6 +8,7 @@
  */
 
 import { useProjectStore } from "@/stores/project-store";
+import { platform } from "@qcut/platform-core";
 
 const DEBUG = true;
 const PREFIX = "[ClaudeNavigatorBridge]";
@@ -29,7 +30,7 @@ function debugError(...args: unknown[]): void {
  * Listens for project list and navigation requests from main process.
  */
 export function setupClaudeNavigatorBridge(): void {
-	const navAPI = window.electronAPI?.claude?.navigator;
+	const navAPI = platform().claude?.navigator;
 	if (!navAPI) {
 		debugWarn("Claude Navigator API not available");
 		return;
@@ -126,6 +127,6 @@ export function setupClaudeNavigatorBridge(): void {
 
 /** Cleanup navigator bridge listeners. */
 export function cleanupClaudeNavigatorBridge(): void {
-	window.electronAPI?.claude?.navigator?.removeListeners?.();
+	platform().claude?.navigator?.removeListeners?.();
 	debugLog("Bridge cleanup complete");
 }

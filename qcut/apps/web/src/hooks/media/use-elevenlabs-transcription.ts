@@ -28,6 +28,7 @@
 import { useState, useCallback } from "react";
 import { useWordTimelineStore } from "@/stores/timeline/word-timeline-store";
 import type { ElevenLabsTranscribeResult } from "@/types/electron";
+import { platform } from "@qcut/platform-core";
 
 // ============================================================================
 // Types
@@ -110,28 +111,16 @@ export function useElevenLabsTranscription(): UseElevenLabsTranscriptionReturn {
 			console.log("[ElevenLabs Hook] File path:", filePath);
 			console.log("[ElevenLabs Hook] Options:", options);
 
-			// Check if Electron API is available
-			console.log("[ElevenLabs Hook] Checking Electron API availability...");
-			console.log(
-				"[ElevenLabs Hook] window.electronAPI exists:",
-				!!window.electronAPI
-			);
+			// Check if platform API is available
+			console.log("[ElevenLabs Hook] Checking platform API availability...");
 			console.log(
 				"[ElevenLabs Hook] transcribe namespace exists:",
-				!!window.electronAPI?.transcribe
+				!!platform().transcription
 			);
 			console.log(
 				"[ElevenLabs Hook] elevenlabs method exists:",
-				!!window.electronAPI?.transcribe?.elevenlabs
+				!!platform().transcription?.elevenlabs
 			);
-
-			if (!window.electronAPI?.transcribe?.elevenlabs) {
-				console.error(
-					"[ElevenLabs Hook] Electron transcribe API not available"
-				);
-				setError("Transcription is only available in the desktop app");
-				return null;
-			}
 
 			setIsTranscribing(true);
 			setError(null);
@@ -166,14 +155,14 @@ export function useElevenLabsTranscription(): UseElevenLabsTranscriptionReturn {
 					console.log("[ElevenLabs Hook] Checking FFmpeg API availability...");
 					console.log(
 						"[ElevenLabs Hook] ffmpeg namespace exists:",
-						!!window.electronAPI?.ffmpeg
+						!!platform().ffmpeg
 					);
 					console.log(
 						"[ElevenLabs Hook] extractAudio method exists:",
-						!!window.electronAPI?.ffmpeg?.extractAudio
+						!!platform().ffmpeg?.extractAudio
 					);
 
-					if (!window.electronAPI?.ffmpeg?.extractAudio) {
+					if (!platform().ffmpeg?.extractAudio) {
 						console.error(
 							"[ElevenLabs Hook] FFmpeg extractAudio API not available"
 						);
@@ -186,7 +175,7 @@ export function useElevenLabsTranscription(): UseElevenLabsTranscriptionReturn {
 					});
 
 					// Use MP3 format for smaller file size (WAV is uncompressed and too large for upload)
-					const extractResult = await window.electronAPI.ffmpeg.extractAudio({
+					const extractResult = await platform().ffmpeg.extractAudio({
 						videoPath: filePath,
 						format: "mp3",
 					});
@@ -221,7 +210,7 @@ export function useElevenLabsTranscription(): UseElevenLabsTranscriptionReturn {
 				console.log("[ElevenLabs Hook] Transcribe options:", transcribeOptions);
 
 				const result =
-					await window.electronAPI.transcribe.elevenlabs(transcribeOptions);
+					await platform().transcription.elevenlabs(transcribeOptions);
 
 				console.log("[ElevenLabs Hook] Transcription result received:");
 				console.log("[ElevenLabs Hook] - Text length:", result?.text?.length);

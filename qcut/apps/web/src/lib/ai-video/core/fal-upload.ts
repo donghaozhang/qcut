@@ -7,6 +7,7 @@
  * @module ai-video/core/fal-upload
  */
 
+import { platform } from "@qcut/platform-core";
 import { handleAIServiceError } from "@/lib/debug/error-handler";
 import { FAL_UPLOAD_URL } from "./fal-request";
 
@@ -42,21 +43,21 @@ interface ElectronUploadResult {
 export function isElectronUploadAvailable(
 	fileType: FalUploadFileType
 ): boolean {
-	if (typeof window === "undefined" || !window.electronAPI?.fal) {
+	try {
+		const falApi = platform().fal;
+		const hasUploadImage = typeof falApi.uploadImage === "function";
+		const hasUploadAudio = typeof falApi.uploadAudio === "function";
+		const hasUploadVideo = typeof falApi.uploadVideo === "function";
+
+		return (
+			(fileType === "image" && hasUploadImage) ||
+			(fileType === "audio" && hasUploadAudio) ||
+			(fileType === "video" && hasUploadVideo) ||
+			(fileType === "asset" && hasUploadImage) // asset falls back to image
+		);
+	} catch {
 		return false;
 	}
-
-	const falApi = window.electronAPI.fal;
-	const hasUploadImage = typeof falApi.uploadImage === "function";
-	const hasUploadAudio = typeof falApi.uploadAudio === "function";
-	const hasUploadVideo = typeof falApi.uploadVideo === "function";
-
-	return (
-		(fileType === "image" && hasUploadImage) ||
-		(fileType === "audio" && hasUploadAudio) ||
-		(fileType === "video" && hasUploadVideo) ||
-		(fileType === "asset" && hasUploadImage) // asset falls back to image
-	);
 }
 
 /**
@@ -73,10 +74,7 @@ async function uploadViaElectronIPC(
 	fileType: FalUploadFileType,
 	apiKey: string
 ): Promise<string> {
-	const falApi = window.electronAPI?.fal;
-	if (!falApi) {
-		throw new Error("Electron IPC not available");
-	}
+	const falApi = platform().fal;
 
 	console.log(
 		`[FAL Upload] 🔌 Using Electron IPC for ${fileType} upload (bypasses CORS)`
@@ -204,13 +202,6 @@ export async function uploadFileToFal(
 		// Try Electron IPC first (bypasses CORS)
 		if (isElectronUploadAvailable(fileType)) {
 			return await uploadViaElectronIPC(file, fileType, apiKey);
-		}
-
-		// Check if IPC namespace exists but doesn't support this file type
-		if (typeof window !== "undefined" && window.electronAPI?.fal) {
-			console.log(
-				`[FAL Upload] ⚠️ IPC fal namespace detected, but no handler for ${fileType}; falling back to fetch`
-			);
 		}
 
 		// Fallback to direct fetch

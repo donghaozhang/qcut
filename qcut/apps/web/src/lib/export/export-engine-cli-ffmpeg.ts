@@ -6,6 +6,7 @@
  */
 
 import { debugLog, debugError } from "@/lib/debug/debug-config";
+import { platform } from "@qcut/platform-core";
 
 /** Logs the full export configuration (dimensions, quality, filters, sources) via debug logger. */
 export function logExportConfiguration(
@@ -58,7 +59,7 @@ export function logExportConfiguration(
 export async function invokeFFmpegExport(
 	exportOptions: Record<string, any>
 ): Promise<string> {
-	if (!window.electronAPI?.ffmpeg?.exportVideoCLI) {
+	if (typeof platform().ffmpeg.exportVideoCLI !== "function") {
 		throw new Error("CLI export only available in Electron");
 	}
 
@@ -68,13 +69,13 @@ export async function invokeFFmpegExport(
 		debugLog("[CLI Export] Invoking FFmpeg CLI...");
 		const startTime = Date.now();
 
-		const result = await window.electronAPI.ffmpeg.exportVideoCLI(
+		const result = await platform().ffmpeg.exportVideoCLI(
 			exportOptions as any
 		);
 
 		const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 		debugLog(`[CLI Export] FFmpeg export completed in ${duration}s`);
-		return result.outputFile;
+		return result.outputFile ?? result.outputPath ?? "";
 	} catch (error) {
 		debugError("[CLI Export] FFmpeg export FAILED:", error);
 		debugError("[CLI Export] Error details:", {

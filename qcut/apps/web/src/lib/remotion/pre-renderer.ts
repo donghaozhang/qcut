@@ -9,6 +9,7 @@
  */
 
 import type { RemotionElement } from "@/types/timeline";
+import { platform } from "@qcut/platform-core";
 
 // ============================================================================
 // Types
@@ -107,7 +108,7 @@ export class RemotionPreRenderer {
 	 */
 	private detectRenderMode(): RenderMode {
 		// Check if Electron API is available
-		if (typeof window !== "undefined" && window.electronAPI?.remotion) {
+		if (typeof window !== "undefined" && platform().remotion) {
 			return "electron";
 		}
 		return "canvas";
@@ -218,7 +219,7 @@ export class RemotionPreRenderer {
 		onProgress?: PreRenderProgressCallback
 	): Promise<Map<number, string>> {
 		const framePaths = new Map<number, string>();
-		const electronAPI = window.electronAPI?.remotion;
+		const electronAPI = platform().remotion;
 
 		if (!electronAPI) {
 			throw new Error("Electron Remotion API not available");
@@ -341,7 +342,7 @@ export class RemotionPreRenderer {
 	 * Clean up rendered frames for a session
 	 */
 	async cleanup(sessionId: string): Promise<void> {
-		const electronAPI = window.electronAPI?.remotion;
+		const electronAPI = platform().remotion;
 
 		if (electronAPI?.cleanup) {
 			await electronAPI.cleanup(sessionId);

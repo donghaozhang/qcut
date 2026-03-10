@@ -1,31 +1,14 @@
-import type { ElectronAPI } from "@/types/electron";
+import { platform } from "@qcut/platform-core";
 
 interface SyncProjectSkillsForClaudeInput {
 	projectId: string;
-	electronApi?: ElectronAPI;
-}
-
-function getElectronApi({
-	electronApi,
-}: {
-	electronApi?: ElectronAPI;
-}): ElectronAPI | undefined {
-	if (electronApi) {
-		return electronApi;
-	}
-	if (typeof window === "undefined") {
-		return;
-	}
-	return window.electronAPI;
 }
 
 export function syncProjectSkillsForClaude({
 	projectId,
-	electronApi,
 }: SyncProjectSkillsForClaudeInput): void {
 	try {
-		const resolvedElectronApi = getElectronApi({ electronApi });
-		const syncForClaude = resolvedElectronApi?.skills?.syncForClaude;
+		const syncForClaude = platform().skills?.syncForClaude;
 		if (!syncForClaude) {
 			return;
 		}

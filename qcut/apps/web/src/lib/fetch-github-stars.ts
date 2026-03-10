@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import {
 	handleError,
 	ErrorCategory,
@@ -9,9 +10,9 @@ export async function getStars(): Promise<string> {
 		let count: number;
 
 		// Check if we're in Electron environment
-		if (typeof window !== "undefined" && window.electronAPI?.github) {
+		if (platform().isElectron) {
 			// Use IPC to fetch GitHub stars through Electron main process
-			const result = await window.electronAPI.github.fetchStars();
+			const result = await platform().github.fetchStars();
 			count = result.stars || 0;
 		} else {
 			// Fallback to direct fetch (for web/dev environment)

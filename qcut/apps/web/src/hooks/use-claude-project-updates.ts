@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import { useEffect } from "react";
 import { useEditorStore } from "@/stores/editor/editor-store";
 import { useProjectStore } from "@/stores/project-store";
@@ -20,7 +21,7 @@ export function useClaudeProjectUpdates({
 			return;
 		}
 
-		const projectApi = window.electronAPI?.claude?.project;
+		const projectApi = platform().claude?.project;
 		if (!projectApi?.onUpdated) {
 			return;
 		}

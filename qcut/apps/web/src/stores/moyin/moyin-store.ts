@@ -4,6 +4,7 @@
  */
 
 import { create } from "zustand";
+import { platform } from "@qcut/platform-core";
 import type {
 	Episode,
 	ScriptCharacter,
@@ -272,7 +273,7 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 
 		checkApiKeyStatus: async () => {
 			try {
-				const status = await window.electronAPI?.apiKeys?.status();
+				const status = await platform().apiKeys.status();
 				if (!status) {
 					set({ chatConfigured: false });
 					return;
@@ -285,7 +286,7 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 				if (!configured) {
 					// Claude CLI is available as fallback (no API key required)
 					const claudeAvailable =
-						await window.electronAPI?.moyin?.isClaudeAvailable?.();
+						await platform().moyin.isClaudeAvailable?.();
 					configured = !!claudeAvailable;
 				}
 				set({ chatConfigured: configured });
@@ -340,7 +341,7 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 
 			// --- IPC fallback: direct call when PTY is unavailable ---
 			try {
-				const api = window.electronAPI?.moyin;
+				const api = platform().moyin;
 				if (!api) {
 					throw new Error("Moyin API not available. Please run in Electron.");
 				}
@@ -866,7 +867,7 @@ useMoyinStore.subscribe((state) => {
 
 // Listen for parsed script data pushed from CLI via HTTP API
 if (typeof window !== "undefined") {
-	window.electronAPI?.moyin?.onParsed?.((data: Record<string, unknown>) => {
+	platform().moyin.onParsed?.((data: Record<string, unknown>) => {
 		const state = useMoyinStore.getState();
 		const scriptData = data as unknown as ScriptData;
 
@@ -877,7 +878,7 @@ if (typeof window !== "undefined") {
 		}
 		const tempPath = getPendingTempScriptPath();
 		if (tempPath) {
-			window.electronAPI?.moyin?.cleanupTempScript(tempPath)?.catch(() => {});
+			platform().moyin.cleanupTempScript(tempPath)?.catch(() => {});
 		}
 		clearPendingParse();
 

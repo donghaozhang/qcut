@@ -9,6 +9,7 @@
 
 "use client";
 
+import { platform } from "@qcut/platform-core";
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -129,7 +130,7 @@ export function ProjectFolderView() {
 				if (!file) continue;
 
 				// Use media import handler
-				const result = await window.electronAPI?.mediaImport?.import({
+				const result = await platform().mediaImport?.import({
 					sourcePath: filePath,
 					projectId,
 					mediaId: crypto.randomUUID(),

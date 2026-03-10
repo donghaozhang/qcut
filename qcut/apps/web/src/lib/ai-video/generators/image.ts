@@ -5,6 +5,7 @@
  * Currently supports Seeddream 4.5 text-to-image and edit.
  */
 
+import { platform } from "@qcut/platform-core";
 import { handleAIServiceError } from "@/lib/debug/error-handler";
 import type {
 	Seeddream45ImageSize,
@@ -220,13 +221,13 @@ export async function uploadImageForSeeddream45Edit(
 		}
 
 		// Use Electron IPC upload if available (bypasses CORS)
-		if (window.electronAPI?.fal?.uploadImage) {
+		if (platform().fal?.uploadImage) {
 			console.log(
 				`📤 [Seeddream 4.5] Uploading image via Electron IPC: ${imageFile.name}`
 			);
 
 			const arrayBuffer = await imageFile.arrayBuffer();
-			const result = await window.electronAPI.fal.uploadImage(
+			const result = await platform().fal.uploadImage(
 				new Uint8Array(arrayBuffer),
 				imageFile.name,
 				apiKey

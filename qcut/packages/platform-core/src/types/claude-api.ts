@@ -97,18 +97,75 @@ export interface PlatformClaudeTimelineAPI {
 // ---------------------------------------------------------------------------
 
 export interface PlatformClaudeTransactionAPI {
-	onBegin(callback: (data: unknown) => void): void;
-	sendBeginResponse(requestId: string, result: unknown): void;
-	onCommit(callback: (data: unknown) => void): void;
-	sendCommitResponse(requestId: string, result: unknown): void;
-	onRollback(callback: (data: unknown) => void): void;
-	sendRollbackResponse(requestId: string, result: unknown): void;
-	onUndo(callback: (data: unknown) => void): void;
-	sendUndoResponse(requestId: string, result: unknown): void;
-	onRedo(callback: (data: unknown) => void): void;
-	sendRedoResponse(requestId: string, result: unknown): void;
-	onHistory(callback: (data: unknown) => void): void;
-	sendHistoryResponse(requestId: string, result: unknown): void;
+	onBegin(
+		callback: (data: {
+			requestId: string;
+			transactionId: string;
+			label?: string;
+			timeoutMs: number;
+			createdAt: number;
+			expiresAt: number;
+		}) => void
+	): void;
+	sendBeginResponse(
+		requestId: string,
+		result: { success: boolean; error?: string; message?: string }
+	): void;
+	onCommit(
+		callback: (data: {
+			requestId: string;
+			transactionId: string;
+			label?: string;
+		}) => void
+	): void;
+	sendCommitResponse(
+		requestId: string,
+		result: {
+			success: boolean;
+			error?: string;
+			message?: string;
+			historyEntryAdded?: boolean;
+		}
+	): void;
+	onRollback(
+		callback: (data: {
+			requestId: string;
+			transactionId: string;
+			reason?: string;
+		}) => void
+	): void;
+	sendRollbackResponse(
+		requestId: string,
+		result: { success: boolean; error?: string; message?: string }
+	): void;
+	onUndo(callback: (data: { requestId: string }) => void): void;
+	sendUndoResponse(
+		requestId: string,
+		result: { applied: boolean; undoCount: number; redoCount: number }
+	): void;
+	onRedo(callback: (data: { requestId: string }) => void): void;
+	sendRedoResponse(
+		requestId: string,
+		result: { applied: boolean; undoCount: number; redoCount: number }
+	): void;
+	onHistory(callback: (data: { requestId: string }) => void): void;
+	sendHistoryResponse(
+		requestId: string,
+		result: {
+			undoCount: number;
+			redoCount: number;
+			entries: Array<{
+				label: string;
+				timestamp: number;
+				transactionId?: string;
+			}>;
+			redoEntries?: Array<{
+				label: string;
+				timestamp: number;
+				transactionId?: string;
+			}>;
+		}
+	): void;
 	removeListeners(): void;
 }
 
@@ -124,7 +181,9 @@ export interface PlatformClaudeProjectAPI {
 		callback: (projectId: string, requestId: string) => void
 	): void;
 	sendStatsResponse(stats: unknown, requestId: string): void;
-	onUpdated(callback: (projectId: string, settings: unknown) => void): void;
+	onUpdated(
+		callback: (projectId: string, settings: Record<string, unknown>) => void
+	): void;
 	removeListeners(): void;
 }
 
@@ -178,10 +237,28 @@ export interface PlatformClaudeNotificationsAPI {
 // ---------------------------------------------------------------------------
 
 export interface PlatformClaudeNavigatorAPI {
-	onProjectsRequest(callback: (data: unknown) => void): void;
-	sendProjectsResponse(requestId: string, result: unknown): void;
-	onOpenRequest(callback: (data: unknown) => void): void;
-	sendOpenResponse(requestId: string, result: unknown): void;
+	onProjectsRequest(
+		callback: (data: { requestId: string }) => void
+	): void;
+	sendProjectsResponse(
+		requestId: string,
+		result: {
+			projects: Array<{
+				id: string;
+				name: string;
+				createdAt: string;
+				updatedAt: string;
+			}>;
+			activeProjectId: string | null;
+		}
+	): void;
+	onOpenRequest(
+		callback: (data: { requestId: string; projectId: string }) => void
+	): void;
+	sendOpenResponse(
+		requestId: string,
+		result: { navigated: boolean; projectId: string }
+	): void;
 	removeListeners(): void;
 }
 
@@ -190,10 +267,41 @@ export interface PlatformClaudeNavigatorAPI {
 // ---------------------------------------------------------------------------
 
 export interface PlatformClaudeScreenRecordingBridgeAPI {
-	onStartRequest(callback: (data: unknown) => void): void;
-	sendStartResponse(requestId: string, result: unknown, error?: string): void;
-	onStopRequest(callback: (data: unknown) => void): void;
-	sendStopResponse(requestId: string, result: unknown, error?: string): void;
+	onStartRequest(
+		callback: (data: {
+			requestId: string;
+			options: { sourceId?: string; fileName?: string };
+		}) => void
+	): void;
+	sendStartResponse(
+		requestId: string,
+		result?: {
+			sessionId: string;
+			sourceId: string;
+			sourceName: string;
+			filePath: string;
+			startedAt: number;
+			mimeType: string | null;
+		},
+		error?: string
+	): void;
+	onStopRequest(
+		callback: (data: {
+			requestId: string;
+			options: { discard?: boolean };
+		}) => void
+	): void;
+	sendStopResponse(
+		requestId: string,
+		result?: {
+			success: boolean;
+			filePath: string | null;
+			bytesWritten: number;
+			durationMs: number;
+			discarded: boolean;
+		},
+		error?: string
+	): void;
 	removeListeners(): void;
 }
 

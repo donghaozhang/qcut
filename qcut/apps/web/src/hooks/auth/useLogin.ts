@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { platform } from "@qcut/platform-core";
 import { useLicenseStore } from "@/stores/license-store";
 
 export function useLogin() {
@@ -15,11 +16,9 @@ export function useLogin() {
 	const activateAndNavigate = useCallback(
 		async (token: string) => {
 			try {
-				const licenseApi = window.electronAPI?.license;
-				if (licenseApi) {
-					await licenseApi.setAuthToken(token);
-					await licenseApi.activate(token);
-				}
+				const licenseApi = platform().license;
+				await licenseApi.setAuthToken(token);
+				await licenseApi.activate(token);
 				await checkLicense();
 				navigate({ to: "/projects" });
 			} catch {
@@ -31,7 +30,7 @@ export function useLogin() {
 
 	// Listen for deep link tokens (Google OAuth callback)
 	useEffect(() => {
-		const licenseApi = window.electronAPI?.license;
+		const licenseApi = platform().license;
 		if (!licenseApi?.onActivationToken) {
 			return;
 		}
@@ -42,7 +41,7 @@ export function useLogin() {
 			await activateAndNavigate(token);
 		});
 
-		return () => unsubscribe();
+		return () => unsubscribe?.();
 	}, [activateAndNavigate]);
 
 	const handleLogin = useCallback(async () => {
@@ -50,7 +49,7 @@ export function useLogin() {
 		setIsEmailLoading(true);
 
 		try {
-			const licenseApi = window.electronAPI?.license;
+			const licenseApi = platform().license;
 			if (!licenseApi?.emailLogin) {
 				setError("Login is not available in this environment");
 				return;
@@ -76,7 +75,7 @@ export function useLogin() {
 		setIsGoogleLoading(true);
 
 		try {
-			const licenseApi = window.electronAPI?.license;
+			const licenseApi = platform().license;
 			if (!licenseApi?.getGoogleLoginUrl) {
 				setError("Google login is not available in this environment");
 				setIsGoogleLoading(false);
@@ -84,12 +83,7 @@ export function useLogin() {
 			}
 
 			const url = await licenseApi.getGoogleLoginUrl();
-			if (!window.electronAPI?.shell?.openExternal) {
-				setError("Could not open browser for Google login");
-				setIsGoogleLoading(false);
-				return;
-			}
-			await window.electronAPI.shell.openExternal(url);
+			await platform().shell.openExternal(url);
 			setIsWaitingForBrowser(true);
 		} catch (err) {
 			setError(

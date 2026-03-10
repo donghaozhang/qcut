@@ -8,10 +8,11 @@
  */
 
 import { useMoyinStore } from "@/stores/moyin/moyin-store";
+import { platform } from "@qcut/platform-core";
 import { toast } from "sonner";
 
 export function setupClaudeMoyinBridge(): void {
-	const moyin = window.electronAPI?.moyin;
+	const moyin = platform().moyin;
 	if (!moyin) return;
 
 	moyin.onSetScript((data) => {
@@ -117,5 +118,5 @@ export function setupClaudeMoyinBridge(): void {
 }
 
 export function cleanupClaudeMoyinBridge(): void {
-	window.electronAPI?.moyin?.removeMoyinBridgeListeners();
+	platform().moyin?.removeMoyinBridgeListeners();
 }

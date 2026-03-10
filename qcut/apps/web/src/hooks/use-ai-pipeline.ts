@@ -7,6 +7,7 @@
  * @module hooks/use-ai-pipeline
  */
 import { useState, useEffect, useCallback, useRef } from "react";
+import { platform } from "@qcut/platform-core";
 import type {
 	AIPipelineProgress,
 	AIPipelineGenerateOptions,
@@ -99,9 +100,9 @@ export function useAIPipeline(
 
 	// Set up progress listener
 	useEffect(() => {
-		if (!window.electronAPI?.aiPipeline?.onProgress) return;
+		if (!platform().aiPipeline?.onProgress) return;
 
-		const cleanup = window.electronAPI.aiPipeline.onProgress((progressData) => {
+		const cleanup = platform().aiPipeline.onProgress((progressData) => {
 			// Only update if this is our session or no session filter
 			if (
 				!sessionIdRef.current ||
@@ -120,7 +121,7 @@ export function useAIPipeline(
 	 */
 	const checkAvailability = useCallback(async (): Promise<boolean> => {
 		try {
-			const response = await window.electronAPI?.aiPipeline?.check();
+			const response = await platform().aiPipeline?.check();
 			const available = response?.available ?? false;
 			setIsAvailable(available);
 			setIsChecked(true);
@@ -132,7 +133,7 @@ export function useAIPipeline(
 			}
 
 			// Also fetch detailed status
-			const statusResponse = await window.electronAPI?.aiPipeline?.status();
+			const statusResponse = await platform().aiPipeline?.status();
 			if (statusResponse) {
 				setStatus(statusResponse);
 			}
@@ -157,7 +158,7 @@ export function useAIPipeline(
 	const refreshEnvironment =
 		useCallback(async (): Promise<AIPipelineStatus | null> => {
 			try {
-				const response = await window.electronAPI?.aiPipeline?.refresh();
+				const response = await platform().aiPipeline?.refresh();
 				if (response) {
 					setStatus(response);
 					setIsAvailable(response.available);
@@ -207,7 +208,7 @@ export function useAIPipeline(
 			sessionIdRef.current = sessionId;
 
 			try {
-				const generateResult = await window.electronAPI?.aiPipeline?.generate({
+				const generateResult = await platform().aiPipeline?.generate({
 					...generateOptions,
 					sessionId,
 				});
@@ -254,7 +255,7 @@ export function useAIPipeline(
 			return { success: false, error: "AI Pipeline not available" };
 		}
 		try {
-			const response = await window.electronAPI?.aiPipeline?.listModels();
+			const response = await platform().aiPipeline?.listModels();
 			return response ?? { success: false, error: "API not available" };
 		} catch (err) {
 			const errorMessage =
@@ -276,7 +277,7 @@ export function useAIPipeline(
 				return { success: false, error: "AI Pipeline not available" };
 			}
 			try {
-				const response = await window.electronAPI?.aiPipeline?.estimateCost({
+				const response = await platform().aiPipeline?.estimateCost({
 					model,
 					duration,
 					resolution,
@@ -297,7 +298,7 @@ export function useAIPipeline(
 	const cancel = useCallback(async (): Promise<void> => {
 		if (!sessionIdRef.current) return;
 		try {
-			await window.electronAPI?.aiPipeline?.cancel(sessionIdRef.current);
+			await platform().aiPipeline?.cancel(sessionIdRef.current);
 		} catch (err) {
 			const errorMessage =
 				err instanceof Error ? err.message : "Failed to cancel generation";

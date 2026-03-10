@@ -8,6 +8,7 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
+import { platform } from "@qcut/platform-core";
 import { useProjectStore } from "@/stores/project-store";
 import type {
 	ProjectFolderFileInfo,
@@ -34,7 +35,7 @@ export function useProjectFolder() {
 	 */
 	const listDirectory = useCallback(
 		async (subPath = "") => {
-			if (!projectId || !window.electronAPI?.projectFolder) {
+			if (!projectId) {
 				return;
 			}
 
@@ -42,7 +43,7 @@ export function useProjectFolder() {
 			setError(null);
 
 			try {
-				const result = await window.electronAPI.projectFolder.list(
+				const result = await platform().projectFolder.list(
 					projectId,
 					subPath
 				);
@@ -64,7 +65,7 @@ export function useProjectFolder() {
 	 */
 	const scanForMedia = useCallback(
 		async (subPath = "media") => {
-			if (!projectId || !window.electronAPI?.projectFolder) {
+			if (!projectId) {
 				return null;
 			}
 
@@ -72,7 +73,7 @@ export function useProjectFolder() {
 			setError(null);
 
 			try {
-				const result = await window.electronAPI.projectFolder.scan(
+				const result = await platform().projectFolder.scan(
 					projectId,
 					subPath,
 					{
@@ -98,13 +99,13 @@ export function useProjectFolder() {
 	 * Ensure project folder structure exists.
 	 */
 	const ensureStructure = useCallback(async () => {
-		if (!projectId || !window.electronAPI?.projectFolder) {
+		if (!projectId) {
 			return null;
 		}
 
 		try {
 			const result =
-				await window.electronAPI.projectFolder.ensureStructure(projectId);
+				await platform().projectFolder.ensureStructure(projectId);
 			return result;
 		} catch (err) {
 			const message =
