@@ -44,6 +44,10 @@ import {
 	handleVimaxNovel2Movie,
 } from "../vimax-cli-handlers.js";
 import { handleYouTubeUpload } from "../cli-handlers-youtube.js";
+import {
+	runAutoclip,
+	parseAutoclipOptions,
+} from "../../autoclip/autoclip-runner.js";
 import type { CLIRunOptions, CLIResult, ProgressFn } from "./types.js";
 import { handleGenerate } from "./handler-generate.js";
 import { handleRunPipeline } from "./handler-pipeline.js";
@@ -206,6 +210,12 @@ export class CLIPipelineRunner {
 				return handlePipelineStatus(options);
 			case "youtube:upload":
 				return handleYouTubeUpload(options, onProgress);
+			case "autoclip":
+				return runAutoclip(
+					parseAutoclipOptions(options),
+					onProgress,
+					this.signal
+				);
 			default:
 				if (options.command.startsWith("editor:")) {
 					return handleEditorCommand(options, onProgress);

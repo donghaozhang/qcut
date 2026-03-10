@@ -346,6 +346,11 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"srt-max-words": { type: "string" },
 			"srt-max-duration": { type: "string" },
 			"raw-json": { type: "boolean", default: false },
+			// autoclip options
+			"srt-file": { type: "string", short: "s" },
+			"min-score": { type: "string" },
+			step: { type: "string" },
+			"chunk-minutes": { type: "string" },
 			// transfer-motion options
 			orientation: { type: "string" },
 			"no-sound": { type: "boolean", default: false },
@@ -549,6 +554,17 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			? Number.isNaN(parseFloat(values["reference-strength"] as string))
 				? undefined
 				: parseFloat(values["reference-strength"] as string)
+			: undefined,
+		// autoclip options
+		srtFile: values["srt-file"] as string | undefined,
+		minScore: values["min-score"]
+			? parseFloat(values["min-score"] as string)
+			: undefined,
+		autoclipStep: values.step
+			? parseInt(values.step as string, 10)
+			: undefined,
+		chunkMinutes: values["chunk-minutes"]
+			? parseInt(values["chunk-minutes"] as string, 10)
 			: undefined,
 		// transcribe options
 		language: values.language as string | undefined,

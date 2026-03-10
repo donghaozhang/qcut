@@ -431,6 +431,41 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		],
 	},
 
+	"autoclip": {
+		name: "autoclip",
+		description:
+			"Extract highlight clips from video using subtitle analysis",
+		category: "analysis",
+		flags: [
+			f("--input", "string", "Input video file path", {
+				short: "-i",
+				required: true,
+			}),
+			f("--srt-file", "string", "SRT/VTT subtitle file (auto-detects if omitted)", {
+				short: "-s",
+			}),
+			f("--output", "string", "Output directory", { short: "-o" }),
+			f("--model", "string", "LLM model (default: google/gemini-2.5-flash)", {
+				short: "-m",
+			}),
+			f("--min-score", "number", "Minimum score threshold 0-1 (default: 0.7)"),
+			f("--step", "number", "Run only a specific step (1-4)"),
+			f(
+				"--chunk-minutes",
+				"number",
+				"Subtitle chunk interval in minutes (default: 30)"
+			),
+			f("--dry-run", "boolean", "Run analysis only, skip video cutting", {
+				default: false,
+			}),
+		],
+		examples: [
+			"qcut-pipeline autoclip -i video.mp4 -s subs.srt",
+			"qcut-pipeline autoclip -i video.mp4 --min-score 0.8 --dry-run",
+			"qcut-pipeline autoclip -i video.mp4 --step 1 -s subs.srt",
+		],
+	},
+
 	// ── Models & Cost ──
 	"list-models": {
 		name: "list-models",
