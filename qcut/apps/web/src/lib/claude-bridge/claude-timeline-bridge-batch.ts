@@ -29,47 +29,58 @@ export function setupBatchHandlers({
 		typeof claudeAPI.onBatchAddElements === "function" &&
 		typeof claudeAPI.sendBatchAddElementsResponse === "function"
 	) {
-		claudeAPI.onBatchAddElements(
-			async (data: {
-				requestId: string;
-				elements: ClaudeBatchAddElementRequest[];
-			}) => {
-				const defaultErrorResponse: ClaudeBatchAddResponse = {
-					added: [],
-					failedCount: data.elements.length,
-				};
-				try {
-					if (data.elements.length > MAX_TIMELINE_BATCH_ITEMS) {
-						const message = `Batch add limit is ${MAX_TIMELINE_BATCH_ITEMS} elements`;
-						const failedResponse: ClaudeBatchAddResponse = {
-							added: data.elements.map((_, index) => ({
-								index,
-								success: false,
-								error: message,
-							})),
-							failedCount: data.elements.length,
-						};
-						claudeAPI.sendBatchAddElementsResponse(
-							data.requestId,
-							failedResponse
-						);
-						return;
-					}
-
-					if (data.elements.length === 0) {
-						claudeAPI.sendBatchAddElementsResponse(data.requestId, {
-							added: [],
-							failedCount: 0,
-						});
-						return;
-					}
-
-					const timelineStore = useTimelineStore.getState();
-					const tracksById = new Map(
-						timelineStore.tracks.map((track) => [track.id, track])
+		claudeAPI.onBatchAddElements(async (data: any) => {
+			const elements: any[] = Array.isArray(data?.elements)
+				? data.elements
+				: [];
+			const defaultErrorResponse: ClaudeBatchAddResponse = {
+				added: [],
+				failedCount: elements.length,
+			};
+			try {
+				if (elements.length > MAX_TIMELINE_BATCH_ITEMS) {
+					const message = `Batch add limit is ${MAX_TIMELINE_BATCH_ITEMS} elements`;
+					const failedResponse: ClaudeBatchAddResponse = {
+						added: elements.map((_: any, index: number) => ({
+							index,
+							success: false,
+							error: message,
+						})),
+						failedCount: elements.length,
+					};
+					claudeAPI.sendBatchAddElementsResponse(
+						data.requestId,
+						failedResponse
 					);
+					return;
+				}
 
-					for (const element of data.elements) {
+				if (elements.length === 0) {
+					claudeAPI.sendBatchAddElementsResponse(data.requestId, {
+						added: [],
+						failedCount: 0,
+					});
+					return;
+				}
+
+				// Sync media from disk so newly-imported files are discoverable
+				const projectId = useProjectStore.getState().activeProject?.id;
+				if (projectId) {
+					await syncProjectMediaIfNeeded({ projectId });
+				}
+
+				const timelineStore = useTimelineStore.getState();
+				const tracksById = new Map(
+					timelineStore.tracks.map((track) => [track.id, track])
+				);
+
+				timelineStore.pushHistory();
+
+				const added: ClaudeBatchAddResponse["added"] = [];
+				let failedCount = 0;
+
+				for (const [index, element] of elements.entries()) {
+					try {
 						const normalizedType = sharedUtils.normalizeClaudeElementType({
 							type: element.type,
 						});
@@ -108,224 +119,200 @@ export function setupBatchHandlers({
 								compatibility.errorMessage || "Track compatibility failed"
 							);
 						}
-					}
 
-					// Sync media from disk so newly-imported files are discoverable
-					const projectId = useProjectStore.getState().activeProject?.id;
-					if (projectId) {
-						await syncProjectMediaIfNeeded({ projectId });
-					}
+						let createdElementId: string | null = null;
 
-					timelineStore.pushHistory();
-
-					const added: ClaudeBatchAddResponse["added"] = [];
-					let failedCount = 0;
-
-					for (const [index, element] of data.elements.entries()) {
-						try {
-							const normalizedType = sharedUtils.normalizeClaudeElementType({
-								type: element.type,
+						if (normalizedType === "media") {
+							const mediaId = sharedUtils.resolveMediaIdForBatchElement({
+								element,
 							});
-							if (!normalizedType) {
-								throw new Error(`Unsupported element type: ${element.type}`);
+							if (!mediaId) {
+								throw new Error("Media source could not be resolved");
 							}
 
-							let createdElementId: string | null = null;
-
-							if (normalizedType === "media") {
-								const mediaId = sharedUtils.resolveMediaIdForBatchElement({
-									element,
-								});
-								if (!mediaId) {
-									throw new Error("Media source could not be resolved");
+							createdElementId = timelineStore.addElementToTrack(
+								element.trackId,
+								{
+									type: "media",
+									name: element.sourceName || "Media",
+									mediaId,
+									startTime: element.startTime,
+									duration: element.duration,
+									trimStart: 0,
+									trimEnd: 0,
+								},
+								{
+									pushHistory: false,
+									selectElement: false,
 								}
+							);
+						} else if (normalizedType === "text") {
+							const style = element.style || {};
+							const content =
+								typeof element.content === "string" &&
+								element.content.length > 0
+									? element.content
+									: "Text";
 
-								createdElementId = timelineStore.addElementToTrack(
-									element.trackId,
-									{
-										type: "media",
-										name: element.sourceName || "Media",
-										mediaId,
-										startTime: element.startTime,
-										duration: element.duration,
-										trimStart: 0,
-										trimEnd: 0,
-									},
-									{
-										pushHistory: false,
-										selectElement: false,
-									}
-								);
-							} else if (normalizedType === "text") {
-								const style = element.style || {};
-								const content =
-									typeof element.content === "string" &&
-									element.content.length > 0
+							createdElementId = timelineStore.addElementToTrack(
+								element.trackId,
+								{
+									type: "text",
+									name: content,
+									content,
+									startTime: element.startTime,
+									duration: element.duration,
+									trimStart: 0,
+									trimEnd: 0,
+									fontSize:
+										typeof style.fontSize === "number" ? style.fontSize : 48,
+									fontFamily:
+										typeof style.fontFamily === "string"
+											? style.fontFamily
+											: "Inter",
+									color:
+										typeof style.color === "string" ? style.color : "#ffffff",
+									backgroundColor:
+										typeof style.backgroundColor === "string"
+											? style.backgroundColor
+											: "transparent",
+									textAlign:
+										style.textAlign === "left" ||
+										style.textAlign === "right" ||
+										style.textAlign === "center"
+											? style.textAlign
+											: "center",
+									fontWeight: style.fontWeight === "bold" ? "bold" : "normal",
+									fontStyle: style.fontStyle === "italic" ? "italic" : "normal",
+									textDecoration:
+										style.textDecoration === "underline" ||
+										style.textDecoration === "line-through"
+											? style.textDecoration
+											: "none",
+									x: 0.5,
+									y: 0.5,
+									rotation: 0,
+									opacity: 1,
+								},
+								{
+									pushHistory: false,
+									selectElement: false,
+								}
+							);
+						} else if (normalizedType === "markdown") {
+							const markdownContent =
+								typeof element.markdownContent === "string" &&
+								element.markdownContent.length > 0
+									? element.markdownContent
+									: typeof element.content === "string" &&
+											element.content.length > 0
 										? element.content
-										: "Text";
+										: "Markdown";
+							const style = element.style || {};
 
-								createdElementId = timelineStore.addElementToTrack(
-									element.trackId,
-									{
-										type: "text",
-										name: content,
-										content,
-										startTime: element.startTime,
-										duration: element.duration,
-										trimStart: 0,
-										trimEnd: 0,
-										fontSize:
-											typeof style.fontSize === "number" ? style.fontSize : 48,
-										fontFamily:
-											typeof style.fontFamily === "string"
-												? style.fontFamily
-												: "Inter",
-										color:
-											typeof style.color === "string" ? style.color : "#ffffff",
-										backgroundColor:
-											typeof style.backgroundColor === "string"
-												? style.backgroundColor
-												: "transparent",
-										textAlign:
-											style.textAlign === "left" ||
-											style.textAlign === "right" ||
-											style.textAlign === "center"
-												? style.textAlign
-												: "center",
-										fontWeight: style.fontWeight === "bold" ? "bold" : "normal",
-										fontStyle:
-											style.fontStyle === "italic" ? "italic" : "normal",
-										textDecoration:
-											style.textDecoration === "underline" ||
-											style.textDecoration === "line-through"
-												? style.textDecoration
-												: "none",
-										x: 0.5,
-										y: 0.5,
-										rotation: 0,
-										opacity: 1,
-									},
-									{
-										pushHistory: false,
-										selectElement: false,
-									}
-								);
-							} else if (normalizedType === "markdown") {
-								const markdownContent =
-									typeof element.markdownContent === "string" &&
-									element.markdownContent.length > 0
-										? element.markdownContent
-										: typeof element.content === "string" &&
-												element.content.length > 0
-											? element.content
-											: "Markdown";
-								const style = element.style || {};
-
-								createdElementId = timelineStore.addElementToTrack(
-									element.trackId,
-									{
-										type: "markdown",
-										name: markdownContent.slice(0, 50),
-										markdownContent,
-										startTime: element.startTime,
-										duration: element.duration,
-										trimStart: 0,
-										trimEnd: 0,
-										theme:
-											style.theme === "light" || style.theme === "transparent"
-												? style.theme
-												: "dark",
-										fontSize:
-											typeof style.fontSize === "number" ? style.fontSize : 14,
-										fontFamily:
-											typeof style.fontFamily === "string"
-												? style.fontFamily
-												: "Inter",
-										padding:
-											typeof style.padding === "number" ? style.padding : 16,
-										backgroundColor:
-											typeof style.backgroundColor === "string"
-												? style.backgroundColor
-												: "#1a1a2e",
-										textColor:
-											typeof style.textColor === "string"
-												? style.textColor
-												: "#e0e0e0",
-										scrollMode: "static",
-										scrollSpeed: 50,
-										x: 0,
-										y: 0,
-										width: 400,
-										height: 300,
-										rotation: 0,
-										opacity: 1,
-									},
-									{
-										pushHistory: false,
-										selectElement: false,
-									}
-								);
-							} else {
-								throw new Error(
-									`Unsupported batch add type: ${normalizedType}`
-								);
-							}
-
-							if (!createdElementId) {
-								throw new Error("Failed to create timeline element");
-							}
-
-							added.push({
-								index,
-								success: true,
-								elementId: createdElementId,
-							});
-						} catch (error) {
-							failedCount++;
-							added.push({
-								index,
-								success: false,
-								error: error instanceof Error ? error.message : "Unknown error",
-							});
+							createdElementId = timelineStore.addElementToTrack(
+								element.trackId,
+								{
+									type: "markdown",
+									name: markdownContent.slice(0, 50),
+									markdownContent,
+									startTime: element.startTime,
+									duration: element.duration,
+									trimStart: 0,
+									trimEnd: 0,
+									theme:
+										style.theme === "light" || style.theme === "transparent"
+											? style.theme
+											: "dark",
+									fontSize:
+										typeof style.fontSize === "number" ? style.fontSize : 14,
+									fontFamily:
+										typeof style.fontFamily === "string"
+											? style.fontFamily
+											: "Inter",
+									padding:
+										typeof style.padding === "number" ? style.padding : 16,
+									backgroundColor:
+										typeof style.backgroundColor === "string"
+											? style.backgroundColor
+											: "#1a1a2e",
+									textColor:
+										typeof style.textColor === "string"
+											? style.textColor
+											: "#e0e0e0",
+									scrollMode: "static",
+									scrollSpeed: 50,
+									x: 0,
+									y: 0,
+									width: 400,
+									height: 300,
+									rotation: 0,
+									opacity: 1,
+								},
+								{
+									pushHistory: false,
+									selectElement: false,
+								}
+							);
+						} else {
+							throw new Error(`Unsupported batch add type: ${normalizedType}`);
 						}
-					}
 
-					claudeAPI.sendBatchAddElementsResponse(data.requestId, {
-						added,
-						failedCount,
-					});
-				} catch (error) {
-					debugError(
-						"[ClaudeTimelineBridge] Failed to batch add elements:",
-						error
-					);
-					const errorMessage =
-						error instanceof Error ? error.message : "Batch add failed";
-					claudeAPI.sendBatchAddElementsResponse(data.requestId, {
-						...defaultErrorResponse,
-						added: data.elements.map((_, index) => ({
+						if (!createdElementId) {
+							throw new Error("Failed to create timeline element");
+						}
+
+						added.push({
+							index,
+							success: true,
+							elementId: createdElementId,
+						});
+					} catch (error) {
+						failedCount++;
+						added.push({
 							index,
 							success: false,
-							error: errorMessage,
-						})),
-					});
+							error: error instanceof Error ? error.message : "Unknown error",
+						});
+					}
 				}
+
+				claudeAPI.sendBatchAddElementsResponse(data.requestId, {
+					added,
+					failedCount,
+				});
+			} catch (error) {
+				debugError(
+					"[ClaudeTimelineBridge] Failed to batch add elements:",
+					error
+				);
+				const errorMessage =
+					error instanceof Error ? error.message : "Batch add failed";
+				claudeAPI.sendBatchAddElementsResponse(data.requestId, {
+					...defaultErrorResponse,
+					added: elements.map((_: any, index: number) => ({
+						index,
+						success: false,
+						error: errorMessage,
+					})),
+				});
 			}
-		);
+		});
 	}
 
 	if (
 		typeof claudeAPI.onBatchUpdateElements === "function" &&
 		typeof claudeAPI.sendBatchUpdateElementsResponse === "function"
 	) {
-		claudeAPI.onBatchUpdateElements((data) => {
+		claudeAPI.onBatchUpdateElements((data: any) => {
+			const updates: any[] = Array.isArray(data?.updates) ? data.updates : [];
 			try {
-				if (data.updates.length > MAX_TIMELINE_BATCH_ITEMS) {
+				if (updates.length > MAX_TIMELINE_BATCH_ITEMS) {
 					const limitMessage = `Batch update limit is ${MAX_TIMELINE_BATCH_ITEMS} items`;
 					const failedResponse: ClaudeBatchUpdateResponse = {
 						updatedCount: 0,
-						failedCount: data.updates.length,
-						results: data.updates.map((_, index) => ({
+						failedCount: updates.length,
+						results: updates.map((_: any, index: number) => ({
 							index,
 							success: false,
 							error: limitMessage,
@@ -338,7 +325,7 @@ export function setupBatchHandlers({
 					return;
 				}
 
-				if (data.updates.length === 0) {
+				if (updates.length === 0) {
 					claudeAPI.sendBatchUpdateElementsResponse(data.requestId, {
 						updatedCount: 0,
 						failedCount: 0,
@@ -353,7 +340,7 @@ export function setupBatchHandlers({
 				let updatedCount = 0;
 				let failedCount = 0;
 
-				for (const [index, update] of data.updates.entries()) {
+				for (const [index, update] of updates.entries()) {
 					const success = applyElementChanges({
 						elementId: update.elementId,
 						changes: update,
@@ -387,8 +374,8 @@ export function setupBatchHandlers({
 					error instanceof Error ? error.message : "Batch update failed";
 				claudeAPI.sendBatchUpdateElementsResponse(data.requestId, {
 					updatedCount: 0,
-					failedCount: data.updates.length,
-					results: data.updates.map((_, index) => ({
+					failedCount: updates.length,
+					results: updates.map((_: any, index: number) => ({
 						index,
 						success: false,
 						error: errorMessage,
@@ -402,14 +389,17 @@ export function setupBatchHandlers({
 		typeof claudeAPI.onBatchDeleteElements === "function" &&
 		typeof claudeAPI.sendBatchDeleteElementsResponse === "function"
 	) {
-		claudeAPI.onBatchDeleteElements((data) => {
+		claudeAPI.onBatchDeleteElements((data: any) => {
+			const elements: any[] = Array.isArray(data?.elements)
+				? data.elements
+				: [];
 			try {
-				if (data.elements.length > MAX_TIMELINE_BATCH_ITEMS) {
+				if (elements.length > MAX_TIMELINE_BATCH_ITEMS) {
 					const limitMessage = `Batch delete limit is ${MAX_TIMELINE_BATCH_ITEMS} items`;
 					const failedResponse: ClaudeBatchDeleteResponse = {
 						deletedCount: 0,
-						failedCount: data.elements.length,
-						results: data.elements.map((_, index) => ({
+						failedCount: elements.length,
+						results: elements.map((_: any, index: number) => ({
 							index,
 							success: false,
 							error: limitMessage,
@@ -422,7 +412,7 @@ export function setupBatchHandlers({
 					return;
 				}
 
-				if (data.elements.length === 0) {
+				if (elements.length === 0) {
 					claudeAPI.sendBatchDeleteElementsResponse(data.requestId, {
 						deletedCount: 0,
 						failedCount: 0,
@@ -438,7 +428,7 @@ export function setupBatchHandlers({
 				let failedCount = 0;
 				const results: ClaudeBatchDeleteResponse["results"] = [];
 
-				for (const [index, entry] of data.elements.entries()) {
+				for (const [index, entry] of elements.entries()) {
 					try {
 						const currentTrack = useTimelineStore
 							.getState()
@@ -491,8 +481,8 @@ export function setupBatchHandlers({
 					error instanceof Error ? error.message : "Batch delete failed";
 				claudeAPI.sendBatchDeleteElementsResponse(data.requestId, {
 					deletedCount: 0,
-					failedCount: data.elements.length,
-					results: data.elements.map((_, index) => ({
+					failedCount: elements.length,
+					results: elements.map((_: any, index: number) => ({
 						index,
 						success: false,
 						error: errorMessage,
@@ -506,7 +496,7 @@ export function setupBatchHandlers({
 		typeof claudeAPI.onArrange === "function" &&
 		typeof claudeAPI.sendArrangeResponse === "function"
 	) {
-		claudeAPI.onArrange((data) => {
+		claudeAPI.onArrange((data: any) => {
 			try {
 				const timelineStore = useTimelineStore.getState();
 				const track = timelineStore.tracks.find(

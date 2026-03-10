@@ -187,7 +187,7 @@ export function setupElementHandlers({
 	claudeAPI: ClaudeTimelineBridgeAPI;
 }): void {
 	// Handle element addition from Claude
-	claudeAPI.onAddElement(async (element: Partial<ClaudeElement>) => {
+	claudeAPI.onAddElement(async (element: any) => {
 		try {
 			debugLog("[ClaudeTimelineBridge] Adding element:", element);
 
@@ -237,25 +237,23 @@ export function setupElementHandlers({
 	});
 
 	// Handle element update from Claude
-	claudeAPI.onUpdateElement(
-		(data: { elementId: string; changes: Partial<ClaudeElement> }) => {
-			try {
-				debugLog("[ClaudeTimelineBridge] Updating element:", data.elementId);
-				const updated = applyElementChanges({
-					elementId: data.elementId,
-					changes: data.changes,
-					pushHistory: true,
-				});
-				if (!updated) {
-					return;
-				}
-				debugLog("[ClaudeTimelineBridge] Updated element:", data.elementId);
-			} catch (error) {
-				debugError(
-					"[ClaudeTimelineBridge] Failed to handle element update:",
-					error
-				);
+	claudeAPI.onUpdateElement((data: any) => {
+		try {
+			debugLog("[ClaudeTimelineBridge] Updating element:", data.elementId);
+			const updated = applyElementChanges({
+				elementId: data.elementId,
+				changes: data.changes,
+				pushHistory: true,
+			});
+			if (!updated) {
+				return;
 			}
+			debugLog("[ClaudeTimelineBridge] Updated element:", data.elementId);
+		} catch (error) {
+			debugError(
+				"[ClaudeTimelineBridge] Failed to handle element update:",
+				error
+			);
 		}
-	);
+	});
 }

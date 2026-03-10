@@ -6,6 +6,8 @@ import type {
 	ClaudeTimeline,
 } from "../../../../../electron/types/claude-api";
 import { setupClaudeTimelineBridge } from "@/lib/claude-bridge/claude-timeline-bridge";
+import { initPlatform } from "@qcut/platform-core";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
 import type { MediaItem } from "@/stores/media/media-store";
 
 const storeMocks = vi.hoisted(() => {
@@ -156,6 +158,9 @@ function setupTimelineBridgeWithHandlers({
 			};
 		}
 	).electronAPI = electronAPI;
+
+	// Initialize platform adapter so platform() calls in the bridge resolve correctly
+	initPlatform(createDesktopAdapter());
 
 	setupClaudeTimelineBridge();
 
@@ -475,6 +480,9 @@ function setupBatchAddBridge({
 
 	(window as unknown as { electronAPI: typeof electronAPI }).electronAPI =
 		electronAPI;
+
+	// Re-initialize platform adapter so platform() calls resolve correctly
+	initPlatform(createDesktopAdapter());
 
 	setupClaudeTimelineBridge();
 

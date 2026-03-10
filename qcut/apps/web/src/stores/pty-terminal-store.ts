@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { platform } from "@qcut/platform-core";
 import type { CliProvider } from "@/types/cli-provider";
 import {
 	CLI_PROVIDERS,
@@ -376,7 +377,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 			// Kill PTY if connected
 			if (session.sessionId) {
 				try {
-					await window.electronAPI?.pty?.kill(session.sessionId);
+					await platform().pty.kill(session.sessionId);
 				} catch {
 					// Ignore kill errors on close
 				}
@@ -453,13 +454,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 			});
 
 			try {
-				if (!window.electronAPI?.pty) {
-					setSession(tabId, {
-						status: "error",
-						error: "PTY is only available in the desktop app.",
-					});
-					return;
-				}
+				const pty = platform().pty;
 
 				const { projectId, workingDirectory, cols, rows } = get();
 				const currentSession = get().sessions.get(tabId);
@@ -476,16 +471,9 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 
 				// Build command based on provider
 				if (cliProvider === "codex") {
-					if (!window.electronAPI?.apiKeys) {
-						setSession(tabId, {
-							status: "error",
-							error: "API key storage is unavailable in this environment.",
-						});
-						return;
-					}
-					let apiKeys;
+					let apiKeysResult: Record<string, string>;
 					try {
-						apiKeys = await window.electronAPI.apiKeys.get();
+						apiKeysResult = await platform().apiKeys.get();
 					} catch {
 						setSession(tabId, {
 							status: "error",
@@ -493,7 +481,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 						});
 						return;
 					}
-					if (!apiKeys?.openRouterApiKey) {
+					if (!apiKeysResult?.openRouterApiKey) {
 						setSession(tabId, {
 							status: "error",
 							error:
@@ -501,7 +489,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 						});
 						return;
 					}
-					env.OPENROUTER_API_KEY = apiKeys.openRouterApiKey;
+					env.OPENROUTER_API_KEY = apiKeysResult.openRouterApiKey;
 					command = "npx open-codex --provider openrouter";
 					if (selectedModel) {
 						command += ` --model ${selectedModel}`;
@@ -515,15 +503,13 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 						command += ` --project-doc "${escapedPath}"`;
 					}
 				} else if (cliProvider === "claude") {
-					if (window.electronAPI?.apiKeys) {
-						try {
-							const apiKeys = await window.electronAPI.apiKeys.get();
-							if (apiKeys?.anthropicApiKey) {
-								env.ANTHROPIC_API_KEY = apiKeys.anthropicApiKey;
-							}
-						} catch {
-							// Continue without API key
+					try {
+						const claudeApiKeys = await platform().apiKeys.get();
+						if (claudeApiKeys?.anthropicApiKey) {
+							env.ANTHROPIC_API_KEY = claudeApiKeys.anthropicApiKey;
 						}
+					} catch {
+						// Continue without API key
 					}
 					command = "claude --dangerously-skip-permissions";
 					if (selectedClaudeModel) {
@@ -551,7 +537,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 				// Initialize IPC routing before first spawn
 				initIpcRouting();
 
-				const result = await window.electronAPI.pty.spawn(spawnOptions);
+				const result = await pty.spawn(spawnOptions);
 
 				if (result?.success && result.sessionId) {
 					setSession(tabId, {
@@ -617,7 +603,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 
 			try {
 				if (session?.sessionId) {
-					await window.electronAPI?.pty?.kill(session.sessionId);
+					await platform().pty.kill(session.sessionId);
 				}
 			} catch (error: unknown) {
 				const message =
@@ -689,7 +675,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 			const session = activeSessionId ? sessions.get(activeSessionId) : null;
 			if (session?.sessionId) {
 				try {
-					await window.electronAPI?.pty?.resize(session.sessionId, cols, rows);
+					await platform().pty.resize(session.sessionId, cols, rows);
 				} catch (error: unknown) {
 					const message =
 						error instanceof Error
@@ -796,7 +782,7 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 
 			const prompt = buildSkillPrompt(session.activeSkill);
 			try {
-				const writeResult = window.electronAPI?.pty?.write(
+				const writeResult = platform().pty.write(
 					session.sessionId,
 					`${prompt}\n`
 				);
@@ -902,16 +888,17 @@ export const usePtyTerminalStore = create<PtyTerminalStore>((set, get) => {
 // ============================================================================
 
 function initIpcRouting(): void {
-	if (
-		_ipcInitialized ||
-		typeof window === "undefined" ||
-		!window.electronAPI?.pty
-	)
-		return;
-	_ipcInitialized = true;
+	if (_ipcInitialized || typeof window === "undefined") return;
 
-	window.electronAPI.pty.onData(
-		(event: { sessionId: string; data: string }) => {
+	let pty: ReturnType<typeof platform>["pty"];
+	try {
+		pty = platform().pty;
+	} catch {
+		return;
+	}
+
+	try {
+		pty.onData((event: { sessionId: string; data: string }) => {
 			// Dispatch to ALL registered callbacks matching this backend sessionId.
 			// Multiple TerminalEmulator instances (e.g. media panel + preview panel)
 			// may share the same backend session under different tabIds.
@@ -924,11 +911,9 @@ function initIpcRouting(): void {
 					}
 				}
 			}
-		}
-	);
+		});
 
-	window.electronAPI.pty.onExit(
-		(event: { sessionId: string; exitCode: number }) => {
+		pty.onExit((event: { sessionId: string; exitCode: number }) => {
 			const state = usePtyTerminalStore.getState();
 			// Find the canonical session tab for state updates
 			for (const [tabId, session] of state.sessions) {
@@ -947,8 +932,12 @@ function initIpcRouting(): void {
 					}
 				}
 			}
-		}
-	);
+		});
+
+		_ipcInitialized = true;
+	} catch {
+		// IPC subscription failed — leave _ipcInitialized false so next call retries
+	}
 }
 
 /** Check if a callback tabId is associated with a given backend sessionId. */

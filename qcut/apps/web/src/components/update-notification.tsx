@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { PlatformCapability, platform } from "@qcut/platform-core";
 import {
 	extractHighlights,
 	fetchReleaseNotes,
@@ -30,6 +31,14 @@ function extractFallbackLines(releaseNotes: string, maxItems = 3): string[] {
  * Listens for auto-updater events and shows toast notifications.
  */
 export function UpdateNotification() {
+	const hasUpdates = (() => {
+		try {
+			return platform().hasCapability(PlatformCapability.Updates);
+		} catch {
+			return false;
+		}
+	})();
+
 	const [state, setState] = useState<UpdateState>({
 		phase: "idle",
 		version: "",
@@ -38,10 +47,12 @@ export function UpdateNotification() {
 	});
 
 	const handleInstall = useCallback(() => {
-		if (!window.electronAPI?.updates) return;
-		window.electronAPI.updates.installUpdate().catch(() => {
-			toast.error("Failed to install update. Please restart manually.");
-		});
+		if (!hasUpdates) return;
+		platform()
+			.updates.installUpdate()
+			.catch(() => {
+				toast.error("Failed to install update. Please restart manually.");
+			});
 	}, []);
 
 	const handleDismiss = useCallback((version: string) => {
@@ -50,8 +61,8 @@ export function UpdateNotification() {
 	}, []);
 
 	useEffect(() => {
-		const api = window.electronAPI?.updates;
-		if (!api) return;
+		if (!hasUpdates) return;
+		const api = platform().updates;
 
 		const unsubAvailable = api.onUpdateAvailable(async (data) => {
 			if (isVersionDismissed(data.version)) return;
@@ -111,13 +122,13 @@ export function UpdateNotification() {
 				action: {
 					label: "Restart Now",
 					onClick: () => {
-						if (window.electronAPI?.updates) {
-							window.electronAPI.updates.installUpdate().catch(() => {
+						platform()
+							.updates.installUpdate()
+							.catch(() => {
 								toast.error(
 									"Failed to install update. Please restart manually."
 								);
 							});
-						}
 					},
 				},
 				duration: 15_000,

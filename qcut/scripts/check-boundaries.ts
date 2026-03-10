@@ -20,7 +20,8 @@ import { readFileSync, readdirSync } from "fs";
 import { resolve, relative, extname } from "path";
 import { execSync } from "child_process";
 
-const ROOT = resolve(import.meta.dir, "..");
+const __dir = import.meta.dirname ?? import.meta.dir;
+const ROOT = resolve(__dir, "..");
 const RENDERER_DIR = resolve(ROOT, "apps/web/src");
 const MAX_LINES = 800;
 
@@ -80,6 +81,20 @@ const RULES: {
 	},
 ];
 
+/** Platform migration rule: tracks window.electronAPI usage for migration auditing */
+const PLATFORM_AUDIT_RULE = {
+	pattern: /\bwindow\.electronAPI\b/,
+	rule: "platform-direct-electron-api",
+	fix: "Use platform adapter (packages/platform-*) instead of direct window.electronAPI access",
+	docs: "See docs/task/multi-platform-migration.md Phase 2",
+};
+
+/** Directories within packages/platform-* that are allowed to use window.electronAPI */
+const PLATFORM_ADAPTER_PATHS = [
+	"packages/platform-desktop",
+	"packages/platform-core",
+];
+
 const EXCLUDE_DIRS = ["test", "tests", "types", "__mocks__", "__tests__"];
 
 function shouldExclude(filePath: string): boolean {
@@ -117,13 +132,19 @@ function getStagedFiles(): string[] {
 		);
 }
 
-export function checkFile(filePath: string): Violation[] {
+export function checkFile(
+	filePath: string,
+	options?: { platformAudit?: boolean }
+): Violation[] {
 	const violations: Violation[] = [];
 	if (shouldExclude(filePath)) return violations;
 
 	const content = readFileSync(filePath, "utf-8");
 	const lines = content.split("\n");
 	const rel = relative(ROOT, filePath);
+
+	// Skip platform adapter packages from electronAPI audit
+	const isAdapterCode = PLATFORM_ADAPTER_PATHS.some((p) => rel.startsWith(p));
 
 	// Line-by-line rule checks
 	for (let i = 0; i < lines.length; i++) {
@@ -141,6 +162,20 @@ export function checkFile(filePath: string): Violation[] {
 					found: trimmed,
 					fix: rule.fix,
 					docs: rule.docs,
+				});
+			}
+		}
+
+		// Platform audit: track direct window.electronAPI usage
+		if (options?.platformAudit && !isAdapterCode) {
+			if (PLATFORM_AUDIT_RULE.pattern.test(line)) {
+				violations.push({
+					rule: PLATFORM_AUDIT_RULE.rule,
+					file: rel,
+					line: i + 1,
+					found: trimmed,
+					fix: PLATFORM_AUDIT_RULE.fix,
+					docs: PLATFORM_AUDIT_RULE.docs,
 				});
 			}
 		}
@@ -172,6 +207,7 @@ function main() {
 	const args = process.argv.slice(2);
 	const stagedOnly = args.includes("--staged");
 	const skipFileSize = args.includes("--no-file-size");
+	const platformAudit = args.includes("--platform-audit");
 
 	let files: string[];
 	if (stagedOnly) {
@@ -186,7 +222,56 @@ function main() {
 
 	const allViolations: Violation[] = [];
 	for (const file of files) {
-		allViolations.push(...checkFile(file));
+		allViolations.push(...checkFile(file, { platformAudit }));
+	}
+
+	// Platform audit mode: report electronAPI usage matrix without failing
+	if (platformAudit) {
+		const auditViolations = allViolations.filter(
+			(v) => v.rule === "platform-direct-electron-api"
+		);
+		const remaining = allViolations.filter(
+			(v) => v.rule !== "platform-direct-electron-api"
+		);
+
+		if (auditViolations.length > 0) {
+			// Group by file for matrix view
+			const byFile = new Map<string, number>();
+			for (const v of auditViolations) {
+				byFile.set(v.file, (byFile.get(v.file) || 0) + 1);
+			}
+
+			// Extract namespace usage (window.electronAPI.xxx)
+			const byNamespace = new Map<string, number>();
+			for (const v of auditViolations) {
+				const match = v.found.match(/window\.electronAPI\.(\w+)/);
+				const ns = match ? match[1] : "unknown";
+				byNamespace.set(ns, (byNamespace.get(ns) || 0) + 1);
+			}
+
+			console.log("\n=== Platform Migration Audit ===\n");
+			console.log(
+				`Total window.electronAPI references: ${auditViolations.length}`
+			);
+			console.log(`Across ${byFile.size} files\n`);
+
+			console.log("--- By File (descending) ---");
+			const sortedFiles = [...byFile.entries()].sort((a, b) => b[1] - a[1]);
+			for (const [file, count] of sortedFiles) {
+				console.log(`  ${String(count).padStart(3)} │ ${file}`);
+			}
+
+			console.log("\n--- By Namespace (descending) ---");
+			const sortedNs = [...byNamespace.entries()].sort((a, b) => b[1] - a[1]);
+			for (const [ns, count] of sortedNs) {
+				console.log(`  ${String(count).padStart(3)} │ ${ns}`);
+			}
+			console.log("");
+		}
+
+		// Continue with normal boundary checks (non-audit violations)
+		allViolations.length = 0;
+		allViolations.push(...remaining);
 	}
 
 	const filtered = skipFileSize

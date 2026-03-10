@@ -58,7 +58,11 @@
 		"apps/*",
 		"packages/auth",
 		"packages/db",
-		"packages/license-server"
+		"packages/license-server",
+		"packages/editor-core",
+		"packages/platform-core",
+		"packages/platform-desktop",
+		"packages/platform-web"
 	],
 	"scripts": {
 		"dev": "turbo run dev",

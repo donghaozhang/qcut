@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import { usePtyTerminalStore } from "@/stores/pty-terminal-store";
 import { mockElectronAPI, setupElectronMock } from "@/test/mocks/electron";
+import { initPlatform } from "@qcut/platform-core";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
 import {
 	getDefaultCodexModel,
 	getDefaultClaudeModel,
@@ -13,6 +15,8 @@ describe("usePtyTerminalStore", () => {
 	beforeEach(() => {
 		// Setup Electron mock
 		cleanupElectron = setupElectronMock();
+		// Initialize platform with desktop adapter so platform() calls work
+		initPlatform(createDesktopAdapter());
 
 		// Reset store state
 		usePtyTerminalStore.setState({
@@ -292,10 +296,12 @@ describe("usePtyTerminalStore", () => {
 			);
 		});
 
-		it("should show error when PTY API is not available", async () => {
-			// Remove the PTY API temporarily
-			cleanupElectron();
-			window.electronAPI = undefined as any;
+		it("should show error when PTY spawn fails", async () => {
+			// Simulate PTY spawn failure (use mockResolvedValueOnce to not affect subsequent tests)
+			vi.mocked(mockElectronAPI.pty!.spawn).mockResolvedValueOnce({
+				success: false,
+				error: "PTY spawn failed",
+			});
 
 			const { result } = renderHook(() => usePtyTerminalStore());
 
@@ -304,9 +310,7 @@ describe("usePtyTerminalStore", () => {
 			});
 
 			expect(result.current.status).toBe("error");
-			expect(result.current.error).toBe(
-				"PTY is only available in the desktop app."
-			);
+			expect(result.current.error).toBe("PTY spawn failed");
 		});
 	});
 

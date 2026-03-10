@@ -151,6 +151,63 @@ Query video segments for keep/cut analysis.
 | `--model` | `-m` | string | `gemini_qa` | Vision model |
 | `--output-format` | `-f` | string | `json` | Output format |
 
+### `autoclip`
+
+Extract highlight clips from a video using subtitle-based LLM analysis. Runs a 4-step pipeline: outline extraction → timeline segmentation → scoring → ffmpeg cutting.
+
+**Prerequisites:** An SRT/VTT subtitle file. If not provided via `--srt-file`, the CLI looks for a `.srt`/`.vtt` file next to the input video. Use `whisper` or `transcribe` to generate one first.
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--input` | `-i` | string | | Input video file path (required) |
+| `--srt-file` | `-s` | string | | SRT/VTT subtitle file (auto-detects if omitted) |
+| `--output` | `-o` | string | | Output directory for clips and metadata |
+| `--model` | `-m` | string | `google/gemini-3-flash-preview` | LLM model for analysis |
+| `--min-score` | | number | `0.7` | Minimum score threshold 0–1 |
+| `--step` | | number | | Run only a specific step (1–4) |
+| `--chunk-minutes` | | number | `30` | Subtitle chunk interval in minutes |
+| `--dry-run` | | boolean | `false` | Run analysis only, skip video cutting |
+
+**Pipeline steps:**
+
+1. **Outline** — LLM extracts topics/subtopics from subtitle chunks
+2. **Timeline** — LLM maps topics to time segments with start/end times
+3. **Scoring** — LLM scores each segment for highlight worthiness (0–1)
+4. **Cut** — ffmpeg extracts clips for segments above `--min-score`
+
+**Output structure:**
+```text
+<output-dir>/
+├── clips/                        # Extracted video clips
+│   ├── 1_Topic Title.mp4
+│   └── 3_Another Topic.mp4
+└── autoclip-metadata/            # Pipeline intermediate data
+    ├── chunks.json
+    ├── step1_outline.json
+    ├── step2_timeline.json
+    ├── step3_all_scores.json
+    └── step3_high_scores.json
+```
+
+**Examples:**
+```bash
+# Basic usage (auto-detect subtitle file)
+bun run pipeline autoclip -i video.mp4 -o /tmp/clips
+
+# With explicit SRT and higher threshold
+bun run pipeline autoclip -i video.mp4 -s subs.srt --min-score 0.8
+
+# Dry run (analysis only, no cutting)
+bun run pipeline autoclip -i video.mp4 -s subs.srt --dry-run
+
+# Run only step 1 (outline extraction)
+bun run pipeline autoclip -i video.mp4 -s subs.srt --step 1
+
+# Full workflow: transcribe → autoclip
+whisper video.mp4 --model small --output_format srt --output_dir /tmp/
+bun run pipeline autoclip -i video.mp4 -s /tmp/video.srt -o /tmp/clips
+```
+
 ---
 
 ## Script Parsing

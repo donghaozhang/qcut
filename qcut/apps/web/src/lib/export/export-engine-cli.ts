@@ -5,6 +5,7 @@ import type {
 } from "@/types/export";
 import { TimelineTrack, TimelineElement } from "@/types/timeline";
 import { MediaItem } from "@/stores/media/media-store";
+import { platform } from "@qcut/platform-core";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
@@ -91,11 +92,7 @@ export class CLIExportEngine extends ExportEngine {
 			audioChannels: settings.audioChannels,
 		};
 
-		if (
-			!window.electronAPI ||
-			!window.electronAPI.ffmpeg ||
-			typeof window.electronAPI.ffmpeg.exportVideoCLI !== "function"
-		) {
+		if (typeof platform().ffmpeg.exportVideoCLI !== "function") {
 			throw new Error("CLI Export Engine requires Electron environment");
 		}
 	}
@@ -136,7 +133,7 @@ export class CLIExportEngine extends ExportEngine {
 		progressCallback?.(5, "Setting up export session...");
 		const session = await this.createExportSession();
 		this.sessionId = session.sessionId;
-		this.frameDir = session.frameDir;
+		this.frameDir = session.framesDir;
 
 		debugLog(
 			"[CLIExportEngine] 🔍 Analyzing timeline for export optimization..."
@@ -238,8 +235,8 @@ export class CLIExportEngine extends ExportEngine {
 					"[CLIExportEngine] 🧪 TEST: Try this FFmpeg command manually:"
 				);
 				(async () => {
-					if (window.electronAPI?.ffmpeg?.getPath) {
-						const ffmpegPath = await window.electronAPI.ffmpeg.getPath();
+					try {
+						const ffmpegPath = await platform().ffmpeg.getPath();
 						const framesDir = `${this.frameDir}\\frames`;
 						const duration = Math.ceil(this.totalDuration);
 						debugLog(
@@ -247,6 +244,8 @@ export class CLIExportEngine extends ExportEngine {
 								` -i "${framesDir}\\frame-%04d.png" -c:v libx264` +
 								` -preset fast -crf 23 -t ${duration} "output.mp4"`
 						);
+					} catch {
+						// FFmpeg path not available on this platform
 					}
 				})();
 				debugLog(
@@ -262,19 +261,12 @@ export class CLIExportEngine extends ExportEngine {
 	}
 
 	private async createExportSession() {
-		if (!window.electronAPI) {
-			throw new Error("CLI export only available in Electron");
-		}
-		return window.electronAPI.ffmpeg.createExportSession();
+		return platform().ffmpeg.createExportSession();
 	}
 
 	private async exportWithCLI(
 		progressCallback?: ProgressCallback
 	): Promise<string> {
-		if (!window.electronAPI) {
-			throw new Error("CLI export only available in Electron");
-		}
-
 		// Prepare audio files
 		progressCallback?.(5, "Preparing audio files...");
 		const includeAudio = this.audioOptions.includeAudio ?? true;
@@ -560,11 +552,11 @@ export class CLIExportEngine extends ExportEngine {
 	}
 
 	private async readOutputFile(outputPath: string): Promise<Blob> {
-		if (!window.electronAPI) {
-			throw new Error("CLI export only available in Electron");
+		const buffer = await platform().ffmpeg.readOutputFile(outputPath);
+		if (!buffer) {
+			throw new Error(`Failed to read exported file: ${outputPath}`);
 		}
-		const buffer = await window.electronAPI.ffmpeg.readOutputFile(outputPath);
-		return new Blob([buffer as unknown as ArrayBuffer], { type: "video/mp4" });
+		return new Blob([buffer], { type: "video/mp4" });
 	}
 
 	calculateTotalFrames(): number {
@@ -572,10 +564,10 @@ export class CLIExportEngine extends ExportEngine {
 	}
 
 	private async cleanup(): Promise<void> {
-		if (!window.electronAPI || !this.sessionId) return;
+		if (!this.sessionId) return;
 
 		try {
-			await window.electronAPI.ffmpeg.cleanupExportSession(this.sessionId);
+			await platform().ffmpeg.cleanupExportSession(this.sessionId);
 			debugLog(
 				`[CLIExportEngine] 🧹 Cleaned up export session: ${this.sessionId}`
 			);

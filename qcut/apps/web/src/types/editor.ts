@@ -1,26 +1,10 @@
-/** Types of background fill options for video canvas */
-export type BackgroundType = "blur" | "mirror" | "color";
-
-/** Canvas dimensions for video projects */
-export interface CanvasSize {
-	/** Canvas width in pixels */
-	width: number;
-	/** Canvas height in pixels */
-	height: number;
-}
-
-/** Canvas sizing mode determining how dimensions are set */
-export type CanvasMode = "preset" | "original" | "custom";
-
-/** Predefined canvas size preset (e.g., 16:9, 9:16, 1:1) */
-export interface CanvasPreset {
-	/** Display name of the preset (e.g., "16:9", "9:16") */
-	name: string;
-	/** Preset width in pixels */
-	width: number;
-	/** Preset height in pixels */
-	height: number;
-}
+// Domain types re-exported from @qcut/editor-core
+export type {
+	BackgroundType,
+	CanvasSize,
+	CanvasMode,
+	CanvasPreset,
+} from "@qcut/editor-core";
 
 /**
  * State interface for text element drag operations in the preview canvas
