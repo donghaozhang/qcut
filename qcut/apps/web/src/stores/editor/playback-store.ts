@@ -203,6 +203,11 @@ const stopTimer = () => {
 	}
 };
 
+// Expose store on window for iPad CLI debugging (qcut://eval)
+const exposeStore = (store: any) => {
+	(window as any).__playbackStore = store;
+};
+
 export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 	isPlaying: false,
 	currentTime: 0,
@@ -291,3 +296,6 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 		}
 	},
 }));
+
+// Expose for CLI debugging
+exposeStore(usePlaybackStore);
