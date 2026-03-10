@@ -390,33 +390,103 @@ Manual verification still needed. Steps defined in Phase 3 plan.
 
 ---
 
-## Phase 4: iPad Optimization (1-2 weeks)
+## Phase 3.6: Web Runtime Readiness (3-5 days) — TODO
+
+**Objective:** Make QCut Lite actually load and run in a browser without Electron. Validates Phase 3/3.5 migration before building iPad touch interactions.
+
+> Detailed plan: [`docs/task/web-runtime-readiness.md`](web-runtime-readiness.md)
+
+### Subtask 3.6.1 — Browser Smoke Test
+
+Verify QCut Lite loads at `localhost:5173` (Vite dev server, no Electron). Fix runtime crashes from unimplemented web adapter APIs.
+
+**Files:**
+- `apps/web/src/platform-init.ts` — verify detection logic
+- Various source files — fix any runtime crashes from missing API stubs
+
+### Subtask 3.6.2 — Web Adapter Real Implementations
+
+Replace Proxy stubs with real browser implementations for core capabilities:
+
+| Capability | Browser Implementation |
+|---|---|
+| `storage` | IndexedDB primary, localStorage fallback (already partial) |
+| `files.selectFiles` | `<input type="file">` / File System Access API |
+| `files.saveBlob` | Blob download via `<a>` tag |
+| `ffmpeg` | FFmpeg WASM (already in project, needs web-specific loading) |
+| `sounds` | Web Audio API for playback |
+| `mediaImport` | File input + IndexedDB blob storage |
+
+**Files:**
+- `packages/platform-web/src/index.ts` — expand real implementations
+- `packages/platform-web/src/storage-idb.ts` — new IndexedDB storage provider
+- `packages/platform-web/src/ffmpeg-web.ts` — WASM loading without Electron paths
+
+### Subtask 3.6.3 — Web-Only Build Configuration
+
+Create a Vite build config that produces a standalone web bundle (no Electron preload, no Node.js APIs).
+
+**Files:**
+- `apps/web/vite.config.web.ts` — web-only Vite config (or conditional in existing config)
+- `package.json` — add `dev:web` and `build:web` scripts
+- `apps/web/index.html` — conditional: skip Electron preload script tag
+
+### Subtask 3.6.4 — Graceful Fallback UI
+
+Show clear UI indicators when desktop-only features are unavailable (instead of silent failures or console errors).
+
+**Files:**
+- `apps/web/src/components/` — disabled states for PTY terminal, screen recording, native export
+- `apps/web/src/hooks/use-platform-capability.ts` — already exists, wire into more components
+
+### Subtask 3.6.5 — Runtime Error Audit
+
+Run QCut Lite in browser, exercise all main flows, catalog and fix remaining runtime errors.
+
+**Flows to test:**
+- App boot → editor route
+- Media import (drag & drop)
+- Timeline editing (add/move/delete elements)
+- Preview playback
+- Caption editing
+- Project save/load
+- AI features (direct API calls)
+
+**Exit Criteria:**
+- QCut Lite loads in Chrome/Safari without Electron
+- Core edit flows work (import, timeline, preview, export)
+- Desktop-only features show clear "unavailable" UI
+- `dev:web` script starts a working web-only dev server
+- All existing tests still pass
+
+---
+
+## Phase 4: iPad Optimization (1-2 weeks) — TODO
 
 **Objective:** Touch-first UX on top of web shell.
 
-### Subtask 4.1 — Touch Gesture Integration
+> Detailed plan: [`docs/task/ipad-optimization.md`](ipad-optimization.md)
 
-**Files:**
-- `apps/web/src/components/editor/` — timeline drag, clip resize, scrubbing
-- `apps/web/src/hooks/` — new touch-specific hooks or adapt existing drag hooks
-- `apps/web/src/routes/editor.$project_id.tsx` — touch event handlers
+### Subtask 4.1 — Pointer Events Migration
+Replace all `mouse*` events with `pointer*` events (mouse + touch + stylus).
 
-### Subtask 4.2 — Hit Target & Layout Optimization
+### Subtask 4.2 — Touch-Friendly Hit Areas
+Increase all interactive targets to 44px minimum (Apple HIG).
 
-**Files:**
-- `apps/web/src/components/` — increase touch targets (min 44px)
-- Tailwind config — responsive breakpoints for tablet
-- Panel layout — adapt `react-resizable-panels` for touch drag
+### Subtask 4.3 — Pinch-to-Zoom for Timeline
+Two-finger pinch gesture for timeline zoom.
 
-### Subtask 4.3 — iPad Safari Performance
+### Subtask 4.4 — Media Drag-to-Timeline Touch Support
+Custom touch drag (HTML5 Drag API doesn't work on iOS Safari).
 
-**Files:**
-- `apps/web/src/lib/ffmpeg/` — memory management for Safari WASM limits
-- `apps/web/vite.config.ts` — chunk splitting optimized for mobile bandwidth
+### Subtask 4.5 — iPad Layout Adaptation
+Responsive panels, safe areas, compact toolbar.
 
-**Tests:**
-- Manual: iPad Safari, iPad Chrome
-- Performance profiling: memory, frame rate on timeline scrub
+### Subtask 4.6 — Virtual Keyboard Handling
+iOS virtual keyboard detection and layout adjustment.
+
+### Subtask 4.7 — Safari/WebKit Compatibility Audit
+Fix WebKit-specific rendering and API issues.
 
 ---
 
@@ -448,5 +518,6 @@ Manual verification still needed. Steps defined in Phase 3 plan.
 | Phase 2: Platform Adapters | 1-2 weeks | `platform-desktop` + `platform-web` + provider | COMPLETE |
 | Phase 3: Web Shell MVP | 2-4 weeks | Adapter wiring, capability guards, top 5 file migration | COMPLETE |
 | Phase 3.5: Full Migration | 1-2 days | All 82 source files migrated, 21 test files updated | COMPLETE |
+| Phase 3.6: Web Runtime | 3-5 days | QCut Lite loads in browser, core flows work | TODO |
 | Phase 4: iPad | 1-2 weeks | Touch-optimized QCut Lite on iPad | TODO |
-| **Total** | **7-11 weeks** | | |
+| **Total** | **8-13 weeks** | | |
