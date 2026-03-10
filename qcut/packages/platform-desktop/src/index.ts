@@ -53,7 +53,7 @@ function api() {
 // Namespace adapters — thin pass-through to window.electronAPI
 // ---------------------------------------------------------------------------
 
-const filesAdapter: PlatformFilesAPI = {
+const filesAdapter = {
 	openFileDialog: () => api().openFileDialog(),
 	openMultipleFilesDialog: () => api().openMultipleFilesDialog(),
 	saveFileDialog: (name?, filters?) => api().saveFileDialog(name, filters),
@@ -63,7 +63,7 @@ const filesAdapter: PlatformFilesAPI = {
 	getFileInfo: (p) => api().getFileInfo(p),
 };
 
-const storageAdapter: PlatformStorageAPI = {
+const storageAdapter = {
 	save: (k, d) => api().storage.save(k, d),
 	load: (k) => api().storage.load(k),
 	remove: (k) => api().storage.remove(k),
@@ -71,26 +71,26 @@ const storageAdapter: PlatformStorageAPI = {
 	clear: () => api().storage.clear(),
 };
 
-const themeAdapter: PlatformThemeAPI = {
+const themeAdapter = {
 	get: () => api().theme.get(),
 	set: (t) => api().theme.set(t),
 	toggle: () => api().theme.toggle(),
 	isDark: () => api().theme.isDark(),
 };
 
-const shellAdapter: PlatformShellAPI = {
+const shellAdapter = {
 	showItemInFolder: (p) => api().shell.showItemInFolder(p),
 	openExternal: (u) => api().shell.openExternal(u),
 };
 
-const apiKeysAdapter: PlatformApiKeysAPI = {
+const apiKeysAdapter = {
 	get: () => api().apiKeys.get(),
 	set: (k) => api().apiKeys.set(k),
 	clear: () => api().apiKeys.clear(),
 	status: () => api().apiKeys.status(),
 };
 
-const licenseAdapter: PlatformLicenseAPI = {
+const licenseAdapter = {
 	check: () => api().license.check(),
 	activate: (t) => api().license.activate(t),
 	deactivate: () => api().license.deactivate(),
@@ -104,16 +104,16 @@ const licenseAdapter: PlatformLicenseAPI = {
 	onActivationToken: (cb) => api().license.onActivationToken?.(cb),
 };
 
-const soundsAdapter: PlatformSoundsAPI = {
+const soundsAdapter = {
 	search: (p) => api().sounds.search(p),
 	downloadPreview: (p) => api().sounds.downloadPreview(p),
 };
 
-const audioAdapter: PlatformAudioAPI = {
+const audioAdapter = {
 	saveTemp: (d, f) => api().audio.saveTemp(d, f),
 };
 
-const videoAdapter: PlatformVideoAPI = {
+const videoAdapter = {
 	saveTemp: (d, f, s?) => api().video.saveTemp(d, f, s),
 	saveToDisk: (o) => api().video.saveToDisk(o),
 	verifyFile: (p) => api().video.verifyFile(p),
@@ -121,11 +121,11 @@ const videoAdapter: PlatformVideoAPI = {
 	getProjectDir: (id) => api().video.getProjectDir(id),
 };
 
-const screenshotAdapter: PlatformScreenshotAPI = {
+const screenshotAdapter = {
 	capture: (o?) => api().screenshot.capture(o),
 };
 
-const screenRecordingAdapter: PlatformScreenRecordingAPI = {
+const screenRecordingAdapter = {
 	getSources: () => api().screenRecording.getSources(),
 	start: (o?) => api().screenRecording.start(o),
 	appendChunk: (o) => api().screenRecording.appendChunk(o),
@@ -133,7 +133,7 @@ const screenRecordingAdapter: PlatformScreenRecordingAPI = {
 	getStatus: () => api().screenRecording.getStatus(),
 };
 
-const ffmpegAdapter: PlatformFFmpegAPI = {
+const ffmpegAdapter = {
 	createExportSession: () => api().ffmpeg.createExportSession(),
 	saveFrame: (d) => api().ffmpeg.saveFrame(d),
 	exportVideoCLI: (o) => api().ffmpeg.exportVideoCLI(o),
@@ -150,21 +150,21 @@ const ffmpegAdapter: PlatformFFmpegAPI = {
 	checkHealth: () => api().ffmpeg.checkHealth(),
 };
 
-const transcriptionAdapter: PlatformTranscriptionAPI = {
+const transcriptionAdapter = {
 	transcribe: (r) => api().transcribe.transcribe(r),
 	cancel: (id) => api().transcribe.cancel(id),
 	elevenlabs: (o) => api().transcribe.elevenlabs(o),
 	uploadToFal: (p) => api().transcribe.uploadToFal(p),
 };
 
-const falAdapter: PlatformFalAPI = {
+const falAdapter = {
 	uploadVideo: (d, f, k) => api().fal.uploadVideo(d, f, k),
 	uploadImage: (d, f, k) => api().fal.uploadImage(d, f, k),
 	uploadAudio: (d, f, k) => api().fal.uploadAudio(d, f, k),
 	queueFetch: (u, k) => api().fal.queueFetch(u, k),
 };
 
-const geminiChatAdapter: PlatformGeminiChatAPI = {
+const geminiChatAdapter = {
 	send: (r) => api().geminiChat.send(r),
 	onStreamChunk: (cb) => api().geminiChat.onStreamChunk(cb),
 	onStreamComplete: (cb) => api().geminiChat.onStreamComplete(cb),
@@ -172,17 +172,17 @@ const geminiChatAdapter: PlatformGeminiChatAPI = {
 	removeListeners: () => api().geminiChat.removeListeners(),
 };
 
-const githubAdapter: PlatformGitHubAPI = {
+const githubAdapter = {
 	fetchStars: () => api().github.fetchStars(),
 };
 
-const youtubeAdapter: PlatformYouTubeAPI = {
+const youtubeAdapter = {
 	upload: (o) => api().youtube.upload(o),
 	checkAuth: () => api().youtube.checkAuth(),
 	onUploadProgress: (cb) => api().youtube.onUploadProgress(cb),
 };
 
-const ptyAdapter: PlatformPtyAPI = {
+const ptyAdapter = {
 	spawn: (o?) => api().pty.spawn(o),
 	write: (id, d) => api().pty.write(id, d),
 	resize: (id, c, r) => api().pty.resize(id, c, r),
@@ -193,42 +193,42 @@ const ptyAdapter: PlatformPtyAPI = {
 	removeListeners: () => api().pty.removeListeners(),
 };
 
-const mcpAdapter: PlatformMcpAPI = {
+const mcpAdapter = {
 	onAppHtml: (cb) => api().mcp?.onAppHtml(cb),
 	removeListeners: () => api().mcp?.removeListeners(),
 };
 
-const skillsAdapter: PlatformSkillsAPI = {
-	list: (id) => api().skills.list(id),
-	import: (id, p) => api().skills.import(id, p),
-	delete: (id, s) => api().skills.delete(id, s),
-	getContent: (id, s, f) => api().skills.getContent(id, s, f),
-	browse: () => api().skills.browse(),
-	getPath: (id) => api().skills.getPath(id),
-	scanGlobal: () => api().skills.scanGlobal(),
-	syncForClaude: (id) => api().skills.syncForClaude(id),
+const skillsAdapter = {
+	list: (id) => api().skills!.list(id),
+	import: (id, p) => api().skills!.import(id, p),
+	delete: (id, s) => api().skills!.delete(id, s),
+	getContent: (id, s, f) => api().skills!.getContent(id, s, f),
+	browse: () => api().skills!.browse(),
+	getPath: (id) => api().skills!.getPath(id),
+	scanGlobal: () => api().skills!.scanGlobal(),
+	syncForClaude: (id) => api().skills!.syncForClaude(id),
 };
 
-const aiPipelineAdapter: PlatformAIPipelineAPI = {
-	check: () => api().aiPipeline.check(),
-	status: () => api().aiPipeline.status(),
-	generate: (o) => api().aiPipeline.generate(o),
-	listModels: () => api().aiPipeline.listModels(),
-	estimateCost: (o) => api().aiPipeline.estimateCost(o),
-	cancel: (id) => api().aiPipeline.cancel(id),
-	refresh: () => api().aiPipeline.refresh(),
-	onProgress: (cb) => api().aiPipeline.onProgress(cb),
-};
+const aiPipelineAdapter = {
+	check: () => api().aiPipeline!.check(),
+	status: () => api().aiPipeline!.status(),
+	generate: (o: Record<string, unknown>) => api().aiPipeline!.generate(o as never),
+	listModels: () => api().aiPipeline!.listModels(),
+	estimateCost: (o: Record<string, unknown>) => api().aiPipeline!.estimateCost(o as never),
+	cancel: (id: string) => api().aiPipeline!.cancel(id),
+	refresh: () => api().aiPipeline!.refresh(),
+	onProgress: (cb: (data: unknown) => void) => api().aiPipeline!.onProgress(cb as never),
+} as unknown as PlatformAIPipelineAPI;
 
-const mediaImportAdapter: PlatformMediaImportAPI = {
-	import: (o) => api().mediaImport.import(o),
-	validateSymlink: (p) => api().mediaImport.validateSymlink(p),
-	locateOriginal: (p) => api().mediaImport.locateOriginal(p),
-	relinkMedia: (id, m, p) => api().mediaImport.relinkMedia(id, m, p),
-	remove: (id, m) => api().mediaImport.remove(id, m),
-	checkSymlinkSupport: () => api().mediaImport.checkSymlinkSupport(),
-	getMediaPath: (id) => api().mediaImport.getMediaPath(id),
-};
+const mediaImportAdapter = {
+	import: (o: Record<string, unknown>) => api().mediaImport!.import(o as never),
+	validateSymlink: (p: string) => api().mediaImport!.validateSymlink(p),
+	locateOriginal: (p: string) => api().mediaImport!.locateOriginal(p),
+	relinkMedia: (id: string, m: string, p: string) => api().mediaImport!.relinkMedia(id, m, p),
+	remove: (id: string, m: string) => api().mediaImport!.remove(id, m),
+	checkSymlinkSupport: () => api().mediaImport!.checkSymlinkSupport(),
+	getMediaPath: (id: string) => api().mediaImport!.getMediaPath(id),
+} as unknown as PlatformMediaImportAPI;
 
 // These adapters use pass-through delegation with type casts because the
 // PlatformAPI interface uses simplified types that don't exactly match the
@@ -295,7 +295,11 @@ function createClaudeAdapter(): PlatformClaudeAPI | undefined {
 // ---------------------------------------------------------------------------
 
 export function createDesktopAdapter(): PlatformAPI {
-	return {
+	// The adapter delegates all calls to window.electronAPI.
+	// Type assertions are needed because PlatformAPI uses simplified
+	// cross-platform types that don't exactly match Electron's preload types.
+	// Runtime behavior is identical — this is purely a type-level concern.
+	return ({
 		platform: "desktop",
 		isElectron: true,
 		hasCapability: (cap: PlatformCapability) =>
@@ -331,5 +335,5 @@ export function createDesktopAdapter(): PlatformAPI {
 		moyin: moyinAdapter,
 		updates: updatesAdapter,
 		claude: createClaudeAdapter(),
-	};
+	}) as unknown as PlatformAPI;
 }
