@@ -100,6 +100,18 @@ export function AiView({ mode }: { mode?: "upscale" | "angles" } = {}) {
 		}
 	}, [activeTab]);
 
+	// Listen for qcut://panel subpanel switching (iPad CLI)
+	useEffect(() => {
+		const handler = (e: Event) => {
+			const detail = (e as CustomEvent).detail;
+			if (detail?.panel === "ai" && typeof detail?.subpanel === "string") {
+				setActiveTab(detail.subpanel);
+			}
+		};
+		window.addEventListener("qcut:switch-subpanel", handler);
+		return () => window.removeEventListener("qcut:switch-subpanel", handler);
+	}, [setActiveTab]);
+
 	// Get project store
 	const { activeProject } = useProjectStore();
 
