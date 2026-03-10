@@ -39,9 +39,11 @@ export function UpdateNotification() {
 	});
 
 	const handleInstall = useCallback(() => {
-		platform().updates.installUpdate().catch(() => {
-			toast.error("Failed to install update. Please restart manually.");
-		});
+		platform()
+			.updates.installUpdate()
+			.catch(() => {
+				toast.error("Failed to install update. Please restart manually.");
+			});
 	}, []);
 
 	const handleDismiss = useCallback((version: string) => {
@@ -110,11 +112,13 @@ export function UpdateNotification() {
 				action: {
 					label: "Restart Now",
 					onClick: () => {
-						platform().updates.installUpdate().catch(() => {
-							toast.error(
-								"Failed to install update. Please restart manually."
-							);
-						});
+						platform()
+							.updates.installUpdate()
+							.catch(() => {
+								toast.error(
+									"Failed to install update. Please restart manually."
+								);
+							});
 					},
 				},
 				duration: 15_000,

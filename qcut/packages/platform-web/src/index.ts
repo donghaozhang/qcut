@@ -248,7 +248,9 @@ const apiKeysAdapter: PlatformApiKeysAPI = {
 // Desktop-only stubs (throw PlatformUnsupportedError)
 // ---------------------------------------------------------------------------
 
-function createUnsupportedNamespace<T extends object>(cap: PlatformCapability): T {
+function createUnsupportedNamespace<T extends object>(
+	cap: PlatformCapability
+): T {
 	return new Proxy({} as T, {
 		get(_, prop) {
 			if (typeof prop === "string") {

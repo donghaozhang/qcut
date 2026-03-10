@@ -13,8 +13,7 @@ import { initPlatform } from "@qcut/platform-core";
 /** Detect if we're running inside Electron. */
 function detectElectron(): boolean {
 	return (
-		typeof window !== "undefined" &&
-		!!(window as any).electronAPI?.isElectron
+		typeof window !== "undefined" && !!(window as any).electronAPI?.isElectron
 	);
 }
 

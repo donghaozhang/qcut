@@ -267,7 +267,6 @@ export class CLIExportEngine extends ExportEngine {
 	private async exportWithCLI(
 		progressCallback?: ProgressCallback
 	): Promise<string> {
-
 		// Prepare audio files
 		progressCallback?.(5, "Preparing audio files...");
 		const includeAudio = this.audioOptions.includeAudio ?? true;

@@ -32,7 +32,7 @@ export class DrawingStorage {
 		drawingData: string,
 		projectId: string,
 		filename?: string,
-		tags?: string[],
+		tags?: string[]
 	): Promise<string> {
 		try {
 			const drawingId = `${DrawingStorage.STORAGE_PREFIX}${projectId}-${Date.now()}`;
@@ -61,7 +61,7 @@ export class DrawingStorage {
 			await storage.save(drawingId, drawingData);
 			await storage.save(
 				`${DrawingStorage.METADATA_PREFIX}${drawingId}`,
-				JSON.stringify(metadata),
+				JSON.stringify(metadata)
 			);
 
 			return drawingId;
@@ -79,13 +79,13 @@ export class DrawingStorage {
 	 * Load drawing by ID
 	 */
 	static async loadDrawing(
-		drawingId: string,
+		drawingId: string
 	): Promise<{ data: string; metadata: DrawingMetadata } | null> {
 		try {
 			const storage = platform().storage;
 			const data = (await storage.load(drawingId)) as string | null;
 			const rawMeta = await storage.load(
-				`${DrawingStorage.METADATA_PREFIX}${drawingId}`,
+				`${DrawingStorage.METADATA_PREFIX}${drawingId}`
 			);
 			const metadata =
 				typeof rawMeta === "string"
@@ -109,13 +109,13 @@ export class DrawingStorage {
 	 * List all drawings for a project
 	 */
 	static async listProjectDrawings(
-		projectId: string,
+		projectId: string
 	): Promise<Array<{ id: string; metadata: DrawingMetadata }>> {
 		try {
 			const storage = platform().storage;
 			const allKeys = await storage.list();
 			const drawingKeys = allKeys.filter((key) =>
-				key.startsWith(`${DrawingStorage.STORAGE_PREFIX}${projectId}-`),
+				key.startsWith(`${DrawingStorage.STORAGE_PREFIX}${projectId}-`)
 			);
 
 			const drawings: Array<{ id: string; metadata: DrawingMetadata }> = [];
@@ -123,14 +123,14 @@ export class DrawingStorage {
 				drawingKeys.map(async (key) => {
 					try {
 						const raw = await storage.load(
-							`${DrawingStorage.METADATA_PREFIX}${key}`,
+							`${DrawingStorage.METADATA_PREFIX}${key}`
 						);
 						const md = typeof raw === "string" ? JSON.parse(raw) : raw;
 						return md ? { id: key, metadata: md as DrawingMetadata } : null;
 					} catch {
 						return null;
 					}
-				}),
+				})
 			);
 			for (const entry of entries) {
 				if (entry) drawings.push(entry);
@@ -140,7 +140,7 @@ export class DrawingStorage {
 			return drawings.sort(
 				(a, b) =>
 					new Date(b.metadata.created).getTime() -
-					new Date(a.metadata.created).getTime(),
+					new Date(a.metadata.created).getTime()
 			);
 		} catch (error) {
 			handleError(error, {
@@ -159,9 +159,7 @@ export class DrawingStorage {
 		try {
 			const storage = platform().storage;
 			await storage.remove(drawingId);
-			await storage.remove(
-				`${DrawingStorage.METADATA_PREFIX}${drawingId}`,
-			);
+			await storage.remove(`${DrawingStorage.METADATA_PREFIX}${drawingId}`);
 			return true;
 		} catch (error) {
 			handleError(error, {
@@ -178,7 +176,7 @@ export class DrawingStorage {
 	 */
 	static async updateDrawingMetadata(
 		drawingId: string,
-		updates: Partial<Pick<DrawingMetadata, "filename" | "tags">>,
+		updates: Partial<Pick<DrawingMetadata, "filename" | "tags">>
 	): Promise<boolean> {
 		try {
 			const existing = await DrawingStorage.loadDrawing(drawingId);
@@ -192,7 +190,7 @@ export class DrawingStorage {
 
 			await platform().storage.save(
 				`${DrawingStorage.METADATA_PREFIX}${drawingId}`,
-				JSON.stringify(updatedMetadata),
+				JSON.stringify(updatedMetadata)
 			);
 
 			return true;
@@ -212,7 +210,7 @@ export class DrawingStorage {
 	 */
 	static async autosaveDrawing(
 		drawingData: string,
-		projectId: string,
+		projectId: string
 	): Promise<void> {
 		try {
 			const autosaveKey = `${DrawingStorage.AUTOSAVE_PREFIX}${projectId}`;
@@ -265,7 +263,7 @@ export class DrawingStorage {
 	 */
 	static async exportDrawing(
 		drawingData: string,
-		filename: string,
+		filename: string
 	): Promise<void> {
 		try {
 			const link = document.createElement("a");
@@ -302,7 +300,7 @@ export class DrawingStorage {
 
 			const totalSize = drawings.reduce(
 				(sum, drawing) => sum + drawing.metadata.size,
-				0,
+				0
 			);
 			const oldest = drawings[drawings.length - 1]; // Already sorted newest first
 			const newest = drawings[0];

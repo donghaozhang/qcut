@@ -94,7 +94,7 @@ export function ApiKeysView() {
 		setIsTestingFreesound(true);
 		setFreesoundTestResult(null);
 		try {
-			const result = await platform().sounds.search({ query: "test" }) as any;
+			const result = (await platform().sounds.search({ query: "test" })) as any;
 			setFreesoundTestResult({
 				success: result?.success ?? false,
 				message: result?.message || "Test completed",

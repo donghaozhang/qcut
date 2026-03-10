@@ -899,45 +899,41 @@ function initIpcRouting(): void {
 
 	_ipcInitialized = true;
 
-	pty.onData(
-		(event: { sessionId: string; data: string }) => {
-			// Dispatch to ALL registered callbacks matching this backend sessionId.
-			// Multiple TerminalEmulator instances (e.g. media panel + preview panel)
-			// may share the same backend session under different tabIds.
-			for (const [callbackTabId, cb] of _dataCallbacks) {
-				if (_tabMatchesSession(callbackTabId, event.sessionId)) {
-					try {
-						cb(event.data);
-					} catch {
-						// Isolate callback failures so other tabs still receive data
-					}
+	pty.onData((event: { sessionId: string; data: string }) => {
+		// Dispatch to ALL registered callbacks matching this backend sessionId.
+		// Multiple TerminalEmulator instances (e.g. media panel + preview panel)
+		// may share the same backend session under different tabIds.
+		for (const [callbackTabId, cb] of _dataCallbacks) {
+			if (_tabMatchesSession(callbackTabId, event.sessionId)) {
+				try {
+					cb(event.data);
+				} catch {
+					// Isolate callback failures so other tabs still receive data
 				}
 			}
 		}
-	);
+	});
 
-	pty.onExit(
-		(event: { sessionId: string; exitCode: number }) => {
-			const state = usePtyTerminalStore.getState();
-			// Find the canonical session tab for state updates
-			for (const [tabId, session] of state.sessions) {
-				if (session.sessionId === event.sessionId) {
-					state._handleSessionExit(tabId, event.exitCode);
-					break;
-				}
+	pty.onExit((event: { sessionId: string; exitCode: number }) => {
+		const state = usePtyTerminalStore.getState();
+		// Find the canonical session tab for state updates
+		for (const [tabId, session] of state.sessions) {
+			if (session.sessionId === event.sessionId) {
+				state._handleSessionExit(tabId, event.exitCode);
+				break;
 			}
-			// Dispatch exit to all registered callbacks
-			for (const [callbackTabId, cb] of _exitCallbacks) {
-				if (_tabMatchesSession(callbackTabId, event.sessionId)) {
-					try {
-						cb(event.exitCode);
-					} catch {
-						// Isolate callback failures so other tabs still receive exit
-					}
+		}
+		// Dispatch exit to all registered callbacks
+		for (const [callbackTabId, cb] of _exitCallbacks) {
+			if (_tabMatchesSession(callbackTabId, event.sessionId)) {
+				try {
+					cb(event.exitCode);
+				} catch {
+					// Isolate callback failures so other tabs still receive exit
 				}
 			}
 		}
-	);
+	});
 }
 
 /** Check if a callback tabId is associated with a given backend sessionId. */

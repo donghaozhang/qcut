@@ -29,7 +29,8 @@ function api(): any {
 const filesAdapter = {
 	openFileDialog: () => api().openFileDialog(),
 	openMultipleFilesDialog: () => api().openMultipleFilesDialog(),
-	saveFileDialog: (name?: any, filters?: any) => api().saveFileDialog(name, filters),
+	saveFileDialog: (name?: any, filters?: any) =>
+		api().saveFileDialog(name, filters),
 	readFile: (p: any) => api().readFile(p),
 	writeFile: (p: any, d: any) => api().writeFile(p, d),
 	saveBlob: (d: any, name?: any) => api().saveBlob(d, name),
@@ -68,7 +69,8 @@ const licenseAdapter = {
 	activate: (t: any) => api().license.activate(t),
 	deactivate: () => api().license.deactivate(),
 	trackUsage: (t: any) => api().license.trackUsage(t),
-	deductCredits: (a: any, m: any, d: any) => api().license.deductCredits(a, m, d),
+	deductCredits: (a: any, m: any, d: any) =>
+		api().license.deductCredits(a, m, d),
 	setAuthToken: (t: any) => api().license.setAuthToken(t),
 	clearAuthToken: () => api().license.clearAuthToken(),
 	emailLogin: (e: any, p: any) => api().license.emailLogin(e, p),
@@ -187,7 +189,8 @@ const aiPipelineAdapter = {
 	status: () => api().aiPipeline.status(),
 	generate: (o: Record<string, unknown>) => api().aiPipeline.generate(o),
 	listModels: () => api().aiPipeline.listModels(),
-	estimateCost: (o: Record<string, unknown>) => api().aiPipeline.estimateCost(o),
+	estimateCost: (o: Record<string, unknown>) =>
+		api().aiPipeline.estimateCost(o),
 	cancel: (id: string) => api().aiPipeline.cancel(id),
 	refresh: () => api().aiPipeline.refresh(),
 	onProgress: (cb: (data: unknown) => void) => api().aiPipeline.onProgress(cb),
@@ -197,7 +200,8 @@ const mediaImportAdapter = {
 	import: (o: Record<string, unknown>) => api().mediaImport.import(o),
 	validateSymlink: (p: string) => api().mediaImport.validateSymlink(p),
 	locateOriginal: (p: string) => api().mediaImport.locateOriginal(p),
-	relinkMedia: (id: string, m: string, p: string) => api().mediaImport.relinkMedia(id, m, p),
+	relinkMedia: (id: string, m: string, p: string) =>
+		api().mediaImport.relinkMedia(id, m, p),
 	remove: (id: string, m: string) => api().mediaImport.remove(id, m),
 	checkSymlinkSupport: () => api().mediaImport.checkSymlinkSupport(),
 	getMediaPath: (id: string) => api().mediaImport.getMediaPath(id),
@@ -209,7 +213,8 @@ const mediaImportAdapter = {
 // just forwards calls to window.electronAPI.
 const projectFolderAdapter = {
 	getRoot: (id: string) => api().projectFolder.getRoot(id),
-	scan: (id: string, p?: string, o?: Record<string, unknown>) => api().projectFolder.scan(id, p, o),
+	scan: (id: string, p?: string, o?: Record<string, unknown>) =>
+		api().projectFolder.scan(id, p, o),
 	list: (id: string, p?: string) => api().projectFolder.list(id, p),
 	ensureStructure: (id: string) => api().projectFolder.ensureStructure(id),
 };
@@ -230,20 +235,32 @@ const remotionFolderAdapter = {
 
 const moyinAdapter = {
 	parseScript: (o: Record<string, unknown>) => api().moyin.parseScript(o),
-	generateStoryboard: (o: Record<string, unknown>) => api().moyin.generateStoryboard(o),
+	generateStoryboard: (o: Record<string, unknown>) =>
+		api().moyin.generateStoryboard(o),
 	callLLM: (o: Record<string, unknown>) => api().moyin.callLLM(o),
 	isClaudeAvailable: () => api().moyin.isClaudeAvailable(),
 	saveTempScript: (o: { rawScript: string }) => api().moyin.saveTempScript(o),
 	cleanupTempScript: (p: string) => api().moyin.cleanupTempScript(p),
 	onParsed: (cb: (data: unknown) => void) => api().moyin.onParsed(cb),
 	removeParseListener: () => api().moyin.removeParseListener(),
-	onSetScript: (cb: (data: { text: string }) => void) => api().moyin.onSetScript(cb),
+	onSetScript: (cb: (data: { text: string }) => void) =>
+		api().moyin.onSetScript(cb),
 	onTriggerParse: (cb: () => void) => api().moyin.onTriggerParse(cb),
-	onGenerateScript: (cb: (data: { idea: string; genre?: string; targetDuration?: string }) => void) => api().moyin.onGenerateScript(cb),
-	onStatusRequest: (cb: (data: { requestId: string }) => void) => api().moyin.onStatusRequest(cb),
-	sendStatusResponse: (id: string, r?: Record<string, unknown>, e?: string) => api().moyin.sendStatusResponse(id, r, e),
-	onExportRequest: (cb: (data: { requestId: string }) => void) => api().moyin.onExportRequest(cb),
-	sendExportResponse: (id: string, r?: Record<string, unknown>, e?: string) => api().moyin.sendExportResponse(id, r, e),
+	onGenerateScript: (
+		cb: (data: {
+			idea: string;
+			genre?: string;
+			targetDuration?: string;
+		}) => void
+	) => api().moyin.onGenerateScript(cb),
+	onStatusRequest: (cb: (data: { requestId: string }) => void) =>
+		api().moyin.onStatusRequest(cb),
+	sendStatusResponse: (id: string, r?: Record<string, unknown>, e?: string) =>
+		api().moyin.sendStatusResponse(id, r, e),
+	onExportRequest: (cb: (data: { requestId: string }) => void) =>
+		api().moyin.onExportRequest(cb),
+	sendExportResponse: (id: string, r?: Record<string, unknown>, e?: string) =>
+		api().moyin.sendExportResponse(id, r, e),
 	removeMoyinBridgeListeners: () => api().moyin.removeMoyinBridgeListeners(),
 };
 
@@ -252,9 +269,18 @@ const updatesAdapter = {
 	installUpdate: () => api().updates.installUpdate(),
 	getReleaseNotes: (v?: string) => api().updates.getReleaseNotes(v),
 	getChangelog: () => api().updates.getChangelog(),
-	onUpdateAvailable: (cb: (data: { version: string; releaseNotes?: string; releaseDate?: string }) => void) => api().updates.onUpdateAvailable(cb),
-	onDownloadProgress: (cb: (data: { percent: number; transferred: number; total: number }) => void) => api().updates.onDownloadProgress(cb),
-	onUpdateDownloaded: (cb: (data: { version: string }) => void) => api().updates.onUpdateDownloaded(cb),
+	onUpdateAvailable: (
+		cb: (data: {
+			version: string;
+			releaseNotes?: string;
+			releaseDate?: string;
+		}) => void
+	) => api().updates.onUpdateAvailable(cb),
+	onDownloadProgress: (
+		cb: (data: { percent: number; transferred: number; total: number }) => void
+	) => api().updates.onDownloadProgress(cb),
+	onUpdateDownloaded: (cb: (data: { version: string }) => void) =>
+		api().updates.onUpdateDownloaded(cb),
 };
 
 function createClaudeAdapter(): PlatformClaudeAPI | undefined {
@@ -272,7 +298,7 @@ export function createDesktopAdapter(): PlatformAPI {
 	// Type assertions are needed because PlatformAPI uses simplified
 	// cross-platform types that don't exactly match Electron's preload types.
 	// Runtime behavior is identical — this is purely a type-level concern.
-	return ({
+	return {
 		platform: "desktop",
 		isElectron: true,
 		hasCapability: (cap: PlatformCapability) =>
@@ -308,5 +334,5 @@ export function createDesktopAdapter(): PlatformAPI {
 		moyin: moyinAdapter,
 		updates: updatesAdapter,
 		claude: createClaudeAdapter(),
-	}) as unknown as PlatformAPI;
+	} as unknown as PlatformAPI;
 }
