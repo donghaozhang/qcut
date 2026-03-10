@@ -285,8 +285,7 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 					false;
 				if (!configured) {
 					// Claude CLI is available as fallback (no API key required)
-					const claudeAvailable =
-						await platform().moyin.isClaudeAvailable?.();
+					const claudeAvailable = await platform().moyin.isClaudeAvailable?.();
 					configured = !!claudeAvailable;
 				}
 				set({ chatConfigured: configured });
@@ -871,42 +870,44 @@ useMoyinStore.subscribe((state) => {
 if (typeof window !== "undefined") {
 	try {
 		platform().moyin.onParsed?.((data: Record<string, unknown>) => {
-		const state = useMoyinStore.getState();
-		const scriptData = data as unknown as ScriptData;
+			const state = useMoyinStore.getState();
+			const scriptData = data as unknown as ScriptData;
 
-		// Cancel timers and clean up temp file from PTY parse
-		if (parseTimeoutRef != null) {
-			clearTimeout(parseTimeoutRef);
-			parseTimeoutRef = null;
-		}
-		const tempPath = getPendingTempScriptPath();
-		if (tempPath) {
-			platform().moyin.cleanupTempScript(tempPath)?.catch(() => {});
-		}
-		clearPendingParse();
+			// Cancel timers and clean up temp file from PTY parse
+			if (parseTimeoutRef != null) {
+				clearTimeout(parseTimeoutRef);
+				parseTimeoutRef = null;
+			}
+			const tempPath = getPendingTempScriptPath();
+			if (tempPath) {
+				platform()
+					.moyin.cleanupTempScript(tempPath)
+					?.catch(() => {});
+			}
+			clearPendingParse();
 
-		// Set initial data and switch to characters tab
-		useMoyinStore.setState({
-			shotGenerationStatus: {},
-			selectedShotIds: new Set<string>(),
-			activeStep: "characters",
-		});
-
-		// Run full calibration pipeline (title, synopsis, shots, characters, scenes)
-		runCalibrationPipeline(scriptData, state.rawScript, {
-			getState: useMoyinStore.getState,
-			setState: useMoyinStore.setState,
-		})
-			.then(() => {
-				useMoyinStore.setState({ parseStatus: "ready" });
-			})
-			.catch((err) => {
-				console.error("[Moyin] Calibration after CLI push failed:", err);
-				useMoyinStore.setState({
-					parseStatus: "error",
-					parseError: String(err),
-				});
+			// Set initial data and switch to characters tab
+			useMoyinStore.setState({
+				shotGenerationStatus: {},
+				selectedShotIds: new Set<string>(),
+				activeStep: "characters",
 			});
+
+			// Run full calibration pipeline (title, synopsis, shots, characters, scenes)
+			runCalibrationPipeline(scriptData, state.rawScript, {
+				getState: useMoyinStore.getState,
+				setState: useMoyinStore.setState,
+			})
+				.then(() => {
+					useMoyinStore.setState({ parseStatus: "ready" });
+				})
+				.catch((err) => {
+					console.error("[Moyin] Calibration after CLI push failed:", err);
+					useMoyinStore.setState({
+						parseStatus: "error",
+						parseError: String(err),
+					});
+				});
 		});
 	} catch {
 		// Platform not initialized yet — listener will be skipped.
