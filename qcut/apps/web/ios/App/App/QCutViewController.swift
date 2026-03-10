@@ -10,8 +10,12 @@ class QCutViewController: CAPBridgeViewController {
         return webConfig
     }
 
-    /// Handle qcut:// URL commands by evaluating JS in the webview
+    /// Handle qcut:// URL commands by evaluating JS in the webview (debug builds only)
     func handleDeepLink(url: URL) {
+        #if !DEBUG
+        NSLog("[QCut CLI] Deep link commands are only available in debug builds")
+        return
+        #else
         guard url.scheme == "qcut", let host = url.host else { return }
 
         switch host {
@@ -127,6 +131,7 @@ class QCutViewController: CAPBridgeViewController {
         default:
             NSLog("[QCut CLI] Unknown command: \(host)")
         }
+        #endif
     }
 
     // MARK: - Panel switching

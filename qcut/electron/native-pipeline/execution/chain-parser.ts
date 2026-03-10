@@ -60,6 +60,7 @@ const VALID_CATEGORIES = new Set<string>([
 	"speech_to_text",
 	"image_understanding",
 	"prompt_generation",
+	"translate",
 ]);
 
 export function parseChainConfig(yamlContent: string): PipelineChain {

@@ -156,7 +156,7 @@ export async function handleTranslateVideo(
 	mkdirSync(outputDir, { recursive: true });
 
 	const inputBasename = basename(videoInput).replace(/\.[^.]+$/, "");
-	const videoFilename = `${inputBasename}_translated_${language.toLowerCase()}.mp4`;
+	const videoFilename = `${inputBasename}_translated_${basename(language).toLowerCase()}.mp4`;
 	const videoPath = join(outputDir, videoFilename);
 
 	onProgress({
@@ -170,9 +170,11 @@ export async function handleTranslateVideo(
 	try {
 		downloadedPath = await downloadOutput(outputVideoUrl, videoPath);
 	} catch (err) {
-		console.warn(
-			`[translate] Failed to download video: ${err instanceof Error ? err.message : String(err)}`
-		);
+		return {
+			success: false,
+			error: `Failed to download translated video: ${err instanceof Error ? err.message : String(err)}`,
+			duration: (Date.now() - startTime) / 1000,
+		};
 	}
 
 	const outputData = {
@@ -185,9 +187,11 @@ export async function handleTranslateVideo(
 		duration: (Date.now() - startTime) / 1000,
 	};
 
+	// Sanitize language for filename to prevent path traversal
+	const safeLang = basename(language).toLowerCase();
 	const jsonPath = join(
 		outputDir,
-		`${inputBasename}_translated_${language.toLowerCase()}.json`
+		`${inputBasename}_translated_${safeLang}.json`
 	);
 	writeFileSync(jsonPath, JSON.stringify(outputData, null, 2));
 

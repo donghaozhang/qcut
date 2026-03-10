@@ -15,7 +15,7 @@ import { cleanupPtyOnEditorExit } from "@/lib/debug/pty-session-cleanup";
 import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { usePtyTerminalStore } from "@/stores/pty-terminal-store";
 import { useClaudeProjectUpdates } from "@/hooks/use-claude-project-updates";
-import "@/lib/debug/ios-console-bridge"; // iPad console log capture
+if (import.meta.env.DEV) import("@/lib/debug/ios-console-bridge"); // iPad console log capture
 import "@/lib/stickers/debug-sticker-overlay"; // Load debug utilities
 import "@/lib/stickers/sticker-test-helper"; // Load sticker test helper
 import "@/lib/stickers/sticker-persistence-debug"; // Load persistence debug

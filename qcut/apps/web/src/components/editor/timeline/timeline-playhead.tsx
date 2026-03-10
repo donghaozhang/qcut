@@ -111,8 +111,10 @@ export function TimelinePlayhead({
 				time * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
 			const tracksEl = tracksScrollRef.current as HTMLElement;
 			const scroll = tracksEl?.scrollLeft ?? 0;
+			const viewportW = tracksEl?.clientWidth ?? 1000;
 			const rawLeft = trackLabelsWidth + pos - scroll;
-			el.style.left = `${Math.max(trackLabelsWidth, rawLeft)}px`;
+			const rightBound = trackLabelsWidth + viewportW;
+			el.style.left = `${Math.max(trackLabelsWidth, Math.min(rightBound, rawLeft))}px`;
 		};
 
 		window.addEventListener("playback-update", handleTick);

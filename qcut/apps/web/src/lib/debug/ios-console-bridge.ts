@@ -14,7 +14,8 @@ const isIOS =
 	(/iPad|iPhone|iPod/.test(navigator.userAgent) ||
 		(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
-if (isIOS) {
+if (isIOS && !(window as any).__qcutLogsInstalled) {
+	(window as any).__qcutLogsInstalled = true;
 	const logs: string[] = [];
 	const MAX_LOGS = 200;
 	const orig = {

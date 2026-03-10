@@ -99,7 +99,6 @@ const startTimer = (store: () => PlaybackStore) => {
 	const updateTime = () => {
 		const state = store();
 		if (!state.isPlaying || _mutableCurrentTime >= effectiveDuration) {
-			playbackTimer = requestAnimationFrame(updateTime);
 			return;
 		}
 
@@ -117,15 +116,16 @@ const startTimer = (store: () => PlaybackStore) => {
 			window.dispatchEvent(
 				new CustomEvent("playback-seek", { detail: { time: stopTime } })
 			);
-		} else {
-			_mutableCurrentTime = newTime;
-			eventDetail.time = newTime;
-
-			// Single combined event for all playback listeners (video/audio sync + UI)
-			window.dispatchEvent(
-				new CustomEvent("playback-update", { detail: eventDetail })
-			);
+			return;
 		}
+
+		_mutableCurrentTime = newTime;
+		eventDetail.time = newTime;
+
+		// Single combined event for all playback listeners (video/audio sync + UI)
+		window.dispatchEvent(
+			new CustomEvent("playback-update", { detail: eventDetail })
+		);
 		playbackTimer = requestAnimationFrame(updateTime);
 	};
 

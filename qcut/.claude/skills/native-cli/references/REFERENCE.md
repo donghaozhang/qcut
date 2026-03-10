@@ -227,7 +227,7 @@ Translate a video's speech into another language using HeyGen Translate (Speed) 
 
 **Model:** `heygen_translate_speed` (FAL endpoint: `fal-ai/heygen/v2/translate/speed`)
 
-**Output:** JSON file with `video_url` (translated video URL), source info, and timing.
+**Output:** Downloaded `.mp4` video file and a JSON metadata file with `video_url`, source info, and timing.
 
 **Examples:**
 ```bash

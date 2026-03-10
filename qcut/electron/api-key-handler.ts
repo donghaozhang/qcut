@@ -253,9 +253,11 @@ function syncToQcutEnv(keys: Partial<ApiKeys>): void {
 			const value = keys[field as keyof ApiKeys];
 			if (value) {
 				persistToQcutEnv(envName, value);
+			} else if (field in keys && value === "") {
+				// Explicitly cleared — remove from env file
+				removeFromQcutEnv(envName);
 			}
-			// Do NOT remove keys that are absent — they may have been
-			// set directly in ~/.qcut/.env outside of Electron.
+			// If field is absent (undefined), preserve existing env value
 		}
 	} catch (error) {
 		console.warn("[API Keys] Failed to sync to ~/.qcut/.env:", error);

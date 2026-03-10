@@ -1,7 +1,7 @@
 /**
  * HeyGen Translate (Speed) Tab Component
  *
- * Translates video audio with lip-sync to 40+ languages.
+ * Translates video audio with lip-sync to 30+ languages.
  * $0.05 per second of output video.
  */
 
@@ -39,6 +39,7 @@ import { revokeObjectURL as revokeManagedObjectURL } from "@/lib/media/blob-mana
 import { HEYGEN_TRANSLATE_LANGUAGES } from "@/lib/ai-video/validation/validators/translate-validators";
 
 const DEFAULT_ESTIMATED_DURATION_SECONDS = 10;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_BYTES;
 
 export function TranslateTab() {
 	const [sourceVideo, setSourceVideo] = useState<File | null>(null);
@@ -109,7 +110,7 @@ export function TranslateTab() {
 			if (file) {
 				const validation = VIDEO_EDIT_HELPERS.validateVideoFile(
 					file,
-					500 * 1024 * 1024
+					MAX_FILE_SIZE_BYTES
 				);
 				if (!validation.valid) {
 					setError(validation.error!);
@@ -127,6 +128,11 @@ export function TranslateTab() {
 
 			const duration = await getVideoDuration({ file });
 			if (Number.isFinite(duration) && duration > 0) {
+				const MAX_DURATION_SECONDS = 5 * 60;
+				if (duration > MAX_DURATION_SECONDS) {
+					setError("Video is too long. Maximum duration is 5 minutes.");
+					return;
+				}
 				setVideoDuration(duration);
 			} else {
 				setVideoDuration(null);
@@ -180,7 +186,7 @@ export function TranslateTab() {
 							HeyGen Translate (Speed)
 						</p>
 						<p className="text-xs text-muted-foreground mt-0.5">
-							Translate audio + lip-sync to 40+ languages
+							Translate audio + lip-sync to 30+ languages
 						</p>
 					</div>
 					<div className="text-right">
@@ -197,7 +203,7 @@ export function TranslateTab() {
 				helperText="Up to 5 minutes, 500MB"
 				fileType="video"
 				acceptedTypes={VIDEO_EDIT_UPLOAD_CONSTANTS.ALLOWED_VIDEO_TYPES}
-				maxSizeBytes={500 * 1024 * 1024}
+				maxSizeBytes={MAX_FILE_SIZE_BYTES}
 				maxSizeLabel="500MB"
 				formatsLabel={VIDEO_EDIT_UPLOAD_CONSTANTS.VIDEO_FORMATS_LABEL}
 				file={sourceVideo}
@@ -263,11 +269,14 @@ export function TranslateTab() {
 							min={1}
 							max={10}
 							value={speakerNum ?? ""}
-							onChange={(e) =>
-								setSpeakerNum(
-									e.target.value ? parseInt(e.target.value, 10) : undefined
-								)
-							}
+							onChange={(e) => {
+								if (!e.target.value) {
+									setSpeakerNum(undefined);
+									return;
+								}
+								const parsed = parseInt(e.target.value, 10);
+								if (Number.isInteger(parsed)) setSpeakerNum(parsed);
+							}}
 							disabled={isProcessing}
 							className="text-xs"
 						/>
