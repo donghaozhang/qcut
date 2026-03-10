@@ -10,7 +10,7 @@
 import type { VideoSourceInput } from "../types";
 import type { TimelineTrack, TimelineElement } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store";
-import { platform } from "@qcut/platform-core";
+import { platform, PlatformCapability } from "@qcut/platform-core";
 
 /**
  * Logger function type for dependency injection.
@@ -30,6 +30,16 @@ interface VideoSaveTempAPI {
 }
 
 /**
+ * Whether the current platform supports video temp file operations.
+ * In browser mode, platform().video is a Proxy whose methods are truthy
+ * but throw PlatformUnsupportedError when called. Guard with this check
+ * instead of relying on optional chaining.
+ */
+function hasVideoTempCapability(): boolean {
+	return platform().hasCapability(PlatformCapability.VideoTemp);
+}
+
+/**
  * Verify a local file path still exists on disk.
  * Temp files in /tmp may be cleaned up by the OS between sessions.
  *
@@ -40,7 +50,8 @@ async function verifyLocalPath(
 	api: VideoSaveTempAPI | undefined,
 	logger: LogFn
 ): Promise<string | undefined> {
-	if (!localPath || !api?.verifyFile) return localPath;
+	if (!localPath || !hasVideoTempCapability() || !api?.verifyFile)
+		return localPath;
 	const exists = await api.verifyFile(localPath);
 	if (!exists) {
 		logger(`[VideoSources] File missing on disk, will recreate: ${localPath}`);
@@ -64,7 +75,7 @@ async function createTempFileFromBlob(
 	videoAPI: VideoSaveTempAPI | undefined,
 	logger: LogFn
 ): Promise<string | undefined> {
-	if (!videoAPI?.saveTemp) return;
+	if (!hasVideoTempCapability() || !videoAPI?.saveTemp) return;
 	if (!mediaItem.file || mediaItem.file.size === 0) return;
 
 	try {

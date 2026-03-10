@@ -94,7 +94,11 @@ export async function invokeFFmpegExport(
 
 		const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 		debugLog(`[CLI Export] FFmpeg export completed in ${duration}s`);
-		return result.outputFile ?? result.outputPath ?? "";
+		const outputPath = result.outputFile ?? result.outputPath;
+		if (!outputPath) {
+			throw new Error("[CLI Export] FFmpeg export returned no output path");
+		}
+		return outputPath;
 	} catch (error) {
 		debugError("[CLI Export] FFmpeg export FAILED:", error);
 		debugError("[CLI Export] Error details:", {

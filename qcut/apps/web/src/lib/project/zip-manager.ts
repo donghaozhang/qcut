@@ -44,8 +44,8 @@ export class ZipManager {
 			itemsWithFile: items.filter((item) => !!item.file).length,
 			itemsWithLocalPath: items.filter((item) => !!item.localPath).length,
 			itemsWithUrl: items.filter((item) => !!item.url).length,
-			electronAPIAvailable: true,
-			readFileAvailable: true,
+			electronAPIAvailable: platform().isElectron,
+			readFileAvailable: typeof platform().files?.readFile === "function",
 		});
 
 		logDebug("?? ZIP-MANAGER: Starting to add media items", {
@@ -235,8 +235,8 @@ export class ZipManager {
 					// Handle local file path for Electron (AI videos saved to disk)
 					logDebug("step 9d: attempting to read local file", {
 						localPath: item.localPath,
-						electronAPIAvailable: true,
-						readFileAvailable: true,
+						electronAPIAvailable: platform().isElectron,
+						readFileAvailable: typeof platform().files?.readFile === "function",
 					});
 					try {
 						const fileBuffer = await platform().files.readFile(
@@ -578,8 +578,8 @@ export async function downloadZipSafely(
 		blobSize: blob.size,
 		blobType: blob.type,
 		filename,
-		electronAPIAvailable: true,
-		saveBlobAvailable: true,
+		electronAPIAvailable: platform().isElectron,
+		saveBlobAvailable: typeof platform().files?.saveBlob === "function",
 	});
 
 	// Try platform save

@@ -144,15 +144,16 @@ describe("useLogin", () => {
 			expect(result.current.isGoogleLoading).toBe(true);
 		});
 
-		it("sets error when getGoogleLoginUrl is unavailable", async () => {
+		it("sets error when getGoogleLoginUrl returns empty URL", async () => {
 			initPlatform(createWebAdapter());
 			const { result } = renderHook(() => useLogin());
 
 			await act(() => result.current.handleGoogleLogin());
 
-			// Web adapter returns empty URL — Google login opens blank, then user sees waiting state
-			// This is graceful degradation rather than a crash
-			expect(result.current.isGoogleLoading).toBe(true);
+			expect(result.current.error).toBe(
+				"Google login is not available in this environment"
+			);
+			expect(result.current.isGoogleLoading).toBe(false);
 		});
 
 		it("sets error when shell.openExternal fails", async () => {

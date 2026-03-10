@@ -104,6 +104,11 @@ export function useSignUp() {
 			}
 
 			const url = await licenseApi.getGoogleLoginUrl();
+			if (!url) {
+				setError("Google sign up is not available in this environment");
+				setIsGoogleLoading(false);
+				return;
+			}
 			await platform().shell.openExternal(url);
 			setIsWaitingForBrowser(true);
 		} catch (err) {

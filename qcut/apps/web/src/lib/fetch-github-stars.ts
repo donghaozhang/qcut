@@ -21,7 +21,13 @@ export async function getStars(): Promise<string> {
 		if (platform().isElectron) {
 			// Use IPC to fetch GitHub stars through Electron main process
 			const result = await platform().github.fetchStars();
-			count = result.stars || 0;
+			const stars = result.stars;
+			if (typeof stars !== "number" || !Number.isFinite(stars)) {
+				throw new Error(
+					"Invalid stargazers_count from platform GitHub bridge",
+				);
+			}
+			count = stars;
 		} else {
 			// Fallback to direct fetch (for web/dev environment)
 			const res = await fetch(

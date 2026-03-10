@@ -94,12 +94,20 @@ export function ImportSkillDialog({
 			return;
 		}
 
+		let path: string | undefined;
 		try {
-			const path = await platform().skills.browse();
-			if (path) {
-				setIsLoading(true);
+			path = await platform().skills.browse();
+		} catch {
+			toast.error("Browse not available", {
+				description: "This feature requires the Electron desktop app",
+			});
+			return;
+		}
+
+		if (path) {
+			setIsLoading(true);
+			try {
 				const skillId = await importSkill(activeProject.id, path);
-				setIsLoading(false);
 
 				if (skillId) {
 					toast.success("Skill imported successfully");
@@ -109,11 +117,9 @@ export function ImportSkillDialog({
 						description: "Make sure the folder contains a valid Skill.md file",
 					});
 				}
+			} finally {
+				setIsLoading(false);
 			}
-		} catch {
-			toast.error("Browse not available", {
-				description: "This feature requires the Electron desktop app",
-			});
 		}
 	};
 

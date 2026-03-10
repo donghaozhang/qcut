@@ -15,6 +15,10 @@ import type {
 	ClaudeElement,
 } from "../../../../../electron/types/claude-api";
 import { debugLog, debugWarn, debugError } from "@/lib/debug/debug-config";
+import type {
+	FolderCompositionInfo,
+	FolderBundleResult,
+} from "@/lib/remotion/component-loader/types";
 
 const CLAUDE_MEDIA_ELEMENT_TYPES = {
 	media: "media",
@@ -589,11 +593,10 @@ async function importRemotionFolder({
 		const { loadComponentsFromFolder } = await import(
 			"@/lib/remotion/component-loader"
 		);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const loadResult = await loadComponentsFromFolder(
 			folderPath,
-			importResult.scan!.compositions as any,
-			importResult.bundle!.results as any
+			importResult.scan!.compositions as unknown as FolderCompositionInfo[],
+			importResult.bundle!.results as unknown as FolderBundleResult[]
 		);
 
 		if (!loadResult.success || loadResult.components.length === 0) {

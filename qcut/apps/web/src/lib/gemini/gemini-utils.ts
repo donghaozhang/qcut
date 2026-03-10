@@ -13,6 +13,19 @@ interface ConfigurationStatus {
 }
 
 /**
+ * Check whether the current platform supports transcription.
+ * Returns `false` safely when running outside a browser or before `initPlatform()`.
+ */
+function hasTranscriptionSupport(): boolean {
+	if (typeof window === "undefined") return false;
+	try {
+		return !!platform().transcription;
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Determines whether the Gemini API is properly configured for the current environment.
  *
  * Returns an object describing overall configuration status and any missing configuration indicators.
@@ -22,11 +35,8 @@ interface ConfigurationStatus {
 export function isGeminiConfigured(): ConfigurationStatus {
 	const missingVars: string[] = [];
 
-	// Check for Gemini API key in Electron environment
-	// Note: The API key is stored in the main process, not accessible from renderer
-	// This check validates that the Electron API is available
-	if (typeof window === "undefined" || !platform().transcription) {
-		missingVars.push("Electron IPC not available");
+	if (!hasTranscriptionSupport()) {
+		missingVars.push("Transcription support not available");
 	}
 
 	const configured = missingVars.length === 0;
@@ -57,16 +67,13 @@ export function getGeminiSetupInstructions(): string {
 /**
  * Ensure the current runtime environment is compatible with Gemini transcription.
  *
- * @throws Error if not running in a browser environment (`"Gemini transcription requires browser environment"`).
- * @throws Error if Electron transcription support is unavailable (`"Gemini transcription requires Electron environment"`).
+ * @throws Error if transcription support is not available on the current platform.
  */
 export function validateGeminiEnvironment(): void {
-	if (typeof window === "undefined") {
-		throw new Error("Gemini transcription requires browser environment");
-	}
-
-	if (!platform().transcription) {
-		throw new Error("Gemini transcription requires Electron environment");
+	if (!hasTranscriptionSupport()) {
+		throw new Error(
+			"Gemini transcription requires a platform with transcription support"
+		);
 	}
 }
 

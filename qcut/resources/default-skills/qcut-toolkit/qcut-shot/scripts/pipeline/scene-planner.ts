@@ -5,7 +5,7 @@ import type { ContentFormat, Medium, Scene, SceneBreakdown } from "../core/types
 import { slugify } from "../core/utils";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_MODEL = "google/gemini-3-flash";
+const DEFAULT_MODEL = "google/gemini-3-flash-preview";
 
 const CREDENTIAL_PATHS = [
 	join(homedir(), ".qcut", ".env"),

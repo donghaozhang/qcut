@@ -312,16 +312,16 @@ Browser-specific WASM loading and cross-browser testing deferred to Phase 3.5.
 
 ---
 
-## Phase 3.5: Complete Call-Site Migration & Browser Smoke Test (1-2 days) — COMPLETE
+## Phase 3.5: Complete Call-Site Migration & Browser Smoke Test (1-2 days) — IN_PROGRESS
 
 **Objective:** Migrate remaining `window.electronAPI` refs so QCut Lite can load in a standalone browser.
 **Status:** Implemented 2026-03-10
 
 ### Subtask 3.5.1 — Migrate All Source Files -- DONE
 
-Migrated **all 82 remaining non-test source files** (250 refs) from `window.electronAPI` to `platform()`. Zero `window.electronAPI` references remain in production source code.
+Migrated **all 82 remaining non-test source files** (228 refs) from `window.electronAPI` to `platform()`. Zero `window.electronAPI` references remain in production source code. (Baseline: 282 refs across 87 files; Phase 3.4 migrated 54 refs across 5 files, leaving 228 refs across 82 files.)
 
-**Wave 1 — Core Edit Flows (30 files, ~110 refs):**
+**Wave 1 — Core Edit Flows (30 files, ~128 refs):**
 - `zip-manager.ts` (12), `use-elevenlabs-transcription.ts` (10), `use-ai-pipeline.ts` (9)
 - `drop-zone.tsx` (8), `captions.tsx` (8), `stickers-overlay-store.ts` (6)
 - `use-project-folder.ts` (6), `useLogin.ts` (6), `useSignUp.ts` (6), `skills-store.ts` (6)
@@ -418,6 +418,7 @@ Verified QCut Lite loads at `localhost:5173` via `bun dev:web`. All pages tested
 Upgraded web adapter from crash-on-call Proxy stubs to a two-tier system:
 
 **Fully implemented (8 namespaces):**
+
 | Capability | Implementation |
 |---|---|
 | `storage` | localStorage with `qcut:` prefix |
@@ -426,14 +427,14 @@ Upgraded web adapter from crash-on-call Proxy stubs to a two-tier system:
 | `shell` | `window.open()` for external links |
 | `apiKeys` | localStorage-based |
 | `license` | Free tier defaults (no-op auth, no credits) |
-| `github` | Direct `fetch` to GitHub API |
+| `GitHub` | Direct `fetch` to GitHub API |
 | `aiPipeline` | Returns `{ available: false }` gracefully |
 
-**Graceful stubs (10 namespaces):** Return safe defaults (null/no-op) instead of throwing:
-`sounds`, `audio`, `video`, `screenshot`, `screenRecording`, `ffmpeg`, `transcription`, `fal`, `geminiChat`, `mediaImport`
+**Graceful stubs (11 namespaces):** Return safe defaults (null/no-op) instead of throwing:
+`sounds`, `audio`, `video`, `screenshot`, `screenRecording`, `ffmpeg`, `transcription`, `fal`, `geminiChat`, `mediaImport`, `projectJson`
 
-**Throwing stubs (9 namespaces):** Desktop-only, calling code must gate on `isElectron`:
-`youtube`, `pty`, `mcp`, `skills`, `projectFolder`, `projectJson`, `remotionFolder`, `moyin`, `updates`
+**Throwing stubs (8 namespaces):** Desktop-only, calling code must gate on `isElectron`:
+`YouTube`, `pty`, `mcp`, `skills`, `projectFolder`, `remotionFolder`, `moyin`, `updates`
 
 **Files changed:**
 - `packages/platform-web/src/index.ts` — expanded from 380→430 lines with real license adapter, GitHub adapter, aiPipeline adapter, `createGracefulNamespace()` helper, `getPathForFile` via `URL.createObjectURL`, `analyzeFillers` returns empty array
@@ -553,7 +554,7 @@ Added `-webkit-overflow-scrolling: touch`, `-webkit-text-size-adjust: 100%`, iOS
 | Phase 1: Extract Core | 1-2 weeks | `packages/editor-core` with independent tests | COMPLETE |
 | Phase 2: Platform Adapters | 1-2 weeks | `platform-desktop` + `platform-web` + provider | COMPLETE |
 | Phase 3: Web Shell MVP | 2-4 weeks | Adapter wiring, capability guards, top 5 file migration | COMPLETE |
-| Phase 3.5: Full Migration | 1-2 days | All 82 source files migrated, 21 test files updated | COMPLETE |
+| Phase 3.5: Full Migration | 1-2 days | All 82 source files migrated, 21 test files updated | IN_PROGRESS |
 | Phase 3.6: Web Runtime | 3-5 days | QCut Lite loads in browser, core flows work | COMPLETE |
 | Phase 4: iPad | 1-2 weeks | Touch-optimized QCut Lite on iPad | COMPLETE |
 | **Total** | **8-13 weeks** | | |

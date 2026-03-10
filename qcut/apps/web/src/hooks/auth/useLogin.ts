@@ -105,6 +105,11 @@ export function useLogin() {
 			}
 
 			const url = await licenseApi.getGoogleLoginUrl();
+			if (!url) {
+				setError("Google login is not available in this environment");
+				setIsGoogleLoading(false);
+				return;
+			}
 			await platform().shell.openExternal(url);
 			setIsWaitingForBrowser(true);
 		} catch (err) {

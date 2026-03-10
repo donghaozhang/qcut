@@ -54,6 +54,7 @@ import {
 	clearPendingParse,
 } from "./moyin-parse-actions";
 import { parseNovelImport } from "./moyin-novel-import";
+import { debugError } from "@/lib/debug/debug-config";
 
 // Types
 
@@ -316,6 +317,7 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 			advancePipeline("import", "active");
 
 			// --- PTY path: stream output in terminal, data arrives via onParsed ---
+			ensureParsedListenerRegistered();
 			const ptyResult = await attemptPtyParse(rawScript, parseModel);
 			if (ptyResult.success) {
 				const pendingPath = ptyResult.tempPath ?? null;
@@ -864,10 +866,14 @@ useMoyinStore.subscribe((state) => {
 	}, 1000);
 });
 
-// Listen for parsed script data pushed from CLI via HTTP API
-// Deferred: platform() may not be initialized at module load time (e.g. tests).
-// Use try/catch so the listener silently skips when platform isn't ready yet.
-if (typeof window !== "undefined") {
+// Listen for parsed script data pushed from CLI via HTTP API.
+// Lazily registered because platform() may not be initialized at module load time.
+let parsedListenerRegistered = false;
+
+function ensureParsedListenerRegistered(): void {
+	if (parsedListenerRegistered) return;
+	if (typeof window === "undefined") return;
+
 	try {
 		platform().moyin.onParsed?.((data: Record<string, unknown>) => {
 			const state = useMoyinStore.getState();
@@ -902,15 +908,15 @@ if (typeof window !== "undefined") {
 					useMoyinStore.setState({ parseStatus: "ready" });
 				})
 				.catch((err) => {
-					console.error("[Moyin] Calibration after CLI push failed:", err);
+					debugError("[Moyin] Calibration after CLI push failed:", err);
 					useMoyinStore.setState({
 						parseStatus: "error",
 						parseError: String(err),
 					});
 				});
 		});
+		parsedListenerRegistered = true;
 	} catch {
-		// Platform not initialized yet — listener will be skipped.
-		// This is expected in test environments.
+		// Platform not initialized yet — will retry on next call.
 	}
 }

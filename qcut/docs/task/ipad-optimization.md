@@ -164,7 +164,7 @@ Make QCut fully usable on iPad via Safari/WebKit with touch-first interactions, 
 
 ## Dependency Order
 
-```
+```text
 4.1 (Pointer Events) ──┬──→ 4.3 (Pinch Zoom)
                         ├──→ 4.4 (Touch Drag)
                         └──→ 4.2 (Hit Areas)

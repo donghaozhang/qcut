@@ -491,11 +491,17 @@ describe("uploadImageForSeeddream45Edit", () => {
 		uploadImageForSeeddream45Edit = aiVideoClient.uploadImageForSeeddream45Edit;
 	});
 
-	afterEach(() => {
+	const resetPlatformToWeb = async () => {
+		const { initPlatform } = await import("@qcut/platform-core");
+		const { createWebAdapter } = await import("@qcut/platform-web");
+		initPlatform(createWebAdapter());
+	};
+
+	afterEach(async () => {
 		vi.clearAllMocks();
 		vi.restoreAllMocks();
 		// Restore web adapter as default for this file
-		initPlatform(createWebAdapter());
+		await resetPlatformToWeb();
 	});
 
 	it("should throw error when API key is not configured", async () => {
@@ -516,7 +522,7 @@ describe("uploadImageForSeeddream45Edit", () => {
 
 	it("should throw error when Electron API is not available", async () => {
 		// Web adapter's fal namespace returns graceful null instead of throwing
-		initPlatform(createWebAdapter());
+		await resetPlatformToWeb();
 
 		const mockFile = createMockFile("test", "test.png", "image/png");
 

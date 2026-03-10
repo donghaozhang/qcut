@@ -214,14 +214,25 @@ export interface PlatformAIPipelineAPI {
 // ---------------------------------------------------------------------------
 
 export interface PlatformMediaImportAPI {
-	import(options: {
-		sourcePath?: string;
-		projectId: string;
-		filePaths?: string[];
-		mediaId?: string;
-		preferSymlink?: boolean;
-		useSymlinks?: boolean;
-	}): Promise<{
+	import(
+		options:
+			| {
+					sourcePath: string;
+					projectId: string;
+					filePaths?: string[];
+					mediaId?: string;
+					preferSymlink?: boolean;
+					useSymlinks?: boolean;
+			  }
+			| {
+					sourcePath?: string;
+					projectId: string;
+					filePaths: string[];
+					mediaId?: string;
+					preferSymlink?: boolean;
+					useSymlinks?: boolean;
+			  }
+	): Promise<{
 		success?: boolean;
 		imported?: Array<{ id: string; path: string }>;
 		targetPath?: string;
@@ -442,6 +453,7 @@ export interface PlatformRemotionAPI {
 	}): Promise<{
 		success: boolean;
 		frames: Record<string, string>;
+		sessionId?: string;
 		error?: string;
 	}>;
 	onPreRenderProgress(

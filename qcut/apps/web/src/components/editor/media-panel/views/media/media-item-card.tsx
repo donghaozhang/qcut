@@ -228,13 +228,13 @@ export const MediaItemCard = React.memo(function MediaItemCard({
 				{/* Open in Explorer (Electron only) */}
 				{item.localPath && (
 					<ContextMenuItem
-						onClick={(e) => {
+						onClick={async (e) => {
 							e.stopPropagation();
 							const localPath = item.localPath;
 							if (!localPath) return;
 							if (platform().shell?.showItemInFolder) {
 								try {
-									platform().shell.showItemInFolder(localPath);
+									await platform().shell.showItemInFolder(localPath);
 								} catch (error) {
 									debugError("[Media View] Open in Explorer failed:", error);
 									toast.error("Failed to open in Explorer");

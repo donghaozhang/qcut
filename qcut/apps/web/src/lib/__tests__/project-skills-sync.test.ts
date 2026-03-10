@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { syncProjectSkillsForClaude } from "../claude-bridge/project-skills-sync";
 import { initPlatform } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
 import type { PlatformAPI } from "@qcut/platform-core";
 
 let originalPlatform: PlatformAPI | undefined;
@@ -10,6 +11,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+	initPlatform(createWebAdapter());
 	vi.restoreAllMocks();
 });
 
