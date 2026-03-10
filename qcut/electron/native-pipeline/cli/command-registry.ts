@@ -77,6 +77,7 @@ export const CATEGORIES: CategoryDef[] = [
 			"upscale-image",
 			"transfer-motion",
 			"generate-remotion",
+			"translate-video",
 		],
 	},
 	{
@@ -472,6 +473,37 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline autoclip -i video.mp4 -s subs.srt",
 			"qcut-pipeline autoclip -i video.mp4 --min-score 0.8 --dry-run",
 			"qcut-pipeline autoclip -i video.mp4 --step 1 -s subs.srt",
+		],
+	},
+
+	// ── Translate ──
+	"translate-video": {
+		name: "translate-video",
+		description:
+			"Translate a video into another language using HeyGen Translate (Speed) via FAL",
+		category: "generation",
+		flags: [
+			f("--input", "string", "Input video file path or URL", {
+				short: "-i",
+				required: true,
+			}),
+			f("--language", "string", "Target language (e.g. Spanish, Chinese)", {
+				short: "-l",
+				required: true,
+			}),
+			f("--output", "string", "Output directory", { short: "-o" }),
+			f("--audio-only", "boolean", "Translate audio only (keep original video)", {
+				default: false,
+			}),
+			f("--no-dynamic-duration", "boolean", "Disable dynamic duration adjustment", {
+				default: false,
+			}),
+			f("--speakers", "number", "Number of speakers in the video"),
+		],
+		examples: [
+			'qcut-pipeline translate-video -i video.mp4 -l Spanish',
+			'qcut-pipeline translate-video -i video.mp4 -l Chinese --audio-only',
+			'qcut-pipeline translate-video -i "https://example.com/video.mp4" -l Japanese --speakers 2',
 		],
 	},
 

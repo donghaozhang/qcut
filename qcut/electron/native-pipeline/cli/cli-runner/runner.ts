@@ -44,6 +44,7 @@ import {
 	handleVimaxNovel2Movie,
 } from "../vimax-cli-handlers.js";
 import { handleYouTubeUpload } from "../cli-handlers-youtube.js";
+import { handleTranslateVideo } from "../cli-handlers-translate.js";
 import {
 	runAutoclip,
 	parseAutoclipOptions,
@@ -208,6 +209,8 @@ export class CLIPipelineRunner {
 				});
 			case "pipeline:status":
 				return handlePipelineStatus(options);
+			case "translate-video":
+				return handleTranslateVideo(options, onProgress, this.signal);
 			case "youtube:upload":
 				return handleYouTubeUpload(options, onProgress);
 			case "autoclip":
