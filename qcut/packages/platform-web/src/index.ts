@@ -254,8 +254,9 @@ function createUnsupportedNamespace<T extends object>(
 	return new Proxy({} as T, {
 		get(_, prop) {
 			if (typeof prop === "string") {
-				return (..._args: unknown[]) =>
-					Promise.reject(new PlatformUnsupportedError(cap, "web"));
+				return () => {
+					throw new PlatformUnsupportedError(cap, "web");
+				};
 			}
 			return undefined;
 		},

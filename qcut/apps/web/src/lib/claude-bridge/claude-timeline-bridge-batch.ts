@@ -30,20 +30,23 @@ export function setupBatchHandlers({
 		typeof claudeAPI.sendBatchAddElementsResponse === "function"
 	) {
 		claudeAPI.onBatchAddElements(async (data: any) => {
+			const elements: any[] = Array.isArray(data?.elements)
+				? data.elements
+				: [];
 			const defaultErrorResponse: ClaudeBatchAddResponse = {
 				added: [],
-				failedCount: data.elements.length,
+				failedCount: elements.length,
 			};
 			try {
-				if (data.elements.length > MAX_TIMELINE_BATCH_ITEMS) {
+				if (elements.length > MAX_TIMELINE_BATCH_ITEMS) {
 					const message = `Batch add limit is ${MAX_TIMELINE_BATCH_ITEMS} elements`;
 					const failedResponse: ClaudeBatchAddResponse = {
-						added: data.elements.map((_: any, index: number) => ({
+						added: elements.map((_: any, index: number) => ({
 							index,
 							success: false,
 							error: message,
 						})),
-						failedCount: data.elements.length,
+						failedCount: elements.length,
 					};
 					claudeAPI.sendBatchAddElementsResponse(
 						data.requestId,
@@ -52,56 +55,12 @@ export function setupBatchHandlers({
 					return;
 				}
 
-				if (data.elements.length === 0) {
+				if (elements.length === 0) {
 					claudeAPI.sendBatchAddElementsResponse(data.requestId, {
 						added: [],
 						failedCount: 0,
 					});
 					return;
-				}
-
-				const timelineStore = useTimelineStore.getState();
-				const tracksById = new Map(
-					timelineStore.tracks.map((track) => [track.id, track])
-				);
-
-				for (const element of data.elements) {
-					const normalizedType = sharedUtils.normalizeClaudeElementType({
-						type: element.type,
-					});
-					if (!normalizedType) {
-						throw new Error(`Unsupported element type: ${element.type}`);
-					}
-
-					const track = tracksById.get(element.trackId);
-					if (!track) {
-						throw new Error(`Track not found: ${element.trackId}`);
-					}
-
-					if (
-						typeof element.startTime !== "number" ||
-						Number.isNaN(element.startTime) ||
-						element.startTime < 0
-					) {
-						throw new Error("Element startTime must be a non-negative number");
-					}
-					if (
-						typeof element.duration !== "number" ||
-						Number.isNaN(element.duration) ||
-						element.duration <= 0
-					) {
-						throw new Error("Element duration must be greater than 0");
-					}
-
-					const compatibility = validateElementTrackCompatibility(
-						{ type: normalizedType },
-						{ type: track.type }
-					);
-					if (!compatibility.isValid) {
-						throw new Error(
-							compatibility.errorMessage || "Track compatibility failed"
-						);
-					}
 				}
 
 				// Sync media from disk so newly-imported files are discoverable
@@ -110,18 +69,55 @@ export function setupBatchHandlers({
 					await syncProjectMediaIfNeeded({ projectId });
 				}
 
+				const timelineStore = useTimelineStore.getState();
+				const tracksById = new Map(
+					timelineStore.tracks.map((track) => [track.id, track])
+				);
+
 				timelineStore.pushHistory();
 
 				const added: ClaudeBatchAddResponse["added"] = [];
 				let failedCount = 0;
 
-				for (const [index, element] of data.elements.entries()) {
+				for (const [index, element] of elements.entries()) {
 					try {
 						const normalizedType = sharedUtils.normalizeClaudeElementType({
 							type: element.type,
 						});
 						if (!normalizedType) {
 							throw new Error(`Unsupported element type: ${element.type}`);
+						}
+
+						const track = tracksById.get(element.trackId);
+						if (!track) {
+							throw new Error(`Track not found: ${element.trackId}`);
+						}
+
+						if (
+							typeof element.startTime !== "number" ||
+							Number.isNaN(element.startTime) ||
+							element.startTime < 0
+						) {
+							throw new Error(
+								"Element startTime must be a non-negative number"
+							);
+						}
+						if (
+							typeof element.duration !== "number" ||
+							Number.isNaN(element.duration) ||
+							element.duration <= 0
+						) {
+							throw new Error("Element duration must be greater than 0");
+						}
+
+						const compatibility = validateElementTrackCompatibility(
+							{ type: normalizedType },
+							{ type: track.type }
+						);
+						if (!compatibility.isValid) {
+							throw new Error(
+								compatibility.errorMessage || "Track compatibility failed"
+							);
 						}
 
 						let createdElementId: string | null = null;
@@ -294,7 +290,7 @@ export function setupBatchHandlers({
 					error instanceof Error ? error.message : "Batch add failed";
 				claudeAPI.sendBatchAddElementsResponse(data.requestId, {
 					...defaultErrorResponse,
-					added: data.elements.map((_: any, index: number) => ({
+					added: elements.map((_: any, index: number) => ({
 						index,
 						success: false,
 						error: errorMessage,
@@ -309,13 +305,14 @@ export function setupBatchHandlers({
 		typeof claudeAPI.sendBatchUpdateElementsResponse === "function"
 	) {
 		claudeAPI.onBatchUpdateElements((data: any) => {
+			const updates: any[] = Array.isArray(data?.updates) ? data.updates : [];
 			try {
-				if (data.updates.length > MAX_TIMELINE_BATCH_ITEMS) {
+				if (updates.length > MAX_TIMELINE_BATCH_ITEMS) {
 					const limitMessage = `Batch update limit is ${MAX_TIMELINE_BATCH_ITEMS} items`;
 					const failedResponse: ClaudeBatchUpdateResponse = {
 						updatedCount: 0,
-						failedCount: data.updates.length,
-						results: data.updates.map((_: any, index: number) => ({
+						failedCount: updates.length,
+						results: updates.map((_: any, index: number) => ({
 							index,
 							success: false,
 							error: limitMessage,
@@ -328,7 +325,7 @@ export function setupBatchHandlers({
 					return;
 				}
 
-				if (data.updates.length === 0) {
+				if (updates.length === 0) {
 					claudeAPI.sendBatchUpdateElementsResponse(data.requestId, {
 						updatedCount: 0,
 						failedCount: 0,
@@ -343,7 +340,7 @@ export function setupBatchHandlers({
 				let updatedCount = 0;
 				let failedCount = 0;
 
-				for (const [index, update] of data.updates.entries()) {
+				for (const [index, update] of updates.entries()) {
 					const success = applyElementChanges({
 						elementId: update.elementId,
 						changes: update,
@@ -377,8 +374,8 @@ export function setupBatchHandlers({
 					error instanceof Error ? error.message : "Batch update failed";
 				claudeAPI.sendBatchUpdateElementsResponse(data.requestId, {
 					updatedCount: 0,
-					failedCount: data.updates.length,
-					results: data.updates.map((_: any, index: number) => ({
+					failedCount: updates.length,
+					results: updates.map((_: any, index: number) => ({
 						index,
 						success: false,
 						error: errorMessage,
@@ -393,13 +390,16 @@ export function setupBatchHandlers({
 		typeof claudeAPI.sendBatchDeleteElementsResponse === "function"
 	) {
 		claudeAPI.onBatchDeleteElements((data: any) => {
+			const elements: any[] = Array.isArray(data?.elements)
+				? data.elements
+				: [];
 			try {
-				if (data.elements.length > MAX_TIMELINE_BATCH_ITEMS) {
+				if (elements.length > MAX_TIMELINE_BATCH_ITEMS) {
 					const limitMessage = `Batch delete limit is ${MAX_TIMELINE_BATCH_ITEMS} items`;
 					const failedResponse: ClaudeBatchDeleteResponse = {
 						deletedCount: 0,
-						failedCount: data.elements.length,
-						results: data.elements.map((_: any, index: number) => ({
+						failedCount: elements.length,
+						results: elements.map((_: any, index: number) => ({
 							index,
 							success: false,
 							error: limitMessage,
@@ -412,7 +412,7 @@ export function setupBatchHandlers({
 					return;
 				}
 
-				if (data.elements.length === 0) {
+				if (elements.length === 0) {
 					claudeAPI.sendBatchDeleteElementsResponse(data.requestId, {
 						deletedCount: 0,
 						failedCount: 0,
@@ -428,7 +428,7 @@ export function setupBatchHandlers({
 				let failedCount = 0;
 				const results: ClaudeBatchDeleteResponse["results"] = [];
 
-				for (const [index, entry] of data.elements.entries()) {
+				for (const [index, entry] of elements.entries()) {
 					try {
 						const currentTrack = useTimelineStore
 							.getState()
@@ -481,8 +481,8 @@ export function setupBatchHandlers({
 					error instanceof Error ? error.message : "Batch delete failed";
 				claudeAPI.sendBatchDeleteElementsResponse(data.requestId, {
 					deletedCount: 0,
-					failedCount: data.elements.length,
-					results: data.elements.map((_: any, index: number) => ({
+					failedCount: elements.length,
+					results: elements.map((_: any, index: number) => ({
 						index,
 						success: false,
 						error: errorMessage,

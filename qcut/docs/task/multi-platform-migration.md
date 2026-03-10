@@ -175,6 +175,7 @@ Browser-safe implementations for cross-platform capabilities, `PlatformUnsupport
 - `packages/platform-web/src/index.ts` — `createWebAdapter()` function
 
 **Implemented capabilities:**
+
 | Capability | Web Implementation |
 |---|---|
 | Storage | `localStorage` with `qcut:` prefix, JSON serialization |

@@ -147,7 +147,13 @@ export type ClaudeTimelineBridgeSharedUtils = {
  * Call this once during app initialization
  */
 export function setupClaudeTimelineBridge(): void {
-	const claude = platform().claude;
+	let claude;
+	try {
+		claude = platform().claude;
+	} catch {
+		debugWarn("[ClaudeTimelineBridge] Platform not initialized yet");
+		return;
+	}
 	if (!claude?.timeline) {
 		debugWarn("[ClaudeTimelineBridge] Claude Timeline API not available");
 		return;
@@ -673,7 +679,13 @@ export function cleanupClaudeTimelineBridge(): void {
  * Setup Claude Project Bridge (for stats requests)
  */
 export function setupClaudeProjectBridge(): void {
-	const claude = platform().claude;
+	let claude;
+	try {
+		claude = platform().claude;
+	} catch {
+		debugWarn("[ClaudeProjectBridge] Platform not initialized yet");
+		return;
+	}
 	if (!claude?.project) {
 		return;
 	}

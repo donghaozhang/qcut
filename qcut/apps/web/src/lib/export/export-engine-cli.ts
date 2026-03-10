@@ -553,7 +553,10 @@ export class CLIExportEngine extends ExportEngine {
 
 	private async readOutputFile(outputPath: string): Promise<Blob> {
 		const buffer = await platform().ffmpeg.readOutputFile(outputPath);
-		return new Blob([buffer as unknown as ArrayBuffer], { type: "video/mp4" });
+		if (!buffer) {
+			throw new Error(`Failed to read exported file: ${outputPath}`);
+		}
+		return new Blob([buffer], { type: "video/mp4" });
 	}
 
 	calculateTotalFrames(): number {

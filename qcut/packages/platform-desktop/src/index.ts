@@ -169,8 +169,8 @@ const ptyAdapter = {
 };
 
 const mcpAdapter = {
-	onAppHtml: (cb: any) => api().mcp.onAppHtml(cb),
-	removeListeners: () => api().mcp.removeListeners(),
+	onAppHtml: (cb: any) => api().mcp?.onAppHtml(cb),
+	removeListeners: () => api().mcp?.removeListeners(),
 };
 
 const skillsAdapter = {
