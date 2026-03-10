@@ -42,7 +42,7 @@ import {
 } from "@qcut/platform-core";
 
 /** Get the electronAPI from window, throwing if unavailable. */
-function api() {
+function api(): any {
 	if (!window.electronAPI) {
 		throw new Error("window.electronAPI is not available");
 	}
@@ -56,157 +56,157 @@ function api() {
 const filesAdapter = {
 	openFileDialog: () => api().openFileDialog(),
 	openMultipleFilesDialog: () => api().openMultipleFilesDialog(),
-	saveFileDialog: (name?, filters?) => api().saveFileDialog(name, filters),
-	readFile: (p) => api().readFile(p),
-	writeFile: (p, d) => api().writeFile(p, d),
-	saveBlob: (d, name?) => api().saveBlob(d, name),
-	getFileInfo: (p) => api().getFileInfo(p),
+	saveFileDialog: (name?: any, filters?: any) => api().saveFileDialog(name, filters),
+	readFile: (p: any) => api().readFile(p),
+	writeFile: (p: any, d: any) => api().writeFile(p, d),
+	saveBlob: (d: any, name?: any) => api().saveBlob(d, name),
+	getFileInfo: (p: any) => api().getFileInfo(p),
 };
 
 const storageAdapter = {
-	save: (k, d) => api().storage.save(k, d),
-	load: (k) => api().storage.load(k),
-	remove: (k) => api().storage.remove(k),
+	save: (k: any, d: any) => api().storage.save(k, d),
+	load: (k: any) => api().storage.load(k),
+	remove: (k: any) => api().storage.remove(k),
 	list: () => api().storage.list(),
 	clear: () => api().storage.clear(),
 };
 
 const themeAdapter = {
 	get: () => api().theme.get(),
-	set: (t) => api().theme.set(t),
+	set: (t: any) => api().theme.set(t),
 	toggle: () => api().theme.toggle(),
 	isDark: () => api().theme.isDark(),
 };
 
 const shellAdapter = {
-	showItemInFolder: (p) => api().shell.showItemInFolder(p),
-	openExternal: (u) => api().shell.openExternal(u),
+	showItemInFolder: (p: any) => api().shell.showItemInFolder(p),
+	openExternal: (u: any) => api().shell.openExternal(u),
 };
 
 const apiKeysAdapter = {
 	get: () => api().apiKeys.get(),
-	set: (k) => api().apiKeys.set(k),
+	set: (k: any) => api().apiKeys.set(k),
 	clear: () => api().apiKeys.clear(),
 	status: () => api().apiKeys.status(),
 };
 
 const licenseAdapter = {
 	check: () => api().license.check(),
-	activate: (t) => api().license.activate(t),
+	activate: (t: any) => api().license.activate(t),
 	deactivate: () => api().license.deactivate(),
-	trackUsage: (t) => api().license.trackUsage(t),
-	deductCredits: (a, m, d) => api().license.deductCredits(a, m, d),
-	setAuthToken: (t) => api().license.setAuthToken(t),
+	trackUsage: (t: any) => api().license.trackUsage(t),
+	deductCredits: (a: any, m: any, d: any) => api().license.deductCredits(a, m, d),
+	setAuthToken: (t: any) => api().license.setAuthToken(t),
 	clearAuthToken: () => api().license.clearAuthToken(),
-	emailLogin: (e, p) => api().license.emailLogin(e, p),
-	emailSignup: (n, e, p) => api().license.emailSignup(n, e, p),
+	emailLogin: (e: any, p: any) => api().license.emailLogin(e, p),
+	emailSignup: (n: any, e: any, p: any) => api().license.emailSignup(n, e, p),
 	getGoogleLoginUrl: () => api().license.getGoogleLoginUrl(),
-	onActivationToken: (cb) => api().license.onActivationToken?.(cb),
+	onActivationToken: (cb: any) => api().license.onActivationToken?.(cb),
 };
 
 const soundsAdapter = {
-	search: (p) => api().sounds.search(p),
-	downloadPreview: (p) => api().sounds.downloadPreview(p),
+	search: (p: any) => api().sounds.search(p),
+	downloadPreview: (p: any) => api().sounds.downloadPreview(p),
 };
 
 const audioAdapter = {
-	saveTemp: (d, f) => api().audio.saveTemp(d, f),
+	saveTemp: (d: any, f: any) => api().audio.saveTemp(d, f),
 };
 
 const videoAdapter = {
-	saveTemp: (d, f, s?) => api().video.saveTemp(d, f, s),
-	saveToDisk: (o) => api().video.saveToDisk(o),
-	verifyFile: (p) => api().video.verifyFile(p),
-	deleteFile: (p) => api().video.deleteFile(p),
-	getProjectDir: (id) => api().video.getProjectDir(id),
+	saveTemp: (d: any, f: any, s?: any) => api().video.saveTemp(d, f, s),
+	saveToDisk: (o: any) => api().video.saveToDisk(o),
+	verifyFile: (p: any) => api().video.verifyFile(p),
+	deleteFile: (p: any) => api().video!.deleteFile(p),
+	getProjectDir: (id: any) => api().video!.getProjectDir(id),
 };
 
 const screenshotAdapter = {
-	capture: (o?) => api().screenshot.capture(o),
+	capture: (o?: any) => api().screenshot!.capture(o),
 };
 
 const screenRecordingAdapter = {
-	getSources: () => api().screenRecording.getSources(),
-	start: (o?) => api().screenRecording.start(o),
-	appendChunk: (o) => api().screenRecording.appendChunk(o),
-	stop: (o?) => api().screenRecording.stop(o),
-	getStatus: () => api().screenRecording.getStatus(),
+	getSources: () => api().screenRecording!.getSources(),
+	start: (o?: any) => api().screenRecording!.start(o),
+	appendChunk: (o: any) => api().screenRecording!.appendChunk(o),
+	stop: (o?: any) => api().screenRecording!.stop(o),
+	getStatus: () => api().screenRecording!.getStatus(),
 };
 
 const ffmpegAdapter = {
 	createExportSession: () => api().ffmpeg.createExportSession(),
-	saveFrame: (d) => api().ffmpeg.saveFrame(d),
-	exportVideoCLI: (o) => api().ffmpeg.exportVideoCLI(o),
-	readOutputFile: (p) => api().ffmpeg.readOutputFile(p),
-	cleanupExportSession: (id) => api().ffmpeg.cleanupExportSession(id),
-	openFramesFolder: (id) => api().ffmpeg.openFramesFolder(id),
-	extractAudio: (o) => api().ffmpeg.extractAudio(o),
-	saveStickerForExport: (d) => api().ffmpeg.saveStickerForExport(d),
-	processFrame: (o) => api().ffmpeg.processFrame(o),
-	validateFilterChain: (f) => api().ffmpeg.validateFilterChain(f),
-	getFFmpegResourcePath: (f) => api().ffmpeg.getFFmpegResourcePath(f),
-	checkFFmpegResource: (f) => api().ffmpeg.checkFFmpegResource(f),
+	saveFrame: (d: any) => api().ffmpeg.saveFrame(d),
+	exportVideoCLI: (o: any) => api().ffmpeg.exportVideoCLI(o),
+	readOutputFile: (p: any) => api().ffmpeg.readOutputFile(p),
+	cleanupExportSession: (id: any) => api().ffmpeg.cleanupExportSession(id),
+	openFramesFolder: (id: any) => (api().ffmpeg as any).openFramesFolder(id),
+	extractAudio: (o: any) => api().ffmpeg.extractAudio(o),
+	saveStickerForExport: (d: any) => api().ffmpeg.saveStickerForExport(d),
+	processFrame: (o: any) => api().ffmpeg.processFrame(o),
+	validateFilterChain: (f: any) => api().ffmpeg.validateFilterChain(f),
+	getFFmpegResourcePath: (f: any) => (api().ffmpeg as any).getFFmpegResourcePath(f),
+	checkFFmpegResource: (f: any) => (api().ffmpeg as any).checkFFmpegResource(f),
 	getPath: () => api().ffmpeg.getPath(),
 	checkHealth: () => api().ffmpeg.checkHealth(),
 };
 
 const transcriptionAdapter = {
-	transcribe: (r) => api().transcribe.transcribe(r),
-	cancel: (id) => api().transcribe.cancel(id),
-	elevenlabs: (o) => api().transcribe.elevenlabs(o),
-	uploadToFal: (p) => api().transcribe.uploadToFal(p),
+	transcribe: (r: any) => api().transcribe.transcribe(r),
+	cancel: (id: any) => api().transcribe.cancel(id),
+	elevenlabs: (o: any) => api().transcribe.elevenlabs(o),
+	uploadToFal: (p: any) => api().transcribe.uploadToFal(p),
 };
 
 const falAdapter = {
-	uploadVideo: (d, f, k) => api().fal.uploadVideo(d, f, k),
-	uploadImage: (d, f, k) => api().fal.uploadImage(d, f, k),
-	uploadAudio: (d, f, k) => api().fal.uploadAudio(d, f, k),
-	queueFetch: (u, k) => api().fal.queueFetch(u, k),
+	uploadVideo: (d: any, f: any, k: any) => api().fal.uploadVideo(d, f, k),
+	uploadImage: (d: any, f: any, k: any) => api().fal.uploadImage(d, f, k),
+	uploadAudio: (d: any, f: any, k: any) => api().fal.uploadAudio(d, f, k),
+	queueFetch: (u: any, k: any) => api().fal.queueFetch(u, k),
 };
 
 const geminiChatAdapter = {
-	send: (r) => api().geminiChat.send(r),
-	onStreamChunk: (cb) => api().geminiChat.onStreamChunk(cb),
-	onStreamComplete: (cb) => api().geminiChat.onStreamComplete(cb),
-	onStreamError: (cb) => api().geminiChat.onStreamError(cb),
-	removeListeners: () => api().geminiChat.removeListeners(),
+	send: (r: any) => api().geminiChat!.send(r),
+	onStreamChunk: (cb: any) => api().geminiChat!.onStreamChunk(cb),
+	onStreamComplete: (cb: any) => api().geminiChat!.onStreamComplete(cb),
+	onStreamError: (cb: any) => api().geminiChat!.onStreamError(cb),
+	removeListeners: () => api().geminiChat!.removeListeners(),
 };
 
 const githubAdapter = {
-	fetchStars: () => api().github.fetchStars(),
+	fetchStars: () => api().github!.fetchStars(),
 };
 
 const youtubeAdapter = {
-	upload: (o) => api().youtube.upload(o),
-	checkAuth: () => api().youtube.checkAuth(),
-	onUploadProgress: (cb) => api().youtube.onUploadProgress(cb),
+	upload: (o: any) => api().youtube!.upload(o),
+	checkAuth: () => api().youtube!.checkAuth(),
+	onUploadProgress: (cb: any) => api().youtube!.onUploadProgress(cb),
 };
 
 const ptyAdapter = {
-	spawn: (o?) => api().pty.spawn(o),
-	write: (id, d) => api().pty.write(id, d),
-	resize: (id, c, r) => api().pty.resize(id, c, r),
-	kill: (id) => api().pty.kill(id),
-	killAll: () => api().pty.killAll(),
-	onData: (cb) => api().pty.onData(cb),
-	onExit: (cb) => api().pty.onExit(cb),
-	removeListeners: () => api().pty.removeListeners(),
+	spawn: (o?: any) => api().pty!.spawn(o),
+	write: (id: any, d: any) => api().pty!.write(id, d),
+	resize: (id: any, c: any, r: any) => api().pty!.resize(id, c, r),
+	kill: (id: any) => api().pty!.kill(id),
+	killAll: () => api().pty!.killAll(),
+	onData: (cb: any) => api().pty!.onData(cb),
+	onExit: (cb: any) => api().pty!.onExit(cb),
+	removeListeners: () => api().pty!.removeListeners(),
 };
 
 const mcpAdapter = {
-	onAppHtml: (cb) => api().mcp?.onAppHtml(cb),
-	removeListeners: () => api().mcp?.removeListeners(),
+	onAppHtml: (cb: any) => api().mcp!.onAppHtml(cb),
+	removeListeners: () => api().mcp!.removeListeners(),
 };
 
 const skillsAdapter = {
-	list: (id) => api().skills!.list(id),
-	import: (id, p) => api().skills!.import(id, p),
-	delete: (id, s) => api().skills!.delete(id, s),
-	getContent: (id, s, f) => api().skills!.getContent(id, s, f),
+	list: (id: any) => api().skills!.list(id),
+	import: (id: any, p: any) => api().skills!.import(id, p),
+	delete: (id: any, s: any) => api().skills!.delete(id, s),
+	getContent: (id: any, s: any, f: any) => api().skills!.getContent(id, s, f),
 	browse: () => api().skills!.browse(),
-	getPath: (id) => api().skills!.getPath(id),
+	getPath: (id: any) => api().skills!.getPath(id),
 	scanGlobal: () => api().skills!.scanGlobal(),
-	syncForClaude: (id) => api().skills!.syncForClaude(id),
+	syncForClaude: (id: any) => api().skills!.syncForClaude(id),
 };
 
 const aiPipelineAdapter = {
@@ -305,7 +305,7 @@ export function createDesktopAdapter(): PlatformAPI {
 		hasCapability: (cap: PlatformCapability) =>
 			isPlatformCapable("desktop", cap),
 		getPathForFile: (file: File) => api().getPathForFile(file),
-		analyzeFillers: (o) => api().analyzeFillers(o),
+		analyzeFillers: (o: any) => api().analyzeFillers(o),
 
 		files: filesAdapter,
 		storage: storageAdapter,
