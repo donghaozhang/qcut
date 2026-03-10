@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
+import { initPlatform } from "@qcut/platform-core";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
 import {
 	useGeminiTerminalStore,
 	type AttachedFile,
@@ -12,6 +14,7 @@ describe("useGeminiTerminalStore", () => {
 	beforeEach(() => {
 		// Setup Electron mock
 		cleanupElectron = setupElectronMock();
+		initPlatform(createDesktopAdapter());
 
 		// Reset store state
 		useGeminiTerminalStore.setState({
@@ -489,6 +492,7 @@ describe("useGeminiTerminalStore - API unavailable", () => {
 
 	beforeEach(() => {
 		cleanupElectron = setupElectronMock();
+		initPlatform(createDesktopAdapter());
 		// Remove Gemini API
 		if (window.electronAPI) {
 			window.electronAPI.geminiChat = undefined;

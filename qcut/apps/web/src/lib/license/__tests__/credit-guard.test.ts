@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
+import { createWebAdapter } from "@qcut/platform-web";
 
 const {
 	mockGetFalApiKeyAsync,
@@ -52,6 +55,7 @@ describe("credit-guard", () => {
 		vi.clearAllMocks();
 		mockStoreState.license = { plan: "free" };
 		(window as any).electronAPI = { license: {} };
+		initPlatform(createDesktopAdapter());
 		mockGetFalApiKeyAsync.mockResolvedValue(undefined);
 		mockEstimateCreditCost.mockReturnValue(3.7);
 		mockHasCredits.mockReturnValue(true);
@@ -60,6 +64,7 @@ describe("credit-guard", () => {
 
 	it("allows when electron license API is unavailable", async () => {
 		(window as any).electronAPI = undefined;
+		initPlatform(createWebAdapter());
 
 		const result = await enforceCreditRequirement({
 			modelId: "wan_26_t2v",

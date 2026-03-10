@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
 import type {
 	AvatarSettings,
 	ImageToVideoSettings,
@@ -47,6 +49,10 @@ function createContext({ modelId }: { modelId: string }): ModelHandlerContext {
 		progressCallback: vi.fn(),
 	};
 }
+
+beforeAll(() => {
+	initPlatform(createWebAdapter());
+});
 
 describe("model handler routing regression", () => {
 	beforeEach(() => {

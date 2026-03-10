@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
 import { cleanupPtyOnEditorExit } from "@/lib/debug/pty-session-cleanup";
 
 describe("cleanupPtyOnEditorExit", () => {
@@ -17,6 +19,7 @@ describe("cleanupPtyOnEditorExit", () => {
 				},
 			},
 		});
+		initPlatform(createDesktopAdapter());
 	});
 
 	it("calls killAll to clean up PTY sessions", async () => {

@@ -1,7 +1,13 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, beforeAll, vi } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
 import { useProjectStore } from "@/stores/project-store";
 import { TestDataFactory } from "@/test/fixtures/factory";
 import { waitFor } from "@testing-library/react";
+
+beforeAll(() => {
+	initPlatform(createWebAdapter());
+});
 
 // Mock the media store loader to prevent dynamic import issues
 vi.mock("@/stores/media/media-store-loader", () => ({

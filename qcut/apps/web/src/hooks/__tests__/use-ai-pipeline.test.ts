@@ -5,6 +5,8 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
+import { initPlatform } from "@qcut/platform-core";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
 import { useAIPipeline } from "../use-ai-pipeline";
 import type {
 	AIPipelineProgress,
@@ -63,6 +65,7 @@ describe("useAIPipeline", () => {
 		mockElectronAPI = createMockElectronAPI();
 		(window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI =
 			mockElectronAPI;
+		initPlatform(createDesktopAdapter());
 	});
 
 	afterEach(() => {

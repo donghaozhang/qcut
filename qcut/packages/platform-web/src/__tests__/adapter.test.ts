@@ -113,32 +113,30 @@ describe("createWebAdapter", () => {
 	});
 
 	describe("desktop-only stubs", () => {
-		it("pty.spawn rejects with PlatformUnsupportedError", async () => {
-			await expect(adapter.pty.spawn()).rejects.toThrow(
+		it("pty.spawn throws PlatformUnsupportedError", () => {
+			expect(() => adapter.pty.spawn()).toThrow(PlatformUnsupportedError);
+		});
+
+		it("skills.list throws PlatformUnsupportedError", () => {
+			expect(() => adapter.skills.list("proj")).toThrow(
 				PlatformUnsupportedError
 			);
 		});
 
-		it("skills.list rejects with PlatformUnsupportedError", async () => {
-			await expect(adapter.skills.list("proj")).rejects.toThrow(
+		it("updates.checkForUpdates throws PlatformUnsupportedError", () => {
+			expect(() => adapter.updates.checkForUpdates()).toThrow(
 				PlatformUnsupportedError
 			);
 		});
 
-		it("updates.checkForUpdates rejects with PlatformUnsupportedError", async () => {
-			await expect(adapter.updates.checkForUpdates()).rejects.toThrow(
+		it("moyin.parseScript throws PlatformUnsupportedError", () => {
+			expect(() => adapter.moyin.parseScript({})).toThrow(
 				PlatformUnsupportedError
 			);
 		});
 
-		it("moyin.parseScript rejects with PlatformUnsupportedError", async () => {
-			await expect(adapter.moyin.parseScript({})).rejects.toThrow(
-				PlatformUnsupportedError
-			);
-		});
-
-		it("remotionFolder.select rejects with PlatformUnsupportedError", async () => {
-			await expect(adapter.remotionFolder.select()).rejects.toThrow(
+		it("remotionFolder.select throws PlatformUnsupportedError", () => {
+			expect(() => adapter.remotionFolder.select()).toThrow(
 				PlatformUnsupportedError
 			);
 		});

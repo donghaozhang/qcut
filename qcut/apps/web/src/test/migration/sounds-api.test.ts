@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
 import { searchSounds } from "@/lib/api-adapter";
 import { setRuntimeFlags, isFeatureEnabled } from "@/lib/feature-flags";
 
@@ -43,6 +45,8 @@ Object.defineProperty(global, "window", {
 	},
 	writable: true,
 });
+
+initPlatform(createDesktopAdapter());
 
 describe("Sounds API Migration", () => {
 	beforeEach(() => {

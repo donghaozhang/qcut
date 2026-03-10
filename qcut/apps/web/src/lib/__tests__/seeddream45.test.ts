@@ -1,4 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
+
+beforeAll(() => {
+	initPlatform(createWebAdapter());
+});
 
 const originalFetch = globalThis.fetch;
 

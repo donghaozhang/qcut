@@ -1,4 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
 import {
 	validateViduQ3Prompt,
 	validateViduQ3Duration,
@@ -12,6 +14,10 @@ import {
 	VIDU_Q3_MAX_DURATION,
 	VIDU_Q3_DEFAULT_DURATION,
 } from "@/lib/ai-video";
+
+beforeAll(() => {
+	initPlatform(createWebAdapter());
+});
 
 const originalFetch = globalThis.fetch;
 const originalFalApiKey = (import.meta.env as Record<string, unknown>)

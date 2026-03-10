@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import { initPlatform } from "@qcut/platform-core";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
 
 const mockNavigate = vi.fn();
 const mockCheckLicense = vi.fn<() => Promise<void>>();
@@ -32,6 +34,7 @@ describe("useLogin", () => {
 			license: mockLicenseApi,
 			shell: { openExternal: vi.fn().mockResolvedValue(undefined) },
 		};
+		initPlatform(createDesktopAdapter());
 		mockCheckLicense.mockResolvedValue(undefined);
 	});
 

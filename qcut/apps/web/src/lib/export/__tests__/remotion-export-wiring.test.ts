@@ -3,7 +3,9 @@
 // Tests for Remotion export engine wiring (Task 1 of remotion-first-class-timeline-plan.md)
 // Validates: requiresRemotionExport(), factory recommendation, renderer skip, engine branching
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
 import type {
 	TimelineTrack,
 	RemotionElement,
@@ -129,6 +131,12 @@ const createMediaTrack = (elements: MediaElement[]): TimelineTrack => ({
 	muted: false,
 });
 
+// --- Platform Init ---
+
+beforeAll(() => {
+	initPlatform(createWebAdapter());
+});
+
 // --- Test Suite ---
 
 describe("requiresRemotionExport", () => {
@@ -229,6 +237,7 @@ describe("Export engine factory - remotion auto-selection", () => {
 	beforeEach(() => {
 		// Reset singleton between tests
 		vi.resetModules();
+		initPlatform(createWebAdapter());
 	});
 
 	it("recommends REMOTION engine when tracks have remotion elements", async () => {

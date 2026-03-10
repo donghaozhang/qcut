@@ -7,10 +7,12 @@
  * @module components/editor/media-panel/views/remotion/__tests__/component-browser.test
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
+import { initPlatform } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
 import type { RemotionComponentDefinition } from "@/lib/remotion/types";
 
 // ============================================================================
@@ -114,6 +116,10 @@ vi.mock("@/components/ui/scroll-area", () => ({
 		</div>
 	),
 }));
+
+beforeAll(() => {
+	initPlatform(createWebAdapter());
+});
 
 // ============================================================================
 // Test Data
