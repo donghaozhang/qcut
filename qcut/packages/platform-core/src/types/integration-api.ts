@@ -189,14 +189,17 @@ export interface PlatformAIPipelineAPI {
 	listModels(): Promise<unknown>;
 	estimateCost(options: Record<string, unknown>): Promise<unknown>;
 	cancel(sessionId: string): Promise<boolean>;
-	refresh(): Promise<{
-		available: boolean;
-		version: string | null;
-		source: "native" | "bundled" | "system" | "python" | "unavailable";
-		compatible: boolean;
-		features: Record<string, boolean>;
-		error?: string;
-	} | undefined>;
+	refresh(): Promise<
+		| {
+				available: boolean;
+				version: string | null;
+				source: "native" | "bundled" | "system" | "python" | "unavailable";
+				compatible: boolean;
+				features: Record<string, boolean>;
+				error?: string;
+		  }
+		| undefined
+	>;
 	onProgress(
 		callback: (progress: {
 			stage: string;
