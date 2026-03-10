@@ -11,7 +11,11 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { CLIRunOptions, CLIResult } from "./cli-runner/types.js";
 import { ModelRegistry } from "../infra/registry.js";
-import { callModelApi, uploadToFalStorage } from "../infra/api-caller.js";
+import {
+	callModelApi,
+	uploadToFalStorage,
+	downloadOutput,
+} from "../infra/api-caller.js";
 import { resolveOutputDir } from "../output/output-utils.js";
 
 function isUrl(input: string): boolean {
@@ -146,30 +150,50 @@ export async function handleTranslateVideo(
 		};
 	}
 
-	// Save output info
-	const outputDir = resolveOutputDir(options.outputDir, `translate-${Date.now()}`);
+	// Download translated video to output directory
+	const sessionId = `translate-${Date.now()}`;
+	const outputDir = resolveOutputDir(options.outputDir, sessionId);
 	mkdirSync(outputDir, { recursive: true });
 
 	const inputBasename = basename(videoInput).replace(/\.[^.]+$/, "");
-	const jsonPath = join(
-		outputDir,
-		`${inputBasename}_translated_${language.toLowerCase()}.json`
-	);
+	const videoFilename = `${inputBasename}_translated_${language.toLowerCase()}.mp4`;
+	const videoPath = join(outputDir, videoFilename);
+
+	onProgress({
+		stage: "downloading",
+		percent: 95,
+		message: "Downloading translated video...",
+		model,
+	});
+
+	let downloadedPath: string | undefined;
+	try {
+		downloadedPath = await downloadOutput(outputVideoUrl, videoPath);
+	} catch (err) {
+		console.warn(
+			`[translate] Failed to download video: ${err instanceof Error ? err.message : String(err)}`
+		);
+	}
 
 	const outputData = {
 		source: videoInput,
 		language,
 		video_url: outputVideoUrl,
+		video_path: downloadedPath ?? null,
 		model,
 		audio_only: options.audioOnly || false,
 		duration: (Date.now() - startTime) / 1000,
 	};
 
+	const jsonPath = join(
+		outputDir,
+		`${inputBasename}_translated_${language.toLowerCase()}.json`
+	);
 	writeFileSync(jsonPath, JSON.stringify(outputData, null, 2));
 
 	return {
 		success: true,
-		outputPath: jsonPath,
+		outputPath: downloadedPath ?? jsonPath,
 		data: outputData,
 		duration: (Date.now() - startTime) / 1000,
 	};

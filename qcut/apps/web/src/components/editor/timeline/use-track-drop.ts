@@ -308,33 +308,30 @@ export function useTrackDrop({
 		}
 	};
 
-	const handleTrackDrop = (e: React.DragEvent) => {
-		e.preventDefault();
-		e.stopPropagation();
-
+	/**
+	 * Core drop processing shared by both HTML5 drag-drop and touch-drop paths.
+	 */
+	const processDropAtPosition = (
+		trackContainer: HTMLElement,
+		clientX: number,
+		clientY: number,
+		mediaItemData: string | null,
+		timelineElementData: string | null
+	) => {
 		// Reset all drag states
 		dragCounterRef.current = 0;
 		setIsDropping(false);
 		setWouldOverlap(false);
 		setDropPosition(null);
 
-		const hasTimelineElement = e.dataTransfer.types.includes(
-			"application/x-timeline-element"
-		);
-		const hasMediaItem = e.dataTransfer.types.includes(
-			"application/x-media-item"
-		);
+		const hasTimelineElement = !!timelineElementData;
+		const hasMediaItem = !!mediaItemData;
 
 		if (!hasTimelineElement && !hasMediaItem) return;
 
-		const trackContainer = e.currentTarget.querySelector(
-			".track-elements-container"
-		) as HTMLElement;
-		if (!trackContainer) return;
-
 		const rect = trackContainer.getBoundingClientRect();
-		const mouseX = Math.max(0, e.clientX - rect.left);
-		const mouseY = e.clientY - rect.top; // Get Y position relative to this track
+		const mouseX = Math.max(0, clientX - rect.left);
+		const mouseY = clientY - rect.top;
 		const newStartTime =
 			mouseX / (TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel);
 		const projectStore = useProjectStore.getState();
@@ -357,9 +354,6 @@ export function useTrackDrop({
 		try {
 			if (hasTimelineElement) {
 				// Handle timeline element movement
-				const timelineElementData = e.dataTransfer.getData(
-					"application/x-timeline-element"
-				);
 				if (!timelineElementData) return;
 
 				const {
@@ -450,9 +444,6 @@ export function useTrackDrop({
 				}
 			} else if (hasMediaItem) {
 				// Handle media item drop
-				const mediaItemData = e.dataTransfer.getData(
-					"application/x-media-item"
-				);
 				if (!mediaItemData) return;
 
 				const dragData: DragData = JSON.parse(mediaItemData);
@@ -785,6 +776,44 @@ export function useTrackDrop({
 		}
 	};
 
+	const handleTrackDrop = (e: React.DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+
+		const trackContainer = e.currentTarget.querySelector(
+			".track-elements-container"
+		) as HTMLElement;
+		if (!trackContainer) return;
+
+		const mediaData = e.dataTransfer.types.includes("application/x-media-item")
+			? e.dataTransfer.getData("application/x-media-item")
+			: null;
+		const timelineData = e.dataTransfer.types.includes(
+			"application/x-timeline-element"
+		)
+			? e.dataTransfer.getData("application/x-timeline-element")
+			: null;
+
+		processDropAtPosition(
+			trackContainer,
+			e.clientX,
+			e.clientY,
+			mediaData,
+			timelineData
+		);
+	};
+
+	/** Handle touch-based drop from iOS/iPad pointer events fallback */
+	const handleTouchDrop = (
+		trackContainer: HTMLElement,
+		data: string,
+		clientX: number,
+		clientY: number
+	) => {
+		// Touch drops from media panel always carry media item data
+		processDropAtPosition(trackContainer, clientX, clientY, data, null);
+	};
+
 	return {
 		isDropping,
 		wouldOverlap,
@@ -793,5 +822,6 @@ export function useTrackDrop({
 		handleTrackDragEnter,
 		handleTrackDragLeave,
 		handleTrackDrop,
+		handleTouchDrop,
 	};
 }
