@@ -2,6 +2,7 @@
  * Web (browser) platform adapter — QCut Lite.
  *
  * Implements cross-platform capabilities using browser APIs.
+ * Web-capable APIs not yet fully implemented return graceful defaults.
  * Desktop-only capabilities throw PlatformUnsupportedError.
  *
  * @module @qcut/platform-web
@@ -40,20 +41,57 @@ import {
 	type PlatformMoyinAPI,
 	type PlatformUpdatesAPI,
 	type ThemeSource,
+	type LicenseInfo,
 } from "@qcut/platform-core";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function unsupported(cap: PlatformCapability): never {
-	throw new PlatformUnsupportedError(cap, "web");
-}
-
 const STORAGE_PREFIX = "qcut:";
 
+/**
+ * Desktop-only stub — throws PlatformUnsupportedError on any method call.
+ * Used for features that should never be reached on web (PTY, MCP, etc.).
+ * Calling code must gate on `isElectron` or `hasCapability()`.
+ */
+function createUnsupportedNamespace<T extends object>(
+	cap: PlatformCapability
+): T {
+	return new Proxy({} as T, {
+		get(_, prop) {
+			if (typeof prop === "string") {
+				return () => {
+					throw new PlatformUnsupportedError(cap, "web");
+				};
+			}
+			return undefined;
+		},
+	});
+}
+
+/**
+ * Graceful stub — returns safe defaults instead of throwing.
+ * Used for web-capable APIs not yet fully implemented.
+ * Event listeners (on*, remove*) are no-ops; other methods return null/empty.
+ */
+function createGracefulNamespace<T extends object>(): T {
+	const noop = () => {};
+	return new Proxy({} as T, {
+		get(_, prop) {
+			if (typeof prop === "string") {
+				if (prop.startsWith("on") || prop.startsWith("remove")) {
+					return (..._args: unknown[]) => noop;
+				}
+				return (..._args: unknown[]) => Promise.resolve(null);
+			}
+			return undefined;
+		},
+	});
+}
+
 // ---------------------------------------------------------------------------
-// Storage — IndexedDB with localStorage fallback
+// Storage — localStorage (IndexedDB upgrade deferred)
 // ---------------------------------------------------------------------------
 
 const storageAdapter: PlatformStorageAPI = {
@@ -245,58 +283,144 @@ const apiKeysAdapter: PlatformApiKeysAPI = {
 };
 
 // ---------------------------------------------------------------------------
-// Desktop-only stubs (throw PlatformUnsupportedError)
+// License — Free tier (no server auth on web)
 // ---------------------------------------------------------------------------
 
-function createUnsupportedNamespace<T extends object>(
-	cap: PlatformCapability
-): T {
-	return new Proxy({} as T, {
-		get(_, prop) {
-			if (typeof prop === "string") {
-				return () => {
-					throw new PlatformUnsupportedError(cap, "web");
-				};
-			}
-			return undefined;
-		},
-	});
-}
+const FREE_LICENSE: LicenseInfo = {
+	plan: "free",
+	status: "active",
+	credits: {
+		planCredits: 0,
+		topUpCredits: 0,
+		totalCredits: 0,
+		planCreditsResetAt: "",
+	},
+	user: null,
+};
 
-const licenseStub = createUnsupportedNamespace<PlatformLicenseAPI>(
-	PlatformCapability.License
-);
-const soundsStub = createUnsupportedNamespace<PlatformSoundsAPI>(
-	PlatformCapability.Sounds
-);
-const audioStub = createUnsupportedNamespace<PlatformAudioAPI>(
-	PlatformCapability.AudioTemp
-);
-const videoStub = createUnsupportedNamespace<PlatformVideoAPI>(
-	PlatformCapability.VideoTemp
-);
-const screenshotStub = createUnsupportedNamespace<PlatformScreenshotAPI>(
-	PlatformCapability.Screenshot
-);
-const screenRecordingStub =
-	createUnsupportedNamespace<PlatformScreenRecordingAPI>(
-		PlatformCapability.ScreenRecording
-	);
-const ffmpegStub = createUnsupportedNamespace<PlatformFFmpegAPI>(
-	PlatformCapability.FFmpeg
-);
-const transcriptionStub = createUnsupportedNamespace<PlatformTranscriptionAPI>(
-	PlatformCapability.Transcription
-);
-const falStub = createUnsupportedNamespace<PlatformFalAPI>(
-	PlatformCapability.FalUpload
-);
-const geminiChatStub = createUnsupportedNamespace<PlatformGeminiChatAPI>(
-	PlatformCapability.GeminiChat
-);
-const githubStub = createUnsupportedNamespace<PlatformGitHubAPI>(
-	PlatformCapability.GitHub
-);
+const licenseAdapter: PlatformLicenseAPI = {
+	async check() {
+		return FREE_LICENSE;
+	},
+	async activate() {
+		return false;
+	},
+	async deactivate() {
+		return false;
+	},
+	async trackUsage() {
+		return true;
+	},
+	async deductCredits() {
+		return false;
+	},
+	async setAuthToken() {
+		return false;
+	},
+	async clearAuthToken() {
+		return true;
+	},
+	async emailLogin() {
+		return { success: false, error: "Authentication not available in browser" };
+	},
+	async emailSignup() {
+		return { success: false, error: "Authentication not available in browser" };
+	},
+	async getGoogleLoginUrl() {
+		return "";
+	},
+	onActivationToken: undefined,
+};
+
+// ---------------------------------------------------------------------------
+// AI Pipeline — graceful stub (web-capable via direct API)
+// ---------------------------------------------------------------------------
+
+const aiPipelineAdapter: PlatformAIPipelineAPI = {
+	async check() {
+		return { available: false, error: "AI pipeline not available in browser" };
+	},
+	async status() {
+		return {
+			available: false,
+			version: null,
+			source: "unavailable" as const,
+			compatible: false,
+			features: {},
+			error: "AI pipeline not available in browser",
+		};
+	},
+	async generate() {
+		return { success: false, error: "AI pipeline not available in browser" };
+	},
+	async listModels() {
+		return [];
+	},
+	async estimateCost() {
+		return null;
+	},
+	async cancel() {
+		return false;
+	},
+	async refresh() {
+		return {
+			available: false,
+			version: null,
+			source: "unavailable" as const,
+			compatible: false,
+			features: {},
+		};
+	},
+	onProgress() {
+		return () => {};
+	},
+};
+
+// ---------------------------------------------------------------------------
+// GitHub — graceful stub (web-capable via direct API)
+// ---------------------------------------------------------------------------
+
+const githubAdapter: PlatformGitHubAPI = {
+	async fetchStars() {
+		try {
+			const res = await fetch(
+				"https://api.github.com/repos/Quriosity-agent/qcut"
+			);
+			if (!res.ok) return { stars: 0 };
+			const data = await res.json();
+			return {
+				stars: data.stargazers_count ?? 0,
+				url: data.html_url,
+			};
+		} catch {
+			return { stars: 0 };
+		}
+	},
+};
+
+// ---------------------------------------------------------------------------
+// Graceful stubs for web-capable APIs not yet fully implemented
+// These return safe defaults instead of throwing.
+// ---------------------------------------------------------------------------
+
+const soundsGraceful = createGracefulNamespace<PlatformSoundsAPI>();
+const audioGraceful = createGracefulNamespace<PlatformAudioAPI>();
+const videoGraceful = createGracefulNamespace<PlatformVideoAPI>();
+const screenshotGraceful = createGracefulNamespace<PlatformScreenshotAPI>();
+const screenRecordingGraceful =
+	createGracefulNamespace<PlatformScreenRecordingAPI>();
+const ffmpegGraceful = createGracefulNamespace<PlatformFFmpegAPI>();
+const transcriptionGraceful =
+	createGracefulNamespace<PlatformTranscriptionAPI>();
+const falGraceful = createGracefulNamespace<PlatformFalAPI>();
+const geminiChatGraceful = createGracefulNamespace<PlatformGeminiChatAPI>();
+const mediaImportGraceful = createGracefulNamespace<PlatformMediaImportAPI>();
+
+// ---------------------------------------------------------------------------
+// Desktop-only stubs (throw PlatformUnsupportedError)
+// These are truly desktop-only and calling code must gate on isElectron.
+// ---------------------------------------------------------------------------
+
 const youtubeStub = createUnsupportedNamespace<PlatformYouTubeAPI>(
 	PlatformCapability.YouTube
 );
@@ -309,18 +433,11 @@ const mcpStub = createUnsupportedNamespace<PlatformMcpAPI>(
 const skillsStub = createUnsupportedNamespace<PlatformSkillsAPI>(
 	PlatformCapability.Skills
 );
-const aiPipelineStub = createUnsupportedNamespace<PlatformAIPipelineAPI>(
-	PlatformCapability.AiPipeline
-);
-const mediaImportStub = createUnsupportedNamespace<PlatformMediaImportAPI>(
-	PlatformCapability.MediaImport
-);
 const projectFolderStub = createUnsupportedNamespace<PlatformProjectFolderAPI>(
 	PlatformCapability.ProjectFolder
 );
-const projectJsonStub = createUnsupportedNamespace<PlatformProjectJsonAPI>(
-	PlatformCapability.ProjectJson
-);
+// projectJson uses graceful stub — called during project load, must not crash
+const projectJsonGraceful = createGracefulNamespace<PlatformProjectJsonAPI>();
 const remotionFolderStub =
 	createUnsupportedNamespace<PlatformRemotionFolderAPI>(
 		PlatformCapability.RemotionFolder
@@ -341,36 +458,39 @@ export function createWebAdapter(): PlatformAPI {
 		platform: "web",
 		isElectron: false,
 		hasCapability: (cap: PlatformCapability) => isPlatformCapable("web", cap),
-		getPathForFile: () => unsupported(PlatformCapability.FilePathResolution),
-		analyzeFillers: () => unsupported(PlatformCapability.FillerAnalysis),
+		getPathForFile: (file: File) => URL.createObjectURL(file),
+		analyzeFillers: async () => ({ filteredWordIds: [] }),
 
-		// Implemented for web
+		// Fully implemented for web
 		files: filesAdapter,
 		storage: storageAdapter,
 		theme: themeAdapter,
 		shell: shellAdapter,
 		apiKeys: apiKeysAdapter,
+		license: licenseAdapter,
+		github: githubAdapter,
+		aiPipeline: aiPipelineAdapter,
 
-		// Desktop-only stubs
-		license: licenseStub,
-		sounds: soundsStub,
-		audio: audioStub,
-		video: videoStub,
-		screenshot: screenshotStub,
-		screenRecording: screenRecordingStub,
-		ffmpeg: ffmpegStub,
-		transcription: transcriptionStub,
-		fal: falStub,
-		geminiChat: geminiChatStub,
-		github: githubStub,
+		// Graceful stubs — web-capable but not yet fully implemented
+		// Return safe defaults instead of throwing
+		sounds: soundsGraceful,
+		audio: audioGraceful,
+		video: videoGraceful,
+		screenshot: screenshotGraceful,
+		screenRecording: screenRecordingGraceful,
+		ffmpeg: ffmpegGraceful,
+		transcription: transcriptionGraceful,
+		fal: falGraceful,
+		geminiChat: geminiChatGraceful,
+		mediaImport: mediaImportGraceful,
+
+		// Desktop-only stubs — throw PlatformUnsupportedError
 		youtube: youtubeStub,
 		pty: ptyStub,
 		mcp: mcpStub,
 		skills: skillsStub,
-		aiPipeline: aiPipelineStub,
-		mediaImport: mediaImportStub,
 		projectFolder: projectFolderStub,
-		projectJson: projectJsonStub,
+		projectJson: projectJsonGraceful,
 		remotionFolder: remotionFolderStub,
 		moyin: moyinStub,
 		updates: updatesStub,

@@ -8,6 +8,7 @@
  */
 
 import { useProjectStore } from "@/stores/project-store";
+import { platform } from "@qcut/platform-core";
 
 const DEBUG = true;
 const PREFIX = "[ClaudeNavigatorBridge]";
@@ -25,11 +26,14 @@ function debugError(...args: unknown[]): void {
 }
 
 /**
- * Setup Claude Navigator Bridge.
- * Listens for project list and navigation requests from main process.
+ * Register navigation handlers with the Claude Navigator API to respond to project list and open requests.
+ *
+ * If the platform Claude navigator is unavailable, no handlers are registered. The registered handlers
+ * send project lists (including ISO string dates) and the active project id in responses, and navigate
+ * the application to the editor view by updating window.location.hash when an open request is handled.
  */
 export function setupClaudeNavigatorBridge(): void {
-	const navAPI = window.electronAPI?.claude?.navigator;
+	const navAPI = platform().claude?.navigator;
 	if (!navAPI) {
 		debugWarn("Claude Navigator API not available");
 		return;
@@ -124,8 +128,10 @@ export function setupClaudeNavigatorBridge(): void {
 	debugLog("Bridge setup complete");
 }
 
-/** Cleanup navigator bridge listeners. */
+/**
+ * Remove any registered Claude navigator event listeners from the platform, if present.
+ */
 export function cleanupClaudeNavigatorBridge(): void {
-	window.electronAPI?.claude?.navigator?.removeListeners?.();
+	platform().claude?.navigator?.removeListeners?.();
 	debugLog("Bridge cleanup complete");
 }

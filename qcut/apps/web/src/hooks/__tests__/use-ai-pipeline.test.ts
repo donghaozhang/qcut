@@ -5,6 +5,9 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
+import { initPlatform, type PlatformAPI } from "@qcut/platform-core";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
+import { createWebAdapter } from "@qcut/platform-web";
 import { useAIPipeline } from "../use-ai-pipeline";
 import type {
 	AIPipelineProgress,
@@ -63,6 +66,7 @@ describe("useAIPipeline", () => {
 		mockElectronAPI = createMockElectronAPI();
 		(window as unknown as { electronAPI: typeof mockElectronAPI }).electronAPI =
 			mockElectronAPI;
+		initPlatform(createDesktopAdapter());
 	});
 
 	afterEach(() => {
@@ -114,7 +118,10 @@ describe("useAIPipeline", () => {
 		});
 
 		it("should handle missing electronAPI gracefully", async () => {
-			Reflect.deleteProperty(window, "electronAPI");
+			// Use web adapter with aiPipeline nullified so optional chaining skips it
+			const web = createWebAdapter();
+			const adapter: PlatformAPI = { ...web, aiPipeline: undefined as any };
+			initPlatform(adapter);
 
 			const { result } = renderHook(() => useAIPipeline());
 
@@ -122,8 +129,7 @@ describe("useAIPipeline", () => {
 				expect(result.current.isChecked).toBe(true);
 			});
 
-			// When electronAPI is missing, isAvailable should be false
-			// Error may or may not be set depending on implementation
+			// When aiPipeline is missing, isAvailable should be false
 			expect(result.current.isAvailable).toBe(false);
 		});
 	});

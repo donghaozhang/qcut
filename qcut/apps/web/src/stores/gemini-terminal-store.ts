@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { generateUUID } from "@/lib/utils";
+import { platform } from "@qcut/platform-core";
 
 // ============================================================================
 // Types
@@ -128,7 +129,7 @@ export const useGeminiTerminalStore = create<GeminiTerminalStore>(
 			}
 
 			// Cleanup listeners
-			window.electronAPI?.geminiChat?.removeListeners();
+			platform().geminiChat?.removeListeners();
 		},
 
 		handleStreamError: (errorMessage: string) => {
@@ -139,7 +140,7 @@ export const useGeminiTerminalStore = create<GeminiTerminalStore>(
 			});
 
 			// Cleanup listeners
-			window.electronAPI?.geminiChat?.removeListeners();
+			platform().geminiChat?.removeListeners();
 		},
 
 		// Send message to Gemini
@@ -171,8 +172,8 @@ export const useGeminiTerminalStore = create<GeminiTerminalStore>(
 				error: null,
 			});
 
-			// Check if Electron API is available
-			if (!window.electronAPI?.geminiChat) {
+			// Check if Gemini Chat API is available
+			if (!platform().geminiChat) {
 				set({
 					isStreaming: false,
 					error:
@@ -185,15 +186,15 @@ export const useGeminiTerminalStore = create<GeminiTerminalStore>(
 			const { handleStreamChunk, handleStreamComplete, handleStreamError } =
 				get();
 
-			window.electronAPI.geminiChat.onStreamChunk(({ text }) => {
+			platform().geminiChat!.onStreamChunk(({ text }) => {
 				handleStreamChunk(text);
 			});
 
-			window.electronAPI.geminiChat.onStreamComplete(() => {
+			platform().geminiChat!.onStreamComplete(() => {
 				handleStreamComplete();
 			});
 
-			window.electronAPI.geminiChat.onStreamError(({ message }) => {
+			platform().geminiChat!.onStreamError(({ message }) => {
 				handleStreamError(message);
 			});
 
@@ -213,7 +214,7 @@ export const useGeminiTerminalStore = create<GeminiTerminalStore>(
 
 			// Send to Gemini
 			try {
-				await window.electronAPI.geminiChat.send({
+				await platform().geminiChat!.send({
 					messages: messagesForAPI,
 					attachments:
 						attachmentsForIPC.length > 0 ? attachmentsForIPC : undefined,

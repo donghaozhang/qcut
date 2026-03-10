@@ -11,14 +11,61 @@
 
 export interface PlatformSoundsAPI {
 	search(params: {
-		query: string;
+		q?: string;
+		query?: string;
+		type?: "effects" | "songs";
+		page?: number;
+		page_size?: number;
+		pageSize?: number;
+		sort?: "downloads" | "rating" | "created" | "score";
+		min_rating?: number;
+		commercial_only?: boolean;
+	}): Promise<{
+		success: boolean;
+		count?: number;
+		next?: string | null;
+		previous?: string | null;
+		results?: Array<{
+			id: number;
+			name: string;
+			description: string;
+			url: string;
+			previewUrl?: string;
+			downloadUrl?: string;
+			duration: number;
+			filesize: number;
+			type: string;
+			channels: number;
+			bitrate: number;
+			bitdepth: number;
+			samplerate: number;
+			username: string;
+			tags: string[];
+			license: string;
+			created: string;
+			downloads: number;
+			rating: number;
+			ratingCount: number;
+		}>;
+		query?: string;
+		type?: string;
 		page?: number;
 		pageSize?: number;
-	}): Promise<unknown>;
+		sort?: string;
+		minRating?: number;
+		error?: string;
+		message?: string;
+	}>;
 	downloadPreview(params: {
+		url?: string;
 		id: number | string;
-		previewUrl: string;
-	}): Promise<{ success: boolean; path?: string; error?: string }>;
+		previewUrl?: string;
+	}): Promise<{
+		success: boolean;
+		localPath?: string;
+		path?: string;
+		error?: string;
+	}>;
 }
 
 // ---------------------------------------------------------------------------
@@ -40,10 +87,24 @@ export interface PlatformVideoAPI {
 		sessionId?: string
 	): Promise<string>;
 	saveToDisk(options: {
-		videoUrl: string;
+		fileName: string;
+		fileData: ArrayBuffer | Uint8Array;
 		projectId: string;
-		filename?: string;
-	}): Promise<{ success: boolean; filePath?: string; error?: string }>;
+		modelId?: string;
+		metadata?: {
+			width?: number;
+			height?: number;
+			duration?: number;
+			fps?: number;
+		};
+	}): Promise<{
+		success: boolean;
+		localPath?: string;
+		fileName?: string;
+		fileSize?: number;
+		filePath?: string;
+		error?: string;
+	}>;
 	verifyFile(filePath: string): Promise<boolean>;
 	deleteFile(filePath: string): Promise<boolean>;
 	getProjectDir(projectId: string): Promise<string>;
@@ -67,21 +128,52 @@ export interface PlatformScreenshotAPI {
 // ---------------------------------------------------------------------------
 
 export interface PlatformScreenRecordingAPI {
-	getSources(): Promise<Array<{ id: string; name: string; thumbnail: string }>>;
-	start(options?: Record<string, unknown>): Promise<{
+	getSources(): Promise<
+		Array<{
+			id: string;
+			name: string;
+			type?: string;
+			displayId?: string;
+			isCurrentWindow?: boolean;
+			thumbnail?: string;
+		}>
+	>;
+	start(options?: {
+		sourceId?: string;
+		filePath?: string;
+		fileName?: string;
+		mimeType?: string;
+	}): Promise<{
 		sessionId: string;
-		success: boolean;
+		sourceId: string;
+		sourceName: string;
+		filePath: string;
+		startedAt: number;
+		mimeType: string | null;
 	}>;
 	appendChunk(options: {
 		sessionId: string;
 		chunk: Uint8Array;
 	}): Promise<{ bytesWritten: number }>;
-	stop(options?: Record<string, unknown>): Promise<{
-		filePath?: string;
-		duration?: number;
+	stop(options?: { sessionId?: string; discard?: boolean }): Promise<{
 		success: boolean;
+		filePath: string | null;
+		bytesWritten: number;
+		durationMs: number;
+		discarded: boolean;
 	}>;
-	getStatus(): Promise<{ recording: boolean; sessionId?: string }>;
+	getStatus(): Promise<{
+		state: "idle" | "recording";
+		recording: boolean;
+		sessionId: string | null;
+		sourceId: string | null;
+		sourceName: string | null;
+		filePath: string | null;
+		bytesWritten: number;
+		startedAt: number | null;
+		durationMs: number;
+		mimeType: string | null;
+	}>;
 }
 
 // ---------------------------------------------------------------------------
@@ -98,6 +190,7 @@ export interface PlatformFFmpegAPI {
 	exportVideoCLI(options: Record<string, unknown>): Promise<{
 		success: boolean;
 		outputPath?: string;
+		outputFile?: string;
 		error?: string;
 	}>;
 	readOutputFile(path: string): Promise<ArrayBuffer | null>;
@@ -143,9 +236,15 @@ export interface PlatformTranscriptionAPI {
 		text: string;
 		segments: Array<{
 			id: number;
+			seek: number;
 			start: number;
 			end: number;
 			text: string;
+			tokens: number[];
+			temperature: number;
+			avg_logprob: number;
+			compression_ratio: number;
+			no_speech_prob: number;
 		}>;
 		language: string;
 	}>;

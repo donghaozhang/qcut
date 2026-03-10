@@ -3,7 +3,9 @@
 // Tests for Remotion export engine wiring (Task 1 of remotion-first-class-timeline-plan.md)
 // Validates: requiresRemotionExport(), factory recommendation, renderer skip, engine branching
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
 import type {
 	TimelineTrack,
 	RemotionElement,
@@ -129,6 +131,12 @@ const createMediaTrack = (elements: MediaElement[]): TimelineTrack => ({
 	muted: false,
 });
 
+// --- Platform Init ---
+
+beforeAll(() => {
+	initPlatform(createWebAdapter());
+});
+
 // --- Test Suite ---
 
 describe("requiresRemotionExport", () => {
@@ -232,6 +240,10 @@ describe("Export engine factory - remotion auto-selection", () => {
 	});
 
 	it("recommends REMOTION engine when tracks have remotion elements", async () => {
+		const { initPlatform: initP } = await import("@qcut/platform-core");
+		const { createWebAdapter: createW } = await import("@qcut/platform-web");
+		initP(createW());
+
 		const { ExportEngineFactory, ExportEngineType } = await import(
 			"@/lib/export/export-engine-factory"
 		);
@@ -261,6 +273,10 @@ describe("Export engine factory - remotion auto-selection", () => {
 	});
 
 	it("does not recommend REMOTION when no remotion elements", async () => {
+		const { initPlatform: initP } = await import("@qcut/platform-core");
+		const { createWebAdapter: createW } = await import("@qcut/platform-web");
+		initP(createW());
+
 		const { ExportEngineFactory, ExportEngineType } = await import(
 			"@/lib/export/export-engine-factory"
 		);
@@ -288,6 +304,10 @@ describe("Export engine factory - remotion auto-selection", () => {
 	});
 
 	it("does not recommend REMOTION when tracks not provided", async () => {
+		const { initPlatform: initP } = await import("@qcut/platform-core");
+		const { createWebAdapter: createW } = await import("@qcut/platform-web");
+		initP(createW());
+
 		const { ExportEngineFactory, ExportEngineType } = await import(
 			"@/lib/export/export-engine-factory"
 		);

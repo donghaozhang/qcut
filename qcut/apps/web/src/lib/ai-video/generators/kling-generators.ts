@@ -2,6 +2,7 @@
  * Kling Image-to-Video Generators
  */
 
+import { platform } from "@qcut/platform-core";
 import type {
 	Kling26I2VRequest,
 	KlingI2VRequest,
@@ -184,7 +185,13 @@ export async function generateKling26ImageVideo(
 }
 
 /**
- * Generate video from source video using Kling O1.
+ * Generate a video from a source video using the Kling O1 model.
+ *
+ * This triggers an upload of the provided source video (using the platform upload API when available,
+ * otherwise falling back to an in-memory data URL with a 50 MB file-size limit), sends a generation
+ * request to the model endpoint, and returns the normalized result.
+ *
+ * @returns A VideoGenerationResponse containing `job_id`, `status`, `message`, `estimated_time`, `video_url`, and `video_data`.
  */
 export async function generateKlingO1Video(
 	request: KlingO1V2VRequest
@@ -225,9 +232,9 @@ export async function generateKlingO1Video(
 			// Upload video via Electron IPC if available
 			let videoUrl: string;
 
-			if (window.electronAPI?.fal?.uploadVideo) {
+			if (platform().fal?.uploadVideo) {
 				const videoBuffer = await request.sourceVideo.arrayBuffer();
-				const uploadResult = await window.electronAPI.fal.uploadVideo(
+				const uploadResult = await platform().fal.uploadVideo(
 					new Uint8Array(videoBuffer),
 					request.sourceVideo.name,
 					falApiKey

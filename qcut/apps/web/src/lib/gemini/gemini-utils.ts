@@ -5,32 +5,38 @@
  * Replaces legacy Modal Whisper + R2 configuration utilities.
  */
 
+import { platform } from "@qcut/platform-core";
+
 interface ConfigurationStatus {
 	configured: boolean;
 	missingVars: string[];
 }
 
 /**
- * Check if Gemini API is properly configured
+ * Check whether the current platform supports transcription.
+ * Returns `false` safely when running outside a browser or before `initPlatform()`.
+ */
+function hasTranscriptionSupport(): boolean {
+	if (typeof window === "undefined") return false;
+	try {
+		return !!platform().transcription;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Determines whether the Gemini API is properly configured for the current environment.
  *
- * @returns Object with configuration status and missing variables
+ * Returns an object describing overall configuration status and any missing configuration indicators.
  *
- * @example
- * ```typescript
- * const { configured, missingVars } = isGeminiConfigured();
- * if (!configured) {
- *   console.error(`Missing: ${missingVars.join(', ')}`);
- * }
- * ```
+ * @returns `configured` is `true` if all required environment indicators are present, `false` otherwise; `missingVars` lists the names of any missing configuration indicators.
  */
 export function isGeminiConfigured(): ConfigurationStatus {
 	const missingVars: string[] = [];
 
-	// Check for Gemini API key in Electron environment
-	// Note: The API key is stored in the main process, not accessible from renderer
-	// This check validates that the Electron API is available
-	if (typeof window === "undefined" || !window.electronAPI?.transcribe) {
-		missingVars.push("Electron IPC not available");
+	if (!hasTranscriptionSupport()) {
+		missingVars.push("Transcription support not available");
 	}
 
 	const configured = missingVars.length === 0;
@@ -59,17 +65,15 @@ export function getGeminiSetupInstructions(): string {
 }
 
 /**
- * Validate if the current environment supports Gemini transcription
+ * Ensure the current runtime environment is compatible with Gemini transcription.
  *
- * @throws Error if Gemini is not supported in current environment
+ * @throws Error if transcription support is not available on the current platform.
  */
 export function validateGeminiEnvironment(): void {
-	if (typeof window === "undefined") {
-		throw new Error("Gemini transcription requires browser environment");
-	}
-
-	if (!window.electronAPI?.transcribe) {
-		throw new Error("Gemini transcription requires Electron environment");
+	if (!hasTranscriptionSupport()) {
+		throw new Error(
+			"Gemini transcription requires a platform with transcription support"
+		);
 	}
 }
 

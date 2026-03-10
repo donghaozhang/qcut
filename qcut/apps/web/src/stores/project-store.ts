@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import { TProject, Scene, BlurIntensity } from "@/types/project";
 import { CanvasSize, CanvasMode } from "@/types/editor";
 import { create } from "zustand";
@@ -295,7 +296,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			syncProjectSkillsForClaude({ projectId: id });
 
 			// Regenerate project.json on every load to ensure freshness
-			window.electronAPI?.projectJson?.write(id);
+			platform().projectJson?.write(id);
 
 			debugLog(`[ProjectStore] Project loading complete: ${id}`);
 		} catch (error) {

@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
 import type {
 	AvatarSettings,
 	ImageToVideoSettings,
@@ -26,6 +28,12 @@ vi.mock("../handlers/text-to-video-handlers", () => ({
 	handleGenericT2V: vi.fn().mockResolvedValue({ response: undefined }),
 }));
 
+vi.mock("@/lib/license/credit-guard", () => ({
+	enforceCreditRequirement: vi
+		.fn()
+		.mockResolvedValue({ allowed: true, requiredCredits: 0 }),
+}));
+
 vi.mock("../handlers/avatar-handlers", () => ({
 	handleKlingO1Ref2Video: vi.fn().mockResolvedValue({ response: undefined }),
 	handleWAN26Ref2Video: vi.fn().mockResolvedValue({ response: undefined }),
@@ -47,6 +55,10 @@ function createContext({ modelId }: { modelId: string }): ModelHandlerContext {
 		progressCallback: vi.fn(),
 	};
 }
+
+beforeAll(() => {
+	initPlatform(createWebAdapter());
+});
 
 describe("model handler routing regression", () => {
 	beforeEach(() => {

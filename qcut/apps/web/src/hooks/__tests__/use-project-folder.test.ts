@@ -6,6 +6,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
+import { initPlatform } from "@qcut/platform-core";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
 
 // Mock stores before importing hook
 vi.mock("@/stores/project-store", () => ({
@@ -66,6 +68,7 @@ describe("useProjectFolder", () => {
 			writable: true,
 			configurable: true,
 		});
+		initPlatform(createDesktopAdapter());
 	});
 
 	afterEach(() => {

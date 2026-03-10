@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
 import { useWordTimelineStore } from "../timeline/word-timeline-store";
 import {
 	WORD_FILTER_STATE,
@@ -49,6 +51,7 @@ describe("WordTimelineStore", () => {
 				}),
 			},
 		});
+		initPlatform(createDesktopAdapter());
 	});
 
 	it("loads data and defaults all words to filterState=none", () => {

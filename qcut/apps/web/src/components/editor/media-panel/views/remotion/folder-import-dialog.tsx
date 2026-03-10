@@ -9,6 +9,7 @@
 
 "use client";
 
+import { platform } from "@qcut/platform-core";
 import { useCallback, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -139,7 +140,17 @@ function ImportedFolderItem({
 
 // ============================================================================
 // Component
-// ============================================================================
+/**
+ * Renders a dialog that lets users import Remotion components from a project folder.
+ *
+ * The dialog supports folder selection or drag-and-drop, displays import progress and errors,
+ * and lists previously imported folders with refresh and remove actions.
+ *
+ * @param open - Whether the dialog is open
+ * @param onOpenChange - Callback invoked when the dialog open state changes
+ * @param onImportSuccess - Optional callback invoked with imported component IDs after a successful import
+ * @returns The dialog React element for selecting, importing, and managing project folders
+ */
 
 export function FolderImportDialog({
 	open,
@@ -239,7 +250,7 @@ export function FolderImportDialog({
 			const files = e.dataTransfer.files;
 			if (files.length === 0) return;
 
-			const droppedPath = window.electronAPI?.getPathForFile?.(files[0]);
+			const droppedPath = platform().getPathForFile?.(files[0]);
 			if (!droppedPath) {
 				setState((prev) => ({
 					...prev,

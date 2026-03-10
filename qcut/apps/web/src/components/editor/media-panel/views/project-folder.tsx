@@ -9,6 +9,7 @@
 
 "use client";
 
+import { platform } from "@qcut/platform-core";
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -64,7 +65,13 @@ function getFileIcon(entry: ProjectFolderFileInfo) {
 }
 
 /**
- * Project Folder View Component
+ * Renders a browsable UI for inspecting the current project folder and importing media files.
+ *
+ * The view shows breadcrumbs, folder and file entries (with icons and sizes), selection controls
+ * for media files, import actions with per-file import reporting, scanning/error states, and a
+ * scan summary when available.
+ *
+ * @returns The React element representing the project folder view.
  */
 export function ProjectFolderView() {
 	const {
@@ -129,7 +136,7 @@ export function ProjectFolderView() {
 				if (!file) continue;
 
 				// Use media import handler
-				const result = await window.electronAPI?.mediaImport?.import({
+				const result = await platform().mediaImport?.import({
 					sourcePath: filePath,
 					projectId,
 					mediaId: crypto.randomUUID(),

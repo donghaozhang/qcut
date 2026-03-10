@@ -2,6 +2,17 @@
  * Debug utilities for sticker persistence issues
  */
 
+import { platform } from "@qcut/platform-core";
+
+/**
+ * Gather debugging information about sticker persistence for the active project and print structured console output.
+ *
+ * This inspects persisted stickers (platform storage or localStorage), current in-memory overlay stickers, and media items,
+ * cross-references sticker-to-media relationships, reports ID mismatches and orphaned IDs, and logs results in console groups.
+ *
+ * @returns An object with `savedStickers`, `currentStickers`, `mediaItems`, and `activeProject`,
+ *  or `undefined` if no active project is found.
+ */
 export async function debugStickerPersistence() {
 	const { useStickersOverlayStore } = await import(
 		"@/stores/stickers-overlay-store"
@@ -27,10 +38,9 @@ export async function debugStickerPersistence() {
 	let savedStickers: any[] = [];
 
 	try {
-		if (window.electronAPI?.storage) {
+		if (platform().storage) {
 			savedStickers =
-				((await window.electronAPI.storage.load(storageKey)) as any[] | null) ||
-				[];
+				((await platform().storage!.load(storageKey)) as any[] | null) || [];
 			console.log("📦 Storage type: Electron IPC");
 		} else {
 			const stored = localStorage.getItem(storageKey);

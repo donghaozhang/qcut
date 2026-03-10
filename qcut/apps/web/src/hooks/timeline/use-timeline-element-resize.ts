@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ResizeState, TimelineElement, TimelineTrack } from "@/types/timeline";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
@@ -29,6 +29,7 @@ export function useTimelineElementResize({
 	onUpdateDuration,
 }: UseTimelineElementResizeProps) {
 	const [resizing, setResizing] = useState<ResizeState | null>(null);
+	const captureElementRef = useRef<Element | null>(null);
 	const {
 		mediaItems,
 		loading: mediaItemsLoading,
@@ -233,35 +234,43 @@ export function useTimelineElementResize({
 		]
 	);
 
-	// Set up document-level mouse listeners during resize (like proper drag behavior)
+	// Set up document-level pointer listeners during resize (like proper drag behavior)
 	useEffect(() => {
 		if (!resizing) return;
 
-		const handleDocumentMouseMove = (e: MouseEvent) => {
+		const handleDocumentPointerMove = (e: PointerEvent) => {
 			updateTrimFromMouseMove({ clientX: e.clientX });
 		};
 
-		const handleDocumentMouseUp = () => {
+		const handleDocumentPointerUp = (e: PointerEvent) => {
+			captureElementRef.current?.releasePointerCapture?.(e.pointerId);
+			captureElementRef.current = null;
 			handleResizeEnd();
 		};
 
 		// Add document-level listeners for proper drag behavior
-		document.addEventListener("mousemove", handleDocumentMouseMove);
-		document.addEventListener("mouseup", handleDocumentMouseUp);
+		document.addEventListener("pointermove", handleDocumentPointerMove);
+		document.addEventListener("pointerup", handleDocumentPointerUp);
+		document.addEventListener("pointercancel", handleDocumentPointerUp);
 
 		return () => {
-			document.removeEventListener("mousemove", handleDocumentMouseMove);
-			document.removeEventListener("mouseup", handleDocumentMouseUp);
+			document.removeEventListener("pointermove", handleDocumentPointerMove);
+			document.removeEventListener("pointerup", handleDocumentPointerUp);
+			document.removeEventListener("pointercancel", handleDocumentPointerUp);
 		};
 	}, [resizing, handleResizeEnd, updateTrimFromMouseMove]); // Re-run when resizing state changes
 
 	const handleResizeStart = (
-		e: React.MouseEvent,
+		e: React.PointerEvent,
 		elementId: string,
 		side: "left" | "right"
 	) => {
 		e.stopPropagation();
 		e.preventDefault();
+
+		const captureEl = e.target as Element;
+		captureEl.setPointerCapture?.(e.pointerId);
+		captureElementRef.current = captureEl;
 
 		// Push history once at the start of the resize operation
 		pushHistory();

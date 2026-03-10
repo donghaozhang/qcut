@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import React, { useEffect, useRef } from "react";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { EditorHeader } from "@/components/editor-header";
@@ -28,6 +29,11 @@ export const Route = createLazyFileRoute("/editor/$project_id")({
 	component: EditorPage,
 });
 
+/**
+ * Render the editor UI for a project and manage project lifecycle side effects such as loading projects, initializing the Claude terminal, syncing project JSON, and setting up playback and panel layouts.
+ *
+ * @returns The Editor page React element containing the header, the currently selected layout, and the onboarding component
+ */
 function EditorPage() {
 	const navigate = useNavigate();
 	const { project_id } = Route.useParams();
@@ -225,8 +231,7 @@ function EditorPage() {
 			let projectRoot = "";
 			try {
 				projectRoot =
-					(await window.electronAPI?.projectFolder?.getRoot?.(project_id)) ||
-					"";
+					(await platform().projectFolder?.getRoot?.(project_id)) || "";
 			} catch {
 				projectRoot = "";
 			}

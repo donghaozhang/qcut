@@ -35,6 +35,7 @@ import type {
 	PlatformProjectFolderAPI,
 	PlatformProjectJsonAPI,
 	PlatformRemotionFolderAPI,
+	PlatformRemotionAPI,
 	PlatformMoyinAPI,
 	PlatformUpdatesAPI,
 	PlatformFillerAnalysisAPI,
@@ -94,6 +95,7 @@ export interface PlatformAPI extends PlatformFillerAnalysisAPI {
 	projectFolder: PlatformProjectFolderAPI;
 	projectJson: PlatformProjectJsonAPI;
 	remotionFolder: PlatformRemotionFolderAPI;
+	remotion?: PlatformRemotionAPI;
 	moyin: PlatformMoyinAPI;
 	updates: PlatformUpdatesAPI;
 

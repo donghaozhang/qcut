@@ -10,6 +10,7 @@
 import type { ImageSourceInput } from "../types";
 import type { TimelineTrack, TimelineElement } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store";
+import { platform } from "@qcut/platform-core";
 
 /**
  * Logger function type for dependency injection.
@@ -63,15 +64,16 @@ async function createTempFileFromBlob(
 }
 
 /**
- * Extract image sources from timeline for FFmpeg overlay filters.
- * Handles blob URLs by creating temp files via Electron IPC.
+ * Collect image elements from timeline tracks and produce descriptors for FFmpeg overlay processing.
  *
- * @param tracks - Timeline tracks to extract image elements from
- * @param mediaItems - Media items to look up image paths
- * @param sessionId - Export session ID for temp file naming
- * @param imageAPI - Electron image API (defaults to window.electronAPI.video for temp file creation)
- * @param logger - Logger function (defaults to console.log)
- * @returns Array of image sources sorted by start time
+ * If a media item has no localPath but includes a File/Blob, attempts to create a temporary file using the provided image API.
+ *
+ * @param tracks - Timeline tracks containing elements to inspect
+ * @param mediaItems - Media library items used to resolve element mediaId to image metadata and paths
+ * @param sessionId - Optional session identifier used when naming temporary files
+ * @param imageAPI - Optional ImageSaveTempAPI used to create temporary image files; defaults to platform().video
+ * @param logger - Optional logger function for progress and warnings
+ * @returns An array of ImageSourceInput objects sorted by ascending startTime
  */
 export async function extractImageSources(
 	tracks: TimelineTrack[],
@@ -80,7 +82,7 @@ export async function extractImageSources(
 	imageAPI?: ImageSaveTempAPI,
 	logger: LogFn = console.log
 ): Promise<ImageSourceInput[]> {
-	const api = imageAPI ?? (window.electronAPI?.video as ImageSaveTempAPI);
+	const api = imageAPI ?? (platform().video as unknown as ImageSaveTempAPI);
 	const imageSources: ImageSourceInput[] = [];
 
 	for (const track of tracks) {

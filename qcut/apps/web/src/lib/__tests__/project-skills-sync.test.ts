@@ -1,15 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ElectronAPI } from "@/types/electron";
 import { syncProjectSkillsForClaude } from "../claude-bridge/project-skills-sync";
+import { initPlatform } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
+import type { PlatformAPI } from "@qcut/platform-core";
 
-let originalElectronAPI: ElectronAPI | undefined;
+let originalPlatform: PlatformAPI | undefined;
 
 beforeEach(() => {
-	originalElectronAPI = window.electronAPI;
+	// Reset platform before each test
 });
 
 afterEach(() => {
-	window.electronAPI = originalElectronAPI;
+	initPlatform(createWebAdapter());
 	vi.restoreAllMocks();
 });
 
@@ -23,22 +25,24 @@ describe("syncProjectSkillsForClaude", () => {
 			warnings: [],
 		});
 
-		const electronApi = {
+		initPlatform({
+			isElectron: true,
 			skills: {
 				syncForClaude,
 			},
-		} as unknown as ElectronAPI;
+		} as unknown as PlatformAPI);
 
 		syncProjectSkillsForClaude({
 			projectId: "project-1",
-			electronApi,
 		});
 
 		expect(syncForClaude).toHaveBeenCalledWith("project-1");
 	});
 
-	it("does not throw when Electron skills API is unavailable", () => {
-		window.electronAPI = undefined;
+	it("does not throw when skills API is unavailable", () => {
+		initPlatform({
+			isElectron: false,
+		} as unknown as PlatformAPI);
 
 		expect(() => {
 			syncProjectSkillsForClaude({ projectId: "project-2" });
@@ -49,15 +53,16 @@ describe("syncProjectSkillsForClaude", () => {
 		const warningSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
 		const syncForClaude = vi.fn().mockRejectedValue(new Error("sync failed"));
-		const electronApi = {
+
+		initPlatform({
+			isElectron: true,
 			skills: {
 				syncForClaude,
 			},
-		} as unknown as ElectronAPI;
+		} as unknown as PlatformAPI);
 
 		syncProjectSkillsForClaude({
 			projectId: "project-3",
-			electronApi,
 		});
 
 		await Promise.resolve();

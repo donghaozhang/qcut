@@ -23,8 +23,11 @@ export interface PlatformFilesAPI {
 		defaultFilename?: string,
 		filters?: FileDialogFilter[]
 	): Promise<string | null>;
-	readFile(filePath: string): Promise<ArrayBuffer | null>;
-	writeFile(filePath: string, data: ArrayBuffer | string): Promise<boolean>;
+	readFile(filePath: string): Promise<Buffer | null>;
+	writeFile(
+		filePath: string,
+		data: Buffer | ArrayBuffer | string
+	): Promise<boolean>;
 	saveBlob(
 		data: ArrayBuffer | Uint8Array,
 		defaultFilename?: string
@@ -79,21 +82,49 @@ export interface PlatformApiKeysAPI {
 // License
 // ---------------------------------------------------------------------------
 
+export interface LicenseCreditBalance {
+	planCredits: number;
+	topUpCredits: number;
+	totalCredits: number;
+	planCreditsResetAt: string;
+}
+
+export interface LicenseUserProfile {
+	name: string;
+	email: string;
+	image: string | null;
+}
+
+export interface LicenseInfo {
+	plan: "free" | "pro" | "team";
+	status: "active" | "past_due" | "cancelled" | "expired";
+	currentPeriodEnd?: string;
+	credits: LicenseCreditBalance;
+	user?: LicenseUserProfile | null;
+}
+
 export interface PlatformLicenseAPI {
-	check(): Promise<unknown>;
-	activate(token: string): Promise<unknown>;
-	deactivate(): Promise<unknown>;
-	trackUsage(type: "ai_generation" | "export" | "render"): Promise<unknown>;
+	check(): Promise<LicenseInfo>;
+	activate(token: string): Promise<boolean>;
+	deactivate(): Promise<boolean>;
+	trackUsage(type: "ai_generation" | "export" | "render"): Promise<boolean>;
 	deductCredits(
 		amount: number,
 		modelKey: string,
 		description: string
-	): Promise<unknown>;
-	setAuthToken(token: string): Promise<unknown>;
-	clearAuthToken(): Promise<unknown>;
-	emailLogin(email: string, password: string): Promise<unknown>;
-	emailSignup(name: string, email: string, password: string): Promise<unknown>;
-	getGoogleLoginUrl(): Promise<unknown>;
+	): Promise<boolean>;
+	setAuthToken(token: string): Promise<boolean>;
+	clearAuthToken(): Promise<boolean>;
+	emailLogin(
+		email: string,
+		password: string
+	): Promise<{ success: boolean; error?: string }>;
+	emailSignup(
+		name: string,
+		email: string,
+		password: string
+	): Promise<{ success: boolean; error?: string }>;
+	getGoogleLoginUrl(): Promise<string>;
 	onActivationToken?(
 		callback: (token: string) => void
 	): (() => void) | undefined;

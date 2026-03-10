@@ -9,7 +9,7 @@ function createMockAdapter(): PlatformAPI {
 		isElectron: true,
 		hasCapability: (cap: PlatformCapability) =>
 			cap === PlatformCapability.Storage,
-		getPathForFile: () => "/mock/path",
+		getPathForFile: (_file: File) => "/mock/path",
 		analyzeFillers: async () => ({ filteredWordIds: [] }),
 		files: {} as any,
 		storage: {

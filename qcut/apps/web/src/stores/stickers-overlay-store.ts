@@ -7,6 +7,7 @@
 
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import { platform } from "@qcut/platform-core";
 import { debugLog, debugWarn } from "@/lib/debug/debug-config";
 import type {
 	StickerOverlayStore,
@@ -486,42 +487,14 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 				);
 
 				try {
-					// Use Electron IPC if available, otherwise localStorage
-					if (window.electronAPI?.storage) {
-						debugLog(`[StickerStore] Saving via Electron IPC: ${key}`);
-						await window.electronAPI.storage.save(key, data);
-						debugLog(`[StickerStore] Saved ${data.length} stickers`);
-					} else {
-						debugLog(`[StickerStore] Saving via localStorage: ${key}`);
-						localStorage.setItem(key, JSON.stringify(data));
-						debugLog(`[StickerStore] Saved ${data.length} stickers`);
-
-						// Verify save by immediately reading back
-						const verification = localStorage.getItem(key);
-						const parsedVerification = verification
-							? JSON.parse(verification)
-							: [];
-						// Verification removed for production
-					}
+					debugLog(`[StickerStore] Saving via platform storage: ${key}`);
+					await platform().storage.save(key, data);
+					debugLog(`[StickerStore] Saved ${data.length} stickers`);
 				} catch (error) {
 					debugLog(
 						`[StickerStore] ❌ SAVE FAILED for project ${projectId}:`,
 						error
 					);
-					// Try fallback to localStorage if Electron IPC fails
-					if (window.electronAPI?.storage) {
-						try {
-							localStorage.setItem(key, JSON.stringify(data));
-							debugLog(
-								`[StickerStore] Fallback save via localStorage: ${data.length} stickers`
-							);
-						} catch (fallbackError) {
-							debugLog(
-								"[StickerStore] ❌ FALLBACK SAVE FAILED:",
-								fallbackError
-							);
-						}
-					}
 				}
 			},
 
@@ -542,24 +515,13 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 				);
 
 				try {
-					if (window.electronAPI?.storage) {
-						data =
-							((await window.electronAPI.storage.load(key)) as
-								| OverlaySticker[]
-								| null) || [];
-						debugLog(
-							`[StickerStore] Loaded via Electron IPC: ${data.length} stickers`
-						);
-					} else {
-						const stored = localStorage.getItem(key);
-						if (stored) {
-							data = JSON.parse(stored);
-							debugLog(
-								`[StickerStore] Loaded via localStorage: ${data.length} stickers`
-							);
-						} else {
-						}
-					}
+					const raw = await platform().storage.load(key);
+					// Validate structure before filtering
+					const validated = validateAndLoadStickers(raw);
+					data = Array.from(validated.values());
+					debugLog(
+						`[StickerStore] Loaded via platform storage: ${data.length} stickers`
+					);
 
 					// Filter out stickers with invalid media references
 					const validData = data.filter((sticker) => {
@@ -578,8 +540,10 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 						);
 					}
 
-					// Validate and convert sticker data to Map
-					const stickersMap = validateAndLoadStickers(validData);
+					// Convert validated data back to Map
+					const stickersMap = new Map(
+						validData.map((sticker) => [sticker.id, sticker])
+					);
 					set({
 						overlayStickers: stickersMap,
 						selectedStickerId: null,
@@ -592,35 +556,12 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 						`[StickerStore] ❌ LOAD FAILED for project ${projectId}:`,
 						error
 					);
-					// Try fallback to localStorage if Electron IPC fails
-					if (window.electronAPI?.storage) {
-						try {
-							const stored = localStorage.getItem(key);
-							if (stored) {
-								const fallbackData = JSON.parse(stored);
-								const stickersMap = validateAndLoadStickers(fallbackData);
-								set({
-									overlayStickers: stickersMap,
-									selectedStickerId: null,
-									history: { past: [], future: [] },
-								});
-								debugLog(
-									`[StickerStore] Fallback load: ${stickersMap.size} stickers`
-								);
-							}
-						} catch (fallbackError) {
-							debugLog(
-								"[StickerStore] ❌ FALLBACK LOAD FAILED:",
-								fallbackError
-							);
-							// Ensure clean state on total failure
-							set({
-								overlayStickers: new Map(),
-								selectedStickerId: null,
-								history: { past: [], future: [] },
-							});
-						}
-					}
+					// Ensure clean state on failure
+					set({
+						overlayStickers: new Map(),
+						selectedStickerId: null,
+						history: { past: [], future: [] },
+					});
 				}
 			},
 

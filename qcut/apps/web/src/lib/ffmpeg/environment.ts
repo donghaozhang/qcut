@@ -5,6 +5,8 @@
  * and checks for required browser features.
  */
 
+import { platform } from "@qcut/platform-core";
+
 /**
  * Detects if the application is running in Electron environment
  */
@@ -15,7 +17,7 @@ export const isElectron = () => {
 			(window as any).process.type === "renderer") ||
 		(typeof navigator !== "undefined" &&
 			navigator.userAgent.toLowerCase().indexOf("electron") > -1) ||
-		(typeof window !== "undefined" && window.electronAPI)
+		platform().isElectron
 	);
 };
 

@@ -1,15 +1,18 @@
+import { platform } from "@qcut/platform-core";
 import { useEffect } from "react";
 import { toast } from "sonner";
 
 /**
- * FFmpeg health check notification.
- * Mount once at the root level (e.g., in __root.tsx).
- * Queries the cached health check result from the main process and
- * shows a warning toast if FFmpeg or FFprobe binaries are not working.
+ * Runs an FFmpeg/FFprobe health check on mount and shows a warning toast when either binary is unhealthy.
+ *
+ * Mount at the app root so the check runs once; if a failed binary is detected the component displays a 30s warning
+ * toast with diagnostic lines (failed binaries, resolved paths, and any reported errors). The component renders nothing.
+ *
+ * @returns Null (no DOM output)
  */
 export function FFmpegHealthNotification() {
 	useEffect(() => {
-		const checkHealth = window.electronAPI?.ffmpeg?.checkHealth;
+		const checkHealth = platform().ffmpeg?.checkHealth;
 		if (!checkHealth) return;
 
 		checkHealth()

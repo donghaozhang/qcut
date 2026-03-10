@@ -8,9 +8,15 @@
  * @module hooks/use-project-json-sync
  */
 
+import { platform } from "@qcut/platform-core";
 import { useEffect } from "react";
 import { useProjectStore } from "@/stores/project-store";
 
+/**
+ * Synchronizes the active project's project.json to disk by debouncing store changes and writing through the platform API.
+ *
+ * Subscribes (via dynamic import) to project, timeline, media, and export stores, schedules a write with a 1-second debounce when any of them change, captures the active projectId when scheduling, and verifies the projectId still matches before calling platform().projectJson?.write(projectId). Clears the pending timer and unsubscribes from all stores on unmount.
+ */
 export function useProjectJsonSync() {
 	useEffect(() => {
 		let timer: ReturnType<typeof setTimeout> | null = null;
@@ -26,7 +32,7 @@ export function useProjectJsonSync() {
 				const current = useProjectStore.getState().activeProject?.id;
 				// Guard: skip if project changed since scheduling
 				if (current !== projectId) return;
-				window.electronAPI?.projectJson?.write(projectId);
+				platform().projectJson?.write(projectId);
 			}, 1000);
 		};
 

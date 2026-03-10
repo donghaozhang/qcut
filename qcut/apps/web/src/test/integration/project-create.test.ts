@@ -1,7 +1,21 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, beforeAll, vi } from "vitest";
+import { initPlatform, type PlatformAPI } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
 import { useProjectStore } from "@/stores/project-store";
 import { TestDataFactory } from "@/test/fixtures/factory";
 import { waitFor } from "@testing-library/react";
+
+beforeAll(() => {
+	// Use web adapter but nullify desktop-only stubs that code checks with ?.
+	// so optional chaining correctly skips them instead of hitting the proxy.
+	const web = createWebAdapter();
+	const adapter: PlatformAPI = {
+		...web,
+		projectJson: undefined as any,
+		projectFolder: undefined as any,
+	};
+	initPlatform(adapter);
+});
 
 // Mock the media store loader to prevent dynamic import issues
 vi.mock("@/stores/media/media-store-loader", () => ({

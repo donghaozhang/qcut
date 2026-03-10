@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { isMediaFile, isJsonFile } from "./helpers";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
+import { platform } from "@qcut/platform-core";
 
 export interface DropZoneProps {
 	onJsonSelect: (file: File) => void;
@@ -38,8 +39,7 @@ export function DropZone({
 				}
 
 				// Use webUtils.getPathForFile via preload (Electron 37+ removed File.path)
-				const filePath =
-					window.electronAPI?.getPathForFile?.(file) ?? undefined;
+				const filePath = platform().getPathForFile?.(file) ?? undefined;
 
 				debugLog("[WordTimeline] File dropped:", {
 					name: file.name,
@@ -90,19 +90,15 @@ export function DropZone({
 		debugLog("[WordTimeline] handleClick called (file picker button)");
 		try {
 			// Use Electron's native file dialog to get the file path
-			debugLog("[WordTimeline] Checking for Electron file dialog API...");
-			debugLog(
-				"[WordTimeline] window.electronAPI exists:",
-				!!window.electronAPI
-			);
+			debugLog("[WordTimeline] Checking for file dialog API...");
 			debugLog(
 				"[WordTimeline] openFileDialog exists:",
-				!!window.electronAPI?.openFileDialog
+				!!platform().files.openFileDialog
 			);
 
-			if (window.electronAPI?.openFileDialog) {
+			if (platform().files.openFileDialog) {
 				debugLog("[WordTimeline] Opening native file dialog...");
-				const dialogResult = await window.electronAPI.openFileDialog();
+				const dialogResult = await platform().files.openFileDialog();
 
 				debugLog("[WordTimeline] File dialog result:", dialogResult);
 				debugLog("[WordTimeline] Result type:", typeof dialogResult);
@@ -142,12 +138,12 @@ export function DropZone({
 				if (isJsonFile(fileName)) {
 					debugLog("[WordTimeline] JSON file detected, reading content...");
 					// For JSON, we need to read the file content
-					if (!window.electronAPI.readFile) {
+					if (!platform().files.readFile) {
 						debugError("[WordTimeline] readFile API not available");
 						toast.error("File reading not available");
 						return;
 					}
-					const buffer = await window.electronAPI.readFile(filePath);
+					const buffer = await platform().files.readFile(filePath);
 					debugLog(
 						"[WordTimeline] File buffer received, size:",
 						buffer?.length
@@ -171,7 +167,7 @@ export function DropZone({
 				}
 			} else {
 				debugLog(
-					"[WordTimeline] Electron API not available, using HTML file input"
+					"[WordTimeline] File dialog not available, using HTML file input"
 				);
 				fileInputRef.current?.click();
 			}

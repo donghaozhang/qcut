@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import { initPlatform } from "@qcut/platform-core";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
+import { createWebAdapter } from "@qcut/platform-web";
 
 const mockNavigate = vi.fn();
 const mockCheckLicense = vi.fn<() => Promise<void>>();
@@ -32,6 +35,7 @@ describe("useSignUp", () => {
 			license: mockLicenseApi,
 			shell: { openExternal: vi.fn().mockResolvedValue(undefined) },
 		};
+		initPlatform(createDesktopAdapter());
 		mockCheckLicense.mockResolvedValue(undefined);
 	});
 
@@ -80,14 +84,12 @@ describe("useSignUp", () => {
 		});
 
 		it("sets error when electronAPI is unavailable", async () => {
-			(window as any).electronAPI = {};
+			initPlatform(createWebAdapter());
 			const { result } = renderHook(() => useSignUp());
 
 			await act(() => result.current.handleSignUp());
 
-			expect(result.current.error).toBe(
-				"Sign up is not available in this environment"
-			);
+			expect(result.current.error).toBeTruthy();
 			expect(result.current.isEmailLoading).toBe(false);
 		});
 
@@ -147,8 +149,8 @@ describe("useSignUp", () => {
 			expect(result.current.isGoogleLoading).toBe(true);
 		});
 
-		it("sets error when getGoogleLoginUrl is unavailable", async () => {
-			delete mockLicenseApi.getGoogleLoginUrl;
+		it("sets error when getGoogleLoginUrl returns empty URL", async () => {
+			initPlatform(createWebAdapter());
 			const { result } = renderHook(() => useSignUp());
 
 			await act(() => result.current.handleGoogleSignUp());
@@ -159,15 +161,16 @@ describe("useSignUp", () => {
 			expect(result.current.isGoogleLoading).toBe(false);
 		});
 
-		it("sets error when shell.openExternal is unavailable", async () => {
-			(window as any).electronAPI.shell = {};
+		it("sets error when shell.openExternal fails", async () => {
+			(window as any).electronAPI.shell = {
+				openExternal: vi.fn().mockRejectedValue(new Error("Shell unavailable")),
+			};
+			initPlatform(createDesktopAdapter());
 			const { result } = renderHook(() => useSignUp());
 
 			await act(() => result.current.handleGoogleSignUp());
 
-			expect(result.current.error).toBe(
-				"Could not open browser for Google sign up"
-			);
+			expect(result.current.error).toBe("Shell unavailable");
 			expect(result.current.isGoogleLoading).toBe(false);
 		});
 

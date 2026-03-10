@@ -10,6 +10,7 @@
 import type { VideoSourceInput } from "../types";
 import type { TimelineTrack, TimelineElement } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store";
+import { platform, PlatformCapability } from "@qcut/platform-core";
 
 /**
  * Logger function type for dependency injection.
@@ -29,6 +30,16 @@ interface VideoSaveTempAPI {
 }
 
 /**
+ * Whether the current platform supports video temp file operations.
+ * In browser mode, platform().video is a Proxy whose methods are truthy
+ * but throw PlatformUnsupportedError when called. Guard with this check
+ * instead of relying on optional chaining.
+ */
+function hasVideoTempCapability(): boolean {
+	return platform().hasCapability(PlatformCapability.VideoTemp);
+}
+
+/**
  * Verify a local file path still exists on disk.
  * Temp files in /tmp may be cleaned up by the OS between sessions.
  *
@@ -39,7 +50,8 @@ async function verifyLocalPath(
 	api: VideoSaveTempAPI | undefined,
 	logger: LogFn
 ): Promise<string | undefined> {
-	if (!localPath || !api?.verifyFile) return localPath;
+	if (!localPath || !hasVideoTempCapability() || !api?.verifyFile)
+		return localPath;
 	const exists = await api.verifyFile(localPath);
 	if (!exists) {
 		logger(`[VideoSources] File missing on disk, will recreate: ${localPath}`);
@@ -63,7 +75,7 @@ async function createTempFileFromBlob(
 	videoAPI: VideoSaveTempAPI | undefined,
 	logger: LogFn
 ): Promise<string | undefined> {
-	if (!videoAPI?.saveTemp) return;
+	if (!hasVideoTempCapability() || !videoAPI?.saveTemp) return;
 	if (!mediaItem.file || mediaItem.file.size === 0) return;
 
 	try {
@@ -84,15 +96,14 @@ async function createTempFileFromBlob(
 }
 
 /**
- * Extract video sources from timeline for direct copy optimization.
- * Handles blob URLs by creating temp files via Electron IPC.
+ * Collect video elements from timeline tracks and produce their input sources for export.
  *
  * @param tracks - Timeline tracks to extract video elements from
  * @param mediaItems - Media items to look up video paths
- * @param sessionId - Export session ID for temp file naming
- * @param videoAPI - Electron video API (defaults to window.electronAPI.video)
+ * @param sessionId - Export session identifier used when creating temporary files from blob media
+ * @param videoAPI - Optional video-saving API; defaults to platform().video when omitted
  * @param logger - Logger function (defaults to console.log)
- * @returns Array of video sources sorted by start time
+ * @returns An array of VideoSourceInput objects (path, startTime, duration, trimStart, trimEnd) sorted by `startTime`
  */
 export async function extractVideoSources(
 	tracks: TimelineTrack[],
@@ -101,7 +112,7 @@ export async function extractVideoSources(
 	videoAPI?: VideoSaveTempAPI,
 	logger: LogFn = console.log
 ): Promise<VideoSourceInput[]> {
-	const api = videoAPI ?? (window.electronAPI?.video as VideoSaveTempAPI);
+	const api = videoAPI ?? (platform().video as unknown as VideoSaveTempAPI);
 	const videoSources: VideoSourceInput[] = [];
 
 	for (const track of tracks) {
@@ -152,15 +163,16 @@ export async function extractVideoSources(
 }
 
 /**
- * Extract single video input path for Mode 2 optimization.
- * Returns video path only if exactly one video exists with a local path.
+ * Determine a single video input path suitable for Mode 2 optimization.
+ *
+ * Searches timeline tracks for exactly one visible video element and returns its local file path and trim values; returns `null` if zero or multiple videos are found or no valid local path is available.
  *
  * @param tracks - Timeline tracks to search
  * @param mediaItems - Media items to look up paths
- * @param sessionId - Export session ID for temp file creation
- * @param videoAPI - Electron video API (defaults to window.electronAPI.video)
+ * @param sessionId - Export session ID used when creating a temporary file from a blob
+ * @param videoAPI - Video save API (defaults to platform().video)
  * @param logger - Logger function (defaults to console.log)
- * @returns Video input info or null if Mode 2 not applicable
+ * @returns An object with `path`, `trimStart`, and `trimEnd` for the single video when applicable, or `null` otherwise
  */
 export async function extractVideoInputPath(
 	tracks: TimelineTrack[],
@@ -169,7 +181,7 @@ export async function extractVideoInputPath(
 	videoAPI?: VideoSaveTempAPI,
 	logger: LogFn = console.log
 ): Promise<{ path: string; trimStart: number; trimEnd: number } | null> {
-	const api = videoAPI ?? (window.electronAPI?.video as VideoSaveTempAPI);
+	const api = videoAPI ?? (platform().video as unknown as VideoSaveTempAPI);
 	logger("[VideoSources] Extracting video input path for Mode 2...");
 
 	let videoElement: TimelineElement | null = null;

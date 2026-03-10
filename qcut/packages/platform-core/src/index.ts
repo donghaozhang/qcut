@@ -21,6 +21,9 @@ export type {
 	PlatformShellAPI,
 	PlatformApiKeysAPI,
 	PlatformLicenseAPI,
+	LicenseInfo,
+	LicenseCreditBalance,
+	LicenseUserProfile,
 } from "./types/core-api.js";
 
 // Media API namespaces

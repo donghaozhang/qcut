@@ -31,8 +31,8 @@ interface PreviewElementRendererProps {
 	dragState: TextElementDragState;
 	isPlaying: boolean;
 	activeProject: TProject | null;
-	onTextMouseDown: (
-		event: React.MouseEvent<HTMLDivElement>,
+	onTextPointerDown: (
+		event: React.PointerEvent<HTMLDivElement>,
 		element: Pick<TimelineElement, "id" | "x" | "y">,
 		trackId: string
 	) => void;
@@ -161,7 +161,7 @@ export function PreviewElementRenderer({
 	dragState,
 	isPlaying,
 	activeProject,
-	onTextMouseDown,
+	onTextPointerDown,
 	onElementSelect,
 	onElementResize,
 }: PreviewElementRendererProps): React.ReactNode {
@@ -191,8 +191,8 @@ export function PreviewElementRenderer({
 						event.preventDefault();
 						onElementSelect({ elementId: element.id });
 					}}
-					onMouseDown={(event) =>
-						onTextMouseDown(event, element, elementData.track.id)
+					onPointerDown={(event) =>
+						onTextPointerDown(event, element, elementData.track.id)
 					}
 					tabIndex={0}
 					role="button"
@@ -246,8 +246,8 @@ export function PreviewElementRenderer({
 						event.preventDefault();
 						onElementSelect({ elementId: element.id });
 					}}
-					onMouseDown={(event) =>
-						onTextMouseDown(event, element, elementData.track.id)
+					onPointerDown={(event) =>
+						onTextPointerDown(event, element, elementData.track.id)
 					}
 					tabIndex={0}
 					role="button"
@@ -354,8 +354,8 @@ export function PreviewElementRenderer({
 								event.preventDefault();
 								onElementSelect({ elementId: element.id });
 							}}
-							onMouseDown={(event) =>
-								onTextMouseDown(event, element, elementData.track.id)
+							onPointerDown={(event) =>
+								onTextPointerDown(event, element, elementData.track.id)
 							}
 							onWheel={(event) => {
 								event.stopPropagation();

@@ -1,70 +1,50 @@
 import { useCallback } from "react";
-import type { ElectronAPI } from "@/types/electron";
+import { platform } from "@qcut/platform-core";
 
 export const useElectron = () => {
-	const electronAPI = (
-		typeof window !== "undefined" ? window.electronAPI : undefined
-	) as ElectronAPI | undefined;
+	const p = platform();
 
 	const isElectron = useCallback(() => {
-		return electronAPI?.isElectron || false;
-	}, [electronAPI]);
+		return p.isElectron || false;
+	}, [p]);
 
 	const openFileDialog = useCallback(async () => {
-		if (!electronAPI) {
-			throw new Error("Electron API not available");
-		}
-		return electronAPI.openFileDialog();
-	}, [electronAPI]);
+		return p.files.openFileDialog();
+	}, [p]);
 
 	const openMultipleFilesDialog = useCallback(async () => {
-		if (!electronAPI) {
-			throw new Error("Electron API not available");
-		}
-		return electronAPI.openMultipleFilesDialog();
-	}, [electronAPI]);
+		return p.files.openMultipleFilesDialog();
+	}, [p]);
 
 	const saveFileDialog = useCallback(
 		async (
 			defaultFilename?: string,
 			filters?: Array<{ name: string; extensions: string[] }>
 		) => {
-			if (!electronAPI) {
-				throw new Error("Electron API not available");
-			}
-			return electronAPI.saveFileDialog(defaultFilename, filters);
+			return p.files.saveFileDialog(defaultFilename, filters);
 		},
-		[electronAPI]
+		[p]
 	);
 
 	const readFile = useCallback(
 		async (filePath: string) => {
-			if (!electronAPI) {
-				throw new Error("Electron API not available");
-			}
-			return electronAPI.readFile(filePath);
+			return p.files.readFile(filePath);
 		},
-		[electronAPI]
+		[p]
 	);
 
 	const writeFile = useCallback(
 		async (filePath: string, data: Buffer | string) => {
-			if (!electronAPI) {
-				throw new Error("Electron API not available");
-			}
-			return electronAPI.writeFile(filePath, data);
+			return p.files.writeFile(filePath, data);
 		},
-		[electronAPI]
+		[p]
 	);
 
 	const getFileInfo = useCallback(
 		async (filePath: string) => {
-			if (!electronAPI) {
-				throw new Error("Electron API not available");
-			}
-			return electronAPI.getFileInfo(filePath);
+			return p.files.getFileInfo(filePath);
 		},
-		[electronAPI]
+		[p]
 	);
 
 	// Helper function to import files for the video editor
@@ -148,7 +128,7 @@ export const useElectron = () => {
 
 	return {
 		isElectron,
-		electronAPI,
+		electronAPI: p,
 		// Raw API methods
 		openFileDialog,
 		openMultipleFilesDialog,

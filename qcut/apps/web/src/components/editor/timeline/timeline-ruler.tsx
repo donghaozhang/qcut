@@ -25,10 +25,16 @@ interface TimelineRulerProps {
 	) => "cached" | "not-cached";
 	rulerRef: RefObject<HTMLDivElement | null>;
 	rulerScrollRef: RefObject<HTMLDivElement | null>;
-	handleRulerMouseDown: (e: React.MouseEvent) => void;
-	handleSelectionMouseDown: (e: React.MouseEvent) => void;
+	handleRulerPointerDown: (e: React.PointerEvent) => void;
+	handleSelectionPointerDown: (e: React.PointerEvent) => void;
 	handleTimelineContentClick: (e: React.MouseEvent) => void;
 	handleWheel: (e: React.WheelEvent) => void;
+	pinchHandlers: {
+		onPointerDown: (e: React.PointerEvent) => void;
+		onPointerMove: (e: React.PointerEvent) => void;
+		onPointerUp: (e: React.PointerEvent) => void;
+		onPointerCancel: (e: React.PointerEvent) => void;
+	};
 	dynamicTimelineWidth: number;
 	aiFilteredWords: WordItem[];
 	userRemovedWords: WordItem[];
@@ -45,10 +51,11 @@ export function TimelineRuler({
 	getRenderStatus,
 	rulerRef,
 	rulerScrollRef,
-	handleRulerMouseDown,
-	handleSelectionMouseDown,
+	handleRulerPointerDown,
+	handleSelectionPointerDown,
 	handleTimelineContentClick,
 	handleWheel,
+	pinchHandlers,
 	dynamicTimelineWidth,
 	aiFilteredWords,
 	userRemovedWords,
@@ -56,7 +63,7 @@ export function TimelineRuler({
 }: TimelineRulerProps) {
 	return (
 		<div
-			className="flex-1 relative overflow-hidden h-10"
+			className="flex-1 relative overflow-hidden h-10 touch-none"
 			onWheel={(e) => {
 				// Check if this is horizontal scrolling - if so, don't handle it here
 				if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
@@ -64,7 +71,13 @@ export function TimelineRuler({
 				}
 				handleWheel(e);
 			}}
-			onMouseDown={handleSelectionMouseDown}
+			onPointerDown={(e) => {
+				pinchHandlers.onPointerDown(e);
+				handleSelectionPointerDown(e);
+			}}
+			onPointerMove={pinchHandlers.onPointerMove}
+			onPointerUp={pinchHandlers.onPointerUp}
+			onPointerCancel={pinchHandlers.onPointerCancel}
 			onClick={handleTimelineContentClick}
 			data-ruler-area
 		>
@@ -78,7 +91,7 @@ export function TimelineRuler({
 					style={{
 						width: `${dynamicTimelineWidth}px`,
 					}}
-					onMouseDown={handleRulerMouseDown}
+					onPointerDown={handleRulerPointerDown}
 				>
 					{/* Cache indicator */}
 					<TimelineCacheIndicator

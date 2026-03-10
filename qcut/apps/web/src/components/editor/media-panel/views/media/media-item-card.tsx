@@ -1,3 +1,4 @@
+import { platform } from "@qcut/platform-core";
 import React from "react";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { MediaFolder } from "@/stores/media/media-store-types";
@@ -227,13 +228,13 @@ export const MediaItemCard = React.memo(function MediaItemCard({
 				{/* Open in Explorer (Electron only) */}
 				{item.localPath && (
 					<ContextMenuItem
-						onClick={(e) => {
+						onClick={async (e) => {
 							e.stopPropagation();
 							const localPath = item.localPath;
 							if (!localPath) return;
-							if (window.electronAPI?.shell?.showItemInFolder) {
+							if (platform().shell?.showItemInFolder) {
 								try {
-									window.electronAPI.shell.showItemInFolder(localPath);
+									await platform().shell.showItemInFolder(localPath);
 								} catch (error) {
 									debugError("[Media View] Open in Explorer failed:", error);
 									toast.error("Failed to open in Explorer");

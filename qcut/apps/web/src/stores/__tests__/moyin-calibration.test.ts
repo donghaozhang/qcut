@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
 import type {
 	ScriptCharacter,
 	ScriptData,
@@ -63,6 +65,7 @@ describe("moyin-calibration", () => {
 				callLLM: callLLMMock,
 			},
 		};
+		initPlatform(createDesktopAdapter());
 	});
 
 	it("uses character calibrator pipeline when raw script contains episode scripts", async () => {

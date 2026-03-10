@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { platform } from "@qcut/platform-core";
 import { debugLog, debugError } from "@/lib/debug/debug-config";
 import type { Skill } from "@/types/skill";
 
@@ -51,19 +52,12 @@ export const useSkillsStore = create<SkillsStore>((set, get) => ({
 		set({ isLoading: true, error: null });
 
 		try {
-			// Load via Electron IPC
-			if (window.electronAPI?.skills?.list) {
-				const skills = await window.electronAPI.skills.list(projectId);
-				set({ skills, isLoading: false });
-				debugLog("[SkillsStore] Loaded skills:", {
-					projectId,
-					count: skills.length,
-				});
-			} else {
-				// Browser mode - no skills available
-				set({ skills: [], isLoading: false });
-				debugLog("[SkillsStore] Skills not available in browser mode");
-			}
+			const skills = await platform().skills.list(projectId);
+			set({ skills, isLoading: false });
+			debugLog("[SkillsStore] Loaded skills:", {
+				projectId,
+				count: skills.length,
+			});
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : String(error);
@@ -74,20 +68,15 @@ export const useSkillsStore = create<SkillsStore>((set, get) => ({
 
 	importSkill: async (projectId, sourcePath) => {
 		try {
-			if (window.electronAPI?.skills?.import) {
-				const skill = await window.electronAPI.skills.import(
+			const skill = await platform().skills.import(projectId, sourcePath);
+			if (skill) {
+				set((state) => ({ skills: [...state.skills, skill] }));
+				debugLog("[SkillsStore] Imported skill:", {
 					projectId,
-					sourcePath
-				);
-				if (skill) {
-					set((state) => ({ skills: [...state.skills, skill] }));
-					debugLog("[SkillsStore] Imported skill:", {
-						projectId,
-						skillId: skill.id,
-						name: skill.name,
-					});
-					return skill.id;
-				}
+					skillId: skill.id,
+					name: skill.name,
+				});
+				return skill.id;
 			}
 			return null;
 		} catch (error) {
@@ -101,15 +90,13 @@ export const useSkillsStore = create<SkillsStore>((set, get) => ({
 
 	deleteSkill: async (projectId, skillId) => {
 		try {
-			if (window.electronAPI?.skills?.delete) {
-				await window.electronAPI.skills.delete(projectId, skillId);
-				set((state) => ({
-					skills: state.skills.filter((s) => s.id !== skillId),
-					selectedSkillId:
-						state.selectedSkillId === skillId ? null : state.selectedSkillId,
-				}));
-				debugLog("[SkillsStore] Deleted skill:", { projectId, skillId });
-			}
+			await platform().skills.delete(projectId, skillId);
+			set((state) => ({
+				skills: state.skills.filter((s) => s.id !== skillId),
+				selectedSkillId:
+					state.selectedSkillId === skillId ? null : state.selectedSkillId,
+			}));
+			debugLog("[SkillsStore] Deleted skill:", { projectId, skillId });
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error ? error.message : String(error);

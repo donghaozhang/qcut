@@ -5,6 +5,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
 import {
 	bulkImportFiles,
 	getMimeType,
@@ -142,6 +144,7 @@ describe("bulk-import", () => {
 				writable: true,
 				configurable: true,
 			});
+			initPlatform(createDesktopAdapter());
 		});
 
 		afterEach(() => {

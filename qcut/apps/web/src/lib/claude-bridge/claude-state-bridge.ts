@@ -1,4 +1,5 @@
 import { useMediaPanelStore } from "@/components/editor/media-panel/store";
+import { platform } from "@qcut/platform-core";
 import { useExportStore } from "@/stores/export-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
@@ -457,9 +458,14 @@ function buildEditorStateSnapshot({
 	return snapshot;
 }
 
+/**
+ * Retrieve the renderer bridge API for Claude state from the platform, if present.
+ *
+ * @returns The `ClaudeStateRendererBridgeAPI` instance exposed by the platform, or `null` if it is not available or an error occurs while accessing it.
+ */
 function getClaudeStateBridge(): ClaudeStateRendererBridgeAPI | null {
 	try {
-		const claude = window.electronAPI?.claude as
+		const claude = platform().claude as
 			| ({ state?: ClaudeStateRendererBridgeAPI } & Record<string, unknown>)
 			| undefined;
 		return claude?.state ?? null;

@@ -66,6 +66,8 @@
 	],
 	"scripts": {
 		"dev": "turbo run dev",
+		"dev:web": "cd apps/web && VITE_BUILD_TARGET=web bun run dev:web",
+		"build:web": "cd apps/web && VITE_BUILD_TARGET=web bun run build:web",
 		"build": "turbo run build && bun run build:electron",
 		"check-types": "turbo run check-types",
 		"postinstall": "bun run setup-ffmpeg && bun scripts/patch-node-pty.ts",

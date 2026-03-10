@@ -4,6 +4,7 @@
  */
 
 import { create } from "zustand";
+import { platform } from "@qcut/platform-core";
 import type {
 	Episode,
 	ScriptCharacter,
@@ -53,6 +54,7 @@ import {
 	clearPendingParse,
 } from "./moyin-parse-actions";
 import { parseNovelImport } from "./moyin-novel-import";
+import { debugError } from "@/lib/debug/debug-config";
 
 // Types
 
@@ -272,7 +274,7 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 
 		checkApiKeyStatus: async () => {
 			try {
-				const status = await window.electronAPI?.apiKeys?.status();
+				const status = await platform().apiKeys.status();
 				if (!status) {
 					set({ chatConfigured: false });
 					return;
@@ -284,8 +286,7 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 					false;
 				if (!configured) {
 					// Claude CLI is available as fallback (no API key required)
-					const claudeAvailable =
-						await window.electronAPI?.moyin?.isClaudeAvailable?.();
+					const claudeAvailable = await platform().moyin.isClaudeAvailable?.();
 					configured = !!claudeAvailable;
 				}
 				set({ chatConfigured: configured });
@@ -316,6 +317,7 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 			advancePipeline("import", "active");
 
 			// --- PTY path: stream output in terminal, data arrives via onParsed ---
+			ensureParsedListenerRegistered();
 			const ptyResult = await attemptPtyParse(rawScript, parseModel);
 			if (ptyResult.success) {
 				const pendingPath = ptyResult.tempPath ?? null;
@@ -340,7 +342,7 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 
 			// --- IPC fallback: direct call when PTY is unavailable ---
 			try {
-				const api = window.electronAPI?.moyin;
+				const api = platform().moyin;
 				if (!api) {
 					throw new Error("Moyin API not available. Please run in Electron.");
 				}
@@ -864,44 +866,57 @@ useMoyinStore.subscribe((state) => {
 	}, 1000);
 });
 
-// Listen for parsed script data pushed from CLI via HTTP API
-if (typeof window !== "undefined") {
-	window.electronAPI?.moyin?.onParsed?.((data: Record<string, unknown>) => {
-		const state = useMoyinStore.getState();
-		const scriptData = data as unknown as ScriptData;
+// Listen for parsed script data pushed from CLI via HTTP API.
+// Lazily registered because platform() may not be initialized at module load time.
+let parsedListenerRegistered = false;
 
-		// Cancel timers and clean up temp file from PTY parse
-		if (parseTimeoutRef != null) {
-			clearTimeout(parseTimeoutRef);
-			parseTimeoutRef = null;
-		}
-		const tempPath = getPendingTempScriptPath();
-		if (tempPath) {
-			window.electronAPI?.moyin?.cleanupTempScript(tempPath)?.catch(() => {});
-		}
-		clearPendingParse();
+function ensureParsedListenerRegistered(): void {
+	if (parsedListenerRegistered) return;
+	if (typeof window === "undefined") return;
 
-		// Set initial data and switch to characters tab
-		useMoyinStore.setState({
-			shotGenerationStatus: {},
-			selectedShotIds: new Set<string>(),
-			activeStep: "characters",
-		});
+	try {
+		platform().moyin.onParsed?.((data: Record<string, unknown>) => {
+			const state = useMoyinStore.getState();
+			const scriptData = data as unknown as ScriptData;
 
-		// Run full calibration pipeline (title, synopsis, shots, characters, scenes)
-		runCalibrationPipeline(scriptData, state.rawScript, {
-			getState: useMoyinStore.getState,
-			setState: useMoyinStore.setState,
-		})
-			.then(() => {
-				useMoyinStore.setState({ parseStatus: "ready" });
-			})
-			.catch((err) => {
-				console.error("[Moyin] Calibration after CLI push failed:", err);
-				useMoyinStore.setState({
-					parseStatus: "error",
-					parseError: String(err),
-				});
+			// Cancel timers and clean up temp file from PTY parse
+			if (parseTimeoutRef != null) {
+				clearTimeout(parseTimeoutRef);
+				parseTimeoutRef = null;
+			}
+			const tempPath = getPendingTempScriptPath();
+			if (tempPath) {
+				platform()
+					.moyin.cleanupTempScript(tempPath)
+					?.catch(() => {});
+			}
+			clearPendingParse();
+
+			// Set initial data and switch to characters tab
+			useMoyinStore.setState({
+				shotGenerationStatus: {},
+				selectedShotIds: new Set<string>(),
+				activeStep: "characters",
 			});
-	});
+
+			// Run full calibration pipeline (title, synopsis, shots, characters, scenes)
+			runCalibrationPipeline(scriptData, state.rawScript, {
+				getState: useMoyinStore.getState,
+				setState: useMoyinStore.setState,
+			})
+				.then(() => {
+					useMoyinStore.setState({ parseStatus: "ready" });
+				})
+				.catch((err) => {
+					debugError("[Moyin] Calibration after CLI push failed:", err);
+					useMoyinStore.setState({
+						parseStatus: "error",
+						parseError: String(err),
+					});
+				});
+		});
+		parsedListenerRegistered = true;
+	} catch {
+		// Platform not initialized yet — will retry on next call.
+	}
 }

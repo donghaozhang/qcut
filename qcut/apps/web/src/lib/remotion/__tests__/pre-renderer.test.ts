@@ -15,6 +15,8 @@ import {
 	afterEach,
 	beforeAll,
 } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
 import {
 	RemotionPreRenderer,
 	createPreRenderer,
@@ -28,6 +30,7 @@ import type { RemotionElement } from "@/types/timeline";
 
 // Mock canvas for JSDOM environment
 beforeAll(() => {
+	initPlatform(createWebAdapter());
 	// Create a proper mock for HTMLCanvasElement.toDataURL
 	HTMLCanvasElement.prototype.toDataURL = vi.fn(
 		() => "data:image/png;base64,test"

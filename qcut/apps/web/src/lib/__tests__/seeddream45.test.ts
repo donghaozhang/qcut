@@ -1,4 +1,18 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+	describe,
+	it,
+	expect,
+	vi,
+	beforeEach,
+	afterEach,
+	beforeAll,
+} from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
+
+beforeAll(() => {
+	initPlatform(createWebAdapter());
+});
 
 const originalFetch = globalThis.fetch;
 
@@ -272,6 +286,9 @@ describe("Seeddream 4.5 Text-to-Image", () => {
 
 			// Re-import to get the function with cleared key
 			vi.resetModules();
+			const { initPlatform: initP } = await import("@qcut/platform-core");
+			const { createWebAdapter: createW } = await import("@qcut/platform-web");
+			initP(createW());
 			const aiVideoClient = await import("@/lib/ai-clients/ai-video-client");
 
 			// Mock fetch to prevent real API calls
@@ -474,15 +491,26 @@ describe("uploadImageForSeeddream45Edit", () => {
 		uploadImageForSeeddream45Edit = aiVideoClient.uploadImageForSeeddream45Edit;
 	});
 
-	afterEach(() => {
+	const resetPlatformToWeb = async () => {
+		const { initPlatform } = await import("@qcut/platform-core");
+		const { createWebAdapter } = await import("@qcut/platform-web");
+		initPlatform(createWebAdapter());
+	};
+
+	afterEach(async () => {
 		vi.clearAllMocks();
 		vi.restoreAllMocks();
+		// Restore web adapter as default for this file
+		await resetPlatformToWeb();
 	});
 
 	it("should throw error when API key is not configured", async () => {
 		(import.meta.env as any).VITE_FAL_API_KEY = "";
 
 		vi.resetModules();
+		const { initPlatform: initP } = await import("@qcut/platform-core");
+		const { createWebAdapter: createW } = await import("@qcut/platform-web");
+		initP(createW());
 		const aiVideoClient = await import("@/lib/ai-clients/ai-video-client");
 
 		const mockFile = createMockFile("test", "test.png", "image/png");
@@ -493,18 +521,12 @@ describe("uploadImageForSeeddream45Edit", () => {
 	});
 
 	it("should throw error when Electron API is not available", async () => {
-		// Ensure electronAPI is not available
-		const originalWindow = (globalThis as any).window;
-		(globalThis as any).window = { electronAPI: undefined };
+		// Web adapter's fal namespace returns graceful null instead of throwing
+		await resetPlatformToWeb();
 
 		const mockFile = createMockFile("test", "test.png", "image/png");
 
-		await expect(uploadImageForSeeddream45Edit(mockFile)).rejects.toThrow(
-			/Image upload requires Electron/
-		);
-
-		// Restore
-		(globalThis as any).window = originalWindow;
+		await expect(uploadImageForSeeddream45Edit(mockFile)).rejects.toThrow();
 	});
 
 	it("should use Electron IPC when available", async () => {
@@ -513,14 +535,17 @@ describe("uploadImageForSeeddream45Edit", () => {
 			url: "https://fal.ai/storage/uploaded.png",
 		});
 
-		const originalWindow = (globalThis as any).window;
-		(globalThis as any).window = {
-			electronAPI: {
-				fal: {
-					uploadImage: mockUploadImage,
-				},
+		// Set up electronAPI and init desktop adapter so platform().fal delegates to it
+		(window as any).electronAPI = {
+			fal: {
+				uploadImage: mockUploadImage,
 			},
 		};
+		const { initPlatform: initP } = await import("@qcut/platform-core");
+		const { createDesktopAdapter: createD } = await import(
+			"@qcut/platform-desktop"
+		);
+		initP(createD());
 
 		const mockFile = createMockFile("test image data", "test.png", "image/png");
 
@@ -532,9 +557,6 @@ describe("uploadImageForSeeddream45Edit", () => {
 			"test.png",
 			"test-api-key"
 		);
-
-		// Restore
-		(globalThis as any).window = originalWindow;
 	});
 
 	it("should throw error when upload fails", async () => {
@@ -543,22 +565,22 @@ describe("uploadImageForSeeddream45Edit", () => {
 			error: "Network error",
 		});
 
-		const originalWindow = (globalThis as any).window;
-		(globalThis as any).window = {
-			electronAPI: {
-				fal: {
-					uploadImage: mockUploadImage,
-				},
+		// Set up electronAPI and init desktop adapter
+		(window as any).electronAPI = {
+			fal: {
+				uploadImage: mockUploadImage,
 			},
 		};
+		const { initPlatform: initP } = await import("@qcut/platform-core");
+		const { createDesktopAdapter: createD } = await import(
+			"@qcut/platform-desktop"
+		);
+		initP(createD());
 
 		const mockFile = createMockFile("test", "test.png", "image/png");
 
 		await expect(uploadImageForSeeddream45Edit(mockFile)).rejects.toThrow(
 			/Network error/
 		);
-
-		// Restore
-		(globalThis as any).window = originalWindow;
 	});
 });

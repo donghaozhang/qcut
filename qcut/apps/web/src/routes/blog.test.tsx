@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, afterEach, beforeAll } from "vitest";
 import { render, fireEvent, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
 import type { FC } from "react";
 
 const mockOpenInNewTab = vi.fn();
@@ -42,6 +45,7 @@ vi.mock("@/lib/utils", () => ({
 }));
 
 beforeAll(async () => {
+	initPlatform(createWebAdapter());
 	await import("./blog");
 });
 
@@ -59,14 +63,16 @@ describe("BlogPage", () => {
 		expect(getByText("Visit QCut on GitHub")).toBeInTheDocument();
 	});
 
-	it("calls openInNewTab when electronAPI is not available", async () => {
+	it("uses platform shell when electronAPI is not available", async () => {
+		// With the web adapter, platform().shell.openExternal uses window.open
+		// instead of falling back to openInNewTab
 		const { getByText } = render(<BlogPage />);
 		fireEvent.click(getByText("Visit QCut on GitHub"));
 
+		// Web adapter's openExternal handles it via window.open, so
+		// openInNewTab should NOT be called
 		await vi.waitFor(() => {
-			expect(mockOpenInNewTab).toHaveBeenCalledWith(
-				"https://github.com/donghaozhang/qcut"
-			);
+			expect(mockOpenInNewTab).not.toHaveBeenCalled();
 		});
 	});
 
@@ -75,6 +81,7 @@ describe("BlogPage", () => {
 		(window as unknown as Record<string, unknown>).electronAPI = {
 			shell: { openExternal: mockOpenExternal },
 		};
+		initPlatform(createDesktopAdapter());
 
 		const { getByText } = render(<BlogPage />);
 		fireEvent.click(getByText("Visit QCut on GitHub"));
@@ -92,6 +99,7 @@ describe("BlogPage", () => {
 		(window as unknown as Record<string, unknown>).electronAPI = {
 			shell: { openExternal: mockOpenExternal },
 		};
+		initPlatform(createDesktopAdapter());
 
 		const { getByText } = render(<BlogPage />);
 		fireEvent.click(getByText("Visit QCut on GitHub"));

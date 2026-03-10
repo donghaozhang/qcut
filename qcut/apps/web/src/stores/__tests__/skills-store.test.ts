@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createDesktopAdapter } from "@qcut/platform-desktop";
+import { createWebAdapter } from "@qcut/platform-web";
 import { useSkillsStore } from "../skills-store";
 import type { Skill } from "@/types/skill";
 
@@ -40,6 +43,7 @@ describe("SkillsStore", () => {
 		useSkillsStore.getState().clearSkills();
 		// Reset any window.electronAPI mocks
 		vi.resetAllMocks();
+		initPlatform(createWebAdapter());
 	});
 
 	// ============================================================================
@@ -160,6 +164,7 @@ describe("SkillsStore", () => {
 					list: vi.fn().mockResolvedValue([mockSkill1, mockSkill2]),
 				},
 			};
+			initPlatform(createDesktopAdapter());
 
 			await useSkillsStore.getState().loadSkills("project-1");
 
@@ -179,6 +184,7 @@ describe("SkillsStore", () => {
 					list: vi.fn().mockRejectedValue(new Error("Load failed")),
 				},
 			};
+			initPlatform(createDesktopAdapter());
 
 			await useSkillsStore.getState().loadSkills("project-1");
 
@@ -208,6 +214,7 @@ describe("SkillsStore", () => {
 					import: vi.fn().mockResolvedValue(mockSkill1),
 				},
 			};
+			initPlatform(createDesktopAdapter());
 
 			const result = await useSkillsStore
 				.getState()
@@ -226,6 +233,7 @@ describe("SkillsStore", () => {
 					import: vi.fn().mockRejectedValue(new Error("Import failed")),
 				},
 			};
+			initPlatform(createDesktopAdapter());
 
 			const result = await useSkillsStore
 				.getState()
@@ -249,6 +257,7 @@ describe("SkillsStore", () => {
 					delete: vi.fn().mockResolvedValue(undefined),
 				},
 			};
+			initPlatform(createDesktopAdapter());
 
 			await useSkillsStore.getState().deleteSkill("project-1", "skill-1");
 
@@ -267,6 +276,7 @@ describe("SkillsStore", () => {
 					delete: vi.fn().mockResolvedValue(undefined),
 				},
 			};
+			initPlatform(createDesktopAdapter());
 
 			await useSkillsStore.getState().deleteSkill("project-1", "skill-1");
 
@@ -284,6 +294,7 @@ describe("SkillsStore", () => {
 					delete: vi.fn().mockResolvedValue(undefined),
 				},
 			};
+			initPlatform(createDesktopAdapter());
 
 			await useSkillsStore.getState().deleteSkill("project-1", "skill-2");
 
@@ -298,6 +309,7 @@ describe("SkillsStore", () => {
 					delete: vi.fn().mockRejectedValue(new Error("Delete failed")),
 				},
 			};
+			initPlatform(createDesktopAdapter());
 
 			await useSkillsStore.getState().deleteSkill("project-1", "skill-1");
 

@@ -32,6 +32,7 @@ export function useTimelinePlayhead({
 	const [isDraggingRuler, setIsDraggingRuler] = useState(false);
 	const [hasDraggedRuler, setHasDraggedRuler] = useState(false);
 	const hasLoggedSeekRef = useRef(false);
+	const pointerCaptureRef = useRef<Element | null>(null);
 
 	// Auto-scroll state during dragging
 	const autoScrollRef = useRef<number | null>(null);
@@ -41,7 +42,7 @@ export function useTimelinePlayhead({
 		isScrubbing && scrubTime !== null ? scrubTime : currentTime;
 
 	const handleScrub = useCallback(
-		(e: MouseEvent | React.MouseEvent) => {
+		(e: PointerEvent | React.PointerEvent) => {
 			const ruler = rulerRef.current;
 			if (!ruler) return;
 			const rect = ruler.getBoundingClientRect();
@@ -79,10 +80,12 @@ export function useTimelinePlayhead({
 	);
 
 	// --- Playhead Scrubbing Handlers ---
-	const handlePlayheadMouseDown = useCallback(
-		(e: React.MouseEvent) => {
+	const handlePlayheadPointerDown = useCallback(
+		(e: React.PointerEvent) => {
 			e.preventDefault();
 			e.stopPropagation(); // Prevent ruler drag from triggering
+			pointerCaptureRef.current = e.target as Element;
+			pointerCaptureRef.current.setPointerCapture?.(e.pointerId);
 			setIsScrubbing(true);
 			hasLoggedSeekRef.current = false;
 			handleScrub(e);
@@ -90,9 +93,9 @@ export function useTimelinePlayhead({
 		[handleScrub]
 	);
 
-	// Ruler mouse down handler
-	const handleRulerMouseDown = useCallback(
-		(e: React.MouseEvent) => {
+	// Ruler pointer down handler
+	const handleRulerPointerDown = useCallback(
+		(e: React.PointerEvent) => {
 			// Only handle left mouse button
 			if (e.button !== 0) return;
 
@@ -100,6 +103,8 @@ export function useTimelinePlayhead({
 			if (playheadRef?.current?.contains(e.target as Node)) return;
 
 			e.preventDefault();
+			pointerCaptureRef.current = e.target as Element;
+			pointerCaptureRef.current.setPointerCapture?.(e.pointerId);
 			setIsDraggingRuler(true);
 			setHasDraggedRuler(false);
 			hasLoggedSeekRef.current = false;
@@ -165,11 +170,11 @@ export function useTimelinePlayhead({
 		}
 	}, [isScrubbing, rulerScrollRef, tracksScrollRef, duration, zoomLevel]);
 
-	// Mouse move/up event handlers
+	// Pointer move/up event handlers
 	useEffect(() => {
 		if (!isScrubbing) return;
 
-		const onMouseMove = (e: MouseEvent) => {
+		const onPointerMove = (e: PointerEvent) => {
 			handleScrub(e);
 			// Mark that we've dragged if ruler drag is active
 			if (isDraggingRuler) {
@@ -177,11 +182,13 @@ export function useTimelinePlayhead({
 			}
 		};
 
-		const onMouseUp = (e: MouseEvent) => {
+		const onPointerUp = (e: PointerEvent) => {
+			pointerCaptureRef.current?.releasePointerCapture?.(e.pointerId);
+			pointerCaptureRef.current = null;
 			setIsScrubbing(false);
 			if (scrubTime !== null) seek(scrubTime); // finalize seek
 			setScrubTime(null);
-			// Note: Don't reset hasLoggedSeekRef here - it's reset on mousedown
+			// Note: Don't reset hasLoggedSeekRef here - it's reset on pointerdown
 			// Resetting here would cause double-logging for click-only ruler seeks
 
 			// Stop auto-scrolling
@@ -201,15 +208,17 @@ export function useTimelinePlayhead({
 			}
 		};
 
-		window.addEventListener("mousemove", onMouseMove);
-		window.addEventListener("mouseup", onMouseUp);
+		window.addEventListener("pointermove", onPointerMove);
+		window.addEventListener("pointerup", onPointerUp);
+		window.addEventListener("pointercancel", onPointerUp);
 
 		// Start auto-scrolling
 		autoScrollRef.current = requestAnimationFrame(performAutoScroll);
 
 		return () => {
-			window.removeEventListener("mousemove", onMouseMove);
-			window.removeEventListener("mouseup", onMouseUp);
+			window.removeEventListener("pointermove", onPointerMove);
+			window.removeEventListener("pointerup", onPointerUp);
+			window.removeEventListener("pointercancel", onPointerUp);
 			if (autoScrollRef.current) {
 				cancelAnimationFrame(autoScrollRef.current);
 				autoScrollRef.current = null;
@@ -272,8 +281,10 @@ export function useTimelinePlayhead({
 
 	return {
 		playheadPosition,
-		handlePlayheadMouseDown,
-		handleRulerMouseDown,
+		handlePlayheadPointerDown,
+		handleRulerPointerDown,
 		isDraggingRuler,
+		/** Apply to the draggable element for reliable touch/pen tracking */
+		dragStyle: { touchAction: "none" } as const,
 	};
 }

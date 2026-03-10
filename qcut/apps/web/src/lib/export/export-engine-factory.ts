@@ -4,6 +4,7 @@ import { TimelineTrack } from "@/types/timeline";
 import { MediaItem } from "@/stores/media/media-store";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 import { useEffectsStore } from "@/stores/ai/effects-store";
+import { platform, PlatformCapability } from "@qcut/platform-core";
 
 // Engine types available
 export const ExportEngineType = {
@@ -115,13 +116,10 @@ export class ExportEngineFactory {
 		console.log("🔍 EXPORT ENGINE DEBUG - Starting engine selection:");
 		console.log("  - Force regular engine override:", forceRegularEngine);
 		console.log("  - Is Electron environment:", this.isElectron());
-		console.log(
-			"  - Window.electronAPI exists:",
-			!!(window as any).electronAPI
-		);
+		console.log("  - Platform isElectron:", platform().isElectron);
 		console.log(
 			"  - FFmpeg CLI available:",
-			!!(window as any).electronAPI?.ffmpeg?.exportVideoCLI
+			typeof platform().ffmpeg.exportVideoCLI === "function"
 		);
 
 		if (forceRegularEngine) {
@@ -292,13 +290,10 @@ export class ExportEngineFactory {
 				if (this.isElectron()) {
 					try {
 						console.log("✅ Electron detected - Loading CLI FFmpeg engine");
-						console.log(
-							"  - electronAPI available:",
-							!!(window as any).electronAPI
-						);
+						console.log("  - platform isElectron:", platform().isElectron);
 						console.log(
 							"  - ffmpeg.exportVideoCLI available:",
-							!!(window as any).electronAPI?.ffmpeg?.exportVideoCLI
+							typeof platform().ffmpeg.exportVideoCLI === "function"
 						);
 
 						debugLog(
@@ -359,7 +354,7 @@ export class ExportEngineFactory {
 						"🌐 BROWSER ENVIRONMENT: Using Standard Canvas engine (CLI not available in browser)"
 					);
 					console.log("  - isElectron() returned false");
-					console.log("  - electronAPI exists:", !!(window as any).electronAPI);
+					console.log("  - platform isElectron:", platform().isElectron);
 					console.log("  ⚠️ NOT USING FFMPEG - Browser environment detected");
 					debugWarn(
 						"[ExportEngineFactory] ⚠️  CLI engine only available in Electron, using Standard engine for browser"
@@ -623,49 +618,8 @@ export class ExportEngineFactory {
 		return false;
 	}
 
-	// Check if running in Electron environment
+	// Check if running in Electron environment with FFmpeg CLI support
 	private isElectron(): boolean {
-		const electronAPI = (window as any).electronAPI;
-
-		console.log("🔍 DETAILED ELECTRON DETECTION:");
-		console.log("  - window.electronAPI exists:", !!electronAPI);
-
-		if (electronAPI) {
-			console.log("  - electronAPI.ffmpeg exists:", !!electronAPI.ffmpeg);
-			if (electronAPI.ffmpeg) {
-				console.log(
-					"  - Available ffmpeg methods:",
-					Object.keys(electronAPI.ffmpeg)
-				);
-				console.log(
-					"  - exportVideoCLI type:",
-					typeof electronAPI.ffmpeg.exportVideoCLI
-				);
-			}
-		}
-
-		// Check for specific Electron API methods instead of generic invoke
-		const hasElectronAPI =
-			electronAPI &&
-			electronAPI.ffmpeg &&
-			typeof electronAPI.ffmpeg.exportVideoCLI === "function";
-
-		console.log(
-			`🔍 ENVIRONMENT CHECK: electronAPI exists: ${!!electronAPI}, ffmpeg.exportVideoCLI: ${typeof electronAPI?.ffmpeg?.exportVideoCLI}`
-		);
-		console.log(`🔍 ENVIRONMENT CHECK: isElectron result: ${hasElectronAPI}`);
-
-		if (!hasElectronAPI) {
-			console.log("⚠️ NOT DETECTED AS ELECTRON - Missing requirements:");
-			if (!electronAPI) {
-				console.log("  - window.electronAPI is not defined");
-			} else if (!electronAPI.ffmpeg) {
-				console.log("  - electronAPI.ffmpeg is not defined");
-			} else if (typeof electronAPI.ffmpeg.exportVideoCLI !== "function") {
-				console.log("  - electronAPI.ffmpeg.exportVideoCLI is not a function");
-			}
-		}
-
-		return hasElectronAPI;
+		return platform().hasCapability(PlatformCapability.FFmpeg);
 	}
 }

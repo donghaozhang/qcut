@@ -1,4 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+	describe,
+	it,
+	expect,
+	vi,
+	beforeEach,
+	afterEach,
+	beforeAll,
+} from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
 import {
 	validateViduQ3Prompt,
 	validateViduQ3Duration,
@@ -12,6 +22,21 @@ import {
 	VIDU_Q3_MAX_DURATION,
 	VIDU_Q3_DEFAULT_DURATION,
 } from "@/lib/ai-video";
+
+beforeAll(() => {
+	const adapter = createWebAdapter();
+	// Override fal stub to return undefined methods instead of throwing,
+	// so polling code falls back to direct fetch (which tests mock).
+	(adapter as any).fal = { queueFetch: undefined };
+	// Override apiKeys to return empty (no BYOK key)
+	(adapter as any).apiKeys = {
+		get: async () => ({}),
+		set: async () => true,
+		clear: async () => true,
+		status: async () => ({}),
+	};
+	initPlatform(adapter);
+});
 
 const originalFetch = globalThis.fetch;
 const originalFalApiKey = (import.meta.env as Record<string, unknown>)

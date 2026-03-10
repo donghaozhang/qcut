@@ -1,10 +1,11 @@
 import { debugError, debugLog, debugWarn } from "@/lib/debug/debug-config";
+import { platform } from "@qcut/platform-core";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { TimelineTrack } from "@/types/timeline";
 import type { TimelineStore } from "@/stores/timeline/types";
 
 type ClaudeTransactionAPI = NonNullable<
-	NonNullable<NonNullable<typeof window.electronAPI>["claude"]>["transaction"]
+	NonNullable<ReturnType<typeof platform>["claude"]>["transaction"]
 >;
 
 type TransactionHistoryEntry = {
@@ -233,6 +234,13 @@ function installHistoryPatches(): void {
 	}
 }
 
+/**
+ * Restores the timeline store's original history methods and clears internal patching state.
+ *
+ * If history patches are not installed, this function does nothing. On success it reinstates
+ * the original pushHistory/undo/redo implementations, resets the patched flag and stored originals,
+ * and logs the restoration; failures are caught and logged.
+ */
 function restoreHistoryPatches(): void {
 	try {
 		if (!isHistoryPatched || !originalHistoryPatches) {
@@ -254,13 +262,24 @@ function restoreHistoryPatches(): void {
 	}
 }
 
+/**
+ * Retrieve the Claude transaction API from the platform if available.
+ *
+ * @returns The Claude transaction API instance, or `null` if it is not available on the current platform.
+ */
 function getTransactionAPI(): ClaudeTransactionAPI | null {
-	if (!window.electronAPI?.claude?.transaction) {
+	if (!platform().claude?.transaction) {
 		return null;
 	}
-	return window.electronAPI.claude.transaction;
+	return platform().claude!.transaction!;
 }
 
+/**
+ * Send a Begin response to the Claude transaction API and log any failure.
+ *
+ * @param requestId - The transaction request identifier to correlate this response with the original Begin request
+ * @param result - The Begin operation result to send to the Claude API
+ */
 function sendBeginResponse({
 	api,
 	requestId,

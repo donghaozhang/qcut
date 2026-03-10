@@ -1,5 +1,6 @@
 "use client";
 
+import { platform } from "@qcut/platform-core";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { RemotionElement, TimelineElement } from "@/types/timeline";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
@@ -99,7 +100,7 @@ export function PreviewPanel() {
 	});
 
 	// Preview element drag handling
-	const { dragState, handleTextMouseDown } = usePreviewDrag({
+	const { dragState, handleTextPointerDown } = usePreviewDrag({
 		tracks,
 		previewWidth: previewDimensions.width,
 		canvasWidth: canvasSize.width,
@@ -127,7 +128,7 @@ export function PreviewPanel() {
 	});
 
 	useEffect(() => {
-		const mcpApi = window.electronAPI?.mcp;
+		const mcpApi = platform().mcp;
 		if (!mcpApi?.onAppHtml) {
 			return;
 		}
@@ -486,7 +487,7 @@ export function PreviewPanel() {
 				dragState={dragState}
 				isPlaying={isPlaying}
 				activeProject={activeProject}
-				onTextMouseDown={handleTextMouseDown}
+				onTextPointerDown={handleTextPointerDown}
 				onElementSelect={({ elementId }) => setSelectedElementId(elementId)}
 				onElementResize={handleElementResize}
 			/>
@@ -499,7 +500,7 @@ export function PreviewPanel() {
 			dragState,
 			filterStyle,
 			handleElementResize,
-			handleTextMouseDown,
+			handleTextPointerDown,
 			hasEnabledEffects,
 			isPlaying,
 			previewDimensions,
