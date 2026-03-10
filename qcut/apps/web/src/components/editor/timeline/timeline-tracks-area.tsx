@@ -33,8 +33,14 @@ interface TimelineTracksAreaProps {
 	seek: (time: number) => void;
 	handleSnapPointChange: (snapPoint: SnapPoint | null) => void;
 	handleWheel: (e: React.WheelEvent) => void;
+	pinchHandlers: {
+		onPointerDown: (e: React.PointerEvent) => void;
+		onPointerMove: (e: React.PointerEvent) => void;
+		onPointerUp: (e: React.PointerEvent) => void;
+		onPointerCancel: (e: React.PointerEvent) => void;
+	};
 	handleTimelineMouseDown: (e: React.MouseEvent) => void;
-	handleSelectionMouseDown: (e: React.MouseEvent) => void;
+	handleSelectionPointerDown: (e: React.PointerEvent) => void;
 	handleTimelineContentClick: (e: React.MouseEvent) => void;
 	selectionBox: {
 		startPos: { x: number; y: number } | null;
@@ -58,8 +64,9 @@ export function TimelineTracksArea({
 	seek,
 	handleSnapPointChange,
 	handleWheel,
+	pinchHandlers,
 	handleTimelineMouseDown,
-	handleSelectionMouseDown,
+	handleSelectionPointerDown,
 	handleTimelineContentClick,
 	selectionBox,
 	trackLabelsRef,
@@ -113,17 +120,21 @@ export function TimelineTracksArea({
 
 			{/* Timeline Tracks Content */}
 			<div
-				className="flex-1 relative overflow-hidden"
+				className="flex-1 relative overflow-hidden touch-none"
 				onWheel={(e) => {
 					if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
 						return;
 					}
 					handleWheel(e);
 				}}
-				onMouseDown={(e) => {
+				onPointerDown={(e) => {
+					pinchHandlers.onPointerDown(e);
 					handleTimelineMouseDown(e);
-					handleSelectionMouseDown(e);
+					handleSelectionPointerDown(e);
 				}}
+				onPointerMove={pinchHandlers.onPointerMove}
+				onPointerUp={pinchHandlers.onPointerUp}
+				onPointerCancel={pinchHandlers.onPointerCancel}
 				onClick={handleTimelineContentClick}
 				ref={tracksContainerRef}
 			>

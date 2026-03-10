@@ -38,7 +38,7 @@ export function TimelinePlayhead({
 	const playheadRef = externalPlayheadRef || internalPlayheadRef;
 	const [scrollLeft, setScrollLeft] = useState(0);
 
-	const { playheadPosition, handlePlayheadMouseDown } = useTimelinePlayhead({
+	const { playheadPosition, handlePlayheadPointerDown } = useTimelinePlayhead({
 		currentTime,
 		duration,
 		zoomLevel,
@@ -109,7 +109,7 @@ export function TimelinePlayhead({
 				height: `${totalHeight}px`,
 				width: "2px", // Slightly wider for better click target
 			}}
-			onMouseDown={handlePlayheadMouseDown}
+			onPointerDown={handlePlayheadPointerDown}
 		>
 			{/* The playhead line spanning full height */}
 			<div
@@ -135,7 +135,7 @@ export function useTimelinePlayheadRuler({
 	tracksScrollRef,
 	playheadRef,
 }: Omit<TimelinePlayheadProps, "tracks" | "trackLabelsRef" | "timelineRef">) {
-	const { handleRulerMouseDown, isDraggingRuler } = useTimelinePlayhead({
+	const { handleRulerPointerDown, isDraggingRuler } = useTimelinePlayhead({
 		currentTime,
 		duration,
 		zoomLevel,
@@ -146,7 +146,7 @@ export function useTimelinePlayheadRuler({
 		playheadRef,
 	});
 
-	return { handleRulerMouseDown, isDraggingRuler };
+	return { handleRulerPointerDown, isDraggingRuler };
 }
 
 export { TimelinePlayhead as default };

@@ -7,7 +7,13 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ReactNode, useState, useRef, useEffect } from "react";
+import {
+	ReactNode,
+	useState,
+	useRef,
+	useEffect,
+	useCallback,
+} from "react";
 import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -99,6 +105,78 @@ export function DraggableMediaItem({
 		setIsDragging(false);
 	};
 
+	// Touch-based drag fallback for iOS Safari (HTML5 Drag API unsupported)
+	const touchGhostRef = useRef<HTMLDivElement | null>(null);
+
+	const cleanupTouchDrag = useCallback(() => {
+		if (touchGhostRef.current) {
+			touchGhostRef.current.remove();
+			touchGhostRef.current = null;
+		}
+		setIsDragging(false);
+	}, []);
+
+	const handlePointerDown = useCallback(
+		(e: React.PointerEvent) => {
+			if (e.pointerType !== "touch" || !isDraggable) return;
+
+			const serialized = JSON.stringify(dragData);
+
+			// Create ghost element from the thumbnail
+			const source = e.currentTarget as HTMLElement;
+			const ghost = document.createElement("div");
+			ghost.style.cssText = `
+				position: fixed; z-index: 99999; pointer-events: none;
+				width: 80px; height: 80px; border-radius: 8px; overflow: hidden;
+				box-shadow: 0 8px 30px rgba(0,0,0,0.3); opacity: 0.9;
+			`;
+			// Clone visible content into ghost
+			const clone = source.cloneNode(true) as HTMLElement;
+			clone.style.cssText =
+				"width:100%;height:100%;object-fit:cover;pointer-events:none;";
+			ghost.appendChild(clone);
+			ghost.style.left = `${e.clientX - 40}px`;
+			ghost.style.top = `${e.clientY - 40}px`;
+			document.body.appendChild(ghost);
+			touchGhostRef.current = ghost;
+			setIsDragging(true);
+			setDragPosition({ x: e.clientX, y: e.clientY });
+
+			const onPointerMove = (ev: PointerEvent) => {
+				if (!touchGhostRef.current) return;
+				touchGhostRef.current.style.left = `${ev.clientX - 40}px`;
+				touchGhostRef.current.style.top = `${ev.clientY - 40}px`;
+				setDragPosition({ x: ev.clientX, y: ev.clientY });
+			};
+
+			const onPointerUp = (ev: PointerEvent) => {
+				window.removeEventListener("pointermove", onPointerMove);
+				window.removeEventListener("pointerup", onPointerUp);
+
+				// Find drop zone under the pointer
+				cleanupTouchDrag();
+				const target = document.elementFromPoint(ev.clientX, ev.clientY);
+				const dropZone = target?.closest("[data-drop-zone]");
+				if (dropZone) {
+					dropZone.dispatchEvent(
+						new CustomEvent("touch-drop", {
+							bubbles: true,
+							detail: {
+								data: serialized,
+								clientX: ev.clientX,
+								clientY: ev.clientY,
+							},
+						}),
+					);
+				}
+			};
+
+			window.addEventListener("pointermove", onPointerMove);
+			window.addEventListener("pointerup", onPointerUp);
+		},
+		[isDraggable, dragData, cleanupTouchDrag],
+	);
+
 	return (
 		<>
 			<div
@@ -124,6 +202,7 @@ export function DraggableMediaItem({
 						draggable={isDraggable}
 						onDragStart={isDraggable ? handleDragStart : undefined}
 						onDragEnd={isDraggable ? handleDragEnd : undefined}
+						onPointerDown={isDraggable ? handlePointerDown : undefined}
 					>
 						{preview}
 						{!isDragging && (

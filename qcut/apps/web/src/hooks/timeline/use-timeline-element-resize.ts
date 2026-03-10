@@ -233,35 +233,40 @@ export function useTimelineElementResize({
 		]
 	);
 
-	// Set up document-level mouse listeners during resize (like proper drag behavior)
+	// Set up document-level pointer listeners during resize (like proper drag behavior)
 	useEffect(() => {
 		if (!resizing) return;
 
-		const handleDocumentMouseMove = (e: MouseEvent) => {
+		const handleDocumentPointerMove = (e: PointerEvent) => {
 			updateTrimFromMouseMove({ clientX: e.clientX });
 		};
 
-		const handleDocumentMouseUp = () => {
+		const handleDocumentPointerUp = (e: PointerEvent) => {
+			(e.target as Element).releasePointerCapture?.(e.pointerId);
 			handleResizeEnd();
 		};
 
 		// Add document-level listeners for proper drag behavior
-		document.addEventListener("mousemove", handleDocumentMouseMove);
-		document.addEventListener("mouseup", handleDocumentMouseUp);
+		document.addEventListener("pointermove", handleDocumentPointerMove);
+		document.addEventListener("pointerup", handleDocumentPointerUp);
+		document.addEventListener("pointercancel", handleDocumentPointerUp);
 
 		return () => {
-			document.removeEventListener("mousemove", handleDocumentMouseMove);
-			document.removeEventListener("mouseup", handleDocumentMouseUp);
+			document.removeEventListener("pointermove", handleDocumentPointerMove);
+			document.removeEventListener("pointerup", handleDocumentPointerUp);
+			document.removeEventListener("pointercancel", handleDocumentPointerUp);
 		};
 	}, [resizing, handleResizeEnd, updateTrimFromMouseMove]); // Re-run when resizing state changes
 
 	const handleResizeStart = (
-		e: React.MouseEvent,
+		e: React.PointerEvent,
 		elementId: string,
 		side: "left" | "right"
 	) => {
 		e.stopPropagation();
 		e.preventDefault();
+
+		(e.target as Element).setPointerCapture?.(e.pointerId);
 
 		// Push history once at the start of the resize operation
 		pushHistory();

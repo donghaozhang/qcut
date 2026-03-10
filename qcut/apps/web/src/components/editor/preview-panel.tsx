@@ -100,7 +100,7 @@ export function PreviewPanel() {
 	});
 
 	// Preview element drag handling
-	const { dragState, handleTextMouseDown } = usePreviewDrag({
+	const { dragState, handleTextPointerDown } = usePreviewDrag({
 		tracks,
 		previewWidth: previewDimensions.width,
 		canvasWidth: canvasSize.width,
@@ -487,7 +487,7 @@ export function PreviewPanel() {
 				dragState={dragState}
 				isPlaying={isPlaying}
 				activeProject={activeProject}
-				onTextMouseDown={handleTextMouseDown}
+				onTextPointerDown={handleTextPointerDown}
 				onElementSelect={({ elementId }) => setSelectedElementId(elementId)}
 				onElementResize={handleElementResize}
 			/>
@@ -500,7 +500,7 @@ export function PreviewPanel() {
 			dragState,
 			filterStyle,
 			handleElementResize,
-			handleTextMouseDown,
+			handleTextPointerDown,
 			hasEnabledEffects,
 			isPlaying,
 			previewDimensions,

@@ -76,7 +76,7 @@ export function Timeline() {
 	const [isInTimeline, setIsInTimeline] = useState(false);
 
 	// Timeline zoom functionality
-	const { zoomLevel, setZoomLevel, handleWheel } = useTimelineZoom({
+	const { zoomLevel, setZoomLevel, handleWheel, pinchHandlers } = useTimelineZoom({
 		containerRef: timelineRef,
 		isInTimeline,
 	});
@@ -108,7 +108,7 @@ export function Timeline() {
 	});
 
 	// Timeline playhead ruler handlers
-	const { handleRulerMouseDown } = useTimelinePlayheadRuler({
+	const { handleRulerPointerDown } = useTimelinePlayheadRuler({
 		currentTime,
 		duration,
 		zoomLevel,
@@ -123,7 +123,7 @@ export function Timeline() {
 	const tracksContainerRef = useRef<HTMLDivElement>(null);
 	const {
 		selectionBox,
-		handleMouseDown: handleSelectionMouseDown,
+		handlePointerDown: handleSelectionPointerDown,
 		isSelecting,
 		justFinishedSelecting,
 	} = useSelectionBox({
@@ -255,10 +255,11 @@ export function Timeline() {
 						getRenderStatus={getRenderStatus}
 						rulerRef={rulerRef}
 						rulerScrollRef={rulerScrollRef}
-						handleRulerMouseDown={handleRulerMouseDown}
-						handleSelectionMouseDown={handleSelectionMouseDown}
+						handleRulerPointerDown={handleRulerPointerDown}
+						handleSelectionPointerDown={handleSelectionPointerDown}
 						handleTimelineContentClick={handleTimelineContentClick}
 						handleWheel={handleWheel}
+						pinchHandlers={pinchHandlers}
 						dynamicTimelineWidth={dynamicTimelineWidth}
 						aiFilteredWords={aiFilteredWords}
 						userRemovedWords={userRemovedWords}
@@ -277,8 +278,9 @@ export function Timeline() {
 					seek={seek}
 					handleSnapPointChange={handleSnapPointChange}
 					handleWheel={handleWheel}
+					pinchHandlers={pinchHandlers}
 					handleTimelineMouseDown={handleTimelineMouseDown}
-					handleSelectionMouseDown={handleSelectionMouseDown}
+					handleSelectionPointerDown={handleSelectionPointerDown}
 					handleTimelineContentClick={handleTimelineContentClick}
 					selectionBox={selectionBox}
 					trackLabelsRef={trackLabelsRef}

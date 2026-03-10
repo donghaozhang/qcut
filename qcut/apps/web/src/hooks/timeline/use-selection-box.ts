@@ -26,9 +26,9 @@ export function useSelectionBox({
 	);
 	const [justFinishedSelecting, setJustFinishedSelecting] = useState(false);
 
-	// Mouse down handler to start selection
-	const handleMouseDown = useCallback(
-		(e: React.MouseEvent) => {
+	// Pointer down handler to start selection
+	const handlePointerDown = useCallback(
+		(e: React.PointerEvent) => {
 			if (!isEnabled) return;
 
 			// Only start selection on empty space clicks
@@ -136,7 +136,7 @@ export function useSelectionBox({
 	useEffect(() => {
 		if (!selectionBox) return;
 
-		const handleMouseMove = (e: MouseEvent) => {
+		const handlePointerMove = (e: PointerEvent) => {
 			const deltaX = Math.abs(e.clientX - selectionBox.startPos.x);
 			const deltaY = Math.abs(e.clientY - selectionBox.startPos.y);
 
@@ -160,7 +160,7 @@ export function useSelectionBox({
 			}
 		};
 
-		const handleMouseUp = () => {
+		const handlePointerUp = () => {
 			// Debug logging removed for production
 
 			// If we had an active selection, mark that we just finished selecting
@@ -177,18 +177,20 @@ export function useSelectionBox({
 			setSelectionBox(null);
 		};
 
-		window.addEventListener("mousemove", handleMouseMove);
-		window.addEventListener("mouseup", handleMouseUp);
+		window.addEventListener("pointermove", handlePointerMove);
+		window.addEventListener("pointerup", handlePointerUp);
+		window.addEventListener("pointercancel", handlePointerUp);
 
 		return () => {
-			window.removeEventListener("mousemove", handleMouseMove);
-			window.removeEventListener("mouseup", handleMouseUp);
+			window.removeEventListener("pointermove", handlePointerMove);
+			window.removeEventListener("pointerup", handlePointerUp);
+			window.removeEventListener("pointercancel", handlePointerUp);
 		};
 	}, [selectionBox, selectElementsInBox]);
 
 	return {
 		selectionBox,
-		handleMouseDown,
+		handlePointerDown,
 		isSelecting: selectionBox?.isActive || false,
 		justFinishedSelecting,
 	};

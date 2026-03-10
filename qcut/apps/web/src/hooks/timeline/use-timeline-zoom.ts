@@ -1,14 +1,22 @@
-import { useState, useCallback, useEffect, RefObject } from "react";
+import { useState, useCallback, useEffect, useRef, RefObject } from "react";
 
 interface UseTimelineZoomProps {
 	containerRef: RefObject<HTMLDivElement | null>;
 	isInTimeline?: boolean;
 }
 
+interface PinchHandlers {
+	onPointerDown: (e: React.PointerEvent) => void;
+	onPointerMove: (e: React.PointerEvent) => void;
+	onPointerUp: (e: React.PointerEvent) => void;
+	onPointerCancel: (e: React.PointerEvent) => void;
+}
+
 interface UseTimelineZoomReturn {
 	zoomLevel: number;
 	setZoomLevel: (zoomLevel: number | ((prev: number) => number)) => void;
 	handleWheel: (e: React.WheelEvent) => void;
+	pinchHandlers: PinchHandlers;
 }
 
 export function useTimelineZoom({
@@ -52,9 +60,73 @@ export function useTimelineZoom({
 		};
 	}, [isInTimeline, containerRef]);
 
+	// Pinch-to-zoom support via pointer events
+	const pointersRef = useRef<Map<number, { x: number; y: number }>>(
+		new Map()
+	);
+	const initialPinchDistanceRef = useRef<number | null>(null);
+	const pinchBaseZoomRef = useRef<number>(1);
+
+	function getDistance(
+		p1: { x: number; y: number },
+		p2: { x: number; y: number }
+	) {
+		return Math.hypot(p2.x - p1.x, p2.y - p1.y);
+	}
+
+	const handlePointerDown = useCallback((e: React.PointerEvent) => {
+		pointersRef.current.set(e.pointerId, {
+			x: e.clientX,
+			y: e.clientY,
+		});
+	}, []);
+
+	const handlePointerMove = useCallback(
+		(e: React.PointerEvent) => {
+			const pointers = pointersRef.current;
+			if (!pointers.has(e.pointerId)) return;
+
+			pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+			if (pointers.size < 2) return;
+
+			const [p1, p2] = [...pointers.values()];
+			const currentDistance = getDistance(p1, p2);
+
+			if (initialPinchDistanceRef.current === null) {
+				initialPinchDistanceRef.current = currentDistance;
+				pinchBaseZoomRef.current = zoomLevel;
+				return;
+			}
+
+			const ratio = currentDistance / initialPinchDistanceRef.current;
+			const newZoom = Math.max(
+				0.1,
+				Math.min(10, pinchBaseZoomRef.current * ratio)
+			);
+			setZoomLevel(newZoom);
+		},
+		[zoomLevel, setZoomLevel]
+	);
+
+	const handlePointerUp = useCallback((e: React.PointerEvent) => {
+		pointersRef.current.delete(e.pointerId);
+		if (pointersRef.current.size < 2) {
+			initialPinchDistanceRef.current = null;
+		}
+	}, []);
+
+	const pinchHandlers: PinchHandlers = {
+		onPointerDown: handlePointerDown,
+		onPointerMove: handlePointerMove,
+		onPointerUp: handlePointerUp,
+		onPointerCancel: handlePointerUp,
+	};
+
 	return {
 		zoomLevel,
 		setZoomLevel,
 		handleWheel,
+		pinchHandlers,
 	};
 }

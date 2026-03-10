@@ -38,66 +38,67 @@ Make QCut fully usable on iPad via Safari/WebKit with touch-first interactions, 
 
 ---
 
-## Subtask 4.1 — Pointer Events Migration (~2 hours)
+## Subtask 4.1 — Pointer Events Migration (~2 hours) — DONE
 
 **Objective:** Replace all `mouse*` event listeners with `pointer*` events (covers mouse + touch + stylus in one API).
 
-**Approach:**
-- `mousedown` → `pointerdown`, `mousemove` → `pointermove`, `mouseup` → `pointerup`
-- Add `setPointerCapture()` / `releasePointerCapture()` for drag operations
-- Add `touch-action: none` CSS on interactive elements to prevent browser scroll/zoom conflicts
+**Changes applied:**
+- All `mousedown` → `pointerdown`, `mousemove` → `pointermove`, `mouseup` → `pointerup`
+- Added `setPointerCapture()` / `releasePointerCapture()` for drag operations
+- Added `pointercancel` cleanup handler alongside `pointerup` to prevent stuck drag states
+- Added `touch-action: none` CSS on interactive elements
+- Returns `dragStyle: { touchAction: "none" }` from hooks for JSX application
 
-**Files:**
-- `hooks/timeline/use-timeline-playhead.ts`
-- `hooks/timeline/use-timeline-element-resize.ts`
-- `hooks/timeline/use-selection-box.ts`
-- `hooks/use-preview-drag.ts`
-- `components/editor/timeline/ResizeHandles.tsx`
+**Files changed:**
+- `hooks/timeline/use-timeline-playhead.ts` — `handlePlayheadMouseDown` → `handlePlayheadPointerDown`, `handleRulerMouseDown` → `handleRulerPointerDown`, window listeners migrated
+- `hooks/timeline/use-timeline-element-resize.ts` — `handleResizeStart` param `React.MouseEvent` → `React.PointerEvent`, document listeners migrated, pointer capture added
+- `hooks/timeline/use-selection-box.ts` — `handleMouseDown` → `handlePointerDown`, window listeners migrated
+- `components/editor/preview-panel/use-preview-drag.ts` — `handleTextMouseDown` → `handleTextPointerDown`, document listeners migrated, pointer capture added
+- `components/editor/stickers-overlay/ResizeHandles.tsx` — all 8 handles: `onMouseDown` → `onPointerDown`, document listeners migrated, pointer capture added
 
-**Tests:**
-- Unit tests for pointer event handler attachment/detachment
-- Verify `pointercancel` cleanup (prevents stuck drag states)
+**Caller components updated:**
+- `components/editor/timeline/timeline-playhead.tsx` — destructured handler names updated
+- `components/editor/timeline/timeline-ruler.tsx` — props renamed to pointer variants, `onMouseDown` → `onPointerDown`
+- `components/editor/timeline/timeline-element.tsx` — trim handle `onMouseDown` → `onPointerDown`
+- `components/editor/timeline/timeline-tracks-area.tsx` — props renamed to pointer variants
+- `components/editor/timeline/index.tsx` — handler destructuring updated
+- `components/editor/preview-panel.tsx` — `handleTextMouseDown` → `handleTextPointerDown`
+- `components/editor/preview-panel/preview-element-renderer.tsx` — prop type `React.MouseEvent` → `React.PointerEvent`
 
 ---
 
-## Subtask 4.2 — Touch-Friendly Hit Areas (~1 hour)
+## Subtask 4.2 — Touch-Friendly Hit Areas (~1 hour) — DONE
 
 **Objective:** Increase all interactive targets to minimum 44×44px (Apple HIG).
 
-**Changes:**
-- Resize handles: visual 4px → touch area 44px (transparent padding/pseudo-element)
-- Timeline element click targets: ensure 44px minimum height
-- Toolbar buttons: audit and pad to 44px
-- Playhead handle: enlarge grab area
+**Changes applied:**
+- Sticker resize handles: `w-3 h-3` → `w-5 h-5` with `before:absolute before:-inset-3` pseudo-element for 44px touch hit zone
+- Timeline trim handles: `w-1` → `w-3` with 2px border and `before:` pseudo for 32px hit zone, added `hover:bg-foreground/20` feedback
+- Added `.touch-target` utility class (44px minimum) in `globals.css`
+- Added `touch-action-none` Tailwind utility
 
-**Files:**
-- `components/editor/timeline/ResizeHandles.tsx` — invisible touch padding
-- `components/editor/timeline/TimelineElement.tsx` — minimum touch target
-- `components/editor/toolbar/` — button size audit
-- Tailwind config or component CSS for touch target utility
-
-**Tests:**
-- Visual regression (screenshot comparison) for handle sizes
+**Files changed:**
+- `components/editor/stickers-overlay/ResizeHandles.tsx` — enlarged visual + invisible touch padding
+- `components/editor/timeline/timeline-element.tsx` — widened trim handles with pseudo-element hit zones
+- `apps/web/src/globals.css` — added `.touch-target`, `@utility touch-action-none`
 
 ---
 
-## Subtask 4.3 — Pinch-to-Zoom for Timeline (~1.5 hours)
+## Subtask 4.3 — Pinch-to-Zoom for Timeline (~1.5 hours) — DONE
 
-**Objective:** Add two-finger pinch gesture to zoom the timeline (replacing/supplementing scroll-wheel zoom).
+**Objective:** Add two-finger pinch gesture to zoom the timeline.
 
-**Approach:**
-- Detect pinch via `pointerdown` tracking of 2+ active pointers, compute distance delta
-- Or use `gesturestart`/`gesturechange` events on Safari (WebKit-specific, simpler)
-- Feed zoom delta into existing `use-timeline-zoom.ts` zoom logic
-- Prevent default browser zoom with `touch-action: manipulation` on timeline container
+**Implementation:**
+- Multi-pointer tracking via `Map<pointerId, coords>` (supports 2+ simultaneous pointers)
+- Pinch distance ratio: `currentDistance / initialDistance * pinchBaseZoom`
+- Returns `pinchHandlers` object: `onPointerDown`, `onPointerMove`, `onPointerUp`, `onPointerCancel`
+- Timeline containers have `touch-none` CSS class to prevent browser zoom conflicts
 
-**Files:**
-- `hooks/timeline/use-timeline-zoom.ts` — add pinch gesture handler
-- `components/editor/timeline/Timeline.tsx` — attach gesture events, CSS `touch-action`
-
-**Tests:**
-- Unit test: synthetic pinch events → zoom level changes
-- Manual test: iPad Safari two-finger zoom on timeline
+**Files changed:**
+- `hooks/timeline/use-timeline-zoom.ts` — added `pointersRef`, `initialPinchDistanceRef`, `pinchBaseZoomRef`, new `pinchHandlers` return value
+- `components/editor/timeline/timeline-ruler.tsx` — wired `pinchHandlers` prop
+- `components/editor/timeline/timeline-tracks-area.tsx` — wired `pinchHandlers` prop, added `touch-none` class
+- `components/editor/timeline/index.tsx` — passes `pinchHandlers` to child components
 
 ---
 

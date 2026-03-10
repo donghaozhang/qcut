@@ -165,10 +165,11 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 		 * Handle resize start
 		 */
 		const handleResizeStart = useCallback(
-			(e: React.MouseEvent, handle: ResizeHandle) => {
+			(e: React.PointerEvent, handle: ResizeHandle) => {
 				debugLog(`[ResizeHandles] Starting resize with handle: ${handle}`);
 				e.stopPropagation();
 				e.preventDefault();
+				(e.target as Element).setPointerCapture?.(e.pointerId);
 
 				// Save snapshot before resize so Ctrl+Z can undo
 				saveHistorySnapshot();
@@ -189,7 +190,7 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 				document.body.style.cursor = getCursorForHandle(handle);
 				document.body.style.userSelect = "none";
 
-				const handleMouseMove = (e: MouseEvent) => {
+				const handlePointerMove = (e: PointerEvent) => {
 					if (!resizeState.current.isResizing) return;
 
 					const deltaX = e.clientX - resizeState.current.startX;
@@ -211,25 +212,28 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 						} catch (error) {
 							debugLog(`[ResizeHandles] Error updating sticker: ${error}`);
 							// Optionally trigger cleanup
-							handleMouseUp();
+							handlePointerUp(e);
 						}
 					});
 				};
 
-				const handleMouseUp = () => {
+				const handlePointerUp = (e: PointerEvent) => {
 					debugLog(
 						`[ResizeHandles] Finished resizing handle ${resizeState.current.handle}`
 					);
+					(e.target as Element).releasePointerCapture?.(e.pointerId);
 					resizeState.current.isResizing = false;
 					setIsResizing(false);
 					document.body.style.cursor = "";
 					document.body.style.userSelect = "";
-					document.removeEventListener("mousemove", handleMouseMove);
-					document.removeEventListener("mouseup", handleMouseUp);
+					document.removeEventListener("pointermove", handlePointerMove);
+					document.removeEventListener("pointerup", handlePointerUp);
+					document.removeEventListener("pointercancel", handlePointerUp);
 				};
 
-				document.addEventListener("mousemove", handleMouseMove);
-				document.addEventListener("mouseup", handleMouseUp);
+				document.addEventListener("pointermove", handlePointerMove);
+				document.addEventListener("pointerup", handlePointerUp);
+				document.addEventListener("pointercancel", handlePointerUp);
 			},
 			[
 				stickerId,
@@ -245,7 +249,7 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 		if (!isVisible) return null;
 
 		const handleClass =
-			"absolute w-3 h-3 bg-white border-2 border-primary rounded-full z-[10000] pointer-events-auto hover:scale-110 transition-transform";
+			"absolute w-5 h-5 bg-white border-2 border-primary rounded-full z-[10000] pointer-events-auto hover:scale-110 transition-transform before:absolute before:-inset-3 before:content-['']";
 		const edgeHandleClass =
 			"absolute bg-white border-2 border-primary z-[10000] pointer-events-auto hover:scale-105 transition-transform";
 
@@ -253,23 +257,27 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 			<>
 				{/* Corner handles */}
 				<div
-					className={cn(handleClass, "-top-1.5 -left-1.5 cursor-nw-resize")}
-					onMouseDown={(e) => handleResizeStart(e, "tl")}
+					className={cn(handleClass, "-top-2.5 -left-2.5 cursor-nw-resize")}
+					onPointerDown={(e) => handleResizeStart(e, "tl")}
+					style={{ touchAction: "none" }}
 					title="Resize top-left"
 				/>
 				<div
-					className={cn(handleClass, "-top-1.5 -right-1.5 cursor-ne-resize")}
-					onMouseDown={(e) => handleResizeStart(e, "tr")}
+					className={cn(handleClass, "-top-2.5 -right-2.5 cursor-ne-resize")}
+					onPointerDown={(e) => handleResizeStart(e, "tr")}
+					style={{ touchAction: "none" }}
 					title="Resize top-right"
 				/>
 				<div
-					className={cn(handleClass, "-bottom-1.5 -left-1.5 cursor-sw-resize")}
-					onMouseDown={(e) => handleResizeStart(e, "bl")}
+					className={cn(handleClass, "-bottom-2.5 -left-2.5 cursor-sw-resize")}
+					onPointerDown={(e) => handleResizeStart(e, "bl")}
+					style={{ touchAction: "none" }}
 					title="Resize bottom-left"
 				/>
 				<div
-					className={cn(handleClass, "-bottom-1.5 -right-1.5 cursor-se-resize")}
-					onMouseDown={(e) => handleResizeStart(e, "br")}
+					className={cn(handleClass, "-bottom-2.5 -right-2.5 cursor-se-resize")}
+					onPointerDown={(e) => handleResizeStart(e, "br")}
+					style={{ touchAction: "none" }}
 					title="Resize bottom-right (hold Shift for aspect ratio)"
 				/>
 
@@ -279,7 +287,8 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 						edgeHandleClass,
 						"top-1/2 -left-1 w-2 h-6 -translate-y-1/2 cursor-w-resize"
 					)}
-					onMouseDown={(e) => handleResizeStart(e, "l")}
+					onPointerDown={(e) => handleResizeStart(e, "l")}
+					style={{ touchAction: "none" }}
 					title="Resize left"
 				/>
 				<div
@@ -287,7 +296,8 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 						edgeHandleClass,
 						"top-1/2 -right-1 w-2 h-6 -translate-y-1/2 cursor-e-resize"
 					)}
-					onMouseDown={(e) => handleResizeStart(e, "r")}
+					onPointerDown={(e) => handleResizeStart(e, "r")}
+					style={{ touchAction: "none" }}
 					title="Resize right"
 				/>
 				<div
@@ -295,7 +305,8 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 						edgeHandleClass,
 						"-top-1 left-1/2 w-6 h-2 -translate-x-1/2 cursor-n-resize"
 					)}
-					onMouseDown={(e) => handleResizeStart(e, "t")}
+					onPointerDown={(e) => handleResizeStart(e, "t")}
+					style={{ touchAction: "none" }}
 					title="Resize top"
 				/>
 				<div
@@ -303,7 +314,8 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 						edgeHandleClass,
 						"-bottom-1 left-1/2 w-6 h-2 -translate-x-1/2 cursor-s-resize"
 					)}
-					onMouseDown={(e) => handleResizeStart(e, "b")}
+					onPointerDown={(e) => handleResizeStart(e, "b")}
+					style={{ touchAction: "none" }}
 					title="Resize bottom"
 				/>
 			</>

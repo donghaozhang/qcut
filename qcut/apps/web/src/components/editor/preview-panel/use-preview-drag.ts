@@ -20,7 +20,7 @@ interface UsePreviewDragParams {
 
 /**
  * Manages drag interactions for text/media elements within the preview panel.
- * Handles mouse down, move, and up events with proper constraint logic.
+ * Handles pointer down, move, and up events with proper constraint logic.
  */
 export function usePreviewDrag({
 	tracks,
@@ -49,7 +49,7 @@ export function usePreviewDrag({
 	dragStateRef.current = dragState;
 
 	useEffect(() => {
-		const handleMouseMove = (e: MouseEvent) => {
+		const handlePointerMove = (e: PointerEvent) => {
 			const ds = dragStateRef.current;
 			if (!ds.isDragging) return;
 
@@ -79,7 +79,7 @@ export function usePreviewDrag({
 			}));
 		};
 
-		const handleMouseUp = () => {
+		const handlePointerUp = (e: PointerEvent) => {
 			const ds = dragStateRef.current;
 			if (ds.isDragging && ds.trackId && ds.elementId) {
 				// Find element type to use appropriate update method
@@ -97,19 +97,22 @@ export function usePreviewDrag({
 					});
 				}
 			}
+			(e.target as Element).releasePointerCapture?.(e.pointerId);
 			setDragState((prev) => ({ ...prev, isDragging: false }));
 		};
 
 		if (dragState.isDragging) {
-			document.addEventListener("mousemove", handleMouseMove);
-			document.addEventListener("mouseup", handleMouseUp);
+			document.addEventListener("pointermove", handlePointerMove);
+			document.addEventListener("pointerup", handlePointerUp);
+			document.addEventListener("pointercancel", handlePointerUp);
 			document.body.style.cursor = "grabbing";
 			document.body.style.userSelect = "none";
 		}
 
 		return () => {
-			document.removeEventListener("mousemove", handleMouseMove);
-			document.removeEventListener("mouseup", handleMouseUp);
+			document.removeEventListener("pointermove", handlePointerMove);
+			document.removeEventListener("pointerup", handlePointerUp);
+			document.removeEventListener("pointercancel", handlePointerUp);
 			document.body.style.cursor = "";
 			document.body.style.userSelect = "";
 		};
@@ -123,14 +126,15 @@ export function usePreviewDrag({
 		updateElementPosition,
 	]);
 
-	const handleTextMouseDown = useCallback(
+	const handleTextPointerDown = useCallback(
 		(
-			e: React.MouseEvent<HTMLDivElement>,
+			e: React.PointerEvent<HTMLDivElement>,
 			element: Pick<TimelineElement, "id" | "x" | "y">,
 			trackId: string
 		) => {
 			e.preventDefault();
 			e.stopPropagation();
+			(e.target as Element).setPointerCapture?.(e.pointerId);
 
 			const rect = e.currentTarget.getBoundingClientRect();
 
@@ -151,5 +155,5 @@ export function usePreviewDrag({
 		[]
 	);
 
-	return { dragState, handleTextMouseDown };
+	return { dragState, handleTextPointerDown };
 }
