@@ -188,10 +188,10 @@ export interface PlatformAIPipelineAPI {
 	cancel(sessionId: string): Promise<boolean>;
 	refresh(): Promise<{
 		available: boolean;
-		version?: string | null;
-		source?: string;
-		compatible?: boolean;
-		features?: Record<string, boolean>;
+		version: string | null;
+		source: "native" | "bundled" | "system" | "python" | "unavailable";
+		compatible: boolean;
+		features: Record<string, boolean>;
 		error?: string;
 	} | void>;
 	onProgress(
@@ -330,8 +330,18 @@ export interface PlatformRemotionFolderAPI {
 			name: string;
 			[key: string]: unknown;
 		}>;
-		scan?: unknown;
-		bundle?: unknown;
+		scan?: {
+			compositions?: Array<{
+				id: string;
+				name: string;
+				[key: string]: unknown;
+			}>;
+			[key: string]: unknown;
+		};
+		bundle?: {
+			results?: unknown;
+			[key: string]: unknown;
+		};
 		importTime?: number;
 		error?: string;
 	}>;

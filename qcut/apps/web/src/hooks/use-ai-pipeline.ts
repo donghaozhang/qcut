@@ -256,7 +256,7 @@ export function useAIPipeline(
 		}
 		try {
 			const response = await platform().aiPipeline?.listModels();
-			return response ?? { success: false, error: "API not available" };
+			return (response as AIPipelineResult) ?? { success: false, error: "API not available" };
 		} catch (err) {
 			const errorMessage =
 				err instanceof Error ? err.message : "Failed to list models";
@@ -282,7 +282,7 @@ export function useAIPipeline(
 					duration,
 					resolution,
 				});
-				return response ?? { success: false, error: "API not available" };
+				return (response as AIPipelineResult) ?? { success: false, error: "API not available" };
 			} catch (err) {
 				const errorMessage =
 					err instanceof Error ? err.message : "Failed to estimate cost";
