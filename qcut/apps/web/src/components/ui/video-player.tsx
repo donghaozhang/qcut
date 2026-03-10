@@ -121,32 +121,42 @@ export function VideoPlayer({
 		const video = videoRef.current;
 		if (!video) return;
 
-		const handlePlayError = (err: any) => {
+		const handlePlayError = (_err: any) => {
 			// Silently handle play errors
 		};
 
-		if (isPlaying && isInClipRange) {
-			// Check if video is ready to play
+		const tryPlay = () => {
 			if (video.readyState >= 3) {
 				video.play().catch(handlePlayError);
 			} else {
-				// Video not ready, wait for it to be ready
 				const handleCanPlay = () => {
-					if (isPlaying && isInClipRange) {
+					if (usePlaybackStore.getState().isPlaying) {
 						video.play().catch(handlePlayError);
 					}
 				};
-
 				video.addEventListener("canplay", handleCanPlay, { once: true });
-
-				// Clean up event listener on unmount or state change
-				return () => {
-					video.removeEventListener("canplay", handleCanPlay);
-				};
 			}
+		};
+
+		if (isPlaying && isInClipRange) {
+			tryPlay();
 		} else {
 			video.pause();
 		}
+
+		// Listen for direct play trigger dispatched synchronously from user gesture
+		// This preserves the user gesture context on iOS/iPad where autoplay is restricted
+		const handleDirectPlay = () => {
+			if (isInClipRange) {
+				tryPlay();
+			}
+		};
+
+		window.addEventListener("playback-play", handleDirectPlay);
+
+		return () => {
+			window.removeEventListener("playback-play", handleDirectPlay);
+		};
 	}, [isPlaying, isInClipRange]);
 
 	// Sync volume and speed

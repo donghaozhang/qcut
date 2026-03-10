@@ -177,6 +177,8 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 
 	play: () => {
 		set({ isPlaying: true });
+		// Dispatch synchronously so video elements can call play() within the user gesture context (iOS requirement)
+		window.dispatchEvent(new CustomEvent("playback-play"));
 		startTimer(get);
 	},
 

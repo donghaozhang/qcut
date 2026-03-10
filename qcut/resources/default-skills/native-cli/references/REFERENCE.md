@@ -210,6 +210,39 @@ bun run pipeline autoclip -i video.mp4 -s /tmp/video.srt -o /tmp/clips
 
 ---
 
+## Video Translation
+
+### `translate-video`
+
+Translate a video's speech into another language using HeyGen Translate (Speed) via FAL. Supports local files (uploaded to FAL CDN) and URLs. Requires `FAL_KEY`.
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--input` | `-i` | string | | Input video file path or URL (required) |
+| `--language` | `-l` | string | | Target language, e.g. Spanish, Chinese (required) |
+| `--output` | `-o` | string | `./output` | Output directory |
+| `--audio-only` | | boolean | `false` | Translate audio only (keep original video) |
+| `--no-dynamic-duration` | | boolean | `false` | Disable dynamic duration adjustment |
+| `--speakers` | | number | | Number of speakers in the video |
+
+**Model:** `heygen_translate_speed` (FAL endpoint: `fal-ai/heygen/v2/translate/speed`)
+
+**Output:** JSON file with `video_url` (translated video URL), source info, and timing.
+
+**Examples:**
+```bash
+# Translate local video to Spanish
+bun run pipeline translate-video -i video.mp4 -l Spanish
+
+# Translate URL to Chinese, audio only
+bun run pipeline translate-video -i "https://example.com/video.mp4" -l Chinese --audio-only
+
+# Multi-speaker video to Japanese
+bun run pipeline translate-video -i interview.mp4 -l Japanese --speakers 2 -o /tmp/translated
+```
+
+---
+
 ## Script Parsing
 
 ### `moyin:parse-script`
