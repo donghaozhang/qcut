@@ -373,6 +373,32 @@ function TimelineTrackContentComponent({
 		currentTime,
 	]);
 
+	const dropZoneRef = useRef<HTMLDivElement>(null);
+
+	// Listen for touch-drop events (iOS/iPad touch drag fallback)
+	useEffect(() => {
+		const el = dropZoneRef.current;
+		if (!el) return;
+
+		const onTouchDrop = (e: Event) => {
+			const detail = (e as CustomEvent).detail;
+			if (!detail?.data) return;
+			const trackContainer = el.querySelector(
+				".track-elements-container"
+			) as HTMLElement;
+			if (!trackContainer) return;
+			handleTouchDrop(
+				trackContainer,
+				detail.data,
+				detail.clientX,
+				detail.clientY
+			);
+		};
+
+		el.addEventListener("touch-drop", onTouchDrop);
+		return () => el.removeEventListener("touch-drop", onTouchDrop);
+	}, [handleTouchDrop]);
+
 	// Handle media loading states
 	if (mediaItemsError) {
 		console.error(
@@ -467,32 +493,6 @@ function TimelineTrackContentComponent({
 		}
 		// If element is already selected, keep it selected (do nothing)
 	};
-
-	const dropZoneRef = useRef<HTMLDivElement>(null);
-
-	// Listen for touch-drop events (iOS/iPad touch drag fallback)
-	useEffect(() => {
-		const el = dropZoneRef.current;
-		if (!el) return;
-
-		const onTouchDrop = (e: Event) => {
-			const detail = (e as CustomEvent).detail;
-			if (!detail?.data) return;
-			const trackContainer = el.querySelector(
-				".track-elements-container"
-			) as HTMLElement;
-			if (!trackContainer) return;
-			handleTouchDrop(
-				trackContainer,
-				detail.data,
-				detail.clientX,
-				detail.clientY
-			);
-		};
-
-		el.addEventListener("touch-drop", onTouchDrop);
-		return () => el.removeEventListener("touch-drop", onTouchDrop);
-	}, [handleTouchDrop]);
 
 	return (
 		<div

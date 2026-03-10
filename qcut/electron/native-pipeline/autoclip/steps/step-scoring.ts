@@ -157,7 +157,7 @@ export async function scoreSegments(
 	}
 
 	// Sort by ID (time order)
-	allScored.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+	allScored.sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10));
 
 	const highScore = allScored.filter((s) => s.finalScore >= minScore);
 

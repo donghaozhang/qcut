@@ -88,21 +88,15 @@ describe("validateTranslateSpeakerNum", () => {
 	});
 
 	it("rejects zero", () => {
-		expect(() => validateTranslateSpeakerNum(0)).toThrow(
-			"positive integer"
-		);
+		expect(() => validateTranslateSpeakerNum(0)).toThrow("positive integer");
 	});
 
 	it("rejects negative numbers", () => {
-		expect(() => validateTranslateSpeakerNum(-1)).toThrow(
-			"positive integer"
-		);
+		expect(() => validateTranslateSpeakerNum(-1)).toThrow("positive integer");
 	});
 
 	it("rejects non-integers", () => {
-		expect(() => validateTranslateSpeakerNum(1.5)).toThrow(
-			"positive integer"
-		);
+		expect(() => validateTranslateSpeakerNum(1.5)).toThrow("positive integer");
 	});
 });
 

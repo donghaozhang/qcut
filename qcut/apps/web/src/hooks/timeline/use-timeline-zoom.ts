@@ -65,12 +65,12 @@ export function useTimelineZoom({
 	const initialPinchDistanceRef = useRef<number | null>(null);
 	const pinchBaseZoomRef = useRef<number>(1);
 
-	function getDistance(
-		p1: { x: number; y: number },
-		p2: { x: number; y: number }
-	) {
-		return Math.hypot(p2.x - p1.x, p2.y - p1.y);
-	}
+	const getDistance = useCallback(
+		(p1: { x: number; y: number }, p2: { x: number; y: number }) => {
+			return Math.hypot(p2.x - p1.x, p2.y - p1.y);
+		},
+		[]
+	);
 
 	const handlePointerDown = useCallback((e: React.PointerEvent) => {
 		e.currentTarget.setPointerCapture(e.pointerId);
@@ -109,7 +109,7 @@ export function useTimelineZoom({
 			);
 			setZoomLevel(newZoom);
 		},
-		[setZoomLevel]
+		[getDistance]
 	);
 
 	const handlePointerUp = useCallback((e: React.PointerEvent) => {

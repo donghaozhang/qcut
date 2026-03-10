@@ -53,7 +53,7 @@ export function UpdateNotification() {
 			.catch(() => {
 				toast.error("Failed to install update. Please restart manually.");
 			});
-	}, []);
+	}, [hasUpdates]);
 
 	const handleDismiss = useCallback((version: string) => {
 		dismissVersion(version);
@@ -140,7 +140,7 @@ export function UpdateNotification() {
 			unsubProgress();
 			unsubDownloaded();
 		};
-	}, []);
+	}, [hasUpdates]);
 
 	// Render a persistent banner only when update is ready
 	if (state.phase === "ready") {
