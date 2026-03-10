@@ -8,6 +8,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 describe("platform-init", () => {
 	beforeEach(() => {
 		vi.resetModules();
+		// Ensure electronAPI is cleared so tests don't leak state between suites
+		delete (window as any).electronAPI;
 	});
 
 	it("setupPlatform function exists and is callable", async () => {
@@ -36,5 +38,16 @@ describe("platform-init", () => {
 		expect(p).toBeDefined();
 		expect(typeof p.hasCapability).toBe("function");
 		expect(typeof p.storage).toBe("object");
+	});
+
+	it("detects Electron environment when electronAPI is present", async () => {
+		(window as any).electronAPI = { isElectron: true };
+		const mod = await import("../platform-init");
+		await mod.setupPlatform();
+
+		const { platform } = await import("@qcut/platform-core");
+		const p = platform();
+		expect(p.platform).toBe("desktop");
+		expect(p.isElectron).toBe(true);
 	});
 });

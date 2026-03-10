@@ -3,7 +3,7 @@ import {
 	ErrorCategory,
 	ErrorSeverity,
 } from "@/lib/debug/error-handler";
-import { platform } from "@qcut/platform-core";
+import { platform, PlatformCapability } from "@qcut/platform-core";
 
 interface DrawingMetadata {
 	filename: string;
@@ -59,10 +59,16 @@ export class DrawingStorage {
 
 			const storage = platform().storage;
 			await storage.save(drawingId, drawingData);
-			await storage.save(
-				`${DrawingStorage.METADATA_PREFIX}${drawingId}`,
-				JSON.stringify(metadata)
-			);
+			try {
+				await storage.save(
+					`${DrawingStorage.METADATA_PREFIX}${drawingId}`,
+					JSON.stringify(metadata)
+				);
+			} catch (metaError) {
+				// Rollback the blob write to avoid orphaned data
+				await storage.remove(drawingId).catch(() => {});
+				throw metaError;
+			}
 
 			return drawingId;
 		} catch (error) {
@@ -326,7 +332,7 @@ export class DrawingStorage {
 	 */
 	static isStorageAvailable(): boolean {
 		try {
-			return !!platform().hasCapability;
+			return platform().hasCapability(PlatformCapability.Storage);
 		} catch {
 			return typeof Storage !== "undefined";
 		}

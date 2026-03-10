@@ -44,7 +44,12 @@ export default defineConfig({
 				"apps/web/src/routeTree.gen.ts",
 			],
 		},
-		environmentMatchGlobs: [["**/electron/**", "node"]],
+		environmentMatchGlobs: [
+			["**/electron/**", "node"],
+			["scripts/**", "node"],
+			["packages/platform-core/**", "node"],
+			["packages/platform-desktop/**", "node"],
+		],
 		isolate: true,
 		pool: "forks",
 		testTimeout: 5000,

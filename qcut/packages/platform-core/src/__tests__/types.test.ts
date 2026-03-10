@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { PlatformCapability } from "../types/base";
-import type { PlatformAPI } from "../types/platform";
+import { PlatformCapability } from "../types/base.js";
+import type { PlatformAPI } from "../types/platform.js";
 import type {
 	PlatformSoundsAPI,
 	PlatformAudioAPI,
@@ -20,8 +20,8 @@ import type {
 	PlatformGitHubAPI,
 	PlatformMcpAPI,
 	PlatformProjectJsonAPI,
-} from "../index";
-import type { PlatformClaudeAPI } from "../types/claude-api";
+} from "../index.js";
+import type { PlatformClaudeAPI } from "../types/claude-api.js";
 
 describe("PlatformAPI type completeness", () => {
 	it("PlatformCapability has all expected values", () => {

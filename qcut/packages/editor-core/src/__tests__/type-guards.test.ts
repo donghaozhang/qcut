@@ -2,10 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
 	isMediaElement,
 	isTextElement,
-	isStickerElement,
-	isCaptionElement,
 	isRemotionElement,
-	isMarkdownElement,
 	getRemotionElements,
 } from "../timeline/type-guards.js";
 import type { TimelineElement, TimelineTrack } from "../types/timeline.js";

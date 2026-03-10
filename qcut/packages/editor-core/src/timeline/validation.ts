@@ -38,18 +38,17 @@ export function validateElementTrackCompatibility(
 	const isValid = canElementGoOnTrack(element.type, track.type);
 
 	if (!isValid) {
+		const errorMessages: Record<string, string> = {
+			text: "Text elements can only be placed on text tracks",
+			sticker: "Sticker elements can only be placed on sticker tracks",
+			captions: "Caption elements can only be placed on caption tracks",
+			remotion: "Remotion elements can only be placed on Remotion tracks",
+			markdown: "Markdown elements can only be placed on markdown tracks",
+			media: "Media elements can only be placed on media or audio tracks",
+		};
 		const errorMessage =
-			element.type === "text"
-				? "Text elements can only be placed on text tracks"
-				: element.type === "sticker"
-					? "Sticker elements can only be placed on sticker tracks"
-					: element.type === "captions"
-						? "Caption elements can only be placed on caption tracks"
-						: element.type === "remotion"
-							? "Remotion elements can only be placed on Remotion tracks"
-							: element.type === "markdown"
-								? "Markdown elements can only be placed on markdown tracks"
-								: "Media elements can only be placed on media or audio tracks";
+			errorMessages[element.type] ??
+			"Media elements can only be placed on media or audio tracks";
 
 		return { isValid: false, errorMessage };
 	}

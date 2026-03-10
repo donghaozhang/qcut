@@ -17,10 +17,24 @@ if (!rootEl) {
 }
 
 // Initialize platform adapter before rendering
-setupPlatform().then(() => {
-	ReactDOM.createRoot(rootEl).render(
-		<React.StrictMode>
-			<App />
-		</React.StrictMode>
-	);
-});
+setupPlatform()
+	.then(() => {
+		ReactDOM.createRoot(rootEl).render(
+			<React.StrictMode>
+				<App />
+			</React.StrictMode>
+		);
+	})
+	.catch((error) => {
+		// Render minimal fallback so users don't see a blank screen
+		const root = ReactDOM.createRoot(rootEl);
+		root.render(
+			<div style={{ padding: "2rem", fontFamily: "system-ui" }}>
+				<h1>QCut failed to start</h1>
+				<p>Platform initialization error. Please restart the application.</p>
+				<pre style={{ fontSize: "0.8rem", color: "#888" }}>
+					{error instanceof Error ? error.message : String(error)}
+				</pre>
+			</div>
+		);
+	});

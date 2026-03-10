@@ -50,5 +50,3 @@ export function usePlatformId(): "desktop" | "web" | "ios" {
 		}
 	}, []);
 }
-
-export { PlatformCapability };

@@ -16,6 +16,15 @@ export function generateUUID(): string {
 		return crypto.randomUUID();
 	}
 
+	if (
+		typeof crypto === "undefined" ||
+		typeof crypto.getRandomValues !== "function"
+	) {
+		throw new Error(
+			"generateUUID requires crypto.randomUUID or crypto.getRandomValues. Neither is available in this environment."
+		);
+	}
+
 	const bytes = new Uint8Array(16);
 	crypto.getRandomValues(bytes);
 

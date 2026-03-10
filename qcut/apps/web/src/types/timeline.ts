@@ -47,6 +47,7 @@ export {
 // React/UI-specific types (stay in apps/web, not in editor-core)
 // ---------------------------------------------------------------------------
 
+import type { MouseEvent as ReactMouseEvent } from "react";
 import type {
 	TimelineElement as _TimelineElement,
 	TimelineTrack as _TimelineTrack,
@@ -57,8 +58,8 @@ export interface TimelineElementProps {
 	track: _TimelineTrack;
 	zoomLevel: number;
 	isSelected: boolean;
-	onElementMouseDown: (e: React.MouseEvent, element: _TimelineElement) => void;
-	onElementClick: (e: React.MouseEvent, element: _TimelineElement) => void;
+	onElementMouseDown: (e: ReactMouseEvent, element: _TimelineElement) => void;
+	onElementClick: (e: ReactMouseEvent, element: _TimelineElement) => void;
 }
 
 export interface ResizeState {

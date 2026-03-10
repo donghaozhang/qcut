@@ -3,7 +3,7 @@
 import { useCallback, useState, useEffect } from "react";
 import { KeyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { platform } from "@qcut/platform-core";
+import { PlatformCapability, platform } from "@qcut/platform-core";
 import {
 	handleError,
 	ErrorCategory,
@@ -91,13 +91,22 @@ export function ApiKeysView() {
 	]);
 
 	const testFreesoundKey = useCallback(async () => {
+		if (!platform().hasCapability(PlatformCapability.Sounds)) {
+			setFreesoundTestResult({
+				success: false,
+				message: "Sound search is not available on this platform",
+			});
+			return;
+		}
 		setIsTestingFreesound(true);
 		setFreesoundTestResult(null);
 		try {
-			const result = (await platform().sounds.search({ query: "test" })) as any;
+			const result = (await platform().sounds.search({
+				query: "test",
+			})) as Record<string, unknown>;
 			setFreesoundTestResult({
-				success: result?.success ?? false,
-				message: result?.message || "Test completed",
+				success: (result?.success as boolean) ?? false,
+				message: (result?.message as string) || "Test completed",
 			});
 		} catch {
 			setFreesoundTestResult({ success: false, message: "Test failed" });

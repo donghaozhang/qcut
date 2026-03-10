@@ -176,7 +176,7 @@ Extract highlight clips from a video using subtitle-based LLM analysis. Runs a 4
 4. **Cut** — ffmpeg extracts clips for segments above `--min-score`
 
 **Output structure:**
-```
+```text
 <output-dir>/
 ├── clips/                        # Extracted video clips
 │   ├── 1_Topic Title.mp4

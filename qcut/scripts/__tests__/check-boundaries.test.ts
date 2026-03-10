@@ -5,8 +5,8 @@
  * ROOT, we test by pointing at actual renderer files in the real codebase
  * rather than temp files.
  */
-import { describe, it, expect } from "vitest";
-import { readFileSync, writeFileSync } from "fs";
+import { afterAll, describe, it, expect } from "vitest";
+import { readFileSync, unlinkSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 // Import the checkFile function — ROOT resolves relative to scripts/
@@ -24,7 +24,6 @@ function writeTestFile(content: string): string {
 
 function cleanup() {
 	try {
-		const { unlinkSync } = require("fs");
 		unlinkSync(TEST_FILE);
 	} catch {}
 }
