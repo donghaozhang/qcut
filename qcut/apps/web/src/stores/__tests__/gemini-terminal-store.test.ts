@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
-import { initPlatform } from "@qcut/platform-core";
+import { initPlatform, type PlatformAPI } from "@qcut/platform-core";
 import { createDesktopAdapter } from "@qcut/platform-desktop";
+import { createWebAdapter } from "@qcut/platform-web";
 import {
 	useGeminiTerminalStore,
 	type AttachedFile,
@@ -488,15 +489,14 @@ describe("useGeminiTerminalStore", () => {
 });
 
 describe("useGeminiTerminalStore - API unavailable", () => {
-	let cleanupElectron: () => void;
-
 	beforeEach(() => {
-		cleanupElectron = setupElectronMock();
-		initPlatform(createDesktopAdapter());
-		// Remove Gemini API
-		if (window.electronAPI) {
-			window.electronAPI.geminiChat = undefined;
-		}
+		// Create a web adapter with geminiChat explicitly set to undefined
+		const webAdapter = createWebAdapter();
+		const adapterWithoutGemini: PlatformAPI = {
+			...webAdapter,
+			geminiChat: undefined as any,
+		};
+		initPlatform(adapterWithoutGemini);
 
 		// Reset store
 		useGeminiTerminalStore.setState({
@@ -509,10 +509,6 @@ describe("useGeminiTerminalStore - API unavailable", () => {
 		});
 
 		vi.clearAllMocks();
-	});
-
-	afterEach(() => {
-		cleanupElectron();
 	});
 
 	it("should handle missing Gemini API gracefully", async () => {

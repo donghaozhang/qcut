@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { initPlatform } from "@qcut/platform-core";
 import { createDesktopAdapter } from "@qcut/platform-desktop";
+import { createWebAdapter } from "@qcut/platform-web";
 
 const mockNavigate = vi.fn();
 const mockCheckLicense = vi.fn<() => Promise<void>>();
@@ -78,14 +79,12 @@ describe("useLogin", () => {
 		});
 
 		it("sets error when electronAPI is unavailable", async () => {
-			(window as any).electronAPI = {};
+			initPlatform(createWebAdapter());
 			const { result } = renderHook(() => useLogin());
 
 			await act(() => result.current.handleLogin());
 
-			expect(result.current.error).toBe(
-				"Login is not available in this environment"
-			);
+			expect(result.current.error).toContain("not supported on platform");
 			expect(result.current.isEmailLoading).toBe(false);
 		});
 
@@ -146,26 +145,25 @@ describe("useLogin", () => {
 		});
 
 		it("sets error when getGoogleLoginUrl is unavailable", async () => {
-			delete mockLicenseApi.getGoogleLoginUrl;
+			initPlatform(createWebAdapter());
 			const { result } = renderHook(() => useLogin());
 
 			await act(() => result.current.handleGoogleLogin());
 
-			expect(result.current.error).toBe(
-				"Google login is not available in this environment"
-			);
+			expect(result.current.error).toContain("not supported on platform");
 			expect(result.current.isGoogleLoading).toBe(false);
 		});
 
-		it("sets error when shell.openExternal is unavailable", async () => {
-			(window as any).electronAPI.shell = {};
+		it("sets error when shell.openExternal fails", async () => {
+			(window as any).electronAPI.shell = {
+				openExternal: vi.fn().mockRejectedValue(new Error("Shell unavailable")),
+			};
+			initPlatform(createDesktopAdapter());
 			const { result } = renderHook(() => useLogin());
 
 			await act(() => result.current.handleGoogleLogin());
 
-			expect(result.current.error).toBe(
-				"Could not open browser for Google login"
-			);
+			expect(result.current.error).toBe("Shell unavailable");
 			expect(result.current.isGoogleLoading).toBe(false);
 		});
 
