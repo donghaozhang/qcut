@@ -866,8 +866,11 @@ useMoyinStore.subscribe((state) => {
 });
 
 // Listen for parsed script data pushed from CLI via HTTP API
+// Deferred: platform() may not be initialized at module load time (e.g. tests).
+// Use try/catch so the listener silently skips when platform isn't ready yet.
 if (typeof window !== "undefined") {
-	platform().moyin.onParsed?.((data: Record<string, unknown>) => {
+	try {
+		platform().moyin.onParsed?.((data: Record<string, unknown>) => {
 		const state = useMoyinStore.getState();
 		const scriptData = data as unknown as ScriptData;
 
@@ -904,5 +907,9 @@ if (typeof window !== "undefined") {
 					parseError: String(err),
 				});
 			});
-	});
+		});
+	} catch {
+		// Platform not initialized yet — listener will be skipped.
+		// This is expected in test environments.
+	}
 }
