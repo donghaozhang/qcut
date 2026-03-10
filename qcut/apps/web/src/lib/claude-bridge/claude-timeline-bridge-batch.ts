@@ -30,10 +30,7 @@ export function setupBatchHandlers({
 		typeof claudeAPI.sendBatchAddElementsResponse === "function"
 	) {
 		claudeAPI.onBatchAddElements(
-			async (data: {
-				requestId: string;
-				elements: ClaudeBatchAddElementRequest[];
-			}) => {
+			async (data: any) => {
 				const defaultErrorResponse: ClaudeBatchAddResponse = {
 					added: [],
 					failedCount: data.elements.length,
@@ -42,7 +39,7 @@ export function setupBatchHandlers({
 					if (data.elements.length > MAX_TIMELINE_BATCH_ITEMS) {
 						const message = `Batch add limit is ${MAX_TIMELINE_BATCH_ITEMS} elements`;
 						const failedResponse: ClaudeBatchAddResponse = {
-							added: data.elements.map((_, index) => ({
+							added: data.elements.map((_: any, index: number) => ({
 								index,
 								success: false,
 								error: message,
@@ -303,7 +300,7 @@ export function setupBatchHandlers({
 						error instanceof Error ? error.message : "Batch add failed";
 					claudeAPI.sendBatchAddElementsResponse(data.requestId, {
 						...defaultErrorResponse,
-						added: data.elements.map((_, index) => ({
+						added: data.elements.map((_: any, index: number) => ({
 							index,
 							success: false,
 							error: errorMessage,
@@ -318,14 +315,14 @@ export function setupBatchHandlers({
 		typeof claudeAPI.onBatchUpdateElements === "function" &&
 		typeof claudeAPI.sendBatchUpdateElementsResponse === "function"
 	) {
-		claudeAPI.onBatchUpdateElements((data) => {
+		claudeAPI.onBatchUpdateElements((data: any) => {
 			try {
 				if (data.updates.length > MAX_TIMELINE_BATCH_ITEMS) {
 					const limitMessage = `Batch update limit is ${MAX_TIMELINE_BATCH_ITEMS} items`;
 					const failedResponse: ClaudeBatchUpdateResponse = {
 						updatedCount: 0,
 						failedCount: data.updates.length,
-						results: data.updates.map((_, index) => ({
+						results: data.updates.map((_: any, index: number) => ({
 							index,
 							success: false,
 							error: limitMessage,
@@ -388,7 +385,7 @@ export function setupBatchHandlers({
 				claudeAPI.sendBatchUpdateElementsResponse(data.requestId, {
 					updatedCount: 0,
 					failedCount: data.updates.length,
-					results: data.updates.map((_, index) => ({
+					results: data.updates.map((_: any, index: number) => ({
 						index,
 						success: false,
 						error: errorMessage,
@@ -402,14 +399,14 @@ export function setupBatchHandlers({
 		typeof claudeAPI.onBatchDeleteElements === "function" &&
 		typeof claudeAPI.sendBatchDeleteElementsResponse === "function"
 	) {
-		claudeAPI.onBatchDeleteElements((data) => {
+		claudeAPI.onBatchDeleteElements((data: any) => {
 			try {
 				if (data.elements.length > MAX_TIMELINE_BATCH_ITEMS) {
 					const limitMessage = `Batch delete limit is ${MAX_TIMELINE_BATCH_ITEMS} items`;
 					const failedResponse: ClaudeBatchDeleteResponse = {
 						deletedCount: 0,
 						failedCount: data.elements.length,
-						results: data.elements.map((_, index) => ({
+						results: data.elements.map((_: any, index: number) => ({
 							index,
 							success: false,
 							error: limitMessage,
@@ -492,7 +489,7 @@ export function setupBatchHandlers({
 				claudeAPI.sendBatchDeleteElementsResponse(data.requestId, {
 					deletedCount: 0,
 					failedCount: data.elements.length,
-					results: data.elements.map((_, index) => ({
+					results: data.elements.map((_: any, index: number) => ({
 						index,
 						success: false,
 						error: errorMessage,
@@ -506,7 +503,7 @@ export function setupBatchHandlers({
 		typeof claudeAPI.onArrange === "function" &&
 		typeof claudeAPI.sendArrangeResponse === "function"
 	) {
-		claudeAPI.onArrange((data) => {
+		claudeAPI.onArrange((data: any) => {
 			try {
 				const timelineStore = useTimelineStore.getState();
 				const track = timelineStore.tracks.find(

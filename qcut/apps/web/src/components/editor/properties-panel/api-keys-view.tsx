@@ -94,10 +94,10 @@ export function ApiKeysView() {
 		setIsTestingFreesound(true);
 		setFreesoundTestResult(null);
 		try {
-			const result = await platform().sounds.search({ q: "test" });
+			const result = await platform().sounds.search({ query: "test" }) as any;
 			setFreesoundTestResult({
-				success: result.success,
-				message: result.message || "Test completed",
+				success: result?.success ?? false,
+				message: result?.message || "Test completed",
 			});
 		} catch {
 			setFreesoundTestResult({ success: false, message: "Test failed" });

@@ -34,7 +34,7 @@ type ClaudeTrackElementType =
 	(typeof CLAUDE_TRACK_ELEMENT_TYPES)[keyof typeof CLAUDE_TRACK_ELEMENT_TYPES];
 
 export type ClaudeTimelineBridgeAPI = NonNullable<
-	NonNullable<NonNullable<typeof window.electronAPI>["claude"]>["timeline"]
+	NonNullable<import("@qcut/platform-core").PlatformClaudeAPI>["timeline"]
 >;
 
 export function normalizeClaudeElementType({
@@ -158,7 +158,7 @@ export function setupClaudeTimelineBridge(): void {
 
 	// Listen for media imports so the renderer store gets the File object (needed for preview)
 	if (claude.media?.onMediaImported) {
-		claude.media.onMediaImported(async (data) => {
+		claude.media.onMediaImported(async (data: any) => {
 			try {
 				const projectId = useProjectStore.getState().activeProject?.id;
 				if (!projectId) return;
@@ -236,7 +236,7 @@ export function setupClaudeTimelineBridge(): void {
 	});
 
 	// Handle element removal
-	claudeAPI.onRemoveElement((elementId: string) => {
+	claudeAPI.onRemoveElement((elementId: any) => {
 		try {
 			debugLog("[ClaudeTimelineBridge] Removing element:", elementId);
 			const timelineStore = useTimelineStore.getState();
@@ -262,12 +262,7 @@ export function setupClaudeTimelineBridge(): void {
 
 	// Handle element split (request-response: returns secondElementId)
 	claudeAPI.onSplitElement(
-		(data: {
-			requestId: string;
-			elementId: string;
-			splitTime: number;
-			mode: "split" | "keepLeft" | "keepRight";
-		}) => {
+		(data: any) => {
 			try {
 				debugLog(
 					"[ClaudeTimelineBridge] Splitting element:",
@@ -328,7 +323,7 @@ export function setupClaudeTimelineBridge(): void {
 
 	// Handle element move (fire-and-forget)
 	claudeAPI.onMoveElement(
-		(data: { elementId: string; toTrackId: string; newStartTime?: number }) => {
+		(data: any) => {
 			try {
 				debugLog(
 					"[ClaudeTimelineBridge] Moving element:",
@@ -375,7 +370,7 @@ export function setupClaudeTimelineBridge(): void {
 
 	// Handle selection set (fire-and-forget)
 	claudeAPI.onSelectElements(
-		(data: { elements: Array<{ trackId: string; elementId: string }> }) => {
+		(data: any) => {
 			try {
 				debugLog(
 					"[ClaudeTimelineBridge] Setting selection:",
@@ -396,7 +391,7 @@ export function setupClaudeTimelineBridge(): void {
 	);
 
 	// Handle get selection (request-response)
-	claudeAPI.onGetSelection((data: { requestId: string }) => {
+	claudeAPI.onGetSelection((data: any) => {
 		try {
 			const { selectedElements } = useTimelineStore.getState();
 			claudeAPI.sendSelectionResponse(data.requestId, selectedElements);
@@ -408,7 +403,7 @@ export function setupClaudeTimelineBridge(): void {
 
 	// Handle playback commands (fire-and-forget)
 	if (typeof claudeAPI.onPlayback === "function") {
-		claudeAPI.onPlayback(async (data: { action: string; time?: number }) => {
+		claudeAPI.onPlayback(async (data: any) => {
 			try {
 				const { usePlaybackStore } = await import(
 					"@/stores/editor/playback-store"
@@ -457,12 +452,7 @@ export function setupClaudeTimelineBridge(): void {
 
 	// Handle batch cuts (request-response: removes multiple time ranges from an element)
 	claudeAPI.onExecuteCuts(
-		(data: {
-			requestId: string;
-			elementId: string;
-			cuts: Array<{ start: number; end: number }>;
-			ripple: boolean;
-		}) => {
+		(data: any) => {
 			const emptyResult = {
 				cutsApplied: 0,
 				elementsRemoved: 0,
@@ -618,16 +608,7 @@ export function setupClaudeTimelineBridge(): void {
 
 	// Handle range delete (request-response: removes content in a time range)
 	claudeAPI.onDeleteRange(
-		(data: {
-			requestId: string;
-			request: {
-				startTime: number;
-				endTime: number;
-				trackIds?: string[];
-				ripple?: boolean;
-				crossTrackRipple?: boolean;
-			};
-		}) => {
+		(data: any) => {
 			const emptyResult = {
 				deletedElements: 0,
 				splitElements: 0,
@@ -669,7 +650,7 @@ export function setupClaudeTimelineBridge(): void {
 
 	// Load transcription into Smart Speech panel
 	if (typeof claudeAPI.onLoadSpeech === "function") {
-		claudeAPI.onLoadSpeech(async (data) => {
+		claudeAPI.onLoadSpeech(async (data: any) => {
 			try {
 				debugLog("[ClaudeTimelineBridge] Loading speech data:", data.fileName);
 				const { useWordTimelineStore } = await import(

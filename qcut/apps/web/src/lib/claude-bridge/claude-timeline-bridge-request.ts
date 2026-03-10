@@ -44,7 +44,7 @@ export function setupRequestHandlers({
 	});
 
 	// Handle timeline import from Claude
-	claudeAPI.onApply(async (timeline: ClaudeTimeline, replace?: boolean) => {
+	claudeAPI.onApply(async (timeline: any, replace?: boolean) => {
 		try {
 			debugLog(
 				"[ClaudeTimelineBridge] Received timeline to apply:",

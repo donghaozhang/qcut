@@ -187,7 +187,7 @@ export function setupElementHandlers({
 	claudeAPI: ClaudeTimelineBridgeAPI;
 }): void {
 	// Handle element addition from Claude
-	claudeAPI.onAddElement(async (element: Partial<ClaudeElement>) => {
+	claudeAPI.onAddElement(async (element: any) => {
 		try {
 			debugLog("[ClaudeTimelineBridge] Adding element:", element);
 
@@ -238,7 +238,7 @@ export function setupElementHandlers({
 
 	// Handle element update from Claude
 	claudeAPI.onUpdateElement(
-		(data: { elementId: string; changes: Partial<ClaudeElement> }) => {
+		(data: any) => {
 			try {
 				debugLog("[ClaudeTimelineBridge] Updating element:", data.elementId);
 				const updated = applyElementChanges({

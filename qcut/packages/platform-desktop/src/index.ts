@@ -11,33 +11,6 @@ import {
 	PlatformCapability,
 	isPlatformCapable,
 	type PlatformAPI,
-	type PlatformFilesAPI,
-	type PlatformStorageAPI,
-	type PlatformThemeAPI,
-	type PlatformShellAPI,
-	type PlatformApiKeysAPI,
-	type PlatformLicenseAPI,
-	type PlatformSoundsAPI,
-	type PlatformAudioAPI,
-	type PlatformVideoAPI,
-	type PlatformScreenshotAPI,
-	type PlatformScreenRecordingAPI,
-	type PlatformFFmpegAPI,
-	type PlatformTranscriptionAPI,
-	type PlatformFalAPI,
-	type PlatformGeminiChatAPI,
-	type PlatformGitHubAPI,
-	type PlatformYouTubeAPI,
-	type PlatformPtyAPI,
-	type PlatformMcpAPI,
-	type PlatformSkillsAPI,
-	type PlatformAIPipelineAPI,
-	type PlatformMediaImportAPI,
-	type PlatformProjectFolderAPI,
-	type PlatformProjectJsonAPI,
-	type PlatformRemotionFolderAPI,
-	type PlatformMoyinAPI,
-	type PlatformUpdatesAPI,
 	type PlatformClaudeAPI,
 } from "@qcut/platform-core";
 
@@ -117,20 +90,20 @@ const videoAdapter = {
 	saveTemp: (d: any, f: any, s?: any) => api().video.saveTemp(d, f, s),
 	saveToDisk: (o: any) => api().video.saveToDisk(o),
 	verifyFile: (p: any) => api().video.verifyFile(p),
-	deleteFile: (p: any) => api().video!.deleteFile(p),
-	getProjectDir: (id: any) => api().video!.getProjectDir(id),
+	deleteFile: (p: any) => api().video.deleteFile(p),
+	getProjectDir: (id: any) => api().video.getProjectDir(id),
 };
 
 const screenshotAdapter = {
-	capture: (o?: any) => api().screenshot!.capture(o),
+	capture: (o?: any) => api().screenshot.capture(o),
 };
 
 const screenRecordingAdapter = {
-	getSources: () => api().screenRecording!.getSources(),
-	start: (o?: any) => api().screenRecording!.start(o),
-	appendChunk: (o: any) => api().screenRecording!.appendChunk(o),
-	stop: (o?: any) => api().screenRecording!.stop(o),
-	getStatus: () => api().screenRecording!.getStatus(),
+	getSources: () => api().screenRecording.getSources(),
+	start: (o?: any) => api().screenRecording.start(o),
+	appendChunk: (o: any) => api().screenRecording.appendChunk(o),
+	stop: (o?: any) => api().screenRecording.stop(o),
+	getStatus: () => api().screenRecording.getStatus(),
 };
 
 const ffmpegAdapter = {
@@ -139,13 +112,13 @@ const ffmpegAdapter = {
 	exportVideoCLI: (o: any) => api().ffmpeg.exportVideoCLI(o),
 	readOutputFile: (p: any) => api().ffmpeg.readOutputFile(p),
 	cleanupExportSession: (id: any) => api().ffmpeg.cleanupExportSession(id),
-	openFramesFolder: (id: any) => (api().ffmpeg as any).openFramesFolder(id),
+	openFramesFolder: (id: any) => api().ffmpeg.openFramesFolder(id),
 	extractAudio: (o: any) => api().ffmpeg.extractAudio(o),
 	saveStickerForExport: (d: any) => api().ffmpeg.saveStickerForExport(d),
 	processFrame: (o: any) => api().ffmpeg.processFrame(o),
 	validateFilterChain: (f: any) => api().ffmpeg.validateFilterChain(f),
-	getFFmpegResourcePath: (f: any) => (api().ffmpeg as any).getFFmpegResourcePath(f),
-	checkFFmpegResource: (f: any) => (api().ffmpeg as any).checkFFmpegResource(f),
+	getFFmpegResourcePath: (f: any) => api().ffmpeg.getFFmpegResourcePath(f),
+	checkFFmpegResource: (f: any) => api().ffmpeg.checkFFmpegResource(f),
 	getPath: () => api().ffmpeg.getPath(),
 	checkHealth: () => api().ffmpeg.checkHealth(),
 };
@@ -165,124 +138,124 @@ const falAdapter = {
 };
 
 const geminiChatAdapter = {
-	send: (r: any) => api().geminiChat!.send(r),
-	onStreamChunk: (cb: any) => api().geminiChat!.onStreamChunk(cb),
-	onStreamComplete: (cb: any) => api().geminiChat!.onStreamComplete(cb),
-	onStreamError: (cb: any) => api().geminiChat!.onStreamError(cb),
-	removeListeners: () => api().geminiChat!.removeListeners(),
+	send: (r: any) => api().geminiChat.send(r),
+	onStreamChunk: (cb: any) => api().geminiChat.onStreamChunk(cb),
+	onStreamComplete: (cb: any) => api().geminiChat.onStreamComplete(cb),
+	onStreamError: (cb: any) => api().geminiChat.onStreamError(cb),
+	removeListeners: () => api().geminiChat.removeListeners(),
 };
 
 const githubAdapter = {
-	fetchStars: () => api().github!.fetchStars(),
+	fetchStars: () => api().github.fetchStars(),
 };
 
 const youtubeAdapter = {
-	upload: (o: any) => api().youtube!.upload(o),
-	checkAuth: () => api().youtube!.checkAuth(),
-	onUploadProgress: (cb: any) => api().youtube!.onUploadProgress(cb),
+	upload: (o: any) => api().youtube.upload(o),
+	checkAuth: () => api().youtube.checkAuth(),
+	onUploadProgress: (cb: any) => api().youtube.onUploadProgress(cb),
 };
 
 const ptyAdapter = {
-	spawn: (o?: any) => api().pty!.spawn(o),
-	write: (id: any, d: any) => api().pty!.write(id, d),
-	resize: (id: any, c: any, r: any) => api().pty!.resize(id, c, r),
-	kill: (id: any) => api().pty!.kill(id),
-	killAll: () => api().pty!.killAll(),
-	onData: (cb: any) => api().pty!.onData(cb),
-	onExit: (cb: any) => api().pty!.onExit(cb),
-	removeListeners: () => api().pty!.removeListeners(),
+	spawn: (o?: any) => api().pty.spawn(o),
+	write: (id: any, d: any) => api().pty.write(id, d),
+	resize: (id: any, c: any, r: any) => api().pty.resize(id, c, r),
+	kill: (id: any) => api().pty.kill(id),
+	killAll: () => api().pty.killAll(),
+	onData: (cb: any) => api().pty.onData(cb),
+	onExit: (cb: any) => api().pty.onExit(cb),
+	removeListeners: () => api().pty.removeListeners(),
 };
 
 const mcpAdapter = {
-	onAppHtml: (cb: any) => api().mcp!.onAppHtml(cb),
-	removeListeners: () => api().mcp!.removeListeners(),
+	onAppHtml: (cb: any) => api().mcp.onAppHtml(cb),
+	removeListeners: () => api().mcp.removeListeners(),
 };
 
 const skillsAdapter = {
-	list: (id: any) => api().skills!.list(id),
-	import: (id: any, p: any) => api().skills!.import(id, p),
-	delete: (id: any, s: any) => api().skills!.delete(id, s),
-	getContent: (id: any, s: any, f: any) => api().skills!.getContent(id, s, f),
-	browse: () => api().skills!.browse(),
-	getPath: (id: any) => api().skills!.getPath(id),
-	scanGlobal: () => api().skills!.scanGlobal(),
-	syncForClaude: (id: any) => api().skills!.syncForClaude(id),
+	list: (id: any) => api().skills.list(id),
+	import: (id: any, p: any) => api().skills.import(id, p),
+	delete: (id: any, s: any) => api().skills.delete(id, s),
+	getContent: (id: any, s: any, f: any) => api().skills.getContent(id, s, f),
+	browse: () => api().skills.browse(),
+	getPath: (id: any) => api().skills.getPath(id),
+	scanGlobal: () => api().skills.scanGlobal(),
+	syncForClaude: (id: any) => api().skills.syncForClaude(id),
 };
 
 const aiPipelineAdapter = {
-	check: () => api().aiPipeline!.check(),
-	status: () => api().aiPipeline!.status(),
-	generate: (o: Record<string, unknown>) => api().aiPipeline!.generate(o as never),
-	listModels: () => api().aiPipeline!.listModels(),
-	estimateCost: (o: Record<string, unknown>) => api().aiPipeline!.estimateCost(o as never),
-	cancel: (id: string) => api().aiPipeline!.cancel(id),
-	refresh: () => api().aiPipeline!.refresh(),
-	onProgress: (cb: (data: unknown) => void) => api().aiPipeline!.onProgress(cb as never),
-} as unknown as PlatformAIPipelineAPI;
+	check: () => api().aiPipeline.check(),
+	status: () => api().aiPipeline.status(),
+	generate: (o: Record<string, unknown>) => api().aiPipeline.generate(o),
+	listModels: () => api().aiPipeline.listModels(),
+	estimateCost: (o: Record<string, unknown>) => api().aiPipeline.estimateCost(o),
+	cancel: (id: string) => api().aiPipeline.cancel(id),
+	refresh: () => api().aiPipeline.refresh(),
+	onProgress: (cb: (data: unknown) => void) => api().aiPipeline.onProgress(cb),
+};
 
 const mediaImportAdapter = {
-	import: (o: Record<string, unknown>) => api().mediaImport!.import(o as never),
-	validateSymlink: (p: string) => api().mediaImport!.validateSymlink(p),
-	locateOriginal: (p: string) => api().mediaImport!.locateOriginal(p),
-	relinkMedia: (id: string, m: string, p: string) => api().mediaImport!.relinkMedia(id, m, p),
-	remove: (id: string, m: string) => api().mediaImport!.remove(id, m),
-	checkSymlinkSupport: () => api().mediaImport!.checkSymlinkSupport(),
-	getMediaPath: (id: string) => api().mediaImport!.getMediaPath(id),
-} as unknown as PlatformMediaImportAPI;
+	import: (o: Record<string, unknown>) => api().mediaImport.import(o),
+	validateSymlink: (p: string) => api().mediaImport.validateSymlink(p),
+	locateOriginal: (p: string) => api().mediaImport.locateOriginal(p),
+	relinkMedia: (id: string, m: string, p: string) => api().mediaImport.relinkMedia(id, m, p),
+	remove: (id: string, m: string) => api().mediaImport.remove(id, m),
+	checkSymlinkSupport: () => api().mediaImport.checkSymlinkSupport(),
+	getMediaPath: (id: string) => api().mediaImport.getMediaPath(id),
+};
 
 // These adapters use pass-through delegation with type casts because the
 // PlatformAPI interface uses simplified types that don't exactly match the
 // Electron preload types. The runtime behavior is identical — the adapter
 // just forwards calls to window.electronAPI.
 const projectFolderAdapter = {
-	getRoot: (id: string) => api().projectFolder!.getRoot(id),
-	scan: (id: string, p?: string, o?: Record<string, unknown>) => api().projectFolder!.scan(id, p, o),
-	list: (id: string, p?: string) => api().projectFolder!.list(id, p),
-	ensureStructure: (id: string) => api().projectFolder!.ensureStructure(id),
-} as unknown as PlatformProjectFolderAPI;
+	getRoot: (id: string) => api().projectFolder.getRoot(id),
+	scan: (id: string, p?: string, o?: Record<string, unknown>) => api().projectFolder.scan(id, p, o),
+	list: (id: string, p?: string) => api().projectFolder.list(id, p),
+	ensureStructure: (id: string) => api().projectFolder.ensureStructure(id),
+};
 
 const projectJsonAdapter = {
-	write: (id: string) => api().projectJson!.write(id),
-} as unknown as PlatformProjectJsonAPI;
+	write: (id: string) => api().projectJson.write(id),
+};
 
 const remotionFolderAdapter = {
-	select: () => api().remotionFolder!.select(),
-	scan: (p: string) => api().remotionFolder!.scan(p),
-	bundle: (p: string, ids?: string[]) => api().remotionFolder!.bundle(p, ids),
-	import: (p: string) => api().remotionFolder!.import(p),
-	checkBundler: () => api().remotionFolder!.checkBundler(),
-	validate: (p: string) => api().remotionFolder!.validate(p),
-	bundleFile: (p: string, id: string) => api().remotionFolder!.bundleFile(p, id),
-} as unknown as PlatformRemotionFolderAPI;
+	select: () => api().remotionFolder.select(),
+	scan: (p: string) => api().remotionFolder.scan(p),
+	bundle: (p: string, ids?: string[]) => api().remotionFolder.bundle(p, ids),
+	import: (p: string) => api().remotionFolder.import(p),
+	checkBundler: () => api().remotionFolder.checkBundler(),
+	validate: (p: string) => api().remotionFolder.validate(p),
+	bundleFile: (p: string, id: string) => api().remotionFolder.bundleFile(p, id),
+};
 
 const moyinAdapter = {
-	parseScript: (o: Record<string, unknown>) => api().moyin!.parseScript(o as never),
-	generateStoryboard: (o: Record<string, unknown>) => api().moyin!.generateStoryboard(o as never),
-	callLLM: (o: Record<string, unknown>) => api().moyin!.callLLM(o as never),
-	isClaudeAvailable: () => api().moyin!.isClaudeAvailable(),
-	saveTempScript: (o: { rawScript: string }) => api().moyin!.saveTempScript(o),
-	cleanupTempScript: (p: string) => api().moyin!.cleanupTempScript(p),
-	onParsed: (cb: (data: unknown) => void) => api().moyin!.onParsed(cb),
-	removeParseListener: () => api().moyin!.removeParseListener(),
-	onSetScript: (cb: (data: { text: string }) => void) => api().moyin!.onSetScript(cb),
-	onTriggerParse: (cb: () => void) => api().moyin!.onTriggerParse(cb),
-	onGenerateScript: (cb: (data: { idea: string; genre?: string; targetDuration?: string }) => void) => api().moyin!.onGenerateScript(cb),
-	onStatusRequest: (cb: (data: { requestId: string }) => void) => api().moyin!.onStatusRequest(cb),
-	sendStatusResponse: (id: string, r?: Record<string, unknown>, e?: string) => api().moyin!.sendStatusResponse(id, r, e),
-	onExportRequest: (cb: (data: { requestId: string }) => void) => api().moyin!.onExportRequest(cb),
-	sendExportResponse: (id: string, r?: Record<string, unknown>, e?: string) => api().moyin!.sendExportResponse(id, r, e),
-	removeMoyinBridgeListeners: () => api().moyin!.removeMoyinBridgeListeners(),
-} as unknown as PlatformMoyinAPI;
+	parseScript: (o: Record<string, unknown>) => api().moyin.parseScript(o),
+	generateStoryboard: (o: Record<string, unknown>) => api().moyin.generateStoryboard(o),
+	callLLM: (o: Record<string, unknown>) => api().moyin.callLLM(o),
+	isClaudeAvailable: () => api().moyin.isClaudeAvailable(),
+	saveTempScript: (o: { rawScript: string }) => api().moyin.saveTempScript(o),
+	cleanupTempScript: (p: string) => api().moyin.cleanupTempScript(p),
+	onParsed: (cb: (data: unknown) => void) => api().moyin.onParsed(cb),
+	removeParseListener: () => api().moyin.removeParseListener(),
+	onSetScript: (cb: (data: { text: string }) => void) => api().moyin.onSetScript(cb),
+	onTriggerParse: (cb: () => void) => api().moyin.onTriggerParse(cb),
+	onGenerateScript: (cb: (data: { idea: string; genre?: string; targetDuration?: string }) => void) => api().moyin.onGenerateScript(cb),
+	onStatusRequest: (cb: (data: { requestId: string }) => void) => api().moyin.onStatusRequest(cb),
+	sendStatusResponse: (id: string, r?: Record<string, unknown>, e?: string) => api().moyin.sendStatusResponse(id, r, e),
+	onExportRequest: (cb: (data: { requestId: string }) => void) => api().moyin.onExportRequest(cb),
+	sendExportResponse: (id: string, r?: Record<string, unknown>, e?: string) => api().moyin.sendExportResponse(id, r, e),
+	removeMoyinBridgeListeners: () => api().moyin.removeMoyinBridgeListeners(),
+};
 
 const updatesAdapter = {
-	checkForUpdates: () => api().updates!.checkForUpdates(),
-	installUpdate: () => api().updates!.installUpdate(),
-	getReleaseNotes: (v?: string) => api().updates!.getReleaseNotes(v),
-	getChangelog: () => api().updates!.getChangelog(),
-	onUpdateAvailable: (cb: (data: { version: string; releaseNotes?: string; releaseDate?: string }) => void) => api().updates!.onUpdateAvailable(cb),
-	onDownloadProgress: (cb: (data: { percent: number; transferred: number; total: number }) => void) => api().updates!.onDownloadProgress(cb),
-	onUpdateDownloaded: (cb: (data: { version: string }) => void) => api().updates!.onUpdateDownloaded(cb),
-} as unknown as PlatformUpdatesAPI;
+	checkForUpdates: () => api().updates.checkForUpdates(),
+	installUpdate: () => api().updates.installUpdate(),
+	getReleaseNotes: (v?: string) => api().updates.getReleaseNotes(v),
+	getChangelog: () => api().updates.getChangelog(),
+	onUpdateAvailable: (cb: (data: { version: string; releaseNotes?: string; releaseDate?: string }) => void) => api().updates.onUpdateAvailable(cb),
+	onDownloadProgress: (cb: (data: { percent: number; transferred: number; total: number }) => void) => api().updates.onDownloadProgress(cb),
+	onUpdateDownloaded: (cb: (data: { version: string }) => void) => api().updates.onUpdateDownloaded(cb),
+};
 
 function createClaudeAdapter(): PlatformClaudeAPI | undefined {
 	const c = api().claude;

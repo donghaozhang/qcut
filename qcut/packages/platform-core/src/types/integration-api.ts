@@ -87,7 +87,7 @@ export interface PlatformPtyAPI {
 		env?: Record<string, string>;
 		cols?: number;
 		rows?: number;
-	}): Promise<{ sessionId: string }>;
+	}): Promise<{ success?: boolean; sessionId?: string; error?: string }>;
 	write(sessionId: string, data: string): Promise<void>;
 	resize(sessionId: string, cols: number, rows: number): Promise<void>;
 	kill(sessionId: string): Promise<void>;

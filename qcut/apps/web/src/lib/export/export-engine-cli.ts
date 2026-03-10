@@ -133,7 +133,7 @@ export class CLIExportEngine extends ExportEngine {
 		progressCallback?.(5, "Setting up export session...");
 		const session = await this.createExportSession();
 		this.sessionId = session.sessionId;
-		this.frameDir = session.frameDir;
+		this.frameDir = session.framesDir;
 
 		debugLog(
 			"[CLIExportEngine] 🔍 Analyzing timeline for export optimization..."
