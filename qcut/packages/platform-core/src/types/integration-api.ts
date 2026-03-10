@@ -140,7 +140,7 @@ export interface PlatformSkillsAPI {
 		projectId: string,
 		sourcePath: string
 	): Promise<PlatformSkillItem | null>;
-	delete(projectId: string, skillId: string): Promise<boolean | void>;
+	delete(projectId: string, skillId: string): Promise<boolean | undefined>;
 	getContent(
 		projectId: string,
 		skillId: string,
@@ -196,7 +196,7 @@ export interface PlatformAIPipelineAPI {
 		compatible: boolean;
 		features: Record<string, boolean>;
 		error?: string;
-	} | void>;
+	} | undefined>;
 	onProgress(
 		callback: (progress: {
 			stage: string;
