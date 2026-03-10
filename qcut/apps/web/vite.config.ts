@@ -5,8 +5,11 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import { visualizer } from "rollup-plugin-visualizer";
 import path from "path";
 
+const buildTarget = process.env.VITE_BUILD_TARGET || "electron";
+const isWebBuild = buildTarget === "web";
+
 export default defineConfig({
-	base: "./", // Critical for Electron file:// protocol
+	base: isWebBuild ? "/" : "./", // "/" for web hosting, "./" for Electron file://
 	publicDir: "public", // Ensure public directory is properly copied
 	define: {
 		// Required for React scheduler in Electron production builds
@@ -15,6 +18,8 @@ export default defineConfig({
 		"process.env.NODE_ENV": JSON.stringify(
 			process.env.NODE_ENV || "development"
 		),
+		// Expose build target for runtime checks
+		"__QCUT_BUILD_TARGET__": JSON.stringify(buildTarget),
 	},
 	resolve: {
 		alias: {

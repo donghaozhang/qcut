@@ -23,6 +23,9 @@
 	},
 	"dependencies": {
 		"@qcut/editor-core": "workspace:*",
+		"@qcut/platform-core": "workspace:*",
+		"@qcut/platform-desktop": "workspace:*",
+		"@qcut/platform-web": "workspace:*",
 		"@aws-sdk/client-s3": "^3.993.0",
 		"@babel/parser": "^7.29.0",
 		"@babel/traverse": "^7.29.0",

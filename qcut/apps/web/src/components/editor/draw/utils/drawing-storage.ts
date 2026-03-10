@@ -3,6 +3,7 @@ import {
 	ErrorCategory,
 	ErrorSeverity,
 } from "@/lib/debug/error-handler";
+import { platform } from "@qcut/platform-core";
 
 interface DrawingMetadata {
 	filename: string;
@@ -15,8 +16,8 @@ interface DrawingMetadata {
 }
 
 /**
- * Drawing storage service that safely extends QCut's existing storage
- * Uses existing storage.save/load methods - no new IPC handlers needed
+ * Drawing storage service using platform adapter.
+ * Storage is handled by the platform adapter (Electron IPC or localStorage).
  */
 // biome-ignore lint/complexity/noStaticOnlyClass: This utility class provides a clean namespace for related drawing storage functions
 export class DrawingStorage {
@@ -25,14 +26,13 @@ export class DrawingStorage {
 	private static readonly AUTOSAVE_PREFIX = "qcut-drawing-autosave-";
 
 	/**
-	 * Save drawing using existing storage API
-	 * SAFE: Uses existing storage.save method
+	 * Save drawing using platform storage API
 	 */
 	static async saveDrawing(
 		drawingData: string,
 		projectId: string,
 		filename?: string,
-		tags?: string[]
+		tags?: string[],
 	): Promise<string> {
 		try {
 			const drawingId = `${DrawingStorage.STORAGE_PREFIX}${projectId}-${Date.now()}`;
@@ -57,21 +57,12 @@ export class DrawingStorage {
 				tags: tags || [],
 			};
 
-			// Use existing storage API - completely safe
-			if (window.electronAPI?.storage?.save) {
-				await window.electronAPI.storage.save(drawingId, drawingData);
-				await window.electronAPI.storage.save(
-					`${DrawingStorage.METADATA_PREFIX}${drawingId}`,
-					JSON.stringify(metadata)
-				);
-			} else {
-				// Fallback to localStorage for browser development
-				localStorage.setItem(drawingId, drawingData);
-				localStorage.setItem(
-					`${DrawingStorage.METADATA_PREFIX}${drawingId}`,
-					JSON.stringify(metadata)
-				);
-			}
+			const storage = platform().storage;
+			await storage.save(drawingId, drawingData);
+			await storage.save(
+				`${DrawingStorage.METADATA_PREFIX}${drawingId}`,
+				JSON.stringify(metadata),
+			);
 
 			return drawingId;
 		} catch (error) {
@@ -88,33 +79,18 @@ export class DrawingStorage {
 	 * Load drawing by ID
 	 */
 	static async loadDrawing(
-		drawingId: string
+		drawingId: string,
 	): Promise<{ data: string; metadata: DrawingMetadata } | null> {
 		try {
-			let data: string | null = null;
-			let metadata: DrawingMetadata | null = null;
-
-			if (window.electronAPI?.storage?.load) {
-				data = (await window.electronAPI.storage.load(drawingId)) as
-					| string
-					| null;
-				const rawMeta = await window.electronAPI.storage.load(
-					`${DrawingStorage.METADATA_PREFIX}${drawingId}`
-				);
-				metadata =
-					typeof rawMeta === "string"
-						? JSON.parse(rawMeta)
-						: (rawMeta as DrawingMetadata);
-			} else {
-				// Fallback
-				data = localStorage.getItem(drawingId);
-				const metaStr = localStorage.getItem(
-					`${DrawingStorage.METADATA_PREFIX}${drawingId}`
-				);
-				if (metaStr) {
-					metadata = JSON.parse(metaStr);
-				}
-			}
+			const storage = platform().storage;
+			const data = (await storage.load(drawingId)) as string | null;
+			const rawMeta = await storage.load(
+				`${DrawingStorage.METADATA_PREFIX}${drawingId}`,
+			);
+			const metadata =
+				typeof rawMeta === "string"
+					? JSON.parse(rawMeta)
+					: (rawMeta as DrawingMetadata);
 
 			if (!data || !metadata) return null;
 
@@ -133,58 +109,38 @@ export class DrawingStorage {
 	 * List all drawings for a project
 	 */
 	static async listProjectDrawings(
-		projectId: string
+		projectId: string,
 	): Promise<Array<{ id: string; metadata: DrawingMetadata }>> {
 		try {
+			const storage = platform().storage;
+			const allKeys = await storage.list();
+			const drawingKeys = allKeys.filter((key) =>
+				key.startsWith(`${DrawingStorage.STORAGE_PREFIX}${projectId}-`),
+			);
+
 			const drawings: Array<{ id: string; metadata: DrawingMetadata }> = [];
-
-			if (window.electronAPI?.storage?.list) {
-				const allKeys = await window.electronAPI.storage.list();
-				const drawingKeys = allKeys.filter((key) =>
-					key.startsWith(`${DrawingStorage.STORAGE_PREFIX}${projectId}-`)
-				);
-
-				const entries = await Promise.all(
-					drawingKeys.map(async (key) => {
-						try {
-							const raw = await window.electronAPI?.storage.load(
-								`${DrawingStorage.METADATA_PREFIX}${key}`
-							);
-							const md = typeof raw === "string" ? JSON.parse(raw) : raw;
-							return md ? { id: key, metadata: md as DrawingMetadata } : null;
-						} catch {
-							return null;
-						}
-					})
-				);
-				for (const entry of entries) {
-					if (entry) drawings.push(entry);
-				}
-			} else {
-				// Fallback
-				const prefix = `${DrawingStorage.STORAGE_PREFIX}${projectId}-`;
-				for (let i = 0; i < localStorage.length; i++) {
-					const key = localStorage.key(i);
-					if (key?.startsWith(prefix)) {
-						const metaKey = `${DrawingStorage.METADATA_PREFIX}${key}`;
-						const metaStr = localStorage.getItem(metaKey);
-						if (metaStr) {
-							try {
-								const metadata = JSON.parse(metaStr);
-								drawings.push({ id: key, metadata });
-							} catch {
-								// Skip invalid metadata
-							}
-						}
+			const entries = await Promise.all(
+				drawingKeys.map(async (key) => {
+					try {
+						const raw = await storage.load(
+							`${DrawingStorage.METADATA_PREFIX}${key}`,
+						);
+						const md = typeof raw === "string" ? JSON.parse(raw) : raw;
+						return md ? { id: key, metadata: md as DrawingMetadata } : null;
+					} catch {
+						return null;
 					}
-				}
+				}),
+			);
+			for (const entry of entries) {
+				if (entry) drawings.push(entry);
 			}
 
 			// Sort by creation date (newest first)
 			return drawings.sort(
 				(a, b) =>
 					new Date(b.metadata.created).getTime() -
-					new Date(a.metadata.created).getTime()
+					new Date(a.metadata.created).getTime(),
 			);
 		} catch (error) {
 			handleError(error, {
@@ -201,18 +157,11 @@ export class DrawingStorage {
 	 */
 	static async deleteDrawing(drawingId: string): Promise<boolean> {
 		try {
-			if (window.electronAPI?.storage?.remove) {
-				await window.electronAPI.storage.remove(drawingId);
-				await window.electronAPI.storage.remove(
-					`${DrawingStorage.METADATA_PREFIX}${drawingId}`
-				);
-			} else {
-				localStorage.removeItem(drawingId);
-				localStorage.removeItem(
-					`${DrawingStorage.METADATA_PREFIX}${drawingId}`
-				);
-			}
-
+			const storage = platform().storage;
+			await storage.remove(drawingId);
+			await storage.remove(
+				`${DrawingStorage.METADATA_PREFIX}${drawingId}`,
+			);
 			return true;
 		} catch (error) {
 			handleError(error, {
@@ -229,7 +178,7 @@ export class DrawingStorage {
 	 */
 	static async updateDrawingMetadata(
 		drawingId: string,
-		updates: Partial<Pick<DrawingMetadata, "filename" | "tags">>
+		updates: Partial<Pick<DrawingMetadata, "filename" | "tags">>,
 	): Promise<boolean> {
 		try {
 			const existing = await DrawingStorage.loadDrawing(drawingId);
@@ -241,17 +190,10 @@ export class DrawingStorage {
 				modified: new Date().toISOString(),
 			};
 
-			if (window.electronAPI?.storage?.save) {
-				await window.electronAPI.storage.save(
-					`${DrawingStorage.METADATA_PREFIX}${drawingId}`,
-					JSON.stringify(updatedMetadata)
-				);
-			} else {
-				localStorage.setItem(
-					`${DrawingStorage.METADATA_PREFIX}${drawingId}`,
-					JSON.stringify(updatedMetadata)
-				);
-			}
+			await platform().storage.save(
+				`${DrawingStorage.METADATA_PREFIX}${drawingId}`,
+				JSON.stringify(updatedMetadata),
+			);
 
 			return true;
 		} catch (error) {
@@ -270,16 +212,11 @@ export class DrawingStorage {
 	 */
 	static async autosaveDrawing(
 		drawingData: string,
-		projectId: string
+		projectId: string,
 	): Promise<void> {
 		try {
 			const autosaveKey = `${DrawingStorage.AUTOSAVE_PREFIX}${projectId}`;
-
-			if (window.electronAPI?.storage?.save) {
-				await window.electronAPI.storage.save(autosaveKey, drawingData);
-			} else {
-				localStorage.setItem(autosaveKey, drawingData);
-			}
+			await platform().storage.save(autosaveKey, drawingData);
 		} catch (error) {
 			handleError(error, {
 				operation: "drawing autosave",
@@ -296,13 +233,7 @@ export class DrawingStorage {
 	static async loadAutosave(projectId: string): Promise<string | null> {
 		try {
 			const autosaveKey = `${DrawingStorage.AUTOSAVE_PREFIX}${projectId}`;
-
-			if (window.electronAPI?.storage?.load) {
-				return (await window.electronAPI.storage.load(autosaveKey)) as
-					| string
-					| null;
-			}
-			return localStorage.getItem(autosaveKey);
+			return (await platform().storage.load(autosaveKey)) as string | null;
 		} catch (error) {
 			handleError(error, {
 				operation: "drawing autosave load",
@@ -319,12 +250,7 @@ export class DrawingStorage {
 	static async clearAutosave(projectId: string): Promise<void> {
 		try {
 			const autosaveKey = `${DrawingStorage.AUTOSAVE_PREFIX}${projectId}`;
-
-			if (window.electronAPI?.storage?.remove) {
-				await window.electronAPI.storage.remove(autosaveKey);
-			} else {
-				localStorage.removeItem(autosaveKey);
-			}
+			await platform().storage.remove(autosaveKey);
 		} catch (error) {
 			handleError(error, {
 				operation: "drawing autosave clear",
@@ -339,7 +265,7 @@ export class DrawingStorage {
 	 */
 	static async exportDrawing(
 		drawingData: string,
-		filename: string
+		filename: string,
 	): Promise<void> {
 		try {
 			const link = document.createElement("a");
@@ -376,7 +302,7 @@ export class DrawingStorage {
 
 			const totalSize = drawings.reduce(
 				(sum, drawing) => sum + drawing.metadata.size,
-				0
+				0,
 			);
 			const oldest = drawings[drawings.length - 1]; // Already sorted newest first
 			const newest = drawings[0];
@@ -401,7 +327,11 @@ export class DrawingStorage {
 	 * Check if storage is available
 	 */
 	static isStorageAvailable(): boolean {
-		return !!(window.electronAPI?.storage || typeof Storage !== "undefined");
+		try {
+			return !!platform().hasCapability;
+		} catch {
+			return typeof Storage !== "undefined";
+		}
 	}
 }
 

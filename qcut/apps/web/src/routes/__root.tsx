@@ -12,6 +12,7 @@ import { initializeRemotionStore } from "@/stores/ai/remotion-store";
 import { useLicenseStore } from "@/stores/license-store";
 import { setupClaudeBridgeLifecycle } from "@/lib/claude-bridge/claude-bridge-lifecycle";
 import { debugLog } from "@/lib/debug/debug-config";
+import { useIsDesktop } from "@/hooks/use-platform-capability";
 import "@/lib/media/blob-url-debug"; // Enable blob URL debugging in development
 
 /**
@@ -52,11 +53,13 @@ function LicenseInitializer() {
 	return null;
 }
 
-export const Route = createRootRoute({
-	component: () => (
+function RootComponent() {
+	const isDesktop = useIsDesktop();
+
+	return (
 		<ThemeProvider attribute="class" defaultTheme="dark">
 			<RemotionInitializer />
-			<ClaudeInitializer />
+			{isDesktop && <ClaudeInitializer />}
 			<LicenseInitializer />
 			<TooltipProvider>
 				<ErrorBoundary>
@@ -66,14 +69,18 @@ export const Route = createRootRoute({
 								<Outlet />
 							</ErrorBoundary>
 							<Toaster />
-							<UpdateNotification />
+							{isDesktop && <UpdateNotification />}
 							<FFmpegHealthNotification />
 						</BlobUrlCleanup>
 					</StorageProvider>
 				</ErrorBoundary>
 			</TooltipProvider>
 		</ThemeProvider>
-	),
+	);
+}
+
+export const Route = createRootRoute({
+	component: RootComponent,
 	errorComponent: ({ error }) => {
 		// TanStack Router error fallback - enhanced with our error boundary style
 		const errorId = `ROUTER-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
