@@ -28,6 +28,8 @@ export default defineConfig({
 			"electron/native-pipeline/**/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
 			"scripts/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
 			"packages/platform-core/**/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+			"packages/platform-desktop/**/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+			"packages/platform-web/**/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
 			"packages/editor-core/**/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
 		],
 		exclude: ["**/node_modules/**", "**/dist/**", "**/tests/e2e/**"],

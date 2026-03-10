@@ -7,7 +7,8 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./types": "./src/types.ts",
-		"./capabilities": "./src/capabilities.ts"
+		"./capabilities": "./src/capabilities.ts",
+		"./provider": "./src/provider.ts"
 	},
 	"devDependencies": {
 		"@types/node": "^24.10.13"

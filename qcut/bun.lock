@@ -232,6 +232,20 @@
         "@types/node": "^24.10.13",
       },
     },
+    "packages/platform-desktop": {
+      "name": "@qcut/platform-desktop",
+      "version": "0.0.1",
+      "dependencies": {
+        "@qcut/platform-core": "workspace:*",
+      },
+    },
+    "packages/platform-web": {
+      "name": "@qcut/platform-web",
+      "version": "0.0.1",
+      "dependencies": {
+        "@qcut/platform-core": "workspace:*",
+      },
+    },
   },
   "trustedDependencies": [
     "@tailwindcss/oxide",
@@ -805,6 +819,10 @@
     "@qcut/license-server": ["@qcut/license-server@workspace:packages/license-server"],
 
     "@qcut/platform-core": ["@qcut/platform-core@workspace:packages/platform-core"],
+
+    "@qcut/platform-desktop": ["@qcut/platform-desktop@workspace:packages/platform-desktop"],
+
+    "@qcut/platform-web": ["@qcut/platform-web@workspace:packages/platform-web"],
 
     "@radix-ui/number": ["@radix-ui/number@1.1.1", "", {}, "sha512-MkKCwxlXTgz6CFoJx3pCwn07GKp36+aZyu/u2Ln2VrA5DcdyCZkASEDBTd8x5whTQQL5CiYf4prXKLcgQdv29g=="],
 
