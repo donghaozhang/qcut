@@ -149,9 +149,7 @@ export interface PlatformApiKeysAPI {
 	get(): Promise<Record<string, string>>;
 	set(keys: Record<string, string>): Promise<boolean>;
 	clear(): Promise<boolean>;
-	status(): Promise<
-		Record<string, { set: boolean; source: string }>
-	>;
+	status(): Promise<Record<string, { set: boolean; source: string }>>;
 }
 
 export interface PlatformFFmpegAPI {
@@ -197,19 +195,12 @@ export interface PlatformLicenseAPI {
 	setAuthToken(token: string): Promise<unknown>;
 	clearAuthToken(): Promise<unknown>;
 	emailLogin(email: string, password: string): Promise<unknown>;
-	emailSignup(
-		name: string,
-		email: string,
-		password: string
-	): Promise<unknown>;
+	emailSignup(name: string, email: string, password: string): Promise<unknown>;
 	getGoogleLoginUrl(): Promise<unknown>;
 }
 
 export interface PlatformTranscriptionAPI {
-	transcribe(request: {
-		audioPath: string;
-		language?: string;
-	}): Promise<{
+	transcribe(request: { audioPath: string; language?: string }): Promise<{
 		text: string;
 		segments: Array<{
 			id: number;
@@ -223,9 +214,7 @@ export interface PlatformTranscriptionAPI {
 }
 
 export interface PlatformScreenRecordingAPI {
-	getSources(): Promise<
-		Array<{ id: string; name: string; thumbnail: string }>
-	>;
+	getSources(): Promise<Array<{ id: string; name: string; thumbnail: string }>>;
 	start(options?: Record<string, unknown>): Promise<{
 		sessionId: string;
 		success: boolean;

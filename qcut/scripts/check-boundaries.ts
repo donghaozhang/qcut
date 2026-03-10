@@ -20,7 +20,8 @@ import { readFileSync, readdirSync } from "fs";
 import { resolve, relative, extname } from "path";
 import { execSync } from "child_process";
 
-const ROOT = resolve(import.meta.dir, "..");
+const __dir = import.meta.dirname ?? import.meta.dir;
+const ROOT = resolve(__dir, "..");
 const RENDERER_DIR = resolve(ROOT, "apps/web/src");
 const MAX_LINES = 800;
 
@@ -89,7 +90,10 @@ const PLATFORM_AUDIT_RULE = {
 };
 
 /** Directories within packages/platform-* that are allowed to use window.electronAPI */
-const PLATFORM_ADAPTER_PATHS = ["packages/platform-desktop", "packages/platform-core"];
+const PLATFORM_ADAPTER_PATHS = [
+	"packages/platform-desktop",
+	"packages/platform-core",
+];
 
 const EXCLUDE_DIRS = ["test", "tests", "types", "__mocks__", "__tests__"];
 

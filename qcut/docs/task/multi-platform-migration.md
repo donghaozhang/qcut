@@ -12,7 +12,7 @@ Evolve QCut from an Electron-centered runtime into a **reusable core + platform-
 
 | Metric | Value |
 |--------|-------|
-| `window.electronAPI` references | **324** across 105 files |
+| `window.electronAPI` references | **282** across 87 files (excludes comments/types) |
 | Electron IPC handler files | **52** (24 root + 28 Claude handlers) |
 | Zustand stores | **18** files in `apps/web/src/stores/` |
 | Preload bridge | 502 lines, fully typed via `electron/preload-types/` |
@@ -21,49 +21,50 @@ Evolve QCut from an Electron-centered runtime into a **reusable core + platform-
 
 ---
 
-## Phase 0: Freeze Boundaries (1 week)
+## Phase 0: Freeze Boundaries (1 week) — COMPLETE
 
 **Objective:** Stop architectural drift. Create a safe migration surface.
+**Status:** Implemented 2026-03-10
 
-### Subtask 0.1 — Strengthen Boundary Checker
+### Subtask 0.1 — Strengthen Boundary Checker -- DONE
 
 Block new direct `window.electronAPI` usage outside approved adapter paths.
 
-**Files:**
-- `scripts/check-boundaries.ts` — add rule to flag new `window.electronAPI` calls outside `packages/platform-*`
-- `.husky/pre-commit` or equivalent — verify hook runs the updated checker
+**Files changed:**
+- `scripts/check-boundaries.ts` — added `--platform-audit` flag, `PLATFORM_AUDIT_RULE`, adapter path exclusions
+- `scripts/__tests__/check-boundaries.test.ts` — 7 tests covering existing rules + platform audit mode
 
-**Tests:**
-- Unit test: `scripts/__tests__/check-boundaries.test.ts` — test new rule catches violations
+**Tests:** 7/7 passing
 
-### Subtask 0.2 — Build electronAPI Usage Matrix
+### Subtask 0.2 — Build electronAPI Usage Matrix -- DONE
 
-Inventory all 324 call-sites, classify by namespace/frequency/migration complexity.
+Inventory all call-sites, classify by namespace/frequency/migration complexity.
 
-**Files:**
-- `electron/preload.ts` — source of truth for all exposed APIs (502 lines)
-- `electron/preload-integrations.ts` — integration-specific APIs
-- `apps/web/src/types/electron.d.ts` → `apps/web/src/types/electron/` — type surface
+**Actual counts (via `bun scripts/check-boundaries.ts --platform-audit`):**
+- **282 references** across **87 files** (1161 files scanned)
 
-**Output:** `docs/task/platform-api-inventory.md` — prioritized migration matrix
+**Output:** [`docs/task/platform-api-inventory.md`](platform-api-inventory.md) — full prioritized migration matrix with 3 migration waves
 
-**High-density files to audit first (>9 refs each):**
-- `apps/web/src/components/editor/draw/utils/drawing-storage.ts` (21 refs)
-- `apps/web/src/stores/pty-terminal-store.ts` (13 refs)
-- `apps/web/src/lib/claude-bridge/claude-timeline-bridge.ts` (13 refs)
-- `apps/web/src/lib/export/export-engine-cli.ts` (12 refs)
-- `apps/web/src/lib/project/zip-manager.ts` (12 refs)
-- `apps/web/src/hooks/use-elevenlabs-transcription.ts` (10 refs)
-- `apps/web/src/hooks/use-ai-pipeline.ts` (9 refs)
+**Top files by ref count:**
+- `drawing-storage.ts` (21), `pty-terminal-store.ts` (13), `claude-timeline-bridge.ts` (13)
+- `zip-manager.ts` (12), `export-engine-cli.ts` (12), `api-keys-view.tsx` (10)
 
-### Subtask 0.3 — Platform Capability Contract v0
+### Subtask 0.3 — Platform Capability Contract v0 -- DONE
 
 Define which capabilities exist per platform (desktop full, web limited, iPad touch-optimized).
 
-**Files:**
-- New: `packages/platform-core/src/types.ts` — `PlatformCapability` enum + `PlatformAPI` interface skeleton
+**Files created:**
+- `packages/platform-core/package.json` — `@qcut/platform-core` package
+- `packages/platform-core/tsconfig.json` — TypeScript config
+- `packages/platform-core/src/types.ts` — `PlatformCapability` enum (28 capabilities), `PlatformAPI` interface with 10 namespace contracts
+- `packages/platform-core/src/capabilities.ts` — `PLATFORM_CAPABILITIES` matrix, `isPlatformCapable()`, `getMissingCapabilities()`, `PlatformUnsupportedError`
+- `packages/platform-core/src/index.ts` — barrel exports
+- `packages/platform-core/src/__tests__/capabilities.test.ts` — 10 tests
 
-**Output:** Documented capability matrix (filesystem, windowing, system calls, licensing, updates, FFmpeg, PTY, screen recording)
+**Also changed:**
+- `vitest.config.ts` — added test include paths for `scripts/__tests__/` and `packages/platform-core/`
+
+**Tests:** 10/10 passing
 
 ---
 
