@@ -515,9 +515,10 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 				);
 
 				try {
-					data =
-						((await platform().storage.load(key)) as OverlaySticker[] | null) ||
-						[];
+					const raw = await platform().storage.load(key);
+					// Validate structure before filtering
+					const validated = validateAndLoadStickers(raw);
+					data = Array.from(validated.values());
 					debugLog(
 						`[StickerStore] Loaded via platform storage: ${data.length} stickers`
 					);
@@ -539,8 +540,10 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 						);
 					}
 
-					// Validate and convert sticker data to Map
-					const stickersMap = validateAndLoadStickers(validData);
+					// Convert validated data back to Map
+					const stickersMap = new Map(
+						validData.map((sticker) => [sticker.id, sticker])
+					);
 					set({
 						overlayStickers: stickersMap,
 						selectedStickerId: null,

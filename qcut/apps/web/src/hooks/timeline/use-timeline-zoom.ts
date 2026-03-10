@@ -73,6 +73,7 @@ export function useTimelineZoom({
 	}
 
 	const handlePointerDown = useCallback((e: React.PointerEvent) => {
+		e.currentTarget.setPointerCapture(e.pointerId);
 		pointersRef.current.set(e.pointerId, {
 			x: e.clientX,
 			y: e.clientY,
@@ -112,6 +113,9 @@ export function useTimelineZoom({
 	);
 
 	const handlePointerUp = useCallback((e: React.PointerEvent) => {
+		if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+			e.currentTarget.releasePointerCapture(e.pointerId);
+		}
 		pointersRef.current.delete(e.pointerId);
 		if (pointersRef.current.size < 2) {
 			initialPinchDistanceRef.current = null;

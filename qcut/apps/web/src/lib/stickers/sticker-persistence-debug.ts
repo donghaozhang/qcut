@@ -10,11 +10,8 @@ import { platform } from "@qcut/platform-core";
  * This inspects persisted stickers (platform storage or localStorage), current in-memory overlay stickers, and media items,
  * cross-references sticker-to-media relationships, reports ID mismatches and orphaned IDs, and logs results in console groups.
  *
- * @returns An object with:
- *  - `savedStickers`: Array of persisted sticker records loaded from storage.
- *  - `currentStickers`: Array of current in-memory overlay sticker objects.
- *  - `mediaItems`: Array of media item objects from the media store.
- *  - `activeProject`: The active project object used to determine the storage key.
+ * @returns An object with `savedStickers`, `currentStickers`, `mediaItems`, and `activeProject`,
+ *  or `undefined` if no active project is found.
  */
 export async function debugStickerPersistence() {
 	const { useStickersOverlayStore } = await import(

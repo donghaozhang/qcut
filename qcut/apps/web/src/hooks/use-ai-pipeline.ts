@@ -256,12 +256,10 @@ export function useAIPipeline(
 		}
 		try {
 			const response = await platform().aiPipeline?.listModels();
-			return (
-				(response as AIPipelineResult) ?? {
-					success: false,
-					error: "API not available",
-				}
-			);
+			if (!response || Array.isArray(response)) {
+				return { success: false, error: "API not available" };
+			}
+			return response as AIPipelineResult;
 		} catch (err) {
 			const errorMessage =
 				err instanceof Error ? err.message : "Failed to list models";

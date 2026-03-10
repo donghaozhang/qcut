@@ -4,7 +4,7 @@ import { TimelineTrack } from "@/types/timeline";
 import { MediaItem } from "@/stores/media/media-store";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 import { useEffectsStore } from "@/stores/ai/effects-store";
-import { platform } from "@qcut/platform-core";
+import { platform, PlatformCapability } from "@qcut/platform-core";
 
 // Engine types available
 export const ExportEngineType = {
@@ -618,41 +618,8 @@ export class ExportEngineFactory {
 		return false;
 	}
 
-	// Check if running in Electron environment
+	// Check if running in Electron environment with FFmpeg CLI support
 	private isElectron(): boolean {
-		const p = platform();
-		const isElectron = p.isElectron;
-
-		console.log("🔍 DETAILED ELECTRON DETECTION:");
-		console.log("  - platform.isElectron:", isElectron);
-
-		if (isElectron) {
-			console.log("  - ffmpeg exists:", !!p.ffmpeg);
-			if (p.ffmpeg) {
-				console.log("  - exportVideoCLI type:", typeof p.ffmpeg.exportVideoCLI);
-			}
-		}
-
-		// Check for specific FFmpeg CLI method availability
-		const hasFFmpegCLI =
-			isElectron && p.ffmpeg && typeof p.ffmpeg.exportVideoCLI === "function";
-
-		console.log(
-			`🔍 ENVIRONMENT CHECK: isElectron: ${isElectron}, ffmpeg.exportVideoCLI: ${typeof p.ffmpeg?.exportVideoCLI}`
-		);
-		console.log(`🔍 ENVIRONMENT CHECK: isElectron result: ${hasFFmpegCLI}`);
-
-		if (!hasFFmpegCLI) {
-			console.log("⚠️ NOT DETECTED AS ELECTRON - Missing requirements:");
-			if (!isElectron) {
-				console.log("  - platform.isElectron is false");
-			} else if (!p.ffmpeg) {
-				console.log("  - platform.ffmpeg is not defined");
-			} else if (typeof p.ffmpeg.exportVideoCLI !== "function") {
-				console.log("  - platform.ffmpeg.exportVideoCLI is not a function");
-			}
-		}
-
-		return hasFFmpegCLI;
+		return platform().hasCapability(PlatformCapability.FFmpeg);
 	}
 }

@@ -464,11 +464,19 @@ export interface PlatformRemotionAPI {
 // Updates
 // ---------------------------------------------------------------------------
 
+/** A single release note entry returned by the updates API. */
+export interface PlatformReleaseNote {
+	version: string;
+	date: string;
+	channel: string;
+	content: string;
+}
+
 export interface PlatformUpdatesAPI {
 	checkForUpdates(): Promise<unknown>;
 	installUpdate(): Promise<void>;
-	getReleaseNotes(version?: string): Promise<unknown>;
-	getChangelog(): Promise<unknown>;
+	getReleaseNotes(version?: string): Promise<PlatformReleaseNote[]>;
+	getChangelog(): Promise<PlatformReleaseNote[]>;
 	onUpdateAvailable(
 		callback: (data: {
 			version: string;

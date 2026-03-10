@@ -76,7 +76,7 @@ export function logExportConfiguration(
  * @throws Any error thrown by the platform's FFmpeg export implementation.
  */
 export async function invokeFFmpegExport(
-	exportOptions: Record<string, any>
+	exportOptions: Record<string, unknown>
 ): Promise<string> {
 	if (typeof platform().ffmpeg.exportVideoCLI !== "function") {
 		throw new Error("CLI export only available in Electron");
@@ -88,7 +88,7 @@ export async function invokeFFmpegExport(
 		debugLog("[CLI Export] Invoking FFmpeg CLI...");
 		const startTime = Date.now();
 
-		const result = await platform().ffmpeg.exportVideoCLI(exportOptions as any);
+		const result = await platform().ffmpeg.exportVideoCLI(exportOptions);
 
 		const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 		debugLog(`[CLI Export] FFmpeg export completed in ${duration}s`);
