@@ -445,7 +445,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				short: "-s",
 			}),
 			f("--output", "string", "Output directory", { short: "-o" }),
-			f("--model", "string", "LLM model (default: google/gemini-2.5-flash)", {
+			f("--model", "string", "LLM model (default: google/gemini-3-flash-preview)", {
 				short: "-m",
 			}),
 			f("--min-score", "number", "Minimum score threshold 0-1 (default: 0.7)"),

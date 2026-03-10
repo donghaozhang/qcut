@@ -32,7 +32,7 @@ interface TimelineOptions {
 	signal?: AbortSignal;
 }
 
-const DEFAULT_MODEL = "google/gemini-2.5-flash";
+const DEFAULT_MODEL = "google/gemini-3-flash-preview";
 const TIME_FORMAT_RE = /^\d{2}:\d{2}:\d{2},\d{3}$/;
 
 /** Validate SRT time format. */

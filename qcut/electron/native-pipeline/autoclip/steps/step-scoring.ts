@@ -27,7 +27,7 @@ interface ScoringOptions {
 	signal?: AbortSignal;
 }
 
-const DEFAULT_MODEL = "google/gemini-2.5-flash";
+const DEFAULT_MODEL = "google/gemini-3-flash-preview";
 const DEFAULT_MIN_SCORE = 0.7;
 
 /**
