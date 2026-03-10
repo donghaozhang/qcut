@@ -28,13 +28,7 @@ describe("use-platform-capability", () => {
 		expect(typeof mod.usePlatformId).toBe("function");
 	});
 
-	it("re-exports PlatformCapability enum", async () => {
-		const mod = await import("../hooks/use-platform-capability");
-		expect(mod.PlatformCapability).toBeDefined();
-		expect(mod.PlatformCapability.Storage).toBe(PlatformCapability.Storage);
-	});
-
-	it("PlatformCapability has expected web-compatible capabilities", () => {
+	it("PlatformCapability is available from @qcut/platform-core", () => {
 		expect(PlatformCapability.Storage).toBeDefined();
 		expect(PlatformCapability.Theme).toBeDefined();
 		expect(PlatformCapability.Shell).toBeDefined();
