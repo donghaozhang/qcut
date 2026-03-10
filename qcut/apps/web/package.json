@@ -5,8 +5,10 @@
 	"packageManager": "bun@1.2.18",
 	"scripts": {
 		"dev": "vite",
+		"dev:web": "VITE_BUILD_TARGET=web vite",
 		"build": "tsc && vite build",
 		"build:electron": "tsc && vite build",
+		"build:web": "VITE_BUILD_TARGET=web tsc && VITE_BUILD_TARGET=web vite build",
 		"preview": "vite preview",
 		"lint": "biome check src/",
 		"lint:fix": "biome check src/ --write",

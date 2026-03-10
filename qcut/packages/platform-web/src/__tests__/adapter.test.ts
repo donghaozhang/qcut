@@ -25,6 +25,10 @@ describe("createWebAdapter", () => {
 		expect(adapter.hasCapability(PlatformCapability.Shell)).toBe(true);
 	});
 
+	it("has license capability", () => {
+		expect(adapter.hasCapability(PlatformCapability.License)).toBe(true);
+	});
+
 	it("does not have PTY capability", () => {
 		expect(adapter.hasCapability(PlatformCapability.Pty)).toBe(false);
 	});
@@ -112,6 +116,92 @@ describe("createWebAdapter", () => {
 		});
 	});
 
+	describe("license interface", () => {
+		it("check returns free plan", async () => {
+			const info = await adapter.license.check();
+			expect(info.plan).toBe("free");
+			expect(info.status).toBe("active");
+		});
+
+		it("activate returns false", async () => {
+			const result = await adapter.license.activate("token");
+			expect(result).toBe(false);
+		});
+
+		it("emailLogin returns error", async () => {
+			const result = await adapter.license.emailLogin("a@b.c", "pass");
+			expect(result.success).toBe(false);
+			expect(result.error).toBeDefined();
+		});
+
+		it("onActivationToken is undefined", () => {
+			expect(adapter.license.onActivationToken).toBeUndefined();
+		});
+	});
+
+	describe("github interface", () => {
+		it("fetchStars returns a number", async () => {
+			const result = await adapter.github.fetchStars();
+			expect(typeof result.stars).toBe("number");
+		});
+	});
+
+	describe("aiPipeline interface", () => {
+		it("check returns unavailable", async () => {
+			const result = await adapter.aiPipeline.check();
+			expect(result.available).toBe(false);
+		});
+
+		it("status returns unavailable source", async () => {
+			const result = await adapter.aiPipeline.status();
+			expect(result.source).toBe("unavailable");
+		});
+
+		it("onProgress returns cleanup function", () => {
+			const cleanup = adapter.aiPipeline.onProgress(() => {});
+			expect(typeof cleanup).toBe("function");
+		});
+	});
+
+	describe("graceful stubs (web-capable, not yet implemented)", () => {
+		it("sounds methods return null instead of throwing", async () => {
+			const result = await adapter.sounds.search({ query: "test" });
+			expect(result).toBeNull();
+		});
+
+		it("ffmpeg methods return null instead of throwing", async () => {
+			const result = await adapter.ffmpeg.createExportSession();
+			expect(result).toBeNull();
+		});
+
+		it("geminiChat event listeners are no-ops", () => {
+			expect(() => {
+				adapter.geminiChat.onStreamChunk(() => {});
+			}).not.toThrow();
+		});
+
+		it("geminiChat removeListeners is no-op", () => {
+			expect(() => {
+				adapter.geminiChat.removeListeners();
+			}).not.toThrow();
+		});
+
+		it("video methods return null", async () => {
+			const result = await adapter.video.verifyFile("/path");
+			expect(result).toBeNull();
+		});
+
+		it("transcription methods return null", async () => {
+			const result = await adapter.transcription.cancel("id");
+			expect(result).toBeNull();
+		});
+
+		it("mediaImport methods return null", async () => {
+			const result = await adapter.mediaImport.checkSymlinkSupport();
+			expect(result).toBeNull();
+		});
+	});
+
 	describe("desktop-only stubs", () => {
 		it("pty.spawn throws PlatformUnsupportedError", () => {
 			expect(() => adapter.pty.spawn()).toThrow(PlatformUnsupportedError);
@@ -139,6 +229,24 @@ describe("createWebAdapter", () => {
 			expect(() => adapter.remotionFolder.select()).toThrow(
 				PlatformUnsupportedError
 			);
+		});
+	});
+
+	describe("getPathForFile", () => {
+		it("returns a blob URL for a File object", () => {
+			const file = new File(["test"], "test.txt", { type: "text/plain" });
+			const url = adapter.getPathForFile(file);
+			expect(url).toContain("blob:");
+		});
+	});
+
+	describe("analyzeFillers", () => {
+		it("returns empty filteredWordIds", async () => {
+			const result = await adapter.analyzeFillers({
+				words: [],
+				languageCode: "en",
+			} as any);
+			expect(result).toEqual({ filteredWordIds: [] });
 		});
 	});
 });
