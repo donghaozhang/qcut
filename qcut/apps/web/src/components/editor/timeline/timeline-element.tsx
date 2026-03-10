@@ -575,12 +575,16 @@ function TimelineElementComponent({
 							<>
 								<div
 									className="absolute left-0 top-0 bottom-0 w-3 cursor-w-resize bg-transparent hover:bg-foreground/20 border-r-2 border-foreground/50 z-50 before:absolute before:inset-y-0 before:-left-4 before:w-8 before:content-[''] touch-action-none"
-									onPointerDown={(e) => handleResizeStart(e, element.id, "left")}
+									onPointerDown={(e) =>
+										handleResizeStart(e, element.id, "left")
+									}
 									data-testid="trim-start-handle"
 								/>
 								<div
 									className="absolute right-0 top-0 bottom-0 w-3 cursor-e-resize bg-transparent hover:bg-foreground/20 border-l-2 border-foreground/50 z-50 before:absolute before:inset-y-0 before:-right-4 before:w-8 before:content-[''] touch-action-none"
-									onPointerDown={(e) => handleResizeStart(e, element.id, "right")}
+									onPointerDown={(e) =>
+										handleResizeStart(e, element.id, "right")
+									}
 								/>
 							</>
 						)}

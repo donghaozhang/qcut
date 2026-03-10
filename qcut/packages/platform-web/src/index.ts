@@ -403,26 +403,18 @@ const githubAdapter: PlatformGitHubAPI = {
 // These return safe defaults instead of throwing.
 // ---------------------------------------------------------------------------
 
-const soundsGraceful =
-	createGracefulNamespace<PlatformSoundsAPI>();
-const audioGraceful =
-	createGracefulNamespace<PlatformAudioAPI>();
-const videoGraceful =
-	createGracefulNamespace<PlatformVideoAPI>();
-const screenshotGraceful =
-	createGracefulNamespace<PlatformScreenshotAPI>();
+const soundsGraceful = createGracefulNamespace<PlatformSoundsAPI>();
+const audioGraceful = createGracefulNamespace<PlatformAudioAPI>();
+const videoGraceful = createGracefulNamespace<PlatformVideoAPI>();
+const screenshotGraceful = createGracefulNamespace<PlatformScreenshotAPI>();
 const screenRecordingGraceful =
 	createGracefulNamespace<PlatformScreenRecordingAPI>();
-const ffmpegGraceful =
-	createGracefulNamespace<PlatformFFmpegAPI>();
+const ffmpegGraceful = createGracefulNamespace<PlatformFFmpegAPI>();
 const transcriptionGraceful =
 	createGracefulNamespace<PlatformTranscriptionAPI>();
-const falGraceful =
-	createGracefulNamespace<PlatformFalAPI>();
-const geminiChatGraceful =
-	createGracefulNamespace<PlatformGeminiChatAPI>();
-const mediaImportGraceful =
-	createGracefulNamespace<PlatformMediaImportAPI>();
+const falGraceful = createGracefulNamespace<PlatformFalAPI>();
+const geminiChatGraceful = createGracefulNamespace<PlatformGeminiChatAPI>();
+const mediaImportGraceful = createGracefulNamespace<PlatformMediaImportAPI>();
 
 // ---------------------------------------------------------------------------
 // Desktop-only stubs (throw PlatformUnsupportedError)

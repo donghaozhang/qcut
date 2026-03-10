@@ -76,10 +76,11 @@ export function Timeline() {
 	const [isInTimeline, setIsInTimeline] = useState(false);
 
 	// Timeline zoom functionality
-	const { zoomLevel, setZoomLevel, handleWheel, pinchHandlers } = useTimelineZoom({
-		containerRef: timelineRef,
-		isInTimeline,
-	});
+	const { zoomLevel, setZoomLevel, handleWheel, pinchHandlers } =
+		useTimelineZoom({
+			containerRef: timelineRef,
+			isInTimeline,
+		});
 	const { dragProps } = useDragHandlers({
 		mediaItems,
 		addMediaItem,

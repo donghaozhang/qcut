@@ -271,8 +271,10 @@ export async function importFromFolder(
 			};
 		}
 
-		const compositions = (importResult.scan?.compositions ?? []) as unknown as FolderCompositionInfo[];
-		const bundles = (importResult.bundle?.results ?? []) as unknown as FolderBundleResult[];
+		const compositions = (importResult.scan?.compositions ??
+			[]) as unknown as FolderCompositionInfo[];
+		const bundles = (importResult.bundle?.results ??
+			[]) as unknown as FolderBundleResult[];
 
 		return loadComponentsFromFolder(targetPath, compositions, bundles, options);
 	} catch (error) {

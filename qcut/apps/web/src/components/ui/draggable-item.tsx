@@ -7,13 +7,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-	ReactNode,
-	useState,
-	useRef,
-	useEffect,
-	useCallback,
-} from "react";
+import { ReactNode, useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -166,7 +160,7 @@ export function DraggableMediaItem({
 								clientX: ev.clientX,
 								clientY: ev.clientY,
 							},
-						}),
+						})
 					);
 				}
 			};
@@ -174,7 +168,7 @@ export function DraggableMediaItem({
 			window.addEventListener("pointermove", onPointerMove);
 			window.addEventListener("pointerup", onPointerUp);
 		},
-		[isDraggable, dragData, cleanupTouchDrag],
+		[isDraggable, dragData, cleanupTouchDrag]
 	);
 
 	return (

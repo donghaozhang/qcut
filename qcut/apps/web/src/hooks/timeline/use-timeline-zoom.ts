@@ -61,9 +61,7 @@ export function useTimelineZoom({
 	}, [isInTimeline, containerRef]);
 
 	// Pinch-to-zoom support via pointer events
-	const pointersRef = useRef<Map<number, { x: number; y: number }>>(
-		new Map()
-	);
+	const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
 	const initialPinchDistanceRef = useRef<number | null>(null);
 	const pinchBaseZoomRef = useRef<number>(1);
 

@@ -360,9 +360,7 @@ export interface PlatformRemotionFolderAPI {
 		error?: string;
 	}>;
 	checkBundler(): Promise<{ available: boolean }>;
-	validate(
-		folderPath: string
-	): Promise<{
+	validate(folderPath: string): Promise<{
 		isValid: boolean;
 		valid?: boolean;
 		error?: string;
