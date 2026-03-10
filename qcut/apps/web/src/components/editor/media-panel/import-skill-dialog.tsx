@@ -94,7 +94,7 @@ export function ImportSkillDialog({
 			return;
 		}
 
-		let path: string | undefined;
+		let path: string | null = null;
 		try {
 			path = await platform().skills.browse();
 		} catch {
