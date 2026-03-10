@@ -101,6 +101,10 @@ export function DraggableMediaItem({
 
 	// Touch-based drag fallback for iOS Safari (HTML5 Drag API unsupported)
 	const touchGhostRef = useRef<HTMLDivElement | null>(null);
+	const activeTouchListenersRef = useRef<{
+		move: (e: PointerEvent) => void;
+		up: (e: PointerEvent) => void;
+	} | null>(null);
 
 	const cleanupTouchDrag = useCallback(() => {
 		if (touchGhostRef.current) {
@@ -146,6 +150,7 @@ export function DraggableMediaItem({
 			const onPointerUp = (ev: PointerEvent) => {
 				window.removeEventListener("pointermove", onPointerMove);
 				window.removeEventListener("pointerup", onPointerUp);
+				activeTouchListenersRef.current = null;
 
 				// Find drop zone under the pointer
 				cleanupTouchDrag();
@@ -167,9 +172,27 @@ export function DraggableMediaItem({
 
 			window.addEventListener("pointermove", onPointerMove);
 			window.addEventListener("pointerup", onPointerUp);
+
+			// Store refs for unmount cleanup
+			activeTouchListenersRef.current = {
+				move: onPointerMove,
+				up: onPointerUp,
+			};
 		},
 		[isDraggable, dragData, cleanupTouchDrag]
 	);
+
+	// Clean up on unmount if drag is active
+	useEffect(() => {
+		return () => {
+			const listeners = activeTouchListenersRef.current;
+			if (listeners) {
+				window.removeEventListener("pointermove", listeners.move);
+				window.removeEventListener("pointerup", listeners.up);
+			}
+			cleanupTouchDrag();
+		};
+	}, [cleanupTouchDrag]);
 
 	return (
 		<>

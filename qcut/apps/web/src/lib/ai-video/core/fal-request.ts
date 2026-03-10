@@ -52,8 +52,13 @@ export async function getFalApiKeyAsync(): Promise<string | undefined> {
 		return cachedElectronApiKey;
 	}
 
-	// Check Electron storage (async)
-	const electronApiKeys = platform().apiKeys;
+	// Check platform storage (async)
+	let electronApiKeys: ReturnType<typeof platform>["apiKeys"] | undefined;
+	try {
+		electronApiKeys = platform().apiKeys;
+	} catch {
+		// Platform not initialized yet — skip
+	}
 	if (electronApiKeys) {
 		// Deduplicate concurrent calls
 		if (!electronKeyFetchPromise) {

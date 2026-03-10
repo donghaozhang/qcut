@@ -32,6 +32,7 @@ export function useTimelinePlayhead({
 	const [isDraggingRuler, setIsDraggingRuler] = useState(false);
 	const [hasDraggedRuler, setHasDraggedRuler] = useState(false);
 	const hasLoggedSeekRef = useRef(false);
+	const pointerCaptureRef = useRef<Element | null>(null);
 
 	// Auto-scroll state during dragging
 	const autoScrollRef = useRef<number | null>(null);
@@ -83,7 +84,8 @@ export function useTimelinePlayhead({
 		(e: React.PointerEvent) => {
 			e.preventDefault();
 			e.stopPropagation(); // Prevent ruler drag from triggering
-			(e.target as Element).setPointerCapture?.(e.pointerId);
+			pointerCaptureRef.current = e.target as Element;
+			pointerCaptureRef.current.setPointerCapture?.(e.pointerId);
 			setIsScrubbing(true);
 			hasLoggedSeekRef.current = false;
 			handleScrub(e);
@@ -101,7 +103,8 @@ export function useTimelinePlayhead({
 			if (playheadRef?.current?.contains(e.target as Node)) return;
 
 			e.preventDefault();
-			(e.target as Element).setPointerCapture?.(e.pointerId);
+			pointerCaptureRef.current = e.target as Element;
+			pointerCaptureRef.current.setPointerCapture?.(e.pointerId);
 			setIsDraggingRuler(true);
 			setHasDraggedRuler(false);
 			hasLoggedSeekRef.current = false;
@@ -180,7 +183,8 @@ export function useTimelinePlayhead({
 		};
 
 		const onPointerUp = (e: PointerEvent) => {
-			(e.target as Element).releasePointerCapture?.(e.pointerId);
+			pointerCaptureRef.current?.releasePointerCapture?.(e.pointerId);
+			pointerCaptureRef.current = null;
 			setIsScrubbing(false);
 			if (scrubTime !== null) seek(scrubTime); // finalize seek
 			setScrubTime(null);

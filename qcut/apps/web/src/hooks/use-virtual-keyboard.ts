@@ -22,6 +22,7 @@ export function useVirtualKeyboard() {
 		};
 
 		viewport.addEventListener("resize", handleResize);
+		handleResize(); // Capture initial state in case keyboard is already open
 		return () => viewport.removeEventListener("resize", handleResize);
 	}, []);
 

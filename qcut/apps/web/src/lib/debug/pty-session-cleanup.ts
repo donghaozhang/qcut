@@ -1,6 +1,5 @@
 import { debugError } from "@/lib/debug/debug-config";
 import { platform } from "@qcut/platform-core";
-import { usePtyTerminalStore } from "@/stores/pty-terminal-store";
 
 type CleanupErrorHandler = (message: string, error: unknown) => void;
 

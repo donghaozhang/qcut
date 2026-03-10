@@ -319,7 +319,7 @@ Browser-specific WASM loading and cross-browser testing deferred to Phase 3.5.
 
 ### Subtask 3.5.1 — Migrate All Source Files -- DONE
 
-Migrated **all 82 remaining non-test source files** (228 refs) from `window.electronAPI` to `platform()`. Zero `window.electronAPI` references remain in production source code. (Baseline: 282 refs across 87 files; Phase 3.4 migrated 54 refs across 5 files, leaving 228 refs across 82 files.)
+Migrated **all 82 remaining non-test source files** (228 refs) from `window.electronAPI` to `platform()`. Zero `window.electronAPI` references remain in renderer/app source code (outside the approved `platform-desktop` adapter). (Baseline: 282 refs across 87 files; Phase 3.4 migrated 54 refs across 5 files, leaving 228 refs across 82 files.)
 
 **Wave 1 — Core Edit Flows (30 files, ~128 refs):**
 - `zip-manager.ts` (12), `use-elevenlabs-transcription.ts` (10), `use-ai-pipeline.ts` (9)

@@ -383,8 +383,12 @@ html {
 }
 
 /* Fix iOS input zoom (Safari zooms on inputs < 16px) */
-@media screen and (max-width: 1024px) {
-	input, select, textarea {
-		font-size: 16px !important;
+@supports (-webkit-touch-callout: none) {
+	@media (hover: none) and (pointer: coarse) {
+		input,
+		select,
+		textarea {
+			font-size: 16px;
+		}
 	}
 }

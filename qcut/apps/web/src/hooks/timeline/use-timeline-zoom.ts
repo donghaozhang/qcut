@@ -79,6 +79,10 @@ export function useTimelineZoom({
 		});
 	}, []);
 
+	// Keep a ref to current zoom so pinch callback doesn't recreate mid-gesture
+	const zoomLevelRef = useRef(zoomLevel);
+	zoomLevelRef.current = zoomLevel;
+
 	const handlePointerMove = useCallback(
 		(e: React.PointerEvent) => {
 			const pointers = pointersRef.current;
@@ -93,7 +97,7 @@ export function useTimelineZoom({
 
 			if (initialPinchDistanceRef.current === null) {
 				initialPinchDistanceRef.current = currentDistance;
-				pinchBaseZoomRef.current = zoomLevel;
+				pinchBaseZoomRef.current = zoomLevelRef.current;
 				return;
 			}
 
@@ -104,7 +108,7 @@ export function useTimelineZoom({
 			);
 			setZoomLevel(newZoom);
 		},
-		[zoomLevel, setZoomLevel]
+		[setZoomLevel]
 	);
 
 	const handlePointerUp = useCallback((e: React.PointerEvent) => {

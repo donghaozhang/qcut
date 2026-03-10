@@ -169,7 +169,8 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 				debugLog(`[ResizeHandles] Starting resize with handle: ${handle}`);
 				e.stopPropagation();
 				e.preventDefault();
-				(e.target as Element).setPointerCapture?.(e.pointerId);
+				const captureTarget = e.target as Element;
+				captureTarget.setPointerCapture?.(e.pointerId);
 
 				// Save snapshot before resize so Ctrl+Z can undo
 				saveHistorySnapshot();
@@ -221,7 +222,7 @@ export const ResizeHandles = memo<ResizeHandlesProps>(
 					debugLog(
 						`[ResizeHandles] Finished resizing handle ${resizeState.current.handle}`
 					);
-					(e.target as Element).releasePointerCapture?.(e.pointerId);
+					captureTarget.releasePointerCapture?.(e.pointerId);
 					resizeState.current.isResizing = false;
 					setIsResizing(false);
 					document.body.style.cursor = "";

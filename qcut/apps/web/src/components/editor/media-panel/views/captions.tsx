@@ -234,7 +234,7 @@ export function CaptionsView() {
 
 					// Save video file to temp location first
 					if (!platform().audio?.saveTemp) {
-						throw new Error("Electron audio API not available");
+						throw new Error("Audio temp save not available on this platform");
 					}
 
 					const videoBuffer = await file.arrayBuffer();
@@ -249,7 +249,7 @@ export function CaptionsView() {
 
 					// Extract audio using FFmpeg CLI (much faster than WebAssembly!)
 					if (!platform().ffmpeg?.extractAudio) {
-						throw new Error("Electron FFmpeg API not available");
+						throw new Error("FFmpeg audio extraction not available on this platform");
 					}
 
 					const { audioPath, fileSize } = await platform().ffmpeg.extractAudio({
@@ -272,7 +272,7 @@ export function CaptionsView() {
 					);
 
 					if (!platform().audio?.saveTemp) {
-						throw new Error("Electron audio API not available");
+						throw new Error("Audio temp save not available on this platform");
 					}
 
 					const audioBuffer = await file.arrayBuffer();
@@ -374,7 +374,7 @@ export function CaptionsView() {
 				});
 
 				if (!platform().transcription?.transcribe) {
-					throw new Error("Electron transcribe API not available");
+					throw new Error("Transcription not available on this platform");
 				}
 
 				const startTime = Date.now();

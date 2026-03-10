@@ -221,7 +221,12 @@ export async function generateShotsForEpisodeAction(
 	scriptTitle: string,
 	targetDuration?: string
 ): Promise<Shot[]> {
-	const api = platform().moyin;
+	let api: ReturnType<typeof platform>["moyin"] | undefined;
+	try {
+		api = platform().moyin;
+	} catch {
+		throw new Error("Moyin API not available.");
+	}
 	if (!api?.callLLM) {
 		throw new Error("Moyin API not available.");
 	}

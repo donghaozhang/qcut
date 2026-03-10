@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ResizeState, TimelineElement, TimelineTrack } from "@/types/timeline";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
@@ -29,6 +29,7 @@ export function useTimelineElementResize({
 	onUpdateDuration,
 }: UseTimelineElementResizeProps) {
 	const [resizing, setResizing] = useState<ResizeState | null>(null);
+	const captureElementRef = useRef<Element | null>(null);
 	const {
 		mediaItems,
 		loading: mediaItemsLoading,
@@ -242,7 +243,8 @@ export function useTimelineElementResize({
 		};
 
 		const handleDocumentPointerUp = (e: PointerEvent) => {
-			(e.target as Element).releasePointerCapture?.(e.pointerId);
+			captureElementRef.current?.releasePointerCapture?.(e.pointerId);
+			captureElementRef.current = null;
 			handleResizeEnd();
 		};
 
@@ -266,7 +268,9 @@ export function useTimelineElementResize({
 		e.stopPropagation();
 		e.preventDefault();
 
-		(e.target as Element).setPointerCapture?.(e.pointerId);
+		const captureEl = e.target as Element;
+		captureEl.setPointerCapture?.(e.pointerId);
+		captureElementRef.current = captureEl;
 
 		// Push history once at the start of the resize operation
 		pushHistory();
