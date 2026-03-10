@@ -309,6 +309,7 @@ describe("SkillsStore", () => {
 					delete: vi.fn().mockRejectedValue(new Error("Delete failed")),
 				},
 			};
+			initPlatform(createDesktopAdapter());
 
 			await useSkillsStore.getState().deleteSkill("project-1", "skill-1");
 

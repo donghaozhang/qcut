@@ -278,6 +278,9 @@ describe("Seeddream 4.5 Text-to-Image", () => {
 
 			// Re-import to get the function with cleared key
 			vi.resetModules();
+			const { initPlatform: initP } = await import("@qcut/platform-core");
+			const { createWebAdapter: createW } = await import("@qcut/platform-web");
+			initP(createW());
 			const aiVideoClient = await import("@/lib/ai-clients/ai-video-client");
 
 			// Mock fetch to prevent real API calls
@@ -489,6 +492,9 @@ describe("uploadImageForSeeddream45Edit", () => {
 		(import.meta.env as any).VITE_FAL_API_KEY = "";
 
 		vi.resetModules();
+		const { initPlatform: initP } = await import("@qcut/platform-core");
+		const { createWebAdapter: createW } = await import("@qcut/platform-web");
+		initP(createW());
 		const aiVideoClient = await import("@/lib/ai-clients/ai-video-client");
 
 		const mockFile = createMockFile("test", "test.png", "image/png");

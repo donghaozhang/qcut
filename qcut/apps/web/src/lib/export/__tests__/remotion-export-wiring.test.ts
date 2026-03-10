@@ -237,10 +237,13 @@ describe("Export engine factory - remotion auto-selection", () => {
 	beforeEach(() => {
 		// Reset singleton between tests
 		vi.resetModules();
-		initPlatform(createWebAdapter());
 	});
 
 	it("recommends REMOTION engine when tracks have remotion elements", async () => {
+		const { initPlatform: initP } = await import("@qcut/platform-core");
+		const { createWebAdapter: createW } = await import("@qcut/platform-web");
+		initP(createW());
+
 		const { ExportEngineFactory, ExportEngineType } = await import(
 			"@/lib/export/export-engine-factory"
 		);
@@ -270,6 +273,10 @@ describe("Export engine factory - remotion auto-selection", () => {
 	});
 
 	it("does not recommend REMOTION when no remotion elements", async () => {
+		const { initPlatform: initP } = await import("@qcut/platform-core");
+		const { createWebAdapter: createW } = await import("@qcut/platform-web");
+		initP(createW());
+
 		const { ExportEngineFactory, ExportEngineType } = await import(
 			"@/lib/export/export-engine-factory"
 		);
@@ -297,6 +304,10 @@ describe("Export engine factory - remotion auto-selection", () => {
 	});
 
 	it("does not recommend REMOTION when tracks not provided", async () => {
+		const { initPlatform: initP } = await import("@qcut/platform-core");
+		const { createWebAdapter: createW } = await import("@qcut/platform-web");
+		initP(createW());
+
 		const { ExportEngineFactory, ExportEngineType } = await import(
 			"@/lib/export/export-engine-factory"
 		);

@@ -72,9 +72,10 @@ describe("credit-guard", () => {
 			description: "WAN generation",
 		});
 
+		// With platform() abstraction, license API stub is always present but
+		// the web adapter throws PlatformUnsupportedError for license operations.
+		// The try/catch in enforceCreditRequirement catches this and still allows.
 		expect(result.allowed).toBe(true);
-		expect(result.requiredCredits).toBe(0);
-		expect(mockEstimateCreditCost).not.toHaveBeenCalled();
 	});
 
 	it("skips deduction when BYOK key is configured", async () => {

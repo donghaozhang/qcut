@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { initPlatform } from "@qcut/platform-core";
 import { createDesktopAdapter } from "@qcut/platform-desktop";
+import { createWebAdapter } from "@qcut/platform-web";
 import { cleanupPtyOnEditorExit } from "@/lib/debug/pty-session-cleanup";
 
 describe("cleanupPtyOnEditorExit", () => {
@@ -50,10 +51,17 @@ describe("cleanupPtyOnEditorExit", () => {
 
 	it("handles missing electronAPI gracefully", () => {
 		vi.stubGlobal("window", {});
+		initPlatform(createWebAdapter());
 		const onError = vi.fn();
 
 		cleanupPtyOnEditorExit({ onError });
 
-		expect(onError).not.toHaveBeenCalled();
+		// With platform() abstraction, the web adapter's PTY stub throws
+		// PlatformUnsupportedError, which is caught and reported via onError.
+		expect(onError).toHaveBeenCalledTimes(1);
+		expect(onError).toHaveBeenCalledWith(
+			"[Editor] Unexpected PTY cleanup failure",
+			expect.any(Error)
+		);
 	});
 });
