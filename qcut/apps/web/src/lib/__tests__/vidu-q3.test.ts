@@ -16,7 +16,18 @@ import {
 } from "@/lib/ai-video";
 
 beforeAll(() => {
-	initPlatform(createWebAdapter());
+	const adapter = createWebAdapter();
+	// Override fal stub to return undefined methods instead of throwing,
+	// so polling code falls back to direct fetch (which tests mock).
+	(adapter as any).fal = { queueFetch: undefined };
+	// Override apiKeys to return empty (no BYOK key)
+	(adapter as any).apiKeys = {
+		get: async () => ({}),
+		set: async () => true,
+		clear: async () => true,
+		status: async () => ({}),
+	};
+	initPlatform(adapter);
 });
 
 const originalFetch = globalThis.fetch;
