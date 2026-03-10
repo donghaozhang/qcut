@@ -114,70 +114,109 @@ export function DraggableMediaItem({
 		setIsDragging(false);
 	}, []);
 
+	const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+	const LONG_PRESS_MS = 200;
+	const MOVE_THRESHOLD = 10; // px of movement before cancelling long-press
+
 	const handlePointerDown = useCallback(
 		(e: React.PointerEvent) => {
 			if (e.pointerType !== "touch" || !isDraggable) return;
 
+			const startX = e.clientX;
+			const startY = e.clientY;
+			touchStartPosRef.current = { x: startX, y: startY };
+
 			const serialized = JSON.stringify(dragData);
-
-			// Create ghost element from the thumbnail
 			const source = e.currentTarget as HTMLElement;
-			const ghost = document.createElement("div");
-			ghost.style.cssText = `
-				position: fixed; z-index: 99999; pointer-events: none;
-				width: 80px; height: 80px; border-radius: 8px; overflow: hidden;
-				box-shadow: 0 8px 30px rgba(0,0,0,0.3); opacity: 0.9;
-			`;
-			// Clone visible content into ghost
-			const clone = source.cloneNode(true) as HTMLElement;
-			clone.style.cssText =
-				"width:100%;height:100%;object-fit:cover;pointer-events:none;";
-			ghost.appendChild(clone);
-			ghost.style.left = `${e.clientX - 40}px`;
-			ghost.style.top = `${e.clientY - 40}px`;
-			document.body.appendChild(ghost);
-			touchGhostRef.current = ghost;
-			setIsDragging(true);
-			setDragPosition({ x: e.clientX, y: e.clientY });
 
-			const onPointerMove = (ev: PointerEvent) => {
-				if (!touchGhostRef.current) return;
-				touchGhostRef.current.style.left = `${ev.clientX - 40}px`;
-				touchGhostRef.current.style.top = `${ev.clientY - 40}px`;
-				setDragPosition({ x: ev.clientX, y: ev.clientY });
-			};
-
-			const onPointerUp = (ev: PointerEvent) => {
-				window.removeEventListener("pointermove", onPointerMove);
-				window.removeEventListener("pointerup", onPointerUp);
-				activeTouchListenersRef.current = null;
-
-				// Find drop zone under the pointer
-				cleanupTouchDrag();
-				const target = document.elementFromPoint(ev.clientX, ev.clientY);
-				const dropZone = target?.closest("[data-drop-zone]");
-				if (dropZone) {
-					dropZone.dispatchEvent(
-						new CustomEvent("touch-drop", {
-							bubbles: true,
-							detail: {
-								data: serialized,
-								clientX: ev.clientX,
-								clientY: ev.clientY,
-							},
-						})
-					);
+			// Cancel long-press if finger moves too much (user is scrolling)
+			const onEarlyMove = (ev: PointerEvent) => {
+				if (!touchStartPosRef.current) return;
+				const dx = ev.clientX - touchStartPosRef.current.x;
+				const dy = ev.clientY - touchStartPosRef.current.y;
+				if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
+					if (longPressTimerRef.current) {
+						clearTimeout(longPressTimerRef.current);
+						longPressTimerRef.current = null;
+					}
+					window.removeEventListener("pointermove", onEarlyMove);
+					window.removeEventListener("pointerup", onEarlyUp);
 				}
 			};
 
-			window.addEventListener("pointermove", onPointerMove);
-			window.addEventListener("pointerup", onPointerUp);
-
-			// Store refs for unmount cleanup
-			activeTouchListenersRef.current = {
-				move: onPointerMove,
-				up: onPointerUp,
+			const onEarlyUp = () => {
+				if (longPressTimerRef.current) {
+					clearTimeout(longPressTimerRef.current);
+					longPressTimerRef.current = null;
+				}
+				window.removeEventListener("pointermove", onEarlyMove);
+				window.removeEventListener("pointerup", onEarlyUp);
 			};
+
+			window.addEventListener("pointermove", onEarlyMove);
+			window.addEventListener("pointerup", onEarlyUp);
+
+			// Start drag after long-press delay to distinguish from scroll
+			longPressTimerRef.current = setTimeout(() => {
+				longPressTimerRef.current = null;
+				window.removeEventListener("pointermove", onEarlyMove);
+				window.removeEventListener("pointerup", onEarlyUp);
+
+				// Create ghost element from the thumbnail
+				const ghost = document.createElement("div");
+				ghost.style.cssText = `
+					position: fixed; z-index: 99999; pointer-events: none;
+					width: 80px; height: 80px; border-radius: 8px; overflow: hidden;
+					box-shadow: 0 8px 30px rgba(0,0,0,0.3); opacity: 0.9;
+				`;
+				const clone = source.cloneNode(true) as HTMLElement;
+				clone.style.cssText =
+					"width:100%;height:100%;object-fit:cover;pointer-events:none;";
+				ghost.appendChild(clone);
+				ghost.style.left = `${startX - 40}px`;
+				ghost.style.top = `${startY - 40}px`;
+				document.body.appendChild(ghost);
+				touchGhostRef.current = ghost;
+				setIsDragging(true);
+
+				const onPointerMove = (ev: PointerEvent) => {
+					if (!touchGhostRef.current) return;
+					touchGhostRef.current.style.left = `${ev.clientX - 40}px`;
+					touchGhostRef.current.style.top = `${ev.clientY - 40}px`;
+				};
+
+				const onPointerUp = (ev: PointerEvent) => {
+					window.removeEventListener("pointermove", onPointerMove);
+					window.removeEventListener("pointerup", onPointerUp);
+					activeTouchListenersRef.current = null;
+
+					// Find drop zone under the pointer
+					cleanupTouchDrag();
+					const target = document.elementFromPoint(ev.clientX, ev.clientY);
+					const dropZone = target?.closest("[data-drop-zone]");
+					if (dropZone) {
+						dropZone.dispatchEvent(
+							new CustomEvent("touch-drop", {
+								bubbles: true,
+								detail: {
+									data: serialized,
+									clientX: ev.clientX,
+									clientY: ev.clientY,
+								},
+							})
+						);
+					}
+				};
+
+				window.addEventListener("pointermove", onPointerMove);
+				window.addEventListener("pointerup", onPointerUp);
+
+				activeTouchListenersRef.current = {
+					move: onPointerMove,
+					up: onPointerUp,
+				};
+			}, LONG_PRESS_MS);
 		},
 		[isDraggable, dragData, cleanupTouchDrag]
 	);
@@ -185,6 +224,10 @@ export function DraggableMediaItem({
 	// Clean up on unmount if drag is active
 	useEffect(() => {
 		return () => {
+			if (longPressTimerRef.current) {
+				clearTimeout(longPressTimerRef.current);
+				longPressTimerRef.current = null;
+			}
 			const listeners = activeTouchListenersRef.current;
 			if (listeners) {
 				window.removeEventListener("pointermove", listeners.move);
@@ -243,8 +286,9 @@ export function DraggableMediaItem({
 				</div>
 			</div>
 
-			{/* Custom drag preview */}
+			{/* Custom drag preview (HTML5 drag only — touch drag uses DOM ghost) */}
 			{isDragging &&
+				!touchGhostRef.current &&
 				typeof document !== "undefined" &&
 				createPortal(
 					<div
