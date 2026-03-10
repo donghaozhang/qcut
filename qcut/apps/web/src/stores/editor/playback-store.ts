@@ -90,17 +90,54 @@ const startTimer = (store: () => PlaybackStore) => {
 	let loggedNotPlaying = false;
 	let loggedDurationReached = false;
 
+	// Cache store references outside the loop to avoid per-frame lookups
+	const cachedProjectStore = getProjectStoreSync();
+	const cachedTimelineStore = getTimelineStoreSync();
+
+	// Diagnostic: track frame timing on-screen
+	let frameCount = 0;
+	let frameTimes: number[] = [];
+	// Auto-enable debug overlay
+	(window as any).__PLAYBACK_DEBUG = true;
+	let debugEl = document.getElementById("playback-debug-overlay");
+	if (!debugEl) {
+		debugEl = document.createElement("div");
+		debugEl.id = "playback-debug-overlay";
+		debugEl.style.cssText =
+			"position:fixed;top:8px;left:8px;z-index:999999;background:rgba(0,0,0,0.85);color:#0f0;font:bold 14px monospace;padding:8px 12px;border-radius:8px;pointer-events:none;white-space:pre;max-width:90vw;";
+		debugEl.textContent = "Playback: waiting...";
+		document.body.appendChild(debugEl);
+	}
+
 	// Use requestAnimationFrame for smoother updates
 	const updateTime = () => {
 		const state = store();
 		if (state.isPlaying && state.currentTime < state.duration) {
 			const now = performance.now();
 			const delta = (now - lastUpdate) / 1000; // Convert to seconds
+
+			// Diagnostic logging — writes to on-screen overlay
+			frameTimes.push(delta * 1000);
+			frameCount++;
+			if (frameCount % 30 === 0) {
+				const avg =
+					frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
+				const max = Math.max(...frameTimes);
+				const min = Math.min(...frameTimes);
+				const fps = 1000 / avg;
+				const jank = frameTimes.filter((t) => t > 33).length;
+				const msg = `FPS: ${fps.toFixed(1)} | avg: ${avg.toFixed(1)}ms\nmin: ${min.toFixed(1)}ms | max: ${max.toFixed(1)}ms\njank(>33ms): ${jank}/${frameTimes.length} | frame#${frameCount}`;
+				console.log(`[Playback] ${msg.replace(/\n/g, " | ")}`);
+				const el = document.getElementById("playback-debug-overlay");
+				if (el) el.textContent = msg;
+				frameTimes = [];
+			}
+
 			lastUpdate = now;
 
 			const newTime = state.currentTime + delta * state.speed;
-			const projectStore = getProjectStoreSync();
-			const timelineStore = getTimelineStoreSync();
+			const projectStore = cachedProjectStore ?? getProjectStoreSync();
+			const timelineStore = cachedTimelineStore ?? getTimelineStoreSync();
 			const projectFps = projectStore?.getState()?.activeProject?.fps ?? 30;
 			const frameNumber = Math.round(newTime * projectFps);
 
