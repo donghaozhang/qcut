@@ -136,7 +136,10 @@ export interface PlatformAvailableSkill {
 
 export interface PlatformSkillsAPI {
 	list(projectId: string): Promise<PlatformSkillItem[]>;
-	import(projectId: string, sourcePath: string): Promise<PlatformSkillItem | null>;
+	import(
+		projectId: string,
+		sourcePath: string
+	): Promise<PlatformSkillItem | null>;
 	delete(projectId: string, skillId: string): Promise<boolean | void>;
 	getContent(
 		projectId: string,
@@ -348,7 +351,12 @@ export interface PlatformRemotionFolderAPI {
 	checkBundler(): Promise<{ available: boolean }>;
 	validate(
 		folderPath: string
-	): Promise<{ isValid: boolean; valid?: boolean; error?: string; errors?: string[] }>;
+	): Promise<{
+		isValid: boolean;
+		valid?: boolean;
+		error?: string;
+		errors?: string[];
+	}>;
 	bundleFile(
 		filePath: string,
 		compositionId: string

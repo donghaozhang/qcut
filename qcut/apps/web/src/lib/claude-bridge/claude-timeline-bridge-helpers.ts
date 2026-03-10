@@ -574,10 +574,11 @@ async function importRemotionFolder({
 		const { loadComponentsFromFolder } = await import(
 			"@/lib/remotion/component-loader"
 		);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const loadResult = await loadComponentsFromFolder(
 			folderPath,
-			importResult.scan!.compositions as unknown[],
-			importResult.bundle!.results as unknown[]
+			importResult.scan!.compositions as any,
+			importResult.bundle!.results as any
 		);
 
 		if (!loadResult.success || loadResult.components.length === 0) {

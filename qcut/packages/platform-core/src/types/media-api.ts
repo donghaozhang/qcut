@@ -60,7 +60,12 @@ export interface PlatformSoundsAPI {
 		url?: string;
 		id: number | string;
 		previewUrl?: string;
-	}): Promise<{ success: boolean; localPath?: string; path?: string; error?: string }>;
+	}): Promise<{
+		success: boolean;
+		localPath?: string;
+		path?: string;
+		error?: string;
+	}>;
 }
 
 // ---------------------------------------------------------------------------
@@ -150,10 +155,7 @@ export interface PlatformScreenRecordingAPI {
 		sessionId: string;
 		chunk: Uint8Array;
 	}): Promise<{ bytesWritten: number }>;
-	stop(options?: {
-		sessionId?: string;
-		discard?: boolean;
-	}): Promise<{
+	stop(options?: { sessionId?: string; discard?: boolean }): Promise<{
 		success: boolean;
 		filePath: string | null;
 		bytesWritten: number;

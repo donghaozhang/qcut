@@ -237,9 +237,7 @@ export interface PlatformClaudeNotificationsAPI {
 // ---------------------------------------------------------------------------
 
 export interface PlatformClaudeNavigatorAPI {
-	onProjectsRequest(
-		callback: (data: { requestId: string }) => void
-	): void;
+	onProjectsRequest(callback: (data: { requestId: string }) => void): void;
 	sendProjectsResponse(
 		requestId: string,
 		result: {
