@@ -10,22 +10,25 @@ import { ExportEngine } from "./export-engine";
 import type { ExportSettings } from "@/types/export";
 import type { TimelineTrack } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
-import { getBitrateForQuality } from "./audio-export-config";
 
 // Progress callback type
 type ProgressCallback = (progress: number, status: string) => void;
 
-/** Race a promise against a timeout. */
+/** Race a promise against a timeout; clears the timer on success to avoid leaks. */
 function withTimeout<T>(
 	promise: Promise<T>,
 	ms: number,
 	message: string
 ): Promise<T> {
+	let timeoutId: ReturnType<typeof setTimeout>;
 	return Promise.race([
-		promise,
-		new Promise<never>((_, reject) =>
-			setTimeout(() => reject(new Error(message)), ms)
-		),
+		promise.then((v) => {
+			clearTimeout(timeoutId);
+			return v;
+		}),
+		new Promise<never>((_, reject) => {
+			timeoutId = setTimeout(() => reject(new Error(message)), ms);
+		}),
 	]);
 }
 
@@ -48,6 +51,8 @@ const AUDIO_BITRATE: Record<string, number> = {
  * Works on iPad Safari 16.4+ and modern browsers without FFmpeg.
  */
 export class ExportEngineMuxer extends ExportEngine {
+	private activeOutput: any = null;
+
 	/** Override main export method with mediabunny pipeline. */
 	async export(progressCallback?: ProgressCallback): Promise<Blob> {
 		if (this.isExporting) {
@@ -103,6 +108,7 @@ export class ExportEngineMuxer extends ExportEngine {
 				output.addAudioTrack(audioSource);
 			}
 
+			this.activeOutput = output;
 			await output.start();
 
 			progressCallback?.(2, "Rendering frames...");
@@ -122,9 +128,8 @@ export class ExportEngineMuxer extends ExportEngine {
 
 				// Feed canvas to mediabunny's CanvasSource with timeout
 				// (WebCodecs encoder can stall on simulator or unsupported platforms)
-				const timestamp = frame * frameDuration;
 				await withTimeout(
-					videoSource.add(timestamp, frameDuration),
+					videoSource.add(currentTime, frameDuration),
 					10_000,
 					`Encoder stalled at frame ${frame + 1}/${totalFrames}`
 				);
@@ -168,6 +173,7 @@ export class ExportEngineMuxer extends ExportEngine {
 			console.error("[ExportEngineMuxer] Export failed:", error);
 			throw error;
 		} finally {
+			this.activeOutput = null;
 			this.isExporting = false;
 		}
 	}
@@ -266,8 +272,16 @@ export class ExportEngineMuxer extends ExportEngine {
 		}
 	}
 
-	/** Override cancel to clean up encoder resources. */
+	/** Override cancel to clean up mediabunny encoder resources. */
 	cancel(): void {
 		super.cancel();
+		if (this.activeOutput) {
+			try {
+				this.activeOutput.cancel?.();
+			} catch {
+				// Ignore errors during cleanup
+			}
+			this.activeOutput = null;
+		}
 	}
 }

@@ -1,6 +1,6 @@
 ---
 name: pr-comments
-description: Export, preprocess, and fix GitHub PR review comments. Use when user wants to export PR comments, evaluate code reviews, or fix review feedback from CodeRabbit/Gemini bots.
+description: Export, preprocess, and fix GitHub PR review comments. Use when user wants to export PR comments, evaluate code reviews, or fix review feedback from CodeRabbit/Gemini/Devin bots.
 argument-hint: <action> [args...]
 disable-model-invocation: true
 allowed-tools: Bash(gh *), Bash(jq *), Bash(mkdir *), Bash(sed *), Bash(git *), Read, Edit, Glob, Grep
@@ -128,6 +128,7 @@ docs/pr-comments/
 ├── README.md
 ├── pr-102/                    # Raw exported comments
 │   ├── coderabbitai[bot]_file_L42_123.md
+│   ├── devin-ai-integration[bot]_file_L30_789.md
 │   └── gemini-code-assist[bot]_file_L50_456.md
 ├── pr-102-tasks/              # Preprocessed for evaluation (pending)
 │   └── coderabbitai[bot]_file_L50_456.md

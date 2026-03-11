@@ -667,9 +667,11 @@ export class ExportEngineFactory {
 	private isSimulator(): boolean {
 		const cap = (window as any).Capacitor;
 		if (!cap || cap.getPlatform() !== "ios") return false;
-		// Real iPad has "iPad" in platform or UA; simulator shows "MacIntel" + "Macintosh"
+		// Real iPad: "iPad" in platform/UA, or iPadOS 13+ which reports "MacIntel" with touch
 		const isRealIPad =
-			/iPad/.test(navigator.platform) || /iPad/.test(navigator.userAgent);
+			/iPad/.test(navigator.platform) ||
+			/iPad/.test(navigator.userAgent) ||
+			(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 		if (!isRealIPad) {
 			console.log(
 				"⚠️ isSimulator: detected iOS Simulator (Capacitor ios + MacIntel platform)"
@@ -730,13 +732,20 @@ export class ExportEngineFactory {
 				frame.close();
 			}
 
-			await Promise.race([
-				encoder.flush(),
-				new Promise((_, reject) =>
-					setTimeout(() => reject(new Error("probe timeout")), 3_000)
-				),
-			]);
-			encoder.close();
+			try {
+				await Promise.race([
+					encoder.flush(),
+					new Promise((_, reject) =>
+						setTimeout(() => reject(new Error("probe timeout")), 3_000)
+					),
+				]);
+			} finally {
+				try {
+					encoder.close();
+				} catch {
+					// Encoder may already be closed or errored
+				}
+			}
 
 			const ok = outputCount >= 5;
 			console.log(
