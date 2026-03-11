@@ -430,9 +430,7 @@ async function overlayStickerPass(
 		(s) => fs.existsSync(s.path) && s.endTime > s.startTime
 	);
 	if (validStickers.length === 0) {
-		console.log(
-			"🎨 [MODE 1.5 EXPORT] No valid stickers to overlay — skipping"
-		);
+		console.log("🎨 [MODE 1.5 EXPORT] No valid stickers to overlay — skipping");
 		return;
 	}
 

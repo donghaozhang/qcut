@@ -68,7 +68,9 @@ export function setupExportHandler(tempManager: TempManager): void {
 			debugLog("🔍 [FFMPEG HANDLER] Export options received:");
 			debugLog(
 				"🔍 [FFMPEG HANDLER]   - stickerFilterChain:",
-				stickerFilterChain ? `present (${stickerFilterChain.length} chars)` : "none"
+				stickerFilterChain
+					? `present (${stickerFilterChain.length} chars)`
+					: "none"
 			);
 			debugLog(
 				"🔍 [FFMPEG HANDLER]   - stickerSources:",

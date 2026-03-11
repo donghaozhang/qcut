@@ -748,9 +748,7 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		"editor:sticker:list",
 		"List all stickers on the timeline",
 		[PID],
-		[
-			"qcut-pipeline editor:sticker:list --project-id <id> --json",
-		]
+		["qcut-pipeline editor:sticker:list --project-id <id> --json"]
 	),
 
 	// ── State Control ──
