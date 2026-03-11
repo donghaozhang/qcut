@@ -4,7 +4,7 @@ import { TimelineTrack } from "@/types/timeline";
 import { MediaItem } from "@/stores/media/media-store";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 import { useEffectsStore } from "@/stores/ai/effects-store";
-import { platform, PlatformCapability } from "@qcut/platform-core";
+import { platform } from "@qcut/platform-core";
 
 // Engine types available
 export const ExportEngineType = {
@@ -646,8 +646,8 @@ export class ExportEngineFactory {
 		return false;
 	}
 
-	// Check if running in Electron environment with FFmpeg CLI support
+	// Check if running in Electron environment with native FFmpeg CLI
 	private isElectron(): boolean {
-		return platform().hasCapability(PlatformCapability.FFmpeg);
+		return platform().isElectron;
 	}
 }

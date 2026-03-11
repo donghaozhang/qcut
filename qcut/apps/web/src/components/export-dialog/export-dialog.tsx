@@ -97,9 +97,7 @@ export function ExportDialog() {
 				if (!canvas) throw new Error("No canvas available for export");
 				canvasRef.current?.updateDimensions();
 
-				const audioCodec = getCodecForFormat(
-					settings.format as ExportFormat
-				);
+				const audioCodec = getCodecForFormat(settings.format as ExportFormat);
 				setAudioExportConfig({
 					enabled: hasAudio,
 					codec: audioCodec,
@@ -115,8 +113,7 @@ export function ExportDialog() {
 					"480p": { width: 854, height: 480 },
 				};
 				const resolution =
-					qualityResolutions[settings.quality] ||
-					qualityResolutions["720p"];
+					qualityResolutions[settings.quality] || qualityResolutions["720p"];
 
 				return exportProgress.handleExport(
 					canvas,
@@ -138,11 +135,7 @@ export function ExportDialog() {
 		return () => {
 			delete (window as any).__exportActions;
 		};
-	}, [
-		exportProgress.handleExport,
-		exportSettings.timelineDuration,
-		hasAudio,
-	]);
+	}, [exportProgress.handleExport, exportSettings.timelineDuration, hasAudio]);
 
 	const handleClose = () => {
 		if (!exportProgress.progress.isExporting) {

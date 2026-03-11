@@ -37,16 +37,6 @@ const MAX_ENCODE_QUEUE = 5;
  * Works on iPad Safari 16.4+ and modern browsers without FFmpeg.
  */
 export class ExportEngineMuxer extends ExportEngine {
-	constructor(
-		canvas: HTMLCanvasElement,
-		settings: ExportSettings,
-		tracks: TimelineTrack[],
-		mediaItems: MediaItem[],
-		totalDuration: number
-	) {
-		super(canvas, settings, tracks, mediaItems, totalDuration);
-	}
-
 	/** Override main export method with mediabunny pipeline. */
 	async export(progressCallback?: ProgressCallback): Promise<Blob> {
 		if (this.isExporting) {
@@ -82,10 +72,11 @@ export class ExportEngineMuxer extends ExportEngine {
 			});
 
 			// Create video source from canvas
+			// Use "no-preference" so it works on both real hardware (GPU) and simulator (software)
 			const videoSource = new CanvasSource(this.canvas, {
 				codec: "avc",
 				bitrate: videoBitrate,
-				hardwareAcceleration: "prefer-hardware",
+				hardwareAcceleration: "no-preference",
 			});
 			output.addVideoTrack(videoSource, { frameRate: fps });
 
@@ -185,19 +176,14 @@ export class ExportEngineMuxer extends ExportEngine {
 				if (!("mediaId" in element)) continue;
 				const mediaId = element.mediaId as string;
 
-				const mediaItem = this.mediaItems.find(
-					(m) => m.id === mediaId
-				);
+				const mediaItem = this.mediaItems.find((m) => m.id === mediaId);
 				if (!mediaItem) continue;
 
-				const isAudio =
-					track.type === "audio" || mediaItem.type === "video";
+				const isAudio = track.type === "audio" || mediaItem.type === "video";
 				if (!isAudio) continue;
 
 				const src =
-					mediaItem.url ||
-					mediaItem.originalUrl ||
-					mediaItem.localPath;
+					mediaItem.url || mediaItem.originalUrl || mediaItem.localPath;
 				if (!src) continue;
 
 				const vol =

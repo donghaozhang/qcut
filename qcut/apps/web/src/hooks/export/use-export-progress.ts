@@ -229,15 +229,9 @@ export function useExportProgress() {
 			setExportStartTime(null);
 
 			// Save/download via platform-aware output
-			const saveResult = await saveExportedVideo(
-				blob,
-				exportSettings.filename
-			);
+			const saveResult = await saveExportedVideo(blob, exportSettings.filename);
 			if (!saveResult.success) {
-				debugWarn(
-					"[ExportPanel] Save issue:",
-					saveResult.error
-				);
+				debugWarn("[ExportPanel] Save issue:", saveResult.error);
 			}
 
 			// Show success message
