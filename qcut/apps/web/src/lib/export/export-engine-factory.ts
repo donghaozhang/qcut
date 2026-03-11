@@ -44,7 +44,7 @@ export class ExportEngineFactory {
 	private static instance: ExportEngineFactory;
 	private capabilities: BrowserCapabilities | null = null;
 
-	// Singleton pattern for factory
+	/** Get the singleton factory instance. */
 	static getInstance(): ExportEngineFactory {
 		if (!ExportEngineFactory.instance) {
 			ExportEngineFactory.instance = new ExportEngineFactory();
@@ -56,7 +56,7 @@ export class ExportEngineFactory {
 		// Private constructor for singleton
 	}
 
-	// Detect browser capabilities
+	/** Detect browser capabilities (cached after first call). */
 	async detectCapabilities(): Promise<BrowserCapabilities> {
 		if (this.capabilities) {
 			return this.capabilities;
@@ -77,7 +77,7 @@ export class ExportEngineFactory {
 		return capabilities;
 	}
 
-	// Get engine recommendation based on capabilities and requirements
+	/** Get engine recommendation based on capabilities and requirements. */
 	async getEngineRecommendation(
 		settings: ExportSettings,
 		duration: number,
@@ -211,7 +211,7 @@ export class ExportEngineFactory {
 		};
 	}
 
-	// Create engine instance based on recommendation or type
+	/** Create an export engine instance based on recommendation or explicit type. */
 	async createEngine(
 		canvas: HTMLCanvasElement,
 		settings: ExportSettingsWithAudio,
@@ -483,7 +483,7 @@ export class ExportEngineFactory {
 		}
 	}
 
-	// Browser capability detection methods
+	/** Check if WebCodecs APIs (VideoEncoder, VideoDecoder, VideoFrame) are available. */
 	private detectWebCodecs(): boolean {
 		return (
 			typeof VideoEncoder !== "undefined" &&
@@ -492,18 +492,22 @@ export class ExportEngineFactory {
 		);
 	}
 
+	/** Check if OffscreenCanvas is available. */
 	private detectOffscreenCanvas(): boolean {
 		return typeof OffscreenCanvas !== "undefined";
 	}
 
+	/** Check if Worker and SharedWorker are available. */
 	private detectWorkers(): boolean {
 		return typeof Worker !== "undefined" && typeof SharedWorker !== "undefined";
 	}
 
+	/** Check if SharedArrayBuffer is available. */
 	private detectSharedArrayBuffer(): boolean {
 		return typeof SharedArrayBuffer !== "undefined";
 	}
 
+	/** Detect device memory in GB (uses navigator.deviceMemory or estimates). */
 	private detectDeviceMemory(): number {
 		// Use navigator.deviceMemory if available (Chrome/Edge)
 		if ("deviceMemory" in navigator) {
@@ -525,6 +529,7 @@ export class ExportEngineFactory {
 		return 4; // Low-end device
 	}
 
+	/** Detect maximum WebGL texture size. */
 	private async detectMaxTextureSize(): Promise<number> {
 		try {
 			const canvas = document.createElement("canvas");
@@ -541,6 +546,7 @@ export class ExportEngineFactory {
 		return 4096; // Safe default
 	}
 
+	/** Detect supported MediaRecorder codecs. */
 	private detectSupportedCodecs(): string[] {
 		const codecs = [
 			"video/webm;codecs=vp9",
@@ -553,6 +559,7 @@ export class ExportEngineFactory {
 		return codecs.filter((codec) => MediaRecorder.isTypeSupported(codec));
 	}
 
+	/** Calculate a 0-100 performance score based on hardware and API support. */
 	private async calculatePerformanceScore(): Promise<number> {
 		let score = 0;
 
@@ -577,6 +584,7 @@ export class ExportEngineFactory {
 		return Math.min(score, 100);
 	}
 
+	/** Benchmark canvas 2D drawing performance (returns 5-25 score). */
 	private async testCanvasPerformance(): Promise<number> {
 		return new Promise((resolve) => {
 			const canvas = document.createElement("canvas");
@@ -612,6 +620,7 @@ export class ExportEngineFactory {
 		});
 	}
 
+	/** Estimate memory requirements in GB for the given export settings and duration. */
 	private estimateMemoryRequirements(
 		settings: ExportSettings,
 		duration: number
@@ -627,24 +636,24 @@ export class ExportEngineFactory {
 		return estimatedBytes / (1024 * 1024 * 1024); // Convert to GB
 	}
 
-	// Get current capabilities (cached)
+	/** Get current capabilities (returns cached value or null if not yet detected). */
 	getCurrentCapabilities(): BrowserCapabilities | null {
 		return this.capabilities;
 	}
 
-	// Force refresh capabilities
+	/** Force refresh capabilities (clears cache and re-detects). */
 	async refreshCapabilities(): Promise<BrowserCapabilities> {
 		this.capabilities = null;
 		return this.detectCapabilities();
 	}
 
-	// FFmpeg WASM export has been removed - this method is deprecated
+	/** Check if FFmpeg WASM is available (always false — removed). */
 	static async isFFmpegAvailable(): Promise<boolean> {
 		// Always return false as FFmpeg WASM export is disabled
 		return false;
 	}
 
-	// Check if running in Electron environment with native FFmpeg CLI
+	/** Check if running in Electron environment with native FFmpeg CLI. */
 	private isElectron(): boolean {
 		return platform().isElectron;
 	}

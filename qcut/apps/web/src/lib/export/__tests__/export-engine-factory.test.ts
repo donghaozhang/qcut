@@ -205,10 +205,9 @@ describe("ExportEngineFactory", () => {
 			);
 
 			// In test env (no WebCodecs, no Electron), should get optimized or standard
-			expect([
-				ExportEngineType.STANDARD,
-				ExportEngineType.OPTIMIZED,
-			]).toContain(rec.engineType);
+			expect([ExportEngineType.STANDARD, ExportEngineType.OPTIMIZED]).toContain(
+				rec.engineType
+			);
 		});
 	});
 
