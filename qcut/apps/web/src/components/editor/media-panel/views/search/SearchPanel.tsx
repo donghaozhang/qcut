@@ -61,6 +61,7 @@ export function SearchPanel() {
 					nextResult();
 				}
 			} else if (e.key === "Escape") {
+				if (debounceRef.current) clearTimeout(debounceRef.current);
 				clearSearch();
 				if (inputRef.current) inputRef.current.value = "";
 			}
@@ -68,9 +69,12 @@ export function SearchPanel() {
 		[nextResult, prevResult, clearSearch]
 	);
 
-	// Focus input on mount
+	// Focus input on mount; clear debounce on unmount
 	useEffect(() => {
 		inputRef.current?.focus();
+		return () => {
+			if (debounceRef.current) clearTimeout(debounceRef.current);
+		};
 	}, []);
 
 	// Count transcribed media
@@ -98,6 +102,7 @@ export function SearchPanel() {
 						<button
 							type="button"
 							onClick={() => {
+								if (debounceRef.current) clearTimeout(debounceRef.current);
 								clearSearch();
 								if (inputRef.current) inputRef.current.value = "";
 							}}
@@ -121,6 +126,8 @@ export function SearchPanel() {
 								: "text-muted-foreground hover:text-foreground"
 						)}
 						title="Case Sensitive"
+						aria-pressed={caseSensitive}
+						aria-label="Case sensitive search"
 						data-testid="search-case-sensitive"
 					>
 						<CaseSensitiveIcon className="size-3" />
@@ -136,6 +143,8 @@ export function SearchPanel() {
 								: "text-muted-foreground hover:text-foreground"
 						)}
 						title="Whole Word"
+						aria-pressed={wholeWord}
+						aria-label="Whole word search"
 						data-testid="search-whole-word"
 					>
 						<WholeWordIcon className="size-3" />

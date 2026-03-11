@@ -241,6 +241,13 @@ const CAPABILITIES: Capability[] = [
 		category: CLAUDE_CAPABILITY_CATEGORIES.ANALYSIS,
 	},
 	{
+		name: "analysis.search",
+		version: "1.0.0",
+		description: "Transcription search endpoints for content discovery.",
+		since: "1.0.0",
+		category: CLAUDE_CAPABILITY_CATEGORIES.ANALYSIS,
+	},
+	{
 		name: "analysis.generate",
 		version: "1.0.0",
 		description: "AI generation endpoints and async job management.",

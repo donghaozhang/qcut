@@ -15,7 +15,7 @@ import { claudeLog } from "../utils/logger.js";
 import { searchTranscriptions } from "@qcut/editor-core/search";
 import type { PersistedTranscription } from "@qcut/editor-core";
 import { existsSync, readdirSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { app } from "electron";
 
 const HANDLER_NAME = "SearchRoutes";
@@ -34,6 +34,13 @@ function getTranscriptionsDir(projectId: string): string {
 	return join(projectDir, "transcriptions");
 }
 
+/** Sanitize a mediaId to prevent path traversal. */
+function sanitizeMediaId(mediaId: string): string {
+	const sanitized = mediaId.replace(/[/\\]/g, "").replace(/\.\./g, "");
+	if (!sanitized) throw new HttpError(400, "Invalid mediaId");
+	return sanitized;
+}
+
 /** Load all persisted transcriptions for a project from disk. */
 function loadProjectTranscriptions(projectId: string): PersistedTranscription[] {
 	const dir = getTranscriptionsDir(projectId);
@@ -48,7 +55,7 @@ function loadProjectTranscriptions(projectId: string): PersistedTranscription[] 
 			try {
 				const raw = readFileSync(join(dir, file), "utf-8");
 				const data = JSON.parse(raw) as PersistedTranscription;
-				if (data.version && data.mediaId && data.segments) {
+				if (data.version && data.mediaId && Array.isArray(data.segments)) {
 					transcriptions.push(data);
 				}
 			} catch (err) {
@@ -72,9 +79,10 @@ function loadTranscription(
 	projectId: string,
 	mediaId: string
 ): PersistedTranscription | null {
+	const safe = sanitizeMediaId(mediaId);
 	const filePath = join(
 		getTranscriptionsDir(projectId),
-		`${mediaId}.transcription.json`
+		`${safe}.transcription.json`
 	);
 	if (!existsSync(filePath)) return null;
 	try {
@@ -92,7 +100,8 @@ export function saveTranscription(
 ): void {
 	const dir = getTranscriptionsDir(projectId);
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-	const filePath = join(dir, `${transcription.mediaId}.transcription.json`);
+	const safe = sanitizeMediaId(transcription.mediaId);
+	const filePath = join(dir, `${safe}.transcription.json`);
 	writeFileSync(filePath, JSON.stringify(transcription, null, 2), "utf-8");
 	claudeLog.info(
 		HANDLER_NAME,
@@ -119,6 +128,9 @@ export function registerSearchRoutes(router: Router): void {
 		const maxResults = req.query?.maxResults
 			? parseInt(req.query.maxResults, 10)
 			: undefined;
+		if (maxResults !== undefined && (!Number.isFinite(maxResults) || maxResults < 1)) {
+			throw new HttpError(400, "maxResults must be a positive integer");
+		}
 		const mediaId = req.query?.mediaId;
 
 		const transcriptions = loadProjectTranscriptions(projectId);

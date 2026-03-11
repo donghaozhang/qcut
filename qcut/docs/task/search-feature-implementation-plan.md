@@ -218,9 +218,9 @@ Add a **Search panel tab** in the existing right-side media panel (`apps/web/src
 
 **Files to create:**
 - `electron/native-pipeline/editor/editor-handlers-search.ts` — New handler module:
-  ```
+  ```text
   editor:search:query    — Search transcriptions by text
-  editor:search:status   — List transcription status for all media in a project  
+  editor:search:status   — List transcription status for all media in a project
   editor:search:index    — Trigger transcription for all untranscribed media
   ```
 
@@ -236,7 +236,7 @@ Add a **Search panel tab** in the existing right-side media panel (`apps/web/src
 - `electron/claude/handlers/claude-command-registry.ts` — Register new commands
 
 **HTTP API routes:**
-- `electron/claude/http/claude-http-analysis-routes.ts` — Add endpoints:
+- `electron/claude/http/claude-http-search-routes.ts` — Add endpoints:
   - `GET /api/claude/search/:projectId?q=<query>&caseSensitive=&wholeWord=&maxResults=`
   - `GET /api/claude/search/:projectId/status` — Transcription status per media
   - `POST /api/claude/search/:projectId/index` — Trigger batch transcription
@@ -339,7 +339,7 @@ qcut-pipeline editor:search:query --project-id <id> --query "hello world" --json
 HTTP GET /api/claude/search/:projectId?q=hello+world
        │
        ▼
-[claude-http-analysis-routes.ts]
+[claude-http-search-routes.ts]
        │
        ▼
 Load transcriptions from disk → search-engine → return JSON results
@@ -368,7 +368,7 @@ Load transcriptions from disk → search-engine → return JSON results
 | `electron/native-pipeline/cli/command-registry-editor.ts` | Modify | 5 |
 | `electron/native-pipeline/cli/cli.ts` | Modify | 5 |
 | `electron/claude/handlers/claude-command-registry.ts` | Modify | 5 |
-| `electron/claude/http/claude-http-analysis-routes.ts` | Modify | 5 |
+| `electron/claude/http/claude-http-search-routes.ts` | Modify | 5 |
 | `electron/__tests__/editor-search-handler.test.ts` | **Create** | 5 |
 | `apps/web/src/stores/editor/playback-store.ts` | Modify | 6 |
 | `apps/web/src/stores/__tests__/search-navigation.test.ts` | **Create** | 6 |

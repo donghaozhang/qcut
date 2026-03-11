@@ -315,6 +315,7 @@ const MODULE_LABELS: Record<string, string> = {
 	ui: "UI",
 	moyin: "Moyin",
 	screenshot: "Screenshot",
+	search: "Search",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -472,6 +473,7 @@ function getCommandCategory({
 		if (
 			module === "analyze" ||
 			module === "transcribe" ||
+			module === "search" ||
 			module === "generate" ||
 			module === "diagnostics"
 		) {
@@ -793,6 +795,15 @@ function getCommandParamsSchema({
 				/* project only */
 			}
 			if (action === "start") add("poll", "pollInterval");
+		}
+
+		if (module === "search") {
+			if (action === "query") {
+				add("mediaId");
+				// query is passed as a string param
+				optional.push("data");
+			}
+			if (action === "index") add("mediaId");
 		}
 
 		if (module === "generate") {

@@ -167,9 +167,13 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
 		const seekTime = result.wordTimestamp ?? result.timestamp;
 
 		// Lazy-import playback store to avoid circular deps
-		import("@/stores/editor/playback-store").then(({ usePlaybackStore }) => {
-			usePlaybackStore.getState().setCurrentTime(seekTime);
-		});
+		import("@/stores/editor/playback-store")
+			.then(({ usePlaybackStore }) => {
+				usePlaybackStore.getState().setCurrentTime(seekTime);
+			})
+			.catch(() => {
+				// Playback store unavailable — navigation still updates selection
+			});
 	},
 
 	nextResult: () => {
