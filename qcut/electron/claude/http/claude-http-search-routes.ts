@@ -14,7 +14,13 @@ import { HttpError } from "../utils/http-router.js";
 import { claudeLog } from "../utils/logger.js";
 import { searchTranscriptions } from "@qcut/editor-core/search";
 import type { PersistedTranscription } from "@qcut/editor-core";
-import { existsSync, readdirSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	readdirSync,
+	readFileSync,
+	mkdirSync,
+	writeFileSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
 import { app } from "electron";
 
@@ -42,7 +48,9 @@ function sanitizeMediaId(mediaId: string): string {
 }
 
 /** Load all persisted transcriptions for a project from disk. */
-function loadProjectTranscriptions(projectId: string): PersistedTranscription[] {
+function loadProjectTranscriptions(
+	projectId: string
+): PersistedTranscription[] {
 	const dir = getTranscriptionsDir(projectId);
 	if (!existsSync(dir)) return [];
 
@@ -66,10 +74,7 @@ function loadProjectTranscriptions(projectId: string): PersistedTranscription[] 
 			}
 		}
 	} catch (err) {
-		claudeLog.warn(
-			HANDLER_NAME,
-			`Failed to read transcriptions dir: ${err}`
-		);
+		claudeLog.warn(HANDLER_NAME, `Failed to read transcriptions dir: ${err}`);
 	}
 	return transcriptions;
 }
@@ -128,7 +133,10 @@ export function registerSearchRoutes(router: Router): void {
 		const maxResults = req.query?.maxResults
 			? parseInt(req.query.maxResults, 10)
 			: undefined;
-		if (maxResults !== undefined && (!Number.isFinite(maxResults) || maxResults < 1)) {
+		if (
+			maxResults !== undefined &&
+			(!Number.isFinite(maxResults) || maxResults < 1)
+		) {
 			throw new HttpError(400, "maxResults must be a positive integer");
 		}
 		const mediaId = req.query?.mediaId;

@@ -573,8 +573,7 @@ function getRequiredCapability({ command }: { command: string }): string {
 		}
 		if (command.startsWith("editor:transcribe:"))
 			return "analysis.transcription";
-		if (command.startsWith("editor:search:"))
-			return "analysis.search";
+		if (command.startsWith("editor:search:")) return "analysis.search";
 		if (command.startsWith("editor:generate:")) {
 			return command === "editor:generate:models"
 				? "analysis.models"

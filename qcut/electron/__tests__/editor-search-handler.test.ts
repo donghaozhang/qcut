@@ -16,7 +16,10 @@ const mockClient = {
 
 // Import after mock setup
 import { handleSearchCommand } from "../native-pipeline/editor/editor-handlers-search.js";
-import type { CLIRunOptions, CLIResult } from "../native-pipeline/cli/cli-runner/types.js";
+import type {
+	CLIRunOptions,
+	CLIResult,
+} from "../native-pipeline/cli/cli-runner/types.js";
 
 const noopProgress = vi.fn();
 
@@ -165,10 +168,7 @@ describe("handleSearchCommand", () => {
 			);
 
 			expect(result.success).toBe(true);
-			expect(mockPost).toHaveBeenCalledWith(
-				"/api/claude/search/p1/index",
-				{}
-			);
+			expect(mockPost).toHaveBeenCalledWith("/api/claude/search/p1/index", {});
 		});
 	});
 });
