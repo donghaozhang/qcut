@@ -65,7 +65,7 @@ function escapeRegex(str: string): string {
 
 function searchTranscriptions(
 	transcriptions: PersistedTranscription[],
-	options: SearchOptions,
+	options: SearchOptions
 ): SearchResult[] {
 	if (!options.query?.trim()) return [];
 	const escaped = escapeRegex(options.query);
