@@ -342,9 +342,317 @@ AppDelegate.swift ──► QCutViewController.handleDeepLink(url:)
   xcrun simctl spawn booted log show --predicate 'process == "App"'
 ```
 
+---
+
+### Task 6: CLI Export Command
+**Time:** ~30 min
+**Depends on:** Task 1 (Swift commands), Task 2 (exposed stores)
+
+#### Goal
+Trigger a full video export from the CLI via `qcut://export` and poll progress via `qcut://export-status`. Uses the new **muxer engine** (mediabunny WebCodecs H.264) which runs entirely in-browser — no FFmpeg or Electron required.
+
+#### Export Engine Context
+- **Engine:** `ExportEngineMuxer` → mediabunny → browser WebCodecs H.264 hardware encoding
+- **Factory auto-selection:** If `capabilities.hasWebCodecs` → selects `muxer` engine (iPad Safari qualifies)
+- **Output:** MP4 blob → auto-download via `URL.createObjectURL()`
+- **Pipeline:** `useExportProgress.handleExport()` → `ExportEngineFactory.createEngine()` → `ExportEngineMuxer.export()` → Blob → download
+
+#### Subtasks
+
+**6a. Add `qcut://export` deep link command (Swift)**
+**File:** `apps/web/ios/App/App/QCutViewController.swift`
+
+Add a new case to `handleDeepLink`:
+```swift
+case "export":
+    // qcut://export?quality=720p&format=mp4&filename=my-video
+    let quality = url.queryValue(for: "quality") ?? "720p"
+    let format = url.queryValue(for: "format") ?? "mp4"
+    let filename = url.queryValue(for: "filename") ?? "export"
+    runJS("""
+    (function() {
+        if (!window.__exportStore) return 'no export store';
+        if (!window.__timelineStore) return 'no timeline store';
+        var ex = window.__exportStore.getState();
+        if (ex.progress.isExporting) return 'already exporting';
+        ex.updateSettings({
+            quality: '\(quality)',
+            format: '\(format)',
+            filename: '\(filename)',
+            width: \(quality == "1080p" ? "1920" : quality == "720p" ? "1280" : "854"),
+            height: \(quality == "1080p" ? "1080" : quality == "720p" ? "720" : "480")
+        });
+        // Dispatch event for the export dialog to pick up
+        window.dispatchEvent(new CustomEvent('qcut:cli-export', {
+            detail: { quality: '\(quality)', format: '\(format)', filename: '\(filename)', engineType: 'muxer' }
+        }));
+        return 'export triggered: \(quality) \(format) \(filename)';
+    })()
+    """)
+```
+
+**6b. Add `qcut://export-status` deep link command (Swift)**
+**File:** `apps/web/ios/App/App/QCutViewController.swift`
+
+```swift
+case "export-status":
+    runJS("""
+    (function() {
+        if (!window.__exportStore) return 'no export store';
+        var p = window.__exportStore.getState().progress;
+        return JSON.stringify({
+            isExporting: p.isExporting,
+            progress: p.progress,
+            status: p.status,
+            currentFrame: p.currentFrame,
+            totalFrames: p.totalFrames,
+            estimatedTimeRemaining: p.estimatedTimeRemaining,
+            encodingSpeed: p.encodingSpeed || null
+        });
+    })()
+    """)
+```
+
+**6c. Add `qcut:cli-export` event listener (TypeScript)**
+**File:** `apps/web/src/hooks/export/use-export-progress.ts` (or a new `apps/web/src/lib/debug/cli-export-bridge.ts`)
+
+Listen for the CLI export event and trigger the same flow as the export dialog button:
+```typescript
+// In the editor route or export dialog component
+useEffect(() => {
+  const handler = (event: Event) => {
+    if (!(event instanceof CustomEvent)) return;
+    const { quality, format, filename, engineType } = event.detail ?? {};
+    // Get canvas from the preview panel ref
+    const canvas = document.querySelector("canvas[data-export-canvas]") as HTMLCanvasElement;
+    if (!canvas) {
+      console.error("[CLI Export] No canvas found");
+      return;
+    }
+    const timelineStore = useTimelineStore.getState();
+    const duration = timelineStore.duration;
+    handleExport(canvas, duration, {
+      quality, format, filename, engineType,
+      resolution: { width: canvas.width, height: canvas.height },
+      includeAudio: true,
+      audioCodec: "aac",
+      audioBitrate: 128,
+    });
+  };
+  window.addEventListener("qcut:cli-export", handler);
+  return () => window.removeEventListener("qcut:cli-export", handler);
+}, [handleExport]);
+```
+
+**Key challenge:** The `handleExport` function from `useExportProgress` needs a canvas reference. Options:
+1. Tag the preview canvas with `data-export-canvas` attribute and query it from the event handler
+2. Expose `handleExport` on `window.__exportActions` for direct CLI invocation
+3. Use the existing export dialog flow by opening it + auto-clicking
+
+**Recommended approach:** Option 2 — expose `handleExport` as `window.__exportActions.export(settings)`. This avoids DOM queries and dialog UI dependencies.
+
+```typescript
+// In use-export-progress.ts, after hook init:
+(window as any).__exportActions = {
+  export: async (settings: { quality: string; format: string; filename: string }) => {
+    const canvas = canvasRef.current?.getCanvas();
+    if (!canvas) throw new Error("No canvas available");
+    return handleExport(canvas, timelineDuration, {
+      ...settings,
+      engineType: "muxer",
+      resolution: { width: canvas.width, height: canvas.height },
+      includeAudio: true,
+      audioCodec: "aac",
+      audioBitrate: 128,
+    });
+  }
+};
+```
+
+Then the Swift command simplifies to:
+```swift
+case "export":
+    let quality = url.queryValue(for: "quality") ?? "720p"
+    let format = url.queryValue(for: "format") ?? "mp4"
+    let filename = url.queryValue(for: "filename") ?? "export"
+    runJS("""
+    (function() {
+        if (!window.__exportActions) return 'no export actions (open editor first)';
+        var p = window.__exportStore?.getState().progress;
+        if (p && p.isExporting) return 'already exporting';
+        window.__exportActions.export({
+            quality: '\(quality)', format: '\(format)', filename: '\(filename)'
+        }).then(function() { return 'export complete'; })
+          .catch(function(e) { return 'export failed: ' + e.message; });
+        return 'export started: \(quality) \(format)';
+    })()
+    """)
+```
+
+**6d. Add shell helper commands**
+**File:** `scripts/ipad-cli.sh`
+
+```bash
+  export)
+    QUALITY=${1:-720p}
+    FORMAT=${2:-mp4}
+    FILENAME=${3:-export}
+    xcrun simctl openurl booted "qcut://export?quality=$QUALITY&format=$FORMAT&filename=$FILENAME"
+    ;;
+  export-status)
+    xcrun simctl openurl booted "qcut://export-status"
+    ;;
+  export-wait)
+    # Poll export progress until complete
+    QUALITY=${1:-720p}
+    FORMAT=${2:-mp4}
+    FILENAME=${3:-export}
+    xcrun simctl openurl booted "qcut://export?quality=$QUALITY&format=$FORMAT&filename=$FILENAME"
+    echo "Export started, polling progress..."
+    while true; do
+      sleep 2
+      xcrun simctl openurl booted "qcut://export-status"
+      sleep 1
+      STATUS=$(xcrun simctl spawn booted log show --predicate 'process == "App"' --last 3s --style compact 2>&1 | grep "QCut CLI" | tail -1)
+      echo "$STATUS"
+      if echo "$STATUS" | grep -q '"isExporting":false'; then
+        echo "Export complete!"
+        break
+      fi
+    done
+    ;;
+```
+
+**6e. Update `state` dump to include export progress**
+**File:** `apps/web/ios/App/App/QCutViewController.swift` — update the `state` case
+
+Add export progress to the existing state JSON:
+```swift
+// Add to the state dump JS:
+export: ex ? {
+    panelView: ex.panelView,
+    isExporting: ex.progress.isExporting,
+    progress: ex.progress.progress,
+    status: ex.progress.status,
+    settings: { quality: ex.settings.quality, format: ex.settings.format }
+} : null,
+```
+
+#### Download Handling on iPad
+
+The muxer engine produces an MP4 blob and triggers download via `URL.createObjectURL()` + `<a download>` click. On iPad Safari:
+- The file opens in a new tab or triggers the native share sheet
+- For programmatic file saving, consider using the `share()` API or Capacitor Filesystem plugin
+- For CLI testing, the export completing successfully is the primary success metric — the blob existing in memory confirms the pipeline works
+
+#### Test Flow
+```bash
+# 1. Navigate to editor with content
+./scripts/ipad-cli.sh navigate /editor/test-project
+
+# 2. Trigger export
+./scripts/ipad-cli.sh export 720p mp4 test-video
+
+# 3. Poll progress
+./scripts/ipad-cli.sh export-status
+./scripts/ipad-cli.sh export-status
+# Repeat until isExporting: false
+
+# 4. Or use the blocking wait command
+./scripts/ipad-cli.sh export-wait 720p mp4 test-video
+```
+
+---
+
+### Task 7: Export Output to Files App (iPad)
+**Time:** ~15 min
+**Depends on:** Task 6
+
+#### Goal
+After muxer export produces an MP4 blob, save it to the iPad Files app instead of relying on `<a download>` (which may not work reliably on iOS Safari).
+
+#### Implementation
+**File:** `apps/web/src/lib/export/export-output.ts` (already created in this branch)
+
+Use the Web Share API or Capacitor Filesystem plugin:
+```typescript
+async function saveExportedVideo(blob: Blob, filename: string): Promise<void> {
+  // Try Web Share API first (iOS 15+)
+  if (navigator.canShare?.({ files: [new File([blob], filename, { type: "video/mp4" })] })) {
+    await navigator.share({ files: [new File([blob], filename, { type: "video/mp4" })] });
+    return;
+  }
+  // Fallback: Capacitor Filesystem (if available)
+  if (window.Capacitor?.Plugins?.Filesystem) {
+    const base64 = await blobToBase64(blob);
+    await window.Capacitor.Plugins.Filesystem.writeFile({
+      path: filename,
+      data: base64,
+      directory: "DOCUMENTS",
+    });
+    return;
+  }
+  // Last resort: <a download> click
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+```
+
+Wire into `useExportProgress.handleExport()` to replace the current download logic when on iPad.
+
+---
+
+## Architecture (Updated)
+
+```
+xcrun simctl openurl booted "qcut://..."
+        │
+        ▼
+AppDelegate.swift ──► QCutViewController.handleDeepLink(url:)
+        │
+        ▼
+  switch url.host:
+    eval          → webView.evaluateJavaScript(js)
+    panel         → set store-backed panel state, then dispatch qcut:switch-subpanel
+    click         → webView.evaluateJavaScript("querySelector('[data-testid=...]').click()")
+    play          → webView.evaluateJavaScript("window.__playbackStore.getState().toggle()")
+    state         → webView.evaluateJavaScript("JSON.stringify({...})")
+    fps           → webView.evaluateJavaScript("<rAF benchmark>")
+    export        → window.__exportActions.export({quality, format, filename})
+    export-status → window.__exportStore.getState().progress → JSON
+        │
+        ▼
+  NSLog("[QCut CLI] Result: ...")
+        │
+        ▼
+  xcrun simctl spawn booted log show --predicate 'process == "App"'
+
+Export Pipeline (iPad):
+  qcut://export ──► __exportActions.export()
+        │
+        ▼
+  useExportProgress.handleExport()
+        │
+        ▼
+  ExportEngineFactory.createEngine(engineType: "muxer")
+        │
+        ▼
+  ExportEngineMuxer.export(progressCallback)
+        ├── mediabunny: CanvasSource → H.264 WebCodecs
+        ├── mediabunny: AudioBufferSource → AAC
+        └── mediabunny: Mp4OutputFormat → Blob
+        │
+        ▼
+  saveExportedVideo(blob, filename) → Files App / Share Sheet
+```
+
 ## Priority Order
 1. **Task 1** (Swift commands) — Highest impact, enables everything else
 2. **Task 4** (Shell script) — Quality of life, makes CLI usable
 3. **Task 2** (Expose stores) — Required for stable panel/subpanel switching
 4. **Task 3** (Console bridge + subpanel events) — Auto-captures logs and drives inner tabs
 5. **Task 5** (Reference) — Documents supported targets
+6. **Task 6** (CLI Export) — Trigger muxer export + poll progress from CLI
+7. **Task 7** (Export to Files App) — Save MP4 to iPad Files instead of `<a download>`
