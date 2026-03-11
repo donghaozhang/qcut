@@ -157,8 +157,12 @@ export class ExportEngineFactory {
 		);
 
 		// iPad/browser with WebCodecs → mediabunny muxer engine (MP4 via WebCodecs)
-		// Probe the encoder first to avoid selecting it on simulators where APIs exist but don't work
-		if (capabilities.hasWebCodecs && (await this.probeWebCodecsEncoder())) {
+		// Skip on simulator (WebCodecs APIs exist but CanvasSource stalls in WKWebView sim)
+		if (
+			capabilities.hasWebCodecs &&
+			!this.isSimulator() &&
+			(await this.probeWebCodecsEncoder())
+		) {
 			console.log(
 				"🚀 EXPORT ENGINE SELECTION: Muxer (mediabunny) chosen for WebCodecs-capable browser/iPad"
 			);
@@ -652,6 +656,25 @@ export class ExportEngineFactory {
 	}
 
 	/**
+	 * Detect iOS Simulator where WebCodecs APIs exist but CanvasSource stalls.
+	 * Simulator: Capacitor platform "ios" but navigator.platform is "MacIntel"
+	 * and UA contains "Macintosh" (no "iPad" anywhere).
+	 * Real iPad: UA contains "iPad" or navigator.platform is "iPad".
+	 */
+	private isSimulator(): boolean {
+		const cap = (window as any).Capacitor;
+		if (!cap || cap.getPlatform() !== "ios") return false;
+		// Real iPad has "iPad" in platform or UA; simulator shows "MacIntel" + "Macintosh"
+		const isRealIPad =
+			/iPad/.test(navigator.platform) || /iPad/.test(navigator.userAgent);
+		if (!isRealIPad) {
+			console.log("⚠️ isSimulator: detected iOS Simulator (Capacitor ios + MacIntel platform)");
+			return true;
+		}
+		return false;
+	}
+
+	/**
 	 * Probe whether WebCodecs VideoEncoder actually works (not just API presence).
 	 * Simulators expose the API but the encoder stalls. This test configures,
 	 * encodes multiple frames, and checks the encoder drains within 3 seconds.
@@ -660,16 +683,18 @@ export class ExportEngineFactory {
 		try {
 			if (typeof VideoEncoder === "undefined") return false;
 
+			const probeW = 854;
+			const probeH = 480;
 			const support = await VideoEncoder.isConfigSupported({
 				codec: "avc1.42001f",
-				width: 320,
-				height: 240,
-				bitrate: 1_000_000,
+				width: probeW,
+				height: probeH,
+				bitrate: 2_500_000,
 				hardwareAcceleration: "no-preference",
 			});
 			if (!support.supported) return false;
 
-			// Encode 5 frames at a realistic size to verify the encoder actually drains
+			// Encode 10 frames at export resolution to verify the encoder can sustain throughput
 			let outputCount = 0;
 			const encoder = new VideoEncoder({
 				output: () => {
@@ -679,20 +704,20 @@ export class ExportEngineFactory {
 			});
 			encoder.configure({
 				codec: "avc1.42001f",
-				width: 320,
-				height: 240,
-				bitrate: 1_000_000,
+				width: probeW,
+				height: probeH,
+				bitrate: 2_500_000,
 				hardwareAcceleration: "no-preference",
 			});
 
-			const canvas = new OffscreenCanvas(320, 240);
+			const canvas = new OffscreenCanvas(probeW, probeH);
 			const ctx = canvas.getContext("2d");
 			if (ctx) {
 				ctx.fillStyle = "#ff0000";
-				ctx.fillRect(0, 0, 320, 240);
+				ctx.fillRect(0, 0, probeW, probeH);
 			}
 
-			for (let i = 0; i < 5; i++) {
+			for (let i = 0; i < 10; i++) {
 				const frame = new VideoFrame(canvas, {
 					timestamp: i * 33_333,
 				});
@@ -711,7 +736,7 @@ export class ExportEngineFactory {
 			]);
 			encoder.close();
 
-			const ok = outputCount >= 3;
+			const ok = outputCount >= 5;
 			console.log(
 				ok
 					? `✅ WebCodecs probe: encoder functional (${outputCount} outputs)`
