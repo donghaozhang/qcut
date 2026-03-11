@@ -299,6 +299,7 @@ const ENGINE_LABELS: Record<string, string> = {
 	standard: "Standard",
 	ffmpeg: "FFmpeg WASM",
 	cli: "Native CLI",
+	muxer: "WebCodecs (H.264)",
 };
 
 export function EngineCard({

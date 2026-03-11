@@ -15,6 +15,9 @@
 #   navigate <path>         Navigate to hash route
 #   console                 Show captured console logs
 #   screenshot              Read debug overlay
+#   export [quality] [format] [filename]  Trigger video export (default: 720p mp4 export)
+#   export-status           Poll export progress
+#   export-wait [quality] [format] [filename]  Export and poll until complete
 #   logs [seconds]          Show recent simulator logs (default: 30s)
 #
 # Examples:
@@ -56,6 +59,41 @@ case "$CMD" in
     ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$1")
     xcrun simctl openurl booted "qcut://eval?js=$ENCODED"
     ;;
+  export)
+    QUALITY=${1:-720p}
+    FORMAT=${2:-mp4}
+    FILENAME=${3:-export}
+    xcrun simctl openurl booted "qcut://export?quality=$QUALITY&format=$FORMAT&filename=$FILENAME"
+    ;;
+  export-status)
+    xcrun simctl openurl booted "qcut://export-status"
+    ;;
+  export-wait)
+    QUALITY=${1:-720p}
+    FORMAT=${2:-mp4}
+    FILENAME=${3:-export}
+    xcrun simctl openurl booted "qcut://export?quality=$QUALITY&format=$FORMAT&filename=$FILENAME"
+    echo "Export started, polling progress..."
+    MAX_POLLS=100
+    POLL_COUNT=0
+    while true; do
+      POLL_COUNT=$((POLL_COUNT + 1))
+      if [ "$POLL_COUNT" -gt "$MAX_POLLS" ]; then
+        echo "ERROR: Export timed out after $MAX_POLLS polls (~5 minutes)"
+        exit 1
+      fi
+      sleep 2
+      xcrun simctl openurl booted "qcut://export-status"
+      sleep 1
+      STATUS=$(xcrun simctl spawn booted log show --predicate 'process == "App"' --last 3s --style compact 2>&1 | grep "QCut CLI" | tail -1)
+      echo "$STATUS"
+      if echo "$STATUS" | grep -q '"isExporting":false'; then
+        echo "Export complete!"
+        break
+      fi
+    done
+    exit 0
+    ;;
   logs)
     xcrun simctl spawn booted log show --predicate 'process == "App"' --last "${1:-30}s" --style compact 2>&1 | grep "QCut CLI"
     exit 0
@@ -78,6 +116,9 @@ case "$CMD" in
     echo "  navigate <path>         Navigate to route"
     echo "  console                 Show console logs"
     echo "  screenshot              Read debug overlay"
+    echo "  export [q] [fmt] [name] Export video (default: 720p mp4 export)"
+    echo "  export-status           Poll export progress"
+    echo "  export-wait [q] [f] [n] Export and wait for completion"
     echo "  logs [seconds]          Show simulator logs"
     exit 0
     ;;

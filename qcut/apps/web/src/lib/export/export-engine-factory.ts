@@ -4,13 +4,14 @@ import { TimelineTrack } from "@/types/timeline";
 import { MediaItem } from "@/stores/media/media-store";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 import { useEffectsStore } from "@/stores/ai/effects-store";
-import { platform, PlatformCapability } from "@qcut/platform-core";
+import { platform } from "@qcut/platform-core";
 
 // Engine types available
 export const ExportEngineType = {
 	STANDARD: "standard",
 	OPTIMIZED: "optimized",
 	WEBCODECS: "webcodecs",
+	MUXER: "muxer",
 	FFMPEG: "ffmpeg",
 	CLI: "cli",
 	REMOTION: "remotion",
@@ -43,7 +44,7 @@ export class ExportEngineFactory {
 	private static instance: ExportEngineFactory;
 	private capabilities: BrowserCapabilities | null = null;
 
-	// Singleton pattern for factory
+	/** Get the singleton factory instance. */
 	static getInstance(): ExportEngineFactory {
 		if (!ExportEngineFactory.instance) {
 			ExportEngineFactory.instance = new ExportEngineFactory();
@@ -55,7 +56,7 @@ export class ExportEngineFactory {
 		// Private constructor for singleton
 	}
 
-	// Detect browser capabilities
+	/** Detect browser capabilities (cached after first call). */
 	async detectCapabilities(): Promise<BrowserCapabilities> {
 		if (this.capabilities) {
 			return this.capabilities;
@@ -76,7 +77,7 @@ export class ExportEngineFactory {
 		return capabilities;
 	}
 
-	// Get engine recommendation based on capabilities and requirements
+	/** Get engine recommendation based on capabilities and requirements. */
 	async getEngineRecommendation(
 		settings: ExportSettings,
 		duration: number,
@@ -155,19 +156,20 @@ export class ExportEngineFactory {
 			duration
 		);
 
-		// High-end system with modern APIs (browser only)
+		// iPad/browser with WebCodecs → mediabunny muxer engine (MP4 via WebCodecs)
+		// Skip on simulator (WebCodecs APIs exist but CanvasSource stalls in WKWebView sim)
 		if (
 			capabilities.hasWebCodecs &&
-			capabilities.deviceMemoryGB >= 16 &&
-			capabilities.performanceScore >= 80 &&
-			estimatedMemoryGB < capabilities.deviceMemoryGB * 0.4
+			!this.isSimulator() &&
+			(await this.probeWebCodecsEncoder())
 		) {
 			console.log(
-				"🚀 EXPORT ENGINE SELECTION: WebCodecs chosen for high-end browser"
+				"🚀 EXPORT ENGINE SELECTION: Muxer (mediabunny) chosen for WebCodecs-capable browser/iPad"
 			);
 			return {
-				engineType: ExportEngineType.WEBCODECS,
-				reason: "High-performance browser system with WebCodecs support",
+				engineType: ExportEngineType.MUXER,
+				reason:
+					"WebCodecs (Hardware H.264) — using browser-native video encoding via mediabunny",
 				capabilities,
 				estimatedPerformance: "high",
 			};
@@ -209,7 +211,7 @@ export class ExportEngineFactory {
 		};
 	}
 
-	// Create engine instance based on recommendation or type
+	/** Create an export engine instance based on recommendation or explicit type. */
 	async createEngine(
 		canvas: HTMLCanvasElement,
 		settings: ExportSettingsWithAudio,
@@ -368,16 +370,40 @@ export class ExportEngineFactory {
 					);
 				}
 
-			case ExportEngineType.WEBCODECS:
-				// Future: WebCodecs engine
-				debugLog(
-					"WebCodecs engine not yet implemented, using optimized engine"
-				);
+			case ExportEngineType.MUXER:
+				// Mediabunny muxer engine (iPad / WebCodecs browsers)
 				try {
-					const { OptimizedExportEngine } = await import(
-						"./export-engine-optimized"
+					console.log(
+						"🚀 EXPORT ENGINE CREATION: Creating Muxer (mediabunny) engine"
 					);
-					return new OptimizedExportEngine(
+					const { ExportEngineMuxer } = await import("./export-engine-muxer");
+					return new ExportEngineMuxer(
+						canvas,
+						settings,
+						tracks,
+						mediaItems,
+						totalDuration
+					);
+				} catch (error) {
+					debugWarn(
+						"Failed to load muxer engine, falling back to standard:",
+						error
+					);
+					return new ExportEngine(
+						canvas,
+						settings,
+						tracks,
+						mediaItems,
+						totalDuration
+					);
+				}
+
+			case ExportEngineType.WEBCODECS:
+				// Legacy WebCodecs engine — now falls through to muxer or optimized
+				debugLog("WebCodecs engine redirecting to muxer engine");
+				try {
+					const { ExportEngineMuxer } = await import("./export-engine-muxer");
+					return new ExportEngineMuxer(
 						canvas,
 						settings,
 						tracks,
@@ -457,7 +483,7 @@ export class ExportEngineFactory {
 		}
 	}
 
-	// Browser capability detection methods
+	/** Check if WebCodecs APIs (VideoEncoder, VideoDecoder, VideoFrame) are available. */
 	private detectWebCodecs(): boolean {
 		return (
 			typeof VideoEncoder !== "undefined" &&
@@ -466,18 +492,22 @@ export class ExportEngineFactory {
 		);
 	}
 
+	/** Check if OffscreenCanvas is available. */
 	private detectOffscreenCanvas(): boolean {
 		return typeof OffscreenCanvas !== "undefined";
 	}
 
+	/** Check if Worker and SharedWorker are available. */
 	private detectWorkers(): boolean {
 		return typeof Worker !== "undefined" && typeof SharedWorker !== "undefined";
 	}
 
+	/** Check if SharedArrayBuffer is available. */
 	private detectSharedArrayBuffer(): boolean {
 		return typeof SharedArrayBuffer !== "undefined";
 	}
 
+	/** Detect device memory in GB (uses navigator.deviceMemory or estimates). */
 	private detectDeviceMemory(): number {
 		// Use navigator.deviceMemory if available (Chrome/Edge)
 		if ("deviceMemory" in navigator) {
@@ -499,6 +529,7 @@ export class ExportEngineFactory {
 		return 4; // Low-end device
 	}
 
+	/** Detect maximum WebGL texture size. */
 	private async detectMaxTextureSize(): Promise<number> {
 		try {
 			const canvas = document.createElement("canvas");
@@ -515,6 +546,7 @@ export class ExportEngineFactory {
 		return 4096; // Safe default
 	}
 
+	/** Detect supported MediaRecorder codecs. */
 	private detectSupportedCodecs(): string[] {
 		const codecs = [
 			"video/webm;codecs=vp9",
@@ -527,6 +559,7 @@ export class ExportEngineFactory {
 		return codecs.filter((codec) => MediaRecorder.isTypeSupported(codec));
 	}
 
+	/** Calculate a 0-100 performance score based on hardware and API support. */
 	private async calculatePerformanceScore(): Promise<number> {
 		let score = 0;
 
@@ -551,6 +584,7 @@ export class ExportEngineFactory {
 		return Math.min(score, 100);
 	}
 
+	/** Benchmark canvas 2D drawing performance (returns 5-25 score). */
 	private async testCanvasPerformance(): Promise<number> {
 		return new Promise((resolve) => {
 			const canvas = document.createElement("canvas");
@@ -586,6 +620,7 @@ export class ExportEngineFactory {
 		});
 	}
 
+	/** Estimate memory requirements in GB for the given export settings and duration. */
 	private estimateMemoryRequirements(
 		settings: ExportSettings,
 		duration: number
@@ -601,25 +636,127 @@ export class ExportEngineFactory {
 		return estimatedBytes / (1024 * 1024 * 1024); // Convert to GB
 	}
 
-	// Get current capabilities (cached)
+	/** Get current capabilities (returns cached value or null if not yet detected). */
 	getCurrentCapabilities(): BrowserCapabilities | null {
 		return this.capabilities;
 	}
 
-	// Force refresh capabilities
+	/** Force refresh capabilities (clears cache and re-detects). */
 	async refreshCapabilities(): Promise<BrowserCapabilities> {
 		this.capabilities = null;
 		return this.detectCapabilities();
 	}
 
-	// FFmpeg WASM export has been removed - this method is deprecated
+	/** Check if FFmpeg WASM is available (always false — removed). */
 	static async isFFmpegAvailable(): Promise<boolean> {
 		// Always return false as FFmpeg WASM export is disabled
 		return false;
 	}
 
-	// Check if running in Electron environment with FFmpeg CLI support
+	/** Check if running in Electron environment with native FFmpeg CLI. */
 	private isElectron(): boolean {
-		return platform().hasCapability(PlatformCapability.FFmpeg);
+		return platform().isElectron;
+	}
+
+	/**
+	 * Detect iOS Simulator where WebCodecs APIs exist but CanvasSource stalls.
+	 * Simulator: Capacitor platform "ios" but navigator.platform is "MacIntel"
+	 * and UA contains "Macintosh" (no "iPad" anywhere).
+	 * Real iPad: UA contains "iPad" or navigator.platform is "iPad".
+	 */
+	private isSimulator(): boolean {
+		const cap = (window as any).Capacitor;
+		if (!cap || cap.getPlatform() !== "ios") return false;
+		// Real iPad: "iPad" in platform/UA, or iPadOS 13+ which reports "MacIntel" with touch
+		const isRealIPad =
+			/iPad/.test(navigator.platform) ||
+			/iPad/.test(navigator.userAgent) ||
+			(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+		if (!isRealIPad) {
+			console.log(
+				"⚠️ isSimulator: detected iOS Simulator (Capacitor ios + MacIntel platform)"
+			);
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Probe whether WebCodecs VideoEncoder actually works (not just API presence).
+	 * Simulators expose the API but the encoder stalls. This test configures,
+	 * encodes multiple frames, and checks the encoder drains within 3 seconds.
+	 */
+	private async probeWebCodecsEncoder(): Promise<boolean> {
+		try {
+			if (typeof VideoEncoder === "undefined") return false;
+
+			const probeW = 854;
+			const probeH = 480;
+			const support = await VideoEncoder.isConfigSupported({
+				codec: "avc1.42001f",
+				width: probeW,
+				height: probeH,
+				bitrate: 2_500_000,
+				hardwareAcceleration: "no-preference",
+			});
+			if (!support.supported) return false;
+
+			// Encode 10 frames at export resolution to verify the encoder can sustain throughput
+			let outputCount = 0;
+			const encoder = new VideoEncoder({
+				output: () => {
+					outputCount++;
+				},
+				error: () => {},
+			});
+			encoder.configure({
+				codec: "avc1.42001f",
+				width: probeW,
+				height: probeH,
+				bitrate: 2_500_000,
+				hardwareAcceleration: "no-preference",
+			});
+
+			const canvas = new OffscreenCanvas(probeW, probeH);
+			const ctx = canvas.getContext("2d");
+			if (ctx) {
+				ctx.fillStyle = "#ff0000";
+				ctx.fillRect(0, 0, probeW, probeH);
+			}
+
+			for (let i = 0; i < 10; i++) {
+				const frame = new VideoFrame(canvas, {
+					timestamp: i * 33_333,
+				});
+				encoder.encode(frame, { keyFrame: i === 0 });
+				frame.close();
+			}
+
+			try {
+				await Promise.race([
+					encoder.flush(),
+					new Promise((_, reject) =>
+						setTimeout(() => reject(new Error("probe timeout")), 3_000)
+					),
+				]);
+			} finally {
+				try {
+					encoder.close();
+				} catch {
+					// Encoder may already be closed or errored
+				}
+			}
+
+			const ok = outputCount >= 5;
+			console.log(
+				ok
+					? `✅ WebCodecs probe: encoder functional (${outputCount} outputs)`
+					: `⚠️ WebCodecs probe: encoder produced ${outputCount} outputs, insufficient`
+			);
+			return ok;
+		} catch {
+			console.log("⚠️ WebCodecs probe: encoder not functional, falling back");
+			return false;
+		}
 	}
 }

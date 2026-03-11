@@ -1,7 +1,7 @@
 # QCut Build Commands Guide
 
-**Last Updated:** 2026-02-28
-**Current Version:** 2026.02.28.2 (date-based versioning)
+**Last Updated:** 2026-03-11
+**Current Version:** 2026.03.11.1 (date-based versioning)
 
 ## Prerequisites
 ```bash
@@ -164,6 +164,25 @@ bun run release:promote   # Promote prerelease to stable
 | `qagent:build` | Build QAgent packages |
 | `qagent:init` | Install and build QAgent |
 | `qagent:setup` | Setup QAgent (alias for qagent:init) |
+| `dev:web` | Start web app dev server only |
+| `build:web` | Build web app only |
+| `electron:prod` | Run Electron in production mode (alias) |
+| `postinstall` | Post-install hook |
+| `predev` | Pre-dev hook |
+| `prebuild` | Pre-build hook |
+| `package:win` | Package Windows build |
+| `test:submodule:nexusai` | Test NexusAI submodule |
+| `test:website:payments` | Test website payments |
+| `test:payments` | Test payments |
+| `test:e2e:bg` | Run E2E tests in background (headless) |
+| `test:e2e:visual` | Run visual regression E2E tests |
+| `test:e2e:visual:update` | Update visual regression snapshots |
+| `check-boundaries` | Check Electron boundary violations |
+
+### Standalone Scripts
+| Script | Description |
+|--------|-------------|
+| `./scripts/ipad-cli.sh` | iPad Simulator CLI (play, pause, export, state, eval) |
 
 ### Web App (`apps/web/package.json`)
 | Script | Description |
@@ -223,7 +242,7 @@ NODE_ENV=development                       # Development mode
 ```
 
 ## Tech Stack Versions
-- **Bun**: 1.2.18
+- **Bun**: 1.3.10
 - **Electron**: ^40.6.0
 - **Turbo**: ^2.8.10
 - **Vite**: ^7.3.1

@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useState } from "react";
 import { useExportStore } from "@/stores/export-store";
 import { PanelView } from "@/types/panel";
@@ -16,6 +16,7 @@ import {
 } from "@/lib/captions/caption-export";
 
 // Custom hook imports
+import type { ExportFormat, ExportQuality } from "@/types/export";
 import { useExportSettings } from "@/hooks/export/use-export-settings";
 import { useExportProgress } from "@/hooks/export/use-export-progress";
 import { debugLog, debugWarn } from "@/lib/debug/debug-config";
@@ -83,6 +84,58 @@ export function ExportDialog() {
 		exportSettings.handleFilenameChange,
 		exportSettings.updateSettings
 	);
+
+	// Expose export actions for iPad CLI automation (qcut://export)
+	useEffect(() => {
+		const exportActions = {
+			export: async (settings: {
+				quality: string;
+				format: string;
+				filename: string;
+			}) => {
+				const canvas = canvasRef.current?.getCanvas();
+				if (!canvas) throw new Error("No canvas available for export");
+				canvasRef.current?.updateDimensions();
+
+				const audioCodec = getCodecForFormat(settings.format as ExportFormat);
+				setAudioExportConfig({
+					enabled: hasAudio,
+					codec: audioCodec,
+					bitrate: 128,
+				});
+
+				const qualityResolutions: Record<
+					string,
+					{ width: number; height: number }
+				> = {
+					"1080p": { width: 1920, height: 1080 },
+					"720p": { width: 1280, height: 720 },
+					"480p": { width: 854, height: 480 },
+				};
+				const resolution =
+					qualityResolutions[settings.quality] || qualityResolutions["720p"];
+
+				return exportProgress.handleExport(
+					canvas,
+					exportSettings.timelineDuration,
+					{
+						quality: settings.quality as ExportQuality,
+						format: settings.format as ExportFormat,
+						filename: settings.filename,
+						engineType: "auto",
+						resolution,
+						includeAudio: hasAudio,
+						audioCodec,
+						audioBitrate: 128,
+					}
+				);
+			},
+		};
+		(window as any).__exportActions = exportActions;
+		return () => {
+			delete (window as any).__exportActions;
+		};
+	}, [exportProgress.handleExport, exportSettings.timelineDuration, hasAudio]);
 
 	const handleClose = () => {
 		if (!exportProgress.progress.isExporting) {

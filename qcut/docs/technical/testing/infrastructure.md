@@ -1,8 +1,8 @@
 # QCut Testing Infrastructure Guide
 
 **Document Version**: 5.0
-**Last Updated**: 2026-02-28
-**Status**: 170 unit/integration test files | 22 E2E test files
+**Last Updated**: 2056-03-11
+**Status**: 205 unit/integration test files | 23 E2E test files
 **Test Suite Health**: Tests passing consistently
 
 ## Current Implementation Status
@@ -19,7 +19,7 @@ The testing infrastructure is fully operational with:
 - **Memory Management**: Blob manager cleanup and performance monitoring
 - **Browser API Support**: MutationObserver, ResizeObserver, IntersectionObserver mocks
 
-### Test File Inventory (170 test files)
+### Test File Inventory (205 test files)
 
 #### UI Component Tests (9 files)
 Located in `src/components/ui/`:
@@ -269,7 +269,7 @@ qcut/apps/web/src/
 - **Storage**: Multi-tier (Electron IPC -> IndexedDB -> localStorage)
 - **UI Components**: Radix UI + Tailwind CSS
 
-## E2E Tests (22 files)
+## E2E Tests (23 files)
 
 Located in `src/test/e2e/`:
 - ai-enhancement-export-integration.e2e.ts
@@ -294,8 +294,9 @@ Located in `src/test/e2e/`:
 - terminal-paste.e2e.ts
 - text-overlay-testing.e2e.ts
 - timeline-duration-limit.e2e.ts
+- visual-regression.e2e.ts
 
-See `docs/technical/e2e-testing-guide.md` for complete E2E implementation details, test patterns, and execution instructions.
+See `docs/technical/testing/e2e.md` for complete E2E implementation details, test patterns, and execution instructions.
 
 ## Priority Testing Areas
 
@@ -459,8 +460,8 @@ await user.click(screen.getByRole('button'));
 
 ### Current Maintenance Priorities
 1. **E2E Test Maintenance** (High Priority)
-   - 22 E2E test files
-   - See `docs/technical/e2e-testing-guide.md` for implementation details
+   - 23 E2E test files
+   - See `docs/technical/testing/e2e.md` for implementation details
 
 2. **Coverage Expansion** (Medium Priority)
    - Editor component testing (timeline, preview controls)

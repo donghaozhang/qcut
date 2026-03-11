@@ -486,11 +486,11 @@ Potential improvements being considered:
 
 ## Related Documentation
 
-- [Gemini Transcribe Handler](../../electron/gemini-transcribe-handler.ts)
-- [Captions UI Component](../../apps/web/src/components/editor/media-panel/views/captions.tsx)
-- [Captions Store](../../apps/web/src/stores/captions-store.ts)
-- [Caption Types](../../apps/web/src/types/captions.ts)
-- [Electron API Types](../../apps/web/src/types/electron.d.ts)
+- [Gemini Transcribe Handler](../../../../../electron/gemini-transcribe-handler.ts)
+- [Captions UI Component](../../../../../apps/web/src/components/editor/media-panel/views/captions.tsx)
+- [Captions Store](../../../../../apps/web/src/stores/captions-store.ts)
+- [Caption Types](../../../../../apps/web/src/types/captions.ts)
+- [Electron API Types](../../../../../apps/web/src/types/electron.d.ts)
 
 ---
 
