@@ -61,7 +61,7 @@ jobs:
       FFMPEG_STAGE_TARGETS: win32-x64
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
@@ -69,7 +69,7 @@ jobs:
           bun-version: 1.3.10
 
       - name: Cache Bun modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-1.3.10-${{ hashFiles('qcut/bun.lock', 'qcut/apps/web/bun.lock') }}
@@ -98,7 +98,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-build
           path: |
@@ -115,7 +115,7 @@ jobs:
       FFMPEG_STAGE_TARGETS: darwin-arm64,darwin-x64
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Clean previous build artifacts
         if: ${{ vars.USE_SELF_HOSTED_MAC == 'true' }}
@@ -137,7 +137,7 @@ jobs:
 
       - name: Cache Bun modules
         if: ${{ vars.USE_SELF_HOSTED_MAC != 'true' }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-1.3.10-${{ hashFiles('qcut/bun.lock', 'qcut/apps/web/bun.lock') }}
@@ -161,7 +161,7 @@ jobs:
 
       - name: Cache Electron binary
         if: ${{ vars.USE_SELF_HOSTED_MAC != 'true' }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/Library/Caches/electron
           key: electron-${{ runner.os }}-${{ hashFiles('qcut/node_modules/electron/package.json') }}
@@ -178,7 +178,7 @@ jobs:
           USE_HARD_LINKS: false
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-build
           path: |
@@ -196,10 +196,10 @@ jobs:
       FFMPEG_STAGE_TARGETS: linux-x64
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -212,7 +212,7 @@ jobs:
           bun-version: 1.3.10
 
       - name: Cache Bun modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-1.3.10-${{ hashFiles('qcut/bun.lock', 'qcut/apps/web/bun.lock') }}
@@ -262,7 +262,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-build
           path: |
@@ -278,7 +278,7 @@ jobs:
     runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 

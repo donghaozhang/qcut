@@ -54,7 +54,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
@@ -101,7 +101,7 @@ jobs:
           PY
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aicp-${{ matrix.target }}
           path: build/aicp/artifacts/${{ matrix.target }}
@@ -113,7 +113,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/aicp-v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.upload_release_assets == 'true')
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
 
