@@ -259,6 +259,9 @@ const EDITOR_COMMANDS = [
 	"editor:transcribe:status",
 	"editor:transcribe:list-jobs",
 	"editor:transcribe:cancel",
+	"editor:search:query",
+	"editor:search:status",
+	"editor:search:index",
 	"editor:generate:start",
 	"editor:generate:status",
 	"editor:generate:list-jobs",
@@ -568,6 +571,8 @@ function getRequiredCapability({ command }: { command: string }): string {
 		}
 		if (command.startsWith("editor:transcribe:"))
 			return "analysis.transcription";
+		if (command.startsWith("editor:search:"))
+			return "analysis.search";
 		if (command.startsWith("editor:generate:")) {
 			return command === "editor:generate:models"
 				? "analysis.models"

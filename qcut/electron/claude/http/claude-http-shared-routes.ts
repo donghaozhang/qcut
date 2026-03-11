@@ -86,6 +86,7 @@ import {
 } from "../claude-operation-log.js";
 import { generatePersonaPlex } from "../handlers/claude-personaplex-handler.js";
 import { registerAnalysisRoutes } from "./claude-http-analysis-routes.js";
+import { registerSearchRoutes } from "./claude-http-search-routes.js";
 import { registerGenerateRoutes } from "./claude-http-generate-routes.js";
 import {
 	getRequestCorrelationId,
@@ -1016,6 +1017,11 @@ export function registerSharedRoutes(
 	// Analysis routes
 	// ==========================================================================
 	registerAnalysisRoutes(router, accessor);
+
+	// ==========================================================================
+	// Search routes
+	// ==========================================================================
+	registerSearchRoutes(router);
 
 	// ==========================================================================
 	// PersonaPlex

@@ -94,5 +94,20 @@ export {
 // Storage interface
 export type { EditorStorageProvider } from "./storage/index.js";
 
+// Transcription persistence types
+export type {
+	PersistedTranscriptionWord,
+	PersistedTranscriptionSegment,
+	PersistedTranscription,
+	TranscriptionAvailability,
+} from "./types/index.js";
+
+// Search
+export {
+	searchTranscriptions,
+	type SearchResult,
+	type SearchOptions,
+} from "./search/index.js";
+
 // Utils
 export { generateUUID } from "./utils.js";
