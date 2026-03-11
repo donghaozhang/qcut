@@ -103,6 +103,7 @@ Editor Commands (requires running QCut — use --project-id for most):
                                     auto-edit-status, auto-edit-list, suggest-cuts, suggest-status
   editor:analyze:*                  video, models, scenes, frames, fillers
   editor:transcribe:*               run, start, status, list-jobs, cancel
+  editor:search:*                  query, status, index
   editor:generate:*                 start, status, list-jobs, cancel, models, estimate-cost
   editor:export:*                   presets, recommend, start, status, list-jobs
   editor:diagnostics:analyze        Analyze error (--message)

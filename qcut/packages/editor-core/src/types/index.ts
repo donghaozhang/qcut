@@ -54,3 +54,10 @@ export type {
 	CaptionFormat,
 	CaptionExportOptions,
 } from "./captions.js";
+
+export type {
+	TranscriptionWord as PersistedTranscriptionWord,
+	TranscriptionSegment as PersistedTranscriptionSegment,
+	PersistedTranscription,
+	TranscriptionAvailability,
+} from "./transcription.js";

@@ -259,6 +259,9 @@ const EDITOR_COMMANDS = [
 	"editor:transcribe:status",
 	"editor:transcribe:list-jobs",
 	"editor:transcribe:cancel",
+	"editor:search:query",
+	"editor:search:status",
+	"editor:search:index",
 	"editor:generate:start",
 	"editor:generate:status",
 	"editor:generate:list-jobs",
@@ -312,6 +315,7 @@ const MODULE_LABELS: Record<string, string> = {
 	ui: "UI",
 	moyin: "Moyin",
 	screenshot: "Screenshot",
+	search: "Search",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -469,6 +473,7 @@ function getCommandCategory({
 		if (
 			module === "analyze" ||
 			module === "transcribe" ||
+			module === "search" ||
 			module === "generate" ||
 			module === "diagnostics"
 		) {
@@ -568,6 +573,7 @@ function getRequiredCapability({ command }: { command: string }): string {
 		}
 		if (command.startsWith("editor:transcribe:"))
 			return "analysis.transcription";
+		if (command.startsWith("editor:search:")) return "analysis.search";
 		if (command.startsWith("editor:generate:")) {
 			return command === "editor:generate:models"
 				? "analysis.models"
@@ -788,6 +794,15 @@ function getCommandParamsSchema({
 				/* project only */
 			}
 			if (action === "start") add("poll", "pollInterval");
+		}
+
+		if (module === "search") {
+			if (action === "query") {
+				add("mediaId");
+				// query is passed as a string param
+				optional.push("data");
+			}
+			if (action === "index") add("mediaId");
 		}
 
 		if (module === "generate") {

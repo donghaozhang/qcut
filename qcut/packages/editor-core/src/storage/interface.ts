@@ -9,6 +9,7 @@
  */
 
 import type { TimelineTrack } from "../types/timeline.js";
+import type { PersistedTranscription } from "../types/transcription.js";
 
 /**
  * Minimal storage interface for editor core operations.
@@ -36,4 +37,23 @@ export interface EditorStorageProvider {
 		projectId: string,
 		tracks: TimelineTrack[] | null
 	): Promise<string | null>;
+
+	// ── Transcription persistence (optional — not all adapters implement) ──
+
+	/** Save a transcription for a media item. Overwrites if already exists. */
+	saveTranscription?(params: {
+		projectId: string;
+		transcription: PersistedTranscription;
+	}): Promise<void>;
+
+	/** Load a transcription for a specific media item. Returns null if not found. */
+	loadTranscription?(params: {
+		projectId: string;
+		mediaId: string;
+	}): Promise<PersistedTranscription | null>;
+
+	/** List all persisted transcriptions for a project. */
+	listTranscriptions?(params: {
+		projectId: string;
+	}): Promise<PersistedTranscription[]>;
 }

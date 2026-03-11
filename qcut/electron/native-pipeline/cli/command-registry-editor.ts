@@ -751,6 +751,39 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		["qcut-pipeline editor:sticker:list --project-id <id> --json"]
 	),
 
+	// ── Search ──
+	"editor:search:query": ed(
+		"editor:search:query",
+		"Search transcriptions by text",
+		[
+			PID,
+			f("--query", "string", "Search query string", { required: true }),
+			f("--case-sensitive", "boolean", "Case-sensitive matching", {
+				default: false,
+			}),
+			f("--whole-word", "boolean", "Match whole words only", {
+				default: false,
+			}),
+			f("--max-results", "number", "Maximum number of results"),
+			f("--media-id", "string", "Scope search to a single media item"),
+		],
+		[
+			'qcut-pipeline editor:search:query --project-id <id> --query "hello world" --json',
+		]
+	),
+	"editor:search:status": ed(
+		"editor:search:status",
+		"List transcription status for all media in a project",
+		[PID],
+		["qcut-pipeline editor:search:status --project-id <id> --json"]
+	),
+	"editor:search:index": ed(
+		"editor:search:index",
+		"Trigger transcription for untranscribed media",
+		[PID, f("--media-id", "string", "Scope to a single media item")],
+		["qcut-pipeline editor:search:index --project-id <id> --json"]
+	),
+
 	// ── State Control ──
 	"editor:undo": ed("editor:undo", "Undo last action", []),
 	"editor:redo": ed("editor:redo", "Redo last undone action", []),

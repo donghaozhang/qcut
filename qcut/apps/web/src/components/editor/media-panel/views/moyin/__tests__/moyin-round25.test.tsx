@@ -37,6 +37,7 @@ vi.mock("lucide-react", () => {
 		VolumeXIcon: icon("volume-x"),
 		Wand2Icon: icon("wand-2"),
 		WandIcon: icon("wand"),
+		SearchIcon: icon("search"),
 		WrenchIcon: icon("wrench"),
 	};
 });
