@@ -734,10 +734,10 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		set: values.set as string | undefined,
 		session: (values.session as boolean) ?? false,
 		// sticker options
-		x: values.x ? Number(values.x) : undefined,
-		y: values.y ? Number(values.y) : undefined,
-		opacity: values.opacity ? Number(values.opacity) : undefined,
-		rotation: values.rotation ? Number(values.rotation) : undefined,
+		x: values.x !== undefined ? Number(values.x) : undefined,
+		y: values.y !== undefined ? Number(values.y) : undefined,
+		opacity: values.opacity !== undefined ? Number(values.opacity) : undefined,
+		rotation: values.rotation !== undefined ? Number(values.rotation) : undefined,
 		stickerId: values["sticker-id"] as string | undefined,
 	};
 }

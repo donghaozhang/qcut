@@ -426,6 +426,8 @@ export async function addClaudeStickerElement({
 		y: element.y ?? 0,
 		width: element.width,
 		height: element.height,
+		rotation: element.rotation ?? 0,
+		opacity: element.opacity ?? 1,
 	});
 
 	// Also add to sticker overlay store for canvas rendering + export
@@ -438,7 +440,6 @@ export async function addClaudeStickerElement({
 		// Default canvas dimensions — matches standard export presets
 		const canvasWidth = 1920;
 		const canvasHeight = 1080;
-		const baseSize = Math.min(canvasWidth, canvasHeight);
 
 		// Convert pixel → percentage for overlay store
 		// Position: percentage of canvas dimensions (center-based in overlay)
@@ -452,15 +453,16 @@ export async function addClaudeStickerElement({
 		const centerY = pxY + pxH / 2;
 		const pctX = (centerX / canvasWidth) * 100;
 		const pctY = (centerY / canvasHeight) * 100;
-		const pctW = (pxW / baseSize) * 100;
-		const pctH = (pxH / baseSize) * 100;
+		// Size: percentage of respective canvas dimension (width % of canvasWidth, height % of canvasHeight)
+		const pctW = (pxW / canvasWidth) * 100;
+		const pctH = (pxH / canvasHeight) * 100;
 
 		debugLog(
 			`[ClaudeTimelineBridge] Sticker coords: px(${pxX},${pxY} ${pxW}x${pxH}) → pct(${pctX.toFixed(1)},${pctY.toFixed(1)} ${pctW.toFixed(1)}x${pctH.toFixed(1)})`
 		);
 
-		console.log(
-			`🎨 [STICKER BRIDGE] Adding to overlay store: mediaId=${mediaId}, pos=(${pctX.toFixed(1)}%,${pctY.toFixed(1)}%), size=(${pctW.toFixed(1)}%x${pctH.toFixed(1)}%)`,
+		debugLog(
+			`[ClaudeTimelineBridge] Adding sticker to overlay store: mediaId=${mediaId}, pos=(${pctX.toFixed(1)}%,${pctY.toFixed(1)}%), size=(${pctW.toFixed(1)}%x${pctH.toFixed(1)}%)`,
 		);
 		useStickersOverlayStore.getState().addOverlaySticker(mediaId, {
 			position: { x: pctX, y: pctY },
@@ -472,8 +474,8 @@ export async function addClaudeStickerElement({
 		const afterCount = useStickersOverlayStore
 			.getState()
 			.getStickersForExport().length;
-		console.log(
-			`🎨 [STICKER BRIDGE] Overlay store now has ${afterCount} sticker(s)`,
+		debugLog(
+			`[ClaudeTimelineBridge] Overlay store now has ${afterCount} sticker(s)`,
 		);
 	} catch (err) {
 		debugWarn("[ClaudeTimelineBridge] Failed to add sticker overlay:", err);
@@ -953,6 +955,12 @@ export async function applyTimelineToStore(
 					added++;
 				} else if (element.type === "remotion") {
 					await addClaudeRemotionElement({
+						element,
+						timelineStore: useTimelineStore.getState(),
+					});
+					added++;
+				} else if (element.type === "sticker") {
+					await addClaudeStickerElement({
 						element,
 						timelineStore: useTimelineStore.getState(),
 					});

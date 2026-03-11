@@ -51,7 +51,7 @@ Ensure QCut reliably handles:
 | WAV | `.wav` | pcm_s16le | ✅ | ✅ | ✅ PASS |
 | AAC | `.aac` | aac | ✅ | ✅ | ✅ PASS |
 | FLAC | `.flac` | flac | ✅ | ✅ | ✅ PASS |
-| OGG (Vorbis) | `.ogg` | libvorbis | ⬜ SKIP | — | ⬜ ffmpeg encoder not available on test machine |
+| OGG (Vorbis) | `.ogg` | libvorbis | ⬜ SKIP | — | ⬜ Test asset generation limitation: ffmpeg encoder not available on test machine |
 
 ### 3. Image Formats
 
@@ -73,7 +73,7 @@ Ensure QCut reliably handles:
 | `twitter` | — | ⬜ | NOT TESTED (preset name is `twitter`, not `twitter-720p`) |
 | `tiktok` | — | ⬜ | NOT TESTED |
 | `instagram-reel` | — | ⬜ | NOT TESTED |
-| `default` (no preset) | source | ✅ | ✅ PASS |
+| `default` (no preset) | youtube-1080p | ✅ | ✅ PASS (defaults to youtube-1080p) |
 
 **Available presets:** `youtube-4k`, `youtube-1080p`, `youtube-720p`, `tiktok`, `instagram-reel`, `instagram-post`, `instagram-landscape`, `twitter`, `linkedin`, `discord`
 
@@ -113,11 +113,11 @@ Ensure QCut reliably handles:
 
 ## Issues Found
 
-### 1. ⚠️ Project Context Not Switching Without `navigator:open`
+### 1. ⚠️ Project Context Not Switching Without `editor:navigator:open`
 - **Symptom:** Export returns wrong duration/content from previously opened project
 - **Cause:** `editor:project:create` + `editor:timeline:add-element` don't switch the editor UI context
 - **Fix:** Always call `editor:navigator:open --project-id <PID>` after creating a project
-- **Severity:** Medium — CLI users will get wrong exports silently
+- **Severity:** High — CLI users will get wrong exports silently
 
 ### 2. ℹ️ Test Plan Had Wrong Preset Name
 - **Symptom:** `twitter-720p` preset returns "Invalid preset ID"
@@ -169,7 +169,7 @@ ffmpeg -f lavfi -i testsrc=duration=10:size=1280x720:rate=30 -c:v libx264 -an -y
 # IMPORTANT: Always open project in editor before timeline/export operations
 bun run pipeline editor:project:create --name "test" --json
 bun run pipeline editor:navigator:open --project-id <PID> --json
-sleep 2
+sleep 2 # A small delay is needed for the project context to switch. Polling for readiness is recommended in production scripts.
 bun run pipeline editor:ui:switch-panel --panel video-edit --json
 
 # Import

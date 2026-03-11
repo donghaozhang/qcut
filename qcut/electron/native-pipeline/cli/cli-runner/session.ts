@@ -261,15 +261,15 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 		}
 		if (values.prompts) result.prompts = values.prompts as string[];
 		// sticker options
-		if (values.x) result.x = Number(values.x);
-		if (values.y) result.y = Number(values.y);
-		if (values.opacity) result.opacity = Number(values.opacity);
-		if (values.rotation) result.rotation = Number(values.rotation);
+		if (values.x !== undefined) result.x = Number(values.x);
+		if (values.y !== undefined) result.y = Number(values.y);
+		if (values.opacity !== undefined) result.opacity = Number(values.opacity);
+		if (values.rotation !== undefined) result.rotation = Number(values.rotation);
 		if (values["sticker-id"]) result.stickerId = values["sticker-id"] as string;
-		if (values["start-time"]) result.startTime = parseFloat(values["start-time"] as string);
-		if (values["end-time"]) result.endTime = parseFloat(values["end-time"] as string);
-		if (values.width) result.width = Number(values.width);
-		if (values.height) result.height = Number(values.height);
+		if (values["start-time"] !== undefined) result.startTime = parseFloat(values["start-time"] as string);
+		if (values["end-time"] !== undefined) result.endTime = parseFloat(values["end-time"] as string);
+		if (values.width !== undefined) result.width = Number(values.width);
+		if (values.height !== undefined) result.height = Number(values.height);
 
 		return result;
 	} catch {

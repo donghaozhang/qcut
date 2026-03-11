@@ -352,17 +352,18 @@ export async function collectStickerOverlays({
 				if (!Number.isFinite(duration) || duration <= 0) continue;
 
 				const style = (element.style ?? {}) as Record<string, unknown>;
+				const el = element as Record<string, unknown>;
 
 				overlays.push({
 					sourcePath: media.path,
 					startTime: element.startTime,
 					endTime: element.startTime + duration,
-					x: (style.x as number) ?? (element as any).x ?? 0,
-					y: (style.y as number) ?? (element as any).y ?? 0,
-					width: (style.width as number) ?? (element as any).width ?? 200,
-					height: (style.height as number) ?? (element as any).height ?? 200,
-					opacity: (style.opacity as number) ?? (element as any).opacity ?? 1,
-					rotation: (style.rotation as number) ?? (element as any).rotation ?? 0,
+					x: (style.x as number) ?? (el.x as number) ?? 0,
+					y: (style.y as number) ?? (el.y as number) ?? 0,
+					width: (style.width as number) ?? (el.width as number) ?? 200,
+					height: (style.height as number) ?? (el.height as number) ?? 200,
+					opacity: (style.opacity as number) ?? (el.opacity as number) ?? 1,
+					rotation: (style.rotation as number) ?? (el.rotation as number) ?? 0,
 				});
 			}
 		}
@@ -631,6 +632,8 @@ export async function executeExportJob({
 			// Move the concat output so we can use it as input for the overlay pass
 			await fsPromises.rename(outputPath, concatOutputPath);
 
+			try {
+
 			// Build FFmpeg filter_complex for sticker overlays
 			const inputArgs: string[] = ["-y", "-i", concatOutputPath];
 
@@ -725,6 +728,15 @@ export async function executeExportJob({
 			});
 
 			claudeLog.info(HANDLER_NAME, "Sticker overlay compositing complete");
+			} catch (stickerError) {
+				claudeLog.error(
+					HANDLER_NAME,
+					"Sticker overlay pass failed, restoring concatenated export:",
+					stickerError
+				);
+				// Restore the pre-sticker output so the export isn't lost
+				await fsPromises.rename(concatOutputPath, outputPath);
+			}
 		}
 
 		const outputStats = await fsPromises.stat(outputPath);

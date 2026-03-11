@@ -156,7 +156,7 @@ function buildStickerOverlayPass(
 			preparedLabel = rotatedLabel;
 		}
 
-		const opacity = Math.max(0, Math.min(1, Number(sticker.opacity) || 1));
+		const opacity = Math.max(0, Math.min(1, Number(sticker.opacity ?? 1)));
 		if (opacity < 1) {
 			const alphaLabel = `sticker_alpha_${index}`;
 			filterSteps.push(

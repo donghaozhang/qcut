@@ -67,7 +67,7 @@ async function stickerAdd(
 		}
 
 		const importResult = await client.post<{ id?: string; mediaId?: string }>(
-			`/api/claude/media/${opts.projectId}/import`,
+			`/api/claude/media/${encodeURIComponent(opts.projectId)}/import`,
 			{ source: opts.source }
 		);
 		mediaId = importResult.id ?? importResult.mediaId;
@@ -108,7 +108,7 @@ async function stickerAdd(
 	if (opts.opacity !== undefined) element.opacity = opts.opacity;
 
 	const data = await client.post(
-		`/api/claude/timeline/${opts.projectId}/elements`,
+		`/api/claude/timeline/${encodeURIComponent(opts.projectId)}/elements`,
 		element
 	);
 	return { success: true, data };
@@ -134,7 +134,7 @@ async function stickerUpdate(
 			return { success: false, error: `File not found: ${opts.source}` };
 		}
 		const importResult = await client.post<{ id?: string; mediaId?: string }>(
-			`/api/claude/media/${opts.projectId}/import`,
+			`/api/claude/media/${encodeURIComponent(opts.projectId)}/import`,
 			{ source: opts.source }
 		);
 		const newMediaId = importResult.id ?? importResult.mediaId;
@@ -176,7 +176,7 @@ async function stickerUpdate(
 	}
 
 	const data = await client.patch(
-		`/api/claude/timeline/${opts.projectId}/elements/${opts.elementId}`,
+		`/api/claude/timeline/${encodeURIComponent(opts.projectId)}/elements/${encodeURIComponent(opts.elementId)}`,
 		{ changes }
 	);
 	return { success: true, data };
@@ -195,7 +195,7 @@ async function stickerRemove(
 	if (!opts.elementId) return { success: false, error: "Missing --element-id" };
 
 	const data = await client.delete(
-		`/api/claude/timeline/${opts.projectId}/elements/${opts.elementId}`
+		`/api/claude/timeline/${encodeURIComponent(opts.projectId)}/elements/${encodeURIComponent(opts.elementId)}`
 	);
 	return { success: true, data };
 }
@@ -231,7 +231,7 @@ async function stickerList(
 				opacity?: number;
 			}>;
 		}>;
-	}>(`/api/claude/timeline/${opts.projectId}`);
+	}>(`/api/claude/timeline/${encodeURIComponent(opts.projectId)}`);
 
 	// Filter for sticker elements across all tracks
 	const stickerElements: Array<{

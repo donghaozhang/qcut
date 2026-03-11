@@ -27,7 +27,7 @@ Add native CLI commands for placing stickers on the timeline with precise positi
 List available stickers from the sticker catalog.
 
 ```bash
-bun run pipeline editor:sticker:list [--category <name>] [--search <query>] --json
+bun run pipeline editor:sticker:list [--category <name>] [--search <query>] [--limit <n>] --json
 ```
 
 | Flag | Short | Type | Description |
