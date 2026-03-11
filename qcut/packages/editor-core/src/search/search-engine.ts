@@ -93,7 +93,9 @@ function findWordTimestamp(
 	let charPos = 0;
 	for (const word of segmentWords) {
 		// Find where this word appears in the segment text, starting from charPos
-		const idx = segmentText.toLowerCase().indexOf(word.text.toLowerCase(), charPos);
+		const idx = segmentText
+			.toLowerCase()
+			.indexOf(word.text.toLowerCase(), charPos);
 		if (idx === -1) continue;
 
 		const wordEnd = idx + word.text.length;
@@ -137,9 +139,9 @@ export function searchTranscriptions(
 
 			// Reset regex lastIndex for each segment
 			regex.lastIndex = 0;
-			let match: RegExpExecArray | null;
+			let match = regex.exec(segment.text);
 
-			while ((match = regex.exec(segment.text)) !== null) {
+			while (match !== null) {
 				const wordTs = findWordTimestamp(
 					transcription.words,
 					segment.start,
@@ -160,6 +162,7 @@ export function searchTranscriptions(
 				});
 
 				if (results.length >= maxResults) return results;
+				match = regex.exec(segment.text);
 			}
 		}
 	}
