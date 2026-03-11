@@ -126,6 +126,26 @@ async function stickerUpdate(
 
 	const changes: Record<string, unknown> = {};
 
+	// Replace sticker image source
+	if (opts.source) {
+		if (!fs.existsSync(opts.source)) {
+			return { success: false, error: `File not found: ${opts.source}` };
+		}
+		const importResult = await client.post<{ id?: string; mediaId?: string }>(
+			`/api/claude/media/${opts.projectId}/import`,
+			{ source: opts.source }
+		);
+		const newMediaId = importResult.id ?? importResult.mediaId;
+		if (!newMediaId) {
+			return {
+				success: false,
+				error: "Media import succeeded but no mediaId returned",
+			};
+		}
+		changes.mediaId = newMediaId;
+		changes.stickerId = opts.stickerId ?? `custom_${newMediaId}`;
+	}
+
 	if (opts.x !== undefined) changes.x = opts.x;
 	if (opts.y !== undefined) changes.y = opts.y;
 	if (opts.width !== undefined) changes.width = opts.width;
@@ -149,7 +169,7 @@ async function stickerUpdate(
 		return {
 			success: false,
 			error:
-				"No changes specified. Provide at least one of: --x, --y, --width, --height, --rotation, --opacity, --start-time, --end-time",
+				"No changes specified. Provide at least one of: --source, --x, --y, --width, --height, --rotation, --opacity, --start-time, --end-time",
 		};
 	}
 

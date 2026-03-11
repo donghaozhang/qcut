@@ -719,10 +719,16 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	),
 	"editor:sticker:update": ed(
 		"editor:sticker:update",
-		"Update position, size, or time of an existing sticker element",
+		"Update position, size, time, or image of an existing sticker element",
 		[
 			PID,
 			EID,
+			f(
+				"--source",
+				"string",
+				"Replace sticker image with new file (PNG/JPG/WebP)"
+			),
+			f("--sticker-id", "string", "New sticker ID (used with --source)"),
 			f("--x", "number", "X position in pixels"),
 			f("--y", "number", "Y position in pixels"),
 			f("--start-time", "number", "Start time in seconds"),
