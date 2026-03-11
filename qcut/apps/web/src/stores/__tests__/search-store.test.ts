@@ -126,14 +126,12 @@ describe("search-store", () => {
 		act(() => {
 			useSearchStore.getState().setTranscriptionStatus("m1", "loading");
 		});
-		expect(useSearchStore.getState().transcriptionStatus["m1"]).toBe(
-			"loading"
-		);
+		expect(useSearchStore.getState().transcriptionStatus["m1"]).toBe("loading");
 
 		act(() => {
 			useSearchStore.getState().setTranscriptionStatus("m1", "error");
 		});
-		expect(useSearchStore.getState().transcriptionStatus["m1"]).toBe("error");
+		expect(useSearchStore.getState().transcriptionStatus.m1).toBe("error");
 	});
 
 	it("navigateToResult calls setCurrentTime", async () => {

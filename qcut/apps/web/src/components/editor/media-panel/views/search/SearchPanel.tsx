@@ -8,7 +8,12 @@
  */
 
 import { useCallback, useEffect, useRef } from "react";
-import { SearchIcon, XIcon, CaseSensitiveIcon, WholeWordIcon } from "lucide-react";
+import {
+	SearchIcon,
+	XIcon,
+	CaseSensitiveIcon,
+	WholeWordIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchStore } from "@/stores/search-store";
 import { SearchResultItem } from "./SearchResultItem";

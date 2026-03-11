@@ -120,7 +120,9 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
 			isSearching: false,
 			selectedResultIndex: results.length > 0 ? 0 : null,
 			// Update transcriptions cache if provided externally
-			...(externalTranscriptions ? { transcriptions: externalTranscriptions } : {}),
+			...(externalTranscriptions
+				? { transcriptions: externalTranscriptions }
+				: {}),
 		});
 	},
 
