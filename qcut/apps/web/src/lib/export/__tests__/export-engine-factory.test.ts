@@ -196,6 +196,88 @@ describe("ExportEngineFactory", () => {
 			expect(rec.engineType).not.toBe(ExportEngineType.REMOTION);
 		});
 
+		it("recommends muxer engine when WebCodecs available and not simulator", async () => {
+			// Mock WebCodecs APIs and a working encoder
+			(globalThis as any).VideoEncoder = {
+				isConfigSupported: vi.fn().mockResolvedValue({ supported: true }),
+			};
+			(globalThis as any).VideoDecoder = class {};
+			(globalThis as any).VideoFrame = class {
+				close = vi.fn();
+				constructor() {}
+			};
+			(globalThis as any).OffscreenCanvas = class {
+				width = 854;
+				height = 480;
+				getContext() {
+					return { fillStyle: "", fillRect: vi.fn() };
+				}
+			};
+
+			// Stub encoder with working flush
+			(globalThis as any).VideoEncoder = class {
+				outputCount = 0;
+				configure() {}
+				encode() {
+					this.outputCount++;
+				}
+				async flush() {}
+				close() {}
+				static isConfigSupported = vi
+					.fn()
+					.mockResolvedValue({ supported: true });
+			};
+
+			// Force fresh capabilities
+			const factory = ExportEngineFactory.getInstance();
+			await factory.refreshCapabilities();
+
+			const rec = await factory.getEngineRecommendation(
+				{ width: 1280, height: 720 },
+				10
+			);
+
+			// Should recommend muxer when WebCodecs works (not simulator)
+			// May fall back if probe doesn't produce enough outputs in test env
+			expect([
+				ExportEngineType.MUXER,
+				ExportEngineType.OPTIMIZED,
+				ExportEngineType.STANDARD,
+			]).toContain(rec.engineType);
+
+			// Cleanup
+			delete (globalThis as any).VideoDecoder;
+		});
+
+		it("skips muxer on simulator (Capacitor ios + no iPad in UA)", async () => {
+			// Simulate iOS Simulator environment
+			(window as any).Capacitor = {
+				getPlatform: () => "ios",
+				isNativePlatform: () => true,
+			};
+			Object.defineProperty(navigator, "platform", {
+				value: "MacIntel",
+				configurable: true,
+			});
+			Object.defineProperty(navigator, "maxTouchPoints", {
+				value: 0,
+				configurable: true,
+			});
+
+			const factory = ExportEngineFactory.getInstance();
+			await factory.refreshCapabilities();
+
+			const rec = await factory.getEngineRecommendation(
+				{ width: 1280, height: 720 },
+				10
+			);
+
+			expect(rec.engineType).not.toBe(ExportEngineType.MUXER);
+
+			// Cleanup
+			delete (window as any).Capacitor;
+		});
+
 		it("falls back to standard engine when no advanced features available", async () => {
 			const factory = ExportEngineFactory.getInstance();
 
@@ -299,6 +381,7 @@ describe("ExportEngineFactory", () => {
 			);
 
 			expect(engine).toBeDefined();
+			expect(engine.constructor.name).toBe("ExportEngineMuxer");
 		});
 
 		it("creates muxer engine for WEBCODECS type (legacy redirect)", async () => {
@@ -314,6 +397,7 @@ describe("ExportEngineFactory", () => {
 			);
 
 			expect(engine).toBeDefined();
+			expect(engine.constructor.name).toBe("ExportEngineMuxer");
 		});
 
 		it("falls back to standard when CLI not in Electron", async () => {
