@@ -15,6 +15,20 @@ import { getBitrateForQuality } from "./audio-export-config";
 // Progress callback type
 type ProgressCallback = (progress: number, status: string) => void;
 
+/** Race a promise against a timeout. */
+function withTimeout<T>(
+	promise: Promise<T>,
+	ms: number,
+	message: string
+): Promise<T> {
+	return Promise.race([
+		promise,
+		new Promise<never>((_, reject) =>
+			setTimeout(() => reject(new Error(message)), ms)
+		),
+	]);
+}
+
 /** Quality preset → H.264 video bitrate mapping */
 const VIDEO_BITRATE: Record<string, number> = {
 	"1080p": 8_000_000,
@@ -109,9 +123,14 @@ export class ExportEngineMuxer extends ExportEngine {
 				// Render frame to canvas using existing renderer
 				await this.renderFrame(currentTime);
 
-				// Feed canvas to mediabunny's CanvasSource
+				// Feed canvas to mediabunny's CanvasSource with timeout
+				// (WebCodecs encoder can stall on simulator or unsupported platforms)
 				const timestamp = frame * frameDuration;
-				await videoSource.add(timestamp, frameDuration);
+				await withTimeout(
+					videoSource.add(timestamp, frameDuration),
+					10_000,
+					`Encoder stalled at frame ${frame + 1}/${totalFrames}`
+				);
 
 				// Progress (reserve 5% for finalization)
 				const progress = 2 + (frame / totalFrames) * 90;

@@ -157,8 +157,8 @@ export class ExportEngineFactory {
 		);
 
 		// iPad/browser with WebCodecs → mediabunny muxer engine (MP4 via WebCodecs)
-		// Lower bar than old WEBCODECS engine — works on iPad with modest resources
-		if (capabilities.hasWebCodecs) {
+		// Probe the encoder first to avoid selecting it on simulators where APIs exist but don't work
+		if (capabilities.hasWebCodecs && (await this.probeWebCodecsEncoder())) {
 			console.log(
 				"🚀 EXPORT ENGINE SELECTION: Muxer (mediabunny) chosen for WebCodecs-capable browser/iPad"
 			);
@@ -649,5 +649,80 @@ export class ExportEngineFactory {
 	// Check if running in Electron environment with native FFmpeg CLI
 	private isElectron(): boolean {
 		return platform().isElectron;
+	}
+
+	/**
+	 * Probe whether WebCodecs VideoEncoder actually works (not just API presence).
+	 * Simulators expose the API but the encoder stalls. This test configures,
+	 * encodes multiple frames, and checks the encoder drains within 3 seconds.
+	 */
+	private async probeWebCodecsEncoder(): Promise<boolean> {
+		try {
+			if (typeof VideoEncoder === "undefined") return false;
+
+			const support = await VideoEncoder.isConfigSupported({
+				codec: "avc1.42001f",
+				width: 320,
+				height: 240,
+				bitrate: 1_000_000,
+				hardwareAcceleration: "no-preference",
+			});
+			if (!support.supported) return false;
+
+			// Encode 5 frames at a realistic size to verify the encoder actually drains
+			let outputCount = 0;
+			const encoder = new VideoEncoder({
+				output: () => {
+					outputCount++;
+				},
+				error: () => {},
+			});
+			encoder.configure({
+				codec: "avc1.42001f",
+				width: 320,
+				height: 240,
+				bitrate: 1_000_000,
+				hardwareAcceleration: "no-preference",
+			});
+
+			const canvas = new OffscreenCanvas(320, 240);
+			const ctx = canvas.getContext("2d");
+			if (ctx) {
+				ctx.fillStyle = "#ff0000";
+				ctx.fillRect(0, 0, 320, 240);
+			}
+
+			for (let i = 0; i < 5; i++) {
+				const frame = new VideoFrame(canvas, {
+					timestamp: i * 33_333,
+				});
+				encoder.encode(frame, { keyFrame: i === 0 });
+				frame.close();
+			}
+
+			await Promise.race([
+				encoder.flush(),
+				new Promise((_, reject) =>
+					setTimeout(
+						() => reject(new Error("probe timeout")),
+						3_000
+					)
+				),
+			]);
+			encoder.close();
+
+			const ok = outputCount >= 3;
+			console.log(
+				ok
+					? `✅ WebCodecs probe: encoder functional (${outputCount} outputs)`
+					: `⚠️ WebCodecs probe: encoder produced ${outputCount} outputs, insufficient`
+			);
+			return ok;
+		} catch {
+			console.log(
+				"⚠️ WebCodecs probe: encoder not functional, falling back"
+			);
+			return false;
+		}
 	}
 }
