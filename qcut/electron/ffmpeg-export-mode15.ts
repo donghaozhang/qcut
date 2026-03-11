@@ -17,6 +17,7 @@ import type {
 	ExportResult,
 	AudioFile,
 	FFmpegProgress,
+	StickerSource,
 } from "./ffmpeg/types";
 
 import { parseProgress, getFFprobePath, normalizeVideo } from "./ffmpeg/utils";
@@ -215,6 +216,16 @@ export async function handleMode1_5(
 			await mixOverlayAudio(ffmpegPath, frameDir, outputFile, audioFiles);
 		}
 
+		// Overlay stickers onto the output if present (2nd pass)
+		if (options.stickerSources && options.stickerSources.length > 0) {
+			await overlayStickerPass(
+				ffmpegPath,
+				frameDir,
+				outputFile,
+				options.stickerSources
+			);
+		}
+
 		// Success!
 		console.log(
 			"⚡ [MODE 1.5 EXPORT] ============================================"
@@ -402,4 +413,182 @@ async function mixOverlayAudio(
 			mixResolve(); // Don't reject — graceful fallback
 		});
 	});
+}
+
+/**
+ * Overlays stickers onto the Mode 1.5 output as a second FFmpeg pass.
+ * No time remapping needed — sticker times already match the concatenated timeline.
+ */
+async function overlayStickerPass(
+	ffmpegPath: string,
+	frameDir: string,
+	outputFile: string,
+	stickerSources: StickerSource[]
+): Promise<void> {
+	// Filter to only valid, existing sticker files with positive duration
+	const validStickers = stickerSources.filter(
+		(s) => fs.existsSync(s.path) && s.endTime > s.startTime
+	);
+	if (validStickers.length === 0) {
+		console.log(
+			"🎨 [MODE 1.5 EXPORT] No valid stickers to overlay — skipping"
+		);
+		return;
+	}
+
+	console.log(
+		`🎨 [MODE 1.5 EXPORT] Overlaying ${validStickers.length} sticker(s) onto output...`
+	);
+
+	const tempInput = path.join(frameDir, "before_stickers.mp4");
+	fs.renameSync(outputFile, tempInput);
+
+	const args = buildMode15StickerArgs(tempInput, outputFile, validStickers);
+
+	await new Promise<void>((stickerResolve, stickerReject) => {
+		const proc: ChildProcess = spawn(ffmpegPath, args, {
+			windowsHide: true,
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+
+		let stderr = "";
+		proc.stderr?.on("data", (chunk: Buffer) => {
+			stderr += chunk.toString();
+		});
+
+		proc.on("close", (code: number | null) => {
+			if (code === 0) {
+				console.log("🎨 [MODE 1.5 EXPORT] ✅ Sticker overlay complete!");
+				try {
+					fs.unlinkSync(tempInput);
+				} catch {
+					// ignore cleanup errors
+				}
+				stickerResolve();
+			} else {
+				console.error(
+					`❌ [MODE 1.5 EXPORT] Sticker overlay failed with code ${code}`
+				);
+				console.error(`❌ [MODE 1.5 EXPORT] FFmpeg stderr:\n${stderr}`);
+				// Restore original output without stickers
+				try {
+					fs.renameSync(tempInput, outputFile);
+				} catch {
+					// ignore restore errors
+				}
+				console.warn(
+					"⚠️ [MODE 1.5 EXPORT] Falling back to output without stickers"
+				);
+				stickerResolve(); // Don't reject — graceful fallback
+			}
+		});
+
+		proc.on("error", (err: Error) => {
+			console.error("❌ [MODE 1.5 EXPORT] Sticker overlay process error:", err);
+			try {
+				fs.renameSync(tempInput, outputFile);
+			} catch {
+				// ignore restore errors
+			}
+			console.warn(
+				"⚠️ [MODE 1.5 EXPORT] Falling back to output without stickers"
+			);
+			stickerResolve(); // Don't reject — graceful fallback
+		});
+	});
+}
+
+/**
+ * Builds FFmpeg args for sticker overlay on Mode 1.5 output.
+ * Mirrors the pattern from ffmpeg-export-word-filter.ts buildStickerOverlayPass.
+ */
+function buildMode15StickerArgs(
+	inputVideoPath: string,
+	outputPath: string,
+	stickers: StickerSource[]
+): string[] {
+	const args: string[] = ["-y", "-i", inputVideoPath];
+
+	// Add sticker inputs (looped images)
+	for (const sticker of stickers) {
+		args.push("-loop", "1", "-i", sticker.path);
+	}
+
+	// Build filter_complex chain
+	const filterSteps: string[] = [];
+	let currentVideoLabel = "0:v";
+	let filterIdx = 0;
+
+	for (const [index, sticker] of stickers.entries()) {
+		const inputIdx = 1 + index;
+		const scaledLabel = `sticker_scaled_${index}`;
+		let preparedLabel = scaledLabel;
+
+		if (sticker.maintainAspectRatio) {
+			const padLabel = `sticker_pad_${index}`;
+			filterSteps.push(
+				`[${inputIdx}:v]scale=${sticker.width}:${sticker.height}:force_original_aspect_ratio=decrease[${scaledLabel}]`
+			);
+			filterSteps.push(
+				`[${scaledLabel}]pad=${sticker.width}:${sticker.height}:(ow-iw)/2:(oh-ih)/2:color=0x00000000[${padLabel}]`
+			);
+			preparedLabel = padLabel;
+		} else {
+			filterSteps.push(
+				`[${inputIdx}:v]scale=${sticker.width}:${sticker.height}[${scaledLabel}]`
+			);
+		}
+
+		const rotation = Number(sticker.rotation) || 0;
+		if (rotation !== 0) {
+			const rotatedLabel = `sticker_rotated_${index}`;
+			filterSteps.push(
+				`[${preparedLabel}]rotate=${rotation}*PI/180:c=none[${rotatedLabel}]`
+			);
+			preparedLabel = rotatedLabel;
+		}
+
+		const opacity = Math.max(0, Math.min(1, Number(sticker.opacity) || 1));
+		if (opacity < 1) {
+			const alphaLabel = `sticker_alpha_${index}`;
+			filterSteps.push(
+				`[${preparedLabel}]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${opacity}*alpha(X,Y)'[${alphaLabel}]`
+			);
+			preparedLabel = alphaLabel;
+		}
+
+		const outputLabel = `v_sticker_${filterIdx++}`;
+		const sx = Number(sticker.x) || 0;
+		const sy = Number(sticker.y) || 0;
+		const sStart = Number(sticker.startTime) || 0;
+		const sEnd = Number(sticker.endTime) || 0;
+		filterSteps.push(
+			`[${currentVideoLabel}][${preparedLabel}]overlay=x=${sx}:y=${sy}:enable='between(t,${sStart},${sEnd})'[${outputLabel}]`
+		);
+		currentVideoLabel = outputLabel;
+	}
+
+	args.push(
+		"-filter_complex",
+		filterSteps.join(";"),
+		"-map",
+		`[${currentVideoLabel}]`,
+		"-map",
+		"0:a?",
+		"-c:v",
+		"libx264",
+		"-preset",
+		"fast",
+		"-crf",
+		"18",
+		"-pix_fmt",
+		"yuv420p",
+		"-c:a",
+		"copy",
+		"-movflags",
+		"+faststart",
+		outputPath
+	);
+
+	return args;
 }

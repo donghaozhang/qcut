@@ -34,6 +34,7 @@ import {
 import {
 	resolveExportSettings,
 	collectExportSegments,
+	collectStickerOverlays,
 	executeExportJob,
 } from "./export-engine.js";
 
@@ -163,6 +164,19 @@ export async function startExportJob({
 			);
 		}
 
+		// Collect sticker overlays for compositing
+		const stickerOverlays = await collectStickerOverlays({
+			timeline,
+			mediaFiles,
+			projectId,
+		});
+		if (stickerOverlays.length > 0) {
+			claudeLog.info(
+				HANDLER_NAME,
+				`Found ${stickerOverlays.length} sticker(s) to overlay during export`
+			);
+		}
+
 		const outputPath = request.outputPath?.trim()
 			? request.outputPath.trim()
 			: getDefaultOutputPath({
@@ -222,6 +236,7 @@ export async function startExportJob({
 			settings,
 			outputPath,
 			segments,
+			stickerOverlays,
 		}).catch((error) => {
 			claudeLog.error(
 				HANDLER_NAME,

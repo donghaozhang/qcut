@@ -51,6 +51,27 @@ export interface ExportJobInternal {
 	estimatedTimeRemaining?: number;
 }
 
+export interface StickerOverlay {
+	/** Absolute path to the sticker image file */
+	sourcePath: string;
+	/** Start time in seconds (relative to the exported video timeline) */
+	startTime: number;
+	/** End time in seconds (relative to the exported video timeline) */
+	endTime: number;
+	/** X position in pixels */
+	x: number;
+	/** Y position in pixels */
+	y: number;
+	/** Width in pixels */
+	width: number;
+	/** Height in pixels */
+	height: number;
+	/** Opacity 0-1 */
+	opacity: number;
+	/** Rotation in degrees */
+	rotation: number;
+}
+
 export interface ProgressEventPayload {
 	jobId?: string;
 	progress?: number;
