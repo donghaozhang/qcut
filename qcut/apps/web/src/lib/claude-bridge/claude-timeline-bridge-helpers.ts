@@ -384,6 +384,106 @@ export function addClaudeTextElement({
 	debugLog("[ClaudeTimelineBridge] Added text element:", content);
 }
 
+const DEFAULT_STICKER_DURATION_SECONDS = 5;
+
+/** Add a Claude sticker element to the timeline store and overlay store. */
+export async function addClaudeStickerElement({
+	element,
+	timelineStore,
+}: {
+	element: Partial<ClaudeElement> & {
+		stickerId?: string;
+		mediaId?: string;
+		x?: number;
+		y?: number;
+		width?: number;
+		height?: number;
+		rotation?: number;
+		opacity?: number;
+	};
+	timelineStore: TimelineStoreState;
+}): Promise<void> {
+	const trackId = timelineStore.findOrCreateTrack("sticker");
+	const startTime = getElementStartTime({ element });
+	const duration = getElementDuration({
+		element,
+		fallbackDuration: DEFAULT_STICKER_DURATION_SECONDS,
+	});
+
+	const stickerId = element.stickerId ?? `sticker_${Date.now()}`;
+	const mediaId = element.mediaId ?? stickerId;
+
+	timelineStore.addElementToTrack(trackId, {
+		type: "sticker",
+		name: element.sourceName ?? "Sticker",
+		stickerId,
+		mediaId,
+		startTime,
+		duration,
+		trimStart: 0,
+		trimEnd: 0,
+		x: element.x ?? 0,
+		y: element.y ?? 0,
+		width: element.width,
+		height: element.height,
+		rotation: element.rotation ?? 0,
+		opacity: element.opacity ?? 1,
+	});
+
+	// Also add to sticker overlay store for canvas rendering + export
+	// NOTE: Overlay store uses percentage-based coordinates (0-100)
+	// CLI passes pixel coordinates, so we convert using timeline dimensions
+	try {
+		const { useStickersOverlayStore } = await import(
+			"@/stores/stickers-overlay-store"
+		);
+		// Default canvas dimensions — matches standard export presets
+		const canvasWidth = 1920;
+		const canvasHeight = 1080;
+
+		// Convert pixel → percentage for overlay store
+		// Position: percentage of canvas dimensions (center-based in overlay)
+		const pxX = element.x ?? 0;
+		const pxY = element.y ?? 0;
+		const pxW = element.width ?? 200;
+		const pxH = element.height ?? 200;
+
+		// Overlay store position is center-based, CLI gives top-left
+		const centerX = pxX + pxW / 2;
+		const centerY = pxY + pxH / 2;
+		const pctX = (centerX / canvasWidth) * 100;
+		const pctY = (centerY / canvasHeight) * 100;
+		// Size: percentage of respective canvas dimension (width % of canvasWidth, height % of canvasHeight)
+		const pctW = (pxW / canvasWidth) * 100;
+		const pctH = (pxH / canvasHeight) * 100;
+
+		debugLog(
+			`[ClaudeTimelineBridge] Sticker coords: px(${pxX},${pxY} ${pxW}x${pxH}) → pct(${pctX.toFixed(1)},${pctY.toFixed(1)} ${pctW.toFixed(1)}x${pctH.toFixed(1)})`
+		);
+
+		debugLog(
+			`[ClaudeTimelineBridge] Adding sticker to overlay store: mediaId=${mediaId}, pos=(${pctX.toFixed(1)}%,${pctY.toFixed(1)}%), size=(${pctW.toFixed(1)}%x${pctH.toFixed(1)}%)`
+		);
+		useStickersOverlayStore.getState().addOverlaySticker(mediaId, {
+			position: { x: pctX, y: pctY },
+			size: { width: pctW, height: pctH },
+			rotation: element.rotation ?? 0,
+			opacity: element.opacity ?? 1,
+		});
+		// Verify it was added
+		const afterCount = useStickersOverlayStore
+			.getState()
+			.getStickersForExport().length;
+		debugLog(
+			`[ClaudeTimelineBridge] Overlay store now has ${afterCount} sticker(s)`
+		);
+	} catch (err) {
+		debugWarn("[ClaudeTimelineBridge] Failed to add sticker overlay:", err);
+	}
+
+	debugLog("[ClaudeTimelineBridge] Added sticker element:", stickerId);
+}
+
 const DEFAULT_MARKDOWN_DURATION_SECONDS = 120;
 const DEFAULT_MARKDOWN_CONTENT = "Markdown";
 
@@ -855,6 +955,12 @@ export async function applyTimelineToStore(
 					added++;
 				} else if (element.type === "remotion") {
 					await addClaudeRemotionElement({
+						element,
+						timelineStore: useTimelineStore.getState(),
+					});
+					added++;
+				} else if (element.type === "sticker") {
+					await addClaudeStickerElement({
 						element,
 						timelineStore: useTimelineStore.getState(),
 					});

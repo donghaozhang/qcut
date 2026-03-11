@@ -27,6 +27,7 @@ import {
 	HANDLER_NAME,
 	EXPORT_JOB_STATUS,
 	type ExportSegment,
+	type StickerOverlay,
 	type ResolvedExportSettings,
 	type ExportJobInternal,
 } from "./types.js";
@@ -272,6 +273,117 @@ export async function collectExportSegments({
 	}
 }
 
+/**
+ * Collect sticker overlay data from the timeline for compositing during export.
+ * Resolves each sticker element's media file path and extracts positioning info.
+ */
+export async function collectStickerOverlays({
+	timeline,
+	mediaFiles,
+	projectId,
+}: {
+	timeline: ClaudeTimeline;
+	mediaFiles: MediaFile[];
+	projectId?: string;
+}): Promise<StickerOverlay[]> {
+	try {
+		const mediaById = new Map<string, MediaFile>();
+		const mediaByName = new Map<string, MediaFile>();
+		for (const mf of mediaFiles) {
+			mediaById.set(mf.id, mf);
+			mediaByName.set(mf.name, mf);
+		}
+
+		const overlays: StickerOverlay[] = [];
+		const diskFallbackCache = new Map<string, MediaFile | null>();
+
+		for (const track of timeline.tracks) {
+			for (const element of track.elements) {
+				if (element.type !== "sticker") continue;
+
+				// Resolve the sticker image file
+				let media = findMediaForElement({ element, mediaById, mediaByName });
+
+				if (!media && projectId && element.sourceName) {
+					if (diskFallbackCache.has(element.sourceName)) {
+						media = diskFallbackCache.get(element.sourceName) ?? null;
+					} else {
+						media = await resolveMediaFromDisk({
+							projectId,
+							sourceName: element.sourceName,
+						});
+						diskFallbackCache.set(element.sourceName, media);
+					}
+				}
+
+				// Also try mediaId-based lookup directly on disk
+				if (!media && projectId && element.mediaId) {
+					const mediaById2 = mediaById.get(element.mediaId);
+					if (mediaById2) {
+						media = mediaById2;
+					}
+				}
+
+				if (!media || !media.path) {
+					claudeLog.warn(
+						HANDLER_NAME,
+						"Sticker element skipped — could not resolve media file. " +
+							`mediaId=${element.mediaId}, sourceId=${element.sourceId}, sourceName=${element.sourceName}`
+					);
+					continue;
+				}
+
+				// Verify file exists
+				try {
+					await fsPromises.access(media.path);
+				} catch {
+					claudeLog.warn(
+						HANDLER_NAME,
+						`Sticker image file not found on disk: ${media.path}`
+					);
+					continue;
+				}
+
+				const duration =
+					typeof element.duration === "number" && element.duration > 0
+						? element.duration
+						: element.endTime - element.startTime;
+
+				if (!Number.isFinite(duration) || duration <= 0) continue;
+
+				const style = (element.style ?? {}) as Record<string, unknown>;
+				const el = element as unknown as Record<string, unknown>;
+
+				overlays.push({
+					sourcePath: media.path,
+					startTime: element.startTime,
+					endTime: element.startTime + duration,
+					x: (style.x as number) ?? (el.x as number) ?? 0,
+					y: (style.y as number) ?? (el.y as number) ?? 0,
+					width: (style.width as number) ?? (el.width as number) ?? 200,
+					height: (style.height as number) ?? (el.height as number) ?? 200,
+					opacity: (style.opacity as number) ?? (el.opacity as number) ?? 1,
+					rotation: (style.rotation as number) ?? (el.rotation as number) ?? 0,
+				});
+			}
+		}
+
+		overlays.sort((a, b) => a.startTime - b.startTime);
+
+		if (overlays.length > 0) {
+			claudeLog.info(
+				HANDLER_NAME,
+				`Collected ${overlays.length} sticker overlay(s) for export`
+			);
+		}
+
+		return overlays;
+	} catch (error) {
+		claudeLog.error(HANDLER_NAME, "Failed to collect sticker overlays:", error);
+		return [];
+	}
+}
+
 async function ensureDirectory({
 	directory,
 }: {
@@ -374,12 +486,14 @@ export async function executeExportJob({
 	settings,
 	outputPath,
 	segments,
+	stickerOverlays = [],
 }: {
 	jobId: string;
 	projectId: string;
 	settings: ResolvedExportSettings;
 	outputPath: string;
 	segments: ExportSegment[];
+	stickerOverlays?: StickerOverlay[];
 }): Promise<void> {
 	const job = exportJobs.get(jobId);
 	if (!job) {
@@ -502,6 +616,139 @@ export async function executeExportJob({
 				});
 			},
 		});
+
+		// =====================================================================
+		// STICKER OVERLAY COMPOSITING
+		// After concat, overlay any sticker images onto the exported video.
+		// =====================================================================
+		if (stickerOverlays.length > 0) {
+			claudeLog.info(
+				HANDLER_NAME,
+				`Applying ${stickerOverlays.length} sticker overlay(s) to exported video`
+			);
+			updateJobProgress({ jobId, progress: 0.92 });
+
+			const concatOutputPath = path.join(tempDir, "concat-no-stickers.mp4");
+			// Move the concat output so we can use it as input for the overlay pass
+			await fsPromises.rename(outputPath, concatOutputPath);
+
+			try {
+				// Build FFmpeg filter_complex for sticker overlays
+				const inputArgs: string[] = ["-y", "-i", concatOutputPath];
+
+				// Add each sticker as an input
+				for (const sticker of stickerOverlays) {
+					inputArgs.push(
+						"-loop",
+						"1",
+						"-t",
+						String(sticker.endTime),
+						"-i",
+						sticker.sourcePath
+					);
+				}
+
+				// Build filter_complex chain
+				const filterSteps: string[] = [];
+				let currentLabel = "0:v";
+
+				for (const [i, sticker] of stickerOverlays.entries()) {
+					const inputIdx = i + 1;
+					const scaledLabel = `stk_s${i}`;
+					let preparedLabel = scaledLabel;
+
+					// Scale sticker to target size
+					filterSteps.push(
+						`[${inputIdx}:v]scale=${sticker.width}:${sticker.height}[${scaledLabel}]`
+					);
+
+					// Apply rotation if needed
+					if (sticker.rotation !== 0) {
+						const rotLabel = `stk_r${i}`;
+						filterSteps.push(
+							`[${preparedLabel}]rotate=${sticker.rotation}*PI/180:c=none[${rotLabel}]`
+						);
+						preparedLabel = rotLabel;
+					}
+
+					// Apply opacity if < 1
+					if (sticker.opacity < 1) {
+						const alphaLabel = `stk_a${i}`;
+						filterSteps.push(
+							`[${preparedLabel}]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${sticker.opacity}*alpha(X,Y)'[${alphaLabel}]`
+						);
+						preparedLabel = alphaLabel;
+					}
+
+					// Overlay onto current video
+					const outLabel = `stk_o${i}`;
+					const overlayParams = [
+						`x=${sticker.x}`,
+						`y=${sticker.y}`,
+						`enable='between(t,${sticker.startTime},${sticker.endTime})'`,
+					].join(":");
+
+					filterSteps.push(
+						`[${currentLabel}][${preparedLabel}]overlay=${overlayParams}[${outLabel}]`
+					);
+					currentLabel = outLabel;
+				}
+
+				// The last filter output needs to be mapped
+				const lastLabel = currentLabel;
+				const filterComplex = filterSteps.join(";");
+
+				const stickerArgs: string[] = [
+					...inputArgs,
+					"-filter_complex",
+					filterComplex,
+					"-map",
+					`[${lastLabel}]`,
+					"-map",
+					"0:a?",
+					"-c:v",
+					settings.codec,
+					"-preset",
+					"medium",
+					"-b:v",
+					parseBitrateForKbps({ bitrate: settings.bitrate }),
+					"-pix_fmt",
+					"yuv420p",
+					"-c:a",
+					"copy",
+					"-movflags",
+					"+faststart",
+					outputPath,
+				];
+
+				claudeLog.info(
+					HANDLER_NAME,
+					`Sticker overlay filter_complex: ${filterComplex}`
+				);
+
+				const totalDuration = segments.reduce((sum, s) => sum + s.duration, 0);
+				await runFFmpegCommand({
+					args: stickerArgs,
+					estimatedDuration: Math.max(0, totalDuration),
+					onProgress: ({ normalizedProgress }) => {
+						updateJobProgress({
+							jobId,
+							progress: 0.92 + normalizedProgress * 0.06,
+						});
+					},
+				});
+
+				claudeLog.info(HANDLER_NAME, "Sticker overlay compositing complete");
+			} catch (stickerError) {
+				claudeLog.error(
+					HANDLER_NAME,
+					"Sticker overlay pass failed, restoring concatenated export:",
+					stickerError
+				);
+				// Restore the pre-sticker output so the export isn't lost
+				await fsPromises.rename(concatOutputPath, outputPath);
+			}
+		}
 
 		const outputStats = await fsPromises.stat(outputPath);
 		const duration = segments.reduce(

@@ -23,6 +23,7 @@ import { handleTimelineEditingCommand } from "../editor/editor-handlers-timeline
 import { handleAnalysisCommand } from "../editor/editor-handlers-analysis.js";
 import { handleGenerateExportCommand } from "../editor/editor-handlers-generate.js";
 import { handleRemotionCommand } from "../editor/editor-handlers-remotion.js";
+import { handleStickerCommand } from "../editor/editor-handlers-sticker.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -218,6 +219,9 @@ export async function handleEditorCommand(
 			case "remotion":
 				return await handleRemotionCommand(client, options);
 
+			case "sticker":
+				return await handleStickerCommand(client, options);
+
 			case "undo":
 			case "redo":
 			case "state":
@@ -244,7 +248,7 @@ export async function handleEditorCommand(
 			default:
 				return {
 					success: false,
-					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, analyze, transcribe, generate, export, diagnostics, mcp, remotion, navigator, screen-recording, ui, moyin, novel, screenshot, undo, redo, state`,
+					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, analyze, transcribe, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, moyin, novel, screenshot, undo, redo, state`,
 				};
 		}
 	} catch (err) {

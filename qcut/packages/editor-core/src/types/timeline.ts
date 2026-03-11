@@ -67,6 +67,7 @@ export interface StickerElement extends BaseTimelineElement {
 	type: "sticker";
 	stickerId: string;
 	mediaId: string;
+	opacity?: number;
 }
 
 export interface CaptionElement extends BaseTimelineElement {
