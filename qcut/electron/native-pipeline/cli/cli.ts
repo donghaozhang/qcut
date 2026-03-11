@@ -449,6 +449,12 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"no-capability-check": { type: "boolean", default: false },
 			session: { type: "boolean", default: false },
 			set: { type: "string" },
+			// sticker options
+			x: { type: "string" },
+			y: { type: "string" },
+			opacity: { type: "string" },
+			rotation: { type: "string" },
+			"sticker-id": { type: "string" },
 		},
 		strict: false,
 	});
@@ -727,6 +733,12 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		noCapabilityCheck: (values["no-capability-check"] as boolean) ?? false,
 		set: values.set as string | undefined,
 		session: (values.session as boolean) ?? false,
+		// sticker options
+		x: values.x ? Number(values.x) : undefined,
+		y: values.y ? Number(values.y) : undefined,
+		opacity: values.opacity ? Number(values.opacity) : undefined,
+		rotation: values.rotation ? Number(values.rotation) : undefined,
+		stickerId: values["sticker-id"] as string | undefined,
 	};
 }
 

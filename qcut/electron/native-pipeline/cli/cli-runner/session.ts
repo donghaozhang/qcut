@@ -201,6 +201,16 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				json: { type: "boolean", default: false },
 				"negative-prompt": { type: "string" },
 				"voice-id": { type: "string" },
+				// sticker options
+				x: { type: "string" },
+				y: { type: "string" },
+				opacity: { type: "string" },
+				rotation: { type: "string" },
+				"sticker-id": { type: "string" },
+				"start-time": { type: "string" },
+				"end-time": { type: "string" },
+				width: { type: "string" },
+				height: { type: "string" },
 			},
 			strict: false,
 		});
@@ -250,6 +260,16 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				: parseInt(values.count as string, 10);
 		}
 		if (values.prompts) result.prompts = values.prompts as string[];
+		// sticker options
+		if (values.x) result.x = Number(values.x);
+		if (values.y) result.y = Number(values.y);
+		if (values.opacity) result.opacity = Number(values.opacity);
+		if (values.rotation) result.rotation = Number(values.rotation);
+		if (values["sticker-id"]) result.stickerId = values["sticker-id"] as string;
+		if (values["start-time"]) result.startTime = parseFloat(values["start-time"] as string);
+		if (values["end-time"]) result.endTime = parseFloat(values["end-time"] as string);
+		if (values.width) result.width = Number(values.width);
+		if (values.height) result.height = Number(values.height);
 
 		return result;
 	} catch {

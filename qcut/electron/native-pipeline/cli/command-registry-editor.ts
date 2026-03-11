@@ -744,6 +744,14 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		"Remove a sticker from the timeline",
 		[PID, EID]
 	),
+	"editor:sticker:list": ed(
+		"editor:sticker:list",
+		"List all stickers on the timeline",
+		[PID],
+		[
+			"qcut-pipeline editor:sticker:list --project-id <id> --json",
+		]
+	),
 
 	// ── State Control ──
 	"editor:undo": ed("editor:undo", "Undo last action", []),

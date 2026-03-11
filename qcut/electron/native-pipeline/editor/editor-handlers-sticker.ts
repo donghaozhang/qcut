@@ -19,7 +19,7 @@ export async function handleStickerCommand(
 	options: CLIRunOptions
 ): Promise<CLIResult> {
 	const parts = options.command.split(":");
-	const action = parts[2]; // "add", "update", "remove"
+	const action = parts[2]; // "add", "update", "remove", "list"
 
 	switch (action) {
 		case "add":
@@ -28,10 +28,12 @@ export async function handleStickerCommand(
 			return stickerUpdate(client, options);
 		case "remove":
 			return stickerRemove(client, options);
+		case "list":
+			return stickerList(client, options);
 		default:
 			return {
 				success: false,
-				error: `Unknown sticker action: ${action}. Available: add, update, remove`,
+				error: `Unknown sticker action: ${action}. Available: add, update, remove, list`,
 			};
 	}
 }
@@ -196,4 +198,75 @@ async function stickerRemove(
 		`/api/claude/timeline/${opts.projectId}/elements/${opts.elementId}`
 	);
 	return { success: true, data };
+}
+
+// ---------------------------------------------------------------------------
+// List stickers
+// ---------------------------------------------------------------------------
+
+/** List all sticker elements on the timeline. */
+async function stickerList(
+	client: EditorApiClient,
+	opts: CLIRunOptions
+): Promise<CLIResult> {
+	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
+
+	// Get the timeline info to access all elements
+	const timelineData = await client.get<{
+		tracks: Array<{
+			id: string;
+			type: string;
+			elements: Array<{
+				id: string;
+				type: string;
+				stickerId?: string;
+				mediaId?: string;
+				startTime: number;
+				duration: number;
+				x?: number;
+				y?: number;
+				width?: number;
+				height?: number;
+				rotation?: number;
+				opacity?: number;
+			}>;
+		}>;
+	}>(`/api/claude/timeline/${opts.projectId}`);
+
+	// Filter for sticker elements across all tracks
+	const stickerElements: Array<{
+		id: string;
+		stickerId?: string;
+		mediaId?: string;
+		startTime: number;
+		endTime: number;
+		duration: number;
+		x?: number;
+		y?: number;
+		width?: number;
+		height?: number;
+		rotation?: number;
+		opacity?: number;
+		trackId: string;
+	}> = [];
+
+	for (const track of timelineData.tracks) {
+		for (const element of track.elements) {
+			if (element.type === "sticker") {
+				stickerElements.push({
+					...element,
+					endTime: element.startTime + element.duration,
+					trackId: track.id,
+				});
+			}
+		}
+	}
+
+	return {
+		success: true,
+		data: {
+			stickers: stickerElements,
+			total: stickerElements.length,
+		},
+	};
 }
