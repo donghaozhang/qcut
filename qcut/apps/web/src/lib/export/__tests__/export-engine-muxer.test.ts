@@ -253,4 +253,140 @@ describe("ExportEngineMuxer", () => {
 			})
 		);
 	});
+
+	it("uses 480p bitrate for low quality preset", async () => {
+		const { canvas } = createMockCanvas(854, 480);
+
+		const engine = new ExportEngineMuxer(
+			canvas,
+			{
+				format: "mp4",
+				quality: "480p",
+				filename: "test.mp4",
+				width: 854,
+				height: 480,
+			},
+			[],
+			[],
+			0.1
+		);
+
+		await engine.export();
+
+		expect(mockCanvasSourceCtor).toHaveBeenCalledWith(
+			canvas,
+			expect.objectContaining({
+				codec: "avc",
+				bitrate: 2_500_000,
+			})
+		);
+	});
+
+	it("falls back to default bitrate for unknown quality", async () => {
+		const { canvas } = createMockCanvas();
+
+		const engine = new ExportEngineMuxer(
+			canvas,
+			{
+				format: "mp4",
+				quality: "4k" as any,
+				filename: "test.mp4",
+				width: 1280,
+				height: 720,
+			},
+			[],
+			[],
+			0.1
+		);
+
+		await engine.export();
+
+		// Unknown quality falls back to 5_000_000
+		expect(mockCanvasSourceCtor).toHaveBeenCalledWith(
+			canvas,
+			expect.objectContaining({
+				bitrate: 5_000_000,
+			})
+		);
+	});
+
+	it("can be cancelled during export", async () => {
+		const { canvas } = createMockCanvas();
+		// Make add() slow so we can cancel mid-export
+		mockAdd.mockImplementation(
+			() => new Promise((resolve) => setTimeout(resolve, 50))
+		);
+
+		const engine = new ExportEngineMuxer(
+			canvas,
+			{
+				format: "mp4",
+				quality: "720p",
+				filename: "test.mp4",
+				width: 1280,
+				height: 720,
+			},
+			[],
+			[],
+			1 // 30 frames gives time to cancel
+		);
+
+		const exportPromise = engine.export();
+
+		// Cancel after a short delay
+		setTimeout(() => engine.cancel(), 10);
+
+		await expect(exportPromise).rejects.toThrow("Export cancelled by user");
+
+		// Reset mock
+		mockAdd.mockResolvedValue(undefined);
+	});
+
+	it("re-throws non-cancellation errors", async () => {
+		const { canvas } = createMockCanvas();
+		mockStart.mockRejectedValueOnce(new Error("output start failed"));
+
+		const engine = new ExportEngineMuxer(
+			canvas,
+			{
+				format: "mp4",
+				quality: "720p",
+				filename: "test.mp4",
+				width: 1280,
+				height: 720,
+			},
+			[],
+			[],
+			0.1
+		);
+
+		await expect(engine.export()).rejects.toThrow("output start failed");
+		// isExporting should be reset in finally block
+	});
+
+	it("resets isExporting after failure", async () => {
+		const { canvas } = createMockCanvas();
+		mockStart.mockRejectedValueOnce(new Error("fail"));
+
+		const engine = new ExportEngineMuxer(
+			canvas,
+			{
+				format: "mp4",
+				quality: "720p",
+				filename: "test.mp4",
+				width: 1280,
+				height: 720,
+			},
+			[],
+			[],
+			0.1
+		);
+
+		await expect(engine.export()).rejects.toThrow("fail");
+
+		// Should be able to export again (isExporting was reset)
+		mockStart.mockResolvedValue(undefined);
+		const blob = await engine.export();
+		expect(blob).toBeInstanceOf(Blob);
+	});
 });

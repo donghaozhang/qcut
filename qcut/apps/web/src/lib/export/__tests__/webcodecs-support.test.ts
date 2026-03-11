@@ -101,6 +101,19 @@ describe("webcodecs-support", () => {
 			const result = await getH264Support();
 			expect(result).toBeNull();
 		});
+
+		it("handles isConfigSupported throwing an error", async () => {
+			(globalThis as any).VideoEncoder = {
+				isConfigSupported: vi
+					.fn()
+					.mockRejectedValue(new Error("not implemented")),
+			};
+			(globalThis as any).VideoFrame = class {};
+			(globalThis as any).EncodedVideoChunk = class {};
+
+			const result = await getH264Support();
+			expect(result).toBeNull();
+		});
 	});
 
 	describe("getBestMuxerCodec", () => {
