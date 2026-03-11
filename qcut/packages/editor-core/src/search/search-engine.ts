@@ -129,6 +129,7 @@ export function searchTranscriptions(
 	const regex = buildSearchRegex(options);
 	const results: SearchResult[] = [];
 	const maxResults = options.maxResults ?? Infinity;
+	if (maxResults <= 0) return [];
 
 	for (const transcription of transcriptions) {
 		// Skip if scoped to a specific media and this isn't it

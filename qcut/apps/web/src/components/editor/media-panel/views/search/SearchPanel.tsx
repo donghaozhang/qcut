@@ -123,7 +123,14 @@ export function SearchPanel() {
 				<div className="flex items-center gap-2 mt-2">
 					<button
 						type="button"
-						onClick={() => setCaseSensitive(!caseSensitive)}
+						onClick={() => {
+							// Flush pending debounce so search uses current input value
+							if (debounceRef.current) {
+								clearTimeout(debounceRef.current);
+								if (inputRef.current) setQuery(inputRef.current.value);
+							}
+							setCaseSensitive(!caseSensitive);
+						}}
 						className={cn(
 							"flex items-center gap-1 text-[0.6rem] px-1.5 py-0.5 rounded transition-colors",
 							caseSensitive
@@ -140,7 +147,14 @@ export function SearchPanel() {
 					</button>
 					<button
 						type="button"
-						onClick={() => setWholeWord(!wholeWord)}
+						onClick={() => {
+							// Flush pending debounce so search uses current input value
+							if (debounceRef.current) {
+								clearTimeout(debounceRef.current);
+								if (inputRef.current) setQuery(inputRef.current.value);
+							}
+							setWholeWord(!wholeWord);
+						}}
 						className={cn(
 							"flex items-center gap-1 text-[0.6rem] px-1.5 py-0.5 rounded transition-colors",
 							wholeWord

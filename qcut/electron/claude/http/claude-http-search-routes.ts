@@ -63,6 +63,37 @@ function escapeRegex(str: string): string {
 	return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function findWordTimestamp(
+	words: TranscriptionWord[],
+	segmentStart: number,
+	segmentEnd: number,
+	matchCharOffset: number,
+	segmentText: string
+): number | undefined {
+	if (!words.length) return undefined;
+	const segmentWords = words.filter(
+		(w) =>
+			w.type === "word" &&
+			w.start >= segmentStart - 0.01 &&
+			w.end <= segmentEnd + 0.01
+	);
+	if (!segmentWords.length) return undefined;
+
+	let charPos = 0;
+	for (const word of segmentWords) {
+		const idx = segmentText
+			.toLowerCase()
+			.indexOf(word.text.toLowerCase(), charPos);
+		if (idx === -1) continue;
+		const wordEnd = idx + word.text.length;
+		if (matchCharOffset >= idx && matchCharOffset < wordEnd) {
+			return word.start;
+		}
+		charPos = wordEnd;
+	}
+	return segmentWords[0]?.start;
+}
+
 function searchTranscriptions(
 	transcriptions: PersistedTranscription[],
 	options: SearchOptions
@@ -74,6 +105,7 @@ function searchTranscriptions(
 	const regex = new RegExp(pattern, flags);
 	const results: SearchResult[] = [];
 	const maxResults = options.maxResults ?? Infinity;
+	if (maxResults <= 0) return [];
 
 	for (const t of transcriptions) {
 		if (options.mediaId && t.mediaId !== options.mediaId) continue;
@@ -82,6 +114,13 @@ function searchTranscriptions(
 			regex.lastIndex = 0;
 			let match = regex.exec(seg.text);
 			while (match !== null) {
+				const wordTs = findWordTimestamp(
+					t.words,
+					seg.start,
+					seg.end,
+					match.index,
+					seg.text
+				);
 				results.push({
 					mediaId: t.mediaId,
 					mediaName: t.mediaName,
@@ -90,6 +129,7 @@ function searchTranscriptions(
 					matchEnd: match.index + match[0].length,
 					timestamp: seg.start,
 					timestampEnd: seg.end,
+					wordTimestamp: wordTs,
 				});
 				if (results.length >= maxResults) return results;
 				match = regex.exec(seg.text);
