@@ -182,6 +182,12 @@ export interface CLIRunOptions {
 	format?: string;
 	/** Set value (e.g. for editor:auth:token --set) */
 	set?: string;
+	// sticker options
+	stickerId?: string;
+	x?: number;
+	y?: number;
+	rotation?: number;
+	opacity?: number;
 	// translate-video options
 	noDynamicDuration?: boolean;
 	audioOnly?: boolean;

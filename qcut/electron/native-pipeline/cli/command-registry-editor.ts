@@ -695,6 +695,50 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		]
 	),
 
+	// ── Sticker ──
+	"editor:sticker:add": ed(
+		"editor:sticker:add",
+		"Add a sticker to the timeline at a specific position and time",
+		[
+			PID,
+			f("--sticker-id", "string", "Sticker ID from catalog"),
+			f("--source", "string", "Path to custom image file (PNG/JPG/WebP)"),
+			f("--x", "number", "X position in pixels", { default: 0 }),
+			f("--y", "number", "Y position in pixels", { default: 0 }),
+			f("--time-start", "number", "Start time in seconds", { default: 0 }),
+			f("--time-end", "number", "End time in seconds", { required: true }),
+			f("--width", "number", "Width in pixels"),
+			f("--height", "number", "Height in pixels"),
+			f("--rotation", "number", "Rotation in degrees", { default: 0 }),
+			f("--opacity", "number", "Opacity (0-1)", { default: 1 }),
+		],
+		[
+			"qcut-pipeline editor:sticker:add --project-id <id> --sticker-id stk_emoji_fire --x 860 --y 440 --time-start 2 --time-end 5 --width 200 --json",
+			"qcut-pipeline editor:sticker:add --project-id <id> --source /tmp/logo.png --x 50 --y 50 --time-start 0 --time-end 10 --width 100 --json",
+		]
+	),
+	"editor:sticker:update": ed(
+		"editor:sticker:update",
+		"Update position, size, or time of an existing sticker element",
+		[
+			PID,
+			EID,
+			f("--x", "number", "X position in pixels"),
+			f("--y", "number", "Y position in pixels"),
+			f("--time-start", "number", "Start time in seconds"),
+			f("--time-end", "number", "End time in seconds"),
+			f("--width", "number", "Width in pixels"),
+			f("--height", "number", "Height in pixels"),
+			f("--rotation", "number", "Rotation in degrees"),
+			f("--opacity", "number", "Opacity (0-1)"),
+		]
+	),
+	"editor:sticker:remove": ed(
+		"editor:sticker:remove",
+		"Remove a sticker from the timeline",
+		[PID, EID]
+	),
+
 	// ── State Control ──
 	"editor:undo": ed("editor:undo", "Undo last action", []),
 	"editor:redo": ed("editor:redo", "Redo last undone action", []),
