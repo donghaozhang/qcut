@@ -144,10 +144,16 @@ describe("ExportEngineMuxer", () => {
 		const { canvas } = createMockCanvas();
 		const engine = new ExportEngineMuxer(
 			canvas,
-			{ format: "mp4", quality: "720p", filename: "test.mp4", width: 1280, height: 720 },
+			{
+				format: "mp4",
+				quality: "720p",
+				filename: "test.mp4",
+				width: 1280,
+				height: 720,
+			},
 			[],
 			[],
-			2,
+			2
 		);
 		expect(engine).toBeDefined();
 	});
@@ -156,18 +162,22 @@ describe("ExportEngineMuxer", () => {
 		const { canvas } = createMockCanvas();
 		const engine = new ExportEngineMuxer(
 			canvas,
-			{ format: "mp4", quality: "720p", filename: "test.mp4", width: 1280, height: 720 },
+			{
+				format: "mp4",
+				quality: "720p",
+				filename: "test.mp4",
+				width: 1280,
+				height: 720,
+			},
 			[], // no tracks = no audio
 			[],
-			1, // 1 second = 30 frames
+			1 // 1 second = 30 frames
 		);
 
 		const progressUpdates: Array<{ progress: number; status: string }> = [];
-		const blob = await engine.export(
-			(progress: number, status: string) => {
-				progressUpdates.push({ progress, status });
-			},
-		);
+		const blob = await engine.export((progress: number, status: string) => {
+			progressUpdates.push({ progress, status });
+		});
 
 		// Should return a blob
 		expect(blob).toBeInstanceOf(Blob);
@@ -193,10 +203,16 @@ describe("ExportEngineMuxer", () => {
 		const { canvas } = createMockCanvas();
 		const engine = new ExportEngineMuxer(
 			canvas,
-			{ format: "mp4", quality: "720p", filename: "test.mp4", width: 1280, height: 720 },
+			{
+				format: "mp4",
+				quality: "720p",
+				filename: "test.mp4",
+				width: 1280,
+				height: 720,
+			},
 			[],
 			[],
-			0.1,
+			0.1
 		);
 
 		// Start first export (don't await)
@@ -214,10 +230,16 @@ describe("ExportEngineMuxer", () => {
 
 		const engine = new ExportEngineMuxer(
 			canvas,
-			{ format: "mp4", quality: "1080p", filename: "test.mp4", width: 1920, height: 1080 },
+			{
+				format: "mp4",
+				quality: "1080p",
+				filename: "test.mp4",
+				width: 1920,
+				height: 1080,
+			},
 			[],
 			[],
-			0.1,
+			0.1
 		);
 
 		await engine.export();
@@ -228,7 +250,7 @@ describe("ExportEngineMuxer", () => {
 			expect.objectContaining({
 				codec: "avc",
 				bitrate: 8_000_000,
-			}),
+			})
 		);
 	});
 });

@@ -376,9 +376,7 @@ export class ExportEngineFactory {
 					console.log(
 						"🚀 EXPORT ENGINE CREATION: Creating Muxer (mediabunny) engine"
 					);
-					const { ExportEngineMuxer } = await import(
-						"./export-engine-muxer"
-					);
+					const { ExportEngineMuxer } = await import("./export-engine-muxer");
 					return new ExportEngineMuxer(
 						canvas,
 						settings,
@@ -402,13 +400,9 @@ export class ExportEngineFactory {
 
 			case ExportEngineType.WEBCODECS:
 				// Legacy WebCodecs engine — now falls through to muxer or optimized
-				debugLog(
-					"WebCodecs engine redirecting to muxer engine"
-				);
+				debugLog("WebCodecs engine redirecting to muxer engine");
 				try {
-					const { ExportEngineMuxer } = await import(
-						"./export-engine-muxer"
-					);
+					const { ExportEngineMuxer } = await import("./export-engine-muxer");
 					return new ExportEngineMuxer(
 						canvas,
 						settings,
@@ -668,7 +662,9 @@ export class ExportEngineFactory {
 		const isRealIPad =
 			/iPad/.test(navigator.platform) || /iPad/.test(navigator.userAgent);
 		if (!isRealIPad) {
-			console.log("⚠️ isSimulator: detected iOS Simulator (Capacitor ios + MacIntel platform)");
+			console.log(
+				"⚠️ isSimulator: detected iOS Simulator (Capacitor ios + MacIntel platform)"
+			);
 			return true;
 		}
 		return false;
@@ -728,10 +724,7 @@ export class ExportEngineFactory {
 			await Promise.race([
 				encoder.flush(),
 				new Promise((_, reject) =>
-					setTimeout(
-						() => reject(new Error("probe timeout")),
-						3_000
-					)
+					setTimeout(() => reject(new Error("probe timeout")), 3_000)
 				),
 			]);
 			encoder.close();
@@ -744,9 +737,7 @@ export class ExportEngineFactory {
 			);
 			return ok;
 		} catch {
-			console.log(
-				"⚠️ WebCodecs probe: encoder not functional, falling back"
-			);
+			console.log("⚠️ WebCodecs probe: encoder not functional, falling back");
 			return false;
 		}
 	}
