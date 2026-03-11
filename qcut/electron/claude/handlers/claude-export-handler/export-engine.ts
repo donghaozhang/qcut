@@ -352,7 +352,7 @@ export async function collectStickerOverlays({
 				if (!Number.isFinite(duration) || duration <= 0) continue;
 
 				const style = (element.style ?? {}) as Record<string, unknown>;
-				const el = element as Record<string, unknown>;
+				const el = element as unknown as Record<string, unknown>;
 
 				overlays.push({
 					sourcePath: media.path,
