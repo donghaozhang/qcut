@@ -47,7 +47,7 @@ async function stickerAdd(
 ): Promise<CLIResult> {
 	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
 	if (opts.endTime === undefined)
-		return { success: false, error: "Missing --time-end" };
+		return { success: false, error: "Missing --end-time" };
 	if (!opts.stickerId && !opts.source)
 		return {
 			success: false,
@@ -86,7 +86,7 @@ async function stickerAdd(
 	if (duration <= 0) {
 		return {
 			success: false,
-			error: "--time-end must be greater than --time-start",
+			error: "--end-time must be greater than --start-time",
 		};
 	}
 
@@ -149,7 +149,7 @@ async function stickerUpdate(
 		return {
 			success: false,
 			error:
-				"No changes specified. Provide at least one of: --x, --y, --width, --height, --rotation, --opacity, --time-start, --time-end",
+				"No changes specified. Provide at least one of: --x, --y, --width, --height, --rotation, --opacity, --start-time, --end-time",
 		};
 	}
 
