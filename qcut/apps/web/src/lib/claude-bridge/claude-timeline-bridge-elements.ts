@@ -7,6 +7,7 @@ import {
 	isClaudeMediaElementType,
 	addClaudeMediaElement,
 	addClaudeTextElement,
+	addClaudeStickerElement,
 	addClaudeMarkdownElement,
 	addClaudeRemotionElement,
 } from "./claude-timeline-bridge-helpers";
@@ -213,6 +214,14 @@ export function setupElementHandlers({
 
 			if (element.type === "markdown") {
 				addClaudeMarkdownElement({
+					element,
+					timelineStore,
+				});
+				return;
+			}
+
+			if (element.type === "sticker") {
+				await addClaudeStickerElement({
 					element,
 					timelineStore,
 				});

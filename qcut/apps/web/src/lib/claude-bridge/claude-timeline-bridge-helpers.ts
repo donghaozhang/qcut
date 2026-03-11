@@ -384,6 +384,71 @@ export function addClaudeTextElement({
 	debugLog("[ClaudeTimelineBridge] Added text element:", content);
 }
 
+const DEFAULT_STICKER_DURATION_SECONDS = 5;
+
+/** Add a Claude sticker element to the timeline store and overlay store. */
+export async function addClaudeStickerElement({
+	element,
+	timelineStore,
+}: {
+	element: Partial<ClaudeElement> & {
+		stickerId?: string;
+		mediaId?: string;
+		x?: number;
+		y?: number;
+		width?: number;
+		height?: number;
+		rotation?: number;
+		opacity?: number;
+	};
+	timelineStore: TimelineStoreState;
+}): Promise<void> {
+	const trackId = timelineStore.findOrCreateTrack("sticker");
+	const startTime = getElementStartTime({ element });
+	const duration = getElementDuration({
+		element,
+		fallbackDuration: DEFAULT_STICKER_DURATION_SECONDS,
+	});
+
+	const stickerId = element.stickerId ?? `sticker_${Date.now()}`;
+	const mediaId = element.mediaId ?? stickerId;
+
+	timelineStore.addElementToTrack(trackId, {
+		type: "sticker",
+		name: element.sourceName ?? "Sticker",
+		stickerId,
+		mediaId,
+		startTime,
+		duration,
+		trimStart: 0,
+		trimEnd: 0,
+		x: element.x ?? 0,
+		y: element.y ?? 0,
+		width: element.width,
+		height: element.height,
+	});
+
+	// Also add to sticker overlay store for canvas rendering
+	try {
+		const { useStickersOverlayStore } = await import(
+			"@/stores/stickers-overlay-store"
+		);
+		useStickersOverlayStore.getState().addOverlaySticker(mediaId, {
+			position: { x: element.x ?? 0, y: element.y ?? 0 },
+			size:
+				element.width && element.height
+					? { width: element.width, height: element.height }
+					: undefined,
+			rotation: element.rotation ?? 0,
+			opacity: element.opacity ?? 1,
+		});
+	} catch (err) {
+		debugWarn("[ClaudeTimelineBridge] Failed to add sticker overlay:", err);
+	}
+
+	debugLog("[ClaudeTimelineBridge] Added sticker element:", stickerId);
+}
+
 const DEFAULT_MARKDOWN_DURATION_SECONDS = 120;
 const DEFAULT_MARKDOWN_CONTENT = "Markdown";
 
