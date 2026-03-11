@@ -23,6 +23,20 @@ export async function saveExportedVideo(
 	blob: Blob,
 	filename: string
 ): Promise<SaveResult> {
+	// On iPad, navigator.share is the most memory-efficient way (avoids base64 conversion)
+	const file = new File([blob], filename, { type: blob.type });
+	if (
+		typeof navigator.share === "function" &&
+		navigator.canShare?.({ files: [file] })
+	) {
+		try {
+			await navigator.share({ files: [file], title: filename });
+			return { success: true };
+		} catch {
+			// Share was cancelled or failed, proceed to other methods
+		}
+	}
+
 	// Try Capacitor filesystem (iPad)
 	if (isCapacitorAvailable()) {
 		return saveViaCapacitor(blob, filename);
@@ -82,7 +96,7 @@ async function saveViaCapacitor(
 		const base64 = await blobToBase64(blob);
 
 		const result = await Filesystem.writeFile({
-			path: `QCut/${filename}`,
+			path: `QCut/${filename.split("/").pop()?.split("\\").pop() || "export.mp4"}`,
 			data: base64,
 			directory: Directory.Documents,
 			recursive: true,

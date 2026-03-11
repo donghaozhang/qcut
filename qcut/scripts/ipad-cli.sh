@@ -74,7 +74,14 @@ case "$CMD" in
     FILENAME=${3:-export}
     xcrun simctl openurl booted "qcut://export?quality=$QUALITY&format=$FORMAT&filename=$FILENAME"
     echo "Export started, polling progress..."
+    MAX_POLLS=100
+    POLL_COUNT=0
     while true; do
+      POLL_COUNT=$((POLL_COUNT + 1))
+      if [ "$POLL_COUNT" -gt "$MAX_POLLS" ]; then
+        echo "ERROR: Export timed out after $MAX_POLLS polls (~5 minutes)"
+        exit 1
+      fi
       sleep 2
       xcrun simctl openurl booted "qcut://export-status"
       sleep 1

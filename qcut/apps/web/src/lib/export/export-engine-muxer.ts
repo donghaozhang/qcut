@@ -43,9 +43,6 @@ const AUDIO_BITRATE: Record<string, number> = {
 	"480p": 96_000,
 };
 
-/** Max encode queue depth before applying backpressure */
-const MAX_ENCODE_QUEUE = 5;
-
 /**
  * Export engine using mediabunny for proper MP4 muxing via WebCodecs.
  * Works on iPad Safari 16.4+ and modern browsers without FFmpeg.

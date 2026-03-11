@@ -460,7 +460,7 @@ await user.click(screen.getByRole('button'));
 
 ### Current Maintenance Priorities
 1. **E2E Test Maintenance** (High Priority)
-   - 22 E2E test files
+   - 23 E2E test files
    - See `docs/technical/testing/e2e.md` for implementation details
 
 2. **Coverage Expansion** (Medium Priority)

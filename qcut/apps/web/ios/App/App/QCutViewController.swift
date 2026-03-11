@@ -126,16 +126,26 @@ class QCutViewController: CAPBridgeViewController {
             let quality = url.queryValue(for: "quality") ?? "720p"
             let format = url.queryValue(for: "format") ?? "mp4"
             let filename = url.queryValue(for: "filename") ?? "export"
+            guard
+                let payloadData = try? JSONSerialization.data(withJSONObject: [
+                    "quality": quality,
+                    "format": format,
+                    "filename": filename,
+                ]),
+                let payloadJSON = String(data: payloadData, encoding: .utf8)
+            else {
+                NSLog("[QCut CLI] export: failed to encode arguments")
+                return
+            }
             runJS("""
             (function() {
                 if (!window.__exportActions) return 'no export actions (open editor first)';
                 var p = window.__exportStore?.getState().progress;
                 if (p && p.isExporting) return 'already exporting';
-                window.__exportActions.export({
-                    quality: '\(quality)', format: '\(format)', filename: '\(filename)'
-                }).then(function() { return 'export complete'; })
+                var settings = \(payloadJSON);
+                window.__exportActions.export(settings).then(function() { return 'export complete'; })
                   .catch(function(e) { console.error('[CLI Export] failed:', e); });
-                return 'export started: \(quality) \(format)';
+                return 'export started: ' + settings.quality + ' ' + settings.format;
             })()
             """)
 
@@ -152,7 +162,7 @@ class QCutViewController: CAPBridgeViewController {
                     currentFrame: p.currentFrame,
                     totalFrames: p.totalFrames,
                     estimatedTimeRemaining: p.estimatedTimeRemaining,
-                    encodingSpeed: p.encodingSpeed || null
+                    encodingSpeed: p.encodingSpeed ?? null
                 });
             })()
             """)

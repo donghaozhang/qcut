@@ -6,7 +6,7 @@ This document provides a comprehensive overview of the QCut source code structur
 
 **Generated:** 2026-03-11
 **Total Source Files:** 827+ files in src/ + 232+ in electron/
-**Test Files:** 202 unit + 23 E2E test files
+**Test Files:** 205 unit + 23 E2E test files
 **Main Source Directory:** `apps/web/src/`
 
 ## Project Architecture
@@ -19,7 +19,7 @@ QCut is a desktop video editor built with:
 - **Video Processing:** FFmpeg WebAssembly
 - **AI Integration:** FAL.ai (80+ models)
 - **Styling:** Tailwind CSS
-- **Testing:** Vitest ^4.0.0 with 202 unit + 23 E2E test files
+- **Testing:** Vitest ^4.0.0 with 205 unit + 23 E2E test files
 
 ## Source Code Structure
 
@@ -940,7 +940,7 @@ The codebase contains several substantial files that form the core of the applic
 ## Testing Strategy
 
 **Framework**: Vitest ^4.0.0 with JSDOM environment
-**Status**: 202 unit + 23 E2E test files
+**Status**: 205 unit + 23 E2E test files
 
 ### Running Tests
 ```bash

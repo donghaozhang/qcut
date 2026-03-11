@@ -178,6 +178,7 @@ bun run release:promote   # Promote prerelease to stable
 | `test:e2e:visual` | Run visual regression E2E tests |
 | `test:e2e:visual:update` | Update visual regression snapshots |
 | `check-boundaries` | Check Electron boundary violations |
+| `./scripts/ipad-cli.sh` | iPad Simulator CLI (play, pause, export, state, eval) |
 
 ### Web App (`apps/web/package.json`)
 | Script | Description |

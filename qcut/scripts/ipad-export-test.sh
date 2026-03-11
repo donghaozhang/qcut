@@ -174,7 +174,7 @@ create_synthetic_audio() {
     local name="${1:-test-audio.mp3}"
     local duration_sec="${2:-2}"
 
-    run_js "(function(){try{window.__lastInjectedId=null;var ctx=new OfflineAudioContext(2,48000*${duration_sec},48000);var osc=ctx.createOscillator();osc.frequency.value=440;var gain=ctx.createGain();gain.gain.value=0.3;osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(${duration_sec});ctx.startRendering().then(function(buf){var len=buf.length;var wav=new ArrayBuffer(44+len*4);var v=new DataView(wav);function w(o,s){for(var i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));}w(0,'RIFF');v.setUint32(4,36+len*4,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,3,true);v.setUint16(22,2,true);v.setUint32(24,48000,true);v.setUint32(28,48000*8,true);v.setUint16(32,8,true);v.setUint16(34,32,true);w(36,'data');v.setUint32(40,len*4,true);var d=new Float32Array(wav,44);for(var i=0;i<len;i++)d[i]=buf.getChannelData(0)[i];var blob=new Blob([wav],{type:'audio/wav'});var f=new File([blob],'${name}',{type:'audio/wav'});var u=URL.createObjectURL(blob);var ms=window.__mediaStore;if(!ms)return;var id='aud_'+Date.now();ms.setState({mediaItems:ms.getState().mediaItems.concat([{id:id,name:'${name}',type:'audio',file:f,url:u,thumbnailStatus:'ready',duration:${duration_sec},width:0,height:0}])});window.__lastInjectedId=id;});return 'gen';}catch(e){return 'ERROR:'+e.message;}})()" > /dev/null
+    run_js "(function(){try{window.__lastInjectedId=null;var ctx=new OfflineAudioContext(1,48000*${duration_sec},48000);var osc=ctx.createOscillator();osc.frequency.value=440;var gain=ctx.createGain();gain.gain.value=0.3;osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(${duration_sec});ctx.startRendering().then(function(buf){var len=buf.length;var wav=new ArrayBuffer(44+len*4);var v=new DataView(wav);function w(o,s){for(var i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));}w(0,'RIFF');v.setUint32(4,36+len*4,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,3,true);v.setUint16(22,1,true);v.setUint32(24,48000,true);v.setUint32(28,48000*4,true);v.setUint16(32,4,true);v.setUint16(34,32,true);w(36,'data');v.setUint32(40,len*4,true);var d=new Float32Array(wav,44);for(var i=0;i<len;i++)d[i]=buf.getChannelData(0)[i];var blob=new Blob([wav],{type:'audio/wav'});var f=new File([blob],'${name}',{type:'audio/wav'});var u=URL.createObjectURL(blob);var ms=window.__mediaStore;if(!ms)return;var id='aud_'+Date.now();ms.setState({mediaItems:ms.getState().mediaItems.concat([{id:id,name:'${name}',type:'audio',file:f,url:u,thumbnailStatus:'ready',duration:${duration_sec},width:0,height:0}])});window.__lastInjectedId=id;});return 'gen';}catch(e){return 'ERROR:'+e.message;}})()" > /dev/null
 
     # Poll for the ID
     local attempts=0
@@ -284,6 +284,12 @@ ensure_app_ready() {
         info "Navigating to editor..."
         cli_cmd "navigate?path=/editor/new"
         sleep 4
+        cli_cmd "state"
+        state=$(cli_result 2 5)
+        if ! echo "$state" | grep -q '"tracks"'; then
+            fail "Editor not ready after navigation"
+            return 1
+        fi
     fi
 
     ok "App ready"
@@ -443,7 +449,7 @@ test_empty_timeline() {
     elif echo "$result" | grep -qi '"progress":0.*"status":""'; then
         ok "Empty timeline — export not triggered (no content)"
     else
-        ok "Empty timeline — no crash (result: $result)"
+        fail "Empty timeline — unexpected response: $result"
     fi
 }
 

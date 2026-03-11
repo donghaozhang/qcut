@@ -124,7 +124,6 @@ describe("webcodecs-support", () => {
 		});
 
 		it("falls back to VP8/WebM when H.264 unavailable", async () => {
-			let calls = 0;
 			(globalThis as any).VideoEncoder = {
 				isConfigSupported: vi.fn().mockImplementation(({ codec }) => {
 					// Reject all H.264 profiles, accept VP8

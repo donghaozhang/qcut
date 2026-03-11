@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useState } from "react";
 import { useExportStore } from "@/stores/export-store";
 import { PanelView } from "@/types/panel";
