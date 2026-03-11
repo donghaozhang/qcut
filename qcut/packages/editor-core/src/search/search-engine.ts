@@ -114,7 +114,7 @@ function findWordTimestamp(
 /**
  * Search across one or more transcriptions for matching text.
  *
- * Results are sorted by media order (input array order), then by timestamp ascending.
+ * Results follow media order (input array order), then segment order within each transcription.
  *
  * @param transcriptions - Array of persisted transcriptions to search through.
  * @param options - Search configuration (query, case sensitivity, etc.).

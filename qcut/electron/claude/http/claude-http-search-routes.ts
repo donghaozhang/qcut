@@ -106,16 +106,15 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { app } from "electron";
+import { getProjectPath } from "../utils/helpers.js";
 
 const HANDLER_NAME = "SearchRoutes";
 
 // ── Transcription persistence helpers ────────────────────────────────
 
-/** Get the project directory: ~/Documents/QCut/Projects/<projectId> */
+/** Get the project directory using the shared helper (safe in utility process). */
 function getProjectDir(projectId: string): string {
-	const sanitized = projectId.replace(/[/\\]/g, "").replace(/\.\./g, "");
-	return join(app.getPath("documents"), "QCut", "Projects", sanitized);
+	return getProjectPath(projectId);
 }
 
 /** Get the transcriptions directory for a project. */

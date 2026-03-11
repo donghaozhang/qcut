@@ -113,7 +113,13 @@ export const useSearchStore = create<SearchStore>((set, get) => ({
 			maxResults: 500,
 		};
 
-		const results = searchTranscriptions(transcriptions, options);
+		let results: SearchResult[];
+		try {
+			results = searchTranscriptions(transcriptions, options);
+		} catch {
+			set({ results: [], isSearching: false, selectedResultIndex: null });
+			return;
+		}
 
 		set({
 			results,
