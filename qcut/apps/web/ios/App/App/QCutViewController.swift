@@ -85,7 +85,8 @@ class QCutViewController: CAPBridgeViewController {
                     elements: tl ? tl.tracks.reduce(function(s,t){ return s + t.elements.length; }, 0) : null,
                     project: pj?.activeProject ? { id: pj.activeProject.id, name: pj.activeProject.name, fps: pj.activeProject.fps } : null,
                     panel: mp ? { activeTab: mp.activeTab, aiActiveTab: mp.aiActiveTab } : null,
-                    panelView: ex?.panelView || null
+                    panelView: ex?.panelView || null,
+                    export: ex ? { isExporting: ex.progress.isExporting, progress: ex.progress.progress, status: ex.progress.status, settings: { quality: ex.settings.quality, format: ex.settings.format } } : null
                 }, null, 2);
             })()
             """)
@@ -116,6 +117,43 @@ class QCutViewController: CAPBridgeViewController {
             (function() {
                 if (!window.__qcutLogs) return 'No logs captured yet.';
                 return window.__qcutLogs.slice(-30).join('\\n');
+            })()
+            """)
+
+        // ── Export ──────────────────────────────────────────────────
+        case "export":
+            // qcut://export?quality=720p&format=mp4&filename=my-video
+            let quality = url.queryValue(for: "quality") ?? "720p"
+            let format = url.queryValue(for: "format") ?? "mp4"
+            let filename = url.queryValue(for: "filename") ?? "export"
+            runJS("""
+            (function() {
+                if (!window.__exportActions) return 'no export actions (open editor first)';
+                var p = window.__exportStore?.getState().progress;
+                if (p && p.isExporting) return 'already exporting';
+                window.__exportActions.export({
+                    quality: '\(quality)', format: '\(format)', filename: '\(filename)'
+                }).then(function() { return 'export complete'; })
+                  .catch(function(e) { console.error('[CLI Export] failed:', e); });
+                return 'export started: \(quality) \(format)';
+            })()
+            """)
+
+        // ── Export status ───────────────────────────────────────────
+        case "export-status":
+            runJS("""
+            (function() {
+                if (!window.__exportStore) return 'no export store';
+                var p = window.__exportStore.getState().progress;
+                return JSON.stringify({
+                    isExporting: p.isExporting,
+                    progress: p.progress,
+                    status: p.status,
+                    currentFrame: p.currentFrame,
+                    totalFrames: p.totalFrames,
+                    estimatedTimeRemaining: p.estimatedTimeRemaining,
+                    encodingSpeed: p.encodingSpeed || null
+                });
             })()
             """)
 

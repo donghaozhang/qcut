@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { useElectron } from "@/hooks/useElectron";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 import { lockForExport, unlockFromExport } from "@/lib/media/blob-manager";
+import { saveExportedVideo } from "@/lib/export/export-output";
 
 export function useExportProgress() {
 	const { progress, updateProgress, setError, resetExport, addToHistory } =
@@ -227,15 +228,17 @@ export function useExportProgress() {
 			// Reset timing state
 			setExportStartTime(null);
 
-			// Create download
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = exportSettings.filename;
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
+			// Save/download via platform-aware output
+			const saveResult = await saveExportedVideo(
+				blob,
+				exportSettings.filename
+			);
+			if (!saveResult.success) {
+				debugWarn(
+					"[ExportPanel] Save issue:",
+					saveResult.error
+				);
+			}
 
 			// Show success message
 			toast.success("Export completed successfully!", {

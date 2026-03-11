@@ -77,7 +77,7 @@ export class ExportEngineMuxer extends ExportEngine {
 			// Create output with MP4 format
 			const target = new BufferTarget();
 			const output = new Output({
-				format: new Mp4OutputFormat({ fastStart: true }),
+				format: new Mp4OutputFormat({ fastStart: "in-memory" }),
 				target,
 			});
 
@@ -97,8 +97,6 @@ export class ExportEngineMuxer extends ExportEngine {
 				audioSource = new AudioBufferSource({
 					codec: "aac",
 					bitrate: audioBitrate,
-					sampleRate: audioData.sampleRate,
-					numberOfChannels: audioData.numberOfChannels,
 				});
 				output.addAudioTrack(audioSource);
 			}
@@ -140,12 +138,15 @@ export class ExportEngineMuxer extends ExportEngine {
 			// Add audio data if present
 			if (audioSource && audioData) {
 				progressCallback?.(93, "Encoding audio...");
-				await audioSource.add(audioData.buffer);
+				await audioSource.add(audioData);
 			}
 
 			progressCallback?.(96, "Finalizing MP4...");
 			await output.finalize();
 
+			if (!target.buffer) {
+				throw new Error("Export finalization failed — no output buffer");
+			}
 			const blob = new Blob([target.buffer], { type: "video/mp4" });
 			progressCallback?.(100, "Export complete!");
 
@@ -180,23 +181,36 @@ export class ExportEngineMuxer extends ExportEngine {
 		// Collect audio sources from timeline
 		for (const track of this.tracks) {
 			for (const element of track.elements) {
-				const mediaItem = this.mediaItems.find((m) => m.id === element.mediaId);
+				// Only media elements have mediaId/volume
+				if (!("mediaId" in element)) continue;
+				const mediaId = element.mediaId as string;
+
+				const mediaItem = this.mediaItems.find(
+					(m) => m.id === mediaId
+				);
 				if (!mediaItem) continue;
 
 				const isAudio =
-					track.type === "audio" ||
-					(mediaItem.type === "video" && element.mediaId);
+					track.type === "audio" || mediaItem.type === "video";
 				if (!isAudio) continue;
 
-				const src = mediaItem.url || mediaItem.objectUrl || mediaItem.filePath;
+				const src =
+					mediaItem.url ||
+					mediaItem.originalUrl ||
+					mediaItem.localPath;
 				if (!src) continue;
+
+				const vol =
+					"volume" in element && typeof element.volume === "number"
+						? element.volume / 100
+						: 1;
 
 				audioElements.push({
 					src,
 					startTime: element.startTime,
 					duration: element.duration,
 					trimStart: element.trimStart || 0,
-					volume: element.volume !== undefined ? element.volume / 100 : 1,
+					volume: vol,
 				});
 			}
 		}
