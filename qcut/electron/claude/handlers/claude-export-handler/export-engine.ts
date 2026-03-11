@@ -327,7 +327,7 @@ export async function collectStickerOverlays({
 				if (!media || !media.path) {
 					claudeLog.warn(
 						HANDLER_NAME,
-						`Sticker element skipped — could not resolve media file. ` +
+						"Sticker element skipped — could not resolve media file. " +
 							`mediaId=${element.mediaId}, sourceId=${element.sourceId}, sourceName=${element.sourceName}`
 					);
 					continue;
@@ -633,101 +633,112 @@ export async function executeExportJob({
 			await fsPromises.rename(outputPath, concatOutputPath);
 
 			try {
+				// Build FFmpeg filter_complex for sticker overlays
+				const inputArgs: string[] = ["-y", "-i", concatOutputPath];
 
-			// Build FFmpeg filter_complex for sticker overlays
-			const inputArgs: string[] = ["-y", "-i", concatOutputPath];
-
-			// Add each sticker as an input
-			for (const sticker of stickerOverlays) {
-				inputArgs.push(
-					"-loop", "1",
-					"-t", String(sticker.endTime),
-					"-i", sticker.sourcePath
-				);
-			}
-
-			// Build filter_complex chain
-			const filterSteps: string[] = [];
-			let currentLabel = "0:v";
-
-			for (const [i, sticker] of stickerOverlays.entries()) {
-				const inputIdx = i + 1;
-				const scaledLabel = `stk_s${i}`;
-				let preparedLabel = scaledLabel;
-
-				// Scale sticker to target size
-				filterSteps.push(
-					`[${inputIdx}:v]scale=${sticker.width}:${sticker.height}[${scaledLabel}]`
-				);
-
-				// Apply rotation if needed
-				if (sticker.rotation !== 0) {
-					const rotLabel = `stk_r${i}`;
-					filterSteps.push(
-						`[${preparedLabel}]rotate=${sticker.rotation}*PI/180:c=none[${rotLabel}]`
+				// Add each sticker as an input
+				for (const sticker of stickerOverlays) {
+					inputArgs.push(
+						"-loop",
+						"1",
+						"-t",
+						String(sticker.endTime),
+						"-i",
+						sticker.sourcePath
 					);
-					preparedLabel = rotLabel;
 				}
 
-				// Apply opacity if < 1
-				if (sticker.opacity < 1) {
-					const alphaLabel = `stk_a${i}`;
+				// Build filter_complex chain
+				const filterSteps: string[] = [];
+				let currentLabel = "0:v";
+
+				for (const [i, sticker] of stickerOverlays.entries()) {
+					const inputIdx = i + 1;
+					const scaledLabel = `stk_s${i}`;
+					let preparedLabel = scaledLabel;
+
+					// Scale sticker to target size
 					filterSteps.push(
-						`[${preparedLabel}]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${sticker.opacity}*alpha(X,Y)'[${alphaLabel}]`
+						`[${inputIdx}:v]scale=${sticker.width}:${sticker.height}[${scaledLabel}]`
 					);
-					preparedLabel = alphaLabel;
+
+					// Apply rotation if needed
+					if (sticker.rotation !== 0) {
+						const rotLabel = `stk_r${i}`;
+						filterSteps.push(
+							`[${preparedLabel}]rotate=${sticker.rotation}*PI/180:c=none[${rotLabel}]`
+						);
+						preparedLabel = rotLabel;
+					}
+
+					// Apply opacity if < 1
+					if (sticker.opacity < 1) {
+						const alphaLabel = `stk_a${i}`;
+						filterSteps.push(
+							`[${preparedLabel}]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${sticker.opacity}*alpha(X,Y)'[${alphaLabel}]`
+						);
+						preparedLabel = alphaLabel;
+					}
+
+					// Overlay onto current video
+					const outLabel = `stk_o${i}`;
+					const overlayParams = [
+						`x=${sticker.x}`,
+						`y=${sticker.y}`,
+						`enable='between(t,${sticker.startTime},${sticker.endTime})'`,
+					].join(":");
+
+					filterSteps.push(
+						`[${currentLabel}][${preparedLabel}]overlay=${overlayParams}[${outLabel}]`
+					);
+					currentLabel = outLabel;
 				}
 
-				// Overlay onto current video
-				const outLabel = `stk_o${i}`;
-				const overlayParams = [
-					`x=${sticker.x}`,
-					`y=${sticker.y}`,
-					`enable='between(t,${sticker.startTime},${sticker.endTime})'`,
-				].join(":");
+				// The last filter output needs to be mapped
+				const lastLabel = currentLabel;
+				const filterComplex = filterSteps.join(";");
 
-				filterSteps.push(
-					`[${currentLabel}][${preparedLabel}]overlay=${overlayParams}[${outLabel}]`
+				const stickerArgs: string[] = [
+					...inputArgs,
+					"-filter_complex",
+					filterComplex,
+					"-map",
+					`[${lastLabel}]`,
+					"-map",
+					"0:a?",
+					"-c:v",
+					settings.codec,
+					"-preset",
+					"medium",
+					"-b:v",
+					parseBitrateForKbps({ bitrate: settings.bitrate }),
+					"-pix_fmt",
+					"yuv420p",
+					"-c:a",
+					"copy",
+					"-movflags",
+					"+faststart",
+					outputPath,
+				];
+
+				claudeLog.info(
+					HANDLER_NAME,
+					`Sticker overlay filter_complex: ${filterComplex}`
 				);
-				currentLabel = outLabel;
-			}
 
-			// The last filter output needs to be mapped
-			const lastLabel = currentLabel;
-			const filterComplex = filterSteps.join(";");
+				const totalDuration = segments.reduce((sum, s) => sum + s.duration, 0);
+				await runFFmpegCommand({
+					args: stickerArgs,
+					estimatedDuration: Math.max(0, totalDuration),
+					onProgress: ({ normalizedProgress }) => {
+						updateJobProgress({
+							jobId,
+							progress: 0.92 + normalizedProgress * 0.06,
+						});
+					},
+				});
 
-			const stickerArgs: string[] = [
-				...inputArgs,
-				"-filter_complex", filterComplex,
-				"-map", `[${lastLabel}]`,
-				"-map", "0:a?",
-				"-c:v", settings.codec,
-				"-preset", "medium",
-				"-b:v", parseBitrateForKbps({ bitrate: settings.bitrate }),
-				"-pix_fmt", "yuv420p",
-				"-c:a", "copy",
-				"-movflags", "+faststart",
-				outputPath,
-			];
-
-			claudeLog.info(
-				HANDLER_NAME,
-				`Sticker overlay filter_complex: ${filterComplex}`
-			);
-
-			const totalDuration = segments.reduce((sum, s) => sum + s.duration, 0);
-			await runFFmpegCommand({
-				args: stickerArgs,
-				estimatedDuration: Math.max(0, totalDuration),
-				onProgress: ({ normalizedProgress }) => {
-					updateJobProgress({
-						jobId,
-						progress: 0.92 + normalizedProgress * 0.06,
-					});
-				},
-			});
-
-			claudeLog.info(HANDLER_NAME, "Sticker overlay compositing complete");
+				claudeLog.info(HANDLER_NAME, "Sticker overlay compositing complete");
 			} catch (stickerError) {
 				claudeLog.error(
 					HANDLER_NAME,

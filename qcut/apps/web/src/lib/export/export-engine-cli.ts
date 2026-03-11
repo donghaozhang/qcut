@@ -363,8 +363,14 @@ export class CLIExportEngine extends ExportEngine {
 		let stickerFilterChain: string | undefined;
 		let stickerSources: StickerSourceForFilter[] = [];
 		try {
-			const _overlayCount = (await import("@/stores/stickers-overlay-store")).useStickersOverlayStore.getState().getStickersForExport().length;
-			console.log(`🎨 [STICKER EXPORT] Checking for sticker overlays... overlay store has ${_overlayCount} sticker(s)`);
+			const _overlayCount = (
+				await import("@/stores/stickers-overlay-store")
+			).useStickersOverlayStore
+				.getState()
+				.getStickersForExport().length;
+			console.log(
+				`🎨 [STICKER EXPORT] Checking for sticker overlays... overlay store has ${_overlayCount} sticker(s)`
+			);
 			stickerSources = await extractStickerSources(
 				this.mediaItems,
 				this.sessionId,
