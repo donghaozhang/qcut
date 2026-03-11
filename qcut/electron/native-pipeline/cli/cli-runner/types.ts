@@ -93,6 +93,11 @@ export interface CLIRunOptions {
 	projectId?: string;
 	// grid upscale
 	gridUpscale?: number;
+	// search options
+	query?: string;
+	caseSensitive?: boolean;
+	wholeWord?: boolean;
+	maxResults?: number;
 	// editor options
 	mediaId?: string;
 	elementId?: string;

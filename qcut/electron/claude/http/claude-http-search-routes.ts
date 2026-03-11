@@ -12,8 +12,92 @@
 import type { Router } from "../utils/http-router.js";
 import { HttpError } from "../utils/http-router.js";
 import { claudeLog } from "../utils/logger.js";
-import { searchTranscriptions } from "@qcut/editor-core/search";
-import type { PersistedTranscription } from "@qcut/editor-core";
+// ── Inline types (mirrors @qcut/editor-core) ─────────────────────────
+// Electron's tsconfig (moduleResolution: "node") can't resolve workspace
+// subpath exports, so we define minimal interfaces inline.
+
+interface TranscriptionWord {
+	type: "word" | "punctuation";
+	text: string;
+	start: number;
+	end: number;
+}
+
+interface TranscriptionSegment {
+	text: string;
+	start: number;
+	end: number;
+}
+
+interface PersistedTranscription {
+	version: number;
+	mediaId: string;
+	mediaName: string;
+	language?: string;
+	segments: TranscriptionSegment[];
+	words: TranscriptionWord[];
+}
+
+interface SearchOptions {
+	query: string;
+	caseSensitive?: boolean;
+	wholeWord?: boolean;
+	maxResults?: number;
+	mediaId?: string;
+}
+
+interface SearchResult {
+	mediaId: string;
+	mediaName: string;
+	segmentText: string;
+	matchStart: number;
+	matchEnd: number;
+	timestamp: number;
+	timestampEnd: number;
+	wordTimestamp?: number;
+}
+
+// ── Inline search (mirrors @qcut/editor-core/search) ─────────────────
+
+function escapeRegex(str: string): string {
+	return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function searchTranscriptions(
+	transcriptions: PersistedTranscription[],
+	options: SearchOptions,
+): SearchResult[] {
+	if (!options.query?.trim()) return [];
+	const escaped = escapeRegex(options.query);
+	const pattern = options.wholeWord ? `\\b${escaped}\\b` : escaped;
+	const flags = options.caseSensitive ? "g" : "gi";
+	const regex = new RegExp(pattern, flags);
+	const results: SearchResult[] = [];
+	const maxResults = options.maxResults ?? Infinity;
+
+	for (const t of transcriptions) {
+		if (options.mediaId && t.mediaId !== options.mediaId) continue;
+		for (const seg of t.segments) {
+			if (!seg.text) continue;
+			regex.lastIndex = 0;
+			let match = regex.exec(seg.text);
+			while (match !== null) {
+				results.push({
+					mediaId: t.mediaId,
+					mediaName: t.mediaName,
+					segmentText: seg.text,
+					matchStart: match.index,
+					matchEnd: match.index + match[0].length,
+					timestamp: seg.start,
+					timestampEnd: seg.end,
+				});
+				if (results.length >= maxResults) return results;
+				match = regex.exec(seg.text);
+			}
+		}
+	}
+	return results;
+}
 import {
 	existsSync,
 	readdirSync,
@@ -21,7 +105,7 @@ import {
 	mkdirSync,
 	writeFileSync,
 } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { app } from "electron";
 
 const HANDLER_NAME = "SearchRoutes";
