@@ -202,25 +202,6 @@ function loadProjectTranscriptions(
 	return transcriptions;
 }
 
-/** Load a single transcription by mediaId. */
-function loadTranscription(
-	projectId: string,
-	mediaId: string
-): PersistedTranscription | null {
-	const safe = sanitizeMediaId(mediaId);
-	const filePath = join(
-		getTranscriptionsDir(projectId),
-		`${safe}.transcription.json`
-	);
-	if (!existsSync(filePath)) return null;
-	try {
-		const raw = readFileSync(filePath, "utf-8");
-		return JSON.parse(raw) as PersistedTranscription;
-	} catch {
-		return null;
-	}
-}
-
 /** Save a transcription to disk. */
 export function saveTranscription(
 	projectId: string,

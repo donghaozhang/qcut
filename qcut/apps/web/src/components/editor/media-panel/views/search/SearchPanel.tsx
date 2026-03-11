@@ -43,7 +43,6 @@ export function SearchPanel() {
 	const inputRef = useRef<HTMLInputElement>(null);
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	// Debounced query handler
 	const handleInputChange = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement>) => {
 			const value = e.target.value;
@@ -55,7 +54,6 @@ export function SearchPanel() {
 		[setQuery]
 	);
 
-	// Keyboard navigation
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
 			if (e.key === "Enter") {
@@ -74,7 +72,6 @@ export function SearchPanel() {
 		[nextResult, prevResult, clearSearch]
 	);
 
-	// Focus input on mount; clear debounce on unmount
 	useEffect(() => {
 		inputRef.current?.focus();
 		return () => {
@@ -82,7 +79,6 @@ export function SearchPanel() {
 		};
 	}, []);
 
-	// Count transcribed media
 	const statusValues = Object.values(transcriptionStatus);
 	const transcribedCount = statusValues.filter((s) => s === "ready").length;
 	const totalCount = statusValues.length;
