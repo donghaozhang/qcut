@@ -4,22 +4,22 @@
 
 This document provides a comprehensive overview of the QCut source code structure, including folder organization and line counts for all TypeScript/JavaScript source files.
 
-**Generated:** 2026-02-28
+**Generated:** 2026-03-11
 **Total Source Files:** 827+ files in src/ + 232+ in electron/
-**Test Files:** 228 test files
+**Test Files:** 202 unit + 23 E2E test files
 **Main Source Directory:** `apps/web/src/`
 
 ## Project Architecture
 
 QCut is a desktop video editor built with:
-- **Frontend Framework:** Vite + TanStack Router + React 18.3.1
+- **Frontend Framework:** Vite + TanStack Router + React 19.1.0
 - **Desktop Runtime:** Electron (100% TypeScript)
 - **Language:** TypeScript
 - **State Management:** Zustand
 - **Video Processing:** FFmpeg WebAssembly
-- **AI Integration:** FAL.ai (40+ models)
+- **AI Integration:** FAL.ai (80+ models)
 - **Styling:** Tailwind CSS
-- **Testing:** Vitest 3.2.4 with 228 test files
+- **Testing:** Vitest ^4.0.0 with 202 unit + 23 E2E test files
 
 ## Source Code Structure
 
@@ -843,7 +843,7 @@ All Electron code is 100% TypeScript:
 - `ffmpeg/` - FFmpeg binaries per platform (darwin-arm64, darwin-x64, linux-x64, win32-x64)
 - `bin/aicp/` - AICP binary per platform with manifest
 
-## Architecture Updates (2026-02-28)
+## Architecture Updates (2026-03-11)
 
 ### Folder Reorganization (February 2026)
 
@@ -939,8 +939,8 @@ The codebase contains several substantial files that form the core of the applic
 
 ## Testing Strategy
 
-**Framework**: Vitest 3.2.4 with JSDOM environment
-**Status**: 228 test files
+**Framework**: Vitest ^4.0.0 with JSDOM environment
+**Status**: 202 unit + 23 E2E test files
 
 ### Running Tests
 ```bash

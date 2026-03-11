@@ -71,7 +71,7 @@ docs/technical/
 
 | Document | Description |
 |----------|-------------|
-| [media-panel-reference.md](media-panel-reference.md) | All 20 editor panels documented |
+| [media-panel-reference.md](media-panel-reference.md) | All 18 editor panels documented |
 
 ### AI Content Pipeline
 

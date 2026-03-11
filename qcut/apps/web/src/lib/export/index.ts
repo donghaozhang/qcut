@@ -13,3 +13,5 @@ export * from "./export-engine";
 export * from "./export-errors";
 export * from "./webcodecs-detector";
 export * from "./webcodecs-export-engine";
+export * from "./webcodecs-support";
+export * from "./export-output";

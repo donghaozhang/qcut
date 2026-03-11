@@ -69,6 +69,7 @@ export function useExportSettings() {
 						[ExportEngineType.STANDARD]: "Standard Engine",
 						[ExportEngineType.OPTIMIZED]: "Optimized Engine",
 						[ExportEngineType.WEBCODECS]: "WebCodecs Engine",
+						[ExportEngineType.MUXER]: "WebCodecs (Hardware H.264)",
 						[ExportEngineType.FFMPEG]: "FFmpeg Engine",
 						[ExportEngineType.CLI]: "Native FFmpeg CLI",
 						[ExportEngineType.REMOTION]: "Remotion Engine",

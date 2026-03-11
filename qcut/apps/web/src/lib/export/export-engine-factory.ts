@@ -11,6 +11,7 @@ export const ExportEngineType = {
 	STANDARD: "standard",
 	OPTIMIZED: "optimized",
 	WEBCODECS: "webcodecs",
+	MUXER: "muxer",
 	FFMPEG: "ffmpeg",
 	CLI: "cli",
 	REMOTION: "remotion",
@@ -155,19 +156,16 @@ export class ExportEngineFactory {
 			duration
 		);
 
-		// High-end system with modern APIs (browser only)
-		if (
-			capabilities.hasWebCodecs &&
-			capabilities.deviceMemoryGB >= 16 &&
-			capabilities.performanceScore >= 80 &&
-			estimatedMemoryGB < capabilities.deviceMemoryGB * 0.4
-		) {
+		// iPad/browser with WebCodecs → mediabunny muxer engine (MP4 via WebCodecs)
+		// Lower bar than old WEBCODECS engine — works on iPad with modest resources
+		if (capabilities.hasWebCodecs) {
 			console.log(
-				"🚀 EXPORT ENGINE SELECTION: WebCodecs chosen for high-end browser"
+				"🚀 EXPORT ENGINE SELECTION: Muxer (mediabunny) chosen for WebCodecs-capable browser/iPad"
 			);
 			return {
-				engineType: ExportEngineType.WEBCODECS,
-				reason: "High-performance browser system with WebCodecs support",
+				engineType: ExportEngineType.MUXER,
+				reason:
+					"WebCodecs (Hardware H.264) — using browser-native video encoding via mediabunny",
 				capabilities,
 				estimatedPerformance: "high",
 			};
@@ -368,16 +366,46 @@ export class ExportEngineFactory {
 					);
 				}
 
+			case ExportEngineType.MUXER:
+				// Mediabunny muxer engine (iPad / WebCodecs browsers)
+				try {
+					console.log(
+						"🚀 EXPORT ENGINE CREATION: Creating Muxer (mediabunny) engine"
+					);
+					const { ExportEngineMuxer } = await import(
+						"./export-engine-muxer"
+					);
+					return new ExportEngineMuxer(
+						canvas,
+						settings,
+						tracks,
+						mediaItems,
+						totalDuration
+					);
+				} catch (error) {
+					debugWarn(
+						"Failed to load muxer engine, falling back to standard:",
+						error
+					);
+					return new ExportEngine(
+						canvas,
+						settings,
+						tracks,
+						mediaItems,
+						totalDuration
+					);
+				}
+
 			case ExportEngineType.WEBCODECS:
-				// Future: WebCodecs engine
+				// Legacy WebCodecs engine — now falls through to muxer or optimized
 				debugLog(
-					"WebCodecs engine not yet implemented, using optimized engine"
+					"WebCodecs engine redirecting to muxer engine"
 				);
 				try {
-					const { OptimizedExportEngine } = await import(
-						"./export-engine-optimized"
+					const { ExportEngineMuxer } = await import(
+						"./export-engine-muxer"
 					);
-					return new OptimizedExportEngine(
+					return new ExportEngineMuxer(
 						canvas,
 						settings,
 						tracks,
