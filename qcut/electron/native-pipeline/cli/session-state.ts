@@ -22,6 +22,13 @@ export interface SessionCommandPayload {
 	existed: boolean;
 }
 
+export interface SessionListEntry {
+	sessionName: string;
+	projectId?: string;
+	savedAt: string;
+	path: string;
+}
+
 function sanitizeSessionName({ sessionName }: { sessionName: string }): string {
 	const trimmed = sessionName.trim();
 	if (!trimmed) {
@@ -287,4 +294,60 @@ export function updateSessionState({
 	}
 
 	return nextState;
+}
+
+export function listSessions({
+	stateDir,
+}: {
+	stateDir?: string;
+}): SessionListEntry[] {
+	const root = getSessionStateRoot({ stateDir });
+	if (!fs.existsSync(root)) {
+		return [];
+	}
+
+	const entries: SessionListEntry[] = [];
+	for (const file of fs.readdirSync(root)) {
+		if (!file.endsWith(".json")) {
+			continue;
+		}
+
+		const filePath = path.join(root, file);
+		try {
+			const raw = fs.readFileSync(filePath, "utf-8");
+			const parsed = JSON.parse(raw);
+			const session = parseSessionState({
+				value: parsed,
+				expectedSessionName: file.replace(/\.json$/, ""),
+			});
+			entries.push({
+				sessionName: session.sessionName,
+				projectId: session.projectId,
+				savedAt: session.savedAt,
+				path: filePath,
+			});
+		} catch {
+			// Skip corrupted or schema-invalid session files
+		}
+	}
+
+	return entries.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+}
+
+export function deleteSession({
+	sessionName,
+	stateDir,
+}: {
+	sessionName: string;
+	stateDir?: string;
+}): { deleted: boolean; path: string } {
+	const safeName = sanitizeSessionName({ sessionName });
+	const root = getSessionStateRoot({ stateDir });
+	const filePath = path.join(root, `${safeName}.json`);
+	try {
+		fs.unlinkSync(filePath);
+		return { deleted: true, path: filePath };
+	} catch {
+		return { deleted: false, path: filePath };
+	}
 }

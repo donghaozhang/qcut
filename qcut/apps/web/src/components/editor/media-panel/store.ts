@@ -105,7 +105,7 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 	},
 	sounds: {
 		icon: VolumeXIcon,
-		label: "Sounds (WIP)",
+		label: "AI Audio",
 	},
 	effects: {
 		icon: SparklesIcon,

@@ -1,9 +1,24 @@
 import * as fs from "node:fs";
+import * as path from "node:path";
 import type {
 	EditorSnapshotElement,
 	EditorSnapshotResult,
 } from "../../types/claude-api.js";
 import type { CLIResult, CLIRunOptions } from "./cli-runner/types.js";
+
+interface ScreenshotDiffResult {
+	mode: "screenshot";
+	same: boolean;
+	summary: {
+		beforeDimensions: { width: number; height: number };
+		afterDimensions: { width: number; height: number };
+		dimensionsMatch: boolean;
+		totalPixels: number;
+		changedPixels: number;
+		changePercent: number;
+	};
+	diffImagePath: string | null;
+}
 
 interface SnapshotIdentity {
 	key: string;
@@ -239,29 +254,182 @@ export async function handleDiffCommand({
 }: {
 	options: CLIRunOptions;
 }): Promise<CLIResult> {
-	const action = options.command.split(":")[2];
-	if (action !== "snapshot") {
+	const parts = options.command.split(":");
+	const action = parts[2];
+
+	if (
+		parts.length !== 3 ||
+		(action !== "snapshot" && action !== "screenshot")
+	) {
 		return {
 			success: false,
-			error: `Unknown diff action: ${action}. Available: snapshot`,
+			error: `Unknown diff command: ${options.command}. Available: editor:diff:snapshot, editor:diff:screenshot`,
 		};
 	}
 
 	if (!options.before) {
 		return {
 			success: false,
-			error: "Snapshot diff requires --before <path>",
+			error: `${action === "snapshot" ? "Snapshot" : "Screenshot"} diff requires --before <path>`,
 		};
 	}
 	if (!options.after) {
 		return {
 			success: false,
-			error: "Snapshot diff requires --after <path>",
+			error: `${action === "snapshot" ? "Snapshot" : "Screenshot"} diff requires --after <path>`,
 		};
 	}
 
-	const beforeSnapshot = loadSnapshotFile({ filePath: options.before });
-	const afterSnapshot = loadSnapshotFile({ filePath: options.after });
+	if (action === "screenshot") {
+		return handleScreenshotDiff({ options });
+	}
+
+	return handleSnapshotDiff({ options });
+}
+
+async function handleScreenshotDiff({
+	options,
+}: {
+	options: CLIRunOptions;
+}): Promise<CLIResult> {
+	const beforePath = options.before as string;
+	const afterPath = options.after as string;
+
+	for (const filePath of [beforePath, afterPath]) {
+		if (!fs.existsSync(filePath)) {
+			return {
+				success: false,
+				error: `Screenshot file not found: ${filePath}`,
+			};
+		}
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let sharp: any;
+	try {
+		// Dynamic import to avoid Vite's static import analysis
+		// sharp is a native module that can't be bundled by Vite
+		const moduleName = "sharp";
+		sharp = (await import(/* @vite-ignore */ moduleName)).default;
+	} catch {
+		return {
+			success: false,
+			error: "sharp is required for screenshot diff but could not be loaded",
+		};
+	}
+
+	const beforeImg = sharp(beforePath);
+	const afterImg = sharp(afterPath);
+	const [beforeMeta, afterMeta] = await Promise.all([
+		beforeImg.metadata(),
+		afterImg.metadata(),
+	]);
+
+	const beforeWidth = beforeMeta.width ?? 0;
+	const beforeHeight = beforeMeta.height ?? 0;
+	const afterWidth = afterMeta.width ?? 0;
+	const afterHeight = afterMeta.height ?? 0;
+	const dimensionsMatch =
+		beforeWidth === afterWidth && beforeHeight === afterHeight;
+
+	// For mismatched dimensions, resize the after image to match before
+	const compareWidth = beforeWidth;
+	const compareHeight = beforeHeight;
+
+	const [beforeRaw, afterRaw] = await Promise.all([
+		beforeImg.raw().ensureAlpha().toBuffer(),
+		(dimensionsMatch
+			? afterImg
+			: afterImg.resize(compareWidth, compareHeight, { fit: "fill" })
+		)
+			.raw()
+			.ensureAlpha()
+			.toBuffer(),
+	]);
+
+	const totalPixels = compareWidth * compareHeight;
+	let changedPixels = 0;
+	const diffBuffer = Buffer.alloc(totalPixels * 4);
+	const threshold = options.threshold ?? 10;
+	if (threshold < 0 || threshold > 255) {
+		return {
+			success: false,
+			error: `Threshold must be between 0 and 255, got ${threshold}`,
+		};
+	}
+
+	for (let i = 0; i < totalPixels; i += 1) {
+		const offset = i * 4;
+		const rDiff = Math.abs(beforeRaw[offset] - afterRaw[offset]);
+		const gDiff = Math.abs(beforeRaw[offset + 1] - afterRaw[offset + 1]);
+		const bDiff = Math.abs(beforeRaw[offset + 2] - afterRaw[offset + 2]);
+		const aDiff = Math.abs(beforeRaw[offset + 3] - afterRaw[offset + 3]);
+
+		if (
+			rDiff > threshold ||
+			gDiff > threshold ||
+			bDiff > threshold ||
+			aDiff > threshold
+		) {
+			changedPixels += 1;
+			// Red highlight for diff pixels
+			diffBuffer[offset] = 255;
+			diffBuffer[offset + 1] = 0;
+			diffBuffer[offset + 2] = 0;
+			diffBuffer[offset + 3] = 255;
+		} else {
+			// Dimmed original for unchanged pixels
+			diffBuffer[offset] = Math.floor(beforeRaw[offset] * 0.3);
+			diffBuffer[offset + 1] = Math.floor(beforeRaw[offset + 1] * 0.3);
+			diffBuffer[offset + 2] = Math.floor(beforeRaw[offset + 2] * 0.3);
+			diffBuffer[offset + 3] = 255;
+		}
+	}
+
+	// Save the diff image next to the before file
+	const diffDir = path.dirname(beforePath);
+	const diffName = `diff-${path.basename(beforePath, path.extname(beforePath))}-vs-${path.basename(afterPath, path.extname(afterPath))}.png`;
+	const diffImagePath = path.join(diffDir, diffName);
+
+	await sharp(diffBuffer, {
+		raw: { width: compareWidth, height: compareHeight, channels: 4 },
+	})
+		.png()
+		.toFile(diffImagePath);
+
+	const changePercent =
+		totalPixels > 0
+			? Math.round((changedPixels / totalPixels) * 10000) / 100
+			: 0;
+
+	const data: ScreenshotDiffResult = {
+		mode: "screenshot",
+		same: changedPixels === 0,
+		summary: {
+			beforeDimensions: { width: beforeWidth, height: beforeHeight },
+			afterDimensions: { width: afterWidth, height: afterHeight },
+			dimensionsMatch,
+			totalPixels,
+			changedPixels,
+			changePercent,
+		},
+		diffImagePath,
+	};
+
+	return { success: true, data };
+}
+
+function handleSnapshotDiff({
+	options,
+}: {
+	options: CLIRunOptions;
+}): CLIResult {
+	const beforeSnapshot = loadSnapshotFile({
+		filePath: options.before as string,
+	});
+	const afterSnapshot = loadSnapshotFile({
+		filePath: options.after as string,
+	});
 	const beforeBuckets = buildIdentityBuckets({
 		elements: beforeSnapshot.elements,
 	});
@@ -336,8 +504,5 @@ export async function handleDiffCommand({
 		changed,
 	};
 
-	return {
-		success: true,
-		data,
-	};
+	return { success: true, data };
 }

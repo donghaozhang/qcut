@@ -24,6 +24,8 @@ Run QCut's built-in TypeScript pipeline CLI (`qcut-pipeline` / `bun run pipeline
 - For editor export, diagnostics, MCP, screen recording, UI, Moyin, screenshots, state control, see [editor-output.md](editor/editor-output.md)
 - For editor AI commands: video analysis, transcription, AI generation, Remotion, navigator, see [editor-ai.md](editor/editor-ai.md)
 - For editor state automation: snapshots, event streams, correlation IDs, transactions, capabilities, and notification bridge endpoints, see [editor-state-control.md](editor/editor-state-control.md)
+- For agent automation: accessibility snapshots with refs, console capture, visual diffs, session persistence, and action policy, see [editor-agent.md](editor/editor-agent.md)
+- For source file locations by responsibility (core, output, handlers, state, auth), see [reference-source-files.md](references/reference-source-files.md)
 
 ## Step 1: Ensure QCut is Running
 
@@ -246,9 +248,13 @@ Three possible envelope shapes:
 
 | Status | Shape | When |
 |--------|-------|------|
-| `ok` | `{ "status": "ok", "data": { ... } }` | Command succeeded |
-| `error` | `{ "status": "error", "error": "msg", "code": "cmd:failed" }` | Command failed |
+| `ok` | `{ "status": "ok", "command_id": "cmd-...", "duration_ms": 1234, "data": { ... } }` | Command succeeded |
+| `error` | `{ "status": "error", "command_id": "cmd-...", "duration_ms": 500, "error": "msg", "code": "cmd:failed" }` | Command failed |
 | `pending` | `{ "status": "pending", "jobId": "abc-123" }` | Async job started |
+
+Every `ok` and `error` envelope includes:
+- `command_id` — unique correlation ID (`cmd-{timestamp}-{random}`) for tracing
+- `duration_ms` — integer wall-clock execution time in milliseconds
 
 See [REFERENCE.md](references/REFERENCE.md) for full envelope docs.
 
@@ -292,36 +298,56 @@ See [editor-media.md](editor/editor-media.md) for the full project.json schema.
 |------|-------|-------------|
 | `--output-dir` | `-o` | Output directory (default: `./output`) |
 | `--model` | `-m` | Model key |
-| `--json` | | Output as JSON |
-| `--quiet` | `-q` | Suppress progress |
-| `--verbose` | `-v` | Debug logging |
-| `--stream` | | JSONL progress events on stderr |
+| `--json` | | Output as JSON (includes `command_id`, `duration_ms`) |
+| `--quiet` | `-q` | Suppress progress and exit metadata |
+| `--verbose` | `-v` | Debug logging + JSONL debug events on stderr |
+| `--stream` | | JSONL progress events on stderr + debug events |
 | `--help` | `-h` | Print help |
 | `--session` | | Session mode: read commands from stdin |
 | `--skip-health` | | Skip editor health check |
 | `--no-capability-check` | | Skip per-request capability warnings |
 
+### Exit Metadata
+
+In non-JSON, non-quiet mode, every command appends to stderr:
+```text
+[exit:0 | 1.2s]
+```
+
+### Error Recovery Hints
+
+When a command fails in non-JSON mode, actionable hints are printed below the error:
+```text
+error: Missing API key for fal
+hint: Set the key with: qcut-pipeline set-key --name <provider> --value <key>
+```
+
+### Debug Event Stream
+
+With `--verbose` or `--stream`, structured JSONL events are emitted to stderr:
+```jsonl
+{"event":"command:start","command_id":"cmd-1741830000-a1b2c3","command":"generate-image","timestamp":"2026-03-12T10:00:00.000Z"}
+{"event":"command:end","command_id":"cmd-1741830000-a1b2c3","command":"generate-image","exit_code":0,"duration_ms":3200,"timestamp":"2026-03-12T10:00:03.200Z"}
+```
+
+## Programmatic API (`run` / `runChain`)
+
+For agent or programmatic use, import `run()` or `runChain()` directly instead of spawning a process:
+
+```typescript
+import { run, runChain } from "./cli-runner/index.js";
+
+// Single command
+const result = await run("generate-image -t 'A cat' --model flux");
+// → { success, exit_code, duration_ms, command_id, outputPath?, ... }
+
+// Chained commands (output piped as --input to next)
+const results = await runChain([
+  "generate-image -t 'A sunset'",
+  "upscale-image --target 2160p",
+]);
+```
+
 ## Key Source Files
 
-| Component | File |
-|-----------|------|
-| CLI entry point | `electron/native-pipeline/cli/cli.ts` |
-| Command router | `electron/native-pipeline/cli/cli-runner/runner.ts` |
-| Command registry (core) | `electron/native-pipeline/cli/command-registry.ts` |
-| Command registry (editor) | `electron/native-pipeline/cli/command-registry-editor.ts` |
-| Command registry types | `electron/native-pipeline/cli/command-registry-types.ts` |
-| JSON output helpers | `electron/native-pipeline/cli/json-output.ts` |
-| project.json types | `electron/native-pipeline/cli/project-json-types.ts` |
-| project.json builder | `electron/native-pipeline/cli/project-json-builder.ts` |
-| Editor dispatch | `electron/native-pipeline/cli/cli-handlers-editor.ts` |
-| Admin handlers | `electron/native-pipeline/cli/cli-handlers-admin.ts` |
-| Media handlers | `electron/native-pipeline/cli/cli-handlers-media.ts` |
-| ViMax handlers | `electron/native-pipeline/cli/vimax-cli-handlers.ts` |
-| Remotion handler | `electron/native-pipeline/cli/cli-handlers-remotion.ts` |
-| Moyin handler | `electron/native-pipeline/cli/cli-handlers-moyin.ts` |
-| YouTube handler | `electron/native-pipeline/cli/cli-handlers-youtube.ts` |
-| Auth routes (HTTP) | `electron/claude/http/claude-http-server.ts` |
-| Auth routes (utility) | `electron/utility/utility-http-server.ts` |
-| Auth bridge | `electron/utility/utility-bridge.ts` |
-| License handler | `electron/license-handler.ts` |
-| Key manager | `electron/native-pipeline/key-manager.ts` |
+See [reference-source-files.md](references/reference-source-files.md) for the full source file map organized by responsibility (core, output, handlers, state, auth).

@@ -28,13 +28,15 @@ import {
 	ErrorCategory,
 	ErrorSeverity,
 } from "@/lib/debug/error-handler";
+import { AIVoiceView } from "./sounds-ai-voice";
 
 export function SoundsView() {
 	return (
 		<div className="h-full flex flex-col">
-			<Tabs defaultValue="sound-effects" className="flex flex-col h-full">
+			<Tabs defaultValue="ai-voice" className="flex flex-col h-full">
 				<div className="px-3 pt-4 pb-0">
 					<TabsList>
+						<TabsTrigger value="ai-voice">AI Voice</TabsTrigger>
 						<TabsTrigger value="sound-effects">Sound effects</TabsTrigger>
 						<TabsTrigger value="songs">Songs</TabsTrigger>
 						<TabsTrigger value="saved">Saved</TabsTrigger>
@@ -52,6 +54,12 @@ export function SoundsView() {
 					className="p-5 pt-0 mt-0 flex-1 flex flex-col min-h-0"
 				>
 					<SavedSoundsView />
+				</TabsContent>
+				<TabsContent
+					value="ai-voice"
+					className="p-5 pt-0 mt-0 flex-1 flex flex-col min-h-0"
+				>
+					<AIVoiceView />
 				</TabsContent>
 				<TabsContent
 					value="songs"

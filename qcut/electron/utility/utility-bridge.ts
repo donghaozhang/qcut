@@ -48,15 +48,19 @@ import {
 } from "../claude/handlers/claude-transaction-handler.js";
 import { requestEditorStateSnapshotFromRenderer } from "../claude/handlers/claude-state-handler.js";
 import {
+	checkEditorSnapshotRef,
 	clickEditorSnapshotRef,
 	fillEditorSnapshotRef,
 	requestEditorSnapshotFromRenderer,
+	selectEditorSnapshotRef,
 } from "../claude/handlers/claude-snapshot-handler.js";
 import type {
 	EditorStateRequest,
+	EditorSnapshotCheckRequest,
 	EditorSnapshotClickRequest,
 	EditorSnapshotFillRequest,
 	EditorSnapshotRequest,
+	EditorSnapshotSelectRequest,
 	BatchCutRequest,
 	ClaudeRangeDeleteRequest,
 	AutoEditRequest,
@@ -438,6 +442,16 @@ async function handleMainRequest(
 		case "snapshot:fill": {
 			const req = data as { request: EditorSnapshotFillRequest };
 			return fillEditorSnapshotRef(win, req.request);
+		}
+
+		case "snapshot:select": {
+			const req = data as { request: EditorSnapshotSelectRequest };
+			return selectEditorSnapshotRef(win, req.request);
+		}
+
+		case "snapshot:check": {
+			const req = data as { request: EditorSnapshotCheckRequest };
+			return checkEditorSnapshotRef(win, req.request);
 		}
 
 		case "split-element": {

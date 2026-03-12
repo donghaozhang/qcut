@@ -16,11 +16,11 @@ agent-browser is a headless browser automation CLI designed for AI agents. It us
 
 | Pattern | Status | Notes |
 |--------|--------|-------|
-| Accessibility Snapshots with Refs | Mostly complete | `editor:snapshot`, `editor:snapshot:click`, and `editor:snapshot:fill` are implemented on 2026-03-12; refs now reuse stable renderer keys across re-snapshots, and remaining work is mostly deeper live-renderer coverage plus richer action types |
+| Accessibility Snapshots with Refs | Mostly complete | `editor:snapshot`, `editor:snapshot:click`, `editor:snapshot:fill`, `editor:snapshot:select`, and `editor:snapshot:check` are implemented on 2026-03-12; refs reuse stable renderer keys across re-snapshots |
 | Console Message & Error Capture | Mostly complete | HTTP + CLI list/clear/stream path implemented on 2026-03-12 |
 | Action Policy Engine | Mostly complete | Default allow/confirm/deny policy, flag-sensitive matching, `--policy`, runner enforcement, and tests implemented on 2026-03-12 |
-| Session State Persistence | Mostly complete | Named session files, `--resume`, sticky project/panel hydration, autosave, and explicit `editor:session:save/load` commands are implemented on 2026-03-12 |
-| Visual Diff Verification | Partially complete | `editor:diff:snapshot` landed on 2026-03-12; screenshot diff is still pending |
+| Session State Persistence | Mostly complete | Named session files, `--resume`, sticky project/panel hydration, autosave, and `editor:session:save/load/list/delete` commands are implemented on 2026-03-12 |
+| Visual Diff Verification | Mostly complete | `editor:diff:snapshot` and `editor:diff:screenshot` landed on 2026-03-12 |
 | WebSocket Viewport Streaming | Deferred | No immediate product need |
 
 ---
@@ -65,11 +65,11 @@ export async function handleSnapshot(options: SnapshotOptions): Promise<Snapshot
 **Implemented files**:
 - `electron/types/claude-snapshot-api.ts` — shared request/result types and depth limits
 - `electron/claude/handlers/claude-snapshot-handler.ts` — renderer-side DOM traversal, stable ref reuse, and ref-based click/fill actions via `executeJavaScript`
-- `electron/claude/http/claude-http-snapshot-routes.ts` — `/api/claude/snapshot`, `/api/claude/snapshot/click`, and `/api/claude/snapshot/fill`
+- `electron/claude/http/claude-http-snapshot-routes.ts` — `/api/claude/snapshot`, `/api/claude/snapshot/click`, `/api/claude/snapshot/fill`, `/api/claude/snapshot/select`, and `/api/claude/snapshot/check`
 - `electron/claude/http/claude-http-server.ts` — registers snapshot routes in the direct main-process test server
 - `electron/utility/utility-http-server.ts` — exposes snapshot read/write routes in the real utility-process HTTP server
 - `electron/utility/utility-bridge.ts` — bridges snapshot read/write requests back to the main process
-- `electron/native-pipeline/cli/cli-handlers-snapshot.ts` — CLI handlers for `editor:snapshot`, `editor:snapshot:click`, and `editor:snapshot:fill`
+- `electron/native-pipeline/cli/cli-handlers-snapshot.ts` — CLI handlers for `editor:snapshot`, `editor:snapshot:click`, `editor:snapshot:fill`, `editor:snapshot:select`, and `editor:snapshot:check`
 - `electron/native-pipeline/cli/cli-handlers-editor.ts` — routes snapshot commands
 - `electron/native-pipeline/cli/cli-runner/types.ts` — snapshot CLI option types
 - `electron/native-pipeline/cli/cli.ts` — parses `--interactive`, `--depth`, and `--ref`
@@ -86,11 +86,13 @@ export async function handleSnapshot(options: SnapshotOptions): Promise<Snapshot
 8. Reused stable refs across repeated snapshots by keeping a renderer-side stable-key map instead of renumbering everything on every capture
 9. Added ref-recovery fallback for click/fill so actions can recover a target after transient rerenders when the stable key still matches
 10. Added focused tests for handler validation, HTTP route behavior, and CLI query/action routing
+11. Implemented `editor:snapshot:select --ref @eN --value "option"` for `<select>`, combobox, and listbox elements
+12. Implemented `editor:snapshot:check --ref @eN --checked` for checkboxes, radio buttons, and switch roles
+13. Added HTTP routes, utility bridge, and CLI handlers for select and check across the full IPC stack
 
 **Remaining work**:
 1. Add higher-level integration coverage against a live renderer DOM when needed
-2. Extend action support beyond text fill if agents need select/checkbox-specific semantics
-3. Tune stable-key heuristics further only if complex list reordering or virtualized UIs expose collisions
+2. Tune stable-key heuristics further only if complex list reordering or virtualized UIs expose collisions
 
 **Example usage by AI agent**:
 ```bash
@@ -107,6 +109,15 @@ bun run pipeline editor:snapshot:click --ref @e1 --json
 
 bun run pipeline editor:snapshot:fill --ref @e2 --text "Updated title" --json
 # → fills a text input or contenteditable target tagged with @e2
+
+bun run pipeline editor:snapshot:select --ref @e3 --value "720p" --json
+# → selects an option from a <select> or combobox tagged with @e3
+
+bun run pipeline editor:snapshot:check --ref @e4 --checked --json
+# → checks a checkbox/switch tagged with @e4
+
+bun run pipeline editor:snapshot:check --ref @e4 --no-checked --json
+# → unchecks a checkbox/switch tagged with @e4
 ```
 
 **Test files**:
@@ -212,7 +223,7 @@ interface SessionState {
 - `electron/native-pipeline/cli/cli-runner/runner.ts` — hydrates one-shot commands from resumed session state and autosaves after execution
 - `electron/native-pipeline/cli/cli-runner/session.ts` — loads resumed state into REPL defaults, persists updates, and switches sticky context after explicit session loads
 - `electron/native-pipeline/cli/cli-handlers-editor.ts` — routes `editor:session:*` commands and skips live editor health for local session operations
-- `electron/native-pipeline/cli/command-registry-editor.ts` — registers `editor:session:save` and `editor:session:load`
+- `electron/native-pipeline/cli/command-registry-editor-extra.ts` — registers `editor:session:save`, `editor:session:load`, `editor:session:list`, and `editor:session:delete`
 - `electron/native-pipeline/cli/command-registry.ts` — documents `--resume` in global flag metadata
 - `electron/native-pipeline/cli/cli-runner/types.ts` — adds session resume and explicit session command typing
 
@@ -223,11 +234,13 @@ interface SessionState {
 4. Integrated resume hydration and autosave into both `runner.ts` and REPL session handling
 5. Added explicit `editor:session:save` and `editor:session:load` commands for manual checkpoints and context restore
 6. Added focused tests for round-trip persistence, arg parsing, sticky defaults, explicit session commands, and autosave behavior
+7. Implemented `editor:session:list` to enumerate all saved sessions sorted by most recent
+8. Implemented `editor:session:delete --session-name <name>` to remove a saved session file
+9. Added `listSessions()` and `deleteSession()` helpers to `session-state.ts`
 
 **Remaining work**:
 1. Expand stored state beyond project/panel/history if there is a concrete need for undo checkpoints or richer editor context
 2. Decide whether command history should capture fuller CLI invocations instead of compact summaries
-3. Add explicit delete/list session management only if agent workflows actually need it
 
 **Example usage by AI agent**:
 ```bash
@@ -242,6 +255,13 @@ bun run pipeline editor:session:save --session-name my-edit-session --project-id
 
 # Load a named checkpoint and inspect or activate it in session mode
 bun run pipeline editor:session:load --session-name my-edit-session --json
+
+# List all saved sessions
+bun run pipeline editor:session:list --json
+# → { "status": "ok", "data": { "sessions": [...], "count": 3 } }
+
+# Delete a session
+bun run pipeline editor:session:delete --session-name my-edit-session --json
 ```
 
 **Test files**:
@@ -252,7 +272,7 @@ bun run pipeline editor:session:load --session-name my-edit-session --json
 
 ### Pattern 4: Visual Diff for Verification (LOW-MEDIUM VALUE)
 
-**Status (2026-03-12)**: Partially implemented.
+**Status (2026-03-12)**: Mostly implemented.
 
 **What it is**: agent-browser can diff two snapshots or screenshots to verify that an action had the expected effect.
 
@@ -263,8 +283,8 @@ bun run pipeline editor:session:load --session-name my-edit-session --json
 ```typescript
 // electron/native-pipeline/cli/cli-handlers-diff.ts
 export async function handleDiff(options: {
-  before: string;  // snapshot file path
-  after: string;   // snapshot file path
+  before: string;  // snapshot or screenshot file path
+  after: string;   // snapshot or screenshot file path
   mode: "snapshot" | "screenshot";
 }): Promise<DiffResult> {
   // Compare accessibility trees or pixel-diff screenshots
@@ -272,23 +292,26 @@ export async function handleDiff(options: {
 ```
 
 **Implemented files**:
-- `electron/native-pipeline/cli/cli-handlers-diff.ts` — local snapshot diff engine for saved snapshot JSON files
+- `electron/native-pipeline/cli/cli-handlers-diff.ts` — local snapshot diff engine for saved snapshot JSON files + pixel-level screenshot diff using sharp
 - `electron/native-pipeline/cli/cli-handlers-editor.ts` — routes `editor:diff:*` commands and skips live editor health for local diffs
-- `electron/native-pipeline/cli/cli.ts` — parses `--before` and `--after` and documents `editor:diff:snapshot`
-- `electron/native-pipeline/cli/cli-runner/types.ts` — shared CLI option typing for diff file paths
-- `electron/native-pipeline/cli/cli-runner/session.ts` — session-mode parsing for `--before` and `--after`
-- `electron/native-pipeline/cli/command-registry-editor.ts` — registers `editor:diff:snapshot`
+- `electron/native-pipeline/cli/cli.ts` — parses `--before`, `--after`, and `--threshold` and documents diff commands
+- `electron/native-pipeline/cli/cli-runner/types.ts` — shared CLI option typing for diff file paths and threshold
+- `electron/native-pipeline/cli/cli-runner/session.ts` — session-mode parsing for `--before`, `--after`, and `--threshold`
+- `electron/native-pipeline/cli/command-registry-editor-extra.ts` — registers `editor:diff:snapshot` and `editor:diff:screenshot`
 
 **Completed subtasks**:
 1. Implemented `editor:diff:snapshot` for saved accessibility snapshots
 2. Added local tree diff output with `added`, `removed`, `changed`, and summary totals
 3. Matched elements semantically instead of by raw `@eN` refs to reduce noise from ref renumbering
 4. Added focused CLI tests for parsing, diff execution, and missing-flag validation
+5. Implemented `editor:diff:screenshot` for pixel-level PNG comparison using sharp
+6. Added per-channel threshold support (`--threshold`, default 10) to control diff sensitivity
+7. Generates a diff image (changed pixels in red, unchanged dimmed) saved alongside the before file
+8. Handles mismatched dimensions by resizing the after image to match before for comparison
+9. Reports `changePercent`, `changedPixels`, `totalPixels`, and dimension info in the summary
 
 **Remaining work**:
-1. Implement screenshot pixel diff support
-2. Add `editor:diff:screenshot`
-3. Expand verification coverage if agents need richer diff output or artifact generation
+1. Expand verification coverage if agents need richer diff output or artifact generation
 
 **Example usage by AI agent**:
 ```bash
@@ -298,6 +321,24 @@ bun run pipeline editor:diff:snapshot --before before.json --after after.json --
 #     "same": false,
 #     "summary": { "beforeTotal": 14, "afterTotal": 15, "added": 1, "removed": 0, "changed": 2 }
 #   }}
+
+bun run pipeline editor:diff:screenshot --before before.png --after after.png --json
+# → { "status": "ok", "data": {
+#     "mode": "screenshot",
+#     "same": false,
+#     "summary": {
+#       "beforeDimensions": { "width": 1920, "height": 1080 },
+#       "afterDimensions": { "width": 1920, "height": 1080 },
+#       "dimensionsMatch": true,
+#       "totalPixels": 2073600,
+#       "changedPixels": 15420,
+#       "changePercent": 0.74
+#     },
+#     "diffImagePath": "/path/to/diff-1710288000000.png"
+#   }}
+
+bun run pipeline editor:diff:screenshot --before a.png --after b.png --threshold 20 --json
+# → adjusts per-channel sensitivity (0-255, default 10)
 ```
 
 **Test files**:
@@ -443,7 +484,7 @@ bun run pipeline editor:console --stream
 | 5 | Console Message & Error Capture | HIGH | ~6.5h | **P0 (mostly complete)** |
 | 2 | Action Policy Engine | MEDIUM | ~3h | **P1 (mostly complete)** |
 | 3 | Session State Persistence | MEDIUM | ~3h | **P1 (mostly complete)** |
-| 4 | Visual Diff Verification | LOW-MED | ~5.5h | **P2 (partially complete)** |
+| 4 | Visual Diff Verification | LOW-MED | ~5.5h | **P2 (mostly complete)** |
 | 6 | WebSocket Viewport Streaming | LOW | ~8h | **P3 (defer)** |
 
 **Total estimated effort for P0**: ~12.5 hours (with both P0 tracks now mostly delivered)
@@ -473,9 +514,9 @@ Key difference: QCut doesn't need an external browser. The Electron renderer IS 
 ```text
 electron/native-pipeline/
 ├── cli/
-│   ├── cli-handlers-snapshot.ts    # NEW: Accessibility snapshot with refs
+│   ├── cli-handlers-snapshot.ts    # NEW: Accessibility snapshot with refs (click, fill, select, check)
 │   ├── cli-handlers-console.ts     # NEW: Console message capture CLI
-│   ├── cli-handlers-diff.ts        # NEW: Snapshot/screenshot diffing
+│   ├── cli-handlers-diff.ts        # NEW: Snapshot tree diff + pixel-level screenshot diff (sharp)
 │   ├── cli-handlers-session.ts     # NEW: Explicit local session save/load commands
 │   ├── action-policy.ts            # NEW: Allow/deny/confirm policy
 │   ├── session-state.ts            # NEW: Session persistence

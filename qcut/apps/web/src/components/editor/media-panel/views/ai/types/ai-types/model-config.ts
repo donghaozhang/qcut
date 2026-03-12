@@ -10,6 +10,9 @@ export interface AIModelEndpoints {
 	image_to_video?: string;
 	reference_to_video?: string;
 	upscale_video?: string;
+	text_to_speech?: string;
+	speech_to_speech?: string;
+	clone_voice?: string;
 }
 
 /**
@@ -73,7 +76,8 @@ export type ModelCategory =
 	| "video"
 	| "avatar"
 	| "upscale"
-	| "angles";
+	| "angles"
+	| "speech";
 
 // Core AI Model Interface
 export interface AIModel {

@@ -12,6 +12,9 @@ export function guessExtFromCommand(command: string): string {
 		case "create-video":
 		case "generate-avatar":
 			return ".mp4";
+		case "generate-speech":
+		case "convert-speech":
+			return ".wav";
 		default:
 			return ".bin";
 	}

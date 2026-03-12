@@ -25,15 +25,41 @@ export enum ExitCode {
 	CANCELLED = 10,
 }
 
+// -- Recovery Hints --
+
+/** Map exit codes to actionable recovery hints. */
+const RECOVERY_HINTS: Partial<Record<ExitCode, string>> = {
+	[ExitCode.API_KEY_MISSING]:
+		"Set the key with: qcut-pipeline set-key --name <provider> --value <key>",
+	[ExitCode.FILE_NOT_FOUND]: "Check the path exists and is accessible",
+	[ExitCode.MODEL_NOT_FOUND]:
+		"List available models: qcut-pipeline list-models --category <type>",
+	[ExitCode.TIMEOUT]: "Retry with a longer timeout: --timeout <ms>",
+	[ExitCode.API_CALL_FAILED]:
+		"Check API status or retry with a different model: --model <alt>",
+	[ExitCode.INVALID_ARGS]: "Run with --help for usage information",
+};
+
+/** Get a recovery hint for an exit code, if available. */
+export function getRecoveryHint(exitCode: ExitCode): string | undefined {
+	return RECOVERY_HINTS[exitCode];
+}
+
 // -- Exception Hierarchy --
 
 export class AIPlatformError extends Error {
 	readonly exitCode: ExitCode;
+	readonly hint?: string;
 
-	constructor(message: string, exitCode: ExitCode = ExitCode.GENERAL_ERROR) {
+	constructor(
+		message: string,
+		exitCode: ExitCode = ExitCode.GENERAL_ERROR,
+		hint?: string
+	) {
 		super(message);
 		this.name = "AIPlatformError";
 		this.exitCode = exitCode;
+		this.hint = hint ?? RECOVERY_HINTS[exitCode];
 	}
 }
 
@@ -159,19 +185,29 @@ export function formatErrorForCli(
 	debug = false
 ): {
 	message: string;
+	hint?: string;
 	exitCode: ExitCode;
 } {
 	const exitCode = getExitCode(error);
 	let message: string;
+	let hint: string | undefined;
 
-	if (error instanceof Error) {
+	if (error instanceof AIPlatformError) {
 		message = error.message;
+		hint = error.hint;
+		if (debug && error.stack) {
+			message += `\n${error.stack}`;
+		}
+	} else if (error instanceof Error) {
+		message = error.message;
+		hint = RECOVERY_HINTS[exitCode];
 		if (debug && error.stack) {
 			message += `\n${error.stack}`;
 		}
 	} else {
 		message = String(error);
+		hint = RECOVERY_HINTS[exitCode];
 	}
 
-	return { message, exitCode };
+	return { message, hint, exitCode };
 }

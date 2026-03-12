@@ -132,4 +132,151 @@ describe("editor session CLI", () => {
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("--session-name");
 	});
+
+	it("lists saved sessions", async () => {
+		const stateRoot = fs.mkdtempSync(
+			path.join(os.tmpdir(), "qcut-session-cli-")
+		);
+		tempDirs.add(stateRoot);
+
+		// Save two sessions
+		await handleEditorCommand(
+			makeOpts({
+				command: "editor:session:save",
+				sessionName: "session-alpha",
+				projectId: "proj_a",
+				stateDir: stateRoot,
+			}),
+			noopProgress
+		);
+		await handleEditorCommand(
+			makeOpts({
+				command: "editor:session:save",
+				sessionName: "session-beta",
+				projectId: "proj_b",
+				stateDir: stateRoot,
+			}),
+			noopProgress
+		);
+
+		const result = await handleEditorCommand(
+			makeOpts({
+				command: "editor:session:list",
+				stateDir: stateRoot,
+			}),
+			noopProgress
+		);
+
+		expect(result.success).toBe(true);
+		const data = result.data as {
+			sessions: Array<{ sessionName: string; projectId?: string }>;
+			count: number;
+		};
+		expect(data.count).toBe(2);
+		const names = data.sessions.map((s) => s.sessionName);
+		expect(names).toContain("session-alpha");
+		expect(names).toContain("session-beta");
+	});
+
+	it("returns empty list when no sessions exist", async () => {
+		const stateRoot = fs.mkdtempSync(
+			path.join(os.tmpdir(), "qcut-session-cli-")
+		);
+		tempDirs.add(stateRoot);
+
+		const result = await handleEditorCommand(
+			makeOpts({
+				command: "editor:session:list",
+				stateDir: stateRoot,
+			}),
+			noopProgress
+		);
+
+		expect(result.success).toBe(true);
+		const data = result.data as { count: number };
+		expect(data.count).toBe(0);
+	});
+
+	it("deletes a saved session", async () => {
+		const stateRoot = fs.mkdtempSync(
+			path.join(os.tmpdir(), "qcut-session-cli-")
+		);
+		tempDirs.add(stateRoot);
+
+		await handleEditorCommand(
+			makeOpts({
+				command: "editor:session:save",
+				sessionName: "delete-me",
+				projectId: "proj_x",
+				stateDir: stateRoot,
+			}),
+			noopProgress
+		);
+
+		// Verify it exists
+		const loadBefore = await handleEditorCommand(
+			makeOpts({
+				command: "editor:session:load",
+				sessionName: "delete-me",
+				stateDir: stateRoot,
+			}),
+			noopProgress
+		);
+		expect(loadBefore.success).toBe(true);
+
+		// Delete it
+		const deleteResult = await handleEditorCommand(
+			makeOpts({
+				command: "editor:session:delete",
+				sessionName: "delete-me",
+				stateDir: stateRoot,
+			}),
+			noopProgress
+		);
+		expect(deleteResult.success).toBe(true);
+		const data = deleteResult.data as { deleted: boolean };
+		expect(data.deleted).toBe(true);
+
+		// Verify it's gone
+		const loadAfter = await handleEditorCommand(
+			makeOpts({
+				command: "editor:session:load",
+				sessionName: "delete-me",
+				stateDir: stateRoot,
+			}),
+			noopProgress
+		);
+		expect(loadAfter.success).toBe(false);
+	});
+
+	it("fails to delete a non-existent session", async () => {
+		const stateRoot = fs.mkdtempSync(
+			path.join(os.tmpdir(), "qcut-session-cli-")
+		);
+		tempDirs.add(stateRoot);
+
+		const result = await handleEditorCommand(
+			makeOpts({
+				command: "editor:session:delete",
+				sessionName: "nonexistent",
+				stateDir: stateRoot,
+			}),
+			noopProgress
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("not found");
+	});
+
+	it("requires session name for delete", async () => {
+		const result = await handleEditorCommand(
+			makeOpts({
+				command: "editor:session:delete",
+			}),
+			noopProgress
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("--session-name");
+	});
 });

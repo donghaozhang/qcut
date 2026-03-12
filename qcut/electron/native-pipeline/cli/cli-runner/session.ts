@@ -194,6 +194,7 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				"session-name": { type: "string" },
 				before: { type: "string" },
 				after: { type: "string" },
+				threshold: { type: "string" },
 				duration: { type: "string", short: "d" },
 				"aspect-ratio": { type: "string" },
 				resolution: { type: "string" },
@@ -215,6 +216,9 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				url: { type: "string" },
 				count: { type: "string" },
 				prompts: { type: "string", multiple: true },
+				value: { type: "string" },
+				checked: { type: "boolean" },
+				ref: { type: "string" },
 				force: { type: "boolean", default: false },
 				discard: { type: "boolean", default: false },
 				replace: { type: "boolean", default: false },
@@ -250,6 +254,10 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 			result.sessionName = values["session-name"] as string;
 		if (values.before) result.before = values.before as string;
 		if (values.after) result.after = values.after as string;
+		if (values.threshold) {
+			const parsed = parseFloat(values.threshold as string);
+			if (!Number.isNaN(parsed)) result.threshold = parsed;
+		}
 		if (values.duration) result.duration = values.duration as string;
 		if (values["aspect-ratio"])
 			result.aspectRatio = values["aspect-ratio"] as string;
@@ -272,6 +280,9 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 		if (values["negative-prompt"])
 			result.negativePrompt = values["negative-prompt"] as string;
 		if (values["voice-id"]) result.voiceId = values["voice-id"] as string;
+		if (values.value) result.selectValue = values.value as string;
+		if (typeof values.checked === "boolean") result.checked = values.checked;
+		if (values.ref) result.ref = values.ref as string;
 		if (values.force) result.force = true;
 		if (values.discard) result.discard = true;
 		if (values.replace) result.replace = true;

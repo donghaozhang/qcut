@@ -55,8 +55,18 @@ export interface EditorSnapshotFillRequest {
 	value: string;
 }
 
+export interface EditorSnapshotSelectRequest {
+	ref: string;
+	value: string;
+}
+
+export interface EditorSnapshotCheckRequest {
+	ref: string;
+	checked: boolean;
+}
+
 export interface EditorSnapshotActionResult {
-	action: "click" | "fill";
+	action: "click" | "fill" | "select" | "check";
 	ref: string;
 	tagName: string;
 	role: string | null;

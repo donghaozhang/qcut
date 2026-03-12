@@ -352,7 +352,7 @@ function buildSnapshotScript({
 	})()`;
 }
 
-function normalizeSnapshotRef({ ref }: { ref: string }): string {
+export function normalizeSnapshotRef({ ref }: { ref: string }): string {
 	const normalized = ref.trim();
 	if (!/^@e\d+$/.test(normalized)) {
 		throw new EditorSnapshotActionError({
@@ -363,7 +363,7 @@ function normalizeSnapshotRef({ ref }: { ref: string }): string {
 	return normalized;
 }
 
-function buildSnapshotActionPrelude(): string {
+export function buildSnapshotActionPrelude(): string {
 	return `
 		const REF_ATTR = ${JSON.stringify(EDITOR_SNAPSHOT_REF_ATTRIBUTE)};
 		const SNAPSHOT_STATE_KEY = ${JSON.stringify(EDITOR_SNAPSHOT_STATE_KEY)};
@@ -693,7 +693,10 @@ function isValidSnapshotActionResult(
 	}
 	const candidate = value as Partial<EditorSnapshotActionResult>;
 	return (
-		(candidate.action === "click" || candidate.action === "fill") &&
+		(candidate.action === "click" ||
+			candidate.action === "fill" ||
+			candidate.action === "select" ||
+			candidate.action === "check") &&
 		typeof candidate.ref === "string" &&
 		typeof candidate.tagName === "string"
 	);
@@ -716,7 +719,7 @@ function toSnapshotActionError({
 	});
 }
 
-async function executeSnapshotAction({
+export async function executeSnapshotAction({
 	win,
 	script,
 }: {
@@ -770,3 +773,8 @@ export async function fillEditorSnapshotRef(
 		script: buildSnapshotFillScript({ request }),
 	});
 }
+
+export {
+	selectEditorSnapshotRef,
+	checkEditorSnapshotRef,
+} from "./claude-snapshot-select-check-handler.js";

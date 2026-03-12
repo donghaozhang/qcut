@@ -31,6 +31,9 @@ Commands:
   transfer-motion     Transfer motion from video to image
   generate-grid       Generate an image grid
   upscale-image       Upscale an image
+  generate-speech     Generate speech from text (Chatterbox/ElevenLabs/Qwen3)
+  convert-speech      Convert speech to a different voice (Chatterbox S2S)
+  clone-voice         Clone a voice from reference audio (Qwen3)
   setup               Create API key template file
   set-key             Set an API key
   get-key             Get an API key (masked)
@@ -84,8 +87,11 @@ Editor Commands (requires running QCut — use --project-id for most):
   editor:snapshot                   Get UI accessibility snapshot (--interactive, --depth)
   editor:snapshot:click             Click a UI ref from the latest snapshot (--ref)
   editor:snapshot:fill              Fill a UI ref from the latest snapshot (--ref, --text)
+  editor:snapshot:select            Select a dropdown option by ref (--ref, --value)
+  editor:snapshot:check             Toggle a checkbox/switch by ref (--ref, --checked)
   editor:diff:snapshot              Compare two saved snapshot files (--before, --after)
-  editor:session:*                  save, load
+  editor:diff:screenshot            Pixel-diff two screenshot PNGs (--before, --after, --threshold)
+  editor:session:*                  save, load, list, delete
   editor:moyin:*                    set-script, parse, status
   editor:screenshot:capture         Take screenshot (--filename)
   editor:undo                       Undo last action

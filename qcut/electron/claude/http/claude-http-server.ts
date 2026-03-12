@@ -54,9 +54,11 @@ import { registerStateRoutes } from "./claude-http-state-routes.js";
 import { requestEditorStateSnapshotFromRenderer } from "../handlers/claude-state-handler.js";
 import { registerSnapshotRoutes } from "./claude-http-snapshot-routes.js";
 import {
+	checkEditorSnapshotRef,
 	clickEditorSnapshotRef,
 	fillEditorSnapshotRef,
 	requestEditorSnapshotFromRenderer,
+	selectEditorSnapshotRef,
 } from "../handlers/claude-snapshot-handler.js";
 import {
 	getClaudeEvents,
@@ -218,6 +220,9 @@ export function startClaudeHTTPServer(
 			requestEditorSnapshotFromRenderer(getWindow(), request),
 		clickSnapshotRef: (request) => clickEditorSnapshotRef(getWindow(), request),
 		fillSnapshotRef: (request) => fillEditorSnapshotRef(getWindow(), request),
+		selectSnapshotRef: (request) =>
+			selectEditorSnapshotRef(getWindow(), request),
+		checkSnapshotRef: (request) => checkEditorSnapshotRef(getWindow(), request),
 	});
 	registerClaudeEventsRoutes(router, {
 		/** Lists recorded Claude/editor events. */

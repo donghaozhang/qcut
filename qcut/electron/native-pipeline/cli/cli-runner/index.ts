@@ -4,7 +4,12 @@
  */
 
 export { CLIPipelineRunner } from "./runner.js";
-export type { CLIRunOptions, CLIResult, ProgressFn } from "./types.js";
+export {
+	generateCommandId,
+	type CLIRunOptions,
+	type CLIResult,
+	type ProgressFn,
+} from "./types.js";
 export {
 	createProgressReporter,
 	guessExtFromCommand,
@@ -16,3 +21,4 @@ export {
 	getSessionClient,
 	resetSessionState,
 } from "./session.js";
+export { run, runChain, type RunResult } from "./run.js";

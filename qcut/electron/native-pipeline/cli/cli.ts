@@ -19,10 +19,11 @@ import {
 	CLIPipelineRunner,
 	createProgressReporter,
 } from "../cli/cli-runner.js";
-import type { CLIRunOptions } from "./cli-runner/types.js";
+import { type CLIRunOptions, generateCommandId } from "./cli-runner/types.js";
 import { getExitCode, formatErrorForCli } from "../output/errors.js";
 import { CLIOutput } from "../cli/cli-output.js";
 import { StreamEmitter, NullEmitter } from "../infra/stream-emitter.js";
+import { DebugStream } from "../infra/debug-stream.js";
 import { formatCommandOutput } from "./cli-output-formatters.js";
 import { runSession } from "./cli-runner/session.js";
 import { emitJsonResult, jsonOk, jsonError } from "./json-output.js";
@@ -153,6 +154,14 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"audio-only": { type: "boolean", default: false },
 			"no-dynamic-duration": { type: "boolean", default: false },
 			speakers: { type: "string" },
+			// speech generation options
+			exaggeration: { type: "string" },
+			temperature: { type: "string" },
+			cfg: { type: "string" },
+			seed: { type: "string" },
+			voice: { type: "string" },
+			stability: { type: "string" },
+			"language-code": { type: "string" },
 			// transfer-motion options
 			orientation: { type: "string" },
 			"no-sound": { type: "boolean", default: false },
@@ -202,6 +211,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			interactive: { type: "boolean", default: false },
 			depth: { type: "string" },
 			ref: { type: "string" },
+			checked: { type: "boolean" },
 			replace: { type: "boolean", default: false },
 			ripple: { type: "boolean", default: false },
 			"cross-track-ripple": { type: "boolean", default: false },
@@ -392,6 +402,20 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				? undefined
 				: parseInt(values.speakers as string, 10)
 			: undefined,
+		// speech generation options
+		exaggeration: values.exaggeration
+			? parseFloat(values.exaggeration as string)
+			: undefined,
+		temperature: values.temperature
+			? parseFloat(values.temperature as string)
+			: undefined,
+		cfg: values.cfg ? parseFloat(values.cfg as string) : undefined,
+		seed: values.seed ? parseInt(values.seed as string, 10) : undefined,
+		voice: values.voice as string | undefined,
+		stability: values.stability
+			? parseFloat(values.stability as string)
+			: undefined,
+		languageCode: values["language-code"] as string | undefined,
 		// transcribe options
 		language: values.language as string | undefined,
 		noDiarize: (values["no-diarize"] as boolean) ?? false,
@@ -494,6 +518,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				: parseInt(values.depth as string, 10)
 			: undefined,
 		ref: values.ref as string | undefined,
+		selectValue: values.value as string | undefined,
+		checked: values.checked as boolean | undefined,
 		replace: (values.replace as boolean) ?? false,
 		ripple: (values.ripple as boolean) ?? false,
 		crossTrackRipple: (values["cross-track-ripple"] as boolean) ?? false,
@@ -629,6 +655,8 @@ export async function main(
 	}
 
 	const options = parseCliArgs(argv);
+	const commandId = generateCommandId();
+	options.commandId = commandId;
 	const output = new CLIOutput({
 		jsonMode: options.json,
 		quiet: options.quiet,
@@ -651,11 +679,30 @@ export async function main(
 		runner.abort();
 	});
 
+	const debugStream = new DebugStream({
+		enabled: !!(options.verbose || options.stream),
+	});
+
+	const startTime = performance.now();
+	debugStream.commandStart(commandId, options.command);
 	emitter.pipelineStart(options.command, 1);
-	const result = await runner.run(options, reporter);
+	let result: Awaited<ReturnType<typeof runner.run>>;
+	try {
+		result = await runner.run(options, reporter);
+	} catch (err) {
+		const durationMs = Math.round(performance.now() - startTime);
+		debugStream.commandEnd(commandId, options.command, 1, durationMs);
+		throw err;
+	}
+	const durationMs = Math.round(performance.now() - startTime);
+	const exitCode = result.success ? 0 : getExitCode(new Error(result.error));
+	debugStream.commandEnd(commandId, options.command, exitCode, durationMs);
 
 	if (options.json) {
-		emitJsonResult(options.command, result);
+		emitJsonResult(options.command, result, {
+			command_id: commandId,
+			duration_ms: durationMs,
+		});
 		if (!result.success) {
 			process.exit(1);
 		}
@@ -671,10 +718,22 @@ export async function main(
 		}
 		formatCommandOutput(options.command, result);
 		emitter.pipelineComplete({ ...result, success: true });
+		// Emit exit metadata to stderr for machine consumers
+		// Skip in stream mode to keep stderr parseable as JSONL
+		if (!options.quiet && !options.stream) {
+			const durationSec = (durationMs / 1000).toFixed(1);
+			console.error(`[exit:0 | ${durationSec}s]`);
+		}
 	} else {
-		output.error(result.error || "Unknown error");
+		const { hint, exitCode } = formatErrorForCli(new Error(result.error));
+		output.error(result.error || "Unknown error", hint);
 		emitter.pipelineComplete({ success: false, error: result.error });
-		const { exitCode } = formatErrorForCli(new Error(result.error));
+		// Emit exit metadata to stderr for machine consumers
+		// Skip in stream mode to keep stderr parseable as JSONL
+		if (!options.quiet && !options.stream) {
+			const durationSec = (durationMs / 1000).toFixed(1);
+			console.error(`[exit:${exitCode} | ${durationSec}s]`);
+		}
 		process.exit(exitCode);
 	}
 }

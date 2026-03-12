@@ -15,7 +15,10 @@ export interface StreamEvent {
 	schema_version: string;
 	event: string;
 	timestamp: number;
+	/** @deprecated Use duration_ms instead. Kept for backward compatibility. */
 	elapsed_seconds: number;
+	/** Elapsed time in milliseconds (integer). */
+	duration_ms: number;
 	[key: string]: unknown;
 }
 
@@ -38,13 +41,13 @@ export class StreamEmitter {
 	private emit(eventType: string, data: Record<string, unknown>): void {
 		if (!this.enabled) return;
 
+		const elapsedMs = Date.now() - this.startTime;
 		const event: StreamEvent = {
 			schema_version: SCHEMA_VERSION,
 			event: eventType,
 			timestamp: Date.now() / 1000,
-			elapsed_seconds: Number(
-				((Date.now() - this.startTime) / 1000).toFixed(3)
-			),
+			elapsed_seconds: Number((elapsedMs / 1000).toFixed(3)),
+			duration_ms: Math.round(elapsedMs),
 			...data,
 		};
 
@@ -101,13 +104,13 @@ export class StreamEmitter {
 	pipelineComplete(result: Record<string, unknown>): void {
 		if (!this.enabled) return;
 
+		const elapsedMs = Date.now() - this.startTime;
 		const event: StreamEvent = {
 			schema_version: SCHEMA_VERSION,
 			event: "pipeline_complete",
 			timestamp: Date.now() / 1000,
-			elapsed_seconds: Number(
-				((Date.now() - this.startTime) / 1000).toFixed(3)
-			),
+			elapsed_seconds: Number((elapsedMs / 1000).toFixed(3)),
+			duration_ms: Math.round(elapsedMs),
 			...result,
 		};
 
