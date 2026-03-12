@@ -209,6 +209,9 @@ export interface CLIRunOptions {
 	noDynamicDuration?: boolean;
 	audioOnly?: boolean;
 	speakers?: number;
+	// snapshot action options
+	selectValue?: string;
+	checked?: boolean;
 }
 
 export interface CLIResult {

@@ -37,10 +37,18 @@ export async function handleSnapshotCommand({
 		return await handleSnapshotFillCommand({ client, options });
 	}
 
+	if (action === "select") {
+		return await handleSnapshotSelectCommand({ client, options });
+	}
+
+	if (action === "check") {
+		return await handleSnapshotCheckCommand({ client, options });
+	}
+
 	if (action) {
 		return {
 			success: false,
-			error: `Unknown snapshot action: ${action}. Available: click, fill`,
+			error: `Unknown snapshot action: ${action}. Available: click, fill, select, check`,
 		};
 	}
 
@@ -95,6 +103,62 @@ async function handleSnapshotFillCommand({
 	const data = await client.post("/api/claude/snapshot/fill", {
 		ref: options.ref,
 		value: options.text,
+	});
+	return { success: true, data };
+}
+
+async function handleSnapshotSelectCommand({
+	client,
+	options,
+}: {
+	client: EditorApiClient;
+	options: CLIRunOptions;
+}): Promise<CLIResult> {
+	if (!options.ref) {
+		return {
+			success: false,
+			error: "Snapshot select requires --ref <@eN>",
+		};
+	}
+
+	if (typeof options.selectValue !== "string") {
+		return {
+			success: false,
+			error: "Snapshot select requires --value <option>",
+		};
+	}
+
+	const data = await client.post("/api/claude/snapshot/select", {
+		ref: options.ref,
+		value: options.selectValue,
+	});
+	return { success: true, data };
+}
+
+async function handleSnapshotCheckCommand({
+	client,
+	options,
+}: {
+	client: EditorApiClient;
+	options: CLIRunOptions;
+}): Promise<CLIResult> {
+	if (!options.ref) {
+		return {
+			success: false,
+			error: "Snapshot check requires --ref <@eN>",
+		};
+	}
+
+	if (typeof options.checked !== "boolean") {
+		return {
+			success: false,
+			error: "Snapshot check requires --checked <true|false>",
+		};
+	}
+
+	const data = await client.post("/api/claude/snapshot/check", {
+		ref: options.ref,
+		checked: options.checked,
 	});
 	return { success: true, data };
 }

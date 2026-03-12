@@ -202,6 +202,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			interactive: { type: "boolean", default: false },
 			depth: { type: "string" },
 			ref: { type: "string" },
+			value: { type: "string" },
+			checked: { type: "boolean", default: false },
 			replace: { type: "boolean", default: false },
 			ripple: { type: "boolean", default: false },
 			"cross-track-ripple": { type: "boolean", default: false },
@@ -494,6 +496,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				: parseInt(values.depth as string, 10)
 			: undefined,
 		ref: values.ref as string | undefined,
+		selectValue: values.value as string | undefined,
+		checked: values.checked as boolean | undefined,
 		replace: (values.replace as boolean) ?? false,
 		ripple: (values.ripple as boolean) ?? false,
 		crossTrackRipple: (values["cross-track-ripple"] as boolean) ?? false,
