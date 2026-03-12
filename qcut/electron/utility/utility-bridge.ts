@@ -594,8 +594,10 @@ async function handleMainRequest(
 					var el = document.querySelector("[data-element-id='${eid}']");
 					if (!el) return Promise.resolve({ found: false, error: "Element not found" });
 					var rect = el.getBoundingClientRect();
-					var x = rect.left + rect.width / 2;
-					var y = rect.top + rect.height / 2;
+					var rawX = rect.left + rect.width / 2;
+					var rawY = rect.top + rect.height / 2;
+					var x = Math.max(20, Math.min(rawX, window.innerWidth - 20));
+					var y = Math.max(20, Math.min(rawY, window.innerHeight - 20));
 					var events = [];
 					if (debug) {
 						var types = ["pointerdown","pointerup","mousedown","mouseup","contextmenu","click","focusin","focusout"];
