@@ -128,6 +128,10 @@ export interface CLIRunOptions {
 	/** Include full failure trace context for async polling commands */
 	debugTrace?: boolean;
 	pollInterval?: number;
+	level?: string;
+	since?: string;
+	limit?: number;
+	clear?: boolean;
 	replace?: boolean;
 	ripple?: boolean;
 	crossTrackRipple?: boolean;

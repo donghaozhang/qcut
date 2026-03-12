@@ -22,6 +22,10 @@ import {
 	handleClaudeEventsStreamRequest,
 	registerClaudeEventsRoutes,
 } from "../claude/http/claude-http-events-routes.js";
+import {
+	handleClaudeConsoleStreamRequest,
+	registerClaudeConsoleRoutes,
+} from "../claude/http/claude-http-console-routes.js";
 import type {
 	EditorEvent,
 	EditorStateSnapshot,
@@ -377,6 +381,14 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 				...(filter as unknown as Record<string, unknown>),
 			})) as EditorEvent[],
 	});
+	registerClaudeConsoleRoutes(router, {
+		listConsoleEntries: async (filter) =>
+			(await requestFromMain("console:list", {
+				...(filter as unknown as Record<string, unknown>),
+			})) as EditorEvent[],
+		clearConsoleEntries: async () =>
+			(await requestFromMain("console:clear", {})) as { clearedCount: number },
+	});
 
 	// ==========================================================================
 	// Navigator routes (project listing + editor navigation)
@@ -713,6 +725,22 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 					(await requestFromMain("events:list", {
 						...(filter as unknown as Record<string, unknown>),
 					})) as EditorEvent[],
+			})
+		) {
+			return;
+		}
+		if (
+			handleClaudeConsoleStreamRequest({
+				req,
+				res,
+				listConsoleEntries: async (filter) =>
+					(await requestFromMain("console:list", {
+						...(filter as unknown as Record<string, unknown>),
+					})) as EditorEvent[],
+				clearConsoleEntries: async () =>
+					(await requestFromMain("console:clear", {})) as {
+						clearedCount: number;
+					},
 			})
 		) {
 			return;

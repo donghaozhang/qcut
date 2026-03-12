@@ -396,6 +396,10 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			poll: { type: "boolean", default: false },
 			"debug-trace": { type: "boolean", default: false },
 			"poll-interval": { type: "string" },
+			level: { type: "string" },
+			since: { type: "string" },
+			limit: { type: "string" },
+			clear: { type: "boolean", default: false },
 			replace: { type: "boolean", default: false },
 			ripple: { type: "boolean", default: false },
 			"cross-track-ripple": { type: "boolean", default: false },
@@ -668,6 +672,14 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				? undefined
 				: parseFloat(values["poll-interval"] as string)
 			: undefined,
+		level: values.level as string | undefined,
+		since: values.since as string | undefined,
+		limit: values.limit
+			? Number.isNaN(parseInt(values.limit as string, 10))
+				? undefined
+				: parseInt(values.limit as string, 10)
+			: undefined,
+		clear: (values.clear as boolean) ?? false,
 		replace: (values.replace as boolean) ?? false,
 		ripple: (values.ripple as boolean) ?? false,
 		crossTrackRipple: (values["cross-track-ripple"] as boolean) ?? false,

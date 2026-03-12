@@ -84,6 +84,10 @@ import {
 	requestDuplicateProject,
 } from "../claude/handlers/claude-project-crud-handler.js";
 import { getClaudeEvents } from "../claude/handlers/claude-events-handler.js";
+import {
+	clearConsoleEntries,
+	getConsoleEntries,
+} from "../claude/handlers/claude-console-handler.js";
 import { notificationBridge } from "../claude/notification-bridge.js";
 import {
 	listCaptureSources,
@@ -342,6 +346,23 @@ async function handleMainRequest(
 			after: req.after,
 			source: req.source,
 		});
+	}
+	if (channel === "console:list") {
+		const req = data as {
+			level?: string;
+			since?: string;
+			limit?: number;
+			after?: string;
+		};
+		return getConsoleEntries({
+			level: req.level,
+			since: req.since,
+			limit: req.limit,
+			after: req.after,
+		});
+	}
+	if (channel === "console:clear") {
+		return clearConsoleEntries();
 	}
 	if (channel === "notifications:enable") {
 		const req = data as { sessionId?: string };

@@ -61,6 +61,15 @@ import {
 	handleClaudeEventsStreamRequest,
 	registerClaudeEventsRoutes,
 } from "./claude-http-events-routes.js";
+import {
+	clearConsoleEntries,
+	getConsoleEntries,
+	subscribeToConsoleEntries,
+} from "../handlers/claude-console-handler.js";
+import {
+	handleClaudeConsoleStreamRequest,
+	registerClaudeConsoleRoutes,
+} from "./claude-http-console-routes.js";
 import { runMainProcessDeepHealthChecks } from "../handlers/claude-health-handler.js";
 import { getAuthToken, setAuthToken } from "../../license-handler.js";
 
@@ -210,6 +219,10 @@ export function startClaudeHTTPServer(
 	registerClaudeEventsRoutes(router, {
 		/** Lists recorded Claude/editor events. */
 		listEvents: async (filter) => getClaudeEvents(filter),
+	});
+	registerClaudeConsoleRoutes(router, {
+		listConsoleEntries: async (filter) => getConsoleEntries(filter),
+		clearConsoleEntries: async () => clearConsoleEntries(),
 	});
 
 	// ==========================================================================
@@ -369,6 +382,18 @@ export function startClaudeHTTPServer(
 				listEvents: async (filter) => getClaudeEvents(filter),
 				subscribeToEvents: ({ listener }) =>
 					subscribeClaudeEvents({ listener }),
+			})
+		) {
+			return;
+		}
+		if (
+			handleClaudeConsoleStreamRequest({
+				req,
+				res,
+				listConsoleEntries: async (filter) => getConsoleEntries(filter),
+				clearConsoleEntries: async () => clearConsoleEntries(),
+				subscribeToConsoleEntries: ({ listener }) =>
+					subscribeToConsoleEntries({ listener }),
 			})
 		) {
 			return;
