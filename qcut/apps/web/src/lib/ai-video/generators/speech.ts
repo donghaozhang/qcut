@@ -116,13 +116,6 @@ export interface CloneVoiceResult {
 export async function generateSpeech(
 	request: SpeechGenerationRequest
 ): Promise<SpeechGenerationResult> {
-	const falApiKey = await getFalApiKeyAsync();
-	if (!falApiKey) {
-		throw new Error(
-			"FAL API key not configured. Please set VITE_FAL_API_KEY environment variable."
-		);
-	}
-
 	const jobId = generateJobId();
 	const payload: Record<string, unknown> = {
 		text: request.text,
@@ -136,13 +129,13 @@ export async function generateSpeech(
 	if (request.cfg !== undefined) payload.cfg = request.cfg;
 	if (request.seed !== undefined) payload.seed = request.seed;
 
-	const response = await makeFalRequest({
-		endpoint: request.endpoint,
-		payload,
-		apiKey: falApiKey,
-	});
+	const response = await makeFalRequest(request.endpoint, payload);
 
-	const data = await handleFalResponse(response);
+	if (!response.ok) {
+		await handleFalResponse(response, "Generate speech (Chatterbox)");
+	}
+
+	const data = await response.json();
 	const audio = data?.audio ?? data;
 
 	return {
@@ -160,13 +153,6 @@ export async function generateSpeech(
 export async function convertSpeech(
 	request: SpeechConversionRequest
 ): Promise<SpeechGenerationResult> {
-	const falApiKey = await getFalApiKeyAsync();
-	if (!falApiKey) {
-		throw new Error(
-			"FAL API key not configured. Please set VITE_FAL_API_KEY environment variable."
-		);
-	}
-
 	const jobId = generateJobId();
 	const payload: Record<string, unknown> = {
 		source_audio_url: request.sourceAudioUrl,
@@ -176,13 +162,13 @@ export async function convertSpeech(
 		payload.target_voice_audio_url = request.targetVoiceAudioUrl;
 	}
 
-	const response = await makeFalRequest({
-		endpoint: request.endpoint,
-		payload,
-		apiKey: falApiKey,
-	});
+	const response = await makeFalRequest(request.endpoint, payload);
 
-	const data = await handleFalResponse(response);
+	if (!response.ok) {
+		await handleFalResponse(response, "Convert speech (Chatterbox S2S)");
+	}
+
+	const data = await response.json();
 	const audio = data?.audio ?? data;
 
 	return {
@@ -200,13 +186,6 @@ export async function convertSpeech(
 export async function generateElevenLabsSpeech(
 	request: ElevenLabsSpeechRequest
 ): Promise<SpeechGenerationResult> {
-	const falApiKey = await getFalApiKeyAsync();
-	if (!falApiKey) {
-		throw new Error(
-			"FAL API key not configured. Please set VITE_FAL_API_KEY environment variable."
-		);
-	}
-
 	const jobId = generateJobId();
 	const payload: Record<string, unknown> = {
 		text: request.text,
@@ -220,13 +199,13 @@ export async function generateElevenLabsSpeech(
 		payload.apply_text_normalization = request.applyTextNormalization;
 	}
 
-	const response = await makeFalRequest({
-		endpoint: request.endpoint,
-		payload,
-		apiKey: falApiKey,
-	});
+	const response = await makeFalRequest(request.endpoint, payload);
 
-	const data = await handleFalResponse(response);
+	if (!response.ok) {
+		await handleFalResponse(response, "Generate speech (ElevenLabs v3)");
+	}
+
+	const data = await response.json();
 	const audio = data?.audio ?? data;
 
 	return {
@@ -244,13 +223,6 @@ export async function generateElevenLabsSpeech(
 export async function generateQwen3Speech(
 	request: Qwen3SpeechRequest
 ): Promise<SpeechGenerationResult> {
-	const falApiKey = await getFalApiKeyAsync();
-	if (!falApiKey) {
-		throw new Error(
-			"FAL API key not configured. Please set VITE_FAL_API_KEY environment variable."
-		);
-	}
-
 	const jobId = generateJobId();
 	const payload: Record<string, unknown> = {
 		text: request.text,
@@ -272,13 +244,13 @@ export async function generateQwen3Speech(
 	if (request.maxNewTokens !== undefined)
 		payload.max_new_tokens = request.maxNewTokens;
 
-	const response = await makeFalRequest({
-		endpoint: request.endpoint,
-		payload,
-		apiKey: falApiKey,
-	});
+	const response = await makeFalRequest(request.endpoint, payload);
 
-	const data = await handleFalResponse(response);
+	if (!response.ok) {
+		await handleFalResponse(response, "Generate speech (Qwen3 TTS)");
+	}
+
+	const data = await response.json();
 	const audio = data?.audio ?? data;
 
 	return {
@@ -299,13 +271,6 @@ export async function generateQwen3Speech(
 export async function cloneQwen3Voice(
 	request: Qwen3CloneVoiceRequest
 ): Promise<CloneVoiceResult> {
-	const falApiKey = await getFalApiKeyAsync();
-	if (!falApiKey) {
-		throw new Error(
-			"FAL API key not configured. Please set VITE_FAL_API_KEY environment variable."
-		);
-	}
-
 	const jobId = generateJobId();
 	const payload: Record<string, unknown> = {
 		audio_url: request.audioUrl,
@@ -313,13 +278,13 @@ export async function cloneQwen3Voice(
 
 	if (request.referenceText) payload.reference_text = request.referenceText;
 
-	const response = await makeFalRequest({
-		endpoint: request.endpoint,
-		payload,
-		apiKey: falApiKey,
-	});
+	const response = await makeFalRequest(request.endpoint, payload);
 
-	const data = await handleFalResponse(response);
+	if (!response.ok) {
+		await handleFalResponse(response, "Clone voice (Qwen3)");
+	}
+
+	const data = await response.json();
 	const embedding = data?.speaker_embedding ?? data;
 
 	return {

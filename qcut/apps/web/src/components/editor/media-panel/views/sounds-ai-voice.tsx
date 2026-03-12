@@ -1,10 +1,10 @@
 /**
  * AI Voice Tab for Sounds Panel
  *
- * Text-to-speech and speech-to-speech generation using multiple providers via FAL.ai:
- * - Chatterbox: TTS with emotive tags, voice cloning, S2S voice conversion
- * - ElevenLabs v3: Premium multilingual TTS with named voices
- * - Qwen3: Multilingual TTS with style prompts and voice cloning
+ * Three modes:
+ * - Text to Speech: Generate speech from text (Chatterbox, ElevenLabs, Qwen3)
+ * - Voice Convert: Convert speech to a different voice (Chatterbox S2S)
+ * - Voice Clone: Clone a voice from reference audio (Qwen3), then use it in TTS
  *
  * Reuses AudioItem and addSoundToTimeline from the existing sounds infrastructure.
  */
@@ -28,6 +28,7 @@ import {
 	Loader2Icon,
 	MicIcon,
 	UploadIcon,
+	CopyIcon,
 } from "lucide-react";
 import { useSoundsStore } from "@/stores/media/sounds-store";
 import {
@@ -44,7 +45,7 @@ import {
 } from "@/lib/ai-video/generators/speech";
 import type { SoundEffect } from "@/types/sounds";
 
-type VoiceMode = "tts" | "s2s";
+type VoiceMode = "tts" | "s2s" | "clone";
 type TTSProvider =
 	| "chatterbox"
 	| "chatterbox_turbo"
@@ -71,33 +72,38 @@ export function AIVoiceView() {
 	const [provider, setProvider] = useState<TTSProvider>("chatterbox");
 
 	// Chatterbox params
-	const [exaggeration, setExaggeration] = useState(
+	const [exaggeration, setExaggeration] = useState<number>(
 		CHATTERBOX_CONFIG.TTS.DEFAULT_EXAGGERATION
 	);
-	const [cbTemperature, setCbTemperature] = useState(
+	const [cbTemperature, setCbTemperature] = useState<number>(
 		CHATTERBOX_CONFIG.TTS.DEFAULT_TEMPERATURE
 	);
-	const [cfg, setCfg] = useState(CHATTERBOX_CONFIG.TTS.DEFAULT_CFG);
+	const [cfg, setCfg] = useState<number>(CHATTERBOX_CONFIG.TTS.DEFAULT_CFG);
 	const [voiceRefUrl, setVoiceRefUrl] = useState("");
 
 	// ElevenLabs params
-	const [elVoice, setElVoice] = useState(ELEVENLABS_CONFIG.TTS.DEFAULT_VOICE);
-	const [stability, setStability] = useState(
+	const [elVoice, setElVoice] = useState<string>(
+		ELEVENLABS_CONFIG.TTS.DEFAULT_VOICE
+	);
+	const [stability, setStability] = useState<number>(
 		ELEVENLABS_CONFIG.TTS.DEFAULT_STABILITY
 	);
 	const [languageCode, setLanguageCode] = useState("");
 
 	// Qwen3 params
-	const [qwVoice, setQwVoice] = useState(QWEN3_TTS_CONFIG.TTS.VOICES[0]);
+	const [qwVoice, setQwVoice] = useState<string>(
+		QWEN3_TTS_CONFIG.TTS.VOICES[0]
+	);
 	const [qwLanguage, setQwLanguage] = useState("Auto");
 	const [stylePrompt, setStylePrompt] = useState("");
-	const [qwTemperature, setQwTemperature] = useState(
+	const [qwTemperature, setQwTemperature] = useState<number>(
 		QWEN3_TTS_CONFIG.TTS.DEFAULT_TEMPERATURE
 	);
+
+	// Voice clone params (shared across clone tab and Qwen3 TTS)
 	const [cloneAudioUrl, setCloneAudioUrl] = useState("");
 	const [cloneRefText, setCloneRefText] = useState("");
 	const [clonedEmbeddingUrl, setClonedEmbeddingUrl] = useState("");
-	const [useClonedVoice, setUseClonedVoice] = useState(false);
 	const [isCloning, setIsCloning] = useState(false);
 
 	// S2S params
@@ -135,7 +141,6 @@ export function AIVoiceView() {
 				referenceText: cloneRefText || undefined,
 			});
 			setClonedEmbeddingUrl(result.embeddingUrl);
-			setUseClonedVoice(true);
 		} catch (err) {
 			setError(
 				err instanceof Error ? err.message : "Voice cloning failed."
@@ -192,18 +197,13 @@ export function AIVoiceView() {
 					const result = await generateQwen3Speech({
 						text: text.trim(),
 						endpoint: QWEN3_TTS_CONFIG.TTS.ENDPOINT,
-						voice:
-							useClonedVoice && clonedEmbeddingUrl
-								? undefined
-								: qwVoice,
-						language: qwLanguage !== "Auto" ? qwLanguage : undefined,
+						voice: clonedEmbeddingUrl ? undefined : qwVoice,
+						language:
+							qwLanguage !== "Auto" ? qwLanguage : undefined,
 						prompt: stylePrompt || undefined,
-						speakerEmbeddingUrl:
-							useClonedVoice && clonedEmbeddingUrl
-								? clonedEmbeddingUrl
-								: undefined,
+						speakerEmbeddingUrl: clonedEmbeddingUrl || undefined,
 						referenceText:
-							useClonedVoice && cloneRefText
+							clonedEmbeddingUrl && cloneRefText
 								? cloneRefText
 								: undefined,
 						temperature: qwTemperature,
@@ -214,14 +214,15 @@ export function AIVoiceView() {
 				}
 
 				const name =
-					text.trim().slice(0, 40) + (text.length > 40 ? "..." : "");
+					text.trim().slice(0, 40) +
+					(text.length > 40 ? "..." : "");
 				setGeneratedAudio({
 					id: jobId,
 					name,
 					url: audioUrl,
 					duration: audioDuration ?? 0,
 				});
-			} else {
+			} else if (mode === "s2s") {
 				if (!sourceAudioUrl.trim()) {
 					setError("Please provide a source audio URL.");
 					return;
@@ -240,7 +241,9 @@ export function AIVoiceView() {
 			}
 		} catch (err) {
 			setError(
-				err instanceof Error ? err.message : "Speech generation failed."
+				err instanceof Error
+					? err.message
+					: "Speech generation failed."
 			);
 		} finally {
 			setIsGenerating(false);
@@ -260,7 +263,6 @@ export function AIVoiceView() {
 		qwLanguage,
 		stylePrompt,
 		qwTemperature,
-		useClonedVoice,
 		clonedEmbeddingUrl,
 		cloneRefText,
 		sourceAudioUrl,
@@ -338,11 +340,19 @@ export function AIVoiceView() {
 						<UploadIcon className="w-3.5 h-3.5 mr-1.5" />
 						Voice Convert
 					</Button>
+					<Button
+						variant={mode === "clone" ? "default" : "outline"}
+						size="sm"
+						onClick={() => setMode("clone")}
+					>
+						<CopyIcon className="w-3.5 h-3.5 mr-1.5" />
+						Voice Clone
+					</Button>
 				</div>
 
-				{mode === "tts" ? (
+				{/* TTS mode */}
+				{mode === "tts" && (
 					<>
-						{/* Text input */}
 						<div className="flex flex-col gap-1.5">
 							<Label className="text-xs">Text</Label>
 							<Textarea
@@ -350,7 +360,9 @@ export function AIVoiceView() {
 								value={text}
 								onChange={(e) => setText(e.target.value)}
 								className="min-h-[80px] bg-panel-accent"
-								maxLength={CHATTERBOX_CONFIG.TTS.MAX_TEXT_LENGTH}
+								maxLength={
+									CHATTERBOX_CONFIG.TTS.MAX_TEXT_LENGTH
+								}
 							/>
 							<span className="text-xs text-muted-foreground text-right">
 								{text.length}/
@@ -358,7 +370,6 @@ export function AIVoiceView() {
 							</span>
 						</div>
 
-						{/* Provider / model selection */}
 						<div className="flex flex-col gap-1.5">
 							<Label className="text-xs">Model</Label>
 							<Select
@@ -387,7 +398,6 @@ export function AIVoiceView() {
 							</Select>
 						</div>
 
-						{/* Provider-specific controls */}
 						{(provider === "chatterbox" ||
 							provider === "chatterbox_turbo") && (
 							<ChatterboxControls
@@ -424,21 +434,15 @@ export function AIVoiceView() {
 								setStylePrompt={setStylePrompt}
 								temperature={qwTemperature}
 								setTemperature={setQwTemperature}
-								useClonedVoice={useClonedVoice}
-								setUseClonedVoice={setUseClonedVoice}
-								cloneAudioUrl={cloneAudioUrl}
-								setCloneAudioUrl={setCloneAudioUrl}
-								cloneRefText={cloneRefText}
-								setCloneRefText={setCloneRefText}
 								clonedEmbeddingUrl={clonedEmbeddingUrl}
-								isCloning={isCloning}
-								onCloneVoice={handleCloneVoice}
 							/>
 						)}
 					</>
-				) : (
+				)}
+
+				{/* S2S mode */}
+				{mode === "s2s" && (
 					<>
-						{/* S2S inputs */}
 						<div className="flex flex-col gap-1.5">
 							<Label className="text-xs">Source audio URL</Label>
 							<input
@@ -468,32 +472,75 @@ export function AIVoiceView() {
 					</>
 				)}
 
-				{/* Generate button */}
-				<Button
-					onClick={handleGenerate}
-					disabled={isGenerating}
-					className="w-full"
-				>
-					{isGenerating ? (
-						<>
-							<Loader2Icon className="w-4 h-4 mr-2 animate-spin" />
-							Generating...
-						</>
-					) : (
-						"Generate"
-					)}
-				</Button>
+				{/* Voice Clone mode */}
+				{mode === "clone" && (
+					<VoiceCloneControls
+						cloneAudioUrl={cloneAudioUrl}
+						setCloneAudioUrl={setCloneAudioUrl}
+						cloneRefText={cloneRefText}
+						setCloneRefText={setCloneRefText}
+						clonedEmbeddingUrl={clonedEmbeddingUrl}
+					/>
+				)}
+
+				{/* Action button */}
+				{mode === "clone" ? (
+					<Button
+						onClick={handleCloneVoice}
+						disabled={isCloning || !cloneAudioUrl.trim()}
+						className="w-full"
+					>
+						{isCloning ? (
+							<>
+								<Loader2Icon className="w-4 h-4 mr-2 animate-spin" />
+								Cloning...
+							</>
+						) : clonedEmbeddingUrl ? (
+							"Re-clone Voice"
+						) : (
+							"Clone Voice"
+						)}
+					</Button>
+				) : (
+					<Button
+						onClick={handleGenerate}
+						disabled={isGenerating}
+						className="w-full"
+					>
+						{isGenerating ? (
+							<>
+								<Loader2Icon className="w-4 h-4 mr-2 animate-spin" />
+								Generating...
+							</>
+						) : (
+							"Generate"
+						)}
+					</Button>
+				)}
 
 				{/* Error */}
 				{error && (
 					<p className="text-sm text-destructive">{error}</p>
 				)}
 
-				{/* Generated result */}
-				{generatedAudio && (
+				{/* Clone success message */}
+				{mode === "clone" && clonedEmbeddingUrl && (
+					<div className="p-3 rounded-md bg-accent">
+						<p className="text-sm font-medium">
+							Voice cloned successfully
+						</p>
+						<p className="text-xs text-muted-foreground mt-1">
+							Switch to Text to Speech and select Qwen3 TTS to
+							use this cloned voice for generation.
+						</p>
+					</div>
+				)}
+
+				{/* Generated result (TTS/S2S only) */}
+				{mode !== "clone" && generatedAudio && (
 					<div className="flex items-center gap-3 p-3 rounded-md bg-accent">
 						<Button
-							variant="ghost"
+							variant="text"
 							size="icon"
 							className="shrink-0 w-10 h-10"
 							onClick={handlePlay}
@@ -679,15 +726,7 @@ interface Qwen3ControlsProps {
 	setStylePrompt: (v: string) => void;
 	temperature: number;
 	setTemperature: (v: number) => void;
-	useClonedVoice: boolean;
-	setUseClonedVoice: (v: boolean) => void;
-	cloneAudioUrl: string;
-	setCloneAudioUrl: (v: string) => void;
-	cloneRefText: string;
-	setCloneRefText: (v: string) => void;
 	clonedEmbeddingUrl: string;
-	isCloning: boolean;
-	onCloneVoice: () => void;
 }
 
 function Qwen3Controls({
@@ -699,37 +738,18 @@ function Qwen3Controls({
 	setStylePrompt,
 	temperature,
 	setTemperature,
-	useClonedVoice,
-	setUseClonedVoice,
-	cloneAudioUrl,
-	setCloneAudioUrl,
-	cloneRefText,
-	setCloneRefText,
 	clonedEmbeddingUrl,
-	isCloning,
-	onCloneVoice,
 }: Qwen3ControlsProps) {
 	return (
 		<>
-			{/* Voice source toggle */}
-			<div className="flex gap-2">
-				<Button
-					variant={!useClonedVoice ? "default" : "outline"}
-					size="sm"
-					onClick={() => setUseClonedVoice(false)}
-				>
-					Preset Voice
-				</Button>
-				<Button
-					variant={useClonedVoice ? "default" : "outline"}
-					size="sm"
-					onClick={() => setUseClonedVoice(true)}
-				>
-					Clone Voice
-				</Button>
-			</div>
-
-			{!useClonedVoice ? (
+			{clonedEmbeddingUrl ? (
+				<div className="p-2 rounded-md bg-accent">
+					<p className="text-xs text-muted-foreground">
+						Using cloned voice. To change, go to the Voice Clone
+						tab.
+					</p>
+				</div>
+			) : (
 				<div className="flex flex-col gap-1.5">
 					<Label className="text-xs">Voice</Label>
 					<Select value={voice} onValueChange={setVoice}>
@@ -744,60 +764,6 @@ function Qwen3Controls({
 							))}
 						</SelectContent>
 					</Select>
-				</div>
-			) : (
-				<div className="flex flex-col gap-2">
-					<div className="flex flex-col gap-1.5">
-						<Label className="text-xs">
-							Reference audio URL
-						</Label>
-						<input
-							type="text"
-							placeholder="https://example.com/voice.mp3"
-							value={cloneAudioUrl}
-							onChange={(e) =>
-								setCloneAudioUrl(e.target.value)
-							}
-							className="h-8 rounded-md border bg-panel-accent px-3 text-sm"
-						/>
-					</div>
-					<div className="flex flex-col gap-1.5">
-						<Label className="text-xs">
-							Reference text (optional)
-						</Label>
-						<input
-							type="text"
-							placeholder="What was said in the audio"
-							value={cloneRefText}
-							onChange={(e) =>
-								setCloneRefText(e.target.value)
-							}
-							className="h-8 rounded-md border bg-panel-accent px-3 text-sm"
-						/>
-					</div>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={onCloneVoice}
-						disabled={isCloning || !cloneAudioUrl.trim()}
-					>
-						{isCloning ? (
-							<>
-								<Loader2Icon className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-								Cloning...
-							</>
-						) : clonedEmbeddingUrl ? (
-							"Re-clone Voice"
-						) : (
-							"Clone Voice"
-						)}
-					</Button>
-					{clonedEmbeddingUrl && (
-						<p className="text-xs text-muted-foreground">
-							Voice cloned successfully. It will be used for
-							generation.
-						</p>
-					)}
 				</div>
 			)}
 
@@ -818,9 +784,7 @@ function Qwen3Controls({
 			</div>
 
 			<div className="flex flex-col gap-1.5">
-				<Label className="text-xs">
-					Style prompt (optional)
-				</Label>
+				<Label className="text-xs">Style prompt (optional)</Label>
 				<input
 					type="text"
 					placeholder="Read this in a cheerful tone"
@@ -838,6 +802,62 @@ function Qwen3Controls({
 				max={1}
 				step={0.05}
 			/>
+		</>
+	);
+}
+
+// ── Voice Clone controls ─────────────────────────────────────────────
+
+interface VoiceCloneControlsProps {
+	cloneAudioUrl: string;
+	setCloneAudioUrl: (v: string) => void;
+	cloneRefText: string;
+	setCloneRefText: (v: string) => void;
+	clonedEmbeddingUrl: string;
+}
+
+function VoiceCloneControls({
+	cloneAudioUrl,
+	setCloneAudioUrl,
+	cloneRefText,
+	setCloneRefText,
+	clonedEmbeddingUrl,
+}: VoiceCloneControlsProps) {
+	return (
+		<>
+			<p className="text-xs text-muted-foreground">
+				Clone a voice from reference audio using Qwen3. The cloned voice
+				can then be used with Qwen3 TTS in the Text to Speech tab.
+			</p>
+			<div className="flex flex-col gap-1.5">
+				<Label className="text-xs">Reference audio URL</Label>
+				<input
+					type="text"
+					placeholder="https://example.com/voice-sample.mp3"
+					value={cloneAudioUrl}
+					onChange={(e) => setCloneAudioUrl(e.target.value)}
+					className="h-8 rounded-md border bg-panel-accent px-3 text-sm"
+				/>
+			</div>
+			<div className="flex flex-col gap-1.5">
+				<Label className="text-xs">
+					Reference text (optional — what was said in the audio)
+				</Label>
+				<input
+					type="text"
+					placeholder="What was said in the audio"
+					value={cloneRefText}
+					onChange={(e) => setCloneRefText(e.target.value)}
+					className="h-8 rounded-md border bg-panel-accent px-3 text-sm"
+				/>
+			</div>
+			{clonedEmbeddingUrl && (
+				<div className="p-2 rounded-md bg-accent">
+					<p className="text-xs text-muted-foreground">
+						Current cloned voice embedding: ready to use
+					</p>
+				</div>
+			)}
 		</>
 	);
 }

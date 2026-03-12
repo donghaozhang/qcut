@@ -10,7 +10,7 @@
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { CLIRunOptions, CLIResult, ProgressFn } from "./cli-runner/types.js";
-import { getApiKey } from "../infra/key-manager.js";
+import { getKey } from "../infra/key-manager.js";
 
 const FAL_API_BASE = "https://queue.fal.run";
 
@@ -36,7 +36,7 @@ export async function handleGenerateSpeech(
 		return { success: false, error: "Missing --text/-t (text to speak)" };
 	}
 
-	const falKey = getApiKey("FAL_KEY");
+	const falKey = getKey("FAL_KEY");
 	if (!falKey) {
 		return {
 			success: false,
@@ -113,7 +113,7 @@ export async function handleGenerateSpeech(
 			};
 		}
 
-		const data = await response.json();
+		const data = (await response.json()) as Record<string, any>;
 		const audio = data?.audio ?? data;
 		const audioUrl: string = audio?.url;
 
@@ -196,7 +196,7 @@ export async function handleConvertSpeech(
 		};
 	}
 
-	const falKey = getApiKey("FAL_KEY");
+	const falKey = getKey("FAL_KEY");
 	if (!falKey) {
 		return {
 			success: false,
@@ -247,7 +247,7 @@ export async function handleConvertSpeech(
 			};
 		}
 
-		const data = await response.json();
+		const data = (await response.json()) as Record<string, any>;
 		const audio = data?.audio ?? data;
 		const audioUrl: string = audio?.url;
 
@@ -335,7 +335,7 @@ export async function handleCloneVoice(
 		};
 	}
 
-	const falKey = getApiKey("FAL_KEY");
+	const falKey = getKey("FAL_KEY");
 	if (!falKey) {
 		return {
 			success: false,
@@ -383,7 +383,7 @@ export async function handleCloneVoice(
 			};
 		}
 
-		const data = await response.json();
+		const data = (await response.json()) as Record<string, any>;
 		const embedding = data?.speaker_embedding ?? data;
 		const embeddingUrl: string = embedding?.url;
 
