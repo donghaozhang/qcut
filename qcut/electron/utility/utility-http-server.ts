@@ -544,6 +544,22 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	});
 
 	// ==========================================================================
+	// Debug: dispatch contextmenu event on a timeline element
+	// ==========================================================================
+	router.post("/api/claude/ui/context-menu", async (req) => {
+		if (!req.body?.elementId || typeof req.body.elementId !== "string") {
+			throw new HttpError(400, "Missing 'elementId' in request body");
+		}
+		const payload: Record<string, unknown> = { elementId: req.body.elementId };
+		if (req.body.debug) payload.debug = true;
+		return await withTimeout(
+			requestFromMain("context-menu", payload),
+			10_000,
+			"Context menu dispatch timed out"
+		);
+	});
+
+	// ==========================================================================
 	// Moyin (Director) CLI routes
 	// ==========================================================================
 	router.post("/api/claude/moyin/set-script", async (req) => {

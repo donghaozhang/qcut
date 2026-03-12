@@ -633,6 +633,16 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		]
 	),
 
+	"editor:ui:context-menu": ed(
+		"editor:ui:context-menu",
+		"Dispatch a right-click context menu on a timeline element (debug)",
+		[
+			f("--element-id", "string", "Timeline element ID", { required: true }),
+			f("--verbose", "boolean", "Capture all pointer/mouse events for debugging"),
+		],
+		["qcut-pipeline editor:ui:context-menu --element-id <id> --debug"]
+	),
+
 	// ── Novel Parse ──
 	"editor:novel:parse": ed(
 		"editor:novel:parse",

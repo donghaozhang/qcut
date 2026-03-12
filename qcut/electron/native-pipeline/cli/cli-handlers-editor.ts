@@ -459,10 +459,23 @@ async function handleUiCommand(
 			const data = await client.post("/api/claude/ui/switch-panel", body);
 			return { success: true, data };
 		}
+		case "context-menu": {
+			const elementId = options.elementId;
+			if (!elementId) {
+				return {
+					success: false,
+					error: "Missing --element-id. Provide the timeline element ID to right-click.",
+				};
+			}
+			const body: Record<string, unknown> = { elementId };
+			if (options.verbose) body.debug = true;
+			const data = await client.post("/api/claude/ui/context-menu", body);
+			return { success: true, data };
+		}
 		default:
 			return {
 				success: false,
-				error: `Unknown ui action: ${action}. Available: switch-panel`,
+				error: `Unknown ui action: ${action}. Available: switch-panel, context-menu`,
 			};
 	}
 }

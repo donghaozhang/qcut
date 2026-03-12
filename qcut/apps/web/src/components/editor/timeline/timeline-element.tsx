@@ -553,9 +553,6 @@ function TimelineElementComponent({
 						} ${element.hidden ? "opacity-50" : ""}`}
 						onClick={(e) => onElementClick && onElementClick(e, element)}
 						onMouseDown={handleElementMouseDown}
-						onContextMenu={(e) =>
-							onElementMouseDown && onElementMouseDown(e, element)
-						}
 					>
 						<div className="absolute inset-0 flex items-center h-full">
 							{renderElementContent()}

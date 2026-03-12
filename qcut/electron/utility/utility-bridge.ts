@@ -585,6 +585,73 @@ async function handleMainRequest(
 			return requestSwitchPanel(win, panelId, resolvedTab);
 		}
 
+		case "context-menu": {
+			const req = data as { elementId: string; debug?: boolean };
+			const script = req.debug
+				? `(function() {
+					// Intercept all pointer/mouse events at capture phase to find what's dismissing the menu
+					const events = [];
+					const types = ['pointerdown','pointerup','mousedown','mouseup','contextmenu','click','focusin','focusout'];
+					const handler = (e) => {
+						events.push({
+							type: e.type,
+							target: e.target?.tagName + (e.target?.className ? '.' + String(e.target.className).substring(0,50) : ''),
+							phase: e.eventPhase === 1 ? 'capture' : e.eventPhase === 2 ? 'target' : 'bubble',
+							button: e.button,
+							defaultPrevented: e.defaultPrevented,
+							timestamp: Math.round(e.timeStamp),
+						});
+					};
+					for (const t of types) {
+						document.addEventListener(t, handler, true);
+						document.addEventListener(t, handler, false);
+					}
+					// Fire contextmenu on element
+					const el = document.querySelector('[data-element-id="${req.elementId}"]');
+					if (!el) return Promise.resolve({ found: false });
+					const rect = el.getBoundingClientRect();
+					const x = rect.left + rect.width / 2;
+					const y = rect.top + rect.height / 2;
+					const cm = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 2 });
+					el.dispatchEvent(cm);
+					return new Promise(resolve => {
+						setTimeout(() => {
+							for (const t of types) {
+								document.removeEventListener(t, handler, true);
+								document.removeEventListener(t, handler, false);
+							}
+							const portal = document.querySelector('[data-radix-popper-content-wrapper]');
+							resolve({ found: true, events, portalFound: !!portal });
+						}, 200);
+					});
+				})()`
+				: `(function() {
+					const el = document.querySelector('[data-element-id="${req.elementId}"]');
+					if (!el) return { found: false, error: 'Element not found: ${req.elementId}' };
+					const rect = el.getBoundingClientRect();
+					const x = rect.left + rect.width / 2;
+					const y = rect.top + rect.height / 2;
+					const mousedown = new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 2, buttons: 2 });
+					el.dispatchEvent(mousedown);
+					const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 2, buttons: 2 });
+					const dispatched = el.dispatchEvent(event);
+					return new Promise(resolve => {
+						setTimeout(() => {
+							const portal = document.querySelector('[data-radix-popper-content-wrapper]');
+							const contextContent = document.querySelector('[role="menu"]');
+							resolve({
+								found: true, dispatched, x: Math.round(x), y: Math.round(y),
+								defaultPrevented: event.defaultPrevented,
+								portalFound: !!portal, contextMenuFound: !!contextContent,
+								portalHTML: portal ? portal.innerHTML.substring(0, 200) : null,
+							});
+						}, 100);
+					});
+				})()`;
+			const result = await win.webContents.executeJavaScript(script);
+			return result;
+		}
+
 		case "moyin:set-script": {
 			const req = data as { text: string };
 			requestSetScript(win, req.text);

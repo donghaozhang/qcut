@@ -417,27 +417,28 @@ function TimelineTrackContentComponent({
 		e: React.MouseEvent,
 		element: TimelineElementType
 	) => {
-		setMouseDownLocation({ x: e.clientX, y: e.clientY });
-
 		// Detect right-click (button 2) and handle selection without starting drag
 		const isRightClick = e.button === 2;
 		const isMultiSelect = e.metaKey || e.ctrlKey || e.shiftKey;
 
 		if (isRightClick) {
-			// Handle right-click selection
+			// Handle right-click selection — defer to avoid re-render that
+			// closes the Radix ContextMenu before it finishes opening
 			const isSelected = selectedElements.some(
 				(c) => c.trackId === track.id && c.elementId === element.id
 			);
 
-			// If element is not selected, select it (keep other selections if multi-select)
 			if (!isSelected) {
-				selectElement(track.id, element.id, isMultiSelect);
+				requestAnimationFrame(() => {
+					selectElement(track.id, element.id, isMultiSelect);
+				});
 			}
-			// If element is already selected, keep it selected
 
 			// Don't start drag action for right-clicks
 			return;
 		}
+
+		setMouseDownLocation({ x: e.clientX, y: e.clientY });
 
 		// Handle multi-selection for left-click with modifiers
 		if (isMultiSelect) {
