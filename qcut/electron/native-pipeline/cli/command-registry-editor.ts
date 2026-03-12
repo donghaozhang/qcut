@@ -60,11 +60,20 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		"List captured renderer console messages",
 		[
 			f("--level", "string", "Filter by level: log, info, warn, error, debug"),
-			f("--since", "string", "Only include entries since a relative time or timestamp"),
+			f(
+				"--since",
+				"string",
+				"Only include entries since a relative time or timestamp"
+			),
 			f("--limit", "number", "Maximum number of entries to return"),
-			f("--stream", "boolean", "Stream live console entries until interrupted", {
-				default: false,
-			}),
+			f(
+				"--stream",
+				"boolean",
+				"Stream live console entries until interrupted",
+				{
+					default: false,
+				}
+			),
 			f("--clear", "boolean", "Clear the console buffer instead of listing", {
 				default: false,
 			}),
@@ -80,14 +89,23 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		"editor:errors",
 		"List captured renderer errors",
 		[
-			f("--since", "string", "Only include entries since a relative time or timestamp"),
+			f(
+				"--since",
+				"string",
+				"Only include entries since a relative time or timestamp"
+			),
 			f("--limit", "number", "Maximum number of entries to return"),
 			f("--stream", "boolean", "Stream live error entries until interrupted", {
 				default: false,
 			}),
-			f("--clear", "boolean", "Clear the shared console buffer instead of listing", {
-				default: false,
-			}),
+			f(
+				"--clear",
+				"boolean",
+				"Clear the shared console buffer instead of listing",
+				{
+					default: false,
+				}
+			),
 		],
 		[
 			"qcut-pipeline editor:errors --json",

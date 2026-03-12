@@ -897,11 +897,7 @@ export class EditorApiClient {
 		return envelope.data as T;
 	}
 
-	private parseSseChunk({
-		chunk,
-	}: {
-		chunk: string;
-	}): SseEvent | null {
+	private parseSseChunk({ chunk }: { chunk: string }): SseEvent | null {
 		try {
 			const trimmed = chunk.trim();
 			if (!trimmed) {

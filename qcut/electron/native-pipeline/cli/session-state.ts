@@ -22,11 +22,7 @@ export interface SessionCommandPayload {
 	existed: boolean;
 }
 
-function sanitizeSessionName({
-	sessionName,
-}: {
-	sessionName: string;
-}): string {
+function sanitizeSessionName({ sessionName }: { sessionName: string }): string {
 	const trimmed = sessionName.trim();
 	if (!trimmed) {
 		throw new Error("Session name cannot be empty.");
@@ -35,11 +31,7 @@ function sanitizeSessionName({
 	return trimmed.replace(/[^a-zA-Z0-9._-]+/g, "-");
 }
 
-function getSessionStateRoot({
-	stateDir,
-}: {
-	stateDir?: string;
-}): string {
+function getSessionStateRoot({ stateDir }: { stateDir?: string }): string {
 	return path.join(resolveStateDir(stateDir), "sessions");
 }
 
@@ -206,7 +198,10 @@ export function extractSessionCommandPayload({
 	}
 
 	const candidate = value as Partial<SessionCommandPayload>;
-	if (typeof candidate.path !== "string" || typeof candidate.existed !== "boolean") {
+	if (
+		typeof candidate.path !== "string" ||
+		typeof candidate.existed !== "boolean"
+	) {
 		return null;
 	}
 	if (typeof candidate.session !== "object" || candidate.session === null) {
@@ -247,11 +242,7 @@ export function applySessionStateToOptions({
 	};
 }
 
-function buildHistoryEntry({
-	options,
-}: {
-	options: CLIRunOptions;
-}): string {
+function buildHistoryEntry({ options }: { options: CLIRunOptions }): string {
 	const parts = [options.command];
 	if (options.projectId) {
 		parts.push(`project=${options.projectId}`);
