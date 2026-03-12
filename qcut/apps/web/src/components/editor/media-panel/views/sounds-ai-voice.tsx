@@ -21,7 +21,14 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { PlayIcon, PauseIcon, Loader2Icon, CopyIcon } from "lucide-react";
+import {
+	PlayIcon,
+	PauseIcon,
+	Loader2Icon,
+	CopyIcon,
+	MicIcon,
+	UploadIcon,
+} from "lucide-react";
 import { useSoundsStore } from "@/stores/media/sounds-store";
 import {
 	generateSpeech,
@@ -37,6 +44,11 @@ import {
 	Qwen3Controls,
 	VoiceCloneControls,
 } from "./sounds-ai-voice-controls";
+import {
+	CHATTERBOX_CONFIG,
+	ELEVENLABS_CONFIG,
+	QWEN3_TTS_CONFIG,
+} from "@/components/editor/media-panel/views/ai/constants/ai-constants";
 
 type VoiceMode = "tts" | "s2s" | "clone";
 type TTSProvider =
