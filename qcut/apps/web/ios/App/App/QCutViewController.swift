@@ -1,6 +1,7 @@
 import UIKit
 import WebKit
 import Capacitor
+import Photos
 
 class QCutViewController: CAPBridgeViewController {
     override func webViewConfiguration(for config: InstanceConfiguration) -> WKWebViewConfiguration {
@@ -41,6 +42,7 @@ class QCutViewController: CAPBridgeViewController {
             "com.qcut.cli.fps",
             "com.qcut.cli.open-editor",
             "com.qcut.test-export",
+            "com.qcut.cli.import-and-export",
         ]
 
         for name in commands {
@@ -71,6 +73,8 @@ class QCutViewController: CAPBridgeViewController {
             openFirstProject()
         } else if name == "com.qcut.test-export" {
             runShareSheetTest()
+        } else if name == "com.qcut.cli.import-and-export" {
+            runImportImageAndExport()
         }
     }
 
@@ -128,6 +132,140 @@ class QCutViewController: CAPBridgeViewController {
         })()
         """)
     }
+    /// E2E test: fetch latest photo from iPad Photos library, inject into editor, then export
+    private func runImportImageAndExport() {
+        PHPhotoLibrary.requestAuthorization(for: .readWrite) { [weak self] status in
+            guard status == .authorized || status == .limited else {
+                NSLog("[QCut CLI] Photo library access denied: \(status.rawValue)")
+                return
+            }
+            self?.fetchAndInjectMultiplePhotos(count: 3)
+        }
+    }
+
+    private func fetchAndInjectMultiplePhotos(count: Int) {
+        let options = PHFetchOptions()
+        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        options.fetchLimit = count
+        options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
+
+        let result = PHAsset.fetchAssets(with: options)
+        guard result.count > 0 else {
+            NSLog("[QCut CLI] No photos found in library")
+            return
+        }
+
+        // Collect all photos synchronously first, then inject all at once via JS
+        let imageManager = PHImageManager.default()
+        let targetSize = CGSize(width: 1280, height: 720)
+        var photos: [(base64: String, filename: String, width: Int, height: Int)] = []
+        let group = DispatchGroup()
+
+        for i in 0..<result.count {
+            let asset = result.object(at: i)
+            group.enter()
+
+            let requestOptions = PHImageRequestOptions()
+            requestOptions.isSynchronous = false
+            requestOptions.deliveryMode = .highQualityFormat
+            requestOptions.resizeMode = .exact
+
+            imageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFit, options: requestOptions) { image, info in
+                defer { group.leave() }
+                guard let image = image, let pngData = image.pngData() else {
+                    NSLog("[QCut CLI] Failed to get image data for photo \(i)")
+                    return
+                }
+                let base64 = pngData.base64EncodedString()
+                let filename = "photo-\(i + 1).png"
+                NSLog("[QCut CLI] Fetched photo \(i + 1): \(image.size.width)x\(image.size.height), \(pngData.count) bytes")
+                photos.append((base64: base64, filename: filename, width: Int(image.size.width), height: Int(image.size.height)))
+            }
+        }
+
+        group.notify(queue: .main) { [weak self] in
+            guard !photos.isEmpty else {
+                NSLog("[QCut CLI] No photos fetched successfully")
+                return
+            }
+            NSLog("[QCut CLI] All \(photos.count) photos fetched, injecting into editor...")
+            self?.injectMultiplePhotos(photos)
+        }
+    }
+
+    private func injectMultiplePhotos(_ photos: [(base64: String, filename: String, width: Int, height: Int)]) {
+        // Store each photo's base64 chunks under window.__photoData[i]
+        runJS("window.__photoData = [];")
+        for (i, photo) in photos.enumerated() {
+            let chunkSize = 500_000
+            let chunks = stride(from: 0, to: photo.base64.count, by: chunkSize).map { start -> String in
+                let startIdx = photo.base64.index(photo.base64.startIndex, offsetBy: start)
+                let endIdx = photo.base64.index(startIdx, offsetBy: min(chunkSize, photo.base64.count - start))
+                return String(photo.base64[startIdx..<endIdx])
+            }
+            runJS("window.__photoData[\(i)] = {chunks: [], name: '\(photo.filename)', w: \(photo.width), h: \(photo.height)};")
+            for chunk in chunks {
+                runJS("window.__photoData[\(i)].chunks.push('\(chunk)');")
+            }
+        }
+
+        // Single JS that chains all addMediaItem promises sequentially
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.runJS("""
+            (async function() {
+                var ms = window.__mediaStore;
+                var tl = window.__timelineStore;
+                var ps = window.__projectStore;
+                if (!ms || !tl || !ps) return 'stores not ready';
+                var project = ps.getState().activeProject;
+                if (!project) return 'no active project';
+
+                var photos = window.__photoData;
+                delete window.__photoData;
+                var added = 0;
+
+                for (var i = 0; i < photos.length; i++) {
+                    var p = photos[i];
+                    var b64 = p.chunks.join('');
+                    var binary = atob(b64);
+                    var bytes = new Uint8Array(binary.length);
+                    for (var j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
+                    var blob = new Blob([bytes], {type: 'image/png'});
+                    var file = new File([blob], p.name, {type: 'image/png'});
+                    var blobUrl = URL.createObjectURL(blob);
+
+                    try {
+                        var mediaId = await ms.getState().addMediaItem(project.id, {
+                            name: p.name,
+                            type: 'image',
+                            file: file,
+                            url: blobUrl,
+                            width: p.w,
+                            height: p.h,
+                        });
+                        var trackId = tl.getState().findOrCreateTrack('media');
+                        tl.getState().addElementToTrack(trackId, {
+                            type: 'media',
+                            mediaId: mediaId,
+                            name: p.name,
+                            duration: 5,
+                            startTime: i * 5,
+                            trimStart: 0,
+                            trimEnd: 0,
+                        });
+                        added++;
+                        console.log('[E2E] ' + p.name + ' added at ' + (i * 5) + 's');
+                    } catch(e) {
+                        console.log('[E2E] Failed ' + p.name + ': ' + e.message);
+                    }
+                }
+                console.log('[E2E] Done: ' + added + '/' + photos.length + ' photos on timeline');
+                return added + ' photos added';
+            })()
+            """)
+        }
+    }
+
     #endif
 
     /// Handle qcut:// URL commands by evaluating JS in the webview (debug builds only)
