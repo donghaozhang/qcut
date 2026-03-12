@@ -562,6 +562,137 @@ describe("Claude HTTP Server", () => {
 		expect(after.body.data.count).toBe(0);
 	});
 
+	it("GET /api/claude/snapshot returns the renderer accessibility snapshot", async () => {
+		const executeJavaScript = vi.fn(async () => ({
+			version: 1,
+			timestamp: 123,
+			interactiveOnly: true,
+			maxDepth: 2,
+			elements: [
+				{
+					ref: "@e1",
+					parentRef: null,
+					depth: 0,
+					actionable: true,
+					role: "button",
+					tagName: "button",
+					name: "Export",
+					textPreview: "Export",
+					testId: "export-button",
+					placeholder: null,
+					value: null,
+					disabled: false,
+					checked: null,
+					selected: null,
+					expanded: null,
+					bounds: { x: 10, y: 20, width: 80, height: 32 },
+				},
+			],
+			summary: {
+				total: 1,
+				actionable: 1,
+			},
+		}));
+		const mockWindow = {
+			webContents: {
+				send: vi.fn(),
+				executeJavaScript,
+			},
+		} as unknown as Electron.BrowserWindow;
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
+
+		const res = await fetch("/api/claude/snapshot?interactive=1&depth=2");
+
+		expect(res.status).toBe(200);
+		expect(res.body.success).toBe(true);
+		expect(res.body.data.summary.total).toBe(1);
+		expect(res.body.data.elements[0].ref).toBe("@e1");
+		expect(executeJavaScript).toHaveBeenCalledTimes(1);
+		const [script] = executeJavaScript.mock.calls[0] ?? [];
+		expect(script).toContain("const interactiveOnly = true;");
+		expect(script).toContain("const maxDepth = 2;");
+	});
+
+	it("GET /api/claude/snapshot rejects invalid depth queries", async () => {
+		const res = await fetch("/api/claude/snapshot?depth=-1");
+
+		expect(res.status).toBe(400);
+		expect(res.body.success).toBe(false);
+		expect(res.body.error).toContain("depth");
+	});
+
+	it("POST /api/claude/snapshot/click proxies click-by-ref requests", async () => {
+		const executeJavaScript = vi.fn(async () => ({
+			action: "click",
+			ref: "@e1",
+			tagName: "button",
+			role: "button",
+			name: "Export",
+			value: null,
+		}));
+		const mockWindow = {
+			webContents: {
+				send: vi.fn(),
+				executeJavaScript,
+			},
+		} as unknown as Electron.BrowserWindow;
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
+
+		const res = await fetch("/api/claude/snapshot/click", {
+			method: "POST",
+			body: JSON.stringify({ ref: "@e1" }),
+		});
+
+		expect(res.status).toBe(200);
+		expect(res.body.success).toBe(true);
+		expect(res.body.data.action).toBe("click");
+		expect(res.body.data.ref).toBe("@e1");
+		const [script] = executeJavaScript.mock.calls[0] ?? [];
+		expect(script).toContain('const targetRef = "@e1";');
+	});
+
+	it("POST /api/claude/snapshot/fill proxies fill-by-ref requests", async () => {
+		const executeJavaScript = vi.fn(async () => ({
+			action: "fill",
+			ref: "@e2",
+			tagName: "input",
+			role: "textbox",
+			name: "Project name",
+			value: "Updated title",
+		}));
+		const mockWindow = {
+			webContents: {
+				send: vi.fn(),
+				executeJavaScript,
+			},
+		} as unknown as Electron.BrowserWindow;
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
+
+		const res = await fetch("/api/claude/snapshot/fill", {
+			method: "POST",
+			body: JSON.stringify({ ref: "@e2", value: "Updated title" }),
+		});
+
+		expect(res.status).toBe(200);
+		expect(res.body.success).toBe(true);
+		expect(res.body.data.action).toBe("fill");
+		expect(res.body.data.value).toBe("Updated title");
+		const [script] = executeJavaScript.mock.calls[0] ?? [];
+		expect(script).toContain('const targetRef = "@e2";');
+		expect(script).toContain('const nextValue = "Updated title";');
+	});
+
+	it("POST /api/claude/snapshot/click requires ref", async () => {
+		const res = await fetch("/api/claude/snapshot/click", {
+			method: "POST",
+			body: JSON.stringify({}),
+		});
+
+		expect(res.status).toBe(400);
+		expect(res.body.success).toBe(false);
+		expect(res.body.error).toContain("ref");
+	});
+
 	it("POST /api/claude/diagnostics/analyze requires message", async () => {
 		const res = await fetch("/api/claude/diagnostics/analyze", {
 			method: "POST",

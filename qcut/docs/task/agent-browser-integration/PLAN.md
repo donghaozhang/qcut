@@ -16,7 +16,7 @@ agent-browser is a headless browser automation CLI designed for AI agents. It us
 
 | Pattern | Status | Notes |
 |--------|--------|-------|
-| Accessibility Snapshots with Refs | Not started | Still the highest-value remaining P0 item |
+| Accessibility Snapshots with Refs | Mostly complete | `editor:snapshot`, `editor:snapshot:click`, and `editor:snapshot:fill` are implemented on 2026-03-12; remaining work is mostly ref stability and deeper live-renderer coverage |
 | Console Message & Error Capture | Mostly complete | HTTP + CLI list/clear/stream path implemented on 2026-03-12 |
 | Action Policy Engine | Not started | Planned P1 |
 | Session State Persistence | Not started | Planned P2 |
@@ -42,6 +42,8 @@ agent-browser is a headless browser automation CLI designed for AI agents. It us
 
 ### Pattern 1: Accessibility Snapshot with Refs (HIGH VALUE)
 
+**Status (2026-03-12)**: Mostly implemented.
+
 **What it is**: agent-browser's core innovation — generates an accessibility tree where each interactive element gets a deterministic ref (`@e1`, `@e2`). AI agents use these refs instead of fragile CSS selectors.
 
 **Why QCut needs it**: The native CLI currently controls the editor via HTTP endpoints that require knowing exact element IDs, media IDs, and timeline structure. An accessibility snapshot would let AI agents discover and interact with UI elements they can't reach through the HTTP API (dialogs, settings panels, context menus).
@@ -60,20 +62,55 @@ export async function handleSnapshot(options: SnapshotOptions): Promise<Snapshot
 }
 ```
 
-**Files to create/modify**:
-- `electron/native-pipeline/cli/cli-handlers-snapshot.ts` — snapshot generation
-- `electron/claude/handlers/claude-snapshot-handler.ts` — IPC handler
-- `electron/native-pipeline/cli/command-registry-editor.ts` — register commands
+**Implemented files**:
+- `electron/types/claude-snapshot-api.ts` — shared request/result types and depth limits
+- `electron/claude/handlers/claude-snapshot-handler.ts` — renderer-side DOM traversal, ref assignment, and ref-based click/fill actions via `executeJavaScript`
+- `electron/claude/http/claude-http-snapshot-routes.ts` — `/api/claude/snapshot`, `/api/claude/snapshot/click`, and `/api/claude/snapshot/fill`
+- `electron/claude/http/claude-http-server.ts` — registers snapshot routes in the direct main-process test server
+- `electron/utility/utility-http-server.ts` — exposes snapshot read/write routes in the real utility-process HTTP server
+- `electron/utility/utility-bridge.ts` — bridges snapshot read/write requests back to the main process
+- `electron/native-pipeline/cli/cli-handlers-snapshot.ts` — CLI handlers for `editor:snapshot`, `editor:snapshot:click`, and `editor:snapshot:fill`
+- `electron/native-pipeline/cli/cli-handlers-editor.ts` — routes snapshot commands
+- `electron/native-pipeline/cli/cli-runner/types.ts` — snapshot CLI option types
+- `electron/native-pipeline/cli/cli.ts` — parses `--interactive`, `--depth`, and `--ref`
+- `electron/native-pipeline/cli/command-registry-editor.ts` — registers command metadata and examples
 
-**Subtasks**:
-1. Implement `editor:snapshot` command that returns accessibility tree with refs (~2h)
-2. Implement `editor:snapshot:click @eN` command to click by ref (~1h)
-3. Implement `editor:snapshot:fill @eN "text"` for form inputs (~1h)
-4. Add `--interactive` flag to filter to actionable elements only (~30min)
-5. Add `--depth N` flag to control tree depth (~30min)
-6. Write unit tests for ref assignment and tree building (~1h)
+**Completed subtasks**:
+1. Implemented read-only `editor:snapshot` returning a ref-based visible UI tree
+2. Added deterministic `@eN` refs, parent relationships, bounds, role/tag/name metadata, and actionable-state flags
+3. Added `--interactive` filtering for actionable elements only
+4. Added `--depth N` to clamp DOM traversal depth
+5. Persisted the latest snapshot refs into the live DOM so follow-up actions can resolve them
+6. Implemented `editor:snapshot:click --ref @eN` through the HTTP and utility-process path
+7. Implemented `editor:snapshot:fill --ref @eN --text "..."` for text inputs and contenteditable targets
+8. Added focused tests for handler validation, HTTP route behavior, and CLI query/action routing
 
-**Test files**: `electron/native-pipeline/__tests__/snapshot.test.ts`
+**Remaining work**:
+1. Decide whether refs need stronger stability guarantees across transient rerenders or forced re-snapshots
+2. Add higher-level integration coverage against a live renderer DOM when needed
+3. Extend action support beyond text fill if agents need select/checkbox-specific semantics
+
+**Example usage by AI agent**:
+```bash
+bun run pipeline editor:snapshot --interactive --depth 2 --json
+# → { "status": "ok", "data": {
+#     "elements": [
+#       { "ref": "@e1", "role": "button", "name": "Export", "actionable": true }
+#     ],
+#     "summary": { "total": 1, "actionable": 1 }
+#   }}
+
+bun run pipeline editor:snapshot:click --ref @e1 --json
+# → clicks the element tagged with @e1 from the latest snapshot
+
+bun run pipeline editor:snapshot:fill --ref @e2 --text "Updated title" --json
+# → fills a text input or contenteditable target tagged with @e2
+```
+
+**Test files**:
+- `electron/claude/__tests__/claude-snapshot-handler.test.ts`
+- `electron/claude/__tests__/claude-http-server.test.ts`
+- `electron/__tests__/editor-snapshot-cli.test.ts`
 
 ---
 
@@ -306,14 +343,14 @@ bun run pipeline editor:console --stream
 
 | # | Pattern | Value | Effort | Priority |
 |---|---------|-------|--------|----------|
-| 1 | Accessibility Snapshots with Refs | HIGH | ~6h | **P0** |
+| 1 | Accessibility Snapshots with Refs | HIGH | ~6h | **P0 (mostly complete)** |
 | 5 | Console Message & Error Capture | HIGH | ~6.5h | **P0 (mostly complete)** |
 | 2 | Action Policy Engine | MEDIUM | ~3h | **P1** |
 | 3 | Session State Persistence | MEDIUM | ~3h | **P2** |
 | 4 | Visual Diff Verification | LOW-MED | ~5.5h | **P2** |
 | 6 | WebSocket Viewport Streaming | LOW | ~8h | **P3 (defer)** |
 
-**Total estimated effort for P0**: ~12.5 hours
+**Total estimated effort for P0**: ~12.5 hours (with both P0 tracks now mostly delivered)
 **Total estimated effort for P0+P1**: ~15.5 hours
 
 ---
@@ -350,23 +387,27 @@ electron/native-pipeline/
 │       ├── runner.ts               # MODIFY: Policy check integration
 │       └── session.ts              # MODIFY: State persistence
 ├── __tests__/
-│   ├── snapshot.test.ts            # NEW
+│   ├── editor-snapshot-cli.test.ts # NEW: CLI routing for snapshot query flags
 │   ├── editor-console-cli.test.ts  # NEW: CLI routing for console/errors
 │   ├── action-policy.test.ts       # NEW
 │   ├── session-state.test.ts       # NEW
 │   └── diff.test.ts                # NEW
 electron/claude/handlers/
-│   ├── claude-snapshot-handler.ts  # NEW: IPC handler for snapshots
+│   ├── claude-snapshot-handler.ts  # NEW: Snapshot capture + ref-based actions
 │   └── claude-console-handler.ts   # NEW: Console capture + ring buffer
 electron/claude/__tests__/
+│   ├── claude-snapshot-handler.test.ts # NEW: Snapshot handler + action validation
 │   ├── claude-console-handler.test.ts # NEW: Buffer/filtering coverage
-│   └── claude-http-server.test.ts     # MODIFY: Console route coverage
+│   └── claude-http-server.test.ts     # MODIFY: Console + snapshot route coverage
 electron/claude/http/
+│   ├── claude-http-snapshot-routes.ts # NEW: Snapshot read/write route registration
 │   ├── claude-http-console-routes.ts # NEW: Console routes + SSE stream
-│   └── claude-http-server.ts         # MODIFY: Register console endpoints
+│   └── claude-http-server.ts         # MODIFY: Register console + snapshot endpoints
 electron/utility/
-│   ├── utility-http-server.ts      # MODIFY: Expose console endpoints in the live server
-│   └── utility-bridge.ts           # MODIFY: Bridge console list/clear to main process
+│   ├── utility-http-server.ts      # MODIFY: Expose console + snapshot read/write endpoints in the live server
+│   └── utility-bridge.ts           # MODIFY: Bridge console + snapshot read/write requests to main process
+electron/types/
+│   └── claude-snapshot-api.ts      # NEW: Snapshot request/result schema
 electron/
 │   └── main.ts                     # MODIFY: Attach console capture on window creation
 ```

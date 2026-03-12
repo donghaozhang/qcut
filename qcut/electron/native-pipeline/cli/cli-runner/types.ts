@@ -132,6 +132,9 @@ export interface CLIRunOptions {
 	since?: string;
 	limit?: number;
 	clear?: boolean;
+	interactive?: boolean;
+	depth?: number;
+	ref?: string;
 	replace?: boolean;
 	ripple?: boolean;
 	crossTrackRipple?: boolean;

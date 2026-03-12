@@ -29,6 +29,7 @@ import {
 	handleConsoleCommand,
 	handleErrorsCommand,
 } from "./cli-handlers-console.js";
+import { handleSnapshotCommand } from "./cli-handlers-snapshot.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -245,6 +246,9 @@ export async function handleEditorCommand(
 			case "ui":
 				return await handleUiCommand(client, options);
 
+			case "snapshot":
+				return await handleSnapshotCommand({ client, options });
+
 			case "console":
 				return await handleConsoleCommand({ client, options, signal });
 
@@ -263,7 +267,7 @@ export async function handleEditorCommand(
 			default:
 				return {
 					success: false,
-					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, console, errors, moyin, novel, screenshot, undo, redo, state`,
+					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, snapshot, console, errors, moyin, novel, screenshot, undo, redo, state`,
 				};
 		}
 	} catch (err) {

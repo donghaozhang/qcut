@@ -112,6 +112,9 @@ Editor Commands (requires running QCut — use --project-id for most):
   editor:screen-recording:*         sources, start, stop, force-stop, status
   editor:remotion:*                 list, inspect, update-props, export
   editor:ui:switch-panel            Switch editor panel (--panel, --tab)
+  editor:snapshot                   Get UI accessibility snapshot (--interactive, --depth)
+  editor:snapshot:click             Click a UI ref from the latest snapshot (--ref)
+  editor:snapshot:fill              Fill a UI ref from the latest snapshot (--ref, --text)
   editor:moyin:*                    set-script, parse, status
   editor:screenshot:capture         Take screenshot (--filename)
   editor:undo                       Undo last action
@@ -400,6 +403,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			since: { type: "string" },
 			limit: { type: "string" },
 			clear: { type: "boolean", default: false },
+			interactive: { type: "boolean", default: false },
+			depth: { type: "string" },
+			ref: { type: "string" },
 			replace: { type: "boolean", default: false },
 			ripple: { type: "boolean", default: false },
 			"cross-track-ripple": { type: "boolean", default: false },
@@ -680,6 +686,13 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				: parseInt(values.limit as string, 10)
 			: undefined,
 		clear: (values.clear as boolean) ?? false,
+		interactive: (values.interactive as boolean) ?? false,
+		depth: values.depth
+			? Number.isNaN(parseInt(values.depth as string, 10))
+				? undefined
+				: parseInt(values.depth as string, 10)
+			: undefined,
+		ref: values.ref as string | undefined,
 		replace: (values.replace as boolean) ?? false,
 		ripple: (values.ripple as boolean) ?? false,
 		crossTrackRipple: (values["cross-track-ripple"] as boolean) ?? false,

@@ -18,6 +18,7 @@ import {
 	type WindowAccessor,
 } from "../claude/http/claude-http-shared-routes.js";
 import { registerStateRoutes } from "../claude/http/claude-http-state-routes.js";
+import { registerSnapshotRoutes } from "../claude/http/claude-http-snapshot-routes.js";
 import {
 	handleClaudeEventsStreamRequest,
 	registerClaudeEventsRoutes,
@@ -57,6 +58,10 @@ import type {
 	ClaudeUndoRedoResponse,
 } from "../claude/handlers/claude-transaction-handler.js";
 import type { ClaudeConsoleEntry } from "../claude/handlers/claude-console-handler.js";
+import type {
+	EditorSnapshotActionResult,
+	EditorSnapshotResult,
+} from "../types/claude-api.js";
 
 let server: Server | null = null;
 
@@ -373,6 +378,21 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 			(await requestFromMain("get-editor-state-snapshot", {
 				request,
 			})) as EditorStateSnapshot,
+		timeoutMs: 10_000,
+	});
+	registerSnapshotRoutes(router, {
+		requestSnapshot: async (request) =>
+			(await requestFromMain("get-editor-accessibility-snapshot", {
+				request,
+			})) as EditorSnapshotResult,
+		clickSnapshotRef: async (request) =>
+			(await requestFromMain("snapshot:click", {
+				request,
+			})) as EditorSnapshotActionResult,
+		fillSnapshotRef: async (request) =>
+			(await requestFromMain("snapshot:fill", {
+				request,
+			})) as EditorSnapshotActionResult,
 		timeoutMs: 10_000,
 	});
 	registerClaudeEventsRoutes(router, {

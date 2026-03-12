@@ -47,8 +47,16 @@ import {
 	getHistorySummary,
 } from "../claude/handlers/claude-transaction-handler.js";
 import { requestEditorStateSnapshotFromRenderer } from "../claude/handlers/claude-state-handler.js";
+import {
+	clickEditorSnapshotRef,
+	fillEditorSnapshotRef,
+	requestEditorSnapshotFromRenderer,
+} from "../claude/handlers/claude-snapshot-handler.js";
 import type {
 	EditorStateRequest,
+	EditorSnapshotClickRequest,
+	EditorSnapshotFillRequest,
+	EditorSnapshotRequest,
 	BatchCutRequest,
 	ClaudeRangeDeleteRequest,
 	AutoEditRequest,
@@ -414,6 +422,21 @@ async function handleMainRequest(
 		case "get-editor-state-snapshot": {
 			const req = data as { request?: EditorStateRequest };
 			return requestEditorStateSnapshotFromRenderer(win, req.request);
+		}
+
+		case "get-editor-accessibility-snapshot": {
+			const req = data as { request?: EditorSnapshotRequest };
+			return requestEditorSnapshotFromRenderer(win, req.request);
+		}
+
+		case "snapshot:click": {
+			const req = data as { request: EditorSnapshotClickRequest };
+			return clickEditorSnapshotRef(win, req.request);
+		}
+
+		case "snapshot:fill": {
+			const req = data as { request: EditorSnapshotFillRequest };
+			return fillEditorSnapshotRef(win, req.request);
 		}
 
 		case "split-element": {

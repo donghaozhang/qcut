@@ -683,6 +683,37 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		],
 		["qcut-pipeline editor:ui:context-menu --element-id <id> --debug"]
 	),
+	"editor:snapshot": ed(
+		"editor:snapshot",
+		"Get a ref-based accessibility snapshot of the visible editor UI",
+		[
+			f("--interactive", "boolean", "Only include actionable UI elements", {
+				default: false,
+			}),
+			f("--depth", "number", "Maximum DOM traversal depth"),
+		],
+		[
+			"qcut-pipeline editor:snapshot --json",
+			"qcut-pipeline editor:snapshot --interactive --depth 2 --json",
+		]
+	),
+	"editor:snapshot:click": ed(
+		"editor:snapshot:click",
+		"Click a UI element from the latest snapshot by ref",
+		[f("--ref", "string", "Snapshot ref (for example @e12)", { required: true })],
+		["qcut-pipeline editor:snapshot:click --ref @e12 --json"]
+	),
+	"editor:snapshot:fill": ed(
+		"editor:snapshot:fill",
+		"Fill a text input from the latest snapshot by ref",
+		[
+			f("--ref", "string", "Snapshot ref (for example @e12)", {
+				required: true,
+			}),
+			f("--text", "string", "Text value to enter", { required: true }),
+		],
+		["qcut-pipeline editor:snapshot:fill --ref @e12 --text \"hello\" --json"]
+	),
 
 	// ── Novel Parse ──
 	"editor:novel:parse": ed(
