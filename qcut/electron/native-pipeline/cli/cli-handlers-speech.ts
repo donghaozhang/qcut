@@ -11,6 +11,7 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { CLIRunOptions, CLIResult, ProgressFn } from "./cli-runner/types.js";
 import { getKey } from "../infra/key-manager.js";
+import { uploadToFalStorage } from "../infra/api-caller.js";
 
 const FAL_API_BASE = "https://queue.fal.run";
 
@@ -85,7 +86,7 @@ export async function handleGenerateSpeech(
 	} else if (model === "qwen3_tts") {
 		if (options.voice) payload.voice = options.voice;
 		if (options.language) payload.language = options.language;
-		if (options.prompt) payload.prompt = options.prompt;
+		if (options.text && options.prompt) payload.prompt = options.prompt;
 		if (options.audioUrl) {
 			payload.speaker_voice_embedding_file_url = options.audioUrl;
 		}
@@ -212,10 +213,26 @@ export async function handleConvertSpeech(
 		model: "chatterbox_s2s",
 	});
 
-	// Resolve source: if it's a local path, it needs to be a URL
-	const sourceUrl = /^https?:\/\//i.test(sourceInput)
-		? sourceInput
-		: `file://${resolve(sourceInput)}`;
+	// Resolve source: upload local files to FAL storage
+	let sourceUrl: string;
+	if (/^https?:\/\//i.test(sourceInput)) {
+		sourceUrl = sourceInput;
+	} else {
+		onProgress({
+			stage: "uploading",
+			percent: 10,
+			message: "Uploading source audio to FAL storage...",
+			model: "chatterbox_s2s",
+		});
+		const upload = await uploadToFalStorage(resolve(sourceInput));
+		if (!upload.success || !upload.url) {
+			return {
+				success: false,
+				error: `Failed to upload source audio: ${upload.error || "unknown error"}`,
+			};
+		}
+		sourceUrl = upload.url;
+	}
 
 	const payload: Record<string, unknown> = {
 		source_audio_url: sourceUrl,
@@ -351,9 +368,25 @@ export async function handleCloneVoice(
 		model: "qwen3_clone_voice",
 	});
 
-	const audioUrl = /^https?:\/\//i.test(audioInput)
-		? audioInput
-		: `file://${resolve(audioInput)}`;
+	let audioUrl: string;
+	if (/^https?:\/\//i.test(audioInput)) {
+		audioUrl = audioInput;
+	} else {
+		onProgress({
+			stage: "uploading",
+			percent: 10,
+			message: "Uploading audio to FAL storage...",
+			model: "qwen3_clone_voice",
+		});
+		const upload = await uploadToFalStorage(resolve(audioInput));
+		if (!upload.success || !upload.url) {
+			return {
+				success: false,
+				error: `Failed to upload audio: ${upload.error || "unknown error"}`,
+			};
+		}
+		audioUrl = upload.url;
+	}
 
 	const payload: Record<string, unknown> = {
 		audio_url: audioUrl,

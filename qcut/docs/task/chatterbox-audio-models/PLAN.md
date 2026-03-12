@@ -343,7 +343,7 @@ The Sounds panel currently has 3 tabs: **Sound Effects**, **Songs** (placeholder
 
 ### UI layout (inside Sounds panel)
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │ [Sound Effects] [AI Voice] [Songs] [Saved]  │
 ├─────────────────────────────────────────────┤

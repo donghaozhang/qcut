@@ -310,14 +310,14 @@ See [editor-media.md](editor/editor-media.md) for the full project.json schema.
 ### Exit Metadata
 
 In non-JSON, non-quiet mode, every command appends to stderr:
-```
+```text
 [exit:0 | 1.2s]
 ```
 
 ### Error Recovery Hints
 
 When a command fails in non-JSON mode, actionable hints are printed below the error:
-```
+```text
 error: Missing API key for fal
 hint: Set the key with: qcut-pipeline set-key --name <provider> --value <key>
 ```

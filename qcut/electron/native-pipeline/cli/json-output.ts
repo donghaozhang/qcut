@@ -87,11 +87,10 @@ export function emitJsonResult(
 ): void {
 	if (result.success) {
 		const { success: _, ...rest } = result;
-		const { command_id, duration_ms, ...extraData } = extra ?? {};
 		jsonOk(
-			{ schema_version: SCHEMA_VERSION, command, ...rest, ...extraData },
-			command_id,
-			duration_ms
+			{ schema_version: SCHEMA_VERSION, command, ...rest },
+			extra?.command_id,
+			extra?.duration_ms
 		);
 	} else {
 		const { success: _, error, ...rest } = result;
