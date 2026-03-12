@@ -25,6 +25,7 @@ Run QCut's built-in TypeScript pipeline CLI (`qcut-pipeline` / `bun run pipeline
 - For editor AI commands: video analysis, transcription, AI generation, Remotion, navigator, see [editor-ai.md](editor/editor-ai.md)
 - For editor state automation: snapshots, event streams, correlation IDs, transactions, capabilities, and notification bridge endpoints, see [editor-state-control.md](editor/editor-state-control.md)
 - For agent automation: accessibility snapshots with refs, console capture, visual diffs, session persistence, and action policy, see [editor-agent.md](editor/editor-agent.md)
+- For source file locations by responsibility (core, output, handlers, state, auth), see [reference-source-files.md](references/reference-source-files.md)
 
 ## Step 1: Ensure QCut is Running
 
@@ -349,38 +350,4 @@ const results = await runChain([
 
 ## Key Source Files
 
-| Component | File |
-|-----------|------|
-| CLI entry point | `electron/native-pipeline/cli/cli.ts` |
-| Command router | `electron/native-pipeline/cli/cli-runner/runner.ts` |
-| Programmatic run/runChain | `electron/native-pipeline/cli/cli-runner/run.ts` |
-| CLI types + generateCommandId | `electron/native-pipeline/cli/cli-runner/types.ts` |
-| Command registry (core) | `electron/native-pipeline/cli/command-registry.ts` |
-| Command registry (editor) | `electron/native-pipeline/cli/command-registry-editor.ts` |
-| Command registry types | `electron/native-pipeline/cli/command-registry-types.ts` |
-| JSON output helpers | `electron/native-pipeline/cli/json-output.ts` |
-| CLI output (ANSI, hints) | `electron/native-pipeline/cli/cli-output.ts` |
-| Error hierarchy + hints | `electron/native-pipeline/output/errors.ts` |
-| Debug event stream | `electron/native-pipeline/infra/debug-stream.ts` |
-| Pipeline stream emitter | `electron/native-pipeline/infra/stream-emitter.ts` |
-| project.json types | `electron/native-pipeline/cli/project-json-types.ts` |
-| project.json builder | `electron/native-pipeline/cli/project-json-builder.ts` |
-| Editor dispatch | `electron/native-pipeline/cli/cli-handlers-editor.ts` |
-| Admin handlers | `electron/native-pipeline/cli/cli-handlers-admin.ts` |
-| Media handlers | `electron/native-pipeline/cli/cli-handlers-media.ts` |
-| ViMax handlers | `electron/native-pipeline/cli/vimax-cli-handlers.ts` |
-| Remotion handler | `electron/native-pipeline/cli/cli-handlers-remotion.ts` |
-| Moyin handler | `electron/native-pipeline/cli/cli-handlers-moyin.ts` |
-| YouTube handler | `electron/native-pipeline/cli/cli-handlers-youtube.ts` |
-| Snapshot handler | `electron/native-pipeline/cli/cli-handlers-snapshot.ts` |
-| Console handler | `electron/native-pipeline/cli/cli-handlers-console.ts` |
-| Diff handler | `electron/native-pipeline/cli/cli-handlers-diff.ts` |
-| Session handler | `electron/native-pipeline/cli/cli-handlers-session.ts` |
-| Session persistence | `electron/native-pipeline/cli/session-state.ts` |
-| Action policy | `electron/native-pipeline/cli/action-policy.ts` |
-| Command registry (extra) | `electron/native-pipeline/cli/command-registry-editor-extra.ts` |
-| Auth routes (HTTP) | `electron/claude/http/claude-http-server.ts` |
-| Auth routes (utility) | `electron/utility/utility-http-server.ts` |
-| Auth bridge | `electron/utility/utility-bridge.ts` |
-| License handler | `electron/license-handler.ts` |
-| Key manager | `electron/native-pipeline/key-manager.ts` |
+See [reference-source-files.md](references/reference-source-files.md) for the full source file map organized by responsibility (core, output, handlers, state, auth).
