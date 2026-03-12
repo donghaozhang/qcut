@@ -714,6 +714,21 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		],
 		["qcut-pipeline editor:snapshot:fill --ref @e12 --text \"hello\" --json"]
 	),
+	"editor:diff:snapshot": ed(
+		"editor:diff:snapshot",
+		"Compare two saved accessibility snapshot files",
+		[
+			f("--before", "string", "Path to the earlier snapshot JSON", {
+				required: true,
+			}),
+			f("--after", "string", "Path to the later snapshot JSON", {
+				required: true,
+			}),
+		],
+		[
+			"qcut-pipeline editor:diff:snapshot --before before.json --after after.json --json",
+		]
+	),
 
 	// ── Novel Parse ──
 	"editor:novel:parse": ed(
