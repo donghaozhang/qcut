@@ -221,7 +221,7 @@ export class CLIPipelineRunner {
 				);
 			default:
 				if (options.command.startsWith("editor:")) {
-					return handleEditorCommand(options, onProgress);
+					return handleEditorCommand(options, onProgress, this.signal);
 				}
 				return { success: false, error: `Unknown command: ${options.command}` };
 		}

@@ -12,6 +12,17 @@ agent-browser is a headless browser automation CLI designed for AI agents. It us
 
 **Verdict: Do NOT use agent-browser directly as a dependency.** Instead, borrow specific architectural patterns and implement a lightweight browser automation layer natively within QCut's existing CLI infrastructure.
 
+## Implementation Status
+
+| Pattern | Status | Notes |
+|--------|--------|-------|
+| Accessibility Snapshots with Refs | Not started | Still the highest-value remaining P0 item |
+| Console Message & Error Capture | In progress | HTTP + CLI list/clear path implemented on 2026-03-12; CLI streaming still pending |
+| Action Policy Engine | Not started | Planned P1 |
+| Session State Persistence | Not started | Planned P2 |
+| Visual Diff Verification | Not started | Planned P2 |
+| WebSocket Viewport Streaming | Deferred | No immediate product need |
+
 ---
 
 ## Why Not Use Directly
@@ -173,6 +184,8 @@ export async function handleDiff(options: {
 
 ### Pattern 5: Console Message & Error Capture (HIGH VALUE)
 
+**Status (2026-03-12)**: Partially implemented.
+
 **What it is**: agent-browser exposes `console` and `errors` commands that capture all browser console output (log, warn, error, info, debug) and uncaught page errors. AI agents use this to debug issues, verify actions succeeded, and understand runtime behavior without needing DevTools open.
 
 **Why QCut needs it**: When AI agents drive the QCut editor via the native CLI, they're blind to what's happening inside the renderer. Console messages reveal:
@@ -229,27 +242,28 @@ export function attachConsoleCapture(window: BrowserWindow) {
 // editor:errors               — shortcut for --level error
 ```
 
-**Files to create/modify**:
-- `electron/claude/handlers/claude-console-handler.ts` — console capture + buffer (~150 LOC)
-- `electron/claude/http/claude-http-server.ts` — add `/api/claude/console` and `/api/claude/errors` endpoints
-- `electron/native-pipeline/cli/command-registry-editor.ts` — register `editor:console` and `editor:errors` commands
-- `electron/native-pipeline/cli/cli-handlers-console.ts` — CLI handler that calls HTTP endpoints
-- `electron/main.ts` — attach console capture on window creation
+**Implemented files**:
+- `electron/claude/handlers/claude-console-handler.ts` — in-memory console buffer, filters, renderer error capture helpers
+- `electron/claude/http/claude-http-console-routes.ts` — `/api/claude/console`, `/api/claude/errors`, `/api/claude/console/stream`
+- `electron/claude/http/claude-http-server.ts` — registers console routes in the direct main-process test server
+- `electron/utility/utility-http-server.ts` — exposes console routes in the real utility-process HTTP server
+- `electron/utility/utility-bridge.ts` — bridges `console:list` / `console:clear` back to the main process
+- `electron/native-pipeline/cli/cli-handlers-console.ts` — CLI handlers for `editor:console` and `editor:errors`
+- `electron/native-pipeline/cli/cli-handlers-editor.ts` — routes `editor:console` / `editor:errors`
+- `electron/native-pipeline/cli/command-registry-editor.ts` — registers command metadata
 
-**Subtasks**:
-1. Implement `console-message` event listener with ring buffer in Electron main process (~1h)
-   - `electron/claude/handlers/claude-console-handler.ts`
-2. Add HTTP endpoints: `GET /api/claude/console` (with `?level=`, `?since=`, `?limit=` query params) and `GET /api/claude/errors` (~1.5h)
-   - `electron/claude/http/claude-http-server.ts`
-3. Add SSE streaming endpoint `GET /api/claude/console/stream` for real-time tailing (~1h)
-   - `electron/claude/http/claude-http-server.ts`
-4. Implement CLI commands `editor:console` and `editor:errors` with flags (`--level`, `--since`, `--limit`, `--clear`, `--stream`, `--json`) (~1.5h)
-   - `electron/native-pipeline/cli/cli-handlers-console.ts`
-   - `electron/native-pipeline/cli/command-registry-editor.ts`
-5. Capture uncaught renderer errors via `webContents.on('render-process-gone')` and `window.onerror` injection (~30min)
-   - `electron/claude/handlers/claude-console-handler.ts`
-6. Write unit tests for buffer management, level filtering, time-based filtering (~1h)
-   - `electron/native-pipeline/__tests__/console-capture.test.ts`
+**Completed subtasks**:
+1. Implemented `console-message` capture with an in-memory ring buffer in the Electron-side handler
+2. Added `GET /api/claude/console`, `GET /api/claude/errors`, and `DELETE /api/claude/console`
+3. Added `GET /api/claude/console/stream` SSE support at the HTTP layer
+4. Implemented CLI commands `editor:console` and `editor:errors` for list/filter/clear
+5. Added renderer-failure capture via `render-process-gone` plus injected `window.error` / `unhandledrejection`
+6. Added focused tests for buffer/filtering, HTTP routes, and CLI routing
+
+**Remaining work**:
+1. Wire the CLI `--stream` UX to consume the SSE endpoint cleanly instead of returning a not-yet-implemented error
+2. Decide whether debug/info console levels need normalization beyond Electron's `console-message` event
+3. Add higher-level integration coverage against the utility-process path if needed
 
 **Example usage by AI agent**:
 ```bash
@@ -266,11 +280,14 @@ bun run pipeline editor:console --level error --json
 #   ]}}
 
 # Real-time monitoring during long operations
-bun run pipeline editor:console --stream --json
-# → streams JSONL lines as console messages appear
+curl -N http://127.0.0.1:8765/api/claude/console/stream
+# → streams SSE events as console messages appear
 ```
 
-**Test files**: `electron/native-pipeline/__tests__/console-capture.test.ts`
+**Test files**:
+- `electron/claude/__tests__/claude-console-handler.test.ts`
+- `electron/claude/__tests__/claude-http-server.test.ts`
+- `electron/__tests__/editor-console-cli.test.ts`
 
 ---
 
@@ -289,7 +306,7 @@ bun run pipeline editor:console --stream --json
 | # | Pattern | Value | Effort | Priority |
 |---|---------|-------|--------|----------|
 | 1 | Accessibility Snapshots with Refs | HIGH | ~6h | **P0** |
-| 5 | Console Message & Error Capture | HIGH | ~6.5h | **P0** |
+| 5 | Console Message & Error Capture | HIGH | ~6.5h | **P0 (partially complete)** |
 | 2 | Action Policy Engine | MEDIUM | ~3h | **P1** |
 | 3 | Session State Persistence | MEDIUM | ~3h | **P2** |
 | 4 | Visual Diff Verification | LOW-MED | ~5.5h | **P2** |
@@ -317,7 +334,7 @@ Key difference: QCut doesn't need an external browser. The Electron renderer IS 
 
 ---
 
-## File Structure (Final)
+## File Structure (Current + Planned)
 
 ```
 electron/native-pipeline/
@@ -333,15 +350,22 @@ electron/native-pipeline/
 │       └── session.ts              # MODIFY: State persistence
 ├── __tests__/
 │   ├── snapshot.test.ts            # NEW
-│   ├── console-capture.test.ts     # NEW
+│   ├── editor-console-cli.test.ts  # NEW: CLI routing for console/errors
 │   ├── action-policy.test.ts       # NEW
 │   ├── session-state.test.ts       # NEW
 │   └── diff.test.ts                # NEW
 electron/claude/handlers/
 │   ├── claude-snapshot-handler.ts  # NEW: IPC handler for snapshots
 │   └── claude-console-handler.ts   # NEW: Console capture + ring buffer
+electron/claude/__tests__/
+│   ├── claude-console-handler.test.ts # NEW: Buffer/filtering coverage
+│   └── claude-http-server.test.ts     # MODIFY: Console route coverage
 electron/claude/http/
-│   └── claude-http-server.ts       # MODIFY: Add /api/claude/console endpoints
+│   ├── claude-http-console-routes.ts # NEW: Console routes + SSE stream
+│   └── claude-http-server.ts         # MODIFY: Register console endpoints
+electron/utility/
+│   ├── utility-http-server.ts      # MODIFY: Expose console endpoints in the live server
+│   └── utility-bridge.ts           # MODIFY: Bridge console list/clear to main process
 electron/
 │   └── main.ts                     # MODIFY: Attach console capture on window creation
 ```

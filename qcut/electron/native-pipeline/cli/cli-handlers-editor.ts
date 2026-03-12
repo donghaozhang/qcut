@@ -164,7 +164,8 @@ async function verifyScreenRecordingStopped({
  */
 export async function handleEditorCommand(
 	options: CLIRunOptions,
-	onProgress: ProgressFn
+	onProgress: ProgressFn,
+	signal?: AbortSignal
 ): Promise<CLIResult> {
 	// In session mode, reuse the shared client. Otherwise create a new one.
 	const client = options.session
@@ -245,10 +246,10 @@ export async function handleEditorCommand(
 				return await handleUiCommand(client, options);
 
 			case "console":
-				return await handleConsoleCommand({ client, options });
+				return await handleConsoleCommand({ client, options, signal });
 
 			case "errors":
-				return await handleErrorsCommand({ client, options });
+				return await handleErrorsCommand({ client, options, signal });
 
 			case "moyin":
 				return await handleMoyinCommand(client, options);

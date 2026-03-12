@@ -99,6 +99,9 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 			f("--level", "string", "Filter by level: log, info, warn, error, debug"),
 			f("--since", "string", "Only include entries since a relative time or timestamp"),
 			f("--limit", "number", "Maximum number of entries to return"),
+			f("--stream", "boolean", "Stream live console entries until interrupted", {
+				default: false,
+			}),
 			f("--clear", "boolean", "Clear the console buffer instead of listing", {
 				default: false,
 			}),
@@ -115,6 +118,9 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		[
 			f("--since", "string", "Only include entries since a relative time or timestamp"),
 			f("--limit", "number", "Maximum number of entries to return"),
+			f("--stream", "boolean", "Stream live error entries until interrupted", {
+				default: false,
+			}),
 			f("--clear", "boolean", "Clear the shared console buffer instead of listing", {
 				default: false,
 			}),
