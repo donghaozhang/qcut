@@ -19,6 +19,7 @@ export interface CLIRunOptions {
 	saveIntermediates: boolean;
 	parallel?: boolean;
 	maxWorkers?: number;
+	policy?: string;
 	json: boolean;
 	verbose: boolean;
 	quiet: boolean;
@@ -47,6 +48,7 @@ export interface CLIRunOptions {
 	configDir?: string;
 	cacheDir?: string;
 	stateDir?: string;
+	resume?: string;
 	negativePrompt?: string;
 	voiceId?: string;
 	directory?: string;
@@ -86,6 +88,8 @@ export interface CLIRunOptions {
 	// analyze-video options
 	analysisType?: string;
 	outputFormat?: string;
+	before?: string;
+	after?: string;
 	// upscale-image options
 	target?: string;
 	// vimax options

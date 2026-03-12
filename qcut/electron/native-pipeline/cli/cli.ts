@@ -115,6 +115,7 @@ Editor Commands (requires running QCut — use --project-id for most):
   editor:snapshot                   Get UI accessibility snapshot (--interactive, --depth)
   editor:snapshot:click             Click a UI ref from the latest snapshot (--ref)
   editor:snapshot:fill              Fill a UI ref from the latest snapshot (--ref, --text)
+  editor:diff:snapshot              Compare two saved snapshot files (--before, --after)
   editor:moyin:*                    set-script, parse, status
   editor:screenshot:capture         Take screenshot (--filename)
   editor:undo                       Undo last action
@@ -127,8 +128,11 @@ Editor Commands (requires running QCut — use --project-id for most):
 Global Options:
   --output-dir, -o    Output directory (default: ~/Documents/QCut/exports)
   --model, -m         Model key (e.g. kling_2_6_pro, flux_dev)
+  --policy            Path to JSON action policy file
+  --resume            Resume and autosave a named CLI session
   --json              Output results as JSON
   --quiet, -q         Suppress progress output
+  --force             Bypass action-policy confirmations when allowed
   --help, -h          Show help
   --version           Show version
 
@@ -154,6 +158,8 @@ Performance Options:
   --skip-health           Skip editor health check (use when editor is known up)
   --no-capability-check   Skip per-request capability warnings
   --session               Session mode: read commands from stdin, one per line
+  --resume <name>         Load sticky project/panel/history from a named session
+  --state-dir <dir>       Override the state directory used for resumed sessions
 
 Editor Options (see docs for full list):
   --project-id   Project ID    --media-id   Media ID
@@ -291,6 +297,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"aspect-ratio": { type: "string" },
 			resolution: { type: "string" },
 			config: { type: "string", short: "c" },
+			policy: { type: "string" },
+			resume: { type: "string" },
 			input: { type: "string", short: "i" },
 			"save-intermediates": { type: "boolean", default: false },
 			parallel: { type: "boolean", default: false },
@@ -367,6 +375,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// analyze-video options
 			"analysis-type": { type: "string" },
 			"output-format": { type: "string", short: "f" },
+			before: { type: "string" },
+			after: { type: "string" },
 			// upscale-image options
 			target: { type: "string" },
 			// vimax options
@@ -507,6 +517,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		aspectRatio: values["aspect-ratio"] as string | undefined,
 		resolution: values.resolution as string | undefined,
 		config: values.config as string | undefined,
+		policy: values.policy as string | undefined,
+		resume: values.resume as string | undefined,
 		input: values.input as string | undefined,
 		saveIntermediates: (values["save-intermediates"] as boolean) ?? false,
 		parallel: (values.parallel as boolean) ?? false,
@@ -618,6 +630,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		// analyze-video options
 		analysisType: values["analysis-type"] as string | undefined,
 		outputFormat: values["output-format"] as string | undefined,
+		before: values.before as string | undefined,
+		after: values.after as string | undefined,
 		// upscale-image options
 		target: values.target as string | undefined,
 		// vimax options
@@ -786,10 +800,13 @@ export async function main(
 				verbose: { type: "boolean", short: "v", default: false },
 				"skip-health": { type: "boolean", default: false },
 				"no-capability-check": { type: "boolean", default: false },
+				policy: { type: "string" },
+				resume: { type: "string" },
 				host: { type: "string" },
 				port: { type: "string" },
 				token: { type: "string" },
 				"output-dir": { type: "string", short: "o" },
+				"state-dir": { type: "string" },
 			},
 			strict: false,
 		});
@@ -799,10 +816,13 @@ export async function main(
 			verbose: sessionValues.verbose as boolean,
 			skipHealth: sessionValues["skip-health"] as boolean,
 			noCapabilityCheck: sessionValues["no-capability-check"] as boolean,
+			policy: sessionValues.policy as string | undefined,
+			resume: sessionValues.resume as string | undefined,
 			host: sessionValues.host as string | undefined,
 			port: sessionValues.port as string | undefined,
 			token: sessionValues.token as string | undefined,
 			outputDir: sessionValues["output-dir"] as string | undefined,
+			stateDir: sessionValues["state-dir"] as string | undefined,
 			session: true,
 		};
 

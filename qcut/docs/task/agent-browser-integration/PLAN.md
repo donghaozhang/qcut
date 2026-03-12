@@ -18,8 +18,8 @@ agent-browser is a headless browser automation CLI designed for AI agents. It us
 |--------|--------|-------|
 | Accessibility Snapshots with Refs | Mostly complete | `editor:snapshot`, `editor:snapshot:click`, and `editor:snapshot:fill` are implemented on 2026-03-12; remaining work is mostly ref stability and deeper live-renderer coverage |
 | Console Message & Error Capture | Mostly complete | HTTP + CLI list/clear/stream path implemented on 2026-03-12 |
-| Action Policy Engine | Not started | Planned P1 |
-| Session State Persistence | Not started | Planned P2 |
+| Action Policy Engine | Mostly complete | Default allow/confirm/deny policy, `--policy`, runner enforcement, and tests implemented on 2026-03-12 |
+| Session State Persistence | Partially complete | Named session files, `--resume`, sticky project/panel hydration, and autosave are implemented on 2026-03-12; explicit session commands are still pending |
 | Visual Diff Verification | Not started | Planned P2 |
 | WebSocket Viewport Streaming | Deferred | No immediate product need |
 
@@ -116,6 +116,8 @@ bun run pipeline editor:snapshot:fill --ref @e2 --text "Updated title" --json
 
 ### Pattern 2: Action Policy Engine (MEDIUM VALUE)
 
+**Status (2026-03-12)**: Mostly implemented.
+
 **What it is**: agent-browser has an `action-policy.ts` that categorizes actions into allow/deny/confirm buckets. This prevents AI agents from performing destructive actions without confirmation.
 
 **Why QCut needs it**: The native CLI exposes destructive operations (`editor:project:delete`, `editor:timeline:batch-delete`, `editor:media:delete`). An action policy would add a safety layer when AI agents drive the CLI.
@@ -137,22 +139,46 @@ const DEFAULT_POLICY: ActionPolicy = {
 };
 ```
 
-**Files to create/modify**:
-- `electron/native-pipeline/cli/action-policy.ts` — policy engine (~150 LOC)
-- `electron/native-pipeline/cli/cli.ts` — integrate policy check before command dispatch
+**Implemented files**:
+- `electron/native-pipeline/cli/action-policy.ts` — policy parsing, wildcard matching, default policy, and JSON file loading
+- `electron/native-pipeline/cli/cli-runner/runner.ts` — policy enforcement before command dispatch
+- `electron/native-pipeline/cli/cli.ts` — parses `--policy` and documents `--force`
+- `electron/native-pipeline/cli/cli-runner/session.ts` — carries policy settings through session mode and per-line parsing
+- `electron/native-pipeline/cli/command-registry.ts` — exposes global policy metadata in registry help
+- `electron/native-pipeline/cli/cli-runner/types.ts` — adds policy option typing
 
-**Subtasks**:
-1. Define default policy with categorized commands (~1h)
-2. Add `--policy <path>` flag for custom policy files (~30min)
-3. Integrate policy check in `runner.ts` before dispatch (~30min)
-4. Add `--force` flag to bypass confirm prompts (~15min)
-5. Write tests for policy matching (~30min)
+**Completed subtasks**:
+1. Defined a default action policy with allow/confirm/deny buckets for editor commands
+2. Added `--policy <path>` support for custom JSON policy files
+3. Integrated policy checks in `runner.ts` before command dispatch
+4. Reused `--force` to bypass confirm-tier policy prompts, while still blocking deny-tier commands
+5. Added focused tests for pattern matching, policy loading, one-shot/session arg parsing, and runner enforcement
 
-**Test files**: `electron/native-pipeline/__tests__/action-policy.test.ts`
+**Remaining work**:
+1. Extend policy matching beyond command names if QCut needs flag-sensitive rules such as `editor:auth:token --set`
+2. Revisit the default confirm list as more editor mutations and UI automation flows are added
+3. Add richer policy schema options only if a concrete product need emerges
+
+**Example usage by AI agent**:
+```bash
+# Default policy blocks destructive editor commands unless --force is supplied
+bun run pipeline editor:timeline:batch-delete --project-id my-proj --json
+
+# Bypass confirm-tier actions explicitly
+bun run pipeline editor:timeline:batch-delete --project-id my-proj --force --json
+
+# Replace the default policy with a custom JSON file
+bun run pipeline editor:snapshot:click --ref @e1 --policy ./agent-policy.json --json
+```
+
+**Test files**:
+- `electron/__tests__/action-policy.test.ts`
 
 ---
 
 ### Pattern 3: Session State Persistence (MEDIUM VALUE)
+
+**Status (2026-03-12)**: Partially implemented.
 
 **What it is**: agent-browser saves/restores browser state (cookies, localStorage) between sessions with optional encryption.
 
@@ -171,18 +197,37 @@ interface SessionState {
 }
 ```
 
-**Files to create/modify**:
-- `electron/native-pipeline/cli/session-state.ts` — state save/load (~100 LOC)
-- `electron/native-pipeline/cli/cli-runner/session.ts` — integrate with REPL
+**Implemented files**:
+- `electron/native-pipeline/cli/session-state.ts` — named session files, state hydration, and autosave updates
+- `electron/native-pipeline/cli/cli.ts` — parses `--resume` and session-mode state directory flags
+- `electron/native-pipeline/cli/cli-runner/runner.ts` — hydrates one-shot commands from resumed session state and autosaves after execution
+- `electron/native-pipeline/cli/cli-runner/session.ts` — loads resumed state into REPL defaults and persists updates across session commands
+- `electron/native-pipeline/cli/command-registry.ts` — documents `--resume` in global flag metadata
+- `electron/native-pipeline/cli/cli-runner/types.ts` — adds session resume typing
 
-**Subtasks**:
-1. Define session state schema and storage location (`~/.qcut/sessions/`) (~30min)
-2. Implement save/load with JSON serialization (~1h)
-3. Add `--resume <session-name>` flag to CLI (~30min)
-4. Add `editor:session:save` and `editor:session:load` commands (~30min)
-5. Write tests (~30min)
+**Completed subtasks**:
+1. Defined a local session state schema and stored named session files under the CLI state directory (`.../sessions/`)
+2. Implemented JSON save/load helpers with sticky `projectId`, `lastPanel`, `lastTab`, and command history
+3. Added `--resume <session-name>` for one-shot commands and session mode
+4. Integrated resume hydration and autosave into both `runner.ts` and REPL session handling
+5. Added focused tests for round-trip persistence, arg parsing, sticky defaults, and autosave behavior
 
-**Test files**: `electron/native-pipeline/__tests__/session-state.test.ts`
+**Remaining work**:
+1. Add explicit `editor:session:save` and `editor:session:load` commands if agents need manual checkpoints outside `--resume`
+2. Expand stored state beyond project/panel/history if there is a concrete need for undo checkpoints or richer editor context
+3. Decide whether command history should capture fuller CLI invocations instead of compact summaries
+
+**Example usage by AI agent**:
+```bash
+# Resume a sticky session for one-shot commands
+bun run pipeline editor:timeline:export --resume my-edit-session --json
+
+# Resume and autosave across an interactive REPL session
+bun run pipeline --session --resume my-edit-session
+```
+
+**Test files**:
+- `electron/__tests__/session-state.test.ts`
 
 ---
 
@@ -345,13 +390,13 @@ bun run pipeline editor:console --stream
 |---|---------|-------|--------|----------|
 | 1 | Accessibility Snapshots with Refs | HIGH | ~6h | **P0 (mostly complete)** |
 | 5 | Console Message & Error Capture | HIGH | ~6.5h | **P0 (mostly complete)** |
-| 2 | Action Policy Engine | MEDIUM | ~3h | **P1** |
-| 3 | Session State Persistence | MEDIUM | ~3h | **P2** |
+| 2 | Action Policy Engine | MEDIUM | ~3h | **P1 (mostly complete)** |
+| 3 | Session State Persistence | MEDIUM | ~3h | **P2 (partially complete)** |
 | 4 | Visual Diff Verification | LOW-MED | ~5.5h | **P2** |
 | 6 | WebSocket Viewport Streaming | LOW | ~8h | **P3 (defer)** |
 
 **Total estimated effort for P0**: ~12.5 hours (with both P0 tracks now mostly delivered)
-**Total estimated effort for P0+P1**: ~15.5 hours
+**Total estimated effort for P0+P1**: ~15.5 hours (with P1 now largely delivered)
 
 ---
 
@@ -382,15 +427,17 @@ electron/native-pipeline/
 │   ├── cli-handlers-diff.ts        # NEW: Snapshot/screenshot diffing
 │   ├── action-policy.ts            # NEW: Allow/deny/confirm policy
 │   ├── session-state.ts            # NEW: Session persistence
+│   ├── cli.ts                      # MODIFY: Parse --policy/--resume and document session behavior
+│   ├── command-registry.ts         # MODIFY: Expose global policy/session metadata
 │   ├── command-registry-editor.ts  # MODIFY: Add new commands
 │   └── cli-runner/
-│       ├── runner.ts               # MODIFY: Policy check integration
-│       └── session.ts              # MODIFY: State persistence
+│       ├── runner.ts               # MODIFY: Policy checks + one-shot session resume/autosave
+│       └── session.ts              # MODIFY: Session parsing, sticky defaults, and autosave
 ├── __tests__/
 │   ├── editor-snapshot-cli.test.ts # NEW: CLI routing for snapshot query flags
 │   ├── editor-console-cli.test.ts  # NEW: CLI routing for console/errors
-│   ├── action-policy.test.ts       # NEW
-│   ├── session-state.test.ts       # NEW
+│   ├── action-policy.test.ts       # NEW: Policy parsing and enforcement coverage
+│   ├── session-state.test.ts       # NEW: Session persistence coverage
 │   └── diff.test.ts                # NEW
 electron/claude/handlers/
 │   ├── claude-snapshot-handler.ts  # NEW: Snapshot capture + ref-based actions
