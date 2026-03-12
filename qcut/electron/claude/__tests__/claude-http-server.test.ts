@@ -250,6 +250,10 @@ import * as timelineHandler from "../handlers/claude-timeline-handler.js";
 import * as transactionHandler from "../handlers/claude-transaction-handler.js";
 import { notificationBridge } from "../notification-bridge";
 import { createFetch, createMockWindow } from "./claude-http-test-helpers";
+import {
+	recordConsoleEntry,
+	resetConsoleCaptureForTests,
+} from "../handlers/claude-console-handler.js";
 
 // ---------------------------------------------------------------------------
 // Server lifecycle
@@ -280,6 +284,7 @@ afterAll(() => {
 describe("Claude HTTP Server", () => {
 	beforeEach(() => {
 		notificationBridge.resetForTests();
+		resetConsoleCaptureForTests();
 		vi.mocked(BrowserWindow.getAllWindows).mockReset();
 		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([]);
 	});
@@ -515,6 +520,46 @@ describe("Claude HTTP Server", () => {
 		expect(res.status).toBe(200);
 		expect(res.body.success).toBe(true);
 		expect(res.body.data.preset).toBeDefined();
+	});
+
+	it("GET /api/claude/console returns filtered console messages", async () => {
+		recordConsoleEntry({
+			level: "warn",
+			message: "Heads up",
+			timestamp: Date.now() - 5_000,
+		});
+		recordConsoleEntry({
+			level: "error",
+			message: "Boom",
+			timestamp: Date.now(),
+		});
+
+		const res = await fetch("/api/claude/console?level=error&limit=5");
+
+		expect(res.status).toBe(200);
+		expect(res.body.success).toBe(true);
+		expect(res.body.data.count).toBe(1);
+		expect(res.body.data.messages[0].message).toBe("Boom");
+	});
+
+	it("DELETE /api/claude/console clears the console buffer", async () => {
+		recordConsoleEntry({
+			level: "error",
+			message: "clear me",
+			timestamp: Date.now(),
+		});
+
+		const res = await fetch("/api/claude/console", {
+			method: "DELETE",
+			body: JSON.stringify({}),
+		});
+
+		expect(res.status).toBe(200);
+		expect(res.body.success).toBe(true);
+		expect(res.body.data.clearedCount).toBe(1);
+
+		const after = await fetch("/api/claude/console");
+		expect(after.body.data.count).toBe(0);
 	});
 
 	it("POST /api/claude/diagnostics/analyze requires message", async () => {

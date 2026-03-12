@@ -92,6 +92,39 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 			default: false,
 		}),
 	]),
+	"editor:console": ed(
+		"editor:console",
+		"List captured renderer console messages",
+		[
+			f("--level", "string", "Filter by level: log, info, warn, error, debug"),
+			f("--since", "string", "Only include entries since a relative time or timestamp"),
+			f("--limit", "number", "Maximum number of entries to return"),
+			f("--clear", "boolean", "Clear the console buffer instead of listing", {
+				default: false,
+			}),
+		],
+		[
+			"qcut-pipeline editor:console --json",
+			"qcut-pipeline editor:console --level error --since 30s --json",
+			"qcut-pipeline editor:console --clear --json",
+		]
+	),
+	"editor:errors": ed(
+		"editor:errors",
+		"List captured renderer errors",
+		[
+			f("--since", "string", "Only include entries since a relative time or timestamp"),
+			f("--limit", "number", "Maximum number of entries to return"),
+			f("--clear", "boolean", "Clear the shared console buffer instead of listing", {
+				default: false,
+			}),
+		],
+		[
+			"qcut-pipeline editor:errors --json",
+			"qcut-pipeline editor:errors --since 10s --json",
+			"qcut-pipeline editor:errors --clear --json",
+		]
+	),
 
 	// ── Media ──
 	"editor:media:list": ed("editor:media:list", "List media files", [PID]),

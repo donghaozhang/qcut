@@ -170,10 +170,10 @@ function injectRendererErrorCapture({
 }): void {
 	void webContents
 		.executeJavaScript(`(() => {
-			if ((window as any).__qcutConsoleCaptureInstalled) {
+			if (window.__qcutConsoleCaptureInstalled) {
 				return true;
 			}
-			(window as any).__qcutConsoleCaptureInstalled = true;
+			window.__qcutConsoleCaptureInstalled = true;
 			window.addEventListener("error", (event) => {
 				const source = event.filename || "window.onerror";
 				const line = typeof event.lineno === "number" ? event.lineno : 0;
@@ -182,12 +182,18 @@ function injectRendererErrorCapture({
 			});
 			window.addEventListener("unhandledrejection", (event) => {
 				const reason = event.reason;
-				const message =
-					typeof reason === "string"
-						? reason
-						: reason instanceof Error
-							? reason.stack || reason.message
-							: JSON.stringify(reason);
+				let message = "Unhandled promise rejection";
+				if (typeof reason === "string") {
+					message = reason;
+				} else if (reason instanceof Error) {
+					message = reason.stack || reason.message;
+				} else {
+					try {
+						message = JSON.stringify(reason);
+					} catch {
+						message = String(reason);
+					}
+				}
 				console.error("[renderer-unhandledrejection]", message);
 			});
 			return true;

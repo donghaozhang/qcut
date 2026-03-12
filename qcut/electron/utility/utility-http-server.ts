@@ -56,6 +56,7 @@ import type {
 	ClaudeHistorySummary,
 	ClaudeUndoRedoResponse,
 } from "../claude/handlers/claude-transaction-handler.js";
+import type { ClaudeConsoleEntry } from "../claude/handlers/claude-console-handler.js";
 
 let server: Server | null = null;
 
@@ -385,7 +386,7 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 		listConsoleEntries: async (filter) =>
 			(await requestFromMain("console:list", {
 				...(filter as unknown as Record<string, unknown>),
-			})) as EditorEvent[],
+			})) as ClaudeConsoleEntry[],
 		clearConsoleEntries: async () =>
 			(await requestFromMain("console:clear", {})) as { clearedCount: number },
 	});
@@ -736,7 +737,7 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 				listConsoleEntries: async (filter) =>
 					(await requestFromMain("console:list", {
 						...(filter as unknown as Record<string, unknown>),
-					})) as EditorEvent[],
+					})) as ClaudeConsoleEntry[],
 				clearConsoleEntries: async () =>
 					(await requestFromMain("console:clear", {})) as {
 						clearedCount: number;

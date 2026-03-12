@@ -1,7 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { parse } from "node:url";
 import type { Router } from "../utils/http-router.js";
-import { RESPONSE_HANDLED } from "../utils/http-router.js";
 import type {
 	ClaudeConsoleEntry,
 	ClaudeConsoleFilter,
@@ -321,5 +320,3 @@ export function handleClaudeConsoleStreamRequest({
 		return true;
 	}
 }
-
-export { RESPONSE_HANDLED };
