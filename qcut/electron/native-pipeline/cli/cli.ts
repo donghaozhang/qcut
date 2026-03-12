@@ -26,7 +26,11 @@ import { StreamEmitter, NullEmitter } from "../infra/stream-emitter.js";
 import { formatCommandOutput } from "./cli-output-formatters.js";
 import { runSession } from "./cli-runner/session.js";
 import { emitJsonResult, jsonOk, jsonError } from "./json-output.js";
-import { COMMANDS_REGISTRY } from "./command-registry.js";
+import {
+	COMMANDS_REGISTRY,
+	getCommand,
+	getCommandFlag,
+} from "./command-registry.js";
 import {
 	CLI_VERSION,
 	findHelpParam,
