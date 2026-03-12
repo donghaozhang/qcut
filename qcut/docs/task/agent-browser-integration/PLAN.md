@@ -20,7 +20,7 @@ agent-browser is a headless browser automation CLI designed for AI agents. It us
 | Console Message & Error Capture | Mostly complete | HTTP + CLI list/clear/stream path implemented on 2026-03-12 |
 | Action Policy Engine | Mostly complete | Default allow/confirm/deny policy, `--policy`, runner enforcement, and tests implemented on 2026-03-12 |
 | Session State Persistence | Partially complete | Named session files, `--resume`, sticky project/panel hydration, and autosave are implemented on 2026-03-12; explicit session commands are still pending |
-| Visual Diff Verification | Not started | Planned P2 |
+| Visual Diff Verification | Partially complete | `editor:diff:snapshot` landed on 2026-03-12; screenshot diff is still pending |
 | WebSocket Viewport Streaming | Deferred | No immediate product need |
 
 ---
@@ -233,6 +233,8 @@ bun run pipeline --session --resume my-edit-session
 
 ### Pattern 4: Visual Diff for Verification (LOW-MEDIUM VALUE)
 
+**Status (2026-03-12)**: Partially implemented.
+
 **What it is**: agent-browser can diff two snapshots or screenshots to verify that an action had the expected effect.
 
 **Why QCut needs it**: After AI agents make timeline edits, they need to verify the result. A diff between pre/post snapshots would catch unintended side effects.
@@ -250,17 +252,37 @@ export async function handleDiff(options: {
 }
 ```
 
-**Files to create/modify**:
-- `electron/native-pipeline/cli/cli-handlers-diff.ts` — diff engine (~200 LOC)
-- `electron/native-pipeline/cli/command-registry-editor.ts` — register diff commands
+**Implemented files**:
+- `electron/native-pipeline/cli/cli-handlers-diff.ts` — local snapshot diff engine for saved snapshot JSON files
+- `electron/native-pipeline/cli/cli-handlers-editor.ts` — routes `editor:diff:*` commands and skips live editor health for local diffs
+- `electron/native-pipeline/cli/cli.ts` — parses `--before` and `--after` and documents `editor:diff:snapshot`
+- `electron/native-pipeline/cli/cli-runner/types.ts` — shared CLI option typing for diff file paths
+- `electron/native-pipeline/cli/cli-runner/session.ts` — session-mode parsing for `--before` and `--after`
+- `electron/native-pipeline/cli/command-registry-editor.ts` — registers `editor:diff:snapshot`
 
-**Subtasks**:
-1. Implement snapshot tree diff (added/removed/changed elements) (~2h)
-2. Implement screenshot pixel diff using canvas (~2h)
-3. Add `editor:diff:snapshot` and `editor:diff:screenshot` commands (~30min)
-4. Write tests with fixture snapshots (~1h)
+**Completed subtasks**:
+1. Implemented `editor:diff:snapshot` for saved accessibility snapshots
+2. Added local tree diff output with `added`, `removed`, `changed`, and summary totals
+3. Matched elements semantically instead of by raw `@eN` refs to reduce noise from ref renumbering
+4. Added focused CLI tests for parsing, diff execution, and missing-flag validation
 
-**Test files**: `electron/native-pipeline/__tests__/diff.test.ts`
+**Remaining work**:
+1. Implement screenshot pixel diff support
+2. Add `editor:diff:screenshot`
+3. Expand verification coverage if agents need richer diff output or artifact generation
+
+**Example usage by AI agent**:
+```bash
+bun run pipeline editor:diff:snapshot --before before.json --after after.json --json
+# → { "status": "ok", "data": {
+#     "mode": "snapshot",
+#     "same": false,
+#     "summary": { "beforeTotal": 14, "afterTotal": 15, "added": 1, "removed": 0, "changed": 2 }
+#   }}
+```
+
+**Test files**:
+- `electron/__tests__/editor-diff-cli.test.ts`
 
 ---
 
@@ -392,7 +414,7 @@ bun run pipeline editor:console --stream
 | 5 | Console Message & Error Capture | HIGH | ~6.5h | **P0 (mostly complete)** |
 | 2 | Action Policy Engine | MEDIUM | ~3h | **P1 (mostly complete)** |
 | 3 | Session State Persistence | MEDIUM | ~3h | **P2 (partially complete)** |
-| 4 | Visual Diff Verification | LOW-MED | ~5.5h | **P2** |
+| 4 | Visual Diff Verification | LOW-MED | ~5.5h | **P2 (partially complete)** |
 | 6 | WebSocket Viewport Streaming | LOW | ~8h | **P3 (defer)** |
 
 **Total estimated effort for P0**: ~12.5 hours (with both P0 tracks now mostly delivered)
@@ -438,7 +460,7 @@ electron/native-pipeline/
 │   ├── editor-console-cli.test.ts  # NEW: CLI routing for console/errors
 │   ├── action-policy.test.ts       # NEW: Policy parsing and enforcement coverage
 │   ├── session-state.test.ts       # NEW: Session persistence coverage
-│   └── diff.test.ts                # NEW
+│   └── editor-diff-cli.test.ts     # NEW: Snapshot diff parsing and execution coverage
 electron/claude/handlers/
 │   ├── claude-snapshot-handler.ts  # NEW: Snapshot capture + ref-based actions
 │   └── claude-console-handler.ts   # NEW: Console capture + ring buffer
