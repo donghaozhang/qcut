@@ -24,6 +24,7 @@ Run QCut's built-in TypeScript pipeline CLI (`qcut-pipeline` / `bun run pipeline
 - For editor export, diagnostics, MCP, screen recording, UI, Moyin, screenshots, state control, see [editor-output.md](editor/editor-output.md)
 - For editor AI commands: video analysis, transcription, AI generation, Remotion, navigator, see [editor-ai.md](editor/editor-ai.md)
 - For editor state automation: snapshots, event streams, correlation IDs, transactions, capabilities, and notification bridge endpoints, see [editor-state-control.md](editor/editor-state-control.md)
+- For agent automation: accessibility snapshots with refs, console capture, visual diffs, session persistence, and action policy, see [editor-agent.md](editor/editor-agent.md)
 
 ## Step 1: Ensure QCut is Running
 
@@ -320,6 +321,13 @@ See [editor-media.md](editor/editor-media.md) for the full project.json schema.
 | Remotion handler | `electron/native-pipeline/cli/cli-handlers-remotion.ts` |
 | Moyin handler | `electron/native-pipeline/cli/cli-handlers-moyin.ts` |
 | YouTube handler | `electron/native-pipeline/cli/cli-handlers-youtube.ts` |
+| Snapshot handler | `electron/native-pipeline/cli/cli-handlers-snapshot.ts` |
+| Console handler | `electron/native-pipeline/cli/cli-handlers-console.ts` |
+| Diff handler | `electron/native-pipeline/cli/cli-handlers-diff.ts` |
+| Session handler | `electron/native-pipeline/cli/cli-handlers-session.ts` |
+| Session persistence | `electron/native-pipeline/cli/session-state.ts` |
+| Action policy | `electron/native-pipeline/cli/action-policy.ts` |
+| Command registry (extra) | `electron/native-pipeline/cli/command-registry-editor-extra.ts` |
 | Auth routes (HTTP) | `electron/claude/http/claude-http-server.ts` |
 | Auth routes (utility) | `electron/utility/utility-http-server.ts` |
 | Auth bridge | `electron/utility/utility-bridge.ts` |

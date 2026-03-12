@@ -139,6 +139,35 @@ export function createExtraEditorCommands({
 			],
 			['qcut-pipeline editor:snapshot:fill --ref @e12 --text "hello" --json']
 		),
+		"editor:snapshot:select": ed(
+			"editor:snapshot:select",
+			"Select an option from a dropdown by ref",
+			[
+				f("--ref", "string", "Snapshot ref (for example @e12)", {
+					required: true,
+				}),
+				f("--value", "string", "Option value or text to select", {
+					required: true,
+				}),
+			],
+			['qcut-pipeline editor:snapshot:select --ref @e12 --value "720p" --json']
+		),
+		"editor:snapshot:check": ed(
+			"editor:snapshot:check",
+			"Toggle a checkbox or switch by ref",
+			[
+				f("--ref", "string", "Snapshot ref (for example @e12)", {
+					required: true,
+				}),
+				f("--checked", "boolean", "Desired checked state (true/false)", {
+					required: true,
+				}),
+			],
+			[
+				"qcut-pipeline editor:snapshot:check --ref @e12 --checked --json",
+				"qcut-pipeline editor:snapshot:check --ref @e12 --no-checked --json",
+			]
+		),
 		"editor:diff:snapshot": ed(
 			"editor:diff:snapshot",
 			"Compare two saved accessibility snapshot files",
@@ -203,6 +232,25 @@ export function createExtraEditorCommands({
 			[f("--session-name", "string", "Saved session name", { required: true })],
 			[
 				"qcut-pipeline editor:session:load --session-name my-edit-session --json",
+			]
+		),
+
+		"editor:session:list": ed(
+			"editor:session:list",
+			"List all saved CLI sessions",
+			[],
+			["qcut-pipeline editor:session:list --json"]
+		),
+		"editor:session:delete": ed(
+			"editor:session:delete",
+			"Delete a saved CLI session",
+			[
+				f("--session-name", "string", "Session name to delete", {
+					required: true,
+				}),
+			],
+			[
+				"qcut-pipeline editor:session:delete --session-name my-edit-session --json",
 			]
 		),
 

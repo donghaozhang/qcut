@@ -202,7 +202,6 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			interactive: { type: "boolean", default: false },
 			depth: { type: "string" },
 			ref: { type: "string" },
-			value: { type: "string" },
 			checked: { type: "boolean", default: false },
 			replace: { type: "boolean", default: false },
 			ripple: { type: "boolean", default: false },

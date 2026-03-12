@@ -96,6 +96,8 @@ function makeOpts({
 	depth,
 	ref,
 	text,
+	selectValue,
+	checked,
 	json,
 }: {
 	command: string;
@@ -103,6 +105,8 @@ function makeOpts({
 	depth?: number;
 	ref?: string;
 	text?: string;
+	selectValue?: string;
+	checked?: boolean;
 	json?: boolean;
 }): CLIRunOptions {
 	return {
@@ -118,6 +122,8 @@ function makeOpts({
 		depth,
 		ref,
 		text,
+		selectValue,
+		checked,
 	} as CLIRunOptions;
 }
 
@@ -301,5 +307,149 @@ describe("editor snapshot CLI handlers", () => {
 
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("--ref");
+	});
+
+	it("routes editor:snapshot:select to the select endpoint", async () => {
+		registerHealthyEditorRoutes();
+		setRoute({
+			method: "POST",
+			path: "/api/claude/snapshot/select",
+			entry: jsonEnvelope({
+				data: {
+					action: "select",
+					ref: "@e5",
+					tagName: "select",
+					role: "combobox",
+					name: "Resolution",
+					value: "720p",
+				},
+			}),
+		});
+
+		const result = await handleEditorCommand(
+			makeOpts({
+				command: "editor:snapshot:select",
+				ref: "@e5",
+				selectValue: "720p",
+				json: true,
+			}),
+			noopProgress
+		);
+
+		expect(result.success).toBe(true);
+		const request = requestLog.find(
+			(entry) =>
+				entry.method === "POST" && entry.path === "/api/claude/snapshot/select"
+		);
+		expect(JSON.parse(request?.body ?? "{}")).toEqual({
+			ref: "@e5",
+			value: "720p",
+		});
+	});
+
+	it("requires ref and value for editor:snapshot:select", async () => {
+		registerHealthyEditorRoutes();
+
+		const noRef = await handleEditorCommand(
+			makeOpts({
+				command: "editor:snapshot:select",
+				selectValue: "720p",
+				json: true,
+			}),
+			noopProgress
+		);
+		expect(noRef.success).toBe(false);
+		expect(noRef.error).toContain("--ref");
+
+		const noValue = await handleEditorCommand(
+			makeOpts({
+				command: "editor:snapshot:select",
+				ref: "@e5",
+				json: true,
+			}),
+			noopProgress
+		);
+		expect(noValue.success).toBe(false);
+		expect(noValue.error).toContain("--value");
+	});
+
+	it("routes editor:snapshot:check to the check endpoint", async () => {
+		registerHealthyEditorRoutes();
+		setRoute({
+			method: "POST",
+			path: "/api/claude/snapshot/check",
+			entry: jsonEnvelope({
+				data: {
+					action: "check",
+					ref: "@e7",
+					tagName: "input",
+					role: "checkbox",
+					name: "Enable captions",
+					value: null,
+				},
+			}),
+		});
+
+		const result = await handleEditorCommand(
+			makeOpts({
+				command: "editor:snapshot:check",
+				ref: "@e7",
+				checked: true,
+				json: true,
+			}),
+			noopProgress
+		);
+
+		expect(result.success).toBe(true);
+		const request = requestLog.find(
+			(entry) =>
+				entry.method === "POST" && entry.path === "/api/claude/snapshot/check"
+		);
+		expect(JSON.parse(request?.body ?? "{}")).toEqual({
+			ref: "@e7",
+			checked: true,
+		});
+	});
+
+	it("requires ref and checked for editor:snapshot:check", async () => {
+		registerHealthyEditorRoutes();
+
+		const noRef = await handleEditorCommand(
+			makeOpts({
+				command: "editor:snapshot:check",
+				checked: true,
+				json: true,
+			}),
+			noopProgress
+		);
+		expect(noRef.success).toBe(false);
+		expect(noRef.error).toContain("--ref");
+
+		const noChecked = await handleEditorCommand(
+			makeOpts({
+				command: "editor:snapshot:check",
+				ref: "@e7",
+				json: true,
+			}),
+			noopProgress
+		);
+		expect(noChecked.success).toBe(false);
+		expect(noChecked.error).toContain("--checked");
+	});
+
+	it("rejects unknown snapshot action", async () => {
+		registerHealthyEditorRoutes();
+
+		const result = await handleEditorCommand(
+			makeOpts({
+				command: "editor:snapshot:unknown",
+				json: true,
+			}),
+			noopProgress
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("select");
+		expect(result.error).toContain("check");
 	});
 });

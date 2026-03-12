@@ -222,8 +222,7 @@ export function startClaudeHTTPServer(
 		fillSnapshotRef: (request) => fillEditorSnapshotRef(getWindow(), request),
 		selectSnapshotRef: (request) =>
 			selectEditorSnapshotRef(getWindow(), request),
-		checkSnapshotRef: (request) =>
-			checkEditorSnapshotRef(getWindow(), request),
+		checkSnapshotRef: (request) => checkEditorSnapshotRef(getWindow(), request),
 	});
 	registerClaudeEventsRoutes(router, {
 		/** Lists recorded Claude/editor events. */

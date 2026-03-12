@@ -1,7 +1,9 @@
 import type { CLIResult, CLIRunOptions } from "./cli-runner/types.js";
 import {
 	buildSessionStateSnapshot,
+	deleteSession,
 	getSessionStatePath,
+	listSessions,
 	loadSessionState,
 	saveSessionState,
 } from "./session-state.js";
@@ -98,10 +100,48 @@ export async function handleSessionCommand({
 				},
 			};
 		}
+		case "list": {
+			const sessions = listSessions({ stateDir: options.stateDir });
+			return {
+				success: true,
+				data: {
+					sessions,
+					count: sessions.length,
+				},
+			};
+		}
+		case "delete": {
+			if (!sessionName) {
+				return {
+					success: false,
+					error: "Session delete requires --session-name <name>",
+				};
+			}
+
+			const result = deleteSession({
+				sessionName,
+				stateDir: options.stateDir,
+			});
+			if (!result.deleted) {
+				return {
+					success: false,
+					error: `Saved session not found: ${sessionName}`,
+				};
+			}
+
+			return {
+				success: true,
+				data: {
+					sessionName,
+					path: result.path,
+					deleted: true,
+				},
+			};
+		}
 		default:
 			return {
 				success: false,
-				error: `Unknown session action: ${action}. Available: save, load`,
+				error: `Unknown session action: ${action}. Available: save, load, list, delete`,
 			};
 	}
 }
