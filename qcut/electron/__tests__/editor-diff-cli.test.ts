@@ -364,9 +364,7 @@ describe("editor diff CLI", () => {
 
 		// In vitest (node env), sharp won't load — handler should fail gracefully
 		// In production (bun env), this would succeed
-		if (!result.success) {
-			expect(result.error).toContain("sharp");
-		} else {
+		if (result.success) {
 			// If sharp IS available (e.g. future vitest config change), validate output
 			const data = result.data as {
 				mode: string;
@@ -376,6 +374,8 @@ describe("editor diff CLI", () => {
 			expect(data.mode).toBe("screenshot");
 			expect(data.same).toBe(false);
 			expect(data.summary.changedPixels).toBeGreaterThan(0);
+		} else {
+			expect(result.error).toContain("sharp");
 		}
 	});
 

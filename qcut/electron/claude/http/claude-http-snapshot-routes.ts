@@ -2,10 +2,12 @@ import type { Router } from "../utils/http-router.js";
 import { HttpError } from "../utils/http-router.js";
 import type {
 	EditorSnapshotActionResult,
+	EditorSnapshotCheckRequest,
 	EditorSnapshotClickRequest,
 	EditorSnapshotFillRequest,
 	EditorSnapshotRequest,
 	EditorSnapshotResult,
+	EditorSnapshotSelectRequest,
 } from "../../types/claude-api.js";
 import { MAX_EDITOR_SNAPSHOT_DEPTH } from "../../types/claude-api.js";
 import { EditorSnapshotActionError } from "../handlers/claude-snapshot-handler.js";
@@ -93,6 +95,44 @@ function parseSnapshotFillRequest({
 	return { ref, value };
 }
 
+function parseSnapshotSelectRequest({
+	body,
+}: {
+	body: unknown;
+}): EditorSnapshotSelectRequest {
+	if (typeof body !== "object" || body === null) {
+		throw new HttpError(400, "Snapshot select body must be an object.");
+	}
+	const ref = (body as { ref?: unknown }).ref;
+	const value = (body as { value?: unknown }).value;
+	if (typeof ref !== "string" || ref.trim().length === 0) {
+		throw new HttpError(400, "Snapshot select requires a non-empty 'ref'.");
+	}
+	if (typeof value !== "string") {
+		throw new HttpError(400, "Snapshot select requires string 'value'.");
+	}
+	return { ref, value };
+}
+
+function parseSnapshotCheckRequest({
+	body,
+}: {
+	body: unknown;
+}): EditorSnapshotCheckRequest {
+	if (typeof body !== "object" || body === null) {
+		throw new HttpError(400, "Snapshot check body must be an object.");
+	}
+	const ref = (body as { ref?: unknown }).ref;
+	const checked = (body as { checked?: unknown }).checked;
+	if (typeof ref !== "string" || ref.trim().length === 0) {
+		throw new HttpError(400, "Snapshot check requires a non-empty 'ref'.");
+	}
+	if (typeof checked !== "boolean") {
+		throw new HttpError(400, "Snapshot check requires boolean 'checked'.");
+	}
+	return { ref, checked };
+}
+
 async function withSnapshotTimeout<T>({
 	timeoutMs,
 	work,
@@ -139,6 +179,12 @@ export function registerSnapshotRoutes(
 		fillSnapshotRef: (
 			request: EditorSnapshotFillRequest
 		) => Promise<EditorSnapshotActionResult>;
+		selectSnapshotRef: (
+			request: EditorSnapshotSelectRequest
+		) => Promise<EditorSnapshotActionResult>;
+		checkSnapshotRef: (
+			request: EditorSnapshotCheckRequest
+		) => Promise<EditorSnapshotActionResult>;
 		timeoutMs?: number;
 	}
 ): void {
@@ -169,6 +215,24 @@ export function registerSnapshotRoutes(
 		return await withSnapshotTimeout({
 			timeoutMs,
 			work: async () => await options.fillSnapshotRef(request),
+		});
+	});
+
+	router.post("/api/claude/snapshot/select", async (req) => {
+		const request = parseSnapshotSelectRequest({ body: req.body });
+		const timeoutMs = options.timeoutMs ?? 5000;
+		return await withSnapshotTimeout({
+			timeoutMs,
+			work: async () => await options.selectSnapshotRef(request),
+		});
+	});
+
+	router.post("/api/claude/snapshot/check", async (req) => {
+		const request = parseSnapshotCheckRequest({ body: req.body });
+		const timeoutMs = options.timeoutMs ?? 5000;
+		return await withSnapshotTimeout({
+			timeoutMs,
+			work: async () => await options.checkSnapshotRef(request),
 		});
 	});
 }

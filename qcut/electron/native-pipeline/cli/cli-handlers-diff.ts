@@ -309,8 +309,7 @@ async function handleScreenshotDiff({
 	} catch {
 		return {
 			success: false,
-			error:
-				"sharp is required for screenshot diff but could not be loaded",
+			error: "sharp is required for screenshot diff but could not be loaded",
 		};
 	}
 
@@ -333,10 +332,7 @@ async function handleScreenshotDiff({
 	const compareHeight = beforeHeight;
 
 	const [beforeRaw, afterRaw] = await Promise.all([
-		beforeImg
-			.raw()
-			.ensureAlpha()
-			.toBuffer(),
+		beforeImg.raw().ensureAlpha().toBuffer(),
 		(dimensionsMatch
 			? afterImg
 			: afterImg.resize(compareWidth, compareHeight, { fit: "fill" })
@@ -358,7 +354,12 @@ async function handleScreenshotDiff({
 		const bDiff = Math.abs(beforeRaw[offset + 2] - afterRaw[offset + 2]);
 		const aDiff = Math.abs(beforeRaw[offset + 3] - afterRaw[offset + 3]);
 
-		if (rDiff > threshold || gDiff > threshold || bDiff > threshold || aDiff > threshold) {
+		if (
+			rDiff > threshold ||
+			gDiff > threshold ||
+			bDiff > threshold ||
+			aDiff > threshold
+		) {
 			changedPixels += 1;
 			// Red highlight for diff pixels
 			diffBuffer[offset] = 255;

@@ -1,10 +1,12 @@
 import type { BrowserWindow } from "electron";
 import type {
 	EditorSnapshotActionResult,
+	EditorSnapshotCheckRequest,
 	EditorSnapshotClickRequest,
 	EditorSnapshotFillRequest,
 	EditorSnapshotRequest,
 	EditorSnapshotResult,
+	EditorSnapshotSelectRequest,
 } from "../../types/claude-api.js";
 import {
 	EDITOR_SNAPSHOT_REF_ATTRIBUTE,
@@ -693,7 +695,10 @@ function isValidSnapshotActionResult(
 	}
 	const candidate = value as Partial<EditorSnapshotActionResult>;
 	return (
-		(candidate.action === "click" || candidate.action === "fill") &&
+		(candidate.action === "click" ||
+			candidate.action === "fill" ||
+			candidate.action === "select" ||
+			candidate.action === "check") &&
 		typeof candidate.ref === "string" &&
 		typeof candidate.tagName === "string"
 	);
@@ -768,5 +773,112 @@ export async function fillEditorSnapshotRef(
 	return await executeSnapshotAction({
 		win,
 		script: buildSnapshotFillScript({ request }),
+	});
+}
+
+function buildSnapshotSelectScript({
+	request,
+}: {
+	request: EditorSnapshotSelectRequest;
+}): string {
+	const ref = normalizeSnapshotRef({ ref: request.ref });
+	return `(() => {
+		${buildSnapshotActionPrelude()}
+		const targetRef = ${JSON.stringify(ref)};
+		const selectValue = ${JSON.stringify(request.value)};
+		const element = findElementByRef(targetRef);
+		if (!(element instanceof HTMLElement)) {
+			return buildFailure("not_found", "No element found for snapshot ref " + targetRef + ". Capture a fresh snapshot first.");
+		}
+
+		const disabled =
+			element.hasAttribute("disabled") ||
+			element.getAttribute("aria-disabled") === "true";
+		if (disabled) {
+			return buildFailure("disabled", "Cannot select on a disabled element.");
+		}
+
+		if (element instanceof HTMLSelectElement) {
+			const option = Array.from(element.options).find(
+				(opt) => opt.value === selectValue || opt.textContent?.trim() === selectValue
+			);
+			if (!option) {
+				return buildFailure("invalid_option", "Option " + JSON.stringify(selectValue) + " not found in select element " + targetRef + ".");
+			}
+			element.value = option.value;
+			element.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+			element.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
+			return buildSuccess(element, "select", targetRef);
+		}
+
+		if (element.getAttribute("role") === "combobox" || element.getAttribute("role") === "listbox") {
+			element.focus();
+			element.click();
+			return buildSuccess(element, "select", targetRef);
+		}
+
+		return buildFailure("invalid_select_target", "Snapshot ref " + targetRef + " is not a select element or combobox.");
+	})()`;
+}
+
+function buildSnapshotCheckScript({
+	request,
+}: {
+	request: EditorSnapshotCheckRequest;
+}): string {
+	const ref = normalizeSnapshotRef({ ref: request.ref });
+	return `(() => {
+		${buildSnapshotActionPrelude()}
+		const targetRef = ${JSON.stringify(ref)};
+		const desiredChecked = ${JSON.stringify(request.checked)};
+		const element = findElementByRef(targetRef);
+		if (!(element instanceof HTMLElement)) {
+			return buildFailure("not_found", "No element found for snapshot ref " + targetRef + ". Capture a fresh snapshot first.");
+		}
+
+		const disabled =
+			element.hasAttribute("disabled") ||
+			element.getAttribute("aria-disabled") === "true";
+		if (disabled) {
+			return buildFailure("disabled", "Cannot toggle a disabled element.");
+		}
+
+		if (element instanceof HTMLInputElement && (element.type === "checkbox" || element.type === "radio")) {
+			if (element.checked !== desiredChecked) {
+				element.click();
+			}
+			return buildSuccess(element, "check", targetRef);
+		}
+
+		const role = element.getAttribute("role");
+		if (role === "checkbox" || role === "switch" || role === "radio") {
+			const currentlyChecked = element.getAttribute("aria-checked") === "true";
+			if (currentlyChecked !== desiredChecked) {
+				element.click();
+			}
+			return buildSuccess(element, "check", targetRef);
+		}
+
+		return buildFailure("invalid_check_target", "Snapshot ref " + targetRef + " is not a checkbox, radio, or switch element.");
+	})()`;
+}
+
+export async function selectEditorSnapshotRef(
+	win: BrowserWindow,
+	request: EditorSnapshotSelectRequest
+): Promise<EditorSnapshotActionResult> {
+	return await executeSnapshotAction({
+		win,
+		script: buildSnapshotSelectScript({ request }),
+	});
+}
+
+export async function checkEditorSnapshotRef(
+	win: BrowserWindow,
+	request: EditorSnapshotCheckRequest
+): Promise<EditorSnapshotActionResult> {
+	return await executeSnapshotAction({
+		win,
+		script: buildSnapshotCheckScript({ request }),
 	});
 }

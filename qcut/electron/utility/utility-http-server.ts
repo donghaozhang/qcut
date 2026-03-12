@@ -394,6 +394,14 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 			(await requestFromMain("snapshot:fill", {
 				request,
 			})) as EditorSnapshotActionResult,
+		selectSnapshotRef: async (request) =>
+			(await requestFromMain("snapshot:select", {
+				request,
+			})) as EditorSnapshotActionResult,
+		checkSnapshotRef: async (request) =>
+			(await requestFromMain("snapshot:check", {
+				request,
+			})) as EditorSnapshotActionResult,
 		timeoutMs: 10_000,
 	});
 	registerClaudeEventsRoutes(router, {

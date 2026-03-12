@@ -20,7 +20,7 @@ agent-browser is a headless browser automation CLI designed for AI agents. It us
 | Console Message & Error Capture | Mostly complete | HTTP + CLI list/clear/stream path implemented on 2026-03-12 |
 | Action Policy Engine | Mostly complete | Default allow/confirm/deny policy, flag-sensitive matching, `--policy`, runner enforcement, and tests implemented on 2026-03-12 |
 | Session State Persistence | Mostly complete | Named session files, `--resume`, sticky project/panel hydration, autosave, and explicit `editor:session:save/load` commands are implemented on 2026-03-12 |
-| Visual Diff Verification | Partially complete | `editor:diff:snapshot` landed on 2026-03-12; screenshot diff is still pending |
+| Visual Diff Verification | Mostly complete | `editor:diff:snapshot` and `editor:diff:screenshot` landed on 2026-03-12 |
 | WebSocket Viewport Streaming | Deferred | No immediate product need |
 
 ---
@@ -252,7 +252,7 @@ bun run pipeline editor:session:load --session-name my-edit-session --json
 
 ### Pattern 4: Visual Diff for Verification (LOW-MEDIUM VALUE)
 
-**Status (2026-03-12)**: Partially implemented.
+**Status (2026-03-12)**: Mostly implemented.
 
 **What it is**: agent-browser can diff two snapshots or screenshots to verify that an action had the expected effect.
 
@@ -263,8 +263,8 @@ bun run pipeline editor:session:load --session-name my-edit-session --json
 ```typescript
 // electron/native-pipeline/cli/cli-handlers-diff.ts
 export async function handleDiff(options: {
-  before: string;  // snapshot file path
-  after: string;   // snapshot file path
+  before: string;  // snapshot or screenshot file path
+  after: string;   // snapshot or screenshot file path
   mode: "snapshot" | "screenshot";
 }): Promise<DiffResult> {
   // Compare accessibility trees or pixel-diff screenshots
@@ -272,23 +272,26 @@ export async function handleDiff(options: {
 ```
 
 **Implemented files**:
-- `electron/native-pipeline/cli/cli-handlers-diff.ts` — local snapshot diff engine for saved snapshot JSON files
+- `electron/native-pipeline/cli/cli-handlers-diff.ts` — local snapshot diff engine for saved snapshot JSON files + pixel-level screenshot diff using sharp
 - `electron/native-pipeline/cli/cli-handlers-editor.ts` — routes `editor:diff:*` commands and skips live editor health for local diffs
-- `electron/native-pipeline/cli/cli.ts` — parses `--before` and `--after` and documents `editor:diff:snapshot`
-- `electron/native-pipeline/cli/cli-runner/types.ts` — shared CLI option typing for diff file paths
-- `electron/native-pipeline/cli/cli-runner/session.ts` — session-mode parsing for `--before` and `--after`
-- `electron/native-pipeline/cli/command-registry-editor.ts` — registers `editor:diff:snapshot`
+- `electron/native-pipeline/cli/cli.ts` — parses `--before`, `--after`, and `--threshold` and documents diff commands
+- `electron/native-pipeline/cli/cli-runner/types.ts` — shared CLI option typing for diff file paths and threshold
+- `electron/native-pipeline/cli/cli-runner/session.ts` — session-mode parsing for `--before`, `--after`, and `--threshold`
+- `electron/native-pipeline/cli/command-registry-editor-extra.ts` — registers `editor:diff:snapshot` and `editor:diff:screenshot`
 
 **Completed subtasks**:
 1. Implemented `editor:diff:snapshot` for saved accessibility snapshots
 2. Added local tree diff output with `added`, `removed`, `changed`, and summary totals
 3. Matched elements semantically instead of by raw `@eN` refs to reduce noise from ref renumbering
 4. Added focused CLI tests for parsing, diff execution, and missing-flag validation
+5. Implemented `editor:diff:screenshot` for pixel-level PNG comparison using sharp
+6. Added per-channel threshold support (`--threshold`, default 10) to control diff sensitivity
+7. Generates a diff image (changed pixels in red, unchanged dimmed) saved alongside the before file
+8. Handles mismatched dimensions by resizing the after image to match before for comparison
+9. Reports `changePercent`, `changedPixels`, `totalPixels`, and dimension info in the summary
 
 **Remaining work**:
-1. Implement screenshot pixel diff support
-2. Add `editor:diff:screenshot`
-3. Expand verification coverage if agents need richer diff output or artifact generation
+1. Expand verification coverage if agents need richer diff output or artifact generation
 
 **Example usage by AI agent**:
 ```bash
@@ -298,6 +301,24 @@ bun run pipeline editor:diff:snapshot --before before.json --after after.json --
 #     "same": false,
 #     "summary": { "beforeTotal": 14, "afterTotal": 15, "added": 1, "removed": 0, "changed": 2 }
 #   }}
+
+bun run pipeline editor:diff:screenshot --before before.png --after after.png --json
+# → { "status": "ok", "data": {
+#     "mode": "screenshot",
+#     "same": false,
+#     "summary": {
+#       "beforeDimensions": { "width": 1920, "height": 1080 },
+#       "afterDimensions": { "width": 1920, "height": 1080 },
+#       "dimensionsMatch": true,
+#       "totalPixels": 2073600,
+#       "changedPixels": 15420,
+#       "changePercent": 0.74
+#     },
+#     "diffImagePath": "/path/to/diff-1710288000000.png"
+#   }}
+
+bun run pipeline editor:diff:screenshot --before a.png --after b.png --threshold 20 --json
+# → adjusts per-channel sensitivity (0-255, default 10)
 ```
 
 **Test files**:
@@ -443,7 +464,7 @@ bun run pipeline editor:console --stream
 | 5 | Console Message & Error Capture | HIGH | ~6.5h | **P0 (mostly complete)** |
 | 2 | Action Policy Engine | MEDIUM | ~3h | **P1 (mostly complete)** |
 | 3 | Session State Persistence | MEDIUM | ~3h | **P1 (mostly complete)** |
-| 4 | Visual Diff Verification | LOW-MED | ~5.5h | **P2 (partially complete)** |
+| 4 | Visual Diff Verification | LOW-MED | ~5.5h | **P2 (mostly complete)** |
 | 6 | WebSocket Viewport Streaming | LOW | ~8h | **P3 (defer)** |
 
 **Total estimated effort for P0**: ~12.5 hours (with both P0 tracks now mostly delivered)
@@ -475,7 +496,7 @@ electron/native-pipeline/
 ├── cli/
 │   ├── cli-handlers-snapshot.ts    # NEW: Accessibility snapshot with refs
 │   ├── cli-handlers-console.ts     # NEW: Console message capture CLI
-│   ├── cli-handlers-diff.ts        # NEW: Snapshot/screenshot diffing
+│   ├── cli-handlers-diff.ts        # NEW: Snapshot tree diff + pixel-level screenshot diff (sharp)
 │   ├── cli-handlers-session.ts     # NEW: Explicit local session save/load commands
 │   ├── action-policy.ts            # NEW: Allow/deny/confirm policy
 │   ├── session-state.ts            # NEW: Session persistence
