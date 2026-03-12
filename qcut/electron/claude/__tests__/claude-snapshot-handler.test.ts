@@ -74,6 +74,8 @@ describe("claude-snapshot-handler", () => {
 		const [script] = executeJavaScript.mock.calls[0] ?? [];
 		expect(script).toContain("const interactiveOnly = true;");
 		expect(script).toContain("const maxDepth = 2;");
+		expect(script).toContain("const SNAPSHOT_STATE_KEY = \"__qcutSnapshotState\";");
+		expect(script).toContain("const assignStableRef = (element, usedRefs) =>");
 	});
 
 	it("rejects invalid renderer payloads", async () => {
@@ -105,6 +107,8 @@ describe("claude-snapshot-handler", () => {
 		const [script] = executeJavaScript.mock.calls[0] ?? [];
 		expect(script).toContain('const targetRef = "@e1";');
 		expect(script).toContain("element.click()");
+		expect(script).toContain("const stableKey = state.keyByRef[targetRef];");
+		expect(script).toContain("const findElementByStableKey = (stableKey, targetRef) =>");
 	});
 
 	it("fills a snapshot ref through the renderer", async () => {
@@ -129,6 +133,7 @@ describe("claude-snapshot-handler", () => {
 		const [script] = executeJavaScript.mock.calls[0] ?? [];
 		expect(script).toContain('const targetRef = "@e2";');
 		expect(script).toContain('const nextValue = "Updated title";');
+		expect(script).toContain("const stableKey = state.keyByRef[targetRef];");
 	});
 
 	it("maps renderer action failures to rejected promises", async () => {

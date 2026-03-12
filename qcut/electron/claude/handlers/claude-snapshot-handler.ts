@@ -8,6 +8,7 @@ import type {
 } from "../../types/claude-api.js";
 import {
 	EDITOR_SNAPSHOT_REF_ATTRIBUTE,
+	EDITOR_SNAPSHOT_STATE_KEY,
 	EDITOR_SNAPSHOT_VERSION,
 	MAX_EDITOR_SNAPSHOT_DEPTH,
 } from "../../types/claude-api.js";
@@ -63,16 +64,35 @@ function buildSnapshotScript({
 	const normalized = normalizeSnapshotRequest({ request });
 	return `(() => {
 		const REF_ATTR = ${JSON.stringify(EDITOR_SNAPSHOT_REF_ATTRIBUTE)};
+		const SNAPSHOT_STATE_KEY = ${JSON.stringify(EDITOR_SNAPSHOT_STATE_KEY)};
 		const interactiveOnly = ${normalized.interactive ? "true" : "false"};
 		const maxDepth = ${normalized.depth};
 		const MAX_TEXT = 120;
 		const MAX_VALUE = 120;
 
-		for (const node of Array.from(document.querySelectorAll("[" + REF_ATTR + "]"))) {
-			if (node instanceof HTMLElement) {
-				node.removeAttribute(REF_ATTR);
+		const getSnapshotState = () => {
+			const host = window;
+			const existing = host[SNAPSHOT_STATE_KEY];
+			if (typeof existing === "object" && existing !== null) {
+				return existing;
 			}
-		}
+			const created = {
+				nextRefNumber: 1,
+				refByKey: Object.create(null),
+				keyByRef: Object.create(null),
+				lastSnapshotKeys: [],
+			};
+			host[SNAPSHOT_STATE_KEY] = created;
+			return created;
+		};
+
+		const clearSnapshotAttributes = () => {
+			for (const node of Array.from(document.querySelectorAll("[" + REF_ATTR + "]"))) {
+				if (node instanceof HTMLElement) {
+					node.removeAttribute(REF_ATTR);
+				}
+			}
+		};
 
 		const isVisible = (element) => {
 			if (!(element instanceof HTMLElement)) return false;
@@ -127,6 +147,91 @@ function buildSnapshotScript({
 			return getTextPreview(element);
 		};
 
+		const normalizeStableKeyPart = (value) => {
+			if (typeof value !== "string") return "";
+			return value.replace(/\\|/g, " ").replace(/\\s+/g, " ").trim().slice(0, MAX_TEXT);
+		};
+
+		const getElementPath = (element) => {
+			const parts = [];
+			let current = element;
+			while (current instanceof HTMLElement) {
+				const parent = current.parentElement;
+				const tag = current.tagName.toLowerCase();
+				if (!parent) {
+					parts.push(tag);
+					break;
+				}
+				const siblings = Array.from(parent.children).filter(
+					(node) => node instanceof HTMLElement && node.tagName === current.tagName
+				);
+				const index = siblings.indexOf(current);
+				parts.push(tag + ":" + String(index < 0 ? 0 : index));
+				current = parent;
+			}
+			return parts.reverse().join(">");
+		};
+
+		const buildStableKey = (element) => {
+			const testId = element.getAttribute("data-testid");
+			if (testId && testId.trim()) {
+				return "testid:" + normalizeStableKeyPart(testId);
+			}
+
+			const id = element.getAttribute("id");
+			if (id && id.trim()) {
+				return "id:" + normalizeStableKeyPart(id);
+			}
+
+			const tagName = element.tagName.toLowerCase();
+			const inputType =
+				tagName === "input" ? element.getAttribute("type") || "text" : "";
+			return [
+				"semantic",
+				normalizeStableKeyPart(tagName),
+				normalizeStableKeyPart(getRole(element) || ""),
+				normalizeStableKeyPart(inputType),
+				normalizeStableKeyPart(getName(element) || ""),
+				normalizeStableKeyPart(element.getAttribute("placeholder") || ""),
+				normalizeStableKeyPart(getElementPath(element)),
+			].join("|");
+		};
+
+		const assignStableRef = (element, usedRefs) => {
+			const state = getSnapshotState();
+			const stableKey = buildStableKey(element);
+			const existingRef = state.refByKey[stableKey];
+			if (typeof existingRef === "string" && !usedRefs.has(existingRef)) {
+				state.keyByRef[existingRef] = stableKey;
+				usedRefs.add(existingRef);
+				return { ref: existingRef, stableKey };
+			}
+
+			const nextRef = "@e" + String(state.nextRefNumber++);
+			state.refByKey[stableKey] = nextRef;
+			state.keyByRef[nextRef] = stableKey;
+			usedRefs.add(nextRef);
+			return { ref: nextRef, stableKey };
+		};
+
+		const commitSnapshotState = (seenKeys) => {
+			const state = getSnapshotState();
+			const previousKeys = Array.isArray(state.lastSnapshotKeys)
+				? state.lastSnapshotKeys
+				: [];
+			for (const previousKey of previousKeys) {
+				if (seenKeys.has(previousKey)) {
+					continue;
+				}
+				const staleRef = state.refByKey[previousKey];
+				if (typeof staleRef === "string") {
+					delete state.keyByRef[staleRef];
+				}
+				delete state.refByKey[previousKey];
+			}
+			state.lastSnapshotKeys = Array.from(seenKeys);
+		};
+
 		const isInteractive = (element) => {
 			if (!(element instanceof HTMLElement)) return false;
 			const role = getRole(element);
@@ -168,7 +273,10 @@ function buildSnapshotScript({
 		};
 
 		const elements = [];
-		let refCounter = 0;
+		const usedRefs = new Set();
+		const seenKeys = new Set();
+
+		clearSnapshotAttributes();
 
 		const walk = (node, depth, parentRef) => {
 			if (!(node instanceof HTMLElement)) return;
@@ -179,7 +287,8 @@ function buildSnapshotScript({
 
 			if (!interactiveOnly || actionable) {
 				const rect = node.getBoundingClientRect();
-				const ref = \`@e\${++refCounter}\`;
+				const assigned = assignStableRef(node, usedRefs);
+				const ref = assigned.ref;
 				const disabled =
 					node.hasAttribute("disabled") ||
 					node.getAttribute("aria-disabled") === "true";
@@ -212,6 +321,7 @@ function buildSnapshotScript({
 					},
 				});
 				node.setAttribute(REF_ATTR, ref);
+				seenKeys.add(assigned.stableKey);
 				currentParentRef = ref;
 			}
 
@@ -225,6 +335,8 @@ function buildSnapshotScript({
 		if (root) {
 			walk(root, 0, null);
 		}
+
+		commitSnapshotState(seenKeys);
 
 		return {
 			version: ${EDITOR_SNAPSHOT_VERSION},
@@ -258,10 +370,62 @@ function normalizeSnapshotRef({
 function buildSnapshotActionPrelude(): string {
 	return `
 		const REF_ATTR = ${JSON.stringify(EDITOR_SNAPSHOT_REF_ATTRIBUTE)};
+		const SNAPSHOT_STATE_KEY = ${JSON.stringify(EDITOR_SNAPSHOT_STATE_KEY)};
 		const MAX_TEXT = 120;
 		const MAX_VALUE = 120;
 
-		const findElementByRef = (targetRef) => {
+		const getSnapshotState = () => {
+			const host = window;
+			const existing = host[SNAPSHOT_STATE_KEY];
+			if (typeof existing === "object" && existing !== null) {
+				return existing;
+			}
+			const created = {
+				nextRefNumber: 1,
+				refByKey: Object.create(null),
+				keyByRef: Object.create(null),
+				lastSnapshotKeys: [],
+			};
+			host[SNAPSHOT_STATE_KEY] = created;
+			return created;
+		};
+
+		const isVisible = (element) => {
+			if (!(element instanceof HTMLElement)) return false;
+			if (element.hidden) return false;
+			const style = window.getComputedStyle(element);
+			if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
+				return false;
+			}
+			return element.getClientRects().length > 0;
+		};
+
+		const normalizeStableKeyPart = (value) => {
+			if (typeof value !== "string") return "";
+			return value.replace(/\\|/g, " ").replace(/\\s+/g, " ").trim().slice(0, MAX_TEXT);
+		};
+
+		const getElementPath = (element) => {
+			const parts = [];
+			let current = element;
+			while (current instanceof HTMLElement) {
+				const parent = current.parentElement;
+				const tag = current.tagName.toLowerCase();
+				if (!parent) {
+					parts.push(tag);
+					break;
+				}
+				const siblings = Array.from(parent.children).filter(
+					(node) => node instanceof HTMLElement && node.tagName === current.tagName
+				);
+				const index = siblings.indexOf(current);
+				parts.push(tag + ":" + String(index < 0 ? 0 : index));
+				current = parent;
+			}
+			return parts.reverse().join(">");
+		};
+
+		const findElementByRefAttr = (targetRef) => {
 			for (const node of Array.from(document.querySelectorAll("[" + REF_ATTR + "]"))) {
 				if (node instanceof HTMLElement && node.getAttribute(REF_ATTR) === targetRef) {
 					return node;
@@ -308,6 +472,63 @@ function buildSnapshotActionPrelude(): string {
 			const placeholder = element.getAttribute("placeholder");
 			if (placeholder && placeholder.trim()) return placeholder.trim().slice(0, MAX_TEXT);
 			return getTextPreview(element);
+		};
+
+		const buildStableKey = (element) => {
+			const testId = element.getAttribute("data-testid");
+			if (testId && testId.trim()) {
+				return "testid:" + normalizeStableKeyPart(testId);
+			}
+
+			const id = element.getAttribute("id");
+			if (id && id.trim()) {
+				return "id:" + normalizeStableKeyPart(id);
+			}
+
+			const tagName = element.tagName.toLowerCase();
+			const inputType =
+				tagName === "input" ? element.getAttribute("type") || "text" : "";
+			return [
+				"semantic",
+				normalizeStableKeyPart(tagName),
+				normalizeStableKeyPart(getRole(element) || ""),
+				normalizeStableKeyPart(inputType),
+				normalizeStableKeyPart(getName(element) || ""),
+				normalizeStableKeyPart(element.getAttribute("placeholder") || ""),
+				normalizeStableKeyPart(getElementPath(element)),
+			].join("|");
+		};
+
+		const findElementByStableKey = (stableKey, targetRef) => {
+			for (const node of Array.from(document.querySelectorAll("*"))) {
+				if (!(node instanceof HTMLElement)) continue;
+				if (!isVisible(node)) continue;
+				if (buildStableKey(node) !== stableKey) continue;
+				node.setAttribute(REF_ATTR, targetRef);
+				return node;
+			}
+			return null;
+		};
+
+		const findElementByRef = (targetRef) => {
+			const directMatch = findElementByRefAttr(targetRef);
+			if (directMatch) {
+				return directMatch;
+			}
+
+			const state = getSnapshotState();
+			const stableKey = state.keyByRef[targetRef];
+			if (typeof stableKey !== "string" || !stableKey) {
+				return null;
+			}
+
+			const recovered = findElementByStableKey(stableKey, targetRef);
+			if (recovered instanceof HTMLElement) {
+				state.refByKey[stableKey] = targetRef;
+				state.keyByRef[targetRef] = stableKey;
+				return recovered;
+			}
+			return null;
 		};
 
 		const getValue = (element) => {

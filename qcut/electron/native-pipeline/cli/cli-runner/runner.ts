@@ -77,7 +77,7 @@ async function enforceActionPolicy({
 			policyPath: options.policy,
 		});
 		const evaluation = evaluateActionPolicy({
-			command: options.command,
+			options,
 			policy,
 		});
 

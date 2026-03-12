@@ -611,6 +611,8 @@ describe("Claude HTTP Server", () => {
 		const [script] = executeJavaScript.mock.calls[0] ?? [];
 		expect(script).toContain("const interactiveOnly = true;");
 		expect(script).toContain("const maxDepth = 2;");
+		expect(script).toContain("const SNAPSHOT_STATE_KEY = \"__qcutSnapshotState\";");
+		expect(script).toContain("const assignStableRef = (element, usedRefs) =>");
 	});
 
 	it("GET /api/claude/snapshot rejects invalid depth queries", async () => {
@@ -649,6 +651,7 @@ describe("Claude HTTP Server", () => {
 		expect(res.body.data.ref).toBe("@e1");
 		const [script] = executeJavaScript.mock.calls[0] ?? [];
 		expect(script).toContain('const targetRef = "@e1";');
+		expect(script).toContain("const stableKey = state.keyByRef[targetRef];");
 	});
 
 	it("POST /api/claude/snapshot/fill proxies fill-by-ref requests", async () => {
@@ -680,6 +683,7 @@ describe("Claude HTTP Server", () => {
 		const [script] = executeJavaScript.mock.calls[0] ?? [];
 		expect(script).toContain('const targetRef = "@e2";');
 		expect(script).toContain('const nextValue = "Updated title";');
+		expect(script).toContain("const stableKey = state.keyByRef[targetRef];");
 	});
 
 	it("POST /api/claude/snapshot/click requires ref", async () => {

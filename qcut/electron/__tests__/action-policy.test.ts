@@ -17,6 +17,7 @@ vi.mock("../native-pipeline/cli/interactive.js", () => ({
 }));
 
 import {
+	buildActionPolicySubject,
 	DEFAULT_ACTION_POLICY,
 	evaluateActionPolicy,
 	loadActionPolicy,
@@ -91,6 +92,19 @@ describe("action policy", () => {
 		).toBe(false);
 	});
 
+	it("builds a policy subject from command plus sensitive flags", () => {
+		const subject = buildActionPolicySubject({
+			options: defaultOptions({
+				command: "editor:auth:token",
+				set: "secret-token",
+				reveal: true,
+				projectId: "proj1",
+			}),
+		});
+
+		expect(subject).toBe("editor:auth:token --set --reveal");
+	});
+
 	it("classifies default destructive commands as confirm", () => {
 		const result = evaluateActionPolicy({
 			command: "editor:timeline:batch-delete",
@@ -101,6 +115,19 @@ describe("action policy", () => {
 		expect(result.matchedPattern).toBe("editor:timeline:batch-delete");
 	});
 
+	it("classifies flag-sensitive auth mutations as confirm", () => {
+		const result = evaluateActionPolicy({
+			options: defaultOptions({
+				command: "editor:auth:token",
+				set: "secret-token",
+			}),
+			policy: DEFAULT_ACTION_POLICY,
+		});
+
+		expect(result.decision).toBe("confirm");
+		expect(result.matchedPattern).toBe("editor:auth:token --set");
+	});
+
 	it("allows default read-only commands", () => {
 		const result = evaluateActionPolicy({
 			command: "editor:timeline:export",
@@ -108,6 +135,35 @@ describe("action policy", () => {
 		});
 
 		expect(result.decision).toBe("allow");
+	});
+
+	it("keeps masked auth token reads in allow tier", () => {
+		const result = evaluateActionPolicy({
+			options: defaultOptions({
+				command: "editor:auth:token",
+			}),
+			policy: DEFAULT_ACTION_POLICY,
+		});
+
+		expect(result.decision).toBe("allow");
+		expect(result.matchedPattern).toBe("editor:auth:token");
+	});
+
+	it("prefers flag-sensitive confirm rules over command-only allow rules", () => {
+		const result = evaluateActionPolicy({
+			options: defaultOptions({
+				command: "editor:auth:token",
+				set: "secret-token",
+			}),
+			policy: {
+				allow: ["editor:auth:token"],
+				confirm: ["editor:auth:token --set"],
+				deny: [],
+			},
+		});
+
+		expect(result.decision).toBe("confirm");
+		expect(result.matchedPattern).toBe("editor:auth:token --set");
 	});
 
 	it("loads a custom JSON policy file", () => {
@@ -170,6 +226,23 @@ describe("action policy", () => {
 		expect(handleEditorCommand).not.toHaveBeenCalled();
 	});
 
+	it("blocks flag-sensitive auth token mutations without --force", async () => {
+		const runner = new CLIPipelineRunner();
+
+		const result = await runner.run(
+			defaultOptions({
+				command: "editor:auth:token",
+				set: "secret-token",
+			}),
+			vi.fn()
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("requires confirmation");
+		expect(result.error).toContain("editor:auth:token --set");
+		expect(handleEditorCommand).not.toHaveBeenCalled();
+	});
+
 	it("allows confirm-tier commands with --force", async () => {
 		const runner = new CLIPipelineRunner();
 
@@ -178,6 +251,20 @@ describe("action policy", () => {
 				command: "editor:timeline:batch-delete",
 				projectId: "proj1",
 				force: true,
+			}),
+			vi.fn()
+		);
+
+		expect(result.success).toBe(true);
+		expect(handleEditorCommand).toHaveBeenCalledTimes(1);
+	});
+
+	it("allows read-only auth token access without --force", async () => {
+		const runner = new CLIPipelineRunner();
+
+		const result = await runner.run(
+			defaultOptions({
+				command: "editor:auth:token",
 			}),
 			vi.fn()
 		);

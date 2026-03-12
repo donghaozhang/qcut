@@ -1,6 +1,7 @@
 export const EDITOR_SNAPSHOT_VERSION = 1;
 export const MAX_EDITOR_SNAPSHOT_DEPTH = 8;
 export const EDITOR_SNAPSHOT_REF_ATTRIBUTE = "data-qcut-snapshot-ref";
+export const EDITOR_SNAPSHOT_STATE_KEY = "__qcutSnapshotState";
 
 export interface EditorSnapshotRequest {
 	interactive?: boolean;

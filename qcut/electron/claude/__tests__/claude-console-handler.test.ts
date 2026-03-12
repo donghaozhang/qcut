@@ -83,4 +83,20 @@ describe("claude-console-handler", () => {
 		expect(messages[0]?.message).toContain("renderer exploded");
 		expect(messages[1]?.message).toContain("render-process-gone");
 	});
+
+	it("preserves Electron console-message level semantics", () => {
+		const webContents = new MockWebContents();
+		const window = {
+			webContents,
+		} as unknown as Electron.BrowserWindow;
+
+		attachConsoleCapture({ window });
+
+		webContents.emit("console-message", {}, 0, "verbose-style", 1, "a.ts");
+		webContents.emit("console-message", {}, 1, "info-style", 2, "b.ts");
+
+		const messages = getConsoleEntries({ limit: 10 });
+		expect(messages[0]?.level).toBe("log");
+		expect(messages[1]?.level).toBe("info");
+	});
 });

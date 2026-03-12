@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import type { CLIRunOptions } from "./cli-runner/types.js";
 
 export interface ActionPolicy {
 	allow: string[];
@@ -11,10 +12,29 @@ export interface ActionPolicyMatch {
 	matchedPattern?: string;
 }
 
+const POLICY_SENSITIVE_OPTION_FLAGS: Array<{
+	key: keyof CLIRunOptions;
+	flag: string;
+}> = [
+	{ key: "set", flag: "--set" },
+	{ key: "reveal", flag: "--reveal" },
+	{ key: "clear", flag: "--clear" },
+	{ key: "discard", flag: "--discard" },
+	{ key: "replace", flag: "--replace" },
+	{ key: "ripple", flag: "--ripple" },
+	{ key: "crossTrackRipple", flag: "--cross-track-ripple" },
+	{ key: "removeFillers", flag: "--remove-fillers" },
+	{ key: "removeSilences", flag: "--remove-silences" },
+	{ key: "addToTimeline", flag: "--add-to-timeline" },
+	{ key: "interactive", flag: "--interactive" },
+	{ key: "full", flag: "--full" },
+];
+
 const DEFAULT_ALLOW_PATTERNS = [
 	"editor:health",
 	"editor:console",
 	"editor:errors",
+	"editor:auth:token",
 	"editor:media:list",
 	"editor:media:info",
 	"editor:project:settings",
@@ -51,6 +71,12 @@ const DEFAULT_ALLOW_PATTERNS = [
 ];
 
 const DEFAULT_CONFIRM_PATTERNS = [
+	"editor:auth:activate",
+	"editor:auth:logout",
+	"editor:auth:token --set",
+	"editor:auth:token --reveal",
+	"editor:console --clear",
+	"editor:errors --clear",
 	"editor:media:delete",
 	"editor:project:delete",
 	"editor:project:import-state",
@@ -63,6 +89,7 @@ const DEFAULT_CONFIRM_PATTERNS = [
 	"editor:snapshot:fill",
 	"editor:undo",
 	"editor:redo",
+	"editor:screen-recording:stop --discard",
 	"editor:screen-recording:force-stop",
 ];
 
@@ -155,16 +182,39 @@ export function matchesActionPattern({
 	return regex.test(command);
 }
 
+export function buildActionPolicySubject({
+	options,
+}: {
+	options: CLIRunOptions;
+}): string {
+	const tokens = [options.command];
+	for (const entry of POLICY_SENSITIVE_OPTION_FLAGS) {
+		const value = options[entry.key];
+		if (typeof value === "boolean") {
+			if (value) {
+				tokens.push(entry.flag);
+			}
+			continue;
+		}
+		if (typeof value === "string" && value.trim().length > 0) {
+			tokens.push(entry.flag);
+		}
+	}
+	return tokens.join(" ");
+}
+
 function findMatchingPattern({
-	command,
+	candidates,
 	patterns,
 }: {
-	command: string;
+	candidates: string[];
 	patterns: string[];
 }): string | undefined {
 	for (const pattern of patterns) {
-		if (matchesActionPattern({ command, pattern })) {
-			return pattern;
+		for (const candidate of candidates) {
+			if (matchesActionPattern({ command: candidate, pattern })) {
+				return pattern;
+			}
 		}
 	}
 	return undefined;
@@ -172,13 +222,23 @@ function findMatchingPattern({
 
 export function evaluateActionPolicy({
 	command,
+	options,
 	policy,
 }: {
-	command: string;
+	command?: string;
+	options?: CLIRunOptions;
 	policy: ActionPolicy;
 }): ActionPolicyMatch {
+	const resolvedCommand = options?.command ?? command;
+	if (!resolvedCommand) {
+		throw new Error("Action policy evaluation requires a command.");
+	}
+	const candidates = options
+		? Array.from(new Set([buildActionPolicySubject({ options }), resolvedCommand]))
+		: [resolvedCommand];
+
 	const denyPattern = findMatchingPattern({
-		command,
+		candidates,
 		patterns: policy.deny,
 	});
 	if (denyPattern) {
@@ -186,7 +246,7 @@ export function evaluateActionPolicy({
 	}
 
 	const confirmPattern = findMatchingPattern({
-		command,
+		candidates,
 		patterns: policy.confirm,
 	});
 	if (confirmPattern) {
@@ -194,7 +254,7 @@ export function evaluateActionPolicy({
 	}
 
 	const allowPattern = findMatchingPattern({
-		command,
+		candidates,
 		patterns: policy.allow,
 	});
 	if (allowPattern) {

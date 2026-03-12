@@ -4,6 +4,20 @@ import Capacitor
 import Photos
 
 class QCutViewController: CAPBridgeViewController {
+    private struct ImportedPhoto {
+        let base64: String
+        let filename: String
+        let width: Int
+        let height: Int
+    }
+
+    private struct InjectedPhotoPayload: Encodable {
+        let chunks: [String]
+        let name: String
+        let w: Int
+        let h: Int
+    }
+
     override func webViewConfiguration(for config: InstanceConfiguration) -> WKWebViewConfiguration {
         let webConfig = super.webViewConfiguration(for: config)
         webConfig.mediaTypesRequiringUserActionForPlayback = []
@@ -37,6 +51,7 @@ class QCutViewController: CAPBridgeViewController {
             "com.qcut.cli.state",
             "com.qcut.cli.play",
             "com.qcut.cli.pause",
+            "com.qcut.cli.export",
             "com.qcut.cli.export-status",
             "com.qcut.cli.console",
             "com.qcut.cli.fps",
@@ -62,6 +77,7 @@ class QCutViewController: CAPBridgeViewController {
             "com.qcut.cli.state": "qcut://state",
             "com.qcut.cli.play": "qcut://play",
             "com.qcut.cli.pause": "qcut://pause",
+            "com.qcut.cli.export": "qcut://export",
             "com.qcut.cli.export-status": "qcut://export-status",
             "com.qcut.cli.console": "qcut://console",
             "com.qcut.cli.fps": "qcut://fps",
@@ -139,11 +155,11 @@ class QCutViewController: CAPBridgeViewController {
                 NSLog("[QCut CLI] Photo library access denied: \(status.rawValue)")
                 return
             }
-            self?.fetchAndInjectMultiplePhotos(count: 3)
+            self?.fetchAndInjectMultiplePhotos(count: 3, startExport: true)
         }
     }
 
-    private func fetchAndInjectMultiplePhotos(count: Int) {
+    private func fetchAndInjectMultiplePhotos(count: Int, startExport: Bool) {
         let options = PHFetchOptions()
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         options.fetchLimit = count
@@ -158,8 +174,9 @@ class QCutViewController: CAPBridgeViewController {
         // Collect all photos synchronously first, then inject all at once via JS
         let imageManager = PHImageManager.default()
         let targetSize = CGSize(width: 1280, height: 720)
-        var photos: [(base64: String, filename: String, width: Int, height: Int)] = []
+        var photos = Array<ImportedPhoto?>(repeating: nil, count: result.count)
         let group = DispatchGroup()
+        let photoResultsQueue = DispatchQueue(label: "com.qcut.photo-results")
 
         for i in 0..<result.count {
             let asset = result.object(at: i)
@@ -170,7 +187,7 @@ class QCutViewController: CAPBridgeViewController {
             requestOptions.deliveryMode = .highQualityFormat
             requestOptions.resizeMode = .exact
 
-            imageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFit, options: requestOptions) { image, info in
+            imageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFit, options: requestOptions) { image, _ in
                 defer { group.leave() }
                 guard let image = image, let pngData = image.pngData() else {
                     NSLog("[QCut CLI] Failed to get image data for photo \(i)")
@@ -179,40 +196,62 @@ class QCutViewController: CAPBridgeViewController {
                 let base64 = pngData.base64EncodedString()
                 let filename = "photo-\(i + 1).png"
                 NSLog("[QCut CLI] Fetched photo \(i + 1): \(image.size.width)x\(image.size.height), \(pngData.count) bytes")
-                photos.append((base64: base64, filename: filename, width: Int(image.size.width), height: Int(image.size.height)))
+                let photo = ImportedPhoto(
+                    base64: base64,
+                    filename: filename,
+                    width: Int(image.size.width),
+                    height: Int(image.size.height)
+                )
+                photoResultsQueue.sync {
+                    photos[i] = photo
+                }
             }
         }
 
         group.notify(queue: .main) { [weak self] in
-            guard !photos.isEmpty else {
+            let orderedPhotos = photoResultsQueue.sync {
+                photos.compactMap { $0 }
+            }
+
+            guard !orderedPhotos.isEmpty else {
                 NSLog("[QCut CLI] No photos fetched successfully")
                 return
             }
-            NSLog("[QCut CLI] All \(photos.count) photos fetched, injecting into editor...")
-            self?.injectMultiplePhotos(photos)
+            NSLog("[QCut CLI] All \(orderedPhotos.count) photos fetched, injecting into editor...")
+            self?.injectMultiplePhotos(orderedPhotos, startExport: startExport)
         }
     }
 
-    private func injectMultiplePhotos(_ photos: [(base64: String, filename: String, width: Int, height: Int)]) {
-        // Store each photo's base64 chunks under window.__photoData[i]
-        runJS("window.__photoData = [];")
-        for (i, photo) in photos.enumerated() {
+    private func injectMultiplePhotos(_ photos: [ImportedPhoto], startExport: Bool) {
+        let payloads: [InjectedPhotoPayload] = photos.map { photo in
             let chunkSize = 500_000
             let chunks = stride(from: 0, to: photo.base64.count, by: chunkSize).map { start -> String in
                 let startIdx = photo.base64.index(photo.base64.startIndex, offsetBy: start)
                 let endIdx = photo.base64.index(startIdx, offsetBy: min(chunkSize, photo.base64.count - start))
                 return String(photo.base64[startIdx..<endIdx])
             }
-            runJS("window.__photoData[\(i)] = {chunks: [], name: '\(photo.filename)', w: \(photo.width), h: \(photo.height)};")
-            for chunk in chunks {
-                runJS("window.__photoData[\(i)].chunks.push('\(chunk)');")
-            }
+
+            return InjectedPhotoPayload(
+                chunks: chunks,
+                name: photo.filename,
+                w: photo.width,
+                h: photo.height
+            )
         }
 
-        // Single JS that chains all addMediaItem promises sequentially
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            self?.runJS("""
+        let encoder = JSONEncoder()
+        guard
+            let payloadData = try? encoder.encode(payloads),
+            let payloadJSON = String(data: payloadData, encoding: .utf8)
+        else {
+            NSLog("[QCut CLI] Failed to encode photo payloads")
+            return
+        }
+
+        let shouldStartExport = startExport ? "true" : "false"
+        runJS("""
             (async function() {
+                window.__photoData = \(payloadJSON);
                 var ms = window.__mediaStore;
                 var tl = window.__timelineStore;
                 var ps = window.__projectStore;
@@ -260,10 +299,29 @@ class QCutViewController: CAPBridgeViewController {
                     }
                 }
                 console.log('[E2E] Done: ' + added + '/' + photos.length + ' photos on timeline');
-                return added + ' photos added';
+                if (!\(shouldStartExport)) {
+                    return added + ' photos added';
+                }
+                if (!window.__exportActions) {
+                    return added + ' photos added; export actions unavailable';
+                }
+                var progress = window.__exportStore?.getState().progress;
+                if (progress && progress.isExporting) {
+                    return added + ' photos added; export already running';
+                }
+                try {
+                    await window.__exportActions.export({
+                        quality: '720p',
+                        format: 'mp4',
+                        filename: 'import-and-export'
+                    });
+                    return added + ' photos added; export complete';
+                } catch (e) {
+                    console.error('[E2E] Export failed:', e);
+                    return added + ' photos added; export failed';
+                }
             })()
-            """)
-        }
+        """)
     }
 
     #endif

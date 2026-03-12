@@ -72,7 +72,7 @@ Then unplug and replug the USB cable.
 ### 2. Build the web app
 
 ```bash
-cd /Users/peter/Desktop/code/qcut/qcut
+cd <PROJECT_ROOT>
 bun run build
 bunx cap sync ios
 ```
@@ -93,7 +93,7 @@ The built `.app` bundle lives at:
 
 ```bash
 xcrun devicectl device install app --device <UDID> \
-  ~/Library/Developer/Xcode/DerivedData/App-cwerheywgxgglcdhrisunqggtuui/Build/Products/Debug-iphoneos/App.app
+  ~/Library/Developer/Xcode/DerivedData/App-*/Build/Products/Debug-iphoneos/App.app
 
 xcrun devicectl device process launch --device <UDID> com.qcut.videoeditor
 ```

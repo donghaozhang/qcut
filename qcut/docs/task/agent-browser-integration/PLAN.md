@@ -16,9 +16,9 @@ agent-browser is a headless browser automation CLI designed for AI agents. It us
 
 | Pattern | Status | Notes |
 |--------|--------|-------|
-| Accessibility Snapshots with Refs | Mostly complete | `editor:snapshot`, `editor:snapshot:click`, and `editor:snapshot:fill` are implemented on 2026-03-12; remaining work is mostly ref stability and deeper live-renderer coverage |
+| Accessibility Snapshots with Refs | Mostly complete | `editor:snapshot`, `editor:snapshot:click`, and `editor:snapshot:fill` are implemented on 2026-03-12; refs now reuse stable renderer keys across re-snapshots, and remaining work is mostly deeper live-renderer coverage plus richer action types |
 | Console Message & Error Capture | Mostly complete | HTTP + CLI list/clear/stream path implemented on 2026-03-12 |
-| Action Policy Engine | Mostly complete | Default allow/confirm/deny policy, `--policy`, runner enforcement, and tests implemented on 2026-03-12 |
+| Action Policy Engine | Mostly complete | Default allow/confirm/deny policy, flag-sensitive matching, `--policy`, runner enforcement, and tests implemented on 2026-03-12 |
 | Session State Persistence | Mostly complete | Named session files, `--resume`, sticky project/panel hydration, autosave, and explicit `editor:session:save/load` commands are implemented on 2026-03-12 |
 | Visual Diff Verification | Partially complete | `editor:diff:snapshot` landed on 2026-03-12; screenshot diff is still pending |
 | WebSocket Viewport Streaming | Deferred | No immediate product need |
@@ -64,7 +64,7 @@ export async function handleSnapshot(options: SnapshotOptions): Promise<Snapshot
 
 **Implemented files**:
 - `electron/types/claude-snapshot-api.ts` — shared request/result types and depth limits
-- `electron/claude/handlers/claude-snapshot-handler.ts` — renderer-side DOM traversal, ref assignment, and ref-based click/fill actions via `executeJavaScript`
+- `electron/claude/handlers/claude-snapshot-handler.ts` — renderer-side DOM traversal, stable ref reuse, and ref-based click/fill actions via `executeJavaScript`
 - `electron/claude/http/claude-http-snapshot-routes.ts` — `/api/claude/snapshot`, `/api/claude/snapshot/click`, and `/api/claude/snapshot/fill`
 - `electron/claude/http/claude-http-server.ts` — registers snapshot routes in the direct main-process test server
 - `electron/utility/utility-http-server.ts` — exposes snapshot read/write routes in the real utility-process HTTP server
@@ -83,12 +83,14 @@ export async function handleSnapshot(options: SnapshotOptions): Promise<Snapshot
 5. Persisted the latest snapshot refs into the live DOM so follow-up actions can resolve them
 6. Implemented `editor:snapshot:click --ref @eN` through the HTTP and utility-process path
 7. Implemented `editor:snapshot:fill --ref @eN --text "..."` for text inputs and contenteditable targets
-8. Added focused tests for handler validation, HTTP route behavior, and CLI query/action routing
+8. Reused stable refs across repeated snapshots by keeping a renderer-side stable-key map instead of renumbering everything on every capture
+9. Added ref-recovery fallback for click/fill so actions can recover a target after transient rerenders when the stable key still matches
+10. Added focused tests for handler validation, HTTP route behavior, and CLI query/action routing
 
 **Remaining work**:
-1. Decide whether refs need stronger stability guarantees across transient rerenders or forced re-snapshots
-2. Add higher-level integration coverage against a live renderer DOM when needed
-3. Extend action support beyond text fill if agents need select/checkbox-specific semantics
+1. Add higher-level integration coverage against a live renderer DOM when needed
+2. Extend action support beyond text fill if agents need select/checkbox-specific semantics
+3. Tune stable-key heuristics further only if complex list reordering or virtualized UIs expose collisions
 
 **Example usage by AI agent**:
 ```bash
@@ -140,8 +142,8 @@ const DEFAULT_POLICY: ActionPolicy = {
 ```
 
 **Implemented files**:
-- `electron/native-pipeline/cli/action-policy.ts` — policy parsing, wildcard matching, default policy, and JSON file loading
-- `electron/native-pipeline/cli/cli-runner/runner.ts` — policy enforcement before command dispatch
+- `electron/native-pipeline/cli/action-policy.ts` — policy parsing, wildcard matching, flag-sensitive subject matching, default policy, and JSON file loading
+- `electron/native-pipeline/cli/cli-runner/runner.ts` — policy enforcement before command dispatch using the resolved command+flag subject
 - `electron/native-pipeline/cli/cli.ts` — parses `--policy` and documents `--force`
 - `electron/native-pipeline/cli/cli-runner/session.ts` — carries policy settings through session mode and per-line parsing
 - `electron/native-pipeline/cli/command-registry.ts` — exposes global policy metadata in registry help
@@ -152,12 +154,14 @@ const DEFAULT_POLICY: ActionPolicy = {
 2. Added `--policy <path>` support for custom JSON policy files
 3. Integrated policy checks in `runner.ts` before command dispatch
 4. Reused `--force` to bypass confirm-tier policy prompts, while still blocking deny-tier commands
-5. Added focused tests for pattern matching, policy loading, one-shot/session arg parsing, and runner enforcement
+5. Added flag-sensitive policy matching so rules can target subjects like `editor:auth:token --set` instead of only bare command names
+6. Tightened default confirm-tier coverage for sensitive auth mutations and other riskier flag combinations such as `editor:console --clear`
+7. Added focused tests for pattern matching, policy loading, one-shot/session arg parsing, and runner enforcement
 
 **Remaining work**:
-1. Extend policy matching beyond command names if QCut needs flag-sensitive rules such as `editor:auth:token --set`
-2. Revisit the default confirm list as more editor mutations and UI automation flows are added
-3. Add richer policy schema options only if a concrete product need emerges
+1. Revisit the default confirm list as more editor mutations and UI automation flows are added
+2. Add richer policy schema options only if a concrete product need emerges
+3. Expand the sensitive-flag list only when a real command needs policy distinctions beyond the current coverage
 
 **Example usage by AI agent**:
 ```bash
@@ -169,6 +173,10 @@ bun run pipeline editor:timeline:batch-delete --project-id my-proj --force --jso
 
 # Replace the default policy with a custom JSON file
 bun run pipeline editor:snapshot:click --ref @e1 --policy ./agent-policy.json --json
+
+# Match a sensitive variant of an otherwise read-only command
+# Example custom policy entry: "confirm": ["editor:auth:token --reveal"]
+bun run pipeline editor:auth:token --reveal --policy ./agent-policy.json --json
 ```
 
 **Test files**:

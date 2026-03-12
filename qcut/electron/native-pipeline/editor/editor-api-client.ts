@@ -443,6 +443,7 @@ export class EditorApiClient {
 				}
 			}
 
+			buffer += decoder.decode();
 			if (buffer.trim()) {
 				const parsed = this.parseSseChunk({ chunk: buffer });
 				if (parsed) {
