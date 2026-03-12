@@ -422,19 +422,10 @@ function TimelineTrackContentComponent({
 		const isMultiSelect = e.metaKey || e.ctrlKey || e.shiftKey;
 
 		if (isRightClick) {
-			// Handle right-click selection — defer to avoid re-render that
-			// closes the Radix ContextMenu before it finishes opening
-			const isSelected = selectedElements.some(
-				(c) => c.trackId === track.id && c.elementId === element.id
-			);
-
-			if (!isSelected) {
-				requestAnimationFrame(() => {
-					selectElement(track.id, element.id, isMultiSelect);
-				});
-			}
-
-			// Don't start drag action for right-clicks
+			// Don't trigger any state updates on right-click mousedown.
+			// State updates cause re-renders that race with Radix ContextMenu
+			// opening, causing it to immediately close.
+			// Selection is handled by onContextMenu in the TimelineElement instead.
 			return;
 		}
 

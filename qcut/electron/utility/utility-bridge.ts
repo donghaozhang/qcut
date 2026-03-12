@@ -587,68 +587,36 @@ async function handleMainRequest(
 
 		case "context-menu": {
 			const req = data as { elementId: string; debug?: boolean };
-			const script = req.debug
-				? `(function() {
-					// Intercept all pointer/mouse events at capture phase to find what's dismissing the menu
-					const events = [];
-					const types = ['pointerdown','pointerup','mousedown','mouseup','contextmenu','click','focusin','focusout'];
-					const handler = (e) => {
-						events.push({
-							type: e.type,
-							target: e.target?.tagName + (e.target?.className ? '.' + String(e.target.className).substring(0,50) : ''),
-							phase: e.eventPhase === 1 ? 'capture' : e.eventPhase === 2 ? 'target' : 'bubble',
-							button: e.button,
-							defaultPrevented: e.defaultPrevented,
-							timestamp: Math.round(e.timeStamp),
-						});
-					};
-					for (const t of types) {
-						document.addEventListener(t, handler, true);
-						document.addEventListener(t, handler, false);
+			const eid = req.elementId.replace(/'/g, "\\'");
+			const result = await win.webContents.executeJavaScript(
+				`(function() {
+					var debug = ${req.debug ? "true" : "false"};
+					var el = document.querySelector("[data-element-id='${eid}']");
+					if (!el) return Promise.resolve({ found: false, error: "Element not found" });
+					var rect = el.getBoundingClientRect();
+					var x = rect.left + rect.width / 2;
+					var y = rect.top + rect.height / 2;
+					var events = [];
+					if (debug) {
+						var types = ["pointerdown","pointerup","mousedown","mouseup","contextmenu","click","focusin","focusout"];
+						var handler = function(e) {
+							events.push({ type: e.type, target: e.target.tagName, phase: e.eventPhase, button: e.button, defaultPrevented: e.defaultPrevented });
+						};
+						types.forEach(function(t) { document.addEventListener(t, handler, true); document.addEventListener(t, handler, false); });
 					}
-					// Fire contextmenu on element
-					const el = document.querySelector('[data-element-id="${req.elementId}"]');
-					if (!el) return Promise.resolve({ found: false });
-					const rect = el.getBoundingClientRect();
-					const x = rect.left + rect.width / 2;
-					const y = rect.top + rect.height / 2;
-					const cm = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 2 });
-					el.dispatchEvent(cm);
-					return new Promise(resolve => {
-						setTimeout(() => {
-							for (const t of types) {
-								document.removeEventListener(t, handler, true);
-								document.removeEventListener(t, handler, false);
+					el.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 2, buttons: 2 }));
+					return new Promise(function(resolve) {
+						setTimeout(function() {
+							if (debug) {
+								var types2 = ["pointerdown","pointerup","mousedown","mouseup","contextmenu","click","focusin","focusout"];
+								types2.forEach(function(t) { document.removeEventListener(t, handler, true); document.removeEventListener(t, handler, false); });
 							}
-							const portal = document.querySelector('[data-radix-popper-content-wrapper]');
-							resolve({ found: true, events, portalFound: !!portal });
-						}, 200);
+							var menu = document.querySelector("[role='menu'][data-state='open']");
+							resolve({ found: true, menuOpen: !!menu, x: Math.round(x), y: Math.round(y), events: debug ? events : undefined });
+						}, 150);
 					});
 				})()`
-				: `(function() {
-					const el = document.querySelector('[data-element-id="${req.elementId}"]');
-					if (!el) return { found: false, error: 'Element not found: ${req.elementId}' };
-					const rect = el.getBoundingClientRect();
-					const x = rect.left + rect.width / 2;
-					const y = rect.top + rect.height / 2;
-					const mousedown = new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 2, buttons: 2 });
-					el.dispatchEvent(mousedown);
-					const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 2, buttons: 2 });
-					const dispatched = el.dispatchEvent(event);
-					return new Promise(resolve => {
-						setTimeout(() => {
-							const portal = document.querySelector('[data-radix-popper-content-wrapper]');
-							const contextContent = document.querySelector('[role="menu"]');
-							resolve({
-								found: true, dispatched, x: Math.round(x), y: Math.round(y),
-								defaultPrevented: event.defaultPrevented,
-								portalFound: !!portal, contextMenuFound: !!contextContent,
-								portalHTML: portal ? portal.innerHTML.substring(0, 200) : null,
-							});
-						}, 100);
-					});
-				})()`;
-			const result = await win.webContents.executeJavaScript(script);
+			);
 			return result;
 		}
 
