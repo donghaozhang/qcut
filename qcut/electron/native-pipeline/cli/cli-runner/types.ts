@@ -219,6 +219,11 @@ export interface CLIRunOptions {
 	// snapshot action options
 	selectValue?: string;
 	checked?: boolean;
+	// speech generation options
+	exaggeration?: number;
+	temperature?: number;
+	cfg?: number;
+	seed?: number;
 }
 
 export interface CLIResult {

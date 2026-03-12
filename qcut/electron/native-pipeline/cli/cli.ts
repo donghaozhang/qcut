@@ -154,6 +154,11 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"audio-only": { type: "boolean", default: false },
 			"no-dynamic-duration": { type: "boolean", default: false },
 			speakers: { type: "string" },
+			// speech generation options
+			exaggeration: { type: "string" },
+			temperature: { type: "string" },
+			cfg: { type: "string" },
+			seed: { type: "string" },
 			// transfer-motion options
 			orientation: { type: "string" },
 			"no-sound": { type: "boolean", default: false },
@@ -393,6 +398,17 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			? Number.isNaN(parseInt(values.speakers as string, 10))
 				? undefined
 				: parseInt(values.speakers as string, 10)
+			: undefined,
+		// speech generation options
+		exaggeration: values.exaggeration
+			? parseFloat(values.exaggeration as string)
+			: undefined,
+		temperature: values.temperature
+			? parseFloat(values.temperature as string)
+			: undefined,
+		cfg: values.cfg ? parseFloat(values.cfg as string) : undefined,
+		seed: values.seed
+			? parseInt(values.seed as string, 10)
 			: undefined,
 		// transcribe options
 		language: values.language as string | undefined,

@@ -1,32 +1,65 @@
-# Chatterbox Audio Models — TTS & Speech-to-Speech via FAL.ai
+# Speech Models — TTS, Voice Cloning & Speech-to-Speech via FAL.ai
 
 **Date**: 2026-03-12
-**Estimated Total**: ~70 minutes (5 subtasks)
+**Estimated Total**: ~70 minutes (5 subtasks) — Chatterbox done, +45 min for new models (Subtask 6)
 **Priority**: High — First dedicated speech generation models in QCut; unlocks voiceover, dubbing, and voice cloning workflows
 **Provider**: FAL.ai (uses existing `VITE_FAL_API_KEY` / `FAL_KEY`)
+**Status**: Subtasks 1-5 implemented. Subtask 6 (ElevenLabs + Qwen3) pending.
 
 ---
 
 ## Overview
 
-Integrate Resemble AI's Chatterbox speech models into QCut via FAL.ai. Chatterbox offers three variants:
+Integrate multiple speech models into QCut via FAL.ai. Three providers, eight model variants:
+
+### Chatterbox (Resemble AI)
 
 | Variant | Endpoint | Input | Output | Price |
 |---------|----------|-------|--------|-------|
-| Text-to-Speech | `fal-ai/chatterbox/text-to-speech` | Text + optional voice ref audio | WAV audio | $0.025/1000 chars |
+| Text-to-Speech | `fal-ai/chatterbox/text-to-speech` | Text + optional voice ref audio | WAV audio | $0.025/1k chars |
 | TTS Turbo | `fal-ai/chatterbox/text-to-speech/turbo` | Text + optional voice ref audio | WAV audio | TBD |
 | Speech-to-Speech | `fal-ai/chatterbox/speech-to-speech` | Source audio + optional target voice | WAV audio | TBD |
 
+### ElevenLabs
+
+| Variant | Endpoint | Input | Output | Price |
+|---------|----------|-------|--------|-------|
+| Eleven v3 TTS | `fal-ai/elevenlabs/tts/eleven-v3` | Text + voice name + style controls | Audio file | TBD |
+
+### Qwen3 TTS (Alibaba)
+
+| Variant | Endpoint | Input | Output | Price |
+|---------|----------|-------|--------|-------|
+| Text-to-Speech | `fal-ai/qwen-3-tts/text-to-speech/1.7b` | Text + voice preset or cloned embedding | Audio (with duration/sample_rate) | TBD |
+| Clone Voice | `fal-ai/qwen-3-tts/clone-voice/1.7b` | Reference audio + optional text | Speaker embedding (.safetensors) | TBD |
+
 ### Key Features
 
+**Chatterbox:**
 - **Voice cloning**: Pass a reference `audio_url` to clone any voice style
 - **Emotive tags**: `<laugh>`, `<chuckle>`, `<sigh>`, `<cough>`, `<sniffle>`, `<groan>`, `<yawn>`, `<gasp>`
 - **Fine control**: `exaggeration` (0-1), `temperature` (0.05-2.0), `cfg` (0.1-1.0), `seed`
 - **Voice conversion**: Speech-to-speech transforms voice while preserving content
 
+**ElevenLabs Eleven v3:**
+- **Named voices**: Built-in voice presets (default: "Rachel")
+- **Stability control**: `stability` (0-1, default 0.5)
+- **Multilingual**: `language_code` for non-English text
+- **Word timestamps**: Optional word-level timing data
+- **Text normalization**: `apply_text_normalization` (auto/on/off)
+- **Streaming**: Supports chunked audio streaming
+
+**Qwen3 TTS:**
+- **9 built-in voices**: Vivian, Serena, Uncle_Fu, Dylan, Eric, Ryan, Aiden, Ono_Anna, Sohee
+- **Voice cloning**: Two-step process — clone voice → get embedding → use in TTS
+- **Style prompt**: Optional `prompt` to guide speech style
+- **10 languages**: Auto, English, Chinese, Spanish, French, German, Italian, Japanese, Korean, Portuguese, Russian
+- **Fine sampling**: `temperature`, `top_k`, `top_p`, `repetition_penalty`, sub-talker controls
+- **Rich output**: Returns `duration`, `sample_rate`, `channels` alongside audio URL
+
 ### API Reference
 
-**Text-to-Speech Input:**
+**Chatterbox TTS Input:**
 ```json
 {
   "text": "Hello world! <laugh>",
@@ -38,7 +71,7 @@ Integrate Resemble AI's Chatterbox speech models into QCut via FAL.ai. Chatterbo
 }
 ```
 
-**Speech-to-Speech Input:**
+**Chatterbox S2S Input:**
 ```json
 {
   "source_audio_url": "https://example.com/source.wav",
@@ -46,7 +79,51 @@ Integrate Resemble AI's Chatterbox speech models into QCut via FAL.ai. Chatterbo
 }
 ```
 
-**Shared Output:**
+**ElevenLabs Eleven v3 Input:**
+```json
+{
+  "text": "Hello world!",
+  "voice": "Rachel",
+  "stability": 0.5,
+  "timestamps": false,
+  "language_code": "en",
+  "apply_text_normalization": "auto"
+}
+```
+
+**Qwen3 TTS Input:**
+```json
+{
+  "text": "Hello world!",
+  "voice": "Vivian",
+  "language": "English",
+  "prompt": "Read this in a cheerful tone",
+  "temperature": 0.9,
+  "top_k": 50,
+  "top_p": 1,
+  "repetition_penalty": 1.05,
+  "max_new_tokens": 200
+}
+```
+
+**Qwen3 TTS with Cloned Voice:**
+```json
+{
+  "text": "Hello world!",
+  "speaker_voice_embedding_file_url": "https://storage.googleapis.com/.../clone_out.safetensors",
+  "reference_text": "Original text from the reference audio"
+}
+```
+
+**Qwen3 Clone Voice Input:**
+```json
+{
+  "audio_url": "https://example.com/reference-voice.mp3",
+  "reference_text": "What was said in the reference audio"
+}
+```
+
+**Shared Audio Output (Chatterbox / ElevenLabs):**
 ```json
 {
   "audio": {
@@ -54,6 +131,32 @@ Integrate Resemble AI's Chatterbox speech models into QCut via FAL.ai. Chatterbo
     "content_type": "audio/wav",
     "file_name": "output.wav",
     "file_size": 123456
+  }
+}
+```
+
+**Qwen3 TTS Output (richer):**
+```json
+{
+  "audio": {
+    "url": "https://v3.fal.media/files/.../output.wav",
+    "duration": 4.2,
+    "sample_rate": 24000,
+    "channels": 1,
+    "content_type": "audio/wav",
+    "file_name": "output.wav"
+  }
+}
+```
+
+**Qwen3 Clone Voice Output:**
+```json
+{
+  "speaker_embedding": {
+    "url": "https://storage.googleapis.com/.../clone_out.safetensors",
+    "file_name": "tmpe71u7t4j.safetensors",
+    "content_type": "application/octet-stream",
+    "file_size": 16288
   }
 }
 ```
@@ -122,7 +225,7 @@ Create `speech-models-config.ts` following the established pattern.
 - `apps/web/src/components/editor/media-panel/views/ai/constants/model-config-validation.ts`
   - Add `SPEECH` to validation categories
 
-### Model config template
+### Model config template (Chatterbox — already implemented)
 
 ```typescript
 export const SPEECH_MODELS = {
@@ -135,23 +238,35 @@ export const SPEECH_MODELS = {
     endpoints: { text_to_speech: "fal-ai/chatterbox/text-to-speech" },
     default_params: { exaggeration: 0.25, temperature: 0.7, cfg: 0.5 },
   },
-  chatterbox_tts_turbo: {
-    id: "chatterbox_tts_turbo",
-    name: "Chatterbox TTS Turbo",
-    badge: "Fast",
-    description: "Faster TTS generation with slightly reduced quality",
+  chatterbox_tts_turbo: { /* ... */ },
+  chatterbox_s2s: { /* ... */ },
+  // ── New models to add (Subtask 6) ──
+  elevenlabs_v3: {
+    id: "elevenlabs_v3",
+    name: "ElevenLabs v3",
+    badge: "⭐ Premium",
+    description: "Premium multilingual TTS with named voices and stability control",
     price: "TBD",
     category: "speech",
-    endpoints: { text_to_speech: "fal-ai/chatterbox/text-to-speech/turbo" },
-    default_params: { exaggeration: 0.25, temperature: 0.7, cfg: 0.5 },
+    endpoints: { text_to_speech: "fal-ai/elevenlabs/tts/eleven-v3" },
+    default_params: { stability: 0.5 },
   },
-  chatterbox_s2s: {
-    id: "chatterbox_s2s",
-    name: "Chatterbox Voice Convert",
-    description: "Convert speech to a different voice while preserving content",
+  qwen3_tts: {
+    id: "qwen3_tts",
+    name: "Qwen3 TTS",
+    description: "Multilingual TTS with 9 voices, style prompts, and 10 languages",
     price: "TBD",
     category: "speech",
-    endpoints: { speech_to_speech: "fal-ai/chatterbox/speech-to-speech" },
+    endpoints: { text_to_speech: "fal-ai/qwen-3-tts/text-to-speech/1.7b" },
+    default_params: { temperature: 0.9, top_k: 50, top_p: 1, repetition_penalty: 1.05 },
+  },
+  qwen3_clone_voice: {
+    id: "qwen3_clone_voice",
+    name: "Qwen3 Voice Clone",
+    description: "Clone any voice from a reference audio for use with Qwen3 TTS",
+    price: "TBD",
+    category: "speech",
+    endpoints: { clone_voice: "fal-ai/qwen-3-tts/clone-voice/1.7b" },
   },
 } as const;
 ```
@@ -329,6 +444,107 @@ bun run pipeline convert-speech \
 
 ---
 
+## Subtask 6: ElevenLabs v3 + Qwen3 TTS Models (~45 min)
+
+Add three new speech models to the existing infrastructure built in Subtasks 1-5.
+
+### 6a: Model Config (~10 min)
+
+Add to `speech-models-config.ts`:
+- `elevenlabs_v3` — ElevenLabs Eleven v3 TTS
+- `qwen3_tts` — Qwen3 Text-to-Speech
+- `qwen3_clone_voice` — Qwen3 Voice Cloning (produces speaker embedding)
+
+Add to `ai-constants.ts`:
+- `ELEVENLABS_CONFIG` constant:
+  ```typescript
+  export const ELEVENLABS_CONFIG = {
+    TTS: {
+      ENDPOINT: "fal-ai/elevenlabs/tts/eleven-v3",
+      DEFAULT_VOICE: "Rachel",
+      DEFAULT_STABILITY: 0.5,
+      VOICES: ["Rachel", "Clyde", "Domi", "Dave", "Fin", "Bella", "Antoni", "Thomas", "Charlie", "Emily"],
+      TEXT_NORMALIZATION_OPTIONS: ["auto", "on", "off"],
+    },
+  } as const;
+  ```
+- `QWEN3_TTS_CONFIG` constant:
+  ```typescript
+  export const QWEN3_TTS_CONFIG = {
+    TTS: {
+      ENDPOINT: "fal-ai/qwen-3-tts/text-to-speech/1.7b",
+      CLONE_ENDPOINT: "fal-ai/qwen-3-tts/clone-voice/1.7b",
+      DEFAULT_TEMPERATURE: 0.9,
+      DEFAULT_TOP_K: 50,
+      DEFAULT_TOP_P: 1,
+      DEFAULT_REPETITION_PENALTY: 1.05,
+      MAX_NEW_TOKENS: 8192,
+      VOICES: ["Vivian", "Serena", "Uncle_Fu", "Dylan", "Eric", "Ryan", "Aiden", "Ono_Anna", "Sohee"],
+      LANGUAGES: ["Auto", "English", "Chinese", "Spanish", "French", "German", "Italian", "Japanese", "Korean", "Portuguese", "Russian"],
+    },
+  } as const;
+  ```
+
+Add `clone_voice` to `AIModelEndpoints` in `model-config.ts`.
+
+### 6b: FAL.ai Integration (~10 min)
+
+Add to `lib/ai-video/generators/speech.ts`:
+- `generateElevenLabsSpeech()` — handles `voice`, `stability`, `language_code`, `timestamps`, `apply_text_normalization`
+- `generateQwen3Speech()` — handles `voice` OR `speaker_voice_embedding_file_url`, `language`, `prompt`, `temperature`, `top_k`, `top_p`, `repetition_penalty`, `max_new_tokens`
+- `cloneQwen3Voice()` — takes `audio_url` + optional `reference_text`, returns `{ embeddingUrl, fileName, fileSize }`
+
+Update `lib/ai-video/index.ts` barrel exports.
+
+### 6c: AI Voice Tab Update (~15 min)
+
+Update `sounds-ai-voice.tsx`:
+- Expand model picker from `[Standard, Turbo]` to show all TTS providers grouped:
+  - Chatterbox: Standard, Turbo
+  - ElevenLabs: v3
+  - Qwen3: TTS (+ Clone Voice helper)
+- Show provider-specific controls based on selected model:
+  - **Chatterbox**: emotive tags, exaggeration/temperature/cfg sliders (existing)
+  - **ElevenLabs**: voice preset dropdown, stability slider, language code input, timestamps toggle
+  - **Qwen3**: voice preset dropdown OR "Clone Voice" upload flow, language dropdown, style prompt textarea, temperature/top_k/top_p sliders
+- Qwen3 clone flow: user uploads reference audio → calls `cloneQwen3Voice()` → gets embedding URL → auto-fills for TTS generation
+
+### 6d: CLI Commands (~5 min)
+
+Update `cli-handlers-speech.ts`:
+- Extend `handleGenerateSpeech()` model map to include `elevenlabs_v3` and `qwen3_tts`
+- Add `handleCloneVoice()` for `clone-voice` command (Qwen3 only)
+
+Update `command-registry.ts`:
+- Add `clone-voice` command with `--input` (audio path/URL), `--text` (reference text)
+- Extend `generate-speech` `--model` enum: `chatterbox_tts`, `chatterbox_tts_turbo`, `elevenlabs_v3`, `qwen3_tts`
+- Add ElevenLabs-specific flags: `--voice`, `--stability`, `--language-code`
+
+### 6e: Tests (~5 min)
+
+Update `speech-models-config.test.ts`:
+- Add test cases for new model IDs
+- Verify endpoints for ElevenLabs and Qwen3
+
+Add to `cli-speech.test.ts`:
+- Test `generate-speech --model elevenlabs_v3 --voice Rachel`
+- Test `generate-speech --model qwen3_tts --voice Vivian --language English`
+- Test `clone-voice -i reference.mp3 --text "reference transcript"`
+
+### Key differences between providers
+
+| Feature | Chatterbox | ElevenLabs v3 | Qwen3 TTS |
+|---------|-----------|---------------|-----------|
+| Voice selection | Reference audio URL | Named presets | Presets + cloned embeddings |
+| Voice cloning | Via `audio_url` param | Not available via FAL | Two-step: clone → embedding → TTS |
+| Expressiveness | Emotive tags + sliders | `stability` param | `prompt` for style guidance |
+| Multilingual | English only | Yes (`language_code`) | 10 languages |
+| Output metadata | Basic (url, size) | Basic + optional timestamps | Rich (duration, sample_rate, channels) |
+| Streaming | No | Yes (separate endpoint) | No |
+| Unique strength | Emotive tags (`<laugh>`) | Premium quality, word timing | Open-source, style prompts |
+
+---
+
 ## Architecture Notes
 
 ### Why Sounds panel, not a new AI panel tab
@@ -344,7 +560,8 @@ Building inside the Sounds panel means **zero new timeline integration code** �
 ### Long-term extensibility
 
 This architecture supports future audio models without modification:
-- Additional TTS providers (ElevenLabs, OpenAI TTS) → add to `SPEECH_MODELS`, same UI flow
+- Additional TTS providers (OpenAI TTS, etc.) → add to `SPEECH_MODELS`, same UI flow
+- ElevenLabs v3 and Qwen3 TTS are next (Subtask 6) — proves the multi-provider pattern
 - Music generation (Suno, Udio) → repurpose the "Songs" tab with same `AudioItem` + `addSoundToTimeline()` pattern
 - Audio effects (noise removal, enhancement) → new tab in Sounds panel
 - The `speech-models-config.ts` pattern scales identically to how T2V/I2V/Avatar grew
@@ -357,15 +574,16 @@ A future enhancement could add a voice library in the "Saved" tab for reusing re
 
 ## Implementation Order
 
-| # | Subtask | Depends On | Est. |
-|---|---------|-----------|------|
-| 1 | Model Config & Constants | — | 15 min |
-| 2 | FAL.ai API Integration | 1 | 15 min |
-| 3 | Sounds Panel — AI Voice Tab | 1, 2 | 20 min |
-| 4 | CLI Commands | 1, 2 | 15 min |
-| 5 | Tests | 1, 4 | 10 min |
+| # | Subtask | Depends On | Est. | Status |
+|---|---------|-----------|------|--------|
+| 1 | Model Config & Constants (Chatterbox) | — | 15 min | Done |
+| 2 | FAL.ai API Integration (Chatterbox) | 1 | 15 min | Done |
+| 3 | Sounds Panel — AI Voice Tab | 1, 2 | 20 min | Done |
+| 4 | CLI Commands (generate-speech, convert-speech) | 1, 2 | 15 min | Done |
+| 5 | Tests (Chatterbox) | 1, 4 | 10 min | Done |
+| 6 | ElevenLabs v3 + Qwen3 TTS Models | 1-5 | 45 min | Pending |
 
-Subtasks 3 and 4 can be parallelized after subtask 2 completes.
+Subtask 6 builds on the proven Chatterbox infrastructure — same config pattern, same UI flow, same CLI structure.
 
 ---
 

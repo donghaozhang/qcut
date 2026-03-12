@@ -213,6 +213,17 @@ export {
 } from "./generators/angles";
 
 // ============================================
+// Speech Generators
+// ============================================
+export {
+	generateSpeech,
+	convertSpeech,
+	type SpeechGenerationRequest,
+	type SpeechConversionRequest,
+	type SpeechGenerationResult,
+} from "./generators/speech";
+
+// ============================================
 // High-Level API Functions
 // ============================================
 export {

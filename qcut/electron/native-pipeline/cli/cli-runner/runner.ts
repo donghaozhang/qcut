@@ -66,6 +66,10 @@ import { handleTransferMotion } from "./handler-transfer.js";
 import { handleGenerateGrid } from "./handler-grid.js";
 import { handleUpscaleImage } from "./handler-upscale.js";
 import { handlePipelineStatus } from "./handler-pipeline-status.js";
+import {
+	handleGenerateSpeech,
+	handleConvertSpeech,
+} from "../cli-handlers-speech.js";
 
 async function enforceActionPolicy({
 	options,
@@ -381,6 +385,20 @@ export class CLIPipelineRunner {
 				break;
 			case "translate-video":
 				result = await handleTranslateVideo(
+					resolvedOptions,
+					onProgress,
+					this.signal
+				);
+				break;
+			case "generate-speech":
+				result = await handleGenerateSpeech(
+					resolvedOptions,
+					onProgress,
+					this.signal
+				);
+				break;
+			case "convert-speech":
+				result = await handleConvertSpeech(
 					resolvedOptions,
 					onProgress,
 					this.signal

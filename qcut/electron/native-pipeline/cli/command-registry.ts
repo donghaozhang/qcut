@@ -83,6 +83,8 @@ export const CATEGORIES: CategoryDef[] = [
 			"transfer-motion",
 			"generate-remotion",
 			"translate-video",
+			"generate-speech",
+			"convert-speech",
 		],
 	},
 	{
@@ -519,6 +521,47 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline translate-video -i video.mp4 -l Spanish",
 			"qcut-pipeline translate-video -i video.mp4 -l Chinese --audio-only",
 			'qcut-pipeline translate-video -i "https://example.com/video.mp4" -l Japanese --speakers 2',
+		],
+	},
+
+	// ── Speech ──
+	"generate-speech": {
+		name: "generate-speech",
+		description: "Generate speech from text (Chatterbox TTS)",
+		category: "generation",
+		flags: [
+			f("--text", "string", "Text to speak", { short: "-t", required: true }),
+			f("--model", "string", "TTS model", {
+				short: "-m",
+				default: "chatterbox_tts",
+				enum: ["chatterbox_tts", "chatterbox_tts_turbo"],
+			}),
+			f("--audio-url", "string", "Voice reference audio URL (for cloning)"),
+			f("--exaggeration", "number", "Expressiveness 0-1 (default: 0.25)"),
+			f("--temperature", "number", "Creativity 0.05-2.0 (default: 0.7)"),
+			f("--cfg", "number", "Classifier-free guidance 0.1-1.0 (default: 0.5)"),
+			f("--seed", "number", "Seed for reproducibility"),
+		],
+		examples: [
+			"qcut-pipeline generate-speech -t 'Hello world!'",
+			"qcut-pipeline generate-speech -t 'Check this out! <laugh>' --audio-url ./voice.mp3 -m chatterbox_tts_turbo",
+			"qcut-pipeline generate-speech -t 'Dramatic reading' --exaggeration 0.8 --temperature 1.2 --json",
+		],
+	},
+	"convert-speech": {
+		name: "convert-speech",
+		description: "Convert speech to a different voice (Chatterbox S2S)",
+		category: "generation",
+		flags: [
+			f("--input", "string", "Source audio path or URL", {
+				short: "-i",
+				required: true,
+			}),
+			f("--audio-url", "string", "Target voice reference audio URL"),
+		],
+		examples: [
+			"qcut-pipeline convert-speech -i source.wav --json",
+			"qcut-pipeline convert-speech -i source.wav --audio-url target-voice.mp3",
 		],
 	},
 

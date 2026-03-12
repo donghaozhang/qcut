@@ -13,6 +13,7 @@ import { T2V_MODELS } from "./text2video-models-config";
 import { I2V_MODELS } from "./image2video-models-config";
 import { AVATAR_MODELS } from "./avatar-models-config";
 import { ANGLES_MODEL } from "./angles-config";
+import { SPEECH_MODELS } from "./speech-models-config";
 import { validateUniqueAIModelIds } from "./model-config-validation";
 import { UPSCALE_MODELS } from "@/lib/ai-models/upscale-models";
 import { ERROR_MESSAGES as ERROR_MESSAGES_INTERNAL } from "./error-messages";
@@ -86,6 +87,14 @@ export {
 	type CinematicAngleId,
 } from "./angles-config";
 
+// Re-export Speech models
+export {
+	SPEECH_MODELS,
+	SPEECH_MODEL_ORDER,
+	getSpeechModelsInOrder,
+	type SpeechModelId,
+} from "./speech-models-config";
+
 // ============================================================================
 // Backward Compatibility: Consolidated AI_MODELS Array
 // ============================================================================
@@ -135,6 +144,7 @@ export const AI_MODELS: AIModel[] = [
 	...Object.values(T2V_MODELS),
 	...Object.values(I2V_MODELS),
 	...Object.values(AVATAR_MODELS),
+	...Object.values(SPEECH_MODELS),
 	ANGLES_MODEL,
 	...UPSCALE_VIDEO_MODELS,
 ];
@@ -144,6 +154,7 @@ validateUniqueAIModelIds({
 		T2V: Object.values(T2V_MODELS),
 		I2V: Object.values(I2V_MODELS),
 		AVATAR: Object.values(AVATAR_MODELS),
+		SPEECH: Object.values(SPEECH_MODELS),
 	},
 });
 
@@ -203,6 +214,12 @@ export const UPLOAD_CONSTANTS = {
 	MAX_SEEDDREAM45_IMAGES: 10,
 	MAX_SEEDDREAM45_IMAGE_SIZE_BYTES: 10 * 1024 * 1024, // 10MB per image
 	MAX_SEEDDREAM45_IMAGE_SIZE_LABEL: "10MB",
+
+	// Voice reference uploads (for Chatterbox TTS voice cloning)
+	ALLOWED_VOICE_REF_TYPES: ["audio/mpeg", "audio/wav", "audio/aac"],
+	MAX_VOICE_REF_SIZE_BYTES: 10 * 1024 * 1024, // 10MB
+	MAX_VOICE_REF_SIZE_LABEL: "10MB",
+	VOICE_REF_FORMATS_LABEL: "MP3, WAV, AAC",
 
 	// Veo 3.1 extend-video constraints
 	MAX_EXTEND_VIDEO_DURATION_SECONDS: 8,
@@ -299,6 +316,36 @@ export const LTX23_CONFIG = {
 		MAX_AUDIO_DURATION_SEC: 20,
 		DEFAULT_GUIDANCE_SCALE: 7,
 		ENDPOINT: "fal-ai/ltx-2.3/audio-to-video",
+	},
+} as const;
+
+/**
+ * Chatterbox speech model configuration.
+ * Controls TTS and speech-to-speech generation parameters.
+ */
+export const CHATTERBOX_CONFIG = {
+	TTS: {
+		ENDPOINT: "fal-ai/chatterbox/text-to-speech",
+		TURBO_ENDPOINT: "fal-ai/chatterbox/text-to-speech/turbo",
+		MAX_TEXT_LENGTH: 5000,
+		DEFAULT_EXAGGERATION: 0.25,
+		DEFAULT_TEMPERATURE: 0.7,
+		DEFAULT_CFG: 0.5,
+		PRICING_PER_1K_CHARS: 0.025,
+		EMOTIVE_TAGS: [
+			"laugh",
+			"chuckle",
+			"sigh",
+			"cough",
+			"sniffle",
+			"groan",
+			"yawn",
+			"gasp",
+		],
+	},
+	S2S: {
+		ENDPOINT: "fal-ai/chatterbox/speech-to-speech",
+		MAX_AUDIO_DURATION_SEC: 30,
 	},
 } as const;
 
