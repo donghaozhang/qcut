@@ -1,6 +1,6 @@
 /**
  * Speech Model Configuration
- * Defines text-to-speech and speech-to-speech models (Chatterbox via FAL.ai).
+ * Defines text-to-speech, speech-to-speech, and voice cloning models via FAL.ai.
  */
 
 import type { AIModel } from "../types/ai-types";
@@ -10,9 +10,9 @@ import { validateModelOrderInvariant } from "./model-config-validation";
  * Speech generation model definitions.
  *
  * Includes models for:
- * - Text-to-speech with voice cloning and emotive tags
- * - Fast TTS via Turbo variant
- * - Speech-to-speech voice conversion
+ * - Chatterbox: TTS with voice cloning and emotive tags, S2S voice conversion
+ * - ElevenLabs v3: Premium multilingual TTS with named voices
+ * - Qwen3: Open-source multilingual TTS with style prompts, voice cloning
  *
  * Single source of truth for all speech model configurations.
  */
@@ -67,6 +67,55 @@ export const SPEECH_MODELS = {
 			speech_to_speech: "fal-ai/chatterbox/speech-to-speech",
 		},
 	},
+	elevenlabs_v3: {
+		id: "elevenlabs_v3",
+		name: "ElevenLabs v3",
+		badge: "Premium",
+		description:
+			"Premium multilingual TTS with named voices and stability control",
+		price: "TBD",
+		resolution: "N/A",
+		max_duration: 0,
+		category: "speech",
+		endpoints: {
+			text_to_speech: "fal-ai/elevenlabs/tts/eleven-v3",
+		},
+		default_params: {
+			stability: 0.5,
+		},
+	},
+	qwen3_tts: {
+		id: "qwen3_tts",
+		name: "Qwen3 TTS",
+		description:
+			"Multilingual TTS with 9 voices, style prompts, and 10 languages",
+		price: "TBD",
+		resolution: "N/A",
+		max_duration: 0,
+		category: "speech",
+		endpoints: {
+			text_to_speech: "fal-ai/qwen-3-tts/text-to-speech/1.7b",
+		},
+		default_params: {
+			temperature: 0.9,
+			top_k: 50,
+			top_p: 1,
+			repetition_penalty: 1.05,
+		},
+	},
+	qwen3_clone_voice: {
+		id: "qwen3_clone_voice",
+		name: "Qwen3 Voice Clone",
+		description:
+			"Clone any voice from a reference audio for use with Qwen3 TTS",
+		price: "TBD",
+		resolution: "N/A",
+		max_duration: 0,
+		category: "speech",
+		endpoints: {
+			clone_voice: "fal-ai/qwen-3-tts/clone-voice/1.7b",
+		},
+	},
 } as const satisfies Record<string, AIModel>;
 
 /**
@@ -81,6 +130,9 @@ export const SPEECH_MODEL_ORDER: readonly SpeechModelId[] = [
 	"chatterbox_tts",
 	"chatterbox_tts_turbo",
 	"chatterbox_s2s",
+	"elevenlabs_v3",
+	"qwen3_tts",
+	"qwen3_clone_voice",
 ] as const;
 
 validateModelOrderInvariant({

@@ -69,6 +69,7 @@ import { handlePipelineStatus } from "./handler-pipeline-status.js";
 import {
 	handleGenerateSpeech,
 	handleConvertSpeech,
+	handleCloneVoice,
 } from "../cli-handlers-speech.js";
 
 async function enforceActionPolicy({
@@ -399,6 +400,13 @@ export class CLIPipelineRunner {
 				break;
 			case "convert-speech":
 				result = await handleConvertSpeech(
+					resolvedOptions,
+					onProgress,
+					this.signal
+				);
+				break;
+			case "clone-voice":
+				result = await handleCloneVoice(
 					resolvedOptions,
 					onProgress,
 					this.signal

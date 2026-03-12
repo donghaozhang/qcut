@@ -13,7 +13,7 @@ describe("CLI speech args", () => {
 			expect(opts.text).toBe("Hello world");
 		});
 
-		it("parses all TTS-specific flags", () => {
+		it("parses Chatterbox-specific flags", () => {
 			const opts = parseCliArgs([
 				"generate-speech",
 				"-t",
@@ -44,6 +44,45 @@ describe("CLI speech args", () => {
 			const opts = parseCliArgs(["generate-speech", "-t", "Hello"]);
 			expect(opts.model).toBeUndefined();
 		});
+
+		it("parses ElevenLabs-specific flags", () => {
+			const opts = parseCliArgs([
+				"generate-speech",
+				"-t",
+				"Hello",
+				"--model",
+				"elevenlabs_v3",
+				"--voice",
+				"Rachel",
+				"--stability",
+				"0.7",
+				"--language-code",
+				"en",
+			]);
+			expect(opts.command).toBe("generate-speech");
+			expect(opts.model).toBe("elevenlabs_v3");
+			expect(opts.voice).toBe("Rachel");
+			expect(opts.stability).toBe(0.7);
+			expect(opts.languageCode).toBe("en");
+		});
+
+		it("parses Qwen3-specific flags", () => {
+			const opts = parseCliArgs([
+				"generate-speech",
+				"-t",
+				"Hello",
+				"--model",
+				"qwen3_tts",
+				"--voice",
+				"Vivian",
+				"--temperature",
+				"0.9",
+			]);
+			expect(opts.command).toBe("generate-speech");
+			expect(opts.model).toBe("qwen3_tts");
+			expect(opts.voice).toBe("Vivian");
+			expect(opts.temperature).toBe(0.9);
+		});
 	});
 
 	describe("convert-speech", () => {
@@ -68,6 +107,31 @@ describe("CLI speech args", () => {
 			expect(opts.command).toBe("convert-speech");
 			expect(opts.input).toBe("source.wav");
 			expect(opts.audioUrl).toBe("https://example.com/target.mp3");
+		});
+	});
+
+	describe("clone-voice", () => {
+		it("parses --input flag", () => {
+			const opts = parseCliArgs([
+				"clone-voice",
+				"-i",
+				"reference.mp3",
+			]);
+			expect(opts.command).toBe("clone-voice");
+			expect(opts.input).toBe("reference.mp3");
+		});
+
+		it("parses --text for reference text", () => {
+			const opts = parseCliArgs([
+				"clone-voice",
+				"-i",
+				"reference.mp3",
+				"-t",
+				"What was said in the audio",
+			]);
+			expect(opts.command).toBe("clone-voice");
+			expect(opts.input).toBe("reference.mp3");
+			expect(opts.text).toBe("What was said in the audio");
 		});
 	});
 });

@@ -1,8 +1,8 @@
 /**
  * CLI Speech Generation Handlers
  *
- * Handles generate-speech (TTS) and convert-speech (S2S) commands
- * using Chatterbox via FAL.ai.
+ * Handles generate-speech (TTS), convert-speech (S2S), and clone-voice commands
+ * using Chatterbox, ElevenLabs v3, and Qwen3 via FAL.ai.
  *
  * @module electron/native-pipeline/cli/cli-handlers-speech
  */
@@ -14,10 +14,13 @@ import { getApiKey } from "../infra/key-manager.js";
 
 const FAL_API_BASE = "https://queue.fal.run";
 
-const CHATTERBOX_ENDPOINTS = {
-	tts: "fal-ai/chatterbox/text-to-speech",
-	turbo: "fal-ai/chatterbox/text-to-speech/turbo",
-	s2s: "fal-ai/chatterbox/speech-to-speech",
+const SPEECH_ENDPOINTS = {
+	chatterbox_tts: "fal-ai/chatterbox/text-to-speech",
+	chatterbox_tts_turbo: "fal-ai/chatterbox/text-to-speech/turbo",
+	chatterbox_s2s: "fal-ai/chatterbox/speech-to-speech",
+	elevenlabs_v3: "fal-ai/elevenlabs/tts/eleven-v3",
+	qwen3_tts: "fal-ai/qwen-3-tts/text-to-speech/1.7b",
+	qwen3_clone_voice: "fal-ai/qwen-3-tts/clone-voice/1.7b",
 } as const;
 
 /**
@@ -42,15 +45,18 @@ export async function handleGenerateSpeech(
 	}
 
 	const model = options.model || "chatterbox_tts";
-	const endpointMap: Record<string, string> = {
-		chatterbox_tts: CHATTERBOX_ENDPOINTS.tts,
-		chatterbox_tts_turbo: CHATTERBOX_ENDPOINTS.turbo,
-	};
-	const endpoint = endpointMap[model];
-	if (!endpoint) {
+	const ttsModels = [
+		"chatterbox_tts",
+		"chatterbox_tts_turbo",
+		"elevenlabs_v3",
+		"qwen3_tts",
+	];
+	const endpoint =
+		SPEECH_ENDPOINTS[model as keyof typeof SPEECH_ENDPOINTS];
+	if (!endpoint || !ttsModels.includes(model)) {
 		return {
 			success: false,
-			error: `Unknown TTS model '${model}'. Use: chatterbox_tts, chatterbox_tts_turbo`,
+			error: `Unknown TTS model '${model}'. Use: ${ttsModels.join(", ")}`,
 		};
 	}
 
@@ -63,13 +69,29 @@ export async function handleGenerateSpeech(
 	});
 
 	const payload: Record<string, unknown> = { text: text.trim() };
-	if (options.audioUrl) payload.audio_url = options.audioUrl;
-	if (options.exaggeration !== undefined)
-		payload.exaggeration = options.exaggeration;
-	if (options.temperature !== undefined)
-		payload.temperature = options.temperature;
-	if (options.cfg !== undefined) payload.cfg = options.cfg;
-	if (options.seed !== undefined) payload.seed = options.seed;
+
+	if (model.startsWith("chatterbox")) {
+		if (options.audioUrl) payload.audio_url = options.audioUrl;
+		if (options.exaggeration !== undefined)
+			payload.exaggeration = options.exaggeration;
+		if (options.temperature !== undefined)
+			payload.temperature = options.temperature;
+		if (options.cfg !== undefined) payload.cfg = options.cfg;
+		if (options.seed !== undefined) payload.seed = options.seed;
+	} else if (model === "elevenlabs_v3") {
+		if (options.voice) payload.voice = options.voice;
+		if (options.stability !== undefined) payload.stability = options.stability;
+		if (options.languageCode) payload.language_code = options.languageCode;
+	} else if (model === "qwen3_tts") {
+		if (options.voice) payload.voice = options.voice;
+		if (options.language) payload.language = options.language;
+		if (options.prompt) payload.prompt = options.prompt;
+		if (options.audioUrl) {
+			payload.speaker_voice_embedding_file_url = options.audioUrl;
+		}
+		if (options.temperature !== undefined)
+			payload.temperature = options.temperature;
+	}
 
 	try {
 		const response = await fetch(`${FAL_API_BASE}/${endpoint}`, {
@@ -204,7 +226,7 @@ export async function handleConvertSpeech(
 
 	try {
 		const response = await fetch(
-			`${FAL_API_BASE}/${CHATTERBOX_ENDPOINTS.s2s}`,
+			`${FAL_API_BASE}/${SPEECH_ENDPOINTS.chatterbox_s2s}`,
 			{
 				method: "POST",
 				headers: {
@@ -291,6 +313,116 @@ export async function handleConvertSpeech(
 		return {
 			success: false,
 			error: `Speech conversion failed: ${err instanceof Error ? err.message : String(err)}`,
+			duration: (Date.now() - startTime) / 1000,
+		};
+	}
+}
+
+/**
+ * Clone a voice using Qwen3 voice cloning.
+ * Returns a speaker embedding URL for use with generate-speech --model qwen3_tts.
+ */
+export async function handleCloneVoice(
+	options: CLIRunOptions,
+	onProgress: ProgressFn,
+	signal: AbortSignal
+): Promise<CLIResult> {
+	const audioInput = options.input || options.audioUrl;
+	if (!audioInput?.trim()) {
+		return {
+			success: false,
+			error: "Missing --input/-i (reference audio path or URL)",
+		};
+	}
+
+	const falKey = getApiKey("FAL_KEY");
+	if (!falKey) {
+		return {
+			success: false,
+			error: "FAL_KEY not configured. Run: qcut-pipeline set-key --name FAL_KEY --value <key>",
+		};
+	}
+
+	const startTime = Date.now();
+	onProgress({
+		stage: "cloning",
+		percent: 0,
+		message: "Cloning voice...",
+		model: "qwen3_clone_voice",
+	});
+
+	const audioUrl = /^https?:\/\//i.test(audioInput)
+		? audioInput
+		: `file://${resolve(audioInput)}`;
+
+	const payload: Record<string, unknown> = {
+		audio_url: audioUrl,
+	};
+	if (options.text) payload.reference_text = options.text;
+
+	try {
+		const response = await fetch(
+			`${FAL_API_BASE}/${SPEECH_ENDPOINTS.qwen3_clone_voice}`,
+			{
+				method: "POST",
+				headers: {
+					Authorization: `Key ${falKey}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(payload),
+				signal,
+			}
+		);
+
+		if (!response.ok) {
+			const errorText = await response.text().catch(() => "");
+			return {
+				success: false,
+				error: `FAL API error (${response.status}): ${errorText}`,
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+
+		const data = await response.json();
+		const embedding = data?.speaker_embedding ?? data;
+		const embeddingUrl: string = embedding?.url;
+
+		if (!embeddingUrl) {
+			return {
+				success: false,
+				error: "No embedding URL in FAL response",
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+
+		onProgress({
+			stage: "complete",
+			percent: 100,
+			message: "Done",
+			model: "qwen3_clone_voice",
+		});
+
+		return {
+			success: true,
+			data: {
+				model: "qwen3_clone_voice",
+				embeddingUrl,
+				fileName: embedding?.file_name || "clone.safetensors",
+				fileSize: embedding?.file_size,
+			},
+			duration: (Date.now() - startTime) / 1000,
+		};
+	} catch (err) {
+		if (err instanceof Error && err.name === "AbortError") {
+			return {
+				success: false,
+				error: "Voice cloning cancelled",
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+		return {
+			success: false,
+			error: `Voice cloning failed: ${err instanceof Error ? err.message : String(err)}`,
 			duration: (Date.now() - startTime) / 1000,
 		};
 	}

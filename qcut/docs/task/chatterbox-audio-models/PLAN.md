@@ -4,7 +4,7 @@
 **Estimated Total**: ~70 minutes (5 subtasks) — Chatterbox done, +45 min for new models (Subtask 6)
 **Priority**: High — First dedicated speech generation models in QCut; unlocks voiceover, dubbing, and voice cloning workflows
 **Provider**: FAL.ai (uses existing `VITE_FAL_API_KEY` / `FAL_KEY`)
-**Status**: Subtasks 1-5 implemented. Subtask 6 (ElevenLabs + Qwen3) pending.
+**Status**: All subtasks (1-6) implemented.
 
 ---
 
@@ -592,16 +592,18 @@ Subtask 6 builds on the proven Chatterbox infrastructure — same config pattern
 | Component | File |
 |-----------|------|
 | Sounds panel UI | `apps/web/src/components/editor/media-panel/views/sounds.tsx` |
+| AI Voice tab | `apps/web/src/components/editor/media-panel/views/sounds-ai-voice.tsx` |
 | Sounds store | `apps/web/src/stores/media/sounds-store.ts` |
 | Sound types | `apps/web/src/types/sounds.ts` |
-| Sound search hook | `apps/web/src/hooks/media/use-sound-search.ts` |
-| Electron sound handler | `electron/sound-handler.ts` |
 | Timeline audio placement | `apps/web/src/stores/timeline/timeline-add-ops.ts` |
-| Audio gen reference (Kling) | `apps/web/src/components/editor/media-panel/views/video-edit-audio-gen.tsx` |
+| Speech models config | `apps/web/src/components/editor/media-panel/views/ai/constants/speech-models-config.ts` |
 | AI model constants | `apps/web/src/components/editor/media-panel/views/ai/constants/ai-constants.ts` |
-| AI model validation | `apps/web/src/components/editor/media-panel/views/ai/constants/model-config-validation.ts` |
-| FAL integration | `apps/web/src/lib/ai-video/index.ts` |
-| CLI media handlers | `electron/native-pipeline/cli/cli-handlers-media.ts` |
+| Model types | `apps/web/src/components/editor/media-panel/views/ai/types/ai-types/model-config.ts` |
+| Speech generators | `apps/web/src/lib/ai-video/generators/speech.ts` |
+| FAL integration barrel | `apps/web/src/lib/ai-video/index.ts` |
+| CLI speech handlers | `electron/native-pipeline/cli/cli-handlers-speech.ts` |
 | CLI command registry | `electron/native-pipeline/cli/command-registry.ts` |
 | CLI runner | `electron/native-pipeline/cli/cli-runner/runner.ts` |
 | CLI types | `electron/native-pipeline/cli/cli-runner/types.ts` |
+| Speech model tests | `apps/web/src/components/editor/media-panel/views/ai/constants/__tests__/speech-models-config.test.ts` |
+| CLI speech tests | `electron/__tests__/cli-speech.test.ts` |

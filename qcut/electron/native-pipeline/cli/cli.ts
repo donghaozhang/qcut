@@ -159,6 +159,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			temperature: { type: "string" },
 			cfg: { type: "string" },
 			seed: { type: "string" },
+			voice: { type: "string" },
+			stability: { type: "string" },
+			"language-code": { type: "string" },
 			// transfer-motion options
 			orientation: { type: "string" },
 			"no-sound": { type: "boolean", default: false },
@@ -410,6 +413,11 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		seed: values.seed
 			? parseInt(values.seed as string, 10)
 			: undefined,
+		voice: values.voice as string | undefined,
+		stability: values.stability
+			? parseFloat(values.stability as string)
+			: undefined,
+		languageCode: values["language-code"] as string | undefined,
 		// transcribe options
 		language: values.language as string | undefined,
 		noDiarize: (values["no-diarize"] as boolean) ?? false,

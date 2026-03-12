@@ -17,7 +17,9 @@ describe("Speech Model Configurations", () => {
 		for (const model of Object.values(SPEECH_MODELS)) {
 			const endpoints = model.endpoints;
 			const hasEndpoint =
-				"text_to_speech" in endpoints || "speech_to_speech" in endpoints;
+				"text_to_speech" in endpoints ||
+				"speech_to_speech" in endpoints ||
+				"clone_voice" in endpoints;
 			expect(hasEndpoint).toBe(true);
 		}
 	});
@@ -41,7 +43,7 @@ describe("Speech Model Configurations", () => {
 		}
 	});
 
-	it("TTS models have correct endpoints", () => {
+	it("Chatterbox TTS models have correct endpoints", () => {
 		expect(SPEECH_MODELS.chatterbox_tts.endpoints.text_to_speech).toBe(
 			"fal-ai/chatterbox/text-to-speech"
 		);
@@ -50,17 +52,52 @@ describe("Speech Model Configurations", () => {
 		);
 	});
 
-	it("S2S model has correct endpoint", () => {
+	it("Chatterbox S2S model has correct endpoint", () => {
 		expect(SPEECH_MODELS.chatterbox_s2s.endpoints.speech_to_speech).toBe(
 			"fal-ai/chatterbox/speech-to-speech"
 		);
 	});
 
-	it("TTS models have default params", () => {
+	it("Chatterbox TTS models have default params", () => {
 		const tts = SPEECH_MODELS.chatterbox_tts;
 		expect(tts.default_params).toBeDefined();
 		expect(tts.default_params?.exaggeration).toBe(0.25);
 		expect(tts.default_params?.temperature).toBe(0.7);
 		expect(tts.default_params?.cfg).toBe(0.5);
+	});
+
+	it("ElevenLabs v3 has correct endpoint", () => {
+		expect(SPEECH_MODELS.elevenlabs_v3.endpoints.text_to_speech).toBe(
+			"fal-ai/elevenlabs/tts/eleven-v3"
+		);
+	});
+
+	it("ElevenLabs v3 has stability default param", () => {
+		expect(SPEECH_MODELS.elevenlabs_v3.default_params?.stability).toBe(0.5);
+	});
+
+	it("Qwen3 TTS has correct endpoint", () => {
+		expect(SPEECH_MODELS.qwen3_tts.endpoints.text_to_speech).toBe(
+			"fal-ai/qwen-3-tts/text-to-speech/1.7b"
+		);
+	});
+
+	it("Qwen3 TTS has default params", () => {
+		const qw = SPEECH_MODELS.qwen3_tts;
+		expect(qw.default_params?.temperature).toBe(0.9);
+		expect(qw.default_params?.top_k).toBe(50);
+		expect(qw.default_params?.top_p).toBe(1);
+		expect(qw.default_params?.repetition_penalty).toBe(1.05);
+	});
+
+	it("Qwen3 Clone Voice has correct endpoint", () => {
+		expect(SPEECH_MODELS.qwen3_clone_voice.endpoints.clone_voice).toBe(
+			"fal-ai/qwen-3-tts/clone-voice/1.7b"
+		);
+	});
+
+	it("has exactly 6 models", () => {
+		expect(Object.keys(SPEECH_MODELS)).toHaveLength(6);
+		expect(SPEECH_MODEL_ORDER).toHaveLength(6);
 	});
 });

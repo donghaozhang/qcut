@@ -350,6 +350,69 @@ export const CHATTERBOX_CONFIG = {
 } as const;
 
 /**
+ * ElevenLabs v3 speech model configuration.
+ */
+export const ELEVENLABS_CONFIG = {
+	TTS: {
+		ENDPOINT: "fal-ai/elevenlabs/tts/eleven-v3",
+		DEFAULT_VOICE: "Rachel",
+		DEFAULT_STABILITY: 0.5,
+		VOICES: [
+			"Rachel",
+			"Clyde",
+			"Domi",
+			"Dave",
+			"Fin",
+			"Bella",
+			"Antoni",
+			"Thomas",
+			"Charlie",
+			"Emily",
+		],
+		TEXT_NORMALIZATION_OPTIONS: ["auto", "on", "off"],
+	},
+} as const;
+
+/**
+ * Qwen3 TTS speech model configuration.
+ */
+export const QWEN3_TTS_CONFIG = {
+	TTS: {
+		ENDPOINT: "fal-ai/qwen-3-tts/text-to-speech/1.7b",
+		CLONE_ENDPOINT: "fal-ai/qwen-3-tts/clone-voice/1.7b",
+		DEFAULT_TEMPERATURE: 0.9,
+		DEFAULT_TOP_K: 50,
+		DEFAULT_TOP_P: 1,
+		DEFAULT_REPETITION_PENALTY: 1.05,
+		MAX_NEW_TOKENS: 8192,
+		VOICES: [
+			"Vivian",
+			"Serena",
+			"Uncle_Fu",
+			"Dylan",
+			"Eric",
+			"Ryan",
+			"Aiden",
+			"Ono_Anna",
+			"Sohee",
+		],
+		LANGUAGES: [
+			"Auto",
+			"English",
+			"Chinese",
+			"Spanish",
+			"French",
+			"German",
+			"Italian",
+			"Japanese",
+			"Korean",
+			"Portuguese",
+			"Russian",
+		],
+	},
+} as const;
+
+/**
  * User-facing status messages for video generation workflow.
  * Displayed in the UI during different stages of generation.
  */

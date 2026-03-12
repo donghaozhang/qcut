@@ -12,6 +12,7 @@ export interface AIModelEndpoints {
 	upscale_video?: string;
 	text_to_speech?: string;
 	speech_to_speech?: string;
+	clone_voice?: string;
 }
 
 /**

@@ -31,8 +31,9 @@ Commands:
   transfer-motion     Transfer motion from video to image
   generate-grid       Generate an image grid
   upscale-image       Upscale an image
-  generate-speech     Generate speech from text (Chatterbox TTS)
+  generate-speech     Generate speech from text (Chatterbox/ElevenLabs/Qwen3)
   convert-speech      Convert speech to a different voice (Chatterbox S2S)
+  clone-voice         Clone a voice from reference audio (Qwen3)
   setup               Create API key template file
   set-key             Set an API key
   get-key             Get an API key (masked)

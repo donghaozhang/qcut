@@ -224,6 +224,9 @@ export interface CLIRunOptions {
 	temperature?: number;
 	cfg?: number;
 	seed?: number;
+	voice?: string;
+	stability?: number;
+	languageCode?: string;
 }
 
 export interface CLIResult {

@@ -85,6 +85,7 @@ export const CATEGORIES: CategoryDef[] = [
 			"translate-video",
 			"generate-speech",
 			"convert-speech",
+			"clone-voice",
 		],
 	},
 	{
@@ -534,18 +535,27 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--model", "string", "TTS model", {
 				short: "-m",
 				default: "chatterbox_tts",
-				enum: ["chatterbox_tts", "chatterbox_tts_turbo"],
+				enum: [
+					"chatterbox_tts",
+					"chatterbox_tts_turbo",
+					"elevenlabs_v3",
+					"qwen3_tts",
+				],
 			}),
 			f("--audio-url", "string", "Voice reference audio URL (for cloning)"),
-			f("--exaggeration", "number", "Expressiveness 0-1 (default: 0.25)"),
-			f("--temperature", "number", "Creativity 0.05-2.0 (default: 0.7)"),
-			f("--cfg", "number", "Classifier-free guidance 0.1-1.0 (default: 0.5)"),
+			f("--voice", "string", "Voice preset name (ElevenLabs/Qwen3)"),
+			f("--stability", "number", "Voice stability 0-1 (ElevenLabs, default: 0.5)"),
+			f("--language-code", "string", "Language code (ElevenLabs, e.g. 'en')"),
+			f("--exaggeration", "number", "Expressiveness 0-1 (Chatterbox, default: 0.25)"),
+			f("--temperature", "number", "Creativity control (default varies by model)"),
+			f("--cfg", "number", "Classifier-free guidance 0.1-1.0 (Chatterbox, default: 0.5)"),
 			f("--seed", "number", "Seed for reproducibility"),
 		],
 		examples: [
 			"qcut-pipeline generate-speech -t 'Hello world!'",
 			"qcut-pipeline generate-speech -t 'Check this out! <laugh>' --audio-url ./voice.mp3 -m chatterbox_tts_turbo",
-			"qcut-pipeline generate-speech -t 'Dramatic reading' --exaggeration 0.8 --temperature 1.2 --json",
+			"qcut-pipeline generate-speech -t 'Hello' -m elevenlabs_v3 --voice Rachel --stability 0.7",
+			"qcut-pipeline generate-speech -t 'Hello' -m qwen3_tts --voice Vivian --language English",
 		],
 	},
 	"convert-speech": {
@@ -562,6 +572,25 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		examples: [
 			"qcut-pipeline convert-speech -i source.wav --json",
 			"qcut-pipeline convert-speech -i source.wav --audio-url target-voice.mp3",
+		],
+	},
+
+	"clone-voice": {
+		name: "clone-voice",
+		description: "Clone a voice from reference audio (Qwen3)",
+		category: "generation",
+		flags: [
+			f("--input", "string", "Reference audio path or URL", {
+				short: "-i",
+				required: true,
+			}),
+			f("--text", "string", "Reference text from the audio (optional)", {
+				short: "-t",
+			}),
+		],
+		examples: [
+			"qcut-pipeline clone-voice -i reference.mp3 --json",
+			"qcut-pipeline clone-voice -i reference.mp3 -t 'What was said in the audio'",
 		],
 	},
 

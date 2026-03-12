@@ -218,9 +218,16 @@ export {
 export {
 	generateSpeech,
 	convertSpeech,
+	generateElevenLabsSpeech,
+	generateQwen3Speech,
+	cloneQwen3Voice,
 	type SpeechGenerationRequest,
 	type SpeechConversionRequest,
+	type ElevenLabsSpeechRequest,
+	type Qwen3SpeechRequest,
+	type Qwen3CloneVoiceRequest,
 	type SpeechGenerationResult,
+	type CloneVoiceResult,
 } from "./generators/speech";
 
 // ============================================
