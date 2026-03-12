@@ -523,6 +523,7 @@ describe("Claude HTTP Server", () => {
 	});
 
 	it("GET /api/claude/console returns filtered console messages", async () => {
+		process.env.QCUT_API_TOKEN = "test-secret-token";
 		recordConsoleEntry({
 			level: "warn",
 			message: "Heads up",
@@ -534,32 +535,46 @@ describe("Claude HTTP Server", () => {
 			timestamp: Date.now(),
 		});
 
-		const res = await fetch("/api/claude/console?level=error&limit=5");
+		try {
+			const res = await fetch("/api/claude/console?level=error&limit=5", {
+				headers: { Authorization: "Bearer test-secret-token" },
+			});
 
-		expect(res.status).toBe(200);
-		expect(res.body.success).toBe(true);
-		expect(res.body.data.count).toBe(1);
-		expect(res.body.data.messages[0].message).toBe("Boom");
+			expect(res.status).toBe(200);
+			expect(res.body.success).toBe(true);
+			expect(res.body.data.count).toBe(1);
+			expect(res.body.data.messages[0].message).toBe("Boom");
+		} finally {
+			delete process.env.QCUT_API_TOKEN;
+		}
 	});
 
 	it("DELETE /api/claude/console clears the console buffer", async () => {
+		process.env.QCUT_API_TOKEN = "test-secret-token";
 		recordConsoleEntry({
 			level: "error",
 			message: "clear me",
 			timestamp: Date.now(),
 		});
 
-		const res = await fetch("/api/claude/console", {
-			method: "DELETE",
-			body: JSON.stringify({}),
-		});
+		try {
+			const res = await fetch("/api/claude/console", {
+				method: "DELETE",
+				headers: { Authorization: "Bearer test-secret-token" },
+				body: JSON.stringify({}),
+			});
 
-		expect(res.status).toBe(200);
-		expect(res.body.success).toBe(true);
-		expect(res.body.data.clearedCount).toBe(1);
+			expect(res.status).toBe(200);
+			expect(res.body.success).toBe(true);
+			expect(res.body.data.clearedCount).toBe(1);
 
-		const after = await fetch("/api/claude/console");
-		expect(after.body.data.count).toBe(0);
+			const after = await fetch("/api/claude/console", {
+				headers: { Authorization: "Bearer test-secret-token" },
+			});
+			expect(after.body.data.count).toBe(0);
+		} finally {
+			delete process.env.QCUT_API_TOKEN;
+		}
 	});
 
 	it("GET /api/claude/snapshot returns the renderer accessibility snapshot", async () => {
@@ -868,6 +883,7 @@ describe("Claude HTTP Server - Auth", () => {
 
 	it("accepts console routes with a valid auth token", async () => {
 		process.env.QCUT_API_TOKEN = "test-secret-token";
+		resetConsoleCaptureForTests();
 		recordConsoleEntry({
 			level: "error",
 			message: "Boom",

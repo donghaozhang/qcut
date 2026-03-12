@@ -331,7 +331,7 @@ interface ConsoleEntry {
   message: string;
   source: string;
   line: number;
-  timestamp: string;
+  timestamp: number;
 }
 
 const consoleBuffer: ConsoleEntry[] = [];
@@ -340,11 +340,15 @@ const MAX_BUFFER = 500;
 export function attachConsoleCapture(window: BrowserWindow) {
   window.webContents.on("console-message", (_event, level, message, line, source) => {
     consoleBuffer.push({
-      level: ["log", "warn", "error", "info", "debug"][level] as ConsoleEntry["level"],
+      level:
+        level === 3 ? "error" :
+        level === 2 ? "warn" :
+        level === 1 ? "info" :
+        "log",
       message,
       source,
       line,
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
     });
     if (consoleBuffer.length > MAX_BUFFER) consoleBuffer.shift();
   });
@@ -365,12 +369,16 @@ export function attachConsoleCapture(window: BrowserWindow) {
 // editor:errors               — shortcut for --level error
 ```
 
+The shipped renderer error capture is injected from the main process via `webContents.executeJavaScript()` on `did-finish-load`; it is not a preload-based hook. Console entries are redacted before storage, capture can be disabled with `QCUT_ENABLE_CONSOLE_CAPTURE=0`, and the HTTP console routes now require a configured `QCUT_API_TOKEN` plus a matching bearer token instead of being default-open.
+
 **Implemented files**:
 - `electron/claude/handlers/claude-console-handler.ts` — in-memory console buffer, filters, renderer error capture helpers
+- `electron/claude/http/claude-http-auth.ts` — shared auth policy that hardens console/error routes
 - `electron/claude/http/claude-http-console-routes.ts` — `/api/claude/console`, `/api/claude/errors`, `/api/claude/console/stream`
 - `electron/claude/http/claude-http-server.ts` — registers console routes in the direct main-process test server
 - `electron/utility/utility-http-server.ts` — exposes console routes in the real utility-process HTTP server
 - `electron/utility/utility-bridge.ts` — bridges `console:list` / `console:clear` back to the main process
+- `electron/main.ts` — attaches console capture when the main editor window is created
 - `electron/native-pipeline/editor/editor-api-client.ts` — SSE client for CLI streaming
 - `electron/native-pipeline/cli/cli-handlers-console.ts` — CLI handlers for `editor:console` and `editor:errors`
 - `electron/native-pipeline/cli/cli-handlers-editor.ts` — routes `editor:console` / `editor:errors`
@@ -382,18 +390,20 @@ export function attachConsoleCapture(window: BrowserWindow) {
 2. Added `GET /api/claude/console`, `GET /api/claude/errors`, and `DELETE /api/claude/console`
 3. Added `GET /api/claude/console/stream` SSE support at the HTTP layer
 4. Implemented CLI commands `editor:console` and `editor:errors` for list/filter/clear/stream
-5. Added renderer-failure capture via `render-process-gone` plus injected `window.error` / `unhandledrejection`
-6. Added focused tests for buffer/filtering, HTTP routes, and CLI routing
+5. Added renderer-failure capture via `render-process-gone` plus `window.error` / `unhandledrejection` listeners injected with `webContents.executeJavaScript()`
+6. Redacted sensitive console fields before buffering them and added an opt-out capture flag via `QCUT_ENABLE_CONSOLE_CAPTURE=0`
+7. Required `QCUT_API_TOKEN` plus bearer auth for console/error HTTP routes so local web pages cannot read or clear logs by default
+8. Added focused tests for buffer/filtering, HTTP routes, and CLI routing
 
 **Remaining work**:
-1. Decide whether debug/info console levels need normalization beyond Electron's `console-message` event
-2. Add higher-level integration coverage against the utility-process path if needed
+1. Add higher-level integration coverage against the utility-process path if agents need end-to-end live-server validation
+2. Broaden redaction heuristics only if real logs show additional sensitive patterns worth masking
 
 **Example usage by AI agent**:
 ```bash
 # After making a timeline edit, check for errors
-bun run pipeline editor:timeline:add-element --project-id my-proj --data '...' --json
-bun run pipeline editor:console --level error --since 5s --json
+QCUT_API_TOKEN=local-secret bun run pipeline editor:timeline:add-element --project-id my-proj --data '...' --token local-secret --json
+bun run pipeline editor:console --token local-secret --level error --since 5s --json
 # → { "status": "ok", "data": { "messages": [], "count": 0 } }  # No errors = success
 
 # Debug a failing export
@@ -443,7 +453,7 @@ bun run pipeline editor:console --stream
 
 ## Architecture Comparison
 
-```
+```text
 agent-browser                          QCut Native CLI (proposed)
 ─────────────                          ──────────────────────────
 Rust CLI ──→ Unix Socket ──→ Daemon    bun CLI ──→ HTTP ──→ Electron
@@ -460,7 +470,7 @@ Key difference: QCut doesn't need an external browser. The Electron renderer IS 
 
 ## File Structure (Current + Planned)
 
-```
+```text
 electron/native-pipeline/
 ├── cli/
 │   ├── cli-handlers-snapshot.ts    # NEW: Accessibility snapshot with refs
@@ -469,9 +479,10 @@ electron/native-pipeline/
 │   ├── cli-handlers-session.ts     # NEW: Explicit local session save/load commands
 │   ├── action-policy.ts            # NEW: Allow/deny/confirm policy
 │   ├── session-state.ts            # NEW: Session persistence
+│   ├── command-registry-editor-extra.ts # NEW: Split-out editor command definitions
 │   ├── cli.ts                      # MODIFY: Parse --policy/--resume and document session behavior
 │   ├── command-registry.ts         # MODIFY: Expose global policy/session metadata
-│   ├── command-registry-editor.ts  # MODIFY: Add new commands
+│   ├── command-registry-editor.ts  # MODIFY: Core editor command definitions
 │   └── cli-runner/
 │       ├── runner.ts               # MODIFY: Policy checks + one-shot session resume/autosave
 │       └── session.ts              # MODIFY: Session parsing, sticky defaults, and autosave
@@ -490,6 +501,7 @@ electron/claude/__tests__/
 │   ├── claude-console-handler.test.ts # NEW: Buffer/filtering coverage
 │   └── claude-http-server.test.ts     # MODIFY: Console + snapshot route coverage
 electron/claude/http/
+│   ├── claude-http-auth.ts          # NEW: Shared auth rules for sensitive local routes
 │   ├── claude-http-snapshot-routes.ts # NEW: Snapshot read/write route registration
 │   ├── claude-http-console-routes.ts # NEW: Console routes + SSE stream
 │   └── claude-http-server.ts         # MODIFY: Register console + snapshot endpoints

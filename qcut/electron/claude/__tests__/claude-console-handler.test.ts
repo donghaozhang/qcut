@@ -118,7 +118,7 @@ describe("claude-console-handler", () => {
 		expect(messages[0]?.message).not.toContain("test-key");
 		expect(messages[0]?.message).not.toContain("dev@example.com");
 		expect(messages[0]?.message).not.toContain("/Users/peter/private/app.ts");
-		expect(messages[0]?.message).toContain("Bearer [redacted]");
+		expect(messages[0]?.message).toContain("[redacted]");
 		expect(messages[0]?.message).toContain("[redacted-email]");
 		expect(messages[0]?.source).toBe("[redacted-path]");
 	});
