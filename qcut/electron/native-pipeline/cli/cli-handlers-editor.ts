@@ -30,6 +30,7 @@ import {
 	handleErrorsCommand,
 } from "./cli-handlers-console.js";
 import { handleDiffCommand } from "./cli-handlers-diff.js";
+import { handleSessionCommand } from "./cli-handlers-session.js";
 import { handleSnapshotCommand } from "./cli-handlers-snapshot.js";
 
 type ProgressFn = (progress: {
@@ -180,6 +181,7 @@ export async function handleEditorCommand(
 	const shouldSkipHealth =
 		options.command === "editor:health" ||
 		options.command.startsWith("editor:diff:") ||
+		options.command.startsWith("editor:session:") ||
 		(options.skipHealth && (!options.session || isSessionHealthChecked()));
 
 	if (!shouldSkipHealth) {
@@ -254,6 +256,9 @@ export async function handleEditorCommand(
 			case "diff":
 				return await handleDiffCommand({ options });
 
+			case "session":
+				return await handleSessionCommand({ options });
+
 			case "console":
 				return await handleConsoleCommand({ client, options, signal });
 
@@ -272,7 +277,7 @@ export async function handleEditorCommand(
 			default:
 				return {
 					success: false,
-					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, snapshot, diff, console, errors, moyin, novel, screenshot, undo, redo, state`,
+					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, snapshot, diff, session, console, errors, moyin, novel, screenshot, undo, redo, state`,
 				};
 		}
 	} catch (err) {

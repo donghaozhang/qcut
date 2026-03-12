@@ -49,6 +49,7 @@ export interface CLIRunOptions {
 	cacheDir?: string;
 	stateDir?: string;
 	resume?: string;
+	sessionName?: string;
 	negativePrompt?: string;
 	voiceId?: string;
 	directory?: string;

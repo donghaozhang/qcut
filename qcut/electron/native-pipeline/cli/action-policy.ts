@@ -45,6 +45,7 @@ const DEFAULT_ALLOW_PATTERNS = [
 	"editor:snapshot",
 	"editor:state:snapshot",
 	"editor:diff:*",
+	"editor:session:*",
 	"editor:screenshot:capture",
 	"editor:search:*",
 ];

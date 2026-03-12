@@ -895,6 +895,30 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 			),
 		]
 	),
+	"editor:session:save": ed(
+		"editor:session:save",
+		"Save sticky CLI session state to disk",
+		[
+			f(
+				"--session-name",
+				"string",
+				"Saved session name (defaults to active --resume session)"
+			),
+			f("--project-id", "string", "Project ID override for the saved session"),
+			f("--panel", "string", "Panel override for the saved session"),
+			f("--tab", "string", "Tab override for the saved session"),
+		],
+		[
+			"qcut-pipeline editor:session:save --session-name my-edit-session --project-id <id> --json",
+			"qcut-pipeline editor:session:save --resume my-edit-session --json",
+		]
+	),
+	"editor:session:load": ed(
+		"editor:session:load",
+		"Load a saved CLI session state",
+		[f("--session-name", "string", "Saved session name", { required: true })],
+		["qcut-pipeline editor:session:load --session-name my-edit-session --json"]
+	),
 
 	// ── Screenshot ──
 	"editor:screenshot:capture": ed(

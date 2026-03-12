@@ -33,6 +33,7 @@ import { emitJsonResult } from "../json-output.js";
 import {
 	applySessionStateToOptions,
 	createEmptySessionState,
+	extractSessionCommandPayload,
 	loadSessionState,
 	saveSessionState,
 	updateSessionState,
@@ -190,6 +191,7 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				policy: { type: "string" },
 				resume: { type: "string" },
 				"state-dir": { type: "string" },
+				"session-name": { type: "string" },
 				before: { type: "string" },
 				after: { type: "string" },
 				duration: { type: "string", short: "d" },
@@ -244,6 +246,8 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 		if (values.policy) result.policy = values.policy as string;
 		if (values.resume) result.resume = values.resume as string;
 		if (values["state-dir"]) result.stateDir = values["state-dir"] as string;
+		if (values["session-name"])
+			result.sessionName = values["session-name"] as string;
 		if (values.before) result.before = values.before as string;
 		if (values.after) result.after = values.after as string;
 		if (values.duration) result.duration = values.duration as string;
@@ -386,7 +390,21 @@ export async function runSession(
 
 		try {
 			const result = await runner.run(options, onProgress);
-			if (options.resume && activeSessionState) {
+			if (options.command === "editor:session:load" && result.success) {
+				const payload = extractSessionCommandPayload({ value: result.data });
+				if (payload) {
+					activeSessionState = payload.session;
+					sessionBaseOptions = {
+						...sessionBaseOptions,
+						resume: payload.session.sessionName,
+						stateDir: options.stateDir ?? sessionBaseOptions.stateDir,
+						projectId: payload.session.projectId,
+						panel: payload.session.lastPanel,
+						tab: payload.session.lastTab,
+					};
+				}
+			}
+			if (sessionBaseOptions.resume && activeSessionState) {
 				activeSessionState = updateSessionState({
 					sessionState: activeSessionState,
 					options,
@@ -394,7 +412,7 @@ export async function runSession(
 				});
 				saveSessionState({
 					sessionState: activeSessionState,
-					stateDir: options.stateDir,
+					stateDir: sessionBaseOptions.stateDir ?? options.stateDir,
 				});
 				sessionBaseOptions = {
 					...sessionBaseOptions,

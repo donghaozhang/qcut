@@ -16,6 +16,12 @@ export interface SessionState {
 	savedAt: string;
 }
 
+export interface SessionCommandPayload {
+	session: SessionState;
+	path: string;
+	existed: boolean;
+}
+
 function sanitizeSessionName({
 	sessionName,
 }: {
@@ -60,6 +66,27 @@ export function createEmptySessionState({
 		sessionName: sanitizeSessionName({ sessionName }),
 		commandHistory: [],
 		savedAt: new Date(0).toISOString(),
+	};
+}
+
+export function buildSessionStateSnapshot({
+	sessionName,
+	options,
+	existingState,
+}: {
+	sessionName: string;
+	options: CLIRunOptions;
+	existingState?: SessionState;
+}): SessionState {
+	const baseState =
+		existingState ?? createEmptySessionState({ sessionName: sessionName });
+	return {
+		...baseState,
+		sessionName: sanitizeSessionName({ sessionName }),
+		projectId: options.projectId ?? baseState.projectId,
+		lastPanel: options.panel ?? baseState.lastPanel,
+		lastTab: options.tab ?? baseState.lastTab,
+		savedAt: new Date().toISOString(),
 	};
 }
 
@@ -167,6 +194,42 @@ export function saveSessionState({
 	};
 
 	fs.writeFileSync(filePath, JSON.stringify(nextState, null, 2), "utf-8");
+}
+
+export function extractSessionCommandPayload({
+	value,
+}: {
+	value: unknown;
+}): SessionCommandPayload | null {
+	if (typeof value !== "object" || value === null) {
+		return null;
+	}
+
+	const candidate = value as Partial<SessionCommandPayload>;
+	if (typeof candidate.path !== "string" || typeof candidate.existed !== "boolean") {
+		return null;
+	}
+	if (typeof candidate.session !== "object" || candidate.session === null) {
+		return null;
+	}
+
+	const session = candidate.session as Partial<SessionState>;
+	if (
+		typeof session.sessionName !== "string" ||
+		!Array.isArray(session.commandHistory) ||
+		typeof session.savedAt !== "string"
+	) {
+		return null;
+	}
+
+	return {
+		path: candidate.path,
+		existed: candidate.existed,
+		session: parseSessionState({
+			value: session,
+			expectedSessionName: session.sessionName,
+		}),
+	};
 }
 
 export function applySessionStateToOptions({

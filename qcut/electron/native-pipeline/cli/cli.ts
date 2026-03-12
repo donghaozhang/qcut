@@ -116,6 +116,7 @@ Editor Commands (requires running QCut — use --project-id for most):
   editor:snapshot:click             Click a UI ref from the latest snapshot (--ref)
   editor:snapshot:fill              Fill a UI ref from the latest snapshot (--ref, --text)
   editor:diff:snapshot              Compare two saved snapshot files (--before, --after)
+  editor:session:*                  save, load
   editor:moyin:*                    set-script, parse, status
   editor:screenshot:capture         Take screenshot (--filename)
   editor:undo                       Undo last action
@@ -165,6 +166,7 @@ Editor Options (see docs for full list):
   --project-id   Project ID    --media-id   Media ID
   --element-id   Element ID    --track-id   Track ID
   --job-id       Job ID        --data       JSON input (@file/inline/-)
+  --session-name Saved session name for editor:session:* commands
   --to-track     Target track  --split-time Split point (s)
   --time         Seek time (s) --start-time Start (s)
   --end-time     End (s)
@@ -332,6 +334,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"config-dir": { type: "string" },
 			"cache-dir": { type: "string" },
 			"state-dir": { type: "string" },
+			"session-name": { type: "string" },
 			"negative-prompt": { type: "string" },
 			"voice-id": { type: "string" },
 			directory: { type: "string" },
@@ -563,6 +566,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		configDir: values["config-dir"] as string | undefined,
 		cacheDir: values["cache-dir"] as string | undefined,
 		stateDir: values["state-dir"] as string | undefined,
+		sessionName: values["session-name"] as string | undefined,
 		negativePrompt: values["negative-prompt"] as string | undefined,
 		voiceId: values["voice-id"] as string | undefined,
 		directory: values.directory as string | undefined,

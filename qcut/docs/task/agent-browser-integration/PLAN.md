@@ -19,7 +19,7 @@ agent-browser is a headless browser automation CLI designed for AI agents. It us
 | Accessibility Snapshots with Refs | Mostly complete | `editor:snapshot`, `editor:snapshot:click`, and `editor:snapshot:fill` are implemented on 2026-03-12; remaining work is mostly ref stability and deeper live-renderer coverage |
 | Console Message & Error Capture | Mostly complete | HTTP + CLI list/clear/stream path implemented on 2026-03-12 |
 | Action Policy Engine | Mostly complete | Default allow/confirm/deny policy, `--policy`, runner enforcement, and tests implemented on 2026-03-12 |
-| Session State Persistence | Partially complete | Named session files, `--resume`, sticky project/panel hydration, and autosave are implemented on 2026-03-12; explicit session commands are still pending |
+| Session State Persistence | Mostly complete | Named session files, `--resume`, sticky project/panel hydration, autosave, and explicit `editor:session:save/load` commands are implemented on 2026-03-12 |
 | Visual Diff Verification | Partially complete | `editor:diff:snapshot` landed on 2026-03-12; screenshot diff is still pending |
 | WebSocket Viewport Streaming | Deferred | No immediate product need |
 
@@ -178,7 +178,7 @@ bun run pipeline editor:snapshot:click --ref @e1 --policy ./agent-policy.json --
 
 ### Pattern 3: Session State Persistence (MEDIUM VALUE)
 
-**Status (2026-03-12)**: Partially implemented.
+**Status (2026-03-12)**: Mostly implemented.
 
 **What it is**: agent-browser saves/restores browser state (cookies, localStorage) between sessions with optional encryption.
 
@@ -199,23 +199,27 @@ interface SessionState {
 
 **Implemented files**:
 - `electron/native-pipeline/cli/session-state.ts` — named session files, state hydration, and autosave updates
-- `electron/native-pipeline/cli/cli.ts` — parses `--resume` and session-mode state directory flags
+- `electron/native-pipeline/cli/cli-handlers-session.ts` — explicit local session save/load commands
+- `electron/native-pipeline/cli/cli.ts` — parses `--resume`, `--session-name`, and session-mode state directory flags
 - `electron/native-pipeline/cli/cli-runner/runner.ts` — hydrates one-shot commands from resumed session state and autosaves after execution
-- `electron/native-pipeline/cli/cli-runner/session.ts` — loads resumed state into REPL defaults and persists updates across session commands
+- `electron/native-pipeline/cli/cli-runner/session.ts` — loads resumed state into REPL defaults, persists updates, and switches sticky context after explicit session loads
+- `electron/native-pipeline/cli/cli-handlers-editor.ts` — routes `editor:session:*` commands and skips live editor health for local session operations
+- `electron/native-pipeline/cli/command-registry-editor.ts` — registers `editor:session:save` and `editor:session:load`
 - `electron/native-pipeline/cli/command-registry.ts` — documents `--resume` in global flag metadata
-- `electron/native-pipeline/cli/cli-runner/types.ts` — adds session resume typing
+- `electron/native-pipeline/cli/cli-runner/types.ts` — adds session resume and explicit session command typing
 
 **Completed subtasks**:
 1. Defined a local session state schema and stored named session files under the CLI state directory (`.../sessions/`)
 2. Implemented JSON save/load helpers with sticky `projectId`, `lastPanel`, `lastTab`, and command history
 3. Added `--resume <session-name>` for one-shot commands and session mode
 4. Integrated resume hydration and autosave into both `runner.ts` and REPL session handling
-5. Added focused tests for round-trip persistence, arg parsing, sticky defaults, and autosave behavior
+5. Added explicit `editor:session:save` and `editor:session:load` commands for manual checkpoints and context restore
+6. Added focused tests for round-trip persistence, arg parsing, sticky defaults, explicit session commands, and autosave behavior
 
 **Remaining work**:
-1. Add explicit `editor:session:save` and `editor:session:load` commands if agents need manual checkpoints outside `--resume`
-2. Expand stored state beyond project/panel/history if there is a concrete need for undo checkpoints or richer editor context
-3. Decide whether command history should capture fuller CLI invocations instead of compact summaries
+1. Expand stored state beyond project/panel/history if there is a concrete need for undo checkpoints or richer editor context
+2. Decide whether command history should capture fuller CLI invocations instead of compact summaries
+3. Add explicit delete/list session management only if agent workflows actually need it
 
 **Example usage by AI agent**:
 ```bash
@@ -224,10 +228,17 @@ bun run pipeline editor:timeline:export --resume my-edit-session --json
 
 # Resume and autosave across an interactive REPL session
 bun run pipeline --session --resume my-edit-session
+
+# Save the current sticky context under a named checkpoint
+bun run pipeline editor:session:save --session-name my-edit-session --project-id my-proj --json
+
+# Load a named checkpoint and inspect or activate it in session mode
+bun run pipeline editor:session:load --session-name my-edit-session --json
 ```
 
 **Test files**:
 - `electron/__tests__/session-state.test.ts`
+- `electron/__tests__/editor-session-cli.test.ts`
 
 ---
 
@@ -413,7 +424,7 @@ bun run pipeline editor:console --stream
 | 1 | Accessibility Snapshots with Refs | HIGH | ~6h | **P0 (mostly complete)** |
 | 5 | Console Message & Error Capture | HIGH | ~6.5h | **P0 (mostly complete)** |
 | 2 | Action Policy Engine | MEDIUM | ~3h | **P1 (mostly complete)** |
-| 3 | Session State Persistence | MEDIUM | ~3h | **P2 (partially complete)** |
+| 3 | Session State Persistence | MEDIUM | ~3h | **P1 (mostly complete)** |
 | 4 | Visual Diff Verification | LOW-MED | ~5.5h | **P2 (partially complete)** |
 | 6 | WebSocket Viewport Streaming | LOW | ~8h | **P3 (defer)** |
 
@@ -447,6 +458,7 @@ electron/native-pipeline/
 │   ├── cli-handlers-snapshot.ts    # NEW: Accessibility snapshot with refs
 │   ├── cli-handlers-console.ts     # NEW: Console message capture CLI
 │   ├── cli-handlers-diff.ts        # NEW: Snapshot/screenshot diffing
+│   ├── cli-handlers-session.ts     # NEW: Explicit local session save/load commands
 │   ├── action-policy.ts            # NEW: Allow/deny/confirm policy
 │   ├── session-state.ts            # NEW: Session persistence
 │   ├── cli.ts                      # MODIFY: Parse --policy/--resume and document session behavior
@@ -458,6 +470,7 @@ electron/native-pipeline/
 ├── __tests__/
 │   ├── editor-snapshot-cli.test.ts # NEW: CLI routing for snapshot query flags
 │   ├── editor-console-cli.test.ts  # NEW: CLI routing for console/errors
+│   ├── editor-session-cli.test.ts  # NEW: Explicit session save/load CLI coverage
 │   ├── action-policy.test.ts       # NEW: Policy parsing and enforcement coverage
 │   ├── session-state.test.ts       # NEW: Session persistence coverage
 │   └── editor-diff-cli.test.ts     # NEW: Snapshot diff parsing and execution coverage
