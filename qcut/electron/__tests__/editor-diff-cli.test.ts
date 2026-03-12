@@ -20,6 +20,73 @@ function makeOpts(overrides: Partial<CLIRunOptions>): CLIRunOptions {
 	} as CLIRunOptions;
 }
 
+/**
+ * Create a minimal valid PNG file with a solid color.
+ * Generates a raw uncompressed PNG to avoid needing sharp in the test env.
+ */
+function createTestPng({
+	dir,
+	name,
+	width,
+	height,
+	color,
+}: {
+	dir: string;
+	name: string;
+	width: number;
+	height: number;
+	color: { r: number; g: number; b: number };
+}): string {
+	const filePath = path.join(dir, name);
+
+	// Build a minimal valid PNG manually
+	const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+	// IHDR chunk
+	const ihdrData = Buffer.alloc(13);
+	ihdrData.writeUInt32BE(width, 0);
+	ihdrData.writeUInt32BE(height, 4);
+	ihdrData[8] = 8; // bit depth
+	ihdrData[9] = 2; // color type: RGB
+	ihdrData[10] = 0; // compression
+	ihdrData[11] = 0; // filter
+	ihdrData[12] = 0; // interlace
+	const ihdr = buildPngChunk("IHDR", ihdrData);
+
+	// IDAT chunk - raw image data with zlib
+	const rawRow = Buffer.alloc(1 + width * 3); // filter byte + RGB
+	rawRow[0] = 0; // no filter
+	for (let x = 0; x < width; x++) {
+		rawRow[1 + x * 3] = color.r;
+		rawRow[1 + x * 3 + 1] = color.g;
+		rawRow[1 + x * 3 + 2] = color.b;
+	}
+	const rawData = Buffer.alloc(rawRow.length * height);
+	for (let y = 0; y < height; y++) {
+		rawRow.copy(rawData, y * rawRow.length);
+	}
+	const { deflateSync } = require("node:zlib") as typeof import("node:zlib");
+	const compressed = deflateSync(rawData);
+	const idat = buildPngChunk("IDAT", compressed);
+
+	// IEND chunk
+	const iend = buildPngChunk("IEND", Buffer.alloc(0));
+
+	fs.writeFileSync(filePath, Buffer.concat([signature, ihdr, idat, iend]));
+	return filePath;
+}
+
+function buildPngChunk(type: string, data: Buffer): Buffer {
+	const { crc32 } = require("node:zlib") as typeof import("node:zlib");
+	const length = Buffer.alloc(4);
+	length.writeUInt32BE(data.length, 0);
+	const typeBuffer = Buffer.from(type, "ascii");
+	const crcInput = Buffer.concat([typeBuffer, data]);
+	const crcValue = Buffer.alloc(4);
+	crcValue.writeUInt32BE(crc32(crcInput) >>> 0, 0);
+	return Buffer.concat([length, typeBuffer, data, crcValue]);
+}
+
 function writeJsonFile({
 	dir,
 	name,
@@ -222,5 +289,203 @@ describe("editor diff CLI", () => {
 
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("--before");
+	});
+
+	it("parses editor:diff:screenshot args", () => {
+		const opts = parseCliArgs([
+			"editor:diff:screenshot",
+			"--before",
+			"/tmp/before.png",
+			"--after",
+			"/tmp/after.png",
+			"--threshold",
+			"20",
+		]);
+
+		expect(opts.command).toBe("editor:diff:screenshot");
+		expect(opts.before).toBe("/tmp/before.png");
+		expect(opts.after).toBe("/tmp/after.png");
+		expect(opts.threshold).toBe(20);
+	});
+
+	it("detects identical screenshots as same", async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "qcut-ssdiff-"));
+		tempDirs.add(dir);
+		const beforePath = await createTestPng({
+			dir,
+			name: "before.png",
+			width: 100,
+			height: 100,
+			color: { r: 255, g: 0, b: 0 },
+		});
+		const afterPath = await createTestPng({
+			dir,
+			name: "after.png",
+			width: 100,
+			height: 100,
+			color: { r: 255, g: 0, b: 0 },
+		});
+
+		const result = await handleEditorCommand(
+			makeOpts({
+				command: "editor:diff:screenshot",
+				before: beforePath,
+				after: afterPath,
+			}),
+			noopProgress
+		);
+
+		expect(result.success).toBe(true);
+		const data = result.data as {
+			mode: string;
+			same: boolean;
+			summary: {
+				dimensionsMatch: boolean;
+				totalPixels: number;
+				changedPixels: number;
+				changePercent: number;
+			};
+			diffImagePath: string | null;
+		};
+		expect(data.mode).toBe("screenshot");
+		expect(data.same).toBe(true);
+		expect(data.summary.dimensionsMatch).toBe(true);
+		expect(data.summary.changedPixels).toBe(0);
+		expect(data.summary.changePercent).toBe(0);
+		expect(data.diffImagePath).toBeTruthy();
+		expect(fs.existsSync(data.diffImagePath!)).toBe(true);
+	});
+
+	it("detects different screenshots and produces diff image", async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "qcut-ssdiff-"));
+		tempDirs.add(dir);
+		const beforePath = await createTestPng({
+			dir,
+			name: "before.png",
+			width: 100,
+			height: 100,
+			color: { r: 255, g: 0, b: 0 },
+		});
+		const afterPath = await createTestPng({
+			dir,
+			name: "after.png",
+			width: 100,
+			height: 100,
+			color: { r: 0, g: 0, b: 255 },
+		});
+
+		const result = await handleEditorCommand(
+			makeOpts({
+				command: "editor:diff:screenshot",
+				before: beforePath,
+				after: afterPath,
+			}),
+			noopProgress
+		);
+
+		expect(result.success).toBe(true);
+		const data = result.data as {
+			mode: string;
+			same: boolean;
+			summary: {
+				dimensionsMatch: boolean;
+				totalPixels: number;
+				changedPixels: number;
+				changePercent: number;
+			};
+			diffImagePath: string;
+		};
+		expect(data.mode).toBe("screenshot");
+		expect(data.same).toBe(false);
+		expect(data.summary.dimensionsMatch).toBe(true);
+		expect(data.summary.totalPixels).toBe(10000);
+		expect(data.summary.changedPixels).toBe(10000);
+		expect(data.summary.changePercent).toBe(100);
+		expect(fs.existsSync(data.diffImagePath)).toBe(true);
+	});
+
+	it("handles mismatched dimensions", async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "qcut-ssdiff-"));
+		tempDirs.add(dir);
+		const beforePath = await createTestPng({
+			dir,
+			name: "before.png",
+			width: 100,
+			height: 100,
+			color: { r: 255, g: 0, b: 0 },
+		});
+		const afterPath = await createTestPng({
+			dir,
+			name: "after.png",
+			width: 200,
+			height: 150,
+			color: { r: 255, g: 0, b: 0 },
+		});
+
+		const result = await handleEditorCommand(
+			makeOpts({
+				command: "editor:diff:screenshot",
+				before: beforePath,
+				after: afterPath,
+			}),
+			noopProgress
+		);
+
+		expect(result.success).toBe(true);
+		const data = result.data as {
+			mode: string;
+			same: boolean;
+			summary: {
+				dimensionsMatch: boolean;
+				beforeDimensions: { width: number; height: number };
+				afterDimensions: { width: number; height: number };
+			};
+		};
+		expect(data.summary.dimensionsMatch).toBe(false);
+		expect(data.summary.beforeDimensions).toEqual({
+			width: 100,
+			height: 100,
+		});
+		expect(data.summary.afterDimensions).toEqual({
+			width: 200,
+			height: 150,
+		});
+	});
+
+	it("fails for missing screenshot file", async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "qcut-ssdiff-"));
+		tempDirs.add(dir);
+		const beforePath = await createTestPng({
+			dir,
+			name: "before.png",
+			width: 10,
+			height: 10,
+			color: { r: 0, g: 0, b: 0 },
+		});
+
+		const result = await handleEditorCommand(
+			makeOpts({
+				command: "editor:diff:screenshot",
+				before: beforePath,
+				after: "/tmp/nonexistent.png",
+			}),
+			noopProgress
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("not found");
+	});
+
+	it("requires before and after for screenshot diff", async () => {
+		const result = await handleEditorCommand(
+			makeOpts({
+				command: "editor:diff:screenshot",
+				before: "/tmp/before.png",
+			}),
+			noopProgress
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("--after");
 	});
 });

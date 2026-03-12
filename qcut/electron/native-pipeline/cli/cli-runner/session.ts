@@ -194,6 +194,7 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				"session-name": { type: "string" },
 				before: { type: "string" },
 				after: { type: "string" },
+				threshold: { type: "string" },
 				duration: { type: "string", short: "d" },
 				"aspect-ratio": { type: "string" },
 				resolution: { type: "string" },
@@ -250,6 +251,10 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 			result.sessionName = values["session-name"] as string;
 		if (values.before) result.before = values.before as string;
 		if (values.after) result.after = values.after as string;
+		if (values.threshold) {
+			const parsed = parseFloat(values.threshold as string);
+			if (!Number.isNaN(parsed)) result.threshold = parsed;
+		}
 		if (values.duration) result.duration = values.duration as string;
 		if (values["aspect-ratio"])
 			result.aspectRatio = values["aspect-ratio"] as string;

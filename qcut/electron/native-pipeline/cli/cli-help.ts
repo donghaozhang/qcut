@@ -85,6 +85,7 @@ Editor Commands (requires running QCut — use --project-id for most):
   editor:snapshot:click             Click a UI ref from the latest snapshot (--ref)
   editor:snapshot:fill              Fill a UI ref from the latest snapshot (--ref, --text)
   editor:diff:snapshot              Compare two saved snapshot files (--before, --after)
+  editor:diff:screenshot            Pixel-diff two screenshot PNGs (--before, --after, --threshold)
   editor:session:*                  save, load
   editor:moyin:*                    set-script, parse, status
   editor:screenshot:capture         Take screenshot (--filename)

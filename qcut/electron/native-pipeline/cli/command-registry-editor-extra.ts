@@ -154,6 +154,27 @@ export function createExtraEditorCommands({
 				"qcut-pipeline editor:diff:snapshot --before before.json --after after.json --json",
 			]
 		),
+		"editor:diff:screenshot": ed(
+			"editor:diff:screenshot",
+			"Pixel-diff two screenshot PNG files",
+			[
+				f("--before", "string", "Path to the earlier screenshot PNG", {
+					required: true,
+				}),
+				f("--after", "string", "Path to the later screenshot PNG", {
+					required: true,
+				}),
+				f(
+					"--threshold",
+					"number",
+					"Per-channel difference threshold (0-255, default 10)"
+				),
+			],
+			[
+				"qcut-pipeline editor:diff:screenshot --before before.png --after after.png --json",
+				"qcut-pipeline editor:diff:screenshot --before a.png --after b.png --threshold 20 --json",
+			]
+		),
 		"editor:session:save": ed(
 			"editor:session:save",
 			"Save sticky CLI session state to disk",
