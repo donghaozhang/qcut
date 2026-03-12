@@ -13,11 +13,15 @@ export const SCHEMA_VERSION = "1";
 
 export interface JsonOkEnvelope {
 	status: "ok";
+	command_id?: string;
+	duration_ms?: number;
 	data: unknown;
 }
 
 export interface JsonErrorEnvelope {
 	status: "error";
+	command_id?: string;
+	duration_ms?: number;
 	error: string;
 	code: string;
 	data?: Record<string, unknown>;
@@ -34,8 +38,14 @@ export type JsonEnvelope =
 	| JsonPendingEnvelope;
 
 /** Print a successful JSON result to stdout. */
-export function jsonOk(data: unknown): void {
+export function jsonOk(
+	data: unknown,
+	commandId?: string,
+	durationMs?: number
+): void {
 	const envelope: JsonOkEnvelope = { status: "ok", data };
+	if (commandId) envelope.command_id = commandId;
+	if (durationMs !== undefined) envelope.duration_ms = durationMs;
 	console.log(JSON.stringify(envelope, null, 2));
 }
 
@@ -43,9 +53,13 @@ export function jsonOk(data: unknown): void {
 export function jsonError(
 	msg: string,
 	code: string,
-	data?: Record<string, unknown>
+	data?: Record<string, unknown>,
+	commandId?: string,
+	durationMs?: number
 ): void {
 	const envelope: JsonErrorEnvelope = { status: "error", error: msg, code };
+	if (commandId) envelope.command_id = commandId;
+	if (durationMs !== undefined) envelope.duration_ms = durationMs;
 	if (data && Object.keys(data).length > 0) {
 		envelope.data = data;
 	}
@@ -58,21 +72,34 @@ export function jsonPending(jobId: string): void {
 	console.log(JSON.stringify(envelope, null, 2));
 }
 
+/** Options for enriching JSON output with correlation and timing metadata. */
+export interface JsonResultMeta {
+	command_id?: string;
+	duration_ms?: number;
+	[key: string]: unknown;
+}
+
 /** Shared helper to emit a CLIResult as a JSON envelope. */
 export function emitJsonResult(
 	command: string,
 	result: CLIResult,
-	extra?: Record<string, unknown>
+	extra?: JsonResultMeta
 ): void {
 	if (result.success) {
 		const { success: _, ...rest } = result;
-		jsonOk({ schema_version: SCHEMA_VERSION, command, ...rest, ...extra });
+		jsonOk(
+			{ schema_version: SCHEMA_VERSION, command, ...rest, ...extra },
+			extra?.command_id,
+			extra?.duration_ms
+		);
 	} else {
 		const { success: _, error, ...rest } = result;
 		jsonError(
 			error || "Unknown error",
 			`${command}:failed`,
-			rest as Record<string, unknown>
+			rest as Record<string, unknown>,
+			extra?.command_id,
+			extra?.duration_ms
 		);
 	}
 }

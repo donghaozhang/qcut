@@ -3,8 +3,15 @@
  * @module electron/native-pipeline/cli/cli-runner/types
  */
 
+/** Generate a unique command correlation ID. */
+export function generateCommandId(): string {
+	return `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export interface CLIRunOptions {
 	command: string;
+	/** Unique correlation ID for this command execution. */
+	commandId?: string;
 	model?: string;
 	text?: string;
 	imageUrl?: string;

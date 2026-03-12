@@ -106,9 +106,12 @@ export class CLIOutput {
 		console.log(message);
 	}
 
-	/** Print error to stderr (always visible). */
-	error(message: string): void {
+	/** Print error to stderr (always visible), with optional recovery hint. */
+	error(message: string, hint?: string): void {
 		console.error(colorize(`error: ${message}`, "red"));
+		if (hint) {
+			console.error(colorize(`hint: ${hint}`, "cyan"));
+		}
 	}
 
 	/** Print warning to stderr. */

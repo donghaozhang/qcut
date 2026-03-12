@@ -19,10 +19,11 @@ import {
 	CLIPipelineRunner,
 	createProgressReporter,
 } from "../cli/cli-runner.js";
-import type { CLIRunOptions } from "./cli-runner/types.js";
+import { type CLIRunOptions, generateCommandId } from "./cli-runner/types.js";
 import { getExitCode, formatErrorForCli } from "../output/errors.js";
 import { CLIOutput } from "../cli/cli-output.js";
 import { StreamEmitter, NullEmitter } from "../infra/stream-emitter.js";
+import { DebugStream } from "../infra/debug-stream.js";
 import { formatCommandOutput } from "./cli-output-formatters.js";
 import { runSession } from "./cli-runner/session.js";
 import { emitJsonResult, jsonOk, jsonError } from "./json-output.js";
@@ -632,6 +633,8 @@ export async function main(
 	}
 
 	const options = parseCliArgs(argv);
+	const commandId = generateCommandId();
+	options.commandId = commandId;
 	const output = new CLIOutput({
 		jsonMode: options.json,
 		quiet: options.quiet,
@@ -654,11 +657,23 @@ export async function main(
 		runner.abort();
 	});
 
+	const debugStream = new DebugStream({
+		enabled: options.verbose || options.stream,
+	});
+
+	const startTime = performance.now();
+	debugStream.commandStart(commandId, options.command);
 	emitter.pipelineStart(options.command, 1);
 	const result = await runner.run(options, reporter);
+	const durationMs = Math.round(performance.now() - startTime);
+	const exitCode = result.success ? 0 : getExitCode(new Error(result.error));
+	debugStream.commandEnd(commandId, options.command, exitCode, durationMs);
 
 	if (options.json) {
-		emitJsonResult(options.command, result);
+		emitJsonResult(options.command, result, {
+			command_id: commandId,
+			duration_ms: durationMs,
+		});
 		if (!result.success) {
 			process.exit(1);
 		}
@@ -674,10 +689,20 @@ export async function main(
 		}
 		formatCommandOutput(options.command, result);
 		emitter.pipelineComplete({ ...result, success: true });
+		// Emit exit metadata to stderr for machine consumers
+		if (!options.quiet) {
+			const durationSec = (durationMs / 1000).toFixed(1);
+			console.error(`[exit:0 | ${durationSec}s]`);
+		}
 	} else {
-		output.error(result.error || "Unknown error");
+		const { hint, exitCode } = formatErrorForCli(new Error(result.error));
+		output.error(result.error || "Unknown error", hint);
 		emitter.pipelineComplete({ success: false, error: result.error });
-		const { exitCode } = formatErrorForCli(new Error(result.error));
+		// Emit exit metadata to stderr for machine consumers
+		if (!options.quiet) {
+			const durationSec = (durationMs / 1000).toFixed(1);
+			console.error(`[exit:${exitCode} | ${durationSec}s]`);
+		}
 		process.exit(exitCode);
 	}
 }
