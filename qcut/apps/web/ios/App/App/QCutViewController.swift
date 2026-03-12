@@ -10,6 +10,126 @@ class QCutViewController: CAPBridgeViewController {
         return webConfig
     }
 
+    #if DEBUG
+    /// Pending deep link URL written by notification handler, executed on main thread
+    private static var pendingDeepLinkURL: String?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        registerDarwinNotificationBridge()
+    }
+
+    /// Register Darwin notification listeners so `devicectl notification post` can trigger deep link commands on a real device.
+    /// Usage: write URL to app group defaults, then post notification.
+    /// Shortcut notifications for common commands (no UserDefaults needed):
+    ///   - com.qcut.cli.state  → qcut://state
+    ///   - com.qcut.cli.play   → qcut://play
+    ///   - com.qcut.cli.pause  → qcut://pause
+    ///   - com.qcut.cli.export-status → qcut://export-status
+    ///   - com.qcut.cli.eval   → runs JS from __qcutEvalJS global
+    private func registerDarwinNotificationBridge() {
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        let observer = Unmanaged.passUnretained(self).toOpaque()
+
+        // Generic eval: set window.__qcutEvalJS from a previous eval, then post this notification
+        let commands: [String] = [
+            "com.qcut.cli.state",
+            "com.qcut.cli.play",
+            "com.qcut.cli.pause",
+            "com.qcut.cli.export-status",
+            "com.qcut.cli.console",
+            "com.qcut.cli.fps",
+            "com.qcut.cli.open-editor",
+            "com.qcut.test-export",
+        ]
+
+        for name in commands {
+            CFNotificationCenterAddObserver(center, observer, { (_, observer, notifName, _, _) in
+                guard let observer = observer else { return }
+                let name = notifName?.rawValue as String? ?? ""
+                let vc = Unmanaged<QCutViewController>.fromOpaque(observer).takeUnretainedValue()
+                DispatchQueue.main.async {
+                    vc.handleNotification(name: name)
+                }
+            }, name as CFString, nil, .deliverImmediately)
+        }
+    }
+
+    private func handleNotification(name: String) {
+        let urlMapping: [String: String] = [
+            "com.qcut.cli.state": "qcut://state",
+            "com.qcut.cli.play": "qcut://play",
+            "com.qcut.cli.pause": "qcut://pause",
+            "com.qcut.cli.export-status": "qcut://export-status",
+            "com.qcut.cli.console": "qcut://console",
+            "com.qcut.cli.fps": "qcut://fps",
+        ]
+
+        if let urlStr = urlMapping[name], let url = URL(string: urlStr) {
+            handleDeepLink(url: url)
+        } else if name == "com.qcut.cli.open-editor" {
+            openFirstProject()
+        } else if name == "com.qcut.test-export" {
+            runShareSheetTest()
+        }
+    }
+
+    /// Navigate to the projects page, find the first project, and open it in the editor
+    private func openFirstProject() {
+        runJS("""
+        (function() {
+            // Navigate to projects page first
+            window.location.hash = '#/projects';
+            return 'navigated to projects';
+        })()
+        """)
+        // Wait for projects page to load, then click the first project
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.runJS("""
+            (function() {
+                // Try to find and click the first project card/link
+                var link = document.querySelector('a[href*="/editor/"]');
+                if (link) {
+                    link.click();
+                    return 'opened project: ' + link.href;
+                }
+                // Try project cards with data-testid
+                var card = document.querySelector('[data-testid*="project"]');
+                if (card) {
+                    card.click();
+                    return 'clicked project card';
+                }
+                // List all links for debugging
+                var links = Array.from(document.querySelectorAll('a')).map(function(a) { return a.href; });
+                return 'no project found. links: ' + JSON.stringify(links.slice(0, 10));
+            })()
+            """)
+        }
+    }
+
+    /// Test the share sheet with a fake MP4 blob to verify export output behavior
+    private func runShareSheetTest() {
+        runJS("""
+        (function() {
+            var b = new Blob(['test video data for share sheet'], {type: 'video/mp4'});
+            var f = new File([b], 'test-export.mp4', {type: 'video/mp4'});
+            var result = {canShare: typeof navigator.canShare, hasShare: typeof navigator.share};
+            if (navigator.canShare && navigator.canShare({files: [f]})) {
+                result.canShareFiles = true;
+                navigator.share({files: [f], title: 'test-export.mp4'})
+                    .then(function() { console.log('[QCut Export Test] share completed'); })
+                    .catch(function(e) { console.log('[QCut Export Test] share dismissed/failed: ' + e.message); });
+                result.action = 'share sheet opened';
+            } else {
+                result.canShareFiles = false;
+                result.action = 'canShare not available';
+            }
+            return JSON.stringify(result);
+        })()
+        """)
+    }
+    #endif
+
     /// Handle qcut:// URL commands by evaluating JS in the webview (debug builds only)
     func handleDeepLink(url: URL) {
         #if !DEBUG
