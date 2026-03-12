@@ -17,7 +17,7 @@ agent-browser is a headless browser automation CLI designed for AI agents. It us
 | Pattern | Status | Notes |
 |--------|--------|-------|
 | Accessibility Snapshots with Refs | Not started | Still the highest-value remaining P0 item |
-| Console Message & Error Capture | In progress | HTTP + CLI list/clear path implemented on 2026-03-12; CLI streaming still pending |
+| Console Message & Error Capture | Mostly complete | HTTP + CLI list/clear/stream path implemented on 2026-03-12 |
 | Action Policy Engine | Not started | Planned P1 |
 | Session State Persistence | Not started | Planned P2 |
 | Visual Diff Verification | Not started | Planned P2 |
@@ -184,7 +184,7 @@ export async function handleDiff(options: {
 
 ### Pattern 5: Console Message & Error Capture (HIGH VALUE)
 
-**Status (2026-03-12)**: Partially implemented.
+**Status (2026-03-12)**: Mostly implemented.
 
 **What it is**: agent-browser exposes `console` and `errors` commands that capture all browser console output (log, warn, error, info, debug) and uncaught page errors. AI agents use this to debug issues, verify actions succeeded, and understand runtime behavior without needing DevTools open.
 
@@ -238,7 +238,7 @@ export function attachConsoleCapture(window: BrowserWindow) {
 // editor:console --level error — filter by level
 // editor:console --since 30s  — messages from last 30 seconds
 // editor:console --clear      — clear the buffer
-// editor:console --stream     — real-time SSE stream (JSONL)
+// editor:console --stream     — real-time SSE stream until interrupted
 // editor:errors               — shortcut for --level error
 ```
 
@@ -248,22 +248,23 @@ export function attachConsoleCapture(window: BrowserWindow) {
 - `electron/claude/http/claude-http-server.ts` — registers console routes in the direct main-process test server
 - `electron/utility/utility-http-server.ts` — exposes console routes in the real utility-process HTTP server
 - `electron/utility/utility-bridge.ts` — bridges `console:list` / `console:clear` back to the main process
+- `electron/native-pipeline/editor/editor-api-client.ts` — SSE client for CLI streaming
 - `electron/native-pipeline/cli/cli-handlers-console.ts` — CLI handlers for `editor:console` and `editor:errors`
 - `electron/native-pipeline/cli/cli-handlers-editor.ts` — routes `editor:console` / `editor:errors`
+- `electron/native-pipeline/cli/cli-runner/runner.ts` — threads abort signal into editor commands
 - `electron/native-pipeline/cli/command-registry-editor.ts` — registers command metadata
 
 **Completed subtasks**:
 1. Implemented `console-message` capture with an in-memory ring buffer in the Electron-side handler
 2. Added `GET /api/claude/console`, `GET /api/claude/errors`, and `DELETE /api/claude/console`
 3. Added `GET /api/claude/console/stream` SSE support at the HTTP layer
-4. Implemented CLI commands `editor:console` and `editor:errors` for list/filter/clear
+4. Implemented CLI commands `editor:console` and `editor:errors` for list/filter/clear/stream
 5. Added renderer-failure capture via `render-process-gone` plus injected `window.error` / `unhandledrejection`
 6. Added focused tests for buffer/filtering, HTTP routes, and CLI routing
 
 **Remaining work**:
-1. Wire the CLI `--stream` UX to consume the SSE endpoint cleanly instead of returning a not-yet-implemented error
-2. Decide whether debug/info console levels need normalization beyond Electron's `console-message` event
-3. Add higher-level integration coverage against the utility-process path if needed
+1. Decide whether debug/info console levels need normalization beyond Electron's `console-message` event
+2. Add higher-level integration coverage against the utility-process path if needed
 
 **Example usage by AI agent**:
 ```bash
@@ -280,8 +281,8 @@ bun run pipeline editor:console --level error --json
 #   ]}}
 
 # Real-time monitoring during long operations
-curl -N http://127.0.0.1:8765/api/claude/console/stream
-# → streams SSE events as console messages appear
+bun run pipeline editor:console --stream
+# → streams live console entries until interrupted
 ```
 
 **Test files**:
@@ -306,7 +307,7 @@ curl -N http://127.0.0.1:8765/api/claude/console/stream
 | # | Pattern | Value | Effort | Priority |
 |---|---------|-------|--------|----------|
 | 1 | Accessibility Snapshots with Refs | HIGH | ~6h | **P0** |
-| 5 | Console Message & Error Capture | HIGH | ~6.5h | **P0 (partially complete)** |
+| 5 | Console Message & Error Capture | HIGH | ~6.5h | **P0 (mostly complete)** |
 | 2 | Action Policy Engine | MEDIUM | ~3h | **P1** |
 | 3 | Session State Persistence | MEDIUM | ~3h | **P2** |
 | 4 | Visual Diff Verification | LOW-MED | ~5.5h | **P2** |

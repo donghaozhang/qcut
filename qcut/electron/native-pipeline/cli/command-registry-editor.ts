@@ -110,6 +110,7 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline editor:console --json",
 			"qcut-pipeline editor:console --level error --since 30s --json",
 			"qcut-pipeline editor:console --clear --json",
+			"qcut-pipeline editor:console --stream",
 		]
 	),
 	"editor:errors": ed(
@@ -129,6 +130,7 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline editor:errors --json",
 			"qcut-pipeline editor:errors --since 10s --json",
 			"qcut-pipeline editor:errors --clear --json",
+			"qcut-pipeline editor:errors --stream",
 		]
 	),
 
