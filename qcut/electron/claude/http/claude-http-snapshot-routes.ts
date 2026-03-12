@@ -10,11 +10,7 @@ import type {
 import { MAX_EDITOR_SNAPSHOT_DEPTH } from "../../types/claude-api.js";
 import { EditorSnapshotActionError } from "../handlers/claude-snapshot-handler.js";
 
-function parseInteractive({
-	value,
-}: {
-	value?: string;
-}): boolean | undefined {
+function parseInteractive({ value }: { value?: string }): boolean | undefined {
 	if (!value) {
 		return undefined;
 	}
@@ -31,11 +27,7 @@ function parseInteractive({
 	);
 }
 
-function parseDepth({
-	value,
-}: {
-	value?: string;
-}): number | undefined {
+function parseDepth({ value }: { value?: string }): number | undefined {
 	if (!value) {
 		return undefined;
 	}

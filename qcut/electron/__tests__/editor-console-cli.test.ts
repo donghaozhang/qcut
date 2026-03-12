@@ -91,11 +91,7 @@ function registerHealthyEditorRoutes(): void {
 	});
 }
 
-function createSseResponse({
-	events,
-}: {
-	events: string[];
-}): Response {
+function createSseResponse({ events }: { events: string[] }): Response {
 	const body = new ReadableStream({
 		start(controller) {
 			for (const event of events) {
@@ -257,8 +253,7 @@ describe("editor console CLI handlers", () => {
 		expect(result.success).toBe(true);
 		expect(
 			requestLog.some(
-				(entry) =>
-					entry.method === "GET" && entry.path === "/api/claude/errors"
+				(entry) => entry.method === "GET" && entry.path === "/api/claude/errors"
 			)
 		).toBe(true);
 	});
@@ -297,11 +292,11 @@ describe("editor console CLI handlers", () => {
 			entry: () =>
 				createSseResponse({
 					events: [
-						"event: ready\ndata: {\"ok\":true,\"timestamp\":1}\n\n",
+						'event: ready\ndata: {"ok":true,"timestamp":1}\n\n',
 						[
 							"id: con_1",
 							"event: error",
-							"data: {\"id\":\"con_1\",\"level\":\"error\",\"message\":\"Boom\",\"source\":\"renderer.ts\",\"line\":12}",
+							'data: {"id":"con_1","level":"error","message":"Boom","source":"renderer.ts","line":12}',
 							"",
 						].join("\n"),
 					],
@@ -318,9 +313,7 @@ describe("editor console CLI handlers", () => {
 		);
 
 		expect(result.success).toBe(true);
-		expect(consoleLogSpy).toHaveBeenCalledWith(
-			"[ERROR] renderer.ts:12 Boom"
-		);
+		expect(consoleLogSpy).toHaveBeenCalledWith("[ERROR] renderer.ts:12 Boom");
 		const request = requestLog.find(
 			(entry) =>
 				entry.method === "GET" && entry.path === "/api/claude/console/stream"
@@ -339,7 +332,7 @@ describe("editor console CLI handlers", () => {
 						[
 							"id: con_2",
 							"event: error",
-							"data: {\"id\":\"con_2\",\"level\":\"error\",\"message\":\"Renderer failed\",\"source\":\"renderer.ts\"}",
+							'data: {"id":"con_2","level":"error","message":"Renderer failed","source":"renderer.ts"}',
 							"",
 						].join("\n"),
 					],

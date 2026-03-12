@@ -80,7 +80,11 @@ describe("claude-console-handler", () => {
 			42,
 			"/src/app.tsx"
 		);
-		webContents.emit("render-process-gone", {}, { reason: "crashed", exitCode: 9 });
+		webContents.emit(
+			"render-process-gone",
+			{},
+			{ reason: "crashed", exitCode: 9 }
+		);
 
 		const messages = getConsoleEntries({ limit: 10 });
 		expect(messages).toHaveLength(2);
@@ -109,7 +113,7 @@ describe("claude-console-handler", () => {
 		recordConsoleEntry({
 			level: "error",
 			message:
-				'Authorization: Bearer secret-token apiKey=test-key email=dev@example.com path=/Users/peter/private/app.ts',
+				"Authorization: Bearer secret-token apiKey=test-key email=dev@example.com path=/Users/peter/private/app.ts",
 			source: "/Users/peter/Desktop/code/qcut/qcut/src/app.ts",
 		});
 
@@ -133,7 +137,14 @@ describe("claude-console-handler", () => {
 
 		attachConsoleCapture({ window });
 		webContents.emit("did-finish-load");
-		webContents.emit("console-message", {}, 3, "renderer exploded", 42, "/src/app.tsx");
+		webContents.emit(
+			"console-message",
+			{},
+			3,
+			"renderer exploded",
+			42,
+			"/src/app.tsx"
+		);
 
 		expect(webContents.executeJavaScript).not.toHaveBeenCalled();
 		expect(getConsoleEntries({ limit: 10 })).toHaveLength(0);

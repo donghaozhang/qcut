@@ -352,11 +352,7 @@ function buildSnapshotScript({
 	})()`;
 }
 
-function normalizeSnapshotRef({
-	ref,
-}: {
-	ref: string;
-}): string {
+function normalizeSnapshotRef({ ref }: { ref: string }): string {
 	const normalized = ref.trim();
 	if (!/^@e\d+$/.test(normalized)) {
 		throw new EditorSnapshotActionError({
@@ -675,7 +671,9 @@ function isValidSnapshotResult(value: unknown): value is EditorSnapshotResult {
 	);
 }
 
-function isSnapshotActionFailure(value: unknown): value is SnapshotActionFailure {
+function isSnapshotActionFailure(
+	value: unknown
+): value is SnapshotActionFailure {
 	if (typeof value !== "object" || value === null) {
 		return false;
 	}

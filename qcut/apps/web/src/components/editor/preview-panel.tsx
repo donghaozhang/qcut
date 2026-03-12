@@ -100,7 +100,8 @@ export function PreviewPanel() {
 		};
 
 		window.addEventListener("playback-update", handlePlaybackUpdate);
-		return () => window.removeEventListener("playback-update", handlePlaybackUpdate);
+		return () =>
+			window.removeEventListener("playback-update", handlePlaybackUpdate);
 	}, [isPlaying, currentTime, tracks]);
 	const [isExpanded, setIsExpanded] = useState(false);
 	const { activeProject } = useProjectStore();
@@ -311,9 +312,9 @@ export function PreviewPanel() {
 						(element.duration - element.trimStart - element.trimEnd);
 
 					// Use playbackTime during playback (updates on element boundary crossings),
-				// fall back to store currentTime when paused
-				const effectiveTime = isPlaying ? playbackTime : currentTime;
-				if (effectiveTime < elementStart || effectiveTime >= elementEnd) {
+					// fall back to store currentTime when paused
+					const effectiveTime = isPlaying ? playbackTime : currentTime;
+					if (effectiveTime < elementStart || effectiveTime >= elementEnd) {
 						continue;
 					}
 

@@ -57,7 +57,9 @@ describe("editor session CLI", () => {
 	});
 
 	it("saves a named session without requiring editor health", async () => {
-		const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "qcut-session-cli-"));
+		const stateRoot = fs.mkdtempSync(
+			path.join(os.tmpdir(), "qcut-session-cli-")
+		);
 		tempDirs.add(stateRoot);
 
 		const result = await handleEditorCommand(
@@ -83,7 +85,9 @@ describe("editor session CLI", () => {
 	});
 
 	it("loads a saved named session", async () => {
-		const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "qcut-session-cli-"));
+		const stateRoot = fs.mkdtempSync(
+			path.join(os.tmpdir(), "qcut-session-cli-")
+		);
 		tempDirs.add(stateRoot);
 
 		const saveResult = await handleEditorCommand(

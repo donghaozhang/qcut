@@ -112,7 +112,9 @@ function normalizePatterns({
 		return [];
 	}
 	if (!Array.isArray(value)) {
-		throw new Error(`Action policy field '${field}' must be an array of strings.`);
+		throw new Error(
+			`Action policy field '${field}' must be an array of strings.`
+		);
 	}
 
 	const patterns: string[] = [];
@@ -131,11 +133,7 @@ function normalizePatterns({
 	return patterns;
 }
 
-export function parseActionPolicy({
-	value,
-}: {
-	value: unknown;
-}): ActionPolicy {
+export function parseActionPolicy({ value }: { value: unknown }): ActionPolicy {
 	if (typeof value !== "object" || value === null) {
 		throw new Error("Action policy must be a JSON object.");
 	}
@@ -151,11 +149,7 @@ export function parseActionPolicy({
 	};
 }
 
-function escapeRegExp({
-	value,
-}: {
-	value: string;
-}): string {
+function escapeRegExp({ value }: { value: string }): string {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
@@ -234,7 +228,9 @@ export function evaluateActionPolicy({
 		throw new Error("Action policy evaluation requires a command.");
 	}
 	const candidates = options
-		? Array.from(new Set([buildActionPolicySubject({ options }), resolvedCommand]))
+		? Array.from(
+				new Set([buildActionPolicySubject({ options }), resolvedCommand])
+			)
 		: [resolvedCommand];
 
 	const denyPattern = findMatchingPattern({
@@ -294,11 +290,7 @@ export function loadActionPolicy({
 	return parseActionPolicy({ value: parsed });
 }
 
-export function resolveActionPolicy({
-	policyPath,
-}: {
-	policyPath?: string;
-}): {
+export function resolveActionPolicy({ policyPath }: { policyPath?: string }): {
 	policy: ActionPolicy;
 	source: "default" | "file";
 } {

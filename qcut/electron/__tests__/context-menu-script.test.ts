@@ -9,9 +9,7 @@ describe("buildContextMenuScript", () => {
 			debug: true,
 		});
 
-		expect(script).toContain(
-			`})(${JSON.stringify(elementId)}, true)`
-		);
+		expect(script).toContain(`})(${JSON.stringify(elementId)}, true)`);
 		expect(script).toContain('document.querySelectorAll("[data-element-id]")');
 		expect(script).toContain(
 			'candidate.getAttribute("data-element-id") === elementId'

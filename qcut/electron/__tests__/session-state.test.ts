@@ -23,9 +23,7 @@ import {
 	updateSessionState,
 } from "../native-pipeline/cli/session-state.js";
 
-function defaultOptions(
-	overrides: Partial<CLIRunOptions> = {}
-): CLIRunOptions {
+function defaultOptions(overrides: Partial<CLIRunOptions> = {}): CLIRunOptions {
 	return {
 		command: "editor:timeline:export",
 		outputDir: "./test-output",

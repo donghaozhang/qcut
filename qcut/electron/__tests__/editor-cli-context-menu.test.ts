@@ -95,11 +95,7 @@ describe("editor:ui:context-menu CLI command", () => {
 	it("returns data from server response", async () => {
 		mockHealthy();
 		const responseData = { found: true, menuOpen: true, x: 100, y: 200 };
-		mockRoute(
-			"POST",
-			"/api/claude/ui/context-menu",
-			envelope(responseData)
-		);
+		mockRoute("POST", "/api/claude/ui/context-menu", envelope(responseData));
 		const result = await handleEditorCommand(
 			makeOpts({
 				command: "editor:ui:context-menu",

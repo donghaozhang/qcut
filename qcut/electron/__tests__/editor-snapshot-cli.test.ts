@@ -210,8 +210,7 @@ describe("editor snapshot CLI handlers", () => {
 
 		expect(result.success).toBe(true);
 		const request = requestLog.find(
-			(entry) =>
-				entry.method === "GET" && entry.path === "/api/claude/snapshot"
+			(entry) => entry.method === "GET" && entry.path === "/api/claude/snapshot"
 		);
 		expect(request?.query).toContain("interactive=true");
 		expect(request?.query).toContain("depth=2");
@@ -246,8 +245,7 @@ describe("editor snapshot CLI handlers", () => {
 		expect(result.success).toBe(true);
 		const request = requestLog.find(
 			(entry) =>
-				entry.method === "POST" &&
-				entry.path === "/api/claude/snapshot/click"
+				entry.method === "POST" && entry.path === "/api/claude/snapshot/click"
 		);
 		expect(JSON.parse(request?.body ?? "{}")).toEqual({ ref: "@e1" });
 	});
@@ -282,8 +280,7 @@ describe("editor snapshot CLI handlers", () => {
 		expect(result.success).toBe(true);
 		const request = requestLog.find(
 			(entry) =>
-				entry.method === "POST" &&
-				entry.path === "/api/claude/snapshot/fill"
+				entry.method === "POST" && entry.path === "/api/claude/snapshot/fill"
 		);
 		expect(JSON.parse(request?.body ?? "{}")).toEqual({
 			ref: "@e2",

@@ -9,11 +9,7 @@ import type {
 	EditorSnapshotResult,
 } from "../../types/claude-api.js";
 
-function createSnapshotWindow({
-	result,
-}: {
-	result: unknown;
-}): {
+function createSnapshotWindow({ result }: { result: unknown }): {
 	window: Electron.BrowserWindow;
 	executeJavaScript: ReturnType<typeof vi.fn>;
 } {
@@ -74,7 +70,9 @@ describe("claude-snapshot-handler", () => {
 		const [script] = executeJavaScript.mock.calls[0] ?? [];
 		expect(script).toContain("const interactiveOnly = true;");
 		expect(script).toContain("const maxDepth = 2;");
-		expect(script).toContain("const SNAPSHOT_STATE_KEY = \"__qcutSnapshotState\";");
+		expect(script).toContain(
+			'const SNAPSHOT_STATE_KEY = "__qcutSnapshotState";'
+		);
 		expect(script).toContain("const assignStableRef = (element, usedRefs) =>");
 	});
 
@@ -108,7 +106,9 @@ describe("claude-snapshot-handler", () => {
 		expect(script).toContain('const targetRef = "@e1";');
 		expect(script).toContain("element.click()");
 		expect(script).toContain("const stableKey = state.keyByRef[targetRef];");
-		expect(script).toContain("const findElementByStableKey = (stableKey, targetRef) =>");
+		expect(script).toContain(
+			"const findElementByStableKey = (stableKey, targetRef) =>"
+		);
 	});
 
 	it("fills a snapshot ref through the renderer", async () => {
@@ -145,8 +145,8 @@ describe("claude-snapshot-handler", () => {
 			},
 		});
 
-		await expect(clickEditorSnapshotRef(window, { ref: "@e9" })).rejects.toThrow(
-			"No element found for snapshot ref @e9."
-		);
+		await expect(
+			clickEditorSnapshotRef(window, { ref: "@e9" })
+		).rejects.toThrow("No element found for snapshot ref @e9.");
 	});
 });

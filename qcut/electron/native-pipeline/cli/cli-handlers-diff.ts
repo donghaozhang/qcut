@@ -273,10 +273,7 @@ export async function handleDiffCommand({
 	const removed: SnapshotDiffResult["removed"] = [];
 	const changed: SnapshotDiffResult["changed"] = [];
 
-	const allKeys = new Set([
-		...beforeBuckets.keys(),
-		...afterBuckets.keys(),
-	]);
+	const allKeys = new Set([...beforeBuckets.keys(), ...afterBuckets.keys()]);
 	for (const key of allKeys) {
 		const beforeEntries = [...(beforeBuckets.get(key) ?? [])];
 		const afterEntries = [...(afterBuckets.get(key) ?? [])];

@@ -489,7 +489,8 @@ async function handleUiCommand(
 			if (!elementId) {
 				return {
 					success: false,
-					error: "Missing --element-id. Provide the timeline element ID to right-click.",
+					error:
+						"Missing --element-id. Provide the timeline element ID to right-click.",
 				};
 			}
 			const body: Record<string, unknown> = { elementId };

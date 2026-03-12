@@ -626,7 +626,9 @@ describe("Claude HTTP Server", () => {
 		const [script] = executeJavaScript.mock.calls[0] ?? [];
 		expect(script).toContain("const interactiveOnly = true;");
 		expect(script).toContain("const maxDepth = 2;");
-		expect(script).toContain("const SNAPSHOT_STATE_KEY = \"__qcutSnapshotState\";");
+		expect(script).toContain(
+			'const SNAPSHOT_STATE_KEY = "__qcutSnapshotState";'
+		);
 		expect(script).toContain("const assignStableRef = (element, usedRefs) =>");
 	});
 

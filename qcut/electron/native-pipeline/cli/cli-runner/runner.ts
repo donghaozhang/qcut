@@ -194,7 +194,9 @@ export class CLIPipelineRunner {
 			}
 		}
 
-		const policyResult = await enforceActionPolicy({ options: resolvedOptions });
+		const policyResult = await enforceActionPolicy({
+			options: resolvedOptions,
+		});
 		if (policyResult) {
 			return policyResult;
 		}
@@ -321,16 +323,25 @@ export class CLIPipelineRunner {
 				result = await handleVimaxNovel2Movie(resolvedOptions, onProgress);
 				break;
 			case "vimax:extract-characters":
-				result = await handleVimaxExtractCharacters(resolvedOptions, onProgress);
+				result = await handleVimaxExtractCharacters(
+					resolvedOptions,
+					onProgress
+				);
 				break;
 			case "vimax:generate-script":
 				result = await handleVimaxGenerateScript(resolvedOptions, onProgress);
 				break;
 			case "vimax:generate-storyboard":
-				result = await handleVimaxGenerateStoryboard(resolvedOptions, onProgress);
+				result = await handleVimaxGenerateStoryboard(
+					resolvedOptions,
+					onProgress
+				);
 				break;
 			case "vimax:generate-portraits":
-				result = await handleVimaxGeneratePortraits(resolvedOptions, onProgress);
+				result = await handleVimaxGeneratePortraits(
+					resolvedOptions,
+					onProgress
+				);
 				break;
 			case "vimax:create-registry":
 				result = await handleVimaxCreateRegistry(resolvedOptions);

@@ -2,12 +2,7 @@ import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
 import type { BrowserWindow, WebContents } from "electron";
 
-export type ClaudeConsoleLevel =
-	| "log"
-	| "info"
-	| "warn"
-	| "error"
-	| "debug";
+export type ClaudeConsoleLevel = "log" | "info" | "warn" | "error" | "debug";
 
 export interface ClaudeConsoleEntry {
 	id: string;
@@ -134,7 +129,11 @@ function normalizeLimit({ limit }: { limit?: number }): number {
 	}
 }
 
-function parseSinceToTimestamp({ since }: { since?: string }): number | undefined {
+function parseSinceToTimestamp({
+	since,
+}: {
+	since?: string;
+}): number | undefined {
 	try {
 		if (!since) {
 			return undefined;

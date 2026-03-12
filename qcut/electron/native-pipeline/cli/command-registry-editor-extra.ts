@@ -96,7 +96,11 @@ export function createExtraEditorCommands({
 			"Dispatch a right-click context menu on a timeline element (debug)",
 			[
 				f("--element-id", "string", "Timeline element ID", { required: true }),
-				f("--verbose", "boolean", "Capture all pointer/mouse events for debugging"),
+				f(
+					"--verbose",
+					"boolean",
+					"Capture all pointer/mouse events for debugging"
+				),
 			],
 			["qcut-pipeline editor:ui:context-menu --element-id <id> --verbose"]
 		),
@@ -133,7 +137,7 @@ export function createExtraEditorCommands({
 				}),
 				f("--text", "string", "Text value to enter", { required: true }),
 			],
-			["qcut-pipeline editor:snapshot:fill --ref @e12 --text \"hello\" --json"]
+			['qcut-pipeline editor:snapshot:fill --ref @e12 --text "hello" --json']
 		),
 		"editor:diff:snapshot": ed(
 			"editor:diff:snapshot",
@@ -159,7 +163,11 @@ export function createExtraEditorCommands({
 					"string",
 					"Saved session name (defaults to active --resume session)"
 				),
-				f("--project-id", "string", "Project ID override for the saved session"),
+				f(
+					"--project-id",
+					"string",
+					"Project ID override for the saved session"
+				),
 				f("--panel", "string", "Panel override for the saved session"),
 				f("--tab", "string", "Tab override for the saved session"),
 			],
@@ -172,7 +180,9 @@ export function createExtraEditorCommands({
 			"editor:session:load",
 			"Load a saved CLI session state",
 			[f("--session-name", "string", "Saved session name", { required: true })],
-			["qcut-pipeline editor:session:load --session-name my-edit-session --json"]
+			[
+				"qcut-pipeline editor:session:load --session-name my-edit-session --json",
+			]
 		),
 
 		// ── Screenshot ──

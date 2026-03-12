@@ -30,9 +30,7 @@ import { parseSessionLine } from "../native-pipeline/cli/cli-runner/session.js";
 import type { CLIRunOptions } from "../native-pipeline/cli/cli-runner.js";
 import * as interactive from "../native-pipeline/cli/interactive.js";
 
-function defaultOptions(
-	overrides: Partial<CLIRunOptions> = {}
-): CLIRunOptions {
+function defaultOptions(overrides: Partial<CLIRunOptions> = {}): CLIRunOptions {
 	return {
 		command: "editor:timeline:export",
 		outputDir: "./test-output",
@@ -44,11 +42,7 @@ function defaultOptions(
 	};
 }
 
-function writePolicyFile({
-	content,
-}: {
-	content: string;
-}): string {
+function writePolicyFile({ content }: { content: string }): string {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "qcut-action-policy-"));
 	const filePath = path.join(dir, "policy.json");
 	fs.writeFileSync(filePath, content, "utf-8");
