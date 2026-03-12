@@ -658,7 +658,7 @@ export async function main(
 	});
 
 	const debugStream = new DebugStream({
-		enabled: options.verbose || options.stream,
+		enabled: !!(options.verbose || options.stream),
 	});
 
 	const startTime = performance.now();

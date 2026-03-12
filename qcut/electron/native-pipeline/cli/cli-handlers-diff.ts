@@ -300,7 +300,8 @@ async function handleScreenshotDiff({
 		}
 	}
 
-	let sharp: typeof import("sharp")["default"];
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let sharp: any;
 	try {
 		// Use Function constructor to avoid Vite's static import analysis
 		// sharp is a native module that can't be bundled by Vite
