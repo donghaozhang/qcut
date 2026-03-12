@@ -62,6 +62,7 @@ import type {
 	EditorSnapshotActionResult,
 	EditorSnapshotResult,
 } from "../types/claude-api.js";
+import { authorizeClaudeHttpRequest } from "../claude/http/claude-http-auth.js";
 
 let server: Server | null = null;
 
@@ -584,7 +585,7 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 			throw new HttpError(400, "Missing 'elementId' in request body");
 		}
 		const payload: Record<string, unknown> = { elementId: req.body.elementId };
-		if (req.body.debug) payload.debug = true;
+		if (req.body?.debug === true) payload.debug = true;
 		return await withTimeout(
 			requestFromMain("context-menu", payload),
 			10_000,
@@ -685,14 +686,6 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 		);
 	});
 
-	// Auth check
-	/** Handle check auth. */
-	function checkAuth(req: IncomingMessage): boolean {
-		const token = process.env.QCUT_API_TOKEN;
-		if (!token) return true;
-		return req.headers.authorization === `Bearer ${token}`;
-	}
-
 	// CORS
 	/** Set cors headers. */
 	function setCorsHeaders(res: ServerResponse): void {
@@ -727,12 +720,15 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 				})
 			);
 		});
-		if (!checkAuth(req)) {
-			res.writeHead(401, { "Content-Type": "application/json" });
+		const authResult = authorizeClaudeHttpRequest({ req });
+		if (!authResult.ok) {
+			res.writeHead(authResult.status ?? 401, {
+				"Content-Type": "application/json",
+			});
 			res.end(
 				JSON.stringify({
 					success: false,
-					error: "Unauthorized",
+					error: authResult.error ?? "Unauthorized",
 					timestamp: Date.now(),
 				})
 			);

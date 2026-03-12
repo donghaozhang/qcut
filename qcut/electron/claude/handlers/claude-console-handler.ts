@@ -31,6 +31,10 @@ const consoleEntries: ClaudeConsoleEntry[] = [];
 const consoleEmitter = new EventEmitter();
 const attachedContents = new WeakSet<WebContents>();
 
+const REDACTED_VALUE = "[redacted]";
+const REDACTED_EMAIL = "[redacted-email]";
+const REDACTED_PATH = "[redacted-path]";
+
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
 	try {
 		return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -45,6 +49,33 @@ function createConsoleEntryId(): string {
 	} catch {
 		return `con_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 	}
+}
+
+function redactConsoleText({ value }: { value?: string }): string | undefined {
+	try {
+		if (typeof value !== "string" || value.length === 0) {
+			return value;
+		}
+
+		return value
+			.replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+\b/gi, `Bearer ${REDACTED_VALUE}`)
+			.replace(
+				/\b(authorization|api[-_ ]?key|token|secret|password)\b(\s*[:=]\s*["']?)([^"'\s,}]+)/gi,
+				(_match, key, separator) => `${key}${separator}${REDACTED_VALUE}`
+			)
+			.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, REDACTED_EMAIL)
+			.replace(
+				/(^|[\s([{"'=])(?:\/(?:Users|home|var|tmp)\/[^\s)"'\]}]+|[A-Za-z]:\\[^\s)"'\]}]+)/g,
+				(match, prefix: string) => `${prefix}${REDACTED_PATH}`
+			);
+	} catch {
+		return value;
+	}
+}
+
+function isConsoleCaptureEnabled(): boolean {
+	const flag = process.env.QCUT_ENABLE_CONSOLE_CAPTURE?.trim().toLowerCase();
+	return flag !== "0" && flag !== "false";
 }
 
 function normalizeLevel({
@@ -219,8 +250,8 @@ export function recordConsoleEntry({
 	const nextEntry: ClaudeConsoleEntry = {
 		id: createConsoleEntryId(),
 		level,
-		message,
-		source,
+		message: redactConsoleText({ value: message }) ?? "",
+		source: redactConsoleText({ value: source }),
 		line,
 		timestamp:
 			typeof timestamp === "number" && Number.isFinite(timestamp)
@@ -239,6 +270,10 @@ export function attachConsoleCapture({
 }: {
 	window: BrowserWindow;
 }): void {
+	if (!isConsoleCaptureEnabled()) {
+		return;
+	}
+
 	const { webContents } = window;
 	if (attachedContents.has(webContents)) {
 		return;

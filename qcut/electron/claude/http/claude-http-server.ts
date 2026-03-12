@@ -78,6 +78,7 @@ import {
 } from "./claude-http-console-routes.js";
 import { runMainProcessDeepHealthChecks } from "../handlers/claude-health-handler.js";
 import { getAuthToken, setAuthToken } from "../../license-handler.js";
+import { authorizeClaudeHttpRequest } from "./claude-http-auth.js";
 
 let server: Server | null = null;
 
@@ -88,16 +89,6 @@ function getWindow(): BrowserWindow {
 	const win = BrowserWindow.getAllWindows()[0];
 	if (!win) throw new HttpError(503, "No active QCut window");
 	return win;
-}
-
-/**
- * Check bearer token auth (only enforced when QCUT_API_TOKEN is set)
- */
-function checkAuth(req: IncomingMessage): boolean {
-	const token = process.env.QCUT_API_TOKEN;
-	if (!token) return true;
-	const authHeader = req.headers.authorization;
-	return authHeader === `Bearer ${token}`;
 }
 
 /** Set permissive CORS headers on the HTTP response. */
@@ -370,16 +361,16 @@ export function startClaudeHTTPServer(
 			);
 		});
 
-		// Auth check
-		if (!checkAuth(req)) {
-			res.writeHead(401, {
+		const authResult = authorizeClaudeHttpRequest({ req });
+		if (!authResult.ok) {
+			res.writeHead(authResult.status ?? 401, {
 				"Content-Type": "application/json",
 				"X-Correlation-Id": requestCorrelationId,
 			});
 			res.end(
 				JSON.stringify({
 					success: false,
-					error: "Unauthorized",
+					error: authResult.error ?? "Unauthorized",
 					timestamp: Date.now(),
 					correlationId: requestCorrelationId,
 				})

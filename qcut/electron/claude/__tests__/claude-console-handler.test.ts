@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	attachConsoleCapture,
 	clearConsoleEntries,
@@ -14,7 +14,12 @@ class MockWebContents extends EventEmitter {
 
 describe("claude-console-handler", () => {
 	beforeEach(() => {
+		delete process.env.QCUT_ENABLE_CONSOLE_CAPTURE;
 		resetConsoleCaptureForTests();
+	});
+
+	afterEach(() => {
+		delete process.env.QCUT_ENABLE_CONSOLE_CAPTURE;
 	});
 
 	it("filters console entries by level, since, and limit", () => {
@@ -98,5 +103,39 @@ describe("claude-console-handler", () => {
 		const messages = getConsoleEntries({ limit: 10 });
 		expect(messages[0]?.level).toBe("log");
 		expect(messages[1]?.level).toBe("info");
+	});
+
+	it("redacts sensitive console fields before storing them", () => {
+		recordConsoleEntry({
+			level: "error",
+			message:
+				'Authorization: Bearer secret-token apiKey=test-key email=dev@example.com path=/Users/peter/private/app.ts',
+			source: "/Users/peter/Desktop/code/qcut/qcut/src/app.ts",
+		});
+
+		const messages = getConsoleEntries({ limit: 10 });
+		expect(messages[0]?.message).not.toContain("secret-token");
+		expect(messages[0]?.message).not.toContain("test-key");
+		expect(messages[0]?.message).not.toContain("dev@example.com");
+		expect(messages[0]?.message).not.toContain("/Users/peter/private/app.ts");
+		expect(messages[0]?.message).toContain("Bearer [redacted]");
+		expect(messages[0]?.message).toContain("[redacted-email]");
+		expect(messages[0]?.source).toBe("[redacted-path]");
+	});
+
+	it("allows console capture to be disabled with QCUT_ENABLE_CONSOLE_CAPTURE=0", () => {
+		process.env.QCUT_ENABLE_CONSOLE_CAPTURE = "0";
+
+		const webContents = new MockWebContents();
+		const window = {
+			webContents,
+		} as unknown as Electron.BrowserWindow;
+
+		attachConsoleCapture({ window });
+		webContents.emit("did-finish-load");
+		webContents.emit("console-message", {}, 3, "renderer exploded", 42, "/src/app.tsx");
+
+		expect(webContents.executeJavaScript).not.toHaveBeenCalled();
+		expect(getConsoleEntries({ limit: 10 })).toHaveLength(0);
 	});
 });

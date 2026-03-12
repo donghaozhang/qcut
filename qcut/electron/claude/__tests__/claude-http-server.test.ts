@@ -830,6 +830,19 @@ describe("Claude HTTP Server - Auth", () => {
 		expect(res.status).toBe(200);
 	});
 
+	it("rejects console routes when QCUT_API_TOKEN is not configured", async () => {
+		delete process.env.QCUT_API_TOKEN;
+		recordConsoleEntry({
+			level: "error",
+			message: "Boom",
+			timestamp: Date.now(),
+		});
+
+		const res = await fetch("/api/claude/console");
+		expect(res.status).toBe(403);
+		expect(res.body.error).toContain("QCUT_API_TOKEN");
+	});
+
 	it("rejects requests without auth token when QCUT_API_TOKEN is set", async () => {
 		process.env.QCUT_API_TOKEN = "test-secret-token";
 		try {
@@ -848,6 +861,24 @@ describe("Claude HTTP Server - Auth", () => {
 				headers: { Authorization: "Bearer test-secret-token" },
 			});
 			expect(res.status).toBe(200);
+		} finally {
+			delete process.env.QCUT_API_TOKEN;
+		}
+	});
+
+	it("accepts console routes with a valid auth token", async () => {
+		process.env.QCUT_API_TOKEN = "test-secret-token";
+		recordConsoleEntry({
+			level: "error",
+			message: "Boom",
+			timestamp: Date.now(),
+		});
+		try {
+			const res = await fetch("/api/claude/console", {
+				headers: { Authorization: "Bearer test-secret-token" },
+			});
+			expect(res.status).toBe(200);
+			expect(res.body.data.count).toBe(1);
 		} finally {
 			delete process.env.QCUT_API_TOKEN;
 		}

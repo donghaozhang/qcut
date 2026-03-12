@@ -18,6 +18,43 @@ export function createExtraEditorCommands({
 	) => CommandDef;
 }): Record<string, CommandDef> {
 	return {
+		// ── Auth ──
+		"editor:auth:token": ed(
+			"editor:auth:token",
+			"Auth: Get or set the current auth token",
+			[
+				f("--set", "string", "Set token to this value"),
+				f("--reveal", "boolean", "Show full token (default: masked)", {
+					default: false,
+				}),
+			],
+			[
+				"qcut-pipeline editor:auth:token --json",
+				"qcut-pipeline editor:auth:token --reveal --json",
+				"qcut-pipeline editor:auth:token --set <token> --json",
+			]
+		),
+		"editor:auth:activate": ed(
+			"editor:auth:activate",
+			"Auth: Set token and activate license on this device",
+			[f("--token", "string", "Auth token", { required: true })],
+			["qcut-pipeline editor:auth:activate --token <token> --json"]
+		),
+		"editor:auth:logout": ed(
+			"editor:auth:logout",
+			"Auth: Clear the current auth token",
+			[],
+			["qcut-pipeline editor:auth:logout --json"]
+		),
+		"editor:health": ed("editor:health", "Check editor connectivity", [
+			f("--status-only", "boolean", "Return compact status output", {
+				default: false,
+			}),
+			f("--deep", "boolean", "Run deep cross-process health probes", {
+				default: false,
+			}),
+		]),
+
 		// ── UI ──
 		"editor:ui:switch-panel": ed(
 			"editor:ui:switch-panel",
