@@ -57,8 +57,7 @@ export const SPEECH_MODELS = {
 	chatterbox_s2s: {
 		id: "chatterbox_s2s",
 		name: "Chatterbox Voice Convert",
-		description:
-			"Convert speech to a different voice while preserving content",
+		description: "Convert speech to a different voice while preserving content",
 		price: "TBD",
 		resolution: "N/A",
 		max_duration: 0,

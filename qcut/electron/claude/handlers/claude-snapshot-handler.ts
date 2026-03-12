@@ -774,4 +774,7 @@ export async function fillEditorSnapshotRef(
 	});
 }
 
-export { selectEditorSnapshotRef, checkEditorSnapshotRef } from "./claude-snapshot-select-check-handler.js";
+export {
+	selectEditorSnapshotRef,
+	checkEditorSnapshotRef,
+} from "./claude-snapshot-select-check-handler.js";

@@ -122,7 +122,7 @@ function buildSnapshotCheckScript({
 
 export async function selectEditorSnapshotRef(
 	win: BrowserWindow,
-	request: EditorSnapshotSelectRequest,
+	request: EditorSnapshotSelectRequest
 ): Promise<EditorSnapshotActionResult> {
 	return await executeSnapshotAction({
 		win,
@@ -132,7 +132,7 @@ export async function selectEditorSnapshotRef(
 
 export async function checkEditorSnapshotRef(
 	win: BrowserWindow,
-	request: EditorSnapshotCheckRequest,
+	request: EditorSnapshotCheckRequest
 ): Promise<EditorSnapshotActionResult> {
 	return await executeSnapshotAction({
 		win,

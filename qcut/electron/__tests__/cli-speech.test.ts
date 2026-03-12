@@ -4,11 +4,7 @@ import { parseCliArgs } from "../native-pipeline/cli/cli.js";
 describe("CLI speech args", () => {
 	describe("generate-speech", () => {
 		it("parses basic --text flag", () => {
-			const opts = parseCliArgs([
-				"generate-speech",
-				"-t",
-				"Hello world",
-			]);
+			const opts = parseCliArgs(["generate-speech", "-t", "Hello world"]);
 			expect(opts.command).toBe("generate-speech");
 			expect(opts.text).toBe("Hello world");
 		});
@@ -87,11 +83,7 @@ describe("CLI speech args", () => {
 
 	describe("convert-speech", () => {
 		it("parses --input flag", () => {
-			const opts = parseCliArgs([
-				"convert-speech",
-				"-i",
-				"source.wav",
-			]);
+			const opts = parseCliArgs(["convert-speech", "-i", "source.wav"]);
 			expect(opts.command).toBe("convert-speech");
 			expect(opts.input).toBe("source.wav");
 		});
@@ -112,11 +104,7 @@ describe("CLI speech args", () => {
 
 	describe("clone-voice", () => {
 		it("parses --input flag", () => {
-			const opts = parseCliArgs([
-				"clone-voice",
-				"-i",
-				"reference.mp3",
-			]);
+			const opts = parseCliArgs(["clone-voice", "-i", "reference.mp3"]);
 			expect(opts.command).toBe("clone-voice");
 			expect(opts.input).toBe("reference.mp3");
 		});
