@@ -166,7 +166,7 @@ Pixel-level PNG comparison using sharp. Generates a diff image (changed pixels i
 
 ## Session Persistence
 
-Save and restore named CLI sessions. Sessions store `projectId`, `lastPanel`, `lastTab`, and command history under `~/.local/share/qcut/sessions/`.
+Save and restore named CLI sessions. Sessions store `projectId`, `lastPanel`, `lastTab`, and command history under QCut's resolved state directory.
 
 ### Save session
 

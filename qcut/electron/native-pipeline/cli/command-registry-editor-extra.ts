@@ -196,7 +196,8 @@ export function createExtraEditorCommands({
 				f(
 					"--threshold",
 					"number",
-					"Per-channel difference threshold (0-255, default 10)"
+					"Per-channel difference threshold (0-255, default 10)",
+					{ default: 10 }
 				),
 			],
 			[

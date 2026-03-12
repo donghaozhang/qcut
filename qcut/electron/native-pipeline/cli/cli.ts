@@ -211,7 +211,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			interactive: { type: "boolean", default: false },
 			depth: { type: "string" },
 			ref: { type: "string" },
-			checked: { type: "boolean", default: false },
+			checked: { type: "boolean" },
 			replace: { type: "boolean", default: false },
 			ripple: { type: "boolean", default: false },
 			"cross-track-ripple": { type: "boolean", default: false },
@@ -688,7 +688,14 @@ export async function main(
 	const startTime = performance.now();
 	debugStream.commandStart(commandId, options.command);
 	emitter.pipelineStart(options.command, 1);
-	const result = await runner.run(options, reporter);
+	let result: Awaited<ReturnType<typeof runner.run>>;
+	try {
+		result = await runner.run(options, reporter);
+	} catch (err) {
+		const durationMs = Math.round(performance.now() - startTime);
+		debugStream.commandEnd(commandId, options.command, 1, durationMs);
+		throw err;
+	}
 	const durationMs = Math.round(performance.now() - startTime);
 	const exitCode = result.success ? 0 : getExitCode(new Error(result.error));
 	debugStream.commandEnd(commandId, options.command, exitCode, durationMs);
@@ -714,7 +721,8 @@ export async function main(
 		formatCommandOutput(options.command, result);
 		emitter.pipelineComplete({ ...result, success: true });
 		// Emit exit metadata to stderr for machine consumers
-		if (!options.quiet) {
+		// Skip in stream mode to keep stderr parseable as JSONL
+		if (!options.quiet && !options.stream) {
 			const durationSec = (durationMs / 1000).toFixed(1);
 			console.error(`[exit:0 | ${durationSec}s]`);
 		}
@@ -723,7 +731,8 @@ export async function main(
 		output.error(result.error || "Unknown error", hint);
 		emitter.pipelineComplete({ success: false, error: result.error });
 		// Emit exit metadata to stderr for machine consumers
-		if (!options.quiet) {
+		// Skip in stream mode to keep stderr parseable as JSONL
+		if (!options.quiet && !options.stream) {
 			const durationSec = (durationMs / 1000).toFixed(1);
 			console.error(`[exit:${exitCode} | ${durationSec}s]`);
 		}

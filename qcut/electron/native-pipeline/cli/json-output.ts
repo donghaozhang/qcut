@@ -87,19 +87,21 @@ export function emitJsonResult(
 ): void {
 	if (result.success) {
 		const { success: _, ...rest } = result;
+		const { command_id, duration_ms, ...extraData } = extra ?? {};
 		jsonOk(
-			{ schema_version: SCHEMA_VERSION, command, ...rest, ...extra },
-			extra?.command_id,
-			extra?.duration_ms
+			{ schema_version: SCHEMA_VERSION, command, ...rest, ...extraData },
+			command_id,
+			duration_ms
 		);
 	} else {
 		const { success: _, error, ...rest } = result;
+		const { command_id: errCmdId, duration_ms: errDurMs } = extra ?? {};
 		jsonError(
 			error || "Unknown error",
 			`${command}:failed`,
 			rest as Record<string, unknown>,
-			extra?.command_id,
-			extra?.duration_ms
+			errCmdId,
+			errDurMs
 		);
 	}
 }

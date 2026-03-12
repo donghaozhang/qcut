@@ -326,8 +326,8 @@ All levels return a unified JSON envelope: `{ "status": "ok", "data": { ... } }`
 
 **Default (TTY):** Progress bar + final output path + `[exit:N | Xs]` metadata on stderr.
 
-**Error output (TTY):** Error message + recovery hint on stderr:
-```
+**Error output (TTY):** Error message on stderr, with an optional recovery hint when available:
+```text
 error: Missing API key for fal
 hint: Set the key with: qcut-pipeline set-key --name <provider> --value <key>
 [exit:4 | 0.1s]

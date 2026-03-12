@@ -42,7 +42,7 @@ export async function run(
 	if (!opts) {
 		return {
 			success: false,
-			error: `Invalid or empty command: ${command}`,
+			error: `Invalid or empty command: ${command.split(/\s/)[0] ?? "(empty)"}`,
 			exit_code: ExitCode.INVALID_ARGS,
 			duration_ms: Math.round(performance.now() - start),
 			command_id: commandId,
@@ -64,7 +64,7 @@ export async function run(
 		const durationMs = Math.round(performance.now() - start);
 		const exitCode = result.success
 			? ExitCode.SUCCESS
-			: getExitCode(new Error(result.error));
+			: ExitCode.GENERAL_ERROR;
 
 		return {
 			...result,
@@ -107,7 +107,7 @@ export async function runChain(
 		let effectiveCommand = command;
 
 		// Pipe previous output as input if the command doesn't specify --input
-		if (lastOutputPath && !command.includes("--input")) {
+		if (lastOutputPath && !/(?:^|\s)(?:--input|-i)(?:\s|=|$)/.test(command)) {
 			effectiveCommand = `${command} --input "${lastOutputPath}"`;
 		}
 
@@ -120,6 +120,8 @@ export async function runChain(
 
 		if (result.success && result.outputPath) {
 			lastOutputPath = result.outputPath;
+		} else {
+			lastOutputPath = undefined;
 		}
 
 		if (!result.success && !options.continueOnError) {

@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { crc32, deflateSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
 import { parseCliArgs } from "../native-pipeline/cli/cli.js";
 import { handleEditorCommand } from "../native-pipeline/cli/cli-handlers-editor.js";
@@ -65,7 +66,6 @@ function createTestPng({
 	for (let y = 0; y < height; y++) {
 		rawRow.copy(rawData, y * rawRow.length);
 	}
-	const { deflateSync } = require("node:zlib") as typeof import("node:zlib");
 	const compressed = deflateSync(rawData);
 	const idat = buildPngChunk("IDAT", compressed);
 
@@ -77,7 +77,6 @@ function createTestPng({
 }
 
 function buildPngChunk(type: string, data: Buffer): Buffer {
-	const { crc32 } = require("node:zlib") as typeof import("node:zlib");
 	const length = Buffer.alloc(4);
 	length.writeUInt32BE(data.length, 0);
 	const typeBuffer = Buffer.from(type, "ascii");

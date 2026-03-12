@@ -254,12 +254,16 @@ export async function handleDiffCommand({
 }: {
 	options: CLIRunOptions;
 }): Promise<CLIResult> {
-	const action = options.command.split(":")[2];
+	const parts = options.command.split(":");
+	const action = parts[2];
 
-	if (action !== "snapshot" && action !== "screenshot") {
+	if (
+		parts.length !== 3 ||
+		(action !== "snapshot" && action !== "screenshot")
+	) {
 		return {
 			success: false,
-			error: `Unknown diff action: ${action}. Available: snapshot, screenshot`,
+			error: `Unknown diff command: ${options.command}. Available: editor:diff:snapshot, editor:diff:screenshot`,
 		};
 	}
 
@@ -303,7 +307,7 @@ async function handleScreenshotDiff({
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let sharp: any;
 	try {
-		// Use Function constructor to avoid Vite's static import analysis
+		// Dynamic import to avoid Vite's static import analysis
 		// sharp is a native module that can't be bundled by Vite
 		const moduleName = "sharp";
 		sharp = (await import(/* @vite-ignore */ moduleName)).default;
@@ -347,6 +351,12 @@ async function handleScreenshotDiff({
 	let changedPixels = 0;
 	const diffBuffer = Buffer.alloc(totalPixels * 4);
 	const threshold = options.threshold ?? 10;
+	if (threshold < 0 || threshold > 255) {
+		return {
+			success: false,
+			error: `Threshold must be between 0 and 255, got ${threshold}`,
+		};
+	}
 
 	for (let i = 0; i < totalPixels; i += 1) {
 		const offset = i * 4;
@@ -378,7 +388,7 @@ async function handleScreenshotDiff({
 
 	// Save the diff image next to the before file
 	const diffDir = path.dirname(beforePath);
-	const diffName = `diff-${Date.now()}.png`;
+	const diffName = `diff-${path.basename(beforePath, path.extname(beforePath))}-vs-${path.basename(afterPath, path.extname(afterPath))}.png`;
 	const diffImagePath = path.join(diffDir, diffName);
 
 	await sharp(diffBuffer, {

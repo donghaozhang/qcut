@@ -315,20 +315,19 @@ export function listSessions({
 		const filePath = path.join(root, file);
 		try {
 			const raw = fs.readFileSync(filePath, "utf-8");
-			const parsed = JSON.parse(raw) as Partial<SessionState>;
+			const parsed = JSON.parse(raw);
+			const session = parseSessionState({
+				value: parsed,
+				expectedSessionName: file.replace(/\.json$/, ""),
+			});
 			entries.push({
-				sessionName:
-					typeof parsed.sessionName === "string"
-						? parsed.sessionName
-						: file.replace(/\.json$/, ""),
-				projectId:
-					typeof parsed.projectId === "string" ? parsed.projectId : undefined,
-				savedAt:
-					typeof parsed.savedAt === "string" ? parsed.savedAt : "unknown",
+				sessionName: session.sessionName,
+				projectId: session.projectId,
+				savedAt: session.savedAt,
 				path: filePath,
 			});
 		} catch {
-			// Skip corrupted session files
+			// Skip corrupted or schema-invalid session files
 		}
 	}
 
@@ -342,10 +341,13 @@ export function deleteSession({
 	sessionName: string;
 	stateDir?: string;
 }): { deleted: boolean; path: string } {
-	const filePath = getSessionStatePath({ sessionName, stateDir });
-	const existed = fs.existsSync(filePath);
-	if (existed) {
+	const safeName = sanitizeSessionName({ sessionName });
+	const root = getSessionStateRoot({ stateDir });
+	const filePath = path.join(root, `${safeName}.json`);
+	try {
 		fs.unlinkSync(filePath);
+		return { deleted: true, path: filePath };
+	} catch {
+		return { deleted: false, path: filePath };
 	}
-	return { deleted: existed, path: filePath };
 }

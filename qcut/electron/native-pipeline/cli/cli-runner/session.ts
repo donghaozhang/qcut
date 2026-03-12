@@ -216,6 +216,9 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				url: { type: "string" },
 				count: { type: "string" },
 				prompts: { type: "string", multiple: true },
+				value: { type: "string" },
+				checked: { type: "boolean", default: false },
+				ref: { type: "string" },
 				force: { type: "boolean", default: false },
 				discard: { type: "boolean", default: false },
 				replace: { type: "boolean", default: false },
@@ -277,6 +280,9 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 		if (values["negative-prompt"])
 			result.negativePrompt = values["negative-prompt"] as string;
 		if (values["voice-id"]) result.voiceId = values["voice-id"] as string;
+		if (values.value) result.selectValue = values.value as string;
+		if (values.checked) result.checked = true;
+		if (values.ref) result.ref = values.ref as string;
 		if (values.force) result.force = true;
 		if (values.discard) result.discard = true;
 		if (values.replace) result.replace = true;
