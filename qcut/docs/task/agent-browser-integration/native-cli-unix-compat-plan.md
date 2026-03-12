@@ -1,12 +1,11 @@
 # Native CLI: Unix Compatibility & Structured Debug Stream
 
-**Status**: Implemented
+**Status**: Implemented (2026-03-12)
 **Priority**: High
-**Estimated effort**: ~3-4 hours (8 subtasks)
 
 ## Overview
 
-Upgrade QCut Native CLI with Unix-compatible defaults and a structured debug event stream. The CLI already has strong foundations (command registry, exit codes, JSON output, session mode). This plan layers portable Unix conventions and machine-consumable debug events on top — no rewrites.
+Upgraded QCut Native CLI with Unix-compatible defaults and a structured debug event stream. Built on existing foundations (command registry, exit codes, JSON output, session mode) — no rewrites.
 
 **Two layers:**
 1. **Compatibility layer** (portable) — stable exit codes, `--help --json`, stdout/stderr separation, `duration_ms`
@@ -14,157 +13,119 @@ Upgrade QCut Native CLI with Unix-compatible defaults and a structured debug eve
 
 ---
 
-## Current State Assessment
+## Feature Status
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Exit codes | **Done** | `ExitCode` enum in `output/errors.ts:14-26` (11 codes) |
-| `--help --json` | **Done** | 3-level help in `cli-help.ts:166-221` |
-| stdout/stderr separation | **Mostly done** | `CLIOutput` class in `cli-output.ts`, but some handlers may mix |
-| `--json` envelope | **Done** | `jsonOk/jsonError/jsonPending` in `json-output.ts` |
-| Stream events | **Partial** | `StreamEmitter` in `infra/stream-emitter.ts` — pipeline only |
-| `duration_ms` | **Partial** | `elapsed_seconds` in StreamEvent, `duration` in CLIResult |
-| `command_id` | **Missing** | Only `sessionId = cli-${Date.now()}` for pipelines |
-| Recovery hints in errors | **Missing** | Errors are formatted but no actionable hints |
-| `run(command)` unified entrypoint | **Missing** | Commands dispatched via switch in `runner.ts:205-412` |
-| `[exit:N | Xs]` metadata | **Missing** | Exit code set but not echoed to stderr |
+| Feature | Status | Location |
+|---------|--------|----------|
+| Exit codes | **Done** | `output/errors.ts` — `ExitCode` enum (11 codes) |
+| `--help --json` | **Done** | `cli-help.ts` — 3-level help |
+| stdout/stderr separation | **Done** | `cli-output.ts` — audited, all handlers compliant |
+| `--json` envelope | **Done** | `json-output.ts` — `command_id` + `duration_ms` in envelopes |
+| Stream events | **Done** | `infra/stream-emitter.ts` + `infra/debug-stream.ts` |
+| `duration_ms` | **Done** | Integer field in `StreamEvent`, JSON envelopes; `elapsed_seconds` kept as deprecated |
+| `command_id` | **Done** | `generateCommandId()` in `types.ts`, wired in `cli.ts` |
+| Recovery hints | **Done** | `RECOVERY_HINTS` map in `errors.ts`, `hint` field on `AIPlatformError` |
+| `run(command)` entrypoint | **Done** | `cli-runner/run.ts` — `run()` + `runChain()` |
+| `[exit:N \| Xs]` metadata | **Done** | Appended to stderr in non-JSON mode after every command |
 
 ---
 
-## Subtasks
+## What Was Built
 
-### 1. Unified `run(command)` entrypoint
-**Files**: `electron/native-pipeline/cli/cli-runner/runner.ts`
-**Tests**: `electron/__tests__/cli-run-entrypoint.test.ts` (new)
+### 1. `command_id` correlation
+- `generateCommandId()` produces `cmd-{timestamp}-{random}` IDs
+- Generated in `cli.ts` before dispatch, stored in `options.commandId`
+- Included in JSON envelopes (`command_id` field) and debug stream events
+- **Files**: `cli-runner/types.ts`, `cli.ts`, `json-output.ts`
 
-Add a `run(command: string): Promise<CLIResult>` function that:
-- Parses a command string into `CLIRunOptions` (reuse `parseSessionLine`)
-- Calls the existing `CLIPipelineRunner.run()`
-- Returns structured `CLIResult` with `exit_code`, `duration_ms`, `command_id`
+### 2. `duration_ms` standardization
+- Added `duration_ms: number` (integer) to `StreamEvent` interface
+- `elapsed_seconds` kept as deprecated alias for backward compatibility
+- JSON envelopes (`jsonOk`, `jsonError`) accept optional `duration_ms`
+- **Files**: `infra/stream-emitter.ts`, `json-output.ts`
 
-This reduces invocation complexity for agents — one entrypoint, no tool-schema overhead.
+### 3. Error recovery hints
+- `RECOVERY_HINTS` map: `ExitCode` → actionable hint string
+- `AIPlatformError.hint` field auto-populated from map, overridable via constructor
+- `getRecoveryHint(exitCode)` exported for external use
+- `formatErrorForCli()` returns `hint` alongside `message` and `exitCode`
+- `CLIOutput.error()` prints hint in cyan below the error
 
-```typescript
-// electron/native-pipeline/cli/cli-runner/run.ts (new, ~60 lines)
-export async function run(command: string): Promise<CLIResult & { exit_code: number; duration_ms: number; command_id: string }> {
-  const commandId = `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const start = performance.now();
-  const opts = parseSessionLine(command);
-  // ... dispatch via runner, capture result
-  return { ...result, exit_code, duration_ms: Math.round(performance.now() - start), command_id: commandId };
-}
-```
+| Exit Code | Hint |
+|-----------|------|
+| `API_KEY_MISSING` | `Set the key with: qcut-pipeline set-key --name <provider> --value <key>` |
+| `FILE_NOT_FOUND` | `Check the path exists and is accessible` |
+| `MODEL_NOT_FOUND` | `List available models: qcut-pipeline list-models --category <type>` |
+| `TIMEOUT` | `Retry with a longer timeout: --timeout <ms>` |
+| `API_CALL_FAILED` | `Check API status or retry with a different model: --model <alt>` |
+| `INVALID_ARGS` | `Run with --help for usage information` |
 
-### 2. Standardize `duration_ms` as integer field
-**Files**: `electron/native-pipeline/infra/stream-emitter.ts`, `electron/native-pipeline/cli/json-output.ts`
-**Tests**: `electron/__tests__/cli-output-format.test.ts` (new)
+- **Files**: `output/errors.ts`, `cli-output.ts`, `cli.ts`
 
-- Replace `elapsed_seconds: number` with `duration_ms: number` (integer) in `StreamEvent`
-- Add `duration_ms` to `jsonOk()` and `jsonError()` envelopes
-- Keep `elapsed_seconds` as deprecated alias for one release cycle
+### 4. `[exit:N | Xs]` metadata
+- Appended to stderr after every command in non-JSON mode
+- Suppressed in `--quiet` mode
+- Format: `[exit:0 | 1.2s]`
+- **File**: `cli.ts`
 
-### 3. Append `[exit:N | Xs]` metadata to stderr on completion
-**Files**: `electron/native-pipeline/cli/cli.ts`
-**Tests**: update `electron/__tests__/editor-session-cli.test.ts`
-
-After every command execution in `main()` (line ~663-681), emit to stderr:
-```
-[exit:0 | 1.2s]
-```
-
-Only in non-JSON mode. In JSON mode, the envelope already carries this info.
-
-### 4. Add `command_id` to all command executions
-**Files**: `electron/native-pipeline/cli/cli-runner/types.ts`, `electron/native-pipeline/cli/cli-runner/runner.ts`
-**Tests**: update existing runner tests
-
-- Add `commandId: string` to `CLIRunOptions`
-- Generate in `cli.ts` before dispatch: `cmd-${Date.now()}-${randomSuffix}`
-- Include in JSON output envelope, stream events, and error responses
-- Enables correlation across streamed events and async job polling
-
-### 5. Error messages with recovery hints
-**Files**: `electron/native-pipeline/output/errors.ts`, `electron/native-pipeline/cli/cli-output.ts`
-**Tests**: `electron/__tests__/cli-error-hints.test.ts` (new)
-
-Add a `hint?: string` field to `AIPlatformError` and map common errors:
-
-| Error | Hint |
-|-------|------|
-| `API_KEY_MISSING` | `Set the key with: qcut keys set <provider> <key>` |
-| `FILE_NOT_FOUND` | `Check path exists: ls <path>` |
-| `MODEL_NOT_FOUND` | `List available models: qcut list-models --provider <p>` |
-| `TIMEOUT` | `Retry with longer timeout: --timeout <ms>` |
-| `API_CALL_FAILED` | `Check API status or retry with --model <alt>` |
-
-Format: `Error: <message>\nHint: <hint>` on stderr.
-
-### 6. Structured debug event stream
-**Files**: `electron/native-pipeline/infra/debug-stream.ts` (new, ~120 lines)
-**Tests**: `electron/__tests__/debug-stream.test.ts` (new)
-
-JSONL event stream to stderr when `--verbose` or `--stream` is active:
+### 5. Structured debug event stream
+- New `DebugStream` class emits JSONL to stderr when `--verbose` or `--stream` is active
+- Events: `command:start`, `command:end`
+- Fields: `command_id`, `command`, `timestamp`, `session_id` (optional), `exit_code`, `duration_ms`
+- Wired into `cli.ts` main execution flow
 
 ```jsonl
-{"event":"command:start","session_id":"s-123","command_id":"cmd-456","command":"generate-image --model flux","timestamp":"2026-03-12T10:00:00Z"}
-{"event":"command:stdout","command_id":"cmd-456","data":"Generating image...","timestamp":"..."}
-{"event":"command:stderr","command_id":"cmd-456","data":"Warning: falling back to default model","timestamp":"..."}
-{"event":"command:end","command_id":"cmd-456","exit_code":0,"duration_ms":3200,"timestamp":"..."}
+{"event":"command:start","command_id":"cmd-1741830000-a1b2c3","command":"generate-image","timestamp":"2026-03-12T10:00:00.000Z"}
+{"event":"command:end","command_id":"cmd-1741830000-a1b2c3","command":"generate-image","timestamp":"2026-03-12T10:00:03.200Z","exit_code":0,"duration_ms":3200}
 ```
 
-Wire into `CLIPipelineRunner.run()` — emit `command:start` before dispatch, `command:end` after.
+- **File**: `infra/debug-stream.ts`
 
-Extends the existing `StreamEmitter` pattern (pipeline events) to all commands.
+### 6. Unified `run(command)` entrypoint
+- `run(command, baseOptions?, onProgress?)` — parse + dispatch + return `RunResult`
+- `runChain(commands, options?)` — sequential execution with output piping
+  - Passes previous `outputPath` as next `--input` automatically
+  - Stops on first failure unless `continueOnError: true`
+- Each result includes `exit_code`, `duration_ms`, `command_id`
+- Exported from `cli-runner/index.ts` barrel
+- **File**: `cli-runner/run.ts`
 
-### 7. Audit stdout/stderr separation
-**Files**: `electron/native-pipeline/cli/cli-runner/handler-*.ts` (all handler files)
-**Tests**: manual audit + grep
-
-Grep all handlers for raw `console.log` / `console.error` calls that bypass `CLIOutput`. Replace with `CLIOutput` methods to maintain clean separation:
-- **stdout**: final results, JSON output, piped data
-- **stderr**: progress, warnings, errors, debug events
-
-### 8. Chain/pipeline execution via `run()`
-**Files**: `electron/native-pipeline/cli/cli-runner/run.ts`
-**Tests**: `electron/__tests__/cli-chain-execution.test.ts` (new)
-
-Add `runChain(commands: string[]): Promise<CLIResult[]>` that:
-- Executes commands sequentially
-- Passes previous output path as next input (if applicable)
-- Stops on first failure (unless `--continue-on-error`)
-- Returns array of results with individual `command_id` and `duration_ms`
+### 7. stdout/stderr audit
+- Grepped all `cli-handlers-*.ts` and `cli-runner/` for raw `console.log`/`console.error`
+- All existing usage was already compliant (data→stdout, warnings/errors→stderr)
+- No fixes needed
 
 ---
 
-## File Impact Summary
+## Files Changed
 
-| File | Change Type |
-|------|-------------|
-| `electron/native-pipeline/cli/cli-runner/run.ts` | **New** (~100 lines) |
-| `electron/native-pipeline/infra/debug-stream.ts` | **New** (~120 lines) |
-| `electron/native-pipeline/cli/cli-runner/runner.ts` | Modify (add commandId, wire debug events) |
-| `electron/native-pipeline/cli/cli-runner/types.ts` | Modify (add commandId field) |
-| `electron/native-pipeline/cli/cli.ts` | Modify (generate commandId, emit exit metadata) |
-| `electron/native-pipeline/infra/stream-emitter.ts` | Modify (add duration_ms, deprecate elapsed_seconds) |
-| `electron/native-pipeline/cli/json-output.ts` | Modify (add duration_ms, command_id to envelopes) |
-| `electron/native-pipeline/output/errors.ts` | Modify (add hint field) |
-| `electron/native-pipeline/cli/cli-output.ts` | Modify (add hint formatting) |
-| `electron/native-pipeline/cli/cli-runner/handler-*.ts` | Audit (replace raw console calls) |
+| File | Type | Lines |
+|------|------|-------|
+| `electron/native-pipeline/cli/cli-runner/run.ts` | **New** | ~120 |
+| `electron/native-pipeline/infra/debug-stream.ts` | **New** | ~80 |
+| `electron/__tests__/cli-unix-compat.test.ts` | **New** | ~160 |
+| `electron/native-pipeline/cli/cli-runner/types.ts` | Modified | +6 (`commandId`, `generateCommandId`) |
+| `electron/native-pipeline/cli/cli-runner/index.ts` | Modified | +3 (barrel exports) |
+| `electron/native-pipeline/cli/cli.ts` | Modified | +20 (commandId, timing, debug stream, exit metadata, hints) |
+| `electron/native-pipeline/cli/json-output.ts` | Modified | +25 (`command_id`, `duration_ms` in envelopes) |
+| `electron/native-pipeline/cli/cli-output.ts` | Modified | +3 (hint parameter on `error()`) |
+| `electron/native-pipeline/output/errors.ts` | Modified | +30 (`RECOVERY_HINTS`, `hint` field, `getRecoveryHint`) |
+| `electron/native-pipeline/infra/stream-emitter.ts` | Modified | +6 (`duration_ms` field) |
 
-## Implementation Order
+## Test Results
 
-1. `command_id` (subtask 4) — foundation for correlation
-2. `duration_ms` standardization (subtask 2) — used by everything after
-3. Error recovery hints (subtask 5) — standalone, no deps
-4. `[exit:N | Xs]` metadata (subtask 3) — needs duration_ms
-5. Structured debug stream (subtask 6) — needs command_id + duration_ms
-6. Unified `run()` (subtask 1) — ties it all together
-7. Chain execution (subtask 8) — builds on run()
-8. stdout/stderr audit (subtask 7) — cleanup pass, do last
+| Test File | Tests | Status |
+|-----------|-------|--------|
+| `electron/__tests__/cli-unix-compat.test.ts` | 15 | All passing |
+| `electron/__tests__/editor-session-cli.test.ts` | 10 | All passing |
+| `electron/__tests__/editor-snapshot-cli.test.ts` | 9 | All passing |
+| Type check (`tsc --noEmit`) | — | 0 errors in changed files |
 
-## Testing Strategy
+### Test Coverage
 
-- Unit tests for `run()`, `runChain()`, debug stream formatting
-- Existing session/snapshot tests updated for new fields
-- Grep-based audit for raw console usage in handlers
-- Manual smoke test: `bun run pipeline generate-image --verbose --json` to verify JSONL debug stream
+- `generateCommandId` — format and uniqueness
+- `getRecoveryHint` — all mapped exit codes + unmapped returns undefined
+- `AIPlatformError.hint` — auto-populated from map + custom override
+- `formatErrorForCli` — hint inclusion for typed and plain errors
+- `DebugStream` — start/end events, session_id, disabled no-op
+- `StreamEmitter` — `duration_ms` present as integer alongside `elapsed_seconds`

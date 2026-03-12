@@ -324,14 +324,23 @@ All levels return a unified JSON envelope: `{ "status": "ok", "data": { ... } }`
 
 ## Output Formats
 
-**Default (TTY):** Progress bar + final output path.
+**Default (TTY):** Progress bar + final output path + `[exit:N | Xs]` metadata on stderr.
 
-**`--json`:** Unified JSON envelope with `status` field:
+**Error output (TTY):** Error message + recovery hint on stderr:
+```
+error: Missing API key for fal
+hint: Set the key with: qcut-pipeline set-key --name <provider> --value <key>
+[exit:4 | 0.1s]
+```
+
+**`--json`:** Unified JSON envelope with `status`, `command_id`, and `duration_ms` fields:
 
 Success:
 ```json
 {
   "status": "ok",
+  "command_id": "cmd-1741830000-a1b2c3",
+  "duration_ms": 8300,
   "data": {
     "schema_version": "1",
     "command": "generate-image",
@@ -347,6 +356,8 @@ Error:
 ```json
 {
   "status": "error",
+  "command_id": "cmd-1741830000-a1b2c3",
+  "duration_ms": 500,
   "error": "Missing --project-id",
   "code": "editor:project:info:failed"
 }
@@ -360,10 +371,30 @@ Pending (async jobs):
 }
 ```
 
-**`--stream`:** JSONL events on stderr (for `run-pipeline`):
+**`--stream` / `--verbose`:** JSONL debug events on stderr for all commands:
 
-```json
-{"type":"progress","stage":"processing","percent":42,"message":"Step 2/3","timestamp":"..."}
+```jsonl
+{"event":"command:start","command_id":"cmd-1741830000-a1b2c3","command":"generate-image","timestamp":"2026-03-12T10:00:00.000Z"}
+{"event":"command:end","command_id":"cmd-1741830000-a1b2c3","command":"generate-image","exit_code":0,"duration_ms":3200,"timestamp":"2026-03-12T10:00:03.200Z"}
 ```
 
-**Exit codes:** `0` success, `1` error, `2` unknown command
+Pipeline-specific JSONL progress events (also on stderr with `--stream`):
+```json
+{"schema_version":"1","event":"step_progress","timestamp":1741830001,"elapsed_seconds":1.5,"duration_ms":1500,"step_index":1,"percent":42,"message":"Processing..."}
+```
+
+**Exit codes:**
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | General error |
+| `2` | Invalid arguments / unknown command |
+| `3` | Model not found |
+| `4` | API key missing |
+| `5` | API call failed |
+| `6` | Pipeline failed |
+| `7` | File not found |
+| `8` | Permission denied |
+| `9` | Timeout |
+| `10` | Cancelled |
