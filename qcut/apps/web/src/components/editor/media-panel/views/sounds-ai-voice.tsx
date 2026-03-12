@@ -9,7 +9,7 @@
  * Reuses AudioItem and addSoundToTimeline from the existing sounds infrastructure.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,7 +29,10 @@ import {
 	MicIcon,
 	UploadIcon,
 	CopyIcon,
+	XIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useDragDrop } from "@/hooks/use-drag-drop";
 import { useSoundsStore } from "@/stores/media/sounds-store";
 import {
 	CHATTERBOX_CONFIG,
@@ -66,6 +69,28 @@ const PROVIDER_LABELS: Record<TTSProvider, string> = {
 	qwen3_tts: "Qwen3 TTS",
 };
 
+const ALLOWED_AUDIO_TYPES = [
+	"audio/mpeg",
+	"audio/wav",
+	"audio/aac",
+	"audio/mp4",
+	"audio/ogg",
+	"audio/webm",
+];
+
+function isAudioFile(file: File): boolean {
+	return (
+		ALLOWED_AUDIO_TYPES.includes(file.type) ||
+		/\.(mp3|wav|aac|m4a|ogg|webm)$/i.test(file.name)
+	);
+}
+
+function formatFileSize(bytes: number): string {
+	if (bytes < 1024) return `${bytes} B`;
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function AIVoiceView() {
 	const [mode, setMode] = useState<VoiceMode>("tts");
 	const [text, setText] = useState("");
@@ -101,6 +126,7 @@ export function AIVoiceView() {
 	);
 
 	// Voice clone params (shared across clone tab and Qwen3 TTS)
+	const [cloneFile, setCloneFile] = useState<File | null>(null);
 	const [cloneAudioUrl, setCloneAudioUrl] = useState("");
 	const [cloneRefText, setCloneRefText] = useState("");
 	const [clonedEmbeddingUrl, setClonedEmbeddingUrl] = useState("");
@@ -127,9 +153,35 @@ export function AIVoiceView() {
 		setText((prev) => `${prev}<${tag}>`);
 	}, []);
 
+	const processCloneFile = useCallback((file: File) => {
+		if (!isAudioFile(file)) {
+			setError("Please upload an audio file (MP3, WAV, AAC, M4A).");
+			return;
+		}
+		if (file.size > 10 * 1024 * 1024) {
+			setError("File too large. Maximum size is 10 MB.");
+			return;
+		}
+		setCloneFile(file);
+		setError(null);
+		const reader = new FileReader();
+		reader.onload = () => {
+			if (reader.result) {
+				setCloneAudioUrl(reader.result as string);
+			}
+		};
+		reader.readAsDataURL(file);
+	}, []);
+
+	const clearCloneFile = useCallback(() => {
+		setCloneFile(null);
+		setCloneAudioUrl("");
+		setClonedEmbeddingUrl("");
+	}, []);
+
 	const handleCloneVoice = useCallback(async () => {
-		if (!cloneAudioUrl.trim()) {
-			setError("Please provide a reference audio URL for cloning.");
+		if (!cloneAudioUrl) {
+			setError("Please upload a reference audio file.");
 			return;
 		}
 		setError(null);
@@ -137,7 +189,7 @@ export function AIVoiceView() {
 		try {
 			const result = await cloneQwen3Voice({
 				endpoint: QWEN3_TTS_CONFIG.TTS.CLONE_ENDPOINT,
-				audioUrl: cloneAudioUrl.trim(),
+				audioUrl: cloneAudioUrl,
 				referenceText: cloneRefText || undefined,
 			});
 			setClonedEmbeddingUrl(result.embeddingUrl);
@@ -475,8 +527,9 @@ export function AIVoiceView() {
 				{/* Voice Clone mode */}
 				{mode === "clone" && (
 					<VoiceCloneControls
-						cloneAudioUrl={cloneAudioUrl}
-						setCloneAudioUrl={setCloneAudioUrl}
+						cloneFile={cloneFile}
+						onFileSelect={processCloneFile}
+						onClearFile={clearCloneFile}
 						cloneRefText={cloneRefText}
 						setCloneRefText={setCloneRefText}
 						clonedEmbeddingUrl={clonedEmbeddingUrl}
@@ -487,7 +540,7 @@ export function AIVoiceView() {
 				{mode === "clone" ? (
 					<Button
 						onClick={handleCloneVoice}
-						disabled={isCloning || !cloneAudioUrl.trim()}
+						disabled={isCloning || !cloneAudioUrl}
 						className="w-full"
 					>
 						{isCloning ? (
@@ -809,36 +862,103 @@ function Qwen3Controls({
 // ── Voice Clone controls ─────────────────────────────────────────────
 
 interface VoiceCloneControlsProps {
-	cloneAudioUrl: string;
-	setCloneAudioUrl: (v: string) => void;
+	cloneFile: File | null;
+	onFileSelect: (file: File) => void;
+	onClearFile: () => void;
 	cloneRefText: string;
 	setCloneRefText: (v: string) => void;
 	clonedEmbeddingUrl: string;
 }
 
 function VoiceCloneControls({
-	cloneAudioUrl,
-	setCloneAudioUrl,
+	cloneFile,
+	onFileSelect,
+	onClearFile,
 	cloneRefText,
 	setCloneRefText,
 	clonedEmbeddingUrl,
 }: VoiceCloneControlsProps) {
+	const fileInputRef = useRef<HTMLInputElement>(null);
+
+	const { isDragOver, dragProps } = useDragDrop({
+		onDrop: (files) => {
+			if (files.length > 0) {
+				onFileSelect(files[0]);
+			}
+		},
+	});
+
 	return (
 		<>
 			<p className="text-xs text-muted-foreground">
-				Clone a voice from reference audio using Qwen3. The cloned voice
-				can then be used with Qwen3 TTS in the Text to Speech tab.
+				Upload a voice sample to clone. The cloned voice can be used
+				with Qwen3 TTS in the Text to Speech tab.
 			</p>
-			<div className="flex flex-col gap-1.5">
-				<Label className="text-xs">Reference audio URL</Label>
-				<input
-					type="text"
-					placeholder="https://example.com/voice-sample.mp3"
-					value={cloneAudioUrl}
-					onChange={(e) => setCloneAudioUrl(e.target.value)}
-					className="h-8 rounded-md border bg-panel-accent px-3 text-sm"
-				/>
-			</div>
+
+			{/* Hidden file input */}
+			<input
+				ref={fileInputRef}
+				type="file"
+				accept="audio/*"
+				className="hidden"
+				onChange={(e) => {
+					const file = e.target.files?.[0];
+					if (file) onFileSelect(file);
+					e.target.value = "";
+				}}
+			/>
+
+			{/* File drop zone or file preview */}
+			{cloneFile ? (
+				<div className="flex items-center gap-3 p-3 rounded-lg border bg-panel-accent">
+					<div className="flex items-center justify-center w-10 h-10 rounded-md bg-primary/10">
+						<MicIcon className="w-5 h-5 text-primary" />
+					</div>
+					<div className="flex-1 min-w-0">
+						<p className="text-sm font-medium truncate">
+							{cloneFile.name}
+						</p>
+						<p className="text-xs text-muted-foreground">
+							{formatFileSize(cloneFile.size)}
+						</p>
+					</div>
+					<Button
+						variant="text"
+						size="icon"
+						className="shrink-0"
+						onClick={onClearFile}
+					>
+						<XIcon className="w-4 h-4" />
+					</Button>
+				</div>
+			) : (
+				<div
+					className={cn(
+						"relative border-2 border-dashed rounded-lg p-6 transition-colors cursor-pointer",
+						isDragOver
+							? "border-primary bg-primary/5"
+							: "border-muted-foreground/25 hover:border-muted-foreground/50"
+					)}
+					onClick={() => fileInputRef.current?.click()}
+					{...dragProps}
+				>
+					<div className="text-center space-y-2">
+						<div className="mx-auto size-10 rounded-full bg-muted flex items-center justify-center">
+							<UploadIcon className="size-5 text-muted-foreground" />
+						</div>
+						<div>
+							<p className="text-sm font-medium">
+								Drop audio file here
+							</p>
+							<p className="text-xs text-muted-foreground">
+								or click to browse — MP3, WAV, AAC up to 10 MB
+							</p>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Reference text */}
 			<div className="flex flex-col gap-1.5">
 				<Label className="text-xs">
 					Reference text (optional — what was said in the audio)
@@ -851,6 +971,7 @@ function VoiceCloneControls({
 					className="h-8 rounded-md border bg-panel-accent px-3 text-sm"
 				/>
 			</div>
+
 			{clonedEmbeddingUrl && (
 				<div className="p-2 rounded-md bg-accent">
 					<p className="text-xs text-muted-foreground">
