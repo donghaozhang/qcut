@@ -106,9 +106,7 @@ export function ChatterboxControls({
 				</div>
 			</div>
 			<div className="flex flex-col gap-1.5">
-				<Label className="text-xs">
-					Voice reference URL (optional)
-				</Label>
+				<Label className="text-xs">Voice reference URL (optional)</Label>
 				<input
 					type="text"
 					placeholder="https://example.com/voice.mp3"
@@ -238,8 +236,7 @@ export function Qwen3Controls({
 			{clonedEmbeddingUrl ? (
 				<div className="p-2 rounded-md bg-accent">
 					<p className="text-xs text-muted-foreground">
-						Using cloned voice. To change, go to the Voice Clone
-						tab.
+						Using cloned voice. To change, go to the Voice Clone tab.
 					</p>
 				</div>
 			) : (
@@ -337,8 +334,8 @@ export function VoiceCloneControls({
 	return (
 		<>
 			<p className="text-xs text-muted-foreground">
-				Upload a voice sample to clone. The cloned voice can be used
-				with Qwen3 TTS in the Text to Speech tab.
+				Upload a voice sample to clone. The cloned voice can be used with Qwen3
+				TTS in the Text to Speech tab.
 			</p>
 
 			{/* Hidden file input */}
@@ -361,9 +358,7 @@ export function VoiceCloneControls({
 						<MicIcon className="w-5 h-5 text-primary" />
 					</div>
 					<div className="flex-1 min-w-0">
-						<p className="text-sm font-medium truncate">
-							{cloneFile.name}
-						</p>
+						<p className="text-sm font-medium truncate">{cloneFile.name}</p>
 						<p className="text-xs text-muted-foreground">
 							{formatFileSize(cloneFile.size)}
 						</p>
@@ -393,9 +388,7 @@ export function VoiceCloneControls({
 							<UploadIcon className="size-5 text-muted-foreground" />
 						</div>
 						<div>
-							<p className="text-sm font-medium">
-								Drop audio file here
-							</p>
+							<p className="text-sm font-medium">Drop audio file here</p>
 							<p className="text-xs text-muted-foreground">
 								or click to browse — MP3, WAV, AAC up to 10 MB
 							</p>

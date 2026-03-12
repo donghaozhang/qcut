@@ -410,9 +410,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			? parseFloat(values.temperature as string)
 			: undefined,
 		cfg: values.cfg ? parseFloat(values.cfg as string) : undefined,
-		seed: values.seed
-			? parseInt(values.seed as string, 10)
-			: undefined,
+		seed: values.seed ? parseInt(values.seed as string, 10) : undefined,
 		voice: values.voice as string | undefined,
 		stability: values.stability
 			? parseFloat(values.stability as string)

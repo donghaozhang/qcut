@@ -544,11 +544,27 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			}),
 			f("--audio-url", "string", "Voice reference audio URL (for cloning)"),
 			f("--voice", "string", "Voice preset name (ElevenLabs/Qwen3)"),
-			f("--stability", "number", "Voice stability 0-1 (ElevenLabs, default: 0.5)"),
+			f(
+				"--stability",
+				"number",
+				"Voice stability 0-1 (ElevenLabs, default: 0.5)"
+			),
 			f("--language-code", "string", "Language code (ElevenLabs, e.g. 'en')"),
-			f("--exaggeration", "number", "Expressiveness 0-1 (Chatterbox, default: 0.25)"),
-			f("--temperature", "number", "Creativity control (default varies by model)"),
-			f("--cfg", "number", "Classifier-free guidance 0.1-1.0 (Chatterbox, default: 0.5)"),
+			f(
+				"--exaggeration",
+				"number",
+				"Expressiveness 0-1 (Chatterbox, default: 0.25)"
+			),
+			f(
+				"--temperature",
+				"number",
+				"Creativity control (default varies by model)"
+			),
+			f(
+				"--cfg",
+				"number",
+				"Classifier-free guidance 0.1-1.0 (Chatterbox, default: 0.5)"
+			),
 			f("--seed", "number", "Seed for reproducibility"),
 		],
 		examples: [

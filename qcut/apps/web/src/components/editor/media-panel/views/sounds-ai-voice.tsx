@@ -21,12 +21,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import {
-	PlayIcon,
-	PauseIcon,
-	Loader2Icon,
-	CopyIcon,
-} from "lucide-react";
+import { PlayIcon, PauseIcon, Loader2Icon, CopyIcon } from "lucide-react";
 import { useSoundsStore } from "@/stores/media/sounds-store";
 import {
 	generateSpeech,
@@ -183,9 +178,7 @@ export function AIVoiceView() {
 			});
 			setClonedEmbeddingUrl(result.embeddingUrl);
 		} catch (err) {
-			setError(
-				err instanceof Error ? err.message : "Voice cloning failed."
-			);
+			setError(err instanceof Error ? err.message : "Voice cloning failed.");
 		} finally {
 			setIsCloning(false);
 		}
@@ -206,10 +199,7 @@ export function AIVoiceView() {
 				let jobId: string;
 				let audioDuration: number | undefined;
 
-				if (
-					provider === "chatterbox" ||
-					provider === "chatterbox_turbo"
-				) {
+				if (provider === "chatterbox" || provider === "chatterbox_turbo") {
 					const endpoint =
 						provider === "chatterbox_turbo"
 							? CHATTERBOX_CONFIG.TTS.TURBO_ENDPOINT
@@ -239,14 +229,11 @@ export function AIVoiceView() {
 						text: text.trim(),
 						endpoint: QWEN3_TTS_CONFIG.TTS.ENDPOINT,
 						voice: clonedEmbeddingUrl ? undefined : qwVoice,
-						language:
-							qwLanguage !== "Auto" ? qwLanguage : undefined,
+						language: qwLanguage !== "Auto" ? qwLanguage : undefined,
 						prompt: stylePrompt || undefined,
 						speakerEmbeddingUrl: clonedEmbeddingUrl || undefined,
 						referenceText:
-							clonedEmbeddingUrl && cloneRefText
-								? cloneRefText
-								: undefined,
+							clonedEmbeddingUrl && cloneRefText ? cloneRefText : undefined,
 						temperature: qwTemperature,
 					});
 					audioUrl = result.audioUrl;
@@ -256,8 +243,7 @@ export function AIVoiceView() {
 
 				const trimmedText = text.trim();
 				const name =
-					trimmedText.slice(0, 40) +
-					(trimmedText.length > 40 ? "..." : "");
+					trimmedText.slice(0, 40) + (trimmedText.length > 40 ? "..." : "");
 				setGeneratedAudio({
 					id: jobId,
 					name,
@@ -283,9 +269,7 @@ export function AIVoiceView() {
 			}
 		} catch (err) {
 			setError(
-				err instanceof Error
-					? err.message
-					: "Speech generation failed."
+				err instanceof Error ? err.message : "Speech generation failed."
 			);
 		} finally {
 			setIsGenerating(false);
@@ -402,13 +386,10 @@ export function AIVoiceView() {
 								value={text}
 								onChange={(e) => setText(e.target.value)}
 								className="min-h-[80px] bg-panel-accent"
-								maxLength={
-									CHATTERBOX_CONFIG.TTS.MAX_TEXT_LENGTH
-								}
+								maxLength={CHATTERBOX_CONFIG.TTS.MAX_TEXT_LENGTH}
 							/>
 							<span className="text-xs text-muted-foreground text-right">
-								{text.length}/
-								{CHATTERBOX_CONFIG.TTS.MAX_TEXT_LENGTH}
+								{text.length}/{CHATTERBOX_CONFIG.TTS.MAX_TEXT_LENGTH}
 							</span>
 						</div>
 
@@ -416,32 +397,23 @@ export function AIVoiceView() {
 							<Label className="text-xs">Model</Label>
 							<Select
 								value={provider}
-								onValueChange={(v) =>
-									setProvider(v as TTSProvider)
-								}
+								onValueChange={(v) => setProvider(v as TTSProvider)}
 							>
 								<SelectTrigger className="h-8 bg-panel-accent">
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="chatterbox">
-										Chatterbox
-									</SelectItem>
+									<SelectItem value="chatterbox">Chatterbox</SelectItem>
 									<SelectItem value="chatterbox_turbo">
 										Chatterbox Turbo
 									</SelectItem>
-									<SelectItem value="elevenlabs_v3">
-										ElevenLabs v3
-									</SelectItem>
-									<SelectItem value="qwen3_tts">
-										Qwen3 TTS
-									</SelectItem>
+									<SelectItem value="elevenlabs_v3">ElevenLabs v3</SelectItem>
+									<SelectItem value="qwen3_tts">Qwen3 TTS</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
 
-						{(provider === "chatterbox" ||
-							provider === "chatterbox_turbo") && (
+						{(provider === "chatterbox" || provider === "chatterbox_turbo") && (
 							<ChatterboxControls
 								exaggeration={exaggeration}
 								setExaggeration={setExaggeration}
@@ -491,23 +463,17 @@ export function AIVoiceView() {
 								type="text"
 								placeholder="https://example.com/source.wav"
 								value={sourceAudioUrl}
-								onChange={(e) =>
-									setSourceAudioUrl(e.target.value)
-								}
+								onChange={(e) => setSourceAudioUrl(e.target.value)}
 								className="h-8 rounded-md border bg-panel-accent px-3 text-sm"
 							/>
 						</div>
 						<div className="flex flex-col gap-1.5">
-							<Label className="text-xs">
-								Target voice URL (optional)
-							</Label>
+							<Label className="text-xs">Target voice URL (optional)</Label>
 							<input
 								type="text"
 								placeholder="https://example.com/target-voice.wav"
 								value={targetVoiceUrl}
-								onChange={(e) =>
-									setTargetVoiceUrl(e.target.value)
-								}
+								onChange={(e) => setTargetVoiceUrl(e.target.value)}
 								className="h-8 rounded-md border bg-panel-accent px-3 text-sm"
 							/>
 						</div>
@@ -562,19 +528,15 @@ export function AIVoiceView() {
 				)}
 
 				{/* Error */}
-				{error && (
-					<p className="text-sm text-destructive">{error}</p>
-				)}
+				{error && <p className="text-sm text-destructive">{error}</p>}
 
 				{/* Clone success message */}
 				{mode === "clone" && clonedEmbeddingUrl && (
 					<div className="p-3 rounded-md bg-accent">
-						<p className="text-sm font-medium">
-							Voice cloned successfully
-						</p>
+						<p className="text-sm font-medium">Voice cloned successfully</p>
 						<p className="text-xs text-muted-foreground mt-1">
-							Switch to Text to Speech and select Qwen3 TTS to
-							use this cloned voice for generation.
+							Switch to Text to Speech and select Qwen3 TTS to use this cloned
+							voice for generation.
 						</p>
 					</div>
 				)}
@@ -598,15 +560,9 @@ export function AIVoiceView() {
 							<p className="text-sm font-medium truncate">
 								{generatedAudio.name}
 							</p>
-							<p className="text-xs text-muted-foreground">
-								AI Generated
-							</p>
+							<p className="text-xs text-muted-foreground">AI Generated</p>
 						</div>
-						<Button
-							size="sm"
-							variant="outline"
-							onClick={handleAddToTimeline}
-						>
+						<Button size="sm" variant="outline" onClick={handleAddToTimeline}>
 							+ Timeline
 						</Button>
 					</div>
@@ -615,4 +571,3 @@ export function AIVoiceView() {
 		</ScrollArea>
 	);
 }
-

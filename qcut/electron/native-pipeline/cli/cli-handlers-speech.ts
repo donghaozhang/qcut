@@ -9,7 +9,11 @@
 
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
-import type { CLIRunOptions, CLIResult, ProgressFn } from "./cli-runner/types.js";
+import type {
+	CLIRunOptions,
+	CLIResult,
+	ProgressFn,
+} from "./cli-runner/types.js";
 import { getKey } from "../infra/key-manager.js";
 import { uploadToFalStorage } from "../infra/api-caller.js";
 
@@ -41,7 +45,8 @@ export async function handleGenerateSpeech(
 	if (!falKey) {
 		return {
 			success: false,
-			error: "FAL_KEY not configured. Run: qcut-pipeline set-key --name FAL_KEY --value <key>",
+			error:
+				"FAL_KEY not configured. Run: qcut-pipeline set-key --name FAL_KEY --value <key>",
 		};
 	}
 
@@ -52,8 +57,7 @@ export async function handleGenerateSpeech(
 		"elevenlabs_v3",
 		"qwen3_tts",
 	];
-	const endpoint =
-		SPEECH_ENDPOINTS[model as keyof typeof SPEECH_ENDPOINTS];
+	const endpoint = SPEECH_ENDPOINTS[model as keyof typeof SPEECH_ENDPOINTS];
 	if (!endpoint || !ttsModels.includes(model)) {
 		return {
 			success: false,
@@ -201,7 +205,8 @@ export async function handleConvertSpeech(
 	if (!falKey) {
 		return {
 			success: false,
-			error: "FAL_KEY not configured. Run: qcut-pipeline set-key --name FAL_KEY --value <key>",
+			error:
+				"FAL_KEY not configured. Run: qcut-pipeline set-key --name FAL_KEY --value <key>",
 		};
 	}
 
@@ -356,7 +361,8 @@ export async function handleCloneVoice(
 	if (!falKey) {
 		return {
 			success: false,
-			error: "FAL_KEY not configured. Run: qcut-pipeline set-key --name FAL_KEY --value <key>",
+			error:
+				"FAL_KEY not configured. Run: qcut-pipeline set-key --name FAL_KEY --value <key>",
 		};
 	}
 

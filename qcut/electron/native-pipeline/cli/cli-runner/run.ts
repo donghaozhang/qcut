@@ -62,9 +62,7 @@ export async function run(
 	try {
 		const result = await runner.run(opts, reporter);
 		const durationMs = Math.round(performance.now() - start);
-		const exitCode = result.success
-			? ExitCode.SUCCESS
-			: ExitCode.GENERAL_ERROR;
+		const exitCode = result.success ? ExitCode.SUCCESS : ExitCode.GENERAL_ERROR;
 
 		return {
 			...result,
