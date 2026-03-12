@@ -88,6 +88,12 @@ export interface PollOptions {
 	signal?: AbortSignal;
 }
 
+export interface SseEvent {
+	id?: string;
+	event?: string;
+	data?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Client
 // ---------------------------------------------------------------------------
@@ -353,6 +359,104 @@ export class EditorApiClient {
 			`${this.config.baseUrl}${path}`,
 			body
 		);
+	}
+
+	async streamSse({
+		path,
+		query,
+		onEvent,
+		signal,
+	}: {
+		path: string;
+		query?: Record<string, string>;
+		onEvent: (event: SseEvent) => void;
+		signal?: AbortSignal;
+	}): Promise<void> {
+		await this.warnIfCapabilityLikelyUnsupported({
+			method: "GET",
+			path,
+		});
+
+		let url = `${this.config.baseUrl}${path}`;
+		if (query) {
+			const params = new URLSearchParams(query);
+			url += `?${params.toString()}`;
+		}
+
+		const headers: Record<string, string> = {};
+		if (this.config.token) {
+			headers.Authorization = `Bearer ${this.config.token}`;
+		}
+
+		let response: Response;
+		try {
+			response = await fetch(url, {
+				method: "GET",
+				headers,
+				signal,
+			});
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
+				throw new EditorApiError(
+					`Cannot connect to QCut at ${this.config.baseUrl}`
+				);
+			}
+			if (signal?.aborted) {
+				return;
+			}
+			throw new EditorApiError(`HTTP request failed: ${msg}`);
+		}
+
+		if (!response.ok) {
+			const text = await response.text().catch(() => "");
+			throw new EditorApiError(
+				text || `Request failed (HTTP ${response.status})`,
+				response.status
+			);
+		}
+
+		if (!response.body) {
+			throw new EditorApiError("No response body for SSE request");
+		}
+
+		const reader = response.body.getReader();
+		const decoder = new TextDecoder();
+		let buffer = "";
+
+		try {
+			for (;;) {
+				const { done, value } = await reader.read();
+				if (done) {
+					break;
+				}
+
+				buffer += decoder.decode(value, { stream: true });
+				const chunks = buffer.split("\n\n");
+				buffer = chunks.pop() ?? "";
+
+				for (const chunk of chunks) {
+					const parsed = this.parseSseChunk({ chunk });
+					if (parsed) {
+						onEvent(parsed);
+					}
+				}
+			}
+
+			buffer += decoder.decode();
+			if (buffer.trim()) {
+				const parsed = this.parseSseChunk({ chunk: buffer });
+				if (parsed) {
+					onEvent(parsed);
+				}
+			}
+		} catch (err) {
+			if (signal?.aborted) {
+				return;
+			}
+			const msg = err instanceof Error ? err.message : String(err);
+			throw new EditorApiError(`SSE stream failed: ${msg}`);
+		}
 	}
 
 	/**
@@ -791,6 +895,44 @@ export class EditorApiClient {
 		}
 
 		return envelope.data as T;
+	}
+
+	private parseSseChunk({ chunk }: { chunk: string }): SseEvent | null {
+		try {
+			const trimmed = chunk.trim();
+			if (!trimmed) {
+				return null;
+			}
+
+			const event: SseEvent = {};
+			const dataLines: string[] = [];
+			for (const rawLine of trimmed.split("\n")) {
+				const line = rawLine.trimEnd();
+				if (!line || line.startsWith(":")) {
+					continue;
+				}
+				if (line.startsWith("id:")) {
+					event.id = line.slice(3).trim();
+					continue;
+				}
+				if (line.startsWith("event:")) {
+					event.event = line.slice(6).trim();
+					continue;
+				}
+				if (line.startsWith("data:")) {
+					dataLines.push(line.slice(5).trim());
+				}
+			}
+			if (dataLines.length > 0) {
+				event.data = dataLines.join("\n");
+			}
+			if (!event.id && !event.event && !event.data) {
+				return null;
+			}
+			return event;
+		} catch {
+			return null;
+		}
 	}
 }
 

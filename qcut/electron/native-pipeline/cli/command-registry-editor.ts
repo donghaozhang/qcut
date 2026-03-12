@@ -8,6 +8,7 @@
  */
 
 import type { FlagDef, CommandDef } from "./command-registry-types.js";
+import { createExtraEditorCommands } from "./command-registry-editor-extra.js";
 
 /** Shorthand flag builder. */
 function f(
@@ -54,44 +55,65 @@ function ed(
 // ─── Editor Commands ─────────────────────────────────────────────────
 
 export const EDITOR_COMMANDS: Record<string, CommandDef> = {
-	// ── Auth ──
-	"editor:auth:token": ed(
-		"editor:auth:token",
-		"Auth: Get or set the current auth token",
+	"editor:console": ed(
+		"editor:console",
+		"List captured renderer console messages",
 		[
-			f("--set", "string", "Set token to this value"),
-			f("--reveal", "boolean", "Show full token (default: masked)", {
+			f("--level", "string", "Filter by level: log, info, warn, error, debug"),
+			f(
+				"--since",
+				"string",
+				"Only include entries since a relative time or timestamp"
+			),
+			f("--limit", "number", "Maximum number of entries to return"),
+			f(
+				"--stream",
+				"boolean",
+				"Stream live console entries until interrupted",
+				{
+					default: false,
+				}
+			),
+			f("--clear", "boolean", "Clear the console buffer instead of listing", {
 				default: false,
 			}),
 		],
 		[
-			"qcut-pipeline editor:auth:token --json",
-			"qcut-pipeline editor:auth:token --reveal --json",
-			"qcut-pipeline editor:auth:token --set <token> --json",
+			"qcut-pipeline editor:console --json",
+			"qcut-pipeline editor:console --level error --since 30s --json",
+			"qcut-pipeline editor:console --clear --json",
+			"qcut-pipeline editor:console --stream",
 		]
 	),
-	"editor:auth:activate": ed(
-		"editor:auth:activate",
-		"Auth: Set token and activate license on this device",
-		[f("--token", "string", "Auth token", { required: true })],
-		["qcut-pipeline editor:auth:activate --token <token> --json"]
+	"editor:errors": ed(
+		"editor:errors",
+		"List captured renderer errors",
+		[
+			f(
+				"--since",
+				"string",
+				"Only include entries since a relative time or timestamp"
+			),
+			f("--limit", "number", "Maximum number of entries to return"),
+			f("--stream", "boolean", "Stream live error entries until interrupted", {
+				default: false,
+			}),
+			f(
+				"--clear",
+				"boolean",
+				"Clear the shared console buffer instead of listing",
+				{
+					default: false,
+				}
+			),
+		],
+		[
+			"qcut-pipeline editor:errors --json",
+			"qcut-pipeline editor:errors --since 10s --json",
+			"qcut-pipeline editor:errors --clear --json",
+			"qcut-pipeline editor:errors --stream",
+		]
 	),
-	"editor:auth:logout": ed(
-		"editor:auth:logout",
-		"Auth: Clear the current auth token",
-		[],
-		["qcut-pipeline editor:auth:logout --json"]
-	),
-
-	// ── Health ──
-	"editor:health": ed("editor:health", "Check editor connectivity", [
-		f("--status-only", "boolean", "Return compact status output", {
-			default: false,
-		}),
-		f("--deep", "boolean", "Run deep cross-process health probes", {
-			default: false,
-		}),
-	]),
 
 	// ── Media ──
 	"editor:media:list": ed("editor:media:list", "List media files", [PID]),
@@ -596,43 +618,6 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		]
 	),
 
-	// ── UI ──
-	"editor:ui:switch-panel": ed(
-		"editor:ui:switch-panel",
-		"Switch editor panel",
-		[
-			f("--panel", "string", "Panel name", {
-				required: true,
-				enum: [
-					"media",
-					"text",
-					"stickers",
-					"video-edit",
-					"effects",
-					"transitions",
-					"filters",
-					"text2image",
-					"nano-edit",
-					"ai",
-					"sounds",
-					"segmentation",
-					"remotion",
-					"pty",
-					"word-timeline",
-					"project-folder",
-					"upscale",
-					"moyin",
-					"properties",
-					"export",
-					"api-keys",
-				],
-			}),
-			f("--tab", "string", "Inner tab (for moyin panel)", {
-				enum: ["overview", "characters", "scenes", "shots", "generate"],
-			}),
-		]
-	),
-
 	// ── Novel Parse ──
 	"editor:novel:parse": ed(
 		"editor:novel:parse",
@@ -798,11 +783,5 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 			),
 		]
 	),
-
-	// ── Screenshot ──
-	"editor:screenshot:capture": ed(
-		"editor:screenshot:capture",
-		"Take a screenshot of QCut window",
-		[f("--filename", "string", "Output filename")]
-	),
+	...createExtraEditorCommands({ f, ed }),
 };

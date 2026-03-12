@@ -18,10 +18,15 @@ import {
 	type WindowAccessor,
 } from "../claude/http/claude-http-shared-routes.js";
 import { registerStateRoutes } from "../claude/http/claude-http-state-routes.js";
+import { registerSnapshotRoutes } from "../claude/http/claude-http-snapshot-routes.js";
 import {
 	handleClaudeEventsStreamRequest,
 	registerClaudeEventsRoutes,
 } from "../claude/http/claude-http-events-routes.js";
+import {
+	handleClaudeConsoleStreamRequest,
+	registerClaudeConsoleRoutes,
+} from "../claude/http/claude-http-console-routes.js";
 import type {
 	EditorEvent,
 	EditorStateSnapshot,
@@ -52,6 +57,12 @@ import type {
 	ClaudeHistorySummary,
 	ClaudeUndoRedoResponse,
 } from "../claude/handlers/claude-transaction-handler.js";
+import type { ClaudeConsoleEntry } from "../claude/handlers/claude-console-handler.js";
+import type {
+	EditorSnapshotActionResult,
+	EditorSnapshotResult,
+} from "../types/claude-api.js";
+import { authorizeClaudeHttpRequest } from "../claude/http/claude-http-auth.js";
 
 let server: Server | null = null;
 
@@ -370,12 +381,35 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 			})) as EditorStateSnapshot,
 		timeoutMs: 10_000,
 	});
+	registerSnapshotRoutes(router, {
+		requestSnapshot: async (request) =>
+			(await requestFromMain("get-editor-accessibility-snapshot", {
+				request,
+			})) as EditorSnapshotResult,
+		clickSnapshotRef: async (request) =>
+			(await requestFromMain("snapshot:click", {
+				request,
+			})) as EditorSnapshotActionResult,
+		fillSnapshotRef: async (request) =>
+			(await requestFromMain("snapshot:fill", {
+				request,
+			})) as EditorSnapshotActionResult,
+		timeoutMs: 10_000,
+	});
 	registerClaudeEventsRoutes(router, {
 		/** Lists recorded Claude/editor events through the bridge. */
 		listEvents: async (filter) =>
 			(await requestFromMain("events:list", {
 				...(filter as unknown as Record<string, unknown>),
 			})) as EditorEvent[],
+	});
+	registerClaudeConsoleRoutes(router, {
+		listConsoleEntries: async (filter) =>
+			(await requestFromMain("console:list", {
+				...(filter as unknown as Record<string, unknown>),
+			})) as ClaudeConsoleEntry[],
+		clearConsoleEntries: async () =>
+			(await requestFromMain("console:clear", {})) as { clearedCount: number },
 	});
 
 	// ==========================================================================
@@ -544,6 +578,22 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	});
 
 	// ==========================================================================
+	// Debug: dispatch contextmenu event on a timeline element
+	// ==========================================================================
+	router.post("/api/claude/ui/context-menu", async (req) => {
+		if (!req.body?.elementId || typeof req.body.elementId !== "string") {
+			throw new HttpError(400, "Missing 'elementId' in request body");
+		}
+		const payload: Record<string, unknown> = { elementId: req.body.elementId };
+		if (req.body?.debug === true) payload.debug = true;
+		return await withTimeout(
+			requestFromMain("context-menu", payload),
+			10_000,
+			"Context menu dispatch timed out"
+		);
+	});
+
+	// ==========================================================================
 	// Moyin (Director) CLI routes
 	// ==========================================================================
 	router.post("/api/claude/moyin/set-script", async (req) => {
@@ -636,14 +686,6 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 		);
 	});
 
-	// Auth check
-	/** Handle check auth. */
-	function checkAuth(req: IncomingMessage): boolean {
-		const token = process.env.QCUT_API_TOKEN;
-		if (!token) return true;
-		return req.headers.authorization === `Bearer ${token}`;
-	}
-
 	// CORS
 	/** Set cors headers. */
 	function setCorsHeaders(res: ServerResponse): void {
@@ -678,12 +720,15 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 				})
 			);
 		});
-		if (!checkAuth(req)) {
-			res.writeHead(401, { "Content-Type": "application/json" });
+		const authResult = authorizeClaudeHttpRequest({ req });
+		if (!authResult.ok) {
+			res.writeHead(authResult.status ?? 401, {
+				"Content-Type": "application/json",
+			});
 			res.end(
 				JSON.stringify({
 					success: false,
-					error: "Unauthorized",
+					error: authResult.error ?? "Unauthorized",
 					timestamp: Date.now(),
 				})
 			);
@@ -697,6 +742,22 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 					(await requestFromMain("events:list", {
 						...(filter as unknown as Record<string, unknown>),
 					})) as EditorEvent[],
+			})
+		) {
+			return;
+		}
+		if (
+			handleClaudeConsoleStreamRequest({
+				req,
+				res,
+				listConsoleEntries: async (filter) =>
+					(await requestFromMain("console:list", {
+						...(filter as unknown as Record<string, unknown>),
+					})) as ClaudeConsoleEntry[],
+				clearConsoleEntries: async () =>
+					(await requestFromMain("console:clear", {})) as {
+						clearedCount: number;
+					},
 			})
 		) {
 			return;

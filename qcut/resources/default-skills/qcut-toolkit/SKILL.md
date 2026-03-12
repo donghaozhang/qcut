@@ -70,7 +70,19 @@ Handles:
 - Debugging IPC (`mcp:app-html`) and HTTP (`/api/claude/mcp/app`) delivery
 - Crafting prompts that modify MCP media app UI safely
 
-### 6. pr-comments — PR Review Processing
+### 6. ipad-cli — Real iPad & Simulator Automation
+**When:** Installing on iPad, testing on iPad, taking iPad screenshots, running E2E device tests, sending CLI commands to the iPad app
+**Invoke:** `/ipad-cli`
+**Skill path:** `.claude/skills/qcut-toolkit/ipad-cli/SKILL.md`
+
+Handles:
+- Building, deploying, and launching QCut on real iPad or simulator
+- Sending deep link commands via Darwin notifications (real device) or `simctl openurl` (simulator)
+- Taking screenshots remotely (`pymobiledevice3` tunnel for device, `simctl io` for simulator)
+- E2E testing: navigate to editor, trigger exports, check state, FPS benchmarks
+- Managing pymobiledevice3 tunnels for advanced device access
+
+### 7. pr-comments — PR Review Processing
 **When:** Exporting PR comments, evaluating code reviews, fixing review feedback from CodeRabbit/Gemini bots
 **Invoke:** `/pr-comments`
 **Skill path:** `.claude/skills/pr-comments/SKILL.md`
@@ -105,6 +117,7 @@ When the user's request involves multiple sub-skills, chain them in this order:
 | "import media", "get project stats", "diagnose error" | native-cli |
 | "video prompt", "Seedance", "即梦", "视频提示词", "write video description" | seedance |
 | "test MCP preview", "MCP app mode", "debug iframe", "mcp:app-html" | qcut-mcp-preview-test |
+| "install on iPad", "test on iPad", "iPad screenshot", "E2E iPad", "deploy to device" | ipad-cli |
 | "export PR comments", "fix review feedback", "process code review" | pr-comments |
 | "process this video and generate thumbnails" | ffmpeg-skill → ai-content-pipeline |
 | "import media and organize" | native-cli |

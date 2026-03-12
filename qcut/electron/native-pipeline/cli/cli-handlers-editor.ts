@@ -25,6 +25,13 @@ import { handleGenerateExportCommand } from "../editor/editor-handlers-generate.
 import { handleRemotionCommand } from "../editor/editor-handlers-remotion.js";
 import { handleStickerCommand } from "../editor/editor-handlers-sticker.js";
 import { handleSearchCommand } from "../editor/editor-handlers-search.js";
+import {
+	handleConsoleCommand,
+	handleErrorsCommand,
+} from "./cli-handlers-console.js";
+import { handleDiffCommand } from "./cli-handlers-diff.js";
+import { handleSessionCommand } from "./cli-handlers-session.js";
+import { handleSnapshotCommand } from "./cli-handlers-snapshot.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -160,7 +167,8 @@ async function verifyScreenRecordingStopped({
  */
 export async function handleEditorCommand(
 	options: CLIRunOptions,
-	onProgress: ProgressFn
+	onProgress: ProgressFn,
+	signal?: AbortSignal
 ): Promise<CLIResult> {
 	// In session mode, reuse the shared client. Otherwise create a new one.
 	const client = options.session
@@ -172,6 +180,8 @@ export async function handleEditorCommand(
 	//                in session mode, skip after first successful check
 	const shouldSkipHealth =
 		options.command === "editor:health" ||
+		options.command.startsWith("editor:diff:") ||
+		options.command.startsWith("editor:session:") ||
 		(options.skipHealth && (!options.session || isSessionHealthChecked()));
 
 	if (!shouldSkipHealth) {
@@ -240,6 +250,21 @@ export async function handleEditorCommand(
 			case "ui":
 				return await handleUiCommand(client, options);
 
+			case "snapshot":
+				return await handleSnapshotCommand({ client, options });
+
+			case "diff":
+				return await handleDiffCommand({ options });
+
+			case "session":
+				return await handleSessionCommand({ options });
+
+			case "console":
+				return await handleConsoleCommand({ client, options, signal });
+
+			case "errors":
+				return await handleErrorsCommand({ client, options, signal });
+
 			case "moyin":
 				return await handleMoyinCommand(client, options);
 
@@ -252,7 +277,7 @@ export async function handleEditorCommand(
 			default:
 				return {
 					success: false,
-					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, moyin, novel, screenshot, undo, redo, state`,
+					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, snapshot, diff, session, console, errors, moyin, novel, screenshot, undo, redo, state`,
 				};
 		}
 	} catch (err) {
@@ -459,10 +484,24 @@ async function handleUiCommand(
 			const data = await client.post("/api/claude/ui/switch-panel", body);
 			return { success: true, data };
 		}
+		case "context-menu": {
+			const elementId = options.elementId;
+			if (!elementId) {
+				return {
+					success: false,
+					error:
+						"Missing --element-id. Provide the timeline element ID to right-click.",
+				};
+			}
+			const body: Record<string, unknown> = { elementId };
+			if (options.verbose) body.debug = true;
+			const data = await client.post("/api/claude/ui/context-menu", body);
+			return { success: true, data };
+		}
 		default:
 			return {
 				success: false,
-				error: `Unknown ui action: ${action}. Available: switch-panel`,
+				error: `Unknown ui action: ${action}. Available: switch-panel, context-menu`,
 			};
 	}
 }

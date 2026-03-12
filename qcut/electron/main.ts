@@ -132,6 +132,9 @@ const { setupYouTubeIPC } = require("./youtube-handler.js");
 const {
 	captureScreenshot,
 } = require("./claude/handlers/claude-screenshot-handler.js");
+const {
+	attachConsoleCapture,
+} = require("./claude/handlers/claude-console-handler.js");
 // Note: font-resolver-handler removed - not implemented
 
 let mainWindow: BrowserWindow | null = null;
@@ -542,6 +545,7 @@ function createWindow(): void {
 			webviewTag: false,
 		},
 	});
+	attachConsoleCapture({ window: mainWindow });
 
 	// Size window to 80% of the screen and center it
 	try {

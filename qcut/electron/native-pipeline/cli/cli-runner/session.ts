@@ -30,6 +30,15 @@ import {
 	createEditorClient,
 } from "../../editor/editor-api-client.js";
 import { emitJsonResult } from "../json-output.js";
+import {
+	applySessionStateToOptions,
+	createEmptySessionState,
+	extractSessionCommandPayload,
+	loadSessionState,
+	saveSessionState,
+	updateSessionState,
+	type SessionState,
+} from "../session-state.js";
 
 /**
  * Shared editor client for session mode.
@@ -111,8 +120,14 @@ export function parseSessionLine(
 		host: baseOptions.host,
 		port: baseOptions.port,
 		token: baseOptions.token,
+		policy: baseOptions.policy,
+		stateDir: baseOptions.stateDir,
+		resume: baseOptions.resume,
 		skipHealth: baseOptions.skipHealth,
 		noCapabilityCheck: baseOptions.noCapabilityCheck,
+		projectId: baseOptions.projectId,
+		panel: baseOptions.panel,
+		tab: baseOptions.tab,
 		session: baseOptions.session,
 		...parsed,
 	};
@@ -173,6 +188,12 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 				"video-url": { type: "string" },
 				"audio-url": { type: "string" },
 				"output-dir": { type: "string", short: "o" },
+				policy: { type: "string" },
+				resume: { type: "string" },
+				"state-dir": { type: "string" },
+				"session-name": { type: "string" },
+				before: { type: "string" },
+				after: { type: "string" },
 				duration: { type: "string", short: "d" },
 				"aspect-ratio": { type: "string" },
 				resolution: { type: "string" },
@@ -222,6 +243,13 @@ function parseSessionArgs(args: string[]): Partial<CLIRunOptions> {
 		if (values["video-url"]) result.videoUrl = values["video-url"] as string;
 		if (values["audio-url"]) result.audioUrl = values["audio-url"] as string;
 		if (values["output-dir"]) result.outputDir = values["output-dir"] as string;
+		if (values.policy) result.policy = values.policy as string;
+		if (values.resume) result.resume = values.resume as string;
+		if (values["state-dir"]) result.stateDir = values["state-dir"] as string;
+		if (values["session-name"])
+			result.sessionName = values["session-name"] as string;
+		if (values.before) result.before = values.before as string;
+		if (values.after) result.after = values.after as string;
 		if (values.duration) result.duration = values.duration as string;
 		if (values["aspect-ratio"])
 			result.aspectRatio = values["aspect-ratio"] as string;
@@ -291,6 +319,45 @@ export async function runSession(
 ): Promise<void> {
 	const isInteractive = process.stdin.isTTY === true;
 	const output = baseOptions.json ? "json" : "text";
+	let activeSessionState: SessionState | null = null;
+	let sessionBaseOptions = { ...baseOptions };
+
+	if (baseOptions.resume) {
+		activeSessionState =
+			loadSessionState({
+				sessionName: baseOptions.resume,
+				stateDir: baseOptions.stateDir,
+			}) ?? createEmptySessionState({ sessionName: baseOptions.resume });
+		const hydrated = applySessionStateToOptions({
+			options: {
+				command: "__session__",
+				outputDir: sessionBaseOptions.outputDir ?? "./output",
+				saveIntermediates: false,
+				json: sessionBaseOptions.json ?? false,
+				verbose: sessionBaseOptions.verbose ?? false,
+				quiet: sessionBaseOptions.quiet ?? false,
+				host: sessionBaseOptions.host,
+				port: sessionBaseOptions.port,
+				token: sessionBaseOptions.token,
+				policy: sessionBaseOptions.policy,
+				stateDir: sessionBaseOptions.stateDir,
+				resume: sessionBaseOptions.resume,
+				session: true,
+				projectId: sessionBaseOptions.projectId,
+				panel: sessionBaseOptions.panel,
+				tab: sessionBaseOptions.tab,
+				skipHealth: sessionBaseOptions.skipHealth,
+				noCapabilityCheck: sessionBaseOptions.noCapabilityCheck,
+			},
+			sessionState: activeSessionState,
+		});
+		sessionBaseOptions = {
+			...sessionBaseOptions,
+			projectId: hydrated.projectId,
+			panel: hydrated.panel,
+			tab: hydrated.tab,
+		};
+	}
 
 	if (isInteractive) {
 		process.stderr.write("qcut-pipeline session mode. Type 'exit' to quit.\n");
@@ -308,7 +375,7 @@ export async function runSession(
 	}
 
 	for await (const line of rl) {
-		const options = parseSessionLine(line, baseOptions);
+		const options = parseSessionLine(line, sessionBaseOptions);
 		if (!options) {
 			// null means skip (comment/empty) or exit
 			const trimmed = line.trim();
@@ -323,6 +390,37 @@ export async function runSession(
 
 		try {
 			const result = await runner.run(options, onProgress);
+			if (options.command === "editor:session:load" && result.success) {
+				const payload = extractSessionCommandPayload({ value: result.data });
+				if (payload) {
+					activeSessionState = payload.session;
+					sessionBaseOptions = {
+						...sessionBaseOptions,
+						resume: payload.session.sessionName,
+						stateDir: options.stateDir ?? sessionBaseOptions.stateDir,
+						projectId: payload.session.projectId,
+						panel: payload.session.lastPanel,
+						tab: payload.session.lastTab,
+					};
+				}
+			}
+			if (sessionBaseOptions.resume && activeSessionState) {
+				activeSessionState = updateSessionState({
+					sessionState: activeSessionState,
+					options,
+					result,
+				});
+				saveSessionState({
+					sessionState: activeSessionState,
+					stateDir: sessionBaseOptions.stateDir ?? options.stateDir,
+				});
+				sessionBaseOptions = {
+					...sessionBaseOptions,
+					projectId: activeSessionState.projectId,
+					panel: activeSessionState.lastPanel,
+					tab: activeSessionState.lastTab,
+				};
+			}
 
 			if (output === "json") {
 				emitJsonResult(options.command, result, {

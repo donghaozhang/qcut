@@ -417,27 +417,19 @@ function TimelineTrackContentComponent({
 		e: React.MouseEvent,
 		element: TimelineElementType
 	) => {
-		setMouseDownLocation({ x: e.clientX, y: e.clientY });
-
 		// Detect right-click (button 2) and handle selection without starting drag
 		const isRightClick = e.button === 2;
 		const isMultiSelect = e.metaKey || e.ctrlKey || e.shiftKey;
 
 		if (isRightClick) {
-			// Handle right-click selection
-			const isSelected = selectedElements.some(
-				(c) => c.trackId === track.id && c.elementId === element.id
-			);
-
-			// If element is not selected, select it (keep other selections if multi-select)
-			if (!isSelected) {
-				selectElement(track.id, element.id, isMultiSelect);
-			}
-			// If element is already selected, keep it selected
-
-			// Don't start drag action for right-clicks
+			// Don't trigger any state updates on right-click mousedown.
+			// State updates cause re-renders that race with Radix ContextMenu
+			// opening, causing it to immediately close.
+			// Selection is handled by onContextMenu in the TimelineElement instead.
 			return;
 		}
+
+		setMouseDownLocation({ x: e.clientX, y: e.clientY });
 
 		// Handle multi-selection for left-click with modifiers
 		if (isMultiSelect) {

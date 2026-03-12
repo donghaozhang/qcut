@@ -50,12 +50,89 @@ import {
 	parseAutoclipOptions,
 } from "../../autoclip/autoclip-runner.js";
 import type { CLIRunOptions, CLIResult, ProgressFn } from "./types.js";
+import { resolveActionPolicy, evaluateActionPolicy } from "../action-policy.js";
+import { confirm, isInteractive } from "../interactive.js";
+import {
+	applySessionStateToOptions,
+	createEmptySessionState,
+	loadSessionState,
+	saveSessionState,
+	updateSessionState,
+	type SessionState,
+} from "../session-state.js";
 import { handleGenerate } from "./handler-generate.js";
 import { handleRunPipeline } from "./handler-pipeline.js";
 import { handleTransferMotion } from "./handler-transfer.js";
 import { handleGenerateGrid } from "./handler-grid.js";
 import { handleUpscaleImage } from "./handler-upscale.js";
 import { handlePipelineStatus } from "./handler-pipeline-status.js";
+
+async function enforceActionPolicy({
+	options,
+}: {
+	options: CLIRunOptions;
+}): Promise<CLIResult | null> {
+	try {
+		const { policy, source } = resolveActionPolicy({
+			policyPath: options.policy,
+		});
+		const evaluation = evaluateActionPolicy({
+			options,
+			policy,
+		});
+
+		if (evaluation.decision === "deny") {
+			const sourceHint =
+				source === "file" && options.policy
+					? ` from ${options.policy}`
+					: " from the default policy";
+			const patternHint = evaluation.matchedPattern
+				? ` (matched '${evaluation.matchedPattern}')`
+				: "";
+			return {
+				success: false,
+				error: `Command blocked by action policy${sourceHint}${patternHint}: ${options.command}`,
+			};
+		}
+
+		if (evaluation.decision !== "confirm") {
+			return null;
+		}
+
+		if (options.force) {
+			return null;
+		}
+
+		const patternHint = evaluation.matchedPattern
+			? ` (matched '${evaluation.matchedPattern}')`
+			: "";
+		if (!isInteractive()) {
+			return {
+				success: false,
+				error: `Command requires confirmation by action policy${patternHint}: ${options.command}. Re-run with --force or allow it via --policy <path>.`,
+			};
+		}
+
+		const proceed = await confirm(
+			`Action policy requires confirmation for '${options.command}'${patternHint}. Proceed?`
+		);
+		if (!proceed) {
+			return {
+				success: false,
+				error: "Execution cancelled by action policy confirmation",
+			};
+		}
+
+		return null;
+	} catch (error) {
+		return {
+			success: false,
+			error: `Failed to load action policy: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		};
+	}
+}
 
 export class CLIPipelineRunner {
 	private executor = new PipelineExecutor();
@@ -79,9 +156,36 @@ export class CLIPipelineRunner {
 	): Promise<CLIResult> {
 		loadEnvFile(options.configDir);
 
-		if (options.input === "-") {
+		let activeSessionState: SessionState | null = null;
+		let resolvedOptions = options;
+
+		if (options.resume) {
 			try {
-				options.input = await readStdin();
+				activeSessionState =
+					loadSessionState({
+						sessionName: options.resume,
+						stateDir: options.stateDir,
+					}) ?? createEmptySessionState({ sessionName: options.resume });
+				resolvedOptions = applySessionStateToOptions({
+					options,
+					sessionState: activeSessionState,
+				});
+			} catch (error) {
+				return {
+					success: false,
+					error: `Failed to load session state: ${
+						error instanceof Error ? error.message : String(error)
+					}`,
+				};
+			}
+		}
+
+		if (resolvedOptions.input === "-") {
+			try {
+				resolvedOptions = {
+					...resolvedOptions,
+					input: await readStdin(),
+				};
 			} catch (err) {
 				return {
 					success: false,
@@ -90,140 +194,245 @@ export class CLIPipelineRunner {
 			}
 		}
 
-		switch (options.command) {
+		const policyResult = await enforceActionPolicy({
+			options: resolvedOptions,
+		});
+		if (policyResult) {
+			return policyResult;
+		}
+
+		let result: CLIResult;
+		switch (resolvedOptions.command) {
 			case "list-models":
-				return adminHandleListModels(options);
+				result = await adminHandleListModels(resolvedOptions);
+				break;
 			case "estimate-cost":
-				return adminHandleEstimateCost(options);
+				result = await adminHandleEstimateCost(resolvedOptions);
+				break;
 			case "generate-image":
 			case "create-video":
 			case "generate-avatar":
-				return handleGenerate(options, onProgress, this.executor, this.signal);
+				result = await handleGenerate(
+					resolvedOptions,
+					onProgress,
+					this.executor,
+					this.signal
+				);
+				break;
 			case "run-pipeline":
-				return handleRunPipeline(
-					options,
+				result = await handleRunPipeline(
+					resolvedOptions,
 					onProgress,
 					this.executor,
 					this.signal
 				);
+				break;
 			case "analyze-video":
-				return mediaHandleAnalyzeVideo(
-					options,
+				result = await mediaHandleAnalyzeVideo(
+					resolvedOptions,
 					onProgress,
 					this.executor,
 					this.signal
 				);
+				break;
 			case "query-video":
-				return mediaHandleQueryVideo(
-					options,
+				result = await mediaHandleQueryVideo(
+					resolvedOptions,
 					onProgress,
 					this.executor,
 					this.signal
 				);
+				break;
 			case "transcribe":
-				return mediaHandleTranscribe(
-					options,
+				result = await mediaHandleTranscribe(
+					resolvedOptions,
 					onProgress,
 					this.executor,
 					this.signal
 				);
+				break;
 			case "generate-remotion":
-				return handleGenerateRemotion(options, onProgress, null, this.signal);
+				result = await handleGenerateRemotion(
+					resolvedOptions,
+					onProgress,
+					null,
+					this.signal
+				);
+				break;
 			case "moyin:parse-script":
-				return handleMoyinParseScript(options, onProgress);
+				result = await handleMoyinParseScript(resolvedOptions, onProgress);
+				break;
 			case "transfer-motion":
-				return handleTransferMotion(
-					options,
+				result = await handleTransferMotion(
+					resolvedOptions,
 					onProgress,
 					this.executor,
 					this.signal
 				);
+				break;
 			case "generate-grid":
-				return handleGenerateGrid(
-					options,
+				result = await handleGenerateGrid(
+					resolvedOptions,
 					onProgress,
 					this.executor,
 					this.signal
 				);
+				break;
 			case "upscale-image":
-				return handleUpscaleImage(
-					options,
+				result = await handleUpscaleImage(
+					resolvedOptions,
 					onProgress,
 					this.executor,
 					this.signal
 				);
+				break;
 			case "setup":
-				return adminHandleSetup();
+				result = await adminHandleSetup();
+				break;
 			case "set-key":
-				return adminHandleSetKey(options);
+				result = await adminHandleSetKey(resolvedOptions);
+				break;
 			case "get-key":
-				return adminHandleGetKey(options);
+				result = await adminHandleGetKey(resolvedOptions);
+				break;
 			case "check-keys":
-				return adminHandleCheckKeys();
+				result = await adminHandleCheckKeys();
+				break;
 			case "delete-key":
-				return adminHandleDeleteKey(options);
+				result = await adminHandleDeleteKey(resolvedOptions);
+				break;
 			case "init-project":
-				return adminHandleInitProject(options);
+				result = await adminHandleInitProject(resolvedOptions);
+				break;
 			case "organize-project":
-				return adminHandleOrganizeProject(options);
+				result = await adminHandleOrganizeProject(resolvedOptions);
+				break;
 			case "structure-info":
-				return adminHandleStructureInfo(options);
+				result = await adminHandleStructureInfo(resolvedOptions);
+				break;
 			case "create-examples":
-				return adminHandleCreateExamples(options);
+				result = await adminHandleCreateExamples(resolvedOptions);
+				break;
 			case "vimax:idea2video":
-				return handleVimaxIdea2Video(options, onProgress);
+				result = await handleVimaxIdea2Video(resolvedOptions, onProgress);
+				break;
 			case "vimax:script2video":
-				return handleVimaxScript2Video(options, onProgress);
+				result = await handleVimaxScript2Video(resolvedOptions, onProgress);
+				break;
 			case "vimax:novel2movie":
-				return handleVimaxNovel2Movie(options, onProgress);
+				result = await handleVimaxNovel2Movie(resolvedOptions, onProgress);
+				break;
 			case "vimax:extract-characters":
-				return handleVimaxExtractCharacters(options, onProgress);
+				result = await handleVimaxExtractCharacters(
+					resolvedOptions,
+					onProgress
+				);
+				break;
 			case "vimax:generate-script":
-				return handleVimaxGenerateScript(options, onProgress);
+				result = await handleVimaxGenerateScript(resolvedOptions, onProgress);
+				break;
 			case "vimax:generate-storyboard":
-				return handleVimaxGenerateStoryboard(options, onProgress);
+				result = await handleVimaxGenerateStoryboard(
+					resolvedOptions,
+					onProgress
+				);
+				break;
 			case "vimax:generate-portraits":
-				return handleVimaxGeneratePortraits(options, onProgress);
+				result = await handleVimaxGeneratePortraits(
+					resolvedOptions,
+					onProgress
+				);
+				break;
 			case "vimax:create-registry":
-				return handleVimaxCreateRegistry(options);
+				result = await handleVimaxCreateRegistry(resolvedOptions);
+				break;
 			case "vimax:show-registry":
-				return handleVimaxShowRegistry(options);
+				result = await handleVimaxShowRegistry(resolvedOptions);
+				break;
 			case "vimax:list-models":
-				return handleVimaxListModels();
+				result = await handleVimaxListModels();
+				break;
 			case "list-avatar-models":
-				return adminHandleListModels({ ...options, category: "avatar" });
+				result = await adminHandleListModels({
+					...resolvedOptions,
+					category: "avatar",
+				});
+				break;
 			case "list-video-models":
-				return adminHandleListModels({
-					...options,
+				result = await adminHandleListModels({
+					...resolvedOptions,
 					category: "text_to_video",
 				});
+				break;
 			case "list-motion-models":
-				return adminHandleListModels({
-					...options,
+				result = await adminHandleListModels({
+					...resolvedOptions,
 					category: "motion_transfer",
 				});
+				break;
 			case "list-speech-models":
-				return adminHandleListModels({
-					...options,
+				result = await adminHandleListModels({
+					...resolvedOptions,
 					category: "text_to_speech",
 				});
+				break;
 			case "pipeline:status":
-				return handlePipelineStatus(options);
+				result = await handlePipelineStatus(resolvedOptions);
+				break;
 			case "translate-video":
-				return handleTranslateVideo(options, onProgress, this.signal);
-			case "youtube:upload":
-				return handleYouTubeUpload(options, onProgress);
-			case "autoclip":
-				return runAutoclip(
-					parseAutoclipOptions(options),
+				result = await handleTranslateVideo(
+					resolvedOptions,
 					onProgress,
 					this.signal
 				);
+				break;
+			case "youtube:upload":
+				result = await handleYouTubeUpload(resolvedOptions, onProgress);
+				break;
+			case "autoclip":
+				result = await runAutoclip(
+					parseAutoclipOptions(resolvedOptions),
+					onProgress,
+					this.signal
+				);
+				break;
 			default:
-				if (options.command.startsWith("editor:")) {
-					return handleEditorCommand(options, onProgress);
+				if (resolvedOptions.command.startsWith("editor:")) {
+					result = await handleEditorCommand(
+						resolvedOptions,
+						onProgress,
+						this.signal
+					);
+					break;
 				}
-				return { success: false, error: `Unknown command: ${options.command}` };
+				result = {
+					success: false,
+					error: `Unknown command: ${resolvedOptions.command}`,
+				};
 		}
+
+		if (resolvedOptions.resume && activeSessionState) {
+			try {
+				const nextState = updateSessionState({
+					sessionState: activeSessionState,
+					options: resolvedOptions,
+					result,
+				});
+				saveSessionState({
+					sessionState: nextState,
+					stateDir: resolvedOptions.stateDir,
+				});
+			} catch (error) {
+				if (!resolvedOptions.quiet) {
+					console.error(
+						`[QCut CLI] Failed to save session state '${resolvedOptions.resume}': ${
+							error instanceof Error ? error.message : String(error)
+						}`
+					);
+				}
+			}
+		}
+
+		return result;
 	}
 }

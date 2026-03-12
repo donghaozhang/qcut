@@ -65,6 +65,44 @@ export function PreviewPanel() {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const cacheCanvasRef = useRef<HTMLCanvasElement>(null);
 	const lastSeekEventTimeRef = useRef<number | null>(null);
+
+	// Track playback time for active element detection during playback.
+	// During playback, Zustand currentTime doesn't update every frame (perf optimization).
+	// This listener detects element boundary crossings and triggers re-renders only when
+	// the set of active elements changes (not every frame).
+	const [playbackTime, setPlaybackTime] = useState(currentTime);
+	const lastActiveIdsRef = useRef<string>("");
+
+	useEffect(() => {
+		if (!isPlaying) {
+			// When not playing, sync with store time
+			setPlaybackTime(currentTime);
+			return;
+		}
+
+		const handlePlaybackUpdate = (e: Event) => {
+			const time = (e as CustomEvent).detail.time as number;
+			// Check if active elements changed by testing element boundaries
+			let activeIds = "";
+			for (const track of tracks) {
+				for (const el of track.elements) {
+					if (el.hidden) continue;
+					const end = el.startTime + (el.duration - el.trimStart - el.trimEnd);
+					if (time >= el.startTime && time < end) {
+						activeIds += el.id + ",";
+					}
+				}
+			}
+			if (activeIds !== lastActiveIdsRef.current) {
+				lastActiveIdsRef.current = activeIds;
+				setPlaybackTime(time);
+			}
+		};
+
+		window.addEventListener("playback-update", handlePlaybackUpdate);
+		return () =>
+			window.removeEventListener("playback-update", handlePlaybackUpdate);
+	}, [isPlaying, currentTime, tracks]);
 	const [isExpanded, setIsExpanded] = useState(false);
 	const { activeProject } = useProjectStore();
 	const externalHtml = useMcpAppStore((state) => state.activeHtml);
@@ -273,7 +311,10 @@ export function PreviewPanel() {
 						element.startTime +
 						(element.duration - element.trimStart - element.trimEnd);
 
-					if (currentTime < elementStart || currentTime >= elementEnd) {
+					// Use playbackTime during playback (updates on element boundary crossings),
+					// fall back to store currentTime when paused
+					const effectiveTime = isPlaying ? playbackTime : currentTime;
+					if (effectiveTime < elementStart || effectiveTime >= elementEnd) {
 						continue;
 					}
 
@@ -294,7 +335,7 @@ export function PreviewPanel() {
 		} catch {
 			return [];
 		}
-	}, [tracks, currentTime, mediaItems]);
+	}, [tracks, currentTime, playbackTime, isPlaying, mediaItems]);
 
 	const activeElements = useMemo(
 		() => getActiveElements(),

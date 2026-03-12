@@ -52,6 +52,12 @@ import {
 } from "../handlers/claude-navigator-handler.js";
 import { registerStateRoutes } from "./claude-http-state-routes.js";
 import { requestEditorStateSnapshotFromRenderer } from "../handlers/claude-state-handler.js";
+import { registerSnapshotRoutes } from "./claude-http-snapshot-routes.js";
+import {
+	clickEditorSnapshotRef,
+	fillEditorSnapshotRef,
+	requestEditorSnapshotFromRenderer,
+} from "../handlers/claude-snapshot-handler.js";
 import {
 	getClaudeEvents,
 	subscribeClaudeEvents,
@@ -61,8 +67,18 @@ import {
 	handleClaudeEventsStreamRequest,
 	registerClaudeEventsRoutes,
 } from "./claude-http-events-routes.js";
+import {
+	clearConsoleEntries,
+	getConsoleEntries,
+	subscribeToConsoleEntries,
+} from "../handlers/claude-console-handler.js";
+import {
+	handleClaudeConsoleStreamRequest,
+	registerClaudeConsoleRoutes,
+} from "./claude-http-console-routes.js";
 import { runMainProcessDeepHealthChecks } from "../handlers/claude-health-handler.js";
 import { getAuthToken, setAuthToken } from "../../license-handler.js";
+import { authorizeClaudeHttpRequest } from "./claude-http-auth.js";
 
 let server: Server | null = null;
 
@@ -73,16 +89,6 @@ function getWindow(): BrowserWindow {
 	const win = BrowserWindow.getAllWindows()[0];
 	if (!win) throw new HttpError(503, "No active QCut window");
 	return win;
-}
-
-/**
- * Check bearer token auth (only enforced when QCUT_API_TOKEN is set)
- */
-function checkAuth(req: IncomingMessage): boolean {
-	const token = process.env.QCUT_API_TOKEN;
-	if (!token) return true;
-	const authHeader = req.headers.authorization;
-	return authHeader === `Bearer ${token}`;
 }
 
 /** Set permissive CORS headers on the HTTP response. */
@@ -207,9 +213,19 @@ export function startClaudeHTTPServer(
 		requestSnapshot: (request) =>
 			requestEditorStateSnapshotFromRenderer(getWindow(), request),
 	});
+	registerSnapshotRoutes(router, {
+		requestSnapshot: (request) =>
+			requestEditorSnapshotFromRenderer(getWindow(), request),
+		clickSnapshotRef: (request) => clickEditorSnapshotRef(getWindow(), request),
+		fillSnapshotRef: (request) => fillEditorSnapshotRef(getWindow(), request),
+	});
 	registerClaudeEventsRoutes(router, {
 		/** Lists recorded Claude/editor events. */
 		listEvents: async (filter) => getClaudeEvents(filter),
+	});
+	registerClaudeConsoleRoutes(router, {
+		listConsoleEntries: async (filter) => getConsoleEntries(filter),
+		clearConsoleEntries: async () => clearConsoleEntries(),
 	});
 
 	// ==========================================================================
@@ -345,16 +361,16 @@ export function startClaudeHTTPServer(
 			);
 		});
 
-		// Auth check
-		if (!checkAuth(req)) {
-			res.writeHead(401, {
+		const authResult = authorizeClaudeHttpRequest({ req });
+		if (!authResult.ok) {
+			res.writeHead(authResult.status ?? 401, {
 				"Content-Type": "application/json",
 				"X-Correlation-Id": requestCorrelationId,
 			});
 			res.end(
 				JSON.stringify({
 					success: false,
-					error: "Unauthorized",
+					error: authResult.error ?? "Unauthorized",
 					timestamp: Date.now(),
 					correlationId: requestCorrelationId,
 				})
@@ -369,6 +385,18 @@ export function startClaudeHTTPServer(
 				listEvents: async (filter) => getClaudeEvents(filter),
 				subscribeToEvents: ({ listener }) =>
 					subscribeClaudeEvents({ listener }),
+			})
+		) {
+			return;
+		}
+		if (
+			handleClaudeConsoleStreamRequest({
+				req,
+				res,
+				listConsoleEntries: async (filter) => getConsoleEntries(filter),
+				clearConsoleEntries: async () => clearConsoleEntries(),
+				subscribeToConsoleEntries: ({ listener }) =>
+					subscribeToConsoleEntries({ listener }),
 			})
 		) {
 			return;

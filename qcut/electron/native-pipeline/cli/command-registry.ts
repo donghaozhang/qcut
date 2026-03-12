@@ -40,9 +40,14 @@ export const GLOBAL_FLAGS: FlagDef[] = [
 	f("--model", "string", "Model key (e.g. kling_2_6_pro, flux_dev)", {
 		short: "-m",
 	}),
+	f("--policy", "string", "Path to a JSON action policy file"),
+	f("--resume", "string", "Resume and autosave a named CLI session"),
 	f("--json", "boolean", "Output results as JSON", { default: false }),
 	f("--quiet", "boolean", "Suppress progress output", {
 		short: "-q",
+		default: false,
+	}),
+	f("--force", "boolean", "Bypass action-policy confirmations", {
 		default: false,
 	}),
 	f("--verbose", "boolean", "Verbose output", { short: "-v", default: false }),

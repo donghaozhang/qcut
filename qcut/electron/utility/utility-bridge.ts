@@ -47,8 +47,16 @@ import {
 	getHistorySummary,
 } from "../claude/handlers/claude-transaction-handler.js";
 import { requestEditorStateSnapshotFromRenderer } from "../claude/handlers/claude-state-handler.js";
+import {
+	clickEditorSnapshotRef,
+	fillEditorSnapshotRef,
+	requestEditorSnapshotFromRenderer,
+} from "../claude/handlers/claude-snapshot-handler.js";
 import type {
 	EditorStateRequest,
+	EditorSnapshotClickRequest,
+	EditorSnapshotFillRequest,
+	EditorSnapshotRequest,
 	BatchCutRequest,
 	ClaudeRangeDeleteRequest,
 	AutoEditRequest,
@@ -84,6 +92,10 @@ import {
 	requestDuplicateProject,
 } from "../claude/handlers/claude-project-crud-handler.js";
 import { getClaudeEvents } from "../claude/handlers/claude-events-handler.js";
+import {
+	clearConsoleEntries,
+	getConsoleEntries,
+} from "../claude/handlers/claude-console-handler.js";
 import { notificationBridge } from "../claude/notification-bridge.js";
 import {
 	listCaptureSources,
@@ -91,6 +103,7 @@ import {
 	forceStopActiveScreenRecordingSession,
 } from "../screen-recording-handler.js";
 import * as fs from "node:fs";
+import { buildContextMenuScript } from "./context-menu-script.js";
 import type {
 	UtilityToMainMessage,
 	WebContentsSendRequest,
@@ -343,6 +356,23 @@ async function handleMainRequest(
 			source: req.source,
 		});
 	}
+	if (channel === "console:list") {
+		const req = data as {
+			level?: string;
+			since?: string;
+			limit?: number;
+			after?: string;
+		};
+		return getConsoleEntries({
+			level: req.level,
+			since: req.since,
+			limit: req.limit,
+			after: req.after,
+		});
+	}
+	if (channel === "console:clear") {
+		return clearConsoleEntries();
+	}
 	if (channel === "notifications:enable") {
 		const req = data as { sessionId?: string };
 		const sessionId = typeof req.sessionId === "string" ? req.sessionId : "";
@@ -393,6 +423,21 @@ async function handleMainRequest(
 		case "get-editor-state-snapshot": {
 			const req = data as { request?: EditorStateRequest };
 			return requestEditorStateSnapshotFromRenderer(win, req.request);
+		}
+
+		case "get-editor-accessibility-snapshot": {
+			const req = data as { request?: EditorSnapshotRequest };
+			return requestEditorSnapshotFromRenderer(win, req.request);
+		}
+
+		case "snapshot:click": {
+			const req = data as { request: EditorSnapshotClickRequest };
+			return clickEditorSnapshotRef(win, req.request);
+		}
+
+		case "snapshot:fill": {
+			const req = data as { request: EditorSnapshotFillRequest };
+			return fillEditorSnapshotRef(win, req.request);
 		}
 
 		case "split-element": {
@@ -583,6 +628,17 @@ async function handleMainRequest(
 				}
 			}
 			return requestSwitchPanel(win, panelId, resolvedTab);
+		}
+
+		case "context-menu": {
+			const req = data as { elementId: string; debug?: boolean };
+			const result = await win.webContents.executeJavaScript(
+				buildContextMenuScript({
+					elementId: req.elementId,
+					debug: req.debug,
+				})
+			);
+			return result;
 		}
 
 		case "moyin:set-script": {

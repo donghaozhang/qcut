@@ -102,6 +102,7 @@ function TimelineElementComponent({
 	const replaceElementMedia = useTimelineStore((s) => s.replaceElementMedia);
 	const rippleEditingEnabled = useTimelineStore((s) => s.rippleEditingEnabled);
 	const toggleElementHidden = useTimelineStore((s) => s.toggleElementHidden);
+	const selectElement = useTimelineStore((s) => s.selectElement);
 	const currentTime = usePlaybackStore((s) => s.currentTime);
 
 	const [elementMenuOpen, setElementMenuOpen] = useState(false);
@@ -526,7 +527,15 @@ function TimelineElementComponent({
 	};
 
 	return (
-		<ContextMenu>
+		<ContextMenu
+			onOpenChange={(open) => {
+				if (open && !isSelected) {
+					// Select element when context menu opens.
+					// Use setTimeout to defer past Radix's internal state settlement.
+					setTimeout(() => selectElement(track.id, element.id, false), 0);
+				}
+			}}
+		>
 			<ContextMenuTrigger asChild>
 				<div
 					ref={elementRef}
@@ -553,9 +562,6 @@ function TimelineElementComponent({
 						} ${element.hidden ? "opacity-50" : ""}`}
 						onClick={(e) => onElementClick && onElementClick(e, element)}
 						onMouseDown={handleElementMouseDown}
-						onContextMenu={(e) =>
-							onElementMouseDown && onElementMouseDown(e, element)
-						}
 					>
 						<div className="absolute inset-0 flex items-center h-full">
 							{renderElementContent()}

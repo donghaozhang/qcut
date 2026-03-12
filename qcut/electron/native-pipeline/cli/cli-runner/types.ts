@@ -19,6 +19,7 @@ export interface CLIRunOptions {
 	saveIntermediates: boolean;
 	parallel?: boolean;
 	maxWorkers?: number;
+	policy?: string;
 	json: boolean;
 	verbose: boolean;
 	quiet: boolean;
@@ -47,6 +48,8 @@ export interface CLIRunOptions {
 	configDir?: string;
 	cacheDir?: string;
 	stateDir?: string;
+	resume?: string;
+	sessionName?: string;
 	negativePrompt?: string;
 	voiceId?: string;
 	directory?: string;
@@ -86,6 +89,8 @@ export interface CLIRunOptions {
 	// analyze-video options
 	analysisType?: string;
 	outputFormat?: string;
+	before?: string;
+	after?: string;
 	// upscale-image options
 	target?: string;
 	// vimax options
@@ -128,6 +133,13 @@ export interface CLIRunOptions {
 	/** Include full failure trace context for async polling commands */
 	debugTrace?: boolean;
 	pollInterval?: number;
+	level?: string;
+	since?: string;
+	limit?: number;
+	clear?: boolean;
+	interactive?: boolean;
+	depth?: number;
+	ref?: string;
 	replace?: boolean;
 	ripple?: boolean;
 	crossTrackRipple?: boolean;
