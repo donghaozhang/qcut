@@ -111,11 +111,13 @@ export function PropertiesPanel() {
 			return <MarkdownProperties element={element} trackId={trackId} />;
 		}
 
-		if (
-			element.type === "captions" ||
-			(element as any).type === "caption"
-		) {
-			console.log("[CaptionDebug] Properties panel rendering CaptionProperties for element:", element.id, "type:", element.type);
+		if (element.type === "captions" || (element as any).type === "caption") {
+			console.log(
+				"[CaptionDebug] Properties panel rendering CaptionProperties for element:",
+				element.id,
+				"type:",
+				element.type
+			);
 			return (
 				<CaptionProperties
 					element={element as CaptionElement}

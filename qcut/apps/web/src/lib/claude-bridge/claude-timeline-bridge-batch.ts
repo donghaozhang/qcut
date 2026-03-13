@@ -259,8 +259,7 @@ export function setupBatchHandlers({
 								typeof element.content === "string" &&
 								element.content.length > 0
 									? element.content
-									: typeof element.text === "string" &&
-											element.text.length > 0
+									: typeof element.text === "string" && element.text.length > 0
 										? element.text
 										: "Caption";
 
