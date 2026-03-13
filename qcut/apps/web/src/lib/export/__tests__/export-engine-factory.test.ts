@@ -204,7 +204,6 @@ describe("ExportEngineFactory", () => {
 			(globalThis as any).VideoDecoder = class {};
 			(globalThis as any).VideoFrame = class {
 				close = vi.fn();
-				constructor() {}
 			};
 			(globalThis as any).OffscreenCanvas = class {
 				width = 854;
