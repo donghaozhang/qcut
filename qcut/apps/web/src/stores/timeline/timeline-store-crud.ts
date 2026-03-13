@@ -437,6 +437,39 @@ export function createCrudOperations(
 			);
 		},
 
+		updateCaptionElement: (trackId, elementId, updates, pushHistory = true) => {
+			if (pushHistory) {
+				get().pushHistory();
+			}
+			updateTracksAndSave(
+				get()._tracks.map((t) =>
+					t.id === trackId
+						? {
+								...t,
+								elements: t.elements.map((el) =>
+									el.id === elementId && el.type === "captions"
+										? {
+												...el,
+												...updates,
+												style:
+													updates.style !== undefined
+														? {
+																...(
+																	el as import("@/types/timeline").CaptionElement
+																).style,
+																...updates.style,
+															}
+														: (el as import("@/types/timeline").CaptionElement)
+																.style,
+											}
+										: el
+								),
+							}
+						: t
+				)
+			);
+		},
+
 		updateMarkdownElement: (
 			trackId,
 			elementId,

@@ -256,6 +256,10 @@ function normalizeBatchTrackElementType({
 	if (type === "video" || type === "audio" || type === "image") {
 		return "media";
 	}
+	// Normalize singular "caption" to plural "captions" (CLI compatibility)
+	if (type === "caption") {
+		return "captions";
+	}
 	if (
 		type === "media" ||
 		type === "text" ||

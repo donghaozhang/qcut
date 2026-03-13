@@ -23,6 +23,7 @@ export type {
 	TextElement,
 	StickerElement,
 	CaptionElement,
+	SubtitleStyle,
 	RemotionElement,
 	MarkdownElement,
 	TimelineElement,

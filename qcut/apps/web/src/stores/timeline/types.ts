@@ -15,6 +15,8 @@ export type {
 	MarkdownElement,
 	MediaElement,
 	RemotionElement,
+	CaptionElement,
+	SubtitleStyle,
 	DragData,
 } from "@/types/timeline";
 
@@ -34,6 +36,7 @@ import type {
 	MarkdownElement,
 	MediaElement,
 	RemotionElement,
+	CaptionElement,
 	DragData,
 } from "@/types/timeline";
 import type { MediaItem } from "../media/media-store";
@@ -341,6 +344,12 @@ export interface TimelineStore {
 				| "opacity"
 			>
 		>,
+		pushHistory?: boolean
+	) => void;
+	updateCaptionElement: (
+		trackId: string,
+		elementId: string,
+		updates: Partial<Pick<CaptionElement, "text" | "language" | "style">>,
 		pushHistory?: boolean
 	) => void;
 	updateMarkdownElement: (

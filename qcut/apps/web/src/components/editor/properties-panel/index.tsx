@@ -2,7 +2,7 @@
 
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import type { TimelineElement } from "@/types/timeline";
+import type { TimelineElement, CaptionElement } from "@/types/timeline";
 import { ScrollArea } from "../../ui/scroll-area";
 import { AudioProperties } from "./audio-properties";
 import { MediaProperties } from "./media-properties";
@@ -18,6 +18,7 @@ import { TransformProperties } from "./transform-properties";
 import { RemotionProperties } from "./remotion-properties";
 import { EFFECTS_ENABLED } from "@/config/features";
 import { MarkdownProperties } from "./markdown-properties";
+import { CaptionProperties } from "./caption-properties";
 import { ProjectInfoView } from "./project-info-view";
 import { BackgroundView } from "./background-view";
 import { PropertyGroup } from "./property-item";
@@ -108,6 +109,21 @@ export function PropertiesPanel() {
 
 		if (element.type === "markdown") {
 			return <MarkdownProperties element={element} trackId={trackId} />;
+		}
+
+		if (element.type === "captions" || (element as any).type === "caption") {
+			console.log(
+				"[CaptionDebug] Properties panel rendering CaptionProperties for element:",
+				element.id,
+				"type:",
+				element.type
+			);
+			return (
+				<CaptionProperties
+					element={element as CaptionElement}
+					trackId={trackId}
+				/>
+			);
 		}
 
 		return null;

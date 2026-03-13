@@ -26,6 +26,7 @@ import {
 	buildTextOverlayFilters,
 	buildStickerOverlayFilters,
 	buildImageOverlayFilters,
+	buildCaptionOverlayFilters,
 } from "../export-cli/filters";
 import {
 	extractVideoSources,

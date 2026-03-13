@@ -1,5 +1,10 @@
 import type { TranscriptionSegment } from "@/types/captions";
-import type { TimelineElement, TimelineTrack } from "@/types/timeline";
+import type {
+	TimelineElement,
+	TimelineTrack,
+	CaptionElement,
+} from "@/types/timeline";
+import { generateASS } from "./ass-generator";
 
 export type CaptionFormat = "srt" | "vtt" | "ass" | "ttml";
 
@@ -213,6 +218,35 @@ function escapeXml(text: string): string {
 		.replace(/>/g, "&gt;")
 		.replace(/"/g, "&quot;")
 		.replace(/'/g, "&#39;");
+}
+
+/**
+ * Extract caption elements (with style data) from timeline tracks
+ */
+export function extractCaptionElements(
+	tracks: TimelineTrack[]
+): CaptionElement[] {
+	const elements: CaptionElement[] = [];
+	for (const track of tracks) {
+		if (track.type !== "captions") continue;
+		for (const el of track.elements) {
+			if (el.type === "captions") {
+				elements.push(el);
+			}
+		}
+	}
+	return elements.sort((a, b) => a.startTime - b.startTime);
+}
+
+/**
+ * Export captions as ASS with full subtitle style support
+ */
+export function exportAssStyled(
+	tracks: TimelineTrack[],
+	resolution: { width: number; height: number }
+): string {
+	const clips = extractCaptionElements(tracks);
+	return generateASS(clips, { resolution });
 }
 
 /**

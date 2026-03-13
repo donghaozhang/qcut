@@ -245,6 +245,7 @@ export interface ClaudeBatchAddElementRequest {
 		| "image"
 		| "text"
 		| "sticker"
+		| "caption"
 		| "captions"
 		| "remotion"
 		| "media"
