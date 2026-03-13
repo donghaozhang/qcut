@@ -15,6 +15,8 @@ export type {
 	MarkdownElement,
 	MediaElement,
 	RemotionElement,
+	CaptionElement,
+	SubtitleStyle,
 	DragData,
 } from "@/types/timeline";
 
@@ -341,6 +343,12 @@ export interface TimelineStore {
 				| "opacity"
 			>
 		>,
+		pushHistory?: boolean
+	) => void;
+	updateCaptionElement: (
+		trackId: string,
+		elementId: string,
+		updates: Partial<Pick<CaptionElement, "text" | "language" | "style">>,
 		pushHistory?: boolean
 	) => void;
 	updateMarkdownElement: (

@@ -28,3 +28,6 @@ export {
 	buildImageOverlayFilters,
 	getImageInputStartIndex,
 } from "./image-overlay";
+
+// Caption overlay filter building
+export { buildCaptionOverlayFilters } from "./caption-overlay";

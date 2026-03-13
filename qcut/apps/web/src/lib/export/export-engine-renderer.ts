@@ -18,6 +18,8 @@ import {
 } from "./export-engine-utils";
 import { validateRenderedFrame } from "./export-engine-debug";
 import { stripMarkdownSyntax } from "@/lib/markdown";
+import { resolveSubtitleStyle, hexToRgba } from "@/lib/captions/subtitle-style";
+import type { CaptionElement } from "@/types/timeline";
 
 /** Context passed to renderer functions */
 export interface RenderContext {
@@ -95,6 +97,12 @@ async function renderElement(
 		await renderMediaElement(context, element, mediaItem, elementTimeOffset);
 	} else if (element.type === "text") {
 		renderTextElement(context.ctx, element);
+	} else if (element.type === "captions") {
+		renderCaptionElement(
+			context.ctx,
+			context.canvas,
+			element as CaptionElement
+		);
 	} else if (element.type === "markdown") {
 		renderMarkdownElement({
 			ctx: context.ctx,
@@ -485,6 +493,105 @@ export function renderTextElement(
 	const y = element.y ?? 50;
 
 	ctx.fillText(element.content, x, y);
+}
+
+/** Render caption element with subtitle styling */
+export function renderCaptionElement(
+	ctx: CanvasRenderingContext2D,
+	canvas: HTMLCanvasElement,
+	element: CaptionElement
+): void {
+	if (!element.text || !element.text.trim()) return;
+
+	const style = resolveSubtitleStyle(element.style);
+	const fontWeight = style.bold ? "bold" : "normal";
+	const fontStyle = style.italic ? "italic" : "normal";
+
+	ctx.save();
+	ctx.globalAlpha = style.fontOpacity;
+	ctx.font = `${fontStyle} ${fontWeight} ${style.fontSize}px ${style.fontFamily}`;
+	ctx.textAlign = "center";
+	ctx.textBaseline = "middle";
+
+	// Measure text for background
+	const lines = wrapTextForCanvas({
+		ctx,
+		text: element.text.trim(),
+		maxWidth: canvas.width * 0.8,
+	});
+	const lineHeight = style.fontSize * style.lineSpacing;
+	const totalHeight = lines.length * lineHeight;
+
+	// Calculate position based on alignment
+	let centerY: number;
+	switch (style.position.align) {
+		case "top":
+			centerY = totalHeight / 2 + style.fontSize;
+			break;
+		case "center":
+			centerY = canvas.height / 2;
+			break;
+		default:
+			centerY = canvas.height - totalHeight / 2 - style.fontSize;
+			break;
+	}
+	const centerX = canvas.width / 2;
+
+	// Draw background
+	if (style.bgOpacity > 0) {
+		const maxLineWidth = Math.max(
+			...lines.map((line) => ctx.measureText(line).width)
+		);
+		const padding = 16;
+		ctx.fillStyle = hexToRgba(style.backgroundColor, style.bgOpacity);
+		ctx.fillRect(
+			centerX - maxLineWidth / 2 - padding,
+			centerY - totalHeight / 2 - padding / 2,
+			maxLineWidth + padding * 2,
+			totalHeight + padding
+		);
+	}
+
+	// Draw each line
+	for (let i = 0; i < lines.length; i++) {
+		const y = centerY - totalHeight / 2 + (i + 0.5) * lineHeight;
+
+		// Draw outline/stroke
+		if (style.outlineWidth > 0) {
+			ctx.strokeStyle = style.outlineColor;
+			ctx.lineWidth = style.outlineWidth * 2;
+			ctx.lineJoin = "round";
+			ctx.strokeText(lines[i], centerX, y);
+		}
+
+		// Draw shadow
+		if (style.shadowOffset.x !== 0 || style.shadowOffset.y !== 0) {
+			ctx.fillStyle = style.shadowColor;
+			ctx.fillText(
+				lines[i],
+				centerX + style.shadowOffset.x,
+				y + style.shadowOffset.y
+			);
+		}
+
+		// Draw text
+		ctx.fillStyle = style.fontColor;
+		ctx.fillText(lines[i], centerX, y);
+
+		// Draw underline
+		if (style.underline) {
+			const metrics = ctx.measureText(lines[i]);
+			const underlineY = y + style.fontSize * 0.15;
+			ctx.beginPath();
+			ctx.moveTo(centerX - metrics.width / 2, underlineY);
+			ctx.lineTo(centerX + metrics.width / 2, underlineY);
+			ctx.strokeStyle = style.fontColor;
+			ctx.lineWidth = Math.max(1, style.fontSize / 20);
+			ctx.stroke();
+		}
+	}
+
+	ctx.restore();
 }
 
 interface RenderMarkdownElementParams {

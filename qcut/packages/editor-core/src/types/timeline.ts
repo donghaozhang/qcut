@@ -70,12 +70,36 @@ export interface StickerElement extends BaseTimelineElement {
 	opacity?: number;
 }
 
+/** Visual style properties for subtitle/caption elements */
+export interface SubtitleStyle {
+	fontFamily: string;
+	fontSize: number;
+	fontColor: string;
+	fontOpacity: number;
+	bold: boolean;
+	italic: boolean;
+	underline: boolean;
+	outlineColor: string;
+	outlineWidth: number;
+	shadowColor: string;
+	shadowOffset: { x: number; y: number };
+	backgroundColor: string;
+	bgOpacity: number;
+	position: {
+		align: "top" | "center" | "bottom";
+		x: number;
+		y: number;
+	};
+	lineSpacing: number;
+}
+
 export interface CaptionElement extends BaseTimelineElement {
 	type: "captions";
 	text: string;
 	language: string;
 	confidence?: number;
 	source: "transcription" | "manual" | "imported";
+	style?: SubtitleStyle;
 }
 
 export interface RemotionElement extends BaseTimelineElement {

@@ -18,6 +18,7 @@ import { TransformProperties } from "./transform-properties";
 import { RemotionProperties } from "./remotion-properties";
 import { EFFECTS_ENABLED } from "@/config/features";
 import { MarkdownProperties } from "./markdown-properties";
+import { CaptionProperties } from "./caption-properties";
 import { ProjectInfoView } from "./project-info-view";
 import { BackgroundView } from "./background-view";
 import { PropertyGroup } from "./property-item";
@@ -108,6 +109,10 @@ export function PropertiesPanel() {
 
 		if (element.type === "markdown") {
 			return <MarkdownProperties element={element} trackId={trackId} />;
+		}
+
+		if (element.type === "captions") {
+			return <CaptionProperties element={element} trackId={trackId} />;
 		}
 
 		return null;
