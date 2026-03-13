@@ -564,6 +564,47 @@ export function addClaudeMarkdownElement({
 	);
 }
 
+const DEFAULT_CAPTION_DURATION_SECONDS = 5;
+
+/** Add a Claude caption element to the timeline store. */
+export function addClaudeCaptionElement({
+	element,
+	timelineStore,
+}: {
+	element: Partial<ClaudeElement>;
+	timelineStore: TimelineStoreState;
+}): void {
+	const existingTrack = timelineStore.tracks.find(
+		(t) => t.type === "captions"
+	);
+	const trackId = existingTrack?.id ?? timelineStore.addTrack("captions");
+
+	const startTime = getElementStartTime({ element });
+	const duration = getElementDuration({
+		element,
+		fallbackDuration: DEFAULT_CAPTION_DURATION_SECONDS,
+	});
+	const text =
+		typeof element.content === "string" && element.content.trim().length > 0
+			? element.content
+			: "Caption";
+
+	timelineStore.addElementToTrack(trackId, {
+		type: "captions",
+		name: text.slice(0, 50),
+		text,
+		language: "en",
+		source: "manual",
+		startTime,
+		duration,
+		trimStart: 0,
+		trimEnd: 0,
+		style: element.style || undefined,
+	});
+
+	debugLog("[ClaudeTimelineBridge] Added caption element:", text.slice(0, 50));
+}
+
 const DEFAULT_REMOTION_DURATION_SECONDS = 5;
 
 /**
@@ -961,6 +1002,12 @@ export async function applyTimelineToStore(
 					added++;
 				} else if (element.type === "sticker") {
 					await addClaudeStickerElement({
+						element,
+						timelineStore: useTimelineStore.getState(),
+					});
+					added++;
+				} else if (element.type === "captions") {
+					addClaudeCaptionElement({
 						element,
 						timelineStore: useTimelineStore.getState(),
 					});

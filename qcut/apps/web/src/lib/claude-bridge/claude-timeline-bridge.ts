@@ -46,6 +46,10 @@ export function normalizeClaudeElementType({
 	if (type === "video" || type === "audio" || type === "image") {
 		return CLAUDE_TRACK_ELEMENT_TYPES.media;
 	}
+	// Normalize singular "caption" to plural "captions" (CLI compatibility)
+	if (type === "caption") {
+		return CLAUDE_TRACK_ELEMENT_TYPES.captions;
+	}
 	if (
 		type === CLAUDE_TRACK_ELEMENT_TYPES.media ||
 		type === CLAUDE_TRACK_ELEMENT_TYPES.text ||

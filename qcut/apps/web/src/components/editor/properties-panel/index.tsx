@@ -2,7 +2,7 @@
 
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import type { TimelineElement } from "@/types/timeline";
+import type { TimelineElement, CaptionElement } from "@/types/timeline";
 import { ScrollArea } from "../../ui/scroll-area";
 import { AudioProperties } from "./audio-properties";
 import { MediaProperties } from "./media-properties";
@@ -111,8 +111,16 @@ export function PropertiesPanel() {
 			return <MarkdownProperties element={element} trackId={trackId} />;
 		}
 
-		if (element.type === "captions") {
-			return <CaptionProperties element={element} trackId={trackId} />;
+		if (
+			element.type === "captions" ||
+			(element as any).type === "caption"
+		) {
+			return (
+				<CaptionProperties
+					element={element as CaptionElement}
+					trackId={trackId}
+				/>
+			);
 		}
 
 		return null;

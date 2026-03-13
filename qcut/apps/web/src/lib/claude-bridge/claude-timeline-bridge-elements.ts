@@ -8,6 +8,7 @@ import {
 	addClaudeMediaElement,
 	addClaudeTextElement,
 	addClaudeStickerElement,
+	addClaudeCaptionElement,
 	addClaudeMarkdownElement,
 	addClaudeRemotionElement,
 } from "./claude-timeline-bridge-helpers";
@@ -230,6 +231,14 @@ export function setupElementHandlers({
 
 			if (element.type === "remotion") {
 				await addClaudeRemotionElement({
+					element,
+					timelineStore,
+				});
+				return;
+			}
+
+			if (element.type === "captions" || element.type === "caption") {
+				addClaudeCaptionElement({
 					element,
 					timelineStore,
 				});

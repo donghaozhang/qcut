@@ -127,6 +127,9 @@ function isMarkdownSeparatorRow(cells: string[]): boolean {
 }
 
 function normalizeElementType(typeValue: string): ClaudeElement["type"] {
+	if (typeValue === "caption") {
+		return "captions";
+	}
 	if (
 		typeValue === "video" ||
 		typeValue === "audio" ||

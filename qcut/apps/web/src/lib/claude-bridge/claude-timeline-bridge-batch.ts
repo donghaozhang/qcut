@@ -254,6 +254,38 @@ export function setupBatchHandlers({
 									selectElement: false,
 								}
 							);
+						} else if (normalizedType === "captions") {
+							const captionText =
+								typeof element.content === "string" &&
+								element.content.length > 0
+									? element.content
+									: typeof element.text === "string" &&
+											element.text.length > 0
+										? element.text
+										: "Caption";
+
+							createdElementId = timelineStore.addElementToTrack(
+								element.trackId,
+								{
+									type: "captions",
+									name: captionText.slice(0, 50),
+									text: captionText,
+									language:
+										typeof element.language === "string"
+											? element.language
+											: "en",
+									source: "manual",
+									startTime: element.startTime,
+									duration: element.duration,
+									trimStart: 0,
+									trimEnd: 0,
+									style: element.style || undefined,
+								},
+								{
+									pushHistory: false,
+									selectElement: false,
+								}
+							);
 						} else {
 							throw new Error(`Unsupported batch add type: ${normalizedType}`);
 						}
