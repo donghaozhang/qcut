@@ -115,6 +115,7 @@ export function PropertiesPanel() {
 			element.type === "captions" ||
 			(element as any).type === "caption"
 		) {
+			console.log("[CaptionDebug] Properties panel rendering CaptionProperties for element:", element.id, "type:", element.type);
 			return (
 				<CaptionProperties
 					element={element as CaptionElement}

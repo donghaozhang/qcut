@@ -574,25 +574,33 @@ export function addClaudeCaptionElement({
 	element: Partial<ClaudeElement>;
 	timelineStore: TimelineStoreState;
 }): void {
-	const existingTrack = timelineStore.tracks.find(
-		(t) => t.type === "captions"
-	);
-	const trackId = existingTrack?.id ?? timelineStore.addTrack("captions");
+	console.log("[CaptionDebug] addClaudeCaptionElement called, element:", JSON.stringify(element, null, 2));
+
+	// Use findOrCreateTrack for robust live-state track creation (consistent with media/text helpers)
+	const trackId = timelineStore.findOrCreateTrack("captions");
+	console.log("[CaptionDebug] Using captions track:", trackId);
 
 	const startTime = getElementStartTime({ element });
 	const duration = getElementDuration({
 		element,
 		fallbackDuration: DEFAULT_CAPTION_DURATION_SECONDS,
 	});
-	const text =
+
+	// Check both element.content and element.text (CLI may send either field)
+	const captionText =
 		typeof element.content === "string" && element.content.trim().length > 0
 			? element.content
-			: "Caption";
+			: typeof (element as Record<string, unknown>).text === "string" &&
+					((element as Record<string, unknown>).text as string).trim().length > 0
+				? (element as Record<string, unknown>).text as string
+				: "Caption";
 
-	timelineStore.addElementToTrack(trackId, {
+	console.log("[CaptionDebug] Caption text:", captionText, "startTime:", startTime, "duration:", duration);
+
+	const elementId = timelineStore.addElementToTrack(trackId, {
 		type: "captions",
-		name: text.slice(0, 50),
-		text,
+		name: captionText.slice(0, 50),
+		text: captionText,
 		language: "en",
 		source: "manual",
 		startTime,
@@ -602,7 +610,13 @@ export function addClaudeCaptionElement({
 		style: (element.style as unknown as import("@qcut/editor-core").SubtitleStyle) || undefined,
 	});
 
-	debugLog("[ClaudeTimelineBridge] Added caption element:", text.slice(0, 50));
+	if (elementId) {
+		console.log("[CaptionDebug] Caption element created successfully, id:", elementId);
+		debugLog("[ClaudeTimelineBridge] Added caption element:", captionText.slice(0, 50));
+	} else {
+		console.error("[CaptionDebug] addElementToTrack returned null — caption element NOT created");
+		debugError("[ClaudeTimelineBridge] Failed to add caption element to track:", trackId);
+	}
 }
 
 const DEFAULT_REMOTION_DURATION_SECONDS = 5;

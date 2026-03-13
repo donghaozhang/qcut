@@ -238,6 +238,7 @@ export function setupElementHandlers({
 			}
 
 			if (element.type === "captions" || element.type === "caption") {
+				console.log("[CaptionDebug] onAddElement matched caption type:", element.type);
 				addClaudeCaptionElement({
 					element,
 					timelineStore,
