@@ -1,5 +1,7 @@
 # End-to-End CLI Subtitle Pipeline
 
+**Status**: IMPLEMENTED (2026-03-14)
+
 ## Goal
 
 Add CLI commands to go from video → transcribe → style subtitles → export video with burned-in styled captions. Reuse existing subtitle/ASS code by extracting it to a shared package.
@@ -219,3 +221,67 @@ All files well under the 800-line limit.
 
 - Existing: `@qcut/editor-core` types, `srt-generator.ts`, `srt-parser.ts`, FFmpeg binary
 - No new npm packages required
+
+---
+
+## Implementation Summary (2026-03-14)
+
+### Files Created
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `packages/editor-core/src/captions/subtitle-style.ts` | 115 | Shared subtitle style utilities (re-exported by renderer) |
+| `packages/editor-core/src/captions/ass-generator.ts` | 131 | Shared ASS generation (re-exported by renderer) |
+| `packages/editor-core/src/captions/ass-parser.ts` | 245 | Shared ASS parsing (re-exported by renderer) |
+| `packages/editor-core/src/captions/index.ts` | 29 | Barrel exports |
+| `electron/native-pipeline/subtitle/subtitle-types.ts` | 472 | CLI-local copy of types + functions (avoids rootDir issues) |
+| `electron/native-pipeline/subtitle/style-presets.ts` | 105 | 6 named presets + CLI resolver |
+| `electron/native-pipeline/subtitle/probe-video.ts` | 60 | CLI-safe ffprobe wrapper |
+| `electron/native-pipeline/cli/cli-handlers-subtitle.ts` | 465 | Both command handlers |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `packages/editor-core/src/index.ts` | Added captions re-exports |
+| `packages/editor-core/package.json` | Added `"./captions"` export |
+| `apps/web/src/lib/captions/subtitle-style.ts` | Re-exports from editor-core + local `subtitleStyleToCSS` |
+| `apps/web/src/lib/captions/ass-generator.ts` | Re-exports from editor-core |
+| `apps/web/src/lib/captions/ass-parser.ts` | Re-exports from editor-core |
+| `electron/native-pipeline/cli/command-registry.ts` | Added subtitle category + 2 commands |
+| `electron/native-pipeline/cli/cli-runner/runner.ts` | Added dispatch for subtitle-style/subtitle-export |
+
+### FFmpeg Strategy (3-tier fallback)
+
+1. **drawtext** — Burns text directly (requires `libfreetype`)
+2. **ASS filter** — Uses styled ASS file (requires `libass`)
+3. **Embedded subtitles** — Soft subs as mov_text stream (always works)
+
+### Available Presets
+
+| Preset | Description |
+|--------|-------------|
+| `default` | White text, black outline, bottom-center |
+| `cinematic` | Georgia serif, subtle shadow, bottom |
+| `bold` | Large bold Arial, thick outline |
+| `minimal` | No outline, semi-transparent background |
+| `karaoke` | Yellow, top position |
+| `news` | No outline, dark background bar |
+
+### Test Results
+
+```
+✅ subtitle-style -i subs.srt --preset bold → styled ASS file
+✅ subtitle-style with --style JSON overrides → custom style applied
+✅ subtitle-style with preset + override merge → works
+✅ subtitle-export -i video.mp4 --srt-file subs.srt → subtitled video
+✅ subtitle-export auto-detect → finds .srt next to video
+✅ subtitle-export --json → structured output
+✅ --help --json → documented all flags
+✅ Type check (electron + web) → no errors
+✅ Lint (new files) → clean
+```
+
+### Architecture Note
+
+The electron tsconfig uses `rootDir: "."` which prevents importing from `packages/editor-core/`. To work around this, `subtitle-types.ts` contains a local copy of the types and functions used by the CLI handlers (matching the pattern used by `claude-http-search-routes.ts`). The renderer still re-exports from `@qcut/editor-core`.

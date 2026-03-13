@@ -32,8 +32,10 @@ async function resolveFFprobePath(): Promise<string> {
 export async function probeVideoInfo(videoPath: string): Promise<VideoInfo> {
 	const ffprobe = await resolveFFprobePath();
 	const { stdout } = await execFileAsync(ffprobe, [
-		"-v", "quiet",
-		"-print_format", "json",
+		"-v",
+		"quiet",
+		"-print_format",
+		"json",
 		"-show_streams",
 		"-show_format",
 		videoPath,
@@ -41,7 +43,7 @@ export async function probeVideoInfo(videoPath: string): Promise<VideoInfo> {
 
 	const data = JSON.parse(stdout);
 	const videoStream = data.streams?.find(
-		(s: { codec_type: string }) => s.codec_type === "video",
+		(s: { codec_type: string }) => s.codec_type === "video"
 	);
 
 	if (!videoStream) {
@@ -50,7 +52,9 @@ export async function probeVideoInfo(videoPath: string): Promise<VideoInfo> {
 
 	const width = parseInt(videoStream.width, 10) || 1920;
 	const height = parseInt(videoStream.height, 10) || 1080;
-	const duration = parseFloat(data.format?.duration || videoStream.duration || "0");
+	const duration = parseFloat(
+		data.format?.duration || videoStream.duration || "0"
+	);
 
 	return { width, height, duration };
 }

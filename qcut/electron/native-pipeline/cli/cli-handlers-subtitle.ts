@@ -245,15 +245,10 @@ export async function handleSubtitleExport(
 	const style = resolveStyleFromCLI(options.preset, options.style);
 	const styledClips = clips.map((clip) => ({ ...clip, style }));
 
-	// Step 4: Generate temp ASS file
-	onProgress({ stage: "ass", percent: 45, message: "Generating ASS..." });
+	// Step 4: Build drawtext filter chain (works with any FFmpeg)
+	onProgress({ stage: "filter", percent: 45, message: "Building filters..." });
 
-	const assContent = generateASS(styledClips, { resolution });
-	const tmpAssPath = path.join(
-		path.dirname(videoPath),
-		`.tmp_subtitle_${Date.now()}.ass`
-	);
-	fs.writeFileSync(tmpAssPath, assContent, "utf-8");
+	const drawtextFilters = buildDrawtextFilters(styledClips, style);
 
 	// Step 5: Burn subtitles with FFmpeg
 	onProgress({ stage: "ffmpeg", percent: 55, message: "Burning subtitles..." });
@@ -266,71 +261,89 @@ export async function handleSubtitleExport(
 		);
 	fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 
+	if (signal.aborted) {
+		return { success: false, error: "Cancelled" };
+	}
+
+	const ffmpegPath = await resolveFFmpegPath();
+
+	// Strategy 1: Try drawtext burn-in (requires libfreetype)
 	try {
-		const ffmpegPath = await resolveFFmpegPath();
-		const escapedAssPath = tmpAssPath
-			.replace(/\\/g, "\\\\\\\\")
-			.replace(/:/g, "\\:");
-
-		if (signal.aborted) {
-			fs.unlinkSync(tmpAssPath);
-			return { success: false, error: "Cancelled" };
-		}
-
 		await execFileAsync(
 			ffmpegPath,
-			[
-				"-i",
-				videoPath,
-				"-vf",
-				`ass='${escapedAssPath}'`,
-				"-c:a",
-				"copy",
-				"-y",
-				outputPath,
-			],
+			["-i", videoPath, "-vf", drawtextFilters, "-c:a", "copy", "-y", outputPath],
 			{ timeout: 600_000 }
 		);
 
 		onProgress({ stage: "done", percent: 100, message: "Done" });
-
 		return {
 			success: true,
 			outputPath,
-			data: {
-				captionCount: styledClips.length,
-				preset: options.preset ?? "default",
-				resolution,
-			},
+			data: { captionCount: styledClips.length, preset: options.preset ?? "default", resolution },
 		};
 	} catch {
-		// Fallback: subtitles filter
+		if (!options.quiet) {
+			console.error("[subtitle-export] drawtext filter unavailable, trying ASS filter...");
+		}
+	}
+
+	// Strategy 2: Try ASS filter (requires libass)
+	const tmpAssPath = path.join(path.dirname(videoPath), `.tmp_subtitle_${Date.now()}.ass`);
+	try {
+		const assContent = generateASS(styledClips, { resolution });
+		fs.writeFileSync(tmpAssPath, assContent, "utf-8");
+
+		// For execFile, the filter value must NOT have shell quotes
+		const escapedAssPath = tmpAssPath.replace(/\\/g, "/").replace(/:/g, "\\:");
+		await execFileAsync(
+			ffmpegPath,
+			["-i", videoPath, "-vf", `ass=${escapedAssPath}`, "-c:a", "copy", "-y", outputPath],
+			{ timeout: 600_000 }
+		);
+
+		onProgress({ stage: "done", percent: 100, message: "Done (ASS filter)" });
+		return {
+			success: true,
+			outputPath,
+			data: { captionCount: styledClips.length, preset: options.preset ?? "default", resolution, filterUsed: "ass" },
+		};
+	} catch {
+		if (!options.quiet) {
+			console.error("[subtitle-export] ASS filter unavailable, embedding subtitle stream...");
+		}
+	} finally {
+		try { if (fs.existsSync(tmpAssPath)) fs.unlinkSync(tmpAssPath); } catch { /* ignore */ }
+	}
+
+	// Strategy 3: Embed as subtitle stream (always works, soft subs)
+	try {
+		// Write a temp SRT (normalized from whatever format we parsed)
+		const tmpSrtPath = path.join(path.dirname(videoPath), `.tmp_subtitle_${Date.now()}.srt`);
+		const srtContent = styledClips.map((clip, i) => {
+			const start = formatSrtTime(clip.startTime);
+			const end = formatSrtTime(clip.startTime + clip.duration);
+			return `${i + 1}\n${start} --> ${end}\n${clip.text}\n`;
+		}).join("\n");
+		fs.writeFileSync(tmpSrtPath, srtContent, "utf-8");
+
 		try {
-			const ffmpegPath = await resolveFFmpegPath();
-			const escapedAssPath = tmpAssPath
-				.replace(/\\/g, "\\\\\\\\")
-				.replace(/:/g, "\\:");
 			await execFileAsync(
 				ffmpegPath,
 				[
-					"-i",
-					videoPath,
-					"-vf",
-					`subtitles='${escapedAssPath}'`,
-					"-c:a",
-					"copy",
+					"-i", videoPath,
+					"-i", tmpSrtPath,
+					"-c:v", "copy",
+					"-c:a", "copy",
+					"-c:s", "mov_text",
+					"-map", "0",
+					"-map", "1",
 					"-y",
 					outputPath,
 				],
 				{ timeout: 600_000 }
 			);
 
-			onProgress({
-				stage: "done",
-				percent: 100,
-				message: "Done (subtitles filter)",
-			});
-
+			onProgress({ stage: "done", percent: 100, message: "Done (embedded subtitles)" });
 			return {
 				success: true,
 				outputPath,
@@ -338,26 +351,107 @@ export async function handleSubtitleExport(
 					captionCount: styledClips.length,
 					preset: options.preset ?? "default",
 					resolution,
-					filterUsed: "subtitles",
+					filterUsed: "embedded",
+					note: "Subtitles embedded as soft subs (not burned in). Install FFmpeg with libfreetype for burn-in support.",
 				},
 			};
-		} catch (fallbackErr) {
-			const msg =
-				fallbackErr instanceof Error
-					? fallbackErr.message
-					: String(fallbackErr);
-			return {
-				success: false,
-				error: `FFmpeg subtitle burn failed: ${msg}. Ensure FFmpeg has libass support.`,
-			};
+		} finally {
+			try { if (fs.existsSync(tmpSrtPath)) fs.unlinkSync(tmpSrtPath); } catch { /* ignore */ }
 		}
-	} finally {
-		try {
-			if (fs.existsSync(tmpAssPath)) fs.unlinkSync(tmpAssPath);
-		} catch {
-			/* ignore */
-		}
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
+		return {
+			success: false,
+			error: `FFmpeg subtitle export failed: ${msg}. Install FFmpeg with libfreetype (brew install ffmpeg-full) for burn-in support.`,
+		};
 	}
+}
+
+/**
+ * Build a drawtext filter chain for all caption clips.
+ * Uses drawtext which works with any FFmpeg (no libass needed).
+ */
+function buildDrawtextFilters(
+	clips: CaptionElement[],
+	style: SubtitleStyle
+): string {
+	const filters: string[] = [];
+
+	for (const clip of clips) {
+		const escapedText = clip.text
+			.trim()
+			.replace(/\\/g, "\\\\")
+			.replace(/'/g, "'\\''")
+			.replace(/:/g, "\\:")
+			.replace(/%/g, "%%");
+
+		const startTime = clip.startTime;
+		const endTime = clip.startTime + clip.duration;
+
+		const fontColor = style.fontColor.replace("#", "0x");
+
+		// Position
+		const xExpr = "(w-text_w)/2";
+		let yExpr: string;
+		switch (style.position.align) {
+			case "top":
+				yExpr = `${style.fontSize}`;
+				break;
+			case "center":
+				yExpr = "(h-text_h)/2";
+				break;
+			default:
+				yExpr = `h-text_h-${style.fontSize}`;
+				break;
+		}
+
+		const params: string[] = [
+			`text='${escapedText}'`,
+			`fontsize=${style.fontSize}`,
+			`fontcolor=${fontColor}`,
+			`font=${style.fontFamily}`,
+			`x=${xExpr}`,
+			`y=${yExpr}`,
+		];
+
+		if (style.outlineWidth > 0) {
+			params.push(
+				`borderw=${style.outlineWidth}`,
+				`bordercolor=${style.outlineColor.replace("#", "0x")}`
+			);
+		}
+
+		if (style.shadowOffset.x !== 0 || style.shadowOffset.y !== 0) {
+			params.push(
+				`shadowx=${style.shadowOffset.x}`,
+				`shadowy=${style.shadowOffset.y}`,
+				`shadowcolor=${style.shadowColor.replace("#", "0x")}`
+			);
+		}
+
+		if (style.bgOpacity > 0) {
+			params.push(
+				"box=1",
+				`boxcolor=${style.backgroundColor.replace("#", "0x")}@${style.bgOpacity.toFixed(2)}`,
+				"boxborderw=8"
+			);
+		}
+
+		params.push(`enable='between(t\\,${startTime}\\,${endTime})'`);
+
+		filters.push(`drawtext=${params.join(":")}`);
+	}
+
+	return filters.join(",");
+}
+
+/** Format seconds as SRT time (HH:MM:SS,mmm) */
+function formatSrtTime(seconds: number): string {
+	const h = Math.floor(seconds / 3600);
+	const m = Math.floor((seconds % 3600) / 60);
+	const s = Math.floor(seconds % 60);
+	const ms = Math.round((seconds % 1) * 1000);
+	return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")},${String(ms).padStart(3, "0")}`;
 }
 
 /** Resolve FFmpeg binary path. */
