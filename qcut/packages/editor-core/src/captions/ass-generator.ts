@@ -8,7 +8,11 @@
  */
 
 import type { CaptionElement, SubtitleStyle } from "../types/timeline.js";
-import { resolveSubtitleStyle, rgbToASSColor, alignToASSAlignment } from "./subtitle-style.js";
+import {
+	resolveSubtitleStyle,
+	rgbToASSColor,
+	alignToASSAlignment,
+} from "./subtitle-style.js";
 
 export interface ASSGeneratorOptions {
 	resolution: { width: number; height: number };
@@ -18,7 +22,7 @@ export interface ASSGeneratorOptions {
 /** Generate a complete ASS file from caption elements */
 export function generateASS(
 	clips: CaptionElement[],
-	options: ASSGeneratorOptions,
+	options: ASSGeneratorOptions
 ): string {
 	const { resolution, title = "QCut Export" } = options;
 

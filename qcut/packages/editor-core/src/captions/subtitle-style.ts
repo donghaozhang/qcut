@@ -33,7 +33,7 @@ export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
 
 /** Resolve a caption's style, falling back to defaults for missing fields */
 export function resolveSubtitleStyle(
-	style?: Partial<SubtitleStyle>,
+	style?: Partial<SubtitleStyle>
 ): SubtitleStyle {
 	if (!style) return { ...DEFAULT_SUBTITLE_STYLE };
 	return {
@@ -91,7 +91,7 @@ export function assColorToRgb(assColor: string): {
 
 /** Map SubtitleStyle alignment to ASS alignment number (numpad layout) */
 export function alignToASSAlignment(
-	align: SubtitleStyle["position"]["align"],
+	align: SubtitleStyle["position"]["align"]
 ): number {
 	switch (align) {
 		case "bottom":
@@ -107,7 +107,7 @@ export function alignToASSAlignment(
 
 /** Map ASS alignment number back to SubtitleStyle alignment */
 export function assAlignmentToAlign(
-	alignment: number,
+	alignment: number
 ): SubtitleStyle["position"]["align"] {
 	if (alignment >= 7) return "top";
 	if (alignment >= 4) return "center";

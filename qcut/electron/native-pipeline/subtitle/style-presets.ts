@@ -1,20 +1,15 @@
 /**
  * Subtitle style presets and CLI style resolution.
  *
- * Named presets for common subtitle looks, plus a parser
- * that merges preset + JSON overrides into a resolved SubtitleStyle.
- *
  * @module electron/native-pipeline/subtitle/style-presets
  */
 
-import type { SubtitleStyle } from "../../../packages/editor-core/src/types/timeline.js";
-import { resolveSubtitleStyle } from "../../../packages/editor-core/src/captions/subtitle-style.js";
+import type { SubtitleStyle } from "./subtitle-types.js";
+import { resolveSubtitleStyle } from "./subtitle-types.js";
 
 /** Named subtitle style presets */
 export const SUBTITLE_PRESETS: Record<string, Partial<SubtitleStyle>> = {
-	default: {
-		// Uses DEFAULT_SUBTITLE_STYLE values
-	},
+	default: {},
 	cinematic: {
 		fontFamily: "Georgia",
 		fontSize: 56,
@@ -87,7 +82,7 @@ export function parseStyleOverrides(json: string): Partial<SubtitleStyle> {
  */
 export function resolveStyleFromCLI(
 	preset?: string,
-	overridesJson?: string,
+	overridesJson?: string
 ): SubtitleStyle {
 	let base: Partial<SubtitleStyle> = {};
 
@@ -95,7 +90,7 @@ export function resolveStyleFromCLI(
 		const presetStyle = SUBTITLE_PRESETS[preset];
 		if (!presetStyle) {
 			throw new Error(
-				`Unknown preset "${preset}". Available: ${PRESET_NAMES.join(", ")}`,
+				`Unknown preset "${preset}". Available: ${PRESET_NAMES.join(", ")}`
 			);
 		}
 		base = { ...presetStyle };
