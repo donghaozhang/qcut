@@ -63,9 +63,9 @@ export async function validateAudioFiles(
 				});
 				if (!audioValidation) {
 					debugWarn(
-						`[CLI Export] Skipping audio file with indeterminate probe result: ${audioFile.path}`
+						`[CLI Export] ffprobe validation unavailable; keeping audio file by fallback: ${audioFile.path}`
 					);
-					return null;
+					return audioFile;
 				}
 
 				debugLog(
