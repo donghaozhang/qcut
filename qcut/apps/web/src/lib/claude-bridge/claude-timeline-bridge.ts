@@ -47,7 +47,7 @@ export function normalizeClaudeElementType({
 		return CLAUDE_TRACK_ELEMENT_TYPES.media;
 	}
 	// Normalize singular "caption" to plural "captions" (CLI compatibility)
-	if (type === "caption") {
+	if ((type as string) === "caption") {
 		return CLAUDE_TRACK_ELEMENT_TYPES.captions;
 	}
 	if (

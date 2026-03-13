@@ -599,7 +599,7 @@ export function addClaudeCaptionElement({
 		duration,
 		trimStart: 0,
 		trimEnd: 0,
-		style: element.style || undefined,
+		style: (element.style as unknown as import("@qcut/editor-core").SubtitleStyle) || undefined,
 	});
 
 	debugLog("[ClaudeTimelineBridge] Added caption element:", text.slice(0, 50));
