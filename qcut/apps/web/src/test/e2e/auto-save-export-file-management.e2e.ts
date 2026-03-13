@@ -539,7 +539,7 @@ test.describe("Auto-Save & Export File Management", () => {
 				const qualityOptions = qualitySelect.locator('input, [role="radio"], option');
 				const optionCount = await qualityOptions.count();
 				if (optionCount === 0) {
-					console.warn("No explicit quality option controls found; skipping quality option assertion");
+					test.info().annotations.push({ type: "info", description: "No explicit quality option controls found; skipping quality option assertion" });
 				}
 
 				// Select high quality if available
@@ -562,7 +562,7 @@ test.describe("Auto-Save & Export File Management", () => {
 				const formatOptions = formatSelect.locator('input, [role="radio"], option');
 				const formatCount = await formatOptions.count();
 				if (formatCount === 0) {
-					console.warn("No explicit format option controls found; skipping format option assertion");
+					test.info().annotations.push({ type: "info", description: "No explicit format option controls found; skipping format option assertion" });
 				}
 
 				// Select MP4 format if available
@@ -723,7 +723,7 @@ test.describe("Auto-Save & Export File Management", () => {
 					.waitForLoadState("domcontentloaded", { timeout: 2000 })
 					.catch(() => {});
 			} else {
-				console.warn("Export filename input not visible; continue with default filename");
+				test.info().annotations.push({ type: "info", description: "Export filename input not visible; continue with default filename" });
 			}
 
 			// Enable all export features

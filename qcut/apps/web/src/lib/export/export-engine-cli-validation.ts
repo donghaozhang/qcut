@@ -63,9 +63,9 @@ export async function validateAudioFiles(
 				});
 				if (!audioValidation) {
 					debugWarn(
-						`[CLI Export] ffprobe validation unavailable; keeping audio file by fallback: ${audioFile.path}`
+						`[CLI Export] ffprobe validation unavailable; skipping unverified audio file: ${audioFile.path}`
 					);
-					return audioFile;
+					return null;
 				}
 
 				debugLog(

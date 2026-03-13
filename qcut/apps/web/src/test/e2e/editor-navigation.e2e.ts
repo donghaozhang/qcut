@@ -18,7 +18,7 @@ test.describe("Editor Navigation Test", () => {
 		await expect(
 			page
 				.locator(
-					'[data-testid="projects-page"], [data-testid="project-list"], [data-testid="project-list-item"], h1, h2'
+					'[data-testid="projects-page"], [data-testid="project-list"], [data-testid="project-list-item"]'
 				)
 				.first()
 		).toBeVisible({ timeout: 10_000 });
