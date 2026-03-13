@@ -133,6 +133,8 @@ export function alignToASSAlignment(
 			return 5; // Middle center
 		case "top":
 			return 8; // Top center
+		default:
+			return 2;
 	}
 }
 

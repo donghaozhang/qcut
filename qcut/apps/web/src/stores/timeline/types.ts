@@ -36,6 +36,7 @@ import type {
 	MarkdownElement,
 	MediaElement,
 	RemotionElement,
+	CaptionElement,
 	DragData,
 } from "@/types/timeline";
 import type { MediaItem } from "../media/media-store";
