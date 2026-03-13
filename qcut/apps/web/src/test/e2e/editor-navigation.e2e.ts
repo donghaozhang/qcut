@@ -13,20 +13,33 @@ import {
 
 test.describe("Editor Navigation Test", () => {
 	test("should detect existing project on projects page", async ({ page }) => {
-		// Verify we're on projects page
-		await expect(page.getByText("Your Projects")).toBeVisible();
+		// Ensure we're on projects page in a resilient way (title copy may vary)
+		await navigateToProjects(page);
+		await expect(
+			page
+				.locator(
+					'[data-testid="projects-page"], [data-testid="project-list"], [data-testid="project-list-item"]'
+				)
+				.first()
+		).toBeVisible({ timeout: 10_000 });
 
 		// Check for existing projects
 		const projectCards = page.getByTestId("project-list-item");
 		const projectCount = await projectCards.count();
 
-		console.log(`Found ${projectCount} existing projects`);
+		test.info().annotations.push({
+			type: "info",
+			description: `Found ${projectCount} existing projects`,
+		});
 
 		if (projectCount > 0) {
 			// Get the first project's name
 			const firstProject = projectCards.first();
 			const projectName = await firstProject.locator("h3").textContent();
-			console.log(`First project name: ${projectName}`);
+			test.info().annotations.push({
+				type: "info",
+				description: `First project name: ${projectName}`,
+			});
 
 			await expect(firstProject).toBeVisible();
 		}
@@ -55,12 +68,17 @@ test.describe("Editor Navigation Test", () => {
 
 		// Setup a listener for page crashes
 		page.on("crash", () => {
-			console.error("PAGE CRASHED!");
+			test
+				.info()
+				.annotations.push({ type: "error", description: "PAGE CRASHED!" });
 		});
 
 		// Try clicking on the first project
 		const firstProject = projectCards.first();
-		console.log("Attempting to click on project...");
+		test.info().annotations.push({
+			type: "info",
+			description: "Attempting to click on project...",
+		});
 
 		try {
 			// Click and wait for editor route or editor UI to appear
@@ -79,14 +97,23 @@ test.describe("Editor Navigation Test", () => {
 
 			// Check for any console errors
 			if (errors.length > 0) {
-				console.log("Console errors detected:", errors);
+				test.info().annotations.push({
+					type: "warning",
+					description: `Console errors detected: ${errors.join(", ")}`,
+				});
 			}
 
 			// Assert editor is visible (hard assertion; makes the test meaningful)
 			await expect(editorLocator).toBeVisible({ timeout: 15_000 });
-			console.log("Successfully navigated to editor!");
+			test.info().annotations.push({
+				type: "info",
+				description: "Successfully navigated to editor!",
+			});
 		} catch (error) {
-			console.error("Error during navigation:", error);
+			test.info().annotations.push({
+				type: "error",
+				description: `Error during navigation: ${error}`,
+			});
 			// Check if the page is still responsive
 			const isResponsive = await page.evaluate(() => true).catch(() => false);
 			if (!isResponsive) {
@@ -163,10 +190,10 @@ test.describe("Editor Navigation Test", () => {
 
 		// Log any console errors for debugging (but don't fail the test)
 		if (errors.length > 0) {
-			console.log(
-				"Console errors (expected for non-existent project):",
-				errors.slice(0, 3)
-			);
+			test.info().annotations.push({
+				type: "warning",
+				description: `Console errors (expected for non-existent project): ${errors.slice(0, 3).join(", ")}`,
+			});
 		}
 	});
 });
