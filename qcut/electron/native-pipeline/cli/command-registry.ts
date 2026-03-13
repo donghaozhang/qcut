@@ -152,6 +152,11 @@ export const CATEGORIES: CategoryDef[] = [
 		],
 	},
 	{
+		name: "subtitle",
+		label: "Subtitle Commands",
+		commands: ["subtitle-style", "subtitle-export"],
+	},
+	{
 		name: "editor",
 		label: "Editor Commands",
 		commands: [], // populated dynamically from EDITOR_COMMANDS keys
@@ -810,6 +815,80 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		examples: [
 			'bun run pipeline youtube:upload -i video.mp4 -t "My Video"',
 			'bun run pipeline youtube:upload -i video.mp4 -t "My Video" --mode unlisted --data "vlog,travel"',
+		],
+	},
+
+	// ── Subtitle ──
+	"subtitle-style": {
+		name: "subtitle-style",
+		description: "Apply style to subtitles and output ASS file",
+		category: "subtitle",
+		flags: [
+			f("--input", "string", "Input subtitle file (SRT/VTT/ASS)", {
+				short: "-i",
+				required: true,
+			}),
+			f("--preset", "string", "Style preset name", {
+				enum: [
+					"default",
+					"cinematic",
+					"bold",
+					"minimal",
+					"karaoke",
+					"news",
+				],
+			}),
+			f(
+				"--style",
+				"string",
+				'JSON style overrides (e.g. \'{"fontSize":64,"fontColor":"#ffff00"}\')'
+			),
+			f("--output", "string", "Output ASS file path"),
+		],
+		examples: [
+			"qcut-pipeline subtitle-style -i subs.srt --preset bold",
+			"qcut-pipeline subtitle-style -i subs.srt --style '{\"fontSize\":64}' -o styled.ass",
+			"qcut-pipeline subtitle-style -i subs.srt --preset cinematic --style '{\"fontSize\":72}' --json",
+		],
+	},
+	"subtitle-export": {
+		name: "subtitle-export",
+		description:
+			"Burn styled subtitles into video (video + SRT/VTT/ASS → MP4)",
+		category: "subtitle",
+		flags: [
+			f("--input", "string", "Input video file path", {
+				short: "-i",
+				required: true,
+			}),
+			f(
+				"--srt-file",
+				"string",
+				"Subtitle file (auto-detects .srt/.vtt/.ass next to video if omitted)",
+				{ short: "-s" }
+			),
+			f("--preset", "string", "Style preset name", {
+				enum: [
+					"default",
+					"cinematic",
+					"bold",
+					"minimal",
+					"karaoke",
+					"news",
+				],
+			}),
+			f(
+				"--style",
+				"string",
+				'JSON style overrides (e.g. \'{"fontSize":64}\')'
+			),
+			f("--resolution", "string", "Override video resolution (e.g. 1920x1080)"),
+			f("--output", "string", "Output video file path"),
+		],
+		examples: [
+			"qcut-pipeline subtitle-export -i video.mp4 --srt-file subs.srt --preset bold",
+			"qcut-pipeline subtitle-export -i video.mp4 --preset cinematic --json",
+			"qcut-pipeline subtitle-export -i video.mp4 -s subs.srt --style '{\"fontColor\":\"#ffff00\"}'",
 		],
 	},
 

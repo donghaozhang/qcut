@@ -10,7 +10,8 @@
 		"./timeline": "./src/timeline/index.ts",
 		"./commands": "./src/commands/index.ts",
 		"./storage": "./src/storage/index.ts",
-		"./search": "./src/search/index.ts"
+		"./search": "./src/search/index.ts",
+		"./captions": "./src/captions/index.ts"
 	},
 	"devDependencies": {
 		"@types/node": "^24.10.13"
