@@ -59,7 +59,7 @@ export function WordSearch({
 	// Reset active index when matches change
 	useEffect(() => {
 		setActiveIndex(0);
-	}, [query]);
+	}, [matchedWords]);
 
 	// Auto-focus on mount
 	useEffect(() => {
@@ -134,7 +134,9 @@ export function WordSearch({
 						className="text-muted-foreground hover:text-foreground p-0.5"
 						aria-label="Previous match"
 					>
-						<ChevronUp className="size-3"><title>Previous match</title></ChevronUp>
+						<ChevronUp className="size-3">
+							<title>Previous match</title>
+						</ChevronUp>
 					</button>
 					<button
 						type="button"
@@ -142,7 +144,9 @@ export function WordSearch({
 						className="text-muted-foreground hover:text-foreground p-0.5"
 						aria-label="Next match"
 					>
-						<ChevronDown className="size-3"><title>Next match</title></ChevronDown>
+						<ChevronDown className="size-3">
+							<title>Next match</title>
+						</ChevronDown>
 					</button>
 				</>
 			)}
@@ -152,7 +156,9 @@ export function WordSearch({
 				className="text-muted-foreground hover:text-foreground p-0.5"
 				aria-label="Close search"
 			>
-				<XIcon className="size-3"><title>Close search</title></XIcon>
+				<XIcon className="size-3">
+					<title>Close search</title>
+				</XIcon>
 			</button>
 		</div>
 	);

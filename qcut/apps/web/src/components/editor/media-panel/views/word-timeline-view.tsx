@@ -439,8 +439,12 @@ export function WordTimelineView() {
 	}, []);
 
 	// Search state
-	const [searchHighlightedWords, setSearchHighlightedWords] = useState<Set<string>>(new Set());
-	const [searchActiveWordId, setSearchActiveWordId] = useState<string | null>(null);
+	const [searchHighlightedWords, setSearchHighlightedWords] = useState<
+		Set<string>
+	>(new Set());
+	const [searchActiveWordId, setSearchActiveWordId] = useState<string | null>(
+		null
+	);
 
 	const handleSearchSeek = useCallback(
 		(word: WordItem) => {
@@ -565,7 +569,9 @@ export function WordTimelineView() {
 						className="h-7 w-7"
 						title="Search words"
 					>
-						<SearchIcon className="w-3.5 h-3.5"><title>Search</title></SearchIcon>
+						<SearchIcon className="w-3.5 h-3.5">
+							<title>Search</title>
+						</SearchIcon>
 					</Button>
 					<Button
 						type="button"

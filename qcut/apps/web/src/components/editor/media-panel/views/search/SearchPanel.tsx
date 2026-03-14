@@ -85,13 +85,16 @@ export function SearchPanel() {
 		const api = window.electronAPI?.claude?.search;
 		if (!api) return;
 
-		api.loadTranscriptions(projectId).then((data) => {
-			if (Array.isArray(data) && data.length > 0) {
-				setTranscriptions(data as PersistedTranscription[]);
-			}
-		}).catch((error) => {
-			console.error("Failed to load transcriptions for search:", error);
-		});
+		api
+			.loadTranscriptions(projectId)
+			.then((data) => {
+				if (Array.isArray(data) && data.length > 0) {
+					setTranscriptions(data as PersistedTranscription[]);
+				}
+			})
+			.catch((error) => {
+				console.error("Failed to load transcriptions for search:", error);
+			});
 	}, [activeProject?.id, setTranscriptions]);
 
 	useEffect(() => {
