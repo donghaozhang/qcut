@@ -110,5 +110,25 @@ export {
 	type SearchOptions,
 } from "./search/index.js";
 
+// Captions — shared subtitle utilities (CLI + renderer)
+export {
+	DEFAULT_SUBTITLE_STYLE,
+	resolveSubtitleStyle,
+	hexToRgba,
+	rgbToASSColor,
+	assColorToRgb,
+	alignToASSAlignment,
+	assAlignmentToAlign,
+	generateASS,
+	secondsToASSTime,
+	parseASS,
+	assTimeToSeconds,
+	assStyleToSubtitleStyle,
+	type ASSGeneratorOptions,
+	type ASSStyle,
+	type ASSEvent,
+	type ASSDocument,
+} from "./captions/index.js";
+
 // Utils
 export { generateUUID } from "./utils.js";

@@ -71,6 +71,10 @@ import {
 	handleConvertSpeech,
 	handleCloneVoice,
 } from "../cli-handlers-speech.js";
+import {
+	handleSubtitleStyle,
+	handleSubtitleExport,
+} from "../cli-handlers-subtitle.js";
 
 async function enforceActionPolicy({
 	options,
@@ -414,6 +418,16 @@ export class CLIPipelineRunner {
 				break;
 			case "youtube:upload":
 				result = await handleYouTubeUpload(resolvedOptions, onProgress);
+				break;
+			case "subtitle-style":
+				result = await handleSubtitleStyle(resolvedOptions, onProgress);
+				break;
+			case "subtitle-export":
+				result = await handleSubtitleExport(
+					resolvedOptions,
+					onProgress,
+					this.signal
+				);
 				break;
 			case "autoclip":
 				result = await runAutoclip(
