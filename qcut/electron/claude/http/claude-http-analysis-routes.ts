@@ -377,8 +377,7 @@ export function registerAnalysisRoutes(
 				}
 
 				// Auto-persist transcription for search
-				const persistMediaId =
-					req.body.mediaId ?? req.body.source?.mediaId;
+				const persistMediaId = req.body.mediaId ?? req.body.source?.mediaId;
 				if (persistMediaId) {
 					try {
 						const mediaInfo = await getMediaInfo(
@@ -393,9 +392,10 @@ export function registerAnalysisRoutes(
 							duration: result.duration ?? 0,
 							provider: req.body.provider ?? "elevenlabs",
 							createdAt: Date.now(),
-							text: result.segments
-								?.map((s: { text: string }) => s.text)
-								.join(" ") ?? "",
+							text:
+								result.segments
+									?.map((s: { text: string }) => s.text)
+									.join(" ") ?? "",
 							words: result.words ?? [],
 							segments: result.segments ?? [],
 						});
