@@ -28,6 +28,7 @@ import {
 	type PlatformTranscriptionAPI,
 	type PlatformFalAPI,
 	type PlatformGeminiChatAPI,
+	type PlatformPiAgentAPI,
 	type PlatformGitHubAPI,
 	type PlatformYouTubeAPI,
 	type PlatformPtyAPI,
@@ -494,6 +495,7 @@ export function createWebAdapter(): PlatformAPI {
 		remotionFolder: remotionFolderStub,
 		moyin: moyinStub,
 		updates: updatesStub,
+		piAgent: undefined,
 		claude: undefined,
 	};
 }

@@ -54,6 +54,7 @@ export type {
 	PlatformMoyinAPI,
 	PlatformUpdatesAPI,
 	PlatformFillerAnalysisAPI,
+	PlatformPiAgentAPI,
 } from "./types/integration-api.js";
 
 // Claude API namespaces

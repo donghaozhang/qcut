@@ -376,6 +376,66 @@ const electronAPI: ElectronAPI = {
 		},
 	},
 
+	// Pi Agent operations
+	piAgent: {
+		send: (request: {
+			message: string;
+			settings?: { provider: string; model: string; apiKey?: string };
+			apiKey?: string;
+		}): Promise<{ success: boolean; error?: string }> =>
+			ipcRenderer.invoke("pi-agent:chat", request),
+		onStreamChunk: (callback: (data: { text: string }) => void): void => {
+			ipcRenderer.removeAllListeners("pi-agent:stream-chunk");
+			ipcRenderer.on("pi-agent:stream-chunk", (_, data) => callback(data));
+		},
+		onToolCall: (
+			callback: (data: {
+				toolCallId: string;
+				toolName: string;
+				params: Record<string, unknown>;
+			}) => void
+		): void => {
+			ipcRenderer.removeAllListeners("pi-agent:tool-call");
+			ipcRenderer.on("pi-agent:tool-call", (_, data) => callback(data));
+		},
+		onToolResult: (
+			callback: (data: {
+				toolCallId: string;
+				toolName: string;
+				result: unknown;
+				isError: boolean;
+			}) => void
+		): void => {
+			ipcRenderer.removeAllListeners("pi-agent:tool-result");
+			ipcRenderer.on("pi-agent:tool-result", (_, data) => callback(data));
+		},
+		onStreamComplete: (callback: () => void): void => {
+			ipcRenderer.removeAllListeners("pi-agent:stream-complete");
+			ipcRenderer.on("pi-agent:stream-complete", () => callback());
+		},
+		onStreamError: (callback: (data: { message: string }) => void): void => {
+			ipcRenderer.removeAllListeners("pi-agent:stream-error");
+			ipcRenderer.on("pi-agent:stream-error", (_, data) => callback(data));
+		},
+		removeListeners: (): void => {
+			ipcRenderer.removeAllListeners("pi-agent:stream-chunk");
+			ipcRenderer.removeAllListeners("pi-agent:tool-call");
+			ipcRenderer.removeAllListeners("pi-agent:tool-result");
+			ipcRenderer.removeAllListeners("pi-agent:stream-complete");
+			ipcRenderer.removeAllListeners("pi-agent:stream-error");
+		},
+		reset: (): Promise<{ success: boolean }> =>
+			ipcRenderer.invoke("pi-agent:reset"),
+		setModel: (settings: {
+			provider: string;
+			model: string;
+			apiKey?: string;
+		}): Promise<{ success: boolean }> =>
+			ipcRenderer.invoke("pi-agent:set-model", settings),
+		getModels: (): Promise<{ provider: string; models: string[] }[]> =>
+			ipcRenderer.invoke("pi-agent:get-models"),
+	},
+
 	// License operations
 	license: {
 		check: () => ipcRenderer.invoke("license:check"),
