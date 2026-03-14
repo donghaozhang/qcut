@@ -11,6 +11,7 @@ QCut supports full subtitle styling in both the editor UI and the CLI pipeline. 
 When you select a caption clip on the timeline, the **Properties Panel** shows subtitle styling controls.
 
 ### Text Section
+
 | Control | Description |
 |---------|-------------|
 | Font | Font family picker (system + bundled fonts) |
@@ -20,6 +21,7 @@ When you select a caption clip on the timeline, the **Properties Panel** shows s
 | Opacity | Slider + number input (0–100%) |
 
 ### Outline / Shadow Section
+
 | Control | Description |
 |---------|-------------|
 | Outline Color | Stroke color around text |
@@ -27,12 +29,14 @@ When you select a caption clip on the timeline, the **Properties Panel** shows s
 | Shadow Color | Drop shadow color |
 
 ### Background Section
+
 | Control | Description |
 |---------|-------------|
 | Color | Background box color behind text |
 | Opacity | Background transparency (0–100%) |
 
 ### Position Section
+
 | Control | Description |
 |---------|-------------|
 | Alignment | Top / Center / Bottom placement |

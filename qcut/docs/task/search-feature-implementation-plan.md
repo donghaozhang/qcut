@@ -45,16 +45,16 @@ When you transcribe media through Smart Speech, the transcription is automatical
 
 ```bash
 # Transcribe a single media item (ElevenLabs, default)
-bun run pipeline editor:transcribe:run --project-id <id> --media-id <id> --json
+bun run pipeline editor:transcribe:run --project-id <projectId> --media-id <id> --json
 
 # Transcribe from file path
-bun run pipeline editor:transcribe:run --project-id <id> --source path:/path/to/video.mp4 --json
+bun run pipeline editor:transcribe:run --project-id <projectId> --source path:/path/to/video.mp4 --json
 
 # Use Gemini provider
-bun run pipeline editor:transcribe:run --project-id <id> --media-id <id> --model gemini --json
+bun run pipeline editor:transcribe:run --project-id <projectId> --media-id <id> --model gemini --json
 
 # Async transcription (non-blocking, poll for completion)
-bun run pipeline editor:transcribe:start --project-id <id> --media-id <id> --poll
+bun run pipeline editor:transcribe:start --project-id <projectId> --media-id <id> --poll
 ```
 
 Transcription results are automatically saved to disk for search.
@@ -63,32 +63,32 @@ Transcription results are automatically saved to disk for search.
 
 ```bash
 # Basic search
-bun run pipeline editor:search:query --project-id <id> --query "hello world" --json
+bun run pipeline editor:search:query --project-id <projectId> --query "hello world" --json
 
 # Case-sensitive search
-bun run pipeline editor:search:query --project-id <id> --query "Hello" --case-sensitive --json
+bun run pipeline editor:search:query --project-id <projectId> --query "Hello" --case-sensitive --json
 
 # Whole-word match only
-bun run pipeline editor:search:query --project-id <id> --query "the" --whole-word --json
+bun run pipeline editor:search:query --project-id <projectId> --query "the" --whole-word --json
 
 # Limit results
-bun run pipeline editor:search:query --project-id <id> --query "um" --max-results 10 --json
+bun run pipeline editor:search:query --project-id <projectId> --query "um" --max-results 10 --json
 
 # Scope to a single media item
-bun run pipeline editor:search:query --project-id <id> --query "hello" --media-id <mediaId> --json
+bun run pipeline editor:search:query --project-id <projectId> --query "hello" --media-id <mediaId> --json
 ```
 
 ### Check transcription status
 
 ```bash
 # See which media items have transcriptions
-bun run pipeline editor:search:status --project-id <id> --json
+bun run pipeline editor:search:status --project-id <projectId> --json
 ```
 
 ### Index (info about what needs transcription)
 
 ```bash
-bun run pipeline editor:search:index --project-id <id> --json
+bun run pipeline editor:search:index --project-id <projectId> --json
 ```
 
 ---
