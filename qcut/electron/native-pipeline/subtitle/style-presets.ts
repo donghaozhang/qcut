@@ -98,7 +98,22 @@ export function resolveStyleFromCLI(
 
 	if (overridesJson) {
 		const overrides = parseStyleOverrides(overridesJson);
-		base = { ...base, ...overrides };
+		base = {
+			...base,
+			...overrides,
+		};
+		if (base.position || overrides.position) {
+			base.position = {
+				...base.position,
+				...overrides.position,
+			} as SubtitleStyle["position"];
+		}
+		if (base.shadowOffset || overrides.shadowOffset) {
+			base.shadowOffset = {
+				...base.shadowOffset,
+				...overrides.shadowOffset,
+			} as SubtitleStyle["shadowOffset"];
+		}
 	}
 
 	return resolveSubtitleStyle(base);

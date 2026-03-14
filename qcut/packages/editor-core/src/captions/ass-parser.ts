@@ -216,7 +216,8 @@ export function assTimeToSeconds(time: string): number {
 export function assStyleToSubtitleStyle(assStyle: ASSStyle): SubtitleStyle {
 	const primary = assColorToRgb(assStyle.PrimaryColour);
 	const outline = assColorToRgb(assStyle.OutlineColour);
-	const shadow = assColorToRgb(assStyle.BackColour);
+	const back = assColorToRgb(assStyle.BackColour);
+	const useOpaqueBox = assStyle.BorderStyle === 3;
 
 	return {
 		fontFamily: assStyle.Fontname,
@@ -228,13 +229,13 @@ export function assStyleToSubtitleStyle(assStyle: ASSStyle): SubtitleStyle {
 		underline: assStyle.Underline !== 0,
 		outlineColor: outline.hex,
 		outlineWidth: assStyle.Outline,
-		shadowColor: shadow.hex,
+		shadowColor: useOpaqueBox ? "#000000" : back.hex,
 		shadowOffset: {
 			x: assStyle.Shadow > 0 ? 1 : 0,
 			y: assStyle.Shadow > 0 ? 1 : 0,
 		},
-		backgroundColor: "#000000",
-		bgOpacity: 0,
+		backgroundColor: useOpaqueBox ? back.hex : "#000000",
+		bgOpacity: useOpaqueBox ? back.opacity : 0,
 		position: {
 			align: assAlignmentToAlign(assStyle.Alignment),
 			x: 50,

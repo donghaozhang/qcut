@@ -69,7 +69,12 @@ export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
 export function resolveSubtitleStyle(
 	style?: Partial<SubtitleStyle>
 ): SubtitleStyle {
-	if (!style) return { ...DEFAULT_SUBTITLE_STYLE };
+	if (!style)
+		return {
+			...DEFAULT_SUBTITLE_STYLE,
+			shadowOffset: { ...DEFAULT_SUBTITLE_STYLE.shadowOffset },
+			position: { ...DEFAULT_SUBTITLE_STYLE.position },
+		};
 	return {
 		...DEFAULT_SUBTITLE_STYLE,
 		...style,
@@ -203,7 +208,11 @@ function styleToASSLine(name: string, style: SubtitleStyle): string {
 	const primary = rgbToASSColor(style.fontColor, style.fontOpacity);
 	const secondary = "&H00FFFFFF";
 	const outline = rgbToASSColor(style.outlineColor, 1);
-	const back = rgbToASSColor(style.shadowColor, 1);
+	const useOpaqueBox = style.bgOpacity > 0;
+	const back = useOpaqueBox
+		? rgbToASSColor(style.backgroundColor, style.bgOpacity)
+		: rgbToASSColor(style.shadowColor, 1);
+	const borderStyle = useOpaqueBox ? 3 : 1;
 	const bold = style.bold ? -1 : 0;
 	const italic = style.italic ? -1 : 0;
 	const underline = style.underline ? 1 : 0;
@@ -228,7 +237,7 @@ function styleToASSLine(name: string, style: SubtitleStyle): string {
 		100,
 		0,
 		0,
-		1,
+		borderStyle,
 		style.outlineWidth,
 		shadow,
 		alignment,
@@ -443,7 +452,8 @@ export function assTimeToSeconds(time: string): number {
 export function assStyleToSubtitleStyle(assStyle: ASSStyle): SubtitleStyle {
 	const primary = assColorToRgb(assStyle.PrimaryColour);
 	const outline = assColorToRgb(assStyle.OutlineColour);
-	const shadow = assColorToRgb(assStyle.BackColour);
+	const back = assColorToRgb(assStyle.BackColour);
+	const useOpaqueBox = assStyle.BorderStyle === 3;
 
 	return {
 		fontFamily: assStyle.Fontname,
@@ -455,13 +465,13 @@ export function assStyleToSubtitleStyle(assStyle: ASSStyle): SubtitleStyle {
 		underline: assStyle.Underline !== 0,
 		outlineColor: outline.hex,
 		outlineWidth: assStyle.Outline,
-		shadowColor: shadow.hex,
+		shadowColor: useOpaqueBox ? "#000000" : back.hex,
 		shadowOffset: {
 			x: assStyle.Shadow > 0 ? 1 : 0,
 			y: assStyle.Shadow > 0 ? 1 : 0,
 		},
-		backgroundColor: "#000000",
-		bgOpacity: 0,
+		backgroundColor: useOpaqueBox ? back.hex : "#000000",
+		bgOpacity: useOpaqueBox ? back.opacity : 0,
 		position: {
 			align: assAlignmentToAlign(assStyle.Alignment),
 			x: 50,

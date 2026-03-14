@@ -35,7 +35,12 @@ export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
 export function resolveSubtitleStyle(
 	style?: Partial<SubtitleStyle>
 ): SubtitleStyle {
-	if (!style) return { ...DEFAULT_SUBTITLE_STYLE };
+	if (!style)
+		return {
+			...DEFAULT_SUBTITLE_STYLE,
+			shadowOffset: { ...DEFAULT_SUBTITLE_STYLE.shadowOffset },
+			position: { ...DEFAULT_SUBTITLE_STYLE.position },
+		};
 	return {
 		...DEFAULT_SUBTITLE_STYLE,
 		...style,
