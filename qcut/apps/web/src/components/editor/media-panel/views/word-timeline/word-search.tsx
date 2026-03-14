@@ -9,7 +9,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SearchIcon, XIcon, ChevronUp, ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { WordItem } from "@/types/word-timeline";
 
 interface WordSearchProps {
@@ -47,13 +46,14 @@ export function WordSearch({
 		return () => onHighlightedWordsChange(new Set());
 	}, [matchedWords, onHighlightedWordsChange]);
 
-	// Update active match
+	// Update active match (clear on unmount to avoid stale highlight)
 	useEffect(() => {
 		if (matchedWords.length > 0 && activeIndex < matchedWords.length) {
 			onActiveMatchChange(matchedWords[activeIndex].id);
 		} else {
 			onActiveMatchChange(null);
 		}
+		return () => onActiveMatchChange(null);
 	}, [matchedWords, activeIndex, onActiveMatchChange]);
 
 	// Reset active index when matches change
@@ -77,6 +77,18 @@ export function WordSearch({
 		},
 		[matchedWords, onSeekToWord]
 	);
+
+	// Auto-seek to first match when results appear
+	const hasNavigatedRef = useRef(false);
+	useEffect(() => {
+		if (matchedWords.length > 0 && !hasNavigatedRef.current) {
+			hasNavigatedRef.current = true;
+			onSeekToWord(matchedWords[0]);
+		}
+		if (matchedWords.length === 0) {
+			hasNavigatedRef.current = false;
+		}
+	}, [matchedWords, onSeekToWord]);
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
@@ -122,7 +134,7 @@ export function WordSearch({
 						className="text-muted-foreground hover:text-foreground p-0.5"
 						aria-label="Previous match"
 					>
-						<ChevronUp className="size-3" />
+						<ChevronUp className="size-3"><title>Previous match</title></ChevronUp>
 					</button>
 					<button
 						type="button"
@@ -130,7 +142,7 @@ export function WordSearch({
 						className="text-muted-foreground hover:text-foreground p-0.5"
 						aria-label="Next match"
 					>
-						<ChevronDown className="size-3" />
+						<ChevronDown className="size-3"><title>Next match</title></ChevronDown>
 					</button>
 				</>
 			)}
@@ -140,7 +152,7 @@ export function WordSearch({
 				className="text-muted-foreground hover:text-foreground p-0.5"
 				aria-label="Close search"
 			>
-				<XIcon className="size-3" />
+				<XIcon className="size-3"><title>Close search</title></XIcon>
 			</button>
 		</div>
 	);

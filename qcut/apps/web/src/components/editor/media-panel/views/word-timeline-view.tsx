@@ -68,7 +68,6 @@ export function WordTimelineView() {
 
 	const { seek, currentTime, isPlaying } = usePlaybackStore();
 	const [previewSkipFiltered, setPreviewSkipFiltered] = useState(true);
-	const [searchQuery, setSearchQuery] = useState("");
 	const [showSearch, setShowSearch] = useState(false);
 
 	// Transcription hook
@@ -435,6 +434,10 @@ export function WordTimelineView() {
 		toast.info("Word timeline cleared");
 	}, [clearData, clearTranscriptionError]);
 
+	const handleCloseSearch = useCallback(() => {
+		setShowSearch(false);
+	}, []);
+
 	// Search state
 	const [searchHighlightedWords, setSearchHighlightedWords] = useState<Set<string>>(new Set());
 	const [searchActiveWordId, setSearchActiveWordId] = useState<string | null>(null);
@@ -560,9 +563,9 @@ export function WordTimelineView() {
 						size="icon"
 						onClick={() => setShowSearch((v) => !v)}
 						className="h-7 w-7"
-						title="Search words (Ctrl+F)"
+						title="Search words"
 					>
-						<SearchIcon className="w-3.5 h-3.5" />
+						<SearchIcon className="w-3.5 h-3.5"><title>Search</title></SearchIcon>
 					</Button>
 					<Button
 						type="button"
@@ -602,7 +605,7 @@ export function WordTimelineView() {
 					onSeekToWord={handleSearchSeek}
 					onHighlightedWordsChange={setSearchHighlightedWords}
 					onActiveMatchChange={setSearchActiveWordId}
-					onClose={() => setShowSearch(false)}
+					onClose={handleCloseSearch}
 				/>
 			)}
 

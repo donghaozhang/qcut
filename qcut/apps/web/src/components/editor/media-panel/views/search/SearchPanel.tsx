@@ -89,8 +89,8 @@ export function SearchPanel() {
 			if (Array.isArray(data) && data.length > 0) {
 				setTranscriptions(data as PersistedTranscription[]);
 			}
-		}).catch(() => {
-			// Transcription loading failed — search will work with any cached data
+		}).catch((error) => {
+			console.error("Failed to load transcriptions for search:", error);
 		});
 	}, [activeProject?.id, setTranscriptions]);
 

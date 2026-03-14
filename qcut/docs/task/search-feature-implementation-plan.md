@@ -141,7 +141,7 @@ For direct HTTP access (used by CLI handlers internally):
 
 ### Data flow
 
-```
+```text
 Transcribe (Smart Speech or CLI)
        |
        v
