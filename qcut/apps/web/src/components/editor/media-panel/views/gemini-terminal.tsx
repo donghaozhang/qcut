@@ -1,11 +1,24 @@
 "use client";
 
 import { useGeminiTerminalStore } from "@/stores/gemini-terminal-store";
+import type {
+	ChatProvider,
+	PiProviderType,
+} from "@/stores/gemini-terminal-store";
 import { useAsyncMediaStore } from "@/hooks/media/use-async-media-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Trash2, Loader2, AlertCircle } from "lucide-react";
+import {
+	Select,
+	SelectContent,
+	SelectGroup,
+	SelectItem,
+	SelectLabel,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Send, Trash2, Loader2, AlertCircle, Wrench } from "lucide-react";
 import { useRef, useEffect, useState, useCallback } from "react";
 import { MessageItem } from "./gemini-terminal/message-item";
 import { AttachmentPreview } from "./gemini-terminal/attachment-preview";
@@ -19,6 +32,18 @@ import {
 import { toast } from "sonner";
 import type { AttachedFile } from "@/stores/gemini-terminal-store";
 
+const PI_MODELS: Record<PiProviderType, string[]> = {
+	anthropic: ["claude-sonnet-4-20250514", "claude-haiku-4-20250414"],
+	openai: ["gpt-4o", "gpt-4o-mini"],
+	google: ["gemini-2.5-pro", "gemini-2.5-flash"],
+};
+
+const PROVIDER_LABELS: Record<PiProviderType, string> = {
+	anthropic: "Anthropic",
+	openai: "OpenAI",
+	google: "Google",
+};
+
 export function GeminiTerminalView() {
 	const {
 		messages,
@@ -27,11 +52,18 @@ export function GeminiTerminalView() {
 		pendingAttachments,
 		inputValue,
 		error,
+		activeProvider,
+		setActiveProvider,
+		selectedPiProvider,
+		selectedPiModel,
+		setPiModel,
+		activeToolCalls,
 		setInputValue,
 		sendMessage,
 		addAttachment,
 		removeAttachment,
 		clearHistory,
+		resetPiConversation,
 	} = useGeminiTerminalStore();
 
 	const { store: mediaStore } = useAsyncMediaStore();
@@ -43,8 +75,6 @@ export function GeminiTerminalView() {
 	// Auto-scroll on new messages
 	useEffect(() => {
 		if (scrollRef.current) {
-			// ScrollArea forwards ref to Root (overflow: hidden), not the Viewport
-			// Query for the actual scrollable element using Radix's data attribute
 			const viewport = scrollRef.current.querySelector(
 				"[data-radix-scroll-area-viewport]"
 			) as HTMLElement | null;
@@ -74,13 +104,28 @@ export function GeminiTerminalView() {
 		[handleSubmit]
 	);
 
+	const handleClear = useCallback(() => {
+		if (activeProvider === "pi-agent") {
+			resetPiConversation();
+		} else {
+			clearHistory();
+		}
+	}, [activeProvider, resetPiConversation, clearHistory]);
+
+	const handleModelChange = useCallback(
+		(value: string) => {
+			// value format: "provider/model"
+			const [provider, ...modelParts] = value.split("/");
+			const model = modelParts.join("/");
+			setPiModel(provider as PiProviderType, model);
+		},
+		[setPiModel]
+	);
+
 	// Drag and drop handlers for media items from the media panel
 	const handleDragEnter = useCallback((e: React.DragEvent) => {
 		e.preventDefault();
 		dragCounterRef.current += 1;
-
-		// Only show drop zone for internal media items (not external files)
-		// External file drops are not currently supported
 		if (e.dataTransfer.types.includes("application/x-media-item")) {
 			setIsDragOver(true);
 		}
@@ -105,7 +150,6 @@ export function GeminiTerminalView() {
 			setIsDragOver(false);
 			dragCounterRef.current = 0;
 
-			// Handle internal media item drop
 			const mediaData = e.dataTransfer.getData("application/x-media-item");
 			if (mediaData) {
 				try {
@@ -116,7 +160,7 @@ export function GeminiTerminalView() {
 
 						if (!filePath || filePath.startsWith("blob:")) {
 							toast.error(
-								"This media item doesn't have a local file path for Gemini analysis."
+								"This media item doesn't have a local file path for analysis."
 							);
 							return;
 						}
@@ -151,16 +195,70 @@ export function GeminiTerminalView() {
 		onDrop: handleDrop,
 	};
 
+	const providerLabel = activeProvider === "gemini" ? "Gemini" : "Pi Agent";
+
 	return (
 		<div className="flex flex-col h-full">
 			{/* Header */}
-			<div className="flex items-center justify-between p-2 border-b">
-				<span className="text-sm font-medium">Gemini Chat</span>
+			<div className="flex items-center justify-between p-2 border-b gap-2">
+				<div className="flex items-center gap-2 min-w-0">
+					{/* Provider toggle */}
+					<div className="flex rounded-md border text-xs">
+						<ProviderToggleButton
+							active={activeProvider === "gemini"}
+							onClick={() => setActiveProvider("gemini")}
+							disabled={isStreaming}
+						>
+							Gemini
+						</ProviderToggleButton>
+						<ProviderToggleButton
+							active={activeProvider === "pi-agent"}
+							onClick={() => setActiveProvider("pi-agent")}
+							disabled={isStreaming}
+						>
+							Pi Agent
+						</ProviderToggleButton>
+					</div>
+
+					{/* Model selector (pi-agent only) */}
+					{activeProvider === "pi-agent" && (
+						<Select
+							value={`${selectedPiProvider}/${selectedPiModel}`}
+							onValueChange={handleModelChange}
+							disabled={isStreaming}
+						>
+							<SelectTrigger className="h-7 text-xs w-[180px]">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{(
+									Object.entries(PI_MODELS) as [PiProviderType, string[]][]
+								).map(([provider, models]) => (
+									<SelectGroup key={provider}>
+										<SelectLabel className="text-xs">
+											{PROVIDER_LABELS[provider]}
+										</SelectLabel>
+										{models.map((model) => (
+											<SelectItem
+												key={`${provider}/${model}`}
+												value={`${provider}/${model}`}
+												className="text-xs"
+											>
+												{model}
+											</SelectItem>
+										))}
+									</SelectGroup>
+								))}
+							</SelectContent>
+						</Select>
+					)}
+				</div>
+
 				<Button
 					type="button"
 					variant="text"
 					size="sm"
-					onClick={clearHistory}
+					onClick={handleClear}
 					disabled={messages.length === 0 || isStreaming}
 					aria-label="Clear chat history"
 				>
@@ -178,7 +276,9 @@ export function GeminiTerminalView() {
 				>
 					{messages.length === 0 && !isStreaming && (
 						<div className="text-center text-muted-foreground py-8">
-							<p className="text-sm">Start a conversation with Gemini</p>
+							<p className="text-sm">
+								Start a conversation with {providerLabel}
+							</p>
 							<p className="text-xs mt-2">
 								Drag media from the panel to analyze it
 							</p>
@@ -186,7 +286,13 @@ export function GeminiTerminalView() {
 					)}
 
 					{messages.map((msg) => (
-						<MessageItem key={msg.id} message={msg} />
+						<MessageItem
+							key={msg.id}
+							message={msg}
+							providerLabel={
+								activeProvider === "gemini" ? "Gemini" : "Pi Agent"
+							}
+						/>
 					))}
 
 					{isStreaming && currentStreamingContent && (
@@ -198,6 +304,9 @@ export function GeminiTerminalView() {
 								timestamp: Date.now(),
 							}}
 							isStreaming
+							providerLabel={
+								activeProvider === "gemini" ? "Gemini" : "Pi Agent"
+							}
 						/>
 					)}
 
@@ -209,6 +318,25 @@ export function GeminiTerminalView() {
 					)}
 				</div>
 			</ScrollArea>
+
+			{/* Active tool calls indicator (pi-agent only) */}
+			{activeProvider === "pi-agent" &&
+				activeToolCalls.length > 0 &&
+				isStreaming && (
+					<div className="border-t px-3 py-2 space-y-1">
+						{activeToolCalls
+							.filter((tc) => !tc.duration)
+							.map((tc) => (
+								<div
+									key={tc.toolCallId}
+									className="flex items-center gap-2 text-xs text-muted-foreground"
+								>
+									<Wrench className="h-3 w-3 animate-spin" />
+									<span className="font-mono">{tc.toolName}</span>
+								</div>
+							))}
+					</div>
+				)}
 
 			{/* Error Display */}
 			{error && (
@@ -248,7 +376,7 @@ export function GeminiTerminalView() {
 						placeholder={
 							isDragOver
 								? "Drop media here..."
-								: "Ask Gemini about your media..."
+								: `Ask ${providerLabel} about your media...`
 						}
 						className="min-h-[60px] max-h-[120px] resize-none"
 						disabled={isStreaming}
@@ -276,5 +404,36 @@ export function GeminiTerminalView() {
 				</p>
 			</div>
 		</div>
+	);
+}
+
+// ============================================================================
+// Sub-components
+// ============================================================================
+
+function ProviderToggleButton({
+	active,
+	onClick,
+	disabled,
+	children,
+}: {
+	active: boolean;
+	onClick: () => void;
+	disabled: boolean;
+	children: React.ReactNode;
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			disabled={disabled}
+			className={cn(
+				"px-2.5 py-1 transition-colors first:rounded-l-[calc(var(--radius)-1px)] last:rounded-r-[calc(var(--radius)-1px)]",
+				active ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+				disabled && "opacity-50 cursor-not-allowed"
+			)}
+		>
+			{children}
+		</button>
 	);
 }
