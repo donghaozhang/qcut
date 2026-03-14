@@ -439,10 +439,16 @@ function buildDrawtextFilters(
 		const escapedText = clip.text
 			.trim()
 			.replace(/\\/g, "\\\\")
-			.replace(/'/g, "'\\''")
 			.replace(/:/g, "\\:")
-			.replace(/%/g, "%%")
-			.replace(/\n/g, "\\n");
+			.replace(/\[/g, "\\[")
+			.replace(/\]/g, "\\]")
+			.replace(/,/g, "\\,")
+			.replace(/;/g, "\\;")
+			.replace(/'/g, "\\'")
+			.replace(/%/g, "\\%")
+			.replace(/\n/g, "\\n")
+			.replace(/\r/g, "")
+			.replace(/=/g, "\\=");
 
 		const startTime = clip.startTime;
 		const endTime = clip.startTime + clip.duration;

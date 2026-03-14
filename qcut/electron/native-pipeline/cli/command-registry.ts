@@ -836,7 +836,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				"string",
 				'JSON style overrides (e.g. \'{"fontSize":64,"fontColor":"#ffff00"}\')'
 			),
-			f("--output", "string", "Output ASS file path"),
+			f("--output", "string", "Output ASS file path", { short: "-o" }),
 		],
 		examples: [
 			"qcut-pipeline subtitle-style -i subs.srt --preset bold",
