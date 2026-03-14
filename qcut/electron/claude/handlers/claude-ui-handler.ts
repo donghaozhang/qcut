@@ -32,6 +32,7 @@ const VALID_PANELS = [
 	"project-folder",
 	"upscale",
 	"moyin",
+	"ai-chat",
 	"properties",
 	"export",
 	"api-keys",
