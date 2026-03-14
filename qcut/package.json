@@ -371,6 +371,7 @@
 		"@remotion/renderer": "4.0.424",
 		"@remotion/transitions": "4.0.424",
 		"@remotion/zod-types": "4.0.424",
+		"@sinclair/typebox": "^0.34.48",
 		"electron-log": "^5.4.3",
 		"electron-updater": "^6.8.3",
 		"js-yaml": "^4.1.1",

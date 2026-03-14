@@ -52,25 +52,23 @@ export function createPiAgent(
 		builtinsRegistered = true;
 	}
 
-	const model = getModel(
-		settings.provider as KnownProvider,
-		settings.model as any
-	);
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+	const model = (getModel as any)(settings.provider, settings.model);
 
 	const tools = createPiAgentTools();
 
-	const opts: AgentOptions = {
+	const opts = {
 		initialState: {
 			systemPrompt: PI_AGENT_SYSTEM_PROMPT,
 			model,
 			tools,
-			thinkingLevel: "off",
+			thinkingLevel: "off" as const,
 		},
 		transformContext: compressEditingContext,
 		getApiKey: apiKey
 			? () => apiKey
 			: (provider: string) => resolveApiKey(provider),
-	};
+	} as any;
 
 	return new Agent(opts);
 }

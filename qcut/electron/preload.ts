@@ -44,7 +44,7 @@ import {
 } from "./preload-integrations.js";
 
 // Expose the API to the renderer process
-const electronAPI: ElectronAPI = {
+const electronAPI: ElectronAPI & Record<string, unknown> = {
 	// System info
 	platform: process.platform,
 

@@ -395,7 +395,7 @@ const qcutRunTool = cliTool(
 );
 
 // Override execute for the generic run tool
-qcutRunTool.execute = safeExecute(async (_id, params: { command: string; args?: Record<string, unknown> }) => {
+qcutRunTool.execute = safeExecute(async (_id: string, params: any) => {
 	const result = await execCli(params.command, params.args ?? {});
 	return textResult(JSON.stringify(result));
 });
