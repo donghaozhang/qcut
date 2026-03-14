@@ -18,7 +18,6 @@ import { WordTimelineView } from "./views/word-timeline-view";
 import { ProjectFolderView } from "./views/project-folder";
 import { UpscaleView } from "./views/upscale";
 import { MoyinView } from "./views/moyin";
-import { SearchPanel } from "./views/search/SearchPanel";
 import React from "react";
 import { EFFECTS_ENABLED } from "@/config/features";
 
@@ -69,7 +68,6 @@ export function MediaPanel() {
 		"project-folder": <ProjectFolderView />,
 		upscale: <UpscaleView />,
 		moyin: <MoyinView />,
-		search: <SearchPanel />,
 	};
 
 	const activeNonPtyTab = activeTab === "pty" ? null : activeTab;
