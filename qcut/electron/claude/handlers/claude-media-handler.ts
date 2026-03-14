@@ -760,6 +760,24 @@ export function setupClaudeMediaIPC(): void {
 		) => extractFrame(projectId, mediaId, timestamp, format)
 	);
 
+	ipcMain.handle(
+		"claude:search:transcriptions",
+		async (_event, projectId: string) => {
+			try {
+				const { loadProjectTranscriptions } = await import(
+					"../http/claude-http-search-routes.js"
+				);
+				return loadProjectTranscriptions(projectId);
+			} catch (err) {
+				claudeLog.warn(
+					HANDLER_NAME,
+					`Failed to load transcriptions for search: ${err}`
+				);
+				return [];
+			}
+		}
+	);
+
 	claudeLog.info(HANDLER_NAME, "Media IPC handlers registered");
 }
 

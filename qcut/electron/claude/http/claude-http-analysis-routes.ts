@@ -39,6 +39,7 @@ import {
 import { claudeLog } from "../utils/logger.js";
 import { logOperation } from "../claude-operation-log.js";
 import { getMediaInfo } from "../handlers/claude-media-handler.js";
+import { saveTranscription } from "./claude-http-search-routes.js";
 import { getRequestCorrelationId } from "./claude-http-meta-routes.js";
 import type { BrowserWindow } from "electron";
 import type { WindowProxy } from "./claude-http-shared-routes.js";
@@ -194,6 +195,34 @@ export function registerAnalysisRoutes(
 					provider: req.body.provider,
 				},
 			});
+
+			// Auto-persist transcription for search
+			const mediaId = req.body.mediaId ?? req.body.source?.mediaId;
+			if (mediaId) {
+				try {
+					const mediaInfo = await getMediaInfo(req.params.projectId, mediaId);
+					saveTranscription(req.params.projectId, {
+						version: 1,
+						mediaId,
+						mediaName: mediaInfo?.name ?? mediaId,
+						language: result.language ?? "en",
+						duration: result.duration ?? 0,
+						provider: req.body.provider ?? "elevenlabs",
+						createdAt: Date.now(),
+						text: result.segments
+							.map((s: { text: string }) => s.text)
+							.join(" "),
+						words: result.words ?? [],
+						segments: result.segments ?? [],
+					});
+				} catch (err) {
+					claudeLog.warn(
+						"AnalysisRoutes",
+						`Failed to auto-persist transcription: ${err}`
+					);
+				}
+			}
+
 			return result;
 		} catch (error) {
 			if (error instanceof HttpError) throw error;
@@ -344,6 +373,37 @@ export function registerAnalysisRoutes(
 							duration: media.duration ?? result.duration ?? 0,
 							sourceName: media.name,
 						});
+					}
+				}
+
+				// Auto-persist transcription for search
+				const persistMediaId = req.body.mediaId ?? req.body.source?.mediaId;
+				if (persistMediaId) {
+					try {
+						const mediaInfo = await getMediaInfo(
+							req.params.projectId,
+							persistMediaId
+						);
+						saveTranscription(req.params.projectId, {
+							version: 1,
+							mediaId: persistMediaId,
+							mediaName: mediaInfo?.name ?? persistMediaId,
+							language: result.language ?? "en",
+							duration: result.duration ?? 0,
+							provider: req.body.provider ?? "elevenlabs",
+							createdAt: Date.now(),
+							text:
+								result.segments
+									?.map((s: { text: string }) => s.text)
+									.join(" ") ?? "",
+							words: result.words ?? [],
+							segments: result.segments ?? [],
+						});
+					} catch (err) {
+						claudeLog.warn(
+							"AnalysisRoutes",
+							`Failed to auto-persist transcription (transcribe-and-load): ${err}`
+						);
 					}
 				}
 

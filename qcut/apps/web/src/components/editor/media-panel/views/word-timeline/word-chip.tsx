@@ -14,6 +14,8 @@ import { formatTime, getChipColor, getChipHelpText } from "./helpers";
 export interface WordChipProps {
 	word: WordItem;
 	isSelected: boolean;
+	isSearchMatch?: boolean;
+	isActiveMatch?: boolean;
 	onPrimaryAction: (word: WordItem) => void;
 	onQuickRemove: (word: WordItem) => void;
 }
@@ -22,6 +24,8 @@ export interface WordChipProps {
 export function WordChip({
 	word,
 	isSelected,
+	isSearchMatch,
+	isActiveMatch,
 	onPrimaryAction,
 	onQuickRemove,
 }: WordChipProps) {
@@ -78,7 +82,9 @@ export function WordChip({
 							"inline-flex items-center px-2 py-1 text-sm rounded transition-all",
 							"hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring",
 							getChipColor({ filterState: word.filterState }),
-							isSelected && "ring-2 ring-primary ring-offset-1"
+							isSelected && "ring-2 ring-primary ring-offset-1",
+							isSearchMatch && "bg-yellow-400/30",
+							isActiveMatch && "ring-2 ring-yellow-500 bg-yellow-400/50"
 						)}
 					>
 						{word.text}

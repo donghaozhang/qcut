@@ -20,7 +20,6 @@ import {
 	WrenchIcon,
 	ArrowUpFromLineIcon,
 	ClapperboardIcon,
-	SearchIcon,
 } from "lucide-react";
 import { create } from "zustand";
 
@@ -42,8 +41,7 @@ export type Tab =
 	| "word-timeline"
 	| "project-folder"
 	| "upscale"
-	| "moyin"
-	| "search";
+	| "moyin";
 
 export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 	media: {
@@ -119,10 +117,6 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 		icon: ClapperboardIcon,
 		label: "Director",
 	},
-	search: {
-		icon: SearchIcon,
-		label: "Search",
-	},
 };
 
 // --- Tab Groups ---
@@ -146,7 +140,7 @@ export interface TabGroupDef {
 const editSubgroups: Record<EditSubgroup, Subgroup> = {
 	"ai-edit": {
 		label: "AI Assist",
-		tabs: ["word-timeline", "search", "upscale", "video-edit", "segmentation"],
+		tabs: ["word-timeline", "upscale", "video-edit", "segmentation"],
 	},
 	"manual-edit": {
 		label: "Manual Edit",

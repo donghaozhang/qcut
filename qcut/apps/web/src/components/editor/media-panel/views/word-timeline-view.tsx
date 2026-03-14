@@ -25,9 +25,10 @@ import { useMediaStore } from "@/stores/media/media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useElevenLabsTranscription } from "@/hooks/media/use-elevenlabs-transcription";
-import { X, Loader2, AlertCircle } from "lucide-react";
+import { X, Loader2, AlertCircle, SearchIcon } from "lucide-react";
 import { WORD_FILTER_STATE, type WordItem } from "@/types/word-timeline";
 import { toast } from "sonner";
+import { WordSearch } from "./word-timeline/word-search";
 import {
 	formatTime,
 	formatDuration,
@@ -67,6 +68,7 @@ export function WordTimelineView() {
 
 	const { seek, currentTime, isPlaying } = usePlaybackStore();
 	const [previewSkipFiltered, setPreviewSkipFiltered] = useState(true);
+	const [showSearch, setShowSearch] = useState(false);
 
 	// Transcription hook
 	const {
@@ -432,6 +434,26 @@ export function WordTimelineView() {
 		toast.info("Word timeline cleared");
 	}, [clearData, clearTranscriptionError]);
 
+	const handleCloseSearch = useCallback(() => {
+		setShowSearch(false);
+	}, []);
+
+	// Search state
+	const [searchHighlightedWords, setSearchHighlightedWords] = useState<
+		Set<string>
+	>(new Set());
+	const [searchActiveWordId, setSearchActiveWordId] = useState<string | null>(
+		null
+	);
+
+	const handleSearchSeek = useCallback(
+		(word: WordItem) => {
+			selectWord(word.id);
+			seek(word.start);
+		},
+		[selectWord, seek]
+	);
+
 	// Calculate stats
 	const aiFilteredCount = words.filter(
 		(word) => word.filterState === WORD_FILTER_STATE.AI
@@ -541,6 +563,18 @@ export function WordTimelineView() {
 				<div className="flex items-center gap-1">
 					<Button
 						type="button"
+						variant={showSearch ? "outline" : "text"}
+						size="icon"
+						onClick={() => setShowSearch((v) => !v)}
+						className="h-7 w-7"
+						title="Search words"
+					>
+						<SearchIcon className="w-3.5 h-3.5">
+							<title>Search</title>
+						</SearchIcon>
+					</Button>
+					<Button
+						type="button"
 						variant={previewSkipFiltered ? "outline" : "text"}
 						size="sm"
 						onClick={handlePreviewToggle}
@@ -570,6 +604,17 @@ export function WordTimelineView() {
 				</div>
 			</div>
 
+			{/* Search bar */}
+			{showSearch && (
+				<WordSearch
+					words={words}
+					onSeekToWord={handleSearchSeek}
+					onHighlightedWordsChange={setSearchHighlightedWords}
+					onActiveMatchChange={setSearchActiveWordId}
+					onClose={handleCloseSearch}
+				/>
+			)}
+
 			{/* Word List */}
 			<ScrollArea className="flex-1">
 				<div className="p-3">
@@ -579,6 +624,8 @@ export function WordTimelineView() {
 								key={word.id}
 								word={word}
 								isSelected={selectedWordId === word.id}
+								isSearchMatch={searchHighlightedWords.has(word.id)}
+								isActiveMatch={searchActiveWordId === word.id}
 								onPrimaryAction={handleWordPrimaryAction}
 								onQuickRemove={handleWordQuickRemove}
 							/>

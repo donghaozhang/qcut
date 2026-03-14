@@ -207,6 +207,10 @@ export function createClaudeAPI(): NonNullable<ElectronAPI["claude"]> {
 				ipcRenderer.on("claude:media:imported", (_, data) => callback(data));
 			},
 		},
+		search: {
+			loadTranscriptions: (projectId) =>
+				ipcRenderer.invoke("claude:search:transcriptions", projectId),
+		},
 		timeline: {
 			export: (projectId, format) =>
 				ipcRenderer.invoke("claude:timeline:export", projectId, format),

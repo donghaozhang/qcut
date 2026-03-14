@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchStore } from "@/stores/search-store";
+import { useProjectStore } from "@/stores/project-store";
+import type { PersistedTranscription } from "@qcut/editor-core";
 import { SearchResultItem } from "./SearchResultItem";
 
 /** Debounce delay for search input (ms). */
@@ -71,6 +73,29 @@ export function SearchPanel() {
 		},
 		[nextResult, prevResult, clearSearch]
 	);
+
+	const activeProject = useProjectStore((s) => s.activeProject);
+	const setTranscriptions = useSearchStore((s) => s.setTranscriptions);
+
+	// Load transcriptions from disk when panel mounts or project changes
+	useEffect(() => {
+		const projectId = activeProject?.id;
+		if (!projectId) return;
+
+		const api = window.electronAPI?.claude?.search;
+		if (!api) return;
+
+		api
+			.loadTranscriptions(projectId)
+			.then((data) => {
+				if (Array.isArray(data) && data.length > 0) {
+					setTranscriptions(data as PersistedTranscription[]);
+				}
+			})
+			.catch((error) => {
+				console.error("Failed to load transcriptions for search:", error);
+			});
+	}, [activeProject?.id, setTranscriptions]);
 
 	useEffect(() => {
 		inputRef.current?.focus();

@@ -36,6 +36,7 @@ import type {
 import type {
 	ClaudeMediaAPI,
 	ClaudeTimelineAPI,
+	ClaudeSearchAPI,
 } from "./api-types/claude-timeline-api";
 import type {
 	ClaudeTransactionAPI,
@@ -96,6 +97,7 @@ export interface ElectronAPI
 	// Claude Code Integration API
 	claude?: ClaudeMediaAPI &
 		ClaudeTimelineAPI &
+		ClaudeSearchAPI &
 		ClaudeTransactionAPI &
 		ClaudeProjectAPI &
 		ClaudeAnalyzeAPI &
