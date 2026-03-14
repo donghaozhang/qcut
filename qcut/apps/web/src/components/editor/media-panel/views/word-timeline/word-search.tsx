@@ -56,10 +56,20 @@ export function WordSearch({
 		return () => onActiveMatchChange(null);
 	}, [matchedWords, activeIndex, onActiveMatchChange]);
 
-	// Reset active index when matches change
+	// Reset active index and auto-seek tracking when query changes
+	const hasNavigatedRef = useRef(false);
 	useEffect(() => {
 		setActiveIndex(0);
-	}, [matchedWords]);
+		hasNavigatedRef.current = false;
+	}, [query]);
+
+	// Auto-seek to first match when results appear or query changes
+	useEffect(() => {
+		if (matchedWords.length > 0 && !hasNavigatedRef.current) {
+			hasNavigatedRef.current = true;
+			onSeekToWord(matchedWords[0]);
+		}
+	}, [matchedWords, onSeekToWord]);
 
 	// Auto-focus on mount
 	useEffect(() => {
@@ -77,18 +87,6 @@ export function WordSearch({
 		},
 		[matchedWords, onSeekToWord]
 	);
-
-	// Auto-seek to first match when results appear
-	const hasNavigatedRef = useRef(false);
-	useEffect(() => {
-		if (matchedWords.length > 0 && !hasNavigatedRef.current) {
-			hasNavigatedRef.current = true;
-			onSeekToWord(matchedWords[0]);
-		}
-		if (matchedWords.length === 0) {
-			hasNavigatedRef.current = false;
-		}
-	}, [matchedWords, onSeekToWord]);
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
