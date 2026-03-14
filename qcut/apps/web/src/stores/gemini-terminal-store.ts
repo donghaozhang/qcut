@@ -8,7 +8,7 @@ import { platform } from "@qcut/platform-core";
 
 export type ChatProvider = "gemini" | "pi-agent";
 
-export type PiProviderType = "anthropic" | "openai" | "google";
+export type PiProviderType = "anthropic" | "openai" | "google" | "openrouter";
 
 export interface ToolCallInfo {
 	toolCallId: string;

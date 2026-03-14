@@ -34,6 +34,10 @@ export const AVAILABLE_MODELS: { provider: string; models: string[] }[] = [
 		provider: "google",
 		models: ["gemini-2.5-pro", "gemini-2.5-flash"],
 	},
+	{
+		provider: "openrouter",
+		models: ["minimax/minimax-2.5", "moonshot/kimi-2.5", "google/gemini-3-flash"],
+	},
 ];
 
 /**
