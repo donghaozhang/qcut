@@ -17,7 +17,7 @@ import { claudeLog } from "../utils/logger.js";
 // subpath exports, so we define minimal interfaces inline.
 
 interface TranscriptionWord {
-	type: "word" | "punctuation";
+	type: string;
 	text: string;
 	start: number;
 	end: number;
@@ -34,6 +34,10 @@ interface PersistedTranscription {
 	mediaId: string;
 	mediaName: string;
 	language?: string;
+	duration?: number;
+	provider?: string;
+	createdAt?: number;
+	text?: string;
 	segments: TranscriptionSegment[];
 	words: TranscriptionWord[];
 }
@@ -171,7 +175,7 @@ function sanitizeMediaId(mediaId: string): string {
 }
 
 /** Load all persisted transcriptions for a project from disk. */
-function loadProjectTranscriptions(
+export function loadProjectTranscriptions(
 	projectId: string
 ): PersistedTranscription[] {
 	const dir = getTranscriptionsDir(projectId);

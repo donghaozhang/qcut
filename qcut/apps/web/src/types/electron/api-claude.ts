@@ -57,6 +57,9 @@ export interface ElectronClaudeOps {
 				}) => void
 			) => void;
 		};
+		search: {
+			loadTranscriptions: (projectId: string) => Promise<unknown[]>;
+		};
 		timeline: {
 			export: (projectId: string, format: "json" | "md") => Promise<string>;
 			import: (

@@ -630,6 +630,35 @@ async function runTranscription(
 			HANDLER_NAME,
 			`Job ${jobId} completed: ${result.segments.length} segments, ${result.duration}s`
 		);
+
+		// Auto-persist transcription for search
+		const mediaId =
+			request.mediaId ?? request.source?.mediaId;
+		if (mediaId) {
+			try {
+				const { saveTranscription } = await import(
+					"../http/claude-http-search-routes.js"
+				);
+				const media = await getMediaInfo(projectId, mediaId);
+				saveTranscription(projectId, {
+					version: 1,
+					mediaId,
+					mediaName: media?.name ?? mediaId,
+					language: result.language ?? "en",
+					duration: result.duration ?? 0,
+					provider: job.provider ?? "elevenlabs",
+					createdAt: Date.now(),
+					text: result.segments.map((s) => s.text).join(" "),
+					words: result.words ?? [],
+					segments: result.segments ?? [],
+				});
+			} catch (err) {
+				claudeLog.warn(
+					HANDLER_NAME,
+					`Failed to auto-persist transcription for job ${jobId}: ${err}`
+				);
+			}
+		}
 	} catch (err) {
 		if (transcribeJobs.get(jobId)?.status === "cancelled") return;
 		job.status = "failed";

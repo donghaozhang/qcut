@@ -17,6 +17,13 @@ import type {
 	BatchCutResponse,
 } from "../../types/claude-api";
 
+/** Claude search/transcription operations. */
+export interface ClaudeSearchAPI {
+	search: {
+		loadTranscriptions: (projectId: string) => Promise<unknown[]>;
+	};
+}
+
 /** Claude media list/info/import/delete/rename operations. */
 export interface ClaudeMediaAPI {
 	media: {
