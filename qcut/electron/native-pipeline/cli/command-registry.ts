@@ -829,14 +829,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				required: true,
 			}),
 			f("--preset", "string", "Style preset name", {
-				enum: [
-					"default",
-					"cinematic",
-					"bold",
-					"minimal",
-					"karaoke",
-					"news",
-				],
+				enum: ["default", "cinematic", "bold", "minimal", "karaoke", "news"],
 			}),
 			f(
 				"--style",
@@ -853,8 +846,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 	},
 	"subtitle-export": {
 		name: "subtitle-export",
-		description:
-			"Burn styled subtitles into video (video + SRT/VTT/ASS → MP4)",
+		description: "Burn styled subtitles into video (video + SRT/VTT/ASS → MP4)",
 		category: "subtitle",
 		flags: [
 			f("--input", "string", "Input video file path", {
@@ -868,27 +860,16 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				{ short: "-s" }
 			),
 			f("--preset", "string", "Style preset name", {
-				enum: [
-					"default",
-					"cinematic",
-					"bold",
-					"minimal",
-					"karaoke",
-					"news",
-				],
+				enum: ["default", "cinematic", "bold", "minimal", "karaoke", "news"],
 			}),
-			f(
-				"--style",
-				"string",
-				'JSON style overrides (e.g. \'{"fontSize":64}\')'
-			),
+			f("--style", "string", "JSON style overrides (e.g. '{\"fontSize\":64}')"),
 			f("--resolution", "string", "Override video resolution (e.g. 1920x1080)"),
 			f("--output", "string", "Output video file path"),
 		],
 		examples: [
 			"qcut-pipeline subtitle-export -i video.mp4 --srt-file subs.srt --preset bold",
 			"qcut-pipeline subtitle-export -i video.mp4 --preset cinematic --json",
-			"qcut-pipeline subtitle-export -i video.mp4 -s subs.srt --style '{\"fontColor\":\"#ffff00\"}'",
+			'qcut-pipeline subtitle-export -i video.mp4 -s subs.srt --style \'{"fontColor":"#ffff00"}\'',
 		],
 	},
 

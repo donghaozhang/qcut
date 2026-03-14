@@ -271,7 +271,16 @@ export async function handleSubtitleExport(
 	try {
 		await execFileAsync(
 			ffmpegPath,
-			["-i", videoPath, "-vf", drawtextFilters, "-c:a", "copy", "-y", outputPath],
+			[
+				"-i",
+				videoPath,
+				"-vf",
+				drawtextFilters,
+				"-c:a",
+				"copy",
+				"-y",
+				outputPath,
+			],
 			{ timeout: 600_000 }
 		);
 
@@ -279,16 +288,25 @@ export async function handleSubtitleExport(
 		return {
 			success: true,
 			outputPath,
-			data: { captionCount: styledClips.length, preset: options.preset ?? "default", resolution },
+			data: {
+				captionCount: styledClips.length,
+				preset: options.preset ?? "default",
+				resolution,
+			},
 		};
 	} catch {
 		if (!options.quiet) {
-			console.error("[subtitle-export] drawtext filter unavailable, trying ASS filter...");
+			console.error(
+				"[subtitle-export] drawtext filter unavailable, trying ASS filter..."
+			);
 		}
 	}
 
 	// Strategy 2: Try ASS filter (requires libass)
-	const tmpAssPath = path.join(path.dirname(videoPath), `.tmp_subtitle_${Date.now()}.ass`);
+	const tmpAssPath = path.join(
+		path.dirname(videoPath),
+		`.tmp_subtitle_${Date.now()}.ass`
+	);
 	try {
 		const assContent = generateASS(styledClips, { resolution });
 		fs.writeFileSync(tmpAssPath, assContent, "utf-8");
@@ -297,7 +315,16 @@ export async function handleSubtitleExport(
 		const escapedAssPath = tmpAssPath.replace(/\\/g, "/").replace(/:/g, "\\:");
 		await execFileAsync(
 			ffmpegPath,
-			["-i", videoPath, "-vf", `ass=${escapedAssPath}`, "-c:a", "copy", "-y", outputPath],
+			[
+				"-i",
+				videoPath,
+				"-vf",
+				`ass=${escapedAssPath}`,
+				"-c:a",
+				"copy",
+				"-y",
+				outputPath,
+			],
 			{ timeout: 600_000 }
 		);
 
@@ -305,45 +332,72 @@ export async function handleSubtitleExport(
 		return {
 			success: true,
 			outputPath,
-			data: { captionCount: styledClips.length, preset: options.preset ?? "default", resolution, filterUsed: "ass" },
+			data: {
+				captionCount: styledClips.length,
+				preset: options.preset ?? "default",
+				resolution,
+				filterUsed: "ass",
+			},
 		};
 	} catch {
 		if (!options.quiet) {
-			console.error("[subtitle-export] ASS filter unavailable, embedding subtitle stream...");
+			console.error(
+				"[subtitle-export] ASS filter unavailable, embedding subtitle stream..."
+			);
 		}
 	} finally {
-		try { if (fs.existsSync(tmpAssPath)) fs.unlinkSync(tmpAssPath); } catch { /* ignore */ }
+		try {
+			if (fs.existsSync(tmpAssPath)) fs.unlinkSync(tmpAssPath);
+		} catch {
+			/* ignore */
+		}
 	}
 
 	// Strategy 3: Embed as subtitle stream (always works, soft subs)
 	try {
 		// Write a temp SRT (normalized from whatever format we parsed)
-		const tmpSrtPath = path.join(path.dirname(videoPath), `.tmp_subtitle_${Date.now()}.srt`);
-		const srtContent = styledClips.map((clip, i) => {
-			const start = formatSrtTime(clip.startTime);
-			const end = formatSrtTime(clip.startTime + clip.duration);
-			return `${i + 1}\n${start} --> ${end}\n${clip.text}\n`;
-		}).join("\n");
+		const tmpSrtPath = path.join(
+			path.dirname(videoPath),
+			`.tmp_subtitle_${Date.now()}.srt`
+		);
+		const srtContent = styledClips
+			.map((clip, i) => {
+				const start = formatSrtTime(clip.startTime);
+				const end = formatSrtTime(clip.startTime + clip.duration);
+				return `${i + 1}\n${start} --> ${end}\n${clip.text}\n`;
+			})
+			.join("\n");
 		fs.writeFileSync(tmpSrtPath, srtContent, "utf-8");
 
 		try {
 			await execFileAsync(
 				ffmpegPath,
 				[
-					"-i", videoPath,
-					"-i", tmpSrtPath,
-					"-c:v", "copy",
-					"-c:a", "copy",
-					"-c:s", "mov_text",
-					"-map", "0",
-					"-map", "1",
+					"-i",
+					videoPath,
+					"-i",
+					tmpSrtPath,
+					"-c:v",
+					"copy",
+					"-c:a",
+					"copy",
+					"-c:s",
+					"mov_text",
+					"-map",
+					"0",
+					"-map",
+					"1",
 					"-y",
 					outputPath,
 				],
 				{ timeout: 600_000 }
 			);
 
-			onProgress({ stage: "done", percent: 100, message: "Done (embedded subtitles)" });
+			onProgress({
+				stage: "done",
+				percent: 100,
+				message: "Done (embedded subtitles)",
+			});
 			return {
 				success: true,
 				outputPath,
@@ -356,7 +410,11 @@ export async function handleSubtitleExport(
 				},
 			};
 		} finally {
-			try { if (fs.existsSync(tmpSrtPath)) fs.unlinkSync(tmpSrtPath); } catch { /* ignore */ }
+			try {
+				if (fs.existsSync(tmpSrtPath)) fs.unlinkSync(tmpSrtPath);
+			} catch {
+				/* ignore */
+			}
 		}
 	} catch (err) {
 		const msg = err instanceof Error ? err.message : String(err);

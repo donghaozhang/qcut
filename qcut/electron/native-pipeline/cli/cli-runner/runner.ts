@@ -420,16 +420,13 @@ export class CLIPipelineRunner {
 				result = await handleYouTubeUpload(resolvedOptions, onProgress);
 				break;
 			case "subtitle-style":
-				result = await handleSubtitleStyle(
-					resolvedOptions,
-					onProgress,
-				);
+				result = await handleSubtitleStyle(resolvedOptions, onProgress);
 				break;
 			case "subtitle-export":
 				result = await handleSubtitleExport(
 					resolvedOptions,
 					onProgress,
-					this.signal,
+					this.signal
 				);
 				break;
 			case "autoclip":
