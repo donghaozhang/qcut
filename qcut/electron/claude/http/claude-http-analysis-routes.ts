@@ -376,6 +376,37 @@ export function registerAnalysisRoutes(
 					}
 				}
 
+				// Auto-persist transcription for search
+				const persistMediaId =
+					req.body.mediaId ?? req.body.source?.mediaId;
+				if (persistMediaId) {
+					try {
+						const mediaInfo = await getMediaInfo(
+							req.params.projectId,
+							persistMediaId
+						);
+						saveTranscription(req.params.projectId, {
+							version: 1,
+							mediaId: persistMediaId,
+							mediaName: mediaInfo?.name ?? persistMediaId,
+							language: result.language ?? "en",
+							duration: result.duration ?? 0,
+							provider: req.body.provider ?? "elevenlabs",
+							createdAt: Date.now(),
+							text: result.segments
+								?.map((s: { text: string }) => s.text)
+								.join(" ") ?? "",
+							words: result.words ?? [],
+							segments: result.segments ?? [],
+						});
+					} catch (err) {
+						claudeLog.warn(
+							"AnalysisRoutes",
+							`Failed to auto-persist transcription (transcribe-and-load): ${err}`
+						);
+					}
+				}
+
 				logOperation({
 					stage: 2,
 					action: "transcribe-and-load",
