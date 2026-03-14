@@ -13,8 +13,12 @@ import { ipcMain, type IpcMainInvokeEvent } from "electron";
 import type { PiAgentSettings } from "./agent-factory.js";
 
 // Dynamic imports to avoid ESM/CJS issues at module load time
-let _createPiAgent: typeof import("./agent-factory.js").createPiAgent | undefined;
-let _AVAILABLE_MODELS: typeof import("./agent-factory.js").AVAILABLE_MODELS | undefined;
+let _createPiAgent:
+	| typeof import("./agent-factory.js").createPiAgent
+	| undefined;
+let _AVAILABLE_MODELS:
+	| typeof import("./agent-factory.js").AVAILABLE_MODELS
+	| undefined;
 
 type AgentEvent = Record<string, any>;
 
@@ -63,6 +67,7 @@ export function setupPiAgentIPCImpl(): void {
 			);
 
 			let unsubscribe: (() => void) | null = null;
+			let lastSentText = "";
 
 			try {
 				unsubscribe = agent.subscribe((e: AgentEvent) => {
@@ -70,16 +75,23 @@ export function setupPiAgentIPCImpl(): void {
 
 					switch (e.type) {
 						case "message_update": {
-							// Extract text from the latest content
-							const msg = e.message as any;
-							if (msg?.content) {
-								const textParts = msg.content
-									.filter((c: any) => c.type === "text")
-									.map((c: any) => c.text);
-								if (textParts.length > 0) {
+							const msg = e.message;
+							if (msg?.role === "assistant" && msg?.content) {
+								const currentText = msg.content
+									.filter(
+										(c: {
+											type: string;
+										}): c is { type: "text"; text: string } => c.type === "text"
+									)
+									.map((c: { type: "text"; text: string }) => c.text)
+									.join("");
+
+								if (currentText.length > lastSentText.length) {
+									const chunk = currentText.substring(lastSentText.length);
 									sender.send("pi-agent:stream-chunk", {
-										text: textParts.join(""),
+										text: chunk,
 									});
+									lastSentText = currentText;
 								}
 							}
 							break;
@@ -164,6 +176,4 @@ export function setupPiAgentIPCImpl(): void {
 		await ensurePiModules();
 		return _AVAILABLE_MODELS;
 	});
-
-	console.log("✅ PiAgentIPC registered");
 }

@@ -6,7 +6,11 @@
  */
 
 import { Agent, type AgentOptions } from "@mariozechner/pi-agent-core";
-import { getModel, registerBuiltInApiProviders, type KnownProvider } from "@mariozechner/pi-ai";
+import {
+	getModel,
+	registerBuiltInApiProviders,
+	type KnownProvider,
+} from "@mariozechner/pi-ai";
 import { PI_AGENT_SYSTEM_PROMPT } from "./system-prompt.js";
 import { createPiAgentTools } from "./tool-registry.js";
 import { compressEditingContext } from "./context-compression.js";
@@ -36,7 +40,11 @@ export const AVAILABLE_MODELS: { provider: string; models: string[] }[] = [
 	},
 	{
 		provider: "openrouter",
-		models: ["minimax/minimax-2.5", "moonshot/kimi-2.5", "google/gemini-3-flash"],
+		models: [
+			"minimax/minimax-2.5",
+			"moonshot/kimi-2.5",
+			"google/gemini-3-flash",
+		],
 	},
 ];
 
@@ -52,11 +60,21 @@ export function createPiAgent(
 		builtinsRegistered = true;
 	}
 
+	const providerInfo = AVAILABLE_MODELS.find(
+		(p) => p.provider === settings.provider
+	);
+	if (!providerInfo || !providerInfo.models.includes(settings.model)) {
+		throw new Error(
+			`Model '${settings.provider}/${settings.model}' is not available or not supported.`
+		);
+	}
+
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 	const model = (getModel as any)(settings.provider, settings.model);
 
 	const tools = createPiAgentTools();
 
+	const resolvedKey = apiKey ?? settings.apiKey;
 	const opts = {
 		initialState: {
 			systemPrompt: PI_AGENT_SYSTEM_PROMPT,
@@ -65,8 +83,8 @@ export function createPiAgent(
 			thinkingLevel: "off" as const,
 		},
 		transformContext: compressEditingContext,
-		getApiKey: apiKey
-			? () => apiKey
+		getApiKey: resolvedKey
+			? () => resolvedKey
 			: (provider: string) => resolveApiKey(provider),
 	} as any;
 

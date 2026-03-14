@@ -24,6 +24,17 @@ function textResult(text: string): AgentToolResult<undefined> {
 	return { content: [{ type: "text", text }], details: undefined };
 }
 
+/** Build an error tool result. */
+function errorResult(message: string): AgentToolResult<undefined> {
+	return textResult(
+		JSON.stringify({
+			status: "error",
+			message,
+			hint: "Check parameters. Use qcut_command_help to see parameter details.",
+		})
+	);
+}
+
 /** Wrap execute with error handling. */
 function safeExecute<T extends TSchema>(
 	fn: (
@@ -34,16 +45,23 @@ function safeExecute<T extends TSchema>(
 	return async (toolCallId, params, _signal, _onUpdate) => {
 		try {
 			return await fn(toolCallId, params);
-		} catch (error: any) {
-			return textResult(
-				JSON.stringify({
-					status: "error",
-					message: error.message ?? String(error),
-					hint: "Check parameters. Use qcut_command_help to see parameter details.",
-				})
-			);
+		} catch (error: unknown) {
+			const message = error instanceof Error ? error.message : String(error);
+			return errorResult(message);
 		}
 	};
+}
+
+/** Execute CLI and return result, propagating errors properly. */
+async function execCliTool(
+	command: string,
+	args: Record<string, unknown> = {}
+): Promise<AgentToolResult<undefined>> {
+	const result = await execCli(command, args);
+	if (!result.success) {
+		return errorResult(result.error ?? "Command failed");
+	}
+	return textResult(JSON.stringify(result));
 }
 
 // ---------------------------------------------------------------------------
@@ -107,8 +125,7 @@ const QcutCommandHelpParams = Type.Object({
 const qcutCommandHelpTool: AgentTool<typeof QcutCommandHelpParams> = {
 	name: "qcut_command_help",
 	label: "QCut Command Help",
-	description:
-		"Get full parameters and usage for a specific QCut command.",
+	description: "Get full parameters and usage for a specific QCut command.",
 	parameters: QcutCommandHelpParams,
 	execute: safeExecute<typeof QcutCommandHelpParams>(async (_id, params) => {
 		const def = COMMANDS_REGISTRY[params.command];
@@ -151,8 +168,7 @@ const qcutProjectStatusTool: AgentTool<typeof QcutProjectStatusParams> = {
 	description: "Get the current project state including timeline info.",
 	parameters: QcutProjectStatusParams,
 	execute: safeExecute<typeof QcutProjectStatusParams>(async () => {
-		const result = await execCli("editor:state-snapshot");
-		return textResult(JSON.stringify(result));
+		return await execCliTool("editor:state-snapshot");
 	}),
 };
 
@@ -175,9 +191,10 @@ function cliTool<T extends TSchema>(
 		description,
 		parameters,
 		execute: safeExecute<T>(async (_id, params) => {
-			const args = mapArgs ? mapArgs(params) : (params as Record<string, unknown>);
-			const result = await execCli(command, args);
-			return textResult(JSON.stringify(result));
+			const args = mapArgs
+				? mapArgs(params)
+				: (params as Record<string, unknown>);
+			return await execCliTool(command, args);
 		}),
 	};
 }
@@ -243,7 +260,9 @@ const mediaImportTool = cliTool(
 	Type.Object({
 		path: Type.String({ description: "File path to import" }),
 		track: Type.Optional(Type.Number({ description: "Target track" })),
-		position: Type.Optional(Type.String({ description: "Insert position timecode" })),
+		position: Type.Optional(
+			Type.String({ description: "Insert position timecode" })
+		),
 	}),
 	"editor:media-import",
 	(p) => ({ path: p.path, track: p.track, position: p.position })
@@ -265,7 +284,9 @@ const transcribeTool = cliTool(
 	"Run AI transcription on video/audio to generate subtitles",
 	Type.Object({
 		source: Type.String({ description: "Source file path or clip ID" }),
-		language: Type.Optional(Type.String({ description: "Language code: zh, en, etc." })),
+		language: Type.Optional(
+			Type.String({ description: "Language code: zh, en, etc." })
+		),
 		model: Type.Optional(Type.String({ description: "Transcription model" })),
 	}),
 	"transcribe",
@@ -280,9 +301,15 @@ const exportStartTool = cliTool(
 	"Start exporting/rendering the project",
 	Type.Object({
 		output: Type.String({ description: "Output file path" }),
-		format: Type.Optional(Type.String({ description: "Format: mp4, mov, webm" })),
-		resolution: Type.Optional(Type.String({ description: "Resolution: 1080p, 4k" })),
-		quality: Type.Optional(Type.String({ description: "Quality: draft, normal, high" })),
+		format: Type.Optional(
+			Type.String({ description: "Format: mp4, mov, webm" })
+		),
+		resolution: Type.Optional(
+			Type.String({ description: "Resolution: 1080p, 4k" })
+		),
+		quality: Type.Optional(
+			Type.String({ description: "Quality: draft, normal, high" })
+		),
 	}),
 	"editor:export-start",
 	(p) => ({
@@ -302,9 +329,13 @@ const generateImageTool = cliTool(
 	Type.Object({
 		text: Type.String({ description: "Text prompt" }),
 		model: Type.Optional(
-			Type.String({ description: "Model key: flux_dev, flux_pro, kling_2_6_pro, etc." })
+			Type.String({
+				description: "Model key: flux_dev, flux_pro, kling_2_6_pro, etc.",
+			})
 		),
-		aspectRatio: Type.Optional(Type.String({ description: "Aspect ratio, e.g. 16:9" })),
+		aspectRatio: Type.Optional(
+			Type.String({ description: "Aspect ratio, e.g. 16:9" })
+		),
 	}),
 	"generate-image",
 	(p) => ({ text: p.text, model: p.model, aspectRatio: p.aspectRatio })
@@ -317,7 +348,9 @@ const createVideoTool = cliTool(
 	Type.Object({
 		text: Type.String({ description: "Text prompt" }),
 		model: Type.Optional(Type.String({ description: "Model key" })),
-		imageUrl: Type.Optional(Type.String({ description: "Reference image URL for image-to-video" })),
+		imageUrl: Type.Optional(
+			Type.String({ description: "Reference image URL for image-to-video" })
+		),
 	}),
 	"create-video",
 	(p) => ({ text: p.text, model: p.model, imageUrl: p.imageUrl })
@@ -331,7 +364,9 @@ const analyzeVideoTool = cliTool(
 	"Analyze a video file with AI (content, scenes, objects)",
 	Type.Object({
 		source: Type.String({ description: "Video file path or URL" }),
-		query: Type.Optional(Type.String({ description: "Specific question about the video" })),
+		query: Type.Optional(
+			Type.String({ description: "Specific question about the video" })
+		),
 	}),
 	"analyze-video",
 	(p) => ({ source: p.source, query: p.query })
@@ -370,7 +405,9 @@ const subtitleExportTool = cliTool(
 	"Export subtitles to a file",
 	Type.Object({
 		output: Type.String({ description: "Output file path" }),
-		format: Type.Optional(Type.String({ description: "Format: srt, ass, vtt" })),
+		format: Type.Optional(
+			Type.String({ description: "Format: srt, ass, vtt" })
+		),
 	}),
 	"subtitle-export",
 	(p) => ({ output: p.output, format: p.format })
@@ -383,7 +420,9 @@ const qcutRunTool = cliTool(
 	"QCut Run",
 	"Execute any QCut CLI command by name with arbitrary arguments. Use after discovering commands via qcut_help/qcut_command_help.",
 	Type.Object({
-		command: Type.String({ description: "Command name, e.g. generate-image, editor:timeline-split" }),
+		command: Type.String({
+			description: "Command name, e.g. generate-image, editor:timeline-split",
+		}),
 		args: Type.Optional(
 			Type.Record(Type.String(), Type.Unknown(), {
 				description: "Command arguments as key-value pairs",
@@ -394,11 +433,28 @@ const qcutRunTool = cliTool(
 	() => ({}) // handled in custom execute below
 );
 
+// Allowlist of safe command names for the generic run tool
+const BLOCKED_CATEGORIES = new Set(["project-setup", "api-keys"]);
+const ALLOWED_RUN_COMMANDS = new Set(
+	CATEGORIES.filter((c) => !BLOCKED_CATEGORIES.has(c.name)).flatMap(
+		(c) => c.commands
+	)
+);
+
 // Override execute for the generic run tool
-qcutRunTool.execute = safeExecute(async (_id: string, params: any) => {
-	const result = await execCli(params.command, params.args ?? {});
-	return textResult(JSON.stringify(result));
-});
+qcutRunTool.execute = safeExecute(
+	async (
+		_id: string,
+		params: { command: string; args?: Record<string, unknown> }
+	) => {
+		if (!ALLOWED_RUN_COMMANDS.has(params.command)) {
+			return errorResult(
+				`Command "${params.command}" is not in the allowed command list. Use qcut_help to see available commands.`
+			);
+		}
+		return await execCliTool(params.command, params.args ?? {});
+	}
+);
 
 // ---------------------------------------------------------------------------
 // Export

@@ -120,7 +120,14 @@ export const useGeminiTerminalStore = create<GeminiTerminalStore>(
 		selectedPiProvider: "anthropic",
 		selectedPiModel: "claude-sonnet-4-20250514",
 		setPiModel: async (provider: PiProviderType, model: string) => {
-			set({ selectedPiProvider: provider, selectedPiModel: model });
+			set({
+				selectedPiProvider: provider,
+				selectedPiModel: model,
+				messages: [],
+				currentStreamingContent: "",
+				error: null,
+				activeToolCalls: [],
+			});
 			if (platform().piAgent) {
 				await platform().piAgent!.setModel({ provider, model });
 			}
@@ -307,7 +314,7 @@ export const useGeminiTerminalStore = create<GeminiTerminalStore>(
 			if (activeProvider === "gemini") {
 				await sendGeminiMessage(get, messages, userMessage, pendingAttachments);
 			} else {
-				await sendPiAgentMessage(get, content);
+				await sendPiAgentMessage(get, content.trim());
 			}
 		},
 	})
@@ -359,8 +366,10 @@ async function sendGeminiMessage(
 			messages: messagesForAPI,
 			attachments: attachmentsForIPC.length > 0 ? attachmentsForIPC : undefined,
 		});
-	} catch (error: any) {
-		handleStreamError(error.message || "Failed to send message");
+	} catch (error: unknown) {
+		const message =
+			error instanceof Error ? error.message : "Failed to send message";
+		handleStreamError(message);
 	}
 }
 
@@ -411,7 +420,9 @@ async function sendPiAgentMessage(
 				model: selectedPiModel,
 			},
 		});
-	} catch (error: any) {
-		handleStreamError(error.message || "Failed to send message");
+	} catch (error: unknown) {
+		const message =
+			error instanceof Error ? error.message : "Failed to send message";
+		handleStreamError(message);
 	}
 }

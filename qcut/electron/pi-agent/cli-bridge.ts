@@ -9,7 +9,10 @@
 
 import { initRegistry } from "../native-pipeline/init.js";
 import { CLIPipelineRunner } from "../native-pipeline/cli/cli-runner/runner.js";
-import type { CLIRunOptions, CLIResult } from "../native-pipeline/cli/cli-runner/types.js";
+import type {
+	CLIRunOptions,
+	CLIResult,
+} from "../native-pipeline/cli/cli-runner/types.js";
 
 let runner: CLIPipelineRunner | null = null;
 
@@ -45,9 +48,16 @@ export async function execCli(
 
 	const noopProgress = () => {};
 
-	const timeoutPromise = new Promise<CLIResult>((_, reject) =>
-		setTimeout(() => reject(new Error(`CLI command "${command}" timed out after ${timeout}ms`)), timeout)
-	);
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timeoutPromise = new Promise<CLIResult>((_, reject) => {
+		timer = setTimeout(
+			() =>
+				reject(
+					new Error(`CLI command "${command}" timed out after ${timeout}ms`)
+				),
+			timeout
+		);
+	});
 
 	try {
 		const result = await Promise.race([
@@ -55,11 +65,14 @@ export async function execCli(
 			timeoutPromise,
 		]);
 		return result;
-	} catch (error: any) {
+	} catch (error: unknown) {
+		const message = error instanceof Error ? error.message : String(error);
 		return {
 			success: false,
-			error: error.message ?? String(error),
+			error: message,
 		};
+	} finally {
+		clearTimeout(timer);
 	}
 }
 

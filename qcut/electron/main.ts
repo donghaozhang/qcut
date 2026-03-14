@@ -128,7 +128,9 @@ const { setupAllClaudeIPC } = require("./claude/index.js");
 let setupPiAgentIPC: (() => Promise<void>) | undefined;
 try {
 	setupPiAgentIPC = require("./pi-agent/index.js").setupPiAgentIPC;
-} catch { /* pi-mono not installed */ }
+} catch {
+	/* pi-mono not installed */
+}
 const { setupRemotionFolderIPC } = require("./remotion-folder-handler.js");
 const { setupScreenRecordingIPC } = require("./screen-recording-handler.js");
 const { setupMoyinIPC } = require("./moyin-handler.js");
@@ -808,7 +810,7 @@ if (!isCliKeyCommand) {
 		createWindow();
 
 		// Register all IPC handlers with try/catch to prevent cascade failures
-		const handlers: [string, () => void][] = [
+		const handlers: [string, () => void | Promise<void>][] = [
 			["FFmpegIPC", setupFFmpegIPC],
 			["SoundIPC", setupSoundIPC],
 			["ThemeIPC", setupThemeIPC],
@@ -836,10 +838,12 @@ if (!isCliKeyCommand) {
 
 		for (const [name, setup] of handlers) {
 			try {
-				setup();
+				await Promise.resolve(setup());
 				console.log(`✅ ${name} registered`);
-			} catch (err: any) {
-				console.error(`❌ ${name} FAILED:`, err.message, err.stack);
+			} catch (err: unknown) {
+				const message = err instanceof Error ? err.message : String(err);
+				const stack = err instanceof Error ? err.stack : undefined;
+				console.error(`❌ ${name} FAILED:`, message, stack);
 			}
 		}
 

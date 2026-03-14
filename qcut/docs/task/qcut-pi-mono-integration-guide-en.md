@@ -4,7 +4,7 @@
 
 ## Architecture Overview
 
-```
+```text
 User types "Cut this video to 15 seconds"
          │
          ▼
@@ -405,7 +405,7 @@ Video editing sessions run long — users may perform dozens of operations in a 
 
 ```typescript
 function compressEditingContext(messages: Message[]): Message[] {
-  const MAX_MESSAGES = 30;
+  const MAX_MESSAGES = 40;
 
   if (messages.length <= MAX_MESSAGES) return messages;
 
@@ -414,7 +414,7 @@ function compressEditingContext(messages: Message[]): Message[] {
 
   // Compress old tool results to summaries
   const compressed = recentMessages.map(msg => {
-    if (msg.role === 'tool' && msg.content.length > 500) {
+    if (msg.role === 'toolResult' && msg.content.length > 500) {
       const parsed = JSON.parse(msg.content);
       return {
         ...msg,
@@ -644,7 +644,7 @@ This section maps every concept from the guide above to exact file paths, existi
 #### Phase 1: Package Installation & Core Agent (Steps 1-6)
 
 **Step 1 — Install Pi Mono packages**
-```
+```bash
 bun add @mariozechner/pi-ai @mariozechner/pi-agent-core @mariozechner/pi-web-ui
 ```
 Verify imports resolve. Check that `pi-agent-core` exports `Agent` and `AgentConfig` types and `pi-ai` exports `createProvider`.
@@ -660,7 +660,7 @@ Verify imports resolve. Check that `pi-agent-core` exports `Agent` and `AgentCon
 
 **Step 3 — Create system prompt (`electron/pi-agent/system-prompt.ts`)**
 - Export `PI_AGENT_SYSTEM_PROMPT` constant
-- Include the 9 command categories from `CATEGORIES` in `command-registry.ts`: generation, pipeline, analysis, models, api-keys, project-setup, moyin, youtube, subtitle, vimax, editor
+- Include the 9 command categories from `CATEGORIES` in `command-registry.ts`: generation, pipeline, analysis, models, api-keys, project-setup, moyin, YouTube, subtitle, vimax, editor
 - Reference `qcut_help` and `qcut_command_help` tools
 - Keep under 300 tokens
 

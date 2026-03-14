@@ -36,7 +36,11 @@ const PI_MODELS: Record<PiProviderType, string[]> = {
 	anthropic: ["claude-sonnet-4-20250514", "claude-haiku-4-20250414"],
 	openai: ["gpt-4o", "gpt-4o-mini"],
 	google: ["gemini-2.5-pro", "gemini-2.5-flash"],
-	openrouter: ["minimax/minimax-2.5", "moonshot/kimi-2.5", "google/gemini-3-flash"],
+	openrouter: [
+		"minimax/minimax-2.5",
+		"moonshot/kimi-2.5",
+		"google/gemini-3-flash",
+	],
 };
 
 const PROVIDER_LABELS: Record<PiProviderType, string> = {
@@ -106,9 +110,9 @@ export function GeminiTerminalView() {
 		[handleSubmit]
 	);
 
-	const handleClear = useCallback(() => {
+	const handleClear = useCallback(async () => {
 		if (activeProvider === "pi-agent") {
-			resetPiConversation();
+			await resetPiConversation();
 		} else {
 			clearHistory();
 		}
