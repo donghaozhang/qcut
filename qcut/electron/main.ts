@@ -124,7 +124,11 @@ const {
 const { setupProjectFolderIPC } = require("./project-folder-handler.js");
 const { setupProjectJsonIPC } = require("./project-json-handler.js");
 const { setupAllClaudeIPC } = require("./claude/index.js");
-const { setupPiAgentIPC } = require("./pi-agent/index.js");
+// Pi Agent uses ESM-only pi-mono packages — loaded async to avoid CJS crash
+let setupPiAgentIPC: (() => Promise<void>) | undefined;
+try {
+	setupPiAgentIPC = require("./pi-agent/index.js").setupPiAgentIPC;
+} catch { /* pi-mono not installed */ }
 const { setupRemotionFolderIPC } = require("./remotion-folder-handler.js");
 const { setupScreenRecordingIPC } = require("./screen-recording-handler.js");
 const { setupMoyinIPC } = require("./moyin-handler.js");
@@ -822,7 +826,7 @@ if (!isCliKeyCommand) {
 			["ProjectFolderIPC", setupProjectFolderIPC],
 			["ProjectJsonIPC", setupProjectJsonIPC],
 			["ClaudeIPC", setupAllClaudeIPC],
-			["PiAgentIPC", setupPiAgentIPC],
+			["PiAgentIPC", () => setupPiAgentIPC?.()],
 			["RemotionFolderIPC", setupRemotionFolderIPC],
 			["ScreenRecordingIPC", setupScreenRecordingIPC],
 			["MoyinIPC", setupMoyinIPC],

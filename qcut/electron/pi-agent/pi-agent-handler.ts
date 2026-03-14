@@ -10,24 +10,33 @@
  */
 
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
-import type { Agent, AgentEvent } from "@mariozechner/pi-agent-core";
-import {
-	createPiAgent,
-	AVAILABLE_MODELS,
-	type PiAgentSettings,
-} from "./agent-factory.js";
+import type { PiAgentSettings } from "./agent-factory.js";
+
+// Dynamic imports to avoid ESM/CJS issues at module load time
+let _createPiAgent: typeof import("./agent-factory.js").createPiAgent | undefined;
+let _AVAILABLE_MODELS: typeof import("./agent-factory.js").AVAILABLE_MODELS | undefined;
+
+type AgentEvent = Record<string, any>;
+
+async function ensurePiModules() {
+	if (!_createPiAgent) {
+		const factory = await import("./agent-factory.js");
+		_createPiAgent = factory.createPiAgent;
+		_AVAILABLE_MODELS = factory.AVAILABLE_MODELS;
+	}
+}
 
 // Per-webContents agent instance
-const agents = new Map<number, Agent>();
+const agents = new Map<number, any>();
 
 function getOrCreateAgent(
 	webContentsId: number,
 	settings?: PiAgentSettings,
 	apiKey?: string
-): Agent {
+): any {
 	let agent = agents.get(webContentsId);
 	if (!agent) {
-		agent = createPiAgent(
+		agent = _createPiAgent!(
 			settings ?? { provider: "anthropic", model: "claude-sonnet-4-20250514" },
 			apiKey
 		);
@@ -37,7 +46,7 @@ function getOrCreateAgent(
 }
 
 /** Register all Pi Agent IPC handlers. */
-export function setupPiAgentIPC(): void {
+export function setupPiAgentIPCImpl(): void {
 	// ── Chat ──────────────────────────────────────────────────────────
 	ipcMain.handle(
 		"pi-agent:chat",
@@ -45,6 +54,7 @@ export function setupPiAgentIPC(): void {
 			event: IpcMainInvokeEvent,
 			request: { message: string; settings?: PiAgentSettings; apiKey?: string }
 		): Promise<{ success: boolean; error?: string }> => {
+			await ensurePiModules();
 			const sender = event.sender;
 			const agent = getOrCreateAgent(
 				sender.id,
@@ -142,7 +152,8 @@ export function setupPiAgentIPC(): void {
 				agents.delete(event.sender.id);
 			}
 
-			const agent = createPiAgent(settings, settings.apiKey);
+			await ensurePiModules();
+			const agent = _createPiAgent!(settings, settings.apiKey);
 			agents.set(event.sender.id, agent);
 			return { success: true };
 		}
@@ -150,7 +161,8 @@ export function setupPiAgentIPC(): void {
 
 	// ── Get Models ────────────────────────────────────────────────────
 	ipcMain.handle("pi-agent:get-models", async () => {
-		return AVAILABLE_MODELS;
+		await ensurePiModules();
+		return _AVAILABLE_MODELS;
 	});
 
 	console.log("✅ PiAgentIPC registered");
