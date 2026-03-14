@@ -197,14 +197,10 @@ export function registerAnalysisRoutes(
 			});
 
 			// Auto-persist transcription for search
-			const mediaId =
-				req.body.mediaId ?? req.body.source?.mediaId;
+			const mediaId = req.body.mediaId ?? req.body.source?.mediaId;
 			if (mediaId) {
 				try {
-					const mediaInfo = await getMediaInfo(
-						req.params.projectId,
-						mediaId
-					);
+					const mediaInfo = await getMediaInfo(req.params.projectId, mediaId);
 					saveTranscription(req.params.projectId, {
 						version: 1,
 						mediaId,

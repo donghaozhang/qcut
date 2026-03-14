@@ -632,8 +632,7 @@ async function runTranscription(
 		);
 
 		// Auto-persist transcription for search
-		const mediaId =
-			request.mediaId ?? request.source?.mediaId;
+		const mediaId = request.mediaId ?? request.source?.mediaId;
 		if (mediaId) {
 			try {
 				const { saveTranscription } = await import(
