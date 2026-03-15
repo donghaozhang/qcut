@@ -442,19 +442,21 @@ const ALLOWED_RUN_COMMANDS = new Set(
 );
 
 // Override execute for the generic run tool
-qcutRunTool.execute = safeExecute(
-	async (
-		_id: string,
-		params: { command: string; args?: Record<string, unknown> }
-	) => {
-		if (!ALLOWED_RUN_COMMANDS.has(params.command)) {
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+qcutRunTool.execute = async (toolCallId: string, params: unknown, _signal: unknown, _onUpdate: unknown) => {
+	try {
+		const p = params as { command: string; args?: Record<string, unknown> };
+		if (!ALLOWED_RUN_COMMANDS.has(p.command)) {
 			return errorResult(
-				`Command "${params.command}" is not in the allowed command list. Use qcut_help to see available commands.`
+				`Command "${p.command}" is not in the allowed command list. Use qcut_help to see available commands.`
 			);
 		}
-		return await execCliTool(params.command, params.args ?? {});
+		return await execCliTool(p.command, p.args ?? {});
+	} catch (error: unknown) {
+		const message = error instanceof Error ? error.message : String(error);
+		return errorResult(message);
 	}
-);
+};
 
 // ---------------------------------------------------------------------------
 // Export
