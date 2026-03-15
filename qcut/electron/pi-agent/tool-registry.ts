@@ -434,7 +434,7 @@ const qcutRunTool = cliTool(
 );
 
 // Allowlist of safe command names for the generic run tool
-const BLOCKED_CATEGORIES = new Set(["project-setup", "api-keys"]);
+const BLOCKED_CATEGORIES = new Set(["project", "keys"]);
 const ALLOWED_RUN_COMMANDS = new Set(
 	CATEGORIES.filter((c) => !BLOCKED_CATEGORIES.has(c.name)).flatMap(
 		(c) => c.commands

@@ -43,7 +43,7 @@ User types "Cut this video to 15 seconds"
 └─────────────────────────┘
 ```
 
-The agent runs in Electron's main process, calling `qcut-pipeline` CLI via `child_process.exec`. Users type natural language in the editor's chat panel, Pi Mono handles LLM interaction and tool calling, and the CLI returns JSON results.
+The agent runs in Electron's main process, calling QCut CLI commands in-process via `CLIPipelineRunner`. Users type natural language in the editor's chat panel, Pi Mono handles LLM interaction and tool calling, and the CLI returns JSON results.
 
 ## Step 1: Install Pi Mono Packages
 
@@ -145,22 +145,28 @@ Core pattern: each CLI command maps to an agent tool.
 ### CLI Bridge Function
 
 ```typescript
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { CLIPipelineRunner } from '../native-pipeline/cli/cli-runner/runner.js';
+import { initRegistry } from '../native-pipeline/init.js';
 
-const execAsync = promisify(exec);
+let runner: CLIPipelineRunner | null = null;
 
-async function execCli(command: string): Promise<string> {
-  const { stdout, stderr } = await execAsync(
-    `qcut-pipeline ${command} --json`,
-    {
-      cwd: projectDir,
-      timeout: 60000,
-      env: { ...process.env, QCUT_SESSION: sessionId }
-    }
-  );
-  if (stderr) console.warn('[QCut CLI stderr]', stderr);
-  return stdout;
+function getRunner(): CLIPipelineRunner {
+  if (!runner) {
+    initRegistry();
+    runner = new CLIPipelineRunner();
+  }
+  return runner;
+}
+
+async function execCli(
+  command: string,
+  args: Record<string, unknown> = {},
+  timeout = 60_000
+): Promise<CLIResult> {
+  const r = getRunner();
+  const options = { command, json: true, ...args };
+  // Run with timeout, return { success, error?, ... }
+  return await Promise.race([r.run(options), timeoutPromise(timeout)]);
 }
 ```
 
@@ -832,7 +838,7 @@ Pi Agent runs inside the existing Terminal tab with a provider switcher. No new 
 
 ### Key Architecture Decisions
 
-1. **In-process CLI bridge over child_process.exec**: The guide suggests `exec('qcut-pipeline ...')`. Instead, use the existing `CLIPipelineRunner` class directly. This avoids binary packaging issues, startup latency, and reuses the existing API key provider chain. The runner is already designed for in-process use from `electron/native-pipeline/cli/cli-runner/runner.ts`.
+1. **In-process CLI bridge**: Uses the existing `CLIPipelineRunner` class directly instead of `child_process.exec`. This avoids binary packaging issues, startup latency, and reuses the existing API key provider chain. The runner is designed for in-process use from `electron/native-pipeline/cli/cli-runner/runner.ts`.
 
 2. **Extend Gemini terminal, not separate UI**: Pi Agent reuses the existing Gemini terminal store and components with a provider switcher. This avoids duplicating ~90% identical chat UI code (message list, input, streaming, attachments, drag-drop). The additional Pi Agent state (tool calls, model selection, provider toggle) is additive and gated behind `activeProvider === 'pi-agent'`, keeping Gemini behavior unchanged.
 

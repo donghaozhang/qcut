@@ -828,7 +828,13 @@ if (!isCliKeyCommand) {
 			["ProjectFolderIPC", setupProjectFolderIPC],
 			["ProjectJsonIPC", setupProjectJsonIPC],
 			["ClaudeIPC", setupAllClaudeIPC],
-			["PiAgentIPC", () => setupPiAgentIPC?.()],
+			["PiAgentIPC", async () => {
+				if (setupPiAgentIPC) {
+					await setupPiAgentIPC();
+				} else {
+					console.log("⚠️ PiAgentIPC skipped (pi-mono not available)");
+				}
+			}],
 			["RemotionFolderIPC", setupRemotionFolderIPC],
 			["ScreenRecordingIPC", setupScreenRecordingIPC],
 			["MoyinIPC", setupMoyinIPC],

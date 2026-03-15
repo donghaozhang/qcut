@@ -107,9 +107,20 @@ export const useGeminiTerminalStore = create<GeminiTerminalStore>(
 		// Provider selection
 		activeProvider: "gemini",
 		setActiveProvider: (provider: ChatProvider) => {
+			const prev = get().activeProvider;
+
+			// Clean up previous provider's listeners and backend state
+			if (prev === "gemini") {
+				platform().geminiChat?.removeListeners();
+			} else if (prev === "pi-agent") {
+				platform().piAgent?.removeListeners();
+				platform().piAgent?.reset();
+			}
+
 			set({
 				activeProvider: provider,
 				messages: [],
+				isStreaming: false,
 				currentStreamingContent: "",
 				error: null,
 				activeToolCalls: [],
