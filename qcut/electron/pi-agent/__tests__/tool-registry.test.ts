@@ -45,17 +45,13 @@ vi.mock("../../native-pipeline/cli/command-registry.js", () => ({
 			name: "create-video",
 			description: "Create video from text",
 			category: "generation",
-			flags: [
-				{ name: "text", type: "string", description: "Text prompt" },
-			],
+			flags: [{ name: "text", type: "string", description: "Text prompt" }],
 		},
 		"editor:timeline-split": {
 			name: "editor:timeline-split",
 			description: "Split clip at time",
 			category: "editor",
-			flags: [
-				{ name: "time", type: "string", description: "Split time" },
-			],
+			flags: [{ name: "time", type: "string", description: "Split time" }],
 		},
 		"editor:media-list": {
 			name: "editor:media-list",
@@ -133,7 +129,12 @@ describe("tool-registry", () => {
 			const tools = createPiAgentTools();
 			const helpTool = tools.find((t) => t.name === "qcut_help")!;
 
-			const result = await helpTool.execute("call-1", { category: "generation" }, undefined as any, undefined as any);
+			const result = await helpTool.execute(
+				"call-1",
+				{ category: "generation" },
+				undefined as any,
+				undefined as any
+			);
 			const text = result.content[0];
 			expect(text.type).toBe("text");
 
@@ -148,7 +149,12 @@ describe("tool-registry", () => {
 			const tools = createPiAgentTools();
 			const helpTool = tools.find((t) => t.name === "qcut_help")!;
 
-			const result = await helpTool.execute("call-2", { category: "nonexistent" }, undefined as any, undefined as any);
+			const result = await helpTool.execute(
+				"call-2",
+				{ category: "nonexistent" },
+				undefined as any,
+				undefined as any
+			);
 			const parsed = JSON.parse((result.content[0] as any).text);
 
 			expect(parsed.status).toBe("error");
@@ -162,7 +168,12 @@ describe("tool-registry", () => {
 			const tools = createPiAgentTools();
 			const cmdHelp = tools.find((t) => t.name === "qcut_command_help")!;
 
-			const result = await cmdHelp.execute("call-3", { command: "generate-image" }, undefined as any, undefined as any);
+			const result = await cmdHelp.execute(
+				"call-3",
+				{ command: "generate-image" },
+				undefined as any,
+				undefined as any
+			);
 			const parsed = JSON.parse((result.content[0] as any).text);
 
 			expect(parsed.name).toBe("generate-image");
@@ -177,7 +188,12 @@ describe("tool-registry", () => {
 			const tools = createPiAgentTools();
 			const cmdHelp = tools.find((t) => t.name === "qcut_command_help")!;
 
-			const result = await cmdHelp.execute("call-4", { command: "does-not-exist" }, undefined as any, undefined as any);
+			const result = await cmdHelp.execute(
+				"call-4",
+				{ command: "does-not-exist" },
+				undefined as any,
+				undefined as any
+			);
 			const parsed = JSON.parse((result.content[0] as any).text);
 
 			expect(parsed.status).toBe("error");
@@ -192,7 +208,12 @@ describe("tool-registry", () => {
 			const tools = createPiAgentTools();
 			const splitTool = tools.find((t) => t.name === "timeline_split")!;
 
-			await splitTool.execute("call-5", { time: "00:01:30.500", track: 1 }, undefined as any, undefined as any);
+			await splitTool.execute(
+				"call-5",
+				{ time: "00:01:30.500", track: 1 },
+				undefined as any,
+				undefined as any
+			);
 
 			expect(mockExecCli).toHaveBeenCalledWith(
 				"editor:timeline-split",
@@ -210,13 +231,13 @@ describe("tool-registry", () => {
 				"call-6",
 				{ command: "generate-image", args: { text: "cat", model: "flux_dev" } },
 				undefined as any,
-				undefined as any,
+				undefined as any
 			);
 
-			expect(mockExecCli).toHaveBeenCalledWith(
-				"generate-image",
-				{ text: "cat", model: "flux_dev" }
-			);
+			expect(mockExecCli).toHaveBeenCalledWith("generate-image", {
+				text: "cat",
+				model: "flux_dev",
+			});
 		});
 
 		it("wraps execution errors with hint", async () => {
@@ -225,7 +246,12 @@ describe("tool-registry", () => {
 			const tools = createPiAgentTools();
 			const genTool = tools.find((t) => t.name === "generate_image")!;
 
-			const result = await genTool.execute("call-7", { text: "cat" }, undefined as any, undefined as any);
+			const result = await genTool.execute(
+				"call-7",
+				{ text: "cat" },
+				undefined as any,
+				undefined as any
+			);
 			const parsed = JSON.parse((result.content[0] as any).text);
 
 			expect(parsed.status).toBe("error");

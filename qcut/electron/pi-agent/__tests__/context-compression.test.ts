@@ -62,9 +62,7 @@ describe("context-compression", () => {
 
 			const result = await compressEditingContext(messages);
 			// Find tool result in the trimmed set
-			const toolResult = result.find(
-				(m) => (m as any).role === "toolResult"
-			);
+			const toolResult = result.find((m) => (m as any).role === "toolResult");
 			if (toolResult) {
 				const text = (toolResult as any).content[0].text;
 				expect(text).toBe('{"success": true}');
@@ -75,7 +73,12 @@ describe("context-compression", () => {
 			const longJson = JSON.stringify({
 				success: true,
 				summary: "Generated 3 clips",
-				data: { clips: Array.from({ length: 100 }, (_, i) => ({ id: i, name: `clip-${i}` })) },
+				data: {
+					clips: Array.from({ length: 100 }, (_, i) => ({
+						id: i,
+						name: `clip-${i}`,
+					})),
+				},
 			});
 			expect(longJson.length).toBeGreaterThan(500);
 
@@ -86,9 +89,7 @@ describe("context-compression", () => {
 			];
 
 			const result = await compressEditingContext(messages);
-			const toolResult = result.find(
-				(m) => (m as any).role === "toolResult"
-			);
+			const toolResult = result.find((m) => (m as any).role === "toolResult");
 			expect(toolResult).toBeDefined();
 
 			const parsed = JSON.parse((toolResult as any).content[0].text);
@@ -112,9 +113,7 @@ describe("context-compression", () => {
 			];
 
 			const result = await compressEditingContext(messages);
-			const toolResult = result.find(
-				(m) => (m as any).role === "toolResult"
-			);
+			const toolResult = result.find((m) => (m as any).role === "toolResult");
 			const parsed = JSON.parse((toolResult as any).content[0].text);
 
 			expect(parsed.status).toBe("error");
@@ -131,9 +130,7 @@ describe("context-compression", () => {
 			];
 
 			const result = await compressEditingContext(messages);
-			const toolResult = result.find(
-				(m) => (m as any).role === "toolResult"
-			);
+			const toolResult = result.find((m) => (m as any).role === "toolResult");
 			const text = (toolResult as any).content[0].text;
 
 			expect(text.length).toBeLessThan(1000);
@@ -171,9 +168,7 @@ describe("context-compression", () => {
 			];
 
 			const result = await compressEditingContext(messages);
-			const toolResult = result.find(
-				(m) => (m as any).role === "toolResult"
-			);
+			const toolResult = result.find((m) => (m as any).role === "toolResult");
 			const text = (toolResult as any).content[0].text;
 
 			// Short results are returned unchanged
