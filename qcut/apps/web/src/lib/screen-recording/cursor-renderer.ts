@@ -160,10 +160,7 @@ export class CursorRenderer {
 
 		this.cursorGraphics.clear();
 
-		if (
-			this.config.cursorStyle === "dot" ||
-			(!this.cursorSprite && this.config.cursorStyle !== "hidden")
-		) {
+		if (this.config.cursorStyle === "dot" || !this.cursorSprite) {
 			// Draw dot cursor
 			this.cursorGraphics.circle(smoothX, smoothY, radius);
 			this.cursorGraphics.fill({
