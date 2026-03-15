@@ -14,3 +14,7 @@ export { analyzeForZoomSuggestions, DEFAULT_AUTO_ZOOM_CONFIG } from "./auto-zoom
 export type { AutoZoomConfig } from "./auto-zoom-analyzer";
 export { constrainFocus } from "./focus-utils";
 export { ZOOM_DEPTH_SCALES, ZOOM_IN_OVERLAP_MS, ZOOM_IN_TRANSITION_WINDOW_MS, TRANSITION_WINDOW_MS } from "./constants";
+export { drawCursor, getClickAnimProgress } from "./canvas-cursor-renderer";
+export { drawBackground, drawRoundedVideoFrame } from "./canvas-background-renderer";
+export { ScreenRecordingExportCompositor } from "./export-compositor";
+export type { ExportCompositorConfig } from "./export-compositor";

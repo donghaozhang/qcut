@@ -20,6 +20,37 @@ import { validateRenderedFrame } from "./export-engine-debug";
 import { stripMarkdownSyntax } from "@/lib/markdown";
 import { resolveSubtitleStyle, hexToRgba } from "@/lib/captions/subtitle-style";
 import type { CaptionElement } from "@/types/timeline";
+import { ScreenRecordingExportCompositor, type ExportCompositorConfig } from "@/lib/screen-recording/export-compositor";
+import { useScreenRecordingEnhancementStore, hasActiveEnhancements } from "@/stores/screen-recording-store";
+
+let exportCompositor: ScreenRecordingExportCompositor | null = null;
+
+/** Get or create the screen recording export compositor. */
+function getExportCompositor(
+	canvas: HTMLCanvasElement
+): ScreenRecordingExportCompositor | null {
+	const state = useScreenRecordingEnhancementStore.getState();
+	if (!hasActiveEnhancements(state)) return null;
+
+	if (!exportCompositor) {
+		const config: ExportCompositorConfig = {
+			background: state.background,
+			cursorConfig: state.cursorConfig,
+			zoomRegions: state.zoomRegions,
+			telemetry: state.cursorTelemetry,
+			outputWidth: canvas.width,
+			outputHeight: canvas.height,
+		};
+		exportCompositor = new ScreenRecordingExportCompositor(config);
+	}
+	return exportCompositor;
+}
+
+/** Clean up the export compositor (call after export finishes). */
+export function destroyExportCompositor(): void {
+	exportCompositor?.destroy();
+	exportCompositor = null;
+}
 
 /** Context passed to renderer functions */
 export interface RenderContext {
@@ -78,6 +109,22 @@ export async function renderFrame(
 	// Render each active element
 	for (const { element, mediaItem } of sortedElements) {
 		await renderElement(context, element, mediaItem, currentTime);
+	}
+
+	// Apply screen recording enhancement compositing (cursor, zoom, background)
+	const compositor = getExportCompositor(canvas);
+	if (compositor) {
+		// Capture the current canvas content as the video frame source
+		const frameCanvas = document.createElement("canvas");
+		frameCanvas.width = canvas.width;
+		frameCanvas.height = canvas.height;
+		const frameCtx = frameCanvas.getContext("2d");
+		if (frameCtx) {
+			frameCtx.drawImage(canvas, 0, 0);
+			// Clear and re-render with compositor
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			compositor.renderFrame(ctx, frameCanvas, currentTime * 1000);
+		}
 	}
 
 	// Render overlay stickers on top of everything

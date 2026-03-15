@@ -2,6 +2,17 @@
 
 > Bake cursor overlay, zoom transforms, and background into the exported video.
 
+## Status: DONE
+
+**Created:**
+- `apps/web/src/lib/screen-recording/export-compositor.ts` — Frame-by-frame compositing engine (background + zoom + cursor)
+- `apps/web/src/lib/screen-recording/canvas-cursor-renderer.ts` — Canvas 2D cursor renderer for export
+- `apps/web/src/lib/screen-recording/canvas-background-renderer.ts` — Canvas 2D background/rounded-frame renderer
+
+**Modified:**
+- `apps/web/src/lib/export/export-engine-renderer.ts` — Integrated compositor into frame render pipeline
+- `apps/web/src/lib/screen-recording/index.ts` — Added export-related barrel exports
+
 ## Goal
 
 When exporting a project with screen recording enhancements, composite everything into the final video:

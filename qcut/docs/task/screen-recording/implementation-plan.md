@@ -46,7 +46,7 @@ Each step has its own detailed doc:
 | 2 | ~~Cursor renderer (PixiJS)~~ | [step2-cursor-renderer.md](step2-cursor-renderer.md) | 6 new, 2 modified | DONE |
 | 3 | ~~Background beautification~~ | [step3-background-beautification.md](step3-background-beautification.md) | 2 new, 3 modified | DONE |
 | 4 | ~~Auto-zoom suggestions~~ | [step4-auto-zoom.md](step4-auto-zoom.md) | 5 new, 3 modified | DONE |
-| 5 | Zoom compositing in preview + export | [step5-zoom-export.md](step5-zoom-export.md) | 3 new, 3 modified | 1.5 days |
+| 5 | ~~Zoom compositing in preview + export~~ | [step5-zoom-export.md](step5-zoom-export.md) | 3 new, 2 modified | DONE |
 | 6 | UI controls panel | [step6-ui-controls.md](step6-ui-controls.md) | 3 new, 2 modified | 1 day |
 | 7 | Testing + integration | [step7-testing.md](step7-testing.md) | 3 new, 1 modified | 1 day |
 
