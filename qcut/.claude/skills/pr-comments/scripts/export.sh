@@ -37,7 +37,7 @@ echo "Fetching review comments from $REPO PR #${PR}..."
 TEMP_FILE=$(mktemp)
 trap "rm -f $TEMP_FILE" EXIT
 
-gh api "repos/${REPO}/pulls/${PR}/comments" > "$TEMP_FILE" 2>/dev/null || {
+gh api "repos/${REPO}/pulls/${PR}/comments" --paginate > "$TEMP_FILE" 2>/dev/null || {
     echo "Error: Failed to fetch PR comments. Check that:"
     echo "  - Repository '$REPO' exists"
     echo "  - PR #$PR exists"
