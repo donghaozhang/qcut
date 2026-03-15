@@ -443,7 +443,12 @@ const ALLOWED_RUN_COMMANDS = new Set(
 
 // Override execute for the generic run tool
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-qcutRunTool.execute = async (toolCallId: string, params: unknown, _signal: unknown, _onUpdate: unknown) => {
+qcutRunTool.execute = async (
+	toolCallId: string,
+	params: unknown,
+	_signal: unknown,
+	_onUpdate: unknown
+) => {
 	try {
 		const p = params as { command: string; args?: Record<string, unknown> };
 		if (!ALLOWED_RUN_COMMANDS.has(p.command)) {
