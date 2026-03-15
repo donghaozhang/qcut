@@ -67,50 +67,37 @@ export class CursorTelemetryRecorder {
 	}
 
 	private startCapture(): void {
+		// Always poll for position at ~60Hz (works even when cursor is stationary)
+		this.startPollingCapture();
+
+		// Optionally use uiohook-napi for press/release state
 		try {
-			// Try uiohook-napi for native mouse events
 			// eslint-disable-next-line @typescript-eslint/no-require-imports
 			this.uiohook = require("uiohook-napi");
-			this.startUIOHookCapture();
+			this.startUIOHookPressTracking();
 		} catch {
 			log.warn(
-				"[CursorTelemetry] uiohook-napi unavailable, falling back to polling"
+				"[CursorTelemetry] uiohook-napi unavailable, press state will not be tracked"
 			);
-			this.startPollingCapture();
 		}
 	}
 
-	private startUIOHookCapture(): void {
+	/** Use uiohook only for tracking mouse press/release state. */
+	private startUIOHookPressTracking(): void {
 		if (!this.uiohook) return;
 
-		const { uIOhook, UiohookKey } = this.uiohook;
-		let lastRecordedTime = 0;
+		const { uIOhook } = this.uiohook;
 
-		const onMouseMove = (e: { x: number; y: number }) => {
-			if (!this.recording) return;
-			const now = Date.now();
-			const t = now - this.startTime;
-			// Throttle to ~60Hz
-			if (t - lastRecordedTime < POLL_INTERVAL_MS) return;
-			lastRecordedTime = t;
-			this.points.push({ t, x: e.x, y: e.y, p: this.pressed });
-		};
-
-		const onMouseDown = (e: { x: number; y: number }) => {
+		const onMouseDown = () => {
 			if (!this.recording) return;
 			this.pressed = true;
-			const t = Date.now() - this.startTime;
-			this.points.push({ t, x: e.x, y: e.y, p: true });
 		};
 
-		const onMouseUp = (e: { x: number; y: number }) => {
+		const onMouseUp = () => {
 			if (!this.recording) return;
 			this.pressed = false;
-			const t = Date.now() - this.startTime;
-			this.points.push({ t, x: e.x, y: e.y, p: false });
 		};
 
-		uIOhook.on("mousemove", onMouseMove);
 		uIOhook.on("mousedown", onMouseDown);
 		uIOhook.on("mouseup", onMouseUp);
 		uIOhook.start();

@@ -200,9 +200,7 @@ export function setupScreenRecordingIPC(): void {
 
 				// Start cursor telemetry capture
 				const captureRect = getCaptureRect(selectedSource.id);
-				console.log("[ScreenRecording:DEBUG] Starting cursor telemetry, captureRect:", captureRect);
 				cursorRecorder.start(captureRect);
-				console.log("[ScreenRecording:DEBUG] Cursor telemetry started, isRecording:", cursorRecorder.isRecording());
 
 				return {
 					sessionId,
@@ -323,12 +321,8 @@ export function setupScreenRecordingIPC(): void {
 
 				// Stop cursor telemetry and save sidecar
 				let cursorTelemetryData = null;
-				console.log("[ScreenRecording:DEBUG] cursorRecorder.isRecording():", cursorRecorder.isRecording());
 				if (cursorRecorder.isRecording()) {
 					cursorTelemetryData = cursorRecorder.stop();
-					console.log("[ScreenRecording:DEBUG] Cursor telemetry stopped, points:", cursorTelemetryData?.points?.length ?? 0);
-				} else {
-					console.log("[ScreenRecording:DEBUG] Cursor recorder was NOT recording at stop time");
 				}
 
 				let finalPath: string | null = sessionToStop.filePath;
@@ -343,13 +337,11 @@ export function setupScreenRecordingIPC(): void {
 					finalizedBytes = await getFileSize({ filePath: finalPath });
 
 					// Write cursor telemetry sidecar alongside the video
-					console.log("[ScreenRecording:DEBUG] Writing sidecar? data:", !!cursorTelemetryData, "path:", finalPath);
 					if (cursorTelemetryData && finalPath) {
 						try {
 							await writeCursorTelemetry(finalPath, cursorTelemetryData);
-							console.log("[ScreenRecording:DEBUG] Sidecar written successfully");
-						} catch (sidecarError) {
-							console.error("[ScreenRecording:DEBUG] Sidecar write failed:", sidecarError);
+						} catch {
+							// Sidecar write failure is non-fatal
 						}
 					}
 				}
