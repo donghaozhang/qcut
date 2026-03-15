@@ -108,18 +108,8 @@ export class CursorRenderer {
 		const dt = this.lastTimeMs >= 0 ? (timeMs - this.lastTimeMs) / 1000 : 0;
 		this.lastTimeMs = timeMs;
 
-		this.springX = stepSpring(
-			this.springX,
-			canvasPos.x,
-			this.springConfig,
-			dt
-		);
-		this.springY = stepSpring(
-			this.springY,
-			canvasPos.y,
-			this.springConfig,
-			dt
-		);
+		this.springX = stepSpring(this.springX, canvasPos.x, this.springConfig, dt);
+		this.springY = stepSpring(this.springY, canvasPos.y, this.springConfig, dt);
 
 		const smoothX = this.springX.value;
 		const smoothY = this.springY.value;
@@ -143,9 +133,7 @@ export class CursorRenderer {
 				} else {
 					bounceScale =
 						0.85 * this.config.clickBounce +
-						0.15 *
-							this.config.clickBounce *
-							clamp01((t - mid) / (1 - mid));
+						0.15 * this.config.clickBounce * clamp01((t - mid) / (1 - mid));
 					bounceScale =
 						1 - (1 - bounceScale) * (1 - clamp01((t - mid) / (1 - mid)));
 				}

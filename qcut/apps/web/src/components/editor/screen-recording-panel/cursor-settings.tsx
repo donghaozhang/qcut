@@ -10,7 +10,10 @@ import {
 } from "../properties-panel/property-item";
 import type { CursorRenderConfig } from "@/lib/screen-recording/cursor-renderer";
 
-const CURSOR_STYLES: { value: CursorRenderConfig["cursorStyle"]; label: string }[] = [
+const CURSOR_STYLES: {
+	value: CursorRenderConfig["cursorStyle"];
+	label: string;
+}[] = [
 	{ value: "dot", label: "Dot" },
 	{ value: "macos-arrow", label: "Arrow" },
 	{ value: "macos-pointer", label: "Pointer" },
@@ -36,10 +39,18 @@ function hexToColor(hex: string): number {
 }
 
 export function CursorSettings() {
-	const cursorConfig = useScreenRecordingEnhancementStore((s) => s.cursorConfig);
-	const setCursorConfig = useScreenRecordingEnhancementStore((s) => s.setCursorConfig);
-	const showCursorOverlay = useScreenRecordingEnhancementStore((s) => s.showCursorOverlay);
-	const setShowCursorOverlay = useScreenRecordingEnhancementStore((s) => s.setShowCursorOverlay);
+	const cursorConfig = useScreenRecordingEnhancementStore(
+		(s) => s.cursorConfig
+	);
+	const setCursorConfig = useScreenRecordingEnhancementStore(
+		(s) => s.setCursorConfig
+	);
+	const showCursorOverlay = useScreenRecordingEnhancementStore(
+		(s) => s.showCursorOverlay
+	);
+	const setShowCursorOverlay = useScreenRecordingEnhancementStore(
+		(s) => s.setShowCursorOverlay
+	);
 
 	return (
 		<PropertyGroup title="Cursor" defaultExpanded={true}>
@@ -61,7 +72,10 @@ export function CursorSettings() {
 						type="single"
 						value={cursorConfig.cursorStyle}
 						onValueChange={(v) => {
-							if (v) setCursorConfig({ cursorStyle: v as CursorRenderConfig["cursorStyle"] });
+							if (v)
+								setCursorConfig({
+									cursorStyle: v as CursorRenderConfig["cursorStyle"],
+								});
 						}}
 						size="sm"
 						className="w-full"
@@ -107,7 +121,9 @@ export function CursorSettings() {
 							<input
 								type="color"
 								value={colorToHex(cursorConfig.dotColor)}
-								onChange={(e) => setCursorConfig({ dotColor: hexToColor(e.target.value) })}
+								onChange={(e) =>
+									setCursorConfig({ dotColor: hexToColor(e.target.value) })
+								}
 								className="w-7 h-7 cursor-pointer rounded border p-0"
 								aria-label="Cursor color"
 							/>
@@ -163,7 +179,9 @@ export function CursorSettings() {
 					<PropertyItemLabel>Click bounce</PropertyItemLabel>
 					<Switch
 						checked={cursorConfig.clickBounce > 0}
-						onCheckedChange={(on) => setCursorConfig({ clickBounce: on ? 1 : 0 })}
+						onCheckedChange={(on) =>
+							setCursorConfig({ clickBounce: on ? 1 : 0 })
+						}
 						aria-label="Toggle click animation"
 					/>
 				</PropertyItem>

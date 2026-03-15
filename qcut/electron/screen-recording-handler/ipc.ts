@@ -32,11 +32,11 @@ import {
 	ensureDisplayMediaHandlerConfigured,
 	buildStatus,
 } from "./session.js";
+import { CursorTelemetryRecorder, getCaptureRect } from "./cursor-telemetry.js";
 import {
-	CursorTelemetryRecorder,
-	getCaptureRect,
-} from "./cursor-telemetry.js";
-import { writeCursorTelemetry, readCursorTelemetry } from "./cursor-telemetry-io.js";
+	writeCursorTelemetry,
+	readCursorTelemetry,
+} from "./cursor-telemetry-io.js";
 
 const cursorRecorder = new CursorTelemetryRecorder();
 

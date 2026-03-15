@@ -37,20 +37,39 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 export function ScreenRecordingPanel() {
-	const cursorTelemetry = useScreenRecordingEnhancementStore((s) => s.cursorTelemetry);
-	const autoZoomConfig = useScreenRecordingEnhancementStore((s) => s.autoZoomConfig);
+	const cursorTelemetry = useScreenRecordingEnhancementStore(
+		(s) => s.cursorTelemetry
+	);
+	const autoZoomConfig = useScreenRecordingEnhancementStore(
+		(s) => s.autoZoomConfig
+	);
 	const zoomRegions = useScreenRecordingEnhancementStore((s) => s.zoomRegions);
-	const setZoomRegions = useScreenRecordingEnhancementStore((s) => s.setZoomRegions);
-	const addZoomRegion = useScreenRecordingEnhancementStore((s) => s.addZoomRegion);
-	const removeZoomRegion = useScreenRecordingEnhancementStore((s) => s.removeZoomRegion);
-	const updateZoomRegion = useScreenRecordingEnhancementStore((s) => s.updateZoomRegion);
-	const setShowCursorOverlay = useScreenRecordingEnhancementStore((s) => s.setShowCursorOverlay);
-	const showCursorOverlay = useScreenRecordingEnhancementStore((s) => s.showCursorOverlay);
+	const setZoomRegions = useScreenRecordingEnhancementStore(
+		(s) => s.setZoomRegions
+	);
+	const addZoomRegion = useScreenRecordingEnhancementStore(
+		(s) => s.addZoomRegion
+	);
+	const removeZoomRegion = useScreenRecordingEnhancementStore(
+		(s) => s.removeZoomRegion
+	);
+	const updateZoomRegion = useScreenRecordingEnhancementStore(
+		(s) => s.updateZoomRegion
+	);
+	const setShowCursorOverlay = useScreenRecordingEnhancementStore(
+		(s) => s.setShowCursorOverlay
+	);
+	const showCursorOverlay = useScreenRecordingEnhancementStore(
+		(s) => s.showCursorOverlay
+	);
 	const currentTime = usePlaybackStore((s) => s.currentTime);
 
 	const handleAutoGenerate = useCallback(() => {
 		if (!cursorTelemetry) return;
-		const suggestions = analyzeForZoomSuggestions(cursorTelemetry, autoZoomConfig);
+		const suggestions = analyzeForZoomSuggestions(
+			cursorTelemetry,
+			autoZoomConfig
+		);
 		setZoomRegions(suggestions);
 	}, [cursorTelemetry, autoZoomConfig, setZoomRegions]);
 
@@ -89,7 +108,12 @@ export function ScreenRecordingPanel() {
 
 		window.addEventListener("keydown", handler);
 		return () => window.removeEventListener("keydown", handler);
-	}, [setShowCursorOverlay, showCursorOverlay, cursorTelemetry, handleAutoGenerate]);
+	}, [
+		setShowCursorOverlay,
+		showCursorOverlay,
+		cursorTelemetry,
+		handleAutoGenerate,
+	]);
 
 	return (
 		<ScrollArea className="h-full">

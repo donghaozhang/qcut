@@ -2,7 +2,10 @@ import type { BackgroundConfig } from "./wallpapers";
 import type { CursorRenderConfig } from "./cursor-renderer";
 import type { ZoomRegion } from "./zoom-region-utils";
 import type { CursorTelemetryData } from "@/types/electron/cursor-telemetry";
-import { drawBackground, drawRoundedVideoFrame } from "./canvas-background-renderer";
+import {
+	drawBackground,
+	drawRoundedVideoFrame,
+} from "./canvas-background-renderer";
 import { drawCursor, getClickAnimProgress } from "./canvas-cursor-renderer";
 import { computeZoomTransform } from "./zoom-transform";
 import {
@@ -45,8 +48,7 @@ export class ScreenRecordingExportCompositor {
 		videoFrame: CanvasImageSource,
 		timeMs: number
 	): void {
-		const { outputWidth, outputHeight, background, cursorConfig } =
-			this.config;
+		const { outputWidth, outputHeight, background, cursorConfig } = this.config;
 
 		// Step 1: Draw background
 		if (background.type !== "none") {
@@ -87,29 +89,19 @@ export class ScreenRecordingExportCompositor {
 				background.shadow
 			);
 		} else {
-			ctx.drawImage(
-				videoFrame,
-				0,
-				0,
-				outputWidth,
-				outputHeight
-			);
+			ctx.drawImage(videoFrame, 0, 0, outputWidth, outputHeight);
 		}
 
 		ctx.restore();
 
 		// Step 4: Draw cursor overlay
-		if (
-			this.config.telemetry &&
-			cursorConfig.cursorStyle !== "hidden"
-		) {
+		if (this.config.telemetry && cursorConfig.cursorStyle !== "hidden") {
 			this.renderCursor(ctx, timeMs);
 		}
 	}
 
 	private renderCursor(ctx: CanvasRenderingContext2D, timeMs: number): void {
-		const { telemetry, cursorConfig, outputWidth, outputHeight } =
-			this.config;
+		const { telemetry, cursorConfig, outputWidth, outputHeight } = this.config;
 		if (!telemetry || telemetry.points.length === 0) return;
 
 		// Find current point via binary search
@@ -128,17 +120,11 @@ export class ScreenRecordingExportCompositor {
 		const ry = (point.y - captureRect.y) / captureRect.height;
 
 		// Spring smoothing
-		const dt =
-			this.lastTimeMs >= 0 ? (timeMs - this.lastTimeMs) / 1000 : 0;
+		const dt = this.lastTimeMs >= 0 ? (timeMs - this.lastTimeMs) / 1000 : 0;
 		this.lastTimeMs = timeMs;
 
 		const springConfig = getCursorSpringConfig(cursorConfig.smoothingFactor);
-		this.springX = stepSpring(
-			this.springX,
-			rx * outputWidth,
-			springConfig,
-			dt
-		);
+		this.springX = stepSpring(this.springX, rx * outputWidth, springConfig, dt);
 		this.springY = stepSpring(
 			this.springY,
 			ry * outputHeight,

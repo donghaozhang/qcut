@@ -8,7 +8,10 @@ import {
 	PropertyItemLabel,
 	PropertyItemValue,
 } from "../properties-panel/property-item";
-import { GRADIENT_PRESETS, type BackgroundConfig } from "@/lib/screen-recording/wallpapers";
+import {
+	GRADIENT_PRESETS,
+	type BackgroundConfig,
+} from "@/lib/screen-recording/wallpapers";
 
 const BG_TYPES: { value: BackgroundConfig["type"]; label: string }[] = [
 	{ value: "none", label: "None" },
@@ -18,7 +21,9 @@ const BG_TYPES: { value: BackgroundConfig["type"]; label: string }[] = [
 
 export function BackgroundSettings() {
 	const background = useScreenRecordingEnhancementStore((s) => s.background);
-	const setBackground = useScreenRecordingEnhancementStore((s) => s.setBackground);
+	const setBackground = useScreenRecordingEnhancementStore(
+		(s) => s.setBackground
+	);
 
 	return (
 		<PropertyGroup title="Background" defaultExpanded={true}>
@@ -151,7 +156,9 @@ export function BackgroundSettings() {
 								<input
 									type="color"
 									value={background.solidColor ?? "#1a1a2e"}
-									onChange={(e) => setBackground({ solidColor: e.target.value })}
+									onChange={(e) =>
+										setBackground({ solidColor: e.target.value })
+									}
 									className="w-7 h-7 cursor-pointer rounded border p-0"
 									aria-label="Solid background color"
 								/>

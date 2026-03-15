@@ -28,8 +28,7 @@ export function drawCursor(
 	if (clickAnimProgress > 0 && clickAnimProgress < 1) {
 		const mid = 0.3;
 		if (clickAnimProgress < mid) {
-			bounceScale =
-				1 - 0.15 * config.clickBounce * (clickAnimProgress / mid);
+			bounceScale = 1 - 0.15 * config.clickBounce * (clickAnimProgress / mid);
 		} else {
 			const t = clamp01((clickAnimProgress - mid) / (1 - mid));
 			bounceScale = 1 - 0.15 * config.clickBounce * (1 - t);

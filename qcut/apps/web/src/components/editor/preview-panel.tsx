@@ -129,9 +129,7 @@ export function PreviewPanel() {
 	const recordingBackground = useScreenRecordingEnhancementStore(
 		(s) => s.background
 	);
-	const zoomRegions = useScreenRecordingEnhancementStore(
-		(s) => s.zoomRegions
-	);
+	const zoomRegions = useScreenRecordingEnhancementStore((s) => s.zoomRegions);
 
 	// Local MCP: derive HTML fresh from template every render (auto-reload on HMR)
 	// External MCP: use stored HTML from IPC
@@ -744,10 +742,7 @@ export function PreviewPanel() {
 									width={previewDimensions.width || canvasSize.width}
 									height={previewDimensions.height || canvasSize.height}
 								>
-									<div
-										className="absolute inset-0"
-										style={zoomStyle}
-									>
+									<div className="absolute inset-0" style={zoomStyle}>
 										{renderBlurBackground()}
 										{activeElements.length === 0 ? (
 											<div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
@@ -761,10 +756,7 @@ export function PreviewPanel() {
 									</div>
 								</RecordingBackground>
 							) : (
-								<div
-									className="absolute inset-0"
-									style={zoomStyle}
-								>
+								<div className="absolute inset-0" style={zoomStyle}>
 									{renderBlurBackground()}
 									{activeElements.length === 0 ? (
 										<div className="absolute inset-0 flex items-center justify-center text-muted-foreground">

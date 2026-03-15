@@ -70,10 +70,8 @@ export function analyzeForZoomSuggestions(
 		}
 
 		if (cluster.length >= cfg.minClickCluster) {
-			const avgX =
-				cluster.reduce((s, p) => s + p.x, 0) / cluster.length;
-			const avgY =
-				cluster.reduce((s, p) => s + p.y, 0) / cluster.length;
+			const avgX = cluster.reduce((s, p) => s + p.x, 0) / cluster.length;
+			const avgY = cluster.reduce((s, p) => s + p.y, 0) / cluster.length;
 			const startMs = cluster[0].t - 200; // Lead-in
 			const endMs = cluster[cluster.length - 1].t + 500; // Trail
 
@@ -105,10 +103,8 @@ export function analyzeForZoomSuggestions(
 			// Check if the dwell period was long enough
 			const dwellDuration = points[i - 1].t - points[dwellStart].t;
 			if (dwellDuration >= cfg.minDwellMs) {
-				const cx =
-					(dwellCenterX - captureRect.x) / captureRect.width;
-				const cy =
-					(dwellCenterY - captureRect.y) / captureRect.height;
+				const cx = (dwellCenterX - captureRect.x) / captureRect.width;
+				const cy = (dwellCenterY - captureRect.y) / captureRect.height;
 
 				regions.push({
 					id: nextId(),
@@ -129,8 +125,7 @@ export function analyzeForZoomSuggestions(
 
 	// Check final dwell period
 	if (points.length > 1) {
-		const finalDuration =
-			points[points.length - 1].t - points[dwellStart].t;
+		const finalDuration = points[points.length - 1].t - points[dwellStart].t;
 		if (finalDuration >= cfg.minDwellMs) {
 			const cx = (dwellCenterX - captureRect.x) / captureRect.width;
 			const cy = (dwellCenterY - captureRect.y) / captureRect.height;

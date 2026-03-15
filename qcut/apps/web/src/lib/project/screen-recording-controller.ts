@@ -487,8 +487,9 @@ export async function stopScreenRecording({
 		if (stopResult.filePath) {
 			try {
 				const recordingApi = getRecordingApi();
-				const telemetry =
-					await recordingApi?.getCursorTelemetry?.(stopResult.filePath);
+				const telemetry = await recordingApi?.getCursorTelemetry?.(
+					stopResult.filePath
+				);
 				if (telemetry) {
 					const store = useScreenRecordingEnhancementStore.getState();
 					store.setCursorTelemetry(telemetry);

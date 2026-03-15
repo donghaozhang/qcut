@@ -20,8 +20,14 @@ import { validateRenderedFrame } from "./export-engine-debug";
 import { stripMarkdownSyntax } from "@/lib/markdown";
 import { resolveSubtitleStyle, hexToRgba } from "@/lib/captions/subtitle-style";
 import type { CaptionElement } from "@/types/timeline";
-import { ScreenRecordingExportCompositor, type ExportCompositorConfig } from "@/lib/screen-recording/export-compositor";
-import { useScreenRecordingEnhancementStore, hasActiveEnhancements } from "@/stores/screen-recording-store";
+import {
+	ScreenRecordingExportCompositor,
+	type ExportCompositorConfig,
+} from "@/lib/screen-recording/export-compositor";
+import {
+	useScreenRecordingEnhancementStore,
+	hasActiveEnhancements,
+} from "@/stores/screen-recording-store";
 
 let exportCompositor: ScreenRecordingExportCompositor | null = null;
 
