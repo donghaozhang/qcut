@@ -36,6 +36,7 @@ import type {
 import type { ElectronMoyinOps } from "./api-moyin";
 import type { ElectronUpdateOps } from "./api-updates";
 import type { ElectronLicenseOps } from "./api-license";
+import type { ElectronPiAgentOps } from "./api-pi-agent";
 import type { ElectronYouTubeOps } from "./api-youtube";
 import type {
 	AIPipelineProgress,
@@ -74,6 +75,7 @@ export interface ElectronAPI
 		ElectronMoyinOps,
 		ElectronUpdateOps,
 		ElectronLicenseOps,
+		ElectronPiAgentOps,
 		ElectronYouTubeOps {
 	// System info
 	platform: string;

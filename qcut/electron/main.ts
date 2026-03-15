@@ -124,6 +124,13 @@ const {
 const { setupProjectFolderIPC } = require("./project-folder-handler.js");
 const { setupProjectJsonIPC } = require("./project-json-handler.js");
 const { setupAllClaudeIPC } = require("./claude/index.js");
+// Pi Agent uses ESM-only pi-mono packages — loaded async to avoid CJS crash
+let setupPiAgentIPC: (() => Promise<void>) | undefined;
+try {
+	setupPiAgentIPC = require("./pi-agent/index.js").setupPiAgentIPC;
+} catch {
+	/* pi-mono not installed */
+}
 const { setupRemotionFolderIPC } = require("./remotion-folder-handler.js");
 const { setupScreenRecordingIPC } = require("./screen-recording-handler.js");
 const { setupMoyinIPC } = require("./moyin-handler.js");
@@ -803,7 +810,7 @@ if (!isCliKeyCommand) {
 		createWindow();
 
 		// Register all IPC handlers with try/catch to prevent cascade failures
-		const handlers: [string, () => void][] = [
+		const handlers: [string, () => void | Promise<void>][] = [
 			["FFmpegIPC", setupFFmpegIPC],
 			["SoundIPC", setupSoundIPC],
 			["ThemeIPC", setupThemeIPC],
@@ -821,6 +828,16 @@ if (!isCliKeyCommand) {
 			["ProjectFolderIPC", setupProjectFolderIPC],
 			["ProjectJsonIPC", setupProjectJsonIPC],
 			["ClaudeIPC", setupAllClaudeIPC],
+			[
+				"PiAgentIPC",
+				async () => {
+					if (setupPiAgentIPC) {
+						await setupPiAgentIPC();
+					} else {
+						console.log("⚠️ PiAgentIPC skipped (pi-mono not available)");
+					}
+				},
+			],
 			["RemotionFolderIPC", setupRemotionFolderIPC],
 			["ScreenRecordingIPC", setupScreenRecordingIPC],
 			["MoyinIPC", setupMoyinIPC],
@@ -830,10 +847,12 @@ if (!isCliKeyCommand) {
 
 		for (const [name, setup] of handlers) {
 			try {
-				setup();
+				await Promise.resolve(setup());
 				console.log(`✅ ${name} registered`);
-			} catch (err: any) {
-				console.error(`❌ ${name} FAILED:`, err.message, err.stack);
+			} catch (err: unknown) {
+				const message = err instanceof Error ? err.message : String(err);
+				const stack = err instanceof Error ? err.stack : undefined;
+				console.error(`❌ ${name} FAILED:`, message, stack);
 			}
 		}
 

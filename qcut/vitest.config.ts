@@ -26,6 +26,7 @@ export default defineConfig({
 			"electron/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
 			"electron/claude/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
 			"electron/native-pipeline/**/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+			"electron/pi-agent/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
 			"scripts/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
 			"packages/platform-core/**/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
 			"packages/platform-desktop/**/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
@@ -58,6 +59,9 @@ export default defineConfig({
 			deps: {
 				inline: [
 					/^node:/,
+					"@sinclair/typebox",
+					"@mariozechner/pi-agent-core",
+					"@mariozechner/pi-ai",
 					"crypto",
 					"fs",
 					"path",
@@ -87,6 +91,10 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			"@": path.resolve(webRoot, "src"),
+			"@sinclair/typebox": path.resolve(
+				__dirname,
+				"node_modules/.bun/@sinclair+typebox@0.34.48/node_modules/@sinclair/typebox/build/esm/index.mjs"
+			),
 		},
 	},
 });

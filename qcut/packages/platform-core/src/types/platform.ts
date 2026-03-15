@@ -39,6 +39,7 @@ import type {
 	PlatformMoyinAPI,
 	PlatformUpdatesAPI,
 	PlatformFillerAnalysisAPI,
+	PlatformPiAgentAPI,
 } from "./integration-api.js";
 import type { PlatformClaudeAPI } from "./claude-api.js";
 
@@ -98,6 +99,9 @@ export interface PlatformAPI extends PlatformFillerAnalysisAPI {
 	remotion?: PlatformRemotionAPI;
 	moyin: PlatformMoyinAPI;
 	updates: PlatformUpdatesAPI;
+
+	// -- Pi Agent (optional — desktop-only) --
+	piAgent?: PlatformPiAgentAPI;
 
 	// -- Claude (optional — desktop-only in QCut Lite) --
 	claude?: PlatformClaudeAPI;

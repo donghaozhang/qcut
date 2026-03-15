@@ -26,6 +26,7 @@ export * from "./api-remotion";
 export * from "./api-moyin";
 export * from "./api-updates";
 export * from "./api-license";
+export * from "./api-pi-agent";
 
 // Global augmentation - must be in a file with imports/exports to be a module
 import type { ElectronAPI } from "./electron-api";

@@ -474,7 +474,7 @@ async function handleUiCommand(
 				return {
 					success: false,
 					error:
-						"Missing --panel. Available: media, text, stickers, video-edit, effects, transitions, filters, text2image, nano-edit, ai, sounds, segmentation, remotion, pty, word-timeline, project-folder, upscale, moyin. Aliases: terminal, skills, library, ai-video, ai-images, audio-studio, smart-speech, project. Use --tab for moyin inner tabs: overview (structure), characters, scenes, shots, generate",
+						"Missing --panel. Available: media, text, stickers, video-edit, effects, transitions, filters, text2image, nano-edit, ai, sounds, segmentation, remotion, pty, word-timeline, project-folder, upscale, moyin, ai-chat. Aliases: terminal, skills, library, ai-video, ai-images, audio-studio, smart-speech, project. Use --tab for moyin inner tabs: overview (structure), characters, scenes, shots, generate",
 				};
 			}
 			const body: Record<string, string> = { panel };

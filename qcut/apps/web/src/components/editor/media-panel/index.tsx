@@ -18,6 +18,7 @@ import { WordTimelineView } from "./views/word-timeline-view";
 import { ProjectFolderView } from "./views/project-folder";
 import { UpscaleView } from "./views/upscale";
 import { MoyinView } from "./views/moyin";
+import { GeminiTerminalView } from "./views/gemini-terminal";
 import React from "react";
 import { EFFECTS_ENABLED } from "@/config/features";
 
@@ -68,6 +69,7 @@ export function MediaPanel() {
 		"project-folder": <ProjectFolderView />,
 		upscale: <UpscaleView />,
 		moyin: <MoyinView />,
+		"ai-chat": <GeminiTerminalView />,
 	};
 
 	const activeNonPtyTab = activeTab === "pty" ? null : activeTab;

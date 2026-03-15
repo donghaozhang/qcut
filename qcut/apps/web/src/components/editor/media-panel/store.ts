@@ -14,6 +14,7 @@ import {
 	ScissorsIcon,
 	Layers,
 	SquareTerminalIcon,
+	MessageSquareIcon,
 	TextSelect,
 	FolderSync,
 	FolderOpenIcon,
@@ -41,7 +42,8 @@ export type Tab =
 	| "word-timeline"
 	| "project-folder"
 	| "upscale"
-	| "moyin";
+	| "moyin"
+	| "ai-chat";
 
 export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 	media: {
@@ -117,6 +119,10 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 		icon: ClapperboardIcon,
 		label: "Director",
 	},
+	"ai-chat": {
+		icon: MessageSquareIcon,
+		label: "AI Chat",
+	},
 };
 
 // --- Tab Groups ---
@@ -171,7 +177,7 @@ export const tabGroups: { [key in TabGroup]: TabGroupDef } = {
 	agents: {
 		icon: WrenchIcon,
 		label: "Agents",
-		tabs: ["nano-edit", "pty", "remotion"],
+		tabs: ["nano-edit", "ai-chat", "pty", "remotion"],
 	},
 };
 

@@ -147,6 +147,19 @@ const geminiChatAdapter = {
 	removeListeners: () => api().geminiChat.removeListeners(),
 };
 
+const piAgentAdapter = {
+	send: (r: any) => api().piAgent?.send(r),
+	onStreamChunk: (cb: any) => api().piAgent?.onStreamChunk(cb),
+	onToolCall: (cb: any) => api().piAgent?.onToolCall(cb),
+	onToolResult: (cb: any) => api().piAgent?.onToolResult(cb),
+	onStreamComplete: (cb: any) => api().piAgent?.onStreamComplete(cb),
+	onStreamError: (cb: any) => api().piAgent?.onStreamError(cb),
+	removeListeners: () => api().piAgent?.removeListeners(),
+	reset: () => api().piAgent?.reset(),
+	setModel: (s: any) => api().piAgent?.setModel(s),
+	getModels: () => api().piAgent?.getModels(),
+};
+
 const githubAdapter = {
 	fetchStars: () => api().github.fetchStars(),
 };
@@ -333,6 +346,7 @@ export function createDesktopAdapter(): PlatformAPI {
 		remotionFolder: remotionFolderAdapter,
 		moyin: moyinAdapter,
 		updates: updatesAdapter,
+		piAgent: piAgentAdapter,
 		claude: createClaudeAdapter(),
 	} as unknown as PlatformAPI;
 }
