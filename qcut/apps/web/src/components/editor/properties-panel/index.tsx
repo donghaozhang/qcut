@@ -22,6 +22,11 @@ import { CaptionProperties } from "./caption-properties";
 import { ProjectInfoView } from "./project-info-view";
 import { BackgroundView } from "./background-view";
 import { PropertyGroup } from "./property-item";
+import { ScreenRecordingPanel } from "../screen-recording-panel";
+import {
+	useScreenRecordingEnhancementStore,
+	hasActiveEnhancements,
+} from "@/stores/screen-recording-store";
 
 export function PropertiesPanel() {
 	const { selectedElements, tracks } = useTimelineStore();
@@ -41,6 +46,9 @@ export function PropertiesPanel() {
 
 	const panelView = useExportStore((s) => s.panelView);
 	const setPanelView = useExportStore((s) => s.setPanelView);
+	const showScreenRecordingPanel = useScreenRecordingEnhancementStore(
+		(s) => s.cursorTelemetry !== null || hasActiveEnhancements(s)
+	);
 
 	const emptyView = (
 		<div className="space-y-4 p-5">
@@ -170,6 +178,12 @@ export function PropertiesPanel() {
 										</div>
 									);
 								})}
+								{showScreenRecordingPanel && <ScreenRecordingPanel />}
+							</div>
+						) : showScreenRecordingPanel ? (
+							<div className="space-y-4">
+								{emptyView}
+								<ScreenRecordingPanel />
 							</div>
 						) : (
 							emptyView

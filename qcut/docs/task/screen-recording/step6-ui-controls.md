@@ -1,5 +1,7 @@
 # Step 6: UI Controls Panel
 
+**Status: DONE**
+
 > Settings panel for cursor style, background, and zoom region configuration.
 
 ## Goal
