@@ -42,6 +42,7 @@ import { PreviewAgentView } from "./preview-panel/preview-agent-view";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { MonitorPlay, AppWindow, Bot } from "lucide-react";
 import { CursorOverlay } from "./preview-panel/cursor-overlay";
+import { RecordingBackground } from "./preview-panel/recording-background";
 import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
 
 /** Main preview panel component for video playback, MCP apps, and element overlays. */
@@ -123,6 +124,9 @@ export function PreviewPanel() {
 	);
 	const showCursorOverlay = useScreenRecordingEnhancementStore(
 		(s) => s.showCursorOverlay
+	);
+	const recordingBackground = useScreenRecordingEnhancementStore(
+		(s) => s.background
 	);
 
 	// Local MCP: derive HTML fresh from template every render (auto-reload on HMR)
@@ -710,15 +714,36 @@ export function PreviewPanel() {
 										: activeProject?.backgroundColor || "#000000",
 							}}
 						>
-							{renderBlurBackground()}
-							{activeElements.length === 0 ? (
-								<div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-									No elements at current time
-								</div>
+							{recordingBackground.type !== "none" ? (
+								<RecordingBackground
+									background={recordingBackground}
+									width={previewDimensions.width || canvasSize.width}
+									height={previewDimensions.height || canvasSize.height}
+								>
+									{renderBlurBackground()}
+									{activeElements.length === 0 ? (
+										<div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+											No elements at current time
+										</div>
+									) : (
+										activeElements.map((elementData, index) =>
+											renderElement(elementData, index)
+										)
+									)}
+								</RecordingBackground>
 							) : (
-								activeElements.map((elementData, index) =>
-									renderElement(elementData, index)
-								)
+								<>
+									{renderBlurBackground()}
+									{activeElements.length === 0 ? (
+										<div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+											No elements at current time
+										</div>
+									) : (
+										activeElements.map((elementData, index) =>
+											renderElement(elementData, index)
+										)
+									)}
+								</>
 							)}
 							{activeProject?.backgroundType === "blur" &&
 								blurBackgroundElements.length === 0 &&

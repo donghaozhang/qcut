@@ -2,6 +2,17 @@
 
 > Add wallpaper backgrounds, gradients, rounded corners, padding, and drop shadows for screen recording clips.
 
+## Status: DONE
+
+**Created:**
+- `apps/web/src/lib/screen-recording/wallpapers.ts` — Gradient presets, BackgroundConfig type and defaults
+- `apps/web/src/components/editor/preview-panel/recording-background.tsx` — CSS-based background renderer component
+
+**Modified:**
+- `apps/web/src/stores/screen-recording-store.ts` — Added background config state
+- `apps/web/src/components/editor/preview-panel.tsx` — Integrated RecordingBackground wrapper
+- `apps/web/src/lib/screen-recording/index.ts` — Added wallpaper exports
+
 ## Goal
 
 Screen recordings can be presented with a styled background — similar to Screen Studio's "device frame" feature. The recording video is inset with padding, rounded corners, and a drop shadow, on top of a wallpaper/gradient/solid background.

@@ -4,3 +4,5 @@ export { getCursorSpringConfig, stepSpring, createSpringState } from "./motion-s
 export type { SpringState, SpringConfig } from "./motion-smoothing";
 export { easeOutCubic, easeOutScreenStudio, clamp01, lerp } from "./math-utils";
 export { CURSOR_ASSETS } from "./cursor-assets";
+export { GRADIENT_PRESETS, DEFAULT_BACKGROUND } from "./wallpapers";
+export type { BackgroundConfig, BuiltInWallpaper } from "./wallpapers";
