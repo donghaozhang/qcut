@@ -7,6 +7,7 @@ import type {
 } from "@/types/electron";
 import { platform } from "@qcut/platform-core";
 import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
+import { analyzeForZoomSuggestions } from "@/lib/screen-recording/auto-zoom-analyzer";
 
 const SCREEN_RECORDING_EVENT_NAME = "qcut:screen-recording-status";
 
@@ -489,9 +490,15 @@ export async function stopScreenRecording({
 				const telemetry =
 					await recordingApi?.getCursorTelemetry?.(stopResult.filePath);
 				if (telemetry) {
-					useScreenRecordingEnhancementStore
-						.getState()
-						.setCursorTelemetry(telemetry);
+					const store = useScreenRecordingEnhancementStore.getState();
+					store.setCursorTelemetry(telemetry);
+
+					// Auto-generate zoom suggestions from telemetry
+					const suggestions = analyzeForZoomSuggestions(
+						telemetry,
+						store.autoZoomConfig
+					);
+					store.setZoomRegions(suggestions);
 				}
 			} catch {
 				// Non-fatal: enhancements work without telemetry

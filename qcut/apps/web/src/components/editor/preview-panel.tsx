@@ -44,6 +44,7 @@ import { MonitorPlay, AppWindow, Bot } from "lucide-react";
 import { CursorOverlay } from "./preview-panel/cursor-overlay";
 import { RecordingBackground } from "./preview-panel/recording-background";
 import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
+import { computeZoomTransform } from "@/lib/screen-recording/zoom-transform";
 
 /** Main preview panel component for video playback, MCP apps, and element overlays. */
 export function PreviewPanel() {
@@ -127,6 +128,9 @@ export function PreviewPanel() {
 	);
 	const recordingBackground = useScreenRecordingEnhancementStore(
 		(s) => s.background
+	);
+	const zoomRegions = useScreenRecordingEnhancementStore(
+		(s) => s.zoomRegions
 	);
 
 	// Local MCP: derive HTML fresh from template every render (auto-reload on HMR)
@@ -309,6 +313,26 @@ export function PreviewPanel() {
 				handlePlaybackSeek as EventListener
 			);
 	}, []);
+
+	// Compute zoom transform for screen recording enhancements
+	const zoomTransform = useMemo(() => {
+		if (zoomRegions.length === 0) return null;
+		const timeMs = (isPlaying ? playbackTime : currentTime) * 1000;
+		return computeZoomTransform(
+			timeMs,
+			zoomRegions,
+			canvasSize.width,
+			canvasSize.height
+		);
+	}, [zoomRegions, isPlaying, playbackTime, currentTime, canvasSize]);
+
+	const zoomStyle: React.CSSProperties | undefined =
+		zoomTransform && zoomTransform.scale > 1.001
+			? {
+					transform: `scale(${zoomTransform.scale}) translate(${zoomTransform.translateX / zoomTransform.scale}px, ${zoomTransform.translateY / zoomTransform.scale}px)`,
+					transformOrigin: "top left",
+				}
+			: undefined;
 
 	const hasAnyElements = tracks.some((track) => track.elements.length > 0);
 	const getActiveElements = useCallback((): ActiveElement[] => {
@@ -720,19 +744,27 @@ export function PreviewPanel() {
 									width={previewDimensions.width || canvasSize.width}
 									height={previewDimensions.height || canvasSize.height}
 								>
-									{renderBlurBackground()}
-									{activeElements.length === 0 ? (
-										<div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-											No elements at current time
-										</div>
-									) : (
-										activeElements.map((elementData, index) =>
-											renderElement(elementData, index)
-										)
-									)}
+									<div
+										className="absolute inset-0"
+										style={zoomStyle}
+									>
+										{renderBlurBackground()}
+										{activeElements.length === 0 ? (
+											<div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+												No elements at current time
+											</div>
+										) : (
+											activeElements.map((elementData, index) =>
+												renderElement(elementData, index)
+											)
+										)}
+									</div>
 								</RecordingBackground>
 							) : (
-								<>
+								<div
+									className="absolute inset-0"
+									style={zoomStyle}
+								>
 									{renderBlurBackground()}
 									{activeElements.length === 0 ? (
 										<div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
@@ -743,7 +775,7 @@ export function PreviewPanel() {
 											renderElement(elementData, index)
 										)
 									)}
-								</>
+								</div>
 							)}
 							{activeProject?.backgroundType === "blur" &&
 								blurBackgroundElements.length === 0 &&

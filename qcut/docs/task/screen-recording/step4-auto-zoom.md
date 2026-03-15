@@ -2,6 +2,20 @@
 
 > Analyze cursor telemetry to automatically suggest zoom regions, plus manual zoom region editing.
 
+## Status: DONE
+
+**Created:**
+- `apps/web/src/lib/screen-recording/zoom-region-utils.ts` — ZoomRegion type, strength calculation, region merging
+- `apps/web/src/lib/screen-recording/zoom-transform.ts` — Viewport transform computation from zoom regions
+- `apps/web/src/lib/screen-recording/auto-zoom-analyzer.ts` — Click clustering + dwell detection algorithm
+- `apps/web/src/lib/screen-recording/focus-utils.ts` — Focus area constraint calculations
+- `apps/web/src/lib/screen-recording/constants.ts` — Shared zoom/timing constants
+
+**Modified:**
+- `apps/web/src/stores/screen-recording-store.ts` — Added zoom region CRUD + auto-zoom config state
+- `apps/web/src/lib/project/screen-recording-controller.ts` — Auto-generate zoom suggestions after recording
+- `apps/web/src/components/editor/preview-panel.tsx` — Apply CSS zoom transform during playback
+
 ## Goal
 
 After a screen recording completes (or when reviewing cursor telemetry), generate automatic zoom suggestions based on cursor activity patterns. Users can accept, reject, or manually add/edit zoom regions. Zoom regions are stored as a track in QCut's timeline.
