@@ -834,9 +834,7 @@ if (!isCliKeyCommand) {
 					if (setupPiAgentIPC) {
 						await setupPiAgentIPC();
 					} else {
-						console.log(
-							"⚠️ PiAgentIPC skipped (pi-mono not available)",
-						);
+						console.log("⚠️ PiAgentIPC skipped (pi-mono not available)");
 					}
 				},
 			],
