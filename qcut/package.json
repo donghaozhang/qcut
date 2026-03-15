@@ -378,11 +378,13 @@
 		"jszip": "^3.10.1",
 		"next": "^16.0.0",
 		"node-pty": "^1.1.0",
+		"pixi.js": "^8.0.0",
 		"react": "^19.1.0",
 		"react-dom": "^19.1.0",
 		"remotion": "4.0.424",
 		"scheduler": "^0.27.0",
 		"tldraw": "^4.4.0",
+		"uiohook-napi": "^1.5.4",
 		"wavesurfer.js": "^7.12.1",
 		"zod": "3.25.76"
 	},

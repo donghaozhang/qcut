@@ -6,6 +6,7 @@ import type {
 	StopScreenRecordingResult,
 } from "@/types/electron";
 import { platform } from "@qcut/platform-core";
+import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
 
 const SCREEN_RECORDING_EVENT_NAME = "qcut:screen-recording-status";
 
@@ -479,6 +480,22 @@ export async function stopScreenRecording({
 
 		if (recordingState.chunkWriteError) {
 			throw recordingState.chunkWriteError;
+		}
+
+		// Load cursor telemetry sidecar after successful stop
+		if (stopResult.filePath) {
+			try {
+				const recordingApi = getRecordingApi();
+				const telemetry =
+					await recordingApi?.getCursorTelemetry?.(stopResult.filePath);
+				if (telemetry) {
+					useScreenRecordingEnhancementStore
+						.getState()
+						.setCursorTelemetry(telemetry);
+				}
+			} catch {
+				// Non-fatal: enhancements work without telemetry
+			}
 		}
 
 		return stopResult;

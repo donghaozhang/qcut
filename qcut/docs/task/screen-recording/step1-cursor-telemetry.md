@@ -2,6 +2,21 @@
 
 > Record mouse coordinates + click events alongside screen capture, saved as a JSON sidecar file.
 
+## Status: DONE
+
+**Created:**
+- `electron/screen-recording-handler/cursor-telemetry.ts` — CursorTelemetryRecorder class with uiohook-napi + polling fallback
+- `electron/screen-recording-handler/cursor-telemetry-io.ts` — Sidecar file I/O (read/write .cursor.json)
+- `apps/web/src/types/electron/cursor-telemetry.ts` — Renderer-side type definitions
+- `apps/web/src/stores/screen-recording-store.ts` — Zustand store for enhancement state
+
+**Modified:**
+- `electron/screen-recording-handler/ipc.ts` — Start/stop cursor telemetry with recording, added `screen:getCursorTelemetry` IPC handler
+- `electron/preload.ts` — Added `getCursorTelemetry` to screenRecording bridge
+- `electron/preload-types/supporting-types.ts` — Added CursorTelemetryPoint/Data types
+- `apps/web/src/types/electron/api-audio-video.ts` — Extended ElectronScreenRecordingOps with getCursorTelemetry
+- `apps/web/src/lib/project/screen-recording-controller.ts` — Load telemetry sidecar after stop, store in enhancement store
+
 ## Goal
 
 When a user starts a screen recording, simultaneously capture cursor position (x, y), click state, and cursor type at ~60Hz. Save as `.cursor.json` sidecar alongside the recorded video.

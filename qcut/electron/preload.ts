@@ -170,6 +170,10 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke("screen:stopRecording", options),
 		getStatus: (): Promise<ScreenRecordingStatus> =>
 			ipcRenderer.invoke("screen:getStatus"),
+		getCursorTelemetry: (
+			videoPath: string
+		): Promise<import("./preload-types.js").CursorTelemetryData | null> =>
+			ipcRenderer.invoke("screen:getCursorTelemetry", videoPath),
 	},
 
 	// Transcription operations (Gemini API + ElevenLabs)

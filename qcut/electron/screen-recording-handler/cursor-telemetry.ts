@@ -1,0 +1,175 @@
+import { screen } from "electron";
+import { log } from "./logger.js";
+
+export interface CursorTelemetryPoint {
+	t: number;
+	x: number;
+	y: number;
+	p: boolean;
+	c?: string;
+}
+
+export interface CursorTelemetryData {
+	version: 1;
+	captureRect: { x: number; y: number; width: number; height: number };
+	points: CursorTelemetryPoint[];
+}
+
+const POLL_INTERVAL_MS = 16; // ~60Hz
+
+/**
+ * Records cursor position at ~60Hz alongside a screen recording session.
+ *
+ * Uses uiohook-napi for mouse events when available, falling back to
+ * Electron's screen.getCursorScreenPoint() polling.
+ */
+export class CursorTelemetryRecorder {
+	private recording = false;
+	private startTime = 0;
+	private points: CursorTelemetryPoint[] = [];
+	private captureRect = { x: 0, y: 0, width: 1920, height: 1080 };
+	private pollTimer: ReturnType<typeof setInterval> | null = null;
+	private pressed = false;
+	private uiohook: typeof import("uiohook-napi") | null = null;
+
+	start(captureRect: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	}): void {
+		if (this.recording) return;
+
+		this.recording = true;
+		this.startTime = Date.now();
+		this.points = [];
+		this.captureRect = captureRect;
+		this.pressed = false;
+
+		this.startCapture();
+	}
+
+	stop(): CursorTelemetryData {
+		this.recording = false;
+		this.stopCapture();
+
+		const data: CursorTelemetryData = {
+			version: 1,
+			captureRect: { ...this.captureRect },
+			points: this.points,
+		};
+		this.points = [];
+		return data;
+	}
+
+	isRecording(): boolean {
+		return this.recording;
+	}
+
+	private startCapture(): void {
+		try {
+			// Try uiohook-napi for native mouse events
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			this.uiohook = require("uiohook-napi");
+			this.startUIOHookCapture();
+		} catch {
+			log.warn(
+				"[CursorTelemetry] uiohook-napi unavailable, falling back to polling"
+			);
+			this.startPollingCapture();
+		}
+	}
+
+	private startUIOHookCapture(): void {
+		if (!this.uiohook) return;
+
+		const { uIOhook, UiohookKey } = this.uiohook;
+		let lastRecordedTime = 0;
+
+		const onMouseMove = (e: { x: number; y: number }) => {
+			if (!this.recording) return;
+			const now = Date.now();
+			const t = now - this.startTime;
+			// Throttle to ~60Hz
+			if (t - lastRecordedTime < POLL_INTERVAL_MS) return;
+			lastRecordedTime = t;
+			this.points.push({ t, x: e.x, y: e.y, p: this.pressed });
+		};
+
+		const onMouseDown = (e: { x: number; y: number }) => {
+			if (!this.recording) return;
+			this.pressed = true;
+			const t = Date.now() - this.startTime;
+			this.points.push({ t, x: e.x, y: e.y, p: true });
+		};
+
+		const onMouseUp = (e: { x: number; y: number }) => {
+			if (!this.recording) return;
+			this.pressed = false;
+			const t = Date.now() - this.startTime;
+			this.points.push({ t, x: e.x, y: e.y, p: false });
+		};
+
+		uIOhook.on("mousemove", onMouseMove);
+		uIOhook.on("mousedown", onMouseDown);
+		uIOhook.on("mouseup", onMouseUp);
+		uIOhook.start();
+	}
+
+	private startPollingCapture(): void {
+		this.pollTimer = setInterval(() => {
+			if (!this.recording) return;
+			try {
+				const point = screen.getCursorScreenPoint();
+				const t = Date.now() - this.startTime;
+				this.points.push({ t, x: point.x, y: point.y, p: this.pressed });
+			} catch {
+				// Ignore transient errors during polling
+			}
+		}, POLL_INTERVAL_MS);
+	}
+
+	private stopCapture(): void {
+		if (this.uiohook) {
+			try {
+				this.uiohook.uIOhook.stop();
+			} catch {
+				// best-effort stop
+			}
+			this.uiohook = null;
+		}
+
+		if (this.pollTimer) {
+			clearInterval(this.pollTimer);
+			this.pollTimer = null;
+		}
+	}
+}
+
+/**
+ * Determine the capture rectangle for a given recording source.
+ * Falls back to primary display bounds.
+ */
+export function getCaptureRect(sourceId: string): {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+} {
+	try {
+		const displays = screen.getAllDisplays();
+
+		// Screen sources have format "screen:0:0" — extract displayId
+		if (sourceId.startsWith("screen:")) {
+			const displayId = sourceId.split(":")[1];
+			const display = displays.find((d) => String(d.id) === displayId);
+			if (display) return display.bounds;
+		}
+
+		// Fallback to primary display
+		const primary = screen.getPrimaryDisplay();
+		return primary.bounds;
+	} catch {
+		return { x: 0, y: 0, width: 1920, height: 1080 };
+	}
+}

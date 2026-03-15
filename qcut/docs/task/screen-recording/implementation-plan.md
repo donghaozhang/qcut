@@ -42,7 +42,7 @@ Each step has its own detailed doc:
 
 | # | Step | Doc | New/Modified Files | Estimate |
 |---|------|-----|-------------------|----------|
-| 1 | Cursor telemetry capture | [step1-cursor-telemetry.md](step1-cursor-telemetry.md) | 4 new, 4 modified | 1 day |
+| 1 | ~~Cursor telemetry capture~~ | [step1-cursor-telemetry.md](step1-cursor-telemetry.md) | 4 new, 5 modified | DONE |
 | 2 | Cursor renderer (PixiJS) | [step2-cursor-renderer.md](step2-cursor-renderer.md) | 6 new, 2 modified | 1 day |
 | 3 | Background beautification | [step3-background-beautification.md](step3-background-beautification.md) | 4 new, 2 modified | 0.5 day |
 | 4 | Auto-zoom suggestions | [step4-auto-zoom.md](step4-auto-zoom.md) | 5 new, 3 modified | 2 days |

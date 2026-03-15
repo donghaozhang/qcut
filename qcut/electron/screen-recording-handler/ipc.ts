@@ -32,6 +32,13 @@ import {
 	ensureDisplayMediaHandlerConfigured,
 	buildStatus,
 } from "./session.js";
+import {
+	CursorTelemetryRecorder,
+	getCaptureRect,
+} from "./cursor-telemetry.js";
+import { writeCursorTelemetry, readCursorTelemetry } from "./cursor-telemetry-io.js";
+
+const cursorRecorder = new CursorTelemetryRecorder();
 
 async function discardActiveSession({
 	sessionData,
@@ -60,6 +67,11 @@ async function discardActiveSession({
 }
 
 export async function forceStopActiveScreenRecordingSession(): Promise<ForceStopScreenRecordingResult> {
+	// Stop cursor telemetry if running
+	if (cursorRecorder.isRecording()) {
+		cursorRecorder.stop();
+	}
+
 	const sessionToStop = getActiveSession();
 	if (!sessionToStop) {
 		return {
@@ -186,6 +198,10 @@ export function setupScreenRecordingIPC(): void {
 				});
 				createdSession = true;
 
+				// Start cursor telemetry capture
+				const captureRect = getCaptureRect(selectedSource.id);
+				cursorRecorder.start(captureRect);
+
 				return {
 					sessionId,
 					sourceId: selectedSource.id,
@@ -303,6 +319,12 @@ export function setupScreenRecordingIPC(): void {
 				await sessionToStop.writeQueue;
 				await closeStream({ fileStream: sessionToStop.fileStream });
 
+				// Stop cursor telemetry and save sidecar
+				let cursorTelemetryData = null;
+				if (cursorRecorder.isRecording()) {
+					cursorTelemetryData = cursorRecorder.stop();
+				}
+
 				let finalPath: string | null = sessionToStop.filePath;
 				let finalizedBytes = sessionToStop.bytesWritten;
 				if (shouldDiscard) {
@@ -313,6 +335,15 @@ export function setupScreenRecordingIPC(): void {
 						sessionData: sessionToStop,
 					});
 					finalizedBytes = await getFileSize({ filePath: finalPath });
+
+					// Write cursor telemetry sidecar alongside the video
+					if (cursorTelemetryData && finalPath) {
+						try {
+							await writeCursorTelemetry(finalPath, cursorTelemetryData);
+						} catch {
+							// Non-fatal: recording still succeeds without telemetry
+						}
+					}
 				}
 
 				setActiveSession(null);
@@ -361,4 +392,11 @@ export function setupScreenRecordingIPC(): void {
 			);
 		}
 	});
+
+	ipcMain.handle(
+		"screen:getCursorTelemetry",
+		async (_event: IpcMainInvokeEvent, videoPath: string) => {
+			return await readCursorTelemetry(videoPath);
+		}
+	);
 }
