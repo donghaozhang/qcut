@@ -2,6 +2,20 @@
 
 > Render a smooth, animated cursor on the preview panel using PixiJS, driven by telemetry data.
 
+## Status: DONE
+
+**Created:**
+- `apps/web/src/lib/screen-recording/cursor-renderer.ts` — PixiJS cursor renderer with spring smoothing and click bounce
+- `apps/web/src/lib/screen-recording/motion-smoothing.ts` — Spring physics model
+- `apps/web/src/lib/screen-recording/math-utils.ts` — Easing curves and interpolation
+- `apps/web/src/lib/screen-recording/cursor-assets.ts` — macOS-style cursor SVG data URLs
+- `apps/web/src/lib/screen-recording/index.ts` — Barrel exports
+- `apps/web/src/components/editor/preview-panel/cursor-overlay.tsx` — React PixiJS overlay component
+
+**Modified:**
+- `apps/web/src/stores/screen-recording-store.ts` — Added cursorConfig, showCursorOverlay state
+- `apps/web/src/components/editor/preview-panel.tsx` — Integrated CursorOverlay component
+
 ## Goal
 
 When a screen recording clip with cursor telemetry is on the timeline, render a polished cursor overlay on the preview canvas — with spring physics smoothing, click bounce animation, and optional motion blur.

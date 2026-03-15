@@ -41,6 +41,8 @@ import {
 import { PreviewAgentView } from "./preview-panel/preview-agent-view";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { MonitorPlay, AppWindow, Bot } from "lucide-react";
+import { CursorOverlay } from "./preview-panel/cursor-overlay";
+import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
 
 /** Main preview panel component for video playback, MCP apps, and element overlays. */
 export function PreviewPanel() {
@@ -113,6 +115,15 @@ export function PreviewPanel() {
 	const setLocalMcpActive = useMcpAppStore((state) => state.setLocalMcpActive);
 	const previewMode = usePreviewModeStore((state) => state.previewMode);
 	const setPreviewMode = usePreviewModeStore((state) => state.setPreviewMode);
+	const cursorTelemetry = useScreenRecordingEnhancementStore(
+		(s) => s.cursorTelemetry
+	);
+	const cursorConfig = useScreenRecordingEnhancementStore(
+		(s) => s.cursorConfig
+	);
+	const showCursorOverlay = useScreenRecordingEnhancementStore(
+		(s) => s.showCursorOverlay
+	);
 
 	// Local MCP: derive HTML fresh from template every render (auto-reload on HMR)
 	// External MCP: use stored HTML from IPC
@@ -722,6 +733,20 @@ export function PreviewPanel() {
 								className="absolute inset-0"
 								disabled={isExpanded}
 							/>
+
+							{/* Cursor telemetry overlay */}
+							{cursorTelemetry && showCursorOverlay && (
+								<CursorOverlay
+									canvasWidth={previewDimensions.width}
+									canvasHeight={previewDimensions.height}
+									currentTimeMs={
+										(isPlaying ? playbackTime : currentTime) * 1000
+									}
+									telemetry={cursorTelemetry}
+									config={cursorConfig}
+									visible={showCursorOverlay}
+								/>
+							)}
 
 							{/* Captions overlay - renders on top of stickers */}
 							<CaptionsDisplay
