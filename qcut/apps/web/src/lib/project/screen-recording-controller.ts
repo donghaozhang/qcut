@@ -18,6 +18,9 @@ const SCREEN_RECORDING_STATE = {
 
 const DEFAULT_TIMESLICE_MS = 1000;
 
+/** Target bitrate for screen capture MediaRecorder (5 Mbps — good for screen content). */
+const SCREEN_CAPTURE_BITRATE = 5_000_000;
+
 const MIME_TYPE_CANDIDATES = [
 	"video/webm;codecs=vp9,opus",
 	"video/webm;codecs=vp8,opus",
@@ -349,7 +352,9 @@ export async function startScreenRecording({
 
 		mediaStream = await getCaptureStream({ sourceId: startResult.sourceId });
 
-		const recorderOptions: MediaRecorderOptions = {};
+		const recorderOptions: MediaRecorderOptions = {
+			videoBitsPerSecond: SCREEN_CAPTURE_BITRATE,
+		};
 		const resolvedMimeType = options.mimeType ?? mimeType;
 		if (resolvedMimeType) {
 			recorderOptions.mimeType = resolvedMimeType;
