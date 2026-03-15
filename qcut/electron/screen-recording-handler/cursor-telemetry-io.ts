@@ -24,11 +24,11 @@ export async function writeCursorTelemetry(
 	const sidecarPath = getCursorSidecarPath(videoPath);
 	try {
 		await fs.writeFile(sidecarPath, JSON.stringify(data), "utf-8");
-		log.info(
+		console.log(
 			`[CursorTelemetry] Wrote ${data.points.length} points to ${sidecarPath}`
 		);
 	} catch (error) {
-		log.error("[CursorTelemetry] Failed to write sidecar:", error);
+		console.error("[CursorTelemetry] Failed to write sidecar:", error);
 		throw error;
 	}
 }
@@ -45,7 +45,7 @@ export async function readCursorTelemetry(
 		const content = await fs.readFile(sidecarPath, "utf-8");
 		const data = JSON.parse(content) as CursorTelemetryData;
 		if (data.version !== 1 || !Array.isArray(data.points)) {
-			log.warn("[CursorTelemetry] Invalid sidecar format:", sidecarPath);
+			console.warn("[CursorTelemetry] Invalid sidecar format:", sidecarPath);
 			return null;
 		}
 		return data;
@@ -53,7 +53,7 @@ export async function readCursorTelemetry(
 		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
 			return null;
 		}
-		log.error("[CursorTelemetry] Failed to read sidecar:", error);
+		console.error("[CursorTelemetry] Failed to read sidecar:", error);
 		return null;
 	}
 }
