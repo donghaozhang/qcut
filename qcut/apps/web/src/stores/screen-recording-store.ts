@@ -48,7 +48,7 @@ export const hasActiveEnhancements = (
 	state: ScreenRecordingEnhancementState
 ): boolean =>
 	state.background.type !== "none" ||
-	state.showCursorOverlay ||
+	(state.showCursorOverlay && state.cursorTelemetry !== null) ||
 	state.zoomRegions.length > 0;
 
 export const useScreenRecordingEnhancementStore =

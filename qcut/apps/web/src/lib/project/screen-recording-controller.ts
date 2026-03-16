@@ -489,6 +489,10 @@ export async function stopScreenRecording({
 		}
 
 		// Load cursor telemetry sidecar after successful stop
+		const store = useScreenRecordingEnhancementStore.getState();
+		// Clear previous telemetry before loading new data
+		store.setCursorTelemetry(null);
+		store.setZoomRegions([]);
 		if (stopResult.filePath) {
 			try {
 				const recordingApi = getRecordingApi();
@@ -496,7 +500,6 @@ export async function stopScreenRecording({
 					stopResult.filePath
 				);
 				if (telemetry) {
-					const store = useScreenRecordingEnhancementStore.getState();
 					store.setCursorTelemetry(telemetry);
 
 					// Auto-generate zoom suggestions from telemetry

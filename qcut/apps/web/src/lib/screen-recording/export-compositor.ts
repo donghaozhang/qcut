@@ -92,16 +92,26 @@ export class ScreenRecordingExportCompositor {
 			ctx.drawImage(videoFrame, 0, 0, outputWidth, outputHeight);
 		}
 
-		ctx.restore();
-
-		// Step 4: Draw cursor overlay
+		// Step 4: Draw cursor overlay (inside zoom transform context)
 		if (this.config.telemetry && cursorConfig.cursorStyle !== "hidden") {
-			this.renderCursor(ctx, timeMs);
+			this.renderCursor(
+				ctx,
+				timeMs,
+				background.type !== "none" ? background.padding : 0
+			);
 		}
+
+		ctx.restore();
 	}
 
-	private renderCursor(ctx: CanvasRenderingContext2D, timeMs: number): void {
+	private renderCursor(
+		ctx: CanvasRenderingContext2D,
+		timeMs: number,
+		padding = 0
+	): void {
 		const { telemetry, cursorConfig, outputWidth, outputHeight } = this.config;
+		const videoW = outputWidth - padding * 2;
+		const videoH = outputHeight - padding * 2;
 		if (!telemetry || telemetry.points.length === 0) return;
 
 		// Find current point via binary search
@@ -124,10 +134,15 @@ export class ScreenRecordingExportCompositor {
 		this.lastTimeMs = timeMs;
 
 		const springConfig = getCursorSpringConfig(cursorConfig.smoothingFactor);
-		this.springX = stepSpring(this.springX, rx * outputWidth, springConfig, dt);
+		this.springX = stepSpring(
+			this.springX,
+			padding + rx * videoW,
+			springConfig,
+			dt
+		);
 		this.springY = stepSpring(
 			this.springY,
-			ry * outputHeight,
+			padding + ry * videoH,
 			springConfig,
 			dt
 		);

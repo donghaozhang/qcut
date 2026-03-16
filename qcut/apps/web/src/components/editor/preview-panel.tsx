@@ -736,12 +736,8 @@ export function PreviewPanel() {
 										: activeProject?.backgroundColor || "#000000",
 							}}
 						>
-							{recordingBackground.type !== "none" ? (
-								<RecordingBackground
-									background={recordingBackground}
-									width={previewDimensions.width || canvasSize.width}
-									height={previewDimensions.height || canvasSize.height}
-								>
+							{(() => {
+								const zoomContent = (
 									<div className="absolute inset-0" style={zoomStyle}>
 										{renderBlurBackground()}
 										{activeElements.length === 0 ? (
@@ -754,21 +750,19 @@ export function PreviewPanel() {
 											)
 										)}
 									</div>
-								</RecordingBackground>
-							) : (
-								<div className="absolute inset-0" style={zoomStyle}>
-									{renderBlurBackground()}
-									{activeElements.length === 0 ? (
-										<div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-											No elements at current time
-										</div>
-									) : (
-										activeElements.map((elementData, index) =>
-											renderElement(elementData, index)
-										)
-									)}
-								</div>
-							)}
+								);
+								return recordingBackground.type !== "none" ? (
+									<RecordingBackground
+										background={recordingBackground}
+										width={previewDimensions.width || canvasSize.width}
+										height={previewDimensions.height || canvasSize.height}
+									>
+										{zoomContent}
+									</RecordingBackground>
+								) : (
+									zoomContent
+								);
+							})()}
 							{activeProject?.backgroundType === "blur" &&
 								blurBackgroundElements.length === 0 &&
 								activeElements.length > 0 && (

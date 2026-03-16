@@ -104,12 +104,28 @@ export class CursorRenderer {
 			canvasHeight
 		);
 
-		// Spring smoothing
-		const dt = this.lastTimeMs >= 0 ? (timeMs - this.lastTimeMs) / 1000 : 0;
+		// Spring smoothing — reset on seeks or long gaps
+		const rawDt = this.lastTimeMs >= 0 ? (timeMs - this.lastTimeMs) / 1000 : 0;
 		this.lastTimeMs = timeMs;
 
-		this.springX = stepSpring(this.springX, canvasPos.x, this.springConfig, dt);
-		this.springY = stepSpring(this.springY, canvasPos.y, this.springConfig, dt);
+		if (rawDt < 0 || rawDt > 0.5) {
+			// Seek or long stall: snap springs to target
+			this.springX = { value: canvasPos.x, velocity: 0, initialized: true };
+			this.springY = { value: canvasPos.y, velocity: 0, initialized: true };
+		} else {
+			this.springX = stepSpring(
+				this.springX,
+				canvasPos.x,
+				this.springConfig,
+				rawDt
+			);
+			this.springY = stepSpring(
+				this.springY,
+				canvasPos.y,
+				this.springConfig,
+				rawDt
+			);
+		}
 
 		const smoothX = this.springX.value;
 		const smoothY = this.springY.value;
@@ -131,11 +147,12 @@ export class CursorRenderer {
 				if (t < mid) {
 					bounceScale = 1 - 0.15 * this.config.clickBounce * (t / mid);
 				} else {
+					// Recover from squeeze back to 1.0 (matches export renderer formula)
 					bounceScale =
-						0.85 * this.config.clickBounce +
-						0.15 * this.config.clickBounce * clamp01((t - mid) / (1 - mid));
-					bounceScale =
-						1 - (1 - bounceScale) * (1 - clamp01((t - mid) / (1 - mid)));
+						1 -
+						0.15 *
+							this.config.clickBounce *
+							(1 - clamp01((t - mid) / (1 - mid)));
 				}
 			} else {
 				this.clickStartMs = -1;
@@ -177,9 +194,20 @@ export class CursorRenderer {
 	}
 
 	updateConfig(config: Partial<CursorRenderConfig>): void {
+		const prevStyle = this.config.cursorStyle;
 		Object.assign(this.config, config);
 		if (config.smoothingFactor !== undefined) {
 			this.springConfig = getCursorSpringConfig(config.smoothingFactor);
+		}
+		// Rebuild sprite when cursor style changes
+		if (config.cursorStyle !== undefined && config.cursorStyle !== prevStyle) {
+			if (this.cursorSprite) {
+				this.cursorSprite.destroy();
+				this.cursorSprite = null;
+			}
+			if (config.cursorStyle !== "dot" && config.cursorStyle !== "hidden") {
+				this.loadCursorSprite(config.cursorStyle);
+			}
 		}
 	}
 

@@ -90,7 +90,7 @@ export function ScreenRecordingPanel() {
 		setZoomRegions([]);
 	}, [setZoomRegions]);
 
-	// Keyboard shortcuts: Ctrl/Cmd+Shift+C = toggle cursor, Ctrl/Cmd+Shift+Z = auto-zoom
+	// Keyboard shortcuts: Ctrl/Cmd+Shift+C = toggle cursor, Ctrl/Cmd+Shift+G = auto-zoom
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
 			const hasModifier = e.ctrlKey || e.metaKey;
@@ -100,7 +100,7 @@ export function ScreenRecordingPanel() {
 			if (key === "c") {
 				e.preventDefault();
 				setShowCursorOverlay(!showCursorOverlay);
-			} else if (key === "z" && cursorTelemetry) {
+			} else if (key === "g" && cursorTelemetry) {
 				e.preventDefault();
 				handleAutoGenerate();
 			}

@@ -30,7 +30,8 @@ export class CursorTelemetryRecorder {
 	private captureRect = { x: 0, y: 0, width: 1920, height: 1080 };
 	private pollTimer: ReturnType<typeof setInterval> | null = null;
 	private pressed = false;
-	private uiohook: typeof import("uiohook-napi") | null = null;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	private uiohook: any = null;
 
 	start(captureRect: {
 		x: number;
@@ -71,8 +72,8 @@ export class CursorTelemetryRecorder {
 		this.startPollingCapture();
 
 		// Optionally use uiohook-napi for press/release state
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
 		try {
-			// eslint-disable-next-line @typescript-eslint/no-require-imports
 			this.uiohook = require("uiohook-napi");
 			this.startUIOHookPressTracking();
 		} catch {

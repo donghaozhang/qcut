@@ -57,7 +57,7 @@ export function mergeOverlappingRegions(regions: ZoomRegion[]): ZoomRegion[] {
 	if (regions.length <= 1) return [...regions];
 
 	const sorted = [...regions].sort((a, b) => a.startMs - b.startMs);
-	const merged: ZoomRegion[] = [sorted[0]];
+	const merged: ZoomRegion[] = [{ ...sorted[0] }];
 
 	for (let i = 1; i < sorted.length; i++) {
 		const current = sorted[i];

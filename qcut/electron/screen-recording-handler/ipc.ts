@@ -67,9 +67,10 @@ async function discardActiveSession({
 }
 
 export async function forceStopActiveScreenRecordingSession(): Promise<ForceStopScreenRecordingResult> {
-	// Stop cursor telemetry if running
+	// Stop cursor telemetry before any file I/O
+	let cursorTelemetryData = null;
 	if (cursorRecorder.isRecording()) {
-		cursorRecorder.stop();
+		cursorTelemetryData = cursorRecorder.stop();
 	}
 
 	const sessionToStop = getActiveSession();
@@ -90,7 +91,19 @@ export async function forceStopActiveScreenRecordingSession(): Promise<ForceStop
 		// pending writes and hangs if the renderer is still sending chunks
 		sessionToStop.fileStream.destroy();
 		// Transcode whatever was written so far
-		await finalizeRecordingOutput({ sessionData: sessionToStop });
+		const finalPath = await finalizeRecordingOutput({
+			sessionData: sessionToStop,
+		});
+
+		// Write cursor telemetry sidecar if available
+		if (cursorTelemetryData && finalPath) {
+			try {
+				await writeCursorTelemetry(finalPath, cursorTelemetryData);
+			} catch {
+				// Sidecar write failure is non-fatal
+			}
+		}
+
 		return {
 			success: true,
 			wasRecording: true,
@@ -316,14 +329,14 @@ export function setupScreenRecordingIPC(): void {
 				const shouldDiscard = options.discard ?? false;
 				const durationMs = Math.max(0, Date.now() - sessionToStop.startedAt);
 
-				await sessionToStop.writeQueue;
-				await closeStream({ fileStream: sessionToStop.fileStream });
-
-				// Stop cursor telemetry and save sidecar
+				// Stop cursor telemetry before draining file I/O
 				let cursorTelemetryData = null;
 				if (cursorRecorder.isRecording()) {
 					cursorTelemetryData = cursorRecorder.stop();
 				}
+
+				await sessionToStop.writeQueue;
+				await closeStream({ fileStream: sessionToStop.fileStream });
 
 				let finalPath: string | null = sessionToStop.filePath;
 				let finalizedBytes = sessionToStop.bytesWritten;

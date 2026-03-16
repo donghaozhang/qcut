@@ -44,8 +44,13 @@ export function analyzeForZoomSuggestions(
 
 	const regions: ZoomRegion[] = [];
 
-	// Phase 1: Click clustering
-	const clickPoints = points.filter((p) => p.p);
+	// Phase 1: Click clustering — detect distinct clicks (pressed→released edges)
+	const clickPoints: typeof points = [];
+	for (let i = 0; i < points.length; i++) {
+		if (points[i].p && (i === 0 || !points[i - 1].p)) {
+			clickPoints.push(points[i]);
+		}
+	}
 	const usedClicks = new Set<number>();
 
 	for (let i = 0; i < clickPoints.length; i++) {
