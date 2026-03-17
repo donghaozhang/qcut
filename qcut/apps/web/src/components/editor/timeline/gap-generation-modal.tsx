@@ -180,8 +180,7 @@ export function GapGenerationModal() {
 		return () => {
 			frameExtractionRef.current = false;
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [isOpen, selectedGap?.trackId, selectedGap?.startTime]);
+	}, [isOpen, selectedGap, tracks, mediaItems]); // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
 
 	// Prompt suggestion via Gemini
 	const triggerSuggestion = useCallback(async () => {

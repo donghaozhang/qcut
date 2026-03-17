@@ -62,7 +62,7 @@
 				"dist-packager/**",
 				"**/test-output/**",
 				"resources/default-skills/**",
-			"docs/task/**"
+				"docs/task/**"
 			],
 			"linter": {
 				"enabled": false
