@@ -52,4 +52,5 @@ User Query
 | [03-clip-extraction.md](03-clip-extraction.md) | VST clip and snapshot extraction |
 | [04-agent-orchestration.md](04-agent-orchestration.md) | Agent hierarchy and LangGraph workflows |
 | [05-reuse-analysis.md](05-reuse-analysis.md) | **What QCut can reuse** |
+| [06-embedding-options.md](06-embedding-options.md) | All embedding models compared + recommended tiered architecture |
 | [source-files/](source-files/) | Copied source code and configs |
