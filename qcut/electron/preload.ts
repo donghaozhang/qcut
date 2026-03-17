@@ -523,6 +523,63 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 	// File path utility (Electron 37+ removed File.path)
 	getPathForFile: (file: File): string => webUtils.getPathForFile(file),
 
+	// Video semantic search
+	videoSearch: {
+		search: (
+			projectId: string,
+			query: string,
+			options?: { topK?: number; minScore?: number; mediaFilter?: string[] },
+		): Promise<{
+			results: Array<{
+				mediaId: string;
+				mediaName: string;
+				chunkIndex: number;
+				startTime: number;
+				endTime: number;
+				score: number;
+				thumbnailPath?: string;
+			}>;
+			error?: string;
+			message?: string;
+		}> => ipcRenderer.invoke("video-search:search", projectId, query, options),
+
+		indexMedia: (
+			projectId: string,
+			mediaId: string,
+			mediaPath: string,
+			mediaName: string,
+			totalDuration: number,
+		): Promise<{ status: string; mediaId: string; chunks?: number; error?: string }> =>
+			ipcRenderer.invoke("video-search:index-media", projectId, mediaId, mediaPath, mediaName, totalDuration),
+
+		cancelIndexing: (projectId: string): Promise<void> =>
+			ipcRenderer.invoke("video-search:cancel-indexing", projectId),
+
+		indexStatus: (projectId: string): Promise<{ indexedMediaIds: string[] }> =>
+			ipcRenderer.invoke("video-search:index-status", projectId),
+
+		deleteIndex: (projectId: string, mediaId: string): Promise<{ ok: boolean }> =>
+			ipcRenderer.invoke("video-search:delete-index", projectId, mediaId),
+
+		providerStatus: (): Promise<{ name: string; available: boolean }> =>
+			ipcRenderer.invoke("video-search:provider-status"),
+
+		onIndexProgress: (callback: (progress: {
+			phase: string;
+			current: number;
+			total: number;
+			mediaId?: string;
+			mediaName?: string;
+		}) => void): void => {
+			ipcRenderer.removeAllListeners("video-search:index-progress");
+			ipcRenderer.on("video-search:index-progress", (_, data) => callback(data));
+		},
+
+		removeListeners: (): void => {
+			ipcRenderer.removeAllListeners("video-search:index-progress");
+		},
+	},
+
 	// Utility
 	isElectron: true,
 };
