@@ -49,7 +49,7 @@ function ensureDir(dir: string): void {
 /** Save embeddings for a media item. Atomic write via temp file + rename. */
 export async function saveEmbeddings(
 	projectDir: string,
-	data: MediaEmbeddingFile,
+	data: MediaEmbeddingFile
 ): Promise<void> {
 	const dir = embeddingsDir(projectDir);
 	ensureDir(dir);
@@ -64,7 +64,7 @@ export async function saveEmbeddings(
 /** Load embeddings for a single media item. Returns null if not found. */
 export async function loadMediaEmbeddings(
 	projectDir: string,
-	mediaId: string,
+	mediaId: string
 ): Promise<MediaEmbeddingFile | null> {
 	const filePath = embeddingFilePath(projectDir, mediaId);
 	if (!fs.existsSync(filePath)) return null;
@@ -79,18 +79,20 @@ export async function loadMediaEmbeddings(
 
 /** Load ALL embeddings across all media in a project. */
 export async function loadAllEmbeddings(
-	projectDir: string,
+	projectDir: string
 ): Promise<StoredEmbedding[]> {
 	const dir = embeddingsDir(projectDir);
 	if (!fs.existsSync(dir)) return [];
 
-	const files = fs.readdirSync(dir).filter((f) => f.endsWith(".embeddings.json"));
+	const files = fs
+		.readdirSync(dir)
+		.filter((f) => f.endsWith(".embeddings.json"));
 	const all: StoredEmbedding[] = [];
 
 	for (const file of files) {
 		try {
 			const data: MediaEmbeddingFile = JSON.parse(
-				fs.readFileSync(path.join(dir, file), "utf-8"),
+				fs.readFileSync(path.join(dir, file), "utf-8")
 			);
 			all.push(...data.embeddings);
 		} catch {
@@ -104,7 +106,7 @@ export async function loadAllEmbeddings(
 /** Delete embeddings for a media item. */
 export async function deleteEmbeddings(
 	projectDir: string,
-	mediaId: string,
+	mediaId: string
 ): Promise<void> {
 	const filePath = embeddingFilePath(projectDir, mediaId);
 	if (fs.existsSync(filePath)) {
@@ -113,19 +115,19 @@ export async function deleteEmbeddings(
 }
 
 /** List which media items have been indexed. */
-export async function listIndexedMedia(
-	projectDir: string,
-): Promise<string[]> {
+export async function listIndexedMedia(projectDir: string): Promise<string[]> {
 	const dir = embeddingsDir(projectDir);
 	if (!fs.existsSync(dir)) return [];
 
 	const ids: string[] = [];
-	const files = fs.readdirSync(dir).filter((f) => f.endsWith(".embeddings.json"));
+	const files = fs
+		.readdirSync(dir)
+		.filter((f) => f.endsWith(".embeddings.json"));
 
 	for (const file of files) {
 		try {
 			const data: MediaEmbeddingFile = JSON.parse(
-				fs.readFileSync(path.join(dir, file), "utf-8"),
+				fs.readFileSync(path.join(dir, file), "utf-8")
 			);
 			ids.push(data.mediaId);
 		} catch {
@@ -139,7 +141,7 @@ export async function listIndexedMedia(
 /** Get the provider used for a media item's embeddings. */
 export async function getEmbeddingProvider(
 	projectDir: string,
-	mediaId: string,
+	mediaId: string
 ): Promise<string | null> {
 	const data = await loadMediaEmbeddings(projectDir, mediaId);
 	return data?.provider ?? null;

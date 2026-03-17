@@ -51,7 +51,13 @@ export function SemanticSearchPanel() {
 			cleanupListeners();
 			if (debounceRef.current) clearTimeout(debounceRef.current);
 		};
-	}, [projectId, checkProvider, setupListeners, cleanupListeners, loadIndexedStatus]);
+	}, [
+		projectId,
+		checkProvider,
+		setupListeners,
+		cleanupListeners,
+		loadIndexedStatus,
+	]);
 
 	const handleInputChange = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,7 +74,7 @@ export function SemanticSearchPanel() {
 				if (projectId) search(projectId);
 			}, DEBOUNCE_MS);
 		},
-		[setQuery, search, clearResults, projectId],
+		[setQuery, search, clearResults, projectId]
 	);
 
 	const handleKeyDown = useCallback(
@@ -83,7 +89,7 @@ export function SemanticSearchPanel() {
 				if (projectId) search(projectId);
 			}
 		},
-		[clearResults, search, projectId],
+		[clearResults, search, projectId]
 	);
 
 	const handleResultClick = useCallback((startTime: number) => {
@@ -172,7 +178,10 @@ export function SemanticSearchPanel() {
 				)}
 
 				{!isSearching && query && results.length === 0 && !searchError && (
-					<div className="p-4 text-center text-sm text-muted-foreground" data-testid="semantic-no-results">
+					<div
+						className="p-4 text-center text-sm text-muted-foreground"
+						data-testid="semantic-no-results"
+					>
 						<p>No matches found</p>
 						<p className="text-[0.65rem] mt-1 opacity-70">
 							Try a different description or index more media

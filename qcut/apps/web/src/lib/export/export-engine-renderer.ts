@@ -125,7 +125,11 @@ export async function renderFrame(
 	const compositor = getExportCompositor(canvas);
 	if (compositor) {
 		// Reuse a single offscreen canvas for frame capture across all frames
-		if (!compositorFrameCanvas || compositorFrameCanvas.width !== canvas.width || compositorFrameCanvas.height !== canvas.height) {
+		if (
+			!compositorFrameCanvas ||
+			compositorFrameCanvas.width !== canvas.width ||
+			compositorFrameCanvas.height !== canvas.height
+		) {
 			compositorFrameCanvas = document.createElement("canvas");
 			compositorFrameCanvas.width = canvas.width;
 			compositorFrameCanvas.height = canvas.height;

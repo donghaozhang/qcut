@@ -492,7 +492,7 @@ function TimelineTrackContentComponent({
 	// Memoize gap detection to avoid recomputing on every render
 	const trackGaps = useMemo(
 		() => (track.type === "media" ? detectTimelineGaps([track]) : []),
-		[track.type, track.elements]
+		[track],
 	);
 
 	return (

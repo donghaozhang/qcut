@@ -27,7 +27,7 @@ export interface ChunkOptions {
  */
 export function calculateChunkBoundaries(
 	totalDuration: number,
-	chunkDuration: number,
+	chunkDuration: number
 ): Omit<VideoChunk, "path">[] {
 	const chunks: Omit<VideoChunk, "path">[] = [];
 	let index = 0;
@@ -56,7 +56,7 @@ export async function chunkVideo(
 	videoPath: string,
 	totalDuration: number,
 	options?: ChunkOptions,
-	signal?: AbortSignal,
+	signal?: AbortSignal
 ): Promise<VideoChunk[]> {
 	const chunkDuration = options?.chunkDuration ?? 5;
 	const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "qcut-chunks-"));
@@ -75,14 +75,22 @@ export async function chunkVideo(
 
 		await new Promise<void>((resolve, reject) => {
 			const args = [
-				"-ss", String(boundary.startTime),
-				"-i", videoPath,
-				"-t", String(boundary.duration),
-				"-c:v", "libx264",
-				"-preset", "ultrafast",
-				"-crf", "28",
-				"-c:a", "aac",
-				"-b:a", "64k",
+				"-ss",
+				String(boundary.startTime),
+				"-i",
+				videoPath,
+				"-t",
+				String(boundary.duration),
+				"-c:v",
+				"libx264",
+				"-preset",
+				"ultrafast",
+				"-crf",
+				"28",
+				"-c:a",
+				"aac",
+				"-b:a",
+				"64k",
 				"-y",
 				outputPath,
 			];
@@ -90,7 +98,10 @@ export async function chunkVideo(
 			const proc = spawn(ffmpegPath, args, { stdio: "pipe" });
 			proc.on("close", (code) => {
 				if (code === 0) resolve();
-				else reject(new Error(`FFmpeg chunk ${boundary.index} failed with code ${code}`));
+				else
+					reject(
+						new Error(`FFmpeg chunk ${boundary.index} failed with code ${code}`)
+					);
 			});
 			proc.on("error", reject);
 		});

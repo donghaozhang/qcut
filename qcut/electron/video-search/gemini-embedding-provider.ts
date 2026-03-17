@@ -4,7 +4,10 @@
  */
 
 import fs from "node:fs";
-import type { EmbeddingProvider, EmbeddingResult } from "./embedding-provider.js";
+import type {
+	EmbeddingProvider,
+	EmbeddingResult,
+} from "./embedding-provider.js";
 import { getDecryptedApiKeys } from "../api-key-handler.js";
 
 const MODEL = "gemini-embedding-2-preview";
@@ -17,7 +20,9 @@ export class GeminiEmbeddingProvider implements EmbeddingProvider {
 		const { GoogleGenAI } = await import("@google/genai");
 		const keys = await getDecryptedApiKeys();
 		if (!keys.geminiApiKey) {
-			throw new Error("Gemini API key not configured. Set it in Settings → API Keys.");
+			throw new Error(
+				"Gemini API key not configured. Set it in Settings → API Keys."
+			);
 		}
 		return new GoogleGenAI({ apiKey: keys.geminiApiKey });
 	}

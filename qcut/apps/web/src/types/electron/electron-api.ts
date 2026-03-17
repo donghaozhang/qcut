@@ -162,18 +162,28 @@ export interface ElectronAPI
 			mediaPath: string,
 			mediaName: string,
 			totalDuration: number
-		) => Promise<{ status: string; mediaId: string; chunks?: number; error?: string }>;
+		) => Promise<{
+			status: string;
+			mediaId: string;
+			chunks?: number;
+			error?: string;
+		}>;
 		cancelIndexing: (projectId: string) => Promise<void>;
 		indexStatus: (projectId: string) => Promise<{ indexedMediaIds: string[] }>;
-		deleteIndex: (projectId: string, mediaId: string) => Promise<{ ok: boolean }>;
+		deleteIndex: (
+			projectId: string,
+			mediaId: string
+		) => Promise<{ ok: boolean }>;
 		providerStatus: () => Promise<{ name: string; available: boolean }>;
-		onIndexProgress: (callback: (progress: {
-			phase: string;
-			current: number;
-			total: number;
-			mediaId?: string;
-			mediaName?: string;
-		}) => void) => void;
+		onIndexProgress: (
+			callback: (progress: {
+				phase: string;
+				current: number;
+				total: number;
+				mediaId?: string;
+				mediaName?: string;
+			}) => void
+		) => void;
 		removeListeners: () => void;
 	};
 }

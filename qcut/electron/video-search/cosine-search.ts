@@ -41,7 +41,7 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 export function searchEmbeddings(
 	queryVector: number[],
 	embeddings: StoredEmbedding[],
-	options?: SearchOptions,
+	options?: SearchOptions
 ): SearchResult[] {
 	const topK = options?.topK ?? 20;
 	const minScore = options?.minScore ?? 0.1;

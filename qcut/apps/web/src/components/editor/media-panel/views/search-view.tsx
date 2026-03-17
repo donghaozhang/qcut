@@ -25,7 +25,7 @@ export function SearchView() {
 						"px-2.5 py-1 text-[0.65rem] rounded-md transition-colors",
 						mode === "text"
 							? "bg-primary/15 text-primary font-medium"
-							: "text-muted-foreground hover:text-foreground hover:bg-foreground/5",
+							: "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
 					)}
 					aria-pressed={mode === "text"}
 				>
@@ -38,7 +38,7 @@ export function SearchView() {
 						"px-2.5 py-1 text-[0.65rem] rounded-md transition-colors",
 						mode === "visual"
 							? "bg-primary/15 text-primary font-medium"
-							: "text-muted-foreground hover:text-foreground hover:bg-foreground/5",
+							: "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
 					)}
 					aria-pressed={mode === "visual"}
 				>

@@ -54,14 +54,14 @@ export function SemanticSearchResultItem({ result, onClick }: Props) {
 
 			{/* Info */}
 			<div className="flex-1 min-w-0">
-				<div className="text-xs font-medium truncate">
-					{result.mediaName}
-				</div>
+				<div className="text-xs font-medium truncate">{result.mediaName}</div>
 				<div className="flex items-center gap-2 mt-0.5">
 					<span className="text-[0.6rem] text-muted-foreground">
 						{formatTime(result.startTime)}–{formatTime(result.endTime)}
 					</span>
-					<span className={`text-[0.6rem] font-medium ${scoreColor(result.score)}`}>
+					<span
+						className={`text-[0.6rem] font-medium ${scoreColor(result.score)}`}
+					>
 						{scorePercent}%
 					</span>
 				</div>

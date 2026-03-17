@@ -15,7 +15,7 @@ function makeEmbedding(
 	mediaId: string,
 	chunkIndex: number,
 	vector: number[],
-	startTime = chunkIndex * 5,
+	startTime = chunkIndex * 5
 ): StoredEmbedding {
 	return {
 		mediaId,

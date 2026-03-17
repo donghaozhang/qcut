@@ -326,10 +326,7 @@ export function setupGeminiChatIPC(): void {
 	// -----------------------------------------------------------------------
 	ipcMain.handle(
 		"gemini:suggest-gap-prompt",
-		async (
-			event,
-			request: GapPromptRequest
-		): Promise<GapPromptResponse> => {
+		async (event, request: GapPromptRequest): Promise<GapPromptResponse> => {
 			try {
 				const apiKey = await getGeminiApiKey();
 				const genAI = new GoogleGenerativeAI(apiKey);
@@ -352,8 +349,7 @@ export function setupGeminiChatIPC(): void {
 					"- Write only the prompt text, no explanations or labels\n" +
 					"- If only one neighboring shot is available, suggest something that naturally leads into or out of it\n";
 
-				let contextText =
-					"Here is the context from the timeline:\n\n";
+				let contextText = "Here is the context from the timeline:\n\n";
 
 				if (request.beforeFrameUrl) {
 					contextText +=
@@ -371,8 +367,9 @@ export function setupGeminiChatIPC(): void {
 					(isImageGen ? "an image" : "a video clip") +
 					" to fill this gap.";
 
-				const userParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> =
-					[{ text: contextText }];
+				const userParts: Array<
+					{ text: string } | { inlineData: { mimeType: string; data: string } }
+				> = [{ text: contextText }];
 
 				// Add frame images if they're data URLs
 				if (request.beforeFrameUrl?.startsWith("data:")) {
@@ -406,8 +403,7 @@ export function setupGeminiChatIPC(): void {
 				const text = result.response.text().trim();
 				return { suggestedPrompt: text };
 			} catch (error: unknown) {
-				const msg =
-					error instanceof Error ? error.message : String(error);
+				const msg = error instanceof Error ? error.message : String(error);
 				console.error("[Gemini] Gap prompt suggestion error:", msg);
 				return { suggestedPrompt: null, error: msg };
 			}

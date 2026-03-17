@@ -27,7 +27,11 @@ import {
 	type StoredEmbedding,
 	type MediaEmbeddingFile,
 } from "./video-search/vector-storage.js";
-import { searchEmbeddings, type SearchOptions, type SearchResult } from "./video-search/cosine-search.js";
+import {
+	searchEmbeddings,
+	type SearchOptions,
+	type SearchResult,
+} from "./video-search/cosine-search.js";
 import { getFFmpegPath } from "./ffmpeg/utils.js";
 
 const LOG_PREFIX = "[VideoSearch]";
@@ -51,7 +55,10 @@ interface IndexResult {
 const activeAbortControllers = new Map<string, AbortController>();
 
 // Embedding cache (keyed by projectDir, cleared on new indexing)
-let embeddingCache: { projectDir: string; embeddings: StoredEmbedding[] } | null = null;
+let embeddingCache: {
+	projectDir: string;
+	embeddings: StoredEmbedding[];
+} | null = null;
 
 function getProjectDir(projectId: string): string {
 	const sanitized = projectId.replace(/[/\\]/g, "").replace(/\.\./g, "");
@@ -66,7 +73,9 @@ function invalidateCache(): void {
 	embeddingCache = null;
 }
 
-async function getCachedEmbeddings(projectDir: string): Promise<StoredEmbedding[]> {
+async function getCachedEmbeddings(
+	projectDir: string
+): Promise<StoredEmbedding[]> {
 	if (embeddingCache?.projectDir === projectDir) {
 		return embeddingCache.embeddings;
 	}
@@ -80,7 +89,7 @@ async function generateSearchThumbnail(
 	projectDir: string,
 	mediaPath: string,
 	timeSeconds: number,
-	mediaId: string,
+	mediaId: string
 ): Promise<string> {
 	const cacheDir = path.join(projectDir, "cache", "search-thumbs");
 	if (!fs.existsSync(cacheDir)) {
@@ -88,21 +97,36 @@ async function generateSearchThumbnail(
 	}
 
 	const sanitizedId = mediaId.replace(/[^a-zA-Z0-9_-]/g, "_");
-	const cachePath = path.join(cacheDir, `${sanitizedId}_${Math.floor(timeSeconds)}.jpg`);
+	const cachePath = path.join(
+		cacheDir,
+		`${sanitizedId}_${Math.floor(timeSeconds)}.jpg`
+	);
 
 	if (fs.existsSync(cachePath)) return cachePath;
 
 	const ffmpegPath = getFFmpegPath();
 	await new Promise<void>((resolve, reject) => {
-		const proc = spawn(ffmpegPath, [
-			"-ss", String(timeSeconds),
-			"-i", mediaPath,
-			"-frames:v", "1",
-			"-vf", "scale=320:180:force_original_aspect_ratio=decrease",
-			"-y",
-			cachePath,
-		], { stdio: "pipe" });
-		proc.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`Thumbnail failed: code ${code}`))));
+		const proc = spawn(
+			ffmpegPath,
+			[
+				"-ss",
+				String(timeSeconds),
+				"-i",
+				mediaPath,
+				"-frames:v",
+				"1",
+				"-vf",
+				"scale=320:180:force_original_aspect_ratio=decrease",
+				"-y",
+				cachePath,
+			],
+			{ stdio: "pipe" }
+		);
+		proc.on("close", (code) =>
+			code === 0
+				? resolve()
+				: reject(new Error(`Thumbnail failed: code ${code}`))
+		);
 		proc.on("error", reject);
 	});
 
@@ -110,7 +134,11 @@ async function generateSearchThumbnail(
 }
 
 /** Resolve media file path within a project. */
-function resolveMediaPath(projectDir: string, mediaId: string, mediaName: string): string | null {
+function resolveMediaPath(
+	projectDir: string,
+	mediaId: string,
+	mediaName: string
+): string | null {
 	// Check imported media
 	const importedDir = path.join(projectDir, "media", "imported");
 	if (fs.existsSync(importedDir)) {
@@ -147,7 +175,7 @@ async function indexMedia(
 	mediaPath: string,
 	mediaName: string,
 	totalDuration: number,
-	signal?: AbortSignal,
+	signal?: AbortSignal
 ): Promise<IndexResult> {
 	const provider = getProvider();
 
@@ -175,7 +203,13 @@ async function indexMedia(
 				return { status: "cancelled", mediaId };
 			}
 
-			sendProgress({ phase: "embedding", current: i + 1, total: chunks.length, mediaId, mediaName });
+			sendProgress({
+				phase: "embedding",
+				current: i + 1,
+				total: chunks.length,
+				mediaId,
+				mediaName,
+			});
 
 			const result = await provider.embedVideo(chunks[i].path);
 			embeddings.push({
@@ -220,26 +254,43 @@ export function setupVideoSearchIPC(): void {
 	// Index a single media item
 	ipcMain.handle(
 		"video-search:index-media",
-		async (_, projectId: string, mediaId: string, mediaPath: string, mediaName: string, totalDuration: number) => {
+		async (
+			_,
+			projectId: string,
+			mediaId: string,
+			mediaPath: string,
+			mediaName: string,
+			totalDuration: number
+		) => {
 			const projectDir = getProjectDir(projectId);
 			const controller = new AbortController();
 			activeAbortControllers.set(projectId, controller);
 
 			try {
-				return await indexMedia(projectDir, mediaId, mediaPath, mediaName, totalDuration, controller.signal);
+				return await indexMedia(
+					projectDir,
+					mediaId,
+					mediaPath,
+					mediaName,
+					totalDuration,
+					controller.signal
+				);
 			} catch (err) {
 				console.error(`${LOG_PREFIX} Index error:`, err);
 				return { status: "error", mediaId, error: String(err) } as IndexResult;
 			} finally {
 				activeAbortControllers.delete(projectId);
 			}
-		},
+		}
 	);
 
 	// Cancel indexing
-	ipcMain.handle("video-search:cancel-indexing", async (_, projectId: string) => {
-		activeAbortControllers.get(projectId)?.abort();
-	});
+	ipcMain.handle(
+		"video-search:cancel-indexing",
+		async (_, projectId: string) => {
+			activeAbortControllers.get(projectId)?.abort();
+		}
+	);
 
 	// Semantic search
 	ipcMain.handle(
@@ -264,11 +315,21 @@ export function setupVideoSearchIPC(): void {
 			// Generate thumbnails for top results
 			for (const result of results) {
 				const midpoint = (result.startTime + result.endTime) / 2;
-				const mediaPath = resolveMediaPath(projectDir, result.mediaId, result.mediaName);
+				const mediaPath = resolveMediaPath(
+					projectDir,
+					result.mediaId,
+					result.mediaName
+				);
 				if (mediaPath) {
 					try {
-						(result as SearchResult & { thumbnailPath?: string }).thumbnailPath =
-							await generateSearchThumbnail(projectDir, mediaPath, midpoint, result.mediaId);
+						(
+							result as SearchResult & { thumbnailPath?: string }
+						).thumbnailPath = await generateSearchThumbnail(
+							projectDir,
+							mediaPath,
+							midpoint,
+							result.mediaId
+						);
 					} catch {
 						// Thumbnail generation is best-effort
 					}
@@ -276,7 +337,7 @@ export function setupVideoSearchIPC(): void {
 			}
 
 			return { results };
-		},
+		}
 	);
 
 	// Get indexing status
@@ -287,12 +348,15 @@ export function setupVideoSearchIPC(): void {
 	});
 
 	// Delete index for a media item
-	ipcMain.handle("video-search:delete-index", async (_, projectId: string, mediaId: string) => {
-		const projectDir = getProjectDir(projectId);
-		await deleteEmbeddings(projectDir, mediaId);
-		invalidateCache();
-		return { ok: true };
-	});
+	ipcMain.handle(
+		"video-search:delete-index",
+		async (_, projectId: string, mediaId: string) => {
+			const projectDir = getProjectDir(projectId);
+			await deleteEmbeddings(projectDir, mediaId);
+			invalidateCache();
+			return { ok: true };
+		}
+	);
 
 	// Check provider availability
 	ipcMain.handle("video-search:provider-status", async () => {

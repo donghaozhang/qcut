@@ -35,7 +35,13 @@ export function CursorOverlay({
 	// Include `visible` in deps so cleanup runs when toggled off and re-init when toggled on,
 	// preventing orphaned canvas after visibility changes.
 	useEffect(() => {
-		if (!visible || !containerRef.current || canvasWidth <= 0 || canvasHeight <= 0) return;
+		if (
+			!visible ||
+			!containerRef.current ||
+			canvasWidth <= 0 ||
+			canvasHeight <= 0
+		)
+			return;
 
 		const app = new PIXI.Application();
 		let mounted = true;

@@ -528,7 +528,7 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 		search: (
 			projectId: string,
 			query: string,
-			options?: { topK?: number; minScore?: number; mediaFilter?: string[] },
+			options?: { topK?: number; minScore?: number; mediaFilter?: string[] }
 		): Promise<{
 			results: Array<{
 				mediaId: string;
@@ -548,9 +548,21 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			mediaId: string,
 			mediaPath: string,
 			mediaName: string,
-			totalDuration: number,
-		): Promise<{ status: string; mediaId: string; chunks?: number; error?: string }> =>
-			ipcRenderer.invoke("video-search:index-media", projectId, mediaId, mediaPath, mediaName, totalDuration),
+			totalDuration: number
+		): Promise<{
+			status: string;
+			mediaId: string;
+			chunks?: number;
+			error?: string;
+		}> =>
+			ipcRenderer.invoke(
+				"video-search:index-media",
+				projectId,
+				mediaId,
+				mediaPath,
+				mediaName,
+				totalDuration
+			),
 
 		cancelIndexing: (projectId: string): Promise<void> =>
 			ipcRenderer.invoke("video-search:cancel-indexing", projectId),
@@ -558,21 +570,28 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 		indexStatus: (projectId: string): Promise<{ indexedMediaIds: string[] }> =>
 			ipcRenderer.invoke("video-search:index-status", projectId),
 
-		deleteIndex: (projectId: string, mediaId: string): Promise<{ ok: boolean }> =>
+		deleteIndex: (
+			projectId: string,
+			mediaId: string
+		): Promise<{ ok: boolean }> =>
 			ipcRenderer.invoke("video-search:delete-index", projectId, mediaId),
 
 		providerStatus: (): Promise<{ name: string; available: boolean }> =>
 			ipcRenderer.invoke("video-search:provider-status"),
 
-		onIndexProgress: (callback: (progress: {
-			phase: string;
-			current: number;
-			total: number;
-			mediaId?: string;
-			mediaName?: string;
-		}) => void): void => {
+		onIndexProgress: (
+			callback: (progress: {
+				phase: string;
+				current: number;
+				total: number;
+				mediaId?: string;
+				mediaName?: string;
+			}) => void
+		): void => {
 			ipcRenderer.removeAllListeners("video-search:index-progress");
-			ipcRenderer.on("video-search:index-progress", (_, data) => callback(data));
+			ipcRenderer.on("video-search:index-progress", (_, data) =>
+				callback(data)
+			);
 		},
 
 		removeListeners: (): void => {
