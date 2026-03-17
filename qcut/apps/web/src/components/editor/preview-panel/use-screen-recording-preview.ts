@@ -2,6 +2,10 @@ import { useState, useEffect, useMemo } from "react";
 import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
 import { computeZoomTransform } from "@/lib/screen-recording/zoom-transform";
 import type { ZoomTransform } from "@/lib/screen-recording/zoom-transform";
+import type { ZoomRegion } from "@/lib/screen-recording/zoom-region-utils";
+import type { CursorTelemetryData } from "@/types/electron/cursor-telemetry";
+import type { CursorRenderConfig } from "@/lib/screen-recording/cursor-renderer";
+import type { BackgroundConfig } from "@/lib/screen-recording/wallpapers";
 
 interface ScreenRecordingPreviewParams {
 	isPlaying: boolean;
@@ -17,20 +21,11 @@ interface ScreenRecordingPreviewResult {
 	zoomTransform: ZoomTransform | null;
 	/** CSS style to apply zoom, or undefined when identity. */
 	zoomStyle: React.CSSProperties | undefined;
-	/** Store selectors forwarded for convenience. */
-	cursorTelemetry: ReturnType<
-		typeof useScreenRecordingEnhancementStore
-	> extends { cursorTelemetry: infer T } ? T : never;
-	cursorConfig: ReturnType<
-		typeof useScreenRecordingEnhancementStore
-	> extends { cursorConfig: infer T } ? T : never;
+	cursorTelemetry: CursorTelemetryData | null;
+	cursorConfig: CursorRenderConfig;
 	showCursorOverlay: boolean;
-	recordingBackground: ReturnType<
-		typeof useScreenRecordingEnhancementStore
-	> extends { background: infer T } ? T : never;
-	zoomRegions: ReturnType<
-		typeof useScreenRecordingEnhancementStore
-	> extends { zoomRegions: infer T } ? T : never;
+	recordingBackground: BackgroundConfig;
+	zoomRegions: ZoomRegion[];
 }
 
 /**
@@ -44,20 +39,18 @@ export function useScreenRecordingPreview({
 	previewHeight,
 }: ScreenRecordingPreviewParams): ScreenRecordingPreviewResult {
 	const cursorTelemetry = useScreenRecordingEnhancementStore(
-		(s) => s.cursorTelemetry,
+		(s) => s.cursorTelemetry
 	);
 	const cursorConfig = useScreenRecordingEnhancementStore(
-		(s) => s.cursorConfig,
+		(s) => s.cursorConfig
 	);
 	const showCursorOverlay = useScreenRecordingEnhancementStore(
-		(s) => s.showCursorOverlay,
+		(s) => s.showCursorOverlay
 	);
 	const recordingBackground = useScreenRecordingEnhancementStore(
-		(s) => s.background,
+		(s) => s.background
 	);
-	const zoomRegions = useScreenRecordingEnhancementStore(
-		(s) => s.zoomRegions,
-	);
+	const zoomRegions = useScreenRecordingEnhancementStore((s) => s.zoomRegions);
 
 	// Continuous time for smooth zoom/cursor animation during playback.
 	// The main playbackTime only updates on element boundary crossings,
@@ -84,9 +77,16 @@ export function useScreenRecordingPreview({
 			timeMs,
 			zoomRegions,
 			previewWidth,
-			previewHeight,
+			previewHeight
 		);
-	}, [zoomRegions, isPlaying, smoothTime, currentTime, previewWidth, previewHeight]);
+	}, [
+		zoomRegions,
+		isPlaying,
+		smoothTime,
+		currentTime,
+		previewWidth,
+		previewHeight,
+	]);
 
 	const zoomStyle: React.CSSProperties | undefined =
 		zoomTransform && zoomTransform.scale > 1.001

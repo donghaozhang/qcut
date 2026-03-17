@@ -2,7 +2,7 @@
 
 import { platform } from "@qcut/platform-core";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import type { RemotionElement, TimelineElement } from "@/types/timeline";
+import type { RemotionElement } from "@/types/timeline";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useEditorStore } from "@/stores/editor/editor-store";
@@ -118,19 +118,6 @@ export function PreviewPanel() {
 	const setLocalMcpActive = useMcpAppStore((state) => state.setLocalMcpActive);
 	const previewMode = usePreviewModeStore((state) => state.previewMode);
 	const setPreviewMode = usePreviewModeStore((state) => state.setPreviewMode);
-	const {
-		smoothTime,
-		zoomStyle,
-		cursorTelemetry,
-		cursorConfig,
-		showCursorOverlay,
-		recordingBackground,
-	} = useScreenRecordingPreview({
-		isPlaying,
-		currentTime,
-		previewWidth: previewDimensions.width || canvasSize.width,
-		previewHeight: previewDimensions.height || canvasSize.height,
-	});
 
 	// Local MCP: derive HTML fresh from template every render (auto-reload on HMR)
 	// External MCP: use stored HTML from IPC
@@ -155,6 +142,20 @@ export function PreviewPanel() {
 		isExpanded,
 	});
 
+	const {
+		smoothTime,
+		zoomStyle,
+		cursorTelemetry,
+		cursorConfig,
+		showCursorOverlay,
+		recordingBackground,
+	} = useScreenRecordingPreview({
+		isPlaying,
+		currentTime,
+		previewWidth: previewDimensions.width || canvasSize.width,
+		previewHeight: previewDimensions.height || canvasSize.height,
+	});
+
 	// Preview element drag handling
 	const { dragState, handleTextPointerDown } = usePreviewDrag({
 		tracks,
@@ -171,13 +172,7 @@ export function PreviewPanel() {
 	);
 
 	// Frame caching - non-intrusive addition
-	const {
-		getCachedFrame,
-		cacheFrame,
-		invalidateCache,
-		getRenderStatus,
-		preRenderNearbyFrames,
-	} = useFrameCache({
+	const { preRenderNearbyFrames } = useFrameCache({
 		maxCacheSize: 300,
 		cacheResolution: 30,
 		persist: true,
@@ -267,32 +262,6 @@ export function PreviewPanel() {
 		},
 		[activeHtml, localMcpActive, setLocalMcpActive, setPreviewMode]
 	);
-
-	// Helper function to capture current preview frame
-	const captureCurrentFrame = useCallback(async () => {
-		if (
-			!previewRef.current ||
-			previewDimensions.width === 0 ||
-			previewDimensions.height === 0
-		) {
-			return null;
-		}
-
-		try {
-			const imageData = await captureWithFallback(previewRef.current, {
-				width: previewDimensions.width,
-				height: previewDimensions.height,
-				backgroundColor:
-					activeProject?.backgroundType === "blur"
-						? "transparent"
-						: activeProject?.backgroundColor || "#000000",
-			});
-
-			return imageData;
-		} catch (error) {
-			return null;
-		}
-	}, [previewDimensions, activeProject]);
 
 	useEffect(() => {
 		const handlePlaybackSeek = (event: Event) => {
@@ -606,40 +575,8 @@ export function PreviewPanel() {
 		);
 	}
 
-	// Shared mode toggle rendered in every mode's header
 	const modeToggle = (
-		<ToggleGroup
-			type="single"
-			value={previewMode}
-			onValueChange={handleModeChange}
-			size="sm"
-			className="h-7"
-		>
-			<ToggleGroupItem
-				value="video"
-				aria-label="Video preview"
-				className="px-2 py-1 text-xs gap-1"
-			>
-				<MonitorPlay className="size-3" />
-				<span className="hidden sm:inline">Video</span>
-			</ToggleGroupItem>
-			<ToggleGroupItem
-				value="mcp"
-				aria-label="MCP app"
-				className="px-2 py-1 text-xs gap-1"
-			>
-				<AppWindow className="size-3" />
-				<span className="hidden sm:inline">MCP</span>
-			</ToggleGroupItem>
-			<ToggleGroupItem
-				value="agent"
-				aria-label="Agent terminal"
-				className="px-2 py-1 text-xs gap-1"
-			>
-				<Bot className="size-3" />
-				<span className="hidden sm:inline">Agent</span>
-			</ToggleGroupItem>
-		</ToggleGroup>
+		<PreviewModeToggle value={previewMode} onValueChange={handleModeChange} />
 	);
 
 	if (previewMode === "mcp") {
@@ -725,19 +662,18 @@ export function PreviewPanel() {
 								const cursorW = pw - padding * 2;
 								const cursorH = ph - padding * 2;
 
-								const cursorOverlay = cursorTelemetry &&
-									showCursorOverlay && (
-										<CursorOverlay
-											canvasWidth={cursorW}
-											canvasHeight={cursorH}
-											currentTimeMs={
-												(isPlaying ? smoothTime : currentTime) * 1000
-											}
-											telemetry={cursorTelemetry}
-											config={cursorConfig}
-											visible={showCursorOverlay}
-										/>
-									);
+								const cursorOverlay = cursorTelemetry && showCursorOverlay && (
+									<CursorOverlay
+										canvasWidth={cursorW}
+										canvasHeight={cursorH}
+										currentTimeMs={
+											(isPlaying ? smoothTime : currentTime) * 1000
+										}
+										telemetry={cursorTelemetry}
+										config={cursorConfig}
+										visible={showCursorOverlay}
+									/>
+								);
 
 								const zoomContent = (
 									<div className="absolute inset-0" style={zoomStyle}>
