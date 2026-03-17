@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { SearchIcon, XIcon, Loader2Icon, DatabaseIcon } from "lucide-react";
 import { useVideoSearchStore } from "@/stores/video-search-store";
 import { useProjectStore } from "@/stores/project-store";
-import { usePlaybackStore } from "@/stores/playback-store";
+import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { SemanticSearchResultItem } from "./SemanticSearchResultItem";
 
 const DEBOUNCE_MS = 500;
