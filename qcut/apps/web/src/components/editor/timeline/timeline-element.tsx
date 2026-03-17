@@ -20,6 +20,7 @@ import {
 	Eye,
 	Volume2,
 	VolumeX,
+	Sparkles,
 } from "lucide-react";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
@@ -67,7 +68,11 @@ import {
 	ContextMenuItem,
 	ContextMenuSeparator,
 	ContextMenuTrigger,
+	ContextMenuSub,
+	ContextMenuSubTrigger,
+	ContextMenuSubContent,
 } from "../../ui/context-menu";
+import { COLOR_LABELS } from "@/types/generation";
 
 function TimelineElementComponent({
 	element,
@@ -635,6 +640,79 @@ function TimelineElementComponent({
 						Replace clip
 					</ContextMenuItem>
 				)}
+				{/* AI Tools — shown for AI-generated clips */}
+				{element.type === "media" && (() => {
+					const media = mediaItems.find(
+						(m) => m.id === (element as any).mediaId
+					);
+					const genParams = media?.metadata?.generationParams;
+					const takes = media?.metadata?.takes as Array<{ url: string; createdAt: number }> | undefined;
+					const activeTakeIdx = (media?.metadata?.activeTakeIndex as number) ?? 0;
+					const hasTakes = takes && takes.length > 1;
+
+					if (!genParams) return null;
+
+					return (
+						<>
+							<ContextMenuSeparator />
+							<ContextMenuItem
+								onClick={() => {
+									window.dispatchEvent(
+										new CustomEvent("gap:generate", {
+											detail: {
+												gap: {
+													trackId: track.id,
+													startTime: element.startTime,
+													endTime: element.startTime + element.duration - element.trimStart - element.trimEnd,
+												},
+												mode: genParams.mode || "text-to-video",
+												prompt: genParams.prompt || "",
+												model: genParams.model || "fal-ai/ltx-video/v0.2.3",
+												cameraMotion: genParams.cameraMotion,
+											},
+										})
+									);
+								}}
+							>
+								<Sparkles className="h-4 w-4 mr-2" />
+								Regenerate Shot
+							</ContextMenuItem>
+							{hasTakes && (
+								<div className="flex items-center gap-1 px-2 py-1.5">
+									<button
+										type="button"
+										className="p-0.5 rounded hover:bg-accent"
+										onClick={(e) => {
+											e.stopPropagation();
+											const { setActiveTake } = (window as any).__mediaStore?.getState() || {};
+											if (setActiveTake && media) {
+												setActiveTake(media.id, activeTakeIdx - 1);
+											}
+										}}
+									>
+										<ChevronLeft className="h-3 w-3" />
+									</button>
+									<span className="text-xs text-muted-foreground">
+										Take: {activeTakeIdx + 1}/{takes.length}
+									</span>
+									<button
+										type="button"
+										className="p-0.5 rounded hover:bg-accent"
+										onClick={(e) => {
+											e.stopPropagation();
+											const { setActiveTake } = (window as any).__mediaStore?.getState() || {};
+											if (setActiveTake && media) {
+												setActiveTake(media.id, activeTakeIdx + 1);
+											}
+										}}
+									>
+										<ChevronRight className="h-3 w-3" />
+									</button>
+								</div>
+							)}
+						</>
+					);
+				})()}
 				<ContextMenuSeparator />
 				<ContextMenuItem
 					onClick={async (e) => {

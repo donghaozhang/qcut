@@ -411,6 +411,57 @@ export function setupGeminiChatIPC(): void {
 	);
 
 	// -----------------------------------------------------------------------
+	// Describe frame handler (auto-generate prompt from image)
+	// -----------------------------------------------------------------------
+	ipcMain.handle(
+		"gemini:describe-frame",
+		async (
+			event,
+			request: { imageDataUrl: string }
+		): Promise<{ prompt: string | null; error?: string }> => {
+			try {
+				const apiKey = await getGeminiApiKey();
+				const genAI = new GoogleGenerativeAI(apiKey);
+				const model = genAI.getGenerativeModel({
+					model: "gemini-2.0-flash",
+				});
+
+				const systemText =
+					"You are a video prompt writer. Describe this image as a concise video generation prompt. " +
+					"Focus on: subject, action, camera angle, lighting, mood, style. " +
+					"Write 2-3 sentences. No labels or explanations.";
+
+				const parts: Array<
+					| { text: string }
+					| { inlineData: { mimeType: string; data: string } }
+				> = [{ text: "Describe this frame for video generation:" }];
+
+				if (request.imageDataUrl?.startsWith("data:")) {
+					const b64 = request.imageDataUrl.split(",")[1];
+					if (b64) {
+						parts.push({
+							inlineData: { mimeType: "image/jpeg", data: b64 },
+						});
+					}
+				}
+
+				const result = await model.generateContent({
+					contents: [{ role: "user", parts }],
+					systemInstruction: { parts: [{ text: systemText }] },
+					generationConfig: { temperature: 0.7, maxOutputTokens: 256 },
+				});
+
+				return { prompt: result.response.text().trim() };
+			} catch (error: unknown) {
+				const msg =
+					error instanceof Error ? error.message : String(error);
+				console.error("[Gemini] Describe frame error:", msg);
+				return { prompt: null, error: msg };
+			}
+		}
+	);
+
+	// -----------------------------------------------------------------------
 	// Streaming chat handler
 	// -----------------------------------------------------------------------
 	ipcMain.handle(

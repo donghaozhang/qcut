@@ -68,6 +68,7 @@ interface GapStore {
 
 	// Generation settings
 	gapModel: string;
+	gapCameraMotion: string;
 
 	// Background generation
 	generatingGap: GeneratingGap | null;
@@ -86,6 +87,7 @@ interface GapStore {
 	setBeforeFrameUrl: (url: string | null) => void;
 	setAfterFrameUrl: (url: string | null) => void;
 	setGapModel: (model: string) => void;
+	setGapCameraMotion: (motion: string) => void;
 	setGeneratingGap: (gap: GeneratingGap | null) => void;
 	updateSegmentStatus: (
 		segmentIndex: number,
@@ -253,6 +255,7 @@ export const useGapStore = create<GapStore>((set, get) => ({
 	beforeFrameUrl: null,
 	afterFrameUrl: null,
 	gapModel: "fal-ai/ltx-video/v0.2.3",
+	gapCameraMotion: "none",
 	generatingGap: null,
 
 	selectGap: (gap, anchor) =>
@@ -289,6 +292,7 @@ export const useGapStore = create<GapStore>((set, get) => ({
 	setBeforeFrameUrl: (url) => set({ beforeFrameUrl: url }),
 	setAfterFrameUrl: (url) => set({ afterFrameUrl: url }),
 	setGapModel: (model) => set({ gapModel: model }),
+	setGapCameraMotion: (motion) => set({ gapCameraMotion: motion }),
 	setGeneratingGap: (gap) => set({ generatingGap: gap }),
 
 	updateSegmentStatus: (segmentIndex, status, resultMediaId) => {

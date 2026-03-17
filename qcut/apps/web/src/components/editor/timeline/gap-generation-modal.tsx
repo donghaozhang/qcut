@@ -23,6 +23,7 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { Loader2, Sparkles, RefreshCw, Video, Image } from "lucide-react";
 import type { TimelineElement as TimelineElementType } from "@/types/timeline";
+import { CAMERA_MOTION_PRESETS } from "@/types/generation";
 
 // ---------------------------------------------------------------------------
 // Frame extraction (renderer-side, using canvas)
@@ -93,6 +94,8 @@ export function GapGenerationModal() {
 	const setAfterFrameUrl = useGapStore((s) => s.setAfterFrameUrl);
 	const gapModel = useGapStore((s) => s.gapModel);
 	const setGapModel = useGapStore((s) => s.setGapModel);
+	const cameraMotion = useGapStore((s) => s.gapCameraMotion);
+	const setCameraMotion = useGapStore((s) => s.setGapCameraMotion);
 	const setSuggesting = useGapStore((s) => s.setGapSuggesting);
 	const setSuggestion = useGapStore((s) => s.setGapSuggestion);
 	const setSuggestionError = useGapStore((s) => s.setGapSuggestionError);
@@ -342,6 +345,26 @@ export function GapGenerationModal() {
 					</select>
 				</div>
 
+				{/* Camera motion (video modes only) */}
+				{isVideoMode && (
+					<div className="space-y-1.5">
+						<label className="text-xs text-muted-foreground uppercase font-semibold">
+							Camera Motion
+						</label>
+						<select
+							value={cameraMotion}
+							onChange={(e) => setCameraMotion(e.target.value)}
+							className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+						>
+							{CAMERA_MOTION_PRESETS.map((preset) => (
+								<option key={preset.value} value={preset.value}>
+									{preset.label}
+								</option>
+							))}
+						</select>
+					</div>
+				)}
+
 				{/* Generation progress */}
 				{isGenerating && generatingGap && (
 					<div className="bg-muted rounded-lg p-3 border border-border">
@@ -384,6 +407,7 @@ export function GapGenerationModal() {
 										mode,
 										prompt,
 										model: gapModel,
+										cameraMotion,
 									},
 								})
 							);

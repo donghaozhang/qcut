@@ -652,6 +652,52 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
 		set({ mediaItems: items });
 	},
 
+	// Takes management (for AI-generated media with multiple versions)
+	addTake: (mediaId, take) => {
+		set((state) => ({
+			mediaItems: state.mediaItems.map((item) => {
+				if (item.id !== mediaId) return item;
+				const takes = [...(item.metadata?.takes || []), take];
+				return {
+					...item,
+					url: take.url,
+					metadata: { ...item.metadata, takes, activeTakeIndex: takes.length - 1 },
+				};
+			}),
+		}));
+	},
+
+	deleteTake: (mediaId, takeIndex) => {
+		set((state) => ({
+			mediaItems: state.mediaItems.map((item) => {
+				if (item.id !== mediaId || !item.metadata?.takes) return item;
+				const takes = [...item.metadata.takes];
+				if (takeIndex < 0 || takeIndex >= takes.length || takes.length <= 1) return item;
+				takes.splice(takeIndex, 1);
+				const activeIdx = Math.min(item.metadata.activeTakeIndex ?? 0, takes.length - 1);
+				return {
+					...item,
+					url: takes[activeIdx]?.url ?? item.url,
+					metadata: { ...item.metadata, takes, activeTakeIndex: activeIdx },
+				};
+			}),
+		}));
+	},
+
+	setActiveTake: (mediaId, takeIndex) => {
+		set((state) => ({
+			mediaItems: state.mediaItems.map((item) => {
+				if (item.id !== mediaId || !item.metadata?.takes) return item;
+				const idx = Math.max(0, Math.min(takeIndex, item.metadata.takes.length - 1));
+				return {
+					...item,
+					url: item.metadata.takes[idx]?.url ?? item.url,
+					metadata: { ...item.metadata, activeTakeIndex: idx },
+				};
+			}),
+		}));
+	},
+
 	// Spread folder actions slice
 	...createFolderActions(set, get),
 

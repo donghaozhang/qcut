@@ -38,6 +38,8 @@ interface BaseTimelineElement {
 	height?: number;
 	rotation?: number;
 	effectIds?: string[];
+	/** 8-color visual label for clip organization (violet/blue/green/yellow/red/rose/orange/mango) */
+	colorLabel?: string;
 }
 
 export interface MediaElement extends BaseTimelineElement {

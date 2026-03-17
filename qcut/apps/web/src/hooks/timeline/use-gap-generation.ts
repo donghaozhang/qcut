@@ -83,6 +83,7 @@ interface GenerateEventDetail {
 	mode: GapGenerateMode;
 	prompt: string;
 	model: string;
+	cameraMotion?: string;
 }
 
 export function useGapGeneration() {
@@ -162,7 +163,9 @@ export function useGapGeneration() {
 					videoUrl,
 					segment,
 					gap.trackId,
-					prompt
+					prompt,
+					model,
+					detail.cameraMotion
 				);
 
 				if (mediaId) {
@@ -214,7 +217,9 @@ async function saveAndInsert(
 	videoUrl: string,
 	segment: GapSegment,
 	trackId: string,
-	prompt: string
+	prompt: string,
+	model?: string,
+	cameraMotion?: string
 ): Promise<string | null> {
 	try {
 		const projectStore = useProjectStore.getState();
@@ -233,15 +238,25 @@ async function saveAndInsert(
 		const addMediaItem = mediaModule.useMediaStore.getState().addMediaItem;
 		if (!addMediaItem) return null;
 
+		const blobUrl = URL.createObjectURL(blob);
 		const mediaId = await addMediaItem(projectId, {
 			name: `Gap Fill (${segment.duration.toFixed(1)}s)`,
 			type: "video" as const,
 			file,
-			url: URL.createObjectURL(blob),
+			url: blobUrl,
 			duration: segment.duration,
 			metadata: {
 				source: "gap-generation",
 				prompt,
+				generationParams: {
+					mode: segment.mode,
+					prompt,
+					model: model || "unknown",
+					duration: segment.duration,
+					cameraMotion,
+				},
+				takes: [{ url: blobUrl, createdAt: Date.now() }],
+				activeTakeIndex: 0,
 			},
 		});
 
