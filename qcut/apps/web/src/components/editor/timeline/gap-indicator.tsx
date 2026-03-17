@@ -43,8 +43,10 @@ export function GapIndicator({
 		generatingGap?.trackId === gap.trackId &&
 		Math.abs(generatingGap.startTime - gap.startTime) < 0.01;
 
-	const handleClick = (e: React.MouseEvent) => {
+	const openMenu = (e: React.MouseEvent) => {
 		e.stopPropagation();
+		e.preventDefault();
+		console.log("[GapIndicator] openMenu fired, gap:", gap.startTime, "-", gap.endTime);
 		const rect = e.currentTarget.getBoundingClientRect();
 		selectGap(gap, {
 			x: rect.left + rect.width / 2,
@@ -55,20 +57,22 @@ export function GapIndicator({
 
 	return (
 		<div
-			className={`absolute top-0 flex items-center justify-center cursor-pointer transition-colors group/gap ${
+			className={`absolute top-0 flex items-center justify-center cursor-pointer transition-colors group/gap z-[15] ${
 				isSelected
-					? "border-blue-400 bg-blue-500/15"
+					? "border-blue-400 bg-blue-500/20"
 					: isGenerating
 						? "border-blue-500 bg-blue-500/10"
-						: "border-muted-foreground/30 hover:border-blue-400/60 hover:bg-blue-500/5"
+						: "border-blue-400/40 bg-blue-500/5 hover:border-blue-400/70 hover:bg-blue-500/10"
 			} ${isGenerating ? "border-solid" : "border-dashed"} border rounded-sm`}
 			style={{
 				left: `${left}px`,
 				width: `${width}px`,
 				height: `${trackHeight}px`,
 			}}
-			onClick={handleClick}
+			onClick={openMenu}
+			onContextMenu={openMenu}
 			data-testid="gap-indicator"
+			data-gap-indicator
 		>
 			{isGenerating ? (
 				<GeneratingIndicator />
@@ -84,7 +88,7 @@ function GapLabel({ duration, width }: { duration: number; width: number }) {
 	if (width < 32) return null;
 
 	return (
-		<span className="text-[9px] text-muted-foreground/50 group-hover/gap:text-muted-foreground/80 transition-colors select-none pointer-events-none">
+		<span className="text-[10px] text-blue-400/60 group-hover/gap:text-blue-400 transition-colors select-none pointer-events-none font-medium">
 			{duration < 60
 				? `${duration.toFixed(1)}s`
 				: `${Math.floor(duration / 60)}m${Math.round(duration % 60)}s`}

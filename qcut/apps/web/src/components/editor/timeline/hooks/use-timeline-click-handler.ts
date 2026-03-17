@@ -46,7 +46,8 @@ export function useTimelineClickHandler({
 			const isTimelineBackground =
 				!target.closest(".timeline-element") &&
 				!playheadRef.current?.contains(target) &&
-				!target.closest("[data-track-labels]");
+				!target.closest("[data-track-labels]") &&
+				!target.closest("[data-gap-indicator]");
 
 			if (isTimelineBackground) {
 				mouseTrackingRef.current = {
@@ -94,6 +95,11 @@ export function useTimelineClickHandler({
 
 			// Don't seek if clicking on timeline elements, but still deselect
 			if ((e.target as HTMLElement).closest(".timeline-element")) {
+				return;
+			}
+
+			// Don't seek if clicking on gap indicators
+			if ((e.target as HTMLElement).closest("[data-gap-indicator]")) {
 				return;
 			}
 

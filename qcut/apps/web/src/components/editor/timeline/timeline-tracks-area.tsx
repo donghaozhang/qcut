@@ -128,6 +128,8 @@ export function TimelineTracksArea({
 					handleWheel(e);
 				}}
 				onPointerDown={(e) => {
+					// Skip timeline interactions when clicking gap indicators
+					if ((e.target as HTMLElement).closest("[data-gap-indicator]")) return;
 					pinchHandlers.onPointerDown(e);
 					handleTimelineMouseDown(e);
 					handleSelectionPointerDown(e);

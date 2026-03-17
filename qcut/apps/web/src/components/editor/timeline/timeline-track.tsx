@@ -501,8 +501,12 @@ function TimelineTrackContentComponent({
 			className="w-full h-full hover:bg-muted/20"
 			data-drop-zone
 			onClick={(e) => {
-				// If clicking empty area (not on an element), deselect all elements
-				if (!(e.target as HTMLElement).closest(".timeline-element")) {
+				// If clicking empty area (not on an element or gap indicator), deselect all elements
+				const target = e.target as HTMLElement;
+				if (
+					!target.closest(".timeline-element") &&
+					!target.closest("[data-gap-indicator]")
+				) {
 					clearSelectedElements();
 				}
 			}}

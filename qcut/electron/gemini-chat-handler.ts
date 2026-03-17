@@ -447,7 +447,7 @@ export function setupGeminiChatIPC(): void {
 
 				const result = await model.generateContent({
 					contents: [{ role: "user", parts }],
-					systemInstruction: { parts: [{ text: systemText }] },
+					systemInstruction: { role: "user", parts: [{ text: systemText }] },
 					generationConfig: { temperature: 0.7, maxOutputTokens: 256 },
 				});
 

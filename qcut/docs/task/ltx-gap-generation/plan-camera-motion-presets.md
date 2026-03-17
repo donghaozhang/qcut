@@ -1,6 +1,10 @@
-# Plan: Camera Motion Presets
+# Plan: Camera Motion Presets — IMPLEMENTED
 
 Add 8 camera motion options to AI video generation, following LTX-Desktop's pattern. Most FAL models accept these as parameters.
+
+> **Status**: Implemented
+> **Files created**: `apps/web/src/types/generation.ts` (CAMERA_MOTION_PRESETS)
+> **Files modified**: `apps/web/src/stores/timeline/gap-store.ts` (gapCameraMotion state), `apps/web/src/components/editor/timeline/gap-generation-modal.tsx` (dropdown UI), `apps/web/src/hooks/timeline/use-gap-generation.ts` (pass to generation)
 
 **LTX source**: `SettingsPanel.tsx` (lines 208-222)
 **Estimated time**: ~8 minutes (1 subtask)

@@ -128,7 +128,10 @@ export type MediaStore = {
 	bulkMoveToFolder: (mediaIds: string[], folderId: string | null) => void;
 	autoOrganizeByType: () => void;
 	// Takes management (for AI-generated media with multiple versions)
-	addTake?: (mediaId: string, take: { url: string; localPath?: string; createdAt: number }) => void;
+	addTake?: (
+		mediaId: string,
+		take: { url: string; localPath?: string; createdAt: number }
+	) => void;
 	deleteTake?: (mediaId: string, takeIndex: number) => void;
 	setActiveTake?: (mediaId: string, takeIndex: number) => void;
 };
