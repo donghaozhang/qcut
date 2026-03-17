@@ -304,7 +304,119 @@ async function formatRequestContents(
 // IPC Handler Setup
 // ============================================================================
 
+// ============================================================================
+// Gap Prompt Suggestion Types
+// ============================================================================
+
+interface GapPromptRequest {
+	gapDuration: number;
+	mode: string;
+	beforeFrameUrl?: string | null;
+	afterFrameUrl?: string | null;
+}
+
+interface GapPromptResponse {
+	suggestedPrompt: string | null;
+	error?: string;
+}
+
 export function setupGeminiChatIPC(): void {
+	// -----------------------------------------------------------------------
+	// Gap prompt suggestion handler (Gemini-powered)
+	// -----------------------------------------------------------------------
+	ipcMain.handle(
+		"gemini:suggest-gap-prompt",
+		async (
+			event,
+			request: GapPromptRequest
+		): Promise<GapPromptResponse> => {
+			try {
+				const apiKey = await getGeminiApiKey();
+				const genAI = new GoogleGenerativeAI(apiKey);
+				const model = genAI.getGenerativeModel({
+					model: "gemini-2.0-flash",
+				});
+
+				const isImageGen = request.mode === "text-to-image";
+
+				const systemText =
+					"You are a video production assistant. The user is editing a video timeline and has a gap " +
+					`of ${request.gapDuration.toFixed(1)} seconds between two shots. Your job is to suggest a detailed prompt ` +
+					`for generating ${isImageGen ? "an image" : "a video clip"} to fill this gap, so that it flows naturally between the ` +
+					"preceding and following shots.\n\n" +
+					"Guidelines:\n" +
+					`- Describe the scene, ${isImageGen ? "composition" : "action, camera movement"}, lighting, and mood\n` +
+					"- Match the visual style and tone of the surrounding shots\n" +
+					"- Create a smooth narrative or visual transition between the two shots\n" +
+					"- Keep the prompt concise (2-4 sentences max)\n" +
+					"- Write only the prompt text, no explanations or labels\n" +
+					"- If only one neighboring shot is available, suggest something that naturally leads into or out of it\n";
+
+				let contextText =
+					"Here is the context from the timeline:\n\n";
+
+				if (request.beforeFrameUrl) {
+					contextText +=
+						"SHOT BEFORE THE GAP:\n  Last frame (see image below):\n";
+				}
+				if (request.afterFrameUrl) {
+					contextText +=
+						"\nSHOT AFTER THE GAP:\n  First frame (see image below):\n";
+				}
+
+				contextText += `\nGap duration: ${request.gapDuration.toFixed(1)} seconds\n`;
+				contextText += `Generation mode: ${isImageGen ? "image generation" : "text-to-video"}\n`;
+				contextText +=
+					"\nPlease suggest a detailed prompt for generating " +
+					(isImageGen ? "an image" : "a video clip") +
+					" to fill this gap.";
+
+				const userParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> =
+					[{ text: contextText }];
+
+				// Add frame images if they're data URLs
+				if (request.beforeFrameUrl?.startsWith("data:")) {
+					userParts.push({ text: "Last frame of the shot BEFORE the gap:" });
+					const b64 = request.beforeFrameUrl.split(",")[1];
+					if (b64) {
+						userParts.push({
+							inlineData: { mimeType: "image/jpeg", data: b64 },
+						});
+					}
+				}
+				if (request.afterFrameUrl?.startsWith("data:")) {
+					userParts.push({ text: "First frame of the shot AFTER the gap:" });
+					const b64 = request.afterFrameUrl.split(",")[1];
+					if (b64) {
+						userParts.push({
+							inlineData: { mimeType: "image/jpeg", data: b64 },
+						});
+					}
+				}
+
+				const result = await model.generateContent({
+					contents: [{ role: "user", parts: userParts }],
+					systemInstruction: { parts: [{ text: systemText }] },
+					generationConfig: {
+						temperature: 0.7,
+						maxOutputTokens: 512,
+					},
+				});
+
+				const text = result.response.text().trim();
+				return { suggestedPrompt: text };
+			} catch (error: unknown) {
+				const msg =
+					error instanceof Error ? error.message : String(error);
+				console.error("[Gemini] Gap prompt suggestion error:", msg);
+				return { suggestedPrompt: null, error: msg };
+			}
+		}
+	);
+
+	// -----------------------------------------------------------------------
+	// Streaming chat handler
+	// -----------------------------------------------------------------------
 	ipcMain.handle(
 		"gemini:chat",
 		async (

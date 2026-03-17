@@ -24,6 +24,8 @@ import { useTimelineScrollSync } from "./hooks/use-timeline-scroll-sync";
 import { useTimelineClickHandler } from "./hooks/use-timeline-click-handler";
 import { TimelineRuler } from "./timeline-ruler";
 import { TimelineTracksArea } from "./timeline-tracks-area";
+import { GapPopover } from "./gap-popover";
+import { GapGenerationModal } from "./gap-generation-modal";
 
 export function Timeline() {
 	// Individual selectors to prevent infinite loops with useSyncExternalStore
@@ -291,6 +293,10 @@ export function Timeline() {
 					activeProject={activeProject}
 				/>
 			</div>
+
+			{/* Gap popover menu (outside scroll context for fixed positioning) */}
+			<GapPopover />
+			<GapGenerationModal />
 		</div>
 	);
 }

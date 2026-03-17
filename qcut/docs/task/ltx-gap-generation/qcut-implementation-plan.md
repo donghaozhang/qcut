@@ -214,6 +214,181 @@ const handleGapGenerate = async () => {
 
 ---
 
+## Chained Generation for Long Gaps
+
+When a gap exceeds a model's max duration (e.g. 60s gap but model max is 10s), QCut chains multiple generations sequentially. Each segment uses the previous output's last frame as conditioning input for visual continuity.
+
+### How It Works
+
+```
+Gap: 90 seconds, model max: 10s → 9 segments
+
+Segment 1: text-to-video (or image-to-video from before-clip's last frame)
+  → generates 10s clip
+  → extract last frame
+
+Segment 2: image-to-video (from segment 1's last frame)
+  → generates 10s clip
+  → extract last frame
+
+Segment 3: image-to-video (from segment 2's last frame)
+  → generates 10s clip
+  ...
+
+Segment 9: image-to-video (from segment 8's last frame)
+  → generates 10s clip (or shorter to fill remaining time)
+  → done
+```
+
+### Segment Planning
+
+```typescript
+interface GapSegment {
+  index: number
+  startTime: number        // Position in timeline
+  duration: number          // Seconds to generate
+  mode: 'text-to-video' | 'image-to-video'
+  conditioningFrame: string | null  // Path to input frame (null for first segment if no before-clip)
+  status: 'pending' | 'generating' | 'complete' | 'failed'
+  resultPath: string | null
+}
+
+function planGapSegments(
+  gapDuration: number,
+  maxSegmentDuration: number,  // Model's max (e.g. 10s for Veo, 20s for LTX fast)
+  gapStartTime: number
+): GapSegment[] {
+  const segments: GapSegment[] = []
+  let remaining = gapDuration
+  let currentTime = gapStartTime
+  let index = 0
+
+  while (remaining > 0.05) {
+    const duration = Math.min(remaining, maxSegmentDuration)
+    segments.push({
+      index,
+      startTime: currentTime,
+      duration,
+      mode: index === 0 ? 'text-to-video' : 'image-to-video',
+      conditioningFrame: null,  // Filled during execution
+      status: 'pending',
+      resultPath: null,
+    })
+    currentTime += duration
+    remaining -= duration
+    index++
+  }
+
+  return segments
+}
+```
+
+### Execution Flow
+
+```typescript
+async function executeChainedGeneration(
+  segments: GapSegment[],
+  gap: Gap,
+  prompt: string,
+  settings: GenerationSettings,
+  beforeFramePath: string | null,  // Last frame of clip before gap
+  onSegmentComplete: (segment: GapSegment, allSegments: GapSegment[]) => void,
+  onProgress: (segmentIndex: number, segmentProgress: number, overallProgress: number) => void,
+) {
+  let conditioningFrame = beforeFramePath  // First segment uses before-clip's last frame
+
+  for (const segment of segments) {
+    segment.status = 'generating'
+    segment.conditioningFrame = conditioningFrame
+
+    // Determine generation mode
+    const mode = conditioningFrame ? 'image-to-video' : 'text-to-video'
+
+    // Generate via FAL.ai (existing lib/ai-video/)
+    const result = await generateVideo({
+      prompt,
+      model: settings.model,
+      settings: { ...settings, duration: segment.duration },
+      imagePath: conditioningFrame,
+      onProgress: (p) => {
+        const overall = (segment.index + p) / segments.length
+        onProgress(segment.index, p, overall)
+      },
+    })
+
+    // Save to disk
+    const saved = await window.electronAPI.aiVideo.saveGeneratedVideo(result.url, projectPath)
+    segment.resultPath = saved.path
+    segment.status = 'complete'
+
+    // Extract last frame for next segment's conditioning
+    const lastFrameTime = segment.duration - 0.1
+    const frame = await window.electronAPI.ffmpeg.extractFrame(saved.path, lastFrameTime, 512)
+    conditioningFrame = frame.path
+
+    // Insert this segment into timeline immediately (non-blocking UX)
+    onSegmentComplete(segment, segments)
+  }
+}
+```
+
+### Prompt Strategy for Chained Segments
+
+Each segment gets the **same base prompt** from the user (or AI suggestion). This keeps the narrative consistent. The visual continuity comes from the conditioning frame, not prompt variation.
+
+For smarter results, Gemini can generate per-segment prompt variations:
+
+```typescript
+// Optional: ask Gemini to break the prompt into segment-level descriptions
+// System prompt addition for chained generation:
+const chainSystemPrompt = `
+The gap is ${gapDuration}s and will be filled with ${segments.length} consecutive clips
+of ~${maxDuration}s each. Generate ${segments.length} prompt variations that:
+- Tell a coherent visual story across all segments
+- Each prompt describes one segment's action/camera/mood
+- Maintain visual continuity between segments
+Return as a JSON array of strings.
+`
+```
+
+### Progress UI for Chained Generation
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Filling 90s gap · Segment 3/9                      │
+│  ████████████████████░░░░░░░░░░░░░  33%             │
+│  ■ ■ ■ □ □ □ □ □ □   (segment indicators)          │
+│  [Cancel]                                           │
+└─────────────────────────────────────────────────────┘
+```
+
+Each completed segment appears on the timeline immediately so the user sees incremental progress. If generation fails mid-chain or the user cancels, completed segments stay in place — the remaining gap is just shorter.
+
+### Edge Cases
+
+| Case | Handling |
+|---|---|
+| Last segment < 1s | Merge into previous segment (generate slightly longer, trim to fit) |
+| Mid-chain failure | Keep completed segments, leave remaining gap unfilled, show error |
+| User cancels | Keep completed segments, stop chain |
+| Model doesn't support image-to-video | Fall back to text-to-video for all segments (no frame conditioning, less visual continuity) |
+| Gap exactly matches model max | Single generation, no chaining needed |
+| Frame extraction fails | Fall back to text-to-video for that segment |
+
+### Model Max Duration Reference
+
+| Model (via FAL) | Max Duration | Supports image-to-video |
+|---|---|---|
+| LTX 2.3 | 20s | Yes |
+| Veo 3.1 | 8s | Yes |
+| Sora 2 | 20s | Yes |
+| WAN 2.5/2.6 | 10s | Yes |
+| Vidu Q2/Q3 | 8s | Yes |
+| Kling O1 | 10s | Yes |
+| Seedance | 10s | Yes |
+
+---
+
 ## Implementation Order
 
 ### Phase 1: Gap Detection + UI (no generation)
@@ -247,7 +422,7 @@ const handleGapGenerate = async () => {
 - `electron/gemini-chat-handler.ts` — add gap prompt suggestion method
 - `types/electron/api-gemini-pty-mcp.ts` — add type
 
-### Phase 4: Generation + Insertion
+### Phase 4: Single-Segment Generation + Insertion
 1. Wire "Generate" button to FAL.ai client (use existing `lib/ai-video/`)
 2. Track generation progress (adapt LTX's `generatingGap` state pattern)
 3. On completion: save video, add to media store, insert element into timeline gap
@@ -256,6 +431,20 @@ const handleGapGenerate = async () => {
 **Files to create/modify**:
 - `stores/timeline/timeline-store-gaps.ts` — add generation tracking + insertion
 - `components/editor/timeline/gap-indicator.tsx` — add progress state
+
+### Phase 5: Chained Generation for Long Gaps
+1. Add segment planning logic (`planGapSegments`)
+2. Implement sequential execution with frame extraction between segments
+3. Insert each completed segment into timeline immediately
+4. Add multi-segment progress UI (segment indicators + overall progress bar)
+5. Handle mid-chain cancellation and failure gracefully
+6. Optional: Gemini per-segment prompt variations
+
+**Files to create/modify**:
+- `lib/ai-video/chained-generation.ts` (new) — segment planning + execution loop
+- `stores/timeline/timeline-store-gaps.ts` — multi-segment tracking state
+- `components/editor/gap-generation-modal.tsx` — segment count preview, long gap warning
+- `components/editor/timeline/gap-indicator.tsx` — multi-segment progress
 
 ---
 
@@ -273,4 +462,6 @@ const handleGapGenerate = async () => {
 | Non-blocking generation UX | 15 lines | Copy pattern, change API calls |
 | `generatingGap` state shape | 6 lines | Copy type definition |
 | Clip insertion logic | 50 lines | Adapt to QCut's `addElement()` |
+| Chained generation | ~0 lines (new) | New code, LTX doesn't have this |
 | **Total reusable** | **~360 lines** | ~40% direct copy, ~60% adapted |
+| **New code for chaining** | **~200 lines** | Segment planner, execution loop, progress |
