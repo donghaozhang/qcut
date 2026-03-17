@@ -53,4 +53,16 @@ User Query
 | [04-agent-orchestration.md](04-agent-orchestration.md) | Agent hierarchy and LangGraph workflows |
 | [05-reuse-analysis.md](05-reuse-analysis.md) | **What QCut can reuse** |
 | [06-embedding-options.md](06-embedding-options.md) | All embedding models compared + recommended tiered architecture |
-| [source-files/](source-files/) | Copied source code and configs |
+| | |
+| **Implementation Plan** | |
+| [10-implementation-overview.md](10-implementation-overview.md) | Master plan: architecture, data flow, file structure |
+| [11-subtask-embedding-provider.md](11-subtask-embedding-provider.md) | Subtask 1: Provider abstraction + Gemini Embedding 2 |
+| [12-subtask-video-chunking.md](12-subtask-video-chunking.md) | Subtask 2: FFmpeg 5s video chunking |
+| [13-subtask-vector-storage.md](13-subtask-vector-storage.md) | Subtask 3: JSON-based vector storage |
+| [14-subtask-indexing-handler.md](14-subtask-indexing-handler.md) | Subtask 4: Indexing IPC handler (orchestrator) |
+| [15-subtask-search-handler.md](15-subtask-search-handler.md) | Subtask 5: Search IPC handler + cosine KNN |
+| [16-subtask-search-ui.md](16-subtask-search-ui.md) | Subtask 6: Search panel UI + Zustand store |
+| [17-subtask-settings.md](17-subtask-settings.md) | Subtask 7: Provider config + settings |
+| [18-subtask-tests.md](18-subtask-tests.md) | Subtask 8: All unit + E2E tests |
+| | |
+| [source-files/](source-files/) | Copied NVIDIA VSS source code and configs |
