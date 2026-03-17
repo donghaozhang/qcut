@@ -8,7 +8,7 @@ export function constrainFocus(
 	cx: number,
 	cy: number,
 	zoomScale: number,
-	aspectRatio: number
+	_aspectRatio: number
 ): { cx: number; cy: number } {
 	// At zoom scale S, the visible area is 1/S of the full frame in both dimensions
 	// (uniform zoom). In normalized [0,1] coords the viewport is always 1/S x 1/S.
