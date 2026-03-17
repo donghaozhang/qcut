@@ -10,11 +10,10 @@ export function constrainFocus(
 	zoomScale: number,
 	aspectRatio: number
 ): { cx: number; cy: number } {
-	// At zoom scale S, the visible area is 1/S of the full frame.
-	// The focus center must be at least half-viewport from each edge.
-	// Use aspect ratio to compute correct horizontal/vertical half-extents.
-	const halfViewW = aspectRatio >= 1 ? 0.5 / zoomScale : (0.5 * aspectRatio) / zoomScale;
-	const halfViewH = aspectRatio >= 1 ? (0.5 / aspectRatio) / zoomScale : 0.5 / zoomScale;
+	// At zoom scale S, the visible area is 1/S of the full frame in both dimensions
+	// (uniform zoom). In normalized [0,1] coords the viewport is always 1/S x 1/S.
+	const halfViewW = 0.5 / zoomScale;
+	const halfViewH = 0.5 / zoomScale;
 
 	const clampedCx = Math.max(halfViewW, Math.min(1 - halfViewW, cx));
 	const clampedCy = Math.max(halfViewH, Math.min(1 - halfViewH, cy));

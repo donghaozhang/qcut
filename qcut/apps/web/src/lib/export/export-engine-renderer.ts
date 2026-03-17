@@ -30,6 +30,8 @@ import {
 } from "@/stores/screen-recording-store";
 
 let exportCompositor: ScreenRecordingExportCompositor | null = null;
+let compositorFrameCanvas: HTMLCanvasElement | null = null;
+let compositorFrameCtx: CanvasRenderingContext2D | null = null;
 
 /** Get or create the screen recording export compositor. */
 function getExportCompositor(
@@ -56,6 +58,8 @@ function getExportCompositor(
 export function destroyExportCompositor(): void {
 	exportCompositor?.destroy();
 	exportCompositor = null;
+	compositorFrameCanvas = null;
+	compositorFrameCtx = null;
 }
 
 /** Context passed to renderer functions */
@@ -120,16 +124,18 @@ export async function renderFrame(
 	// Apply screen recording enhancement compositing (cursor, zoom, background)
 	const compositor = getExportCompositor(canvas);
 	if (compositor) {
-		// Capture the current canvas content as the video frame source
-		const frameCanvas = document.createElement("canvas");
-		frameCanvas.width = canvas.width;
-		frameCanvas.height = canvas.height;
-		const frameCtx = frameCanvas.getContext("2d");
-		if (frameCtx) {
-			frameCtx.drawImage(canvas, 0, 0);
+		// Reuse a single offscreen canvas for frame capture across all frames
+		if (!compositorFrameCanvas || compositorFrameCanvas.width !== canvas.width || compositorFrameCanvas.height !== canvas.height) {
+			compositorFrameCanvas = document.createElement("canvas");
+			compositorFrameCanvas.width = canvas.width;
+			compositorFrameCanvas.height = canvas.height;
+			compositorFrameCtx = compositorFrameCanvas.getContext("2d");
+		}
+		if (compositorFrameCtx) {
+			compositorFrameCtx.drawImage(canvas, 0, 0);
 			// Clear and re-render with compositor
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
-			compositor.renderFrame(ctx, frameCanvas, currentTime * 1000);
+			compositor.renderFrame(ctx, compositorFrameCanvas, currentTime * 1000);
 		}
 	}
 

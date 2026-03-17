@@ -489,6 +489,12 @@ function TimelineTrackContentComponent({
 		// If element is already selected, keep it selected (do nothing)
 	};
 
+	// Memoize gap detection to avoid recomputing on every render
+	const trackGaps = useMemo(
+		() => (track.type === "media" ? detectTimelineGaps([track]) : []),
+		[track.type, track.elements]
+	);
+
 	return (
 		<div
 			ref={dropZoneRef}
@@ -512,17 +518,14 @@ function TimelineTrackContentComponent({
 				data-track-type={track.type}
 			>
 				{/* Gap indicators for media tracks */}
-				{track.type === "media" && (() => {
-					const singleTrackGaps = detectTimelineGaps([track]);
-					return singleTrackGaps.map((gap) => (
-						<GapIndicator
-							key={`gap-${gap.startTime}-${gap.endTime}`}
-							gap={gap}
-							zoomLevel={zoomLevel}
-							trackHeight={getTrackHeight(track.type)}
-						/>
-					));
-				})()}
+				{trackGaps.map((gap) => (
+					<GapIndicator
+						key={`gap-${gap.startTime}-${gap.endTime}`}
+						gap={gap}
+						zoomLevel={zoomLevel}
+						trackHeight={getTrackHeight(track.type)}
+					/>
+				))}
 
 				{track.elements.length === 0 ? (
 					<div

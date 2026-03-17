@@ -1,5 +1,9 @@
 # Subtask 7: Settings & Provider Config
 
+## Status
+
+**NOT IMPLEMENTED (intentionally skipped)** — This subtask was deferred for MVP. The implementation uses `GeminiEmbeddingProvider` as the hardcoded default provider without a config file or settings UI. No `provider-config.ts` was created. The `video-search-handler.ts` includes a `provider-status` IPC channel to check if the Gemini API key is available, but no config load/save or provider switching. This was a deliberate simplification: with only one provider (Gemini Embedding 2) supported, a config system adds complexity without value. Can be added later when additional providers (ImageBind, Cosmos) are implemented.
+
 ## Goal
 
 Let users configure which embedding provider to use and adjust search parameters. Integrate with existing API key management.
