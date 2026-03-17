@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { toast } from "sonner";
 import { TimelineElement } from "./timeline-element";
+import { GapIndicator } from "./gap-indicator";
 import {
 	TimelineTrack,
 	sortTracksByOrder,
@@ -12,6 +13,7 @@ import {
 	getMainTrack,
 	canElementGoOnTrack,
 } from "@/types/timeline";
+import { detectTimelineGaps } from "@/stores/timeline/gap-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import type {
 	TimelineElement as TimelineElementType,
@@ -20,6 +22,7 @@ import type {
 import {
 	snapTimeToFrame,
 	TIMELINE_CONSTANTS,
+	getTrackHeight,
 } from "@/constants/timeline-constants";
 import { useProjectStore } from "@/stores/project-store";
 import {
@@ -399,6 +402,12 @@ function TimelineTrackContentComponent({
 		return () => el.removeEventListener("touch-drop", onTouchDrop);
 	}, [handleTouchDrop]);
 
+	// Memoize gap detection to avoid recomputing on every render
+	const trackGaps = useMemo(
+		() => (track.type === "media" ? detectTimelineGaps([track]) : []),
+		[track]
+	);
+
 	// Handle media loading states
 	if (mediaItemsError) {
 		console.error(
@@ -508,6 +517,16 @@ function TimelineTrackContentComponent({
 				data-testid="timeline-track"
 				data-track-type={track.type}
 			>
+				{/* Gap indicators for media tracks */}
+				{trackGaps.map((gap) => (
+					<GapIndicator
+						key={`gap-${gap.startTime}-${gap.endTime}`}
+						gap={gap}
+						zoomLevel={zoomLevel}
+						trackHeight={getTrackHeight(track.type)}
+					/>
+				))}
+
 				{track.elements.length === 0 ? (
 					<div
 						className={`h-full w-full rounded-sm border-2 border-dashed flex items-center justify-center text-xs text-muted-foreground transition-colors ${

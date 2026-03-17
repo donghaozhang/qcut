@@ -6,6 +6,8 @@ import type {
 	StopScreenRecordingResult,
 } from "@/types/electron";
 import { platform } from "@qcut/platform-core";
+import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
+import { analyzeForZoomSuggestions } from "@/lib/screen-recording/auto-zoom-analyzer";
 
 const SCREEN_RECORDING_EVENT_NAME = "qcut:screen-recording-status";
 
@@ -15,6 +17,9 @@ const SCREEN_RECORDING_STATE = {
 } as const;
 
 const DEFAULT_TIMESLICE_MS = 1000;
+
+/** Target bitrate for screen capture MediaRecorder (5 Mbps — good for screen content). */
+const SCREEN_CAPTURE_BITRATE = 5_000_000;
 
 const MIME_TYPE_CANDIDATES = [
 	"video/webm;codecs=vp9,opus",
@@ -347,7 +352,9 @@ export async function startScreenRecording({
 
 		mediaStream = await getCaptureStream({ sourceId: startResult.sourceId });
 
-		const recorderOptions: MediaRecorderOptions = {};
+		const recorderOptions: MediaRecorderOptions = {
+			videoBitsPerSecond: SCREEN_CAPTURE_BITRATE,
+		};
 		const resolvedMimeType = options.mimeType ?? mimeType;
 		if (resolvedMimeType) {
 			recorderOptions.mimeType = resolvedMimeType;
@@ -479,6 +486,32 @@ export async function stopScreenRecording({
 
 		if (recordingState.chunkWriteError) {
 			throw recordingState.chunkWriteError;
+		}
+
+		// Load cursor telemetry sidecar after successful stop
+		const store = useScreenRecordingEnhancementStore.getState();
+		// Clear previous telemetry before loading new data
+		store.setCursorTelemetry(null);
+		store.setZoomRegions([]);
+		if (stopResult.filePath) {
+			try {
+				const sidecarApi = getRecordingApi();
+				const telemetry = await sidecarApi?.getCursorTelemetry?.(
+					stopResult.filePath
+				);
+				if (telemetry) {
+					store.setCursorTelemetry(telemetry);
+
+					// Auto-generate zoom suggestions from telemetry
+					const suggestions = analyzeForZoomSuggestions(
+						telemetry,
+						store.autoZoomConfig
+					);
+					store.setZoomRegions(suggestions);
+				}
+			} catch {
+				// Non-fatal: enhancements work without telemetry
+			}
 		}
 
 		return stopResult;

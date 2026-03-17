@@ -174,6 +174,11 @@ export interface PlatformScreenRecordingAPI {
 		durationMs: number;
 		mimeType: string | null;
 	}>;
+	getCursorTelemetry?(videoPath: string): Promise<{
+		version: 1;
+		captureRect: { x: number; y: number; width: number; height: number };
+		points: Array<{ t: number; x: number; y: number; p: boolean; c?: string }>;
+	} | null>;
 }
 
 // ---------------------------------------------------------------------------

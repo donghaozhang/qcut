@@ -132,6 +132,7 @@ try {
 	/* pi-mono not installed */
 }
 const { setupRemotionFolderIPC } = require("./remotion-folder-handler.js");
+const { setupVideoSearchIPC } = require("./video-search-handler.js");
 const { setupScreenRecordingIPC } = require("./screen-recording-handler.js");
 const { setupMoyinIPC } = require("./moyin-handler.js");
 const { setupLicenseIPC } = require("./license-handler.js");
@@ -827,6 +828,7 @@ if (!isCliKeyCommand) {
 			["MediaImportIPC", setupMediaImportIPC],
 			["ProjectFolderIPC", setupProjectFolderIPC],
 			["ProjectJsonIPC", setupProjectJsonIPC],
+			["VideoSearchIPC", setupVideoSearchIPC],
 			["ClaudeIPC", setupAllClaudeIPC],
 			[
 				"PiAgentIPC",

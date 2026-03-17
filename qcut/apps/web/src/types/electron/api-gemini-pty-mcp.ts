@@ -16,6 +16,12 @@ export interface ElectronGeminiChatOps {
 			}>;
 			model?: string;
 		}) => Promise<{ success: boolean; error?: string }>;
+		suggestGapPrompt: (request: {
+			gapDuration: number;
+			mode: string;
+			beforeFrameUrl?: string | null;
+			afterFrameUrl?: string | null;
+		}) => Promise<{ suggestedPrompt: string | null; error?: string }>;
 		onStreamChunk: (callback: (data: { text: string }) => void) => void;
 		onStreamComplete: (callback: () => void) => void;
 		onStreamError: (callback: (data: { message: string }) => void) => void;

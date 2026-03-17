@@ -2,7 +2,7 @@
 
 import { platform } from "@qcut/platform-core";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import type { RemotionElement, TimelineElement } from "@/types/timeline";
+import type { RemotionElement } from "@/types/timeline";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useEditorStore } from "@/stores/editor/editor-store";
@@ -11,7 +11,11 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { debugLog } from "@/lib/debug/debug-config";
 import { useProjectStore } from "@/stores/project-store";
 import { useMcpAppStore } from "@/stores/mcp-app-store";
-import { FullscreenPreview, PreviewToolbar } from "./preview-panel-components";
+import {
+	FullscreenPreview,
+	PreviewToolbar,
+	PreviewModeToggle,
+} from "./preview-panel-components";
 import { StickerCanvas } from "./stickers-overlay/StickerCanvas";
 import { CaptionsDisplay } from "@/components/captions/captions-display";
 import { captureWithFallback } from "@/lib/effects/canvas-utils";
@@ -39,8 +43,9 @@ import {
 	type PreviewMode,
 } from "@/stores/preview-mode-store";
 import { PreviewAgentView } from "./preview-panel/preview-agent-view";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { MonitorPlay, AppWindow, Bot } from "lucide-react";
+import { CursorOverlay } from "./preview-panel/cursor-overlay";
+import { RecordingBackground } from "./preview-panel/recording-background";
+import { useScreenRecordingPreview } from "./preview-panel/use-screen-recording-preview";
 
 /** Main preview panel component for video playback, MCP apps, and element overlays. */
 export function PreviewPanel() {
@@ -137,6 +142,20 @@ export function PreviewPanel() {
 		isExpanded,
 	});
 
+	const {
+		smoothTime,
+		zoomStyle,
+		cursorTelemetry,
+		cursorConfig,
+		showCursorOverlay,
+		recordingBackground,
+	} = useScreenRecordingPreview({
+		isPlaying,
+		currentTime,
+		previewWidth: previewDimensions.width || canvasSize.width,
+		previewHeight: previewDimensions.height || canvasSize.height,
+	});
+
 	// Preview element drag handling
 	const { dragState, handleTextPointerDown } = usePreviewDrag({
 		tracks,
@@ -153,13 +172,7 @@ export function PreviewPanel() {
 	);
 
 	// Frame caching - non-intrusive addition
-	const {
-		getCachedFrame,
-		cacheFrame,
-		invalidateCache,
-		getRenderStatus,
-		preRenderNearbyFrames,
-	} = useFrameCache({
+	const { preRenderNearbyFrames } = useFrameCache({
 		maxCacheSize: 300,
 		cacheResolution: 30,
 		persist: true,
@@ -249,32 +262,6 @@ export function PreviewPanel() {
 		},
 		[activeHtml, localMcpActive, setLocalMcpActive, setPreviewMode]
 	);
-
-	// Helper function to capture current preview frame
-	const captureCurrentFrame = useCallback(async () => {
-		if (
-			!previewRef.current ||
-			previewDimensions.width === 0 ||
-			previewDimensions.height === 0
-		) {
-			return null;
-		}
-
-		try {
-			const imageData = await captureWithFallback(previewRef.current, {
-				width: previewDimensions.width,
-				height: previewDimensions.height,
-				backgroundColor:
-					activeProject?.backgroundType === "blur"
-						? "transparent"
-						: activeProject?.backgroundColor || "#000000",
-			});
-
-			return imageData;
-		} catch (error) {
-			return null;
-		}
-	}, [previewDimensions, activeProject]);
 
 	useEffect(() => {
 		const handlePlaybackSeek = (event: Event) => {
@@ -588,40 +575,8 @@ export function PreviewPanel() {
 		);
 	}
 
-	// Shared mode toggle rendered in every mode's header
 	const modeToggle = (
-		<ToggleGroup
-			type="single"
-			value={previewMode}
-			onValueChange={handleModeChange}
-			size="sm"
-			className="h-7"
-		>
-			<ToggleGroupItem
-				value="video"
-				aria-label="Video preview"
-				className="px-2 py-1 text-xs gap-1"
-			>
-				<MonitorPlay className="size-3" />
-				<span className="hidden sm:inline">Video</span>
-			</ToggleGroupItem>
-			<ToggleGroupItem
-				value="mcp"
-				aria-label="MCP app"
-				className="px-2 py-1 text-xs gap-1"
-			>
-				<AppWindow className="size-3" />
-				<span className="hidden sm:inline">MCP</span>
-			</ToggleGroupItem>
-			<ToggleGroupItem
-				value="agent"
-				aria-label="Agent terminal"
-				className="px-2 py-1 text-xs gap-1"
-			>
-				<Bot className="size-3" />
-				<span className="hidden sm:inline">Agent</span>
-			</ToggleGroupItem>
-		</ToggleGroup>
+		<PreviewModeToggle value={previewMode} onValueChange={handleModeChange} />
 	);
 
 	if (previewMode === "mcp") {
@@ -699,16 +654,54 @@ export function PreviewPanel() {
 										: activeProject?.backgroundColor || "#000000",
 							}}
 						>
-							{renderBlurBackground()}
-							{activeElements.length === 0 ? (
-								<div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-									No elements at current time
-								</div>
-							) : (
-								activeElements.map((elementData, index) =>
-									renderElement(elementData, index)
-								)
-							)}
+							{(() => {
+								const pw = previewDimensions.width || canvasSize.width;
+								const ph = previewDimensions.height || canvasSize.height;
+								const hasBg = recordingBackground.type !== "none";
+								const padding = hasBg ? recordingBackground.padding : 0;
+								const cursorW = pw - padding * 2;
+								const cursorH = ph - padding * 2;
+
+								const cursorOverlay = cursorTelemetry && showCursorOverlay && (
+									<CursorOverlay
+										canvasWidth={cursorW}
+										canvasHeight={cursorH}
+										currentTimeMs={
+											(isPlaying ? smoothTime : currentTime) * 1000
+										}
+										telemetry={cursorTelemetry}
+										config={cursorConfig}
+										visible={showCursorOverlay}
+									/>
+								);
+
+								const zoomContent = (
+									<div className="absolute inset-0" style={zoomStyle}>
+										{renderBlurBackground()}
+										{activeElements.length === 0 ? (
+											<div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+												No elements at current time
+											</div>
+										) : (
+											activeElements.map((elementData, index) =>
+												renderElement(elementData, index)
+											)
+										)}
+										{cursorOverlay}
+									</div>
+								);
+								return hasBg ? (
+									<RecordingBackground
+										background={recordingBackground}
+										width={pw}
+										height={ph}
+									>
+										{zoomContent}
+									</RecordingBackground>
+								) : (
+									zoomContent
+								);
+							})()}
 							{activeProject?.backgroundType === "blur" &&
 								blurBackgroundElements.length === 0 &&
 								activeElements.length > 0 && (

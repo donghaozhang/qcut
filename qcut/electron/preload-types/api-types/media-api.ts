@@ -70,5 +70,8 @@ export interface ScreenRecordingAPI {
 			options?: StopScreenRecordingOptions
 		) => Promise<StopScreenRecordingResult>;
 		getStatus: () => Promise<ScreenRecordingStatus>;
+		getCursorTelemetry?: (
+			videoPath: string
+		) => Promise<import("../../preload-types.js").CursorTelemetryData | null>;
 	};
 }

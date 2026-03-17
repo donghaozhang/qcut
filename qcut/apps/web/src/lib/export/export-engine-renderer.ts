@@ -20,6 +20,47 @@ import { validateRenderedFrame } from "./export-engine-debug";
 import { stripMarkdownSyntax } from "@/lib/markdown";
 import { resolveSubtitleStyle, hexToRgba } from "@/lib/captions/subtitle-style";
 import type { CaptionElement } from "@/types/timeline";
+import {
+	ScreenRecordingExportCompositor,
+	type ExportCompositorConfig,
+} from "@/lib/screen-recording/export-compositor";
+import {
+	useScreenRecordingEnhancementStore,
+	hasActiveEnhancements,
+} from "@/stores/screen-recording-store";
+
+let exportCompositor: ScreenRecordingExportCompositor | null = null;
+let compositorFrameCanvas: HTMLCanvasElement | null = null;
+let compositorFrameCtx: CanvasRenderingContext2D | null = null;
+
+/** Get or create the screen recording export compositor. */
+function getExportCompositor(
+	canvas: HTMLCanvasElement
+): ScreenRecordingExportCompositor | null {
+	const state = useScreenRecordingEnhancementStore.getState();
+	if (!hasActiveEnhancements(state)) return null;
+
+	if (!exportCompositor) {
+		const config: ExportCompositorConfig = {
+			background: state.background,
+			cursorConfig: state.cursorConfig,
+			zoomRegions: state.zoomRegions,
+			telemetry: state.cursorTelemetry,
+			outputWidth: canvas.width,
+			outputHeight: canvas.height,
+		};
+		exportCompositor = new ScreenRecordingExportCompositor(config);
+	}
+	return exportCompositor;
+}
+
+/** Clean up the export compositor (call after export finishes). */
+export function destroyExportCompositor(): void {
+	exportCompositor?.destroy();
+	exportCompositor = null;
+	compositorFrameCanvas = null;
+	compositorFrameCtx = null;
+}
 
 /** Context passed to renderer functions */
 export interface RenderContext {
@@ -78,6 +119,28 @@ export async function renderFrame(
 	// Render each active element
 	for (const { element, mediaItem } of sortedElements) {
 		await renderElement(context, element, mediaItem, currentTime);
+	}
+
+	// Apply screen recording enhancement compositing (cursor, zoom, background)
+	const compositor = getExportCompositor(canvas);
+	if (compositor) {
+		// Reuse a single offscreen canvas for frame capture across all frames
+		if (
+			!compositorFrameCanvas ||
+			compositorFrameCanvas.width !== canvas.width ||
+			compositorFrameCanvas.height !== canvas.height
+		) {
+			compositorFrameCanvas = document.createElement("canvas");
+			compositorFrameCanvas.width = canvas.width;
+			compositorFrameCanvas.height = canvas.height;
+			compositorFrameCtx = compositorFrameCanvas.getContext("2d");
+		}
+		if (compositorFrameCtx) {
+			compositorFrameCtx.drawImage(canvas, 0, 0);
+			// Clear and re-render with compositor
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			compositor.renderFrame(ctx, compositorFrameCanvas, currentTime * 1000);
+		}
 	}
 
 	// Render overlay stickers on top of everything

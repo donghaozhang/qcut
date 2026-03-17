@@ -1,0 +1,38 @@
+export { CursorRenderer, DEFAULT_CURSOR_CONFIG } from "./cursor-renderer";
+export type { CursorRenderConfig } from "./cursor-renderer";
+export {
+	getCursorSpringConfig,
+	stepSpring,
+	createSpringState,
+} from "./motion-smoothing";
+export type { SpringState, SpringConfig } from "./motion-smoothing";
+export { easeOutCubic, easeOutScreenStudio, clamp01, lerp } from "./math-utils";
+export { CURSOR_ASSETS } from "./cursor-assets";
+export { GRADIENT_PRESETS, DEFAULT_BACKGROUND } from "./wallpapers";
+export type { BackgroundConfig, BuiltInWallpaper } from "./wallpapers";
+export {
+	computeRegionStrength,
+	mergeOverlappingRegions,
+} from "./zoom-region-utils";
+export type { ZoomRegion } from "./zoom-region-utils";
+export { computeZoomTransform } from "./zoom-transform";
+export type { ZoomTransform } from "./zoom-transform";
+export {
+	analyzeForZoomSuggestions,
+	DEFAULT_AUTO_ZOOM_CONFIG,
+} from "./auto-zoom-analyzer";
+export type { AutoZoomConfig } from "./auto-zoom-analyzer";
+export { constrainFocus } from "./focus-utils";
+export {
+	ZOOM_DEPTH_SCALES,
+	ZOOM_IN_OVERLAP_MS,
+	ZOOM_IN_TRANSITION_WINDOW_MS,
+	TRANSITION_WINDOW_MS,
+} from "./constants";
+export { drawCursor, getClickAnimProgress } from "./canvas-cursor-renderer";
+export {
+	drawBackground,
+	drawRoundedVideoFrame,
+} from "./canvas-background-renderer";
+export { ScreenRecordingExportCompositor } from "./export-compositor";
+export type { ExportCompositorConfig } from "./export-compositor";

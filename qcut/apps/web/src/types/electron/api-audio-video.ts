@@ -10,6 +10,7 @@ import type {
 	StopScreenRecordingResult,
 	ScreenRecordingStatus,
 } from "./screen-recording";
+import type { CursorTelemetryData } from "./cursor-telemetry";
 
 export interface ElectronAudioOps {
 	audio: {
@@ -62,6 +63,9 @@ export interface ElectronScreenRecordingOps {
 			options?: StopScreenRecordingOptions
 		) => Promise<StopScreenRecordingResult>;
 		getStatus: () => Promise<ScreenRecordingStatus>;
+		getCursorTelemetry: (
+			videoPath: string
+		) => Promise<CursorTelemetryData | null>;
 	};
 }
 

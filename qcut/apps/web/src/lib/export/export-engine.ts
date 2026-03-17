@@ -28,6 +28,7 @@ import {
 	type RenderContext,
 	renderFrame as renderFrameImpl,
 	renderOverlayStickers as renderOverlayStickersImpl,
+	destroyExportCompositor,
 } from "./export-engine-renderer";
 
 // Re-export for consumers
@@ -500,6 +501,7 @@ export class ExportEngine {
 			throw error;
 		} finally {
 			this.isExporting = false;
+			destroyExportCompositor();
 			if (this.ffmpegRecorder) {
 				this.ffmpegRecorder.cleanup();
 				this.ffmpegRecorder = null;
