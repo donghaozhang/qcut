@@ -402,6 +402,12 @@ function TimelineTrackContentComponent({
 		return () => el.removeEventListener("touch-drop", onTouchDrop);
 	}, [handleTouchDrop]);
 
+	// Memoize gap detection to avoid recomputing on every render
+	const trackGaps = useMemo(
+		() => (track.type === "media" ? detectTimelineGaps([track]) : []),
+		[track]
+	);
+
 	// Handle media loading states
 	if (mediaItemsError) {
 		console.error(
@@ -488,12 +494,6 @@ function TimelineTrackContentComponent({
 		}
 		// If element is already selected, keep it selected (do nothing)
 	};
-
-	// Memoize gap detection to avoid recomputing on every render
-	const trackGaps = useMemo(
-		() => (track.type === "media" ? detectTimelineGaps([track]) : []),
-		[track],
-	);
 
 	return (
 		<div

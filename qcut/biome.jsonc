@@ -61,7 +61,8 @@
 				"dist-electron/**",
 				"dist-packager/**",
 				"**/test-output/**",
-				"resources/default-skills/**"
+				"resources/default-skills/**",
+			"docs/task/**"
 			],
 			"linter": {
 				"enabled": false
