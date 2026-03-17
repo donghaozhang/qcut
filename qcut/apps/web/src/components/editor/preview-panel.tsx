@@ -11,7 +11,11 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { debugLog } from "@/lib/debug/debug-config";
 import { useProjectStore } from "@/stores/project-store";
 import { useMcpAppStore } from "@/stores/mcp-app-store";
-import { FullscreenPreview, PreviewToolbar } from "./preview-panel-components";
+import {
+	FullscreenPreview,
+	PreviewToolbar,
+	PreviewModeToggle,
+} from "./preview-panel-components";
 import { StickerCanvas } from "./stickers-overlay/StickerCanvas";
 import { CaptionsDisplay } from "@/components/captions/captions-display";
 import { captureWithFallback } from "@/lib/effects/canvas-utils";
@@ -39,12 +43,9 @@ import {
 	type PreviewMode,
 } from "@/stores/preview-mode-store";
 import { PreviewAgentView } from "./preview-panel/preview-agent-view";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { MonitorPlay, AppWindow, Bot } from "lucide-react";
 import { CursorOverlay } from "./preview-panel/cursor-overlay";
 import { RecordingBackground } from "./preview-panel/recording-background";
-import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
-import { computeZoomTransform } from "@/lib/screen-recording/zoom-transform";
+import { useScreenRecordingPreview } from "./preview-panel/use-screen-recording-preview";
 
 /** Main preview panel component for video playback, MCP apps, and element overlays. */
 export function PreviewPanel() {
@@ -117,19 +118,19 @@ export function PreviewPanel() {
 	const setLocalMcpActive = useMcpAppStore((state) => state.setLocalMcpActive);
 	const previewMode = usePreviewModeStore((state) => state.previewMode);
 	const setPreviewMode = usePreviewModeStore((state) => state.setPreviewMode);
-	const cursorTelemetry = useScreenRecordingEnhancementStore(
-		(s) => s.cursorTelemetry
-	);
-	const cursorConfig = useScreenRecordingEnhancementStore(
-		(s) => s.cursorConfig
-	);
-	const showCursorOverlay = useScreenRecordingEnhancementStore(
-		(s) => s.showCursorOverlay
-	);
-	const recordingBackground = useScreenRecordingEnhancementStore(
-		(s) => s.background
-	);
-	const zoomRegions = useScreenRecordingEnhancementStore((s) => s.zoomRegions);
+	const {
+		smoothTime,
+		zoomStyle,
+		cursorTelemetry,
+		cursorConfig,
+		showCursorOverlay,
+		recordingBackground,
+	} = useScreenRecordingPreview({
+		isPlaying,
+		currentTime,
+		previewWidth: previewDimensions.width || canvasSize.width,
+		previewHeight: previewDimensions.height || canvasSize.height,
+	});
 
 	// Local MCP: derive HTML fresh from template every render (auto-reload on HMR)
 	// External MCP: use stored HTML from IPC
@@ -311,26 +312,6 @@ export function PreviewPanel() {
 				handlePlaybackSeek as EventListener
 			);
 	}, []);
-
-	// Compute zoom transform for screen recording enhancements
-	const zoomTransform = useMemo(() => {
-		if (zoomRegions.length === 0) return null;
-		const timeMs = (isPlaying ? playbackTime : currentTime) * 1000;
-		return computeZoomTransform(
-			timeMs,
-			zoomRegions,
-			canvasSize.width,
-			canvasSize.height
-		);
-	}, [zoomRegions, isPlaying, playbackTime, currentTime, canvasSize]);
-
-	const zoomStyle: React.CSSProperties | undefined =
-		zoomTransform && zoomTransform.scale > 1.001
-			? {
-					transform: `scale(${zoomTransform.scale}) translate(${zoomTransform.translateX / zoomTransform.scale}px, ${zoomTransform.translateY / zoomTransform.scale}px)`,
-					transformOrigin: "top left",
-				}
-			: undefined;
 
 	const hasAnyElements = tracks.some((track) => track.elements.length > 0);
 	const getActiveElements = useCallback((): ActiveElement[] => {
@@ -737,6 +718,27 @@ export function PreviewPanel() {
 							}}
 						>
 							{(() => {
+								const pw = previewDimensions.width || canvasSize.width;
+								const ph = previewDimensions.height || canvasSize.height;
+								const hasBg = recordingBackground.type !== "none";
+								const padding = hasBg ? recordingBackground.padding : 0;
+								const cursorW = pw - padding * 2;
+								const cursorH = ph - padding * 2;
+
+								const cursorOverlay = cursorTelemetry &&
+									showCursorOverlay && (
+										<CursorOverlay
+											canvasWidth={cursorW}
+											canvasHeight={cursorH}
+											currentTimeMs={
+												(isPlaying ? smoothTime : currentTime) * 1000
+											}
+											telemetry={cursorTelemetry}
+											config={cursorConfig}
+											visible={showCursorOverlay}
+										/>
+									);
+
 								const zoomContent = (
 									<div className="absolute inset-0" style={zoomStyle}>
 										{renderBlurBackground()}
@@ -749,13 +751,14 @@ export function PreviewPanel() {
 												renderElement(elementData, index)
 											)
 										)}
+										{cursorOverlay}
 									</div>
 								);
-								return recordingBackground.type !== "none" ? (
+								return hasBg ? (
 									<RecordingBackground
 										background={recordingBackground}
-										width={previewDimensions.width || canvasSize.width}
-										height={previewDimensions.height || canvasSize.height}
+										width={pw}
+										height={ph}
 									>
 										{zoomContent}
 									</RecordingBackground>
@@ -776,20 +779,6 @@ export function PreviewPanel() {
 								className="absolute inset-0"
 								disabled={isExpanded}
 							/>
-
-							{/* Cursor telemetry overlay */}
-							{cursorTelemetry && showCursorOverlay && (
-								<CursorOverlay
-									canvasWidth={previewDimensions.width}
-									canvasHeight={previewDimensions.height}
-									currentTimeMs={
-										(isPlaying ? playbackTime : currentTime) * 1000
-									}
-									telemetry={cursorTelemetry}
-									config={cursorConfig}
-									visible={showCursorOverlay}
-								/>
-							)}
 
 							{/* Captions overlay - renders on top of stickers */}
 							<CaptionsDisplay

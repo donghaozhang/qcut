@@ -70,8 +70,9 @@ export function ScreenRecordingPanel() {
 			cursorTelemetry,
 			autoZoomConfig
 		);
-		setZoomRegions(suggestions);
-	}, [cursorTelemetry, autoZoomConfig, setZoomRegions]);
+		const manualRegions = zoomRegions.filter((r) => !r.auto);
+		setZoomRegions([...manualRegions, ...suggestions]);
+	}, [cursorTelemetry, autoZoomConfig, zoomRegions, setZoomRegions]);
 
 	const handleAddManual = useCallback(() => {
 		const startMs = currentTime * 1000;
@@ -136,7 +137,7 @@ export function ScreenRecordingPanel() {
 								className="flex-1 text-xs h-7"
 								onClick={handleAutoGenerate}
 								disabled={!cursorTelemetry}
-								title="Auto-generate zoom regions from cursor activity (Ctrl+Shift+Z)"
+								title="Auto-generate zoom regions from cursor activity (Ctrl+Shift+G)"
 							>
 								<Sparkles className="size-3 mr-1" />
 								Auto-generate

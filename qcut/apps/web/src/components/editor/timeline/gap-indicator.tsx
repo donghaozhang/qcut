@@ -18,15 +18,18 @@ interface GapIndicatorProps {
 	trackHeight: number;
 }
 
-export function GapIndicator({ gap, zoomLevel, trackHeight }: GapIndicatorProps) {
+export function GapIndicator({
+	gap,
+	zoomLevel,
+	trackHeight,
+}: GapIndicatorProps) {
 	const selectGap = useGapStore((s) => s.selectGap);
 	const selectedGap = useGapStore((s) => s.selectedGap);
 	const generatingGap = useGapStore((s) => s.generatingGap);
 
 	const gapDuration = gap.endTime - gap.startTime;
 	const left = gap.startTime * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
-	const width =
-		gapDuration * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
+	const width = gapDuration * TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel;
 
 	// Don't render gaps that are too narrow to interact with
 	if (width < 4) return null;
@@ -102,9 +105,7 @@ function GeneratingIndicator() {
 			<div className="flex items-center gap-1">
 				<div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
 				<span className="text-[9px] text-blue-400 font-medium">
-					{total > 1
-						? `${currentSegmentIndex + 1}/${total}`
-						: `${pct}%`}
+					{total > 1 ? `${currentSegmentIndex + 1}/${total}` : `${pct}%`}
 				</span>
 			</div>
 			{total > 1 && (

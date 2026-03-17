@@ -48,6 +48,8 @@ export class CursorRenderer {
 	private lastTimeMs = -1;
 	private clickStartMs = -1;
 	private wasPressed = false;
+	private loadToken = 0;
+	private destroyed = false;
 
 	constructor(stage: PIXI.Container, config: CursorRenderConfig) {
 		this.stage = stage;
@@ -67,8 +69,10 @@ export class CursorRenderer {
 		const dataUrl = CURSOR_ASSETS[style];
 		if (!dataUrl) return;
 
+		const token = ++this.loadToken;
 		PIXI.Assets.load(dataUrl)
 			.then((texture: PIXI.Texture) => {
+				if (this.destroyed || token !== this.loadToken) return;
 				this.cursorSprite = new PIXI.Sprite(texture);
 				this.cursorSprite.anchor.set(0, 0);
 				this.stage.addChild(this.cursorSprite);
@@ -93,6 +97,7 @@ export class CursorRenderer {
 		const { point, nextPoint } = this.findPoints(timeMs, telemetry);
 		if (!point) {
 			this.cursorGraphics.clear();
+			if (this.cursorSprite) this.cursorSprite.visible = false;
 			return;
 		}
 
@@ -173,8 +178,8 @@ export class CursorRenderer {
 				alpha: this.config.dotAlpha,
 			});
 
-			// Click ring
-			if (isPressed) {
+			// Click ring — show during entire bounce animation (matches export renderer)
+			if (this.clickStartMs >= 0) {
 				this.cursorGraphics.circle(smoothX, smoothY, radius * 1.5);
 				this.cursorGraphics.stroke({
 					color: this.config.dotColor,
@@ -212,6 +217,7 @@ export class CursorRenderer {
 	}
 
 	destroy(): void {
+		this.destroyed = true;
 		this.cursorGraphics.destroy();
 		if (this.cursorSprite) {
 			this.cursorSprite.destroy();
@@ -227,6 +233,7 @@ export class CursorRenderer {
 	} {
 		const { points } = telemetry;
 		if (points.length === 0) return { point: null, nextPoint: null };
+		if (timeMs < points[0].t) return { point: null, nextPoint: null };
 
 		// Binary search for the point just before timeMs
 		let low = 0;

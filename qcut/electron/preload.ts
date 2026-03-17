@@ -361,6 +361,13 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			model?: string;
 		}): Promise<{ success: boolean; error?: string }> =>
 			ipcRenderer.invoke("gemini:chat", request),
+		suggestGapPrompt: (request: {
+			gapDuration: number;
+			mode: string;
+			beforeFrameUrl?: string | null;
+			afterFrameUrl?: string | null;
+		}): Promise<{ suggestedPrompt: string | null; error?: string }> =>
+			ipcRenderer.invoke("gemini:suggest-gap-prompt", request),
 		onStreamChunk: (callback: (data: { text: string }) => void): void => {
 			ipcRenderer.removeAllListeners("gemini:stream-chunk");
 			ipcRenderer.on("gemini:stream-chunk", (_, data) => callback(data));

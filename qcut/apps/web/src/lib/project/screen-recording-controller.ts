@@ -495,8 +495,8 @@ export async function stopScreenRecording({
 		store.setZoomRegions([]);
 		if (stopResult.filePath) {
 			try {
-				const recordingApi = getRecordingApi();
-				const telemetry = await recordingApi?.getCursorTelemetry?.(
+				const sidecarApi = getRecordingApi();
+				const telemetry = await sidecarApi?.getCursorTelemetry?.(
 					stopResult.filePath
 				);
 				if (telemetry) {

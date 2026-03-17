@@ -8,13 +8,23 @@ import {
 	DropdownMenuTrigger,
 	DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Play, Pause, Expand, SkipBack, SkipForward } from "lucide-react";
+import {
+	Play,
+	Pause,
+	Expand,
+	SkipBack,
+	SkipForward,
+	MonitorPlay,
+	AppWindow,
+	Bot,
+} from "lucide-react";
 import { useState } from "react";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useEditorStore } from "@/stores/editor/editor-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useAspectRatio } from "@/hooks/media/use-aspect-ratio";
 import { cn } from "@/lib/utils";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { formatTimeCode } from "@/lib/time";
 import { EditableTimecode } from "@/components/ui/editable-timecode";
 import { BackgroundSettings } from "../background-settings";
@@ -472,5 +482,49 @@ export function PreviewToolbar({
 				</Button>
 			</div>
 		</div>
+	);
+}
+
+/** Shared mode toggle for switching between Video / MCP / Agent preview modes. */
+export function PreviewModeToggle({
+	value,
+	onValueChange,
+}: {
+	value: string;
+	onValueChange: (mode: string) => void;
+}) {
+	return (
+		<ToggleGroup
+			type="single"
+			value={value}
+			onValueChange={onValueChange}
+			size="sm"
+			className="h-7"
+		>
+			<ToggleGroupItem
+				value="video"
+				aria-label="Video preview"
+				className="px-2 py-1 text-xs gap-1"
+			>
+				<MonitorPlay className="size-3" />
+				<span className="hidden sm:inline">Video</span>
+			</ToggleGroupItem>
+			<ToggleGroupItem
+				value="mcp"
+				aria-label="MCP app"
+				className="px-2 py-1 text-xs gap-1"
+			>
+				<AppWindow className="size-3" />
+				<span className="hidden sm:inline">MCP</span>
+			</ToggleGroupItem>
+			<ToggleGroupItem
+				value="agent"
+				aria-label="Agent terminal"
+				className="px-2 py-1 text-xs gap-1"
+			>
+				<Bot className="size-3" />
+				<span className="hidden sm:inline">Agent</span>
+			</ToggleGroupItem>
+		</ToggleGroup>
 	);
 }

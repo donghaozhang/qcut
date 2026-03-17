@@ -123,8 +123,7 @@ export function GapGenerationModal() {
 
 		// Find clip before gap
 		const clipBefore = sorted.find((c) => {
-			const clipEnd =
-				c.startTime + c.duration - c.trimStart - c.trimEnd;
+			const clipEnd = c.startTime + c.duration - c.trimStart - c.trimEnd;
 			return Math.abs(clipEnd - selectedGap.startTime) < 0.1;
 		});
 
@@ -136,14 +135,14 @@ export function GapGenerationModal() {
 		const extractFrames = async () => {
 			if (clipBefore && "mediaId" in clipBefore) {
 				const media = mediaItems.find(
-					(m) => m.id === (clipBefore as TimelineElementType & { mediaId: string }).mediaId
+					(m) =>
+						m.id ===
+						(clipBefore as TimelineElementType & { mediaId: string }).mediaId
 				);
 				if (media?.url && media.type === "video") {
 					const seekTime =
 						clipBefore.trimStart +
-						(clipBefore.duration -
-							clipBefore.trimStart -
-							clipBefore.trimEnd) -
+						(clipBefore.duration - clipBefore.trimStart - clipBefore.trimEnd) -
 						0.1;
 					const frame = await extractFrameAsDataUrl(
 						media.url,
@@ -157,7 +156,9 @@ export function GapGenerationModal() {
 
 			if (clipAfter && "mediaId" in clipAfter) {
 				const media = mediaItems.find(
-					(m) => m.id === (clipAfter as TimelineElementType & { mediaId: string }).mediaId
+					(m) =>
+						m.id ===
+						(clipAfter as TimelineElementType & { mediaId: string }).mediaId
 				);
 				if (media?.url && media.type === "video") {
 					const frame = await extractFrameAsDataUrl(
@@ -195,13 +196,12 @@ export function GapGenerationModal() {
 		setSuggestionError(false);
 
 		try {
-			const result =
-				await window.electronAPI.geminiChat.suggestGapPrompt({
-					gapDuration,
-					mode: mode || "text-to-video",
-					beforeFrameUrl: useGapStore.getState().beforeFrameUrl,
-					afterFrameUrl: useGapStore.getState().afterFrameUrl,
-				});
+			const result = await window.electronAPI.geminiChat.suggestGapPrompt({
+				gapDuration,
+				mode: mode || "text-to-video",
+				beforeFrameUrl: useGapStore.getState().beforeFrameUrl,
+				afterFrameUrl: useGapStore.getState().afterFrameUrl,
+			});
 
 			if (result.suggestedPrompt) {
 				setSuggestion(result.suggestedPrompt);

@@ -116,6 +116,10 @@ export class ScreenRecordingExportCompositor {
 
 		// Find current point via binary search
 		const { points, captureRect } = telemetry;
+
+		// Don't render cursor before the first telemetry event
+		if (timeMs < points[0].t) return;
+
 		let low = 0;
 		let high = points.length - 1;
 		while (low < high) {

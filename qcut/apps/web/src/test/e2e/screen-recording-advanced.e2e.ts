@@ -229,9 +229,9 @@ test.describe("Advanced Screen Recording with User Interactions", () => {
 		const uniqueYPositions = new Set(
 			sidecar.points.map((p: { y: number }) => Math.round(p.y / 10))
 		);
-		// At minimum should have at least 1 unique position recorded
-		expect(uniqueXPositions.size).toBeGreaterThan(0);
-		expect(uniqueYPositions.size).toBeGreaterThan(0);
+		// With deliberate mouse movement, expect multiple distinct positions
+		expect(uniqueXPositions.size).toBeGreaterThan(1);
+		expect(uniqueYPositions.size).toBeGreaterThan(1);
 
 		// ── 7. Copy recording to output path ──
 		const { tmpdir } = await import("node:os");

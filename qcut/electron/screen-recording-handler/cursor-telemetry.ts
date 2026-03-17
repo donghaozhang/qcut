@@ -17,6 +17,16 @@ export interface CursorTelemetryData {
 
 const POLL_INTERVAL_MS = 16; // ~60Hz
 
+/** Minimal type for the uiohook-napi module when loaded dynamically. */
+interface UIOHookModule {
+	uIOhook: {
+		on: (event: string, cb: () => void) => void;
+		off: (event: string, cb: () => void) => void;
+		start: () => void;
+		stop: () => void;
+	};
+}
+
 /**
  * Records cursor position at ~60Hz alongside a screen recording session.
  *
@@ -30,8 +40,9 @@ export class CursorTelemetryRecorder {
 	private captureRect = { x: 0, y: 0, width: 1920, height: 1080 };
 	private pollTimer: ReturnType<typeof setInterval> | null = null;
 	private pressed = false;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	private uiohook: any = null;
+	private uiohook: UIOHookModule | null = null;
+	private mouseDownHandler: (() => void) | null = null;
+	private mouseUpHandler: (() => void) | null = null;
 
 	start(captureRect: {
 		x: number;
@@ -72,15 +83,19 @@ export class CursorTelemetryRecorder {
 		this.startPollingCapture();
 
 		// Optionally use uiohook-napi for press/release state
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
-		try {
-			this.uiohook = require("uiohook-napi");
-			this.startUIOHookPressTracking();
-		} catch {
-			log.warn(
-				"[CursorTelemetry] uiohook-napi unavailable, press state will not be tracked"
-			);
-		}
+		// Dynamic import for optional native dependency
+		const moduleName = "uiohook-napi";
+		void (import(moduleName) as Promise<UIOHookModule>)
+			.then((mod) => {
+				if (!this.recording) return;
+				this.uiohook = mod;
+				this.startUIOHookPressTracking();
+			})
+			.catch(() => {
+				log.warn(
+					"[CursorTelemetry] uiohook-napi unavailable, press state will not be tracked"
+				);
+			});
 	}
 
 	/** Use uiohook only for tracking mouse press/release state. */
@@ -89,18 +104,18 @@ export class CursorTelemetryRecorder {
 
 		const { uIOhook } = this.uiohook;
 
-		const onMouseDown = () => {
+		this.mouseDownHandler = () => {
 			if (!this.recording) return;
 			this.pressed = true;
 		};
 
-		const onMouseUp = () => {
+		this.mouseUpHandler = () => {
 			if (!this.recording) return;
 			this.pressed = false;
 		};
 
-		uIOhook.on("mousedown", onMouseDown);
-		uIOhook.on("mouseup", onMouseUp);
+		uIOhook.on("mousedown", this.mouseDownHandler);
+		uIOhook.on("mouseup", this.mouseUpHandler);
 		uIOhook.start();
 	}
 
@@ -120,11 +135,19 @@ export class CursorTelemetryRecorder {
 	private stopCapture(): void {
 		if (this.uiohook) {
 			try {
+				if (this.mouseDownHandler) {
+					this.uiohook.uIOhook.off("mousedown", this.mouseDownHandler);
+				}
+				if (this.mouseUpHandler) {
+					this.uiohook.uIOhook.off("mouseup", this.mouseUpHandler);
+				}
 				this.uiohook.uIOhook.stop();
 			} catch {
 				// best-effort stop
 			}
 			this.uiohook = null;
+			this.mouseDownHandler = null;
+			this.mouseUpHandler = null;
 		}
 
 		if (this.pollTimer) {

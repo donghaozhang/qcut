@@ -224,8 +224,7 @@ export function planGapSegments(
 			index,
 			startTime: currentTime,
 			duration: Math.round(duration * 10) / 10, // round to 0.1s
-			mode:
-				index === 0 && !hasBeforeFrame ? "text-to-video" : "image-to-video",
+			mode: index === 0 && !hasBeforeFrame ? "text-to-video" : "image-to-video",
 			conditioningFrameUrl: null,
 			status: "pending",
 			resultMediaId: null,

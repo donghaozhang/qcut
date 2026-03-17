@@ -36,6 +36,15 @@ export function GapPopover() {
 				clearGapSelection();
 			}
 			if (e.key === "Delete" || e.key === "Backspace") {
+				const target = e.target;
+				if (
+					target instanceof HTMLElement &&
+					(target.isContentEditable ||
+						target.tagName === "INPUT" ||
+						target.tagName === "TEXTAREA" ||
+						target.tagName === "SELECT")
+				)
+					return;
 				handleCloseGap();
 			}
 		};

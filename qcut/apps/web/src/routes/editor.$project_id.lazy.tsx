@@ -15,6 +15,7 @@ import { cleanupPtyOnEditorExit } from "@/lib/debug/pty-session-cleanup";
 import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { usePtyTerminalStore } from "@/stores/pty-terminal-store";
 import { useClaudeProjectUpdates } from "@/hooks/use-claude-project-updates";
+import { useGapGeneration } from "@/hooks/timeline/use-gap-generation";
 import "@/lib/debug/ios-console-bridge"; // iPad console log capture (auto-gates behind DEV)
 import "@/lib/stickers/debug-sticker-overlay"; // Load debug utilities
 import "@/lib/stickers/sticker-test-helper"; // Load sticker test helper
@@ -60,6 +61,9 @@ function EditorPage() {
 
 	// Save timeline when page becomes hidden (tab switch, close, etc.)
 	useSaveOnVisibilityChange();
+
+	// Gap generation listener (fills timeline gaps with AI video)
+	useGapGeneration();
 
 	// Auto-sync project.json on any store change (debounced 1s)
 	useProjectJsonSync();
