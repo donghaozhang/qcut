@@ -1,5 +1,9 @@
 # Subtask 6: Search UI
 
+## Status
+
+**COMPLETED** — Built all planned UI components. Created `apps/web/src/stores/video-search-store.ts` (Zustand store with search, indexing, and provider status), `apps/web/src/components/editor/media-panel/views/search/SemanticSearchPanel.tsx` (visual search panel with query input, results list, progress), and `apps/web/src/components/editor/media-panel/views/search/SemanticSearchResultItem.tsx` (result card with thumbnail, time range, score). Created `apps/web/src/components/editor/media-panel/views/search-view.tsx` as a tab container combining Text and Visual search tabs. Modified `apps/web/src/components/editor/media-panel/store.ts` to add "search" tab type with SearchIcon in the "media" group. Modified `apps/web/src/components/editor/media-panel/index.tsx` to wire SearchView into the viewMap. Added `videoSearch` interface to `apps/web/src/types/electron/electron-api.ts`. Deviations: (1) the "search" tab is in the "media" (Library) group rather than a standalone panel, (2) a separate `api-video-search.ts` type file was not created — types were added directly to the existing `electron-api.ts`, (3) SearchPanel already existed; created `search-view.tsx` wrapper to combine both text and visual search.
+
 ## Goal
 
 Add a semantic search tab to the existing search panel. Results show thumbnails, timestamps, similarity scores. Click to seek in timeline.

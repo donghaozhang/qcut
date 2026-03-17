@@ -21,6 +21,7 @@ import {
 	WrenchIcon,
 	ArrowUpFromLineIcon,
 	ClapperboardIcon,
+	SearchIcon,
 } from "lucide-react";
 import { create } from "zustand";
 
@@ -43,7 +44,8 @@ export type Tab =
 	| "project-folder"
 	| "upscale"
 	| "moyin"
-	| "ai-chat";
+	| "ai-chat"
+	| "search";
 
 export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 	media: {
@@ -123,6 +125,10 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 		icon: MessageSquareIcon,
 		label: "AI Chat",
 	},
+	search: {
+		icon: SearchIcon,
+		label: "Search",
+	},
 };
 
 // --- Tab Groups ---
@@ -172,7 +178,7 @@ export const tabGroups: { [key in TabGroup]: TabGroupDef } = {
 	media: {
 		icon: FolderOpenIcon,
 		label: "Library",
-		tabs: ["media", "project-folder"],
+		tabs: ["media", "project-folder", "search"],
 	},
 	agents: {
 		icon: WrenchIcon,

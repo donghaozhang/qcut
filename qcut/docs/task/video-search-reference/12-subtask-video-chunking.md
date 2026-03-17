@@ -1,5 +1,9 @@
 # Subtask 2: Video Chunking Pipeline
 
+## Status
+
+**COMPLETED** — Implemented as planned in `electron/video-search/video-chunker.ts`. Exports `calculateChunkBoundaries()`, `chunkVideo()`, and `cleanupChunks()`. Uses FFmpeg for 5-second chunk splitting with abort support via AbortController. 8 tests passing in `electron/__tests__/video-search-chunker.test.ts` covering chunk boundary calculation. Deviation: test file location is `electron/__tests__/` rather than `tests/unit/video-search/` as originally planned.
+
 ## Goal
 
 Split a video file into 5-second chunks (temp mp4 files) for individual embedding. Reuse existing FFmpeg infrastructure.

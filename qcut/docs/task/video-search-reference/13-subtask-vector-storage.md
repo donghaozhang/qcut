@@ -1,5 +1,9 @@
 # Subtask 3: Vector Storage Layer
 
+## Status
+
+**COMPLETED** — Implemented as planned in `electron/video-search/vector-storage.ts`. JSON file storage in `projectDir/embeddings/` with save, load, delete, and list functions. 6 tests passing in `electron/__tests__/video-search-vector-storage.test.ts`. The storage format matches the plan with per-media embedding JSON files. Deviation: test file location is `electron/__tests__/` rather than `tests/unit/video-search/`.
+
 ## Goal
 
 Store and retrieve embedding vectors per project. Simple JSON files — no external DB dependency for a desktop app.

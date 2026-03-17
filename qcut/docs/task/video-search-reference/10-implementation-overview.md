@@ -1,5 +1,9 @@
 # Video Semantic Search — Implementation Overview
 
+## Status
+
+**COMPLETED** — All core subtasks (1-6, 8) implemented and working. Subtask 7 (Settings/Config) was intentionally skipped for MVP. 27/27 tests passing. The architecture follows the plan closely: Gemini Embedding 2 provider, FFmpeg video chunking, JSON vector storage, cosine search, IPC handler, and search UI panel integrated into the media panel. Key deviation: vector storage uses flat JSON files as planned (not SQLite), and the search tab lives in the "media" (Library) group rather than as a standalone panel. Settings/config file was deemed unnecessary for MVP since only one provider (Gemini) is supported.
+
 ## Goal
 
 Add semantic video search to QCut: users type a natural language query ("red car driving fast", "person laughing") and get back timestamped results with thumbnails from their project media, clickable to seek in timeline.

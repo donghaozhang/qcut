@@ -1,5 +1,9 @@
 # Subtask 5: Search IPC Handler
 
+## Status
+
+**COMPLETED** — Implemented in `electron/video-search/cosine-search.ts` with `cosineSimilarity()` and `searchEmbeddings()` functions supporting `topK`, `minScore`, and `mediaFilter` options. Search IPC channel integrated into `electron/video-search-handler.ts`. 13 tests passing in `electron/__tests__/video-search-cosine.test.ts`. The implementation matches the plan closely. Deviation: test file location is `electron/__tests__/` rather than `tests/unit/video-search/`.
+
 ## Goal
 
 Handle semantic search queries: embed the query text, cosine-compare against stored vectors, return ranked results with thumbnails.

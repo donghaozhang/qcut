@@ -1,5 +1,9 @@
 # Subtask 1: Embedding Provider Abstraction + Gemini Implementation
 
+## Status
+
+**COMPLETED** — Implemented as planned. Created `electron/video-search/embedding-provider.ts` with `EmbeddingProvider` interface and `EmbeddingResult` type, and `electron/video-search/gemini-embedding-provider.ts` with `GeminiEmbeddingProvider` class. Uses `@google/genai@1.45.0` SDK (new dependency added), model `gemini-embedding-2-preview`, 768 dimensions. The implementation follows the planned interface exactly with `embedText()`, `embedVideo()`, and `isAvailable()` methods.
+
 ## Goal
 
 Create a provider interface so QCut can swap embedding backends. Implement Gemini Embedding 2 as the default.

@@ -1,5 +1,9 @@
 # Subtask 4: Indexing IPC Handler
 
+## Status
+
+**COMPLETED** — Implemented in `electron/video-search-handler.ts` with IPC channels: `index-media`, `search`, `cancel`, `status`, `delete-index`, and `provider-status`. Registered in `electron/main.ts` via `setupVideoSearchIPC()`. Preload bridge added in `electron/preload.ts` with all channels plus progress listener. Deviation from plan: uses `BrowserWindow.getAllWindows()` for progress events instead of passing a `mainWindow` parameter. The `index-project` channel was not implemented as a separate channel; indexing is done per-media from the UI. No dedicated unit tests for the handler itself (tested via the cosine/storage/chunker tests and manual E2E).
+
 ## Goal
 
 Orchestrate the full indexing pipeline: receive media item → chunk → embed → store. Expose via IPC for renderer to trigger.
