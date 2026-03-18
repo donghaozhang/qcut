@@ -67,6 +67,14 @@ interface MediaStore extends FolderActions {
 	clearAllMedia: () => void;
 	restoreMediaItems: (items: MediaItem[]) => void;
 
+	// Takes management (for AI-generated media with multiple versions)
+	addTake: (
+		mediaId: string,
+		take: { url: string; localPath?: string; createdAt: number }
+	) => void;
+	deleteTake: (mediaId: string, takeIndex: number) => void;
+	setActiveTake: (mediaId: string, takeIndex: number) => void;
+
 	// Project folder sync
 	syncFromProjectFolder: (
 		projectId: string
