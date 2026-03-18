@@ -699,6 +699,7 @@ function TimelineElementComponent({
 									<div className="flex items-center gap-1 px-2 py-1.5">
 										<button
 											type="button"
+											aria-label="Previous take"
 											className="p-0.5 rounded hover:bg-accent"
 											onClick={(e) => {
 												e.stopPropagation();
@@ -715,6 +716,7 @@ function TimelineElementComponent({
 										</span>
 										<button
 											type="button"
+											aria-label="Next take"
 											className="p-0.5 rounded hover:bg-accent"
 											onClick={(e) => {
 												e.stopPropagation();
