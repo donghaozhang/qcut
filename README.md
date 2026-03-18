@@ -14,7 +14,11 @@
 
 ## Demo
 
-[![QCut Demo](https://img.youtube.com/vi/H6rH5Z9HrH8/0.jpg)](https://www.youtube.com/watch?v=H6rH5Z9HrH8)
+<a href="https://www.youtube.com/watch?v=H6rH5Z9HrH8">
+  <img src="https://img.youtube.com/vi/H6rH5Z9HrH8/0.jpg" alt="QCut Demo" width="600" />
+  <br />
+  <b>Click to watch demo video</b>
+</a>
 
 ## Why?
 
