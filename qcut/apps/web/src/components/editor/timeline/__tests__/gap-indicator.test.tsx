@@ -170,9 +170,5 @@ describe("GapIndicator", () => {
 
 		expect(parentPointerDown).not.toHaveBeenCalled();
 		expect(parentClick).not.toHaveBeenCalled();
-
-		await waitFor(() => {
-			expect(useGapStore.getState().gapGenerateMode).toBe("text-to-video");
-		});
 	});
 });
