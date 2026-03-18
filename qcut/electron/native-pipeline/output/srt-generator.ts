@@ -48,16 +48,26 @@ export function extractWordTimestamps(
 	if (!data || typeof data !== "object") return;
 	const obj = data as Record<string, unknown>;
 
-	// Format 1: { words: [{ word, start, end }] }
+	// Format 1: { words: [{ word, start, end }] } or { words: [{ text, start, end }] }
 	if (Array.isArray(obj.words)) {
-		return obj.words.filter(
-			(w: unknown) =>
-				w &&
-				typeof w === "object" &&
-				"word" in (w as Record<string, unknown>) &&
-				"start" in (w as Record<string, unknown>) &&
-				"end" in (w as Record<string, unknown>)
-		) as WordTimestamp[];
+		return obj.words
+			.filter(
+				(w: unknown) =>
+					w &&
+					typeof w === "object" &&
+					("word" in (w as Record<string, unknown>) ||
+						"text" in (w as Record<string, unknown>)) &&
+					"start" in (w as Record<string, unknown>) &&
+					"end" in (w as Record<string, unknown>)
+			)
+			.map((w: unknown) => {
+				const item = w as Record<string, unknown>;
+				return {
+					word: (item.word ?? item.text) as string,
+					start: item.start as number,
+					end: item.end as number,
+				};
+			});
 	}
 
 	// Format 2: { segments: [{ words: [...] }] }
