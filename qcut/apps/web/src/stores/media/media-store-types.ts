@@ -73,6 +73,10 @@ export interface MediaItem {
 	importMetadata?: MediaImportMetadata;
 }
 
+// Generation metadata helpers (typed access to metadata.generationParams / takes)
+// These fields are stored in MediaItem.metadata but typed here for convenience.
+// See apps/web/src/types/generation.ts for GenerationParams and MediaTake types.
+
 // Export type definitions for the store functions
 export type MediaStoreUtils = {
 	getFileType: (file: File) => MediaType | null;
@@ -123,4 +127,11 @@ export type MediaStore = {
 	bulkAddToFolder: (mediaIds: string[], folderId: string) => void;
 	bulkMoveToFolder: (mediaIds: string[], folderId: string | null) => void;
 	autoOrganizeByType: () => void;
+	// Takes management (for AI-generated media with multiple versions)
+	addTake: (
+		mediaId: string,
+		take: { url: string; localPath?: string; createdAt: number }
+	) => void;
+	deleteTake: (mediaId: string, takeIndex: number) => void;
+	setActiveTake: (mediaId: string, takeIndex: number) => void;
 };

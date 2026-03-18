@@ -1,6 +1,9 @@
-# Plan: Auto Prompt from Frame
+# Plan: Auto Prompt from Frame — IMPLEMENTED
 
 When regenerating a clip that has no original prompt (imported video/image), auto-generate a descriptive prompt by sending the first frame to Gemini.
+
+> **Status**: Implemented
+> **Files modified**: `electron/gemini-chat-handler.ts` (gemini:describe-frame IPC), `electron/preload.ts` (describeFrame bridge), `apps/web/src/types/electron/api-gemini-pty-mcp.ts` (type), `apps/web/src/test/mocks/electron.ts` (mock)
 
 **LTX source**: `useRegeneration.ts` (lines 193-254)
 **Estimated time**: ~10 minutes (2 subtasks)

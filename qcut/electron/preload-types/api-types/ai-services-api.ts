@@ -79,6 +79,9 @@ export interface GeminiChatAPI {
 			beforeFrameUrl?: string | null;
 			afterFrameUrl?: string | null;
 		}) => Promise<{ suggestedPrompt: string | null; error?: string }>;
+		describeFrame: (request: {
+			imageDataUrl: string;
+		}) => Promise<{ prompt: string | null; error?: string }>;
 		onStreamChunk: (callback: (data: { text: string }) => void) => void;
 		onStreamComplete: (callback: () => void) => void;
 		onStreamError: (callback: (data: { message: string }) => void) => void;

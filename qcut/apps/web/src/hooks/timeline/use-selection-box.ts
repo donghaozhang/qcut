@@ -45,6 +45,10 @@ export function useSelectionBox({
 			if ((e.target as HTMLElement).closest("[data-ruler-area]")) {
 				return;
 			}
+			// Don't start selection when clicking gap indicators
+			if ((e.target as HTMLElement).closest("[data-gap-indicator]")) {
+				return;
+			}
 
 			setSelectionBox({
 				startPos: { x: e.clientX, y: e.clientY },

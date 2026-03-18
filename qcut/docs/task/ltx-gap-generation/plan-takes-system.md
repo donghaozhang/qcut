@@ -1,6 +1,10 @@
-# Plan: Takes / Regeneration System
+# Plan: Takes / Regeneration System — IMPLEMENTED
 
 Reuse LTX-Desktop's multi-take pattern so users can regenerate AI clips and browse between versions without losing previous ones.
+
+> **Status**: Implemented
+> **Files created**: `apps/web/src/types/generation.ts` (MediaTake type)
+> **Files modified**: `apps/web/src/stores/media/media-store-types.ts` (addTake/deleteTake/setActiveTake), `apps/web/src/stores/media/media-store.ts` (take actions impl), `apps/web/src/hooks/timeline/use-gap-generation.ts` (stores takes on creation), `apps/web/src/components/editor/timeline/timeline-element.tsx` (take navigation in context menu)
 
 **LTX source**: `useRegeneration.ts`, `use-retake.ts`, `ClipContextMenu.tsx`
 **Estimated time**: ~35 minutes (4 subtasks)

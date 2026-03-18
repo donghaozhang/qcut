@@ -24,7 +24,6 @@ import { useTimelineScrollSync } from "./hooks/use-timeline-scroll-sync";
 import { useTimelineClickHandler } from "./hooks/use-timeline-click-handler";
 import { TimelineRuler } from "./timeline-ruler";
 import { TimelineTracksArea } from "./timeline-tracks-area";
-import { GapPopover } from "./gap-popover";
 import { GapGenerationModal } from "./gap-generation-modal";
 
 export function Timeline() {
@@ -133,7 +132,6 @@ export function Timeline() {
 		containerRef: tracksContainerRef,
 		playheadRef,
 		onSelectionComplete: (elements) => {
-			console.log(JSON.stringify({ onSelectionComplete: elements.length }));
 			setSelectedElements(elements);
 		},
 	});
@@ -294,8 +292,6 @@ export function Timeline() {
 				/>
 			</div>
 
-			{/* Gap popover menu (outside scroll context for fixed positioning) */}
-			<GapPopover />
 			<GapGenerationModal />
 		</div>
 	);

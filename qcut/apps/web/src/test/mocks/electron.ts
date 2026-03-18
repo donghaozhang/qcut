@@ -213,6 +213,7 @@ export const mockElectronAPI: ElectronAPI = {
 	geminiChat: {
 		send: vi.fn().mockResolvedValue({ success: true }),
 		suggestGapPrompt: vi.fn().mockResolvedValue({ suggestedPrompt: null }),
+		describeFrame: vi.fn().mockResolvedValue({ prompt: null }),
 		onStreamChunk: vi.fn(),
 		onStreamComplete: vi.fn(),
 		onStreamError: vi.fn(),

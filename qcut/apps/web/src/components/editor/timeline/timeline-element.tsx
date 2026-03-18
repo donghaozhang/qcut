@@ -20,8 +20,10 @@ import {
 	Eye,
 	Volume2,
 	VolumeX,
+	Sparkles,
 } from "lucide-react";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
+import { useMediaStore } from "@/stores/media/media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import AudioWaveform from "../audio-waveform";
@@ -67,7 +69,11 @@ import {
 	ContextMenuItem,
 	ContextMenuSeparator,
 	ContextMenuTrigger,
+	ContextMenuSub,
+	ContextMenuSubTrigger,
+	ContextMenuSubContent,
 } from "../../ui/context-menu";
+import { COLOR_LABELS } from "@/types/generation";
 
 function TimelineElementComponent({
 	element,
@@ -594,6 +600,17 @@ function TimelineElementComponent({
 								/>
 							</>
 						)}
+						{/* Color label dot */}
+						{element.colorLabel && (
+							<div
+								className="absolute top-0.5 right-1 h-2 w-2 rounded-full pointer-events-none z-20"
+								style={{
+									backgroundColor:
+										COLOR_LABELS.find((c) => c.value === element.colorLabel)
+											?.color || "transparent",
+								}}
+							/>
+						)}
 					</div>
 				</div>
 			</ContextMenuTrigger>
@@ -635,6 +652,87 @@ function TimelineElementComponent({
 						Replace clip
 					</ContextMenuItem>
 				)}
+				{/* AI Tools — shown for AI-generated clips */}
+				{element.type === "media" &&
+					(() => {
+						const media = mediaItems.find((m) => m.id === element.mediaId);
+						const genParams = media?.metadata?.generationParams;
+						const takes = media?.metadata?.takes as
+							| Array<{ url: string; createdAt: number }>
+							| undefined;
+						const activeTakeIdx =
+							(media?.metadata?.activeTakeIndex as number) ?? 0;
+						const hasTakes = takes && takes.length > 1;
+
+						if (!genParams) return null;
+
+						return (
+							<>
+								<ContextMenuSeparator />
+								<ContextMenuItem
+									onClick={() => {
+										window.dispatchEvent(
+											new CustomEvent("gap:generate", {
+												detail: {
+													gap: {
+														trackId: track.id,
+														startTime: element.startTime,
+														endTime:
+															element.startTime +
+															element.duration -
+															element.trimStart -
+															element.trimEnd,
+													},
+													mode: genParams.mode || "text-to-video",
+													prompt: genParams.prompt || "",
+													model: genParams.model || "fal-ai/ltx-video/v0.2.3",
+													cameraMotion: genParams.cameraMotion,
+												},
+											})
+										);
+									}}
+								>
+									<Sparkles className="h-4 w-4 mr-2" />
+									Regenerate Shot
+								</ContextMenuItem>
+								{hasTakes && (
+									<div className="flex items-center gap-1 px-2 py-1.5">
+										<button
+											type="button"
+											aria-label="Previous take"
+											className="p-0.5 rounded hover:bg-accent"
+											onClick={(e) => {
+												e.stopPropagation();
+												const { setActiveTake } = useMediaStore.getState();
+												if (setActiveTake && media) {
+													setActiveTake(media.id, activeTakeIdx - 1);
+												}
+											}}
+										>
+											<ChevronLeft className="h-3 w-3" />
+										</button>
+										<span className="text-xs text-muted-foreground">
+											Take: {activeTakeIdx + 1}/{takes.length}
+										</span>
+										<button
+											type="button"
+											aria-label="Next take"
+											className="p-0.5 rounded hover:bg-accent"
+											onClick={(e) => {
+												e.stopPropagation();
+												const { setActiveTake } = useMediaStore.getState();
+												if (setActiveTake && media) {
+													setActiveTake(media.id, activeTakeIdx + 1);
+												}
+											}}
+										>
+											<ChevronRight className="h-3 w-3" />
+										</button>
+									</div>
+								)}
+							</>
+						);
+					})()}
 				<ContextMenuSeparator />
 				<ContextMenuItem
 					onClick={async (e) => {
@@ -675,6 +773,63 @@ function TimelineElementComponent({
 					<Copy className="h-4 w-4 mr-2" />
 					Copy Element ID
 				</ContextMenuItem>
+				{/* Color Labels */}
+				<ContextMenuSub>
+					<ContextMenuSubTrigger>
+						<div className="flex items-center gap-2">
+							{element.colorLabel && (
+								<div
+									className="h-3 w-3 rounded-full"
+									style={{
+										backgroundColor:
+											COLOR_LABELS.find((c) => c.value === element.colorLabel)
+												?.color || "transparent",
+									}}
+								/>
+							)}
+							<span>Color Label</span>
+						</div>
+					</ContextMenuSubTrigger>
+					<ContextMenuSubContent>
+						<ContextMenuItem
+							onClick={() => {
+								const store = useTimelineStore.getState();
+								store.pushHistory();
+								const newTracks = store._tracks.map((t) => ({
+									...t,
+									elements: t.elements.map((el) =>
+										el.id === element.id ? { ...el, colorLabel: undefined } : el
+									),
+								}));
+								store.restoreTracks(newTracks);
+							}}
+						>
+							No Label
+						</ContextMenuItem>
+						{COLOR_LABELS.map(({ value, color }) => (
+							<ContextMenuItem
+								key={value}
+								onClick={() => {
+									const store = useTimelineStore.getState();
+									store.pushHistory();
+									const newTracks = store._tracks.map((t) => ({
+										...t,
+										elements: t.elements.map((el) =>
+											el.id === element.id ? { ...el, colorLabel: value } : el
+										),
+									}));
+									store.restoreTracks(newTracks);
+								}}
+							>
+								<div
+									className="h-3 w-3 rounded-full mr-2"
+									style={{ backgroundColor: color }}
+								/>
+								<span className="capitalize">{value}</span>
+							</ContextMenuItem>
+						))}
+					</ContextMenuSubContent>
+				</ContextMenuSub>
 				<ContextMenuSeparator />
 				<ContextMenuItem
 					onClick={handleElementDeleteContext}

@@ -368,6 +368,10 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			afterFrameUrl?: string | null;
 		}): Promise<{ suggestedPrompt: string | null; error?: string }> =>
 			ipcRenderer.invoke("gemini:suggest-gap-prompt", request),
+		describeFrame: (request: {
+			imageDataUrl: string;
+		}): Promise<{ prompt: string | null; error?: string }> =>
+			ipcRenderer.invoke("gemini:describe-frame", request),
 		onStreamChunk: (callback: (data: { text: string }) => void): void => {
 			ipcRenderer.removeAllListeners("gemini:stream-chunk");
 			ipcRenderer.on("gemini:stream-chunk", (_, data) => callback(data));

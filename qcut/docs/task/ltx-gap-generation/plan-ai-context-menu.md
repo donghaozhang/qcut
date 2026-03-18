@@ -1,6 +1,9 @@
-# Plan: AI Tools Section in Clip Context Menu
+# Plan: AI Tools Section in Clip Context Menu — IMPLEMENTED
 
 Add a dedicated "AI Tools" section to the timeline clip context menu for AI-generated clips, following LTX-Desktop's pattern.
+
+> **Status**: Implemented
+> **Files modified**: `apps/web/src/components/editor/timeline/timeline-element.tsx` (AI Tools section with Regenerate Shot + Take navigation)
 
 **LTX source**: `ClipContextMenu.tsx` (lines 470-561)
 **Estimated time**: ~15 minutes (2 subtasks)

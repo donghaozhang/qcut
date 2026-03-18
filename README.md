@@ -12,6 +12,10 @@
   </tr>
 </table>
 
+## Demo
+
+[![QCut Demo](https://img.youtube.com/vi/H6rH5Z9HrH8/0.jpg)](https://www.youtube.com/watch?v=H6rH5Z9HrH8)
+
 ## Why?
 
 - **Privacy**: Your videos stay on your device

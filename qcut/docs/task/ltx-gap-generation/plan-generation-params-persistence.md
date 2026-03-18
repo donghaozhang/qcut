@@ -1,6 +1,10 @@
-# Plan: Generation Parameter Persistence
+# Plan: Generation Parameter Persistence — IMPLEMENTED
 
 Save full generation settings on every AI-generated clip so it can be re-generated with one click.
+
+> **Status**: Implemented
+> **Files created**: `apps/web/src/types/generation.ts`
+> **Files modified**: `apps/web/src/hooks/timeline/use-gap-generation.ts`
 
 **LTX source**: `project.ts` (`GenerationParams` type), `useRegeneration.ts` (param storage)
 **Estimated time**: ~10 minutes (2 subtasks)

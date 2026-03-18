@@ -1,6 +1,10 @@
-# Plan: Color Labels on Clips and Assets
+# Plan: Color Labels on Clips and Assets — IMPLEMENTED
 
 Add 8-color visual labels to timeline clips and media items for quick organization, following LTX-Desktop's pattern.
+
+> **Status**: Implemented
+> **Files created**: `apps/web/src/types/generation.ts` (COLOR_LABELS)
+> **Files modified**: `packages/editor-core/src/types/timeline.ts` (colorLabel on BaseTimelineElement), `apps/web/src/components/editor/timeline/timeline-element.tsx` (color label submenu + visual dot)
 
 **LTX source**: `ClipContextMenu.tsx` (color label section), `project.ts` (`Asset.colorLabel`)
 **Estimated time**: ~20 minutes (3 subtasks)

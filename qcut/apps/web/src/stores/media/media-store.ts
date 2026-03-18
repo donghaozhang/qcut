@@ -67,6 +67,14 @@ interface MediaStore extends FolderActions {
 	clearAllMedia: () => void;
 	restoreMediaItems: (items: MediaItem[]) => void;
 
+	// Takes management (for AI-generated media with multiple versions)
+	addTake: (
+		mediaId: string,
+		take: { url: string; localPath?: string; createdAt: number }
+	) => void;
+	deleteTake: (mediaId: string, takeIndex: number) => void;
+	setActiveTake: (mediaId: string, takeIndex: number) => void;
+
 	// Project folder sync
 	syncFromProjectFolder: (
 		projectId: string
@@ -650,6 +658,66 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
 	restoreMediaItems: (items: MediaItem[]) => {
 		debugLog(`[MediaStore] Restoring ${items.length} media items (rollback)`);
 		set({ mediaItems: items });
+	},
+
+	// Takes management (for AI-generated media with multiple versions)
+	addTake: (
+		mediaId: string,
+		take: { url: string; localPath?: string; createdAt: number }
+	) => {
+		set((state) => ({
+			mediaItems: state.mediaItems.map((item) => {
+				if (item.id !== mediaId) return item;
+				const takes = [...(item.metadata?.takes || []), take];
+				return {
+					...item,
+					url: take.url,
+					metadata: {
+						...item.metadata,
+						takes,
+						activeTakeIndex: takes.length - 1,
+					},
+				};
+			}),
+		}));
+	},
+
+	deleteTake: (mediaId: string, takeIndex: number) => {
+		set((state) => ({
+			mediaItems: state.mediaItems.map((item) => {
+				if (item.id !== mediaId || !item.metadata?.takes) return item;
+				const takes = [...item.metadata.takes];
+				if (takeIndex < 0 || takeIndex >= takes.length || takes.length <= 1)
+					return item;
+				takes.splice(takeIndex, 1);
+				const activeIdx = Math.min(
+					item.metadata.activeTakeIndex ?? 0,
+					takes.length - 1
+				);
+				return {
+					...item,
+					url: takes[activeIdx]?.url ?? item.url,
+					metadata: { ...item.metadata, takes, activeTakeIndex: activeIdx },
+				};
+			}),
+		}));
+	},
+
+	setActiveTake: (mediaId: string, takeIndex: number) => {
+		set((state) => ({
+			mediaItems: state.mediaItems.map((item) => {
+				if (item.id !== mediaId || !item.metadata?.takes) return item;
+				const idx = Math.max(
+					0,
+					Math.min(takeIndex, item.metadata.takes.length - 1)
+				);
+				return {
+					...item,
+					url: item.metadata.takes[idx]?.url ?? item.url,
+					metadata: { ...item.metadata, activeTakeIndex: idx },
+				};
+			}),
+		}));
 	},
 
 	// Spread folder actions slice

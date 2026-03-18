@@ -53,7 +53,6 @@ export interface GeneratingGap {
 interface GapStore {
 	// Selection
 	selectedGap: TimelineGap | null;
-	gapAnchorPosition: { x: number; top: number; bottom: number } | null;
 	gapGenerateMode: GapGenerateMode | null;
 
 	// Prompt
@@ -68,15 +67,13 @@ interface GapStore {
 
 	// Generation settings
 	gapModel: string;
+	gapCameraMotion: string;
 
 	// Background generation
 	generatingGap: GeneratingGap | null;
 
 	// Actions
-	selectGap: (
-		gap: TimelineGap,
-		anchor: { x: number; top: number; bottom: number }
-	) => void;
+	selectGap: (gap: TimelineGap) => void;
 	clearGapSelection: () => void;
 	setGapGenerateMode: (mode: GapGenerateMode | null) => void;
 	setGapPrompt: (prompt: string) => void;
@@ -86,6 +83,7 @@ interface GapStore {
 	setBeforeFrameUrl: (url: string | null) => void;
 	setAfterFrameUrl: (url: string | null) => void;
 	setGapModel: (model: string) => void;
+	setGapCameraMotion: (motion: string) => void;
 	setGeneratingGap: (gap: GeneratingGap | null) => void;
 	updateSegmentStatus: (
 		segmentIndex: number,
@@ -244,7 +242,6 @@ export function planGapSegments(
 
 export const useGapStore = create<GapStore>((set, get) => ({
 	selectedGap: null,
-	gapAnchorPosition: null,
 	gapGenerateMode: null,
 	gapPrompt: "",
 	gapSuggestion: null,
@@ -253,12 +250,12 @@ export const useGapStore = create<GapStore>((set, get) => ({
 	beforeFrameUrl: null,
 	afterFrameUrl: null,
 	gapModel: "fal-ai/ltx-video/v0.2.3",
+	gapCameraMotion: "none",
 	generatingGap: null,
 
-	selectGap: (gap, anchor) =>
+	selectGap: (gap) =>
 		set({
 			selectedGap: gap,
-			gapAnchorPosition: anchor,
 			gapGenerateMode: null,
 			gapPrompt: "",
 			gapSuggestion: null,
@@ -266,12 +263,12 @@ export const useGapStore = create<GapStore>((set, get) => ({
 			gapSuggestionError: false,
 			beforeFrameUrl: null,
 			afterFrameUrl: null,
+			gapCameraMotion: "none",
 		}),
 
 	clearGapSelection: () =>
 		set({
 			selectedGap: null,
-			gapAnchorPosition: null,
 			gapGenerateMode: null,
 			gapPrompt: "",
 			gapSuggestion: null,
@@ -279,6 +276,7 @@ export const useGapStore = create<GapStore>((set, get) => ({
 			gapSuggestionError: false,
 			beforeFrameUrl: null,
 			afterFrameUrl: null,
+			gapCameraMotion: "none",
 		}),
 
 	setGapGenerateMode: (mode) => set({ gapGenerateMode: mode }),
@@ -289,11 +287,14 @@ export const useGapStore = create<GapStore>((set, get) => ({
 	setBeforeFrameUrl: (url) => set({ beforeFrameUrl: url }),
 	setAfterFrameUrl: (url) => set({ afterFrameUrl: url }),
 	setGapModel: (model) => set({ gapModel: model }),
+	setGapCameraMotion: (motion) => set({ gapCameraMotion: motion }),
 	setGeneratingGap: (gap) => set({ generatingGap: gap }),
 
 	updateSegmentStatus: (segmentIndex, status, resultMediaId) => {
 		const { generatingGap } = get();
 		if (!generatingGap) return;
+		if (segmentIndex < 0 || segmentIndex >= generatingGap.segments.length)
+			return;
 		const segments = [...generatingGap.segments];
 		segments[segmentIndex] = {
 			...segments[segmentIndex],
@@ -318,7 +319,6 @@ export const useGapStore = create<GapStore>((set, get) => ({
 	resetGapState: () =>
 		set({
 			selectedGap: null,
-			gapAnchorPosition: null,
 			gapGenerateMode: null,
 			gapPrompt: "",
 			gapSuggestion: null,
@@ -326,6 +326,7 @@ export const useGapStore = create<GapStore>((set, get) => ({
 			gapSuggestionError: false,
 			beforeFrameUrl: null,
 			afterFrameUrl: null,
+			gapCameraMotion: "none",
 			generatingGap: null,
 		}),
 }));
