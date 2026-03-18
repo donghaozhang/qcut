@@ -3,7 +3,11 @@ import { DropdownMenu, DropdownMenuTrigger } from "../../ui/dropdown-menu";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import type { TimelineGap } from "@/stores/timeline/gap-store";
 import { useGapStore } from "@/stores/timeline/gap-store";
-import { closeGapOnTimeline, isSameGap } from "./gap-actions";
+import {
+  closeGapOnTimeline,
+  isSameGap,
+  pausePlaybackForGapInteraction,
+} from "./gap-actions";
 import { GapMenu } from "./gap-menu";
 
 interface GapIndicatorProps {
@@ -43,6 +47,12 @@ export function GapIndicator({
     if (!isSameGap({ left: useGapStore.getState().selectedGap, right: gap })) {
       selectGap(gap);
     }
+  };
+
+  const openMenu = () => {
+    pausePlaybackForGapInteraction();
+    ensureGapSelected();
+    setMenuOpen(true);
   };
 
   useEffect(() => {
@@ -91,12 +101,12 @@ export function GapIndicator({
   }, [gapGenerateMode, isSelected]);
 
   const handleOpenChange = (nextOpen: boolean) => {
-    setMenuOpen(nextOpen);
-
     if (nextOpen) {
-      ensureGapSelected();
+      openMenu();
       return;
     }
+
+    setMenuOpen(false);
 
     requestAnimationFrame(() => {
       const state = useGapStore.getState();
@@ -126,14 +136,12 @@ export function GapIndicator({
           onClick={(e) => {
             e.stopPropagation();
             if (menuOpen) return;
-            ensureGapSelected();
-            setMenuOpen(true);
+            openMenu();
           }}
           onContextMenu={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            ensureGapSelected();
-            setMenuOpen(true);
+            openMenu();
           }}
           onPointerDown={(e) => {
             e.stopPropagation();

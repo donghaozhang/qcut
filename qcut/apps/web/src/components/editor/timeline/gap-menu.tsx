@@ -28,7 +28,13 @@ export function GapMenu({ gap }: GapMenuProps) {
   };
 
   return (
-    <DropdownMenuContent align="center" className="z-[100] w-[200px]">
+    <DropdownMenuContent
+      align="center"
+      className="z-[250] w-[200px]"
+      onClick={(e) => e.stopPropagation()}
+      onContextMenu={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
       <DropdownMenuLabel className="px-3 pt-1.5 pb-1.5 text-[10px] font-medium text-muted-foreground">
         {gapDuration.toFixed(1)}s gap selected
       </DropdownMenuLabel>

@@ -24,6 +24,7 @@ import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { Loader2, Sparkles, RefreshCw, Video, Image } from "lucide-react";
 import type { TimelineElement as TimelineElementType } from "@/types/timeline";
 import { CAMERA_MOTION_PRESETS } from "@/types/generation";
+import { pausePlaybackForGapInteraction } from "./gap-actions";
 
 // ---------------------------------------------------------------------------
 // Frame extraction (renderer-side, using canvas)
@@ -110,6 +111,11 @@ export function GapGenerationModal() {
 	const gapDuration = selectedGap
 		? selectedGap.endTime - selectedGap.startTime
 		: 0;
+
+	useEffect(() => {
+		if (!isOpen) return;
+		pausePlaybackForGapInteraction();
+	}, [isOpen]);
 
 	// Extract frames from neighboring clips when modal opens
 	const frameExtractionRef = useRef(false);

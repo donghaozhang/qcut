@@ -6,6 +6,11 @@ import { useGapStore } from "@/stores/timeline/gap-store";
 
 const mockPushHistory = vi.fn();
 const mockRestoreTracks = vi.fn();
+const mockPausePlayback = vi.fn();
+const mockPlaybackState = {
+  isPlaying: false,
+  pause: mockPausePlayback,
+};
 
 vi.mock("@/stores/timeline/timeline-store", () => ({
   useTimelineStore: {
@@ -45,6 +50,12 @@ vi.mock("@/stores/timeline/timeline-store", () => ({
   },
 }));
 
+vi.mock("@/stores/editor/playback-store", () => ({
+  usePlaybackStore: {
+    getState: vi.fn(() => mockPlaybackState),
+  },
+}));
+
 describe("GapIndicator", () => {
   const gap = {
     trackId: "track-1",
@@ -55,6 +66,8 @@ describe("GapIndicator", () => {
   beforeEach(() => {
     mockPushHistory.mockReset();
     mockRestoreTracks.mockReset();
+    mockPausePlayback.mockReset();
+    mockPlaybackState.isPlaying = false;
     useGapStore.getState().resetGapState();
     useGapStore.setState({
       gapModel: "fal-ai/ltx-video/v0.2.3",
@@ -85,6 +98,20 @@ describe("GapIndicator", () => {
     });
 
     expect(useGapStore.getState().selectedGap).toEqual(gap);
+  });
+
+  it("pauses playback before opening the gap menu", async () => {
+    mockPlaybackState.isPlaying = true;
+
+    render(<GapIndicator gap={gap} trackHeight={48} zoomLevel={1} />);
+
+    fireEvent.contextMenu(screen.getByTestId("gap-indicator"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Fill with Video")).toBeInTheDocument();
+    });
+
+    expect(mockPausePlayback).toHaveBeenCalledTimes(1);
   });
 
   it("closes the selected gap from the menu", async () => {
@@ -119,5 +146,30 @@ describe("GapIndicator", () => {
     });
 
     expect(useGapStore.getState().selectedGap).toEqual(gap);
+  });
+
+  it("keeps menu clicks from bubbling back into the timeline", async () => {
+    const parentClick = vi.fn();
+    const parentPointerDown = vi.fn();
+
+    render(
+      <div onClick={parentClick} onPointerDown={parentPointerDown}>
+        <GapIndicator gap={gap} trackHeight={48} zoomLevel={1} />
+      </div>,
+    );
+
+    fireEvent.click(screen.getByTestId("gap-indicator"));
+
+    const fillWithVideo = await screen.findByText("Fill with Video");
+
+    parentClick.mockClear();
+    parentPointerDown.mockClear();
+
+    fireEvent.pointerDown(fillWithVideo);
+    fireEvent.click(fillWithVideo);
+
+    expect(parentPointerDown).not.toHaveBeenCalled();
+    expect(parentClick).not.toHaveBeenCalled();
+    expect(useGapStore.getState().gapGenerateMode).toBe("text-to-video");
   });
 });

@@ -2,6 +2,7 @@ import {
   closeGapInTracks,
   type TimelineGap,
 } from "@/stores/timeline/gap-store";
+import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 
 export function isSameGap({
@@ -25,4 +26,10 @@ export function closeGapOnTimeline({ gap }: { gap: TimelineGap }) {
   store.pushHistory();
   const newTracks = closeGapInTracks(store._tracks, gap);
   store.restoreTracks(newTracks);
+}
+
+export function pausePlaybackForGapInteraction() {
+  const playbackStore = usePlaybackStore.getState();
+  if (!playbackStore.isPlaying) return;
+  playbackStore.pause();
 }
