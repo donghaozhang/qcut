@@ -432,8 +432,7 @@ export function setupGeminiChatIPC(): void {
 					"Write 2-3 sentences. No labels or explanations.";
 
 				const parts: Array<
-					| { text: string }
-					| { inlineData: { mimeType: string; data: string } }
+					{ text: string } | { inlineData: { mimeType: string; data: string } }
 				> = [{ text: "Describe this frame for video generation:" }];
 
 				if (request.imageDataUrl?.startsWith("data:")) {
@@ -453,8 +452,7 @@ export function setupGeminiChatIPC(): void {
 
 				return { prompt: result.response.text().trim() };
 			} catch (error: unknown) {
-				const msg =
-					error instanceof Error ? error.message : String(error);
+				const msg = error instanceof Error ? error.message : String(error);
 				console.error("[Gemini] Describe frame error:", msg);
 				return { prompt: null, error: msg };
 			}

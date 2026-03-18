@@ -653,7 +653,10 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
 	},
 
 	// Takes management (for AI-generated media with multiple versions)
-	addTake: (mediaId: string, take: { url: string; localPath?: string; createdAt: number }) => {
+	addTake: (
+		mediaId: string,
+		take: { url: string; localPath?: string; createdAt: number }
+	) => {
 		set((state) => ({
 			mediaItems: state.mediaItems.map((item) => {
 				if (item.id !== mediaId) return item;
