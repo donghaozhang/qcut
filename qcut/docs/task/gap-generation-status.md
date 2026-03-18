@@ -5,6 +5,17 @@
 
 ---
 
+## Update
+
+- The gap indicator interaction bug described below has been fixed.
+- The gap now owns its own anchored menu via a trigger-driven dropdown instead of the old fixed-position `GapPopover` path.
+- Verification completed:
+  - `bunx vitest run apps/web/src/components/editor/timeline/__tests__/gap-indicator.test.tsx apps/web/src/stores/__tests__/gap-store.test.ts`
+  - `bun run build`
+- Manual Electron smoke testing is still recommended for the full modal flow.
+
+---
+
 ## What's Done (code written, builds, tests pass)
 
 ### Core Infrastructure (fully implemented)
@@ -15,7 +26,7 @@
 
 ### UI Components (built, rendering correctly)
 - `apps/web/src/components/editor/timeline/gap-indicator.tsx` — Dashed blue box between clips showing gap duration
-- `apps/web/src/components/editor/timeline/gap-popover.tsx` — "Fill with Video / Fill with Image / Close Gap" menu
+- `apps/web/src/components/editor/timeline/gap-menu.tsx` — Anchored gap menu with "Fill with Video / Fill with Image / Close Gap"
 - `apps/web/src/components/editor/timeline/gap-generation-modal.tsx` — Radix Dialog with frame strip, AI prompt suggestion, model/camera motion selectors
 
 ### Gemini IPC (implemented)
@@ -38,7 +49,7 @@
 
 ---
 
-## What's Broken — Gap Indicator Click Not Working
+## Original Handoff Notes (historical)
 
 ### Symptom
 The gap indicator (dashed blue box with "6.1s" label) **renders correctly** between clips on the timeline. However, **clicking or right-clicking it does nothing** — the popover menu never appears.
@@ -84,11 +95,13 @@ Instead of relying on DOM click events through the timeline container hierarchy,
 |---|---|
 | `apps/web/src/stores/timeline/gap-store.ts` | Gap detection, close gap, segment planning, store |
 | `apps/web/src/types/generation.ts` | Shared GenerationParams, MediaTake, presets, color labels |
+| `apps/web/src/components/editor/timeline/gap-actions.ts` | Shared gap selection and close-gap helpers |
 | `apps/web/src/components/editor/timeline/gap-indicator.tsx` | Gap visual indicator on timeline |
-| `apps/web/src/components/editor/timeline/gap-popover.tsx` | Gap action menu (Fill/Close) |
+| `apps/web/src/components/editor/timeline/gap-menu.tsx` | Gap action menu (Fill/Close) |
 | `apps/web/src/components/editor/timeline/gap-generation-modal.tsx` | Full generation modal |
 | `apps/web/src/hooks/timeline/use-gap-generation.ts` | Generation orchestrator + chained generation |
 | `apps/web/src/stores/__tests__/gap-store.test.ts` | 19 unit tests |
+| `apps/web/src/components/editor/timeline/__tests__/gap-indicator.test.tsx` | Gap interaction coverage for left/right click and close-gap |
 
 ### Modified Files
 | File | Change |
@@ -96,7 +109,7 @@ Instead of relying on DOM click events through the timeline container hierarchy,
 | `apps/web/src/components/editor/timeline/timeline-track.tsx` | Gap indicator rendering + useMemo detection |
 | `apps/web/src/components/editor/timeline/timeline-tracks-area.tsx` | Skip pointer handlers for gap targets |
 | `apps/web/src/components/editor/timeline/timeline-element.tsx` | AI Tools menu + Color Labels + visual dot |
-| `apps/web/src/components/editor/timeline/index.tsx` | GapPopover + GapGenerationModal mounted |
+| `apps/web/src/components/editor/timeline/index.tsx` | GapGenerationModal mounted; old global GapPopover removed |
 | `apps/web/src/hooks/timeline/use-selection-box.ts` | Skip selection for gap targets |
 | `apps/web/src/components/editor/timeline/hooks/use-timeline-click-handler.ts` | Skip seek for gap targets |
 | `apps/web/src/routes/editor.$project_id.lazy.tsx` | useGapGeneration hook wired |
