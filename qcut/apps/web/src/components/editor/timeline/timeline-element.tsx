@@ -23,6 +23,7 @@ import {
 	Sparkles,
 } from "lucide-react";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
+import { useMediaStore } from "@/stores/media/media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import AudioWaveform from "../audio-waveform";
@@ -654,9 +655,7 @@ function TimelineElementComponent({
 				{/* AI Tools — shown for AI-generated clips */}
 				{element.type === "media" &&
 					(() => {
-						const media = mediaItems.find(
-							(m) => m.id === (element as any).mediaId
-						);
+						const media = mediaItems.find((m) => m.id === element.mediaId);
 						const genParams = media?.metadata?.generationParams;
 						const takes = media?.metadata?.takes as
 							| Array<{ url: string; createdAt: number }>
@@ -703,8 +702,7 @@ function TimelineElementComponent({
 											className="p-0.5 rounded hover:bg-accent"
 											onClick={(e) => {
 												e.stopPropagation();
-												const { setActiveTake } =
-													(window as any).__mediaStore?.getState() || {};
+												const { setActiveTake } = useMediaStore.getState();
 												if (setActiveTake && media) {
 													setActiveTake(media.id, activeTakeIdx - 1);
 												}
@@ -720,8 +718,7 @@ function TimelineElementComponent({
 											className="p-0.5 rounded hover:bg-accent"
 											onClick={(e) => {
 												e.stopPropagation();
-												const { setActiveTake } =
-													(window as any).__mediaStore?.getState() || {};
+												const { setActiveTake } = useMediaStore.getState();
 												if (setActiveTake && media) {
 													setActiveTake(media.id, activeTakeIdx + 1);
 												}

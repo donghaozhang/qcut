@@ -354,10 +354,14 @@ export function GapGenerationModal() {
 				{/* Camera motion (video modes only) */}
 				{isVideoMode && (
 					<div className="space-y-1.5">
-						<label className="text-xs text-muted-foreground uppercase font-semibold">
+						<label
+							htmlFor="gap-camera-motion"
+							className="text-xs text-muted-foreground uppercase font-semibold"
+						>
 							Camera Motion
 						</label>
 						<select
+							id="gap-camera-motion"
 							value={cameraMotion}
 							onChange={(e) => setCameraMotion(e.target.value)}
 							className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground"
