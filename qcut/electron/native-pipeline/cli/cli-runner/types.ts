@@ -152,6 +152,8 @@ export interface CLIRunOptions {
 	crossTrackRipple?: boolean;
 	removeFillers?: boolean;
 	removeSilences?: boolean;
+	silenceThreshold?: number;
+	keepPadding?: number;
 	html?: string;
 	message?: string;
 	stack?: string;

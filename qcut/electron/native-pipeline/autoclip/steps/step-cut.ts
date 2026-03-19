@@ -55,7 +55,19 @@ async function resolveFFmpegPath(): Promise<string> {
 		const { getFFmpegPath } = await import("../../../ffmpeg/paths.js");
 		return getFFmpegPath();
 	} catch {
-		// Fallback: assume ffmpeg is on PATH
+		// Try staged binary (CLI mode where Electron imports fail)
+		// __dirname = electron/native-pipeline/autoclip/steps/
+		const staged = path.join(
+			__dirname,
+			"..",
+			"..",
+			"..",
+			"resources",
+			"ffmpeg",
+			`${process.platform}-${process.arch}`,
+			process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg"
+		);
+		if (fs.existsSync(staged)) return staged;
 		return "ffmpeg";
 	}
 }

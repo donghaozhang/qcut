@@ -400,7 +400,24 @@ async function executeSTT(
 	}
 ): Promise<StepOutput> {
 	if (input.audioUrl) {
-		payload.audio_url = input.audioUrl;
+		let resolvedUrl = input.audioUrl;
+		// Upload local files to FAL storage for FAL-routed endpoints
+		if (provider === "fal" && !input.audioUrl.startsWith("http")) {
+			if (options.signal?.aborted) {
+				return { success: false, error: "Cancelled", duration: 0 };
+			}
+			options.onProgress?.(10, "Uploading audio to FAL storage...");
+			const upload = await uploadToFalStorage(input.audioUrl);
+			if (!upload.success || !upload.url) {
+				return {
+					success: false,
+					error: upload.error || "Failed to upload audio",
+					duration: 0,
+				};
+			}
+			resolvedUrl = upload.url;
+		}
+		payload.audio_url = resolvedUrl;
 	}
 	const result = await callModelApi({
 		endpoint: model.endpoint,

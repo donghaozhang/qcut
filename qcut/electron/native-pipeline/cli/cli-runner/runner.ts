@@ -49,6 +49,10 @@ import {
 	runAutoclip,
 	parseAutoclipOptions,
 } from "../../autoclip/autoclip-runner.js";
+import {
+	runCleanAudio,
+	parseCleanAudioOptions,
+} from "../../autoclip/clean-audio-runner.js";
 import type { CLIRunOptions, CLIResult, ProgressFn } from "./types.js";
 import { resolveActionPolicy, evaluateActionPolicy } from "../action-policy.js";
 import { confirm, isInteractive } from "../interactive.js";
@@ -432,6 +436,13 @@ export class CLIPipelineRunner {
 			case "autoclip":
 				result = await runAutoclip(
 					parseAutoclipOptions(resolvedOptions),
+					onProgress,
+					this.signal
+				);
+				break;
+			case "clean-audio":
+				result = await runCleanAudio(
+					parseCleanAudioOptions(resolvedOptions),
 					onProgress,
 					this.signal
 				);

@@ -10,7 +10,7 @@ export function registerSpeechToTextModels(): void {
 		key: "scribe_v2",
 		name: "ElevenLabs Scribe v2",
 		provider: "ElevenLabs (via FAL)",
-		endpoint: "fal-ai/elevenlabs/scribe/v2",
+		endpoint: "fal-ai/elevenlabs/speech-to-text/scribe-v2",
 		categories: ["speech_to_text"],
 		description: "Fast, accurate transcription with speaker diarization",
 		pricing: { per_minute: 0.008 },

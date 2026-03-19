@@ -489,6 +489,56 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		],
 	},
 
+	"clean-audio": {
+		name: "clean-audio",
+		description: "Remove filler words, stutters, and silences from video/audio",
+		category: "analysis",
+		flags: [
+			f("--input", "string", "Input video/audio file path", {
+				short: "-i",
+				required: true,
+			}),
+			f(
+				"--srt-file",
+				"string",
+				"SRT file with word timestamps (transcribes if omitted)",
+				{ short: "-s" }
+			),
+			f("--output", "string", "Output directory", { short: "-o" }),
+			f("--model", "string", "LLM model for filler detection", {
+				short: "-m",
+			}),
+			f("--remove-fillers", "boolean", "Remove filler words (default: true)", {
+				default: true,
+			}),
+			f(
+				"--remove-silences",
+				"boolean",
+				"Remove long silences (default: true)",
+				{ default: true }
+			),
+			f(
+				"--silence-threshold",
+				"number",
+				"Silence duration threshold in seconds (default: 1.0)"
+			),
+			f(
+				"--keep-padding",
+				"number",
+				"Seconds of padding to keep around cuts (default: 0.15)"
+			),
+			f("--dry-run", "boolean", "Analyze only, skip re-encoding", {
+				default: false,
+			}),
+		],
+		examples: [
+			"qcut-pipeline clean-audio -i video.mp4",
+			"qcut-pipeline clean-audio -i video.mp4 --remove-silences --silence-threshold 1.5",
+			"qcut-pipeline clean-audio -i video.mp4 --dry-run",
+			"qcut-pipeline clean-audio -i video.mp4 -s transcript.srt -o /tmp/clean",
+		],
+	},
+
 	// ── Translate ──
 	"translate-video": {
 		name: "translate-video",
