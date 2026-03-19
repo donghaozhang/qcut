@@ -182,8 +182,7 @@ function buildPrompt(words: WordItem[]): string {
 	const wordList = words
 		.filter(
 			(w) =>
-				w.type === "word" ||
-				(w.type === "spacing" && w.end - w.start >= 0.5)
+				w.type === "word" || (w.type === "spacing" && w.end - w.start >= 0.5)
 		)
 		.map((w) => {
 			if (w.type === "spacing") {
@@ -243,22 +242,19 @@ async function analyzeWithOpenRouter(
 	const results = await Promise.all(
 		chunks.map(async (chunk) => {
 			const prompt = buildPrompt(chunk);
-			const res = await fetch(
-				"https://openrouter.ai/api/v1/chat/completions",
-				{
-					method: "POST",
-					headers: {
-						Authorization: `Bearer ${apiKey}`,
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						model,
-						messages: [{ role: "user", content: prompt }],
-						max_tokens: 4096,
-					}),
-					signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-				}
-			);
+			const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${apiKey}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					model,
+					messages: [{ role: "user", content: prompt }],
+					max_tokens: 4096,
+				}),
+				signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+			});
 			if (!res.ok) throw new Error(`OpenRouter ${res.status}`);
 			const data = (await res.json()) as Record<string, unknown>;
 			const content = extractChatContent(data);
@@ -290,7 +286,9 @@ async function analyzeWithGeminiREST(
 			);
 			if (!res.ok) throw new Error(`Gemini ${res.status}`);
 			const data = (await res.json()) as Record<string, unknown>;
-			const candidates = (data.candidates ?? []) as Array<Record<string, unknown>>;
+			const candidates = (data.candidates ?? []) as Array<
+				Record<string, unknown>
+			>;
 			const content = candidates[0]?.content as
 				| { parts?: Array<{ text?: string }> }
 				| undefined;
@@ -361,8 +359,12 @@ function patternMatchFillers(words: WordItem[]): FilterDecision[] {
 
 	// Stutter detection
 	for (let i = 0; i < wordItems.length - 1; i++) {
-		const curr = wordItems[i].text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
-		const next = wordItems[i + 1].text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+		const curr = wordItems[i].text
+			.toLowerCase()
+			.replace(/[^\p{L}\p{N}]+/gu, "");
+		const next = wordItems[i + 1].text
+			.toLowerCase()
+			.replace(/[^\p{L}\p{N}]+/gu, "");
 		if (curr && curr === next) {
 			const gap = wordItems[i + 1].start - wordItems[i].end;
 			if (gap <= 0.5) {
@@ -422,7 +424,9 @@ function parseDecisions(rawText: string): FilterDecision[] {
 			.map((item) => ({
 				id: (item.id as string).trim(),
 				reason:
-					typeof item.reason === "string" ? item.reason.trim() : "AI suggestion",
+					typeof item.reason === "string"
+						? item.reason.trim()
+						: "AI suggestion",
 				scope: (item.scope === "sentence" ? "sentence" : "word") as
 					| "word"
 					| "sentence",

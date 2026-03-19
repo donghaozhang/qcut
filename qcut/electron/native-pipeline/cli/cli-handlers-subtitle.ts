@@ -573,7 +573,11 @@ async function resolveFFmpegPath(): Promise<string> {
 		// Try staged binary (CLI mode where Electron imports fail)
 		// __dirname = electron/native-pipeline/cli/
 		const staged = path.join(
-			__dirname, "..", "..", "resources", "ffmpeg",
+			__dirname,
+			"..",
+			"..",
+			"resources",
+			"ffmpeg",
 			`${process.platform}-${process.arch}`,
 			process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg"
 		);

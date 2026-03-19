@@ -491,8 +491,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 
 	"clean-audio": {
 		name: "clean-audio",
-		description:
-			"Remove filler words, stutters, and silences from video/audio",
+		description: "Remove filler words, stutters, and silences from video/audio",
 		category: "analysis",
 		flags: [
 			f("--input", "string", "Input video/audio file path", {

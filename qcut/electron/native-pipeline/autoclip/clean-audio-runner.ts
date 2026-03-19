@@ -305,9 +305,7 @@ async function getWordTimestamps(
 				text: (w.text ?? w.word) as string,
 				start: w.start as number,
 				end: w.end as number,
-				type: (w.type === "spacing" ? "spacing" : "word") as
-					| "word"
-					| "spacing",
+				type: (w.type === "spacing" ? "spacing" : "word") as "word" | "spacing",
 				speaker_id: w.speaker_id as string | undefined,
 			}));
 	} finally {
@@ -382,7 +380,8 @@ function parseWordsFromSrt(srtPath: string): WordItem[] {
 		// Split block text into individual words with estimated timing
 		const blockWords = text.split(/\s+/).filter(Boolean);
 		const duration = end - start;
-		const wordDuration = blockWords.length > 0 ? duration / blockWords.length : 0;
+		const wordDuration =
+			blockWords.length > 0 ? duration / blockWords.length : 0;
 
 		for (let i = 0; i < blockWords.length; i++) {
 			words.push({
@@ -453,7 +452,11 @@ async function resolveFFmpegPath(): Promise<string> {
 		// Try staged binary (CLI mode where Electron imports fail)
 		// __dirname = electron/native-pipeline/autoclip/
 		const staged = path.join(
-			__dirname, "..", "..", "resources", "ffmpeg",
+			__dirname,
+			"..",
+			"..",
+			"resources",
+			"ffmpeg",
 			`${process.platform}-${process.arch}`,
 			process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg"
 		);
@@ -485,7 +488,13 @@ async function getVideoDuration(inputPath: string): Promise<number> {
 	return dur;
 }
 
-const AUDIO_ONLY_EXTENSIONS = new Set([".mp3", ".wav", ".m4a", ".ogg", ".flac"]);
+const AUDIO_ONLY_EXTENSIONS = new Set([
+	".mp3",
+	".wav",
+	".m4a",
+	".ogg",
+	".flac",
+]);
 
 function isAudioOnly(filePath: string): boolean {
 	return AUDIO_ONLY_EXTENSIONS.has(path.extname(filePath).toLowerCase());
