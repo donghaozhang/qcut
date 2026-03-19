@@ -79,8 +79,8 @@ export function parseCleanAudioOptions(opts: CLIRunOptions): CleanAudioOptions {
 		srtFile: opts.srtFile,
 		outputDir: opts.output ?? opts.outputDir,
 		model: opts.model,
-		removeFillers: true,
-		removeSilences: true,
+		removeFillers: opts.removeFillers ?? true,
+		removeSilences: opts.removeSilences ?? true,
 		silenceThreshold: opts.silenceThreshold,
 		keepPadding: opts.keepPadding,
 		dryRun: opts.dryRun,
@@ -870,8 +870,9 @@ async function resolveFFmpegPath(): Promise<string> {
 		return getFFmpegPath();
 	} catch {
 		// Try staged binary (CLI mode where Electron imports fail)
+		// __dirname = electron/native-pipeline/autoclip/
 		const staged = path.join(
-			__dirname, "..", "..", "electron", "resources", "ffmpeg",
+			__dirname, "..", "..", "resources", "ffmpeg",
 			`${process.platform}-${process.arch}`,
 			process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg"
 		);
@@ -903,6 +904,12 @@ async function getVideoDuration(inputPath: string): Promise<number> {
 	return dur;
 }
 
+const AUDIO_ONLY_EXTENSIONS = new Set([".mp3", ".wav", ".m4a", ".ogg", ".flac"]);
+
+function isAudioOnly(filePath: string): boolean {
+	return AUDIO_ONLY_EXTENSIONS.has(path.extname(filePath).toLowerCase());
+}
+
 async function concatKeepSegments(
 	inputPath: string,
 	keeps: KeepInterval[],
@@ -916,42 +923,54 @@ async function concatKeepSegments(
 		throw new Error("No segments to keep — would produce empty output");
 	}
 
-	// Build ffmpeg complex filter for concat
-	// between(t,start,end) selects frames in range
-	const filterParts = keeps.map(
-		(k, i) =>
-			`[0:v]trim=start=${k.start.toFixed(3)}:end=${k.end.toFixed(3)},setpts=PTS-STARTPTS[v${i}];` +
-			`[0:a]atrim=start=${k.start.toFixed(3)}:end=${k.end.toFixed(3)},asetpts=PTS-STARTPTS[a${i}]`
-	);
-	const concatInputs = keeps.map((_, i) => `[v${i}][a${i}]`).join("");
-	const filter =
-		filterParts.join(";") +
-		`;${concatInputs}concat=n=${keeps.length}:v=1:a=1[outv][outa]`;
+	const audioOnly = isAudioOnly(inputPath);
 
-	const args = [
-		"-i",
-		inputPath,
-		"-filter_complex",
-		filter,
-		"-map",
-		"[outv]",
-		"-map",
-		"[outa]",
-		"-c:v",
-		"libx264",
-		"-preset",
-		"fast",
-		"-crf",
-		"23",
-		"-c:a",
-		"aac",
-		"-b:a",
-		"128k",
-		"-avoid_negative_ts",
-		"make_zero",
-		"-y",
-		outputPath,
-	];
+	// Build ffmpeg complex filter for concat
+	const filterParts = audioOnly
+		? keeps.map(
+				(k, i) =>
+					`[0:a]atrim=start=${k.start.toFixed(3)}:end=${k.end.toFixed(3)},asetpts=PTS-STARTPTS[a${i}]`
+			)
+		: keeps.map(
+				(k, i) =>
+					`[0:v]trim=start=${k.start.toFixed(3)}:end=${k.end.toFixed(3)},setpts=PTS-STARTPTS[v${i}];` +
+					`[0:a]atrim=start=${k.start.toFixed(3)}:end=${k.end.toFixed(3)},asetpts=PTS-STARTPTS[a${i}]`
+			);
+
+	const concatInputs = audioOnly
+		? keeps.map((_, i) => `[a${i}]`).join("")
+		: keeps.map((_, i) => `[v${i}][a${i}]`).join("");
+
+	const filter = audioOnly
+		? filterParts.join(";") +
+			`;${concatInputs}concat=n=${keeps.length}:v=0:a=1[outa]`
+		: filterParts.join(";") +
+			`;${concatInputs}concat=n=${keeps.length}:v=1:a=1[outv][outa]`;
+
+	const args = ["-i", inputPath, "-filter_complex", filter];
+
+	if (audioOnly) {
+		args.push("-map", "[outa]", "-c:a", "aac", "-b:a", "128k");
+	} else {
+		args.push(
+			"-map",
+			"[outv]",
+			"-map",
+			"[outa]",
+			"-c:v",
+			"libx264",
+			"-preset",
+			"fast",
+			"-crf",
+			"23",
+			"-c:a",
+			"aac",
+			"-b:a",
+			"128k"
+		);
+	}
+
+	args.push("-avoid_negative_ts", "make_zero", "-y", outputPath);
 
 	onProgress({
 		stage: "cutting",

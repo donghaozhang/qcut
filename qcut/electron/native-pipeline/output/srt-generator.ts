@@ -51,23 +51,22 @@ export function extractWordTimestamps(
 	// Format 1: { words: [{ word, start, end }] } or { words: [{ text, start, end }] }
 	if (Array.isArray(obj.words)) {
 		return obj.words
-			.filter(
-				(w: unknown) =>
-					w &&
-					typeof w === "object" &&
-					("word" in (w as Record<string, unknown>) ||
-						"text" in (w as Record<string, unknown>)) &&
-					"start" in (w as Record<string, unknown>) &&
-					"end" in (w as Record<string, unknown>)
-			)
 			.map((w: unknown) => {
+				if (!w || typeof w !== "object") return null;
 				const item = w as Record<string, unknown>;
 				return {
-					word: (item.word ?? item.text) as string,
-					start: item.start as number,
-					end: item.end as number,
+					word: item.word ?? item.text,
+					start: item.start,
+					end: item.end,
 				};
-			});
+			})
+			.filter(
+				(item): item is WordTimestamp =>
+					item != null &&
+					typeof item.word === "string" &&
+					typeof item.start === "number" &&
+					typeof item.end === "number"
+			);
 	}
 
 	// Format 2: { segments: [{ words: [...] }] }
@@ -80,15 +79,17 @@ export function extractWordTimestamps(
 				Array.isArray((seg as Record<string, unknown>).words)
 			) {
 				for (const w of (seg as Record<string, unknown>).words as unknown[]) {
+					if (!w || typeof w !== "object") continue;
+					const item = w as Record<string, unknown>;
 					if (
-						w &&
-						typeof w === "object" &&
-						"word" in (w as Record<string, unknown>) &&
-						"start" in (w as Record<string, unknown>) &&
-						"end" in (w as Record<string, unknown>)
-					) {
-						allWords.push(w as WordTimestamp);
-					}
+						!("word" in item || "text" in item) ||
+						typeof item.start !== "number" ||
+						typeof item.end !== "number"
+					)
+						continue;
+					const word = (item.word ?? item.text) as string;
+					if (typeof word !== "string") continue;
+					allWords.push({ word, start: item.start, end: item.end });
 				}
 			}
 		}

@@ -425,6 +425,36 @@ export async function handleSubtitleExport(
 	}
 }
 
+/** Check if text contains CJK characters. */
+function hasCJK(text: string): boolean {
+	return /[\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef]/.test(text);
+}
+
+/** macOS CJK font paths in preference order. */
+const CJK_FONT_CANDIDATES = [
+	"/System/Library/Fonts/STHeiti Medium.ttc",
+	"/System/Library/Fonts/Hiragino Sans GB.ttc",
+	"/System/Library/Fonts/STHeiti Light.ttc",
+	"/System/Library/Fonts/Supplemental/Songti.ttc",
+];
+
+/**
+ * Resolve a fontfile param for drawtext.
+ * Falls back to font= name if no fontfile is needed or found.
+ */
+function resolveFontfile(fontFamily: string, text: string): string {
+	// CJK text needs an explicit fontfile — drawtext can't find CJK fonts by name
+	if (hasCJK(text) && process.platform === "darwin") {
+		for (const candidate of CJK_FONT_CANDIDATES) {
+			if (fs.existsSync(candidate)) {
+				const escaped = candidate.replace(/:/g, "\\:");
+				return `fontfile='${escaped}'`;
+			}
+		}
+	}
+	return `font=${fontFamily}`;
+}
+
 /**
  * Build a drawtext filter chain for all caption clips.
  * Uses drawtext which works with any FFmpeg (no libass needed).
@@ -470,11 +500,14 @@ function buildDrawtextFilters(
 				break;
 		}
 
+		// Use fontfile for CJK support (drawtext's `font` param often can't find CJK fonts)
+		const fontfileParam = resolveFontfile(style.fontFamily, clip.text);
+
 		const params: string[] = [
 			`text='${escapedText}'`,
 			`fontsize=${style.fontSize}`,
 			`fontcolor=${fontColor}`,
-			`font=${style.fontFamily}`,
+			fontfileParam,
 			`x=${xExpr}`,
 			`y=${yExpr}`,
 		];
@@ -537,6 +570,14 @@ async function resolveFFmpegPath(): Promise<string> {
 		const { getFFmpegPath } = await import("../../ffmpeg/paths.js");
 		return getFFmpegPath();
 	} catch {
+		// Try staged binary (CLI mode where Electron imports fail)
+		// __dirname = electron/native-pipeline/cli/
+		const staged = path.join(
+			__dirname, "..", "..", "resources", "ffmpeg",
+			`${process.platform}-${process.arch}`,
+			process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg"
+		);
+		if (fs.existsSync(staged)) return staged;
 		return "ffmpeg";
 	}
 }
