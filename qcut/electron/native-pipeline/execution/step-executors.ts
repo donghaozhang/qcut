@@ -403,6 +403,9 @@ async function executeSTT(
 		let resolvedUrl = input.audioUrl;
 		// Upload local files to FAL storage for FAL-routed endpoints
 		if (provider === "fal" && !input.audioUrl.startsWith("http")) {
+			if (options.signal?.aborted) {
+				return { success: false, error: "Cancelled", duration: 0 };
+			}
 			options.onProgress?.(10, "Uploading audio to FAL storage...");
 			const upload = await uploadToFalStorage(input.audioUrl);
 			if (!upload.success || !upload.url) {
