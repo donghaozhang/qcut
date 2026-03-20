@@ -10,7 +10,7 @@ import type { BeatDetectionResult } from "../audio/beat-types.js";
 function generateClickTrack(
 	bpm: number,
 	durationSec: number,
-	sampleRate: number,
+	sampleRate: number
 ): Float32Array {
 	const totalSamples = Math.floor(durationSec * sampleRate);
 	const samples = new Float32Array(totalSamples);
@@ -28,7 +28,10 @@ function generateClickTrack(
 }
 
 /** Generate silent audio */
-function generateSilence(durationSec: number, sampleRate: number): Float32Array {
+function generateSilence(
+	durationSec: number,
+	sampleRate: number
+): Float32Array {
 	return new Float32Array(Math.floor(durationSec * sampleRate));
 }
 
@@ -129,7 +132,7 @@ describe("analyzeFromSamples", () => {
 
 		for (let i = 1; i < result.beats.length; i++) {
 			expect(result.beats[i].timestamp).toBeGreaterThan(
-				result.beats[i - 1].timestamp,
+				result.beats[i - 1].timestamp
 			);
 		}
 	});
@@ -156,7 +159,7 @@ describe("analyzeFromSamples", () => {
 
 		// Lower threshold should detect at least as many beats
 		expect(lowThreshold.beats.length).toBeGreaterThanOrEqual(
-			highThreshold.beats.length,
+			highThreshold.beats.length
 		);
 	});
 });

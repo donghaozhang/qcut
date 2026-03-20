@@ -17,7 +17,7 @@ export function AudioProperties({
 	trackId: string;
 }) {
 	const mediaItem = useMediaStore((s) =>
-		s.mediaItems.find((m) => m.id === element.mediaId),
+		s.mediaItems.find((m) => m.id === element.mediaId)
 	);
 
 	return (

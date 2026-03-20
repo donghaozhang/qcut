@@ -41,14 +41,20 @@ export function CaptionsDisplay({
 	// Filter words within the active segment's time range for karaoke
 	// Must be called unconditionally (React hooks rule)
 	const segmentWords = useMemo(() => {
-		if (karaokeMode === "none" || !words || words.length === 0 || !activeSegment) return [];
+		if (
+			karaokeMode === "none" ||
+			!words ||
+			words.length === 0 ||
+			!activeSegment
+		)
+			return [];
 		return words.filter(
 			(w) =>
 				w.type === "word" &&
 				w.start >= activeSegment.start - 0.05 &&
 				w.end <= activeSegment.end + 0.05
 		);
-	}, [karaokeMode, words, activeSegment?.start, activeSegment?.end]);
+	}, [karaokeMode, words, activeSegment]);
 
 	if (!isVisible || !segments.length || !activeSegment) {
 		return null;
