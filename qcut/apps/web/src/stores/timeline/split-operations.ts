@@ -337,7 +337,9 @@ export function splitOnBeats(
 
 	// Set active element so getCutPoints reads the correct cache entry
 	const beatStore = useBeatDetectionStore.getState();
-	beatStore.setActiveElement(elementId);
+	if (beatStore.activeElementId !== elementId) {
+		beatStore.setActiveElement(elementId);
+	}
 
 	// Beat timestamps are audio-relative (0-based from analysis).
 	// Map them to timeline coordinates using element.startTime + trimStart offset.

@@ -305,9 +305,11 @@ export async function analyzeBeats(
 		`Decoded ${samples.length} samples (${(samples.length / SAMPLE_RATE).toFixed(1)}s)`
 	);
 
-	const result = analyzeFromSamples(samples, SAMPLE_RATE, {
-		thresholdMultiplier: threshold,
-	});
+	const result = analyzeFromSamples(
+		samples,
+		SAMPLE_RATE,
+		threshold !== undefined ? { thresholdMultiplier: threshold } : undefined
+	);
 
 	claudeLog.info(
 		LOG_PREFIX,

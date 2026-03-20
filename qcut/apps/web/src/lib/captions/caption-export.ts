@@ -386,7 +386,7 @@ export function downloadCaptions(
 	segments: TranscriptionSegment[],
 	format: CaptionFormat,
 	filename: string,
-	options: Partial<CaptionExportOptions> = {}
+	options: Partial<CaptionExportOptions> & { words?: WordItem[] } = {}
 ): void {
 	const content = exportCaptions(segments, format, options);
 	const extension = getCaptionFileExtension(format);

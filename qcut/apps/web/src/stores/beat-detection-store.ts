@@ -89,8 +89,24 @@ export const useBeatDetectionStore = create<BeatDetectionStore>((set, get) => ({
 
 			set({ progress: 0.5 });
 
-			// Mix down to mono
-			const samples = audioBuffer.getChannelData(0);
+			// Mix down to mono by averaging all channels
+			let samples: Float32Array;
+			if (audioBuffer.numberOfChannels === 1) {
+				samples = audioBuffer.getChannelData(0);
+			} else {
+				const length = audioBuffer.length;
+				samples = new Float32Array(length);
+				const numChannels = audioBuffer.numberOfChannels;
+				for (let ch = 0; ch < numChannels; ch++) {
+					const channelData = audioBuffer.getChannelData(ch);
+					for (let i = 0; i < length; i++) {
+						samples[i] += channelData[i];
+					}
+				}
+				for (let i = 0; i < length; i++) {
+					samples[i] /= numChannels;
+				}
+			}
 			const sampleRate = audioBuffer.sampleRate;
 
 			// Dynamic import to keep editor-core tree-shakable
