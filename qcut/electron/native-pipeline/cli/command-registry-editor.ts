@@ -430,6 +430,15 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		"Detect filler words/silences",
 		[PID, f("--media-id", "string", "Media ID"), DATA]
 	),
+	"editor:analyze:beats": ed(
+		"editor:analyze:beats",
+		"Detect audio beats and BPM",
+		[
+			PID,
+			MID,
+			f("--threshold", "number", "Sensitivity threshold (default: 1.5)"),
+		]
+	),
 
 	// ── Transcription ──
 	"editor:transcribe:run": ed(

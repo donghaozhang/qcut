@@ -5,6 +5,7 @@ import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useProjectStore } from "@/stores/project-store";
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { TimelineCacheIndicator } from "./timeline-cache-indicator";
+import { BeatMarkers } from "./beat-markers";
 import type { RefObject } from "react";
 import type { TimelineTrack } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
@@ -102,6 +103,9 @@ export function TimelineRuler({
 						activeProject={activeProject}
 						getRenderStatus={getRenderStatus}
 					/>
+
+					{/* Beat markers (overlay) */}
+					<BeatMarkers zoomLevel={zoomLevel} />
 
 					{/* Time markers */}
 					<TimeMarkers duration={duration} zoomLevel={zoomLevel} />

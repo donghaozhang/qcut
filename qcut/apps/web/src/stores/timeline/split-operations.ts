@@ -37,6 +37,20 @@ export function splitElementOperation(
 	elementId: string,
 	splitTime: number
 ): string | null {
+	ctx.pushHistory();
+	return splitElementOperationNoHistory(ctx, trackId, elementId, splitTime);
+}
+
+/**
+ * Split an element without pushing history.
+ * Used by batch operations (e.g. splitOnBeats) that manage history externally.
+ */
+function splitElementOperationNoHistory(
+	ctx: OperationContext,
+	trackId: string,
+	elementId: string,
+	splitTime: number
+): string | null {
 	const tracks = ctx.getTracks();
 	const track = tracks.find((t) => t.id === trackId);
 	const element = track?.elements.find((c) => c.id === elementId);
@@ -48,8 +62,6 @@ export function splitElementOperation(
 
 	// Cannot split outside the element bounds
 	if (splitTime <= effectiveStart || splitTime >= effectiveEnd) return null;
-
-	ctx.pushHistory();
 
 	const relativeTime = splitTime - element.startTime;
 	const firstDuration = relativeTime;
@@ -300,4 +312,52 @@ export function getTotalDurationOperation(tracks: TimelineTrack[]): number {
 	);
 
 	return Math.max(...trackEndTimes, 0);
+}
+
+/**
+ * Split an element at the given timeline cut points.
+ * Splits are executed back-to-front to prevent time offset cascading.
+ *
+ * @param ctx - Operation context
+ * @param trackId - ID of the track containing the element
+ * @param elementId - ID of the element to split
+ * @param cutPoints - Timeline-relative timestamps to split at
+ * @returns Number of splits performed
+ */
+export function splitOnBeats(
+	ctx: OperationContext,
+	trackId: string,
+	elementId: string,
+	cutPoints: number[]
+): number {
+	if (cutPoints.length === 0) return 0;
+
+	const tracks = ctx.getTracks();
+	const track = tracks.find((t) => t.id === trackId);
+	const element = track?.elements.find((c) => c.id === elementId);
+
+	if (!element) return 0;
+
+	// Sort descending — split back-to-front to avoid offset cascading
+	const sorted = [...cutPoints].sort((a, b) => b - a);
+
+	// Single history entry for the entire batch
+	ctx.pushHistory();
+
+	let splitCount = 0;
+
+	for (const time of sorted) {
+		// Use splitElementOperationNoHistory to avoid N+1 undo entries
+		const result = splitElementOperationNoHistory(
+			ctx,
+			trackId,
+			elementId,
+			time
+		);
+		if (result !== null) {
+			splitCount++;
+		}
+	}
+
+	return splitCount;
 }

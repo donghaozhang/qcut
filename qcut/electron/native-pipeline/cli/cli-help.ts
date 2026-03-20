@@ -73,7 +73,7 @@ Editor Commands (requires running QCut — use --project-id for most):
                                     toggle-play, seek, info, add-clip, trim
   editor:editing:*                  batch-cuts, delete-range, auto-edit,
                                     auto-edit-status, auto-edit-list, suggest-cuts, suggest-status
-  editor:analyze:*                  video, models, scenes, frames, fillers
+  editor:analyze:*                  video, models, scenes, frames, fillers, beats
   editor:transcribe:*               run, start, status, list-jobs, cancel
   editor:search:*                  query, status, index
   editor:generate:*                 start, status, list-jobs, cancel, models, estimate-cost

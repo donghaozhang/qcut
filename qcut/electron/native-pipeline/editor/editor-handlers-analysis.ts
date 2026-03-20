@@ -95,6 +95,8 @@ async function dispatchAnalyze(
 			return analyzeFrames(client, opts);
 		case "fillers":
 			return analyzeFillers(client, opts);
+		case "beats":
+			return analyzeBeats(client, opts);
 		default:
 			return { success: false, error: `Unknown analyze action: ${action}` };
 	}
@@ -202,6 +204,24 @@ async function analyzeFillers(
 
 	const data = await client.post(
 		`/api/claude/analyze/${opts.projectId}/fillers`,
+		body
+	);
+	return { success: true, data };
+}
+
+/** Analyze audio beats and BPM for a media file. */
+async function analyzeBeats(
+	client: EditorApiClient,
+	opts: CLIRunOptions
+): Promise<CLIResult> {
+	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
+	if (!opts.mediaId) return { success: false, error: "Missing --media-id" };
+
+	const body: Record<string, unknown> = { mediaId: opts.mediaId };
+	if (opts.threshold !== undefined) body.threshold = opts.threshold;
+
+	const data = await client.post(
+		`/api/claude/analyze/${opts.projectId}/beats`,
 		body
 	);
 	return { success: true, data };
