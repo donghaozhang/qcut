@@ -264,11 +264,11 @@ function decodeAudioToSamples(filePath: string): Promise<Float32Array> {
 				return;
 			}
 			const buffer = Buffer.concat(chunks);
-			const float32 = new Float32Array(
-				buffer.buffer,
-				buffer.byteOffset,
-				buffer.byteLength / 4
-			);
+			// Copy to an aligned ArrayBuffer to avoid alignment issues
+			// with Buffer.concat's byteOffset
+			const aligned = new ArrayBuffer(buffer.byteLength);
+			new Uint8Array(aligned).set(new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength));
+			const float32 = new Float32Array(aligned);
 			resolve(float32);
 		});
 

@@ -38,6 +38,20 @@ export function splitElementOperation(
 	elementId: string,
 	splitTime: number
 ): string | null {
+	ctx.pushHistory();
+	return splitElementOperationNoHistory(ctx, trackId, elementId, splitTime);
+}
+
+/**
+ * Split an element without pushing history.
+ * Used by batch operations (e.g. splitOnBeats) that manage history externally.
+ */
+function splitElementOperationNoHistory(
+	ctx: OperationContext,
+	trackId: string,
+	elementId: string,
+	splitTime: number
+): string | null {
 	const tracks = ctx.getTracks();
 	const track = tracks.find((t) => t.id === trackId);
 	const element = track?.elements.find((c) => c.id === elementId);
@@ -49,8 +63,6 @@ export function splitElementOperation(
 
 	// Cannot split outside the element bounds
 	if (splitTime <= effectiveStart || splitTime >= effectiveEnd) return null;
-
-	ctx.pushHistory();
 
 	const relativeTime = splitTime - element.startTime;
 	const firstDuration = relativeTime;
@@ -323,31 +335,36 @@ export function splitOnBeats(
 
 	if (!element) return 0;
 
+	// Set active element so getCutPoints reads the correct cache entry
+	const beatStore = useBeatDetectionStore.getState();
+	beatStore.setActiveElement(elementId);
+
+	// Beat timestamps are audio-relative (0-based from analysis).
+	// Map them to timeline coordinates using element.startTime + trimStart offset.
+	const trimStart = element.trimStart ?? 0;
 	const elementStart = element.startTime;
 	const elementEnd = getElementEndTime(element);
 
-	// Get cut points from beat detection store
-	const cutPoints = useBeatDetectionStore
-		.getState()
-		.getCutPoints(elementStart, elementEnd);
+	// Get cut points in audio-relative time, then map to timeline
+	const audioCutPoints = beatStore.getCutPoints(trimStart, trimStart + (elementEnd - elementStart));
+	const timelineCutPoints = audioCutPoints.map((t) => t - trimStart + elementStart);
 
-	if (cutPoints.length === 0) return 0;
+	if (timelineCutPoints.length === 0) return 0;
 
 	// Sort descending — split back-to-front to avoid offset cascading
-	const sorted = [...cutPoints].sort((a, b) => b - a);
+	const sorted = [...timelineCutPoints].sort((a, b) => b - a);
 
+	// Single history entry for the entire batch
 	ctx.pushHistory();
 
 	let splitCount = 0;
-	// Track the current element ID being split (starts as the original)
 	let currentElementId = elementId;
 
 	for (const time of sorted) {
-		const result = splitElementOperation(ctx, trackId, currentElementId, time);
+		// Use splitElementOperationNoHistory to avoid N+1 undo entries
+		const result = splitElementOperationNoHistory(ctx, trackId, currentElementId, time);
 		if (result !== null) {
 			splitCount++;
-			// After splitting, the left part keeps the original ID
-			// so we continue splitting the same ID for the next (earlier) cut
 		}
 	}
 

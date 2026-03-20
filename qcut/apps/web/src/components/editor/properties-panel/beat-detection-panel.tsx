@@ -19,6 +19,7 @@ import { useBeatDetection } from "@/hooks/use-beat-detection";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useBeatDetectionStore } from "@/stores/beat-detection-store";
 import { splitOnBeats } from "@/stores/timeline/split-operations";
+import type { OperationContext } from "@/stores/timeline/types";
 
 interface BeatDetectionPanelProps {
 	elementId: string;
@@ -48,32 +49,24 @@ export function BeatDetectionPanel({
 	}, [audioUrl, analyze]);
 
 	const handleAutoCut = useCallback(() => {
-		const store = useTimelineStore.getState();
-		const tracks = store.tracks;
-		const track = tracks.find((t) => t.id === trackId);
-		const element = track?.elements.find((e) => e.id === elementId);
-		if (!element) return;
-
-		const ctx = {
-			getTracks: () => store.tracks,
-			getSelectedElements: () => store.selectedElements,
-			isRippleEnabled: () => store.rippleEditingEnabled,
-			updateTracks: (t: typeof tracks) => store.restoreTracks(t),
-			updateTracksAndSave: (t: typeof tracks) => {
-				store.restoreTracks(t);
-				store.saveImmediate();
+		// Read store fresh each call — getTracks must return latest state
+		// after each split modifies tracks via updateTracksAndSave.
+		const getStore = () => useTimelineStore.getState();
+		const ctx: OperationContext = {
+			getTracks: () => getStore().tracks,
+			getSelectedElements: () => getStore().selectedElements,
+			isRippleEnabled: () => getStore().rippleEditingEnabled,
+			updateTracks: (t) => getStore().restoreTracks(t),
+			updateTracksAndSave: (t) => {
+				const s = getStore();
+				s.restoreTracks(t);
+				s.saveImmediate();
 			},
-			pushHistory: () => store.pushHistory(),
-			addTrack: (type: Parameters<typeof store.addTrack>[0]) =>
-				store.addTrack(type),
-			insertTrackAt: (
-				type: Parameters<typeof store.insertTrackAt>[0],
-				index: number
-			) => store.insertTrackAt(type, index),
-			selectElement: (tid: string, eid: string) =>
-				store.selectElement(tid, eid),
-			deselectElement: (tid: string, eid: string) =>
-				store.deselectElement(tid, eid),
+			pushHistory: () => getStore().pushHistory(),
+			addTrack: (type) => getStore().addTrack(type),
+			insertTrackAt: (type, index) => getStore().insertTrackAt(type, index),
+			selectElement: (tid, eid) => getStore().selectElement(tid, eid),
+			deselectElement: (tid, eid) => getStore().deselectElement(tid, eid),
 		};
 
 		splitOnBeats(ctx, trackId, elementId);

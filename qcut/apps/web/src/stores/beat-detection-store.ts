@@ -76,6 +76,7 @@ export const useBeatDetectionStore = create<BeatDetectionStore>((set, get) => ({
 			activeElementId: elementId,
 		});
 
+		let audioContext: AudioContext | null = null;
 		try {
 			// Decode audio to get raw PCM samples
 			set({ progress: 0.1 });
@@ -83,7 +84,7 @@ export const useBeatDetectionStore = create<BeatDetectionStore>((set, get) => ({
 			const arrayBuffer = await response.arrayBuffer();
 
 			set({ progress: 0.3 });
-			const audioContext = new AudioContext();
+			audioContext = new AudioContext();
 			const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
 			set({ progress: 0.5 });
@@ -114,13 +115,16 @@ export const useBeatDetectionStore = create<BeatDetectionStore>((set, get) => ({
 				cache: newCache,
 			});
 
-			await audioContext.close();
 			return result;
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Beat detection failed";
 			set({ isAnalyzing: false, progress: 0, error: message });
 			return null;
+		} finally {
+			if (audioContext) {
+				await audioContext.close().catch(() => {});
+			}
 		}
 	},
 

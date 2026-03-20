@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import type { TranscriptionSegment } from "@/types/captions";
 import type { SubtitleStyle } from "@/types/timeline";
@@ -14,7 +14,7 @@ interface CaptionsDisplayProps {
 	currentTime: number;
 	isVisible?: boolean;
 	className?: string;
-	style?: React.CSSProperties;
+	style?: CSSProperties;
 	subtitleStyle?: Partial<SubtitleStyle>;
 	/** Word-level timing data for karaoke rendering */
 	words?: WordItem[];
@@ -29,39 +29,36 @@ export function CaptionsDisplay({
 	subtitleStyle,
 	words,
 }: CaptionsDisplayProps) {
-	if (!isVisible || !segments.length) {
-		return null;
-	}
+	const resolved = resolveSubtitleStyle(subtitleStyle);
+	const captionCSS = subtitleStyleToCSS(resolved);
+	const karaokeMode = resolved.karaokeMode ?? "none";
 
 	// Find the active caption segment based on current time
 	const activeSegment = segments.find(
 		(segment) => currentTime >= segment.start && currentTime <= segment.end
 	);
 
-	if (!activeSegment) {
-		return null;
-	}
-
-	const resolved = resolveSubtitleStyle(subtitleStyle);
-	const captionCSS = subtitleStyleToCSS(resolved);
-	const karaokeMode = resolved.karaokeMode ?? "none";
-
-	const alignMap: Record<SubtitleStyle["position"]["align"], string> = {
-		top: "flex-start",
-		center: "center",
-		bottom: "flex-end",
-	};
-
 	// Filter words within the active segment's time range for karaoke
+	// Must be called unconditionally (React hooks rule)
 	const segmentWords = useMemo(() => {
-		if (karaokeMode === "none" || !words || words.length === 0) return [];
+		if (karaokeMode === "none" || !words || words.length === 0 || !activeSegment) return [];
 		return words.filter(
 			(w) =>
 				w.type === "word" &&
 				w.start >= activeSegment.start - 0.05 &&
 				w.end <= activeSegment.end + 0.05
 		);
-	}, [karaokeMode, words, activeSegment.start, activeSegment.end]);
+	}, [karaokeMode, words, activeSegment?.start, activeSegment?.end]);
+
+	if (!isVisible || !segments.length || !activeSegment) {
+		return null;
+	}
+
+	const alignMap: Record<SubtitleStyle["position"]["align"], string> = {
+		top: "flex-start",
+		center: "center",
+		bottom: "flex-end",
+	};
 
 	const useKaraoke = karaokeMode !== "none" && segmentWords.length > 0;
 
