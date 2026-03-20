@@ -327,7 +327,7 @@ export function getTotalDurationOperation(tracks: TimelineTrack[]): number {
 export function splitOnBeats(
 	ctx: OperationContext,
 	trackId: string,
-	elementId: string,
+	elementId: string
 ): number {
 	const tracks = ctx.getTracks();
 	const track = tracks.find((t) => t.id === trackId);
@@ -346,8 +346,13 @@ export function splitOnBeats(
 	const elementEnd = getElementEndTime(element);
 
 	// Get cut points in audio-relative time, then map to timeline
-	const audioCutPoints = beatStore.getCutPoints(trimStart, trimStart + (elementEnd - elementStart));
-	const timelineCutPoints = audioCutPoints.map((t) => t - trimStart + elementStart);
+	const audioCutPoints = beatStore.getCutPoints(
+		trimStart,
+		trimStart + (elementEnd - elementStart)
+	);
+	const timelineCutPoints = audioCutPoints.map(
+		(t) => t - trimStart + elementStart
+	);
 
 	if (timelineCutPoints.length === 0) return 0;
 
@@ -358,11 +363,16 @@ export function splitOnBeats(
 	ctx.pushHistory();
 
 	let splitCount = 0;
-	let currentElementId = elementId;
+	const currentElementId = elementId;
 
 	for (const time of sorted) {
 		// Use splitElementOperationNoHistory to avoid N+1 undo entries
-		const result = splitElementOperationNoHistory(ctx, trackId, currentElementId, time);
+		const result = splitElementOperationNoHistory(
+			ctx,
+			trackId,
+			currentElementId,
+			time
+		);
 		if (result !== null) {
 			splitCount++;
 		}

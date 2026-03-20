@@ -257,9 +257,7 @@ function decodeAudioToSamples(filePath: string): Promise<Float32Array> {
 		proc.on("close", (code) => {
 			if (code !== 0) {
 				reject(
-					new Error(
-						`FFmpeg exited with code ${code}: ${stderr.slice(-500)}`
-					)
+					new Error(`FFmpeg exited with code ${code}: ${stderr.slice(-500)}`)
 				);
 				return;
 			}
@@ -267,7 +265,9 @@ function decodeAudioToSamples(filePath: string): Promise<Float32Array> {
 			// Copy to an aligned ArrayBuffer to avoid alignment issues
 			// with Buffer.concat's byteOffset
 			const aligned = new ArrayBuffer(buffer.byteLength);
-			new Uint8Array(aligned).set(new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength));
+			new Uint8Array(aligned).set(
+				new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+			);
 			const float32 = new Float32Array(aligned);
 			resolve(float32);
 		});
