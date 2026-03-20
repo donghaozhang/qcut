@@ -70,7 +70,31 @@ export function BeatDetectionPanel({
 			deselectElement: (tid, eid) => getStore().deselectElement(tid, eid),
 		};
 
-		splitOnBeats(ctx, trackId, elementId);
+		// Compute timeline cut points from beat store
+		const tracks = getStore().tracks;
+		const track = tracks.find((t) => t.id === trackId);
+		const element = track?.elements.find((e) => e.id === elementId);
+		if (!element) return;
+
+		const beatStore = useBeatDetectionStore.getState();
+		if (beatStore.activeElementId !== elementId) {
+			beatStore.setActiveElement(elementId);
+		}
+
+		const trimStart = element.trimStart ?? 0;
+		const elementStart = element.startTime;
+		const elementEnd =
+			element.startTime +
+			(element.duration - (element.trimStart ?? 0) - (element.trimEnd ?? 0));
+
+		// Get audio-relative cut points and map to timeline coordinates
+		const audioCuts = beatStore.getCutPoints(
+			trimStart,
+			trimStart + (elementEnd - elementStart)
+		);
+		const timelineCuts = audioCuts.map((t) => t - trimStart + elementStart);
+
+		splitOnBeats(ctx, trackId, elementId, timelineCuts);
 	}, [trackId, elementId]);
 
 	if (!audioUrl) return null;

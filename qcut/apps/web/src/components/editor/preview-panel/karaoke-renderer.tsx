@@ -31,7 +31,7 @@ export function KaraokeRenderer({
 }: KaraokeRendererProps) {
 	const mode: KaraokeMode = style.karaokeMode ?? "none";
 	const highlightColor = style.highlightColor ?? "#ffff00";
-	const upcomingColor = style.upcomingColor ?? "rgba(255, 255, 255, 0.5)";
+	const upcomingColor = style.upcomingColor ?? "#808080";
 
 	const segments = useMemo(
 		() =>

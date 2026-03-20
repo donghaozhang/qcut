@@ -14,7 +14,6 @@ import {
 	getElementEndTime,
 	createTrack,
 } from "./utils";
-import { useBeatDetectionStore } from "@/stores/beat-detection-store";
 
 /**
  * Result of a split operation
@@ -316,63 +315,43 @@ export function getTotalDurationOperation(tracks: TimelineTrack[]): number {
 }
 
 /**
- * Split an element at all detected beat points.
+ * Split an element at the given timeline cut points.
  * Splits are executed back-to-front to prevent time offset cascading.
  *
  * @param ctx - Operation context
  * @param trackId - ID of the track containing the element
- * @param elementId - ID of the element to split on beats
+ * @param elementId - ID of the element to split
+ * @param cutPoints - Timeline-relative timestamps to split at
  * @returns Number of splits performed
  */
 export function splitOnBeats(
 	ctx: OperationContext,
 	trackId: string,
-	elementId: string
+	elementId: string,
+	cutPoints: number[]
 ): number {
+	if (cutPoints.length === 0) return 0;
+
 	const tracks = ctx.getTracks();
 	const track = tracks.find((t) => t.id === trackId);
 	const element = track?.elements.find((c) => c.id === elementId);
 
 	if (!element) return 0;
 
-	// Set active element so getCutPoints reads the correct cache entry
-	const beatStore = useBeatDetectionStore.getState();
-	if (beatStore.activeElementId !== elementId) {
-		beatStore.setActiveElement(elementId);
-	}
-
-	// Beat timestamps are audio-relative (0-based from analysis).
-	// Map them to timeline coordinates using element.startTime + trimStart offset.
-	const trimStart = element.trimStart ?? 0;
-	const elementStart = element.startTime;
-	const elementEnd = getElementEndTime(element);
-
-	// Get cut points in audio-relative time, then map to timeline
-	const audioCutPoints = beatStore.getCutPoints(
-		trimStart,
-		trimStart + (elementEnd - elementStart)
-	);
-	const timelineCutPoints = audioCutPoints.map(
-		(t) => t - trimStart + elementStart
-	);
-
-	if (timelineCutPoints.length === 0) return 0;
-
 	// Sort descending — split back-to-front to avoid offset cascading
-	const sorted = [...timelineCutPoints].sort((a, b) => b - a);
+	const sorted = [...cutPoints].sort((a, b) => b - a);
 
 	// Single history entry for the entire batch
 	ctx.pushHistory();
 
 	let splitCount = 0;
-	const currentElementId = elementId;
 
 	for (const time of sorted) {
 		// Use splitElementOperationNoHistory to avoid N+1 undo entries
 		const result = splitElementOperationNoHistory(
 			ctx,
 			trackId,
-			currentElementId,
+			elementId,
 			time
 		);
 		if (result !== null) {
