@@ -6,6 +6,7 @@ import { useBeatDetectionStore } from "@/stores/beat-detection-store";
 import type { BeatDetectionConfig } from "@qcut/editor-core";
 import { useCallback } from "react";
 
+/** Hook wrapping the beat detection store for a specific element. */
 export function useBeatDetection(elementId: string | null) {
 	const store = useBeatDetectionStore();
 

@@ -27,6 +27,7 @@ interface BeatDetectionPanelProps {
 	audioUrl: string | undefined;
 }
 
+/** Panel for audio beat detection with analyze, auto-cut, and sensitivity controls. */
 export function BeatDetectionPanel({
 	elementId,
 	trackId,

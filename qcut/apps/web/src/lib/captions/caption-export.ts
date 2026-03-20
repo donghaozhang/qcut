@@ -7,8 +7,10 @@ import type {
 import type { WordItem } from "@/types/word-timeline";
 import { generateASS } from "./ass-generator";
 
+/** Supported caption export format identifiers. */
 export type CaptionFormat = "srt" | "vtt" | "ass" | "ass-karaoke" | "ttml";
 
+/** Options for caption export formatting. */
 export interface CaptionExportOptions {
 	format?: CaptionFormat;
 	language?: string;

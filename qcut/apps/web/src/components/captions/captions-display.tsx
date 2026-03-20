@@ -20,6 +20,7 @@ interface CaptionsDisplayProps {
 	words?: WordItem[];
 }
 
+/** Renders active caption text with optional karaoke word highlighting. */
 export function CaptionsDisplay({
 	segments,
 	currentTime,

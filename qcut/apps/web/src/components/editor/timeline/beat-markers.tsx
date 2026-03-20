@@ -17,6 +17,7 @@ interface BeatMarkersProps {
 	containerWidth?: number;
 }
 
+/** Renders beat marker lines on the timeline ruler. */
 export function BeatMarkers({
 	zoomLevel,
 	scrollLeft = 0,

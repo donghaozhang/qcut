@@ -23,6 +23,7 @@ interface KaraokeRendererProps {
 	style: SubtitleStyle;
 }
 
+/** Renders word-by-word karaoke captions with animation state. */
 export function KaraokeRenderer({
 	words,
 	currentTime,

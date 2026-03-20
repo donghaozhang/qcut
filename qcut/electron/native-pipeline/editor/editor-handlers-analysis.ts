@@ -209,6 +209,7 @@ async function analyzeFillers(
 	return { success: true, data };
 }
 
+/** Analyze audio beats and BPM for a media file. */
 async function analyzeBeats(
 	client: EditorApiClient,
 	opts: CLIRunOptions
