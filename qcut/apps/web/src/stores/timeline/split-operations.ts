@@ -14,6 +14,7 @@ import {
 	getElementEndTime,
 	createTrack,
 } from "./utils";
+import { useBeatDetectionStore } from "@/stores/beat-detection-store";
 
 /**
  * Result of a split operation
@@ -300,4 +301,55 @@ export function getTotalDurationOperation(tracks: TimelineTrack[]): number {
 	);
 
 	return Math.max(...trackEndTimes, 0);
+}
+
+/**
+ * Split an element at all detected beat points.
+ * Splits are executed back-to-front to prevent time offset cascading.
+ *
+ * @param ctx - Operation context
+ * @param trackId - ID of the track containing the element
+ * @param elementId - ID of the element to split on beats
+ * @returns Number of splits performed
+ */
+export function splitOnBeats(
+	ctx: OperationContext,
+	trackId: string,
+	elementId: string,
+): number {
+	const tracks = ctx.getTracks();
+	const track = tracks.find((t) => t.id === trackId);
+	const element = track?.elements.find((c) => c.id === elementId);
+
+	if (!element) return 0;
+
+	const elementStart = element.startTime;
+	const elementEnd = getElementEndTime(element);
+
+	// Get cut points from beat detection store
+	const cutPoints = useBeatDetectionStore
+		.getState()
+		.getCutPoints(elementStart, elementEnd);
+
+	if (cutPoints.length === 0) return 0;
+
+	// Sort descending — split back-to-front to avoid offset cascading
+	const sorted = [...cutPoints].sort((a, b) => b - a);
+
+	ctx.pushHistory();
+
+	let splitCount = 0;
+	// Track the current element ID being split (starts as the original)
+	let currentElementId = elementId;
+
+	for (const time of sorted) {
+		const result = splitElementOperation(ctx, trackId, currentElementId, time);
+		if (result !== null) {
+			splitCount++;
+			// After splitting, the left part keeps the original ID
+			// so we continue splitting the same ID for the next (earlier) cut
+		}
+	}
+
+	return splitCount;
 }

@@ -130,5 +130,15 @@ export {
 	type ASSDocument,
 } from "./captions/index.js";
 
+// Audio — beat detection engine
+export {
+	analyzeFromSamples,
+	resolveConfig as resolveBeatConfig,
+	type Beat,
+	type BeatDetectionConfig,
+	type BeatDetectionResult,
+	type ResolvedBeatDetectionConfig,
+} from "./audio/index.js";
+
 // Utils
 export { generateUUID } from "./utils.js";
