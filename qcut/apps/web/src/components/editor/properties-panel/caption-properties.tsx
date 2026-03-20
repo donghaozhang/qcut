@@ -6,6 +6,13 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { useState, useEffect, useCallback } from "react";
 import {
 	resolveSubtitleStyle,
@@ -17,6 +24,8 @@ import {
 	PropertyItemValue,
 	PropertyGroup,
 } from "./property-item";
+import { KARAOKE_MODES, type KaraokeMode } from "@/lib/captions/karaoke-types";
+import { useWordTimelineStore } from "@/stores/timeline/word-timeline-store";
 
 export function CaptionProperties({
 	element,
@@ -399,6 +408,89 @@ export function CaptionProperties({
 					</PropertyItemValue>
 				</PropertyItem>
 			</PropertyGroup>
+
+			<KaraokeSection style={style} updateStyle={updateStyle} />
 		</div>
+	);
+}
+
+/** Karaoke mode selector + highlight color pickers (shown when word data available) */
+function KaraokeSection({
+	style,
+	updateStyle,
+}: {
+	style: SubtitleStyle;
+	updateStyle: (updates: Partial<SubtitleStyle>) => void;
+}) {
+	const hasWords = useWordTimelineStore(
+		(s) => s.getNonDeletedWords().length > 0
+	);
+
+	if (!hasWords) return null;
+
+	const karaokeMode = style.karaokeMode ?? "none";
+	const isActive = karaokeMode !== "none";
+
+	return (
+		<PropertyGroup title="Karaoke" defaultExpanded={false}>
+			<PropertyItem direction="row">
+				<PropertyItemLabel>Mode</PropertyItemLabel>
+				<PropertyItemValue>
+					<Select
+						value={karaokeMode}
+						onValueChange={(value: string) =>
+							updateStyle({ karaokeMode: value as KaraokeMode })
+						}
+					>
+						<SelectTrigger className="h-8 text-xs" aria-label="Karaoke mode">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{KARAOKE_MODES.map((m) => (
+								<SelectItem key={m.value} value={m.value}>
+									{m.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</PropertyItemValue>
+			</PropertyItem>
+
+			{isActive && (
+				<>
+					<PropertyItem direction="row">
+						<PropertyItemLabel>Highlight</PropertyItemLabel>
+						<PropertyItemValue>
+							<Input
+								type="color"
+								aria-label="Karaoke highlight color"
+								value={style.highlightColor ?? "#ffff00"}
+								onChange={(e) =>
+									updateStyle({ highlightColor: e.target.value })
+								}
+								className="w-full cursor-pointer rounded-full"
+							/>
+						</PropertyItemValue>
+					</PropertyItem>
+
+					{karaokeMode === "karaoke" && (
+						<PropertyItem direction="row">
+							<PropertyItemLabel>Upcoming</PropertyItemLabel>
+							<PropertyItemValue>
+								<Input
+									type="color"
+									aria-label="Upcoming word color"
+									value={style.upcomingColor ?? "#808080"}
+									onChange={(e) =>
+										updateStyle({ upcomingColor: e.target.value })
+									}
+									className="w-full cursor-pointer rounded-full"
+								/>
+							</PropertyItemValue>
+						</PropertyItem>
+					)}
+				</>
+			)}
+		</PropertyGroup>
 	);
 }

@@ -93,6 +93,20 @@ export interface SubtitleStyle {
 		y: number;
 	};
 	lineSpacing: number;
+	/** Karaoke animation mode (default: "none" — static subtitles) */
+	karaokeMode?:
+		| "none"
+		| "word-highlight"
+		| "word-by-word"
+		| "karaoke"
+		| "bounce"
+		| "typewriter";
+	/** Highlight color for active/completed words (default: "#ffff00") */
+	highlightColor?: string;
+	/** Color for upcoming (not-yet-reached) words in karaoke-fill mode */
+	upcomingColor?: string;
+	/** Scale factor for the active word (default: 1.15) */
+	highlightScale?: number;
 }
 
 export interface CaptionElement extends BaseTimelineElement {

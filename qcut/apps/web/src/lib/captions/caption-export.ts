@@ -4,9 +4,10 @@ import type {
 	TimelineTrack,
 	CaptionElement,
 } from "@/types/timeline";
+import type { WordItem } from "@/types/word-timeline";
 import { generateASS } from "./ass-generator";
 
-export type CaptionFormat = "srt" | "vtt" | "ass" | "ttml";
+export type CaptionFormat = "srt" | "vtt" | "ass" | "ass-karaoke" | "ttml";
 
 export interface CaptionExportOptions {
 	format?: CaptionFormat;
@@ -146,6 +147,71 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 }
 
 /**
+ * Export captions in ASS format with karaoke \k tags for word-level highlighting.
+ *
+ * Uses \k (instant highlight) tags with centisecond durations derived from word timing.
+ * Segments without word data fall back to plain Dialogue lines.
+ *
+ * @param segments - Caption segments with timing
+ * @param words - Word items with word-level timing data
+ * @param options - Export configuration
+ * @param tagType - ASS karaoke tag type: "k" for instant, "kf" for progressive fill
+ */
+export function exportAssKaraoke(
+	segments: TranscriptionSegment[],
+	words: WordItem[],
+	options: Partial<CaptionExportOptions> = {},
+	tagType: "k" | "kf" = "k"
+): string {
+	const fontFamily = options.fontFamily || "Arial";
+	const fontSize = options.fontSize || 16;
+	const fontColor = options.fontColor || "&Hffffff";
+
+	let content = `[Script Info]
+Title: QCut Karaoke Subtitles
+ScriptType: v4.00+
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,${fontFamily},${fontSize},${fontColor},&H00ffff,&H0,&H0,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+`;
+
+	for (const segment of segments) {
+		const startTime = formatAssTime(segment.start);
+		const endTime = formatAssTime(segment.end);
+
+		// Find words within this segment's time range
+		const segWords = words.filter(
+			(w) =>
+				w.type === "word" &&
+				w.start >= segment.start - 0.05 &&
+				w.end <= segment.end + 0.05
+		);
+
+		if (segWords.length === 0) {
+			// No word data: plain dialogue line
+			content += `Dialogue: 0,${startTime},${endTime},Default,,0,0,0,,${segment.text.trim()}\n`;
+			continue;
+		}
+
+		// Build karaoke text with \k tags
+		const karaokeText = segWords
+			.map((w) => {
+				const durationCs = Math.round((w.end - w.start) * 100);
+				return `{\\${tagType}${durationCs}}${w.text}`;
+			})
+			.join(" ");
+
+		content += `Dialogue: 0,${startTime},${endTime},Default,,0,0,0,,${karaokeText}\n`;
+	}
+
+	return content;
+}
+
+/**
  * Format time for ASS format (H:MM:SS.cc)
  */
 function formatAssTime(seconds: number): string {
@@ -250,12 +316,14 @@ export function exportAssStyled(
 }
 
 /**
- * Main export function that handles all formats
+ * Main export function that handles all formats.
+ *
+ * For `ass-karaoke` format, pass `words` in options to enable \k tags.
  */
 export function exportCaptions(
 	segments: TranscriptionSegment[],
 	format: CaptionFormat,
-	options: Partial<CaptionExportOptions> = {}
+	options: Partial<CaptionExportOptions> & { words?: WordItem[] } = {}
 ): string {
 	switch (format) {
 		case "srt":
@@ -264,6 +332,8 @@ export function exportCaptions(
 			return exportVtt(segments, options);
 		case "ass":
 			return exportAss(segments, options);
+		case "ass-karaoke":
+			return exportAssKaraoke(segments, options.words ?? [], options);
 		case "ttml":
 			return exportTtml(segments, options);
 		default:
@@ -281,6 +351,7 @@ export function getCaptionFileExtension(format: CaptionFormat): string {
 		case "vtt":
 			return "vtt";
 		case "ass":
+		case "ass-karaoke":
 			return "ass";
 		case "ttml":
 			return "ttml";
@@ -299,6 +370,7 @@ export function getCaptionMimeType(format: CaptionFormat): string {
 		case "vtt":
 			return "text/vtt";
 		case "ass":
+		case "ass-karaoke":
 			return "text/x-ssa";
 		case "ttml":
 			return "application/ttml+xml";

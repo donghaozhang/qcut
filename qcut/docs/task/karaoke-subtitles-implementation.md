@@ -2,7 +2,7 @@
 
 **Date**: 2026-03-20
 **Source**: [QCut Karaoke Implementation Guide](https://github.com/Quriosity-agent/articles/blob/main/2026-03-19/qcut-karaoke-implementation-guide-en.md)
-**Status**: Planned
+**Status**: Implemented (subtasks 1-6) / Planned (subtasks 7-8 optional Phase 2)
 **Priority**: High — rhythm-synced word highlighting for music/short-form content
 
 ---
@@ -235,3 +235,55 @@ karaokeMode?: KaraokeMode;   // Animation mode (default: "none")
 - **Backward compatible** — all new `SubtitleStyle` fields are optional; existing captions render unchanged
 - **ASS export is native** — ASS format has built-in `\k` karaoke tags, no custom rendering needed for video players
 - **MIT license** — OpenReel Video attribution required in adapted file headers
+
+---
+
+## Implementation Summary (2026-03-20)
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `apps/web/src/lib/captions/karaoke-types.ts` | KaraokeMode, KaraokeSegment types, KARAOKE_MODES constants |
+| `apps/web/src/lib/captions/karaoke-utils.ts` | 6 pure animation functions + `getKaraokeSegments()` entry point |
+| `apps/web/src/components/editor/preview-panel/karaoke-renderer.tsx` | React component: word `<span>` rendering with CSS transforms + gradients |
+| `apps/web/src/lib/captions/__tests__/karaoke-utils.test.ts` | 19 unit tests for all 6 karaoke modes |
+| `apps/web/src/lib/captions/__tests__/karaoke-export.test.ts` | 7 unit tests for ASS `\k` tag export |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `packages/editor-core/src/types/timeline.ts` | Added 4 optional karaoke fields to `SubtitleStyle` |
+| `apps/web/src/components/captions/captions-display.tsx` | Conditionally renders `KaraokeRenderer` when `karaokeMode !== "none"` + accepts `words` prop |
+| `apps/web/src/components/editor/properties-panel/caption-properties.tsx` | Added `KaraokeSection` with mode selector + highlight/upcoming color pickers |
+| `apps/web/src/lib/captions/caption-export.ts` | Added `exportAssKaraoke()` with `\k`/`\kf` tags + `"ass-karaoke"` format |
+
+### Test Results
+
+```
+bun run test -- apps/web/src/lib/captions/__tests__/karaoke-utils.test.ts apps/web/src/lib/captions/__tests__/karaoke-export.test.ts
+
+Karaoke Utils (19 tests):
+  ✓ clamp > clamps value within range
+  ✓ easeOutBounce > returns 0 at t=0 and ~1 at t=1
+  ✓ getKaraokeSegments > returns empty array for empty words
+  ✓ mode: none > returns all words as completed with full opacity
+  ✓ mode: word-highlight > marks current/past/future words correctly
+  ✓ mode: karaoke > uses gradient for active, upcoming color for future, highlight for completed
+  ✓ mode: word-by-word > returns only active word / last word / empty
+  ✓ mode: bounce > hides future words, animates started words
+  ✓ mode: typewriter > shows started words, fades in last
+  ✓ preserves wordId from source
+
+Karaoke Export (7 tests):
+  ✓ generates valid ASS header
+  ✓ generates \k tags with correct centisecond durations
+  ✓ supports \kf tag type for progressive fill
+  ✓ falls back to plain text for segments without words
+  ✓ handles empty segments array
+  ✓ contains Dialogue lines for each segment
+  ✓ respects custom font options
+
+Test Files: 2 passed (2) | Tests: 26 passed (26)
+```
