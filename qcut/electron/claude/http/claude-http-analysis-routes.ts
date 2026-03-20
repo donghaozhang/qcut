@@ -20,6 +20,7 @@ import {
 import { detectScenes } from "../handlers/claude-scene-handler.js";
 import { analyzeFrames } from "../handlers/claude-vision-handler.js";
 import { analyzeFillers } from "../handlers/claude-filler-handler.js";
+import { analyzeBeats } from "../handlers/claude-beats-handler.js";
 import { executeBatchCuts } from "../handlers/claude-cuts-handler.js";
 import { executeDeleteRange } from "../handlers/claude-range-handler.js";
 import {
@@ -537,6 +538,35 @@ export function registerAnalysisRoutes(
 			throw new HttpError(
 				500,
 				error instanceof Error ? error.message : "Filler analysis failed"
+			);
+		}
+	});
+
+	// ==========================================================================
+	// Beat Detection routes (Stage 2)
+	// ==========================================================================
+	router.post("/api/claude/analyze/:projectId/beats", async (req) => {
+		if (!req.body?.mediaId) {
+			throw new HttpError(400, "Missing 'mediaId' in request body");
+		}
+		try {
+			const result = await analyzeBeats(req.params.projectId, {
+				mediaId: req.body.mediaId,
+				threshold: req.body.threshold,
+			});
+			logOperation({
+				stage: 2,
+				action: "analyze-beats",
+				details: `Detected ${result.beats.length} beats at ${result.bpm.toFixed(1)} BPM for media ${req.body.mediaId}`,
+				timestamp: Date.now(),
+				projectId: req.params.projectId,
+			});
+			return result;
+		} catch (error) {
+			if (error instanceof HttpError) throw error;
+			throw new HttpError(
+				500,
+				error instanceof Error ? error.message : "Beat detection failed"
 			);
 		}
 	});
