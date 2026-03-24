@@ -218,28 +218,22 @@ export async function handleVimaxNovel2Movie(
 
 		// Auto-detect title from file name when --title is not provided
 		const title =
-			options.title ||
-			path.basename(novelPath, path.extname(novelPath));
+			options.title || path.basename(novelPath, path.extname(novelPath));
 
 		// Default output to ~/Documents/QCut/Exports/novel2movie/
 		const outputDir = options.outputDirExplicit
 			? resolveOutputDir(options.outputDir, `cli-${Date.now()}`)
-			: path.join(
-					os.homedir(),
-					"Documents",
-					"QCut",
-					"Exports",
-					"novel2movie"
-				);
+			: path.join(os.homedir(), "Documents", "QCut", "Exports", "novel2movie");
 
-		const pipelineConfig: Partial<import("../../vimax/pipelines/novel2movie.js").Novel2MovieConfig> =
-			{
-				output_dir: outputDir,
-				generate_portraits: !(options.noPortraits ?? false),
-				use_character_references: true,
-				scripts_only: options.scriptsOnly ?? false,
-				storyboard_only: options.storyboardOnly ?? false,
-			};
+		const pipelineConfig: Partial<
+			import("../../vimax/pipelines/novel2movie.js").Novel2MovieConfig
+		> = {
+			output_dir: outputDir,
+			generate_portraits: !(options.noPortraits ?? false),
+			use_character_references: true,
+			scripts_only: options.scriptsOnly ?? false,
+			storyboard_only: options.storyboardOnly ?? false,
+		};
 		if (options.videoModel) pipelineConfig.video_model = options.videoModel;
 		if (options.imageModel) pipelineConfig.image_model = options.imageModel;
 		if (options.llmModel) pipelineConfig.llm_model = options.llmModel;
