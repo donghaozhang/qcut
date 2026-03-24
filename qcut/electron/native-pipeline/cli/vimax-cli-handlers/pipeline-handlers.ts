@@ -240,7 +240,6 @@ export async function handleVimaxNovel2Movie(
 				scripts_only: options.scriptsOnly ?? false,
 				storyboard_only: options.storyboardOnly ?? false,
 			};
-		if (options.maxScenes != null) pipelineConfig.max_scenes = options.maxScenes;
 		if (options.videoModel) pipelineConfig.video_model = options.videoModel;
 		if (options.imageModel) pipelineConfig.image_model = options.imageModel;
 		if (options.llmModel) pipelineConfig.llm_model = options.llmModel;
@@ -260,7 +259,7 @@ export async function handleVimaxNovel2Movie(
 			duration: (Date.now() - startTime) / 1000,
 			data: {
 				novelTitle: result.novel_title,
-				chapters: result.chapters.length,
+				scripts: result.scripts.length,
 				characters: result.characters.length,
 				errors: result.errors,
 			},

@@ -173,7 +173,7 @@ export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 		schemaName: string,
 		jsonSchema: Record<string, unknown>,
 		validator: (data: unknown) => T,
-		options?: { temperature?: number }
+		options?: { temperature?: number; max_tokens?: number }
 	): Promise<T> {
 		const extra_body: Record<string, unknown> = this.config
 			.use_native_structured_output
@@ -206,6 +206,7 @@ export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 
 		const response = await this.chat(messagesToSend, {
 			temperature: options?.temperature,
+			max_tokens: options?.max_tokens,
 			extra_body,
 		});
 

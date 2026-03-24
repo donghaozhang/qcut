@@ -50,16 +50,16 @@ export function createScreenwriterConfig(
 		...createAgentConfig({ name: "Screenwriter" }),
 		model: "kimi-k2.5",
 		target_duration: 60.0,
-		shots_per_scene: 3,
+		shots_per_scene: 5,
 		style: "cinematic, visually descriptive",
 		...partial,
 	};
 }
 
-const SCREENPLAY_PROMPT = `You are an expert screenwriter specializing in visual storytelling for AI video generation.
+const SCREENPLAY_PROMPT = `You are an expert screenwriter specializing in visual storytelling for short-form video production.
 {lang_instruction}
 
-Create a detailed screenplay from this idea:
+Create a detailed screenplay from this content:
 {idea}
 
 Requirements:
@@ -71,14 +71,16 @@ Requirements:
 For each scene, provide:
 1. Scene title and location
 2. Time of day and lighting
-3. Multiple shots with:
-   - Shot type (wide, medium, close_up, etc.)
-   - Visual description (what we SEE)
-   - Camera movement if any
-   - Duration in seconds
+3. Multiple shots (each shot = one camera angle, 3-8 seconds), where each shot description includes:
+   - The visual scene: what the camera SEES (character positions, expressions, actions, environment)
+   - Dialogue lines: if characters speak, include the full line with character name and emotion/tone direction
+   - Camera details: shot type, movement, composition
 
-Focus on VISUAL descriptions - what the camera sees, not dialogue or internal thoughts.
-Each description should be detailed enough for AI image/video generation, including visual details, lighting, mood, and composition.`;
+IMPORTANT: Preserve ALL dialogue from the source material. Each dialogue exchange should be its own shot or part of a shot. Do not summarize or skip any lines.
+
+Example description format:
+"近景，沈念安脸色煞白，身体微微颤抖，紧紧盯着顾承泽。沈念安（声音颤抖）：'承泽，你说话啊！她说的……是不是真的？'顾承泽眼神躲闪，不敢直视沈念安，愧疚地低下了头。"`;
+
 
 /** Camera movement aliases → valid enum values. */
 const CAMERA_MOVEMENT_ALIASES: Record<string, string> = {
