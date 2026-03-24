@@ -5,6 +5,8 @@
  */
 
 import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import type { CLIRunOptions, CLIResult } from "../cli-runner/types.js";
 import { resolveOutputDir } from "../../output/output-utils.js";
 
@@ -205,8 +207,6 @@ export async function handleVimaxNovel2Movie(
 		const { Novel2MoviePipeline } = await import(
 			"../../vimax/pipelines/novel2movie.js"
 		);
-		const sessionId = `cli-${Date.now()}`;
-		const outputDir = resolveOutputDir(options.outputDir, sessionId);
 		const startTime = Date.now();
 
 		let novelText: string;
@@ -215,6 +215,22 @@ export async function handleVimaxNovel2Movie(
 		} catch {
 			return { success: false, error: `Cannot read novel: ${novelPath}` };
 		}
+
+		// Auto-detect title from file name when --title is not provided
+		const title =
+			options.title ||
+			path.basename(novelPath, path.extname(novelPath));
+
+		// Default output to ~/Documents/QCut/Exports/novel2movie/
+		const outputDir = options.outputDirExplicit
+			? resolveOutputDir(options.outputDir, `cli-${Date.now()}`)
+			: path.join(
+					os.homedir(),
+					"Documents",
+					"QCut",
+					"Exports",
+					"novel2movie"
+				);
 
 		const pipeline = new Novel2MoviePipeline({
 			output_dir: outputDir,
@@ -228,7 +244,7 @@ export async function handleVimaxNovel2Movie(
 			llm_model: options.llmModel,
 		});
 
-		const result = await pipeline.run(novelText, options.title);
+		const result = await pipeline.run(novelText, title);
 
 		return {
 			success: result.success,

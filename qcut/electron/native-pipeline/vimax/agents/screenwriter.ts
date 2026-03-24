@@ -28,6 +28,7 @@ import {
 	createScene,
 	createShotDescription,
 } from "../types/shot.js";
+import { detectLanguageInstruction } from "../detect-language.js";
 
 export interface Script {
 	title: string;
@@ -56,6 +57,7 @@ export function createScreenwriterConfig(
 }
 
 const SCREENPLAY_PROMPT = `You are an expert screenwriter specializing in visual storytelling for AI video generation.
+{lang_instruction}
 
 Create a detailed screenplay from this idea:
 {idea}
@@ -161,7 +163,12 @@ export class Screenwriter extends BaseAgent<string, Script> {
 				Math.floor(totalShots / this.config.shots_per_scene)
 			);
 
-			const prompt = SCREENPLAY_PROMPT.replace("{idea}", idea)
+			const langInstruction = detectLanguageInstruction(idea);
+			const prompt = SCREENPLAY_PROMPT.replace(
+				"{lang_instruction}",
+				langInstruction
+			)
+				.replace("{idea}", idea)
 				.replace("{duration}", String(this.config.target_duration))
 				.replace("{style}", this.config.style)
 				.replace("{num_scenes}", String(numScenes))

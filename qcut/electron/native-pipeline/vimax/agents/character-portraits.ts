@@ -32,6 +32,7 @@ export interface PortraitsGeneratorConfig extends AgentConfig {
 	llm_model: string;
 	views: string[];
 	style: string;
+	aspect_ratio: string;
 	output_dir: string;
 }
 
@@ -40,10 +41,12 @@ export function createPortraitsGeneratorConfig(
 ): PortraitsGeneratorConfig {
 	return {
 		...createAgentConfig({ name: "CharacterPortraitsGenerator" }),
-		image_model: "nano_banana_pro",
+		image_model: "nano_banana_2",
 		llm_model: "kimi-k2.5",
-		views: ["front", "side", "back", "three_quarter"],
-		style: "detailed character portrait, professional, consistent style",
+		views: ["front"],
+		style:
+			"detailed character portrait, professional, consistent style, plain white background",
+		aspect_ratio: "9:16",
 		output_dir: "media/generated/vimax/portraits",
 		...partial,
 	};
@@ -63,6 +66,7 @@ STYLE: {style}
 Generate a single, detailed prompt that will create a {view} view portrait of this character.
 The prompt should include specific details about pose, lighting, and composition for a {view} view.
 Keep the character's appearance consistent across all views.
+The portrait MUST have a clean, plain white background with no scenery or props.
 
 Respond with ONLY the image generation prompt, no other text.`;
 
@@ -70,9 +74,8 @@ const SUPPORTED_VIEWS = new Set(["front", "side", "back", "three_quarter"]);
 
 function safeSlug(value: string): string {
 	const safe = value
-		.replace(/[^A-Za-z0-9._-]+/g, "_")
-		.replace(/^_|_$/g, "")
-		.toLowerCase();
+		.replace(/[^\p{L}\p{N}._-]+/gu, "_")
+		.replace(/^_|_$/g, "");
 	return safe || "unknown";
 }
 
@@ -169,7 +172,7 @@ export class CharacterPortraitsGenerator extends BaseAgent<
 				const outputPath = path.join(charDir, `${view}.png`);
 
 				const result = await this._imageAdapter!.generate(prompt, {
-					aspect_ratio: "1:1",
+					aspect_ratio: this.config.aspect_ratio,
 					output_path: outputPath,
 				});
 

@@ -41,6 +41,7 @@ import type {
 } from "../types/character.js";
 import { CharacterPortraitRegistry } from "../types/character.js";
 import type { PipelineOutput, VideoOutput } from "../types/output.js";
+import { detectLanguageInstruction } from "../detect-language.js";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -71,7 +72,7 @@ export function createNovel2MovieConfig(
 		max_scenes: 10,
 		scene_duration: 30.0,
 		video_model: "kling",
-		image_model: "nano_banana_pro",
+		image_model: "nano_banana_2",
 		llm_model: "google/gemini-3-flash-preview",
 		generate_portraits: true,
 		use_character_references: true,
@@ -118,6 +119,7 @@ export interface Novel2MovieResult {
 // ---------------------------------------------------------------------------
 
 const COMPRESSION_PROMPT = `You are an expert at adapting novels for film.
+{lang_instruction}
 
 Analyze this section of text and extract the key visual scenes that would work for a short film adaptation.
 
@@ -148,7 +150,10 @@ const NOVEL_MAX_THRESHOLD = 2_000_000;
 const SPLIT_FILE_SIZE = 500_000;
 
 function safeSlug(value: string): string {
-	const safe = value.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_|_$/g, "");
+	// Allow Unicode word characters (CJK, etc.), digits, dots, hyphens
+	const safe = value
+		.replace(/[^\p{L}\p{N}._-]+/gu, "_")
+		.replace(/^_|_$/g, "");
 	return safe || "untitled";
 }
 
@@ -502,12 +507,15 @@ export class Novel2MoviePipeline {
 	private async _compressNovel(text: string): Promise<ChapterSummary[]> {
 		const chapters: ChapterSummary[] = [];
 		const chunks = this._splitText(text);
+		const langInstruction = detectLanguageInstruction(text);
 
 		for (let i = 0; i < chunks.length; i++) {
-			const prompt = COMPRESSION_PROMPT.replace("{text}", chunks[i]).replace(
-				"{max_scenes}",
-				"3"
-			);
+			const prompt = COMPRESSION_PROMPT.replace(
+				"{lang_instruction}",
+				langInstruction
+			)
+				.replace("{text}", chunks[i])
+				.replace("{max_scenes}", "3");
 
 			try {
 				const messages: Message[] = [{ role: "user", content: prompt }];
