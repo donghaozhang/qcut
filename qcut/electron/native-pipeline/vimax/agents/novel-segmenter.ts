@@ -133,9 +133,7 @@ function validateSegmentationResponse(data: unknown) {
 										shot_id: String(shot.shot_id ?? ""),
 										shot_type: String(shot.shot_type ?? "medium"),
 										description: String(shot.description ?? ""),
-										camera_movement: String(
-											shot.camera_movement ?? "static"
-										),
+										camera_movement: String(shot.camera_movement ?? "static"),
 										characters: Array.isArray(shot.characters)
 											? (shot.characters as unknown[]).map(String)
 											: [],
@@ -239,9 +237,7 @@ export class NovelSegmenter extends BaseAgent<string, Script> {
 						shot_id: shotData.shot_id || `shot_${shots.length + 1}`,
 						shot_type: parseShotType(shotData.shot_type),
 						description: shotData.description || "",
-						camera_movement: parseCameraMovement(
-							shotData.camera_movement
-						),
+						camera_movement: parseCameraMovement(shotData.camera_movement),
 						characters: shotData.characters || [],
 						duration_seconds: shotData.duration_seconds || 5.0,
 					});
@@ -251,8 +247,7 @@ export class NovelSegmenter extends BaseAgent<string, Script> {
 
 				scenes.push(
 					createScene({
-						scene_id:
-							sceneData.scene_id || `scene_${scenes.length + 1}`,
+						scene_id: sceneData.scene_id || `scene_${scenes.length + 1}`,
 						title: sceneData.title || "",
 						description: "",
 						location: sceneData.location || "",
@@ -269,10 +264,7 @@ export class NovelSegmenter extends BaseAgent<string, Script> {
 				total_duration: totalDuration,
 			};
 
-			const shotCount = scenes.reduce(
-				(sum, s) => sum + s.shots.length,
-				0
-			);
+			const shotCount = scenes.reduce((sum, s) => sum + s.shots.length, 0);
 			console.log(
 				`[segmenter] Segmented: ${scenes.length} scenes, ${shotCount} shots, ${totalDuration.toFixed(1)}s`
 			);

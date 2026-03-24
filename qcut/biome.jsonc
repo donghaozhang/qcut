@@ -3,19 +3,7 @@
 	"extends": ["ultracite/react"],
 
 	"files": {
-		"includes": [
-			"**",
-			"!.claude/skills/benchmark", "!.claude/skills/browse", "!.claude/skills/canary",
-			"!.claude/skills/careful", "!.claude/skills/codex", "!.claude/skills/design-consultation",
-			"!.claude/skills/design-review", "!.claude/skills/document-release", "!.claude/skills/electron",
-			"!.claude/skills/freeze", "!.claude/skills/gstack-upgrade", "!.claude/skills/guard",
-			"!.claude/skills/investigate", "!.claude/skills/land-and-deploy", "!.claude/skills/office-hours",
-			"!.claude/skills/plan-ceo-review", "!.claude/skills/plan-design-review", "!.claude/skills/plan-eng-review",
-			"!.claude/skills/qa", "!.claude/skills/qa-only", "!.claude/skills/retro",
-			"!.claude/skills/review", "!.claude/skills/setup-browser-cookies", "!.claude/skills/setup-deploy",
-			"!.claude/skills/ship", "!.claude/skills/unfreeze",
-			"!.agent/skills/**", "!skills/distill"
-		]
+		"includes": ["**", "!.claude/skills/**", "!.agent/skills/**", "!skills/**"]
 	},
 
 	"overrides": [

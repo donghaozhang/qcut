@@ -84,13 +84,10 @@ function buildShotPrompt(
 	if (scene.location) parts.push(`场景: ${scene.location}`);
 
 	// Camera
-	const shotLabel =
-		SHOT_TYPE_LABELS[shot.shot_type] || shot.shot_type;
+	const shotLabel = SHOT_TYPE_LABELS[shot.shot_type] || shot.shot_type;
 	const movementLabel =
 		CAMERA_MOVEMENT_LABELS[
-			typeof shot.camera_movement === "string"
-				? shot.camera_movement
-				: "static"
+			typeof shot.camera_movement === "string" ? shot.camera_movement : "static"
 		] || shot.camera_movement;
 	parts.push(`镜头: ${shotLabel}，${movementLabel}`);
 

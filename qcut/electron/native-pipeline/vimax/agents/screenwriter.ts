@@ -81,7 +81,6 @@ IMPORTANT: Preserve ALL dialogue from the source material. Each dialogue exchang
 Example description format:
 "近景，沈念安脸色煞白，身体微微颤抖，紧紧盯着顾承泽。沈念安（声音颤抖）：'承泽，你说话啊！她说的……是不是真的？'顾承泽眼神躲闪，不敢直视沈念安，愧疚地低下了头。"`;
 
-
 /** Camera movement aliases → valid enum values. */
 const CAMERA_MOVEMENT_ALIASES: Record<string, string> = {
 	push_in: "dolly",
@@ -199,7 +198,7 @@ export class Screenwriter extends BaseAgent<string, Script> {
 						camera_movement: parseCameraMovement(shotData.camera_movement),
 						characters: shotData.characters || [],
 						duration_seconds: shotData.duration_seconds || 5.0,
-						});
+					});
 					shots.push(shot);
 					totalDuration += shot.duration_seconds;
 				}

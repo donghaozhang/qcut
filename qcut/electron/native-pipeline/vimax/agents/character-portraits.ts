@@ -73,9 +73,7 @@ Respond with ONLY the image generation prompt, no other text.`;
 const SUPPORTED_VIEWS = new Set(["front", "side", "back", "three_quarter"]);
 
 function safeSlug(value: string): string {
-	const safe = value
-		.replace(/[^\p{L}\p{N}._-]+/gu, "_")
-		.replace(/^_|_$/g, "");
+	const safe = value.replace(/[^\p{L}\p{N}._-]+/gu, "_").replace(/^_|_$/g, "");
 	return safe || "unknown";
 }
 

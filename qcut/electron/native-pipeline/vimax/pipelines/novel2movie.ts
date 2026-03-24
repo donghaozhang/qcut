@@ -104,9 +104,7 @@ const NOVEL_MAX_THRESHOLD = 2_000_000;
 const SPLIT_FILE_SIZE = 500_000;
 
 function safeSlug(value: string): string {
-	const safe = value
-		.replace(/[^\p{L}\p{N}._-]+/gu, "_")
-		.replace(/^_|_$/g, "");
+	const safe = value.replace(/[^\p{L}\p{N}._-]+/gu, "_").replace(/^_|_$/g, "");
 	return safe || "untitled";
 }
 
@@ -275,10 +273,7 @@ export class Novel2MoviePipeline {
 				result.characters = charResult.result;
 				result.total_cost += (charResult.metadata.cost as number) ?? 0;
 				if (this.config.save_intermediate) {
-					saveJson(
-						result.characters,
-						path.join(outputDir, "characters.json")
-					);
+					saveJson(result.characters, path.join(outputDir, "characters.json"));
 				}
 			}
 
@@ -288,24 +283,18 @@ export class Novel2MoviePipeline {
 				!this.config.scripts_only &&
 				result.characters.length > 0
 			) {
-				console.log(
-					"[novel2movie] Step 1b: Generating character portraits..."
+				console.log("[novel2movie] Step 1b: Generating character portraits...");
+				const portraitsResult = await this.portraits_generator.generateBatch(
+					result.characters.slice(0, this.config.max_characters)
 				);
-				const portraitsResult =
-					await this.portraits_generator.generateBatch(
-						result.characters.slice(0, this.config.max_characters)
-					);
 				result.portraits = portraitsResult.result ?? {};
-				result.total_cost +=
-					(portraitsResult.metadata.cost as number) ?? 0;
+				result.total_cost += (portraitsResult.metadata.cost as number) ?? 0;
 
 				if (
 					Object.keys(result.portraits).length > 0 &&
 					this.config.use_character_references
 				) {
-					result.portrait_registry = new CharacterPortraitRegistry(
-						safeTitle
-					);
+					result.portrait_registry = new CharacterPortraitRegistry(safeTitle);
 					for (const portrait of Object.values(result.portraits)) {
 						result.portrait_registry.addPortrait(portrait);
 					}
@@ -320,15 +309,11 @@ export class Novel2MoviePipeline {
 					}
 				}
 			} else if (this.config.scripts_only) {
-				console.log(
-					"[novel2movie] Step 1b: Skipped (scripts_only mode)"
-				);
+				console.log("[novel2movie] Step 1b: Skipped (scripts_only mode)");
 			}
 
 			// Step 2: Segment novel directly into shots (no compression)
-			console.log(
-				"[novel2movie] Step 2: Segmenting novel into shots..."
-			);
+			console.log("[novel2movie] Step 2: Segmenting novel into shots...");
 			const allVideos: VideoOutput[] = [];
 			const scriptsDir = path.join(outputDir, "scripts");
 			if (this.config.save_intermediate) {
@@ -344,9 +329,7 @@ export class Novel2MoviePipeline {
 				const segResult = await this.segmenter.process(chunks[i]);
 
 				if (!segResult.success || !segResult.result) {
-					console.warn(
-						`[novel2movie] Segmentation failed for chunk ${i + 1}`
-					);
+					console.warn(`[novel2movie] Segmentation failed for chunk ${i + 1}`);
 					result.errors.push(
 						`Segmentation failed for chunk ${i + 1}: ${segResult.error}`
 					);
@@ -359,8 +342,7 @@ export class Novel2MoviePipeline {
 				});
 
 				result.scripts.push(segResult.result);
-				result.total_cost +=
-					(segResult.metadata.cost as number) ?? 0;
+				result.total_cost += (segResult.metadata.cost as number) ?? 0;
 				if (this.config.save_intermediate) {
 					saveJson(
 						segResult.result,
@@ -385,8 +367,7 @@ export class Novel2MoviePipeline {
 				if (!storyboardResult.success || !storyboardResult.result) {
 					continue;
 				}
-				result.total_cost +=
-					(storyboardResult.metadata.cost as number) ?? 0;
+				result.total_cost += (storyboardResult.metadata.cost as number) ?? 0;
 
 				if (this.config.save_intermediate) {
 					saveJson(
@@ -408,8 +389,7 @@ export class Novel2MoviePipeline {
 				);
 				if (videoResult.success && videoResult.result?.videos) {
 					allVideos.push(...videoResult.result.videos);
-					result.total_cost +=
-						(videoResult.metadata.cost as number) ?? 0;
+					result.total_cost += (videoResult.metadata.cost as number) ?? 0;
 				}
 			}
 
