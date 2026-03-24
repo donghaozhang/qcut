@@ -22,8 +22,6 @@ export interface ShotResponse {
 	camera_movement: string;
 	characters: string[];
 	duration_seconds: number;
-	image_prompt: string;
-	video_prompt: string;
 }
 
 export interface SceneResponse {
@@ -108,8 +106,6 @@ export const SCREENPLAY_JSON_SCHEMA: Record<string, unknown> = {
 								camera_movement: { type: "string" },
 								characters: { type: "array", items: { type: "string" } },
 								duration_seconds: { type: "number" },
-								image_prompt: { type: "string" },
-								video_prompt: { type: "string" },
 							},
 							required: [
 								"shot_id",
@@ -118,8 +114,6 @@ export const SCREENPLAY_JSON_SCHEMA: Record<string, unknown> = {
 								"camera_movement",
 								"characters",
 								"duration_seconds",
-								"image_prompt",
-								"video_prompt",
 							],
 							additionalProperties: false,
 						},
@@ -233,8 +227,6 @@ function validateShotResponse(data: unknown): ShotResponse {
 			? (obj.characters as unknown[]).map(String)
 			: [],
 		duration_seconds: Number(obj.duration_seconds ?? 5),
-		image_prompt: String(obj.image_prompt ?? ""),
-		video_prompt: String(obj.video_prompt ?? ""),
 	};
 }
 

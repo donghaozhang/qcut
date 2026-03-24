@@ -22,6 +22,7 @@ import {
 import { LLMAdapter, type Message } from "../adapters/llm-adapter.js";
 import type { CharacterInNovel } from "../types/character.js";
 import { createCharacterInNovel } from "../types/character.js";
+import { detectLanguageInstruction } from "../detect-language.js";
 
 export interface CharacterExtractorConfig extends AgentConfig {
 	max_characters: number;
@@ -39,6 +40,7 @@ export function createCharacterExtractorConfig(
 }
 
 const EXTRACTION_PROMPT = `You are an expert story analyst. Extract all characters from the following text.
+{lang_instruction}
 
 For each character, provide:
 - name: Character's name
@@ -81,7 +83,11 @@ export class CharacterExtractor extends BaseAgent<string, CharacterInNovel[]> {
 		);
 
 		try {
-			const prompt = EXTRACTION_PROMPT.replace("{text}", text.slice(0, 50_000));
+			const langInstruction = detectLanguageInstruction(text);
+			const prompt = EXTRACTION_PROMPT.replace(
+				"{lang_instruction}",
+				langInstruction
+			).replace("{text}", text.slice(0, 50_000));
 			const messages: Message[] = [{ role: "user", content: prompt }];
 
 			const result = await this._llm!.chatWithStructuredOutput(

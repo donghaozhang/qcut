@@ -2,6 +2,10 @@
 	"$schema": "https://biomejs.dev/schemas/2.4.3/schema.json",
 	"extends": ["ultracite/react"],
 
+	"files": {
+		"includes": ["**", "!.claude/skills/**", "!.agent/skills/**", "!skills/**"]
+	},
+
 	"overrides": [
 		{
 			"includes": [

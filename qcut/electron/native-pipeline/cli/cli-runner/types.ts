@@ -18,6 +18,8 @@ export interface CLIRunOptions {
 	videoUrl?: string;
 	audioUrl?: string;
 	outputDir: string;
+	/** True when the user explicitly passed --output-dir / -o */
+	outputDirExplicit?: boolean;
 	config?: string;
 	input?: string;
 	duration?: string;
