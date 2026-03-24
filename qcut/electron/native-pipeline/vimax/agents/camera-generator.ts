@@ -80,11 +80,7 @@ export class CameraImageGenerator extends BaseAgent<
 	private _getMotionPrompt(shot: ShotDescription): string {
 		const parts: string[] = [];
 
-		if (shot.video_prompt) {
-			parts.push(shot.video_prompt);
-		} else {
-			parts.push(shot.description);
-		}
+		parts.push(shot.description);
 
 		const movement =
 			typeof shot.camera_movement === "string"

@@ -5,6 +5,8 @@
  */
 
 import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import type { CLIRunOptions, CLIResult } from "../cli-runner/types.js";
 import { resolveOutputDir } from "../../output/output-utils.js";
 
@@ -205,8 +207,6 @@ export async function handleVimaxNovel2Movie(
 		const { Novel2MoviePipeline } = await import(
 			"../../vimax/pipelines/novel2movie.js"
 		);
-		const sessionId = `cli-${Date.now()}`;
-		const outputDir = resolveOutputDir(options.outputDir, sessionId);
 		const startTime = Date.now();
 
 		let novelText: string;
@@ -216,19 +216,35 @@ export async function handleVimaxNovel2Movie(
 			return { success: false, error: `Cannot read novel: ${novelPath}` };
 		}
 
-		const pipeline = new Novel2MoviePipeline({
+		// Auto-detect title from file name when --title is not provided
+		const title =
+			options.title || path.basename(novelPath, path.extname(novelPath));
+
+		// Default output to ~/Documents/QCut/Exports/novel2movie/
+		const outputDir = options.outputDirExplicit
+			? resolveOutputDir(options.outputDir, `cli-${Date.now()}`)
+			: path.join(os.homedir(), "Documents", "QCut", "Exports", "novel2movie");
+
+		const pipelineConfig: Partial<
+			import("../../vimax/pipelines/novel2movie.js").Novel2MovieConfig
+		> = {
 			output_dir: outputDir,
-			max_scenes: options.maxScenes,
 			generate_portraits: !(options.noPortraits ?? false),
 			use_character_references: true,
 			scripts_only: options.scriptsOnly ?? false,
 			storyboard_only: options.storyboardOnly ?? false,
-			video_model: options.videoModel,
-			image_model: options.imageModel,
-			llm_model: options.llmModel,
-		});
+		};
+		if (options.videoModel) pipelineConfig.video_model = options.videoModel;
+		if (options.imageModel) pipelineConfig.image_model = options.imageModel;
+		if (options.llmModel) pipelineConfig.llm_model = options.llmModel;
 
-		const result = await pipeline.run(novelText, options.title);
+		const pipeline = new Novel2MoviePipeline(pipelineConfig);
+
+		const result = await pipeline.run(
+			novelText,
+			title,
+			path.resolve(novelPath)
+		);
 
 		return {
 			success: result.success,
@@ -237,7 +253,7 @@ export async function handleVimaxNovel2Movie(
 			duration: (Date.now() - startTime) / 1000,
 			data: {
 				novelTitle: result.novel_title,
-				chapters: result.chapters.length,
+				scripts: result.scripts.length,
 				characters: result.characters.length,
 				errors: result.errors,
 			},

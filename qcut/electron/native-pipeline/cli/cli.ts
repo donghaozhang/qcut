@@ -309,6 +309,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		outputDir:
 			(values["output-dir"] as string) ||
 			path.join(os.homedir(), "Documents", "QCut", "exports"),
+		outputDirExplicit: !!(values["output-dir"] as string),
 		duration: values.duration as string | undefined,
 		aspectRatio: values["aspect-ratio"] as string | undefined,
 		resolution: values.resolution as string | undefined,

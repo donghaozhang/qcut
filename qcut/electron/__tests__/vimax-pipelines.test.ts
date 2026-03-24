@@ -49,7 +49,6 @@ describe("ViMax Pipelines", () => {
 		it("creates config with defaults", () => {
 			const config = createNovel2MovieConfig();
 			expect(config.output_dir).toContain("novel2movie");
-			expect(config.max_scenes).toBe(10);
 			expect(config.generate_portraits).toBe(true);
 			expect(config.scripts_only).toBe(false);
 			expect(config.storyboard_only).toBe(false);
@@ -57,11 +56,9 @@ describe("ViMax Pipelines", () => {
 
 		it("allows overrides", () => {
 			const config = createNovel2MovieConfig({
-				max_scenes: 5,
 				scripts_only: true,
 				chunk_size: 2000,
 			});
-			expect(config.max_scenes).toBe(5);
 			expect(config.scripts_only).toBe(true);
 			expect(config.chunk_size).toBe(2000);
 		});

@@ -120,11 +120,7 @@ export class StoryboardArtist extends BaseAgent<Script, StoryboardResult> {
 		if (scene.location) parts.push(`Location: ${scene.location}.`);
 		if (scene.time) parts.push(`Time: ${scene.time}.`);
 
-		if (shot.image_prompt) {
-			parts.push(shot.image_prompt);
-		} else {
-			parts.push(shot.description);
-		}
+		parts.push(shot.description);
 
 		const shotTypeValue =
 			typeof shot.shot_type === "string" ? shot.shot_type : shot.shot_type;
@@ -361,7 +357,7 @@ export class StoryboardArtist extends BaseAgent<Script, StoryboardResult> {
 
 		for (let i = 0; i < shots.length; i++) {
 			const shot = shots[i];
-			let prompt = `${this.config.style_prefix} ${shot.image_prompt || shot.description}`;
+			let prompt = `${this.config.style_prefix} ${shot.description}`;
 
 			if (shot.character_references) {
 				for (const name of Object.keys(shot.character_references)) {

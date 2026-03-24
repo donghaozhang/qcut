@@ -14,3 +14,6 @@
 	path = qcut/resources/default-skills/qcut-toolkit/Generative-Media-Skills
 	url = https://github.com/donghaozhang/Generative-Media-Skills
 	branch = main
+[submodule "qcut/.claude/skills/gstack"]
+	path = qcut/.claude/skills/gstack
+	url = https://github.com/donghaozhang/gstack.git

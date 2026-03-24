@@ -37,20 +37,14 @@ export interface ShotDescription {
 	camera_movement: CameraMovement;
 	camera_angle: string;
 
-	// Scene context
-	location: string;
-	time_of_day: string;
-	lighting: string;
-
 	// Characters
 	characters: string[];
 
 	// Duration
 	duration_seconds: number;
 
-	// Generation prompts
-	image_prompt?: string;
-	video_prompt?: string;
+	// Production-ready prompt with style, scene, characters, and description
+	prompt_description?: string;
 
 	// Reference images for character consistency
 	character_references: Record<string, string>;
@@ -90,9 +84,6 @@ export function createShotDescription(
 		shot_type: ShotType.MEDIUM,
 		camera_movement: CameraMovement.STATIC,
 		camera_angle: "eye_level",
-		location: "",
-		time_of_day: "",
-		lighting: "",
 		characters: [],
 		duration_seconds: 5.0,
 		character_references: {},
