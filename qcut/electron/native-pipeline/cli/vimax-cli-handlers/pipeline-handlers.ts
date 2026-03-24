@@ -232,19 +232,26 @@ export async function handleVimaxNovel2Movie(
 					"novel2movie"
 				);
 
-		const pipeline = new Novel2MoviePipeline({
-			output_dir: outputDir,
-			max_scenes: options.maxScenes,
-			generate_portraits: !(options.noPortraits ?? false),
-			use_character_references: true,
-			scripts_only: options.scriptsOnly ?? false,
-			storyboard_only: options.storyboardOnly ?? false,
-			video_model: options.videoModel,
-			image_model: options.imageModel,
-			llm_model: options.llmModel,
-		});
+		const pipelineConfig: Partial<import("../../vimax/pipelines/novel2movie.js").Novel2MovieConfig> =
+			{
+				output_dir: outputDir,
+				generate_portraits: !(options.noPortraits ?? false),
+				use_character_references: true,
+				scripts_only: options.scriptsOnly ?? false,
+				storyboard_only: options.storyboardOnly ?? false,
+			};
+		if (options.maxScenes != null) pipelineConfig.max_scenes = options.maxScenes;
+		if (options.videoModel) pipelineConfig.video_model = options.videoModel;
+		if (options.imageModel) pipelineConfig.image_model = options.imageModel;
+		if (options.llmModel) pipelineConfig.llm_model = options.llmModel;
 
-		const result = await pipeline.run(novelText, title);
+		const pipeline = new Novel2MoviePipeline(pipelineConfig);
+
+		const result = await pipeline.run(
+			novelText,
+			title,
+			path.resolve(novelPath)
+		);
 
 		return {
 			success: result.success,

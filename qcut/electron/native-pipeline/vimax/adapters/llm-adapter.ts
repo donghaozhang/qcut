@@ -259,23 +259,18 @@ export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 							{
 								shot_id: "shot_001",
 								shot_type: "wide",
-								description: "Panoramic view of misty mountains",
+								description:
+									"Panoramic view of misty mountains at dawn, golden light filtering through clouds, cinematic wide composition, camera slowly pans across the range",
 								camera_movement: "pan",
 								duration_seconds: 5,
-								image_prompt:
-									"Panoramic view of misty mountains at dawn, golden light, cinematic",
-								video_prompt:
-									"Camera slowly pans across mountain range, mist rising",
 							},
 							{
 								shot_id: "shot_002",
 								shot_type: "medium",
-								description: "Silhouette figure against sunrise",
+								description:
+									"Silhouette of a figure standing against golden sunrise, mountains in background, wind gently moves their clothing, static medium shot",
 								camera_movement: "static",
 								duration_seconds: 4,
-								image_prompt:
-									"Silhouette of person against golden sunrise, mountains background",
-								video_prompt: "Figure stands still, wind moves their clothing",
 							},
 						],
 					},

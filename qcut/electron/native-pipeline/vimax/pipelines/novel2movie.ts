@@ -69,7 +69,7 @@ export function createNovel2MovieConfig(
 ): Novel2MovieConfig {
 	return {
 		output_dir: "media/generated/vimax/novel2movie",
-		max_scenes: 10,
+		max_scenes: 999,
 		scene_duration: 30.0,
 		video_model: "kling",
 		image_model: "nano_banana_2",
@@ -218,7 +218,8 @@ export class Novel2MoviePipeline {
 
 	async run(
 		novelText: string,
-		title = "Untitled Novel"
+		title = "Untitled Novel",
+		sourcePath?: string
 	): Promise<Novel2MovieResult> {
 		const result: Novel2MovieResult = {
 			success: false,
@@ -308,8 +309,24 @@ export class Novel2MoviePipeline {
 
 		try {
 			const safeTitle = safeSlug(title);
-			const outputDir = path.join(this.config.output_dir, safeTitle);
+			const timestamp = new Date()
+				.toISOString()
+				.replace(/[-:T]/g, "")
+				.slice(0, 12); // e.g. 202603231600
+			const outputDir = path.join(
+				this.config.output_dir,
+				`${safeTitle}_${timestamp}`
+			);
 			fs.mkdirSync(outputDir, { recursive: true });
+
+			// Copy source novel into output folder for easy reference
+			if (sourcePath && fs.existsSync(sourcePath)) {
+				const ext = path.extname(sourcePath) || ".txt";
+				fs.copyFileSync(sourcePath, path.join(outputDir, `novel${ext}`));
+			} else {
+				// No source file — save the raw text
+				fs.writeFileSync(path.join(outputDir, "novel.txt"), novelText);
+			}
 
 			// Re-init components so portraits/storyboard go under per-title dir
 			this._initComponents(outputDir);
@@ -387,6 +404,13 @@ export class Novel2MoviePipeline {
 				console.log(
 					`[novel2movie] Processing chapter ${i + 1}/${chaptersToProcess.length}: ${chapter.title}`
 				);
+
+				// Scale duration based on key events so each event gets ~15s
+				const chapterDuration = Math.max(
+					this.config.scene_duration,
+					chapter.key_events.length * 15
+				);
+				this.screenwriter.config.target_duration = chapterDuration;
 
 				// Generate script from chapter summary
 				const scriptIdea = this._chapterToIdea(chapter);
@@ -515,7 +539,10 @@ export class Novel2MoviePipeline {
 				langInstruction
 			)
 				.replace("{text}", chunks[i])
-				.replace("{max_scenes}", "3");
+				.replace(
+					"{max_scenes}",
+					String(Math.max(5, Math.ceil(chunks[i].length / 1000)))
+				);
 
 			try {
 				const messages: Message[] = [{ role: "user", content: prompt }];
@@ -582,7 +609,7 @@ export class Novel2MoviePipeline {
 
 		if (chapter.key_events.length > 0) {
 			parts.push("Key moments:");
-			for (const event of chapter.key_events.slice(0, 3)) {
+			for (const event of chapter.key_events) {
 				parts.push(`- ${event}`);
 			}
 		}

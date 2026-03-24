@@ -78,8 +78,7 @@ For each scene, provide:
    - Duration in seconds
 
 Focus on VISUAL descriptions - what the camera sees, not dialogue or internal thoughts.
-Each image_prompt should be detailed enough for AI image generation.
-Each video_prompt should describe the motion/animation for that shot.`;
+Each description should be detailed enough for AI image/video generation, including visual details, lighting, mood, and composition.`;
 
 /** Camera movement aliases → valid enum values. */
 const CAMERA_MOVEMENT_ALIASES: Record<string, string> = {
@@ -198,9 +197,7 @@ export class Screenwriter extends BaseAgent<string, Script> {
 						camera_movement: parseCameraMovement(shotData.camera_movement),
 						characters: shotData.characters || [],
 						duration_seconds: shotData.duration_seconds || 5.0,
-						image_prompt: shotData.image_prompt || undefined,
-						video_prompt: shotData.video_prompt || undefined,
-					});
+						});
 					shots.push(shot);
 					totalDuration += shot.duration_seconds;
 				}

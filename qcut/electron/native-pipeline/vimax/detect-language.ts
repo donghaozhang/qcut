@@ -46,5 +46,5 @@ export function detectLanguageInstruction(text: string): string {
 	const lang = detectLanguage(text);
 	const name = LANG_NAMES[lang];
 	if (!name) return "";
-	return `IMPORTANT: The input is in ${name}. You MUST write ALL output fields (title, logline, descriptions, image_prompt, video_prompt, etc.) in ${name}. Do not translate to English.`;
+	return `IMPORTANT: The input is in ${name}. You MUST write ALL output fields (title, logline, descriptions, etc.) in ${name}. Do not translate to English.`;
 }

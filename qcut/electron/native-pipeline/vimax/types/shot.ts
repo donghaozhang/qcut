@@ -48,10 +48,6 @@ export interface ShotDescription {
 	// Duration
 	duration_seconds: number;
 
-	// Generation prompts
-	image_prompt?: string;
-	video_prompt?: string;
-
 	// Reference images for character consistency
 	character_references: Record<string, string>;
 	primary_reference_image?: string;
