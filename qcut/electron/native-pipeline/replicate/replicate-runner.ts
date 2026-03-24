@@ -14,6 +14,7 @@ import { planReplicate, type PlannerOptions } from "./replicate-planner.js";
 import { StoryboardArtist } from "../vimax/agents/storyboard-artist.js";
 import { CameraImageGenerator } from "../vimax/agents/camera-generator.js";
 import type { PipelineOutput, VideoOutput } from "../vimax/types/output.js";
+import { PipelineExecutor } from "../execution/executor.js";
 
 export interface ReplicateRunnerOptions {
 	/** Path to the source video to replicate. */
@@ -63,10 +64,12 @@ export async function runReplicate(
 	onProgress?.("analyze", 0, "Analyzing source video...");
 
 	let recipe: VideoRecipe;
+	const executor = new PipelineExecutor();
 	try {
 		const analyzerOpts: AnalyzerOptions = {
 			model: options.analysisModel,
 			signal: options.signal,
+			executor,
 		};
 		recipe = await analyzeVideo(source, analyzerOpts);
 	} catch (err) {
