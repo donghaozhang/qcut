@@ -66,13 +66,3 @@ export interface GeneratedShot extends PlannedShot {
 	outputPath?: string;
 	error?: string;
 }
-
-export interface ReplicateResult {
-	success: boolean;
-	recipe: VideoRecipe;
-	plannedShots: PlannedShot[];
-	generatedShots: GeneratedShot[];
-	outputPath?: string;
-	totalCost: number;
-	error?: string;
-}

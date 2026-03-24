@@ -1,118 +1,102 @@
 /**
- * Replicate Planner — maps each shot in a VideoRecipe to a generation strategy.
+ * Replicate Planner — converts a VideoRecipe into a ViMax Script for generation.
  *
- * Decides whether each shot should be generated via AI video, AI image,
- * matched from user-provided media, or skipped.
+ * Filters shots by strategy (skip title/transition if desired), then
+ * delegates type conversion to replicate-converter.
  *
  * @module electron/native-pipeline/replicate/replicate-planner
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
 import type {
 	VideoRecipe,
 	ShotRecipe,
 	PlannedShot,
 	ShotStrategy,
 } from "./replicate-types.js";
+import { convertRecipeToScript } from "./replicate-converter.js";
+import type { Script } from "../vimax/agents/screenwriter.js";
 
 export interface PlannerOptions {
-	/** Directory of user-provided media clips to match against shots. */
-	mediaDir?: string;
-	/** Force all shots to a specific strategy. */
-	forceStrategy?: ShotStrategy;
-	/** Preferred video generation model key. */
+	/** Skip title-only and transition-only shots. */
+	skipNonVisual?: boolean;
+	/** Preferred video generation model key (passed to runner config). */
 	videoModel?: string;
-	/** Preferred image generation model key. */
+	/** Preferred image generation model key (passed to runner config). */
 	imageModel?: string;
+	/** Force a specific strategy for all shots. */
+	forceStrategy?: ShotStrategy;
 }
 
-const VIDEO_EXTENSIONS = new Set([
-	".mp4",
-	".mov",
-	".webm",
-	".avi",
-	".mkv",
-]);
-const IMAGE_EXTENSIONS = new Set([
-	".png",
-	".jpg",
-	".jpeg",
-	".webp",
-	".bmp",
-]);
+export interface PlanResult {
+	script: Script;
+	videoModel: string;
+	imageModel: string;
+	skippedCount: number;
+}
 
 /**
- * Plan generation strategies for each shot in a recipe.
+ * Plan the replication by filtering shots and converting to a ViMax Script.
+ */
+export function planReplicate(
+	recipe: VideoRecipe,
+	options: PlannerOptions = {}
+): PlanResult {
+	let filteredShots: ShotRecipe[];
+	let skippedCount = 0;
+
+	if (options.skipNonVisual) {
+		filteredShots = recipe.shots.filter(
+			(s) => s.type !== "title" && s.type !== "transition"
+		);
+		skippedCount = recipe.shots.length - filteredShots.length;
+	} else {
+		filteredShots = recipe.shots;
+	}
+
+	const filteredRecipe: VideoRecipe = { ...recipe, shots: filteredShots };
+	const script = convertRecipeToScript(filteredRecipe);
+
+	return {
+		script,
+		videoModel: options.videoModel || "kling_2_6_pro",
+		imageModel: options.imageModel || "nano_banana_pro",
+		skippedCount,
+	};
+}
+
+/**
+ * Map each shot in the recipe to a PlannedShot with a generation strategy.
  *
- * If a mediaDir is provided, scans it for files that could substitute
- * for AI-generated content (ordered by filename to match shot indices).
+ * Title and transition shots default to "ai-image"; others default to "ai-video".
  */
 export function planShots(
 	recipe: VideoRecipe,
 	options: PlannerOptions = {}
 ): PlannedShot[] {
-	const userMedia = options.mediaDir
-		? scanMediaDir(options.mediaDir)
-		: [];
+	const videoModel = options.videoModel || "kling_2_6_pro";
+	const imageModel = options.imageModel || "nano_banana_pro";
 
-	return recipe.shots.map((shot, i) => {
+	return recipe.shots.map((shot) => {
 		if (options.forceStrategy) {
 			return {
 				...shot,
 				strategy: options.forceStrategy,
-				model: resolveModel(options.forceStrategy, shot, options),
+				model:
+					options.forceStrategy === "ai-image"
+						? imageModel
+						: videoModel,
 			};
 		}
 
-		// If user media exists for this index, use it
-		if (i < userMedia.length) {
-			return {
-				...shot,
-				strategy: "user-media" as const,
-				userMediaPath: userMedia[i],
-			};
-		}
-
-		// Title/transition shots → AI image (cheaper, static)
-		if (shot.type === "title" || shot.type === "transition") {
-			return {
-				...shot,
-				strategy: "ai-image" as const,
-				model: options.imageModel || "flux_dev",
-			};
-		}
-
-		// Default: AI video generation
-		return {
-			...shot,
-			strategy: "ai-video" as const,
-			model: options.videoModel || "kling_2_6_pro",
-		};
+		const strategy = getShotStrategy(shot);
+		const model = strategy === "ai-image" ? imageModel : videoModel;
+		return { ...shot, strategy, model };
 	});
 }
 
-function resolveModel(
-	strategy: ShotStrategy,
-	_shot: ShotRecipe,
-	options: PlannerOptions
-): string | undefined {
-	if (strategy === "ai-video") return options.videoModel || "kling_2_6_pro";
-	if (strategy === "ai-image") return options.imageModel || "flux_dev";
-	return undefined;
-}
-
-/** Scan a directory for media files, sorted by filename. */
-function scanMediaDir(dir: string): string[] {
-	const absDir = path.resolve(dir);
-	if (!fs.existsSync(absDir)) return [];
-
-	const entries = fs.readdirSync(absDir);
-	return entries
-		.filter((name) => {
-			const ext = path.extname(name).toLowerCase();
-			return VIDEO_EXTENSIONS.has(ext) || IMAGE_EXTENSIONS.has(ext);
-		})
-		.sort()
-		.map((name) => path.join(absDir, name));
+function getShotStrategy(shot: ShotRecipe): ShotStrategy {
+	if (shot.type === "title" || shot.type === "transition") {
+		return "ai-image";
+	}
+	return "ai-video";
 }

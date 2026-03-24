@@ -16,7 +16,7 @@ import {
 } from "../replicate/replicate-runner.js";
 
 /**
- * Full replicate pipeline: analyze → plan → generate → assemble.
+ * Full replicate pipeline: analyze → plan → storyboard → generate → assemble.
  */
 export async function handleReplicate(
 	options: CLIRunOptions,
@@ -40,11 +40,9 @@ export async function handleReplicate(
 		outputFilename: options.output
 			? path.basename(options.output)
 			: undefined,
-		mediaDir: options.directory,
 		videoModel: options.videoModel || options.model,
 		imageModel: options.imageModel,
 		analysisModel: options.llmModel,
-		concurrency: options.maxWorkers,
 		signal,
 		onProgress: (stage, percent, message) => {
 			onProgress({ stage, percent, message });
@@ -65,11 +63,7 @@ export async function handleReplicate(
 			cost: result.totalCost,
 			data: {
 				recipe: result.recipe,
-				shotCount: result.generatedShots.length,
-				successfulShots: result.generatedShots.filter((s) => !s.error)
-					.length,
-				failedShots: result.generatedShots.filter((s) => s.error)
-					.length,
+				shotCount: result.shotCount,
 			},
 		};
 	}
@@ -164,10 +158,8 @@ export async function handleReplicateGenerate(
 		outputFilename: options.output
 			? path.basename(options.output)
 			: undefined,
-		mediaDir: options.directory,
 		videoModel: options.videoModel || options.model,
 		imageModel: options.imageModel,
-		concurrency: options.maxWorkers,
 		signal,
 		onProgress: (stage, percent, message) => {
 			onProgress({ stage, percent, message });
@@ -185,15 +177,6 @@ export async function handleReplicateGenerate(
 		outputPath: result.outputPath,
 		duration,
 		cost: result.totalCost,
-		data: options.json
-			? {
-					shotCount: result.generatedShots.length,
-					successfulShots: result.generatedShots.filter(
-						(s) => !s.error
-					).length,
-					failedShots: result.generatedShots.filter((s) => s.error)
-						.length,
-				}
-			: undefined,
+		data: options.json ? { shotCount: result.shotCount } : undefined,
 	};
 }

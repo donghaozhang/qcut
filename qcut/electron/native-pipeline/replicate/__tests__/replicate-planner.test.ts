@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planShots } from "../replicate-planner";
+import { planReplicate } from "../replicate-planner";
 import type { VideoRecipe, ShotRecipe } from "../replicate-types";
 
 function makeRecipe(shots: Partial<ShotRecipe>[]): VideoRecipe {
@@ -35,51 +35,51 @@ function makeRecipe(shots: Partial<ShotRecipe>[]): VideoRecipe {
 	};
 }
 
-describe("planShots", () => {
-	it("defaults to ai-video strategy", () => {
+describe("planReplicate", () => {
+	it("converts all shots to a ViMax Script", () => {
 		const recipe = makeRecipe([{}, {}]);
-		const planned = planShots(recipe);
-		expect(planned).toHaveLength(2);
-		expect(planned[0].strategy).toBe("ai-video");
-		expect(planned[1].strategy).toBe("ai-video");
+		const plan = planReplicate(recipe);
+		expect(plan.script.scenes).toHaveLength(1);
+		expect(plan.script.scenes[0].shots).toHaveLength(2);
+		expect(plan.skippedCount).toBe(0);
 	});
 
-	it("uses ai-image for title shots", () => {
-		const recipe = makeRecipe([{ type: "title" }]);
-		const planned = planShots(recipe);
-		expect(planned[0].strategy).toBe("ai-image");
+	it("skips title and transition shots when skipNonVisual is set", () => {
+		const recipe = makeRecipe([
+			{},
+			{ type: "title" },
+			{ type: "transition" },
+			{},
+		]);
+		const plan = planReplicate(recipe, { skipNonVisual: true });
+		expect(plan.script.scenes[0].shots).toHaveLength(2);
+		expect(plan.skippedCount).toBe(2);
 	});
 
-	it("uses ai-image for transition shots", () => {
-		const recipe = makeRecipe([{ type: "transition" }]);
-		const planned = planShots(recipe);
-		expect(planned[0].strategy).toBe("ai-image");
-	});
-
-	it("applies forceStrategy to all shots", () => {
-		const recipe = makeRecipe([{}, { type: "title" }]);
-		const planned = planShots(recipe, { forceStrategy: "skip" });
-		expect(planned[0].strategy).toBe("skip");
-		expect(planned[1].strategy).toBe("skip");
+	it("uses default model keys", () => {
+		const recipe = makeRecipe([{}]);
+		const plan = planReplicate(recipe);
+		expect(plan.videoModel).toBe("kling_2_6_pro");
+		expect(plan.imageModel).toBe("nano_banana_pro");
 	});
 
 	it("uses custom model keys", () => {
-		const recipe = makeRecipe([{}, { type: "title" }]);
-		const planned = planShots(recipe, {
-			videoModel: "ltx_v2_3",
-			imageModel: "flux_schnell",
+		const recipe = makeRecipe([{}]);
+		const plan = planReplicate(recipe, {
+			videoModel: "veo3",
+			imageModel: "flux_dev",
 		});
-		expect(planned[0].model).toBe("ltx_v2_3");
-		expect(planned[1].model).toBe("flux_schnell");
+		expect(plan.videoModel).toBe("veo3");
+		expect(plan.imageModel).toBe("flux_dev");
 	});
 
-	it("preserves original shot data", () => {
+	it("preserves shot descriptions in converted script", () => {
 		const recipe = makeRecipe([
 			{ description: "Custom desc", prompt: "Custom prompt" },
 		]);
-		const planned = planShots(recipe);
-		expect(planned[0].description).toBe("Custom desc");
-		expect(planned[0].prompt).toBe("Custom prompt");
-		expect(planned[0].startTime).toBe(0);
+		const plan = planReplicate(recipe);
+		const shot = plan.script.scenes[0].shots[0];
+		expect(shot.description).toBe("Custom desc");
+		expect(shot.prompt_description).toBe("Custom prompt");
 	});
 });

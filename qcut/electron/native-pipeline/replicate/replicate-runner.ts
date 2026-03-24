@@ -1,26 +1,19 @@
 /**
- * Replicate Runner — orchestrates the full video replication pipeline.
+ * Replicate Runner — orchestrates the video replication pipeline using ViMax agents.
  *
- * Steps: analyze → plan → generate → assemble
+ * Steps: analyze → plan (convert to Script) → storyboard → camera generate → final video
  *
  * @module electron/native-pipeline/replicate/replicate-runner
  */
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type {
-	VideoRecipe,
-	PlannedShot,
-	GeneratedShot,
-	ReplicateResult,
-} from "./replicate-types.js";
+import type { VideoRecipe, GeneratedShot } from "./replicate-types.js";
 import { analyzeVideo, type AnalyzerOptions } from "./replicate-analyzer.js";
-import { planShots, type PlannerOptions } from "./replicate-planner.js";
-import {
-	generateShots,
-	type GeneratorOptions,
-} from "./replicate-generator.js";
-import { assembleVideo, type AssemblerOptions } from "./replicate-assembler.js";
+import { planReplicate, type PlannerOptions } from "./replicate-planner.js";
+import { StoryboardArtist } from "../vimax/agents/storyboard-artist.js";
+import { CameraImageGenerator } from "../vimax/agents/camera-generator.js";
+import type { PipelineOutput, VideoOutput } from "../vimax/types/output.js";
 
 export interface ReplicateRunnerOptions {
 	/** Path to the source video to replicate. */
@@ -29,14 +22,14 @@ export interface ReplicateRunnerOptions {
 	outputDir: string;
 	/** Optional output filename. */
 	outputFilename?: string;
-	/** Directory of user-provided media to use instead of AI generation. */
-	mediaDir?: string;
 	/** Video generation model key. */
 	videoModel?: string;
 	/** Image generation model key. */
 	imageModel?: string;
 	/** Gemini model for analysis. */
 	analysisModel?: string;
+	/** User media directory (optional clips to match). */
+	mediaDir?: string;
 	/** Max concurrent generation jobs. */
 	concurrency?: number;
 	/** Abort signal. */
@@ -45,8 +38,19 @@ export interface ReplicateRunnerOptions {
 	onProgress?: (stage: string, percent: number, message: string) => void;
 }
 
+export interface ReplicateResult {
+	success: boolean;
+	recipe: VideoRecipe;
+	output?: PipelineOutput;
+	generatedShots: GeneratedShot[];
+	outputPath?: string;
+	totalCost: number;
+	shotCount: number;
+	error?: string;
+}
+
 /**
- * Run the full replicate pipeline: analyze → plan → generate → assemble.
+ * Run the full replicate pipeline: analyze → plan → storyboard → generate → assemble.
  */
 export async function runReplicate(
 	options: ReplicateRunnerOptions
@@ -69,9 +73,9 @@ export async function runReplicate(
 		return {
 			success: false,
 			recipe: null!,
-			plannedShots: [],
 			generatedShots: [],
 			totalCost: 0,
+			shotCount: 0,
 			error: `Analysis failed: ${err instanceof Error ? err.message : String(err)}`,
 		};
 	}
@@ -81,60 +85,21 @@ export async function runReplicate(
 	fs.writeFileSync(recipePath, JSON.stringify(recipe, null, 2), "utf-8");
 	onProgress?.("analyze", 20, `Extracted ${recipe.shots.length} shots`);
 
-	// ── Step 2: Plan ──
-	onProgress?.("plan", 25, "Planning generation strategies...");
+	// ── Step 2: Plan (convert to ViMax Script) ──
+	onProgress?.("plan", 25, "Converting to ViMax script...");
 
 	const plannerOpts: PlannerOptions = {
-		mediaDir: options.mediaDir,
 		videoModel: options.videoModel,
 		imageModel: options.imageModel,
 	};
-	const plannedShots = planShots(recipe, plannerOpts);
-	onProgress?.("plan", 30, `Planned ${plannedShots.length} shots`);
-
-	// ── Step 3: Generate ──
-	onProgress?.("generate", 35, "Generating media for shots...");
-
-	const generatorOpts: GeneratorOptions = {
-		outputDir: path.join(outputDir, "shots"),
-		concurrency: options.concurrency,
-		signal: options.signal,
-		onProgress: (completed, total, msg) => {
-			const percent = 35 + Math.round((completed / total) * 45);
-			onProgress?.("generate", percent, msg);
-		},
-	};
-	const { shots: generatedShots, totalCost } = await generateShots(
-		plannedShots,
-		generatorOpts
+	const plan = planReplicate(recipe, plannerOpts);
+	onProgress?.(
+		"plan",
+		30,
+		`Script: ${plan.script.scenes[0]?.shots.length ?? 0} shots`
 	);
 
-	// ── Step 4: Assemble ──
-	onProgress?.("assemble", 85, "Assembling final video...");
-
-	const assemblerOpts: AssemblerOptions = {
-		outputDir,
-		outputFilename: options.outputFilename,
-		fps: recipe.source.fps,
-		resolution: recipe.source.resolution,
-	};
-	const assemblyResult = await assembleVideo(
-		recipe,
-		generatedShots,
-		assemblerOpts
-	);
-
-	onProgress?.("done", 100, assemblyResult.success ? "Complete" : "Assembly failed");
-
-	return {
-		success: assemblyResult.success,
-		recipe,
-		plannedShots,
-		generatedShots,
-		outputPath: assemblyResult.outputPath,
-		totalCost,
-		error: assemblyResult.error,
-	};
+	return runViMaxPipeline(recipe, plan, options);
 }
 
 /**
@@ -173,51 +138,132 @@ export async function runFromRecipe(
 	const recipe = JSON.parse(raw) as VideoRecipe;
 
 	const plannerOpts: PlannerOptions = {
-		mediaDir: options.mediaDir,
 		videoModel: options.videoModel,
 		imageModel: options.imageModel,
 	};
-	const plannedShots = planShots(recipe, plannerOpts);
+	const plan = planReplicate(recipe, plannerOpts);
 
-	options.onProgress?.("generate", 10, "Generating media from recipe...");
+	options.onProgress?.("plan", 10, "Planning from recipe...");
 
-	const generatorOpts: GeneratorOptions = {
-		outputDir: path.join(options.outputDir, "shots"),
-		concurrency: options.concurrency,
-		signal: options.signal,
-		onProgress: (completed, total, msg) => {
-			const percent = 10 + Math.round((completed / total) * 70);
-			options.onProgress?.("generate", percent, msg);
-		},
-	};
-	const { shots: generatedShots, totalCost } = await generateShots(
-		plannedShots,
-		generatorOpts
+	return runViMaxPipeline(recipe, plan, options);
+}
+
+// ---------------------------------------------------------------------------
+// Internal: run ViMax pipeline from a planned script
+// ---------------------------------------------------------------------------
+
+async function runViMaxPipeline(
+	recipe: VideoRecipe,
+	plan: ReturnType<typeof planReplicate>,
+	options: Omit<ReplicateRunnerOptions, "source">
+): Promise<ReplicateResult> {
+	const { outputDir, onProgress } = options;
+	const storyboardDir = path.join(outputDir, "storyboard");
+	const videosDir = path.join(outputDir, "videos");
+
+	// ── Step 3: StoryboardArtist — generate images ──
+	onProgress?.("storyboard", 35, "Generating storyboard images...");
+
+	const storyboardArtist = new StoryboardArtist({
+		image_model: plan.imageModel,
+		output_dir: storyboardDir,
+		use_character_references: false,
+	});
+
+	const storyboardResult = await storyboardArtist.process(plan.script);
+
+	if (!storyboardResult.success || !storyboardResult.result) {
+		return {
+			success: false,
+			recipe,
+			generatedShots: [],
+			totalCost: 0,
+			shotCount: 0,
+			error: `Storyboard generation failed: ${storyboardResult.error}`,
+		};
+	}
+
+	onProgress?.(
+		"storyboard",
+		60,
+		`Generated ${storyboardResult.result.images.length} storyboard images`
 	);
 
-	options.onProgress?.("assemble", 85, "Assembling final video...");
+	// ── Step 4: CameraImageGenerator — generate videos ──
+	onProgress?.("generate", 65, "Generating videos from storyboard...");
 
-	const assemblerOpts: AssemblerOptions = {
-		outputDir: options.outputDir,
-		outputFilename: options.outputFilename,
-		fps: recipe.source.fps,
-		resolution: recipe.source.resolution,
-	};
-	const assemblyResult = await assembleVideo(
-		recipe,
-		generatedShots,
-		assemblerOpts
+	const cameraGenerator = new CameraImageGenerator({
+		video_model: plan.videoModel,
+		output_dir: videosDir,
+	});
+
+	const cameraResult = await cameraGenerator.process(storyboardResult.result);
+
+	if (!cameraResult.success || !cameraResult.result) {
+		return {
+			success: false,
+			recipe,
+			generatedShots: [],
+			totalCost: storyboardResult.result.total_cost,
+			shotCount: 0,
+			error: `Video generation failed: ${cameraResult.error}`,
+		};
+	}
+
+	onProgress?.(
+		"generate",
+		90,
+		`Generated ${cameraResult.result.videos.length} videos`
 	);
 
-	options.onProgress?.("done", 100, assemblyResult.success ? "Complete" : "Assembly failed");
+	// ── Step 5: Final video (already concatenated by CameraImageGenerator) ──
+	onProgress?.("assemble", 95, "Finalizing...");
+
+	const pipelineOutput = cameraResult.result;
+
+	// Copy final video to desired output location if needed
+	let finalPath = pipelineOutput.final_video?.video_path;
+	if (finalPath && options.outputFilename) {
+		const destPath = path.join(outputDir, options.outputFilename);
+		try {
+			fs.copyFileSync(finalPath, destPath);
+			finalPath = destPath;
+		} catch {
+			// keep original path
+		}
+	}
+
+	const totalCost =
+		storyboardResult.result.total_cost + pipelineOutput.total_cost;
+
+	onProgress?.("done", 100, "Complete");
+
+	// Build generatedShots from pipeline output for CLI compatibility
+	const generatedShots: GeneratedShot[] = pipelineOutput.videos.map(
+		(v: VideoOutput, i: number) => ({
+			index: i,
+			startTime: 0,
+			endTime: v.duration,
+			duration: v.duration,
+			type: "medium" as const,
+			camera: "static" as const,
+			description: v.prompt,
+			prompt: v.prompt,
+			transition: "cut" as const,
+			hasText: false,
+			hasSubtitle: false,
+			strategy: "ai-video" as const,
+			outputPath: v.video_path,
+		})
+	);
 
 	return {
-		success: assemblyResult.success,
+		success: true,
 		recipe,
-		plannedShots,
+		output: pipelineOutput,
 		generatedShots,
-		outputPath: assemblyResult.outputPath,
+		outputPath: finalPath,
 		totalCost,
-		error: assemblyResult.error,
+		shotCount: pipelineOutput.videos.length,
 	};
 }
