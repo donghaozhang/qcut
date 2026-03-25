@@ -492,6 +492,18 @@ class QCutViewController: CAPBridgeViewController {
             })()
             """)
 
+        // ── Open editor (navigate to first project) ────────────
+        case "open-editor":
+            openFirstProject()
+
+        // ── Test export (share sheet test) ──────────────────────
+        case "test-export":
+            runShareSheetTest()
+
+        // ── Import and export E2E ───────────────────────────────
+        case "cli.import-and-export":
+            runImportImageAndExport()
+
         default:
             NSLog("[QCut CLI] Unknown command: \(host)")
         }
