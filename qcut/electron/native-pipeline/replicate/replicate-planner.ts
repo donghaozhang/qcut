@@ -81,10 +81,7 @@ export function planShots(
 			return {
 				...shot,
 				strategy: options.forceStrategy,
-				model:
-					options.forceStrategy === "ai-image"
-						? imageModel
-						: videoModel,
+				model: options.forceStrategy === "ai-image" ? imageModel : videoModel,
 			};
 		}
 

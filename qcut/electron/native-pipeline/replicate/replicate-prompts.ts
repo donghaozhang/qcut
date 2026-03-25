@@ -65,7 +65,7 @@ Rules:
 
 export function buildAnalyzeUserPrompt(
 	filename: string,
-	durationSeconds?: number,
+	durationSeconds?: number
 ): string {
 	const durationLine =
 		durationSeconds != null

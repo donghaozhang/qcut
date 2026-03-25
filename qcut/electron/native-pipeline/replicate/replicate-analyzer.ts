@@ -90,10 +90,7 @@ export async function analyzeVideo(
  * Validate and normalize a parsed recipe object.
  * Fills in missing defaults and ensures type correctness.
  */
-export function validateRecipe(
-	raw: unknown,
-	filename: string
-): VideoRecipe {
+export function validateRecipe(raw: unknown, filename: string): VideoRecipe {
 	if (!raw || typeof raw !== "object") {
 		throw new Error("Invalid recipe: expected an object");
 	}
@@ -112,13 +109,10 @@ export function validateRecipe(
 			duration: Number(source.duration) || 0,
 			resolution: {
 				width:
-					Number(
-						(source.resolution as Record<string, unknown>)?.width
-					) || 1920,
+					Number((source.resolution as Record<string, unknown>)?.width) || 1920,
 				height:
-					Number(
-						(source.resolution as Record<string, unknown>)?.height
-					) || 1080,
+					Number((source.resolution as Record<string, unknown>)?.height) ||
+					1080,
 			},
 			fps: Number(source.fps) || 30,
 		},
@@ -137,9 +131,7 @@ export function validateRecipe(
 			voiceoverLanguage: audio.voiceoverLanguage
 				? String(audio.voiceoverLanguage)
 				: undefined,
-			transcript: audio.transcript
-				? String(audio.transcript)
-				: undefined,
+			transcript: audio.transcript ? String(audio.transcript) : undefined,
 		},
 		shots: rawShots.map((s, i) => validateShot(s, i)),
 	};
@@ -173,13 +165,7 @@ const VALID_CAMERAS = new Set([
 	"zoom-out",
 	"tracking",
 ]);
-const VALID_TRANSITIONS = new Set([
-	"cut",
-	"dissolve",
-	"fade",
-	"wipe",
-	"none",
-]);
+const VALID_TRANSITIONS = new Set(["cut", "dissolve", "fade", "wipe", "none"]);
 
 function validateShot(raw: unknown, fallbackIndex: number): ShotRecipe {
 	const s = (raw as Record<string, unknown>) || {};

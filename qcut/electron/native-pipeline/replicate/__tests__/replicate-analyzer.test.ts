@@ -112,9 +112,7 @@ describe("validateRecipe", () => {
 
 	it("throws when shots array is empty", () => {
 		const raw = { ...validRaw, shots: [] };
-		expect(() => validateRecipe(raw, "test.mp4")).toThrow(
-			"no shots detected"
-		);
+		expect(() => validateRecipe(raw, "test.mp4")).toThrow("no shots detected");
 	});
 
 	it("throws when input is not an object", () => {

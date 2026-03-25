@@ -103,10 +103,7 @@ describe("convertRecipeToScript", () => {
 	});
 
 	it("computes total_duration from shot durations", () => {
-		const recipe = makeRecipe([
-			{ duration: 3 },
-			{ duration: 7 },
-		]);
+		const recipe = makeRecipe([{ duration: 3 }, { duration: 7 }]);
 		const script = convertRecipeToScript(recipe);
 		expect(script.total_duration).toBe(10);
 	});
