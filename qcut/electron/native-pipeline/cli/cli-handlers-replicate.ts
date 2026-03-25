@@ -7,7 +7,11 @@
  */
 
 import * as path from "node:path";
-import type { CLIRunOptions, CLIResult, ProgressFn } from "./cli-runner/types.js";
+import type {
+	CLIRunOptions,
+	CLIResult,
+	ProgressFn,
+} from "./cli-runner/types.js";
 import { resolveOutputDir } from "../output/output-utils.js";
 import {
 	runReplicate,
@@ -37,9 +41,7 @@ export async function handleReplicate(
 	const result = await runReplicate({
 		source,
 		outputDir,
-		outputFilename: options.output
-			? path.basename(options.output)
-			: undefined,
+		outputFilename: options.output ? path.basename(options.output) : undefined,
 		videoModel: options.videoModel || options.model,
 		imageModel: options.imageModel,
 		analysisModel: options.llmModel,
@@ -155,9 +157,7 @@ export async function handleReplicateGenerate(
 
 	const result = await runFromRecipe(recipePath, {
 		outputDir,
-		outputFilename: options.output
-			? path.basename(options.output)
-			: undefined,
+		outputFilename: options.output ? path.basename(options.output) : undefined,
 		videoModel: options.videoModel || options.model,
 		imageModel: options.imageModel,
 		signal,
