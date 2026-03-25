@@ -55,12 +55,21 @@ Schema:
 Rules:
 1. Break the video into individual shots (scene cuts). Each shot is a continuous camera take.
 2. Be precise with timing — startTime/endTime should match actual cut points.
-3. For "prompt", write a vivid, detailed description suitable for AI video generation (mention camera angle, lighting, composition, motion, subjects).
-4. Capture on-screen text (titles, lower thirds, captions) in textContent.
-5. Identify the dominant color palette (3-5 hex colors).
-6. If there is spoken audio, transcribe it in the audio.transcript field.
-7. Duration must equal endTime - startTime for each shot.`;
+3. **CRITICAL**: All timestamps (startTime, endTime) must be in REAL seconds (e.g. startTime: 3.5, endTime: 7.0), NOT normalized 0-1 values. The video duration in seconds is provided in the user message — use it to anchor your timestamps.
+4. For "prompt", write a vivid, detailed description suitable for AI video generation (mention camera angle, lighting, composition, motion, subjects).
+5. Capture on-screen text (titles, lower thirds, captions) in textContent.
+6. Identify the dominant color palette (3-5 hex colors).
+7. If there is spoken audio, transcribe it in the audio.transcript field.
+8. Duration must equal endTime - startTime for each shot.
+9. The last shot's endTime must equal the total video duration.`;
 
-export function buildAnalyzeUserPrompt(filename: string): string {
-	return `Analyze this video file "${filename}" and extract a complete VideoRecipe JSON. Break it down shot-by-shot with precise timestamps, camera movements, transitions, and AI generation prompts for each shot.`;
+export function buildAnalyzeUserPrompt(
+	filename: string,
+	durationSeconds?: number,
+): string {
+	const durationLine =
+		durationSeconds != null
+			? `\n\nThe video duration is ${durationSeconds} seconds. All timestamps must be real seconds within this range (0 to ${durationSeconds}), NOT normalized 0-1 values.`
+			: "";
+	return `Analyze this video file "${filename}" and extract a complete VideoRecipe JSON. Break it down shot-by-shot with precise timestamps, camera movements, transitions, and AI generation prompts for each shot.${durationLine}`;
 }
