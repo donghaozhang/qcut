@@ -86,6 +86,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			policy: { type: "string" },
 			resume: { type: "string" },
 			input: { type: "string", short: "i" },
+			profile: { type: "string", multiple: true },
 			"save-intermediates": { type: "boolean", default: false },
 			parallel: { type: "boolean", default: false },
 			"max-workers": { type: "string" },
@@ -317,6 +318,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		policy: values.policy as string | undefined,
 		resume: values.resume as string | undefined,
 		input: values.input as string | undefined,
+		profile: values.profile as string[] | undefined,
 		saveIntermediates: (values["save-intermediates"] as boolean) ?? false,
 		parallel: (values.parallel as boolean) ?? false,
 		maxWorkers: values["max-workers"]

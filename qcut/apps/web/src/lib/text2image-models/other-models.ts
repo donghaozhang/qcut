@@ -374,6 +374,83 @@ export const OTHER_MODELS: Record<string, Text2ImageModel> = {
 		],
 	},
 
+	phota: {
+		id: "phota",
+		name: "Phota",
+		description:
+			"AI photo generation with identity preservation — supports profile references for consistent characters",
+		provider: "Photalabs",
+		endpoint: "https://fal.run/fal-ai/phota",
+
+		qualityRating: 4,
+		speedRating: 3,
+
+		estimatedCost: "$0.05",
+		costPerImage: 5, // cents
+
+		maxResolution: "4K",
+		supportedAspectRatios: ["auto", "1:1", "4:3", "3:4", "16:9", "9:16"],
+
+		defaultParams: {
+			num_images: 1,
+			resolution: "1K",
+			aspect_ratio: "auto",
+			output_format: "jpeg",
+		},
+
+		availableParams: [
+			{
+				name: "aspect_ratio",
+				type: "select",
+				options: ["auto", "1:1", "16:9", "4:3", "3:4", "9:16"],
+				default: "auto",
+				description: "Output aspect ratio",
+			},
+			{
+				name: "resolution",
+				type: "select",
+				options: ["1K", "4K"],
+				default: "1K",
+				description: "Output resolution (1K or 4K)",
+			},
+			{
+				name: "num_images",
+				type: "number",
+				min: 1,
+				max: 4,
+				default: 1,
+				description: "Number of images to generate",
+			},
+			{
+				name: "output_format",
+				type: "select",
+				options: ["jpeg", "png", "webp"],
+				default: "jpeg",
+				description: "Output image format",
+			},
+		],
+
+		bestFor: [
+			"Photo generation with identity preservation",
+			"Face-consistent characters across images",
+			"Profile-based character consistency",
+			"High-quality portrait generation",
+		],
+
+		strengths: [
+			"Identity preservation via profiles",
+			"4K output option",
+			"Profile references (@Profile1, @Profile2)",
+			"Flexible aspect ratios",
+			"Strong photorealism",
+		],
+
+		limitations: [
+			"Requires profile creation for identity features",
+			"Slower than simple generation models",
+		],
+	},
+
 	"gpt-image-1-5": {
 		id: "gpt-image-1-5",
 		name: "GPT Image 1.5",

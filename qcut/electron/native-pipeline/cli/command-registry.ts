@@ -157,6 +157,11 @@ export const CATEGORIES: CategoryDef[] = [
 		commands: ["subtitle-style", "subtitle-export"],
 	},
 	{
+		name: "phota",
+		label: "Phota Commands",
+		commands: ["phota:edit", "phota:enhance", "phota:profile"],
+	},
+	{
 		name: "replicate",
 		label: "Video Replicate Commands",
 		commands: ["replicate", "replicate:analyze", "replicate:generate"],
@@ -925,6 +930,76 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline subtitle-export -i video.mp4 --srt-file subs.srt --preset bold",
 			"qcut-pipeline subtitle-export -i video.mp4 --preset cinematic --json",
 			'qcut-pipeline subtitle-export -i video.mp4 -s subs.srt --style \'{"fontColor":"#ffff00"}\'',
+		],
+	},
+
+	// ── Phota ──
+	"phota:edit": {
+		name: "phota:edit",
+		description: "Edit images with AI using Phota (prompt + optional profiles)",
+		category: "phota",
+		flags: [
+			f("--text", "string", "Edit prompt", { short: "-t", required: true }),
+			f("--input", "string", "Image file path or URL (repeatable, max 10)", {
+				short: "-i",
+				required: true,
+			}),
+			f("--profile", "string", "Phota profile ID (repeatable)"),
+			f("--resolution", "string", "Output resolution: 1K or 4K", {
+				default: "1K",
+				enum: ["1K", "4K"],
+			}),
+			f("--aspect-ratio", "string", "Aspect ratio", {
+				default: "auto",
+				enum: ["auto", "1:1", "16:9", "4:3", "3:4", "9:16"],
+			}),
+			f("--count", "number", "Number of outputs (1-4)", { default: 1 }),
+			f("--format", "string", "Output format", {
+				default: "jpeg",
+				enum: ["jpeg", "png", "webp"],
+			}),
+		],
+		examples: [
+			'qcut-pipeline phota:edit -i photo.jpg -t "Make the background a sunset"',
+			'qcut-pipeline phota:edit -i photo.jpg -t "@Profile1 in a forest" --profile prof_abc123',
+			'qcut-pipeline phota:edit -i photo.jpg -t "Enhance lighting" --resolution 4K --json',
+		],
+	},
+	"phota:enhance": {
+		name: "phota:enhance",
+		description: "Enhance image quality with Phota AI",
+		category: "phota",
+		flags: [
+			f("--input", "string", "Image file path or URL", {
+				short: "-i",
+				required: true,
+			}),
+			f("--profile", "string", "Phota profile ID (repeatable)"),
+			f("--count", "number", "Number of outputs", { default: 1 }),
+			f("--format", "string", "Output format", {
+				default: "jpeg",
+				enum: ["jpeg", "png", "webp"],
+			}),
+		],
+		examples: [
+			"qcut-pipeline phota:enhance -i photo.jpg",
+			"qcut-pipeline phota:enhance -i photo.jpg --profile prof_abc123 --json",
+		],
+	},
+	"phota:profile": {
+		name: "phota:profile",
+		description:
+			"Create a Phota identity profile from reference images (ZIP archive)",
+		category: "phota",
+		flags: [
+			f("--input", "string", "Path to ZIP archive of reference images", {
+				short: "-i",
+				required: true,
+			}),
+		],
+		examples: [
+			"qcut-pipeline phota:profile -i reference-photos.zip",
+			"qcut-pipeline phota:profile -i reference-photos.zip --json",
 		],
 	},
 

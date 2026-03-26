@@ -46,6 +46,11 @@ import {
 import { handleYouTubeUpload } from "../cli-handlers-youtube.js";
 import { handleTranslateVideo } from "../cli-handlers-translate.js";
 import {
+	handlePhotaEdit,
+	handlePhotaEnhance,
+	handlePhotaCreateProfile,
+} from "../cli-handlers-phota.js";
+import {
 	runAutoclip,
 	parseAutoclipOptions,
 } from "../../autoclip/autoclip-runner.js";
@@ -399,6 +404,27 @@ export class CLIPipelineRunner {
 				break;
 			case "translate-video":
 				result = await handleTranslateVideo(
+					resolvedOptions,
+					onProgress,
+					this.signal
+				);
+				break;
+			case "phota:edit":
+				result = await handlePhotaEdit(
+					resolvedOptions,
+					onProgress,
+					this.signal
+				);
+				break;
+			case "phota:enhance":
+				result = await handlePhotaEnhance(
+					resolvedOptions,
+					onProgress,
+					this.signal
+				);
+				break;
+			case "phota:profile":
+				result = await handlePhotaCreateProfile(
 					resolvedOptions,
 					onProgress,
 					this.signal

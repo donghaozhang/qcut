@@ -21,6 +21,7 @@ export const IMAGE_EDIT_MODEL_IDS = [
 	"reve-edit",
 	"gemini-3-pro-edit",
 	"gpt-image-1-5-edit",
+	"phota-edit",
 ] as const;
 
 /**
@@ -49,6 +50,9 @@ export const MODEL_CAPABILITIES: Record<ImageEditModelId, ModelCapability> = {
 	"gemini-3-pro-edit": { maxImages: 4, supportsMultiple: true },
 	"flux-2-flex-edit": { maxImages: 4, supportsMultiple: true },
 	"gpt-image-1-5-edit": { maxImages: 4, supportsMultiple: true },
+
+	// Multi-image: Phota Edit (up to 10)
+	"phota-edit": { maxImages: 10, supportsMultiple: true },
 
 	// Single-image models
 	"seededit": { maxImages: 1, supportsMultiple: false },

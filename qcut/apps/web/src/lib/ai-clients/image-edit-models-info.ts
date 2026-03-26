@@ -279,6 +279,38 @@ export function getImageEditModels() {
 			},
 		},
 		{
+			id: "phota-edit",
+			name: "Phota Edit",
+			description:
+				"AI photo editing with identity preservation via profiles — supports prompt-based editing with @Profile references",
+			provider: "Photalabs",
+			estimatedCost: "$0.05",
+			features: [
+				"Identity preservation via profiles",
+				"Multi-image input (up to 10)",
+				"4K resolution output",
+				"Profile references (@Profile1, @Profile2)",
+			],
+			parameters: {
+				numImages: { min: 1, max: 4, default: 1, step: 1 },
+				resolution: {
+					type: "select",
+					options: ["1K", "4K"],
+					default: "1K",
+				},
+				aspectRatio: {
+					type: "select",
+					options: ["auto", "1:1", "4:3", "3:4", "16:9", "9:16"],
+					default: "auto",
+				},
+				outputFormat: {
+					type: "select",
+					options: ["jpeg", "png", "webp"],
+					default: "jpeg",
+				},
+			},
+		},
+		{
 			id: "gpt-image-1-5-edit",
 			name: "GPT Image 1.5 Edit",
 			description:

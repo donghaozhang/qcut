@@ -213,6 +213,20 @@ export function convertSettingsToParams(
 				params.image_size = "landscape_4_3";
 			}
 			break;
+
+		case "phota":
+			// Phota uses aspect_ratio, not image_size
+			if (settings.imageSize) {
+				const mapped = imageSizeToAspectRatio(String(settings.imageSize));
+				// Phota supports "auto" — use it when the mapping falls back to default "1:1"
+				// unless the user explicitly selected a square size
+				const sizeStr = String(settings.imageSize);
+				const isExplicitSquare =
+					sizeStr === "square" || sizeStr === "square_hd" || sizeStr === "1:1";
+				params.aspect_ratio =
+					mapped === "1:1" && !isExplicitSquare ? "auto" : mapped;
+			}
+			break;
 	}
 
 	const supportsOutputFormat = model.availableParams.some(
