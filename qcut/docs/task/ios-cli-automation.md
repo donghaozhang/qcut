@@ -21,9 +21,10 @@
 | `qcut://screenshot` | Read debug overlay | Working |
 | `qcut://export?quality=&format=&filename=` | Trigger video export | Working |
 | `qcut://export-status` | Poll export progress | Working |
-| `qcut://open-editor` | Navigate to first project (Darwin notification only) | Working |
-| `qcut://test-export` | Test share sheet with fake MP4 (Darwin notification only) | Working |
-| `qcut://cli.import-and-export` | E2E: import photos + export (Darwin notification only) | Working |
+| `qcut://open-editor` | Navigate to first project and open editor | Working |
+| `qcut://test-export` | Test share sheet with fake MP4 | Working |
+| `qcut://cli.import-and-export` | E2E: import photos + export | Working |
+| `qcut://test-all` | Smoke test: open editor + run all commands sequentially | Working |
 
 ### Exposed Debug State (All 6 Stores)
 - `window.__playbackStore` — Zustand playback store (play/pause/seek/speed/volume)
@@ -38,14 +39,24 @@
 ### Supporting Infrastructure
 - **Console bridge**: `apps/web/src/lib/debug/ios-console-bridge.ts` — auto-captures logs on iPad
 - **Subpanel events**: AI and Moyin views listen for `qcut:switch-subpanel` CustomEvent
-- **Shell CLI**: `scripts/ipad-cli.sh` — all commands for simulator
+- **Simulator CLI**: `scripts/ipad-cli.sh` — all commands via `xcrun simctl`
+- **Physical device CLI**: `scripts/ipad-device-cli.sh` — all commands via `xcrun devicectl`
 - **Export output**: `apps/web/src/lib/export/export-output.ts` — Web Share API + Capacitor + fallback
 - **Darwin notifications**: Physical device support via `CFNotificationCenter` (debug builds only)
+- **Deep link queuing**: Deep links sent at launch are queued and executed after webview finishes loading
 
-### Known Limitation
-- `ipad-cli.sh` uses `xcrun simctl openurl` which only works with **simulators**
-- Physical iPad requires `xcrun devicectl device process launch --payload-url` or Darwin notifications
-- Deep links sent at app launch fire before stores are ready (stores are null until editor page loads)
+### Verified on Physical iPad (2026-03-25)
+Device: Donghao's iPad (2), iPadOS 26.3.1
+```
+state       → 4 tracks, 12 elements, "New Project" @ 30fps    PASS
+open-editor → opened project 0969eda5-...                      PASS
+play        → playing                                          PASS
+pause       → paused                                           PASS
+panel ai    → panel: ai                                        PASS
+panel export→ panel: export                                    PASS
+console     → No logs captured yet                             PASS
+fps         → 55 FPS (164 frames/3.0s)                        PASS
+```
 
 ---
 
@@ -687,5 +698,6 @@ Export Pipeline (iPad):
 7. **Task 7** (Export to Files App) — DONE
 
 ## Remaining Work
-- **Physical device CLI**: `ipad-cli.sh` only supports simulator. Need a `ipad-device-cli.sh` that uses `xcrun devicectl` for physical iPad testing.
-- **open-editor deep link**: Currently only available as Darwin notification, not as `qcut://open-editor` URL. Add to `handleDeepLink` switch.
+All planned tasks complete. Potential future improvements:
+- **Console bridge**: `__qcutLogs` not capturing on physical iPad (user agent detection may need tuning for Capacitor WebView)
+- **Export E2E**: Full `import-and-export` test not yet verified on physical device
