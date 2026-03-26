@@ -202,6 +202,17 @@ export const MODEL_ENDPOINTS: Record<string, ModelEndpoint> = {
 		},
 	},
 
+	// Phota Edit endpoint
+	"phota-edit": {
+		endpoint: "fal-ai/phota/edit",
+		defaultParams: {
+			num_images: 1,
+			resolution: "1K",
+			aspect_ratio: "auto",
+			output_format: "jpeg",
+		},
+	},
+
 	// GPT Image 1.5 Edit endpoint
 	"gpt-image-1-5-edit": {
 		endpoint: "fal-ai/gpt-image-1.5/edit",
