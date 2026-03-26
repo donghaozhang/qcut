@@ -78,8 +78,7 @@ export function registerPhotaModels(): void {
 		provider: "Photalabs (via FAL)",
 		endpoint: "fal-ai/phota",
 		categories: ["text_to_image"],
-		description:
-			"AI photo generation with identity preservation via profiles",
+		description: "AI photo generation with identity preservation via profiles",
 		pricing: { per_image: 0.05 },
 		aspectRatios: ["auto", "1:1", "16:9", "4:3", "3:4", "9:16"],
 		defaults: { resolution: "1K", aspect_ratio: "auto" },

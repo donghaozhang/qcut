@@ -222,9 +222,7 @@ export function convertSettingsToParams(
 				// unless the user explicitly selected a square size
 				const sizeStr = String(settings.imageSize);
 				const isExplicitSquare =
-					sizeStr === "square" ||
-					sizeStr === "square_hd" ||
-					sizeStr === "1:1";
+					sizeStr === "square" || sizeStr === "square_hd" || sizeStr === "1:1";
 				params.aspect_ratio =
 					mapped === "1:1" && !isExplicitSquare ? "auto" : mapped;
 			}
