@@ -79,6 +79,11 @@ import {
 	handleSubtitleStyle,
 	handleSubtitleExport,
 } from "../cli-handlers-subtitle.js";
+import {
+	handleReplicate,
+	handleReplicateAnalyze,
+	handleReplicateGenerate,
+} from "../cli-handlers-replicate.js";
 
 async function enforceActionPolicy({
 	options,
@@ -443,6 +448,27 @@ export class CLIPipelineRunner {
 			case "clean-audio":
 				result = await runCleanAudio(
 					parseCleanAudioOptions(resolvedOptions),
+					onProgress,
+					this.signal
+				);
+				break;
+			case "replicate":
+				result = await handleReplicate(
+					resolvedOptions,
+					onProgress,
+					this.signal
+				);
+				break;
+			case "replicate:analyze":
+				result = await handleReplicateAnalyze(
+					resolvedOptions,
+					onProgress,
+					this.signal
+				);
+				break;
+			case "replicate:generate":
+				result = await handleReplicateGenerate(
+					resolvedOptions,
 					onProgress,
 					this.signal
 				);

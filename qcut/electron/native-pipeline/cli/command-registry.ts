@@ -157,6 +157,11 @@ export const CATEGORIES: CategoryDef[] = [
 		commands: ["subtitle-style", "subtitle-export"],
 	},
 	{
+		name: "replicate",
+		label: "Video Replicate Commands",
+		commands: ["replicate", "replicate:analyze", "replicate:generate"],
+	},
+	{
 		name: "editor",
 		label: "Editor Commands",
 		commands: [], // populated dynamically from EDITOR_COMMANDS keys
@@ -1081,6 +1086,55 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		category: "vimax",
 		flags: [],
 		examples: ["qcut-pipeline vimax:list-models --json"],
+	},
+	// ── Replicate ──
+	replicate: {
+		name: "replicate",
+		description: "Replicate a video (analyze + generate + assemble)",
+		category: "replicate",
+		flags: [
+			f("--source", "string", "Source video file path", { required: true }),
+			f("--directory", "string", "User media directory (optional)"),
+			f("--video-model", "string", "Video generation model key"),
+			f("--image-model", "string", "Image generation model key"),
+			f("--llm-model", "string", "LLM model for analysis"),
+			f("--max-workers", "number", "Max concurrent generation jobs"),
+		],
+		examples: [
+			"qcut-pipeline replicate --source input.mp4",
+			"qcut-pipeline replicate --source input.mp4 --video-model ltx_v2_3",
+		],
+	},
+	"replicate:analyze": {
+		name: "replicate:analyze",
+		description: "Analyze a video and extract a VideoRecipe",
+		category: "replicate",
+		flags: [
+			f("--source", "string", "Source video file path", { required: true }),
+			f("--llm-model", "string", "Gemini model for analysis"),
+		],
+		examples: [
+			"qcut-pipeline replicate:analyze --source input.mp4 --json",
+			"qcut-pipeline replicate:analyze --source input.mp4 -o recipe/",
+		],
+	},
+	"replicate:generate": {
+		name: "replicate:generate",
+		description: "Generate video from a VideoRecipe JSON file",
+		category: "replicate",
+		flags: [
+			f("--input", "string", "Path to recipe JSON file", {
+				required: true,
+			}),
+			f("--directory", "string", "User media directory (optional)"),
+			f("--video-model", "string", "Video generation model key"),
+			f("--image-model", "string", "Image generation model key"),
+			f("--max-workers", "number", "Max concurrent generation jobs"),
+		],
+		examples: [
+			"qcut-pipeline replicate:generate --input recipe.json",
+			"qcut-pipeline replicate:generate --input recipe.json --directory ./my-clips/",
+		],
 	},
 };
 

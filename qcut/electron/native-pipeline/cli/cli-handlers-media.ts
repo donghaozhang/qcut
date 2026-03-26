@@ -71,6 +71,18 @@ export async function handleAnalyzeVideo(
 		summary: "Provide a comprehensive summary of this video",
 		description: "Describe this video in detail",
 		transcript: "Transcribe all spoken words in this video",
+		replicate: `You are a professional video editor and cinematographer. Analyze this video and produce a structured JSON recipe that captures every aspect needed to recreate a similar video from scratch.
+
+Output ONLY valid JSON matching this schema — no markdown fences, no commentary:
+{
+  "version": 1,
+  "source": { "filename": "<string>", "duration": <seconds>, "resolution": { "width": <number>, "height": <number> }, "fps": <number> },
+  "style": { "genre": "<tutorial|vlog|cinematic|commercial|music-video|documentary|social-media|other>", "mood": "<energetic|calm|dramatic|playful|serious|inspirational|other>", "colorPalette": ["<hex>"], "pacing": "<fast|medium|slow>" },
+  "audio": { "hasBGM": <boolean>, "bgmStyle": "<string>", "hasVoiceover": <boolean>, "voiceoverLanguage": "<ISO code>", "transcript": "<string or null>" },
+  "shots": [{ "index": <0-based>, "startTime": <seconds>, "endTime": <seconds>, "duration": <seconds>, "type": "<wide|medium|closeup|detail|transition|title>", "camera": "<static|pan-left|pan-right|zoom-in|zoom-out|tracking>", "description": "<what happens>", "prompt": "<AI generation prompt>", "transition": "<cut|dissolve|fade|wipe|none>", "hasText": <boolean>, "textContent": "<string or null>", "hasSubtitle": <boolean>, "subtitleText": "<string or null>" }]
+}
+
+Rules: Break into individual shots at scene cuts. Be precise with timing. Write vivid AI generation prompts. Capture on-screen text. Identify 3-5 dominant hex colors. Transcribe spoken audio. Duration must equal endTime - startTime.`,
 	};
 	const defaultPrompt =
 		promptMap[analysisType] || "Describe this video in detail";

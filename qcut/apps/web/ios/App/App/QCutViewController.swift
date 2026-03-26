@@ -29,9 +29,15 @@ class QCutViewController: CAPBridgeViewController {
     /// Pending deep link URL written by notification handler, executed on main thread
     private static var pendingDeepLinkURL: String?
 
+    /// Whether the webview has finished its initial page load
+    private var webViewReady = false
+    /// Deep link URLs queued before webview was ready
+    private var pendingDeepLinks: [URL] = []
+
     override func viewDidLoad() {
         super.viewDidLoad()
         registerDarwinNotificationBridge()
+        webView?.navigationDelegate = self
     }
 
     /// Register Darwin notification listeners so `devicectl notification post` can trigger deep link commands on a real device.
@@ -124,6 +130,56 @@ class QCutViewController: CAPBridgeViewController {
                 return 'no project found. links: ' + JSON.stringify(links.slice(0, 10));
             })()
             """)
+        }
+    }
+
+    /// Smoke test: open editor, then run all CLI commands sequentially with delays
+    private func runTestAll() {
+        NSLog("[QCut CLI] === TEST-ALL: Starting smoke test ===")
+        openFirstProject()
+
+        // After editor loads (~5s), run through commands
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+            guard let self = self else { return }
+
+            NSLog("[QCut CLI] === TEST: state ===")
+            self.handleDeepLink(url: URL(string: "qcut://state")!)
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                NSLog("[QCut CLI] === TEST: play ===")
+                self.handleDeepLink(url: URL(string: "qcut://play")!)
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    NSLog("[QCut CLI] === TEST: pause ===")
+                    self.handleDeepLink(url: URL(string: "qcut://pause")!)
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        NSLog("[QCut CLI] === TEST: panel ai ===")
+                        self.handleDeepLink(url: URL(string: "qcut://panel?panel=ai")!)
+
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            NSLog("[QCut CLI] === TEST: panel export ===")
+                            self.handleDeepLink(url: URL(string: "qcut://panel?panel=export")!)
+
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                                NSLog("[QCut CLI] === TEST: console ===")
+                                self.handleDeepLink(url: URL(string: "qcut://console")!)
+
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                                    NSLog("[QCut CLI] === TEST: fps ===")
+                                    self.handleDeepLink(url: URL(string: "qcut://fps")!)
+
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                                        // Read FPS result after benchmark completes
+                                        self.runJS("window.__fpsResult || 'fps test still running'")
+                                        NSLog("[QCut CLI] === TEST-ALL: Complete ===")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -334,6 +390,13 @@ class QCutViewController: CAPBridgeViewController {
         #else
         guard url.scheme == "qcut", let host = url.host else { return }
 
+        // Queue deep links that need the webview until it's ready
+        if !webViewReady {
+            NSLog("[QCut CLI] WebView not ready, queuing: \(url.absoluteString)")
+            pendingDeepLinks.append(url)
+            return
+        }
+
         switch host {
 
         // ── Eval ─────────────────────────────────────────────────
@@ -492,6 +555,22 @@ class QCutViewController: CAPBridgeViewController {
             })()
             """)
 
+        // ── Open editor (navigate to first project) ────────────
+        case "open-editor":
+            openFirstProject()
+
+        // ── Test all commands (E2E smoke test) ──────────────────
+        case "test-all":
+            runTestAll()
+
+        // ── Test export (share sheet test) ──────────────────────
+        case "test-export":
+            runShareSheetTest()
+
+        // ── Import and export E2E ───────────────────────────────
+        case "cli.import-and-export":
+            runImportImageAndExport()
+
         default:
             NSLog("[QCut CLI] Unknown command: \(host)")
         }
@@ -541,6 +620,21 @@ class QCutViewController: CAPBridgeViewController {
                 NSLog("[QCut CLI] Result: \(result)")
             }
         }
+    }
+}
+
+// MARK: - WKNavigationDelegate (wait for webview before executing deep links)
+extension QCutViewController: WKNavigationDelegate {
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        #if DEBUG
+        guard !webViewReady else { return }
+        webViewReady = true
+        NSLog("[QCut CLI] WebView ready, processing \(pendingDeepLinks.count) queued deep link(s)")
+        for url in pendingDeepLinks {
+            handleDeepLink(url: url)
+        }
+        pendingDeepLinks.removeAll()
+        #endif
     }
 }
 
