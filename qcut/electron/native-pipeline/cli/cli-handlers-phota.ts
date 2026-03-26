@@ -68,7 +68,12 @@ async function downloadImages(
 ): Promise<string[]> {
 	const paths: string[] = [];
 	for (let i = 0; i < images.length; i++) {
-		const ext = images[i].url.includes(".png") ? "png" : "jpeg";
+		const url = images[i].url;
+		const ext = url.includes(".png")
+			? "png"
+			: url.includes(".webp")
+				? "webp"
+				: "jpeg";
 		const filename =
 			images.length === 1
 				? `${baseName}_${suffix}.${ext}`

@@ -134,7 +134,7 @@ export function registerPhotaModels(): void {
 		name: "Phota Create Profile",
 		provider: "Photalabs (via FAL)",
 		endpoint: "fal-ai/phota/create-profile",
-		categories: ["image_to_image"],
+		categories: ["training"],
 		description:
 			"Create a reusable identity profile from reference images for consistent generation",
 		pricing: { per_run: 0.1 },
