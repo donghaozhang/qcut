@@ -19,6 +19,7 @@ export const TEXT2IMAGE_MODELS: Record<string, Text2ImageModel> = {
 export const TEXT2IMAGE_MODEL_ORDER = [
 	"gemini-3-pro",
 	"gpt-image-1-5",
+	"phota",
 	"nano-banana",
 	"seeddream-v4-5",
 	"z-image-turbo",
@@ -30,7 +31,6 @@ export const TEXT2IMAGE_MODEL_ORDER = [
 	"qwen-image",
 	"flux-pro-v11-ultra",
 	"seeddream-v3",
-	"phota-edit",
 ] as const;
 
 export type Text2ImageModelId = (typeof TEXT2IMAGE_MODEL_ORDER)[number];
@@ -118,7 +118,7 @@ export const MODEL_CATEGORIES = {
 		"reve-text-to-image",
 		"z-image-turbo",
 		"seeddream-v4-5-edit",
-		"phota-edit",
+		"phota",
 	],
 	FAST: [
 		"seeddream-v3",

@@ -374,13 +374,13 @@ export const OTHER_MODELS: Record<string, Text2ImageModel> = {
 		],
 	},
 
-	"phota-edit": {
-		id: "phota-edit",
-		name: "Phota Edit",
+	phota: {
+		id: "phota",
+		name: "Phota",
 		description:
-			"AI photo editing with identity preservation — supports prompt-based editing and profile references",
+			"AI photo generation with identity preservation — supports profile references for consistent characters",
 		provider: "Photalabs",
-		endpoint: "https://fal.run/fal-ai/phota/edit",
+		endpoint: "https://fal.run/fal-ai/phota",
 
 		qualityRating: 4,
 		speedRating: 3,
@@ -431,24 +431,23 @@ export const OTHER_MODELS: Record<string, Text2ImageModel> = {
 		],
 
 		bestFor: [
-			"Photo editing with identity preservation",
-			"Face-consistent edits across images",
-			"Prompt-driven photo manipulation",
+			"Photo generation with identity preservation",
+			"Face-consistent characters across images",
 			"Profile-based character consistency",
+			"High-quality portrait generation",
 		],
 
 		strengths: [
 			"Identity preservation via profiles",
-			"Multi-image input support (up to 10)",
 			"4K output option",
 			"Profile references (@Profile1, @Profile2)",
 			"Flexible aspect ratios",
+			"Strong photorealism",
 		],
 
 		limitations: [
 			"Requires profile creation for identity features",
 			"Slower than simple generation models",
-			"Image editing focus (not pure text-to-image)",
 		],
 	},
 

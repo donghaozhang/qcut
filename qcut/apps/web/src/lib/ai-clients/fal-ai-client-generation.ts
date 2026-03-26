@@ -214,7 +214,7 @@ export function convertSettingsToParams(
 			}
 			break;
 
-		case "phota-edit":
+		case "phota":
 			// Phota uses aspect_ratio, not image_size
 			if (settings.imageSize) {
 				params.aspect_ratio =
