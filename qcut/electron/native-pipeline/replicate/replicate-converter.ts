@@ -47,7 +47,7 @@ export function convertShot(shot: ShotRecipe): ShotDescription {
 		description: shot.description,
 		camera_movement: CAMERA_MAP[shot.camera] ?? CameraMovement.STATIC,
 		camera_angle: "eye_level",
-		duration_seconds: shot.duration || 5,
+		duration_seconds: shot.duration ?? 5,
 		prompt_description: shot.prompt,
 	});
 }

@@ -9,7 +9,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { VideoRecipe, GeneratedShot } from "./replicate-types.js";
-import { analyzeVideo, type AnalyzerOptions } from "./replicate-analyzer.js";
+import {
+	analyzeVideo,
+	validateRecipe,
+	type AnalyzerOptions,
+} from "./replicate-analyzer.js";
 import { planReplicate, type PlannerOptions } from "./replicate-planner.js";
 import { StoryboardArtist } from "../vimax/agents/storyboard-artist.js";
 import { CameraImageGenerator } from "../vimax/agents/camera-generator.js";
@@ -29,26 +33,30 @@ export interface ReplicateRunnerOptions {
 	imageModel?: string;
 	/** Gemini model for analysis. */
 	analysisModel?: string;
-	/** User media directory (optional clips to match). */
-	mediaDir?: string;
-	/** Max concurrent generation jobs. */
-	concurrency?: number;
 	/** Abort signal. */
 	signal?: AbortSignal;
 	/** Progress callback. */
 	onProgress?: (stage: string, percent: number, message: string) => void;
 }
 
-export interface ReplicateResult {
-	success: boolean;
-	recipe: VideoRecipe;
-	output?: PipelineOutput;
-	generatedShots: GeneratedShot[];
-	outputPath?: string;
-	totalCost: number;
-	shotCount: number;
-	error?: string;
-}
+export type ReplicateResult =
+	| {
+			success: true;
+			recipe: VideoRecipe;
+			output?: PipelineOutput;
+			generatedShots: GeneratedShot[];
+			outputPath?: string;
+			totalCost: number;
+			shotCount: number;
+	  }
+	| {
+			success: false;
+			recipe?: VideoRecipe;
+			generatedShots: GeneratedShot[];
+			totalCost: number;
+			shotCount: number;
+			error: string;
+	  };
 
 /**
  * Run the full replicate pipeline: analyze → plan → storyboard → generate → assemble.
@@ -75,7 +83,6 @@ export async function runReplicate(
 	} catch (err) {
 		return {
 			success: false,
-			recipe: null!,
 			generatedShots: [],
 			totalCost: 0,
 			shotCount: 0,
@@ -138,7 +145,7 @@ export async function runFromRecipe(
 	options: Omit<ReplicateRunnerOptions, "source">
 ): Promise<ReplicateResult> {
 	const raw = fs.readFileSync(recipePath, "utf-8");
-	const recipe = JSON.parse(raw) as VideoRecipe;
+	const recipe = validateRecipe(JSON.parse(raw), path.basename(recipePath));
 
 	const plannerOpts: PlannerOptions = {
 		videoModel: options.videoModel,
@@ -231,8 +238,10 @@ async function runViMaxPipeline(
 		try {
 			fs.copyFileSync(finalPath, destPath);
 			finalPath = destPath;
-		} catch {
-			// keep original path
+		} catch (err) {
+			throw new Error(
+				`Failed to copy output to ${destPath}: ${err instanceof Error ? err.message : String(err)}`
+			);
 		}
 	}
 

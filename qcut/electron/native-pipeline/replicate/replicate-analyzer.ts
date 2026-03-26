@@ -169,8 +169,9 @@ const VALID_TRANSITIONS = new Set(["cut", "dissolve", "fade", "wipe", "none"]);
 
 function validateShot(raw: unknown, fallbackIndex: number): ShotRecipe {
 	const s = (raw as Record<string, unknown>) || {};
-	const startTime = Number(s.startTime) || 0;
-	const endTime = Number(s.endTime) || startTime + 3;
+	const startTime = Math.max(0, Number(s.startTime) || 0);
+	const rawEnd = Number(s.endTime) || startTime + 3;
+	const endTime = rawEnd > startTime ? rawEnd : startTime + 3;
 	const duration = Number(s.duration) || endTime - startTime;
 
 	const shotType = String(s.type || "medium").toLowerCase();

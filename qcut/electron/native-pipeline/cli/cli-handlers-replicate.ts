@@ -148,35 +148,45 @@ export async function handleReplicateGenerate(
 	if (!recipePath) {
 		return {
 			success: false,
-			error: "Missing --input (path to recipe JSON file)",
+			error: "Missing --input or --config (path to recipe JSON file)",
 		};
 	}
 
 	const outputDir = resolveOutputDir(options.outputDir, `cli-${Date.now()}`);
 	const startTime = Date.now();
 
-	const result = await runFromRecipe(recipePath, {
-		outputDir,
-		outputFilename: options.output ? path.basename(options.output) : undefined,
-		videoModel: options.videoModel || options.model,
-		imageModel: options.imageModel,
-		signal,
-		onProgress: (stage, percent, message) => {
-			onProgress({ stage, percent, message });
-		},
-	});
+	try {
+		const result = await runFromRecipe(recipePath, {
+			outputDir,
+			outputFilename: options.output
+				? path.basename(options.output)
+				: undefined,
+			videoModel: options.videoModel || options.model,
+			imageModel: options.imageModel,
+			signal,
+			onProgress: (stage, percent, message) => {
+				onProgress({ stage, percent, message });
+			},
+		});
 
-	const duration = (Date.now() - startTime) / 1000;
+		const duration = (Date.now() - startTime) / 1000;
 
-	if (!result.success) {
-		return { success: false, error: result.error, duration };
+		if (!result.success) {
+			return { success: false, error: result.error, duration };
+		}
+
+		return {
+			success: true,
+			outputPath: result.outputPath,
+			duration,
+			cost: result.totalCost,
+			data: options.json ? { shotCount: result.shotCount } : undefined,
+		};
+	} catch (err) {
+		return {
+			success: false,
+			error: err instanceof Error ? err.message : String(err),
+			duration: (Date.now() - startTime) / 1000,
+		};
 	}
-
-	return {
-		success: true,
-		outputPath: result.outputPath,
-		duration,
-		cost: result.totalCost,
-		data: options.json ? { shotCount: result.shotCount } : undefined,
-	};
 }
