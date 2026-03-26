@@ -30,6 +30,7 @@ const PROVIDER_MAP: Record<string, ProviderInfo> = {
 	crystal: { name: "fal.ai", logo: "/model-logos/fal.svg" },
 	seedvr: { name: "ByteDance", logo: "/model-logos/bytedance.svg" },
 	topaz: { name: "Topaz Labs", logo: "/model-logos/topaz.svg" },
+	phota: { name: "Photalabs", logo: "/model-logos/phota.svg" },
 };
 
 // Pre-sorted keys by length (longest first) for prefix matching
