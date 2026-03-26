@@ -961,8 +961,8 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		],
 		examples: [
 			'qcut-pipeline phota:edit -i photo.jpg -t "Make the background a sunset"',
-			"qcut-pipeline phota:edit -i photo.jpg -t \"@Profile1 in a forest\" --profile prof_abc123",
-			"qcut-pipeline phota:edit -i photo.jpg -t \"Enhance lighting\" --resolution 4K --json",
+			'qcut-pipeline phota:edit -i photo.jpg -t "@Profile1 in a forest" --profile prof_abc123',
+			'qcut-pipeline phota:edit -i photo.jpg -t "Enhance lighting" --resolution 4K --json',
 		],
 	},
 	"phota:enhance": {
