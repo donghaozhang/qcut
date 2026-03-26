@@ -213,6 +213,14 @@ export function convertSettingsToParams(
 				params.image_size = "landscape_4_3";
 			}
 			break;
+
+		case "phota-edit":
+			// Phota uses aspect_ratio, not image_size
+			if (settings.imageSize) {
+				params.aspect_ratio =
+					imageSizeToAspectRatio(String(settings.imageSize)) ?? "auto";
+			}
+			break;
 	}
 
 	const supportsOutputFormat = model.availableParams.some(

@@ -30,6 +30,7 @@ export const TEXT2IMAGE_MODEL_ORDER = [
 	"qwen-image",
 	"flux-pro-v11-ultra",
 	"seeddream-v3",
+	"phota-edit",
 ] as const;
 
 export type Text2ImageModelId = (typeof TEXT2IMAGE_MODEL_ORDER)[number];
@@ -117,6 +118,7 @@ export const MODEL_CATEGORIES = {
 		"reve-text-to-image",
 		"z-image-turbo",
 		"seeddream-v4-5-edit",
+		"phota-edit",
 	],
 	FAST: [
 		"seeddream-v3",

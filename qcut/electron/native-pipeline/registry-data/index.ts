@@ -25,6 +25,7 @@ export {
 	registerHeyGenModels,
 	registerDIDModels,
 	registerSynthesiaModels,
+	registerPhotaModels,
 } from "./platform-models.js";
 
 // Part 2 aggregate function
@@ -40,6 +41,7 @@ import {
 	registerHeyGenModels,
 	registerDIDModels,
 	registerSynthesiaModels,
+	registerPhotaModels,
 } from "./platform-models.js";
 
 /** Register all Part 2 models. */
@@ -55,4 +57,5 @@ export function registerAllPart2Models(): void {
 	registerHeyGenModels();
 	registerDIDModels();
 	registerSynthesiaModels();
+	registerPhotaModels();
 }

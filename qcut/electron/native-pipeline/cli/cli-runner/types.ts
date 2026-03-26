@@ -220,6 +220,8 @@ export interface CLIRunOptions {
 	noDynamicDuration?: boolean;
 	audioOnly?: boolean;
 	speakers?: number;
+	// phota options
+	profile?: string | string[];
 	// snapshot action options
 	selectValue?: string;
 	checked?: boolean;

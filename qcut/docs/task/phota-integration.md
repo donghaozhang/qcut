@@ -296,21 +296,43 @@ Add a simple UI for creating and managing Phota profiles. Profiles are the key d
 
 ## Summary
 
-| # | Subtask | Scope | Time | Key Files |
-|---|---------|-------|------|-----------|
-| 1 | Register models | CLI | ~5 min | `registry-data/platform-models.ts`, `registry-data/index.ts` |
-| 2 | CLI handlers | CLI | ~15 min | `cli/cli-handlers-phota.ts` (new) |
-| 3 | CLI command registry | CLI | ~5 min | `cli/command-registry.ts` |
-| 4 | CLI runner wiring | CLI | ~5 min | `cli/cli-runner/runner.ts` |
-| 5 | FAL client generation config | UI | ~10 min | `lib/ai-clients/fal-ai-client-generation.ts` |
-| 6 | Text2Image panel model | UI | ~10 min | `components/editor/media-panel/views/text2image.tsx` |
-| 7 | Enhance context menu | UI | ~15 min | `stores/ai/text2image-store.ts`, text2image view |
-| 8 | Edit flow for media images | UI | ~15 min | `lib/ai-video/generators/image.ts`, media panel |
-| 9 | Profile management UI | UI | ~15 min | `stores/ai/phota-profile-store.ts` (new), profile view (new) |
-| 10 | CLI unit tests | Test | ~10 min | `cli/__tests__/cli-handlers-phota.test.ts` (new) |
-| 11 | Documentation | Docs | ~5 min | `.claude/skills/native-cli/references/REFERENCE.md` |
+| # | Subtask | Scope | Status | Key Files |
+|---|---------|-------|--------|-----------|
+| 1 | Register models | CLI | DONE | `registry-data/platform-models.ts`, `registry-data/index.ts` |
+| 2 | CLI handlers | CLI | DONE | `cli/cli-handlers-phota.ts` (new) |
+| 3 | CLI command registry | CLI | DONE | `cli/command-registry.ts` |
+| 4 | CLI runner wiring | CLI | DONE | `cli/cli-runner/runner.ts` |
+| 5 | FAL client generation config | UI | DONE | `lib/ai-clients/fal-ai-client-generation.ts` |
+| 6 | Text2Image panel model | UI | DONE | `lib/text2image-models/other-models.ts`, `lib/text2image-models/index.ts` |
+| 7 | Enhance context menu | UI | TODO | `stores/ai/text2image-store.ts`, text2image view |
+| 8 | Edit flow for media images | UI | TODO | `lib/ai-video/generators/image.ts`, media panel |
+| 9 | Profile management UI | UI | TODO | `stores/ai/phota-profile-store.ts` (new), profile view (new) |
+| 10 | CLI unit tests | Test | DONE | `cli/__tests__/cli-handlers-phota.test.ts` (new) |
+| 11 | Documentation | Docs | TODO | `.claude/skills/native-cli/references/REFERENCE.md` |
 
-**Total estimated time: ~1 hr 50 min**
+## Implementation Details
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `electron/native-pipeline/registry-data/platform-models.ts` | Added `registerPhotaModels()` with 3 models |
+| `electron/native-pipeline/registry-data/index.ts` | Export + call `registerPhotaModels()` |
+| `electron/native-pipeline/cli/cli-handlers-phota.ts` | **New** — handlers for edit, enhance, create-profile |
+| `electron/native-pipeline/cli/command-registry.ts` | Added `phota` category + 3 command definitions |
+| `electron/native-pipeline/cli/cli-runner/runner.ts` | Imported handlers + 3 case branches |
+| `electron/native-pipeline/cli/cli-runner/types.ts` | Added `profile` field to `CLIRunOptions` |
+| `electron/native-pipeline/cli/__tests__/cli-handlers-phota.test.ts` | **New** — 7 unit tests |
+| `apps/web/src/lib/text2image-models/other-models.ts` | Added `phota-edit` model definition |
+| `apps/web/src/lib/text2image-models/index.ts` | Added to `TEXT2IMAGE_MODEL_ORDER` + `VERSATILE` category |
+| `apps/web/src/lib/text2image-models/__tests__/text2image-models.test.ts` | Updated model count 14→15 |
+| `apps/web/src/lib/ai-clients/fal-ai-client-generation.ts` | Added `phota-edit` parameter mapping case |
+
+### Tests
+
+- `bun run test -- electron/native-pipeline/cli/__tests__/cli-handlers-phota` — **7/7 pass**
+- `bun run test -- apps/web/src/lib/text2image-models` — **8/8 pass**
+- `bun run build` — passes (both renderer + electron tsc)
 
 ---
 

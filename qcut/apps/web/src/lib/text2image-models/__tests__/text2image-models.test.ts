@@ -9,8 +9,8 @@ import {
 } from "@/lib/ai-models/text2image-models";
 
 describe("text2image-models registry", () => {
-	it("TEXT2IMAGE_MODELS has exactly 14 models", () => {
-		expect(Object.keys(TEXT2IMAGE_MODELS)).toHaveLength(14);
+	it("TEXT2IMAGE_MODELS has exactly 15 models", () => {
+		expect(Object.keys(TEXT2IMAGE_MODELS)).toHaveLength(15);
 	});
 
 	it("every model in TEXT2IMAGE_MODEL_ORDER exists in TEXT2IMAGE_MODELS", () => {

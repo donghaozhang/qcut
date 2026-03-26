@@ -1,5 +1,5 @@
 /**
- * Platform-specific model definitions (Runway, HeyGen, D-ID, Synthesia)
+ * Platform-specific model definitions (Runway, HeyGen, D-ID, Synthesia, Phota)
  * @module electron/native-pipeline/registry-data/platform-models
  */
 
@@ -67,6 +67,59 @@ export function registerDIDModels(): void {
 		features: ["avatar_generation", "text_driven", "audio_driven"],
 		maxDuration: 120,
 		costEstimate: 0.8,
+		processingTime: 60,
+	});
+}
+
+export function registerPhotaModels(): void {
+	ModelRegistry.register({
+		key: "phota_edit",
+		name: "Phota Edit",
+		provider: "Photalabs (via FAL)",
+		endpoint: "fal-ai/phota/edit",
+		categories: ["image_to_image"],
+		description:
+			"AI photo editing with prompt-driven edits and identity preservation via profiles",
+		pricing: { per_image: 0.05 },
+		aspectRatios: ["auto", "1:1", "16:9", "4:3", "3:4", "9:16"],
+		defaults: { resolution: "1K", aspect_ratio: "auto" },
+		features: [
+			"prompt_editing",
+			"identity_preservation",
+			"multi_image_input",
+			"4K_output",
+		],
+		costEstimate: 0.05,
+		processingTime: 15,
+	});
+
+	ModelRegistry.register({
+		key: "phota_enhance",
+		name: "Phota Enhance",
+		provider: "Photalabs (via FAL)",
+		endpoint: "fal-ai/phota/enhance",
+		categories: ["image_to_image"],
+		description:
+			"One-click AI image enhancement with optional identity preservation",
+		pricing: { per_image: 0.03 },
+		defaults: {},
+		features: ["image_enhancement", "identity_preservation"],
+		costEstimate: 0.03,
+		processingTime: 10,
+	});
+
+	ModelRegistry.register({
+		key: "phota_create_profile",
+		name: "Phota Create Profile",
+		provider: "Photalabs (via FAL)",
+		endpoint: "fal-ai/phota/create-profile",
+		categories: ["image_to_image"],
+		description:
+			"Create a reusable identity profile from reference images for consistent generation",
+		pricing: { per_run: 0.1 },
+		defaults: {},
+		features: ["profile_creation", "identity_training"],
+		costEstimate: 0.1,
 		processingTime: 60,
 	});
 }
