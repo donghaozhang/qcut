@@ -2,126 +2,60 @@
 
 **Priority**: P1 — High value for tutorials (speed through boring parts, slow down key moments)
 **Estimate**: Medium (4 subtasks)
+**Status**: PARTIALLY IMPLEMENTED (4.1 + 4.2 done, 4.3 UI + 4.4 export pending)
 
 ## Goal
 
 Allow users to add per-region speed multipliers on the timeline. Each region has a start/end time and a flat speed value (0.25x–4x).
 
-## Recordly's Approach
+## Implementation Summary
 
-- `SpeedRegion` type: `{ id, startMs, endMs, speed }`
-- Dedicated `SPEED_ROW_ID` row on the timeline
-- Overlap prevention via `hasOverlap()` validation
-- Playback: set `video.playbackRate` based on active region at current time
-- Export: speed regions modify frame timestamp calculations in the decoder
-- Add via "S" hotkey or button, default 1000ms duration at playhead
-- Drag handles to resize, labeled sequentially ("Speed 1", "Speed 2")
-
-## Subtasks
-
-### 4.1 Speed Region Data Model
-
-**Modify**: `packages/editor-core/src/types/timeline.ts`
-
-```typescript
-interface SpeedRegion {
-  id: string;
-  startMs: number;
-  endMs: number;
-  speed: number; // 0.25–4.0 multiplier
-}
-```
+### 4.1 Speed Region Data Model — DONE
 
 **New file**: `apps/web/src/lib/screen-recording/speed-regions.ts`
+- `SpeedRegion` interface: `{ id, startMs, endMs, speed }`
+- `hasOverlap(regions, candidate)` — interval intersection with self-exclusion
+- `getSpeedAtTime(regions, timeMs)` — returns speed multiplier at a point (1.0 default)
+- `realTimeToPlaybackTime(regions, realTimeMs)` — source time → playback time
+- `playbackTimeToRealTime(regions, playbackTimeMs)` — inverse conversion
+- `calculateSpeedAdjustedDuration(totalMs, regions)` — total playback duration
+- `clampSpeed(speed)` — clamp to 0.25–4.0 range
+- Constants: MIN_DURATION (200ms), DEFAULT_SPEED (1.0), DEFAULT_DURATION (1000ms)
 
-```typescript
-// Overlap detection (from Recordly)
-function hasOverlap(regions: SpeedRegion[], candidate: SpeedRegion): boolean;
+**Tests**: `apps/web/src/lib/screen-recording/__tests__/speed-regions.test.ts` — 23 tests, all passing
+- hasOverlap: non-overlapping, overlapping, adjacent, self-skip, contained
+- getSpeedAtTime: outside, inside, boundaries, empty
+- realTimeToPlaybackTime: identity, 2x halves, 0.5x doubles, after-region shift
+- playbackTimeToRealTime: identity, round-trip inversion at multiple points
+- calculateSpeedAdjustedDuration: identity, 2x reduces, 0.5x increases, clamping, multiple regions
+- clampSpeed: below min, above max, pass-through
 
-// Get active speed at a given time
-function getSpeedAtTime(regions: SpeedRegion[], timeMs: number): number;
+### 4.2 Speed Regions Store — DONE
 
-// Convert real time to playback time accounting for speed regions
-function realTimeToPlaybackTime(regions: SpeedRegion[], realTimeMs: number): number;
+**Modified**: `apps/web/src/stores/screen-recording-store.ts`
+- Added `speedRegions: SpeedRegion[]` to state
+- `addSpeedRegion(startMs, durationMs?, speed?)` — creates with unique ID, rejects overlaps
+- `removeSpeedRegion(id)` — removes by ID
+- `updateSpeedRegion(id, updates)` — validates overlap + min duration after merge
+- `setSpeedRegions(regions)` — bulk set
 
-// Convert playback time back to real time
-function playbackTimeToRealTime(regions: SpeedRegion[], playbackTimeMs: number): number;
+### 4.3 Timeline UI — PENDING
 
-// Calculate total playback duration with speed regions applied
-function calculateSpeedAdjustedDuration(totalDurationMs: number, regions: SpeedRegion[]): number;
+**TODO**:
+- Add "Speed" row on timeline with orange-tinted items
+- Drag handles on region edges
+- Speed value display on each item
+- Properties panel: speed slider (0.25–4x), start/end time inputs
+- "S" keyboard shortcut to add speed region at playhead
 
-// Minimum duration enforcement
-const SPEED_REGION_MIN_DURATION_MS = 200;
-```
+### 4.4 Playback + Export Integration — PENDING
 
-**Tests**: `apps/web/src/lib/screen-recording/__tests__/speed-regions.test.ts`
-- Overlap detection: overlapping, adjacent, non-overlapping
-- Speed at time: inside region, outside region (returns 1.0), boundary
-- Time conversion: single region, multiple regions, nested boundaries
-- Duration calculation with various speed configurations
-
-### 4.2 Speed Regions Store
-
-**Modify**: `apps/web/src/stores/screen-recording-store.ts`
-
-Add to `ScreenRecordingEnhancementState`:
-
-```typescript
-speedRegions: SpeedRegion[];
-
-// Actions
-addSpeedRegion: (startMs: number, durationMs?: number, speed?: number) => void;
-removeSpeedRegion: (id: string) => void;
-updateSpeedRegion: (id: string, updates: Partial<SpeedRegion>) => void;
-```
-
-**Logic**:
-- `addSpeedRegion`: Create at playhead position, default 1000ms, default 1.0x speed. Reject if overlaps existing region.
-- `updateSpeedRegion`: Validate no overlap with other regions after update. Enforce min duration.
-- Persist with project via existing auto-save mechanism.
-
-### 4.3 Timeline UI — Speed Row
-
-Add a dedicated row on the timeline for speed regions.
-
-**Visual design** (from Recordly):
-- Orange-tinted items in a "Speed" row below the main video track
-- Each item shows the speed value (e.g., "2x", "0.5x")
-- Drag handles on left/right edges to resize
-- Click to select, show speed slider in properties panel
-- Double-click to edit speed value inline
-
-**Keyboard shortcut**: "S" to add speed region at playhead (register in keybindings store)
-
-**Properties panel** when speed region selected:
-- Speed slider: 0.25x – 4.0x (step 0.25)
-- Start time input (ms)
-- End time input (ms)
-- Delete button
-
-**Relevant existing files**:
-- Timeline components in `apps/web/src/components/editor/` — follow existing track/item patterns
-- `apps/web/src/stores/editor/keybindings-store.ts` — register "S" shortcut
-
-### 4.4 Playback + Export Integration
-
-**Playback**:
-- In the playback loop, check `getSpeedAtTime(regions, currentTimeMs)` each frame
-- Set `video.playbackRate` accordingly
-- Adjust playhead advancement by speed multiplier
-
-**Export**:
-- **Modify**: `apps/web/src/lib/export/export-engine-utils.ts`
-  - `calculateTotalFrames()` must account for speed regions (faster = fewer frames, slower = more frames)
-- **Modify**: `apps/web/src/lib/export/export-engine-renderer.ts`
-  - Frame time stepping: `realTime = playbackTimeToRealTime(regions, frameIndex / fps * 1000)`
-  - Seek source video to `realTime` for each frame
-
-**Relevant existing files**:
-- `apps/web/src/lib/export/export-engine.ts` — main export loop
-- `apps/web/src/stores/editor/playback-store.ts` — playback rate
+**TODO**:
+- Set `video.playbackRate` based on `getSpeedAtTime()` during playback
+- Modify `calculateTotalFrames()` in export engine
+- Adjust frame time stepping: `realTime = playbackTimeToRealTime(regions, frameIndex / fps * 1000)`
 
 ## Dependencies
 
-- **No new packages** — uses existing `video.playbackRate` API
-- **Port**: Overlap detection logic from Recordly (simple interval intersection check)
+- **No new packages**
+- **Reused**: Overlap detection pattern from Recordly's SpeedRegion model

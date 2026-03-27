@@ -2,114 +2,51 @@
 
 **Priority**: P0 — A screen recorder without audio capture is incomplete
 **Estimate**: Large (4 subtasks)
+**Status**: PARTIALLY IMPLEMENTED (1.1 service done, 1.2–1.4 pending)
 
 ## Goal
 
 Capture microphone audio and system audio during screen recording, mux them into the final recording file.
 
-## Recordly's Approach
+## Implementation Summary
 
-Recordly uses three tiers:
-1. **macOS**: ScreenCaptureKit Swift binary captures system audio + mic as separate `.m4a` files, FFmpeg muxes post-recording
-2. **Windows**: WASAPI C++ binary captures loopback (system) + mic as `.wav` files, FFmpeg muxes
-3. **Browser fallback**: `getDisplayMedia({ audio: true })` + `getUserMedia({ audio: true })`, mixed via `AudioContext` + `GainNode` (1.4x mic boost)
-
-**We start with tier 3** (browser fallback) — it works cross-platform, no native binaries needed, and covers 80% of use cases.
-
-## Subtasks
-
-### 1.1 Audio Capture Service
-
-Create a service that manages mic + system audio streams during recording.
+### 1.1 Audio Capture Service — DONE
 
 **New file**: `apps/web/src/lib/screen-recording/audio-capture.ts`
+- `startAudioCapture(config, displayStream?)` — creates AudioContext, captures mic via `getUserMedia`, system audio from display stream's audio tracks, mixes via GainNode + MediaStreamDestination
+- Default mic gain boost: 1.4 (from Recordly's browser fallback)
+- Supports specific mic device selection via `deviceId`
+- Returns `{ stream, cleanup }` — mixed stream ready for MediaRecorder, cleanup disconnects all nodes
+- `getAudioInputDevices()` — enumerates `audioinput` devices
+- `mergeAudioIntoStream(videoStream, audioStream)` — combines video + audio tracks into one MediaStream
 
-```typescript
-interface AudioCaptureConfig {
-  micEnabled: boolean;
-  systemAudioEnabled: boolean;
-  micDeviceId?: string;
-  micGainBoost?: number; // default 1.4 (from Recordly)
-}
+**Tests**: `apps/web/src/lib/screen-recording/__tests__/audio-capture.test.ts` — 9 tests, all passing
+- Creates AudioContext and destination
+- Captures microphone when enabled
+- Applies custom and default (1.4) gain boost
+- Uses specific mic device ID
+- Connects system audio from display stream
+- Cleanup closes AudioContext and disconnects nodes
+- getAudioInputDevices filters to audioinput only
+- mergeAudioIntoStream combines tracks
 
-interface AudioCaptureResult {
-  mixedStream: MediaStream;
-  cleanup: () => void;
-}
-```
+### 1.2 Audio Device Enumeration IPC — PENDING
 
-**Logic** (from Recordly's browser fallback):
-1. `getUserMedia({ audio: { deviceId } })` for microphone
-2. System audio comes from the existing `getDisplayMedia` call — pass `audio: true` in constraints
-3. Create `AudioContext`, connect both streams via `createMediaStreamSource`
-4. Apply `GainNode` (1.4x) to mic channel for level balancing
-5. Connect both to `createMediaStreamDestination` for mixed output
-6. Return mixed `MediaStream` for the `MediaRecorder`
+**TODO**: Add IPC handler to list audio devices from Electron main process
 
-**Relevant existing files**:
-- `electron/screen-recording-handler/ipc.ts` — extend `StartScreenRecordingOptions`
-- `apps/web/src/lib/ffmpeg/audio-mixer.ts` — existing `AudioContext` mixer (reuse pattern)
+### 1.3 Recording Store + UI Integration — PENDING
 
-**Tests**: `apps/web/src/lib/screen-recording/__tests__/audio-capture.test.ts`
-- Mock `getUserMedia` and `AudioContext`
-- Verify gain node creation with correct boost value
-- Verify cleanup disconnects all nodes
+**TODO**:
+- Add `audioConfig` to `ScreenRecordingEnhancementState`
+- Add mic toggle, device dropdown, system audio toggle, gain slider to recording UI
 
-### 1.2 Audio Device Enumeration
+### 1.4 Mux Audio into Recording Pipeline — PENDING
 
-Add IPC handler to list available audio input devices.
-
-**Modify**: `electron/screen-recording-handler/ipc.ts`
-- Add `screen:getAudioDevices` IPC channel
-- Returns `MediaDeviceInfo[]` filtered to `audioinput` kind
-
-**Modify**: `apps/web/src/types/electron/screen-recording.ts`
-- Add `getAudioDevices(): Promise<AudioDevice[]>` to ops type
-
-**Modify**: `packages/platform-desktop/src/index.ts`
-- Expose via `screenRecordingAdapter.getAudioDevices`
-
-### 1.3 Recording Store + UI Integration
-
-**Modify**: `apps/web/src/stores/screen-recording-store.ts`
-- Add to `ScreenRecordingEnhancementState`:
-  ```typescript
-  audioConfig: {
-    micEnabled: boolean;
-    systemAudioEnabled: boolean;
-    micDeviceId: string | null;
-    micGainBoost: number;
-  }
-  ```
-- Add actions: `setMicEnabled`, `setSystemAudioEnabled`, `setMicDevice`, `setMicGainBoost`
-
-**UI**: Add audio controls to the recording setup panel:
-- Mic toggle + device dropdown
-- System audio toggle
-- Mic volume boost slider (0.5–3.0x)
-
-### 1.4 Mux Audio into Recording Pipeline
-
-**Modify**: Recording start flow to pass `audio: true` to `getDisplayMedia` constraints when system audio is enabled.
-
-**Modify**: `MediaRecorder` initialization to accept the mixed audio stream from the audio capture service instead of a video-only stream.
-
-**Relevant existing code**:
-- The current recording flow in the renderer creates a `MediaRecorder` from the display stream
-- Extend this to merge the audio capture service's mixed stream before creating the recorder
-
-**Tests**: `apps/web/src/lib/screen-recording/__tests__/audio-capture.test.ts`
-- Integration test: verify `MediaRecorder` receives combined video + audio tracks
+**TODO**:
+- Pass `audio: true` to `getDisplayMedia` constraints
+- Use `mergeAudioIntoStream()` before creating `MediaRecorder`
 
 ## Dependencies
 
-- No new npm packages required
-- Uses existing Web APIs: `getUserMedia`, `AudioContext`, `GainNode`, `MediaStreamDestination`
-- Reuse patterns from `apps/web/src/lib/ffmpeg/audio-mixer.ts`
-
-## Future: Native Backends
-
-After browser fallback works, optionally add:
-- macOS: ScreenCaptureKit Swift binary for higher-quality system audio (Recordly's `ScreenCaptureKitRecorder.swift`)
-- Windows: WASAPI loopback binary (Recordly's `wasapi_loopback.cpp`)
-- These would be IPC-invoked native helpers, returning separate audio files for FFmpeg muxing
+- **No new packages** — uses Web Audio API (`AudioContext`, `GainNode`, `MediaStreamDestination`)
+- **Pattern reused** from `apps/web/src/lib/ffmpeg/audio-mixer.ts`

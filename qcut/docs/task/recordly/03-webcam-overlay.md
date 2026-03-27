@@ -2,167 +2,69 @@
 
 **Priority**: P0 — Critical for talking-head tutorials and product demos
 **Estimate**: Large (5 subtasks)
+**Status**: PARTIALLY IMPLEMENTED (3.1 store + 3.3 squircle done, 3.2/3.4/3.5 pending)
 
 ## Goal
 
 Picture-in-picture webcam bubble overlay on screen recordings with positioning, sizing, mirror, roundness, shadow, and zoom-reactive scaling.
 
-## Recordly's Approach
+## Implementation Summary
 
-- Webcam captured via `getUserMedia` at 1280×720@30fps as separate video file
-- 9 preset positions (corners, edges, center) via percentage-based layout
-- Squircle clip-path for iOS-style smooth rounding (`getSquircleSvgPath()`)
-- Shadow via CSS `drop-shadow` filter (0–100% intensity)
-- Zoom-reactive: overlay scales inversely to zoom depth for visual consistency
-- Export-time: composited via canvas `drawImage` with clip paths
-
-## Subtasks
-
-### 3.1 Webcam Overlay Store
-
-Clone the pattern from `apps/web/src/stores/stickers-overlay-store.ts`.
+### 3.1 Webcam Overlay Store — DONE
 
 **New file**: `apps/web/src/stores/webcam-overlay-store.ts`
+- `WebcamOverlayConfig` interface: enabled, position, size, mirror, roundness, shadow, margin, zoomReactive, opacity, deviceId
+- `WebcamPresetPosition` type: 9 positions (corners, edges, center)
+- `getPresetCoordinates(preset)` — maps preset names to normalized 0–1 coordinates
+- `getWebcamOverlayRect(config, containerW, containerH, zoomDepth?)` — computes pixel position/size with margin, zoom-reactive scaling, min-size enforcement (56px)
+- `useWebcamOverlayStore` Zustand store with `setConfig` and `resetConfig` actions
+- Default: disabled, bottom-left, 25% size, 80px roundness, 50% shadow
 
-```typescript
-interface WebcamOverlayConfig {
-  enabled: boolean;
-  position: WebcamPresetPosition | { x: number; y: number }; // percentage 0-100
-  size: number;           // percentage 10-100 of container
-  mirror: boolean;
-  roundness: number;      // 0-160px corner radius
-  shadow: number;         // 0-100% intensity
-  margin: number;         // px from edge
-  zoomReactive: boolean;  // scale with zoom regions
-  opacity: number;        // 0-1
-}
+**Tests**: `apps/web/src/stores/__tests__/webcam-overlay-store.test.ts` — 12 tests, all passing
+- Preset coordinates for all positions
+- Size calculation from percentage
+- Min size enforcement
+- Bottom-right and top-left positioning with margin
+- Zoom-reactive scaling
+- Custom position coordinates
+- Default config values
 
-type WebcamPresetPosition =
-  | "top-left" | "top-center" | "top-right"
-  | "center-left" | "center" | "center-right"
-  | "bottom-left" | "bottom-center" | "bottom-right";
-```
-
-**Reuse from Recordly**:
-- `getWebcamPositionForPreset()` — maps preset names to normalized 0–1 coordinates
-- `getWebcamOverlaySizePx()` — computes pixel dims from container + percentage + margin + zoom
-- `getWebcamOverlayScale()` — zoom-reactive scaling formula
-
-**Persistence**: Save to project via `platform().storage` (same pattern as stickers store)
-
-**Tests**: `apps/web/src/stores/__tests__/webcam-overlay-store.test.ts`
-- Position preset mapping
-- Size calculation with various container dimensions
-- Zoom-reactive scale computation
-- Persistence round-trip
-
-### 3.2 Webcam Capture Service
-
-**New file**: `apps/web/src/lib/screen-recording/webcam-capture.ts`
-
-```typescript
-interface WebcamCaptureConfig {
-  deviceId?: string;
-  width?: number;   // default 1280
-  height?: number;  // default 720
-  frameRate?: number; // default 30
-}
-
-async function startWebcamCapture(config: WebcamCaptureConfig): Promise<{
-  stream: MediaStream;
-  videoElement: HTMLVideoElement; // for preview rendering
-  cleanup: () => void;
-}>
-```
-
-**Logic**:
-1. `getUserMedia({ video: { deviceId, width, height, frameRate } })`
-2. Create hidden `<video>` element, attach stream as `srcObject`
-3. Track the stream for cleanup (stop all tracks on dispose)
-4. Enumerate devices via `navigator.mediaDevices.enumerateDevices()`
-
-**Tests**: `apps/web/src/lib/screen-recording/__tests__/webcam-capture.test.ts`
-- Mock `getUserMedia`, verify constraints passed correctly
-- Verify cleanup stops tracks
-
-### 3.3 Squircle Geometry Utility
-
-Port Recordly's `src/lib/geometry/squircle.ts` — pure math, directly portable.
+### 3.3 Squircle Geometry — DONE
 
 **New file**: `apps/web/src/lib/screen-recording/squircle.ts`
+- Ported from Recordly's `squircle.ts` — superellipse (exponent 4.5) for iOS-style smooth rounding
+- `getSquirclePathPoints(rect)` — generates path points with 10 segments per corner
+- `getSquircleSvgPath(rect)` — SVG path string for clip-path CSS
+- `drawSquircleClipPath(ctx, rect)` — Canvas2D clip path for export rendering
+- Handles edge cases: zero size, zero radius (falls back to rectangle), radius clamping
 
-```typescript
-function getSquircleSvgPath(width: number, height: number, radius: number): string
-function getSquircleClipPath(width: number, height: number, radius: number): string
-```
+**Tests**: `apps/web/src/lib/screen-recording/__tests__/squircle.test.ts` — 8 tests, all passing
+- Zero size returns empty, zero radius returns rectangle
+- Curved points generated (41 points = 4 corners × 10 segments + 1)
+- Radius clamping, bounds checking
+- SVG path format (M...L...Z)
 
-This generates the iOS-style superellipse path (smoother than CSS `border-radius`).
+### 3.2 Webcam Capture Service — PENDING
 
-**Tests**: `apps/web/src/lib/screen-recording/__tests__/squircle.test.ts`
-- Verify path output for known dimensions
-- Edge cases: radius 0 (rectangle), radius > min(w,h)/2 (circle)
+**TODO**: Create `apps/web/src/lib/screen-recording/webcam-capture.ts`
+- `getUserMedia({ video: { deviceId, width, height, frameRate } })`
+- Create hidden `<video>` element for preview
+- Cleanup stops all tracks
 
-### 3.4 Preview Rendering Component
+### 3.4 Preview Rendering Component — PENDING
 
-**New file**: `apps/web/src/components/editor/webcam-overlay.tsx`
+**TODO**: Create `apps/web/src/components/editor/webcam-overlay.tsx`
+- Render bubble with squircle clip-path, shadow, mirror
+- 9-position preset grid, size/roundness/shadow sliders
+- Draggable for custom positioning
 
-Renders the webcam bubble in the editor preview:
-1. Position using CSS `left`/`top` percentages from store
-2. Size using percentage of container width
-3. Mirror via `transform: scaleX(-1)`
-4. Roundness via squircle SVG clip-path
-5. Shadow via CSS `drop-shadow` filter
-6. Opacity via CSS `opacity`
-7. Draggable for custom positioning (use same drag pattern as sticker overlay)
+### 3.5 Export Compositing — PENDING
 
-**UI controls** (in settings panel or dedicated webcam panel):
-- Enable/disable toggle
-- Device selector dropdown
-- 9-position preset grid
-- Size slider (10–100%)
-- Mirror toggle
-- Roundness slider (0–160px)
-- Shadow slider (0–100%)
-- Margin input (px)
-- Zoom-reactive toggle
-
-**Relevant existing files**:
-- `apps/web/src/components/editor/stickers-overlay/` — drag/resize interaction pattern
-- `apps/web/src/stores/stickers-overlay-store.ts` — z-index management pattern
-
-### 3.5 Export Compositing
-
-**Modify**: `apps/web/src/lib/export/export-engine-renderer.ts`
-
-Add `renderWebcamOverlay()` to the frame rendering pipeline:
-
-```typescript
-function renderWebcamOverlay(
-  ctx: CanvasRenderingContext2D,
-  webcamVideo: HTMLVideoElement,
-  config: WebcamOverlayConfig,
-  canvasWidth: number,
-  canvasHeight: number,
-  currentZoomDepth: number
-): void {
-  // 1. Calculate position from preset or custom coords
-  // 2. Calculate size (with zoom-reactive scaling if enabled)
-  // 3. Save context, apply squircle clip path
-  // 4. Draw video frame (mirror if needed via scale(-1, 1))
-  // 5. Draw shadow if enabled
-  // 6. Restore context
-}
-```
-
-Call this after the main frame + cursor but before captions/annotations in the compositing order.
-
-**Tests**: `apps/web/src/lib/export/__tests__/webcam-overlay-render.test.ts`
-- Verify compositing order
-- Verify mirror transform applied correctly
-- Verify zoom-reactive size changes with zoom depth
+**TODO**: Add `renderWebcamOverlay()` to `export-engine-renderer.ts`
+- Draw video frame with squircle clip, mirror transform, shadow
 
 ## Dependencies
 
 - **No new packages** — uses `getUserMedia`, Canvas2D, CSS clip-path
-- **Reuse**: Sticker overlay store pattern, export engine renderer pipeline
-- **Port**: Squircle geometry from Recordly (pure math, ~50 lines)
+- **Ported**: Squircle geometry from Recordly (~80 lines pure math)
+- **Pattern reused**: Sticker overlay store for Zustand structure
