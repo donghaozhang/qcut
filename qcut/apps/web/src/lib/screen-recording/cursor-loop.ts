@@ -32,7 +32,7 @@ function easeOutQuint(t: number): number {
  */
 export function findLastMovingSampleTime(
 	points: CursorTelemetryPoint[],
-	epsilon = MOVEMENT_EPSILON,
+	epsilon = MOVEMENT_EPSILON
 ): number {
 	if (points.length <= 1) return points[0]?.t ?? 0;
 
@@ -53,7 +53,7 @@ export function findLastMovingSampleTime(
  */
 function interpolatePosition(
 	points: CursorTelemetryPoint[],
-	timeMs: number,
+	timeMs: number
 ): { x: number; y: number } | null {
 	if (points.length === 0) return null;
 	if (timeMs <= points[0].t) return { x: points[0].x, y: points[0].y };
@@ -102,7 +102,7 @@ export interface LoopConfig {
 export function buildLoopedCursorTelemetry(
 	points: CursorTelemetryPoint[],
 	totalDurationMs: number,
-	config?: LoopConfig,
+	config?: LoopConfig
 ): CursorTelemetryPoint[] {
 	if (!points || points.length === 0) return [];
 
@@ -119,15 +119,15 @@ export function buildLoopedCursorTelemetry(
 
 	const actualFreeze = Math.min(freezeDuration, maxFreezeWindow);
 	const motionEndMs = timelineEndMs - actualFreeze;
-	const actualSettle = Math.min(
-		settleDuration,
-		Math.max(0, actualFreeze - 1),
-	);
+	const actualSettle = Math.min(settleDuration, Math.max(0, actualFreeze - 1));
 	const returnMotionDuration = Math.max(1, actualFreeze - actualSettle);
 
 	const sourceStartMs = firstPoint.t;
 	const epsilon = config?.movementEpsilon ?? MOVEMENT_EPSILON;
-	const sourceEndMs = Math.max(sourceStartMs, findLastMovingSampleTime(points, epsilon));
+	const sourceEndMs = Math.max(
+		sourceStartMs,
+		findLastMovingSampleTime(points, epsilon)
+	);
 	const sourceDuration = Math.max(1, sourceEndMs - sourceStartMs);
 	const playbackWindow = Math.max(1, motionEndMs);
 
@@ -137,11 +137,7 @@ export function buildLoopedCursorTelemetry(
 	];
 
 	for (const point of points) {
-		const progress = clamp(
-			(point.t - sourceStartMs) / sourceDuration,
-			0,
-			1,
-		);
+		const progress = clamp((point.t - sourceStartMs) / sourceDuration, 0, 1);
 		const mappedTime = Math.round(playbackWindow * progress);
 
 		if (mappedTime <= looped[looped.length - 1].t) {
@@ -157,9 +153,10 @@ export function buildLoopedCursorTelemetry(
 	}
 
 	// Phase 2: Return motion — ease from final position to first position
-	const returnStart =
-		interpolatePosition(looped, motionEndMs) ??
-		{ x: points[points.length - 1].x, y: points[points.length - 1].y };
+	const returnStart = interpolatePosition(looped, motionEndMs) ?? {
+		x: points[points.length - 1].x,
+		y: points[points.length - 1].y,
+	};
 
 	for (let step = 0; step <= returnSteps; step++) {
 		const progress = step / returnSteps;
@@ -178,7 +175,7 @@ export function buildLoopedCursorTelemetry(
 	if (actualSettle > 0) {
 		const settleSteps = Math.max(
 			2,
-			Math.round((actualSettle / freezeDuration) * returnSteps),
+			Math.round((actualSettle / freezeDuration) * returnSteps)
 		);
 		const settleStartMs = motionEndMs + returnMotionDuration;
 

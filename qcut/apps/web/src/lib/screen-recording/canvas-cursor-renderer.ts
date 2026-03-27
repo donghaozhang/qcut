@@ -18,7 +18,7 @@ export function drawCursor(
 	config: CursorRenderConfig,
 	clickAnimProgress: number,
 	canvasWidth: number,
-	swayRotation = 0,
+	swayRotation = 0
 ): void {
 	if (config.cursorStyle === "hidden") return;
 

@@ -156,10 +156,16 @@ export class CursorRenderer {
 			const dx = smoothX - this.prevSmoothedX;
 			const dy = smoothY - this.prevSmoothedY;
 			const targetRotation = computeCursorSwayRotation(
-				dx, dy, rawDt * 1000, this.config.sway,
+				dx,
+				dy,
+				rawDt * 1000,
+				this.config.sway
 			);
 			this.springRotation = stepSpring(
-				this.springRotation, targetRotation, this.swaySpringConfig, rawDt,
+				this.springRotation,
+				targetRotation,
+				this.swaySpringConfig,
+				rawDt
 			);
 			swayRotation = this.springRotation.value;
 		}

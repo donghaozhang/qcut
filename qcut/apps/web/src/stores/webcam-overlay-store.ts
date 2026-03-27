@@ -49,9 +49,10 @@ export const DEFAULT_WEBCAM_CONFIG: WebcamOverlayConfig = {
 };
 
 /** Map preset position names to normalized 0–1 coordinates */
-export function getPresetCoordinates(
-	preset: WebcamPresetPosition,
-): { x: number; y: number } {
+export function getPresetCoordinates(preset: WebcamPresetPosition): {
+	x: number;
+	y: number;
+} {
 	const map: Record<WebcamPresetPosition, { x: number; y: number }> = {
 		"top-left": { x: 0, y: 0 },
 		"top-center": { x: 0.5, y: 0 },
@@ -73,7 +74,7 @@ export function getWebcamOverlayRect(
 	config: WebcamOverlayConfig,
 	containerWidth: number,
 	containerHeight: number,
-	zoomDepth = 1,
+	zoomDepth = 1
 ): { x: number; y: number; width: number; height: number } {
 	const sizePercent = config.size / 100;
 	let overlayWidth = containerWidth * sizePercent;

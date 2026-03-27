@@ -77,9 +77,7 @@ export function toWallpaperLabel(fileName: string): string {
 export function createWallpaperEntry(fileName: string): BuiltInWallpaper {
 	const encodedFileName = encodeURIComponent(fileName);
 	return {
-		id:
-			toWallpaperId(fileName) ||
-			`wallpaper-${encodedFileName.toLowerCase()}`,
+		id: toWallpaperId(fileName) || `wallpaper-${encodedFileName.toLowerCase()}`,
 		label: toWallpaperLabel(fileName),
 		relativePath: `wallpapers/${fileName}`,
 	};
@@ -88,8 +86,7 @@ export function createWallpaperEntry(fileName: string): BuiltInWallpaper {
 /** Sort wallpaper filenames with locale-aware numeric sorting. */
 export function sortWallpaperFiles(fileNames: string[]): string[] {
 	return [...fileNames].sort(
-		new Intl.Collator(undefined, { numeric: true, sensitivity: "base" })
-			.compare,
+		new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }).compare
 	);
 }
 

@@ -109,8 +109,8 @@ function runProcess(command: string, args: string[]): Promise<void> {
 			} else {
 				reject(
 					new Error(
-						`FFmpeg GIF conversion failed (code ${code}): ${stderr.slice(-500)}`,
-					),
+						`FFmpeg GIF conversion failed (code ${code}): ${stderr.slice(-500)}`
+					)
 				);
 			}
 		});

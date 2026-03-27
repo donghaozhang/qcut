@@ -52,7 +52,11 @@ interface ScreenRecordingEnhancementState {
 
 	/** Speed regions for playback speed control */
 	speedRegions: SpeedRegion[];
-	addSpeedRegion: (startMs: number, durationMs?: number, speed?: number) => void;
+	addSpeedRegion: (
+		startMs: number,
+		durationMs?: number,
+		speed?: number
+	) => void;
 	removeSpeedRegion: (id: string) => void;
 	updateSpeedRegion: (id: string, updates: Partial<SpeedRegion>) => void;
 	setSpeedRegions: (regions: SpeedRegion[]) => void;
@@ -60,7 +64,7 @@ interface ScreenRecordingEnhancementState {
 
 /** Check if any enhancements are active */
 export const hasActiveEnhancements = (
-	state: ScreenRecordingEnhancementState,
+	state: ScreenRecordingEnhancementState
 ): boolean =>
 	state.background.type !== "none" ||
 	(state.showCursorOverlay && state.cursorTelemetry !== null) ||
@@ -155,6 +159,5 @@ if (typeof window !== "undefined" && import.meta.env.DEV) {
 		window as Window & {
 			__screenRecordingEnhancementStore__?: typeof useScreenRecordingEnhancementStore;
 		}
-	).__screenRecordingEnhancementStore__ =
-		useScreenRecordingEnhancementStore;
+	).__screenRecordingEnhancementStore__ = useScreenRecordingEnhancementStore;
 }

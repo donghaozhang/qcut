@@ -374,7 +374,7 @@ export function isValidGifFrameRate(rate: number): rate is GifFrameRate {
 export function calculateGifDimensions(
 	sourceWidth: number,
 	sourceHeight: number,
-	sizePreset: GifSizePreset,
+	sizePreset: GifSizePreset
 ): { width: number; height: number } {
 	const preset = GIF_SIZE_PRESETS[sizePreset];
 

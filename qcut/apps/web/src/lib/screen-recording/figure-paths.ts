@@ -50,7 +50,7 @@ export function drawSvgPathOnCanvas(
 	x: number,
 	y: number,
 	width: number,
-	height: number,
+	height: number
 ): void {
 	const scaleX = width / 100;
 	const scaleY = height / 100;
@@ -84,7 +84,7 @@ export function drawArrow(
 	width: number,
 	height: number,
 	strokeColor: string,
-	strokeWidth: number,
+	strokeWidth: number
 ): void {
 	const pathData = ARROW_PATHS[direction];
 	if (!pathData) return;
@@ -117,7 +117,7 @@ export function drawCircle(
 	strokeColor: string,
 	strokeWidth: number,
 	fillColor?: string,
-	fillOpacity = 1,
+	fillOpacity = 1
 ): void {
 	ctx.save();
 	const cx = x + width / 2;
@@ -154,7 +154,7 @@ export function drawRectangle(
 	strokeWidth: number,
 	fillColor?: string,
 	fillOpacity = 1,
-	cornerRadius = 0,
+	cornerRadius = 0
 ): void {
 	ctx.save();
 	ctx.beginPath();

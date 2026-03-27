@@ -37,7 +37,7 @@ const DEFAULT_MIC_GAIN_BOOST = 1.4;
  */
 export async function startAudioCapture(
 	config: AudioCaptureConfig,
-	displayStream?: MediaStream,
+	displayStream?: MediaStream
 ): Promise<AudioCaptureResult> {
 	const cleanupFns: (() => void)[] = [];
 	const audioContext = new AudioContext();
@@ -55,9 +55,7 @@ export async function startAudioCapture(
 				: true,
 		};
 
-		const micStream = await navigator.mediaDevices.getUserMedia(
-			micConstraints,
-		);
+		const micStream = await navigator.mediaDevices.getUserMedia(micConstraints);
 		cleanupFns.push(() => {
 			for (const track of micStream.getTracks()) track.stop();
 		});
@@ -80,8 +78,7 @@ export async function startAudioCapture(
 		const audioTracks = displayStream.getAudioTracks();
 		if (audioTracks.length > 0) {
 			const systemStream = new MediaStream(audioTracks);
-			const systemSource =
-				audioContext.createMediaStreamSource(systemStream);
+			const systemSource = audioContext.createMediaStreamSource(systemStream);
 			systemSource.connect(destination);
 
 			cleanupFns.push(() => {
@@ -128,7 +125,7 @@ export async function getAudioInputDevices(): Promise<
  */
 export function mergeAudioIntoStream(
 	videoStream: MediaStream,
-	audioStream: MediaStream,
+	audioStream: MediaStream
 ): MediaStream {
 	const merged = new MediaStream();
 

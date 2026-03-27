@@ -48,7 +48,7 @@ export function computeCursorSwayRotation(
 	dx: number,
 	dy: number,
 	deltaMs: number,
-	sway: number,
+	sway: number
 ): number {
 	if (sway <= 0) return 0;
 
@@ -59,15 +59,9 @@ export function computeCursorSwayRotation(
 	const speedFactor = clamp(speedPxPerSec / SPEED_REFERENCE, 0, 1);
 	if (speedFactor <= 0) return 0;
 
-	const directionalBias = clamp(
-		(dx + dy * VERTICAL_WEIGHT) / distance,
-		-1,
-		1,
-	);
+	const directionalBias = clamp((dx + dy * VERTICAL_WEIGHT) / distance, -1, 1);
 
-	return (
-		directionalBias * speedFactor * MAX_ROTATION * sway * INTENSITY_SCALE
-	);
+	return directionalBias * speedFactor * MAX_ROTATION * sway * INTENSITY_SCALE;
 }
 
 /** Convert internal sway value to UI slider (0–1) */

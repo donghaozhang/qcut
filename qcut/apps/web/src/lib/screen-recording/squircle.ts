@@ -27,7 +27,7 @@ function clamp(value: number, min: number, max: number): number {
 function getClampedRadius(
 	width: number,
 	height: number,
-	radius: number,
+	radius: number
 ): number {
 	return clamp(radius, 0, Math.min(width, height) / 2);
 }
@@ -36,7 +36,7 @@ function getSuperellipsePoint(
 	cx: number,
 	cy: number,
 	radius: number,
-	angle: number,
+	angle: number
 ): Point {
 	const cos = Math.cos(angle);
 	const sin = Math.sin(angle);
@@ -115,7 +115,7 @@ export function getSquircleSvgPath(rect: SquircleRect): string {
  */
 export function drawSquircleClipPath(
 	ctx: CanvasRenderingContext2D,
-	rect: SquircleRect,
+	rect: SquircleRect
 ): void {
 	const points = getSquirclePathPoints(rect);
 	if (points.length === 0) return;

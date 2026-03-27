@@ -4,7 +4,10 @@
  */
 
 import { create } from "zustand";
-import type { ArrowDirection, FigureType } from "@/lib/screen-recording/figure-paths";
+import type {
+	ArrowDirection,
+	FigureType,
+} from "@/lib/screen-recording/figure-paths";
 
 export interface FigureAnnotation {
 	id: string;
@@ -42,13 +45,10 @@ interface FigureAnnotationsState {
 		type: FigureType,
 		startMs: number,
 		endMs: number,
-		arrowDirection?: ArrowDirection,
+		arrowDirection?: ArrowDirection
 	) => string;
 	removeAnnotation: (id: string) => void;
-	updateAnnotation: (
-		id: string,
-		updates: Partial<FigureAnnotation>,
-	) => void;
+	updateAnnotation: (id: string, updates: Partial<FigureAnnotation>) => void;
 	setSelectedId: (id: string | null) => void;
 
 	getVisibleAnnotationsAtTime: (timeMs: number) => FigureAnnotation[];
@@ -66,13 +66,14 @@ export const useFigureAnnotationsStore = create<FigureAnnotationsState>(
 			const id = `fig-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 			const maxZ = Math.max(
 				0,
-				...Array.from(get().annotations.values()).map((a) => a.zIndex),
+				...Array.from(get().annotations.values()).map((a) => a.zIndex)
 			);
 
 			const annotation: FigureAnnotation = {
 				id,
 				type,
-				arrowDirection: type === "arrow" ? (arrowDirection ?? "right") : undefined,
+				arrowDirection:
+					type === "arrow" ? (arrowDirection ?? "right") : undefined,
 				x: 40,
 				y: 40,
 				width: 20,
@@ -126,7 +127,7 @@ export const useFigureAnnotationsStore = create<FigureAnnotationsState>(
 			set((state) => {
 				const maxZ = Math.max(
 					0,
-					...Array.from(state.annotations.values()).map((a) => a.zIndex),
+					...Array.from(state.annotations.values()).map((a) => a.zIndex)
 				);
 				const existing = state.annotations.get(id);
 				if (!existing) return state;
@@ -138,7 +139,7 @@ export const useFigureAnnotationsStore = create<FigureAnnotationsState>(
 		sendToBack: (id) =>
 			set((state) => {
 				const minZ = Math.min(
-					...Array.from(state.annotations.values()).map((a) => a.zIndex),
+					...Array.from(state.annotations.values()).map((a) => a.zIndex)
 				);
 				const existing = state.annotations.get(id);
 				if (!existing) return state;
@@ -146,5 +147,5 @@ export const useFigureAnnotationsStore = create<FigureAnnotationsState>(
 				next.set(id, { ...existing, zIndex: minZ - 1 });
 				return { annotations: next };
 			}),
-	}),
+	})
 );

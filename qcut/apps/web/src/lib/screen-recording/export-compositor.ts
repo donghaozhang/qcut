@@ -26,11 +26,7 @@ import {
 	getWebcamOverlayRect,
 	type WebcamOverlayConfig,
 } from "@/stores/webcam-overlay-store";
-import {
-	drawArrow,
-	drawCircle,
-	drawRectangle,
-} from "./figure-paths";
+import { drawArrow, drawCircle, drawRectangle } from "./figure-paths";
 import type { FigureAnnotation } from "@/stores/figure-annotations-store";
 
 export interface ExportCompositorConfig {
@@ -83,7 +79,9 @@ export class ScreenRecordingExportCompositor {
 		this.springRotation = createSpringState();
 
 		// Sway spring: reduced damping/mass for natural wobble
-		const baseSpring = getCursorSpringConfig(config.cursorConfig.smoothingFactor);
+		const baseSpring = getCursorSpringConfig(
+			config.cursorConfig.smoothingFactor
+		);
 		this.swaySpringConfig = {
 			stiffness: baseSpring.stiffness,
 			damping: baseSpring.damping * 0.9,
@@ -91,14 +89,10 @@ export class ScreenRecordingExportCompositor {
 		};
 
 		// Pre-process telemetry for cursor loop mode
-		if (
-			config.cursorLoopMode &&
-			config.telemetry &&
-			config.totalDurationMs
-		) {
+		if (config.cursorLoopMode && config.telemetry && config.totalDurationMs) {
 			this.processedTelemetry = buildLoopedCursorTelemetry(
 				config.telemetry.points,
-				config.totalDurationMs,
+				config.totalDurationMs
 			);
 		}
 	}
@@ -112,10 +106,9 @@ export class ScreenRecordingExportCompositor {
 	renderFrame(
 		ctx: CanvasRenderingContext2D,
 		videoFrame: CanvasImageSource,
-		timeMs: number,
+		timeMs: number
 	): void {
-		const { outputWidth, outputHeight, background, cursorConfig } =
-			this.config;
+		const { outputWidth, outputHeight, background, cursorConfig } = this.config;
 
 		// Speed region time remapping: convert output time to source time
 		const sourceTimeMs = this.config.speedRegions?.length
@@ -132,7 +125,7 @@ export class ScreenRecordingExportCompositor {
 			sourceTimeMs,
 			this.config.zoomRegions,
 			outputWidth,
-			outputHeight,
+			outputHeight
 		);
 
 		// Step 3: Draw video frame (with background padding/rounding or direct)
@@ -158,7 +151,7 @@ export class ScreenRecordingExportCompositor {
 				videoW,
 				videoH,
 				background.borderRadius,
-				background.shadow,
+				background.shadow
 			);
 		} else {
 			ctx.drawImage(videoFrame, 0, 0, outputWidth, outputHeight);
@@ -169,7 +162,7 @@ export class ScreenRecordingExportCompositor {
 			this.renderCursor(
 				ctx,
 				sourceTimeMs,
-				background.type !== "none" ? background.padding : 0,
+				background.type !== "none" ? background.padding : 0
 			);
 		}
 
@@ -185,7 +178,7 @@ export class ScreenRecordingExportCompositor {
 	private renderCursor(
 		ctx: CanvasRenderingContext2D,
 		timeMs: number,
-		padding = 0,
+		padding = 0
 	): void {
 		const { cursorConfig, outputWidth, outputHeight } = this.config;
 		const videoW = outputWidth - padding * 2;
@@ -214,24 +207,21 @@ export class ScreenRecordingExportCompositor {
 		const ry = (point.y - captureRect.y) / captureRect.height;
 
 		// Spring smoothing
-		const dt =
-			this.lastTimeMs >= 0 ? (timeMs - this.lastTimeMs) / 1000 : 0;
+		const dt = this.lastTimeMs >= 0 ? (timeMs - this.lastTimeMs) / 1000 : 0;
 		this.lastTimeMs = timeMs;
 
-		const springConfig = getCursorSpringConfig(
-			cursorConfig.smoothingFactor,
-		);
+		const springConfig = getCursorSpringConfig(cursorConfig.smoothingFactor);
 		this.springX = stepSpring(
 			this.springX,
 			padding + rx * videoW,
 			springConfig,
-			dt,
+			dt
 		);
 		this.springY = stepSpring(
 			this.springY,
 			padding + ry * videoH,
 			springConfig,
-			dt,
+			dt
 		);
 
 		// Sway rotation
@@ -243,13 +233,13 @@ export class ScreenRecordingExportCompositor {
 				dx,
 				dy,
 				dt * 1000,
-				cursorConfig.sway,
+				cursorConfig.sway
 			);
 			this.springRotation = stepSpring(
 				this.springRotation,
 				target,
 				this.swaySpringConfig,
-				dt,
+				dt
 			);
 			swayRotation = this.springRotation.value;
 		}
@@ -271,13 +261,13 @@ export class ScreenRecordingExportCompositor {
 			cursorConfig,
 			clickProgress,
 			outputWidth,
-			swayRotation,
+			swayRotation
 		);
 	}
 
 	private renderWebcamOverlay(
 		ctx: CanvasRenderingContext2D,
-		zoomDepth: number,
+		zoomDepth: number
 	): void {
 		const { webcamConfig, webcamVideo, outputWidth, outputHeight } =
 			this.config;
@@ -287,7 +277,7 @@ export class ScreenRecordingExportCompositor {
 			webcamConfig,
 			outputWidth,
 			outputHeight,
-			zoomDepth,
+			zoomDepth
 		);
 
 		ctx.save();
@@ -319,13 +309,7 @@ export class ScreenRecordingExportCompositor {
 			ctx.scale(-1, 1);
 			ctx.drawImage(webcamVideo, 0, 0, rect.width, rect.height);
 		} else {
-			ctx.drawImage(
-				webcamVideo,
-				rect.x,
-				rect.y,
-				rect.width,
-				rect.height,
-			);
+			ctx.drawImage(webcamVideo, rect.x, rect.y, rect.width, rect.height);
 		}
 
 		ctx.restore();
@@ -333,7 +317,7 @@ export class ScreenRecordingExportCompositor {
 
 	private renderFigureAnnotations(
 		ctx: CanvasRenderingContext2D,
-		timeMs: number,
+		timeMs: number
 	): void {
 		const annotations = this.config.figureAnnotations;
 		if (!annotations || annotations.length === 0) return;
@@ -368,7 +352,7 @@ export class ScreenRecordingExportCompositor {
 					pw,
 					ph,
 					a.strokeColor,
-					a.strokeWidth,
+					a.strokeWidth
 				);
 			} else if (a.type === "circle") {
 				drawCircle(
@@ -380,7 +364,7 @@ export class ScreenRecordingExportCompositor {
 					a.strokeColor,
 					a.strokeWidth,
 					a.fillColor,
-					a.fillOpacity,
+					a.fillOpacity
 				);
 			} else if (a.type === "rectangle") {
 				drawRectangle(
@@ -392,7 +376,7 @@ export class ScreenRecordingExportCompositor {
 					a.strokeColor,
 					a.strokeWidth,
 					a.fillColor,
-					a.fillOpacity,
+					a.fillOpacity
 				);
 			}
 

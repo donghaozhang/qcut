@@ -30,7 +30,7 @@ export const SPEED_MAX = 4.0;
  */
 export function hasOverlap(
 	regions: SpeedRegion[],
-	candidate: SpeedRegion,
+	candidate: SpeedRegion
 ): boolean {
 	for (const region of regions) {
 		if (region.id === candidate.id) continue;
@@ -45,10 +45,7 @@ export function hasOverlap(
  * Get the effective playback speed at a given time.
  * Returns 1.0 if no speed region covers the given time.
  */
-export function getSpeedAtTime(
-	regions: SpeedRegion[],
-	timeMs: number,
-): number {
+export function getSpeedAtTime(regions: SpeedRegion[], timeMs: number): number {
 	for (const region of regions) {
 		if (timeMs >= region.startMs && timeMs < region.endMs) {
 			return region.speed;
@@ -63,7 +60,7 @@ export function getSpeedAtTime(
  */
 export function realTimeToPlaybackTime(
 	regions: SpeedRegion[],
-	realTimeMs: number,
+	realTimeMs: number
 ): number {
 	const sorted = [...regions].sort((a, b) => a.startMs - b.startMs);
 	let playbackMs = 0;
@@ -101,7 +98,7 @@ export function realTimeToPlaybackTime(
  */
 export function playbackTimeToRealTime(
 	regions: SpeedRegion[],
-	playbackTimeMs: number,
+	playbackTimeMs: number
 ): number {
 	const sorted = [...regions].sort((a, b) => a.startMs - b.startMs);
 	let remaining = playbackTimeMs;
@@ -133,7 +130,7 @@ export function playbackTimeToRealTime(
  */
 export function calculateSpeedAdjustedDuration(
 	totalDurationMs: number,
-	regions: SpeedRegion[],
+	regions: SpeedRegion[]
 ): number {
 	if (regions.length === 0) return totalDurationMs;
 
