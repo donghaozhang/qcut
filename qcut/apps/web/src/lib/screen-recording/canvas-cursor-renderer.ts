@@ -17,7 +17,8 @@ export function drawCursor(
 	y: number,
 	config: CursorRenderConfig,
 	clickAnimProgress: number,
-	canvasWidth: number
+	canvasWidth: number,
+	swayRotation = 0,
 ): void {
 	if (config.cursorStyle === "hidden") return;
 
@@ -39,6 +40,13 @@ export function drawCursor(
 
 	ctx.save();
 	ctx.globalAlpha = config.dotAlpha;
+
+	// Apply sway rotation around cursor position
+	if (swayRotation !== 0) {
+		ctx.translate(x, y);
+		ctx.rotate(swayRotation);
+		ctx.translate(-x, -y);
+	}
 
 	if (
 		config.cursorStyle === "macos-arrow" ||

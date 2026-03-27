@@ -28,11 +28,15 @@ export const GRADIENT_PRESETS: {
 ];
 
 export interface BackgroundConfig {
-	type: "none" | "gradient" | "solid";
+	type: "none" | "gradient" | "solid" | "wallpaper";
 	gradientId?: string;
 	gradientColors?: [string, string];
 	gradientAngle?: number;
 	solidColor?: string;
+	/** Wallpaper ID (references a discovered wallpaper) */
+	wallpaperId?: string;
+	/** Resolved file path or public path for the wallpaper image */
+	wallpaperPath?: string;
 	padding: number;
 	borderRadius: number;
 	shadow: boolean;
@@ -45,3 +49,51 @@ export const DEFAULT_BACKGROUND: BackgroundConfig = {
 	shadow: true,
 	gradientAngle: 135,
 };
+
+const IMAGE_FILE_PATTERN = /\.(avif|gif|jpe?g|png|svg|webp)$/i;
+
+/** Convert a filename to a kebab-case wallpaper ID. */
+export function toWallpaperId(fileName: string): string {
+	return fileName
+		.replace(/\.[^.]+$/, "")
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+}
+
+/** Convert a filename to a title-cased label. */
+export function toWallpaperLabel(fileName: string): string {
+	const baseName = fileName.replace(/\.[^.]+$/, "").trim();
+	if (!baseName) return "Wallpaper";
+
+	return baseName
+		.replace(/[_-]+/g, " ")
+		.replace(/\s+/g, " ")
+		.replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+/** Create a wallpaper entry from a filename. */
+export function createWallpaperEntry(fileName: string): BuiltInWallpaper {
+	const encodedFileName = encodeURIComponent(fileName);
+	return {
+		id:
+			toWallpaperId(fileName) ||
+			`wallpaper-${encodedFileName.toLowerCase()}`,
+		label: toWallpaperLabel(fileName),
+		relativePath: `wallpapers/${fileName}`,
+	};
+}
+
+/** Sort wallpaper filenames with locale-aware numeric sorting. */
+export function sortWallpaperFiles(fileNames: string[]): string[] {
+	return [...fileNames].sort(
+		new Intl.Collator(undefined, { numeric: true, sensitivity: "base" })
+			.compare,
+	);
+}
+
+/** Test if a filename is a supported image format. */
+export function isImageFile(fileName: string): boolean {
+	return IMAGE_FILE_PATTERN.test(fileName);
+}
