@@ -39,6 +39,7 @@ import {
 	getDefaultOutputPath,
 } from "./utils.js";
 import { updateJobProgress, exportJobs } from "./job-manager.js";
+import { convertToGif } from "./gif-convert.js";
 
 export function resolveExportSettings({
 	request,
@@ -55,6 +56,14 @@ export function resolveExportSettings({
 		const s = request.settings;
 		const top = request as Record<string, unknown>;
 
+		const format =
+			s?.format ??
+			(typeof top.format === "string" ? top.format : preset.format);
+
+		// GIF exports use libx264 for the intermediary MP4, then convert
+		const codec =
+			s?.codec ?? (typeof top.codec === "string" ? top.codec : "libx264");
+
 		return {
 			presetId: preset.id,
 			width:
@@ -63,11 +72,8 @@ export function resolveExportSettings({
 				s?.height ??
 				(typeof top.height === "number" ? top.height : preset.height),
 			fps: s?.fps ?? (typeof top.fps === "number" ? top.fps : preset.fps),
-			format:
-				s?.format ??
-				(typeof top.format === "string" ? top.format : preset.format),
-			codec:
-				s?.codec ?? (typeof top.codec === "string" ? top.codec : "libx264"),
+			format,
+			codec,
 			bitrate:
 				s?.bitrate ??
 				(typeof top.bitrate === "string" ? top.bitrate : preset.bitrate),
@@ -748,6 +754,44 @@ export async function executeExportJob({
 				// Restore the pre-sticker output so the export isn't lost
 				await fsPromises.rename(concatOutputPath, outputPath);
 			}
+		}
+
+		// =====================================================================
+		// GIF CONVERSION (two-pass palette method)
+		// If format is "gif", convert the MP4 output to GIF via FFmpeg.
+		// =====================================================================
+		if (settings.format === "gif") {
+			claudeLog.info(HANDLER_NAME, "Converting export to GIF format...");
+			updateJobProgress({ jobId, progress: 0.94 });
+
+			const mp4Path = outputPath.replace(/\.gif$/i, ".mp4");
+			// If output already ends with .gif, rename the mp4 intermediary
+			if (outputPath.toLowerCase().endsWith(".gif")) {
+				await fsPromises.rename(outputPath, mp4Path);
+			} else {
+				// Output doesn't end with .gif — rename to .mp4, convert to .gif
+				await fsPromises.rename(outputPath, mp4Path);
+				outputPath = outputPath.replace(/\.[^.]+$/, ".gif");
+			}
+
+			const gifLoop = (settings as Record<string, unknown>).gifLoop !== false;
+			await convertToGif({
+				inputPath: mp4Path,
+				outputPath,
+				width: settings.width,
+				height: settings.height,
+				fps: settings.fps,
+				loop: gifLoop,
+				tempDir,
+				onProgress: (p) => {
+					updateJobProgress({ jobId, progress: 0.94 + p * 0.04 });
+				},
+			});
+
+			// Clean up intermediary MP4
+			try {
+				await fsPromises.unlink(mp4Path);
+			} catch { /* ignore */ }
 		}
 
 		const outputStats = await fsPromises.stat(outputPath);

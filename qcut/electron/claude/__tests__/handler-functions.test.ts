@@ -58,7 +58,7 @@ describe("Export Handler Functions", () => {
 	it("getExportPresets returns all presets", () => {
 		const presets = getExportPresets();
 		expect(Array.isArray(presets)).toBe(true);
-		expect(presets.length).toBe(10);
+		expect(presets.length).toBe(12);
 		expect(presets).toBe(PRESETS);
 	});
 
@@ -70,6 +70,7 @@ describe("Export Handler Functions", () => {
 		expect(platforms).toContain("twitter");
 		expect(platforms).toContain("linkedin");
 		expect(platforms).toContain("discord");
+		expect(platforms).toContain("web");
 	});
 
 	it("getExportRecommendation returns matching preset for tiktok", () => {
@@ -101,7 +102,7 @@ describe("Export Handler Functions", () => {
 			expect(preset.height).toBeGreaterThan(0);
 			expect(preset.fps).toBeGreaterThan(0);
 			expect(preset.bitrate).toBeTypeOf("string");
-			expect(preset.format).toBe("mp4");
+			expect(["mp4", "gif"]).toContain(preset.format);
 		}
 	});
 });

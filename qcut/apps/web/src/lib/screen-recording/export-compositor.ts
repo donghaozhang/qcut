@@ -1,7 +1,10 @@
 import type { BackgroundConfig } from "./wallpapers";
 import type { CursorRenderConfig } from "./cursor-renderer";
 import type { ZoomRegion } from "./zoom-region-utils";
-import type { CursorTelemetryData } from "@/types/electron/cursor-telemetry";
+import type {
+	CursorTelemetryData,
+	CursorTelemetryPoint,
+} from "@/types/electron/cursor-telemetry";
 import {
 	drawBackground,
 	drawRoundedVideoFrame,
@@ -10,10 +13,25 @@ import { drawCursor, getClickAnimProgress } from "./canvas-cursor-renderer";
 import { computeZoomTransform } from "./zoom-transform";
 import {
 	type SpringState,
+	type SpringConfig,
 	getCursorSpringConfig,
 	stepSpring,
 	createSpringState,
 } from "./motion-smoothing";
+import { computeCursorSwayRotation } from "./cursor-sway";
+import { buildLoopedCursorTelemetry } from "./cursor-loop";
+import { playbackTimeToRealTime, type SpeedRegion } from "./speed-regions";
+import { drawSquircleClipPath } from "./squircle";
+import {
+	getWebcamOverlayRect,
+	type WebcamOverlayConfig,
+} from "@/stores/webcam-overlay-store";
+import {
+	drawArrow,
+	drawCircle,
+	drawRectangle,
+} from "./figure-paths";
+import type { FigureAnnotation } from "@/stores/figure-annotations-store";
 
 export interface ExportCompositorConfig {
 	background: BackgroundConfig;
@@ -22,33 +40,87 @@ export interface ExportCompositorConfig {
 	telemetry: CursorTelemetryData | null;
 	outputWidth: number;
 	outputHeight: number;
+
+	/** Cursor loop mode — smooth return to start for seamless loops */
+	cursorLoopMode?: boolean;
+	/** Total video duration in ms (required for cursor loop) */
+	totalDurationMs?: number;
+
+	/** Speed regions for playback speed control */
+	speedRegions?: SpeedRegion[];
+
+	/** Webcam overlay configuration */
+	webcamConfig?: WebcamOverlayConfig;
+	/** Webcam video element (must be playing) */
+	webcamVideo?: HTMLVideoElement;
+
+	/** Figure annotations (arrows, circles, rectangles) */
+	figureAnnotations?: FigureAnnotation[];
 }
 
 /**
  * Composites all screen recording enhancements for export.
- * Draws background, zoom-transformed video, and cursor overlay
- * onto the export canvas frame-by-frame.
+ * Draws background, zoom-transformed video, cursor overlay,
+ * webcam bubble, and figure annotations frame-by-frame.
  */
 export class ScreenRecordingExportCompositor {
 	private config: ExportCompositorConfig;
 	private springX: SpringState;
 	private springY: SpringState;
+	private springRotation: SpringState;
+	private swaySpringConfig: SpringConfig;
+	private prevSmoothedX = 0;
+	private prevSmoothedY = 0;
 	private lastTimeMs = -1;
 	private clickStartMs = -1;
 	private wasPressed = false;
+	private processedTelemetry: CursorTelemetryPoint[] | null = null;
 
 	constructor(config: ExportCompositorConfig) {
 		this.config = config;
 		this.springX = createSpringState();
 		this.springY = createSpringState();
+		this.springRotation = createSpringState();
+
+		// Sway spring: reduced damping/mass for natural wobble
+		const baseSpring = getCursorSpringConfig(config.cursorConfig.smoothingFactor);
+		this.swaySpringConfig = {
+			stiffness: baseSpring.stiffness,
+			damping: baseSpring.damping * 0.9,
+			mass: baseSpring.mass * 0.8,
+		};
+
+		// Pre-process telemetry for cursor loop mode
+		if (
+			config.cursorLoopMode &&
+			config.telemetry &&
+			config.totalDurationMs
+		) {
+			this.processedTelemetry = buildLoopedCursorTelemetry(
+				config.telemetry.points,
+				config.totalDurationMs,
+			);
+		}
+	}
+
+	/** Get the effective telemetry points (looped or original) */
+	private getTelemetryPoints(): CursorTelemetryPoint[] | null {
+		if (this.processedTelemetry) return this.processedTelemetry;
+		return this.config.telemetry?.points ?? null;
 	}
 
 	renderFrame(
 		ctx: CanvasRenderingContext2D,
 		videoFrame: CanvasImageSource,
-		timeMs: number
+		timeMs: number,
 	): void {
-		const { outputWidth, outputHeight, background, cursorConfig } = this.config;
+		const { outputWidth, outputHeight, background, cursorConfig } =
+			this.config;
+
+		// Speed region time remapping: convert output time to source time
+		const sourceTimeMs = this.config.speedRegions?.length
+			? playbackTimeToRealTime(this.config.speedRegions, timeMs)
+			: timeMs;
 
 		// Step 1: Draw background
 		if (background.type !== "none") {
@@ -57,10 +129,10 @@ export class ScreenRecordingExportCompositor {
 
 		// Step 2: Compute zoom transform
 		const zoom = computeZoomTransform(
-			timeMs,
+			sourceTimeMs,
 			this.config.zoomRegions,
 			outputWidth,
-			outputHeight
+			outputHeight,
 		);
 
 		// Step 3: Draw video frame (with background padding/rounding or direct)
@@ -86,40 +158,48 @@ export class ScreenRecordingExportCompositor {
 				videoW,
 				videoH,
 				background.borderRadius,
-				background.shadow
+				background.shadow,
 			);
 		} else {
 			ctx.drawImage(videoFrame, 0, 0, outputWidth, outputHeight);
 		}
 
 		// Step 4: Draw cursor overlay (inside zoom transform context)
-		if (this.config.telemetry && cursorConfig.cursorStyle !== "hidden") {
+		if (this.getTelemetryPoints() && cursorConfig.cursorStyle !== "hidden") {
 			this.renderCursor(
 				ctx,
-				timeMs,
-				background.type !== "none" ? background.padding : 0
+				sourceTimeMs,
+				background.type !== "none" ? background.padding : 0,
 			);
 		}
 
 		ctx.restore();
+
+		// Step 5: Draw webcam overlay (outside zoom context)
+		this.renderWebcamOverlay(ctx, zoom.scale);
+
+		// Step 6: Draw figure annotations (outside zoom context)
+		this.renderFigureAnnotations(ctx, sourceTimeMs);
 	}
 
 	private renderCursor(
 		ctx: CanvasRenderingContext2D,
 		timeMs: number,
-		padding = 0
+		padding = 0,
 	): void {
-		const { telemetry, cursorConfig, outputWidth, outputHeight } = this.config;
+		const { cursorConfig, outputWidth, outputHeight } = this.config;
 		const videoW = outputWidth - padding * 2;
 		const videoH = outputHeight - padding * 2;
-		if (!telemetry || telemetry.points.length === 0) return;
 
-		// Find current point via binary search
-		const { points, captureRect } = telemetry;
+		const points = this.getTelemetryPoints();
+		if (!points || points.length === 0) return;
+
+		const captureRect = this.config.telemetry!.captureRect;
 
 		// Don't render cursor before the first telemetry event
 		if (timeMs < points[0].t) return;
 
+		// Binary search for current point
 		let low = 0;
 		let high = points.length - 1;
 		while (low < high) {
@@ -134,22 +214,47 @@ export class ScreenRecordingExportCompositor {
 		const ry = (point.y - captureRect.y) / captureRect.height;
 
 		// Spring smoothing
-		const dt = this.lastTimeMs >= 0 ? (timeMs - this.lastTimeMs) / 1000 : 0;
+		const dt =
+			this.lastTimeMs >= 0 ? (timeMs - this.lastTimeMs) / 1000 : 0;
 		this.lastTimeMs = timeMs;
 
-		const springConfig = getCursorSpringConfig(cursorConfig.smoothingFactor);
+		const springConfig = getCursorSpringConfig(
+			cursorConfig.smoothingFactor,
+		);
 		this.springX = stepSpring(
 			this.springX,
 			padding + rx * videoW,
 			springConfig,
-			dt
+			dt,
 		);
 		this.springY = stepSpring(
 			this.springY,
 			padding + ry * videoH,
 			springConfig,
-			dt
+			dt,
 		);
+
+		// Sway rotation
+		let swayRotation = 0;
+		if (cursorConfig.sway > 0 && dt > 0) {
+			const dx = this.springX.value - this.prevSmoothedX;
+			const dy = this.springY.value - this.prevSmoothedY;
+			const target = computeCursorSwayRotation(
+				dx,
+				dy,
+				dt * 1000,
+				cursorConfig.sway,
+			);
+			this.springRotation = stepSpring(
+				this.springRotation,
+				target,
+				this.swaySpringConfig,
+				dt,
+			);
+			swayRotation = this.springRotation.value;
+		}
+		this.prevSmoothedX = this.springX.value;
+		this.prevSmoothedY = this.springY.value;
 
 		// Click tracking
 		if (point.p && !this.wasPressed) {
@@ -165,8 +270,134 @@ export class ScreenRecordingExportCompositor {
 			this.springY.value,
 			cursorConfig,
 			clickProgress,
-			outputWidth
+			outputWidth,
+			swayRotation,
 		);
+	}
+
+	private renderWebcamOverlay(
+		ctx: CanvasRenderingContext2D,
+		zoomDepth: number,
+	): void {
+		const { webcamConfig, webcamVideo, outputWidth, outputHeight } =
+			this.config;
+		if (!webcamConfig?.enabled || !webcamVideo) return;
+
+		const rect = getWebcamOverlayRect(
+			webcamConfig,
+			outputWidth,
+			outputHeight,
+			zoomDepth,
+		);
+
+		ctx.save();
+
+		// Shadow
+		if (webcamConfig.shadow > 0) {
+			ctx.shadowColor = `rgba(0, 0, 0, ${webcamConfig.shadow / 200})`;
+			ctx.shadowBlur = (webcamConfig.shadow / 100) * 20;
+			ctx.shadowOffsetY = (webcamConfig.shadow / 100) * 4;
+		}
+
+		// Squircle clip path
+		if (webcamConfig.roundness > 0) {
+			drawSquircleClipPath(ctx, {
+				x: rect.x,
+				y: rect.y,
+				width: rect.width,
+				height: rect.height,
+				radius: webcamConfig.roundness,
+			});
+			ctx.clip();
+		}
+
+		ctx.globalAlpha = webcamConfig.opacity;
+
+		// Mirror
+		if (webcamConfig.mirror) {
+			ctx.translate(rect.x + rect.width, rect.y);
+			ctx.scale(-1, 1);
+			ctx.drawImage(webcamVideo, 0, 0, rect.width, rect.height);
+		} else {
+			ctx.drawImage(
+				webcamVideo,
+				rect.x,
+				rect.y,
+				rect.width,
+				rect.height,
+			);
+		}
+
+		ctx.restore();
+	}
+
+	private renderFigureAnnotations(
+		ctx: CanvasRenderingContext2D,
+		timeMs: number,
+	): void {
+		const annotations = this.config.figureAnnotations;
+		if (!annotations || annotations.length === 0) return;
+
+		const { outputWidth, outputHeight } = this.config;
+
+		const visible = annotations
+			.filter((a) => timeMs >= a.startMs && timeMs <= a.endMs)
+			.sort((a, b) => a.zIndex - b.zIndex);
+
+		for (const a of visible) {
+			const px = (a.x / 100) * outputWidth;
+			const py = (a.y / 100) * outputHeight;
+			const pw = (a.width / 100) * outputWidth;
+			const ph = (a.height / 100) * outputHeight;
+
+			ctx.save();
+			ctx.globalAlpha = a.opacity;
+
+			if (a.rotation !== 0) {
+				ctx.translate(px + pw / 2, py + ph / 2);
+				ctx.rotate((a.rotation * Math.PI) / 180);
+				ctx.translate(-(px + pw / 2), -(py + ph / 2));
+			}
+
+			if (a.type === "arrow" && a.arrowDirection) {
+				drawArrow(
+					ctx,
+					a.arrowDirection,
+					px,
+					py,
+					pw,
+					ph,
+					a.strokeColor,
+					a.strokeWidth,
+				);
+			} else if (a.type === "circle") {
+				drawCircle(
+					ctx,
+					px,
+					py,
+					pw,
+					ph,
+					a.strokeColor,
+					a.strokeWidth,
+					a.fillColor,
+					a.fillOpacity,
+				);
+			} else if (a.type === "rectangle") {
+				drawRectangle(
+					ctx,
+					px,
+					py,
+					pw,
+					ph,
+					a.strokeColor,
+					a.strokeWidth,
+					a.fillColor,
+					a.fillOpacity,
+				);
+			}
+
+			ctx.restore();
+		}
 	}
 
 	destroy(): void {

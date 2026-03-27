@@ -107,6 +107,26 @@ export const PRESETS: ExportPreset[] = [
 		bitrate: "2Mbps",
 		format: "mp4",
 	},
+	{
+		id: "gif-medium",
+		name: "GIF Medium (720p)",
+		platform: "web",
+		width: 1280,
+		height: 720,
+		fps: 20,
+		bitrate: "0",
+		format: "gif",
+	},
+	{
+		id: "gif-large",
+		name: "GIF Large (1080p)",
+		platform: "web",
+		width: 1920,
+		height: 1080,
+		fps: 15,
+		bitrate: "0",
+		format: "gif",
+	},
 ];
 
 export function findPresetById({
