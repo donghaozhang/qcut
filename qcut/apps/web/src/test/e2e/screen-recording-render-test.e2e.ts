@@ -206,6 +206,11 @@ test.describe("Screen Recording Compositor Visual Test", () => {
 					return { scale, tx, ty };
 				}
 
+				// Note: zoom transform uses full canvas coords (outputWidth/outputHeight)
+				// while cursor rendering uses video-area coords (after padding).
+				// This matches the production compositor where cursor is rendered
+				// inside the zoom transform context after background padding.
+
 				// Gradient presets
 				const gradients: [string, string, string][] = [
 					["Sunset", "#ff6b6b", "#ffa726"],
@@ -597,7 +602,11 @@ test.describe("Screen Recording Compositor Visual Test", () => {
 			}
 		);
 
+		// Verify all 8 scenarios rendered successfully
 		expect(renderedFrames.length).toBe(8);
+		for (const frame of renderedFrames) {
+			expect(frame.dataUrl).toMatch(/^data:image\/png;base64,/);
+		}
 
 		// ── 4. Save frames to disk ──
 		const { mkdir } = await import("node:fs/promises");
