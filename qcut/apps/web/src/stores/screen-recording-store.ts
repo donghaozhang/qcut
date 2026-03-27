@@ -94,3 +94,9 @@ export const useScreenRecordingEnhancementStore =
 				autoZoomConfig: { ...state.autoZoomConfig, ...config },
 			})),
 	}));
+
+// Expose store for E2E testing
+if (typeof window !== "undefined") {
+	(window as any).__screenRecordingEnhancementStore__ =
+		useScreenRecordingEnhancementStore;
+}
