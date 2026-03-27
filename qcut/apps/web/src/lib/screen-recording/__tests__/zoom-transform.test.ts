@@ -49,10 +49,13 @@ describe("zoom-transform", () => {
 				makeRegion({ id: "a", startMs: 1000, endMs: 3000, depth: 1.5 }),
 				makeRegion({ id: "b", startMs: 2500, endMs: 5000, depth: 2.0 }),
 			];
-			// At 2800ms, region "a" is at full strength, region "b" is transitioning in
-			const result = computeZoomTransform(2800, regions, 1920, 1080);
-			// Region "a" has strength 1.0, region "b" is still ramping up
-			expect(result.scale).toBeGreaterThanOrEqual(1);
+			// At 2600ms, region "b" just started (still ramping up),
+			// while region "a" is at full strength — scale should be closer to 1.5
+			const result = computeZoomTransform(2600, regions, 1920, 1080);
+			expect(result.scale).toBeGreaterThan(1);
+			// Region "a" at full strength (depth 1.5) should dominate over
+			// region "b" still ramping up — scale should lean toward 1.5
+			expect(result.scale).toBeLessThanOrEqual(2.0);
 		});
 
 		it("returns identity after all regions end", () => {

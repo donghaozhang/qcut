@@ -114,14 +114,17 @@ describe("auto-zoom-analyzer", () => {
 
 		it("merges overlapping click and dwell regions", () => {
 			const points = [];
-			// Dwell at (500, 500) with clicks
+			// Dwell at (500, 500) with clicks — deterministic small offsets
 			for (let i = 0; i < 100; i++) {
 				const t = i * 16;
 				const isClick = i === 30 || i === 50;
+				// Deterministic jitter: sine/cosine based on index
+				const offsetX = Math.sin(i * 0.7) * 10;
+				const offsetY = Math.cos(i * 0.7) * 10;
 				points.push({
 					t,
-					x: 500 + (Math.random() - 0.5) * 20,
-					y: 500 + (Math.random() - 0.5) * 20,
+					x: 500 + offsetX,
+					y: 500 + offsetY,
 					p: isClick,
 				});
 			}
@@ -151,9 +154,8 @@ describe("auto-zoom-analyzer", () => {
 			const telemetry = makeTelemetry(points);
 			const regions = analyzeForZoomSuggestions(telemetry);
 
-			if (regions.length > 0) {
-				expect(regions[0].depth).toBe(DEFAULT_AUTO_ZOOM_CONFIG.defaultDepth);
-			}
+			expect(regions.length).toBeGreaterThan(0);
+			expect(regions[0].depth).toBe(DEFAULT_AUTO_ZOOM_CONFIG.defaultDepth);
 		});
 
 		it("normalizes focus coordinates to [0,1]", () => {

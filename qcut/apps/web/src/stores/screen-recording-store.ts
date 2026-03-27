@@ -60,11 +60,12 @@ interface ScreenRecordingEnhancementState {
 
 /** Check if any enhancements are active */
 export const hasActiveEnhancements = (
-	state: ScreenRecordingEnhancementState
+	state: ScreenRecordingEnhancementState,
 ): boolean =>
 	state.background.type !== "none" ||
 	(state.showCursorOverlay && state.cursorTelemetry !== null) ||
-	state.zoomRegions.length > 0;
+	state.zoomRegions.length > 0 ||
+	state.speedRegions.length > 0;
 
 export const useScreenRecordingEnhancementStore =
 	create<ScreenRecordingEnhancementState>((set) => ({
@@ -148,8 +149,12 @@ export const useScreenRecordingEnhancementStore =
 		setSpeedRegions: (regions) => set({ speedRegions: regions }),
 	}));
 
-// Expose store for E2E testing
-if (typeof window !== "undefined") {
-	(window as any).__screenRecordingEnhancementStore__ =
+// Expose store for E2E testing (dev/test only)
+if (typeof window !== "undefined" && import.meta.env.DEV) {
+	(
+		window as Window & {
+			__screenRecordingEnhancementStore__?: typeof useScreenRecordingEnhancementStore;
+		}
+	).__screenRecordingEnhancementStore__ =
 		useScreenRecordingEnhancementStore;
 }

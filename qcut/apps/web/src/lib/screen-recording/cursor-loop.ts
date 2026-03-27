@@ -32,6 +32,7 @@ function easeOutQuint(t: number): number {
  */
 export function findLastMovingSampleTime(
 	points: CursorTelemetryPoint[],
+	epsilon = MOVEMENT_EPSILON,
 ): number {
 	if (points.length <= 1) return points[0]?.t ?? 0;
 
@@ -39,7 +40,7 @@ export function findLastMovingSampleTime(
 		const curr = points[i];
 		const prev = points[i - 1];
 		const distance = Math.hypot(curr.x - prev.x, curr.y - prev.y);
-		if (distance > MOVEMENT_EPSILON) {
+		if (distance > epsilon) {
 			return curr.t;
 		}
 	}
@@ -125,7 +126,8 @@ export function buildLoopedCursorTelemetry(
 	const returnMotionDuration = Math.max(1, actualFreeze - actualSettle);
 
 	const sourceStartMs = firstPoint.t;
-	const sourceEndMs = Math.max(sourceStartMs, findLastMovingSampleTime(points));
+	const epsilon = config?.movementEpsilon ?? MOVEMENT_EPSILON;
+	const sourceEndMs = Math.max(sourceStartMs, findLastMovingSampleTime(points, epsilon));
 	const sourceDuration = Math.max(1, sourceEndMs - sourceStartMs);
 	const playbackWindow = Math.max(1, motionEndMs);
 
