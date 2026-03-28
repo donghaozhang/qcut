@@ -86,7 +86,12 @@ export class ScreenRecordingExportCompositor {
 	private processedTelemetry: CursorTelemetryPoint[] | null = null;
 	private connectedTransitions: ConnectedTransition[];
 	private zoomBlurState: ZoomMotionBlurState;
-	private captureRect: { x: number; y: number; width: number; height: number } | null;
+	private captureRect: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+	} | null;
 
 	constructor(config: ExportCompositorConfig) {
 		this.config = config;
