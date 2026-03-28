@@ -17,7 +17,12 @@ All 8 features have core logic implemented. UI components and export integration
 | 6 | [Cursor Sway](./06-cursor-sway.md) | Natural wobble | Algorithm + renderer done, UI slider pending | 13 |
 | 7 | [Cursor Loop](./07-cursor-loop.md) | Seamless loop cursor | Algorithm done, UI toggle pending | 11 |
 | 8 | [Figure Annotations](./08-figure-annotations.md) | Arrows/shapes | Paths + store done, render pending | 9 |
-| | **Total** | | | **116** |
+| 9 | [CLI Integration](./09-cli-integration.md) | Export compositor + GIF | Compositor wired, GIF conversion done | 13 |
+| 10 | [Connected Zoom](./10-connected-zoom-transitions.md) | Smooth pan between adjacent regions | Plan ready | — |
+| 11 | [Zoom Motion Blur](./11-zoom-motion-blur.md) | Blur during camera movement | Plan ready | — |
+| 12 | [Cursor Motion Blur](./12-cursor-motion-blur.md) | Ghost trail on fast cursor | Plan ready | — |
+| 13 | [Wallpaper Render + Blur](./13-wallpaper-rendering-and-blur.md) | Draw wallpapers + background blur | Plan ready | — |
+| | **Total** | | | **129+** |
 
 ## Files Created
 
