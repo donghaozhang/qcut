@@ -9,59 +9,110 @@ import {
 describe("cursor-sway", () => {
 	describe("computeCursorSwayRotation", () => {
 		it("returns 0 when sway is 0 (disabled)", () => {
-			expect(computeCursorSwayRotation(100, 0, 16, 0)).toBe(0);
+			expect(
+				computeCursorSwayRotation({ dx: 100, dy: 0, deltaMs: 16, sway: 0 })
+			).toBe(0);
 		});
 
 		it("returns 0 when sway is negative", () => {
-			expect(computeCursorSwayRotation(100, 0, 16, -1)).toBe(0);
+			expect(
+				computeCursorSwayRotation({ dx: 100, dy: 0, deltaMs: 16, sway: -1 })
+			).toBe(0);
 		});
 
 		it("returns 0 for negligible movement", () => {
-			expect(computeCursorSwayRotation(0.001, 0.001, 16, 1)).toBe(0);
+			expect(
+				computeCursorSwayRotation({
+					dx: 0.001,
+					dy: 0.001,
+					deltaMs: 16,
+					sway: 1,
+				})
+			).toBe(0);
 		});
 
 		it("returns non-zero rotation for significant movement", () => {
-			const rotation = computeCursorSwayRotation(50, 0, 16, 1);
+			const rotation = computeCursorSwayRotation({
+				dx: 50,
+				dy: 0,
+				deltaMs: 16,
+				sway: 1,
+			});
 			expect(rotation).not.toBe(0);
 		});
 
 		it("faster movement produces larger rotation", () => {
-			const slow = Math.abs(computeCursorSwayRotation(5, 0, 16, 1));
-			const fast = Math.abs(computeCursorSwayRotation(50, 0, 16, 1));
+			const slow = Math.abs(
+				computeCursorSwayRotation({ dx: 5, dy: 0, deltaMs: 16, sway: 1 })
+			);
+			const fast = Math.abs(
+				computeCursorSwayRotation({ dx: 50, dy: 0, deltaMs: 16, sway: 1 })
+			);
 			expect(fast).toBeGreaterThan(slow);
 		});
 
 		it("higher sway intensity produces larger rotation", () => {
-			const low = Math.abs(computeCursorSwayRotation(30, 0, 16, 0.5));
-			const high = Math.abs(computeCursorSwayRotation(30, 0, 16, 2));
+			const low = Math.abs(
+				computeCursorSwayRotation({ dx: 30, dy: 0, deltaMs: 16, sway: 0.5 })
+			);
+			const high = Math.abs(
+				computeCursorSwayRotation({ dx: 30, dy: 0, deltaMs: 16, sway: 2 })
+			);
 			expect(high).toBeGreaterThan(low);
 		});
 
 		it("caps speed factor at reference speed", () => {
 			// Very fast movement — should not exceed max rotation * sway * intensity
-			const r1 = Math.abs(computeCursorSwayRotation(500, 0, 16, 1));
-			const r2 = Math.abs(computeCursorSwayRotation(5000, 0, 16, 1));
+			const r1 = Math.abs(
+				computeCursorSwayRotation({ dx: 500, dy: 0, deltaMs: 16, sway: 1 })
+			);
+			const r2 = Math.abs(
+				computeCursorSwayRotation({ dx: 5000, dy: 0, deltaMs: 16, sway: 1 })
+			);
 			// Both should be similar because speed factor clamps at 1
 			expect(Math.abs(r2 - r1)).toBeLessThan(r1 * 0.1);
 		});
 
 		it("vertical movement contributes less than horizontal", () => {
-			const horizontal = Math.abs(computeCursorSwayRotation(30, 0, 16, 1));
-			const vertical = Math.abs(computeCursorSwayRotation(0, 30, 16, 1));
+			const horizontal = Math.abs(
+				computeCursorSwayRotation({ dx: 30, dy: 0, deltaMs: 16, sway: 1 })
+			);
+			const vertical = Math.abs(
+				computeCursorSwayRotation({ dx: 0, dy: 30, deltaMs: 16, sway: 1 })
+			);
 			// Vertical weight is 0.65, so vertical rotation should be less
 			expect(vertical).toBeLessThan(horizontal);
 		});
 
 		it("opposite directions produce opposite rotations", () => {
-			const right = computeCursorSwayRotation(30, 0, 16, 1);
-			const left = computeCursorSwayRotation(-30, 0, 16, 1);
+			const right = computeCursorSwayRotation({
+				dx: 30,
+				dy: 0,
+				deltaMs: 16,
+				sway: 1,
+			});
+			const left = computeCursorSwayRotation({
+				dx: -30,
+				dy: 0,
+				deltaMs: 16,
+				sway: 1,
+			});
 			expect(Math.sign(right)).not.toBe(Math.sign(left));
 			expect(Math.abs(right)).toBeCloseTo(Math.abs(left), 5);
 		});
 
 		it("handles NaN/Infinity gracefully", () => {
-			expect(computeCursorSwayRotation(NaN, 0, 16, 1)).toBe(0);
-			expect(computeCursorSwayRotation(Infinity, 0, 16, 1)).toBe(0);
+			expect(
+				computeCursorSwayRotation({ dx: NaN, dy: 0, deltaMs: 16, sway: 1 })
+			).toBe(0);
+			expect(
+				computeCursorSwayRotation({
+					dx: Infinity,
+					dy: 0,
+					deltaMs: 16,
+					sway: 1,
+				})
+			).toBe(0);
 		});
 	});
 

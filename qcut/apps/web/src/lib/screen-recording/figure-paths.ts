@@ -44,14 +44,21 @@ export const ARROW_DIRECTIONS: ArrowDirection[] = [
  * Parse an SVG path string into canvas drawing commands.
  * Supports M (moveTo) and L (lineTo) commands.
  */
-export function drawSvgPathOnCanvas(
-	ctx: CanvasRenderingContext2D,
-	pathData: string,
-	x: number,
-	y: number,
-	width: number,
-	height: number
-): void {
+export function drawSvgPathOnCanvas({
+	ctx,
+	pathData,
+	x,
+	y,
+	width,
+	height,
+}: {
+	ctx: CanvasRenderingContext2D;
+	pathData: string;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}): void {
 	const scaleX = width / 100;
 	const scaleY = height / 100;
 
@@ -76,16 +83,25 @@ export function drawSvgPathOnCanvas(
 /**
  * Draw an arrow figure on a canvas context.
  */
-export function drawArrow(
-	ctx: CanvasRenderingContext2D,
-	direction: ArrowDirection,
-	x: number,
-	y: number,
-	width: number,
-	height: number,
-	strokeColor: string,
-	strokeWidth: number
-): void {
+export function drawArrow({
+	ctx,
+	direction,
+	x,
+	y,
+	width,
+	height,
+	strokeColor,
+	strokeWidth,
+}: {
+	ctx: CanvasRenderingContext2D;
+	direction: ArrowDirection;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	strokeColor: string;
+	strokeWidth: number;
+}): void {
 	const pathData = ARROW_PATHS[direction];
 	if (!pathData) return;
 
@@ -100,7 +116,7 @@ export function drawArrow(
 	ctx.shadowBlur = 4;
 	ctx.shadowOffsetY = 2;
 
-	drawSvgPathOnCanvas(ctx, pathData, x, y, width, height);
+	drawSvgPathOnCanvas({ ctx, pathData, x, y, width, height });
 	ctx.stroke();
 	ctx.restore();
 }
@@ -108,17 +124,27 @@ export function drawArrow(
 /**
  * Draw a circle figure on a canvas context.
  */
-export function drawCircle(
-	ctx: CanvasRenderingContext2D,
-	x: number,
-	y: number,
-	width: number,
-	height: number,
-	strokeColor: string,
-	strokeWidth: number,
-	fillColor?: string,
-	fillOpacity = 1
-): void {
+export function drawCircle({
+	ctx,
+	x,
+	y,
+	width,
+	height,
+	strokeColor,
+	strokeWidth,
+	fillColor,
+	fillOpacity = 1,
+}: {
+	ctx: CanvasRenderingContext2D;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	strokeColor: string;
+	strokeWidth: number;
+	fillColor?: string;
+	fillOpacity?: number;
+}): void {
 	ctx.save();
 	const cx = x + width / 2;
 	const cy = y + height / 2;
@@ -144,18 +170,29 @@ export function drawCircle(
 /**
  * Draw a rectangle figure on a canvas context.
  */
-export function drawRectangle(
-	ctx: CanvasRenderingContext2D,
-	x: number,
-	y: number,
-	width: number,
-	height: number,
-	strokeColor: string,
-	strokeWidth: number,
-	fillColor?: string,
+export function drawRectangle({
+	ctx,
+	x,
+	y,
+	width,
+	height,
+	strokeColor,
+	strokeWidth,
+	fillColor,
 	fillOpacity = 1,
-	cornerRadius = 0
-): void {
+	cornerRadius = 0,
+}: {
+	ctx: CanvasRenderingContext2D;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	strokeColor: string;
+	strokeWidth: number;
+	fillColor?: string;
+	fillOpacity?: number;
+	cornerRadius?: number;
+}): void {
 	ctx.save();
 	ctx.beginPath();
 

@@ -86,9 +86,11 @@ export class ScreenRecordingExportCompositor {
 	private processedTelemetry: CursorTelemetryPoint[] | null = null;
 	private connectedTransitions: ConnectedTransition[];
 	private zoomBlurState: ZoomMotionBlurState;
+	private captureRect: { x: number; y: number; width: number; height: number } | null;
 
 	constructor(config: ExportCompositorConfig) {
 		this.config = config;
+		this.captureRect = config.telemetry?.captureRect ?? null;
 		this.springX = createSpringState();
 		this.springY = createSpringState();
 		this.springRotation = createSpringState();
@@ -230,7 +232,8 @@ export class ScreenRecordingExportCompositor {
 		const points = this.getTelemetryPoints();
 		if (!points || points.length === 0) return;
 
-		const captureRect = this.config.telemetry!.captureRect;
+		const captureRect = this.captureRect;
+		if (!captureRect) return;
 
 		// Don't render cursor before the first telemetry event
 		if (timeMs < points[0].t) return;
@@ -272,12 +275,12 @@ export class ScreenRecordingExportCompositor {
 		if (cursorConfig.sway > 0 && dt > 0) {
 			const dx = this.springX.value - this.prevSmoothedX;
 			const dy = this.springY.value - this.prevSmoothedY;
-			const target = computeCursorSwayRotation(
+			const target = computeCursorSwayRotation({
 				dx,
 				dy,
-				dt * 1000,
-				cursorConfig.sway
-			);
+				deltaMs: dt * 1000,
+				sway: cursorConfig.sway,
+			});
 			this.springRotation = stepSpring(
 				this.springRotation,
 				target,
@@ -342,8 +345,25 @@ export class ScreenRecordingExportCompositor {
 
 		ctx.save();
 
-		// Shadow
-		if (webcamConfig.shadow > 0) {
+		// Shadow — must be drawn before clip() to be visible outside the shape
+		if (webcamConfig.shadow > 0 && webcamConfig.roundness > 0) {
+			ctx.shadowColor = `rgba(0, 0, 0, ${webcamConfig.shadow / 200})`;
+			ctx.shadowBlur = (webcamConfig.shadow / 100) * 20;
+			ctx.shadowOffsetY = (webcamConfig.shadow / 100) * 4;
+			drawSquircleClipPath(ctx, {
+				x: rect.x,
+				y: rect.y,
+				width: rect.width,
+				height: rect.height,
+				radius: webcamConfig.roundness,
+			});
+			ctx.fillStyle = "rgba(0,0,0,1)";
+			ctx.fill();
+			// Reset shadow so it doesn't double-apply on the video draw
+			ctx.shadowColor = "transparent";
+			ctx.shadowBlur = 0;
+			ctx.shadowOffsetY = 0;
+		} else if (webcamConfig.shadow > 0) {
 			ctx.shadowColor = `rgba(0, 0, 0, ${webcamConfig.shadow / 200})`;
 			ctx.shadowBlur = (webcamConfig.shadow / 100) * 20;
 			ctx.shadowOffsetY = (webcamConfig.shadow / 100) * 4;
@@ -404,40 +424,40 @@ export class ScreenRecordingExportCompositor {
 			}
 
 			if (a.type === "arrow" && a.arrowDirection) {
-				drawArrow(
+				drawArrow({
 					ctx,
-					a.arrowDirection,
-					px,
-					py,
-					pw,
-					ph,
-					a.strokeColor,
-					a.strokeWidth
-				);
+					direction: a.arrowDirection,
+					x: px,
+					y: py,
+					width: pw,
+					height: ph,
+					strokeColor: a.strokeColor,
+					strokeWidth: a.strokeWidth,
+				});
 			} else if (a.type === "circle") {
-				drawCircle(
+				drawCircle({
 					ctx,
-					px,
-					py,
-					pw,
-					ph,
-					a.strokeColor,
-					a.strokeWidth,
-					a.fillColor,
-					a.fillOpacity
-				);
+					x: px,
+					y: py,
+					width: pw,
+					height: ph,
+					strokeColor: a.strokeColor,
+					strokeWidth: a.strokeWidth,
+					fillColor: a.fillColor,
+					fillOpacity: a.fillOpacity,
+				});
 			} else if (a.type === "rectangle") {
-				drawRectangle(
+				drawRectangle({
 					ctx,
-					px,
-					py,
-					pw,
-					ph,
-					a.strokeColor,
-					a.strokeWidth,
-					a.fillColor,
-					a.fillOpacity
-				);
+					x: px,
+					y: py,
+					width: pw,
+					height: ph,
+					strokeColor: a.strokeColor,
+					strokeWidth: a.strokeWidth,
+					fillColor: a.fillColor,
+					fillOpacity: a.fillOpacity,
+				});
 			}
 
 			ctx.restore();

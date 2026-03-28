@@ -514,6 +514,15 @@ export async function executeExportJob({
 
 		await ensureDirectory({ directory: path.dirname(outputPath) });
 
+		// For GIF exports, all intermediate video steps (concat, sticker overlay)
+		// must use an .mp4 path since FFmpeg infers container from extension
+		// and .gif doesn't support H.264.
+		const finalOutputPath = outputPath;
+		const videoOutputPath =
+			settings.format === "gif"
+				? path.join(path.dirname(outputPath), path.basename(outputPath).replace(/\.gif$/i, ".mp4"))
+				: outputPath;
+
 		let tempBase: string;
 		try {
 			tempBase = app.getPath("temp");
@@ -609,7 +618,7 @@ export async function executeExportJob({
 				"copy",
 				"-movflags",
 				"+faststart",
-				outputPath,
+				videoOutputPath,
 			],
 			estimatedDuration: Math.max(
 				0,
@@ -636,7 +645,7 @@ export async function executeExportJob({
 
 			const concatOutputPath = path.join(tempDir, "concat-no-stickers.mp4");
 			// Move the concat output so we can use it as input for the overlay pass
-			await fsPromises.rename(outputPath, concatOutputPath);
+			await fsPromises.rename(videoOutputPath, concatOutputPath);
 
 			try {
 				// Build FFmpeg filter_complex for sticker overlays
@@ -724,7 +733,7 @@ export async function executeExportJob({
 					"copy",
 					"-movflags",
 					"+faststart",
-					outputPath,
+					videoOutputPath,
 				];
 
 				claudeLog.info(
@@ -752,7 +761,7 @@ export async function executeExportJob({
 					stickerError
 				);
 				// Restore the pre-sticker output so the export isn't lost
-				await fsPromises.rename(concatOutputPath, outputPath);
+				await fsPromises.rename(concatOutputPath, videoOutputPath);
 			}
 		}
 
@@ -764,21 +773,11 @@ export async function executeExportJob({
 			claudeLog.info(HANDLER_NAME, "Converting export to GIF format...");
 			updateJobProgress({ jobId, progress: 0.94 });
 
-			const mp4Path = outputPath.replace(/\.gif$/i, ".mp4");
-			// If output already ends with .gif, rename the mp4 intermediary
-			if (outputPath.toLowerCase().endsWith(".gif")) {
-				await fsPromises.rename(outputPath, mp4Path);
-			} else {
-				// Output doesn't end with .gif — rename to .mp4, convert to .gif
-				await fsPromises.rename(outputPath, mp4Path);
-				outputPath = outputPath.replace(/\.[^.]+$/, ".gif");
-			}
-
 			const gifLoop =
 				(settings as unknown as Record<string, unknown>).gifLoop !== false;
 			await convertToGif({
-				inputPath: mp4Path,
-				outputPath,
+				inputPath: videoOutputPath,
+				outputPath: finalOutputPath,
 				width: settings.width,
 				height: settings.height,
 				fps: settings.fps,
@@ -791,7 +790,7 @@ export async function executeExportJob({
 
 			// Clean up intermediary MP4
 			try {
-				await fsPromises.unlink(mp4Path);
+				await fsPromises.unlink(videoOutputPath);
 			} catch {
 				/* ignore */
 			}

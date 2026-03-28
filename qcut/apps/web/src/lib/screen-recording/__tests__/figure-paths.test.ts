@@ -58,7 +58,14 @@ describe("figure-paths", () => {
 				lineTo: vi.fn(),
 			} as unknown as CanvasRenderingContext2D;
 
-			drawSvgPathOnCanvas(mockCtx, ARROW_PATHS.up, 0, 0, 200, 200);
+			drawSvgPathOnCanvas({
+				ctx: mockCtx,
+				pathData: ARROW_PATHS.up,
+				x: 0,
+				y: 0,
+				width: 200,
+				height: 200,
+			});
 
 			// Arrow "up" has 1 M and 4 L commands (3 path segments with M commands)
 			expect(mockCtx.moveTo).toHaveBeenCalled();
@@ -74,7 +81,14 @@ describe("figure-paths", () => {
 			} as unknown as CanvasRenderingContext2D;
 
 			// Scale 100x100 viewBox to 200x200 at offset (10, 20)
-			drawSvgPathOnCanvas(mockCtx, "M 50 50", 10, 20, 200, 200);
+			drawSvgPathOnCanvas({
+				ctx: mockCtx,
+				pathData: "M 50 50",
+				x: 10,
+				y: 20,
+				width: 200,
+				height: 200,
+			});
 
 			// 50 * (200/100) + 10 = 110, 50 * (200/100) + 20 = 120
 			expect(moveToCalls[0][0]).toBeCloseTo(110);
@@ -88,7 +102,14 @@ describe("figure-paths", () => {
 				lineTo: vi.fn(),
 			} as unknown as CanvasRenderingContext2D;
 
-			drawSvgPathOnCanvas(mockCtx, "", 0, 0, 100, 100);
+			drawSvgPathOnCanvas({
+				ctx: mockCtx,
+				pathData: "",
+				x: 0,
+				y: 0,
+				width: 100,
+				height: 100,
+			});
 
 			expect(mockCtx.moveTo).not.toHaveBeenCalled();
 			expect(mockCtx.lineTo).not.toHaveBeenCalled();

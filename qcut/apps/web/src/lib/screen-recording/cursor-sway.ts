@@ -38,18 +38,23 @@ function clampDeltaMs(deltaMs: number): number {
 /**
  * Compute the target sway rotation (radians) based on cursor movement.
  *
- * @param dx - Horizontal pixel displacement since last frame
- * @param dy - Vertical pixel displacement since last frame
- * @param deltaMs - Time since last frame in milliseconds
- * @param sway - Sway intensity (0 = off, typically 0–2)
  * @returns Target rotation in radians
  */
-export function computeCursorSwayRotation(
-	dx: number,
-	dy: number,
-	deltaMs: number,
-	sway: number
-): number {
+export function computeCursorSwayRotation({
+	dx,
+	dy,
+	deltaMs,
+	sway,
+}: {
+	/** Horizontal pixel displacement since last frame */
+	dx: number;
+	/** Vertical pixel displacement since last frame */
+	dy: number;
+	/** Time since last frame in milliseconds */
+	deltaMs: number;
+	/** Sway intensity (0 = off, typically 0-2) */
+	sway: number;
+}): number {
 	if (sway <= 0) return 0;
 
 	const distance = Math.hypot(dx, dy);
