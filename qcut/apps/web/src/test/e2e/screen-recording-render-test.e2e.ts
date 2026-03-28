@@ -72,8 +72,7 @@ test.describe("Screen Recording Compositor Visual Test", () => {
 			}) => {
 				const telemetry = JSON.parse(telemetryJson);
 				const { captureRect, points } = telemetry;
-				const totalDurationMs =
-					points[points.length - 1].t - points[0].t;
+				const totalDurationMs = points[points.length - 1].t - points[0].t;
 
 				// Helper functions (inline since we can't import modules in evaluate)
 				function clamp01(t: number) {
@@ -172,15 +171,12 @@ test.describe("Screen Recording Compositor Visual Test", () => {
 						if (timeMs < inStart) {
 							strength = 0;
 						} else if (timeMs < region.startMs) {
-							const t =
-								(timeMs - inStart) /
-								(region.startMs - inStart);
+							const t = (timeMs - inStart) / (region.startMs - inStart);
 							strength = easeOutCubic(clamp01(t));
 						} else if (timeMs <= region.endMs) {
 							strength = 1;
 						} else if (timeMs <= region.endMs + 400) {
-							const t =
-								(timeMs - region.endMs) / 400;
+							const t = (timeMs - region.endMs) / 400;
 							strength = 1 - easeOutCubic(clamp01(t));
 						}
 						if (strength > bestStrength) {
@@ -189,20 +185,13 @@ test.describe("Screen Recording Compositor Visual Test", () => {
 						}
 					}
 
-					if (bestStrength < 0.001)
-						return { scale: 1, tx: 0, ty: 0 };
+					if (bestStrength < 0.001) return { scale: 1, tx: 0, ty: 0 };
 
 					const cx = clamp01(bestRegion.cx);
 					const cy = clamp01(bestRegion.cy);
 					const scale = lerp(1, bestRegion.depth, bestStrength);
-					const tx = -(
-						cx * outputWidth * scale -
-						outputWidth / 2
-					);
-					const ty = -(
-						cy * outputHeight * scale -
-						outputHeight / 2
-					);
+					const tx = -(cx * outputWidth * scale - outputWidth / 2);
+					const ty = -(cy * outputHeight * scale - outputHeight / 2);
 					return { scale, tx, ty };
 				}
 
@@ -342,17 +331,12 @@ test.describe("Screen Recording Compositor Visual Test", () => {
 					// ── Draw cursor overlay ──
 					if (showCursor) {
 						const point = findPoint(timeMs);
-						const rx =
-							(point.x - captureRect.x) / captureRect.width;
-						const ry =
-							(point.y - captureRect.y) / captureRect.height;
+						const rx = (point.x - captureRect.x) / captureRect.width;
+						const ry = (point.y - captureRect.y) / captureRect.height;
 						const targetX = padding + rx * vw;
 						const targetY = padding + ry * vh;
 
-						const dt =
-							lastTimeMs >= 0
-								? (timeMs - lastTimeMs) / 1000
-								: 0;
+						const dt = lastTimeMs >= 0 ? (timeMs - lastTimeMs) / 1000 : 0;
 						lastTimeMs = timeMs;
 
 						if (dt < 0 || dt > 0.5) {
@@ -363,20 +347,8 @@ test.describe("Screen Recording Compositor Visual Test", () => {
 							springY.velocity = 0;
 							springY.init = true;
 						} else {
-							stepSpring(
-								springX,
-								targetX,
-								STIFFNESS,
-								DAMPING,
-								dt
-							);
-							stepSpring(
-								springY,
-								targetY,
-								STIFFNESS,
-								DAMPING,
-								dt
-							);
+							stepSpring(springX, targetX, STIFFNESS, DAMPING, dt);
+							stepSpring(springY, targetY, STIFFNESS, DAMPING, dt);
 						}
 
 						const cursorX = springX.value;
@@ -398,19 +370,12 @@ test.describe("Screen Recording Compositor Visual Test", () => {
 								if (t < mid) {
 									bounceScale = 1 - 0.15 * (t / mid);
 								} else {
-									bounceScale =
-										1 -
-										0.15 *
-											(1 -
-												clamp01(
-													(t - mid) / (1 - mid)
-												));
+									bounceScale = 1 - 0.15 * (1 - clamp01((t - mid) / (1 - mid)));
 								}
 							}
 						}
 
-						const radius =
-							28 * (outputWidth / 1920) * bounceScale;
+						const radius = 28 * (outputWidth / 1920) * bounceScale;
 
 						// Cursor dot (white)
 						ctx.beginPath();
@@ -419,18 +384,9 @@ test.describe("Screen Recording Compositor Visual Test", () => {
 						ctx.fill();
 
 						// Click ring
-						if (
-							clickStartMs >= 0 &&
-							timeMs - clickStartMs < 150
-						) {
+						if (clickStartMs >= 0 && timeMs - clickStartMs < 150) {
 							ctx.beginPath();
-							ctx.arc(
-								cursorX,
-								cursorY,
-								radius * 1.5,
-								0,
-								Math.PI * 2
-							);
+							ctx.arc(cursorX, cursorY, radius * 1.5, 0, Math.PI * 2);
 							ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
 							ctx.lineWidth = 2;
 							ctx.stroke();
@@ -613,10 +569,7 @@ test.describe("Screen Recording Compositor Visual Test", () => {
 		await mkdir(OUTPUT_DIR, { recursive: true });
 
 		for (const frame of renderedFrames) {
-			const base64 = frame.dataUrl.replace(
-				/^data:image\/png;base64,/,
-				""
-			);
+			const base64 = frame.dataUrl.replace(/^data:image\/png;base64,/, "");
 			const buf = Buffer.from(base64, "base64");
 			const filePath = join(OUTPUT_DIR, `${frame.label}.png`);
 			await writeFile(filePath, buf);

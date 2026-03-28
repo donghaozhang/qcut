@@ -86,8 +86,16 @@ describe("motion-smoothing", () => {
 			const stiff = getCursorSpringConfig(0);
 			const smooth = getCursorSpringConfig(2);
 
-			let stiffState: SpringState = { value: 0, velocity: 0, initialized: true };
-			let smoothState: SpringState = { value: 0, velocity: 0, initialized: true };
+			let stiffState: SpringState = {
+				value: 0,
+				velocity: 0,
+				initialized: true,
+			};
+			let smoothState: SpringState = {
+				value: 0,
+				velocity: 0,
+				initialized: true,
+			};
 
 			// Step 10 frames
 			for (let i = 0; i < 10; i++) {

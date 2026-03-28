@@ -157,47 +157,43 @@ test.describe("Screen Recording V2 — Full Enhancement Pipeline", () => {
 		await page.waitForTimeout(2_000);
 
 		// Load telemetry into the store via electronAPI + Zustand store bridge
-		const telemetryLoadResult = await page.evaluate(
-			async (filePath) => {
-				try {
-					const api = window.electronAPI?.screenRecording;
-					if (!api?.getCursorTelemetry) {
-						return {
-							loaded: false,
-							reason: "getCursorTelemetry not available",
-						};
-					}
-					const telemetry = await api.getCursorTelemetry(filePath);
-					if (!telemetry) {
-						return { loaded: false, reason: "telemetry returned null" };
-					}
-
-					// Store it via the Zustand store exposed for E2E
-					const store = (window as any)
-						.__screenRecordingEnhancementStore__;
-					if (store) {
-						store.getState().setCursorTelemetry(telemetry);
-						store.getState().setShowCursorOverlay(true);
-						return {
-							loaded: true,
-							points: telemetry.points?.length ?? 0,
-						};
-					}
-
+		const telemetryLoadResult = await page.evaluate(async (filePath) => {
+			try {
+				const api = window.electronAPI?.screenRecording;
+				if (!api?.getCursorTelemetry) {
 					return {
 						loaded: false,
-						reason: "store bridge not found on window",
-						points: telemetry.points?.length ?? 0,
-					};
-				} catch (e) {
-					return {
-						loaded: false,
-						reason: `error: ${e instanceof Error ? e.message : String(e)}`,
+						reason: "getCursorTelemetry not available",
 					};
 				}
-			},
-			videoPath
-		);
+				const telemetry = await api.getCursorTelemetry(filePath);
+				if (!telemetry) {
+					return { loaded: false, reason: "telemetry returned null" };
+				}
+
+				// Store it via the Zustand store exposed for E2E
+				const store = (window as any).__screenRecordingEnhancementStore__;
+				if (store) {
+					store.getState().setCursorTelemetry(telemetry);
+					store.getState().setShowCursorOverlay(true);
+					return {
+						loaded: true,
+						points: telemetry.points?.length ?? 0,
+					};
+				}
+
+				return {
+					loaded: false,
+					reason: "store bridge not found on window",
+					points: telemetry.points?.length ?? 0,
+				};
+			} catch (e) {
+				return {
+					loaded: false,
+					reason: `error: ${e instanceof Error ? e.message : String(e)}`,
+				};
+			}
+		}, videoPath);
 		console.log(
 			`[Screen Recording V2] Telemetry load: ${JSON.stringify(telemetryLoadResult)}`
 		);
@@ -233,9 +229,7 @@ test.describe("Screen Recording V2 — Full Enhancement Pipeline", () => {
 		// The ScreenRecordingPanel renders in the properties panel sidebar.
 		// It shows when cursorTelemetry is loaded or hasActiveEnhancements.
 		// Wait for the panel to appear — it may need a moment after store update.
-		const cursorToggle = page.locator(
-			'[aria-label="Toggle cursor overlay"]'
-		);
+		const cursorToggle = page.locator('[aria-label="Toggle cursor overlay"]');
 		const autoGenBtn = page.locator('button:has-text("Auto-generate")');
 
 		// Try waiting for the panel to render
@@ -268,9 +262,7 @@ test.describe("Screen Recording V2 — Full Enhancement Pipeline", () => {
 
 			if ((await dotButton.count()) > 0) {
 				await expect(dotButton.first()).toBeVisible();
-				console.log(
-					"[Screen Recording V2] ✓ Cursor style buttons visible"
-				);
+				console.log("[Screen Recording V2] ✓ Cursor style buttons visible");
 			}
 
 			// Toggle cursor visibility off and on
@@ -278,17 +270,13 @@ test.describe("Screen Recording V2 — Full Enhancement Pipeline", () => {
 			await page.waitForTimeout(300);
 			await cursorToggle.first().click();
 			await page.waitForTimeout(300);
-			console.log(
-				"[Screen Recording V2] ✓ Cursor visibility toggle works"
-			);
+			console.log("[Screen Recording V2] ✓ Cursor visibility toggle works");
 
 			// Switch cursor style to arrow
 			if ((await arrowButton.count()) > 0) {
 				await arrowButton.first().click();
 				await page.waitForTimeout(300);
-				console.log(
-					"[Screen Recording V2] ✓ Switched cursor to arrow style"
-				);
+				console.log("[Screen Recording V2] ✓ Switched cursor to arrow style");
 			}
 
 			// ── Background settings ──
@@ -299,9 +287,7 @@ test.describe("Screen Recording V2 — Full Enhancement Pipeline", () => {
 			if ((await gradientBtn.count()) > 0) {
 				await gradientBtn.first().click();
 				await page.waitForTimeout(500);
-				console.log(
-					"[Screen Recording V2] ✓ Switched to gradient background"
-				);
+				console.log("[Screen Recording V2] ✓ Switched to gradient background");
 
 				// Select a gradient preset
 				const sunsetPreset = page.locator('[aria-label="Sunset"]');
@@ -314,9 +300,7 @@ test.describe("Screen Recording V2 — Full Enhancement Pipeline", () => {
 				}
 
 				// Verify padding/radius/shadow controls appeared
-				const shadowSwitch = page.locator(
-					'[aria-label="Toggle shadow"]'
-				);
+				const shadowSwitch = page.locator('[aria-label="Toggle shadow"]');
 				if ((await shadowSwitch.count()) > 0) {
 					console.log(
 						"[Screen Recording V2] ✓ Shadow toggle visible with background"
@@ -327,17 +311,13 @@ test.describe("Screen Recording V2 — Full Enhancement Pipeline", () => {
 			if ((await solidBtn.count()) > 0) {
 				await solidBtn.first().click();
 				await page.waitForTimeout(300);
-				console.log(
-					"[Screen Recording V2] ✓ Switched to solid background"
-				);
+				console.log("[Screen Recording V2] ✓ Switched to solid background");
 			}
 
 			if ((await noneBtn.count()) > 0) {
 				await noneBtn.first().click();
 				await page.waitForTimeout(300);
-				console.log(
-					"[Screen Recording V2] ✓ Switched background back to none"
-				);
+				console.log("[Screen Recording V2] ✓ Switched background back to none");
 			}
 
 			// ── Zoom controls ──
@@ -346,9 +326,7 @@ test.describe("Screen Recording V2 — Full Enhancement Pipeline", () => {
 				if (!isDisabled) {
 					await autoGenBtn.first().click();
 					await page.waitForTimeout(1_000);
-					console.log(
-						"[Screen Recording V2] ✓ Auto-generated zoom regions"
-					);
+					console.log("[Screen Recording V2] ✓ Auto-generated zoom regions");
 				}
 			}
 
@@ -373,15 +351,11 @@ test.describe("Screen Recording V2 — Full Enhancement Pipeline", () => {
 				if ((await depth2x.count()) > 0) {
 					await depth2x.first().click();
 					await page.waitForTimeout(300);
-					console.log(
-						"[Screen Recording V2] ✓ Changed zoom depth to 2x"
-					);
+					console.log("[Screen Recording V2] ✓ Changed zoom depth to 2x");
 				}
 
 				// Clear all
-				const clearBtn = page.locator(
-					'button[title="Clear all zoom regions"]'
-				);
+				const clearBtn = page.locator('button[title="Clear all zoom regions"]');
 				if ((await clearBtn.count()) > 0) {
 					await clearBtn.first().click();
 					await page.waitForTimeout(300);
@@ -389,9 +363,7 @@ test.describe("Screen Recording V2 — Full Enhancement Pipeline", () => {
 						.locator('[aria-label="Remove zoom region"]')
 						.count();
 					expect(afterClear).toBe(0);
-					console.log(
-						"[Screen Recording V2] ✓ Cleared all zoom regions"
-					);
+					console.log("[Screen Recording V2] ✓ Cleared all zoom regions");
 				}
 			}
 		} else {
@@ -401,8 +373,7 @@ test.describe("Screen Recording V2 — Full Enhancement Pipeline", () => {
 			);
 
 			const storeOps = await page.evaluate(() => {
-				const store = (window as any)
-					.__screenRecordingEnhancementStore__;
+				const store = (window as any).__screenRecordingEnhancementStore__;
 				if (!store) return { error: "no store" };
 				const s = store.getState();
 
@@ -468,9 +439,7 @@ test.describe("Screen Recording V2 — Full Enhancement Pipeline", () => {
 			expect(storeOps.zoomCount).toBeGreaterThanOrEqual(1);
 			expect(storeOps.updatedDepth).toBe(3);
 			expect(storeOps.afterRemoveTestRegion).toBe(true);
-			console.log(
-				"[Screen Recording V2] ✓ All store operations verified"
-			);
+			console.log("[Screen Recording V2] ✓ All store operations verified");
 		}
 
 		// ═══════════════════════════════════════════════════════════
