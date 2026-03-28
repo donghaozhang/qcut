@@ -64,6 +64,10 @@ export function resolveExportSettings({
 		const codec =
 			s?.codec ?? (typeof top.codec === "string" ? top.codec : "libx264");
 
+		const gifLoop =
+			(s as Record<string, unknown> | undefined)?.gifLoop ??
+			(typeof top.gifLoop === "boolean" ? top.gifLoop : undefined);
+
 		return {
 			presetId: preset.id,
 			width:
@@ -77,6 +81,7 @@ export function resolveExportSettings({
 			bitrate:
 				s?.bitrate ??
 				(typeof top.bitrate === "string" ? top.bitrate : preset.bitrate),
+			...(gifLoop !== undefined && { gifLoop }),
 		};
 	} catch (error) {
 		if (error instanceof Error) {
@@ -519,7 +524,10 @@ export async function executeExportJob({
 		// and .gif doesn't support H.264.
 		const videoOutputPath =
 			settings.format === "gif"
-				? path.join(path.dirname(outputPath), path.basename(outputPath).replace(/\.gif$/i, ".mp4"))
+				? path.join(
+						path.dirname(outputPath),
+						path.basename(outputPath).replace(/\.gif$/i, ".mp4")
+					)
 				: outputPath;
 
 		let tempBase: string;
@@ -759,6 +767,12 @@ export async function executeExportJob({
 					"Sticker overlay pass failed, restoring concatenated export:",
 					stickerError
 				);
+				// Remove partial sticker output (Windows won't overwrite on rename)
+				try {
+					await fsPromises.unlink(videoOutputPath);
+				} catch {
+					/* may not exist */
+				}
 				// Restore the pre-sticker output so the export isn't lost
 				await fsPromises.rename(concatOutputPath, videoOutputPath);
 			}
@@ -772,20 +786,28 @@ export async function executeExportJob({
 			claudeLog.info(HANDLER_NAME, "Converting export to GIF format...");
 			updateJobProgress({ jobId, progress: 0.94 });
 
-			const gifLoop =
-				(settings as unknown as Record<string, unknown>).gifLoop !== false;
-			await convertToGif({
-				inputPath: videoOutputPath,
-				outputPath,
-				width: settings.width,
-				height: settings.height,
-				fps: settings.fps,
-				loop: gifLoop,
-				tempDir,
-				onProgress: (p) => {
-					updateJobProgress({ jobId, progress: 0.94 + p * 0.04 });
-				},
-			});
+			try {
+				await convertToGif({
+					inputPath: videoOutputPath,
+					outputPath,
+					width: settings.width,
+					height: settings.height,
+					fps: settings.fps,
+					loop: settings.gifLoop !== false,
+					tempDir,
+					onProgress: (p) => {
+						updateJobProgress({ jobId, progress: 0.94 + p * 0.04 });
+					},
+				});
+			} catch (gifError) {
+				// Clean up partial GIF artifact on failure
+				try {
+					await fsPromises.unlink(outputPath);
+				} catch {
+					/* may not exist */
+				}
+				throw gifError;
+			}
 
 			// Clean up intermediary MP4
 			try {

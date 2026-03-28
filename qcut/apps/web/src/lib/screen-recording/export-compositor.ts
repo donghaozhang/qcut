@@ -199,6 +199,9 @@ export class ScreenRecordingExportCompositor {
 			ctx.drawImage(videoFrame, 0, 0, outputWidth, outputHeight);
 		}
 
+		// Reset zoom motion blur filter before drawing cursor
+		ctx.filter = "none";
+
 		// Step 4: Draw cursor overlay (inside zoom transform context)
 		if (this.getTelemetryPoints() && cursorConfig.cursorStyle !== "hidden") {
 			this.renderCursor(
@@ -209,9 +212,6 @@ export class ScreenRecordingExportCompositor {
 		}
 
 		ctx.restore();
-
-		// Reset zoom motion blur filter
-		ctx.filter = "none";
 
 		// Step 5: Draw webcam overlay (outside zoom context)
 		this.renderWebcamOverlay(ctx, zoom.scale);

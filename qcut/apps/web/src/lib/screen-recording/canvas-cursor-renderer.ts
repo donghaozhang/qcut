@@ -139,9 +139,10 @@ export function drawCursorWithMotionBlur(
 		const ghostX = x - dx * t * 0.6;
 		const ghostY = y - dy * t * 0.6;
 		const alpha = (1 - t) * 0.3;
+		const ghostConfig = { ...config, dotAlpha: alpha };
 		ctx.save();
 		ctx.globalAlpha = alpha;
-		drawCursor(ctx, ghostX, ghostY, config, 0, canvasWidth, swayRotation);
+		drawCursor(ctx, ghostX, ghostY, ghostConfig, 0, canvasWidth, swayRotation);
 		ctx.restore();
 	}
 

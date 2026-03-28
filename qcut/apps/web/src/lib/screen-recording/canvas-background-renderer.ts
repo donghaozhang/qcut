@@ -29,6 +29,10 @@ export function drawBackground(
 	} else if (config.type === "solid") {
 		ctx.fillStyle = config.solidColor ?? "#1a1a2e";
 		ctx.fillRect(0, 0, width, height);
+	} else if (config.type === "wallpaper" && !config.wallpaperPath) {
+		// Wallpaper selected but path missing — dark fallback
+		ctx.fillStyle = "#1a1a2e";
+		ctx.fillRect(0, 0, width, height);
 	} else if (config.type === "wallpaper" && config.wallpaperPath) {
 		const img = getWallpaperImage(config.wallpaperPath);
 		if (img?.complete && img.naturalWidth > 0) {

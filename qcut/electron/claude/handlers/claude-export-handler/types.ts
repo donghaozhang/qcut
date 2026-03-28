@@ -30,6 +30,7 @@ export interface ResolvedExportSettings {
 	format: string;
 	codec: string;
 	bitrate: string;
+	gifLoop?: boolean;
 }
 
 export interface ExportJobInternal {
