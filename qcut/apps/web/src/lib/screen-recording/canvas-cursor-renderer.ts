@@ -17,7 +17,8 @@ export function drawCursor(
 	y: number,
 	config: CursorRenderConfig,
 	clickAnimProgress: number,
-	canvasWidth: number
+	canvasWidth: number,
+	swayRotation = 0
 ): void {
 	if (config.cursorStyle === "hidden") return;
 
@@ -39,6 +40,13 @@ export function drawCursor(
 
 	ctx.save();
 	ctx.globalAlpha = config.dotAlpha;
+
+	// Apply sway rotation around cursor position
+	if (swayRotation !== 0) {
+		ctx.translate(x, y);
+		ctx.rotate(swayRotation);
+		ctx.translate(-x, -y);
+	}
 
 	if (
 		config.cursorStyle === "macos-arrow" ||
@@ -96,6 +104,50 @@ function getCursorImage(style: string): HTMLImageElement | null {
 
 function colorToCSS(hex: number): string {
 	return `#${hex.toString(16).padStart(6, "0")}`;
+}
+
+/**
+ * Draw cursor with motion blur ghost trail for fast movements.
+ * Draws N ghost cursors along the movement vector with decreasing opacity.
+ */
+export function drawCursorWithMotionBlur(
+	ctx: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	prevX: number,
+	prevY: number,
+	config: CursorRenderConfig,
+	clickAnimProgress: number,
+	canvasWidth: number,
+	swayRotation = 0
+): void {
+	const dx = x - prevX;
+	const dy = y - prevY;
+	const distance = Math.hypot(dx, dy);
+	const blurIntensity = distance * config.motionBlur * 0.08;
+
+	if (blurIntensity < 0.5) {
+		drawCursor(ctx, x, y, config, clickAnimProgress, canvasWidth, swayRotation);
+		return;
+	}
+
+	const ghostCount = Math.min(5, Math.ceil(blurIntensity));
+
+	// Draw ghosts from oldest to newest (increasing opacity)
+	for (let i = ghostCount; i >= 1; i--) {
+		const t = i / ghostCount;
+		const ghostX = x - dx * t * 0.6;
+		const ghostY = y - dy * t * 0.6;
+		const alpha = (1 - t) * 0.3;
+		const ghostConfig = { ...config, dotAlpha: alpha };
+		ctx.save();
+		ctx.globalAlpha = alpha;
+		drawCursor(ctx, ghostX, ghostY, ghostConfig, 0, canvasWidth, swayRotation);
+		ctx.restore();
+	}
+
+	// Draw main cursor on top at full opacity
+	drawCursor(ctx, x, y, config, clickAnimProgress, canvasWidth, swayRotation);
 }
 
 /**

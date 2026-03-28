@@ -39,6 +39,7 @@ import {
 	getDefaultOutputPath,
 } from "./utils.js";
 import { updateJobProgress, exportJobs } from "./job-manager.js";
+import { convertToGif } from "./gif-convert.js";
 
 export function resolveExportSettings({
 	request,
@@ -55,6 +56,18 @@ export function resolveExportSettings({
 		const s = request.settings;
 		const top = request as Record<string, unknown>;
 
+		const format =
+			s?.format ??
+			(typeof top.format === "string" ? top.format : preset.format);
+
+		// GIF exports use libx264 for the intermediary MP4, then convert
+		const codec =
+			s?.codec ?? (typeof top.codec === "string" ? top.codec : "libx264");
+
+		const rawGifLoop =
+			(s as Record<string, unknown> | undefined)?.gifLoop ?? top.gifLoop;
+		const gifLoop = typeof rawGifLoop === "boolean" ? rawGifLoop : undefined;
+
 		return {
 			presetId: preset.id,
 			width:
@@ -63,14 +76,12 @@ export function resolveExportSettings({
 				s?.height ??
 				(typeof top.height === "number" ? top.height : preset.height),
 			fps: s?.fps ?? (typeof top.fps === "number" ? top.fps : preset.fps),
-			format:
-				s?.format ??
-				(typeof top.format === "string" ? top.format : preset.format),
-			codec:
-				s?.codec ?? (typeof top.codec === "string" ? top.codec : "libx264"),
+			format,
+			codec,
 			bitrate:
 				s?.bitrate ??
 				(typeof top.bitrate === "string" ? top.bitrate : preset.bitrate),
+			gifLoop,
 		};
 	} catch (error) {
 		if (error instanceof Error) {
@@ -508,6 +519,17 @@ export async function executeExportJob({
 
 		await ensureDirectory({ directory: path.dirname(outputPath) });
 
+		// For GIF exports, all intermediate video steps (concat, sticker overlay)
+		// must use an .mp4 path since FFmpeg infers container from extension
+		// and .gif doesn't support H.264.
+		const videoOutputPath =
+			settings.format === "gif"
+				? path.join(
+						path.dirname(outputPath),
+						path.basename(outputPath).replace(/\.gif$/i, ".mp4")
+					)
+				: outputPath;
+
 		let tempBase: string;
 		try {
 			tempBase = app.getPath("temp");
@@ -603,7 +625,7 @@ export async function executeExportJob({
 				"copy",
 				"-movflags",
 				"+faststart",
-				outputPath,
+				videoOutputPath,
 			],
 			estimatedDuration: Math.max(
 				0,
@@ -630,7 +652,7 @@ export async function executeExportJob({
 
 			const concatOutputPath = path.join(tempDir, "concat-no-stickers.mp4");
 			// Move the concat output so we can use it as input for the overlay pass
-			await fsPromises.rename(outputPath, concatOutputPath);
+			await fsPromises.rename(videoOutputPath, concatOutputPath);
 
 			try {
 				// Build FFmpeg filter_complex for sticker overlays
@@ -718,7 +740,7 @@ export async function executeExportJob({
 					"copy",
 					"-movflags",
 					"+faststart",
-					outputPath,
+					videoOutputPath,
 				];
 
 				claudeLog.info(
@@ -745,8 +767,53 @@ export async function executeExportJob({
 					"Sticker overlay pass failed, restoring concatenated export:",
 					stickerError
 				);
+				// Remove partial sticker output (Windows won't overwrite on rename)
+				try {
+					await fsPromises.unlink(videoOutputPath);
+				} catch {
+					/* may not exist */
+				}
 				// Restore the pre-sticker output so the export isn't lost
-				await fsPromises.rename(concatOutputPath, outputPath);
+				await fsPromises.rename(concatOutputPath, videoOutputPath);
+			}
+		}
+
+		// =====================================================================
+		// GIF CONVERSION (two-pass palette method)
+		// If format is "gif", convert the MP4 output to GIF via FFmpeg.
+		// =====================================================================
+		if (settings.format === "gif") {
+			claudeLog.info(HANDLER_NAME, "Converting export to GIF format...");
+			updateJobProgress({ jobId, progress: 0.94 });
+
+			try {
+				await convertToGif({
+					inputPath: videoOutputPath,
+					outputPath,
+					width: settings.width,
+					height: settings.height,
+					fps: settings.fps,
+					loop: settings.gifLoop !== false,
+					tempDir,
+					onProgress: (p) => {
+						updateJobProgress({ jobId, progress: 0.94 + p * 0.04 });
+					},
+				});
+			} catch (gifError) {
+				// Clean up partial GIF artifact on failure
+				try {
+					await fsPromises.unlink(outputPath);
+				} catch {
+					/* may not exist */
+				}
+				throw gifError;
+			}
+
+			// Clean up intermediary MP4
+			try {
+				await fsPromises.unlink(videoOutputPath);
+			} catch {
+				/* ignore */
 			}
 		}
 

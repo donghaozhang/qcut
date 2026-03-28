@@ -3,7 +3,7 @@
 	"extends": ["ultracite/react"],
 
 	"files": {
-		"includes": ["**", "!.claude/skills/**", "!.agent/skills/**", "!skills/**"]
+		"includes": ["**", "!.claude/skills", "!.agent/skills", "!skills"]
 	},
 
 	"overrides": [

@@ -3,6 +3,7 @@ export const ExportFormat = {
 	WEBM: "webm",
 	MP4: "mp4",
 	MOV: "mov",
+	GIF: "gif",
 } as const;
 
 export type ExportFormat = (typeof ExportFormat)[keyof typeof ExportFormat];
@@ -84,6 +85,12 @@ export const FORMAT_INFO = {
 		description: "Apple QuickTime format for professional editing",
 		mimeTypes: ["video/quicktime", "video/mp4;codecs=h264"],
 		extension: ".mov",
+	},
+	[ExportFormat.GIF]: {
+		label: "GIF",
+		description: "Animated image for short clips and sharing",
+		mimeTypes: ["image/gif"],
+		extension: ".gif",
 	},
 } as const;
 
@@ -311,3 +318,89 @@ export const mergeAudioSettings = (
 		...audioOptions,
 	};
 };
+
+// ============================================================================
+// GIF EXPORT EXTENSIONS
+// ============================================================================
+
+/** Valid GIF frame rates */
+export type GifFrameRate = 15 | 20 | 25 | 30;
+
+/** GIF size presets */
+export type GifSizePreset = "medium" | "large" | "original";
+
+/** GIF export configuration */
+export interface GifExportConfig {
+	frameRate: GifFrameRate;
+	loop: boolean;
+	sizePreset: GifSizePreset;
+	quality: number; // gif.js quality (1=best, 20=fastest)
+}
+
+/** Default GIF export config */
+export const DEFAULT_GIF_CONFIG: GifExportConfig = {
+	frameRate: 20,
+	loop: true,
+	sizePreset: "medium",
+	quality: 10,
+};
+
+/** GIF size preset dimensions */
+export const GIF_SIZE_PRESETS: Record<
+	GifSizePreset,
+	{ maxHeight: number; label: string }
+> = {
+	medium: { maxHeight: 720, label: "Medium (720p)" },
+	large: { maxHeight: 1080, label: "Large (1080p)" },
+	original: { maxHeight: Infinity, label: "Original" },
+};
+
+/** GIF frame rate options with labels */
+export const GIF_FRAME_RATES: { value: GifFrameRate; label: string }[] = [
+	{ value: 15, label: "15 FPS — Balanced" },
+	{ value: 20, label: "20 FPS — Smooth" },
+	{ value: 25, label: "25 FPS — Very smooth" },
+	{ value: 30, label: "30 FPS — Maximum" },
+];
+
+/** Valid GIF frame rates for validation */
+export const VALID_GIF_FRAME_RATES: readonly GifFrameRate[] = [
+	15, 20, 25, 30,
+] as const;
+
+/** Type guard for valid GIF frame rate */
+export function isValidGifFrameRate(rate: number): rate is GifFrameRate {
+	return (VALID_GIF_FRAME_RATES as readonly number[]).includes(rate);
+}
+
+/**
+ * Calculate output dimensions for GIF based on size preset.
+ * Preserves aspect ratio and ensures even pixel counts.
+ */
+export function calculateGifDimensions(
+	sourceWidth: number,
+	sourceHeight: number,
+	sizePreset: GifSizePreset
+): { width: number; height: number } {
+	const preset = GIF_SIZE_PRESETS[sizePreset];
+
+	if (sourceHeight <= preset.maxHeight || sizePreset === "original") {
+		return { width: sourceWidth, height: sourceHeight };
+	}
+
+	const aspectRatio = sourceWidth / sourceHeight;
+	const newHeight = preset.maxHeight;
+	const newWidth = Math.round(newHeight * aspectRatio);
+
+	return {
+		width: newWidth % 2 === 0 ? newWidth : newWidth + 1,
+		height: newHeight % 2 === 0 ? newHeight : newHeight + 1,
+	};
+}
+
+/** GIF format info (extends FORMAT_INFO pattern) */
+export const GIF_FORMAT_INFO = {
+	label: "GIF",
+	description: "Animated image for sharing (Slack, GitHub, docs)",
+	extension: ".gif",
+} as const;

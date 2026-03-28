@@ -29,6 +29,35 @@ export function drawBackground(
 	} else if (config.type === "solid") {
 		ctx.fillStyle = config.solidColor ?? "#1a1a2e";
 		ctx.fillRect(0, 0, width, height);
+	} else if (config.type === "wallpaper" && !config.wallpaperPath) {
+		// Wallpaper selected but path missing — dark fallback
+		ctx.fillStyle = "#1a1a2e";
+		ctx.fillRect(0, 0, width, height);
+	} else if (config.type === "wallpaper" && config.wallpaperPath) {
+		const img = getWallpaperImage(config.wallpaperPath);
+		if (img?.complete && img.naturalWidth > 0) {
+			// Cover the entire canvas (aspect-fill)
+			const scale = Math.max(
+				width / img.naturalWidth,
+				height / img.naturalHeight
+			);
+			const drawW = img.naturalWidth * scale;
+			const drawH = img.naturalHeight * scale;
+			const drawX = (width - drawW) / 2;
+			const drawY = (height - drawH) / 2;
+			ctx.drawImage(img, drawX, drawY, drawW, drawH);
+		} else {
+			// Fallback: dark fill while image loads
+			ctx.fillStyle = "#1a1a2e";
+			ctx.fillRect(0, 0, width, height);
+		}
+	}
+
+	// Background blur (applied after any background type)
+	if (config.backgroundBlur && config.backgroundBlur > 0) {
+		ctx.filter = `blur(${config.backgroundBlur}px)`;
+		ctx.drawImage(ctx.canvas, 0, 0);
+		ctx.filter = "none";
 	}
 }
 
@@ -95,6 +124,16 @@ function roundedRect(
 	ctx.lineTo(x, y + r);
 	ctx.quadraticCurveTo(x, y, x + r, y);
 	ctx.closePath();
+}
+
+const wallpaperImageCache = new Map<string, HTMLImageElement>();
+
+function getWallpaperImage(path: string): HTMLImageElement | null {
+	if (wallpaperImageCache.has(path)) return wallpaperImageCache.get(path)!;
+	const img = new Image();
+	img.src = path;
+	wallpaperImageCache.set(path, img);
+	return img;
 }
 
 function resolveGradientColors(config: BackgroundConfig): [string, string] {

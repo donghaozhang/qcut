@@ -1,4 +1,9 @@
-import { computeRegionStrength, type ZoomRegion } from "./zoom-region-utils";
+import {
+	computeRegionStrength,
+	type ZoomRegion,
+	type ConnectedTransition,
+	getConnectedPanState,
+} from "./zoom-region-utils";
 import { constrainFocus } from "./focus-utils";
 import { lerp } from "./math-utils";
 
@@ -16,17 +21,40 @@ const IDENTITY_TRANSFORM: ZoomTransform = {
 
 /**
  * Compute the active zoom transform at a given time.
- * Combines all active zoom regions and returns a single transform.
+ * Connected transitions take priority — smooth pan between adjacent regions
+ * instead of zooming all the way out and back in.
  */
 export function computeZoomTransform(
 	timeMs: number,
 	regions: ZoomRegion[],
 	sourceWidth: number,
-	sourceHeight: number
+	sourceHeight: number,
+	connectedTransitions?: ConnectedTransition[]
 ): ZoomTransform {
 	if (regions.length === 0) return IDENTITY_TRANSFORM;
 
-	// Find the strongest active region
+	const aspectRatio = sourceWidth / sourceHeight;
+
+	// Priority 1: Check connected pan transitions
+	if (connectedTransitions && connectedTransitions.length > 0) {
+		const panState = getConnectedPanState(connectedTransitions, timeMs);
+		if (panState) {
+			const { cx, cy } = constrainFocus(
+				panState.cx,
+				panState.cy,
+				panState.scale,
+				aspectRatio
+			);
+			const translateX = -(cx * sourceWidth * panState.scale - sourceWidth / 2);
+			const translateY = -(
+				cy * sourceHeight * panState.scale -
+				sourceHeight / 2
+			);
+			return { scale: panState.scale, translateX, translateY };
+		}
+	}
+
+	// Priority 2: Find the strongest active region
 	let bestStrength = 0;
 	let bestRegion: ZoomRegion | null = null;
 
@@ -40,7 +68,6 @@ export function computeZoomTransform(
 
 	if (!bestRegion || bestStrength <= 0.001) return IDENTITY_TRANSFORM;
 
-	const aspectRatio = sourceWidth / sourceHeight;
 	const { cx, cy } = constrainFocus(
 		bestRegion.focus.cx,
 		bestRegion.focus.cy,
@@ -48,12 +75,7 @@ export function computeZoomTransform(
 		aspectRatio
 	);
 
-	// Interpolate scale from 1 to depth based on strength
 	const scale = lerp(1, bestRegion.depth, bestStrength);
-
-	// Translate so the focus point stays centered
-	// At scale S, the visible viewport is (1/S) of the source.
-	// To center on (cx, cy), translate by:
 	const translateX = -(cx * sourceWidth * scale - sourceWidth / 2);
 	const translateY = -(cy * sourceHeight * scale - sourceHeight / 2);
 

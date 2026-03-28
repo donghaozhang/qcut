@@ -9,6 +9,7 @@ import {
 } from "./motion-smoothing";
 import { CURSOR_ASSETS } from "./cursor-assets";
 import { clamp01 } from "./math-utils";
+import { computeCursorSwayRotation } from "./cursor-sway";
 
 export interface CursorRenderConfig {
 	dotRadius: number;
@@ -17,6 +18,7 @@ export interface CursorRenderConfig {
 	smoothingFactor: number;
 	motionBlur: number;
 	clickBounce: number;
+	sway: number;
 	cursorStyle: "dot" | "macos-arrow" | "macos-pointer" | "hidden";
 }
 
@@ -27,6 +29,7 @@ export const DEFAULT_CURSOR_CONFIG: CursorRenderConfig = {
 	smoothingFactor: 0.18,
 	motionBlur: 0,
 	clickBounce: 1,
+	sway: 0,
 	cursorStyle: "dot",
 };
 
@@ -43,6 +46,10 @@ export class CursorRenderer {
 	private springConfig: SpringConfig;
 	private springX: SpringState;
 	private springY: SpringState;
+	private springRotation: SpringState;
+	private swaySpringConfig: SpringConfig;
+	private prevSmoothedX = 0;
+	private prevSmoothedY = 0;
 	private cursorGraphics: PIXI.Graphics;
 	private cursorSprite: PIXI.Sprite | null = null;
 	private lastTimeMs = -1;
@@ -57,6 +64,14 @@ export class CursorRenderer {
 		this.springConfig = getCursorSpringConfig(config.smoothingFactor);
 		this.springX = createSpringState();
 		this.springY = createSpringState();
+		this.springRotation = createSpringState();
+		// Sway rotation spring: reduced damping (0.9x) and mass (0.8x) for natural wobble
+		const baseSwayConfig = getCursorSpringConfig(config.smoothingFactor);
+		this.swaySpringConfig = {
+			stiffness: baseSwayConfig.stiffness,
+			damping: baseSwayConfig.damping * 0.9,
+			mass: baseSwayConfig.mass * 0.8,
+		};
 		this.cursorGraphics = new PIXI.Graphics();
 		this.stage.addChild(this.cursorGraphics);
 
@@ -135,6 +150,28 @@ export class CursorRenderer {
 		const smoothX = this.springX.value;
 		const smoothY = this.springY.value;
 
+		// Sway rotation
+		let swayRotation = 0;
+		if (this.config.sway > 0 && rawDt > 0) {
+			const dx = smoothX - this.prevSmoothedX;
+			const dy = smoothY - this.prevSmoothedY;
+			const targetRotation = computeCursorSwayRotation({
+				dx,
+				dy,
+				deltaMs: rawDt * 1000,
+				sway: this.config.sway,
+			});
+			this.springRotation = stepSpring(
+				this.springRotation,
+				targetRotation,
+				this.swaySpringConfig,
+				rawDt
+			);
+			swayRotation = this.springRotation.value;
+		}
+		this.prevSmoothedX = smoothX;
+		this.prevSmoothedY = smoothY;
+
 		// Click bounce animation
 		const isPressed = point.p;
 		if (isPressed && !this.wasPressed) {
@@ -195,6 +232,7 @@ export class CursorRenderer {
 			this.cursorSprite.y = smoothY;
 			this.cursorSprite.scale.set(scaleFactor * bounceScale);
 			this.cursorSprite.alpha = this.config.dotAlpha;
+			this.cursorSprite.rotation = swayRotation;
 		}
 	}
 
@@ -203,6 +241,12 @@ export class CursorRenderer {
 		Object.assign(this.config, config);
 		if (config.smoothingFactor !== undefined) {
 			this.springConfig = getCursorSpringConfig(config.smoothingFactor);
+			const base = this.springConfig;
+			this.swaySpringConfig = {
+				stiffness: base.stiffness,
+				damping: base.damping * 0.9,
+				mass: base.mass * 0.8,
+			};
 		}
 		// Rebuild sprite when cursor style changes
 		if (config.cursorStyle !== undefined && config.cursorStyle !== prevStyle) {

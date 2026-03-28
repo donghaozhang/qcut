@@ -1,9 +1,12 @@
-import { easeOutCubic, clamp01 } from "./math-utils";
+import { easeOutCubic, clamp01, lerp } from "./math-utils";
 import {
 	ZOOM_IN_OVERLAP_MS,
 	ZOOM_IN_TRANSITION_WINDOW_MS,
 	TRANSITION_WINDOW_MS,
+	CONNECTED_ZOOM_GAP_MS,
+	CONNECTED_PAN_DURATION_MS,
 } from "./constants";
+import { easeConnectedPan } from "./easing";
 
 export interface ZoomRegion {
 	id: string;
@@ -76,4 +79,77 @@ export function mergeOverlappingRegions(regions: ZoomRegion[]): ZoomRegion[] {
 	}
 
 	return merged;
+}
+
+/** A smooth pan transition between two adjacent zoom regions. */
+export interface ConnectedTransition {
+	fromRegion: ZoomRegion;
+	toRegion: ZoomRegion;
+	panStartMs: number;
+	panEndMs: number;
+}
+
+/**
+ * Find pairs of zoom regions close enough to chain with a smooth pan
+ * instead of zooming all the way out and back in.
+ */
+export function findConnectedTransitions(
+	regions: ZoomRegion[]
+): ConnectedTransition[] {
+	if (regions.length < 2) return [];
+
+	const sorted = [...regions].sort((a, b) => a.startMs - b.startMs);
+	const transitions: ConnectedTransition[] = [];
+
+	for (let i = 0; i < sorted.length - 1; i++) {
+		const gap = sorted[i + 1].startMs - sorted[i].endMs;
+		if (gap > 0 && gap <= CONNECTED_ZOOM_GAP_MS) {
+			const panStart = sorted[i].endMs;
+			const panEnd = Math.min(
+				panStart + CONNECTED_PAN_DURATION_MS,
+				sorted[i + 1].startMs
+			);
+			transitions.push({
+				fromRegion: sorted[i],
+				toRegion: sorted[i + 1],
+				panStartMs: panStart,
+				panEndMs: panEnd,
+			});
+		}
+	}
+
+	return transitions;
+}
+
+/**
+ * Get the connected pan state at a given time.
+ * Returns interpolated focus + scale during a pan, or null if no pan is active.
+ */
+export function getConnectedPanState(
+	transitions: ConnectedTransition[],
+	timeMs: number
+): { cx: number; cy: number; scale: number } | null {
+	for (const tr of transitions) {
+		// During pan animation
+		if (timeMs >= tr.panStartMs && timeMs <= tr.panEndMs) {
+			const t = clamp01(
+				(timeMs - tr.panStartMs) / (tr.panEndMs - tr.panStartMs)
+			);
+			const eased = easeConnectedPan(t);
+			return {
+				cx: lerp(tr.fromRegion.focus.cx, tr.toRegion.focus.cx, eased),
+				cy: lerp(tr.fromRegion.focus.cy, tr.toRegion.focus.cy, eased),
+				scale: lerp(tr.fromRegion.depth, tr.toRegion.depth, eased),
+			};
+		}
+		// Hold at target between pan end and next region start
+		if (timeMs > tr.panEndMs && timeMs < tr.toRegion.startMs) {
+			return {
+				cx: tr.toRegion.focus.cx,
+				cy: tr.toRegion.focus.cy,
+				scale: tr.toRegion.depth,
+			};
+		}
+	}
+	return null;
 }

@@ -68,6 +68,7 @@ export const getCodecForFormat = (format: ExportFormat): AudioCodec => {
 		mp4: "aac", // MP4 works best with AAC
 		webm: "opus", // WebM prefers Opus (better compression)
 		mov: "aac", // MOV works with AAC
+		gif: "aac", // GIF has no audio, but satisfy the type
 		default: "aac", // Safe default
 	};
 	return formatCodecMap[format] ?? formatCodecMap.default;

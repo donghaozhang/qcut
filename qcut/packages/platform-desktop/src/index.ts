@@ -106,6 +106,8 @@ const screenRecordingAdapter = {
 	appendChunk: (o: any) => api().screenRecording.appendChunk(o),
 	stop: (o?: any) => api().screenRecording.stop(o),
 	getStatus: () => api().screenRecording.getStatus(),
+	getCursorTelemetry: (videoPath: string) =>
+		api().screenRecording.getCursorTelemetry(videoPath),
 };
 
 const ffmpegAdapter = {
