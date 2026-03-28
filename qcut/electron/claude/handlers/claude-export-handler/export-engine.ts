@@ -65,10 +65,8 @@ export function resolveExportSettings({
 			s?.codec ?? (typeof top.codec === "string" ? top.codec : "libx264");
 
 		const rawGifLoop =
-			(s as Record<string, unknown> | undefined)?.gifLoop ??
-			top.gifLoop;
-		const gifLoop =
-			typeof rawGifLoop === "boolean" ? rawGifLoop : undefined;
+			(s as Record<string, unknown> | undefined)?.gifLoop ?? top.gifLoop;
+		const gifLoop = typeof rawGifLoop === "boolean" ? rawGifLoop : undefined;
 
 		return {
 			presetId: preset.id,
