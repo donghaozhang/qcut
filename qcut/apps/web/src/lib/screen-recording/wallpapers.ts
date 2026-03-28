@@ -40,6 +40,8 @@ export interface BackgroundConfig {
 	padding: number;
 	borderRadius: number;
 	shadow: boolean;
+	/** Background blur radius in pixels (0 = off, default 0) */
+	backgroundBlur?: number;
 }
 
 export const DEFAULT_BACKGROUND: BackgroundConfig = {

@@ -69,9 +69,7 @@ describe("wallpapers", () => {
 		});
 
 		it("handles underscores", () => {
-			expect(toWallpaperLabel("mountain_trees.png")).toBe(
-				"Mountain Trees",
-			);
+			expect(toWallpaperLabel("mountain_trees.png")).toBe("Mountain Trees");
 		});
 
 		it("returns fallback for empty basename", () => {

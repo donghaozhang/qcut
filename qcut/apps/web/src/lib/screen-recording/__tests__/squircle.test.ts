@@ -1,20 +1,21 @@
 import { describe, it, expect } from "vitest";
-import {
-	getSquirclePathPoints,
-	getSquircleSvgPath,
-} from "../squircle";
+import { getSquirclePathPoints, getSquircleSvgPath } from "../squircle";
 
 describe("squircle", () => {
 	describe("getSquirclePathPoints", () => {
 		it("returns empty for zero-size rect", () => {
 			expect(
-				getSquirclePathPoints({ x: 0, y: 0, width: 0, height: 100, radius: 10 }),
+				getSquirclePathPoints({ x: 0, y: 0, width: 0, height: 100, radius: 10 })
 			).toEqual([]);
 		});
 
 		it("returns rectangle points for zero radius", () => {
 			const points = getSquirclePathPoints({
-				x: 0, y: 0, width: 100, height: 50, radius: 0,
+				x: 0,
+				y: 0,
+				width: 100,
+				height: 50,
+				radius: 0,
 			});
 			expect(points).toHaveLength(4);
 			expect(points[0]).toEqual({ x: 0, y: 0 });
@@ -25,7 +26,11 @@ describe("squircle", () => {
 
 		it("generates curved points for non-zero radius", () => {
 			const points = getSquirclePathPoints({
-				x: 0, y: 0, width: 100, height: 100, radius: 20,
+				x: 0,
+				y: 0,
+				width: 100,
+				height: 100,
+				radius: 20,
 			});
 			// 4 corners × 10 segments + 1 start point = 41
 			expect(points).toHaveLength(41);
@@ -33,10 +38,18 @@ describe("squircle", () => {
 
 		it("clamps radius to half the smallest dimension", () => {
 			const small = getSquirclePathPoints({
-				x: 0, y: 0, width: 40, height: 20, radius: 100,
+				x: 0,
+				y: 0,
+				width: 40,
+				height: 20,
+				radius: 100,
 			});
 			const clamped = getSquirclePathPoints({
-				x: 0, y: 0, width: 40, height: 20, radius: 10,
+				x: 0,
+				y: 0,
+				width: 40,
+				height: 20,
+				radius: 10,
 			});
 			// Both should produce same number of points
 			expect(small.length).toBe(clamped.length);
@@ -44,7 +57,11 @@ describe("squircle", () => {
 
 		it("all points stay within bounds", () => {
 			const points = getSquirclePathPoints({
-				x: 10, y: 20, width: 80, height: 60, radius: 15,
+				x: 10,
+				y: 20,
+				width: 80,
+				height: 60,
+				radius: 15,
 			});
 			for (const p of points) {
 				expect(p.x).toBeGreaterThanOrEqual(10 - 0.01);
@@ -58,13 +75,17 @@ describe("squircle", () => {
 	describe("getSquircleSvgPath", () => {
 		it("returns empty string for zero-size rect", () => {
 			expect(
-				getSquircleSvgPath({ x: 0, y: 0, width: 0, height: 0, radius: 0 }),
+				getSquircleSvgPath({ x: 0, y: 0, width: 0, height: 0, radius: 0 })
 			).toBe("");
 		});
 
 		it("starts with M and ends with Z", () => {
 			const path = getSquircleSvgPath({
-				x: 0, y: 0, width: 100, height: 100, radius: 10,
+				x: 0,
+				y: 0,
+				width: 100,
+				height: 100,
+				radius: 10,
 			});
 			expect(path.startsWith("M")).toBe(true);
 			expect(path.endsWith("Z")).toBe(true);
@@ -72,7 +93,11 @@ describe("squircle", () => {
 
 		it("contains L commands for each point", () => {
 			const path = getSquircleSvgPath({
-				x: 0, y: 0, width: 100, height: 100, radius: 10,
+				x: 0,
+				y: 0,
+				width: 100,
+				height: 100,
+				radius: 10,
 			});
 			// 40 L commands (41 points - 1 M command)
 			const lCount = (path.match(/L /g) || []).length;

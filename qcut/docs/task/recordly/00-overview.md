@@ -5,7 +5,7 @@ Source: [github.com/webadderall/Recordly](https://github.com/webadderall/Recordl
 
 ## Implementation Status
 
-All 8 features have core logic implemented. UI components and export integration remain as follow-up work.
+All 13 features have core logic and compositor wiring implemented. UI components remain as follow-up work.
 
 | # | Feature | Plan | Status | Tests |
 |---|---------|------|--------|-------|
@@ -18,15 +18,15 @@ All 8 features have core logic implemented. UI components and export integration
 | 7 | [Cursor Loop](./07-cursor-loop.md) | Seamless loop cursor | Algorithm done, UI toggle pending | 11 |
 | 8 | [Figure Annotations](./08-figure-annotations.md) | Arrows/shapes | Paths + store done, render pending | 9 |
 | 9 | [CLI Integration](./09-cli-integration.md) | Export compositor + GIF | Compositor wired, GIF conversion done | 13 |
-| 10 | [Connected Zoom](./10-connected-zoom-transitions.md) | Smooth pan between adjacent regions | Plan ready | — |
-| 11 | [Zoom Motion Blur](./11-zoom-motion-blur.md) | Blur during camera movement | Plan ready | — |
-| 12 | [Cursor Motion Blur](./12-cursor-motion-blur.md) | Ghost trail on fast cursor | Plan ready | — |
-| 13 | [Wallpaper Render + Blur](./13-wallpaper-rendering-and-blur.md) | Draw wallpapers + background blur | Plan ready | — |
-| | **Total** | | | **129+** |
+| 10 | [Connected Zoom](./10-connected-zoom-transitions.md) | Smooth pan between adjacent regions | Easing + detection + transform done | 10 |
+| 11 | [Zoom Motion Blur](./11-zoom-motion-blur.md) | Blur during camera movement | Computation + compositor done | 7 |
+| 12 | [Cursor Motion Blur](./12-cursor-motion-blur.md) | Ghost trail on fast cursor | Canvas renderer + compositor done | 3 |
+| 13 | [Wallpaper Render + Blur](./13-wallpaper-rendering-and-blur.md) | Draw wallpapers + background blur | Renderer + blur done | 7 |
+| | **Total** | | | **156+** |
 
 ## Files Created
 
-### New source files (8)
+### New source files (10)
 | File | Feature |
 |------|---------|
 | `apps/web/src/lib/screen-recording/cursor-sway.ts` | Cursor sway algorithm |
@@ -35,19 +35,26 @@ All 8 features have core logic implemented. UI components and export integration
 | `apps/web/src/lib/screen-recording/speed-regions.ts` | Speed region model + utilities |
 | `apps/web/src/lib/screen-recording/squircle.ts` | Squircle geometry |
 | `apps/web/src/lib/screen-recording/figure-paths.ts` | Arrow/circle/rectangle paths |
+| `apps/web/src/lib/screen-recording/easing.ts` | Cubic bezier + named easings for zoom |
+| `apps/web/src/lib/screen-recording/zoom-motion-blur.ts` | Velocity-based zoom motion blur |
 | `apps/web/src/stores/webcam-overlay-store.ts` | Webcam overlay store |
 | `apps/web/src/stores/figure-annotations-store.ts` | Figure annotations store |
 
-### Modified source files (4)
+### Modified source files (8)
 | File | Changes |
 |------|---------|
 | `apps/web/src/lib/screen-recording/cursor-renderer.ts` | Added `sway` to config, spring rotation, swayRotation rendering |
-| `apps/web/src/lib/screen-recording/canvas-cursor-renderer.ts` | Added `swayRotation` parameter, rotation transform |
-| `apps/web/src/lib/screen-recording/wallpapers.ts` | Added `"wallpaper"` type, filename utilities |
+| `apps/web/src/lib/screen-recording/canvas-cursor-renderer.ts` | Added `swayRotation`, `drawCursorWithMotionBlur` ghost trail |
+| `apps/web/src/lib/screen-recording/canvas-background-renderer.ts` | Added wallpaper image rendering + background blur |
+| `apps/web/src/lib/screen-recording/wallpapers.ts` | Added `"wallpaper"` type, filename utilities, `backgroundBlur` |
+| `apps/web/src/lib/screen-recording/zoom-transform.ts` | Added connected transition support |
+| `apps/web/src/lib/screen-recording/zoom-region-utils.ts` | Added `findConnectedTransitions`, `getConnectedPanState` |
+| `apps/web/src/lib/screen-recording/constants.ts` | Added connected zoom gap/pan constants |
 | `apps/web/src/stores/screen-recording-store.ts` | Added speed regions state + actions |
+| `apps/web/src/lib/screen-recording/export-compositor.ts` | Wired connected zoom, zoom blur, cursor blur |
 | `apps/web/src/types/export.ts` | Added `GIF` format, GIF types/presets/utilities |
 
-### New test files (9)
+### New test files (13)
 | File | Tests |
 |------|-------|
 | `__tests__/cursor-sway.test.ts` | 13 |
@@ -59,15 +66,18 @@ All 8 features have core logic implemented. UI components and export integration
 | `__tests__/wallpapers.test.ts` | 19 (12 new) |
 | `__tests__/export-gif.test.ts` | 12 |
 | `__tests__/webcam-overlay-store.test.ts` | 12 |
+| `__tests__/easing.test.ts` | 17 |
+| `__tests__/connected-zoom.test.ts` | 10 |
+| `__tests__/zoom-motion-blur.test.ts` | 7 |
+| `__tests__/canvas-background-renderer.test.ts` | 7 |
 
 ## Remaining Work (UI + Integration)
 
-All features have their core logic, data models, and algorithms implemented. What remains is:
+All features have their core logic, data models, algorithms, and compositor wiring implemented. What remains is:
 
 1. **UI components** — Settings panels, timeline rows, controls
-2. **Export engine integration** — Wiring new features into the frame rendering pipeline
-3. **IPC handlers** — Electron handlers for file operations (wallpapers, audio devices)
-4. **gif.js dependency** — `bun add gif.js` + GIF export engine class
+2. **IPC handlers** — Electron handlers for file operations (wallpapers, audio devices)
+3. **gif.js dependency** — `bun add gif.js` + GIF export engine class
 
 ## Reuse Summary
 

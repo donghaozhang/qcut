@@ -79,7 +79,7 @@ describe("cursor-sway", () => {
 		it("round-trips correctly", () => {
 			const original = 1.5;
 			expect(fromSwaySliderValue(toSwaySliderValue(original))).toBeCloseTo(
-				original,
+				original
 			);
 		});
 	});

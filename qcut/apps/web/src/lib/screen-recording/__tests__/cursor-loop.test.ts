@@ -10,7 +10,7 @@ function makePoint(
 	x: number,
 	y: number,
 	p = false,
-	c?: string,
+	c?: string
 ): CursorTelemetryPoint {
 	return { t, x, y, p, c };
 }
@@ -75,19 +75,13 @@ describe("cursor-loop", () => {
 		});
 
 		it("first point is at time 0", () => {
-			const points = [
-				makePoint(50, 0.1, 0.1),
-				makePoint(150, 0.5, 0.5),
-			];
+			const points = [makePoint(50, 0.1, 0.1), makePoint(150, 0.5, 0.5)];
 			const looped = buildLoopedCursorTelemetry(points, 1000);
 			expect(looped[0].t).toBe(0);
 		});
 
 		it("total output duration does not exceed input duration", () => {
-			const points = [
-				makePoint(0, 0.1, 0.1),
-				makePoint(500, 0.9, 0.9),
-			];
+			const points = [makePoint(0, 0.1, 0.1), makePoint(500, 0.9, 0.9)];
 			const totalMs = 1000;
 			const looped = buildLoopedCursorTelemetry(points, totalMs);
 			const lastTime = looped[looped.length - 1].t;
@@ -118,10 +112,7 @@ describe("cursor-loop", () => {
 		});
 
 		it("return motion uses easeOutQuint (starts fast, ends slow)", () => {
-			const points = [
-				makePoint(0, 0.0, 0.0),
-				makePoint(100, 1.0, 1.0),
-			];
+			const points = [makePoint(0, 0.0, 0.0), makePoint(100, 1.0, 1.0)];
 			const looped = buildLoopedCursorTelemetry(points, 2000, {
 				returnSteps: 10,
 			});
@@ -129,20 +120,20 @@ describe("cursor-loop", () => {
 			// Find the return motion section — points after the remapped originals
 			// that are moving back toward (0, 0)
 			const returnPoints = looped.filter(
-				(p) => p.x < 1.0 && p.x > 0.0 && p.y < 1.0 && p.y > 0.0,
+				(p) => p.x < 1.0 && p.x > 0.0 && p.y < 1.0 && p.y > 0.0
 			);
 
 			if (returnPoints.length >= 3) {
 				// First step should cover more distance (ease-out starts fast)
 				const firstDist = Math.hypot(
 					returnPoints[1].x - returnPoints[0].x,
-					returnPoints[1].y - returnPoints[0].y,
+					returnPoints[1].y - returnPoints[0].y
 				);
 				const lastDist = Math.hypot(
 					returnPoints[returnPoints.length - 1].x -
 						returnPoints[returnPoints.length - 2].x,
 					returnPoints[returnPoints.length - 1].y -
-						returnPoints[returnPoints.length - 2].y,
+						returnPoints[returnPoints.length - 2].y
 				);
 				expect(firstDist).toBeGreaterThan(lastDist);
 			}

@@ -1,6 +1,7 @@
 import type { BackgroundConfig } from "./wallpapers";
 import type { CursorRenderConfig } from "./cursor-renderer";
-import type { ZoomRegion } from "./zoom-region-utils";
+import type { ZoomRegion, ConnectedTransition } from "./zoom-region-utils";
+import { findConnectedTransitions } from "./zoom-region-utils";
 import type {
 	CursorTelemetryData,
 	CursorTelemetryPoint,
@@ -9,7 +10,11 @@ import {
 	drawBackground,
 	drawRoundedVideoFrame,
 } from "./canvas-background-renderer";
-import { drawCursor, getClickAnimProgress } from "./canvas-cursor-renderer";
+import {
+	drawCursor,
+	drawCursorWithMotionBlur,
+	getClickAnimProgress,
+} from "./canvas-cursor-renderer";
 import { computeZoomTransform } from "./zoom-transform";
 import {
 	type SpringState,
@@ -28,6 +33,11 @@ import {
 } from "@/stores/webcam-overlay-store";
 import { drawArrow, drawCircle, drawRectangle } from "./figure-paths";
 import type { FigureAnnotation } from "@/stores/figure-annotations-store";
+import {
+	createZoomMotionBlurState,
+	computeZoomMotionBlur,
+	type ZoomMotionBlurState,
+} from "./zoom-motion-blur";
 
 export interface ExportCompositorConfig {
 	background: BackgroundConfig;
@@ -52,6 +62,9 @@ export interface ExportCompositorConfig {
 
 	/** Figure annotations (arrows, circles, rectangles) */
 	figureAnnotations?: FigureAnnotation[];
+
+	/** Zoom motion blur intensity (0–1, default 0 = off) */
+	zoomMotionBlur?: number;
 }
 
 /**
@@ -71,6 +84,8 @@ export class ScreenRecordingExportCompositor {
 	private clickStartMs = -1;
 	private wasPressed = false;
 	private processedTelemetry: CursorTelemetryPoint[] | null = null;
+	private connectedTransitions: ConnectedTransition[];
+	private zoomBlurState: ZoomMotionBlurState;
 
 	constructor(config: ExportCompositorConfig) {
 		this.config = config;
@@ -95,6 +110,12 @@ export class ScreenRecordingExportCompositor {
 				config.totalDurationMs
 			);
 		}
+
+		// Pre-compute connected zoom transitions
+		this.connectedTransitions = findConnectedTransitions(config.zoomRegions);
+
+		// Zoom motion blur state
+		this.zoomBlurState = createZoomMotionBlurState();
 	}
 
 	/** Get the effective telemetry points (looped or original) */
@@ -120,13 +141,32 @@ export class ScreenRecordingExportCompositor {
 			drawBackground(ctx, background, outputWidth, outputHeight);
 		}
 
-		// Step 2: Compute zoom transform
+		// Step 2: Compute zoom transform (with connected transitions)
 		const zoom = computeZoomTransform(
 			sourceTimeMs,
 			this.config.zoomRegions,
 			outputWidth,
-			outputHeight
+			outputHeight,
+			this.connectedTransitions
 		);
+
+		// Step 2b: Zoom motion blur
+		const zoomBlurAmount = this.config.zoomMotionBlur ?? 0;
+		if (zoomBlurAmount > 0) {
+			const blur = computeZoomMotionBlur(
+				this.zoomBlurState,
+				zoom.translateX,
+				zoom.translateY,
+				zoom.scale,
+				sourceTimeMs,
+				outputWidth,
+				outputHeight,
+				zoomBlurAmount
+			);
+			if (blur.magnitude > 0.5) {
+				ctx.filter = `blur(${Math.min(blur.magnitude, 8)}px)`;
+			}
+		}
 
 		// Step 3: Draw video frame (with background padding/rounding or direct)
 		ctx.save();
@@ -167,6 +207,9 @@ export class ScreenRecordingExportCompositor {
 		}
 
 		ctx.restore();
+
+		// Reset zoom motion blur filter
+		ctx.filter = "none";
 
 		// Step 5: Draw webcam overlay (outside zoom context)
 		this.renderWebcamOverlay(ctx, zoom.scale);
@@ -243,6 +286,9 @@ export class ScreenRecordingExportCompositor {
 			);
 			swayRotation = this.springRotation.value;
 		}
+		// Save previous position for motion blur before updating
+		const prevX = this.prevSmoothedX;
+		const prevY = this.prevSmoothedY;
 		this.prevSmoothedX = this.springX.value;
 		this.prevSmoothedY = this.springY.value;
 
@@ -254,15 +300,29 @@ export class ScreenRecordingExportCompositor {
 
 		const clickProgress = getClickAnimProgress(timeMs, this.clickStartMs);
 
-		drawCursor(
-			ctx,
-			this.springX.value,
-			this.springY.value,
-			cursorConfig,
-			clickProgress,
-			outputWidth,
-			swayRotation
-		);
+		if (cursorConfig.motionBlur > 0) {
+			drawCursorWithMotionBlur(
+				ctx,
+				this.springX.value,
+				this.springY.value,
+				prevX,
+				prevY,
+				cursorConfig,
+				clickProgress,
+				outputWidth,
+				swayRotation
+			);
+		} else {
+			drawCursor(
+				ctx,
+				this.springX.value,
+				this.springY.value,
+				cursorConfig,
+				clickProgress,
+				outputWidth,
+				swayRotation
+			);
+		}
 	}
 
 	private renderWebcamOverlay(

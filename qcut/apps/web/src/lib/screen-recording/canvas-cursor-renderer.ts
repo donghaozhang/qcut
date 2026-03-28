@@ -107,6 +107,49 @@ function colorToCSS(hex: number): string {
 }
 
 /**
+ * Draw cursor with motion blur ghost trail for fast movements.
+ * Draws N ghost cursors along the movement vector with decreasing opacity.
+ */
+export function drawCursorWithMotionBlur(
+	ctx: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	prevX: number,
+	prevY: number,
+	config: CursorRenderConfig,
+	clickAnimProgress: number,
+	canvasWidth: number,
+	swayRotation = 0
+): void {
+	const dx = x - prevX;
+	const dy = y - prevY;
+	const distance = Math.hypot(dx, dy);
+	const blurIntensity = distance * config.motionBlur * 0.08;
+
+	if (blurIntensity < 0.5) {
+		drawCursor(ctx, x, y, config, clickAnimProgress, canvasWidth, swayRotation);
+		return;
+	}
+
+	const ghostCount = Math.min(5, Math.ceil(blurIntensity));
+
+	// Draw ghosts from oldest to newest (increasing opacity)
+	for (let i = ghostCount; i >= 1; i--) {
+		const t = i / ghostCount;
+		const ghostX = x - dx * t * 0.6;
+		const ghostY = y - dy * t * 0.6;
+		const alpha = (1 - t) * 0.3;
+		ctx.save();
+		ctx.globalAlpha = alpha;
+		drawCursor(ctx, ghostX, ghostY, config, 0, canvasWidth, swayRotation);
+		ctx.restore();
+	}
+
+	// Draw main cursor on top at full opacity
+	drawCursor(ctx, x, y, config, clickAnimProgress, canvasWidth, swayRotation);
+}
+
+/**
  * Compute click animation progress (0 = no click, 0–1 = in bounce).
  */
 export function getClickAnimProgress(

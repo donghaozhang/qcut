@@ -82,7 +82,11 @@ beforeAll(() => {
 				measureText: vi.fn(() => ({ width: 100 })),
 			} as unknown as CanvasRenderingContext2D;
 		}
-		return (originalGetContext as Function).call(this, contextId, options);
+		return (originalGetContext as (...args: unknown[]) => unknown).call(
+			this,
+			contextId,
+			options
+		);
 	}) as any;
 });
 

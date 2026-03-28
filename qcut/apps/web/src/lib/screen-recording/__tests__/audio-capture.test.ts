@@ -80,7 +80,7 @@ beforeEach(() => {
 			createMediaStreamDestination =
 				mockAudioContext.createMediaStreamDestination;
 			close = mockAudioContext.close;
-		},
+		}
 	);
 
 	// Mock getUserMedia
@@ -93,7 +93,7 @@ beforeEach(() => {
 					{ kind: "audioinput", deviceId: "mic1", label: "Built-in Mic" },
 					{ kind: "audioinput", deviceId: "mic2", label: "USB Mic" },
 					{ kind: "videoinput", deviceId: "cam1", label: "Camera" },
-				]),
+				])
 			),
 		},
 	});
@@ -165,7 +165,7 @@ describe("audio-capture", () => {
 					micEnabled: false,
 					systemAudioEnabled: true,
 				},
-				displayStream,
+				displayStream
 			);
 
 			expect(mockAudioContext.createMediaStreamSource).toHaveBeenCalled();

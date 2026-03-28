@@ -109,7 +109,7 @@ describe("ScreenRecordingExportCompositor", () => {
 		it("renders a frame without errors", () => {
 			const compositor = new ScreenRecordingExportCompositor(baseConfig());
 			expect(() =>
-				compositor.renderFrame(ctx, mockVideoFrame, 100),
+				compositor.renderFrame(ctx, mockVideoFrame, 100)
 			).not.toThrow();
 			compositor.destroy();
 		});
@@ -136,8 +136,9 @@ describe("ScreenRecordingExportCompositor", () => {
 
 			// drawCursor should be called with 7 args (including swayRotation)
 			expect(drawCursor).toHaveBeenCalled();
-			const lastCall = (drawCursor as ReturnType<typeof vi.fn>).mock
-				.calls.at(-1);
+			const lastCall = (drawCursor as ReturnType<typeof vi.fn>).mock.calls.at(
+				-1
+			);
 			expect(lastCall).toHaveLength(7);
 
 			compositor.destroy();
@@ -152,8 +153,9 @@ describe("ScreenRecordingExportCompositor", () => {
 			compositor.renderFrame(ctx, mockVideoFrame, 0);
 			compositor.renderFrame(ctx, mockVideoFrame, 16);
 
-			const lastCall = (drawCursor as ReturnType<typeof vi.fn>).mock
-				.calls.at(-1);
+			const lastCall = (drawCursor as ReturnType<typeof vi.fn>).mock.calls.at(
+				-1
+			);
 			// 7th arg (swayRotation) should be 0
 			expect(lastCall?.[6]).toBe(0);
 
@@ -187,9 +189,7 @@ describe("ScreenRecordingExportCompositor", () => {
 		it("remaps time when speed regions are provided", async () => {
 			const { computeZoomTransform } = await import("../zoom-transform");
 			const config = baseConfig();
-			config.speedRegions = [
-				{ id: "s1", startMs: 100, endMs: 300, speed: 2 },
-			];
+			config.speedRegions = [{ id: "s1", startMs: 100, endMs: 300, speed: 2 }];
 
 			const compositor = new ScreenRecordingExportCompositor(config);
 			compositor.renderFrame(ctx, mockVideoFrame, 200);
@@ -299,15 +299,15 @@ describe("ScreenRecordingExportCompositor", () => {
 			// At t=100 (inside range) — should save/restore for annotation
 			compositor.renderFrame(ctx, mockVideoFrame, 100);
 			// save is called for zoom context + annotation
-			const saveCount100 = (ctx.save as ReturnType<typeof vi.fn>).mock
-				.calls.length;
+			const saveCount100 = (ctx.save as ReturnType<typeof vi.fn>).mock.calls
+				.length;
 
 			vi.clearAllMocks();
 
 			// At t=300 (outside range) — should not render annotation
 			compositor.renderFrame(ctx, mockVideoFrame, 300);
-			const saveCount300 = (ctx.save as ReturnType<typeof vi.fn>).mock
-				.calls.length;
+			const saveCount300 = (ctx.save as ReturnType<typeof vi.fn>).mock.calls
+				.length;
 
 			// Fewer save calls when annotation is not visible
 			expect(saveCount300).toBeLessThan(saveCount100);
@@ -321,7 +321,7 @@ describe("ScreenRecordingExportCompositor", () => {
 
 			const compositor = new ScreenRecordingExportCompositor(config);
 			expect(() =>
-				compositor.renderFrame(ctx, mockVideoFrame, 100),
+				compositor.renderFrame(ctx, mockVideoFrame, 100)
 			).not.toThrow();
 			compositor.destroy();
 		});
@@ -333,9 +333,7 @@ describe("ScreenRecordingExportCompositor", () => {
 				...baseConfig(),
 				cursorLoopMode: true,
 				totalDurationMs: 5000,
-				speedRegions: [
-					{ id: "s1", startMs: 0, endMs: 1000, speed: 2 },
-				],
+				speedRegions: [{ id: "s1", startMs: 0, endMs: 1000, speed: 2 }],
 				webcamConfig: {
 					enabled: false,
 					position: "bottom-right",
@@ -353,7 +351,7 @@ describe("ScreenRecordingExportCompositor", () => {
 
 			const compositor = new ScreenRecordingExportCompositor(config);
 			expect(() =>
-				compositor.renderFrame(ctx, mockVideoFrame, 500),
+				compositor.renderFrame(ctx, mockVideoFrame, 500)
 			).not.toThrow();
 			compositor.destroy();
 		});

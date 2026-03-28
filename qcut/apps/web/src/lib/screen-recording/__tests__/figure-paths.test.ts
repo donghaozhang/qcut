@@ -28,9 +28,7 @@ describe("figure-paths", () => {
 
 		it("coordinates stay within 0-100 range", () => {
 			for (const path of Object.values(ARROW_PATHS)) {
-				const numbers = path
-					.match(/[\d.]+/g)!
-					.map(Number);
+				const numbers = path.match(/[\d.]+/g)!.map(Number);
 				for (const n of numbers) {
 					expect(n).toBeGreaterThanOrEqual(0);
 					expect(n).toBeLessThanOrEqual(100);
@@ -76,14 +74,7 @@ describe("figure-paths", () => {
 			} as unknown as CanvasRenderingContext2D;
 
 			// Scale 100x100 viewBox to 200x200 at offset (10, 20)
-			drawSvgPathOnCanvas(
-				mockCtx,
-				"M 50 50",
-				10,
-				20,
-				200,
-				200,
-			);
+			drawSvgPathOnCanvas(mockCtx, "M 50 50", 10, 20, 200, 200);
 
 			// 50 * (200/100) + 10 = 110, 50 * (200/100) + 20 = 120
 			expect(moveToCalls[0][0]).toBeCloseTo(110);

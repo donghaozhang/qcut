@@ -13,7 +13,7 @@ function makeRegion(
 	id: string,
 	startMs: number,
 	endMs: number,
-	speed: number,
+	speed: number
 ): SpeedRegion {
 	return { id, startMs, endMs, speed };
 }
@@ -22,37 +22,27 @@ describe("speed-regions", () => {
 	describe("hasOverlap", () => {
 		it("returns false for non-overlapping regions", () => {
 			const regions = [makeRegion("a", 0, 100, 2)];
-			expect(hasOverlap(regions, makeRegion("b", 200, 300, 2))).toBe(
-				false,
-			);
+			expect(hasOverlap(regions, makeRegion("b", 200, 300, 2))).toBe(false);
 		});
 
 		it("returns true for overlapping regions", () => {
 			const regions = [makeRegion("a", 0, 200, 2)];
-			expect(hasOverlap(regions, makeRegion("b", 100, 300, 2))).toBe(
-				true,
-			);
+			expect(hasOverlap(regions, makeRegion("b", 100, 300, 2))).toBe(true);
 		});
 
 		it("returns false for adjacent regions (no gap)", () => {
 			const regions = [makeRegion("a", 0, 100, 2)];
-			expect(hasOverlap(regions, makeRegion("b", 100, 200, 2))).toBe(
-				false,
-			);
+			expect(hasOverlap(regions, makeRegion("b", 100, 200, 2))).toBe(false);
 		});
 
 		it("skips self when checking overlap", () => {
 			const regions = [makeRegion("a", 0, 100, 2)];
-			expect(hasOverlap(regions, makeRegion("a", 0, 100, 2))).toBe(
-				false,
-			);
+			expect(hasOverlap(regions, makeRegion("a", 0, 100, 2))).toBe(false);
 		});
 
 		it("detects overlap with contained region", () => {
 			const regions = [makeRegion("a", 0, 500, 2)];
-			expect(hasOverlap(regions, makeRegion("b", 100, 200, 2))).toBe(
-				true,
-			);
+			expect(hasOverlap(regions, makeRegion("b", 100, 200, 2))).toBe(true);
 		});
 	});
 

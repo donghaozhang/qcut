@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { easeOutCubic, easeOutScreenStudio, clamp01, lerp } from "../math-utils";
+import {
+	easeOutCubic,
+	easeOutScreenStudio,
+	clamp01,
+	lerp,
+} from "../math-utils";
 
 describe("math-utils", () => {
 	describe("easeOutCubic", () => {
