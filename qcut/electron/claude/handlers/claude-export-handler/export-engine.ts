@@ -64,9 +64,11 @@ export function resolveExportSettings({
 		const codec =
 			s?.codec ?? (typeof top.codec === "string" ? top.codec : "libx264");
 
-		const gifLoop =
+		const rawGifLoop =
 			(s as Record<string, unknown> | undefined)?.gifLoop ??
-			(typeof top.gifLoop === "boolean" ? top.gifLoop : undefined);
+			top.gifLoop;
+		const gifLoop =
+			typeof rawGifLoop === "boolean" ? rawGifLoop : undefined;
 
 		return {
 			presetId: preset.id,
@@ -81,7 +83,7 @@ export function resolveExportSettings({
 			bitrate:
 				s?.bitrate ??
 				(typeof top.bitrate === "string" ? top.bitrate : preset.bitrate),
-			...(gifLoop !== undefined && { gifLoop }),
+			gifLoop,
 		};
 	} catch (error) {
 		if (error instanceof Error) {
