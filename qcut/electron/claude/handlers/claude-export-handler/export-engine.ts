@@ -517,7 +517,6 @@ export async function executeExportJob({
 		// For GIF exports, all intermediate video steps (concat, sticker overlay)
 		// must use an .mp4 path since FFmpeg infers container from extension
 		// and .gif doesn't support H.264.
-		const finalOutputPath = outputPath;
 		const videoOutputPath =
 			settings.format === "gif"
 				? path.join(path.dirname(outputPath), path.basename(outputPath).replace(/\.gif$/i, ".mp4"))
@@ -777,7 +776,7 @@ export async function executeExportJob({
 				(settings as unknown as Record<string, unknown>).gifLoop !== false;
 			await convertToGif({
 				inputPath: videoOutputPath,
-				outputPath: finalOutputPath,
+				outputPath,
 				width: settings.width,
 				height: settings.height,
 				fps: settings.fps,
