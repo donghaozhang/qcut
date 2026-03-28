@@ -86,6 +86,12 @@ export const FORMAT_INFO = {
 		mimeTypes: ["video/quicktime", "video/mp4;codecs=h264"],
 		extension: ".mov",
 	},
+	[ExportFormat.GIF]: {
+		label: "GIF",
+		description: "Animated image for short clips and sharing",
+		mimeTypes: ["image/gif"],
+		extension: ".gif",
+	},
 } as const;
 
 // Get supported formats based on browser capabilities

@@ -774,7 +774,7 @@ export async function executeExportJob({
 				outputPath = outputPath.replace(/\.[^.]+$/, ".gif");
 			}
 
-			const gifLoop = (settings as Record<string, unknown>).gifLoop !== false;
+			const gifLoop = (settings as unknown as Record<string, unknown>).gifLoop !== false;
 			await convertToGif({
 				inputPath: mp4Path,
 				outputPath,
