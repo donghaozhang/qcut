@@ -262,6 +262,13 @@ async function exportStart(
 
 	const body: Record<string, unknown> = {};
 	if (opts.preset) body.preset = opts.preset;
+
+	// --format or --export-format sets the export format (mp4, gif, webm, etc.)
+	const exportFormat = opts.exportFormat || opts.format;
+	if (exportFormat) {
+		body.format = exportFormat;
+	}
+
 	if (opts.data) {
 		const settings = await resolveJsonInput(opts.data);
 		body.settings = settings;
