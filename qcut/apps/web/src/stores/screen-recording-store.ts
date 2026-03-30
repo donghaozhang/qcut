@@ -60,6 +60,22 @@ interface ScreenRecordingEnhancementState {
 	removeSpeedRegion: (id: string) => void;
 	updateSpeedRegion: (id: string, updates: Partial<SpeedRegion>) => void;
 	setSpeedRegions: (regions: SpeedRegion[]) => void;
+
+	/** Cursor loop mode — smooth return to start for seamless loops */
+	cursorLoopMode: boolean;
+	setCursorLoopMode: (enabled: boolean) => void;
+
+	/** Microphone configuration */
+	micEnabled: boolean;
+	setMicEnabled: (enabled: boolean) => void;
+	micDeviceId: string | null;
+	setMicDeviceId: (id: string | null) => void;
+	micGain: number;
+	setMicGain: (gain: number) => void;
+
+	/** System audio capture */
+	systemAudioEnabled: boolean;
+	setSystemAudioEnabled: (enabled: boolean) => void;
 }
 
 /** Check if any enhancements are active */
@@ -151,6 +167,19 @@ export const useScreenRecordingEnhancementStore =
 				return { speedRegions: updated };
 			}),
 		setSpeedRegions: (regions) => set({ speedRegions: regions }),
+
+		cursorLoopMode: false,
+		setCursorLoopMode: (enabled) => set({ cursorLoopMode: enabled }),
+
+		micEnabled: false,
+		setMicEnabled: (enabled) => set({ micEnabled: enabled }),
+		micDeviceId: null,
+		setMicDeviceId: (id) => set({ micDeviceId: id }),
+		micGain: 1.4,
+		setMicGain: (gain) => set({ micGain: Math.max(0, Math.min(5, gain)) }),
+
+		systemAudioEnabled: true,
+		setSystemAudioEnabled: (enabled) => set({ systemAudioEnabled: enabled }),
 	}));
 
 // Expose store for E2E testing (dev/test only)

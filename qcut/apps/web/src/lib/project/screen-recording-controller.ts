@@ -8,6 +8,11 @@ import type {
 import { platform } from "@qcut/platform-core";
 import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
 import { analyzeForZoomSuggestions } from "@/lib/screen-recording/auto-zoom-analyzer";
+import {
+	startAudioCapture,
+	mergeAudioIntoStream,
+	type AudioCaptureResult,
+} from "@/lib/screen-recording/audio-capture";
 
 const SCREEN_RECORDING_EVENT_NAME = "qcut:screen-recording-status";
 
@@ -49,6 +54,7 @@ interface ActiveRecordingRuntimeState {
 	chunkWriteQueue: Promise<void>;
 	chunkWriteError: Error | null;
 	bytesWritten: number;
+	audioCleanup: (() => void) | null;
 }
 
 interface ScreenRecordingStatusEventPayload {
@@ -164,7 +170,7 @@ function selectMimeType(): string | null {
 	}
 }
 
-async function getDisplayMediaStream(): Promise<MediaStream> {
+async function getDisplayMediaStream(requestAudio: boolean): Promise<MediaStream> {
 	try {
 		if (!navigator.mediaDevices?.getDisplayMedia) {
 			throw new Error("getDisplayMedia is unavailable");
@@ -174,7 +180,7 @@ async function getDisplayMediaStream(): Promise<MediaStream> {
 			video: {
 				frameRate: { ideal: 30, max: 30 },
 			},
-			audio: false,
+			audio: requestAudio,
 		});
 	} catch (error) {
 		throw new Error(
@@ -214,11 +220,13 @@ async function getLegacyDesktopMediaStream({
 
 async function getCaptureStream({
 	sourceId,
+	requestAudio = false,
 }: {
 	sourceId: string;
+	requestAudio?: boolean;
 }): Promise<MediaStream> {
 	try {
-		return await getDisplayMediaStream();
+		return await getDisplayMediaStream(requestAudio);
 	} catch (displayMediaError) {
 		console.warn(
 			"[ScreenRecording] getDisplayMedia failed, falling back to getUserMedia:",
@@ -336,6 +344,7 @@ export async function startScreenRecording({
 } = {}): Promise<StartScreenRecordingResult> {
 	let startResult: StartScreenRecordingResult | null = null;
 	let mediaStream: MediaStream | null = null;
+	let audioResult: AudioCaptureResult | null = null;
 
 	try {
 		if (activeRecording) {
@@ -350,7 +359,38 @@ export async function startScreenRecording({
 			mimeType: options.mimeType ?? mimeType ?? undefined,
 		});
 
-		mediaStream = await getCaptureStream({ sourceId: startResult.sourceId });
+		// Read audio config from store
+		const enhancementStore = useScreenRecordingEnhancementStore.getState();
+		const wantSystemAudio = enhancementStore.systemAudioEnabled;
+		const wantMic = enhancementStore.micEnabled;
+
+		mediaStream = await getCaptureStream({
+			sourceId: startResult.sourceId,
+			requestAudio: wantSystemAudio,
+		});
+
+		// Mix audio if mic or system audio is enabled
+		let recordingStream: MediaStream = mediaStream;
+
+		if (wantMic || wantSystemAudio) {
+			try {
+				audioResult = await startAudioCapture(
+					{
+						micEnabled: wantMic,
+						systemAudioEnabled: wantSystemAudio,
+						micDeviceId: enhancementStore.micDeviceId ?? undefined,
+						micGainBoost: enhancementStore.micGain,
+					},
+					mediaStream
+				);
+				recordingStream = mergeAudioIntoStream(mediaStream, audioResult.stream);
+			} catch (audioError) {
+				console.warn(
+					"[ScreenRecording] Audio capture failed, continuing without audio:",
+					audioError
+				);
+			}
+		}
 
 		const recorderOptions: MediaRecorderOptions = {
 			videoBitsPerSecond: SCREEN_CAPTURE_BITRATE,
@@ -360,7 +400,7 @@ export async function startScreenRecording({
 			recorderOptions.mimeType = resolvedMimeType;
 		}
 
-		const mediaRecorder = new MediaRecorder(mediaStream, recorderOptions);
+		const mediaRecorder = new MediaRecorder(recordingStream, recorderOptions);
 
 		const runtimeState: ActiveRecordingRuntimeState = {
 			sessionId: startResult.sessionId,
@@ -374,6 +414,7 @@ export async function startScreenRecording({
 			chunkWriteQueue: Promise.resolve(),
 			chunkWriteError: null,
 			bytesWritten: 0,
+			audioCleanup: audioResult?.cleanup ?? null,
 		};
 
 		mediaRecorder.ondataavailable = (event: BlobEvent): void => {
@@ -392,6 +433,13 @@ export async function startScreenRecording({
 	} catch (error) {
 		const startError = toError({ error });
 
+		if (audioResult?.cleanup) {
+			try {
+				audioResult.cleanup();
+			} catch {
+				// Ignore cleanup errors
+			}
+		}
 		if (mediaStream) {
 			stopMediaTracks({ mediaStream });
 		}
@@ -531,6 +579,13 @@ export async function stopScreenRecording({
 		}
 		throw new Error(`Failed to stop screen recording: ${stopError.message}`);
 	} finally {
+		if (recordingState.audioCleanup) {
+			try {
+				recordingState.audioCleanup();
+			} catch {
+				// Ignore audio cleanup errors
+			}
+		}
 		stopMediaTracks({ mediaStream: recordingState.mediaStream });
 		activeRecording = null;
 		isStopInProgress = false;
