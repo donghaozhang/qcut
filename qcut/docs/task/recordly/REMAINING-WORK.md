@@ -18,7 +18,7 @@
 | **UI components** | **9/9** | **0** |
 | **GIF browser-side engine** | **1/1** | **0** |
 | **CLI flags** | **1/1** | **0** |
-| **HTTP route params** | 0/1 | **1** |
+| **HTTP route params** | **1/1** | **0** |
 
 **Tests:** 252 passing across 24 files. TypeScript clean (both web + electron).
 
@@ -41,13 +41,20 @@
 
 ---
 
-## Still Remaining
+## All Tasks Complete
 
-| Task | What | Files |
-|------|------|-------|
-| R7.3 | HTTP route params for export (gifConfig, cursorConfig, audioConfig) | `electron/claude/handlers/claude-export-handler/types.ts`, `electron/claude/claude-http-shared-routes.ts` |
+No remaining work. All 13 Recordly features have full parity: core algorithms, stores, UI, IPC, CLI, and HTTP routes.
 
-This is the final wiring step: the Claude HTTP export API needs to accept the new config objects in its request body and pass them through to the export engine.
+### Final implementation (R7.3 — HTTP route params)
+
+| What | Status | Files |
+|------|--------|-------|
+| ExportJobRequest extended | **DONE** | `electron/types/claude-api.ts` |
+| ResolvedExportSettings extended | **DONE** | `electron/claude/handlers/claude-export-handler/types.ts` |
+| resolveExportSettings() reads new configs | **DONE** | `electron/claude/handlers/claude-export-handler/export-engine.ts` |
+| CLI flags parsed → request body | **DONE** | `electron/native-pipeline/editor/editor-handlers-generate.ts` |
+
+**Tests:** 252 passing across 24 files. TypeScript clean (both web + electron).
 
 ---
 

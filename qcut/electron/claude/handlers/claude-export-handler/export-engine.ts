@@ -68,6 +68,17 @@ export function resolveExportSettings({
 			(s as Record<string, unknown> | undefined)?.gifLoop ?? top.gifLoop;
 		const gifLoop = typeof rawGifLoop === "boolean" ? rawGifLoop : undefined;
 
+		// GIF config from request body
+		const gifConfig = request.gifConfig;
+		const resolvedGifLoop =
+			gifLoop ?? (typeof gifConfig?.loop === "boolean" ? gifConfig.loop : undefined);
+		const resolvedFps =
+			s?.fps ??
+			(typeof top.fps === "number" ? top.fps : undefined) ??
+			(format === "gif" && typeof gifConfig?.frameRate === "number"
+				? gifConfig.frameRate
+				: preset.fps);
+
 		return {
 			presetId: preset.id,
 			width:
@@ -75,13 +86,20 @@ export function resolveExportSettings({
 			height:
 				s?.height ??
 				(typeof top.height === "number" ? top.height : preset.height),
-			fps: s?.fps ?? (typeof top.fps === "number" ? top.fps : preset.fps),
+			fps: resolvedFps,
 			format,
 			codec,
 			bitrate:
 				s?.bitrate ??
 				(typeof top.bitrate === "string" ? top.bitrate : preset.bitrate),
-			gifLoop,
+			gifLoop: resolvedGifLoop,
+			gifQuality:
+				typeof gifConfig?.quality === "number" ? gifConfig.quality : undefined,
+
+			// Pass through enhancement configs
+			cursorConfig: request.cursorConfig,
+			audioConfig: request.audioConfig,
+			zoomConfig: request.zoomConfig,
 		};
 	} catch (error) {
 		if (error instanceof Error) {
