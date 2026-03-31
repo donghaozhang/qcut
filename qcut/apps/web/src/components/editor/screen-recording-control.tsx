@@ -222,38 +222,38 @@ export function ScreenRecordingControl() {
 
 	return (
 		<div className="flex items-center gap-1">
-		<Button
-			type="button"
-			size="sm"
-			variant="outline"
-			className={
-				recordingActive
-					? "h-7 text-xs border-red-500/60 text-red-500 hover:bg-red-500/10 hover:text-red-400"
-					: "h-7 text-xs"
-			}
-			onClick={() => {
-				handleToggleRecording().catch(() => {});
-			}}
-			onKeyDown={handleButtonKeyDown}
-			disabled={isBusy}
-			data-testid="screen-recording-toggle-button"
-			aria-label={recordingActive ? "Stop recording" : "Start recording"}
-			title={
-				recordingActive
-					? "Stop screen recording (Ctrl/Cmd + Shift + R)"
-					: "Start screen recording (Ctrl/Cmd + Shift + R)"
-			}
-		>
-			{isBusy ? (
-				<Loader2 className="h-4 w-4 animate-spin" />
-			) : recordingActive ? (
-				<Square className="h-4 w-4 fill-current" />
-			) : (
-				<Circle className="h-4 w-4" />
-			)}
-			<span className="text-sm">{buttonLabel}</span>
-		</Button>
-		<MicPopover disabled={!!recordingActive || isBusy} />
+			<Button
+				type="button"
+				size="sm"
+				variant="outline"
+				className={
+					recordingActive
+						? "h-7 text-xs border-red-500/60 text-red-500 hover:bg-red-500/10 hover:text-red-400"
+						: "h-7 text-xs"
+				}
+				onClick={() => {
+					handleToggleRecording().catch(() => {});
+				}}
+				onKeyDown={handleButtonKeyDown}
+				disabled={isBusy}
+				data-testid="screen-recording-toggle-button"
+				aria-label={recordingActive ? "Stop recording" : "Start recording"}
+				title={
+					recordingActive
+						? "Stop screen recording (Ctrl/Cmd + Shift + R)"
+						: "Start screen recording (Ctrl/Cmd + Shift + R)"
+				}
+			>
+				{isBusy ? (
+					<Loader2 className="h-4 w-4 animate-spin" />
+				) : recordingActive ? (
+					<Square className="h-4 w-4 fill-current" />
+				) : (
+					<Circle className="h-4 w-4" />
+				)}
+				<span className="text-sm">{buttonLabel}</span>
+			</Button>
+			<MicPopover disabled={!!recordingActive || isBusy} />
 		</div>
 	);
 }
@@ -322,9 +322,7 @@ function MicPopover({ disabled }: { disabled: boolean }) {
 						<button
 							type="button"
 							className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted/50 transition-colors ${
-								micDeviceId === null
-									? "bg-muted font-medium"
-									: ""
+								micDeviceId === null ? "bg-muted font-medium" : ""
 							}`}
 							onClick={() => setMicDeviceId(null)}
 						>
@@ -335,9 +333,7 @@ function MicPopover({ disabled }: { disabled: boolean }) {
 								key={d.deviceId}
 								type="button"
 								className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted/50 transition-colors ${
-									micDeviceId === d.deviceId
-										? "bg-muted font-medium"
-										: ""
+									micDeviceId === d.deviceId ? "bg-muted font-medium" : ""
 								}`}
 								onClick={() => setMicDeviceId(d.deviceId)}
 							>

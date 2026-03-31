@@ -71,7 +71,8 @@ export function resolveExportSettings({
 		// GIF config from request body
 		const gifConfig = request.gifConfig;
 		const resolvedGifLoop =
-			gifLoop ?? (typeof gifConfig?.loop === "boolean" ? gifConfig.loop : undefined);
+			gifLoop ??
+			(typeof gifConfig?.loop === "boolean" ? gifConfig.loop : undefined);
 		const resolvedFps =
 			s?.fps ??
 			(typeof top.fps === "number" ? top.fps : undefined) ??

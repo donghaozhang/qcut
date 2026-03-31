@@ -170,7 +170,9 @@ function selectMimeType(): string | null {
 	}
 }
 
-async function getDisplayMediaStream(requestAudio: boolean): Promise<MediaStream> {
+async function getDisplayMediaStream(
+	requestAudio: boolean
+): Promise<MediaStream> {
 	try {
 		if (!navigator.mediaDevices?.getDisplayMedia) {
 			throw new Error("getDisplayMedia is unavailable");

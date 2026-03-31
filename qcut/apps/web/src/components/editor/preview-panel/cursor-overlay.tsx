@@ -80,7 +80,7 @@ export function CursorOverlay({
 			}
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [canvasWidth, canvasHeight, visible]);
+	}, [canvasWidth, canvasHeight, visible, config]);
 
 	// Update cursor position on time change
 	useEffect(() => {

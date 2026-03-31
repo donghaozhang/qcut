@@ -61,7 +61,7 @@ export function WordSearch({
 	useEffect(() => {
 		setActiveIndex(0);
 		hasNavigatedRef.current = false;
-	}, [query]);
+	}, []);
 
 	// Auto-seek to first match when results appear or query changes
 	useEffect(() => {

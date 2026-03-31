@@ -117,6 +117,47 @@ export function GapGenerationModal() {
 		pausePlaybackForGapInteraction();
 	}, [isOpen]);
 
+	// Prompt suggestion via Gemini
+	const triggerSuggestion = useCallback(async () => {
+		if (!window.electronAPI?.geminiChat?.suggestGapPrompt) {
+			// No Gemini handler available — skip silently
+			return;
+		}
+		if (!selectedGap) return;
+
+		setSuggesting(true);
+		setSuggestion(null);
+		setSuggestionError(false);
+
+		try {
+			const result = await window.electronAPI.geminiChat.suggestGapPrompt({
+				gapDuration,
+				mode: mode || "text-to-video",
+				beforeFrameUrl: useGapStore.getState().beforeFrameUrl,
+				afterFrameUrl: useGapStore.getState().afterFrameUrl,
+			});
+
+			if (result.suggestedPrompt) {
+				setSuggestion(result.suggestedPrompt);
+				if (!useGapStore.getState().gapPrompt.trim()) {
+					setPrompt(result.suggestedPrompt);
+				}
+			}
+		} catch {
+			setSuggestionError(true);
+		} finally {
+			setSuggesting(false);
+		}
+	}, [
+		selectedGap,
+		gapDuration,
+		mode,
+		setSuggesting,
+		setSuggestion,
+		setSuggestionError,
+		setPrompt,
+	]);
+
 	// Extract frames from neighboring clips when modal opens
 	const frameExtractionRef = useRef(false);
 	useEffect(() => {
@@ -189,47 +230,14 @@ export function GapGenerationModal() {
 		return () => {
 			frameExtractionRef.current = false;
 		};
-	}, [isOpen, selectedGap, tracks, mediaItems]); // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
-
-	// Prompt suggestion via Gemini
-	const triggerSuggestion = useCallback(async () => {
-		if (!window.electronAPI?.geminiChat?.suggestGapPrompt) {
-			// No Gemini handler available — skip silently
-			return;
-		}
-		if (!selectedGap) return;
-
-		setSuggesting(true);
-		setSuggestion(null);
-		setSuggestionError(false);
-
-		try {
-			const result = await window.electronAPI.geminiChat.suggestGapPrompt({
-				gapDuration,
-				mode: mode || "text-to-video",
-				beforeFrameUrl: useGapStore.getState().beforeFrameUrl,
-				afterFrameUrl: useGapStore.getState().afterFrameUrl,
-			});
-
-			if (result.suggestedPrompt) {
-				setSuggestion(result.suggestedPrompt);
-				if (!useGapStore.getState().gapPrompt.trim()) {
-					setPrompt(result.suggestedPrompt);
-				}
-			}
-		} catch {
-			setSuggestionError(true);
-		} finally {
-			setSuggesting(false);
-		}
 	}, [
+		isOpen,
 		selectedGap,
-		gapDuration,
-		mode,
-		setSuggesting,
-		setSuggestion,
-		setSuggestionError,
-		setPrompt,
+		tracks,
+		mediaItems,
+		setAfterFrameUrl,
+		setBeforeFrameUrl,
+		triggerSuggestion,
 	]);
 
 	const handleClose = () => {

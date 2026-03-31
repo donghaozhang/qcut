@@ -52,8 +52,7 @@ export async function startWebcamCapture(
 	try {
 		await new Promise<void>((resolve, reject) => {
 			video.onloadedmetadata = () => resolve();
-			video.onerror = () =>
-				reject(new Error("Failed to load webcam video"));
+			video.onerror = () => reject(new Error("Failed to load webcam video"));
 		});
 
 		await video.play();

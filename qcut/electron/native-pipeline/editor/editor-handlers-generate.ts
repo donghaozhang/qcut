@@ -314,9 +314,9 @@ async function exportStart(
 	}
 
 	// Audio config from CLI flags
-	if (raw["mic"] !== undefined || raw["system-audio"] !== undefined) {
+	if (raw.mic !== undefined || raw["system-audio"] !== undefined) {
 		body.audioConfig = {
-			...(typeof raw["mic"] === "boolean" ? { mic: raw["mic"] } : {}),
+			...(typeof raw.mic === "boolean" ? { mic: raw.mic } : {}),
 			...(typeof raw["system-audio"] === "boolean"
 				? { systemAudio: raw["system-audio"] }
 				: {}),
