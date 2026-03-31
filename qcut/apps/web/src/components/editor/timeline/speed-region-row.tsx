@@ -113,13 +113,19 @@ function SpeedRegionBlock({
 				if (edge === "left") {
 					const newStart = Math.max(
 						0,
-						Math.round(dragRef.current.startMs + dMs)
+						Math.min(
+							Math.round(dragRef.current.startMs + dMs),
+							dragRef.current.endMs - 1
+						)
 					);
 					onUpdate({ startMs: newStart });
 				} else {
 					const newEnd = Math.min(
 						totalDurationMs,
-						Math.round(dragRef.current.endMs + dMs)
+						Math.max(
+							Math.round(dragRef.current.endMs + dMs),
+							dragRef.current.startMs + 1
+						)
 					);
 					onUpdate({ endMs: newEnd });
 				}
