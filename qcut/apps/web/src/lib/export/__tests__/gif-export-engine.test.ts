@@ -96,7 +96,7 @@ describe("GifExportEngine", () => {
 		expect(gif.options.repeat).toBe(0);
 	});
 
-	it("maps loop=false to repeat=1 (play once)", () => {
+	it("maps loop=false to repeat=-1 (play once)", () => {
 		const engine = new GifExportEngine({
 			width: 640,
 			height: 480,
@@ -105,7 +105,7 @@ describe("GifExportEngine", () => {
 			quality: 10,
 		});
 		const gif = getInternalGif(engine);
-		expect(gif.options.repeat).toBe(1);
+		expect(gif.options.repeat).toBe(-1);
 	});
 
 	it("render() resolves with a blob", async () => {

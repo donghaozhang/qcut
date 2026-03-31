@@ -30,6 +30,8 @@ export function CursorOverlay({
 	const containerRef = useRef<HTMLDivElement>(null);
 	const appRef = useRef<PIXI.Application | null>(null);
 	const rendererRef = useRef<CursorRenderer | null>(null);
+	const configRef = useRef(config);
+	configRef.current = config;
 
 	// Initialize PixiJS application
 	// Include `visible` in deps so cleanup runs when toggled off and re-init when toggled on,
@@ -63,7 +65,7 @@ export function CursorOverlay({
 				containerRef.current.appendChild(app.canvas as HTMLCanvasElement);
 				appRef.current = app;
 
-				const renderer = new CursorRenderer(app.stage, config);
+				const renderer = new CursorRenderer(app.stage, configRef.current);
 				rendererRef.current = renderer;
 			})
 			.catch(() => {
@@ -79,8 +81,7 @@ export function CursorOverlay({
 				appRef.current = null;
 			}
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [canvasWidth, canvasHeight, visible, config]);
+	}, [canvasWidth, canvasHeight, visible]);
 
 	// Update cursor position on time change
 	useEffect(() => {

@@ -58,10 +58,11 @@ export function WordSearch({
 
 	// Reset active index and auto-seek tracking when query changes
 	const hasNavigatedRef = useRef(false);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional — reset state when query changes
 	useEffect(() => {
 		setActiveIndex(0);
 		hasNavigatedRef.current = false;
-	}, []);
+	}, [query]);
 
 	// Auto-seek to first match when results appear or query changes
 	useEffect(() => {
