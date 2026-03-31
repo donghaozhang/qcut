@@ -40,7 +40,7 @@ export class GifExportEngine {
 			quality: config.quality || DEFAULT_QUALITY,
 			width: config.width,
 			height: config.height,
-			repeat: config.loop ? 0 : 1,
+			repeat: config.loop ? 0 : -1,
 			dither: "FloydSteinberg",
 		});
 	}

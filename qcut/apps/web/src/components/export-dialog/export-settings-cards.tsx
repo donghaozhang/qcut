@@ -511,6 +511,7 @@ export function GifOptionsCard({
 						value={String(frameRate)}
 						onValueChange={(v) => onFrameRateChange(Number(v))}
 						className="flex gap-2"
+						disabled={isExporting}
 					>
 						{GIF_FPS_OPTIONS.map((fps) => (
 							<Label

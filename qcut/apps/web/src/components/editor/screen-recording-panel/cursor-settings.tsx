@@ -223,9 +223,7 @@ export function CursorSettings() {
 								max={100}
 								step={1}
 								value={[Math.round(cursorConfig.sway * 50)]}
-								onValueChange={([v]) =>
-									setCursorConfig({ sway: v / 50 })
-								}
+								onValueChange={([v]) => setCursorConfig({ sway: v / 50 })}
 								className="flex-1"
 							/>
 							<span className="text-xs text-muted-foreground w-8 text-right">

@@ -17,9 +17,7 @@ describe("webcam-capture", () => {
 	describe("startWebcamCapture", () => {
 		it("returns stream, video element, and cleanup function", async () => {
 			const stopFn = vi.fn();
-			const mockStream = mockMediaStream([
-				{ kind: "video", stop: stopFn },
-			]);
+			const mockStream = mockMediaStream([{ kind: "video", stop: stopFn }]);
 
 			const mockVideo = {
 				srcObject: null as MediaStream | null,
@@ -63,9 +61,7 @@ describe("webcam-capture", () => {
 
 		it("cleanup stops all tracks and pauses video", async () => {
 			const stopFn = vi.fn();
-			const mockStream = mockMediaStream([
-				{ kind: "video", stop: stopFn },
-			]);
+			const mockStream = mockMediaStream([{ kind: "video", stop: stopFn }]);
 
 			const mockVideo = {
 				srcObject: null as MediaStream | null,

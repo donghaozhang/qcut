@@ -8,6 +8,7 @@ import {
 	useFigureAnnotationsStore,
 	type FigureAnnotation,
 } from "@/stores/figure-annotations-store";
+import { ARROW_PATHS } from "@/lib/screen-recording/figure-paths";
 
 interface AnnotationOverlayProps {
 	/** Current playhead time in ms */
@@ -26,12 +27,13 @@ export function AnnotationOverlay({
 	const annotations = useFigureAnnotationsStore((s) => s.annotations);
 	const selectedId = useFigureAnnotationsStore((s) => s.selectedId);
 	const setSelectedId = useFigureAnnotationsStore((s) => s.setSelectedId);
-	const updateAnnotation = useFigureAnnotationsStore(
-		(s) => s.updateAnnotation
-	);
+	const updateAnnotation = useFigureAnnotationsStore((s) => s.updateAnnotation);
 
 	const visible = Array.from(annotations.values())
-		.filter((a: FigureAnnotation) => currentTimeMs >= a.startMs && currentTimeMs <= a.endMs)
+		.filter(
+			(a: FigureAnnotation) =>
+				currentTimeMs >= a.startMs && currentTimeMs <= a.endMs
+		)
 		.sort((a: FigureAnnotation, b: FigureAnnotation) => a.zIndex - b.zIndex);
 
 	const handleBackgroundClick = useCallback(() => {
@@ -81,7 +83,12 @@ function AnnotationShape({
 	onUpdate,
 }: AnnotationShapeProps) {
 	const [dragging, setDragging] = useState(false);
-	const dragRef = useRef({ startClientX: 0, startClientY: 0, origX: 0, origY: 0 });
+	const dragRef = useRef({
+		startClientX: 0,
+		startClientY: 0,
+		origX: 0,
+		origY: 0,
+	});
 
 	const px = (a.x / 100) * containerWidth;
 	const py = (a.y / 100) * containerHeight;
@@ -101,8 +108,10 @@ function AnnotationShape({
 			};
 
 			const onMove = (me: PointerEvent) => {
-				const dx = ((me.clientX - dragRef.current.startClientX) / containerWidth) * 100;
-				const dy = ((me.clientY - dragRef.current.startClientY) / containerHeight) * 100;
+				const dx =
+					((me.clientX - dragRef.current.startClientX) / containerWidth) * 100;
+				const dy =
+					((me.clientY - dragRef.current.startClientY) / containerHeight) * 100;
 				onUpdate({
 					x: Math.max(0, Math.min(100 - a.width, dragRef.current.origX + dx)),
 					y: Math.max(0, Math.min(100 - a.height, dragRef.current.origY + dy)),
@@ -116,7 +125,16 @@ function AnnotationShape({
 			window.addEventListener("pointermove", onMove);
 			window.addEventListener("pointerup", onUp);
 		},
-		[a.x, a.y, a.width, a.height, containerWidth, containerHeight, onSelect, onUpdate]
+		[
+			a.x,
+			a.y,
+			a.width,
+			a.height,
+			containerWidth,
+			containerHeight,
+			onSelect,
+			onUpdate,
+		]
 	);
 
 	const strokeColor = a.strokeColor || "#ff4444";
@@ -126,6 +144,7 @@ function AnnotationShape({
 		<g
 			transform={`translate(${px},${py})${a.rotation ? ` rotate(${a.rotation},${pw / 2},${ph / 2})` : ""}`}
 			onPointerDown={handlePointerDown}
+			onClick={(e) => e.stopPropagation()}
 			className={`cursor-move ${dragging ? "opacity-80" : ""}`}
 			data-testid={`annotation-shape-${a.id}`}
 		>
@@ -153,15 +172,14 @@ function AnnotationShape({
 				/>
 			)}
 			{a.type === "arrow" && (
-				<line
-					x1={0}
-					y1={ph / 2}
-					x2={pw}
-					y2={ph / 2}
+				<path
+					d={ARROW_PATHS[a.arrowDirection ?? "right"]}
 					stroke={strokeColor}
 					strokeWidth={strokeWidth}
 					strokeLinecap="round"
-					markerEnd="url(#arrowhead)"
+					strokeLinejoin="round"
+					fill="none"
+					transform={`scale(${pw / 100},${ph / 100})`}
 				/>
 			)}
 

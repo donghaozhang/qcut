@@ -45,7 +45,9 @@ interface FigureAnnotationsState {
 		type: FigureType,
 		startMs: number,
 		endMs: number,
-		arrowDirection?: ArrowDirection
+		arrowDirection?: ArrowDirection,
+		strokeColor?: string,
+		strokeWidth?: number
 	) => string;
 	removeAnnotation: (id: string) => void;
 	updateAnnotation: (id: string, updates: Partial<FigureAnnotation>) => void;
@@ -62,7 +64,14 @@ export const useFigureAnnotationsStore = create<FigureAnnotationsState>(
 		annotations: new Map(),
 		selectedId: null,
 
-		addAnnotation: (type, startMs, endMs, arrowDirection) => {
+		addAnnotation: (
+			type,
+			startMs,
+			endMs,
+			arrowDirection,
+			strokeColor,
+			strokeWidth
+		) => {
 			const id = `fig-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 			const maxZ = Math.max(
 				0,
@@ -79,8 +88,8 @@ export const useFigureAnnotationsStore = create<FigureAnnotationsState>(
 				width: 20,
 				height: 20,
 				rotation: 0,
-				strokeColor: DEFAULT_STROKE_COLOR,
-				strokeWidth: DEFAULT_STROKE_WIDTH,
+				strokeColor: strokeColor ?? DEFAULT_STROKE_COLOR,
+				strokeWidth: strokeWidth ?? DEFAULT_STROKE_WIDTH,
 				opacity: 1,
 				startMs,
 				endMs,

@@ -59,6 +59,7 @@ export function SpeedRegionRow({
 						if (selectedId === region.id) onSelect(null);
 					}}
 					pxPerMs={trackWidthPx / totalDurationMs}
+					totalDurationMs={totalDurationMs}
 				/>
 			))}
 		</div>
@@ -74,6 +75,7 @@ interface SpeedRegionBlockProps {
 	onUpdate: (updates: Partial<SpeedRegion>) => void;
 	onDelete: () => void;
 	pxPerMs: number;
+	totalDurationMs: number;
 }
 
 function SpeedRegionBlock({
@@ -85,6 +87,7 @@ function SpeedRegionBlock({
 	onUpdate,
 	onDelete,
 	pxPerMs,
+	totalDurationMs,
 }: SpeedRegionBlockProps) {
 	const [dragging, setDragging] = useState<"left" | "right" | null>(null);
 	const dragRef = useRef<{ startX: number; startMs: number; endMs: number }>({
@@ -114,7 +117,10 @@ function SpeedRegionBlock({
 					);
 					onUpdate({ startMs: newStart });
 				} else {
-					const newEnd = Math.round(dragRef.current.endMs + dMs);
+					const newEnd = Math.min(
+						totalDurationMs,
+						Math.round(dragRef.current.endMs + dMs)
+					);
 					onUpdate({ endMs: newEnd });
 				}
 			};
@@ -126,7 +132,7 @@ function SpeedRegionBlock({
 			window.addEventListener("pointermove", onMove);
 			window.addEventListener("pointerup", onUp);
 		},
-		[pxPerMs, region.startMs, region.endMs, onUpdate]
+		[pxPerMs, region.startMs, region.endMs, onUpdate, totalDurationMs]
 	);
 
 	const speedLabel = region.speed === 1 ? "1x" : `${region.speed}x`;
@@ -143,6 +149,15 @@ function SpeedRegionBlock({
 				e.stopPropagation();
 				onSelect();
 			}}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault();
+					onSelect();
+				}
+			}}
+			role="button"
+			tabIndex={0}
+			aria-label={`Speed region ${region.speed}x`}
 			data-testid={`speed-region-${region.id}`}
 		>
 			{/* Left drag handle */}
@@ -196,9 +211,7 @@ export function SpeedRegionProperties({
 		(s) => s.removeSpeedRegion
 	);
 
-	const region = regionId
-		? speedRegions.find((r) => r.id === regionId)
-		: null;
+	const region = regionId ? speedRegions.find((r) => r.id === regionId) : null;
 	if (!region) return null;
 
 	return (

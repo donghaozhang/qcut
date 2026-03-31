@@ -266,7 +266,7 @@ bun run pipeline editor:export:start --project-id <id> --preset youtube-1080p --
 
 ## Quick Reference
 
-```
+```text
 Screen Recording:
   editor:screen-recording:sources       List capture sources
   editor:screen-recording:start         Start recording [--source-id] [--filename] [--force]

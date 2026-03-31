@@ -12,12 +12,7 @@ import {
 	ARROW_DIRECTIONS,
 	type ArrowDirection,
 } from "@/lib/screen-recording/figure-paths";
-import {
-	ArrowUp,
-	Circle,
-	Square,
-	Palette,
-} from "lucide-react";
+import { ArrowUp, Circle, Square, Palette } from "lucide-react";
 import {
 	Popover,
 	PopoverContent,
@@ -54,23 +49,41 @@ export function AnnotationToolbar({
 	const endMs = Math.min(currentTimeMs + 3000, clipDurationMs);
 
 	const handleAddArrow = (direction: ArrowDirection) => {
-		addAnnotation("arrow", currentTimeMs, endMs, direction);
+		addAnnotation(
+			"arrow",
+			currentTimeMs,
+			endMs,
+			direction,
+			strokeColor,
+			strokeWidth
+		);
 		setArrowMenuOpen(false);
 	};
 
 	const handleAddCircle = () => {
-		addAnnotation("circle", currentTimeMs, endMs);
+		addAnnotation(
+			"circle",
+			currentTimeMs,
+			endMs,
+			undefined,
+			strokeColor,
+			strokeWidth
+		);
 	};
 
 	const handleAddRectangle = () => {
-		addAnnotation("rectangle", currentTimeMs, endMs);
+		addAnnotation(
+			"rectangle",
+			currentTimeMs,
+			endMs,
+			undefined,
+			strokeColor,
+			strokeWidth
+		);
 	};
 
 	return (
-		<div
-			className="flex items-center gap-1"
-			data-testid="annotation-toolbar"
-		>
+		<div className="flex items-center gap-1" data-testid="annotation-toolbar">
 			{/* Arrow with direction submenu */}
 			<Popover open={arrowMenuOpen} onOpenChange={setArrowMenuOpen}>
 				<PopoverTrigger asChild>

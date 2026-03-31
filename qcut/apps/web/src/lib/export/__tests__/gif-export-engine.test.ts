@@ -20,7 +20,7 @@ vi.mock("gif.js", () => {
 			this.running = true;
 			// Simulate async completion
 			setTimeout(() => {
-				const finishedCbs = this.listeners["finished"] || [];
+				const finishedCbs = this.listeners.finished || [];
 				for (const cb of finishedCbs) cb(new Blob(["GIF"]));
 			}, 0);
 		}
@@ -32,6 +32,11 @@ vi.mock("gif.js", () => {
 });
 
 import { GifExportEngine } from "../gif-export-engine";
+
+function getInternalGif(engine: GifExportEngine) {
+	return (engine as unknown as { gif: { options: Record<string, unknown> } })
+		.gif;
+}
 
 describe("GifExportEngine", () => {
 	beforeEach(() => {
@@ -75,8 +80,7 @@ describe("GifExportEngine", () => {
 			quality: 10,
 		});
 		// Access the underlying GIF instance options
-		const gif = (engine as unknown as { gif: { options: Record<string, unknown> } })
-			.gif;
+		const gif = getInternalGif(engine);
 		expect(gif.options.workers).toBe(8);
 	});
 
@@ -88,8 +92,7 @@ describe("GifExportEngine", () => {
 			loop: true,
 			quality: 10,
 		});
-		const gif = (engine as unknown as { gif: { options: Record<string, unknown> } })
-			.gif;
+		const gif = getInternalGif(engine);
 		expect(gif.options.repeat).toBe(0);
 	});
 
@@ -101,8 +104,7 @@ describe("GifExportEngine", () => {
 			loop: false,
 			quality: 10,
 		});
-		const gif = (engine as unknown as { gif: { options: Record<string, unknown> } })
-			.gif;
+		const gif = getInternalGif(engine);
 		expect(gif.options.repeat).toBe(1);
 	});
 

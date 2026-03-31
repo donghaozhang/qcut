@@ -100,7 +100,7 @@ export function registerWallpaperHandlers(): void {
 			// Only allow deleting from custom dir
 			const customDir = getCustomDir();
 			const resolved = path.resolve(wallpaperPath);
-			if (!resolved.startsWith(customDir)) return false;
+			if (!resolved.startsWith(customDir + path.sep)) return false;
 			if (!fs.existsSync(resolved)) return false;
 
 			fs.unlinkSync(resolved);

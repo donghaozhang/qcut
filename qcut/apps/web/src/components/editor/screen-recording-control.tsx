@@ -319,6 +319,17 @@ function MicPopover({ disabled }: { disabled: boolean }) {
 				{/* Device selector */}
 				{micEnabled && devices.length > 0 && (
 					<div className="space-y-1">
+						<button
+							type="button"
+							className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted/50 transition-colors ${
+								micDeviceId === null
+									? "bg-muted font-medium"
+									: ""
+							}`}
+							onClick={() => setMicDeviceId(null)}
+						>
+							System default
+						</button>
 						{devices.map((d) => (
 							<button
 								key={d.deviceId}

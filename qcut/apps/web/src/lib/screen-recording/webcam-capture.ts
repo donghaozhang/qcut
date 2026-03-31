@@ -43,19 +43,30 @@ export async function startWebcamCapture(
 	video.muted = true;
 	video.playsInline = true;
 
-	await new Promise<void>((resolve, reject) => {
-		video.onloadedmetadata = () => resolve();
-		video.onerror = () => reject(new Error("Failed to load webcam video"));
-	});
+	const stopTracks = () => {
+		for (const track of stream.getTracks()) {
+			track.stop();
+		}
+	};
 
-	await video.play();
+	try {
+		await new Promise<void>((resolve, reject) => {
+			video.onloadedmetadata = () => resolve();
+			video.onerror = () =>
+				reject(new Error("Failed to load webcam video"));
+		});
+
+		await video.play();
+	} catch (err) {
+		video.srcObject = null;
+		stopTracks();
+		throw err;
+	}
 
 	const cleanup = () => {
 		video.pause();
 		video.srcObject = null;
-		for (const track of stream.getTracks()) {
-			track.stop();
-		}
+		stopTracks();
 	};
 
 	return { stream, video, cleanup };
