@@ -54,6 +54,9 @@ export class GifExportEngine {
 	async render(): Promise<Blob> {
 		return new Promise<Blob>((resolve, reject) => {
 			this.gif.on("finished", (blob: Blob) => resolve(blob));
+			this.gif.on("error", (err: unknown) =>
+				reject(err instanceof Error ? err : new Error(String(err)))
+			);
 			if (this.onProgress) {
 				this.gif.on("progress", this.onProgress);
 			}

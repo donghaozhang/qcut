@@ -39,6 +39,10 @@ function getInternalGif(engine: GifExportEngine) {
 }
 
 describe("GifExportEngine", () => {
+	const originalHardwareConcurrency =
+		Object.getOwnPropertyDescriptor(navigator, "hardwareConcurrency") ??
+		undefined;
+
 	beforeEach(() => {
 		vi.restoreAllMocks();
 		// Provide hardwareConcurrency
@@ -46,6 +50,16 @@ describe("GifExportEngine", () => {
 			value: 16,
 			configurable: true,
 		});
+	});
+
+	afterEach(() => {
+		if (originalHardwareConcurrency) {
+			Object.defineProperty(
+				navigator,
+				"hardwareConcurrency",
+				originalHardwareConcurrency
+			);
+		}
 	});
 
 	it("calculates frameDelay from fps (20fps = 50ms)", () => {
