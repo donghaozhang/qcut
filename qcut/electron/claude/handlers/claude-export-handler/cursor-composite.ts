@@ -201,11 +201,7 @@ async function compositeSegmentCursor({
 	// Dynamic import @napi-rs/canvas
 	let canvasLib: {
 		createCanvas: (w: number, h: number) => unknown;
-		ImageData: new (
-			data: Uint8ClampedArray,
-			w: number,
-			h?: number
-		) => unknown;
+		ImageData: new (data: Uint8ClampedArray, w: number, h?: number) => unknown;
 	};
 	try {
 		const moduleName = "@napi-rs/canvas";
@@ -351,8 +347,7 @@ async function compositeSegmentCursor({
 					chunksLength = remainder.length;
 
 					const timeMs = (frameIndex / fps) * 1000;
-					const dt =
-						lastTimeMs >= 0 ? (timeMs - lastTimeMs) / 1000 : 0;
+					const dt = lastTimeMs >= 0 ? (timeMs - lastTimeMs) / 1000 : 0;
 					lastTimeMs = timeMs;
 
 					const point = findPointAtTime(points, timeMs);
@@ -401,10 +396,8 @@ async function compositeSegmentCursor({
 
 					// 4. Draw cursor OUTSIDE zoom context (screen-space)
 					if (point) {
-						const rx =
-							(point.x - captureRect.x) / captureRect.width;
-						const ry =
-							(point.y - captureRect.y) / captureRect.height;
+						const rx = (point.x - captureRect.x) / captureRect.width;
+						const ry = (point.y - captureRect.y) / captureRect.height;
 						const rawX = Math.max(0, Math.min(outWidth, rx * outWidth));
 						const rawY = Math.max(0, Math.min(outHeight, ry * outHeight));
 
@@ -554,9 +547,7 @@ async function compositeSegmentCursor({
 					resolve();
 				} else {
 					reject(
-						new Error(
-							`Encoder failed (${code}): ${encoderErr.slice(-300)}`
-						)
+						new Error(`Encoder failed (${code}): ${encoderErr.slice(-300)}`)
 					);
 				}
 			});
@@ -564,9 +555,7 @@ async function compositeSegmentCursor({
 			decoder.on("close", (code) => {
 				if (code !== 0 && code !== null) {
 					reject(
-						new Error(
-							`Decoder failed (${code}): ${decoderErr.slice(-300)}`
-						)
+						new Error(`Decoder failed (${code}): ${decoderErr.slice(-300)}`)
 					);
 				}
 			});
@@ -621,11 +610,7 @@ export async function compositeCursorOnSegments({
 				settings,
 			});
 		} catch (err) {
-			claudeLog.error(
-				HANDLER,
-				`Segment ${i} compositing failed:`,
-				err
-			);
+			claudeLog.error(HANDLER, `Segment ${i} compositing failed:`, err);
 		}
 
 		onProgress?.((i + 1) / segmentOutputs.length);

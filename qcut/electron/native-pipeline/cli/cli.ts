@@ -574,22 +574,27 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		discard: (values.discard as boolean) ?? false,
 		force: (values.force as boolean) ?? false,
 		// export enhancement options (passed through as raw values)
-		...(values["cursor-sway"] && !Number.isNaN(parseFloat(values["cursor-sway"] as string))
+		...(values["cursor-sway"] &&
+		!Number.isNaN(parseFloat(values["cursor-sway"] as string))
 			? { "cursor-sway": parseFloat(values["cursor-sway"] as string) }
 			: {}),
-		...(values["cursor-blur"] && !Number.isNaN(parseFloat(values["cursor-blur"] as string))
+		...(values["cursor-blur"] &&
+		!Number.isNaN(parseFloat(values["cursor-blur"] as string))
 			? { "cursor-blur": parseFloat(values["cursor-blur"] as string) }
 			: {}),
 		...(values["cursor-loop"] ? { "cursor-loop": true } : {}),
 		...(values["auto-zoom"] ? { "auto-zoom": true } : {}),
-		...(values["zoom-blur"] && !Number.isNaN(parseFloat(values["zoom-blur"] as string))
+		...(values["zoom-blur"] &&
+		!Number.isNaN(parseFloat(values["zoom-blur"] as string))
 			? { "zoom-blur": parseFloat(values["zoom-blur"] as string) }
 			: {}),
-		...(values["gif-fps"] && !Number.isNaN(parseInt(values["gif-fps"] as string, 10))
+		...(values["gif-fps"] &&
+		!Number.isNaN(parseInt(values["gif-fps"] as string, 10))
 			? { "gif-fps": parseInt(values["gif-fps"] as string, 10) }
 			: {}),
 		...(values["gif-loop"] ? { "gif-loop": true } : {}),
-		...(values["gif-quality"] && !Number.isNaN(parseInt(values["gif-quality"] as string, 10))
+		...(values["gif-quality"] &&
+		!Number.isNaN(parseInt(values["gif-quality"] as string, 10))
 			? { "gif-quality": parseInt(values["gif-quality"] as string, 10) }
 			: {}),
 		...(values.mic ? { mic: true } : {}),
