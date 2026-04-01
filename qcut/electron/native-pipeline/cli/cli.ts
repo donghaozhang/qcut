@@ -244,6 +244,16 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"source-id": { type: "string" },
 			discard: { type: "boolean", default: false },
 			force: { type: "boolean", default: false },
+			// export enhancement options
+			"cursor-sway": { type: "string" },
+			"cursor-blur": { type: "string" },
+			"cursor-loop": { type: "boolean", default: false },
+			"zoom-blur": { type: "string" },
+			"gif-fps": { type: "string" },
+			"gif-loop": { type: "boolean", default: false },
+			"gif-quality": { type: "string" },
+			mic: { type: "boolean", default: false },
+			"system-audio": { type: "boolean", default: false },
 			// ui options
 			panel: { type: "string" },
 			tab: { type: "string" },
@@ -562,6 +572,26 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		sourceId: values["source-id"] as string | undefined,
 		discard: (values.discard as boolean) ?? false,
 		force: (values.force as boolean) ?? false,
+		// export enhancement options (passed through as raw values)
+		...(values["cursor-sway"]
+			? { "cursor-sway": parseFloat(values["cursor-sway"] as string) }
+			: {}),
+		...(values["cursor-blur"]
+			? { "cursor-blur": parseFloat(values["cursor-blur"] as string) }
+			: {}),
+		...(values["cursor-loop"] ? { "cursor-loop": true } : {}),
+		...(values["zoom-blur"]
+			? { "zoom-blur": parseFloat(values["zoom-blur"] as string) }
+			: {}),
+		...(values["gif-fps"]
+			? { "gif-fps": parseInt(values["gif-fps"] as string, 10) }
+			: {}),
+		...(values["gif-loop"] ? { "gif-loop": true } : {}),
+		...(values["gif-quality"]
+			? { "gif-quality": parseInt(values["gif-quality"] as string, 10) }
+			: {}),
+		...(values.mic ? { mic: true } : {}),
+		...(values["system-audio"] ? { "system-audio": true } : {}),
 		// ui options
 		panel: values.panel as string | undefined,
 		tab: values.tab as string | undefined,

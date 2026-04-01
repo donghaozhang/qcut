@@ -295,21 +295,19 @@ async function exportStart(
 	}
 
 	// Cursor config from CLI flags
+	console.error(`[DEBUG] raw keys: ${Object.keys(raw).filter(k => k.includes("cursor")).join(",") || "NONE"} raw["cursor-sway"]=${raw["cursor-sway"]}`);
+	const cursorSway = raw["cursor-sway"];
+	const cursorBlur = raw["cursor-blur"];
+	const cursorLoop = raw["cursor-loop"];
 	if (
-		raw["cursor-sway"] !== undefined ||
-		raw["cursor-loop"] !== undefined ||
-		raw["cursor-blur"] !== undefined
+		cursorSway !== undefined ||
+		cursorLoop !== undefined ||
+		cursorBlur !== undefined
 	) {
 		body.cursorConfig = {
-			...(typeof raw["cursor-sway"] === "number"
-				? { sway: raw["cursor-sway"] }
-				: {}),
-			...(typeof raw["cursor-blur"] === "number"
-				? { motionBlur: raw["cursor-blur"] }
-				: {}),
-			...(typeof raw["cursor-loop"] === "boolean"
-				? { loopMode: raw["cursor-loop"] }
-				: {}),
+			...(cursorSway != null ? { sway: Number(cursorSway) } : {}),
+			...(cursorBlur != null ? { motionBlur: Number(cursorBlur) } : {}),
+			...(cursorLoop != null ? { loopMode: Boolean(cursorLoop) } : {}),
 		};
 	}
 

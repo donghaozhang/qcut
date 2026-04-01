@@ -368,6 +368,7 @@
 		"@mariozechner/pi-ai": "^0.58.1",
 		"@mariozechner/pi-web-ui": "^0.58.1",
 		"@modelcontextprotocol/sdk": "^1.26.0",
+		"@napi-rs/canvas": "^0.1.97",
 		"@remotion/player": "4.0.424",
 		"@remotion/renderer": "4.0.424",
 		"@remotion/transitions": "4.0.424",

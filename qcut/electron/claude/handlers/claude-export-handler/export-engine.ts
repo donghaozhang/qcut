@@ -40,6 +40,10 @@ import {
 } from "./utils.js";
 import { updateJobProgress, exportJobs } from "./job-manager.js";
 import { convertToGif } from "./gif-convert.js";
+import {
+	shouldCompositeCursor,
+	compositeCursorOnSegments,
+} from "./cursor-composite.js";
 
 export function resolveExportSettings({
 	request,
@@ -618,6 +622,31 @@ export async function executeExportJob({
 				jobId,
 				progress: ((index + 1) / totalSegments) * 0.82,
 			});
+		}
+
+		// ==============================================================
+		// CURSOR OVERLAY — per-segment, before concat
+		// ==============================================================
+		if (shouldCompositeCursor(settings)) {
+			claudeLog.info(HANDLER_NAME, "Compositing cursor overlay on segments...");
+			updateJobProgress({ jobId, progress: 0.83 });
+
+			try {
+				await compositeCursorOnSegments({
+					segmentOutputs,
+					segments,
+					settings,
+					onProgress: (p) => {
+						updateJobProgress({ jobId, progress: 0.83 + p * 0.05 });
+					},
+				});
+			} catch (cursorError) {
+				claudeLog.error(
+					HANDLER_NAME,
+					"Cursor compositing failed, continuing without cursor:",
+					cursorError
+				);
+			}
 		}
 
 		const concatListPath = path.join(tempDir, "concat-list.txt");
