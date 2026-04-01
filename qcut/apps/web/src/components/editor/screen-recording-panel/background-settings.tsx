@@ -17,6 +17,7 @@ const BG_TYPES: { value: BackgroundConfig["type"]; label: string }[] = [
 	{ value: "none", label: "None" },
 	{ value: "gradient", label: "Gradient" },
 	{ value: "solid", label: "Solid" },
+	{ value: "wallpaper", label: "Image" },
 ];
 
 export function BackgroundSettings() {
@@ -147,6 +148,25 @@ export function BackgroundSettings() {
 					</PropertyItem>
 				)}
 
+				{/* Wallpaper path */}
+				{background.type === "wallpaper" && (
+					<PropertyItem direction="column">
+						<PropertyItemLabel>Image path</PropertyItemLabel>
+						<PropertyItemValue>
+							<input
+								type="text"
+								value={background.wallpaperPath ?? ""}
+								onChange={(e) =>
+									setBackground({ wallpaperPath: e.target.value })
+								}
+								placeholder="Enter image path or URL"
+								className="w-full text-xs bg-secondary/50 rounded px-2 py-1 border border-border"
+								aria-label="Wallpaper image path"
+							/>
+						</PropertyItemValue>
+					</PropertyItem>
+				)}
+
 				{/* Solid color */}
 				{background.type === "solid" && (
 					<PropertyItem>
@@ -220,6 +240,28 @@ export function BackgroundSettings() {
 								onCheckedChange={(v) => setBackground({ shadow: v })}
 								aria-label="Toggle shadow"
 							/>
+						</PropertyItem>
+
+						{/* Background blur */}
+						<PropertyItem>
+							<PropertyItemLabel>Blur</PropertyItemLabel>
+							<PropertyItemValue>
+								<div className="flex items-center gap-2">
+									<Slider
+										min={0}
+										max={20}
+										step={1}
+										value={[background.backgroundBlur ?? 0]}
+										onValueChange={([v]) =>
+											setBackground({ backgroundBlur: v })
+										}
+										className="flex-1"
+									/>
+									<span className="text-xs text-muted-foreground w-8 text-right">
+										{background.backgroundBlur ?? 0}px
+									</span>
+								</div>
+							</PropertyItemValue>
 						</PropertyItem>
 					</>
 				)}

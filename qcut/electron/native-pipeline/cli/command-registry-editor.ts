@@ -531,6 +531,19 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		f("--filename", "string", "Output filename"),
 		f("--export-format", "string", "Export format"),
 		f("--format", "string", "Export format (alias)"),
+		// GIF options
+		f("--gif-fps", "number", "GIF frame rate (15|20|25|30)"),
+		f("--gif-loop", "boolean", "GIF loop (true=infinite)"),
+		f("--gif-quality", "number", "GIF quality (1-20, lower=better)"),
+		// Cursor options
+		f("--cursor-sway", "number", "Cursor sway intensity (0-2)"),
+		f("--cursor-loop", "boolean", "Cursor loop mode"),
+		f("--cursor-blur", "number", "Cursor motion blur (0-1)"),
+		// Zoom options
+		f("--zoom-blur", "number", "Zoom motion blur intensity (0-1)"),
+		// Audio options
+		f("--mic", "boolean", "Enable microphone capture"),
+		f("--system-audio", "boolean", "Enable system audio capture"),
 	]),
 	"editor:export:status": ed("editor:export:status", "Get export job status", [
 		PID,

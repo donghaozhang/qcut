@@ -21,6 +21,7 @@ import { registerStorageHandlers } from "./storage-handlers.js";
 import { registerFfmpegHandlers } from "./ffmpeg-handlers.js";
 import { registerUpdateHandlers } from "./update-handlers.js";
 import { registerReleaseNotesHandlers } from "./release-notes-handlers.js";
+import { registerWallpaperHandlers } from "./wallpaper-handlers.js";
 
 export function registerMainIpcHandlers(deps: MainIpcDeps): void {
 	registerAudioVideoHandlers(deps);
@@ -32,4 +33,5 @@ export function registerMainIpcHandlers(deps: MainIpcDeps): void {
 	registerFfmpegHandlers(deps);
 	registerUpdateHandlers(deps);
 	registerReleaseNotesHandlers(deps);
+	registerWallpaperHandlers();
 }

@@ -8,6 +8,11 @@ import type {
 import { platform } from "@qcut/platform-core";
 import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
 import { analyzeForZoomSuggestions } from "@/lib/screen-recording/auto-zoom-analyzer";
+import {
+	startAudioCapture,
+	mergeAudioIntoStream,
+	type AudioCaptureResult,
+} from "@/lib/screen-recording/audio-capture";
 
 const SCREEN_RECORDING_EVENT_NAME = "qcut:screen-recording-status";
 
@@ -49,6 +54,8 @@ interface ActiveRecordingRuntimeState {
 	chunkWriteQueue: Promise<void>;
 	chunkWriteError: Error | null;
 	bytesWritten: number;
+	audioCleanup: (() => void) | null;
+	canvasCleanup: (() => void) | null;
 }
 
 interface ScreenRecordingStatusEventPayload {
@@ -164,7 +171,9 @@ function selectMimeType(): string | null {
 	}
 }
 
-async function getDisplayMediaStream(): Promise<MediaStream> {
+async function getDisplayMediaStream(
+	requestAudio: boolean
+): Promise<MediaStream> {
 	try {
 		if (!navigator.mediaDevices?.getDisplayMedia) {
 			throw new Error("getDisplayMedia is unavailable");
@@ -174,7 +183,7 @@ async function getDisplayMediaStream(): Promise<MediaStream> {
 			video: {
 				frameRate: { ideal: 30, max: 30 },
 			},
-			audio: false,
+			audio: requestAudio,
 		});
 	} catch (error) {
 		throw new Error(
@@ -214,11 +223,13 @@ async function getLegacyDesktopMediaStream({
 
 async function getCaptureStream({
 	sourceId,
+	requestAudio = false,
 }: {
 	sourceId: string;
+	requestAudio?: boolean;
 }): Promise<MediaStream> {
 	try {
-		return await getDisplayMediaStream();
+		return await getDisplayMediaStream(requestAudio);
 	} catch (displayMediaError) {
 		console.warn(
 			"[ScreenRecording] getDisplayMedia failed, falling back to getUserMedia:",
@@ -227,6 +238,77 @@ async function getCaptureStream({
 	}
 
 	return await getLegacyDesktopMediaStream({ sourceId });
+}
+
+/**
+ * Pipe a getDisplayMedia stream through a canvas to produce a stream that
+ * MediaRecorder can encode. Electron 40+ (Chromium 134) produces 0-byte blobs
+ * when MediaRecorder is given a getDisplayMedia stream directly.
+ */
+function createCanvasStream({
+	mediaStream,
+	frameRate = 30,
+}: {
+	mediaStream: MediaStream;
+	frameRate?: number;
+}): {
+	stream: MediaStream;
+	cleanup: () => void;
+} | null {
+	try {
+		const videoTrack = mediaStream.getVideoTracks()[0];
+		if (!videoTrack) return null;
+
+		const settings = videoTrack.getSettings();
+		const width = settings.width ?? 1920;
+		const height = settings.height ?? 1080;
+
+		const canvas = document.createElement("canvas");
+		canvas.width = width;
+		canvas.height = height;
+		const ctx = canvas.getContext("2d");
+		if (!ctx) return null;
+
+		const video = document.createElement("video");
+		video.srcObject = mediaStream;
+		video.muted = true;
+		video.playsInline = true;
+		video.play().catch(() => {});
+
+		let rafId: number | null = null;
+		const intervalMs = Math.round(1000 / frameRate);
+
+		// Use captureStream(0) for manual frame control — we push frames
+		// explicitly after each drawImage. captureStream(fps) relies on
+		// "content changes" detection which misses setTimeout-driven draws.
+		const canvasStream = canvas.captureStream(0);
+		const canvasTrack = canvasStream.getVideoTracks()[0] as MediaStreamTrack & {
+			requestFrame?: () => void;
+		};
+
+		const drawFrame = (): void => {
+			if (video.readyState >= video.HAVE_CURRENT_DATA) {
+				ctx.drawImage(video, 0, 0, width, height);
+				canvasTrack?.requestFrame?.();
+			}
+			rafId = window.setTimeout(drawFrame, intervalMs) as unknown as number;
+		};
+		drawFrame();
+
+		const cleanup = (): void => {
+			if (rafId !== null) {
+				clearTimeout(rafId);
+				rafId = null;
+			}
+			video.pause();
+			video.srcObject = null;
+		};
+
+		return { stream: canvasStream, cleanup };
+	} catch (error) {
+		console.warn("[ScreenRecording] Canvas stream proxy failed:", error);
+		return null;
+	}
 }
 
 function stopMediaTracks({ mediaStream }: { mediaStream: MediaStream }): void {
@@ -336,6 +418,8 @@ export async function startScreenRecording({
 } = {}): Promise<StartScreenRecordingResult> {
 	let startResult: StartScreenRecordingResult | null = null;
 	let mediaStream: MediaStream | null = null;
+	let audioResult: AudioCaptureResult | null = null;
+	let canvasStream: ReturnType<typeof createCanvasStream> = null;
 
 	try {
 		if (activeRecording) {
@@ -350,17 +434,65 @@ export async function startScreenRecording({
 			mimeType: options.mimeType ?? mimeType ?? undefined,
 		});
 
-		mediaStream = await getCaptureStream({ sourceId: startResult.sourceId });
+		// Read audio config from store
+		const enhancementStore = useScreenRecordingEnhancementStore.getState();
+		const wantSystemAudio = enhancementStore.systemAudioEnabled;
+		const wantMic = enhancementStore.micEnabled;
 
-		const recorderOptions: MediaRecorderOptions = {
-			videoBitsPerSecond: SCREEN_CAPTURE_BITRATE,
-		};
-		const resolvedMimeType = options.mimeType ?? mimeType;
-		if (resolvedMimeType) {
-			recorderOptions.mimeType = resolvedMimeType;
+		mediaStream = await getCaptureStream({
+			sourceId: startResult.sourceId,
+			requestAudio: wantSystemAudio,
+		});
+
+		// Mix audio if mic or system audio is enabled
+		let recordingStream: MediaStream = mediaStream;
+
+		if (wantMic || wantSystemAudio) {
+			try {
+				audioResult = await startAudioCapture(
+					{
+						micEnabled: wantMic,
+						systemAudioEnabled: wantSystemAudio,
+						micDeviceId: enhancementStore.micDeviceId ?? undefined,
+						micGainBoost: enhancementStore.micGain,
+					},
+					mediaStream
+				);
+				recordingStream = mergeAudioIntoStream(mediaStream, audioResult.stream);
+			} catch (audioError) {
+				console.warn(
+					"[ScreenRecording] Audio capture failed, continuing without audio:",
+					audioError
+				);
+			}
 		}
 
-		const mediaRecorder = new MediaRecorder(mediaStream, recorderOptions);
+		// Electron 40+ (Chromium 134): MediaRecorder produces 0-byte blobs from
+		// getDisplayMedia streams directly. Workaround: pipe video through a canvas
+		// with captureStream(0) + manual requestFrame() calls, video-only.
+		canvasStream = createCanvasStream({
+			mediaStream: recordingStream,
+			frameRate: 30,
+		});
+
+		let streamForRecorder: MediaStream;
+		const mediaRecorderOptions: MediaRecorderOptions = {
+			videoBitsPerSecond: SCREEN_CAPTURE_BITRATE,
+		};
+		if (canvasStream) {
+			streamForRecorder = canvasStream.stream;
+		} else {
+			streamForRecorder = recordingStream;
+			const resolvedMimeType = options.mimeType ?? mimeType;
+			if (resolvedMimeType) {
+				mediaRecorderOptions.mimeType = resolvedMimeType;
+			}
+		}
+
+		const mediaRecorder = new MediaRecorder(
+			streamForRecorder,
+			mediaRecorderOptions
+		);
 
 		const runtimeState: ActiveRecordingRuntimeState = {
 			sessionId: startResult.sessionId,
@@ -374,6 +506,8 @@ export async function startScreenRecording({
 			chunkWriteQueue: Promise.resolve(),
 			chunkWriteError: null,
 			bytesWritten: 0,
+			audioCleanup: audioResult?.cleanup ?? null,
+			canvasCleanup: canvasStream?.cleanup ?? null,
 		};
 
 		mediaRecorder.ondataavailable = (event: BlobEvent): void => {
@@ -392,6 +526,20 @@ export async function startScreenRecording({
 	} catch (error) {
 		const startError = toError({ error });
 
+		if (canvasStream?.cleanup) {
+			try {
+				canvasStream.cleanup();
+			} catch {
+				// Ignore cleanup errors
+			}
+		}
+		if (audioResult?.cleanup) {
+			try {
+				audioResult.cleanup();
+			} catch {
+				// Ignore cleanup errors
+			}
+		}
 		if (mediaStream) {
 			stopMediaTracks({ mediaStream });
 		}
@@ -531,6 +679,20 @@ export async function stopScreenRecording({
 		}
 		throw new Error(`Failed to stop screen recording: ${stopError.message}`);
 	} finally {
+		if (recordingState.canvasCleanup) {
+			try {
+				recordingState.canvasCleanup();
+			} catch {
+				// Ignore canvas cleanup errors
+			}
+		}
+		if (recordingState.audioCleanup) {
+			try {
+				recordingState.audioCleanup();
+			} catch {
+				// Ignore audio cleanup errors
+			}
+		}
 		stopMediaTracks({ mediaStream: recordingState.mediaStream });
 		activeRecording = null;
 		isStopInProgress = false;

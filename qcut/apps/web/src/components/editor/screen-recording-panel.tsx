@@ -13,6 +13,7 @@ import {
 } from "./properties-panel/property-item";
 import { CursorSettings } from "./screen-recording-panel/cursor-settings";
 import { BackgroundSettings } from "./screen-recording-panel/background-settings";
+import { WebcamSettings } from "./screen-recording-panel/webcam-settings";
 import { Plus, Sparkles, Trash2, X } from "lucide-react";
 import type { ZoomRegion } from "@/lib/screen-recording/zoom-region-utils";
 
@@ -125,6 +126,7 @@ export function ScreenRecordingPanel() {
 
 				<CursorSettings />
 				<BackgroundSettings />
+				<WebcamSettings />
 
 				{/* Zoom Settings */}
 				<PropertyGroup title="Zoom Regions" defaultExpanded={true}>

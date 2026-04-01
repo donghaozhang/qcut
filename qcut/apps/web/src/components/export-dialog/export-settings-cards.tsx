@@ -4,6 +4,8 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { PlatformIcon } from "@/components/export-icons";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 import {
@@ -117,6 +119,16 @@ export interface DetailsCardProps {
 	timelineDuration: number;
 	format: ExportFormat;
 	engineRecommendation: string | null;
+}
+
+export interface GifOptionsCardProps {
+	frameRate: number;
+	onFrameRateChange: (fps: number) => void;
+	loop: boolean;
+	onLoopChange: (loop: boolean) => void;
+	quality: number;
+	onQualityChange: (q: number) => void;
+	isExporting: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -462,5 +474,92 @@ export function DetailsCard({
 				)}
 			</div>
 		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// GIF Options Card — frame rate, loop, quality
+// ---------------------------------------------------------------------------
+
+const GIF_FPS_OPTIONS = [15, 20, 25, 30] as const;
+
+export function GifOptionsCard({
+	frameRate,
+	onFrameRateChange,
+	loop,
+	onLoopChange,
+	quality,
+	onQualityChange,
+	isExporting,
+}: GifOptionsCardProps) {
+	const [open, setOpen] = useState(true);
+
+	return (
+		<SettingRow
+			label="GIF Options"
+			value={`${frameRate}fps · ${loop ? "Loop" : "Once"}`}
+			open={open}
+			onToggle={() => setOpen(!open)}
+			disabled={isExporting}
+			testId="gif-options-card"
+		>
+			<div className="space-y-3">
+				{/* Frame rate */}
+				<div className="space-y-1.5">
+					<Label className="text-xs text-muted-foreground">Frame Rate</Label>
+					<RadioGroup
+						value={String(frameRate)}
+						onValueChange={(v) => onFrameRateChange(Number(v))}
+						className="flex gap-2"
+						disabled={isExporting}
+					>
+						{GIF_FPS_OPTIONS.map((fps) => (
+							<Label
+								key={fps}
+								className={cn(
+									"flex items-center gap-1.5 text-xs cursor-pointer px-2 py-1 rounded border transition-colors",
+									frameRate === fps
+										? "border-primary bg-primary/5"
+										: "border-border/50 hover:bg-muted/40"
+								)}
+							>
+								<RadioGroupItem value={String(fps)} className="sr-only" />
+								{fps}fps
+							</Label>
+						))}
+					</RadioGroup>
+				</div>
+
+				{/* Loop */}
+				<div className="flex items-center justify-between">
+					<Label className="text-xs text-muted-foreground">Loop forever</Label>
+					<Switch
+						checked={loop}
+						onCheckedChange={onLoopChange}
+						disabled={isExporting}
+						aria-label="Toggle GIF loop"
+					/>
+				</div>
+
+				{/* Quality */}
+				<div className="space-y-1.5">
+					<div className="flex items-center justify-between">
+						<Label className="text-xs text-muted-foreground">Quality</Label>
+						<span className="text-xs text-muted-foreground">{quality}</span>
+					</div>
+					<Slider
+						min={1}
+						max={20}
+						step={1}
+						value={[quality]}
+						onValueChange={([v]) => onQualityChange(v)}
+						disabled={isExporting}
+					/>
+					<p className="text-[10px] text-muted-foreground">
+						Lower = better visual quality, slower encode
+					</p>
+				</div>
+			</div>
+		</SettingRow>
 	);
 }

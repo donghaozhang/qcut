@@ -31,6 +31,25 @@ export interface ResolvedExportSettings {
 	codec: string;
 	bitrate: string;
 	gifLoop?: boolean;
+	gifQuality?: number;
+
+	/** Cursor enhancement config (passed through to compositor) */
+	cursorConfig?: {
+		sway?: number;
+		motionBlur?: number;
+		loopMode?: boolean;
+	};
+
+	/** Audio capture config */
+	audioConfig?: {
+		mic?: boolean;
+		systemAudio?: boolean;
+	};
+
+	/** Zoom enhancement config */
+	zoomConfig?: {
+		motionBlur?: number;
+	};
 }
 
 export interface ExportJobInternal {

@@ -375,6 +375,7 @@
 		"@sinclair/typebox": "^0.34.48",
 		"electron-log": "^5.4.3",
 		"electron-updater": "^6.8.3",
+		"gif.js": "^0.2.0",
 		"js-yaml": "^4.1.1",
 		"jszip": "^3.10.1",
 		"next": "^16.0.0",

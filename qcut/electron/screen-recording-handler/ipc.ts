@@ -1,4 +1,12 @@
-import { ipcMain, type IpcMainInvokeEvent } from "electron";
+import {
+	BrowserWindow,
+	desktopCapturer,
+	dialog,
+	ipcMain,
+	shell,
+	systemPreferences,
+	type IpcMainInvokeEvent,
+} from "electron";
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import type {
@@ -29,6 +37,7 @@ import { finalizeRecordingOutput, cleanupSessionFiles } from "./transcoder.js";
 import {
 	getActiveSession,
 	setActiveSession,
+	setPendingCaptureSource,
 	ensureDisplayMediaHandlerConfigured,
 	buildStatus,
 } from "./session.js";
@@ -163,6 +172,40 @@ export function setupScreenRecordingIPC(): void {
 					throw new Error("Screen recording is already active");
 				}
 
+				// Check macOS screen recording permission.
+				// On macOS Sequoia+, getMediaAccessStatus can report "granted"
+				// even when the system hasn't truly authorized the app (e.g. stale
+				// TCC entries). We still check to catch the obvious "denied" case
+				// and show a helpful dialog.
+				if (process.platform === "darwin") {
+					const screenAccess = systemPreferences.getMediaAccessStatus("screen");
+					if (screenAccess === "denied" || screenAccess === "restricted") {
+						const win = BrowserWindow.getAllWindows()[0];
+						const { response } = await dialog.showMessageBox(
+							win ?? ({} as BrowserWindow),
+							{
+								type: "warning",
+								title: "Screen Recording Permission Required",
+								message:
+									"QCut needs screen recording permission to capture your screen.",
+								detail:
+									'Click "Open Settings" to grant access, then toggle on QCut/Electron and retry.',
+								buttons: ["Open Settings", "Cancel"],
+								defaultId: 0,
+								cancelId: 1,
+							}
+						);
+						if (response === 0) {
+							shell.openExternal(
+								"x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
+							);
+						}
+						throw new Error(
+							"Screen recording permission not granted. Please allow access in System Settings > Privacy & Security > Screen Recording, then retry."
+						);
+					}
+				}
+
 				const currentWindowSourceId = getCurrentWindowSourceId({ event });
 				const sources = await listCaptureSources({ currentWindowSourceId });
 				const selectedSource = pickSource({
@@ -210,6 +253,24 @@ export function setupScreenRecordingIPC(): void {
 					writeQueue: Promise.resolve(),
 				});
 				createdSession = true;
+
+				// Pre-resolve the full DesktopCapturerSource for the display media handler.
+				// This MUST happen before returning, because the renderer will call
+				// getDisplayMedia() immediately after — and the handler must respond
+				// synchronously to produce a working MediaRecorder stream.
+				try {
+					const rawSources = await desktopCapturer.getSources({
+						types: ["window", "screen"],
+						thumbnailSize: { width: 1, height: 1 },
+						fetchWindowIcons: false,
+					});
+					const rawSource = rawSources.find((s) => s.id === selectedSource.id);
+					if (rawSource) {
+						setPendingCaptureSource(rawSource);
+					}
+				} catch {
+					// Non-fatal: handler will fall back to async resolve
+				}
 
 				// Start cursor telemetry capture
 				const captureRect = getCaptureRect(selectedSource.id);
@@ -270,6 +331,9 @@ export function setupScreenRecordingIPC(): void {
 			options: AppendScreenRecordingChunkOptions
 		): Promise<AppendScreenRecordingChunkResult> => {
 			try {
+				console.log(
+					`[ScreenRecordingIPC] appendChunk received: sessionId=${options.sessionId} chunkSize=${options.chunk?.byteLength ?? 0}`
+				);
 				const session = getActiveSession();
 				if (!session) {
 					throw new Error("No active screen recording session");

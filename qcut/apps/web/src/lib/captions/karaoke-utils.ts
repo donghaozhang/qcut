@@ -214,7 +214,6 @@ export function getKaraokeSegments(
 			return bounce(words, currentTime);
 		case "typewriter":
 			return typewriter(words, currentTime);
-		case "none":
 		default:
 			return staticMode(words);
 	}

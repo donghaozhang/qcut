@@ -164,6 +164,40 @@ export interface ExportJobRequest {
 		codec?: string;
 	};
 	outputPath?: string;
+
+	/** GIF-specific export options */
+	gifConfig?: {
+		/** Frame rate override for GIF (15|20|25|30) */
+		frameRate?: number;
+		/** Loop forever (true) or play once (false) */
+		loop?: boolean;
+		/** gif.js quality 1–20 (lower = better visual quality) */
+		quality?: number;
+	};
+
+	/** Cursor enhancement options for screen recording exports */
+	cursorConfig?: {
+		/** Sway intensity (0–2, default 0) */
+		sway?: number;
+		/** Motion blur intensity (0–1, default 0) */
+		motionBlur?: number;
+		/** Smooth return to start for seamless loops */
+		loopMode?: boolean;
+	};
+
+	/** Audio capture options */
+	audioConfig?: {
+		/** Enable microphone capture */
+		mic?: boolean;
+		/** Enable system audio capture */
+		systemAudio?: boolean;
+	};
+
+	/** Zoom enhancement options */
+	zoomConfig?: {
+		/** Zoom motion blur intensity (0–1, default 0) */
+		motionBlur?: number;
+	};
 }
 
 export interface ExportJobStatus {

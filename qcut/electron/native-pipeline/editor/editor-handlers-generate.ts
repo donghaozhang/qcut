@@ -262,10 +262,72 @@ async function exportStart(
 
 	const body: Record<string, unknown> = {};
 	if (opts.preset) body.preset = opts.preset;
+
+	// --format or --export-format sets the export format (mp4, gif, webm, etc.)
+	const exportFormat = opts.exportFormat || opts.format;
+	if (exportFormat) {
+		body.format = exportFormat;
+	}
+
 	if (opts.data) {
 		const settings = await resolveJsonInput(opts.data);
 		body.settings = settings;
 	}
+
+	// GIF config from CLI flags
+	const raw = opts as unknown as Record<string, unknown>;
+	if (
+		raw["gif-fps"] !== undefined ||
+		raw["gif-loop"] !== undefined ||
+		raw["gif-quality"] !== undefined
+	) {
+		body.gifConfig = {
+			...(typeof raw["gif-fps"] === "number"
+				? { frameRate: raw["gif-fps"] }
+				: {}),
+			...(typeof raw["gif-loop"] === "boolean"
+				? { loop: raw["gif-loop"] }
+				: {}),
+			...(typeof raw["gif-quality"] === "number"
+				? { quality: raw["gif-quality"] }
+				: {}),
+		};
+	}
+
+	// Cursor config from CLI flags
+	if (
+		raw["cursor-sway"] !== undefined ||
+		raw["cursor-loop"] !== undefined ||
+		raw["cursor-blur"] !== undefined
+	) {
+		body.cursorConfig = {
+			...(typeof raw["cursor-sway"] === "number"
+				? { sway: raw["cursor-sway"] }
+				: {}),
+			...(typeof raw["cursor-blur"] === "number"
+				? { motionBlur: raw["cursor-blur"] }
+				: {}),
+			...(typeof raw["cursor-loop"] === "boolean"
+				? { loopMode: raw["cursor-loop"] }
+				: {}),
+		};
+	}
+
+	// Audio config from CLI flags
+	if (raw.mic !== undefined || raw["system-audio"] !== undefined) {
+		body.audioConfig = {
+			...(typeof raw.mic === "boolean" ? { mic: raw.mic } : {}),
+			...(typeof raw["system-audio"] === "boolean"
+				? { systemAudio: raw["system-audio"] }
+				: {}),
+		};
+	}
+
+	// Zoom config from CLI flags
+	if (typeof raw["zoom-blur"] === "number") {
+		body.zoomConfig = { motionBlur: raw["zoom-blur"] };
+	}
+
 	if (opts.outputDir && opts.outputDir !== "./output") {
 		const ext = opts.exportFormat || opts.format || "mp4";
 		const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);

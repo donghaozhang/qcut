@@ -51,6 +51,12 @@ export function CursorSettings() {
 	const setShowCursorOverlay = useScreenRecordingEnhancementStore(
 		(s) => s.setShowCursorOverlay
 	);
+	const cursorLoopMode = useScreenRecordingEnhancementStore(
+		(s) => s.cursorLoopMode
+	);
+	const setCursorLoopMode = useScreenRecordingEnhancementStore(
+		(s) => s.setCursorLoopMode
+	);
 
 	return (
 		<PropertyGroup title="Cursor" defaultExpanded={true}>
@@ -206,6 +212,58 @@ export function CursorSettings() {
 						</PropertyItemValue>
 					</PropertyItem>
 				)}
+
+				{/* Sway — natural wobble during movement */}
+				<PropertyItem>
+					<PropertyItemLabel>Sway</PropertyItemLabel>
+					<PropertyItemValue>
+						<div className="flex items-center gap-2">
+							<Slider
+								min={0}
+								max={100}
+								step={1}
+								value={[Math.round(cursorConfig.sway * 50)]}
+								onValueChange={([v]) => setCursorConfig({ sway: v / 50 })}
+								className="flex-1"
+							/>
+							<span className="text-xs text-muted-foreground w-8 text-right">
+								{Math.round(cursorConfig.sway * 50)}%
+							</span>
+						</div>
+					</PropertyItemValue>
+				</PropertyItem>
+
+				{/* Motion blur — ghost trail on fast movement */}
+				<PropertyItem>
+					<PropertyItemLabel>Motion blur</PropertyItemLabel>
+					<PropertyItemValue>
+						<div className="flex items-center gap-2">
+							<Slider
+								min={0}
+								max={100}
+								step={1}
+								value={[Math.round(cursorConfig.motionBlur * 100)]}
+								onValueChange={([v]) =>
+									setCursorConfig({ motionBlur: v / 100 })
+								}
+								className="flex-1"
+							/>
+							<span className="text-xs text-muted-foreground w-8 text-right">
+								{Math.round(cursorConfig.motionBlur * 100)}%
+							</span>
+						</div>
+					</PropertyItemValue>
+				</PropertyItem>
+
+				{/* Loop cursor — smooth return for seamless loops */}
+				<PropertyItem>
+					<PropertyItemLabel>Loop cursor</PropertyItemLabel>
+					<Switch
+						checked={cursorLoopMode}
+						onCheckedChange={setCursorLoopMode}
+						aria-label="Toggle cursor loop mode"
+					/>
+				</PropertyItem>
 			</div>
 		</PropertyGroup>
 	);
