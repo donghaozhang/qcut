@@ -116,7 +116,7 @@ export function ensureDisplayMediaHandlerConfigured(): void {
 						callback({});
 					});
 			},
-			{ useSystemPicker: process.platform === "darwin" }
+			{ useSystemPicker: false }
 		);
 
 		isDisplayMediaHandlerConfigured = true;
