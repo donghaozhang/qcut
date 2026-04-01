@@ -27,8 +27,8 @@ const DEFAULT_TIMESLICE_MS = 1000;
 const SCREEN_CAPTURE_BITRATE = 5_000_000;
 
 const MIME_TYPE_CANDIDATES = [
-	"video/webm;codecs=vp8,opus",
 	"video/webm;codecs=vp9,opus",
+	"video/webm;codecs=vp8,opus",
 	"video/webm",
 ] as const;
 
@@ -278,19 +278,22 @@ function createCanvasStream({
 		let rafId: number | null = null;
 		const intervalMs = Math.round(1000 / frameRate);
 
+		// Use captureStream(0) for manual frame control — we push frames
+		// explicitly after each drawImage. captureStream(fps) relies on
+		// "content changes" detection which misses setTimeout-driven draws.
+		const canvasStream = canvas.captureStream(0);
+		const canvasTrack = canvasStream.getVideoTracks()[0] as MediaStreamTrack & {
+			requestFrame?: () => void;
+		};
+
 		const drawFrame = (): void => {
 			if (video.readyState >= video.HAVE_CURRENT_DATA) {
 				ctx.drawImage(video, 0, 0, width, height);
+				canvasTrack?.requestFrame?.();
 			}
 			rafId = window.setTimeout(drawFrame, intervalMs) as unknown as number;
 		};
 		drawFrame();
-
-		// Include audio tracks from the original stream
-		const canvasStream = canvas.captureStream(frameRate);
-		for (const audioTrack of mediaStream.getAudioTracks()) {
-			canvasStream.addTrack(audioTrack);
-		}
 
 		const cleanup = (): void => {
 			if (rafId !== null) {
@@ -416,6 +419,7 @@ export async function startScreenRecording({
 	let startResult: StartScreenRecordingResult | null = null;
 	let mediaStream: MediaStream | null = null;
 	let audioResult: AudioCaptureResult | null = null;
+	let canvasStream: ReturnType<typeof createCanvasStream> = null;
 
 	try {
 		if (activeRecording) {
@@ -463,27 +467,32 @@ export async function startScreenRecording({
 			}
 		}
 
-		const recorderOptions: MediaRecorderOptions = {
-			videoBitsPerSecond: SCREEN_CAPTURE_BITRATE,
-		};
-		const resolvedMimeType = options.mimeType ?? mimeType;
-		if (resolvedMimeType) {
-			recorderOptions.mimeType = resolvedMimeType;
-		}
-
-		// Electron 40+: MediaRecorder produces 0-byte blobs from getDisplayMedia
-		// streams directly. Workaround: pipe through a canvas to create a stream
-		// that MediaRecorder can encode.
-		const canvasStream = createCanvasStream({
+		// Electron 40+ (Chromium 134): MediaRecorder produces 0-byte blobs from
+		// getDisplayMedia streams directly. Workaround: pipe video through a canvas
+		// with captureStream(0) + manual requestFrame() calls, video-only.
+		canvasStream = createCanvasStream({
 			mediaStream: recordingStream,
 			frameRate: 30,
 		});
-		const streamForRecorder = canvasStream?.stream ?? recordingStream;
 
-		console.log(
-			`[ScreenRecording] Creating MediaRecorder: mimeType=${resolvedMimeType ?? "default"} canvasProxy=${!!canvasStream}`
+		let streamForRecorder: MediaStream;
+		const mediaRecorderOptions: MediaRecorderOptions = {
+			videoBitsPerSecond: SCREEN_CAPTURE_BITRATE,
+		};
+		if (canvasStream) {
+			streamForRecorder = canvasStream.stream;
+		} else {
+			streamForRecorder = recordingStream;
+			const resolvedMimeType = options.mimeType ?? mimeType;
+			if (resolvedMimeType) {
+				mediaRecorderOptions.mimeType = resolvedMimeType;
+			}
+		}
+
+		const mediaRecorder = new MediaRecorder(
+			streamForRecorder,
+			mediaRecorderOptions
 		);
-		const mediaRecorder = new MediaRecorder(streamForRecorder, recorderOptions);
 
 		const runtimeState: ActiveRecordingRuntimeState = {
 			sessionId: startResult.sessionId,
@@ -501,12 +510,7 @@ export async function startScreenRecording({
 			canvasCleanup: canvasStream?.cleanup ?? null,
 		};
 
-		let chunkCount = 0;
 		mediaRecorder.ondataavailable = (event: BlobEvent): void => {
-			chunkCount++;
-			console.log(
-				`[ScreenRecording] ondataavailable #${chunkCount}: size=${event.data?.size ?? 0}`
-			);
 			appendChunk({ recordingState: runtimeState, event });
 		};
 
@@ -514,63 +518,7 @@ export async function startScreenRecording({
 			console.error("[ScreenRecording] MediaRecorder runtime error:", event);
 		};
 
-		// Monitor video tracks for premature ending
-		for (const track of mediaStream.getVideoTracks()) {
-			const settings = track.getSettings();
-			console.log(
-				`[ScreenRecording] Video track: id=${track.id} readyState=${track.readyState} enabled=${track.enabled} ` +
-					`width=${settings.width} height=${settings.height} frameRate=${settings.frameRate}`
-			);
-			track.addEventListener("ended", () => {
-				console.warn(
-					`[ScreenRecording] Video track ended prematurely: id=${track.id}`
-				);
-			});
-		}
-
 		mediaRecorder.start(DEFAULT_TIMESLICE_MS);
-
-		// Detect empty capture — if no data after 3s, the stream is likely
-		// not producing frames (e.g. missing screen recording permission on macOS).
-		setTimeout(() => {
-			if (
-				mediaRecorder.state === "recording" &&
-				runtimeState.bytesWritten === 0
-			) {
-				console.warn(
-					"[ScreenRecording] No data after 3s — capture may not have screen recording permission"
-				);
-				// Diagnostic: check if stream has actual video frames via canvas
-				try {
-					const videoEl = document.createElement("video");
-					videoEl.srcObject = mediaStream;
-					videoEl.muted = true;
-					videoEl.play().then(() => {
-						setTimeout(() => {
-							const canvas = document.createElement("canvas");
-							canvas.width = 4;
-							canvas.height = 4;
-							const ctx = canvas.getContext("2d");
-							if (ctx) {
-								ctx.drawImage(videoEl, 0, 0, 4, 4);
-								const pixel = ctx.getImageData(0, 0, 1, 1).data;
-								console.log(
-									`[ScreenRecording] Frame pixel sample: rgba(${pixel[0]},${pixel[1]},${pixel[2]},${pixel[3]}) — ${pixel[3] === 0 ? "TRANSPARENT (no capture)" : "HAS DATA"}`
-								);
-							}
-							videoEl.pause();
-							videoEl.srcObject = null;
-						}, 500);
-					});
-				} catch (e) {
-					console.error("[ScreenRecording] Frame diagnostic failed:", e);
-				}
-			}
-		}, 3000);
-
-		console.log(
-			`[ScreenRecording] MediaRecorder started: state=${mediaRecorder.state} mimeType=${mediaRecorder.mimeType}`
-		);
 		activeRecording = runtimeState;
 		emitStatusChange();
 

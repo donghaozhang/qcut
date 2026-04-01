@@ -555,14 +555,6 @@ function createWindow(): void {
 	});
 	attachConsoleCapture({ window: mainWindow });
 
-	// Forward renderer console messages to stdout for diagnostics
-	mainWindow.webContents.on("console-message", (_event, level, message) => {
-		if (message.includes("[ScreenRecording]")) {
-			const tag = ["VERBOSE", "INFO", "WARN", "ERROR"][level] ?? "LOG";
-			console.log(`[Renderer:${tag}] ${message}`);
-		}
-	});
-
 	// Size window to 80% of the screen and center it
 	try {
 		const { width: screenW, height: screenH } =
