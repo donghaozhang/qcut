@@ -180,10 +180,13 @@ interface Canvas {
  */
 async function compositeSegmentCursor({
 	segmentPath,
+	originalSourcePath,
 	telemetry,
 	settings,
 }: {
 	segmentPath: string;
+	/** Original source file at full resolution (for sharp zoom) */
+	originalSourcePath: string;
 	telemetry: TelemetryData;
 	settings: ResolvedExportSettings;
 }): Promise<void> {
@@ -204,23 +207,23 @@ async function compositeSegmentCursor({
 		return;
 	}
 
-	const dims = await probeVideoDimensions(segmentPath);
-	if (!dims) {
-		claudeLog.warn(HANDLER, "Could not probe video dimensions");
-		return;
-	}
-
-	const { width, height } = dims;
+	// Probe ORIGINAL source for full-resolution decode (sharp zoom)
+	const srcDims = await probeVideoDimensions(originalSourcePath);
+	const outWidth = settings.width;
+	const outHeight = settings.height;
+	// Source dims for decoding — fall back to export dims if probe fails
+	const srcWidth = srcDims?.width ?? outWidth;
+	const srcHeight = srcDims?.height ?? outHeight;
 	const { fps, codec, bitrate } = settings;
 	const ffmpegPath = getFFmpegPath();
-	const frameSizeBytes = width * height * 4;
+	const frameSizeBytes = srcWidth * srcHeight * 4;
 	const outputTempPath = segmentPath + ".cursor-tmp.mp4";
 
 	const { points, captureRect } = telemetry;
 	const swayAmount = settings.cursorConfig?.sway ?? 0;
 	const motionBlur = settings.cursorConfig?.motionBlur ?? 0;
 	const autoZoom = settings.zoomConfig?.autoZoom ?? false;
-	const cursorRadius = Math.max(12, Math.round(width / 120));
+	const cursorRadius = Math.max(12, Math.round(outWidth / 120));
 
 	// Generate zoom regions from telemetry if auto-zoom is enabled
 	let zoomRegions: ZoomRegion[] = [];
@@ -235,7 +238,7 @@ async function compositeSegmentCursor({
 
 	claudeLog.info(
 		HANDLER,
-		`Compositing ${width}x${height}: ${points.length} cursor pts, ${zoomRegions.length} zoom regions, radius=${cursorRadius}`
+		`Compositing src=${srcWidth}x${srcHeight} out=${outWidth}x${outHeight}: ${points.length} cursor pts, ${zoomRegions.length} zoom regions`
 	);
 
 	// Spring state for cursor smoothing
@@ -261,13 +264,13 @@ async function compositeSegmentCursor({
 				ffmpegPath,
 				[
 					"-i",
-					segmentPath,
+					originalSourcePath,
 					"-f",
 					"rawvideo",
 					"-pix_fmt",
 					"rgba",
 					"-s",
-					`${width}x${height}`,
+					`${srcWidth}x${srcHeight}`,
 					"-v",
 					"error",
 					"pipe:1",
@@ -284,7 +287,7 @@ async function compositeSegmentCursor({
 					"-pix_fmt",
 					"rgba",
 					"-s",
-					`${width}x${height}`,
+					`${outWidth}x${outHeight}`,
 					"-r",
 					String(fps),
 					"-i",
@@ -310,9 +313,11 @@ async function compositeSegmentCursor({
 			// Two canvases: source (raw frame) and output (composited)
 			// putImageData ignores transforms, so we draw raw → source canvas,
 			// then drawImage source → output canvas with zoom transforms applied.
-			const srcCanvas = canvasLib.createCanvas(width, height) as Canvas;
+			// Source canvas at FULL resolution, output at EXPORT resolution.
+			// Zoom crops from full-res pixels → sharp result.
+			const srcCanvas = canvasLib.createCanvas(srcWidth, srcHeight) as Canvas;
 			const srcCtx = srcCanvas.getContext("2d") as CanvasCtx;
-			const outCanvas = canvasLib.createCanvas(width, height) as Canvas;
+			const outCanvas = canvasLib.createCanvas(outWidth, outHeight) as Canvas;
 			const outCtx = outCanvas.getContext("2d") as CanvasCtx;
 
 			decoder.stdout.on("data", (chunk: Buffer) => {
@@ -337,22 +342,22 @@ async function compositeSegmentCursor({
 					);
 					const imageData = new canvasLib.ImageData(
 						clampedData,
-						width,
-						height
+						srcWidth,
+						srcHeight
 					);
 					srcCtx.putImageData(imageData, 0, 0);
 
-					// 2. Compute zoom transform
+					// 2. Compute zoom transform (in output space)
 					const zoom = computeZoomTransform(
 						timeMs,
 						zoomRegions,
-						width,
-						height,
+						outWidth,
+						outHeight,
 						connectedTransitions
 					);
 
 					// 3. Draw source → output with zoom transform
-					outCtx.clearRect(0, 0, width, height);
+					outCtx.clearRect(0, 0, outWidth, outHeight);
 					outCtx.save();
 
 					if (zoom.scale > 1.001) {
@@ -364,12 +369,12 @@ async function compositeSegmentCursor({
 						srcCanvas,
 						0,
 						0,
-						width,
-						height,
+						srcWidth,
+						srcHeight,
 						0,
 						0,
-						width,
-						height
+						outWidth,
+						outHeight
 					);
 
 					outCtx.restore();
@@ -381,8 +386,8 @@ async function compositeSegmentCursor({
 						const ry =
 							(point.y - captureRect.y) / captureRect.height;
 						// Clamp to frame bounds so cursor doesn't start off-screen
-						const rawX = Math.max(0, Math.min(width, rx * width));
-						const rawY = Math.max(0, Math.min(height, ry * height));
+						const rawX = Math.max(0, Math.min(outWidth, rx * outWidth));
+						const rawY = Math.max(0, Math.min(outHeight, ry * outHeight));
 
 						// Spring smoothing — sub-step for numerical stability
 						// Semi-implicit Euler with stiffness=924 needs dt<0.01 to converge
@@ -421,9 +426,9 @@ async function compositeSegmentCursor({
 						// Draw cursor if within frame
 						if (
 							cursorX >= -cursorRadius * 2 &&
-							cursorX <= width + cursorRadius * 2 &&
+							cursorX <= outWidth + cursorRadius * 2 &&
 							cursorY >= -cursorRadius * 2 &&
-							cursorY <= height + cursorRadius * 2
+							cursorY <= outHeight + cursorRadius * 2
 						) {
 							// Motion blur ghost trail
 							if (
@@ -520,8 +525,8 @@ async function compositeSegmentCursor({
 					const composited = outCtx.getImageData(
 						0,
 						0,
-						width,
-						height
+						outWidth,
+						outHeight
 					);
 					const outBuffer = Buffer.from(composited.data.buffer);
 
@@ -621,6 +626,7 @@ export async function compositeCursorOnSegments({
 		try {
 			await compositeSegmentCursor({
 				segmentPath: segOut,
+				originalSourcePath: segment.sourcePath,
 				telemetry,
 				settings,
 			});
