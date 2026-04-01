@@ -453,7 +453,7 @@ async function compositeSegmentCursor({
 											Math.PI * 2
 										);
 										outCtx.fillStyle =
-											"rgba(0,0,0,0.85)";
+											"rgba(59,130,246,0.7)";
 										outCtx.fill();
 									}
 									outCtx.globalAlpha = 1;
@@ -467,38 +467,46 @@ async function compositeSegmentCursor({
 								outCtx.rotate(swayRotation);
 							}
 
+							// Highlight ring (soft glow)
+							outCtx.globalAlpha = 0.15;
+							outCtx.beginPath();
+							outCtx.arc(0, 0, cursorRadius * 3, 0, Math.PI * 2);
+							outCtx.fillStyle = "rgba(59,130,246,1)";
+							outCtx.fill();
+							outCtx.globalAlpha = 1;
+
+							// Outer ring (blue accent)
+							outCtx.beginPath();
+							outCtx.arc(0, 0, cursorRadius + 4, 0, Math.PI * 2);
+							outCtx.fillStyle = "rgba(59,130,246,0.9)";
+							outCtx.fill();
+
 							// White border
 							outCtx.beginPath();
-							outCtx.arc(
-								0,
-								0,
-								cursorRadius + 3,
-								0,
-								Math.PI * 2
-							);
+							outCtx.arc(0, 0, cursorRadius + 1, 0, Math.PI * 2);
 							outCtx.fillStyle = "rgba(255,255,255,1)";
 							outCtx.fill();
 
-							// Cursor dot
+							// Inner dot
 							outCtx.beginPath();
-							outCtx.arc(0, 0, cursorRadius, 0, Math.PI * 2);
-							outCtx.fillStyle = "rgba(20,20,20,0.95)";
+							outCtx.arc(0, 0, cursorRadius - 2, 0, Math.PI * 2);
+							outCtx.fillStyle = "rgba(59,130,246,1)";
 							outCtx.fill();
 
 							outCtx.restore();
 
-							// Click highlight (outside rotation)
+							// Click highlight (expanding ring)
 							if (point.p) {
-								outCtx.globalAlpha = 0.25;
+								outCtx.globalAlpha = 0.35;
 								outCtx.beginPath();
 								outCtx.arc(
 									cursorX,
 									cursorY,
-									cursorRadius * 4,
+									cursorRadius * 5,
 									0,
 									Math.PI * 2
 								);
-								outCtx.fillStyle = "rgba(59,130,246,0.5)";
+								outCtx.fillStyle = "rgba(59,130,246,0.6)";
 								outCtx.fill();
 								outCtx.globalAlpha = 1;
 							}
