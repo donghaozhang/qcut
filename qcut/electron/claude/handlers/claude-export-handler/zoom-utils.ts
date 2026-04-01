@@ -228,10 +228,7 @@ export function computeZoomTransform(
 			return {
 				scale: panState.scale,
 				translateX: -(cx * sourceWidth * panState.scale - sourceWidth / 2),
-				translateY: -(
-					cy * sourceHeight * panState.scale -
-					sourceHeight / 2
-				),
+				translateY: -(cy * sourceHeight * panState.scale - sourceHeight / 2),
 			};
 		}
 	}
@@ -323,8 +320,7 @@ export function analyzeForZoomSuggestions(
 
 		for (let j = i + 1; j < clickPoints.length; j++) {
 			if (usedClicks.has(j)) continue;
-			if (clickPoints[j].t - clickPoints[i].t > cfg.clickClusterTimeMs)
-				break;
+			if (clickPoints[j].t - clickPoints[i].t > cfg.clickClusterTimeMs) break;
 			const dx = clickPoints[j].x - clickPoints[i].x;
 			const dy = clickPoints[j].y - clickPoints[i].y;
 			if (Math.sqrt(dx * dx + dy * dy) <= cfg.dwellRadiusPx) {
@@ -334,10 +330,8 @@ export function analyzeForZoomSuggestions(
 		}
 
 		if (cluster.length >= cfg.minClickCluster) {
-			const avgX =
-				cluster.reduce((s, p) => s + p.x, 0) / cluster.length;
-			const avgY =
-				cluster.reduce((s, p) => s + p.y, 0) / cluster.length;
+			const avgX = cluster.reduce((s, p) => s + p.x, 0) / cluster.length;
+			const avgY = cluster.reduce((s, p) => s + p.y, 0) / cluster.length;
 			regions.push({
 				id: `zoom-auto-${++idCounter}`,
 				startMs: Math.max(0, cluster[0].t - 200),
@@ -369,12 +363,8 @@ export function analyzeForZoomSuggestions(
 					endMs: points[i - 1].t + 300,
 					depth: cfg.defaultDepth,
 					focus: {
-						cx:
-							(dwellCenterX - captureRect.x) /
-							captureRect.width,
-						cy:
-							(dwellCenterY - captureRect.y) /
-							captureRect.height,
+						cx: (dwellCenterX - captureRect.x) / captureRect.width,
+						cy: (dwellCenterY - captureRect.y) / captureRect.height,
 					},
 					auto: true,
 				});

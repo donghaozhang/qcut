@@ -540,7 +540,11 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		f("--cursor-loop", "boolean", "Cursor loop mode"),
 		f("--cursor-blur", "number", "Cursor motion blur (0-1)"),
 		// Zoom options
-		f("--auto-zoom", "boolean", "Auto-generate zoom regions from cursor activity"),
+		f(
+			"--auto-zoom",
+			"boolean",
+			"Auto-generate zoom regions from cursor activity"
+		),
 		f("--zoom-blur", "number", "Zoom motion blur intensity (0-1)"),
 		// Audio options
 		f("--mic", "boolean", "Enable microphone capture"),
