@@ -295,7 +295,6 @@ async function exportStart(
 	}
 
 	// Cursor config from CLI flags
-	console.error(`[DEBUG] raw keys: ${Object.keys(raw).filter(k => k.includes("cursor")).join(",") || "NONE"} raw["cursor-sway"]=${raw["cursor-sway"]}`);
 	const cursorSway = raw["cursor-sway"];
 	const cursorBlur = raw["cursor-blur"];
 	const cursorLoop = raw["cursor-loop"];
