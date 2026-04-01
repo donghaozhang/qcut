@@ -419,7 +419,12 @@ export async function startScreenRecording({
 			audioCleanup: audioResult?.cleanup ?? null,
 		};
 
+		let chunkCount = 0;
 		mediaRecorder.ondataavailable = (event: BlobEvent): void => {
+			chunkCount++;
+			console.log(
+				`[ScreenRecording] ondataavailable #${chunkCount}: size=${event.data?.size ?? 0}`
+			);
 			appendChunk({ recordingState: runtimeState, event });
 		};
 
@@ -427,7 +432,38 @@ export async function startScreenRecording({
 			console.error("[ScreenRecording] MediaRecorder runtime error:", event);
 		};
 
+		// Monitor video tracks for premature ending
+		for (const track of mediaStream.getVideoTracks()) {
+			const settings = track.getSettings();
+			console.log(
+				`[ScreenRecording] Video track: id=${track.id} readyState=${track.readyState} enabled=${track.enabled} ` +
+					`width=${settings.width} height=${settings.height} frameRate=${settings.frameRate}`
+			);
+			track.addEventListener("ended", () => {
+				console.warn(
+					`[ScreenRecording] Video track ended prematurely: id=${track.id}`
+				);
+			});
+		}
+
 		mediaRecorder.start(DEFAULT_TIMESLICE_MS);
+
+		// Detect empty capture — if no data after 3s, the stream is likely
+		// not producing frames (e.g. missing screen recording permission on macOS).
+		setTimeout(() => {
+			if (
+				mediaRecorder.state === "recording" &&
+				runtimeState.bytesWritten === 0
+			) {
+				console.warn(
+					"[ScreenRecording] No data after 3s — capture may not have screen recording permission"
+				);
+			}
+		}, 3000);
+
+		console.log(
+			`[ScreenRecording] MediaRecorder started: state=${mediaRecorder.state} mimeType=${mediaRecorder.mimeType}`
+		);
 		activeRecording = runtimeState;
 		emitStatusChange();
 
