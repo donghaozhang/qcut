@@ -220,7 +220,7 @@ async function compositeSegmentCursor({
 	const swayAmount = settings.cursorConfig?.sway ?? 0;
 	const motionBlur = settings.cursorConfig?.motionBlur ?? 0;
 	const autoZoom = settings.zoomConfig?.autoZoom ?? false;
-	const cursorRadius = Math.max(6, Math.round(width / 200));
+	const cursorRadius = Math.max(12, Math.round(width / 120));
 
 	// Generate zoom regions from telemetry if auto-zoom is enabled
 	let zoomRegions: ZoomRegion[] = [];
@@ -372,18 +372,26 @@ async function compositeSegmentCursor({
 						height
 					);
 
-					// 4. Draw cursor (inside zoom context)
+					outCtx.restore();
+
+					// 4. Draw cursor OUTSIDE zoom context (screen-space)
 					if (point) {
 						const rx =
 							(point.x - captureRect.x) / captureRect.width;
 						const ry =
 							(point.y - captureRect.y) / captureRect.height;
-						const rawX = rx * width;
-						const rawY = ry * height;
+						// Clamp to frame bounds so cursor doesn't start off-screen
+						const rawX = Math.max(0, Math.min(width, rx * width));
+						const rawY = Math.max(0, Math.min(height, ry * height));
 
-						// Spring smoothing
-						springX = stepSpring(springX, rawX, springConfig, dt);
-						springY = stepSpring(springY, rawY, springConfig, dt);
+						// Spring smoothing — sub-step for numerical stability
+						// Semi-implicit Euler with stiffness=924 needs dt<0.01 to converge
+						const SUB_STEPS = 8;
+						const subDt = dt / SUB_STEPS;
+						for (let s = 0; s < SUB_STEPS; s++) {
+							springX = stepSpring(springX, rawX, springConfig, subDt);
+							springY = stepSpring(springY, rawY, springConfig, subDt);
+						}
 						let cursorX = springX.value;
 						let cursorY = springY.value;
 
@@ -464,17 +472,17 @@ async function compositeSegmentCursor({
 							outCtx.arc(
 								0,
 								0,
-								cursorRadius + 2,
+								cursorRadius + 3,
 								0,
 								Math.PI * 2
 							);
-							outCtx.fillStyle = "rgba(255,255,255,0.9)";
+							outCtx.fillStyle = "rgba(255,255,255,1)";
 							outCtx.fill();
 
-							// Black dot
+							// Cursor dot
 							outCtx.beginPath();
 							outCtx.arc(0, 0, cursorRadius, 0, Math.PI * 2);
-							outCtx.fillStyle = "rgba(0,0,0,0.85)";
+							outCtx.fillStyle = "rgba(20,20,20,0.95)";
 							outCtx.fill();
 
 							outCtx.restore();
@@ -499,8 +507,6 @@ async function compositeSegmentCursor({
 						prevSmoothedX = cursorX;
 						prevSmoothedY = cursorY;
 					}
-
-					outCtx.restore();
 
 					// 5. Read composited frame and pipe to encoder
 					const composited = outCtx.getImageData(
