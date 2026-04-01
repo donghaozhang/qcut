@@ -248,6 +248,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"cursor-sway": { type: "string" },
 			"cursor-blur": { type: "string" },
 			"cursor-loop": { type: "boolean", default: false },
+			"auto-zoom": { type: "boolean", default: false },
 			"zoom-blur": { type: "string" },
 			"gif-fps": { type: "string" },
 			"gif-loop": { type: "boolean", default: false },
@@ -580,6 +581,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			? { "cursor-blur": parseFloat(values["cursor-blur"] as string) }
 			: {}),
 		...(values["cursor-loop"] ? { "cursor-loop": true } : {}),
+		...(values["auto-zoom"] ? { "auto-zoom": true } : {}),
 		...(values["zoom-blur"]
 			? { "zoom-blur": parseFloat(values["zoom-blur"] as string) }
 			: {}),

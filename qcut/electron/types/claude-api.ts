@@ -197,6 +197,8 @@ export interface ExportJobRequest {
 	zoomConfig?: {
 		/** Zoom motion blur intensity (0–1, default 0) */
 		motionBlur?: number;
+		/** Auto-generate zoom regions from cursor telemetry */
+		autoZoom?: boolean;
 	};
 }
 

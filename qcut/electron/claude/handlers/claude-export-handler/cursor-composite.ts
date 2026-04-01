@@ -1,9 +1,9 @@
 /**
- * Cursor compositing for Electron CLI exports.
+ * Cursor + zoom compositing for Electron CLI exports.
  *
- * Decodes video frames with FFmpeg, draws cursor overlay using @napi-rs/canvas,
- * and re-encodes via FFmpeg. Composites per-segment so telemetry timestamps
- * align correctly (each segment maps to its source recording's telemetry).
+ * Per-segment pipeline: FFmpeg decode → @napi-rs/canvas (zoom + cursor) → FFmpeg encode.
+ * Uses a source canvas for raw frames and an output canvas for composited result,
+ * because putImageData ignores canvas transforms (translate/scale).
  *
  * @module electron/claude/handlers/claude-export-handler/cursor-composite
  */
@@ -18,6 +18,17 @@ import { claudeLog } from "../../utils/logger.js";
 import { readCursorTelemetry } from "../../../screen-recording-handler/cursor-telemetry-io.js";
 import type { ResolvedExportSettings, ExportSegment } from "./types.js";
 import { parseBitrateForKbps } from "./utils.js";
+import {
+	analyzeForZoomSuggestions,
+	computeZoomTransform,
+	findConnectedTransitions,
+	createSpringState,
+	stepSpring,
+	getCursorSpringConfig,
+	computeCursorSwayRotation,
+	type ZoomRegion,
+	type SpringState,
+} from "./zoom-utils.js";
 
 const HANDLER = "CursorComposite";
 
@@ -41,29 +52,27 @@ interface TelemetryData {
 }
 
 /**
- * Check whether cursor compositing should run for this export.
+ * Check whether enhancement compositing should run for this export.
  */
 export function shouldCompositeCursor(
 	settings: ResolvedExportSettings
 ): boolean {
 	const cfg = settings.cursorConfig;
-	if (!cfg) return false;
+	const zoom = settings.zoomConfig;
+	if (!cfg && !zoom) return false;
 	return (
-		(cfg.sway ?? 0) > 0 ||
-		(cfg.motionBlur ?? 0) > 0 ||
-		cfg.loopMode === true
+		(cfg?.sway ?? 0) > 0 ||
+		(cfg?.motionBlur ?? 0) > 0 ||
+		cfg?.loopMode === true ||
+		zoom?.autoZoom === true
 	);
 }
 
-/**
- * Find cursor telemetry for a source file.
- * Checks sidecar next to the file and in QCut Recordings.
- */
+/** Find cursor telemetry for a source file. */
 async function findTelemetryForSource(
 	sourcePath: string
 ): Promise<TelemetryData | null> {
 	const searchPaths = [sourcePath];
-
 	const home = os.homedir();
 	const recordingsDir = path.join(home, "Movies", "QCut Recordings");
 	const recordingsPath = path.join(recordingsDir, path.basename(sourcePath));
@@ -83,7 +92,7 @@ async function findTelemetryForSource(
 	return null;
 }
 
-/** Get video dimensions using ffprobe */
+/** Get video dimensions using ffprobe. */
 async function probeVideoDimensions(
 	videoPath: string
 ): Promise<{ width: number; height: number } | null> {
@@ -126,9 +135,48 @@ function findPointAtTime(
 	return points[low];
 }
 
+// ── Canvas type helpers (for @napi-rs/canvas) ───────────────────────
+
+interface CanvasCtx {
+	putImageData: (data: unknown, x: number, y: number) => void;
+	drawImage: (
+		src: unknown,
+		sx: number,
+		sy: number,
+		sw: number,
+		sh: number,
+		dx: number,
+		dy: number,
+		dw: number,
+		dh: number
+	) => void;
+	beginPath: () => void;
+	arc: (x: number, y: number, r: number, s: number, e: number) => void;
+	fill: () => void;
+	save: () => void;
+	restore: () => void;
+	translate: (x: number, y: number) => void;
+	scale: (x: number, y: number) => void;
+	rotate: (angle: number) => void;
+	clearRect: (x: number, y: number, w: number, h: number) => void;
+	globalAlpha: number;
+	fillStyle: string;
+	getImageData: (
+		x: number,
+		y: number,
+		w: number,
+		h: number
+	) => { data: Uint8ClampedArray };
+}
+
+interface Canvas {
+	getContext: (type: string) => CanvasCtx;
+	width: number;
+	height: number;
+}
+
 /**
- * Composite cursor onto a single encoded segment file.
- * Probes actual video dimensions and decodes/re-encodes at that resolution.
+ * Composite cursor + zoom onto a single encoded segment file.
  */
 async function compositeSegmentCursor({
 	segmentPath,
@@ -152,14 +200,10 @@ async function compositeSegmentCursor({
 		const moduleName = "@napi-rs/canvas";
 		canvasLib = (await import(moduleName)) as typeof canvasLib;
 	} catch {
-		claudeLog.warn(
-			HANDLER,
-			"@napi-rs/canvas not available, skipping cursor"
-		);
+		claudeLog.warn(HANDLER, "@napi-rs/canvas not available");
 		return;
 	}
 
-	// Probe actual video dimensions
 	const dims = await probeVideoDimensions(segmentPath);
 	if (!dims) {
 		claudeLog.warn(HANDLER, "Could not probe video dimensions");
@@ -175,12 +219,41 @@ async function compositeSegmentCursor({
 	const { points, captureRect } = telemetry;
 	const swayAmount = settings.cursorConfig?.sway ?? 0;
 	const motionBlur = settings.cursorConfig?.motionBlur ?? 0;
+	const autoZoom = settings.zoomConfig?.autoZoom ?? false;
 	const cursorRadius = Math.max(6, Math.round(width / 200));
+
+	// Generate zoom regions from telemetry if auto-zoom is enabled
+	let zoomRegions: ZoomRegion[] = [];
+	if (autoZoom) {
+		zoomRegions = analyzeForZoomSuggestions(points, captureRect);
+		claudeLog.info(
+			HANDLER,
+			`Auto-zoom generated ${zoomRegions.length} region(s)`
+		);
+	}
+	const connectedTransitions = findConnectedTransitions(zoomRegions);
 
 	claudeLog.info(
 		HANDLER,
-		`Compositing ${width}x${height} segment, ${points.length} cursor points, radius=${cursorRadius}`
+		`Compositing ${width}x${height}: ${points.length} cursor pts, ${zoomRegions.length} zoom regions, radius=${cursorRadius}`
 	);
+
+	// Spring state for cursor smoothing
+	let springX = createSpringState();
+	let springY = createSpringState();
+	let springRot = createSpringState();
+	const springConfig = getCursorSpringConfig(0.18);
+	const swaySpringConfig = {
+		stiffness: springConfig.stiffness,
+		damping: springConfig.damping * 0.9,
+		mass: springConfig.mass * 0.8,
+	};
+
+	let prevRawX = -1;
+	let prevRawY = -1;
+	let prevSmoothedX = -1;
+	let prevSmoothedY = -1;
+	let lastTimeMs = -1;
 
 	try {
 		await new Promise<void>((resolve, reject) => {
@@ -233,34 +306,14 @@ async function compositeSegmentCursor({
 
 			let frameIndex = 0;
 			let buffer = Buffer.alloc(0);
-			let prevCursorX = -1;
-			let prevCursorY = -1;
 
-			const canvas = canvasLib.createCanvas(width, height) as {
-				getContext: (type: string) => CanvasCtx;
-			};
-			const ctx = canvas.getContext("2d") as CanvasCtx;
-
-			interface CanvasCtx {
-				putImageData: (data: unknown, x: number, y: number) => void;
-				beginPath: () => void;
-				arc: (
-					x: number,
-					y: number,
-					r: number,
-					s: number,
-					e: number
-				) => void;
-				fill: () => void;
-				globalAlpha: number;
-				fillStyle: string;
-				getImageData: (
-					x: number,
-					y: number,
-					w: number,
-					h: number
-				) => { data: Uint8ClampedArray };
-			}
+			// Two canvases: source (raw frame) and output (composited)
+			// putImageData ignores transforms, so we draw raw → source canvas,
+			// then drawImage source → output canvas with zoom transforms applied.
+			const srcCanvas = canvasLib.createCanvas(width, height) as Canvas;
+			const srcCtx = srcCanvas.getContext("2d") as CanvasCtx;
+			const outCanvas = canvasLib.createCanvas(width, height) as Canvas;
+			const outCtx = outCanvas.getContext("2d") as CanvasCtx;
 
 			decoder.stdout.on("data", (chunk: Buffer) => {
 				buffer = Buffer.concat([buffer, chunk]);
@@ -270,8 +323,13 @@ async function compositeSegmentCursor({
 					buffer = buffer.subarray(frameSizeBytes);
 
 					const timeMs = (frameIndex / fps) * 1000;
+					const dt =
+						lastTimeMs >= 0 ? (timeMs - lastTimeMs) / 1000 : 0;
+					lastTimeMs = timeMs;
+
 					const point = findPointAtTime(points, timeMs);
 
+					// 1. Put raw frame onto source canvas
 					const clampedData = new Uint8ClampedArray(
 						frameData.buffer,
 						frameData.byteOffset,
@@ -282,39 +340,93 @@ async function compositeSegmentCursor({
 						width,
 						height
 					);
-					ctx.putImageData(imageData, 0, 0);
+					srcCtx.putImageData(imageData, 0, 0);
 
+					// 2. Compute zoom transform
+					const zoom = computeZoomTransform(
+						timeMs,
+						zoomRegions,
+						width,
+						height,
+						connectedTransitions
+					);
+
+					// 3. Draw source → output with zoom transform
+					outCtx.clearRect(0, 0, width, height);
+					outCtx.save();
+
+					if (zoom.scale > 1.001) {
+						outCtx.translate(zoom.translateX, zoom.translateY);
+						outCtx.scale(zoom.scale, zoom.scale);
+					}
+
+					outCtx.drawImage(
+						srcCanvas,
+						0,
+						0,
+						width,
+						height,
+						0,
+						0,
+						width,
+						height
+					);
+
+					// 4. Draw cursor (inside zoom context)
 					if (point) {
 						const rx =
 							(point.x - captureRect.x) / captureRect.width;
 						const ry =
 							(point.y - captureRect.y) / captureRect.height;
-						let cursorX = rx * width;
-						let cursorY = ry * height;
+						const rawX = rx * width;
+						const rawY = ry * height;
 
-						if (swayAmount > 0 && prevCursorX >= 0) {
-							const dx = cursorX - prevCursorX;
-							const dy = cursorY - prevCursorY;
-							const speed = Math.sqrt(dx * dx + dy * dy);
-							const swayPhase = timeMs * 0.003;
-							const swayMag =
-								Math.min(speed * 0.15, 4) * swayAmount;
-							cursorX += Math.sin(swayPhase) * swayMag;
-							cursorY +=
-								Math.cos(swayPhase * 1.3) * swayMag * 0.7;
+						// Spring smoothing
+						springX = stepSpring(springX, rawX, springConfig, dt);
+						springY = stepSpring(springY, rawY, springConfig, dt);
+						let cursorX = springX.value;
+						let cursorY = springY.value;
+
+						// Sway rotation
+						let swayRotation = 0;
+						if (swayAmount > 0 && prevRawX >= 0) {
+							const dxRaw = rawX - prevRawX;
+							const dyRaw = rawY - prevRawY;
+							const deltaMs = dt * 1000 || 33;
+							const targetRot = computeCursorSwayRotation({
+								dx: dxRaw,
+								dy: dyRaw,
+								deltaMs,
+								sway: swayAmount,
+							});
+							springRot = stepSpring(
+								springRot,
+								targetRot,
+								swaySpringConfig,
+								dt
+							);
+							swayRotation = springRot.value;
 						}
+						prevRawX = rawX;
+						prevRawY = rawY;
 
+						// Draw cursor if within frame
 						if (
-							cursorX >= -cursorRadius &&
-							cursorX <= width + cursorRadius &&
-							cursorY >= -cursorRadius &&
-							cursorY <= height + cursorRadius
+							cursorX >= -cursorRadius * 2 &&
+							cursorX <= width + cursorRadius * 2 &&
+							cursorY >= -cursorRadius * 2 &&
+							cursorY <= height + cursorRadius * 2
 						) {
 							// Motion blur ghost trail
-							if (motionBlur > 0 && prevCursorX >= 0) {
-								const dx = cursorX - prevCursorX;
-								const dy = cursorY - prevCursorY;
-								const dist = Math.sqrt(dx * dx + dy * dy);
+							if (
+								motionBlur > 0 &&
+								prevSmoothedX >= 0
+							) {
+								const dx = cursorX - prevSmoothedX;
+								const dy = cursorY - prevSmoothedY;
+								const dist = Math.sqrt(
+									dx * dx + dy * dy
+								);
 								if (dist > 2) {
 									const steps = Math.min(
 										Math.floor(dist / 3),
@@ -322,71 +434,81 @@ async function compositeSegmentCursor({
 									);
 									for (let s = 1; s <= steps; s++) {
 										const t = s / (steps + 1);
-										const gx = prevCursorX + dx * t;
-										const gy = prevCursorY + dy * t;
-										ctx.globalAlpha =
+										outCtx.globalAlpha =
 											(1 - t) * 0.3 * motionBlur;
-										ctx.beginPath();
-										ctx.arc(
-											gx,
-											gy,
+										outCtx.beginPath();
+										outCtx.arc(
+											prevSmoothedX + dx * t,
+											prevSmoothedY + dy * t,
 											cursorRadius * 0.8,
 											0,
 											Math.PI * 2
 										);
-										ctx.fillStyle = "rgba(0,0,0,0.85)";
-										ctx.fill();
+										outCtx.fillStyle =
+											"rgba(0,0,0,0.85)";
+										outCtx.fill();
 									}
-									ctx.globalAlpha = 1;
+									outCtx.globalAlpha = 1;
 								}
 							}
 
+							// Draw cursor with sway rotation
+							outCtx.save();
+							outCtx.translate(cursorX, cursorY);
+							if (Math.abs(swayRotation) > 0.001) {
+								outCtx.rotate(swayRotation);
+							}
+
 							// White border
-							ctx.beginPath();
-							ctx.arc(
-								cursorX,
-								cursorY,
+							outCtx.beginPath();
+							outCtx.arc(
+								0,
+								0,
 								cursorRadius + 2,
 								0,
 								Math.PI * 2
 							);
-							ctx.fillStyle = "rgba(255,255,255,0.9)";
-							ctx.fill();
+							outCtx.fillStyle = "rgba(255,255,255,0.9)";
+							outCtx.fill();
 
 							// Black dot
-							ctx.beginPath();
-							ctx.arc(
-								cursorX,
-								cursorY,
-								cursorRadius,
-								0,
-								Math.PI * 2
-							);
-							ctx.fillStyle = "rgba(0,0,0,0.85)";
-							ctx.fill();
+							outCtx.beginPath();
+							outCtx.arc(0, 0, cursorRadius, 0, Math.PI * 2);
+							outCtx.fillStyle = "rgba(0,0,0,0.85)";
+							outCtx.fill();
 
-							// Click highlight
+							outCtx.restore();
+
+							// Click highlight (outside rotation)
 							if (point.p) {
-								ctx.globalAlpha = 0.25;
-								ctx.beginPath();
-								ctx.arc(
+								outCtx.globalAlpha = 0.25;
+								outCtx.beginPath();
+								outCtx.arc(
 									cursorX,
 									cursorY,
 									cursorRadius * 4,
 									0,
 									Math.PI * 2
 								);
-								ctx.fillStyle = "rgba(59,130,246,0.5)";
-								ctx.fill();
-								ctx.globalAlpha = 1;
+								outCtx.fillStyle = "rgba(59,130,246,0.5)";
+								outCtx.fill();
+								outCtx.globalAlpha = 1;
 							}
 						}
 
-						prevCursorX = cursorX;
-						prevCursorY = cursorY;
+						prevSmoothedX = cursorX;
+						prevSmoothedY = cursorY;
 					}
 
-					const composited = ctx.getImageData(0, 0, width, height);
+					outCtx.restore();
+
+					// 5. Read composited frame and pipe to encoder
+					const composited = outCtx.getImageData(
+						0,
+						0,
+						width,
+						height
+					);
 					const outBuffer = Buffer.from(composited.data.buffer);
 
 					const canWrite = encoder.stdin.write(outBuffer);
@@ -456,7 +578,7 @@ async function compositeSegmentCursor({
 }
 
 /**
- * Composite cursor overlay onto export segments that have telemetry.
+ * Composite cursor + zoom onto export segments that have telemetry.
  * Called per-segment BEFORE concatenation so timestamps align correctly.
  */
 export async function compositeCursorOnSegments({
@@ -479,7 +601,7 @@ export async function compositeCursorOnSegments({
 
 		claudeLog.info(
 			HANDLER,
-			`Compositing cursor on segment ${i}: ${path.basename(segment.sourcePath)}`
+			`Processing segment ${i}: ${path.basename(segment.sourcePath)}`
 		);
 
 		try {
@@ -491,10 +613,9 @@ export async function compositeCursorOnSegments({
 		} catch (err) {
 			claudeLog.error(
 				HANDLER,
-				`Segment ${i} cursor compositing failed:`,
+				`Segment ${i} compositing failed:`,
 				err
 			);
-			// Non-fatal: continue without cursor for this segment
 		}
 
 		onProgress?.((i + 1) / segmentOutputs.length);

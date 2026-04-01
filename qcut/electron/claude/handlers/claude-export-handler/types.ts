@@ -49,6 +49,7 @@ export interface ResolvedExportSettings {
 	/** Zoom enhancement config */
 	zoomConfig?: {
 		motionBlur?: number;
+		autoZoom?: boolean;
 	};
 }
 

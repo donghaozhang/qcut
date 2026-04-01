@@ -322,8 +322,13 @@ async function exportStart(
 	}
 
 	// Zoom config from CLI flags
-	if (typeof raw["zoom-blur"] === "number") {
-		body.zoomConfig = { motionBlur: raw["zoom-blur"] };
+	const zoomBlur = raw["zoom-blur"];
+	const autoZoom = raw["auto-zoom"];
+	if (zoomBlur != null || autoZoom) {
+		body.zoomConfig = {
+			...(zoomBlur != null ? { motionBlur: Number(zoomBlur) } : {}),
+			...(autoZoom ? { autoZoom: true } : {}),
+		};
 	}
 
 	if (opts.outputDir && opts.outputDir !== "./output") {
