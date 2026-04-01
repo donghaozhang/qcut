@@ -46,7 +46,10 @@ export function AnnotationToolbar({
 	const [strokeWidth, setStrokeWidth] = useState(DEFAULT_STROKE_WIDTH);
 	const [arrowMenuOpen, setArrowMenuOpen] = useState(false);
 
-	const endMs = Math.max(currentTimeMs + 1, Math.min(currentTimeMs + 3000, clipDurationMs));
+	const endMs = Math.max(
+		currentTimeMs + 1,
+		Math.min(currentTimeMs + 3000, clipDurationMs)
+	);
 
 	const handleAddArrow = (direction: ArrowDirection) => {
 		addAnnotation(
