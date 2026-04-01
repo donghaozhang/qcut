@@ -178,8 +178,7 @@ export function setupScreenRecordingIPC(): void {
 				// TCC entries). We still check to catch the obvious "denied" case
 				// and show a helpful dialog.
 				if (process.platform === "darwin") {
-					const screenAccess =
-						systemPreferences.getMediaAccessStatus("screen");
+					const screenAccess = systemPreferences.getMediaAccessStatus("screen");
 					if (screenAccess === "denied" || screenAccess === "restricted") {
 						const win = BrowserWindow.getAllWindows()[0];
 						const { response } = await dialog.showMessageBox(
@@ -265,9 +264,7 @@ export function setupScreenRecordingIPC(): void {
 						thumbnailSize: { width: 1, height: 1 },
 						fetchWindowIcons: false,
 					});
-					const rawSource = rawSources.find(
-						(s) => s.id === selectedSource.id
-					);
+					const rawSource = rawSources.find((s) => s.id === selectedSource.id);
 					if (rawSource) {
 						setPendingCaptureSource(rawSource);
 					}
