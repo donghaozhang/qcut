@@ -125,8 +125,8 @@ describe("Multi-Image Support", () => {
 	});
 
 	describe("IMAGE_EDIT_MODEL_IDS", () => {
-		it("contains all 11 models", () => {
-			expect(IMAGE_EDIT_MODEL_IDS).toHaveLength(11);
+		it("contains all 14 models", () => {
+			expect(IMAGE_EDIT_MODEL_IDS).toHaveLength(14);
 		});
 
 		it("includes all expected model IDs", () => {
@@ -175,8 +175,8 @@ describe("Multi-Image Support", () => {
 			expect(multiImageModels).not.toContain("reve-edit");
 		});
 
-		it("returns 7 multi-image models", () => {
-			expect(getMultiImageModelIds()).toHaveLength(7);
+		it("returns 10 multi-image models", () => {
+			expect(getMultiImageModelIds()).toHaveLength(10);
 		});
 	});
 

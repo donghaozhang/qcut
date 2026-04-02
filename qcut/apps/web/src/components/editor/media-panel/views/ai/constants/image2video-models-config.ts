@@ -523,6 +523,32 @@ export const I2V_MODELS = {
 			"1080p": 0.154,
 		},
 	},
+	pixverse_v6_i2v: {
+		id: "pixverse_v6_i2v",
+		name: "PixVerse v6",
+		description:
+			"Stylized image-to-video with audio generation and style presets (1-15s)",
+		price: "0.045-0.09/s",
+		resolution: "1080p",
+		max_duration: 15,
+		category: "image",
+		endpoints: {
+			image_to_video: "fal-ai/pixverse/v6/image-to-video",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "720p",
+			thinking_type: "auto",
+		},
+		supportedResolutions: ["360p", "540p", "720p", "1080p"],
+		supportedDurations: [5, 8, 10, 15],
+		perSecondPricing: {
+			"360p": 0.025,
+			"540p": 0.035,
+			"720p": 0.045,
+			"1080p": 0.09,
+		},
+	},
 } as const satisfies Record<string, AIModel>;
 
 /**
@@ -553,6 +579,7 @@ export const I2V_MODEL_ORDER: readonly I2VModelId[] = [
 	"kling_v2_5_turbo_i2v",
 	"seedance_pro_fast_i2v",
 	"hailuo23_fast_pro",
+	"pixverse_v6_i2v",
 	"sora2_image_to_video",
 	"hailuo23_standard",
 	"wan_25_preview_i2v",

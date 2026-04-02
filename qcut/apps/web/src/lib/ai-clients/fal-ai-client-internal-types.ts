@@ -19,6 +19,9 @@ export interface GenerationSettings {
 	imageSize: string | number;
 	seed?: number;
 	outputFormat?: OutputFormat;
+	negativePrompt?: string;
+	numImages?: number;
+	imageUrls?: string[];
 }
 
 export type MultiModelGenerationResult = Record<string, GenerationResult>;

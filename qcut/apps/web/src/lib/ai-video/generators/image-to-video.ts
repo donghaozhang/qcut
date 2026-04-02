@@ -178,3 +178,4 @@ export {
 	generateLTX23AudioVideo,
 	generateSeedanceVideo,
 } from "./misc-generators";
+export { generatePixverseImageVideo } from "./pixverse-generators";

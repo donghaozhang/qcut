@@ -63,6 +63,55 @@ export function convertSettingsToParams(
 			params.image_size = settings.imageSize;
 			break;
 
+		case "wan-v2-7-t2i":
+		case "wan-v2-7-pro-t2i": {
+			const validWan27Sizes = [
+				"square_hd",
+				"square",
+				"portrait_4_3",
+				"portrait_16_9",
+				"landscape_4_3",
+				"landscape_16_9",
+			];
+			if (
+				typeof settings.imageSize === "string" &&
+				validWan27Sizes.includes(settings.imageSize)
+			) {
+				params.image_size = settings.imageSize;
+			} else {
+				params.image_size = "square_hd";
+			}
+			if (settings.negativePrompt)
+				params.negative_prompt = settings.negativePrompt.slice(0, 500);
+			break;
+		}
+
+		case "wan-v2-7-edit":
+		case "wan-v2-7-pro-edit": {
+			const validWan27EditSizes = [
+				"square_hd",
+				"square",
+				"portrait_4_3",
+				"portrait_16_9",
+				"landscape_4_3",
+				"landscape_16_9",
+			];
+			if (
+				typeof settings.imageSize === "string" &&
+				validWan27EditSizes.includes(settings.imageSize)
+			) {
+				params.image_size = settings.imageSize;
+			} else {
+				params.image_size = "square_hd";
+			}
+			if (settings.negativePrompt)
+				params.negative_prompt = settings.negativePrompt.slice(0, 500);
+			params.enable_prompt_expansion = true;
+			// image_urls are passed through from settings by the caller
+			if (settings.imageUrls) params.image_urls = settings.imageUrls;
+			break;
+		}
+
 		case "flux-2-flex":
 			params.image_size = settings.imageSize;
 			break;

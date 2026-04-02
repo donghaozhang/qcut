@@ -175,6 +175,7 @@ export {
 	generateWAN25ImageVideo,
 	generateWAN26ImageVideo,
 	generateWAN26RefVideo,
+	generatePixverseImageVideo,
 } from "./generators/image-to-video";
 
 // ============================================

@@ -174,6 +174,16 @@ export const ERROR_MESSAGES = {
 	EXTEND_VIDEO_INVALID_FORMAT:
 		"Video format must be MP4, MOV, WebM, M4V, or GIF for Veo 3.1 extend-video",
 
+	// PixVerse v6 specific errors
+	PIXVERSE_INVALID_DURATION:
+		"Duration must be between 1 and 15 seconds for PixVerse v6",
+	PIXVERSE_INVALID_RESOLUTION:
+		"Resolution must be 360p, 540p, 720p, or 1080p for PixVerse v6",
+	PIXVERSE_INVALID_STYLE:
+		"Style must be anime, 3d_animation, clay, comic, or cyberpunk for PixVerse v6",
+	PIXVERSE_MISSING_IMAGE:
+		"Image is required for PixVerse v6 image-to-video generation",
+
 	// WAN v2.6 specific errors
 	WAN26_EMPTY_PROMPT: "Please enter a prompt for WAN v2.6 video generation",
 	WAN26_PROMPT_TOO_LONG:

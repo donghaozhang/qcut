@@ -2,6 +2,7 @@ import { BYTEDANCE_MODELS } from "./bytedance-models";
 import { FLUX_MODELS } from "./flux-models";
 import { GOOGLE_MODELS } from "./google-models";
 import { OTHER_MODELS } from "./other-models";
+import { WAN_MODELS } from "./wan-models";
 import type { Text2ImageModel } from "./types";
 
 export type { Text2ImageModel } from "./types";
@@ -11,6 +12,7 @@ export const TEXT2IMAGE_MODELS: Record<string, Text2ImageModel> = {
 	...BYTEDANCE_MODELS,
 	...FLUX_MODELS,
 	...OTHER_MODELS,
+	...WAN_MODELS,
 };
 
 // ============================================
@@ -24,9 +26,13 @@ export const TEXT2IMAGE_MODEL_ORDER = [
 	"seeddream-v4-5",
 	"z-image-turbo",
 	"flux-2-flex",
+	"wan-v2-7-t2i",
+	"wan-v2-7-pro-t2i",
 	"seeddream-v4",
 	"reve-text-to-image",
 	"wan-v2-2",
+	"wan-v2-7-edit",
+	"wan-v2-7-pro-edit",
 	"imagen4-ultra",
 	"qwen-image",
 	"flux-pro-v11-ultra",
@@ -106,6 +112,7 @@ export const MODEL_CATEGORIES = {
 	PHOTOREALISTIC: [
 		"imagen4-ultra",
 		"wan-v2-2",
+		"wan-v2-7-pro-t2i",
 		"gemini-3-pro",
 		"gpt-image-1-5",
 	],
@@ -118,6 +125,8 @@ export const MODEL_CATEGORIES = {
 		"reve-text-to-image",
 		"z-image-turbo",
 		"seeddream-v4-5-edit",
+		"wan-v2-7-edit",
+		"wan-v2-7-pro-edit",
 		"phota",
 	],
 	FAST: [
@@ -127,10 +136,12 @@ export const MODEL_CATEGORIES = {
 		"qwen-image",
 		"reve-text-to-image",
 		"flux-2-flex",
+		"wan-v2-7-t2i",
 	],
 	HIGH_QUALITY: [
 		"imagen4-ultra",
 		"wan-v2-2",
+		"wan-v2-7-pro-t2i",
 		"flux-pro-v11-ultra",
 		"flux-2-flex",
 		"seeddream-v4",
@@ -145,5 +156,7 @@ export const MODEL_CATEGORIES = {
 		"qwen-image",
 		"reve-text-to-image",
 		"flux-2-flex",
+		"wan-v2-7-t2i",
+		"wan-v2-7-edit",
 	],
 } as const;

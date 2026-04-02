@@ -365,6 +365,23 @@ export interface WAN26Ref2VideoRequest {
 }
 
 /**
+ * PixVerse v6 image-to-video request parameters
+ */
+export interface PixverseV6I2VRequest {
+	model: string;
+	prompt: string;
+	image_url: string;
+	duration?: number;
+	resolution?: "360p" | "540p" | "720p" | "1080p";
+	negative_prompt?: string;
+	style?: "anime" | "3d_animation" | "clay" | "comic" | "cyberpunk";
+	seed?: number;
+	generate_audio_switch?: boolean;
+	generate_multi_clip_switch?: boolean;
+	thinking_type?: "enabled" | "disabled" | "auto";
+}
+
+/**
  * ByteDance video upscaler request parameters
  */
 export interface ByteDanceUpscaleRequest {

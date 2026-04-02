@@ -182,3 +182,37 @@ bun lint:clean        # No lint issues
 - **Edit models follow SeedDream v4.5 Edit pattern** - reference images uploaded to FAL storage, URLs passed in request
 - **Pro vs Standard** - identical API schemas, Pro just produces higher quality at higher cost. Represented as separate model entries for user choice
 - **Chinese/English prompt support** - Wan 2.7 natively supports both, no translation layer needed
+
+---
+
+## Implementation Summary (2026-04-02)
+
+**Status**: Complete
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `apps/web/src/lib/text2image-models/wan-models.ts` | 4 Wan 2.7 `Text2ImageModel` definitions (T2I, Pro T2I, Edit, Pro Edit) |
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `apps/web/src/lib/text2image-models/index.ts` | Import `WAN_MODELS`, add to `TEXT2IMAGE_MODELS`, `TEXT2IMAGE_MODEL_ORDER`, `MODEL_CATEGORIES` |
+| `apps/web/src/lib/ai-clients/fal-ai-client-generation.ts` | Add `convertSettingsToParams()` cases for 4 Wan 2.7 models with size validation and negative prompt |
+| `apps/web/src/lib/ai-clients/fal-ai-client-internal-types.ts` | Add `negativePrompt`, `numImages`, `imageUrls` to `GenerationSettings` |
+| `apps/web/src/lib/ai-clients/image-edit-client.ts` | Add `MODEL_ENDPOINTS` for `wan-v2-7-edit` and `wan-v2-7-pro-edit` |
+| `apps/web/src/lib/ai-clients/image-edit-capabilities.ts` | Add to `IMAGE_EDIT_MODEL_IDS` and `MODEL_CAPABILITIES` (multi-image, max 4) |
+| `apps/web/src/lib/ai-clients/image-edit-models-info.ts` | Add model info entries for both Wan 2.7 edit variants |
+
+### Tests Updated
+| File | Changes |
+|------|---------|
+| `apps/web/src/lib/__tests__/image-edit-models-info.test.ts` | Model count 11 → 14 |
+| `apps/web/src/lib/__tests__/image-edit-multi-image.test.ts` | Model IDs count 11 → 14, multi-image count 7 → 10 |
+| `apps/web/src/lib/text2image-models/__tests__/text2image-models.test.ts` | Registry count 15 → 19 |
+
+### Test Results
+```
+bun run test (3 affected files) — 26/26 passed
+npx tsc --noEmit — 0 errors
+```

@@ -32,9 +32,9 @@ describe("image-edit-models-info", () => {
 			expect(uniqueIds.size).toBe(ids.length);
 		});
 
-		it("returns 11 models", () => {
+		it("returns 14 models", () => {
 			const models = getImageEditModels();
-			expect(models.length).toBe(11);
+			expect(models.length).toBe(14);
 		});
 	});
 });

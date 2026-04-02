@@ -15,6 +15,7 @@ import {
 	generateWAN25ImageVideo,
 	generateWAN26ImageVideo,
 	generateViduQ3ImageVideo,
+	generatePixverseImageVideo,
 } from "@/lib/ai-video";
 import type {
 	ImageToVideoSettings,
@@ -790,6 +791,63 @@ export async function handleViduQ3I2V(
 			resolution: normalizedResolution,
 			audio: true,
 			seed: settings.imageSeed ?? undefined,
+		});
+
+		ctx.progressCallback({
+			status: "completed",
+			progress: 100,
+			message: `Video generated with ${ctx.modelName}`,
+		});
+
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/**
+ * Handle PixVerse v6 image-to-video generation
+ */
+export async function handlePixverseV6I2V(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.selectedImage) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "PixVerse v6 requires a selected image",
+		};
+	}
+
+	try {
+		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+
+		ctx.progressCallback({
+			status: "processing",
+			progress: 10,
+			message: `Submitting ${ctx.modelName} request...`,
+		});
+
+		const response = await generatePixverseImageVideo({
+			model: ctx.modelId,
+			prompt: ctx.prompt,
+			image_url: imageUrl,
+			duration: (settings.duration as number) ?? 5,
+			resolution:
+				(settings.resolution as
+					| "360p"
+					| "540p"
+					| "720p"
+					| "1080p"
+					| undefined) ?? "720p",
+			seed: settings.imageSeed ?? undefined,
+			generate_audio_switch: settings.generateAudio,
+			thinking_type: "auto",
 		});
 
 		ctx.progressCallback({

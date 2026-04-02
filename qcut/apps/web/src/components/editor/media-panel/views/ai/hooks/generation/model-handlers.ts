@@ -34,6 +34,7 @@ import {
 	handleWAN25I2V,
 	handleWAN26I2V,
 	handleViduQ3I2V,
+	handlePixverseV6I2V,
 	handleGenericI2V,
 } from "./handlers/image-to-video-handlers";
 import {
@@ -307,6 +308,8 @@ export async function routeImageToVideoHandler(
 			return handleWAN25I2V(ctx, settings);
 		case "wan_26_i2v":
 			return handleWAN26I2V(ctx, settings);
+		case "pixverse_v6_i2v":
+			return handlePixverseV6I2V(ctx, settings);
 		default:
 			if (
 				VEO31_FRAME_MODELS.has(ctx.modelId) &&

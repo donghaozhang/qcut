@@ -213,6 +213,28 @@ export const MODEL_ENDPOINTS: Record<string, ModelEndpoint> = {
 		},
 	},
 
+	// Wan 2.7 Edit endpoint
+	"wan-v2-7-edit": {
+		endpoint: "fal-ai/wan/v2.7/edit",
+		defaultParams: {
+			image_size: "square_hd",
+			num_images: 1,
+			enable_prompt_expansion: true,
+			enable_safety_checker: true,
+		},
+	},
+
+	// Wan 2.7 Pro Edit endpoint
+	"wan-v2-7-pro-edit": {
+		endpoint: "fal-ai/wan/v2.7/pro/edit",
+		defaultParams: {
+			image_size: "square_hd",
+			num_images: 1,
+			enable_prompt_expansion: true,
+			enable_safety_checker: true,
+		},
+	},
+
 	// GPT Image 1.5 Edit endpoint
 	"gpt-image-1-5-edit": {
 		endpoint: "fal-ai/gpt-image-1.5/edit",
