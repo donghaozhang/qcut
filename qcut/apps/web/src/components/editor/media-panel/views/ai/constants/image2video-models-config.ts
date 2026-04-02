@@ -577,7 +577,7 @@ export const I2V_MODELS = {
 		name: "PixVerse v6",
 		description:
 			"Stylized image-to-video with audio generation and style presets (1-15s)",
-		price: "0.045-0.09/s",
+		price: "0.025-0.09/s",
 		resolution: "1080p",
 		max_duration: 15,
 		category: "image",

@@ -917,18 +917,21 @@ export async function handlePixverseV6I2V(
 			message: `Submitting ${ctx.modelName} request...`,
 		});
 
+		const normalizedResolution: "360p" | "540p" | "720p" | "1080p" = [
+			"360p",
+			"540p",
+			"720p",
+			"1080p",
+		].includes(settings.resolution ?? "")
+			? (settings.resolution as "360p" | "540p" | "720p" | "1080p")
+			: "720p";
+
 		const response = await generatePixverseImageVideo({
 			model: ctx.modelId,
 			prompt: ctx.prompt,
 			image_url: imageUrl,
 			duration: (settings.duration as number) ?? 5,
-			resolution:
-				(settings.resolution as
-					| "360p"
-					| "540p"
-					| "720p"
-					| "1080p"
-					| undefined) ?? "720p",
+			resolution: normalizedResolution,
 			seed: settings.imageSeed ?? undefined,
 			thinking_type: "auto",
 		});

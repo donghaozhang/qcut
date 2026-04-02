@@ -171,6 +171,9 @@ function getImageToVideoDurationSeconds({
 	if (modelId === "wan_26_i2v") {
 		return settings.wan26Duration;
 	}
+	if (modelId === "pixverse_v6_i2v") {
+		return (settings.duration as number) ?? 5;
+	}
 	return settings.duration;
 }
 

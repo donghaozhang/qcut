@@ -64,7 +64,9 @@ export function convertSettingsToParams(
 			break;
 
 		case "wan-v2-7-t2i":
-		case "wan-v2-7-pro-t2i": {
+		case "wan-v2-7-pro-t2i":
+		case "wan-v2-7-edit":
+		case "wan-v2-7-pro-edit": {
 			const validWan27Sizes = [
 				"square_hd",
 				"square",
@@ -83,32 +85,16 @@ export function convertSettingsToParams(
 			}
 			if (settings.negativePrompt)
 				params.negative_prompt = settings.negativePrompt.slice(0, 500);
-			break;
-		}
-
-		case "wan-v2-7-edit":
-		case "wan-v2-7-pro-edit": {
-			const validWan27EditSizes = [
-				"square_hd",
-				"square",
-				"portrait_4_3",
-				"portrait_16_9",
-				"landscape_4_3",
-				"landscape_16_9",
-			];
+			// Edit-specific params
 			if (
-				typeof settings.imageSize === "string" &&
-				validWan27EditSizes.includes(settings.imageSize)
+				model.id === "wan-v2-7-edit" ||
+				model.id === "wan-v2-7-pro-edit"
 			) {
-				params.image_size = settings.imageSize;
-			} else {
-				params.image_size = "square_hd";
+				params.enable_prompt_expansion = true;
+				if (settings.imageUrls && settings.imageUrls.length > 0) {
+					params.image_urls = settings.imageUrls.slice(0, 4);
+				}
 			}
-			if (settings.negativePrompt)
-				params.negative_prompt = settings.negativePrompt.slice(0, 500);
-			params.enable_prompt_expansion = true;
-			// image_urls are passed through from settings by the caller
-			if (settings.imageUrls) params.image_urls = settings.imageUrls;
 			break;
 		}
 

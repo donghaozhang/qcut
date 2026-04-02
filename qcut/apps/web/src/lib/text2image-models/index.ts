@@ -31,8 +31,6 @@ export const TEXT2IMAGE_MODEL_ORDER = [
 	"seeddream-v4",
 	"reve-text-to-image",
 	"wan-v2-2",
-	"wan-v2-7-edit",
-	"wan-v2-7-pro-edit",
 	"imagen4-ultra",
 	"qwen-image",
 	"flux-pro-v11-ultra",
