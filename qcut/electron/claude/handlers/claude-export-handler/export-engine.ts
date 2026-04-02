@@ -40,6 +40,10 @@ import {
 } from "./utils.js";
 import { updateJobProgress, exportJobs } from "./job-manager.js";
 import { convertToGif } from "./gif-convert.js";
+import {
+	shouldCompositeCursor,
+	compositeCursorOnSegments,
+} from "./cursor-composite.js";
 
 export function resolveExportSettings({
 	request,
@@ -110,6 +114,7 @@ export function resolveExportSettings({
 	}
 }
 
+/** Look up the media file for a timeline element by ID or filename. */
 function findMediaForElement({
 	element,
 	mediaById,
@@ -214,6 +219,7 @@ async function resolveMediaFromDisk({
 	return null;
 }
 
+/** Collect trimmed export segments from timeline elements and their media files. */
 export async function collectExportSegments({
 	timeline,
 	mediaFiles,
@@ -414,6 +420,7 @@ export async function collectStickerOverlays({
 	}
 }
 
+/** Create a directory recursively if it does not exist. */
 async function ensureDirectory({
 	directory,
 }: {
@@ -431,6 +438,7 @@ async function ensureDirectory({
 	}
 }
 
+/** Spawn an FFmpeg process and stream progress updates. */
 async function runFFmpegCommand({
 	args,
 	estimatedDuration,
@@ -510,6 +518,7 @@ async function runFFmpegCommand({
 	}
 }
 
+/** Execute a full export job: encode segments, composite cursors, concatenate, and finalize. */
 export async function executeExportJob({
 	jobId,
 	projectId,
@@ -618,6 +627,31 @@ export async function executeExportJob({
 				jobId,
 				progress: ((index + 1) / totalSegments) * 0.82,
 			});
+		}
+
+		// ==============================================================
+		// CURSOR OVERLAY — per-segment, before concat
+		// ==============================================================
+		if (shouldCompositeCursor(settings)) {
+			claudeLog.info(HANDLER_NAME, "Compositing cursor overlay on segments...");
+			updateJobProgress({ jobId, progress: 0.83 });
+
+			try {
+				await compositeCursorOnSegments({
+					segmentOutputs,
+					segments,
+					settings,
+					onProgress: (p) => {
+						updateJobProgress({ jobId, progress: 0.83 + p * 0.05 });
+					},
+				});
+			} catch (cursorError) {
+				claudeLog.error(
+					HANDLER_NAME,
+					"Cursor compositing failed, continuing without cursor:",
+					cursorError
+				);
+			}
 		}
 
 		const concatListPath = path.join(tempDir, "concat-list.txt");

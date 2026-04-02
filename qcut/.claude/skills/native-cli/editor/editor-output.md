@@ -32,7 +32,32 @@ bun run pipeline editor:export:start \
   --project-id <id> \
   --data '{"width":1920,"height":1080,"fps":30,"format":"mp4"}' \
   --output-dir ./exports --poll --timeout 600
+
+# With cursor + auto-zoom enhancements
+bun run pipeline editor:export:start \
+  --project-id <id> --preset youtube-1080p \
+  --cursor-sway 1.0 --cursor-blur 0.3 --auto-zoom --poll
+
+# GIF export with options
+bun run pipeline editor:export:start \
+  --project-id <id> --format gif \
+  --gif-fps 20 --gif-loop --gif-quality 10 --poll
 ```
+
+### Enhancement flags
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--cursor-sway` | number (0-2) | Spring-smoothed cursor wobble intensity |
+| `--cursor-blur` | number (0-1) | Cursor motion blur ghost trail |
+| `--cursor-loop` | boolean | Seamless cursor return for loop exports |
+| `--auto-zoom` | boolean | Auto-generate zoom regions from cursor clicks/dwells |
+| `--zoom-blur` | number (0-1) | Motion blur during zoom transitions |
+| `--gif-fps` | number | GIF frame rate (15, 20, 25, 30) |
+| `--gif-loop` | boolean | GIF infinite loop |
+| `--gif-quality` | number (1-20) | GIF quality (lower = better visual, slower) |
+| `--mic` | boolean | Capture microphone audio |
+| `--system-audio` | boolean | Capture system audio |
 
 ### Job management
 
@@ -83,21 +108,68 @@ bun run pipeline editor:screen-recording:sources
 ### Start recording
 
 ```bash
-bun run pipeline editor:screen-recording:start --source-id <id> --filename "recording.mp4"
+# Record default screen
+bun run pipeline editor:screen-recording:start --project-id <id>
+
+# Record specific source
+bun run pipeline editor:screen-recording:start \
+  --project-id <id> --source-id "screen:2:0" --filename my-recording
+
+# Force-stop existing session first
+bun run pipeline editor:screen-recording:start --project-id <id> --force
 ```
 
 ### Stop recording
 
 ```bash
-bun run pipeline editor:screen-recording:stop
-bun run pipeline editor:screen-recording:stop --discard   # discard recording
+bun run pipeline editor:screen-recording:stop --project-id <id>
+bun run pipeline editor:screen-recording:stop --project-id <id> --discard
+```
+
+### Force-stop (emergency)
+
+```bash
+bun run pipeline editor:screen-recording:force-stop --project-id <id> --force
 ```
 
 ### Get recording status
 
 ```bash
-bun run pipeline editor:screen-recording:status
+bun run pipeline editor:screen-recording:status --project-id <id>
 ```
+
+### Record → Enhance → Export workflow
+
+```bash
+PROJECT=<project-id>
+
+# 1. List sources
+bun run pipeline editor:screen-recording:sources
+
+# 2. Record
+bun run pipeline editor:screen-recording:start \
+  --project-id $PROJECT --source-id "screen:2:0" --filename demo
+
+# ... do your demo ...
+
+# 3. Stop
+bun run pipeline editor:screen-recording:stop --project-id $PROJECT
+
+# 4. Import into project
+bun run pipeline editor:media:import \
+  --project-id $PROJECT --source ~/Movies/QCut\ Recordings/demo.mp4
+
+# 5. Add to timeline
+bun run pipeline editor:timeline:add-element \
+  --project-id $PROJECT --data '{"type":"video","mediaId":"<media-id>","startTime":0}'
+
+# 6. Export with enhancements
+bun run pipeline editor:export:start \
+  --project-id $PROJECT --preset youtube-1080p \
+  --cursor-sway 1.0 --cursor-blur 0.3 --auto-zoom --poll
+```
+
+Recordings save to `~/Movies/QCut Recordings/` with a `.cursor.json` telemetry sidecar for cursor position tracking. The `--auto-zoom` flag uses this telemetry to generate zoom regions from click clusters and cursor dwell areas.
 
 ---
 
