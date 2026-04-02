@@ -2,10 +2,8 @@
  * PixVerse v6 Image-to-Video Generator
  */
 
-import type {
-	PixverseV6I2VRequest,
-	VideoGenerationResponse,
-} from "@/components/editor/media-panel/views/ai/types/ai-types";
+import type { VideoGenerationResponse } from "@/components/editor/media-panel/views/ai/types/ai-types";
+import type { PixverseV6I2VRequest } from "@/components/editor/media-panel/views/ai/types/ai-types/request-types";
 import {
 	generateJobId,
 	getFalApiKeyAsync,

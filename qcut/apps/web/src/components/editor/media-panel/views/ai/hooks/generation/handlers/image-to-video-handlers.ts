@@ -846,7 +846,6 @@ export async function handlePixverseV6I2V(
 					| "1080p"
 					| undefined) ?? "720p",
 			seed: settings.imageSeed ?? undefined,
-			generate_audio_switch: settings.generateAudio,
 			thinking_type: "auto",
 		});
 

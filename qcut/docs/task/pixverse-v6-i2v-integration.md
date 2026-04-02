@@ -314,3 +314,40 @@ bun check-types       # No type errors
 - **Audio generation** — built-in via `generate_audio_switch`, similar to LTX 2.3's `generate_audio` pattern
 - **Response format** — returns `{ video: { url } }` (single video object, not array), same as most FAL video endpoints
 - **Output extraction** — existing `extractVideoUrl()` in `base-generator.ts` should handle `result.video.url`
+
+---
+
+## Implementation Summary (2026-04-02)
+
+**Status**: Complete
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `apps/web/src/lib/ai-video/generators/pixverse-generators.ts` | `generatePixverseImageVideo()` generator |
+| `apps/web/src/lib/ai-video/validation/validators/pixverse-validators.ts` | Duration, resolution, style validators |
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `apps/web/src/components/editor/media-panel/views/ai/constants/image2video-models-config.ts` | Add `pixverse_v6_i2v` to `I2V_MODELS` and `I2V_MODEL_ORDER` |
+| `apps/web/src/components/editor/media-panel/views/ai/constants/error-messages.ts` | Add 4 PixVerse error messages |
+| `apps/web/src/components/editor/media-panel/views/ai/types/ai-types/request-types.ts` | Add `PixverseV6I2VRequest` interface |
+| `apps/web/src/components/editor/media-panel/views/ai/types/ai-types/index.ts` | Export `PixverseV6I2VRequest` |
+| `apps/web/src/lib/ai-video/validation/validators/index.ts` | Barrel export pixverse validators |
+| `apps/web/src/lib/ai-video/generators/image-to-video.ts` | Re-export `generatePixverseImageVideo` |
+| `apps/web/src/lib/ai-video/index.ts` | Add `generatePixverseImageVideo` to I2V exports |
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/image-to-video-handlers.ts` | Add `handlePixverseV6I2V()` handler |
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/model-handlers.ts` | Import handler + add `pixverse_v6_i2v` case in router switch |
+| `electron/native-pipeline/registry-data/image-to-video.ts` | Register `pixverse_v6` in native pipeline |
+
+### Tests Updated
+| File | Changes |
+|------|---------|
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/__tests__/handler-exports.test.ts` | I2V handler count 16 → 17, total 36 → 37 |
+
+### Test Results
+```
+bun run test (2 affected files) — 11/11 passed
+npx tsc --noEmit — 0 errors
+```

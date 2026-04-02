@@ -590,6 +590,49 @@ export function registerImageToVideoModels(): void {
 	});
 
 	ModelRegistry.register({
+		key: "pixverse_v6",
+		name: "PixVerse v6",
+		provider: "PixVerse",
+		endpoint: "fal-ai/pixverse/v6/image-to-video",
+		categories: ["image_to_video"],
+		description:
+			"Stylized image-to-video with audio, style presets, and multi-clip",
+		pricing: {
+			type: "per_second",
+			cost_360p: 0.025,
+			cost_540p: 0.035,
+			cost_720p: 0.045,
+			cost_1080p: 0.09,
+		},
+		durationOptions: ["5", "8", "10", "15"],
+		resolutions: ["360p", "540p", "720p", "1080p"],
+		defaults: {
+			duration: "5",
+			resolution: "720p",
+			thinking_type: "auto",
+		},
+		features: [
+			"audio_generation",
+			"style_presets",
+			"multi_clip",
+			"seed_control",
+			"negative_prompt",
+		],
+		maxDuration: 15,
+		extendedParams: ["start_frame"],
+		extendedFeatures: {
+			start_frame: true,
+			end_frame: false,
+			ref_images: false,
+			audio_input: false,
+			audio_generate: true,
+			ref_video: false,
+		},
+		costEstimate: 0.23,
+		processingTime: 45,
+	});
+
+	ModelRegistry.register({
 		key: "grok_imagine_i2v",
 		name: "xAI Grok Imagine Video",
 		provider: "xAI (via FAL)",
