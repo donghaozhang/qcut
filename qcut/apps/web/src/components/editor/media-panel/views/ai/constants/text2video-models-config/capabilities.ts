@@ -188,6 +188,22 @@ export const T2V_MODEL_CAPABILITIES: Record<T2VModelId, T2VModelCapabilities> =
 			defaultDuration: 8,
 		},
 
+		veo31_lite_text_to_video: {
+			supportsAspectRatio: true,
+			supportedAspectRatios: ["16:9", "9:16"],
+			supportsResolution: true,
+			supportedResolutions: ["720p", "1080p"],
+			supportsDuration: true,
+			supportedDurations: [4, 6, 8],
+			supportsNegativePrompt: true,
+			supportsPromptExpansion: false,
+			supportsSeed: true,
+			supportsSafetyChecker: true,
+			defaultAspectRatio: "16:9",
+			defaultResolution: "720p",
+			defaultDuration: 8,
+		},
+
 		hailuo23_standard_t2v: {
 			supportsAspectRatio: true,
 			supportedAspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4"],

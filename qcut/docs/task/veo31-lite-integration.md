@@ -258,3 +258,39 @@ bun run test                                         # Affected tests pass
 - **Audio always on** — Lite doesn't expose `generate_audio` toggle, but the param is still sent as `true` for compatibility
 - **No `enhance_prompt`** — Lite API doesn't support this, so handlers should not send it
 - **No `1:1` aspect ratio on Lite** — settings UI already handles 16:9/9:16 per model; no change needed since "1:1" is only shown for T2V which auto-converts to "16:9" for endpoints that don't support it
+
+---
+
+## Implementation Summary (2026-04-02)
+
+**Status**: Complete
+
+### Files Created
+None — all changes integrated into existing Veo 3.1 infrastructure.
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/models.ts` | Add `veo31_lite_text_to_video` model config |
+| `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/order.ts` | Add to `T2V_MODEL_ORDER` + alias |
+| `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/capabilities.ts` | Add Lite T2V capabilities |
+| `apps/web/src/components/editor/media-panel/views/ai/constants/image2video-models-config.ts` | Add `veo31_lite_image_to_video` + `veo31_lite_frame_to_video` + order |
+| `apps/web/src/lib/ai-clients/fal-ai-client-veo31.ts` | Add 3 Lite generator functions |
+| `apps/web/src/lib/ai-clients/fal-ai-client.ts` | Import + 3 Lite public methods |
+| `apps/web/src/types/ai-generation.ts` | Widen `Veo31ImageToVideoInput.duration` and `aspect_ratio` for Lite |
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/text-to-video-handlers.ts` | Add `handleVeo31LiteT2V()` |
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/image-to-video-handlers.ts` | Add `handleVeo31LiteI2V()` + `handleVeo31LiteF2V()` |
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/model-handlers.ts` | Import 3 handlers, add routing cases, update `VEO31_FRAME_MODELS` set, update duration helpers |
+| `apps/web/src/components/editor/media-panel/views/ai/settings/ai-veo-settings.tsx` | Add Lite pricing to duration price display |
+| `electron/native-pipeline/registry-data/image-to-video.ts` | Register `veo_3_1_lite` |
+
+### Tests Updated
+| File | Changes |
+|------|---------|
+| `apps/web/src/.../handlers/__tests__/handler-exports.test.ts` | T2V 10→11, I2V 17→19, total 37→40 |
+
+### Test Results
+```
+bun run test (2 affected files) — 11/11 passed
+npx tsc --noEmit — 0 errors
+```
