@@ -191,12 +191,16 @@ async function compositeSegmentCursor({
 	originalSourcePath,
 	telemetry,
 	settings,
+	startTime,
+	duration,
 }: {
 	segmentPath: string;
 	/** Original source file at full resolution (for sharp zoom) */
 	originalSourcePath: string;
 	telemetry: TelemetryData;
 	settings: ResolvedExportSettings;
+	startTime: number;
+	duration: number;
 }): Promise<void> {
 	// Dynamic import @napi-rs/canvas
 	let canvasLib: {
@@ -261,23 +265,24 @@ async function compositeSegmentCursor({
 
 	try {
 		await new Promise<void>((resolve, reject) => {
-			const decoder = spawn(
-				ffmpegPath,
-				[
-					"-i",
-					originalSourcePath,
-					"-f",
-					"rawvideo",
-					"-pix_fmt",
-					"rgba",
-					"-s",
-					`${srcWidth}x${srcHeight}`,
-					"-v",
-					"error",
-					"pipe:1",
-				],
-				{ stdio: ["ignore", "pipe", "pipe"] }
-			);
+			const decoderArgs = [
+				...(startTime > 0 ? ["-ss", String(startTime)] : []),
+				"-i",
+				originalSourcePath,
+				...(duration > 0 ? ["-t", String(duration)] : []),
+				"-f",
+				"rawvideo",
+				"-pix_fmt",
+				"rgba",
+				"-s",
+				`${srcWidth}x${srcHeight}`,
+				"-v",
+				"error",
+				"pipe:1",
+			];
+			const decoder = spawn(ffmpegPath, decoderArgs, {
+				stdio: ["ignore", "pipe", "pipe"],
+			});
 
 			// Encoder: include audio from original source via separate input
 			const encoder = spawn(
@@ -560,8 +565,18 @@ async function compositeSegmentCursor({
 				}
 			});
 
-			encoder.on("error", reject);
-			decoder.on("error", reject);
+			const killBoth = () => {
+				decoder.kill();
+				encoder.kill();
+			};
+			encoder.on("error", (err) => {
+				killBoth();
+				reject(err);
+			});
+			decoder.on("error", (err) => {
+				killBoth();
+				reject(err);
+			});
 		});
 
 		await fsPromises.rename(outputTempPath, segmentPath);
@@ -608,6 +623,8 @@ export async function compositeCursorOnSegments({
 				originalSourcePath: segment.sourcePath,
 				telemetry,
 				settings,
+				startTime: segment.startTime,
+				duration: segment.duration,
 			});
 		} catch (err) {
 			claudeLog.error(HANDLER, `Segment ${i} compositing failed:`, err);

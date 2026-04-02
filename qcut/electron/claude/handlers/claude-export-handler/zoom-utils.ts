@@ -301,6 +301,7 @@ export function analyzeForZoomSuggestions(
 ): ZoomRegion[] {
 	const cfg = { ...DEFAULT_AUTO_ZOOM_CONFIG, ...config };
 	if (points.length < 10) return [];
+	if (captureRect.width <= 0 || captureRect.height <= 0) return [];
 
 	const regions: ZoomRegion[] = [];
 
