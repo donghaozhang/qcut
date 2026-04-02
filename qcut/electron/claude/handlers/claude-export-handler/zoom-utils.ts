@@ -201,6 +201,7 @@ function constrainFocus(
 	cy: number,
 	zoomScale: number
 ): { cx: number; cy: number } {
+	if (zoomScale <= 0) return { cx: 0.5, cy: 0.5 };
 	const halfViewW = 0.5 / zoomScale;
 	const halfViewH = 0.5 / zoomScale;
 	return {

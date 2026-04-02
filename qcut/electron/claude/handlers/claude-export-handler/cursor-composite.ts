@@ -106,16 +106,20 @@ async function probeVideoDimensions(
 ): Promise<{ width: number; height: number } | null> {
 	try {
 		const ffprobePath = await getFFprobePath();
-		const output = execFileSync(ffprobePath, [
-			"-v",
-			"quiet",
-			"-print_format",
-			"json",
-			"-show_streams",
-			"-select_streams",
-			"v:0",
-			videoPath,
-		]).toString();
+		const output = execFileSync(
+			ffprobePath,
+			[
+				"-v",
+				"quiet",
+				"-print_format",
+				"json",
+				"-show_streams",
+				"-select_streams",
+				"v:0",
+				videoPath,
+			],
+			{ timeout: 15_000 }
+		).toString();
 		const data = JSON.parse(output);
 		const stream = data.streams?.[0];
 		if (stream?.width && stream?.height) {
@@ -191,7 +195,6 @@ async function compositeSegmentCursor({
 	originalSourcePath,
 	telemetry,
 	settings,
-	startTime,
 	duration,
 }: {
 	segmentPath: string;
@@ -199,7 +202,6 @@ async function compositeSegmentCursor({
 	originalSourcePath: string;
 	telemetry: TelemetryData;
 	settings: ResolvedExportSettings;
-	startTime: number;
 	duration: number;
 }): Promise<void> {
 	// Dynamic import @napi-rs/canvas
@@ -266,7 +268,6 @@ async function compositeSegmentCursor({
 	try {
 		await new Promise<void>((resolve, reject) => {
 			const decoderArgs = [
-				...(startTime > 0 ? ["-ss", String(startTime)] : []),
 				"-i",
 				originalSourcePath,
 				...(duration > 0 ? ["-t", String(duration)] : []),
@@ -623,7 +624,6 @@ export async function compositeCursorOnSegments({
 				originalSourcePath: segment.sourcePath,
 				telemetry,
 				settings,
-				startTime: segment.startTime,
 				duration: segment.duration,
 			});
 		} catch (err) {
