@@ -271,6 +271,8 @@ async function compositeSegmentCursor({
 				"-i",
 				originalSourcePath,
 				...(duration > 0 ? ["-t", String(duration)] : []),
+				"-r",
+				String(fps),
 				"-f",
 				"rawvideo",
 				"-pix_fmt",

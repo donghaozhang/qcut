@@ -289,8 +289,6 @@ export const DEFAULT_AUTO_ZOOM_CONFIG: AutoZoomConfig = {
 	minGapMs: 1000,
 };
 
-let idCounter = 0;
-
 interface TelemetryPoint {
 	t: number;
 	x: number;
@@ -315,6 +313,7 @@ export function analyzeForZoomSuggestions(
 	if (points.length < 10) return [];
 	if (captureRect.width <= 0 || captureRect.height <= 0) return [];
 
+	let idCounter = 0;
 	const regions: ZoomRegion[] = [];
 
 	// Phase 1: Click clustering
