@@ -50,6 +50,9 @@ import {
 	veo31TextToVideo,
 	veo31ImageToVideo,
 	veo31FrameToVideo,
+	veo31LiteTextToVideo,
+	veo31LiteImageToVideo,
+	veo31LiteFrameToVideo,
 	veo31FastExtendVideo,
 	veo31ExtendVideo,
 } from "./fal-ai-client-veo31";
@@ -428,6 +431,37 @@ class FalAIClient {
 		params: Veo31FrameToVideoInput
 	): Promise<VideoGenerationResponse> {
 		return veo31FastFrameToVideo(
+			{ makeRequest: this.makeRequest.bind(this) },
+			params
+		);
+	}
+
+	// ============================================
+	// Veo 3.1 LITE Methods (budget tier)
+	// ============================================
+
+	async generateVeo31LiteTextToVideo(
+		params: Veo31TextToVideoInput
+	): Promise<VideoGenerationResponse> {
+		return veo31LiteTextToVideo(
+			{ makeRequest: this.makeRequest.bind(this) },
+			params
+		);
+	}
+
+	async generateVeo31LiteImageToVideo(
+		params: Veo31ImageToVideoInput
+	): Promise<VideoGenerationResponse> {
+		return veo31LiteImageToVideo(
+			{ makeRequest: this.makeRequest.bind(this) },
+			params
+		);
+	}
+
+	async generateVeo31LiteFrameToVideo(
+		params: Veo31FrameToVideoInput
+	): Promise<VideoGenerationResponse> {
+		return veo31LiteFrameToVideo(
 			{ makeRequest: this.makeRequest.bind(this) },
 			params
 		);

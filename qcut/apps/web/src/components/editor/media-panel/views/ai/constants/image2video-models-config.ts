@@ -523,6 +523,55 @@ export const I2V_MODELS = {
 			"1080p": 0.154,
 		},
 	},
+	veo31_lite_image_to_video: {
+		id: "veo31_lite_image_to_video",
+		name: "Veo 3.1 Lite Image-to-Video",
+		description:
+			"Google's Veo 3.1 Lite — budget image animation with audio (4-8s)",
+		price: "0.05-0.08/s",
+		resolution: "720p / 1080p",
+		supportedResolutions: ["720p", "1080p"],
+		max_duration: 8,
+		category: "image",
+		endpoints: {
+			image_to_video: "fal-ai/veo3.1/lite/image-to-video",
+		},
+		default_params: {
+			duration: 8,
+			resolution: "720p",
+			aspect_ratio: "auto",
+			generate_audio: true,
+		},
+		perSecondPricing: {
+			"720p": 0.05,
+			"1080p": 0.08,
+		},
+	},
+	veo31_lite_frame_to_video: {
+		id: "veo31_lite_frame_to_video",
+		name: "Veo 3.1 Lite Frame-to-Video",
+		description:
+			"Google's Veo 3.1 Lite — budget first+last frame animation with audio",
+		price: "0.05-0.08/s",
+		resolution: "720p / 1080p",
+		supportedResolutions: ["720p", "1080p"],
+		max_duration: 8,
+		category: "image",
+		requiredInputs: ["firstFrame", "lastFrame"],
+		endpoints: {
+			image_to_video: "fal-ai/veo3.1/lite/first-last-frame-to-video",
+		},
+		default_params: {
+			duration: 8,
+			resolution: "720p",
+			aspect_ratio: "auto",
+			generate_audio: true,
+		},
+		perSecondPricing: {
+			"720p": 0.05,
+			"1080p": 0.08,
+		},
+	},
 	pixverse_v6_i2v: {
 		id: "pixverse_v6_i2v",
 		name: "PixVerse v6",
@@ -585,8 +634,10 @@ export const I2V_MODEL_ORDER: readonly I2VModelId[] = [
 	"wan_25_preview_i2v",
 	"vidu_q2_turbo_i2v",
 	"vidu_q3_i2v",
+	"veo31_lite_image_to_video",
 	"veo31_frame_to_video",
 	"veo31_fast_frame_to_video",
+	"veo31_lite_frame_to_video",
 	"kling_o1_i2v",
 ] as const;
 

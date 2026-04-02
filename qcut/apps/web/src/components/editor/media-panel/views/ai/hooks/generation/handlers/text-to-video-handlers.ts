@@ -91,6 +91,35 @@ export async function handleVeo31T2V(
 }
 
 /**
+ * Handle Veo 3.1 Lite text-to-video generation
+ */
+export async function handleVeo31LiteT2V(
+	ctx: ModelHandlerContext,
+	settings: TextToVideoSettings
+): Promise<ModelHandlerResult> {
+	try {
+		const response = await falAIClient.generateVeo31LiteTextToVideo({
+			prompt: ctx.prompt,
+			aspect_ratio: (() => {
+				const ar = settings.veo31Settings.aspectRatio;
+				return ar === "auto" || ar === "1:1" ? undefined : ar;
+			})(),
+			duration: settings.veo31Settings.duration,
+			resolution: settings.veo31Settings.resolution,
+			generate_audio: true,
+			auto_fix: settings.veo31Settings.autoFix,
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/**
  * Handle Hailuo 2.3 text-to-video generation
  */
 export async function handleHailuo23T2V(

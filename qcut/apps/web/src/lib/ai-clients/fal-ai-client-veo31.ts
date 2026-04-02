@@ -274,6 +274,134 @@ export async function veo31FrameToVideo(
 	}
 }
 
+// ============================================
+// Veo 3.1 LITE Methods (budget tier)
+// ============================================
+
+export async function veo31LiteTextToVideo(
+	delegate: FalAIClientRequestDelegate,
+	params: Veo31TextToVideoInput
+): Promise<VideoGenerationResponse> {
+	try {
+		const endpoint = "https://fal.run/fal-ai/veo3.1/lite";
+
+		debugLogger.log(FAL_LOG_COMPONENT, "VEO31_LITE_TEXT_TO_VIDEO_REQUEST", {
+			params,
+		});
+
+		const response = await delegate.makeRequest<Veo31Response>(
+			endpoint,
+			params as unknown as Record<string, unknown>
+		);
+
+		if (!response.video?.url) {
+			throw new Error("No video URL in Veo 3.1 Lite response");
+		}
+
+		return {
+			job_id: `veo31_lite_${Date.now()}`,
+			status: "completed",
+			message: "Video generated successfully",
+			video_url: response.video.url,
+		};
+	} catch (error) {
+		handleAIServiceError(error, "Veo 3.1 Lite text-to-video generation", {
+			operation: "generateVeo31LiteTextToVideo",
+		});
+
+		const errorMessage =
+			error instanceof Error ? error.message : "Veo 3.1 Lite generation failed";
+		return {
+			job_id: `veo31_lite_error_${Date.now()}`,
+			status: "failed",
+			message: errorMessage,
+		};
+	}
+}
+
+export async function veo31LiteImageToVideo(
+	delegate: FalAIClientRequestDelegate,
+	params: Veo31ImageToVideoInput
+): Promise<VideoGenerationResponse> {
+	try {
+		const endpoint = "https://fal.run/fal-ai/veo3.1/lite/image-to-video";
+
+		debugLogger.log(FAL_LOG_COMPONENT, "VEO31_LITE_IMAGE_TO_VIDEO_REQUEST", {
+			params,
+		});
+
+		const response = await delegate.makeRequest<Veo31Response>(
+			endpoint,
+			params as unknown as Record<string, unknown>
+		);
+
+		if (!response.video?.url) {
+			throw new Error("No video URL in Veo 3.1 Lite response");
+		}
+
+		return {
+			job_id: `veo31_lite_img2vid_${Date.now()}`,
+			status: "completed",
+			message: "Video generated successfully",
+			video_url: response.video.url,
+		};
+	} catch (error) {
+		handleAIServiceError(error, "Veo 3.1 Lite image-to-video generation", {
+			operation: "generateVeo31LiteImageToVideo",
+		});
+
+		const errorMessage =
+			error instanceof Error ? error.message : "Veo 3.1 Lite generation failed";
+		return {
+			job_id: `veo31_lite_img2vid_error_${Date.now()}`,
+			status: "failed",
+			message: errorMessage,
+		};
+	}
+}
+
+export async function veo31LiteFrameToVideo(
+	delegate: FalAIClientRequestDelegate,
+	params: Veo31FrameToVideoInput
+): Promise<VideoGenerationResponse> {
+	try {
+		const endpoint =
+			"https://fal.run/fal-ai/veo3.1/lite/first-last-frame-to-video";
+
+		debugLogger.log(FAL_LOG_COMPONENT, "VEO31_LITE_FRAME_TO_VIDEO_REQUEST", {
+			params,
+		});
+
+		const response = await delegate.makeRequest<Veo31Response>(
+			endpoint,
+			params as unknown as Record<string, unknown>
+		);
+
+		if (!response.video?.url) {
+			throw new Error("No video URL in Veo 3.1 Lite response");
+		}
+
+		return {
+			job_id: `veo31_lite_frame2vid_${Date.now()}`,
+			status: "completed",
+			message: "Video generated successfully",
+			video_url: response.video.url,
+		};
+	} catch (error) {
+		handleAIServiceError(error, "Veo 3.1 Lite frame-to-video generation", {
+			operation: "generateVeo31LiteFrameToVideo",
+		});
+
+		const errorMessage =
+			error instanceof Error ? error.message : "Veo 3.1 Lite generation failed";
+		return {
+			job_id: `veo31_lite_frame2vid_error_${Date.now()}`,
+			status: "failed",
+			message: errorMessage,
+		};
+	}
+}
+
 export async function veo31FastExtendVideo(
 	delegate: FalAIClientRequestDelegate,
 	params: Veo31ExtendVideoInput

@@ -220,6 +220,90 @@ export async function handleVeo31F2V(
 }
 
 /**
+ * Handle Veo 3.1 Lite image-to-video generation
+ */
+export async function handleVeo31LiteI2V(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.selectedImage) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "image-to-video requires a selected image",
+		};
+	}
+
+	try {
+		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+		const imageAspectRatio =
+			settings.veo31Settings.aspectRatio === "16:9" ||
+			settings.veo31Settings.aspectRatio === "9:16"
+				? settings.veo31Settings.aspectRatio
+				: undefined;
+
+		const response = await falAIClient.generateVeo31LiteImageToVideo({
+			prompt: ctx.prompt,
+			image_url: imageUrl,
+			aspect_ratio: imageAspectRatio,
+			duration: settings.veo31Settings.duration,
+			resolution: settings.veo31Settings.resolution,
+			generate_audio: true,
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/**
+ * Handle Veo 3.1 Lite frame-to-video generation
+ */
+export async function handleVeo31LiteF2V(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.firstFrame || !settings.lastFrame) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "frame-to-video requires selected first and last frames",
+		};
+	}
+
+	try {
+		const firstFrameUrl = await settings.uploadImageToFal(settings.firstFrame);
+		const lastFrameUrl = await settings.uploadImageToFal(settings.lastFrame);
+		const frameAspectRatio =
+			settings.veo31Settings.aspectRatio === "16:9" ||
+			settings.veo31Settings.aspectRatio === "9:16"
+				? settings.veo31Settings.aspectRatio
+				: undefined;
+
+		const response = await falAIClient.generateVeo31LiteFrameToVideo({
+			prompt: ctx.prompt,
+			first_frame_url: firstFrameUrl,
+			last_frame_url: lastFrameUrl,
+			aspect_ratio: frameAspectRatio,
+			duration: "8s",
+			resolution: settings.veo31Settings.resolution,
+			generate_audio: true,
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/**
  * Handle Vidu Q2 Turbo image-to-video generation
  */
 export async function handleViduQ2I2V(

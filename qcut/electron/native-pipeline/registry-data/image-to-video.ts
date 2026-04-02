@@ -502,6 +502,43 @@ export function registerImageToVideoModels(): void {
 	});
 
 	ModelRegistry.register({
+		key: "veo_3_1_lite",
+		name: "Veo 3.1 Lite",
+		provider: "Google (via FAL)",
+		endpoint: "fal-ai/veo3.1/lite/image-to-video",
+		categories: ["image_to_video"],
+		description: "Budget video generation with mandatory audio",
+		pricing: {
+			type: "per_second",
+			cost_720p: 0.05,
+			cost_1080p: 0.08,
+		},
+		durationOptions: ["4s", "6s", "8s"],
+		aspectRatios: ["auto", "16:9", "9:16"],
+		resolutions: ["720p", "1080p"],
+		defaults: {
+			duration: "8s",
+			resolution: "720p",
+			aspect_ratio: "auto",
+			generate_audio: true,
+			auto_fix: false,
+		},
+		features: ["audio_generation", "auto_fix", "budget_tier"],
+		maxDuration: 8,
+		extendedParams: ["start_frame", "audio_generate"],
+		extendedFeatures: {
+			start_frame: true,
+			end_frame: false,
+			ref_images: false,
+			audio_input: false,
+			audio_generate: true,
+			ref_video: false,
+		},
+		costEstimate: 0.4,
+		processingTime: 120,
+	});
+
+	ModelRegistry.register({
 		key: "wan_2_6",
 		name: "Wan v2.6",
 		provider: "Wan",

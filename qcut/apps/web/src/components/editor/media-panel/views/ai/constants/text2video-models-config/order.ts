@@ -27,6 +27,7 @@ export const T2V_MODEL_ORDER: readonly T2VModelId[] = [
 	"ltxv2_pro_t2v",
 	"hailuo23_pro_t2v",
 	"veo31_fast_text_to_video",
+	"veo31_lite_text_to_video",
 	"seedance_pro",
 	"sora2_text_to_video",
 	"hailuo23_standard_t2v",
@@ -48,6 +49,7 @@ export const T2V_MODEL_ID_ALIASES: Record<string, T2VModelId> = {
 	// Short aliases for convenience
 	veo31_fast: "veo31_fast_text_to_video",
 	veo31: "veo31_text_to_video",
+	veo31_lite: "veo31_lite_text_to_video",
 	hailuo_v2: "hailuo23_standard_t2v",
 	hailuo: "hailuo23_standard_t2v",
 	hailuo_pro: "hailuo23_pro_t2v",
