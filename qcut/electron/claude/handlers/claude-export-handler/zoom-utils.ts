@@ -14,14 +14,17 @@ export function clamp01(t: number): number {
 	return Math.max(0, Math.min(1, t));
 }
 
+/** Linear interpolation between two values. */
 export function lerp(a: number, b: number, t: number): number {
 	return a + (b - a) * t;
 }
 
+/** Cubic ease-out easing function. */
 function easeOutCubic(t: number): number {
 	return 1 - (1 - t) ** 3;
 }
 
+/** Approximate cubic-bezier easing via Newton iteration. */
 function cubicBezier(
 	x1: number,
 	y1: number,
@@ -55,6 +58,7 @@ function cubicBezier(
 	return y;
 }
 
+/** Easing curve for smooth pan transitions between connected zoom regions. */
 function easeConnectedPan(t: number): number {
 	return cubicBezier(0.1, 0.0, 0.2, 1.0, t);
 }
@@ -93,6 +97,7 @@ export interface ZoomTransform {
 
 // ── Region strength & transitions ───────────────────────────────────
 
+/** Compute the zoom strength (0–1) of a region at a given time, with eased transitions. */
 export function computeRegionStrength(
 	region: ZoomRegion,
 	timeMs: number
@@ -113,6 +118,7 @@ export function computeRegionStrength(
 	return 0;
 }
 
+/** Merge overlapping or adjacent zoom regions into consolidated regions. */
 export function mergeOverlappingRegions(regions: ZoomRegion[]): ZoomRegion[] {
 	if (regions.length <= 1) return [...regions];
 	const sorted = [...regions].sort((a, b) => a.startMs - b.startMs);
@@ -133,6 +139,7 @@ export function mergeOverlappingRegions(regions: ZoomRegion[]): ZoomRegion[] {
 	return merged;
 }
 
+/** Find pairs of close-enough zoom regions that should pan smoothly between each other. */
 export function findConnectedTransitions(
 	regions: ZoomRegion[]
 ): ConnectedTransition[] {
@@ -158,6 +165,7 @@ export function findConnectedTransitions(
 	return transitions;
 }
 
+/** Get the interpolated pan state if the current time falls within a connected transition. */
 function getConnectedPanState(
 	transitions: ConnectedTransition[],
 	timeMs: number
@@ -187,6 +195,7 @@ function getConnectedPanState(
 
 // ── Focus constraint ────────────────────────────────────────────────
 
+/** Clamp focus point so the zoomed viewport stays within the frame bounds. */
 function constrainFocus(
 	cx: number,
 	cy: number,
@@ -208,6 +217,7 @@ const IDENTITY_TRANSFORM: ZoomTransform = {
 	translateY: 0,
 };
 
+/** Compute the zoom scale and translation for a given time across all regions. */
 export function computeZoomTransform(
 	timeMs: number,
 	regions: ZoomRegion[],
@@ -294,6 +304,7 @@ interface CaptureRect {
 	height: number;
 }
 
+/** Analyze cursor telemetry to auto-generate zoom regions from click clusters and dwell areas. */
 export function analyzeForZoomSuggestions(
 	points: TelemetryPoint[],
 	captureRect: CaptureRect,
@@ -422,6 +433,7 @@ export interface SpringConfig {
 	mass: number;
 }
 
+/** Derive spring physics config from a 0–2 smoothing factor. */
 export function getCursorSpringConfig(smoothingFactor: number): SpringConfig {
 	const clamped = Math.max(0, Math.min(2, smoothingFactor));
 	const stiffness = 1000 - clamped * 420;
@@ -429,6 +441,7 @@ export function getCursorSpringConfig(smoothingFactor: number): SpringConfig {
 	return { stiffness, damping, mass: 1 };
 }
 
+/** Advance a spring simulation by dt seconds towards a target value. */
 export function stepSpring(
 	state: SpringState,
 	target: number,
@@ -447,6 +460,7 @@ export function stepSpring(
 	return { value: newValue, velocity: newVelocity, initialized: true };
 }
 
+/** Create a fresh uninitialized spring state. */
 export function createSpringState(): SpringState {
 	return { value: 0, velocity: 0, initialized: false };
 }
@@ -458,6 +472,7 @@ const SPEED_REFERENCE = 1400;
 const VERTICAL_WEIGHT = 0.65;
 const INTENSITY_SCALE = 3;
 
+/** Compute cursor tilt rotation based on movement speed and direction. */
 export function computeCursorSwayRotation({
 	dx,
 	dy,

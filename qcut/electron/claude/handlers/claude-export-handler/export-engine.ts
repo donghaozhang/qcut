@@ -114,6 +114,7 @@ export function resolveExportSettings({
 	}
 }
 
+/** Look up the media file for a timeline element by ID or filename. */
 function findMediaForElement({
 	element,
 	mediaById,
@@ -218,6 +219,7 @@ async function resolveMediaFromDisk({
 	return null;
 }
 
+/** Collect trimmed export segments from timeline elements and their media files. */
 export async function collectExportSegments({
 	timeline,
 	mediaFiles,
@@ -418,6 +420,7 @@ export async function collectStickerOverlays({
 	}
 }
 
+/** Create a directory recursively if it does not exist. */
 async function ensureDirectory({
 	directory,
 }: {
@@ -435,6 +438,7 @@ async function ensureDirectory({
 	}
 }
 
+/** Spawn an FFmpeg process and stream progress updates. */
 async function runFFmpegCommand({
 	args,
 	estimatedDuration,
@@ -514,6 +518,7 @@ async function runFFmpegCommand({
 	}
 }
 
+/** Execute a full export job: encode segments, composite cursors, concatenate, and finalize. */
 export async function executeExportJob({
 	jobId,
 	projectId,

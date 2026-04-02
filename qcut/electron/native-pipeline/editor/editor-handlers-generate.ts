@@ -60,6 +60,7 @@ export async function handleGenerateExportCommand(
 // Generate dispatcher
 // ---------------------------------------------------------------------------
 
+/** Route generate sub-commands to their handlers. */
 async function dispatchGenerate(
 	client: EditorApiClient,
 	action: string,
@@ -88,6 +89,7 @@ async function dispatchGenerate(
 // Generate handlers
 // ---------------------------------------------------------------------------
 
+/** Start an AI generation job via the editor API. */
 async function generateStart(
 	client: EditorApiClient,
 	opts: CLIRunOptions,
@@ -146,6 +148,7 @@ async function generateStart(
 	return { success: true, data: result };
 }
 
+/** Query the status of a running generation job. */
 async function generateStatus(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -159,6 +162,7 @@ async function generateStatus(
 	return { success: true, data };
 }
 
+/** List all generation jobs for a project. */
 async function generateListJobs(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -169,6 +173,7 @@ async function generateListJobs(
 	return { success: true, data };
 }
 
+/** Cancel a running generation job. */
 async function generateCancel(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -182,11 +187,13 @@ async function generateCancel(
 	return { success: true, data };
 }
 
+/** List available AI generation models. */
 async function generateModels(client: EditorApiClient): Promise<CLIResult> {
 	const data = await client.get("/api/claude/generate/models");
 	return { success: true, data };
 }
 
+/** Estimate the cost of a generation job before starting. */
 async function generateEstimateCost(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -205,6 +212,7 @@ async function generateEstimateCost(
 // Export dispatcher
 // ---------------------------------------------------------------------------
 
+/** Route export sub-commands to their handlers. */
 async function dispatchExport(
 	client: EditorApiClient,
 	action: string,
@@ -231,11 +239,13 @@ async function dispatchExport(
 // Export handlers
 // ---------------------------------------------------------------------------
 
+/** Fetch available export presets from the editor. */
 async function exportPresets(client: EditorApiClient): Promise<CLIResult> {
 	const data = await client.get("/api/claude/export/presets");
 	return { success: true, data };
 }
 
+/** Get recommended export settings for a target platform. */
 async function exportRecommend(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -253,6 +263,7 @@ async function exportRecommend(
 	return { success: true, data };
 }
 
+/** Start a video export job with the given settings and cursor/zoom config. */
 async function exportStart(
 	client: EditorApiClient,
 	opts: CLIRunOptions,
@@ -375,6 +386,7 @@ async function exportStart(
 	return { success: true, data: result };
 }
 
+/** Query the status of a running export job. */
 async function exportStatus(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -388,6 +400,7 @@ async function exportStatus(
 	return { success: true, data };
 }
 
+/** List all export jobs for a project. */
 async function exportListJobs(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -402,6 +415,7 @@ async function exportListJobs(
 // Diagnostics
 // ---------------------------------------------------------------------------
 
+/** Route diagnostics sub-commands to their handlers. */
 async function dispatchDiagnostics(
 	client: EditorApiClient,
 	action: string,
@@ -413,6 +427,7 @@ async function dispatchDiagnostics(
 	return { success: false, error: `Unknown diagnostics action: ${action}` };
 }
 
+/** Send a diagnostic analysis request to the editor. */
 async function diagnosticsAnalyze(
 	client: EditorApiClient,
 	opts: CLIRunOptions
@@ -434,6 +449,7 @@ async function diagnosticsAnalyze(
 // MCP
 // ---------------------------------------------------------------------------
 
+/** Route MCP sub-commands to their handlers. */
 async function dispatchMcp(
 	client: EditorApiClient,
 	action: string,
@@ -445,6 +461,7 @@ async function dispatchMcp(
 	return { success: false, error: `Unknown mcp action: ${action}` };
 }
 
+/** Forward HTML content to the editor via MCP. */
 async function mcpForwardHtml(
 	client: EditorApiClient,
 	opts: CLIRunOptions
