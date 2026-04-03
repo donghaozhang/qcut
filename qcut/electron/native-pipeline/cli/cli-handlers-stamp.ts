@@ -13,11 +13,15 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { CLIRunOptions, CLIResult, ProgressFn } from "./cli-types.js";
+import type {
+	CLIRunOptions,
+	CLIResult,
+	ProgressFn,
+} from "./cli-runner/types.js";
 
 /** Default logo path (QCut logo-v4) */
 const DEFAULT_LOGO_PATH = path.resolve(
-	import.meta.dirname,
+	__dirname,
 	"../../../apps/web/public/assets/logo-v4.png"
 );
 
@@ -69,7 +73,7 @@ function resolveConfig(options: CLIRunOptions): StampConfig | CLIResult {
 		logoPath = null;
 	} else if (options.imageUrl) {
 		logoPath = options.imageUrl;
-		if (!fs.existsSync(logoPath)) {
+		if (!fs.existsSync(logoPath!)) {
 			return { success: false, error: `Logo file not found: ${logoPath}` };
 		}
 	}
