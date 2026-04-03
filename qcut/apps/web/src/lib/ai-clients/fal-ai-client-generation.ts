@@ -86,10 +86,7 @@ export function convertSettingsToParams(
 			if (settings.negativePrompt)
 				params.negative_prompt = settings.negativePrompt.slice(0, 500);
 			// Edit-specific params
-			if (
-				model.id === "wan-v2-7-edit" ||
-				model.id === "wan-v2-7-pro-edit"
-			) {
+			if (model.id === "wan-v2-7-edit" || model.id === "wan-v2-7-pro-edit") {
 				params.enable_prompt_expansion = true;
 				if (settings.imageUrls && settings.imageUrls.length > 0) {
 					params.image_urls = settings.imageUrls.slice(0, 4);

@@ -89,8 +89,7 @@ export async function generatePixverseImageVideo(
 				payload.generate_audio_switch = request.generate_audio_switch;
 			}
 			if (request.generate_multi_clip_switch !== undefined) {
-				payload.generate_multi_clip_switch =
-					request.generate_multi_clip_switch;
+				payload.generate_multi_clip_switch = request.generate_multi_clip_switch;
 			}
 			if (request.thinking_type) {
 				payload.thinking_type = request.thinking_type;
