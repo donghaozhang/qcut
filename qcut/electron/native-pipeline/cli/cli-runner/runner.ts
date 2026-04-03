@@ -43,6 +43,7 @@ import {
 	handleVimaxScript2Video,
 	handleVimaxNovel2Movie,
 } from "../vimax-cli-handlers.js";
+import { handleStampImage } from "../cli-handlers-stamp.js";
 import { handleYouTubeUpload } from "../cli-handlers-youtube.js";
 import { handleTranslateVideo } from "../cli-handlers-translate.js";
 import {
@@ -300,6 +301,9 @@ export class CLIPipelineRunner {
 					this.executor,
 					this.signal
 				);
+				break;
+			case "stamp-image":
+				result = await handleStampImage(resolvedOptions, onProgress);
 				break;
 			case "upscale-image":
 				result = await handleUpscaleImage(

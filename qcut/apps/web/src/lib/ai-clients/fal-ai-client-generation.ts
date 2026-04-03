@@ -2,6 +2,7 @@ import {
 	TEXT2IMAGE_MODELS,
 	type Text2ImageModel,
 } from "../ai-models/text2image-models";
+import { WAN_27_IMAGE_SIZE_OPTIONS } from "../text2image-models/wan-models";
 import { debugLogger } from "../debug/debug-logger";
 import { handleAIServiceError } from "../debug/error-handler";
 import {
@@ -67,17 +68,9 @@ export function convertSettingsToParams(
 		case "wan-v2-7-pro-t2i":
 		case "wan-v2-7-edit":
 		case "wan-v2-7-pro-edit": {
-			const validWan27Sizes = [
-				"square_hd",
-				"square",
-				"portrait_4_3",
-				"portrait_16_9",
-				"landscape_4_3",
-				"landscape_16_9",
-			];
 			if (
 				typeof settings.imageSize === "string" &&
-				validWan27Sizes.includes(settings.imageSize)
+				WAN_27_IMAGE_SIZE_OPTIONS.includes(settings.imageSize)
 			) {
 				params.image_size = settings.imageSize;
 			} else {

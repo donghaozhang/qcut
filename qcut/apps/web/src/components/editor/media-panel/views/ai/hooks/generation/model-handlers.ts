@@ -34,12 +34,14 @@ import {
 	handleSeedanceProI2V,
 	handleKlingV25I2V,
 	handleKlingV26I2V,
+} from "./handlers/image-to-video-handlers";
+import {
 	handleWAN25I2V,
 	handleWAN26I2V,
 	handleViduQ3I2V,
 	handlePixverseV6I2V,
 	handleGenericI2V,
-} from "./handlers/image-to-video-handlers";
+} from "./handlers/image-to-video-handlers-ext";
 import {
 	handleByteDanceUpscale,
 	handleFlashVSRUpscale,
@@ -136,7 +138,10 @@ function getImageToVideoDurationSeconds({
 	if (
 		modelId === "veo31_fast_image_to_video" ||
 		modelId === "veo31_image_to_video" ||
-		modelId === "veo31_lite_image_to_video"
+		modelId === "veo31_lite_image_to_video" ||
+		modelId === "veo31_fast_frame_to_video" ||
+		modelId === "veo31_frame_to_video" ||
+		modelId === "veo31_lite_frame_to_video"
 	) {
 		return parseVeoDuration({ duration: settings.veo31Settings.duration });
 	}

@@ -237,6 +237,8 @@ Register `veo_3_1_lite` (I2V only, matching the existing `veo_3_1_fast` pattern)
 ```bash
 npx tsc --noEmit --project apps/web/tsconfig.json  # 0 errors
 bun run test                                         # Affected tests pass
+bun check-types                                      # No type errors
+bun lint:clean                                       # No lint issues
 ```
 
 ---
@@ -269,6 +271,7 @@ bun run test                                         # Affected tests pass
 None — all changes integrated into existing Veo 3.1 infrastructure.
 
 ### Files Modified
+
 | File | Changes |
 |------|---------|
 | `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/models.ts` | Add `veo31_lite_text_to_video` model config |
@@ -285,12 +288,14 @@ None — all changes integrated into existing Veo 3.1 infrastructure.
 | `electron/native-pipeline/registry-data/image-to-video.ts` | Register `veo_3_1_lite` |
 
 ### Tests Updated
+
 | File | Changes |
 |------|---------|
 | `apps/web/src/.../handlers/__tests__/handler-exports.test.ts` | T2V 10→11, I2V 17→19, total 37→40 |
 
 ### Test Results
-```
+
+```text
 bun run test (2 affected files) — 11/11 passed
 npx tsc --noEmit — 0 errors
 ```

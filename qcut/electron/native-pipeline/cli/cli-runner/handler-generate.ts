@@ -181,6 +181,15 @@ export async function handleGenerate(
 		}
 	}
 
+	// Wan 2.7 edit models: pass image URL as image_urls array
+	if (
+		options.command === "generate-image" &&
+		options.imageUrl &&
+		(options.model === "wan_v2_7_edit" || options.model === "wan_v2_7_pro_edit")
+	) {
+		params.image_urls = [options.imageUrl];
+	}
+
 	// Validate --count
 	if (options.count !== undefined && options.count < 1) {
 		return {

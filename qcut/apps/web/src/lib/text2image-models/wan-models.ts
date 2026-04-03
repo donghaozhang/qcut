@@ -1,7 +1,7 @@
 import type { Text2ImageModel } from "./types";
 
 /** Shared image_size presets for Wan 2.7 endpoints. */
-const WAN_27_IMAGE_SIZE_OPTIONS = [
+export const WAN_27_IMAGE_SIZE_OPTIONS = [
 	"square_hd",
 	"square",
 	"portrait_4_3",

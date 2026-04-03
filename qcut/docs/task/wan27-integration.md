@@ -56,6 +56,7 @@ export const WAN_MODELS: Record<string, Text2ImageModel> = {
 ```
 
 Key config per model:
+
 | Field | T2I Standard | T2I Pro | Edit Standard | Edit Pro |
 |-------|-------------|---------|---------------|----------|
 | endpoint | `https://fal.run/fal-ai/wan/v2.7/text-to-image` | `https://fal.run/fal-ai/wan/v2.7/pro/text-to-image` | `https://fal.run/fal-ai/wan/v2.7/edit` | `https://fal.run/fal-ai/wan/v2.7/pro/edit` |
@@ -92,24 +93,30 @@ Add cases in `convertSettingsToParams()` for the 4 new model IDs:
 ```typescript
 case "wan-v2-7-t2i":
 case "wan-v2-7-pro-t2i":
-  params.image_size = settings.imageSize;
-  if (settings.negativePrompt) params.negative_prompt = settings.negativePrompt;
-  if (settings.numImages) params.max_images = settings.numImages;
-  params.enable_safety_checker = true;
-  break;
-
 case "wan-v2-7-edit":
-case "wan-v2-7-pro-edit":
-  params.image_size = settings.imageSize;
-  if (settings.negativePrompt) params.negative_prompt = settings.negativePrompt;
-  if (settings.numImages) params.num_images = settings.numImages;
-  params.enable_prompt_expansion = true;
-  params.enable_safety_checker = true;
-  // image_urls handled by caller (edit flow)
+case "wan-v2-7-pro-edit": {
+  const validWan27Sizes = [
+    "square_hd", "square", "portrait_4_3", "portrait_16_9",
+    "landscape_4_3", "landscape_16_9",
+  ];
+  if (typeof settings.imageSize === "string" && validWan27Sizes.includes(settings.imageSize)) {
+    params.image_size = settings.imageSize;
+  } else {
+    params.image_size = "square_hd";
+  }
+  if (settings.negativePrompt) params.negative_prompt = settings.negativePrompt.slice(0, 500);
+  // Edit-specific params
+  if (model.id === "wan-v2-7-edit" || model.id === "wan-v2-7-pro-edit") {
+    params.enable_prompt_expansion = true;
+    if (settings.imageUrls && settings.imageUrls.length > 0) {
+      params.image_urls = settings.imageUrls.slice(0, 4);
+    }
+  }
   break;
+}
 ```
 
-**Note**: The `image_size` preset names differ from v2.2. v2.7 uses `portrait_4_3`/`portrait_16_9` (with underscore, matching FAL's current naming). Verify this matches what `convertSettingsToParams` already sends - the existing `settings.imageSize` values may already use this format.
+**Note**: v2.7 uses `portrait_4_3`/`portrait_16_9` (different from v2.2's naming). The implementation validates `image_size` against allowed presets and falls back to `square_hd`. Edit models include `image_urls` directly in the params (up to 4 images).
 
 ---
 

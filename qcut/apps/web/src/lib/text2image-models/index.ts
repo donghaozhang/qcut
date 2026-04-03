@@ -122,9 +122,6 @@ export const MODEL_CATEGORIES = {
 		"nano-banana",
 		"reve-text-to-image",
 		"z-image-turbo",
-		"seeddream-v4-5-edit",
-		"wan-v2-7-edit",
-		"wan-v2-7-pro-edit",
 		"phota",
 	],
 	FAST: [
@@ -155,6 +152,5 @@ export const MODEL_CATEGORIES = {
 		"reve-text-to-image",
 		"flux-2-flex",
 		"wan-v2-7-t2i",
-		"wan-v2-7-edit",
 	],
 } as const;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as avatarHandlers from "../avatar-handlers";
 import * as imageToVideoHandlers from "../image-to-video-handlers";
+import * as imageToVideoHandlersExt from "../image-to-video-handlers-ext";
 import * as textToVideoHandlers from "../text-to-video-handlers";
 import * as upscaleHandlers from "../upscale-handlers";
 
@@ -29,9 +30,16 @@ describe("handler module exports", () => {
 		expect(names).toHaveLength(11);
 	});
 
-	it("image-to-video-handlers exports exactly 19 functions", () => {
+	it("image-to-video-handlers exports exactly 14 functions", () => {
 		const names = getHandlerExports({ moduleExports: imageToVideoHandlers });
-		expect(names).toHaveLength(19);
+		expect(names).toHaveLength(14);
+	});
+
+	it("image-to-video-handlers-ext exports exactly 5 functions", () => {
+		const names = getHandlerExports({
+			moduleExports: imageToVideoHandlersExt,
+		});
+		expect(names).toHaveLength(5);
 	});
 
 	it("upscale-handlers exports exactly 2 functions", () => {
@@ -48,6 +56,7 @@ describe("handler module exports", () => {
 		const allNames = [
 			...getHandlerExports({ moduleExports: textToVideoHandlers }),
 			...getHandlerExports({ moduleExports: imageToVideoHandlers }),
+			...getHandlerExports({ moduleExports: imageToVideoHandlersExt }),
 			...getHandlerExports({ moduleExports: upscaleHandlers }),
 			...getHandlerExports({ moduleExports: avatarHandlers }),
 		];
