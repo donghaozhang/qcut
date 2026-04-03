@@ -36,6 +36,7 @@ export interface StepOutput {
 
 export type DataType = "text" | "image" | "video" | "audio";
 
+/** Get the expected input data type for a model category. */
 export function getInputDataType(category: ModelCategory): DataType {
 	switch (category) {
 		case "text_to_image":
@@ -61,6 +62,7 @@ export function getInputDataType(category: ModelCategory): DataType {
 	}
 }
 
+/** Get the expected output data type for a model category. */
 export function getOutputDataType(category: ModelCategory): DataType {
 	switch (category) {
 		case "text_to_image":
@@ -99,6 +101,7 @@ function getProviderForEndpoint(
 	return "fal";
 }
 
+/** Execute a single pipeline step with the given model, input, and parameters. */
 export async function executeStep(
 	model: ModelDefinition,
 	input: StepInput,
@@ -696,6 +699,7 @@ async function executePromptGeneration(
 	return { success: false, error: result.error, duration: result.duration };
 }
 
+/** Extract text content from an API result. */
 function extractTextFromResult(data: unknown): string | undefined {
 	if (!data || typeof data !== "object") return;
 	const obj = data as Record<string, unknown>;
@@ -714,6 +718,7 @@ function extractTextFromResult(data: unknown): string | undefined {
 	return;
 }
 
+/** Map a raw API result to a normalized step output. */
 async function mapApiResult(
 	result: ApiCallResult,
 	outputDir?: string
@@ -748,6 +753,7 @@ async function mapApiResult(
 	};
 }
 
+/** Guess the file extension from a URL or content type. */
 function guessExtension(url: string): string {
 	const urlPath = url.split("?")[0];
 	if (urlPath.endsWith(".mp4")) return ".mp4";

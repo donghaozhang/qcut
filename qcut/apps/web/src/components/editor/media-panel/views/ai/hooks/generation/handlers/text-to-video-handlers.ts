@@ -33,6 +33,7 @@ type LTX23Resolution = "1080p" | "1440p" | "2160p";
 type LTX23FPS = 24 | 25 | 48 | 50;
 type LTX23AspectRatio = "16:9" | "9:16";
 
+/** Handle Veo 3.1 Fast text-to-video generation. */
 export async function handleVeo31FastT2V(
 	ctx: ModelHandlerContext,
 	settings: TextToVideoSettings

@@ -39,35 +39,40 @@ export const TEXT2IMAGE_MODEL_ORDER = [
 
 export type Text2ImageModelId = (typeof TEXT2IMAGE_MODEL_ORDER)[number];
 
+/** Get text-to-image model entries sorted by priority. */
 export function getText2ImageModelEntriesInPriorityOrder() {
 	return TEXT2IMAGE_MODEL_ORDER.filter(
 		(modelId) => TEXT2IMAGE_MODELS[modelId] !== undefined
 	).map((modelId) => [modelId, TEXT2IMAGE_MODELS[modelId]] as const);
 }
 
-// Helper functions
+/** Look up a text-to-image model by its ID. */
 export function getModelById(id: string): Text2ImageModel | undefined {
 	return TEXT2IMAGE_MODELS[id];
 }
 
+/** Get text-to-image models filtered by provider name. */
 export function getModelsByProvider(provider: string): Text2ImageModel[] {
 	return Object.values(TEXT2IMAGE_MODELS).filter(
 		(model) => model.provider === provider
 	);
 }
 
+/** Get text-to-image models with a minimum quality rating. */
 export function getModelsByQuality(minRating: number): Text2ImageModel[] {
 	return Object.values(TEXT2IMAGE_MODELS).filter(
 		(model) => model.qualityRating >= minRating
 	);
 }
 
+/** Get text-to-image models with a minimum speed rating. */
 export function getModelsBySpeed(minRating: number): Text2ImageModel[] {
 	return Object.values(TEXT2IMAGE_MODELS).filter(
 		(model) => model.speedRating >= minRating
 	);
 }
 
+/** Get the cost range across all text-to-image models. */
 export function getCostRange(): { min: number; max: number } {
 	const costs = Object.values(TEXT2IMAGE_MODELS).map((m) => m.costPerImage);
 	if (costs.length === 0) {
@@ -79,6 +84,7 @@ export function getCostRange(): { min: number; max: number } {
 	};
 }
 
+/** Recommend suitable models based on prompt characteristics. */
 export function recommendModelsForPrompt(prompt: string): string[] {
 	const lowercasePrompt = prompt.toLowerCase();
 

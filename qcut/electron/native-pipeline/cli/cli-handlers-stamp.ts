@@ -86,6 +86,7 @@ function resolveConfig(options: CLIRunOptions): StampConfig | CLIResult {
 	};
 }
 
+/** Handle the stamp-image CLI command: composites logo and text onto an image. */
 export async function handleStampImage(
 	options: CLIRunOptions,
 	onProgress: ProgressFn

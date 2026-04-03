@@ -5,6 +5,7 @@
 
 import { ModelRegistry } from "../infra/registry.js";
 
+/** Register all text-to-image models in the pipeline registry. */
 export function registerTextToImageModels(): void {
 	ModelRegistry.register({
 		key: "flux_dev",

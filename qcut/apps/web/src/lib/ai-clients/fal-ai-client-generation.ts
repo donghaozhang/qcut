@@ -18,6 +18,7 @@ import {
 	type MultiModelGenerationResult,
 } from "./fal-ai-client-internal-types";
 
+/** Convert generation settings to FAL API parameters for a given model. */
 export function convertSettingsToParams(
 	model: Text2ImageModel,
 	prompt: string,
@@ -276,6 +277,7 @@ export function convertSettingsToParams(
 	return params;
 }
 
+/** Generate an image using the specified model and settings. */
 export async function generateWithModel(
 	delegate: FalAIClientRequestDelegate,
 	modelKey: string,
@@ -342,6 +344,7 @@ export async function generateWithModel(
 	}
 }
 
+/** Generate images across multiple models in parallel. */
 export async function generateWithMultipleModels(
 	delegate: FalAIClientRequestDelegate,
 	modelKeys: string[],

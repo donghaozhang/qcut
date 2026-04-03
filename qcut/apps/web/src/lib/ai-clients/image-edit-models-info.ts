@@ -3,9 +3,7 @@
  * Extracted from image-edit-client.ts for modularity
  */
 
-/**
- * Get model information
- */
+/** Get the list of available image editing models with metadata. */
 export function getImageEditModels() {
 	return [
 		{

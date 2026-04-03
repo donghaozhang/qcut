@@ -5,6 +5,7 @@
 
 import { ModelRegistry } from "../infra/registry.js";
 
+/** Register all image-to-video models in the pipeline registry. */
 export function registerImageToVideoModels(): void {
 	ModelRegistry.register({
 		key: "hailuo",

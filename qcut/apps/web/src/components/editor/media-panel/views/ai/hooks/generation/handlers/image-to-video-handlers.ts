@@ -42,6 +42,7 @@ type SeedanceAspectRatio =
 type KlingDuration = 5 | 10;
 type KlingAspectRatio = "16:9" | "9:16" | "1:1" | "4:3" | "3:4";
 
+/** Handle Veo 3.1 Fast image-to-video generation. */
 export async function handleVeo31FastI2V(
 	ctx: ModelHandlerContext,
 	settings: ImageToVideoSettings

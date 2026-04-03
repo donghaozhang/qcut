@@ -85,6 +85,7 @@ export const VEO31_FRAME_MODELS = new Set([
 	"veo31_lite_frame_to_video",
 ]);
 
+/** Parse Veo duration string to seconds. */
 function parseVeoDuration({
 	duration,
 }: {
@@ -93,6 +94,7 @@ function parseVeoDuration({
 	return Number.parseInt(duration.replace("s", ""), 10);
 }
 
+/** Get duration in seconds for a text-to-video model. */
 function getTextToVideoDurationSeconds({
 	modelId,
 	settings,
@@ -128,6 +130,7 @@ function getTextToVideoDurationSeconds({
 	return settings.duration;
 }
 
+/** Get duration in seconds for an image-to-video model. */
 function getImageToVideoDurationSeconds({
 	modelId,
 	settings,
@@ -182,6 +185,7 @@ function getImageToVideoDurationSeconds({
 	return settings.duration;
 }
 
+/** Get duration in seconds for an avatar model. */
 function getAvatarDurationSeconds({
 	modelId,
 	settings,
@@ -195,6 +199,7 @@ function getAvatarDurationSeconds({
 	return settings.videoDuration ?? settings.audioDuration ?? undefined;
 }
 
+/** Verify the user has sufficient credits for generation. */
 async function ensureGenerationCredits({
 	modelId,
 	modelName,

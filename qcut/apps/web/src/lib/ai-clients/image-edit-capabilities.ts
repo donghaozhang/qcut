@@ -67,11 +67,7 @@ export const MODEL_CAPABILITIES: Record<ImageEditModelId, ModelCapability> = {
 	"reve-edit": { maxImages: 1, supportsMultiple: false },
 };
 
-/**
- * Get model capability info
- * @param modelId - The model identifier
- * @returns Model capability object with maxImages and supportsMultiple
- */
+/** Get the capabilities for a specific image edit model. */
 export function getModelCapabilities(modelId: string): ModelCapability {
 	if (modelId in MODEL_CAPABILITIES) {
 		return MODEL_CAPABILITIES[modelId as ImageEditModelId];
@@ -80,25 +76,19 @@ export function getModelCapabilities(modelId: string): ModelCapability {
 	return { maxImages: 1, supportsMultiple: false };
 }
 
-/**
- * Check if a model ID is valid
- */
+/** Check if a model ID is a valid image edit model. */
 export function isValidImageEditModelId(id: string): id is ImageEditModelId {
 	return IMAGE_EDIT_MODEL_IDS.includes(id as ImageEditModelId);
 }
 
-/**
- * Get all multi-image capable model IDs
- */
+/** Get model IDs that support multi-image input. */
 export function getMultiImageModelIds(): ImageEditModelId[] {
 	return IMAGE_EDIT_MODEL_IDS.filter(
 		(id) => MODEL_CAPABILITIES[id].supportsMultiple
 	);
 }
 
-/**
- * Get all single-image only model IDs
- */
+/** Get model IDs that only support single-image input. */
 export function getSingleImageModelIds(): ImageEditModelId[] {
 	return IMAGE_EDIT_MODEL_IDS.filter(
 		(id) => !MODEL_CAPABILITIES[id].supportsMultiple
