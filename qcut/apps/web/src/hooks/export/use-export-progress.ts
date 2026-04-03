@@ -8,6 +8,7 @@ import type {
 	ExportQuality,
 	AudioCodec,
 	ExportSettingsWithAudio,
+	GifExportConfig,
 } from "@/types/export";
 import type { ExportEngine } from "@/lib/export/export-engine";
 import type {
@@ -69,6 +70,7 @@ export function useExportProgress() {
 			includeAudio?: boolean;
 			audioCodec?: AudioCodec;
 			audioBitrate?: number;
+			gifConfig?: GifExportConfig;
 		}
 	) => {
 		// Reset any previous errors

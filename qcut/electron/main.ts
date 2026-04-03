@@ -121,6 +121,7 @@ const { setupMediaImportIPC } = require("./media-import-handler.js");
 const {
 	registerElevenLabsTranscribeHandler,
 } = require("./elevenlabs-transcribe-handler.js");
+const { setupWallpaperIPC } = require("./wallpaper-handler.js");
 const { setupProjectFolderIPC } = require("./project-folder-handler.js");
 const { setupProjectJsonIPC } = require("./project-json-handler.js");
 const { setupAllClaudeIPC } = require("./claude/index.js");
@@ -825,6 +826,7 @@ if (!isCliKeyCommand) {
 			["SkillsIPC", setupSkillsIPC],
 			["SkillsSyncIPC", setupSkillsSyncIPC],
 			["AIPipelineIPC", setupAIPipelineIPC],
+			["WallpaperIPC", setupWallpaperIPC],
 			["MediaImportIPC", setupMediaImportIPC],
 			["ProjectFolderIPC", setupProjectFolderIPC],
 			["ProjectJsonIPC", setupProjectJsonIPC],

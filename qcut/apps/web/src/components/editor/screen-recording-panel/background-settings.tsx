@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback } from "react";
 import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -12,6 +13,7 @@ import {
 	GRADIENT_PRESETS,
 	type BackgroundConfig,
 } from "@/lib/screen-recording/wallpapers";
+import type { WallpaperEntry } from "@/types/electron/api-wallpapers";
 
 const BG_TYPES: { value: BackgroundConfig["type"]; label: string }[] = [
 	{ value: "none", label: "None" },
@@ -148,23 +150,12 @@ export function BackgroundSettings() {
 					</PropertyItem>
 				)}
 
-				{/* Wallpaper path */}
+				{/* Wallpaper picker */}
 				{background.type === "wallpaper" && (
-					<PropertyItem direction="column">
-						<PropertyItemLabel>Image path</PropertyItemLabel>
-						<PropertyItemValue>
-							<input
-								type="text"
-								value={background.wallpaperPath ?? ""}
-								onChange={(e) =>
-									setBackground({ wallpaperPath: e.target.value })
-								}
-								placeholder="Enter image path or URL"
-								className="w-full text-xs bg-secondary/50 rounded px-2 py-1 border border-border"
-								aria-label="Wallpaper image path"
-							/>
-						</PropertyItemValue>
-					</PropertyItem>
+					<WallpaperPicker
+						selectedPath={background.wallpaperPath}
+						onSelect={(path) => setBackground({ wallpaperPath: path })}
+					/>
 				)}
 
 				{/* Solid color */}
@@ -267,5 +258,113 @@ export function BackgroundSettings() {
 				)}
 			</div>
 		</PropertyGroup>
+	);
+}
+
+/** Wallpaper picker with thumbnail grid, upload, and path fallback. */
+function WallpaperPicker({
+	selectedPath,
+	onSelect,
+}: {
+	selectedPath?: string;
+	onSelect: (path: string) => void;
+}) {
+	const [entries, setEntries] = useState<WallpaperEntry[]>([]);
+	const hasElectron = typeof window !== "undefined" && !!window.electronAPI?.wallpapers;
+
+	const refresh = useCallback(async () => {
+		if (!hasElectron) return;
+		const list = await window.electronAPI!.wallpapers.list();
+		setEntries(list);
+	}, [hasElectron]);
+
+	useEffect(() => {
+		refresh();
+	}, [refresh]);
+
+	const handleUpload = async () => {
+		if (!hasElectron) return;
+		const filePath = await window.electronAPI!.wallpapers.pick();
+		if (!filePath) return;
+		const entry = await window.electronAPI!.wallpapers.upload(filePath);
+		if (entry) {
+			onSelect(entry.path);
+			refresh();
+		}
+	};
+
+	const handleDelete = async (id: string) => {
+		if (!hasElectron) return;
+		await window.electronAPI!.wallpapers.delete(id);
+		refresh();
+	};
+
+	// Fallback: plain text input for non-Electron environments
+	if (!hasElectron) {
+		return (
+			<PropertyItem direction="column">
+				<PropertyItemLabel>Image path</PropertyItemLabel>
+				<PropertyItemValue>
+					<input
+						type="text"
+						value={selectedPath ?? ""}
+						onChange={(e) => onSelect(e.target.value)}
+						placeholder="Enter image path or URL"
+						className="w-full text-xs bg-secondary/50 rounded px-2 py-1 border border-border"
+						aria-label="Wallpaper image path"
+					/>
+				</PropertyItemValue>
+			</PropertyItem>
+		);
+	}
+
+	return (
+		<PropertyItem direction="column">
+			<PropertyItemLabel>Wallpaper</PropertyItemLabel>
+			<div className="space-y-2">
+				{entries.length > 0 && (
+					<div className="grid grid-cols-4 gap-1">
+						{entries.map((entry) => (
+							<button
+								key={entry.id}
+								type="button"
+								className={`relative h-10 rounded border-2 cursor-pointer overflow-hidden transition-transform hover:scale-105 ${
+									selectedPath === entry.path
+										? "border-primary ring-1 ring-primary"
+										: "border-transparent"
+								}`}
+								onClick={() => onSelect(entry.path)}
+								title={entry.name}
+								aria-label={`Select wallpaper ${entry.name}`}
+							>
+								<img
+									src={`file://${entry.path}`}
+									alt={entry.name}
+									className="w-full h-full object-cover"
+								/>
+								<button
+									type="button"
+									className="absolute top-0 right-0 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-bl flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+									onClick={(e) => {
+										e.stopPropagation();
+										handleDelete(entry.id);
+									}}
+									aria-label={`Delete wallpaper ${entry.name}`}
+								>
+									x
+								</button>
+							</button>
+						))}
+					</div>
+				)}
+				<button
+					type="button"
+					className="w-full text-xs py-1 px-2 rounded border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+					onClick={handleUpload}
+				>
+					+ Upload wallpaper
+				</button>
+			</div>
+		</PropertyItem>
 	);
 }
