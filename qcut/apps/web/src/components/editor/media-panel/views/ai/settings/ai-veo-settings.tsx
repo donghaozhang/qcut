@@ -73,23 +73,21 @@ function getDurationPrice(
 	const litePerSecond = resolution === "1080p" ? 0.08 : 0.05;
 	const litePrice = `$${(seconds * litePerSecond).toFixed(2)}`;
 
-	const prices: Record<
-		Veo31Duration,
-		{ withAudio: string; noAudio: string }
-	> = {
-		"4s": {
-			withAudio: `${litePrice} Lite / $0.60 Fast / $1.60 Std`,
-			noAudio: "$0.40 Fast / $0.80 Std",
-		},
-		"6s": {
-			withAudio: `${litePrice} Lite / $0.90 Fast / $2.40 Std`,
-			noAudio: "$0.60 Fast / $1.20 Std",
-		},
-		"8s": {
-			withAudio: `${litePrice} Lite / $1.20 Fast / $3.20 Std`,
-			noAudio: "$0.80 Fast / $1.60 Std",
-		},
-	};
+	const prices: Record<Veo31Duration, { withAudio: string; noAudio: string }> =
+		{
+			"4s": {
+				withAudio: `${litePrice} Lite / $0.60 Fast / $1.60 Std`,
+				noAudio: "$0.40 Fast / $0.80 Std",
+			},
+			"6s": {
+				withAudio: `${litePrice} Lite / $0.90 Fast / $2.40 Std`,
+				noAudio: "$0.60 Fast / $1.20 Std",
+			},
+			"8s": {
+				withAudio: `${litePrice} Lite / $1.20 Fast / $3.20 Std`,
+				noAudio: "$0.80 Fast / $1.60 Std",
+			},
+		};
 
 	return generateAudio ? prices[duration].withAudio : prices[duration].noAudio;
 }
@@ -160,13 +158,31 @@ export function AIVeo31Settings({
 					</SelectTrigger>
 					<SelectContent>
 						<SelectItem value="4s">
-							4 seconds ({getDurationPrice("4s", settings.generateAudio, settings.resolution)})
+							4 seconds (
+							{getDurationPrice(
+								"4s",
+								settings.generateAudio,
+								settings.resolution
+							)}
+							)
 						</SelectItem>
 						<SelectItem value="6s">
-							6 seconds ({getDurationPrice("6s", settings.generateAudio, settings.resolution)})
+							6 seconds (
+							{getDurationPrice(
+								"6s",
+								settings.generateAudio,
+								settings.resolution
+							)}
+							)
 						</SelectItem>
 						<SelectItem value="8s">
-							8 seconds ({getDurationPrice("8s", settings.generateAudio, settings.resolution)})
+							8 seconds (
+							{getDurationPrice(
+								"8s",
+								settings.generateAudio,
+								settings.resolution
+							)}
+							)
 						</SelectItem>
 					</SelectContent>
 				</Select>

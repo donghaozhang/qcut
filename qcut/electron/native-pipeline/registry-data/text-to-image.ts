@@ -121,7 +121,11 @@ export function registerTextToImageModels(): void {
 		description: "GPT-powered image generation with strong prompt adherence",
 		pricing: { per_image: 0.04 },
 		aspectRatios: ["1:1", "16:9", "9:16"],
-		defaults: { image_size: "1536x1024", quality: "high", output_format: "png" },
+		defaults: {
+			image_size: "1536x1024",
+			quality: "high",
+			output_format: "png",
+		},
 		features: ["gpt_powered", "natural_language", "high_quality"],
 		costEstimate: 0.04,
 		processingTime: 45,
@@ -163,7 +167,8 @@ export function registerTextToImageModels(): void {
 		provider: "ByteDance (via FAL)",
 		endpoint: "fal-ai/bytedance/seedream/v4.5/edit",
 		categories: ["text_to_image"],
-		description: "ByteDance image editing with multi-image compositing (up to 10)",
+		description:
+			"ByteDance image editing with multi-image compositing (up to 10)",
 		pricing: { per_image: 0.05 },
 		aspectRatios: ["1:1", "4:3", "3:4", "16:9", "9:16"],
 		defaults: { image_size: "auto_2K", enable_safety_checker: true },
