@@ -284,6 +284,31 @@ export const T2V_MODELS = {
 			auto_fix: true,
 		},
 	},
+	veo31_lite_text_to_video: {
+		id: "veo31_lite_text_to_video",
+		name: "Veo 3.1 Lite Text-to-Video",
+		description:
+			"Google's Veo 3.1 Lite — budget text-to-video with audio (4-8s)",
+		price: "0.05-0.08/s",
+		resolution: "720p / 1080p",
+		supportedResolutions: ["720p", "1080p"],
+		max_duration: 8,
+		category: "text",
+		endpoints: {
+			text_to_video: "fal-ai/veo3.1/lite",
+		},
+		default_params: {
+			duration: 8,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+			generate_audio: true,
+			auto_fix: true,
+		},
+		perSecondPricing: {
+			"720p": 0.05,
+			"1080p": 0.08,
+		},
+	},
 	hailuo23_standard_t2v: {
 		id: "hailuo23_standard_t2v",
 		name: "Hailuo 2.3 Standard T2V",

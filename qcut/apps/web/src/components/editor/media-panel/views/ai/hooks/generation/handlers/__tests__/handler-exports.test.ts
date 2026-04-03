@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as avatarHandlers from "../avatar-handlers";
 import * as imageToVideoHandlers from "../image-to-video-handlers";
+import * as imageToVideoHandlersExt from "../image-to-video-handlers-ext";
 import * as textToVideoHandlers from "../text-to-video-handlers";
 import * as upscaleHandlers from "../upscale-handlers";
 
@@ -24,14 +25,21 @@ function getHandlerExports({
 }
 
 describe("handler module exports", () => {
-	it("text-to-video-handlers exports exactly 10 functions", () => {
+	it("text-to-video-handlers exports exactly 11 functions", () => {
 		const names = getHandlerExports({ moduleExports: textToVideoHandlers });
-		expect(names).toHaveLength(10);
+		expect(names).toHaveLength(11);
 	});
 
-	it("image-to-video-handlers exports exactly 16 functions", () => {
+	it("image-to-video-handlers exports exactly 14 functions", () => {
 		const names = getHandlerExports({ moduleExports: imageToVideoHandlers });
-		expect(names).toHaveLength(16);
+		expect(names).toHaveLength(14);
+	});
+
+	it("image-to-video-handlers-ext exports exactly 5 functions", () => {
+		const names = getHandlerExports({
+			moduleExports: imageToVideoHandlersExt,
+		});
+		expect(names).toHaveLength(5);
 	});
 
 	it("upscale-handlers exports exactly 2 functions", () => {
@@ -44,14 +52,15 @@ describe("handler module exports", () => {
 		expect(names).toHaveLength(8);
 	});
 
-	it("all 36 handlers are functions", () => {
+	it("all 40 handlers are functions", () => {
 		const allNames = [
 			...getHandlerExports({ moduleExports: textToVideoHandlers }),
 			...getHandlerExports({ moduleExports: imageToVideoHandlers }),
+			...getHandlerExports({ moduleExports: imageToVideoHandlersExt }),
 			...getHandlerExports({ moduleExports: upscaleHandlers }),
 			...getHandlerExports({ moduleExports: avatarHandlers }),
 		];
-		expect(allNames).toHaveLength(36);
+		expect(allNames).toHaveLength(40);
 	});
 
 	it("handleWAN26T2V is in text-to-video, not image-to-video", () => {

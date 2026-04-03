@@ -28,8 +28,8 @@ export interface Veo31TextToVideoInput {
 export interface Veo31ImageToVideoInput {
 	prompt: string; // Required: Animation description
 	image_url: string; // Required: Input image URL (720p+, 16:9 or 9:16)
-	aspect_ratio?: "16:9" | "9:16"; // Default: "16:9"
-	duration?: "8s"; // Currently only "8s" supported
+	aspect_ratio?: "auto" | "16:9" | "9:16"; // Default: "16:9" (Lite supports "auto")
+	duration?: "4s" | "6s" | "8s"; // Standard/Fast: "8s" only; Lite: "4s"/"6s"/"8s"
 	resolution?: "720p" | "1080p"; // Default: "720p"
 	generate_audio?: boolean; // Default: true
 }

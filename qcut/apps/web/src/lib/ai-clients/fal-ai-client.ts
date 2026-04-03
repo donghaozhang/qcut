@@ -50,6 +50,9 @@ import {
 	veo31TextToVideo,
 	veo31ImageToVideo,
 	veo31FrameToVideo,
+	veo31LiteTextToVideo,
+	veo31LiteImageToVideo,
+	veo31LiteFrameToVideo,
 	veo31FastExtendVideo,
 	veo31ExtendVideo,
 } from "./fal-ai-client-veo31";
@@ -274,6 +277,7 @@ class FalAIClient {
 		return this.uploadFileToFal(file, "video");
 	}
 
+	/** Generate content using the specified FAL model. */
 	async generateWithModel(
 		modelKey: string,
 		prompt: string,
@@ -287,6 +291,7 @@ class FalAIClient {
 		);
 	}
 
+	/** Generate content across multiple FAL models in parallel. */
 	async generateWithMultipleModels(
 		modelKeys: string[],
 		prompt: string,
@@ -329,7 +334,7 @@ class FalAIClient {
 		return { hasKey: true, source };
 	}
 
-	// Utility methods
+	/** Test whether a FAL model endpoint is available. */
 	async testModelAvailability(modelKey: string): Promise<boolean> {
 		try {
 			// Check API key first
@@ -362,6 +367,7 @@ class FalAIClient {
 		}
 	}
 
+	/** Estimate generation time for a model and parameters. */
 	async estimateGenerationTime(
 		modelKeys: string[],
 		prompt: string
@@ -434,6 +440,37 @@ class FalAIClient {
 	}
 
 	// ============================================
+	// Veo 3.1 LITE Methods (budget tier)
+	// ============================================
+
+	async generateVeo31LiteTextToVideo(
+		params: Veo31TextToVideoInput
+	): Promise<VideoGenerationResponse> {
+		return veo31LiteTextToVideo(
+			{ makeRequest: this.makeRequest.bind(this) },
+			params
+		);
+	}
+
+	async generateVeo31LiteImageToVideo(
+		params: Veo31ImageToVideoInput
+	): Promise<VideoGenerationResponse> {
+		return veo31LiteImageToVideo(
+			{ makeRequest: this.makeRequest.bind(this) },
+			params
+		);
+	}
+
+	async generateVeo31LiteFrameToVideo(
+		params: Veo31FrameToVideoInput
+	): Promise<VideoGenerationResponse> {
+		return veo31LiteFrameToVideo(
+			{ makeRequest: this.makeRequest.bind(this) },
+			params
+		);
+	}
+
+	// ============================================
 	// Veo 3.1 STANDARD Methods (premium quality)
 	// ============================================
 
@@ -500,7 +537,7 @@ class FalAIClient {
 	}
 }
 
-// Add model-specific parameter conversion for image editing
+/** Convert model-specific parameters to FAL API format. */
 export function convertParametersForModel(modelId: string, params: any) {
 	switch (modelId) {
 		case "seededit":
@@ -554,6 +591,7 @@ export const falAIClient: FalAIClient = new Proxy({} as FalAIClient, {
 });
 
 // Export main functions for easy importing
+/** Generate content using the specified FAL model. */
 export async function generateWithModel(
 	modelKey: string,
 	prompt: string,
@@ -562,6 +600,7 @@ export async function generateWithModel(
 	return falAIClient.generateWithModel(modelKey, prompt, settings);
 }
 
+/** Generate content across multiple FAL models in parallel. */
 export async function generateWithMultipleModels(
 	modelKeys: string[],
 	prompt: string,
@@ -570,12 +609,14 @@ export async function generateWithMultipleModels(
 	return falAIClient.generateWithMultipleModels(modelKeys, prompt, settings);
 }
 
+/** Test whether a FAL model endpoint is available. */
 export async function testModelAvailability(
 	modelKey: string
 ): Promise<boolean> {
 	return falAIClient.testModelAvailability(modelKey);
 }
 
+/** Estimate generation time for a model and parameters. */
 export async function estimateGenerationTime(
 	modelKeys: string[],
 	prompt: string
@@ -583,7 +624,7 @@ export async function estimateGenerationTime(
 	return falAIClient.estimateGenerationTime(modelKeys, prompt);
 }
 
-// Helper function to batch requests with rate limiting
+/** Generate multiple outputs in a batch request. */
 export async function batchGenerate(
 	requests: Array<{
 		modelKey: string;

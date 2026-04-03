@@ -9,6 +9,7 @@
 import {
 	handleVeo31FastT2V,
 	handleVeo31T2V,
+	handleVeo31LiteT2V,
 	handleHailuo23T2V,
 	handleLTXV2ProT2V,
 	handleLTXV2FastT2V,
@@ -23,6 +24,8 @@ import {
 	handleVeo31I2V,
 	handleVeo31FastF2V,
 	handleVeo31F2V,
+	handleVeo31LiteI2V,
+	handleVeo31LiteF2V,
 	handleViduQ2I2V,
 	handleLTXV2I2V,
 	handleLTXV2FastI2V,
@@ -31,11 +34,14 @@ import {
 	handleSeedanceProI2V,
 	handleKlingV25I2V,
 	handleKlingV26I2V,
+} from "./handlers/image-to-video-handlers";
+import {
 	handleWAN25I2V,
 	handleWAN26I2V,
 	handleViduQ3I2V,
+	handlePixverseV6I2V,
 	handleGenericI2V,
-} from "./handlers/image-to-video-handlers";
+} from "./handlers/image-to-video-handlers-ext";
 import {
 	handleByteDanceUpscale,
 	handleFlashVSRUpscale,
@@ -76,8 +82,10 @@ import { enforceCreditRequirement } from "@/lib/license/credit-guard";
 export const VEO31_FRAME_MODELS = new Set([
 	"veo31_fast_frame_to_video",
 	"veo31_frame_to_video",
+	"veo31_lite_frame_to_video",
 ]);
 
+/** Parse Veo duration string to seconds. */
 function parseVeoDuration({
 	duration,
 }: {
@@ -86,6 +94,7 @@ function parseVeoDuration({
 	return Number.parseInt(duration.replace("s", ""), 10);
 }
 
+/** Get duration in seconds for a text-to-video model. */
 function getTextToVideoDurationSeconds({
 	modelId,
 	settings,
@@ -95,7 +104,8 @@ function getTextToVideoDurationSeconds({
 }): number | undefined {
 	if (
 		modelId === "veo31_fast_text_to_video" ||
-		modelId === "veo31_text_to_video"
+		modelId === "veo31_text_to_video" ||
+		modelId === "veo31_lite_text_to_video"
 	) {
 		return parseVeoDuration({ duration: settings.veo31Settings.duration });
 	}
@@ -120,6 +130,7 @@ function getTextToVideoDurationSeconds({
 	return settings.duration;
 }
 
+/** Get duration in seconds for an image-to-video model. */
 function getImageToVideoDurationSeconds({
 	modelId,
 	settings,
@@ -129,7 +140,11 @@ function getImageToVideoDurationSeconds({
 }): number | undefined {
 	if (
 		modelId === "veo31_fast_image_to_video" ||
-		modelId === "veo31_image_to_video"
+		modelId === "veo31_image_to_video" ||
+		modelId === "veo31_lite_image_to_video" ||
+		modelId === "veo31_fast_frame_to_video" ||
+		modelId === "veo31_frame_to_video" ||
+		modelId === "veo31_lite_frame_to_video"
 	) {
 		return parseVeoDuration({ duration: settings.veo31Settings.duration });
 	}
@@ -164,9 +179,13 @@ function getImageToVideoDurationSeconds({
 	if (modelId === "wan_26_i2v") {
 		return settings.wan26Duration;
 	}
+	if (modelId === "pixverse_v6_i2v") {
+		return (settings.duration as number) ?? 5;
+	}
 	return settings.duration;
 }
 
+/** Get duration in seconds for an avatar model. */
 function getAvatarDurationSeconds({
 	modelId,
 	settings,
@@ -180,6 +199,7 @@ function getAvatarDurationSeconds({
 	return settings.videoDuration ?? settings.audioDuration ?? undefined;
 }
 
+/** Verify the user has sufficient credits for generation. */
 async function ensureGenerationCredits({
 	modelId,
 	modelName,
@@ -235,6 +255,8 @@ export async function routeTextToVideoHandler(
 			return handleVeo31FastT2V(ctx, settings);
 		case "veo31_text_to_video":
 			return handleVeo31T2V(ctx, settings);
+		case "veo31_lite_text_to_video":
+			return handleVeo31LiteT2V(ctx, settings);
 		case "hailuo23_standard_t2v":
 		case "hailuo23_pro_t2v":
 			return handleHailuo23T2V(ctx, settings);
@@ -283,6 +305,10 @@ export async function routeImageToVideoHandler(
 			return handleVeo31FastF2V(ctx, settings);
 		case "veo31_frame_to_video":
 			return handleVeo31F2V(ctx, settings);
+		case "veo31_lite_image_to_video":
+			return handleVeo31LiteI2V(ctx, settings);
+		case "veo31_lite_frame_to_video":
+			return handleVeo31LiteF2V(ctx, settings);
 		case "vidu_q2_turbo_i2v":
 			return handleViduQ2I2V(ctx, settings);
 		case "vidu_q3_i2v":
@@ -307,6 +333,8 @@ export async function routeImageToVideoHandler(
 			return handleWAN25I2V(ctx, settings);
 		case "wan_26_i2v":
 			return handleWAN26I2V(ctx, settings);
+		case "pixverse_v6_i2v":
+			return handlePixverseV6I2V(ctx, settings);
 		default:
 			if (
 				VEO31_FRAME_MODELS.has(ctx.modelId) &&

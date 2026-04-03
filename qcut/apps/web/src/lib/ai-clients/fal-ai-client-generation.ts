@@ -2,6 +2,7 @@ import {
 	TEXT2IMAGE_MODELS,
 	type Text2ImageModel,
 } from "../ai-models/text2image-models";
+import { WAN_27_IMAGE_SIZE_OPTIONS } from "../text2image-models/wan-models";
 import { debugLogger } from "../debug/debug-logger";
 import { handleAIServiceError } from "../debug/error-handler";
 import {
@@ -17,6 +18,7 @@ import {
 	type MultiModelGenerationResult,
 } from "./fal-ai-client-internal-types";
 
+/** Convert generation settings to FAL API parameters for a given model. */
 export function convertSettingsToParams(
 	model: Text2ImageModel,
 	prompt: string,
@@ -62,6 +64,30 @@ export function convertSettingsToParams(
 		case "wan-v2-2":
 			params.image_size = settings.imageSize;
 			break;
+
+		case "wan-v2-7-t2i":
+		case "wan-v2-7-pro-t2i":
+		case "wan-v2-7-edit":
+		case "wan-v2-7-pro-edit": {
+			if (
+				typeof settings.imageSize === "string" &&
+				WAN_27_IMAGE_SIZE_OPTIONS.includes(settings.imageSize)
+			) {
+				params.image_size = settings.imageSize;
+			} else {
+				params.image_size = "square_hd";
+			}
+			if (settings.negativePrompt)
+				params.negative_prompt = settings.negativePrompt.slice(0, 500);
+			// Edit-specific params
+			if (model.id === "wan-v2-7-edit" || model.id === "wan-v2-7-pro-edit") {
+				params.enable_prompt_expansion = true;
+				if (settings.imageUrls && settings.imageUrls.length > 0) {
+					params.image_urls = settings.imageUrls.slice(0, 4);
+				}
+			}
+			break;
+		}
 
 		case "flux-2-flex":
 			params.image_size = settings.imageSize;
@@ -251,6 +277,7 @@ export function convertSettingsToParams(
 	return params;
 }
 
+/** Generate an image using the specified model and settings. */
 export async function generateWithModel(
 	delegate: FalAIClientRequestDelegate,
 	modelKey: string,
@@ -317,6 +344,7 @@ export async function generateWithModel(
 	}
 }
 
+/** Generate images across multiple models in parallel. */
 export async function generateWithMultipleModels(
 	delegate: FalAIClientRequestDelegate,
 	modelKeys: string[],

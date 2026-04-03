@@ -36,6 +36,7 @@ export interface StepOutput {
 
 export type DataType = "text" | "image" | "video" | "audio";
 
+/** Get the expected input data type for a model category. */
 export function getInputDataType(category: ModelCategory): DataType {
 	switch (category) {
 		case "text_to_image":
@@ -61,6 +62,7 @@ export function getInputDataType(category: ModelCategory): DataType {
 	}
 }
 
+/** Get the expected output data type for a model category. */
 export function getOutputDataType(category: ModelCategory): DataType {
 	switch (category) {
 		case "text_to_image":
@@ -99,6 +101,7 @@ function getProviderForEndpoint(
 	return "fal";
 }
 
+/** Execute a single pipeline step with the given model, input, and parameters. */
 export async function executeStep(
 	model: ModelDefinition,
 	input: StepInput,
@@ -163,6 +166,39 @@ async function executeTextToImage(
 	}
 ): Promise<StepOutput> {
 	payload.prompt = input.text || payload.prompt;
+
+	// Models that use image_size instead of aspect_ratio
+	const usesImageSize =
+		model.endpoint.startsWith("fal-ai/wan/") ||
+		model.endpoint.startsWith("fal-ai/bytedance/seedream/") ||
+		model.endpoint === "fal-ai/phota";
+	if (usesImageSize && payload.aspect_ratio) {
+		const ratioMap: Record<string, string> = {
+			"1:1": "square_hd",
+			"4:3": "landscape_4_3",
+			"3:4": "portrait_4_3",
+			"16:9": "landscape_16_9",
+			"9:16": "portrait_16_9",
+		};
+		payload.image_size =
+			ratioMap[payload.aspect_ratio as string] || "square_hd";
+		delete payload.aspect_ratio;
+	}
+
+	// GPT Image uses image_size with pixel dimensions
+	if (model.endpoint.includes("gpt-image") && payload.aspect_ratio) {
+		const gptSizeMap: Record<string, string> = {
+			"1:1": "1024x1024",
+			"16:9": "1536x1024",
+			"9:16": "1024x1536",
+			"3:2": "1536x1024",
+			"2:3": "1024x1536",
+		};
+		payload.image_size =
+			gptSizeMap[payload.aspect_ratio as string] || "1024x1024";
+		delete payload.aspect_ratio;
+	}
+
 	const result = await callModelApi({
 		endpoint: model.endpoint,
 		payload,
@@ -663,6 +699,7 @@ async function executePromptGeneration(
 	return { success: false, error: result.error, duration: result.duration };
 }
 
+/** Extract text content from an API result. */
 function extractTextFromResult(data: unknown): string | undefined {
 	if (!data || typeof data !== "object") return;
 	const obj = data as Record<string, unknown>;
@@ -681,6 +718,7 @@ function extractTextFromResult(data: unknown): string | undefined {
 	return;
 }
 
+/** Map a raw API result to a normalized step output. */
 async function mapApiResult(
 	result: ApiCallResult,
 	outputDir?: string
@@ -715,6 +753,7 @@ async function mapApiResult(
 	};
 }
 
+/** Guess the file extension from a URL or content type. */
 function guessExtension(url: string): string {
 	const urlPath = url.split("?")[0];
 	if (urlPath.endsWith(".mp4")) return ".mp4";

@@ -5,6 +5,7 @@
 
 import { ModelRegistry } from "../infra/registry.js";
 
+/** Register all image-to-video models in the pipeline registry. */
 export function registerImageToVideoModels(): void {
 	ModelRegistry.register({
 		key: "hailuo",
@@ -502,6 +503,43 @@ export function registerImageToVideoModels(): void {
 	});
 
 	ModelRegistry.register({
+		key: "veo_3_1_lite",
+		name: "Veo 3.1 Lite",
+		provider: "Google (via FAL)",
+		endpoint: "fal-ai/veo3.1/lite/image-to-video",
+		categories: ["image_to_video"],
+		description: "Budget video generation with mandatory audio",
+		pricing: {
+			type: "per_second",
+			cost_720p: 0.05,
+			cost_1080p: 0.08,
+		},
+		durationOptions: ["4s", "6s", "8s"],
+		aspectRatios: ["auto", "16:9", "9:16"],
+		resolutions: ["720p", "1080p"],
+		defaults: {
+			duration: "8s",
+			resolution: "720p",
+			aspect_ratio: "auto",
+			generate_audio: true,
+			auto_fix: false,
+		},
+		features: ["audio_generation", "auto_fix", "budget_tier"],
+		maxDuration: 8,
+		extendedParams: ["start_frame", "audio_generate"],
+		extendedFeatures: {
+			start_frame: true,
+			end_frame: false,
+			ref_images: false,
+			audio_input: false,
+			audio_generate: true,
+			ref_video: false,
+		},
+		costEstimate: 0.4,
+		processingTime: 120,
+	});
+
+	ModelRegistry.register({
 		key: "wan_2_6",
 		name: "Wan v2.6",
 		provider: "Wan",
@@ -587,6 +625,49 @@ export function registerImageToVideoModels(): void {
 		},
 		costEstimate: 0.24,
 		processingTime: 60,
+	});
+
+	ModelRegistry.register({
+		key: "pixverse_v6",
+		name: "PixVerse v6",
+		provider: "PixVerse",
+		endpoint: "fal-ai/pixverse/v6/image-to-video",
+		categories: ["image_to_video"],
+		description:
+			"Stylized image-to-video with audio, style presets, and multi-clip",
+		pricing: {
+			type: "per_second",
+			cost_360p: 0.025,
+			cost_540p: 0.035,
+			cost_720p: 0.045,
+			cost_1080p: 0.09,
+		},
+		durationOptions: ["5", "8", "10", "15"],
+		resolutions: ["360p", "540p", "720p", "1080p"],
+		defaults: {
+			duration: "5",
+			resolution: "720p",
+			thinking_type: "auto",
+		},
+		features: [
+			"audio_generation",
+			"style_presets",
+			"multi_clip",
+			"seed_control",
+			"negative_prompt",
+		],
+		maxDuration: 15,
+		extendedParams: ["start_frame"],
+		extendedFeatures: {
+			start_frame: true,
+			end_frame: false,
+			ref_images: false,
+			audio_input: false,
+			audio_generate: true,
+			ref_video: false,
+		},
+		costEstimate: 0.23,
+		processingTime: 45,
 	});
 
 	ModelRegistry.register({

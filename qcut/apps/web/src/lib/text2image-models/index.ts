@@ -2,6 +2,7 @@ import { BYTEDANCE_MODELS } from "./bytedance-models";
 import { FLUX_MODELS } from "./flux-models";
 import { GOOGLE_MODELS } from "./google-models";
 import { OTHER_MODELS } from "./other-models";
+import { WAN_MODELS } from "./wan-models";
 import type { Text2ImageModel } from "./types";
 
 export type { Text2ImageModel } from "./types";
@@ -11,6 +12,7 @@ export const TEXT2IMAGE_MODELS: Record<string, Text2ImageModel> = {
 	...BYTEDANCE_MODELS,
 	...FLUX_MODELS,
 	...OTHER_MODELS,
+	...WAN_MODELS,
 };
 
 // ============================================
@@ -24,6 +26,8 @@ export const TEXT2IMAGE_MODEL_ORDER = [
 	"seeddream-v4-5",
 	"z-image-turbo",
 	"flux-2-flex",
+	"wan-v2-7-t2i",
+	"wan-v2-7-pro-t2i",
 	"seeddream-v4",
 	"reve-text-to-image",
 	"wan-v2-2",
@@ -35,35 +39,40 @@ export const TEXT2IMAGE_MODEL_ORDER = [
 
 export type Text2ImageModelId = (typeof TEXT2IMAGE_MODEL_ORDER)[number];
 
+/** Get text-to-image model entries sorted by priority. */
 export function getText2ImageModelEntriesInPriorityOrder() {
 	return TEXT2IMAGE_MODEL_ORDER.filter(
 		(modelId) => TEXT2IMAGE_MODELS[modelId] !== undefined
 	).map((modelId) => [modelId, TEXT2IMAGE_MODELS[modelId]] as const);
 }
 
-// Helper functions
+/** Look up a text-to-image model by its ID. */
 export function getModelById(id: string): Text2ImageModel | undefined {
 	return TEXT2IMAGE_MODELS[id];
 }
 
+/** Get text-to-image models filtered by provider name. */
 export function getModelsByProvider(provider: string): Text2ImageModel[] {
 	return Object.values(TEXT2IMAGE_MODELS).filter(
 		(model) => model.provider === provider
 	);
 }
 
+/** Get text-to-image models with a minimum quality rating. */
 export function getModelsByQuality(minRating: number): Text2ImageModel[] {
 	return Object.values(TEXT2IMAGE_MODELS).filter(
 		(model) => model.qualityRating >= minRating
 	);
 }
 
+/** Get text-to-image models with a minimum speed rating. */
 export function getModelsBySpeed(minRating: number): Text2ImageModel[] {
 	return Object.values(TEXT2IMAGE_MODELS).filter(
 		(model) => model.speedRating >= minRating
 	);
 }
 
+/** Get the cost range across all text-to-image models. */
 export function getCostRange(): { min: number; max: number } {
 	const costs = Object.values(TEXT2IMAGE_MODELS).map((m) => m.costPerImage);
 	if (costs.length === 0) {
@@ -75,6 +84,7 @@ export function getCostRange(): { min: number; max: number } {
 	};
 }
 
+/** Recommend suitable models based on prompt characteristics. */
 export function recommendModelsForPrompt(prompt: string): string[] {
 	const lowercasePrompt = prompt.toLowerCase();
 
@@ -106,6 +116,7 @@ export const MODEL_CATEGORIES = {
 	PHOTOREALISTIC: [
 		"imagen4-ultra",
 		"wan-v2-2",
+		"wan-v2-7-pro-t2i",
 		"gemini-3-pro",
 		"gpt-image-1-5",
 	],
@@ -117,7 +128,6 @@ export const MODEL_CATEGORIES = {
 		"nano-banana",
 		"reve-text-to-image",
 		"z-image-turbo",
-		"seeddream-v4-5-edit",
 		"phota",
 	],
 	FAST: [
@@ -127,10 +137,12 @@ export const MODEL_CATEGORIES = {
 		"qwen-image",
 		"reve-text-to-image",
 		"flux-2-flex",
+		"wan-v2-7-t2i",
 	],
 	HIGH_QUALITY: [
 		"imagen4-ultra",
 		"wan-v2-2",
+		"wan-v2-7-pro-t2i",
 		"flux-pro-v11-ultra",
 		"flux-2-flex",
 		"seeddream-v4",
@@ -145,5 +157,6 @@ export const MODEL_CATEGORIES = {
 		"qwen-image",
 		"reve-text-to-image",
 		"flux-2-flex",
+		"wan-v2-7-t2i",
 	],
 } as const;

@@ -66,6 +66,7 @@ export type {
 	ByteDanceUpscaleRequest,
 	FlashVSRUpscaleRequest,
 	TopazUpscaleRequest,
+	PixverseV6I2VRequest,
 } from "./request-types";
 
 // Lipsync types

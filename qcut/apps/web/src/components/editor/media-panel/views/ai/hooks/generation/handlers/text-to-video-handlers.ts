@@ -33,6 +33,7 @@ type LTX23Resolution = "1080p" | "1440p" | "2160p";
 type LTX23FPS = 24 | 25 | 48 | 50;
 type LTX23AspectRatio = "16:9" | "9:16";
 
+/** Handle Veo 3.1 Fast text-to-video generation. */
 export async function handleVeo31FastT2V(
 	ctx: ModelHandlerContext,
 	settings: TextToVideoSettings
@@ -78,6 +79,35 @@ export async function handleVeo31T2V(
 			resolution: settings.veo31Settings.resolution,
 			generate_audio: settings.veo31Settings.generateAudio,
 			enhance_prompt: settings.veo31Settings.enhancePrompt,
+			auto_fix: settings.veo31Settings.autoFix,
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/**
+ * Handle Veo 3.1 Lite text-to-video generation
+ */
+export async function handleVeo31LiteT2V(
+	ctx: ModelHandlerContext,
+	settings: TextToVideoSettings
+): Promise<ModelHandlerResult> {
+	try {
+		const response = await falAIClient.generateVeo31LiteTextToVideo({
+			prompt: ctx.prompt,
+			aspect_ratio: (() => {
+				const ar = settings.veo31Settings.aspectRatio;
+				return ar === "auto" || ar === "1:1" ? undefined : ar;
+			})(),
+			duration: settings.veo31Settings.duration,
+			resolution: settings.veo31Settings.resolution,
+			generate_audio: true,
 			auto_fix: settings.veo31Settings.autoFix,
 		});
 		return { response };

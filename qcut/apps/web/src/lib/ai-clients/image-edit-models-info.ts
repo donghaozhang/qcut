@@ -3,9 +3,7 @@
  * Extracted from image-edit-client.ts for modularity
  */
 
-/**
- * Get model information
- */
+/** Get the list of available image editing models with metadata. */
 export function getImageEditModels() {
 	return [
 		{
@@ -308,6 +306,70 @@ export function getImageEditModels() {
 					options: ["jpeg", "png", "webp"],
 					default: "jpeg",
 				},
+			},
+		},
+		{
+			id: "wan-v2-7-edit",
+			name: "Wan 2.7 Edit",
+			description:
+				"Wan 2.7 image editing with 1-4 reference images and bilingual prompts",
+			provider: "Wan",
+			estimatedCost: "$0.04-0.06",
+			features: [
+				"1-4 reference images",
+				"Order-aware references",
+				"Prompt expansion",
+				"Bilingual prompts (Chinese/English)",
+			],
+			parameters: {
+				imageSize: {
+					type: "select",
+					options: [
+						"square_hd",
+						"square",
+						"portrait_4_3",
+						"portrait_16_9",
+						"landscape_4_3",
+						"landscape_16_9",
+					],
+					default: "square_hd",
+				},
+				numImages: { min: 1, max: 4, default: 1, step: 1 },
+				enablePromptExpansion: { type: "boolean", default: true },
+				enableSafetyChecker: { type: "boolean", default: true },
+				seed: { optional: true },
+			},
+		},
+		{
+			id: "wan-v2-7-pro-edit",
+			name: "Wan 2.7 Pro Edit",
+			description:
+				"Wan 2.7 Pro image editing — higher quality multi-image editing with bilingual prompts",
+			provider: "Wan",
+			estimatedCost: "$0.06-0.10",
+			features: [
+				"Higher quality output",
+				"1-4 reference images",
+				"Order-aware references",
+				"Prompt expansion",
+			],
+			parameters: {
+				imageSize: {
+					type: "select",
+					options: [
+						"square_hd",
+						"square",
+						"portrait_4_3",
+						"portrait_16_9",
+						"landscape_4_3",
+						"landscape_16_9",
+					],
+					default: "square_hd",
+				},
+				numImages: { min: 1, max: 4, default: 1, step: 1 },
+				enablePromptExpansion: { type: "boolean", default: true },
+				enableSafetyChecker: { type: "boolean", default: true },
+				seed: { optional: true },
 			},
 		},
 		{

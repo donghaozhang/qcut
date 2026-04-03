@@ -79,6 +79,7 @@ export const CATEGORIES: CategoryDef[] = [
 			"create-video",
 			"generate-avatar",
 			"generate-grid",
+			"stamp-image",
 			"upscale-image",
 			"transfer-motion",
 			"generate-remotion",
@@ -193,6 +194,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 					"recraft_v4",
 					"ideogram_3",
 					"dall_e_3",
+					"wan_v2_7_t2i",
+					"wan_v2_7_pro_t2i",
+					"wan_v2_7_edit",
+					"wan_v2_7_pro_edit",
 				],
 			}),
 			f("--aspect-ratio", "string", "Aspect ratio (e.g. 16:9, 9:16)"),
@@ -288,6 +293,41 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		],
 		examples: [
 			"qcut-pipeline generate-grid -t 'Seasons of a tree' --layout 2x2",
+		],
+	},
+	"stamp-image": {
+		name: "stamp-image",
+		description: "Add logo and/or text overlay to an image",
+		category: "generation",
+		flags: [
+			f("--input", "string", "Input image path", {
+				short: "-i",
+				required: true,
+			}),
+			f("--text", "string", "Text label (e.g. model name)", { short: "-t" }),
+			f(
+				"--image-url",
+				"string",
+				'Logo path (default: QCut logo, "none" to skip)'
+			),
+			f(
+				"--data",
+				"string",
+				"Position: top-left, top-right, bottom-left, bottom-right",
+				{
+					default: "bottom-right",
+				}
+			),
+			f(
+				"--duration",
+				"string",
+				"Logo scale factor relative to image height (default: 0.08)"
+			),
+		],
+		examples: [
+			"qcut-pipeline stamp-image -i photo.png -t 'Wan 2.7 Pro'",
+			"qcut-pipeline stamp-image -i photo.png --image-url /path/to/logo.png -t 'Model X' --data top-right",
+			"qcut-pipeline stamp-image -i photo.png --image-url none -t 'Text only'",
 		],
 	},
 	"upscale-image": {

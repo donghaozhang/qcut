@@ -213,6 +213,28 @@ export const MODEL_ENDPOINTS: Record<string, ModelEndpoint> = {
 		},
 	},
 
+	// Wan 2.7 Edit endpoint
+	"wan-v2-7-edit": {
+		endpoint: "fal-ai/wan/v2.7/edit",
+		defaultParams: {
+			image_size: "square_hd",
+			num_images: 1,
+			enable_prompt_expansion: true,
+			enable_safety_checker: true,
+		},
+	},
+
+	// Wan 2.7 Pro Edit endpoint
+	"wan-v2-7-pro-edit": {
+		endpoint: "fal-ai/wan/v2.7/pro/edit",
+		defaultParams: {
+			image_size: "square_hd",
+			num_images: 1,
+			enable_prompt_expansion: true,
+			enable_safety_checker: true,
+		},
+	},
+
 	// GPT Image 1.5 Edit endpoint
 	"gpt-image-1-5-edit": {
 		endpoint: "fal-ai/gpt-image-1.5/edit",
@@ -256,9 +278,7 @@ export const MODEL_ENDPOINTS: Record<string, ModelEndpoint> = {
 	},
 };
 
-/**
- * Upload image to FAL.ai and get URL
- */
+/** Upload a single image to FAL storage. */
 export async function uploadImageToFAL(imageFile: File): Promise<string> {
 	const apiKey = await getFalApiKey();
 	if (!apiKey) {
@@ -310,12 +330,7 @@ export async function uploadImageToFAL(imageFile: File): Promise<string> {
 	});
 }
 
-/**
- * Upload multiple images to FAL.ai in parallel
- * @param imageFiles - Array of File objects to upload
- * @param onProgress - Optional callback for upload progress
- * @returns Promise resolving to array of uploaded image URLs
- */
+/** Upload multiple images to FAL storage in parallel. */
 export async function uploadImagesToFAL(
 	imageFiles: File[],
 	onProgress?: (completed: number, total: number) => void
@@ -341,9 +356,7 @@ export async function uploadImagesToFAL(
 	return results;
 }
 
-/**
- * Edit image using specified model
- */
+/** Edit an image using the specified model and parameters. */
 export async function editImage(
 	request: ImageEditRequest,
 	onProgress?: ImageEditProgressCallback
@@ -673,9 +686,7 @@ export async function editImage(
 	}
 }
 
-/**
- * Upscale image using dedicated upscale models
- */
+/** Upscale an image using FAL's upscaling models. */
 export async function upscaleImage(
 	request: ImageUpscaleRequest,
 	onProgress?: ImageEditProgressCallback
