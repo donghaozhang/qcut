@@ -152,6 +152,7 @@ export function useExportProgress() {
 					includeAudio: exportSettings.includeAudio,
 					audioCodec: exportSettings.audioCodec,
 					audioBitrate: exportSettings.audioBitrate,
+					gifConfig: exportSettings.gifConfig,
 				},
 				tracks,
 				mediaItems,

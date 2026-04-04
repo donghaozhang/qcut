@@ -17,7 +17,7 @@ import {
 
 // Custom hook imports
 import type { ExportFormat, ExportQuality, GifFrameRate } from "@/types/export";
-import { DEFAULT_GIF_CONFIG } from "@/types/export";
+import { DEFAULT_GIF_CONFIG, isValidGifFrameRate } from "@/types/export";
 import { useExportSettings } from "@/hooks/export/use-export-settings";
 import { useExportProgress } from "@/hooks/export/use-export-progress";
 import { debugLog, debugWarn } from "@/lib/debug/debug-config";
@@ -401,7 +401,11 @@ export function ExportDialog() {
 				{exportSettings.format === "gif" && (
 					<GifOptionsCard
 						frameRate={gifFrameRate}
-						onFrameRateChange={(fps) => setGifFrameRate(fps as GifFrameRate)}
+						onFrameRateChange={(fps) => {
+									if (isValidGifFrameRate(fps)) {
+										setGifFrameRate(fps);
+									}
+								}}
 						loop={gifLoop}
 						onLoopChange={setGifLoop}
 						quality={gifQuality}

@@ -22,9 +22,9 @@ Create Electron IPC handlers for wallpaper file management.
 **API surface**:
 ```typescript
 window.electronAPI.wallpapers.list(): Promise<WallpaperEntry[]>
-window.electronAPI.wallpapers.upload(filePath: string): Promise<WallpaperEntry>
-window.electronAPI.wallpapers.delete(id: string): Promise<void>
-window.electronAPI.wallpapers.getPath(id: string): Promise<string>
+window.electronAPI.wallpapers.upload(filePath: string): Promise<WallpaperEntry | null>
+window.electronAPI.wallpapers.delete(id: string): Promise<boolean>
+window.electronAPI.wallpapers.pick(): Promise<string | null>
 ```
 
 **Storage**: `{userData}/wallpapers/` directory with copied files.
@@ -37,12 +37,11 @@ window.electronAPI.wallpapers.getPath(id: string): Promise<string>
 Replace manual path input with a visual wallpaper browser.
 
 **Files**:
-- `apps/web/src/components/screen-recording/background-settings.tsx` (lines 151-168) — replace path input
-- `apps/web/src/components/screen-recording/wallpaper-picker.tsx` (new) — thumbnail grid + upload button
+- `apps/web/src/components/editor/screen-recording-panel/background-settings.tsx` — WallpaperPicker inline component
 
 **Behavior**:
 - Grid of wallpaper thumbnails from `wallpapers.list()`
-- Upload button opens native file dialog via `electronAPI.files.openDialog()`
+- Upload button opens native file dialog via `electronAPI.wallpapers.pick()`
 - Delete button on each thumbnail
 - Selected wallpaper highlighted
 - Fallback: keep path input for non-Electron environments

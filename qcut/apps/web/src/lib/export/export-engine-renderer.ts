@@ -51,6 +51,12 @@ function getExportCompositor(
 		const totalDurationMs =
 			points && points.length > 0 ? points[points.length - 1].t : undefined;
 
+		if (state.cursorLoopMode && totalDurationMs === undefined) {
+			console.warn(
+				"[ExportCompositor] cursorLoopMode enabled but totalDurationMs is undefined — cursor loop will not activate"
+			);
+		}
+
 		const config: ExportCompositorConfig = {
 			background: state.background,
 			cursorConfig: state.cursorConfig,

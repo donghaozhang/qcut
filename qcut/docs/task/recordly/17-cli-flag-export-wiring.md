@@ -2,11 +2,11 @@
 
 **Priority**: P1
 **Estimate**: Medium (~20 min)
-**Status**: DONE (verified — CLI flags already fully wired through HTTP body → ResolvedExportSettings → cursor-composite.ts)
+**Status**: DONE (verified — CLI flags fully wired through HTTP body → ResolvedExportSettings → cursor-composite.ts)
 
 ## Goal
 
-CLI flags (`--cursor-sway`, `--cursor-blur`, `--cursor-loop`, `--auto-zoom`, `--zoom-blur`, `--gif-*`) are registered in the command registry and parsed into `CLIRunOptions`, but the values are not fully forwarded to the export engine config. Fix the pipeline from flag → HTTP body → export engine → compositor.
+Ensure CLI flags (`--cursor-sway`, `--cursor-blur`, `--cursor-loop`, `--auto-zoom`, `--zoom-blur`, `--gif-*`) are forwarded from flag → HTTP body → export engine → compositor.
 
 ## Subtasks
 
@@ -15,7 +15,7 @@ CLI flags (`--cursor-sway`, `--cursor-blur`, `--cursor-loop`, `--auto-zoom`, `--
 Verify and fix flag-to-body mapping in the editor export handler.
 
 **Files**:
-- `electron/native-pipeline/cli/editor-handlers-generate.ts` (lines 289-342) — builds HTTP request body
+- `electron/native-pipeline/editor/editor-handlers-generate.ts` (lines 305-342) — builds HTTP request body
 - `electron/claude/handlers/claude-export-handler/export-engine.ts` — reads body fields
 
 **Verify each flag maps correctly**:
@@ -23,9 +23,9 @@ Verify and fix flag-to-body mapping in the editor export handler.
 |----------|-----------|-------------------|
 | `--cursor-sway` | `cursorConfig.sway` | `cursorConfig.sway` |
 | `--cursor-blur` | `cursorConfig.motionBlur` | `cursorConfig.motionBlur` |
-| `--cursor-loop` | `cursorLoopMode` | `cursorLoopMode` |
-| `--auto-zoom` | `autoZoom` | triggers `analyzeForZoomSuggestions()` |
-| `--zoom-blur` | `zoomMotionBlur` | `zoomMotionBlur` |
+| `--cursor-loop` | `cursorConfig.loopMode` | `cursorConfig.loopMode` |
+| `--auto-zoom` | `zoomConfig.autoZoom` | triggers `analyzeForZoomSuggestions()` |
+| `--zoom-blur` | `zoomConfig.motionBlur` | `zoomConfig.motionBlur` |
 | `--gif-fps` | `gifConfig.frameRate` | GIF conversion pass |
 | `--gif-loop` | `gifConfig.loop` | GIF conversion pass |
 | `--gif-quality` | `gifConfig.quality` | GIF conversion pass |

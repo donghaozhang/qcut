@@ -295,7 +295,11 @@ function WallpaperPicker({
 
 	const handleDelete = async (id: string) => {
 		if (!hasElectron) return;
+		const deleted = entries.find((e) => e.id === id);
 		await window.electronAPI!.wallpapers.delete(id);
+		if (deleted && selectedPath === deleted.path) {
+			onSelect("");
+		}
 		refresh();
 	};
 
@@ -325,15 +329,22 @@ function WallpaperPicker({
 				{entries.length > 0 && (
 					<div className="grid grid-cols-4 gap-1">
 						{entries.map((entry) => (
-							<button
+							<div
 								key={entry.id}
-								type="button"
+								role="button"
+								tabIndex={0}
 								className={`relative h-10 rounded border-2 cursor-pointer overflow-hidden transition-transform hover:scale-105 ${
 									selectedPath === entry.path
 										? "border-primary ring-1 ring-primary"
 										: "border-transparent"
 								}`}
 								onClick={() => onSelect(entry.path)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										e.preventDefault();
+										onSelect(entry.path);
+									}
+								}}
 								title={entry.name}
 								aria-label={`Select wallpaper ${entry.name}`}
 							>
@@ -353,7 +364,7 @@ function WallpaperPicker({
 								>
 									x
 								</button>
-							</button>
+							</div>
 						))}
 					</div>
 				)}

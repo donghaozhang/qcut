@@ -1,6 +1,6 @@
 import { ipcMain, app, dialog } from "electron";
 import path from "path";
-import fs from "fs";
+import fs from "fs/promises";
 
 export interface WallpaperEntry {
 	id: string;
@@ -10,11 +10,9 @@ export interface WallpaperEntry {
 
 const SUPPORTED_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".avif"];
 
-function getWallpapersDir(): string {
+async function getWallpapersDir(): Promise<string> {
 	const dir = path.join(app.getPath("userData"), "wallpapers");
-	if (!fs.existsSync(dir)) {
-		fs.mkdirSync(dir, { recursive: true });
-	}
+	await fs.mkdir(dir, { recursive: true });
 	return dir;
 }
 
@@ -25,7 +23,7 @@ function isImageFile(filename: string): boolean {
 
 function fileToEntry(dir: string, filename: string): WallpaperEntry {
 	return {
-		id: path.parse(filename).name,
+		id: filename,
 		name: path.parse(filename).name,
 		path: path.join(dir, filename),
 	};
@@ -33,8 +31,8 @@ function fileToEntry(dir: string, filename: string): WallpaperEntry {
 
 export function setupWallpaperIPC(): void {
 	ipcMain.handle("wallpapers:list", async (): Promise<WallpaperEntry[]> => {
-		const dir = getWallpapersDir();
-		const files = fs.readdirSync(dir).filter(isImageFile).sort();
+		const dir = await getWallpapersDir();
+		const files = (await fs.readdir(dir)).filter(isImageFile).sort();
 		return files.map((f) => fileToEntry(dir, f));
 	});
 
@@ -44,13 +42,23 @@ export function setupWallpaperIPC(): void {
 			_event,
 			sourcePath: string
 		): Promise<WallpaperEntry | null> => {
-			if (!fs.existsSync(sourcePath) || !isImageFile(sourcePath)) {
+			if (!isImageFile(sourcePath)) return null;
+			try {
+				await fs.access(sourcePath);
+			} catch {
 				return null;
 			}
-			const dir = getWallpapersDir();
-			const filename = path.basename(sourcePath);
+			const dir = await getWallpapersDir();
+			let filename = path.basename(sourcePath);
 			const dest = path.join(dir, filename);
-			fs.copyFileSync(sourcePath, dest);
+			try {
+				await fs.access(dest);
+				const { name, ext } = path.parse(filename);
+				filename = `${name}-${Date.now()}${ext}`;
+			} catch {
+				// dest doesn't exist, no conflict
+			}
+			await fs.copyFile(sourcePath, path.join(dir, filename));
 			return fileToEntry(dir, filename);
 		}
 	);
@@ -58,12 +66,14 @@ export function setupWallpaperIPC(): void {
 	ipcMain.handle(
 		"wallpapers:delete",
 		async (_event, id: string): Promise<boolean> => {
-			const dir = getWallpapersDir();
-			const files = fs.readdirSync(dir).filter(isImageFile);
-			const match = files.find((f) => path.parse(f).name === id);
-			if (!match) return false;
-			fs.unlinkSync(path.join(dir, match));
-			return true;
+			const dir = await getWallpapersDir();
+			const filePath = path.join(dir, id);
+			try {
+				await fs.unlink(filePath);
+				return true;
+			} catch {
+				return false;
+			}
 		}
 	);
 
@@ -85,4 +95,3 @@ export function setupWallpaperIPC(): void {
 	);
 }
 
-module.exports = { setupWallpaperIPC };

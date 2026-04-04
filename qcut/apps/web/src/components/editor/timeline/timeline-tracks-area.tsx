@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ScrollArea } from "../../ui/scroll-area";
 import { Bookmark } from "lucide-react";
 import {
@@ -86,14 +86,17 @@ export function TimelineTracksArea({
 	);
 
 	// Compute timeline duration from tracks for speed region positioning
-	const timelineDurationMs =
-		tracks.reduce((max, track) => {
-			for (const el of track.elements) {
-				const end = (el.startTime + el.duration - el.trimStart - el.trimEnd) * 1000;
-				if (end > max) max = end;
-			}
-			return max;
-		}, 0);
+	const timelineDurationMs = useMemo(
+		() =>
+			tracks.reduce((max, track) => {
+				for (const el of track.elements) {
+					const end = (el.startTime + el.duration - el.trimStart - el.trimEnd) * 1000;
+					if (end > max) max = end;
+				}
+				return max;
+			}, 0),
+		[tracks]
+	);
 
 	return (
 		<div className="flex-1 flex overflow-hidden">
@@ -180,7 +183,8 @@ export function TimelineTracksArea({
 									getTotalTracksHeight(tracks) +
 										(EFFECTS_ENABLED && tracks.length > 0 && showEffectsTrack
 											? TIMELINE_CONSTANTS.TRACK_HEIGHT
-											: 0)
+											: 0) +
+										(hasSpeedRegions && tracks.length > 0 ? 24 : 0)
 								)
 							)}px`,
 							width: `${dynamicTimelineWidth}px`,
