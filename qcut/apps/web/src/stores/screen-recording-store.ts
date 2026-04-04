@@ -65,6 +65,10 @@ interface ScreenRecordingEnhancementState {
 	cursorLoopMode: boolean;
 	setCursorLoopMode: (enabled: boolean) => void;
 
+	/** Zoom motion blur intensity (0–1, default 0 = off) */
+	zoomMotionBlur: number;
+	setZoomMotionBlur: (value: number) => void;
+
 	/** Microphone configuration */
 	micEnabled: boolean;
 	setMicEnabled: (enabled: boolean) => void;
@@ -170,6 +174,10 @@ export const useScreenRecordingEnhancementStore =
 
 		cursorLoopMode: false,
 		setCursorLoopMode: (enabled) => set({ cursorLoopMode: enabled }),
+
+		zoomMotionBlur: 0,
+		setZoomMotionBlur: (value) =>
+			set({ zoomMotionBlur: Math.max(0, Math.min(1, value)) }),
 
 		micEnabled: false,
 		setMicEnabled: (enabled) => set({ micEnabled: enabled }),

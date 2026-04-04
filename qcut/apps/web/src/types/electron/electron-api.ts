@@ -38,6 +38,7 @@ import type { ElectronUpdateOps } from "./api-updates";
 import type { ElectronLicenseOps } from "./api-license";
 import type { ElectronPiAgentOps } from "./api-pi-agent";
 import type { ElectronYouTubeOps } from "./api-youtube";
+import type { ElectronWallpaperOps } from "./api-wallpapers";
 import type {
 	AIPipelineProgress,
 	AIPipelineGenerateOptions,
@@ -76,7 +77,8 @@ export interface ElectronAPI
 		ElectronUpdateOps,
 		ElectronLicenseOps,
 		ElectronPiAgentOps,
-		ElectronYouTubeOps {
+		ElectronYouTubeOps,
+		ElectronWallpaperOps {
 	// System info
 	platform: string;
 	isElectron: boolean;

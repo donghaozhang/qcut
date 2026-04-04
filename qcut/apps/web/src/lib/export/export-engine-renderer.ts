@@ -28,6 +28,8 @@ import {
 	useScreenRecordingEnhancementStore,
 	hasActiveEnhancements,
 } from "@/stores/screen-recording-store";
+import { useWebcamOverlayStore } from "@/stores/webcam-overlay-store";
+import { useFigureAnnotationsStore } from "@/stores/figure-annotations-store";
 
 let exportCompositor: ScreenRecordingExportCompositor | null = null;
 let compositorFrameCanvas: HTMLCanvasElement | null = null;
@@ -41,6 +43,20 @@ function getExportCompositor(
 	if (!hasActiveEnhancements(state)) return null;
 
 	if (!exportCompositor) {
+		const webcamState = useWebcamOverlayStore.getState();
+		const figureState = useFigureAnnotationsStore.getState();
+
+		// Derive total duration from telemetry (last point timestamp)
+		const points = state.cursorTelemetry?.points;
+		const totalDurationMs =
+			points && points.length > 0 ? points[points.length - 1].t : undefined;
+
+		if (state.cursorLoopMode && totalDurationMs === undefined) {
+			console.warn(
+				"[ExportCompositor] cursorLoopMode enabled but totalDurationMs is undefined — cursor loop will not activate"
+			);
+		}
+
 		const config: ExportCompositorConfig = {
 			background: state.background,
 			cursorConfig: state.cursorConfig,
@@ -48,6 +64,12 @@ function getExportCompositor(
 			telemetry: state.cursorTelemetry,
 			outputWidth: canvas.width,
 			outputHeight: canvas.height,
+			cursorLoopMode: state.cursorLoopMode,
+			totalDurationMs,
+			speedRegions: state.speedRegions,
+			webcamConfig: webcamState.config,
+			figureAnnotations: [...figureState.annotations.values()],
+			zoomMotionBlur: state.zoomMotionBlur,
 		};
 		exportCompositor = new ScreenRecordingExportCompositor(config);
 	}

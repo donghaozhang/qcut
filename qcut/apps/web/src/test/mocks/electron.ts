@@ -266,6 +266,18 @@ export const mockElectronAPI: ElectronAPI = {
 		onProgress: vi.fn(() => vi.fn()),
 	},
 
+	// Wallpaper operations
+	wallpapers: {
+		list: vi.fn().mockResolvedValue([]),
+		upload: vi.fn().mockResolvedValue({
+			id: "test-wallpaper",
+			name: "test-wallpaper",
+			path: "/tmp/wallpapers/test-wallpaper.jpg",
+		}),
+		delete: vi.fn().mockResolvedValue(true),
+		pick: vi.fn().mockResolvedValue("/tmp/test-wallpaper.jpg"),
+	},
+
 	// Media import operations (symlink with copy fallback)
 	mediaImport: {
 		import: vi.fn().mockResolvedValue({

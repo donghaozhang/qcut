@@ -253,7 +253,9 @@ export interface AudioExportOptions {
  */
 export interface ExportSettingsWithAudio
 	extends ExportSettings,
-		AudioExportOptions {}
+		AudioExportOptions {
+	gifConfig?: GifExportConfig;
+}
 
 /**
  * Type guard to check if settings include audio options

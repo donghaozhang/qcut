@@ -16,7 +16,8 @@ import {
 } from "@/lib/captions/caption-export";
 
 // Custom hook imports
-import type { ExportFormat, ExportQuality } from "@/types/export";
+import type { ExportFormat, ExportQuality, GifFrameRate } from "@/types/export";
+import { DEFAULT_GIF_CONFIG, isValidGifFrameRate } from "@/types/export";
 import { useExportSettings } from "@/hooks/export/use-export-settings";
 import { useExportProgress } from "@/hooks/export/use-export-progress";
 import { debugLog, debugWarn } from "@/lib/debug/debug-config";
@@ -38,6 +39,7 @@ import {
 	EngineCard,
 	FormatCard,
 	DetailsCard,
+	GifOptionsCard,
 } from "./export-settings-cards";
 import { CaptionExportCard, AudioExportCard } from "./export-media-cards";
 import { ExportWarnings } from "./export-warnings";
@@ -53,6 +55,11 @@ export function ExportDialog() {
 
 	// Audio export state (non-breaking addition)
 	const [includeAudio, setIncludeAudio] = useState(true); // Default to true for backward compatibility
+
+	// GIF export state
+	const [gifFrameRate, setGifFrameRate] = useState<GifFrameRate>(DEFAULT_GIF_CONFIG.frameRate);
+	const [gifLoop, setGifLoop] = useState(DEFAULT_GIF_CONFIG.loop);
+	const [gifQuality, setGifQuality] = useState(DEFAULT_GIF_CONFIG.quality);
 
 	// Check if there are caption tracks available
 	const hasCaptions = tracks.some(
@@ -229,6 +236,10 @@ export function ExportDialog() {
 			includeAudio: audioEnabled,
 			audioCodec,
 			audioBitrate: 128,
+			gifConfig:
+				exportSettings.format === "gif"
+					? { frameRate: gifFrameRate, loop: gifLoop, quality: gifQuality, sizePreset: "original" as const }
+					: undefined,
 		});
 	};
 
@@ -386,6 +397,22 @@ export function ExportDialog() {
 					onFormatChange={exportSettings.handleFormatChange}
 					isExporting={isExporting}
 				/>
+
+				{exportSettings.format === "gif" && (
+					<GifOptionsCard
+						frameRate={gifFrameRate}
+						onFrameRateChange={(fps) => {
+									if (isValidGifFrameRate(fps)) {
+										setGifFrameRate(fps);
+									}
+								}}
+						loop={gifLoop}
+						onLoopChange={setGifLoop}
+						quality={gifQuality}
+						onQualityChange={setGifQuality}
+						isExporting={isExporting}
+					/>
+				)}
 
 				<DetailsCard
 					resolution={exportSettings.resolution}

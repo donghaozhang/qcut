@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { ScrollArea } from "../../ui/scroll-area";
 import { Bookmark } from "lucide-react";
 import {
@@ -12,6 +13,8 @@ import { SelectionBox } from "../selection-box";
 import { TimelineTrackContent } from "./timeline-track";
 import { EffectsTimeline } from "./effects-timeline";
 import { TrackIcon } from "./track-icon";
+import { SpeedRegionRow } from "./speed-region-row";
+import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
 import { EFFECTS_ENABLED } from "@/config/features";
 import {
 	getTrackHeight,
@@ -75,6 +78,26 @@ export function TimelineTracksArea({
 	tracksContainerRef,
 	activeProject,
 }: TimelineTracksAreaProps) {
+	const [selectedSpeedRegionId, setSelectedSpeedRegionId] = useState<
+		string | null
+	>(null);
+	const hasSpeedRegions = useScreenRecordingEnhancementStore(
+		(s) => s.speedRegions.length > 0
+	);
+
+	// Compute timeline duration from tracks for speed region positioning
+	const timelineDurationMs = useMemo(
+		() =>
+			tracks.reduce((max, track) => {
+				for (const el of track.elements) {
+					const end = (el.startTime + el.duration - el.trimStart - el.trimEnd) * 1000;
+					if (end > max) max = end;
+				}
+				return max;
+			}, 0),
+		[tracks]
+	);
+
 	return (
 		<div className="flex-1 flex overflow-hidden">
 			{/* Track Labels */}
@@ -160,7 +183,8 @@ export function TimelineTracksArea({
 									getTotalTracksHeight(tracks) +
 										(EFFECTS_ENABLED && tracks.length > 0 && showEffectsTrack
 											? TIMELINE_CONSTANTS.TRACK_HEIGHT
-											: 0)
+											: 0) +
+										(hasSpeedRegions && tracks.length > 0 ? 24 : 0)
 								)
 							)}px`,
 							width: `${dynamicTimelineWidth}px`,
@@ -245,6 +269,23 @@ export function TimelineTracksArea({
 											pixelsPerSecond={
 												TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel
 											}
+										/>
+									</div>
+								)}
+
+								{/* Speed Region Timeline */}
+								{hasSpeedRegions && tracks.length > 0 && (
+									<div
+										className="absolute left-0 right-0"
+										style={{
+											top: `${getTotalTracksHeight(tracks) + (EFFECTS_ENABLED && showEffectsTrack ? TIMELINE_CONSTANTS.TRACK_HEIGHT : 0)}px`,
+										}}
+									>
+										<SpeedRegionRow
+											totalDurationMs={timelineDurationMs}
+											trackWidthPx={dynamicTimelineWidth}
+											selectedId={selectedSpeedRegionId}
+											onSelect={setSelectedSpeedRegionId}
 										/>
 									</div>
 								)}
