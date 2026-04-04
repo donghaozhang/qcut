@@ -9,6 +9,12 @@ metadata:
 
 Use Mediabunny to check if a video can be decoded by the browser before attempting to play it.
 
+First, install the right version of Mediabunny:
+
+```bash
+npx remotion add mediabunny
+```
+
 ## The `canDecode()` function
 
 This function can be copy-pasted into any project.
@@ -17,7 +23,7 @@ This function can be copy-pasted into any project.
 import { Input, ALL_FORMATS, UrlSource } from "mediabunny";
 
 export const canDecode = async (src: string) => {
-  using input = new Input({
+  const input = new Input({
     formats: ALL_FORMATS,
     source: new UrlSource(src, {
       getRetryDelay: () => null,
@@ -65,7 +71,7 @@ For file uploads or drag-and-drop, use `BlobSource`:
 import { Input, ALL_FORMATS, BlobSource } from "mediabunny";
 
 export const canDecodeBlob = async (blob: Blob) => {
-  using input = new Input({
+  const input = new Input({
     formats: ALL_FORMATS,
     source: new BlobSource(blob),
   });
