@@ -48,6 +48,7 @@ export interface CLIRunOptions {
 	maxClips?: number;
 	scriptsOnly?: boolean;
 	storyboardOnly?: boolean;
+	maxImages?: number;
 	noPortraits?: boolean;
 	llmModel?: string;
 	imageModel?: string;

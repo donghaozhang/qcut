@@ -50,6 +50,8 @@ export interface Novel2MovieConfig {
 	save_intermediate: boolean;
 	chunk_size: number;
 	overlap: number;
+	/** Cap the number of storyboard images generated (0 = unlimited). */
+	max_images: number;
 }
 
 export function createNovel2MovieConfig(
@@ -70,6 +72,7 @@ export function createNovel2MovieConfig(
 		save_intermediate: true,
 		chunk_size: 2_000,
 		overlap: 200,
+		max_images: 0,
 		...partial,
 	};
 }
@@ -111,6 +114,100 @@ function safeSlug(value: string): string {
 function saveJson(data: unknown, filePath: string): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
 	fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
+// ---------------------------------------------------------------------------
+// Progress logging
+// ---------------------------------------------------------------------------
+
+interface PipelinePlan {
+	scriptsOnly: boolean;
+	storyboardOnly: boolean;
+	imagesCapped: boolean;
+	maxImages: number;
+	generatePortraits: boolean;
+}
+
+function printStage(
+	step: number,
+	totalSteps: number,
+	title: string,
+	detail: string,
+	next?: string
+): void {
+	const bar = `[${"=".repeat(step)}${"-".repeat(totalSteps - step)}]`;
+	console.log("");
+	console.log(`  ${bar}  Step ${step}/${totalSteps}: ${title}`);
+	console.log(`  -> ${detail}`);
+	if (next) {
+		console.log(`  >> Next: ${next}`);
+	}
+}
+
+function printPlan(plan: PipelinePlan, title: string, wordCount: number): void {
+	console.log("");
+	console.log("=".repeat(60));
+	console.log(`  Novel-to-Movie Pipeline`);
+	console.log(`  Title: ${title} (~${wordCount.toLocaleString()} words)`);
+	console.log("-".repeat(60));
+
+	const steps: string[] = [];
+	steps.push("Extract characters from novel");
+	if (plan.generatePortraits && !plan.scriptsOnly) {
+		steps.push("Generate character portraits");
+	}
+	steps.push("Segment novel into screenplay shots");
+	if (!plan.scriptsOnly) {
+		if (plan.imagesCapped) {
+			steps.push(`Generate storyboard images (max ${plan.maxImages})`);
+		} else {
+			steps.push("Generate storyboard images (all shots)");
+		}
+	}
+	if (!plan.scriptsOnly && !plan.storyboardOnly && !plan.imagesCapped) {
+		steps.push("Generate videos from storyboard");
+		steps.push("Assemble final movie");
+	}
+
+	for (let i = 0; i < steps.length; i++) {
+		console.log(`  ${i + 1}. ${steps[i]}`);
+	}
+
+	if (plan.scriptsOnly) {
+		console.log("\n  Mode: scripts-only (no images or videos)");
+	} else if (plan.imagesCapped) {
+		console.log(
+			`\n  Mode: preview (${plan.maxImages} sample images, no videos)`
+		);
+	} else if (plan.storyboardOnly) {
+		console.log("\n  Mode: storyboard-only (all images, no videos)");
+	} else {
+		console.log("\n  Mode: full pipeline (images + videos + final movie)");
+	}
+	console.log("=".repeat(60));
+	console.log("");
+}
+
+function printDone(
+	scriptCount: number,
+	shotCount: number,
+	imageCount: number,
+	cost: number,
+	outputDir: string
+): void {
+	console.log("");
+	console.log("=".repeat(60));
+	console.log("  Pipeline Complete!");
+	console.log("-".repeat(60));
+	console.log(`  Scripts:  ${scriptCount}`);
+	console.log(`  Shots:    ${shotCount}`);
+	if (imageCount > 0) {
+		console.log(`  Images:   ${imageCount}`);
+	}
+	console.log(`  Cost:     $${cost.toFixed(3)}`);
+	console.log(`  Output:   ${outputDir}`);
+	console.log("=".repeat(60));
+	console.log("");
 }
 
 // ---------------------------------------------------------------------------
@@ -237,9 +334,22 @@ export class Novel2MoviePipeline {
 			);
 		}
 
-		console.log(
-			`[novel2movie] Starting pipeline for: ${title} (~${wordEstimate.toLocaleString()} words)`
-		);
+		const imagesCapped =
+			this.config.max_images > 0 && !this.config.scripts_only;
+		const plan: PipelinePlan = {
+			scriptsOnly: this.config.scripts_only,
+			storyboardOnly: this.config.storyboard_only,
+			imagesCapped,
+			maxImages: this.config.max_images,
+			generatePortraits: this.config.generate_portraits,
+		};
+		const totalSteps = this.config.scripts_only
+			? 2
+			: imagesCapped || this.config.storyboard_only
+				? 3
+				: 5;
+
+		printPlan(plan, title, wordEstimate);
 
 		try {
 			const safeTitle = safeSlug(title);
@@ -265,13 +375,25 @@ export class Novel2MoviePipeline {
 			this._initComponents(outputDir);
 
 			// Step 1: Extract characters
-			console.log("[novel2movie] Step 1: Extracting characters...");
+			let currentStep = 1;
+			printStage(
+				currentStep,
+				totalSteps,
+				"Extract Characters",
+				`Analyzing first ${Math.min(charCount, 50_000).toLocaleString()} chars for character profiles`,
+				plan.generatePortraits && !plan.scriptsOnly
+					? "Generate character portraits"
+					: "Segment novel into shots"
+			);
 			const charResult = await this.character_extractor.process(
 				novelText.slice(0, 50_000)
 			);
 			if (charResult.success && charResult.result) {
 				result.characters = charResult.result;
 				result.total_cost += (charResult.metadata.cost as number) ?? 0;
+				console.log(
+					`  Found ${result.characters.length} characters: ${result.characters.map((c) => c.name).join(", ")}`
+				);
 				if (this.config.save_intermediate) {
 					saveJson(result.characters, path.join(outputDir, "characters.json"));
 				}
@@ -283,7 +405,18 @@ export class Novel2MoviePipeline {
 				!this.config.scripts_only &&
 				result.characters.length > 0
 			) {
-				console.log("[novel2movie] Step 1b: Generating character portraits...");
+				currentStep++;
+				const portraitNames = result.characters
+					.slice(0, this.config.max_characters)
+					.map((c) => c.name)
+					.join(", ");
+				printStage(
+					currentStep,
+					totalSteps,
+					"Generate Portraits",
+					`Creating reference portraits for: ${portraitNames}`,
+					"Segment novel into shots"
+				);
 				const portraitsResult = await this.portraits_generator.generateBatch(
 					result.characters.slice(0, this.config.max_characters)
 				);
@@ -299,7 +432,7 @@ export class Novel2MoviePipeline {
 						result.portrait_registry.addPortrait(portrait);
 					}
 					console.log(
-						`[novel2movie] Created portrait registry with ${Object.keys(result.portraits).length} characters`
+						`  Portrait registry created: ${Object.keys(result.portraits).length} characters`
 					);
 					if (this.config.save_intermediate) {
 						saveJson(
@@ -309,27 +442,43 @@ export class Novel2MoviePipeline {
 					}
 				}
 			} else if (this.config.scripts_only) {
-				console.log("[novel2movie] Step 1b: Skipped (scripts_only mode)");
+				console.log("  Portraits: skipped (scripts-only mode)");
 			}
 
 			// Step 2: Segment novel directly into shots (no compression)
-			console.log("[novel2movie] Step 2: Segmenting novel into shots...");
+			currentStep++;
+			const chunks = this._splitText(novelText);
+			const imageLabel = plan.imagesCapped
+				? `then generate up to ${plan.maxImages} sample images`
+				: plan.scriptsOnly
+					? "(scripts only, no images)"
+					: "then generate storyboard images";
+			printStage(
+				currentStep,
+				totalSteps,
+				"Segment & Storyboard",
+				`Splitting novel into ${chunks.length} chunks, converting to screenplay shots, ${imageLabel}`,
+				plan.scriptsOnly || plan.storyboardOnly || plan.imagesCapped
+					? "Done!"
+					: "Generate videos from storyboard"
+			);
 			const allVideos: VideoOutput[] = [];
 			const scriptsDir = path.join(outputDir, "scripts");
 			if (this.config.save_intermediate) {
 				fs.mkdirSync(scriptsDir, { recursive: true });
 			}
 
-			const chunks = this._splitText(novelText);
+			let totalImagesGenerated = 0;
+
 			for (let i = 0; i < chunks.length; i++) {
 				console.log(
-					`[novel2movie] Segmenting chunk ${i + 1}/${chunks.length} (${chunks[i].length} chars)`
+					`\n  Chunk ${i + 1}/${chunks.length} (${chunks[i].length} chars)`
 				);
 
 				const segResult = await this.segmenter.process(chunks[i]);
 
 				if (!segResult.success || !segResult.result) {
-					console.warn(`[novel2movie] Segmentation failed for chunk ${i + 1}`);
+					console.warn(`  Segmentation failed for chunk ${i + 1}`);
 					result.errors.push(
 						`Segmentation failed for chunk ${i + 1}: ${segResult.error}`
 					);
@@ -341,6 +490,13 @@ export class Novel2MoviePipeline {
 					style: this.config.visual_style,
 				});
 
+				const chunkShots = segResult.result.scenes.reduce(
+					(s, sc) => s + sc.shots.length,
+					0
+				);
+				console.log(
+					`  -> ${segResult.result.scenes.length} scenes, ${chunkShots} shots`
+				);
 				result.scripts.push(segResult.result);
 				result.total_cost += (segResult.metadata.cost as number) ?? 0;
 				if (this.config.save_intermediate) {
@@ -358,16 +514,29 @@ export class Novel2MoviePipeline {
 					continue;
 				}
 
+				// Skip storyboard if image cap already reached
+				if (imagesCapped && totalImagesGenerated >= this.config.max_images) {
+					console.log(
+						`  Skipping images (${totalImagesGenerated}/${this.config.max_images} cap reached)`
+					);
+					continue;
+				}
+
 				// Generate storyboard with character references
 				const storyboardResult = await this.storyboard_artist.process(
 					segResult.result,
 					result.portrait_registry,
-					i + 1
+					i + 1,
+					imagesCapped
+						? this.config.max_images - totalImagesGenerated
+						: undefined
 				);
 				if (!storyboardResult.success || !storyboardResult.result) {
 					continue;
 				}
 				result.total_cost += (storyboardResult.metadata.cost as number) ?? 0;
+				totalImagesGenerated +=
+					storyboardResult.result?.images?.length ?? 0;
 
 				if (this.config.save_intermediate) {
 					saveJson(
@@ -379,7 +548,8 @@ export class Novel2MoviePipeline {
 					);
 				}
 
-				if (this.config.storyboard_only) {
+				// When max_images is set, skip video generation (preview mode)
+				if (this.config.storyboard_only || imagesCapped) {
 					continue;
 				}
 
@@ -393,13 +563,20 @@ export class Novel2MoviePipeline {
 				}
 			}
 
-			// Step 3: Concatenate all videos
+			// Step: Concatenate all videos
 			if (
 				allVideos.length > 0 &&
 				!this.config.storyboard_only &&
 				!this.config.scripts_only
 			) {
-				console.log("[novel2movie] Step 3: Assembling final video...");
+				currentStep++;
+				printStage(
+					currentStep,
+					totalSteps,
+					"Assemble Final Movie",
+					`Concatenating ${allVideos.length} video clips into final movie`,
+					"Done!"
+				);
 				const finalPath = path.join(outputDir, "final_movie.mp4");
 
 				const videoAdapter = new VideoGeneratorAdapter();
@@ -433,11 +610,12 @@ export class Novel2MoviePipeline {
 				(sum, s) => sum + s.scenes.reduce((ss, sc) => ss + sc.shots.length, 0),
 				0
 			);
-			console.log(
-				"[novel2movie] Pipeline completed! " +
-					`Scripts: ${result.scripts.length}, ` +
-					`Shots: ${totalShots}, ` +
-					`Cost: $${result.total_cost.toFixed(3)}`
+			printDone(
+				result.scripts.length,
+				totalShots,
+				totalImagesGenerated,
+				result.total_cost,
+				outputDir
 			);
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);

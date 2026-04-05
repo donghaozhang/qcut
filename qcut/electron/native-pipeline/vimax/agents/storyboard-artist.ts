@@ -188,7 +188,8 @@ export class StoryboardArtist extends BaseAgent<Script, StoryboardResult> {
 	async process(
 		script: Script,
 		portraitRegistry?: CharacterPortraitRegistry,
-		chapterIndex?: number
+		chapterIndex?: number,
+		maxImages?: number
 	): Promise<AgentResult<StoryboardResult>> {
 		await this._ensureAdapter();
 
@@ -227,10 +228,19 @@ export class StoryboardArtist extends BaseAgent<Script, StoryboardResult> {
 			}
 
 			let shotIndex = 0;
+			let imageLimitReached = false;
 			for (let sceneIdx = 0; sceneIdx < script.scenes.length; sceneIdx++) {
+				if (imageLimitReached) break;
 				const scene = script.scenes[sceneIdx];
 
 				for (const shot of scene.shots) {
+					if (maxImages != null && images.length >= maxImages) {
+						console.log(
+							`[storyboard] Image cap reached (${maxImages}), stopping generation`
+						);
+						imageLimitReached = true;
+						break;
+					}
 					shotIndex++;
 					const prompt = this._buildPrompt(shot, scene, registry);
 

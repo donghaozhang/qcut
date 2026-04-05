@@ -23,6 +23,8 @@ export interface CharacterInNovel extends CharacterBase {
 	personality: string;
 	role: string;
 	relationships: string[];
+	/** Pre-generated image prompt for portrait generation (avoids extra LLM call). */
+	portrait_prompt?: string;
 }
 
 export interface CharacterInScene extends CharacterBase {

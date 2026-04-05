@@ -51,6 +51,7 @@ For each character, provide:
 - personality: Personality traits
 - role: Role in the story (protagonist, antagonist, supporting, minor)
 - relationships: List of relationships with other characters
+- portrait_prompt: A detailed image generation prompt for a front-view portrait of this character. Include specific details about their appearance, clothing, age, expression, and style. The portrait should have a clean plain white background. Example: "photorealistic front portrait of a young woman in her 20s, long black hair, wearing an elegant white gown, delicate features, warm lighting, plain white background, high detail"
 
 Only include characters that appear in the text.
 If a field cannot be determined, use an empty string or empty list.
@@ -113,6 +114,7 @@ export class CharacterExtractor extends BaseAgent<string, CharacterInNovel[]> {
 						personality: item.personality,
 						role: item.role,
 						relationships: item.relationships,
+						portrait_prompt: item.portrait_prompt || undefined,
 					})
 				);
 			}

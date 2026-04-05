@@ -51,6 +51,7 @@ export interface CharacterResponse {
 	personality: string;
 	role: string;
 	relationships: string[];
+	portrait_prompt: string;
 }
 
 export interface CharacterListResponse {
@@ -145,6 +146,7 @@ export const CHARACTER_LIST_JSON_SCHEMA: Record<string, unknown> = {
 					personality: { type: "string" },
 					role: { type: "string" },
 					relationships: { type: "array", items: { type: "string" } },
+					portrait_prompt: { type: "string" },
 				},
 				required: [
 					"name",
@@ -155,6 +157,7 @@ export const CHARACTER_LIST_JSON_SCHEMA: Record<string, unknown> = {
 					"personality",
 					"role",
 					"relationships",
+					"portrait_prompt",
 				],
 				additionalProperties: false,
 			},
@@ -254,6 +257,7 @@ function validateCharacterResponse(data: unknown): CharacterResponse {
 		relationships: Array.isArray(obj.relationships)
 			? (obj.relationships as unknown[]).map(String)
 			: [],
+		portrait_prompt: String(obj.portrait_prompt ?? ""),
 	};
 }
 

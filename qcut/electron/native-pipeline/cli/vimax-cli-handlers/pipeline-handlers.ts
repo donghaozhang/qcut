@@ -184,17 +184,37 @@ export async function handleVimaxScript2Video(
 	}
 }
 
+/** Bundled example novel for testing when no --novel is provided. */
+const EXAMPLE_NOVEL_PATH = path.resolve(
+	__dirname,
+	"..",
+	"..",
+	"vimax",
+	"examples",
+	"drama-example.md"
+);
+
 /** vimax:novel2movie — Pipeline from novel text to movie. */
 export async function handleVimaxNovel2Movie(
 	options: CLIRunOptions,
 	onProgress: ProgressFn
 ): Promise<CLIResult> {
-	const novelPath = options.novel || options.input;
+	let novelPath = options.novel || options.input;
 	if (!novelPath) {
-		return {
-			success: false,
-			error: "Missing --novel or --input (text file path)",
-		};
+		// Fall back to bundled example
+		if (fs.existsSync(EXAMPLE_NOVEL_PATH)) {
+			novelPath = EXAMPLE_NOVEL_PATH;
+			onProgress({
+				stage: "starting",
+				percent: 0,
+				message: `No --novel provided, using bundled example: drama-example.md`,
+			});
+		} else {
+			return {
+				success: false,
+				error: "Missing --novel or --input (text file path)",
+			};
+		}
 	}
 
 	onProgress({
@@ -233,6 +253,7 @@ export async function handleVimaxNovel2Movie(
 			use_character_references: true,
 			scripts_only: options.scriptsOnly ?? false,
 			storyboard_only: options.storyboardOnly ?? false,
+			...(options.maxImages != null ? { max_images: options.maxImages } : {}),
 		};
 		if (options.videoModel) pipelineConfig.video_model = options.videoModel;
 		if (options.imageModel) pipelineConfig.image_model = options.imageModel;

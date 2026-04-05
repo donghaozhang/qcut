@@ -103,10 +103,24 @@ export class CharacterPortraitsGenerator extends BaseAgent<
 		}
 	}
 
+	/**
+	 * Get the image prompt for a character portrait.
+	 * Uses the pre-generated portrait_prompt from character extraction when
+	 * available (front view), falling back to LLM generation for other views
+	 * or when no prompt was pre-generated.
+	 */
 	private async _generatePrompt(
 		character: CharacterInNovel,
 		view: string
 	): Promise<string> {
+		// Use pre-generated prompt for front view if available
+		if (view === "front" && character.portrait_prompt) {
+			console.log(
+				`[portraits] Using pre-generated prompt for ${character.name} front view`
+			);
+			return character.portrait_prompt;
+		}
+
 		const prompt = PORTRAIT_PROMPT_TEMPLATE.replace(/\{view\}/g, view)
 			.replace("{name}", character.name)
 			.replace("{description}", character.description)
