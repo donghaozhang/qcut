@@ -701,4 +701,37 @@ export function registerImageToVideoModels(): void {
 		costEstimate: 0.302,
 		processingTime: 60,
 	});
+
+	ModelRegistry.register({
+		key: "grok_imagine_r2v",
+		name: "xAI Grok Imagine Reference-to-Video",
+		provider: "xAI (via FAL)",
+		endpoint: "xai/grok-imagine-video/reference-to-video",
+		categories: ["image_to_video"],
+		providerKey: "grok_imagine",
+		description:
+			"xAI's reference-to-video using up to 7 reference images to guide generation",
+		pricing: 0.05,
+		durationOptions: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+		aspectRatios: ["16:9", "4:3", "3:2", "1:1", "2:3", "3:4", "9:16"],
+		resolutions: ["480p", "720p"],
+		defaults: { duration: 8, resolution: "480p", aspect_ratio: "16:9" },
+		features: [
+			"reference_images",
+			"flexible_duration",
+			"multiple_aspect_ratios",
+		],
+		maxDuration: 10,
+		extendedParams: ["image_urls"],
+		extendedFeatures: {
+			start_frame: false,
+			end_frame: false,
+			ref_images: true,
+			audio_input: false,
+			audio_generate: false,
+			ref_video: false,
+		},
+		costEstimate: 0.302,
+		processingTime: 60,
+	});
 }

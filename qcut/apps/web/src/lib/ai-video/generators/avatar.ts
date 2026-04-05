@@ -200,6 +200,46 @@ export async function generateAvatarVideo(
 						negative_prompt: modelConfig.default_params.negative_prompt,
 					}) as Record<string, unknown>),
 				};
+			} else if (request.model === "grok_imagine_r2v") {
+				if (!request.characterImage && !request.referenceImageUrls?.length) {
+					throw new Error(
+						"Grok Imagine R2V requires at least one reference image"
+					);
+				}
+
+				// Build reference image URLs: use pre-uploaded URLs or convert the character image
+				const refUrls: string[] = [];
+				if (request.referenceImageUrls?.length) {
+					refUrls.push(...request.referenceImageUrls);
+				} else if (request.characterImage) {
+					refUrls.push(await fileToDataURL(request.characterImage));
+				}
+
+				endpoint = modelConfig.endpoints.image_to_video || "";
+				if (!endpoint) {
+					throw new Error(
+						`Model ${request.model} does not have a valid endpoint`
+					);
+				}
+
+				let grokPrompt = request.prompt || "";
+				if (!grokPrompt.includes("@Image")) {
+					grokPrompt =
+						`Use @Image1 as the reference. ${grokPrompt}`.trim();
+				}
+
+				payload = {
+					prompt: grokPrompt,
+					reference_image_urls: refUrls,
+					duration:
+						request.duration || modelConfig.default_params?.duration || 8,
+					aspect_ratio:
+						modelConfig.default_params?.aspect_ratio || "16:9",
+					resolution:
+						request.resolution ||
+						modelConfig.default_params?.resolution ||
+						"480p",
+				};
 			} else if (request.model === "sync_lipsync_react1") {
 				// Sync Lipsync React-1 requires pre-uploaded URLs (like Kling Avatar V2)
 				// Validate inputs

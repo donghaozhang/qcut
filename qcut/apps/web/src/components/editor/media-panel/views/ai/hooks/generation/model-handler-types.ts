@@ -157,6 +157,8 @@ export interface AvatarSettings {
 	wan26RefEnablePromptExpansion?: boolean;
 	wan26RefSeed?: number;
 	wan26RefEnableSafetyChecker?: boolean;
+	grokR2vDuration?: number;
+	grokR2vResolution?: "480p" | "720p";
 }
 
 /**

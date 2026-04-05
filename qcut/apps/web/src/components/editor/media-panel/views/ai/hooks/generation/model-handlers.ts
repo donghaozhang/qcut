@@ -48,6 +48,7 @@ import {
 } from "./handlers/upscale-handlers";
 import {
 	handleKlingO1Ref2Video,
+	handleGrokImagineR2V,
 	handleWAN26Ref2Video,
 	handleKlingO1V2V,
 	handleKlingAvatarV2,
@@ -403,6 +404,8 @@ export async function routeAvatarHandler(
 	switch (ctx.modelId) {
 		case "kling_o1_ref2video":
 			return handleKlingO1Ref2Video(ctx, settings);
+		case "grok_imagine_r2v":
+			return handleGrokImagineR2V(ctx, settings);
 		case "wan_26_ref2v":
 			return handleWAN26Ref2Video(ctx, settings);
 		case "kling_o1_v2v_reference":

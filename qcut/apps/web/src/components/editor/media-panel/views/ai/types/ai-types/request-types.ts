@@ -173,6 +173,8 @@ export interface AvatarVideoRequest {
 	audioDuration?: number;
 	characterImageUrl?: string;
 	audioUrl?: string;
+	/** Pre-uploaded reference image URLs (for multi-image reference-to-video models) */
+	referenceImageUrls?: string[];
 	// Sync Lipsync React-1 specific fields
 	/** Pre-uploaded video URL for lipsync models */
 	videoUrl?: string;

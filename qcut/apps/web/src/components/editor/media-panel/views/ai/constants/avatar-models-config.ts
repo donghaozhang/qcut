@@ -207,6 +207,28 @@ export const AVATAR_MODELS = {
 		supportedDurations: [5, 10],
 		supportedAspectRatios: ["16:9", "9:16", "1:1"],
 	},
+	grok_imagine_r2v: {
+		id: "grok_imagine_r2v",
+		name: "Grok Imagine Reference-to-Video",
+		description:
+			"xAI's reference-to-video — guide video generation with up to 7 reference images using @Image1..@Image7 syntax",
+		price: "~$0.30",
+		resolution: "480p / 720p",
+		max_duration: 10,
+		category: "avatar",
+		requiredInputs: ["referenceImages"],
+		endpoints: {
+			image_to_video: "xai/grok-imagine-video/reference-to-video",
+		},
+		default_params: {
+			duration: 8,
+			resolution: "480p",
+			aspect_ratio: "16:9",
+		},
+		supportedResolutions: ["480p", "720p"],
+		supportedDurations: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+		supportedAspectRatios: ["16:9", "4:3", "3:2", "1:1", "2:3", "3:4", "9:16"],
+	},
 	bytedance_omnihuman_v1_5: {
 		id: "bytedance_omnihuman_v1_5",
 		name: "ByteDance OmniHuman v1.5",
@@ -337,6 +359,7 @@ export const AVATAR_MODEL_ORDER: readonly AvatarModelId[] = [
 	"kling_o1_v2v_reference",
 	"kling_o1_v2v_edit",
 	"kling_o1_ref2video",
+	"grok_imagine_r2v",
 	"veo31_extend_video",
 	"veo31_fast_extend_video",
 	"wan_animate_replace",
