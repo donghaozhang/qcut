@@ -1098,7 +1098,11 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		description: "Generate movie from a novel",
 		category: "vimax",
 		flags: [
-			f("--novel", "string", "Novel file path (default: bundled drama example)"),
+			f(
+				"--novel",
+				"string",
+				"Novel file path (default: bundled drama example)"
+			),
 			f("--title", "string", "Project title"),
 			f("--max-scenes", "number", "Max scenes"),
 			f("--scripts-only", "boolean", "Generate scripts only", {
@@ -1107,7 +1111,11 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--storyboard-only", "boolean", "Stop after storyboard images", {
 				default: false,
 			}),
-			f("--max-images", "number", "Max storyboard images to generate (implies no video)"),
+			f(
+				"--max-images",
+				"number",
+				"Max storyboard images to generate (implies no video)"
+			),
 			f("--no-portraits", "boolean", "Skip portrait generation", {
 				default: false,
 			}),

@@ -207,7 +207,7 @@ export async function handleVimaxNovel2Movie(
 			onProgress({
 				stage: "starting",
 				percent: 0,
-				message: `No --novel provided, using bundled example: drama-example.md`,
+				message: "No --novel provided, using bundled example: drama-example.md",
 			});
 		} else {
 			return {

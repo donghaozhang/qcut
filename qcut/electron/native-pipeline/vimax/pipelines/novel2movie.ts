@@ -147,7 +147,7 @@ function printStage(
 function printPlan(plan: PipelinePlan, title: string, wordCount: number): void {
 	console.log("");
 	console.log("=".repeat(60));
-	console.log(`  Novel-to-Movie Pipeline`);
+	console.log("  Novel-to-Movie Pipeline");
 	console.log(`  Title: ${title} (~${wordCount.toLocaleString()} words)`);
 	console.log("-".repeat(60));
 
@@ -347,9 +347,7 @@ export class Novel2MoviePipeline {
 			1 + // Extract Characters
 			(plan.generatePortraits && !plan.scriptsOnly ? 1 : 0) + // Portraits
 			1 + // Segment & Storyboard
-			(!plan.scriptsOnly && !plan.storyboardOnly && !plan.imagesCapped
-				? 1
-				: 0); // Assemble
+			(!plan.scriptsOnly && !plan.storyboardOnly && !plan.imagesCapped ? 1 : 0); // Assemble
 
 		printPlan(plan, title, wordEstimate);
 
@@ -537,8 +535,7 @@ export class Novel2MoviePipeline {
 					continue;
 				}
 				result.total_cost += (storyboardResult.metadata.cost as number) ?? 0;
-				totalImagesGenerated +=
-					storyboardResult.result?.images?.length ?? 0;
+				totalImagesGenerated += storyboardResult.result?.images?.length ?? 0;
 
 				if (this.config.save_intermediate) {
 					saveJson(

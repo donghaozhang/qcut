@@ -224,8 +224,7 @@ export async function generateAvatarVideo(
 
 				let grokPrompt = request.prompt || "";
 				if (!grokPrompt.includes("@Image")) {
-					grokPrompt =
-						`Use @Image1 as the reference. ${grokPrompt}`.trim();
+					grokPrompt = `Use @Image1 as the reference. ${grokPrompt}`.trim();
 				}
 
 				payload = {
@@ -233,8 +232,7 @@ export async function generateAvatarVideo(
 					reference_image_urls: refUrls,
 					duration:
 						request.duration || modelConfig.default_params?.duration || 8,
-					aspect_ratio:
-						modelConfig.default_params?.aspect_ratio || "16:9",
+					aspect_ratio: modelConfig.default_params?.aspect_ratio || "16:9",
 					resolution:
 						request.resolution ||
 						modelConfig.default_params?.resolution ||
