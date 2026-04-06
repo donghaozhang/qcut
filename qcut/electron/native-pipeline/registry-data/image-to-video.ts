@@ -703,7 +703,7 @@ export function registerImageToVideoModels(): void {
 	});
 
 	ModelRegistry.register({
-		key: "grok_imagine_r2v",
+		key: "grok_imagine_r2v_i2v",
 		name: "xAI Grok Imagine Reference-to-Video",
 		provider: "xAI (via FAL)",
 		endpoint: "xai/grok-imagine-video/reference-to-video",
