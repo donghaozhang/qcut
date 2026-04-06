@@ -144,13 +144,8 @@ function printStage(
 	}
 }
 
-function printPlan(plan: PipelinePlan, title: string, wordCount: number): void {
-	console.log("");
-	console.log("=".repeat(60));
-	console.log("  Novel-to-Movie Pipeline");
-	console.log(`  Title: ${title} (~${wordCount.toLocaleString()} words)`);
-	console.log("-".repeat(60));
-
+/** Build the ordered list of pipeline step labels based on the plan. */
+function buildStepLabels(plan: PipelinePlan): string[] {
 	const steps: string[] = [];
 	steps.push("Extract characters from novel");
 	if (plan.generatePortraits && !plan.scriptsOnly) {
@@ -168,7 +163,17 @@ function printPlan(plan: PipelinePlan, title: string, wordCount: number): void {
 		steps.push("Generate videos from storyboard");
 		steps.push("Assemble final movie");
 	}
+	return steps;
+}
 
+function printPlan(plan: PipelinePlan, title: string, wordCount: number): void {
+	console.log("");
+	console.log("=".repeat(60));
+	console.log("  Novel-to-Movie Pipeline");
+	console.log(`  Title: ${title} (~${wordCount.toLocaleString()} words)`);
+	console.log("-".repeat(60));
+
+	const steps = buildStepLabels(plan);
 	for (let i = 0; i < steps.length; i++) {
 		console.log(`  ${i + 1}. ${steps[i]}`);
 	}
@@ -343,11 +348,8 @@ export class Novel2MoviePipeline {
 			maxImages: this.config.max_images,
 			generatePortraits: this.config.generate_portraits,
 		};
-		const totalSteps =
-			1 + // Extract Characters
-			(plan.generatePortraits && !plan.scriptsOnly ? 1 : 0) + // Portraits
-			1 + // Segment & Storyboard
-			(!plan.scriptsOnly && !plan.storyboardOnly && !plan.imagesCapped ? 1 : 0); // Assemble
+		const stepLabels = buildStepLabels(plan);
+		const totalSteps = stepLabels.length;
 
 		printPlan(plan, title, wordEstimate);
 
@@ -609,13 +611,19 @@ export class Novel2MoviePipeline {
 				(sum, s) => sum + s.scenes.reduce((ss, sc) => ss + sc.shots.length, 0),
 				0
 			);
-			printDone(
-				result.scripts.length,
-				totalShots,
-				totalImagesGenerated,
-				result.total_cost,
-				outputDir
-			);
+			if (result.success) {
+				printDone(
+					result.scripts.length,
+					totalShots,
+					totalImagesGenerated,
+					result.total_cost,
+					outputDir
+				);
+			} else {
+				console.error(
+					`\n  Pipeline finished with errors: ${result.errors.join("; ")}`
+				);
+			}
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			console.error(`[novel2movie] Pipeline failed: ${msg}`);

@@ -212,7 +212,7 @@ export const AVATAR_MODELS = {
 		name: "Grok Imagine Reference-to-Video",
 		description:
 			"xAI's reference-to-video — guide video generation with up to 7 reference images using @Image1..@Image7 syntax",
-		price: "~$0.30",
+		price: "0.30",
 		resolution: "480p / 720p",
 		max_duration: 10,
 		category: "avatar",

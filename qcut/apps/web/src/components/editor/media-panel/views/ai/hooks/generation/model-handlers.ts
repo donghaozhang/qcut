@@ -197,6 +197,9 @@ function getAvatarDurationSeconds({
 	if (modelId === "wan_26_ref2v") {
 		return settings.wan26RefDuration;
 	}
+	if (modelId === "grok_imagine_r2v") {
+		return settings.grokR2vDuration ?? 8;
+	}
 	return settings.videoDuration ?? settings.audioDuration ?? undefined;
 }
 
