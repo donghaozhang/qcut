@@ -343,11 +343,13 @@ export class Novel2MoviePipeline {
 			maxImages: this.config.max_images,
 			generatePortraits: this.config.generate_portraits,
 		};
-		const totalSteps = this.config.scripts_only
-			? 2
-			: imagesCapped || this.config.storyboard_only
-				? 3
-				: 5;
+		const totalSteps =
+			1 + // Extract Characters
+			(plan.generatePortraits && !plan.scriptsOnly ? 1 : 0) + // Portraits
+			1 + // Segment & Storyboard
+			(!plan.scriptsOnly && !plan.storyboardOnly && !plan.imagesCapped
+				? 1
+				: 0); // Assemble
 
 		printPlan(plan, title, wordEstimate);
 
