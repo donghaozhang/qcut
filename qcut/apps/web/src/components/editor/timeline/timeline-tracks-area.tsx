@@ -90,7 +90,8 @@ export function TimelineTracksArea({
 		() =>
 			tracks.reduce((max, track) => {
 				for (const el of track.elements) {
-					const end = (el.startTime + el.duration - el.trimStart - el.trimEnd) * 1000;
+					const end =
+						(el.startTime + el.duration - el.trimStart - el.trimEnd) * 1000;
 					if (end > max) max = end;
 				}
 				return max;

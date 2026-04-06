@@ -117,17 +117,15 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 
 	// Wallpaper operations
 	wallpapers: {
-		list: (): Promise<
-			Array<{ id: string; name: string; path: string }>
-		> => ipcRenderer.invoke("wallpapers:list"),
+		list: (): Promise<Array<{ id: string; name: string; path: string }>> =>
+			ipcRenderer.invoke("wallpapers:list"),
 		upload: (
 			sourcePath: string
 		): Promise<{ id: string; name: string; path: string } | null> =>
 			ipcRenderer.invoke("wallpapers:upload", sourcePath),
 		delete: (id: string): Promise<boolean> =>
 			ipcRenderer.invoke("wallpapers:delete", id),
-		pick: (): Promise<string | null> =>
-			ipcRenderer.invoke("wallpapers:pick"),
+		pick: (): Promise<string | null> => ipcRenderer.invoke("wallpapers:pick"),
 	},
 
 	// Audio operations

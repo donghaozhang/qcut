@@ -57,7 +57,9 @@ export function ExportDialog() {
 	const [includeAudio, setIncludeAudio] = useState(true); // Default to true for backward compatibility
 
 	// GIF export state
-	const [gifFrameRate, setGifFrameRate] = useState<GifFrameRate>(DEFAULT_GIF_CONFIG.frameRate);
+	const [gifFrameRate, setGifFrameRate] = useState<GifFrameRate>(
+		DEFAULT_GIF_CONFIG.frameRate
+	);
 	const [gifLoop, setGifLoop] = useState(DEFAULT_GIF_CONFIG.loop);
 	const [gifQuality, setGifQuality] = useState(DEFAULT_GIF_CONFIG.quality);
 
@@ -238,7 +240,12 @@ export function ExportDialog() {
 			audioBitrate: 128,
 			gifConfig:
 				exportSettings.format === "gif"
-					? { frameRate: gifFrameRate, loop: gifLoop, quality: gifQuality, sizePreset: "original" as const }
+					? {
+							frameRate: gifFrameRate,
+							loop: gifLoop,
+							quality: gifQuality,
+							sizePreset: "original" as const,
+						}
 					: undefined,
 		});
 	};
@@ -402,10 +409,10 @@ export function ExportDialog() {
 					<GifOptionsCard
 						frameRate={gifFrameRate}
 						onFrameRateChange={(fps) => {
-									if (isValidGifFrameRate(fps)) {
-										setGifFrameRate(fps);
-									}
-								}}
+							if (isValidGifFrameRate(fps)) {
+								setGifFrameRate(fps);
+							}
+						}}
 						loop={gifLoop}
 						onLoopChange={setGifLoop}
 						quality={gifQuality}

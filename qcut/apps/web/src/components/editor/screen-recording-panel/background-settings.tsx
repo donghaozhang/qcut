@@ -270,7 +270,8 @@ function WallpaperPicker({
 	onSelect: (path: string) => void;
 }) {
 	const [entries, setEntries] = useState<WallpaperEntry[]>([]);
-	const hasElectron = typeof window !== "undefined" && !!window.electronAPI?.wallpapers;
+	const hasElectron =
+		typeof window !== "undefined" && !!window.electronAPI?.wallpapers;
 
 	const refresh = useCallback(async () => {
 		if (!hasElectron) return;
