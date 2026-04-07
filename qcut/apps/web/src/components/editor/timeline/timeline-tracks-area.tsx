@@ -57,6 +57,7 @@ interface TimelineTracksAreaProps {
 	activeProject: { bookmarks?: number[] } | null;
 }
 
+/** Scrollable area containing all timeline tracks and the playhead. */
 export function TimelineTracksArea({
 	tracks,
 	zoomLevel,

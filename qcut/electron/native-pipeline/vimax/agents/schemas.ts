@@ -15,6 +15,7 @@
 // Screenwriter response schema
 // =============================================================================
 
+/** A single shot within a scene, describing camera and action. */
 export interface ShotResponse {
 	shot_id: string;
 	shot_type: string;
@@ -24,6 +25,7 @@ export interface ShotResponse {
 	duration_seconds: number;
 }
 
+/** A scene containing a location, time, and ordered list of shots. */
 export interface SceneResponse {
 	scene_id: string;
 	title: string;
@@ -32,6 +34,7 @@ export interface SceneResponse {
 	shots: ShotResponse[];
 }
 
+/** Top-level screenplay structure with title, logline, and scenes. */
 export interface ScreenplayResponse {
 	title: string;
 	logline: string;
@@ -42,6 +45,7 @@ export interface ScreenplayResponse {
 // Character Extractor response schema
 // =============================================================================
 
+/** Character profile extracted from source text by the LLM. */
 export interface CharacterResponse {
 	name: string;
 	description: string;
@@ -54,6 +58,7 @@ export interface CharacterResponse {
 	portrait_prompt: string;
 }
 
+/** Wrapper containing an array of extracted characters. */
 export interface CharacterListResponse {
 	characters: CharacterResponse[];
 }
@@ -62,6 +67,7 @@ export interface CharacterListResponse {
 // Novel Compression response schema
 // =============================================================================
 
+/** A compressed scene summary for novel chapter digests. */
 export interface SceneCompression {
 	title: string;
 	description: string;
@@ -69,6 +75,7 @@ export interface SceneCompression {
 	setting: string;
 }
 
+/** Compressed chapter containing a title and summarized scenes. */
 export interface ChapterCompressionResponse {
 	title: string;
 	scenes: SceneCompression[];
@@ -195,6 +202,7 @@ export const CHAPTER_COMPRESSION_JSON_SCHEMA: Record<string, unknown> = {
 // Validators (simple runtime validators for structured output parsing)
 // =============================================================================
 
+/** Validate and coerce raw LLM output into a {@link ScreenplayResponse}. */
 export function validateScreenplayResponse(data: unknown): ScreenplayResponse {
 	const obj = data as Record<string, unknown>;
 	return {
@@ -233,6 +241,7 @@ function validateShotResponse(data: unknown): ShotResponse {
 	};
 }
 
+/** Validate and coerce raw LLM output into a {@link CharacterListResponse}. */
 export function validateCharacterListResponse(
 	data: unknown
 ): CharacterListResponse {
@@ -261,6 +270,7 @@ function validateCharacterResponse(data: unknown): CharacterResponse {
 	};
 }
 
+/** Validate and coerce raw LLM output into a {@link ChapterCompressionResponse}. */
 export function validateChapterCompressionResponse(
 	data: unknown
 ): ChapterCompressionResponse {

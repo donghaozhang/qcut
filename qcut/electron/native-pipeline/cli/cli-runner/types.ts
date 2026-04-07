@@ -8,6 +8,7 @@ export function generateCommandId(): string {
 	return `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** Options parsed from CLI arguments for a pipeline command invocation. */
 export interface CLIRunOptions {
 	command: string;
 	/** Unique correlation ID for this command execution. */
@@ -236,6 +237,7 @@ export interface CLIRunOptions {
 	languageCode?: string;
 }
 
+/** Standard result returned by a CLI command handler. */
 export interface CLIResult {
 	success: boolean;
 	outputPath?: string;
@@ -246,6 +248,7 @@ export interface CLIResult {
 	data?: unknown;
 }
 
+/** Callback invoked to report command progress to the UI. */
 export type ProgressFn = (progress: {
 	stage: string;
 	percent: number;

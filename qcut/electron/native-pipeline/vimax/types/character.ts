@@ -11,11 +11,13 @@
  * Ported from: vimax/interfaces/character.py
  */
 
+/** Common fields shared by all character representations. */
 export interface CharacterBase {
 	name: string;
 	description: string;
 }
 
+/** Full character profile extracted from a novel or story. */
 export interface CharacterInNovel extends CharacterBase {
 	age?: string;
 	gender?: string;
@@ -27,6 +29,7 @@ export interface CharacterInNovel extends CharacterBase {
 	portrait_prompt?: string;
 }
 
+/** Character appearance within a specific scene. */
 export interface CharacterInScene extends CharacterBase {
 	scene_id?: string;
 	position?: string;
@@ -35,12 +38,14 @@ export interface CharacterInScene extends CharacterBase {
 	dialogue?: string;
 }
 
+/** Character involvement in a narrative event. */
 export interface CharacterInEvent extends CharacterBase {
 	event_id?: string;
 	involvement: string;
 	importance: number;
 }
 
+/** Multi-angle portrait images generated for a character. */
 export interface CharacterPortrait {
 	character_name: string;
 	description: string;
@@ -52,6 +57,7 @@ export interface CharacterPortrait {
 
 // -- CharacterPortrait helpers --
 
+/** Return a map of available view names to their image paths. */
 export function getPortraitViews(
 	portrait: CharacterPortrait
 ): Record<string, string> {
@@ -64,6 +70,7 @@ export function getPortraitViews(
 	return views;
 }
 
+/** Check whether a portrait has at least one generated view. */
 export function hasPortraitViews(portrait: CharacterPortrait): boolean {
 	return Object.keys(getPortraitViews(portrait)).length > 0;
 }
@@ -160,6 +167,7 @@ export class CharacterPortraitRegistry {
 
 // -- Factory helpers --
 
+/** Create a {@link CharacterInNovel} with sensible defaults. */
 export function createCharacterInNovel(
 	partial: Partial<CharacterInNovel> & { name: string }
 ): CharacterInNovel {
@@ -173,6 +181,7 @@ export function createCharacterInNovel(
 	};
 }
 
+/** Create a {@link CharacterPortrait} with sensible defaults. */
 export function createCharacterPortrait(
 	partial: Partial<CharacterPortrait> & { character_name: string }
 ): CharacterPortrait {

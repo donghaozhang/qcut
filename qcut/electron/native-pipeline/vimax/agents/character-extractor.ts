@@ -24,10 +24,12 @@ import type { CharacterInNovel } from "../types/character.js";
 import { createCharacterInNovel } from "../types/character.js";
 import { detectLanguageInstruction } from "../detect-language.js";
 
+/** Configuration for the character extraction agent. */
 export interface CharacterExtractorConfig extends AgentConfig {
 	max_characters: number;
 }
 
+/** Create a {@link CharacterExtractorConfig} with sensible defaults. */
 export function createCharacterExtractorConfig(
 	partial?: Partial<CharacterExtractorConfig>
 ): CharacterExtractorConfig {
@@ -61,6 +63,7 @@ TEXT:
 
 Return a JSON object with a "characters" key containing an array of characters.`;
 
+/** Agent that extracts character profiles from story text using an LLM. */
 export class CharacterExtractor extends BaseAgent<string, CharacterInNovel[]> {
 	declare config: CharacterExtractorConfig;
 	private _llm: LLMAdapter | null = null;

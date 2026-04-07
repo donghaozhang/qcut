@@ -2,6 +2,7 @@ import { ipcMain, app, dialog } from "electron";
 import path from "path";
 import fs from "fs/promises";
 
+/** A user-uploaded wallpaper image stored in the app data directory. */
 export interface WallpaperEntry {
 	id: string;
 	name: string;
@@ -29,6 +30,7 @@ function fileToEntry(dir: string, filename: string): WallpaperEntry {
 	};
 }
 
+/** Register IPC handlers for wallpaper list, upload, and delete operations. */
 export function setupWallpaperIPC(): void {
 	ipcMain.handle("wallpapers:list", async (): Promise<WallpaperEntry[]> => {
 		const dir = await getWallpapersDir();

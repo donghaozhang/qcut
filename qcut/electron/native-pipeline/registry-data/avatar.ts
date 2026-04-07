@@ -5,6 +5,7 @@
 
 import { ModelRegistry } from "../infra/registry.js";
 
+/** Register all avatar/lip-sync model definitions into the global registry. */
 export function registerAvatarModels(): void {
 	ModelRegistry.register({
 		key: "omnihuman_v1_5",

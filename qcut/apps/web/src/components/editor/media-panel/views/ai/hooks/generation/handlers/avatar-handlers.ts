@@ -15,6 +15,7 @@ import type {
 	ModelHandlerResult,
 } from "../model-handler-types";
 
+/** Handle Kling O1 reference-to-video avatar generation. */
 export async function handleKlingO1Ref2Video(
 	ctx: ModelHandlerContext,
 	settings: AvatarSettings

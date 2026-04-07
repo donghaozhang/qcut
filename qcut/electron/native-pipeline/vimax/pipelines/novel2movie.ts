@@ -35,6 +35,7 @@ import type { PipelineOutput, VideoOutput } from "../types/output.js";
 // Config
 // ---------------------------------------------------------------------------
 
+/** Configuration for the novel-to-movie pipeline. */
 export interface Novel2MovieConfig {
 	output_dir: string;
 	video_model: string;
@@ -54,6 +55,7 @@ export interface Novel2MovieConfig {
 	max_images: number;
 }
 
+/** Create a {@link Novel2MovieConfig} with sensible defaults. */
 export function createNovel2MovieConfig(
 	partial?: Partial<Novel2MovieConfig>
 ): Novel2MovieConfig {
@@ -81,6 +83,7 @@ export function createNovel2MovieConfig(
 // Data types
 // ---------------------------------------------------------------------------
 
+/** Output of a novel-to-movie pipeline run. */
 export interface Novel2MovieResult {
 	success: boolean;
 	novel_title: string;
@@ -219,6 +222,7 @@ function printDone(
 // Pipeline
 // ---------------------------------------------------------------------------
 
+/** End-to-end pipeline that converts a novel into a video movie. */
 export class Novel2MoviePipeline {
 	config: Novel2MovieConfig;
 

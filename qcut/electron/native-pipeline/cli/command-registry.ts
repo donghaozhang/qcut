@@ -32,6 +32,7 @@ function f(
 
 // ─── Global Flags ────────────────────────────────────────────────────
 
+/** Flags available to every CLI command (output, model, verbosity, etc.). */
 export const GLOBAL_FLAGS: FlagDef[] = [
 	f("--output-dir", "string", "Output directory", {
 		short: "-o",
@@ -70,6 +71,7 @@ export const GLOBAL_FLAGS: FlagDef[] = [
 
 // ─── Categories ──────────────────────────────────────────────────────
 
+/** Ordered list of command categories shown in CLI help output. */
 export const CATEGORIES: CategoryDef[] = [
 	{
 		name: "generation",

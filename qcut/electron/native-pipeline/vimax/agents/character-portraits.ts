@@ -27,6 +27,7 @@ import type {
 	CharacterPortrait,
 } from "../types/character.js";
 
+/** Configuration for the character portrait generation agent. */
 export interface PortraitsGeneratorConfig extends AgentConfig {
 	image_model: string;
 	llm_model: string;
@@ -36,6 +37,7 @@ export interface PortraitsGeneratorConfig extends AgentConfig {
 	output_dir: string;
 }
 
+/** Create a {@link PortraitsGeneratorConfig} with sensible defaults. */
 export function createPortraitsGeneratorConfig(
 	partial?: Partial<PortraitsGeneratorConfig>
 ): PortraitsGeneratorConfig {
@@ -77,6 +79,7 @@ function safeSlug(value: string): string {
 	return safe || "unknown";
 }
 
+/** Agent that generates multi-angle character portraits for visual consistency. */
 export class CharacterPortraitsGenerator extends BaseAgent<
 	CharacterInNovel,
 	CharacterPortrait

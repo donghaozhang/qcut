@@ -44,6 +44,7 @@ import {
 import { CaptionExportCard, AudioExportCard } from "./export-media-cards";
 import { ExportWarnings } from "./export-warnings";
 
+/** Modal dialog for configuring and triggering project export. */
 export function ExportDialog() {
 	const { error } = useExportStore();
 	const { getTotalDuration, tracks } = useTimelineStore();

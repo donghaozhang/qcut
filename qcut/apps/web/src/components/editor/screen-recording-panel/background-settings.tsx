@@ -22,6 +22,7 @@ const BG_TYPES: { value: BackgroundConfig["type"]; label: string }[] = [
 	{ value: "wallpaper", label: "Image" },
 ];
 
+/** Screen recording background type and color picker controls. */
 export function BackgroundSettings() {
 	const background = useScreenRecordingEnhancementStore((s) => s.background);
 	const setBackground = useScreenRecordingEnhancementStore(
