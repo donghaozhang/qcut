@@ -54,6 +54,16 @@ interface FalStatusResponse {
 	response_url?: string;
 }
 
+interface GmiStatusResponse {
+	id: string;
+	status: "queued" | "processing" | "success" | "failed" | "cancelled";
+	outcome?: {
+		video_url?: string;
+		thumbnail_image_url?: string;
+	};
+	error?: string;
+}
+
 const FAL_BASE = "https://queue.fal.run";
 const FAL_STATUS_BASE = "https://queue.fal.run";
 const FAL_TRUSTED_HOSTS = [".fal.run", ".fal.ai"];
@@ -440,6 +450,88 @@ export async function pollQueueStatus(
 	}
 }
 
+/**
+ * Poll a GMI Cloud request until completion or failure.
+ *
+ * GMI uses a single GET endpoint for both status and result:
+ *   GET /requests/{requestId} → { status, outcome?, error? }
+ */
+async function pollGmiQueue(
+	requestId: string,
+	options?: {
+		onProgress?: (percent: number, message: string) => void;
+		signal?: AbortSignal;
+	}
+): Promise<ApiCallResult> {
+	const startTime = Date.now();
+	const apiKey = await getApiKey("gmi");
+	const headers = buildHeaders("gmi", apiKey);
+	const statusUrl = `${GMI_BASE}/requests/${requestId}`;
+
+	const maxAttempts = 360;
+	const pollIntervalMs = 5000;
+	let lastPercent = 0;
+
+	for (let attempt = 0; attempt < maxAttempts; attempt++) {
+		if (options?.signal?.aborted) {
+			return {
+				success: false,
+				error: "Cancelled",
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+
+		const statusRes = await fetch(statusUrl, {
+			method: "GET",
+			headers,
+			signal: options?.signal,
+		});
+
+		if (!statusRes.ok) {
+			return {
+				success: false,
+				error: `GMI status check failed: ${statusRes.status}`,
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+
+		const status = (await statusRes.json()) as GmiStatusResponse;
+
+		if (status.status === "success") {
+			if (options?.onProgress) {
+				options.onProgress(100, "Completed");
+			}
+			return {
+				success: true,
+				data: status,
+				outputUrl: status.outcome?.video_url,
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+
+		if (status.status === "failed" || status.status === "cancelled") {
+			return {
+				success: false,
+				error: status.error || `Generation ${status.status}`,
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+
+		if (options?.onProgress) {
+			lastPercent = Math.min(lastPercent + 2, 90);
+			options.onProgress(lastPercent, `${status.status}...`);
+		}
+
+		await new Promise((r) => setTimeout(r, pollIntervalMs));
+	}
+
+	return {
+		success: false,
+		error: `GMI request ${requestId} timed out after ${maxAttempts} attempts`,
+		duration: (Date.now() - startTime) / 1000,
+	};
+}
+
 /** Extract a best-effort output URL from known provider response shapes. */
 function extractOutputUrl(data: unknown): string | undefined {
 	if (!data || typeof data !== "object") return;
@@ -589,6 +681,46 @@ export async function callModelApi(
 				outputUrl: extractOutputUrl(queueData),
 				duration: (Date.now() - startTime) / 1000,
 			};
+		} else if (provider === "gmi") {
+			// GMI Cloud: async submit + poll (like FAL but different API shape)
+			const submitPayload =
+				endpoint && endpoint !== "requests"
+					? { model: endpoint, payload }
+					: payload;
+
+			const submitRes = await fetchWithRetry(
+				url,
+				{
+					method: "POST",
+					headers,
+					body: JSON.stringify(submitPayload),
+					signal: combinedSignal,
+				},
+				retries
+			);
+
+			if (!submitRes.ok) {
+				const errorText = await submitRes.text();
+				return {
+					success: false,
+					error: `GMI API error ${submitRes.status}: ${errorText}`,
+					duration: (Date.now() - startTime) / 1000,
+				};
+			}
+
+			const submitData = (await submitRes.json()) as { id: string };
+			if (!submitData.id) {
+				return {
+					success: false,
+					error: "GMI submit did not return a request ID",
+					duration: (Date.now() - startTime) / 1000,
+				};
+			}
+
+			return pollGmiQueue(submitData.id, {
+				onProgress: options.onProgress,
+				signal: combinedSignal,
+			});
 		}
 
 		const response = await fetchWithRetry(
