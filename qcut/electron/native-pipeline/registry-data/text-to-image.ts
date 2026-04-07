@@ -260,4 +260,40 @@ export function registerTextToImageModels(): void {
 		costEstimate: 0.08,
 		processingTime: 20,
 	});
+
+	// ── GMI Cloud Image Models ──────────────────────────────────
+
+	ModelRegistry.register({
+		key: "gmi_gemini_3_pro_image",
+		name: "Gemini 3 Pro Image (GMI)",
+		provider: "Google (via GMI)",
+		endpoint: "gemini-3-pro-image-preview",
+		categories: ["text_to_image"],
+		description:
+			"Photorealistic image generation via Google Gemini 3 Pro on GMI Cloud",
+		pricing: { per_image: 0.04 },
+		aspectRatios: ["1:1"],
+		defaults: {},
+		features: ["photorealistic", "reference_image"],
+		costEstimate: 0.04,
+		processingTime: 30,
+		providerBackend: "gmi",
+	});
+
+	ModelRegistry.register({
+		key: "gmi_gemini_31_flash_image",
+		name: "Gemini 3.1 Flash Image (GMI)",
+		provider: "Google (via GMI)",
+		endpoint: "gemini-3.1-flash-image-preview",
+		categories: ["text_to_image"],
+		description:
+			"Fast image generation and editing via Google Gemini 3.1 Flash on GMI Cloud",
+		pricing: { per_image: 0.02 },
+		aspectRatios: ["1:1"],
+		defaults: {},
+		features: ["fast_processing", "image_editing", "reference_image"],
+		costEstimate: 0.02,
+		processingTime: 15,
+		providerBackend: "gmi",
+	});
 }

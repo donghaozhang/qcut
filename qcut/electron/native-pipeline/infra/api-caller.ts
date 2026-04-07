@@ -567,6 +567,11 @@ function extractOutputUrl(data: unknown): string | undefined {
 		const first = obj.videos[0] as Record<string, unknown>;
 		if (typeof first?.url === "string") return first.url;
 	}
+	// GMI media_urls format (SkyReels, Gemini, Kling)
+	if (Array.isArray(obj.media_urls) && obj.media_urls.length > 0) {
+		const first = obj.media_urls[0] as Record<string, unknown>;
+		if (typeof first?.url === "string") return first.url;
+	}
 	if (typeof obj.output_url === "string") return obj.output_url;
 	if (typeof obj.url === "string") return obj.url;
 
