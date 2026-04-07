@@ -88,9 +88,7 @@ export function getOutputDataType(category: ModelCategory): DataType {
 	}
 }
 
-function getProviderForEndpoint(
-	endpoint: string
-): ProviderName {
+function getProviderForEndpoint(endpoint: string): ProviderName {
 	if (endpoint.startsWith("elevenlabs/")) return "elevenlabs";
 	if (endpoint.startsWith("google/")) return "google";
 	if (endpoint.startsWith("volcengine/")) return "volcengine";
