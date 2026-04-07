@@ -152,12 +152,14 @@ export interface ApiKeyConfig {
 	FREESOUND_API_KEY?: string;
 	FAL_API_KEY?: string;
 	GEMINI_API_KEY?: string;
+	GMI_API_KEY?: string;
 	freesoundApiKey?: string;
 	falApiKey?: string;
 	geminiApiKey?: string;
 	openRouterApiKey?: string;
 	anthropicApiKey?: string;
 	elevenLabsApiKey?: string;
+	gmiApiKey?: string;
 }
 
 export interface SaveAIVideoOptions {

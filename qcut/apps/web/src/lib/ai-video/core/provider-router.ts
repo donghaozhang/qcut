@@ -37,16 +37,11 @@ async function resolveProvider(
 		return preferred;
 	}
 
-	// Try fallback: if preferred was FAL but unavailable, try GMI and vice versa
-	for (const [, client] of providers) {
-		if (client.name !== preferredBackend && (await client.isAvailable())) {
-			return client;
-		}
-	}
-
+	// Don't silently fall back — GMI and FAL have incompatible payload schemas,
+	// so routing a GMI-only model to FAL (or vice versa) causes confusing errors.
 	throw new Error(
-		`No provider available for backend "${preferredBackend}". ` +
-			"Configure an API key for FAL (VITE_FAL_API_KEY) or GMI (VITE_GMI_API_KEY)."
+		`Provider "${preferredBackend}" is not available. ` +
+			`Configure the API key: ${preferredBackend === "fal" ? "VITE_FAL_API_KEY" : "GMI_API_KEY"}.`
 	);
 }
 

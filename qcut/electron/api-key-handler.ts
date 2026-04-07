@@ -14,6 +14,7 @@ interface ApiKeys {
 	openRouterApiKey: string;
 	anthropicApiKey: string;
 	elevenLabsApiKey: string;
+	gmiApiKey: string;
 }
 
 interface ApiKeyData {
@@ -23,6 +24,7 @@ interface ApiKeyData {
 	openRouterApiKey?: string;
 	anthropicApiKey?: string;
 	elevenLabsApiKey?: string;
+	gmiApiKey?: string;
 }
 
 interface EncryptedApiKeyData {
@@ -41,6 +43,7 @@ interface ApiKeysStatus {
 	openRouterApiKey: KeyStatus;
 	anthropicApiKey: KeyStatus;
 	elevenLabsApiKey: KeyStatus;
+	gmiApiKey: KeyStatus;
 }
 
 interface ApiKeyHandlers {
@@ -72,6 +75,7 @@ const QCUT_ENV_MAP: Partial<Record<keyof ApiKeys, string>> = {
 	openRouterApiKey: "OPENROUTER_API_KEY",
 	anthropicApiKey: "ANTHROPIC_API_KEY",
 	elevenLabsApiKey: "ELEVENLABS_API_KEY",
+	gmiApiKey: "GMI_API_KEY",
 };
 
 const EMPTY_API_KEYS: ApiKeys = {
@@ -81,6 +85,7 @@ const EMPTY_API_KEYS: ApiKeys = {
 	openRouterApiKey: "",
 	anthropicApiKey: "",
 	elevenLabsApiKey: "",
+	gmiApiKey: "",
 };
 
 /** Return a fresh ApiKeys object with all fields empty. */
@@ -135,6 +140,7 @@ function decryptStoredApiKeys({
 			"openRouterApiKey",
 			"anthropicApiKey",
 			"elevenLabsApiKey",
+			"gmiApiKey",
 		] as const;
 		for (const field of apiKeyFields) {
 			result[field] = decryptStoredValue({

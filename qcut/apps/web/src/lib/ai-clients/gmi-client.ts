@@ -154,10 +154,6 @@ export const gmiClient: ProviderClient = {
 				);
 			}
 
-			if (options?.onProgress) {
-				options.onProgress(normalized);
-			}
-
 			if (
 				normalized.status === "completed" ||
 				normalized.status === "failed"
@@ -165,7 +161,14 @@ export const gmiClient: ProviderClient = {
 				if (normalized.status === "completed") {
 					normalized.progress = 100;
 				}
+				if (options?.onProgress) {
+					options.onProgress(normalized);
+				}
 				return normalized;
+			}
+
+			if (options?.onProgress) {
+				options.onProgress(normalized);
 			}
 
 			await sleep(intervalMs);

@@ -113,7 +113,7 @@ export async function executeStep(
 	}
 ): Promise<StepOutput> {
 	const category = model.categories[0];
-	const provider = getProviderForEndpoint(model.endpoint);
+	const provider = model.providerBackend ?? getProviderForEndpoint(model.endpoint);
 	const payload = { ...model.defaults, ...params };
 
 	switch (category) {
