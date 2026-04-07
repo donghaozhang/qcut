@@ -25,6 +25,7 @@ const KEY_NAMES = [
 	"DID_API_KEY",
 	"SYNTHESIA_API_KEY",
 	"ARK_API_KEY",
+	"GMI_API_KEY",
 	"QCUT_AUTH_TOKEN",
 ] as const;
 

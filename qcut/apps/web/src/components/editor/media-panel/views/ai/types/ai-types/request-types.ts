@@ -428,3 +428,53 @@ export interface TopazUpscaleRequest {
 	target_fps?: "original" | "interpolated";
 	h264_output?: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// GMI Cloud models
+// ---------------------------------------------------------------------------
+
+/** GMI Veo 3.1 Lite text-to-video / image-to-video request. */
+export interface GmiVeoLiteRequest {
+	prompt: string;
+	/** First frame URL (enables image-to-video mode). */
+	image?: string;
+	/** Last frame URL (requires image). */
+	lastFrame?: string;
+	durationSeconds?: 4 | 6 | 8;
+	aspectRatio?: "16:9" | "9:16";
+	generateAudio?: boolean;
+	personGeneration?: "allow_all" | "allow_adult" | "disallow";
+	seed?: number;
+}
+
+/** GMI SkyReels V4 text-to-video request. */
+export interface SkyreelsV4T2VRequest {
+	prompt: string;
+	duration?: number;
+	aspect_ratio?: "16:9" | "4:3" | "1:1" | "9:16" | "3:4";
+	sound?: boolean;
+	mode?: "fast" | "std" | "pro";
+}
+
+/** GMI SkyReels V4 image-to-video request. */
+export interface SkyreelsV4I2VRequest {
+	prompt: string;
+	first_frame_image: string;
+	duration?: number;
+	sound?: boolean;
+	mode?: "fast" | "std" | "pro";
+}
+
+/** Normalized response from GMI Cloud API. */
+export interface GmiApiResponse {
+	video_url: string;
+	thumbnail_image_url?: string;
+}
+
+/** GMI Cloud request status returned by the polling endpoint. */
+export interface GmiRequestStatus {
+	id: string;
+	status: "queued" | "processing" | "success" | "failed" | "cancelled";
+	outcome?: GmiApiResponse;
+	error?: string;
+}
