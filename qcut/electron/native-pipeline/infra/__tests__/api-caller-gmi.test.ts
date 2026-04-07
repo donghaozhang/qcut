@@ -39,7 +39,7 @@ describe("callModelApi with GMI provider", () => {
 		// Mock submit response
 		mockFetch.mockResolvedValueOnce({
 			ok: true,
-			json: () => Promise.resolve({ id: "gmi-req-123" }),
+			json: () => Promise.resolve({ request_id: "gmi-req-123" }),
 			text: () => Promise.resolve(""),
 		});
 
@@ -48,7 +48,7 @@ describe("callModelApi with GMI provider", () => {
 			ok: true,
 			json: () =>
 				Promise.resolve({
-					id: "gmi-req-123",
+					request_id: "gmi-req-123",
 					status: "success",
 					outcome: {
 						video_url: "https://gmi.cloud/video/output.mp4",
@@ -113,7 +113,7 @@ describe("callModelApi with GMI provider", () => {
 		// Submit success
 		mockFetch.mockResolvedValueOnce({
 			ok: true,
-			json: () => Promise.resolve({ id: "gmi-req-456" }),
+			json: () => Promise.resolve({ request_id: "gmi-req-456" }),
 			text: () => Promise.resolve(""),
 		});
 
@@ -122,7 +122,7 @@ describe("callModelApi with GMI provider", () => {
 			ok: true,
 			json: () =>
 				Promise.resolve({
-					id: "gmi-req-456",
+					request_id: "gmi-req-456",
 					status: "failed",
 					error: "Model overloaded",
 				}),
@@ -141,7 +141,7 @@ describe("callModelApi with GMI provider", () => {
 	it("returns error when GMI poll reports cancelled", async () => {
 		mockFetch.mockResolvedValueOnce({
 			ok: true,
-			json: () => Promise.resolve({ id: "gmi-req-789" }),
+			json: () => Promise.resolve({ request_id: "gmi-req-789" }),
 			text: () => Promise.resolve(""),
 		});
 
@@ -149,7 +149,7 @@ describe("callModelApi with GMI provider", () => {
 			ok: true,
 			json: () =>
 				Promise.resolve({
-					id: "gmi-req-789",
+					request_id: "gmi-req-789",
 					status: "cancelled",
 				}),
 		});
@@ -171,14 +171,15 @@ describe("callModelApi with GMI provider", () => {
 		// Submit
 		mockFetch.mockResolvedValueOnce({
 			ok: true,
-			json: () => Promise.resolve({ id: "gmi-req-prog" }),
+			json: () => Promise.resolve({ request_id: "gmi-req-prog" }),
 			text: () => Promise.resolve(""),
 		});
 
 		// Poll 1: processing
 		mockFetch.mockResolvedValueOnce({
 			ok: true,
-			json: () => Promise.resolve({ id: "gmi-req-prog", status: "processing" }),
+			json: () =>
+				Promise.resolve({ request_id: "gmi-req-prog", status: "processing" }),
 		});
 
 		// Poll 2: success
@@ -186,7 +187,7 @@ describe("callModelApi with GMI provider", () => {
 			ok: true,
 			json: () =>
 				Promise.resolve({
-					id: "gmi-req-prog",
+					request_id: "gmi-req-prog",
 					status: "success",
 					outcome: { video_url: "https://gmi.cloud/out.mp4" },
 				}),
@@ -229,7 +230,7 @@ describe("callModelApi with GMI provider", () => {
 	it("wraps endpoint as model ID in GMI submit payload", async () => {
 		mockFetch.mockResolvedValueOnce({
 			ok: true,
-			json: () => Promise.resolve({ id: "gmi-req-wrap" }),
+			json: () => Promise.resolve({ request_id: "gmi-req-wrap" }),
 			text: () => Promise.resolve(""),
 		});
 
@@ -237,7 +238,7 @@ describe("callModelApi with GMI provider", () => {
 			ok: true,
 			json: () =>
 				Promise.resolve({
-					id: "gmi-req-wrap",
+					request_id: "gmi-req-wrap",
 					status: "success",
 					outcome: { video_url: "https://gmi.cloud/v.mp4" },
 				}),

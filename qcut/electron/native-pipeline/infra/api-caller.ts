@@ -55,12 +55,15 @@ interface FalStatusResponse {
 }
 
 interface GmiStatusResponse {
-	id: string;
+	request_id: string;
 	status: "queued" | "processing" | "success" | "failed" | "cancelled";
 	outcome?: {
 		video_url?: string;
 		thumbnail_image_url?: string;
-	};
+		error?: string;
+		error_code?: number;
+		error_source?: string;
+	} | null;
 	error?: string;
 }
 
@@ -510,9 +513,13 @@ async function pollGmiQueue(
 		}
 
 		if (status.status === "failed" || status.status === "cancelled") {
+			const errorMsg =
+				status.error ||
+				(status.outcome as Record<string, unknown>)?.error ||
+				`Generation ${status.status}`;
 			return {
 				success: false,
-				error: status.error || `Generation ${status.status}`,
+				error: String(errorMsg),
 				duration: (Date.now() - startTime) / 1000,
 			};
 		}
@@ -708,8 +715,12 @@ export async function callModelApi(
 				};
 			}
 
-			const submitData = (await submitRes.json()) as { id: string };
-			if (!submitData.id) {
+			const submitData = (await submitRes.json()) as {
+				id?: string;
+				request_id?: string;
+			};
+			const requestId = submitData.request_id || submitData.id;
+			if (!requestId) {
 				return {
 					success: false,
 					error: "GMI submit did not return a request ID",
@@ -717,7 +728,7 @@ export async function callModelApi(
 				};
 			}
 
-			return pollGmiQueue(submitData.id, {
+			return pollGmiQueue(requestId, {
 				onProgress: options.onProgress,
 				signal: combinedSignal,
 			});
