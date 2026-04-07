@@ -24,8 +24,8 @@ This is a **new modality** not currently in QCut — it requires a video + image
 |-----------|------|----------|---------|-------------|
 | `image_url` | string | Yes | - | Character image (JPG/PNG/WebP, max 10MB) |
 | `video_url` | string | Yes | - | Motion reference video (MP4/MOV/MKV, 3-30s, max 100MB) |
-| `character_orientation` | string | Yes | `"video"` | `"video"` (up to 30s output) or `"image"` (up to ~10s) |
-| `mode` | string | Yes | `"std"` | `"std"` or `"pro"` |
+| `character_orientation` | string | No | `"video"` | `"video"` (up to 30s output) or `"image"` (up to ~10s) |
+| `mode` | string | No | `"std"` | `"std"` or `"pro"` |
 | `keep_original_sound` | string | No | `"yes"` | `"yes"` or `"no"` |
 | `prompt` | string | No | - | Background, lighting, style guidance (max 2500 chars). Does NOT control motion. |
 
@@ -194,7 +194,7 @@ ModelRegistry.register({
 
 ## Implementation Order
 
-```
+```text
 Subtask 1 (types)
     ↓
 Subtask 2 (generator)
@@ -222,3 +222,33 @@ Subtask 6 (exports & tests)
   Default to `"video"` for maximum flexibility.
 - The model preserves the character's appearance from the image while adopting motion from
   the video — this is motion transfer, not video-to-video editing.
+
+---
+
+## Implementation Summary (2026-04-07)
+
+**Status:** Complete (handler uses `referenceVideoUrl` from settings; UI video selector pending)
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `apps/web/src/components/editor/media-panel/views/ai/types/ai-types/request-types.ts` | Add `KlingMotionControlRequest` |
+| `apps/web/src/lib/ai-video/generators/gmi-image-to-video.ts` | Add `generateKlingMotionControlVideo()` |
+| `apps/web/src/components/editor/media-panel/views/ai/constants/image2video-models-config.ts` | Add `gmi_kling_motion_control` |
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/image-to-video-handlers.ts` | Add `handleGmiKlingMotionControl()` |
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/model-handlers.ts` | Add switch case |
+| `electron/native-pipeline/registry-data/image-to-video.ts` | Register `gmi_kling_motion_control` |
+| `apps/web/src/lib/ai-video/index.ts` | Export `generateKlingMotionControlVideo` |
+
+### Tests
+
+| File | Changes |
+|------|---------|
+| `handler-exports.test.ts` | I2V 16→19 (batch with other Kling handlers) |
+| `cli-commands-phase4.test.ts` | Add `gmi_kling_motion_control` assertion |
+
+### Notes
+- Handler accesses `settings.referenceVideoUrl` via `Record<string, unknown>` cast since `ImageToVideoSettings` doesn't yet have this field
+- Will gracefully skip with "Motion Control requires a reference video" until UI adds video reference selector
+- Registered in I2V model order at the end of the GMI Cloud section

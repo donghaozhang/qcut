@@ -23,7 +23,7 @@ automatically. No handler code should need to know which provider is being used.
 
 A thin routing layer between handlers and provider-specific clients:
 
-```
+```text
 Handler → ProviderRouter.submit(modelKey, payload) → FAL or GMI client
 Handler → ProviderRouter.poll(jobId) → FAL or GMI polling
 ```
@@ -180,7 +180,7 @@ class ProviderRouter {
 
   async submit(modelKey: string, payload): Promise<ProviderSubmitResult> {
     const backend = resolveProvider(modelKey); // check registry + key availability
-    return this.providers.get(backend)!.submit(endpoint, payload);
+    return this.providers.get(backend)!.submit(modelKey, payload);
   }
 
   async poll(requestId: string, provider: ProviderBackend): Promise<ProviderPollResult> {
@@ -278,7 +278,7 @@ Add TypeScript types for GMI API requests and responses.
 
 ## Implementation Order
 
-```
+```text
 Subtask 1  (provider types)
     ↓
 Subtask 3  (FAL provider wrapper)  +  Subtask 2 (GMI client)   ← parallel

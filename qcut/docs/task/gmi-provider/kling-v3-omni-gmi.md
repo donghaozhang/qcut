@@ -306,7 +306,7 @@ Both with `providerBackend: "gmi"`.
 
 ## Implementation Order
 
-```
+```text
 Subtask 1 (types)
     ↓
 Subtask 2 (omni generator)
@@ -325,3 +325,39 @@ Subtask 6 (exports & tests)
 - Element management UI (create, list, reuse elements)
 - `kling-create-element` full integration with element library
 - Feature reference mode (style/motion transfer from video)
+
+---
+
+## Implementation Summary (2026-04-07)
+
+**Status:** Complete (T2V + I2V modes; multi-shot, video editing, elements deferred)
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `apps/web/src/components/editor/media-panel/views/ai/types/ai-types/request-types.ts` | Add `KlingV3OmniRequest`, `KlingCreateElementRequest` |
+| `apps/web/src/lib/ai-video/generators/gmi-text-to-video.ts` | Add `generateKlingOmniTextVideo()` |
+| `apps/web/src/lib/ai-video/generators/gmi-image-to-video.ts` | Add `generateKlingOmniImageVideo()` |
+| `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/models.ts` | Add `gmi_kling_v3_omni_t2v` |
+| `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/capabilities.ts` | Add capabilities |
+| `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/order.ts` | Add to order |
+| `apps/web/src/components/editor/media-panel/views/ai/constants/image2video-models-config.ts` | Add `gmi_kling_v3_omni_i2v` |
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/text-to-video-handlers.ts` | Add `handleGmiKlingOmniT2V()` |
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/image-to-video-handlers.ts` | Add `handleGmiKlingOmniI2V()` |
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/model-handlers.ts` | Add switch cases |
+| `electron/native-pipeline/registry-data/text-to-video.ts` | Register `gmi_kling_v3_omni_t2v` |
+| `electron/native-pipeline/registry-data/image-to-video.ts` | Register `gmi_kling_v3_omni_i2v` |
+| `apps/web/src/lib/ai-video/index.ts` | Export `generateKlingOmniTextVideo`, `generateKlingOmniImageVideo` |
+
+### Tests
+
+| File | Changes |
+|------|---------|
+| `handler-exports.test.ts` | Counts updated as part of batch |
+| `cli-commands-phase4.test.ts` | Add `gmi_kling_v3_omni_t2v`, `gmi_kling_v3_omni_i2v` assertions |
+
+### Notes
+- Omni I2V uses `image_list` with `JSON.stringify()` to pass first frame (and optional end frame)
+- Mode maps to resolution: `std` = 720p, `pro` = 1080p — handler uses `settings.resolution` to pick
+- `KlingCreateElementRequest` type defined but `createKlingElement()` generator deferred to future work

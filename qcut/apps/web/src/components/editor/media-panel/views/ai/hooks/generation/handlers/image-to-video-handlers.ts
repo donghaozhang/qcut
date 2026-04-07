@@ -13,6 +13,9 @@ import {
 	generateKling26ImageVideo,
 	generateGmiVeoLiteImageVideo,
 	generateSkyreelsV4ImageVideo,
+	generateKlingV3GmiImageVideo,
+	generateKlingOmniImageVideo,
+	generateKlingMotionControlVideo,
 } from "@/lib/ai-video";
 import type {
 	ImageToVideoSettings,
@@ -717,7 +720,7 @@ export async function handleGmiVeoLiteI2V(
 	ctx: ModelHandlerContext,
 	settings: ImageToVideoSettings
 ): Promise<ModelHandlerResult> {
-	if (!settings.imageUrl) {
+	if (!settings.selectedImage) {
 		return {
 			response: undefined,
 			shouldSkip: true,
@@ -726,11 +729,20 @@ export async function handleGmiVeoLiteI2V(
 	}
 
 	try {
+		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+		const durationSeconds = [4, 6, 8].includes(settings.duration ?? 8)
+			? ((settings.duration ?? 8) as 4 | 6 | 8)
+			: 8;
+		const aspectRatio =
+			settings.aspectRatio === "16:9" || settings.aspectRatio === "9:16"
+				? settings.aspectRatio
+				: "16:9";
+
 		const response = await generateGmiVeoLiteImageVideo({
 			prompt: ctx.prompt,
-			imageUrl: settings.imageUrl,
-			durationSeconds: (settings.duration ?? 8) as 4 | 6 | 8,
-			aspectRatio: (settings.aspectRatio ?? "16:9") as "16:9" | "9:16",
+			imageUrl,
+			durationSeconds,
+			aspectRatio,
 			generateAudio: true,
 		});
 		return { response };
@@ -748,7 +760,7 @@ export async function handleSkyreelsV4I2V(
 	ctx: ModelHandlerContext,
 	settings: ImageToVideoSettings
 ): Promise<ModelHandlerResult> {
-	if (!settings.imageUrl) {
+	if (!settings.selectedImage) {
 		return {
 			response: undefined,
 			shouldSkip: true,
@@ -757,10 +769,117 @@ export async function handleSkyreelsV4I2V(
 	}
 
 	try {
+		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+
 		const response = await generateSkyreelsV4ImageVideo({
 			prompt: ctx.prompt,
-			imageUrl: settings.imageUrl,
+			imageUrl,
 			duration: settings.duration ?? 5,
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle GMI Kling V3 image-to-video generation. */
+export async function handleGmiKlingV3I2V(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.selectedImage) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "Kling V3 I2V requires a source image",
+		};
+	}
+
+	try {
+		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+
+		const response = await generateKlingV3GmiImageVideo({
+			prompt: ctx.prompt,
+			imageUrl,
+			negative_prompt: settings.klingNegativePrompt,
+			duration: String(settings.duration ?? 5),
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle GMI Kling V3 Omni image-to-video generation. */
+export async function handleGmiKlingOmniI2V(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.selectedImage) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "Kling V3 Omni I2V requires a source image",
+		};
+	}
+
+	try {
+		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+
+		const response = await generateKlingOmniImageVideo({
+			prompt: ctx.prompt,
+			imageUrl,
+			mode: (settings.resolution === "720p" ? "std" : "pro") as
+				| "std"
+				| "pro",
+			duration: String(settings.duration ?? 5),
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle GMI Kling 3 Motion Control generation. */
+export async function handleGmiKlingMotionControl(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.selectedImage) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "Motion Control requires a character image",
+		};
+	}
+
+	if (!(settings as Record<string, unknown>).referenceVideoUrl) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "Motion Control requires a reference video",
+		};
+	}
+
+	try {
+		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+
+		const response = await generateKlingMotionControlVideo({
+			imageUrl,
+			videoUrl: (settings as Record<string, unknown>).referenceVideoUrl as string,
+			prompt: ctx.prompt || undefined,
 		});
 		return { response };
 	} catch (error) {
