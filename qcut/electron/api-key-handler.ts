@@ -370,6 +370,11 @@ export async function getDecryptedApiKeys(): Promise<ApiKeys> {
 			electronKeys.elevenLabsApiKey ||
 			qcutEnvKeys.elevenLabsApiKey ||
 			"",
+		gmiApiKey:
+			process.env.GMI_API_KEY ||
+			electronKeys.gmiApiKey ||
+			qcutEnvKeys.gmiApiKey ||
+			"",
 	};
 }
 
@@ -504,6 +509,7 @@ export function setupApiKeyIPC(): void {
 			openRouterApiKey: resolveStatus("OPENROUTER_API_KEY", "openRouterApiKey"),
 			anthropicApiKey: resolveStatus("ANTHROPIC_API_KEY", "anthropicApiKey"),
 			elevenLabsApiKey: resolveStatus("ELEVENLABS_API_KEY", "elevenLabsApiKey"),
+			gmiApiKey: resolveStatus("GMI_API_KEY", "gmiApiKey"),
 		};
 	});
 }

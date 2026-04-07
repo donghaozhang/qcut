@@ -13,6 +13,7 @@ import {
 	downloadOutput,
 	uploadToFalStorage,
 	type ApiCallResult,
+	type ProviderName,
 } from "../infra/api-caller.js";
 
 export interface StepInput {
@@ -89,7 +90,7 @@ export function getOutputDataType(category: ModelCategory): DataType {
 
 function getProviderForEndpoint(
 	endpoint: string
-): "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine" {
+): ProviderName {
 	if (endpoint.startsWith("elevenlabs/")) return "elevenlabs";
 	if (endpoint.startsWith("google/")) return "google";
 	if (endpoint.startsWith("volcengine/")) return "volcengine";
@@ -159,7 +160,7 @@ async function executeTextToImage(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
+	provider: ProviderName,
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -214,7 +215,7 @@ async function executeTextToVideo(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
+	provider: ProviderName,
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -253,7 +254,7 @@ async function executeImageToVideo(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
+	provider: ProviderName,
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -286,7 +287,7 @@ async function executeImageToImage(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
+	provider: ProviderName,
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -334,7 +335,7 @@ async function executeVideoToVideo(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
+	provider: ProviderName,
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -361,7 +362,7 @@ async function executeAvatar(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
+	provider: ProviderName,
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -391,7 +392,7 @@ async function executeTTS(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
+	provider: ProviderName,
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -429,7 +430,7 @@ async function executeSTT(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
+	provider: ProviderName,
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -479,7 +480,7 @@ async function executeImageUnderstanding(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
+	provider: ProviderName,
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
@@ -673,7 +674,7 @@ async function executePromptGeneration(
 	model: ModelDefinition,
 	input: StepInput,
 	payload: Record<string, unknown>,
-	provider: "fal" | "elevenlabs" | "google" | "openrouter" | "volcengine",
+	provider: ProviderName,
 	options: {
 		outputDir?: string;
 		onProgress?: (p: number, m: string) => void;
