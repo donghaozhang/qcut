@@ -2,6 +2,7 @@ import { ipcMain, app, dialog } from "electron";
 import path from "path";
 import fs from "fs/promises";
 
+/** A user-uploaded wallpaper image stored in the app data directory. */
 export interface WallpaperEntry {
 	id: string;
 	name: string;
@@ -29,6 +30,7 @@ function fileToEntry(dir: string, filename: string): WallpaperEntry {
 	};
 }
 
+/** Register IPC handlers for wallpaper list, upload, and delete operations. */
 export function setupWallpaperIPC(): void {
 	ipcMain.handle("wallpapers:list", async (): Promise<WallpaperEntry[]> => {
 		const dir = await getWallpapersDir();
@@ -38,10 +40,7 @@ export function setupWallpaperIPC(): void {
 
 	ipcMain.handle(
 		"wallpapers:upload",
-		async (
-			_event,
-			sourcePath: string
-		): Promise<WallpaperEntry | null> => {
+		async (_event, sourcePath: string): Promise<WallpaperEntry | null> => {
 			if (!isImageFile(sourcePath)) return null;
 			try {
 				await fs.access(sourcePath);
@@ -77,21 +76,17 @@ export function setupWallpaperIPC(): void {
 		}
 	);
 
-	ipcMain.handle(
-		"wallpapers:pick",
-		async (): Promise<string | null> => {
-			const result = await dialog.showOpenDialog({
-				properties: ["openFile"],
-				filters: [
-					{
-						name: "Images",
-						extensions: SUPPORTED_EXTENSIONS.map((e) => e.slice(1)),
-					},
-				],
-			});
-			if (result.canceled || result.filePaths.length === 0) return null;
-			return result.filePaths[0];
-		}
-	);
+	ipcMain.handle("wallpapers:pick", async (): Promise<string | null> => {
+		const result = await dialog.showOpenDialog({
+			properties: ["openFile"],
+			filters: [
+				{
+					name: "Images",
+					extensions: SUPPORTED_EXTENSIONS.map((e) => e.slice(1)),
+				},
+			],
+		});
+		if (result.canceled || result.filePaths.length === 0) return null;
+		return result.filePaths[0];
+	});
 }
-

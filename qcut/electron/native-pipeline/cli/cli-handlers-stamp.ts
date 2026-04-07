@@ -174,8 +174,7 @@ export async function handleStampImage(
 				bx = pad;
 				by = imgH - badgeH - pad;
 				break;
-			case "bottom-right":
-			default:
+			default: // bottom-right
 				bx = imgW - badgeW - pad;
 				by = imgH - badgeH - pad;
 				break;

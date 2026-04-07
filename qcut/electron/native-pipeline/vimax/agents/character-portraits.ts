@@ -27,6 +27,7 @@ import type {
 	CharacterPortrait,
 } from "../types/character.js";
 
+/** Configuration for the character portrait generation agent. */
 export interface PortraitsGeneratorConfig extends AgentConfig {
 	image_model: string;
 	llm_model: string;
@@ -36,6 +37,7 @@ export interface PortraitsGeneratorConfig extends AgentConfig {
 	output_dir: string;
 }
 
+/** Create a {@link PortraitsGeneratorConfig} with sensible defaults. */
 export function createPortraitsGeneratorConfig(
 	partial?: Partial<PortraitsGeneratorConfig>
 ): PortraitsGeneratorConfig {
@@ -77,6 +79,7 @@ function safeSlug(value: string): string {
 	return safe || "unknown";
 }
 
+/** Agent that generates multi-angle character portraits for visual consistency. */
 export class CharacterPortraitsGenerator extends BaseAgent<
 	CharacterInNovel,
 	CharacterPortrait
@@ -103,10 +106,24 @@ export class CharacterPortraitsGenerator extends BaseAgent<
 		}
 	}
 
+	/**
+	 * Get the image prompt for a character portrait.
+	 * Uses the pre-generated portrait_prompt from character extraction when
+	 * available (front view), falling back to LLM generation for other views
+	 * or when no prompt was pre-generated.
+	 */
 	private async _generatePrompt(
 		character: CharacterInNovel,
 		view: string
 	): Promise<string> {
+		// Use pre-generated prompt for front view if available
+		if (view === "front" && character.portrait_prompt) {
+			console.log(
+				`[portraits] Using pre-generated prompt for ${character.name} front view`
+			);
+			return character.portrait_prompt;
+		}
+
 		const prompt = PORTRAIT_PROMPT_TEMPLATE.replace(/\{view\}/g, view)
 			.replace("{name}", character.name)
 			.replace("{description}", character.description)

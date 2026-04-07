@@ -15,6 +15,7 @@ import type {
 	ModelHandlerResult,
 } from "../model-handler-types";
 
+/** Handle Kling O1 reference-to-video avatar generation. */
 export async function handleKlingO1Ref2Video(
 	ctx: ModelHandlerContext,
 	settings: AvatarSettings
@@ -39,6 +40,61 @@ export async function handleKlingO1Ref2Video(
 			prompt: ctx.prompt || undefined,
 		});
 		debugLogger.log("model-handlers", "AVATAR_GENERATE_COMPLETE", {
+			modelId: ctx.modelId,
+			hasResponse: !!response,
+		});
+
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/**
+ * Handle Grok Imagine Reference-to-Video generation
+ *
+ * Supports up to 7 reference images uploaded to FAL storage.
+ */
+export async function handleGrokImagineR2V(
+	ctx: ModelHandlerContext,
+	settings: AvatarSettings
+): Promise<ModelHandlerResult> {
+	const refImages = settings.referenceImages?.filter(
+		(img): img is File => img != null
+	);
+	if (!refImages?.length) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason:
+				"Grok Imagine Reference-to-Video requires at least one reference image",
+		};
+	}
+
+	try {
+		debugLogger.log("model-handlers", "GROK_R2V_START", {
+			modelId: ctx.modelId,
+			referenceImageCount: refImages.length,
+		});
+
+		// Upload all reference images to FAL storage in parallel
+		const referenceImageUrls = await Promise.all(
+			refImages.slice(0, 7).map((img) => settings.uploadImageToFal(img))
+		);
+
+		const response = await generateAvatarVideo({
+			model: ctx.modelId,
+			referenceImageUrls,
+			prompt: ctx.prompt || undefined,
+			duration: settings.grokR2vDuration ?? 8,
+			resolution: settings.grokR2vResolution ?? "480p",
+		});
+
+		debugLogger.log("model-handlers", "GROK_R2V_COMPLETE", {
 			modelId: ctx.modelId,
 			hasResponse: !!response,
 		});

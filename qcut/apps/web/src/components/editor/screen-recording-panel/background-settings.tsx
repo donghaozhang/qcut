@@ -22,6 +22,7 @@ const BG_TYPES: { value: BackgroundConfig["type"]; label: string }[] = [
 	{ value: "wallpaper", label: "Image" },
 ];
 
+/** Screen recording background type and color picker controls. */
 export function BackgroundSettings() {
 	const background = useScreenRecordingEnhancementStore((s) => s.background);
 	const setBackground = useScreenRecordingEnhancementStore(
@@ -270,7 +271,8 @@ function WallpaperPicker({
 	onSelect: (path: string) => void;
 }) {
 	const [entries, setEntries] = useState<WallpaperEntry[]>([]);
-	const hasElectron = typeof window !== "undefined" && !!window.electronAPI?.wallpapers;
+	const hasElectron =
+		typeof window !== "undefined" && !!window.electronAPI?.wallpapers;
 
 	const refresh = useCallback(async () => {
 		if (!hasElectron) return;

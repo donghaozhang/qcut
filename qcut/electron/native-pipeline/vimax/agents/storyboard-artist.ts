@@ -37,11 +37,13 @@ function safeSlug(value: string): string {
 	return safe || "untitled";
 }
 
+/** Storyboard generation output including images and cost. */
 export interface StoryboardResult extends Storyboard {
 	images: ImageOutput[];
 	total_cost: number;
 }
 
+/** Configuration for the storyboard image generation agent. */
 export interface StoryboardArtistConfig extends AgentConfig {
 	image_model: string;
 	style_prefix: string;
@@ -52,6 +54,7 @@ export interface StoryboardArtistConfig extends AgentConfig {
 	reference_strength: number;
 }
 
+/** Create a {@link StoryboardArtistConfig} with sensible defaults. */
 export function createStoryboardArtistConfig(
 	partial?: Partial<StoryboardArtistConfig>
 ): StoryboardArtistConfig {
@@ -76,6 +79,7 @@ const SHOT_TYPE_HINTS: Record<string, string> = {
 	extreme_close_up: "extreme close-up, detail shot",
 };
 
+/** Agent that generates storyboard images from screenplay scripts. */
 export class StoryboardArtist extends BaseAgent<Script, StoryboardResult> {
 	declare config: StoryboardArtistConfig;
 	private _imageAdapter: ImageGeneratorAdapter | null = null;
@@ -188,7 +192,8 @@ export class StoryboardArtist extends BaseAgent<Script, StoryboardResult> {
 	async process(
 		script: Script,
 		portraitRegistry?: CharacterPortraitRegistry,
-		chapterIndex?: number
+		chapterIndex?: number,
+		maxImages?: number
 	): Promise<AgentResult<StoryboardResult>> {
 		await this._ensureAdapter();
 
@@ -227,10 +232,19 @@ export class StoryboardArtist extends BaseAgent<Script, StoryboardResult> {
 			}
 
 			let shotIndex = 0;
+			let imageLimitReached = false;
 			for (let sceneIdx = 0; sceneIdx < script.scenes.length; sceneIdx++) {
+				if (imageLimitReached) break;
 				const scene = script.scenes[sceneIdx];
 
 				for (const shot of scene.shots) {
+					if (maxImages != null && images.length >= maxImages) {
+						console.log(
+							`[storyboard] Image cap reached (${maxImages}), stopping generation`
+						);
+						imageLimitReached = true;
+						break;
+					}
 					shotIndex++;
 					const prompt = this._buildPrompt(shot, scene, registry);
 

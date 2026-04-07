@@ -110,6 +110,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"max-clips": { type: "string" },
 			"scripts-only": { type: "boolean", default: false },
 			"storyboard-only": { type: "boolean", default: false },
+			"max-images": { type: "string" },
 			"no-portraits": { type: "boolean", default: false },
 			"llm-model": { type: "string" },
 			"image-model": { type: "string" },
@@ -364,6 +365,11 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			: undefined,
 		scriptsOnly: (values["scripts-only"] as boolean) ?? false,
 		storyboardOnly: (values["storyboard-only"] as boolean) ?? false,
+		maxImages: values["max-images"]
+			? Number.isNaN(parseInt(values["max-images"] as string, 10))
+				? undefined
+				: parseInt(values["max-images"] as string, 10)
+			: undefined,
 		noPortraits: (values["no-portraits"] as boolean) ?? false,
 		llmModel: values["llm-model"] as string | undefined,
 		imageModel: values["image-model"] as string | undefined,

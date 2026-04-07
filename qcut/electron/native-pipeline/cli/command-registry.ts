@@ -32,6 +32,7 @@ function f(
 
 // ─── Global Flags ────────────────────────────────────────────────────
 
+/** Flags available to every CLI command (output, model, verbosity, etc.). */
 export const GLOBAL_FLAGS: FlagDef[] = [
 	f("--output-dir", "string", "Output directory", {
 		short: "-o",
@@ -70,6 +71,7 @@ export const GLOBAL_FLAGS: FlagDef[] = [
 
 // ─── Categories ──────────────────────────────────────────────────────
 
+/** Ordered list of command categories shown in CLI help output. */
 export const CATEGORIES: CategoryDef[] = [
 	{
 		name: "generation",
@@ -1098,12 +1100,24 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		description: "Generate movie from a novel",
 		category: "vimax",
 		flags: [
-			f("--novel", "string", "Novel file path", { required: true }),
+			f(
+				"--novel",
+				"string",
+				"Novel file path (default: bundled drama example)"
+			),
 			f("--title", "string", "Project title"),
 			f("--max-scenes", "number", "Max scenes"),
 			f("--scripts-only", "boolean", "Generate scripts only", {
 				default: false,
 			}),
+			f("--storyboard-only", "boolean", "Stop after storyboard images", {
+				default: false,
+			}),
+			f(
+				"--max-images",
+				"number",
+				"Max storyboard images to generate (implies no video)"
+			),
 			f("--no-portraits", "boolean", "Skip portrait generation", {
 				default: false,
 			}),
@@ -1113,6 +1127,8 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		],
 		examples: [
 			"qcut-pipeline vimax:novel2movie --novel story.txt --max-scenes 10",
+			"qcut-pipeline vimax:novel2movie --scripts-only",
+			"qcut-pipeline vimax:novel2movie --max-images 5",
 		],
 	},
 	"vimax:extract-characters": {

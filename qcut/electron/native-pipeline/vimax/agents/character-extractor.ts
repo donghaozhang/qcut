@@ -24,10 +24,12 @@ import type { CharacterInNovel } from "../types/character.js";
 import { createCharacterInNovel } from "../types/character.js";
 import { detectLanguageInstruction } from "../detect-language.js";
 
+/** Configuration for the character extraction agent. */
 export interface CharacterExtractorConfig extends AgentConfig {
 	max_characters: number;
 }
 
+/** Create a {@link CharacterExtractorConfig} with sensible defaults. */
 export function createCharacterExtractorConfig(
 	partial?: Partial<CharacterExtractorConfig>
 ): CharacterExtractorConfig {
@@ -51,6 +53,7 @@ For each character, provide:
 - personality: Personality traits
 - role: Role in the story (protagonist, antagonist, supporting, minor)
 - relationships: List of relationships with other characters
+- portrait_prompt: A detailed image generation prompt for a front-view portrait of this character. Include specific details about their appearance, clothing, age, expression, and style. The portrait should have a clean plain white background. Example: "photorealistic front portrait of a young woman in her 20s, long black hair, wearing an elegant white gown, delicate features, warm lighting, plain white background, high detail"
 
 Only include characters that appear in the text.
 If a field cannot be determined, use an empty string or empty list.
@@ -60,6 +63,7 @@ TEXT:
 
 Return a JSON object with a "characters" key containing an array of characters.`;
 
+/** Agent that extracts character profiles from story text using an LLM. */
 export class CharacterExtractor extends BaseAgent<string, CharacterInNovel[]> {
 	declare config: CharacterExtractorConfig;
 	private _llm: LLMAdapter | null = null;
@@ -113,6 +117,7 @@ export class CharacterExtractor extends BaseAgent<string, CharacterInNovel[]> {
 						personality: item.personality,
 						role: item.role,
 						relationships: item.relationships,
+						portrait_prompt: item.portrait_prompt || undefined,
 					})
 				);
 			}

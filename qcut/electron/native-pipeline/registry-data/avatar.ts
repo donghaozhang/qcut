@@ -5,6 +5,7 @@
 
 import { ModelRegistry } from "../infra/registry.js";
 
+/** Register all avatar/lip-sync model definitions into the global registry. */
 export function registerAvatarModels(): void {
 	ModelRegistry.register({
 		key: "omnihuman_v1_5",
@@ -218,5 +219,26 @@ export function registerAvatarModels(): void {
 		},
 		costEstimate: 0.36,
 		processingTime: 45,
+	});
+
+	ModelRegistry.register({
+		key: "grok_imagine_r2v",
+		name: "xAI Grok Imagine Reference-to-Video",
+		provider: "xAI (via FAL)",
+		endpoint: "xai/grok-imagine-video/reference-to-video",
+		categories: ["avatar"],
+		description:
+			"Reference-to-video using up to 7 images to guide generation with @Image syntax",
+		pricing: 0.05,
+		resolutions: ["480p", "720p"],
+		defaults: { duration: 8, resolution: "480p", aspect_ratio: "16:9" },
+		features: ["reference_images", "flexible_duration"],
+		maxDuration: 10,
+		inputRequirements: {
+			required: ["reference_image_urls", "prompt"],
+			optional: ["duration", "aspect_ratio", "resolution"],
+		},
+		costEstimate: 0.302,
+		processingTime: 60,
 	});
 }
