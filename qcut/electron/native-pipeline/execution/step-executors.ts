@@ -116,20 +116,18 @@ export async function executeStep(
 		model.providerBackend ?? getProviderForEndpoint(model.endpoint);
 	const payload = { ...model.defaults, ...params };
 
-	// GMI Veo models use camelCase params — map CLI snake_case overrides
-	if (provider === "gmi" && payload.aspect_ratio !== undefined) {
-		payload.aspectRatio = payload.aspect_ratio;
-		delete payload.aspect_ratio;
-	}
-	if (
-		provider === "gmi" &&
-		payload.duration !== undefined &&
-		!payload.durationSeconds
-	) {
-		// Veo expects durationSeconds as a number
-		const d = Number(payload.duration);
-		if (Number.isFinite(d)) {
-			payload.durationSeconds = d;
+	// GMI Veo models use camelCase params — only remap for Veo endpoints
+	const isVeoModel = model.endpoint.startsWith("veo-");
+	if (provider === "gmi" && isVeoModel) {
+		if (payload.aspect_ratio !== undefined) {
+			payload.aspectRatio = payload.aspect_ratio;
+			delete payload.aspect_ratio;
+		}
+		if (payload.duration !== undefined && !payload.durationSeconds) {
+			const d = Number(payload.duration);
+			if (Number.isFinite(d)) {
+				payload.durationSeconds = d;
+			}
 		}
 	}
 
