@@ -118,14 +118,11 @@ export const gmiClient: ProviderClient = {
 		const intervalMs = options?.pollIntervalMs ?? 5000;
 
 		for (let attempt = 0; attempt < maxAttempts; attempt++) {
-			const response = await fetch(
-				`${GMI_API_BASE}/requests/${requestId}`,
-				{
-					method: "GET",
-					headers: { Authorization: `Bearer ${apiKey}` },
-					signal: options?.signal,
-				}
-			);
+			const response = await fetch(`${GMI_API_BASE}/requests/${requestId}`, {
+				method: "GET",
+				headers: { Authorization: `Bearer ${apiKey}` },
+				signal: options?.signal,
+			});
 
 			if (!response.ok) {
 				throw new Error(
@@ -154,10 +151,7 @@ export const gmiClient: ProviderClient = {
 				);
 			}
 
-			if (
-				normalized.status === "completed" ||
-				normalized.status === "failed"
-			) {
+			if (normalized.status === "completed" || normalized.status === "failed") {
 				if (normalized.status === "completed") {
 					normalized.progress = 100;
 				}

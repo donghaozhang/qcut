@@ -536,10 +536,7 @@ export async function handleGmiKlingV3T2V(
 			prompt: ctx.prompt,
 			negative_prompt: settings.negativePrompt,
 			duration: String(settings.duration ?? 5),
-			aspect_ratio: (settings.aspectRatio ?? "16:9") as
-				| "16:9"
-				| "9:16"
-				| "1:1",
+			aspect_ratio: (settings.aspectRatio ?? "16:9") as "16:9" | "9:16" | "1:1",
 		});
 		return { response };
 	} catch (error) {
@@ -559,14 +556,9 @@ export async function handleGmiKlingOmniT2V(
 	try {
 		const response = await generateKlingOmniTextVideo({
 			prompt: ctx.prompt,
-			mode: (settings.resolution === "720p" ? "std" : "pro") as
-				| "std"
-				| "pro",
+			mode: (settings.resolution === "720p" ? "std" : "pro") as "std" | "pro",
 			duration: String(settings.duration ?? 5),
-			aspect_ratio: (settings.aspectRatio ?? "16:9") as
-				| "16:9"
-				| "9:16"
-				| "1:1",
+			aspect_ratio: (settings.aspectRatio ?? "16:9") as "16:9" | "9:16" | "1:1",
 		});
 		return { response };
 	} catch (error) {

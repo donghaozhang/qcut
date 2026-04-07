@@ -837,9 +837,7 @@ export async function handleGmiKlingOmniI2V(
 		const response = await generateKlingOmniImageVideo({
 			prompt: ctx.prompt,
 			imageUrl,
-			mode: (settings.resolution === "720p" ? "std" : "pro") as
-				| "std"
-				| "pro",
+			mode: (settings.resolution === "720p" ? "std" : "pro") as "std" | "pro",
 			duration: String(settings.duration ?? 5),
 		});
 		return { response };
@@ -878,7 +876,8 @@ export async function handleGmiKlingMotionControl(
 
 		const response = await generateKlingMotionControlVideo({
 			imageUrl,
-			videoUrl: (settings as Record<string, unknown>).referenceVideoUrl as string,
+			videoUrl: (settings as Record<string, unknown>)
+				.referenceVideoUrl as string,
 			prompt: ctx.prompt || undefined,
 		});
 		return { response };

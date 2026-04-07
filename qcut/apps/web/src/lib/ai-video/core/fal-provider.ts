@@ -125,10 +125,7 @@ export const falProvider: ProviderClient = {
 					};
 				}
 
-				const result = (await resultResponse.json()) as Record<
-					string,
-					unknown
-				>;
+				const result = (await resultResponse.json()) as Record<string, unknown>;
 				const videoUrl =
 					(result.video as Record<string, unknown>)?.url ??
 					(result as Record<string, unknown>).url;

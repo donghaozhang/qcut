@@ -637,6 +637,59 @@ export const I2V_MODELS = {
 		},
 		supportedDurations: [3, 5, 8, 10, 15],
 	},
+	gmi_kling_v3_i2v: {
+		id: "gmi_kling_v3_i2v",
+		name: "Kling V3 I2V (GMI)",
+		description:
+			"Kling V3 image-to-video via GMI Cloud with audio and end-frame guidance",
+		price: "$0.168/s",
+		resolution: "720p",
+		max_duration: 15,
+		category: "image",
+		endpoints: {
+			image_to_video: "kling-v3-image-to-video",
+		},
+		default_params: {
+			duration: 5,
+		},
+		supportedDurations: [3, 5, 8, 10, 15],
+	},
+	gmi_kling_v3_omni_i2v: {
+		id: "gmi_kling_v3_omni_i2v",
+		name: "Kling V3 Omni I2V (GMI)",
+		description:
+			"Kling V3 Omni image-to-video with end-frame, audio, and element support",
+		price: "$0.084-0.14/s",
+		resolution: "720p / 1080p",
+		supportedResolutions: ["720p", "1080p"],
+		max_duration: 15,
+		category: "image",
+		endpoints: {
+			image_to_video: "kling-v3-omni",
+		},
+		default_params: {
+			duration: 5,
+			mode: "pro",
+		},
+		supportedDurations: [3, 5, 8, 10, 15],
+	},
+	gmi_kling_motion_control: {
+		id: "gmi_kling_motion_control",
+		name: "Kling 3 Motion Control (GMI)",
+		description: "Transfer motion from a reference video to a character image",
+		price: "$0.126-0.168/s",
+		resolution: "720p",
+		max_duration: 30,
+		category: "image",
+		endpoints: {
+			image_to_video: "kling-3-motion-control",
+		},
+		default_params: {
+			mode: "std",
+			character_orientation: "video",
+		},
+		supportedDurations: [5, 10, 15, 20, 30],
+	},
 } as const satisfies Record<string, AIModel>;
 
 /**
@@ -681,6 +734,9 @@ export const I2V_MODEL_ORDER: readonly I2VModelId[] = [
 	// GMI Cloud
 	"gmi_veo31_lite_i2v",
 	"gmi_skyreels_v4_i2v",
+	"gmi_kling_v3_i2v",
+	"gmi_kling_v3_omni_i2v",
+	"gmi_kling_motion_control",
 ] as const;
 
 validateModelOrderInvariant({

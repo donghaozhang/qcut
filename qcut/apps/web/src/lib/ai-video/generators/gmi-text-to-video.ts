@@ -55,6 +55,96 @@ export async function generateGmiVeoLiteVideo(params: {
 	};
 }
 
+/** Generate text-to-video using GMI Kling V3. */
+export async function generateKlingV3GmiTextVideo(params: {
+	prompt: string;
+	negative_prompt?: string;
+	duration?: string;
+	aspect_ratio?: "16:9" | "9:16" | "1:1";
+	sound?: "on" | "off";
+}): Promise<VideoGenerationResponse> {
+	const jobId = generateJobId();
+
+	const payload: Record<string, unknown> = {
+		prompt: params.prompt,
+		duration: params.duration ?? "5",
+		aspect_ratio: params.aspect_ratio ?? "16:9",
+	};
+
+	if (params.negative_prompt) payload.negative_prompt = params.negative_prompt;
+	if (params.sound) payload.sound = params.sound;
+
+	const submitResult = await providerRouter.submit(
+		"kling-v3-text-to-video",
+		payload,
+		"gmi"
+	);
+
+	const pollResult = await providerRouter.poll(
+		submitResult.requestId,
+		submitResult.provider
+	);
+
+	if (pollResult.status === "failed") {
+		throw new Error(pollResult.error ?? "GMI Kling V3 text-to-video failed");
+	}
+
+	return {
+		job_id: jobId,
+		status: "completed",
+		message: "Video generated with GMI Kling V3 T2V",
+		estimated_time: 0,
+		video_url: pollResult.videoUrl,
+		video_data: pollResult,
+	};
+}
+
+/** Generate text-to-video using GMI Kling V3 Omni. */
+export async function generateKlingOmniTextVideo(params: {
+	prompt: string;
+	mode?: "std" | "pro";
+	duration?: string;
+	aspect_ratio?: "16:9" | "9:16" | "1:1";
+	sound?: "on" | "off";
+}): Promise<VideoGenerationResponse> {
+	const jobId = generateJobId();
+
+	const payload: Record<string, unknown> = {
+		prompt: params.prompt,
+		mode: params.mode ?? "pro",
+		duration: params.duration ?? "5",
+		aspect_ratio: params.aspect_ratio ?? "16:9",
+	};
+
+	if (params.sound) payload.sound = params.sound;
+
+	const submitResult = await providerRouter.submit(
+		"kling-v3-omni",
+		payload,
+		"gmi"
+	);
+
+	const pollResult = await providerRouter.poll(
+		submitResult.requestId,
+		submitResult.provider
+	);
+
+	if (pollResult.status === "failed") {
+		throw new Error(
+			pollResult.error ?? "GMI Kling V3 Omni text-to-video failed"
+		);
+	}
+
+	return {
+		job_id: jobId,
+		status: "completed",
+		message: "Video generated with GMI Kling V3 Omni",
+		estimated_time: 0,
+		video_url: pollResult.videoUrl,
+		video_data: pollResult,
+	};
+}
+
 /** Generate text-to-video using GMI SkyReels V4. */
 export async function generateSkyreelsV4TextVideo(params: {
 	prompt: string;
@@ -84,9 +174,7 @@ export async function generateSkyreelsV4TextVideo(params: {
 	);
 
 	if (pollResult.status === "failed") {
-		throw new Error(
-			pollResult.error ?? "GMI SkyReels V4 text-to-video failed"
-		);
+		throw new Error(pollResult.error ?? "GMI SkyReels V4 text-to-video failed");
 	}
 
 	return {
