@@ -345,6 +345,16 @@ describe("CLI new commands — Phase 4", () => {
 		expect(ModelRegistry.has("synthesia_avatar")).toBe(true);
 	});
 
+	it("GMI Cloud models are registered", () => {
+		expect(ModelRegistry.has("gmi_veo31_lite_t2v")).toBe(true);
+		expect(ModelRegistry.has("gmi_veo31_lite_i2v")).toBe(true);
+		expect(ModelRegistry.has("gmi_skyreels_v4_t2v")).toBe(true);
+		expect(ModelRegistry.has("gmi_skyreels_v4_i2v")).toBe(true);
+		const veo = ModelRegistry.get("gmi_veo31_lite_t2v");
+		expect(veo.providerBackend).toBe("gmi");
+		expect(veo.provider).toContain("GMI");
+	});
+
 	// transfer-motion tests
 	it("transfer-motion errors on missing image-url", async () => {
 		const runner = new CLIPipelineRunner();

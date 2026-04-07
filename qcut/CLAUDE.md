@@ -154,6 +154,7 @@ ANTHROPIC_API_KEY       # Anthropic Claude API
 ELEVENLABS_API_KEY      # ElevenLabs TTS
 FREESOUND_API_KEY       # Freesound sound effects
 OPENAI_API_KEY          # OpenAI/Sora
+GMI_API_KEY             # GMI Cloud (Veo Lite, SkyReels)
 
 # Legacy — defined in apps/web/src/env.ts but not actively used in Electron
 DATABASE_URL            # PostgreSQL

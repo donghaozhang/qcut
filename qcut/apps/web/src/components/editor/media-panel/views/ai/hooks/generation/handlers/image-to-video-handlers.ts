@@ -11,6 +11,8 @@ import {
 	generateSeedanceVideo,
 	generateKlingImageVideo,
 	generateKling26ImageVideo,
+	generateGmiVeoLiteImageVideo,
+	generateSkyreelsV4ImageVideo,
 } from "@/lib/ai-video";
 import type {
 	ImageToVideoSettings,
@@ -700,6 +702,66 @@ export async function handleKlingV26I2V(
 			message: `Video generated with ${ctx.modelName}`,
 		});
 
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle GMI Veo 3.1 Lite image-to-video generation. */
+export async function handleGmiVeoLiteI2V(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.imageUrl) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "Veo 3.1 Lite I2V requires a source image",
+		};
+	}
+
+	try {
+		const response = await generateGmiVeoLiteImageVideo({
+			prompt: ctx.prompt,
+			imageUrl: settings.imageUrl,
+			durationSeconds: (settings.duration ?? 8) as 4 | 6 | 8,
+			aspectRatio: (settings.aspectRatio ?? "16:9") as "16:9" | "9:16",
+			generateAudio: true,
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle GMI SkyReels V4 image-to-video generation. */
+export async function handleSkyreelsV4I2V(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.imageUrl) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "SkyReels V4 I2V requires a source image",
+		};
+	}
+
+	try {
+		const response = await generateSkyreelsV4ImageVideo({
+			prompt: ctx.prompt,
+			imageUrl: settings.imageUrl,
+			duration: settings.duration ?? 5,
+		});
 		return { response };
 	} catch (error) {
 		return {
