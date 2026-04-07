@@ -743,8 +743,14 @@ export function registerImageToVideoModels(): void {
 		provider: "Google (via GMI)",
 		endpoint: "veo-3.1-lite-generate-001",
 		categories: ["image_to_video"],
-		description: "Image-to-video with first/last frame guidance and built-in audio",
-		pricing: { "720p_audio": 0.05, "1080p_audio": 0.08, "720p": 0.03, "1080p": 0.05 },
+		description:
+			"Image-to-video with first/last frame guidance and built-in audio",
+		pricing: {
+			"720p_audio": 0.05,
+			"1080p_audio": 0.08,
+			"720p": 0.03,
+			"1080p": 0.05,
+		},
 		durationOptions: ["4", "6", "8"],
 		aspectRatios: ["16:9", "9:16"],
 		resolutions: ["720p", "1080p"],
@@ -753,7 +759,13 @@ export function registerImageToVideoModels(): void {
 		maxDuration: 8,
 		inputRequirements: {
 			required: ["prompt", "image"],
-			optional: ["lastFrame", "durationSeconds", "aspectRatio", "generateAudio", "seed"],
+			optional: [
+				"lastFrame",
+				"durationSeconds",
+				"aspectRatio",
+				"generateAudio",
+				"seed",
+			],
 		},
 		extendedFeatures: {
 			start_frame: true,
@@ -795,6 +807,102 @@ export function registerImageToVideoModels(): void {
 		},
 		costEstimate: 0.7,
 		processingTime: 90,
+		providerBackend: "gmi",
+	});
+
+	ModelRegistry.register({
+		key: "gmi_kling_v3_i2v",
+		name: "Kling V3 I2V (GMI)",
+		provider: "Kling (via GMI)",
+		endpoint: "kling-v3-image-to-video",
+		categories: ["image_to_video"],
+		description:
+			"Kling V3 image-to-video with end-frame guidance and native audio",
+		pricing: { no_sound: 0.168, with_sound: 0.252 },
+		durationOptions: ["3", "5", "8", "10", "15"],
+		resolutions: ["720p"],
+		defaults: { duration: "5" },
+		features: ["audio_generation", "negative_prompt", "end_frame"],
+		maxDuration: 15,
+		inputRequirements: {
+			required: ["prompt", "image"],
+			optional: ["image_tail", "negative_prompt", "duration", "sound"],
+		},
+		extendedFeatures: {
+			start_frame: true,
+			end_frame: true,
+			ref_images: false,
+			audio_input: false,
+			audio_generate: true,
+			ref_video: false,
+		},
+		costEstimate: 0.84,
+		processingTime: 90,
+		providerBackend: "gmi",
+	});
+
+	ModelRegistry.register({
+		key: "gmi_kling_v3_omni_i2v",
+		name: "Kling V3 Omni I2V (GMI)",
+		provider: "Kling (via GMI)",
+		endpoint: "kling-v3-omni",
+		categories: ["image_to_video"],
+		description:
+			"Kling V3 Omni image-to-video with end-frame, audio, and elements",
+		pricing: { std: 0.084, std_sound: 0.112, pro: 0.112, pro_sound: 0.14 },
+		durationOptions: ["3", "5", "8", "10", "15"],
+		resolutions: ["720p", "1080p"],
+		defaults: { duration: "5", mode: "pro" },
+		features: ["audio_generation", "multi_mode", "element_driven", "end_frame"],
+		maxDuration: 15,
+		inputRequirements: {
+			required: ["prompt", "image_list"],
+			optional: ["mode", "duration", "sound", "element_list"],
+		},
+		extendedFeatures: {
+			start_frame: true,
+			end_frame: true,
+			ref_images: false,
+			audio_input: false,
+			audio_generate: true,
+			ref_video: true,
+		},
+		costEstimate: 0.56,
+		processingTime: 90,
+		providerBackend: "gmi",
+	});
+
+	ModelRegistry.register({
+		key: "gmi_kling_motion_control",
+		name: "Kling 3 Motion Control (GMI)",
+		provider: "Kling (via GMI)",
+		endpoint: "kling-3-motion-control",
+		categories: ["image_to_video", "motion_transfer"],
+		description: "Transfer motion from a reference video to a character image",
+		pricing: { std: 0.126, pro: 0.168 },
+		durationOptions: ["5", "10", "15", "20", "30"],
+		defaults: { mode: "std", character_orientation: "video" },
+		features: ["motion_transfer", "keep_audio", "prompt_style_guide"],
+		maxDuration: 30,
+		inputRequirements: {
+			required: ["image_url", "video_url"],
+			optional: [
+				"character_orientation",
+				"mode",
+				"keep_original_sound",
+				"prompt",
+			],
+		},
+		extendedFeatures: {
+			start_frame: true,
+			end_frame: false,
+			ref_images: false,
+			audio_input: false,
+			audio_generate: false,
+			ref_video: true,
+		},
+		costEstimate: 1.26,
+		processingTime: 120,
 		providerBackend: "gmi",
 	});
 }
