@@ -21,7 +21,7 @@ beforeEach(() => {
 	// Reset platform mock to return no key by default
 	vi.mocked(platform).mockReturnValue({
 		apiKeys: { get: vi.fn().mockResolvedValue(null) },
-	} as ReturnType<typeof platform>);
+	} as unknown as ReturnType<typeof platform>);
 });
 
 afterEach(() => {
@@ -45,7 +45,7 @@ describe("gmiClient", () => {
 				apiKeys: {
 					get: vi.fn().mockResolvedValue({ gmiApiKey: "platform-key" }),
 				},
-			} as ReturnType<typeof platform>);
+			} as unknown as ReturnType<typeof platform>);
 
 			expect(await gmiClient.isAvailable()).toBe(true);
 		});
@@ -251,14 +251,14 @@ describe("gmiClient", () => {
 				apiKeys: {
 					get: vi.fn().mockResolvedValue({ gmiApiKey: "cached-key" }),
 				},
-			} as ReturnType<typeof platform>);
+			} as unknown as ReturnType<typeof platform>);
 
 			expect(await gmiClient.isAvailable()).toBe(true);
 
 			// Now platform returns no key
 			vi.mocked(platform).mockReturnValue({
 				apiKeys: { get: vi.fn().mockResolvedValue(null) },
-			} as ReturnType<typeof platform>);
+			} as unknown as ReturnType<typeof platform>);
 
 			// Still available because of cache
 			expect(await gmiClient.isAvailable()).toBe(true);

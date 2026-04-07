@@ -22,13 +22,13 @@ import { providerRouter } from "../provider-router";
 import { falProvider } from "../fal-provider";
 import { gmiClient } from "../../../ai-clients/gmi-client";
 
-const falMock = falProvider as {
+const falMock = falProvider as unknown as {
 	isAvailable: ReturnType<typeof vi.fn>;
 	submit: ReturnType<typeof vi.fn>;
 	poll: ReturnType<typeof vi.fn>;
 };
 
-const gmiMock = gmiClient as {
+const gmiMock = gmiClient as unknown as {
 	isAvailable: ReturnType<typeof vi.fn>;
 	submit: ReturnType<typeof vi.fn>;
 	poll: ReturnType<typeof vi.fn>;
