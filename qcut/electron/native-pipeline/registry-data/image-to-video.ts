@@ -734,4 +734,67 @@ export function registerImageToVideoModels(): void {
 		costEstimate: 0.302,
 		processingTime: 60,
 	});
+
+	// --- GMI Cloud models ---
+
+	ModelRegistry.register({
+		key: "gmi_veo31_lite_i2v",
+		name: "Veo 3.1 Lite I2V (GMI)",
+		provider: "Google (via GMI)",
+		endpoint: "veo-3.1-lite-generate-001",
+		categories: ["image_to_video"],
+		description: "Image-to-video with first/last frame guidance and built-in audio",
+		pricing: { "720p_audio": 0.05, "1080p_audio": 0.08, "720p": 0.03, "1080p": 0.05 },
+		durationOptions: ["4", "6", "8"],
+		aspectRatios: ["16:9", "9:16"],
+		resolutions: ["720p", "1080p"],
+		defaults: { durationSeconds: 8, aspectRatio: "16:9", generateAudio: true },
+		features: ["audio_generation", "seed", "last_frame"],
+		maxDuration: 8,
+		inputRequirements: {
+			required: ["prompt", "image"],
+			optional: ["lastFrame", "durationSeconds", "aspectRatio", "generateAudio", "seed"],
+		},
+		extendedFeatures: {
+			start_frame: true,
+			end_frame: true,
+			ref_images: false,
+			audio_input: false,
+			audio_generate: true,
+			ref_video: false,
+		},
+		costEstimate: 0.4,
+		processingTime: 90,
+		providerBackend: "gmi",
+	});
+
+	ModelRegistry.register({
+		key: "gmi_skyreels_v4_i2v",
+		name: "SkyReels V4 I2V (GMI)",
+		provider: "SkyReels (via GMI)",
+		endpoint: "skyreels-v4-image-to-video",
+		categories: ["image_to_video"],
+		description: "Animate images into video with optional sound effects",
+		pricing: { per_second: 0.14 },
+		durationOptions: ["3", "5", "8", "10", "15"],
+		resolutions: ["1080p"],
+		defaults: { duration: 5, sound: false, mode: "std" },
+		features: ["sound_effects", "flexible_duration"],
+		maxDuration: 15,
+		inputRequirements: {
+			required: ["prompt", "first_frame_image"],
+			optional: ["duration", "sound", "mode"],
+		},
+		extendedFeatures: {
+			start_frame: true,
+			end_frame: false,
+			ref_images: false,
+			audio_input: false,
+			audio_generate: false,
+			ref_video: false,
+		},
+		costEstimate: 0.7,
+		processingTime: 90,
+		providerBackend: "gmi",
+	});
 }
