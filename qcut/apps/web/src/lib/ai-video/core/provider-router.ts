@@ -16,11 +16,13 @@ import type {
 } from "./provider-types";
 import { falProvider } from "./fal-provider";
 import { gmiClient } from "../../ai-clients/gmi-client";
+import { runwayClient } from "../../ai-clients/runway-client";
 
 /** Registered provider clients, keyed by backend name. */
 const providers = new Map<ProviderBackend, ProviderClient>([
 	["fal", falProvider],
 	["gmi", gmiClient],
+	["runway", runwayClient],
 ]);
 
 /**
@@ -39,9 +41,14 @@ async function resolveProvider(
 
 	// Don't silently fall back — GMI and FAL have incompatible payload schemas,
 	// so routing a GMI-only model to FAL (or vice versa) causes confusing errors.
+	const keyHint: Record<ProviderBackend, string> = {
+		fal: "VITE_FAL_API_KEY",
+		gmi: "GMI_API_KEY",
+		runway: "RUNWAY_API_KEY",
+	};
 	throw new Error(
 		`Provider "${preferredBackend}" is not available. ` +
-			`Configure the API key: ${preferredBackend === "fal" ? "VITE_FAL_API_KEY" : "GMI_API_KEY"}.`
+			`Configure the API key: ${keyHint[preferredBackend]}.`
 	);
 }
 

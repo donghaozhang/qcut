@@ -7,7 +7,7 @@
  */
 
 /** Supported provider backends. */
-export type ProviderBackend = "fal" | "gmi";
+export type ProviderBackend = "fal" | "gmi" | "runway";
 
 /** Result of submitting a generation request to a provider. */
 export interface ProviderSubmitResult {
