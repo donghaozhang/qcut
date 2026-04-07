@@ -179,6 +179,34 @@ export {
 } from "./generators/image-to-video";
 
 // ============================================
+// GMI Cloud Generators
+// ============================================
+export {
+	generateGmiVeoLiteVideo,
+	generateSkyreelsV4TextVideo,
+	generateKlingV3GmiTextVideo,
+	generateKlingOmniTextVideo,
+} from "./generators/gmi-text-to-video";
+export {
+	generateGmiVeoLiteImageVideo,
+	generateSkyreelsV4ImageVideo,
+	generateKlingV3GmiImageVideo,
+	generateKlingOmniImageVideo,
+	generateKlingMotionControlVideo,
+} from "./generators/gmi-image-to-video";
+
+// ============================================
+// Provider Router
+// ============================================
+export { providerRouter } from "./core/provider-router";
+export type {
+	ProviderBackend,
+	ProviderClient,
+	ProviderSubmitResult,
+	ProviderPollResult,
+} from "./core/provider-types";
+
+// ============================================
 // Avatar Video Generators
 // ============================================
 export { generateAvatarVideo } from "./generators/avatar";

@@ -428,3 +428,112 @@ export interface TopazUpscaleRequest {
 	target_fps?: "original" | "interpolated";
 	h264_output?: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// GMI Cloud models
+// ---------------------------------------------------------------------------
+
+/** GMI Veo 3.1 Lite text-to-video / image-to-video request. */
+export interface GmiVeoLiteRequest {
+	prompt: string;
+	/** First frame URL (enables image-to-video mode). */
+	image?: string;
+	/** Last frame URL (requires image). */
+	lastFrame?: string;
+	durationSeconds?: 4 | 6 | 8;
+	aspectRatio?: "16:9" | "9:16";
+	generateAudio?: boolean;
+	personGeneration?: "allow_all" | "allow_adult" | "disallow";
+	seed?: number;
+}
+
+/** GMI SkyReels V4 text-to-video request. */
+export interface SkyreelsV4T2VRequest {
+	prompt: string;
+	duration?: number;
+	aspect_ratio?: "16:9" | "4:3" | "1:1" | "9:16" | "3:4";
+	sound?: boolean;
+	mode?: "fast" | "std" | "pro";
+}
+
+/** GMI SkyReels V4 image-to-video request. */
+export interface SkyreelsV4I2VRequest {
+	prompt: string;
+	first_frame_image: string;
+	duration?: number;
+	sound?: boolean;
+	mode?: "fast" | "std" | "pro";
+}
+
+/** Normalized response from GMI Cloud API. */
+export interface GmiApiResponse {
+	video_url: string;
+	thumbnail_image_url?: string;
+}
+
+/** GMI Cloud request status returned by the polling endpoint. */
+export interface GmiRequestStatus {
+	id: string;
+	status: "queued" | "processing" | "success" | "failed" | "cancelled";
+	outcome?: GmiApiResponse;
+	error?: string;
+}
+
+// ---------------------------------------------------------------------------
+// GMI Cloud — Kling V3 models
+// ---------------------------------------------------------------------------
+
+/** Kling V3 T2V via GMI Cloud — 3-15s with native audio. */
+export interface KlingV3GmiT2VRequest {
+	prompt: string;
+	negative_prompt?: string;
+	duration?: string;
+	aspect_ratio?: "16:9" | "9:16" | "1:1";
+	sound?: "on" | "off";
+}
+
+/** Kling V3 I2V via GMI Cloud — start/end frame with native audio. */
+export interface KlingV3GmiI2VRequest {
+	prompt: string;
+	image: string;
+	image_tail?: string;
+	negative_prompt?: string;
+	duration?: string;
+	sound?: "on" | "off";
+}
+
+/** Kling V3 Omni unified request via GMI Cloud. */
+export interface KlingV3OmniRequest {
+	prompt?: string;
+	mode?: "std" | "pro";
+	duration?: string;
+	aspect_ratio?: "16:9" | "9:16" | "1:1";
+	sound?: "on" | "off";
+	image_list?: Array<{ image: string; type: "first_frame" | "end_frame" }>;
+	video_list?: Array<{
+		video: string;
+		refer_type: "base" | "feature";
+		keep_original_sound?: "yes" | "no";
+	}>;
+	element_list?: Array<{
+		element_id?: string;
+		frontal_image?: string;
+		refer_images?: string[];
+		refer_videos?: string[];
+		element_name?: string;
+		element_description?: string;
+	}>;
+	multi_shot?: boolean;
+	shot_type?: "customize";
+	multi_prompt?: Array<{ prompt: string; duration: string }>;
+}
+
+/** Kling 3 Motion Control request via GMI Cloud. */
+export interface KlingMotionControlRequest {
+	image_url: string;
+	video_url: string;
+	character_orientation?: "video" | "image";
+	mode?: "std" | "pro";
+	keep_original_sound?: "yes" | "no";
+	prompt?: string;
+}

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as avatarHandlers from "../avatar-handlers";
 import * as imageToVideoHandlers from "../image-to-video-handlers";
 import * as imageToVideoHandlersExt from "../image-to-video-handlers-ext";
+import * as imageToVideoHandlersGmi from "../image-to-video-handlers-gmi";
 import * as textToVideoHandlers from "../text-to-video-handlers";
 import * as upscaleHandlers from "../upscale-handlers";
 
@@ -25,14 +26,21 @@ function getHandlerExports({
 }
 
 describe("handler module exports", () => {
-	it("text-to-video-handlers exports exactly 11 functions", () => {
+	it("text-to-video-handlers exports exactly 15 functions", () => {
 		const names = getHandlerExports({ moduleExports: textToVideoHandlers });
-		expect(names).toHaveLength(11);
+		expect(names).toHaveLength(15);
 	});
 
 	it("image-to-video-handlers exports exactly 14 functions", () => {
 		const names = getHandlerExports({ moduleExports: imageToVideoHandlers });
 		expect(names).toHaveLength(14);
+	});
+
+	it("image-to-video-handlers-gmi exports exactly 5 functions", () => {
+		const names = getHandlerExports({
+			moduleExports: imageToVideoHandlersGmi,
+		});
+		expect(names).toHaveLength(5);
 	});
 
 	it("image-to-video-handlers-ext exports exactly 5 functions", () => {
@@ -52,15 +60,16 @@ describe("handler module exports", () => {
 		expect(names).toHaveLength(9);
 	});
 
-	it("all 41 handlers are functions", () => {
+	it("all 50 handlers are functions", () => {
 		const allNames = [
 			...getHandlerExports({ moduleExports: textToVideoHandlers }),
 			...getHandlerExports({ moduleExports: imageToVideoHandlers }),
 			...getHandlerExports({ moduleExports: imageToVideoHandlersExt }),
+			...getHandlerExports({ moduleExports: imageToVideoHandlersGmi }),
 			...getHandlerExports({ moduleExports: upscaleHandlers }),
 			...getHandlerExports({ moduleExports: avatarHandlers }),
 		];
-		expect(allNames).toHaveLength(41);
+		expect(allNames).toHaveLength(50);
 	});
 
 	it("handleWAN26T2V is in text-to-video, not image-to-video", () => {

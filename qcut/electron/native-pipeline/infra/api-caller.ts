@@ -17,7 +17,8 @@ export type ProviderName =
 	| "elevenlabs"
 	| "google"
 	| "openrouter"
-	| "volcengine";
+	| "volcengine"
+	| "gmi";
 export type ApiKeyProvider = (provider: ProviderName) => Promise<string>;
 
 export interface ApiCallOptions {
@@ -56,6 +57,7 @@ interface FalStatusResponse {
 const FAL_BASE = "https://queue.fal.run";
 const FAL_STATUS_BASE = "https://queue.fal.run";
 const FAL_TRUSTED_HOSTS = [".fal.run", ".fal.ai"];
+const GMI_BASE = "https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey";
 
 /** Validate that a URL belongs to a trusted FAL domain before sending auth headers. */
 function isTrustedFalUrl(url: string): boolean {
@@ -198,6 +200,8 @@ export function envApiKeyProvider(provider: ProviderName): Promise<string> {
 			return Promise.resolve(process.env.OPENROUTER_API_KEY || "");
 		case "volcengine":
 			return Promise.resolve(process.env.ARK_API_KEY || "");
+		case "gmi":
+			return Promise.resolve(process.env.GMI_API_KEY || "");
 	}
 }
 
@@ -224,6 +228,8 @@ async function defaultApiKeyProvider(provider: ProviderName): Promise<string> {
 				return process.env.OPENROUTER_API_KEY || keys.openRouterApiKey || "";
 			case "volcengine":
 				return process.env.ARK_API_KEY || "";
+			case "gmi":
+				return process.env.GMI_API_KEY || keys.gmiApiKey || "";
 		}
 	} catch {
 		// Not in Electron — fall through to env vars
@@ -267,6 +273,9 @@ function buildHeaders(
 		case "volcengine":
 			headers.Authorization = `Bearer ${apiKey}`;
 			break;
+		case "gmi":
+			headers.Authorization = `Bearer ${apiKey}`;
+			break;
 	}
 	return headers;
 }
@@ -288,6 +297,8 @@ function buildUrl(
 		case "volcengine":
 			// Strip the "volcengine/" routing prefix from the endpoint
 			return `${VOLCENGINE_BASE}/${endpoint.replace(/^volcengine\//, "")}`;
+		case "gmi":
+			return `${GMI_BASE}/requests`;
 	}
 }
 

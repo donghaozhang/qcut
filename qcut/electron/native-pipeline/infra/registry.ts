@@ -7,6 +7,9 @@
  * @module electron/native-pipeline/registry
  */
 
+/** Supported provider backends for model execution. */
+export type ProviderBackend = "fal" | "gmi";
+
 export type ModelCategory =
 	| "text_to_image"
 	| "image_to_image"
@@ -40,6 +43,7 @@ export interface ModelDefinition {
 	aspectRatios: string[];
 	resolutions: string[];
 	providerKey: string;
+	providerBackend: ProviderBackend;
 	defaults: Record<string, unknown>;
 	features: string[];
 	maxDuration: number;
@@ -72,6 +76,7 @@ export interface ModelDefinitionInput {
 	modelInfo?: Record<string, unknown>;
 	costEstimate?: number;
 	processingTime?: number;
+	providerBackend?: ProviderBackend;
 }
 
 function normalizeDefinition(input: ModelDefinitionInput): ModelDefinition {
@@ -87,6 +92,7 @@ function normalizeDefinition(input: ModelDefinitionInput): ModelDefinition {
 		aspectRatios: input.aspectRatios ?? [],
 		resolutions: input.resolutions ?? [],
 		providerKey: input.providerKey ?? input.key,
+		providerBackend: input.providerBackend ?? "fal",
 		defaults: input.defaults ?? {},
 		features: input.features ?? [],
 		maxDuration: input.maxDuration ?? 0,

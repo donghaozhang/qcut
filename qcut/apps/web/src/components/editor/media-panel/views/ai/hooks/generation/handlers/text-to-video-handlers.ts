@@ -10,6 +10,10 @@ import {
 	generateLTX23TextVideo,
 	generateViduQ3TextVideo,
 	generateWAN26TextVideo,
+	generateGmiVeoLiteVideo,
+	generateSkyreelsV4TextVideo,
+	generateKlingV3GmiTextVideo,
+	generateKlingOmniTextVideo,
 } from "@/lib/ai-video";
 import type {
 	ModelHandlerContext,
@@ -456,6 +460,106 @@ export async function handleGenericT2V(
 			},
 			ctx.progressCallback
 		);
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle GMI Veo 3.1 Lite text-to-video generation. */
+export async function handleGmiVeoLiteT2V(
+	ctx: ModelHandlerContext,
+	settings: TextToVideoSettings
+): Promise<ModelHandlerResult> {
+	try {
+		const durationSeconds = [4, 6, 8].includes(settings.duration ?? 8)
+			? ((settings.duration ?? 8) as 4 | 6 | 8)
+			: 8;
+		const aspectRatio =
+			settings.aspectRatio === "16:9" || settings.aspectRatio === "9:16"
+				? settings.aspectRatio
+				: "16:9";
+
+		const response = await generateGmiVeoLiteVideo({
+			prompt: ctx.prompt,
+			durationSeconds,
+			aspectRatio,
+			generateAudio: true,
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle GMI SkyReels V4 text-to-video generation. */
+export async function handleSkyreelsV4T2V(
+	ctx: ModelHandlerContext,
+	settings: TextToVideoSettings
+): Promise<ModelHandlerResult> {
+	try {
+		const response = await generateSkyreelsV4TextVideo({
+			prompt: ctx.prompt,
+			duration: settings.duration ?? 5,
+			aspectRatio: (settings.aspectRatio ?? "16:9") as
+				| "16:9"
+				| "4:3"
+				| "1:1"
+				| "9:16"
+				| "3:4",
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle GMI Kling V3 text-to-video generation. */
+export async function handleGmiKlingV3T2V(
+	ctx: ModelHandlerContext,
+	settings: TextToVideoSettings
+): Promise<ModelHandlerResult> {
+	try {
+		const response = await generateKlingV3GmiTextVideo({
+			prompt: ctx.prompt,
+			negative_prompt: settings.wan26T2VNegativePrompt || undefined,
+			duration: String(settings.duration ?? 5),
+			aspect_ratio: (settings.aspectRatio ?? "16:9") as "16:9" | "9:16" | "1:1",
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle GMI Kling V3 Omni text-to-video generation. */
+export async function handleGmiKlingOmniT2V(
+	ctx: ModelHandlerContext,
+	settings: TextToVideoSettings
+): Promise<ModelHandlerResult> {
+	try {
+		const response = await generateKlingOmniTextVideo({
+			prompt: ctx.prompt,
+			mode: (settings.resolution === "720p" ? "std" : "pro") as "std" | "pro",
+			duration: String(settings.duration ?? 5),
+			aspect_ratio: (settings.aspectRatio ?? "16:9") as "16:9" | "9:16" | "1:1",
+		});
 		return { response };
 	} catch (error) {
 		return {
