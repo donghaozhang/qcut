@@ -90,8 +90,9 @@ export const VEO31_FRAME_MODELS = new Set([
 function parseVeoDuration({
 	duration,
 }: {
-	duration: "4s" | "6s" | "8s";
-}): number {
+	duration?: "4s" | "6s" | "8s";
+}): number | undefined {
+	if (!duration) return undefined;
 	return Number.parseInt(duration.replace("s", ""), 10);
 }
 
@@ -108,7 +109,7 @@ function getTextToVideoDurationSeconds({
 		modelId === "veo31_text_to_video" ||
 		modelId === "veo31_lite_text_to_video"
 	) {
-		return parseVeoDuration({ duration: settings.veo31Settings.duration });
+		return parseVeoDuration({ duration: settings.veo31Settings?.duration });
 	}
 	if (modelId === "hailuo23_standard_t2v" || modelId === "hailuo23_pro_t2v") {
 		return settings.hailuoT2VDuration;
@@ -147,7 +148,7 @@ function getImageToVideoDurationSeconds({
 		modelId === "veo31_frame_to_video" ||
 		modelId === "veo31_lite_frame_to_video"
 	) {
-		return parseVeoDuration({ duration: settings.veo31Settings.duration });
+		return parseVeoDuration({ duration: settings.veo31Settings?.duration });
 	}
 	if (modelId === "vidu_q2_turbo_i2v") {
 		return settings.viduQ2Duration;

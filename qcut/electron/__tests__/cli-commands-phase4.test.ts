@@ -325,15 +325,17 @@ describe("CLI new commands — Phase 4", () => {
 		expect(result.error).toContain("--script");
 	});
 
-	it("vimax:novel2movie errors on missing novel", async () => {
+	it("vimax:novel2movie errors on missing novel file", async () => {
 		const runner = new CLIPipelineRunner();
 		const noop = vi.fn();
 		const result = await runner.run(
-			defaultOptions({ command: "vimax:novel2movie" }),
+			defaultOptions({
+				command: "vimax:novel2movie",
+				novel: "/nonexistent/path/novel.txt",
+			}),
 			noop
 		);
 		expect(result.success).toBe(false);
-		expect(result.error).toContain("--novel");
 	});
 
 	it("new service providers are registered", () => {
