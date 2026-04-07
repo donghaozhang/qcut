@@ -296,4 +296,37 @@ export function registerTextToImageModels(): void {
 		processingTime: 15,
 		providerBackend: "gmi",
 	});
+
+	ModelRegistry.register({
+		key: "gmi_seedream_4",
+		name: "SeedDream 4.0 (GMI)",
+		provider: "ByteDance (via GMI)",
+		endpoint: "seedream-4-0-250828",
+		categories: ["text_to_image"],
+		description: "ByteDance SeedDream 4.0 text-to-image via GMI Cloud",
+		pricing: { per_image: 0.02 },
+		aspectRatios: ["1:1"],
+		defaults: {},
+		features: ["high_quality"],
+		costEstimate: 0.02,
+		processingTime: 10,
+		providerBackend: "gmi",
+	});
+
+	ModelRegistry.register({
+		key: "gmi_seedream_5_lite",
+		name: "SeedDream 5.0 Lite (GMI)",
+		provider: "ByteDance (via GMI)",
+		endpoint: "seedream-5.0-lite",
+		categories: ["text_to_image"],
+		description:
+			"ByteDance SeedDream 5.0 Lite fast image generation via GMI Cloud",
+		pricing: { per_image: 0.01 },
+		aspectRatios: ["1:1"],
+		defaults: {},
+		features: ["fast_processing", "high_quality"],
+		costEstimate: 0.01,
+		processingTime: 8,
+		providerBackend: "gmi",
+	});
 }
