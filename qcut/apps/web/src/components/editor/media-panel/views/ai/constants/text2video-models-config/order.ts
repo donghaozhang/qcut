@@ -39,6 +39,8 @@ export const T2V_MODEL_ORDER: readonly T2VModelId[] = [
 	// GMI Cloud
 	"gmi_veo31_lite_t2v",
 	"gmi_skyreels_v4_t2v",
+	"gmi_kling_v3_t2v",
+	"gmi_kling_v3_omni_t2v",
 ] as const;
 
 /**

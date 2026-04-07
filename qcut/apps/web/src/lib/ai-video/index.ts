@@ -184,10 +184,15 @@ export {
 export {
 	generateGmiVeoLiteVideo,
 	generateSkyreelsV4TextVideo,
+	generateKlingV3GmiTextVideo,
+	generateKlingOmniTextVideo,
 } from "./generators/gmi-text-to-video";
 export {
 	generateGmiVeoLiteImageVideo,
 	generateSkyreelsV4ImageVideo,
+	generateKlingV3GmiImageVideo,
+	generateKlingOmniImageVideo,
+	generateKlingMotionControlVideo,
 } from "./generators/gmi-image-to-video";
 
 // ============================================

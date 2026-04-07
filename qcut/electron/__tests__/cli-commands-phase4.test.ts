@@ -350,9 +350,17 @@ describe("CLI new commands — Phase 4", () => {
 		expect(ModelRegistry.has("gmi_veo31_lite_i2v")).toBe(true);
 		expect(ModelRegistry.has("gmi_skyreels_v4_t2v")).toBe(true);
 		expect(ModelRegistry.has("gmi_skyreels_v4_i2v")).toBe(true);
+		expect(ModelRegistry.has("gmi_kling_v3_t2v")).toBe(true);
+		expect(ModelRegistry.has("gmi_kling_v3_i2v")).toBe(true);
+		expect(ModelRegistry.has("gmi_kling_v3_omni_t2v")).toBe(true);
+		expect(ModelRegistry.has("gmi_kling_v3_omni_i2v")).toBe(true);
+		expect(ModelRegistry.has("gmi_kling_motion_control")).toBe(true);
 		const veo = ModelRegistry.get("gmi_veo31_lite_t2v");
 		expect(veo.providerBackend).toBe("gmi");
 		expect(veo.provider).toContain("GMI");
+		const kling = ModelRegistry.get("gmi_kling_v3_t2v");
+		expect(kling.providerBackend).toBe("gmi");
+		expect(kling.provider).toContain("GMI");
 	});
 
 	// transfer-motion tests

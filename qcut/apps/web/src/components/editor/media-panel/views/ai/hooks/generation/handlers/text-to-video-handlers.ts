@@ -534,7 +534,7 @@ export async function handleGmiKlingV3T2V(
 	try {
 		const response = await generateKlingV3GmiTextVideo({
 			prompt: ctx.prompt,
-			negative_prompt: settings.negativePrompt,
+			negative_prompt: settings.wan26T2VNegativePrompt || undefined,
 			duration: String(settings.duration ?? 5),
 			aspect_ratio: (settings.aspectRatio ?? "16:9") as "16:9" | "9:16" | "1:1",
 		});

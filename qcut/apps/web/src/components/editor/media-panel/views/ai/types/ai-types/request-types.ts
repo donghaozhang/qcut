@@ -478,3 +478,62 @@ export interface GmiRequestStatus {
 	outcome?: GmiApiResponse;
 	error?: string;
 }
+
+// ---------------------------------------------------------------------------
+// GMI Cloud — Kling V3 models
+// ---------------------------------------------------------------------------
+
+/** Kling V3 T2V via GMI Cloud — 3-15s with native audio. */
+export interface KlingV3GmiT2VRequest {
+	prompt: string;
+	negative_prompt?: string;
+	duration?: string;
+	aspect_ratio?: "16:9" | "9:16" | "1:1";
+	sound?: "on" | "off";
+}
+
+/** Kling V3 I2V via GMI Cloud — start/end frame with native audio. */
+export interface KlingV3GmiI2VRequest {
+	prompt: string;
+	image: string;
+	image_tail?: string;
+	negative_prompt?: string;
+	duration?: string;
+	sound?: "on" | "off";
+}
+
+/** Kling V3 Omni unified request via GMI Cloud. */
+export interface KlingV3OmniRequest {
+	prompt?: string;
+	mode?: "std" | "pro";
+	duration?: string;
+	aspect_ratio?: "16:9" | "9:16" | "1:1";
+	sound?: "on" | "off";
+	image_list?: Array<{ image: string; type: "first_frame" | "end_frame" }>;
+	video_list?: Array<{
+		video: string;
+		refer_type: "base" | "feature";
+		keep_original_sound?: "yes" | "no";
+	}>;
+	element_list?: Array<{
+		element_id?: string;
+		frontal_image?: string;
+		refer_images?: string[];
+		refer_videos?: string[];
+		element_name?: string;
+		element_description?: string;
+	}>;
+	multi_shot?: boolean;
+	shot_type?: "customize";
+	multi_prompt?: Array<{ prompt: string; duration: string }>;
+}
+
+/** Kling 3 Motion Control request via GMI Cloud. */
+export interface KlingMotionControlRequest {
+	image_url: string;
+	video_url: string;
+	character_orientation?: "video" | "image";
+	mode?: "std" | "pro";
+	keep_original_sound?: "yes" | "no";
+	prompt?: string;
+}

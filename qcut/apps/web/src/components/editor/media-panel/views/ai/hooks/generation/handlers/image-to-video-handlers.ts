@@ -863,7 +863,7 @@ export async function handleGmiKlingMotionControl(
 		};
 	}
 
-	if (!(settings as Record<string, unknown>).referenceVideoUrl) {
+	if (!(settings as unknown as Record<string, unknown>).referenceVideoUrl) {
 		return {
 			response: undefined,
 			shouldSkip: true,
@@ -876,7 +876,7 @@ export async function handleGmiKlingMotionControl(
 
 		const response = await generateKlingMotionControlVideo({
 			imageUrl,
-			videoUrl: (settings as Record<string, unknown>)
+			videoUrl: (settings as unknown as Record<string, unknown>)
 				.referenceVideoUrl as string,
 			prompt: ctx.prompt || undefined,
 		});

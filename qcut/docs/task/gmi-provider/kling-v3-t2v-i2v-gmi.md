@@ -190,3 +190,38 @@ Subtask 6 (exports & tests)
 ```
 
 **Estimated total:** ~40 minutes
+
+---
+
+## Implementation Summary (2026-04-07)
+
+**Status:** Complete
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `apps/web/src/components/editor/media-panel/views/ai/types/ai-types/request-types.ts` | Add `KlingV3GmiT2VRequest`, `KlingV3GmiI2VRequest` |
+| `apps/web/src/lib/ai-video/generators/gmi-text-to-video.ts` | Add `generateKlingV3GmiTextVideo()` |
+| `apps/web/src/lib/ai-video/generators/gmi-image-to-video.ts` | Add `generateKlingV3GmiImageVideo()` |
+| `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/models.ts` | Add `gmi_kling_v3_t2v` |
+| `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/capabilities.ts` | Add `gmi_kling_v3_t2v` capabilities |
+| `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/order.ts` | Add to display order |
+| `apps/web/src/components/editor/media-panel/views/ai/constants/image2video-models-config.ts` | Add `gmi_kling_v3_i2v` |
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/text-to-video-handlers.ts` | Add `handleGmiKlingV3T2V()` |
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/image-to-video-handlers.ts` | Add `handleGmiKlingV3I2V()` |
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/model-handlers.ts` | Add switch cases |
+| `electron/native-pipeline/registry-data/text-to-video.ts` | Register `gmi_kling_v3_t2v` |
+| `electron/native-pipeline/registry-data/image-to-video.ts` | Register `gmi_kling_v3_i2v` |
+| `apps/web/src/lib/ai-video/index.ts` | Export new generators |
+
+### Tests
+
+| File | Changes |
+|------|---------|
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/__tests__/handler-exports.test.ts` | T2V 13→15, I2V 16→19, total 45→50 |
+| `electron/__tests__/cli-commands-phase4.test.ts` | Add `gmi_kling_v3_t2v`, `gmi_kling_v3_i2v` assertions |
+
+```
+bun run test -- handler-exports cli-commands-phase4 — 41/41 passed
+```

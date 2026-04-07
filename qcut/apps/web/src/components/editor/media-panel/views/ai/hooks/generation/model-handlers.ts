@@ -20,6 +20,8 @@ import {
 	handleGenericT2V,
 	handleGmiVeoLiteT2V,
 	handleSkyreelsV4T2V,
+	handleGmiKlingV3T2V,
+	handleGmiKlingOmniT2V,
 } from "./handlers/text-to-video-handlers";
 import {
 	handleVeo31FastI2V,
@@ -38,6 +40,9 @@ import {
 	handleKlingV26I2V,
 	handleGmiVeoLiteI2V,
 	handleSkyreelsV4I2V,
+	handleGmiKlingV3I2V,
+	handleGmiKlingOmniI2V,
+	handleGmiKlingMotionControl,
 } from "./handlers/image-to-video-handlers";
 import {
 	handleWAN25I2V,
@@ -285,6 +290,10 @@ export async function routeTextToVideoHandler(
 			return handleGmiVeoLiteT2V(ctx, settings);
 		case "gmi_skyreels_v4_t2v":
 			return handleSkyreelsV4T2V(ctx, settings);
+		case "gmi_kling_v3_t2v":
+			return handleGmiKlingV3T2V(ctx, settings);
+		case "gmi_kling_v3_omni_t2v":
+			return handleGmiKlingOmniT2V(ctx, settings);
 		default:
 			return handleGenericT2V(ctx, settings);
 	}
@@ -352,6 +361,12 @@ export async function routeImageToVideoHandler(
 			return handleGmiVeoLiteI2V(ctx, settings);
 		case "gmi_skyreels_v4_i2v":
 			return handleSkyreelsV4I2V(ctx, settings);
+		case "gmi_kling_v3_i2v":
+			return handleGmiKlingV3I2V(ctx, settings);
+		case "gmi_kling_v3_omni_i2v":
+			return handleGmiKlingOmniI2V(ctx, settings);
+		case "gmi_kling_motion_control":
+			return handleGmiKlingMotionControl(ctx, settings);
 		default:
 			if (
 				VEO31_FRAME_MODELS.has(ctx.modelId) &&

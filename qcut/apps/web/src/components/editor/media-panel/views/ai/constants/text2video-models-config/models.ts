@@ -500,6 +500,46 @@ export const T2V_MODELS = {
 		supportedDurations: [3, 5, 8, 10, 15],
 		supportedAspectRatios: ["16:9", "4:3", "1:1", "9:16", "3:4"],
 	},
+	gmi_kling_v3_t2v: {
+		id: "gmi_kling_v3_t2v",
+		name: "Kling V3 T2V (GMI)",
+		description:
+			"Kling V3 text-to-video via GMI Cloud with native audio and 3-15s duration",
+		price: "$0.168/s",
+		resolution: "720p",
+		max_duration: 15,
+		category: "text",
+		endpoints: {
+			text_to_video: "kling-v3-text-to-video",
+		},
+		default_params: {
+			duration: 5,
+			aspect_ratio: "16:9",
+		},
+		supportedDurations: [3, 5, 8, 10, 15],
+		supportedAspectRatios: ["16:9", "9:16", "1:1"],
+	},
+	gmi_kling_v3_omni_t2v: {
+		id: "gmi_kling_v3_omni_t2v",
+		name: "Kling V3 Omni (GMI)",
+		description:
+			"Unified Kling V3 Omni with native audio, std/pro modes, 3-15s",
+		price: "$0.084-0.14/s",
+		resolution: "720p / 1080p",
+		supportedResolutions: ["720p", "1080p"],
+		max_duration: 15,
+		category: "text",
+		endpoints: {
+			text_to_video: "kling-v3-omni",
+		},
+		default_params: {
+			duration: 5,
+			mode: "pro",
+			aspect_ratio: "16:9",
+		},
+		supportedDurations: [3, 5, 8, 10, 15],
+		supportedAspectRatios: ["16:9", "9:16", "1:1"],
+	},
 } as const satisfies Record<string, AIModel>;
 
 /**
