@@ -41,6 +41,9 @@ export const T2V_MODEL_ORDER: readonly T2VModelId[] = [
 	"gmi_skyreels_v4_t2v",
 	"gmi_kling_v3_t2v",
 	"gmi_kling_v3_omni_t2v",
+	// Runway
+	"runway_gen45_t2v",
+	"runway_gen4_turbo_t2v",
 ] as const;
 
 /**
@@ -64,6 +67,9 @@ export const T2V_MODEL_ID_ALIASES: Record<string, T2VModelId> = {
 	kling_v2: "kling_v2_5_turbo",
 	kling1_6_standard: "kling_v2_5_turbo_standard",
 	kling_v26_pro: "kling_v26_pro_t2v",
+	runway: "runway_gen45_t2v",
+	runway_gen45: "runway_gen45_t2v",
+	runway_gen4_turbo: "runway_gen4_turbo_t2v",
 };
 
 validateModelOrderInvariant({

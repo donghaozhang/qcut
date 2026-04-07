@@ -196,6 +196,14 @@ export {
 } from "./generators/gmi-image-to-video";
 
 // ============================================
+// Runway Generators
+// ============================================
+export {
+	generateRunwayTextToVideo,
+	generateRunwayImageToVideo,
+} from "./generators/runway-generators";
+
+// ============================================
 // Provider Router
 // ============================================
 export { providerRouter } from "./core/provider-router";

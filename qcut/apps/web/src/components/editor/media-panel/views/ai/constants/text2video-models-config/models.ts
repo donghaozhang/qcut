@@ -540,6 +540,50 @@ export const T2V_MODELS = {
 		supportedDurations: [3, 5, 8, 10, 15],
 		supportedAspectRatios: ["16:9", "9:16", "1:1"],
 	},
+	// --- Runway models ---
+	runway_gen45_t2v: {
+		id: "runway_gen45_t2v",
+		name: "Runway Gen4.5 T2V",
+		badge: "\uD83C\uDFA5 Cinema",
+		description:
+			"Runway's flagship text-to-video — industry-leading cinematic quality",
+		price: "$0.50/s",
+		resolution: "720p / 1080p",
+		supportedResolutions: ["720p", "1080p"],
+		max_duration: 10,
+		category: "text",
+		endpoints: {
+			text_to_video: "text_to_video",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+		},
+		supportedDurations: [5, 10],
+		supportedAspectRatios: ["16:9", "9:16"],
+		providerBackend: "runway",
+	},
+	runway_gen4_turbo_t2v: {
+		id: "runway_gen4_turbo_t2v",
+		name: "Runway Gen4 Turbo T2V",
+		description: "Fast Runway text-to-video with good quality/speed balance",
+		price: "$0.25/s",
+		resolution: "720p",
+		max_duration: 10,
+		category: "text",
+		endpoints: {
+			text_to_video: "text_to_video",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+		},
+		supportedDurations: [5, 10],
+		supportedAspectRatios: ["16:9", "9:16"],
+		providerBackend: "runway",
+	},
 } as const satisfies Record<string, AIModel>;
 
 /**

@@ -14,6 +14,7 @@ import {
 	generateSkyreelsV4TextVideo,
 	generateKlingV3GmiTextVideo,
 	generateKlingOmniTextVideo,
+	generateRunwayTextToVideo,
 } from "@/lib/ai-video";
 import type {
 	ModelHandlerContext,
@@ -560,6 +561,42 @@ export async function handleGmiKlingOmniT2V(
 			duration: String(settings.duration ?? 5),
 			aspect_ratio: (settings.aspectRatio ?? "16:9") as "16:9" | "9:16" | "1:1",
 		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle Runway text-to-video generation. */
+export async function handleRunwayT2V(
+	ctx: ModelHandlerContext,
+	settings: TextToVideoSettings
+): Promise<ModelHandlerResult> {
+	ctx.progressCallback({
+		status: "processing",
+		progress: 10,
+		message: `Submitting ${ctx.modelName} request...`,
+	});
+
+	try {
+		const response = await generateRunwayTextToVideo({
+			model: ctx.modelId,
+			prompt: ctx.prompt,
+			duration: settings.duration ?? 5,
+			aspectRatio: (settings.aspectRatio ?? "16:9") as "16:9" | "9:16",
+			resolution: (settings.resolution ?? "720p") as "720p" | "1080p",
+		});
+
+		ctx.progressCallback({
+			status: "completed",
+			progress: 100,
+			message: `Video generated with ${ctx.modelName}`,
+		});
+
 		return { response };
 	} catch (error) {
 		return {
