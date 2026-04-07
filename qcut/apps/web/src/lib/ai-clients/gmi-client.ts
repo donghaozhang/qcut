@@ -52,6 +52,7 @@ interface GmiRequestStatusResponse {
 	status: "queued" | "processing" | "success" | "failed" | "cancelled";
 	outcome?: {
 		video_url?: string;
+		media_urls?: Array<{ id: string; url: string }>;
 		thumbnail_image_url?: string;
 	};
 	error?: string;
@@ -139,7 +140,7 @@ export const gmiClient: ProviderClient = {
 						: data.status === "cancelled"
 							? "failed"
 							: data.status,
-				videoUrl: data.outcome?.video_url,
+				videoUrl: data.outcome?.video_url || data.outcome?.media_urls?.[0]?.url,
 				thumbnailUrl: data.outcome?.thumbnail_image_url,
 				error: data.error,
 			};

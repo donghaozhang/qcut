@@ -59,6 +59,7 @@ interface GmiStatusResponse {
 	status: "queued" | "processing" | "success" | "failed" | "cancelled";
 	outcome?: {
 		video_url?: string;
+		media_urls?: Array<{ id: string; url: string }>;
 		thumbnail_image_url?: string;
 		error?: string;
 		error_code?: number;
@@ -504,10 +505,12 @@ async function pollGmiQueue(
 			if (options?.onProgress) {
 				options.onProgress(100, "Completed");
 			}
+			const videoUrl =
+				status.outcome?.video_url || status.outcome?.media_urls?.[0]?.url;
 			return {
 				success: true,
 				data: status,
-				outputUrl: status.outcome?.video_url,
+				outputUrl: videoUrl,
 				duration: (Date.now() - startTime) / 1000,
 			};
 		}
