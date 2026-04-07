@@ -428,6 +428,7 @@ export function setupApiKeyIPC(): void {
 					"openRouterApiKey",
 					"anthropicApiKey",
 					"elevenLabsApiKey",
+					"gmiApiKey",
 				] as const;
 
 				if (encryptionAvailable) {

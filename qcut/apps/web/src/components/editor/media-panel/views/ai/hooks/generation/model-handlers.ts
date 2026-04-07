@@ -38,12 +38,14 @@ import {
 	handleSeedanceProI2V,
 	handleKlingV25I2V,
 	handleKlingV26I2V,
+} from "./handlers/image-to-video-handlers";
+import {
 	handleGmiVeoLiteI2V,
 	handleSkyreelsV4I2V,
 	handleGmiKlingV3I2V,
 	handleGmiKlingOmniI2V,
 	handleGmiKlingMotionControl,
-} from "./handlers/image-to-video-handlers";
+} from "./handlers/image-to-video-handlers-gmi";
 import {
 	handleWAN25I2V,
 	handleWAN26I2V,

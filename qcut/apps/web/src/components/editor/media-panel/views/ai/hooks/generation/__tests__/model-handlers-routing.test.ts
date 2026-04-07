@@ -15,6 +15,7 @@ import {
 import * as avatarHandlers from "../handlers/avatar-handlers";
 import * as textToVideoHandlers from "../handlers/text-to-video-handlers";
 import * as imageToVideoHandlers from "../handlers/image-to-video-handlers";
+import * as imageToVideoHandlersGmi from "../handlers/image-to-video-handlers-gmi";
 
 vi.mock("../handlers/text-to-video-handlers", () => ({
 	handleVeo31FastT2V: vi.fn().mockResolvedValue({ response: undefined }),
@@ -56,6 +57,9 @@ vi.mock("../handlers/image-to-video-handlers", () => ({
 	handleSeedanceProI2V: vi.fn().mockResolvedValue({ response: undefined }),
 	handleKlingV25I2V: vi.fn().mockResolvedValue({ response: undefined }),
 	handleKlingV26I2V: vi.fn().mockResolvedValue({ response: undefined }),
+}));
+
+vi.mock("../handlers/image-to-video-handlers-gmi", () => ({
 	handleGmiVeoLiteI2V: vi.fn().mockResolvedValue({ response: undefined }),
 	handleSkyreelsV4I2V: vi.fn().mockResolvedValue({ response: undefined }),
 	handleGmiKlingV3I2V: vi.fn().mockResolvedValue({ response: undefined }),
@@ -185,8 +189,8 @@ describe("model handler routing regression", () => {
 		["gmi_kling_motion_control", "handleGmiKlingMotionControl"],
 	] as const)("routeImageToVideoHandler maps %s to %s", async (modelId, handlerName) => {
 		const mock = vi.mocked(
-			imageToVideoHandlers[
-				handlerName as keyof typeof imageToVideoHandlers
+			imageToVideoHandlersGmi[
+				handlerName as keyof typeof imageToVideoHandlersGmi
 			] as ReturnType<typeof vi.fn>
 		);
 		await routeImageToVideoHandler(createContext({ modelId }), {
