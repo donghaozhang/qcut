@@ -11,6 +11,18 @@
 // Video Generation Cost Calculators
 // ============================================
 
+const RESOLUTION_MAP: Record<string, { width: number; height: number }> = {
+	"480p": { width: 854, height: 480 },
+	"720p": { width: 1280, height: 720 },
+	"1080p": { width: 1920, height: 1080 },
+};
+
+const SEEDANCE_PRICING: Record<string, number> = {
+	seedance2: 1.2,
+	seedance2_i2v: 2.0,
+	seedance2_ref2v: 2.5,
+};
+
 /**
  * Calculate Seedance video generation cost using token-based pricing
  * Formula: tokens = (height × width × FPS × duration) / 1024
@@ -24,27 +36,14 @@ export function calculateSeedanceCost(
 	resolution: string,
 	duration: number
 ): number {
-	// Resolution dimensions
-	const resolutionMap: Record<string, { width: number; height: number }> = {
-		"480p": { width: 854, height: 480 },
-		"720p": { width: 1280, height: 720 },
-		"1080p": { width: 1920, height: 1080 },
-	};
-
-	const dimensions = resolutionMap[resolution] ?? resolutionMap["1080p"];
+	const dimensions = RESOLUTION_MAP[resolution] ?? RESOLUTION_MAP["1080p"];
 	const fps = 30; // Standard FPS for Seedance models
 
 	// Calculate video tokens
 	const tokens = (dimensions.height * dimensions.width * fps * duration) / 1024;
 
-	// Price per million tokens
-	const seedance2Pricing: Record<string, number> = {
-		seedance2: 1.2,
-		seedance2_i2v: 2.0,
-		seedance2_ref2v: 2.5,
-	};
 	const pricePerMillionTokens =
-		seedance2Pricing[modelId] ??
+		SEEDANCE_PRICING[modelId] ??
 		(modelId === "seedance_pro_fast_i2v" ? 1.0 : 2.5);
 
 	// Calculate total cost

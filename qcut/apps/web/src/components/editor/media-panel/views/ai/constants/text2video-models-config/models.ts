@@ -391,7 +391,6 @@ export const T2V_MODELS = {
 		default_params: {
 			duration: 5,
 			resolution: "1080p",
-			aspect_ratio: "16:9",
 		},
 		supportedResolutions: ["720p", "1080p"],
 		supportedDurations: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],

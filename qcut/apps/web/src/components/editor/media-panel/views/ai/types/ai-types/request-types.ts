@@ -243,6 +243,7 @@ export interface Seedance2I2VRequest {
 	model: string;
 	prompt: string;
 	image_url: string;
+	end_user_id?: string;
 	duration?: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 	resolution?: "720p" | "1080p";
 	aspect_ratio?: "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16";
@@ -259,6 +260,7 @@ export interface Seedance2Ref2VRequest {
 	model: string;
 	prompt: string;
 	reference_image_url: string;
+	end_user_id?: string;
 	duration?: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 	resolution?: "720p" | "1080p";
 	aspect_ratio?: "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16";

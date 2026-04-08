@@ -454,18 +454,27 @@ export async function generateSeedance2Video(
 				(modelConfig.default_params?.camera_fixed as boolean) ??
 				false;
 
+			const validAspectRatios = ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"];
+			const safeAspectRatio = validAspectRatios.includes(aspectRatio)
+				? aspectRatio
+				: "16:9";
+
 			const payload: Record<string, unknown> = {
 				prompt: trimmedPrompt,
 				image_url: request.image_url,
 				duration,
 				resolution,
-				aspect_ratio: aspectRatio,
+				aspect_ratio: safeAspectRatio,
 				camera_fixed: cameraFixed,
 				enable_safety_checker:
 					request.enable_safety_checker ??
 					modelConfig.default_params?.enable_safety_checker ??
 					false,
 			};
+
+			if (request.end_user_id) {
+				payload.end_user_id = request.end_user_id;
+			}
 
 			if (request.seed !== undefined) {
 				payload.seed = request.seed;
@@ -550,17 +559,26 @@ export async function generateSeedance2RefVideo(
 				(modelConfig.default_params?.aspect_ratio as string) ??
 				"16:9";
 
+			const validAspectRatios = ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"];
+			const safeAspectRatio = validAspectRatios.includes(aspectRatio)
+				? aspectRatio
+				: "16:9";
+
 			const payload: Record<string, unknown> = {
 				prompt: trimmedPrompt,
 				reference_image_url: request.reference_image_url,
 				duration,
 				resolution,
-				aspect_ratio: aspectRatio,
+				aspect_ratio: safeAspectRatio,
 				enable_safety_checker:
 					request.enable_safety_checker ??
 					modelConfig.default_params?.enable_safety_checker ??
 					false,
 			};
+
+			if (request.end_user_id) {
+				payload.end_user_id = request.end_user_id;
+			}
 
 			if (request.seed !== undefined) {
 				payload.seed = request.seed;
