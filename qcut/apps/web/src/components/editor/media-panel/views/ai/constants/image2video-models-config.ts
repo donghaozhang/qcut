@@ -690,6 +690,70 @@ export const I2V_MODELS = {
 		},
 		supportedDurations: [5, 10, 15, 20, 30],
 	},
+	// --- Runway models ---
+	runway_gen45_i2v: {
+		id: "runway_gen45_i2v",
+		name: "Runway Gen4.5 I2V",
+		badge: "\uD83C\uDFA5 Cinema",
+		description:
+			"Runway's flagship image-to-video — cinematic motion from any image",
+		price: "$0.50/s",
+		resolution: "720p / 1080p",
+		supportedResolutions: ["720p", "1080p"],
+		max_duration: 10,
+		category: "image",
+		endpoints: {
+			image_to_video: "image_to_video",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+		},
+		supportedDurations: [5, 10],
+		supportedAspectRatios: ["16:9", "9:16", "1:1", "3:4", "4:3", "21:9"],
+		providerBackend: "runway",
+	},
+	runway_gen4_turbo_i2v: {
+		id: "runway_gen4_turbo_i2v",
+		name: "Runway Gen4 Turbo I2V",
+		description: "Fast Runway image-to-video with balanced quality/speed",
+		price: "$0.25/s",
+		resolution: "720p",
+		max_duration: 10,
+		category: "image",
+		endpoints: {
+			image_to_video: "image_to_video",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+		},
+		supportedDurations: [5, 10],
+		supportedAspectRatios: ["16:9", "9:16", "1:1", "3:4", "4:3", "21:9"],
+		providerBackend: "runway",
+	},
+	runway_gen3a_turbo_i2v: {
+		id: "runway_gen3a_turbo_i2v",
+		name: "Runway Gen3a Turbo I2V",
+		description: "Legacy Runway image-to-video — budget-friendly option",
+		price: "$0.10/s",
+		resolution: "720p",
+		max_duration: 10,
+		category: "image",
+		endpoints: {
+			image_to_video: "image_to_video",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+		},
+		supportedDurations: [5, 10],
+		supportedAspectRatios: ["16:9", "9:16", "1:1", "3:4", "4:3", "21:9"],
+		providerBackend: "runway",
+	},
 } as const satisfies Record<string, AIModel>;
 
 /**
@@ -737,6 +801,10 @@ export const I2V_MODEL_ORDER: readonly I2VModelId[] = [
 	"gmi_kling_v3_i2v",
 	"gmi_kling_v3_omni_i2v",
 	"gmi_kling_motion_control",
+	// Runway
+	"runway_gen45_i2v",
+	"runway_gen4_turbo_i2v",
+	"runway_gen3a_turbo_i2v",
 ] as const;
 
 validateModelOrderInvariant({

@@ -121,4 +121,6 @@ export interface AIModel {
 	supportedModelModes?: string[];
 	/** Supported lipsync modes for lipsync models */
 	supportedLipsyncModes?: string[];
+	/** Provider backend override (defaults to "fal" if not set) */
+	providerBackend?: "fal" | "gmi" | "runway";
 }

@@ -15,6 +15,7 @@ interface ApiKeys {
 	anthropicApiKey: string;
 	elevenLabsApiKey: string;
 	gmiApiKey: string;
+	runwayApiKey: string;
 }
 
 interface ApiKeyData {
@@ -25,6 +26,7 @@ interface ApiKeyData {
 	anthropicApiKey?: string;
 	elevenLabsApiKey?: string;
 	gmiApiKey?: string;
+	runwayApiKey?: string;
 }
 
 interface EncryptedApiKeyData {
@@ -44,6 +46,7 @@ interface ApiKeysStatus {
 	anthropicApiKey: KeyStatus;
 	elevenLabsApiKey: KeyStatus;
 	gmiApiKey: KeyStatus;
+	runwayApiKey: KeyStatus;
 }
 
 interface ApiKeyHandlers {
@@ -76,6 +79,7 @@ const QCUT_ENV_MAP: Partial<Record<keyof ApiKeys, string>> = {
 	anthropicApiKey: "ANTHROPIC_API_KEY",
 	elevenLabsApiKey: "ELEVENLABS_API_KEY",
 	gmiApiKey: "GMI_API_KEY",
+	runwayApiKey: "RUNWAY_API_KEY",
 };
 
 const EMPTY_API_KEYS: ApiKeys = {
@@ -86,6 +90,7 @@ const EMPTY_API_KEYS: ApiKeys = {
 	anthropicApiKey: "",
 	elevenLabsApiKey: "",
 	gmiApiKey: "",
+	runwayApiKey: "",
 };
 
 /** Return a fresh ApiKeys object with all fields empty. */
@@ -141,6 +146,7 @@ function decryptStoredApiKeys({
 			"anthropicApiKey",
 			"elevenLabsApiKey",
 			"gmiApiKey",
+			"runwayApiKey",
 		] as const;
 		for (const field of apiKeyFields) {
 			result[field] = decryptStoredValue({
@@ -375,6 +381,11 @@ export async function getDecryptedApiKeys(): Promise<ApiKeys> {
 			electronKeys.gmiApiKey ||
 			qcutEnvKeys.gmiApiKey ||
 			"",
+		runwayApiKey:
+			process.env.RUNWAY_API_KEY ||
+			electronKeys.runwayApiKey ||
+			qcutEnvKeys.runwayApiKey ||
+			"",
 	};
 }
 
@@ -429,6 +440,7 @@ export function setupApiKeyIPC(): void {
 					"anthropicApiKey",
 					"elevenLabsApiKey",
 					"gmiApiKey",
+					"runwayApiKey",
 				] as const;
 
 				if (encryptionAvailable) {
@@ -511,6 +523,7 @@ export function setupApiKeyIPC(): void {
 			anthropicApiKey: resolveStatus("ANTHROPIC_API_KEY", "anthropicApiKey"),
 			elevenLabsApiKey: resolveStatus("ELEVENLABS_API_KEY", "elevenLabsApiKey"),
 			gmiApiKey: resolveStatus("GMI_API_KEY", "gmiApiKey"),
+			runwayApiKey: resolveStatus("RUNWAY_API_KEY", "runwayApiKey"),
 		};
 	});
 }

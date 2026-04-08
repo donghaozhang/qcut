@@ -420,4 +420,35 @@ export const T2V_MODEL_CAPABILITIES: Record<T2VModelId, T2VModelCapabilities> =
 			defaultResolution: "1080p",
 			defaultDuration: 5,
 		},
+
+		// Runway
+		runway_gen45_t2v: {
+			supportsAspectRatio: true,
+			supportedAspectRatios: ["16:9", "9:16"],
+			supportsResolution: true,
+			supportedResolutions: ["720p", "1080p"],
+			supportsDuration: true,
+			supportedDurations: [5, 10],
+			supportsNegativePrompt: false,
+			supportsPromptExpansion: false,
+			supportsSeed: true,
+			supportsSafetyChecker: false,
+			defaultAspectRatio: "16:9",
+			defaultResolution: "720p",
+			defaultDuration: 5,
+		},
+
+		runway_gen4_turbo_t2v: {
+			supportsAspectRatio: true,
+			supportedAspectRatios: ["16:9", "9:16"],
+			supportsResolution: false,
+			supportsDuration: true,
+			supportedDurations: [5, 10],
+			supportsNegativePrompt: false,
+			supportsPromptExpansion: false,
+			supportsSeed: true,
+			supportsSafetyChecker: false,
+			defaultAspectRatio: "16:9",
+			defaultDuration: 5,
+		},
 	};

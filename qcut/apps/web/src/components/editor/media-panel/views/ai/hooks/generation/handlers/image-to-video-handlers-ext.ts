@@ -11,6 +11,7 @@ import {
 	generateWAN26ImageVideo,
 	generateViduQ3ImageVideo,
 	generatePixverseImageVideo,
+	generateRunwayImageToVideo,
 } from "@/lib/ai-video";
 import type {
 	ImageToVideoSettings,

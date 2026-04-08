@@ -260,4 +260,73 @@ export function registerTextToImageModels(): void {
 		costEstimate: 0.08,
 		processingTime: 20,
 	});
+
+	// ── GMI Cloud Image Models ──────────────────────────────────
+
+	ModelRegistry.register({
+		key: "gmi_gemini_3_pro_image",
+		name: "Gemini 3 Pro Image (GMI)",
+		provider: "Google (via GMI)",
+		endpoint: "gemini-3-pro-image-preview",
+		categories: ["text_to_image"],
+		description:
+			"Photorealistic image generation via Google Gemini 3 Pro on GMI Cloud",
+		pricing: { per_image: 0.04 },
+		aspectRatios: ["1:1"],
+		defaults: {},
+		features: ["photorealistic", "reference_image"],
+		costEstimate: 0.04,
+		processingTime: 30,
+		providerBackend: "gmi",
+	});
+
+	ModelRegistry.register({
+		key: "gmi_gemini_31_flash_image",
+		name: "Gemini 3.1 Flash Image (GMI)",
+		provider: "Google (via GMI)",
+		endpoint: "gemini-3.1-flash-image-preview",
+		categories: ["text_to_image"],
+		description:
+			"Fast image generation and editing via Google Gemini 3.1 Flash on GMI Cloud",
+		pricing: { per_image: 0.02 },
+		aspectRatios: ["1:1"],
+		defaults: {},
+		features: ["fast_processing", "image_editing", "reference_image"],
+		costEstimate: 0.02,
+		processingTime: 15,
+		providerBackend: "gmi",
+	});
+
+	ModelRegistry.register({
+		key: "gmi_seedream_4",
+		name: "SeedDream 4.0 (GMI)",
+		provider: "ByteDance (via GMI)",
+		endpoint: "seedream-4-0-250828",
+		categories: ["text_to_image"],
+		description: "ByteDance SeedDream 4.0 text-to-image via GMI Cloud",
+		pricing: { per_image: 0.02 },
+		aspectRatios: ["1:1"],
+		defaults: {},
+		features: ["high_quality"],
+		costEstimate: 0.02,
+		processingTime: 10,
+		providerBackend: "gmi",
+	});
+
+	ModelRegistry.register({
+		key: "gmi_seedream_5_lite",
+		name: "SeedDream 5.0 Lite (GMI)",
+		provider: "ByteDance (via GMI)",
+		endpoint: "seedream-5.0-lite",
+		categories: ["text_to_image"],
+		description:
+			"ByteDance SeedDream 5.0 Lite fast image generation via GMI Cloud",
+		pricing: { per_image: 0.01 },
+		aspectRatios: ["1:1"],
+		defaults: {},
+		features: ["fast_processing", "high_quality"],
+		costEstimate: 0.01,
+		processingTime: 8,
+		providerBackend: "gmi",
+	});
 }
