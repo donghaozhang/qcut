@@ -18,7 +18,8 @@ export type ProviderName =
 	| "google"
 	| "openrouter"
 	| "volcengine"
-	| "gmi";
+	| "gmi"
+	| "runway";
 export type ApiKeyProvider = (provider: ProviderName) => Promise<string>;
 
 export interface ApiCallOptions {
@@ -72,6 +73,7 @@ const FAL_BASE = "https://queue.fal.run";
 const FAL_STATUS_BASE = "https://queue.fal.run";
 const FAL_TRUSTED_HOSTS = [".fal.run", ".fal.ai"];
 const GMI_BASE = "https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey";
+const RUNWAY_BASE = "https://api.runwayml.com/v1";
 
 /** Validate that a URL belongs to a trusted FAL domain before sending auth headers. */
 function isTrustedFalUrl(url: string): boolean {
@@ -181,6 +183,7 @@ export const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 export const VOLCENGINE_BASE = "https://ark.cn-beijing.volces.com/api/v3";
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
+const GMI_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_RETRIES = 2;
 
 /**
@@ -216,6 +219,8 @@ export function envApiKeyProvider(provider: ProviderName): Promise<string> {
 			return Promise.resolve(process.env.ARK_API_KEY || "");
 		case "gmi":
 			return Promise.resolve(process.env.GMI_API_KEY || "");
+		case "runway":
+			return Promise.resolve(process.env.RUNWAY_API_KEY || "");
 	}
 }
 
@@ -244,6 +249,8 @@ async function defaultApiKeyProvider(provider: ProviderName): Promise<string> {
 				return process.env.ARK_API_KEY || "";
 			case "gmi":
 				return process.env.GMI_API_KEY || keys.gmiApiKey || "";
+			case "runway":
+				return process.env.RUNWAY_API_KEY || keys.runwayApiKey || "";
 		}
 	} catch {
 		// Not in Electron — fall through to env vars
@@ -290,6 +297,10 @@ function buildHeaders(
 		case "gmi":
 			headers.Authorization = `Bearer ${apiKey}`;
 			break;
+		case "runway":
+			headers.Authorization = `Bearer ${apiKey}`;
+			headers["X-Runway-Version"] = "2024-11-06";
+			break;
 	}
 	return headers;
 }
@@ -313,6 +324,8 @@ function buildUrl(
 			return `${VOLCENGINE_BASE}/${endpoint.replace(/^volcengine\//, "")}`;
 		case "gmi":
 			return `${GMI_BASE}/requests`;
+		case "runway":
+			return `${RUNWAY_BASE}/${endpoint}`;
 	}
 }
 
@@ -473,7 +486,6 @@ async function pollGmiQueue(
 	const statusUrl = `${GMI_BASE}/requests/${requestId}`;
 
 	const maxAttempts = 360;
-	const pollIntervalMs = 5000;
 	let lastPercent = 0;
 
 	for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -528,11 +540,12 @@ async function pollGmiQueue(
 		}
 
 		if (options?.onProgress) {
-			lastPercent = Math.min(lastPercent + 2, 90);
+			lastPercent = Math.min(lastPercent + 5, 90);
 			options.onProgress(lastPercent, `${status.status}...`);
 		}
 
-		await new Promise((r) => setTimeout(r, pollIntervalMs));
+		const interval = getAdaptivePollInterval(Date.now() - startTime);
+		await new Promise((r) => setTimeout(r, interval));
 	}
 
 	return {
@@ -591,7 +604,7 @@ export async function callModelApi(
 		endpoint,
 		payload,
 		provider,
-		timeoutMs = DEFAULT_TIMEOUT_MS,
+		timeoutMs = provider === "gmi" ? GMI_TIMEOUT_MS : DEFAULT_TIMEOUT_MS,
 		retries = DEFAULT_RETRIES,
 		signal,
 	} = options;

@@ -19,7 +19,7 @@ beforeEach(() => {
 
 afterEach(() => {
 	globalThis.fetch = originalFetch;
-	delete process.env.GMI_API_KEY;
+	process.env.GMI_API_KEY = "";
 });
 
 // Import the module under test — uses envApiKeyProvider path
@@ -215,7 +215,7 @@ describe("callModelApi with GMI provider", () => {
 	});
 
 	it("returns error when no GMI API key is configured", async () => {
-		delete process.env.GMI_API_KEY;
+		process.env.GMI_API_KEY = "";
 
 		const result = await callModelApi({
 			endpoint: "veo-3.1-lite-generate-001",

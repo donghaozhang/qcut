@@ -121,13 +121,16 @@ export async function executeStep(
 	if (provider === "gmi" && isVeoModel) {
 		if (payload.aspect_ratio !== undefined) {
 			payload.aspectRatio = payload.aspect_ratio;
-			delete payload.aspect_ratio;
+			payload.aspect_ratio = undefined;
 		}
-		if (payload.duration !== undefined && !payload.durationSeconds) {
+		if (payload.duration !== undefined && payload.durationSeconds === undefined) {
 			const d = Number(payload.duration);
 			if (Number.isFinite(d)) {
 				payload.durationSeconds = d;
 			}
+		}
+		if (payload.durationSeconds !== undefined) {
+			payload.duration = undefined;
 		}
 	}
 
