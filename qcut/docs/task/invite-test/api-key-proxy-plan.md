@@ -310,12 +310,16 @@ wrangler secret put ADMIN_API_KEY
 | Tests (41 new, 78 total) | Done | `provider-keys.test.ts`, `ai-proxy.test.ts`, `rate-limit.test.ts` |
 | **Deploy** | **TODO** | `wrangler secret put` + `wrangler deploy` |
 
-### Phase 2 — Client migration (TODO)
+### Phase 2 — Client migration (DONE)
 
 | Subtask | Status | Files |
 |---------|--------|-------|
-| Electron client switch to proxy | TODO | `electron/native-pipeline/infra/api-caller.ts`, `key-manager.ts` |
-| Web client switch to proxy | TODO | `apps/web/src/lib/ai-video/core/fal-request.ts`, `credit-guard.ts` |
+| Shared provider URL/utils module | Done | `electron/native-pipeline/infra/api-provider-urls.ts` (new) |
+| Proxy client module | Done | `electron/native-pipeline/infra/proxy-client.ts` (new) |
+| Electron api-caller proxy mode | Done | `electron/native-pipeline/infra/api-caller.ts` (modified, 789 lines) |
+| FAL upload handlers proxy mode | Done | `electron/main-ipc/fal-upload-handlers.ts` (modified) |
+| Web client fal-request proxy mode | Done | `apps/web/src/lib/ai-video/core/fal-request.ts` (modified) |
+| Credit guard skip for proxy mode | Done | `apps/web/src/lib/license/credit-guard.ts` (modified) |
 | Remove local key storage | TODO | `api-keys-view.tsx`, `api-key-handler.ts` |
 
 ### Phase 3 — Hardening (TODO)

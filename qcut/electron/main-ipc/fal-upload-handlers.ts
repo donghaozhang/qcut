@@ -6,6 +6,10 @@
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
 import type { MainIpcDeps, Logger } from "./types.js";
 import { FAL_CONTENT_TYPES, FAL_DEFAULTS } from "./types.js";
+import {
+	isProxyAvailable,
+	proxyUploadUrl,
+} from "../native-pipeline/infra/proxy-client.js";
 
 /** Shared FAL 2-step upload: initiate signed URL, then PUT the file. */
 async function falUpload(
@@ -26,44 +30,60 @@ async function falUpload(
 			FAL_DEFAULTS[mediaType] ??
 			"application/octet-stream";
 
-		const initResponse = await fetch(
-			"https://rest.alpha.fal.ai/storage/upload/initiate?storage_type=fal-cdn-v3",
-			{
-				method: "POST",
-				headers: {
-					Authorization: `Key ${apiKey}`,
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					file_name: filename,
-					content_type: contentType,
-				}),
-			}
-		);
+		let upload_url: string;
+		let file_url: string;
 
-		if (!initResponse.ok) {
-			const errorText = await initResponse.text();
-			logger.error(
-				`[FAL ${tag}] Initiate failed: ${initResponse.status} - ${errorText}`
+		const useProxy = await isProxyAvailable();
+
+		if (useProxy) {
+			logger.info(`[FAL ${tag}] Using proxy for upload URL`);
+			const urls = await proxyUploadUrl({
+				fileName: filename,
+				contentType,
+			});
+			upload_url = urls.uploadUrl;
+			file_url = urls.fileUrl;
+		} else {
+			const initResponse = await fetch(
+				"https://rest.alpha.fal.ai/storage/upload/initiate?storage_type=fal-cdn-v3",
+				{
+					method: "POST",
+					headers: {
+						Authorization: `Key ${apiKey}`,
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						file_name: filename,
+						content_type: contentType,
+					}),
+				}
 			);
-			return {
-				success: false,
-				error: `Upload initiate failed: ${initResponse.status} - ${errorText}`,
-			};
-		}
 
-		const initData = (await initResponse.json()) as {
-			upload_url?: string;
-			file_url?: string;
-		};
-		const { upload_url, file_url } = initData;
+			if (!initResponse.ok) {
+				const errorText = await initResponse.text();
+				logger.error(
+					`[FAL ${tag}] Initiate failed: ${initResponse.status} - ${errorText}`
+				);
+				return {
+					success: false,
+					error: `Upload initiate failed: ${initResponse.status} - ${errorText}`,
+				};
+			}
 
-		if (!upload_url || !file_url) {
-			logger.error(`[FAL ${tag}] Missing URLs in response`);
-			return {
-				success: false,
-				error: "FAL API did not return upload URLs",
+			const initData = (await initResponse.json()) as {
+				upload_url?: string;
+				file_url?: string;
 			};
+
+			if (!initData.upload_url || !initData.file_url) {
+				logger.error(`[FAL ${tag}] Missing URLs in response`);
+				return {
+					success: false,
+					error: "FAL API did not return upload URLs",
+				};
+			}
+			upload_url = initData.upload_url;
+			file_url = initData.file_url;
 		}
 
 		logger.info(`[FAL ${tag}] Step 2: Uploading to signed URL...`);

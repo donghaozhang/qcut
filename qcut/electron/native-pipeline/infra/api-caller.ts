@@ -11,15 +11,24 @@ import * as fs from "fs";
 import * as path from "path";
 import { pipeline } from "stream/promises";
 import { Readable } from "stream";
+import {
+	type ProviderName,
+	buildProviderUrl,
+	extractOutputUrl,
+	getAdaptivePollInterval,
+	FAL_BASE,
+	FAL_STATUS_BASE,
+	GEMINI_BASE,
+	OPENROUTER_BASE,
+	VOLCENGINE_BASE,
+} from "./api-provider-urls.js";
+import {
+	callModelApiViaProxy,
+	isProxyAvailable,
+	proxyUploadUrl,
+} from "./proxy-client.js";
 
-export type ProviderName =
-	| "fal"
-	| "elevenlabs"
-	| "google"
-	| "openrouter"
-	| "volcengine"
-	| "gmi"
-	| "runway";
+export type { ProviderName };
 export type ApiKeyProvider = (provider: ProviderName) => Promise<string>;
 
 export interface ApiCallOptions {
@@ -69,11 +78,7 @@ interface GmiStatusResponse {
 	error?: string;
 }
 
-const FAL_BASE = "https://queue.fal.run";
-const FAL_STATUS_BASE = "https://queue.fal.run";
 const FAL_TRUSTED_HOSTS = [".fal.run", ".fal.ai"];
-const GMI_BASE = "https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey";
-const RUNWAY_BASE = "https://api.runwayml.com/v1";
 
 /** Validate that a URL belongs to a trusted FAL domain before sending auth headers. */
 function isTrustedFalUrl(url: string): boolean {
@@ -107,41 +112,57 @@ export async function uploadToFalStorage(
 	filePath: string
 ): Promise<{ success: boolean; url?: string; error?: string }> {
 	try {
-		const apiKey = await getApiKey("fal");
-		if (!apiKey) {
-			return { success: false, error: "No FAL API key configured" };
-		}
-
 		const filename = path.basename(filePath);
 		const ext = path.extname(filePath).toLowerCase();
 		const contentType = MIME_TYPES[ext] || "application/octet-stream";
 
-		// Step 1: Initiate upload to get signed URL
-		const initRes = await fetch(FAL_STORAGE_INITIATE, {
-			method: "POST",
-			headers: {
-				Authorization: `Key ${apiKey}`,
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				file_name: filename,
-				content_type: contentType,
-			}),
-		});
+		// Proxy mode: server vends the signed URL (key never leaves server)
+		const useProxy = await isProxyAvailable();
+		const apiKey = useProxy ? "" : await getApiKey("fal");
 
-		if (!initRes.ok) {
-			return {
-				success: false,
-				error: `FAL upload initiate failed: ${initRes.status}`,
-			};
+		if (!useProxy && !apiKey) {
+			return { success: false, error: "No FAL API key configured" };
 		}
 
-		const initData = (await initRes.json()) as {
-			upload_url?: string;
-			file_url?: string;
-		};
-		if (!initData.upload_url || !initData.file_url) {
-			return { success: false, error: "FAL API did not return upload URLs" };
+		let uploadUrl: string;
+		let fileUrl: string;
+
+		if (useProxy) {
+			const urls = await proxyUploadUrl({
+				fileName: filename,
+				contentType,
+			});
+			uploadUrl = urls.uploadUrl;
+			fileUrl = urls.fileUrl;
+		} else {
+			const initRes = await fetch(FAL_STORAGE_INITIATE, {
+				method: "POST",
+				headers: {
+					Authorization: `Key ${apiKey}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					file_name: filename,
+					content_type: contentType,
+				}),
+			});
+
+			if (!initRes.ok) {
+				return {
+					success: false,
+					error: `FAL upload initiate failed: ${initRes.status}`,
+				};
+			}
+
+			const initData = (await initRes.json()) as {
+				upload_url?: string;
+				file_url?: string;
+			};
+			if (!initData.upload_url || !initData.file_url) {
+				return { success: false, error: "FAL API did not return upload URLs" };
+			}
+			uploadUrl = initData.upload_url;
+			fileUrl = initData.file_url;
 		}
 
 		// Step 2: Read file and PUT to signed URL
@@ -155,7 +176,7 @@ export async function uploadToFalStorage(
 			};
 		}
 
-		const uploadRes = await fetch(initData.upload_url, {
+		const uploadRes = await fetch(uploadUrl, {
 			method: "PUT",
 			headers: { "Content-Type": contentType },
 			body: fileBuffer,
@@ -168,7 +189,7 @@ export async function uploadToFalStorage(
 			};
 		}
 
-		return { success: true, url: initData.file_url };
+		return { success: true, url: fileUrl };
 	} catch (err) {
 		return {
 			success: false,
@@ -177,28 +198,13 @@ export async function uploadToFalStorage(
 	}
 }
 
-const ELEVENLABS_BASE = "https://api.elevenlabs.io/v1";
-export const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
-export const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
-export const VOLCENGINE_BASE = "https://ark.cn-beijing.volces.com/api/v3";
+export { GEMINI_BASE, OPENROUTER_BASE, VOLCENGINE_BASE };
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const GMI_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_RETRIES = 2;
 
-/**
- * Adaptive polling interval based on elapsed time.
- * Starts aggressive (500ms) for quick jobs, backs off for longer ones.
- *
- * - 0–10s elapsed: 500ms intervals (catches quick completions)
- * - 10–30s elapsed: 2s intervals (typical image generation)
- * - 30s+ elapsed: 4s intervals (long-running jobs)
- */
-export function getAdaptivePollInterval(elapsedMs: number): number {
-	if (elapsedMs < 10_000) return 500;
-	if (elapsedMs < 30_000) return 2_000;
-	return 4_000;
-}
+export { getAdaptivePollInterval };
 
 /** Resolve API key from environment variables only (no Electron dependency). */
 export function envApiKeyProvider(provider: ProviderName): Promise<string> {
@@ -310,23 +316,7 @@ function buildUrl(
 	provider: ApiCallOptions["provider"],
 	endpoint: string
 ): string {
-	switch (provider) {
-		case "fal":
-			return `${FAL_BASE}/${endpoint}`;
-		case "elevenlabs":
-			return `${ELEVENLABS_BASE}/${endpoint}`;
-		case "google":
-			return `${GEMINI_BASE}/${endpoint}`;
-		case "openrouter":
-			return `${OPENROUTER_BASE}/${endpoint}`;
-		case "volcengine":
-			// Strip the "volcengine/" routing prefix from the endpoint
-			return `${VOLCENGINE_BASE}/${endpoint.replace(/^volcengine\//, "")}`;
-		case "gmi":
-			return `${GMI_BASE}/requests`;
-		case "runway":
-			return `${RUNWAY_BASE}/${endpoint}`;
-	}
+	return buildProviderUrl(provider, endpoint);
 }
 
 /**
@@ -483,7 +473,7 @@ async function pollGmiQueue(
 	const startTime = Date.now();
 	const apiKey = await getApiKey("gmi");
 	const headers = buildHeaders("gmi", apiKey);
-	const statusUrl = `${GMI_BASE}/requests/${requestId}`;
+	const statusUrl = `https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey/requests/${requestId}`;
 
 	const maxAttempts = 360;
 	let lastPercent = 0;
@@ -555,41 +545,7 @@ async function pollGmiQueue(
 	};
 }
 
-/** Extract a best-effort output URL from known provider response shapes. */
-function extractOutputUrl(data: unknown): string | undefined {
-	if (!data || typeof data !== "object") return;
-	const obj = data as Record<string, unknown>;
-
-	if (typeof obj.video === "object" && obj.video !== null) {
-		const video = obj.video as Record<string, unknown>;
-		if (typeof video.url === "string") return video.url;
-	}
-	if (typeof obj.image === "object" && obj.image !== null) {
-		const image = obj.image as Record<string, unknown>;
-		if (typeof image.url === "string") return image.url;
-	}
-	if (typeof obj.audio === "object" && obj.audio !== null) {
-		const audio = obj.audio as Record<string, unknown>;
-		if (typeof audio.url === "string") return audio.url;
-	}
-	if (Array.isArray(obj.images) && obj.images.length > 0) {
-		const first = obj.images[0] as Record<string, unknown>;
-		if (typeof first?.url === "string") return first.url;
-	}
-	if (Array.isArray(obj.videos) && obj.videos.length > 0) {
-		const first = obj.videos[0] as Record<string, unknown>;
-		if (typeof first?.url === "string") return first.url;
-	}
-	// GMI media_urls format (SkyReels, Gemini, Kling)
-	if (Array.isArray(obj.media_urls) && obj.media_urls.length > 0) {
-		const first = obj.media_urls[0] as Record<string, unknown>;
-		if (typeof first?.url === "string") return first.url;
-	}
-	if (typeof obj.output_url === "string") return obj.output_url;
-	if (typeof obj.url === "string") return obj.url;
-
-	return;
-}
+export { extractOutputUrl };
 
 /**
  * Call a provider endpoint and normalize the result payload.
@@ -610,12 +566,19 @@ export async function callModelApi(
 	} = options;
 
 	const apiKey = await getApiKey(provider);
-	if (!apiKey) {
+	const useProxy = !apiKey && (await isProxyAvailable());
+
+	if (!apiKey && !useProxy) {
 		return {
 			success: false,
 			error: `No API key configured for provider: ${provider}`,
 			duration: 0,
 		};
+	}
+
+	// ── Proxy mode: route through license server ──
+	if (useProxy) {
+		return callModelApiViaProxy(options, startTime);
 	}
 
 	const headers = buildHeaders(provider, apiKey);

@@ -127,15 +127,66 @@ export interface FalRequestOptions {
  * @returns Raw Response object for flexible handling
  * @throws Error with user-friendly message if API key is missing
  */
+/**
+ * License server URL for proxy mode.
+ * Falls back to production URL if env var is not set.
+ */
+const LICENSE_SERVER_URL =
+	import.meta.env.VITE_LICENSE_SERVER_URL ||
+	"https://qcut-license-server.zdhpeter.workers.dev";
+
+/** Try to get a session token from the license store (if available). */
+async function getSessionToken(): Promise<string> {
+	try {
+		const licenseApi = platform().license;
+		if (!licenseApi) return "";
+		// The license API exposes the auth token via getAuthToken if available
+		if ("getAuthToken" in licenseApi) {
+			const token = await (
+				licenseApi as { getAuthToken: () => Promise<string> }
+			).getAuthToken();
+			return token ?? "";
+		}
+	} catch {
+		// No license API or not authenticated
+	}
+	return "";
+}
+
 export async function makeFalRequest(
 	endpoint: string,
 	payload: Record<string, unknown>,
 	options?: FalRequestOptions
 ): Promise<Response> {
 	const apiKey = await getFalApiKeyAsync();
+
+	// If no local key, try proxy mode
 	if (!apiKey) {
+		const sessionToken = await getSessionToken();
+		if (sessionToken) {
+			const base = options?.queueMode ? FAL_QUEUE_BASE : FAL_API_BASE;
+			const targetUrl = endpoint.startsWith("https://")
+				? endpoint
+				: `${base}/${endpoint}`;
+
+			return fetch(`${LICENSE_SERVER_URL}/api/ai/proxy`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${sessionToken}`,
+				},
+				body: JSON.stringify({
+					provider: "fal",
+					endpoint: targetUrl,
+					method: "POST",
+					body: payload,
+				}),
+				signal: options?.signal,
+			});
+		}
+
 		const error = new Error(
-			"FAL API key not configured. Please set VITE_FAL_API_KEY environment variable or configure it in Settings."
+			"FAL API key not configured. Please sign in to your QCut account or set VITE_FAL_API_KEY."
 		);
 		handleAIServiceError(error, "FAL API Request", {
 			configRequired: "VITE_FAL_API_KEY",

@@ -75,6 +75,15 @@ export async function enforceCreditRequirement({
 
 		const falApiKey = await getFalApiKeyAsync();
 		if (typeof falApiKey === "string" && falApiKey.length > 0) {
+			// BYOK: user has their own key, no credit deduction needed
+			return { allowed: true, requiredCredits: 0 };
+		}
+
+		// Proxy mode: when no local key but user is authenticated, the server
+		// proxy handles credit deduction. Skip client-side deduction to avoid
+		// double-charging.
+		const currentLicense = useLicenseStore.getState().license;
+		if (currentLicense && currentLicense.status === "active") {
 			return { allowed: true, requiredCredits: 0 };
 		}
 
