@@ -79,6 +79,7 @@ export function buildTextToVideoPayload(
 		...(modelConfig.default_params || {}),
 		...(request.duration && { duration: request.duration }),
 		...(request.resolution && { resolution: request.resolution }),
+		...(request.aspect_ratio && { aspect_ratio: request.aspect_ratio }),
 	};
 
 	// Special handling for specific models

@@ -7,6 +7,8 @@ import type {
 	LTX23I2VRequest,
 	LTX23A2VRequest,
 	SeedanceI2VRequest,
+	Seedance2I2VRequest,
+	Seedance2Ref2VRequest,
 	VideoGenerationResponse,
 } from "@/components/editor/media-panel/views/ai/types/ai-types";
 import {
@@ -385,6 +387,217 @@ export async function generateSeedanceVideo(
 				job_id: jobId,
 				status: "completed",
 				message: `Video generated successfully with ${request.model}`,
+				estimated_time: 0,
+				video_url: result.video?.url || result.video || result.url,
+				video_data: result,
+			};
+		}
+	);
+}
+
+/**
+ * Generate video from image using Seedance 2.0 models.
+ */
+export async function generateSeedance2Video(
+	request: Seedance2I2VRequest
+): Promise<VideoGenerationResponse> {
+	return withErrorHandling(
+		"Generate Seedance 2.0 video",
+		{ operation: "generateSeedance2Video", model: request.model },
+		async () => {
+			const falApiKey = await getFalApiKeyAsync();
+			if (!falApiKey) {
+				throw new Error(
+					"FAL API key not configured. Please set VITE_FAL_API_KEY environment variable or configure it in Settings."
+				);
+			}
+
+			const trimmedPrompt = request.prompt?.trim() ?? "";
+			if (!trimmedPrompt) {
+				throw new Error(
+					"Please enter a prompt describing the desired animation"
+				);
+			}
+
+			if (!request.image_url) {
+				throw new Error(
+					"Image URL is required for Seedance 2.0 image-to-video generation"
+				);
+			}
+
+			const modelConfig = getModelConfig(request.model);
+			if (!modelConfig) {
+				throw new Error(`Unknown model: ${request.model}`);
+			}
+
+			const endpoint = modelConfig.endpoints.image_to_video;
+			if (!endpoint) {
+				throw new Error(
+					`Model ${request.model} does not support image-to-video generation`
+				);
+			}
+
+			const duration =
+				request.duration ??
+				(modelConfig.default_params?.duration as number) ??
+				5;
+			const resolution =
+				request.resolution ??
+				(modelConfig.default_params?.resolution as string) ??
+				"1080p";
+			const aspectRatio =
+				request.aspect_ratio ??
+				(modelConfig.default_params?.aspect_ratio as string) ??
+				"16:9";
+			const cameraFixed =
+				request.camera_fixed ??
+				(modelConfig.default_params?.camera_fixed as boolean) ??
+				false;
+
+			const validAspectRatios = ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"];
+			const safeAspectRatio = validAspectRatios.includes(aspectRatio)
+				? aspectRatio
+				: "16:9";
+
+			const payload: Record<string, unknown> = {
+				prompt: trimmedPrompt,
+				image_url: request.image_url,
+				duration,
+				resolution,
+				aspect_ratio: safeAspectRatio,
+				camera_fixed: cameraFixed,
+				enable_safety_checker:
+					request.enable_safety_checker ??
+					modelConfig.default_params?.enable_safety_checker ??
+					false,
+			};
+
+			if (request.end_user_id) {
+				payload.end_user_id = request.end_user_id;
+			}
+
+			if (request.seed !== undefined) {
+				payload.seed = request.seed;
+			}
+
+			if (request.end_image_url) {
+				payload.end_image_url = request.end_image_url;
+			}
+
+			const jobId = generateJobId();
+
+			const response = await makeFalRequest(endpoint, payload);
+
+			if (!response.ok) {
+				await handleFalResponse(response, "Generate Seedance 2.0 video");
+			}
+
+			const result = await response.json();
+
+			return {
+				job_id: jobId,
+				status: "completed",
+				message: "Video generated successfully with Seedance 2.0",
+				estimated_time: 0,
+				video_url: result.video?.url || result.video || result.url,
+				video_data: result,
+			};
+		}
+	);
+}
+
+/**
+ * Generate video from reference image using Seedance 2.0 reference-to-video.
+ */
+export async function generateSeedance2RefVideo(
+	request: Seedance2Ref2VRequest
+): Promise<VideoGenerationResponse> {
+	return withErrorHandling(
+		"Generate Seedance 2.0 Ref2V",
+		{ operation: "generateSeedance2RefVideo", model: request.model },
+		async () => {
+			const falApiKey = await getFalApiKeyAsync();
+			if (!falApiKey) {
+				throw new Error(
+					"FAL API key not configured. Please set VITE_FAL_API_KEY environment variable or configure it in Settings."
+				);
+			}
+
+			const trimmedPrompt = request.prompt?.trim() ?? "";
+			if (!trimmedPrompt) {
+				throw new Error("Please enter a prompt describing the desired video");
+			}
+
+			if (!request.reference_image_url) {
+				throw new Error(
+					"Reference image URL is required for Seedance 2.0 reference-to-video"
+				);
+			}
+
+			const modelConfig = getModelConfig(request.model);
+			if (!modelConfig) {
+				throw new Error(`Unknown model: ${request.model}`);
+			}
+
+			const endpoint = modelConfig.endpoints.image_to_video;
+			if (!endpoint) {
+				throw new Error(
+					`Model ${request.model} does not support reference-to-video generation`
+				);
+			}
+
+			const duration =
+				request.duration ??
+				(modelConfig.default_params?.duration as number) ??
+				5;
+			const resolution =
+				request.resolution ??
+				(modelConfig.default_params?.resolution as string) ??
+				"1080p";
+			const aspectRatio =
+				request.aspect_ratio ??
+				(modelConfig.default_params?.aspect_ratio as string) ??
+				"16:9";
+
+			const validAspectRatios = ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"];
+			const safeAspectRatio = validAspectRatios.includes(aspectRatio)
+				? aspectRatio
+				: "16:9";
+
+			const payload: Record<string, unknown> = {
+				prompt: trimmedPrompt,
+				reference_image_url: request.reference_image_url,
+				duration,
+				resolution,
+				aspect_ratio: safeAspectRatio,
+				enable_safety_checker:
+					request.enable_safety_checker ??
+					modelConfig.default_params?.enable_safety_checker ??
+					false,
+			};
+
+			if (request.end_user_id) {
+				payload.end_user_id = request.end_user_id;
+			}
+
+			if (request.seed !== undefined) {
+				payload.seed = request.seed;
+			}
+
+			const jobId = generateJobId();
+
+			const response = await makeFalRequest(endpoint, payload);
+
+			if (!response.ok) {
+				await handleFalResponse(response, "Generate Seedance 2.0 Ref2V");
+			}
+
+			const result = await response.json();
+
+			return {
+				job_id: jobId,
+				status: "completed",
+				message: "Video generated successfully with Seedance 2.0 Ref2V",
 				estimated_time: 0,
 				video_url: result.video?.url || result.video || result.url,
 				video_data: result,

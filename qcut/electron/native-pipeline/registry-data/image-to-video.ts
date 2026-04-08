@@ -404,6 +404,71 @@ export function registerImageToVideoModels(): void {
 	});
 
 	ModelRegistry.register({
+		key: "seedance_2_0_i2v",
+		name: "ByteDance Seedance 2.0 I2V",
+		provider: "ByteDance",
+		endpoint: "fal-ai/bytedance/seedance-2.0/image-to-video",
+		categories: ["image_to_video"],
+		description: "Cinematic image-to-video with native audio and physics",
+		pricing: 0.5,
+		durationOptions: ["2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
+		aspectRatios: ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"],
+		resolutions: ["720p", "1080p"],
+		defaults: { duration: "5", resolution: "1080p", aspect_ratio: "16:9" },
+		features: [
+			"native_audio",
+			"camera_control",
+			"physics",
+			"end_frame",
+			"seed",
+		],
+		maxDuration: 12,
+		extendedParams: ["start_frame", "end_frame"],
+		extendedFeatures: {
+			start_frame: true,
+			end_frame: true,
+			ref_images: false,
+			audio_input: false,
+			audio_generate: true,
+			ref_video: false,
+		},
+		costEstimate: 0.5,
+		processingTime: 120,
+	});
+
+	ModelRegistry.register({
+		key: "seedance_2_0_ref2v",
+		name: "ByteDance Seedance 2.0 Ref2V",
+		provider: "ByteDance",
+		endpoint: "fal-ai/bytedance/seedance-2.0/reference-to-video",
+		categories: ["image_to_video"],
+		description: "Character-consistent video from reference image",
+		pricing: 0.6,
+		durationOptions: ["2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
+		aspectRatios: ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"],
+		resolutions: ["720p", "1080p"],
+		defaults: { duration: "5", resolution: "1080p", aspect_ratio: "16:9" },
+		features: [
+			"reference_image",
+			"character_consistency",
+			"native_audio",
+			"seed",
+		],
+		maxDuration: 12,
+		extendedParams: ["ref_images"],
+		extendedFeatures: {
+			start_frame: false,
+			end_frame: false,
+			ref_images: true,
+			audio_input: false,
+			audio_generate: true,
+			ref_video: false,
+		},
+		costEstimate: 0.6,
+		processingTime: 150,
+	});
+
+	ModelRegistry.register({
 		key: "sora_2_i2v",
 		name: "Sora 2",
 		provider: "OpenAI (via FAL)",

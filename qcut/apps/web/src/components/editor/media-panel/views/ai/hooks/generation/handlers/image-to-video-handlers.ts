@@ -9,6 +9,8 @@ import {
 	generateLTXV2ImageVideo,
 	generateLTX23ImageVideo,
 	generateSeedanceVideo,
+	generateSeedance2Video,
+	generateSeedance2RefVideo,
 	generateKlingImageVideo,
 	generateKling26ImageVideo,
 } from "@/lib/ai-video";
@@ -591,6 +593,125 @@ export async function handleSeedanceProI2V(
 			aspect_ratio: settings.seedanceAspectRatio as SeedanceAspectRatio,
 			camera_fixed: settings.seedanceCameraFixed,
 			end_image_url: endFrameUrl ?? undefined,
+			seed: settings.imageSeed ?? undefined,
+		});
+
+		ctx.progressCallback({
+			status: "completed",
+			progress: 100,
+			message: `Video generated with ${ctx.modelName}`,
+		});
+
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/**
+ * Handle Seedance 2.0 image-to-video generation
+ */
+export async function handleSeedance2I2V(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.selectedImage) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "Seedance 2.0 I2V requires a selected image",
+		};
+	}
+
+	try {
+		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+		const endFrameUrl = settings.seedanceEndFrameFile
+			? await settings.uploadImageToFal(settings.seedanceEndFrameFile)
+			: settings.seedanceEndFrameUrl;
+
+		ctx.progressCallback({
+			status: "processing",
+			progress: 10,
+			message: `Submitting ${ctx.modelName} request...`,
+		});
+
+		const response = await generateSeedance2Video({
+			model: ctx.modelId,
+			prompt: ctx.prompt,
+			image_url: imageUrl,
+			duration: settings.seedanceDuration as SeedanceDuration,
+			resolution: settings.seedanceResolution as "720p" | "1080p",
+			aspect_ratio: settings.seedanceAspectRatio as
+				| "21:9"
+				| "16:9"
+				| "4:3"
+				| "1:1"
+				| "3:4"
+				| "9:16",
+			camera_fixed: settings.seedanceCameraFixed,
+			end_image_url: endFrameUrl ?? undefined,
+			seed: settings.imageSeed ?? undefined,
+		});
+
+		ctx.progressCallback({
+			status: "completed",
+			progress: 100,
+			message: `Video generated with ${ctx.modelName}`,
+		});
+
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/**
+ * Handle Seedance 2.0 reference-to-video generation
+ */
+export async function handleSeedance2Ref2V(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.selectedImage) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "Seedance 2.0 Ref2V requires a reference image",
+		};
+	}
+
+	try {
+		const referenceImageUrl = await settings.uploadImageToFal(
+			settings.selectedImage
+		);
+
+		ctx.progressCallback({
+			status: "processing",
+			progress: 10,
+			message: `Submitting ${ctx.modelName} request...`,
+		});
+
+		const response = await generateSeedance2RefVideo({
+			model: ctx.modelId,
+			prompt: ctx.prompt,
+			reference_image_url: referenceImageUrl,
+			duration: settings.seedanceDuration as SeedanceDuration,
+			resolution: settings.seedanceResolution as "720p" | "1080p",
+			aspect_ratio: settings.seedanceAspectRatio as
+				| "21:9"
+				| "16:9"
+				| "4:3"
+				| "1:1"
+				| "3:4"
+				| "9:16",
 			seed: settings.imageSeed ?? undefined,
 		});
 

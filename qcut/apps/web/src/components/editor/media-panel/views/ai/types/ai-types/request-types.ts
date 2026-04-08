@@ -237,6 +237,38 @@ export interface SeedanceI2VRequest {
 }
 
 /**
+ * Seedance 2.0 image-to-video request parameters
+ */
+export interface Seedance2I2VRequest {
+	model: string;
+	prompt: string;
+	image_url: string;
+	end_user_id?: string;
+	duration?: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+	resolution?: "720p" | "1080p";
+	aspect_ratio?: "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16";
+	camera_fixed?: boolean;
+	seed?: number;
+	enable_safety_checker?: boolean;
+	end_image_url?: string;
+}
+
+/**
+ * Seedance 2.0 reference-to-video request parameters
+ */
+export interface Seedance2Ref2VRequest {
+	model: string;
+	prompt: string;
+	reference_image_url: string;
+	end_user_id?: string;
+	duration?: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+	resolution?: "720p" | "1080p";
+	aspect_ratio?: "21:9" | "16:9" | "4:3" | "1:1" | "3:4" | "9:16";
+	seed?: number;
+	enable_safety_checker?: boolean;
+}
+
+/**
  * Kling v2.5 Turbo Pro image-to-video request parameters
  */
 export interface KlingI2VRequest {

@@ -516,4 +516,23 @@ export function registerTextToVideoModels(): void {
 		processingTime: 90,
 		providerBackend: "gmi",
 	});
+
+	ModelRegistry.register({
+		key: "seedance_2_0",
+		name: "ByteDance Seedance 2.0",
+		provider: "ByteDance",
+		endpoint: "fal-ai/bytedance/seedance-2.0/text-to-video",
+		categories: ["text_to_video"],
+		description:
+			"Cinematic video with native audio, physics, and camera control",
+		pricing: { type: "per_video", cost: 0.3 },
+		durationOptions: ["2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
+		aspectRatios: ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"],
+		resolutions: ["720p", "1080p"],
+		defaults: { duration: "5", resolution: "1080p", aspect_ratio: "16:9" },
+		features: ["native_audio", "camera_control", "physics", "seed"],
+		maxDuration: 12,
+		costEstimate: 0.3,
+		processingTime: 120,
+	});
 }

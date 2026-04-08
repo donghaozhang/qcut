@@ -35,6 +35,8 @@ export interface AiSeedanceSettingsProps {
 	endFramePreview: string | null;
 	onEndFrameFileChange: (file: File | null, preview: string | null) => void;
 	isProSelected: boolean;
+	isRef2V?: boolean;
+	selectedModelId?: string;
 	isCompact: boolean;
 	onError: (error: string | null) => void;
 }
@@ -54,12 +56,14 @@ export function AiSeedanceSettings({
 	endFramePreview,
 	onEndFrameFileChange,
 	isProSelected,
+	isRef2V = false,
+	selectedModelId,
 	isCompact,
 	onError,
 }: AiSeedanceSettingsProps) {
-	const seedanceModelId = isProSelected
-		? "seedance_pro_i2v"
-		: "seedance_pro_fast_i2v";
+	const seedanceModelId =
+		selectedModelId ??
+		(isProSelected ? "seedance_pro_i2v" : "seedance_pro_fast_i2v");
 	const seedanceModelConfig = AI_MODELS.find(
 		(model) => model.id === seedanceModelId
 	);
@@ -172,18 +176,20 @@ export function AiSeedanceSettings({
 				</Select>
 			</div>
 
-			<div className="flex items-center space-x-2">
-				<Checkbox
-					id="seedance-camera-fixed"
-					checked={cameraFixed}
-					onCheckedChange={(checked) => onCameraFixedChange(Boolean(checked))}
-				/>
-				<Label htmlFor="seedance-camera-fixed" className="text-xs">
-					Lock camera position
-				</Label>
-			</div>
+			{!isRef2V && (
+				<div className="flex items-center space-x-2">
+					<Checkbox
+						id="seedance-camera-fixed"
+						checked={cameraFixed}
+						onCheckedChange={(checked) => onCameraFixedChange(Boolean(checked))}
+					/>
+					<Label htmlFor="seedance-camera-fixed" className="text-xs">
+						Lock camera position
+					</Label>
+				</div>
+			)}
 
-			{isProSelected && (
+			{isProSelected && !isRef2V && (
 				<div className="space-y-2">
 					<Label className="text-xs font-medium">End Frame (optional)</Label>
 					<Input
