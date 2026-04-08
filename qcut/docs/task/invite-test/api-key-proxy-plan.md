@@ -294,26 +294,35 @@ wrangler secret put ADMIN_API_KEY
 
 ---
 
-## Implementation Order
+## Implementation Status
 
-```
-Phase 1 — Server (no client changes, no user impact):
-  1. Provider keys service
-  2. AI proxy route
-  3. Upload URL vending
-  4. Async polling proxy
-  5. Wrangler secrets setup
-  6. Deploy & test with curl
+### Phase 1 — Server (DONE)
 
-Phase 2 — Client migration (feature-flagged):
-  4. Electron client switch
-  5. Web client switch
-  7. Remove local key storage
+| Subtask | Status | Files |
+|---------|--------|-------|
+| Provider keys service | Done | `packages/license-server/src/services/provider-keys.ts` |
+| AI proxy route (POST /proxy) | Done | `packages/license-server/src/routes/ai-proxy.ts` |
+| Upload URL vending (POST /upload-url) | Done | `packages/license-server/src/routes/ai-proxy.ts` |
+| Async polling proxy (GET /status, /result) | Done | `packages/license-server/src/routes/ai-proxy.ts` |
+| Rate limiting middleware | Done | `packages/license-server/src/middleware/rate-limit.ts` |
+| Wrangler config + .env.example | Done | `wrangler.toml`, `.env.example` |
+| Route wired into index.ts | Done | `packages/license-server/src/index.ts` |
+| Tests (41 new, 78 total) | Done | `provider-keys.test.ts`, `ai-proxy.test.ts`, `rate-limit.test.ts` |
+| **Deploy** | **TODO** | `wrangler secret put` + `wrangler deploy` |
 
-Phase 3 — Hardening:
-  8. Rate limiting
-  Monitoring & alerting on proxy usage
-```
+### Phase 2 — Client migration (TODO)
+
+| Subtask | Status | Files |
+|---------|--------|-------|
+| Electron client switch to proxy | TODO | `electron/native-pipeline/infra/api-caller.ts`, `key-manager.ts` |
+| Web client switch to proxy | TODO | `apps/web/src/lib/ai-video/core/fal-request.ts`, `credit-guard.ts` |
+| Remove local key storage | TODO | `api-keys-view.tsx`, `api-key-handler.ts` |
+
+### Phase 3 — Hardening (TODO)
+
+| Subtask | Status | Files |
+|---------|--------|-------|
+| Monitoring & alerting on proxy usage | TODO | — |
 
 ## Environment Variables (New)
 
