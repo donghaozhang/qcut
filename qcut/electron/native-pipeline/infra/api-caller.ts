@@ -27,6 +27,7 @@ import {
 	isProxyAvailable,
 	proxyUploadUrl,
 } from "./proxy-client.js";
+import { estimateProxyCredits } from "./credit-estimator.js";
 
 export type { ProviderName };
 export type ApiKeyProvider = (provider: ProviderName) => Promise<string>;
@@ -40,6 +41,8 @@ export interface ApiCallOptions {
 	timeoutMs?: number;
 	retries?: number;
 	signal?: AbortSignal;
+	/** Model registry key — used to calculate credit cost in proxy mode. */
+	modelKey?: string;
 }
 
 export interface ApiCallResult {
@@ -578,7 +581,11 @@ export async function callModelApi(
 
 	// ── Proxy mode: route through license server ──
 	if (useProxy) {
-		return callModelApiViaProxy(options, startTime);
+		const credits =
+			options.modelKey
+				? estimateProxyCredits(options.modelKey, options.payload)
+				: undefined;
+		return callModelApiViaProxy({ ...options, credits }, startTime);
 	}
 
 	const headers = buildHeaders(provider, apiKey);

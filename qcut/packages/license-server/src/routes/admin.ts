@@ -85,6 +85,20 @@ adminRoutes.post("/grant-credits", async (c) => {
 			return c.json({ error: "amount must be a positive number" }, 400);
 		}
 
+		// Validate and de-duplicate
+		const uniqueEmails = [
+			...new Set(
+				emails
+					.filter(
+						(e): e is string => typeof e === "string" && e.trim().length > 0
+					)
+					.map((e) => e.trim().toLowerCase())
+			),
+		];
+		if (uniqueEmails.length === 0) {
+			return c.json({ error: "No valid email addresses provided" }, 400);
+		}
+
 		const results: Array<{
 			email: string;
 			success: boolean;
@@ -92,8 +106,7 @@ adminRoutes.post("/grant-credits", async (c) => {
 			error?: string;
 		}> = [];
 
-		for (const rawEmail of emails) {
-			const email = rawEmail.trim().toLowerCase();
+		for (const email of uniqueEmails) {
 			try {
 				const [user] = await db
 					.select({ id: users.id })
@@ -188,11 +201,21 @@ adminRoutes.post("/upgrade-plan", async (c) => {
 			.set({ plan, maxDevices, updatedAt: new Date() })
 			.where(eq(licenses.id, license.id));
 
-		const credits = await resetPlanCreditsForUser({
-			userId: user.id,
-			plan,
-			description: `Admin upgraded plan to ${plan}`,
-		});
+		let credits;
+		try {
+			credits = await resetPlanCreditsForUser({
+				userId: user.id,
+				plan,
+				description: `Admin upgraded plan to ${plan}`,
+			});
+		} catch (creditError) {
+			// Roll back the plan change if credit reset fails
+			await db
+				.update(licenses)
+				.set({ plan: "free", maxDevices: 1, updatedAt: new Date() })
+				.where(eq(licenses.id, license.id));
+			throw creditError;
+		}
 
 		return c.json({
 			success: true,

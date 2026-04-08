@@ -100,7 +100,7 @@ Control who can make payments during beta testing.
 
 **Environment variables** (set on the Cloudflare Worker):
 
-```
+```bash
 PAYMENTS_CANARY_ONLY=true              # Block payments for non-allowlisted users
 PAYMENTS_EMAIL_ALLOWLIST=a@b.com,c@d.com  # Comma-separated, case-insensitive
 ```
@@ -153,7 +153,7 @@ UPDATE credit_balances SET plan_credits = 500 WHERE user_id = '<id>';
 
 ## Database Schema (Key Tables)
 
-```
+```text
 users
 ├─ id, email (unique), name, image, emailVerified, createdAt
 

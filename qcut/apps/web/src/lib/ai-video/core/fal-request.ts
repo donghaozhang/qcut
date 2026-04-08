@@ -147,8 +147,8 @@ async function getSessionToken(): Promise<string> {
 			).getAuthToken();
 			return token ?? "";
 		}
-	} catch {
-		// No license API or not authenticated
+	} catch (error) {
+		console.warn("[getSessionToken] Failed to get session token:", error);
 	}
 	return "";
 }

@@ -14,6 +14,10 @@ const MAX_PROXY_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_UPLOAD_FILE_SIZE = 500 * 1024 * 1024; // 500 MB
 const PROXY_FETCH_TIMEOUT_MS = 120_000; // 2 min
 
+/** Only alphanumeric, hyphens, underscores, and forward slashes (for FAL endpoint paths). */
+const VALID_REQUEST_ID = /^[a-zA-Z0-9_-]+$/;
+const VALID_ENDPOINT_PATH = /^[a-zA-Z0-9_\-/]+$/;
+
 const aiProxyRoutes = new Hono();
 
 aiProxyRoutes.use("/*", authMiddleware);
@@ -235,8 +239,7 @@ aiProxyRoutes.get("/status", async (c) => {
 			return c.json({ error: "requestId is required" }, 400);
 		}
 
-		// Prevent path traversal in requestId
-		if (/[^a-zA-Z0-9_-]/.test(requestId)) {
+		if (!VALID_REQUEST_ID.test(requestId)) {
 			return c.json({ error: "Invalid requestId format" }, 400);
 		}
 
@@ -244,6 +247,9 @@ aiProxyRoutes.get("/status", async (c) => {
 		if (provider === "fal") {
 			if (endpoint.length === 0) {
 				return c.json({ error: "endpoint is required for fal polling" }, 400);
+			}
+			if (!VALID_ENDPOINT_PATH.test(endpoint)) {
+				return c.json({ error: "Invalid endpoint format" }, 400);
 			}
 			statusUrl = `https://queue.fal.run/${endpoint}/requests/${requestId}/status`;
 		} else if (provider === "gmi") {
@@ -304,8 +310,11 @@ aiProxyRoutes.get("/result", async (c) => {
 		if (endpoint.length === 0 || requestId.length === 0) {
 			return c.json({ error: "endpoint and requestId are required" }, 400);
 		}
-		if (/[^a-zA-Z0-9_-]/.test(requestId)) {
+		if (!VALID_REQUEST_ID.test(requestId)) {
 			return c.json({ error: "Invalid requestId format" }, 400);
+		}
+		if (!VALID_ENDPOINT_PATH.test(endpoint)) {
+			return c.json({ error: "Invalid endpoint format" }, 400);
 		}
 
 		const resultUrl = `https://queue.fal.run/${endpoint}/requests/${requestId}`;

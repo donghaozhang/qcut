@@ -228,6 +228,8 @@ export interface ProxyApiCallOptions {
 	onProgress?: (percent: number, message: string) => void;
 	timeoutMs?: number;
 	signal?: AbortSignal;
+	/** Credit info for server-side deduction. */
+	credits?: { amount: number; modelKey: string; description: string };
 }
 
 export interface ApiCallResult {
@@ -247,7 +249,7 @@ export async function callModelApiViaProxy(
 	options: ProxyApiCallOptions,
 	startTime: number
 ): Promise<ApiCallResult> {
-	const { endpoint, payload, provider, signal } = options;
+	const { endpoint, payload, provider, signal, credits } = options;
 	const providerUrl = buildProviderUrl(provider, endpoint);
 
 	try {
@@ -259,6 +261,7 @@ export async function callModelApiViaProxy(
 				provider === "gmi" && endpoint && endpoint !== "requests"
 					? { model: endpoint, payload }
 					: payload,
+			credits,
 			signal,
 			timeoutMs: options.timeoutMs,
 		});
@@ -323,6 +326,8 @@ export async function callModelApiViaProxy(
 	}
 }
 
+const MAX_POLL_ATTEMPTS = 360;
+
 /** Poll an async job through the proxy until completion. */
 async function pollViaProxy({
 	provider,
@@ -341,7 +346,11 @@ async function pollViaProxy({
 }): Promise<ApiCallResult> {
 	let lastPercent = 10;
 
-	while (!signal?.aborted) {
+	for (
+		let attempt = 0;
+		attempt < MAX_POLL_ATTEMPTS && !signal?.aborted;
+		attempt++
+	) {
 		const elapsed = Date.now() - startTime;
 		const interval = getAdaptivePollInterval(elapsed);
 		await new Promise((r) => setTimeout(r, interval));
@@ -397,7 +406,9 @@ async function pollViaProxy({
 
 	return {
 		success: false,
-		error: "Cancelled",
+		error: signal?.aborted
+			? "Cancelled"
+			: `Polling timed out after ${MAX_POLL_ATTEMPTS} attempts`,
 		duration: (Date.now() - startTime) / 1000,
 	};
 }

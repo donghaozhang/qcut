@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+} from "vitest";
 import { Hono } from "hono";
 import { resetRateLimitState } from "../middleware/rate-limit";
 
@@ -24,8 +32,13 @@ vi.mock("../middleware/auth", () => ({
 }));
 
 // Mock global fetch for provider calls
+const originalFetch = globalThis.fetch;
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
+
+afterAll(() => {
+	globalThis.fetch = originalFetch;
+});
 
 const { deductCreditsForUser } = await import("../services/credit-service");
 const { aiProxyRoutes } = await import("./ai-proxy");
