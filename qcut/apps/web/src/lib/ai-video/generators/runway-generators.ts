@@ -87,7 +87,9 @@ export async function generateRunwayTextToVideo(params: {
 	);
 
 	if (pollResult.status === "failed") {
-		throw new Error(pollResult.error ?? "Runway text-to-video generation failed");
+		throw new Error(
+			pollResult.error ?? "Runway text-to-video generation failed"
+		);
 	}
 
 	return {

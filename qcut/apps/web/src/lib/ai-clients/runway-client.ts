@@ -139,14 +139,11 @@ export const runwayClient: ProviderClient = {
 		const intervalMs = options?.pollIntervalMs ?? 5000;
 
 		for (let attempt = 0; attempt < maxAttempts; attempt++) {
-			const response = await fetch(
-				`${RUNWAY_API_BASE}/tasks/${requestId}`,
-				{
-					method: "GET",
-					headers: buildRunwayHeaders(apiKey),
-					signal: options?.signal,
-				}
-			);
+			const response = await fetch(`${RUNWAY_API_BASE}/tasks/${requestId}`, {
+				method: "GET",
+				headers: buildRunwayHeaders(apiKey),
+				signal: options?.signal,
+			});
 
 			if (!response.ok) {
 				throw new Error(

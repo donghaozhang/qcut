@@ -440,7 +440,7 @@ export function setupApiKeyIPC(): void {
 					"anthropicApiKey",
 					"elevenLabsApiKey",
 					"gmiApiKey",
-				"runwayApiKey",
+					"runwayApiKey",
 				] as const;
 
 				if (encryptionAvailable) {

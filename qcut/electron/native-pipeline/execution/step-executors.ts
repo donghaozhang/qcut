@@ -123,7 +123,10 @@ export async function executeStep(
 			payload.aspectRatio = payload.aspect_ratio;
 			payload.aspect_ratio = undefined;
 		}
-		if (payload.duration !== undefined && payload.durationSeconds === undefined) {
+		if (
+			payload.duration !== undefined &&
+			payload.durationSeconds === undefined
+		) {
 			const d = Number(payload.duration);
 			if (Number.isFinite(d)) {
 				payload.durationSeconds = d;
