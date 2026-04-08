@@ -177,5 +177,7 @@ export {
 	generateLTX23ImageVideo,
 	generateLTX23AudioVideo,
 	generateSeedanceVideo,
+	generateSeedance2Video,
+	generateSeedance2RefVideo,
 } from "./misc-generators";
 export { generatePixverseImageVideo } from "./pixverse-generators";

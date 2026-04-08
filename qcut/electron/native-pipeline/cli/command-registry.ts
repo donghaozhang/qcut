@@ -240,6 +240,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 					"veo_2",
 					"wan_x",
 					"seedance_1_0",
+					"seedance_2_0",
 					"luma_ray2",
 				],
 			}),

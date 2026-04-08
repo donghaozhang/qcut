@@ -46,6 +46,8 @@ export type {
 	ModelsResponse,
 	CostEstimate,
 	SeedanceI2VRequest,
+	Seedance2I2VRequest,
+	Seedance2Ref2VRequest,
 	KlingI2VRequest,
 	Kling26I2VRequest,
 	KlingO1V2VRequest,

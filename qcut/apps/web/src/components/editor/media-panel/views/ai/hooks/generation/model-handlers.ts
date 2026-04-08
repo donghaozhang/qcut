@@ -36,6 +36,8 @@ import {
 	handleLTX23FastI2V,
 	handleSeedanceProFastI2V,
 	handleSeedanceProI2V,
+	handleSeedance2I2V,
+	handleSeedance2Ref2V,
 	handleKlingV25I2V,
 	handleKlingV26I2V,
 } from "./handlers/image-to-video-handlers";
@@ -173,7 +175,12 @@ function getImageToVideoDurationSeconds({
 	if (modelId === "ltx23_fast_i2v") {
 		return settings.ltx23I2VDuration;
 	}
-	if (modelId === "seedance_pro_fast_i2v" || modelId === "seedance_pro_i2v") {
+	if (
+		modelId === "seedance_pro_fast_i2v" ||
+		modelId === "seedance_pro_i2v" ||
+		modelId === "seedance2_i2v" ||
+		modelId === "seedance2_ref2v"
+	) {
 		return settings.seedanceDuration;
 	}
 	if (modelId === "kling_v2_5_turbo_i2v") {
@@ -347,6 +354,10 @@ export async function routeImageToVideoHandler(
 			return handleSeedanceProFastI2V(ctx, settings);
 		case "seedance_pro_i2v":
 			return handleSeedanceProI2V(ctx, settings);
+		case "seedance2_i2v":
+			return handleSeedance2I2V(ctx, settings);
+		case "seedance2_ref2v":
+			return handleSeedance2Ref2V(ctx, settings);
 		case "kling_v2_5_turbo_i2v":
 			return handleKlingV25I2V(ctx, settings);
 		case "kling_v26_pro_i2v":

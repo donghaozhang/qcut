@@ -38,7 +38,14 @@ export function calculateSeedanceCost(
 	const tokens = (dimensions.height * dimensions.width * fps * duration) / 1024;
 
 	// Price per million tokens
-	const pricePerMillionTokens = modelId === "seedance_pro_fast_i2v" ? 1.0 : 2.5;
+	const seedance2Pricing: Record<string, number> = {
+		seedance2: 1.2,
+		seedance2_i2v: 2.0,
+		seedance2_ref2v: 2.5,
+	};
+	const pricePerMillionTokens =
+		seedance2Pricing[modelId] ??
+		(modelId === "seedance_pro_fast_i2v" ? 1.0 : 2.5);
 
 	// Calculate total cost
 	const cost = (tokens * pricePerMillionTokens) / 1_000_000;

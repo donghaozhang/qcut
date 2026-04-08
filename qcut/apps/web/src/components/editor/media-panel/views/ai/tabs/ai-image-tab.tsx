@@ -294,7 +294,13 @@ export function AIImageTab({
 	const ltxv2FastTextSelected = selectedModels.includes("ltxv2_fast_t2v");
 	const seedanceFastSelected = selectedModels.includes("seedance_pro_fast_i2v");
 	const seedanceProSelected = selectedModels.includes("seedance_pro_i2v");
-	const seedanceSelected = seedanceFastSelected || seedanceProSelected;
+	const seedance2I2VSelected = selectedModels.includes("seedance2_i2v");
+	const seedance2Ref2VSelected = selectedModels.includes("seedance2_ref2v");
+	const seedanceSelected =
+		seedanceFastSelected ||
+		seedanceProSelected ||
+		seedance2I2VSelected ||
+		seedance2Ref2VSelected;
 	const klingI2VSelected = selectedModels.includes("kling_v2_5_turbo_i2v");
 	const kling26I2VSelected = selectedModels.includes("kling_v26_pro_i2v");
 	const wan25Selected = selectedModels.includes("wan_25_preview_i2v");
@@ -440,7 +446,15 @@ export function AIImageTab({
 					endFrameFile={seedanceEndFrameFile}
 					endFramePreview={seedanceEndFramePreview}
 					onEndFrameFileChange={onSeedanceEndFrameFileChange}
-					isProSelected={seedanceProSelected}
+					isProSelected={seedanceProSelected || seedance2I2VSelected}
+					isRef2V={seedance2Ref2VSelected}
+					selectedModelId={
+						seedance2Ref2VSelected
+							? "seedance2_ref2v"
+							: seedance2I2VSelected
+								? "seedance2_i2v"
+								: undefined
+					}
 					isCompact={isCompact}
 					onError={onError}
 				/>

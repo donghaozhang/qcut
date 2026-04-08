@@ -376,6 +376,27 @@ export const T2V_MODELS = {
 			resolution: "1080p",
 		},
 	},
+	seedance2: {
+		id: "seedance2",
+		name: "Seedance 2.0",
+		description:
+			"ByteDance's most advanced video gen — cinematic output with native audio (2-12s)",
+		price: "0.30",
+		resolution: "720p / 1080p",
+		max_duration: 12,
+		category: "text",
+		endpoints: {
+			text_to_video: "fal-ai/bytedance/seedance-2.0/text-to-video",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+		},
+		supportedResolutions: ["720p", "1080p"],
+		supportedDurations: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+		supportedAspectRatios: ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"],
+	},
 	wan_25_preview: {
 		id: "wan_25_preview",
 		name: "WAN v2.5 Preview",

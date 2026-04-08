@@ -168,6 +168,8 @@ export {
 	generateLTX23ImageVideo,
 	generateLTX23AudioVideo,
 	generateSeedanceVideo,
+	generateSeedance2Video,
+	generateSeedance2RefVideo,
 	generateKlingImageVideo,
 	generateKling26ImageVideo,
 	generateKlingO1Video,
