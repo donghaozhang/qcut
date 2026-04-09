@@ -114,6 +114,7 @@ async function falUpload(
 	}
 }
 
+/** Registers IPC handlers for uploading media files to FAL CDN storage. */
 export function registerFalUploadHandlers(deps: MainIpcDeps): void {
 	const { logger } = deps;
 

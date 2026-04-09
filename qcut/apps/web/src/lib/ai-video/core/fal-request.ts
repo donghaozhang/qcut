@@ -119,15 +119,6 @@ export interface FalRequestOptions {
 }
 
 /**
- * Makes an authenticated request to FAL AI API.
- *
- * @param endpoint - FAL endpoint path (e.g., "fal-ai/kling-video/v2.6/pro/text-to-video")
- * @param payload - Request payload
- * @param options - Optional request configuration
- * @returns Raw Response object for flexible handling
- * @throws Error with user-friendly message if API key is missing
- */
-/**
  * License server URL for proxy mode.
  * Falls back to production URL if env var is not set.
  */
@@ -153,6 +144,10 @@ async function getSessionToken(): Promise<string> {
 	return "";
 }
 
+/**
+ * Makes an authenticated request to FAL AI API.
+ * Uses proxy mode via the license server when no local API key is available.
+ */
 export async function makeFalRequest(
 	endpoint: string,
 	payload: Record<string, unknown>,

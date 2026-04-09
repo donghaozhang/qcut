@@ -26,6 +26,7 @@ export function getLicenseServerUrl(): string {
 /** Session token provider — injected at startup from license-handler. */
 let sessionTokenProvider: (() => Promise<string>) | null = null;
 
+/** Registers the callback that supplies session tokens for proxy auth. */
 export function setSessionTokenProvider(provider: () => Promise<string>): void {
 	sessionTokenProvider = provider;
 }

@@ -40,6 +40,7 @@ function cleanupIfNeeded(now: number): void {
 	}
 }
 
+/** Sliding-window rate limiter middleware keyed by authenticated userId. */
 export async function rateLimitMiddleware(c: Context, next: Next) {
 	const userId = c.get("userId") as string | undefined;
 	if (!userId) {
