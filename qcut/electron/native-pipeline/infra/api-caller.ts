@@ -581,10 +581,9 @@ export async function callModelApi(
 
 	// ── Proxy mode: route through license server ──
 	if (useProxy) {
-		const credits =
-			options.modelKey
-				? estimateProxyCredits(options.modelKey, options.payload)
-				: undefined;
+		const credits = options.modelKey
+			? estimateProxyCredits(options.modelKey, options.payload)
+			: undefined;
 		return callModelApiViaProxy({ ...options, credits }, startTime);
 	}
 
