@@ -268,6 +268,12 @@ export async function handleLogin(options: CLIRunOptions): Promise<CLIResult> {
 		});
 
 		if (!response.ok) {
+			if (response.status >= 500) {
+				return {
+					success: false,
+					error: `Server error (${response.status}) — please retry`,
+				};
+			}
 			const body = (await response.json().catch(() => null)) as Record<
 				string,
 				unknown
