@@ -116,7 +116,16 @@ export const CATEGORIES: CategoryDef[] = [
 	{
 		name: "keys",
 		label: "API Key Management",
-		commands: ["setup", "set-key", "get-key", "delete-key", "check-keys"],
+		commands: [
+			"login",
+			"signup",
+			"logout",
+			"setup",
+			"set-key",
+			"get-key",
+			"delete-key",
+			"check-keys",
+		],
 	},
 	{
 		name: "project",
@@ -790,6 +799,34 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		category: "keys",
 		flags: [],
 		examples: ["qcut-pipeline setup"],
+	},
+	login: {
+		name: "login",
+		description: "Log in to QCut with email and password",
+		category: "keys",
+		flags: [
+			f("--email", "string", "Email address", { required: true }),
+			f("--password", "string", "Password (prompted if omitted)"),
+		],
+		examples: ["qcut-pipeline login --email user@gmail.com"],
+	},
+	signup: {
+		name: "signup",
+		description: "Create a new QCut account",
+		category: "keys",
+		flags: [
+			f("--email", "string", "Email address", { required: true }),
+			f("--name", "string", "Display name", { required: true }),
+			f("--password", "string", "Password (prompted if omitted)"),
+		],
+		examples: ["qcut-pipeline signup --email user@gmail.com --name 'Jane Doe'"],
+	},
+	logout: {
+		name: "logout",
+		description: "Log out and clear stored session token",
+		category: "keys",
+		flags: [],
+		examples: ["qcut-pipeline logout"],
 	},
 	"set-key": {
 		name: "set-key",

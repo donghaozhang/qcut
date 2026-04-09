@@ -23,6 +23,9 @@ import {
 	handleGetKey as adminHandleGetKey,
 	handleCheckKeys as adminHandleCheckKeys,
 	handleDeleteKey as adminHandleDeleteKey,
+	handleLogin as adminHandleLogin,
+	handleSignup as adminHandleSignup,
+	handleLogout as adminHandleLogout,
 	handleInitProject as adminHandleInitProject,
 	handleOrganizeProject as adminHandleOrganizeProject,
 	handleStructureInfo as adminHandleStructureInfo,
@@ -312,6 +315,15 @@ export class CLIPipelineRunner {
 					this.executor,
 					this.signal
 				);
+				break;
+			case "login":
+				result = await adminHandleLogin(resolvedOptions);
+				break;
+			case "signup":
+				result = await adminHandleSignup(resolvedOptions);
+				break;
+			case "logout":
+				result = await adminHandleLogout();
 				break;
 			case "setup":
 				result = await adminHandleSetup();

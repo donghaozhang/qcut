@@ -39,6 +39,8 @@ export interface CLIRunOptions {
 	upscale?: string;
 	keyName?: string;
 	keyValue?: string;
+	email?: string;
+	password?: string;
 	idea?: string;
 	genre?: string;
 	targetDuration?: string;
