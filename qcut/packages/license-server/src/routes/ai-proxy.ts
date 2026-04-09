@@ -16,7 +16,7 @@ const PROXY_FETCH_TIMEOUT_MS = 120_000; // 2 min
 
 /** Only alphanumeric, hyphens, underscores, and forward slashes (for FAL endpoint paths). */
 const VALID_REQUEST_ID = /^[a-zA-Z0-9_-]+$/;
-const VALID_ENDPOINT_PATH = /^[a-zA-Z0-9_\-/]+$/;
+const VALID_ENDPOINT_PATH = /^[a-zA-Z0-9_.\-/]+$/;
 
 const aiProxyRoutes = new Hono();
 

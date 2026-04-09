@@ -187,7 +187,11 @@ adminRoutes.post("/upgrade-plan", async (c) => {
 		}
 
 		const [license] = await db
-			.select({ id: licenses.id })
+			.select({
+				id: licenses.id,
+				plan: licenses.plan,
+				maxDevices: licenses.maxDevices,
+			})
 			.from(licenses)
 			.where(eq(licenses.userId, user.id))
 			.limit(1);
@@ -209,10 +213,14 @@ adminRoutes.post("/upgrade-plan", async (c) => {
 				description: `Admin upgraded plan to ${plan}`,
 			});
 		} catch (creditError) {
-			// Roll back the plan change if credit reset fails
+			// Roll back to the original plan if credit reset fails
 			await db
 				.update(licenses)
-				.set({ plan: "free", maxDevices: 1, updatedAt: new Date() })
+				.set({
+					plan: license.plan,
+					maxDevices: license.maxDevices,
+					updatedAt: new Date(),
+				})
 				.where(eq(licenses.id, license.id));
 			throw creditError;
 		}
