@@ -6,6 +6,8 @@ import { stripeRoutes } from "./routes/stripe";
 import { creditsRoutes } from "./routes/credits";
 import { authRoutes } from "./routes/auth";
 import { youtubeRoutes } from "./routes/youtube";
+import { adminRoutes } from "./routes/admin";
+import { aiProxyRoutes } from "./routes/ai-proxy";
 import { getMockResponse, isMockMode } from "./middleware/mock";
 import { getAllowedCorsOrigins } from "./services/payment-config";
 
@@ -75,5 +77,7 @@ app.route("/api/credits", creditsRoutes);
 app.route("/api/stripe", stripeRoutes);
 app.route("/api/auth", authRoutes);
 app.route("/api/youtube", youtubeRoutes);
+app.route("/api/admin", adminRoutes);
+app.route("/api/ai", aiProxyRoutes);
 
 export default app;

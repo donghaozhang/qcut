@@ -119,13 +119,34 @@ export interface FalRequestOptions {
 }
 
 /**
+ * License server URL for proxy mode.
+ * Falls back to production URL if env var is not set.
+ */
+const LICENSE_SERVER_URL =
+	import.meta.env.VITE_LICENSE_SERVER_URL ||
+	"https://qcut-license-server.zdhpeter.workers.dev";
+
+/** Try to get a session token from the license store (if available). */
+async function getSessionToken(): Promise<string> {
+	try {
+		const licenseApi = platform().license;
+		if (!licenseApi) return "";
+		// The license API exposes the auth token via getAuthToken if available
+		if ("getAuthToken" in licenseApi) {
+			const token = await (
+				licenseApi as { getAuthToken: () => Promise<string> }
+			).getAuthToken();
+			return token ?? "";
+		}
+	} catch (error) {
+		console.warn("[getSessionToken] Failed to get session token:", error);
+	}
+	return "";
+}
+
+/**
  * Makes an authenticated request to FAL AI API.
- *
- * @param endpoint - FAL endpoint path (e.g., "fal-ai/kling-video/v2.6/pro/text-to-video")
- * @param payload - Request payload
- * @param options - Optional request configuration
- * @returns Raw Response object for flexible handling
- * @throws Error with user-friendly message if API key is missing
+ * Uses proxy mode via the license server when no local API key is available.
  */
 export async function makeFalRequest(
 	endpoint: string,
@@ -133,9 +154,34 @@ export async function makeFalRequest(
 	options?: FalRequestOptions
 ): Promise<Response> {
 	const apiKey = await getFalApiKeyAsync();
+
+	// If no local key, try proxy mode
 	if (!apiKey) {
+		const sessionToken = await getSessionToken();
+		if (sessionToken) {
+			const base = options?.queueMode ? FAL_QUEUE_BASE : FAL_API_BASE;
+			const targetUrl = endpoint.startsWith("https://")
+				? endpoint
+				: `${base}/${endpoint}`;
+
+			return fetch(`${LICENSE_SERVER_URL}/api/ai/proxy`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${sessionToken}`,
+				},
+				body: JSON.stringify({
+					provider: "fal",
+					endpoint: targetUrl,
+					method: "POST",
+					body: payload,
+				}),
+				signal: options?.signal,
+			});
+		}
+
 		const error = new Error(
-			"FAL API key not configured. Please set VITE_FAL_API_KEY environment variable or configure it in Settings."
+			"FAL API key not configured. Please sign in to your QCut account or set VITE_FAL_API_KEY."
 		);
 		handleAIServiceError(error, "FAL API Request", {
 			configRequired: "VITE_FAL_API_KEY",

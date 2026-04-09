@@ -14,3 +14,14 @@ PAYMENTS_CHECKOUT_ENABLED = "true"
 PAYMENTS_WEBHOOK_ENABLED = "true"
 PAYMENTS_CANARY_ONLY = "false"
 CORS_ALLOWED_ORIGINS = ""
+AI_PROXY_RATE_LIMIT = "60"
+
+# AI provider keys are stored as Wrangler secrets (not vars):
+# wrangler secret put FAL_API_KEY
+# wrangler secret put GEMINI_API_KEY
+# wrangler secret put OPENROUTER_API_KEY
+# wrangler secret put ELEVENLABS_API_KEY
+# wrangler secret put GMI_API_KEY
+# wrangler secret put RUNWAY_API_KEY
+# wrangler secret put FREESOUND_API_KEY
+# wrangler secret put ADMIN_API_KEY

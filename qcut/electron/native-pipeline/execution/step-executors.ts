@@ -222,6 +222,7 @@ async function executeTextToImage(
 
 	const result = await callModelApi({
 		endpoint: model.endpoint,
+		modelKey: model.key,
 		payload,
 		provider,
 		onProgress: options.onProgress,
@@ -261,6 +262,7 @@ async function executeTextToVideo(
 
 	const result = await callModelApi({
 		endpoint: model.endpoint,
+		modelKey: model.key,
 		payload,
 		provider,
 		onProgress: options.onProgress,
@@ -288,6 +290,7 @@ async function executeImageToVideo(
 	}
 	const result = await callModelApi({
 		endpoint: model.endpoint,
+		modelKey: model.key,
 		payload,
 		provider,
 		onProgress: options.onProgress,
@@ -342,6 +345,7 @@ async function executeImageToImage(
 	}
 	const result = await callModelApi({
 		endpoint: model.endpoint,
+		modelKey: model.key,
 		payload,
 		provider,
 		onProgress: options.onProgress,
@@ -369,6 +373,7 @@ async function executeVideoToVideo(
 	}
 	const result = await callModelApi({
 		endpoint: model.endpoint,
+		modelKey: model.key,
 		payload,
 		provider,
 		onProgress: options.onProgress,
@@ -399,6 +404,7 @@ async function executeAvatar(
 	}
 	const result = await callModelApi({
 		endpoint: model.endpoint,
+		modelKey: model.key,
 		payload,
 		provider,
 		onProgress: options.onProgress,
@@ -437,6 +443,7 @@ async function executeTTS(
 
 	const result = await callModelApi({
 		endpoint: model.endpoint,
+		modelKey: model.key,
 		payload,
 		provider,
 		onProgress: options.onProgress,
@@ -478,6 +485,7 @@ async function executeSTT(
 	}
 	const result = await callModelApi({
 		endpoint: model.endpoint,
+		modelKey: model.key,
 		payload,
 		provider,
 		onProgress: options.onProgress,
@@ -533,6 +541,7 @@ async function executeImageUnderstanding(
 	}
 	const result = await callModelApi({
 		endpoint: model.endpoint,
+		modelKey: model.key,
 		payload,
 		provider,
 		onProgress: options.onProgress,
@@ -641,6 +650,7 @@ async function executeVolcengineVideoUnderstanding(
 
 	const result = await callModelApi({
 		endpoint: model.endpoint,
+		modelKey: model.key,
 		payload: apiPayload,
 		provider: "volcengine",
 		async: false,
@@ -703,6 +713,7 @@ async function executePromptGeneration(
 	payload.prompt = input.text || payload.prompt;
 	const result = await callModelApi({
 		endpoint: model.endpoint,
+		modelKey: model.key,
 		payload,
 		provider,
 		onProgress: options.onProgress,

@@ -162,17 +162,27 @@ describe("model handler routing regression", () => {
 	});
 
 	// GMI T2V routing
+	const t2vHandlerMap: Record<string, ReturnType<typeof vi.fn>> = {
+		handleGmiVeoLiteT2V: textToVideoHandlers.handleGmiVeoLiteT2V as ReturnType<
+			typeof vi.fn
+		>,
+		handleSkyreelsV4T2V: textToVideoHandlers.handleSkyreelsV4T2V as ReturnType<
+			typeof vi.fn
+		>,
+		handleGmiKlingV3T2V: textToVideoHandlers.handleGmiKlingV3T2V as ReturnType<
+			typeof vi.fn
+		>,
+		handleGmiKlingOmniT2V:
+			textToVideoHandlers.handleGmiKlingOmniT2V as ReturnType<typeof vi.fn>,
+	};
+
 	it.each([
 		["gmi_veo31_lite_t2v", "handleGmiVeoLiteT2V"],
 		["gmi_skyreels_v4_t2v", "handleSkyreelsV4T2V"],
 		["gmi_kling_v3_t2v", "handleGmiKlingV3T2V"],
 		["gmi_kling_v3_omni_t2v", "handleGmiKlingOmniT2V"],
 	] as const)("routeTextToVideoHandler maps %s to %s", async (modelId, handlerName) => {
-		const mock = vi.mocked(
-			textToVideoHandlers[
-				handlerName as keyof typeof textToVideoHandlers
-			] as ReturnType<typeof vi.fn>
-		);
+		const mock = vi.mocked(t2vHandlerMap[handlerName]);
 		await routeTextToVideoHandler(
 			createContext({ modelId }),
 			{} as TextToVideoSettings
@@ -181,6 +191,21 @@ describe("model handler routing regression", () => {
 	});
 
 	// GMI I2V routing
+	const i2vHandlerMap: Record<string, ReturnType<typeof vi.fn>> = {
+		handleGmiVeoLiteI2V:
+			imageToVideoHandlersGmi.handleGmiVeoLiteI2V as ReturnType<typeof vi.fn>,
+		handleSkyreelsV4I2V:
+			imageToVideoHandlersGmi.handleSkyreelsV4I2V as ReturnType<typeof vi.fn>,
+		handleGmiKlingV3I2V:
+			imageToVideoHandlersGmi.handleGmiKlingV3I2V as ReturnType<typeof vi.fn>,
+		handleGmiKlingOmniI2V:
+			imageToVideoHandlersGmi.handleGmiKlingOmniI2V as ReturnType<typeof vi.fn>,
+		handleGmiKlingMotionControl:
+			imageToVideoHandlersGmi.handleGmiKlingMotionControl as ReturnType<
+				typeof vi.fn
+			>,
+	};
+
 	it.each([
 		["gmi_veo31_lite_i2v", "handleGmiVeoLiteI2V"],
 		["gmi_skyreels_v4_i2v", "handleSkyreelsV4I2V"],
@@ -188,11 +213,7 @@ describe("model handler routing regression", () => {
 		["gmi_kling_v3_omni_i2v", "handleGmiKlingOmniI2V"],
 		["gmi_kling_motion_control", "handleGmiKlingMotionControl"],
 	] as const)("routeImageToVideoHandler maps %s to %s", async (modelId, handlerName) => {
-		const mock = vi.mocked(
-			imageToVideoHandlersGmi[
-				handlerName as keyof typeof imageToVideoHandlersGmi
-			] as ReturnType<typeof vi.fn>
-		);
+		const mock = vi.mocked(i2vHandlerMap[handlerName]);
 		await routeImageToVideoHandler(createContext({ modelId }), {
 			selectedImage: new File(["test"], "test.jpg"),
 			uploadImageToFal: vi.fn().mockResolvedValue("https://fal.ai/img"),
