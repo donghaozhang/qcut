@@ -63,7 +63,12 @@ adminRoutes.get("/user", async (c) => {
 /** Grant top-up credits to one or more users by email. */
 adminRoutes.post("/grant-credits", async (c) => {
 	try {
-		const payload = await c.req.json();
+		let payload: Record<string, unknown>;
+		try {
+			payload = await c.req.json();
+		} catch {
+			return c.json({ error: "Invalid JSON body" }, 400);
+		}
 		const emails: string[] = Array.isArray(payload?.emails)
 			? payload.emails
 			: typeof payload?.email === "string"
@@ -160,7 +165,12 @@ adminRoutes.post("/grant-credits", async (c) => {
 /** Upgrade a user's plan by email. */
 adminRoutes.post("/upgrade-plan", async (c) => {
 	try {
-		const payload = await c.req.json();
+		let payload: Record<string, unknown>;
+		try {
+			payload = await c.req.json();
+		} catch {
+			return c.json({ error: "Invalid JSON body" }, 400);
+		}
 		const email =
 			typeof payload?.email === "string"
 				? payload.email.trim().toLowerCase()
@@ -198,6 +208,16 @@ adminRoutes.post("/upgrade-plan", async (c) => {
 
 		if (!license) {
 			return c.json({ error: "User has no license record" }, 404);
+		}
+
+		if (license.plan === plan) {
+			const credits = await getCreditBalanceByUserId({ userId: user.id });
+			return c.json({
+				success: true,
+				user: { email, plan, maxDevices },
+				credits,
+				note: "Plan unchanged — no credit reset performed",
+			});
 		}
 
 		await db
