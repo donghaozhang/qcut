@@ -289,6 +289,21 @@ export async function callModelApiViaProxy(
 					startTime,
 				});
 			}
+			if (requestId && data.status === "COMPLETED") {
+				const result = await proxyFetchResult({
+					provider: "fal",
+					endpoint,
+					requestId,
+					signal,
+				});
+				const resultData = result.data as Record<string, unknown>;
+				return {
+					success: true,
+					data: resultData,
+					outputUrl: extractOutputUrl(resultData),
+					duration: (Date.now() - startTime) / 1000,
+				};
+			}
 		}
 
 		if (provider === "gmi") {
