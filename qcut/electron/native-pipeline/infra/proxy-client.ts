@@ -141,7 +141,7 @@ export async function proxyUploadUrl({
 		);
 	}
 
-	return response.json();
+	return response.json() as Promise<{ uploadUrl: string; fileUrl: string }>;
 }
 
 /**
