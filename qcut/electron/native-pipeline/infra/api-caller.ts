@@ -205,7 +205,7 @@ export { GEMINI_BASE, OPENROUTER_BASE, VOLCENGINE_BASE };
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const GMI_TIMEOUT_MS = 30 * 60 * 1000;
-const DEFAULT_RETRIES = 2;
+const DEFAULT_RETRIES = 3;
 
 export { getAdaptivePollInterval };
 
@@ -328,7 +328,7 @@ function buildUrl(
 /**
  * Execute fetch with retry/backoff for transient failures.
  *
- * Retries network errors and 5xx responses up to `retries` attempts.
+ * Retries network errors, 429 (rate limit), and 5xx responses up to `retries` attempts.
  */
 async function fetchWithRetry(
 	url: string,
@@ -342,11 +342,15 @@ async function fetchWithRetry(
 			if (response.ok || attempt === retries) {
 				return response;
 			}
-			if (response.status >= 500) {
+			if (response.status === 429 || response.status >= 500) {
+				const delay =
+					response.status === 429
+						? 5000 * 2 ** attempt // 429: exponential backoff (5s, 10s, 20s, 40s)
+						: 1000 * (attempt + 1); // 5xx: linear backoff
 				lastError = new Error(
-					`Server error ${response.status}: ${response.statusText}`
+					`API error ${response.status}: ${response.statusText}`
 				);
-				await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+				await new Promise((r) => setTimeout(r, delay));
 				continue;
 			}
 			return response;
