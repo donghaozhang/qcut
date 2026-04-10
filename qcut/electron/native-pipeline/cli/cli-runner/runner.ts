@@ -8,7 +8,8 @@ import {
 	setApiKeyProvider,
 	envApiKeyProvider,
 } from "../../infra/api-caller.js";
-import { loadEnvFile } from "../../infra/key-manager.js";
+import { loadEnvFile, getKey } from "../../infra/key-manager.js";
+import { setSessionTokenProvider } from "../../infra/proxy-client.js";
 import { readStdin } from "../interactive.js";
 import {
 	handleAnalyzeVideo as mediaHandleAnalyzeVideo,
@@ -167,6 +168,9 @@ export class CLIPipelineRunner {
 
 	constructor() {
 		setApiKeyProvider(envApiKeyProvider);
+		setSessionTokenProvider(async () => {
+			return getKey("QCUT_AUTH_TOKEN") ?? "";
+		});
 	}
 
 	get signal(): AbortSignal {
