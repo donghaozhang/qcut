@@ -304,6 +304,8 @@ adminRoutes.post("/create-user", async (c) => {
 				: "";
 		const password =
 			typeof payload?.password === "string" ? payload.password : "";
+		const passwordHash =
+			typeof payload?.passwordHash === "string" ? payload.passwordHash : "";
 
 		if (name.length === 0) {
 			return c.json({ error: "name is required" }, 400);
@@ -311,8 +313,11 @@ adminRoutes.post("/create-user", async (c) => {
 		if (email.length === 0) {
 			return c.json({ error: "email is required" }, 400);
 		}
-		if (password.length < 6) {
-			return c.json({ error: "password must be at least 6 characters" }, 400);
+		if (passwordHash.length === 0 && password.length < 6) {
+			return c.json(
+				{ error: "password (or passwordHash) must be provided" },
+				400
+			);
 		}
 
 		// Check if user already exists
@@ -331,7 +336,7 @@ adminRoutes.post("/create-user", async (c) => {
 		const accountId = generateId();
 		const sessionId = generateId();
 		const sessionToken = generateId() + generateId();
-		const passwordHash = await hashPassword(password);
+		const finalHash = passwordHash || (await hashPassword(password));
 
 		// Create user
 		await db.insert(users).values({
@@ -349,7 +354,7 @@ adminRoutes.post("/create-user", async (c) => {
 			accountId: userId,
 			providerId: "credential",
 			userId,
-			password: passwordHash,
+			password: finalHash,
 			createdAt: now,
 			updatedAt: now,
 		});
@@ -391,6 +396,58 @@ adminRoutes.post("/create-user", async (c) => {
 		return c.json(
 			{
 				error: error instanceof Error ? error.message : "Failed to create user",
+			},
+			500
+		);
+	}
+});
+
+/** Issue a session token for a user by email. Admin-only, no password check. */
+adminRoutes.post("/issue-token", async (c) => {
+	try {
+		let payload: Record<string, unknown>;
+		try {
+			payload = await c.req.json();
+		} catch {
+			return c.json({ error: "Invalid JSON body" }, 400);
+		}
+
+		const email =
+			typeof payload?.email === "string"
+				? payload.email.trim().toLowerCase()
+				: "";
+		if (email.length === 0) {
+			return c.json({ error: "email is required" }, 400);
+		}
+
+		const [user] = await db
+			.select({ id: users.id, name: users.name })
+			.from(users)
+			.where(eq(users.email, email))
+			.limit(1);
+
+		if (!user) {
+			return c.json({ error: `No user found: ${email}` }, 404);
+		}
+
+		const now = new Date();
+		const sessionId = generateId();
+		const token = generateId() + generateId();
+
+		await db.insert(sessions).values({
+			id: sessionId,
+			token,
+			userId: user.id,
+			expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+			createdAt: now,
+			updatedAt: now,
+		});
+
+		return c.json({ success: true, email, token });
+	} catch (error) {
+		return c.json(
+			{
+				error: error instanceof Error ? error.message : "Failed to issue token",
 			},
 			500
 		);
