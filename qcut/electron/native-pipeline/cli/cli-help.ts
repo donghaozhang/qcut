@@ -34,6 +34,9 @@ Commands:
   generate-speech     Generate speech from text (Chatterbox/ElevenLabs/Qwen3)
   convert-speech      Convert speech to a different voice (Chatterbox S2S)
   clone-voice         Clone a voice from reference audio (Qwen3)
+  create-element      Create a reusable character/object element (Kling V3 Omni)
+  list-elements       List stored Kling elements
+  delete-element      Delete a stored element by ID
   login               Log in to QCut with email and password
   signup              Create a new QCut account
   logout              Log out and clear stored session token

@@ -89,6 +89,9 @@ export const CATEGORIES: CategoryDef[] = [
 			"generate-speech",
 			"convert-speech",
 			"clone-voice",
+			"create-element",
+			"list-elements",
+			"delete-element",
 		],
 	},
 	{
@@ -260,10 +263,16 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--negative-prompt", "string", "Negative prompt"),
 			f("--count", "number", "Generate N copies"),
 			f("--prompts", "string[]", "Multiple prompts (repeatable)"),
+			f(
+				"--element-ids",
+				"string[]",
+				"Kling element IDs for consistent characters"
+			),
 		],
 		examples: [
 			"qcut-pipeline create-video -t 'Ocean waves' -m kling_2_6_pro -d 5s",
 			"qcut-pipeline create-video -t 'A flower blooming' --image-url https://example.com/flower.jpg",
+			"qcut-pipeline create-video -t '<<<element_1>>> walks in park' -m gmi_kling_v3_omni_t2v --element-ids abc123",
 		],
 	},
 	"generate-avatar": {
@@ -725,6 +734,50 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline clone-voice -i reference.mp3 --json",
 			"qcut-pipeline clone-voice -i reference.mp3 -t 'What was said in the audio'",
 		],
+	},
+
+	// ── Elements ──
+	"create-element": {
+		name: "create-element",
+		description:
+			"Create a reusable character/object element for Kling V3 Omni",
+		category: "generation",
+		flags: [
+			f("--name", "string", "Element name (max 20 chars)", {
+				required: true,
+			}),
+			f("--description", "string", "Element description (max 100 chars)", {
+				required: true,
+			}),
+			f("--frontal-image", "string", "Frontal reference image path/URL", {
+				required: true,
+			}),
+			f("--refer-images", "string[]", "Additional reference images (1-3)"),
+			f(
+				"--refer-video",
+				"string",
+				"Reference video path/URL (alternative to images)"
+			),
+		],
+		examples: [
+			'qcut-pipeline create-element --name "Detective" --description "Female detective in trench coat" --frontal-image front.jpg --refer-images side.jpg',
+		],
+	},
+	"list-elements": {
+		name: "list-elements",
+		description: "List stored Kling elements",
+		category: "generation",
+		flags: [],
+		examples: ["qcut-pipeline list-elements"],
+	},
+	"delete-element": {
+		name: "delete-element",
+		description: "Delete a stored element by ID or name",
+		category: "generation",
+		flags: [
+			f("--element-id", "string", "Element ID to delete", { required: true }),
+		],
+		examples: ["qcut-pipeline delete-element --element-id abc123"],
 	},
 
 	// ── Models & Cost ──

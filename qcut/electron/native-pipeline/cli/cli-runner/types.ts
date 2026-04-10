@@ -41,6 +41,12 @@ export interface CLIRunOptions {
 	keyValue?: string;
 	email?: string;
 	password?: string;
+	frontalImage?: string;
+	referImages?: string[];
+	referVideo?: string;
+	elementIds?: string[];
+	elementId?: string;
+	elementDescription?: string;
 	idea?: string;
 	genre?: string;
 	targetDuration?: string;

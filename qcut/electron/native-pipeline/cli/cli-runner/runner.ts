@@ -34,6 +34,11 @@ import {
 	handleListModels as adminHandleListModels,
 	handleEstimateCost as adminHandleEstimateCost,
 } from "../cli-handlers-admin.js";
+import {
+	handleCreateElement as elementHandleCreate,
+	handleListElements as elementHandleList,
+	handleDeleteElement as elementHandleDelete,
+} from "../cli-handlers-element.js";
 import { handleEditorCommand } from "../cli-handlers-editor.js";
 import {
 	handleVimaxExtractCharacters,
@@ -328,6 +333,15 @@ export class CLIPipelineRunner {
 				break;
 			case "logout":
 				result = await adminHandleLogout();
+				break;
+			case "create-element":
+				result = await elementHandleCreate(resolvedOptions, onProgress);
+				break;
+			case "list-elements":
+				result = elementHandleList();
+				break;
+			case "delete-element":
+				result = elementHandleDelete(resolvedOptions);
 				break;
 			case "setup":
 				result = await adminHandleSetup();

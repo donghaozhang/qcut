@@ -174,6 +174,11 @@ export async function handleGenerate(
 	if (options.resolution) params.resolution = options.resolution;
 	if (options.negativePrompt) params.negative_prompt = options.negativePrompt;
 	if (options.voiceId) params.voice_id = options.voiceId;
+	if (options.elementIds && options.elementIds.length > 0) {
+		params.element_list = options.elementIds.map((id) => ({
+			element_id: id,
+		}));
+	}
 
 	if (options.command === "generate-avatar") {
 		if (options.referenceImages && options.referenceImages.length > 0) {
