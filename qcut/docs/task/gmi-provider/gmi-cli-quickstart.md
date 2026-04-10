@@ -2,18 +2,26 @@
 
 Step-by-step guide to using GMI Cloud models via the QCut pipeline CLI.
 
-## Prerequisites
+## Step 1: Log In
+
+Test account credentials are stored in `.env.test-accounts` (gitignored). Ask the project admin for access.
 
 ```bash
-# Check your API keys
-bun run pipeline check-keys
+# Load test credentials
+source .env.test-accounts
 
-# You need at minimum:
-#   GMI_API_KEY        — for GMI image/video/LLM models
-#   QCUT_AUTH_TOKEN    — for proxy mode (if no local keys)
+# Log in — stores QCUT_AUTH_TOKEN in the encrypted key store
+bun run pipeline login --email "$QCUT_TEST_EMAIL" --password "$QCUT_TEST_PASSWORD"
+# → "Logged in as <email>"
+
+# Verify token is stored
+bun run pipeline check-keys | grep QCUT_AUTH_TOKEN
+# → QCUT_AUTH_TOKEN    configured (env) xxxx****xxxx
 ```
 
-## Step 1: List Available GMI Models
+> **BYOK users**: If you have your own `GMI_API_KEY`, set it via `bun run pipeline set-key --name GMI_API_KEY --value <key>` and skip login. Your key is used directly with no credit deduction.
+
+## Step 2: List Available GMI Models
 
 ```bash
 # All GMI image models
@@ -38,7 +46,7 @@ bun run pipeline list-models --category text_to_video | grep -i gmi
 # Use aliases: glm-5.1, gemini-3.1-pro, gpt-5.4
 ```
 
-## Step 2: Generate a Single Image
+## Step 3: Generate a Single Image
 
 ```bash
 # Text-to-image with Gemini 3.1 Flash
@@ -52,7 +60,7 @@ bun run pipeline generate-image \
   -m gmi_seedream_5_lite
 ```
 
-## Step 3: Generate a Single Video
+## Step 4: Generate a Single Video
 
 ```bash
 # Text-to-video with Veo 3.1 Lite (GMI)
@@ -64,7 +72,7 @@ bun run pipeline create-video \
 bun run pipeline estimate-cost -m gmi_veo31_lite_t2v
 ```
 
-## Step 4: Novel-to-Movie Pipeline (Images Only)
+## Step 5: Novel-to-Movie Pipeline (Images Only)
 
 ```bash
 # Use default example novel, GPT-5.4 for LLM, Gemini Flash for images
@@ -84,7 +92,7 @@ bun run pipeline vimax:novel2movie \
 5. Skips video generation
 
 **Output structure:**
-```
+```text
 ~/Documents/QCut/Exports/novel2movie/<title>_<timestamp>/
 ├── novel.md                    # Source novel
 ├── characters.json             # Extracted characters
@@ -102,7 +110,7 @@ bun run pipeline vimax:novel2movie \
 └── summary.json
 ```
 
-## Step 5: Novel-to-Movie with Your Own Novel
+## Step 6: Novel-to-Movie with Your Own Novel
 
 ```bash
 # Provide your own novel file
@@ -115,7 +123,7 @@ bun run pipeline vimax:novel2movie \
   --llm-model gpt-5.4
 ```
 
-## Step 6: Idea-to-Video Pipeline (Images Only)
+## Step 7: Idea-to-Video Pipeline (Images Only)
 
 ```bash
 # Generate storyboard from a one-line idea
@@ -124,6 +132,17 @@ bun run pipeline vimax:idea2video \
   --llm-model gpt-5.4 \
   --image-model gmi_seedream_5_lite \
   --storyboard-only
+```
+
+## Step 8: Check Credits & Log Out
+
+```bash
+# Check remaining credit balance
+curl -H "Authorization: Bearer $(bun run pipeline get-key --name QCUT_AUTH_TOKEN 2>/dev/null | awk '{print $2}')" \
+  https://qcut-license-server.zdhpeter.workers.dev/api/credits/balance
+
+# Log out when done
+bun run pipeline logout
 ```
 
 ## GMI LLM Model Aliases
@@ -144,21 +163,6 @@ import sys,json
 for m in sorted(json.load(sys.stdin)['data'], key=lambda x: x['id']):
     print(f'  {m[\"id\"]}')
 "
-```
-
-## Proxy Mode (No Local Keys)
-
-When you don't have API keys, the CLI uses proxy mode via the license server. Credits are deducted per operation.
-
-```bash
-# Force proxy mode by unsetting local keys
-env -u GMI_API_KEY bun run pipeline create-video \
-  -t "a cat walking" \
-  -m gmi_veo31_lite_t2v
-
-# Check credit balance
-curl -H "Authorization: Bearer $QCUT_AUTH_TOKEN" \
-  https://qcut-license-server.zdhpeter.workers.dev/api/credits/balance
 ```
 
 ## Cost Reference
