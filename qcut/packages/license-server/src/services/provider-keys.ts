@@ -9,6 +9,7 @@ export type AiProvider =
 	| "openrouter"
 	| "elevenlabs"
 	| "gmi"
+	| "gmi-llm"
 	| "runway"
 	| "freesound";
 
@@ -46,6 +47,11 @@ const PROVIDER_CONFIGS: Record<AiProvider, ProviderConfig> = {
 		allowedPrefixes: ["https://api.elevenlabs.io/"],
 	},
 	gmi: {
+		envVar: "GMI_API_KEY",
+		buildHeaders: (key) => ({ Authorization: `Bearer ${key}` }),
+		allowedPrefixes: ["https://console.gmicloud.ai/api/"],
+	},
+	"gmi-llm": {
 		envVar: "GMI_API_KEY",
 		buildHeaders: (key) => ({ Authorization: `Bearer ${key}` }),
 		allowedPrefixes: ["https://console.gmicloud.ai/api/"],

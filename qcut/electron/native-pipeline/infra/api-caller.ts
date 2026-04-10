@@ -227,6 +227,7 @@ export function envApiKeyProvider(provider: ProviderName): Promise<string> {
 		case "volcengine":
 			return Promise.resolve(process.env.ARK_API_KEY || "");
 		case "gmi":
+		case "gmi-llm":
 			return Promise.resolve(process.env.GMI_API_KEY || "");
 		case "runway":
 			return Promise.resolve(process.env.RUNWAY_API_KEY || "");
@@ -257,6 +258,7 @@ async function defaultApiKeyProvider(provider: ProviderName): Promise<string> {
 			case "volcengine":
 				return process.env.ARK_API_KEY || "";
 			case "gmi":
+			case "gmi-llm":
 				return process.env.GMI_API_KEY || keys.gmiApiKey || "";
 			case "runway":
 				return process.env.RUNWAY_API_KEY || keys.runwayApiKey || "";
@@ -304,6 +306,7 @@ function buildHeaders(
 			headers.Authorization = `Bearer ${apiKey}`;
 			break;
 		case "gmi":
+		case "gmi-llm":
 			headers.Authorization = `Bearer ${apiKey}`;
 			break;
 		case "runway":
@@ -678,7 +681,7 @@ export async function callModelApi(
 				outputUrl: extractOutputUrl(queueData),
 				duration: (Date.now() - startTime) / 1000,
 			};
-		} else if (provider === "gmi") {
+		} else if (provider === "gmi" || provider === "gmi-llm") {
 			// GMI Cloud: async submit + poll (like FAL but different API shape)
 			const submitPayload =
 				endpoint && endpoint !== "requests"
