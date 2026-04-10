@@ -51,7 +51,40 @@ Uses `estimateCost()` from `cost-calculator.ts` which reads pricing from the mod
 | `hailuo_pro` | $0.08/video | $0.08 | 0.8 |
 | `flux_schnell_t2i` | $0.003/image | $0.003 | 0.1 (min) |
 
-## CLI Usage
+## Test Account Quick Start
+
+11 pre-provisioned test accounts exist with 1000 credits each. Credentials are stored in `QCUT_TEST_EMAIL` and `QCUT_TEST_PASSWORD` environment variables. Ask the project admin for access.
+
+A tester with no API keys uses the CLI auth commands to log in, then runs commands in proxy mode:
+
+```bash
+# 1. Log in (stores QCUT_AUTH_TOKEN in encrypted key store)
+bun run pipeline login --email "$QCUT_TEST_EMAIL" --password "$QCUT_TEST_PASSWORD"
+
+# 2. Create a video (proxy mode auto-selects since no local API key)
+#    Unset local provider key so it routes through proxy
+env -u GMI_API_KEY bun run pipeline create-video -m gmi_veo31_lite_t2v -t "a cat walking"
+
+# 3. Check credit balance
+bun run pipeline check-keys   # shows stored QCUT_AUTH_TOKEN
+curl -H "Authorization: Bearer $(bun run pipeline get-key --name QCUT_AUTH_TOKEN)" \
+  https://qcut-license-server.zdhpeter.workers.dev/api/credits/balance
+
+# 4. Log out when done
+bun run pipeline logout
+```
+
+### Other auth commands
+
+```bash
+# Sign up for a new account
+bun run pipeline signup --email user@example.com --name "Jane Doe"
+
+# Log in with password inline (for scripts/CI)
+bun run pipeline login --email "$QCUT_TEST_EMAIL" --password "$QCUT_TEST_PASSWORD"
+```
+
+## CLI Usage (BYOK vs Proxy)
 
 ```bash
 # BYOK mode (uses your own key, no credits)

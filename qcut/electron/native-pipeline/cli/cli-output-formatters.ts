@@ -100,6 +100,16 @@ export function formatCommandOutput(command: string, result: CLIResult): void {
 	}
 
 	if (
+		command === "login" ||
+		command === "signup" ||
+		command === "logout"
+	) {
+		const data = result.data as { message?: string };
+		if (data.message) console.log(data.message);
+		return;
+	}
+
+	if (
 		command === "set-key" ||
 		command === "get-key" ||
 		command === "delete-key"
