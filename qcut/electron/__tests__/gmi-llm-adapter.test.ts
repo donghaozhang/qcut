@@ -10,15 +10,12 @@ vi.mock("../api-key-handler.js", () => ({
 	}),
 }));
 
-// Capture callModelApi calls
+// Capture callModelApi calls — sync OpenAI-compatible response
 const mockCallModelApi = vi.fn().mockResolvedValue({
 	success: true,
 	data: {
-		status: "success",
-		outcome: {
-			choices: [{ message: { content: "Hello from GMI!" } }],
-			usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-		},
+		choices: [{ message: { content: "Hello from GMI!" } }],
+		usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
 	},
 	duration: 1,
 });
@@ -46,7 +43,7 @@ describe("LLM Adapter — GMI LLM models", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("resolves glm-5.1 alias to gmi/glm-5-1-fp8", async () => {
+	it("resolves glm-5.1 alias to gmi/zai-org/GLM-5.1-FP8", async () => {
 		const adapter = new LLMAdapter();
 		await adapter.initialize();
 		await adapter.chat([{ role: "user", content: "hi" }], {
@@ -56,10 +53,11 @@ describe("LLM Adapter — GMI LLM models", () => {
 		expect(mockCallModelApi).toHaveBeenCalledTimes(1);
 		const opts = mockCallModelApi.mock.calls[0][0];
 		expect(opts.provider).toBe("gmi-llm");
-		expect(opts.endpoint).toBe("glm-5-1-fp8");
+		expect(opts.endpoint).toBe("chat/completions");
+		expect(opts.payload.model).toBe("zai-org/GLM-5.1-FP8");
 	});
 
-	it("resolves gemini-3.1-pro alias to gmi/gemini-3-1-pro-preview", async () => {
+	it("resolves gemini-3.1-pro to gmi/google/gemini-3.1-pro-preview", async () => {
 		const adapter = new LLMAdapter();
 		await adapter.initialize();
 		await adapter.chat([{ role: "user", content: "hi" }], {
@@ -68,10 +66,10 @@ describe("LLM Adapter — GMI LLM models", () => {
 
 		const opts = mockCallModelApi.mock.calls[0][0];
 		expect(opts.provider).toBe("gmi-llm");
-		expect(opts.endpoint).toBe("gemini-3-1-pro-preview");
+		expect(opts.payload.model).toBe("google/gemini-3.1-pro-preview");
 	});
 
-	it("resolves gpt-5.4 alias to gmi/gpt-5-4", async () => {
+	it("resolves gpt-5.4 to gmi/openai/gpt-5.4", async () => {
 		const adapter = new LLMAdapter();
 		await adapter.initialize();
 		await adapter.chat([{ role: "user", content: "hi" }], {
@@ -80,7 +78,31 @@ describe("LLM Adapter — GMI LLM models", () => {
 
 		const opts = mockCallModelApi.mock.calls[0][0];
 		expect(opts.provider).toBe("gmi-llm");
-		expect(opts.endpoint).toBe("gpt-5-4");
+		expect(opts.payload.model).toBe("openai/gpt-5.4");
+	});
+
+	it("uses max_completion_tokens for GPT-5.x models", async () => {
+		const adapter = new LLMAdapter();
+		await adapter.initialize();
+		await adapter.chat([{ role: "user", content: "hi" }], {
+			model: "gpt-5.4",
+		});
+
+		const opts = mockCallModelApi.mock.calls[0][0];
+		expect(opts.payload.max_completion_tokens).toBeDefined();
+		expect(opts.payload.max_tokens).toBeUndefined();
+	});
+
+	it("uses max_tokens for non-GPT-5.x GMI models", async () => {
+		const adapter = new LLMAdapter();
+		await adapter.initialize();
+		await adapter.chat([{ role: "user", content: "hi" }], {
+			model: "glm-5.1",
+		});
+
+		const opts = mockCallModelApi.mock.calls[0][0];
+		expect(opts.payload.max_tokens).toBeDefined();
+		expect(opts.payload.max_completion_tokens).toBeUndefined();
 	});
 
 	it("routes non-GMI models to openrouter", async () => {
@@ -97,27 +119,18 @@ describe("LLM Adapter — GMI LLM models", () => {
 		delete process.env.OPENROUTER_API_KEY;
 	});
 
-	it("sends messages in payload (not in model wrapper) for GMI", async () => {
+	it("uses sync mode (async: false) for GMI LLM", async () => {
 		const adapter = new LLMAdapter();
 		await adapter.initialize();
-		await adapter.chat(
-			[
-				{ role: "system", content: "You are helpful" },
-				{ role: "user", content: "hello" },
-			],
-			{ model: "glm-5.1" }
-		);
+		await adapter.chat([{ role: "user", content: "hi" }], {
+			model: "glm-5.1",
+		});
 
 		const opts = mockCallModelApi.mock.calls[0][0];
-		expect(opts.payload.messages).toEqual([
-			{ role: "system", content: "You are helpful" },
-			{ role: "user", content: "hello" },
-		]);
-		// GMI model name should NOT be in payload (it's the endpoint)
-		expect(opts.payload.model).toBeUndefined();
+		expect(opts.async).toBe(false);
 	});
 
-	it("extracts content from GMI queue outcome", async () => {
+	it("extracts content from sync response", async () => {
 		const adapter = new LLMAdapter();
 		await adapter.initialize();
 		const response = await adapter.chat([{ role: "user", content: "hello" }], {
@@ -136,7 +149,6 @@ describe("LLM Adapter — GMI LLM models", () => {
 			model: "glm-5.1",
 		});
 
-		// Mock mode — callModelApi should NOT be called
 		expect(mockCallModelApi).not.toHaveBeenCalled();
 		expect(response.content).toBeTruthy();
 	});

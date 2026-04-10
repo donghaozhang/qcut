@@ -60,10 +60,10 @@ const MODEL_ALIASES: Record<string, string> = {
 	"gpt-4": "openai/gpt-4-turbo",
 	"gpt-4o": "openai/gpt-4o",
 	"gemini-pro": "google/gemini-pro",
-	// GMI Cloud LLM models (routed via gmi-llm provider)
-	"glm-5.1": "gmi/glm-5-1-fp8",
-	"gemini-3.1-pro": "gmi/gemini-3-1-pro-preview",
-	"gpt-5.4": "gmi/gpt-5-4",
+	// GMI Cloud LLM models (routed via gmi-llm provider at api.gmi-serving.com)
+	"glm-5.1": "gmi/zai-org/GLM-5.1-FP8",
+	"gemini-3.1-pro": "gmi/google/gemini-3.1-pro-preview",
+	"gpt-5.4": "gmi/openai/gpt-5.4",
 };
 
 /** Approximate costs per 1K tokens (input, output). */
@@ -76,10 +76,10 @@ const COST_TABLE: Record<string, [number, number]> = {
 	"openai/gpt-4-turbo": [0.01, 0.03],
 	"openai/gpt-4o": [0.005, 0.015],
 	"google/gemini-pro": [0.000_25, 0.0005],
-	// GMI Cloud LLM models
-	"gmi/glm-5-1-fp8": [0.0005, 0.002],
-	"gmi/gemini-3-1-pro-preview": [0.001_25, 0.005],
-	"gmi/gpt-5-4": [0.005, 0.015],
+	// GMI Cloud LLM models (via api.gmi-serving.com)
+	"gmi/zai-org/GLM-5.1-FP8": [0.0005, 0.002],
+	"gmi/google/gemini-3.1-pro-preview": [0.001_25, 0.005],
+	"gmi/openai/gpt-5.4": [0.005, 0.015],
 };
 
 /** Check if a resolved model ID routes through GMI Cloud. */
@@ -147,8 +147,14 @@ export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 			model: apiModel,
 			messages: messages.map((m) => ({ role: m.role, content: m.content })),
 			temperature,
-			max_tokens,
 		};
+
+		// GPT-5.x models require max_completion_tokens; others use max_tokens
+		if (apiModel.startsWith("openai/gpt-5")) {
+			payload.max_completion_tokens = max_tokens;
+		} else {
+			payload.max_tokens = max_tokens;
+		}
 
 		// Merge extra_body (e.g. response_format for structured output)
 		if (options?.extra_body) {
@@ -156,12 +162,10 @@ export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 		}
 
 		const result: ApiCallResult = await callModelApi({
-			endpoint: useGmi ? apiModel : "chat/completions",
-			payload: useGmi
-				? { messages: payload.messages, temperature, max_tokens }
-				: payload,
+			endpoint: "chat/completions",
+			payload,
 			provider: useGmi ? "gmi-llm" : "openrouter",
-			async: useGmi ? undefined : false,
+			async: false,
 			timeoutMs: this.config.timeout * 1000,
 		});
 
@@ -169,12 +173,7 @@ export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 			throw new Error(`LLM call failed: ${result.error ?? "unknown error"}`);
 		}
 
-		// GMI queue wraps the response in outcome; unwrap to get the OpenAI-compatible shape
-		const rawData = result.data as Record<string, unknown>;
-		const data =
-			useGmi && rawData.outcome
-				? (rawData.outcome as Record<string, unknown>)
-				: rawData;
+		const data = result.data as Record<string, unknown>;
 		const choices = data.choices as Array<Record<string, unknown>>;
 		const firstChoice = choices?.[0];
 		const message = firstChoice?.message as Record<string, unknown>;
@@ -208,6 +207,8 @@ export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 		validator: (data: unknown) => T,
 		options?: { temperature?: number; max_tokens?: number }
 	): Promise<T> {
+		const isGmi = isGmiModel(this._resolveModel(this.config.model));
+
 		const extra_body: Record<string, unknown> = this.config
 			.use_native_structured_output
 			? {
@@ -219,7 +220,8 @@ export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 							schema: jsonSchema,
 						},
 					},
-					provider: { require_parameters: true },
+					// provider field is OpenRouter-specific; skip for GMI
+					...(isGmi ? {} : { provider: { require_parameters: true } }),
 				}
 			: {};
 

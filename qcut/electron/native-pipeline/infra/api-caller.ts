@@ -681,7 +681,7 @@ export async function callModelApi(
 				outputUrl: extractOutputUrl(queueData),
 				duration: (Date.now() - startTime) / 1000,
 			};
-		} else if (provider === "gmi" || provider === "gmi-llm") {
+		} else if (provider === "gmi") {
 			// GMI Cloud: async submit + poll (like FAL but different API shape)
 			const submitPayload =
 				endpoint && endpoint !== "requests"

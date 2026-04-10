@@ -333,8 +333,10 @@ async function executeImageToImage(
 			resolvedUrl = upload.url;
 		}
 
-		// Some models expect image_urls array instead of image_url string
-		if (ARRAY_IMAGE_URL_ENDPOINTS.has(model.endpoint)) {
+		// GMI Gemini image models use `image` (array) for reference images
+		if (provider === "gmi" || provider === "gmi-llm") {
+			payload.image = [resolvedUrl];
+		} else if (ARRAY_IMAGE_URL_ENDPOINTS.has(model.endpoint)) {
 			payload.image_urls = [resolvedUrl];
 		} else {
 			payload.image_url = resolvedUrl;

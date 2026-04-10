@@ -54,7 +54,7 @@ const PROVIDER_CONFIGS: Record<AiProvider, ProviderConfig> = {
 	"gmi-llm": {
 		envVar: "GMI_API_KEY",
 		buildHeaders: (key) => ({ Authorization: `Bearer ${key}` }),
-		allowedPrefixes: ["https://console.gmicloud.ai/api/"],
+		allowedPrefixes: ["https://api.gmi-serving.com/"],
 	},
 	runway: {
 		envVar: "RUNWAY_API_KEY",
