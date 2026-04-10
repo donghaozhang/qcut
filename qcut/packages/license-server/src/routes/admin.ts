@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
+import { scryptAsync } from "@noble/hashes/scrypt";
 import { adminAuthMiddleware } from "../middleware/admin-auth";
 import { db } from "../db/drizzle";
 import { users, licenses, accounts, sessions } from "@qcut/db/schema";
@@ -263,7 +264,6 @@ adminRoutes.post("/upgrade-plan", async (c) => {
 
 /** Hash a password using the same scrypt params as Better Auth. */
 async function hashPassword(password: string): Promise<string> {
-	const { scryptAsync } = await import("@noble/hashes/scrypt");
 	const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)))
 		.map((b) => b.toString(16).padStart(2, "0"))
 		.join("");
@@ -305,7 +305,9 @@ adminRoutes.post("/create-user", async (c) => {
 		const password =
 			typeof payload?.password === "string" ? payload.password : "";
 		const passwordHash =
-			typeof payload?.passwordHash === "string" ? payload.passwordHash : "";
+			typeof payload?.passwordHash === "string"
+				? payload.passwordHash.trim()
+				: "";
 
 		if (name.length === 0) {
 			return c.json({ error: "name is required" }, 400);
@@ -320,17 +322,6 @@ adminRoutes.post("/create-user", async (c) => {
 			);
 		}
 
-		// Check if user already exists
-		const [existing] = await db
-			.select({ id: users.id })
-			.from(users)
-			.where(eq(users.email, email))
-			.limit(1);
-
-		if (existing) {
-			return c.json({ error: `User already exists: ${email}` }, 409);
-		}
-
 		const now = new Date();
 		const userId = generateId();
 		const accountId = generateId();
@@ -338,49 +329,51 @@ adminRoutes.post("/create-user", async (c) => {
 		const sessionToken = generateId() + generateId();
 		const finalHash = passwordHash || (await hashPassword(password));
 
-		// Create user
-		await db.insert(users).values({
-			id: userId,
-			name,
-			email,
-			emailVerified: true,
-			createdAt: now,
-			updatedAt: now,
+		await db.transaction(async (tx) => {
+			// Create user (unique email enforced by DB constraint)
+			await tx.insert(users).values({
+				id: userId,
+				name,
+				email,
+				emailVerified: true,
+				createdAt: now,
+				updatedAt: now,
+			});
+
+			// Create credential account (email/password)
+			await tx.insert(accounts).values({
+				id: accountId,
+				accountId: userId,
+				providerId: "credential",
+				userId,
+				password: finalHash,
+				createdAt: now,
+				updatedAt: now,
+			});
+
+			// Create license
+			await tx.insert(licenses).values({
+				id: generateId(),
+				userId,
+				plan: "free",
+				status: "active",
+				maxDevices: 1,
+				createdAt: now,
+				updatedAt: now,
+			});
+
+			// Create session for immediate login
+			await tx.insert(sessions).values({
+				id: sessionId,
+				token: sessionToken,
+				userId,
+				expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+				createdAt: now,
+				updatedAt: now,
+			});
 		});
 
-		// Create credential account (email/password)
-		await db.insert(accounts).values({
-			id: accountId,
-			accountId: userId,
-			providerId: "credential",
-			userId,
-			password: finalHash,
-			createdAt: now,
-			updatedAt: now,
-		});
-
-		// Create license
-		await db.insert(licenses).values({
-			id: generateId(),
-			userId,
-			plan: "free",
-			status: "active",
-			maxDevices: 1,
-			createdAt: now,
-			updatedAt: now,
-		});
-
-		// Create session for immediate login
-		await db.insert(sessions).values({
-			id: sessionId,
-			token: sessionToken,
-			userId,
-			expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-			createdAt: now,
-			updatedAt: now,
-		});
-
-		// Initialize credits
+		// Initialize credits (outside transaction — uses its own)
 		await resetPlanCreditsForUser({
 			userId,
 			plan: "free",

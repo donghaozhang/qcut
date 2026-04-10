@@ -285,7 +285,10 @@ export async function handleLogin(options: CLIRunOptions): Promise<CLIResult> {
 			return { success: false, error: message };
 		}
 
-		const body = (await response.json()) as Record<string, unknown>;
+		const body = (await response.json().catch(() => ({}))) as Record<
+			string,
+			unknown
+		>;
 		const session = body?.session as Record<string, unknown> | undefined;
 		const token = (body?.token as string) || (session?.token as string);
 		if (typeof token !== "string" || token.length === 0) {
@@ -341,6 +344,12 @@ export async function handleSignup(options: CLIRunOptions): Promise<CLIResult> {
 		});
 
 		if (!response.ok) {
+			if (response.status >= 500) {
+				return {
+					success: false,
+					error: `Server error (${response.status}) — please retry`,
+				};
+			}
 			const body = (await response.json().catch(() => null)) as Record<
 				string,
 				unknown
@@ -352,7 +361,10 @@ export async function handleSignup(options: CLIRunOptions): Promise<CLIResult> {
 			return { success: false, error: message };
 		}
 
-		const body = (await response.json()) as Record<string, unknown>;
+		const body = (await response.json().catch(() => ({}))) as Record<
+			string,
+			unknown
+		>;
 		const session = body?.session as Record<string, unknown> | undefined;
 		const token = (body?.token as string) || (session?.token as string);
 		if (typeof token !== "string" || token.length === 0) {

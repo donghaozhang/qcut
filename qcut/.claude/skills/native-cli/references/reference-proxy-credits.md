@@ -13,7 +13,7 @@ The CLI auto-selects: `callModelApi()` checks for a local key first, falls back 
 
 ## Proxy Flow
 
-```
+```text
 callModelApi(endpoint, modelKey, payload, provider)
   │
   ├─ Local key exists? → Direct call (BYOK, no credits)
@@ -34,7 +34,7 @@ callModelApi(endpoint, modelKey, payload, provider)
 
 Credits are calculated from the model registry's USD pricing:
 
-```
+```text
 credits = USD_cost / 0.10    (1 credit ≈ $0.10)
 ```
 
