@@ -28,6 +28,36 @@ const SPEECH_ENDPOINTS = {
 	qwen3_clone_voice: "fal-ai/qwen-3-tts/clone-voice/1.7b",
 } as const;
 
+/** Maps --provider shorthand to default model key for TTS. */
+const TTS_PROVIDER_DEFAULTS: Record<string, string> = {
+	chatterbox: "chatterbox_tts",
+	elevenlabs: "elevenlabs_v3",
+	qwen: "qwen3_tts",
+	qwen3: "qwen3_tts",
+};
+
+/** Maps --provider shorthand to default model key for S2S (voice convert). */
+const S2S_PROVIDER_DEFAULTS: Record<string, string> = {
+	chatterbox: "chatterbox_s2s",
+};
+
+/** Maps --provider shorthand to default model key for voice cloning. */
+const CLONE_PROVIDER_DEFAULTS: Record<string, string> = {
+	qwen: "qwen3_clone_voice",
+	qwen3: "qwen3_clone_voice",
+};
+
+/** Resolve model from --provider if --model not set. */
+function resolveModelFromProvider(
+	model: string | undefined,
+	provider: string | undefined,
+	defaults: Record<string, string>,
+): string | undefined {
+	if (model) return model;
+	if (!provider) return undefined;
+	return defaults[provider.toLowerCase()];
+}
+
 /**
  * Generate speech from text using Chatterbox TTS.
  */
@@ -50,7 +80,9 @@ export async function handleGenerateSpeech(
 		};
 	}
 
-	const model = options.model || "chatterbox_tts";
+	const model =
+		resolveModelFromProvider(options.model, options.provider, TTS_PROVIDER_DEFAULTS) ||
+		"chatterbox_tts";
 	const ttsModels = [
 		"chatterbox_tts",
 		"chatterbox_tts_turbo",

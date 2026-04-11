@@ -6,13 +6,13 @@ Split across these files:
 
 - **REFERENCE.md** (this file) — Generation, Analysis, Script Parsing, Model Discovery, Help, Output Formats
 - [reference-pipelines.md](reference-pipelines.md) — YAML Pipelines, API Key Management, Project Management
-- [reference-vimax.md](reference-vimax.md) — ViMax Commands
+- [reference-vimax.md](reference-vimax.md) — Flow (ViMax) Commands
 
 For editor commands, see [editor-core.md](../editor/editor-core.md) and linked files.
 
 ## Generation Commands
 
-### `generate-image`
+### `gen image`
 
 Generate an image from a text prompt.
 
@@ -27,7 +27,7 @@ Generate an image from a text prompt.
 
 Output: `.png` file
 
-### `create-video`
+### `gen video`
 
 Create a video from text or image input.
 
@@ -43,7 +43,7 @@ Create a video from text or image input.
 
 Output: `.mp4` file
 
-### `generate-avatar`
+### `gen avatar`
 
 Generate a talking avatar video.
 
@@ -60,7 +60,7 @@ Generate a talking avatar video.
 
 Output: `.mp4` file
 
-### `transfer-motion`
+### `edit motion`
 
 Transfer motion from a reference video onto an image.
 
@@ -75,7 +75,7 @@ Transfer motion from a reference video onto an image.
 
 Output: `.mp4` file
 
-### `generate-grid`
+### `gen grid`
 
 Generate a grid of images from a prompt.
 
@@ -89,7 +89,7 @@ Generate a grid of images from a prompt.
 
 Output: composite `.png` file
 
-### `upscale-image`
+### `edit upscale`
 
 Upscale an image.
 
@@ -107,7 +107,7 @@ Upscale an image.
 
 ## Analysis Commands
 
-### `analyze-video`
+### `analyze video`
 
 Analyze a video with AI vision.
 
@@ -121,7 +121,7 @@ Analyze a video with AI vision.
 | `--text` | `-t` | string | | Alias for prompt |
 | `--output-format` | `-f` | string | `md` | `md`, `json`, `both` |
 
-### `transcribe`
+### `analyze transcribe`
 
 Transcribe audio to text with optional SRT.
 
@@ -139,7 +139,7 @@ Transcribe audio to text with optional SRT.
 | `--keyterms` | | string[] | | Domain keywords (repeatable) |
 | `--raw-json` | | boolean | `false` | Save raw JSON response |
 
-### `query-video`
+### `analyze query`
 
 Query video segments for keep/cut analysis.
 
@@ -151,7 +151,7 @@ Query video segments for keep/cut analysis.
 | `--model` | `-m` | string | `gemini_qa` | Vision model |
 | `--output-format` | `-f` | string | `json` | Output format |
 
-### `autoclip`
+### `edit autoclip`
 
 Extract highlight clips from a video using subtitle-based LLM analysis. Runs a 4-step pipeline: outline extraction → timeline segmentation → scoring → ffmpeg cutting.
 
@@ -212,7 +212,7 @@ qcut autoclip -i video.mp4 -s /tmp/video.srt -o /tmp/clips
 
 ## Video Translation
 
-### `translate-video`
+### `analyze translate`
 
 Translate a video's speech into another language using HeyGen Translate (Speed) via FAL. Supports local files (uploaded to FAL CDN) and URLs. Requires `FAL_KEY`.
 
@@ -232,20 +232,20 @@ Translate a video's speech into another language using HeyGen Translate (Speed) 
 **Examples:**
 ```bash
 # Translate local video to Spanish
-qcut translate-video -i video.mp4 -l Spanish
+qcut analyze translate -i video.mp4 -l Spanish
 
 # Translate URL to Chinese, audio only
-qcut translate-video -i "https://example.com/video.mp4" -l Chinese --audio-only
+qcut analyze translate -i "https://example.com/video.mp4" -l Chinese --audio-only
 
 # Multi-speaker video to Japanese
-qcut translate-video -i interview.mp4 -l Japanese --speakers 2 -o /tmp/translated
+qcut analyze translate -i interview.mp4 -l Japanese --speakers 2 -o /tmp/translated
 ```
 
 ---
 
 ## Script Parsing
 
-### `moyin:parse-script`
+### `moyin:parse-script` (legacy)
 
 Parse a screenplay into structured data (characters, scenes).
 
@@ -260,7 +260,7 @@ Output: structured JSON with characters and scenes.
 
 ## Model Discovery
 
-### `list-models`
+### `system models`
 
 List all available models. Use `--category` to filter.
 
@@ -273,12 +273,12 @@ List all available models. Use `--category` to filter.
 
 | Command | Description |
 |---------|-------------|
-| `list-avatar-models` | Avatar models only |
-| `list-video-models` | Text-to-video models |
-| `list-motion-models` | Motion transfer models |
-| `list-speech-models` | Speech/TTS models |
+| `system models-avatar` | Avatar models only |
+| `system models-video` | Text-to-video models |
+| `system models-motion` | Motion transfer models |
+| `system models-speech` | Speech/TTS models |
 
-### `estimate-cost`
+### `system cost`
 
 Estimate cost for a model + parameters.
 

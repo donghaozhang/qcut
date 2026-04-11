@@ -26,6 +26,7 @@ import {
 	type SessionState,
 } from "../session-state.js";
 import { HANDLER_MAP } from "./handler-map.js";
+import { ModelRegistry } from "../../infra/registry.js";
 
 async function enforceActionPolicy({
 	options,
@@ -162,6 +163,19 @@ export class CLIPipelineRunner {
 		});
 		if (policyResult) {
 			return policyResult;
+		}
+
+		// Resolve --provider to --model if model not explicitly set
+		if (resolvedOptions.provider && !resolvedOptions.model) {
+			const match = ModelRegistry.findByProvider(resolvedOptions.provider);
+			if (match) {
+				resolvedOptions = { ...resolvedOptions, model: match.key };
+			} else {
+				return {
+					success: false,
+					error: `Unknown provider '${resolvedOptions.provider}'. Use 'qcut system models --json' to list available providers.`,
+				};
+			}
 		}
 
 		let result: CLIResult;

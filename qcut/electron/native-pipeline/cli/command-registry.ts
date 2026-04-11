@@ -497,6 +497,9 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				required: true,
 			}),
 			f("--model", "string", "Model key", { short: "-m" }),
+			f("--provider", "string", "Provider name (auto-selects model)", {
+				enum: ["elevenlabs"],
+			}),
 			f("--language", "string", "Language code"),
 			f("--no-diarize", "boolean", "Disable speaker diarization", {
 				default: false,
@@ -667,6 +670,9 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 					"elevenlabs_v3",
 					"qwen3_tts",
 				],
+			}),
+			f("--provider", "string", "Provider name (auto-selects model)", {
+				enum: ["chatterbox", "elevenlabs", "qwen"],
 			}),
 			f("--audio-url", "string", "Voice reference audio URL (for cloning)"),
 			f("--voice", "string", "Voice preset name (ElevenLabs/Qwen3)"),

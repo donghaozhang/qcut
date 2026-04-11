@@ -202,6 +202,20 @@ export class ModelRegistry {
 		return ModelRegistry.listByCategory(category).map((m) => m.providerKey);
 	}
 
+	/** Find the first model matching a provider name (case-insensitive) and category. */
+	static findByProvider(
+		providerName: string,
+		category?: ModelCategory,
+	): ModelDefinition | null {
+		const needle = providerName.toLowerCase();
+		for (const model of models.values()) {
+			if (!model.provider.toLowerCase().includes(needle)) continue;
+			if (category && !model.categories.includes(category)) continue;
+			return model;
+		}
+		return null;
+	}
+
 	static count(): number {
 		return models.size;
 	}
