@@ -41,10 +41,14 @@ ${groupLines}
 Run "${bin} <group> --help" for group details.
 
 Editor Commands (requires running QCut — use --project-id for most):
-  editor:health, editor:media:*, editor:project:*, editor:timeline:*,
-  editor:editing:*, editor:analyze:*, editor:transcribe:*, editor:search:*,
-  editor:generate:*, editor:export:*, editor:remotion:*, editor:snapshot:*,
-  editor:session:*, editor:screen-recording:*, editor:ui:switch-panel
+  editor:health, editor:console, editor:errors, editor:undo, editor:redo,
+  editor:media:*, editor:project:*, editor:timeline:*, editor:editing:*,
+  editor:analyze:*, editor:transcribe:*, editor:search:*, editor:generate:*,
+  editor:export:*, editor:remotion:*, editor:snapshot:*, editor:screenshot:*,
+  editor:diff:*, editor:session:*, editor:screen-recording:*, editor:state:*,
+  editor:sticker:*, editor:moyin:*, editor:novel:*, editor:navigator:*,
+  editor:auth:*, editor:diagnostics:*, editor:mcp:forward-html,
+  editor:ui:switch-panel, editor:ui:context-menu
 
   Use <command> --help --json for detailed flag info per command.
 
