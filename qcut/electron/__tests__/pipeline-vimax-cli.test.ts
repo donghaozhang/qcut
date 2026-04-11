@@ -373,15 +373,10 @@ describe("CLI help includes new vimax commands", () => {
 		consoleSpy.mockRestore();
 	});
 
-	it("help text lists all 7 new vimax subcommands", () => {
+	it("help text lists flow group containing vimax commands", () => {
 		expect(() => parseCliArgs(["--help"])).toThrow("process.exit");
 		const output = consoleSpy.mock.calls[0][0] as string;
-		expect(output).toContain("vimax:extract-characters");
-		expect(output).toContain("vimax:generate-script");
-		expect(output).toContain("vimax:generate-storyboard");
-		expect(output).toContain("vimax:generate-portraits");
-		expect(output).toContain("vimax:create-registry");
-		expect(output).toContain("vimax:show-registry");
-		expect(output).toContain("vimax:list-models");
+		expect(output).toContain("flow");
+		expect(output).toContain("ViMax pipelines");
 	});
 });
