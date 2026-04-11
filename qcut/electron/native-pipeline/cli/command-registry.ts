@@ -739,8 +739,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 	// ── Elements ──
 	"create-element": {
 		name: "create-element",
-		description:
-			"Create a reusable character/object element for Kling V3 Omni",
+		description: "Create a reusable character/object element for Kling V3 Omni",
 		category: "generation",
 		flags: [
 			f("--name", "string", "Element name (max 20 chars)", {
