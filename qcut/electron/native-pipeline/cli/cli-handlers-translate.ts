@@ -63,7 +63,7 @@ async function resolveFFmpegPath(): Promise<string> {
 			"resources",
 			"ffmpeg",
 			`${process.platform}-${process.arch}`,
-			process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg",
+			process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg"
 		);
 		if (fs.existsSync(staged)) return staged;
 		return "ffmpeg";
@@ -73,7 +73,7 @@ async function resolveFFmpegPath(): Promise<string> {
 /** Wrap an audio file in a minimal black video for the HeyGen API. */
 async function wrapAudioInVideo(
 	audioPath: string,
-	outputDir: string,
+	outputDir: string
 ): Promise<string> {
 	const ffmpeg = await resolveFFmpegPath();
 	const outputPath = join(outputDir, `_wrapped_${Date.now()}.mp4`);
@@ -106,7 +106,7 @@ async function wrapAudioInVideo(
 /** Extract audio from a video file. */
 async function extractAudio(
 	videoPath: string,
-	outputPath: string,
+	outputPath: string
 ): Promise<string> {
 	const ffmpeg = await resolveFFmpegPath();
 
@@ -128,7 +128,7 @@ async function extractAudio(
 export async function handleTranslateVideo(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
-	signal: AbortSignal,
+	signal: AbortSignal
 ): Promise<CLIResult> {
 	const mediaInput = options.input || options.videoUrl;
 	if (!mediaInput) {
@@ -338,9 +338,10 @@ export async function handleTranslateVideo(
 		model,
 	});
 
-	const primaryOutput = wantAudioOutput && audioOutputPath
-		? audioOutputPath
-		: (downloadedPath ?? undefined);
+	const primaryOutput =
+		wantAudioOutput && audioOutputPath
+			? audioOutputPath
+			: (downloadedPath ?? undefined);
 
 	const outputData = {
 		source: mediaInput,
@@ -356,7 +357,7 @@ export async function handleTranslateVideo(
 
 	const jsonPath = join(
 		outputDir,
-		`${inputBasename}_translated_${safeLang}.json`,
+		`${inputBasename}_translated_${safeLang}.json`
 	);
 	writeFileSync(jsonPath, JSON.stringify(outputData, null, 2));
 
@@ -364,7 +365,7 @@ export async function handleTranslateVideo(
 		success: true,
 		outputPath: primaryOutput ?? jsonPath,
 		outputPaths: [downloadedPath, audioOutputPath].filter(
-			(p): p is string => !!p,
+			(p): p is string => !!p
 		),
 		data: outputData,
 		duration: (Date.now() - startTime) / 1000,

@@ -5,9 +5,15 @@ import {
 	getCommandGroup,
 	COMMAND_GROUPS,
 } from "../native-pipeline/cli/command-groups.js";
-import { COMMANDS_REGISTRY, getCommand } from "../native-pipeline/cli/command-registry.js";
+import {
+	COMMANDS_REGISTRY,
+	getCommand,
+} from "../native-pipeline/cli/command-registry.js";
 import { HANDLER_MAP } from "../native-pipeline/cli/cli-runner/handler-map.js";
-import { COMMAND_ALIASES, warnIfDeprecated } from "../native-pipeline/cli/aliases.js";
+import {
+	COMMAND_ALIASES,
+	warnIfDeprecated,
+} from "../native-pipeline/cli/aliases.js";
 import { ModelRegistry } from "../native-pipeline/infra/registry.js";
 import { initRegistry, resetInitState } from "../native-pipeline/init.js";
 
@@ -26,7 +32,10 @@ describe("Command Groups", () => {
 
 		it("resolves 'flow idea2video' to 'vimax:idea2video'", () => {
 			const result = resolveCommandGroup(["flow", "idea2video"]);
-			expect(result).toEqual({ command: "vimax:idea2video", remainingArgs: [] });
+			expect(result).toEqual({
+				command: "vimax:idea2video",
+				remainingArgs: [],
+			});
 		});
 
 		it("resolves 'system models' to 'list-models'", () => {
@@ -180,7 +189,9 @@ describe("Aliases & Deprecation", () => {
 	it("warns with analyze transcribe for old transcribe command", () => {
 		const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 		warnIfDeprecated("transcribe", false);
-		expect(spy).toHaveBeenCalledWith(expect.stringContaining("analyze transcribe"));
+		expect(spy).toHaveBeenCalledWith(
+			expect.stringContaining("analyze transcribe")
+		);
 	});
 
 	it("does not warn for group-resolved command", () => {
@@ -205,7 +216,7 @@ describe("Aliases & Deprecation", () => {
 		for (const [command, suggestion] of Object.entries(COMMAND_ALIASES)) {
 			expect(
 				COMMANDS_REGISTRY[command],
-				`Alias "${command}" → "${suggestion}" has no registry entry`,
+				`Alias "${command}" → "${suggestion}" has no registry entry`
 			).toBeDefined();
 		}
 	});

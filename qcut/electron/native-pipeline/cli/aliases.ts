@@ -73,7 +73,7 @@ export const COMMAND_ALIASES: Record<string, string> = {
 export function warnIfDeprecated(
 	commandName: string,
 	wasGroupResolved: boolean,
-	quiet = false,
+	quiet = false
 ): void {
 	if (wasGroupResolved || quiet) return;
 
@@ -81,6 +81,6 @@ export function warnIfDeprecated(
 	if (!suggestion) return;
 
 	console.error(
-		`\x1b[33m\u26A0 DEPRECATED:\x1b[0m "${commandName}" \u2192 use "qcut ${suggestion}" instead.`,
+		`\x1b[33m\u26A0 DEPRECATED:\x1b[0m "${commandName}" \u2192 use "qcut ${suggestion}" instead.`
 	);
 }

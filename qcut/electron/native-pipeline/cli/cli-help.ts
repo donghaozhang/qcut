@@ -29,7 +29,7 @@ export function printHelp(): void {
 	const bin = getCliName();
 	// Build group listing
 	const groupLines = COMMAND_GROUPS.map(
-		(g) => `  ${g.name.padEnd(12)} ${g.description}`,
+		(g) => `  ${g.name.padEnd(12)} ${g.description}`
 	).join("\n");
 
 	console.log(

@@ -51,7 +51,7 @@ const CLONE_PROVIDER_DEFAULTS: Record<string, string> = {
 function resolveModelFromProvider(
 	model: string | undefined,
 	provider: string | undefined,
-	defaults: Record<string, string>,
+	defaults: Record<string, string>
 ): string | undefined {
 	if (model) return model;
 	if (!provider) return undefined;
@@ -81,8 +81,11 @@ export async function handleGenerateSpeech(
 	}
 
 	const model =
-		resolveModelFromProvider(options.model, options.provider, TTS_PROVIDER_DEFAULTS) ||
-		"chatterbox_tts";
+		resolveModelFromProvider(
+			options.model,
+			options.provider,
+			TTS_PROVIDER_DEFAULTS
+		) || "chatterbox_tts";
 	const ttsModels = [
 		"chatterbox_tts",
 		"chatterbox_tts_turbo",
