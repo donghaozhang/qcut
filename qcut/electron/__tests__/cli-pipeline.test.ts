@@ -118,7 +118,7 @@ describe("CLI pipeline", () => {
 			expect(consoleSpy).toHaveBeenCalled();
 			const output = consoleSpy.mock.calls[0][0] as string;
 			expect(output).toContain("qcut-pipeline");
-			expect(output).toContain("Commands:");
+			expect(output).toContain("Groups:");
 		});
 
 		it("command-level --help prints usage and exits", () => {

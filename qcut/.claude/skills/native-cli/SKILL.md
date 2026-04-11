@@ -71,18 +71,31 @@ Now you have the IDs needed for all other editor commands.
 ## How to Run
 
 ```bash
-bun run pipeline <command> [options]            # Dev (recommended)
-bun run electron/native-pipeline/cli/cli.ts <command> [options]  # Direct source
-qcut-pipeline <command> [options]               # Production binary
+bun run pipeline <group> <action> [options]     # New group syntax (preferred)
+bun run pipeline <command> [options]             # Legacy flat syntax (deprecated)
+qcut-pipeline <group> <action> [options]         # Production binary
 ```
+
+### Command Groups
+
+| Group | Description | Example |
+|-------|-------------|---------|
+| `gen` | Generate images, videos, avatars, grids | `gen image -t "A cat"` |
+| `analyze` | Analyze video/image content | `analyze video -i video.mp4` |
+| `audio` | Transcribe, translate, TTS | `audio transcribe -i audio.mp3` |
+| `edit` | Autoclip, upscale, motion, subtitle | `edit upscale --image img.png` |
+| `flow` | ViMax pipelines, YAML workflows | `flow idea2video --idea "..."` |
+| `system` | Auth, keys, models, project setup | `system models --json` |
+
+Run `bun run pipeline <group> --help` for group details.
 
 ## Project Setup & Organization
 
 Use these commands for project setup, file categorization, and structure audits:
 
-- `bun run pipeline init-project`
-- `bun run pipeline organize-project`
-- `bun run pipeline structure-info`
+- `bun run pipeline system project-init`
+- `bun run pipeline system project-organize`
+- `bun run pipeline system project-info`
 
 Standard structure:
 
@@ -105,23 +118,23 @@ Safe default workflow:
 
 ```bash
 # 1) Create missing folders
-bun run pipeline init-project --directory ./my-project
+bun run pipeline system project-init --directory ./my-project
 
 # 2) Preview file moves first
-bun run pipeline organize-project \
+bun run pipeline system project-organize \
   --directory ./my-project \
   --source ./incoming-media \
   --recursive \
   --dry-run
 
 # 3) Execute organization
-bun run pipeline organize-project \
+bun run pipeline system project-organize \
   --directory ./my-project \
   --source ./incoming-media \
   --recursive
 
 # 4) Verify final structure and counts
-bun run pipeline structure-info --directory ./my-project --json
+bun run pipeline system project-info --directory ./my-project --json
 ```
 
 Safety rules:
@@ -134,14 +147,14 @@ Safety rules:
 ## Quick Commands
 
 ```bash
-bun run pipeline list-models                          # List all models
-bun run pipeline generate-image -t "A cinematic portrait at golden hour"
-bun run pipeline create-video -m kling_2_6_pro -t "Ocean waves at sunset" -d 5s
-bun run pipeline generate-avatar -m omnihuman_v1_5 -t "Hello world" --image-url avatar.png
-bun run pipeline analyze-video -i video.mp4 --analysis-type summary
-bun run pipeline transcribe -i audio.mp3 --srt
-bun run pipeline run-pipeline -c pipeline.yaml -i "A sunset" --no-confirm
-bun run pipeline estimate-cost -m veo3 -d 8s
+bun run pipeline system models                        # List all models
+bun run pipeline gen image -t "A cinematic portrait at golden hour"
+bun run pipeline gen video -m kling_2_6_pro -t "Ocean waves at sunset" -d 5s
+bun run pipeline gen avatar -m omnihuman_v1_5 -t "Hello world" --image-url avatar.png
+bun run pipeline analyze video -i video.mp4 --analysis-type summary
+bun run pipeline audio transcribe -i audio.mp3 --srt
+bun run pipeline flow run -c pipeline.yaml -i "A sunset" --no-confirm
+bun run pipeline system cost -m veo3 -d 8s
 ```
 
 ## Auth Token Management
@@ -220,9 +233,9 @@ bun run pipeline youtube:upload \
 ## ViMax Quick Start
 
 ```bash
-bun run pipeline vimax:idea2video --idea "A detective in 1920s Paris" -d 120
-bun run pipeline vimax:script2video --script script.json --portraits registry.json
-bun run pipeline vimax:novel2movie --novel book.txt --max-scenes 20
+bun run pipeline flow idea2video --idea "A detective in 1920s Paris" -d 120
+bun run pipeline flow script2video --script script.json --portraits registry.json
+bun run pipeline flow novel2movie --novel book.txt --max-scenes 20
 ```
 
 ## API Key Setup
@@ -230,9 +243,9 @@ bun run pipeline vimax:novel2movie --novel book.txt --max-scenes 20
 Keys stored in `~/.qcut/.env` (mode `0600`).
 
 ```bash
-bun run pipeline setup          # Create .env template
-bun run pipeline set-key --name FAL_KEY   # Set a key (interactive)
-bun run pipeline check-keys     # Check configured keys
+bun run pipeline system setup          # Create .env template
+bun run pipeline system set-key --name FAL_KEY   # Set a key (interactive)
+bun run pipeline system check-keys     # Check configured keys
 ```
 
 **Supported keys:** `FAL_KEY`, `GEMINI_API_KEY`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY`, `ELEVENLABS_API_KEY`, `OPENAI_API_KEY`, `RUNWAY_API_KEY`, `HEYGEN_API_KEY`, `DID_API_KEY`, `SYNTHESIA_API_KEY`, `QCUT_AUTH_TOKEN`
@@ -242,7 +255,7 @@ bun run pipeline check-keys     # Check configured keys
 All commands support `--json` for machine-readable output using a consistent envelope:
 
 ```bash
-bun run pipeline generate-image -t "A cat" --json
+bun run pipeline gen image -t "A cat" --json
 ```
 
 Three possible envelope shapes:
@@ -264,14 +277,14 @@ See [REFERENCE.md](references/REFERENCE.md) for full envelope docs.
 The CLI provides structured help at three levels when using `--help --json`:
 
 ```bash
-# Level 1: Root — list all commands, categories, global flags
+# Level 1: Root — list all groups, commands, global flags
 bun run pipeline --help --json
 
 # Level 2: Command — flags (required/optional), examples, usage
-bun run pipeline generate-image --help --json
+bun run pipeline gen image --help --json
 
 # Level 3: Parameter — type, enum values, default, description
-bun run pipeline generate-image --help model --json
+bun run pipeline gen image --help model --json
 ```
 
 Each level returns a JSON envelope (`{ "status": "ok", "data": { ... } }`).

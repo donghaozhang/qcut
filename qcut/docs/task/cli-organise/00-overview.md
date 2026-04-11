@@ -28,14 +28,14 @@ The handler functions themselves are untouched. Only the routing layer changes.
 
 ## Subtasks
 
-| # | Task | Est. | File |
-|---|------|------|------|
-| 1 | [Handler registry map](01-handler-registry.md) | 15 min | `cli-runner/handler-map.ts`, `runner.ts` |
-| 2 | [Command group router](02-command-groups.md) | 20 min | `command-registry.ts`, `command-registry-types.ts` |
-| 3 | [Alias & deprecation system](03-aliases.md) | 15 min | `cli/aliases.ts`, `cli.ts` |
-| 4 | [Flag normalization](04-flag-normalization.md) | 10 min | `cli.ts`, `command-registry.ts` |
-| 5 | [Update help & categories](05-help-categories.md) | 10 min | `cli-help.ts`, `cli-output-formatters.ts` |
-| 6 | [Tests](06-tests.md) | 15 min | `electron/__tests__/cli-*.test.ts` |
+| # | Task | Est. | File | Status |
+|---|------|------|------|--------|
+| 1 | [Handler registry map](01-handler-registry.md) | 15 min | `cli-runner/handler-map.ts`, `runner.ts` | DONE |
+| 2 | [Command group router](02-command-groups.md) | 20 min | `cli/command-groups.ts`, `cli.ts` | DONE |
+| 3 | [Alias & deprecation system](03-aliases.md) | 15 min | `cli/aliases.ts`, `cli.ts` | DONE |
+| 4 | [Flag normalization](04-flag-normalization.md) | 10 min | `cli.ts`, `command-registry.ts` | DEFERRED (no breaking flags yet) |
+| 5 | [Update help & categories](05-help-categories.md) | 10 min | `cli-help.ts` | DONE |
+| 6 | [Tests](06-tests.md) | 15 min | `electron/__tests__/cli-command-groups.test.ts` | DONE (70 tests) |
 
 ## Constraints
 
@@ -43,3 +43,21 @@ The handler functions themselves are untouched. Only the routing layer changes.
 - **Backward compatible**: old commands work via aliases with deprecation warnings for 2 minor versions
 - **No new dependencies**: pure TypeScript refactor
 - **800-line file limit**: split files that exceed this
+
+## Implementation Summary
+
+### Files Created
+- `electron/native-pipeline/cli/cli-runner/handler-map.ts` — typed handler registry (replaces 310-line switch)
+- `electron/native-pipeline/cli/command-groups.ts` — 6 command groups with resolver
+- `electron/native-pipeline/cli/aliases.ts` — deprecation warning system
+
+### Files Modified
+- `electron/native-pipeline/cli/cli-runner/runner.ts` — switch → HANDLER_MAP lookup (576→266 lines)
+- `electron/native-pipeline/cli/cli.ts` — group resolution + deprecation in parseCliArgs
+- `electron/native-pipeline/cli/cli-help.ts` — groups-first help, printGroupHelp()
+- `electron/native-pipeline/cli/cli-runner/index.ts` — export HANDLER_MAP
+- `electron/__tests__/cli-pipeline.test.ts` — updated help assertion
+
+### Tests
+- `electron/__tests__/cli-command-groups.test.ts` — 70 tests (groups, handler map, aliases)
+- All 105 tests pass (70 new + 35 existing)
