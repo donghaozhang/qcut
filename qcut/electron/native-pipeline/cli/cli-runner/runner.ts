@@ -1,5 +1,7 @@
 /**
- * CLI Pipeline Runner class — delegates to handler functions.
+ * CLI Pipeline Runner class — delegates to handler functions
+ * via the HANDLER_MAP registry.
+ *
  * @module electron/native-pipeline/cli/cli-runner/runner
  */
 
@@ -11,63 +13,7 @@ import {
 import { loadEnvFile, getKey } from "../../infra/key-manager.js";
 import { setSessionTokenProvider } from "../../infra/proxy-client.js";
 import { readStdin } from "../interactive.js";
-import {
-	handleAnalyzeVideo as mediaHandleAnalyzeVideo,
-	handleTranscribe as mediaHandleTranscribe,
-	handleQueryVideo as mediaHandleQueryVideo,
-} from "../cli-handlers-media.js";
-import { handleGenerateRemotion } from "../cli-handlers-remotion.js";
-import { handleMoyinParseScript } from "../cli-handlers-moyin.js";
-import {
-	handleSetup as adminHandleSetup,
-	handleSetKey as adminHandleSetKey,
-	handleGetKey as adminHandleGetKey,
-	handleCheckKeys as adminHandleCheckKeys,
-	handleDeleteKey as adminHandleDeleteKey,
-	handleLogin as adminHandleLogin,
-	handleSignup as adminHandleSignup,
-	handleLogout as adminHandleLogout,
-	handleInitProject as adminHandleInitProject,
-	handleOrganizeProject as adminHandleOrganizeProject,
-	handleStructureInfo as adminHandleStructureInfo,
-	handleCreateExamples as adminHandleCreateExamples,
-	handleListModels as adminHandleListModels,
-	handleEstimateCost as adminHandleEstimateCost,
-} from "../cli-handlers-admin.js";
-import {
-	handleCreateElement as elementHandleCreate,
-	handleListElements as elementHandleList,
-	handleDeleteElement as elementHandleDelete,
-} from "../cli-handlers-element.js";
 import { handleEditorCommand } from "../cli-handlers-editor.js";
-import {
-	handleVimaxExtractCharacters,
-	handleVimaxGenerateScript,
-	handleVimaxGenerateStoryboard,
-	handleVimaxGeneratePortraits,
-	handleVimaxCreateRegistry,
-	handleVimaxShowRegistry,
-	handleVimaxListModels,
-	handleVimaxIdea2Video,
-	handleVimaxScript2Video,
-	handleVimaxNovel2Movie,
-} from "../vimax-cli-handlers.js";
-import { handleStampImage } from "../cli-handlers-stamp.js";
-import { handleYouTubeUpload } from "../cli-handlers-youtube.js";
-import { handleTranslateVideo } from "../cli-handlers-translate.js";
-import {
-	handlePhotaEdit,
-	handlePhotaEnhance,
-	handlePhotaCreateProfile,
-} from "../cli-handlers-phota.js";
-import {
-	runAutoclip,
-	parseAutoclipOptions,
-} from "../../autoclip/autoclip-runner.js";
-import {
-	runCleanAudio,
-	parseCleanAudioOptions,
-} from "../../autoclip/clean-audio-runner.js";
 import type { CLIRunOptions, CLIResult, ProgressFn } from "./types.js";
 import { resolveActionPolicy, evaluateActionPolicy } from "../action-policy.js";
 import { confirm, isInteractive } from "../interactive.js";
@@ -79,26 +25,7 @@ import {
 	updateSessionState,
 	type SessionState,
 } from "../session-state.js";
-import { handleGenerate } from "./handler-generate.js";
-import { handleRunPipeline } from "./handler-pipeline.js";
-import { handleTransferMotion } from "./handler-transfer.js";
-import { handleGenerateGrid } from "./handler-grid.js";
-import { handleUpscaleImage } from "./handler-upscale.js";
-import { handlePipelineStatus } from "./handler-pipeline-status.js";
-import {
-	handleGenerateSpeech,
-	handleConvertSpeech,
-	handleCloneVoice,
-} from "../cli-handlers-speech.js";
-import {
-	handleSubtitleStyle,
-	handleSubtitleExport,
-} from "../cli-handlers-subtitle.js";
-import {
-	handleReplicate,
-	handleReplicateAnalyze,
-	handleReplicateGenerate,
-} from "../cli-handlers-replicate.js";
+import { HANDLER_MAP } from "./handler-map.js";
 
 async function enforceActionPolicy({
 	options,
