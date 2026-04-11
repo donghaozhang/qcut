@@ -236,6 +236,12 @@ export interface CLIRunOptions {
 	// snapshot action options
 	selectValue?: string;
 	checked?: boolean;
+	// music generation options
+	lyrics?: string;
+	instrumental?: boolean;
+	sampleRate?: number;
+	bitrate?: number;
+	audioFormat?: string;
 	// speech generation options
 	exaggeration?: number;
 	temperature?: number;

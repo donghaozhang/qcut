@@ -87,6 +87,7 @@ import {
 	handleReplicateAnalyze,
 	handleReplicateGenerate,
 } from "../cli-handlers-replicate.js";
+import { handleGenerateMusic } from "../cli-handlers-music.js";
 
 /**
  * Unified handler signature.
@@ -154,6 +155,7 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"generate-remotion": async (options, onProgress, _executor, signal) =>
 		handleGenerateRemotion(options, onProgress, null, signal),
 	"stamp-image": wrapOP(handleStampImage),
+	"generate-music": wrapOPS(handleGenerateMusic),
 
 	// ── Analysis ──
 	"analyze-video": mediaHandleAnalyzeVideo,

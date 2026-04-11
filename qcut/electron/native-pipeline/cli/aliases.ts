@@ -21,6 +21,7 @@ export const COMMAND_ALIASES: Record<string, string> = {
 	"query-video": "analyze query",
 	"transcribe": "analyze transcribe",
 	"translate-video": "analyze translate",
+	"generate-music": "gen music",
 	"generate-speech": "gen tts",
 	"convert-speech": "gen voice-convert",
 	"clone-voice": "gen voice-clone",

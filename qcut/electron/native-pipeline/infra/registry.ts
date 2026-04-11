@@ -25,7 +25,8 @@ export type ModelCategory =
 	| "speech_to_text"
 	| "image_understanding"
 	| "prompt_generation"
-	| "translate";
+	| "translate"
+	| "music";
 
 export interface ModelPricing {
 	[key: string]: string | number;
