@@ -36,10 +36,17 @@ import {
 	CLI_VERSION,
 	findHelpParam,
 	printCommandHelpJson,
+	printGroupHelp,
 	printHelp,
 	printHelpJson,
 	printParamHelpJson,
 } from "./cli-help.js";
+import {
+	resolveCommandGroup,
+	isCommandGroup,
+	getCommandGroup,
+} from "./command-groups.js";
+import { warnIfDeprecated } from "./aliases.js";
 
 /** Command list derived from the central registry. */
 const COMMANDS = Object.keys(COMMANDS_REGISTRY);
@@ -48,7 +55,9 @@ type Command = string;
 
 /** Parse process argv into CLIRunOptions, exiting on --help/--version. */
 export function parseCliArgs(argv: string[]): CLIRunOptions {
-	const command = argv[0];
+	let command = argv[0];
+	let wasGroupResolved = false;
+	let argsOffset = 1; // how many positional args to skip before flags
 
 	if (!command || command === "--help" || command === "-h") {
 		if (argv.includes("--json")) {
@@ -64,14 +73,34 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		process.exit(0);
 	}
 
+	// Try group resolution: "gen image ..." → "generate-image ..."
+	const groupResult = resolveCommandGroup(argv);
+	if (groupResult) {
+		command = groupResult.command;
+		argsOffset = 2; // skip group + action
+		wasGroupResolved = true;
+	} else if (isCommandGroup(command)) {
+		// Group name with no action or --help: show group help
+		if (argv.includes("--json")) {
+			printHelpJson();
+		} else {
+			printGroupHelp(command);
+		}
+		process.exit(0);
+	}
+
 	if (!COMMANDS.includes(command)) {
 		console.error(`Unknown command: ${command}`);
 		console.error("Run with --help for usage.");
 		process.exit(2);
 	}
 
+	// Emit deprecation warning for flat commands that have group equivalents
+	const isQuiet = argv.includes("--json") || argv.includes("--quiet") || argv.includes("-q");
+	warnIfDeprecated(command, wasGroupResolved, isQuiet);
+
 	const { values } = parseArgs({
-		args: argv.slice(1),
+		args: argv.slice(argsOffset),
 		options: {
 			model: { type: "string", short: "m" },
 			text: { type: "string", short: "t" },
@@ -299,7 +328,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 	if (values.help) {
 		if (values.json) {
 			// Level 3: <command> --help <param> --json
-			const helpParam = findHelpParam(argv.slice(1));
+			const helpParam = findHelpParam(argv.slice(argsOffset));
 			if (helpParam) {
 				printParamHelpJson(command, helpParam);
 			} else {

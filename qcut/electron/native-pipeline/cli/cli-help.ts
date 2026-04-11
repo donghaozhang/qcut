@@ -5,6 +5,7 @@ import {
 	getCommand,
 	getCommandFlag,
 } from "./command-registry.js";
+import { COMMAND_GROUPS } from "./command-groups.js";
 import { jsonError, jsonOk } from "./json-output.js";
 
 export const CLI_VERSION = "1.0.0";
