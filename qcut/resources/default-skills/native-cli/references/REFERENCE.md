@@ -75,15 +75,15 @@ Transfer motion from a reference video onto an image.
 
 Output: `.mp4` file
 
-### `gen grid`
+### `gen image --grid`
 
-Generate a grid of images from a prompt.
+Generate a grid of images from a prompt. Use `--grid` with `gen image` to produce a composite grid.
 
 | Flag | Short | Type | Default | Description |
 |------|-------|------|---------|-------------|
 | `--text` | `-t` | string | | Prompt (required) |
 | `--model` | `-m` | string | `flux_dev` | Image model |
-| `--layout` | | string | `2x2` | Grid: `2x2`, `3x3`, `2x3`, `3x2`, `1x2`, `2x1` |
+| `--grid` | | string | | Grid layout: `2x2`, `3x3`, `2x3`, `3x2`, `1x2`, `2x1` |
 | `--style` | | string | | Style prefix prepended to prompt |
 | `--grid-upscale` | | float | | Upscale factor after compositing |
 
@@ -214,28 +214,32 @@ qcut autoclip -i video.mp4 -s /tmp/video.srt -o /tmp/clips
 
 ### `analyze translate`
 
-Translate a video's speech into another language using HeyGen Translate (Speed) via FAL. Supports local files (uploaded to FAL CDN) and URLs. Requires `FAL_KEY`.
+Translate video or audio into another language using HeyGen Translate (Speed) via FAL. Supports local files (uploaded to FAL CDN) and URLs. Audio input (`.mp3`, `.wav`, `.m4a`, etc.) is automatically wrapped in a dummy video for translation. Requires `FAL_KEY`.
 
 | Flag | Short | Type | Default | Description |
 |------|-------|------|---------|-------------|
-| `--input` | `-i` | string | | Input video file path or URL (required) |
+| `--input` | `-i` | string | | Input video or audio file path/URL (required) |
 | `--language` | `-l` | string | | Target language, e.g. Spanish, Chinese (required) |
 | `--output` | `-o` | string | `./output` | Output directory |
 | `--audio-only` | | boolean | `false` | Translate audio only (keep original video) |
+| `--output-audio` | | boolean | `false` | Output translated audio file (auto-enabled for audio input) |
 | `--no-dynamic-duration` | | boolean | `false` | Disable dynamic duration adjustment |
 | `--speakers` | | number | | Number of speakers in the video |
 
 **Model:** `heygen_translate_speed` (FAL endpoint: `fal-ai/heygen/v2/translate/speed`)
 
-**Output:** Downloaded `.mp4` video file and a JSON metadata file with `video_url`, source info, and timing.
+**Output:** Downloaded `.mp4` video file and/or `.m4a` audio file, plus a JSON metadata file.
 
 **Examples:**
 ```bash
 # Translate local video to Spanish
 qcut analyze translate -i video.mp4 -l Spanish
 
-# Translate URL to Chinese, audio only
-qcut analyze translate -i "https://example.com/video.mp4" -l Chinese --audio-only
+# Translate audio file to Chinese (auto-outputs audio)
+qcut analyze translate -i podcast.mp3 -l Chinese
+
+# Translate video, output audio file
+qcut analyze translate -i video.mp4 -l Japanese --output-audio
 
 # Multi-speaker video to Japanese
 qcut analyze translate -i interview.mp4 -l Japanese --speakers 2 -o /tmp/translated

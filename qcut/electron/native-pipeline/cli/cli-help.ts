@@ -67,7 +67,7 @@ Examples:
   ${bin} gen image -t "A cat in space"
   ${bin} gen video -m kling_2_6_pro -t "Ocean waves" -d 5s
   ${bin} flow run -c pipeline.yaml -i "A sunset"
-  ${bin} audio transcribe --video-url video.mp4
+  ${bin} analyze transcribe --video-url video.mp4
   ${bin} system models --json
   ${bin} editor:timeline:export --project-id my-proj --json
 `.trim()

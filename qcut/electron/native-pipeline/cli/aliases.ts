@@ -15,7 +15,7 @@ export const COMMAND_ALIASES: Record<string, string> = {
 	"generate-image": "gen image",
 	"create-video": "gen video",
 	"generate-avatar": "gen avatar",
-	"generate-grid": "gen grid",
+	"generate-grid": "gen image --grid",
 	"generate-remotion": "gen remotion",
 	"analyze-video": "analyze video",
 	"query-video": "analyze query",

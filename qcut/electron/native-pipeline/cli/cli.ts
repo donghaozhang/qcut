@@ -190,6 +190,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"chunk-minutes": { type: "string" },
 			// translate-video options
 			"audio-only": { type: "boolean", default: false },
+			"output-audio": { type: "boolean", default: false },
 			"no-dynamic-duration": { type: "boolean", default: false },
 			speakers: { type: "string" },
 			// speech generation options
@@ -215,7 +216,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// vimax options
 			"no-references": { type: "boolean", default: false },
 			"project-id": { type: "string" },
-			// grid upscale
+			// grid options
+			grid: { type: "string" },
 			"grid-upscale": { type: "string" },
 			// editor flags
 			"media-id": { type: "string" },
@@ -459,6 +461,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			: undefined,
 		// translate-video options
 		audioOnly: (values["audio-only"] as boolean) ?? false,
+		outputAudio: (values["output-audio"] as boolean) ?? false,
 		noDynamicDuration: (values["no-dynamic-duration"] as boolean) ?? false,
 		speakers: values.speakers
 			? Number.isNaN(parseInt(values.speakers as string, 10))
@@ -511,7 +514,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		// vimax options
 		noReferences: (values["no-references"] as boolean) ?? false,
 		projectId: values["project-id"] as string | undefined,
-		// grid upscale
+		// grid options
+		grid: values.grid as string | undefined,
 		gridUpscale: values["grid-upscale"]
 			? Number.isNaN(parseFloat(values["grid-upscale"] as string))
 				? undefined

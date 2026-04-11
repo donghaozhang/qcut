@@ -28,7 +28,6 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			image: "generate-image",
 			video: "create-video",
 			avatar: "generate-avatar",
-			grid: "generate-grid",
 			remotion: "generate-remotion",
 			tts: "generate-speech",
 			"voice-convert": "convert-speech",

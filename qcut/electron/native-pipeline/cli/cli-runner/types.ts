@@ -114,7 +114,8 @@ export interface CLIRunOptions {
 	// vimax options
 	noReferences?: boolean;
 	projectId?: string;
-	// grid upscale
+	// grid options
+	grid?: string;
 	gridUpscale?: number;
 	// search options
 	query?: string;
@@ -228,6 +229,7 @@ export interface CLIRunOptions {
 	// translate-video options
 	noDynamicDuration?: boolean;
 	audioOnly?: boolean;
+	outputAudio?: boolean;
 	speakers?: number;
 	// phota options
 	profile?: string | string[];

@@ -137,7 +137,15 @@ function wrapOPS(
  */
 export const HANDLER_MAP: Record<string, CommandHandler> = {
 	// ── Generation ──
-	"generate-image": handleGenerate,
+	"generate-image": async (options, onProgress, executor, signal) =>
+		options.grid
+			? handleGenerateGrid(
+					{ ...options, layout: options.grid as string },
+					onProgress,
+					executor,
+					signal,
+				)
+			: handleGenerate(options, onProgress, executor, signal),
 	"create-video": handleGenerate,
 	"generate-avatar": handleGenerate,
 	"generate-grid": handleGenerateGrid,
