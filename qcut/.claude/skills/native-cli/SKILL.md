@@ -6,12 +6,12 @@ argument-hint: [command] [--flags]
 
 # Native Pipeline CLI Skill
 
-Run QCut's built-in TypeScript pipeline CLI (`qcut-pipeline` / `bun run pipeline`).
+Run QCut's built-in TypeScript pipeline CLI (`qcut-pipeline` / `qcut`).
 
 ## Active CLI Version
 
 - Active native CLI version: `1.0.0`
-- Verify with: `bun run pipeline --version`
+- Verify with: `qcut --version`
 
 ## Additional resources
 
@@ -34,7 +34,7 @@ Before any `editor:*` command, check if QCut is running. If not, build and launc
 
 ```bash
 # Check if QCut is running
-bun run pipeline editor:health --status-only --json || echo "NOT_RUNNING"
+qcut editor:health --status-only --json || echo "NOT_RUNNING"
 ```
 
 If NOT_RUNNING:
@@ -51,19 +51,19 @@ Most editor commands need `--project-id`, `--media-id`, or `--element-id`. Run t
 
 ```bash
 # 1. List projects → get project-id
-bun run pipeline editor:navigator:projects
+qcut editor:navigator:projects
 
 # 2. Open a project (navigates the editor)
-bun run pipeline editor:navigator:open --project-id <project-id>
+qcut editor:navigator:open --project-id <project-id>
 
 # 3. Switch to editor panel (navigator:open lands on the landing page, NOT the editor)
-bun run pipeline editor:ui:switch-panel --panel video-edit
+qcut editor:ui:switch-panel --panel video-edit
 
 # 4. List media → get media-id values
-bun run pipeline editor:media:list --project-id <project-id> --json
+qcut editor:media:list --project-id <project-id> --json
 
 # 5. Export timeline → get track-id and element-id values
-bun run pipeline editor:timeline:export --project-id <project-id> --json
+qcut editor:timeline:export --project-id <project-id> --json
 ```
 
 Now you have the IDs needed for all other editor commands.
@@ -71,8 +71,8 @@ Now you have the IDs needed for all other editor commands.
 ## How to Run
 
 ```bash
-bun run pipeline <group> <action> [options]     # New group syntax (preferred)
-bun run pipeline <command> [options]             # Legacy flat syntax (deprecated)
+qcut <group> <action> [options]     # New group syntax (preferred)
+qcut <command> [options]             # Legacy flat syntax (deprecated)
 qcut-pipeline <group> <action> [options]         # Production binary
 ```
 
@@ -87,15 +87,15 @@ qcut-pipeline <group> <action> [options]         # Production binary
 | `flow` | ViMax pipelines, YAML workflows | `flow idea2video --idea "..."` |
 | `system` | Auth, keys, models, project setup | `system models --json` |
 
-Run `bun run pipeline <group> --help` for group details.
+Run `qcut <group> --help` for group details.
 
 ## Project Setup & Organization
 
 Use these commands for project setup, file categorization, and structure audits:
 
-- `bun run pipeline system project-init`
-- `bun run pipeline system project-organize`
-- `bun run pipeline system project-info`
+- `qcut system project-init`
+- `qcut system project-organize`
+- `qcut system project-info`
 
 Standard structure:
 
@@ -118,23 +118,23 @@ Safe default workflow:
 
 ```bash
 # 1) Create missing folders
-bun run pipeline system project-init --directory ./my-project
+qcut system project-init --directory ./my-project
 
 # 2) Preview file moves first
-bun run pipeline system project-organize \
+qcut system project-organize \
   --directory ./my-project \
   --source ./incoming-media \
   --recursive \
   --dry-run
 
 # 3) Execute organization
-bun run pipeline system project-organize \
+qcut system project-organize \
   --directory ./my-project \
   --source ./incoming-media \
   --recursive
 
 # 4) Verify final structure and counts
-bun run pipeline system project-info --directory ./my-project --json
+qcut system project-info --directory ./my-project --json
 ```
 
 Safety rules:
@@ -147,14 +147,14 @@ Safety rules:
 ## Quick Commands
 
 ```bash
-bun run pipeline system models                        # List all models
-bun run pipeline gen image -t "A cinematic portrait at golden hour"
-bun run pipeline gen video -m kling_2_6_pro -t "Ocean waves at sunset" -d 5s
-bun run pipeline gen avatar -m omnihuman_v1_5 -t "Hello world" --image-url avatar.png
-bun run pipeline analyze video -i video.mp4 --analysis-type summary
-bun run pipeline audio transcribe -i audio.mp3 --srt
-bun run pipeline flow run -c pipeline.yaml -i "A sunset" --no-confirm
-bun run pipeline system cost -m veo3 -d 8s
+qcut system models                        # List all models
+qcut gen image -t "A cinematic portrait at golden hour"
+qcut gen video -m kling_2_6_pro -t "Ocean waves at sunset" -d 5s
+qcut gen avatar -m omnihuman_v1_5 -t "Hello world" --image-url avatar.png
+qcut analyze video -i video.mp4 --analysis-type summary
+qcut audio transcribe -i audio.mp3 --srt
+qcut flow run -c pipeline.yaml -i "A sunset" --no-confirm
+qcut system cost -m veo3 -d 8s
 ```
 
 ## Auth Token Management
@@ -163,19 +163,19 @@ Get, set, or clear the QCut auth token directly from the CLI. No need for DevToo
 
 ```bash
 # Get current token (masked by default)
-bun run pipeline editor:auth:token --json
+qcut editor:auth:token --json
 
 # Get token with full value revealed
-bun run pipeline editor:auth:token --reveal --json
+qcut editor:auth:token --reveal --json
 
 # Set a token
-bun run pipeline editor:auth:token --set <token> --json
+qcut editor:auth:token --set <token> --json
 
 # Activate license on this device
-bun run pipeline editor:auth:activate --token <token> --json
+qcut editor:auth:activate --token <token> --json
 
 # Clear token (logout)
-bun run pipeline editor:auth:logout --json
+qcut editor:auth:logout --json
 ```
 
 | Command | Description |
@@ -192,17 +192,17 @@ Upload videos to YouTube after authenticating with Google OAuth.
 - Logged in via Google OAuth in QCut app
 - YouTube Data API v3 enabled in Google Cloud Console
 - YouTube channel created on the Google account
-- Auth token set (use `bun run pipeline editor:auth:token --reveal --json` to check)
+- Auth token set (use `qcut editor:auth:token --reveal --json` to check)
 
 ```bash
 # Set auth token for CLI usage (preferred: use editor:auth:token --set)
-bun run pipeline editor:auth:token --set <token> --json
+qcut editor:auth:token --set <token> --json
 
 # Upload a video (private by default)
-bun run pipeline youtube:upload -i video.mp4 --title "My Video"
+qcut youtube:upload -i video.mp4 --title "My Video"
 
 # Upload with all options
-bun run pipeline youtube:upload \
+qcut youtube:upload \
   -i video.mp4 \
   --title "My Video" \
   --text "Video description" \
@@ -233,9 +233,9 @@ bun run pipeline youtube:upload \
 ## ViMax Quick Start
 
 ```bash
-bun run pipeline flow idea2video --idea "A detective in 1920s Paris" -d 120
-bun run pipeline flow script2video --script script.json --portraits registry.json
-bun run pipeline flow novel2movie --novel book.txt --max-scenes 20
+qcut flow idea2video --idea "A detective in 1920s Paris" -d 120
+qcut flow script2video --script script.json --portraits registry.json
+qcut flow novel2movie --novel book.txt --max-scenes 20
 ```
 
 ## API Key Setup
@@ -243,9 +243,9 @@ bun run pipeline flow novel2movie --novel book.txt --max-scenes 20
 Keys stored in `~/.qcut/.env` (mode `0600`).
 
 ```bash
-bun run pipeline system setup          # Create .env template
-bun run pipeline system set-key --name FAL_KEY   # Set a key (interactive)
-bun run pipeline system check-keys     # Check configured keys
+qcut system setup          # Create .env template
+qcut system set-key --name FAL_KEY   # Set a key (interactive)
+qcut system check-keys     # Check configured keys
 ```
 
 **Supported keys:** `FAL_KEY`, `GEMINI_API_KEY`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY`, `ELEVENLABS_API_KEY`, `OPENAI_API_KEY`, `RUNWAY_API_KEY`, `HEYGEN_API_KEY`, `DID_API_KEY`, `SYNTHESIA_API_KEY`, `QCUT_AUTH_TOKEN`
@@ -255,7 +255,7 @@ bun run pipeline system check-keys     # Check configured keys
 All commands support `--json` for machine-readable output using a consistent envelope:
 
 ```bash
-bun run pipeline gen image -t "A cat" --json
+qcut gen image -t "A cat" --json
 ```
 
 Three possible envelope shapes:
@@ -278,13 +278,13 @@ The CLI provides structured help at three levels when using `--help --json`:
 
 ```bash
 # Level 1: Root — list all groups, commands, global flags
-bun run pipeline --help --json
+qcut --help --json
 
 # Level 2: Command — flags (required/optional), examples, usage
-bun run pipeline gen image --help --json
+qcut gen image --help --json
 
 # Level 3: Parameter — type, enum values, default, description
-bun run pipeline gen image --help model --json
+qcut gen image --help model --json
 ```
 
 Each level returns a JSON envelope (`{ "status": "ok", "data": { ... } }`).
@@ -295,13 +295,13 @@ Two CLI commands export the full project state as structured JSON:
 
 ```bash
 # Minimal (~200 tokens): counts + settings only
-bun run pipeline editor:project:info --project-id <id> --json
+qcut editor:project:info --project-id <id> --json
 
 # Full (~2000 tokens): settings + media[] + subtitles[] + generated[] + exports[] + jobs[]
-bun run pipeline editor:project:info --project-id <id> --full --json
+qcut editor:project:info --project-id <id> --full --json
 
 # Dump to disk
-bun run pipeline editor:project:export-state --project-id <id>
+qcut editor:project:export-state --project-id <id>
 ```
 
 See [editor-media.md](editor/editor-media.md) for the full project.json schema.

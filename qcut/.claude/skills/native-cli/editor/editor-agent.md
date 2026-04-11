@@ -14,10 +14,10 @@ Get a ref-based accessibility tree of the visible editor UI. Each interactive el
 
 ```bash
 # Full snapshot
-bun run pipeline editor:snapshot --json
+qcut editor:snapshot --json
 
 # Only actionable elements, limited depth
-bun run pipeline editor:snapshot --interactive --depth 2 --json
+qcut editor:snapshot --interactive --depth 2 --json
 ```
 
 | Flag | Type | Description |
@@ -30,7 +30,7 @@ Returns `elements[]` with `ref`, `role`, `tagName`, `name`, `actionable`, `bound
 ### Click an element
 
 ```bash
-bun run pipeline editor:snapshot:click --ref @e1 --json
+qcut editor:snapshot:click --ref @e1 --json
 ```
 
 Clicks the element tagged with the given ref from the latest snapshot.
@@ -38,7 +38,7 @@ Clicks the element tagged with the given ref from the latest snapshot.
 ### Fill a text input
 
 ```bash
-bun run pipeline editor:snapshot:fill --ref @e2 --text "Updated title" --json
+qcut editor:snapshot:fill --ref @e2 --text "Updated title" --json
 ```
 
 Fills a text input or contenteditable element by ref.
@@ -46,7 +46,7 @@ Fills a text input or contenteditable element by ref.
 ### Select a dropdown option
 
 ```bash
-bun run pipeline editor:snapshot:select --ref @e3 --value "720p" --json
+qcut editor:snapshot:select --ref @e3 --value "720p" --json
 ```
 
 Selects an option from a `<select>`, combobox, or listbox by ref. Matches by option value or visible text.
@@ -55,10 +55,10 @@ Selects an option from a `<select>`, combobox, or listbox by ref. Matches by opt
 
 ```bash
 # Check
-bun run pipeline editor:snapshot:check --ref @e4 --checked --json
+qcut editor:snapshot:check --ref @e4 --checked --json
 
 # Uncheck
-bun run pipeline editor:snapshot:check --ref @e4 --no-checked --json
+qcut editor:snapshot:check --ref @e4 --no-checked --json
 ```
 
 Toggles a checkbox, radio button, or switch role by ref.
@@ -83,28 +83,28 @@ Read, filter, and stream console messages from the QCut renderer process.
 
 ```bash
 # Last 50 messages (default)
-bun run pipeline editor:console --json
+qcut editor:console --json
 
 # Filter by level
-bun run pipeline editor:console --level error --json
+qcut editor:console --level error --json
 
 # Messages from last 30 seconds
-bun run pipeline editor:console --since 30s --json
+qcut editor:console --since 30s --json
 
 # Errors shortcut
-bun run pipeline editor:errors --json
+qcut editor:errors --json
 ```
 
 ### Clear buffer
 
 ```bash
-bun run pipeline editor:console --clear --json
+qcut editor:console --clear --json
 ```
 
 ### Stream real-time
 
 ```bash
-bun run pipeline editor:console --stream
+qcut editor:console --stream
 ```
 
 Streams live console entries via SSE until interrupted (Ctrl+C).
@@ -132,7 +132,7 @@ Compare saved snapshots or screenshots to verify that actions had the expected e
 ### Snapshot diff
 
 ```bash
-bun run pipeline editor:diff:snapshot --before before.json --after after.json --json
+qcut editor:diff:snapshot --before before.json --after after.json --json
 ```
 
 Compares two saved accessibility snapshot JSON files. Returns `added`, `removed`, `changed` counts and element-level details. Elements are matched semantically (by role + name) rather than by raw ref.
@@ -141,10 +141,10 @@ Compares two saved accessibility snapshot JSON files. Returns `added`, `removed`
 
 ```bash
 # Default threshold (10)
-bun run pipeline editor:diff:screenshot --before before.png --after after.png --json
+qcut editor:diff:screenshot --before before.png --after after.png --json
 
 # Custom sensitivity
-bun run pipeline editor:diff:screenshot --before a.png --after b.png --threshold 20 --json
+qcut editor:diff:screenshot --before a.png --after b.png --threshold 20 --json
 ```
 
 Pixel-level PNG comparison using sharp. Generates a diff image (changed pixels in red) saved alongside the before file.
@@ -171,26 +171,26 @@ Save and restore named CLI sessions. Sessions store `projectId`, `lastPanel`, `l
 ### Save session
 
 ```bash
-bun run pipeline editor:session:save --session-name my-session --project-id <id> --panel moyin --tab characters --json
+qcut editor:session:save --session-name my-session --project-id <id> --panel moyin --tab characters --json
 ```
 
 ### Load session
 
 ```bash
-bun run pipeline editor:session:load --session-name my-session --json
+qcut editor:session:load --session-name my-session --json
 ```
 
 ### List sessions
 
 ```bash
-bun run pipeline editor:session:list --json
+qcut editor:session:list --json
 # → { "status": "ok", "data": { "sessions": [...], "count": 3 } }
 ```
 
 ### Delete session
 
 ```bash
-bun run pipeline editor:session:delete --session-name my-session --json
+qcut editor:session:delete --session-name my-session --json
 ```
 
 ### Resume a session
@@ -199,10 +199,10 @@ Use `--resume` with any command to hydrate options from a saved session and auto
 
 ```bash
 # One-shot with resume
-bun run pipeline editor:timeline:export --resume my-session --json
+qcut editor:timeline:export --resume my-session --json
 
 # Interactive REPL with resume
-bun run pipeline --session --resume my-session
+qcut --session --resume my-session
 ```
 
 ### Session command summary
@@ -229,7 +229,7 @@ Safety layer that categorizes commands into allow/confirm/deny buckets.
 ### Custom policy file
 
 ```bash
-bun run pipeline editor:snapshot:click --ref @e1 --policy ./agent-policy.json --json
+qcut editor:snapshot:click --ref @e1 --policy ./agent-policy.json --json
 ```
 
 Policy JSON format:
@@ -263,21 +263,21 @@ Policy rules can target specific flag combinations:
 
 ```bash
 # 1. Take a snapshot to discover UI elements
-bun run pipeline editor:snapshot --interactive --json
+qcut editor:snapshot --interactive --json
 
 # 2. Interact with elements by ref
-bun run pipeline editor:snapshot:click --ref @e5 --json
-bun run pipeline editor:snapshot:fill --ref @e8 --text "New title" --json
+qcut editor:snapshot:click --ref @e5 --json
+qcut editor:snapshot:fill --ref @e8 --text "New title" --json
 
 # 3. Verify the action succeeded — check for errors
-bun run pipeline editor:console --level error --since 5s --json
+qcut editor:console --level error --since 5s --json
 
 # 4. Take a second snapshot and diff
-bun run pipeline editor:snapshot --interactive --json > after.json
-bun run pipeline editor:diff:snapshot --before before.json --after after.json --json
+qcut editor:snapshot --interactive --json > after.json
+qcut editor:diff:snapshot --before before.json --after after.json --json
 
 # 5. Save session for later resumption
-bun run pipeline editor:session:save --session-name my-workflow --json
+qcut editor:session:save --session-name my-workflow --json
 ```
 
 ---

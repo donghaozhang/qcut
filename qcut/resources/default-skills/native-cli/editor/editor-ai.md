@@ -12,24 +12,24 @@ Requires QCut running (e.g., `bun run electron:dev` for dev or `bun run electron
 
 ```bash
 # By media ID
-bun run pipeline editor:analyze:video \
+qcut editor:analyze:video \
   --project-id <id> \
   --source "media:<media-id>" \
   --analysis-type describe \
   --model gemini
 
 # By file path
-bun run pipeline editor:analyze:video \
+qcut editor:analyze:video \
   --project-id <id> \
   --source "path:/path/to/video.mp4"
 
 # By timeline element
-bun run pipeline editor:analyze:video \
+qcut editor:analyze:video \
   --project-id <id> \
   --source "timeline:<element-id>"
 
 # Custom prompt with JSON output
-bun run pipeline editor:analyze:video \
+qcut editor:analyze:video \
   --project-id <id> \
   --source "media:<id>" \
   --prompt "Count people in each scene" \
@@ -41,13 +41,13 @@ Source format: `media:<id>`, `path:/file/path`, `timeline:<elementId>`, or bare 
 ### List analysis models
 
 ```bash
-bun run pipeline editor:analyze:models
+qcut editor:analyze:models
 ```
 
 ### Detect scenes
 
 ```bash
-bun run pipeline editor:analyze:scenes \
+qcut editor:analyze:scenes \
   --project-id <id> \
   --media-id <id> \
   --threshold 0.5 \
@@ -60,13 +60,13 @@ bun run pipeline editor:analyze:scenes \
 
 ```bash
 # At specific timestamps
-bun run pipeline editor:analyze:frames \
+qcut editor:analyze:frames \
   --project-id <id> \
   --media-id <id> \
   --timestamps "0,5,10,15,20"
 
 # At regular intervals
-bun run pipeline editor:analyze:frames \
+qcut editor:analyze:frames \
   --project-id <id> \
   --media-id <id> \
   --gap 5 \
@@ -77,12 +77,12 @@ bun run pipeline editor:analyze:frames \
 
 ```bash
 # Auto-transcribe and detect fillers
-bun run pipeline editor:analyze:fillers \
+qcut editor:analyze:fillers \
   --project-id <id> \
   --media-id <id>
 
 # With pre-existing word data
-bun run pipeline editor:analyze:fillers \
+qcut editor:analyze:fillers \
   --project-id <id> \
   --data @words.json
 ```
@@ -108,14 +108,14 @@ bun run pipeline editor:analyze:fillers \
 ### Transcribe (synchronous)
 
 ```bash
-bun run pipeline editor:transcribe:run \
+qcut editor:transcribe:run \
   --project-id <id> \
   --media-id <id> \
   --language en \
   --provider deepgram
 
 # Transcribe and load into Smart Speech panel
-bun run pipeline editor:transcribe:run \
+qcut editor:transcribe:run \
   --project-id <id> \
   --media-id <id> \
   --load-speech
@@ -125,7 +125,7 @@ bun run pipeline editor:transcribe:run \
 
 ```bash
 # Start and poll until complete
-bun run pipeline editor:transcribe:start \
+qcut editor:transcribe:start \
   --project-id <id> \
   --media-id <id> \
   --poll \
@@ -133,7 +133,7 @@ bun run pipeline editor:transcribe:start \
   --timeout 120
 
 # Transcribe, poll, and load into Smart Speech panel
-bun run pipeline editor:transcribe:start \
+qcut editor:transcribe:start \
   --project-id <id> \
   --media-id <id> \
   --poll \
@@ -145,9 +145,9 @@ The `--load-speech` flag sends the result to the Smart Speech panel. Words appea
 ### Job management
 
 ```bash
-bun run pipeline editor:transcribe:status --project-id <id> --job-id <id>
-bun run pipeline editor:transcribe:list-jobs --project-id <id>
-bun run pipeline editor:transcribe:cancel --project-id <id> --job-id <id>
+qcut editor:transcribe:status --project-id <id> --job-id <id>
+qcut editor:transcribe:list-jobs --project-id <id>
+qcut editor:transcribe:cancel --project-id <id> --job-id <id>
 ```
 
 ### Transcription options
@@ -172,14 +172,14 @@ AI content generation within the editor.
 
 ```bash
 # Text-to-image/video
-bun run pipeline editor:generate:start \
+qcut editor:generate:start \
   --project-id <id> \
   --model flux_dev \
   --text "A beautiful sunset" \
   --aspect-ratio "16:9"
 
 # Image-to-video
-bun run pipeline editor:generate:start \
+qcut editor:generate:start \
   --project-id <id> \
   --model kling_2_6_pro \
   --text "The scene comes alive" \
@@ -187,14 +187,14 @@ bun run pipeline editor:generate:start \
   --duration 5
 
 # With polling
-bun run pipeline editor:generate:start \
+qcut editor:generate:start \
   --project-id <id> \
   --model flux_dev \
   --text "Ocean waves" \
   --poll --poll-interval 5
 
 # Auto-add to timeline
-bun run pipeline editor:generate:start \
+qcut editor:generate:start \
   --project-id <id> \
   --model flux_dev \
   --text "Title card" \
@@ -204,21 +204,21 @@ bun run pipeline editor:generate:start \
 ### Job management
 
 ```bash
-bun run pipeline editor:generate:status --project-id <id> --job-id <id>
-bun run pipeline editor:generate:list-jobs --project-id <id>
-bun run pipeline editor:generate:cancel --project-id <id> --job-id <id>
+qcut editor:generate:status --project-id <id> --job-id <id>
+qcut editor:generate:list-jobs --project-id <id>
+qcut editor:generate:cancel --project-id <id> --job-id <id>
 ```
 
 ### List generation models
 
 ```bash
-bun run pipeline editor:generate:models
+qcut editor:generate:models
 ```
 
 ### Estimate cost
 
 ```bash
-bun run pipeline editor:generate:estimate-cost \
+qcut editor:generate:estimate-cost \
   --model kling_2_6_pro --duration 10 --resolution 1080p
 ```
 
@@ -252,11 +252,11 @@ Generate Remotion animation projects from text prompts using Claude Code with be
 ### Basic generation
 
 ```bash
-bun run pipeline generate-remotion \
+qcut generate-remotion \
   --prompt "a bouncing ball with trail effect"
 
 # Custom duration and component name
-bun run pipeline generate-remotion \
+qcut generate-remotion \
   --prompt "a cinematic title card with particle effects" \
   --duration 8 \
   --filename "TitleCard"
@@ -265,7 +265,7 @@ bun run pipeline generate-remotion \
 ### Generate and add to timeline
 
 ```bash
-bun run pipeline generate-remotion \
+qcut generate-remotion \
   --prompt "A sleek QCut promotional demo" \
   --duration 8 \
   --add-to-timeline \
@@ -310,19 +310,19 @@ Manage Remotion animation elements on the timeline.
 ### List Remotion elements
 
 ```bash
-bun run pipeline editor:remotion:list --project-id <id>
+qcut editor:remotion:list --project-id <id>
 ```
 
 ### Inspect element
 
 ```bash
-bun run pipeline editor:remotion:inspect --project-id <id> --element-id <id>
+qcut editor:remotion:inspect --project-id <id> --element-id <id>
 ```
 
 ### Update element props
 
 ```bash
-bun run pipeline editor:remotion:update-props \
+qcut editor:remotion:update-props \
   --project-id <id> \
   --element-id <id> \
   --data '{"color":"#ff0000","speed":2}'
@@ -331,7 +331,7 @@ bun run pipeline editor:remotion:update-props \
 ### Export with Remotion engine
 
 ```bash
-bun run pipeline editor:remotion:export --project-id <id> --preset default
+qcut editor:remotion:export --project-id <id> --preset default
 ```
 
 ---
@@ -343,7 +343,7 @@ List projects and navigate the running QCut editor.
 ### List all projects
 
 ```bash
-bun run pipeline editor:navigator:projects
+qcut editor:navigator:projects
 ```
 
 Returns project list with `id`, `name`, `createdAt`, `updatedAt`, and `activeProjectId`.
@@ -351,7 +351,7 @@ Returns project list with `id`, `name`, `createdAt`, `updatedAt`, and `activePro
 ### Open project in editor
 
 ```bash
-bun run pipeline editor:navigator:open --project-id <id>
+qcut editor:navigator:open --project-id <id>
 ```
 
 Navigates the editor to the project, loads timeline, media, and skills.
@@ -363,12 +363,12 @@ Navigates the editor to the project, loads timeline, media, and skills.
 ### End-to-end: Generate Remotion and preview
 
 ```bash
-bun run pipeline editor:navigator:projects
-bun run pipeline editor:navigator:open --project-id <id>
-bun run pipeline generate-remotion \
+qcut editor:navigator:projects
+qcut editor:navigator:open --project-id <id>
+qcut generate-remotion \
   --prompt "a bouncing ball" --duration 5 \
   --add-to-timeline --project-id <id>
-bun run pipeline editor:timeline:export --project-id <id>
+qcut editor:timeline:export --project-id <id>
 ```
 
 ### Analyze video, then auto-edit
@@ -376,10 +376,10 @@ bun run pipeline editor:timeline:export --project-id <id>
 ```bash
 PROJECT=<id>  MEDIA=<media-id>  ELEMENT=<element-id>
 
-bun run pipeline editor:analyze:scenes --project-id $PROJECT --media-id $MEDIA --threshold 0.3
-bun run pipeline editor:analyze:frames --project-id $PROJECT --media-id $MEDIA --gap 10
-bun run pipeline editor:transcribe:start --project-id $PROJECT --media-id $MEDIA --poll --load-speech
-bun run pipeline editor:editing:auto-edit \
+qcut editor:analyze:scenes --project-id $PROJECT --media-id $MEDIA --threshold 0.3
+qcut editor:analyze:frames --project-id $PROJECT --media-id $MEDIA --gap 10
+qcut editor:transcribe:start --project-id $PROJECT --media-id $MEDIA --poll --load-speech
+qcut editor:editing:auto-edit \
   --project-id $PROJECT --element-id $ELEMENT --media-id $MEDIA \
   --remove-fillers --remove-silences --poll
 ```
@@ -387,7 +387,7 @@ bun run pipeline editor:editing:auto-edit \
 ### Generate AI content and add to timeline
 
 ```bash
-bun run pipeline editor:generate:start \
+qcut editor:generate:start \
   --project-id <id> --model flux_dev \
   --text "Professional title card: QCut Tutorial" \
   --add-to-timeline --poll

@@ -14,10 +14,10 @@ Core `editor:*` commands for controlling a running QCut desktop instance. Comman
 bun run electron:dev
 
 # Run editor commands
-bun run pipeline editor:<command> [options]
+qcut editor:<command> [options]
 
 # Check connection
-bun run pipeline editor:health
+qcut editor:health
 ```
 
 ## Connection Options
@@ -120,13 +120,13 @@ echo '{"type":"text"}' | ... --data -         # From stdin
 
 ```bash
 # Check auth status
-bun run pipeline editor:auth:token --json
+qcut editor:auth:token --json
 
 # Set token and activate
-bun run pipeline editor:auth:activate --token <token> --json
+qcut editor:auth:activate --token <token> --json
 
 # Logout
-bun run pipeline editor:auth:logout --json
+qcut editor:auth:logout --json
 ```
 
 ---
@@ -138,9 +138,9 @@ bun run pipeline editor:auth:logout --json
 ```bash
 PROJECT=my-project
 
-bun run pipeline editor:media:import --project-id $PROJECT --source /path/to/video.mp4
-bun run pipeline editor:media:list --project-id $PROJECT --json
-bun run pipeline editor:timeline:add-element \
+qcut editor:media:import --project-id $PROJECT --source /path/to/video.mp4
+qcut editor:media:list --project-id $PROJECT --json
+qcut editor:timeline:add-element \
   --project-id $PROJECT \
   --data '{"type":"video","sourceName":"video.mp4","startTime":0,"duration":30}'
 ```
@@ -150,10 +150,10 @@ bun run pipeline editor:timeline:add-element \
 ```bash
 PROJECT=my-project
 
-bun run pipeline editor:timeline:export --project-id $PROJECT --json
-bun run pipeline editor:timeline:split --project-id $PROJECT --element-id elem-1 --split-time 10
-bun run pipeline editor:timeline:delete-element --project-id $PROJECT --element-id elem-1-right
-bun run pipeline editor:timeline:arrange --project-id $PROJECT --track-id track-1 --mode sequential
+qcut editor:timeline:export --project-id $PROJECT --json
+qcut editor:timeline:split --project-id $PROJECT --element-id elem-1 --split-time 10
+qcut editor:timeline:delete-element --project-id $PROJECT --element-id elem-1-right
+qcut editor:timeline:arrange --project-id $PROJECT --track-id track-1 --mode sequential
 ```
 
 ### Export for social media
@@ -161,6 +161,6 @@ bun run pipeline editor:timeline:arrange --project-id $PROJECT --track-id track-
 ```bash
 PROJECT=my-project
 
-bun run pipeline editor:export:recommend --project-id $PROJECT --target tiktok
-bun run pipeline editor:export:start --project-id $PROJECT --preset tiktok --poll --timeout 600
+qcut editor:export:recommend --project-id $PROJECT --target tiktok
+qcut editor:export:start --project-id $PROJECT --preset tiktok --poll --timeout 600
 ```

@@ -3,10 +3,10 @@
 Advanced editor state control via HTTP API. For basic state operations, prefer the CLI:
 
 ```bash
-bun run pipeline editor:undo --json              # Undo last action
-bun run pipeline editor:redo --json              # Redo last undone action
-bun run pipeline editor:state:snapshot --json    # Full state snapshot
-bun run pipeline editor:state:snapshot --include timeline,playhead --json  # Partial
+qcut editor:undo --json              # Undo last action
+qcut editor:redo --json              # Redo last undone action
+qcut editor:state:snapshot --json    # Full state snapshot
+qcut editor:state:snapshot --include timeline,playhead --json  # Partial
 ```
 
 The endpoints below have no CLI wrappers — use `curl` directly. Requires QCut running.

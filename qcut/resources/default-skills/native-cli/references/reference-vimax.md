@@ -27,10 +27,10 @@ The default LLM for all ViMax agents is `google/gemini-3-flash-preview` (via Ope
 
 ```bash
 # Use default (Gemini 3 Flash)
-bun run pipeline vimax:generate-script --idea "..."
+qcut vimax:generate-script --idea "..."
 
 # Override with a specific model
-bun run pipeline vimax:generate-script --idea "..." --llm-model "gpt-4o"
+qcut vimax:generate-script --idea "..." --llm-model "gpt-4o"
 ```
 
 ## Commands

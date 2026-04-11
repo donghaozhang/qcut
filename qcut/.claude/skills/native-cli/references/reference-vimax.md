@@ -27,10 +27,10 @@ The default LLM for all ViMax agents is `google/gemini-3-flash-preview` (via Ope
 
 ```bash
 # Use default (Gemini 3 Flash)
-bun run pipeline flow script --idea "..."
+qcut flow script --idea "..."
 
 # Override with a specific model
-bun run pipeline flow script --idea "..." --llm-model "gpt-4o"
+qcut flow script --idea "..." --llm-model "gpt-4o"
 ```
 
 ## Commands
@@ -154,5 +154,5 @@ Display contents of a portrait registry.
 List ViMax-relevant models (image, video, image-to-video, image-to-image).
 
 ```bash
-bun run pipeline system models --json
+qcut system models --json
 ```

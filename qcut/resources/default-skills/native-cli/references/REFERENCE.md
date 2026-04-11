@@ -192,20 +192,20 @@ Extract highlight clips from a video using subtitle-based LLM analysis. Runs a 4
 **Examples:**
 ```bash
 # Basic usage (auto-detect subtitle file)
-bun run pipeline autoclip -i video.mp4 -o /tmp/clips
+qcut autoclip -i video.mp4 -o /tmp/clips
 
 # With explicit SRT and higher threshold
-bun run pipeline autoclip -i video.mp4 -s subs.srt --min-score 0.8
+qcut autoclip -i video.mp4 -s subs.srt --min-score 0.8
 
 # Dry run (analysis only, no cutting)
-bun run pipeline autoclip -i video.mp4 -s subs.srt --dry-run
+qcut autoclip -i video.mp4 -s subs.srt --dry-run
 
 # Run only step 1 (outline extraction)
-bun run pipeline autoclip -i video.mp4 -s subs.srt --step 1
+qcut autoclip -i video.mp4 -s subs.srt --step 1
 
 # Full workflow: transcribe → autoclip
 whisper video.mp4 --model small --output_format srt --output_dir /tmp/
-bun run pipeline autoclip -i video.mp4 -s /tmp/video.srt -o /tmp/clips
+qcut autoclip -i video.mp4 -s /tmp/video.srt -o /tmp/clips
 ```
 
 ---
@@ -232,13 +232,13 @@ Translate a video's speech into another language using HeyGen Translate (Speed) 
 **Examples:**
 ```bash
 # Translate local video to Spanish
-bun run pipeline translate-video -i video.mp4 -l Spanish
+qcut translate-video -i video.mp4 -l Spanish
 
 # Translate URL to Chinese, audio only
-bun run pipeline translate-video -i "https://example.com/video.mp4" -l Chinese --audio-only
+qcut translate-video -i "https://example.com/video.mp4" -l Chinese --audio-only
 
 # Multi-speaker video to Japanese
-bun run pipeline translate-video -i interview.mp4 -l Japanese --speakers 2 -o /tmp/translated
+qcut translate-video -i interview.mp4 -l Japanese --speakers 2 -o /tmp/translated
 ```
 
 ---
@@ -297,7 +297,7 @@ Use `--help --json` at any level to get structured JSON help output:
 ### Level 1: Root overview
 
 ```bash
-bun run pipeline --help --json
+qcut --help --json
 ```
 
 Returns version, all categories, every command (name + description + category), and global flags.
@@ -305,7 +305,7 @@ Returns version, all categories, every command (name + description + category), 
 ### Level 2: Command detail
 
 ```bash
-bun run pipeline generate-image --help --json
+qcut generate-image --help --json
 ```
 
 Returns command name, description, category, usage string, required flags, optional flags, and examples.
@@ -313,7 +313,7 @@ Returns command name, description, category, usage string, required flags, optio
 ### Level 3: Parameter detail
 
 ```bash
-bun run pipeline generate-image --help model --json
+qcut generate-image --help model --json
 ```
 
 Returns a single flag's name, type, description, short alias, required status, default value, and enum values.
