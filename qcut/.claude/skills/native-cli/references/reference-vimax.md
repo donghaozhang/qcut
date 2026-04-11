@@ -1,10 +1,10 @@
-# Native Pipeline CLI — ViMax Commands
+# Native Pipeline CLI — Flow (ViMax) Commands
 
 See [REFERENCE.md](REFERENCE.md) for generation, analysis, and model commands.
 
 ---
 
-All `vimax:*` commands share these override flags:
+All `flow` workflow commands share these override flags:
 
 | Flag | Description |
 |------|-------------|
@@ -27,15 +27,15 @@ The default LLM for all ViMax agents is `google/gemini-3-flash-preview` (via Ope
 
 ```bash
 # Use default (Gemini 3 Flash)
-bun run pipeline vimax:generate-script --idea "..."
+bun run pipeline flow script --idea "..."
 
 # Override with a specific model
-bun run pipeline vimax:generate-script --idea "..." --llm-model "gpt-4o"
+bun run pipeline flow script --idea "..." --llm-model "gpt-4o"
 ```
 
 ## Commands
 
-### `vimax:idea2video`
+### `flow idea2video`
 
 Full pipeline: idea -> screenplay -> characters -> portraits -> storyboard -> video.
 
@@ -49,7 +49,7 @@ Full pipeline: idea -> screenplay -> characters -> portraits -> storyboard -> vi
 | `--config` | `-c` | string | | YAML config overrides |
 | `--project-id` | | string | | Project ID for registry |
 
-### `vimax:script2video`
+### `flow script2video`
 
 Script -> storyboard -> video (from existing script.json).
 
@@ -60,7 +60,7 @@ Script -> storyboard -> video (from existing script.json).
 | `--portraits` | `-p` | string | Portrait registry JSON path |
 | `--no-references` | | boolean | Disable character references |
 
-### `vimax:novel2movie`
+### `flow novel2movie`
 
 Novel text file -> chapter extraction -> screenplay -> video.
 
@@ -74,7 +74,7 @@ Novel text file -> chapter extraction -> screenplay -> video.
 | `--scripts-only` | | boolean | `false` | Stop after scripts |
 | `--storyboard-only` | | boolean | `false` | Stop after storyboard |
 
-### `vimax:extract-characters`
+### `flow characters`
 
 Extract character descriptions from text.
 
@@ -86,7 +86,7 @@ Extract character descriptions from text.
 
 Output: `characters.json`
 
-### `vimax:generate-script`
+### `flow script`
 
 Generate screenplay from an idea.
 
@@ -99,7 +99,7 @@ Generate screenplay from an idea.
 
 Output: `script.json`
 
-### `vimax:generate-portraits`
+### `flow portraits`
 
 Generate character portrait images.
 
@@ -116,7 +116,7 @@ Generate character portrait images.
 
 Output: `portraits/` directory + `registry.json`
 
-### `vimax:generate-storyboard`
+### `flow storyboard`
 
 Generate storyboard images from a script.
 
@@ -130,7 +130,7 @@ Generate storyboard images from a script.
 | `--reference-model` | | string | Reference injection model |
 | `--reference-strength` | | float | Reference strength (0.0-1.0) |
 
-### `vimax:create-registry`
+### `flow registry-create`
 
 Build portrait registry from existing portrait directory.
 
@@ -141,7 +141,7 @@ Build portrait registry from existing portrait directory.
 
 Expected structure: `portraits/<CharacterName>/<view>.png`
 
-### `vimax:show-registry`
+### `flow registry-show`
 
 Display contents of a portrait registry.
 
@@ -149,6 +149,10 @@ Display contents of a portrait registry.
 |------|-------|------|-------------|
 | `--input` | `-i` | string | Path to registry.json (required) |
 
-### `vimax:list-models`
+### `system models`
 
 List ViMax-relevant models (image, video, image-to-video, image-to-image).
+
+```bash
+bun run pipeline system models --json
+```

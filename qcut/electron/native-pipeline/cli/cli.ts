@@ -833,7 +833,8 @@ if (
 	scriptPath &&
 	(scriptPath.endsWith("cli.ts") ||
 		scriptPath.endsWith("cli.js") ||
-		scriptPath.endsWith("qcut-pipeline"))
+		scriptPath.endsWith("qcut-pipeline") ||
+		scriptPath.endsWith("/qcut"))
 ) {
 	main().catch((err) => {
 		console.error(err.message || err);

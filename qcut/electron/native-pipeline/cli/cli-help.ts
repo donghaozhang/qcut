@@ -10,8 +10,18 @@ import { jsonError, jsonOk } from "./json-output.js";
 
 export const CLI_VERSION = "1.0.0";
 
+/** Detect CLI binary name from process.argv. */
+export function getCliName(): string {
+	const scriptPath = process.argv[1] ?? "";
+	if (scriptPath.endsWith("/qcut") || scriptPath.endsWith("\\qcut")) {
+		return "qcut";
+	}
+	return "qcut-pipeline";
+}
+
 /** Handle print help — shows group-based taxonomy as primary. */
 export function printHelp(): void {
+	const bin = getCliName();
 	// Build group listing
 	const groupLines = COMMAND_GROUPS.map(
 		(g) => `  ${g.name.padEnd(12)} ${g.description}`,
@@ -19,16 +29,16 @@ export function printHelp(): void {
 
 	console.log(
 		`
-qcut-pipeline v${CLI_VERSION} — AI content generation CLI
+${bin} v${CLI_VERSION} — AI content generation CLI
 
 Usage:
-  qcut-pipeline <group> <action> [options]
-  qcut-pipeline <command> [options]          (legacy)
+  ${bin} <group> <action> [options]
+  ${bin} <command> [options]          (legacy)
 
 Groups:
 ${groupLines}
 
-Run "qcut-pipeline <group> --help" for group details.
+Run "${bin} <group> --help" for group details.
 
 Editor Commands (requires running QCut — use --project-id for most):
   editor:health, editor:media:*, editor:project:*, editor:timeline:*,
@@ -50,18 +60,19 @@ Global Options:
   --version           Show version
 
 Examples:
-  qcut-pipeline gen image -t "A cat in space"
-  qcut-pipeline gen video -m kling_2_6_pro -t "Ocean waves" -d 5s
-  qcut-pipeline flow run -c pipeline.yaml -i "A sunset"
-  qcut-pipeline audio transcribe --video-url video.mp4
-  qcut-pipeline system models --json
-  qcut-pipeline editor:timeline:export --project-id my-proj --json
+  ${bin} gen image -t "A cat in space"
+  ${bin} gen video -m kling_2_6_pro -t "Ocean waves" -d 5s
+  ${bin} flow run -c pipeline.yaml -i "A sunset"
+  ${bin} audio transcribe --video-url video.mp4
+  ${bin} system models --json
+  ${bin} editor:timeline:export --project-id my-proj --json
 `.trim()
 	);
 }
 
 /** Print help for a specific command group. */
 export function printGroupHelp(groupName: string): void {
+	const bin = getCliName();
 	const group = COMMAND_GROUPS.find((g) => g.name === groupName);
 	if (!group) {
 		console.error(`Unknown group: ${groupName}`);
@@ -77,16 +88,16 @@ export function printGroupHelp(groupName: string): void {
 
 	console.log(
 		`
-qcut-pipeline ${group.name} — ${group.label}
+${bin} ${group.name} — ${group.label}
 
 ${group.description}
 
-Usage: qcut-pipeline ${group.name} <action> [options]
+Usage: ${bin} ${group.name} <action> [options]
 
 Actions:
 ${actionLines.join("\n")}
 
-Run "qcut-pipeline ${group.name} <action> --help" for action details.
+Run "${bin} ${group.name} <action> --help" for action details.
 `.trim()
 	);
 }
