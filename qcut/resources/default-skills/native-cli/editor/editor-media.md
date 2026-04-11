@@ -9,25 +9,25 @@ See [editor-core.md](editor-core.md) for connection options, flags, and workflow
 ### List media
 
 ```bash
-bun run pipeline editor:media:list --project-id <id>
+qcut editor:media:list --project-id <id>
 ```
 
 ### Get media info
 
 ```bash
-bun run pipeline editor:media:info --project-id <id> --media-id <id>
+qcut editor:media:info --project-id <id> --media-id <id>
 ```
 
 ### Import local file
 
 ```bash
-bun run pipeline editor:media:import --project-id <id> --source /path/to/video.mp4
+qcut editor:media:import --project-id <id> --source /path/to/video.mp4
 ```
 
 ### Import from URL
 
 ```bash
-bun run pipeline editor:media:import-url \
+qcut editor:media:import-url \
   --project-id <id> \
   --url "https://example.com/video.mp4" \
   --filename "my-video.mp4"
@@ -36,7 +36,7 @@ bun run pipeline editor:media:import-url \
 ### Batch import (max 20 items)
 
 ```bash
-bun run pipeline editor:media:batch-import \
+qcut editor:media:batch-import \
   --project-id <id> \
   --items '[{"path":"/path/to/a.mp4"},{"url":"https://example.com/b.mp4"}]'
 
@@ -47,7 +47,7 @@ bun run pipeline editor:media:batch-import \
 ### Extract a frame
 
 ```bash
-bun run pipeline editor:media:extract-frame \
+qcut editor:media:extract-frame \
   --project-id <id> \
   --media-id <id> \
   --start-time 5.0 \
@@ -57,7 +57,7 @@ bun run pipeline editor:media:extract-frame \
 ### Rename media
 
 ```bash
-bun run pipeline editor:media:rename \
+qcut editor:media:rename \
   --project-id <id> \
   --media-id <id> \
   --new-name "final-cut.mp4"
@@ -66,7 +66,7 @@ bun run pipeline editor:media:rename \
 ### Delete media
 
 ```bash
-bun run pipeline editor:media:delete --project-id <id> --media-id <id>
+qcut editor:media:delete --project-id <id> --media-id <id>
 ```
 
 ---
@@ -76,13 +76,13 @@ bun run pipeline editor:media:delete --project-id <id> --media-id <id>
 ### Get settings
 
 ```bash
-bun run pipeline editor:project:settings --project-id <id>
+qcut editor:project:settings --project-id <id>
 ```
 
 ### Update settings
 
 ```bash
-bun run pipeline editor:project:update-settings \
+qcut editor:project:update-settings \
   --project-id <id> \
   --data '{"fps":30,"width":1920,"height":1080}'
 ```
@@ -90,19 +90,19 @@ bun run pipeline editor:project:update-settings \
 ### Get statistics
 
 ```bash
-bun run pipeline editor:project:stats --project-id <id>
+qcut editor:project:stats --project-id <id>
 ```
 
 ### Get summary (markdown)
 
 ```bash
-bun run pipeline editor:project:summary --project-id <id>
+qcut editor:project:summary --project-id <id>
 ```
 
 ### Generate pipeline report
 
 ```bash
-bun run pipeline editor:project:report \
+qcut editor:project:report \
   --project-id <id> \
   --output-dir ./reports \
   --clear-log
@@ -111,31 +111,31 @@ bun run pipeline editor:project:report \
 ### Create project
 
 ```bash
-bun run pipeline editor:project:create --new-name "My New Project"
+qcut editor:project:create --new-name "My New Project"
 ```
 
 ### Delete project
 
 ```bash
-bun run pipeline editor:project:delete --project-id <id>
+qcut editor:project:delete --project-id <id>
 ```
 
 ### Rename project
 
 ```bash
-bun run pipeline editor:project:rename --project-id <id> --new-name "New Name"
+qcut editor:project:rename --project-id <id> --new-name "New Name"
 ```
 
 ### Duplicate project
 
 ```bash
-bun run pipeline editor:project:duplicate --project-id <id>
+qcut editor:project:duplicate --project-id <id>
 ```
 
 ### List all projects
 
 ```bash
-bun run pipeline editor:project:list --json
+qcut editor:project:list --json
 ```
 
 Returns all projects with `id`, `name`, `createdAt`, `updatedAt`.
@@ -144,10 +144,10 @@ Returns all projects with `id`, `name`, `createdAt`, `updatedAt`.
 
 ```bash
 # Minimal (~200 tokens): counts + settings only
-bun run pipeline editor:project:info --project-id <id> --json
+qcut editor:project:info --project-id <id> --json
 
 # Full (~2000 tokens): includes media[], subtitles[], generated[], exports[], jobs[]
-bun run pipeline editor:project:info --project-id <id> --full --json
+qcut editor:project:info --project-id <id> --full --json
 ```
 
 | Flag | Type | Default | Description |
@@ -158,8 +158,8 @@ bun run pipeline editor:project:info --project-id <id> --full --json
 ### Export project state to disk
 
 ```bash
-bun run pipeline editor:project:export-state --project-id <id>
-bun run pipeline editor:project:export-state --project-id <id> --output ./state.json
+qcut editor:project:export-state --project-id <id>
+qcut editor:project:export-state --project-id <id> --output ./state.json
 ```
 
 | Flag | Type | Default | Description |
@@ -170,7 +170,7 @@ bun run pipeline editor:project:export-state --project-id <id> --output ./state.
 ### Import project state (planned)
 
 ```bash
-bun run pipeline editor:project:import-state --project-id <id> --data @state.json
+qcut editor:project:import-state --project-id <id> --data @state.json
 ```
 
 | Flag | Type | Description |

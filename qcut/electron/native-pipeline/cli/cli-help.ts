@@ -5,105 +5,55 @@ import {
 	getCommand,
 	getCommandFlag,
 } from "./command-registry.js";
+import { COMMAND_GROUPS } from "./command-groups.js";
 import { jsonError, jsonOk } from "./json-output.js";
 
 export const CLI_VERSION = "1.0.0";
 
-/** Handle print help. */
+/** Detect CLI binary name from process.argv. */
+export function getCliName(): string {
+	const scriptPath = process.argv[1] ?? "";
+	if (
+		scriptPath.endsWith("/qcut") ||
+		scriptPath.endsWith("\\qcut") ||
+		scriptPath.endsWith("\\qcut.exe") ||
+		scriptPath.endsWith("\\qcut.cmd")
+	) {
+		return "qcut";
+	}
+	return "qcut-pipeline";
+}
+
+/** Handle print help — shows group-based taxonomy as primary. */
 export function printHelp(): void {
+	const bin = getCliName();
+	// Build group listing
+	const groupLines = COMMAND_GROUPS.map(
+		(g) => `  ${g.name.padEnd(12)} ${g.description}`
+	).join("\n");
+
 	console.log(
 		`
-qcut-pipeline v${CLI_VERSION} — AI content generation CLI
+${bin} v${CLI_VERSION} — AI content generation CLI
 
-Usage: qcut-pipeline <command> [options]
+Usage:
+  ${bin} <group> <action> [options]
+  ${bin} <command> [options]          (legacy)
 
-Commands:
-  generate-image      Generate an image from text
-  create-video        Create a video from text or image
-  generate-avatar     Generate a talking avatar video
-  run-pipeline        Run a multi-step YAML pipeline
-  list-models         List available AI models
-  estimate-cost       Estimate generation cost
-  analyze-video       Analyze a video with AI vision
-  query-video         Query a video with a custom prompt (keep/cut segments)
-  transcribe          Transcribe audio to text
-  generate-remotion   Generate a Remotion component from a prompt
-  transfer-motion     Transfer motion from video to image
-  generate-grid       Generate an image grid
-  upscale-image       Upscale an image
-  generate-speech     Generate speech from text (Chatterbox/ElevenLabs/Qwen3)
-  convert-speech      Convert speech to a different voice (Chatterbox S2S)
-  clone-voice         Clone a voice from reference audio (Qwen3)
-  create-element      Create a reusable character/object element (Kling V3 Omni)
-  list-elements       List stored Kling elements
-  delete-element      Delete a stored element by ID
-  login               Log in to QCut with email and password
-  signup              Create a new QCut account
-  logout              Log out and clear stored session token
-  setup               Create API key template file
-  set-key             Set an API key
-  get-key             Get an API key (masked)
-  delete-key          Delete a stored API key
-  check-keys          Check configured API keys
-  init-project        Initialize project directory structure
-  organize-project    Organize media files into categories
-  structure-info      Show project structure and file counts
-  create-examples     Create example pipeline configs
-Moyin Commands:
-  moyin:parse-script  Parse screenplay into structured data (characters/scenes)
+Groups:
+${groupLines}
 
-ViMax Commands:
-  vimax:idea2video    Generate video from an idea
-  vimax:script2video  Generate video from a script
-  vimax:novel2movie   Generate movie from a novel
-  vimax:extract-characters  Extract characters from text
-  vimax:generate-script     Generate screenplay from idea
-  vimax:generate-storyboard Generate storyboard from script
-  vimax:generate-portraits  Generate character portraits
-  vimax:create-registry     Create portrait registry from files
-  vimax:show-registry       Display registry contents
-  vimax:list-models         List ViMax-specific models
-  list-avatar-models  List avatar/video/motion/speech models
-  list-video-models   list-motion-models  list-speech-models
+Run "${bin} <group> --help" for group details.
 
 Editor Commands (requires running QCut — use --project-id for most):
-  editor:health                     Check editor connectivity
-  editor:media:*                    list, info, import, import-url, batch-import,
-                                    extract-frame, rename, delete
-  editor:project:*                  settings, update-settings, stats, summary,
-                                    report, create, delete, rename, duplicate, list, info
-  editor:timeline:*                 export, import, add-element, batch-add,
-                                    update-element, batch-update, delete-element,
-                                    batch-delete, split, move, arrange, select,
-                                    get-selection, clear-selection, play, pause,
-                                    toggle-play, seek, info, add-clip, trim
-  editor:editing:*                  batch-cuts, delete-range, auto-edit,
-                                    auto-edit-status, auto-edit-list, suggest-cuts, suggest-status
-  editor:analyze:*                  video, models, scenes, frames, fillers, beats
-  editor:transcribe:*               run, start, status, list-jobs, cancel
-  editor:search:*                  query, status, index
-  editor:generate:*                 start, status, list-jobs, cancel, models, estimate-cost
-  editor:export:*                   presets, recommend, start, status, list-jobs
-  editor:diagnostics:analyze        Analyze error (--message)
-  editor:mcp:forward-html           Forward HTML to MCP preview
-  editor:navigator:projects/open    List or open projects
-  editor:screen-recording:*         sources, start, stop, force-stop, status
-  editor:remotion:*                 list, inspect, update-props, export
-  editor:ui:switch-panel            Switch editor panel (--panel, --tab)
-  editor:snapshot                   Get UI accessibility snapshot (--interactive, --depth)
-  editor:snapshot:click             Click a UI ref from the latest snapshot (--ref)
-  editor:snapshot:fill              Fill a UI ref from the latest snapshot (--ref, --text)
-  editor:snapshot:select            Select a dropdown option by ref (--ref, --value)
-  editor:snapshot:check             Toggle a checkbox/switch by ref (--ref, --checked)
-  editor:diff:snapshot              Compare two saved snapshot files (--before, --after)
-  editor:diff:screenshot            Pixel-diff two screenshot PNGs (--before, --after, --threshold)
-  editor:session:*                  save, load, list, delete
-  editor:moyin:*                    set-script, parse, status
-  editor:screenshot:capture         Take screenshot (--filename)
-  editor:undo                       Undo last action
-  editor:redo                       Redo last undone action
-  editor:state:snapshot             Get editor state snapshot (--include)
-  pipeline:status                   Get pipeline job status (--job-id)
+  editor:health, editor:console, editor:errors, editor:undo, editor:redo,
+  editor:media:*, editor:project:*, editor:timeline:*, editor:editing:*,
+  editor:analyze:*, editor:transcribe:*, editor:search:*, editor:generate:*,
+  editor:export:*, editor:remotion:*, editor:snapshot:*, editor:screenshot:*,
+  editor:diff:*, editor:session:*, editor:screen-recording:*, editor:state:*,
+  editor:sticker:*, editor:moyin:*, editor:novel:*, editor:navigator:*,
+  editor:auth:*, editor:diagnostics:*, editor:mcp:forward-html,
+  editor:ui:switch-panel, editor:ui:context-menu
 
   Use <command> --help --json for detailed flag info per command.
 
@@ -118,57 +68,70 @@ Global Options:
   --help, -h          Show help
   --version           Show version
 
-Generation Options:
-  --text, -t          Text prompt for generation
-  --image-url         Input image URL
-  --video-url         Input video URL
-  --audio-url         Input audio URL
-  --duration, -d      Duration (e.g. "5s", "10")
-  --aspect-ratio      Aspect ratio (e.g. "16:9", "9:16")
-  --resolution        Resolution (e.g. "1080p", "720p")
-  --count             Generate N copies in parallel (e.g. --count 3)
-  --prompts           Multiple prompts for parallel generation (repeatable)
-
-Pipeline Options:
-  --config, -c        Path to YAML pipeline config
-  --input, -i         Pipeline input text or file path
-  --save-intermediates Save intermediate step outputs
-  --parallel          Enable parallel step execution
-  --max-workers       Max concurrent workers (default: 8)
-
-Performance Options:
-  --skip-health           Skip editor health check (use when editor is known up)
-  --no-capability-check   Skip per-request capability warnings
-  --session               Session mode: read commands from stdin, one per line
-  --resume <name>         Load sticky project/panel/history from a named session
-  --state-dir <dir>       Override the state directory used for resumed sessions
-
-Editor Options (see docs for full list):
-  --project-id   Project ID    --media-id   Media ID
-  --element-id   Element ID    --track-id   Track ID
-  --job-id       Job ID        --data       JSON input (@file/inline/-)
-  --session-name Saved session name for editor:session:* commands
-  --to-track     Target track  --split-time Split point (s)
-  --time         Seek time (s) --start-time Start (s)
-  --end-time     End (s)
-  --mode         Arrange mode  --replace    Replace on import
-  --ripple       Ripple edit   --poll       Auto-poll async jobs
-  --host/--port  API endpoint (default: 127.0.0.1:8765)
-  --token        API auth      --timeout    Job timeout (s)
-
-Environment Variables:
-  FAL_KEY             FAL.ai API key
-  GEMINI_API_KEY      Google Gemini API key
-  OPENROUTER_API_KEY  OpenRouter API key
-  ELEVENLABS_API_KEY  ElevenLabs API key
-
 Examples:
-  qcut-pipeline generate-image -t "A cat in space"
-  qcut-pipeline create-video -m kling_2_6_pro -t "Ocean waves" -d 5s
-  qcut-pipeline run-pipeline -c pipeline.yaml -i "A sunset"
-  qcut-pipeline editor:timeline:export --project-id my-proj --json
+  ${bin} gen image -t "A cat in space"
+  ${bin} gen video -m kling_2_6_pro -t "Ocean waves" -d 5s
+  ${bin} flow run -c pipeline.yaml -i "A sunset"
+  ${bin} analyze transcribe --video-url video.mp4
+  ${bin} system models --json
+  ${bin} editor:timeline:export --project-id my-proj --json
 `.trim()
 	);
+}
+
+/** Print help for a specific command group. */
+export function printGroupHelp(groupName: string): void {
+	const bin = getCliName();
+	const group = COMMAND_GROUPS.find((g) => g.name === groupName);
+	if (!group) {
+		console.error(`Unknown group: ${groupName}`);
+		process.exit(2);
+	}
+
+	const actionLines: string[] = [];
+	for (const [action, internalCmd] of Object.entries(group.actions)) {
+		const cmd = getCommand(internalCmd);
+		const desc = cmd?.description ?? internalCmd;
+		actionLines.push(`  ${action.padEnd(20)} ${desc}`);
+	}
+
+	console.log(
+		`
+${bin} ${group.name} — ${group.label}
+
+${group.description}
+
+Usage: ${bin} ${group.name} <action> [options]
+
+Actions:
+${actionLines.join("\n")}
+
+Run "${bin} ${group.name} <action> --help" for action details.
+`.trim()
+	);
+}
+
+/** Print group-level help as JSON. */
+export function printGroupHelpJson(groupName: string): void {
+	const group = COMMAND_GROUPS.find((g) => g.name === groupName);
+	if (!group) {
+		jsonError(`Unknown group: ${groupName}`, "help:unknown-group");
+		return;
+	}
+	const actions = Object.entries(group.actions).map(([action, internalCmd]) => {
+		const cmd = getCommand(internalCmd);
+		return {
+			action,
+			command: internalCmd,
+			description: cmd?.description ?? internalCmd,
+		};
+	});
+	jsonOk({
+		group: group.name,
+		label: group.label,
+		description: group.description,
+		actions,
+	});
 }
 
 /** Level 1: Root overview — version, categories, command list. */

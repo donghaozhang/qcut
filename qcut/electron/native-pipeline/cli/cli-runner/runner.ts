@@ -1,5 +1,7 @@
 /**
- * CLI Pipeline Runner class — delegates to handler functions.
+ * CLI Pipeline Runner class — delegates to handler functions
+ * via the HANDLER_MAP registry.
+ *
  * @module electron/native-pipeline/cli/cli-runner/runner
  */
 
@@ -11,63 +13,7 @@ import {
 import { loadEnvFile, getKey } from "../../infra/key-manager.js";
 import { setSessionTokenProvider } from "../../infra/proxy-client.js";
 import { readStdin } from "../interactive.js";
-import {
-	handleAnalyzeVideo as mediaHandleAnalyzeVideo,
-	handleTranscribe as mediaHandleTranscribe,
-	handleQueryVideo as mediaHandleQueryVideo,
-} from "../cli-handlers-media.js";
-import { handleGenerateRemotion } from "../cli-handlers-remotion.js";
-import { handleMoyinParseScript } from "../cli-handlers-moyin.js";
-import {
-	handleSetup as adminHandleSetup,
-	handleSetKey as adminHandleSetKey,
-	handleGetKey as adminHandleGetKey,
-	handleCheckKeys as adminHandleCheckKeys,
-	handleDeleteKey as adminHandleDeleteKey,
-	handleLogin as adminHandleLogin,
-	handleSignup as adminHandleSignup,
-	handleLogout as adminHandleLogout,
-	handleInitProject as adminHandleInitProject,
-	handleOrganizeProject as adminHandleOrganizeProject,
-	handleStructureInfo as adminHandleStructureInfo,
-	handleCreateExamples as adminHandleCreateExamples,
-	handleListModels as adminHandleListModels,
-	handleEstimateCost as adminHandleEstimateCost,
-} from "../cli-handlers-admin.js";
-import {
-	handleCreateElement as elementHandleCreate,
-	handleListElements as elementHandleList,
-	handleDeleteElement as elementHandleDelete,
-} from "../cli-handlers-element.js";
 import { handleEditorCommand } from "../cli-handlers-editor.js";
-import {
-	handleVimaxExtractCharacters,
-	handleVimaxGenerateScript,
-	handleVimaxGenerateStoryboard,
-	handleVimaxGeneratePortraits,
-	handleVimaxCreateRegistry,
-	handleVimaxShowRegistry,
-	handleVimaxListModels,
-	handleVimaxIdea2Video,
-	handleVimaxScript2Video,
-	handleVimaxNovel2Movie,
-} from "../vimax-cli-handlers.js";
-import { handleStampImage } from "../cli-handlers-stamp.js";
-import { handleYouTubeUpload } from "../cli-handlers-youtube.js";
-import { handleTranslateVideo } from "../cli-handlers-translate.js";
-import {
-	handlePhotaEdit,
-	handlePhotaEnhance,
-	handlePhotaCreateProfile,
-} from "../cli-handlers-phota.js";
-import {
-	runAutoclip,
-	parseAutoclipOptions,
-} from "../../autoclip/autoclip-runner.js";
-import {
-	runCleanAudio,
-	parseCleanAudioOptions,
-} from "../../autoclip/clean-audio-runner.js";
 import type { CLIRunOptions, CLIResult, ProgressFn } from "./types.js";
 import { resolveActionPolicy, evaluateActionPolicy } from "../action-policy.js";
 import { confirm, isInteractive } from "../interactive.js";
@@ -79,26 +25,8 @@ import {
 	updateSessionState,
 	type SessionState,
 } from "../session-state.js";
-import { handleGenerate } from "./handler-generate.js";
-import { handleRunPipeline } from "./handler-pipeline.js";
-import { handleTransferMotion } from "./handler-transfer.js";
-import { handleGenerateGrid } from "./handler-grid.js";
-import { handleUpscaleImage } from "./handler-upscale.js";
-import { handlePipelineStatus } from "./handler-pipeline-status.js";
-import {
-	handleGenerateSpeech,
-	handleConvertSpeech,
-	handleCloneVoice,
-} from "../cli-handlers-speech.js";
-import {
-	handleSubtitleStyle,
-	handleSubtitleExport,
-} from "../cli-handlers-subtitle.js";
-import {
-	handleReplicate,
-	handleReplicateAnalyze,
-	handleReplicateGenerate,
-} from "../cli-handlers-replicate.js";
+import { HANDLER_MAP } from "./handler-map.js";
+import { ModelRegistry } from "../../infra/registry.js";
 
 async function enforceActionPolicy({
 	options,
@@ -237,315 +165,39 @@ export class CLIPipelineRunner {
 			return policyResult;
 		}
 
-		let result: CLIResult;
-		switch (resolvedOptions.command) {
-			case "list-models":
-				result = await adminHandleListModels(resolvedOptions);
-				break;
-			case "estimate-cost":
-				result = await adminHandleEstimateCost(resolvedOptions);
-				break;
-			case "generate-image":
-			case "create-video":
-			case "generate-avatar":
-				result = await handleGenerate(
-					resolvedOptions,
-					onProgress,
-					this.executor,
-					this.signal
-				);
-				break;
-			case "run-pipeline":
-				result = await handleRunPipeline(
-					resolvedOptions,
-					onProgress,
-					this.executor,
-					this.signal
-				);
-				break;
-			case "analyze-video":
-				result = await mediaHandleAnalyzeVideo(
-					resolvedOptions,
-					onProgress,
-					this.executor,
-					this.signal
-				);
-				break;
-			case "query-video":
-				result = await mediaHandleQueryVideo(
-					resolvedOptions,
-					onProgress,
-					this.executor,
-					this.signal
-				);
-				break;
-			case "transcribe":
-				result = await mediaHandleTranscribe(
-					resolvedOptions,
-					onProgress,
-					this.executor,
-					this.signal
-				);
-				break;
-			case "generate-remotion":
-				result = await handleGenerateRemotion(
-					resolvedOptions,
-					onProgress,
-					null,
-					this.signal
-				);
-				break;
-			case "moyin:parse-script":
-				result = await handleMoyinParseScript(resolvedOptions, onProgress);
-				break;
-			case "transfer-motion":
-				result = await handleTransferMotion(
-					resolvedOptions,
-					onProgress,
-					this.executor,
-					this.signal
-				);
-				break;
-			case "generate-grid":
-				result = await handleGenerateGrid(
-					resolvedOptions,
-					onProgress,
-					this.executor,
-					this.signal
-				);
-				break;
-			case "stamp-image":
-				result = await handleStampImage(resolvedOptions, onProgress);
-				break;
-			case "upscale-image":
-				result = await handleUpscaleImage(
-					resolvedOptions,
-					onProgress,
-					this.executor,
-					this.signal
-				);
-				break;
-			case "login":
-				result = await adminHandleLogin(resolvedOptions);
-				break;
-			case "signup":
-				result = await adminHandleSignup(resolvedOptions);
-				break;
-			case "logout":
-				result = await adminHandleLogout();
-				break;
-			case "create-element":
-				result = await elementHandleCreate(resolvedOptions, onProgress);
-				break;
-			case "list-elements":
-				result = elementHandleList();
-				break;
-			case "delete-element":
-				result = elementHandleDelete(resolvedOptions);
-				break;
-			case "setup":
-				result = await adminHandleSetup();
-				break;
-			case "set-key":
-				result = await adminHandleSetKey(resolvedOptions);
-				break;
-			case "get-key":
-				result = await adminHandleGetKey(resolvedOptions);
-				break;
-			case "check-keys":
-				result = await adminHandleCheckKeys();
-				break;
-			case "delete-key":
-				result = await adminHandleDeleteKey(resolvedOptions);
-				break;
-			case "init-project":
-				result = await adminHandleInitProject(resolvedOptions);
-				break;
-			case "organize-project":
-				result = await adminHandleOrganizeProject(resolvedOptions);
-				break;
-			case "structure-info":
-				result = await adminHandleStructureInfo(resolvedOptions);
-				break;
-			case "create-examples":
-				result = await adminHandleCreateExamples(resolvedOptions);
-				break;
-			case "vimax:idea2video":
-				result = await handleVimaxIdea2Video(resolvedOptions, onProgress);
-				break;
-			case "vimax:script2video":
-				result = await handleVimaxScript2Video(resolvedOptions, onProgress);
-				break;
-			case "vimax:novel2movie":
-				result = await handleVimaxNovel2Movie(resolvedOptions, onProgress);
-				break;
-			case "vimax:extract-characters":
-				result = await handleVimaxExtractCharacters(
-					resolvedOptions,
-					onProgress
-				);
-				break;
-			case "vimax:generate-script":
-				result = await handleVimaxGenerateScript(resolvedOptions, onProgress);
-				break;
-			case "vimax:generate-storyboard":
-				result = await handleVimaxGenerateStoryboard(
-					resolvedOptions,
-					onProgress
-				);
-				break;
-			case "vimax:generate-portraits":
-				result = await handleVimaxGeneratePortraits(
-					resolvedOptions,
-					onProgress
-				);
-				break;
-			case "vimax:create-registry":
-				result = await handleVimaxCreateRegistry(resolvedOptions);
-				break;
-			case "vimax:show-registry":
-				result = await handleVimaxShowRegistry(resolvedOptions);
-				break;
-			case "vimax:list-models":
-				result = await handleVimaxListModels();
-				break;
-			case "list-avatar-models":
-				result = await adminHandleListModels({
-					...resolvedOptions,
-					category: "avatar",
-				});
-				break;
-			case "list-video-models":
-				result = await adminHandleListModels({
-					...resolvedOptions,
-					category: "text_to_video",
-				});
-				break;
-			case "list-motion-models":
-				result = await adminHandleListModels({
-					...resolvedOptions,
-					category: "motion_transfer",
-				});
-				break;
-			case "list-speech-models":
-				result = await adminHandleListModels({
-					...resolvedOptions,
-					category: "text_to_speech",
-				});
-				break;
-			case "pipeline:status":
-				result = await handlePipelineStatus(resolvedOptions);
-				break;
-			case "translate-video":
-				result = await handleTranslateVideo(
-					resolvedOptions,
-					onProgress,
-					this.signal
-				);
-				break;
-			case "phota:edit":
-				result = await handlePhotaEdit(
-					resolvedOptions,
-					onProgress,
-					this.signal
-				);
-				break;
-			case "phota:enhance":
-				result = await handlePhotaEnhance(
-					resolvedOptions,
-					onProgress,
-					this.signal
-				);
-				break;
-			case "phota:profile":
-				result = await handlePhotaCreateProfile(
-					resolvedOptions,
-					onProgress,
-					this.signal
-				);
-				break;
-			case "generate-speech":
-				result = await handleGenerateSpeech(
-					resolvedOptions,
-					onProgress,
-					this.signal
-				);
-				break;
-			case "convert-speech":
-				result = await handleConvertSpeech(
-					resolvedOptions,
-					onProgress,
-					this.signal
-				);
-				break;
-			case "clone-voice":
-				result = await handleCloneVoice(
-					resolvedOptions,
-					onProgress,
-					this.signal
-				);
-				break;
-			case "youtube:upload":
-				result = await handleYouTubeUpload(resolvedOptions, onProgress);
-				break;
-			case "subtitle-style":
-				result = await handleSubtitleStyle(resolvedOptions, onProgress);
-				break;
-			case "subtitle-export":
-				result = await handleSubtitleExport(
-					resolvedOptions,
-					onProgress,
-					this.signal
-				);
-				break;
-			case "autoclip":
-				result = await runAutoclip(
-					parseAutoclipOptions(resolvedOptions),
-					onProgress,
-					this.signal
-				);
-				break;
-			case "clean-audio":
-				result = await runCleanAudio(
-					parseCleanAudioOptions(resolvedOptions),
-					onProgress,
-					this.signal
-				);
-				break;
-			case "replicate":
-				result = await handleReplicate(
-					resolvedOptions,
-					onProgress,
-					this.signal
-				);
-				break;
-			case "replicate:analyze":
-				result = await handleReplicateAnalyze(
-					resolvedOptions,
-					onProgress,
-					this.signal
-				);
-				break;
-			case "replicate:generate":
-				result = await handleReplicateGenerate(
-					resolvedOptions,
-					onProgress,
-					this.signal
-				);
-				break;
-			default:
-				if (resolvedOptions.command.startsWith("editor:")) {
-					result = await handleEditorCommand(
-						resolvedOptions,
-						onProgress,
-						this.signal
-					);
-					break;
-				}
-				result = {
+		// Resolve --provider to --model if model not explicitly set
+		if (resolvedOptions.provider && !resolvedOptions.model) {
+			const match = ModelRegistry.findByProvider(resolvedOptions.provider);
+			if (match) {
+				resolvedOptions = { ...resolvedOptions, model: match.key };
+			} else {
+				return {
 					success: false,
-					error: `Unknown command: ${resolvedOptions.command}`,
+					error: `Unknown provider '${resolvedOptions.provider}'. Use 'qcut system models --json' to list available providers.`,
 				};
+			}
+		}
+
+		let result: CLIResult;
+		const handler = HANDLER_MAP[resolvedOptions.command];
+		if (handler) {
+			result = await handler(
+				resolvedOptions,
+				onProgress,
+				this.executor,
+				this.signal
+			);
+		} else if (resolvedOptions.command.startsWith("editor:")) {
+			result = await handleEditorCommand(
+				resolvedOptions,
+				onProgress,
+				this.signal
+			);
+		} else {
+			result = {
+				success: false,
+				error: `Unknown command: ${resolvedOptions.command}`,
+			};
 		}
 
 		if (resolvedOptions.resume && activeSessionState) {

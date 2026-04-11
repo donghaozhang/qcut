@@ -80,7 +80,6 @@ export const CATEGORIES: CategoryDef[] = [
 			"generate-image",
 			"create-video",
 			"generate-avatar",
-			"generate-grid",
 			"stamp-image",
 			"upscale-image",
 			"transfer-motion",
@@ -224,11 +223,17 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				"Multiple prompts for batch generation (repeatable)"
 			),
 			f("--image-url", "string", "Reference image URL"),
+			f("--grid", "string", "Generate image grid (e.g. 2x2, 3x3, 2x3)", {
+				enum: ["2x2", "3x3", "2x3", "3x2", "1x2", "2x1"],
+			}),
+			f("--grid-upscale", "number", "Upscale factor for grid composite"),
+			f("--style", "string", "Style prefix prepended to prompt"),
 		],
 		examples: [
 			"qcut-pipeline generate-image -t 'A cat in space'",
 			"qcut-pipeline generate-image -t 'Ocean sunset' -m flux_dev --aspect-ratio 16:9",
 			"qcut-pipeline generate-image -t 'Logo design' --count 4 --json",
+			"qcut-pipeline generate-image -t 'Seasons of a tree' --grid 2x2",
 		],
 	},
 	"create-video": {
@@ -497,6 +502,9 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				required: true,
 			}),
 			f("--model", "string", "Model key", { short: "-m" }),
+			f("--provider", "string", "Provider name (auto-selects model)", {
+				enum: ["elevenlabs"],
+			}),
 			f("--language", "string", "Language code"),
 			f("--no-diarize", "boolean", "Disable speaker diarization", {
 				default: false,
@@ -614,10 +622,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 	"translate-video": {
 		name: "translate-video",
 		description:
-			"Translate a video into another language using HeyGen Translate (Speed) via FAL",
+			"Translate video or audio into another language using HeyGen Translate (Speed) via FAL",
 		category: "generation",
 		flags: [
-			f("--input", "string", "Input video file path or URL", {
+			f("--input", "string", "Input video or audio file path/URL", {
 				short: "-i",
 				required: true,
 			}),
@@ -635,6 +643,14 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				}
 			),
 			f(
+				"--output-audio",
+				"boolean",
+				"Output translated audio file (auto-enabled for audio input)",
+				{
+					default: false,
+				}
+			),
+			f(
 				"--no-dynamic-duration",
 				"boolean",
 				"Disable dynamic duration adjustment",
@@ -646,7 +662,8 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		],
 		examples: [
 			"qcut-pipeline translate-video -i video.mp4 -l Spanish",
-			"qcut-pipeline translate-video -i video.mp4 -l Chinese --audio-only",
+			"qcut-pipeline translate-video -i podcast.mp3 -l Chinese",
+			"qcut-pipeline translate-video -i video.mp4 -l Japanese --output-audio",
 			'qcut-pipeline translate-video -i "https://example.com/video.mp4" -l Japanese --speakers 2',
 		],
 	},
@@ -667,6 +684,9 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 					"elevenlabs_v3",
 					"qwen3_tts",
 				],
+			}),
+			f("--provider", "string", "Provider name (auto-selects model)", {
+				enum: ["chatterbox", "elevenlabs", "qwen"],
 			}),
 			f("--audio-url", "string", "Voice reference audio URL (for cloning)"),
 			f("--voice", "string", "Voice preset name (ElevenLabs/Qwen3)"),

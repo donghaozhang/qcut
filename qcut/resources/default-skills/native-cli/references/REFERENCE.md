@@ -6,13 +6,13 @@ Split across these files:
 
 - **REFERENCE.md** (this file) — Generation, Analysis, Script Parsing, Model Discovery, Help, Output Formats
 - [reference-pipelines.md](reference-pipelines.md) — YAML Pipelines, API Key Management, Project Management
-- [reference-vimax.md](reference-vimax.md) — ViMax Commands
+- [reference-vimax.md](reference-vimax.md) — Flow (ViMax) Commands
 
 For editor commands, see [editor-core.md](../editor/editor-core.md) and linked files.
 
 ## Generation Commands
 
-### `generate-image`
+### `gen image`
 
 Generate an image from a text prompt.
 
@@ -27,7 +27,7 @@ Generate an image from a text prompt.
 
 Output: `.png` file
 
-### `create-video`
+### `gen video`
 
 Create a video from text or image input.
 
@@ -43,7 +43,7 @@ Create a video from text or image input.
 
 Output: `.mp4` file
 
-### `generate-avatar`
+### `gen avatar`
 
 Generate a talking avatar video.
 
@@ -60,7 +60,7 @@ Generate a talking avatar video.
 
 Output: `.mp4` file
 
-### `transfer-motion`
+### `edit motion`
 
 Transfer motion from a reference video onto an image.
 
@@ -75,21 +75,21 @@ Transfer motion from a reference video onto an image.
 
 Output: `.mp4` file
 
-### `generate-grid`
+### `gen image --grid`
 
-Generate a grid of images from a prompt.
+Generate a grid of images from a prompt. Use `--grid` with `gen image` to produce a composite grid.
 
 | Flag | Short | Type | Default | Description |
 |------|-------|------|---------|-------------|
 | `--text` | `-t` | string | | Prompt (required) |
 | `--model` | `-m` | string | `flux_dev` | Image model |
-| `--layout` | | string | `2x2` | Grid: `2x2`, `3x3`, `2x3`, `3x2`, `1x2`, `2x1` |
+| `--grid` | | string | | Grid layout: `2x2`, `3x3`, `2x3`, `3x2`, `1x2`, `2x1` |
 | `--style` | | string | | Style prefix prepended to prompt |
 | `--grid-upscale` | | float | | Upscale factor after compositing |
 
 Output: composite `.png` file
 
-### `upscale-image`
+### `edit upscale`
 
 Upscale an image.
 
@@ -107,7 +107,7 @@ Upscale an image.
 
 ## Analysis Commands
 
-### `analyze-video`
+### `analyze video`
 
 Analyze a video with AI vision.
 
@@ -121,7 +121,7 @@ Analyze a video with AI vision.
 | `--text` | `-t` | string | | Alias for prompt |
 | `--output-format` | `-f` | string | `md` | `md`, `json`, `both` |
 
-### `transcribe`
+### `analyze transcribe`
 
 Transcribe audio to text with optional SRT.
 
@@ -139,7 +139,7 @@ Transcribe audio to text with optional SRT.
 | `--keyterms` | | string[] | | Domain keywords (repeatable) |
 | `--raw-json` | | boolean | `false` | Save raw JSON response |
 
-### `query-video`
+### `analyze query`
 
 Query video segments for keep/cut analysis.
 
@@ -151,7 +151,7 @@ Query video segments for keep/cut analysis.
 | `--model` | `-m` | string | `gemini_qa` | Vision model |
 | `--output-format` | `-f` | string | `json` | Output format |
 
-### `autoclip`
+### `edit autoclip`
 
 Extract highlight clips from a video using subtitle-based LLM analysis. Runs a 4-step pipeline: outline extraction → timeline segmentation → scoring → ffmpeg cutting.
 
@@ -192,60 +192,64 @@ Extract highlight clips from a video using subtitle-based LLM analysis. Runs a 4
 **Examples:**
 ```bash
 # Basic usage (auto-detect subtitle file)
-bun run pipeline autoclip -i video.mp4 -o /tmp/clips
+qcut autoclip -i video.mp4 -o /tmp/clips
 
 # With explicit SRT and higher threshold
-bun run pipeline autoclip -i video.mp4 -s subs.srt --min-score 0.8
+qcut autoclip -i video.mp4 -s subs.srt --min-score 0.8
 
 # Dry run (analysis only, no cutting)
-bun run pipeline autoclip -i video.mp4 -s subs.srt --dry-run
+qcut autoclip -i video.mp4 -s subs.srt --dry-run
 
 # Run only step 1 (outline extraction)
-bun run pipeline autoclip -i video.mp4 -s subs.srt --step 1
+qcut autoclip -i video.mp4 -s subs.srt --step 1
 
 # Full workflow: transcribe → autoclip
 whisper video.mp4 --model small --output_format srt --output_dir /tmp/
-bun run pipeline autoclip -i video.mp4 -s /tmp/video.srt -o /tmp/clips
+qcut autoclip -i video.mp4 -s /tmp/video.srt -o /tmp/clips
 ```
 
 ---
 
 ## Video Translation
 
-### `translate-video`
+### `analyze translate`
 
-Translate a video's speech into another language using HeyGen Translate (Speed) via FAL. Supports local files (uploaded to FAL CDN) and URLs. Requires `FAL_KEY`.
+Translate video or audio into another language using HeyGen Translate (Speed) via FAL. Supports local files (uploaded to FAL CDN) and URLs. Audio input (`.mp3`, `.wav`, `.m4a`, etc.) is automatically wrapped in a dummy video for translation. Requires `FAL_KEY`.
 
 | Flag | Short | Type | Default | Description |
 |------|-------|------|---------|-------------|
-| `--input` | `-i` | string | | Input video file path or URL (required) |
+| `--input` | `-i` | string | | Input video or audio file path/URL (required) |
 | `--language` | `-l` | string | | Target language, e.g. Spanish, Chinese (required) |
 | `--output` | `-o` | string | `./output` | Output directory |
 | `--audio-only` | | boolean | `false` | Translate audio only (keep original video) |
+| `--output-audio` | | boolean | `false` | Output translated audio file (auto-enabled for audio input) |
 | `--no-dynamic-duration` | | boolean | `false` | Disable dynamic duration adjustment |
 | `--speakers` | | number | | Number of speakers in the video |
 
 **Model:** `heygen_translate_speed` (FAL endpoint: `fal-ai/heygen/v2/translate/speed`)
 
-**Output:** Downloaded `.mp4` video file and a JSON metadata file with `video_url`, source info, and timing.
+**Output:** Downloaded `.mp4` video file and/or `.m4a` audio file, plus a JSON metadata file.
 
 **Examples:**
 ```bash
 # Translate local video to Spanish
-bun run pipeline translate-video -i video.mp4 -l Spanish
+qcut analyze translate -i video.mp4 -l Spanish
 
-# Translate URL to Chinese, audio only
-bun run pipeline translate-video -i "https://example.com/video.mp4" -l Chinese --audio-only
+# Translate audio file to Chinese (auto-outputs audio)
+qcut analyze translate -i podcast.mp3 -l Chinese
+
+# Translate video, output audio file
+qcut analyze translate -i video.mp4 -l Japanese --output-audio
 
 # Multi-speaker video to Japanese
-bun run pipeline translate-video -i interview.mp4 -l Japanese --speakers 2 -o /tmp/translated
+qcut analyze translate -i interview.mp4 -l Japanese --speakers 2 -o /tmp/translated
 ```
 
 ---
 
 ## Script Parsing
 
-### `moyin:parse-script`
+### `moyin:parse-script` (legacy)
 
 Parse a screenplay into structured data (characters, scenes).
 
@@ -260,7 +264,7 @@ Output: structured JSON with characters and scenes.
 
 ## Model Discovery
 
-### `list-models`
+### `system models`
 
 List all available models. Use `--category` to filter.
 
@@ -273,12 +277,12 @@ List all available models. Use `--category` to filter.
 
 | Command | Description |
 |---------|-------------|
-| `list-avatar-models` | Avatar models only |
-| `list-video-models` | Text-to-video models |
-| `list-motion-models` | Motion transfer models |
-| `list-speech-models` | Speech/TTS models |
+| `system models-avatar` | Avatar models only |
+| `system models-video` | Text-to-video models |
+| `system models-motion` | Motion transfer models |
+| `system models-speech` | Speech/TTS models |
 
-### `estimate-cost`
+### `system cost`
 
 Estimate cost for a model + parameters.
 
@@ -297,7 +301,7 @@ Use `--help --json` at any level to get structured JSON help output:
 ### Level 1: Root overview
 
 ```bash
-bun run pipeline --help --json
+qcut --help --json
 ```
 
 Returns version, all categories, every command (name + description + category), and global flags.
@@ -305,7 +309,7 @@ Returns version, all categories, every command (name + description + category), 
 ### Level 2: Command detail
 
 ```bash
-bun run pipeline generate-image --help --json
+qcut generate-image --help --json
 ```
 
 Returns command name, description, category, usage string, required flags, optional flags, and examples.
@@ -313,7 +317,7 @@ Returns command name, description, category, usage string, required flags, optio
 ### Level 3: Parameter detail
 
 ```bash
-bun run pipeline generate-image --help model --json
+qcut generate-image --help model --json
 ```
 
 Returns a single flag's name, type, description, short alias, required status, default value, and enum values.

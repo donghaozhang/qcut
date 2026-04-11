@@ -36,10 +36,18 @@ import {
 	CLI_VERSION,
 	findHelpParam,
 	printCommandHelpJson,
+	printGroupHelp,
+	printGroupHelpJson,
 	printHelp,
 	printHelpJson,
 	printParamHelpJson,
 } from "./cli-help.js";
+import {
+	resolveCommandGroup,
+	isCommandGroup,
+	getCommandGroup,
+} from "./command-groups.js";
+import { warnIfDeprecated } from "./aliases.js";
 
 /** Command list derived from the central registry. */
 const COMMANDS = Object.keys(COMMANDS_REGISTRY);
@@ -48,7 +56,9 @@ type Command = string;
 
 /** Parse process argv into CLIRunOptions, exiting on --help/--version. */
 export function parseCliArgs(argv: string[]): CLIRunOptions {
-	const command = argv[0];
+	let command = argv[0];
+	let wasGroupResolved = false;
+	let argsOffset = 1; // how many positional args to skip before flags
 
 	if (!command || command === "--help" || command === "-h") {
 		if (argv.includes("--json")) {
@@ -64,14 +74,44 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		process.exit(0);
 	}
 
+	// Try group resolution: "gen image ..." → "generate-image ..."
+	const groupResult = resolveCommandGroup(argv);
+	if (groupResult) {
+		command = groupResult.command;
+		argsOffset = 2; // skip group + action
+		wasGroupResolved = true;
+	} else if (isCommandGroup(command)) {
+		// Check if the user specified an unknown action (e.g. "gen unknown")
+		const possibleAction = argv[1];
+		if (possibleAction && !possibleAction.startsWith("-")) {
+			console.error(
+				`Unknown action "${possibleAction}" for group "${command}".`
+			);
+			console.error(`Run "qcut ${command} --help" for available actions.`);
+			process.exit(2);
+		}
+		// Group name with no action or --help: show group help
+		if (argv.includes("--json")) {
+			printGroupHelpJson(command);
+		} else {
+			printGroupHelp(command);
+		}
+		process.exit(0);
+	}
+
 	if (!COMMANDS.includes(command)) {
 		console.error(`Unknown command: ${command}`);
 		console.error("Run with --help for usage.");
 		process.exit(2);
 	}
 
+	// Emit deprecation warning for flat commands that have group equivalents
+	const isQuiet =
+		argv.includes("--json") || argv.includes("--quiet") || argv.includes("-q");
+	warnIfDeprecated(command, wasGroupResolved, isQuiet);
+
 	const { values } = parseArgs({
-		args: argv.slice(1),
+		args: argv.slice(argsOffset),
 		options: {
 			model: { type: "string", short: "m" },
 			text: { type: "string", short: "t" },
@@ -161,6 +201,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"chunk-minutes": { type: "string" },
 			// translate-video options
 			"audio-only": { type: "boolean", default: false },
+			"output-audio": { type: "boolean", default: false },
 			"no-dynamic-duration": { type: "boolean", default: false },
 			speakers: { type: "string" },
 			// speech generation options
@@ -186,7 +227,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// vimax options
 			"no-references": { type: "boolean", default: false },
 			"project-id": { type: "string" },
-			// grid upscale
+			// grid options
+			grid: { type: "string" },
 			"grid-upscale": { type: "string" },
 			// editor flags
 			"media-id": { type: "string" },
@@ -299,7 +341,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 	if (values.help) {
 		if (values.json) {
 			// Level 3: <command> --help <param> --json
-			const helpParam = findHelpParam(argv.slice(1));
+			const helpParam = findHelpParam(argv.slice(argsOffset));
 			if (helpParam) {
 				printParamHelpJson(command, helpParam);
 			} else {
@@ -430,6 +472,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			: undefined,
 		// translate-video options
 		audioOnly: (values["audio-only"] as boolean) ?? false,
+		outputAudio: (values["output-audio"] as boolean) ?? false,
 		noDynamicDuration: (values["no-dynamic-duration"] as boolean) ?? false,
 		speakers: values.speakers
 			? Number.isNaN(parseInt(values.speakers as string, 10))
@@ -482,7 +525,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		// vimax options
 		noReferences: (values["no-references"] as boolean) ?? false,
 		projectId: values["project-id"] as string | undefined,
-		// grid upscale
+		// grid options
+		grid: values.grid as string | undefined,
 		gridUpscale: values["grid-upscale"]
 			? Number.isNaN(parseFloat(values["grid-upscale"] as string))
 				? undefined
@@ -804,7 +848,9 @@ if (
 	scriptPath &&
 	(scriptPath.endsWith("cli.ts") ||
 		scriptPath.endsWith("cli.js") ||
-		scriptPath.endsWith("qcut-pipeline"))
+		scriptPath.endsWith("qcut-pipeline") ||
+		scriptPath.endsWith("/qcut") ||
+		scriptPath.endsWith("\\qcut"))
 ) {
 	main().catch((err) => {
 		console.error(err.message || err);

@@ -7,7 +7,10 @@ Quick-reference for locating CLI components by responsibility.
 | Component | File |
 |-----------|------|
 | CLI entry point | `electron/native-pipeline/cli/cli.ts` |
+| Handler registry map | `electron/native-pipeline/cli/cli-runner/handler-map.ts` |
 | Command router | `electron/native-pipeline/cli/cli-runner/runner.ts` |
+| Command groups (gen/analyze/audio/edit/flow/system) | `electron/native-pipeline/cli/command-groups.ts` |
+| Alias & deprecation system | `electron/native-pipeline/cli/aliases.ts` |
 | Programmatic run/runChain | `electron/native-pipeline/cli/cli-runner/run.ts` |
 | CLI types + generateCommandId | `electron/native-pipeline/cli/cli-runner/types.ts` |
 | Command registry (core) | `electron/native-pipeline/cli/command-registry.ts` |
