@@ -13,7 +13,12 @@ export const CLI_VERSION = "1.0.0";
 /** Detect CLI binary name from process.argv. */
 export function getCliName(): string {
 	const scriptPath = process.argv[1] ?? "";
-	if (scriptPath.endsWith("/qcut") || scriptPath.endsWith("\\qcut")) {
+	if (
+		scriptPath.endsWith("/qcut") ||
+		scriptPath.endsWith("\\qcut") ||
+		scriptPath.endsWith("\\qcut.exe") ||
+		scriptPath.endsWith("\\qcut.cmd")
+	) {
 		return "qcut";
 	}
 	return "qcut-pipeline";
@@ -104,6 +109,29 @@ ${actionLines.join("\n")}
 Run "${bin} ${group.name} <action> --help" for action details.
 `.trim()
 	);
+}
+
+/** Print group-level help as JSON. */
+export function printGroupHelpJson(groupName: string): void {
+	const group = COMMAND_GROUPS.find((g) => g.name === groupName);
+	if (!group) {
+		jsonError(`Unknown group: ${groupName}`, "help:unknown-group");
+		return;
+	}
+	const actions = Object.entries(group.actions).map(([action, internalCmd]) => {
+		const cmd = getCommand(internalCmd);
+		return {
+			action,
+			command: internalCmd,
+			description: cmd?.description ?? internalCmd,
+		};
+	});
+	jsonOk({
+		group: group.name,
+		label: group.label,
+		description: group.description,
+		actions,
+	});
 }
 
 /** Level 1: Root overview — version, categories, command list. */

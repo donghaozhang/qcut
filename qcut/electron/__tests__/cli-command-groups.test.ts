@@ -134,8 +134,8 @@ describe("Handler Map", () => {
 				missing.push(commandName);
 			}
 		}
-		// moyin:parse-script and a few others may not be in the map yet
-		// but core commands must all be present
+		// All non-editor commands should have handlers
+		expect(missing).toEqual([]);
 		for (const commandName of Object.keys(HANDLER_MAP)) {
 			expect(typeof HANDLER_MAP[commandName]).toBe("function");
 		}

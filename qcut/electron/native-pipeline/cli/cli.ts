@@ -37,6 +37,7 @@ import {
 	findHelpParam,
 	printCommandHelpJson,
 	printGroupHelp,
+	printGroupHelpJson,
 	printHelp,
 	printHelpJson,
 	printParamHelpJson,
@@ -80,9 +81,16 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		argsOffset = 2; // skip group + action
 		wasGroupResolved = true;
 	} else if (isCommandGroup(command)) {
+		// Check if the user specified an unknown action (e.g. "gen unknown")
+		const possibleAction = argv[1];
+		if (possibleAction && !possibleAction.startsWith("-")) {
+			console.error(`Unknown action "${possibleAction}" for group "${command}".`);
+			console.error(`Run "qcut ${command} --help" for available actions.`);
+			process.exit(2);
+		}
 		// Group name with no action or --help: show group help
 		if (argv.includes("--json")) {
-			printHelpJson();
+			printGroupHelpJson(command);
 		} else {
 			printGroupHelp(command);
 		}
@@ -838,7 +846,8 @@ if (
 	(scriptPath.endsWith("cli.ts") ||
 		scriptPath.endsWith("cli.js") ||
 		scriptPath.endsWith("qcut-pipeline") ||
-		scriptPath.endsWith("/qcut"))
+		scriptPath.endsWith("/qcut") ||
+		scriptPath.endsWith("\\qcut"))
 ) {
 	main().catch((err) => {
 		console.error(err.message || err);
