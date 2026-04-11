@@ -31,7 +31,7 @@ bun run pipeline list-models --category text_to_image | grep -i gmi
 
 # Output:
 #   gmi_gemini_3_pro_image        Google (via GMI) text_to_image, image_to_image
-#   gmi_gemini_31_flash_image     Google (via GMI) text_to_image, image_to_image
+#   gmi_gemini_3_pro_image     Google (via GMI) text_to_image, image_to_image
 #   gmi_seedream_4                ByteDance (via GMI) text_to_image
 #   gmi_seedream_5_lite           ByteDance (via GMI) text_to_image
 
@@ -53,20 +53,20 @@ bun run pipeline list-models --category text_to_video | grep -i gmi
 ## Step 3: Novel-to-Movie Pipeline (Images Only)
 
 ```bash
-# Use default example novel, GPT-5.4 (GMI) for LLM, Gemini Flash (GMI) for images
+# Use default example novel, Gemini 3.1 Flash Lite (GMI) for LLM, Gemini Flash (GMI) for images
 # Storyboard only (no videos), max 5 scene images
 bun run pipeline vimax:novel2movie \
   --storyboard-only \
   --max-images 5 \
-  --image-model gmi_gemini_31_flash_image \
-  --llm-model gpt-5.4
+  --image-model gmi_gemini_3_pro_image \
+  --llm-model gemini-3.1-flash-lite
 ```
 
 **What this does:**
-1. Extracts characters from the novel (GPT-5.4 via GMI)
-2. Generates character portrait images (Gemini 3.1 Flash via GMI)
-3. Segments novel into screenplay shots (GPT-5.4 via GMI)
-4. Generates up to 5 storyboard images (Gemini 3.1 Flash via GMI)
+1. Extracts characters from the novel (Gemini 3.1 Flash Lite via GMI)
+2. Generates character portrait images (Gemini 3 Pro via GMI)
+3. Segments novel into screenplay shots (Gemini 3.1 Flash Lite via GMI)
+4. Generates up to 5 storyboard images (Gemini 3 Pro via GMI)
 5. Skips video generation
 
 **Output structure:**
@@ -93,7 +93,79 @@ bun run pipeline vimax:novel2movie \
      Run 2 (gemini-3.1-flash-lite LLM): PASS — 6 chars, 5 portraits, 72 shots, 5 images, $0.03, 134s
      Note: gemini-3.1-flash-lite is faster (134s vs 218s) but needs 429 retry backoff (fixed in api-caller.ts). -->
 
-## Step 4: Open Output & Review
+## Step 4: Generate Videos from Script (First 5 Shots)
+
+Create Kling elements from character portraits, then generate videos for the first 5 shots using `kling-v3-omni` with element-driven character consistency.
+
+```bash
+# Set the output directory (from Step 3 output)
+EXPORT_DIR=~/Documents/QCut/Exports/novel2movie/drama-example_<timestamp>
+
+# 1. Create elements from character portraits
+bun run pipeline create-element \
+  --name "ShenNianAn" \
+  --description "Young woman with long dark wavy hair in white dress" \
+  --frontal-image "$EXPORT_DIR/portraits/沈念安/front.png"
+# → Element created: ShenNianAn (<element_id_1>)
+
+bun run pipeline create-element \
+  --name "GuChengZe" \
+  --description "Young man with brown styled hair in black suit and tie" \
+  --frontal-image "$EXPORT_DIR/portraits/顾承泽/front.png"
+# → Element created: GuChengZe (<element_id_2>)
+
+# Verify elements
+bun run pipeline list-elements
+
+# 2. Generate videos for first 5 shots using element IDs
+#    Use <<<element_1>>> / <<<element_2>>> syntax to reference elements in prompts
+#    Shot IDs come from scripts/chunk_001.json
+
+# Shot 1-1-02: Engagement scene (both leads)
+bun run pipeline create-video \
+  -t '<<<element_1>>> in white dress holds <<<element_2>>> arm lovingly under spotlight, luxury hotel ballroom, warm golden lighting, crystal chandeliers, cinematic' \
+  -m gmi_kling_v3_omni_t2v \
+  --element-ids <element_id_1> --element-ids <element_id_2> \
+  --output-dir "$EXPORT_DIR/videos"
+
+# Shot 1-1-04: Emotional moment (female lead alone)
+bun run pipeline create-video \
+  -t '<<<element_1>>> in white dress stands alone on stage, tears in eyes, looking at guests with longing, warm spotlight, dreamy atmosphere' \
+  -m gmi_kling_v3_omni_t2v \
+  --element-ids <element_id_1> \
+  --output-dir "$EXPORT_DIR/videos"
+
+# Shot 1-1-05: Dramatic entrance (text-only, no element)
+bun run pipeline create-video \
+  -t 'Luxury hotel ballroom doors burst open, a young woman in disheveled clothes and smeared makeup rushes in crying, guests turn in shock, dramatic lighting' \
+  -m gmi_kling_v3_omni_t2v \
+  --output-dir "$EXPORT_DIR/videos"
+
+# Shot 1-1-09: Confrontation (female lead + text character)
+bun run pipeline create-video \
+  -t 'A crying young woman touches her belly and looks up at <<<element_1>>> in white dress who stares in shock, luxury ballroom, dramatic tension' \
+  -m gmi_kling_v3_omni_t2v \
+  --element-ids <element_id_1> \
+  --output-dir "$EXPORT_DIR/videos"
+
+# Shot 1-1-11: Three-way confrontation (both leads + text character)
+bun run pipeline create-video \
+  -t '<<<element_1>>> in white dress looks devastated at <<<element_2>>> in black suit who avoids eye contact guiltily, a crying woman clings to his arm, tense atmosphere' \
+  -m gmi_kling_v3_omni_t2v \
+  --element-ids <element_id_1> --element-ids <element_id_2> \
+  --output-dir "$EXPORT_DIR/videos"
+```
+
+**What this does:**
+1. Creates reusable Kling elements from character portraits (stored locally for reuse)
+2. Generates 5 videos (~5s each) using `kling-v3-omni` with element IDs for character consistency
+3. Videos are saved to the project's `videos/` folder
+
+**Cost:** ~$0.56/video × 5 = **$2.80 total**. Each video takes ~2 min to generate (can run in parallel).
+
+<!-- TESTED 2026-04-10: PASS — 2 elements created, 5 videos generated in parallel, $2.80, ~3 min total (parallel) -->
+
+## Step 5: Open Output & Review
 
 ```bash
 # Open the output folder (macOS)
@@ -104,9 +176,9 @@ open ~/Documents/QCut/Exports/novel2movie/
 open ~/Documents/QCut/Exports/novel2movie/drama-example_<timestamp>
 ```
 
-<!-- TESTED 2026-04-10: PASS — Finder opens output folder with portraits/, storyboard/, scripts/ -->
+<!-- TESTED 2026-04-10: PASS — Finder opens output folder with portraits/, storyboard/, scripts/, videos/ -->
 
-## Step 5: Check Credits & Log Out
+## Step 6: Check Credits & Log Out
 
 ```bash
 # Check remaining credit balance
@@ -144,7 +216,7 @@ for m in sorted(json.load(sys.stdin)['data'], key=lambda x: x['id']):
 
 | Model | Type | Cost |
 |-------|------|------|
-| `gmi_gemini_31_flash_image` | Image | $0.02/image |
+| `gmi_gemini_3_pro_image` | Image | $0.02/image |
 | `gmi_gemini_3_pro_image` | Image | $0.04/image |
 | `gmi_seedream_5_lite` | Image | $0.003/image |
 | `gmi_seedream_4` | Image | $0.02/image |
@@ -168,7 +240,7 @@ bun run pipeline vimax:novel2movie \
   --title "My Novel" \
   --storyboard-only \
   --max-images 10 \
-  --image-model gmi_gemini_31_flash_image \
+  --image-model gmi_gemini_3_pro_image \
   --llm-model gpt-5.4
 ```
 
@@ -189,7 +261,7 @@ bun run pipeline vimax:idea2video \
 # Text-to-image with Gemini 3.1 Flash
 bun run pipeline generate-image \
   -t "A hyperrealistic portrait of a cyberpunk woman under neon lights" \
-  -m gmi_gemini_31_flash_image
+  -m gmi_gemini_3_pro_image
 
 # Text-to-image with SeedDream 5.0 Lite
 bun run pipeline generate-image \

@@ -31,7 +31,10 @@ export function createImageAdapterConfig(
 	partial?: Partial<ImageAdapterConfig>
 ): ImageAdapterConfig {
 	return {
-		...createAdapterConfig({ provider: "fal", model: "nano_banana_pro" }),
+		...createAdapterConfig({
+			provider: "gmi",
+			model: "gmi_gemini_3_pro_image",
+		}),
 		aspect_ratio: "1:1",
 		num_inference_steps: 28,
 		guidance_scale: 3.5,
@@ -51,6 +54,14 @@ const MODEL_MAP: Record<string, string> = {
 	nano_banana_2: "fal-ai/nano-banana-2",
 	gpt_image_1_5: "fal-ai/gpt-image-1-5",
 	seedream_v3: "fal-ai/seedream-v3",
+};
+
+/** Model → GMI endpoint for text-to-image. */
+const GMI_MODEL_MAP: Record<string, string> = {
+	gmi_gemini_3_pro_image: "gemini-3-pro-image-preview",
+	gmi_gemini_31_flash_image: "gemini-3.1-flash-image-preview",
+	gmi_seedream_4: "seedream-4.0",
+	gmi_seedream_5_lite: "seedream-5.0-lite",
 };
 
 /** Model → FAL endpoint for image-to-image with reference. */
@@ -82,6 +93,10 @@ const COST_MAP: Record<string, number> = {
 	imagen4: 0.004,
 	nano_banana_pro: 0.002,
 	nano_banana_2: 0.08,
+	gmi_gemini_3_pro_image: 0.04,
+	gmi_gemini_31_flash_image: 0.02,
+	gmi_seedream_4: 0.02,
+	gmi_seedream_5_lite: 0.003,
 	gpt_image_1_5: 0.003,
 	seedream_v3: 0.002,
 	nano_banana_pro_edit: 0.15,
@@ -196,29 +211,41 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 		}
 
 		const startTime = Date.now();
-		const endpoint = MODEL_MAP[model] ?? MODEL_MAP.flux_dev;
+		const isGmi = model in GMI_MODEL_MAP;
+		const endpoint = isGmi
+			? GMI_MODEL_MAP[model]
+			: (MODEL_MAP[model] ?? MODEL_MAP.flux_dev);
 
-		const maxSteps = MAX_STEPS_MAP[model] ?? 28;
-		const requestedSteps =
-			options?.num_inference_steps ?? this.config.num_inference_steps;
-		const numSteps = Math.min(requestedSteps, maxSteps);
-
-		const payload: Record<string, unknown> = {
-			prompt,
-			num_inference_steps: numSteps,
-			guidance_scale: options?.guidance_scale ?? this.config.guidance_scale,
-		};
-
-		if (ASPECT_RATIO_MODELS.has(model)) {
-			payload.aspect_ratio = aspectRatio;
+		let payload: Record<string, unknown>;
+		if (isGmi) {
+			payload = {
+				prompt,
+				aspect_ratio: aspectRatio,
+				image_size: "2K",
+			};
 		} else {
-			payload.image_size = aspectToSize(aspectRatio);
+			const maxSteps = MAX_STEPS_MAP[model] ?? 28;
+			const requestedSteps =
+				options?.num_inference_steps ?? this.config.num_inference_steps;
+			const numSteps = Math.min(requestedSteps, maxSteps);
+
+			payload = {
+				prompt,
+				num_inference_steps: numSteps,
+				guidance_scale: options?.guidance_scale ?? this.config.guidance_scale,
+			};
+
+			if (ASPECT_RATIO_MODELS.has(model)) {
+				payload.aspect_ratio = aspectRatio;
+			} else {
+				payload.image_size = aspectToSize(aspectRatio);
+			}
 		}
 
 		const result = await callModelApi({
 			endpoint,
 			payload,
-			provider: "fal",
+			provider: isGmi ? "gmi" : "fal",
 		});
 
 		const generationTime = (Date.now() - startTime) / 1000;

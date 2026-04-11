@@ -17,6 +17,32 @@ export interface CharacterBase {
 	description: string;
 }
 
+/** Structured portrait attributes for consistent image generation. */
+export interface PortraitAttributes {
+	age: string;
+	gender: string;
+	hair: string;
+	expression: string;
+	clothing: string;
+	features?: string;
+	accessories?: string;
+}
+
+/** Compose a PortraitAttributes object into an English image generation prompt. */
+export function composePortraitPrompt(attrs: PortraitAttributes): string {
+	const parts = [
+		"photorealistic front portrait, shot on professional camera",
+		attrs.gender && attrs.age ? `${attrs.age} ${attrs.gender}` : undefined,
+		attrs.hair ? attrs.hair : undefined,
+		attrs.features ? attrs.features : undefined,
+		attrs.clothing ? `wearing ${attrs.clothing}` : undefined,
+		attrs.accessories ? attrs.accessories : undefined,
+		attrs.expression ? `${attrs.expression} expression` : undefined,
+		"plain white background, soft studio lighting, sharp focus, high detail, 2K",
+	];
+	return parts.filter(Boolean).join(", ");
+}
+
 /** Full character profile extracted from a novel or story. */
 export interface CharacterInNovel extends CharacterBase {
 	age?: string;
@@ -25,7 +51,9 @@ export interface CharacterInNovel extends CharacterBase {
 	personality: string;
 	role: string;
 	relationships: string[];
-	/** Pre-generated image prompt for portrait generation (avoids extra LLM call). */
+	/** Structured portrait attributes for image generation. */
+	portrait?: PortraitAttributes;
+	/** Composed English image prompt (auto-generated from portrait if not set). */
 	portrait_prompt?: string;
 }
 

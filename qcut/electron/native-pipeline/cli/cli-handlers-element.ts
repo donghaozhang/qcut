@@ -7,6 +7,8 @@
  * @module electron/native-pipeline/cli-handlers-element
  */
 
+import fs from "node:fs";
+import path from "node:path";
 import type {
 	CLIRunOptions,
 	CLIResult,
@@ -18,6 +20,19 @@ import {
 	listElements,
 	deleteElement,
 } from "../infra/element-store.js";
+
+/** Convert a local file path to a base64 string; pass through URLs as-is. */
+function toBase64(filePath: string): string {
+	if (
+		filePath.startsWith("http://") ||
+		filePath.startsWith("https://") ||
+		filePath.startsWith("data:")
+	) {
+		return filePath;
+	}
+	const buf = fs.readFileSync(filePath);
+	return buf.toString("base64");
+}
 
 /** Create a reusable element via kling-create-element on GMI. */
 export async function handleCreateElement(
@@ -46,7 +61,8 @@ export async function handleCreateElement(
 	if (!frontalImage && !referVideo) {
 		return {
 			success: false,
-			error: "Provide --frontal-image (image element) or --refer-video (video element)",
+			error:
+				"Provide --frontal-image (image element) or --refer-video (video element)",
 		};
 	}
 
@@ -62,12 +78,13 @@ export async function handleCreateElement(
 	if (isVideoRefer) {
 		payload.refer_video = referVideo;
 	} else {
-		payload.frontal_image = frontalImage;
+		const frontalB64 = toBase64(frontalImage!);
+		payload.frontal_image = frontalB64;
 		// GMI requires 1-3 refer_images; use frontal as fallback if none provided
 		payload.refer_images =
 			options.referImages && options.referImages.length > 0
-				? options.referImages
-				: [frontalImage];
+				? options.referImages.map(toBase64)
+				: [frontalB64];
 	}
 
 	onProgress({

@@ -45,6 +45,17 @@ export interface ScreenplayResponse {
 // Character Extractor response schema
 // =============================================================================
 
+/** Structured portrait attributes in LLM response. */
+export interface PortraitResponse {
+	age: string;
+	gender: string;
+	hair: string;
+	expression: string;
+	clothing: string;
+	features: string;
+	accessories: string;
+}
+
 /** Character profile extracted from source text by the LLM. */
 export interface CharacterResponse {
 	name: string;
@@ -55,7 +66,7 @@ export interface CharacterResponse {
 	personality: string;
 	role: string;
 	relationships: string[];
-	portrait_prompt: string;
+	portrait: PortraitResponse;
 }
 
 /** Wrapper containing an array of extracted characters. */
@@ -153,7 +164,20 @@ export const CHARACTER_LIST_JSON_SCHEMA: Record<string, unknown> = {
 					personality: { type: "string" },
 					role: { type: "string" },
 					relationships: { type: "array", items: { type: "string" } },
-					portrait_prompt: { type: "string" },
+					portrait: {
+						type: "object",
+						properties: {
+							age: { type: "string" },
+							gender: { type: "string" },
+							hair: { type: "string" },
+							expression: { type: "string" },
+							clothing: { type: "string" },
+							features: { type: "string" },
+							accessories: { type: "string" },
+						},
+						required: ["age", "gender", "hair", "expression", "clothing"],
+						additionalProperties: false,
+					},
 				},
 				required: [
 					"name",
@@ -164,7 +188,7 @@ export const CHARACTER_LIST_JSON_SCHEMA: Record<string, unknown> = {
 					"personality",
 					"role",
 					"relationships",
-					"portrait_prompt",
+					"portrait",
 				],
 				additionalProperties: false,
 			},
@@ -253,6 +277,19 @@ export function validateCharacterListResponse(
 	};
 }
 
+function validatePortraitResponse(data: unknown): PortraitResponse {
+	const obj = (data ?? {}) as Record<string, unknown>;
+	return {
+		age: String(obj.age ?? ""),
+		gender: String(obj.gender ?? ""),
+		hair: String(obj.hair ?? ""),
+		expression: String(obj.expression ?? ""),
+		clothing: String(obj.clothing ?? ""),
+		features: String(obj.features ?? ""),
+		accessories: String(obj.accessories ?? ""),
+	};
+}
+
 function validateCharacterResponse(data: unknown): CharacterResponse {
 	const obj = data as Record<string, unknown>;
 	return {
@@ -266,7 +303,7 @@ function validateCharacterResponse(data: unknown): CharacterResponse {
 		relationships: Array.isArray(obj.relationships)
 			? (obj.relationships as unknown[]).map(String)
 			: [],
-		portrait_prompt: String(obj.portrait_prompt ?? ""),
+		portrait: validatePortraitResponse(obj.portrait),
 	};
 }
 
