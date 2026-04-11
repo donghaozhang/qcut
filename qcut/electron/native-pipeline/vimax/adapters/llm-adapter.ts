@@ -47,7 +47,9 @@ export interface LLMResponse {
 	cost: number;
 }
 
-/** Common model aliases resolved to OpenRouter model IDs. */
+/** Common model aliases resolved to provider model IDs.
+ *  Prefix `gmi/` routes through GMI Cloud; all others go via OpenRouter.
+ */
 const MODEL_ALIASES: Record<string, string> = {
 	"gemini-3-flash": "google/gemini-3-flash-preview",
 	"gemini-2.5-flash": "google/gemini-2.5-flash",
@@ -58,6 +60,11 @@ const MODEL_ALIASES: Record<string, string> = {
 	"gpt-4": "openai/gpt-4-turbo",
 	"gpt-4o": "openai/gpt-4o",
 	"gemini-pro": "google/gemini-pro",
+	// GMI Cloud LLM models (routed via gmi-llm provider at api.gmi-serving.com)
+	"glm-5.1": "gmi/zai-org/GLM-5.1-FP8",
+	"gemini-3.1-pro": "gmi/google/gemini-3.1-pro-preview",
+	"gemini-3.1-flash-lite": "gmi/google/gemini-3.1-flash-lite-preview",
+	"gpt-5.4": "gmi/openai/gpt-5.4",
 };
 
 /** Approximate costs per 1K tokens (input, output). */
@@ -70,11 +77,22 @@ const COST_TABLE: Record<string, [number, number]> = {
 	"openai/gpt-4-turbo": [0.01, 0.03],
 	"openai/gpt-4o": [0.005, 0.015],
 	"google/gemini-pro": [0.000_25, 0.0005],
+	// GMI Cloud LLM models (via api.gmi-serving.com)
+	"gmi/zai-org/GLM-5.1-FP8": [0.0005, 0.002],
+	"gmi/google/gemini-3.1-pro-preview": [0.001_25, 0.005],
+	"gmi/google/gemini-3.1-flash-lite-preview": [0.000_05, 0.000_2],
+	"gmi/openai/gpt-5.4": [0.005, 0.015],
 };
+
+/** Check if a resolved model ID routes through GMI Cloud. */
+function isGmiModel(model: string): boolean {
+	return model.startsWith("gmi/");
+}
 
 export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 	declare config: LLMAdapterConfig;
 	private _hasApiKey = false;
+	private _hasGmiKey = false;
 
 	constructor(config?: Partial<LLMAdapterConfig>) {
 		super(createLLMAdapterConfig(config));
@@ -83,8 +101,11 @@ export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 	async initialize(): Promise<boolean> {
 		const apiKey = process.env.OPENROUTER_API_KEY ?? "";
 		this._hasApiKey = apiKey.length > 0;
-		if (!this._hasApiKey) {
-			console.warn("[vimax.llm] OPENROUTER_API_KEY not set — using mock mode");
+		this._hasGmiKey = (process.env.GMI_API_KEY ?? "").length > 0;
+		if (!this._hasApiKey && !this._hasGmiKey) {
+			console.warn(
+				"[vimax.llm] No LLM API key set (OPENROUTER_API_KEY or GMI_API_KEY) — using mock mode"
+			);
 		}
 		return true;
 	}
@@ -113,16 +134,29 @@ export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 		const temperature = options?.temperature ?? this.config.temperature;
 		const max_tokens = options?.max_tokens ?? this.config.max_tokens;
 
-		if (!this._hasApiKey) {
+		const useGmi = isGmiModel(model);
+		if (!useGmi && !this._hasApiKey) {
+			return this._mockChat(messages, model);
+		}
+		if (useGmi && !this._hasGmiKey) {
 			return this._mockChat(messages, model);
 		}
 
+		// GMI models strip the "gmi/" prefix for the actual API call
+		const apiModel = useGmi ? model.replace("gmi/", "") : model;
+
 		const payload: Record<string, unknown> = {
-			model,
+			model: apiModel,
 			messages: messages.map((m) => ({ role: m.role, content: m.content })),
 			temperature,
-			max_tokens,
 		};
+
+		// GPT-5.x models require max_completion_tokens; others use max_tokens
+		if (apiModel.startsWith("openai/gpt-5")) {
+			payload.max_completion_tokens = max_tokens;
+		} else {
+			payload.max_tokens = max_tokens;
+		}
 
 		// Merge extra_body (e.g. response_format for structured output)
 		if (options?.extra_body) {
@@ -132,7 +166,7 @@ export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 		const result: ApiCallResult = await callModelApi({
 			endpoint: "chat/completions",
 			payload,
-			provider: "openrouter",
+			provider: useGmi ? "gmi-llm" : "openrouter",
 			async: false,
 			timeoutMs: this.config.timeout * 1000,
 		});
@@ -175,6 +209,8 @@ export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 		validator: (data: unknown) => T,
 		options?: { temperature?: number; max_tokens?: number }
 	): Promise<T> {
+		const isGmi = isGmiModel(this._resolveModel(this.config.model));
+
 		const extra_body: Record<string, unknown> = this.config
 			.use_native_structured_output
 			? {
@@ -186,7 +222,8 @@ export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 							schema: jsonSchema,
 						},
 					},
-					provider: { require_parameters: true },
+					// provider field is OpenRouter-specific; skip for GMI
+					...(isGmi ? {} : { provider: { require_parameters: true } }),
 				}
 			: {};
 

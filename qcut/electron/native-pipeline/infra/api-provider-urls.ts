@@ -10,6 +10,7 @@ export type ProviderName =
 	| "openrouter"
 	| "volcengine"
 	| "gmi"
+	| "gmi-llm"
 	| "runway";
 
 export const FAL_BASE = "https://queue.fal.run";
@@ -19,6 +20,7 @@ export const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 export const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
 export const VOLCENGINE_BASE = "https://ark.cn-beijing.volces.com/api/v3";
 const GMI_BASE = "https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey";
+const GMI_LLM_BASE = "https://api.gmi-serving.com/v1";
 const RUNWAY_BASE = "https://api.runwayml.com/v1";
 
 /** Build a fully qualified provider URL from a logical endpoint path. */
@@ -39,6 +41,8 @@ export function buildProviderUrl(
 			return `${VOLCENGINE_BASE}/${endpoint.replace(/^volcengine\//, "")}`;
 		case "gmi":
 			return `${GMI_BASE}/requests`;
+		case "gmi-llm":
+			return `${GMI_LLM_BASE}/${endpoint}`;
 		case "runway":
 			return `${RUNWAY_BASE}/${endpoint}`;
 	}

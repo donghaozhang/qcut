@@ -100,6 +100,41 @@ export function formatCommandOutput(command: string, result: CLIResult): void {
 	}
 
 	if (
+		command === "login" ||
+		command === "signup" ||
+		command === "logout" ||
+		command === "create-element" ||
+		command === "delete-element"
+	) {
+		const data = result.data as { message?: string };
+		if (data.message) console.log(data.message);
+		return;
+	}
+
+	if (command === "list-elements") {
+		const data = result.data as {
+			elements: {
+				elementId: string;
+				name: string;
+				referenceType: string;
+				createdAt: string;
+			}[];
+			count: number;
+		};
+		if (data.count === 0) {
+			console.log("No elements stored. Use create-element to create one.");
+			return;
+		}
+		console.log(`\nStored elements (${data.count}):\n`);
+		for (const e of data.elements) {
+			console.log(
+				`  ${e.elementId.slice(0, 12).padEnd(14)} ${e.name.padEnd(22)} ${e.referenceType.padEnd(14)} ${e.createdAt.slice(0, 10)}`
+			);
+		}
+		return;
+	}
+
+	if (
 		command === "set-key" ||
 		command === "get-key" ||
 		command === "delete-key"

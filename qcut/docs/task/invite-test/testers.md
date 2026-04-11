@@ -189,6 +189,9 @@ creditTransactions
 
 ## Tester List
 
-| Gmail | Plan | Credits Granted | Date Added | Status |
-|-------|------|-----------------|------------|--------|
-| | | | | |
+11 test accounts provisioned on 2026-04-10, each with 1000 credits on the free plan.
+
+- **Email pattern**: `@qcut.app` domain
+- **Accounts**: 1 primary + 10 numbered variants (1–10)
+- **Credentials**: stored securely — ask project admin or check `QCUT_TEST_EMAIL` / `QCUT_TEST_PASSWORD` env vars
+- **Status**: all active

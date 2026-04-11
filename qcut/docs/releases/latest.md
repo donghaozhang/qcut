@@ -1,11 +1,9 @@
 ---
-version: "2026.04.08"
-date: "2026-04-08"
+version: "2026.04.09.1"
+date: "2026-04-09"
 channel: "stable"
 ---
 
-# QCut v2026.04.08
+# QCut v2026.04.09.1
 
-- Add GMI Cloud as new video generation provider (Veo 3.1 Lite, SkyReels V4, Kling V3/Omni, Motion Control)
-- Add provider abstraction layer (ProviderRouter) for multi-provider support
-- Add GMI API key management in Electron settings and native pipeline
+- Release v2026.04.09.1

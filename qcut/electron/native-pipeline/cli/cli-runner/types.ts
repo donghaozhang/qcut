@@ -39,6 +39,13 @@ export interface CLIRunOptions {
 	upscale?: string;
 	keyName?: string;
 	keyValue?: string;
+	email?: string;
+	password?: string;
+	frontalImage?: string;
+	referImages?: string[];
+	referVideo?: string;
+	elementIds?: string[];
+	elementDescription?: string;
 	idea?: string;
 	genre?: string;
 	targetDuration?: string;

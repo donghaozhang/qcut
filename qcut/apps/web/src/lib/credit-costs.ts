@@ -86,6 +86,15 @@ const FIXED_COSTS: Record<string, CreditCost> = {
 		label: "Gemini Describe",
 		unit: "per request",
 	},
+
+	// GMI Cloud LLM models
+	"gmi-glm-5.1": { credits: 0.1, label: "GLM 5.1", unit: "per request" },
+	"gmi-gemini-3.1-pro": {
+		credits: 0.2,
+		label: "Gemini 3.1 Pro",
+		unit: "per request",
+	},
+	"gmi-gpt-5.4": { credits: 0.3, label: "GPT-5.4", unit: "per request" },
 };
 
 /** Per-second costs (multiply by duration) */

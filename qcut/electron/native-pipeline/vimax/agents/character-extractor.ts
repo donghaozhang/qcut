@@ -21,7 +21,10 @@ import {
 } from "./schemas.js";
 import { LLMAdapter, type Message } from "../adapters/llm-adapter.js";
 import type { CharacterInNovel } from "../types/character.js";
-import { createCharacterInNovel } from "../types/character.js";
+import {
+	createCharacterInNovel,
+	composePortraitPrompt,
+} from "../types/character.js";
 import { detectLanguageInstruction } from "../detect-language.js";
 
 /** Configuration for the character extraction agent. */
@@ -53,7 +56,14 @@ For each character, provide:
 - personality: Personality traits
 - role: Role in the story (protagonist, antagonist, supporting, minor)
 - relationships: List of relationships with other characters
-- portrait_prompt: A detailed image generation prompt for a front-view portrait of this character. Include specific details about their appearance, clothing, age, expression, and style. The portrait should have a clean plain white background. Example: "photorealistic front portrait of a young woman in her 20s, long black hair, wearing an elegant white gown, delicate features, warm lighting, plain white background, high detail"
+- portrait: A structured object describing the character's visual appearance for portrait generation. ALWAYS write ALL portrait fields in ENGLISH regardless of input language. Fields:
+  - age: e.g. "young", "early 20s", "middle-aged", "elderly"
+  - gender: e.g. "female", "male"
+  - hair: e.g. "long wavy brown hair", "short black hair with bangs"
+  - expression: e.g. "determined and cold", "warm smile", "nervous and guilty"
+  - clothing: e.g. "white silk dress", "black business suit with tie"
+  - features: (optional) e.g. "delicate features, high cheekbones", "strong jawline"
+  - accessories: (optional) e.g. "gold earrings", "glasses", "red scarf"
 
 Only include characters that appear in the text.
 If a field cannot be determined, use an empty string or empty list.
@@ -107,6 +117,7 @@ export class CharacterExtractor extends BaseAgent<string, CharacterInNovel[]> {
 				0,
 				this.config.max_characters
 			)) {
+				const portrait = item.portrait;
 				characters.push(
 					createCharacterInNovel({
 						name: item.name,
@@ -117,7 +128,10 @@ export class CharacterExtractor extends BaseAgent<string, CharacterInNovel[]> {
 						personality: item.personality,
 						role: item.role,
 						relationships: item.relationships,
-						portrait_prompt: item.portrait_prompt || undefined,
+						portrait: portrait || undefined,
+						portrait_prompt: portrait
+							? composePortraitPrompt(portrait)
+							: undefined,
 					})
 				);
 			}

@@ -51,6 +51,7 @@ node_modules
 .turbo
 
 *.env
+.env.*
 
 # cursor
 bun.lockb

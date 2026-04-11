@@ -62,7 +62,7 @@ export function createNovel2MovieConfig(
 	return {
 		output_dir: "media/generated/vimax/novel2movie",
 		video_model: "kling",
-		image_model: "nano_banana_2",
+		image_model: "gmi_gemini_3_pro_image",
 		llm_model: "google/gemini-3-flash-preview",
 		shot_duration: 15,
 		visual_style: "真人写实, 电视风格, 暖色调",

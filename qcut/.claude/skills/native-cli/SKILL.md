@@ -26,6 +26,7 @@ Run QCut's built-in TypeScript pipeline CLI (`qcut-pipeline` / `bun run pipeline
 - For editor state automation: snapshots, event streams, correlation IDs, transactions, capabilities, and notification bridge endpoints, see [editor-state-control.md](editor/editor-state-control.md)
 - For agent automation: accessibility snapshots with refs, console capture, visual diffs, session persistence, and action policy, see [editor-agent.md](editor/editor-agent.md)
 - For source file locations by responsibility (core, output, handlers, state, auth), see [reference-source-files.md](references/reference-source-files.md)
+- For proxy mode, credit system, and admin tester management, see [reference-proxy-credits.md](references/reference-proxy-credits.md)
 
 ## Step 1: Ensure QCut is Running
 

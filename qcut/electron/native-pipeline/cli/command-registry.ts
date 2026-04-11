@@ -89,6 +89,9 @@ export const CATEGORIES: CategoryDef[] = [
 			"generate-speech",
 			"convert-speech",
 			"clone-voice",
+			"create-element",
+			"list-elements",
+			"delete-element",
 		],
 	},
 	{
@@ -116,7 +119,16 @@ export const CATEGORIES: CategoryDef[] = [
 	{
 		name: "keys",
 		label: "API Key Management",
-		commands: ["setup", "set-key", "get-key", "delete-key", "check-keys"],
+		commands: [
+			"login",
+			"signup",
+			"logout",
+			"setup",
+			"set-key",
+			"get-key",
+			"delete-key",
+			"check-keys",
+		],
 	},
 	{
 		name: "project",
@@ -251,10 +263,16 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--negative-prompt", "string", "Negative prompt"),
 			f("--count", "number", "Generate N copies"),
 			f("--prompts", "string[]", "Multiple prompts (repeatable)"),
+			f(
+				"--element-ids",
+				"string[]",
+				"Kling element IDs for consistent characters"
+			),
 		],
 		examples: [
 			"qcut-pipeline create-video -t 'Ocean waves' -m kling_2_6_pro -d 5s",
 			"qcut-pipeline create-video -t 'A flower blooming' --image-url https://example.com/flower.jpg",
+			"qcut-pipeline create-video -t '<<<element_1>>> walks in park' -m gmi_kling_v3_omni_t2v --element-ids abc123",
 		],
 	},
 	"generate-avatar": {
@@ -718,6 +736,49 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		],
 	},
 
+	// ── Elements ──
+	"create-element": {
+		name: "create-element",
+		description: "Create a reusable character/object element for Kling V3 Omni",
+		category: "generation",
+		flags: [
+			f("--name", "string", "Element name (max 20 chars)", {
+				required: true,
+			}),
+			f("--description", "string", "Element description (max 100 chars)", {
+				required: true,
+			}),
+			f("--frontal-image", "string", "Frontal reference image path/URL", {
+				required: true,
+			}),
+			f("--refer-images", "string[]", "Additional reference images (1-3)"),
+			f(
+				"--refer-video",
+				"string",
+				"Reference video path/URL (alternative to images)"
+			),
+		],
+		examples: [
+			'qcut-pipeline create-element --name "Detective" --description "Female detective in trench coat" --frontal-image front.jpg --refer-images side.jpg',
+		],
+	},
+	"list-elements": {
+		name: "list-elements",
+		description: "List stored Kling elements",
+		category: "generation",
+		flags: [],
+		examples: ["qcut-pipeline list-elements"],
+	},
+	"delete-element": {
+		name: "delete-element",
+		description: "Delete a stored element by ID or name",
+		category: "generation",
+		flags: [
+			f("--element-id", "string", "Element ID to delete", { required: true }),
+		],
+		examples: ["qcut-pipeline delete-element --element-id abc123"],
+	},
+
 	// ── Models & Cost ──
 	"list-models": {
 		name: "list-models",
@@ -790,6 +851,34 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		category: "keys",
 		flags: [],
 		examples: ["qcut-pipeline setup"],
+	},
+	login: {
+		name: "login",
+		description: "Log in to QCut with email and password",
+		category: "keys",
+		flags: [
+			f("--email", "string", "Email address", { required: true }),
+			f("--password", "string", "Password (prompted if omitted)"),
+		],
+		examples: ["qcut-pipeline login --email user@gmail.com"],
+	},
+	signup: {
+		name: "signup",
+		description: "Create a new QCut account",
+		category: "keys",
+		flags: [
+			f("--email", "string", "Email address", { required: true }),
+			f("--name", "string", "Display name", { required: true }),
+			f("--password", "string", "Password (prompted if omitted)"),
+		],
+		examples: ["qcut-pipeline signup --email user@gmail.com --name 'Jane Doe'"],
+	},
+	logout: {
+		name: "logout",
+		description: "Log out and clear stored session token",
+		category: "keys",
+		flags: [],
+		examples: ["qcut-pipeline logout"],
 	},
 	"set-key": {
 		name: "set-key",

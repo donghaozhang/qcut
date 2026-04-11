@@ -8,7 +8,8 @@ import {
 	setApiKeyProvider,
 	envApiKeyProvider,
 } from "../../infra/api-caller.js";
-import { loadEnvFile } from "../../infra/key-manager.js";
+import { loadEnvFile, getKey } from "../../infra/key-manager.js";
+import { setSessionTokenProvider } from "../../infra/proxy-client.js";
 import { readStdin } from "../interactive.js";
 import {
 	handleAnalyzeVideo as mediaHandleAnalyzeVideo,
@@ -23,6 +24,9 @@ import {
 	handleGetKey as adminHandleGetKey,
 	handleCheckKeys as adminHandleCheckKeys,
 	handleDeleteKey as adminHandleDeleteKey,
+	handleLogin as adminHandleLogin,
+	handleSignup as adminHandleSignup,
+	handleLogout as adminHandleLogout,
 	handleInitProject as adminHandleInitProject,
 	handleOrganizeProject as adminHandleOrganizeProject,
 	handleStructureInfo as adminHandleStructureInfo,
@@ -30,6 +34,11 @@ import {
 	handleListModels as adminHandleListModels,
 	handleEstimateCost as adminHandleEstimateCost,
 } from "../cli-handlers-admin.js";
+import {
+	handleCreateElement as elementHandleCreate,
+	handleListElements as elementHandleList,
+	handleDeleteElement as elementHandleDelete,
+} from "../cli-handlers-element.js";
 import { handleEditorCommand } from "../cli-handlers-editor.js";
 import {
 	handleVimaxExtractCharacters,
@@ -164,6 +173,9 @@ export class CLIPipelineRunner {
 
 	constructor() {
 		setApiKeyProvider(envApiKeyProvider);
+		setSessionTokenProvider(async () => {
+			return getKey("QCUT_AUTH_TOKEN") ?? "";
+		});
 	}
 
 	get signal(): AbortSignal {
@@ -312,6 +324,24 @@ export class CLIPipelineRunner {
 					this.executor,
 					this.signal
 				);
+				break;
+			case "login":
+				result = await adminHandleLogin(resolvedOptions);
+				break;
+			case "signup":
+				result = await adminHandleSignup(resolvedOptions);
+				break;
+			case "logout":
+				result = await adminHandleLogout();
+				break;
+			case "create-element":
+				result = await elementHandleCreate(resolvedOptions, onProgress);
+				break;
+			case "list-elements":
+				result = elementHandleList();
+				break;
+			case "delete-element":
+				result = elementHandleDelete(resolvedOptions);
 				break;
 			case "setup":
 				result = await adminHandleSetup();

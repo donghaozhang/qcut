@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
+import { scryptAsync } from "@noble/hashes/scrypt";
 import { adminAuthMiddleware } from "../middleware/admin-auth";
 import { db } from "../db/drizzle";
-import { users, licenses } from "@qcut/db/schema";
+import { users, licenses, accounts, sessions } from "@qcut/db/schema";
 import {
 	addTopUpCreditsForUser,
 	getCreditBalanceByUserId,
@@ -255,6 +256,191 @@ adminRoutes.post("/upgrade-plan", async (c) => {
 			{
 				error:
 					error instanceof Error ? error.message : "Failed to upgrade plan",
+			},
+			500
+		);
+	}
+});
+
+/** Hash a password using the same scrypt params as Better Auth. */
+async function hashPassword(password: string): Promise<string> {
+	const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
+	const key = await scryptAsync(password.normalize("NFKC"), salt, {
+		N: 16384,
+		r: 16,
+		p: 1,
+		dkLen: 64,
+		maxmem: 128 * 16384 * 16 * 2,
+	});
+	const keyHex = Array.from(new Uint8Array(key))
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
+	return `${salt}:${keyHex}`;
+}
+
+/** Generate a random ID for database records. */
+function generateId(): string {
+	return Array.from(crypto.getRandomValues(new Uint8Array(16)))
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
+}
+
+/** Create a test user with email/password. Returns a session token for immediate use. */
+adminRoutes.post("/create-user", async (c) => {
+	try {
+		let payload: Record<string, unknown>;
+		try {
+			payload = await c.req.json();
+		} catch {
+			return c.json({ error: "Invalid JSON body" }, 400);
+		}
+
+		const name = typeof payload?.name === "string" ? payload.name.trim() : "";
+		const email =
+			typeof payload?.email === "string"
+				? payload.email.trim().toLowerCase()
+				: "";
+		const password =
+			typeof payload?.password === "string" ? payload.password : "";
+		const passwordHash =
+			typeof payload?.passwordHash === "string"
+				? payload.passwordHash.trim()
+				: "";
+
+		if (name.length === 0) {
+			return c.json({ error: "name is required" }, 400);
+		}
+		if (email.length === 0) {
+			return c.json({ error: "email is required" }, 400);
+		}
+		if (passwordHash.length === 0 && password.length < 6) {
+			return c.json(
+				{ error: "password (or passwordHash) must be provided" },
+				400
+			);
+		}
+
+		const now = new Date();
+		const userId = generateId();
+		const accountId = generateId();
+		const sessionId = generateId();
+		const sessionToken = generateId() + generateId();
+		const finalHash = passwordHash || (await hashPassword(password));
+
+		await db.transaction(async (tx) => {
+			// Create user (unique email enforced by DB constraint)
+			await tx.insert(users).values({
+				id: userId,
+				name,
+				email,
+				emailVerified: true,
+				createdAt: now,
+				updatedAt: now,
+			});
+
+			// Create credential account (email/password)
+			await tx.insert(accounts).values({
+				id: accountId,
+				accountId: userId,
+				providerId: "credential",
+				userId,
+				password: finalHash,
+				createdAt: now,
+				updatedAt: now,
+			});
+
+			// Create license
+			await tx.insert(licenses).values({
+				id: generateId(),
+				userId,
+				plan: "free",
+				status: "active",
+				maxDevices: 1,
+				createdAt: now,
+				updatedAt: now,
+			});
+
+			// Create session for immediate login
+			await tx.insert(sessions).values({
+				id: sessionId,
+				token: sessionToken,
+				userId,
+				expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+				createdAt: now,
+				updatedAt: now,
+			});
+		});
+
+		// Initialize credits (outside transaction — uses its own)
+		await resetPlanCreditsForUser({
+			userId,
+			plan: "free",
+			description: "Account created via admin API",
+		});
+
+		return c.json({
+			success: true,
+			user: { id: userId, name, email },
+			token: sessionToken,
+		});
+	} catch (error) {
+		return c.json(
+			{
+				error: error instanceof Error ? error.message : "Failed to create user",
+			},
+			500
+		);
+	}
+});
+
+/** Issue a session token for a user by email. Admin-only, no password check. */
+adminRoutes.post("/issue-token", async (c) => {
+	try {
+		let payload: Record<string, unknown>;
+		try {
+			payload = await c.req.json();
+		} catch {
+			return c.json({ error: "Invalid JSON body" }, 400);
+		}
+
+		const email =
+			typeof payload?.email === "string"
+				? payload.email.trim().toLowerCase()
+				: "";
+		if (email.length === 0) {
+			return c.json({ error: "email is required" }, 400);
+		}
+
+		const [user] = await db
+			.select({ id: users.id, name: users.name })
+			.from(users)
+			.where(eq(users.email, email))
+			.limit(1);
+
+		if (!user) {
+			return c.json({ error: `No user found: ${email}` }, 404);
+		}
+
+		const now = new Date();
+		const sessionId = generateId();
+		const token = generateId() + generateId();
+
+		await db.insert(sessions).values({
+			id: sessionId,
+			token,
+			userId: user.id,
+			expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+			createdAt: now,
+			updatedAt: now,
+		});
+
+		return c.json({ success: true, email, token });
+	} catch (error) {
+		return c.json(
+			{
+				error: error instanceof Error ? error.message : "Failed to issue token",
 			},
 			500
 		);

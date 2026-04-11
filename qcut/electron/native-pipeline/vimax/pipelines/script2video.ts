@@ -42,7 +42,7 @@ export function createScript2VideoConfig(
 	return {
 		output_dir: "media/generated/vimax/script2video",
 		video_model: "kling",
-		image_model: "nano_banana_pro",
+		image_model: "gmi_gemini_3_pro_image",
 		use_character_references: true,
 		...partial,
 	};
