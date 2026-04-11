@@ -121,7 +121,7 @@ Analyze a video with AI vision.
 | `--text` | `-t` | string | | Alias for prompt |
 | `--output-format` | `-f` | string | `md` | `md`, `json`, `both` |
 
-### `audio transcribe`
+### `analyze transcribe`
 
 Transcribe audio to text with optional SRT.
 
@@ -212,7 +212,7 @@ qcut autoclip -i video.mp4 -s /tmp/video.srt -o /tmp/clips
 
 ## Video Translation
 
-### `audio translate`
+### `analyze translate`
 
 Translate a video's speech into another language using HeyGen Translate (Speed) via FAL. Supports local files (uploaded to FAL CDN) and URLs. Requires `FAL_KEY`.
 
@@ -232,13 +232,13 @@ Translate a video's speech into another language using HeyGen Translate (Speed) 
 **Examples:**
 ```bash
 # Translate local video to Spanish
-qcut translate-video -i video.mp4 -l Spanish
+qcut analyze translate -i video.mp4 -l Spanish
 
 # Translate URL to Chinese, audio only
-qcut translate-video -i "https://example.com/video.mp4" -l Chinese --audio-only
+qcut analyze translate -i "https://example.com/video.mp4" -l Chinese --audio-only
 
 # Multi-speaker video to Japanese
-qcut translate-video -i interview.mp4 -l Japanese --speakers 2 -o /tmp/translated
+qcut analyze translate -i interview.mp4 -l Japanese --speakers 2 -o /tmp/translated
 ```
 
 ---

@@ -23,34 +23,27 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 	{
 		name: "gen",
 		label: "Generation",
-		description: "Generate images, videos, avatars, music, and grids",
+		description: "Generate images, videos, avatars, speech, and grids",
 		actions: {
 			image: "generate-image",
 			video: "create-video",
 			avatar: "generate-avatar",
 			grid: "generate-grid",
 			remotion: "generate-remotion",
+			tts: "generate-speech",
+			"voice-convert": "convert-speech",
+			"voice-clone": "clone-voice",
 		},
 	},
 	{
 		name: "analyze",
 		label: "Analysis",
-		description: "Analyze video, image, or query media content",
+		description: "Analyze, transcribe, translate, and query media content",
 		actions: {
 			video: "analyze-video",
 			query: "query-video",
-		},
-	},
-	{
-		name: "audio",
-		label: "Audio & Language",
-		description: "Transcribe, translate, and synthesize speech",
-		actions: {
 			transcribe: "transcribe",
 			translate: "translate-video",
-			tts: "generate-speech",
-			convert: "convert-speech",
-			clone: "clone-voice",
 		},
 	},
 	{

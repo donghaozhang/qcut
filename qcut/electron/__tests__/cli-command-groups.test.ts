@@ -34,9 +34,19 @@ describe("Command Groups", () => {
 			expect(result).toEqual({ command: "list-models", remainingArgs: [] });
 		});
 
-		it("resolves 'audio transcribe' to 'transcribe'", () => {
-			const result = resolveCommandGroup(["audio", "transcribe"]);
+		it("resolves 'analyze transcribe' to 'transcribe'", () => {
+			const result = resolveCommandGroup(["analyze", "transcribe"]);
 			expect(result).toEqual({ command: "transcribe", remainingArgs: [] });
+		});
+
+		it("resolves 'gen tts' to 'generate-speech'", () => {
+			const result = resolveCommandGroup(["gen", "tts"]);
+			expect(result).toEqual({ command: "generate-speech", remainingArgs: [] });
+		});
+
+		it("resolves 'analyze translate' to 'translate-video'", () => {
+			const result = resolveCommandGroup(["analyze", "translate"]);
+			expect(result).toEqual({ command: "translate-video", remainingArgs: [] });
 		});
 
 		it("resolves 'edit autoclip' to 'autoclip'", () => {
@@ -73,7 +83,6 @@ describe("Command Groups", () => {
 		it("returns true for known groups", () => {
 			expect(isCommandGroup("gen")).toBe(true);
 			expect(isCommandGroup("analyze")).toBe(true);
-			expect(isCommandGroup("audio")).toBe(true);
 			expect(isCommandGroup("edit")).toBe(true);
 			expect(isCommandGroup("flow")).toBe(true);
 			expect(isCommandGroup("system")).toBe(true);
@@ -81,6 +90,7 @@ describe("Command Groups", () => {
 
 		it("returns false for unknown names", () => {
 			expect(isCommandGroup("generate-image")).toBe(false);
+			expect(isCommandGroup("audio")).toBe(false);
 			expect(isCommandGroup("unknown")).toBe(false);
 		});
 	});
@@ -164,6 +174,13 @@ describe("Aliases & Deprecation", () => {
 		warnIfDeprecated("generate-image", false);
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("DEPRECATED"));
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("gen image"));
+		spy.mockRestore();
+	});
+
+	it("warns with analyze transcribe for old transcribe command", () => {
+		const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+		warnIfDeprecated("transcribe", false);
+		expect(spy).toHaveBeenCalledWith(expect.stringContaining("analyze transcribe"));
 	});
 
 	it("does not warn for group-resolved command", () => {

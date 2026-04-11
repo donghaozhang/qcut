@@ -80,9 +80,8 @@ qcut-pipeline <group> <action> [options]         # Production binary
 
 | Group | Description | Example |
 |-------|-------------|---------|
-| `gen` | Generate images, videos, avatars, grids | `gen image -t "A cat"` |
-| `analyze` | Analyze video/image content | `analyze video -i video.mp4` |
-| `audio` | Transcribe, translate, TTS | `audio transcribe -i audio.mp3` |
+| `gen` | Generate images, videos, avatars, speech | `gen image -t "A cat"` |
+| `analyze` | Analyze, transcribe, translate media | `analyze transcribe -i audio.mp3` |
 | `edit` | Autoclip, upscale, motion, subtitle | `edit upscale --image img.png` |
 | `flow` | ViMax pipelines, YAML workflows | `flow idea2video --idea "..."` |
 | `system` | Auth, keys, models, project setup | `system models --json` |
@@ -152,7 +151,7 @@ qcut gen image -t "A cinematic portrait at golden hour"
 qcut gen video -m kling_2_6_pro -t "Ocean waves at sunset" -d 5s
 qcut gen avatar -m omnihuman_v1_5 -t "Hello world" --image-url avatar.png
 qcut analyze video -i video.mp4 --analysis-type summary
-qcut audio transcribe -i audio.mp3 --srt
+qcut analyze transcribe -i audio.mp3 --srt
 qcut flow run -c pipeline.yaml -i "A sunset" --no-confirm
 qcut system cost -m veo3 -d 8s
 ```
