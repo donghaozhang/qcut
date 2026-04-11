@@ -96,12 +96,12 @@ export type CommandHandler = (
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
 	executor: PipelineExecutor,
-	signal: AbortSignal,
+	signal: AbortSignal
 ) => Promise<CLIResult>;
 
 /** Wrap a handler that only needs options. */
 function wrap(
-	fn: (options: CLIRunOptions) => CLIResult | Promise<CLIResult>,
+	fn: (options: CLIRunOptions) => CLIResult | Promise<CLIResult>
 ): CommandHandler {
 	return async (options) => fn(options);
 }
@@ -113,7 +113,7 @@ function wrap0(fn: () => CLIResult | Promise<CLIResult>): CommandHandler {
 
 /** Wrap a handler that takes (options, progress). */
 function wrapOP(
-	fn: (options: CLIRunOptions, onProgress: ProgressFn) => Promise<CLIResult>,
+	fn: (options: CLIRunOptions, onProgress: ProgressFn) => Promise<CLIResult>
 ): CommandHandler {
 	return async (options, onProgress) => fn(options, onProgress);
 }
@@ -123,8 +123,8 @@ function wrapOPS(
 	fn: (
 		options: CLIRunOptions,
 		onProgress: ProgressFn,
-		signal: AbortSignal,
-	) => Promise<CLIResult>,
+		signal: AbortSignal
+	) => Promise<CLIResult>
 ): CommandHandler {
 	return async (options, onProgress, _executor, signal) =>
 		fn(options, onProgress, signal);
@@ -143,7 +143,7 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 					{ ...options, layout: options.grid as string },
 					onProgress,
 					executor,
-					signal,
+					signal
 				)
 			: handleGenerate(options, onProgress, executor, signal),
 	"create-video": handleGenerate,
@@ -184,16 +184,16 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"list-models": wrap(adminHandleListModels),
 	"estimate-cost": wrap(adminHandleEstimateCost),
 	"list-avatar-models": wrap((opts) =>
-		adminHandleListModels({ ...opts, category: "avatar" }),
+		adminHandleListModels({ ...opts, category: "avatar" })
 	),
 	"list-video-models": wrap((opts) =>
-		adminHandleListModels({ ...opts, category: "text_to_video" }),
+		adminHandleListModels({ ...opts, category: "text_to_video" })
 	),
 	"list-motion-models": wrap((opts) =>
-		adminHandleListModels({ ...opts, category: "motion_transfer" }),
+		adminHandleListModels({ ...opts, category: "motion_transfer" })
 	),
 	"list-speech-models": wrap((opts) =>
-		adminHandleListModels({ ...opts, category: "text_to_speech" }),
+		adminHandleListModels({ ...opts, category: "text_to_speech" })
 	),
 
 	// ── Elements (Kling) ──

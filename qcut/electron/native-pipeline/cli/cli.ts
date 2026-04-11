@@ -84,7 +84,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		// Check if the user specified an unknown action (e.g. "gen unknown")
 		const possibleAction = argv[1];
 		if (possibleAction && !possibleAction.startsWith("-")) {
-			console.error(`Unknown action "${possibleAction}" for group "${command}".`);
+			console.error(
+				`Unknown action "${possibleAction}" for group "${command}".`
+			);
 			console.error(`Run "qcut ${command} --help" for available actions.`);
 			process.exit(2);
 		}
@@ -104,7 +106,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 	}
 
 	// Emit deprecation warning for flat commands that have group equivalents
-	const isQuiet = argv.includes("--json") || argv.includes("--quiet") || argv.includes("-q");
+	const isQuiet =
+		argv.includes("--json") || argv.includes("--quiet") || argv.includes("-q");
 	warnIfDeprecated(command, wasGroupResolved, isQuiet);
 
 	const { values } = parseArgs({

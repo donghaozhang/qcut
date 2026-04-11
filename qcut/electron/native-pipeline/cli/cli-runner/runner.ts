@@ -185,13 +185,13 @@ export class CLIPipelineRunner {
 				resolvedOptions,
 				onProgress,
 				this.executor,
-				this.signal,
+				this.signal
 			);
 		} else if (resolvedOptions.command.startsWith("editor:")) {
 			result = await handleEditorCommand(
 				resolvedOptions,
 				onProgress,
-				this.signal,
+				this.signal
 			);
 		} else {
 			result = {

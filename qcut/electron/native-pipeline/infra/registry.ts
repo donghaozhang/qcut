@@ -205,7 +205,7 @@ export class ModelRegistry {
 	/** Find the first model matching a provider name (case-insensitive) and category. */
 	static findByProvider(
 		providerName: string,
-		category?: ModelCategory,
+		category?: ModelCategory
 	): ModelDefinition | null {
 		const needle = providerName.toLowerCase();
 		for (const model of models.values()) {
