@@ -45,7 +45,6 @@ export interface CLIRunOptions {
 	referImages?: string[];
 	referVideo?: string;
 	elementIds?: string[];
-	elementId?: string;
 	elementDescription?: string;
 	idea?: string;
 	genre?: string;
