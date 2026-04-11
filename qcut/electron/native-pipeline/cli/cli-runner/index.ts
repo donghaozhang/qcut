@@ -22,3 +22,4 @@ export {
 	resetSessionState,
 } from "./session.js";
 export { run, runChain, type RunResult } from "./run.js";
+export { HANDLER_MAP, type CommandHandler } from "./handler-map.js";
