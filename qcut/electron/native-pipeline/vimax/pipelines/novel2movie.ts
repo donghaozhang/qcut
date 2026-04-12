@@ -566,14 +566,29 @@ export class Novel2MoviePipeline {
 					continue;
 				}
 
+				// If --max-clips is set (and video gen will run), also cap
+				// storyboard generation to avoid rendering images that won't
+				// become videos.
+				let storyboardCap: number | undefined;
+				if (imagesCapped) {
+					storyboardCap = this.config.max_images - totalImagesGenerated;
+				} else if (this.config.max_clips > 0) {
+					const remainingClips = this.config.max_clips - allVideos.length;
+					if (remainingClips <= 0) {
+						console.log(
+							`  Clip cap reached (${this.config.max_clips}), skipping remaining chunks`
+						);
+						break;
+					}
+					storyboardCap = remainingClips;
+				}
+
 				// Generate storyboard with character references
 				const storyboardResult = await this.storyboard_artist.process(
 					segResult.result,
 					result.portrait_registry,
 					i + 1,
-					imagesCapped
-						? this.config.max_images - totalImagesGenerated
-						: undefined
+					storyboardCap
 				);
 				if (!storyboardResult.success || !storyboardResult.result) {
 					continue;
