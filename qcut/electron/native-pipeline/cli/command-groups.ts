@@ -53,6 +53,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		actions: {
 			autoclip: "autoclip",
 			upscale: "upscale-image",
+			"upscale-video": "upscale-video",
 			motion: "transfer-motion",
 			stamp: "stamp-image",
 			subtitle: "subtitle-style",

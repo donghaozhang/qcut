@@ -82,6 +82,7 @@ export const CATEGORIES: CategoryDef[] = [
 			"generate-avatar",
 			"stamp-image",
 			"upscale-image",
+			"upscale-video",
 			"transfer-motion",
 			"generate-remotion",
 			"translate-video",
@@ -372,6 +373,29 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		examples: [
 			"qcut-pipeline upscale-image --image photo.jpg",
 			"qcut-pipeline upscale-image --image-url https://example.com/img.png --upscale 2x",
+		],
+	},
+	"upscale-video": {
+		name: "upscale-video",
+		description: "Upscale a video using FAL Topaz Video Upscale",
+		category: "generation",
+		flags: [
+			f("--video", "string", "Local video path (auto-uploaded to FAL)"),
+			f("--video-url", "string", "Remote video URL"),
+			f("--input", "string", "Alias for --video or --video-url", {
+				short: "-i",
+			}),
+			f("--model", "string", "Model key", { short: "-m", default: "topaz" }),
+			f("--upscale", "number", "Upscale factor (1-4)", { default: 2 }),
+			f("--target-fps", "number", "Target FPS (omit to keep source)"),
+			f("--output-format", "string", "Output extension", {
+				short: "-f",
+				default: "mp4",
+			}),
+		],
+		examples: [
+			"qcut edit upscale-video --video clip.mp4 --upscale 4",
+			"qcut edit upscale-video --video-url https://example.com/clip.mp4 --upscale 2 --target-fps 60",
 		],
 	},
 	"transfer-motion": {

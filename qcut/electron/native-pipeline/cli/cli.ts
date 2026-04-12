@@ -230,6 +230,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			after: { type: "string" },
 			// upscale-image options
 			target: { type: "string" },
+			// upscale-video options
+			video: { type: "string" },
+			"target-fps": { type: "string" },
 			// vimax options
 			"no-references": { type: "boolean", default: false },
 			"project-id": { type: "string" },
@@ -542,6 +545,13 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		after: values.after as string | undefined,
 		// upscale-image options
 		target: values.target as string | undefined,
+		// upscale-video options
+		video: values.video as string | undefined,
+		targetFps: values["target-fps"]
+			? Number.isNaN(parseInt(values["target-fps"] as string, 10))
+				? undefined
+				: parseInt(values["target-fps"] as string, 10)
+			: undefined,
 		// vimax options
 		noReferences: (values["no-references"] as boolean) ?? false,
 		projectId: values["project-id"] as string | undefined,

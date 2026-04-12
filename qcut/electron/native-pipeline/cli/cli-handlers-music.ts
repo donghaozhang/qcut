@@ -16,6 +16,7 @@ import type {
 	ProgressFn,
 } from "./cli-runner/types.js";
 import { callModelApi } from "../infra/api-caller.js";
+import { ModelRegistry } from "../infra/registry.js";
 
 interface MusicApiResponse {
 	audio?: {
@@ -24,11 +25,6 @@ interface MusicApiResponse {
 		content_type?: string;
 	};
 }
-
-const MUSIC_ENDPOINTS: Record<string, string> = {
-	minimax_music_v2_6: "fal-ai/minimax-music/v2.6",
-	minimax_music_v2_5: "fal-ai/minimax-music/v2.5",
-};
 
 const DEFAULT_MODEL = "minimax_music_v2_6";
 
@@ -61,16 +57,34 @@ export async function handleGenerateMusic(
 		};
 	}
 
+	// Resolve endpoint from the single source of truth (model registry) so the
+	// handler and registry can't drift out of sync.
 	const model = options.model || DEFAULT_MODEL;
-	const endpoint = MUSIC_ENDPOINTS[model];
-	if (!endpoint) {
+	if (!ModelRegistry.has(model)) {
 		return {
 			success: false,
-			error: `Unknown music model '${model}'. Use: ${Object.keys(MUSIC_ENDPOINTS).join(", ")}`,
+			error: `Unknown music model '${model}'. Use: ${ModelRegistry.keysForCategory("music").join(", ")}`,
 		};
 	}
+	const modelDef = ModelRegistry.get(model);
+	if (!modelDef.categories.includes("music")) {
+		return {
+			success: false,
+			error: `Model '${model}' is not a music model. Use: ${ModelRegistry.keysForCategory("music").join(", ")}`,
+		};
+	}
+	const endpoint = modelDef.endpoint;
 
 	const isInstrumental = options.instrumental ?? false;
+
+	// Fail loudly when the caller combines --instrumental with --lyrics so we
+	// never silently drop their lyrics payload.
+	if (isInstrumental && options.lyrics) {
+		return {
+			success: false,
+			error: "--lyrics is not allowed when --instrumental is set",
+		};
+	}
 
 	if (!isInstrumental && options.lyrics && options.lyrics.length > 1000) {
 		return {
@@ -98,10 +112,27 @@ export async function handleGenerateMusic(
 		payload.lyrics = options.lyrics;
 	}
 
-	// Audio quality settings
+	// Audio quality settings — reject non-positive or non-finite numerics up
+	// front rather than letting the provider return a generic 4xx later.
 	const audioSetting: Record<string, unknown> = {};
-	if (options.sampleRate) audioSetting.sample_rate = options.sampleRate;
-	if (options.bitrate) audioSetting.bitrate = options.bitrate;
+	if (options.sampleRate !== undefined) {
+		if (!Number.isFinite(options.sampleRate) || options.sampleRate <= 0) {
+			return {
+				success: false,
+				error: `Invalid --sample-rate: ${options.sampleRate}`,
+			};
+		}
+		audioSetting.sample_rate = options.sampleRate;
+	}
+	if (options.bitrate !== undefined) {
+		if (!Number.isFinite(options.bitrate) || options.bitrate <= 0) {
+			return {
+				success: false,
+				error: `Invalid --bitrate: ${options.bitrate}`,
+			};
+		}
+		audioSetting.bitrate = options.bitrate;
+	}
 	if (options.audioFormat) audioSetting.format = options.audioFormat;
 	if (Object.keys(audioSetting).length > 0) {
 		payload.audio_setting = audioSetting;
@@ -139,9 +170,12 @@ export async function handleGenerateMusic(
 		};
 	}
 
-	// Extract audio URL from response
+	// Extract audio URL from response; validate the provider actually returned
+	// string-shaped fields before we hand them to fetch()/basename().
 	const data = apiResult.data as MusicApiResponse | undefined;
-	const audioUrl: string = data?.audio?.url || apiResult.outputUrl || "";
+	const audioUrlCandidate =
+		typeof data?.audio?.url === "string" ? data.audio.url : undefined;
+	const audioUrl: string = audioUrlCandidate || apiResult.outputUrl || "";
 
 	if (!audioUrl) {
 		return {
@@ -173,7 +207,11 @@ export async function handleGenerateMusic(
 		await mkdir(outputDir, { recursive: true });
 
 		const ext = options.audioFormat || "mp3";
-		const rawFileName = data?.audio?.file_name || `music_${Date.now()}.${ext}`;
+		const rawFileNameCandidate =
+			typeof data?.audio?.file_name === "string"
+				? data.audio.file_name
+				: undefined;
+		const rawFileName = rawFileNameCandidate || `music_${Date.now()}.${ext}`;
 		const fileName = basename(rawFileName);
 		const outputPath = join(outputDir, fileName);
 		await writeFile(outputPath, audioBuffer);
@@ -188,7 +226,10 @@ export async function handleGenerateMusic(
 				audioUrl,
 				fileName,
 				fileSize: audioBuffer.length,
-				contentType: data?.audio?.content_type || `audio/${ext}`,
+				contentType:
+					typeof data?.audio?.content_type === "string"
+						? data.audio.content_type
+						: `audio/${ext}`,
 				instrumental: isInstrumental,
 				prompt: trimmedPrompt,
 			},

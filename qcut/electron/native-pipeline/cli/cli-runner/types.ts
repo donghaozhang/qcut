@@ -111,6 +111,9 @@ export interface CLIRunOptions {
 	after?: string;
 	// upscale-image options
 	target?: string;
+	// upscale-video options
+	video?: string;
+	targetFps?: number;
 	// vimax options
 	noReferences?: boolean;
 	projectId?: string;

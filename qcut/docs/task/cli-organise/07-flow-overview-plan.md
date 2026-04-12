@@ -14,7 +14,7 @@ Phase 1 ([00–06](00-overview.md)) completed the routing refactor — all 11 `q
 
 ## Target Coverage
 
-```
+```text
 qcut flow run            ← YAML pipeline executor
 qcut flow idea2video     ← ViMax: one-shot idea → video
 qcut flow script2video   ← ViMax: screenplay → video
