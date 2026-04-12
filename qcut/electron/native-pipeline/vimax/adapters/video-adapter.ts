@@ -86,6 +86,83 @@ export function resolveVideoModelSpec(model: string): ResolvedModelSpec {
 	};
 }
 
+/** Errors that indicate a transient upstream failure worth retrying. */
+const TRANSIENT_ERROR_PATTERNS = [
+	/context deadline exceeded/i,
+	/client\.timeout/i,
+	/failed to send http request/i,
+	/connection reset/i,
+	/econnreset/i,
+	/etimedout/i,
+	/enotfound/i,
+	/socket hang up/i,
+	/temporarily unavailable/i,
+	/service unavailable/i,
+];
+
+/**
+ * Classify an API error message for retry eligibility. Returns true for
+ * 5xx responses, timeouts, and network errors that commonly resolve on
+ * a retry. Returns false for 4xx responses — those are caused by bad
+ * payloads / missing params / auth failures and will never self-heal.
+ */
+export function isRetryableVideoError(errorMessage: string): boolean {
+	if (!errorMessage) return false;
+	// GMI/FAL surface errors as "provider error NNN: …". 5xx == server
+	// problem; 4xx == our request is wrong.
+	const statusMatch = errorMessage.match(/error\s+(\d{3})/i);
+	if (statusMatch) {
+		const status = Number.parseInt(statusMatch[1], 10);
+		if (status >= 500 && status <= 599) return true;
+		if (status >= 400 && status <= 499) return false;
+	}
+	return TRANSIENT_ERROR_PATTERNS.some((re) => re.test(errorMessage));
+}
+
+export interface RetryConfig {
+	maxAttempts?: number;
+	baseDelayMs?: number;
+	maxDelayMs?: number;
+	/** Injected in tests so we don't actually sleep. */
+	sleepImpl?: (ms: number) => Promise<void>;
+}
+
+/**
+ * Invoke a video API call with exponential-backoff retries on transient
+ * failures. First attempt runs without delay; subsequent attempts back
+ * off at `baseDelayMs`, `baseDelayMs*3`, `baseDelayMs*9`, capped at
+ * `maxDelayMs`.
+ *
+ * Exposed for testability — production code uses the default parameters.
+ */
+export async function callVideoApiWithRetry<
+	T extends { success: boolean; error?: string },
+>(call: () => Promise<T>, config: RetryConfig = {}): Promise<T> {
+	const maxAttempts = config.maxAttempts ?? 3;
+	const baseDelayMs = config.baseDelayMs ?? 5_000;
+	const maxDelayMs = config.maxDelayMs ?? 60_000;
+	const sleep =
+		config.sleepImpl ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+
+	let lastResult: T | undefined;
+	for (let attempt = 0; attempt < maxAttempts; attempt++) {
+		const result = await call();
+		lastResult = result;
+		if (result.success) return result;
+		const errMsg = result.error ?? "";
+		if (!isRetryableVideoError(errMsg)) return result;
+		const isLastAttempt = attempt === maxAttempts - 1;
+		if (isLastAttempt) return result;
+		const delayMs = Math.min(baseDelayMs * 3 ** attempt, maxDelayMs);
+		console.warn(
+			`[vimax.video] Transient error (attempt ${attempt + 1}/${maxAttempts}): ${errMsg.slice(0, 120)}. Retrying in ${delayMs}ms...`
+		);
+		await sleep(delayMs);
+	}
+	// Unreachable — loop always returns before this
+	return lastResult as T;
+}
+
 /**
  * Build the provider-specific image payload field.
  *
@@ -244,12 +321,18 @@ export class VideoGeneratorAdapter extends BaseAdapter<
 			duration: String(Math.round(duration)),
 		};
 
-		const result = await callModelApi({
-			endpoint: spec.endpoint,
-			payload,
-			provider: spec.providerBackend,
-			modelKey: spec.canonicalKey,
-		});
+		// Wrap the call in a retry loop — GMI's upstream video providers
+		// (Kling, Veo) regularly return 500/timeout on busy periods; a
+		// bounded retry with backoff dramatically improves reliability.
+		// 4xx errors are surfaced immediately (they won't self-heal).
+		const result = await callVideoApiWithRetry(() =>
+			callModelApi({
+				endpoint: spec.endpoint,
+				payload,
+				provider: spec.providerBackend,
+				modelKey: spec.canonicalKey,
+			})
+		);
 
 		const generationTime = (Date.now() - startTime) / 1000;
 

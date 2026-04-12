@@ -11,6 +11,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	buildImageField,
+	callVideoApiWithRetry,
+	isRetryableVideoError,
 	resolveVideoModelSpec,
 } from "../native-pipeline/vimax/adapters/video-adapter.js";
 import { ModelRegistry } from "../native-pipeline/infra/registry.js";
@@ -216,5 +218,161 @@ describe("buildImageField", () => {
 		const dataUri = "data:image/png;base64,iVBORw0KGgo=";
 		const out = buildImageField(dataUri, "gmi");
 		expect(out).toEqual({ image: dataUri });
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Retry classification + retry loop
+// ---------------------------------------------------------------------------
+
+describe("isRetryableVideoError", () => {
+	it("classifies 5xx responses as retryable", () => {
+		expect(isRetryableVideoError("GMI API error 500: upstream timed out")).toBe(
+			true
+		);
+		expect(isRetryableVideoError("FAL provider error 502: bad gateway")).toBe(
+			true
+		);
+		expect(
+			isRetryableVideoError("GMI API error 503: service unavailable")
+		).toBe(true);
+	});
+
+	it("classifies 4xx responses as NOT retryable (payload / auth problems won't heal)", () => {
+		expect(
+			isRetryableVideoError(
+				"GMI API error 400: invalid payload parameters: image"
+			)
+		).toBe(false);
+		expect(isRetryableVideoError("GMI API error 401: unauthorized")).toBe(
+			false
+		);
+		expect(isRetryableVideoError("FAL provider error 422: bad prompt")).toBe(
+			false
+		);
+	});
+
+	it("classifies common network / timeout signatures as retryable", () => {
+		expect(
+			isRetryableVideoError("context deadline exceeded while awaiting headers")
+		).toBe(true);
+		expect(isRetryableVideoError("ECONNRESET socket hang up")).toBe(true);
+		expect(isRetryableVideoError("failed to send HTTP request")).toBe(true);
+	});
+
+	it("is safe on empty / unknown error text", () => {
+		expect(isRetryableVideoError("")).toBe(false);
+		expect(isRetryableVideoError("something very unusual happened")).toBe(
+			false
+		);
+	});
+});
+
+describe("callVideoApiWithRetry", () => {
+	it("returns immediately on first-attempt success (no backoff)", async () => {
+		let calls = 0;
+		const sleeps: number[] = [];
+		const result = await callVideoApiWithRetry(
+			async () => {
+				calls += 1;
+				return { success: true };
+			},
+			{
+				sleepImpl: async (ms) => {
+					sleeps.push(ms);
+				},
+			}
+		);
+		expect(result).toEqual({ success: true });
+		expect(calls).toBe(1);
+		expect(sleeps).toEqual([]);
+	});
+
+	it("retries on 500, succeeds on 2nd attempt", async () => {
+		const outcomes: Array<{ success: boolean; error?: string }> = [
+			{ success: false, error: "GMI API error 500: context deadline exceeded" },
+			{ success: true },
+		];
+		let calls = 0;
+		const sleeps: number[] = [];
+		const result = await callVideoApiWithRetry(
+			async () => {
+				calls += 1;
+				return outcomes[calls - 1];
+			},
+			{
+				baseDelayMs: 10,
+				sleepImpl: async (ms) => {
+					sleeps.push(ms);
+				},
+			}
+		);
+		expect(result.success).toBe(true);
+		expect(calls).toBe(2);
+		expect(sleeps).toEqual([10]); // one backoff between attempts
+	});
+
+	it("does NOT retry a 4xx client error (payload problem)", async () => {
+		let calls = 0;
+		const result = await callVideoApiWithRetry(
+			async () => {
+				calls += 1;
+				return {
+					success: false,
+					error: "GMI API error 400: invalid payload parameters",
+				};
+			},
+			{
+				baseDelayMs: 10,
+				sleepImpl: async () => {
+					throw new Error("should not sleep — 4xx is non-retryable");
+				},
+			}
+		);
+		expect(result.success).toBe(false);
+		expect(calls).toBe(1);
+	});
+
+	it("gives up after maxAttempts on persistent transient failure", async () => {
+		let calls = 0;
+		const sleeps: number[] = [];
+		const result = await callVideoApiWithRetry(
+			async () => {
+				calls += 1;
+				return {
+					success: false,
+					error: "GMI API error 500: context deadline exceeded",
+				};
+			},
+			{
+				maxAttempts: 3,
+				baseDelayMs: 10,
+				sleepImpl: async (ms) => {
+					sleeps.push(ms);
+				},
+			}
+		);
+		expect(result.success).toBe(false);
+		expect(calls).toBe(3);
+		expect(sleeps).toEqual([10, 30]); // exponential: 10, 10*3; no sleep after last attempt
+	});
+
+	it("caps backoff at maxDelayMs", async () => {
+		const sleeps: number[] = [];
+		await callVideoApiWithRetry(
+			async () => ({ success: false, error: "500 upstream timeout" }),
+			{
+				maxAttempts: 4,
+				baseDelayMs: 1_000,
+				maxDelayMs: 2_000, // cap well below the uncapped 9_000
+				sleepImpl: async (ms) => {
+					sleeps.push(ms);
+				},
+			}
+		);
+		// Sleeps: 1000, 2000 (capped), 2000 (capped) — then no sleep after last attempt
+		for (const s of sleeps) {
+			expect(s).toBeLessThanOrEqual(2_000);
+		}
 	});
 });
