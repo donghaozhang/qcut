@@ -53,6 +53,8 @@ export interface Novel2MovieConfig {
 	overlap: number;
 	/** Cap the number of storyboard images generated (0 = unlimited). */
 	max_images: number;
+	/** Cap the number of scenes processed across all chunks (0 = unlimited). */
+	max_scenes: number;
 }
 
 /** Create a {@link Novel2MovieConfig} with sensible defaults. */
@@ -75,6 +77,7 @@ export function createNovel2MovieConfig(
 		chunk_size: 2_000,
 		overlap: 200,
 		max_images: 0,
+		max_scenes: 0,
 		...partial,
 	};
 }
@@ -497,6 +500,30 @@ export class Novel2MoviePipeline {
 						`Segmentation failed for chunk ${i + 1}: ${segResult.error}`
 					);
 					continue;
+				}
+
+				// Enforce --max-scenes cap across chunks
+				if (this.config.max_scenes > 0) {
+					const existingScenes = result.scripts.reduce(
+						(s, sc) => s + sc.scenes.length,
+						0
+					);
+					const remaining = this.config.max_scenes - existingScenes;
+					if (remaining <= 0) {
+						console.log(
+							`  Scene cap reached (${this.config.max_scenes}), skipping remaining chunks`
+						);
+						break;
+					}
+					if (segResult.result.scenes.length > remaining) {
+						console.log(
+							`  Trimming chunk ${i + 1} from ${segResult.result.scenes.length} to ${remaining} scenes (cap: ${this.config.max_scenes})`
+						);
+						segResult.result.scenes = segResult.result.scenes.slice(
+							0,
+							remaining
+						);
+					}
 				}
 
 				// Enrich shots with prompt_description

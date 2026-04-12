@@ -189,5 +189,4 @@ All four are on branch `cli-drama` as of this session.
 | `script2video` default output isn't in `~/Documents/QCut/` | `pipeline-handlers.ts:127` | 3 lines |
 | Storyboard filename collision on `shot_type` | `storyboard-artist.ts` | 1 line (include `shot_id`) |
 | `ethnicity` optional in schema → LLM skips it | `schemas.ts:167-192` | Make required |
-| `--max-scenes` doesn't actually cap scenes | `novel2movie.ts:_splitText` or segmenter | Needs investigation |
 | Bundled `drama-example.md` fallback fails from installed binary | Build step doesn't copy `.md` into `dist/` | Add `cp -R electron/native-pipeline/vimax/examples dist/…` to build script |
