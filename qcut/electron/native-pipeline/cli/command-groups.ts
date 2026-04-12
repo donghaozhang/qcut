@@ -29,6 +29,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			video: "create-video",
 			avatar: "generate-avatar",
 			remotion: "generate-remotion",
+			music: "generate-music",
 			tts: "generate-speech",
 			"voice-convert": "convert-speech",
 			"voice-clone": "clone-voice",
@@ -52,6 +53,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		actions: {
 			autoclip: "autoclip",
 			upscale: "upscale-image",
+			"upscale-video": "upscale-video",
 			motion: "transfer-motion",
 			stamp: "stamp-image",
 			subtitle: "subtitle-style",

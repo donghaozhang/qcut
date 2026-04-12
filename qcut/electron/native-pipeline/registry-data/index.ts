@@ -20,6 +20,7 @@ export { registerTTSModels } from "./tts.js";
 export { registerImageUnderstandingModels } from "./image-understanding.js";
 export { registerPromptGenerationModels } from "./prompt-generation.js";
 export { registerSpeechToTextModels } from "./speech-to-text.js";
+export { registerMusicModels } from "./music.js";
 export {
 	registerRunwayModels,
 	registerHeyGenModels,
@@ -36,6 +37,7 @@ import { registerTTSModels } from "./tts.js";
 import { registerImageUnderstandingModels } from "./image-understanding.js";
 import { registerPromptGenerationModels } from "./prompt-generation.js";
 import { registerSpeechToTextModels } from "./speech-to-text.js";
+import { registerMusicModels } from "./music.js";
 import {
 	registerRunwayModels,
 	registerHeyGenModels,
@@ -58,4 +60,5 @@ export function registerAllPart2Models(): void {
 	registerDIDModels();
 	registerSynthesiaModels();
 	registerPhotaModels();
+	registerMusicModels();
 }

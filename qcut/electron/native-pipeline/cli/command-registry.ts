@@ -82,9 +82,11 @@ export const CATEGORIES: CategoryDef[] = [
 			"generate-avatar",
 			"stamp-image",
 			"upscale-image",
+			"upscale-video",
 			"transfer-motion",
 			"generate-remotion",
 			"translate-video",
+			"generate-music",
 			"generate-speech",
 			"convert-speech",
 			"clone-voice",
@@ -371,6 +373,29 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		examples: [
 			"qcut-pipeline upscale-image --image photo.jpg",
 			"qcut-pipeline upscale-image --image-url https://example.com/img.png --upscale 2x",
+		],
+	},
+	"upscale-video": {
+		name: "upscale-video",
+		description: "Upscale a video using FAL Topaz Video Upscale",
+		category: "generation",
+		flags: [
+			f("--video", "string", "Local video path (auto-uploaded to FAL)"),
+			f("--video-url", "string", "Remote video URL"),
+			f("--input", "string", "Alias for --video or --video-url", {
+				short: "-i",
+			}),
+			f("--model", "string", "Model key", { short: "-m", default: "topaz" }),
+			f("--upscale", "number", "Upscale factor (1-4)", { default: 2 }),
+			f("--target-fps", "number", "Target FPS (omit to keep source)"),
+			f("--output-format", "string", "Output extension", {
+				short: "-f",
+				default: "mp4",
+			}),
+		],
+		examples: [
+			"qcut edit upscale-video --video clip.mp4 --upscale 4",
+			"qcut edit upscale-video --video-url https://example.com/clip.mp4 --upscale 2 --target-fps 60",
 		],
 	},
 	"transfer-motion": {
@@ -665,6 +690,50 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline translate-video -i podcast.mp3 -l Chinese",
 			"qcut-pipeline translate-video -i video.mp4 -l Japanese --output-audio",
 			'qcut-pipeline translate-video -i "https://example.com/video.mp4" -l Japanese --speakers 2',
+		],
+	},
+
+	// ── Music ──
+	"generate-music": {
+		name: "generate-music",
+		description: "Generate music from text prompt with optional lyrics",
+		category: "generation",
+		flags: [
+			f("--text", "string", "Music style/mood description (10-300 chars)", {
+				short: "-t",
+				required: true,
+			}),
+			f(
+				"--lyrics",
+				"string",
+				"Song lyrics with structure tags ([verse], [chorus])"
+			),
+			f("--instrumental", "boolean", "Generate instrumental (no vocals)", {
+				default: false,
+			}),
+			f("--model", "string", "Music model", {
+				short: "-m",
+				default: "minimax_music_v2_6",
+				enum: ["minimax_music_v2_6", "minimax_music_v2_5"],
+			}),
+			f("--provider", "string", "Provider name", {
+				enum: ["minimax"],
+			}),
+			f("--sample-rate", "number", "Sample rate", {
+				enum: ["16000", "24000", "32000", "44100"],
+			}),
+			f("--bitrate", "number", "Bitrate", {
+				enum: ["32000", "64000", "128000", "256000"],
+			}),
+			f("--audio-format", "string", "Output format", {
+				default: "mp3",
+				enum: ["mp3", "wav", "pcm"],
+			}),
+		],
+		examples: [
+			'qcut gen music -t "Upbeat pop, warm female vocal, 104 BPM"',
+			'qcut gen music -t "City Pop, 80s retro" --lyrics "[verse] La da dee, sunny day"',
+			'qcut gen music -t "Cinematic orchestral" --instrumental',
 		],
 	},
 

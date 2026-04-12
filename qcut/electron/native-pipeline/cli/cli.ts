@@ -204,6 +204,12 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"output-audio": { type: "boolean", default: false },
 			"no-dynamic-duration": { type: "boolean", default: false },
 			speakers: { type: "string" },
+			// music generation options
+			lyrics: { type: "string" },
+			instrumental: { type: "boolean", default: false },
+			"sample-rate": { type: "string" },
+			bitrate: { type: "string" },
+			"audio-format": { type: "string" },
 			// speech generation options
 			exaggeration: { type: "string" },
 			temperature: { type: "string" },
@@ -224,6 +230,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			after: { type: "string" },
 			// upscale-image options
 			target: { type: "string" },
+			// upscale-video options
+			video: { type: "string" },
+			"target-fps": { type: "string" },
 			// vimax options
 			"no-references": { type: "boolean", default: false },
 			"project-id": { type: "string" },
@@ -479,6 +488,20 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				? undefined
 				: parseInt(values.speakers as string, 10)
 			: undefined,
+		// music generation options
+		lyrics: values.lyrics as string | undefined,
+		instrumental: (values.instrumental as boolean) ?? false,
+		sampleRate: values["sample-rate"]
+			? Number.isNaN(parseInt(values["sample-rate"] as string, 10))
+				? undefined
+				: parseInt(values["sample-rate"] as string, 10)
+			: undefined,
+		bitrate: values.bitrate
+			? Number.isNaN(parseInt(values.bitrate as string, 10))
+				? undefined
+				: parseInt(values.bitrate as string, 10)
+			: undefined,
+		audioFormat: values["audio-format"] as string | undefined,
 		// speech generation options
 		exaggeration: values.exaggeration
 			? parseFloat(values.exaggeration as string)
@@ -522,6 +545,13 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		after: values.after as string | undefined,
 		// upscale-image options
 		target: values.target as string | undefined,
+		// upscale-video options
+		video: values.video as string | undefined,
+		targetFps: values["target-fps"]
+			? Number.isNaN(parseInt(values["target-fps"] as string, 10))
+				? undefined
+				: parseInt(values["target-fps"] as string, 10)
+			: undefined,
 		// vimax options
 		noReferences: (values["no-references"] as boolean) ?? false,
 		projectId: values["project-id"] as string | undefined,

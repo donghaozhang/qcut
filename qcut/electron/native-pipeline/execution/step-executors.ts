@@ -368,7 +368,21 @@ async function executeVideoToVideo(
 	}
 ): Promise<StepOutput> {
 	if (input.videoUrl) {
-		payload.video_url = input.videoUrl;
+		// Upload local files to FAL storage for FAL-routed endpoints
+		if (provider === "fal" && !/^https?:/i.test(input.videoUrl)) {
+			options.onProgress?.(10, "Uploading video to FAL storage...");
+			const upload = await uploadToFalStorage(input.videoUrl);
+			if (!upload.success || !upload.url) {
+				return {
+					success: false,
+					error: upload.error || "Failed to upload video",
+					duration: 0,
+				};
+			}
+			payload.video_url = upload.url;
+		} else {
+			payload.video_url = input.videoUrl;
+		}
 	}
 	if (input.text) {
 		payload.prompt = input.text;

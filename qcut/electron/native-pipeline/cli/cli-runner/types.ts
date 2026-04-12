@@ -111,6 +111,9 @@ export interface CLIRunOptions {
 	after?: string;
 	// upscale-image options
 	target?: string;
+	// upscale-video options
+	video?: string;
+	targetFps?: number;
 	// vimax options
 	noReferences?: boolean;
 	projectId?: string;
@@ -236,6 +239,12 @@ export interface CLIRunOptions {
 	// snapshot action options
 	selectValue?: string;
 	checked?: boolean;
+	// music generation options
+	lyrics?: string;
+	instrumental?: boolean;
+	sampleRate?: number;
+	bitrate?: number;
+	audioFormat?: string;
 	// speech generation options
 	exaggeration?: number;
 	temperature?: number;

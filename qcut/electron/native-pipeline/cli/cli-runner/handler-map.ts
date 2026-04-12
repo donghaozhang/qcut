@@ -71,7 +71,7 @@ import { handleGenerate } from "./handler-generate.js";
 import { handleRunPipeline } from "./handler-pipeline.js";
 import { handleTransferMotion } from "./handler-transfer.js";
 import { handleGenerateGrid } from "./handler-grid.js";
-import { handleUpscaleImage } from "./handler-upscale.js";
+import { handleUpscaleImage, handleUpscaleVideo } from "./handler-upscale.js";
 import { handlePipelineStatus } from "./handler-pipeline-status.js";
 import {
 	handleGenerateSpeech,
@@ -87,6 +87,7 @@ import {
 	handleReplicateAnalyze,
 	handleReplicateGenerate,
 } from "../cli-handlers-replicate.js";
+import { handleGenerateMusic } from "../cli-handlers-music.js";
 
 /**
  * Unified handler signature.
@@ -151,9 +152,11 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"generate-grid": handleGenerateGrid,
 	"transfer-motion": handleTransferMotion,
 	"upscale-image": handleUpscaleImage,
+	"upscale-video": handleUpscaleVideo,
 	"generate-remotion": async (options, onProgress, _executor, signal) =>
 		handleGenerateRemotion(options, onProgress, null, signal),
 	"stamp-image": wrapOP(handleStampImage),
+	"generate-music": wrapOPS(handleGenerateMusic),
 
 	// ── Analysis ──
 	"analyze-video": mediaHandleAnalyzeVideo,
