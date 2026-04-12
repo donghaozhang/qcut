@@ -1354,6 +1354,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				"number",
 				"Max storyboard images to generate (implies no video)"
 			),
+			f("--max-clips", "number", "Max shot videos to generate across chunks"),
 			f("--no-portraits", "boolean", "Skip portrait generation", {
 				default: false,
 			}),
@@ -1365,6 +1366,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline vimax:novel2movie --novel story.txt --max-scenes 10",
 			"qcut-pipeline vimax:novel2movie --scripts-only",
 			"qcut-pipeline vimax:novel2movie --max-images 5",
+			"qcut-pipeline vimax:novel2movie --max-scenes 20 --max-clips 5",
 		],
 	},
 	"vimax:extract-characters": {

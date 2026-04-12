@@ -29,6 +29,8 @@ Output lands at `~/Documents/QCut/Exports/novel2movie/<slug>_<timestamp>/`.
 | `--image-model` | `gmi_gemini_31_flash_image` is the cheap flash variant ($0.02/image). Rendered portraits + storyboards. |
 | `--video-model` | Sets the registry entry that `CameraImageGenerator` will pass to the video adapter. **Not called when `--max-images` is set** (preview mode skips video generation). Still worth setting so it's on disk in the summary. |
 | `--max-images 1` | Caps storyboard image count to 1 and **skips video generation entirely** (preview mode). This is the cheap-test switch. Remove it (or use `--storyboard-only`) to generate all storyboards; remove both for full video production. |
+| `--max-scenes N` | Caps the number of scenes processed across all chunks. Once the cap is hit the chunk loop breaks early — no further segmentation, storyboarding, or video generation. Useful for long novels when you only want a preview of the opening. |
+| `--max-clips N` | Caps the number of shot videos generated. Truncates each chunk's storyboard to the remaining headroom before the camera generator runs. Pair with `--max-scenes 20 --max-clips 5` to produce a 5-clip sizzle reel from a long novel. Unlike `--max-images`, videos *do* get rendered — the cap just stops at N. |
 | `--verbose --stream` | JSONL events on stderr so you can grep `"provider":"gmi"` for evidence of routing. |
 
 ## Novel format

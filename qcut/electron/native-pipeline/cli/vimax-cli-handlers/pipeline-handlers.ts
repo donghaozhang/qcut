@@ -291,6 +291,7 @@ export async function handleVimaxNovel2Movie(
 			storyboard_only: options.storyboardOnly ?? false,
 			...(options.maxImages != null ? { max_images: options.maxImages } : {}),
 			...(options.maxScenes != null ? { max_scenes: options.maxScenes } : {}),
+			...(options.maxClips != null ? { max_clips: options.maxClips } : {}),
 			...(resolvedStyle ? { visual_style: resolvedStyle } : {}),
 		};
 		if (options.videoModel) pipelineConfig.video_model = options.videoModel;

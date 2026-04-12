@@ -55,6 +55,8 @@ export interface Novel2MovieConfig {
 	max_images: number;
 	/** Cap the number of scenes processed across all chunks (0 = unlimited). */
 	max_scenes: number;
+	/** Cap the number of shot videos generated (0 = unlimited). */
+	max_clips: number;
 }
 
 /** Create a {@link Novel2MovieConfig} with sensible defaults. */
@@ -78,6 +80,7 @@ export function createNovel2MovieConfig(
 		overlap: 200,
 		max_images: 0,
 		max_scenes: 0,
+		max_clips: 0,
 		...partial,
 	};
 }
@@ -591,6 +594,24 @@ export class Novel2MoviePipeline {
 				// When max_images is set, skip video generation (preview mode)
 				if (this.config.storyboard_only || imagesCapped) {
 					continue;
+				}
+
+				// Enforce --max-clips cap: truncate storyboard images to remaining headroom
+				if (this.config.max_clips > 0) {
+					const remainingClips = this.config.max_clips - allVideos.length;
+					if (remainingClips <= 0) {
+						console.log(
+							`  Clip cap reached (${this.config.max_clips}), skipping video generation`
+						);
+						continue;
+					}
+					if (storyboardResult.result.images.length > remainingClips) {
+						console.log(
+							`  Trimming chunk ${i + 1} videos from ${storyboardResult.result.images.length} to ${remainingClips} (cap: ${this.config.max_clips})`
+						);
+						storyboardResult.result.images =
+							storyboardResult.result.images.slice(0, remainingClips);
+					}
 				}
 
 				// Generate videos
