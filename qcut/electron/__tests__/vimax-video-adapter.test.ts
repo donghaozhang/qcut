@@ -9,9 +9,15 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { resolveVideoModelSpec } from "../native-pipeline/vimax/adapters/video-adapter.js";
+import {
+	buildImageField,
+	resolveVideoModelSpec,
+} from "../native-pipeline/vimax/adapters/video-adapter.js";
 import { ModelRegistry } from "../native-pipeline/infra/registry.js";
 import type { ModelDefinitionInput } from "../native-pipeline/infra/registry.js";
+import { writeFileSync, unlinkSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 // ---------------------------------------------------------------------------
 // Registry fixtures
@@ -152,5 +158,63 @@ describe("VideoGeneratorAdapter.getAvailableModels", () => {
 		// Registry keys are surfaced — both FAL and GMI providers represented
 		expect(models.some((k: string) => k.startsWith("gmi_"))).toBe(true);
 		expect(models).toContain("kling_2_1");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// buildImageField — provider-specific payload shape
+// ---------------------------------------------------------------------------
+
+describe("buildImageField", () => {
+	const workdir = mkdtempSync(join(tmpdir(), "vimax-video-adapter-"));
+	const pngBytes = Buffer.from(
+		// 1x1 transparent PNG
+		"89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489" +
+			"0000000d49444154789c636040000000ffff03000006000557bffc820000000049454e44ae426082",
+		"hex"
+	);
+	const localPng = join(workdir, "frame.png");
+	writeFileSync(localPng, pngBytes);
+	afterEach(() => {
+		/* workdir cleaned by OS */
+	});
+
+	it("FAL + remote URL → image_url passthrough", () => {
+		const out = buildImageField("https://cdn.example.com/frame.png", "fal");
+		expect(out).toEqual({
+			image_url: "https://cdn.example.com/frame.png",
+		});
+	});
+
+	it("GMI + remote URL → image passthrough (renamed field)", () => {
+		const out = buildImageField("https://cdn.example.com/frame.png", "gmi");
+		expect(out).toEqual({ image: "https://cdn.example.com/frame.png" });
+		expect(out).not.toHaveProperty("image_url");
+	});
+
+	it("FAL + local path → image_url as data URI", () => {
+		const out = buildImageField(localPng, "fal");
+		expect(out.image_url).toMatch(/^data:image\/png;base64,/);
+		expect(out.image_url.length).toBeGreaterThan(50);
+	});
+
+	it("GMI + local path → image as RAW base64 (no data URI prefix)", () => {
+		const out = buildImageField(localPng, "gmi");
+		expect(out.image).not.toMatch(/^data:/);
+		// Pure base64 — verify it's valid and decodes to the PNG bytes.
+		const decoded = Buffer.from(out.image, "base64");
+		expect(decoded).toEqual(pngBytes);
+	});
+
+	it("FAL + data URI stays untouched (pass-through)", () => {
+		const dataUri = "data:image/png;base64,iVBORw0KGgo=";
+		const out = buildImageField(dataUri, "fal");
+		expect(out).toEqual({ image_url: dataUri });
+	});
+
+	it("GMI + data URI stays untouched (caller's responsibility)", () => {
+		const dataUri = "data:image/png;base64,iVBORw0KGgo=";
+		const out = buildImageField(dataUri, "gmi");
+		expect(out).toEqual({ image: dataUri });
 	});
 });

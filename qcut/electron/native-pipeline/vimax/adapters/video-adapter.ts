@@ -87,6 +87,45 @@ export function resolveVideoModelSpec(model: string): ResolvedModelSpec {
 }
 
 /**
+ * Build the provider-specific image payload field.
+ *
+ *   - FAL's image-to-video endpoints take `image_url` and accept remote
+ *     URLs or data URIs directly.
+ *   - GMI's endpoints take `image` and accept remote URLs or raw base64
+ *     strings (no `data:…;base64,` prefix — matches the payload shape in
+ *     `cli-handlers-element.ts` and `gmi-image-to-video.ts`).
+ *
+ * Local filesystem paths are read from disk and encoded accordingly.
+ */
+export function buildImageField(
+	imagePath: string,
+	provider: "fal" | "gmi"
+): Record<string, string> {
+	const isRemote = /^https?:/i.test(imagePath);
+	const isDataUri = imagePath.startsWith("data:");
+
+	if (provider === "gmi") {
+		if (isRemote || isDataUri) {
+			return { image: imagePath };
+		}
+		// Local file — encode to raw base64 (GMI's documented format).
+		return { image: fs.readFileSync(imagePath).toString("base64") };
+	}
+
+	// FAL path
+	if (isRemote || isDataUri) {
+		return { image_url: imagePath };
+	}
+	// Local file — convert to data URI (FAL accepts this; pure base64 won't
+	// pass the provider's content-type sniffing).
+	const ext = path.extname(imagePath).slice(1).toLowerCase() || "png";
+	const buffer = fs.readFileSync(imagePath);
+	return {
+		image_url: `data:image/${ext};base64,${buffer.toString("base64")}`,
+	};
+}
+
+/**
  * Registry pricing is either a number or an object like
  * `{ no_sound, with_sound }` / `{ std, pro, std_sound, pro_sound }`.
  * Pick the cheapest numeric entry as a conservative default — the
@@ -193,9 +232,15 @@ export class VideoGeneratorAdapter extends BaseAdapter<
 		}
 
 		const startTime = Date.now();
+		// Provider-specific payload shape — FAL expects `image_url` with
+		// either a remote URL or a data URI, while GMI expects `image` with
+		// a raw base64 string (no `data:…` prefix). Matches the working
+		// payloads used elsewhere in the codebase (gmi-image-to-video.ts /
+		// cli-handlers-element.ts).
+		const imageField = buildImageField(imagePath, spec.providerBackend);
 		const payload: Record<string, unknown> = {
 			prompt,
-			image_url: imagePath,
+			...imageField,
 			duration: String(Math.round(duration)),
 		};
 
