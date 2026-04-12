@@ -131,6 +131,27 @@ function resolveProbePort(override?: number): number {
 }
 
 /**
+ * Wait for the port file to appear on disk after spawning a daemon.
+ * The daemon writes this file early in boot, before the HTTP server is
+ * ready, so polling it lets us discover dynamic ports before probing
+ * health. Returns the port, or null on timeout.
+ */
+async function waitForPortFile(timeoutMs: number): Promise<number | null> {
+	const deadline = Date.now() + timeoutMs;
+	while (Date.now() < deadline) {
+		try {
+			const raw = readFileSync(PORT_FILE, "utf8").trim();
+			const parsed = Number.parseInt(raw, 10);
+			if (Number.isFinite(parsed) && parsed > 0) return parsed;
+		} catch {
+			/* not yet */
+		}
+		await new Promise((r) => setTimeout(r, 100));
+	}
+	return null;
+}
+
+/**
  * If an existing headless daemon is already running, return its info so
  * callers can reuse it rather than spawning a duplicate.
  */
@@ -182,10 +203,23 @@ export async function launchHeadlessRecorder(
 		});
 	});
 
-	const port = resolveProbePort(opts.probePort);
+	// Phase 2: the daemon may bind a dynamic port if 8765 is busy. Wait up
+	// to 3s for the daemon to write its port file, then health-probe that
+	// port. If the daemon never writes one (e.g. it crashed on boot) fall
+	// through to the default and let the earlyExit handler surface the
+	// real error.
+	const timeoutMs = opts.timeoutMs ?? 15_000;
+	let port = resolveProbePort(opts.probePort);
+	if (opts.probePort === undefined) {
+		const filePort = await Promise.race([
+			waitForPortFile(Math.min(3_000, timeoutMs)),
+			earlyExit.then(() => null as number | null),
+		]);
+		if (filePort) port = filePort;
+	}
 	const healthReady = waitForHttpReady({
 		url: `http://127.0.0.1:${port}/api/claude/health`,
-		timeoutMs: opts.timeoutMs ?? 15_000,
+		timeoutMs,
 		fetchImpl: opts.fetchImpl,
 	});
 

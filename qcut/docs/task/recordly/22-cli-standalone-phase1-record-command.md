@@ -3,6 +3,13 @@
 Ship a new standalone command that records without requiring QCut to be
 open. Does not modify any existing code path. Pure addition.
 
+> **Status (2026-04-12):** code + unit tests landed on branch `cli-drama`
+> (commits `a8d6a2291`, `93526ba1c`). Type-check clean. 26 new unit tests
+> pass. 9 existing screen-recording regression tests still pass. Manual
+> end-to-end verification (real Electron spawn, MP4 output) and the hidden
+> `capture.html` renderer bootstrap are tracked in the "Remaining work"
+> section below.
+
 ## What users get
 
 ```bash
@@ -218,6 +225,54 @@ record: {
     ],
 },
 ```
+
+## Shipped files (summary)
+
+| File | Purpose |
+|---|---|
+| `electron/headless-recorder/index.ts` | `runHeadlessRecorder()` — starts utility HTTP server + hidden BrowserWindow |
+| `electron/headless-recorder/hidden-window.ts` | Hidden `BrowserWindow({ show: false })` factory with `backgroundThrottling: false` |
+| `electron/headless-recorder/lifecycle.ts` | PID/port file I/O, idle timer, process-liveness probe |
+| `electron/native-pipeline/cli/headless-launcher.ts` | `launchHeadlessRecorder()` — spawns binary, waits for HTTP health, resolves cross-OS binary path |
+| `electron/native-pipeline/cli/cli-handlers-record.ts` | `handleRecord()` — orchestrates spawn → start → wait → stop → teardown |
+| `electron/main.ts` | `--headless-recorder` flag branch (parallel to `isCliKeyCommand`) |
+| `electron/native-pipeline/cli/cli-runner/types.ts` | Added `recordDuration`, `cursorSway`, `cursorLoop`, `zoomBlur`, `mic`, `systemAudio`, `noAutoLaunch` |
+| `electron/native-pipeline/cli/cli.ts` | parseArgs entries + camelCase mapping for new flags |
+| `electron/native-pipeline/cli/cli-runner/handler-map.ts` | `record: wrapOPS(handleRecord)` |
+| `electron/native-pipeline/cli/command-registry.ts` | `record` command definition + new `recording` category |
+
+## Shipped tests
+
+| File | Tests |
+|---|---|
+| `electron/__tests__/headless-lifecycle.test.ts` | 10 tests — PID/port round-trip, process liveness, idle timer bump/fire |
+| `electron/__tests__/headless-launcher.test.ts` | 11 tests — HTTP health probe, binary resolution, spawn injection, early-exit rejection, stdout/stderr forwarding |
+| `electron/__tests__/cli-record-command.test.ts` | 5 tests — happy path, start failure + force-stop fallback, launcher failure, `--duration Ns` fallback, abort signal |
+
+Run locally: `bun run test electron/__tests__/headless-*.test.ts electron/__tests__/cli-record-command.test.ts`
+
+## Remaining work (Phase 1 tail)
+
+These items weren't shipped in the initial landing because they depend on
+real Electron/renderer runtime that isn't viable in unit tests:
+
+1. **Dedicated capture renderer entry** — the hidden window currently
+   loads the full app (via `app://./index.html?headlessRecord=1` or the
+   dev server equivalent). This works because the existing
+   `claude-screen-recording-bridge` boots on every renderer load, but
+   costs ~1s of extra app init. A minimal `capture.html` with only the
+   bridge + store would be tighter; not required for correctness.
+2. **macOS permission prompt** — verify a hidden window can trigger the
+   screen-recording permission dialog the first time, or document the
+   manual grant step.
+3. **Packaged binary test** — confirm `/Applications/QCut.app/Contents/MacOS/QCut --headless-recorder`
+   boots correctly after a `dist:mac` build.
+4. **Windows/Linux verification** — the binary resolver has candidate
+   paths for both but no real-host testing yet.
+5. **Real-device E2E smoke test** — a test that spawns the packaged
+   binary and records a 2-second video. Belongs in
+   `electron/__tests__/headless-recorder-smoke.e2e.ts` under an
+   `E2E_STANDALONE=1` env guard.
 
 ## Implementation order
 

@@ -10,6 +10,14 @@ Before: `qcut editor:screen-recording:start` with QCut closed →
 After: same command silently spawns a daemon, hits HTTP against it,
 returns the real result. Users don't need to know QCut was ever closed.
 
+> **Status (2026-04-12):** auto-spawn dispatch branch + `record-daemon`
+> utility command landed on branch `cli-drama`. Type-check clean. 19
+> new unit tests pass, plus 16 Phase 1 tests still pass (launcher +
+> record handler + lifecycle). 4/4 existing
+> `editor-screen-recording-cli` regression tests still pass (session
+> mode and health-check paths unchanged because they always find a
+> running app in the test harness).
+
 ## Scope
 
 In-scope commands (unchanged wire protocol, auto-spawn added):
@@ -156,6 +164,81 @@ qcut record-daemon --start    # explicit start (for testing)
 
 Minimal implementation — wraps the same `headless-launcher.ts` already
 built in Phase 1.
+
+## Shipped files (summary)
+
+| File | Purpose |
+|---|---|
+| `electron/native-pipeline/cli/auto-spawn-editor.ts` | `ensureHeadlessDaemon()` — reuse existing daemon (via PID/port files) or launch fresh; `isAutoSpawnEligible()` gates the behaviour to `editor:screen-recording:*` only; `isEditorReachable()` health probe helper |
+| `electron/native-pipeline/cli/cli-handlers-record-daemon.ts` | `handleRecordDaemon()` — `--status` / `--stop` / `--start` subcommands |
+| `electron/native-pipeline/cli/cli-handlers-editor.ts` | Added auto-spawn branch after health check in `handleEditorCommand` — only fires for screen-recording commands when `--no-auto-launch` not set |
+| `electron/native-pipeline/cli/cli-runner/handler-map.ts` | Registered `record-daemon` handler |
+| `electron/native-pipeline/cli/command-registry.ts` | Added `record-daemon` command definition + linked to `recording` category |
+| `electron/native-pipeline/cli/cli.ts` | Added `--stop`, `--start`, `--status` boolean flags to parseArgs |
+
+## Shipped tests
+
+| File | Tests |
+|---|---|
+| `electron/__tests__/cli-auto-spawn-editor.test.ts` | 10 tests — eligibility gating, reuse-existing branch, spawn-fresh branch, launcher error propagation, health probe with timeout/200/503/abort |
+| `electron/__tests__/cli-record-daemon.test.ts` | 9 tests — `--status` (running / idle / stale PID) • `--stop` (no-op / SIGTERM / error) • `--start` (no-op when running / spawn when idle / launch error) |
+
+Run locally: `bun run test electron/__tests__/cli-auto-spawn-editor.test.ts electron/__tests__/cli-record-daemon.test.ts`
+
+## Behaviour verification
+
+The existing `editor-screen-recording-cli.test.ts` suite (4 tests)
+continues to pass because its test harness always has a mocked health
+endpoint that returns 200 — so the auto-spawn branch is never reached
+and the dispatch behaviour is unchanged when the app is running.
+
+Auto-spawn triggers only in three conditions, all testable today via
+the injected dependencies in `cli-auto-spawn-editor.test.ts`:
+
+1. Health check fails (`client.checkHealth()` returned `false`)
+2. Command name starts with `editor:screen-recording:`
+3. `--no-auto-launch` is not set
+
+If those all hold, the dispatcher calls `ensureHeadlessDaemon()` which
+prefers an existing daemon via PID-file probe before spawning a new one.
+
+## Follow-up work shipped (2026-04-12)
+
+### Dynamic port fallback — done
+
+| File | Change |
+|---|---|
+| `electron/headless-recorder/find-port.ts` *(new)* | `isPortFree()` + `findFreePort()` with preferred port + random fallback range |
+| `electron/headless-recorder/index.ts` | Probes 8765; if busy, finds free port in 12000–13000 and sets `process.env.QCUT_API_PORT` so the utility server binds the right one. Writes port file so the launcher can discover it. |
+| `electron/native-pipeline/cli/headless-launcher.ts` | `waitForPortFile()` — polls `~/.qcut/.headless-record.port` for up to 3s after spawn, then probes the port it finds there instead of defaulting to 8765 |
+| `electron/__tests__/headless-find-port.test.ts` *(new)* | 5 tests — isPortFree(free), isPortFree(bound), findFreePort prefers the preferred port, falls back to range, throws when range is saturated |
+
+### E2E scaffolds — landed, gated
+
+Both files skip by default and run only under `E2E_STANDALONE=1` with a
+binary path. They surface clean errors (not stack traces) when the binary
+is missing.
+
+| File | What it does | How to run |
+|---|---|---|
+| `electron/__tests__/headless-idle-exit.e2e.test.ts` | Spawns `qcut --headless-recorder --daemon` with `QCUT_HEADLESS_IDLE_TIMEOUT_MS=3000`, waits for clean self-exit | `QCUT_BINARY_PATH=… QCUT_HEADLESS_IDLE_TIMEOUT_MS=3000 E2E_STANDALONE=1 bun run test …idle-exit.e2e.test.ts` |
+| `electron/__tests__/headless-record-smoke.e2e.test.ts` | Runs `qcut record --record-duration 2` via `bun run pipeline`, asserts MP4 exists + ffprobe duration ∈ (1s, 5s) | `QCUT_BINARY_PATH=… E2E_STANDALONE=1 bun run test …record-smoke.e2e.test.ts` |
+
+The idle-exit test is only meaningful if the daemon respects
+`QCUT_HEADLESS_IDLE_TIMEOUT_MS` — which it now does, because
+`runHeadlessRecorder()` reads that env var (wins over the caller option
+and the 30s default).
+
+## Remaining (need real Electron runtime, not addressable in unit-test CI)
+
+- Actually running the E2E scaffolds end-to-end against a packaged QCut
+  build on all three OSes.
+- macOS first-launch permission prompt behaviour — does the OS allow a
+  hidden window to request screen-recording permission, or does the user
+  need to open the visible app at least once first? Verify on fresh
+  Macs.
+- Chromium window-occlusion behaviour at > 10-minute recordings — spot-
+  check long sessions on each OS.
 
 ## Docs changes
 

@@ -104,7 +104,10 @@ async function postJson<T>(
 function resolveRecordDurationSeconds(
 	options: CLIRunOptions
 ): number | undefined {
-	if (typeof options.recordDuration === "number" && options.recordDuration > 0) {
+	if (
+		typeof options.recordDuration === "number" &&
+		options.recordDuration > 0
+	) {
 		return options.recordDuration;
 	}
 	if (options.duration) {

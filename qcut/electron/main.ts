@@ -691,10 +691,7 @@ if (isHeadlessRecorder) {
 				`[HeadlessRecorder] Ready (daemon=${isHeadlessRecorderDaemon})`
 			);
 		} catch (err: any) {
-			logger.error(
-				"[HeadlessRecorder] Failed to start:",
-				err?.message ?? err
-			);
+			logger.error("[HeadlessRecorder] Failed to start:", err?.message ?? err);
 			app.exit(1);
 		}
 	});

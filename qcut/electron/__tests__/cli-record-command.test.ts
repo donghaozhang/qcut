@@ -59,7 +59,9 @@ function makeFetchRouter(routes: RouteMap): {
 	return { fetch: fetchImpl, calls };
 }
 
-function makeBaseOptions(overrides: Partial<CLIRunOptions> = {}): CLIRunOptions {
+function makeBaseOptions(
+	overrides: Partial<CLIRunOptions> = {}
+): CLIRunOptions {
 	return {
 		command: "record",
 		outputDir: "./output",

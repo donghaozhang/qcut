@@ -306,6 +306,10 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// `qcut record` standalone options (Phase 1 of dual-mode recording)
 			"record-duration": { type: "string" },
 			"no-auto-launch": { type: "boolean", default: false },
+			// `qcut record-daemon` subcommand flags
+			stop: { type: "boolean", default: false },
+			start: { type: "boolean", default: false },
+			status: { type: "boolean", default: false },
 			// export enhancement options
 			"cursor-sway": { type: "string" },
 			"cursor-blur": { type: "string" },

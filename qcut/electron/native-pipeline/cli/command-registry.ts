@@ -154,7 +154,7 @@ export const CATEGORIES: CategoryDef[] = [
 	{
 		name: "recording",
 		label: "Screen Recording",
-		commands: ["record"],
+		commands: ["record", "record-daemon"],
 	},
 	{
 		name: "vimax",
@@ -748,7 +748,11 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		description: "Record the screen standalone (spawns a headless QCut)",
 		category: "recording",
 		flags: [
-			f("--source", "string", "Capture source ID (from editor:screen-recording:sources)"),
+			f(
+				"--source",
+				"string",
+				"Capture source ID (from editor:screen-recording:sources)"
+			),
 			f(
 				"--record-duration",
 				"number",
@@ -770,6 +774,23 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut record --record-duration 10 -o demo.mp4",
 			"qcut record --source screen:0:0 --cursor-sway 1.0 -o polished.mp4",
 			"qcut record -o long.mp4  # press Ctrl-C to stop",
+		],
+	},
+
+	// ── Headless daemon management (Phase 2 of dual-mode CLI recording) ──
+	"record-daemon": {
+		name: "record-daemon",
+		description: "Manage the headless recorder daemon",
+		category: "recording",
+		flags: [
+			f("--status", "boolean", "Show daemon pid and port (default)"),
+			f("--stop", "boolean", "Send SIGTERM to the running daemon"),
+			f("--start", "boolean", "Spawn a new daemon in the background"),
+		],
+		examples: [
+			"qcut record-daemon",
+			"qcut record-daemon --stop",
+			"qcut record-daemon --start",
 		],
 	},
 

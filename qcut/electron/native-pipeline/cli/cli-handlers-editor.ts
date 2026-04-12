@@ -16,6 +16,10 @@ import {
 	markSessionHealthChecked,
 } from "./cli-runner/session.js";
 import {
+	ensureHeadlessDaemon,
+	isAutoSpawnEligible,
+} from "./auto-spawn-editor.js";
+import {
 	handleEditorHealth,
 	handleMediaProjectCommand,
 } from "../editor/editor-handlers-media.js";
@@ -185,7 +189,35 @@ export async function handleEditorCommand(
 		(options.skipHealth && (!options.session || isSessionHealthChecked()));
 
 	if (!shouldSkipHealth) {
-		const healthy = await client.checkHealth();
+		let healthy = await client.checkHealth();
+
+		// Phase 2 auto-spawn: for `editor:screen-recording:*` only, try to
+		// launch a hidden headless recorder so the command works without
+		// the user needing to open QCut. Opt-out via `--no-auto-launch`.
+		if (
+			!healthy &&
+			!options.noAutoLaunch &&
+			isAutoSpawnEligible(options.command)
+		) {
+			onProgress({
+				stage: "launching-headless",
+				percent: 0,
+				message: "QCut not running — launching headless recorder...",
+			});
+			try {
+				await ensureHeadlessDaemon();
+				healthy = await client.checkHealth();
+			} catch (err) {
+				onProgress({
+					stage: "launching-headless",
+					percent: 0,
+					message: `Headless launch failed: ${
+						err instanceof Error ? err.message : String(err)
+					}`,
+				});
+			}
+		}
+
 		if (!healthy) {
 			const host = options.host ?? process.env.QCUT_API_HOST ?? "127.0.0.1";
 			const port = options.port ?? process.env.QCUT_API_PORT ?? "8765";

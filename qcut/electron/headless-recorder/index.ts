@@ -21,6 +21,7 @@ import {
 	writePortFile,
 } from "./lifecycle.js";
 import { createHiddenCaptureWindow } from "./hidden-window.js";
+import { findFreePort } from "./find-port.js";
 
 export interface RunHeadlessRecorderOptions {
 	/** Exit after this many ms of inactivity when no recording is active. */
@@ -42,8 +43,29 @@ let activeWindow: BrowserWindow | null = null;
 export async function runHeadlessRecorder(
 	options: RunHeadlessRecorderOptions = {}
 ): Promise<void> {
-	const idleTimeoutMs = options.idleTimeoutMs ?? 30_000;
-	const httpPort = options.httpPort ?? 8765;
+	// Env var wins if set — used by the E2E idle-exit test to shorten the
+	// timer. Falls back to caller option, then the default 30s.
+	const envIdleMs = Number.parseInt(
+		process.env.QCUT_HEADLESS_IDLE_TIMEOUT_MS ?? "",
+		10
+	);
+	const idleTimeoutMs =
+		Number.isFinite(envIdleMs) && envIdleMs > 0
+			? envIdleMs
+			: (options.idleTimeoutMs ?? 30_000);
+
+	// Resolve the HTTP port: prefer the caller-supplied port, then probe
+	// 8765, then fall back to a random free port in 12000-13000. Bake the
+	// final port into QCUT_API_PORT so the utility-process picks it up via
+	// its existing env-var path (utility-bridge.ts reads QCUT_API_PORT at
+	// startUtilityHttpServer init).
+	let httpPort: number;
+	if (options.httpPort && Number.isFinite(options.httpPort)) {
+		httpPort = options.httpPort;
+	} else {
+		httpPort = await findFreePort({ preferredPort: 8765 });
+	}
+	process.env.QCUT_API_PORT = String(httpPort);
 
 	// Write PID + port files so a concurrent CLI invocation can reuse us.
 	writePidFile(process.pid);

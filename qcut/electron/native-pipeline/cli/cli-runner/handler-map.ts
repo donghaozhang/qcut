@@ -89,6 +89,7 @@ import {
 } from "../cli-handlers-replicate.js";
 import { handleGenerateMusic } from "../cli-handlers-music.js";
 import { handleRecord } from "../cli-handlers-record.js";
+import { handleRecordDaemon } from "../cli-handlers-record-daemon.js";
 
 /**
  * Unified handler signature.
@@ -160,6 +161,7 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"generate-music": wrapOPS(handleGenerateMusic),
 	// ── Standalone screen recording ──
 	record: wrapOPS(handleRecord),
+	"record-daemon": wrapOPS(handleRecordDaemon),
 
 	// ── Analysis ──
 	"analyze-video": mediaHandleAnalyzeVideo,

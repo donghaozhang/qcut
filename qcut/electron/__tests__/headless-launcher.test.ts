@@ -48,8 +48,11 @@ class FakeChild extends EventEmitter {
 	}
 }
 
-function fakeSpawn(child: FakeChild): typeof import("node:child_process").spawn {
-	return (() => child as unknown as ChildProcess) as unknown as typeof import("node:child_process").spawn;
+function fakeSpawn(
+	child: FakeChild
+): typeof import("node:child_process").spawn {
+	return (() =>
+		child as unknown as ChildProcess) as unknown as typeof import("node:child_process").spawn;
 }
 
 // ---------------------------------------------------------------------------
@@ -58,9 +61,7 @@ function fakeSpawn(child: FakeChild): typeof import("node:child_process").spawn 
 
 describe("waitForHttpReady", () => {
 	it("resolves on first 2xx response", async () => {
-		const fetchImpl = fakeFetchSequence([
-			new Response("ok", { status: 200 }),
-		]);
+		const fetchImpl = fakeFetchSequence([new Response("ok", { status: 200 })]);
 		await expect(
 			waitForHttpReady({
 				url: "http://test/health",
@@ -140,9 +141,7 @@ describe("resolveQcutBinaryPath", () => {
 describe("launchHeadlessRecorder", () => {
 	it("spawns child, waits for health, returns handle", async () => {
 		const child = new FakeChild();
-		const fetchImpl = fakeFetchSequence([
-			new Response("ok", { status: 200 }),
-		]);
+		const fetchImpl = fakeFetchSequence([new Response("ok", { status: 200 })]);
 
 		const result = await launchHeadlessRecorder({
 			binaryPathOverride: "/fake/qcut",
@@ -179,9 +178,7 @@ describe("launchHeadlessRecorder", () => {
 
 	it("forwards stdout/stderr lines to onOutput", async () => {
 		const child = new FakeChild();
-		const fetchImpl = fakeFetchSequence([
-			new Response("ok", { status: 200 }),
-		]);
+		const fetchImpl = fakeFetchSequence([new Response("ok", { status: 200 })]);
 		const outputs: string[] = [];
 
 		const launch = launchHeadlessRecorder({
