@@ -107,7 +107,35 @@ export async function handleRecordDaemon(
 					duration: (Date.now() - startTime) / 1000,
 				};
 			}
-			// Best-effort: the daemon clears state files in its exit hook.
+			// Wait for the process to actually exit. Poll liveness with a 5s
+			// budget; if it's still alive after that, escalate to SIGKILL.
+			const deadline = Date.now() + 5_000;
+			let exited = false;
+			while (Date.now() < deadline) {
+				if (!isAlive(existing.pid)) {
+					exited = true;
+					break;
+				}
+				await new Promise((r) => setTimeout(r, 100));
+			}
+			if (!exited) {
+				try {
+					killFn(existing.pid, "SIGKILL");
+				} catch {
+					/* process already gone */
+				}
+				// Give SIGKILL a brief moment to take effect.
+				await new Promise((r) => setTimeout(r, 200));
+				exited = !isAlive(existing.pid);
+			}
+			if (!exited) {
+				return {
+					success: false,
+					error: `Daemon pid=${existing.pid} did not exit after SIGTERM+SIGKILL`,
+					duration: (Date.now() - startTime) / 1000,
+					data: { stopped: false, pid: existing.pid, port: existing.port },
+				};
+			}
 			return {
 				success: true,
 				duration: (Date.now() - startTime) / 1000,

@@ -211,6 +211,13 @@ export interface CLIRunOptions {
 	systemAudio?: boolean;
 	/** Fail with ECONNREFUSED instead of auto-launching a headless recorder */
 	noAutoLaunch?: boolean;
+	// `qcut record-daemon` action flags — mutually-exclusive verbs
+	/** Trigger record-daemon stop action */
+	stop?: boolean;
+	/** Trigger record-daemon start action */
+	start?: boolean;
+	/** Trigger record-daemon status action (also the default) */
+	status?: boolean;
 	// ui options
 	panel?: string;
 	tab?: string;

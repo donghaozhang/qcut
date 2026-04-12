@@ -1,6 +1,7 @@
 # Does `editor:screen-recording:*` need QCut running?
 
-**TL;DR — Yes.** All four `editor:screen-recording:*` CLI commands require
+**TL;DR — Yes.** All five `editor:screen-recording:*` CLI commands
+(`sources`, `start`, `stop`, `force-stop`, `status`) require
 the QCut desktop app to be running, with at least one open editor window.
 This includes the "passive" reads like `:sources` and `:status`.
 

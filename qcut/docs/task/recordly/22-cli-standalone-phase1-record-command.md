@@ -85,12 +85,12 @@ Minimal renderer bootstrap:
 ```tsx
 // Loads the existing screen-recording-store, no UI, waits for IPC signal
 import { useScreenRecordingStore } from "@/stores/screen-recording-store";
-import { installClaudeScreenRecordingBridge } from "@/lib/claude-bridge/claude-screen-recording-bridge";
+import { setupClaudeScreenRecordingBridge } from "@/lib/claude-bridge/claude-screen-recording-bridge";
 
 export function Capture() {
     useEffect(() => {
         // Bridge already listens for claude:screen-recording:start:request
-        installClaudeScreenRecordingBridge();
+        setupClaudeScreenRecordingBridge();
     }, []);
     return null;  // no UI
 }
@@ -214,8 +214,12 @@ record: {
     category: "media",
     flags: [
         f("--source", "string", "Capture source ID (default: first screen)"),
-        f("--duration", "number", "Auto-stop after N seconds"),
-        f("--output", "string", "Output file", { short: "-o" }),
+        f(
+            "--record-duration",
+            "number",
+            "Auto-stop after N seconds (omit to wait for Ctrl-C)"
+        ),
+        f("--output", "string", "Output file name", { short: "-o" }),
         f("--cursor-sway", "number", "Cursor wobble (0-2)"),
         f("--cursor-loop", "boolean", "Smooth loop return"),
         f("--zoom-blur", "number", "Motion blur during zoom (0-1)"),

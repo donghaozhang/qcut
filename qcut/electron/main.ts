@@ -636,7 +636,9 @@ if (!app.isDefaultProtocolClient("qcut")) {
 	app.setAsDefaultProtocolClient("qcut");
 }
 
-if (!isCliKeyCommand) {
+// Skip activation-token parsing for headless CLI modes — neither key
+// management nor the headless recorder need license-activation side-effects.
+if (!isCliKeyCommand && !isHeadlessRecorder) {
 	consumeActivationTokenFromArgs(process.argv);
 }
 
@@ -697,7 +699,9 @@ if (isHeadlessRecorder) {
 	});
 }
 
-if (isCliKeyCommand) {
+// CLI-key branch is mutually exclusive with the headless-recorder branch —
+// both would boot separate pipelines in one process otherwise.
+if (isCliKeyCommand && !isHeadlessRecorder) {
 	app.whenReady().then(async () => {
 		try {
 			const { spawnSync } = require("child_process");

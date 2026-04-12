@@ -694,6 +694,12 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		mic: (values.mic as boolean) ?? false,
 		systemAudio: (values["system-audio"] as boolean) ?? false,
 		noAutoLaunch: (values["no-auto-launch"] as boolean) ?? false,
+		// `qcut record-daemon` action flags (raw pass-through for the handler's
+		// `resolveAction` lookup). Spreading kebab-case isn't needed — these
+		// are top-level names already.
+		...(values.stop ? { stop: true } : {}),
+		...(values.start ? { start: true } : {}),
+		...(values.status ? { status: true } : {}),
 		// export enhancement options (passed through as raw values)
 		...(values["cursor-sway"] &&
 		!Number.isNaN(parseFloat(values["cursor-sway"] as string))

@@ -112,11 +112,18 @@ jobs:
       - uses: oven-sh/setup-bun@v1
       - run: bun install
       - run: bun run build
-      - run: bun run test:e2e -- --grep standalone
+      # Linux: capture APIs need a virtual display
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - if: runner.os == 'Linux'
+        run: xvfb-run -a --server-args='-screen 0 1280x1024x24' bun run test:e2e -- --grep standalone
+      - if: runner.os != 'Linux'
+        run: bun run test:e2e -- --grep standalone
 ```
 
-Linux runner needs `xvfb` or a virtual display for screen capture to
-work — add `xvfb-run` wrapper on ubuntu matrix row.
+On macOS and Windows the job runs directly on the hosted display. On
+Ubuntu we install `xvfb` and wrap the test command with `xvfb-run -a`
+so FFmpeg / `desktopCapturer` have a display to record.
 
 ## Manual sanity script
 

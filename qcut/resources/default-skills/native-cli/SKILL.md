@@ -88,6 +88,19 @@ qcut-pipeline <group> <action> [options]         # Production binary
 
 Run `qcut <group> --help` for group details.
 
+### Top-level commands (not in a group)
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `record` | Standalone screen recording — spawns its own hidden QCut | `record --record-duration 10 -o demo.mp4` |
+| `record-daemon` | Inspect / stop / start the headless recorder daemon | `record-daemon --status` |
+| `youtube:upload` | Upload a file to YouTube via Google OAuth | `youtube:upload -i video.mp4 --title "demo"` |
+
+`record` and `record-daemon` do not require QCut to be open — they
+auto-launch a hidden recorder. See
+[editor-output.md](editor/editor-output.md#standalone-recording--qcut-record-no-editor-needed)
+for flags and examples.
+
 ## Project Setup & Organization
 
 Use these commands for project setup, file categorization, and structure audits:
@@ -154,6 +167,7 @@ qcut analyze video -i video.mp4 --analysis-type summary
 qcut analyze transcribe -i audio.mp3 --srt
 qcut flow run -c pipeline.yaml -i "A sunset" --no-confirm
 qcut system cost -m veo3 -d 8s
+qcut record --record-duration 10 -o demo.mp4   # standalone screen recording, no editor needed
 ```
 
 ## Auth Token Management

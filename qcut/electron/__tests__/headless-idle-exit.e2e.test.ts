@@ -84,6 +84,9 @@ describeOrSkip("headless daemon — idle self-exit", () => {
 		// stay quiet and let the idle timer fire.
 		const result = await waitForExit(child, 45_000);
 		expect(result).not.toBeNull();
-		expect(result?.signal).toBeNull(); // exited, not signalled
+		// Clean exit = code 0 AND no signal. Asserting only on signal would
+		// let a crash-exit (code 1) pass as success.
+		expect(result?.signal).toBeNull();
+		expect(result?.code).toBe(0);
 	}, 60_000);
 });

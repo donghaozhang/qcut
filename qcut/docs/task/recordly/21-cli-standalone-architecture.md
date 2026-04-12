@@ -70,7 +70,7 @@ is *how* the BrowserWindow gets created.
 | Flag | Type | Default | Description |
 |---|---|---|---|
 | `--source` | string | first available screen | Source ID from `editor:screen-recording:sources` |
-| `--duration` | seconds | none | Auto-stop after N seconds. Omit to require Ctrl-C. |
+| `--record-duration` | seconds | none | Auto-stop after N seconds. Omit to require Ctrl-C. (The legacy `--duration "Ns"` string form is also accepted.) |
 | `--output` / `-o` | path | `./recording-<ts>.mp4` | Output file path |
 | `--cursor-sway` | 0–2 | 0 | Reuse existing export-compositor flag |
 | `--cursor-loop` | boolean | false | Same |

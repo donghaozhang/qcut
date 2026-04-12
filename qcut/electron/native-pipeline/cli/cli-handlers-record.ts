@@ -196,7 +196,18 @@ export async function handleRecord(
 		});
 
 		if (durationSeconds) {
-			await delay(durationSeconds * 1000, undefined, { signal });
+			// Race the fixed delay with child exit so a mid-recording crash
+			// fails fast instead of silently completing the timer and then
+			// tripping a confusing /stop error.
+			const childExitedEarly = new Promise<never>((_, reject) => {
+				child.once("exit", () => {
+					reject(new Error("Headless recorder exited before duration elapsed"));
+				});
+			});
+			await Promise.race([
+				delay(durationSeconds * 1000, undefined, { signal }),
+				childExitedEarly,
+			]);
 		} else {
 			// Wait indefinitely for the caller to abort the signal.
 			await new Promise<void>((resolve, reject) => {

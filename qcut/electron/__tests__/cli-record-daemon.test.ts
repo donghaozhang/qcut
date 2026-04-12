@@ -73,9 +73,14 @@ describe("handleRecordDaemon --stop", () => {
 	beforeEach(() => clearStateFiles());
 	afterEach(() => clearStateFiles());
 
-	it("returns no-op success when nothing is running", async () => {
+	it("returns no-op success when stop action targets nothing running", async () => {
+		// Inject --stop flag so resolveAction picks the stop branch instead of
+		// defaulting to status mode.
+		const options = baseOptions({ command: "record-daemon" });
+		(options as unknown as Record<string, unknown>).stop = true;
+
 		const result = await handleRecordDaemon(
-			baseOptions({ command: "record-daemon" }),
+			options,
 			() => undefined,
 			new AbortController().signal,
 			{
@@ -86,8 +91,11 @@ describe("handleRecordDaemon --stop", () => {
 			}
 		);
 		// Stop treats missing daemon as a successful no-op.
-		// `stop` flag injected via the raw options bag.
 		expect(result.success).toBe(true);
+		expect(result.data).toMatchObject({
+			stopped: false,
+			reason: "no daemon running",
+		});
 	});
 
 	it("signals SIGTERM when a daemon is running", async () => {

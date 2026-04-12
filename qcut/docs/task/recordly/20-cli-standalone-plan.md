@@ -54,7 +54,7 @@ first and validates the headless-Electron mechanism.
 
 **Phase 1 done when:**
 
-- `qcut record --source screen:0:0 --duration 10 -o demo.mp4` runs with
+- `qcut record --source screen:0:0 --record-duration 10 -o demo.mp4` runs with
   QCut closed, produces a valid MP4 with cursor overlay, exits cleanly.
 - Existing E2E tests in
   `apps/web/src/test/e2e/screen-recording-*.e2e.ts` all still pass.

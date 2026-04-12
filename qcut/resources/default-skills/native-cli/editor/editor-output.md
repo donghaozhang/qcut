@@ -99,6 +99,15 @@ qcut editor:mcp:forward-html \
 
 ## Screen Recording Commands
 
+> **Auto-spawn behaviour (Phase 2 dual-mode recording):** every
+> `editor:screen-recording:*` command auto-launches a hidden headless
+> QCut if the editor app isn't already running. You do not need to
+> start QCut manually. Pass `--no-auto-launch` to opt out and get the
+> old "Cannot connect to QCut" error instead.
+>
+> For a one-shot command that doesn't need the editor UI at all, use
+> `qcut record` (see the "Standalone Recording" section below).
+
 ### List capture sources
 
 ```bash
@@ -170,6 +179,53 @@ qcut editor:export:start \
 ```
 
 Recordings save to `~/Movies/QCut Recordings/` with a `.cursor.json` telemetry sidecar for cursor position tracking. The `--auto-zoom` flag uses this telemetry to generate zoom regions from click clusters and cursor dwell areas.
+
+### Standalone recording — `qcut record` (no editor needed)
+
+`qcut record` spawns its own hidden QCut instance, captures for a fixed
+duration, writes an MP4, and exits. Ideal for scripts and CI jobs where
+opening the editor UI is overkill.
+
+```bash
+# Record primary screen for 10 seconds
+qcut record --record-duration 10 -o demo.mp4
+
+# Pick a source (use editor:screen-recording:sources to discover IDs)
+qcut record --source "screen:0:0" --record-duration 15 -o demo.mp4
+
+# Interactive — press Ctrl-C to stop
+qcut record -o long-demo.mp4
+```
+
+| Flag | Description |
+|------|-------------|
+| `--record-duration` | Auto-stop after N seconds (omit for Ctrl-C mode) |
+| `--source` | Capture source ID (default: primary screen) |
+| `--output`, `-o` | Output file name (default: `recording-<ts>.mp4`) |
+| `--cursor-sway` | Cursor wobble 0–2 (export compositor) |
+| `--cursor-loop` | Smooth loop return for cursor path |
+| `--zoom-blur` | Motion blur during zoom transitions 0–1 |
+| `--mic` | Capture microphone audio |
+| `--system-audio` | Capture system audio (default: true) |
+| `--no-auto-launch` | Fail if no headless recorder can be spawned |
+
+### Daemon management — `qcut record-daemon`
+
+When `editor:screen-recording:*` auto-spawns a headless recorder, it
+stays alive for 30s of inactivity to amortise cold-start across
+subsequent CLI calls. Manual control is rarely needed but available:
+
+```bash
+qcut record-daemon             # --status (default): print pid + port
+qcut record-daemon --stop      # SIGTERM the running daemon
+qcut record-daemon --start     # Spawn a daemon explicitly (no-op if one is running)
+```
+
+State files: `~/.qcut/.headless-record.pid` and `~/.qcut/.headless-record.port`.
+
+See [docs/task/recordly/22-cli-standalone-phase1-record-command.md] and
+[docs/task/recordly/23-cli-standalone-phase2-editor-commands.md] for
+architecture details.
 
 ---
 
