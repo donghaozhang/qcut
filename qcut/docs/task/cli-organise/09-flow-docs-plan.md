@@ -25,7 +25,7 @@ Phase 1 docs ([00–06](00-overview.md)) are architecture-facing. End users runn
 
 **Files to update**:
 - `docs/task/cli-organise/00-overview.md` — append a "Phase 2" section linking the `flow/` subdirectory.
-- `qcut/packages/nexusai-website` (submodule) — optional follow-up card for the website; not in this task.
+- `qcut/packages/nexusai-website` (submodule) — **done**: landing-page card for the `flow` group added to `cli.html` (`#flow-overview` anchor + sidebar link). Lists all 11 commands grouped by purpose (YAML, agentic video, single-stage helpers, registry & status).
 
 ## Content Outlines
 
@@ -122,6 +122,6 @@ Medium — scope is 8 docs (~4500 words). Mitigation: write the flags reference 
 
 ## Out of Scope
 
-- Website/landing-page card for `flow` group (nexusai-website submodule — follow-up).
+- ~~Website/landing-page card for `flow` group (nexusai-website submodule — follow-up).~~ **Done** — see *Files to update* above.
 - Video walkthroughs.
 - Translating docs.
