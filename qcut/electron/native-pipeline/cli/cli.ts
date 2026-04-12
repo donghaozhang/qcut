@@ -303,6 +303,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"source-id": { type: "string" },
 			discard: { type: "boolean", default: false },
 			force: { type: "boolean", default: false },
+			// `qcut record` standalone options (Phase 1 of dual-mode recording)
+			"record-duration": { type: "string" },
+			"no-auto-launch": { type: "boolean", default: false },
 			// export enhancement options
 			"cursor-sway": { type: "string" },
 			"cursor-blur": { type: "string" },
@@ -667,6 +670,26 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		sourceId: values["source-id"] as string | undefined,
 		discard: (values.discard as boolean) ?? false,
 		force: (values.force as boolean) ?? false,
+		// `qcut record` standalone options — typed camelCase mappings
+		recordDuration: values["record-duration"]
+			? Number.isNaN(parseFloat(values["record-duration"] as string))
+				? undefined
+				: parseFloat(values["record-duration"] as string)
+			: undefined,
+		cursorSway: values["cursor-sway"]
+			? Number.isNaN(parseFloat(values["cursor-sway"] as string))
+				? undefined
+				: parseFloat(values["cursor-sway"] as string)
+			: undefined,
+		cursorLoop: (values["cursor-loop"] as boolean) ?? false,
+		zoomBlur: values["zoom-blur"]
+			? Number.isNaN(parseFloat(values["zoom-blur"] as string))
+				? undefined
+				: parseFloat(values["zoom-blur"] as string)
+			: undefined,
+		mic: (values.mic as boolean) ?? false,
+		systemAudio: (values["system-audio"] as boolean) ?? false,
+		noAutoLaunch: (values["no-auto-launch"] as boolean) ?? false,
 		// export enhancement options (passed through as raw values)
 		...(values["cursor-sway"] &&
 		!Number.isNaN(parseFloat(values["cursor-sway"] as string))

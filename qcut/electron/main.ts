@@ -624,6 +624,13 @@ const CLI_KEY_COMMANDS = ["set-key", "check-keys", "delete-key"];
 const cliArgs = process.argv.slice(app.isPackaged ? 1 : 2);
 const isCliKeyCommand = CLI_KEY_COMMANDS.includes(cliArgs[0]);
 
+// Headless recorder — runs a hidden BrowserWindow that services
+// `qcut record` HTTP requests without showing any editor UI.
+// See docs/task/recordly/22-cli-standalone-phase1-record-command.md.
+const isHeadlessRecorder = process.argv.includes("--headless-recorder");
+const isHeadlessRecorderDaemon =
+	isHeadlessRecorder && process.argv.includes("--daemon");
+
 // Register qcut:// deep link protocol for license activation
 if (!app.isDefaultProtocolClient("qcut")) {
 	app.setAsDefaultProtocolClient("qcut");
@@ -675,6 +682,24 @@ app.on("open-url", (event, url) => {
 	}
 });
 
+if (isHeadlessRecorder) {
+	app.whenReady().then(async () => {
+		try {
+			const { runHeadlessRecorder } = require("./headless-recorder/index.js");
+			await runHeadlessRecorder({ daemon: isHeadlessRecorderDaemon });
+			logger.log(
+				`[HeadlessRecorder] Ready (daemon=${isHeadlessRecorderDaemon})`
+			);
+		} catch (err: any) {
+			logger.error(
+				"[HeadlessRecorder] Failed to start:",
+				err?.message ?? err
+			);
+			app.exit(1);
+		}
+	});
+}
+
 if (isCliKeyCommand) {
 	app.whenReady().then(async () => {
 		try {
@@ -701,7 +726,7 @@ if (isCliKeyCommand) {
 	});
 }
 
-if (!isCliKeyCommand) {
+if (!isCliKeyCommand && !isHeadlessRecorder) {
 	app.whenReady().then(async () => {
 		// Set macOS dock icon (requires PNG format)
 		if (process.platform === "darwin" && app.dock) {
@@ -913,7 +938,7 @@ if (!isCliKeyCommand) {
 			readChangelogFallback,
 		});
 	});
-} // end if (!isCliKeyCommand)
+} // end if (!isCliKeyCommand && !isHeadlessRecorder)
 
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") {

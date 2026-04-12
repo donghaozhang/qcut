@@ -152,6 +152,11 @@ export const CATEGORIES: CategoryDef[] = [
 		commands: ["youtube:upload"],
 	},
 	{
+		name: "recording",
+		label: "Screen Recording",
+		commands: ["record"],
+	},
+	{
 		name: "vimax",
 		label: "ViMax Commands",
 		commands: [
@@ -734,6 +739,37 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			'qcut gen music -t "Upbeat pop, warm female vocal, 104 BPM"',
 			'qcut gen music -t "City Pop, 80s retro" --lyrics "[verse] La da dee, sunny day"',
 			'qcut gen music -t "Cinematic orchestral" --instrumental',
+		],
+	},
+
+	// ── Standalone screen recording (Phase 1 of dual-mode CLI recording) ──
+	record: {
+		name: "record",
+		description: "Record the screen standalone (spawns a headless QCut)",
+		category: "recording",
+		flags: [
+			f("--source", "string", "Capture source ID (from editor:screen-recording:sources)"),
+			f(
+				"--record-duration",
+				"number",
+				"Auto-stop after N seconds (omit to wait for Ctrl-C)"
+			),
+			f("--output", "string", "Output file name", { short: "-o" }),
+			f("--cursor-sway", "number", "Cursor wobble intensity (0-2)"),
+			f("--cursor-loop", "boolean", "Smooth loop return for cursor path"),
+			f("--zoom-blur", "number", "Motion blur during zoom (0-1)"),
+			f("--mic", "boolean", "Capture microphone audio"),
+			f("--system-audio", "boolean", "Capture system audio", { default: true }),
+			f(
+				"--no-auto-launch",
+				"boolean",
+				"Fail if no headless recorder can be spawned"
+			),
+		],
+		examples: [
+			"qcut record --record-duration 10 -o demo.mp4",
+			"qcut record --source screen:0:0 --cursor-sway 1.0 -o polished.mp4",
+			"qcut record -o long.mp4  # press Ctrl-C to stop",
 		],
 	},
 
