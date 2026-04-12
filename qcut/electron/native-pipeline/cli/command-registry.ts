@@ -679,7 +679,11 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				short: "-t",
 				required: true,
 			}),
-			f("--lyrics", "string", "Song lyrics with structure tags ([verse], [chorus])"),
+			f(
+				"--lyrics",
+				"string",
+				"Song lyrics with structure tags ([verse], [chorus])"
+			),
 			f("--instrumental", "boolean", "Generate instrumental (no vocals)", {
 				default: false,
 			}),

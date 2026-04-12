@@ -43,7 +43,7 @@ const DEFAULT_MODEL = "minimax_music_v2_6";
 export async function handleGenerateMusic(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
-	signal: AbortSignal,
+	signal: AbortSignal
 ): Promise<CLIResult> {
 	const prompt = options.text || options.prompt;
 	if (!prompt?.trim()) {
@@ -141,8 +141,7 @@ export async function handleGenerateMusic(
 
 	// Extract audio URL from response
 	const data = apiResult.data as MusicApiResponse | undefined;
-	const audioUrl: string =
-		data?.audio?.url || apiResult.outputUrl || "";
+	const audioUrl: string = data?.audio?.url || apiResult.outputUrl || "";
 
 	if (!audioUrl) {
 		return {
@@ -174,8 +173,7 @@ export async function handleGenerateMusic(
 		await mkdir(outputDir, { recursive: true });
 
 		const ext = options.audioFormat || "mp3";
-		const rawFileName =
-			data?.audio?.file_name || `music_${Date.now()}.${ext}`;
+		const rawFileName = data?.audio?.file_name || `music_${Date.now()}.${ext}`;
 		const fileName = basename(rawFileName);
 		const outputPath = join(outputDir, fileName);
 		await writeFile(outputPath, audioBuffer);
