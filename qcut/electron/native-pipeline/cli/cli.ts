@@ -489,10 +489,14 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		lyrics: values.lyrics as string | undefined,
 		instrumental: (values.instrumental as boolean) ?? false,
 		sampleRate: values["sample-rate"]
-			? parseInt(values["sample-rate"] as string, 10)
+			? Number.isNaN(parseInt(values["sample-rate"] as string, 10))
+				? undefined
+				: parseInt(values["sample-rate"] as string, 10)
 			: undefined,
 		bitrate: values.bitrate
-			? parseInt(values.bitrate as string, 10)
+			? Number.isNaN(parseInt(values.bitrate as string, 10))
+				? undefined
+				: parseInt(values.bitrate as string, 10)
 			: undefined,
 		audioFormat: values["audio-format"] as string | undefined,
 		// speech generation options

@@ -8,14 +8,22 @@
  * @module electron/native-pipeline/cli/cli-handlers-music
  */
 
-import { writeFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 import type {
 	CLIRunOptions,
 	CLIResult,
 	ProgressFn,
 } from "./cli-runner/types.js";
 import { callModelApi } from "../infra/api-caller.js";
+
+interface MusicApiResponse {
+	audio?: {
+		url?: string;
+		file_name?: string;
+		content_type?: string;
+	};
+}
 
 const MUSIC_ENDPOINTS: Record<string, string> = {
 	minimax_music_v2_6: "fal-ai/minimax-music/v2.6",
@@ -45,10 +53,11 @@ export async function handleGenerateMusic(
 		};
 	}
 
-	if (prompt.length < 10 || prompt.length > 300) {
+	const trimmedPrompt = prompt.trim();
+	if (trimmedPrompt.length < 10 || trimmedPrompt.length > 300) {
 		return {
 			success: false,
-			error: `Prompt must be 10-300 characters (got ${prompt.length})`,
+			error: `Prompt must be 10-300 characters (got ${trimmedPrompt.length})`,
 		};
 	}
 
@@ -81,7 +90,7 @@ export async function handleGenerateMusic(
 	});
 
 	const payload: Record<string, unknown> = {
-		prompt: prompt.trim(),
+		prompt: trimmedPrompt,
 		is_instrumental: isInstrumental,
 	};
 
@@ -98,13 +107,29 @@ export async function handleGenerateMusic(
 		payload.audio_setting = audioSetting;
 	}
 
-	const apiResult = await callModelApi({
-		endpoint,
-		payload,
-		provider: "fal",
-		signal,
-		modelKey: model,
-	});
+	let apiResult: Awaited<ReturnType<typeof callModelApi>>;
+	try {
+		apiResult = await callModelApi({
+			endpoint,
+			payload,
+			provider: "fal",
+			signal,
+			modelKey: model,
+		});
+	} catch (err) {
+		if (err instanceof Error && err.name === "AbortError") {
+			return {
+				success: false,
+				error: "Music generation cancelled",
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+		return {
+			success: false,
+			error: `Music generation failed: ${err instanceof Error ? err.message : String(err)}`,
+			duration: (Date.now() - startTime) / 1000,
+		};
+	}
 
 	if (!apiResult.success) {
 		return {
@@ -115,7 +140,7 @@ export async function handleGenerateMusic(
 	}
 
 	// Extract audio URL from response
-	const data = apiResult.data as Record<string, any> | undefined;
+	const data = apiResult.data as MusicApiResponse | undefined;
 	const audioUrl: string =
 		data?.audio?.url || apiResult.outputUrl || "";
 
@@ -146,13 +171,14 @@ export async function handleGenerateMusic(
 
 		const audioBuffer = Buffer.from(await audioResponse.arrayBuffer());
 		const outputDir = options.outputDir || process.cwd();
-		mkdirSync(outputDir, { recursive: true });
+		await mkdir(outputDir, { recursive: true });
 
 		const ext = options.audioFormat || "mp3";
-		const fileName =
+		const rawFileName =
 			data?.audio?.file_name || `music_${Date.now()}.${ext}`;
+		const fileName = basename(rawFileName);
 		const outputPath = join(outputDir, fileName);
-		writeFileSync(outputPath, audioBuffer);
+		await writeFile(outputPath, audioBuffer);
 
 		onProgress({ stage: "complete", percent: 100, message: "Done", model });
 
@@ -166,7 +192,7 @@ export async function handleGenerateMusic(
 				fileSize: audioBuffer.length,
 				contentType: data?.audio?.content_type || `audio/${ext}`,
 				instrumental: isInstrumental,
-				prompt: prompt.trim(),
+				prompt: trimmedPrompt,
 			},
 			duration: (Date.now() - startTime) / 1000,
 		};
