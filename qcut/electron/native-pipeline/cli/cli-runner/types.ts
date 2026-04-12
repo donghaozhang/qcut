@@ -196,6 +196,21 @@ export interface CLIRunOptions {
 	sourceId?: string;
 	discard?: boolean;
 	force?: boolean;
+	// `qcut record` standalone options (Phase 1 of dual-mode CLI recording)
+	/** Auto-stop recording after N seconds (omit to wait for Ctrl-C) */
+	recordDuration?: number;
+	/** Cursor wobble intensity 0–2 (export compositor) */
+	cursorSway?: number;
+	/** Smooth loop return for the cursor path */
+	cursorLoop?: boolean;
+	/** Motion blur during zoom transitions 0–1 */
+	zoomBlur?: number;
+	/** Capture microphone audio */
+	mic?: boolean;
+	/** Capture system audio */
+	systemAudio?: boolean;
+	/** Fail with ECONNREFUSED instead of auto-launching a headless recorder */
+	noAutoLaunch?: boolean;
 	// ui options
 	panel?: string;
 	tab?: string;
