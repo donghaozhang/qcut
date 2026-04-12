@@ -21,6 +21,10 @@ export interface CharacterBase {
 export interface PortraitAttributes {
 	age: string;
 	gender: string;
+	/** Ethnicity / nationality — e.g. "Japanese", "Chinese", "Korean". Keeps */
+	/** the image model from defaulting to a Caucasian mean face when the */
+	/** source novel specifies a non-Western cast. Optional for back-compat. */
+	ethnicity?: string;
 	hair: string;
 	expression: string;
 	clothing: string;
@@ -28,17 +32,53 @@ export interface PortraitAttributes {
 	accessories?: string;
 }
 
-/** Compose a PortraitAttributes object into an English image generation prompt. */
-export function composePortraitPrompt(attrs: PortraitAttributes): string {
+export interface ComposePortraitOptions {
+	/**
+	 * Visual style override. When provided, replaces the default
+	 * "photorealistic studio headshot" wrapper with the caller's style.
+	 * Pass the novel's `映像スタイル` / image-style line here so the
+	 * portrait matches the drama's visual language.
+	 */
+	style?: string;
+}
+
+const DEFAULT_STYLE_PREFIX =
+	"photorealistic front portrait, shot on professional camera";
+const DEFAULT_STYLE_SUFFIX =
+	"plain white background, soft studio lighting, sharp focus, high detail, 2K";
+
+/**
+ * Compose a PortraitAttributes object into an English image generation
+ * prompt. When `options.style` is provided, the caller's style wraps the
+ * descriptor instead of the default LinkedIn-headshot preamble.
+ */
+export function composePortraitPrompt(
+	attrs: PortraitAttributes,
+	options: ComposePortraitOptions = {}
+): string {
+	const style = options.style?.trim();
+	const prefix = style || DEFAULT_STYLE_PREFIX;
+	const suffix = style ? undefined : DEFAULT_STYLE_SUFFIX;
+
+	// Build the subject descriptor — age + ethnicity + gender when present.
+	let subject: string | undefined;
+	if (attrs.age && attrs.gender) {
+		subject = attrs.ethnicity
+			? `${attrs.age} ${attrs.ethnicity} ${attrs.gender}`
+			: `${attrs.age} ${attrs.gender}`;
+	} else if (attrs.ethnicity && attrs.gender) {
+		subject = `${attrs.ethnicity} ${attrs.gender}`;
+	}
+
 	const parts = [
-		"photorealistic front portrait, shot on professional camera",
-		attrs.gender && attrs.age ? `${attrs.age} ${attrs.gender}` : undefined,
-		attrs.hair ? attrs.hair : undefined,
-		attrs.features ? attrs.features : undefined,
+		prefix,
+		subject,
+		attrs.hair || undefined,
+		attrs.features || undefined,
 		attrs.clothing ? `wearing ${attrs.clothing}` : undefined,
-		attrs.accessories ? attrs.accessories : undefined,
+		attrs.accessories || undefined,
 		attrs.expression ? `${attrs.expression} expression` : undefined,
-		"plain white background, soft studio lighting, sharp focus, high detail, 2K",
+		suffix,
 	];
 	return parts.filter(Boolean).join(", ");
 }

@@ -194,6 +194,35 @@ const EXAMPLE_NOVEL_PATH = path.resolve(
 	"drama-example.md"
 );
 
+/**
+ * Parse an optional visual-style declaration from a novel's markdown
+ * header so the pipeline can route the drama's aesthetic into portrait
+ * + storyboard image generation without requiring `--style` every time.
+ *
+ * Recognised lines (first match wins):
+ *   - `**画像スタイル：** ...` / `**映像スタイル：** ...`  (Japanese)
+ *   - `**画面风格：** ...` / `**视频风格：** ...`  (Simplified Chinese)
+ *   - `**Image Style:** ...` / `**Visual Style:** ...` (English)
+ *
+ * Scans only the first ~2000 characters so novels with in-text references
+ * to "style" don't get misread.
+ */
+export function extractNovelStyleHeader(novelText: string): string | undefined {
+	const header = novelText.slice(0, 2_000);
+	const patterns: RegExp[] = [
+		/\*\*\s*(?:画像|映像)\s*スタイル\s*[:：]\s*\*\*\s*([^\n]+)/i,
+		/\*\*\s*(?:视频|画面|图像)\s*风格\s*[:：]\s*\*\*\s*([^\n]+)/i,
+		/\*\*\s*(?:image|visual|portrait)\s+style\s*[:：]\s*\*\*\s*([^\n]+)/i,
+	];
+	for (const pattern of patterns) {
+		const match = header.match(pattern);
+		if (match?.[1]) {
+			return match[1].trim();
+		}
+	}
+	return undefined;
+}
+
 /** vimax:novel2movie — Pipeline from novel text to movie. */
 export async function handleVimaxNovel2Movie(
 	options: CLIRunOptions,
@@ -245,6 +274,13 @@ export async function handleVimaxNovel2Movie(
 			? resolveOutputDir(options.outputDir, `cli-${Date.now()}`)
 			: path.join(os.homedir(), "Documents", "QCut", "Exports", "novel2movie");
 
+		// Resolve visual style with priority:
+		//   1. --style CLI flag (explicit override)
+		//   2. Image/visual-style line parsed from the novel's markdown header
+		//   3. Pipeline default (Chinese drama realistic TV style)
+		const styleFromNovel = extractNovelStyleHeader(novelText);
+		const resolvedStyle = options.style || styleFromNovel;
+
 		const pipelineConfig: Partial<
 			import("../../vimax/pipelines/novel2movie.js").Novel2MovieConfig
 		> = {
@@ -254,6 +290,7 @@ export async function handleVimaxNovel2Movie(
 			scripts_only: options.scriptsOnly ?? false,
 			storyboard_only: options.storyboardOnly ?? false,
 			...(options.maxImages != null ? { max_images: options.maxImages } : {}),
+			...(resolvedStyle ? { visual_style: resolvedStyle } : {}),
 		};
 		if (options.videoModel) pipelineConfig.video_model = options.videoModel;
 		if (options.imageModel) pipelineConfig.image_model = options.imageModel;

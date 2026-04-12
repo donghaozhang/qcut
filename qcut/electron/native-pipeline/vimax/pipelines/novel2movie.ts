@@ -247,12 +247,20 @@ export class Novel2MoviePipeline {
 
 		this.character_extractor = new CharacterExtractor({
 			model: this.config.llm_model,
+			// Bake the pipeline's visual style into each character's
+			// pre-generated portrait_prompt so downstream image calls
+			// render in the drama's aesthetic instead of the default
+			// LinkedIn-style studio headshot.
+			portrait_style: this.config.visual_style,
 		});
 
 		this.portraits_generator = new CharacterPortraitsGenerator({
 			image_model: this.config.image_model,
 			llm_model: this.config.llm_model,
 			output_dir: `${base}/portraits`,
+			// Fallback style used when the extractor couldn't pre-generate a
+			// portrait_prompt (rare) — keep it aligned with visual_style.
+			style: this.config.visual_style,
 		});
 
 		this.storyboard_artist = new StoryboardArtist({
