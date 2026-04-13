@@ -120,7 +120,7 @@ final_video.mp4: ISO Media 25.208333s
 
 Bad output (`ASCII text`) means you're in mock mode because the
 adapter didn't see a key for the provider — check `GMI_API_KEY` is
-set (see [01-prerequisites.md](01-prerequisites.md)).
+set (see [08-reference.md](08-reference.md#install--key-store)).
 
 ## Cost math
 
