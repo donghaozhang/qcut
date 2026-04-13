@@ -81,64 +81,66 @@ The banner + per-step markers land on stderr, so machine-parsable
 ## Verified end-to-end run (2026-04-13)
 
 Fresh three-stage run on
-`electron/native-pipeline/vimax/examples/japanese-anime-example.md`
+`electron/native-pipeline/vimax/examples/drama-example.md`
+(《从弃女到巅峰：苏家千金归来》, a Chinese modern drama, 5,697 chars)
 into a new project dir
-`~/Documents/QCut/projects/anime-demo-fresh/`:
+`~/Documents/QCut/projects/cdrama-heiress-returns/`:
 
 | Stage | Wall-clock | Reported | Cost | Outputs |
 |---|---:|---:|---:|---|
-| 1. `flow characters` | 6.9s | estimate 3–15s / $0.005–$0.020 | $0.000 | 5 characters → `characters.json` |
-| 2. `flow portraits` | 4m 14s | estimate 30s–1m 30s/portrait × 5 | $0.100 | 5 PNGs avg 50.9s each → `portraits/<name>/front.png` |
-| 3. `flow novel2script --max-scenes 5` | 12.2s | estimate 12s–3m 30s / $0.009–$0.030 | $0.000 | 3 chunks / 5 scenes / 12 shots → `scripts/chunk_00{1,2,3}.json` |
-| **Total** | **4m 33s** | | **$0.100** | |
+| 1. `flow characters` | 8.6s | estimate 3–15s / $0.005–$0.020 | $0.000 | 5 characters → `characters.json` |
+| 2. `flow portraits` | 4m 20s | estimate 30s–1m 30s/portrait × 5 | $0.100 | 5 PNGs avg 52.0s each → `portraits/<name>/front.png` |
+| 3. `flow novel2script --max-scenes 5` | 19.0s | estimate 16s–4m 40s / $0.012–$0.040 | $0.000 | 2 chunks / 5 scenes / 33 shots → `scripts/chunk_00{1,2}.json` |
+| **Total** | **4m 48s** | | **$0.100** | |
 
 `project.json.stages_completed = ["characters", "portraits", "scripts"]`
-after completion. Per-chunk Stage 3 timing:
+after completion. Detected style header: `真人写实, 电视风格, 暖色调`.
+Per-chunk Stage 3 timing:
 
 ```
-[step] chunk 1/3 segmentation — 4.9s  1 scenes, 3 shots
-[step] chunk 2/3 segmentation — 3.4s  2 scenes, 5 shots
-[step] chunk 3/3 segmentation — 3.9s  2 scenes, 4 shots
+[step] chunk 1/4 segmentation — 9.6s  2 scenes, 13 shots
+[step] chunk 2/4 segmentation — 9.4s  3 scenes, 20 shots
 ```
 
-Stage 3 emitted all three chunks even though `--max-scenes 5` was set
-because the cap is checked at chunk boundaries — chunk 3's first two
-scenes filled the remaining quota before it bailed. Absolute paths
-printed in the end-of-stage summary matched exactly what landed on
-disk:
+Stage 3 stopped after 2 chunks because `--max-scenes 5` was hit — the
+chunker had planned 4 chunks for the 5,697-char novel but the cap
+short-circuited chunks 3 and 4. Absolute paths in the summary matched
+disk exactly:
 
 ```
-/Users/peter/Documents/QCut/projects/anime-demo-fresh/
-├── project.json            (595B)
-├── novel.md                (5.7KB)
-├── characters.json         (6.0KB)
+/Users/peter/Documents/QCut/projects/cdrama-heiress-returns/
+├── project.json           (419B)
+├── novel.md               (14.8KB)
+├── characters.json        (4.3KB)
 ├── portraits/
-│   ├── 三輪ゆきね/front.png      (1.8MB)
-│   ├── 天沢灯/front.png          (10.1MB)
-│   ├── 影の男/front.png          (1.6MB)
-│   ├── 星野すばる/front.png      (1.7MB)
-│   ├── 星野源三郎/front.png      (1.3MB)
-│   └── registry.json             (1.1KB)
+│   ├── 沈念安/front.png      (1.4MB)
+│   ├── 顾承泽/front.png      (1.5MB)
+│   ├── 沈薇薇/front.png      (1.5MB)
+│   ├── 沈母/front.png        (1.4MB)
+│   ├── 周助理/front.png      (1.4MB)
+│   └── registry.json          (1.0KB)
 └── scripts/
-    ├── chunk_001.json  (1.8KB)
-    ├── chunk_002.json  (2.9KB)
-    └── chunk_003.json  (2.3KB)
+    ├── chunk_001.json  (8.2KB)
+    └── chunk_002.json  (11.5KB)
 ```
 
 ### Key takeaways from the run
 
-- **Estimates held.** All three stages finished inside their predicted
-  ranges. Portrait batch came in at the fast end of `1m 30s × 5 = 7m
-  30s` (actual 4m 14s).
-- **Per-image portrait average of 50.9s** is a good number to quote when
-  sizing future runs on GMI flash-image.
-- **Stage 3 per-chunk was 3–5s** at flash-lite, meaningfully faster
-  than the pre-run 4–70s range suggests — because flash-lite returned
-  well-formatted JSON every time, no retry loop.
-- **`天沢灯/front.png` came out 10.1MB** versus the others at 1.3–1.8MB
-  — GMI flash-image occasionally returns a much larger PNG (suspect a
-  higher-res internal render on certain prompts). Not an error, just
-  worth knowing if you're disk-conscious.
+- **Estimates held.** All three stages finished well inside their
+  predicted ranges. Portrait batch landed at 4m 20s vs the upper
+  bound of 7m 30s.
+- **Per-image portrait average of 52.0s** is consistent with the
+  anime run (50.9s on the prior test), reinforcing the ~1 min / portrait
+  rule of thumb on GMI flash-image.
+- **Stage 3 per-chunk was ~9.5s** — slightly slower than the 3–5s
+  anime run because the Chinese drama chunks produced richer scene /
+  shot breakdowns (13–20 shots/chunk vs 3–5 for anime). More shots =
+  more LLM output tokens.
+- **Portrait sizes all clustered at 1.4–1.5 MB** this run — the
+  occasional 10 MB outlier seen in the anime session was not a
+  systemic pattern.
+- **Chunk JSON sizes jumped** from ~2 KB (anime) to 8–12 KB (cdrama)
+  because each scene has more dialogue-heavy shots in the drama source.
 
 ## Three commands, three artifacts
 
