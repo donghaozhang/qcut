@@ -25,6 +25,10 @@ import {
 	describeArtifact,
 	type GeneratedArtifact,
 } from "../../output/stage-reporter.js";
+import {
+	resolvePortraitStyle,
+	findPortraitStylePreset,
+} from "../../vimax/agents/portrait-style-presets.js";
 import { extractNovelStyleHeader } from "./pipeline-handlers.js";
 
 type ProgressFn = (progress: {
@@ -68,9 +72,13 @@ export async function handleVimaxExtractCharacters(
 			inputText = fs.readFileSync(sourceFilePath, "utf-8");
 		}
 
-		// Style header lets later stages (portraits/storyboard) route the
-		// correct visual aesthetic. Persist it into project.json.
-		const style = extractNovelStyleHeader(inputText);
+		// Resolve visual style with the preset resolver:
+		//   --style <preset-slug>   → expand to the preset prompt
+		//   --style "<free text>"   → pass through
+		//   (none)                  → fall back to the novel's style header
+		const novelStyle = extractNovelStyleHeader(inputText);
+		const style = resolvePortraitStyle(options.style, novelStyle);
+		const presetHit = findPortraitStylePreset(options.style);
 
 		// Print pre-flight estimate before the LLM call kicks off.
 		printEstimate(estimateCharacters(inputText.length));
@@ -151,7 +159,11 @@ export async function handleVimaxExtractCharacters(
 			artifacts: summaryArtifacts,
 			extraLines: [
 				`Characters:  ${result.result?.length ?? 0}`,
-				...(style ? [`Style:       ${style}`] : []),
+				...(style
+					? [
+							`Style:       ${style}${presetHit ? `  (preset: ${presetHit.slug})` : ""}`,
+						]
+					: []),
 			],
 		});
 
@@ -283,19 +295,35 @@ export async function handleVimaxGeneratePortraits(
 			estimatePortraits(characters.length, views ? views.length : 1)
 		);
 
-		// Honour --style, or reuse the style persisted in project.json
-		// when running in staged-project mode.
-		let resolvedStyle: string | undefined = options.style;
-		if (!resolvedStyle && projectPaths) {
+		// Honour --style (preset slug or free-form), or reuse the style
+		// persisted in project.json when running in staged-project mode.
+		let projectStyle: string | undefined;
+		if (projectPaths) {
 			try {
 				const { readProjectMetadata } = await import(
 					"../../output/project-paths.js"
 				);
 				const meta = readProjectMetadata(projectPaths);
-				if (meta?.style) resolvedStyle = meta.style;
+				if (meta?.style) projectStyle = meta.style;
 			} catch {
 				// Non-fatal: fall back to generator default.
 			}
+		}
+		const resolvedStyle = resolvePortraitStyle(options.style, projectStyle);
+		const presetHit = findPortraitStylePreset(options.style);
+
+		// If an explicit --style was provided, persist the resolved
+		// prompt back into project.json so downstream stages stay
+		// aligned (e.g. novel2script picks up the same visual tone).
+		if (
+			projectPaths &&
+			resolvedStyle &&
+			resolvedStyle !== projectStyle
+		) {
+			const { writeProjectMetadata } = await import(
+				"../../output/project-paths.js"
+			);
+			writeProjectMetadata(projectPaths, { style: resolvedStyle });
 		}
 
 		onProgress({
@@ -408,6 +436,11 @@ export async function handleVimaxGeneratePortraits(
 			extraLines: [
 				`Portraits:   ${portraitCount}`,
 				`Per-image:   ~${(totalDurationSeconds / Math.max(1, portraitCount)).toFixed(1)}s average`,
+				...(presetHit
+					? [`Style:       ${presetHit.label_zh} (${presetHit.slug})`]
+					: resolvedStyle
+						? [`Style:       ${resolvedStyle}`]
+						: []),
 			],
 		});
 

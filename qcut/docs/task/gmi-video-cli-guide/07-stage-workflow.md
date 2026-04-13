@@ -218,6 +218,48 @@ jq '.stages_completed' ~/Documents/QCut/projects/$PROJECT/project.json
 # → ["characters", "portraits", "scripts"]
 ```
 
+## Choosing a visual style (`--style`)
+
+`flow characters` / `flow portraits` / `flow novel2movie` all accept
+`--style <value>`. The value is either a **preset slug** (expanded to
+a tuned prompt) or **free-form text** (passed through).
+
+| Slug | Lang | Prompt (prepended to every portrait) |
+|---|---|---|
+| `photorealistic` | 🇨🇳 | 真人写实，电视剧质感，自然光，肤质细腻，暖色调 |
+| `anime` | 🇬🇧 | Anime portrait, cel-shaded, large glossy eyes, crisp linework |
+| `ghibli` | 🇬🇧 | Ghibli hand-drawn, soft pastel, nostalgic, pastoral warmth |
+| `3d-animation` | 🇬🇧 | Pixar-style 3D render, stylized, soft rim light |
+| `chinese-ink` | 🇨🇳 | 水墨画风，留白意境，墨色浓淡，笔锋飘逸 |
+| `watercolor` | 🇬🇧 | Watercolor painting, soft edges, paper texture, translucent |
+| `cyberpunk` | 🇬🇧 | Cyberpunk neon, chromatic glow, rain-slick street, dystopian |
+| `noir` | 🇬🇧 | Film noir, high-contrast black-and-white, deep shadows, smoky |
+
+**Resolution order** for the final style used:
+
+1. `--style <slug>` → preset prompt
+2. `--style "<free-form text>"` → pass-through
+3. Novel's `**Visual Style:**` / `**视频风格：**` header
+4. Image model's internal default
+
+When any of steps 1–3 produce a non-empty value it is **persisted into
+`project.json.style`** so later stages (novel2script, storyboard) use
+the same tone automatically.
+
+Example — force anime portraits on the Chinese drama novel:
+
+```bash
+qcut flow characters --novel "$NOVEL" --project "$PROJECT" --style anime
+qcut flow portraits  --project "$PROJECT"       # picks up style from project.json
+```
+
+Free-form also works when no preset fits:
+
+```bash
+qcut flow portraits --project "$PROJECT" \
+    --style "low-poly game render, flat colors, chunky shading"
+```
+
 ## Why this is less drama-prone than `flow novel2movie`
 
 - Each stage is a standalone command — if stage 2 misfires you only

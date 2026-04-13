@@ -1406,6 +1406,11 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--project", "string", "Project slug under ~/Documents/QCut/projects/"),
 			f("--title", "string", "Project title"),
 			f("--llm-model", "string", "LLM model"),
+			f(
+				"--style",
+				"string",
+				"Preset slug (photorealistic|anime|ghibli|3d-animation|chinese-ink|watercolor|cyberpunk|noir) or free-form text; persisted into project.json"
+			),
 		],
 		examples: [
 			"qcut flow characters --novel story.md --project my-story",
@@ -1449,7 +1454,11 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--input", "string", "Character JSON path or raw text"),
 			f("--max-characters", "number", "Max characters to generate"),
 			f("--image-model", "string", "Image generation model"),
-			f("--style", "string", "Art style (overrides project style)"),
+			f(
+				"--style",
+				"string",
+				"Preset slug (photorealistic|anime|ghibli|3d-animation|chinese-ink|watercolor|cyberpunk|noir) or free-form text"
+			),
 			f("--reference-model", "string", "Reference model"),
 			f("--reference-strength", "number", "Reference strength (0-1)"),
 			f("--views", "string", "Portrait views to generate"),

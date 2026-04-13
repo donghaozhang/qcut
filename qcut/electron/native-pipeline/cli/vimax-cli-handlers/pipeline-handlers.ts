@@ -9,6 +9,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { CLIRunOptions, CLIResult } from "../cli-runner/types.js";
 import { resolveOutputDir } from "../../output/output-utils.js";
+import { resolvePortraitStyle } from "../../vimax/agents/portrait-style-presets.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -279,7 +280,9 @@ export async function handleVimaxNovel2Movie(
 		//   2. Image/visual-style line parsed from the novel's markdown header
 		//   3. Pipeline default (Chinese drama realistic TV style)
 		const styleFromNovel = extractNovelStyleHeader(novelText);
-		const resolvedStyle = options.style || styleFromNovel;
+		// resolvePortraitStyle expands preset slugs ("anime", "photorealistic",
+		// ...) to their tuned prompt, or passes free-form text through.
+		const resolvedStyle = resolvePortraitStyle(options.style, styleFromNovel);
 
 		const pipelineConfig: Partial<
 			import("../../vimax/pipelines/novel2movie.js").Novel2MovieConfig
