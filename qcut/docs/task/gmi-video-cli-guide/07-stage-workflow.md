@@ -147,7 +147,7 @@ disk:
 ```bash
 qcut flow characters \
     --novel electron/native-pipeline/vimax/examples/drama-example.md \
-    --project drama-example \
+    --project cdrama-heiress-returns \
     --llm-model gemini-3.1-flash-lite
 ```
 
@@ -165,7 +165,7 @@ don't want portraits for. Stage 2 picks up edits.
 
 ```bash
 qcut flow portraits \
-    --project drama-example \
+    --project cdrama-heiress-returns \
     --image-model gmi_gemini_31_flash_image
 ```
 
@@ -182,7 +182,7 @@ image). Budget ~1 min per portrait as a rule of thumb.
 ```bash
 qcut flow novel2script \
     --novel electron/native-pipeline/vimax/examples/drama-example.md \
-    --project drama-example \
+    --project cdrama-heiress-returns \
     --llm-model gemini-3.1-flash-lite \
     --max-scenes 20
 ```
@@ -199,7 +199,7 @@ Accepts `--chunk-size` (default 2000 chars) and `--overlap` (default
 
 ```bash
 NOVEL=electron/native-pipeline/vimax/examples/drama-example.md
-PROJECT=drama-example
+PROJECT=cdrama-heiress-returns
 
 qcut flow characters --novel "$NOVEL" --project "$PROJECT" \
     --llm-model gemini-3.1-flash-lite
@@ -238,7 +238,7 @@ There's no `--force` gate yet; if you want to start fresh, delete the
 project directory:
 
 ```bash
-rm -rf ~/Documents/QCut/projects/drama-example
+rm -rf ~/Documents/QCut/projects/cdrama-heiress-returns
 ```
 
 ## What's *not* in this iteration
