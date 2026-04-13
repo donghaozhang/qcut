@@ -49,29 +49,81 @@ them):
 | `ELEVENLABS_API_KEY` | ElevenLabs TTS |
 | `QCUT_AUTH_TOKEN` | License-server proxy mode (uses server-managed keys) |
 
-## 3. Log in (optional, only for proxy mode)
+## 3. Log in (only for proxy / beta-tester mode)
 
-If you don't have any provider keys locally, log in to route through
+If you don't have a `GMI_API_KEY` of your own, log in to route through
 QCut's license-server proxy and pay with credits instead. 11 beta test
 accounts have 1000 credits each — ask a maintainer for the email +
 password.
+
+### 3a. Log in
 
 ```bash
 # Interactive password prompt
 qcut system login --email your-tester@qcut.app
 
-# Scripted
+# Scripted (CI-friendly)
 qcut system login \
     --email "$QCUT_TEST_EMAIL" \
     --password "$QCUT_TEST_PASSWORD"
+```
 
-# Confirm login succeeded
+On success the server returns a session JWT which gets stored as
+`QCUT_AUTH_TOKEN` in `~/.qcut/.env` (mode `0600`).
+
+### 3b. Verify the token was persisted
+
+```bash
 qcut system check-keys --json | jq '."QCUT_AUTH_TOKEN"'
 # → "set"
+
+# Peek at the raw value if you need to debug the JWT
+qcut system get-key --name QCUT_AUTH_TOKEN --reveal
+```
+
+### 3c. Check your credit balance
+
+The token works directly against the worker's `/api/credits/balance`
+endpoint (`packages/license-server/src/routes/credits.ts:82`):
+
+```bash
+curl -H "Authorization: Bearer $(qcut system get-key --name QCUT_AUTH_TOKEN --reveal)" \
+    https://qcut-license-server.zdhpeter.workers.dev/api/credits/balance
+# → {"balance": 1000, ...}
+```
+
+### 3d. Force a proxy-routed video generation
+
+With a local `GMI_API_KEY` present the adapter short-circuits to
+direct BYOK (`api-caller.ts:579` — `useProxy = !apiKey && isProxyAvailable()`).
+To actually exercise the proxy path, hide the local key for one
+invocation:
+
+```bash
+env -u GMI_API_KEY qcut gen video \
+    --model gmi_veo31_lite_t2v \
+    --text "a cat walking through a sunlit kitchen" \
+    --output-dir /tmp/qcut-proxy-ping
+```
+
+You should see `[api_caller] Using proxy mode (QCUT_AUTH_TOKEN)` in the
+debug log and a matching credit debit when you re-run step 3c.
+
+### 3e. Log out when done
+
+```bash
+qcut system logout
+# Clears QCUT_AUTH_TOKEN from ~/.qcut/.env
 ```
 
 Proxy vs BYOK selection is automatic per call — see
-[reference-proxy-credits.md](../../../.claude/skills/native-cli/references/reference-proxy-credits.md).
+[reference-proxy-credits.md](../../../.claude/skills/native-cli/references/reference-proxy-credits.md)
+for the full decision tree.
+
+> ⚠️ Legacy aliases `qcut login` / `qcut logout` / `qcut check-keys` /
+> `qcut get-key` / `qcut create-video` still work but print a
+> deprecation warning. Always prefer the `qcut system …` and
+> `qcut gen video` forms above.
 
 ## 4. Sanity-check GMI connectivity
 
