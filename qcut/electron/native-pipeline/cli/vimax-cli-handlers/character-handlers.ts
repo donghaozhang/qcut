@@ -28,6 +28,7 @@ import {
 import {
 	resolvePortraitStyle,
 	findPortraitStylePreset,
+	rewritePortraitPromptStyle,
 } from "../../vimax/agents/portrait-style-presets.js";
 import { extractNovelStyleHeader } from "./pipeline-handlers.js";
 
@@ -344,10 +345,33 @@ export async function handleVimaxGeneratePortraits(
 			...(resolvedStyle ? { style: resolvedStyle } : {}),
 		});
 
+		// Stage 1 bakes the visual style into each character's
+		// portrait_prompt, and CharacterPortraitsGenerator uses that
+		// pre-baked prompt verbatim — so a Stage 2 --style override
+		// would be ignored without this in-memory rewrite. Swap the
+		// leading style prefix on each character's prompt so the new
+		// `--style` actually affects the rendered images.
+		const promptRewriteNeeded =
+			resolvedStyle != null && resolvedStyle.trim() !== (projectStyle ?? "").trim();
+		const charactersForRender = promptRewriteNeeded
+			? characters.map((c) =>
+					c.portrait_prompt
+						? {
+								...c,
+								portrait_prompt: rewritePortraitPromptStyle(
+									c.portrait_prompt,
+									projectStyle,
+									resolvedStyle
+								),
+							}
+						: c
+				)
+			: characters;
+
 		const batchStep = startStep(
 			`portrait batch (${characters.length} characters)`
 		);
-		const batchResult = await generator.generateBatch(characters);
+		const batchResult = await generator.generateBatch(charactersForRender);
 		batchStep.end(
 			batchResult.success
 				? `${Object.keys(batchResult.result ?? {}).length} portraits`

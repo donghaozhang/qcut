@@ -4,6 +4,7 @@ import {
 	findPortraitStylePreset,
 	resolvePortraitStyle,
 	listPortraitStyleSlugs,
+	rewritePortraitPromptStyle,
 } from "../portrait-style-presets";
 
 describe("PORTRAIT_STYLE_PRESETS", () => {
@@ -91,6 +92,55 @@ describe("resolvePortraitStyle", () => {
 	it("returns undefined when both inputs are empty", () => {
 		expect(resolvePortraitStyle(undefined, undefined)).toBeUndefined();
 		expect(resolvePortraitStyle("", "")).toBeUndefined();
+	});
+});
+
+describe("rewritePortraitPromptStyle", () => {
+	const baked =
+		"真人写实, 电视风格, 暖色调, early 20s female, long dark hair, pale skin";
+
+	it("returns prompt unchanged when newStyle is missing", () => {
+		expect(rewritePortraitPromptStyle(baked, "真人写实, 电视风格, 暖色调", undefined)).toBe(
+			baked
+		);
+		expect(rewritePortraitPromptStyle(baked, "真人写实, 电视风格, 暖色调", "")).toBe(
+			baked
+		);
+	});
+
+	it("returns prompt unchanged when oldStyle equals newStyle", () => {
+		expect(
+			rewritePortraitPromptStyle(baked, "真人写实, 电视风格, 暖色调", "真人写实, 电视风格, 暖色调")
+		).toBe(baked);
+	});
+
+	it("swaps a known leading style prefix for the new one", () => {
+		const out = rewritePortraitPromptStyle(
+			baked,
+			"真人写实, 电视风格, 暖色调",
+			"Modern anime film, soft cel-shading, expressive eyes, cinematic light"
+		);
+		expect(out).toBe(
+			"Modern anime film, soft cel-shading, expressive eyes, cinematic light, early 20s female, long dark hair, pale skin"
+		);
+	});
+
+	it("prepends newStyle when prompt does not start with oldStyle", () => {
+		const out = rewritePortraitPromptStyle(
+			"some other prefix, character description",
+			"unrelated old style",
+			"anime"
+		);
+		expect(out).toBe("anime, some other prefix, character description");
+	});
+
+	it("prepends newStyle when oldStyle is missing", () => {
+		const out = rewritePortraitPromptStyle(
+			"character description only",
+			undefined,
+			"anime"
+		);
+		expect(out).toBe("anime, character description only");
 	});
 });
 

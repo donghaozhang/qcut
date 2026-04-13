@@ -142,3 +142,49 @@ export function resolvePortraitStyle(
 export function listPortraitStyleSlugs(): string {
 	return PORTRAIT_STYLE_PRESETS.map((p) => p.slug).join("|");
 }
+
+/**
+ * Swap the leading style prefix on a baked portrait prompt.
+ *
+ * Stage 1 (`flow characters`) bakes the visual style into each
+ * character's `portrait_prompt` via `composePortraitPrompt(...)`,
+ * producing strings like:
+ *
+ *     "真人写实, 电视风格, 暖色调, early 20s female, long dark hair, ..."
+ *
+ * When Stage 2 is invoked with a different `--style`, the baked
+ * prefix needs to be replaced or the new style is silently ignored.
+ *
+ * Behaviour:
+ *   - When `oldStyle` and `newStyle` are equal (or one is missing),
+ *     the prompt is returned unchanged.
+ *   - When `prompt` starts with `${oldStyle}, `, that prefix is
+ *     replaced with `${newStyle}, `.
+ *   - When the prompt does not start with `oldStyle`, the helper
+ *     prepends `${newStyle}, ` so the new style still takes effect
+ *     even if Stage 1's bake used a different exact string.
+ *
+ * Pure / no I/O.
+ */
+export function rewritePortraitPromptStyle(
+	prompt: string,
+	oldStyle: string | undefined,
+	newStyle: string | undefined
+): string {
+	if (!newStyle || !newStyle.trim()) return prompt;
+	if (oldStyle && oldStyle.trim() === newStyle.trim()) return prompt;
+
+	const newPrefix = newStyle.trim();
+	if (oldStyle && oldStyle.trim().length > 0) {
+		const oldPrefix = oldStyle.trim();
+		// Trailing comma+space matches what composePortraitPrompt joins on.
+		const literal = `${oldPrefix}, `;
+		if (prompt.startsWith(literal)) {
+			return `${newPrefix}, ${prompt.slice(literal.length)}`;
+		}
+	}
+
+	// Old style not at the front (or unknown) — prepend the new one
+	// so the model still sees it before the character description.
+	return `${newPrefix}, ${prompt}`;
+}
