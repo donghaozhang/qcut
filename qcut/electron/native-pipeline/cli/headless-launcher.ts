@@ -202,6 +202,11 @@ export async function launchHeadlessRecorder(
 			);
 		});
 	});
+	// Swallow the late rejection that fires when the caller eventually
+	// kills the child (e.g. handleRecord's finally{} SIGTERM) — without
+	// this attached handler, the abandoned earlyExit emits an unhandled
+	// rejection warning on every successful launch.
+	earlyExit.catch(() => {});
 
 	// Phase 2: the daemon may bind a dynamic port if 8765 is busy. Wait up
 	// to 3s for the daemon to write its port file, then health-probe that

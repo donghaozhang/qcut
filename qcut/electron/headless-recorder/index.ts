@@ -22,6 +22,7 @@ import {
 } from "./lifecycle.js";
 import { createHiddenCaptureWindow } from "./hidden-window.js";
 import { findFreePort } from "./find-port.js";
+import { buildStatus } from "../screen-recording-handler/session.js";
 
 export interface RunHeadlessRecorderOptions {
 	/** Exit after this many ms of inactivity when no recording is active. */
@@ -113,13 +114,10 @@ export async function runHeadlessRecorder(
 
 /**
  * Cheap proxy for "is the renderer currently recording?" — reads the
- * session state the main process already tracks. We import lazily so
- * test mocks don't have to fake the full screen-recording module.
+ * session state the main process already tracks.
  */
 export function hasActiveRecording(): boolean {
 	try {
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
-		const { buildStatus } = require("../screen-recording-handler/session.js");
 		const status = buildStatus();
 		return Boolean(status?.recording);
 	} catch {

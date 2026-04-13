@@ -642,15 +642,9 @@ export class Novel2MoviePipeline {
 				result.total_cost += (storyboardResult.metadata.cost as number) ?? 0;
 				totalImagesGenerated += storyboardResult.result?.images?.length ?? 0;
 
-				if (this.config.save_intermediate) {
-					saveJson(
-						segResult.result,
-						path.join(
-							scriptsDir,
-							`chunk_${String(i + 1).padStart(3, "0")}.json`
-						)
-					);
-				}
+				// (chunk JSON was already persisted above before the
+				// scripts_only / storyboard branches diverged — no second
+				// write needed here.)
 
 				// When max_images is set, skip video generation (preview mode)
 				if (this.config.storyboard_only || imagesCapped) {

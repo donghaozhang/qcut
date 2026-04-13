@@ -175,7 +175,9 @@ export async function handleEditorCommand(
 	signal?: AbortSignal
 ): Promise<CLIResult> {
 	// In session mode, reuse the shared client. Otherwise create a new one.
-	const client = options.session
+	// `let` so the auto-spawn block below can swap it for a daemon-port-aware
+	// client when the headless recorder binds a non-default port.
+	let client = options.session
 		? getSessionClient(options)
 		: createEditorClient(options);
 
@@ -205,7 +207,17 @@ export async function handleEditorCommand(
 				message: "QCut not running — launching headless recorder...",
 			});
 			try {
-				await ensureHeadlessDaemon();
+				const { port: daemonPort } = await ensureHeadlessDaemon();
+				// The daemon may have bound a dynamic port (8765 was busy),
+				// so re-create the client against the actual port before
+				// re-checking health — otherwise we'd retry the stale port
+				// and report "QCut not running" while the daemon is alive.
+				// Reassigning `client` (declared `let` above) so all
+				// downstream dispatches in this handler hit the live port.
+				client = createEditorClient({
+					...options,
+					port: String(daemonPort),
+				});
 				healthy = await client.checkHealth();
 			} catch (err) {
 				onProgress({
