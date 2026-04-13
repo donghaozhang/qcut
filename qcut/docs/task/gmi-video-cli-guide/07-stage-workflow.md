@@ -170,7 +170,7 @@ don't want portraits for. Stage 2 picks up edits.
 ```bash
 qcut flow portraits \
     --project cdrama-heiress-returns \
-    --style "low-poly game render, flat colors, chunky shading" \
+    --style "Modern anime film, soft cel-shading, expressive eyes, cinematic light" \
     --image-model gmi_gemini_31_flash_image
 ```
 
