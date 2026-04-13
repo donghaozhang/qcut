@@ -78,6 +78,68 @@ Example stderr for `flow novel2script`:
 The banner + per-step markers land on stderr, so machine-parsable
 `--json` / `--stream` stdout is unaffected.
 
+## Verified end-to-end run (2026-04-13)
+
+Fresh three-stage run on
+`electron/native-pipeline/vimax/examples/japanese-anime-example.md`
+into a new project dir
+`~/Documents/QCut/projects/anime-demo-fresh/`:
+
+| Stage | Wall-clock | Reported | Cost | Outputs |
+|---|---:|---:|---:|---|
+| 1. `flow characters` | 6.9s | estimate 3–15s / $0.005–$0.020 | $0.000 | 5 characters → `characters.json` |
+| 2. `flow portraits` | 4m 14s | estimate 30s–1m 30s/portrait × 5 | $0.100 | 5 PNGs avg 50.9s each → `portraits/<name>/front.png` |
+| 3. `flow novel2script --max-scenes 5` | 12.2s | estimate 12s–3m 30s / $0.009–$0.030 | $0.000 | 3 chunks / 5 scenes / 12 shots → `scripts/chunk_00{1,2,3}.json` |
+| **Total** | **4m 33s** | | **$0.100** | |
+
+`project.json.stages_completed = ["characters", "portraits", "scripts"]`
+after completion. Per-chunk Stage 3 timing:
+
+```
+[step] chunk 1/3 segmentation — 4.9s  1 scenes, 3 shots
+[step] chunk 2/3 segmentation — 3.4s  2 scenes, 5 shots
+[step] chunk 3/3 segmentation — 3.9s  2 scenes, 4 shots
+```
+
+Stage 3 emitted all three chunks even though `--max-scenes 5` was set
+because the cap is checked at chunk boundaries — chunk 3's first two
+scenes filled the remaining quota before it bailed. Absolute paths
+printed in the end-of-stage summary matched exactly what landed on
+disk:
+
+```
+/Users/peter/Documents/QCut/projects/anime-demo-fresh/
+├── project.json            (595B)
+├── novel.md                (5.7KB)
+├── characters.json         (6.0KB)
+├── portraits/
+│   ├── 三輪ゆきね/front.png      (1.8MB)
+│   ├── 天沢灯/front.png          (10.1MB)
+│   ├── 影の男/front.png          (1.6MB)
+│   ├── 星野すばる/front.png      (1.7MB)
+│   ├── 星野源三郎/front.png      (1.3MB)
+│   └── registry.json             (1.1KB)
+└── scripts/
+    ├── chunk_001.json  (1.8KB)
+    ├── chunk_002.json  (2.9KB)
+    └── chunk_003.json  (2.3KB)
+```
+
+### Key takeaways from the run
+
+- **Estimates held.** All three stages finished inside their predicted
+  ranges. Portrait batch came in at the fast end of `1m 30s × 5 = 7m
+  30s` (actual 4m 14s).
+- **Per-image portrait average of 50.9s** is a good number to quote when
+  sizing future runs on GMI flash-image.
+- **Stage 3 per-chunk was 3–5s** at flash-lite, meaningfully faster
+  than the pre-run 4–70s range suggests — because flash-lite returned
+  well-formatted JSON every time, no retry loop.
+- **`天沢灯/front.png` came out 10.1MB** versus the others at 1.3–1.8MB
+  — GMI flash-image occasionally returns a much larger PNG (suspect a
+  higher-res internal render on certain prompts). Not an error, just
+  worth knowing if you're disk-conscious.
+
 ## Three commands, three artifacts
 
 ### Stage 1 — `flow characters`
@@ -91,7 +153,9 @@ qcut flow characters \
 
 Extracts up to ~10 characters, detects the novel's `**映像スタイル：**`
 / `**Visual Style:**` header, and persists both into
-`<proj>/characters.json` + `<proj>/project.json`. Roughly 5s / $0.01.
+`<proj>/characters.json` + `<proj>/project.json`. Measured 6.9s /
+$0.00 on a 4 K-char anime novel (flash-lite didn't actually bill in
+that run — expect a few cents on larger novels).
 
 **Between stages:** open `<proj>/characters.json` in your editor. You
 can rename characters, fix missing `ethnicity`, or drop characters you
@@ -110,8 +174,8 @@ into `<proj>/portraits/<name>/`, and saves a
 `<proj>/portraits/registry.json` that later stages consume. Style is
 taken from `<proj>/project.json.style` unless overridden with `--style`.
 
-Typical run: ~5 min for 5 characters / $0.10 (GMI Gemini 3.1 flash
-image).
+Measured run: 4m 14s for 5 characters / $0.100 (GMI Gemini 3.1 flash
+image). Budget ~1 min per portrait as a rule of thumb.
 
 ### Stage 3 — `flow novel2script` (new in this workflow)
 
