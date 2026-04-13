@@ -662,10 +662,7 @@ if (!isHeadlessRecorder) {
 					break;
 				}
 			} catch (error) {
-				logger.warn(
-					"[DeepLink] Failed to handle second-instance args:",
-					error
-				);
+				logger.warn("[DeepLink] Failed to handle second-instance args:", error);
 			}
 
 			if (mainWindow) {

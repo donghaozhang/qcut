@@ -68,9 +68,9 @@ describe("resolvePortraitStyle", () => {
 	});
 
 	it("passes free-form text through unchanged", () => {
-		expect(
-			resolvePortraitStyle("neon pastel, soft gradient, 2.5D")
-		).toBe("neon pastel, soft gradient, 2.5D");
+		expect(resolvePortraitStyle("neon pastel, soft gradient, 2.5D")).toBe(
+			"neon pastel, soft gradient, 2.5D"
+		);
 	});
 
 	it("prefers styleInput over fallback when non-empty", () => {
@@ -100,17 +100,21 @@ describe("rewritePortraitPromptStyle", () => {
 		"真人写实, 电视风格, 暖色调, early 20s female, long dark hair, pale skin";
 
 	it("returns prompt unchanged when newStyle is missing", () => {
-		expect(rewritePortraitPromptStyle(baked, "真人写实, 电视风格, 暖色调", undefined)).toBe(
-			baked
-		);
-		expect(rewritePortraitPromptStyle(baked, "真人写实, 电视风格, 暖色调", "")).toBe(
-			baked
-		);
+		expect(
+			rewritePortraitPromptStyle(baked, "真人写实, 电视风格, 暖色调", undefined)
+		).toBe(baked);
+		expect(
+			rewritePortraitPromptStyle(baked, "真人写实, 电视风格, 暖色调", "")
+		).toBe(baked);
 	});
 
 	it("returns prompt unchanged when oldStyle equals newStyle", () => {
 		expect(
-			rewritePortraitPromptStyle(baked, "真人写实, 电视风格, 暖色调", "真人写实, 电视风格, 暖色调")
+			rewritePortraitPromptStyle(
+				baked,
+				"真人写实, 电视风格, 暖色调",
+				"真人写实, 电视风格, 暖色调"
+			)
 		).toBe(baked);
 	});
 

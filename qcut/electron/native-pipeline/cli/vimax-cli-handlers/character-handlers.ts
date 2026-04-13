@@ -121,7 +121,9 @@ export async function handleVimaxExtractCharacters(
 			if (sourceFilePath) {
 				try {
 					fs.copyFileSync(sourceFilePath, paths.novelPath);
-					summaryArtifacts.push(describeArtifact(paths.novelPath, "novel copy"));
+					summaryArtifacts.push(
+						describeArtifact(paths.novelPath, "novel copy")
+					);
 				} catch {
 					// Non-fatal; metadata still records the absolute path.
 				}
@@ -316,11 +318,7 @@ export async function handleVimaxGeneratePortraits(
 		// If an explicit --style was provided, persist the resolved
 		// prompt back into project.json so downstream stages stay
 		// aligned (e.g. novel2script picks up the same visual tone).
-		if (
-			projectPaths &&
-			resolvedStyle &&
-			resolvedStyle !== projectStyle
-		) {
+		if (projectPaths && resolvedStyle && resolvedStyle !== projectStyle) {
 			const { writeProjectMetadata } = await import(
 				"../../output/project-paths.js"
 			);
@@ -352,7 +350,8 @@ export async function handleVimaxGeneratePortraits(
 		// leading style prefix on each character's prompt so the new
 		// `--style` actually affects the rendered images.
 		const promptRewriteNeeded =
-			resolvedStyle != null && resolvedStyle.trim() !== (projectStyle ?? "").trim();
+			resolvedStyle != null &&
+			resolvedStyle.trim() !== (projectStyle ?? "").trim();
 		const charactersForRender = promptRewriteNeeded
 			? characters.map((c) =>
 					c.portrait_prompt

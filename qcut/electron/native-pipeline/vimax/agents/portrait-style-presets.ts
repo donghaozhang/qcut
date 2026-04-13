@@ -62,7 +62,8 @@ export const PORTRAIT_STYLE_PRESETS: readonly PortraitStylePreset[] = [
 		// Four independent axes, no redundancy:
 		//   medium (modern anime film) + technique (soft cel-shading)
 		//   + expression (eyes) + lighting (cinematic).
-		prompt: "Modern anime film, soft cel-shading, expressive eyes, cinematic light",
+		prompt:
+			"Modern anime film, soft cel-shading, expressive eyes, cinematic light",
 	},
 	{
 		slug: "ghibli",

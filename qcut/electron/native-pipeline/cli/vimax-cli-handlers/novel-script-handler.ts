@@ -206,7 +206,10 @@ export async function handleVimaxNovel2Script(
 			);
 			fs.writeFileSync(chunkPath, JSON.stringify(script, null, 2));
 			chunkArtifacts.push(
-				describeArtifact(chunkPath, `chunk ${i + 1} (${scenes} scenes, ${shots} shots)`)
+				describeArtifact(
+					chunkPath,
+					`chunk ${i + 1} (${scenes} scenes, ${shots} shots)`
+				)
 			);
 			chunkStep.end(`${scenes} scenes, ${shots} shots`);
 			emitted++;
@@ -225,7 +228,9 @@ export async function handleVimaxNovel2Script(
 		const summaryArtifacts: GeneratedArtifact[] = [];
 		if (slug) {
 			const paths = resolveProjectPaths(slug);
-			summaryArtifacts.push(describeArtifact(paths.metadataPath, "project metadata"));
+			summaryArtifacts.push(
+				describeArtifact(paths.metadataPath, "project metadata")
+			);
 			if (fs.existsSync(paths.novelPath)) {
 				summaryArtifacts.push(describeArtifact(paths.novelPath, "novel copy"));
 			}
