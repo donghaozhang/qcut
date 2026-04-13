@@ -103,6 +103,13 @@ describe("handleRecordDaemon --stop", () => {
 		const options = baseOptions();
 		(options as unknown as Record<string, unknown>).stop = true;
 
+		// Track whether SIGTERM has been sent so the alive-probe returns
+		// true once (daemon still running pre-signal) then false (daemon
+		// exited post-signal). Without this mock the production polling
+		// would query the host's real PID 42 and spin the full 5s budget
+		// on CI runners where that PID happens to exist.
+		let sigtermSent = false;
+
 		const result = await handleRecordDaemon(
 			options,
 			() => undefined,
@@ -111,7 +118,9 @@ describe("handleRecordDaemon --stop", () => {
 				findExistingImpl: () => ({ pid: 42, port: 8765 }),
 				killImpl: (pid, signal) => {
 					killed.push({ pid, signal: signal as string });
+					if (signal === "SIGTERM") sigtermSent = true;
 				},
+				isAliveImpl: () => !sigtermSent,
 			}
 		);
 		expect(result.success).toBe(true);

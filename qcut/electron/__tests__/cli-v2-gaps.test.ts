@@ -401,8 +401,12 @@ describe("Adapter utility methods", () => {
 		it("getAvailableModels returns video model keys", () => {
 			const models = VideoGeneratorAdapter.getAvailableModels();
 			expect(models.length).toBeGreaterThan(0);
+			// `kling` is still advertised as a legacy alias that resolves to
+			// the current kling_2_1 entry; use another real image_to_video
+			// registry key (hailuo) instead of the old text_to_video-only
+			// `veo3` assertion which predated the ModelRegistry migration.
 			expect(models).toContain("kling");
-			expect(models).toContain("veo3");
+			expect(models).toContain("hailuo");
 		});
 	});
 });
