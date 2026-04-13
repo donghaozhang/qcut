@@ -236,6 +236,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// vimax options
 			"no-references": { type: "boolean", default: false },
 			"project-id": { type: "string" },
+			project: { type: "string" },
+			"chunk-size": { type: "string" },
+			overlap: { type: "string" },
 			// grid options
 			grid: { type: "string" },
 			"grid-upscale": { type: "string" },
@@ -561,7 +564,19 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			: undefined,
 		// vimax options
 		noReferences: (values["no-references"] as boolean) ?? false,
-		projectId: values["project-id"] as string | undefined,
+		projectId:
+			(values["project-id"] as string | undefined) ??
+			(values.project as string | undefined),
+		chunkSize: values["chunk-size"]
+			? Number.isNaN(parseInt(values["chunk-size"] as string, 10))
+				? undefined
+				: parseInt(values["chunk-size"] as string, 10)
+			: undefined,
+		overlap: values.overlap
+			? Number.isNaN(parseInt(values.overlap as string, 10))
+				? undefined
+				: parseInt(values.overlap as string, 10)
+			: undefined,
 		// grid options
 		grid: values.grid as string | undefined,
 		gridUpscale: values["grid-upscale"]
