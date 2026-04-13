@@ -1,6 +1,8 @@
 # 06 — Novel2Movie stage decomposition plan
 
-**Status:** Draft, not yet implemented.
+**Status:** ✅ Implemented (stages 1–3). Verified end-to-end on
+`japanese-anime-example.md` 2026-04-13 — see
+[07-stage-workflow.md](07-stage-workflow.md) for usage.
 **Scope for this iteration:** Stages 1–3 only (characters → portraits → scripts).
 Storyboard + video + concat stay untouched for now; `flow novel2movie`
 keeps working as the monolithic fallback.

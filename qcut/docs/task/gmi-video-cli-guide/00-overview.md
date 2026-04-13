@@ -32,8 +32,14 @@ live end-to-end validation session on branch `cli-drama`.
 - ⚠️ **`flow script2video` default output is `/tmp/`** — only
   `novel2movie` auto-defaults to `~/Documents/QCut/Exports/`. Pass
   `--output-dir` or the files land in a temp folder.
-- ⚠️ **`--max-scenes` doesn't really cap scenes** — segmentation runs
-  on the full novel. Use `--max-images N` to cap cost instead.
+- ✅ **`--max-scenes` + `--max-clips` now wired** on `flow novel2movie`
+  (commits below). You can scope a run to 5 clips out of 20 scenes
+  without re-running the whole pipeline.
+- ✅ **Staged workflow for characters + portraits + scripts** — run each
+  independently via `flow characters` / `flow portraits` /
+  `flow novel2script`, with artifacts landing in
+  `~/Documents/QCut/projects/<slug>/`. See
+  [07-stage-workflow.md](07-stage-workflow.md).
 
 ## Key commits on `cli-drama`
 
@@ -53,6 +59,8 @@ live end-to-end validation session on branch `cli-drama`.
 | [03-script2video-walkthrough.md](03-script2video-walkthrough.md) | Generate real MP4s from an existing script via GMI Kling omni |
 | [04-gmi-models.md](04-gmi-models.md) | Which GMI model for what + cost/duration cheat sheet |
 | [05-troubleshooting.md](05-troubleshooting.md) | Every failure mode observed in this session + how to diagnose |
+| [06-stage-decomposition-plan.md](06-stage-decomposition-plan.md) | Why + how we split `novel2movie` into independent stages |
+| [07-stage-workflow.md](07-stage-workflow.md) | Recipe: `flow characters` → `flow portraits` → `flow novel2script` with a shared project dir |
 
 ## Session recap (for context)
 
