@@ -62,7 +62,7 @@ describe("findPortraitStylePreset", () => {
 
 describe("resolvePortraitStyle", () => {
 	it("expands a preset slug to its prompt", () => {
-		expect(resolvePortraitStyle("anime")).toContain("Modern anime film");
+		expect(resolvePortraitStyle("anime")).toContain("Anime portrait");
 		expect(resolvePortraitStyle("photorealistic")).toContain("真人写实");
 	});
 
@@ -74,7 +74,7 @@ describe("resolvePortraitStyle", () => {
 
 	it("prefers styleInput over fallback when non-empty", () => {
 		expect(resolvePortraitStyle("anime", "some fallback")).toContain(
-			"Modern anime film"
+			"Anime portrait"
 		);
 	});
 
