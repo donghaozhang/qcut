@@ -131,6 +131,18 @@ export function splitNovelText(
 			`overlap (${overlap}) must be less than chunk_size (${chunk_size})`
 		);
 	}
+	// The paragraph-snap below can shrink the effective stride to
+	// `lastBreak + 2 - overlap`, and lastBreak is only accepted when it's
+	// above `chunk_size * 0.7`. If overlap exceeds that threshold the
+	// stride can go ≤ 0 and `start` walks backwards, causing an infinite
+	// loop. Reject such parameters up front — now that `--chunk-size` and
+	// `--overlap` are user-facing CLI flags this is reachable.
+	const maxSafeOverlap = Math.floor(chunk_size * 0.7);
+	if (overlap > maxSafeOverlap) {
+		throw new Error(
+			`overlap (${overlap}) must not exceed 70% of chunk_size (${maxSafeOverlap}) to guarantee forward progress`
+		);
+	}
 
 	const chunks: string[] = [];
 	let start = 0;
