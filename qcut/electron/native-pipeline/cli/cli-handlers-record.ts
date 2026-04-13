@@ -204,6 +204,10 @@ export async function handleRecord(
 					reject(new Error("Headless recorder exited before duration elapsed"));
 				});
 			});
+			// Swallow the late rejection that fires when finally{} kills the
+			// child after the delay-side won the race — otherwise we leak an
+			// unhandled rejection on every successful timed recording.
+			childExitedEarly.catch(() => {});
 			await Promise.race([
 				delay(durationSeconds * 1000, undefined, { signal }),
 				childExitedEarly,
