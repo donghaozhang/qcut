@@ -168,13 +168,16 @@ don't want portraits for. Stage 2 picks up edits.
 ```bash
 qcut flow portraits \
     --project cdrama-heiress-returns \
+    --style "low-poly game render, flat colors, chunky shading" \
     --image-model gmi_gemini_31_flash_image
 ```
 
 Reads `<proj>/characters.json`, renders one `front.png` per character
 into `<proj>/portraits/<name>/`, and saves a
-`<proj>/portraits/registry.json` that later stages consume. Style is
-taken from `<proj>/project.json.style` unless overridden with `--style`.
+`<proj>/portraits/registry.json` that later stages consume. The
+`--style` flag accepts a preset slug (see table above) or a free-form
+prompt like the one shown — either overrides `<proj>/project.json.style`
+and is persisted back there so subsequent stages pick it up.
 
 Measured run: 4m 14s for 5 characters / $0.100 (GMI Gemini 3.1 flash
 image). Budget ~1 min per portrait as a rule of thumb.
@@ -253,11 +256,11 @@ qcut flow characters --novel "$NOVEL" --project "$PROJECT" --style anime
 qcut flow portraits  --project "$PROJECT"       # picks up style from project.json
 ```
 
-Free-form also works when no preset fits:
+Free-form also works when no preset fits — pass any descriptive phrase:
 
 ```bash
 qcut flow portraits --project "$PROJECT" \
-    --style "low-poly game render, flat colors, chunky shading"
+    --style "vintage 1970s film grain, muted earth tones, soft focus"
 ```
 
 ### Verified A/B on the cdrama novel (2026-04-13)
