@@ -227,7 +227,7 @@ a tuned prompt) or **free-form text** (passed through).
 | Slug | Lang | Prompt (prepended to every portrait) |
 |---|---|---|
 | `photorealistic` | 🇨🇳 | 真人写实，电视剧质感，自然光，肤质细腻，暖色调 |
-| `anime` | 🇬🇧 | Anime portrait, cel-shaded, large glossy eyes, crisp linework |
+| `anime` | 🇬🇧 | Modern anime film, soft cel-shading, expressive eyes, cinematic light |
 | `ghibli` | 🇬🇧 | Ghibli hand-drawn, soft pastel, nostalgic, pastoral warmth |
 | `3d-animation` | 🇬🇧 | Pixar-style 3D render, stylized, soft rim light |
 | `chinese-ink` | 🇨🇳 | 水墨画风，留白意境，墨色浓淡，笔锋飘逸 |
@@ -262,35 +262,43 @@ qcut flow portraits --project "$PROJECT" \
 
 ### Verified A/B on the cdrama novel (2026-04-13)
 
-Same 5 characters from `drama-example.md`, two different preset styles,
-same GMI flash-image model:
+Same 5 characters from `drama-example.md`, the GMI flash-image model,
+three prompt variants. The anime preset was rewritten mid-session to
+address a moé-bias concern — both versions kept on disk for comparison.
 
-| | `photorealistic` | `anime` |
-|---|---|---|
-| Project dir | `cdrama-photoreal/` | `style-anime-smoke/` |
-| Total duration | **5m 39s** | **3m 45s** |
-| Cost | $0.100 | $0.100 |
-| Avg per portrait | **67.9s** | **44.9s** |
-| Portrait sizes | 1.4–1.6 MB | 1.3–1.8 MB |
+| | `photorealistic` | `anime` v1 *(retired)* | `anime` v2 *(current)* |
+|---|---|---|---|
+| Project dir | `cdrama-photoreal/` | `style-anime-smoke/` | `style-anime-v2/` |
+| Prompt | `真人写实，电视剧质感，自然光，肤质细腻，暖色调` | `Anime portrait, cel-shaded, large glossy eyes, crisp linework` | `Modern anime film, soft cel-shading, expressive eyes, cinematic light` |
+| Total duration | **5m 39s** | 3m 45s | **3m 46s** |
+| Cost | $0.100 | $0.100 | $0.100 |
+| Avg per portrait | **67.9s** | 44.9s | **45.2s** |
+| Portrait sizes | 1.4–1.6 MB | 1.3–1.8 MB | 1.5–1.7 MB |
 
-Both hit the 5/5 portraits at the same cost. Two practical
-observations:
+Findings:
 
-- **Anime prompts are ~34% faster** on flash-image than photorealistic
-  on the same characters. Skin/texture detail in photoreal appears to
-  burn more internal compute. Worth knowing when pacing large batches.
-- **File sizes are comparable** (mid-1 MB range for both) — no extreme
-  outliers this round.
+- **Anime prompts run ~34% faster** than photorealistic on flash-image
+  — skin/texture detail in photoreal seems to burn more internal
+  compute. Cost per image is flat regardless of prompt.
+- **The v1 → v2 rewrite cost nothing on timing** (44.9s vs 45.2s) but
+  changed the visual register: dropping `large glossy eyes` and
+  `crisp linework` removed a moé bias the v1 prompt introduced, and
+  `Modern anime film` + `cinematic light` anchored more toward
+  Shinkai/KyoAni film grade than saturated shounen/番剧 TV.
+- Why v1 was weak: `cel-shaded` and `crisp linework` pointed at the
+  same axis (line/shading technique) — one phrase wasted. `large
+  glossy eyes` is too specific and risky for adult drama protagonists.
 
-Compare the two folders side-by-side to see the style difference land:
+Compare the same character across all three:
 
 ```bash
 open ~/Documents/QCut/projects/cdrama-photoreal/portraits/沈念安/front.png
-open ~/Documents/QCut/projects/style-anime-smoke/portraits/沈念安/front.png
+open ~/Documents/QCut/projects/style-anime-smoke/portraits/沈念安/front.png  # v1
+open ~/Documents/QCut/projects/style-anime-v2/portraits/沈念安/front.png     # v2
 ```
 
-Same character, two styles — both driven entirely by the `--style`
-flag with no manual prompt engineering.
+Same character, one `--style anime` flag driving visually different
+outputs depending on the preset version.
 
 ## Why this is less drama-prone than `flow novel2movie`
 

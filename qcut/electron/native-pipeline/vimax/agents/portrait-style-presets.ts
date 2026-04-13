@@ -54,9 +54,14 @@ export const PORTRAIT_STYLE_PRESETS: readonly PortraitStylePreset[] = [
 	},
 	{
 		slug: "anime",
-		label_en: "Anime (Japanese animation)",
+		label_en: "Anime (modern anime film)",
 		label_zh: "动漫",
-		prompt: "Anime portrait, cel-shaded, large glossy eyes, crisp linework",
+		// Four independent axes, no redundancy: medium (modern anime
+		// film) + technique (soft cel-shading) + expression (eyes) +
+		// lighting (cinematic). "Expressive eyes" deliberately avoids
+		// "large glossy eyes" which pushed flash-image toward moé/waifu
+		// territory — wrong for adult drama adaptations.
+		prompt: "Modern anime film, soft cel-shading, expressive eyes, cinematic light",
 	},
 	{
 		slug: "ghibli",
