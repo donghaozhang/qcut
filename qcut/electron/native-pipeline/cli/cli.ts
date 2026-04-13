@@ -323,7 +323,10 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"gif-loop": { type: "boolean", default: false },
 			"gif-quality": { type: "string" },
 			mic: { type: "boolean", default: false },
-			"system-audio": { type: "boolean", default: false },
+			// Default true matches the command-registry advertisement and user
+			// docs — capturing system audio is the intended out-of-box
+			// behaviour for `qcut record`.
+			"system-audio": { type: "boolean", default: true },
 			// ui options
 			panel: { type: "string" },
 			tab: { type: "string" },
@@ -707,7 +710,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				: parseFloat(values["zoom-blur"] as string)
 			: undefined,
 		mic: (values.mic as boolean) ?? false,
-		systemAudio: (values["system-audio"] as boolean) ?? false,
+		systemAudio: (values["system-audio"] as boolean) ?? true,
 		noAutoLaunch: (values["no-auto-launch"] as boolean) ?? false,
 		// `qcut record-daemon` action flags (raw pass-through for the handler's
 		// `resolveAction` lookup). Spreading kebab-case isn't needed — these

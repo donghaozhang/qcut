@@ -76,9 +76,16 @@ export interface ProjectPaths {
 	videosDir: string;
 }
 
-/** Resolve every path inside a project dir without creating anything. */
+/**
+ * Resolve every path inside a project dir without creating anything.
+ *
+ * The caller is responsible for producing a filesystem-safe slug
+ * (via {@link safeProjectSlug}); this function trusts `slug` verbatim
+ * so that project names containing dots (e.g. `my.story`) aren't
+ * corrupted by a second pass of extension-stripping.
+ */
 export function resolveProjectPaths(slug: string): ProjectPaths {
-	const normalized = safeProjectSlug(slug);
+	const normalized = slug;
 	const root = path.join(getProjectsRoot(), normalized);
 	return {
 		slug: normalized,

@@ -61,6 +61,16 @@ describe("project metadata round-trip", () => {
 		fs.rmSync(tmpRoot, { recursive: true, force: true });
 	});
 
+	it("resolveProjectPaths preserves dot-containing slugs verbatim", () => {
+		// Regression: an earlier version double-slugified and stripped
+		// everything after the final dot, so `--project my.story`
+		// produced `my/` instead of `my.story/`. resolveProjectPaths
+		// now trusts its input.
+		const paths = resolveProjectPaths("my.story");
+		expect(paths.slug).toBe("my.story");
+		expect(paths.root.endsWith("/my.story")).toBe(true);
+	});
+
 	it("resolveProjectPaths exposes all expected paths", () => {
 		const paths = resolveProjectPaths("anime-example");
 		expect(paths.slug).toBe("anime-example");

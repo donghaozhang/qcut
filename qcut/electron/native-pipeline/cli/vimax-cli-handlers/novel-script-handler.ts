@@ -116,11 +116,15 @@ export async function handleVimaxNovel2Script(
 			} catch {
 				// Non-fatal; the source path is recorded in metadata regardless.
 			}
+			// Only patch `style` when the novel actually declares one —
+			// otherwise `{ style: undefined }` would silently erase a
+			// previously-set style in project.json (e.g. from Stage 1).
+			const novelStyleHeader = extractNovelStyleHeader(novelText);
 			writeProjectMetadata(paths, {
 				slug,
 				novel_path: path.resolve(novelPath),
 				title,
-				style: extractNovelStyleHeader(novelText),
+				...(novelStyleHeader ? { style: novelStyleHeader } : {}),
 			});
 
 			scriptsDir = paths.scriptsDir;

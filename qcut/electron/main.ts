@@ -631,8 +631,11 @@ const isHeadlessRecorder = process.argv.includes("--headless-recorder");
 const isHeadlessRecorderDaemon =
 	isHeadlessRecorder && process.argv.includes("--daemon");
 
-// Register qcut:// deep link protocol for license activation
-if (!app.isDefaultProtocolClient("qcut")) {
+// Register qcut:// deep link protocol for license activation.
+// Skip for headless-recorder processes — they have no renderer to deliver
+// the activation token to, and registering would hijack the protocol
+// from the real editor app.
+if (!isHeadlessRecorder && !app.isDefaultProtocolClient("qcut")) {
 	app.setAsDefaultProtocolClient("qcut");
 }
 

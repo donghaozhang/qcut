@@ -192,6 +192,10 @@ export async function handleEditorCommand(
 
 	if (!shouldSkipHealth) {
 		let healthy = await client.checkHealth();
+		// Track the port we actually health-probed so the "not running"
+		// error message doesn't lie about which URL failed after
+		// auto-spawn picks a dynamic port.
+		let effectivePort = options.port ?? process.env.QCUT_API_PORT ?? "8765";
 
 		// Phase 2 auto-spawn: for `editor:screen-recording:*` only, try to
 		// launch a hidden headless recorder so the command works without
@@ -214,9 +218,10 @@ export async function handleEditorCommand(
 				// and report "QCut not running" while the daemon is alive.
 				// Reassigning `client` (declared `let` above) so all
 				// downstream dispatches in this handler hit the live port.
+				effectivePort = String(daemonPort);
 				client = createEditorClient({
 					...options,
-					port: String(daemonPort),
+					port: effectivePort,
 				});
 				healthy = await client.checkHealth();
 			} catch (err) {
@@ -232,10 +237,9 @@ export async function handleEditorCommand(
 
 		if (!healthy) {
 			const host = options.host ?? process.env.QCUT_API_HOST ?? "127.0.0.1";
-			const port = options.port ?? process.env.QCUT_API_PORT ?? "8765";
 			return {
 				success: false,
-				error: `QCut editor not running at http://${host}:${port}\nStart QCut with: bun run electron:dev`,
+				error: `QCut editor not running at http://${host}:${effectivePort}\nStart QCut with: bun run electron:dev`,
 			};
 		}
 		markSessionHealthChecked();
