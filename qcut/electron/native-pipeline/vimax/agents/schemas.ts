@@ -169,6 +169,12 @@ export const CHARACTER_LIST_JSON_SCHEMA: Record<string, unknown> = {
 						properties: {
 							age: { type: "string" },
 							gender: { type: "string" },
+							// Ethnicity/nationality (e.g. "Japanese", "Chinese").
+							// Optional so older extraction traces stay valid, but
+							// strongly encouraged when the source text specifies
+							// a non-Western cast — otherwise image models default
+							// to a Caucasian mean face.
+							ethnicity: { type: "string" },
 							hair: { type: "string" },
 							expression: { type: "string" },
 							clothing: { type: "string" },

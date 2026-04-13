@@ -387,6 +387,81 @@ Pipeline-specific JSONL progress events (also on stderr with `--stream`):
 {"schema_version":"1","event":"step_progress","timestamp":1741830001,"elapsed_seconds":1.5,"duration_ms":1500,"step_index":1,"percent":42,"message":"Processing..."}
 ```
 
+## Standalone Screen Recording
+
+Top-level commands that record the screen without needing the editor UI
+open. Spawn a hidden headless QCut instance, record, exit. Added in
+Phase 1 of the dual-mode recording plan — see
+`docs/task/recordly/22-cli-standalone-phase1-record-command.md` for
+architecture and
+`docs/task/recordly/23-cli-standalone-phase2-editor-commands.md` for the
+auto-spawn behaviour of the existing `editor:screen-recording:*` group.
+
+### `record`
+
+One-shot standalone screen recording.
+
+| Flag | Short | Type | Description |
+|------|-------|------|-------------|
+| `--source` | | string | Capture source ID from `editor:screen-recording:sources`. Defaults to the primary screen. |
+| `--record-duration` | | number | Auto-stop after N seconds. Omit to wait for Ctrl-C. |
+| `--output` | `-o` | string | Output file name (default: `recording-<ts>.mp4`) |
+| `--cursor-sway` | | number | Cursor wobble intensity 0–2 (export compositor) |
+| `--cursor-loop` | | boolean | Smooth loop return for cursor path |
+| `--zoom-blur` | | number | Motion blur during zoom transitions 0–1 |
+| `--mic` | | boolean | Capture microphone audio |
+| `--system-audio` | | boolean | Capture system audio (default: `true`) |
+| `--no-auto-launch` | | boolean | Fail instead of spawning a headless recorder |
+
+Output: `.mp4` file plus optional `.cursor.json` telemetry sidecar.
+
+Examples:
+
+```bash
+qcut record --record-duration 10 -o demo.mp4
+qcut record --source screen:0:0 --cursor-sway 1.0 -o polished.mp4
+qcut record -o long-demo.mp4   # Ctrl-C to stop
+```
+
+### `record-daemon`
+
+Manage the headless recorder daemon. Useful only for troubleshooting —
+the daemon auto-spawns when any `editor:screen-recording:*` command runs
+against a closed editor, and self-exits after 30 s of idle.
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--status` | boolean | Print `{ running, pid, port }`. Default if no flag is given. |
+| `--stop` | boolean | SIGTERM the running daemon (if any) |
+| `--start` | boolean | Spawn a fresh daemon (no-op if one is running) |
+
+State files: `~/.qcut/.headless-record.pid`, `~/.qcut/.headless-record.port`.
+
+Examples:
+
+```bash
+qcut record-daemon --json           # { "running": true, "pid": 12345, "port": 8765 }
+qcut record-daemon --stop --json    # { "stopped": true, "pid": 12345, ... }
+qcut record-daemon --start --json   # { "started": true, "port": 8765 }
+```
+
+### Auto-spawn scope for `editor:screen-recording:*`
+
+When QCut is closed and any of these commands runs, the CLI launches a
+hidden headless recorder transparently (opt out with `--no-auto-launch`):
+
+- `editor:screen-recording:sources`
+- `editor:screen-recording:status`
+- `editor:screen-recording:start`
+- `editor:screen-recording:stop`
+- `editor:screen-recording:force-stop`
+
+Other `editor:*` commands (media, timeline, export, etc.) still require
+a visibly-running editor because they mutate project state that only
+exists in the live renderer.
+
+---
+
 **Exit codes:**
 
 | Code | Meaning |

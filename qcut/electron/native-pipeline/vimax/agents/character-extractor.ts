@@ -30,6 +30,13 @@ import { detectLanguageInstruction } from "../detect-language.js";
 /** Configuration for the character extraction agent. */
 export interface CharacterExtractorConfig extends AgentConfig {
 	max_characters: number;
+	/**
+	 * Visual style to bake into each character's generated portrait_prompt.
+	 * Replaces the default "photorealistic studio headshot" wrapper so the
+	 * downstream image model renders in the drama's native aesthetic
+	 * instead of a LinkedIn-style headshot.
+	 */
+	portrait_style?: string;
 }
 
 /** Create a {@link CharacterExtractorConfig} with sensible defaults. */
@@ -59,6 +66,7 @@ For each character, provide:
 - portrait: A structured object describing the character's visual appearance for portrait generation. ALWAYS write ALL portrait fields in ENGLISH regardless of input language. Fields:
   - age: e.g. "young", "early 20s", "middle-aged", "elderly"
   - gender: e.g. "female", "male"
+  - ethnicity: (strongly recommended when the text specifies or clearly implies one — e.g. "Japanese", "Chinese", "Korean", "Indian", "Black British", "Latin American"). Omit only when truly indeterminate. Image models default to Caucasian faces otherwise, so preserving this signal matters.
   - hair: e.g. "long wavy brown hair", "short black hair with bangs"
   - expression: e.g. "determined and cold", "warm smile", "nervous and guilty"
   - clothing: e.g. "white silk dress", "black business suit with tie"
@@ -130,7 +138,9 @@ export class CharacterExtractor extends BaseAgent<string, CharacterInNovel[]> {
 						relationships: item.relationships,
 						portrait: portrait || undefined,
 						portrait_prompt: portrait
-							? composePortraitPrompt(portrait)
+							? composePortraitPrompt(portrait, {
+									style: this.config.portrait_style,
+								})
 							: undefined,
 					})
 				);

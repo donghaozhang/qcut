@@ -1,11 +1,15 @@
 /**
  * Video Generator Adapter for ViMax agents.
  *
- * Wraps FAL video generators (Kling, Veo, Hailuo, etc.) to provide
- * a consistent interface for ViMax agents. Falls back to mock generation
- * when API key is not configured.
+ * Thin wrapper around `callModelApi` that looks the model up in the
+ * shared `ModelRegistry`. Routes to FAL or GMI based on the
+ * registry's `providerBackend` field, so vimax pipelines pick up new
+ * providers automatically when they're registered. Falls back to mock
+ * generation when the appropriate API key isn't configured.
  *
- * Ported from: vimax/adapters/video_adapter.py
+ * Ported from: vimax/adapters/video_adapter.py (originally FAL-only;
+ * migrated to registry-based routing — see
+ * docs/task/gmi-provider/vimax-video-adapter-gmi-fix.md).
  */
 
 import * as fs from "fs";
@@ -18,6 +22,7 @@ import {
 	createAdapterConfig,
 } from "./base-adapter.js";
 import { callModelApi, downloadOutput } from "../../infra/api-caller.js";
+import { ModelRegistry } from "../../infra/registry.js";
 import type { VideoOutput, ImageOutput } from "../types/output.js";
 import { createVideoOutput } from "../types/output.js";
 
@@ -41,51 +46,221 @@ export function createVideoAdapterConfig(
 	};
 }
 
-/** Model → FAL endpoint for image-to-video. */
-const MODEL_MAP: Record<string, string> = {
-	kling: "fal-ai/kling-video/v1/standard/image-to-video",
-	kling_2_1: "fal-ai/kling-video/v2.1/standard/image-to-video",
-	kling_2_6_pro: "fal-ai/kling-video/v2.6/pro/image-to-video",
-	veo3: "google/veo-3",
-	veo3_fast: "google/veo-3-fast",
-	hailuo: "fal-ai/hailuo/image-to-video",
-	grok_imagine: "fal-ai/grok/imagine",
+/**
+ * Legacy keys that used to live in the hardcoded MODEL_MAP but aren't
+ * registered in the ModelRegistry under that exact key. Map them to the
+ * canonical registry entry so callers passing older keys keep working.
+ */
+const LEGACY_MODEL_ALIASES: Record<string, string> = {
+	// Old "kling" (v1) is not in the registry — route to the v2.1 successor,
+	// which matches the previous MODEL_MAP fallback in effect.
+	kling: "kling_2_1",
 };
 
-/** Cost estimates per second of video. */
-const COST_PER_SECOND: Record<string, number> = {
-	kling: 0.03,
-	kling_2_1: 0.03,
-	kling_2_6_pro: 0.06,
-	veo3: 0.1,
-	veo3_fast: 0.06,
-	hailuo: 0.02,
-	grok_imagine: 0.05,
-};
+interface ResolvedModelSpec {
+	/** The canonical registry key (after alias resolution). */
+	canonicalKey: string;
+	/** Provider-specific endpoint path (e.g. "fal-ai/kling-video/v2.1/…"). */
+	endpoint: string;
+	/** Which backend `callModelApi` should use. */
+	providerBackend: "fal" | "gmi";
+	/** Best-effort cost-per-second for the returned VideoOutput. */
+	costPerSecond: number;
+}
+
+/** Look up a model spec via ModelRegistry, honouring legacy aliases. */
+export function resolveVideoModelSpec(model: string): ResolvedModelSpec {
+	const canonicalKey = LEGACY_MODEL_ALIASES[model] ?? model;
+	if (!ModelRegistry.has(canonicalKey)) {
+		throw new Error(
+			`Unknown video model "${model}". ` +
+				"Run `qcut system models --category image_to_video --json` to list supported keys."
+		);
+	}
+	const def = ModelRegistry.get(canonicalKey);
+	return {
+		canonicalKey,
+		endpoint: def.endpoint,
+		providerBackend: (def.providerBackend as "fal" | "gmi") ?? "fal",
+		costPerSecond: extractCostPerSecond(def.pricing),
+	};
+}
+
+/** Errors that indicate a transient upstream failure worth retrying. */
+const TRANSIENT_ERROR_PATTERNS = [
+	/context deadline exceeded/i,
+	/client\.timeout/i,
+	/failed to send http request/i,
+	/connection reset/i,
+	/econnreset/i,
+	/etimedout/i,
+	/enotfound/i,
+	/socket hang up/i,
+	/temporarily unavailable/i,
+	/service unavailable/i,
+];
+
+/**
+ * Classify an API error message for retry eligibility. Returns true for
+ * 5xx responses, timeouts, and network errors that commonly resolve on
+ * a retry. Returns false for 4xx responses — those are caused by bad
+ * payloads / missing params / auth failures and will never self-heal.
+ */
+export function isRetryableVideoError(errorMessage: string): boolean {
+	if (!errorMessage) return false;
+	// GMI/FAL surface errors as "provider error NNN: …". 5xx == server
+	// problem; 4xx == our request is wrong.
+	const statusMatch = errorMessage.match(/error\s+(\d{3})/i);
+	if (statusMatch) {
+		const status = Number.parseInt(statusMatch[1], 10);
+		if (status >= 500 && status <= 599) return true;
+		if (status >= 400 && status <= 499) return false;
+	}
+	return TRANSIENT_ERROR_PATTERNS.some((re) => re.test(errorMessage));
+}
+
+export interface RetryConfig {
+	maxAttempts?: number;
+	baseDelayMs?: number;
+	maxDelayMs?: number;
+	/** Injected in tests so we don't actually sleep. */
+	sleepImpl?: (ms: number) => Promise<void>;
+}
+
+/**
+ * Invoke a video API call with exponential-backoff retries on transient
+ * failures. First attempt runs without delay; subsequent attempts back
+ * off at `baseDelayMs`, `baseDelayMs*3`, `baseDelayMs*9`, capped at
+ * `maxDelayMs`.
+ *
+ * Exposed for testability — production code uses the default parameters.
+ */
+export async function callVideoApiWithRetry<
+	T extends { success: boolean; error?: string },
+>(call: () => Promise<T>, config: RetryConfig = {}): Promise<T> {
+	const maxAttempts = config.maxAttempts ?? 3;
+	const baseDelayMs = config.baseDelayMs ?? 5_000;
+	const maxDelayMs = config.maxDelayMs ?? 60_000;
+	const sleep =
+		config.sleepImpl ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+
+	let lastResult: T | undefined;
+	for (let attempt = 0; attempt < maxAttempts; attempt++) {
+		const result = await call();
+		lastResult = result;
+		if (result.success) return result;
+		const errMsg = result.error ?? "";
+		if (!isRetryableVideoError(errMsg)) return result;
+		const isLastAttempt = attempt === maxAttempts - 1;
+		if (isLastAttempt) return result;
+		const delayMs = Math.min(baseDelayMs * 3 ** attempt, maxDelayMs);
+		console.warn(
+			`[vimax.video] Transient error (attempt ${attempt + 1}/${maxAttempts}): ${errMsg.slice(0, 120)}. Retrying in ${delayMs}ms...`
+		);
+		await sleep(delayMs);
+	}
+	// Unreachable — loop always returns before this
+	return lastResult as T;
+}
+
+/**
+ * Build the provider-specific image payload field.
+ *
+ *   - FAL's image-to-video endpoints take `image_url` and accept remote
+ *     URLs or data URIs directly.
+ *   - GMI's endpoints take `image` and accept remote URLs or raw base64
+ *     strings (no `data:…;base64,` prefix — matches the payload shape in
+ *     `cli-handlers-element.ts` and `gmi-image-to-video.ts`).
+ *
+ * Local filesystem paths are read from disk and encoded accordingly.
+ */
+export function buildImageField(
+	imagePath: string,
+	provider: "fal" | "gmi"
+): Record<string, string> {
+	const isRemote = /^https?:/i.test(imagePath);
+	const isDataUri = imagePath.startsWith("data:");
+
+	if (provider === "gmi") {
+		if (isRemote || isDataUri) {
+			return { image: imagePath };
+		}
+		// Local file — encode to raw base64 (GMI's documented format).
+		return { image: fs.readFileSync(imagePath).toString("base64") };
+	}
+
+	// FAL path
+	if (isRemote || isDataUri) {
+		return { image_url: imagePath };
+	}
+	// Local file — convert to data URI (FAL accepts this; pure base64 won't
+	// pass the provider's content-type sniffing).
+	const ext = path.extname(imagePath).slice(1).toLowerCase() || "png";
+	const buffer = fs.readFileSync(imagePath);
+	return {
+		image_url: `data:image/${ext};base64,${buffer.toString("base64")}`,
+	};
+}
+
+/**
+ * Registry pricing is either a number or an object like
+ * `{ no_sound, with_sound }` / `{ std, pro, std_sound, pro_sound }`.
+ * Pick the cheapest numeric entry as a conservative default — the
+ * authoritative cost for billing is computed server-side by
+ * credit-estimator when proxy mode is used.
+ */
+function extractCostPerSecond(pricing: unknown): number {
+	if (typeof pricing === "number") return pricing;
+	if (pricing && typeof pricing === "object") {
+		const numericValues = Object.values(
+			pricing as Record<string, unknown>
+		).filter(
+			(v): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0
+		);
+		if (numericValues.length > 0) return Math.min(...numericValues);
+	}
+	// Last-resort default — same order of magnitude as the old COST_PER_SECOND.
+	return 0.03;
+}
 
 export class VideoGeneratorAdapter extends BaseAdapter<
 	Record<string, unknown>,
 	VideoOutput
 > {
 	declare config: VideoAdapterConfig;
-	private _hasApiKey = false;
+	private _hasFalKey = false;
+	private _hasGmiKey = false;
 
 	constructor(config?: Partial<VideoAdapterConfig>) {
 		super(createVideoAdapterConfig(config));
 	}
 
-	/** Returns list of supported video model keys. */
+	/**
+	 * Returns list of supported video model keys.
+	 * Pulled live from the ModelRegistry's `image_to_video` category plus
+	 * the legacy aliases we still accept.
+	 */
 	static getAvailableModels(): string[] {
-		return Object.keys(MODEL_MAP);
+		const registryKeys = ModelRegistry.keysForCategory("image_to_video");
+		return [
+			...new Set([...registryKeys, ...Object.keys(LEGACY_MODEL_ALIASES)]),
+		];
 	}
 
 	async initialize(): Promise<boolean> {
-		const apiKey = process.env.FAL_KEY ?? process.env.FAL_API_KEY ?? "";
-		this._hasApiKey = apiKey.length > 0;
-		if (!this._hasApiKey) {
-			console.warn("[vimax.video] FAL_KEY not set — using mock mode");
+		this._hasFalKey = Boolean(process.env.FAL_KEY ?? process.env.FAL_API_KEY);
+		this._hasGmiKey = Boolean(process.env.GMI_API_KEY);
+		if (!this._hasFalKey && !this._hasGmiKey) {
+			console.warn(
+				"[vimax.video] No FAL_KEY or GMI_API_KEY set — using mock mode"
+			);
 		}
 		return true;
+	}
+
+	/** True if the adapter can make a real call for the given provider. */
+	private _hasKeyFor(provider: "fal" | "gmi"): boolean {
+		return provider === "gmi" ? this._hasGmiKey : this._hasFalKey;
 	}
 
 	async execute(input: Record<string, unknown>): Promise<VideoOutput> {
@@ -96,7 +271,12 @@ export class VideoGeneratorAdapter extends BaseAdapter<
 		);
 	}
 
-	/** Generate video from image and prompt via FAL. */
+	/**
+	 * Generate a video from an image and prompt via the provider the
+	 * registry assigns to `options.model`. Throws on unknown model keys
+	 * (no silent Kling fallback). Falls back to mock output when the
+	 * matching provider's API key isn't set.
+	 */
 	async generate(
 		imagePath: string,
 		prompt: string,
@@ -111,7 +291,14 @@ export class VideoGeneratorAdapter extends BaseAdapter<
 		const model = options?.model ?? this.config.model;
 		const duration = options?.duration ?? this.config.duration;
 
-		if (!this._hasApiKey) {
+		// Registry lookup — throws early on typos / unregistered keys so
+		// misconfiguration fails loudly instead of silently routing to FAL.
+		const spec = resolveVideoModelSpec(model);
+
+		if (!this._hasKeyFor(spec.providerBackend)) {
+			console.warn(
+				`[vimax.video] ${spec.providerBackend.toUpperCase()}_API_KEY not set — using mock mode for ${model}`
+			);
 			return this._mockGenerate(
 				imagePath,
 				prompt,
@@ -122,19 +309,30 @@ export class VideoGeneratorAdapter extends BaseAdapter<
 		}
 
 		const startTime = Date.now();
-		const endpoint = MODEL_MAP[model] ?? MODEL_MAP.kling;
-
+		// Provider-specific payload shape — FAL expects `image_url` with
+		// either a remote URL or a data URI, while GMI expects `image` with
+		// a raw base64 string (no `data:…` prefix). Matches the working
+		// payloads used elsewhere in the codebase (gmi-image-to-video.ts /
+		// cli-handlers-element.ts).
+		const imageField = buildImageField(imagePath, spec.providerBackend);
 		const payload: Record<string, unknown> = {
 			prompt,
-			image_url: imagePath,
+			...imageField,
 			duration: String(Math.round(duration)),
 		};
 
-		const result = await callModelApi({
-			endpoint,
-			payload,
-			provider: "fal",
-		});
+		// Wrap the call in a retry loop — GMI's upstream video providers
+		// (Kling, Veo) regularly return 500/timeout on busy periods; a
+		// bounded retry with backoff dramatically improves reliability.
+		// 4xx errors are surfaced immediately (they won't self-heal).
+		const result = await callVideoApiWithRetry(() =>
+			callModelApi({
+				endpoint: spec.endpoint,
+				payload,
+				provider: spec.providerBackend,
+				modelKey: spec.canonicalKey,
+			})
+		);
 
 		const generationTime = (Date.now() - startTime) / 1000;
 
@@ -160,7 +358,7 @@ export class VideoGeneratorAdapter extends BaseAdapter<
 			height: 720,
 			fps: this.config.fps,
 			generation_time: generationTime,
-			cost: (COST_PER_SECOND[model] ?? 0.03) * duration,
+			cost: spec.costPerSecond * duration,
 		});
 	}
 

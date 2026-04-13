@@ -54,6 +54,10 @@ export interface CLIRunOptions {
 	title?: string;
 	maxScenes?: number;
 	maxClips?: number;
+	/** Novel chunk size in characters (novel2script / novel2movie) */
+	chunkSize?: number;
+	/** Novel chunk overlap in characters (novel2script / novel2movie) */
+	overlap?: number;
 	scriptsOnly?: boolean;
 	storyboardOnly?: boolean;
 	maxImages?: number;
@@ -196,6 +200,28 @@ export interface CLIRunOptions {
 	sourceId?: string;
 	discard?: boolean;
 	force?: boolean;
+	// `qcut record` standalone options (Phase 1 of dual-mode CLI recording)
+	/** Auto-stop recording after N seconds (omit to wait for Ctrl-C) */
+	recordDuration?: number;
+	/** Cursor wobble intensity 0–2 (export compositor) */
+	cursorSway?: number;
+	/** Smooth loop return for the cursor path */
+	cursorLoop?: boolean;
+	/** Motion blur during zoom transitions 0–1 */
+	zoomBlur?: number;
+	/** Capture microphone audio */
+	mic?: boolean;
+	/** Capture system audio */
+	systemAudio?: boolean;
+	/** Fail with ECONNREFUSED instead of auto-launching a headless recorder */
+	noAutoLaunch?: boolean;
+	// `qcut record-daemon` action flags — mutually-exclusive verbs
+	/** Trigger record-daemon stop action */
+	stop?: boolean;
+	/** Trigger record-daemon start action */
+	start?: boolean;
+	/** Trigger record-daemon status action (also the default) */
+	status?: boolean;
 	// ui options
 	panel?: string;
 	tab?: string;

@@ -152,12 +152,18 @@ export const CATEGORIES: CategoryDef[] = [
 		commands: ["youtube:upload"],
 	},
 	{
+		name: "recording",
+		label: "Screen Recording",
+		commands: ["record", "record-daemon"],
+	},
+	{
 		name: "vimax",
 		label: "ViMax Commands",
 		commands: [
 			"vimax:idea2video",
 			"vimax:script2video",
 			"vimax:novel2movie",
+			"vimax:novel2script",
 			"vimax:extract-characters",
 			"vimax:generate-script",
 			"vimax:generate-storyboard",
@@ -737,6 +743,58 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		],
 	},
 
+	// ── Standalone screen recording (Phase 1 of dual-mode CLI recording) ──
+	record: {
+		name: "record",
+		description: "Record the screen standalone (spawns a headless QCut)",
+		category: "recording",
+		flags: [
+			f(
+				"--source",
+				"string",
+				"Capture source ID (from editor:screen-recording:sources)"
+			),
+			f(
+				"--record-duration",
+				"number",
+				"Auto-stop after N seconds (omit to wait for Ctrl-C)"
+			),
+			f("--output", "string", "Output file name", { short: "-o" }),
+			f("--cursor-sway", "number", "Cursor wobble intensity (0-2)"),
+			f("--cursor-loop", "boolean", "Smooth loop return for cursor path"),
+			f("--zoom-blur", "number", "Motion blur during zoom (0-1)"),
+			f("--mic", "boolean", "Capture microphone audio"),
+			f("--system-audio", "boolean", "Capture system audio", { default: true }),
+			f(
+				"--no-auto-launch",
+				"boolean",
+				"Fail if no headless recorder can be spawned"
+			),
+		],
+		examples: [
+			"qcut record --record-duration 10 -o demo.mp4",
+			"qcut record --source screen:0:0 --cursor-sway 1.0 -o polished.mp4",
+			"qcut record -o long.mp4  # press Ctrl-C to stop",
+		],
+	},
+
+	// ── Headless daemon management (Phase 2 of dual-mode CLI recording) ──
+	"record-daemon": {
+		name: "record-daemon",
+		description: "Manage the headless recorder daemon",
+		category: "recording",
+		flags: [
+			f("--status", "boolean", "Show daemon pid and port (default)"),
+			f("--stop", "boolean", "Send SIGTERM to the running daemon"),
+			f("--start", "boolean", "Spawn a new daemon in the background"),
+		],
+		examples: [
+			"qcut record-daemon",
+			"qcut record-daemon --stop",
+			"qcut record-daemon --start",
+		],
+	},
+
 	// ── Speech ──
 	"generate-speech": {
 		name: "generate-speech",
@@ -1297,6 +1355,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				"number",
 				"Max storyboard images to generate (implies no video)"
 			),
+			f("--max-clips", "number", "Max shot videos to generate across chunks"),
 			f("--no-portraits", "boolean", "Skip portrait generation", {
 				default: false,
 			}),
@@ -1308,20 +1367,54 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline vimax:novel2movie --novel story.txt --max-scenes 10",
 			"qcut-pipeline vimax:novel2movie --scripts-only",
 			"qcut-pipeline vimax:novel2movie --max-images 5",
+			"qcut-pipeline vimax:novel2movie --max-scenes 20 --max-clips 5",
+		],
+	},
+	"vimax:novel2script": {
+		name: "vimax:novel2script",
+		description:
+			"Segment a novel into shot-level Script JSON chunks (stage 3 of the decomposed novel2movie workflow)",
+		category: "vimax",
+		flags: [
+			f("--novel", "string", "Novel file path (markdown or plain text)", {
+				required: true,
+			}),
+			f("--project", "string", "Project slug under ~/Documents/QCut/projects/"),
+			f("--title", "string", "Project title (defaults to filename)"),
+			f("--max-scenes", "number", "Cap total scenes across chunks"),
+			f("--chunk-size", "number", "Chunk size in characters (default 2000)"),
+			f("--overlap", "number", "Chunk overlap in characters (default 200)"),
+			f("--llm-model", "string", "LLM model used for segmentation"),
+		],
+		examples: [
+			"qcut flow novel2script --novel story.md --project my-story",
+			"qcut flow novel2script --novel story.md --project my-story --max-scenes 20",
 		],
 	},
 	"vimax:extract-characters": {
 		name: "vimax:extract-characters",
-		description: "Extract characters from text",
+		description: "Extract characters from a novel or raw text",
 		category: "vimax",
 		flags: [
-			f("--text", "string", "Text to extract from", {
-				short: "-t",
-				required: true,
-			}),
+			f(
+				"--novel",
+				"string",
+				"Novel file path (staged workflow; writes to project dir)"
+			),
+			f("--text", "string", "Raw text to extract from", { short: "-t" }),
+			f("--input", "string", "Text or novel file path"),
+			f("--project", "string", "Project slug under ~/Documents/QCut/projects/"),
+			f("--title", "string", "Project title"),
+			f("--llm-model", "string", "LLM model"),
+			f(
+				"--style",
+				"string",
+				"Preset slug (photorealistic|anime|ghibli|3d-animation|chinese-ink|watercolor|cyberpunk|noir) or free-form text; persisted into project.json"
+			),
 		],
 		examples: [
-			"qcut-pipeline vimax:extract-characters -t 'John met Alice at...'",
+			"qcut flow characters --novel story.md --project my-story",
+			"qcut flow characters -t 'John met Alice at...'",
 		],
 	},
 	"vimax:generate-script": {
@@ -1355,13 +1448,17 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		description: "Generate character portraits",
 		category: "vimax",
 		flags: [
-			f("--portraits", "string", "Character JSON", {
-				short: "-p",
-				required: true,
-			}),
+			f("--project", "string", "Project slug under ~/Documents/QCut/projects/"),
+			f("--portraits", "string", "Character JSON path", { short: "-p" }),
+			f("--text", "string", "Raw text (re-extracts characters first)"),
+			f("--input", "string", "Character JSON path or raw text"),
 			f("--max-characters", "number", "Max characters to generate"),
 			f("--image-model", "string", "Image generation model"),
-			f("--style", "string", "Art style"),
+			f(
+				"--style",
+				"string",
+				"Preset slug (photorealistic|anime|ghibli|3d-animation|chinese-ink|watercolor|cyberpunk|noir) or free-form text"
+			),
 			f("--reference-model", "string", "Reference model"),
 			f("--reference-strength", "number", "Reference strength (0-1)"),
 			f("--views", "string", "Portrait views to generate"),
@@ -1369,7 +1466,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				default: true,
 			}),
 		],
-		examples: ["qcut-pipeline vimax:generate-portraits -p characters.json"],
+		examples: [
+			"qcut flow portraits --project my-story",
+			"qcut flow portraits -p characters.json",
+		],
 	},
 	"vimax:create-registry": {
 		name: "vimax:create-registry",

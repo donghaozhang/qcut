@@ -16,6 +16,10 @@ import {
 	markSessionHealthChecked,
 } from "./cli-runner/session.js";
 import {
+	ensureHeadlessDaemon,
+	isAutoSpawnEligible,
+} from "./auto-spawn-editor.js";
+import {
 	handleEditorHealth,
 	handleMediaProjectCommand,
 } from "../editor/editor-handlers-media.js";
@@ -171,7 +175,9 @@ export async function handleEditorCommand(
 	signal?: AbortSignal
 ): Promise<CLIResult> {
 	// In session mode, reuse the shared client. Otherwise create a new one.
-	const client = options.session
+	// `let` so the auto-spawn block below can swap it for a daemon-port-aware
+	// client when the headless recorder binds a non-default port.
+	let client = options.session
 		? getSessionClient(options)
 		: createEditorClient(options);
 
@@ -185,13 +191,55 @@ export async function handleEditorCommand(
 		(options.skipHealth && (!options.session || isSessionHealthChecked()));
 
 	if (!shouldSkipHealth) {
-		const healthy = await client.checkHealth();
+		let healthy = await client.checkHealth();
+		// Track the port we actually health-probed so the "not running"
+		// error message doesn't lie about which URL failed after
+		// auto-spawn picks a dynamic port.
+		let effectivePort = options.port ?? process.env.QCUT_API_PORT ?? "8765";
+
+		// Phase 2 auto-spawn: for `editor:screen-recording:*` only, try to
+		// launch a hidden headless recorder so the command works without
+		// the user needing to open QCut. Opt-out via `--no-auto-launch`.
+		if (
+			!healthy &&
+			!options.noAutoLaunch &&
+			isAutoSpawnEligible(options.command)
+		) {
+			onProgress({
+				stage: "launching-headless",
+				percent: 0,
+				message: "QCut not running — launching headless recorder...",
+			});
+			try {
+				const { port: daemonPort } = await ensureHeadlessDaemon();
+				// The daemon may have bound a dynamic port (8765 was busy),
+				// so re-create the client against the actual port before
+				// re-checking health — otherwise we'd retry the stale port
+				// and report "QCut not running" while the daemon is alive.
+				// Reassigning `client` (declared `let` above) so all
+				// downstream dispatches in this handler hit the live port.
+				effectivePort = String(daemonPort);
+				client = createEditorClient({
+					...options,
+					port: effectivePort,
+				});
+				healthy = await client.checkHealth();
+			} catch (err) {
+				onProgress({
+					stage: "launching-headless",
+					percent: 0,
+					message: `Headless launch failed: ${
+						err instanceof Error ? err.message : String(err)
+					}`,
+				});
+			}
+		}
+
 		if (!healthy) {
 			const host = options.host ?? process.env.QCUT_API_HOST ?? "127.0.0.1";
-			const port = options.port ?? process.env.QCUT_API_PORT ?? "8765";
 			return {
 				success: false,
-				error: `QCut editor not running at http://${host}:${port}\nStart QCut with: bun run electron:dev`,
+				error: `QCut editor not running at http://${host}:${effectivePort}\nStart QCut with: bun run electron:dev`,
 			};
 		}
 		markSessionHealthChecked();

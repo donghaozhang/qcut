@@ -46,8 +46,10 @@ export function createPortraitsGeneratorConfig(
 		image_model: "nano_banana_2",
 		llm_model: "kimi-k2.5",
 		views: ["front"],
-		style:
-			"detailed character portrait, professional, consistent style, plain white background",
+		// Neutral default — callers (e.g. novel2movie with --style or a
+		// parsed `映像スタイル` / "Image Style" line from the novel header)
+		// can override this to match the drama's visual language.
+		style: "detailed character portrait, natural lighting, photorealistic",
 		aspect_ratio: "9:16",
 		output_dir: "media/generated/vimax/portraits",
 		...partial,
@@ -68,7 +70,8 @@ STYLE: {style}
 Generate a single, detailed prompt that will create a {view} view portrait of this character.
 The prompt should include specific details about pose, lighting, and composition for a {view} view.
 Keep the character's appearance consistent across all views.
-The portrait MUST have a clean, plain white background with no scenery or props.
+Honor the STYLE exactly — if it calls for cinematic lighting or an environmental scene, use that; otherwise default to a clean, neutral background.
+If the character description mentions nationality or ethnicity, preserve it in the prompt so the image model doesn't default to a different appearance.
 
 Respond with ONLY the image generation prompt, no other text.`;
 

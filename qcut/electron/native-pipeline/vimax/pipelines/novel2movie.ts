@@ -53,6 +53,10 @@ export interface Novel2MovieConfig {
 	overlap: number;
 	/** Cap the number of storyboard images generated (0 = unlimited). */
 	max_images: number;
+	/** Cap the number of scenes processed across all chunks (0 = unlimited). */
+	max_scenes: number;
+	/** Cap the number of shot videos generated (0 = unlimited). */
+	max_clips: number;
 }
 
 /** Create a {@link Novel2MovieConfig} with sensible defaults. */
@@ -75,6 +79,8 @@ export function createNovel2MovieConfig(
 		chunk_size: 2_000,
 		overlap: 200,
 		max_images: 0,
+		max_scenes: 0,
+		max_clips: 0,
 		...partial,
 	};
 }
@@ -101,6 +107,64 @@ export interface Novel2MovieResult {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Options for {@link splitNovelText}. */
+export interface SplitNovelTextOptions {
+	chunk_size: number;
+	overlap: number;
+}
+
+/**
+ * Split a novel into overlapping chunks suitable for the NovelSegmenter.
+ *
+ * Exported as a free function so individual-stage CLI handlers
+ * (e.g. `flow novel2script`) can reproduce the exact chunking the
+ * monolithic novel2movie pipeline performs.
+ */
+export function splitNovelText(
+	text: string,
+	options: SplitNovelTextOptions
+): string[] {
+	const { chunk_size, overlap } = options;
+	if (overlap >= chunk_size) {
+		throw new Error(
+			`overlap (${overlap}) must be less than chunk_size (${chunk_size})`
+		);
+	}
+	// The paragraph-snap below can shrink the effective stride to
+	// `lastBreak + 2 - overlap`, and lastBreak is only accepted when it's
+	// above `chunk_size * 0.7`. If overlap exceeds that threshold the
+	// stride can go ≤ 0 and `start` walks backwards, causing an infinite
+	// loop. Reject such parameters up front — now that `--chunk-size` and
+	// `--overlap` are user-facing CLI flags this is reachable.
+	const maxSafeOverlap = Math.floor(chunk_size * 0.7);
+	if (overlap > maxSafeOverlap) {
+		throw new Error(
+			`overlap (${overlap}) must not exceed 70% of chunk_size (${maxSafeOverlap}) to guarantee forward progress`
+		);
+	}
+
+	const chunks: string[] = [];
+	let start = 0;
+
+	while (start < text.length) {
+		let end = start + chunk_size;
+		let chunk = text.slice(start, end);
+
+		if (end < text.length) {
+			const lastBreak = chunk.lastIndexOf("\n\n");
+			if (lastBreak > chunk_size * 0.7) {
+				chunk = chunk.slice(0, lastBreak + 2);
+				end = start + lastBreak + 2;
+			}
+		}
+
+		chunks.push(chunk);
+		start = end - overlap;
+	}
+
+	return chunks;
+}
 
 /** ~150K words — fits in Gemini 3 Flash context window */
 const NOVEL_WARN_THRESHOLD = 600_000;
@@ -247,12 +311,20 @@ export class Novel2MoviePipeline {
 
 		this.character_extractor = new CharacterExtractor({
 			model: this.config.llm_model,
+			// Bake the pipeline's visual style into each character's
+			// pre-generated portrait_prompt so downstream image calls
+			// render in the drama's aesthetic instead of the default
+			// LinkedIn-style studio headshot.
+			portrait_style: this.config.visual_style,
 		});
 
 		this.portraits_generator = new CharacterPortraitsGenerator({
 			image_model: this.config.image_model,
 			llm_model: this.config.llm_model,
 			output_dir: `${base}/portraits`,
+			// Fallback style used when the extractor couldn't pre-generate a
+			// portrait_prompt (rare) — keep it aligned with visual_style.
+			style: this.config.visual_style,
 		});
 
 		this.storyboard_artist = new StoryboardArtist({
@@ -491,6 +563,30 @@ export class Novel2MoviePipeline {
 					continue;
 				}
 
+				// Enforce --max-scenes cap across chunks
+				if (this.config.max_scenes > 0) {
+					const existingScenes = result.scripts.reduce(
+						(s, sc) => s + sc.scenes.length,
+						0
+					);
+					const remaining = this.config.max_scenes - existingScenes;
+					if (remaining <= 0) {
+						console.log(
+							`  Scene cap reached (${this.config.max_scenes}), skipping remaining chunks`
+						);
+						break;
+					}
+					if (segResult.result.scenes.length > remaining) {
+						console.log(
+							`  Trimming chunk ${i + 1} from ${segResult.result.scenes.length} to ${remaining} scenes (cap: ${this.config.max_scenes})`
+						);
+						segResult.result.scenes = segResult.result.scenes.slice(
+							0,
+							remaining
+						);
+					}
+				}
+
 				// Enrich shots with prompt_description
 				buildPromptDescriptions(segResult.result, result.characters, {
 					style: this.config.visual_style,
@@ -528,14 +624,29 @@ export class Novel2MoviePipeline {
 					continue;
 				}
 
+				// If --max-clips is set (and video gen will run), also cap
+				// storyboard generation to avoid rendering images that won't
+				// become videos.
+				let storyboardCap: number | undefined;
+				if (imagesCapped) {
+					storyboardCap = this.config.max_images - totalImagesGenerated;
+				} else if (this.config.max_clips > 0) {
+					const remainingClips = this.config.max_clips - allVideos.length;
+					if (remainingClips <= 0) {
+						console.log(
+							`  Clip cap reached (${this.config.max_clips}), skipping remaining chunks`
+						);
+						break;
+					}
+					storyboardCap = remainingClips;
+				}
+
 				// Generate storyboard with character references
 				const storyboardResult = await this.storyboard_artist.process(
 					segResult.result,
 					result.portrait_registry,
 					i + 1,
-					imagesCapped
-						? this.config.max_images - totalImagesGenerated
-						: undefined
+					storyboardCap
 				);
 				if (!storyboardResult.success || !storyboardResult.result) {
 					continue;
@@ -543,19 +654,31 @@ export class Novel2MoviePipeline {
 				result.total_cost += (storyboardResult.metadata.cost as number) ?? 0;
 				totalImagesGenerated += storyboardResult.result?.images?.length ?? 0;
 
-				if (this.config.save_intermediate) {
-					saveJson(
-						segResult.result,
-						path.join(
-							scriptsDir,
-							`chunk_${String(i + 1).padStart(3, "0")}.json`
-						)
-					);
-				}
+				// (chunk JSON was already persisted above before the
+				// scripts_only / storyboard branches diverged — no second
+				// write needed here.)
 
 				// When max_images is set, skip video generation (preview mode)
 				if (this.config.storyboard_only || imagesCapped) {
 					continue;
+				}
+
+				// Enforce --max-clips cap: truncate storyboard images to remaining headroom
+				if (this.config.max_clips > 0) {
+					const remainingClips = this.config.max_clips - allVideos.length;
+					if (remainingClips <= 0) {
+						console.log(
+							`  Clip cap reached (${this.config.max_clips}), skipping video generation`
+						);
+						continue;
+					}
+					if (storyboardResult.result.images.length > remainingClips) {
+						console.log(
+							`  Trimming chunk ${i + 1} videos from ${storyboardResult.result.images.length} to ${remainingClips} (cap: ${this.config.max_clips})`
+						);
+						storyboardResult.result.images =
+							storyboardResult.result.images.slice(0, remainingClips);
+					}
 				}
 
 				// Generate videos
@@ -639,33 +762,10 @@ export class Novel2MoviePipeline {
 
 	/** Split text into overlapping chunks for segmentation. */
 	private _splitText(text: string): string[] {
-		if (this.config.overlap >= this.config.chunk_size) {
-			throw new Error(
-				`overlap (${this.config.overlap}) must be less than chunk_size (${this.config.chunk_size})`
-			);
-		}
-
-		const chunks: string[] = [];
-		let start = 0;
-
-		while (start < text.length) {
-			let end = start + this.config.chunk_size;
-			let chunk = text.slice(start, end);
-
-			// Try to end at paragraph boundary
-			if (end < text.length) {
-				const lastBreak = chunk.lastIndexOf("\n\n");
-				if (lastBreak > this.config.chunk_size * 0.7) {
-					chunk = chunk.slice(0, lastBreak + 2);
-					end = start + lastBreak + 2;
-				}
-			}
-
-			chunks.push(chunk);
-			start = end - this.config.overlap;
-		}
-
-		return chunks;
+		return splitNovelText(text, {
+			chunk_size: this.config.chunk_size,
+			overlap: this.config.overlap,
+		});
 	}
 
 	private _saveSummary(result: Novel2MovieResult, filePath: string): void {

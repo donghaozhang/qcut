@@ -50,6 +50,7 @@ import {
 	handleVimaxIdea2Video,
 	handleVimaxScript2Video,
 	handleVimaxNovel2Movie,
+	handleVimaxNovel2Script,
 } from "../vimax-cli-handlers.js";
 import { handleStampImage } from "../cli-handlers-stamp.js";
 import { handleYouTubeUpload } from "../cli-handlers-youtube.js";
@@ -88,6 +89,8 @@ import {
 	handleReplicateGenerate,
 } from "../cli-handlers-replicate.js";
 import { handleGenerateMusic } from "../cli-handlers-music.js";
+import { handleRecord } from "../cli-handlers-record.js";
+import { handleRecordDaemon } from "../cli-handlers-record-daemon.js";
 
 /**
  * Unified handler signature.
@@ -157,6 +160,9 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 		handleGenerateRemotion(options, onProgress, null, signal),
 	"stamp-image": wrapOP(handleStampImage),
 	"generate-music": wrapOPS(handleGenerateMusic),
+	// ── Standalone screen recording ──
+	record: wrapOPS(handleRecord),
+	"record-daemon": wrapOPS(handleRecordDaemon),
 
 	// ── Analysis ──
 	"analyze-video": mediaHandleAnalyzeVideo,
@@ -208,6 +214,7 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"vimax:idea2video": wrapOP(handleVimaxIdea2Video),
 	"vimax:script2video": wrapOP(handleVimaxScript2Video),
 	"vimax:novel2movie": wrapOP(handleVimaxNovel2Movie),
+	"vimax:novel2script": wrapOP(handleVimaxNovel2Script),
 	"vimax:extract-characters": wrapOP(handleVimaxExtractCharacters),
 	"vimax:generate-script": wrapOP(handleVimaxGenerateScript),
 	"vimax:generate-storyboard": wrapOP(handleVimaxGenerateStoryboard),

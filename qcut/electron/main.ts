@@ -624,41 +624,60 @@ const CLI_KEY_COMMANDS = ["set-key", "check-keys", "delete-key"];
 const cliArgs = process.argv.slice(app.isPackaged ? 1 : 2);
 const isCliKeyCommand = CLI_KEY_COMMANDS.includes(cliArgs[0]);
 
-// Register qcut:// deep link protocol for license activation
-if (!app.isDefaultProtocolClient("qcut")) {
+// Headless recorder — runs a hidden BrowserWindow that services
+// `qcut record` HTTP requests without showing any editor UI.
+// See docs/task/recordly/22-cli-standalone-phase1-record-command.md.
+const isHeadlessRecorder = process.argv.includes("--headless-recorder");
+const isHeadlessRecorderDaemon =
+	isHeadlessRecorder && process.argv.includes("--daemon");
+
+// Register qcut:// deep link protocol for license activation.
+// Skip for headless-recorder processes — they have no renderer to deliver
+// the activation token to, and registering would hijack the protocol
+// from the real editor app.
+if (!isHeadlessRecorder && !app.isDefaultProtocolClient("qcut")) {
 	app.setAsDefaultProtocolClient("qcut");
 }
 
-if (!isCliKeyCommand) {
+// Skip activation-token parsing for headless CLI modes — neither key
+// management nor the headless recorder need license-activation side-effects.
+if (!isCliKeyCommand && !isHeadlessRecorder) {
 	consumeActivationTokenFromArgs(process.argv);
 }
 
-// Windows/Linux: handle deep links via second-instance (single instance lock)
-const gotTheLock = app.requestSingleInstanceLock();
-if (gotTheLock) {
-	app.on("second-instance", (_event, commandLine) => {
-		try {
-			for (const arg of commandLine) {
-				const token = extractActivationTokenFromUrl(arg);
-				if (!token) {
-					continue;
+// Windows/Linux: handle deep links via second-instance (single instance lock).
+// Headless-recorder processes deliberately bypass the lock so `qcut record`
+// can start its own ephemeral hidden instance even when the desktop QCut is
+// already running. Skip both lock acquisition and the second-instance
+// listener for the headless mode — that listener also touches mainWindow,
+// which doesn't exist in headless processes.
+if (!isHeadlessRecorder) {
+	const gotTheLock = app.requestSingleInstanceLock();
+	if (gotTheLock) {
+		app.on("second-instance", (_event, commandLine) => {
+			try {
+				for (const arg of commandLine) {
+					const token = extractActivationTokenFromUrl(arg);
+					if (!token) {
+						continue;
+					}
+					deliverActivationTokenToRenderer(token);
+					break;
 				}
-				deliverActivationTokenToRenderer(token);
-				break;
+			} catch (error) {
+				logger.warn("[DeepLink] Failed to handle second-instance args:", error);
 			}
-		} catch (error) {
-			logger.warn("[DeepLink] Failed to handle second-instance args:", error);
-		}
 
-		if (mainWindow) {
-			if (mainWindow.isMinimized()) {
-				mainWindow.restore();
+			if (mainWindow) {
+				if (mainWindow.isMinimized()) {
+					mainWindow.restore();
+				}
+				mainWindow.focus();
 			}
-			mainWindow.focus();
-		}
-	});
-} else {
-	app.quit();
+		});
+	} else {
+		app.quit();
+	}
 }
 
 // macOS: handle deep links via open-url event
@@ -675,7 +694,29 @@ app.on("open-url", (event, url) => {
 	}
 });
 
-if (isCliKeyCommand) {
+// Guard against both startup modes running in one process — the
+// CLI-key branch below also gates on !isHeadlessRecorder.
+if (isHeadlessRecorder && !isCliKeyCommand) {
+	app.whenReady().then(async () => {
+		try {
+			const { runHeadlessRecorder } = await import(
+				"./headless-recorder/index.js"
+			);
+			await runHeadlessRecorder({ daemon: isHeadlessRecorderDaemon });
+			logger.log(
+				`[HeadlessRecorder] Ready (daemon=${isHeadlessRecorderDaemon})`
+			);
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : String(err);
+			logger.error("[HeadlessRecorder] Failed to start:", message);
+			app.exit(1);
+		}
+	});
+}
+
+// CLI-key branch is mutually exclusive with the headless-recorder branch —
+// both would boot separate pipelines in one process otherwise.
+if (isCliKeyCommand && !isHeadlessRecorder) {
 	app.whenReady().then(async () => {
 		try {
 			const { spawnSync } = require("child_process");
@@ -701,7 +742,7 @@ if (isCliKeyCommand) {
 	});
 }
 
-if (!isCliKeyCommand) {
+if (!isCliKeyCommand && !isHeadlessRecorder) {
 	app.whenReady().then(async () => {
 		// Set macOS dock icon (requires PNG format)
 		if (process.platform === "darwin" && app.dock) {
@@ -913,9 +954,14 @@ if (!isCliKeyCommand) {
 			readChangelogFallback,
 		});
 	});
-} // end if (!isCliKeyCommand)
+} // end if (!isCliKeyCommand && !isHeadlessRecorder)
 
 app.on("window-all-closed", () => {
+	// The headless-recorder process owns no visible window, so a stray
+	// window-close event must NOT tear down its daemon — otherwise a
+	// transient renderer crash kills `qcut record` on Windows/Linux.
+	if (isHeadlessRecorder) return;
+
 	if (process.platform !== "darwin") {
 		// Clean up audio temp files
 		const { cleanupAllAudioFiles } = require("./audio-temp-handler.js");
