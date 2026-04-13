@@ -16,6 +16,15 @@ import {
 	markStageCompleted,
 	safeProjectSlug,
 } from "../../output/project-paths.js";
+import {
+	estimateCharacters,
+	estimatePortraits,
+	printEstimate,
+	printStageSummary,
+	startStep,
+	describeArtifact,
+	type GeneratedArtifact,
+} from "../../output/stage-reporter.js";
 import { extractNovelStyleHeader } from "./pipeline-handlers.js";
 
 type ProgressFn = (progress: {
@@ -63,13 +72,22 @@ export async function handleVimaxExtractCharacters(
 		// correct visual aesthetic. Persist it into project.json.
 		const style = extractNovelStyleHeader(inputText);
 
+		// Print pre-flight estimate before the LLM call kicks off.
+		printEstimate(estimateCharacters(inputText.length));
+
 		const startTime = Date.now();
 		const extractor = new CharacterExtractor({
 			model: options.llmModel,
 			...(style ? { portrait_style: style } : {}),
 		});
 
+		const extractStep = startStep("character extraction LLM call");
 		const result = await extractor.process(inputText);
+		extractStep.end(
+			result.success && result.result
+				? `${result.result.length} characters`
+				: "failed"
+		);
 
 		onProgress({ stage: "complete", percent: 100, message: "Done" });
 
@@ -87,12 +105,14 @@ export async function handleVimaxExtractCharacters(
 			: undefined;
 
 		let outputPath: string;
+		const summaryArtifacts: GeneratedArtifact[] = [];
 		if (slug) {
 			const paths = resolveProjectPaths(slug);
 			ensureProjectDirs(paths);
 			if (sourceFilePath) {
 				try {
 					fs.copyFileSync(sourceFilePath, paths.novelPath);
+					summaryArtifacts.push(describeArtifact(paths.novelPath, "novel copy"));
 				} catch {
 					// Non-fatal; metadata still records the absolute path.
 				}
@@ -107,8 +127,12 @@ export async function handleVimaxExtractCharacters(
 						: undefined),
 				...(style ? { style } : {}),
 			});
+			summaryArtifacts.push(
+				describeArtifact(paths.metadataPath, "project metadata")
+			);
 			outputPath = paths.charactersPath;
 			fs.writeFileSync(outputPath, JSON.stringify(result.result, null, 2));
+			summaryArtifacts.push(describeArtifact(outputPath, "characters"));
 			markStageCompleted(paths, "characters");
 		} else {
 			const outputDir = resolveOutputDir(
@@ -117,17 +141,30 @@ export async function handleVimaxExtractCharacters(
 			);
 			outputPath = path.join(outputDir, "characters.json");
 			fs.writeFileSync(outputPath, JSON.stringify(result.result, null, 2));
+			summaryArtifacts.push(describeArtifact(outputPath, "characters"));
 		}
+
+		const totalDurationSeconds = (Date.now() - startTime) / 1000;
+		printStageSummary({
+			title: "Stage 1 — Extract characters",
+			totalSeconds: totalDurationSeconds,
+			artifacts: summaryArtifacts,
+			extraLines: [
+				`Characters:  ${result.result?.length ?? 0}`,
+				...(style ? [`Style:       ${style}`] : []),
+			],
+		});
 
 		return {
 			success: true,
 			outputPath,
-			duration: (Date.now() - startTime) / 1000,
+			duration: totalDurationSeconds,
 			data: {
 				characters: result.result,
 				count: result.result?.length ?? 0,
 				...(style ? { style } : {}),
 				...(slug ? { project: slug } : {}),
+				artifacts: summaryArtifacts.map((a) => a.path),
 			},
 		};
 	} catch (err) {
@@ -241,6 +278,11 @@ export async function handleVimaxGeneratePortraits(
 			? options.views.split(",").map((v: string) => v.trim())
 			: undefined;
 
+		// Print pre-flight estimate before burning image credits.
+		printEstimate(
+			estimatePortraits(characters.length, views ? views.length : 1)
+		);
+
 		// Honour --style, or reuse the style persisted in project.json
 		// when running in staged-project mode.
 		let resolvedStyle: string | undefined = options.style;
@@ -274,7 +316,15 @@ export async function handleVimaxGeneratePortraits(
 			...(resolvedStyle ? { style: resolvedStyle } : {}),
 		});
 
+		const batchStep = startStep(
+			`portrait batch (${characters.length} characters)`
+		);
 		const batchResult = await generator.generateBatch(characters);
+		batchStep.end(
+			batchResult.success
+				? `${Object.keys(batchResult.result ?? {}).length} portraits`
+				: "failed"
+		);
 
 		onProgress({ stage: "complete", percent: 100, message: "Done" });
 
@@ -322,16 +372,56 @@ export async function handleVimaxGeneratePortraits(
 			markStageCompleted(projectPaths, "portraits");
 		}
 
+		// Collect absolute paths of every generated portrait image for the
+		// summary banner so users can copy them without digging through
+		// subdirectories.
+		const portraitArtifacts: GeneratedArtifact[] = [];
+		if (batchResult.result) {
+			for (const [name, portrait] of Object.entries(
+				batchResult.result as Record<
+					string,
+					import("../../vimax/types/character.js").CharacterPortrait
+				>
+			)) {
+				for (const viewPath of [
+					portrait.front_view,
+					portrait.three_quarter_view,
+					portrait.side_view,
+					portrait.back_view,
+				]) {
+					if (viewPath) {
+						portraitArtifacts.push(describeArtifact(viewPath, name));
+					}
+				}
+			}
+		}
+		if (registryPath) {
+			portraitArtifacts.push(describeArtifact(registryPath, "registry"));
+		}
+
+		const totalDurationSeconds = (Date.now() - startTime) / 1000;
+		printStageSummary({
+			title: "Stage 2 — Generate portraits",
+			totalSeconds: totalDurationSeconds,
+			totalCostUsd: (batchResult.metadata?.cost as number) ?? 0,
+			artifacts: portraitArtifacts,
+			extraLines: [
+				`Portraits:   ${portraitCount}`,
+				`Per-image:   ~${(totalDurationSeconds / Math.max(1, portraitCount)).toFixed(1)}s average`,
+			],
+		});
+
 		return {
 			success: true,
 			outputPath: portraitsDir,
 			cost: (batchResult.metadata?.cost as number) ?? 0,
-			duration: (Date.now() - startTime) / 1000,
+			duration: totalDurationSeconds,
 			data: {
 				characters: portraitCount,
 				portraits_generated: portraitCount,
 				registry_path: registryPath,
 				...(slug ? { project: slug } : {}),
+				artifacts: portraitArtifacts.map((a) => a.path),
 			},
 		};
 	} catch (err) {

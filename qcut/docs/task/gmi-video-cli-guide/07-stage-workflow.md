@@ -34,6 +34,50 @@ you iterate without building up timestamped junk.
 
 Relocate the root by exporting `QCUT_PROJECTS_DIR=/path/to/elsewhere`.
 
+## Pre-flight estimates + per-step timing
+
+Every staged command now prints three things you can use to sanity-check
+a run:
+
+1. **Pre-flight banner** with expected duration + cost range before any
+   LLM call burns credits.
+2. **Per-step wall-clock timing** as each sub-step (chunk, batch,
+   extraction call) completes on stderr.
+3. **End-of-stage summary** listing every generated file with its
+   absolute path and byte size.
+
+Example stderr for `flow novel2script`:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Stage 3 — Segment novel into scripts
+────────────────────────────────────────────────────────────
+  Input:     novel 4,082 chars → ~3 chunks (2000/200)
+  Expected:  12.0s–3m 30s  ($0.009–$0.030)
+  Note:      Per-chunk variance is high — LLM can return in 4s or stall to 60s+
+  Note:      Use --max-scenes N to cap the run once N scenes have been produced
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  [step] split novel into chunks — 0.0s  3 chunks
+  [step] chunk 1/3 segmentation — 5.4s  1 scenes, 3 shots
+  ...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Stage 3 — Segment novel into scripts — complete
+────────────────────────────────────────────────────────────
+  Duration:  5.4s
+  Cost:      $0.000
+  Chunks emitted:  1/3
+  Outputs:
+    •  project metadata: /Users/peter/Documents/QCut/projects/.../project.json (601B)
+    •  novel copy:       /Users/peter/Documents/QCut/projects/.../novel.md (5.7KB)
+    •  chunk 1 ...:      /Users/peter/Documents/QCut/projects/.../scripts/chunk_001.json (1.8KB)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+The banner + per-step markers land on stderr, so machine-parsable
+`--json` / `--stream` stdout is unaffected.
+
 ## Three commands, three artifacts
 
 ### Stage 1 — `flow characters`

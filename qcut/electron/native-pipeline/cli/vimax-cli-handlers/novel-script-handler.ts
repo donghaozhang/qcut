@@ -26,6 +26,14 @@ import {
 	markStageCompleted,
 	safeProjectSlug,
 } from "../../output/project-paths.js";
+import {
+	estimateNovel2Script,
+	printEstimate,
+	printStageSummary,
+	startStep,
+	describeArtifact,
+	type GeneratedArtifact,
+} from "../../output/stage-reporter.js";
 import { extractNovelStyleHeader } from "./pipeline-handlers.js";
 
 type ProgressFn = (progress: {
@@ -75,6 +83,11 @@ export async function handleVimaxNovel2Script(
 	});
 
 	const startTime = Date.now();
+	const chunkSize = options.chunkSize ?? DEFAULT_CHUNK_SIZE;
+	const overlap = options.overlap ?? DEFAULT_OVERLAP;
+
+	// Print pre-flight estimate before kicking off any LLM calls.
+	printEstimate(estimateNovel2Script(novelText.length, chunkSize, overlap));
 
 	try {
 		const { NovelSegmenter } = await import(
@@ -122,13 +135,12 @@ export async function handleVimaxNovel2Script(
 			outputPath = scriptsDir;
 		}
 
-		const chunkSize = options.chunkSize ?? DEFAULT_CHUNK_SIZE;
-		const overlap = options.overlap ?? DEFAULT_OVERLAP;
-
+		const splitStep = startStep("split novel into chunks");
 		const chunks = splitNovelText(novelText, {
 			chunk_size: chunkSize,
 			overlap,
 		});
+		splitStep.end(`${chunks.length} chunks`);
 		if (chunks.length === 0) {
 			return { success: false, error: "Novel produced no chunks" };
 		}
@@ -142,6 +154,7 @@ export async function handleVimaxNovel2Script(
 		let totalShots = 0;
 		const errors: string[] = [];
 		let emitted = 0;
+		const chunkArtifacts: GeneratedArtifact[] = [];
 
 		for (let i = 0; i < chunks.length; i++) {
 			const progressPct = Math.round(((i + 0.5) / chunks.length) * 90);
@@ -157,8 +170,12 @@ export async function handleVimaxNovel2Script(
 				break;
 			}
 
+			const chunkStep = startStep(
+				`chunk ${i + 1}/${chunks.length} segmentation`
+			);
 			const segResult = await segmenter.process(chunks[i]);
 			if (!segResult.success || !segResult.result) {
+				chunkStep.end("failed");
 				errors.push(
 					`Segmentation failed for chunk ${i + 1}: ${segResult.error ?? "unknown error"}`
 				);
@@ -168,7 +185,10 @@ export async function handleVimaxNovel2Script(
 			let script = segResult.result;
 			if (options.maxScenes != null) {
 				const remaining = options.maxScenes - totalScenes;
-				if (remaining <= 0) break;
+				if (remaining <= 0) {
+					chunkStep.end("skipped (cap reached)");
+					break;
+				}
 				if (script.scenes.length > remaining) {
 					script = { ...script, scenes: script.scenes.slice(0, remaining) };
 				}
@@ -185,6 +205,10 @@ export async function handleVimaxNovel2Script(
 				`chunk_${String(i + 1).padStart(3, "0")}.json`
 			);
 			fs.writeFileSync(chunkPath, JSON.stringify(script, null, 2));
+			chunkArtifacts.push(
+				describeArtifact(chunkPath, `chunk ${i + 1} (${scenes} scenes, ${shots} shots)`)
+			);
+			chunkStep.end(`${scenes} scenes, ${shots} shots`);
 			emitted++;
 		}
 
@@ -194,17 +218,45 @@ export async function handleVimaxNovel2Script(
 			markStageCompleted(resolveProjectPaths(slug), "scripts");
 		}
 
+		const totalDurationSeconds = (Date.now() - startTime) / 1000;
+
+		// Collect artifacts for the summary banner (project metadata + novel
+		// copy show up when we're in project mode).
+		const summaryArtifacts: GeneratedArtifact[] = [];
+		if (slug) {
+			const paths = resolveProjectPaths(slug);
+			summaryArtifacts.push(describeArtifact(paths.metadataPath, "project metadata"));
+			if (fs.existsSync(paths.novelPath)) {
+				summaryArtifacts.push(describeArtifact(paths.novelPath, "novel copy"));
+			}
+		}
+		summaryArtifacts.push(...chunkArtifacts);
+
+		printStageSummary({
+			title: "Stage 3 — Segment novel into scripts",
+			totalSeconds: totalDurationSeconds,
+			totalCostUsd: totalCost,
+			artifacts: summaryArtifacts,
+			extraLines: [
+				`Chunks emitted:  ${emitted}/${chunks.length}`,
+				`Scenes total:    ${totalScenes}`,
+				`Shots total:     ${totalShots}`,
+				...(errors.length > 0 ? [`Errors:          ${errors.length}`] : []),
+			],
+		});
+
 		return {
 			success: emitted > 0,
 			outputPath,
 			cost: totalCost,
-			duration: (Date.now() - startTime) / 1000,
+			duration: totalDurationSeconds,
 			data: {
 				novelTitle: title,
 				chunks: emitted,
 				scenes: totalScenes,
 				shots: totalShots,
 				errors,
+				artifacts: summaryArtifacts.map((a) => a.path),
 			},
 			...(emitted === 0
 				? {
