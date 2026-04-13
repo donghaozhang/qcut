@@ -108,6 +108,52 @@ export interface Novel2MovieResult {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Options for {@link splitNovelText}. */
+export interface SplitNovelTextOptions {
+	chunk_size: number;
+	overlap: number;
+}
+
+/**
+ * Split a novel into overlapping chunks suitable for the NovelSegmenter.
+ *
+ * Exported as a free function so individual-stage CLI handlers
+ * (e.g. `flow novel2script`) can reproduce the exact chunking the
+ * monolithic novel2movie pipeline performs.
+ */
+export function splitNovelText(
+	text: string,
+	options: SplitNovelTextOptions
+): string[] {
+	const { chunk_size, overlap } = options;
+	if (overlap >= chunk_size) {
+		throw new Error(
+			`overlap (${overlap}) must be less than chunk_size (${chunk_size})`
+		);
+	}
+
+	const chunks: string[] = [];
+	let start = 0;
+
+	while (start < text.length) {
+		let end = start + chunk_size;
+		let chunk = text.slice(start, end);
+
+		if (end < text.length) {
+			const lastBreak = chunk.lastIndexOf("\n\n");
+			if (lastBreak > chunk_size * 0.7) {
+				chunk = chunk.slice(0, lastBreak + 2);
+				end = start + lastBreak + 2;
+			}
+		}
+
+		chunks.push(chunk);
+		start = end - overlap;
+	}
+
+	return chunks;
+}
+
 /** ~150K words — fits in Gemini 3 Flash context window */
 const NOVEL_WARN_THRESHOLD = 600_000;
 /** ~500K words — too large to process reliably */
@@ -710,33 +756,10 @@ export class Novel2MoviePipeline {
 
 	/** Split text into overlapping chunks for segmentation. */
 	private _splitText(text: string): string[] {
-		if (this.config.overlap >= this.config.chunk_size) {
-			throw new Error(
-				`overlap (${this.config.overlap}) must be less than chunk_size (${this.config.chunk_size})`
-			);
-		}
-
-		const chunks: string[] = [];
-		let start = 0;
-
-		while (start < text.length) {
-			let end = start + this.config.chunk_size;
-			let chunk = text.slice(start, end);
-
-			// Try to end at paragraph boundary
-			if (end < text.length) {
-				const lastBreak = chunk.lastIndexOf("\n\n");
-				if (lastBreak > this.config.chunk_size * 0.7) {
-					chunk = chunk.slice(0, lastBreak + 2);
-					end = start + lastBreak + 2;
-				}
-			}
-
-			chunks.push(chunk);
-			start = end - this.config.overlap;
-		}
-
-		return chunks;
+		return splitNovelText(text, {
+			chunk_size: this.config.chunk_size,
+			overlap: this.config.overlap,
+		});
 	}
 
 	private _saveSummary(result: Novel2MovieResult, filePath: string): void {

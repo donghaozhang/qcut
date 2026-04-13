@@ -14,6 +14,8 @@ export {
 	handleVimaxGeneratePortraits,
 } from "./character-handlers.js";
 
+export { handleVimaxNovel2Script } from "./novel-script-handler.js";
+
 export {
 	handleVimaxGenerateScript,
 	handleVimaxGenerateStoryboard,

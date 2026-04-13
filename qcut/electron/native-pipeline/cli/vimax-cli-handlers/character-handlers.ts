@@ -9,6 +9,14 @@ import * as path from "node:path";
 import type { CLIRunOptions, CLIResult } from "../cli-runner/types.js";
 import type { CharacterInNovel } from "../../vimax/types/character.js";
 import { resolveOutputDir } from "../../output/output-utils.js";
+import {
+	resolveProjectPaths,
+	ensureProjectDirs,
+	writeProjectMetadata,
+	markStageCompleted,
+	safeProjectSlug,
+} from "../../output/project-paths.js";
+import { extractNovelStyleHeader } from "./pipeline-handlers.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -22,11 +30,14 @@ export async function handleVimaxExtractCharacters(
 	options: CLIRunOptions,
 	onProgress: ProgressFn
 ): Promise<CLIResult> {
-	const text = options.text || options.input;
-	if (!text) {
+	// Accept --novel (preferred) / --input / --text. `--novel` is the
+	// canonical staged-workflow flag; the others stay supported for
+	// backward compatibility.
+	const source = options.novel || options.input || options.text;
+	if (!source) {
 		return {
 			success: false,
-			error: "Missing --text or --input (text or file path)",
+			error: "Missing --novel, --input, or --text (novel file or raw text)",
 		};
 	}
 
@@ -41,14 +52,21 @@ export async function handleVimaxExtractCharacters(
 			"../../vimax/agents/character-extractor.js"
 		);
 
-		let inputText = text;
-		if (fs.existsSync(text)) {
-			inputText = fs.readFileSync(text, "utf-8");
+		let inputText = source;
+		let sourceFilePath: string | undefined;
+		if (fs.existsSync(source)) {
+			sourceFilePath = path.resolve(source);
+			inputText = fs.readFileSync(sourceFilePath, "utf-8");
 		}
+
+		// Style header lets later stages (portraits/storyboard) route the
+		// correct visual aesthetic. Persist it into project.json.
+		const style = extractNovelStyleHeader(inputText);
 
 		const startTime = Date.now();
 		const extractor = new CharacterExtractor({
 			model: options.llmModel,
+			...(style ? { portrait_style: style } : {}),
 		});
 
 		const result = await extractor.process(inputText);
@@ -62,9 +80,44 @@ export async function handleVimaxExtractCharacters(
 			};
 		}
 
-		const outputDir = resolveOutputDir(options.outputDir, `cli-${Date.now()}`);
-		const outputPath = path.join(outputDir, "characters.json");
-		fs.writeFileSync(outputPath, JSON.stringify(result.result, null, 2));
+		// Resolve output: project dir when --project is given, fallback to
+		// timestamped output-dir otherwise.
+		const slug = options.projectId
+			? safeProjectSlug(options.projectId)
+			: undefined;
+
+		let outputPath: string;
+		if (slug) {
+			const paths = resolveProjectPaths(slug);
+			ensureProjectDirs(paths);
+			if (sourceFilePath) {
+				try {
+					fs.copyFileSync(sourceFilePath, paths.novelPath);
+				} catch {
+					// Non-fatal; metadata still records the absolute path.
+				}
+			}
+			writeProjectMetadata(paths, {
+				slug,
+				...(sourceFilePath ? { novel_path: sourceFilePath } : {}),
+				title:
+					options.title ??
+					(sourceFilePath
+						? path.basename(sourceFilePath, path.extname(sourceFilePath))
+						: undefined),
+				...(style ? { style } : {}),
+			});
+			outputPath = paths.charactersPath;
+			fs.writeFileSync(outputPath, JSON.stringify(result.result, null, 2));
+			markStageCompleted(paths, "characters");
+		} else {
+			const outputDir = resolveOutputDir(
+				options.outputDir,
+				`cli-${Date.now()}`
+			);
+			outputPath = path.join(outputDir, "characters.json");
+			fs.writeFileSync(outputPath, JSON.stringify(result.result, null, 2));
+		}
 
 		return {
 			success: true,
@@ -73,6 +126,8 @@ export async function handleVimaxExtractCharacters(
 			data: {
 				characters: result.result,
 				count: result.result?.length ?? 0,
+				...(style ? { style } : {}),
+				...(slug ? { project: slug } : {}),
 			},
 		};
 	} catch (err) {
@@ -88,12 +143,24 @@ export async function handleVimaxGeneratePortraits(
 	options: CLIRunOptions,
 	onProgress: ProgressFn
 ): Promise<CLIResult> {
-	const text = options.text || options.input;
+	// Source precedence:
+	//   1. --project <slug>  → read <proj>/characters.json, write to <proj>/portraits/
+	//   2. -p / --portraits  → explicit characters JSON path
+	//   3. --text / --input  → raw text (re-extracts characters)
+	const slug = options.projectId
+		? safeProjectSlug(options.projectId)
+		: undefined;
+	const projectPaths = slug ? resolveProjectPaths(slug) : undefined;
+	const text =
+		options.portraits ??
+		options.text ??
+		options.input ??
+		(projectPaths ? projectPaths.charactersPath : undefined);
 	if (!text) {
 		return {
 			success: false,
 			error:
-				"Missing --text or --input (text with characters, or character JSON path)",
+				"Missing --project, --portraits, --text, or --input (project slug, character JSON path, or raw text)",
 		};
 	}
 
@@ -113,7 +180,13 @@ export async function handleVimaxGeneratePortraits(
 
 		const startTime = Date.now();
 		const sessionId = `cli-${Date.now()}`;
-		const outputDir = resolveOutputDir(options.outputDir, sessionId);
+		const outputDir = projectPaths?.root
+			? projectPaths.root
+			: resolveOutputDir(options.outputDir, sessionId);
+		if (projectPaths) {
+			ensureProjectDirs(projectPaths);
+			fs.mkdirSync(projectPaths.portraitsDir, { recursive: true });
+		}
 
 		let characters: CharacterInNovel[];
 
@@ -168,17 +241,37 @@ export async function handleVimaxGeneratePortraits(
 			? options.views.split(",").map((v: string) => v.trim())
 			: undefined;
 
+		// Honour --style, or reuse the style persisted in project.json
+		// when running in staged-project mode.
+		let resolvedStyle: string | undefined = options.style;
+		if (!resolvedStyle && projectPaths) {
+			try {
+				const { readProjectMetadata } = await import(
+					"../../output/project-paths.js"
+				);
+				const meta = readProjectMetadata(projectPaths);
+				if (meta?.style) resolvedStyle = meta.style;
+			} catch {
+				// Non-fatal: fall back to generator default.
+			}
+		}
+
 		onProgress({
 			stage: "generating",
 			percent: 30,
 			message: `Generating portraits for ${characters.length} characters...`,
 		});
 
+		const portraitsDir = projectPaths
+			? projectPaths.portraitsDir
+			: path.join(outputDir, "portraits");
+
 		const generator = new CharacterPortraitsGenerator({
 			image_model: options.imageModel,
 			llm_model: options.llmModel,
-			output_dir: path.join(outputDir, "portraits"),
+			output_dir: portraitsDir,
 			...(views ? { views } : {}),
+			...(resolvedStyle ? { style: resolvedStyle } : {}),
 		});
 
 		const batchResult = await generator.generateBatch(characters);
@@ -213,7 +306,9 @@ export async function handleVimaxGeneratePortraits(
 				)) {
 					registry.addPortrait(portrait);
 				}
-				registryPath = path.join(outputDir, "portraits", "registry.json");
+				registryPath = projectPaths
+					? projectPaths.portraitRegistryPath
+					: path.join(outputDir, "portraits", "registry.json");
 				fs.writeFileSync(
 					registryPath,
 					JSON.stringify(registry.toJSON(), null, 2)
@@ -223,15 +318,20 @@ export async function handleVimaxGeneratePortraits(
 			}
 		}
 
+		if (projectPaths) {
+			markStageCompleted(projectPaths, "portraits");
+		}
+
 		return {
 			success: true,
-			outputPath: path.join(outputDir, "portraits"),
+			outputPath: portraitsDir,
 			cost: (batchResult.metadata?.cost as number) ?? 0,
 			duration: (Date.now() - startTime) / 1000,
 			data: {
 				characters: portraitCount,
 				portraits_generated: portraitCount,
 				registry_path: registryPath,
+				...(slug ? { project: slug } : {}),
 			},
 		};
 	} catch (err) {

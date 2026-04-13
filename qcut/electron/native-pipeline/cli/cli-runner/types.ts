@@ -54,6 +54,10 @@ export interface CLIRunOptions {
 	title?: string;
 	maxScenes?: number;
 	maxClips?: number;
+	/** Novel chunk size in characters (novel2script / novel2movie) */
+	chunkSize?: number;
+	/** Novel chunk overlap in characters (novel2script / novel2movie) */
+	overlap?: number;
 	scriptsOnly?: boolean;
 	storyboardOnly?: boolean;
 	maxImages?: number;

@@ -163,6 +163,7 @@ export const CATEGORIES: CategoryDef[] = [
 			"vimax:idea2video",
 			"vimax:script2video",
 			"vimax:novel2movie",
+			"vimax:novel2script",
 			"vimax:extract-characters",
 			"vimax:generate-script",
 			"vimax:generate-storyboard",
@@ -1369,18 +1370,46 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline vimax:novel2movie --max-scenes 20 --max-clips 5",
 		],
 	},
-	"vimax:extract-characters": {
-		name: "vimax:extract-characters",
-		description: "Extract characters from text",
+	"vimax:novel2script": {
+		name: "vimax:novel2script",
+		description:
+			"Segment a novel into shot-level Script JSON chunks (stage 3 of the decomposed novel2movie workflow)",
 		category: "vimax",
 		flags: [
-			f("--text", "string", "Text to extract from", {
-				short: "-t",
+			f("--novel", "string", "Novel file path (markdown or plain text)", {
 				required: true,
 			}),
+			f("--project", "string", "Project slug under ~/Documents/QCut/projects/"),
+			f("--title", "string", "Project title (defaults to filename)"),
+			f("--max-scenes", "number", "Cap total scenes across chunks"),
+			f("--chunk-size", "number", "Chunk size in characters (default 2000)"),
+			f("--overlap", "number", "Chunk overlap in characters (default 200)"),
+			f("--llm-model", "string", "LLM model used for segmentation"),
 		],
 		examples: [
-			"qcut-pipeline vimax:extract-characters -t 'John met Alice at...'",
+			"qcut flow novel2script --novel story.md --project my-story",
+			"qcut flow novel2script --novel story.md --project my-story --max-scenes 20",
+		],
+	},
+	"vimax:extract-characters": {
+		name: "vimax:extract-characters",
+		description: "Extract characters from a novel or raw text",
+		category: "vimax",
+		flags: [
+			f(
+				"--novel",
+				"string",
+				"Novel file path (staged workflow; writes to project dir)"
+			),
+			f("--text", "string", "Raw text to extract from", { short: "-t" }),
+			f("--input", "string", "Text or novel file path"),
+			f("--project", "string", "Project slug under ~/Documents/QCut/projects/"),
+			f("--title", "string", "Project title"),
+			f("--llm-model", "string", "LLM model"),
+		],
+		examples: [
+			"qcut flow characters --novel story.md --project my-story",
+			"qcut flow characters -t 'John met Alice at...'",
 		],
 	},
 	"vimax:generate-script": {
@@ -1414,13 +1443,13 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		description: "Generate character portraits",
 		category: "vimax",
 		flags: [
-			f("--portraits", "string", "Character JSON", {
-				short: "-p",
-				required: true,
-			}),
+			f("--project", "string", "Project slug under ~/Documents/QCut/projects/"),
+			f("--portraits", "string", "Character JSON path", { short: "-p" }),
+			f("--text", "string", "Raw text (re-extracts characters first)"),
+			f("--input", "string", "Character JSON path or raw text"),
 			f("--max-characters", "number", "Max characters to generate"),
 			f("--image-model", "string", "Image generation model"),
-			f("--style", "string", "Art style"),
+			f("--style", "string", "Art style (overrides project style)"),
 			f("--reference-model", "string", "Reference model"),
 			f("--reference-strength", "number", "Reference strength (0-1)"),
 			f("--views", "string", "Portrait views to generate"),
@@ -1428,7 +1457,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				default: true,
 			}),
 		],
-		examples: ["qcut-pipeline vimax:generate-portraits -p characters.json"],
+		examples: [
+			"qcut flow portraits --project my-story",
+			"qcut flow portraits -p characters.json",
+		],
 	},
 	"vimax:create-registry": {
 		name: "vimax:create-registry",
