@@ -1,9 +1,18 @@
 # Does `editor:screen-recording:*` need QCut running?
 
-**TL;DR — Yes.** All five `editor:screen-recording:*` CLI commands
-(`sources`, `start`, `stop`, `force-stop`, `status`) require
-the QCut desktop app to be running, with at least one open editor window.
-This includes the "passive" reads like `:sources` and `:status`.
+> **Status (post-Phase-2):** This page documents the **pre-auto-spawn
+> baseline**. Today, `editor:screen-recording:*` commands automatically
+> launch a hidden headless recorder if QCut isn't running (unless you
+> pass `--no-auto-launch`), and the standalone `qcut record` command
+> spawns its own ephemeral instance. The "must run QCut first" rule
+> below is preserved as historical context for understanding the
+> original architecture.
+
+**TL;DR — Originally yes** (pre-Phase-2). All five
+`editor:screen-recording:*` CLI commands (`sources`, `start`, `stop`,
+`force-stop`, `status`) used to require the QCut desktop app to be
+running, with at least one open editor window — including the
+"passive" reads like `:sources` and `:status`.
 
 If QCut is not running the CLI fails with:
 
@@ -153,7 +162,12 @@ have to:
 2. Replace the renderer `MediaRecorder` path with an FFmpeg-based headless
    capture (node-side), probably via a detached utility worker.
 
-Neither is on the roadmap as of this writing.
+> **Update:** Both items above are now done — the headless recorder
+> spawned by `qcut record` and the auto-spawn behaviour for
+> `editor:screen-recording:*` reuse the existing renderer-based
+> MediaRecorder by booting a hidden BrowserWindow inside the
+> ephemeral process. See `21-cli-standalone-architecture.md` for the
+> shipped design.
 
 ---
 

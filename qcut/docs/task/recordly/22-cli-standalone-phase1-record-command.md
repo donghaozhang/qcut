@@ -155,16 +155,18 @@ export async function handleRecordCommand(
     });
 
     try {
-        // Start recording via HTTP to our own just-spawned instance
+        // Start recording via HTTP to our own just-spawned instance.
+        // Note: the `--source` flag maps to options.source (not sourceId)
+        // and `--record-duration` maps to options.recordDuration (number).
         const startRes = await postJson("/api/claude/screen-recording/start", {
-            sourceId: options.sourceId,
+            sourceId: options.source,
             fileName: path.basename(options.output ?? `recording-${Date.now()}.mp4`),
         });
 
         onProgress({ stage: "recording", percent: 0 });
 
-        if (options.duration) {
-            await delay(options.duration * 1000, undefined, { signal });
+        if (options.recordDuration) {
+            await delay(options.recordDuration * 1000, undefined, { signal });
         } else {
             // Wait for Ctrl-C (signal) or external stop
             await waitForAbort(signal);

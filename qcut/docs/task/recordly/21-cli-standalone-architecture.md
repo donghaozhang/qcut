@@ -149,8 +149,14 @@ qcut record --duration 10 -o demo.mp4
 8. CLI prints path, exits 0
 ```
 
-The hidden-window process is short-lived (exits after the recording
-finishes). No long-running daemon in Phase 1.
+The `qcut record` invocation itself is short-lived: the hidden-window
+process spawned for it exits as soon as the recording finishes. **A
+long-running daemon is *not* required for `qcut record` in Phase 1**
+— but the `record-daemon` lifecycle subcommands (`--start`, `--stop`,
+`--status` listed above) are also part of Phase 1, intended for
+manual cleanup after a crashed run or for explicit pre-warm before
+launching multiple recordings. Phase 2 is what makes `editor:*`
+commands auto-spawn that daemon transparently.
 
 ## Data flow: Phase 2 — existing commands auto-spawn
 
