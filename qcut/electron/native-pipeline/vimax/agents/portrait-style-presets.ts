@@ -54,14 +54,15 @@ export const PORTRAIT_STYLE_PRESETS: readonly PortraitStylePreset[] = [
 	},
 	{
 		slug: "anime",
-		label_en: "Anime (Japanese animation)",
+		label_en: "Anime (modern anime film)",
 		label_zh: "动漫",
-		// Validated against `drama-example.md` 2026-04-13: produces a
-		// mature, drama-appropriate face on adult characters — the
-		// "large glossy eyes + crisp linework" combo did NOT push toward
-		// moé as initially feared. Picked as canonical after side-by-side
-		// review with a "Modern anime film, ..." alternative.
-		prompt: "Anime portrait, cel-shaded, large glossy eyes, crisp linework",
+		// Picked over the alternative
+		// "Anime portrait, cel-shaded, large glossy eyes, crisp linework"
+		// after a 2026-04-13 side-by-side review on `drama-example.md`.
+		// Four independent axes, no redundancy:
+		//   medium (modern anime film) + technique (soft cel-shading)
+		//   + expression (eyes) + lighting (cinematic).
+		prompt: "Modern anime film, soft cel-shading, expressive eyes, cinematic light",
 	},
 	{
 		slug: "ghibli",

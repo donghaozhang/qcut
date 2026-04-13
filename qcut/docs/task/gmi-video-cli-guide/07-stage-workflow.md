@@ -230,7 +230,7 @@ a tuned prompt) or **free-form text** (passed through).
 | Slug | Lang | Prompt (prepended to every portrait) |
 |---|---|---|
 | `photorealistic` | 🇨🇳 | 真人写实，电视剧质感，自然光，肤质细腻，暖色调 |
-| `anime` | 🇬🇧 | Anime portrait, cel-shaded, large glossy eyes, crisp linework |
+| `anime` | 🇬🇧 | Modern anime film, soft cel-shading, expressive eyes, cinematic light |
 | `ghibli` | 🇬🇧 | Ghibli hand-drawn, soft pastel, nostalgic, pastoral warmth |
 | `3d-animation` | 🇬🇧 | Pixar-style 3D render, stylized, soft rim light |
 | `chinese-ink` | 🇨🇳 | 水墨画风，留白意境，墨色浓淡，笔锋飘逸 |
@@ -267,43 +267,39 @@ qcut flow portraits --project "$PROJECT" \
 
 Same 5 characters from `drama-example.md`, the GMI flash-image model,
 three prompt variants. The anime preset was rewritten mid-session to
-address a presumed moé-bias concern, then **reverted** after side-by-
-side review showed the original prompt actually produced a more
-mature, drama-appropriate face. All three project dirs kept on disk
-for reference.
+drop redundant axes (`cel-shaded` + `crisp linework` overlapped) and
+adopt a cleaner medium / technique / expression / lighting layout.
+All three project dirs kept on disk for reference.
 
-| | `photorealistic` | **`anime` (canonical)** | `anime` alt *(retired)* |
+| | `photorealistic` | **`anime` (canonical)** | `anime` v1 *(retired)* |
 |---|---|---|---|
-| Project dir | `cdrama-photoreal/` | `style-anime-smoke/` | `style-anime-v2/` |
-| Prompt | `真人写实，电视剧质感，自然光，肤质细腻，暖色调` | `Anime portrait, cel-shaded, large glossy eyes, crisp linework` | `Modern anime film, soft cel-shading, expressive eyes, cinematic light` |
-| Total duration | **5m 39s** | **3m 45s** | 3m 46s |
+| Project dir | `cdrama-photoreal/` | `style-anime-v2/` | `style-anime-smoke/` |
+| Prompt | `真人写实，电视剧质感，自然光，肤质细腻，暖色调` | `Modern anime film, soft cel-shading, expressive eyes, cinematic light` | `Anime portrait, cel-shaded, large glossy eyes, crisp linework` |
+| Total duration | **5m 39s** | **3m 46s** | 3m 45s |
 | Cost | $0.100 | $0.100 | $0.100 |
-| Avg per portrait | **67.9s** | **44.9s** | 45.2s |
-| Portrait sizes | 1.4–1.6 MB | 1.3–1.8 MB | 1.5–1.7 MB |
+| Avg per portrait | **67.9s** | **45.2s** | 44.9s |
+| Portrait sizes | 1.4–1.6 MB | 1.5–1.7 MB | 1.3–1.8 MB |
 
 Findings:
 
 - **Anime prompts run ~34% faster** than photorealistic on flash-image
   — skin/texture detail in photoreal seems to burn more internal
   compute. Cost per image is flat regardless of prompt.
-- **Empirical reversal of an a-priori critique.** I rewrote the anime
-  preset assuming "large glossy eyes + crisp linework" would push the
-  output toward moé/waifu — wrong on this dataset. On adult drama
-  characters (沈念安 et al.), v1 produced a mature, expressive face
-  with proportional eyes, and the "crisp linework" + "cel-shaded"
-  combo gave a confident, polished feel. The "Modern anime film,
-  cinematic light" alt was technically tidier on paper but
-  empirically softer / less defined. **Lesson: validate prompt
-  rewrites against real images before trusting taxonomy arguments.**
-- Both anime variants beat the photoreal one on speed; cost is
-  identical so the only consideration is wall-clock vs visual style.
+- **The v1 → canonical rewrite was effectively free on timing**
+  (44.9s vs 45.2s) but the new prompt has cleaner composition: four
+  independent axes (medium / technique / expression / lighting) with
+  no redundancy. The retired v1 doubled up on line/shading
+  technique with both `cel-shaded` and `crisp linework`.
+- Picked after side-by-side visual review; both kept on disk so
+  future contributors can re-evaluate if Gemini image model
+  improves.
 
 Compare the same character across all three:
 
 ```bash
 open ~/Documents/QCut/projects/cdrama-photoreal/portraits/沈念安/front.png
-open ~/Documents/QCut/projects/style-anime-smoke/portraits/沈念安/front.png  # canonical
-open ~/Documents/QCut/projects/style-anime-v2/portraits/沈念安/front.png     # alt
+open ~/Documents/QCut/projects/style-anime-v2/portraits/沈念安/front.png     # canonical
+open ~/Documents/QCut/projects/style-anime-smoke/portraits/沈念安/front.png  # v1 (retired)
 ```
 
 Same character, three different `--style` outcomes — all driven by
