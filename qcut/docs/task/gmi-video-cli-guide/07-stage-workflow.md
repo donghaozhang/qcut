@@ -260,6 +260,38 @@ qcut flow portraits --project "$PROJECT" \
     --style "low-poly game render, flat colors, chunky shading"
 ```
 
+### Verified A/B on the cdrama novel (2026-04-13)
+
+Same 5 characters from `drama-example.md`, two different preset styles,
+same GMI flash-image model:
+
+| | `photorealistic` | `anime` |
+|---|---|---|
+| Project dir | `cdrama-photoreal/` | `style-anime-smoke/` |
+| Total duration | **5m 39s** | **3m 45s** |
+| Cost | $0.100 | $0.100 |
+| Avg per portrait | **67.9s** | **44.9s** |
+| Portrait sizes | 1.4–1.6 MB | 1.3–1.8 MB |
+
+Both hit the 5/5 portraits at the same cost. Two practical
+observations:
+
+- **Anime prompts are ~34% faster** on flash-image than photorealistic
+  on the same characters. Skin/texture detail in photoreal appears to
+  burn more internal compute. Worth knowing when pacing large batches.
+- **File sizes are comparable** (mid-1 MB range for both) — no extreme
+  outliers this round.
+
+Compare the two folders side-by-side to see the style difference land:
+
+```bash
+open ~/Documents/QCut/projects/cdrama-photoreal/portraits/沈念安/front.png
+open ~/Documents/QCut/projects/style-anime-smoke/portraits/沈念安/front.png
+```
+
+Same character, two styles — both driven entirely by the `--style`
+flag with no manual prompt engineering.
+
 ## Why this is less drama-prone than `flow novel2movie`
 
 - Each stage is a standalone command — if stage 2 misfires you only
