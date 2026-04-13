@@ -150,18 +150,16 @@ disk exactly:
 qcut flow characters \
     --novel electron/native-pipeline/vimax/examples/drama-example.md \
     --project cdrama-heiress-returns \
-    --style "low-poly game render, flat colors, chunky shading" \
     --llm-model gemini-3.1-flash-lite
 ```
 
 Extracts up to ~10 characters, detects the novel's `**映像スタイル：**`
 / `**Visual Style:**` header, and persists both into
-`<proj>/characters.json` + `<proj>/project.json`. Setting `--style`
-here (preset slug or free-form text) overrides the novel header and
-flows into each character's `portrait_prompt` so Stage 2 inherits
-the target aesthetic with no extra flags. Measured 6.9s / $0.00 on a
-4 K-char anime novel (flash-lite didn't actually bill in that run —
-expect a few cents on larger novels).
+`<proj>/characters.json` + `<proj>/project.json`. Measured 6.9s /
+$0.00 on a 4 K-char anime novel (flash-lite didn't actually bill in
+that run — expect a few cents on larger novels). `--style` is
+optional here — usually you let the novel header decide the tone at
+this stage and override at Stage 2 if needed.
 
 **Between stages:** open `<proj>/characters.json` in your editor. You
 can rename characters, fix missing `ethnicity`, or drop characters you
