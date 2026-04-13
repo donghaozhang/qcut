@@ -78,8 +78,15 @@ export function requestFromMain(
 ): Promise<unknown> {
 	return new Promise((resolve, reject) => {
 		const id = `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-		// Screen recording stop can take up to 30s (MediaRecorder flush + chunk writes)
-		const timeoutMs = channel.includes("screen-recording:stop")
+		// Screen-recording start AND stop are both slow paths:
+		//  - start: in standalone/headless mode the renderer is still
+		//    booting React + bridge listeners (can take 5-15s on a cold
+		//    hidden window); the main-side handler itself waits up to 30s.
+		//  - stop: MediaRecorder flush + chunk writes take up to 30s.
+		// Any shorter timeout here truncates main's own wait and produces
+		// a misleading "Main process request timed out" error while the
+		// renderer is still coming up.
+		const timeoutMs = channel.startsWith("screen-recording:")
 			? 35_000
 			: 10_000;
 		const timer = setTimeout(() => {

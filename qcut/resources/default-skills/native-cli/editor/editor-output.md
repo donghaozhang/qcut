@@ -223,9 +223,9 @@ qcut record-daemon --start     # Spawn a daemon explicitly (no-op if one is runn
 
 State files: `~/.qcut/.headless-record.pid` and `~/.qcut/.headless-record.port`.
 
-See [docs/task/recordly/22-cli-standalone-phase1-record-command.md] and
-[docs/task/recordly/23-cli-standalone-phase2-editor-commands.md] for
-architecture details.
+See `docs/task/recordly/22-cli-standalone-phase1-record-command.md`
+and `docs/task/recordly/23-cli-standalone-phase2-editor-commands.md`
+for architecture details.
 
 ---
 
