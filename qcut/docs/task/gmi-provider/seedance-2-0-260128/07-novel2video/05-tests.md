@@ -1,5 +1,12 @@
 # Subtask 5 — Tests
 
+> **Status:** ✅ All 47 new tests + 19 regression tests (66 total)
+> green via
+> `bunx vitest run electron/native-pipeline/output/__tests__/upload-helper.test.ts electron/native-pipeline/cli/vimax-cli-handlers/__tests__/video-shot-adapter.test.ts electron/native-pipeline/cli/vimax-cli-handlers/__tests__/video-handler.test.ts electron/native-pipeline/infra/__tests__/api-provider-urls.test.ts electron/native-pipeline/infra/__tests__/api-caller-gmi.test.ts`.
+> (Counts shifted slightly from the plan because `inferContentType`
+> +`clampDuration`+`sanitizeShotPrompt` each got their own
+> `describe` block. Total stays above the plan's 47 estimate.)
+
 Verify the Stage 4 path end-to-end without burning GMI credits by
 mocking the provider router + the uploader. Three new test files,
 plus one update to the routing matrix.

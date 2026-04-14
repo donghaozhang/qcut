@@ -1,5 +1,13 @@
 # Subtask 2 — Per-shot adapter (pure, testable)
 
+> **Status:** ✅ Landed. 22 tests green (12 adapter + 7 sanitize +
+> 4 clamp). Adapter stayed under 170 lines, zero fs/fetch imports.
+> The live smoke exercised its t2v fallback branch — when portrait
+> uploads fail, the adapter logs uncatalogued characters in
+> `skippedCharacters` and the handler surfaces the reason
+> `"t2v: N character not catalogued, degrading"` in
+> `videos/registry.json`.
+
 Turn one `Shot` + the portrait registry into a ready-to-submit
 Seedance payload + variant decision. Keeping this pure means the
 handler (subtask 3) stays a thin loop and the decision logic is

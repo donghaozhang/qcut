@@ -29,3 +29,5 @@ export {
 export { handleVimaxListModels } from "./vimax-cli-handlers/model-handlers.js";
 
 export { handleVimaxNovel2Script } from "./vimax-cli-handlers/novel-script-handler.js";
+
+export { handleVimaxNovel2Video } from "./vimax-cli-handlers/video-handler.js";

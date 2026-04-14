@@ -1,5 +1,10 @@
 # Subtask 3 — `handleVimaxNovel2Video` CLI handler
 
+> **Status:** ✅ Landed. 13 integration tests green. File size:
+> ~400 lines (target <500). Live smoke: 1 shot, 6m 3s, $0.260.
+> Concurrency knob is typed + parsed but the loop still runs
+> serially; flagged as follow-up in the top-level plan.
+
 The orchestrator. Reads scripts + portrait registry from the project
 dir, resolves portrait URLs via subtask 1, builds payloads via
 subtask 2, submits through the existing provider router, downloads

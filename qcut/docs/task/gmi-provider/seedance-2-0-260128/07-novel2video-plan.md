@@ -1,6 +1,15 @@
 # Stage 4 — `flow novel2video` (Seedance 2.0 ref2v)
 
-> **Status:** 📋 Planning
+> **Status:** ✅ Implemented on 2026-04-14 (branch `cli-movie`).
+> End-to-end smoke on `cdrama-heiress-real-1776148633` produced
+> `videos/shot_1-1-1.mp4` (2.7 MB, $0.26, 6m 3s). Handler + adapter
+> + upload helper all landed with 47 new + 19 regression tests green.
+>
+> **Known limitation:** server-side FAL key isn't configured on
+> `qcut-license-server`, so `/api/ai/upload-url` returns 503. The
+> adapter's designed fallback triggers — every shot degrades to
+> `t2v` and the run still succeeds. Character-consistent `ref2v`
+> awaits a `wrangler secret put FAL_API_KEY` on the worker.
 >
 > Peer stage to `flow characters` / `flow portraits` / `flow novel2script`.
 > Reads `scripts/chunk_NNN.json` + `portraits/registry.json` from the
@@ -50,19 +59,18 @@ A separate **Stage 4 CLI** also unlocks:
   investigation.
 - [ ] Local-file → HTTPS upload helper (subtask 1).
 
-## Scope estimate
+## Subtasks
 
-~3 hours split into 5 subtasks. Each subtask is independently
-shippable — the upload helper + adapter can land in one PR, CLI wiring
-in the next, tests as the third.
+All five subtasks landed in a single session; each subtask doc is
+annotated with its implementation notes.
 
-| # | Subtask | Est. | Doc |
-|---|---------|-----:|-----|
-| 1 | Upload helper: local file → HTTPS URL | 45m | [07-novel2video/01-upload-helper.md](./07-novel2video/01-upload-helper.md) |
-| 2 | Per-shot adapter: prompt + characters → Seedance call | 45m | [07-novel2video/02-shot-adapter.md](./07-novel2video/02-shot-adapter.md) |
-| 3 | `handleVimaxNovel2Video` CLI handler | 60m | [07-novel2video/03-handler.md](./07-novel2video/03-handler.md) |
-| 4 | CLI wiring: flags, registry, handler-map | 20m | [07-novel2video/04-cli-wiring.md](./07-novel2video/04-cli-wiring.md) |
-| 5 | Unit + integration tests | 30m | [07-novel2video/05-tests.md](./07-novel2video/05-tests.md) |
+| # | Subtask | Status | Doc |
+|---|---------|:-----:|-----|
+| 1 | Upload helper: local file → HTTPS URL | ✅ | [07-novel2video/01-upload-helper.md](./07-novel2video/01-upload-helper.md) |
+| 2 | Per-shot adapter: prompt + characters → Seedance call | ✅ | [07-novel2video/02-shot-adapter.md](./07-novel2video/02-shot-adapter.md) |
+| 3 | `handleVimaxNovel2Video` CLI handler | ✅ | [07-novel2video/03-handler.md](./07-novel2video/03-handler.md) |
+| 4 | CLI wiring: flags, registry, handler-map | ✅ | [07-novel2video/04-cli-wiring.md](./07-novel2video/04-cli-wiring.md) |
+| 5 | Unit + integration tests | ✅ | [07-novel2video/05-tests.md](./07-novel2video/05-tests.md) |
 
 ## Guiding principles
 
@@ -186,34 +194,81 @@ without 4 causes no regression.
   `--no-audio` flag once we see real output — defer the knob until
   we've seen whether native audio is usable for cdrama-style dialogue.
 
-## Files changed / added at a glance
+## Files changed / added (actually shipped)
 
-### Add
+### Added
 
 - `electron/native-pipeline/output/upload-helper.ts` — local → URL
-  uploader (subtask 1).
+  uploader via `POST /api/ai/upload-url` + signed PUT.
 - `electron/native-pipeline/cli/vimax-cli-handlers/video-shot-adapter.ts`
-  — pure per-shot logic (subtask 2).
+  — pure per-shot variant + payload builder (no fs, no fetch).
 - `electron/native-pipeline/cli/vimax-cli-handlers/video-handler.ts`
-  — `handleVimaxNovel2Video` orchestrator (subtask 3).
+  — `handleVimaxNovel2Video` orchestrator (~400 lines).
 
-### Modify
+### Modified
 
 - `electron/native-pipeline/cli/command-registry.ts` — new
-  `vimax:novel2video` entry.
+  `vimax:novel2video` entry + appended to the `vimax` group list.
 - `electron/native-pipeline/cli/command-groups.ts` — alias
   `flow novel2video` → `vimax:novel2video`.
-- `electron/native-pipeline/cli/cli-runner/handler-map.ts` — wire the
-  new handler.
-- `electron/native-pipeline/cli/cli-runner/types.ts` — add
-  `maxShots`, `concurrency`, `fallbackModel` fields.
-- `electron/native-pipeline/output/project-paths.ts` — add
-  `videoRegistryPath` and `shotVideoPath(shotId)` helpers.
-- `electron/native-pipeline/output/stage-reporter.ts` — add
-  `estimateNovel2Video(shots, durationSeconds)` + print helpers.
+- `electron/native-pipeline/cli/cli-runner/handler-map.ts` —
+  registered `wrapOP(handleVimaxNovel2Video)`.
+- `electron/native-pipeline/cli/vimax-cli-handlers.ts` — re-export
+  `handleVimaxNovel2Video`.
+- `electron/native-pipeline/cli/cli-runner/types.ts` — added
+  `maxShots`, `concurrency`, `fallbackModel`, `costGate` to
+  `CLIRunOptions`.
+- `electron/native-pipeline/cli/cli.ts` — parseArgs config +
+  normalization for `--max-shots`, `--concurrency`,
+  `--fallback-model`, `--cost-gate`.
+- `electron/native-pipeline/output/project-paths.ts` — added
+  `safeShotFilename`, `shotVideoPath`, `videoRegistryPath`.
+- `electron/native-pipeline/output/stage-reporter.ts` — added
+  `estimateNovel2Video(shots, averageShotSeconds)`.
 
-### Test
+### Tests
 
 - `electron/native-pipeline/output/__tests__/upload-helper.test.ts`
+  — 12 tests (incl. `inferContentType` suite).
 - `electron/native-pipeline/cli/vimax-cli-handlers/__tests__/video-shot-adapter.test.ts`
+  — 22 tests (clamp + sanitize + adapter matrices).
 - `electron/native-pipeline/cli/vimax-cli-handlers/__tests__/video-handler.test.ts`
+  — 13 integration tests (real tmp dirs, mocked network).
+
+## Verification
+
+```
+bunx vitest run \
+  electron/native-pipeline/output/__tests__/upload-helper.test.ts \
+  electron/native-pipeline/cli/vimax-cli-handlers/__tests__/video-shot-adapter.test.ts \
+  electron/native-pipeline/cli/vimax-cli-handlers/__tests__/video-handler.test.ts \
+  electron/native-pipeline/infra/__tests__/api-provider-urls.test.ts \
+  electron/native-pipeline/infra/__tests__/api-caller-gmi.test.ts
+→ 5 files · 66 tests · all green (1.22s)
+
+cd electron && bunx tsc --noEmit → clean
+bun run build                    → dist rebuilt
+qcut flow novel2video --help     → command discoverable
+```
+
+Live smoke (2026-04-14 on `cdrama-heiress-real-1776148633`):
+- `qcut flow novel2video --project <slug> --max-shots 1 --duration 5`
+- Portrait uploads returned 503 (FAL key missing on worker)
+- Adapter degraded shot 1-1-1 to `t2v` per design
+- `videos/shot_1-1-1.mp4` (2.7 MB) + `videos/registry.json`
+  written
+- `project.json.stages_completed` now includes `"videos"`
+- Duration: 6m 3s · Cost: $0.260
+
+## Follow-up
+
+- **Worker FAL key.** `wrangler secret put FAL_API_KEY` on
+  `qcut-license-server` unlocks the ref2v path end-to-end. Until
+  that lands, `flow novel2video` operates in t2v-only mode.
+- **Concurrency `> 1`.** Flag is wired and typed but the handler
+  still runs shots serially. Parallelism needs a `runPool()`
+  helper (or reuse of `parallel-executor.ts`); deferred.
+- **`--fallback-model` flag.** Accepted by the parser but the
+  handler currently hard-codes `_t2v` as the fallback. The
+  adapter supports a runtime override — wiring it through the
+  handler is a ~5-line follow-up.

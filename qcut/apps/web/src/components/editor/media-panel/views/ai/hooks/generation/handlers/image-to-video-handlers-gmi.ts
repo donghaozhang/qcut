@@ -14,6 +14,7 @@ import {
 	generateSeedance260128ReferenceVideo,
 } from "@/lib/ai-video";
 import type { Seedance260128Params } from "@/lib/ai-video";
+import { resolveGmiImageSource } from "@/lib/ai-video/generators/gmi-image-source";
 import type {
 	ImageToVideoSettings,
 	ModelHandlerContext,
@@ -34,7 +35,10 @@ export async function handleGmiVeoLiteI2V(
 	}
 
 	try {
-		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+		const imageUrl = await resolveGmiImageSource(
+			settings.selectedImage,
+			settings.uploadImageToFal
+		);
 		const durationSeconds = [4, 6, 8].includes(settings.duration ?? 8)
 			? ((settings.duration ?? 8) as 4 | 6 | 8)
 			: 8;
@@ -74,7 +78,10 @@ export async function handleSkyreelsV4I2V(
 	}
 
 	try {
-		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+		const imageUrl = await resolveGmiImageSource(
+			settings.selectedImage,
+			settings.uploadImageToFal
+		);
 
 		const response = await generateSkyreelsV4ImageVideo({
 			prompt: ctx.prompt,
@@ -105,7 +112,10 @@ export async function handleGmiKlingV3I2V(
 	}
 
 	try {
-		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+		const imageUrl = await resolveGmiImageSource(
+			settings.selectedImage,
+			settings.uploadImageToFal
+		);
 
 		const response = await generateKlingV3GmiImageVideo({
 			prompt: ctx.prompt,
@@ -137,7 +147,10 @@ export async function handleGmiKlingOmniI2V(
 	}
 
 	try {
-		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+		const imageUrl = await resolveGmiImageSource(
+			settings.selectedImage,
+			settings.uploadImageToFal
+		);
 
 		const response = await generateKlingOmniImageVideo({
 			prompt: ctx.prompt,
@@ -169,11 +182,16 @@ export async function handleSeedance260128I2V(
 	}
 
 	try {
-		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+		// Prefer FAL CDN; fall back to inline data URI when no FAL key.
+		// GMI has no public media-upload API (only artifact-scoped uploads).
+		const imageSource = await resolveGmiImageSource(
+			settings.selectedImage,
+			settings.uploadImageToFal
+		);
 
 		const response = await generateSeedance260128ImageVideo({
 			prompt: ctx.prompt,
-			firstFrame: imageUrl,
+			firstFrame: imageSource,
 			duration: settings.duration ?? 5,
 			resolution: (settings.resolution ?? "720p") as Seedance260128Params["resolution"],
 			ratio: (settings.aspectRatio ?? "16:9") as Seedance260128Params["ratio"],
@@ -202,13 +220,14 @@ export async function handleSeedance260128Ref2V(
 	}
 
 	try {
-		const referenceImageUrl = await settings.uploadImageToFal(
-			settings.selectedImage
+		const referenceImageSource = await resolveGmiImageSource(
+			settings.selectedImage,
+			settings.uploadImageToFal
 		);
 
 		const response = await generateSeedance260128ReferenceVideo({
 			prompt: ctx.prompt,
-			referenceImages: [referenceImageUrl],
+			referenceImages: [referenceImageSource],
 			duration: settings.duration ?? 5,
 			resolution: (settings.resolution ?? "720p") as Seedance260128Params["resolution"],
 			ratio: (settings.aspectRatio ?? "16:9") as Seedance260128Params["ratio"],
@@ -245,7 +264,10 @@ export async function handleGmiKlingMotionControl(
 	}
 
 	try {
-		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+		const imageUrl = await resolveGmiImageSource(
+			settings.selectedImage,
+			settings.uploadImageToFal
+		);
 
 		const response = await generateKlingMotionControlVideo({
 			imageUrl,

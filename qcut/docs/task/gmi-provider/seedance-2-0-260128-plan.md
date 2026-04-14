@@ -31,6 +31,37 @@ user-facing GMI models guide.
 | `gmi_seedance_2_0_260128_i2v` | image_to_video | `prompt` + `first_frame` | First-frame anchored, optional `last_frame` |
 | `gmi_seedance_2_0_260128_ref2v` | image_to_video | `prompt` + `reference_images` (≥1) | Character-consistent, no first-frame |
 
+### Image-source resolver (FAL CDN → data URI fallback)
+
+GMI Cloud has **no public media-upload API** (research summary in
+`docs/task/gmi-provider/seedance-2-0-260128-plan.md` history; the only
+upload in the GMI Python SDK is the artifact-scoped `/get_bigfile_upload_url`
+for ML model checkpoints, which doesn't return a video-API-compatible URL).
+
+To unblock GMI-only users (no FAL key), **all** GMI I2V handlers
+route image inputs through
+`apps/web/src/lib/ai-video/generators/gmi-image-source.ts`:
+
+- `handleGmiVeoLiteI2V` (Veo 3.1 Lite)
+- `handleSkyreelsV4I2V` (SkyReels V4)
+- `handleGmiKlingV3I2V` (Kling V3)
+- `handleGmiKlingOmniI2V` (Kling V3 Omni)
+- `handleGmiKlingMotionControl` (Kling 3 Motion Control)
+- `handleSeedance260128I2V`
+- `handleSeedance260128Ref2V`
+
+- **Primary**: `settings.uploadImageToFal(file)` → public FAL CDN URL
+  (kept as default — keeps GMI request bodies small and offloads
+  bandwidth from the renderer).
+- **Fallback**: on uploader rejection (typically "No FAL API key
+  configured"), encode the file via `FileReader.readAsDataURL` and
+  pass `data:image/<type>;base64,...` directly to GMI.
+- **Size guard**: refuses to inline files above 10 MB (matches GMI's
+  documented inline-input limit on Kling Omni / Seedance) — surfaces
+  a clear error directing the user to configure `FAL_KEY`.
+
+Tests live in `apps/web/src/lib/ai-video/generators/__tests__/gmi-image-source.test.ts`.
+
 ### Files changed
 
 - `electron/native-pipeline/registry-data/text-to-video.ts` — added

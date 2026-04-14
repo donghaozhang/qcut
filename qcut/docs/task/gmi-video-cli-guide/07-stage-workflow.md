@@ -56,7 +56,26 @@ qcut flow novel2script \
     --max-scenes 20
 ```
 
-### Full three-stage run
+### Stage 4 — generate per-shot videos (Seedance 2.0 ref2v)
+
+```bash
+qcut flow novel2video \
+    --project cdrama-heiress-v3 \
+    --max-shots 1 \
+    --duration 4 \
+    --resolution 480p
+```
+
+### Stage 5 — single-shot smoke test (Seedance 2.0 ref2v, no project)
+
+```bash
+qcut gen video -m gmi_seedance_2_0_260128_ref2v \
+    -t "Anime woman with long dark hair walks gently into frame, soft cinematic light, calm expression, modern anime film style" \
+    --image-url https://v3b.fal.media/files/b/0a9632d3/RjQKpimGKkHGbNX1zOH0R_front.png \
+    -d 4s --resolution 480p --aspect-ratio 16:9
+```
+
+### Full four-stage run
 
 ```bash
 NOVEL=electron/native-pipeline/vimax/examples/drama-example.md
@@ -73,8 +92,11 @@ qcut flow portraits --project "$PROJECT" \
 qcut flow novel2script --novel "$NOVEL" --project "$PROJECT" \
     --llm-model gemini-3.1-flash-lite --max-scenes 20
 
+qcut flow novel2video --project "$PROJECT" \
+    --max-shots 1 --duration 4 --resolution 480p
+
 jq '.stages_completed' ~/Documents/QCut/projects/$PROJECT/project.json
-# → ["characters", "portraits", "scripts"]
+# → ["characters", "portraits", "scripts"]   (videos tracked separately under videos/registry.json)
 ```
 
 ### Style overrides
@@ -130,9 +152,12 @@ root:
 ├── portraits/
 │   ├── <character>/front.png
 │   └── registry.json         # stage 2 output
-└── scripts/
-    ├── chunk_001.json
-    └── chunk_NNN.json        # stage 3 output
+├── scripts/
+│   ├── chunk_001.json
+│   └── chunk_NNN.json        # stage 3 output
+└── videos/
+    ├── registry.json         # stage 4 output (per-shot status, cost, ref URLs)
+    └── shot_<scene>-<beat>-<shot>.mp4   # stage 4 output (one per shot)
 ```
 
 The slug defaults to `safeProjectSlug(<novel-basename>)` — so re-running
@@ -178,6 +203,78 @@ uses, runs the `NovelSegmenter` on each chunk, and writes
 
 Accepts `--chunk-size` (default 2000 chars) and `--overlap` (default
 200) if you need to tweak chunking for very long novels.
+
+**Stage 4 — `flow novel2video`**
+
+Reads `<proj>/scripts/chunk_*.json` + `<proj>/portraits/registry.json`,
+generates one MP4 per shot via **GMI Seedance 2.0 260128**, and writes
+`<proj>/videos/shot_<scene>-<beat>-<shot>.mp4` plus a
+`<proj>/videos/registry.json` tracking status / cost / reference URLs.
+
+Per-shot path:
+
+1. Resolve the characters present in the shot to their portrait paths.
+2. Upload each portrait via the license-server proxy
+   (`POST /api/ai/upload-url` → signed FAL CDN URL → `PUT` bytes).
+3. Submit `seedance-2-0-260128` with `reference_images: [<urls>]` (no
+   `first_frame`). Falls back to **t2v** mode (no references) if any
+   referenced character can't be uploaded — the registry's `reason`
+   field records why.
+4. Download MP4, append to `videos/registry.json`.
+
+Flags:
+
+| Flag | Default | Notes |
+|---|---|---|
+| `--project` | required | Project slug |
+| `--max-shots` | unlimited | Cap total shots this run (cost control) |
+| `--duration` / `-d` | 5 | Seconds per shot, clamped 4–15 |
+| `--resolution` | 720p | `480p` / `720p` / `1080p` |
+| `--aspect-ratio` | 16:9 | `16:9` / `9:16` / `1:1` / `4:3` / `3:4` / `21:9` |
+| `--concurrency` | 1 | Parallel shots in flight |
+| `--cost-gate` | 2 | Aborts if projected USD spend exceeds this |
+| `--force` | off | Overwrites existing MP4s + bypasses `--cost-gate` |
+
+Cost is fixed at **$0.052 / s** regardless of resolution. Wall-clock
+runs ~3–6 min per shot (Seedance is slow). Use `--max-shots 1` for
+smoke tests so a typo doesn't burn 30 minutes and $10.
+
+**Reference upload note.** Portrait uploads route through
+`output/upload-helper.ts`, which tries the license-server proxy first,
+then falls back to a direct `https://rest.alpha.fal.ai/storage/upload/initiate`
+call when the proxy can't vend AND the user has `FAL_KEY` /
+`FAL_API_KEY` in env (added 2026-04-14). When neither path produces a
+URL, the shot degrades to t2v and `videos/registry.json[].reason`
+records why.
+
+**Stage 5 — `gen video` (single-shot smoke test, no project)**
+
+Use this when you want to validate the model + your GMI key without
+running the full project batch. Single GMI call, single MP4 out,
+takes a public image URL directly so it bypasses the upload helper.
+
+```bash
+qcut gen video -m gmi_seedance_2_0_260128_ref2v \
+    -t "<prompt>" \
+    --image-url <public-https-url> \
+    -d 4s --resolution 480p --aspect-ratio 16:9
+```
+
+The model enum in `command-registry.ts` accepts the three Seedance
+260128 keys (`_t2v`, `_i2v`, `_ref2v`); `executeImageToVideo` in
+`step-executors.ts` maps `--image-url` to the right field per
+variant (`reference_images: [url]` for ref2v, `first_frame: url` for
+i2v). For T2V, pass only `-t` and skip `--image-url`.
+
+This isn't a "stage" in the staged-workflow sense (it doesn't read
+or write the project directory) — it's parallel to Stage 4 as a
+quick way to confirm the model end-to-end before committing to a
+batch. Output goes to `~/Documents/QCut/exports/output_<ts>.mp4`.
+
+**Content-moderation gotcha.** Seedance applies a real-person
+privacy filter on reference images. Photorealistic portraits may be
+rejected with `InputImageSensitiveContentDetected.PrivacyInformation`
+— use stylized references (anime, illustration) for ref2v workflows.
 
 ### Pre-flight estimates + per-step timing
 
@@ -317,6 +414,121 @@ disk exactly:
   set by `qcut system login`; no provider env keys. All LLM and image
   calls routed through `qcut-license-server.zdhpeter.workers.dev`, billed
   as credits against the test account.
+
+### Verified Stage 4 smoke run (2026-04-14)
+
+Single-shot smoke test on the same `cdrama-heiress-v3/` project to
+prove the wiring end-to-end. Cheapest config: `--max-shots 1
+--duration 4 --resolution 480p`.
+
+```
+[step] upload 5 portraits — 1.0s  0/5 uploaded
+[step] shot 1/1 [t2v] — 6m 8s  t2v, $0.208
+
+Stage 4 — Generate per-shot videos — complete
+  Duration:  6m 8s
+  Cost:      $0.208
+  Shots succeeded: 1/1
+  Outputs:
+    •  videos registry: …/videos/registry.json (455B)
+    •  shot 1-1-1:      …/videos/shot_1-1-1.mp4 (1.7MB)
+```
+
+Registry entry:
+
+```json
+{
+  "shot_id": "1-1-1",
+  "status": "success",
+  "variant": "gmi_seedance_2_0_260128_t2v",
+  "cost_usd": 0.208,
+  "duration_seconds": 4,
+  "reference_urls": [],
+  "reason": "t2v: 1 character not catalogued, degrading"
+}
+```
+
+**Confirmed ✅**
+
+- `flow novel2video` end-to-end: portrait upload attempt → Seedance
+  submission → polling → MP4 download → registry write.
+- Cost gate ($2 default) accepts the $0.208 projection and runs.
+- Pre-flight banner numbers match actuals (predicted $0.208, actual
+  $0.208; predicted 3–6 min, actual 6m 8s).
+- Output paths (`videos/registry.json` + `videos/shot_*.mp4`) match
+  disk and the registry MP4 plays.
+
+**Not yet exercised in `flow novel2video`**
+
+- The staged pipeline still degrades to t2v because portrait uploads
+  go through the proxy and the worker has no `FAL_KEY`. The
+  `output/upload-helper.ts` direct-FAL fallback (added 2026-04-14)
+  unblocks anything that goes through it, but `flow novel2video` calls
+  the upload helper before the fallback would help here. Re-running
+  with `FAL_KEY` in env should now complete in ref2v mode — pending
+  re-run.
+
+### Verified Seedance Ref2V via `gen video` (2026-04-14)
+
+Direct GMI ref2v call validated end-to-end via the simpler
+`gen video` CLI (bypasses the upload helper / proxy by accepting a
+public image URL):
+
+```bash
+qcut gen video -m gmi_seedance_2_0_260128_ref2v \
+  -t "Anime woman with long dark hair walks gently into frame, soft cinematic light, calm expression, modern anime film style" \
+  --image-url https://v3b.fal.media/files/.../front.png \
+  -d 4s --resolution 480p --aspect-ratio 16:9
+```
+
+Result:
+
+```
+Duration: 271.1s
+Cost: $0.2080 USD
+Output: /Users/peter/Documents/QCut/exports/output_1776155994427.mp4 (909 KB MP4)
+```
+
+**What this confirmed ✅**
+
+- CLI dispatch: `gen video -m gmi_seedance_2_0_260128_ref2v` reaches
+  `executeImageToVideo` with the right model definition.
+- Payload mapping: `--image-url <url>` correctly serializes to GMI as
+  `reference_images: [url]` (not `image_url`) thanks to the
+  Seedance-specific branch in `step-executors.ts:executeImageToVideo`.
+- GMI submit + poll: `seedance-2-0-260128` accepted the payload,
+  returned `success`, and the MP4 downloaded to the output directory.
+- Cost matches spec: 4s × $0.052/s = $0.208.
+
+**Content-moderation gotcha**
+
+A first attempt with a photorealistic Chinese-drama portrait was
+rejected with:
+
+```
+InputImageSensitiveContentDetected.PrivacyInformation —
+The request failed because the input image may contain real person.
+```
+
+The same prompt with an anime-styled portrait succeeded immediately.
+Seedance applies a real-person privacy filter on reference images;
+plan around it for ref2v workflows or use stylized references.
+
+### Direct-FAL upload fallback (2026-04-14)
+
+`electron/native-pipeline/output/upload-helper.ts` now tries the
+license-server proxy first (default, keeps the FAL key off the
+user's machine), then falls back to a direct call to
+`https://rest.alpha.fal.ai/storage/upload/initiate` when:
+
+1. The proxy vend step fails (typically `FAL API key not configured
+   on server`), AND
+2. The user has `FAL_KEY` (or `FAL_API_KEY`) in their env.
+
+The fallback logs a warning so the proxy misconfiguration is still
+visible in CLI output, but the upload completes. Tests live at
+`electron/native-pipeline/output/__tests__/upload-helper.test.ts`
+(14 cases, all passing).
 
 ### Verified A/B on the cdrama novel (2026-04-13)
 

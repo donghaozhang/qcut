@@ -142,6 +142,27 @@ export function writeProjectMetadata(
 	return next;
 }
 
+/**
+ * Filesystem-safe version of a shot id for use as a filename.
+ * Preserves the `scene-subscene-shot` shape (e.g. `1-1-3`) and replaces
+ * any unexpected characters with dashes. Never returns an empty string.
+ */
+export function safeShotFilename(shotId: string): string {
+	const trimmed = (shotId || "shot").trim();
+	const sanitized = trimmed.replace(/[^\p{L}\p{N}._-]+/gu, "-");
+	return sanitized || "shot";
+}
+
+/** Absolute MP4 path for a given shot id, inside the project's videos dir. */
+export function shotVideoPath(paths: ProjectPaths, shotId: string): string {
+	return path.join(paths.videosDir, `shot_${safeShotFilename(shotId)}.mp4`);
+}
+
+/** Path to the per-run videos registry JSON (shot_id → result). */
+export function videoRegistryPath(paths: ProjectPaths): string {
+	return path.join(paths.videosDir, "registry.json");
+}
+
 /** Append `stage` to `stages_completed` (idempotent). */
 export function markStageCompleted(
 	paths: ProjectPaths,

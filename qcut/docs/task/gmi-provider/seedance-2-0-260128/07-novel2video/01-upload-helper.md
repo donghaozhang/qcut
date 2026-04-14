@@ -1,5 +1,10 @@
 # Subtask 1 — Upload helper (local file → HTTPS URL)
 
+> **Status:** ✅ Landed. 12 tests green. Used by `video-handler.ts`
+> via dep injection. Live smoke showed the route is reachable but
+> returns 503 until the worker has `FAL_API_KEY` configured — the
+> helper surfaces that cleanly via `UploadError.stage = "vend-url"`.
+
 Seedance's `reference_images` field needs fetchable URLs. Stage 2
 portraits land on local disk (`portraits/<name>/front.png`). This
 subtask creates a minimal helper that uploads a local file and

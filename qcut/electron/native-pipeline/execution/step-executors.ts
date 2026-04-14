@@ -283,7 +283,17 @@ async function executeImageToVideo(
 	}
 ): Promise<StepOutput> {
 	if (input.imageUrl) {
-		payload.image_url = input.imageUrl;
+		// Seedance 260128 uses model-specific field names instead of `image_url`:
+		//   - Ref2V variant → `reference_images: [url]` (character driver)
+		//   - I2V variant   → `first_frame` (anchor)
+		// Other GMI / FAL models keep the generic `image_url` payload.
+		if (model.key === "gmi_seedance_2_0_260128_ref2v") {
+			payload.reference_images = [input.imageUrl];
+		} else if (model.key === "gmi_seedance_2_0_260128_i2v") {
+			payload.first_frame = input.imageUrl;
+		} else {
+			payload.image_url = input.imageUrl;
+		}
 	}
 	if (input.text) {
 		payload.prompt = input.text;

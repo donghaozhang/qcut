@@ -164,6 +164,7 @@ export const CATEGORIES: CategoryDef[] = [
 			"vimax:script2video",
 			"vimax:novel2movie",
 			"vimax:novel2script",
+			"vimax:novel2video",
 			"vimax:extract-characters",
 			"vimax:generate-script",
 			"vimax:generate-storyboard",
@@ -267,6 +268,9 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 					"seedance_1_0",
 					"seedance_2_0",
 					"luma_ray2",
+					"gmi_seedance_2_0_260128_t2v",
+					"gmi_seedance_2_0_260128_i2v",
+					"gmi_seedance_2_0_260128_ref2v",
 				],
 			}),
 			f("--duration", "string", "Duration (e.g. 5s)", { short: "-d" }),
@@ -1389,6 +1393,31 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		examples: [
 			"qcut flow novel2script --novel story.md --project my-story",
 			"qcut flow novel2script --novel story.md --project my-story --max-scenes 20",
+		],
+	},
+	"vimax:novel2video": {
+		name: "vimax:novel2video",
+		description:
+			"Generate per-shot videos using Seedance 2.0 ref2v from a project's scripts + portraits (stage 4)",
+		category: "vimax",
+		flags: [
+			f("--project", "string", "Project slug under ~/Documents/QCut/projects/", {
+				required: true,
+			}),
+			f("--max-shots", "number", "Cap total shots generated this run"),
+			f("--duration", "number", "Seconds per shot (clamped 4-15)", {
+				short: "-d",
+			}),
+			f("--resolution", "string", "Seedance resolution (480p|720p|1080p)"),
+			f("--aspect-ratio", "string", "Seedance ratio (16:9|9:16|1:1|...)"),
+			f("--concurrency", "number", "Parallel shots in flight (default 1)"),
+			f("--force", "boolean", "Overwrite existing shot MP4s + bypass cost gate"),
+			f("--cost-gate", "number", "Projected-cost ceiling in USD (default 2)"),
+		],
+		examples: [
+			"qcut flow novel2video --project my-story",
+			"qcut flow novel2video --project my-story --max-shots 5 --duration 5",
+			"qcut flow novel2video --project my-story --force --cost-gate 20",
 		],
 	},
 	"vimax:extract-characters": {

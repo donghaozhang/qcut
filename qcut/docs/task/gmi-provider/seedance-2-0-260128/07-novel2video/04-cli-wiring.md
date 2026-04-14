@@ -1,5 +1,11 @@
 # Subtask 4 — CLI wiring
 
+> **Status:** ✅ Landed. `qcut flow novel2video --help --json`
+> lists all 8 flags. Command appears in the ViMax group and
+> dispatches to `handleVimaxNovel2Video` via `handler-map.ts`.
+> `bun run build` is required to refresh the global binary after
+> edits to the registry or handler-map (memory notes this).
+
 Glue the handler into the user-visible CLI surface. Parallels how
 `flow novel2script` is wired — three files, each a small edit.
 
