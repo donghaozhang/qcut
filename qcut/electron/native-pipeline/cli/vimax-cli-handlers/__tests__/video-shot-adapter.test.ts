@@ -385,9 +385,7 @@ describe("adaptShotForSeedance — Vidu family", () => {
 		expect(adapted.provider).toBe("fal");
 		// Vidu-specific field names — NOT `reference_images` (GMI) or
 		// `image_urls` (FAL Seedance).
-		expect(adapted.payload.reference_image_urls).toEqual([
-			"https://cdn/a.png",
-		]);
+		expect(adapted.payload.reference_image_urls).toEqual(["https://cdn/a.png"]);
 		expect(adapted.payload).not.toHaveProperty("reference_images");
 		expect(adapted.payload).not.toHaveProperty("image_urls");
 		expect(adapted.payload).not.toHaveProperty("image_url");

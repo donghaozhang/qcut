@@ -79,9 +79,9 @@ describe("castQualitySnippet", () => {
 		// quality anchor. If this test fails, re-verify with a Stage 2
 		// smoke run before landing.
 		for (const gender of ["male", "female", "unknown"] as const) {
-			expect(
-				castQualitySnippet("model-grade", gender)
-			).not.toMatch(/editorial/i);
+			expect(castQualitySnippet("model-grade", gender)).not.toMatch(
+				/editorial/i
+			);
 		}
 	});
 

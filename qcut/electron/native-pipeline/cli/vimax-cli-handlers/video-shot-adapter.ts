@@ -91,9 +91,14 @@ export const SEEDANCE_ENDPOINT = "seedance-2-0-260128";
 export const DEFAULT_SEEDANCE_FAMILY: SeedanceFamily = "gmi";
 
 /** Map a CLI `--model` value to a SeedanceFamily. Throws on unknown keys. */
-export function resolveSeedanceFamily(model: string | undefined): SeedanceFamily {
+export function resolveSeedanceFamily(
+	model: string | undefined
+): SeedanceFamily {
 	if (!model) return DEFAULT_SEEDANCE_FAMILY;
-	if (model === "gmi_seedance_2_0_260128" || model.startsWith("gmi_seedance_2_0_260128_")) {
+	if (
+		model === "gmi_seedance_2_0_260128" ||
+		model.startsWith("gmi_seedance_2_0_260128_")
+	) {
 		return "gmi";
 	}
 	if (model === "seedance_2_0" || model.startsWith("seedance_2_0_")) {
@@ -187,7 +192,10 @@ type VariantPayload = Pick<
 	"variant" | "endpoint" | "provider" | "payload"
 >;
 
-function buildGmiI2V(common: CommonShape, firstFrameUrl: string): VariantPayload {
+function buildGmiI2V(
+	common: CommonShape,
+	firstFrameUrl: string
+): VariantPayload {
 	const payload = baseGmiPayload(common);
 	payload.first_frame = firstFrameUrl;
 	return {
@@ -225,12 +233,16 @@ function baseGmiPayload(common: CommonShape): Record<string, unknown> {
 	};
 	if (common.resolution) payload.resolution = common.resolution;
 	if (common.aspectRatio) payload.ratio = common.aspectRatio;
-	if (common.generateAudio != null) payload.generate_audio = common.generateAudio;
+	if (common.generateAudio != null)
+		payload.generate_audio = common.generateAudio;
 	if (common.seed != null) payload.seed = common.seed;
 	return payload;
 }
 
-function buildFalI2V(common: CommonShape, firstFrameUrl: string): VariantPayload {
+function buildFalI2V(
+	common: CommonShape,
+	firstFrameUrl: string
+): VariantPayload {
 	const payload = baseFalPayload(common);
 	payload.image_url = firstFrameUrl;
 	return {
@@ -272,7 +284,8 @@ function baseFalPayload(common: CommonShape): Record<string, unknown> {
 	if (common.resolution) payload.resolution = common.resolution;
 	// FAL uses `aspect_ratio`, not `ratio` (GMI's name).
 	if (common.aspectRatio) payload.aspect_ratio = common.aspectRatio;
-	if (common.generateAudio != null) payload.generate_audio = common.generateAudio;
+	if (common.generateAudio != null)
+		payload.generate_audio = common.generateAudio;
 	if (common.seed != null) payload.seed = common.seed;
 	return payload;
 }

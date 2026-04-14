@@ -35,12 +35,10 @@ afterEach(() => {
 });
 
 /** Build a minimal fake project on disk under the test sandbox. */
-function seedProject(
-	options: {
-		shots: Array<{ shotId: string; characters?: string[]; description?: string }>;
-		portraits?: Record<string, { bytes?: Uint8Array }>;
-	}
-): { slug: string; paths: ReturnType<typeof resolveProjectPaths> } {
+function seedProject(options: {
+	shots: Array<{ shotId: string; characters?: string[]; description?: string }>;
+	portraits?: Record<string, { bytes?: Uint8Array }>;
+}): { slug: string; paths: ReturnType<typeof resolveProjectPaths> } {
 	const normalized = safeProjectSlug(slug);
 	const paths = resolveProjectPaths(normalized);
 	fs.mkdirSync(paths.scriptsDir, { recursive: true });
@@ -67,8 +65,10 @@ function seedProject(
 
 	// Seed portraits if provided.
 	if (options.portraits) {
-		const registry: Record<string, { character_name: string; front_view: string }> =
-			{};
+		const registry: Record<
+			string,
+			{ character_name: string; front_view: string }
+		> = {};
 		for (const [name, spec] of Object.entries(options.portraits)) {
 			const charDir = path.join(paths.portraitsDir, name);
 			fs.mkdirSync(charDir, { recursive: true });
@@ -78,11 +78,7 @@ function seedProject(
 		}
 		fs.writeFileSync(
 			paths.portraitRegistryPath,
-			JSON.stringify(
-				{ project_id: normalized, portraits: registry },
-				null,
-				2
-			)
+			JSON.stringify({ project_id: normalized, portraits: registry }, null, 2)
 		);
 	}
 
@@ -104,11 +100,13 @@ function makeApiStub(
 		payload: Record<string, unknown>;
 	}) => ApiCallResult | Promise<ApiCallResult>
 ) {
-	return vi.fn(async (call: {
-		endpoint: string;
-		modelKey?: string;
-		payload: Record<string, unknown>;
-	}) => factory(call));
+	return vi.fn(
+		async (call: {
+			endpoint: string;
+			modelKey?: string;
+			payload: Record<string, unknown>;
+		}) => factory(call)
+	);
 }
 
 function makeDownloadStub() {
@@ -176,7 +174,11 @@ describe("handleVimaxNovel2Video", () => {
 			{ ...baseOptions(s), duration: "5" } as CLIRunOptions,
 			noProgress,
 			undefined,
-			{ uploadImpl: upload, callModelApiImpl: api, downloadOutputImpl: download }
+			{
+				uploadImpl: upload,
+				callModelApiImpl: api,
+				downloadOutputImpl: download,
+			}
 		);
 
 		expect(result.success).toBe(true);
@@ -195,7 +197,9 @@ describe("handleVimaxNovel2Video", () => {
 		expect(fs.existsSync(shotVideoPath(paths, "1-1-2"))).toBe(true);
 
 		// Registry has 2 success entries
-		const registry = JSON.parse(fs.readFileSync(videoRegistryPath(paths), "utf-8"));
+		const registry = JSON.parse(
+			fs.readFileSync(videoRegistryPath(paths), "utf-8")
+		);
 		expect(registry.shots).toHaveLength(2);
 		expect(registry.shots[0].status).toBe("success");
 		expect(registry.shots[0].variant).toBe("gmi_seedance_2_0_260128_ref2v");
@@ -221,16 +225,11 @@ describe("handleVimaxNovel2Video", () => {
 			cost: 0.26,
 		}));
 
-		await handleVimaxNovel2Video(
-			baseOptions(s),
-			noProgress,
-			undefined,
-			{
-				uploadImpl: makeUploadStub(),
-				callModelApiImpl: api,
-				downloadOutputImpl: makeDownloadStub(),
-			}
-		);
+		await handleVimaxNovel2Video(baseOptions(s), noProgress, undefined, {
+			uploadImpl: makeUploadStub(),
+			callModelApiImpl: api,
+			downloadOutputImpl: makeDownloadStub(),
+		});
 
 		const variants = api.mock.calls.map((c) => c[0].modelKey).sort();
 		expect(variants).toEqual([
@@ -260,7 +259,11 @@ describe("handleVimaxNovel2Video", () => {
 			baseOptions(s),
 			noProgress,
 			undefined,
-			{ uploadImpl: upload, callModelApiImpl: api, downloadOutputImpl: makeDownloadStub() }
+			{
+				uploadImpl: upload,
+				callModelApiImpl: api,
+				downloadOutputImpl: makeDownloadStub(),
+			}
 		);
 
 		expect(result.success).toBe(true);
@@ -273,10 +276,7 @@ describe("handleVimaxNovel2Video", () => {
 
 	it("idempotent skip: pre-existing mp4 is not regenerated", async () => {
 		const { slug: s, paths } = seedProject({
-			shots: [
-				{ shotId: "a" },
-				{ shotId: "b" },
-			],
+			shots: [{ shotId: "a" }, { shotId: "b" }],
 		});
 		fs.mkdirSync(paths.videosDir, { recursive: true });
 		fs.writeFileSync(shotVideoPath(paths, "a"), "prior");
@@ -288,16 +288,11 @@ describe("handleVimaxNovel2Video", () => {
 			cost: 0.26,
 		}));
 
-		await handleVimaxNovel2Video(
-			baseOptions(s),
-			noProgress,
-			undefined,
-			{
-				uploadImpl: makeUploadStub(),
-				callModelApiImpl: api,
-				downloadOutputImpl: makeDownloadStub(),
-			}
-		);
+		await handleVimaxNovel2Video(baseOptions(s), noProgress, undefined, {
+			uploadImpl: makeUploadStub(),
+			callModelApiImpl: api,
+			downloadOutputImpl: makeDownloadStub(),
+		});
 		// Only 'b' is regenerated
 		expect(api).toHaveBeenCalledTimes(1);
 		// Pre-existing file still has original content
@@ -393,7 +388,9 @@ describe("handleVimaxNovel2Video", () => {
 	});
 
 	it("--force bypasses cost gate", async () => {
-		const shotList = Array.from({ length: 50 }, (_, i) => ({ shotId: `s-${i}` }));
+		const shotList = Array.from({ length: 50 }, (_, i) => ({
+			shotId: `s-${i}`,
+		}));
 		const { slug: s } = seedProject({ shots: shotList });
 		const api = makeApiStub(() => ({
 			success: true,
@@ -417,11 +414,7 @@ describe("handleVimaxNovel2Video", () => {
 
 	it("per-shot failure is non-fatal — run continues", async () => {
 		const { slug: s, paths } = seedProject({
-			shots: [
-				{ shotId: "a" },
-				{ shotId: "b" },
-				{ shotId: "c" },
-			],
+			shots: [{ shotId: "a" }, { shotId: "b" }, { shotId: "c" }],
 		});
 		let callIndex = 0;
 		const api = makeApiStub(() => {
@@ -450,7 +443,9 @@ describe("handleVimaxNovel2Video", () => {
 		expect(result.success).toBe(true);
 		expect(result.data?.shots_failed).toBe(1);
 
-		const registry = JSON.parse(fs.readFileSync(videoRegistryPath(paths), "utf-8"));
+		const registry = JSON.parse(
+			fs.readFileSync(videoRegistryPath(paths), "utf-8")
+		);
 		const statuses = registry.shots.map((e: { status: string }) => e.status);
 		expect(statuses).toEqual(["success", "failed", "success"]);
 	});
@@ -518,7 +513,8 @@ describe("handleVimaxNovel2Video", () => {
 			noProgress,
 			undefined,
 			{
-				uploadImpl: upload as unknown as typeof import("../../../output/upload-helper.js").uploadFileForReference,
+				uploadImpl:
+					upload as unknown as typeof import("../../../output/upload-helper.js").uploadFileForReference,
 				callModelApiImpl: api,
 				downloadOutputImpl: makeDownloadStub(),
 			}
@@ -706,11 +702,14 @@ describe("handleVimaxNovel2Video", () => {
 			{
 				uploadImpl: makeUploadStub(),
 				callModelApiImpl: api,
-				downloadOutputImpl: download as unknown as typeof import("../../../infra/api-caller.js").downloadOutput,
+				downloadOutputImpl:
+					download as unknown as typeof import("../../../infra/api-caller.js").downloadOutput,
 			}
 		);
 		expect(result.success).toBe(false);
-		const registry = JSON.parse(fs.readFileSync(videoRegistryPath(paths), "utf-8"));
+		const registry = JSON.parse(
+			fs.readFileSync(videoRegistryPath(paths), "utf-8")
+		);
 		expect(registry.shots[0].status).toBe("failed");
 		expect(registry.shots[0].error).toMatch(/download/i);
 	});

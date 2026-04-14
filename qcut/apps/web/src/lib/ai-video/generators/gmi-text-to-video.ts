@@ -177,7 +177,8 @@ export function applySeedance260128OptionalFields(
 	if (params.ratio) target.ratio = params.ratio;
 	if (params.seed != null) target.seed = params.seed;
 	if (params.watermark != null) target.watermark = params.watermark;
-	if (params.generateAudio != null) target.generate_audio = params.generateAudio;
+	if (params.generateAudio != null)
+		target.generate_audio = params.generateAudio;
 	if (params.webSearch != null) target.web_search = params.webSearch;
 	if (params.referenceImages?.length) {
 		target.reference_images = params.referenceImages;

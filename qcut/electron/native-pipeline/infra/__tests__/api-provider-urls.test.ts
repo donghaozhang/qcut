@@ -46,9 +46,9 @@ describe("extractOutputUrl", () => {
 		// Mirrors `pollGmiQueue` in api-caller.ts — GMI's outcome shape is
 		// `{ video_url: "..." }`, and proxy responses route through this
 		// function via `extractOutputUrl(outcome ?? status)`.
-		expect(
-			extractOutputUrl({ video_url: "https://gmi.example/out.mp4" })
-		).toBe("https://gmi.example/out.mp4");
+		expect(extractOutputUrl({ video_url: "https://gmi.example/out.mp4" })).toBe(
+			"https://gmi.example/out.mp4"
+		);
 	});
 
 	it("extracts top-level image_url and audio_url", () => {

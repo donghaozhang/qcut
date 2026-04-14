@@ -309,7 +309,9 @@ describe("uploadFileForReference", () => {
 		expect(fetchImpl).toHaveBeenCalledTimes(4);
 
 		const [initUrl, initInit] = fetchImpl.mock.calls[2];
-		expect(String(initUrl)).toContain("rest.alpha.fal.ai/storage/upload/initiate");
+		expect(String(initUrl)).toContain(
+			"rest.alpha.fal.ai/storage/upload/initiate"
+		);
 		expect((initInit as RequestInit).method).toBe("POST");
 		const headers = (initInit as RequestInit).headers as Record<string, string>;
 		expect(headers.Authorization).toBe("Key fal-direct-key");

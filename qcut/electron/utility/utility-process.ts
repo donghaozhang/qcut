@@ -86,9 +86,7 @@ export function requestFromMain(
 		// Any shorter timeout here truncates main's own wait and produces
 		// a misleading "Main process request timed out" error while the
 		// renderer is still coming up.
-		const timeoutMs = channel.startsWith("screen-recording:")
-			? 35_000
-			: 10_000;
+		const timeoutMs = channel.startsWith("screen-recording:") ? 35_000 : 10_000;
 		const timer = setTimeout(() => {
 			pendingRequests.delete(id);
 			reject(new Error(`Main process request timed out: ${channel}`));

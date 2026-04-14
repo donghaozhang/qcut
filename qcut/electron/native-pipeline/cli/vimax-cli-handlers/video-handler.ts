@@ -184,7 +184,10 @@ export async function handleVimaxNovel2Video(
 	try {
 		family = resolveSeedanceFamily(options.model);
 	} catch (err) {
-		return { success: false, error: err instanceof Error ? err.message : String(err) };
+		return {
+			success: false,
+			error: err instanceof Error ? err.message : String(err),
+		};
 	}
 
 	const costPerSecond = COST_PER_SECOND[family];
@@ -244,9 +247,7 @@ export async function handleVimaxNovel2Video(
 		Math.min(options.concurrency ?? 1, plannedShots.length)
 	);
 	if (concurrency > 1) {
-		console.error(
-			`  [pool] running up to ${concurrency} shots in parallel`
-		);
+		console.error(`  [pool] running up to ${concurrency} shots in parallel`);
 	}
 
 	const runOneShot = async (index: number): Promise<void> => {
@@ -346,9 +347,7 @@ export async function handleVimaxNovel2Video(
 		const cost = apiResult.cost ?? thisShotDuration * costPerSecond;
 		totalCost += cost;
 		successCount++;
-		shotStep.end(
-			`${shortVariantLabel(adapted.variant)}, ${formatUsd(cost)}`
-		);
+		shotStep.end(`${shortVariantLabel(adapted.variant)}, ${formatUsd(cost)}`);
 		registry.push({
 			shot_id: shot.shotId,
 			status: "success",
@@ -475,7 +474,8 @@ function loadShots(paths: ProjectPaths): Shot[] {
 					characters: Array.isArray(shot.characters)
 						? shot.characters.filter((c): c is string => typeof c === "string")
 						: [],
-					durationSeconds: Number(shot.duration_seconds) || DEFAULT_SHOT_DURATION,
+					durationSeconds:
+						Number(shot.duration_seconds) || DEFAULT_SHOT_DURATION,
 					firstFrameUrl:
 						typeof shot.first_frame_url === "string"
 							? shot.first_frame_url

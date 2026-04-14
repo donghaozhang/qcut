@@ -250,7 +250,10 @@ export async function uploadFileForReference(
 	}
 	const stat = fs.statSync(filePath);
 	if (stat.size === 0) {
-		throw new UploadError(`Empty file cannot be uploaded: ${filePath}`, "preflight");
+		throw new UploadError(
+			`Empty file cannot be uploaded: ${filePath}`,
+			"preflight"
+		);
 	}
 	const bytes = stat.size;
 	const fileName = path.basename(filePath);

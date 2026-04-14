@@ -38,9 +38,7 @@ export interface ComposeStylePrefixOptions {
  * when the level is `natural` (the snippet would be empty and we don't
  * want a dangling comma).
  */
-export function composeStylePrefix(
-	options: ComposeStylePrefixOptions
-): string {
+export function composeStylePrefix(options: ComposeStylePrefixOptions): string {
 	const style = options.style?.trim();
 	const level = options.castQuality ?? "natural";
 	const gender: CastGender = options.gender ?? "unknown";

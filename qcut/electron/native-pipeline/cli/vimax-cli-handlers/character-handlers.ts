@@ -144,8 +144,7 @@ export async function handleVimaxExtractCharacters(
 		// Rebake portrait_prompt per character when region changed the
 		// subject descriptor or cast quality adds a prefix snippet — both
 		// situations require regenerating rather than appending.
-		const needsPromptRebake =
-			!!region || castQuality !== "natural";
+		const needsPromptRebake = !!region || castQuality !== "natural";
 		if (needsPromptRebake) {
 			for (const c of characters) {
 				if (!c.portrait) continue;
@@ -224,9 +223,7 @@ export async function handleVimaxExtractCharacters(
 						]
 					: []),
 				...(region ? [`Region:      ${region}`] : []),
-				...(castQuality !== "natural"
-					? [`Cast quality: ${castQuality}`]
-					: []),
+				...(castQuality !== "natural" ? [`Cast quality: ${castQuality}`] : []),
 			],
 		});
 
@@ -374,8 +371,7 @@ export async function handleVimaxGeneratePortraits(
 				const meta = readProjectMetadata(projectPaths);
 				if (meta?.style) projectStyle = meta.style;
 				if (meta?.cast_quality) {
-					projectCastQuality =
-						parseCastQuality(meta.cast_quality) ?? "natural";
+					projectCastQuality = parseCastQuality(meta.cast_quality) ?? "natural";
 				}
 			} catch {
 				// Non-fatal: fall back to generator default.
@@ -392,8 +388,7 @@ export async function handleVimaxGeneratePortraits(
 		if (projectPaths) {
 			const styleChanged =
 				resolvedStyle != null && resolvedStyle !== projectStyle;
-			const castQualityChanged =
-				newCastQuality !== projectCastQuality;
+			const castQualityChanged = newCastQuality !== projectCastQuality;
 			const explicitRegionForStage2 = parseRegion(options.region);
 			if (styleChanged || castQualityChanged || explicitRegionForStage2) {
 				const { writeProjectMetadata } = await import(
@@ -437,8 +432,7 @@ export async function handleVimaxGeneratePortraits(
 		const styleChangedForRewrite =
 			resolvedStyle != null &&
 			resolvedStyle.trim() !== (projectStyle ?? "").trim();
-		const castQualityChangedForRewrite =
-			newCastQuality !== projectCastQuality;
+		const castQualityChangedForRewrite = newCastQuality !== projectCastQuality;
 		const promptRewriteNeeded =
 			styleChangedForRewrite || castQualityChangedForRewrite;
 

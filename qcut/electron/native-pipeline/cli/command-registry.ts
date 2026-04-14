@@ -1404,9 +1404,14 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"Generate per-shot videos using Seedance 2.0 ref2v from a project's scripts + portraits (stage 4)",
 		category: "vimax",
 		flags: [
-			f("--project", "string", "Project slug under ~/Documents/QCut/projects/", {
-				required: true,
-			}),
+			f(
+				"--project",
+				"string",
+				"Project slug under ~/Documents/QCut/projects/",
+				{
+					required: true,
+				}
+			),
 			f("--max-shots", "number", "Cap total shots generated this run"),
 			f("--duration", "number", "Seconds per shot (clamped 4-15)", {
 				short: "-d",
@@ -1414,16 +1419,16 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--resolution", "string", "Seedance resolution (480p|720p|1080p)"),
 			f("--aspect-ratio", "string", "Seedance ratio (16:9|9:16|1:1|...)"),
 			f("--concurrency", "number", "Parallel shots in flight (default 1)"),
-			f("--force", "boolean", "Overwrite existing shot MP4s + bypass cost gate"),
+			f(
+				"--force",
+				"boolean",
+				"Overwrite existing shot MP4s + bypass cost gate"
+			),
 			f("--cost-gate", "number", "Projected-cost ceiling in USD (default 2)"),
 			f("--model", "string", "Video model family", {
 				short: "-m",
 				default: "gmi_seedance_2_0_260128",
-				enum: [
-					"gmi_seedance_2_0_260128",
-					"seedance_2_0",
-					"vidu_q3_ref2v_mix",
-				],
+				enum: ["gmi_seedance_2_0_260128", "seedance_2_0", "vidu_q3_ref2v_mix"],
 			}),
 		],
 		examples: [

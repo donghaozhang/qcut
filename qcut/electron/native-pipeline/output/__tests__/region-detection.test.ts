@@ -77,8 +77,7 @@ describe("detectRegion", () => {
 	it("returns undefined below the 3% noise floor", () => {
 		// Mostly English with a single Chinese name — the name shouldn't
 		// force the whole cast to east-asian.
-		const novel =
-			"Alice walked into the grand ballroom. ".repeat(500) + "某某";
+		const novel = "Alice walked into the grand ballroom. ".repeat(500) + "某某";
 		expect(detectRegion(novel)).toBeUndefined();
 	});
 

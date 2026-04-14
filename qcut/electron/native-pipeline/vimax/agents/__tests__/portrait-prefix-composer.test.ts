@@ -62,9 +62,9 @@ describe("composeStylePrefix", () => {
 
 	it("returns empty when both style and snippet are empty", () => {
 		expect(composeStylePrefix({})).toBe("");
-		expect(
-			composeStylePrefix({ style: "   ", castQuality: "natural" })
-		).toBe("");
+		expect(composeStylePrefix({ style: "   ", castQuality: "natural" })).toBe(
+			""
+		);
 	});
 
 	it("defaults to unknown gender when not provided", () => {
