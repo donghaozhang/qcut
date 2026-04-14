@@ -354,9 +354,146 @@ describe("resolveSeedanceFamily", () => {
 		expect(resolveSeedanceFamily("seedance_2_0_i2v")).toBe("fal");
 	});
 
+	it("maps the Vidu Q3 ref2v mix family", () => {
+		expect(resolveSeedanceFamily("vidu_q3_ref2v_mix")).toBe("vidu");
+	});
+
 	it("throws on unknown model keys", () => {
 		expect(() => resolveSeedanceFamily("kling_v3_pro")).toThrow(
 			/Unknown video model/i
 		);
+	});
+});
+
+describe("adaptShotForSeedance — Vidu family", () => {
+	it("ref2v uses Vidu endpoint, reference_image_urls field, and integer duration", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1-1-1",
+				description: "Anime woman walks into frame",
+				characters: ["Alice"],
+				durationSeconds: 5,
+				resolution: "720p",
+				aspectRatio: "16:9",
+				generateAudio: true,
+			},
+			{ Alice: "https://cdn/a.png" },
+			"vidu"
+		);
+		expect(adapted.variant).toBe("vidu_q3_ref2v_mix");
+		expect(adapted.endpoint).toBe("fal-ai/vidu/q3/reference-to-video/mix");
+		expect(adapted.provider).toBe("fal");
+		// Vidu-specific field names — NOT `reference_images` (GMI) or
+		// `image_urls` (FAL Seedance).
+		expect(adapted.payload.reference_image_urls).toEqual([
+			"https://cdn/a.png",
+		]);
+		expect(adapted.payload).not.toHaveProperty("reference_images");
+		expect(adapted.payload).not.toHaveProperty("image_urls");
+		expect(adapted.payload).not.toHaveProperty("image_url");
+		expect(adapted.payload).not.toHaveProperty("first_frame");
+		// Duration stays a number — Vidu accepts integer (unlike FAL Seedance).
+		expect(typeof adapted.payload.duration).toBe("number");
+		expect(adapted.payload.duration).toBe(5);
+		// Audio toggle is `audio`, not `generate_audio` (that's Vidu Q3 i2v).
+		expect(adapted.payload.audio).toBe(true);
+		expect(adapted.payload).not.toHaveProperty("generate_audio");
+		// Aspect ratio uses the FAL convention (Vidu endpoint is on FAL).
+		expect(adapted.payload.aspect_ratio).toBe("16:9");
+		expect(adapted.payload).not.toHaveProperty("ratio");
+	});
+
+	it("allows up to 4 reference images", () => {
+		const portraits: Record<string, string> = {};
+		const characters: string[] = [];
+		for (let i = 0; i < 6; i++) {
+			const name = `c${i}`;
+			portraits[name] = `https://cdn/${i}.png`;
+			characters.push(name);
+		}
+		const adapted = adaptShotForSeedance(
+			{ shotId: "x", description: "ensemble", characters },
+			portraits,
+			"vidu"
+		);
+		expect(adapted.variant).toBe("vidu_q3_ref2v_mix");
+		expect((adapted.payload.reference_image_urls as string[]).length).toBe(4);
+	});
+
+	it("degrades to FAL Seedance t2v when no characters are catalogued", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1-1-2",
+				description: "crowd shot",
+				characters: ["Ghost"], // uncatalogued
+			},
+			{},
+			"vidu"
+		);
+		// Vidu has no t2v endpoint — degrade cross-family.
+		expect(adapted.variant).toBe("seedance_2_0");
+		expect(adapted.endpoint).toBe("bytedance/seedance-2.0/text-to-video");
+		expect(adapted.provider).toBe("fal");
+		expect(adapted.reason).toMatch(/FAL Seedance 2.0 t2v/);
+		expect(adapted.reason).toMatch(/Vidu has no t2v endpoint/);
+		// Payload should match the FAL Seedance shape (string duration).
+		expect(adapted.payload.duration).toBe("5");
+	});
+
+	it("degrades to FAL Seedance i2v when firstFrameUrl is set", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1-1-3",
+				description: "anchored shot",
+				characters: ["Alice"],
+				firstFrameUrl: "https://cdn/anchor.png",
+			},
+			{ Alice: "https://cdn/a.png" },
+			"vidu"
+		);
+		// firstFrameUrl takes precedence over characters; Vidu has no i2v.
+		expect(adapted.variant).toBe("seedance_2_0_i2v");
+		expect(adapted.endpoint).toBe("bytedance/seedance-2.0/image-to-video");
+		expect(adapted.provider).toBe("fal");
+		expect(adapted.payload.image_url).toBe("https://cdn/anchor.png");
+		expect(adapted.payload).not.toHaveProperty("reference_image_urls");
+		expect(adapted.reason).toMatch(/Vidu has no i2v endpoint/);
+	});
+
+	it("forwards seed only when provided", () => {
+		const withSeed = adaptShotForSeedance(
+			{
+				shotId: "a",
+				description: "x",
+				characters: ["Alice"],
+				seed: 1337,
+			},
+			{ Alice: "https://cdn/a.png" },
+			"vidu"
+		);
+		expect(withSeed.payload.seed).toBe(1337);
+
+		const withoutSeed = adaptShotForSeedance(
+			{ shotId: "b", description: "x", characters: ["Alice"] },
+			{ Alice: "https://cdn/a.png" },
+			"vidu"
+		);
+		expect(withoutSeed.payload.seed).toBeUndefined();
+	});
+
+	it("clamps duration per global Seedance rules (4-15) even for Vidu", () => {
+		// Vidu registry allows 1-16, but the adapter enforces the Seedance-
+		// wide 4-15 clamp to keep behavior predictable across families.
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "a",
+				description: "x",
+				characters: ["Alice"],
+				durationSeconds: 2,
+			},
+			{ Alice: "https://cdn/a.png" },
+			"vidu"
+		);
+		expect(adapted.payload.duration).toBe(4);
 	});
 });

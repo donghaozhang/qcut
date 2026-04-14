@@ -121,6 +121,10 @@ export interface CLIRunOptions {
 	// vimax options
 	noReferences?: boolean;
 	projectId?: string;
+	/** Cast-wide region (e.g. `east-asian`). Fills empty character ethnicity fields. */
+	region?: string;
+	/** Cast-quality preset (`natural` | `photogenic` | `model-grade`). */
+	castQuality?: string;
 	// novel2video options
 	/** Cap shots generated this run (default: all shots) */
 	maxShots?: number;

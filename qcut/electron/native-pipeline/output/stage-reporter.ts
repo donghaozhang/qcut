@@ -105,12 +105,13 @@ export function estimateNovel2Script(
  */
 export function estimateNovel2Video(
 	shotCount: number,
-	averageShotSeconds = 5
+	averageShotSeconds = 5,
+	costPerSecond = 0.052
 ): StageEstimate {
-	const cost = shotCount * averageShotSeconds * 0.052;
+	const cost = shotCount * averageShotSeconds * costPerSecond;
 	return {
 		title: "Stage 4 — Generate per-shot videos",
-		inputSummary: `${shotCount} shot${shotCount === 1 ? "" : "s"} × ${averageShotSeconds}s → ${shotCount} Seedance calls`,
+		inputSummary: `${shotCount} shot${shotCount === 1 ? "" : "s"} × ${averageShotSeconds}s → ${shotCount} video calls`,
 		// 3m-6m per shot observed; run serially unless --concurrency raised.
 		estLowSeconds: 180 * shotCount,
 		estHighSeconds: 360 * shotCount,
@@ -118,7 +119,7 @@ export function estimateNovel2Video(
 		estHighCostUsd: cost,
 		notes: [
 			"Per-shot wall-clock is 3-6 min (Apr-14 smoke run)",
-			"Cost is fixed at $0.052/s — --max-shots caps total spend",
+			`Cost is fixed at $${costPerSecond}/s — --max-shots caps total spend`,
 			"--force bypasses the cost gate; otherwise $2 projected limit",
 		],
 	};

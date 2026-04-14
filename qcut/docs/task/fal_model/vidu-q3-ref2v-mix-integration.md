@@ -1,8 +1,75 @@
 # Vidu Q3 Reference-to-Video (`mix`) — Integration Plan
 
+> **Status:** ✅ Implemented on 2026-04-14 (subtasks 1–3 + plan
+> update). Live verification (subtask 4) deferred — same shape as
+> the FAL Seedance ref2v path we validated end-to-end this morning,
+> so the smoke test is optional unless the user wants the cost +
+> wall-clock baseline recorded.
+>
 > **Target endpoint:** `fal-ai/vidu/q3/reference-to-video/mix`
 > **Source spec:** [fal.ai/models/fal-ai/vidu/q3/reference-to-video/mix/api](https://fal.ai/models/fal-ai/vidu/q3/reference-to-video/mix/api)
 > **Date:** 2026-04-14
+
+## Implementation summary (2026-04-14)
+
+### Files changed
+
+- `electron/native-pipeline/registry-data/image-to-video.ts` — added
+  `vidu_q3_ref2v_mix` registry entry (FAL provider, `audio: true`
+  default, `inputRequirements.required: ["prompt", "reference_image_urls"]`).
+- `apps/web/src/components/editor/media-panel/views/ai/constants/image2video-models-config.ts` — added
+  UI model entry + appended to `I2V_MODEL_ORDER` next to `vidu_q3_i2v`.
+- `electron/native-pipeline/cli/command-registry.ts` — added
+  `vidu_q3_ref2v_mix` to the `create-video --model` enum so
+  `gen video -m vidu_q3_ref2v_mix` clears CLI validation.
+- `electron/native-pipeline/execution/step-executors.ts` — new
+  branch in `executeImageToVideo` mapping `input.imageUrl` →
+  `payload.reference_image_urls = [url]`. Duration left as integer
+  (Vidu accepts numeric, unlike FAL Seedance 2.0 which forces
+  string).
+- **New**: `electron/native-pipeline/execution/__tests__/step-executors-vidu.test.ts` —
+  6 tests covering payload shape + 2 regression guards for
+  Seedance branches.
+
+### Test results
+
+- `bunx vitest run electron/native-pipeline/execution/__tests__/step-executors-vidu.test.ts`
+  → **6 tests passed**
+- `bunx vitest run electron/native-pipeline/execution/ electron/native-pipeline/cli/vimax-cli-handlers/__tests__/`
+  → **53 tests passed** (no regressions)
+- `bunx tsc -p apps/web/tsconfig.json --noEmit` → clean
+
+### How it gets used
+
+```bash
+qcut gen video -m vidu_q3_ref2v_mix \
+  -t "<prompt>" \
+  --image-url <public-https-url> \
+  -d 4s --resolution 720p --aspect-ratio 16:9
+```
+
+The image URL gets wrapped in a length-1 array and passed as
+`reference_image_urls` (the field name Vidu Q3 mix requires).
+Multi-image (1–4) support is the first follow-up — needs an
+`--image-urls` array flag in the CLI plus the executor branch
+already in place.
+
+### Design choices recorded
+
+- **Per-key branch in `executeImageToVideo` instead of an
+  abstraction.** Three providers, three field names:
+  - GMI Seedance 260128 ref2v → `reference_images`
+  - FAL Seedance 2.0 ref2v → `image_urls`
+  - **Vidu Q3 mix → `reference_image_urls` (new)**
+  Three is too few to abstract and they won't converge — each
+  provider picked its own. Revisit when a fifth ref2v model lands.
+- **Did not register `vidu_q3_i2v` in the electron registry.** That
+  model is only referenced by the apps/web UI today; the CLI
+  doesn't gate on it. Adding it isn't this plan's scope.
+- **`flow novel2video` Stage 4 untouched.** Its shot adapter is
+  Seedance-family-only; integrating Vidu would force a third
+  payload-builder family for what's currently a one-off CLI
+  capability. Defer.
 
 ## Summary
 
@@ -18,12 +85,12 @@ shared-adapter refactor — to keep blast radius small.
 Total estimate: **~30 min** → split into 4 subtasks (planit rule:
 >20 min ⇒ subtasks).
 
-| # | Subtask | Est. | Doc |
-|---|---------|-----:|-----|
-| 1 | Registry + UI model config | 10 min | [01-registry-and-ui.md](./vidu-q3-ref2v-mix/01-registry-and-ui.md) |
-| 2 | CLI enum + step-executor field mapping | 5 min | [02-cli-and-executor.md](./vidu-q3-ref2v-mix/02-cli-and-executor.md) |
-| 3 | Unit tests | 10 min | [03-tests.md](./vidu-q3-ref2v-mix/03-tests.md) |
-| 4 | Live verification + docs | 5 min | [04-docs-and-verify.md](./vidu-q3-ref2v-mix/04-docs-and-verify.md) |
+| # | Subtask | Status | Doc |
+|---|---------|:-----:|-----|
+| 1 | Registry + UI model config | ✅ | [01-registry-and-ui.md](./vidu-q3-ref2v-mix/01-registry-and-ui.md) |
+| 2 | CLI enum + step-executor field mapping | ✅ | [02-cli-and-executor.md](./vidu-q3-ref2v-mix/02-cli-and-executor.md) |
+| 3 | Unit tests | ✅ | [03-tests.md](./vidu-q3-ref2v-mix/03-tests.md) |
+| 4 | Live verification + docs | ⏸ deferred | [04-docs-and-verify.md](./vidu-q3-ref2v-mix/04-docs-and-verify.md) |
 
 ## Endpoint contract (verified from FAL docs)
 

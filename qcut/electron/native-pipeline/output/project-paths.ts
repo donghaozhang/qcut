@@ -41,6 +41,19 @@ export interface ProjectMetadata {
 	novel_path?: string;
 	title?: string;
 	style?: string;
+	/**
+	 * Cast-wide region bucket (e.g. `east-asian`, `european`). Used at
+	 * Stage 1 to fill empty per-character `ethnicity` fields so related
+	 * characters (siblings, parents) don't drift across nationalities.
+	 * Per-character `ethnicity` in `characters.json` still overrides.
+	 */
+	region?: string;
+	/**
+	 * Cast quality preset — attractiveness descriptor prepended to every
+	 * portrait prompt. Values: `natural` (default, no-op) / `photogenic`
+	 * (mild) / `model-grade` (explicit drama-lead look).
+	 */
+	cast_quality?: string;
 	created_at: string;
 	updated_at: string;
 	stages_completed: ProjectStage[];
@@ -136,6 +149,8 @@ export function writeProjectMetadata(
 		...(existing?.novel_path ? { novel_path: existing.novel_path } : {}),
 		...(existing?.title ? { title: existing.title } : {}),
 		...(existing?.style ? { style: existing.style } : {}),
+		...(existing?.region ? { region: existing.region } : {}),
+		...(existing?.cast_quality ? { cast_quality: existing.cast_quality } : {}),
 		...patch,
 	};
 	fs.writeFileSync(paths.metadataPath, JSON.stringify(next, null, 2));

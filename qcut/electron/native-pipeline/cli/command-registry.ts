@@ -1449,10 +1449,21 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				"string",
 				"Preset slug (photorealistic|anime|ghibli|3d-animation|chinese-ink|watercolor|cyberpunk|noir) or free-form text; persisted into project.json"
 			),
+			f(
+				"--region",
+				"string",
+				"Cast region (east-asian|southeast-asian|south-asian|middle-eastern|african|european|latin|mixed); auto-detected from novel if omitted. Fills empty per-character ethnicity."
+			),
+			f(
+				"--cast-quality",
+				"string",
+				"Attractiveness preset (natural|photogenic|model-grade); default natural. Prepends a gender-aware snippet to every portrait prompt."
+			),
 		],
 		examples: [
 			"qcut flow characters --novel story.md --project my-story",
-			"qcut flow characters -t 'John met Alice at...'",
+			"qcut flow characters --novel story.md --project my-story --cast-quality photogenic",
+			"qcut flow characters --novel story.md --project my-story --region east-asian --cast-quality model-grade",
 		],
 	},
 	"vimax:generate-script": {
@@ -1503,9 +1514,20 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--save-registry", "boolean", "Save portrait registry", {
 				default: true,
 			}),
+			f(
+				"--region",
+				"string",
+				"Override region — persisted to project.json so later stages see it"
+			),
+			f(
+				"--cast-quality",
+				"string",
+				"Override cast quality (natural|photogenic|model-grade); rewrites each portrait prompt's prefix"
+			),
 		],
 		examples: [
 			"qcut flow portraits --project my-story",
+			"qcut flow portraits --project my-story --cast-quality photogenic",
 			"qcut flow portraits -p characters.json",
 		],
 	},

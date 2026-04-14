@@ -507,6 +507,158 @@ describe("handleVimaxNovel2Video", () => {
 		expect(api.mock.calls[0][0].modelKey).toBe("gmi_seedance_2_0_260128_t2v");
 	});
 
+	it("--concurrency N runs up to N shots in parallel", async () => {
+		const { slug: s } = seedProject({
+			shots: [
+				{ shotId: "a" },
+				{ shotId: "b" },
+				{ shotId: "c" },
+				{ shotId: "d" },
+			],
+		});
+
+		// Track maximum concurrent in-flight API calls by gating each call
+		// on a deferred promise we release in order.
+		let inFlight = 0;
+		let maxInFlight = 0;
+		const releasers: Array<() => void> = [];
+		const api = makeApiStub(async () => {
+			inFlight++;
+			maxInFlight = Math.max(maxInFlight, inFlight);
+			await new Promise<void>((resolve) => {
+				releasers.push(resolve);
+			});
+			inFlight--;
+			return {
+				success: true,
+				outputUrl: "https://cdn.example/out.mp4",
+				duration: 1,
+				cost: 0.26,
+			};
+		});
+
+		const runPromise = handleVimaxNovel2Video(
+			{ ...baseOptions(s), concurrency: 3 } as CLIRunOptions,
+			noProgress,
+			undefined,
+			{
+				uploadImpl: makeUploadStub(),
+				callModelApiImpl: api,
+				downloadOutputImpl: makeDownloadStub(),
+			}
+		);
+
+		// Let the workers fan out, then assert 3 are in flight.
+		await new Promise((r) => setTimeout(r, 30));
+		expect(inFlight).toBe(3);
+		expect(maxInFlight).toBe(3);
+
+		// Release all four shots one by one.
+		while (releasers.length > 0) {
+			const release = releasers.shift();
+			release?.();
+			await new Promise((r) => setTimeout(r, 10));
+		}
+
+		const result = await runPromise;
+		expect(result.success).toBe(true);
+		expect(api).toHaveBeenCalledTimes(4);
+		expect(maxInFlight).toBe(3); // never exceeded the cap
+	});
+
+	it("defaults to concurrency 1 (serial) when flag omitted", async () => {
+		const { slug: s } = seedProject({
+			shots: [{ shotId: "a" }, { shotId: "b" }, { shotId: "c" }],
+		});
+		let inFlight = 0;
+		let maxInFlight = 0;
+		const api = makeApiStub(async () => {
+			inFlight++;
+			maxInFlight = Math.max(maxInFlight, inFlight);
+			await new Promise((r) => setTimeout(r, 5));
+			inFlight--;
+			return {
+				success: true,
+				outputUrl: "https://cdn.example/out.mp4",
+				duration: 1,
+				cost: 0.26,
+			};
+		});
+		const result = await handleVimaxNovel2Video(
+			baseOptions(s),
+			noProgress,
+			undefined,
+			{
+				uploadImpl: makeUploadStub(),
+				callModelApiImpl: api,
+				downloadOutputImpl: makeDownloadStub(),
+			}
+		);
+		expect(result.success).toBe(true);
+		expect(maxInFlight).toBe(1);
+	});
+
+	it("--model vidu_q3_ref2v_mix routes through the Vidu endpoint", async () => {
+		const { slug: s } = seedProject({
+			shots: [{ shotId: "1-1-1", characters: ["Alice"] }],
+			portraits: { Alice: {} },
+		});
+		const api = makeApiStub(() => ({
+			success: true,
+			outputUrl: "https://cdn.example/out.mp4",
+			duration: 1,
+			cost: 0.77,
+		}));
+		const result = await handleVimaxNovel2Video(
+			{ ...baseOptions(s), model: "vidu_q3_ref2v_mix" } as CLIRunOptions,
+			noProgress,
+			undefined,
+			{
+				uploadImpl: makeUploadStub(),
+				callModelApiImpl: api,
+				downloadOutputImpl: makeDownloadStub(),
+			}
+		);
+		expect(result.success).toBe(true);
+		const call = api.mock.calls[0][0];
+		expect(call.endpoint).toBe("fal-ai/vidu/q3/reference-to-video/mix");
+		expect(call.modelKey).toBe("vidu_q3_ref2v_mix");
+		expect(call.provider).toBe("fal");
+		// Vidu-specific payload fields
+		expect(call.payload.reference_image_urls).toEqual([
+			"https://upload.example/front.png",
+		]);
+		expect(typeof call.payload.duration).toBe("number");
+		expect(call.payload.audio).toBe(true);
+	});
+
+	it("vidu cost gate uses $0.154/s (shot with no refs degrades to FAL t2v)", async () => {
+		// 30 shots × 5s × $0.154 = $23.10 > $2 default gate
+		const shotList = Array.from({ length: 30 }, (_, i) => ({
+			shotId: `s-${i}`,
+		}));
+		const { slug: s } = seedProject({ shots: shotList });
+		const api = makeApiStub(() => ({
+			success: true,
+			outputUrl: "x",
+			duration: 1,
+		}));
+		const result = await handleVimaxNovel2Video(
+			{ ...baseOptions(s), model: "vidu_q3_ref2v_mix" } as CLIRunOptions,
+			noProgress,
+			undefined,
+			{
+				uploadImpl: makeUploadStub(),
+				callModelApiImpl: api,
+				downloadOutputImpl: makeDownloadStub(),
+			}
+		);
+		expect(result.success).toBe(false);
+		// Error message mentions the Vidu rate
+		expect(result.error).toMatch(/VIDU/i);
+		expect(api).not.toHaveBeenCalled();
+	});
+
 	it("download failure is non-fatal and recorded in registry", async () => {
 		const { slug: s, paths } = seedProject({ shots: [{ shotId: "a" }] });
 		const api = makeApiStub(() => ({

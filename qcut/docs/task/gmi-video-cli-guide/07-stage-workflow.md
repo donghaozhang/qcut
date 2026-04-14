@@ -40,10 +40,28 @@ qcut flow characters \
 ### Stage 2 — generate portraits
 
 ```bash
+# Default: GMI Gemini 3.1 Flash Image
 qcut flow portraits \
     --project cdrama-heiress-v3 \
     --style "Modern anime film, soft cel-shading, expressive eyes, cinematic light" \
     --image-model gmi_gemini_31_flash_image
+
+# FAL fallback: same Google Gemini image family via FAL ("nano-banana"
+# was Google's internal codename). Bypasses GMI's billing microservice
+# when it's down. $0.002/image.
+qcut flow portraits \
+    --project cdrama-heiress-v3 \
+    --style "Modern anime film, soft cel-shading, expressive eyes, cinematic light" \
+    --image-model nano_banana_pro
+
+# Optional quality knobs (new 2026-04-14):
+#   --region east-asian   — fill empty per-character ethnicity
+#   --cast-quality model-grade  — gender-aware attractiveness snippet
+qcut flow portraits \
+    --project cdrama-heiress-v3 \
+    --image-model nano_banana_pro \
+    --region east-asian \
+    --cast-quality model-grade
 ```
 
 ### Stage 3 — segment novel into scripts
@@ -56,7 +74,7 @@ qcut flow novel2script \
     --max-scenes 20
 ```
 
-### Stage 4 — generate per-shot videos (Seedance 2.0 ref2v)
+### Stage 4 — generate per-shot videos (Seedance 2.0 / Vidu ref2v)
 
 ```bash
 # Default: GMI Seedance 260128 — $0.052/s
@@ -73,6 +91,15 @@ qcut flow novel2video \
     --duration 4 \
     --resolution 720p \
     --model seedance_2_0
+
+# Vidu Q3 ref2v mix — $0.154/s at 720p, character-consistent multi-ref
+qcut flow novel2video \
+    --project cdrama-heiress-v3 \
+    --model vidu_q3_ref2v_mix \
+    --max-shots 3 \
+    --duration 5 \
+    --resolution 720p \
+    --aspect-ratio 16:9
 ```
 
 ### Stage 5 — single-shot smoke test (Seedance 2.0 ref2v, no project)

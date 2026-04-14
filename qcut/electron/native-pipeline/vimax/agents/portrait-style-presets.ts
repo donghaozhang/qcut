@@ -180,12 +180,25 @@ export function rewritePortraitPromptStyle(
 		const oldPrefix = oldStyle.trim();
 		// Trailing comma+space matches what composePortraitPrompt joins on.
 		const literal = `${oldPrefix}, `;
-		if (prompt.startsWith(literal)) {
-			return `${newPrefix}, ${prompt.slice(literal.length)}`;
+		// Previously only matched when oldStyle was at index 0. After
+		// `composePortraitPrompt` started always emitting a framing
+		// clause (`front portrait, …`) before the aesthetic slot, the
+		// baked prompt no longer starts with oldStyle — so we scan for
+		// the literal anywhere and replace the first occurrence. The
+		// oldStyle is a multi-clause string, so accidental collisions
+		// with the subject descriptor are very unlikely.
+		const idx = prompt.indexOf(literal);
+		if (idx >= 0) {
+			return (
+				prompt.slice(0, idx) +
+				newPrefix +
+				", " +
+				prompt.slice(idx + literal.length)
+			);
 		}
 	}
 
-	// Old style not at the front (or unknown) — prepend the new one
-	// so the model still sees it before the character description.
+	// Old style not present (or unknown) — prepend the new one so the
+	// model still sees it before the character description.
 	return `${newPrefix}, ${prompt}`;
 }

@@ -1,9 +1,15 @@
-# Stage 4 — `flow novel2video` (Seedance 2.0 ref2v)
+# Stage 4 — `flow novel2video` (Seedance + Vidu ref2v)
 
 > **Status:** ✅ Implemented on 2026-04-14 (branch `cli-movie`).
 > End-to-end smoke on `cdrama-heiress-real-1776148633` produced
 > `videos/shot_1-1-1.mp4` (2.7 MB, $0.26, 6m 3s). Handler + adapter
 > + upload helper all landed with 47 new + 19 regression tests green.
+>
+> **2026-04-14 follow-up:** adapter extended to a third family —
+> `vidu_q3_ref2v_mix` (FAL). Vidu ships with only a ref2v endpoint;
+> shots without catalogued characters or with a `firstFrameUrl`
+> degrade cross-family to FAL Seedance 2.0 t2v / i2v. 110 tests
+> green (47 Stage-4 + Vidu branches + 63 regression).
 >
 > **Known limitation:** server-side FAL key isn't configured on
 > `qcut-license-server`, so `/api/ai/upload-url` returns 503. The
@@ -260,6 +266,18 @@ Live smoke (2026-04-14 on `cdrama-heiress-real-1776148633`):
 - `project.json.stages_completed` now includes `"videos"`
 - Duration: 6m 3s · Cost: $0.260
 
+## Supported model families
+
+| `--model` value | Family | Ref2V field | Duration type | $/s (worst case) | Notes |
+|---|---|---|---|---|---|
+| `gmi_seedance_2_0_260128` (default) | GMI | `reference_images` | integer | **$0.052** | Cheapest; all three variants (t2v/i2v/ref2v) on one endpoint |
+| `seedance_2_0` | FAL | `image_urls` (up to 9) | string literal | $0.60 | Fallback for GMI outages; three distinct endpoints |
+| `vidu_q3_ref2v_mix` | FAL | `reference_image_urls` (up to 4) | integer | $0.154 | Character-consistent ref2v only. Shots without catalogued characters or with a `firstFrameUrl` degrade to FAL Seedance 2.0 (same provider, adjacent model) |
+
+Variant selection within the chosen family is automatic (adapter
+reads `shot.characters` + `shot.firstFrameUrl`). `--model` picks the
+**family**, not a specific variant.
+
 ## Follow-up
 
 - **Worker FAL key.** `wrangler secret put FAL_API_KEY` on
@@ -272,3 +290,7 @@ Live smoke (2026-04-14 on `cdrama-heiress-real-1776148633`):
   handler currently hard-codes `_t2v` as the fallback. The
   adapter supports a runtime override — wiring it through the
   handler is a ~5-line follow-up.
+- **Vidu cost tiers.** Registry distinguishes $0.07/s (360p/540p)
+  from $0.154/s (720p+). Handler uses the worst-case rate for the
+  gate; a resolution-aware lookup would tighten cost estimates
+  for 360p/540p runs.

@@ -25,16 +25,25 @@
  * @module electron/native-pipeline/cli/vimax-cli-handlers/video-shot-adapter
  */
 
-/** Which Seedance backend to target. */
-export type SeedanceFamily = "gmi" | "fal";
+/**
+ * Which video family to target.
+ *
+ * - `gmi`  → GMI Seedance 2.0 260128 (single endpoint, internal variant dispatch).
+ * - `fal`  → FAL Seedance 2.0 (one endpoint per variant).
+ * - `vidu` → FAL Vidu Q3 ref2v mix. Only has a ref2v endpoint — shots
+ *   with no catalogued characters or with a `firstFrameUrl` degrade
+ *   cross-family to FAL Seedance 2.0 (same provider, adjacent model).
+ */
+export type SeedanceFamily = "gmi" | "fal" | "vidu";
 
 /** Provider backend the adapter resolves to. */
 export type SeedanceProvider = "gmi" | "fal";
 
 /**
  * Concrete model variant produced by the adapter. The first three are
- * the GMI 260128 family (single endpoint, multiple variants); the last
- * three are the FAL Seedance 2.0 family (one endpoint per variant).
+ * the GMI 260128 family (single endpoint, multiple variants); the
+ * middle three are the FAL Seedance 2.0 family (one endpoint per
+ * variant); `vidu_q3_ref2v_mix` is the FAL Vidu Q3 mix variant.
  */
 export type SeedanceVariant =
 	| "gmi_seedance_2_0_260128_ref2v"
@@ -42,7 +51,8 @@ export type SeedanceVariant =
 	| "gmi_seedance_2_0_260128_t2v"
 	| "seedance_2_0_ref2v"
 	| "seedance_2_0_i2v"
-	| "seedance_2_0";
+	| "seedance_2_0"
+	| "vidu_q3_ref2v_mix";
 
 export interface ShotInput {
 	shotId: string;
@@ -89,8 +99,11 @@ export function resolveSeedanceFamily(model: string | undefined): SeedanceFamily
 	if (model === "seedance_2_0" || model.startsWith("seedance_2_0_")) {
 		return "fal";
 	}
+	if (model === "vidu_q3_ref2v_mix" || model.startsWith("vidu_q3")) {
+		return "vidu";
+	}
 	throw new Error(
-		`Unknown video model "${model}". Use "gmi_seedance_2_0_260128" (default) or "seedance_2_0".`
+		`Unknown video model "${model}". Use "gmi_seedance_2_0_260128" (default), "seedance_2_0", or "vidu_q3_ref2v_mix".`
 	);
 }
 
@@ -259,6 +272,34 @@ function baseFalPayload(common: CommonShape): Record<string, unknown> {
 	return payload;
 }
 
+/**
+ * Build the Vidu Q3 Ref2V (mix) payload.
+ *
+ * Differs from both Seedance families — Vidu's quirks are:
+ *   - field is `reference_image_urls` (plural, up to 4)
+ *   - `duration` is a **number** (not string like FAL Seedance)
+ *   - audio toggle is `audio: boolean` (not `generate_audio`)
+ * See `electron/native-pipeline/execution/__tests__/step-executors-vidu.test.ts`
+ * for the regression guards we mirror here.
+ */
+function buildViduRef2V(common: CommonShape, refs: string[]): VariantPayload {
+	const payload: Record<string, unknown> = {
+		prompt: common.prompt,
+		duration: common.duration, // Vidu accepts integer — do NOT stringify
+		reference_image_urls: refs,
+	};
+	if (common.resolution) payload.resolution = common.resolution;
+	if (common.aspectRatio) payload.aspect_ratio = common.aspectRatio;
+	if (common.generateAudio != null) payload.audio = common.generateAudio;
+	if (common.seed != null) payload.seed = common.seed;
+	return {
+		variant: "vidu_q3_ref2v_mix",
+		endpoint: "fal-ai/vidu/q3/reference-to-video/mix",
+		provider: "fal",
+		payload,
+	};
+}
+
 /** Turn a `ShotInput` + a `name → url` map into a payload-ready AdaptedShot. */
 export function adaptShotForSeedance(
 	shot: ShotInput,
@@ -293,23 +334,33 @@ export function adaptShotForSeedance(
 	};
 
 	// ── Variant selection ────────────────────────────────────────
+	// Vidu has only a ref2v endpoint — i2v and t2v shots degrade to the
+	// adjacent FAL Seedance 2.0 variant (same provider, similar quality).
+	// Callers see the cross-family degradation in `reason`.
 	if (shot.firstFrameUrl) {
 		const built =
-			family === "fal"
+			family === "fal" || family === "vidu"
 				? buildFalI2V(common, shot.firstFrameUrl)
 				: buildGmiI2V(common, shot.firstFrameUrl);
 		return {
 			...built,
 			referenceUrls: [],
 			skippedCharacters,
-			reason: "i2v: firstFrameUrl provided (overrides ref2v)",
+			reason:
+				family === "vidu"
+					? "i2v: firstFrameUrl provided, degrading to FAL Seedance 2.0 i2v (Vidu has no i2v endpoint)"
+					: "i2v: firstFrameUrl provided (overrides ref2v)",
 		};
 	}
 	if (referenceUrls.length > 0) {
 		// Seedance accepts up to 4 reference images; truncate in a stable order.
 		const refs = referenceUrls.slice(0, MAX_REFERENCES);
 		const built =
-			family === "fal" ? buildFalRef2V(common, refs) : buildGmiRef2V(common, refs);
+			family === "vidu"
+				? buildViduRef2V(common, refs)
+				: family === "fal"
+					? buildFalRef2V(common, refs)
+					: buildGmiRef2V(common, refs);
 		return {
 			...built,
 			referenceUrls: refs,
@@ -318,14 +369,21 @@ export function adaptShotForSeedance(
 		};
 	}
 
-	const built = family === "fal" ? buildFalT2V(common) : buildGmiT2V(common);
+	const built =
+		family === "fal" || family === "vidu"
+			? buildFalT2V(common)
+			: buildGmiT2V(common);
+	const baseReason =
+		skippedCharacters.length > 0
+			? `t2v: ${skippedCharacters.length} character${skippedCharacters.length === 1 ? "" : "s"} not catalogued, degrading`
+			: "t2v: no characters referenced";
 	return {
 		...built,
 		referenceUrls: [],
 		skippedCharacters,
 		reason:
-			skippedCharacters.length > 0
-				? `t2v: ${skippedCharacters.length} character${skippedCharacters.length === 1 ? "" : "s"} not catalogued, degrading`
-				: "t2v: no characters referenced",
+			family === "vidu"
+				? `${baseReason} (FAL Seedance 2.0 t2v — Vidu has no t2v endpoint)`
+				: baseReason,
 	};
 }

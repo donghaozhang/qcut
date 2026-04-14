@@ -74,6 +74,10 @@ export interface HandleVimaxNovel2VideoDeps {
 const COST_PER_SECOND: Record<SeedanceFamily, number> = {
 	gmi: 0.052,
 	fal: 0.6,
+	// Vidu Q3 mix is $0.154/s at 720p/1080p and $0.07/s at 360p/540p.
+	// Use the 720p+ rate as worst-case so the cost gate doesn't
+	// under-estimate resolution-agnostic runs.
+	vidu: 0.154,
 };
 
 const DEFAULT_COST_GATE_USD = 2;
@@ -84,7 +88,8 @@ function shortVariantLabel(variant: string): string {
 	return variant
 		.replace(/^gmi_seedance_2_0_260128_/, "")
 		.replace(/^seedance_2_0_/, "")
-		.replace(/^seedance_2_0$/, "t2v");
+		.replace(/^seedance_2_0$/, "t2v")
+		.replace(/^vidu_q3_/, "vidu-");
 }
 
 interface RawShot {
@@ -175,10 +180,13 @@ export async function handleVimaxNovel2Video(
 		return { success: false, error: err instanceof Error ? err.message : String(err) };
 	}
 
-	// ── Pre-flight + cost gate ────────────────────────────────────
-	printEstimate(estimateNovel2Video(plannedShots.length, durationSeconds));
-
 	const costPerSecond = COST_PER_SECOND[family];
+
+	// ── Pre-flight + cost gate ────────────────────────────────────
+	printEstimate(
+		estimateNovel2Video(plannedShots.length, durationSeconds, costPerSecond)
+	);
+
 	const projectedCost =
 		plannedShots.length * durationSeconds * costPerSecond;
 	const costGate = options.costGate ?? DEFAULT_COST_GATE_USD;
@@ -199,7 +207,11 @@ export async function handleVimaxNovel2Video(
 		`${Object.keys(portraitUrls).length}/${Object.keys(portraitPaths).length} uploaded`
 	);
 
-	// ── Per-shot loop ─────────────────────────────────────────────
+	// ── Per-shot pool ─────────────────────────────────────────────
+	// Each shot is independent — poll + download happen inside callApi,
+	// so running N shots concurrently parallelizes their wait loops.
+	// Node is single-threaded, so pushing to shared arrays and
+	// incrementing counters is atomic across await points; no locks.
 	const startTime = Date.now();
 	const registry: RegistryEntry[] = [];
 	const shotArtifacts: GeneratedArtifact[] = [];
@@ -207,20 +219,25 @@ export async function handleVimaxNovel2Video(
 	let failedCount = 0;
 	let skippedCount = 0;
 	let totalCost = 0;
+	let completedCount = 0;
 	const aspectRatio =
 		typeof options.aspectRatio === "string" ? options.aspectRatio : "16:9";
 	const resolution =
 		typeof options.resolution === "string" ? options.resolution : "720p";
 
-	for (let i = 0; i < plannedShots.length; i++) {
-		const shot = plannedShots[i];
+	const concurrency = Math.max(
+		1,
+		Math.min(options.concurrency ?? 1, plannedShots.length)
+	);
+	if (concurrency > 1) {
+		console.error(
+			`  [pool] running up to ${concurrency} shots in parallel`
+		);
+	}
+
+	const runOneShot = async (index: number): Promise<void> => {
+		const shot = plannedShots[index];
 		const mp4Path = shotVideoPath(paths, shot.shotId);
-		const progressBase = Math.round((i / plannedShots.length) * 90);
-		onProgress({
-			stage: "generating",
-			percent: progressBase,
-			message: `Shot ${i + 1}/${plannedShots.length}: ${shot.shotId}`,
-		});
 
 		if (fs.existsSync(mp4Path) && options.force !== true) {
 			console.error(`  [skip] shot ${shot.shotId} → ${mp4Path} already exists`);
@@ -233,7 +250,7 @@ export async function handleVimaxNovel2Video(
 			skippedCount++;
 			shotArtifacts.push(describeArtifact(mp4Path, `shot ${shot.shotId}`));
 			writeRegistry(paths, registry);
-			continue;
+			return;
 		}
 
 		const adapted = adaptShotForSeedance(
@@ -252,8 +269,9 @@ export async function handleVimaxNovel2Video(
 		);
 
 		const shotStep = startStep(
-			`shot ${i + 1}/${plannedShots.length} [${shortVariantLabel(adapted.variant)}]`
+			`shot ${shot.shotId} [${shortVariantLabel(adapted.variant)}]`
 		);
+
 		let apiResult: ApiCallResult;
 		try {
 			apiResult = await callApi({
@@ -264,18 +282,17 @@ export async function handleVimaxNovel2Video(
 			});
 		} catch (err) {
 			shotStep.end("failed");
-			const message = err instanceof Error ? err.message : String(err);
 			registry.push({
 				shot_id: shot.shotId,
 				status: "failed",
 				variant: adapted.variant,
 				reference_urls: adapted.referenceUrls,
-				error: message,
+				error: err instanceof Error ? err.message : String(err),
 				reason: adapted.reason,
 			});
 			failedCount++;
 			writeRegistry(paths, registry);
-			continue;
+			return;
 		}
 
 		if (!apiResult.success || !apiResult.outputUrl) {
@@ -290,7 +307,7 @@ export async function handleVimaxNovel2Video(
 			});
 			failedCount++;
 			writeRegistry(paths, registry);
-			continue;
+			return;
 		}
 
 		try {
@@ -307,13 +324,15 @@ export async function handleVimaxNovel2Video(
 			});
 			failedCount++;
 			writeRegistry(paths, registry);
-			continue;
+			return;
 		}
 
 		const cost = apiResult.cost ?? durationSeconds * costPerSecond;
 		totalCost += cost;
 		successCount++;
-		shotStep.end(`${shortVariantLabel(adapted.variant)}, ${formatUsd(cost)}`);
+		shotStep.end(
+			`${shortVariantLabel(adapted.variant)}, ${formatUsd(cost)}`
+		);
 		registry.push({
 			shot_id: shot.shotId,
 			status: "success",
@@ -326,7 +345,27 @@ export async function handleVimaxNovel2Video(
 		});
 		shotArtifacts.push(describeArtifact(mp4Path, `shot ${shot.shotId}`));
 		writeRegistry(paths, registry);
-	}
+	};
+
+	// Worker pulls next index from the shared queue. Stops when empty.
+	let nextIndex = 0;
+	const worker = async (): Promise<void> => {
+		while (true) {
+			const i = nextIndex++;
+			if (i >= plannedShots.length) return;
+			onProgress({
+				stage: "generating",
+				percent: Math.round((completedCount / plannedShots.length) * 90),
+				message: `Shot ${i + 1}/${plannedShots.length}: ${plannedShots[i].shotId}`,
+			});
+			await runOneShot(i);
+			completedCount++;
+		}
+	};
+
+	const workers: Promise<void>[] = [];
+	for (let w = 0; w < concurrency; w++) workers.push(worker());
+	await Promise.all(workers);
 
 	onProgress({ stage: "complete", percent: 100, message: "Done" });
 

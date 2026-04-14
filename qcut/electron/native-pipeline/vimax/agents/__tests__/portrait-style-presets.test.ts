@@ -146,6 +146,30 @@ describe("rewritePortraitPromptStyle", () => {
 		);
 		expect(out).toBe("anime, character description only");
 	});
+
+	it("finds oldStyle AFTER the framing clause (post-fix layout)", () => {
+		// Since composePortraitPrompt now always emits a framing prefix
+		// before the aesthetic slot, baked prompts no longer start with
+		// oldStyle. Rewriter must locate it mid-string and swap cleanly.
+		const post =
+			"front portrait, single subject, centered, facing camera, 真人写实, 电视风格, 暖色调, 20s female, plain bg";
+		const out = rewritePortraitPromptStyle(
+			post,
+			"真人写实, 电视风格, 暖色调",
+			"Modern anime film, soft cel-shading, expressive eyes, cinematic light"
+		);
+		expect(out).toBe(
+			"front portrait, single subject, centered, facing camera, Modern anime film, soft cel-shading, expressive eyes, cinematic light, 20s female, plain bg"
+		);
+		expect(out.startsWith("front portrait")).toBe(true);
+	});
+
+	it("only replaces the first occurrence of oldStyle", () => {
+		// Guards against a double-swap if oldStyle happens to appear twice.
+		const baked = "anime, text, anime, tail";
+		const out = rewritePortraitPromptStyle(baked, "anime", "ghibli");
+		expect(out).toBe("ghibli, text, anime, tail");
+	});
 });
 
 describe("listPortraitStyleSlugs", () => {
