@@ -583,11 +583,21 @@ export async function handleSeedance260128T2V(
 	settings: TextToVideoSettings
 ): Promise<ModelHandlerResult> {
 	try {
+		// The capability table marks this model `supportsSeed: true`, but
+		// `TextToVideoSettings` doesn't yet carry a first-class `seed` field
+		// — seeds flow through the shared `unifiedParams` bag. Read it from
+		// there so user-supplied seeds aren't silently dropped.
+		const rawSeed = settings.unifiedParams?.seed;
+		const seed =
+			typeof rawSeed === "number" && Number.isFinite(rawSeed)
+				? rawSeed
+				: undefined;
 		const response = await generateSeedance260128TextVideo({
 			prompt: ctx.prompt,
 			duration: resolveSeedanceDuration(settings.duration),
 			resolution: resolveSeedanceResolution(settings.resolution),
 			ratio: resolveSeedanceRatio(settings.aspectRatio),
+			seed,
 		});
 		return { response };
 	} catch (error) {

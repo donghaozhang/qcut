@@ -118,8 +118,8 @@ const MAX_DURATION = 15;
 const MAX_GMI_REFERENCES = 4;
 /** FAL Seedance 2.0 ref2v accepts up to 9 `image_urls`. */
 const MAX_FAL_REFERENCES = 9;
-/** FAL Vidu Q3 ref2v-mix accepts up to 7 `reference_image_urls`. */
-const MAX_VIDU_REFERENCES = 7;
+/** FAL Vidu Q3 ref2v-mix accepts up to 4 `reference_image_urls`. */
+const MAX_VIDU_REFERENCES = 4;
 const MAX_PROMPT_CHARS = 500;
 
 /** Clamp a duration to the 4-15 integer range Seedance accepts. */
@@ -294,7 +294,7 @@ function baseFalPayload(common: CommonShape): Record<string, unknown> {
  * Build the Vidu Q3 Ref2V (mix) payload.
  *
  * Differs from both Seedance families — Vidu's quirks are:
- *   - field is `reference_image_urls` (plural, up to 7)
+ *   - field is `reference_image_urls` (plural, up to 4)
  *   - `duration` is a **number** (not string like FAL Seedance)
  *   - audio toggle is `audio: boolean` (not `generate_audio`)
  * See `electron/native-pipeline/execution/__tests__/step-executors-vidu.test.ts`
