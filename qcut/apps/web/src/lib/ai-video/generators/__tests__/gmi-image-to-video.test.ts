@@ -17,6 +17,7 @@ import {
 	generateKlingV3GmiImageVideo,
 	generateKlingOmniImageVideo,
 	generateKlingMotionControlVideo,
+	generateSeedance260128ImageVideo,
 	generateSkyreelsV4ImageVideo,
 } from "../gmi-image-to-video";
 
@@ -191,6 +192,59 @@ describe("generateKlingMotionControlVideo", () => {
 			generateKlingMotionControlVideo({
 				imageUrl: "https://img.png",
 				videoUrl: "https://vid.mp4",
+			})
+		).rejects.toThrow("boom");
+	});
+});
+
+describe("generateSeedance260128ImageVideo", () => {
+	it("maps firstFrame/lastFrame to first_frame/last_frame", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(successPollResult);
+
+		await generateSeedance260128ImageVideo({
+			prompt: "bud to bloom",
+			firstFrame: "https://example.com/bud.jpg",
+			lastFrame: "https://example.com/bloom.jpg",
+			duration: 6,
+			resolution: "720p",
+			ratio: "1:1",
+			generateAudio: false,
+		});
+
+		expect(mockedSubmit).toHaveBeenCalledWith(
+			"seedance-2-0-260128",
+			{
+				prompt: "bud to bloom",
+				first_frame: "https://example.com/bud.jpg",
+				last_frame: "https://example.com/bloom.jpg",
+				duration: 6,
+				resolution: "720p",
+				ratio: "1:1",
+				generate_audio: false,
+			},
+			"gmi"
+		);
+	});
+
+	it("throws when firstFrame is missing", async () => {
+		await expect(
+			generateSeedance260128ImageVideo({
+				prompt: "p",
+				firstFrame: "",
+			})
+		).rejects.toThrow(/first-frame/i);
+		expect(mockedSubmit).not.toHaveBeenCalled();
+	});
+
+	it("throws on failed poll", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(failedPollResult);
+
+		await expect(
+			generateSeedance260128ImageVideo({
+				prompt: "p",
+				firstFrame: "https://example.com/a.jpg",
 			})
 		).rejects.toThrow("boom");
 	});

@@ -145,6 +145,90 @@ export async function generateKlingOmniTextVideo(params: {
 	};
 }
 
+/** Parameter contract shared by Seedance 2.0 260128 T2V and I2V. */
+export interface Seedance260128Params {
+	prompt: string;
+	/** Integer seconds, 4-15. */
+	duration?: number;
+	resolution?: "480p" | "720p" | "1080p";
+	/** GMI calls this "ratio" (not aspect_ratio). */
+	ratio?: "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "adaptive";
+	seed?: number;
+	watermark?: boolean;
+	generateAudio?: boolean;
+	webSearch?: boolean;
+	referenceImages?: string[];
+	referenceVideos?: string[];
+	referenceAudios?: string[];
+	referenceAssetIds?: string[];
+}
+
+/**
+ * Populate the subset of Seedance 260128 payload fields shared between
+ * T2V and I2V callers. Omits undefined/empty values so the server applies
+ * its documented defaults rather than us forcing them.
+ */
+export function applySeedance260128OptionalFields(
+	target: Record<string, unknown>,
+	params: Seedance260128Params
+): void {
+	if (params.duration != null) target.duration = params.duration;
+	if (params.resolution) target.resolution = params.resolution;
+	if (params.ratio) target.ratio = params.ratio;
+	if (params.seed != null) target.seed = params.seed;
+	if (params.watermark != null) target.watermark = params.watermark;
+	if (params.generateAudio != null) target.generate_audio = params.generateAudio;
+	if (params.webSearch != null) target.web_search = params.webSearch;
+	if (params.referenceImages?.length) {
+		target.reference_images = params.referenceImages;
+	}
+	if (params.referenceVideos?.length) {
+		target.reference_videos = params.referenceVideos;
+	}
+	if (params.referenceAudios?.length) {
+		target.reference_audios = params.referenceAudios;
+	}
+	if (params.referenceAssetIds?.length) {
+		target.reference_asset_ids = params.referenceAssetIds;
+	}
+}
+
+/** Generate text-to-video using GMI Seedance 2.0 260128. */
+export async function generateSeedance260128TextVideo(
+	params: Seedance260128Params
+): Promise<VideoGenerationResponse> {
+	const jobId = generateJobId();
+
+	const payload: Record<string, unknown> = { prompt: params.prompt };
+	applySeedance260128OptionalFields(payload, params);
+
+	const submitResult = await providerRouter.submit(
+		"seedance-2-0-260128",
+		payload,
+		"gmi"
+	);
+
+	const pollResult = await providerRouter.poll(
+		submitResult.requestId,
+		submitResult.provider
+	);
+
+	if (pollResult.status === "failed") {
+		throw new Error(
+			pollResult.error ?? "GMI Seedance 2.0 260128 text-to-video failed"
+		);
+	}
+
+	return {
+		job_id: jobId,
+		status: "completed",
+		message: "Video generated with GMI Seedance 2.0 260128",
+		estimated_time: 0,
+		video_url: pollResult.videoUrl,
+		video_data: pollResult,
+	};
+}
+
 /** Generate text-to-video using GMI SkyReels V4. */
 export async function generateSkyreelsV4TextVideo(params: {
 	prompt: string;

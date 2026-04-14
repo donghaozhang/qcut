@@ -16,6 +16,7 @@ import {
 	generateGmiVeoLiteVideo,
 	generateKlingV3GmiTextVideo,
 	generateKlingOmniTextVideo,
+	generateSeedance260128TextVideo,
 	generateSkyreelsV4TextVideo,
 } from "../gmi-text-to-video";
 
@@ -131,6 +132,76 @@ describe("generateKlingOmniTextVideo", () => {
 
 		await expect(
 			generateKlingOmniTextVideo({ prompt: "sunset" })
+		).rejects.toThrow("boom");
+	});
+});
+
+describe("generateSeedance260128TextVideo", () => {
+	it("sends the documented payload shape (ratio, not aspect_ratio)", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(successPollResult);
+
+		await generateSeedance260128TextVideo({
+			prompt: "An astronaut on Mars",
+			duration: 8,
+			resolution: "720p",
+			ratio: "16:9",
+			generateAudio: true,
+			seed: 42,
+		});
+
+		expect(mockedSubmit).toHaveBeenCalledWith(
+			"seedance-2-0-260128",
+			{
+				prompt: "An astronaut on Mars",
+				duration: 8,
+				resolution: "720p",
+				ratio: "16:9",
+				generate_audio: true,
+				seed: 42,
+			},
+			"gmi"
+		);
+	});
+
+	it("omits undefined optional fields (no stray seed / watermark / reference_* keys)", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(successPollResult);
+
+		await generateSeedance260128TextVideo({ prompt: "solo prompt" });
+
+		const payload = mockedSubmit.mock.calls[0][1];
+		expect(payload).toEqual({ prompt: "solo prompt" });
+		expect(payload).not.toHaveProperty("seed");
+		expect(payload).not.toHaveProperty("watermark");
+		expect(payload).not.toHaveProperty("reference_images");
+		expect(payload).not.toHaveProperty("reference_videos");
+		expect(payload).not.toHaveProperty("reference_audios");
+		expect(payload).not.toHaveProperty("reference_asset_ids");
+		expect(payload).not.toHaveProperty("aspect_ratio");
+	});
+
+	it("forwards reference arrays only when non-empty", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(successPollResult);
+
+		await generateSeedance260128TextVideo({
+			prompt: "p",
+			referenceImages: ["https://example.com/a.jpg"],
+			referenceAssetIds: [],
+		});
+
+		const payload = mockedSubmit.mock.calls[0][1];
+		expect(payload.reference_images).toEqual(["https://example.com/a.jpg"]);
+		expect(payload).not.toHaveProperty("reference_asset_ids");
+	});
+
+	it("throws on failed poll", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(failedPollResult);
+
+		await expect(
+			generateSeedance260128TextVideo({ prompt: "x" })
 		).rejects.toThrow("boom");
 	});
 });

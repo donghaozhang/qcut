@@ -188,14 +188,18 @@ export {
 	generateSkyreelsV4TextVideo,
 	generateKlingV3GmiTextVideo,
 	generateKlingOmniTextVideo,
+	generateSeedance260128TextVideo,
 } from "./generators/gmi-text-to-video";
+export type { Seedance260128Params } from "./generators/gmi-text-to-video";
 export {
 	generateGmiVeoLiteImageVideo,
 	generateSkyreelsV4ImageVideo,
 	generateKlingV3GmiImageVideo,
 	generateKlingOmniImageVideo,
 	generateKlingMotionControlVideo,
+	generateSeedance260128ImageVideo,
 } from "./generators/gmi-image-to-video";
+export type { Seedance260128ImageParams } from "./generators/gmi-image-to-video";
 
 // ============================================
 // Runway Generators

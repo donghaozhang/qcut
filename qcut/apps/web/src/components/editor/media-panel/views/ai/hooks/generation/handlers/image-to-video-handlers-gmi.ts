@@ -10,7 +10,9 @@ import {
 	generateKlingV3GmiImageVideo,
 	generateKlingOmniImageVideo,
 	generateKlingMotionControlVideo,
+	generateSeedance260128ImageVideo,
 } from "@/lib/ai-video";
+import type { Seedance260128Params } from "@/lib/ai-video";
 import type {
 	ImageToVideoSettings,
 	ModelHandlerContext,
@@ -141,6 +143,39 @@ export async function handleGmiKlingOmniI2V(
 			imageUrl,
 			mode: (settings.resolution === "720p" ? "std" : "pro") as "std" | "pro",
 			duration: String(settings.duration ?? 5),
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle GMI Seedance 2.0 260128 image-to-video generation. */
+export async function handleSeedance260128I2V(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.selectedImage) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "Seedance 2.0 260128 I2V requires a first-frame image",
+		};
+	}
+
+	try {
+		const imageUrl = await settings.uploadImageToFal(settings.selectedImage);
+
+		const response = await generateSeedance260128ImageVideo({
+			prompt: ctx.prompt,
+			firstFrame: imageUrl,
+			duration: settings.duration ?? 5,
+			resolution: (settings.resolution ?? "720p") as Seedance260128Params["resolution"],
+			ratio: (settings.aspectRatio ?? "16:9") as Seedance260128Params["ratio"],
 		});
 		return { response };
 	} catch (error) {

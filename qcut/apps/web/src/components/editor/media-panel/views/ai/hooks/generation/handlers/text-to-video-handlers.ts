@@ -14,8 +14,10 @@ import {
 	generateSkyreelsV4TextVideo,
 	generateKlingV3GmiTextVideo,
 	generateKlingOmniTextVideo,
+	generateSeedance260128TextVideo,
 	generateRunwayTextToVideo,
 } from "@/lib/ai-video";
+import type { Seedance260128Params } from "@/lib/ai-video";
 import type {
 	ModelHandlerContext,
 	ModelHandlerResult,
@@ -560,6 +562,28 @@ export async function handleGmiKlingOmniT2V(
 			mode: (settings.resolution === "720p" ? "std" : "pro") as "std" | "pro",
 			duration: String(settings.duration ?? 5),
 			aspect_ratio: (settings.aspectRatio ?? "16:9") as "16:9" | "9:16" | "1:1",
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle GMI Seedance 2.0 260128 text-to-video generation. */
+export async function handleSeedance260128T2V(
+	ctx: ModelHandlerContext,
+	settings: TextToVideoSettings
+): Promise<ModelHandlerResult> {
+	try {
+		const response = await generateSeedance260128TextVideo({
+			prompt: ctx.prompt,
+			duration: settings.duration ?? 5,
+			resolution: (settings.resolution ?? "720p") as Seedance260128Params["resolution"],
+			ratio: (settings.aspectRatio ?? "16:9") as Seedance260128Params["ratio"],
 		});
 		return { response };
 	} catch (error) {
