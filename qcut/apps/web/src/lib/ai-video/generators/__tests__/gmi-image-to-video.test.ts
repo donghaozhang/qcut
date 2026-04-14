@@ -18,6 +18,7 @@ import {
 	generateKlingOmniImageVideo,
 	generateKlingMotionControlVideo,
 	generateSeedance260128ImageVideo,
+	generateSeedance260128ReferenceVideo,
 	generateSkyreelsV4ImageVideo,
 } from "../gmi-image-to-video";
 
@@ -245,6 +246,54 @@ describe("generateSeedance260128ImageVideo", () => {
 			generateSeedance260128ImageVideo({
 				prompt: "p",
 				firstFrame: "https://example.com/a.jpg",
+			})
+		).rejects.toThrow("boom");
+	});
+});
+
+describe("generateSeedance260128ReferenceVideo", () => {
+	it("sends reference_images as an array and omits first_frame", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(successPollResult);
+
+		await generateSeedance260128ReferenceVideo({
+			prompt: "character in neon alley",
+			referenceImages: ["https://example.com/char.jpg"],
+			duration: 10,
+			resolution: "720p",
+			ratio: "adaptive",
+		});
+
+		const payload = mockedSubmit.mock.calls[0][1];
+		expect(payload).toEqual({
+			prompt: "character in neon alley",
+			duration: 10,
+			resolution: "720p",
+			ratio: "adaptive",
+			reference_images: ["https://example.com/char.jpg"],
+		});
+		expect(payload).not.toHaveProperty("first_frame");
+		expect(payload).not.toHaveProperty("last_frame");
+	});
+
+	it("throws when referenceImages is empty", async () => {
+		await expect(
+			generateSeedance260128ReferenceVideo({
+				prompt: "p",
+				referenceImages: [],
+			})
+		).rejects.toThrow(/reference image/i);
+		expect(mockedSubmit).not.toHaveBeenCalled();
+	});
+
+	it("throws on failed poll", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(failedPollResult);
+
+		await expect(
+			generateSeedance260128ReferenceVideo({
+				prompt: "p",
+				referenceImages: ["https://example.com/a.jpg"],
 			})
 		).rejects.toThrow("boom");
 	});

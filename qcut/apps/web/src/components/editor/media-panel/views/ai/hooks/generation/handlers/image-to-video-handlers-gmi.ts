@@ -206,15 +206,8 @@ export async function handleSeedance260128Ref2V(
 			settings.selectedImage
 		);
 
-		const response = await generateSeedance260128ImageVideo({
+		const response = await generateSeedance260128ReferenceVideo({
 			prompt: ctx.prompt,
-			// Reference-driven mode: no first_frame — pass the uploaded image
-			// as a reference instead. The generator still requires firstFrame
-			// to be set, but Seedance 260128 treats first_frame + references
-			// as interchangeable anchors; we mark firstFrame = "" would throw.
-			// Use a distinct code path that calls the endpoint directly with
-			// reference_images and omits first_frame.
-			firstFrame: referenceImageUrl,
 			referenceImages: [referenceImageUrl],
 			duration: settings.duration ?? 5,
 			resolution: (settings.resolution ?? "720p") as Seedance260128Params["resolution"],

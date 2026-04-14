@@ -49,6 +49,7 @@ import {
 	handleGmiKlingOmniI2V,
 	handleGmiKlingMotionControl,
 	handleSeedance260128I2V,
+	handleSeedance260128Ref2V,
 } from "./handlers/image-to-video-handlers-gmi";
 import {
 	handleWAN25I2V,
@@ -386,6 +387,8 @@ export async function routeImageToVideoHandler(
 			return handleGmiKlingMotionControl(ctx, settings);
 		case "gmi_seedance_2_0_260128_i2v":
 			return handleSeedance260128I2V(ctx, settings);
+		case "gmi_seedance_2_0_260128_ref2v":
+			return handleSeedance260128Ref2V(ctx, settings);
 		default:
 			if (
 				VEO31_FRAME_MODELS.has(ctx.modelId) &&

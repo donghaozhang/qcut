@@ -12,10 +12,24 @@
 
 ## Implementation summary (2026-04-14)
 
-Subtasks 1–5 landed. Subtask 6 (docs page + proxy allowlist) deferred —
-the license-server allowlist whitelists GMI video endpoints wholesale,
-so no per-model change was required. Rollout step 6 remains optional
-follow-up for the user-facing GMI models guide.
+Subtasks 1–5 landed, plus a follow-up **Ref2V variant**
+(`gmi_seedance_2_0_260128_ref2v`) that mirrors the FAL
+`seedance2_ref2v` UX — same model endpoint, but a distinct model tile
+that takes a reference image (uploaded via `settings.selectedImage`)
+and submits `reference_images` only (no `first_frame`).
+
+Subtask 6 (docs page + proxy allowlist) deferred — the license-server
+allowlist whitelists GMI video endpoints wholesale, so no per-model
+change was required. Rollout step 6 remains optional follow-up for the
+user-facing GMI models guide.
+
+### Variants registered
+
+| Key | Category | Required inputs | Notes |
+|-----|----------|-----------------|-------|
+| `gmi_seedance_2_0_260128_t2v` | text_to_video | `prompt` | Pure T2V |
+| `gmi_seedance_2_0_260128_i2v` | image_to_video | `prompt` + `first_frame` | First-frame anchored, optional `last_frame` |
+| `gmi_seedance_2_0_260128_ref2v` | image_to_video | `prompt` + `reference_images` (≥1) | Character-consistent, no first-frame |
 
 ### Files changed
 
@@ -27,8 +41,11 @@ follow-up for the user-facing GMI models guide.
   added `Seedance260128Params` type, `applySeedance260128OptionalFields`
   helper, and `generateSeedance260128TextVideo`.
 - `apps/web/src/lib/ai-video/generators/gmi-image-to-video.ts` —
-  added `Seedance260128ImageParams` and
-  `generateSeedance260128ImageVideo` (throws on missing first-frame).
+  added `Seedance260128ImageParams` +
+  `generateSeedance260128ImageVideo` (throws on missing first-frame),
+  and `Seedance260128ReferenceParams` +
+  `generateSeedance260128ReferenceVideo` (throws on empty
+  `referenceImages`).
 - `apps/web/src/lib/ai-video/index.ts` — re-exports both functions +
   both param types.
 - `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/models.ts`
