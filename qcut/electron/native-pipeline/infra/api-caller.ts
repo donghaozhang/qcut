@@ -432,9 +432,13 @@ export async function pollQueueStatus(
 				signal: options?.signal,
 			});
 			if (!resultRes.ok) {
+				const body = await resultRes.text().catch(() => "");
+				console.error(
+					`[api-caller] Result fetch ${resultRes.status} at ${fetchUrl}: ${body.slice(0, 500)}`
+				);
 				return {
 					success: false,
-					error: `Failed to fetch result: ${resultRes.status}`,
+					error: `Failed to fetch result: ${resultRes.status}${body ? ` — ${body.slice(0, 200)}` : ""}`,
 					duration: (Date.now() - startTime) / 1000,
 				};
 			}

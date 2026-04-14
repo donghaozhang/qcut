@@ -283,14 +283,40 @@ async function executeImageToVideo(
 	}
 ): Promise<StepOutput> {
 	if (input.imageUrl) {
-		// Seedance 260128 uses model-specific field names instead of `image_url`:
-		//   - Ref2V variant → `reference_images: [url]` (character driver)
-		//   - I2V variant   → `first_frame` (anchor)
+		// Reference-to-video endpoints use provider-specific field names
+		// instead of the generic `image_url` — three providers, three names,
+		// no useful abstraction yet (revisit when a 5th lands).
+		//   GMI Seedance 260128:
+		//     - Ref2V variant       → `reference_images: [url]`
+		//     - I2V variant         → `first_frame` (single anchor)
+		//   FAL Seedance 2.0:
+		//     - Ref2V variant       → `image_urls: [url, ...]` (up to 9)
+		//   FAL Vidu Q3 mix:
+		//     - Ref2V (mix) variant → `reference_image_urls: [url, ...]` (1-4)
 		// Other GMI / FAL models keep the generic `image_url` payload.
 		if (model.key === "gmi_seedance_2_0_260128_ref2v") {
 			payload.reference_images = [input.imageUrl];
 		} else if (model.key === "gmi_seedance_2_0_260128_i2v") {
 			payload.first_frame = input.imageUrl;
+		} else if (model.key === "seedance_2_0_ref2v") {
+			// FAL Seedance 2.0 ref2v expects `image_urls: [url, ...]` (up to 9)
+			// — NOT the `reference_image_url` field used by the v1 lite endpoint
+			// (see https://fal.ai/models/bytedance/seedance-2.0/reference-to-video/api).
+			payload.image_urls = [input.imageUrl];
+			// FAL's schema validates `duration` as a string literal enum
+			// ('4'|'5'|...|'15'|'auto'), rejecting the number form the CLI
+			// coerces `-d 4s` into. Re-stringify before submitting.
+			if (typeof payload.duration === "number") {
+				payload.duration = String(payload.duration);
+			}
+		} else if (model.key === "vidu_q3_ref2v_mix") {
+			// Vidu Q3 mix expects `reference_image_urls` (plural list, 1-4).
+			// CLI's --image-url passes one; wrap as length-1 array.
+			// Multi-image (1-4) is a clean follow-up via a future --image-urls
+			// flag — see docs/task/fal_model/vidu-q3-ref2v-mix-integration.md.
+			// Duration stays integer (Vidu does NOT require string literal
+			// like FAL Seedance 2.0).
+			payload.reference_image_urls = [input.imageUrl];
 		} else {
 			payload.image_url = input.imageUrl;
 		}

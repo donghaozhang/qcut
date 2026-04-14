@@ -46,8 +46,9 @@ import {
 import { uploadFileForReference } from "../../output/upload-helper.js";
 import {
 	adaptShotForSeedance,
-	SEEDANCE_ENDPOINT,
+	resolveSeedanceFamily,
 	type AdaptedShot,
+	type SeedanceFamily,
 } from "./video-shot-adapter.js";
 
 type ProgressFn = (progress: {
@@ -64,9 +65,27 @@ export interface HandleVimaxNovel2VideoDeps {
 	downloadOutputImpl?: typeof downloadOutput;
 }
 
-const SEEDANCE_COST_PER_SECOND = 0.052;
+/**
+ * Conservative per-second cost ceiling per family. Used for the
+ * pre-flight gate; the actual shot cost is recorded after the call
+ * returns. FAL Seedance 2.0 ref2v is ~$0.6/s — we use that as the
+ * worst-case across variants so the gate doesn't under-estimate.
+ */
+const COST_PER_SECOND: Record<SeedanceFamily, number> = {
+	gmi: 0.052,
+	fal: 0.6,
+};
+
 const DEFAULT_COST_GATE_USD = 2;
 const DEFAULT_SHOT_DURATION = 5;
+
+/** Strip the family prefix from a variant key for compact step labels. */
+function shortVariantLabel(variant: string): string {
+	return variant
+		.replace(/^gmi_seedance_2_0_260128_/, "")
+		.replace(/^seedance_2_0_/, "")
+		.replace(/^seedance_2_0$/, "t2v");
+}
 
 interface RawShot {
 	shot_id?: string;
@@ -149,16 +168,24 @@ export async function handleVimaxNovel2Video(
 	const plannedShots = shots.slice(0, Math.max(0, maxShots));
 	const durationSeconds = clampShotDuration(options.duration);
 
+	let family: SeedanceFamily;
+	try {
+		family = resolveSeedanceFamily(options.model);
+	} catch (err) {
+		return { success: false, error: err instanceof Error ? err.message : String(err) };
+	}
+
 	// ── Pre-flight + cost gate ────────────────────────────────────
 	printEstimate(estimateNovel2Video(plannedShots.length, durationSeconds));
 
+	const costPerSecond = COST_PER_SECOND[family];
 	const projectedCost =
-		plannedShots.length * durationSeconds * SEEDANCE_COST_PER_SECOND;
+		plannedShots.length * durationSeconds * costPerSecond;
 	const costGate = options.costGate ?? DEFAULT_COST_GATE_USD;
 	if (projectedCost > costGate && options.force !== true) {
 		return {
 			success: false,
-			error: `Projected cost ${formatUsd(projectedCost)} exceeds gate ${formatUsd(costGate)} — pass --force or raise --cost-gate`,
+			error: `Projected cost ${formatUsd(projectedCost)} (${family.toUpperCase()} @ $${costPerSecond}/s) exceeds gate ${formatUsd(costGate)} — pass --force or raise --cost-gate`,
 		};
 	}
 
@@ -220,19 +247,20 @@ export async function handleVimaxNovel2Video(
 				resolution,
 				generateAudio: true,
 			},
-			portraitUrls
+			portraitUrls,
+			family
 		);
 
 		const shotStep = startStep(
-			`shot ${i + 1}/${plannedShots.length} [${adapted.variant.replace("gmi_seedance_2_0_260128_", "")}]`
+			`shot ${i + 1}/${plannedShots.length} [${shortVariantLabel(adapted.variant)}]`
 		);
 		let apiResult: ApiCallResult;
 		try {
 			apiResult = await callApi({
-				endpoint: SEEDANCE_ENDPOINT,
+				endpoint: adapted.endpoint,
 				modelKey: adapted.variant,
 				payload: adapted.payload,
-				provider: "gmi",
+				provider: adapted.provider,
 			});
 		} catch (err) {
 			shotStep.end("failed");
@@ -282,10 +310,10 @@ export async function handleVimaxNovel2Video(
 			continue;
 		}
 
-		const cost = apiResult.cost ?? durationSeconds * SEEDANCE_COST_PER_SECOND;
+		const cost = apiResult.cost ?? durationSeconds * costPerSecond;
 		totalCost += cost;
 		successCount++;
-		shotStep.end(`${adapted.variant.replace("gmi_seedance_2_0_260128_", "")}, ${formatUsd(cost)}`);
+		shotStep.end(`${shortVariantLabel(adapted.variant)}, ${formatUsd(cost)}`);
 		registry.push({
 			shot_id: shot.shotId,
 			status: "success",

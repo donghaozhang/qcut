@@ -59,11 +59,20 @@ qcut flow novel2script \
 ### Stage 4 — generate per-shot videos (Seedance 2.0 ref2v)
 
 ```bash
+# Default: GMI Seedance 260128 — $0.052/s
 qcut flow novel2video \
     --project cdrama-heiress-v3 \
-    --max-shots 1 \
+    --max-shots 4 \
     --duration 4 \
     --resolution 480p
+
+# Fallback: FAL Seedance 2.0 — $0.60/s, used when GMI is down
+qcut flow novel2video \
+    --project cdrama-heiress-v3 \
+    --max-shots 4 \
+    --duration 4 \
+    --resolution 720p \
+    --model seedance_2_0
 ```
 
 ### Stage 5 — single-shot smoke test (Seedance 2.0 ref2v, no project)
@@ -229,15 +238,29 @@ Flags:
 | `--project` | required | Project slug |
 | `--max-shots` | unlimited | Cap total shots this run (cost control) |
 | `--duration` / `-d` | 5 | Seconds per shot, clamped 4–15 |
-| `--resolution` | 720p | `480p` / `720p` / `1080p` |
+| `--resolution` | 720p | `480p` / `720p` / `1080p` (480p only on GMI) |
 | `--aspect-ratio` | 16:9 | `16:9` / `9:16` / `1:1` / `4:3` / `3:4` / `21:9` |
 | `--concurrency` | 1 | Parallel shots in flight |
 | `--cost-gate` | 2 | Aborts if projected USD spend exceeds this |
 | `--force` | off | Overwrites existing MP4s + bypasses `--cost-gate` |
+| `--model` / `-m` | `gmi_seedance_2_0_260128` | `gmi_seedance_2_0_260128` (default, $0.052/s) or `seedance_2_0` (FAL fallback, $0.60/s) |
 
-Cost is fixed at **$0.052 / s** regardless of resolution. Wall-clock
-runs ~3–6 min per shot (Seedance is slow). Use `--max-shots 1` for
-smoke tests so a typo doesn't burn 30 minutes and $10.
+The `--model` flag selects the **provider family**, not a specific
+variant — the per-shot adapter still picks the right ref2v / i2v /
+t2v variant per shot based on the script. Both families share the
+same shot-selection logic; they differ only in endpoint, payload
+field names, and price:
+
+| Family | Endpoint(s) | Ref2V field | Duration type | $/s |
+|---|---|---|---|---|
+| `gmi_seedance_2_0_260128` | `seedance-2-0-260128` (one endpoint, internal variant) | `reference_images` (array) | integer | **$0.052** |
+| `seedance_2_0` (FAL) | `bytedance/seedance-2.0/{ref-to,image-to,text-to}-video` | `image_urls` (array, up to 9) | string literal | $0.60 |
+
+Wall-clock runs ~3–6 min per shot (Seedance is slow). Use
+`--max-shots 1` for smoke tests so a typo doesn't burn 30 minutes
+and $10. The cost gate uses the upper bound per family ($0.052/s for
+GMI, $0.60/s for FAL) so a 4-shot batch at 4s costs ≤$0.832 (GMI) or
+≤$9.60 (FAL) before `--force` is needed.
 
 **Reference upload note.** Portrait uploads route through
 `output/upload-helper.ts`, which tries the license-server proxy first,
@@ -458,15 +481,167 @@ Registry entry:
 - Output paths (`videos/registry.json` + `videos/shot_*.mp4`) match
   disk and the registry MP4 plays.
 
-**Not yet exercised in `flow novel2video`**
+**Stage 4 ref2v re-verified end-to-end (2026-04-14, follow-up)**
 
-- The staged pipeline still degrades to t2v because portrait uploads
-  go through the proxy and the worker has no `FAL_KEY`. The
-  `output/upload-helper.ts` direct-FAL fallback (added 2026-04-14)
-  unblocks anything that goes through it, but `flow novel2video` calls
-  the upload helper before the fallback would help here. Re-running
-  with `FAL_KEY` in env should now complete in ref2v mode — pending
-  re-run.
+After adding the direct-FAL fallback to `output/upload-helper.ts`,
+re-ran the staged pipeline against the **anime project**
+`style-anime-v2/` with a shot whose characters overlap the portrait
+registry (shot `1-1-3`: 沈念安 + 顾承泽, both catalogued).
+
+```
+[upload-helper] Proxy vend failed (FAL API key not configured on server);
+                 falling back to direct FAL upload.   ×5
+  [step] upload 5 portraits — 8.5s  5/5 uploaded
+  [step] shot 1/1 [ref2v] — 5m 19s  ref2v, $0.208
+```
+
+Registry entry:
+
+```json
+{
+  "shot_id": "1-1-3",
+  "status": "success",
+  "variant": "gmi_seedance_2_0_260128_ref2v",
+  "reference_urls": [
+    "https://v3b.fal.media/files/b/0a963346/6CArPMkV64cOC51eJlYRj_front.png",
+    "https://v3b.fal.media/files/b/0a963346/8rTzAhU0imfmK1iuFBCY4_front.png"
+  ],
+  "reason": "ref2v: 2 catalogued characters"
+}
+```
+
+**Confirmed end-to-end ✅**
+
+- Direct-FAL fallback in `output/upload-helper.ts` activates exactly
+  when the proxy can't vend (5/5 portraits uploaded via fallback).
+- `video-shot-adapter.ts:adaptShotForSeedance` correctly emits
+  `gmi_seedance_2_0_260128_ref2v` when ≥1 character has a portrait.
+- Per-shot marker is `[ref2v]` (not `[t2v]`).
+- Registry records the `reference_urls` (FAL CDN, two distinct
+  portraits matched to the shot's two catalogued characters).
+
+**Why earlier runs degraded to t2v** (now understood, not a bug):
+
+| Run | Project | First shot's characters | Catalogued? | Result |
+|---|---|---|---|---|
+| 1st (cdrama) | `cdrama-heiress-v3` | (uploads failed pre-fallback) | n/a | t2v |
+| 2nd (anime, no fix yet) | `style-anime-v2` | `司仪` | ❌ no portrait | t2v |
+| 3rd (anime, fix in place) | `style-anime-v2`, shot `1-1-3` | `沈念安, 顾承泽` | ✅ both | **ref2v** |
+
+Two independent gates govern ref2v selection:
+
+1. Portrait must upload to a public URL (now satisfied by FAL fallback).
+2. Shot's `characters` array must contain ≥1 name that exists as a key
+   in `portraits/registry.json`. Names like `司仪`, `宾客甲` (generic
+   roles) won't match — they aren't extracted as characters in Stage 1.
+
+For automatic ref2v coverage on every shot, either prune generic
+roles from the script or add their portraits to the registry. The
+adapter's `t2v` reason field tells you exactly which characters were
+skipped per shot, so this is auditable in `videos/registry.json`.
+
+### Stage 4 FAL family verified end-to-end (2026-04-14)
+
+Same `cdrama-anime-v3/` project, but with `--model seedance_2_0`
+forcing the FAL fallback path:
+
+```bash
+qcut flow novel2video --project cdrama-anime-v3 \
+  --max-shots 1 --duration 4 --resolution 720p --aspect-ratio 16:9 \
+  --model seedance_2_0 --cost-gate 3
+```
+
+```
+[upload-helper] Proxy vend failed (FAL API key not configured on server);
+                falling back to direct FAL upload.   ×5
+  [step] upload 5 portraits — 13.8s  5/5 uploaded
+  [step] shot 1/1 [ref2v] — 3m 48s  ref2v, $2.400
+```
+
+Registry entry:
+
+```json
+{
+  "shot_id": "1-1-02",
+  "status": "success",
+  "variant": "seedance_2_0_ref2v",
+  "cost_usd": 2.4,
+  "duration_seconds": 4,
+  "reference_urls": [
+    "https://v3b.fal.media/files/b/0a963624/nnXNzI-O3nKkF7ISnN_c1_front.png",
+    "https://v3b.fal.media/files/b/0a963624/cRkl7LxUea_OFSD31pj85_front.png"
+  ],
+  "reason": "ref2v: 2 catalogued characters"
+}
+```
+
+**Confirmed ✅**
+
+- `--model seedance_2_0` resolves to FAL family (`adapter.provider:
+  "fal"`, endpoint `bytedance/seedance-2.0/reference-to-video`).
+- Variant key written as `seedance_2_0_ref2v` (not the GMI prefix).
+- Payload uses `image_urls` (array) — verified by the upstream
+  succeeding; the field-name fix from `gen video` testing carried
+  through.
+- Duration coerced to string `"4"` per FAL schema requirement.
+- Cost gate calculated using the FAL upper bound ($0.60/s × 4s =
+  $2.40 > default $2; needed `--cost-gate 3` to pass).
+- 1.9 MB MP4 (720p) downloaded to
+  `videos/shot_1-1-02.mp4`.
+
+**Wall-clock + cost vs GMI**
+
+| Family | Variant | Wall-clock | Cost | Resolution |
+|---|---|---|---|---|
+| GMI (this morning) | `gmi_seedance_2_0_260128_ref2v` | 5m 19s | $0.208 | 480p |
+| **FAL** (this run) | **`seedance_2_0_ref2v`** | **3m 48s** | **$2.400** | **720p** |
+
+FAL is **~30% faster** here but **11.5× more expensive**. Stick with
+GMI as the default; reach for `--model seedance_2_0` only when GMI
+is unavailable (the present `billing.default` outage validates the
+need for the fallback flag).
+
+### GMI billing outage (2026-04-14, later same day)
+
+Attempted a full fresh-project run on `cdrama-anime-v3/`. Stages 1
+and 3 completed cleanly. Stage 2 (portraits via
+`gmi_gemini_31_flash_image`) and Stage 4 (Seedance) both failed
+with identical upstream errors:
+
+```
+402: billing pre-charge failed: billing v2 charge failed (status 0):
+failed to send HTTP request: Post
+"http://billing.default:8081/video/chargev2":
+dial tcp: lookup billing.default on 169.254.20.10:53: no such host
+```
+
+This is a GMI internal-infrastructure failure — their billing
+microservice (`billing.default:8081`) isn't resolvable from the
+video worker pods. It fails before the generation call is made, so
+$0.00 is charged and retries are safe.
+
+**What still worked (client-side validated, server unable to
+process):**
+
+All 4 shots in the batch correctly produced adapter output before
+the billing rejection:
+
+| Shot | Variant | Reference URLs | Adapter reason |
+|---|---|---|---|
+| 1-1-01 | `gmi_seedance_2_0_260128_t2v` | 0 | "1 character not catalogued" |
+| 1-1-02 | `gmi_seedance_2_0_260128_ref2v` | 2 | "2 catalogued characters" |
+| 1-1-03 | `gmi_seedance_2_0_260128_ref2v` | 1 | "1 catalogued character" |
+| 1-1-04 | `gmi_seedance_2_0_260128_ref2v` | 1 | "1 catalogued character" |
+
+Portraits uploaded (5/5 via direct-FAL fallback, 8.9–19.8s), variant
+selection and reference matching correct. `videos/registry.json`
+preserves the `error` field per shot so re-running is a no-op on
+already-successful shots once GMI recovers. Recovery test: retry
+`flow novel2video --project cdrama-anime-v3 --max-shots 1 -d 4
+--resolution 480p` periodically; when the 402 disappears, the whole
+pipeline will resume from where it left off (the existing registry
+tracks failures explicitly, so successful shots won't be
+re-billed).
 
 ### Verified Seedance Ref2V via `gen video` (2026-04-14)
 

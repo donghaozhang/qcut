@@ -267,6 +267,9 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 					"wan_x",
 					"seedance_1_0",
 					"seedance_2_0",
+					"seedance_2_0_i2v",
+					"seedance_2_0_ref2v",
+					"vidu_q3_ref2v_mix",
 					"luma_ray2",
 					"gmi_seedance_2_0_260128_t2v",
 					"gmi_seedance_2_0_260128_i2v",
@@ -1413,11 +1416,17 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--concurrency", "number", "Parallel shots in flight (default 1)"),
 			f("--force", "boolean", "Overwrite existing shot MP4s + bypass cost gate"),
 			f("--cost-gate", "number", "Projected-cost ceiling in USD (default 2)"),
+			f("--model", "string", "Video model family", {
+				short: "-m",
+				default: "gmi_seedance_2_0_260128",
+				enum: ["gmi_seedance_2_0_260128", "seedance_2_0"],
+			}),
 		],
 		examples: [
 			"qcut flow novel2video --project my-story",
 			"qcut flow novel2video --project my-story --max-shots 5 --duration 5",
 			"qcut flow novel2video --project my-story --force --cost-gate 20",
+			"qcut flow novel2video --project my-story --model seedance_2_0  # FAL fallback",
 		],
 	},
 	"vimax:extract-characters": {

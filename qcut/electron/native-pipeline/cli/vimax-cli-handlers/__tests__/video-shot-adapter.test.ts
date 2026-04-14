@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	adaptShotForSeedance,
 	clampDuration,
+	resolveSeedanceFamily,
 	sanitizeShotPrompt,
 } from "../video-shot-adapter.js";
 
@@ -242,5 +243,120 @@ describe("adaptShotForSeedance", () => {
 			{}
 		);
 		expect(adapted.payload.prompt).toBe("hall hello");
+	});
+
+	it("defaults to GMI family when none specified", () => {
+		const adapted = adaptShotForSeedance(
+			{ shotId: "a", description: "x", characters: [] },
+			{}
+		);
+		expect(adapted.provider).toBe("gmi");
+		expect(adapted.endpoint).toBe("seedance-2-0-260128");
+		expect(adapted.variant).toBe("gmi_seedance_2_0_260128_t2v");
+	});
+});
+
+describe("adaptShotForSeedance — FAL family", () => {
+	it("ref2v uses FAL endpoint, image_urls field, and string duration", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1-1-2",
+				description: "two characters meet",
+				characters: ["Alice", "Bob"],
+				durationSeconds: 6,
+				resolution: "720p",
+				aspectRatio: "16:9",
+			},
+			{
+				Alice: "https://cdn/a.png",
+				Bob: "https://cdn/b.png",
+			},
+			"fal"
+		);
+		expect(adapted.variant).toBe("seedance_2_0_ref2v");
+		expect(adapted.endpoint).toBe("bytedance/seedance-2.0/reference-to-video");
+		expect(adapted.provider).toBe("fal");
+		expect(adapted.payload.image_urls).toEqual([
+			"https://cdn/a.png",
+			"https://cdn/b.png",
+		]);
+		// FAL field name is aspect_ratio, not ratio (GMI's name).
+		expect(adapted.payload.aspect_ratio).toBe("16:9");
+		expect(adapted.payload.ratio).toBeUndefined();
+		// FAL schema requires duration as a string literal.
+		expect(adapted.payload.duration).toBe("6");
+		expect(adapted.payload.reference_images).toBeUndefined();
+		expect(adapted.payload.first_frame).toBeUndefined();
+	});
+
+	it("i2v uses FAL i2v endpoint and image_url field", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1-1-3",
+				description: "anchored shot",
+				characters: ["Alice"],
+				firstFrameUrl: "https://cdn/anchor.png",
+			},
+			{ Alice: "https://cdn/a.png" },
+			"fal"
+		);
+		expect(adapted.variant).toBe("seedance_2_0_i2v");
+		expect(adapted.endpoint).toBe("bytedance/seedance-2.0/image-to-video");
+		expect(adapted.provider).toBe("fal");
+		expect(adapted.payload.image_url).toBe("https://cdn/anchor.png");
+		expect(adapted.payload.image_urls).toBeUndefined();
+		expect(adapted.payload.first_frame).toBeUndefined();
+	});
+
+	it("t2v uses FAL t2v endpoint with no image fields", () => {
+		const adapted = adaptShotForSeedance(
+			{ shotId: "x", description: "wide shot", characters: [] },
+			{},
+			"fal"
+		);
+		expect(adapted.variant).toBe("seedance_2_0");
+		expect(adapted.endpoint).toBe("bytedance/seedance-2.0/text-to-video");
+		expect(adapted.provider).toBe("fal");
+		expect(adapted.payload.image_url).toBeUndefined();
+		expect(adapted.payload.image_urls).toBeUndefined();
+		expect(adapted.payload.first_frame).toBeUndefined();
+	});
+
+	it("variant naming stays distinct between families", () => {
+		const gmi = adaptShotForSeedance(
+			{ shotId: "g", description: "x", characters: ["A"] },
+			{ A: "https://cdn/a.png" },
+			"gmi"
+		);
+		const fal = adaptShotForSeedance(
+			{ shotId: "f", description: "x", characters: ["A"] },
+			{ A: "https://cdn/a.png" },
+			"fal"
+		);
+		expect(gmi.variant).toBe("gmi_seedance_2_0_260128_ref2v");
+		expect(fal.variant).toBe("seedance_2_0_ref2v");
+	});
+});
+
+describe("resolveSeedanceFamily", () => {
+	it("defaults to gmi when no model passed", () => {
+		expect(resolveSeedanceFamily(undefined)).toBe("gmi");
+	});
+
+	it("maps the GMI 260128 family", () => {
+		expect(resolveSeedanceFamily("gmi_seedance_2_0_260128")).toBe("gmi");
+		expect(resolveSeedanceFamily("gmi_seedance_2_0_260128_ref2v")).toBe("gmi");
+	});
+
+	it("maps the FAL Seedance 2.0 family", () => {
+		expect(resolveSeedanceFamily("seedance_2_0")).toBe("fal");
+		expect(resolveSeedanceFamily("seedance_2_0_ref2v")).toBe("fal");
+		expect(resolveSeedanceFamily("seedance_2_0_i2v")).toBe("fal");
+	});
+
+	it("throws on unknown model keys", () => {
+		expect(() => resolveSeedanceFamily("kling_v3_pro")).toThrow(
+			/Unknown video model/i
+		);
 	});
 });

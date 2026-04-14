@@ -440,7 +440,7 @@ export function registerImageToVideoModels(): void {
 		key: "seedance_2_0_ref2v",
 		name: "ByteDance Seedance 2.0 Ref2V",
 		provider: "ByteDance",
-		endpoint: "fal-ai/bytedance/seedance-2.0/reference-to-video",
+		endpoint: "bytedance/seedance-2.0/reference-to-video",
 		categories: ["image_to_video"],
 		description: "Character-consistent video from reference image",
 		pricing: 0.6,
@@ -798,6 +798,73 @@ export function registerImageToVideoModels(): void {
 		},
 		costEstimate: 0.302,
 		processingTime: 60,
+	});
+
+	ModelRegistry.register({
+		key: "vidu_q3_ref2v_mix",
+		name: "Vidu Q3 Ref2V (mix)",
+		provider: "Vidu (via FAL)",
+		endpoint: "fal-ai/vidu/q3/reference-to-video/mix",
+		categories: ["image_to_video"],
+		description:
+			"Character-consistent video from 1-4 reference images with native audio. " +
+			"Vidu's mix variant — keeps subjects/scenes coherent across the shot.",
+		pricing: {
+			type: "per_second",
+			cost_360p: 0.07,
+			cost_540p: 0.07,
+			cost_720p: 0.154,
+			cost_1080p: 0.154,
+		},
+		durationOptions: [
+			"1",
+			"2",
+			"3",
+			"4",
+			"5",
+			"6",
+			"7",
+			"8",
+			"9",
+			"10",
+			"11",
+			"12",
+			"13",
+			"14",
+			"15",
+			"16",
+		],
+		aspectRatios: ["16:9", "9:16", "4:3", "3:4", "1:1"],
+		resolutions: ["360p", "540p", "720p", "1080p"],
+		defaults: {
+			duration: 5,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+			// NOTE: Vidu mix uses `audio` (boolean), not `generate_audio`
+			// like Vidu Q3 i2v. Don't paste-reuse the i2v defaults.
+			audio: true,
+		},
+		features: [
+			"character_consistency",
+			"multi_reference",
+			"audio_generation",
+			"seed_control",
+		],
+		maxDuration: 16,
+		inputRequirements: {
+			required: ["prompt", "reference_image_urls"],
+			optional: ["duration", "seed", "aspect_ratio", "resolution", "audio"],
+		},
+		extendedFeatures: {
+			start_frame: false,
+			end_frame: false,
+			ref_images: true,
+			audio_input: false,
+			audio_generate: true,
+			ref_video: false,
+		},
+		costEstimate: 0.62,
+		processingTime: 180,
 	});
 
 	// --- GMI Cloud models ---
