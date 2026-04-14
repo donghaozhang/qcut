@@ -317,6 +317,14 @@ async function executeImageToVideo(
 			// Duration stays integer (Vidu does NOT require string literal
 			// like FAL Seedance 2.0).
 			payload.reference_image_urls = [input.imageUrl];
+		} else if (model.key === "seedance_2_0_i2v") {
+			// FAL Seedance 2.0 i2v shares the same string-literal duration
+			// schema as its ref2v sibling, so coerce number → string here
+			// too (CLI `-d 4s` parses to a number).
+			payload.image_url = input.imageUrl;
+			if (typeof payload.duration === "number") {
+				payload.duration = String(payload.duration);
+			}
 		} else {
 			payload.image_url = input.imageUrl;
 		}
