@@ -1,27 +1,101 @@
 # 07 — Staged workflow (characters → portraits → scripts)
 
-## Log in
+---
 
-Every AI command deducts credits from your account. Sign up once (free tier includes 50 credits/month), then log in from the CLI.
+## Commands
+
+### Log in (pick one)
 
 ```bash
-# Google OAuth (easiest — opens a browser window)
+# Google OAuth (opens a browser)
 qcut system login
-# Email + password
+
+# Email + password (interactive)
 qcut system login --email you@example.com
-# Scripted: pipe credentials via env vars (no interactive prompt)
+
+# Scripted (no prompt)
 qcut system login --email "$QCUT_EMAIL" --password "$QCUT_PASSWORD"
 ```
 
-Beta testers: use the @qcut.app credentials emailed to you. Each test account is pre-loaded with 1000 credits on the free plan.
-
 ```bash
-export QCUT_TEST_EMAIL=test@qcut.app
-export QCUT_TEST_PASSWORD='...'
+# Beta tester account — credentials live in ./.env.test-accounts (repo root)
+set -a; source .env.test-accounts; set +a
 qcut system login --email "$QCUT_TEST_EMAIL" --password "$QCUT_TEST_PASSWORD"
 ```
 
-Verify with `qcut system check-keys --json` — a successful login shows your user email and remaining credits.
+```bash
+# Verify login + remaining credits
+qcut system check-keys --json
+```
+
+### Stage 1 — extract characters
+
+```bash
+qcut flow characters \
+    --novel electron/native-pipeline/vimax/examples/drama-example.md \
+    --project cdrama-heiress-v3 \
+    --llm-model gemini-3.1-flash-lite
+```
+
+### Stage 2 — generate portraits
+
+```bash
+qcut flow portraits \
+    --project cdrama-heiress-v3 \
+    --style "Modern anime film, soft cel-shading, expressive eyes, cinematic light" \
+    --image-model gmi_gemini_31_flash_image
+```
+
+### Stage 3 — segment novel into scripts
+
+```bash
+qcut flow novel2script \
+    --novel electron/native-pipeline/vimax/examples/drama-example.md \
+    --project cdrama-heiress-v3 \
+    --llm-model gemini-3.1-flash-lite \
+    --max-scenes 20
+```
+
+### Full three-stage run
+
+```bash
+NOVEL=electron/native-pipeline/vimax/examples/drama-example.md
+PROJECT=cdrama-heiress-v3
+
+qcut flow characters --novel "$NOVEL" --project "$PROJECT" \
+    --llm-model gemini-3.1-flash-lite
+
+# (inspect / edit ~/Documents/QCut/projects/$PROJECT/characters.json)
+
+qcut flow portraits --project "$PROJECT" \
+    --image-model gmi_gemini_31_flash_image
+
+qcut flow novel2script --novel "$NOVEL" --project "$PROJECT" \
+    --llm-model gemini-3.1-flash-lite --max-scenes 20
+
+jq '.stages_completed' ~/Documents/QCut/projects/$PROJECT/project.json
+# → ["characters", "portraits", "scripts"]
+```
+
+### Style overrides
+
+```bash
+# Preset slug (see style table in reference below)
+qcut flow characters --novel "$NOVEL" --project "$PROJECT" --style anime
+qcut flow portraits  --project "$PROJECT"       # picks up style from project.json
+```
+
+```bash
+# Free-form style
+qcut flow portraits --project "$PROJECT" \
+    --style "vintage 1970s film grain, muted earth tones, soft focus"
+```
+
+---
+
+## Reference
+
+### Why staged?
 
 Instead of running the monolithic `flow novel2movie` and hoping every
 step produces good output, break the pipeline into three independent
@@ -33,7 +107,17 @@ the `flow novel2movie` monolith for now — expanding the staged layout
 to those stages is tracked in
 [06-stage-decomposition-plan.md](06-stage-decomposition-plan.md).
 
-## The project directory
+### Login details
+
+Every AI command deducts credits from your account. Sign up once (free tier includes 50 credits/month), then log in from the CLI.
+
+Beta testers: use the @qcut.app credentials emailed to you. Each test account is pre-loaded with 1000 credits on the free plan.
+
+Local test credentials live in `./.env.test-accounts` at the repo root (gitignored). The file defines `QCUT_TEST_EMAIL` and `QCUT_TEST_PASSWORD` — source it before running `qcut system login`. See [docs/task/invite-test/testers.md](../invite-test/testers.md) for the full tester roster.
+
+Verify with `qcut system check-keys --json` — a successful login shows your user email and remaining credits.
+
+### The project directory
 
 Every staged command reads and writes files under a single predictable
 root:
@@ -57,9 +141,47 @@ you iterate without building up timestamped junk.
 
 Relocate the root by exporting `QCUT_PROJECTS_DIR=/path/to/elsewhere`.
 
-## Pre-flight estimates + per-step timing
+### Stage details
 
-Every staged command now prints three things you can use to sanity-check
+**Stage 1 — `flow characters`**
+
+Extracts up to ~10 characters, detects the novel's `**映像スタイル：**`
+/ `**Visual Style:**` header, and persists both into
+`<proj>/characters.json` + `<proj>/project.json`. Measured 6.9s /
+$0.00 on a 4 K-char anime novel (flash-lite didn't actually bill in
+that run — expect a few cents on larger novels). `--style` is
+optional here — usually you let the novel header decide the tone at
+this stage and override at Stage 2 if needed.
+
+*Between stages:* open `<proj>/characters.json` in your editor. You
+can rename characters, fix missing `ethnicity`, or drop characters you
+don't want portraits for. Stage 2 picks up edits.
+
+**Stage 2 — `flow portraits`**
+
+Reads `<proj>/characters.json`, renders one `front.png` per character
+into `<proj>/portraits/<name>/`, and saves a
+`<proj>/portraits/registry.json` that later stages consume. The
+`--style` flag accepts a preset slug (see table below) or a free-form
+prompt — either overrides `<proj>/project.json.style`
+and is persisted back there so subsequent stages pick it up.
+
+Measured run: 4m 14s for 5 characters / $0.100 (GMI Gemini 3.1 flash
+image). Budget ~1 min per portrait as a rule of thumb.
+
+**Stage 3 — `flow novel2script`**
+
+Chunks the novel using the same splitter the monolithic `novel2movie`
+uses, runs the `NovelSegmenter` on each chunk, and writes
+`scripts/chunk_NNN.json` files with scene/shot breakdowns. Respects
+`--max-scenes` to cap the total across chunks.
+
+Accepts `--chunk-size` (default 2000 chars) and `--overlap` (default
+200) if you need to tweak chunking for very long novels.
+
+### Pre-flight estimates + per-step timing
+
+Every staged command prints three things you can use to sanity-check
 a run:
 
 1. **Pre-flight banner** with expected duration + cost range before any
@@ -101,7 +223,35 @@ Example stderr for `flow novel2script`:
 The banner + per-step markers land on stderr, so machine-parsable
 `--json` / `--stream` stdout is unaffected.
 
-## Verified end-to-end run (2026-04-14)
+### Choosing a visual style (`--style`)
+
+`flow characters` / `flow portraits` / `flow novel2movie` all accept
+`--style <value>`. The value is either a **preset slug** (expanded to
+a tuned prompt) or **free-form text** (passed through).
+
+| Slug | Lang | Prompt (prepended to every portrait) |
+|---|---|---|
+| `photorealistic` | 🇨🇳 | 真人写实，电视剧质感，自然光，肤质细腻，暖色调 |
+| `anime` | 🇬🇧 | Modern anime film, soft cel-shading, expressive eyes, cinematic light |
+| `ghibli` | 🇬🇧 | Ghibli hand-drawn, soft pastel, nostalgic, pastoral warmth |
+| `3d-animation` | 🇬🇧 | Pixar-style 3D render, stylized, soft rim light |
+| `chinese-ink` | 🇨🇳 | 水墨画风，留白意境，墨色浓淡，笔锋飘逸 |
+| `watercolor` | 🇬🇧 | Watercolor painting, soft edges, paper texture, translucent |
+| `cyberpunk` | 🇬🇧 | Cyberpunk neon, chromatic glow, rain-slick street, dystopian |
+| `noir` | 🇬🇧 | Film noir, high-contrast black-and-white, deep shadows, smoky |
+
+**Resolution order** for the final style used:
+
+1. `--style <slug>` → preset prompt
+2. `--style "<free-form text>"` → pass-through
+3. Novel's `**Visual Style:**` / `**视频风格：**` header
+4. Image model's internal default
+
+When any of steps 1–3 produce a non-empty value it is **persisted into
+`project.json.style`** so later stages (novel2script, storyboard) use
+the same tone automatically.
+
+### Verified end-to-end run (2026-04-14)
 
 Fresh three-stage run on
 `electron/native-pipeline/vimax/examples/drama-example.md`
@@ -150,7 +300,7 @@ disk exactly:
     └── chunk_002.json  (12.2KB)
 ```
 
-### Key takeaways from the run
+**Key takeaways from the run**
 
 - **Estimates held.** All three stages finished well inside their
   predicted ranges. Portrait batch landed at 4m 10s.
@@ -168,129 +318,6 @@ disk exactly:
   calls routed through `qcut-license-server.zdhpeter.workers.dev`, billed
   as credits against the test account.
 
-## Three commands, three artifacts
-
-### Stage 1 — `flow characters`
-
-```bash
-qcut flow characters \
-    --novel electron/native-pipeline/vimax/examples/drama-example.md \
-    --project cdrama-heiress-v3 \
-    --llm-model gemini-3.1-flash-lite
-```
-
-Extracts up to ~10 characters, detects the novel's `**映像スタイル：**`
-/ `**Visual Style:**` header, and persists both into
-`<proj>/characters.json` + `<proj>/project.json`. Measured 6.9s /
-$0.00 on a 4 K-char anime novel (flash-lite didn't actually bill in
-that run — expect a few cents on larger novels). `--style` is
-optional here — usually you let the novel header decide the tone at
-this stage and override at Stage 2 if needed.
-
-**Between stages:** open `<proj>/characters.json` in your editor. You
-can rename characters, fix missing `ethnicity`, or drop characters you
-don't want portraits for. Stage 2 picks up edits.
-
-### Stage 2 — `flow portraits`
-
-```bash
-qcut flow portraits \
-    --project cdrama-heiress-v3 \
-    --style "Modern anime film, soft cel-shading, expressive eyes, cinematic light" \
-    --image-model gmi_gemini_31_flash_image
-```
-
-Reads `<proj>/characters.json`, renders one `front.png` per character
-into `<proj>/portraits/<name>/`, and saves a
-`<proj>/portraits/registry.json` that later stages consume. The
-`--style` flag accepts a preset slug (see table above) or a free-form
-prompt like the one shown — either overrides `<proj>/project.json.style`
-and is persisted back there so subsequent stages pick it up.
-
-Measured run: 4m 14s for 5 characters / $0.100 (GMI Gemini 3.1 flash
-image). Budget ~1 min per portrait as a rule of thumb.
-
-### Stage 3 — `flow novel2script` (new in this workflow)
-
-```bash
-qcut flow novel2script \
-    --novel electron/native-pipeline/vimax/examples/drama-example.md \
-    --project cdrama-heiress-v3 \
-    --llm-model gemini-3.1-flash-lite \
-    --max-scenes 20
-```
-
-Chunks the novel using the same splitter the monolithic `novel2movie`
-uses, runs the `NovelSegmenter` on each chunk, and writes
-`scripts/chunk_NNN.json` files with scene/shot breakdowns. Respects
-`--max-scenes` to cap the total across chunks.
-
-Accepts `--chunk-size` (default 2000 chars) and `--overlap` (default
-200) if you need to tweak chunking for very long novels.
-
-## Full three-stage run
-
-```bash
-NOVEL=electron/native-pipeline/vimax/examples/drama-example.md
-PROJECT=cdrama-heiress-v3
-
-qcut flow characters --novel "$NOVEL" --project "$PROJECT" \
-    --llm-model gemini-3.1-flash-lite
-
-# (inspect / edit ~/Documents/QCut/projects/$PROJECT/characters.json)
-
-qcut flow portraits --project "$PROJECT" \
-    --image-model gmi_gemini_31_flash_image
-
-qcut flow novel2script --novel "$NOVEL" --project "$PROJECT" \
-    --llm-model gemini-3.1-flash-lite --max-scenes 20
-
-jq '.stages_completed' ~/Documents/QCut/projects/$PROJECT/project.json
-# → ["characters", "portraits", "scripts"]
-```
-
-## Choosing a visual style (`--style`)
-
-`flow characters` / `flow portraits` / `flow novel2movie` all accept
-`--style <value>`. The value is either a **preset slug** (expanded to
-a tuned prompt) or **free-form text** (passed through).
-
-| Slug | Lang | Prompt (prepended to every portrait) |
-|---|---|---|
-| `photorealistic` | 🇨🇳 | 真人写实，电视剧质感，自然光，肤质细腻，暖色调 |
-| `anime` | 🇬🇧 | Modern anime film, soft cel-shading, expressive eyes, cinematic light |
-| `ghibli` | 🇬🇧 | Ghibli hand-drawn, soft pastel, nostalgic, pastoral warmth |
-| `3d-animation` | 🇬🇧 | Pixar-style 3D render, stylized, soft rim light |
-| `chinese-ink` | 🇨🇳 | 水墨画风，留白意境，墨色浓淡，笔锋飘逸 |
-| `watercolor` | 🇬🇧 | Watercolor painting, soft edges, paper texture, translucent |
-| `cyberpunk` | 🇬🇧 | Cyberpunk neon, chromatic glow, rain-slick street, dystopian |
-| `noir` | 🇬🇧 | Film noir, high-contrast black-and-white, deep shadows, smoky |
-
-**Resolution order** for the final style used:
-
-1. `--style <slug>` → preset prompt
-2. `--style "<free-form text>"` → pass-through
-3. Novel's `**Visual Style:**` / `**视频风格：**` header
-4. Image model's internal default
-
-When any of steps 1–3 produce a non-empty value it is **persisted into
-`project.json.style`** so later stages (novel2script, storyboard) use
-the same tone automatically.
-
-Example — force anime portraits on the Chinese drama novel:
-
-```bash
-qcut flow characters --novel "$NOVEL" --project "$PROJECT" --style anime
-qcut flow portraits  --project "$PROJECT"       # picks up style from project.json
-```
-
-Free-form also works when no preset fits — pass any descriptive phrase:
-
-```bash
-qcut flow portraits --project "$PROJECT" \
-    --style "vintage 1970s film grain, muted earth tones, soft focus"
-```
-
 ### Verified A/B on the cdrama novel (2026-04-13)
 
 Same 5 characters from `drama-example.md`, the GMI flash-image model,
@@ -307,4 +334,3 @@ All three project dirs kept on disk for reference.
 | Cost | $0.100 | $0.100 | $0.100 |
 | Avg per portrait | **67.9s** | **45.2s** | 44.9s |
 | Portrait sizes | 1.4–1.6 MB | 1.5–1.7 MB | 1.3–1.8 MB |
-
