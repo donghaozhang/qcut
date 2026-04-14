@@ -282,3 +282,26 @@ All three project dirs kept on disk for reference.
 | Avg per portrait | **67.9s** | **45.2s** | 44.9s |
 | Portrait sizes | 1.4–1.6 MB | 1.5–1.7 MB | 1.3–1.8 MB |
 
+## Log in
+
+Every AI command deducts credits from your account. Sign up once (free tier includes 50 credits/month), then log in from the CLI.
+
+```bash
+# Google OAuth (easiest — opens a browser window)
+qcut system login
+# Email + password
+qcut system login --email you@example.com
+# Scripted: pipe credentials via env vars (no interactive prompt)
+qcut system login --email "$QCUT_EMAIL" --password "$QCUT_PASSWORD"
+```
+
+Beta testers: use the @qcut.app credentials emailed to you. Each test account is pre-loaded with 1000 credits on the free plan.
+
+```bash
+export QCUT_TEST_EMAIL=test@qcut.app
+export QCUT_TEST_PASSWORD='...'
+qcut system login --email "$QCUT_TEST_EMAIL" --password "$QCUT_TEST_PASSWORD"
+```
+
+Verify with `qcut system check-keys --json` — a successful login shows your user email and remaining credits.
+
