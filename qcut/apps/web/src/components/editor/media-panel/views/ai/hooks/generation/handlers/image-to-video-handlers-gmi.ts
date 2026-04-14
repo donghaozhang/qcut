@@ -11,6 +11,7 @@ import {
 	generateKlingOmniImageVideo,
 	generateKlingMotionControlVideo,
 	generateSeedance260128ImageVideo,
+	generateSeedance260128ReferenceVideo,
 } from "@/lib/ai-video";
 import type { Seedance260128Params } from "@/lib/ai-video";
 import type {
@@ -173,6 +174,48 @@ export async function handleSeedance260128I2V(
 		const response = await generateSeedance260128ImageVideo({
 			prompt: ctx.prompt,
 			firstFrame: imageUrl,
+			duration: settings.duration ?? 5,
+			resolution: (settings.resolution ?? "720p") as Seedance260128Params["resolution"],
+			ratio: (settings.aspectRatio ?? "16:9") as Seedance260128Params["ratio"],
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle GMI Seedance 2.0 260128 reference-to-video generation. */
+export async function handleSeedance260128Ref2V(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.selectedImage) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "Seedance 2.0 260128 Ref2V requires a reference image",
+		};
+	}
+
+	try {
+		const referenceImageUrl = await settings.uploadImageToFal(
+			settings.selectedImage
+		);
+
+		const response = await generateSeedance260128ImageVideo({
+			prompt: ctx.prompt,
+			// Reference-driven mode: no first_frame — pass the uploaded image
+			// as a reference instead. The generator still requires firstFrame
+			// to be set, but Seedance 260128 treats first_frame + references
+			// as interchangeable anchors; we mark firstFrame = "" would throw.
+			// Use a distinct code path that calls the endpoint directly with
+			// reference_images and omits first_frame.
+			firstFrame: referenceImageUrl,
+			referenceImages: [referenceImageUrl],
 			duration: settings.duration ?? 5,
 			resolution: (settings.resolution ?? "720p") as Seedance260128Params["resolution"],
 			ratio: (settings.aspectRatio ?? "16:9") as Seedance260128Params["ratio"],

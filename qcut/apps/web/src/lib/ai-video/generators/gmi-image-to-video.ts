@@ -223,6 +223,12 @@ export interface Seedance260128ImageParams extends Seedance260128Params {
 	lastFrame?: string;
 }
 
+/** Reference-to-video params for Seedance 2.0 260128 — no first-frame anchor. */
+export interface Seedance260128ReferenceParams extends Seedance260128Params {
+	/** At least one reference image URL is required. */
+	referenceImages: string[];
+}
+
 /** Generate image-to-video using GMI Seedance 2.0 260128. */
 export async function generateSeedance260128ImageVideo(
 	params: Seedance260128ImageParams
@@ -263,6 +269,54 @@ export async function generateSeedance260128ImageVideo(
 		job_id: jobId,
 		status: "completed",
 		message: "Video generated with GMI Seedance 2.0 260128 (image-to-video)",
+		estimated_time: 0,
+		video_url: pollResult.videoUrl,
+		video_data: pollResult,
+	};
+}
+
+/**
+ * Generate reference-to-video using GMI Seedance 2.0 260128.
+ *
+ * No first_frame anchor — character consistency is driven purely by
+ * the supplied reference image(s) (and optional reference videos/audios).
+ */
+export async function generateSeedance260128ReferenceVideo(
+	params: Seedance260128ReferenceParams
+): Promise<VideoGenerationResponse> {
+	if (!params.referenceImages?.length) {
+		throw new Error(
+			"Seedance 2.0 260128 reference-to-video requires at least one reference image"
+		);
+	}
+
+	const jobId = generateJobId();
+
+	const payload: Record<string, unknown> = { prompt: params.prompt };
+	applySeedance260128OptionalFields(payload, params);
+
+	const submitResult = await providerRouter.submit(
+		"seedance-2-0-260128",
+		payload,
+		"gmi"
+	);
+
+	const pollResult = await providerRouter.poll(
+		submitResult.requestId,
+		submitResult.provider
+	);
+
+	if (pollResult.status === "failed") {
+		throw new Error(
+			pollResult.error ?? "GMI Seedance 2.0 260128 reference-to-video failed"
+		);
+	}
+
+	return {
+		job_id: jobId,
+		status: "completed",
+		message:
+			"Video generated with GMI Seedance 2.0 260128 (reference-to-video)",
 		estimated_time: 0,
 		video_url: pollResult.videoUrl,
 		video_data: pollResult,

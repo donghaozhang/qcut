@@ -198,8 +198,12 @@ export {
 	generateKlingOmniImageVideo,
 	generateKlingMotionControlVideo,
 	generateSeedance260128ImageVideo,
+	generateSeedance260128ReferenceVideo,
 } from "./generators/gmi-image-to-video";
-export type { Seedance260128ImageParams } from "./generators/gmi-image-to-video";
+export type {
+	Seedance260128ImageParams,
+	Seedance260128ReferenceParams,
+} from "./generators/gmi-image-to-video";
 
 // ============================================
 // Runway Generators
