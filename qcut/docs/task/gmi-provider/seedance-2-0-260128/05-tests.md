@@ -18,8 +18,8 @@ Tests must not hit the network — stub the provider router / fetch.
 | T2V field rename | `aspectRatio: "16:9"` serialises to payload `ratio: "16:9"` (not `aspect_ratio`) |
 | T2V omits undefined | No `seed`, `watermark`, `web_search`, `reference_*` keys in payload when caller doesn't set them |
 | T2V failure | `pollResult.status === "failed"` → generator throws with upstream error message |
-| I2V requires first frame | Handler throws when `imageUrl` is empty |
-| I2V payload | `firstFrame` / `lastFrame` map to `first_frame` / `last_frame` |
+| I2V requires first frame | Handler returns `shouldSkip: true` with reason when no `selectedImage` is provided |
+| I2V payload | Generator maps `firstFrame` / `lastFrame` (camelCase inputs) to `first_frame` / `last_frame` payload keys |
 | Registry lookup | `ModelRegistry.get("gmi_seedance_2_0_260128_t2v").providerBackend === "gmi"` and endpoint matches |
 | Handler routing | `model: "gmi_seedance_2_0_260128_t2v"` dispatches to the new handler (mirror the existing Omni routing test) |
 

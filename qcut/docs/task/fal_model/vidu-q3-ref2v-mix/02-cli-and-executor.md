@@ -61,10 +61,10 @@ if (input.imageUrl) {
 ```
 
 No duration coercion needed — Vidu accepts integer (verified from
-spec). No `audio` field renaming either; the registry's
-`default_params` already uses `audio: true`, and `executeImageToVideo`
-spreads default params into the payload (or relies on FAL's
-server-side default if we don't pass it explicitly).
+spec). No `audio` field renaming either; the registry's `defaults`
+entry already uses `audio: true`, and `executeImageToVideo` reads
+`model.defaults` into the payload (or relies on FAL's server-side
+default if we don't pass it explicitly).
 
 ## Why a per-model branch instead of an abstraction
 

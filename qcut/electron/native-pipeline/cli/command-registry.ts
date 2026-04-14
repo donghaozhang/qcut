@@ -1419,7 +1419,11 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--model", "string", "Video model family", {
 				short: "-m",
 				default: "gmi_seedance_2_0_260128",
-				enum: ["gmi_seedance_2_0_260128", "seedance_2_0"],
+				enum: [
+					"gmi_seedance_2_0_260128",
+					"seedance_2_0",
+					"vidu_q3_ref2v_mix",
+				],
 			}),
 		],
 		examples: [
@@ -1427,6 +1431,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut flow novel2video --project my-story --max-shots 5 --duration 5",
 			"qcut flow novel2video --project my-story --force --cost-gate 20",
 			"qcut flow novel2video --project my-story --model seedance_2_0  # FAL fallback",
+			"qcut flow novel2video --project my-story --model vidu_q3_ref2v_mix  # Vidu Q3 mix (multi-ref)",
 		],
 	},
 	"vimax:extract-characters": {

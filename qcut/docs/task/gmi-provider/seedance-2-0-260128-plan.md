@@ -90,9 +90,9 @@ Tests live in `apps/web/src/lib/ai-video/generators/__tests__/gmi-image-source.t
 - `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/text-to-video-handlers.ts`
   — added `handleSeedance260128T2V`.
 - `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/image-to-video-handlers-gmi.ts`
-  — added `handleSeedance260128I2V`.
+  — added `handleSeedance260128I2V` and `handleSeedance260128Ref2V`.
 - `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/model-handlers.ts`
-  — imports + routing cases for the two new handlers.
+  — imports + routing cases for all three new handlers (T2V, I2V, Ref2V).
 - `apps/web/src/lib/ai-video/generators/__tests__/gmi-text-to-video.test.ts`
   — 4 new tests (payload shape, omit undefined, reference array gating,
   failed-poll).
@@ -168,7 +168,7 @@ No new provider adapter, no new auth, no new polling path —
 | `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/image-to-video-handlers-gmi.ts` | add `handleSeedance260128I2V` |
 | `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/model-handlers.ts` | route to new handlers |
 | `electron/native-pipeline/vimax/adapters/video-adapter.ts` | works automatically via registry lookup (no change) |
-| `packages/license-server/src/services/provider-keys.ts` | add endpoint to GMI allowlist if applicable |
+| `packages/license-server/src/services/provider-keys.ts` | no change required — the existing GMI endpoint allowlist already covers `seedance-2-0-260128` |
 | `apps/web/src/lib/credit-costs.ts` | optional per-second cost entry |
 | `docs/task/gmi-video-cli-guide/04-gmi-models.md` | document the new model |
 

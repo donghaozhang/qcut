@@ -26,7 +26,7 @@ export const MAX_INLINE_BYTES = 10 * 1024 * 1024;
 export async function fileToDataUri(file: File): Promise<string> {
 	if (file.size > MAX_INLINE_BYTES) {
 		throw new Error(
-			`Image is ${(file.size / 1024 / 1024).toFixed(1)}MB; GMI inline upload limit is ${MAX_INLINE_BYTES / 1024 / 1024}MB. Configure FAL_KEY to upload via FAL CDN instead.`
+			`Image is ${(file.size / 1024 / 1024).toFixed(1)}MB; GMI inline upload limit is ${MAX_INLINE_BYTES / 1024 / 1024}MB. Configure VITE_FAL_API_KEY to upload via FAL CDN instead.`
 		);
 	}
 

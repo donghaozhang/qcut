@@ -49,7 +49,7 @@ Signature matches the other `vimax:*` handlers so it drops into
 
 ## Control flow
 
-```
+```text
 1.  resolveProjectPaths(slug) → paths
 2.  read paths.scriptsDir → gather Shot[] from every chunk_NNN.json
 3.  read paths.portraitRegistryPath → Record<name, localPath>
@@ -127,7 +127,7 @@ run still leaves a coherent partial registry on disk.
 
 ## Cost gate
 
-```
+```text
 projected = shotsToRun × avgDuration × $0.052
 if projected > $QCUT_COST_GATE and not --force:
   return { success: false, error: "projected cost $X exceeds gate $Y, pass --force to override" }
@@ -157,7 +157,7 @@ Feed `onProgress` with a shot-level percent: `Math.floor((completed
 / total) * 100)`. Inside a shot, use the Seedance poll's percent
 nudged into a sub-band so the bar advances smoothly. Example:
 
-```
+```text
 [shot 3/15]  [seedance] 42% processing...
 ```
 

@@ -569,36 +569,10 @@ export const I2V_MODELS = {
 			"1080p": 0.154,
 		},
 	},
-	vidu_q3_ref2v_mix: {
-		id: "vidu_q3_ref2v_mix",
-		name: "Vidu Q3 Ref2V (mix)",
-		description:
-			"Character-consistent video from up to 4 reference images, with native audio",
-		price: "$0.07-0.154/s",
-		resolution: "720p",
-		max_duration: 16,
-		category: "image",
-		requiredInputs: ["referenceImage"],
-		endpoints: {
-			image_to_video: "fal-ai/vidu/q3/reference-to-video/mix",
-		},
-		default_params: {
-			duration: 5,
-			resolution: "720p",
-			aspect_ratio: "16:9",
-			// `audio` boolean, NOT `generate_audio` (Vidu Q3 i2v uses that).
-			audio: true,
-		},
-		supportedResolutions: ["360p", "540p", "720p", "1080p"],
-		supportedDurations: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
-		supportedAspectRatios: ["16:9", "9:16", "4:3", "3:4", "1:1"],
-		perSecondPricing: {
-			"360p": 0.07,
-			"540p": 0.07,
-			"720p": 0.154,
-			"1080p": 0.154,
-		},
-	},
+	// Note: `vidu_q3_ref2v_mix` is wired for the CLI novel2video flow only
+	// (see `electron/native-pipeline/registry-data/image-to-video.ts`).
+	// It is intentionally NOT exposed in the web I2V dropdown because the
+	// renderer has no handler for its `reference_image_urls` payload.
 	veo31_lite_image_to_video: {
 		id: "veo31_lite_image_to_video",
 		name: "Veo 3.1 Lite Image-to-Video",
@@ -914,7 +888,6 @@ export const I2V_MODEL_ORDER: readonly I2VModelId[] = [
 	"wan_25_preview_i2v",
 	"vidu_q2_turbo_i2v",
 	"vidu_q3_i2v",
-	"vidu_q3_ref2v_mix",
 	"veo31_lite_image_to_video",
 	"veo31_frame_to_video",
 	"veo31_fast_frame_to_video",

@@ -1,6 +1,6 @@
 # Subtask 2 — Per-shot adapter (pure, testable)
 
-> **Status:** ✅ Landed. 22 tests green (12 adapter + 7 sanitize +
+> **Status:** ✅ Landed. 23 tests green (12 adapter + 7 sanitize +
 > 4 clamp). Adapter stayed under 170 lines, zero fs/fetch imports.
 > The live smoke exercised its t2v fallback branch — when portrait
 > uploads fail, the adapter logs uncatalogued characters in
@@ -67,7 +67,7 @@ resulting map into the adapter.
 
 ## Variant selection
 
-```
+```text
 if firstFrameUrl set          → i2v
 else if any character in portraits → ref2v
 else                          → t2v
@@ -162,8 +162,8 @@ Mock nothing — adapter is pure. Tests take <10 ms total.
 
 ## Definition of done
 
-- [ ] `video-shot-adapter.ts` < 200 lines; no fs/fetch imports.
-- [ ] 13/13 tests pass: `bunx vitest run
+- [x] `video-shot-adapter.ts` < 200 lines; no fs/fetch imports.
+- [x] 23/23 tests pass: `bunx vitest run
   electron/native-pipeline/cli/vimax-cli-handlers/__tests__/video-shot-adapter.test.ts`.
-- [ ] Re-export via `cli/vimax-cli-handlers/index.ts` so the handler
+- [x] Re-export via `cli/vimax-cli-handlers/index.ts` so the handler
   and tests import from a stable path.

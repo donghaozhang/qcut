@@ -17,12 +17,16 @@ import {
 	generateSeedance260128TextVideo,
 	generateRunwayTextToVideo,
 } from "@/lib/ai-video";
-import type { Seedance260128Params } from "@/lib/ai-video";
 import type {
 	ModelHandlerContext,
 	ModelHandlerResult,
 	TextToVideoSettings,
 } from "../model-handler-types";
+import {
+	resolveSeedanceDuration,
+	resolveSeedanceRatio,
+	resolveSeedanceResolution,
+} from "./seedance-260128-params";
 
 // These aliases map UI values to generator literal unions.
 type LTXV2Duration = 6 | 8 | 10 | 12 | 14 | 16 | 18 | 20;
@@ -581,9 +585,9 @@ export async function handleSeedance260128T2V(
 	try {
 		const response = await generateSeedance260128TextVideo({
 			prompt: ctx.prompt,
-			duration: settings.duration ?? 5,
-			resolution: (settings.resolution ?? "720p") as Seedance260128Params["resolution"],
-			ratio: (settings.aspectRatio ?? "16:9") as Seedance260128Params["ratio"],
+			duration: resolveSeedanceDuration(settings.duration),
+			resolution: resolveSeedanceResolution(settings.resolution),
+			ratio: resolveSeedanceRatio(settings.aspectRatio),
 		});
 		return { response };
 	} catch (error) {

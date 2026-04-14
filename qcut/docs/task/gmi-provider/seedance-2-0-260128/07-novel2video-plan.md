@@ -97,7 +97,7 @@ annotated with its implementation notes.
 
 ## Directory layout (post-Stage 4)
 
-```
+```text
 ~/Documents/QCut/projects/<slug>/
 ├── project.json
 ├── novel.md
@@ -243,7 +243,7 @@ without 4 causes no regression.
 
 ## Verification
 
-```
+```text
 bunx vitest run \
   electron/native-pipeline/output/__tests__/upload-helper.test.ts \
   electron/native-pipeline/cli/vimax-cli-handlers/__tests__/video-shot-adapter.test.ts \

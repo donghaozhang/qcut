@@ -51,8 +51,10 @@ determine whether GMI video endpoints are routed through the proxy:
 
 If the proxy path uses a per-model credit estimator, ensure
 `estimateProxyCredits("gmi_seedance_2_0_260128_t2v", { duration })`
-returns the right amount. This happens automatically via
-`estimateCost` once the registry entry from subtask 1 is in place.
+returns the right amount. The estimator reads the explicit
+`credit-costs.ts` mapping, not the registry entry — add an entry
+there for each new model key or proxy-mode calls will fall back to
+the default rate.
 
 ## Acceptance
 

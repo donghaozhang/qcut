@@ -133,7 +133,7 @@ interface RegistryEntry {
 export async function handleVimaxNovel2Video(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
-	_signal?: AbortSignal,
+	signal?: AbortSignal,
 	deps: HandleVimaxNovel2VideoDeps = {}
 ): Promise<CLIResult> {
 	const slug = options.projectId ? safeProjectSlug(options.projectId) : "";
@@ -171,7 +171,14 @@ export async function handleVimaxNovel2Video(
 
 	const maxShots = options.maxShots ?? shots.length;
 	const plannedShots = shots.slice(0, Math.max(0, maxShots));
-	const durationSeconds = clampShotDuration(options.duration);
+	// When --duration is omitted, preserve each shot's script-authored
+	// duration. When set, it acts as a global override.
+	const durationOverride =
+		options.duration != null && options.duration !== ""
+			? clampShotDuration(options.duration)
+			: undefined;
+	const shotDuration = (shot: Shot): number =>
+		durationOverride ?? clampShotDuration(shot.durationSeconds);
 
 	let family: SeedanceFamily;
 	try {
@@ -183,12 +190,19 @@ export async function handleVimaxNovel2Video(
 	const costPerSecond = COST_PER_SECOND[family];
 
 	// ── Pre-flight + cost gate ────────────────────────────────────
+	const totalPlannedSeconds = plannedShots.reduce(
+		(sum, shot) => sum + shotDuration(shot),
+		0
+	);
+	const avgDuration =
+		plannedShots.length > 0
+			? totalPlannedSeconds / plannedShots.length
+			: DEFAULT_SHOT_DURATION;
 	printEstimate(
-		estimateNovel2Video(plannedShots.length, durationSeconds, costPerSecond)
+		estimateNovel2Video(plannedShots.length, avgDuration, costPerSecond)
 	);
 
-	const projectedCost =
-		plannedShots.length * durationSeconds * costPerSecond;
+	const projectedCost = totalPlannedSeconds * costPerSecond;
 	const costGate = options.costGate ?? DEFAULT_COST_GATE_USD;
 	if (projectedCost > costGate && options.force !== true) {
 		return {
@@ -202,7 +216,7 @@ export async function handleVimaxNovel2Video(
 	const uploadStep = startStep(
 		`upload ${Object.keys(portraitPaths).length} portraits`
 	);
-	const portraitUrls = await uploadPortraits(portraitPaths, uploadImpl);
+	const portraitUrls = await uploadPortraits(portraitPaths, uploadImpl, signal);
 	uploadStep.end(
 		`${Object.keys(portraitUrls).length}/${Object.keys(portraitPaths).length} uploaded`
 	);
@@ -238,6 +252,7 @@ export async function handleVimaxNovel2Video(
 	const runOneShot = async (index: number): Promise<void> => {
 		const shot = plannedShots[index];
 		const mp4Path = shotVideoPath(paths, shot.shotId);
+		const thisShotDuration = shotDuration(shot);
 
 		if (fs.existsSync(mp4Path) && options.force !== true) {
 			console.error(`  [skip] shot ${shot.shotId} → ${mp4Path} already exists`);
@@ -258,7 +273,7 @@ export async function handleVimaxNovel2Video(
 				shotId: shot.shotId,
 				description: shot.description,
 				characters: shot.characters,
-				durationSeconds,
+				durationSeconds: thisShotDuration,
 				firstFrameUrl: shot.firstFrameUrl,
 				aspectRatio,
 				resolution,
@@ -279,6 +294,7 @@ export async function handleVimaxNovel2Video(
 				modelKey: adapted.variant,
 				payload: adapted.payload,
 				provider: adapted.provider,
+				signal,
 			});
 		} catch (err) {
 			shotStep.end("failed");
@@ -327,7 +343,7 @@ export async function handleVimaxNovel2Video(
 			return;
 		}
 
-		const cost = apiResult.cost ?? durationSeconds * costPerSecond;
+		const cost = apiResult.cost ?? thisShotDuration * costPerSecond;
 		totalCost += cost;
 		successCount++;
 		shotStep.end(
@@ -339,7 +355,7 @@ export async function handleVimaxNovel2Video(
 			variant: adapted.variant,
 			mp4_path: mp4Path,
 			cost_usd: cost,
-			duration_seconds: durationSeconds,
+			duration_seconds: thisShotDuration,
 			reference_urls: adapted.referenceUrls,
 			reason: adapted.reason,
 		});
@@ -369,7 +385,7 @@ export async function handleVimaxNovel2Video(
 
 	onProgress({ stage: "complete", percent: 100, message: "Done" });
 
-	if (successCount > 0) {
+	if (successCount > 0 || (failedCount === 0 && skippedCount > 0)) {
 		markStageCompleted(paths, "videos");
 	}
 
@@ -391,8 +407,10 @@ export async function handleVimaxNovel2Video(
 		],
 	});
 
+	const allSkipped =
+		successCount === 0 && failedCount === 0 && skippedCount > 0;
 	return {
-		success: successCount > 0,
+		success: successCount > 0 || allSkipped,
 		outputPath: paths.videosDir,
 		cost: totalCost,
 		duration: totalDurationSeconds,
@@ -435,7 +453,11 @@ function loadShots(paths: ProjectPaths): Shot[] {
 	const chunkFiles = fs
 		.readdirSync(paths.scriptsDir)
 		.filter((f) => /^chunk_\d+\.json$/.test(f))
-		.sort();
+		.sort((a, b) => {
+			const na = Number(a.match(/^chunk_(\d+)\.json$/)?.[1] ?? 0);
+			const nb = Number(b.match(/^chunk_(\d+)\.json$/)?.[1] ?? 0);
+			return na - nb;
+		});
 
 	const out: Shot[] = [];
 	for (const chunkFile of chunkFiles) {
@@ -470,24 +492,32 @@ interface PortraitRegistryFile {
 	portraits?: Record<string, { front_view?: string }>;
 }
 
-/** Read portraits/registry.json — returns `name → local path` map. */
+/**
+ * Read portraits/registry.json — returns `name → local path` map.
+ *
+ * Missing registry is optional (returns `{}` → t2v fallback). An
+ * unreadable or invalid registry fails fast so Stage 4 does not burn
+ * budget on plain T2V when the user expected ref2v.
+ */
 function readPortraitRegistry(paths: ProjectPaths): Record<string, string> {
 	if (!fs.existsSync(paths.portraitRegistryPath)) return {};
+	const rawText = fs.readFileSync(paths.portraitRegistryPath, "utf-8");
+	let parsed: PortraitRegistryFile;
 	try {
-		const raw = JSON.parse(
-			fs.readFileSync(paths.portraitRegistryPath, "utf-8")
-		) as PortraitRegistryFile;
-		const portraits = raw?.portraits ?? {};
-		const out: Record<string, string> = {};
-		for (const [name, entry] of Object.entries(portraits)) {
-			if (entry?.front_view && fs.existsSync(entry.front_view)) {
-				out[name] = entry.front_view;
-			}
-		}
-		return out;
-	} catch {
-		return {};
+		parsed = JSON.parse(rawText) as PortraitRegistryFile;
+	} catch (err) {
+		throw new Error(
+			`Invalid JSON in ${paths.portraitRegistryPath}: ${err instanceof Error ? err.message : String(err)}`
+		);
 	}
+	const portraits = parsed?.portraits ?? {};
+	const out: Record<string, string> = {};
+	for (const [name, entry] of Object.entries(portraits)) {
+		if (entry?.front_view && fs.existsSync(entry.front_view)) {
+			out[name] = entry.front_view;
+		}
+	}
+	return out;
 }
 
 /**
@@ -497,14 +527,15 @@ function readPortraitRegistry(paths: ProjectPaths): Record<string, string> {
  */
 async function uploadPortraits(
 	localPaths: Record<string, string>,
-	uploadImpl: typeof uploadFileForReference
+	uploadImpl: typeof uploadFileForReference,
+	signal?: AbortSignal
 ): Promise<Record<string, string>> {
 	const entries = Object.entries(localPaths);
 	const out: Record<string, string> = {};
 	await Promise.all(
 		entries.map(async ([name, localPath]) => {
 			try {
-				const result = await uploadImpl({ filePath: localPath });
+				const result = await uploadImpl({ filePath: localPath, signal });
 				out[name] = result.url;
 			} catch (err) {
 				console.error(

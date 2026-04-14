@@ -132,7 +132,7 @@ qcut flow novel2video --project "$PROJECT" \
     --max-shots 1 --duration 4 --resolution 480p
 
 jq '.stages_completed' ~/Documents/QCut/projects/$PROJECT/project.json
-# → ["characters", "portraits", "scripts"]   (videos tracked separately under videos/registry.json)
+# → ["characters", "portraits", "scripts", "videos"]   (per-shot details in videos/registry.json)
 ```
 
 ### Style overrides
@@ -270,7 +270,7 @@ Flags:
 | `--concurrency` | 1 | Parallel shots in flight |
 | `--cost-gate` | 2 | Aborts if projected USD spend exceeds this |
 | `--force` | off | Overwrites existing MP4s + bypasses `--cost-gate` |
-| `--model` / `-m` | `gmi_seedance_2_0_260128` | `gmi_seedance_2_0_260128` (default, $0.052/s) or `seedance_2_0` (FAL fallback, $0.60/s) |
+| `--model` / `-m` | `gmi_seedance_2_0_260128` | `gmi_seedance_2_0_260128` (default, $0.052/s), `seedance_2_0` (FAL fallback, $0.60/s), or `vidu_q3_ref2v_mix` (FAL Vidu, $0.154/s at 720p/1080p) |
 
 The `--model` flag selects the **provider family**, not a specific
 variant — the per-shot adapter still picks the right ref2v / i2v /
@@ -282,6 +282,7 @@ field names, and price:
 |---|---|---|---|---|
 | `gmi_seedance_2_0_260128` | `seedance-2-0-260128` (one endpoint, internal variant) | `reference_images` (array) | integer | **$0.052** |
 | `seedance_2_0` (FAL) | `bytedance/seedance-2.0/{ref-to,image-to,text-to}-video` | `image_urls` (array, up to 9) | string literal | $0.60 |
+| `vidu_q3_ref2v_mix` (FAL Vidu) | `fal-ai/vidu/q3/reference-to-video` | `reference_image_urls` (array, up to 7) | integer | $0.07 (360p/540p) / **$0.154** (720p/1080p) |
 
 Wall-clock runs ~3–6 min per shot (Seedance is slow). Use
 `--max-shots 1` for smoke tests so a typo doesn't burn 30 minutes
@@ -402,7 +403,7 @@ the same tone automatically.
 
 Fresh three-stage run on
 `electron/native-pipeline/vimax/examples/drama-example.md`
-(《从弃女到巅峰：苏家千金归来》, a Chinese modern drama, 5,697 chars)
+(《从弃女到巅峰：苏家千金归来》, a modern Chinese drama, 5,697 chars)
 into project dir `~/Documents/QCut/projects/cdrama-heiress-v3/`.
 This run validated the test-account proxy flow end-to-end — beta
 tester logged in via `qcut system login`, no `GMI_API_KEY` /
@@ -420,7 +421,7 @@ the license-server proxy.
 after completion. Detected style header: `真人写实, 电视风格, 暖色调`.
 Per-chunk Stage 3 timing:
 
-```
+```text
 [step] chunk 1/4 segmentation — 8.7s  2 scenes, 14 shots
 [step] chunk 2/4 segmentation — 9.3s  3 scenes, 22 shots
 ```
@@ -430,7 +431,7 @@ chunker had planned 4 chunks for the 5,697-char novel but the cap
 short-circuited chunks 3 and 4. Absolute paths in the summary matched
 disk exactly:
 
-```
+```text
 /Users/peter/Documents/QCut/projects/cdrama-heiress-v3/
 ├── project.json           (414B)
 ├── novel.md               (14.8KB)
@@ -471,7 +472,7 @@ Single-shot smoke test on the same `cdrama-heiress-v3/` project to
 prove the wiring end-to-end. Cheapest config: `--max-shots 1
 --duration 4 --resolution 480p`.
 
-```
+```text
 [step] upload 5 portraits — 1.0s  0/5 uploaded
 [step] shot 1/1 [t2v] — 6m 8s  t2v, $0.208
 
@@ -515,7 +516,7 @@ re-ran the staged pipeline against the **anime project**
 `style-anime-v2/` with a shot whose characters overlap the portrait
 registry (shot `1-1-3`: 沈念安 + 顾承泽, both catalogued).
 
-```
+```text
 [upload-helper] Proxy vend failed (FAL API key not configured on server);
                  falling back to direct FAL upload.   ×5
   [step] upload 5 portraits — 8.5s  5/5 uploaded

@@ -440,7 +440,7 @@ export function registerImageToVideoModels(): void {
 		key: "seedance_2_0_ref2v",
 		name: "ByteDance Seedance 2.0 Ref2V",
 		provider: "ByteDance",
-		endpoint: "bytedance/seedance-2.0/reference-to-video",
+		endpoint: "fal-ai/bytedance/seedance-2.0/reference-to-video",
 		categories: ["image_to_video"],
 		description: "Character-consistent video from reference image",
 		pricing: 0.6,

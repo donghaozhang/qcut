@@ -128,6 +128,28 @@ function baseOptions(slugValue: string): CLIRunOptions {
 
 const noProgress = () => {};
 
+/**
+ * Poll `predicate` on each microtask yield until it returns true. Avoids
+ * `setTimeout(n)` sleeps in concurrency tests — those depend on the CI
+ * runner's scheduler and flake when the box is loaded. Capped at 5s so
+ * a genuinely-wedged test still fails with a clear error rather than
+ * hanging the suite.
+ */
+async function waitFor(
+	predicate: () => boolean,
+	{ timeoutMs = 5000 }: { timeoutMs?: number } = {}
+): Promise<void> {
+	const deadline = Date.now() + timeoutMs;
+	while (!predicate()) {
+		if (Date.now() > deadline) {
+			throw new Error("waitFor timed out");
+		}
+		// Yield so any queued microtasks (worker pool continuations, stub
+		// resolutions) get a chance to run before we re-check.
+		await new Promise((r) => setImmediate(r));
+	}
+}
+
 describe("handleVimaxNovel2Video", () => {
 	it("happy path: 2 shots with catalogued characters → ref2v", async () => {
 		const { slug: s, paths } = seedProject({
@@ -548,16 +570,22 @@ describe("handleVimaxNovel2Video", () => {
 			}
 		);
 
-		// Let the workers fan out, then assert 3 are in flight.
-		await new Promise((r) => setTimeout(r, 30));
+		// Wait for the worker pool to saturate — observed, not time-based.
+		await waitFor(() => releasers.length >= 3);
 		expect(inFlight).toBe(3);
 		expect(maxInFlight).toBe(3);
 
-		// Release all four shots one by one.
-		while (releasers.length > 0) {
-			const release = releasers.shift();
-			release?.();
-			await new Promise((r) => setTimeout(r, 10));
+		// Release shot 1; the freed worker picks up shot 4, so the pool
+		// stays at 3 in-flight (observed via releasers length).
+		releasers.shift()?.();
+		await waitFor(() => releasers.length >= 3);
+		expect(inFlight).toBe(3);
+
+		// Drain the remaining 3 shots. Each release frees a worker; with
+		// no more shots queued, inFlight descends 3 → 0.
+		for (let i = 3; i > 0; i--) {
+			releasers.shift()?.();
+			await waitFor(() => inFlight === i - 1);
 		}
 
 		const result = await runPromise;

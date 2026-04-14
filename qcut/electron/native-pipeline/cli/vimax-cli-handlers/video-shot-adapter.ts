@@ -109,7 +109,12 @@ export function resolveSeedanceFamily(model: string | undefined): SeedanceFamily
 
 const MIN_DURATION = 4;
 const MAX_DURATION = 15;
-const MAX_REFERENCES = 4;
+/** GMI Seedance 2.0 260128 accepts up to 4 `reference_images`. */
+const MAX_GMI_REFERENCES = 4;
+/** FAL Seedance 2.0 ref2v accepts up to 9 `image_urls`. */
+const MAX_FAL_REFERENCES = 9;
+/** FAL Vidu Q3 ref2v-mix accepts up to 7 `reference_image_urls`. */
+const MAX_VIDU_REFERENCES = 7;
 const MAX_PROMPT_CHARS = 500;
 
 /** Clamp a duration to the 4-15 integer range Seedance accepts. */
@@ -276,7 +281,7 @@ function baseFalPayload(common: CommonShape): Record<string, unknown> {
  * Build the Vidu Q3 Ref2V (mix) payload.
  *
  * Differs from both Seedance families — Vidu's quirks are:
- *   - field is `reference_image_urls` (plural, up to 4)
+ *   - field is `reference_image_urls` (plural, up to 7)
  *   - `duration` is a **number** (not string like FAL Seedance)
  *   - audio toggle is `audio: boolean` (not `generate_audio`)
  * See `electron/native-pipeline/execution/__tests__/step-executors-vidu.test.ts`
@@ -353,8 +358,14 @@ export function adaptShotForSeedance(
 		};
 	}
 	if (referenceUrls.length > 0) {
-		// Seedance accepts up to 4 reference images; truncate in a stable order.
-		const refs = referenceUrls.slice(0, MAX_REFERENCES);
+		// Per-family cap: GMI 4, FAL Seedance 9, FAL Vidu Q3 mix 7.
+		const maxRefs =
+			family === "fal"
+				? MAX_FAL_REFERENCES
+				: family === "vidu"
+					? MAX_VIDU_REFERENCES
+					: MAX_GMI_REFERENCES;
+		const refs = referenceUrls.slice(0, maxRefs);
 		const built =
 			family === "vidu"
 				? buildViduRef2V(common, refs)

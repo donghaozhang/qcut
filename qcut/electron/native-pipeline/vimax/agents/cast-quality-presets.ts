@@ -2,12 +2,12 @@
  * Cast quality presets — attractiveness descriptors prepended to
  * portrait prompts without over-prompting.
  *
- * Three levels with gender-aware snippets. `natural` is a no-op
- * (keeps current behaviour). `photogenic` is the default — a short,
- * neutral descriptor that nudges the model toward cleaner, better-lit
- * faces without the uncanny/plastic look that "supermodel" spam
- * produces on flash-image models. `model-grade` is explicitly opt-in
- * for drama leads.
+ * Three levels with gender-aware snippets. `natural` is the default —
+ * a no-op that keeps the extractor's portrait prompt untouched.
+ * `photogenic` adds a short, neutral descriptor that nudges the model
+ * toward cleaner, better-lit faces without the uncanny/plastic look
+ * that "supermodel" spam produces on flash-image models. `model-grade`
+ * is explicitly opt-in for drama leads.
  *
  * Snippet vocabulary is deliberately small; adjective spam narrows
  * the face distribution and makes every character look the same.

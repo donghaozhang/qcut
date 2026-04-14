@@ -403,10 +403,10 @@ describe("adaptShotForSeedance — Vidu family", () => {
 		expect(adapted.payload).not.toHaveProperty("ratio");
 	});
 
-	it("allows up to 4 reference images", () => {
+	it("allows up to 7 reference images for Vidu", () => {
 		const portraits: Record<string, string> = {};
 		const characters: string[] = [];
-		for (let i = 0; i < 6; i++) {
+		for (let i = 0; i < 9; i++) {
 			const name = `c${i}`;
 			portraits[name] = `https://cdn/${i}.png`;
 			characters.push(name);
@@ -417,7 +417,7 @@ describe("adaptShotForSeedance — Vidu family", () => {
 			"vidu"
 		);
 		expect(adapted.variant).toBe("vidu_q3_ref2v_mix");
-		expect((adapted.payload.reference_image_urls as string[]).length).toBe(4);
+		expect((adapted.payload.reference_image_urls as string[]).length).toBe(7);
 	});
 
 	it("degrades to FAL Seedance t2v when no characters are catalogued", () => {

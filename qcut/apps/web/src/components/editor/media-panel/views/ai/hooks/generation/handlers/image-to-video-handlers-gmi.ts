@@ -13,13 +13,17 @@ import {
 	generateSeedance260128ImageVideo,
 	generateSeedance260128ReferenceVideo,
 } from "@/lib/ai-video";
-import type { Seedance260128Params } from "@/lib/ai-video";
 import { resolveGmiImageSource } from "@/lib/ai-video/generators/gmi-image-source";
 import type {
 	ImageToVideoSettings,
 	ModelHandlerContext,
 	ModelHandlerResult,
 } from "../model-handler-types";
+import {
+	resolveSeedanceDuration,
+	resolveSeedanceRatio,
+	resolveSeedanceResolution,
+} from "./seedance-260128-params";
 
 /** Handle GMI Veo 3.1 Lite image-to-video generation. */
 export async function handleGmiVeoLiteI2V(
@@ -192,9 +196,9 @@ export async function handleSeedance260128I2V(
 		const response = await generateSeedance260128ImageVideo({
 			prompt: ctx.prompt,
 			firstFrame: imageSource,
-			duration: settings.duration ?? 5,
-			resolution: (settings.resolution ?? "720p") as Seedance260128Params["resolution"],
-			ratio: (settings.aspectRatio ?? "16:9") as Seedance260128Params["ratio"],
+			duration: resolveSeedanceDuration(settings.duration),
+			resolution: resolveSeedanceResolution(settings.resolution),
+			ratio: resolveSeedanceRatio(settings.aspectRatio),
 		});
 		return { response };
 	} catch (error) {
@@ -228,9 +232,9 @@ export async function handleSeedance260128Ref2V(
 		const response = await generateSeedance260128ReferenceVideo({
 			prompt: ctx.prompt,
 			referenceImages: [referenceImageSource],
-			duration: settings.duration ?? 5,
-			resolution: (settings.resolution ?? "720p") as Seedance260128Params["resolution"],
-			ratio: (settings.aspectRatio ?? "16:9") as Seedance260128Params["ratio"],
+			duration: resolveSeedanceDuration(settings.duration),
+			resolution: resolveSeedanceResolution(settings.resolution),
+			ratio: resolveSeedanceRatio(settings.aspectRatio),
 		});
 		return { response };
 	} catch (error) {

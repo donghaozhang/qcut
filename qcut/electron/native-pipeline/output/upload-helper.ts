@@ -72,6 +72,25 @@ export class UploadError extends Error {
 	}
 }
 
+/** True for fetch aborts — must surface to the caller, never swallowed. */
+function isAbortError(err: unknown): boolean {
+	return (
+		err instanceof Error &&
+		(err.name === "AbortError" ||
+			(err as { code?: string }).code === "ABORT_ERR")
+	);
+}
+
+/**
+ * True when the proxy rejected auth (401/403) — the user has a token
+ * but it's invalid/expired. Falling back to direct FAL here would hide
+ * the real problem and bypass billing.
+ */
+function isProxyAuthError(err: unknown): boolean {
+	if (!(err instanceof UploadError)) return false;
+	return err.status === 401 || err.status === 403;
+}
+
 /** Infer a content type from file extension; defaults to octet-stream. */
 export function inferContentType(filePath: string): string {
 	const ext = path.extname(filePath).toLowerCase();
@@ -238,32 +257,45 @@ export async function uploadFileForReference(
 	const contentType = options.contentType ?? inferContentType(filePath);
 
 	const authToken = options.authToken ?? (await getSessionToken());
-	if (!authToken) {
-		throw new UploadError(
-			"No auth token available — run `qcut system login` first",
-			"preflight"
-		);
-	}
+	const falKey = getFalApiKey();
 
 	// ── Step 1: vend signed URL (proxy preferred, direct FAL fallback) ──
+	//
+	// Prefer the proxy so billing/allowlisting stays centralized. Only fall
+	// back to direct FAL for vend-level failures we explicitly want to
+	// bypass (missing/unreachable proxy, un-vendable 4xx/5xx) — NOT for
+	// aborts and NOT for real auth rejections, which should surface.
 	let signed: { uploadUrl: string; fileUrl: string };
-	try {
-		signed = await vendProxyUploadUrl({
-			fetchImpl,
-			authToken,
-			fileName,
-			contentType,
-			bytes,
-			signal,
-		});
-	} catch (proxyErr) {
-		const falKey = getFalApiKey();
-		if (!falKey) throw proxyErr;
-		const proxyMessage =
-			proxyErr instanceof Error ? proxyErr.message : String(proxyErr);
-		console.warn(
-			`[upload-helper] Proxy vend failed (${proxyMessage}); falling back to direct FAL upload.`
-		);
+	if (authToken) {
+		try {
+			signed = await vendProxyUploadUrl({
+				fetchImpl,
+				authToken,
+				fileName,
+				contentType,
+				bytes,
+				signal,
+			});
+		} catch (proxyErr) {
+			if (isAbortError(proxyErr)) throw proxyErr;
+			if (isProxyAuthError(proxyErr)) throw proxyErr;
+			if (!falKey) throw proxyErr;
+			const proxyMessage =
+				proxyErr instanceof Error ? proxyErr.message : String(proxyErr);
+			console.warn(
+				`[upload-helper] Proxy vend failed (${proxyMessage}); falling back to direct FAL upload.`
+			);
+			signed = await vendDirectFalUploadUrl({
+				fetchImpl,
+				apiKey: falKey,
+				fileName,
+				contentType,
+				signal,
+			});
+		}
+	} else if (falKey) {
+		// No session token — only the direct-FAL path is viable. Used for
+		// pre-login smoke tests and CI runs with `FAL_KEY` exported.
 		signed = await vendDirectFalUploadUrl({
 			fetchImpl,
 			apiKey: falKey,
@@ -271,6 +303,11 @@ export async function uploadFileForReference(
 			contentType,
 			signal,
 		});
+	} else {
+		throw new UploadError(
+			"No auth token and no FAL_KEY — run `qcut system login` or set FAL_KEY",
+			"preflight"
+		);
 	}
 
 	// ── Step 2: PUT bytes ─────────────────────────────────────────

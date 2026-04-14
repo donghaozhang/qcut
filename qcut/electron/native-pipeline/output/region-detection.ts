@@ -94,31 +94,47 @@ export function detectRegion(
 	novelText: string,
 	styleHeader?: string
 ): Region | undefined {
-	const combined = `${novelText ?? ""}\n${styleHeader ?? ""}`;
-	if (combined.trim().length === 0) return undefined;
+	const body = novelText ?? "";
+	const header = styleHeader ?? "";
+	if (body.trim().length === 0 && header.trim().length === 0) return undefined;
 
-	const scores: Array<[Region, number]> = [
-		["east-asian", scriptRatio(combined, CJK_RANGE)],
+	const regionScores = (text: string): Array<[Region, number]> => [
+		["east-asian", scriptRatio(text, CJK_RANGE)],
 		// Kana/hangul imply east-asian; don't double-count with CJK since
 		// the max() step below already picks the stronger signal.
 		[
 			"east-asian",
 			Math.max(
-				scriptRatio(combined, HIRAGANA_KATAKANA_RANGE),
-				scriptRatio(combined, HANGUL_RANGE)
+				scriptRatio(text, HIRAGANA_KATAKANA_RANGE),
+				scriptRatio(text, HANGUL_RANGE)
 			),
 		],
-		["south-asian", scriptRatio(combined, DEVANAGARI_RANGE)],
-		["middle-eastern", scriptRatio(combined, ARABIC_RANGE)],
-		["european", scriptRatio(combined, CYRILLIC_RANGE)],
-		["southeast-asian", scriptRatio(combined, THAI_RANGE)],
+		["south-asian", scriptRatio(text, DEVANAGARI_RANGE)],
+		["middle-eastern", scriptRatio(text, ARABIC_RANGE)],
+		["european", scriptRatio(text, CYRILLIC_RANGE)],
+		["southeast-asian", scriptRatio(text, THAI_RANGE)],
 	];
 
-	const [bestRegion, bestScore] = scores.reduce<[Region | undefined, number]>(
-		(acc, [region, score]) => (score > acc[1] ? [region, score] : acc),
-		[undefined, 0]
-	);
+	const pickBest = (
+		scores: Array<[Region, number]>
+	): [Region | undefined, number] =>
+		scores.reduce<[Region | undefined, number]>(
+			(acc, [region, score]) => (score > acc[1] ? [region, score] : acc),
+			[undefined, 0]
+		);
 
+	// ── Score the style header separately first. ────────────────
+	// Header is the author's explicit cast direction (e.g.
+	// "anime, 日式美学"); diluting it into a multi-KB novel would
+	// bury the signal below the 3% body-level noise floor. A single
+	// clear script hit in the header (≥20%) is enough to override.
+	if (header.length > 0) {
+		const [headerRegion, headerScore] = pickBest(regionScores(header));
+		if (headerRegion && headerScore >= 0.2) return headerRegion;
+	}
+
+	// ── Fall back to body scoring with the noise floor. ──────────
+	const [bestRegion, bestScore] = pickBest(regionScores(body));
 	// 3% noise floor — below this, script hits are likely from names or
 	// isolated borrowings and don't indicate a cast-level origin.
 	if (!bestRegion || bestScore < 0.03) return undefined;

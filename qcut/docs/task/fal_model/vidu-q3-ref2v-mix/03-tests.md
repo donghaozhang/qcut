@@ -39,13 +39,15 @@ vi.mock("../../infra/api-caller", () => ({
 }));
 
 import { callModelApi } from "../../infra/api-caller";
+import "../../registry-data/image-to-video"; // ensures Vidu entry is registered
 
 describe("executeImageToVideo — vidu_q3_ref2v_mix", () => {
   it("maps --image-url to reference_image_urls (array, length 1)", async () => {
     const model = ModelRegistry.get("vidu_q3_ref2v_mix");
     await executeStep(
-      { type: "image_to_video", model: model.key, params: { duration: 4 }, enabled: true, retryCount: 0 },
+      model,
       { text: "p", imageUrl: "https://example.com/ref.png" },
+      { duration: 4 },
       {}
     );
     const call = vi.mocked(callModelApi).mock.calls[0][0];
@@ -59,8 +61,10 @@ describe("executeImageToVideo — vidu_q3_ref2v_mix", () => {
 });
 ```
 
-(Adjust import paths to match the actual `executeStep` export — see
-`step-executors.ts` for the public surface.)
+`executeStep(model, input, params, options)` is the current public
+surface — see `electron/native-pipeline/execution/step-executors.ts`.
+Import the registry-data entry once per suite so the Vidu key is
+populated before `ModelRegistry.get` runs.
 
 ## Running
 
