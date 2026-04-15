@@ -358,8 +358,15 @@ describe("resolveSeedanceFamily", () => {
 		expect(resolveSeedanceFamily("vidu_q3_ref2v_mix")).toBe("vidu");
 	});
 
+	it("maps the Kling V3 Omni family", () => {
+		expect(resolveSeedanceFamily("gmi_kling_v3_omni")).toBe("kling-omni");
+		expect(resolveSeedanceFamily("gmi_kling_v3_omni_element")).toBe(
+			"kling-omni"
+		);
+	});
+
 	it("throws on unknown model keys", () => {
-		expect(() => resolveSeedanceFamily("kling_v3_pro")).toThrow(
+		expect(() => resolveSeedanceFamily("runway_gen_x")).toThrow(
 			/Unknown video model/i
 		);
 	});
@@ -493,5 +500,140 @@ describe("adaptShotForSeedance — Vidu family", () => {
 			"vidu"
 		);
 		expect(adapted.payload.duration).toBe(4);
+	});
+});
+
+describe("adaptShotForSeedance — Kling Omni family", () => {
+	it("element variant uses kling-v3-omni endpoint, element_list, string duration, and substitutes tokens", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1-1-2",
+				description: "Alice hugs Bob in the garden",
+				characters: ["Alice", "Bob"],
+				durationSeconds: 8,
+				aspectRatio: "16:9",
+				generateAudio: true,
+			},
+			// Kling Omni "portraits" map is name → element_id, NOT a URL.
+			{ Alice: "307795693621", Bob: "307795708543" },
+			"kling-omni"
+		);
+		expect(adapted.variant).toBe("gmi_kling_v3_omni_element");
+		expect(adapted.endpoint).toBe("kling-v3-omni");
+		expect(adapted.provider).toBe("gmi");
+		expect(adapted.payload.duration).toBe("8"); // Kling uses string duration
+		expect(adapted.payload.mode).toBe("pro");
+		expect(adapted.payload.sound).toBe("on");
+		expect(adapted.payload.aspect_ratio).toBe("16:9");
+		expect(adapted.payload.element_list).toEqual([
+			{ element_id: "307795693621" },
+			{ element_id: "307795708543" },
+		]);
+		// In-place token substitution
+		expect(adapted.payload.prompt).toBe(
+			"<<<element_1>>> hugs <<<element_2>>> in the garden"
+		);
+		expect(adapted.reason).toMatch(/kling-omni element: 2 catalogued/);
+	});
+
+	it("prepends tokens when character names don't appear in the prompt", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "They sit together quietly", // no name mentioned
+				characters: ["Alice"],
+				durationSeconds: 5,
+			},
+			{ Alice: "123" },
+			"kling-omni"
+		);
+		expect(adapted.payload.prompt).toBe(
+			"<<<element_1>>>: They sit together quietly"
+		);
+	});
+
+	it("sound=off when generateAudio is explicitly false", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Alice walks",
+				characters: ["Alice"],
+				durationSeconds: 5,
+				generateAudio: false,
+			},
+			{ Alice: "123" },
+			"kling-omni"
+		);
+		expect(adapted.payload.sound).toBe("off");
+	});
+
+	it("caps element_list at 4 and reports the cap via referenceUrls", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "five people meet",
+				characters: ["A", "B", "C", "D", "E"],
+				durationSeconds: 5,
+			},
+			{ A: "1", B: "2", C: "3", D: "4", E: "5" },
+			"kling-omni"
+		);
+		expect(adapted.payload.element_list).toEqual([
+			{ element_id: "1" },
+			{ element_id: "2" },
+			{ element_id: "3" },
+			{ element_id: "4" },
+		]);
+		expect(adapted.referenceUrls).toHaveLength(4);
+	});
+
+	it("firstFrameUrl routes to Kling I2V (image_list first_frame)", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "pan across the room",
+				characters: [],
+				firstFrameUrl: "https://cdn/x.jpg",
+				durationSeconds: 6,
+			},
+			{},
+			"kling-omni"
+		);
+		expect(adapted.variant).toBe("gmi_kling_v3_omni_i2v");
+		expect(adapted.payload.image_list).toEqual([
+			{ image_url: "https://cdn/x.jpg", type: "first_frame" },
+		]);
+		expect(adapted.payload.element_list).toBeUndefined();
+	});
+
+	it("falls back to Kling T2V when no characters and no first frame", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "a quiet street at dawn",
+				characters: [],
+				durationSeconds: 5,
+			},
+			{},
+			"kling-omni"
+		);
+		expect(adapted.variant).toBe("gmi_kling_v3_omni_t2v");
+		expect(adapted.payload.element_list).toBeUndefined();
+		expect(adapted.payload.image_list).toBeUndefined();
+	});
+
+	it("degrades to T2V when characters are uncatalogued and records skips", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Ghosts gather in the hall",
+				characters: ["GhostA", "GhostB"],
+				durationSeconds: 5,
+			},
+			{},
+			"kling-omni"
+		);
+		expect(adapted.variant).toBe("gmi_kling_v3_omni_t2v");
+		expect(adapted.skippedCharacters).toEqual(["GhostA", "GhostB"]);
 	});
 });

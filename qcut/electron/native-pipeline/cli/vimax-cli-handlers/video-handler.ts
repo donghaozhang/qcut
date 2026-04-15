@@ -27,6 +27,7 @@ import {
 	safeProjectSlug,
 	shotVideoPath,
 	videoRegistryPath,
+	klingElementCachePath,
 	type ProjectPaths,
 } from "../../output/project-paths.js";
 import {
@@ -50,6 +51,7 @@ import {
 	type AdaptedShot,
 	type SeedanceFamily,
 } from "./video-shot-adapter.js";
+import { ensureKlingElements } from "./kling-element-orchestrator.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -78,6 +80,11 @@ const COST_PER_SECOND: Record<SeedanceFamily, number> = {
 	// Use the 720p+ rate as worst-case so the cost gate doesn't
 	// under-estimate resolution-agnostic runs.
 	vidu: 0.154,
+	// Kling V3 Omni: std $0.084/s, std+sound $0.112/s, pro $0.112/s,
+	// pro+sound $0.14/s. We default `mode: "pro"` and `sound: "on"`
+	// when generateAudio is true — use the worst-case $0.14/s so the
+	// gate doesn't under-estimate.
+	"kling-omni": 0.14,
 };
 
 const DEFAULT_COST_GATE_USD = 2;
@@ -89,7 +96,8 @@ function shortVariantLabel(variant: string): string {
 		.replace(/^gmi_seedance_2_0_260128_/, "")
 		.replace(/^seedance_2_0_/, "")
 		.replace(/^seedance_2_0$/, "t2v")
-		.replace(/^vidu_q3_/, "vidu-");
+		.replace(/^vidu_q3_/, "vidu-")
+		.replace(/^gmi_kling_v3_omni_/, "kling-omni-");
 }
 
 interface RawShot {
@@ -224,6 +232,38 @@ export async function handleVimaxNovel2Video(
 		`${Object.keys(portraitUrls).length}/${Object.keys(portraitPaths).length} uploaded`
 	);
 
+	// ── Kling Omni element pre-flight ─────────────────────────────
+	// For the Kling Omni family, adaptShotForSeedance expects
+	// `portraits` as `name → element_id` (not URL). Create an element
+	// per portrait once (or reuse from the cache) before rendering.
+	let portraitCatalog: Record<string, string> = portraitUrls;
+	if (family === "kling-omni") {
+		const elementStep = startStep(
+			`ensure ${Object.keys(portraitUrls).length} Kling elements`
+		);
+		const result = await ensureKlingElements({
+			portraitUrls,
+			cachePath: klingElementCachePath(paths),
+			onProgress: (ev) => {
+				if (ev.status === "creating" || ev.status === "failed") {
+					console.error(
+						`  [kling-element ${ev.index}/${ev.total}] ${ev.name}: ${ev.status}${ev.error ? ` — ${ev.error}` : ""}`
+					);
+				}
+			},
+		});
+		elementStep.end(
+			`${result.cached.length} cached, ${result.created.length} created, ${Object.keys(result.failed).length} failed`
+		);
+		if (Object.keys(result.elementIds).length === 0) {
+			return {
+				success: false,
+				error: `Kling Omni element pre-flight produced no element IDs — first error: ${Object.values(result.failed)[0] ?? "unknown"}`,
+			};
+		}
+		portraitCatalog = result.elementIds;
+	}
+
 	// ── Per-shot pool ─────────────────────────────────────────────
 	// Each shot is independent — poll + download happen inside callApi,
 	// so running N shots concurrently parallelizes their wait loops.
@@ -280,7 +320,7 @@ export async function handleVimaxNovel2Video(
 				resolution,
 				generateAudio: true,
 			},
-			portraitUrls,
+			portraitCatalog,
 			family
 		);
 

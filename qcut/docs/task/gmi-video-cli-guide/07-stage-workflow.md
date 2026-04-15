@@ -100,6 +100,17 @@ qcut flow novel2video \
     --duration 5 \
     --resolution 720p \
     --aspect-ratio 16:9
+
+# Kling V3 Omni — $0.14/s (pro + sound worst-case), element-driven
+# character consistency. Pre-flight auto-creates one Kling element per
+# portrait and caches element_ids in videos/kling-elements.json.
+qcut flow novel2video \
+    --project cdrama-heiress-v3 \
+    --model gmi_kling_v3_omni \
+    --max-shots 3 \
+    --duration 5 \
+    --aspect-ratio 16:9 \
+    --cost-gate 3
 ```
 
 ### Stage 5 — single-shot smoke test (Seedance 2.0 ref2v, no project)

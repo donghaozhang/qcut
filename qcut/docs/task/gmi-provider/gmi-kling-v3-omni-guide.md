@@ -79,14 +79,40 @@ qcut gen video \
 Existing flags that already route into Kling payload:
 `--element-ids` (repeatable) → `element_list[]`, `--image-url` + I2V model → `image_list[{type:"first_frame"}]`, `-d`/`--duration`, `--aspect-ratio`.
 
+### `flow novel2video --model gmi_kling_v3_omni`
+
+Novel → multi-shot video with Kling V3 Omni element-driven character consistency, in one command:
+
+```bash
+qcut flow novel2video \
+    --project cdrama-heiress-v5 \
+    --model gmi_kling_v3_omni \
+    --max-shots 5 \
+    --duration 5 \
+    --aspect-ratio 16:9 \
+    --cost-gate 5
+```
+
+What happens:
+
+1. Portraits from `<project>/portraits/registry.json` are uploaded to FAL CDN (same as Seedance/Vidu pipelines).
+2. **Element pre-flight** (new): for every portrait, the orchestrator calls `kling-create-element` with the FAL URL as `frontal_image`, persists the resulting `element_id` to `<project>/videos/kling-elements.json`. Re-runs with matching `portrait_url` skip this step (idempotent cache).
+3. Per shot: the shot adapter picks one of three Kling variants —
+   - **`gmi_kling_v3_omni_element`** — shots with catalogued characters. The adapter rewrites the prompt to substitute every character name with `<<<element_1>>>`, `<<<element_2>>>`, … and builds `element_list: [{element_id}]`. Characters not named in the prompt are token-prepended.
+   - **`gmi_kling_v3_omni_i2v`** — shots with `firstFrameUrl`. Builds `image_list: [{image_url, type: "first_frame"}]`.
+   - **`gmi_kling_v3_omni_t2v`** — shots with no characters / no first frame. Plain text-to-video, no `element_list`.
+4. Payload is always `mode: "pro"`, `duration: string`, `sound: "on"/"off"`, `aspect_ratio: "..."` — conforming to Kling's schema (duration is string, not number like Seedance 2.0 FAL).
+
+Cost gate uses a conservative **$0.14/s** (pro + sound worst-case). `element_list` is capped at 4 per shot (matching other families' ref-image budget).
+
 ### Not yet wired (use raw API or the GMI playground)
 
-- **Inline element auto-create** in `gen video` (passing `frontal_image` + `refer_images` directly instead of pre-calling `create-element`). Workaround: pre-create with `create-element`, then pass `--element-ids`.
-- **Multi-shot storyboard** (`multi_shot: true` + `multi_prompt[]`). Workaround: use `flow novel2video` for pipeline multi-shot, which orchestrates per-shot calls.
+- **Inline element auto-create** in `gen video` (passing `frontal_image` + `refer_images` directly instead of pre-calling `create-element`). `flow novel2video --model gmi_kling_v3_omni` handles this automatically via the element cache.
+- **Multi-shot storyboard** (`multi_shot: true` + `multi_prompt[]`). The per-shot pipeline path via `flow novel2video` is the replacement — one API call per shot, no burst risk.
 - **Video reference** (`video_list[{refer_type:"feature"}]` — style/motion transfer). Only the `kling_3_motion_control` path is wired for motion transfer.
 - **End-frame image in Kling Omni I2V** (`image_list[{type:"end_frame"}]`). The generator accepts an `endFrameUrl` param but there's no CLI flag for it.
 
-If you need any of the above, open a ticket — the scaffolding (element store, `element_list` payload wiring) is already in place.
+If you need any of the above, open a ticket — the scaffolding (element store, `element_list` payload wiring, `<<<element_N>>>` prompt rewriter) is already in place.
 
 ---
 

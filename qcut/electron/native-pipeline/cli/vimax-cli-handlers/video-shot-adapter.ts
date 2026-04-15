@@ -28,13 +28,17 @@
 /**
  * Which video family to target.
  *
- * - `gmi`  → GMI Seedance 2.0 260128 (single endpoint, internal variant dispatch).
- * - `fal`  → FAL Seedance 2.0 (one endpoint per variant).
- * - `vidu` → FAL Vidu Q3 ref2v mix. Only has a ref2v endpoint — shots
- *   with no catalogued characters or with a `firstFrameUrl` degrade
- *   cross-family to FAL Seedance 2.0 (same provider, adjacent model).
+ * - `gmi`        → GMI Seedance 2.0 260128 (single endpoint, internal variant dispatch).
+ * - `fal`        → FAL Seedance 2.0 (one endpoint per variant).
+ * - `vidu`       → FAL Vidu Q3 ref2v mix. Only has a ref2v endpoint — shots
+ *                  with no catalogued characters or with a `firstFrameUrl` degrade
+ *                  cross-family to FAL Seedance 2.0 (same provider, adjacent model).
+ * - `kling-omni` → GMI Kling V3 Omni via elements. Character consistency uses
+ *                  pre-created elements (`element_list: [{element_id}]`) + `<<<element_N>>>`
+ *                  prompt tokens — the caller must pre-create elements per portrait and
+ *                  pass `portraits` as `name → element_id` (not URL).
  */
-export type SeedanceFamily = "gmi" | "fal" | "vidu";
+export type SeedanceFamily = "gmi" | "fal" | "vidu" | "kling-omni";
 
 /** Provider backend the adapter resolves to. */
 export type SeedanceProvider = "gmi" | "fal";
@@ -52,7 +56,10 @@ export type SeedanceVariant =
 	| "seedance_2_0_ref2v"
 	| "seedance_2_0_i2v"
 	| "seedance_2_0"
-	| "vidu_q3_ref2v_mix";
+	| "vidu_q3_ref2v_mix"
+	| "gmi_kling_v3_omni_element"
+	| "gmi_kling_v3_omni_i2v"
+	| "gmi_kling_v3_omni_t2v";
 
 export interface ShotInput {
 	shotId: string;
@@ -107,8 +114,11 @@ export function resolveSeedanceFamily(
 	if (model === "vidu_q3_ref2v_mix" || model.startsWith("vidu_q3")) {
 		return "vidu";
 	}
+	if (model === "gmi_kling_v3_omni" || model.startsWith("gmi_kling_v3_omni")) {
+		return "kling-omni";
+	}
 	throw new Error(
-		`Unknown video model "${model}". Use "gmi_seedance_2_0_260128" (default), "seedance_2_0", or "vidu_q3_ref2v_mix".`
+		`Unknown video model "${model}". Use "gmi_seedance_2_0_260128" (default), "seedance_2_0", "vidu_q3_ref2v_mix", or "gmi_kling_v3_omni".`
 	);
 }
 
@@ -120,6 +130,13 @@ const MAX_GMI_REFERENCES = 4;
 const MAX_FAL_REFERENCES = 9;
 /** FAL Vidu Q3 ref2v-mix accepts up to 4 `reference_image_urls`. */
 const MAX_VIDU_REFERENCES = 4;
+/**
+ * Kling V3 Omni supports up to 6 elements per shot (docs: "Up to 6 shots,
+ * each prompt max 512 chars") for multi-shot, plus constraints on image/
+ * element totals. For single-shot `element_list` we cap at 4 to match
+ * the ref-image budget other families use.
+ */
+const MAX_KLING_ELEMENTS = 4;
 const MAX_PROMPT_CHARS = 500;
 
 /** Clamp a duration to the 4-15 integer range Seedance accepts. */
@@ -318,7 +335,93 @@ function buildViduRef2V(common: CommonShape, refs: string[]): VariantPayload {
 	};
 }
 
-/** Turn a `ShotInput` + a `name → url` map into a payload-ready AdaptedShot. */
+/**
+ * Rewrite a shot prompt to substitute catalogued character names with
+ * `<<<element_N>>>` tokens. Literal in-place replacement keeps the
+ * prompt's surrounding phrasing intact; characters never mentioned by
+ * name still get a token mention prepended so Kling sees them.
+ */
+export function rewritePromptWithElementTokens(
+	prompt: string,
+	characters: Array<{ name: string; token: string }>
+): string {
+	let rewritten = prompt;
+	const unmentioned: string[] = [];
+	for (const { name, token } of characters) {
+		if (name && rewritten.includes(name)) {
+			rewritten = rewritten.split(name).join(token);
+		} else {
+			unmentioned.push(token);
+		}
+	}
+	if (unmentioned.length === 0) return rewritten;
+	// Prepend tokens for characters not mentioned by literal name so the
+	// model still sees them in the prompt.
+	return `${unmentioned.join(", ")}: ${rewritten}`;
+}
+
+function baseKlingPayload(common: CommonShape): Record<string, unknown> {
+	// Kling V3 Omni: `duration` is a string enum ("3"-"15"), `mode`
+	// defaults to "pro" (1080P), `sound` is "on"/"off" (not boolean).
+	const payload: Record<string, unknown> = {
+		prompt: common.prompt,
+		mode: "pro",
+		duration: String(common.duration),
+	};
+	if (common.aspectRatio) payload.aspect_ratio = common.aspectRatio;
+	if (common.generateAudio != null) {
+		payload.sound = common.generateAudio ? "on" : "off";
+	}
+	return payload;
+}
+
+function buildKlingElement(
+	common: CommonShape,
+	characters: Array<{ name: string; elementId: string; token: string }>
+): VariantPayload {
+	const rewritten = rewritePromptWithElementTokens(common.prompt, characters);
+	const payload = baseKlingPayload({ ...common, prompt: rewritten });
+	payload.element_list = characters.map((c) => ({ element_id: c.elementId }));
+	return {
+		variant: "gmi_kling_v3_omni_element",
+		endpoint: "kling-v3-omni",
+		provider: "gmi",
+		payload,
+	};
+}
+
+function buildKlingI2V(
+	common: CommonShape,
+	firstFrameUrl: string
+): VariantPayload {
+	const payload = baseKlingPayload(common);
+	payload.image_list = [{ image_url: firstFrameUrl, type: "first_frame" }];
+	return {
+		variant: "gmi_kling_v3_omni_i2v",
+		endpoint: "kling-v3-omni",
+		provider: "gmi",
+		payload,
+	};
+}
+
+function buildKlingT2V(common: CommonShape): VariantPayload {
+	return {
+		variant: "gmi_kling_v3_omni_t2v",
+		endpoint: "kling-v3-omni",
+		provider: "gmi",
+		payload: baseKlingPayload(common),
+	};
+}
+
+/**
+ * Turn a `ShotInput` + a portrait catalogue into a payload-ready AdaptedShot.
+ *
+ * The `portraits` map's value semantics depend on `family`:
+ *   - `gmi` / `fal` / `vidu` → `name → FAL CDN URL` (a reference image URL).
+ *   - `kling-omni`           → `name → Kling element_id` (pre-created via
+ *     `kling-create-element`; callers typically use the
+ *     `kling-element-orchestrator` to populate this).
+ */
 export function adaptShotForSeedance(
 	shot: ShotInput,
 	portraits: Record<string, string>,
@@ -328,19 +431,22 @@ export function adaptShotForSeedance(
 	const prompt = sanitizeShotPrompt(shot.description || "");
 
 	// Partition referenced characters into catalogued vs. skipped.
-	const referenceUrls: string[] = [];
+	// For Kling Omni, the values are element IDs and we preserve name
+	// alongside the ID so the prompt rewriter can substitute tokens.
+	const referenceValues: Array<{ name: string; value: string }> = [];
 	const skippedCharacters: string[] = [];
 	const seen = new Set<string>();
 	for (const name of shot.characters ?? []) {
 		if (typeof name !== "string" || name.length === 0) continue;
-		const url = portraits[name];
-		if (url && !seen.has(url)) {
-			referenceUrls.push(url);
-			seen.add(url);
-		} else if (!url) {
+		const value = portraits[name];
+		if (value && !seen.has(value)) {
+			referenceValues.push({ name, value });
+			seen.add(value);
+		} else if (!value) {
 			skippedCharacters.push(name);
 		}
 	}
+	const referenceUrls = referenceValues.map((r) => r.value);
 
 	const common: CommonShape = {
 		prompt,
@@ -354,12 +460,15 @@ export function adaptShotForSeedance(
 	// ── Variant selection ────────────────────────────────────────
 	// Vidu has only a ref2v endpoint — i2v and t2v shots degrade to the
 	// adjacent FAL Seedance 2.0 variant (same provider, similar quality).
-	// Callers see the cross-family degradation in `reason`.
+	// Kling Omni has its own t2v / i2v / element-driven paths — no
+	// cross-family degradation needed.
 	if (shot.firstFrameUrl) {
 		const built =
-			family === "fal" || family === "vidu"
-				? buildFalI2V(common, shot.firstFrameUrl)
-				: buildGmiI2V(common, shot.firstFrameUrl);
+			family === "kling-omni"
+				? buildKlingI2V(common, shot.firstFrameUrl)
+				: family === "fal" || family === "vidu"
+					? buildFalI2V(common, shot.firstFrameUrl)
+					: buildGmiI2V(common, shot.firstFrameUrl);
 		return {
 			...built,
 			referenceUrls: [],
@@ -367,10 +476,27 @@ export function adaptShotForSeedance(
 			reason:
 				family === "vidu"
 					? "i2v: firstFrameUrl provided, degrading to FAL Seedance 2.0 i2v (Vidu has no i2v endpoint)"
-					: "i2v: firstFrameUrl provided (overrides ref2v)",
+					: family === "kling-omni"
+						? "i2v: firstFrameUrl provided (Kling V3 Omni image_list first_frame)"
+						: "i2v: firstFrameUrl provided (overrides ref2v)",
 		};
 	}
-	if (referenceUrls.length > 0) {
+	if (referenceValues.length > 0) {
+		if (family === "kling-omni") {
+			const picked = referenceValues.slice(0, MAX_KLING_ELEMENTS);
+			const characters = picked.map((r, i) => ({
+				name: r.name,
+				elementId: r.value,
+				token: `<<<element_${i + 1}>>>`,
+			}));
+			const built = buildKlingElement(common, characters);
+			return {
+				...built,
+				referenceUrls: picked.map((r) => r.value),
+				skippedCharacters,
+				reason: `kling-omni element: ${characters.length} catalogued character${characters.length === 1 ? "" : "s"}`,
+			};
+		}
 		// Per-family cap: GMI 4, FAL Seedance 9, FAL Vidu Q3 mix 4.
 		const maxRefs =
 			family === "fal"
@@ -394,9 +520,11 @@ export function adaptShotForSeedance(
 	}
 
 	const built =
-		family === "fal" || family === "vidu"
-			? buildFalT2V(common)
-			: buildGmiT2V(common);
+		family === "kling-omni"
+			? buildKlingT2V(common)
+			: family === "fal" || family === "vidu"
+				? buildFalT2V(common)
+				: buildGmiT2V(common);
 	const baseReason =
 		skippedCharacters.length > 0
 			? `t2v: ${skippedCharacters.length} character${skippedCharacters.length === 1 ? "" : "s"} not catalogued, degrading`
