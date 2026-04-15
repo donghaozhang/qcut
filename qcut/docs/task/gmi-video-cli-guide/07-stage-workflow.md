@@ -282,7 +282,7 @@ field names, and price:
 |---|---|---|---|---|
 | `gmi_seedance_2_0_260128` | `seedance-2-0-260128` (one endpoint, internal variant) | `reference_images` (array) | integer | **$0.052** |
 | `seedance_2_0` (FAL) | `bytedance/seedance-2.0/{ref-to,image-to,text-to}-video` | `image_urls` (array, up to 9) | string literal | $0.60 |
-| `vidu_q3_ref2v_mix` (FAL Vidu) | `fal-ai/vidu/q3/reference-to-video` | `reference_image_urls` (array, up to 7) | integer | $0.07 (360p/540p) / **$0.154** (720p/1080p) |
+| `vidu_q3_ref2v_mix` (FAL Vidu) | `fal-ai/vidu/q3/reference-to-video/mix` | `reference_image_urls` (array, 1-4) | integer | $0.07 (360p/540p) / **$0.154** (720p/1080p) |
 
 Wall-clock runs ~3–6 min per shot (Seedance is slow). Use
 `--max-shots 1` for smoke tests so a typo doesn't burn 30 minutes

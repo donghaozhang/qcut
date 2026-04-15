@@ -371,7 +371,7 @@ export function adaptShotForSeedance(
 		};
 	}
 	if (referenceUrls.length > 0) {
-		// Per-family cap: GMI 4, FAL Seedance 9, FAL Vidu Q3 mix 7.
+		// Per-family cap: GMI 4, FAL Seedance 9, FAL Vidu Q3 mix 4.
 		const maxRefs =
 			family === "fal"
 				? MAX_FAL_REFERENCES
