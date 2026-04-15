@@ -14,6 +14,7 @@ import {
 	generateSkyreelsV4TextVideo,
 	generateKlingV3GmiTextVideo,
 	generateKlingOmniTextVideo,
+	generateSeedance260128TextVideo,
 	generateRunwayTextToVideo,
 } from "@/lib/ai-video";
 import type {
@@ -21,6 +22,11 @@ import type {
 	ModelHandlerResult,
 	TextToVideoSettings,
 } from "../model-handler-types";
+import {
+	resolveSeedanceDuration,
+	resolveSeedanceRatio,
+	resolveSeedanceResolution,
+} from "./seedance-260128-params";
 
 // These aliases map UI values to generator literal unions.
 type LTXV2Duration = 6 | 8 | 10 | 12 | 14 | 16 | 18 | 20;
@@ -560,6 +566,38 @@ export async function handleGmiKlingOmniT2V(
 			mode: (settings.resolution === "720p" ? "std" : "pro") as "std" | "pro",
 			duration: String(settings.duration ?? 5),
 			aspect_ratio: (settings.aspectRatio ?? "16:9") as "16:9" | "9:16" | "1:1",
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle GMI Seedance 2.0 260128 text-to-video generation. */
+export async function handleSeedance260128T2V(
+	ctx: ModelHandlerContext,
+	settings: TextToVideoSettings
+): Promise<ModelHandlerResult> {
+	try {
+		// The capability table marks this model `supportsSeed: true`, but
+		// `TextToVideoSettings` doesn't yet carry a first-class `seed` field
+		// — seeds flow through the shared `unifiedParams` bag. Read it from
+		// there so user-supplied seeds aren't silently dropped.
+		const rawSeed = settings.unifiedParams?.seed;
+		const seed =
+			typeof rawSeed === "number" && Number.isFinite(rawSeed)
+				? rawSeed
+				: undefined;
+		const response = await generateSeedance260128TextVideo({
+			prompt: ctx.prompt,
+			duration: resolveSeedanceDuration(settings.duration),
+			resolution: resolveSeedanceResolution(settings.resolution),
+			ratio: resolveSeedanceRatio(settings.aspectRatio),
+			seed,
 		});
 		return { response };
 	} catch (error) {

@@ -121,6 +121,19 @@ export interface CLIRunOptions {
 	// vimax options
 	noReferences?: boolean;
 	projectId?: string;
+	/** Cast-wide region (e.g. `east-asian`). Fills empty character ethnicity fields. */
+	region?: string;
+	/** Cast-quality preset (`natural` | `photogenic` | `model-grade`). */
+	castQuality?: string;
+	// novel2video options
+	/** Cap shots generated this run (default: all shots) */
+	maxShots?: number;
+	/** Parallel shots in flight (default 1) */
+	concurrency?: number;
+	/** Fallback model for shots with no catalogued character */
+	fallbackModel?: string;
+	/** Projected-cost ceiling in USD; --force bypasses */
+	costGate?: number;
 	// grid options
 	grid?: string;
 	gridUpscale?: number;

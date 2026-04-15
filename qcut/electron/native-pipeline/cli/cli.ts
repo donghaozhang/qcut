@@ -158,6 +158,12 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"scripts-only": { type: "boolean", default: false },
 			"storyboard-only": { type: "boolean", default: false },
 			"max-images": { type: "string" },
+			"max-shots": { type: "string" },
+			concurrency: { type: "string" },
+			"fallback-model": { type: "string" },
+			"cost-gate": { type: "string" },
+			region: { type: "string" },
+			"cast-quality": { type: "string" },
 			"no-portraits": { type: "boolean", default: false },
 			"llm-model": { type: "string" },
 			"image-model": { type: "string" },
@@ -448,6 +454,24 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				? undefined
 				: parseInt(values["max-images"] as string, 10)
 			: undefined,
+		maxShots: values["max-shots"]
+			? Number.isNaN(parseInt(values["max-shots"] as string, 10))
+				? undefined
+				: parseInt(values["max-shots"] as string, 10)
+			: undefined,
+		concurrency: values.concurrency
+			? Number.isNaN(parseInt(values.concurrency as string, 10))
+				? undefined
+				: parseInt(values.concurrency as string, 10)
+			: undefined,
+		fallbackModel: values["fallback-model"] as string | undefined,
+		costGate: values["cost-gate"]
+			? Number.isNaN(Number(values["cost-gate"]))
+				? undefined
+				: Number(values["cost-gate"])
+			: undefined,
+		region: values.region as string | undefined,
+		castQuality: values["cast-quality"] as string | undefined,
 		noPortraits: (values["no-portraits"] as boolean) ?? false,
 		llmModel: values["llm-model"] as string | undefined,
 		imageModel: values["image-model"] as string | undefined,

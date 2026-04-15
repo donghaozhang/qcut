@@ -41,6 +41,19 @@ export interface ProjectMetadata {
 	novel_path?: string;
 	title?: string;
 	style?: string;
+	/**
+	 * Cast-wide region bucket (e.g. `east-asian`, `european`). Used at
+	 * Stage 1 to fill empty per-character `ethnicity` fields so related
+	 * characters (siblings, parents) don't drift across nationalities.
+	 * Per-character `ethnicity` in `characters.json` still overrides.
+	 */
+	region?: string;
+	/**
+	 * Cast quality preset — attractiveness descriptor prepended to every
+	 * portrait prompt. Values: `natural` (default, no-op) / `photogenic`
+	 * (mild) / `model-grade` (explicit drama-lead look).
+	 */
+	cast_quality?: string;
 	created_at: string;
 	updated_at: string;
 	stages_completed: ProjectStage[];
@@ -136,10 +149,33 @@ export function writeProjectMetadata(
 		...(existing?.novel_path ? { novel_path: existing.novel_path } : {}),
 		...(existing?.title ? { title: existing.title } : {}),
 		...(existing?.style ? { style: existing.style } : {}),
+		...(existing?.region ? { region: existing.region } : {}),
+		...(existing?.cast_quality ? { cast_quality: existing.cast_quality } : {}),
 		...patch,
 	};
 	fs.writeFileSync(paths.metadataPath, JSON.stringify(next, null, 2));
 	return next;
+}
+
+/**
+ * Filesystem-safe version of a shot id for use as a filename.
+ * Preserves the `scene-subscene-shot` shape (e.g. `1-1-3`) and replaces
+ * any unexpected characters with dashes. Never returns an empty string.
+ */
+export function safeShotFilename(shotId: string): string {
+	const trimmed = (shotId || "shot").trim();
+	const sanitized = trimmed.replace(/[^\p{L}\p{N}._-]+/gu, "-");
+	return sanitized || "shot";
+}
+
+/** Absolute MP4 path for a given shot id, inside the project's videos dir. */
+export function shotVideoPath(paths: ProjectPaths, shotId: string): string {
+	return path.join(paths.videosDir, `shot_${safeShotFilename(shotId)}.mp4`);
+}
+
+/** Path to the per-run videos registry JSON (shot_id → result). */
+export function videoRegistryPath(paths: ProjectPaths): string {
+	return path.join(paths.videosDir, "registry.json");
 }
 
 /** Append `stage` to `stages_completed` (idempotent). */

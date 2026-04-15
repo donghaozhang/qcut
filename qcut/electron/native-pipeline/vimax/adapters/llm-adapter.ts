@@ -91,20 +91,17 @@ function isGmiModel(model: string): boolean {
 
 export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 	declare config: LLMAdapterConfig;
-	private _hasApiKey = false;
-	private _hasGmiKey = false;
+	private _forceMock = false;
 
 	constructor(config?: Partial<LLMAdapterConfig>) {
 		super(createLLMAdapterConfig(config));
 	}
 
 	async initialize(): Promise<boolean> {
-		const apiKey = process.env.OPENROUTER_API_KEY ?? "";
-		this._hasApiKey = apiKey.length > 0;
-		this._hasGmiKey = (process.env.GMI_API_KEY ?? "").length > 0;
-		if (!this._hasApiKey && !this._hasGmiKey) {
+		this._forceMock = (process.env.VIMAX_LLM_MOCK ?? "") === "1";
+		if (this._forceMock) {
 			console.warn(
-				"[vimax.llm] No LLM API key set (OPENROUTER_API_KEY or GMI_API_KEY) — using mock mode"
+				"[vimax.llm] VIMAX_LLM_MOCK=1 — using mock responses for offline testing"
 			);
 		}
 		return true;
@@ -117,7 +114,8 @@ export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 	/**
 	 * Send chat messages to LLM.
 	 *
-	 * Falls back to mock responses when API key is not configured.
+	 * Routes through license-server proxy when no env key is configured.
+	 * Set VIMAX_LLM_MOCK=1 to force mock responses for offline testing.
 	 */
 	async chat(
 		messages: Message[],
@@ -134,14 +132,11 @@ export class LLMAdapter extends BaseAdapter<Message[], LLMResponse> {
 		const temperature = options?.temperature ?? this.config.temperature;
 		const max_tokens = options?.max_tokens ?? this.config.max_tokens;
 
-		const useGmi = isGmiModel(model);
-		if (!useGmi && !this._hasApiKey) {
-			return this._mockChat(messages, model);
-		}
-		if (useGmi && !this._hasGmiKey) {
+		if (this._forceMock) {
 			return this._mockChat(messages, model);
 		}
 
+		const useGmi = isGmiModel(model);
 		// GMI models strip the "gmi/" prefix for the actual API call
 		const apiModel = useGmi ? model.replace("gmi/", "") : model;
 

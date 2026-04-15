@@ -30,6 +30,19 @@ import {
 	findPortraitStylePreset,
 	rewritePortraitPromptStyle,
 } from "../../vimax/agents/portrait-style-presets.js";
+import {
+	detectRegion,
+	parseRegion,
+	regionDefaultEthnicity,
+	type Region,
+} from "../../output/region-detection.js";
+import {
+	normalizeCastGender,
+	parseCastQuality,
+	type CastQualityLevel,
+} from "../../vimax/agents/cast-quality-presets.js";
+import { composeStylePrefix } from "../../vimax/agents/portrait-prefix-composer.js";
+import { composePortraitPrompt } from "../../vimax/types/character.js";
 import { extractNovelStyleHeader } from "./pipeline-handlers.js";
 
 type ProgressFn = (progress: {
@@ -107,6 +120,46 @@ export async function handleVimaxExtractCharacters(
 			};
 		}
 
+		// ── Region + cast-quality post-processing ────────────────────
+		// Region keeps related characters (siblings, parents) on the same
+		// nationality — fills empty per-character `ethnicity` with the
+		// project-wide default. Cast quality composes gender-aware
+		// attractiveness snippets onto the style prefix.
+		const explicitRegion = parseRegion(options.region);
+		const region: Region | undefined =
+			explicitRegion ?? detectRegion(inputText, novelStyle);
+		const castQuality: CastQualityLevel =
+			parseCastQuality(options.castQuality) ?? "natural";
+
+		const characters = result.result ?? [];
+		if (region && regionDefaultEthnicity(region)) {
+			const defaultEthnicity = regionDefaultEthnicity(region);
+			for (const c of characters) {
+				if (c.portrait && !c.portrait.ethnicity?.trim()) {
+					c.portrait.ethnicity = defaultEthnicity;
+				}
+			}
+		}
+
+		// Rebake portrait_prompt per character when region changed the
+		// subject descriptor or cast quality adds a prefix snippet — both
+		// situations require regenerating rather than appending.
+		const needsPromptRebake = !!region || castQuality !== "natural";
+		if (needsPromptRebake) {
+			for (const c of characters) {
+				if (!c.portrait) continue;
+				const gender = normalizeCastGender(c.gender);
+				const prefix = composeStylePrefix({
+					style,
+					castQuality,
+					gender,
+				});
+				c.portrait_prompt = composePortraitPrompt(c.portrait, {
+					style: prefix,
+				});
+			}
+		}
+
 		// Resolve output: project dir when --project is given, fallback to
 		// timestamped output-dir otherwise.
 		const slug = options.projectId
@@ -137,12 +190,14 @@ export async function handleVimaxExtractCharacters(
 						? path.basename(sourceFilePath, path.extname(sourceFilePath))
 						: undefined),
 				...(style ? { style } : {}),
+				...(region ? { region } : {}),
+				...(castQuality !== "natural" ? { cast_quality: castQuality } : {}),
 			});
 			summaryArtifacts.push(
 				describeArtifact(paths.metadataPath, "project metadata")
 			);
 			outputPath = paths.charactersPath;
-			fs.writeFileSync(outputPath, JSON.stringify(result.result, null, 2));
+			fs.writeFileSync(outputPath, JSON.stringify(characters, null, 2));
 			summaryArtifacts.push(describeArtifact(outputPath, "characters"));
 			markStageCompleted(paths, "characters");
 		} else {
@@ -151,7 +206,7 @@ export async function handleVimaxExtractCharacters(
 				`cli-${Date.now()}`
 			);
 			outputPath = path.join(outputDir, "characters.json");
-			fs.writeFileSync(outputPath, JSON.stringify(result.result, null, 2));
+			fs.writeFileSync(outputPath, JSON.stringify(characters, null, 2));
 			summaryArtifacts.push(describeArtifact(outputPath, "characters"));
 		}
 
@@ -161,12 +216,14 @@ export async function handleVimaxExtractCharacters(
 			totalSeconds: totalDurationSeconds,
 			artifacts: summaryArtifacts,
 			extraLines: [
-				`Characters:  ${result.result?.length ?? 0}`,
+				`Characters:  ${characters.length}`,
 				...(style
 					? [
 							`Style:       ${style}${presetHit ? `  (preset: ${presetHit.slug})` : ""}`,
 						]
 					: []),
+				...(region ? [`Region:      ${region}`] : []),
+				...(castQuality !== "natural" ? [`Cast quality: ${castQuality}`] : []),
 			],
 		});
 
@@ -175,9 +232,11 @@ export async function handleVimaxExtractCharacters(
 			outputPath,
 			duration: totalDurationSeconds,
 			data: {
-				characters: result.result,
-				count: result.result?.length ?? 0,
+				characters: characters,
+				count: characters.length,
 				...(style ? { style } : {}),
+				...(region ? { region } : {}),
+				...(castQuality !== "natural" ? { cast_quality: castQuality } : {}),
 				...(slug ? { project: slug } : {}),
 				artifacts: summaryArtifacts.map((a) => a.path),
 			},
@@ -300,7 +359,10 @@ export async function handleVimaxGeneratePortraits(
 
 		// Honour --style (preset slug or free-form), or reuse the style
 		// persisted in project.json when running in staged-project mode.
+		// Same pattern for --region and --cast-quality — the per-run flag
+		// overrides whatever Stage 1 persisted.
 		let projectStyle: string | undefined;
+		let projectCastQuality: CastQualityLevel = "natural";
 		if (projectPaths) {
 			try {
 				const { readProjectMetadata } = await import(
@@ -308,21 +370,38 @@ export async function handleVimaxGeneratePortraits(
 				);
 				const meta = readProjectMetadata(projectPaths);
 				if (meta?.style) projectStyle = meta.style;
+				if (meta?.cast_quality) {
+					projectCastQuality = parseCastQuality(meta.cast_quality) ?? "natural";
+				}
 			} catch {
 				// Non-fatal: fall back to generator default.
 			}
 		}
 		const resolvedStyle = resolvePortraitStyle(options.style, projectStyle);
 		const presetHit = findPortraitStylePreset(options.style);
+		const newCastQuality: CastQualityLevel =
+			parseCastQuality(options.castQuality) ?? projectCastQuality;
 
-		// If an explicit --style was provided, persist the resolved
-		// prompt back into project.json so downstream stages stay
-		// aligned (e.g. novel2script picks up the same visual tone).
-		if (projectPaths && resolvedStyle && resolvedStyle !== projectStyle) {
-			const { writeProjectMetadata } = await import(
-				"../../output/project-paths.js"
-			);
-			writeProjectMetadata(projectPaths, { style: resolvedStyle });
+		// If an explicit --style / --cast-quality / --region was passed,
+		// persist it so downstream stages (novel2script, novel2video)
+		// stay aligned. Skip the write when nothing changed.
+		if (projectPaths) {
+			const styleChanged =
+				resolvedStyle != null && resolvedStyle !== projectStyle;
+			const castQualityChanged = newCastQuality !== projectCastQuality;
+			const explicitRegionForStage2 = parseRegion(options.region);
+			if (styleChanged || castQualityChanged || explicitRegionForStage2) {
+				const { writeProjectMetadata } = await import(
+					"../../output/project-paths.js"
+				);
+				writeProjectMetadata(projectPaths, {
+					...(resolvedStyle ? { style: resolvedStyle } : {}),
+					...(castQualityChanged ? { cast_quality: newCastQuality } : {}),
+					...(explicitRegionForStage2
+						? { region: explicitRegionForStage2 }
+						: {}),
+				});
+			}
 		}
 
 		onProgress({
@@ -345,26 +424,41 @@ export async function handleVimaxGeneratePortraits(
 
 		// Stage 1 bakes the visual style into each character's
 		// portrait_prompt, and CharacterPortraitsGenerator uses that
-		// pre-baked prompt verbatim — so a Stage 2 --style override
-		// would be ignored without this in-memory rewrite. Swap the
-		// leading style prefix on each character's prompt so the new
-		// `--style` actually affects the rendered images.
-		const promptRewriteNeeded =
+		// pre-baked prompt verbatim — so a Stage 2 --style /
+		// --cast-quality override would be ignored without this in-memory
+		// rewrite. We recompose both the OLD prefix (what Stage 1 baked)
+		// and the NEW prefix (what this run wants) per character so the
+		// gender-aware cast-quality snippet is swapped correctly.
+		const styleChangedForRewrite =
 			resolvedStyle != null &&
 			resolvedStyle.trim() !== (projectStyle ?? "").trim();
+		const castQualityChangedForRewrite = newCastQuality !== projectCastQuality;
+		const promptRewriteNeeded =
+			styleChangedForRewrite || castQualityChangedForRewrite;
+
 		const charactersForRender = promptRewriteNeeded
-			? characters.map((c) =>
-					c.portrait_prompt
-						? {
-								...c,
-								portrait_prompt: rewritePortraitPromptStyle(
-									c.portrait_prompt,
-									projectStyle,
-									resolvedStyle
-								),
-							}
-						: c
-				)
+			? characters.map((c) => {
+					if (!c.portrait_prompt) return c;
+					const gender = normalizeCastGender(c.gender);
+					const oldPrefix = composeStylePrefix({
+						style: projectStyle,
+						castQuality: projectCastQuality,
+						gender,
+					});
+					const newPrefix = composeStylePrefix({
+						style: resolvedStyle,
+						castQuality: newCastQuality,
+						gender,
+					});
+					return {
+						...c,
+						portrait_prompt: rewritePortraitPromptStyle(
+							c.portrait_prompt,
+							oldPrefix,
+							newPrefix
+						),
+					};
+				})
 			: characters;
 
 		const batchStep = startStep(

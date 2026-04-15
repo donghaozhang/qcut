@@ -97,6 +97,34 @@ export function estimateNovel2Script(
 	};
 }
 
+/**
+ * Estimate stage 4 (novel2video) from shot count + average shot duration.
+ *
+ * Seedance 2.0 bills $0.052 / second; per-call wall-clock runs 3-6 min
+ * based on the Apr-14 smoke run (3 shots, 4m 21s / 4m 25s / 4m 56s).
+ */
+export function estimateNovel2Video(
+	shotCount: number,
+	averageShotSeconds = 5,
+	costPerSecond = 0.052
+): StageEstimate {
+	const cost = shotCount * averageShotSeconds * costPerSecond;
+	return {
+		title: "Stage 4 — Generate per-shot videos",
+		inputSummary: `${shotCount} shot${shotCount === 1 ? "" : "s"} × ${averageShotSeconds}s → ${shotCount} video calls`,
+		// 3m-6m per shot observed; run serially unless --concurrency raised.
+		estLowSeconds: 180 * shotCount,
+		estHighSeconds: 360 * shotCount,
+		estLowCostUsd: cost,
+		estHighCostUsd: cost,
+		notes: [
+			"Per-shot wall-clock is 3-6 min (Apr-14 smoke run)",
+			`Cost is fixed at $${costPerSecond}/s — --max-shots caps total spend`,
+			"--force bypasses the cost gate; otherwise $2 projected limit",
+		],
+	};
+}
+
 /** Format seconds as `MMm SSs` (or `SSs` if under a minute). */
 export function formatDuration(totalSeconds: number): string {
 	if (totalSeconds < 60) return `${totalSeconds.toFixed(1)}s`;

@@ -188,13 +188,21 @@ export {
 	generateSkyreelsV4TextVideo,
 	generateKlingV3GmiTextVideo,
 	generateKlingOmniTextVideo,
+	generateSeedance260128TextVideo,
 } from "./generators/gmi-text-to-video";
+export type { Seedance260128Params } from "./generators/gmi-text-to-video";
 export {
 	generateGmiVeoLiteImageVideo,
 	generateSkyreelsV4ImageVideo,
 	generateKlingV3GmiImageVideo,
 	generateKlingOmniImageVideo,
 	generateKlingMotionControlVideo,
+	generateSeedance260128ImageVideo,
+	generateSeedance260128ReferenceVideo,
+} from "./generators/gmi-image-to-video";
+export type {
+	Seedance260128ImageParams,
+	Seedance260128ReferenceParams,
 } from "./generators/gmi-image-to-video";
 
 // ============================================

@@ -42,23 +42,44 @@ export interface ComposePortraitOptions {
 	style?: string;
 }
 
-const DEFAULT_STYLE_PREFIX =
-	"photorealistic front portrait, shot on professional camera";
-const DEFAULT_STYLE_SUFFIX =
-	"plain white background, soft studio lighting, sharp focus, high detail, 2K";
+/**
+ * Shot composition cue that must ALWAYS ride at the front of the
+ * prompt, independent of any aesthetic style override. Keeps the
+ * generator on-brief as a portrait (single subject, centered, facing
+ * camera) even when a caller-supplied `--style` says nothing about
+ * framing. Fixes a regression where passing e.g.
+ * `真人写实, 电视风格, 暖色调` caused nano-banana-pro / Gemini Image to
+ * produce editorial-broadcast scenes and diptychs.
+ */
+const FRAMING_PREFIX =
+	"front portrait, single subject, centered, facing camera";
+/** Quality hints that stay orthogonal to the aesthetic style. */
+const QUALITY_SUFFIX = "plain background, sharp focus, high detail, 2K";
+/** Aesthetic default applied only when the caller doesn't supply one. */
+const DEFAULT_AESTHETIC =
+	"photorealistic, shot on professional camera, soft studio lighting";
 
 /**
  * Compose a PortraitAttributes object into an English image generation
- * prompt. When `options.style` is provided, the caller's style wraps the
- * descriptor instead of the default LinkedIn-headshot preamble.
+ * prompt.
+ *
+ * Prompt layout (every portrait, regardless of style):
+ *   `<framing>, <aesthetic>, <subject>, <hair>, …, <quality>`
+ *
+ * The aesthetic slot takes `options.style` verbatim when provided,
+ * otherwise falls back to a neutral photorealistic default. Framing
+ * and quality clauses are always present — previously a custom style
+ * silently dropped both, letting the model wander into editorial
+ * scenes.
  */
 export function composePortraitPrompt(
 	attrs: PortraitAttributes,
 	options: ComposePortraitOptions = {}
 ): string {
 	const style = options.style?.trim();
-	const prefix = style || DEFAULT_STYLE_PREFIX;
-	const suffix = style ? undefined : DEFAULT_STYLE_SUFFIX;
+	const aesthetic = style || DEFAULT_AESTHETIC;
+	const prefix = `${FRAMING_PREFIX}, ${aesthetic}`;
+	const suffix = QUALITY_SUFFIX;
 
 	// Build the subject descriptor — age + ethnicity + gender when present.
 	let subject: string | undefined;

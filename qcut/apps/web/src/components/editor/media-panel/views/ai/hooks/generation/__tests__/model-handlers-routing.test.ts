@@ -32,6 +32,7 @@ vi.mock("../handlers/text-to-video-handlers", () => ({
 	handleSkyreelsV4T2V: vi.fn().mockResolvedValue({ response: undefined }),
 	handleGmiKlingV3T2V: vi.fn().mockResolvedValue({ response: undefined }),
 	handleGmiKlingOmniT2V: vi.fn().mockResolvedValue({ response: undefined }),
+	handleSeedance260128T2V: vi.fn().mockResolvedValue({ response: undefined }),
 }));
 
 vi.mock("../handlers/image-to-video-handlers", () => ({
@@ -67,6 +68,8 @@ vi.mock("../handlers/image-to-video-handlers-gmi", () => ({
 	handleGmiKlingMotionControl: vi
 		.fn()
 		.mockResolvedValue({ response: undefined }),
+	handleSeedance260128I2V: vi.fn().mockResolvedValue({ response: undefined }),
+	handleSeedance260128Ref2V: vi.fn().mockResolvedValue({ response: undefined }),
 }));
 
 vi.mock("@/lib/license/credit-guard", () => ({
@@ -174,6 +177,8 @@ describe("model handler routing regression", () => {
 		>,
 		handleGmiKlingOmniT2V:
 			textToVideoHandlers.handleGmiKlingOmniT2V as ReturnType<typeof vi.fn>,
+		handleSeedance260128T2V:
+			textToVideoHandlers.handleSeedance260128T2V as ReturnType<typeof vi.fn>,
 	};
 
 	it.each([
@@ -181,6 +186,7 @@ describe("model handler routing regression", () => {
 		["gmi_skyreels_v4_t2v", "handleSkyreelsV4T2V"],
 		["gmi_kling_v3_t2v", "handleGmiKlingV3T2V"],
 		["gmi_kling_v3_omni_t2v", "handleGmiKlingOmniT2V"],
+		["gmi_seedance_2_0_260128_t2v", "handleSeedance260128T2V"],
 	] as const)("routeTextToVideoHandler maps %s to %s", async (modelId, handlerName) => {
 		const mock = vi.mocked(t2vHandlerMap[handlerName]);
 		await routeTextToVideoHandler(
@@ -204,6 +210,14 @@ describe("model handler routing regression", () => {
 			imageToVideoHandlersGmi.handleGmiKlingMotionControl as ReturnType<
 				typeof vi.fn
 			>,
+		handleSeedance260128I2V:
+			imageToVideoHandlersGmi.handleSeedance260128I2V as ReturnType<
+				typeof vi.fn
+			>,
+		handleSeedance260128Ref2V:
+			imageToVideoHandlersGmi.handleSeedance260128Ref2V as ReturnType<
+				typeof vi.fn
+			>,
 	};
 
 	it.each([
@@ -212,6 +226,8 @@ describe("model handler routing regression", () => {
 		["gmi_kling_v3_i2v", "handleGmiKlingV3I2V"],
 		["gmi_kling_v3_omni_i2v", "handleGmiKlingOmniI2V"],
 		["gmi_kling_motion_control", "handleGmiKlingMotionControl"],
+		["gmi_seedance_2_0_260128_i2v", "handleSeedance260128I2V"],
+		["gmi_seedance_2_0_260128_ref2v", "handleSeedance260128Ref2V"],
 	] as const)("routeImageToVideoHandler maps %s to %s", async (modelId, handlerName) => {
 		const mock = vi.mocked(i2vHandlerMap[handlerName]);
 		await routeImageToVideoHandler(createContext({ modelId }), {

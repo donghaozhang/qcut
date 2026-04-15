@@ -8,6 +8,10 @@
 import type { VideoGenerationResponse } from "@/lib/ai-clients/ai-video-client";
 import { generateJobId } from "../core/fal-request";
 import { providerRouter } from "../core/provider-router";
+import {
+	applySeedance260128OptionalFields,
+	type Seedance260128Params,
+} from "./gmi-text-to-video";
 
 /** Generate image-to-video using GMI Veo 3.1 Lite (first + optional last frame). */
 export async function generateGmiVeoLiteImageVideo(params: {
@@ -205,6 +209,114 @@ export async function generateKlingMotionControlVideo(params: {
 		job_id: jobId,
 		status: "completed",
 		message: "Video generated with GMI Kling 3 Motion Control",
+		estimated_time: 0,
+		video_url: pollResult.videoUrl,
+		video_data: pollResult,
+	};
+}
+
+/** Extra fields Seedance 2.0 260128 accepts in image-to-video mode. */
+export interface Seedance260128ImageParams extends Seedance260128Params {
+	/** Required first-frame image URL. */
+	firstFrame: string;
+	/** Optional last-frame anchor for tighter I2V control. */
+	lastFrame?: string;
+}
+
+/** Reference-to-video params for Seedance 2.0 260128 — no first-frame anchor. */
+export interface Seedance260128ReferenceParams extends Seedance260128Params {
+	/** At least one reference image URL is required. */
+	referenceImages: string[];
+}
+
+/** Generate image-to-video using GMI Seedance 2.0 260128. */
+export async function generateSeedance260128ImageVideo(
+	params: Seedance260128ImageParams
+): Promise<VideoGenerationResponse> {
+	if (!params.firstFrame) {
+		throw new Error(
+			"Seedance 2.0 260128 image-to-video requires a first-frame image"
+		);
+	}
+
+	const jobId = generateJobId();
+
+	const payload: Record<string, unknown> = {
+		prompt: params.prompt,
+		first_frame: params.firstFrame,
+	};
+	if (params.lastFrame) payload.last_frame = params.lastFrame;
+	applySeedance260128OptionalFields(payload, params);
+
+	const submitResult = await providerRouter.submit(
+		"seedance-2-0-260128",
+		payload,
+		"gmi"
+	);
+
+	const pollResult = await providerRouter.poll(
+		submitResult.requestId,
+		submitResult.provider
+	);
+
+	if (pollResult.status === "failed") {
+		throw new Error(
+			pollResult.error ?? "GMI Seedance 2.0 260128 image-to-video failed"
+		);
+	}
+
+	return {
+		job_id: jobId,
+		status: "completed",
+		message: "Video generated with GMI Seedance 2.0 260128 (image-to-video)",
+		estimated_time: 0,
+		video_url: pollResult.videoUrl,
+		video_data: pollResult,
+	};
+}
+
+/**
+ * Generate reference-to-video using GMI Seedance 2.0 260128.
+ *
+ * No first_frame anchor — character consistency is driven purely by
+ * the supplied reference image(s) (and optional reference videos/audios).
+ */
+export async function generateSeedance260128ReferenceVideo(
+	params: Seedance260128ReferenceParams
+): Promise<VideoGenerationResponse> {
+	if (!params.referenceImages?.length) {
+		throw new Error(
+			"Seedance 2.0 260128 reference-to-video requires at least one reference image"
+		);
+	}
+
+	const jobId = generateJobId();
+
+	const payload: Record<string, unknown> = { prompt: params.prompt };
+	applySeedance260128OptionalFields(payload, params);
+
+	const submitResult = await providerRouter.submit(
+		"seedance-2-0-260128",
+		payload,
+		"gmi"
+	);
+
+	const pollResult = await providerRouter.poll(
+		submitResult.requestId,
+		submitResult.provider
+	);
+
+	if (pollResult.status === "failed") {
+		throw new Error(
+			pollResult.error ?? "GMI Seedance 2.0 260128 reference-to-video failed"
+		);
+	}
+
+	return {
+		job_id: jobId,
+		status: "completed",
+		message:
+			"Video generated with GMI Seedance 2.0 260128 (reference-to-video)",
 		estimated_time: 0,
 		video_url: pollResult.videoUrl,
 		video_data: pollResult,

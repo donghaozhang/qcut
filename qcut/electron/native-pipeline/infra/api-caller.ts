@@ -83,6 +83,31 @@ interface GmiStatusResponse {
 
 const FAL_TRUSTED_HOSTS = [".fal.run", ".fal.ai"];
 
+/**
+ * Strip caller-supplied text out of a provider error body so a failure
+ * log never echoes a prompt or reference URL back to disk. Keeps JSON
+ * status codes and short error slugs, elides anything long.
+ */
+function redactErrorPreview(body: string): string {
+	const trimmed = body.trim();
+	if (trimmed.length === 0) return "";
+	try {
+		const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+		const code =
+			typeof parsed.error_code === "number"
+				? String(parsed.error_code)
+				: typeof parsed.code === "string"
+					? parsed.code
+					: undefined;
+		const source =
+			typeof parsed.error_source === "string" ? parsed.error_source : undefined;
+		const label = [code, source].filter(Boolean).join(" / ");
+		return label ? `[${label}]` : "[provider error body redacted]";
+	} catch {
+		return `[provider error body redacted; ${trimmed.length} bytes]`;
+	}
+}
+
 /** Validate that a URL belongs to a trusted FAL domain before sending auth headers. */
 function isTrustedFalUrl(url: string): boolean {
 	try {
@@ -432,9 +457,16 @@ export async function pollQueueStatus(
 				signal: options?.signal,
 			});
 			if (!resultRes.ok) {
+				const body = await resultRes.text().catch(() => "");
+				// Provider error bodies can echo the caller's prompt; log the
+				// status + byte count only and surface a redacted preview in
+				// the returned error so downstream traces stay PII-free.
+				console.error(
+					`[api-caller] Result fetch ${resultRes.status} at ${fetchUrl} (${body.length} bytes)`
+				);
 				return {
 					success: false,
-					error: `Failed to fetch result: ${resultRes.status}`,
+					error: `Failed to fetch result: ${resultRes.status}${body ? ` — ${redactErrorPreview(body)}` : ""}`,
 					duration: (Date.now() - startTime) / 1000,
 				};
 			}
