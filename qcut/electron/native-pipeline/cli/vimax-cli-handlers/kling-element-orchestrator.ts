@@ -117,6 +117,13 @@ export interface EnsureKlingElementsArgs {
 	cachePath: string;
 	/** Optional: name → character description for richer element_description. */
 	descriptions?: Record<string, string>;
+	/**
+	 * Max parallel `kling-create-element` calls. GMI's queue tolerates a
+	 * handful of concurrent element creations; a single serial loop wastes
+	 * wall-clock since each call can take 3–5 min. Default 3 is a
+	 * conservative trade-off between speed and queue friendliness.
+	 */
+	concurrency?: number;
 	/** Optional: progress callback for per-character creation. */
 	onProgress?: (event: {
 		name: string;
@@ -132,6 +139,8 @@ export interface EnsureKlingElementsArgs {
 	writeCacheImpl?: typeof writeElementCache;
 }
 
+const DEFAULT_ELEMENT_CONCURRENCY = 3;
+
 export interface EnsureKlingElementsResult {
 	elementIds: Record<string, string>;
 	created: string[];
@@ -141,10 +150,19 @@ export interface EnsureKlingElementsResult {
 
 /**
  * Ensure every portrait has a Kling element. Reads the cache, re-uses
- * entries whose `portrait_url` still matches, creates the rest, and
- * writes the cache back. Returns a `name → element_id` map suitable
- * to pass as the `portraits` argument to `adaptShotForSeedance` when
- * family is `"kling-omni"`.
+ * entries whose `portrait_url` still matches, creates the rest in
+ * parallel (default 3 workers), and writes the cache back. Returns a
+ * `name → element_id` map suitable to pass as the `portraits` argument
+ * to `adaptShotForSeedance` when family is `"kling-omni"`.
+ *
+ * Concurrency notes:
+ *   - `writeCacheImpl` is called from multiple workers between awaits.
+ *     Writes are synchronous (`writeFileSync`), so they can't interleave;
+ *     each worker writes the current shared-cache snapshot after it
+ *     mutates, so later writes always include earlier workers' changes.
+ *   - Cache-hit partitioning happens before the workers start, so there
+ *     is no race between "check cache" and "call create": only uncached
+ *     names ever reach the worker queue.
  */
 export async function ensureKlingElements(
 	args: EnsureKlingElementsArgs
@@ -153,6 +171,7 @@ export async function ensureKlingElements(
 		portraitUrls,
 		cachePath,
 		descriptions = {},
+		concurrency = DEFAULT_ELEMENT_CONCURRENCY,
 		onProgress,
 		createElementImpl = defaultCreateKlingElement,
 		readCacheImpl = readElementCache,
@@ -167,41 +186,74 @@ export async function ensureKlingElements(
 	const cachedNames: string[] = [];
 	const failed: Record<string, string> = {};
 
-	let index = 0;
-	for (const name of names) {
-		index++;
+	// ── Phase 1: partition by cache hit (synchronous, deterministic) ──
+	const toCreate: string[] = [];
+	names.forEach((name, i) => {
 		const url = portraitUrls[name];
 		const hit = cache[name];
 		if (hit && hit.portrait_url === url && hit.element_id) {
 			elementIds[name] = hit.element_id;
 			cachedNames.push(name);
-			onProgress?.({ name, index, total, status: "cached" });
-			continue;
+			onProgress?.({ name, index: i + 1, total, status: "cached" });
+		} else {
+			toCreate.push(name);
 		}
-		onProgress?.({ name, index, total, status: "creating" });
-		const description =
-			descriptions[name]?.slice(0, 100) ||
-			`Character ${name} (auto-generated for novel2video)`;
-		const result = await createElementImpl({
-			name,
-			description,
-			frontalImageUrl: url,
-		});
-		if (!result.success) {
-			failed[name] = result.error;
-			onProgress?.({ name, index, total, status: "failed", error: result.error });
-			continue;
-		}
-		cache[name] = {
-			element_id: result.elementId,
-			portrait_url: url,
-			created_at: new Date().toISOString(),
+	});
+
+	// ── Phase 2: parallel create for the cache misses ─────────────────
+	if (toCreate.length > 0) {
+		const workerCount = Math.max(1, Math.min(concurrency, toCreate.length));
+		let nextIndex = 0;
+		// Name → 1-based display index for the onProgress event. Assigning
+		// here keeps the "creating" / "created" pair consistent even when
+		// workers complete out of order.
+		const displayIndex = new Map<string, number>();
+		toCreate.forEach((n, i) => displayIndex.set(n, cachedNames.length + i + 1));
+
+		const worker = async (): Promise<void> => {
+			while (true) {
+				const slot = nextIndex++;
+				if (slot >= toCreate.length) return;
+				const name = toCreate[slot];
+				const url = portraitUrls[name];
+				const idx = displayIndex.get(name) ?? slot + 1;
+				onProgress?.({ name, index: idx, total, status: "creating" });
+				const description =
+					descriptions[name]?.slice(0, 100) ||
+					`Character ${name} (auto-generated for novel2video)`;
+				const result = await createElementImpl({
+					name,
+					description,
+					frontalImageUrl: url,
+				});
+				if (!result.success) {
+					failed[name] = result.error;
+					onProgress?.({
+						name,
+						index: idx,
+						total,
+						status: "failed",
+						error: result.error,
+					});
+					continue;
+				}
+				cache[name] = {
+					element_id: result.elementId,
+					portrait_url: url,
+					created_at: new Date().toISOString(),
+				};
+				elementIds[name] = result.elementId;
+				created.push(name);
+				onProgress?.({ name, index: idx, total, status: "created" });
+				// Persist incrementally so a mid-run failure doesn't lose
+				// progress. Synchronous write — cannot interleave across workers.
+				writeCacheImpl(cachePath, cache);
+			}
 		};
-		elementIds[name] = result.elementId;
-		created.push(name);
-		onProgress?.({ name, index, total, status: "created" });
-		// Persist incrementally so a mid-run failure doesn't lose progress.
-		writeCacheImpl(cachePath, cache);
+
+		const workers: Promise<void>[] = [];
+		for (let w = 0; w < workerCount; w++) workers.push(worker());
+		await Promise.all(workers);
 	}
 
 	// Final write catches the all-cached case (no incremental writes).

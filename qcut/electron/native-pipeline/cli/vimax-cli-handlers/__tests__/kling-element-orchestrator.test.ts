@@ -186,6 +186,56 @@ describe("ensureKlingElements", () => {
 		expect(createdFor).toEqual(["Bob"]);
 	});
 
+	it("runs element creation in parallel up to the concurrency limit", async () => {
+		// Each mock create takes ~50ms. With concurrency=3 and 3 portraits,
+		// total wall-clock should be ~50ms (all in flight at once), not
+		// ~150ms (serial). We assert on inFlight peak instead of a timing
+		// race so the test is robust under load.
+		let inFlight = 0;
+		let peak = 0;
+		const result = await ensureKlingElements({
+			portraitUrls: {
+				Alice: "https://cdn/a.png",
+				Bob: "https://cdn/b.png",
+				Chris: "https://cdn/c.png",
+			},
+			cachePath,
+			concurrency: 3,
+			createElementImpl: async ({ name }) => {
+				inFlight++;
+				peak = Math.max(peak, inFlight);
+				await new Promise((r) => setTimeout(r, 10));
+				inFlight--;
+				return { success: true, elementId: `elm-${name}` };
+			},
+		});
+		expect(result.created.sort()).toEqual(["Alice", "Bob", "Chris"]);
+		expect(peak).toBe(3); // all three in flight at the same time
+	});
+
+	it("respects a concurrency limit below the portrait count", async () => {
+		let inFlight = 0;
+		let peak = 0;
+		await ensureKlingElements({
+			portraitUrls: {
+				Alice: "https://cdn/a.png",
+				Bob: "https://cdn/b.png",
+				Chris: "https://cdn/c.png",
+				Dana: "https://cdn/d.png",
+			},
+			cachePath,
+			concurrency: 2,
+			createElementImpl: async ({ name }) => {
+				inFlight++;
+				peak = Math.max(peak, inFlight);
+				await new Promise((r) => setTimeout(r, 10));
+				inFlight--;
+				return { success: true, elementId: `elm-${name}` };
+			},
+		});
+		expect(peak).toBe(2); // never more than 2 in flight
+	});
+
 	it("fires onProgress for each portrait with the correct status", async () => {
 		writeElementCache(cachePath, {
 			Alice: {
