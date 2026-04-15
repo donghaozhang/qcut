@@ -15,6 +15,7 @@ import {
 	createAdapterConfig,
 } from "./base-adapter.js";
 import { callModelApi, downloadOutput } from "../../infra/api-caller.js";
+import { isProxyAvailable } from "../../infra/proxy-client.js";
 import type { ImageOutput } from "../types/output.js";
 import { createImageOutput } from "../types/output.js";
 
@@ -173,10 +174,19 @@ export class ImageGeneratorAdapter extends BaseAdapter<string, ImageOutput> {
 	}
 
 	async initialize(): Promise<boolean> {
-		const apiKey = process.env.FAL_KEY ?? process.env.FAL_API_KEY ?? "";
-		this._hasApiKey = apiKey.length > 0;
+		// Accept any usable auth path: local FAL key, local GMI key (for GMI
+		// models), or proxy session token. `callModelApi` itself routes
+		// through the proxy when no local key is present, so the adapter
+		// only needs to know whether SOMETHING upstream will work.
+		const falKey = process.env.FAL_KEY ?? process.env.FAL_API_KEY ?? "";
+		const gmiKey = process.env.GMI_API_KEY ?? "";
+		const hasLocalKey = falKey.length > 0 || gmiKey.length > 0;
+		const hasProxy = await isProxyAvailable().catch(() => false);
+		this._hasApiKey = hasLocalKey || hasProxy;
 		if (!this._hasApiKey) {
-			console.warn("[vimax.image] FAL_KEY not set — using mock mode");
+			console.warn(
+				"[vimax.image] No FAL_KEY/GMI_API_KEY and no proxy session — using mock mode"
+			);
 		}
 		return true;
 	}
