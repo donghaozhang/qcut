@@ -67,41 +67,103 @@ export interface ProxyResponse {
 	data: unknown;
 }
 
+/** How many times to retry transient proxy failures (429 + 5xx). */
+const PROXY_RETRIES = 3;
+
+/**
+ * Exponential backoff delay for a retry attempt. Mirrors the direct-mode
+ * `fetchWithRetry` behavior in `api-caller.ts` so users see identical
+ * resilience whether or not they're logged in:
+ *   429 → 5s, 10s, 20s, 40s
+ *   5xx → 1s, 2s, 3s (linear)
+ */
+function proxyBackoffMs(status: number, attempt: number): number {
+	if (status === 429) return 5000 * 2 ** attempt;
+	return 1000 * (attempt + 1);
+}
+
+/** Export for tests that want to assert backoff math without timing. */
+export { proxyBackoffMs };
+
+/**
+ * Determines whether a proxy response should trigger a retry. 429 is
+ * rate-limit, 5xx is server error — both transient. 4xx other than 429
+ * are caller-side problems and should fail fast.
+ */
+function isProxyRetryable(status: number): boolean {
+	return status === 429 || status >= 500;
+}
+
 /**
  * Forward a JSON request through the AI proxy.
  * POST /api/ai/proxy
+ *
+ * Retries 429 + 5xx with exponential backoff (up to `PROXY_RETRIES`)
+ * so that logged-in users see the same resilience as direct-mode callers
+ * (`fetchWithRetry` in `api-caller.ts`). Non-retryable errors and the
+ * final failing attempt return their response to the caller unchanged.
  */
 export async function proxyRequest(
 	options: ProxyRequestOptions
 ): Promise<ProxyResponse> {
 	const token = await getSessionToken();
 	const baseUrl = getLicenseServerUrl();
-
-	const response = await fetch(`${baseUrl}/api/ai/proxy`, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-			Authorization: `Bearer ${token}`,
-		},
-		body: JSON.stringify({
-			provider: options.provider,
-			endpoint: options.endpoint,
-			method: options.method ?? "POST",
-			body: options.body,
-			credits: options.credits,
-		}),
-		signal: options.signal ?? AbortSignal.timeout(options.timeoutMs ?? 120_000),
+	const body = JSON.stringify({
+		provider: options.provider,
+		endpoint: options.endpoint,
+		method: options.method ?? "POST",
+		body: options.body,
+		credits: options.credits,
 	});
+	const signal =
+		options.signal ?? AbortSignal.timeout(options.timeoutMs ?? 120_000);
 
-	const text = await response.text();
-	let data: unknown;
-	try {
-		data = JSON.parse(text);
-	} catch {
-		data = text;
+	let lastResponse: ProxyResponse | null = null;
+	for (let attempt = 0; attempt <= PROXY_RETRIES; attempt++) {
+		const response = await fetch(`${baseUrl}/api/ai/proxy`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${token}`,
+			},
+			body,
+			signal,
+		});
+
+		const text = await response.text();
+		let data: unknown;
+		try {
+			data = JSON.parse(text);
+		} catch {
+			data = text;
+		}
+
+		const result: ProxyResponse = {
+			ok: response.ok,
+			status: response.status,
+			data,
+		};
+
+		if (result.ok || !isProxyRetryable(result.status)) return result;
+
+		lastResponse = result;
+		if (attempt === PROXY_RETRIES) break;
+		const delay = proxyBackoffMs(result.status, attempt);
+		console.error(
+			`[proxy] ${result.status} on ${options.provider} call — retry ${attempt + 1}/${PROXY_RETRIES} in ${delay}ms`
+		);
+		await new Promise((r) => setTimeout(r, delay));
 	}
 
-	return { ok: response.ok, status: response.status, data };
+	// Every retry exhausted — return the last response so the caller can
+	// surface the original error to the user.
+	return (
+		lastResponse ?? {
+			ok: false,
+			status: 0,
+			data: "proxy request failed with no response",
+		}
+	);
 }
 
 /**
@@ -170,21 +232,38 @@ export async function proxyPollStatus({
 	if (endpoint) params.set("endpoint", endpoint);
 	if (statusUrl) params.set("statusUrl", statusUrl);
 
-	const response = await fetch(`${baseUrl}/api/ai/status?${params}`, {
-		method: "GET",
-		headers: { Authorization: `Bearer ${token}` },
-		signal: signal ?? AbortSignal.timeout(15_000),
-	});
+	const effectiveSignal = signal ?? AbortSignal.timeout(15_000);
 
-	const text = await response.text();
-	let data: unknown;
-	try {
-		data = JSON.parse(text);
-	} catch {
-		data = text;
+	// Retry 429 + 5xx to match proxyRequest's resilience. Status polling
+	// is the hot path — a single transient failure shouldn't abort an
+	// in-progress render.
+	let lastStatus = 0;
+	let lastData: unknown = null;
+	for (let attempt = 0; attempt <= PROXY_RETRIES; attempt++) {
+		const response = await fetch(`${baseUrl}/api/ai/status?${params}`, {
+			method: "GET",
+			headers: { Authorization: `Bearer ${token}` },
+			signal: effectiveSignal,
+		});
+
+		const text = await response.text();
+		let data: unknown;
+		try {
+			data = JSON.parse(text);
+		} catch {
+			data = text;
+		}
+		lastStatus = response.status;
+		lastData = data;
+		if (response.ok || !isProxyRetryable(response.status)) {
+			return { status: response.status, data };
+		}
+		if (attempt === PROXY_RETRIES) break;
+		const delay = proxyBackoffMs(response.status, attempt);
+		await new Promise((r) => setTimeout(r, delay));
 	}
 
-	return { status: response.status, data };
+	return { status: lastStatus, data: lastData };
 }
 /**
  * Fetch completed async job result through the proxy.
