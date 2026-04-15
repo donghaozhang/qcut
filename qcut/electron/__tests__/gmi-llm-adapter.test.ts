@@ -141,7 +141,12 @@ describe("LLM Adapter — GMI LLM models", () => {
 		expect(response.usage.total_tokens).toBe(15);
 	});
 
-	it("falls back to mock when GMI key is not set", async () => {
+	it("routes through provider even when GMI key is not set (proxy mode)", async () => {
+		// Pre-proxy behavior was to fall back to a local mock when no key was
+		// configured. Since proxy mode landed, an unset key routes through
+		// `callModelApi` too (the license-server worker vends credentials).
+		// Keep the assertion simple: the call is made and returns a
+		// non-empty content string.
 		delete process.env.GMI_API_KEY;
 		const adapter = new LLMAdapter();
 		await adapter.initialize();
@@ -149,7 +154,7 @@ describe("LLM Adapter — GMI LLM models", () => {
 			model: "glm-5.1",
 		});
 
-		expect(mockCallModelApi).not.toHaveBeenCalled();
+		expect(mockCallModelApi).toHaveBeenCalledTimes(1);
 		expect(response.content).toBeTruthy();
 	});
 });
