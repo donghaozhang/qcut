@@ -51,6 +51,8 @@ export interface CLIRunOptions {
 	sound?: string;
 	/** Kling V3 Omni watermark toggle */
 	watermark?: boolean;
+	/** `flow lint-scripts`: when true, rewrite chunks in place with a backup */
+	autoFix?: boolean;
 	elementDescription?: string;
 	idea?: string;
 	genre?: string;

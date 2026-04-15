@@ -73,6 +73,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			novel2movie: "vimax:novel2movie",
 			novel2script: "vimax:novel2script",
 			novel2video: "vimax:novel2video",
+			"lint-scripts": "vimax:lint-scripts",
 			script: "vimax:generate-script",
 			characters: "vimax:extract-characters",
 			portraits: "vimax:generate-portraits",

@@ -52,6 +52,8 @@ import {
 	type SeedanceFamily,
 } from "./video-shot-adapter.js";
 import { ensureKlingElements } from "./kling-element-orchestrator.js";
+import { lintScripts } from "./script-linter.js";
+import { loadLintCorpus } from "./script-lint-handler.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -175,6 +177,34 @@ export async function handleVimaxNovel2Video(
 			success: false,
 			error: `No shots found under ${paths.scriptsDir} — run \`flow novel2script\` first`,
 		};
+	}
+
+	// Passive lint: surface shots whose description mentions a catalogued
+	// character not in characters[]. Non-blocking — users can inspect and
+	// re-run after `flow lint-scripts --auto-fix` if they want to include
+	// the mentioned characters via portrait/element refs.
+	try {
+		const { catalogued, shots: lintShots } = loadLintCorpus(paths);
+		if (catalogued.length > 0 && lintShots.length > 0) {
+			const findings = lintScripts({ catalogued, shots: lintShots });
+			if (findings.length > 0) {
+				console.error(
+					`[lint] ${findings.length} shot(s) mention catalogued characters not in characters[]:`
+				);
+				for (const f of findings.slice(0, 5)) {
+					console.error(
+						`  ${f.shot_id}: missing [${f.missing.join(", ")}]`
+					);
+				}
+				if (findings.length > 5) {
+					console.error(
+						`  … ${findings.length - 5} more. Run \`qcut flow lint-scripts --project ${slug}\` for the full report.`
+					);
+				}
+			}
+		}
+	} catch {
+		// Lint is advisory — never block the render pipeline on its errors.
 	}
 
 	const maxShots = options.maxShots ?? shots.length;

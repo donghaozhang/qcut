@@ -165,6 +165,7 @@ export const CATEGORIES: CategoryDef[] = [
 			"vimax:novel2movie",
 			"vimax:novel2script",
 			"vimax:novel2video",
+			"vimax:lint-scripts",
 			"vimax:extract-characters",
 			"vimax:generate-script",
 			"vimax:generate-storyboard",
@@ -1462,6 +1463,26 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut flow novel2video --project my-story --model seedance_2_0  # FAL fallback",
 			"qcut flow novel2video --project my-story --model vidu_q3_ref2v_mix  # Vidu Q3 mix (multi-ref)",
 			"qcut flow novel2video --project my-story --model gmi_kling_v3_omni  # Kling V3 Omni element-driven",
+		],
+	},
+	"vimax:lint-scripts": {
+		name: "vimax:lint-scripts",
+		description:
+			"Report shots whose description mentions catalogued characters not in characters[]",
+		category: "vimax",
+		flags: [
+			f("--project", "string", "Project slug under ~/Documents/QCut/projects/", {
+				required: true,
+			}),
+			f(
+				"--auto-fix",
+				"boolean",
+				"Rewrite chunk_*.json in place to append missing names (keeps a .bak.<ts> backup)"
+			),
+		],
+		examples: [
+			"qcut flow lint-scripts --project my-story",
+			"qcut flow lint-scripts --project my-story --auto-fix",
 		],
 	},
 	"vimax:extract-characters": {
