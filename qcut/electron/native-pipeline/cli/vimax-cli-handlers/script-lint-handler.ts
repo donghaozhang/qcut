@@ -146,7 +146,7 @@ export async function handleLintScripts(
 	options: CLIRunOptions,
 	onProgress: ProgressFn
 ): Promise<CLIResult> {
-	const raw = (options.project ?? "").trim();
+	const raw = (options.projectId ?? "").trim();
 	if (raw.length === 0) {
 		return { success: false, error: "--project is required" };
 	}

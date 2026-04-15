@@ -76,7 +76,7 @@ describe("handleLintScripts", () => {
 		// No characters.json written
 		writeChunk(root, 1, [{ shot_id: "1", description: "x", characters: [] }]);
 		const res = await handleLintScripts(
-			{ project: slug } as never,
+			{ projectId: slug } as never,
 			() => {}
 		);
 		expect(res.success).toBe(false);
@@ -86,7 +86,7 @@ describe("handleLintScripts", () => {
 	it("fails when scripts dir has no chunk files", async () => {
 		writeCharacters(root, ["Alice"]);
 		const res = await handleLintScripts(
-			{ project: slug } as never,
+			{ projectId: slug } as never,
 			() => {}
 		);
 		expect(res.success).toBe(false);
@@ -99,7 +99,7 @@ describe("handleLintScripts", () => {
 			{ shot_id: "1-1-01", description: "Alice enters", characters: ["Alice"] },
 		]);
 		const res = await handleLintScripts(
-			{ project: slug } as never,
+			{ projectId: slug } as never,
 			() => {}
 		);
 		expect(res.success).toBe(true);
@@ -125,7 +125,7 @@ describe("handleLintScripts", () => {
 			"utf-8"
 		);
 		const res = await handleLintScripts(
-			{ project: slug } as never,
+			{ projectId: slug } as never,
 			() => {}
 		);
 		expect(res.success).toBe(true);
@@ -155,7 +155,7 @@ describe("handleLintScripts", () => {
 			},
 		]);
 		const res = await handleLintScripts(
-			{ project: slug, autoFix: true } as never,
+			{ projectId: slug, autoFix: true } as never,
 			() => {}
 		);
 		expect(res.success).toBe(true);
