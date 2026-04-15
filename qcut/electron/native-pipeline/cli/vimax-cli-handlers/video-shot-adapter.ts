@@ -71,6 +71,20 @@ export interface ShotInput {
 	resolution?: string;
 	generateAudio?: boolean;
 	seed?: number;
+	/**
+	 * Fallback style anchor for shots with NO catalogued characters. When
+	 * provided, the adapter routes these shots through ref2v/element
+	 * instead of plain t2v, using `anchor.value` as a single reference.
+	 * Shots that already have catalogued characters are unchanged.
+	 */
+	styleAnchor?: { name: string; value: string };
+	/**
+	 * Text prepended to the shot prompt to enforce a consistent visual
+	 * style (e.g. `"Modern anime film, soft cel-shading"`). Applied AFTER
+	 * `sanitizeShotPrompt` so stage-direction stripping doesn't mangle it.
+	 * Empty/whitespace-only strings are ignored.
+	 */
+	stylePrompt?: string;
 }
 
 export interface AdaptedShot {
@@ -428,7 +442,14 @@ export function adaptShotForSeedance(
 	family: SeedanceFamily = DEFAULT_SEEDANCE_FAMILY
 ): AdaptedShot {
 	const duration = clampDuration(shot.durationSeconds);
-	const prompt = sanitizeShotPrompt(shot.description || "");
+	const basePrompt = sanitizeShotPrompt(shot.description || "");
+	// Inject the style prompt at the front so the video model sees the
+	// aesthetic before the scene description. `sanitizeShotPrompt` ran on
+	// the raw description, so we concatenate AFTER sanitization to avoid
+	// stripping style tokens (e.g. `△` markers don't exist in the style).
+	const styleTrim = shot.stylePrompt?.trim() ?? "";
+	const prompt =
+		styleTrim.length > 0 ? `${styleTrim}, ${basePrompt}` : basePrompt;
 
 	// Partition referenced characters into catalogued vs. skipped.
 	// For Kling Omni, the values are element IDs and we preserve name
@@ -445,6 +466,21 @@ export function adaptShotForSeedance(
 		} else if (!value) {
 			skippedCharacters.push(name);
 		}
+	}
+	// If no catalogued characters but a styleAnchor is provided, use it
+	// as a single-ref fallback so the shot routes through ref2v/element
+	// instead of plain t2v. The anchor keeps visual style consistent
+	// with neighboring shots (at the cost of possibly inserting the
+	// anchor character into the frame — documented in the flag help).
+	const anchorFallbackUsed =
+		referenceValues.length === 0 &&
+		shot.styleAnchor != null &&
+		shot.styleAnchor.value.length > 0;
+	if (anchorFallbackUsed && shot.styleAnchor) {
+		referenceValues.push({
+			name: shot.styleAnchor.name,
+			value: shot.styleAnchor.value,
+		});
 	}
 	const referenceUrls = referenceValues.map((r) => r.value);
 
@@ -494,7 +530,9 @@ export function adaptShotForSeedance(
 				...built,
 				referenceUrls: picked.map((r) => r.value),
 				skippedCharacters,
-				reason: `kling-omni element: ${characters.length} catalogued character${characters.length === 1 ? "" : "s"}`,
+				reason: anchorFallbackUsed
+					? `kling-omni element: style-anchor fallback (${characters[0]?.name})`
+					: `kling-omni element: ${characters.length} catalogued character${characters.length === 1 ? "" : "s"}`,
 			};
 		}
 		// Per-family cap: GMI 4, FAL Seedance 9, FAL Vidu Q3 mix 4.
@@ -515,7 +553,9 @@ export function adaptShotForSeedance(
 			...built,
 			referenceUrls: refs,
 			skippedCharacters,
-			reason: `ref2v: ${refs.length} catalogued character${refs.length === 1 ? "" : "s"}`,
+			reason: anchorFallbackUsed
+				? `ref2v: style-anchor fallback (${referenceValues[0]?.name})`
+				: `ref2v: ${refs.length} catalogued character${refs.length === 1 ? "" : "s"}`,
 		};
 	}
 

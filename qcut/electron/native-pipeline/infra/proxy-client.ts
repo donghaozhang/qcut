@@ -115,11 +115,19 @@ export async function proxyRequest(
 		body: options.body,
 		credits: options.credits,
 	});
-	const signal =
-		options.signal ?? AbortSignal.timeout(options.timeoutMs ?? 120_000);
+	const perAttemptTimeoutMs = options.timeoutMs ?? 120_000;
 
 	let lastResponse: ProxyResponse | null = null;
 	for (let attempt = 0; attempt <= PROXY_RETRIES; attempt++) {
+		// Each attempt gets its OWN fresh timeout. Reusing a single
+		// `AbortSignal.timeout` across retries lets backoff delays push
+		// later attempts past the deadline and fire an abort even when
+		// the retry itself would succeed. User-supplied signals (e.g.
+		// cancellation) apply to every attempt.
+		const timeoutSignal = AbortSignal.timeout(perAttemptTimeoutMs);
+		const signal = options.signal
+			? AbortSignal.any([options.signal, timeoutSignal])
+			: timeoutSignal;
 		const response = await fetch(`${baseUrl}/api/ai/proxy`, {
 			method: "POST",
 			headers: {
@@ -232,18 +240,21 @@ export async function proxyPollStatus({
 	if (endpoint) params.set("endpoint", endpoint);
 	if (statusUrl) params.set("statusUrl", statusUrl);
 
-	const effectiveSignal = signal ?? AbortSignal.timeout(15_000);
-
 	// Retry 429 + 5xx to match proxyRequest's resilience. Status polling
 	// is the hot path — a single transient failure shouldn't abort an
-	// in-progress render.
+	// in-progress render. Each attempt gets its own timeout signal for
+	// the same reason as proxyRequest (backoff-push-past-deadline bug).
 	let lastStatus = 0;
 	let lastData: unknown = null;
 	for (let attempt = 0; attempt <= PROXY_RETRIES; attempt++) {
+		const timeoutSignal = AbortSignal.timeout(15_000);
+		const attemptSignal = signal
+			? AbortSignal.any([signal, timeoutSignal])
+			: timeoutSignal;
 		const response = await fetch(`${baseUrl}/api/ai/status?${params}`, {
 			method: "GET",
 			headers: { Authorization: `Bearer ${token}` },
-			signal: effectiveSignal,
+			signal: attemptSignal,
 		});
 
 		const text = await response.text();

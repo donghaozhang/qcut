@@ -1455,6 +1455,16 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 					"gmi_kling_v3_omni",
 				],
 			}),
+			f(
+				"--style-anchor",
+				"string",
+				"Catalogued character name to use as a style-ref fallback for shots with no catalogued characters. The anchor character may appear in those shots (refs are identity-driven); pick your protagonist."
+			),
+			f(
+				"--style-prompt",
+				"string",
+				"Style keywords prepended to every shot prompt (e.g. 'Modern anime film, soft cel-shading'). Overrides project.json style for this run."
+			),
 		],
 		examples: [
 			"qcut flow novel2video --project my-story",
@@ -1463,6 +1473,8 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut flow novel2video --project my-story --model seedance_2_0  # FAL fallback",
 			"qcut flow novel2video --project my-story --model vidu_q3_ref2v_mix  # Vidu Q3 mix (multi-ref)",
 			"qcut flow novel2video --project my-story --model gmi_kling_v3_omni  # Kling V3 Omni element-driven",
+			"qcut flow novel2video --project my-story --style-anchor 沈念安  # keep style consistent across all shots",
+			'qcut flow novel2video --project my-story --style-prompt "Modern anime film, soft cel-shading"  # force anime look',
 		],
 	},
 	"vimax:lint-scripts": {

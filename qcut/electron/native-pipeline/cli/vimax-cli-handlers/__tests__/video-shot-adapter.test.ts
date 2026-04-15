@@ -637,3 +637,194 @@ describe("adaptShotForSeedance — Kling Omni family", () => {
 		expect(adapted.skippedCharacters).toEqual(["GhostA", "GhostB"]);
 	});
 });
+
+describe("adaptShotForSeedance — styleAnchor fallback", () => {
+	it("GMI: uncatalogued shot + anchor → ref2v with anchor as single ref", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Announcer at podium",
+				characters: ["Announcer"], // not in portraits
+				durationSeconds: 5,
+				styleAnchor: {
+					name: "Alice",
+					value: "https://cdn/alice.png",
+				},
+			},
+			{}, // empty portraits
+			"gmi"
+		);
+		expect(adapted.variant).toBe("gmi_seedance_2_0_260128_ref2v");
+		expect(adapted.referenceUrls).toEqual(["https://cdn/alice.png"]);
+		expect(adapted.reason).toMatch(/style-anchor fallback.*Alice/);
+	});
+
+	it("FAL: uncatalogued shot + anchor → ref2v", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Party scene",
+				characters: [],
+				durationSeconds: 5,
+				styleAnchor: { name: "Bob", value: "https://cdn/bob.png" },
+			},
+			{},
+			"fal"
+		);
+		expect(adapted.variant).toBe("seedance_2_0_ref2v");
+		expect(adapted.payload.image_urls).toEqual(["https://cdn/bob.png"]);
+		expect(adapted.reason).toMatch(/style-anchor fallback.*Bob/);
+	});
+
+	it("Kling Omni: uncatalogued shot + anchor → element variant with anchor", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Crowd shot",
+				characters: ["Extras"],
+				durationSeconds: 5,
+				styleAnchor: { name: "Alice", value: "elm-alice-123" },
+			},
+			{},
+			"kling-omni"
+		);
+		expect(adapted.variant).toBe("gmi_kling_v3_omni_element");
+		expect(adapted.payload.element_list).toEqual([
+			{ element_id: "elm-alice-123" },
+		]);
+		expect(adapted.reason).toMatch(/style-anchor fallback.*Alice/);
+	});
+
+	it("anchor is ignored when the shot already has catalogued characters", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Alice enters",
+				characters: ["Alice"],
+				durationSeconds: 5,
+				styleAnchor: { name: "Bob", value: "https://cdn/bob.png" },
+			},
+			{ Alice: "https://cdn/alice.png" },
+			"gmi"
+		);
+		expect(adapted.variant).toBe("gmi_seedance_2_0_260128_ref2v");
+		// Only Alice's URL — the anchor (Bob) is dropped.
+		expect(adapted.referenceUrls).toEqual(["https://cdn/alice.png"]);
+		expect(adapted.reason).not.toMatch(/style-anchor/);
+	});
+
+	it("firstFrameUrl still wins over styleAnchor (I2V path preserved)", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Scene opener",
+				characters: [],
+				firstFrameUrl: "https://cdn/first.png",
+				durationSeconds: 5,
+				styleAnchor: { name: "Alice", value: "https://cdn/alice.png" },
+			},
+			{},
+			"gmi"
+		);
+		expect(adapted.variant).toBe("gmi_seedance_2_0_260128_i2v");
+		expect(adapted.referenceUrls).toEqual([]);
+	});
+
+	it("anchor with empty value is treated as no anchor", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Crowd",
+				characters: [],
+				durationSeconds: 5,
+				styleAnchor: { name: "Alice", value: "" },
+			},
+			{},
+			"gmi"
+		);
+		expect(adapted.variant).toBe("gmi_seedance_2_0_260128_t2v");
+	});
+});
+
+describe("adaptShotForSeedance — stylePrompt injection", () => {
+	it("prepends stylePrompt before sanitized description", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "△ Alice enters the room",
+				characters: ["Alice"],
+				durationSeconds: 5,
+				stylePrompt: "Modern anime film, soft cel-shading",
+			},
+			{ Alice: "https://cdn/alice.png" },
+			"gmi"
+		);
+		expect(adapted.payload.prompt).toBe(
+			"Modern anime film, soft cel-shading, Alice enters the room"
+		);
+	});
+
+	it("trims whitespace from stylePrompt", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Alice walks",
+				characters: ["Alice"],
+				durationSeconds: 5,
+				stylePrompt: "   anime film   ",
+			},
+			{ Alice: "https://cdn/a.png" },
+			"gmi"
+		);
+		expect(adapted.payload.prompt).toBe("anime film, Alice walks");
+	});
+
+	it("omits stylePrompt when empty or whitespace-only", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Alice walks",
+				characters: ["Alice"],
+				durationSeconds: 5,
+				stylePrompt: "   ",
+			},
+			{ Alice: "https://cdn/a.png" },
+			"gmi"
+		);
+		expect(adapted.payload.prompt).toBe("Alice walks");
+	});
+
+	it("works with t2v path (no characters, no anchor)", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "a quiet street",
+				characters: [],
+				durationSeconds: 5,
+				stylePrompt: "cinematic anime",
+			},
+			{},
+			"gmi"
+		);
+		expect(adapted.variant).toBe("gmi_seedance_2_0_260128_t2v");
+		expect(adapted.payload.prompt).toBe("cinematic anime, a quiet street");
+	});
+
+	it("works with Kling Omni element path + token substitution", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Alice greets Bob",
+				characters: ["Alice", "Bob"],
+				durationSeconds: 5,
+				stylePrompt: "anime film",
+			},
+			{ Alice: "elm-1", Bob: "elm-2" },
+			"kling-omni"
+		);
+		// Style prefix comes first, then tokens substitute the names
+		expect(adapted.payload.prompt).toBe(
+			"anime film, <<<element_1>>> greets <<<element_2>>>"
+		);
+	});
+});

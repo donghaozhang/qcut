@@ -24,6 +24,7 @@ import {
 	resolveProjectPaths,
 	ensureProjectDirs,
 	markStageCompleted,
+	readProjectMetadata,
 	safeProjectSlug,
 	shotVideoPath,
 	videoRegistryPath,
@@ -294,6 +295,51 @@ export async function handleVimaxNovel2Video(
 		portraitCatalog = result.elementIds;
 	}
 
+	// ── Resolve style prompt ──────────────────────────────────────
+	// Priority: CLI --style-prompt > project.json style > (none).
+	// The prompt is prepended to every shot's description so the video
+	// model sees aesthetic cues BEFORE the scene description. Without
+	// this, ref2v models (Seedance especially) pull toward their
+	// photorealistic training bias when the shot description doesn't
+	// name a referenced character (the ref image's style influence is
+	// weak without a matching subject in the prompt).
+	const projectMetadata = readProjectMetadata(paths);
+	const stylePromptCandidate =
+		(typeof options.stylePrompt === "string" && options.stylePrompt.trim()) ||
+		(typeof projectMetadata?.style === "string" &&
+			projectMetadata.style.trim()) ||
+		"";
+	const stylePrompt =
+		stylePromptCandidate.length > 0 ? stylePromptCandidate : undefined;
+	if (stylePrompt) {
+		const source = options.stylePrompt?.trim()
+			? "--style-prompt"
+			: "project.json";
+		console.error(
+			`  [style] prepending "${stylePrompt}" to every shot prompt (source: ${source})`
+		);
+	}
+
+	// ── Resolve --style-anchor ────────────────────────────────────
+	// Look up the user-specified anchor name in the final portrait
+	// catalog. Unknown name → log a warning and skip (no anchor
+	// fallback); per-shot behavior stays the same as before.
+	let styleAnchor: { name: string; value: string } | undefined;
+	if (options.styleAnchor) {
+		const anchorName = options.styleAnchor.trim();
+		const value = portraitCatalog[anchorName];
+		if (value) {
+			styleAnchor = { name: anchorName, value };
+			console.error(
+				`  [anchor] shots without catalogued characters will use "${anchorName}" as a style-ref fallback`
+			);
+		} else {
+			console.error(
+				`  [anchor] --style-anchor "${anchorName}" not found in portraits registry — ignoring`
+			);
+		}
+	}
+
 	// ── Per-shot pool ─────────────────────────────────────────────
 	// Each shot is independent — poll + download happen inside callApi,
 	// so running N shots concurrently parallelizes their wait loops.
@@ -349,6 +395,8 @@ export async function handleVimaxNovel2Video(
 				aspectRatio,
 				resolution,
 				generateAudio: true,
+				styleAnchor,
+				stylePrompt,
 			},
 			portraitCatalog,
 			family
