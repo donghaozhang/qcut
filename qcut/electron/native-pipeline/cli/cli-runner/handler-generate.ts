@@ -179,6 +179,13 @@ export async function handleGenerate(
 			element_id: id,
 		}));
 	}
+	// Kling V3 Omni: sound toggle ("on" | "off") and watermark_info
+	if (options.sound && (options.sound === "on" || options.sound === "off")) {
+		params.sound = options.sound;
+	}
+	if (options.watermark) {
+		params.watermark_info = { enabled: true };
+	}
 
 	if (options.command === "generate-avatar") {
 		if (options.referenceImages && options.referenceImages.length > 0) {

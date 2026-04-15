@@ -87,6 +87,11 @@ export async function handleCreateElement(
 				: [frontalB64];
 	}
 
+	// Optional tag_list: ["o_102", "o_105"] → [{tag_id: "o_102"}, ...]
+	if (options.tagList && options.tagList.length > 0) {
+		payload.tag_list = options.tagList.map((id) => ({ tag_id: id.trim() }));
+	}
+
 	onProgress({
 		stage: "starting",
 		percent: 0,

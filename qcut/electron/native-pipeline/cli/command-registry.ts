@@ -288,11 +288,22 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				"string[]",
 				"Kling element IDs for consistent characters"
 			),
+			f(
+				"--sound",
+				"string",
+				"Kling V3 Omni native audio toggle: 'on' or 'off' (default off)"
+			),
+			f(
+				"--watermark",
+				"boolean",
+				"Kling V3 Omni: enable watermark on output"
+			),
 		],
 		examples: [
 			"qcut-pipeline create-video -t 'Ocean waves' -m kling_2_6_pro -d 5s",
 			"qcut-pipeline create-video -t 'A flower blooming' --image-url https://example.com/flower.jpg",
 			"qcut-pipeline create-video -t '<<<element_1>>> walks in park' -m gmi_kling_v3_omni_t2v --element-ids abc123",
+			"qcut-pipeline create-video -t '<<<element_1>>> sings on stage' -m gmi_kling_v3_omni_i2v --element-ids abc --sound on --watermark",
 		],
 	},
 	"generate-avatar": {
@@ -902,18 +913,26 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--description", "string", "Element description (max 100 chars)", {
 				required: true,
 			}),
-			f("--frontal-image", "string", "Frontal reference image path/URL", {
-				required: true,
-			}),
+			f(
+				"--frontal-image",
+				"string",
+				"Frontal reference image path/URL (required for image_refer, omit for --refer-video)"
+			),
 			f("--refer-images", "string[]", "Additional reference images (1-3)"),
 			f(
 				"--refer-video",
 				"string",
 				"Reference video path/URL (alternative to images)"
 			),
+			f(
+				"--tag-list",
+				"string[]",
+				"Kling element tags (e.g. o_102 o_105). See GMI docs for the full list."
+			),
 		],
 		examples: [
 			'qcut-pipeline create-element --name "Detective" --description "Female detective in trench coat" --frontal-image front.jpg --refer-images side.jpg',
+			'qcut-pipeline create-element --name "Chef" --description "Chef with white hat" --frontal-image chef.jpg --tag-list o_102 --tag-list o_105',
 		],
 	},
 	"list-elements": {

@@ -1,6 +1,94 @@
 # Kling V3 Omni & Create Element Integration Guide
 
 > Source: GMI Cloud playground docs, 2026-04-10
+> CLI integration status last updated: 2026-04-16
+
+---
+
+## QCut CLI — what's wired today
+
+### Create a reusable element
+
+```bash
+# Image-ref element (1 frontal + 0-3 side images)
+qcut create-element \
+    --name "Detective" \
+    --description "Female detective in brown trench coat" \
+    --frontal-image ./detective-front.jpg \
+    --refer-images ./detective-side.jpg \
+    --refer-images ./detective-closeup.jpg
+
+# Video-ref element (3-8s clip)
+qcut create-element \
+    --name "Actor James" \
+    --description "Male actor, 30s, casual style" \
+    --refer-video ./james-clip.mp4
+
+# With tags (o_102 character, o_103 animal, o_104 item, o_105 costume,
+#            o_106 scene, o_107 effect, o_108 others, o_101 hottest)
+qcut create-element \
+    --name "Chef" --description "Chef with white hat" \
+    --frontal-image ./chef.jpg \
+    --tag-list o_102 --tag-list o_105
+```
+
+Elements are persisted via `infra/element-store.ts`; list/delete with:
+
+```bash
+qcut list-elements
+qcut delete-element --element-id 307798396314
+```
+
+### Generate video with one or more elements
+
+Use the `<<<element_1>>>`, `<<<element_2>>>`, … placeholders in the prompt — they map positionally to the `--element-ids` you pass:
+
+```bash
+# Single element, text-to-video
+qcut gen video \
+    -m gmi_kling_v3_omni_t2v \
+    -t "<<<element_1>>> walks through a neon-lit alley at night" \
+    --element-ids 307795693621 \
+    -d 5s --aspect-ratio 16:9 --sound on
+
+# Two elements in the same shot
+qcut gen video \
+    -m gmi_kling_v3_omni_t2v \
+    -t "<<<element_1>>> and <<<element_2>>> meeting at a train station" \
+    --element-ids 307795693621 \
+    --element-ids 307795708543 \
+    -d 10s --aspect-ratio 16:9
+
+# Element + first-frame (I2V) + watermark
+qcut gen video \
+    -m gmi_kling_v3_omni_i2v \
+    -t "<<<element_1>>> standing in front of the building, then turns and walks inside" \
+    --image-url https://example.com/building.jpg \
+    --element-ids 307795693621 \
+    -d 6s --sound off --watermark
+```
+
+### New flags (2026-04-16)
+
+| Flag | Scope | Effect |
+|------|-------|--------|
+| `--sound on\|off` | `gen video` | Maps to Kling `sound` (native audio; requires supported mode) |
+| `--watermark` | `gen video` | Sets `watermark_info.enabled: true` |
+| `--tag-list <id>` (repeatable) | `create-element` | Maps to `tag_list: [{tag_id}]` |
+
+Existing flags that already route into Kling payload:
+`--element-ids` (repeatable) → `element_list[]`, `--image-url` + I2V model → `image_list[{type:"first_frame"}]`, `-d`/`--duration`, `--aspect-ratio`.
+
+### Not yet wired (use raw API or the GMI playground)
+
+- **Inline element auto-create** in `gen video` (passing `frontal_image` + `refer_images` directly instead of pre-calling `create-element`). Workaround: pre-create with `create-element`, then pass `--element-ids`.
+- **Multi-shot storyboard** (`multi_shot: true` + `multi_prompt[]`). Workaround: use `flow novel2video` for pipeline multi-shot, which orchestrates per-shot calls.
+- **Video reference** (`video_list[{refer_type:"feature"}]` — style/motion transfer). Only the `kling_3_motion_control` path is wired for motion transfer.
+- **End-frame image in Kling Omni I2V** (`image_list[{type:"end_frame"}]`). The generator accepts an `endFrameUrl` param but there's no CLI flag for it.
+
+If you need any of the above, open a ticket — the scaffolding (element store, `element_list` payload wiring) is already in place.
+
+---
 
 ## Pricing
 

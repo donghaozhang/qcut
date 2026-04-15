@@ -45,6 +45,12 @@ export interface CLIRunOptions {
 	referImages?: string[];
 	referVideo?: string;
 	elementIds?: string[];
+	/** Kling-create-element tag IDs, e.g. ["o_102", "o_105"] */
+	tagList?: string[];
+	/** Kling V3 Omni sound toggle ("on" | "off") */
+	sound?: string;
+	/** Kling V3 Omni watermark toggle */
+	watermark?: boolean;
 	elementDescription?: string;
 	idea?: string;
 	genre?: string;
