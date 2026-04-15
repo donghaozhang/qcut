@@ -245,13 +245,30 @@ aiProxyRoutes.get("/status", async (c) => {
 
 		let statusUrl: string;
 		if (provider === "fal") {
-			if (endpoint.length === 0) {
-				return c.json({ error: "endpoint is required for fal polling" }, 400);
+			// Prefer the FAL-returned status_url (client forwards it as
+			// `statusUrl`). FAL's queue namespace for status/result uses the
+			// model root (e.g. `fal-ai/topaz`), NOT the action endpoint
+			// (e.g. `fal-ai/topaz/upscale/video`) — so constructing the URL
+			// from `endpoint` produces 405s for multi-action models.
+			const forwardedStatusUrl = c.req.query("statusUrl") ?? "";
+			if (
+				forwardedStatusUrl.length > 0 &&
+				forwardedStatusUrl.startsWith("https://queue.fal.run/") &&
+				forwardedStatusUrl.includes(requestId)
+			) {
+				statusUrl = forwardedStatusUrl;
+			} else {
+				if (endpoint.length === 0) {
+					return c.json(
+						{ error: "endpoint is required for fal polling" },
+						400
+					);
+				}
+				if (!VALID_ENDPOINT_PATH.test(endpoint)) {
+					return c.json({ error: "Invalid endpoint format" }, 400);
+				}
+				statusUrl = `https://queue.fal.run/${endpoint}/requests/${requestId}/status`;
 			}
-			if (!VALID_ENDPOINT_PATH.test(endpoint)) {
-				return c.json({ error: "Invalid endpoint format" }, 400);
-			}
-			statusUrl = `https://queue.fal.run/${endpoint}/requests/${requestId}/status`;
 		} else if (provider === "gmi") {
 			statusUrl = `https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey/requests/${requestId}`;
 		} else {
@@ -307,17 +324,32 @@ aiProxyRoutes.get("/result", async (c) => {
 		if (provider !== "fal") {
 			return c.json({ error: "Result fetching only supported for fal" }, 400);
 		}
-		if (endpoint.length === 0 || requestId.length === 0) {
-			return c.json({ error: "endpoint and requestId are required" }, 400);
+		if (requestId.length === 0) {
+			return c.json({ error: "requestId is required" }, 400);
 		}
 		if (!VALID_REQUEST_ID.test(requestId)) {
 			return c.json({ error: "Invalid requestId format" }, 400);
 		}
-		if (!VALID_ENDPOINT_PATH.test(endpoint)) {
-			return c.json({ error: "Invalid endpoint format" }, 400);
-		}
 
-		const resultUrl = `https://queue.fal.run/${endpoint}/requests/${requestId}`;
+		// Prefer the FAL-returned response_url (same model-root vs
+		// action-path nuance as /status).
+		let resultUrl: string;
+		const forwardedResultUrl = c.req.query("resultUrl") ?? "";
+		if (
+			forwardedResultUrl.length > 0 &&
+			forwardedResultUrl.startsWith("https://queue.fal.run/") &&
+			forwardedResultUrl.includes(requestId)
+		) {
+			resultUrl = forwardedResultUrl;
+		} else {
+			if (endpoint.length === 0) {
+				return c.json({ error: "endpoint is required" }, 400);
+			}
+			if (!VALID_ENDPOINT_PATH.test(endpoint)) {
+				return c.json({ error: "Invalid endpoint format" }, 400);
+			}
+			resultUrl = `https://queue.fal.run/${endpoint}/requests/${requestId}`;
+		}
 
 		const authHeaders = buildProviderAuthHeaders("fal");
 		if (!authHeaders) {

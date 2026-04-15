@@ -153,11 +153,14 @@ export async function proxyPollStatus({
 	provider,
 	endpoint,
 	requestId,
+	statusUrl,
 	signal,
 }: {
 	provider: string;
 	endpoint?: string;
 	requestId: string;
+	/** FAL-returned status_url — proxy uses this verbatim (preferred). */
+	statusUrl?: string;
 	signal?: AbortSignal;
 }): Promise<{ status: number; data: unknown }> {
 	const token = await getSessionToken();
@@ -165,6 +168,7 @@ export async function proxyPollStatus({
 
 	const params = new URLSearchParams({ provider, requestId });
 	if (endpoint) params.set("endpoint", endpoint);
+	if (statusUrl) params.set("statusUrl", statusUrl);
 
 	const response = await fetch(`${baseUrl}/api/ai/status?${params}`, {
 		method: "GET",
@@ -190,17 +194,21 @@ export async function proxyFetchResult({
 	provider,
 	endpoint,
 	requestId,
+	resultUrl,
 	signal,
 }: {
 	provider: string;
 	endpoint: string;
 	requestId: string;
+	/** FAL-returned response_url — proxy uses this verbatim (preferred). */
+	resultUrl?: string;
 	signal?: AbortSignal;
 }): Promise<{ status: number; data: unknown }> {
 	const token = await getSessionToken();
 	const baseUrl = getLicenseServerUrl();
 
 	const params = new URLSearchParams({ provider, endpoint, requestId });
+	if (resultUrl) params.set("resultUrl", resultUrl);
 
 	const response = await fetch(`${baseUrl}/api/ai/result?${params}`, {
 		method: "GET",
@@ -280,11 +288,17 @@ export async function callModelApiViaProxy(
 		if (provider === "fal" && options.async !== false) {
 			const requestId =
 				typeof data.request_id === "string" ? data.request_id : "";
+			const statusUrl =
+				typeof data.status_url === "string" ? data.status_url : undefined;
+			const resultUrl =
+				typeof data.response_url === "string" ? data.response_url : undefined;
 			if (requestId && data.status !== "COMPLETED") {
 				return pollViaProxy({
 					provider: "fal",
 					endpoint,
 					requestId,
+					statusUrl,
+					resultUrl,
 					onProgress: options.onProgress,
 					signal,
 					startTime,
@@ -295,6 +309,7 @@ export async function callModelApiViaProxy(
 					provider: "fal",
 					endpoint,
 					requestId,
+					resultUrl,
 					signal,
 				});
 				const resultData = result.data as Record<string, unknown>;
@@ -349,6 +364,8 @@ async function pollViaProxy({
 	provider,
 	endpoint,
 	requestId,
+	statusUrl,
+	resultUrl,
 	onProgress,
 	signal,
 	startTime,
@@ -356,6 +373,10 @@ async function pollViaProxy({
 	provider: string;
 	endpoint: string;
 	requestId: string;
+	/** FAL-returned status_url — forwarded to proxy for correct path. */
+	statusUrl?: string;
+	/** FAL-returned response_url — forwarded to proxy for correct path. */
+	resultUrl?: string;
 	onProgress?: (percent: number, message: string) => void;
 	signal?: AbortSignal;
 	startTime: number;
@@ -375,6 +396,7 @@ async function pollViaProxy({
 			provider,
 			endpoint: provider === "fal" ? endpoint : undefined,
 			requestId,
+			statusUrl,
 			signal,
 		});
 
@@ -387,6 +409,7 @@ async function pollViaProxy({
 					provider: "fal",
 					endpoint,
 					requestId,
+					resultUrl,
 					signal,
 				});
 				const data = result.data as Record<string, unknown>;
