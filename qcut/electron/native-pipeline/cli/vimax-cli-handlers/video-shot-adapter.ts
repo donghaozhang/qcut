@@ -463,7 +463,8 @@ export function adaptShotForSeedance(
 	portraits: Record<string, string>,
 	family: SeedanceFamily = DEFAULT_SEEDANCE_FAMILY
 ): AdaptedShot {
-	const minDuration = family === "kling-omni" ? MIN_DURATION_KLING : MIN_DURATION_SEEDANCE;
+	const minDuration =
+		family === "kling-omni" ? MIN_DURATION_KLING : MIN_DURATION_SEEDANCE;
 	const duration = clampDuration(shot.durationSeconds, { minDuration });
 	const scenePrompt = sanitizeShotPrompt(shot.description || "");
 	const styleTrim = shot.stylePrompt?.trim() ?? "";

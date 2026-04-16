@@ -629,10 +629,7 @@ export async function callModelApi(
 		// abort at the 120s proxy fallback default. `retries` isn't a
 		// ProxyApiCallOptions field (proxy has its own fixed retry budget
 		// in PROXY_RETRIES).
-		return callModelApiViaProxy(
-			{ ...options, credits, timeoutMs },
-			startTime
-		);
+		return callModelApiViaProxy({ ...options, credits, timeoutMs }, startTime);
 	}
 
 	const headers = buildHeaders(provider, apiKey);

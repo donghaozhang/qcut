@@ -104,9 +104,7 @@ describe("proxyRequest retry behavior", () => {
 	});
 
 	it("does not retry on 4xx other than 429", async () => {
-		installFetchSequence([
-			{ status: 401, body: { error: "unauthorized" } },
-		]);
+		installFetchSequence([{ status: 401, body: { error: "unauthorized" } }]);
 		const res = await proxyRequest({
 			provider: "fal",
 			endpoint: "https://queue.fal.run/x",

@@ -259,10 +259,7 @@ aiProxyRoutes.get("/status", async (c) => {
 				statusUrl = forwardedStatusUrl;
 			} else {
 				if (endpoint.length === 0) {
-					return c.json(
-						{ error: "endpoint is required for fal polling" },
-						400
-					);
+					return c.json({ error: "endpoint is required for fal polling" }, 400);
 				}
 				if (!VALID_ENDPOINT_PATH.test(endpoint)) {
 					return c.json({ error: "Invalid endpoint format" }, 400);
