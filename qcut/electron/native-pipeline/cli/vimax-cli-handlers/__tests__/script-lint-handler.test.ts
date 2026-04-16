@@ -75,20 +75,14 @@ describe("handleLintScripts", () => {
 	it("fails when characters.json is missing", async () => {
 		// No characters.json written
 		writeChunk(root, 1, [{ shot_id: "1", description: "x", characters: [] }]);
-		const res = await handleLintScripts(
-			{ projectId: slug } as never,
-			() => {}
-		);
+		const res = await handleLintScripts({ projectId: slug } as never, () => {});
 		expect(res.success).toBe(false);
 		expect(res.error).toMatch(/No catalogued characters/i);
 	});
 
 	it("fails when scripts dir has no chunk files", async () => {
 		writeCharacters(root, ["Alice"]);
-		const res = await handleLintScripts(
-			{ projectId: slug } as never,
-			() => {}
-		);
+		const res = await handleLintScripts({ projectId: slug } as never, () => {});
 		expect(res.success).toBe(false);
 		expect(res.error).toMatch(/No scripts\//i);
 	});
@@ -98,10 +92,7 @@ describe("handleLintScripts", () => {
 		writeChunk(root, 1, [
 			{ shot_id: "1-1-01", description: "Alice enters", characters: ["Alice"] },
 		]);
-		const res = await handleLintScripts(
-			{ projectId: slug } as never,
-			() => {}
-		);
+		const res = await handleLintScripts({ projectId: slug } as never, () => {});
 		expect(res.success).toBe(true);
 		expect(res.data).toMatchObject({
 			project: slug,
@@ -124,10 +115,7 @@ describe("handleLintScripts", () => {
 			path.join(root, "scripts", "chunk_001.json"),
 			"utf-8"
 		);
-		const res = await handleLintScripts(
-			{ projectId: slug } as never,
-			() => {}
-		);
+		const res = await handleLintScripts({ projectId: slug } as never, () => {});
 		expect(res.success).toBe(true);
 		const data = res.data as {
 			findings: Array<{ shot_id: string; missing: string[] }>;
@@ -172,8 +160,6 @@ describe("handleLintScripts", () => {
 
 		// Backup exists
 		const files = fs.readdirSync(path.join(root, "scripts"));
-		expect(files.some((f) => /^chunk_001\.json\.bak\.\d+$/.test(f))).toBe(
-			true
-		);
+		expect(files.some((f) => /^chunk_001\.json\.bak\.\d+$/.test(f))).toBe(true);
 	});
 });

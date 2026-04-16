@@ -868,7 +868,9 @@ describe("adaptShotForSeedance — characterDescriptions injection", () => {
 			"gmi"
 		);
 		const prompt = adapted.payload.prompt as string;
-		expect(prompt).toContain("[Reference: Alice — 20s female, long dark hair, white dress]");
+		expect(prompt).toContain(
+			"[Reference: Alice — 20s female, long dark hair, white dress]"
+		);
 		expect(prompt).toContain("[Reference: Bob — 20s male, black hair, suit]");
 		expect(prompt).toContain("Alice and Bob argue");
 	});

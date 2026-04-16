@@ -115,9 +115,7 @@ function flattenShots(chunks: ChunkFile[]): LintShot[] {
 					shot_id: shot.shot_id,
 					description: shot.description ?? "",
 					characters: Array.isArray(shot.characters)
-						? shot.characters.filter(
-								(c): c is string => typeof c === "string"
-							)
+						? shot.characters.filter((c): c is string => typeof c === "string")
 						: [],
 				});
 			}
@@ -153,7 +151,11 @@ export async function handleLintScripts(
 	const slug = safeProjectSlug(raw);
 	const paths = resolveProjectPaths(slug);
 
-	onProgress({ stage: "loading", percent: 10, message: "Reading project files" });
+	onProgress({
+		stage: "loading",
+		percent: 10,
+		message: "Reading project files",
+	});
 	const catalogued = readCataloguedNames(paths);
 	if (catalogued.length === 0) {
 		return {

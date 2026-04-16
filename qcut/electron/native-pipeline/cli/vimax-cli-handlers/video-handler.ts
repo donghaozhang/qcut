@@ -193,9 +193,7 @@ export async function handleVimaxNovel2Video(
 					`[lint] ${findings.length} shot(s) mention catalogued characters not in characters[]:`
 				);
 				for (const f of findings.slice(0, 5)) {
-					console.error(
-						`  ${f.shot_id}: missing [${f.missing.join(", ")}]`
-					);
+					console.error(`  ${f.shot_id}: missing [${f.missing.join(", ")}]`);
 				}
 				if (findings.length > 5) {
 					console.error(

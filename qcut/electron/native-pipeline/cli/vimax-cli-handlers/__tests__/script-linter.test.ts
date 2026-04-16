@@ -75,9 +75,7 @@ describe("lintScripts", () => {
 				}, // clean
 			],
 		});
-		expect(result).toEqual([
-			{ shot_id: "b", missing: ["Bob"], listed: [] },
-		]);
+		expect(result).toEqual([{ shot_id: "b", missing: ["Bob"], listed: [] }]);
 	});
 
 	it("deduplicates repeated mentions of the same character", () => {
@@ -91,9 +89,7 @@ describe("lintScripts", () => {
 				},
 			],
 		});
-		expect(result).toEqual([
-			{ shot_id: "1", missing: ["Alice"], listed: [] },
-		]);
+		expect(result).toEqual([{ shot_id: "1", missing: ["Alice"], listed: [] }]);
 	});
 
 	it("sorts longer names ahead of shorter prefixes when scanning", () => {

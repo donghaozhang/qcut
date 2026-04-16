@@ -294,11 +294,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				"string",
 				"Kling V3 Omni native audio toggle: 'on' or 'off' (default off)"
 			),
-			f(
-				"--watermark",
-				"boolean",
-				"Kling V3 Omni: enable watermark on output"
-			),
+			f("--watermark", "boolean", "Kling V3 Omni: enable watermark on output"),
 		],
 		examples: [
 			"qcut-pipeline create-video -t 'Ocean waves' -m kling_2_6_pro -d 5s",
@@ -1483,9 +1479,14 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"Report shots whose description mentions catalogued characters not in characters[]",
 		category: "vimax",
 		flags: [
-			f("--project", "string", "Project slug under ~/Documents/QCut/projects/", {
-				required: true,
-			}),
+			f(
+				"--project",
+				"string",
+				"Project slug under ~/Documents/QCut/projects/",
+				{
+					required: true,
+				}
+			),
 			f(
 				"--auto-fix",
 				"boolean",

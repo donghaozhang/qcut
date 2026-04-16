@@ -24,10 +24,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import {
-	callModelApi,
-	type ApiCallResult,
-} from "../../infra/api-caller.js";
+import { callModelApi, type ApiCallResult } from "../../infra/api-caller.js";
 
 export interface KlingElementCacheEntry {
 	element_id: string;
@@ -42,7 +39,9 @@ export type CreateKlingElementFn = (args: {
 	name: string;
 	description: string;
 	frontalImageUrl: string;
-}) => Promise<{ success: true; elementId: string } | { success: false; error: string }>;
+}) => Promise<
+	{ success: true; elementId: string } | { success: false; error: string }
+>;
 
 /** Default implementation: calls GMI `kling-create-element`. */
 export async function defaultCreateKlingElement(args: {
@@ -208,7 +207,8 @@ export async function ensureKlingElements(
 		// here keeps the "creating" / "created" pair consistent even when
 		// workers complete out of order.
 		const displayIndex = new Map<string, number>();
-		for (const [i, n] of toCreate.entries()) displayIndex.set(n, cachedNames.length + i + 1);
+		for (const [i, n] of toCreate.entries())
+			displayIndex.set(n, cachedNames.length + i + 1);
 
 		const worker = async (): Promise<void> => {
 			while (true) {
