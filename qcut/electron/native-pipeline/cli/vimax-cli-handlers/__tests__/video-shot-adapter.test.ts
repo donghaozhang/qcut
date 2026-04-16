@@ -828,3 +828,122 @@ describe("adaptShotForSeedance — stylePrompt injection", () => {
 		);
 	});
 });
+
+describe("adaptShotForSeedance — characterDescriptions injection", () => {
+	it("injects [Reference: name — desc] for each catalogued character", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "沈薇薇 bursts through the door crying",
+				characters: ["沈薇薇"],
+				durationSeconds: 5,
+				characterDescriptions: {
+					沈薇薇: "20s East Asian female, long wavy hair, teal evening gown",
+				},
+			},
+			{ 沈薇薇: "https://cdn/ww.png" },
+			"gmi"
+		);
+		expect(adapted.payload.prompt).toContain(
+			"[Reference: 沈薇薇 — 20s East Asian female, long wavy hair, teal evening gown]"
+		);
+		expect(adapted.payload.prompt).toContain(
+			"沈薇薇 bursts through the door crying"
+		);
+	});
+
+	it("injects multiple reference clauses for multi-character shots", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Alice and Bob argue",
+				characters: ["Alice", "Bob"],
+				durationSeconds: 5,
+				characterDescriptions: {
+					Alice: "20s female, long dark hair, white dress",
+					Bob: "20s male, black hair, suit",
+				},
+			},
+			{ Alice: "https://cdn/a.png", Bob: "https://cdn/b.png" },
+			"gmi"
+		);
+		const prompt = adapted.payload.prompt as string;
+		expect(prompt).toContain("[Reference: Alice — 20s female, long dark hair, white dress]");
+		expect(prompt).toContain("[Reference: Bob — 20s male, black hair, suit]");
+		expect(prompt).toContain("Alice and Bob argue");
+	});
+
+	it("skips characters without a description entry", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Alice and Ghost walk",
+				characters: ["Alice", "Ghost"],
+				durationSeconds: 5,
+				characterDescriptions: {
+					Alice: "20s female, dark hair",
+				},
+			},
+			{ Alice: "https://cdn/a.png" },
+			"gmi"
+		);
+		const prompt = adapted.payload.prompt as string;
+		expect(prompt).toContain("[Reference: Alice");
+		expect(prompt).not.toContain("[Reference: Ghost");
+	});
+
+	it("works with stylePrompt — style comes first, then refs, then scene", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Alice enters",
+				characters: ["Alice"],
+				durationSeconds: 5,
+				stylePrompt: "anime film",
+				characterDescriptions: { Alice: "20s female" },
+			},
+			{ Alice: "https://cdn/a.png" },
+			"gmi"
+		);
+		const prompt = adapted.payload.prompt as string;
+		// Order: style → refs → scene
+		expect(prompt).toBe(
+			"anime film, [Reference: Alice — 20s female] Alice enters"
+		);
+	});
+
+	it("works with Kling Omni — ref clause uses original name, not token", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Alice walks in the garden",
+				characters: ["Alice"],
+				durationSeconds: 5,
+				characterDescriptions: { Alice: "20s female, dark hair" },
+			},
+			{ Alice: "elm-123" },
+			"kling-omni"
+		);
+		const prompt = adapted.payload.prompt as string;
+		// Ref clause keeps original name (injected after token substitution)
+		expect(prompt).toContain("[Reference: Alice — 20s female, dark hair]");
+		// Scene text has the token
+		expect(prompt).toContain("<<<element_1>>> walks in the garden");
+		// Name in ref clause is NOT replaced with token
+		expect(prompt).not.toContain("[Reference: <<<element_1>>>");
+	});
+
+	it("no injection when characterDescriptions is undefined", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "Alice walks",
+				characters: ["Alice"],
+				durationSeconds: 5,
+			},
+			{ Alice: "https://cdn/a.png" },
+			"gmi"
+		);
+		expect(adapted.payload.prompt).toBe("Alice walks");
+	});
+});

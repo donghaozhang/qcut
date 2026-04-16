@@ -85,6 +85,14 @@ export interface ShotInput {
 	 * Empty/whitespace-only strings are ignored.
 	 */
 	stylePrompt?: string;
+	/**
+	 * `name → visual description` map from characters.json portrait
+	 * attributes. When present, the adapter inserts a
+	 * `[Reference: name — description]` clause per catalogued character
+	 * into the prompt so the video model can bind reference images to the
+	 * correct person. Empty map or undefined = no injection.
+	 */
+	characterDescriptions?: Record<string, string>;
 }
 
 export interface AdaptedShot {
@@ -391,10 +399,18 @@ function baseKlingPayload(common: CommonShape): Record<string, unknown> {
 
 function buildKlingElement(
 	common: CommonShape,
-	characters: Array<{ name: string; elementId: string; token: string }>
+	characters: Array<{ name: string; elementId: string; token: string }>,
+	refDescPrefix?: string
 ): VariantPayload {
 	const rewritten = rewritePromptWithElementTokens(common.prompt, characters);
-	const payload = baseKlingPayload({ ...common, prompt: rewritten });
+	// Inject ref descriptions AFTER token substitution so original
+	// character names in the [Reference: …] clauses aren't replaced
+	// with <<<element_N>>> tokens.
+	const withRefs =
+		refDescPrefix && refDescPrefix.length > 0
+			? `${refDescPrefix}${rewritten}`
+			: rewritten;
+	const payload = baseKlingPayload({ ...common, prompt: withRefs });
 	payload.element_list = characters.map((c) => ({ element_id: c.elementId }));
 	return {
 		variant: "gmi_kling_v3_omni_element",
@@ -442,14 +458,8 @@ export function adaptShotForSeedance(
 	family: SeedanceFamily = DEFAULT_SEEDANCE_FAMILY
 ): AdaptedShot {
 	const duration = clampDuration(shot.durationSeconds);
-	const basePrompt = sanitizeShotPrompt(shot.description || "");
-	// Inject the style prompt at the front so the video model sees the
-	// aesthetic before the scene description. `sanitizeShotPrompt` ran on
-	// the raw description, so we concatenate AFTER sanitization to avoid
-	// stripping style tokens (e.g. `△` markers don't exist in the style).
+	const scenePrompt = sanitizeShotPrompt(shot.description || "");
 	const styleTrim = shot.stylePrompt?.trim() ?? "";
-	const prompt =
-		styleTrim.length > 0 ? `${styleTrim}, ${basePrompt}` : basePrompt;
 
 	// Partition referenced characters into catalogued vs. skipped.
 	// For Kling Omni, the values are element IDs and we preserve name
@@ -484,8 +494,37 @@ export function adaptShotForSeedance(
 	}
 	const referenceUrls = referenceValues.map((r) => r.value);
 
+	// Build a [Reference: name — description] clause for each catalogued
+	// character so the video model can bind reference images to the right
+	// person. Descriptions come from characters.json portrait attributes.
+	// Stored separately from the prompt because:
+	//   - Non-Kling: injected between style prefix and scene description
+	//   - Kling Omni: injected AFTER token substitution so `<<<element_N>>>`
+	//     tokens don't mangle the original character names in the clause
+	const descs = shot.characterDescriptions ?? {};
+	const refDescClauses: string[] = [];
+	for (const { name } of referenceValues) {
+		const desc = descs[name]?.trim();
+		if (desc) refDescClauses.push(`[Reference: ${name} — ${desc}]`);
+	}
+	const refDescPrefix =
+		refDescClauses.length > 0 ? `${refDescClauses.join(" ")} ` : "";
+
+	// Assemble the final prompt: style → refs → scene.
+	// For Kling Omni, refs are injected AFTER token substitution inside
+	// buildKlingElement so `<<<element_N>>>` tokens don't mangle the
+	// original character names in the [Reference: …] clauses.
+	const parts: string[] = [];
+	if (styleTrim.length > 0) parts.push(styleTrim);
+	if (family !== "kling-omni" && refDescPrefix.length > 0) {
+		parts.push(refDescPrefix + scenePrompt);
+	} else {
+		parts.push(scenePrompt);
+	}
+	const promptForCommon = parts.join(", ");
+
 	const common: CommonShape = {
-		prompt,
+		prompt: promptForCommon,
 		duration,
 		resolution: shot.resolution,
 		aspectRatio: shot.aspectRatio,
@@ -525,7 +564,7 @@ export function adaptShotForSeedance(
 				elementId: r.value,
 				token: `<<<element_${i + 1}>>>`,
 			}));
-			const built = buildKlingElement(common, characters);
+			const built = buildKlingElement(common, characters, refDescPrefix);
 			return {
 				...built,
 				referenceUrls: picked.map((r) => r.value),

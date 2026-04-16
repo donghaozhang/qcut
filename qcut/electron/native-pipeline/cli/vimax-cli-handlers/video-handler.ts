@@ -320,6 +320,40 @@ export async function handleVimaxNovel2Video(
 		);
 	}
 
+	// ── Build character description map ───────────────────────────
+	// Read portrait attributes from characters.json and format each into
+	// a short visual description string. The adapter injects these as
+	// `[Reference: name — description]` clauses into the prompt so the
+	// model can bind reference images to the correct person.
+	const characterDescriptions: Record<string, string> = {};
+	try {
+		if (fs.existsSync(paths.charactersPath)) {
+			const chars = JSON.parse(
+				fs.readFileSync(paths.charactersPath, "utf-8")
+			) as Array<{
+				name?: string;
+				portrait?: Record<string, string>;
+			}>;
+			for (const c of chars) {
+				if (!c.name) continue;
+				const p = c.portrait ?? {};
+				const parts = [p.age, p.ethnicity, p.gender, p.hair, p.clothing]
+					.filter((v) => typeof v === "string" && v.trim().length > 0)
+					.map((v) => v!.trim());
+				if (parts.length > 0) {
+					characterDescriptions[c.name] = parts.join(", ");
+				}
+			}
+		}
+	} catch {
+		// Non-critical — prompts work without descriptions, just less accurately.
+	}
+	if (Object.keys(characterDescriptions).length > 0) {
+		console.error(
+			`  [refs] ${Object.keys(characterDescriptions).length} character descriptions loaded for prompt injection`
+		);
+	}
+
 	// ── Resolve --style-anchor ────────────────────────────────────
 	// Look up the user-specified anchor name in the final portrait
 	// catalog. Unknown name → log a warning and skip (no anchor
@@ -397,6 +431,7 @@ export async function handleVimaxNovel2Video(
 				generateAudio: true,
 				styleAnchor,
 				stylePrompt,
+				characterDescriptions,
 			},
 			portraitCatalog,
 			family
