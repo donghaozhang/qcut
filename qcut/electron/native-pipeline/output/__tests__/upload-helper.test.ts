@@ -97,7 +97,7 @@ describe("uploadFileForReference", () => {
 		const [vendUrl, vendInit] = fetchImpl.mock.calls[0];
 		expect(vendUrl).toMatch(/\/api\/ai\/upload-url$/);
 		expect(vendInit.method).toBe("POST");
-		expect(vendInit.headers["Authorization"]).toBe("Bearer explicit-token");
+		expect(vendInit.headers.Authorization).toBe("Bearer explicit-token");
 		const vendBody = JSON.parse(vendInit.body);
 		expect(vendBody).toEqual({
 			provider: "fal",

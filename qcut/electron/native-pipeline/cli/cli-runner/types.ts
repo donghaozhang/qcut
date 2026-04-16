@@ -45,6 +45,31 @@ export interface CLIRunOptions {
 	referImages?: string[];
 	referVideo?: string;
 	elementIds?: string[];
+	/** Kling-create-element tag IDs, e.g. ["o_102", "o_105"] */
+	tagList?: string[];
+	/** Kling V3 Omni sound toggle ("on" | "off") */
+	sound?: string;
+	/** Kling V3 Omni watermark toggle */
+	watermark?: boolean;
+	/** `flow lint-scripts`: when true, rewrite chunks in place with a backup */
+	autoFix?: boolean;
+	/**
+	 * `flow novel2video --style-anchor <name>`: catalogued character name
+	 * whose portrait is injected as a single reference for shots that have
+	 * NO catalogued characters, keeping the visual style consistent across
+	 * the scene. Side effect: the anchor character may appear in the frame
+	 * because Seedance/Vidu/Kling treat refs as identity cues, not pure
+	 * style cues.
+	 */
+	styleAnchor?: string;
+	/**
+	 * `flow novel2video --style-prompt <text>`: style keywords prepended
+	 * to every shot's prompt before submission. Overrides `project.style`
+	 * for this run. Helps keep visual style consistent when the video
+	 * model would otherwise drift toward its training bias (e.g. Seedance
+	 * pulls toward photorealism even with an anime reference portrait).
+	 */
+	stylePrompt?: string;
 	elementDescription?: string;
 	idea?: string;
 	genre?: string;

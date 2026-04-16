@@ -100,6 +100,17 @@ qcut flow novel2video \
     --duration 5 \
     --resolution 720p \
     --aspect-ratio 16:9
+
+# Kling V3 Omni — $0.14/s (pro + sound worst-case), element-driven
+# character consistency. Pre-flight auto-creates one Kling element per
+# portrait and caches element_ids in videos/kling-elements.json.
+qcut flow novel2video \
+    --project cdrama-heiress-v3 \
+    --model gmi_kling_v3_omni \
+    --max-shots 3 \
+    --duration 5 \
+    --aspect-ratio 16:9 \
+    --cost-gate 3
 ```
 
 ### Stage 5 — single-shot smoke test (Seedance 2.0 ref2v, no project)
@@ -111,7 +122,7 @@ qcut gen video -m gmi_seedance_2_0_260128_ref2v \
     -d 4s --resolution 480p --aspect-ratio 16:9
 ```
 
-### Full four-stage run
+### Full four-stage run — GMI-only
 
 ```bash
 NOVEL=electron/native-pipeline/vimax/examples/drama-example.md
@@ -129,7 +140,33 @@ qcut flow novel2script --novel "$NOVEL" --project "$PROJECT" \
     --llm-model gemini-3.1-flash-lite --max-scenes 20
 
 qcut flow novel2video --project "$PROJECT" \
+    --model gmi_seedance_2_0_260128 \
     --max-shots 1 --duration 4 --resolution 480p
+
+jq '.stages_completed' ~/Documents/QCut/projects/$PROJECT/project.json
+# → ["characters", "portraits", "scripts", "videos"]   (per-shot details in videos/registry.json)
+```
+
+### Full four-stage run — FAL-only
+
+```bash
+NOVEL=electron/native-pipeline/vimax/examples/drama-example.md
+PROJECT=cdrama-heiress-v3-fal
+
+qcut flow characters --novel "$NOVEL" --project "$PROJECT" \
+    --llm-model gemini-3.1-flash-lite
+
+# (inspect / edit ~/Documents/QCut/projects/$PROJECT/characters.json)
+
+qcut flow portraits --project "$PROJECT" \
+    --image-model nano_banana_pro
+
+qcut flow novel2script --novel "$NOVEL" --project "$PROJECT" \
+    --llm-model gemini-3.1-flash-lite --max-scenes 20
+
+qcut flow novel2video --project "$PROJECT" \
+    --model seedance_2_0 \
+    --max-shots 1 --duration 4 --resolution 720p
 
 jq '.stages_completed' ~/Documents/QCut/projects/$PROJECT/project.json
 # → ["characters", "portraits", "scripts", "videos"]   (per-shot details in videos/registry.json)

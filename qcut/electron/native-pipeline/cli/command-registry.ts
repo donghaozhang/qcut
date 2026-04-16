@@ -165,6 +165,7 @@ export const CATEGORIES: CategoryDef[] = [
 			"vimax:novel2movie",
 			"vimax:novel2script",
 			"vimax:novel2video",
+			"vimax:lint-scripts",
 			"vimax:extract-characters",
 			"vimax:generate-script",
 			"vimax:generate-storyboard",
@@ -288,11 +289,18 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				"string[]",
 				"Kling element IDs for consistent characters"
 			),
+			f(
+				"--sound",
+				"string",
+				"Kling V3 Omni native audio toggle: 'on' or 'off' (default off)"
+			),
+			f("--watermark", "boolean", "Kling V3 Omni: enable watermark on output"),
 		],
 		examples: [
 			"qcut-pipeline create-video -t 'Ocean waves' -m kling_2_6_pro -d 5s",
 			"qcut-pipeline create-video -t 'A flower blooming' --image-url https://example.com/flower.jpg",
 			"qcut-pipeline create-video -t '<<<element_1>>> walks in park' -m gmi_kling_v3_omni_t2v --element-ids abc123",
+			"qcut-pipeline create-video -t '<<<element_1>>> sings on stage' -m gmi_kling_v3_omni_i2v --element-ids abc --sound on --watermark",
 		],
 	},
 	"generate-avatar": {
@@ -902,18 +910,26 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--description", "string", "Element description (max 100 chars)", {
 				required: true,
 			}),
-			f("--frontal-image", "string", "Frontal reference image path/URL", {
-				required: true,
-			}),
+			f(
+				"--frontal-image",
+				"string",
+				"Frontal reference image path/URL (required for image_refer, omit for --refer-video)"
+			),
 			f("--refer-images", "string[]", "Additional reference images (1-3)"),
 			f(
 				"--refer-video",
 				"string",
 				"Reference video path/URL (alternative to images)"
 			),
+			f(
+				"--tag-list",
+				"string[]",
+				"Kling element tags (e.g. o_102 o_105). See GMI docs for the full list."
+			),
 		],
 		examples: [
 			'qcut-pipeline create-element --name "Detective" --description "Female detective in trench coat" --frontal-image front.jpg --refer-images side.jpg',
+			'qcut-pipeline create-element --name "Chef" --description "Chef with white hat" --frontal-image chef.jpg --tag-list o_102 --tag-list o_105',
 		],
 	},
 	"list-elements": {
@@ -1428,8 +1444,23 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--model", "string", "Video model family", {
 				short: "-m",
 				default: "gmi_seedance_2_0_260128",
-				enum: ["gmi_seedance_2_0_260128", "seedance_2_0", "vidu_q3_ref2v_mix"],
+				enum: [
+					"gmi_seedance_2_0_260128",
+					"seedance_2_0",
+					"vidu_q3_ref2v_mix",
+					"gmi_kling_v3_omni",
+				],
 			}),
+			f(
+				"--style-anchor",
+				"string",
+				"Catalogued character name to use as a style-ref fallback for shots with no catalogued characters. The anchor character may appear in those shots (refs are identity-driven); pick your protagonist."
+			),
+			f(
+				"--style-prompt",
+				"string",
+				"Style keywords prepended to every shot prompt (e.g. 'Modern anime film, soft cel-shading'). Overrides project.json style for this run."
+			),
 		],
 		examples: [
 			"qcut flow novel2video --project my-story",
@@ -1437,6 +1468,34 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut flow novel2video --project my-story --force --cost-gate 20",
 			"qcut flow novel2video --project my-story --model seedance_2_0  # FAL fallback",
 			"qcut flow novel2video --project my-story --model vidu_q3_ref2v_mix  # Vidu Q3 mix (multi-ref)",
+			"qcut flow novel2video --project my-story --model gmi_kling_v3_omni  # Kling V3 Omni element-driven",
+			"qcut flow novel2video --project my-story --style-anchor 沈念安  # keep style consistent across all shots",
+			'qcut flow novel2video --project my-story --style-prompt "Modern anime film, soft cel-shading"  # force anime look',
+		],
+	},
+	"vimax:lint-scripts": {
+		name: "vimax:lint-scripts",
+		description:
+			"Report shots whose description mentions catalogued characters not in characters[]",
+		category: "vimax",
+		flags: [
+			f(
+				"--project",
+				"string",
+				"Project slug under ~/Documents/QCut/projects/",
+				{
+					required: true,
+				}
+			),
+			f(
+				"--auto-fix",
+				"boolean",
+				"Rewrite chunk_*.json in place to append missing names (keeps a .bak.<ts> backup)"
+			),
+		],
+		examples: [
+			"qcut flow lint-scripts --project my-story",
+			"qcut flow lint-scripts --project my-story --auto-fix",
 		],
 	},
 	"vimax:extract-characters": {

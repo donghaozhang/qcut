@@ -24,9 +24,11 @@ import {
 	resolveProjectPaths,
 	ensureProjectDirs,
 	markStageCompleted,
+	readProjectMetadata,
 	safeProjectSlug,
 	shotVideoPath,
 	videoRegistryPath,
+	klingElementCachePath,
 	type ProjectPaths,
 } from "../../output/project-paths.js";
 import {
@@ -50,6 +52,9 @@ import {
 	type AdaptedShot,
 	type SeedanceFamily,
 } from "./video-shot-adapter.js";
+import { ensureKlingElements } from "./kling-element-orchestrator.js";
+import { lintScripts } from "./script-linter.js";
+import { loadLintCorpus } from "./script-lint-handler.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -78,6 +83,11 @@ const COST_PER_SECOND: Record<SeedanceFamily, number> = {
 	// Use the 720p+ rate as worst-case so the cost gate doesn't
 	// under-estimate resolution-agnostic runs.
 	vidu: 0.154,
+	// Kling V3 Omni: std $0.084/s, std+sound $0.112/s, pro $0.112/s,
+	// pro+sound $0.14/s. We default `mode: "pro"` and `sound: "on"`
+	// when generateAudio is true — use the worst-case $0.14/s so the
+	// gate doesn't under-estimate.
+	"kling-omni": 0.14,
 };
 
 const DEFAULT_COST_GATE_USD = 2;
@@ -89,7 +99,8 @@ function shortVariantLabel(variant: string): string {
 		.replace(/^gmi_seedance_2_0_260128_/, "")
 		.replace(/^seedance_2_0_/, "")
 		.replace(/^seedance_2_0$/, "t2v")
-		.replace(/^vidu_q3_/, "vidu-");
+		.replace(/^vidu_q3_/, "vidu-")
+		.replace(/^gmi_kling_v3_omni_/, "kling-omni-");
 }
 
 interface RawShot {
@@ -169,6 +180,32 @@ export async function handleVimaxNovel2Video(
 		};
 	}
 
+	// Passive lint: surface shots whose description mentions a catalogued
+	// character not in characters[]. Non-blocking — users can inspect and
+	// re-run after `flow lint-scripts --auto-fix` if they want to include
+	// the mentioned characters via portrait/element refs.
+	try {
+		const { catalogued, shots: lintShots } = loadLintCorpus(paths);
+		if (catalogued.length > 0 && lintShots.length > 0) {
+			const findings = lintScripts({ catalogued, shots: lintShots });
+			if (findings.length > 0) {
+				console.error(
+					`[lint] ${findings.length} shot(s) mention catalogued characters not in characters[]:`
+				);
+				for (const f of findings.slice(0, 5)) {
+					console.error(`  ${f.shot_id}: missing [${f.missing.join(", ")}]`);
+				}
+				if (findings.length > 5) {
+					console.error(
+						`  … ${findings.length - 5} more. Run \`qcut flow lint-scripts --project ${slug}\` for the full report.`
+					);
+				}
+			}
+		}
+	} catch {
+		// Lint is advisory — never block the render pipeline on its errors.
+	}
+
 	const maxShots = options.maxShots ?? shots.length;
 	const plannedShots = shots.slice(0, Math.max(0, maxShots));
 	// When --duration is omitted, preserve each shot's script-authored
@@ -223,6 +260,117 @@ export async function handleVimaxNovel2Video(
 	uploadStep.end(
 		`${Object.keys(portraitUrls).length}/${Object.keys(portraitPaths).length} uploaded`
 	);
+
+	// ── Kling Omni element pre-flight ─────────────────────────────
+	// For the Kling Omni family, adaptShotForSeedance expects
+	// `portraits` as `name → element_id` (not URL). Create an element
+	// per portrait once (or reuse from the cache) before rendering.
+	let portraitCatalog: Record<string, string> = portraitUrls;
+	if (family === "kling-omni") {
+		const elementStep = startStep(
+			`ensure ${Object.keys(portraitUrls).length} Kling elements`
+		);
+		const result = await ensureKlingElements({
+			portraitUrls,
+			cachePath: klingElementCachePath(paths),
+			onProgress: (ev) => {
+				if (ev.status === "creating" || ev.status === "failed") {
+					console.error(
+						`  [kling-element ${ev.index}/${ev.total}] ${ev.name}: ${ev.status}${ev.error ? ` — ${ev.error}` : ""}`
+					);
+				}
+			},
+		});
+		elementStep.end(
+			`${result.cached.length} cached, ${result.created.length} created, ${Object.keys(result.failed).length} failed`
+		);
+		if (Object.keys(result.elementIds).length === 0) {
+			return {
+				success: false,
+				error: `Kling Omni element pre-flight produced no element IDs — first error: ${Object.values(result.failed)[0] ?? "unknown"}`,
+			};
+		}
+		portraitCatalog = result.elementIds;
+	}
+
+	// ── Resolve style prompt ──────────────────────────────────────
+	// Priority: CLI --style-prompt > project.json style > (none).
+	// The prompt is prepended to every shot's description so the video
+	// model sees aesthetic cues BEFORE the scene description. Without
+	// this, ref2v models (Seedance especially) pull toward their
+	// photorealistic training bias when the shot description doesn't
+	// name a referenced character (the ref image's style influence is
+	// weak without a matching subject in the prompt).
+	const projectMetadata = readProjectMetadata(paths);
+	const stylePromptCandidate =
+		(typeof options.stylePrompt === "string" && options.stylePrompt.trim()) ||
+		(typeof projectMetadata?.style === "string" &&
+			projectMetadata.style.trim()) ||
+		"";
+	const stylePrompt =
+		stylePromptCandidate.length > 0 ? stylePromptCandidate : undefined;
+	if (stylePrompt) {
+		const source = options.stylePrompt?.trim()
+			? "--style-prompt"
+			: "project.json";
+		console.error(
+			`  [style] prepending "${stylePrompt}" to every shot prompt (source: ${source})`
+		);
+	}
+
+	// ── Build character description map ───────────────────────────
+	// Read portrait attributes from characters.json and format each into
+	// a short visual description string. The adapter injects these as
+	// `[Reference: name — description]` clauses into the prompt so the
+	// model can bind reference images to the correct person.
+	const characterDescriptions: Record<string, string> = {};
+	try {
+		if (fs.existsSync(paths.charactersPath)) {
+			const chars = JSON.parse(
+				fs.readFileSync(paths.charactersPath, "utf-8")
+			) as Array<{
+				name?: string;
+				portrait?: Record<string, string>;
+			}>;
+			for (const c of chars) {
+				if (!c.name) continue;
+				const p = c.portrait ?? {};
+				const parts = [p.age, p.ethnicity, p.gender, p.hair, p.clothing]
+					.filter((v) => typeof v === "string" && v.trim().length > 0)
+					.map((v) => v!.trim());
+				if (parts.length > 0) {
+					characterDescriptions[c.name] = parts.join(", ");
+				}
+			}
+		}
+	} catch {
+		// Non-critical — prompts work without descriptions, just less accurately.
+	}
+	if (Object.keys(characterDescriptions).length > 0) {
+		console.error(
+			`  [refs] ${Object.keys(characterDescriptions).length} character descriptions loaded for prompt injection`
+		);
+	}
+
+	// ── Resolve --style-anchor ────────────────────────────────────
+	// Look up the user-specified anchor name in the final portrait
+	// catalog. Unknown name → log a warning and skip (no anchor
+	// fallback); per-shot behavior stays the same as before.
+	let styleAnchor: { name: string; value: string } | undefined;
+	if (options.styleAnchor) {
+		const anchorName = options.styleAnchor.trim();
+		const value = portraitCatalog[anchorName];
+		if (value) {
+			styleAnchor = { name: anchorName, value };
+			console.error(
+				`  [anchor] shots without catalogued characters will use "${anchorName}" as a style-ref fallback`
+			);
+		} else {
+			console.error(
+				`  [anchor] --style-anchor "${anchorName}" not found in portraits registry — ignoring`
+			);
+		}
+	}
 
 	// ── Per-shot pool ─────────────────────────────────────────────
 	// Each shot is independent — poll + download happen inside callApi,
@@ -279,8 +427,11 @@ export async function handleVimaxNovel2Video(
 				aspectRatio,
 				resolution,
 				generateAudio: true,
+				styleAnchor,
+				stylePrompt,
+				characterDescriptions,
 			},
-			portraitUrls,
+			portraitCatalog,
 			family
 		);
 

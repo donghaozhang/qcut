@@ -137,6 +137,28 @@ export async function executeStep(
 		}
 	}
 
+	// GMI Seedance 260128 API uses `ratio`, not `aspect_ratio` (confirmed
+	// by the model's payload spec). The registry's defaults already use
+	// `ratio`, but `params` from the CLI / UI arrive as `aspect_ratio`, so
+	// after the merge above both keys end up in the payload and GMI only
+	// honors `ratio` — silently losing the user's override. Remap so the
+	// user-supplied value wins. Mirrors the mapping done by the shot
+	// adapter in `flow novel2video` (see video-shot-adapter.ts:baseGmiPayload).
+	if (provider === "gmi" && model.endpoint === "seedance-2-0-260128") {
+		if (payload.aspect_ratio !== undefined) {
+			payload.ratio = payload.aspect_ratio;
+			payload.aspect_ratio = undefined;
+		}
+	}
+
+	// Kling V3 Omni API requires `duration` as a string enum ("3"–"15").
+	// The CLI coerces `--duration 5s` to the number `5`, so stringify here.
+	if (provider === "gmi" && model.endpoint === "kling-v3-omni") {
+		if (payload.duration !== undefined) {
+			payload.duration = String(payload.duration);
+		}
+	}
+
 	switch (category) {
 		case "text_to_image":
 			return executeTextToImage(model, input, payload, provider, options);

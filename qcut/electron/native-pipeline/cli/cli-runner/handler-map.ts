@@ -52,6 +52,7 @@ import {
 	handleVimaxNovel2Movie,
 	handleVimaxNovel2Script,
 	handleVimaxNovel2Video,
+	handleVimaxLintScripts,
 } from "../vimax-cli-handlers.js";
 import { handleStampImage } from "../cli-handlers-stamp.js";
 import { handleYouTubeUpload } from "../cli-handlers-youtube.js";
@@ -217,6 +218,7 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"vimax:novel2movie": wrapOP(handleVimaxNovel2Movie),
 	"vimax:novel2script": wrapOP(handleVimaxNovel2Script),
 	"vimax:novel2video": wrapOP(handleVimaxNovel2Video),
+	"vimax:lint-scripts": wrapOP(handleVimaxLintScripts),
 	"vimax:extract-characters": wrapOP(handleVimaxExtractCharacters),
 	"vimax:generate-script": wrapOP(handleVimaxGenerateScript),
 	"vimax:generate-storyboard": wrapOP(handleVimaxGenerateStoryboard),

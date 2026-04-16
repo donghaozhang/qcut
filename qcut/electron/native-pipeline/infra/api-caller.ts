@@ -623,7 +623,13 @@ export async function callModelApi(
 		const credits = options.modelKey
 			? estimateProxyCredits(options.modelKey, options.payload)
 			: undefined;
-		return callModelApiViaProxy({ ...options, credits }, startTime);
+		// Pass the computed timeoutMs (post-default) so proxy mode
+		// inherits the same GMI-aware envelope as direct mode — otherwise
+		// long-running GMI operations (kling-create-element, ~5 min each)
+		// abort at the 120s proxy fallback default. `retries` isn't a
+		// ProxyApiCallOptions field (proxy has its own fixed retry budget
+		// in PROXY_RETRIES).
+		return callModelApiViaProxy({ ...options, credits, timeoutMs }, startTime);
 	}
 
 	const headers = buildHeaders(provider, apiKey);

@@ -178,6 +178,11 @@ export function videoRegistryPath(paths: ProjectPaths): string {
 	return path.join(paths.videosDir, "registry.json");
 }
 
+/** Cache of name → Kling element_id, populated by the element orchestrator. */
+export function klingElementCachePath(paths: ProjectPaths): string {
+	return path.join(paths.videosDir, "kling-elements.json");
+}
+
 /** Append `stage` to `stages_completed` (idempotent). */
 export function markStageCompleted(
 	paths: ProjectPaths,
