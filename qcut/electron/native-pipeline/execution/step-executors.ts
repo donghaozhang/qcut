@@ -147,7 +147,15 @@ export async function executeStep(
 	if (provider === "gmi" && model.endpoint === "seedance-2-0-260128") {
 		if (payload.aspect_ratio !== undefined) {
 			payload.ratio = payload.aspect_ratio;
-			delete payload.aspect_ratio;
+			payload.aspect_ratio = undefined;
+		}
+	}
+
+	// Kling V3 Omni API requires `duration` as a string enum ("3"–"15").
+	// The CLI coerces `--duration 5s` to the number `5`, so stringify here.
+	if (provider === "gmi" && model.endpoint === "kling-v3-omni") {
+		if (payload.duration !== undefined) {
+			payload.duration = String(payload.duration);
 		}
 	}
 

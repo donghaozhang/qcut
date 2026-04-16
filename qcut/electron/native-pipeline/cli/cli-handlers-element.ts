@@ -89,7 +89,10 @@ export async function handleCreateElement(
 
 	// Optional tag_list: ["o_102", "o_105"] → [{tag_id: "o_102"}, ...]
 	if (options.tagList && options.tagList.length > 0) {
-		payload.tag_list = options.tagList.map((id) => ({ tag_id: id.trim() }));
+		payload.tag_list = options.tagList
+			.map((id) => id.trim())
+			.filter((id) => id.length > 0)
+			.map((id) => ({ tag_id: id }));
 	}
 
 	onProgress({

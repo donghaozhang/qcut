@@ -188,7 +188,7 @@ export async function ensureKlingElements(
 
 	// ── Phase 1: partition by cache hit (synchronous, deterministic) ──
 	const toCreate: string[] = [];
-	names.forEach((name, i) => {
+	for (const [i, name] of names.entries()) {
 		const url = portraitUrls[name];
 		const hit = cache[name];
 		if (hit && hit.portrait_url === url && hit.element_id) {
@@ -198,7 +198,7 @@ export async function ensureKlingElements(
 		} else {
 			toCreate.push(name);
 		}
-	});
+	}
 
 	// ── Phase 2: parallel create for the cache misses ─────────────────
 	if (toCreate.length > 0) {
@@ -208,7 +208,7 @@ export async function ensureKlingElements(
 		// here keeps the "creating" / "created" pair consistent even when
 		// workers complete out of order.
 		const displayIndex = new Map<string, number>();
-		toCreate.forEach((n, i) => displayIndex.set(n, cachedNames.length + i + 1));
+		for (const [i, n] of toCreate.entries()) displayIndex.set(n, cachedNames.length + i + 1);
 
 		const worker = async (): Promise<void> => {
 			while (true) {

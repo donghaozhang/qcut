@@ -144,7 +144,8 @@ export function resolveSeedanceFamily(
 	);
 }
 
-const MIN_DURATION = 4;
+const MIN_DURATION_SEEDANCE = 4;
+const MIN_DURATION_KLING = 3;
 const MAX_DURATION = 15;
 /** GMI Seedance 2.0 260128 accepts up to 4 `reference_images`. */
 const MAX_GMI_REFERENCES = 4;
@@ -161,10 +162,14 @@ const MAX_VIDU_REFERENCES = 4;
 const MAX_KLING_ELEMENTS = 4;
 const MAX_PROMPT_CHARS = 500;
 
-/** Clamp a duration to the 4-15 integer range Seedance accepts. */
-export function clampDuration(value: number | undefined): number {
+/** Clamp a duration to the valid integer range for the target family. */
+export function clampDuration(
+	value: number | undefined,
+	opts?: { minDuration?: number }
+): number {
+	const min = opts?.minDuration ?? MIN_DURATION_SEEDANCE;
 	const n = Number.isFinite(value) ? Math.round(Number(value)) : 5;
-	if (n < MIN_DURATION) return MIN_DURATION;
+	if (n < min) return min;
 	if (n > MAX_DURATION) return MAX_DURATION;
 	return n;
 }
@@ -367,9 +372,10 @@ export function rewritePromptWithElementTokens(
 	prompt: string,
 	characters: Array<{ name: string; token: string }>
 ): string {
+	const sorted = [...characters].sort((a, b) => b.name.length - a.name.length);
 	let rewritten = prompt;
 	const unmentioned: string[] = [];
-	for (const { name, token } of characters) {
+	for (const { name, token } of sorted) {
 		if (name && rewritten.includes(name)) {
 			rewritten = rewritten.split(name).join(token);
 		} else {
@@ -457,7 +463,8 @@ export function adaptShotForSeedance(
 	portraits: Record<string, string>,
 	family: SeedanceFamily = DEFAULT_SEEDANCE_FAMILY
 ): AdaptedShot {
-	const duration = clampDuration(shot.durationSeconds);
+	const minDuration = family === "kling-omni" ? MIN_DURATION_KLING : MIN_DURATION_SEEDANCE;
+	const duration = clampDuration(shot.durationSeconds, { minDuration });
 	const scenePrompt = sanitizeShotPrompt(shot.description || "");
 	const styleTrim = shot.stylePrompt?.trim() ?? "";
 

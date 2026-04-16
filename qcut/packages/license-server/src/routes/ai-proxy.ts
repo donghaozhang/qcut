@@ -254,7 +254,7 @@ aiProxyRoutes.get("/status", async (c) => {
 			if (
 				forwardedStatusUrl.length > 0 &&
 				forwardedStatusUrl.startsWith("https://queue.fal.run/") &&
-				forwardedStatusUrl.includes(requestId)
+				forwardedStatusUrl.includes(`/requests/${requestId}`)
 			) {
 				statusUrl = forwardedStatusUrl;
 			} else {
@@ -338,7 +338,7 @@ aiProxyRoutes.get("/result", async (c) => {
 		if (
 			forwardedResultUrl.length > 0 &&
 			forwardedResultUrl.startsWith("https://queue.fal.run/") &&
-			forwardedResultUrl.includes(requestId)
+			forwardedResultUrl.includes(`/requests/${requestId}`)
 		) {
 			resultUrl = forwardedResultUrl;
 		} else {
