@@ -183,6 +183,9 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke("screen:stopRecording", options),
 		getStatus: (): Promise<ScreenRecordingStatus> =>
 			ipcRenderer.invoke("screen:getStatus"),
+		getPermissionStatus: (): Promise<
+			"granted" | "denied" | "restricted" | "not-determined" | "unknown"
+		> => ipcRenderer.invoke("screen:getPermissionStatus"),
 		getCursorTelemetry: (
 			videoPath: string
 		): Promise<import("./preload-types.js").CursorTelemetryData | null> =>

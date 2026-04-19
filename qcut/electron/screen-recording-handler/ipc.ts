@@ -477,6 +477,22 @@ export function setupScreenRecordingIPC(): void {
 	});
 
 	ipcMain.handle(
+		"screen:getPermissionStatus",
+		(): "granted" | "denied" | "restricted" | "not-determined" | "unknown" => {
+			// On non-macOS platforms Electron doesn't gate screen capture behind
+			// TCC — treat as granted so tests run the real flow there.
+			if (process.platform !== "darwin") {
+				return "granted";
+			}
+			try {
+				return systemPreferences.getMediaAccessStatus("screen");
+			} catch {
+				return "unknown";
+			}
+		}
+	);
+
+	ipcMain.handle(
 		"screen:getCursorTelemetry",
 		async (_event: IpcMainInvokeEvent, videoPath: string) => {
 			return await readCursorTelemetry(videoPath);
