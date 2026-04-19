@@ -4,7 +4,7 @@
 
 ## Flow being exercised
 
-```
+```text
 User presses mouse on clip
   └─ React onMouseDown fires at timeline-element.tsx:570
        └─ timeline-track.tsx::handleElementMouseDown (L425)

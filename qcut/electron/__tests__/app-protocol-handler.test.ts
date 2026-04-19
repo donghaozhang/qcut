@@ -8,6 +8,8 @@
  *   - FFmpeg resource fallback path
  */
 
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type ProtocolHandler = (request: { url: string }) => Promise<Response>;
@@ -19,7 +21,7 @@ const mocks = vi.hoisted(() => {
 
 	return {
 		captured: () => captured,
-		setCaptured: (h: ProtocolHandler) => {
+		setCaptured: (h: ProtocolHandler | null) => {
 			captured = h;
 		},
 		fetchCalls,
@@ -148,15 +150,10 @@ function expectedIndex(): string {
 }
 
 function resolveIndexPath(): string {
-	// __dirname for the test file is electron/__tests__, but the module
-	// resolves relative to its own location (electron/). We can derive
-	// both by probing the path.resolve pattern the module uses. For the
-	// test we just track what the module is looking for — the implementation
-	// calls path.join(__dirname, "../../apps/web/dist", "index.html").
-	const path = require("node:path") as typeof import("node:path");
-	// __dirname of app-protocol-handler.ts (when compiled) is dist/electron/;
-	// but the test imports from src via vitest, so the module's __dirname
-	// is the source directory electron/.
-	const moduleDir = path.resolve(__dirname, "..");
+	// Mirror the implementation's path.join(__dirname, "../../apps/web/dist",
+	// "index.html"). Under vitest the module's __dirname is the source dir
+	// (electron/), so we walk one level up from this test file.
+	const testDir = path.dirname(fileURLToPath(import.meta.url));
+	const moduleDir = path.resolve(testDir, "..");
 	return path.join(moduleDir, "../../apps/web/dist", "index.html");
 }

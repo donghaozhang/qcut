@@ -14,7 +14,7 @@ Failing tests:
 - `simple-navigation.e2e.ts:37` should be able to detect project creation button
 - `simple-navigation.e2e.ts:62` should handle project creation button click without crash
 
-**Fix:** replace `page.getByText("Your Projects")` with a locator that matches the current copy (e.g. `page.getByRole("heading", { name: "Studio" })`) — or follow the more resilient pattern already used in `editor-navigation.e2e.ts`, which asserts on `[data-testid="projects-page"]` instead of text.
+**Fix:** replace `page.getByText("Your Projects")` with `page.getByRole("heading", { name: "Studio" })`. The same anchor was applied to `editor-navigation.e2e.ts` in this PR; `[data-testid="projects-page"]` is not present on the live page and would also fail.
 
 ## Category B — Missing visual-regression baselines (5 failures)
 

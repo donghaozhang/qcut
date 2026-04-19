@@ -309,8 +309,22 @@ async function executeImageToVideo(
 		// receives a fetchable HTTPS URL.
 		let imageUrl = input.imageUrl;
 		if (!/^https?:\/\//i.test(imageUrl)) {
+			if (options.signal?.aborted) {
+				return {
+					success: false,
+					error: "Step cancelled before reference image upload",
+					duration: 0,
+				};
+			}
 			options.onProgress?.(5, "Uploading reference image...");
 			const upload = await uploadToFalStorage(imageUrl);
+			if (options.signal?.aborted) {
+				return {
+					success: false,
+					error: "Step cancelled during reference image upload",
+					duration: 0,
+				};
+			}
 			if (!upload.success || !upload.url) {
 				return {
 					success: false,

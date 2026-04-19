@@ -74,22 +74,24 @@ export function registerAppProtocol(
 			logger.error(`[Protocol] Path traversal blocked: ${urlPath}`);
 			return new Response("Not Found", { status: 404 });
 		}
-		// Normalize path for consistent handling (converts / to \ on Windows)
+		// Normalize path for consistent handling (converts / to \ on Windows).
+		// Split on either separator so the leading-segment check below works
+		// cross-platform — `path.normalize("ffmpeg/foo")` on Windows produces
+		// `ffmpeg\foo`, which would defeat a `startsWith("ffmpeg/")` test.
 		const normalizedPath = path.normalize(urlPath);
+		const pathSegments = normalizedPath.split(/[\\/]+/);
 
 		try {
 			// Handle FFmpeg resources specifically
-			if (normalizedPath.startsWith("ffmpeg/")) {
-				const filename = normalizedPath.replace("ffmpeg/", "");
-				// In production, FFmpeg files are in resources/ffmpeg/
-				const ffmpegPath = path.join(
-					__dirname,
-					"resources",
-					"ffmpeg",
-					filename
-				);
+			if (pathSegments[0] === "ffmpeg") {
+				const filename = pathSegments.slice(1).join(path.sep);
+				// In packaged builds the FFmpeg binaries are extracted out of
+				// app.asar via asarUnpack to process.resourcesPath/ffmpeg.
+				// In dev they live alongside the basePath under ./ffmpeg.
+				const ffmpegPath = app.isPackaged
+					? path.join(process.resourcesPath, "ffmpeg", filename)
+					: path.join(basePath, "ffmpeg", filename);
 
-				// Check if file exists in resources/ffmpeg, fallback to dist
 				if (fs.existsSync(ffmpegPath)) {
 					return await net.fetch(pathToFileURL(ffmpegPath).toString());
 				}
