@@ -198,8 +198,8 @@ function TimelineTrackContentComponent({
 				elementId: dragState.elementId,
 				trackId: dragState.trackId,
 				currentTime: dragState.currentTime,
-				startTime: dragState.startTime,
-				movedTime: dragState.currentTime - (dragState.startTime ?? 0),
+				startElementTime: dragState.startElementTime,
+				movedTime: dragState.currentTime - (dragState.startElementTime ?? 0),
 			});
 			if (!dragState.elementId || !dragState.trackId) return;
 
