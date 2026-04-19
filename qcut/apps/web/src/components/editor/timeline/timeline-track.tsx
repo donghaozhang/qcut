@@ -192,6 +192,15 @@ function TimelineTrackContentComponent({
 		};
 
 		const handleMouseUp = (e: MouseEvent) => {
+			// [timeline-selection-debug] trace drag-mouseup
+			console.log("[timeline-select] window mouseup (in dragging effect)", {
+				isDragging: dragState.isDragging,
+				elementId: dragState.elementId,
+				trackId: dragState.trackId,
+				currentTime: dragState.currentTime,
+				startTime: dragState.startTime,
+				movedTime: dragState.currentTime - (dragState.startTime ?? 0),
+			});
 			if (!dragState.elementId || !dragState.trackId) return;
 
 			// If this track initiated the drag, we should handle the mouse up regardless of where it occurs
@@ -430,6 +439,23 @@ function TimelineTrackContentComponent({
 		const isRightClick = e.button === 2;
 		const isMultiSelect = e.metaKey || e.ctrlKey || e.shiftKey;
 
+		// [timeline-selection-debug] trace entry + current drag/selection state
+		console.log("[timeline-select] mousedown", {
+			elementId: element.id,
+			trackId: track.id,
+			button: e.button,
+			isRightClick,
+			isMultiSelect,
+			dragStateBefore: {
+				isDragging: dragState.isDragging,
+				elementId: dragState.elementId,
+				trackId: dragState.trackId,
+			},
+			alreadySelected: selectedElements.some(
+				(c) => c.trackId === track.id && c.elementId === element.id
+			),
+		});
+
 		if (isRightClick) {
 			// Don't trigger any state updates on right-click mousedown.
 			// State updates cause re-renders that race with Radix ContextMenu
@@ -467,12 +493,31 @@ function TimelineTrackContentComponent({
 	) => {
 		e.stopPropagation();
 
+		// [timeline-selection-debug] trace entry
+		const deltaX = mouseDownLocation
+			? Math.abs(e.clientX - mouseDownLocation.x)
+			: null;
+		const deltaY = mouseDownLocation
+			? Math.abs(e.clientY - mouseDownLocation.y)
+			: null;
+		console.log("[timeline-select] click", {
+			elementId: element.id,
+			trackId: track.id,
+			hasMouseDownLocation: !!mouseDownLocation,
+			deltaX,
+			deltaY,
+			modifier: e.metaKey || e.ctrlKey || e.shiftKey,
+			dragStateNow: {
+				isDragging: dragState.isDragging,
+				elementId: dragState.elementId,
+			},
+		});
+
 		// Check if mouse moved significantly
 		if (mouseDownLocation) {
-			const deltaX = Math.abs(e.clientX - mouseDownLocation.x);
-			const deltaY = Math.abs(e.clientY - mouseDownLocation.y);
 			// If it moved more than a few pixels, consider it a drag and not a click.
-			if (deltaX > 5 || deltaY > 5) {
+			if ((deltaX ?? 0) > 5 || (deltaY ?? 0) > 5) {
+				console.log("[timeline-select] click → early-return (drag threshold)");
 				setMouseDownLocation(null); // Reset for next interaction
 				return;
 			}
@@ -480,6 +525,7 @@ function TimelineTrackContentComponent({
 
 		// Skip selection logic for multi-selection (handled in mousedown)
 		if (e.metaKey || e.ctrlKey || e.shiftKey) {
+			console.log("[timeline-select] click → early-return (modifier)");
 			return;
 		}
 
@@ -490,7 +536,13 @@ function TimelineTrackContentComponent({
 
 		if (!isSelected) {
 			// If element is not selected, select it (replacing other selections)
+			console.log("[timeline-select] click → selectElement()", element.id);
 			selectElement(track.id, element.id, false);
+		} else {
+			console.log(
+				"[timeline-select] click → already selected, keep",
+				element.id
+			);
 		}
 		// If element is already selected, keep it selected (do nothing)
 	};
@@ -503,10 +555,17 @@ function TimelineTrackContentComponent({
 			onClick={(e) => {
 				// If clicking empty area (not on an element or gap indicator), deselect all elements
 				const target = e.target as HTMLElement;
-				if (
-					!target.closest(".timeline-element") &&
-					!target.closest("[data-gap-indicator]")
-				) {
+				const onElement = !!target.closest(".timeline-element");
+				const onGap = !!target.closest("[data-gap-indicator]");
+				// [timeline-selection-debug] trace drop-zone click
+				console.log("[timeline-select] dropzone click", {
+					onElement,
+					onGap,
+					willClear: !onElement && !onGap,
+					targetTag: target.tagName,
+					targetClass: target.className,
+				});
+				if (!onElement && !onGap) {
 					clearSelectedElements();
 				}
 			}}
