@@ -23,6 +23,16 @@ import {
 	assertElementScreenshot,
 } from "./utils/visual-regression";
 
+// Lock the viewport before every visual-regression test so screenshots are
+// reproducible regardless of what other tests in the same worker did
+// earlier. Without this, earlier tests that resize the Electron window (or
+// toggle dev chrome) leak their viewport into later runs and pixel-diff
+// baselines fail despite the UI being identical.
+const VISUAL_VIEWPORT = { width: 2048, height: 1024 } as const;
+test.beforeEach(async ({ page }) => {
+	await page.setViewportSize(VISUAL_VIEWPORT);
+});
+
 test.describe("Visual Regression — Projects Page", () => {
 	test("projects page empty state", async ({ page }) => {
 		// The fixture navigates to projects page automatically.
