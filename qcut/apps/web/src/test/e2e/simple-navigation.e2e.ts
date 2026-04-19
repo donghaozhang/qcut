@@ -10,7 +10,9 @@ test.describe("Simple Navigation Test", () => {
 	test("should navigate to projects page successfully", async ({ page }) => {
 		// The page fixture automatically navigates to projects page
 		// Just verify we're on the right page
-		await expect(page.getByText("Your Projects")).toBeVisible();
+		await expect(
+			page.getByRole("heading", { name: "Studio" })
+		).toBeVisible();
 
 		// Check if there are existing projects or empty state
 		const projectCount = await page
@@ -21,7 +23,9 @@ test.describe("Simple Navigation Test", () => {
 
 		if (projectCount?.includes("0 project")) {
 			// Empty state - verify empty state button
-			await expect(page.getByText("No projects yet")).toBeVisible();
+			await expect(
+				page.getByText("Start your first AI-powered video")
+			).toBeVisible();
 			await expect(
 				page.getByTestId("new-project-button-empty-state")
 			).toBeVisible();
@@ -39,7 +43,7 @@ test.describe("Simple Navigation Test", () => {
 		const headerButton = page.getByTestId("new-project-button").first();
 
 		await expect(headerButton).toBeAttached();
-		await expect(headerButton).toContainText("New project");
+		await expect(headerButton).toContainText("New Project");
 
 		// Check if there are projects to determine which button to test
 		const hasProjects = await page
@@ -86,8 +90,8 @@ test.describe("Simple Navigation Test", () => {
 		await page.waitForLoadState("networkidle", { timeout: 5000 });
 
 		// Verify we're still on projects page
-		await expect(page.getByText("Your Projects")).toBeVisible({
-			timeout: 5000,
-		});
+		await expect(
+			page.getByRole("heading", { name: "Studio" })
+		).toBeVisible({ timeout: 5000 });
 	});
 });

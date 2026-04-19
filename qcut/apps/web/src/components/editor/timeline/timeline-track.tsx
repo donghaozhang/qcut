@@ -79,9 +79,19 @@ function TimelineTrackContentComponent({
 
 	// Initialize all hooks before any conditional returns
 	const timelineRef = useRef<HTMLDivElement>(null);
-	const [mouseDownLocation, setMouseDownLocation] = useState<{
-		x: number;
-		y: number;
+	// Ref (not state) so recording the mouse-down position does NOT trigger a
+	// re-render. Re-rendering the clip subtree between mousedown and mouseup
+	// causes the browser to drop the synthetic click event, breaking selection.
+	const mouseDownLocationRef = useRef<{ x: number; y: number } | null>(null);
+	// Pending drag captured on mousedown; promoted to a real drag only after
+	// the pointer moves past the 5 px threshold. Until then the clip does not
+	// re-render, so React's onClick still fires for plain clicks.
+	const pendingDragRef = useRef<{
+		elementId: string;
+		trackId: string;
+		startMouseX: number;
+		startElementTime: number;
+		clickOffsetTime: number;
 	} | null>(null);
 
 	// Drop handling hook
@@ -464,7 +474,7 @@ function TimelineTrackContentComponent({
 			return;
 		}
 
-		setMouseDownLocation({ x: e.clientX, y: e.clientY });
+		mouseDownLocationRef.current = { x: e.clientX, y: e.clientY };
 
 		// Handle multi-selection for left-click with modifiers
 		if (isMultiSelect) {
@@ -477,14 +487,51 @@ function TimelineTrackContentComponent({
 		const clickOffsetX = e.clientX - elementRect.left;
 		const clickOffsetTime =
 			clickOffsetX / (TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel);
+		const startMouseX = e.clientX;
+		const startMouseY = e.clientY;
 
-		startDragAction(
-			element.id,
-			track.id,
-			e.clientX,
-			element.startTime,
-			clickOffsetTime
-		);
+		// Stage the drag but do NOT call startDragAction yet — that flips
+		// dragState.isDragging which re-renders the clip subtree and eats the
+		// subsequent click. Only promote to a real drag once the pointer moves
+		// past the threshold.
+		pendingDragRef.current = {
+			elementId: element.id,
+			trackId: track.id,
+			startMouseX,
+			startElementTime: element.startTime,
+			clickOffsetTime,
+		};
+
+		const DRAG_THRESHOLD_PX = 5;
+
+		const onPendingMove = (moveEvent: MouseEvent) => {
+			if (!pendingDragRef.current) return;
+			const dx = Math.abs(moveEvent.clientX - startMouseX);
+			const dy = Math.abs(moveEvent.clientY - startMouseY);
+			if (dx > DRAG_THRESHOLD_PX || dy > DRAG_THRESHOLD_PX) {
+				const p = pendingDragRef.current;
+				pendingDragRef.current = null;
+				window.removeEventListener("mousemove", onPendingMove);
+				window.removeEventListener("mouseup", onPendingUp);
+				console.log("[timeline-select] threshold crossed → startDrag");
+				startDragAction(
+					p.elementId,
+					p.trackId,
+					p.startMouseX,
+					p.startElementTime,
+					p.clickOffsetTime
+				);
+			}
+		};
+
+		const onPendingUp = () => {
+			pendingDragRef.current = null;
+			window.removeEventListener("mousemove", onPendingMove);
+			window.removeEventListener("mouseup", onPendingUp);
+		};
+
+		window.addEventListener("mousemove", onPendingMove);
+		window.addEventListener("mouseup", onPendingUp);
 	};
 
 	const handleElementClick = (
@@ -494,16 +541,13 @@ function TimelineTrackContentComponent({
 		e.stopPropagation();
 
 		// [timeline-selection-debug] trace entry
-		const deltaX = mouseDownLocation
-			? Math.abs(e.clientX - mouseDownLocation.x)
-			: null;
-		const deltaY = mouseDownLocation
-			? Math.abs(e.clientY - mouseDownLocation.y)
-			: null;
+		const mdl = mouseDownLocationRef.current;
+		const deltaX = mdl ? Math.abs(e.clientX - mdl.x) : null;
+		const deltaY = mdl ? Math.abs(e.clientY - mdl.y) : null;
 		console.log("[timeline-select] click", {
 			elementId: element.id,
 			trackId: track.id,
-			hasMouseDownLocation: !!mouseDownLocation,
+			hasMouseDownLocation: !!mdl,
 			deltaX,
 			deltaY,
 			modifier: e.metaKey || e.ctrlKey || e.shiftKey,
@@ -514,11 +558,11 @@ function TimelineTrackContentComponent({
 		});
 
 		// Check if mouse moved significantly
-		if (mouseDownLocation) {
+		if (mdl) {
 			// If it moved more than a few pixels, consider it a drag and not a click.
 			if ((deltaX ?? 0) > 5 || (deltaY ?? 0) > 5) {
 				console.log("[timeline-select] click → early-return (drag threshold)");
-				setMouseDownLocation(null); // Reset for next interaction
+				mouseDownLocationRef.current = null; // Reset for next interaction
 				return;
 			}
 		}

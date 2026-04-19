@@ -13,14 +13,11 @@ import {
 
 test.describe("Editor Navigation Test", () => {
 	test("should detect existing project on projects page", async ({ page }) => {
-		// Ensure we're on projects page in a resilient way (title copy may vary)
+		// Ensure we're on projects page. Anchor on the "Studio" heading, which is
+		// always rendered on this page and matches the accessibility snapshot.
 		await navigateToProjects(page);
 		await expect(
-			page
-				.locator(
-					'[data-testid="projects-page"], [data-testid="project-list"], [data-testid="project-list-item"]'
-				)
-				.first()
+			page.getByRole("heading", { name: "Studio" })
 		).toBeVisible({ timeout: 10_000 });
 
 		// Check for existing projects
