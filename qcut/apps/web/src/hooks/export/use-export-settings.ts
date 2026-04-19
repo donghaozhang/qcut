@@ -17,9 +17,10 @@ import { debugLog, debugWarn } from "@/lib/debug/debug-config";
  * and change handlers. `engineRecommendation` is a transient hint and may be null when unavailable.
  */
 export function useExportSettings() {
-	const { isDialogOpen, settings, updateSettings } = useExportStore();
-	const { getTotalDuration } = useTimelineStore();
+	const { isDialogOpen, panelView, settings, updateSettings } = useExportStore();
+	const { getTotalDuration, tracks } = useTimelineStore();
 	const { isElectron } = useElectron();
+	const isExportUiActive = isDialogOpen || panelView === "export";
 
 	const [quality, setQuality] = useState<ExportQuality>(settings.quality);
 	const [format, setFormat] = useState<ExportFormat>(settings.format);
@@ -42,7 +43,7 @@ export function useExportSettings() {
 
 	// Engine recommendation effect with multiple dependencies
 	useEffect(() => {
-		if (isDialogOpen && timelineDuration > 0) {
+		if (isExportUiActive && timelineDuration > 0) {
 			let aborted = false;
 			const getRecommendation = async () => {
 				try {
@@ -60,7 +61,9 @@ export function useExportSettings() {
 							width: resolution.width,
 							height: resolution.height,
 						},
-						timelineDuration
+						timelineDuration,
+						"medium",
+						tracks
 					);
 
 					if (aborted) return;
@@ -95,13 +98,14 @@ export function useExportSettings() {
 			};
 		}
 	}, [
-		isDialogOpen,
+		isExportUiActive,
 		quality,
 		format,
 		timelineDuration,
 		resolution.width,
 		resolution.height,
 		settings,
+		tracks,
 	]);
 
 	useEffect(() => {
