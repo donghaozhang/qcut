@@ -70,6 +70,9 @@ export interface ScreenRecordingAPI {
 			options?: StopScreenRecordingOptions
 		) => Promise<StopScreenRecordingResult>;
 		getStatus: () => Promise<ScreenRecordingStatus>;
+		getPermissionStatus?: () => Promise<
+			"granted" | "denied" | "restricted" | "not-determined" | "unknown"
+		>;
 		getCursorTelemetry?: (
 			videoPath: string
 		) => Promise<import("../../preload-types.js").CursorTelemetryData | null>;

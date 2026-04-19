@@ -11,6 +11,7 @@ import { basename, dirname, extname, join } from "node:path";
 import {
 	createTestProject,
 	expect,
+	getScreenRecordingPermission,
 	startScreenRecordingForE2E,
 	stopScreenRecordingForE2E,
 	test,
@@ -31,6 +32,11 @@ test.describe("Screen Recording Compositor Visual Test", () => {
 	}) => {
 		// ── 1. Record a short session with mouse activity ──
 		await createTestProject(page, "Compositor Visual Test");
+		const perm = await getScreenRecordingPermission(page);
+		test.skip(
+			perm !== "granted",
+			`Screen Recording permission is "${perm}" — grant it to the Electron binary in System Settings > Privacy & Security > Screen Recording to run this test.`
+		);
 
 		const recordBtn = page.getByTestId("screen-recording-toggle-button");
 		await expect(recordBtn).toBeVisible({ timeout: 10_000 });

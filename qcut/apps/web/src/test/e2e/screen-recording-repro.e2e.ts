@@ -2,6 +2,7 @@ import { access } from "node:fs/promises";
 import {
 	createTestProject,
 	expect,
+	getScreenRecordingPermission,
 	startScreenRecordingForE2E,
 	stopScreenRecordingForE2E,
 	test,
@@ -9,9 +10,16 @@ import {
 
 test.describe("Screen Recording Repro", () => {
 	test("should start and stop recording via bridge", async ({ page }) => {
-		try {
-			await createTestProject(page, "Screen Recording Repro");
+		await createTestProject(page, "Screen Recording Repro");
+		// Permission check MUST be outside the try/catch below — test.skip()
+		// throws internally, and the catch would re-wrap it into a failure.
+		const perm = await getScreenRecordingPermission(page);
+		test.skip(
+			perm !== "granted",
+			`Screen Recording permission is "${perm}" — grant it to the Electron binary in System Settings > Privacy & Security > Screen Recording to run this test.`
+		);
 
+		try {
 			const recordingToggleButton = page.getByTestId(
 				"screen-recording-toggle-button"
 			);
