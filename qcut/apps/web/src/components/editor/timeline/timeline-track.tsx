@@ -449,22 +449,10 @@ function TimelineTrackContentComponent({
 		const isRightClick = e.button === 2;
 		const isMultiSelect = e.metaKey || e.ctrlKey || e.shiftKey;
 
-		// [timeline-selection-debug] trace entry + current drag/selection state
-		console.log("[timeline-select] mousedown", {
-			elementId: element.id,
-			trackId: track.id,
-			button: e.button,
-			isRightClick,
-			isMultiSelect,
-			dragStateBefore: {
-				isDragging: dragState.isDragging,
-				elementId: dragState.elementId,
-				trackId: dragState.trackId,
-			},
-			alreadySelected: selectedElements.some(
-				(c) => c.trackId === track.id && c.elementId === element.id
-			),
-		});
+		// [timeline-selection-debug] inline button so it shows without expansion
+		console.log(
+			`[timeline-select] mousedown button=${e.button} isRightClick=${isRightClick} multi=${isMultiSelect} element=${element.id.slice(0, 8)}`
+		);
 
 		if (isRightClick) {
 			// Don't trigger any state updates on right-click mousedown.

@@ -535,6 +535,10 @@ function TimelineElementComponent({
 	return (
 		<ContextMenu
 			onOpenChange={(open) => {
+				// [timeline-context-debug] trace open/close of Radix ContextMenu
+				console.log(
+					`[timeline-ctxmenu] open=${open} element=${element.id.slice(0, 8)} selected=${isSelected}`
+				);
 				if (open && !isSelected) {
 					// Select element when context menu opens.
 					// Use setTimeout to defer past Radix's internal state settlement.
@@ -568,6 +572,14 @@ function TimelineElementComponent({
 						} ${element.hidden ? "opacity-50" : ""}`}
 						onClick={(e) => onElementClick && onElementClick(e, element)}
 						onMouseDown={handleElementMouseDown}
+						onContextMenu={(e) => {
+							// [timeline-context-debug] does the DOM contextmenu event
+							// reach the clip? If this never logs on a real right-
+							// click, the event is being swallowed upstream.
+							console.log(
+								`[timeline-ctxmenu] DOM contextmenu element=${element.id.slice(0, 8)} defaultPrevented=${e.defaultPrevented}`
+							);
+						}}
 					>
 						<div className="absolute inset-0 flex items-center h-full">
 							{renderElementContent()}

@@ -73,7 +73,14 @@ export function useTimelineZoom({
 	);
 
 	const handlePointerDown = useCallback((e: React.PointerEvent) => {
-		e.currentTarget.setPointerCapture(e.pointerId);
+		// Only capture for touch pointers — pinch-to-zoom needs capture so
+		// multi-finger gestures stay bound to this element. Mouse/pen cannot
+		// pinch, and capturing them redirects follow-up events (including
+		// the `contextmenu` fired after mouseup on button 2) to this div,
+		// which suppresses right-click menus on timeline clips underneath.
+		if (e.pointerType === "touch") {
+			e.currentTarget.setPointerCapture(e.pointerId);
+		}
 		pointersRef.current.set(e.pointerId, {
 			x: e.clientX,
 			y: e.clientY,
