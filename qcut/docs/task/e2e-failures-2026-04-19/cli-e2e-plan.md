@@ -20,11 +20,14 @@ apps/web/src/test/cli-e2e/
 ├── run-all.sh                       — bash driver (uses set -euo pipefail)
 ├── lib.sh                           — helpers (assert_eq, with_project, json_field, …)
 └── suites/
-    ├── 01-project-lifecycle.sh      — covers Category A / D editor-navigation
-    ├── 02-timeline-and-export.sh    — covers Category D project-workflow-part3, remotion, audio-video
-    ├── 03-ui-panel-state.sh         — covers Category D sticker-overlay
-    └── 04-screen-recording.sh       — covers Category C (will skip if TCC permission missing)
+    ├── 01-project-lifecycle.sh        — covers Category A / D editor-navigation
+    ├── 02-timeline-and-export.sh      — covers Category D project-workflow-part3, remotion, audio-video
+    ├── 03-ui-panel-state.sh           — covers Category D sticker-overlay
+    ├── 04-screen-recording.sh         — covers Category C (will skip if TCC permission missing)
+    └── 05-timeline-context-menu.sh    — guards the right-click context menu (companion to apps/web/src/test/e2e/timeline-context-menu.e2e.ts)
 ```
+
+> Note on suite 05: the CLI can only dispatch a synthetic `contextmenu` event on a timeline element; it cannot reproduce the OS pointer pipeline that triggered the original `setPointerCapture` regression. Treat suite 05 as defense-in-depth — it catches structural breakage of the Radix `<ContextMenu>` mount, while the Playwright e2e (`timeline-context-menu.e2e.ts`) catches the pointer-path regression itself.
 
 Each suite file is an ordered sequence of CLI invocations that assert on the JSON output. Scripts use `set -euo pipefail` so any non-zero exit or unexpected field causes the whole suite to fail. Keeping them as bash is deliberate — it mirrors how a user would drive the CLI.
 

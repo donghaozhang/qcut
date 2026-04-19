@@ -20,7 +20,13 @@ log_ok "editor reachable at http://${QCUT_API_HOST}:${QCUT_API_PORT}"
 
 # Pick which suites to run. No args = all. Args like "01 03" = those numbers only.
 requested=("$@")
-all_suites=(01-project-lifecycle 02-timeline-and-export 03-ui-panel-state 04-screen-recording)
+all_suites=(
+	01-project-lifecycle
+	02-timeline-and-export
+	03-ui-panel-state
+	04-screen-recording
+	05-timeline-context-menu
+)
 
 should_run() {
 	local name=$1
