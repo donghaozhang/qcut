@@ -46,6 +46,21 @@ require_cmd() {
 	command -v "$1" >/dev/null 2>&1 || die "required command not on PATH: $1"
 }
 
+# Every `qcut editor:*` response is wrapped as:
+#   { "status": "ok", "data": { "schema_version": "1", "command": "...",
+#     "data": <actual payload> }, "command_id": "...", "duration_ms": N }
+# This helper extracts the inner payload; suites assert against its output.
+# If the response is an error, prints the error body and dies.
+unwrap() {
+	local raw=$1
+	local status
+	status=$(jq -r '.status // empty' <<<"$raw")
+	if [ "$status" = "error" ]; then
+		die "CLI returned error: $(jq -r '.error // .code // .' <<<"$raw")"
+	fi
+	jq '.data.data' <<<"$raw"
+}
+
 # assert_json_eq <json-string> <jq-expr> <expected> <message>
 assert_json_eq() {
 	local actual
@@ -93,11 +108,11 @@ _active_project_id=""
 with_project() {
 	local name=$1
 	local outvar=$2
-	local created
+	local created inner pid
 	created=$(qcut editor:project:create --new-name "$name" --json)
-	local pid
-	pid=$(jq -r '.projectId // .id // .project.id' <<<"$created")
-	[ -n "$pid" ] && [ "$pid" != "null" ] || die "project:create returned no id (raw: $created)"
+	inner=$(unwrap "$created")
+	pid=$(jq -r '.projectId // .id // .project.id' <<<"$inner")
+	[ -n "$pid" ] && [ "$pid" != "null" ] || die "project:create returned no id (inner: $inner)"
 	_active_project_id=$pid
 	# shellcheck disable=SC2034
 	printf -v "$outvar" '%s' "$pid"
@@ -114,7 +129,8 @@ _cleanup_active_project() {
 	local pid=$_active_project_id
 	_active_project_id=""
 	if [ -n "$pid" ]; then
-		qcut editor:project:delete --project-id "$pid" --json >/dev/null 2>&1 || true
+		# --force needed: editor:project:delete is policy-gated.
+		qcut editor:project:delete --project-id "$pid" --force --json >/dev/null 2>&1 || true
 		log_step "cleaned up project $pid"
 	fi
 }
