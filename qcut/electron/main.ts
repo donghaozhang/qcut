@@ -12,7 +12,6 @@ import {
 	BrowserWindow,
 	ipcMain,
 	protocol,
-	net,
 	session,
 	screen,
 	shell,
@@ -22,9 +21,9 @@ import {
 import * as path from "path";
 import * as fs from "fs";
 import * as http from "http";
-import { pathToFileURL } from "url";
 import { parseChangelog } from "./release-notes-utils.js";
 import { registerMainIpcHandlers } from "./main-ipc.js";
+import { registerAppProtocol } from "./app-protocol-handler.js";
 import {
 	startUtilityProcess,
 	stopUtilityProcess,
@@ -754,98 +753,9 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 			}
 		}
 
-		// Determine base path based on whether app is packaged
-		const basePath = app.isPackaged
-			? path.join(app.getAppPath(), "apps/web/dist")
-			: path.join(__dirname, "../../apps/web/dist");
-
-		logger.log(`[Protocol] Base path: ${basePath}`);
-		logger.log(`[Protocol] Base path exists: ${fs.existsSync(basePath)}`);
-
-		// Register custom protocol using the newer handle API for better ES module support
-		protocol.handle("app", async (request) => {
-			let urlPath = request.url.slice("app://".length);
-
-			// Clean up the URL path
-			if (urlPath.startsWith("./")) {
-				urlPath = urlPath.substring(2);
-			}
-			if (urlPath.startsWith("/")) {
-				urlPath = urlPath.substring(1);
-			}
-
-			// Default to index.html for root
-			if (!urlPath || urlPath === "") {
-				urlPath = "index.html";
-			}
-
-			// Security: Block path traversal attempts
-			// Check for ".." before normalization to catch traversal attempts
-			if (urlPath.includes("..")) {
-				logger.error(`[Protocol] Path traversal blocked: ${urlPath}`);
-				return new Response("Not Found", { status: 404 });
-			}
-			// Normalize path for consistent handling (converts / to \ on Windows)
-			const normalizedPath = path.normalize(urlPath);
-
-			try {
-				// Handle FFmpeg resources specifically
-				if (normalizedPath.startsWith("ffmpeg/")) {
-					const filename = normalizedPath.replace("ffmpeg/", "");
-					// In production, FFmpeg files are in resources/ffmpeg/
-					const ffmpegPath = path.join(
-						__dirname,
-						"resources",
-						"ffmpeg",
-						filename
-					);
-
-					// Check if file exists in resources/ffmpeg, fallback to dist
-					if (fs.existsSync(ffmpegPath)) {
-						return await net.fetch(pathToFileURL(ffmpegPath).toString());
-					}
-
-					// Fallback to dist directory
-					const distPath = path.join(basePath, "ffmpeg", filename);
-					return await net.fetch(pathToFileURL(distPath).toString());
-				}
-
-				// Handle other resources with path containment check
-				const filePath = path.resolve(basePath, normalizedPath);
-				const baseResolved = path.resolve(basePath) + path.sep;
-
-				// Ensure resolved path stays within basePath
-				if (
-					!filePath.startsWith(baseResolved) &&
-					filePath !== path.resolve(basePath)
-				) {
-					logger.error(`[Protocol] Path traversal blocked: ${normalizedPath}`);
-					return new Response("Not Found", { status: 404 });
-				}
-
-				if (fs.existsSync(filePath)) {
-					logger.log(`[Protocol] Serving: ${normalizedPath} -> ${filePath}`);
-					return await net.fetch(pathToFileURL(filePath).toString());
-				}
-
-				// SPA fallback: serve index.html for navigation requests without file extensions
-				if (!path.extname(normalizedPath)) {
-					const indexPath = path.join(basePath, "index.html");
-					if (fs.existsSync(indexPath)) {
-						logger.log(
-							`[Protocol] SPA fallback: ${normalizedPath} -> index.html`
-						);
-						return await net.fetch(pathToFileURL(indexPath).toString());
-					}
-				}
-
-				logger.error(`[Protocol] File not found: ${filePath}`);
-				return new Response("Not Found", { status: 404 });
-			} catch (error) {
-				logger.error(`[Protocol] Error fetching ${normalizedPath}:`, error);
-				return new Response("Internal Server Error", { status: 500 });
-			}
-		});
+		// Register custom app:// protocol handler. Extracted into its own
+		// module so headless-recorder mode can register it too.
+		registerAppProtocol({ logger });
 
 		// Start the static server to serve FFmpeg WASM files
 		staticServer = await createStaticServer();

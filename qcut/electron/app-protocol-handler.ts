@@ -1,0 +1,136 @@
+/**
+ * App Protocol Handler
+ *
+ * Registers the custom `app://` protocol so the packaged renderer (and the
+ * hidden headless-recorder window) can resolve URLs like
+ * `app://./index.html` and `app://ffmpeg/…` to files inside `apps/web/dist`
+ * and the packaged `resources/ffmpeg` directory.
+ *
+ * Extracted from `main.ts` so headless-recorder mode (which skips the
+ * normal main-window boot) can call it too.
+ *
+ * @module electron/app-protocol-handler
+ */
+
+import { app, net, protocol } from "electron";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { pathToFileURL } from "node:url";
+
+export interface RegisterAppProtocolOptions {
+	/** Override the logger — defaults to console. */
+	logger?: Pick<Console, "log" | "error">;
+}
+
+/** Resolve the dist path for the web renderer, both packaged and dev. */
+function resolveBasePath(): string {
+	return app.isPackaged
+		? path.join(app.getAppPath(), "apps/web/dist")
+		: path.join(__dirname, "../../apps/web/dist");
+}
+
+/**
+ * Register the `app://` protocol handler on the default session.
+ *
+ * Must be called inside `app.whenReady()` (or after) because Electron's
+ * `protocol.handle` requires the app to be ready.
+ */
+export function registerAppProtocol(
+	options: RegisterAppProtocolOptions = {}
+): void {
+	const logger = options.logger ?? console;
+	const basePath = resolveBasePath();
+
+	logger.log(`[Protocol] Base path: ${basePath}`);
+	logger.log(`[Protocol] Base path exists: ${fs.existsSync(basePath)}`);
+
+	protocol.handle("app", async (request) => {
+		let urlPath = request.url.slice("app://".length);
+
+		// Strip URL query string / hash before resolving to a filesystem path.
+		// Without this, `app://./index.html?headlessRecord=1` would resolve to
+		// a file literally named `index.html?headlessRecord=1` and 404.
+		const queryIndex = urlPath.search(/[?#]/);
+		if (queryIndex !== -1) {
+			urlPath = urlPath.slice(0, queryIndex);
+		}
+
+		// Clean up the URL path
+		if (urlPath.startsWith("./")) {
+			urlPath = urlPath.substring(2);
+		}
+		if (urlPath.startsWith("/")) {
+			urlPath = urlPath.substring(1);
+		}
+
+		// Default to index.html for root
+		if (!urlPath || urlPath === "") {
+			urlPath = "index.html";
+		}
+
+		// Security: Block path traversal attempts
+		// Check for ".." before normalization to catch traversal attempts
+		if (urlPath.includes("..")) {
+			logger.error(`[Protocol] Path traversal blocked: ${urlPath}`);
+			return new Response("Not Found", { status: 404 });
+		}
+		// Normalize path for consistent handling (converts / to \ on Windows)
+		const normalizedPath = path.normalize(urlPath);
+
+		try {
+			// Handle FFmpeg resources specifically
+			if (normalizedPath.startsWith("ffmpeg/")) {
+				const filename = normalizedPath.replace("ffmpeg/", "");
+				// In production, FFmpeg files are in resources/ffmpeg/
+				const ffmpegPath = path.join(
+					__dirname,
+					"resources",
+					"ffmpeg",
+					filename
+				);
+
+				// Check if file exists in resources/ffmpeg, fallback to dist
+				if (fs.existsSync(ffmpegPath)) {
+					return await net.fetch(pathToFileURL(ffmpegPath).toString());
+				}
+
+				// Fallback to dist directory
+				const distPath = path.join(basePath, "ffmpeg", filename);
+				return await net.fetch(pathToFileURL(distPath).toString());
+			}
+
+			// Handle other resources with path containment check
+			const filePath = path.resolve(basePath, normalizedPath);
+			const baseResolved = path.resolve(basePath) + path.sep;
+
+			// Ensure resolved path stays within basePath
+			if (
+				!filePath.startsWith(baseResolved) &&
+				filePath !== path.resolve(basePath)
+			) {
+				logger.error(`[Protocol] Path traversal blocked: ${normalizedPath}`);
+				return new Response("Not Found", { status: 404 });
+			}
+
+			if (fs.existsSync(filePath)) {
+				logger.log(`[Protocol] Serving: ${normalizedPath} -> ${filePath}`);
+				return await net.fetch(pathToFileURL(filePath).toString());
+			}
+
+			// SPA fallback: serve index.html for navigation requests without file extensions
+			if (!path.extname(normalizedPath)) {
+				const indexPath = path.join(basePath, "index.html");
+				if (fs.existsSync(indexPath)) {
+					logger.log(`[Protocol] SPA fallback: ${normalizedPath} -> index.html`);
+					return await net.fetch(pathToFileURL(indexPath).toString());
+				}
+			}
+
+			logger.error(`[Protocol] File not found: ${filePath}`);
+			return new Response("Not Found", { status: 404 });
+		} catch (error) {
+			logger.error(`[Protocol] Error fetching ${normalizedPath}:`, error);
+			return new Response("Internal Server Error", { status: 500 });
+		}
+	});
+}

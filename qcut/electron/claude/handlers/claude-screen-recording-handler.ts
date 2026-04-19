@@ -126,6 +126,9 @@ export async function requestStartRecordingFromRenderer(
 		};
 
 		ipcMain.on("claude:screen-recording:start:response", handler);
+		console.log(
+			`[ScreenRecordingHandler] sending start request ${requestId} to window id=${win.webContents.id}, url=${win.webContents.getURL()}, destroyed=${win.webContents.isDestroyed()}, loading=${win.webContents.isLoading()}`
+		);
 		win.webContents.send("claude:screen-recording:start:request", {
 			requestId,
 			options,

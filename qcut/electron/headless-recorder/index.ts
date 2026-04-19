@@ -13,6 +13,8 @@
  */
 
 import { app, BrowserWindow } from "electron";
+import { registerAppProtocol } from "../app-protocol-handler.js";
+import { setupScreenRecordingIPC } from "../screen-recording-handler/index.js";
 import { startUtilityProcess } from "../utility/utility-bridge.js";
 import {
 	clearStateFiles,
@@ -78,6 +80,24 @@ export async function runHeadlessRecorder(
 	};
 	app.on("before-quit", cleanup);
 	process.on("exit", cleanup);
+
+	// Register the app:// protocol so the hidden window can load the
+	// packaged `index.html`. The normal editor boot path registers this
+	// inside its own `app.whenReady` branch, which doesn't run in headless
+	// mode — without this call the hidden window renders Chromium's
+	// default error page and the screen-recording bridge never attaches.
+	registerAppProtocol();
+
+	// Register screen-recording IPC so the renderer's
+	// `ipcRenderer.invoke("screen:startRecording", …)` call has a handler,
+	// and so `setDisplayMediaRequestHandler` is configured for `getDisplayMedia`.
+	try {
+		setupScreenRecordingIPC();
+	} catch (err) {
+		throw new Error(
+			`Failed to set up screen-recording IPC: ${err instanceof Error ? err.message : String(err)}`
+		);
+	}
 
 	// Start the utility process (HTTP server + routing to main).
 	try {

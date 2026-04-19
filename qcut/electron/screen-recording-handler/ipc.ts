@@ -162,6 +162,9 @@ export function setupScreenRecordingIPC(): void {
 			event: IpcMainInvokeEvent,
 			options: StartScreenRecordingOptions = {}
 		): Promise<StartScreenRecordingResult> => {
+			console.log(
+				`[ScreenRecordingIPC] screen:startRecording invoked by webContents id=${event.sender.id}, options=${JSON.stringify(options)}`
+			);
 			let pendingStream: fs.WriteStream | null = null;
 			let pendingOutputPath: string | null = null;
 			let pendingCapturePath: string | null = null;
@@ -173,11 +176,14 @@ export function setupScreenRecordingIPC(): void {
 				}
 
 				// Check macOS screen recording permission.
-				// On macOS Sequoia+, getMediaAccessStatus can report "granted"
-				// even when the system hasn't truly authorized the app (e.g. stale
-				// TCC entries). We still check to catch the obvious "denied" case
-				// and show a helpful dialog.
-				if (process.platform === "darwin") {
+				// On macOS Sequoia+, getMediaAccessStatus can lag the real TCC
+				// state (stale "denied" after a fresh grant, and vice versa).
+				// `QCUT_SKIP_PERMISSION_CHECK=1` bypasses this so getDisplayMedia
+				// itself becomes the source of truth — useful when the status
+				// query and the TCC DB disagree.
+				const skipPermCheck =
+					process.env.QCUT_SKIP_PERMISSION_CHECK === "1";
+				if (process.platform === "darwin" && !skipPermCheck) {
 					const screenAccess = systemPreferences.getMediaAccessStatus("screen");
 					if (screenAccess === "denied" || screenAccess === "restricted") {
 						const win = BrowserWindow.getAllWindows()[0];
