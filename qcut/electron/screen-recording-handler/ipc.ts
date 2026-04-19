@@ -162,9 +162,6 @@ export function setupScreenRecordingIPC(): void {
 			event: IpcMainInvokeEvent,
 			options: StartScreenRecordingOptions = {}
 		): Promise<StartScreenRecordingResult> => {
-			console.log(
-				`[ScreenRecordingIPC] screen:startRecording invoked by webContents id=${event.sender.id}, options=${JSON.stringify(options)}`
-			);
 			let pendingStream: fs.WriteStream | null = null;
 			let pendingOutputPath: string | null = null;
 			let pendingCapturePath: string | null = null;
