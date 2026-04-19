@@ -305,6 +305,22 @@ async function executeImageToVideo(
 	}
 ): Promise<StepOutput> {
 	if (input.imageUrl) {
+		// Auto-upload local paths to FAL CDN so any provider (GMI, FAL, etc.)
+		// receives a fetchable HTTPS URL.
+		let imageUrl = input.imageUrl;
+		if (!/^https?:\/\//i.test(imageUrl)) {
+			options.onProgress?.(5, "Uploading reference image...");
+			const upload = await uploadToFalStorage(imageUrl);
+			if (!upload.success || !upload.url) {
+				return {
+					success: false,
+					error: upload.error || "Failed to upload reference image",
+					duration: 0,
+				};
+			}
+			imageUrl = upload.url;
+		}
+
 		// Reference-to-video endpoints use provider-specific field names
 		// instead of the generic `image_url` — three providers, three names,
 		// no useful abstraction yet (revisit when a 5th lands).
@@ -317,14 +333,14 @@ async function executeImageToVideo(
 		//     - Ref2V (mix) variant → `reference_image_urls: [url, ...]` (1-4)
 		// Other GMI / FAL models keep the generic `image_url` payload.
 		if (model.key === "gmi_seedance_2_0_260128_ref2v") {
-			payload.reference_images = [input.imageUrl];
+			payload.reference_images = [imageUrl];
 		} else if (model.key === "gmi_seedance_2_0_260128_i2v") {
-			payload.first_frame = input.imageUrl;
+			payload.first_frame = imageUrl;
 		} else if (model.key === "seedance_2_0_ref2v") {
 			// FAL Seedance 2.0 ref2v expects `image_urls: [url, ...]` (up to 9)
 			// — NOT the `reference_image_url` field used by the v1 lite endpoint
 			// (see https://fal.ai/models/bytedance/seedance-2.0/reference-to-video/api).
-			payload.image_urls = [input.imageUrl];
+			payload.image_urls = [imageUrl];
 			// FAL's schema validates `duration` as a string literal enum
 			// ('4'|'5'|...|'15'|'auto'), rejecting the number form the CLI
 			// coerces `-d 4s` into. Re-stringify before submitting.
@@ -338,17 +354,17 @@ async function executeImageToVideo(
 			// flag — see docs/task/fal_model/vidu-q3-ref2v-mix-integration.md.
 			// Duration stays integer (Vidu does NOT require string literal
 			// like FAL Seedance 2.0).
-			payload.reference_image_urls = [input.imageUrl];
+			payload.reference_image_urls = [imageUrl];
 		} else if (model.key === "seedance_2_0_i2v") {
 			// FAL Seedance 2.0 i2v shares the same string-literal duration
 			// schema as its ref2v sibling, so coerce number → string here
 			// too (CLI `-d 4s` parses to a number).
-			payload.image_url = input.imageUrl;
+			payload.image_url = imageUrl;
 			if (typeof payload.duration === "number") {
 				payload.duration = String(payload.duration);
 			}
 		} else {
-			payload.image_url = input.imageUrl;
+			payload.image_url = imageUrl;
 		}
 	}
 	if (input.text) {
