@@ -16,9 +16,9 @@ test.describe("Editor Navigation Test", () => {
 		// Ensure we're on projects page. Anchor on the "Studio" heading, which is
 		// always rendered on this page and matches the accessibility snapshot.
 		await navigateToProjects(page);
-		await expect(
-			page.getByRole("heading", { name: "Studio" })
-		).toBeVisible({ timeout: 10_000 });
+		await expect(page.getByRole("heading", { name: "Studio" })).toBeVisible({
+			timeout: 10_000,
+		});
 
 		// Check for existing projects
 		const projectCards = page.getByTestId("project-list-item");

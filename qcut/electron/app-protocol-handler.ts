@@ -123,7 +123,9 @@ export function registerAppProtocol(
 			if (!path.extname(normalizedPath)) {
 				const indexPath = path.join(basePath, "index.html");
 				if (fs.existsSync(indexPath)) {
-					logger.log(`[Protocol] SPA fallback: ${normalizedPath} -> index.html`);
+					logger.log(
+						`[Protocol] SPA fallback: ${normalizedPath} -> index.html`
+					);
 					return await net.fetch(pathToFileURL(indexPath).toString());
 				}
 			}

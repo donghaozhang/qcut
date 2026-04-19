@@ -178,8 +178,7 @@ export function setupScreenRecordingIPC(): void {
 				// `QCUT_SKIP_PERMISSION_CHECK=1` bypasses this so getDisplayMedia
 				// itself becomes the source of truth — useful when the status
 				// query and the TCC DB disagree.
-				const skipPermCheck =
-					process.env.QCUT_SKIP_PERMISSION_CHECK === "1";
+				const skipPermCheck = process.env.QCUT_SKIP_PERMISSION_CHECK === "1";
 				if (process.platform === "darwin" && !skipPermCheck) {
 					const screenAccess = systemPreferences.getMediaAccessStatus("screen");
 					if (screenAccess === "denied" || screenAccess === "restricted") {

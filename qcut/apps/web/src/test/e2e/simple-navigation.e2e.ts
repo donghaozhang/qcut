@@ -10,9 +10,7 @@ test.describe("Simple Navigation Test", () => {
 	test("should navigate to projects page successfully", async ({ page }) => {
 		// The page fixture automatically navigates to projects page
 		// Just verify we're on the right page
-		await expect(
-			page.getByRole("heading", { name: "Studio" })
-		).toBeVisible();
+		await expect(page.getByRole("heading", { name: "Studio" })).toBeVisible();
 
 		// Check if there are existing projects or empty state
 		const projectCount = await page
@@ -90,8 +88,8 @@ test.describe("Simple Navigation Test", () => {
 		await page.waitForLoadState("networkidle", { timeout: 5000 });
 
 		// Verify we're still on projects page
-		await expect(
-			page.getByRole("heading", { name: "Studio" })
-		).toBeVisible({ timeout: 5000 });
+		await expect(page.getByRole("heading", { name: "Studio" })).toBeVisible({
+			timeout: 5000,
+		});
 	});
 });

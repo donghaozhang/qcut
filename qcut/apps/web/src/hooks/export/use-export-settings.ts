@@ -17,7 +17,8 @@ import { debugLog, debugWarn } from "@/lib/debug/debug-config";
  * and change handlers. `engineRecommendation` is a transient hint and may be null when unavailable.
  */
 export function useExportSettings() {
-	const { isDialogOpen, panelView, settings, updateSettings } = useExportStore();
+	const { isDialogOpen, panelView, settings, updateSettings } =
+		useExportStore();
 	const { getTotalDuration, tracks } = useTimelineStore();
 	const { isElectron } = useElectron();
 	const isExportUiActive = isDialogOpen || panelView === "export";
