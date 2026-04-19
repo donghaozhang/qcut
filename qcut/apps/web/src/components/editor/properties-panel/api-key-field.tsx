@@ -72,11 +72,7 @@ export function ApiKeyField({
 							size="sm"
 							className="gap-1"
 						>
-							<a
-								href={getKeyUrl}
-								target="_blank"
-								rel="noopener noreferrer"
-							>
+							<a href={getKeyUrl} target="_blank" rel="noopener noreferrer">
 								<ExternalLinkIcon className="h-3.5 w-3.5" aria-hidden="true" />
 								Get Key
 							</a>
