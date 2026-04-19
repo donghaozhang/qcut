@@ -275,7 +275,9 @@ test.describe("Sticker Overlay Testing (Subtask 3A)", () => {
 		}
 
 		// Check for category tabs (Recent, All, etc.)
-		const categoryTabs = page.locator('[role="tablist"] button');
+		// Tabs use role="tab" (Radix Tabs), not <button> — select by role.
+		// Scope inside the sticker panel so we don't match tabs elsewhere.
+		const categoryTabs = page.getByTestId("stickers-panel").getByRole("tab");
 		const tabCount = await categoryTabs.count();
 
 		if (tabCount > 0) {

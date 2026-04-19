@@ -173,11 +173,13 @@ export function setupScreenRecordingIPC(): void {
 				}
 
 				// Check macOS screen recording permission.
-				// On macOS Sequoia+, getMediaAccessStatus can report "granted"
-				// even when the system hasn't truly authorized the app (e.g. stale
-				// TCC entries). We still check to catch the obvious "denied" case
-				// and show a helpful dialog.
-				if (process.platform === "darwin") {
+				// On macOS Sequoia+, getMediaAccessStatus can lag the real TCC
+				// state (stale "denied" after a fresh grant, and vice versa).
+				// `QCUT_SKIP_PERMISSION_CHECK=1` bypasses this so getDisplayMedia
+				// itself becomes the source of truth — useful when the status
+				// query and the TCC DB disagree.
+				const skipPermCheck = process.env.QCUT_SKIP_PERMISSION_CHECK === "1";
+				if (process.platform === "darwin" && !skipPermCheck) {
 					const screenAccess = systemPreferences.getMediaAccessStatus("screen");
 					if (screenAccess === "denied" || screenAccess === "restricted") {
 						const win = BrowserWindow.getAllWindows()[0];
@@ -469,6 +471,22 @@ export function setupScreenRecordingIPC(): void {
 			);
 		}
 	});
+
+	ipcMain.handle(
+		"screen:getPermissionStatus",
+		(): "granted" | "denied" | "restricted" | "not-determined" | "unknown" => {
+			// On non-macOS platforms Electron doesn't gate screen capture behind
+			// TCC — treat as granted so tests run the real flow there.
+			if (process.platform !== "darwin") {
+				return "granted";
+			}
+			try {
+				return systemPreferences.getMediaAccessStatus("screen");
+			} catch {
+				return "unknown";
+			}
+		}
+	);
 
 	ipcMain.handle(
 		"screen:getCursorTelemetry",

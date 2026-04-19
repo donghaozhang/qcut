@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { EyeIcon, EyeOffIcon, ExternalLinkIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PropertyGroup } from "./property-item";
@@ -17,6 +17,8 @@ interface ApiKeyFieldProps {
 	onTest?: () => void;
 	isTesting?: boolean;
 	testResult?: { success: boolean; message: string } | null;
+	/** If set, renders a "Get Key" button that opens this URL in a new tab. */
+	getKeyUrl?: string;
 }
 
 export function ApiKeyField({
@@ -29,6 +31,7 @@ export function ApiKeyField({
 	onTest,
 	isTesting,
 	testResult,
+	getKeyUrl,
 }: ApiKeyFieldProps) {
 	const [showKey, setShowKey] = useState(false);
 
@@ -61,6 +64,20 @@ export function ApiKeyField({
 							)}
 						</Button>
 					</div>
+					{getKeyUrl && (
+						<Button
+							asChild
+							type="button"
+							variant="outline"
+							size="sm"
+							className="gap-1"
+						>
+							<a href={getKeyUrl} target="_blank" rel="noopener noreferrer">
+								<ExternalLinkIcon className="h-3.5 w-3.5" aria-hidden="true" />
+								Get Key
+							</a>
+						</Button>
+					)}
 					{onTest && (
 						<Button
 							type="button"

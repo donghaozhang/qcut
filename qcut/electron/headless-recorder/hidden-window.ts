@@ -103,6 +103,25 @@ export function createHiddenCaptureWindow(
 		window.webContents.once("did-fail-load", onFail);
 	});
 
+	// Forward renderer console output to main-process stdout so the
+	// launcher can surface bridge setup errors, getDisplayMedia failures,
+	// etc. Without this, debugging headless recording is effectively blind
+	// because there's no visible DevTools window. Warnings and errors are
+	// always forwarded; set QCUT_HEADLESS_VERBOSE=1 to also forward info/debug.
+	const verbose = process.env.QCUT_HEADLESS_VERBOSE === "1";
+	window.webContents.on(
+		"console-message",
+		(_event, level, message, line, sourceId) => {
+			// Electron level: 0=debug, 1=log/info, 2=warn, 3=error.
+			if (!verbose && level < 2) return;
+			const levelNames = ["debug", "log", "warn", "error"];
+			const levelName = levelNames[level] ?? "log";
+			process.stdout.write(
+				`[renderer:${levelName}] ${message} (${sourceId}:${line})\n`
+			);
+		}
+	);
+
 	const url = resolveWebEntryUrl(opts);
 	void window.loadURL(url);
 

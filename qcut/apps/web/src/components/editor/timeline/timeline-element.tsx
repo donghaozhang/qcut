@@ -536,8 +536,8 @@ function TimelineElementComponent({
 		<ContextMenu
 			onOpenChange={(open) => {
 				if (open && !isSelected) {
-					// Select element when context menu opens.
-					// Use setTimeout to defer past Radix's internal state settlement.
+					// Defer past Radix's internal state settlement before selecting,
+					// otherwise the menu re-closes mid-open.
 					setTimeout(() => selectElement(track.id, element.id, false), 0);
 				}
 			}}

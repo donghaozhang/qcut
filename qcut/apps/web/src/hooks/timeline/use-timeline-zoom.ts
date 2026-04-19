@@ -73,6 +73,14 @@ export function useTimelineZoom({
 	);
 
 	const handlePointerDown = useCallback((e: React.PointerEvent) => {
+		// Only handle touch pointers — pinch-to-zoom is the only gesture this
+		// hook implements, and tracking mouse/pen risks two failure modes:
+		// (1) capturing a mouse pointer redirects the post-mouseup `contextmenu`
+		// to this div, suppressing right-click menus on clips underneath; and
+		// (2) recording a mouse pointerdown that releases outside the timeline
+		// leaves a stale entry in pointersRef — a single subsequent finger
+		// touch then trips the pinch path with phantom pointers.size === 2.
+		if (e.pointerType !== "touch") return;
 		e.currentTarget.setPointerCapture(e.pointerId);
 		pointersRef.current.set(e.pointerId, {
 			x: e.clientX,

@@ -13,6 +13,7 @@ import { basename, dirname, extname, join } from "node:path";
 import {
 	createTestProject,
 	expect,
+	getScreenRecordingPermission,
 	startScreenRecordingForE2E,
 	stopScreenRecordingForE2E,
 	test,
@@ -32,6 +33,11 @@ test.describe("Screen Recording with Cursor Telemetry", () => {
 	}) => {
 		// --- Setup: create a project so the editor (and recording bridge) is loaded ---
 		await createTestProject(page, "Telemetry E2E");
+		const perm = await getScreenRecordingPermission(page);
+		test.skip(
+			perm !== "granted",
+			`Screen Recording permission is "${perm}" — grant it to the Electron binary in System Settings > Privacy & Security > Screen Recording to run this test.`
+		);
 
 		const recordingToggle = page.getByTestId("screen-recording-toggle-button");
 		await expect(recordingToggle).toBeVisible({ timeout: 10_000 });

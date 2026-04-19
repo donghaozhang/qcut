@@ -21,6 +21,7 @@ import {
 	ensurePanelTabActive,
 	ensureTextTabActive,
 	expect,
+	getScreenRecordingPermission,
 	importTestVideo,
 	startScreenRecordingForE2E,
 	stopScreenRecordingForE2E,
@@ -57,6 +58,11 @@ test.describe("Advanced Screen Recording with User Interactions", () => {
 	}) => {
 		// ── 1. Setup: create project with media ──
 		await createTestProject(page, "Advanced Recording E2E");
+		const perm = await getScreenRecordingPermission(page);
+		test.skip(
+			perm !== "granted",
+			`Screen Recording permission is "${perm}" — grant it to the Electron binary in System Settings > Privacy & Security > Screen Recording to run this test.`
+		);
 
 		// Import test video to have content in the timeline
 		await importTestVideo(page);

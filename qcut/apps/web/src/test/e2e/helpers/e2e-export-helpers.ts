@@ -5,6 +5,28 @@
 import { Page } from "@playwright/test";
 
 /**
+ * Query the macOS Screen Recording permission status via the Electron
+ * IPC bridge. Non-macOS platforms always return "granted". E2E tests
+ * should skip when this returns anything other than "granted", since
+ * the real screen capture flow cannot succeed without it.
+ */
+export async function getScreenRecordingPermission(
+	page: Page
+): Promise<"granted" | "denied" | "restricted" | "not-determined" | "unknown"> {
+	return await page.evaluate(async () => {
+		const api = window.electronAPI?.screenRecording;
+		if (!api?.getPermissionStatus) {
+			return "unknown" as const;
+		}
+		try {
+			return await api.getPermissionStatus();
+		} catch {
+			return "unknown" as const;
+		}
+	});
+}
+
+/**
  * Start QCut screen recording via the renderer bridge.
  */
 export async function startScreenRecordingForE2E(

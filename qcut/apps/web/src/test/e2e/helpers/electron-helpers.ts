@@ -646,6 +646,7 @@ export {
 export {
 	startScreenRecordingForE2E,
 	stopScreenRecordingForE2E,
+	getScreenRecordingPermission,
 	startExport,
 	waitForExportProgress,
 } from "./e2e-export-helpers.js";

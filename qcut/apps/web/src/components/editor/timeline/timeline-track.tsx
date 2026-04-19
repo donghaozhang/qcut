@@ -79,10 +79,32 @@ function TimelineTrackContentComponent({
 
 	// Initialize all hooks before any conditional returns
 	const timelineRef = useRef<HTMLDivElement>(null);
-	const [mouseDownLocation, setMouseDownLocation] = useState<{
-		x: number;
-		y: number;
+	// Ref (not state) so recording the mouse-down position does NOT trigger a
+	// re-render. Re-rendering the clip subtree between mousedown and mouseup
+	// causes the browser to drop the synthetic click event, breaking selection.
+	const mouseDownLocationRef = useRef<{ x: number; y: number } | null>(null);
+	// Pending drag captured on mousedown; promoted to a real drag only after
+	// the pointer moves past the 5 px threshold. Until then the clip does not
+	// re-render, so React's onClick still fires for plain clicks.
+	const pendingDragRef = useRef<{
+		elementId: string;
+		trackId: string;
+		startMouseX: number;
+		startElementTime: number;
+		clickOffsetTime: number;
 	} | null>(null);
+	// Window-level listeners attached during the pre-threshold pending-drag
+	// window leak if the component unmounts between mousedown and mouseup
+	// (e.g. a track is removed mid-press). Hold a cleanup callback in a ref so
+	// the unmount effect below can tear them down.
+	const pendingListenersCleanupRef = useRef<(() => void) | null>(null);
+
+	useEffect(() => {
+		return () => {
+			pendingListenersCleanupRef.current?.();
+			pendingListenersCleanupRef.current = null;
+		};
+	}, []);
 
 	// Drop handling hook
 	const {
@@ -438,7 +460,7 @@ function TimelineTrackContentComponent({
 			return;
 		}
 
-		setMouseDownLocation({ x: e.clientX, y: e.clientY });
+		mouseDownLocationRef.current = { x: e.clientX, y: e.clientY };
 
 		// Handle multi-selection for left-click with modifiers
 		if (isMultiSelect) {
@@ -451,14 +473,61 @@ function TimelineTrackContentComponent({
 		const clickOffsetX = e.clientX - elementRect.left;
 		const clickOffsetTime =
 			clickOffsetX / (TIMELINE_CONSTANTS.PIXELS_PER_SECOND * zoomLevel);
+		const startMouseX = e.clientX;
+		const startMouseY = e.clientY;
 
-		startDragAction(
-			element.id,
-			track.id,
-			e.clientX,
-			element.startTime,
-			clickOffsetTime
-		);
+		// Stage the drag but do NOT call startDragAction yet — that flips
+		// dragState.isDragging which re-renders the clip subtree and eats the
+		// subsequent click. Only promote to a real drag once the pointer moves
+		// past the threshold.
+		pendingDragRef.current = {
+			elementId: element.id,
+			trackId: track.id,
+			startMouseX,
+			startElementTime: element.startTime,
+			clickOffsetTime,
+		};
+
+		const DRAG_THRESHOLD_PX = 5;
+
+		// Tear down any leftover pending listeners from a previous mousedown
+		// (e.g. if mouseup fired outside the window and was missed).
+		pendingListenersCleanupRef.current?.();
+
+		const cleanup = () => {
+			window.removeEventListener("mousemove", onPendingMove);
+			window.removeEventListener("mouseup", onPendingUp);
+			if (pendingListenersCleanupRef.current === cleanup) {
+				pendingListenersCleanupRef.current = null;
+			}
+		};
+
+		const onPendingMove = (moveEvent: MouseEvent) => {
+			if (!pendingDragRef.current) return;
+			const dx = Math.abs(moveEvent.clientX - startMouseX);
+			const dy = Math.abs(moveEvent.clientY - startMouseY);
+			if (dx > DRAG_THRESHOLD_PX || dy > DRAG_THRESHOLD_PX) {
+				const p = pendingDragRef.current;
+				pendingDragRef.current = null;
+				cleanup();
+				startDragAction(
+					p.elementId,
+					p.trackId,
+					p.startMouseX,
+					p.startElementTime,
+					p.clickOffsetTime
+				);
+			}
+		};
+
+		const onPendingUp = () => {
+			pendingDragRef.current = null;
+			cleanup();
+		};
+
+		window.addEventListener("mousemove", onPendingMove);
+		window.addEventListener("mouseup", onPendingUp);
+		pendingListenersCleanupRef.current = cleanup;
 	};
 
 	const handleElementClick = (
@@ -467,32 +536,31 @@ function TimelineTrackContentComponent({
 	) => {
 		e.stopPropagation();
 
-		// Check if mouse moved significantly
-		if (mouseDownLocation) {
-			const deltaX = Math.abs(e.clientX - mouseDownLocation.x);
-			const deltaY = Math.abs(e.clientY - mouseDownLocation.y);
-			// If it moved more than a few pixels, consider it a drag and not a click.
+		const mdl = mouseDownLocationRef.current;
+
+		// If the pointer moved past the drag threshold between mousedown and
+		// click, treat this as the tail of a drag — not a real selection click.
+		if (mdl) {
+			const deltaX = Math.abs(e.clientX - mdl.x);
+			const deltaY = Math.abs(e.clientY - mdl.y);
 			if (deltaX > 5 || deltaY > 5) {
-				setMouseDownLocation(null); // Reset for next interaction
+				mouseDownLocationRef.current = null;
 				return;
 			}
 		}
 
-		// Skip selection logic for multi-selection (handled in mousedown)
+		// Multi-select is already handled in mousedown.
 		if (e.metaKey || e.ctrlKey || e.shiftKey) {
 			return;
 		}
 
-		// Handle single selection
 		const isSelected = selectedElements.some(
 			(c) => c.trackId === track.id && c.elementId === element.id
 		);
 
 		if (!isSelected) {
-			// If element is not selected, select it (replacing other selections)
 			selectElement(track.id, element.id, false);
 		}
-		// If element is already selected, keep it selected (do nothing)
 	};
 
 	return (
@@ -501,12 +569,12 @@ function TimelineTrackContentComponent({
 			className="w-full h-full hover:bg-muted/20"
 			data-drop-zone
 			onClick={(e) => {
-				// If clicking empty area (not on an element or gap indicator), deselect all elements
+				// Click on empty track area clears selection. Element / gap clicks
+				// have their own handlers and we must not steal them here.
 				const target = e.target as HTMLElement;
-				if (
-					!target.closest(".timeline-element") &&
-					!target.closest("[data-gap-indicator]")
-				) {
+				const onElement = !!target.closest(".timeline-element");
+				const onGap = !!target.closest("[data-gap-indicator]");
+				if (!onElement && !onGap) {
 					clearSelectedElements();
 				}
 			}}

@@ -146,13 +146,21 @@ export function ApiKeysView() {
 				description={
 					<>
 						For AI image generation. Get your key at{" "}
-						<span className="font-mono">fal.ai</span>
+						<a
+							href="https://fal.ai/dashboard/keys"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="font-mono text-primary hover:underline"
+						>
+							fal.ai
+						</a>
 					</>
 				}
 				placeholder="Enter your FAL API key"
 				value={falApiKey}
 				onChange={setFalApiKey}
 				testId="fal-api-key-input"
+				getKeyUrl="https://fal.ai/dashboard/keys"
 			/>
 
 			<ApiKeyField
@@ -167,7 +175,14 @@ export function ApiKeysView() {
 				description={
 					<>
 						For sound effects library. Get your key at{" "}
-						<span className="font-mono">freesound.org/help/developers</span>
+						<a
+							href="https://freesound.org/help/developers/"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="font-mono text-primary hover:underline"
+						>
+							freesound.org/help/developers
+						</a>
 					</>
 				}
 				placeholder="Enter your Freesound API key"
@@ -180,6 +195,7 @@ export function ApiKeysView() {
 				onTest={testFreesoundKey}
 				isTesting={isTestingFreesound}
 				testResult={freesoundTestResult}
+				getKeyUrl="https://freesound.org/apiv2/apply/"
 			/>
 
 			<ApiKeyField
@@ -208,6 +224,7 @@ export function ApiKeysView() {
 				value={geminiApiKey}
 				onChange={setGeminiApiKey}
 				testId="gemini-api-key-input"
+				getKeyUrl="https://aistudio.google.com/app/apikey"
 			/>
 
 			<ApiKeyField
@@ -236,6 +253,7 @@ export function ApiKeysView() {
 				value={openRouterApiKey}
 				onChange={setOpenRouterApiKey}
 				testId="openrouter-api-key-input"
+				getKeyUrl="https://openrouter.ai/keys"
 			/>
 
 			<ApiKeyField
@@ -257,6 +275,7 @@ export function ApiKeysView() {
 				value={anthropicApiKey}
 				onChange={setAnthropicApiKey}
 				testId="anthropic-api-key-input"
+				getKeyUrl="https://console.anthropic.com/settings/keys"
 			/>
 
 			<div className="flex justify-end">
