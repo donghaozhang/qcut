@@ -62,10 +62,16 @@ export async function validateAudioFiles(
 					filePath: audioFile.path,
 				});
 				if (!audioValidation) {
+					// `null` means the ffprobe IPC path is unavailable (e.g. the
+					// platform has no optional `invoke`), NOT that ffprobe ran
+					// and rejected the file. Treat the file as valid in that
+					// case — file-exists + non-zero size checks above already
+					// caught obvious bad paths, and downstream FFmpeg will
+					// surface real codec errors loudly.
 					debugWarn(
-						`[CLI Export] ffprobe validation unavailable; skipping unverified audio file: ${audioFile.path}`
+						`[CLI Export] ffprobe validation unavailable; passing audio file through unverified: ${audioFile.path}`
 					);
-					return null;
+					return audioFile;
 				}
 
 				debugLog(
