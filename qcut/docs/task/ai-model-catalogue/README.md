@@ -191,20 +191,40 @@ and description flows. Priced via `COST_OVERRIDES`.
 
 ## Coverage summary
 
-| Category | Models | Priced via registry | Priced via override | Fallback (`TBD` / unknown) |
-| --- | ---: | ---: | ---: | ---: |
-| Text-to-Video | 29 | 29 | 0 | 0 |
-| Image-to-Video | 38 | 38 | 0 | 0 |
-| Text-to-Image | 19 | 19 | 0 | 0 |
-| Avatar / Lipsync | 15 | 15 | 0 | 0 |
-| Speech / Audio | 8 | 1 | 2 | 5 (TBD) |
-| Upscale / Enhancement | 7 | 4 | 3 | 0 |
-| Utility LLM | 5 | 0 | 5 | 0 |
-| **Total** | **121** | **106** | **10** | **5** |
+Measured at runtime by `credit-costs-coverage.test.ts` against the live
+`AI_MODELS` registry — **92 dispatchable models, 87 priced from
+their registry `price` string, 1 free-tier, 5 explicit TBD**:
 
-Only the six Chatterbox/ElevenLabs/Qwen TTS entries marked `TBD` fall
-back to 1 credit today. Every other model is priced directly from its
-registry `price` string — no parallel map to keep in sync.
+| Category | In `AI_MODELS` | Priced | Free ($0.00) | Fallback (`TBD`) |
+| --- | ---: | ---: | ---: | ---: |
+| Text-to-Video | 29 | 28 | 1 | 0 |
+| Image-to-Video | 38 | 38 | 0 | 0 |
+| Avatar / Lipsync | 15 | 15 | 0 | 0 |
+| Speech / Audio | 6 | 1 | 0 | 5 (TBD) |
+| Upscale / Enhancement | 3 | 3 | 0 | 0 |
+| Angles (fixed utility) | 1 | 1 | 0 | 0 |
+| **In registry** | **92** | **87** | **1** | **5** |
+
+The five fallbacks are all provider-side `TBD`s, not bugs:
+`chatterbox_tts_turbo`, `chatterbox_s2s`, `elevenlabs_v3`, `qwen3_tts`,
+`qwen3_clone_voice`. They become priced automatically when the provider
+publishes numbers and someone updates the registry entry.
+
+### Not-in-registry caveat
+
+The text-to-image, image-edit, image-upscale, utility-LLM, and
+transcription-override entries listed in the category tables above
+**do not currently live in `AI_MODELS`**. They're either in sibling
+constants (e.g. a separate `T2I_MODELS`) or covered by `COST_OVERRIDES`
+in `credit-costs.ts` — which is why the coverage test reports 92, not
+121.
+
+Practical implication: T2I generation does **not** flow through
+`estimateCreditCost` today, so the T2I numbers in the category tables
+above are **notional** (what the deduction would be if/when T2I gets
+wired to the license-server relay). One-line fix when that happens —
+add `...Object.values(T2I_MODELS)` to the `AI_MODELS` spread in
+`ai-constants.ts` and all 19 get priced automatically.
 
 ## How pricing works at runtime
 
