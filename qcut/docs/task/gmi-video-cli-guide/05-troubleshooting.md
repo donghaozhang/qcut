@@ -182,6 +182,32 @@ file ~/Documents/QCut/Exports/**/*.{png,mp4}
 
 All four are on branch `cli-drama` as of this session.
 
+### D) Clicking **Generate** on a GMI model does nothing (no video, no error)
+
+- **What it means:** the GMI client threw "GMI API key not configured" but
+  the caller turned it into `shouldSkip` and the loop silently `continue`d.
+  Only showed up in the browser console.
+- **When seen:** logged-in QCut user with no local `VITE_GMI_API_KEY` —
+  affects Seedance 2.0 260128, Veo 3.1 Lite, Kling V3, Kling V3 Omni,
+  SkyReels V4 via the AI Video Generation panel.
+- **Fix landed:**
+  1. `gmi-client.ts` now falls back to the license-server relay
+     (`/api/ai/proxy`, `/api/ai/status`) whenever a session token is
+     present, mirroring `fal-request.ts`. Logged-in users no longer need a
+     local key.
+  2. `use-ai-generation-core.ts` now surfaces `skipReason` via a toast
+     (deduped per generation pass), so the button click always produces
+     visible feedback — for GMI and every other provider that can skip.
+- **Three-state truth table now:**
+  | State | Result |
+  | --- | --- |
+  | Signed in, no local key | Works via license-server relay |
+  | Signed out, no local key | Toast: *"GMI unavailable. Sign in to your QCut account, or set VITE_GMI_API_KEY."* |
+  | Local `VITE_GMI_API_KEY` set | Works, bypasses relay (useful for self-hosted / offline dev) |
+- **Shared helpers live in** `apps/web/src/lib/ai-video/core/license-relay.ts`
+  (`getSessionToken`, `proxySubmit`, `proxyStatus`). Future providers add
+  relay support in ~10 lines.
+
 ## Still broken (not yet fixed)
 
 | Issue | File to fix | Effort |

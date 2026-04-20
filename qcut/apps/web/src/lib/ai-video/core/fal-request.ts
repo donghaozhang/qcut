@@ -7,6 +7,7 @@
 
 import { platform } from "@qcut/platform-core";
 import { handleAIServiceError } from "@/lib/debug/error-handler";
+import { LICENSE_SERVER_URL, getSessionToken } from "./license-relay";
 
 // Direct FAL AI integration - no backend needed
 export const FAL_API_BASE = "https://fal.run";
@@ -116,32 +117,6 @@ export interface FalRequestOptions {
 	signal?: AbortSignal;
 	/** Enable queue mode for long-running jobs */
 	queueMode?: boolean;
-}
-
-/**
- * License server URL for proxy mode.
- * Falls back to production URL if env var is not set.
- */
-const LICENSE_SERVER_URL =
-	import.meta.env.VITE_LICENSE_SERVER_URL ||
-	"https://qcut-license-server.zdhpeter.workers.dev";
-
-/** Try to get a session token from the license store (if available). */
-async function getSessionToken(): Promise<string> {
-	try {
-		const licenseApi = platform().license;
-		if (!licenseApi) return "";
-		// The license API exposes the auth token via getAuthToken if available
-		if ("getAuthToken" in licenseApi) {
-			const token = await (
-				licenseApi as { getAuthToken: () => Promise<string> }
-			).getAuthToken();
-			return token ?? "";
-		}
-	} catch (error) {
-		console.warn("[getSessionToken] Failed to get session token:", error);
-	}
-	return "";
 }
 
 /**

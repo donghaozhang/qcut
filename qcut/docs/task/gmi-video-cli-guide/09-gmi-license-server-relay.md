@@ -1,4 +1,8 @@
-# Plan — Wire GMI Cloud to the License-Server Relay
+# GMI Cloud — License-Server Relay (implementation log)
+
+> **Status: shipped on branch `credit-system`.** All subtasks T1–T6
+> complete. T7 (manual login verification) is the only step left for
+> the user to run.
 
 Target: logged-in QCut users should NOT need a local `VITE_GMI_API_KEY` to generate video on any GMI model (Seedance 2.0 260128, Veo 3.1 Lite, Kling V3, Kling V3 Omni, SkyReels V4). The key is already held on the license server; the client needs to route through it when a session token is present.
 
@@ -32,78 +36,119 @@ Long-term invariants:
 - **Centralise relay helpers.** Extract shared `getSessionToken` and `LICENSE_SERVER_URL` from `fal-request.ts` into `apps/web/src/lib/ai-video/core/license-relay.ts` so future providers (Runway, ElevenLabs via license server) plug in without copy-paste.
 - **Do not couple credit deduction to this change.** The `credits` field on `/api/ai/proxy` is optional; wiring it up belongs with the broader credit-system branch work. Leave a `TODO` and a tracking note.
 
-## Subtasks
+## Subtasks (as implemented)
 
-Each subtask is ≤20 minutes and lists the files it touches.
-
-### T1 — Extract shared license-relay helpers (new module)
+### T1 — Extract shared license-relay helpers ✅
 
 - **New file:** `apps/web/src/lib/ai-video/core/license-relay.ts`
-  - Export `LICENSE_SERVER_URL` (move from `fal-request.ts:125-127`).
-  - Export `async function getSessionToken(): Promise<string>` (move from `fal-request.ts:130-145`).
-  - Export `async function proxySubmit(opts: { provider, endpoint, method?, body }): Promise<Response>` — wraps `POST /api/ai/proxy`.
-  - Export `async function proxyStatus(opts: { provider, requestId, endpoint?, statusUrl? }): Promise<Response>` — wraps `GET /api/ai/status`.
-  - Uses `signal?: AbortSignal` throughout.
-- **Refactor:** `apps/web/src/lib/ai-video/core/fal-request.ts` imports from `license-relay.ts` instead of defining `LICENSE_SERVER_URL` + `getSessionToken` locally.
-- **Acceptance:** FAL relay still works (existing `fal-request` tests pass unchanged).
+  - Exports `LICENSE_SERVER_URL`, `getSessionToken`, `proxySubmit`, `proxyStatus`.
+  - `proxySubmit` and `proxyStatus` accept an optional `sessionToken` so
+    callers that already have one don't pay the cost of re-fetching.
+  - `signal?: AbortSignal` forwarded through both helpers.
+  - Both helpers throw `"No QCut session token available…"` when the
+    session is missing and no explicit token was supplied — callers turn
+    that into user-facing text.
+- **Refactor:** `apps/web/src/lib/ai-video/core/fal-request.ts` now
+  imports `LICENSE_SERVER_URL` + `getSessionToken` from `./license-relay`
+  (its local copies were removed). Existing FAL proxy tests pass
+  unchanged (6/6).
 
-### T2 — Add relay fallback to `gmiClient.submit`
+### T2 — `gmiClient.submit` relay fallback ✅
 
-- **File:** `apps/web/src/lib/ai-clients/gmi-client.ts:74-107`
-- Flow after the local-key check:
-  1. If no `apiKey`, call `getSessionToken()`.
-  2. If token present, call `proxySubmit({ provider: "gmi", endpoint: `${GMI_API_BASE}/requests`, method: "POST", body: { model, payload } })`.
-  3. If response not ok, throw with status + parsed detail (same shape as direct-call errors).
-  4. Return `{ requestId, provider: "gmi" }`.
-- If neither key nor token present, throw an actionable error:
-  > `"GMI unavailable. Sign in to your QCut account, or set VITE_GMI_API_KEY."`
+- **File:** `apps/web/src/lib/ai-clients/gmi-client.ts`
+- Resolution order:
+  1. Local API key → direct POST to `${GMI_API_BASE}/requests`.
+  2. No key + session token → `proxySubmit({ provider: "gmi", endpoint, method: "POST", body: { model, payload } })`.
+  3. Neither → throw `MISSING_CREDENTIALS_MESSAGE = "GMI unavailable. Sign in to your QCut account, or set VITE_GMI_API_KEY."`
+- HTTP errors from the relay surface with the same shape as direct errors
+  (`GMI API error (<status>): <detail>`) so callers and the skip-reason
+  toast don't need to know which transport was used.
 
-### T3 — Add relay fallback to `gmiClient.poll`
+### T3 — `gmiClient.poll` relay fallback ✅
 
-- **File:** `apps/web/src/lib/ai-clients/gmi-client.ts:109-176`
-- Same resolution order. When relaying, call `proxyStatus({ provider: "gmi", requestId })`. Response body shape matches direct-call (`GmiRequestStatusResponse`) because the license server forwards it verbatim (`ai-proxy.ts:122-128`).
-- Keep the existing polling loop, interval, `onProgress`, and timeout semantics. Only the transport changes.
+- Same file. Resolves once before the polling loop and then uses either
+  direct `fetch` or `proxyStatus` on every iteration.
+- `proxyStatus` uses `GET /api/ai/status?provider=gmi&requestId=…`; the
+  license server constructs the upstream GMI status URL itself
+  (`packages/license-server/src/routes/ai-proxy.ts:269-270`).
+- `maxAttempts`, `pollIntervalMs`, `onProgress`, and timeout behaviour
+  all preserved — only the transport branches.
 
-### T4 — Surface the skip reason to the user
+### T4 — Surface skip reasons as toasts ✅
 
-- **File:** `apps/web/src/components/editor/media-panel/views/ai/hooks/use-ai-generation-core.ts:441-503`
-- Replace the three `console.log("⚠️ Skipping model - ...")` sites with a `toast.error(handlerResult.skipReason)` (or equivalent via the project's toast util) in addition to the console log.
-- Deduplicate bursts: if the same `skipReason` fires multiple times in one generation pass, only toast once.
-- **Why:** stops silent failures across all providers, not just GMI.
+- **File:** `apps/web/src/components/editor/media-panel/views/ai/hooks/use-ai-generation-core.ts`
+- Added `notifySkip(modelId, reason)` local helper plus a
+  `seenSkipReasons: Set<string>` scoped to each generation pass. Same
+  `skipReason` only toasts once per pass even if the user selected
+  several models that all fail for the same reason (e.g. missing GMI
+  session).
+- **Bonus fix found during implementation:** the `text` branch
+  (`routeTextToVideoHandler`) was missing the `shouldSkip` check
+  entirely — it just took `handlerResult.response` unconditionally and
+  passed `undefined` downstream. That was the root cause of the
+  "nothing happens on Generate" symptom for `gmi_seedance_2_0_260128_t2v`
+  specifically. Now uses `notifySkip` + `continue`, matching the other
+  three branches.
 
-### T5 — Unit tests for the relay fallback
+### T5 — Unit tests ✅
 
-- **New/updated file:** `apps/web/src/lib/ai-clients/__tests__/gmi-client.test.ts`
-  - Mock `platform().license.getAuthToken` to return a session token.
-  - Mock `fetch` to assert that when no local key is set AND a session token is present:
-    - `submit` hits `${LICENSE_SERVER_URL}/api/ai/proxy` with the correct body.
-    - `poll` hits `${LICENSE_SERVER_URL}/api/ai/status?provider=gmi&requestId=…`.
-  - Assert that `submit` throws the actionable "Sign in or set VITE_GMI_API_KEY" message when both are missing.
-- **New file:** `apps/web/src/lib/ai-video/core/__tests__/license-relay.test.ts`
-  - Unit-test `proxySubmit` and `proxyStatus` in isolation (URL construction, auth header, signal forwarding).
+- **Updated:** `apps/web/src/lib/ai-clients/__tests__/gmi-client.test.ts`
+  (18 tests). Mocks `../../ai-video/core/license-relay`. New cases:
+  - `isAvailable` returns true when only a session token is present.
+  - `submit` routes through `proxySubmit` with exact body shape when no
+    local key but a session token is available.
+  - `submit` throws the actionable "Sign in…" message when both are
+    missing; error is `/Sign in to your QCut account/`.
+  - `submit` surfaces relay 503s with the same `GMI API error (503)`
+    shape as direct errors.
+  - `poll` routes through `proxyStatus` and returns `completed` with the
+    relayed `video_url`.
+  - `poll` throws the same actionable error when credentials are absent.
+- **New:** `apps/web/src/lib/ai-video/core/__tests__/license-relay.test.ts`
+  (10 tests) — URL + body + auth-header + `AbortSignal` coverage for
+  `proxySubmit` and `proxyStatus`; `getSessionToken` null/throw handling.
 
-### T6 — Docs + regression checklist
+### T6 — Docs ✅
 
-- **File:** `docs/task/gmi-video-cli-guide/05-troubleshooting.md`
-  - Add a "GMI generation does nothing" section noting the three states: (a) logged in & works, (b) logged out + no local key → toast appears, (c) local `VITE_GMI_API_KEY` overrides relay.
-- **File:** `docs/task/gmi-video-cli-guide/04-gmi-models.md`
-  - Add a one-line note per model: "Works out-of-the-box for logged-in users via license-server relay; offline use requires `VITE_GMI_API_KEY`."
+- `docs/task/gmi-video-cli-guide/05-troubleshooting.md` — new failure
+  mode **D** (three-state truth table; explains the silent-skip bug and
+  the fix).
+- `docs/task/gmi-video-cli-guide/04-gmi-models.md` — new
+  **Authentication for the editor UI** section referencing the shared
+  helpers and calling out when a local key is still required.
 
-### T7 — Manual verification
+### T7 — Manual verification (pending user)
 
-- `bun run electron:dev` while logged in with `qcutlove@qcut.app` (from `.env.test-accounts`) and **no** `VITE_GMI_API_KEY` set.
-- Run each GMI model once: Seedance 2.0 260128, Veo 3.1 Lite, Kling V3, Kling V3 Omni, SkyReels V4. Confirm video returns.
-- Sign out → retry one model → confirm toast surfaces "Sign in or set VITE_GMI_API_KEY" instead of silent skip.
+- `bun run electron:dev` while logged in with `qcutlove@qcut.app`
+  (from `.env.test-accounts`) and **no** `VITE_GMI_API_KEY` set.
+- Click **Generate** on each GMI model once: Seedance 2.0 260128,
+  Veo 3.1 Lite, Kling V3, Kling V3 Omni, SkyReels V4. Confirm video
+  returns.
+- Sign out → retry one model → confirm toast surfaces
+  *"GMI unavailable. Sign in to your QCut account, or set
+  VITE_GMI_API_KEY."* instead of silent skip.
 
-## Tests — file paths summary
+## Tests — file paths and results
 
-| Test file                                                                         | Covers                                     |
-| --------------------------------------------------------------------------------- | ------------------------------------------ |
-| `apps/web/src/lib/ai-clients/__tests__/gmi-client.test.ts`                        | Relay fallback in `submit` + `poll`, error path |
-| `apps/web/src/lib/ai-video/core/__tests__/license-relay.test.ts`                  | Shared helper unit tests                   |
-| `apps/web/src/lib/ai-video/core/__tests__/fal-request.test.ts` (if present)       | Regression: FAL relay still works after refactor |
+| Test file                                                                         | Covers                                            | Result       |
+| --------------------------------------------------------------------------------- | ------------------------------------------------- | ------------ |
+| `apps/web/src/lib/ai-clients/__tests__/gmi-client.test.ts`                        | Relay fallback in `submit` + `poll`, error path   | **18 pass**  |
+| `apps/web/src/lib/ai-video/core/__tests__/license-relay.test.ts`                  | Shared helper unit tests                          | **10 pass**  |
+| `apps/web/src/lib/ai-video/core/__tests__/fal-request-proxy.test.ts`              | Regression: FAL relay still works after refactor  | **6 pass**   |
 
-Run: `bun run test`
+Run command used:
+```
+bunx vitest run \
+  src/lib/ai-clients/__tests__/gmi-client.test.ts \
+  src/lib/ai-video/core/__tests__/license-relay.test.ts \
+  src/lib/ai-video/core/__tests__/fal-request-proxy.test.ts
+```
+(from `apps/web`). Broader sweep including `model-provider-logos`,
+`provider-router`, and the various model-config tests: **110/110 pass**.
+
+Note: the top-level `bun test` runner does **not** support `vi.stubGlobal`
+used by these tests. Use `bunx vitest` (or `bun run test`, which routes
+through the vitest script in `apps/web/package.json`).
 
 ## Out of scope (follow-ups)
 

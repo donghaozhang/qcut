@@ -37,6 +37,18 @@ Set via `--image-model <key>`.
 
 Set via `--video-model <key>`.
 
+## Authentication for the editor UI
+
+All GMI text/image-to-video models work out of the box for logged-in QCut
+users — the renderer's `gmi-client` falls back to the license-server
+relay when no local `VITE_GMI_API_KEY` is set (implementation in
+`apps/web/src/lib/ai-clients/gmi-client.ts` and the shared relay helpers
+at `apps/web/src/lib/ai-video/core/license-relay.ts`).
+
+Offline / self-hosted / CLI use still requires `VITE_GMI_API_KEY` in the
+environment or Electron secure storage — the relay only activates when a
+session token is present.
+
 ## Payload-shape differences (handled automatically)
 
 The vimax `VideoGeneratorAdapter` sends provider-specific payloads via

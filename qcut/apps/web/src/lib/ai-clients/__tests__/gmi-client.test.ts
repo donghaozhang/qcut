@@ -7,7 +7,20 @@ vi.mock("@qcut/platform-core", () => ({
 	})),
 }));
 
+// Mock license-relay so we can assert relay calls explicitly without
+// reaching into platform().license in every test.
+vi.mock("../../ai-video/core/license-relay", () => ({
+	getSessionToken: vi.fn().mockResolvedValue(""),
+	proxySubmit: vi.fn(),
+	proxyStatus: vi.fn(),
+}));
+
 import { platform } from "@qcut/platform-core";
+import {
+	getSessionToken,
+	proxySubmit,
+	proxyStatus,
+} from "../../ai-video/core/license-relay";
 import { gmiClient, clearGmiApiKeyCache } from "../gmi-client";
 
 const mockFetch = vi.fn();
@@ -22,6 +35,8 @@ beforeEach(() => {
 	vi.mocked(platform).mockReturnValue({
 		apiKeys: { get: vi.fn().mockResolvedValue(null) },
 	} as unknown as ReturnType<typeof platform>);
+	// Default: no session token available
+	vi.mocked(getSessionToken).mockResolvedValue("");
 });
 
 afterEach(() => {
@@ -49,16 +64,21 @@ describe("gmiClient", () => {
 
 			expect(await gmiClient.isAvailable()).toBe(true);
 		});
+
+		it("returns true when a license-server session token is present", async () => {
+			vi.mocked(getSessionToken).mockResolvedValue("session-abc");
+			expect(await gmiClient.isAvailable()).toBe(true);
+		});
 	});
 
 	describe("submit", () => {
-		it("throws when no API key is configured", async () => {
+		it("throws actionable error when no key and no session token", async () => {
 			await expect(
 				gmiClient.submit("test-model", { prompt: "hello" })
-			).rejects.toThrow("GMI API key not configured");
+			).rejects.toThrow(/Sign in to your QCut account/);
 		});
 
-		it("posts to GMI API and returns requestId", async () => {
+		it("posts to GMI API directly when a local key is set", async () => {
 			(import.meta.env as Record<string, unknown>).VITE_GMI_API_KEY =
 				"test-key";
 
@@ -86,6 +106,31 @@ describe("gmiClient", () => {
 					}),
 				})
 			);
+			expect(proxySubmit).not.toHaveBeenCalled();
+		});
+
+		it("routes through license-server relay when no local key but session token present", async () => {
+			vi.mocked(getSessionToken).mockResolvedValue("session-xyz");
+			vi.mocked(proxySubmit).mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({ id: "relay-req-1" }),
+			} as unknown as Response);
+
+			const result = await gmiClient.submit("seedance-2-0-260128", {
+				prompt: "a dog",
+			});
+
+			expect(result).toEqual({ requestId: "relay-req-1", provider: "gmi" });
+			expect(proxySubmit).toHaveBeenCalledWith({
+				provider: "gmi",
+				endpoint:
+					"https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey/requests",
+				method: "POST",
+				body: { model: "seedance-2-0-260128", payload: { prompt: "a dog" } },
+				signal: undefined,
+				sessionToken: "session-xyz",
+			});
+			expect(mockFetch).not.toHaveBeenCalled();
 		});
 
 		it("throws on API error response", async () => {
@@ -121,24 +166,35 @@ describe("gmiClient", () => {
 				gmiClient.submit("model", { prompt: "test" })
 			).rejects.toThrow("GMI API error (500): Internal Server Error");
 		});
+
+		it("surfaces relay HTTP errors with the same shape as direct errors", async () => {
+			vi.mocked(getSessionToken).mockResolvedValue("session-xyz");
+			vi.mocked(proxySubmit).mockResolvedValueOnce({
+				ok: false,
+				status: 503,
+				statusText: "Service Unavailable",
+				json: async () => ({
+					error: "API key not configured for provider: gmi",
+				}),
+			} as unknown as Response);
+
+			await expect(
+				gmiClient.submit("kling-v3", { prompt: "test" })
+			).rejects.toThrow(/GMI API error \(503\)/);
+		});
 	});
 
 	describe("poll", () => {
-		beforeEach(() => {
-			(import.meta.env as Record<string, unknown>).VITE_GMI_API_KEY =
-				"test-key";
-		});
-
-		it("throws when no API key is available", async () => {
-			delete (import.meta.env as Record<string, unknown>).VITE_GMI_API_KEY;
-			clearGmiApiKeyCache();
-
+		it("throws actionable error when no key and no session token", async () => {
 			await expect(gmiClient.poll("req-123")).rejects.toThrow(
-				"GMI API key not available"
+				/Sign in to your QCut account/
 			);
 		});
 
-		it("returns completed status with videoUrl on success", async () => {
+		it("polls GMI directly when a local key is set", async () => {
+			(import.meta.env as Record<string, unknown>).VITE_GMI_API_KEY =
+				"test-key";
+
 			mockFetch.mockResolvedValueOnce({
 				ok: true,
 				json: async () => ({
@@ -160,9 +216,39 @@ describe("gmiClient", () => {
 			expect(result.progress).toBe(100);
 			expect(result.videoUrl).toBe("https://example.com/video.mp4");
 			expect(result.thumbnailUrl).toBe("https://example.com/thumb.jpg");
+			expect(proxyStatus).not.toHaveBeenCalled();
+		});
+
+		it("polls via license-server relay when no local key but session token present", async () => {
+			vi.mocked(getSessionToken).mockResolvedValue("session-xyz");
+			vi.mocked(proxyStatus).mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({
+					id: "req-456",
+					status: "success",
+					outcome: { video_url: "https://example.com/relayed.mp4" },
+				}),
+			} as unknown as Response);
+
+			const result = await gmiClient.poll("req-456", {
+				maxAttempts: 1,
+				pollIntervalMs: 0,
+			});
+
+			expect(result.status).toBe("completed");
+			expect(result.videoUrl).toBe("https://example.com/relayed.mp4");
+			expect(proxyStatus).toHaveBeenCalledWith({
+				provider: "gmi",
+				requestId: "req-456",
+				signal: undefined,
+				sessionToken: "session-xyz",
+			});
+			expect(mockFetch).not.toHaveBeenCalled();
 		});
 
 		it("maps cancelled status to failed", async () => {
+			(import.meta.env as Record<string, unknown>).VITE_GMI_API_KEY =
+				"test-key";
 			mockFetch.mockResolvedValueOnce({
 				ok: true,
 				json: async () => ({
@@ -182,6 +268,8 @@ describe("gmiClient", () => {
 		});
 
 		it("reports processing progress and times out", async () => {
+			(import.meta.env as Record<string, unknown>).VITE_GMI_API_KEY =
+				"test-key";
 			mockFetch.mockResolvedValue({
 				ok: true,
 				json: async () => ({
@@ -207,6 +295,8 @@ describe("gmiClient", () => {
 		});
 
 		it("throws on poll HTTP error", async () => {
+			(import.meta.env as Record<string, unknown>).VITE_GMI_API_KEY =
+				"test-key";
 			mockFetch.mockResolvedValueOnce({
 				ok: false,
 				status: 404,
@@ -222,6 +312,8 @@ describe("gmiClient", () => {
 		});
 
 		it("calls onProgress for completed result", async () => {
+			(import.meta.env as Record<string, unknown>).VITE_GMI_API_KEY =
+				"test-key";
 			mockFetch.mockResolvedValueOnce({
 				ok: true,
 				json: async () => ({
