@@ -95,7 +95,7 @@ describe("gmiClient", () => {
 		it("throws actionable error when no key and no session token", async () => {
 			await expect(
 				gmiClient.submit("test-model", { prompt: "hello" })
-			).rejects.toThrow(/Sign in to your QCut account/);
+			).rejects.toThrow(/sign in to your QCut account/i);
 		});
 
 		it("posts to GMI API directly when a local key is set", async () => {
@@ -333,7 +333,7 @@ describe("gmiClient", () => {
 	describe("poll", () => {
 		it("throws actionable error when no key and no session token", async () => {
 			await expect(gmiClient.poll("req-123")).rejects.toThrow(
-				/Sign in to your QCut account/
+				/sign in to your QCut account/i
 			);
 		});
 

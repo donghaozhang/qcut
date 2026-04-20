@@ -959,37 +959,9 @@ describe("adaptShotForSeedance — characterDescriptions injection", () => {
 	});
 });
 
-describe("adaptShotForSeedance — per-family prompt cap", () => {
-	it("Seedance (gmi) keeps prompts up to 8000 chars", () => {
-		const long = "a".repeat(7000);
-		const adapted = adaptShotForSeedance(
-			{
-				shotId: "1",
-				description: long,
-				characters: [],
-				durationSeconds: 5,
-			},
-			{},
-			"gmi"
-		);
-		expect((adapted.payload.prompt as string).length).toBe(7000);
-	});
-
-	it("Kling Omni truncates prompts over 2500 chars", () => {
-		const long = "word ".repeat(800); // 4000 chars
-		const adapted = adaptShotForSeedance(
-			{
-				shotId: "1",
-				description: long,
-				characters: [],
-				durationSeconds: 5,
-			},
-			{},
-			"kling-omni"
-		);
-		expect((adapted.payload.prompt as string).length).toBeLessThanOrEqual(2500);
-	});
-});
+// Per-family prompt-cap tests moved to
+// `video-shot-adapter.prompt-cap.test.ts` to keep this file under the
+// 800-line project guideline.
 
 describe("resolveSeedanceTier", () => {
 	it("returns standard by default", () => {

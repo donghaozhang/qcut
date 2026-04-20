@@ -389,48 +389,55 @@ export async function refundCreditsForUser({
 
 		const windowStart = new Date(Date.now() - refundWindowMs);
 
-		// Do read queries + balance bootstrap BEFORE opening the transaction.
-		// Mirrors `deductCreditsForUser`; Hyperdrive doesn't love nested
-		// connection-grabbing helpers inside a tx callback.
-		const recent = await db
-			.select({
-				amount: creditTransactions.amount,
-				type: creditTransactions.type,
-			})
-			.from(creditTransactions)
-			.where(
-				and(
-					eq(creditTransactions.userId, userId),
-					eq(creditTransactions.modelKey, modelKey),
-					sql`${creditTransactions.createdAt} >= ${windowStart}`
-				)
-			);
-
-		let deducted = 0;
-		let alreadyRefunded = 0;
-		for (const row of recent) {
-			if (row.type === "deduction") {
-				// deductions are stored as negative amounts
-				deducted += Math.abs(row.amount);
-			} else if (row.type === "refund") {
-				alreadyRefunded += row.amount;
-			}
-		}
-
-		const refundable = Math.max(deducted - alreadyRefunded, 0);
-		if (refundable < normalizedAmount) {
-			const latestBalance = await getCreditBalanceByUserId({ userId });
-			return {
-				success: false,
-				balance: latestBalance,
-				reason: "Refund exceeds refundable deductions in the last 24h",
-			};
-		}
-
+		// Bootstrap + plan-reset outside the tx — same connection-grabbing
+		// caveat as `deductCreditsForUser`. The race window we care about
+		// (two simultaneous refund calls for the same user+model) is closed
+		// inside the transaction below by locking the balance row with
+		// `FOR UPDATE` and re-running the refund-cap check against live data.
 		const balance = await ensureCreditBalance({ userId });
 		const refreshed = await resetPlanCreditsIfDue({ userId, balance });
 
 		const updated = await db.transaction(async (tx) => {
+			// Serialize concurrent refunds on this user's balance. Any other
+			// refund transaction for the same row blocks here until we commit,
+			// so the cap recomputation below sees their inserted refund row.
+			await tx
+				.select({ id: creditBalances.id })
+				.from(creditBalances)
+				.where(eq(creditBalances.id, refreshed.id))
+				.for("update");
+
+			// Re-read recent deductions + refunds under the lock so the cap
+			// reflects any refund a concurrent caller just committed.
+			const recent = await tx
+				.select({
+					amount: creditTransactions.amount,
+					type: creditTransactions.type,
+				})
+				.from(creditTransactions)
+				.where(
+					and(
+						eq(creditTransactions.userId, userId),
+						eq(creditTransactions.modelKey, modelKey),
+						sql`${creditTransactions.createdAt} >= ${windowStart}`
+					)
+				);
+
+			let deducted = 0;
+			let alreadyRefunded = 0;
+			for (const row of recent) {
+				if (row.type === "deduction") {
+					// deductions are stored as negative amounts
+					deducted += Math.abs(row.amount);
+				} else if (row.type === "refund") {
+					alreadyRefunded += row.amount;
+				}
+			}
+			const refundable = Math.max(deducted - alreadyRefunded, 0);
+			if (refundable < normalizedAmount) {
+				return { status: "over_cap" as const };
+			}
+
 			const now = new Date();
 			const [nextBalance] = await tx
 				.update(creditBalances)
@@ -469,7 +476,10 @@ export async function refundCreditsForUser({
 		return {
 			success: false,
 			balance: latestBalance,
-			reason: "Balance row missing",
+			reason:
+				updated.status === "over_cap"
+					? "Refund exceeds refundable deductions in the last 24h"
+					: "Balance row missing",
 		};
 	} catch (error) {
 		throw new Error(

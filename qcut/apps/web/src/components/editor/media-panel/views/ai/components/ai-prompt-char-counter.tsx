@@ -36,13 +36,27 @@ interface AIPromptCharCounterProps {
 export function AIPromptCharCounter({
 	length,
 	maxChars = UI_CONSTANTS.STRONG_PROMPT_WARN_CHARS,
-	softWarnChars = UI_CONSTANTS.SOFT_PROMPT_WARN_CHARS,
-	strongWarnChars = UI_CONSTANTS.STRONG_PROMPT_WARN_CHARS,
+	softWarnChars: rawSoftWarnChars = UI_CONSTANTS.SOFT_PROMPT_WARN_CHARS,
+	strongWarnChars: rawStrongWarnChars = UI_CONSTANTS.STRONG_PROMPT_WARN_CHARS,
 	note,
 }: AIPromptCharCounterProps) {
+	// Thresholds must never exceed the model-specific `maxChars` — a Sora 2
+	// textarea at 5000 max shouldn't show a "strong limit 8000" message that
+	// never triggers while the API already rejects at 5000. Clamp both
+	// thresholds and ensure soft ≤ strong.
+	const strongWarnChars = Math.min(rawStrongWarnChars, maxChars);
+	const softWarnChars = Math.min(rawSoftWarnChars, strongWarnChars);
+
 	const remaining = maxChars - length;
 	const overSoft = length > softWarnChars;
 	const overStrong = length > strongWarnChars;
+
+	// Only mention Kling by name when the soft threshold is actually the
+	// Kling cap. For other models the "over soft limit" hint stays generic.
+	const softHint =
+		softWarnChars === UI_CONSTANTS.SOFT_PROMPT_WARN_CHARS
+			? " — may be too long for some models (e.g. Kling caps at 2500)"
+			: "";
 
 	let toneClass = "text-muted-foreground";
 	if (overStrong) toneClass = "text-red-500";
@@ -58,8 +72,8 @@ export function AIPromptCharCounter({
 				</span>
 			) : overSoft ? (
 				<span>
-					⚠ {length - softWarnChars} chars over soft limit ({softWarnChars}) —
-					may be too long for some models (e.g. Kling caps at 2500)
+					⚠ {length - softWarnChars} chars over soft limit ({softWarnChars})
+					{softHint}
 				</span>
 			) : (
 				<span>{remaining} characters remaining</span>

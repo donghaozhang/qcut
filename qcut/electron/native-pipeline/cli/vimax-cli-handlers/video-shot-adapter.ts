@@ -607,7 +607,15 @@ export function adaptShotForSeedance(
 	} else {
 		parts.push(scenePrompt);
 	}
-	const promptForCommon = parts.join(", ");
+	// Re-truncate the assembled prompt so the per-family cap also covers the
+	// stylePrompt + [Reference: …] clauses that got appended AFTER the
+	// initial `sanitizeShotPrompt` call on `shot.description`. Without this,
+	// a long style prefix or many reference clauses can push `payload.prompt`
+	// past `PROMPT_CHAR_LIMITS[family]` (notably the 2500-char Kling cap).
+	const promptForCommon = sanitizeShotPrompt(
+		parts.join(", "),
+		PROMPT_CHAR_LIMITS[family]
+	);
 
 	const common: CommonShape = {
 		prompt: promptForCommon,

@@ -261,6 +261,8 @@ export function AITextTab({
 				<AIPromptCharCounter
 					length={prompt.length}
 					maxChars={maxChars}
+					softWarnChars={isSora2Selected ? 4000 : undefined}
+					strongWarnChars={isSora2Selected ? maxChars : undefined}
 					note={isSora2Selected ? "Sora 2: 5000 max" : undefined}
 				/>
 

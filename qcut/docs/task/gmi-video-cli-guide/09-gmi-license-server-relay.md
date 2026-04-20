@@ -59,7 +59,7 @@ Long-term invariants:
 - Resolution order:
   1. Local API key → direct POST to `${GMI_API_BASE}/requests`.
   2. No key + session token → `proxySubmit({ provider: "gmi", endpoint, method: "POST", body: { model, payload } })`.
-  3. Neither → throw `MISSING_CREDENTIALS_MESSAGE = "GMI unavailable. Sign in to your QCut account, or set VITE_GMI_API_KEY."`
+  3. Neither → throw `MISSING_CREDENTIALS_MESSAGE = "GMI unavailable. Please sign in to your QCut account and try again."` (the developer-only `VITE_GMI_API_KEY` escape hatch is intentionally NOT surfaced in user-facing copy)
 - HTTP errors from the relay surface with the same shape as direct errors
   (`GMI API error (<status>): <detail>`) so callers and the skip-reason
   toast don't need to know which transport was used.
@@ -127,7 +127,7 @@ always returned `""`, `isAvailable()` returned `false`, and the router
 threw *"Provider 'gmi' is not available. Configure the API key:
 GMI_API_KEY."* before the relay code ever ran.
 
-Wired `getAuthToken` through four layers:
+Wired `getAuthToken` through five layers:
 
 1. `packages/platform-core/src/types/core-api.ts:116-122` — added
    `getAuthToken(): Promise<string>` to `PlatformLicenseAPI`. JSDoc
@@ -149,13 +149,18 @@ just reload the renderer.**
 ### T7 — Manual verification (pending user)
 
 - `bun run electron:dev` while logged in with `qcutlove@qcut.app`
-  (from `.env.test-accounts`) and **no** `VITE_GMI_API_KEY` set.
+  and **no** `VITE_GMI_API_KEY` set. The test account credentials live
+  in `.env.test-accounts` at the `qcut/` subdirectory — the file is
+  gitignored; pull it from the team password manager or create one
+  locally with the QCut beta-test credentials (`QCUT_TEST_EMAIL` /
+  `QCUT_TEST_PASSWORD`) then source it before launching Electron:
+  `set -a; source .env.test-accounts; set +a`.
 - Click **Generate** on each GMI model once: Seedance 2.0 260128,
   Veo 3.1 Lite, Kling V3, Kling V3 Omni, SkyReels V4. Confirm video
   returns.
 - Sign out → retry one model → confirm toast surfaces
-  *"GMI unavailable. Sign in to your QCut account, or set
-  VITE_GMI_API_KEY."* instead of silent skip.
+  *"GMI unavailable. Please sign in to your QCut account and try
+  again."* instead of silent skip.
 
 ## Tests — file paths and results
 
@@ -166,7 +171,7 @@ just reload the renderer.**
 | `apps/web/src/lib/ai-video/core/__tests__/fal-request-proxy.test.ts`              | Regression: FAL relay still works after refactor  | **6 pass**   |
 
 Run command used:
-```
+```bash
 bunx vitest run \
   src/lib/ai-clients/__tests__/gmi-client.test.ts \
   src/lib/ai-video/core/__tests__/license-relay.test.ts \

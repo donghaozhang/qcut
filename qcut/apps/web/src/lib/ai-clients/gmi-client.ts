@@ -43,8 +43,10 @@ import type {
 const GMI_API_BASE =
 	"https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey";
 
+// User-facing. Keep actionable for end users; the developer-only escape
+// hatch (VITE_GMI_API_KEY) is logged to DevTools instead of surfaced here.
 const MISSING_CREDENTIALS_MESSAGE =
-	"GMI unavailable. Sign in to your QCut account, or set VITE_GMI_API_KEY.";
+	"GMI unavailable. Please sign in to your QCut account and try again.";
 
 let cachedGmiApiKey: string | null = null;
 
@@ -109,9 +111,14 @@ function sleep(ms: number): Promise<void> {
 
 async function readErrorDetail(response: Response): Promise<string> {
 	const errorData = await response.json().catch(() => ({}));
+	const data = errorData as Record<string, unknown>;
 	return (
-		((errorData as Record<string, unknown>).detail as string | undefined) ||
-		((errorData as Record<string, unknown>).message as string | undefined) ||
+		(data.detail as string | undefined) ||
+		(data.message as string | undefined) ||
+		// The license-server relay shapes its own errors as `{ error: "..." }`
+		// — pick that up so messages like "API key not configured for provider: gmi"
+		// aren't swallowed by the generic statusText fallback.
+		(data.error as string | undefined) ||
 		response.statusText
 	);
 }
@@ -327,37 +334,64 @@ export const gmiClient: ProviderClient = {
 		const maxAttempts = options?.maxAttempts ?? 360;
 		const intervalMs = options?.pollIntervalMs ?? 5000;
 
-		const finish = (result: ProviderPollResult): ProviderPollResult => {
+		const finish = (
+			result: ProviderPollResult,
+			reason: "provider-failed" | "poll-http-error" = "provider-failed"
+		): ProviderPollResult => {
 			const pending = pendingRelayDeductions.get(requestId);
 			pendingRelayDeductions.delete(requestId);
 			if (pending && result.status === "failed") {
-				scheduleRefund(
-					pending.credits,
-					"provider-failed",
-					pending.sessionToken
-				);
+				scheduleRefund(pending.credits, reason, pending.sessionToken);
 			}
 			return result;
 		};
 
 		for (let attempt = 0; attempt < maxAttempts; attempt++) {
-			const response = apiKey
-				? await fetch(`${GMI_API_BASE}/requests/${requestId}`, {
-						method: "GET",
-						headers: { Authorization: `Bearer ${apiKey}` },
-						signal: options?.signal,
-					})
-				: await proxyStatus({
-						provider: "gmi",
-						requestId,
-						signal: options?.signal,
-						sessionToken,
-					});
+			let response: Response;
+			try {
+				response = apiKey
+					? await fetch(`${GMI_API_BASE}/requests/${requestId}`, {
+							method: "GET",
+							headers: { Authorization: `Bearer ${apiKey}` },
+							signal: options?.signal,
+						})
+					: await proxyStatus({
+							provider: "gmi",
+							requestId,
+							signal: options?.signal,
+							sessionToken,
+						});
+			} catch (error) {
+				// Network error / AbortError — refund the deduction so a
+				// transient connection blip doesn't burn the user's credits.
+				finish(
+					{
+						status: "failed",
+						error:
+							error instanceof Error
+								? `GMI poll transport error: ${error.message}`
+								: "GMI poll transport error",
+					},
+					"poll-http-error"
+				);
+				throw error;
+			}
 
 			if (!response.ok) {
-				throw new Error(
+				// HTTP 4xx/5xx — refund before surfacing the error so a
+				// provider-side 5xx doesn't leave the deduction orphaned in
+				// `pendingRelayDeductions` (which is lost on page reload).
+				const err = new Error(
 					`GMI poll failed (${response.status}): ${response.statusText}`
 				);
+				finish(
+					{
+						status: "failed",
+						error: err.message,
+					},
+					"poll-http-error"
+				);
+				throw err;
 			}
 
 			const data = (await response.json()) as GmiRequestStatusResponse;
