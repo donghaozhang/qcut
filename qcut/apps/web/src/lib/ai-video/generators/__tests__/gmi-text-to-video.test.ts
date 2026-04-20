@@ -17,6 +17,7 @@ import {
 	generateKlingV3GmiTextVideo,
 	generateKlingOmniTextVideo,
 	generateSeedance260128TextVideo,
+	generateSeedanceFast260128TextVideo,
 	generateSkyreelsV4TextVideo,
 } from "../gmi-text-to-video";
 
@@ -202,6 +203,42 @@ describe("generateSeedance260128TextVideo", () => {
 
 		await expect(
 			generateSeedance260128TextVideo({ prompt: "x" })
+		).rejects.toThrow("boom");
+	});
+});
+
+describe("generateSeedanceFast260128TextVideo", () => {
+	it("submits to the `-fast-` endpoint with identical payload shape", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(successPollResult);
+
+		await generateSeedanceFast260128TextVideo({
+			prompt: "Draft idea",
+			duration: 4,
+			resolution: "720p",
+			ratio: "16:9",
+			generateAudio: true,
+		});
+
+		expect(mockedSubmit).toHaveBeenCalledWith(
+			"seedance-2-0-fast-260128",
+			{
+				prompt: "Draft idea",
+				duration: 4,
+				resolution: "720p",
+				ratio: "16:9",
+				generate_audio: true,
+			},
+			"gmi"
+		);
+	});
+
+	it("surfaces errors with the fast-tier label", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(failedPollResult);
+
+		await expect(
+			generateSeedanceFast260128TextVideo({ prompt: "x" })
 		).rejects.toThrow("boom");
 	});
 });

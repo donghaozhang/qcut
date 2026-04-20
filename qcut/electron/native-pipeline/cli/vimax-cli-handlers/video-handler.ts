@@ -49,7 +49,9 @@ import { uploadFileForReference } from "../../output/upload-helper.js";
 import {
 	adaptShotForSeedance,
 	resolveSeedanceFamily,
+	resolveSeedanceTier,
 	type AdaptedShot,
+	type SeedanceTier,
 	type SeedanceFamily,
 } from "./video-shot-adapter.js";
 import { ensureKlingElements } from "./kling-element-orchestrator.js";
@@ -218,8 +220,10 @@ export async function handleVimaxNovel2Video(
 		durationOverride ?? clampShotDuration(shot.durationSeconds);
 
 	let family: SeedanceFamily;
+	let tier: SeedanceTier;
 	try {
 		family = resolveSeedanceFamily(options.model);
+		tier = resolveSeedanceTier(options.model);
 	} catch (err) {
 		return {
 			success: false,
@@ -432,7 +436,8 @@ export async function handleVimaxNovel2Video(
 				characterDescriptions,
 			},
 			portraitCatalog,
-			family
+			family,
+			tier
 		);
 
 		const shotStep = startStep(

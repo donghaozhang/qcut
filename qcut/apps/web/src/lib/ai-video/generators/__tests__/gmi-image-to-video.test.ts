@@ -19,6 +19,8 @@ import {
 	generateKlingMotionControlVideo,
 	generateSeedance260128ImageVideo,
 	generateSeedance260128ReferenceVideo,
+	generateSeedanceFast260128ImageVideo,
+	generateSeedanceFast260128ReferenceVideo,
 	generateSkyreelsV4ImageVideo,
 } from "../gmi-image-to-video";
 
@@ -296,6 +298,57 @@ describe("generateSeedance260128ReferenceVideo", () => {
 				referenceImages: ["https://example.com/a.jpg"],
 			})
 		).rejects.toThrow("boom");
+	});
+});
+
+describe("generateSeedanceFast260128ImageVideo", () => {
+	it("submits to the `-fast-` endpoint with first_frame", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(successPollResult);
+
+		await generateSeedanceFast260128ImageVideo({
+			prompt: "draft",
+			firstFrame: "https://example.com/f.jpg",
+			duration: 4,
+		});
+
+		const [endpoint, payload] = mockedSubmit.mock.calls[0];
+		expect(endpoint).toBe("seedance-2-0-fast-260128");
+		expect(payload).toMatchObject({
+			prompt: "draft",
+			first_frame: "https://example.com/f.jpg",
+			duration: 4,
+		});
+	});
+
+	it("throws when firstFrame is missing", async () => {
+		await expect(
+			generateSeedanceFast260128ImageVideo({ prompt: "p", firstFrame: "" })
+		).rejects.toThrow(/first-frame/);
+	});
+});
+
+describe("generateSeedanceFast260128ReferenceVideo", () => {
+	it("submits to the `-fast-` endpoint with reference images", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(successPollResult);
+
+		await generateSeedanceFast260128ReferenceVideo({
+			prompt: "draft",
+			referenceImages: ["https://example.com/ref.jpg"],
+		});
+
+		const [endpoint] = mockedSubmit.mock.calls[0];
+		expect(endpoint).toBe("seedance-2-0-fast-260128");
+	});
+
+	it("throws when referenceImages is empty", async () => {
+		await expect(
+			generateSeedanceFast260128ReferenceVideo({
+				prompt: "p",
+				referenceImages: [],
+			})
+		).rejects.toThrow(/reference image/);
 	});
 });
 

@@ -144,7 +144,14 @@ export async function executeStep(
 	// honors `ratio` — silently losing the user's override. Remap so the
 	// user-supplied value wins. Mirrors the mapping done by the shot
 	// adapter in `flow novel2video` (see video-shot-adapter.ts:baseGmiPayload).
-	if (provider === "gmi" && model.endpoint === "seedance-2-0-260128") {
+	// Covers both `seedance-2-0-260128` (standard) and `seedance-2-0-fast-260128`
+	// (fast tier) — they share the same payload shape and both need the
+	// `aspect_ratio` → `ratio` remap.
+	if (
+		provider === "gmi" &&
+		(model.endpoint === "seedance-2-0-260128" ||
+			model.endpoint === "seedance-2-0-fast-260128")
+	) {
 		if (payload.aspect_ratio !== undefined) {
 			payload.ratio = payload.aspect_ratio;
 			payload.aspect_ratio = undefined;
