@@ -166,9 +166,7 @@ export async function makeFalRequest(
 						amount,
 						modelKey: options.modelKey,
 						description: `FAL — ${options.modelKey}${
-							options.durationSeconds
-								? ` (${options.durationSeconds}s)`
-								: ""
+							options.durationSeconds ? ` (${options.durationSeconds}s)` : ""
 						}`,
 					};
 				}

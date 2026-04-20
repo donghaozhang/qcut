@@ -189,26 +189,23 @@ describe("gmiClient", () => {
 			["seedance-2-0-260128", 4, 21],
 			["seedance-2-0-fast-260128", 4, 21],
 			["seedance-2-0-260128", 8, 42],
-		])(
-			"maps GMI endpoint %s (%ss) back to the renderer modelKey for credit pricing",
-			async (endpoint, duration, expectedCredits) => {
-				vi.mocked(getSessionToken).mockResolvedValue("session-xyz");
-				vi.mocked(proxySubmit).mockResolvedValueOnce({
-					status: 200,
-					ok: true,
-					json: async () => ({ request_id: "req" }),
-				} as unknown as Response);
+		])("maps GMI endpoint %s (%ss) back to the renderer modelKey for credit pricing", async (endpoint, duration, expectedCredits) => {
+			vi.mocked(getSessionToken).mockResolvedValue("session-xyz");
+			vi.mocked(proxySubmit).mockResolvedValueOnce({
+				status: 200,
+				ok: true,
+				json: async () => ({ request_id: "req" }),
+			} as unknown as Response);
 
-				await gmiClient.submit(endpoint as string, {
-					prompt: "p",
-					duration,
-				});
+			await gmiClient.submit(endpoint as string, {
+				prompt: "p",
+				duration,
+			});
 
-				const call = vi.mocked(proxySubmit).mock.calls[0][0];
-				expect(call.credits?.amount).toBe(expectedCredits);
-				expect(call.credits?.modelKey).toMatch(/^gmi_seedance_2_0_/);
-			}
-		);
+			const call = vi.mocked(proxySubmit).mock.calls[0][0];
+			expect(call.credits?.amount).toBe(expectedCredits);
+			expect(call.credits?.modelKey).toMatch(/^gmi_seedance_2_0_/);
+		});
 
 		it("throws InsufficientCreditsError with balance on 402", async () => {
 			vi.mocked(getSessionToken).mockResolvedValue("session-xyz");

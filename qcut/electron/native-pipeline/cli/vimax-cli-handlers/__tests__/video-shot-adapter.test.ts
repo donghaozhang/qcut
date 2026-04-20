@@ -967,9 +967,7 @@ describe("resolveSeedanceTier", () => {
 	it("returns standard by default", () => {
 		expect(resolveSeedanceTier(undefined)).toBe("standard");
 		expect(resolveSeedanceTier("gmi_seedance_2_0_260128")).toBe("standard");
-		expect(resolveSeedanceTier("gmi_seedance_2_0_260128_i2v")).toBe(
-			"standard"
-		);
+		expect(resolveSeedanceTier("gmi_seedance_2_0_260128_i2v")).toBe("standard");
 	});
 
 	it("detects the fast tier on both bare and suffixed model keys", () => {
@@ -1040,9 +1038,7 @@ describe("adaptShotForSeedance — fast tier", () => {
 		);
 		expect(adapted.endpoint).toBe(SEEDANCE_FAST_ENDPOINT);
 		expect(adapted.variant).toBe("gmi_seedance_2_0_fast_260128_ref2v");
-		expect(adapted.payload.reference_images).toEqual([
-			"https://cdn/alice.png",
-		]);
+		expect(adapted.payload.reference_images).toEqual(["https://cdn/alice.png"]);
 	});
 
 	it("defaults to standard tier when the argument is omitted", () => {

@@ -121,7 +121,7 @@ export function creditsFromParsedPrice(
 				// know about seconds (most video pipelines) don't need a second
 				// param for audio-only per-minute models.
 				rawCredits =
-					(amountUsd * params.durationSeconds) / 60 * CREDIT_USD_MULTIPLIER;
+					((amountUsd * params.durationSeconds) / 60) * CREDIT_USD_MULTIPLIER;
 			} else {
 				return null;
 			}
@@ -129,7 +129,7 @@ export function creditsFromParsedPrice(
 		case "per-1k-chars":
 			if (typeof params?.characterCount !== "number") return null;
 			rawCredits =
-				(amountUsd * params.characterCount) / 1000 * CREDIT_USD_MULTIPLIER;
+				((amountUsd * params.characterCount) / 1000) * CREDIT_USD_MULTIPLIER;
 			break;
 		case "per-megapixel":
 			if (typeof params?.megapixels !== "number") return null;

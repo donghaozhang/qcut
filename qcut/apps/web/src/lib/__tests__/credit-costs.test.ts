@@ -29,15 +29,12 @@ describe("credit-costs — registry-driven pricing (1 credit ≈ $0.01)", () => 
 		["runway_gen45_t2v", 5, 250],
 		//   $0.25/s × 10 × 100 = 250
 		["runway_gen4_turbo_t2v", 10, 250],
-	])(
-		"prices GMI/Runway T2V %s @ %ss as %s credits",
-		(modelKey, duration, expected) => {
-			const got = estimateCreditCost(modelKey as string, {
-				durationSeconds: duration as number,
-			});
-			expect(got).toBe(expected);
-		}
-	);
+	])("prices GMI/Runway T2V %s @ %ss as %s credits", (modelKey, duration, expected) => {
+		const got = estimateCreditCost(modelKey as string, {
+			durationSeconds: duration as number,
+		});
+		expect(got).toBe(expected);
+	});
 
 	it("uses the upper bound for fixed-price ranges", () => {
 		// `seedance_pro` is `$0.62` → 0.62 × 100 = 62 credits (fixed).
@@ -71,21 +68,18 @@ describe("credit-costs — registry-driven pricing (1 credit ≈ $0.01)", () => 
 		["qwen3_tts", { characterCount: 2000 }, 18],
 		// Chatterbox TTS Turbo $0.02/1k chars × 1000 = 2.
 		["chatterbox_tts_turbo", { characterCount: 1000 }, 2],
-	] as const)(
-		"prices speech model %s with %o as %s credits",
-		(modelKey, params, expected) => {
-			expect(
-				estimateCreditCost(modelKey as string, params as Record<string, number>)
-			).toBe(expected);
-		}
-	);
+	] as const)("prices speech model %s with %o as %s credits", (modelKey, params, expected) => {
+		expect(
+			estimateCreditCost(modelKey as string, params as Record<string, number>)
+		).toBe(expected);
+	});
 
 	it("applies overrides ahead of the registry lookup", () => {
 		// ElevenLabs TTS lives in COST_OVERRIDES — 0.1 credits per 1k chars.
 		// 1000 chars → round(0.1) = 1 credit (min of 1).
-		expect(
-			estimateCreditCost("elevenlabs-tts", { characterCount: 1000 })
-		).toBe(1);
+		expect(estimateCreditCost("elevenlabs-tts", { characterCount: 1000 })).toBe(
+			1
+		);
 		// 50_000 chars → round(0.1 × 50) = 5 credits.
 		expect(
 			estimateCreditCost("elevenlabs-tts", { characterCount: 50_000 })

@@ -82,9 +82,9 @@ aiProxyRoutes.post("/proxy", async (c) => {
 		// Deduct credits if the client requested it. Keeps the post-deduction
 		// balance so we can echo it back on the successful response for
 		// client-side balance sync.
-		let postDeductionBalance: Awaited<
-			ReturnType<typeof deductCreditsForUser>
-		>["balance"] | null = null;
+		let postDeductionBalance:
+			| Awaited<ReturnType<typeof deductCreditsForUser>>["balance"]
+			| null = null;
 		if (credits) {
 			const amount = Number(credits.amount);
 			const modelKey =
@@ -190,7 +190,8 @@ aiProxyRoutes.post("/refund", async (c) => {
 			userId,
 			amount,
 			modelKey,
-			description: description.length > 0 ? description : `refund — ${modelKey}`,
+			description:
+				description.length > 0 ? description : `refund — ${modelKey}`,
 		});
 
 		if (!result.success) {

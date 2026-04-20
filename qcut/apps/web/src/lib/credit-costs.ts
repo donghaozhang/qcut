@@ -146,10 +146,7 @@ function computeFromOverride(
 			);
 		case "per-minute":
 			if (params?.minutes) {
-				return Math.max(
-					1,
-					Math.round(amountPerUnitCredits * params.minutes)
-				);
+				return Math.max(1, Math.round(amountPerUnitCredits * params.minutes));
 			}
 			if (params?.durationSeconds) {
 				return Math.max(
@@ -166,10 +163,7 @@ function computeFromOverride(
 			);
 		case "per-megapixel":
 			if (!params?.megapixels) return 1;
-			return Math.max(
-				1,
-				Math.round(amountPerUnitCredits * params.megapixels)
-			);
+			return Math.max(1, Math.round(amountPerUnitCredits * params.megapixels));
 	}
 }
 

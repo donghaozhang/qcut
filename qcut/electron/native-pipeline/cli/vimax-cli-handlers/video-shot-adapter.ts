@@ -166,9 +166,7 @@ export function resolveSeedanceFamily(
 }
 
 /** Map a CLI `--model` value to a SeedanceTier (standard vs fast). */
-export function resolveSeedanceTier(
-	model: string | undefined
-): SeedanceTier {
+export function resolveSeedanceTier(model: string | undefined): SeedanceTier {
 	if (!model) return DEFAULT_SEEDANCE_TIER;
 	if (
 		model === "gmi_seedance_2_0_fast_260128" ||
@@ -294,7 +292,9 @@ type VariantPayload = Pick<
 	"variant" | "endpoint" | "provider" | "payload"
 >;
 
-type GmiVariantPrefix = "gmi_seedance_2_0_260128" | "gmi_seedance_2_0_fast_260128";
+type GmiVariantPrefix =
+	| "gmi_seedance_2_0_260128"
+	| "gmi_seedance_2_0_fast_260128";
 
 function gmiVariantPrefix(tier: SeedanceTier): GmiVariantPrefix {
 	return tier === "fast"
@@ -332,10 +332,7 @@ function buildGmiRef2V(
 	};
 }
 
-function buildGmiT2V(
-	common: CommonShape,
-	tier: SeedanceTier
-): VariantPayload {
+function buildGmiT2V(common: CommonShape, tier: SeedanceTier): VariantPayload {
 	return {
 		variant: `${gmiVariantPrefix(tier)}_t2v` as SeedanceVariant,
 		endpoint: seedanceEndpointFor(tier),

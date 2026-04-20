@@ -20,9 +20,7 @@ export class InsufficientCreditsError extends Error {
 			`Insufficient credits for ${params.modelKey} — needed ${params.required.toFixed(
 				2
 			)}${
-				params.balance
-					? `, have ${params.balance.totalCredits.toFixed(2)}`
-					: ""
+				params.balance ? `, have ${params.balance.totalCredits.toFixed(2)}` : ""
 			}.`
 		);
 		this.required = params.required;

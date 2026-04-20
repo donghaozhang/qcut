@@ -284,8 +284,7 @@ export function useHandleGenerate(
 						description: message.replace(/^[^:]*:\s*/, ""),
 						action: {
 							label: "Top up",
-							onClick: () =>
-								useLicenseStore.getState().openBuyCreditsPage(),
+							onClick: () => useLicenseStore.getState().openBuyCreditsPage(),
 						},
 					});
 					return;

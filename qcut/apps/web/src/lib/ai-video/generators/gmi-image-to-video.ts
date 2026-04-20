@@ -244,7 +244,9 @@ async function dispatchSeedance260128ImageFamily(
 	params: Seedance260128ImageParams
 ): Promise<VideoGenerationResponse> {
 	if (!params.firstFrame) {
-		throw new Error(`${modelLabel} image-to-video requires a first-frame image`);
+		throw new Error(
+			`${modelLabel} image-to-video requires a first-frame image`
+		);
 	}
 
 	const jobId = generateJobId();
@@ -263,9 +265,7 @@ async function dispatchSeedance260128ImageFamily(
 	);
 
 	if (pollResult.status === "failed") {
-		throw new Error(
-			pollResult.error ?? `${modelLabel} image-to-video failed`
-		);
+		throw new Error(pollResult.error ?? `${modelLabel} image-to-video failed`);
 	}
 
 	return {

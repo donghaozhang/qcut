@@ -67,7 +67,8 @@ describe("credit coverage across the entire AI_MODELS registry", () => {
 		// Every fallback MUST be a recognised TBD / empty entry — not a
 		// typo'd price.
 		for (const r of fallbacks) {
-			const priceLooksIntentional = /^\s*tbd\s*$/i.test(r.price ?? "") ||
+			const priceLooksIntentional =
+				/^\s*tbd\s*$/i.test(r.price ?? "") ||
 				(r.price ?? "").trim().length === 0;
 			if (!priceLooksIntentional) {
 				// eslint-disable-next-line no-console
@@ -80,7 +81,9 @@ describe("credit coverage across the entire AI_MODELS registry", () => {
 	});
 
 	it("every model with a non-TBD price produces > 0 credits for its representative unit", () => {
-		const priced = rows.filter((r) => r.parsed !== null && r.parsed.amountUsd > 0);
+		const priced = rows.filter(
+			(r) => r.parsed !== null && r.parsed.amountUsd > 0
+		);
 		for (const r of priced) {
 			// A $0.00 model ("free remix") is excluded above. Any other
 			// parseable priced model must bill at least 1 credit for the
