@@ -1,8 +1,8 @@
 # GMI Cloud — License-Server Relay (implementation log)
 
 > **Status: shipped on branch `credit-system`.** All subtasks T1–T6
-> complete. T7 (manual login verification) is the only step left for
-> the user to run.
+> complete plus one runtime-bridge fix (T8, below — uncovered during
+> T7). T7 manual verification is the only step left for the user.
 
 Target: logged-in QCut users should NOT need a local `VITE_GMI_API_KEY` to generate video on any GMI model (Seedance 2.0 260128, Veo 3.1 Lite, Kling V3, Kling V3 Omni, SkyReels V4). The key is already held on the license server; the client needs to route through it when a session token is present.
 
@@ -116,6 +116,35 @@ Long-term invariants:
 - `docs/task/gmi-video-cli-guide/04-gmi-models.md` — new
   **Authentication for the editor UI** section referencing the shared
   helpers and calling out when a local key is still required.
+
+### T8 — Expose `license.getAuthToken` across the platform bridge ✅
+
+**Uncovered during T7 manual test.** The plan assumed
+`platform().license.getAuthToken()` existed — which it did in the
+Electron main process (`electron/license-handler.ts:238-240`) but was
+never threaded through the preload/type layers. Result: `getSessionToken()`
+always returned `""`, `isAvailable()` returned `false`, and the router
+threw *"Provider 'gmi' is not available. Configure the API key:
+GMI_API_KEY."* before the relay code ever ran.
+
+Wired `getAuthToken` through four layers:
+
+1. `packages/platform-core/src/types/core-api.ts:116-122` — added
+   `getAuthToken(): Promise<string>` to `PlatformLicenseAPI`. JSDoc
+   explains renderer relay use case.
+2. `packages/platform-desktop/src/index.ts:76` — desktop adapter
+   forwards to `api().license.getAuthToken()`.
+3. `packages/platform-web/src/index.ts` — web stub returns `""`
+   (keeps relay disabled in pure-browser mode).
+4. `electron/preload.ts:486` — added
+   `getAuthToken: () => ipcRenderer.invoke("license:get-auth-token")`.
+5. `apps/web/src/types/electron/api-license.ts:36` — matching renderer
+   API type.
+
+No Electron handler change was needed — the IPC handler was already
+registered. **Preload is baked into the main-process bundle, so users
+must fully restart Electron (Cmd+Q + re-run `bun run electron:dev`), not
+just reload the renderer.**
 
 ### T7 — Manual verification (pending user)
 

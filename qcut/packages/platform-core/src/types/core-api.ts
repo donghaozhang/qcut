@@ -115,6 +115,12 @@ export interface PlatformLicenseAPI {
 	): Promise<boolean>;
 	setAuthToken(token: string): Promise<boolean>;
 	clearAuthToken(): Promise<boolean>;
+	/**
+	 * Returns the current auth token held by the desktop shell, or "" if the
+	 * user is signed out. Used by renderer code (e.g. AI provider relays)
+	 * that needs to forward the session to the QCut license server.
+	 */
+	getAuthToken(): Promise<string>;
 	emailLogin(
 		email: string,
 		password: string
