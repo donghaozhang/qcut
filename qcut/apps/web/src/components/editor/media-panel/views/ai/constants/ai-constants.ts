@@ -161,9 +161,19 @@ validateUniqueAIModelIds({
 /**
  * UI constraints and limits for the AI video generation interface.
  * Controls input validation, history management, and generation timeouts.
+ *
+ * Prompt thresholds (chars):
+ *   - SOFT_PROMPT_WARN: 2500. Some models (e.g. Kling V3 Omni) cap at this
+ *     length. Show a yellow "may be too long" hint, but DO NOT block input.
+ *   - STRONG_PROMPT_WARN: 8000. Practical ceiling for Seedance and others.
+ *     Show a red "likely to be rejected" hint, but DO NOT block input.
+ *   - MAX_PROMPT_CHARS: 8000. Default reference for the "X chars remaining"
+ *     counter; mirrors STRONG_PROMPT_WARN for non-Sora2 models.
  */
 export const UI_CONSTANTS = {
-	MAX_PROMPT_CHARS: 500,
+	MAX_PROMPT_CHARS: 8000,
+	SOFT_PROMPT_WARN_CHARS: 2500,
+	STRONG_PROMPT_WARN_CHARS: 8000,
 	MAX_IMAGE_SIZE_MB: 10,
 	MAX_HISTORY_ITEMS: 10,
 	POLLING_INTERVAL_MS: 2000,

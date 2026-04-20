@@ -23,6 +23,7 @@ import {
 	handleGmiKlingV3T2V,
 	handleGmiKlingOmniT2V,
 	handleSeedance260128T2V,
+	handleSeedanceFast260128T2V,
 } from "./handlers/text-to-video-handlers";
 import {
 	handleVeo31FastI2V,
@@ -50,6 +51,8 @@ import {
 	handleGmiKlingMotionControl,
 	handleSeedance260128I2V,
 	handleSeedance260128Ref2V,
+	handleSeedanceFast260128I2V,
+	handleSeedanceFast260128Ref2V,
 } from "./handlers/image-to-video-handlers-gmi";
 import {
 	handleWAN25I2V,
@@ -308,6 +311,8 @@ export async function routeTextToVideoHandler(
 			return handleGmiKlingOmniT2V(ctx, settings);
 		case "gmi_seedance_2_0_260128_t2v":
 			return handleSeedance260128T2V(ctx, settings);
+		case "gmi_seedance_2_0_fast_260128_t2v":
+			return handleSeedanceFast260128T2V(ctx, settings);
 		default:
 			return handleGenericT2V(ctx, settings);
 	}
@@ -389,6 +394,10 @@ export async function routeImageToVideoHandler(
 			return handleSeedance260128I2V(ctx, settings);
 		case "gmi_seedance_2_0_260128_ref2v":
 			return handleSeedance260128Ref2V(ctx, settings);
+		case "gmi_seedance_2_0_fast_260128_i2v":
+			return handleSeedanceFast260128I2V(ctx, settings);
+		case "gmi_seedance_2_0_fast_260128_ref2v":
+			return handleSeedanceFast260128Ref2V(ctx, settings);
 		default:
 			if (
 				VEO31_FRAME_MODELS.has(ctx.modelId) &&

@@ -786,6 +786,57 @@ export const I2V_MODELS = {
 		supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
 		supportedAspectRatios: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9"],
 	},
+	gmi_seedance_2_0_fast_260128_i2v: {
+		id: "gmi_seedance_2_0_fast_260128_i2v",
+		name: "Seedance 2.0 Fast 260128 I2V (GMI)",
+		badge: "\u26A1 Fast",
+		description:
+			"Lower-latency Seedance image-to-video — first/last-frame anchors, reference assets, native audio",
+		// Conservative placeholder — matches the standard tier. Reprice once
+		// GMI publishes the fast-tier rate.
+		price: "$0.052/s",
+		resolution: "480p / 720p / 1080p",
+		supportedResolutions: ["480p", "720p", "1080p"],
+		max_duration: 15,
+		category: "image",
+		requiredInputs: ["firstFrame"],
+		endpoints: {
+			image_to_video: "seedance-2-0-fast-260128",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+			generate_audio: true,
+		},
+		supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+		supportedAspectRatios: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9"],
+	},
+	gmi_seedance_2_0_fast_260128_ref2v: {
+		id: "gmi_seedance_2_0_fast_260128_ref2v",
+		name: "Seedance 2.0 Fast 260128 Ref2V (GMI)",
+		badge: "\u26A1 Fast",
+		description:
+			"Character-consistent Seedance video driven by a reference image (fast tier)",
+		// Conservative placeholder — matches the standard tier.
+		price: "$0.052/s",
+		resolution: "480p / 720p / 1080p",
+		supportedResolutions: ["480p", "720p", "1080p"],
+		max_duration: 15,
+		category: "image",
+		requiredInputs: ["referenceImage"],
+		endpoints: {
+			image_to_video: "seedance-2-0-fast-260128",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+			generate_audio: true,
+		},
+		supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+		supportedAspectRatios: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9"],
+	},
 	// --- Runway models ---
 	runway_gen45_i2v: {
 		id: "runway_gen45_i2v",
@@ -901,6 +952,8 @@ export const I2V_MODEL_ORDER: readonly I2VModelId[] = [
 	"gmi_kling_motion_control",
 	"gmi_seedance_2_0_260128_i2v",
 	"gmi_seedance_2_0_260128_ref2v",
+	"gmi_seedance_2_0_fast_260128_i2v",
+	"gmi_seedance_2_0_fast_260128_ref2v",
 	// Runway
 	"runway_gen45_i2v",
 	"runway_gen4_turbo_i2v",

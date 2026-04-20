@@ -6,10 +6,12 @@
  */
 
 import { useCallback } from "react";
+import { toast } from "sonner";
 import {
 	handleApiError,
 	type ProgressCallback,
 } from "@/lib/ai-clients/ai-video-client";
+import { useLicenseStore } from "@/stores/license-store";
 import { debugLogger } from "@/lib/debug/debug-logger";
 import {
 	routeTextToVideoHandler,
@@ -265,6 +267,32 @@ export function useHandleGenerate(
 				`\n📦 Starting generation for ${selectedModels.length} models`
 			);
 
+			// Track skip reasons across this generation pass so the same
+			// missing-key/config error only raises a single toast even when
+			// multiple models are selected.
+			const seenSkipReasons = new Set<string>();
+			const notifySkip = (modelId: string, reason: string | undefined) => {
+				const message = reason ?? "Generation skipped";
+				console.log(`  ⚠️ Skipping model - ${message}`);
+				if (seenSkipReasons.has(message)) return;
+				seenSkipReasons.add(message);
+
+				// Match the `InsufficientCreditsError` marker so we can show a
+				// targeted toast with a Top-up CTA instead of the generic error.
+				if (message.includes("Insufficient credits for")) {
+					toast.error("Not enough credits", {
+						description: message.replace(/^[^:]*:\s*/, ""),
+						action: {
+							label: "Top up",
+							onClick: () => useLicenseStore.getState().openBuyCreditsPage(),
+						},
+					});
+					return;
+				}
+
+				toast.error(message, { description: `Model: ${modelId}` });
+			};
+
 			// Sequential generation to avoid rate limits
 			for (let i = 0; i < selectedModels.length; i++) {
 				const modelId = selectedModels[i];
@@ -371,6 +399,12 @@ export function useHandleGenerate(
 						handlerCtx,
 						t2vSettings
 					);
+
+					if (handlerResult.shouldSkip) {
+						notifySkip(modelId, handlerResult.skipReason);
+						continue;
+					}
+
 					response = handlerResult.response;
 					console.log("  ✅ Text-to-video response:", response);
 				} else if (activeTab === "image") {
@@ -441,7 +475,7 @@ export function useHandleGenerate(
 					);
 
 					if (handlerResult.shouldSkip) {
-						console.log(`  ⚠️ Skipping model - ${handlerResult.skipReason}`);
+						notifySkip(modelId, handlerResult.skipReason);
 						continue;
 					}
 
@@ -470,7 +504,7 @@ export function useHandleGenerate(
 					);
 
 					if (handlerResult.shouldSkip) {
-						console.log(`  ⚠️ Skipping model - ${handlerResult.skipReason}`);
+						notifySkip(modelId, handlerResult.skipReason);
 						continue;
 					}
 
@@ -497,7 +531,7 @@ export function useHandleGenerate(
 					handlerResult = await routeAvatarHandler(handlerCtx, avatarSettings);
 
 					if (handlerResult.shouldSkip) {
-						console.log(`  ⚠️ Skipping model - ${handlerResult.skipReason}`);
+						notifySkip(modelId, handlerResult.skipReason);
 						continue;
 					}
 

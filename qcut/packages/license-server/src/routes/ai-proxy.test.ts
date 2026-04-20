@@ -21,6 +21,7 @@ vi.mock("../db/drizzle", () => ({
 
 vi.mock("../services/credit-service", () => ({
 	deductCreditsForUser: vi.fn(),
+	refundCreditsForUser: vi.fn(),
 }));
 
 // Mock auth middleware to inject userId
@@ -40,7 +41,9 @@ afterAll(() => {
 	globalThis.fetch = originalFetch;
 });
 
-const { deductCreditsForUser } = await import("../services/credit-service");
+const { deductCreditsForUser, refundCreditsForUser } = await import(
+	"../services/credit-service"
+);
 const { aiProxyRoutes } = await import("./ai-proxy");
 
 const ORIGINAL_ENV = { ...process.env };
@@ -220,6 +223,9 @@ describe("POST /api/ai/proxy", () => {
 			modelKey: "fal-test",
 			description: "Test gen",
 		});
+		// Server echoes the post-deduction balance via response header so the
+		// renderer can sync without a separate license round-trip.
+		expect(res.headers.get("x-credits-remaining")).toBe("40");
 	});
 
 	it("returns 402 when credits are insufficient", async () => {
@@ -263,6 +269,82 @@ describe("POST /api/ai/proxy", () => {
 		});
 
 		expect(deductCreditsForUser).not.toHaveBeenCalled();
+	});
+});
+
+// ── POST /api/ai/refund ─────────────────────────────────────────────────────
+
+describe("POST /api/ai/refund", () => {
+	it("returns 400 when amount is missing or non-positive", async () => {
+		const res = await buildApp().request("/api/ai/refund", {
+			method: "POST",
+			headers: jsonHeaders(),
+			body: JSON.stringify({ modelKey: "m", description: "d" }),
+		});
+		expect(res.status).toBe(400);
+	});
+
+	it("returns 400 when modelKey is missing", async () => {
+		const res = await buildApp().request("/api/ai/refund", {
+			method: "POST",
+			headers: jsonHeaders(),
+			body: JSON.stringify({ amount: 1, description: "d" }),
+		});
+		expect(res.status).toBe(400);
+	});
+
+	it("returns 200 and the new balance on a successful refund", async () => {
+		vi.mocked(refundCreditsForUser).mockResolvedValue({
+			success: true,
+			balance: {
+				planCredits: 52,
+				topUpCredits: 0,
+				totalCredits: 52,
+				planCreditsResetAt: "2026-05-01T00:00:00.000Z",
+			},
+		});
+
+		const res = await buildApp().request("/api/ai/refund", {
+			method: "POST",
+			headers: jsonHeaders(),
+			body: JSON.stringify({
+				amount: 2.08,
+				modelKey: "gmi_seedance_2_0_260128_t2v",
+				description: "GMI — refund",
+			}),
+		});
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.credits.totalCredits).toBe(52);
+		expect(refundCreditsForUser).toHaveBeenCalledWith({
+			userId: "test-user-1",
+			amount: 2.08,
+			modelKey: "gmi_seedance_2_0_260128_t2v",
+			description: "GMI — refund",
+		});
+	});
+
+	it("returns 409 when the refund is rejected (over-cap)", async () => {
+		vi.mocked(refundCreditsForUser).mockResolvedValue({
+			success: false,
+			balance: {
+				planCredits: 0,
+				topUpCredits: 0,
+				totalCredits: 0,
+				planCreditsResetAt: "2026-05-01T00:00:00.000Z",
+			},
+			reason: "Refund exceeds refundable deductions in the last 24h",
+		});
+		const res = await buildApp().request("/api/ai/refund", {
+			method: "POST",
+			headers: jsonHeaders(),
+			body: JSON.stringify({
+				amount: 100,
+				modelKey: "m",
+				description: "",
+			}),
+		});
+		expect(res.status).toBe(409);
 	});
 });
 

@@ -12,6 +12,8 @@ import {
 	generateKlingMotionControlVideo,
 	generateSeedance260128ImageVideo,
 	generateSeedance260128ReferenceVideo,
+	generateSeedanceFast260128ImageVideo,
+	generateSeedanceFast260128ReferenceVideo,
 } from "@/lib/ai-video";
 import { resolveGmiImageSource } from "@/lib/ai-video/generators/gmi-image-source";
 import type {
@@ -230,6 +232,78 @@ export async function handleSeedance260128Ref2V(
 		);
 
 		const response = await generateSeedance260128ReferenceVideo({
+			prompt: ctx.prompt,
+			referenceImages: [referenceImageSource],
+			duration: resolveSeedanceDuration(settings.duration),
+			resolution: resolveSeedanceResolution(settings.resolution),
+			ratio: resolveSeedanceRatio(settings.aspectRatio),
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle GMI Seedance 2.0 Fast 260128 image-to-video generation. */
+export async function handleSeedanceFast260128I2V(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.selectedImage) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "Seedance 2.0 Fast 260128 I2V requires a first-frame image",
+		};
+	}
+
+	try {
+		const imageSource = await resolveGmiImageSource(
+			settings.selectedImage,
+			settings.uploadImageToFal
+		);
+
+		const response = await generateSeedanceFast260128ImageVideo({
+			prompt: ctx.prompt,
+			firstFrame: imageSource,
+			duration: resolveSeedanceDuration(settings.duration),
+			resolution: resolveSeedanceResolution(settings.resolution),
+			ratio: resolveSeedanceRatio(settings.aspectRatio),
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle GMI Seedance 2.0 Fast 260128 reference-to-video generation. */
+export async function handleSeedanceFast260128Ref2V(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.selectedImage) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "Seedance 2.0 Fast 260128 Ref2V requires a reference image",
+		};
+	}
+
+	try {
+		const referenceImageSource = await resolveGmiImageSource(
+			settings.selectedImage,
+			settings.uploadImageToFal
+		);
+
+		const response = await generateSeedanceFast260128ReferenceVideo({
 			prompt: ctx.prompt,
 			referenceImages: [referenceImageSource],
 			duration: resolveSeedanceDuration(settings.duration),

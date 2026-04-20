@@ -20,7 +20,7 @@
  *
  * Prompt sanitization strips stage-direction markers (`△`) and
  * dialogue speaker tags but keeps the text after them. Prompts
- * longer than 500 chars are truncated on a word boundary.
+ * longer than 8000 chars are truncated on a word boundary.
  *
  * @module electron/native-pipeline/cli/vimax-cli-handlers/video-shot-adapter
  */
@@ -53,6 +53,9 @@ export type SeedanceVariant =
 	| "gmi_seedance_2_0_260128_ref2v"
 	| "gmi_seedance_2_0_260128_i2v"
 	| "gmi_seedance_2_0_260128_t2v"
+	| "gmi_seedance_2_0_fast_260128_ref2v"
+	| "gmi_seedance_2_0_fast_260128_i2v"
+	| "gmi_seedance_2_0_fast_260128_t2v"
 	| "seedance_2_0_ref2v"
 	| "seedance_2_0_i2v"
 	| "seedance_2_0"
@@ -60,6 +63,16 @@ export type SeedanceVariant =
 	| "gmi_kling_v3_omni_element"
 	| "gmi_kling_v3_omni_i2v"
 	| "gmi_kling_v3_omni_t2v";
+
+/**
+ * Latency tier for the Seedance 260128 family. Standard = non-fast
+ * (endpoint `seedance-2-0-260128`); Fast = lower-latency variant
+ * (endpoint `seedance-2-0-fast-260128`). Orthogonal to `SeedanceFamily`
+ * because fast only applies when `family === "gmi"`.
+ */
+export type SeedanceTier = "standard" | "fast";
+
+export const DEFAULT_SEEDANCE_TIER: SeedanceTier = "standard";
 
 export interface ShotInput {
 	shotId: string;
@@ -115,6 +128,12 @@ export interface AdaptedShot {
  * Prefer reading `adapted.endpoint` from `adaptShotForSeedance` output.
  */
 export const SEEDANCE_ENDPOINT = "seedance-2-0-260128";
+export const SEEDANCE_FAST_ENDPOINT = "seedance-2-0-fast-260128";
+
+/** Return the GMI endpoint string for a given Seedance tier. */
+export function seedanceEndpointFor(tier: SeedanceTier): string {
+	return tier === "fast" ? SEEDANCE_FAST_ENDPOINT : SEEDANCE_ENDPOINT;
+}
 
 /** Default family when the caller doesn't pass one (matches old behavior). */
 export const DEFAULT_SEEDANCE_FAMILY: SeedanceFamily = "gmi";
@@ -126,7 +145,9 @@ export function resolveSeedanceFamily(
 	if (!model) return DEFAULT_SEEDANCE_FAMILY;
 	if (
 		model === "gmi_seedance_2_0_260128" ||
-		model.startsWith("gmi_seedance_2_0_260128_")
+		model.startsWith("gmi_seedance_2_0_260128_") ||
+		model === "gmi_seedance_2_0_fast_260128" ||
+		model.startsWith("gmi_seedance_2_0_fast_260128_")
 	) {
 		return "gmi";
 	}
@@ -140,8 +161,20 @@ export function resolveSeedanceFamily(
 		return "kling-omni";
 	}
 	throw new Error(
-		`Unknown video model "${model}". Use "gmi_seedance_2_0_260128" (default), "seedance_2_0", "vidu_q3_ref2v_mix", or "gmi_kling_v3_omni".`
+		`Unknown video model "${model}". Use "gmi_seedance_2_0_260128" (default), "gmi_seedance_2_0_fast_260128", "seedance_2_0", "vidu_q3_ref2v_mix", or "gmi_kling_v3_omni".`
 	);
+}
+
+/** Map a CLI `--model` value to a SeedanceTier (standard vs fast). */
+export function resolveSeedanceTier(model: string | undefined): SeedanceTier {
+	if (!model) return DEFAULT_SEEDANCE_TIER;
+	if (
+		model === "gmi_seedance_2_0_fast_260128" ||
+		model.startsWith("gmi_seedance_2_0_fast_260128_")
+	) {
+		return "fast";
+	}
+	return "standard";
 }
 
 const MIN_DURATION_SEEDANCE = 4;
@@ -160,7 +193,25 @@ const MAX_VIDU_REFERENCES = 4;
  * the ref-image budget other families use.
  */
 const MAX_KLING_ELEMENTS = 4;
-const MAX_PROMPT_CHARS = 500;
+
+/**
+ * Per-family prompt-length cap (chars). Truncation is a final safety net
+ * to keep us under the upstream API's hard limit; it is not a stylistic
+ * recommendation. UI surfaces a softer warning at much lower thresholds.
+ *
+ * - Seedance: no documented hard cap; 8000 is a generous practical ceiling.
+ * - Kling V3 Omni: GMI documents a 2500-char top-level prompt cap.
+ * - Vidu: shares Seedance's ceiling (no documented cap).
+ */
+const PROMPT_CHAR_LIMITS: Record<SeedanceFamily, number> = {
+	gmi: 8000,
+	fal: 8000,
+	vidu: 8000,
+	"kling-omni": 2500,
+};
+
+/** Default fallback when caller doesn't pass a per-family limit. */
+const DEFAULT_MAX_PROMPT_CHARS = 8000;
 
 /** Clamp a duration to the valid integer range for the target family. */
 export function clampDuration(
@@ -181,9 +232,14 @@ export function clampDuration(
  *   - Strip leading `△` from each line (stage-direction marker).
  *   - Strip short speaker tags like `<name>:` or `<name>（<note>）:`.
  *   - Collapse whitespace runs.
- *   - Truncate to 500 chars on a word boundary.
+ *   - Truncate on a word boundary at `maxChars` (default 8000).
+ *
+ * Pass `maxChars` to use a tighter per-family cap (e.g. 2500 for Kling).
  */
-export function sanitizeShotPrompt(raw: string): string {
+export function sanitizeShotPrompt(
+	raw: string,
+	maxChars: number = DEFAULT_MAX_PROMPT_CHARS
+): string {
 	const lines = raw
 		.split(/\r?\n/)
 		.map((line) => {
@@ -203,12 +259,12 @@ export function sanitizeShotPrompt(raw: string): string {
 	let combined = lines.join(" ");
 	combined = combined.replace(/\s+/g, " ").trim();
 
-	if (combined.length <= MAX_PROMPT_CHARS) return combined;
+	if (combined.length <= maxChars) return combined;
 
 	// Truncate on the last whitespace boundary within the window.
-	const slice = combined.slice(0, MAX_PROMPT_CHARS);
+	const slice = combined.slice(0, maxChars);
 	const lastSpace = slice.lastIndexOf(" ");
-	if (lastSpace > MAX_PROMPT_CHARS * 0.7) return slice.slice(0, lastSpace);
+	if (lastSpace > maxChars * 0.7) return slice.slice(0, lastSpace);
 	return slice;
 }
 
@@ -236,35 +292,50 @@ type VariantPayload = Pick<
 	"variant" | "endpoint" | "provider" | "payload"
 >;
 
+type GmiVariantPrefix =
+	| "gmi_seedance_2_0_260128"
+	| "gmi_seedance_2_0_fast_260128";
+
+function gmiVariantPrefix(tier: SeedanceTier): GmiVariantPrefix {
+	return tier === "fast"
+		? "gmi_seedance_2_0_fast_260128"
+		: "gmi_seedance_2_0_260128";
+}
+
 function buildGmiI2V(
 	common: CommonShape,
-	firstFrameUrl: string
+	firstFrameUrl: string,
+	tier: SeedanceTier
 ): VariantPayload {
 	const payload = baseGmiPayload(common);
 	payload.first_frame = firstFrameUrl;
 	return {
-		variant: "gmi_seedance_2_0_260128_i2v",
-		endpoint: SEEDANCE_ENDPOINT,
+		variant: `${gmiVariantPrefix(tier)}_i2v` as SeedanceVariant,
+		endpoint: seedanceEndpointFor(tier),
 		provider: "gmi",
 		payload,
 	};
 }
 
-function buildGmiRef2V(common: CommonShape, refs: string[]): VariantPayload {
+function buildGmiRef2V(
+	common: CommonShape,
+	refs: string[],
+	tier: SeedanceTier
+): VariantPayload {
 	const payload = baseGmiPayload(common);
 	payload.reference_images = refs;
 	return {
-		variant: "gmi_seedance_2_0_260128_ref2v",
-		endpoint: SEEDANCE_ENDPOINT,
+		variant: `${gmiVariantPrefix(tier)}_ref2v` as SeedanceVariant,
+		endpoint: seedanceEndpointFor(tier),
 		provider: "gmi",
 		payload,
 	};
 }
 
-function buildGmiT2V(common: CommonShape): VariantPayload {
+function buildGmiT2V(common: CommonShape, tier: SeedanceTier): VariantPayload {
 	return {
-		variant: "gmi_seedance_2_0_260128_t2v",
-		endpoint: SEEDANCE_ENDPOINT,
+		variant: `${gmiVariantPrefix(tier)}_t2v` as SeedanceVariant,
+		endpoint: seedanceEndpointFor(tier),
 		provider: "gmi",
 		payload: baseGmiPayload(common),
 	};
@@ -461,12 +532,16 @@ function buildKlingT2V(common: CommonShape): VariantPayload {
 export function adaptShotForSeedance(
 	shot: ShotInput,
 	portraits: Record<string, string>,
-	family: SeedanceFamily = DEFAULT_SEEDANCE_FAMILY
+	family: SeedanceFamily = DEFAULT_SEEDANCE_FAMILY,
+	tier: SeedanceTier = DEFAULT_SEEDANCE_TIER
 ): AdaptedShot {
 	const minDuration =
 		family === "kling-omni" ? MIN_DURATION_KLING : MIN_DURATION_SEEDANCE;
 	const duration = clampDuration(shot.durationSeconds, { minDuration });
-	const scenePrompt = sanitizeShotPrompt(shot.description || "");
+	const scenePrompt = sanitizeShotPrompt(
+		shot.description || "",
+		PROMPT_CHAR_LIMITS[family]
+	);
 	const styleTrim = shot.stylePrompt?.trim() ?? "";
 
 	// Partition referenced characters into catalogued vs. skipped.
@@ -529,7 +604,15 @@ export function adaptShotForSeedance(
 	} else {
 		parts.push(scenePrompt);
 	}
-	const promptForCommon = parts.join(", ");
+	// Re-truncate the assembled prompt so the per-family cap also covers the
+	// stylePrompt + [Reference: …] clauses that got appended AFTER the
+	// initial `sanitizeShotPrompt` call on `shot.description`. Without this,
+	// a long style prefix or many reference clauses can push `payload.prompt`
+	// past `PROMPT_CHAR_LIMITS[family]` (notably the 2500-char Kling cap).
+	const promptForCommon = sanitizeShotPrompt(
+		parts.join(", "),
+		PROMPT_CHAR_LIMITS[family]
+	);
 
 	const common: CommonShape = {
 		prompt: promptForCommon,
@@ -551,7 +634,7 @@ export function adaptShotForSeedance(
 				? buildKlingI2V(common, shot.firstFrameUrl)
 				: family === "fal" || family === "vidu"
 					? buildFalI2V(common, shot.firstFrameUrl)
-					: buildGmiI2V(common, shot.firstFrameUrl);
+					: buildGmiI2V(common, shot.firstFrameUrl, tier);
 		return {
 			...built,
 			referenceUrls: [],
@@ -595,7 +678,7 @@ export function adaptShotForSeedance(
 				? buildViduRef2V(common, refs)
 				: family === "fal"
 					? buildFalRef2V(common, refs)
-					: buildGmiRef2V(common, refs);
+					: buildGmiRef2V(common, refs, tier);
 		return {
 			...built,
 			referenceUrls: refs,
@@ -611,7 +694,7 @@ export function adaptShotForSeedance(
 			? buildKlingT2V(common)
 			: family === "fal" || family === "vidu"
 				? buildFalT2V(common)
-				: buildGmiT2V(common);
+				: buildGmiT2V(common, tier);
 	const baseReason =
 		skippedCharacters.length > 0
 			? `t2v: ${skippedCharacters.length} character${skippedCharacters.length === 1 ? "" : "s"} not catalogued, degrading`

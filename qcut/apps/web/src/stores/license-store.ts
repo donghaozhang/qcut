@@ -36,6 +36,14 @@ interface LicenseState {
 		modelKey: string,
 		description: string
 	) => Promise<boolean>;
+	/**
+	 * Merge an authoritative balance into the store without hitting the
+	 * license API — callers use this when the license server has already
+	 * done the deduction (e.g. relay responses echoing the updated balance
+	 * via a header or body field). Cheaper than a full `checkLicense()`
+	 * round-trip and keeps the UI in sync mid-generation.
+	 */
+	applyBalance: (balance: CreditBalance) => void;
 	clearLicense: () => void;
 	openBuyCreditsPage: () => void;
 	openPricingPage: () => void;
@@ -138,6 +146,23 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
 		} catch {
 			// Usage tracking is non-critical and can fail without blocking UX.
 		}
+	},
+
+	applyBalance: (balance) => {
+		const { license } = get();
+		if (!license) {
+			// No license loaded yet — seed a minimal entry so the balance is
+			// still visible. `checkLicense()` will overwrite with authoritative
+			// data on the next call.
+			set({
+				license: {
+					...FREE_FALLBACK,
+					credits: balance,
+				},
+			});
+			return;
+		}
+		set({ license: { ...license, credits: balance } });
 	},
 
 	clearLicense: () => set({ license: null }),

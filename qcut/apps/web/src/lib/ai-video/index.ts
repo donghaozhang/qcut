@@ -189,6 +189,7 @@ export {
 	generateKlingV3GmiTextVideo,
 	generateKlingOmniTextVideo,
 	generateSeedance260128TextVideo,
+	generateSeedanceFast260128TextVideo,
 } from "./generators/gmi-text-to-video";
 export type { Seedance260128Params } from "./generators/gmi-text-to-video";
 export {
@@ -199,6 +200,8 @@ export {
 	generateKlingMotionControlVideo,
 	generateSeedance260128ImageVideo,
 	generateSeedance260128ReferenceVideo,
+	generateSeedanceFast260128ImageVideo,
+	generateSeedanceFast260128ReferenceVideo,
 } from "./generators/gmi-image-to-video";
 export type {
 	Seedance260128ImageParams,

@@ -582,6 +582,32 @@ export const T2V_MODELS = {
 		supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
 		supportedAspectRatios: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9"],
 	},
+	gmi_seedance_2_0_fast_260128_t2v: {
+		id: "gmi_seedance_2_0_fast_260128_t2v",
+		name: "Seedance 2.0 Fast 260128 (GMI)",
+		badge: "\u26A1 Fast",
+		description:
+			"Lower-latency Seedance 2.0 260128 variant via GMI — same durations/resolutions as the standard tier, priced for drafts and iterations",
+		// Conservative placeholder — matches the standard tier. Reprice once
+		// GMI publishes the fast-tier rate. See T0 in
+		// docs/task/gmi-provider/seedance-2-0-fast-260128-plan.md.
+		price: "$0.052/s",
+		resolution: "480p / 720p / 1080p",
+		supportedResolutions: ["480p", "720p", "1080p"],
+		max_duration: 15,
+		category: "text",
+		endpoints: {
+			text_to_video: "seedance-2-0-fast-260128",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+			generate_audio: true,
+		},
+		supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+		supportedAspectRatios: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9"],
+	},
 	// --- Runway models ---
 	runway_gen45_t2v: {
 		id: "runway_gen45_t2v",

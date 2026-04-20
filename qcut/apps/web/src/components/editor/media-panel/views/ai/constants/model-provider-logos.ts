@@ -31,6 +31,8 @@ const PROVIDER_MAP: Record<string, ProviderInfo> = {
 	seedvr: { name: "ByteDance", logo: "/model-logos/bytedance.svg" },
 	topaz: { name: "Topaz Labs", logo: "/model-logos/topaz.svg" },
 	phota: { name: "Photalabs", logo: "/model-logos/phota.svg" },
+	runway: { name: "Runway", logo: "/model-logos/runway.svg" },
+	skyreels: { name: "SkyReels", logo: "/model-logos/skyreels.svg" },
 };
 
 // Pre-sorted keys by length (longest first) for prefix matching
@@ -38,10 +40,23 @@ const SORTED_KEYS = Object.keys(PROVIDER_MAP).sort(
 	(a, b) => b.length - a.length
 );
 
+// Routing prefixes identify the backend (e.g. GMI Cloud), not the underlying
+// model family. Strip them so `gmi_veo31_lite_t2v` resolves to the Google (Veo)
+// logo rather than falling through to undefined.
+const ROUTING_PREFIXES = ["gmi_"];
+
 export function getProviderForModel(modelId: string): ProviderInfo | undefined {
-	for (const prefix of SORTED_KEYS) {
-		if (modelId.startsWith(prefix)) {
-			return PROVIDER_MAP[prefix];
+	const candidates = [modelId];
+	for (const routingPrefix of ROUTING_PREFIXES) {
+		if (modelId.startsWith(routingPrefix)) {
+			candidates.push(modelId.slice(routingPrefix.length));
+		}
+	}
+	for (const candidate of candidates) {
+		for (const prefix of SORTED_KEYS) {
+			if (candidate.startsWith(prefix)) {
+				return PROVIDER_MAP[prefix];
+			}
 		}
 	}
 	return;

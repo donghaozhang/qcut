@@ -585,4 +585,55 @@ export function registerTextToVideoModels(): void {
 		processingTime: 120,
 		providerBackend: "gmi",
 	});
+
+	ModelRegistry.register({
+		key: "gmi_seedance_2_0_fast_260128_t2v",
+		name: "ByteDance Seedance 2.0 Fast 260128 T2V (GMI)",
+		provider: "ByteDance (via GMI)",
+		endpoint: "seedance-2-0-fast-260128",
+		categories: ["text_to_video"],
+		description:
+			"Lower-latency Seedance 2.0 260128 variant — same durations/resolutions as the standard tier, priced for drafts",
+		// Conservative placeholder — matches standard tier until GMI publishes the fast-tier rate.
+		pricing: { per_second: 0.052 },
+		durationOptions: [
+			"4",
+			"5",
+			"6",
+			"7",
+			"8",
+			"9",
+			"10",
+			"11",
+			"12",
+			"13",
+			"14",
+			"15",
+		],
+		aspectRatios: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "adaptive"],
+		resolutions: ["480p", "720p", "1080p"],
+		defaults: {
+			duration: 5,
+			resolution: "720p",
+			ratio: "16:9",
+			generate_audio: true,
+			watermark: false,
+			web_search: false,
+		},
+		features: [
+			"audio_generation",
+			"reference_images",
+			"reference_videos",
+			"reference_audios",
+			"seed_control",
+			"web_search",
+			"watermark_toggle",
+			"flexible_duration",
+			"multiple_aspect_ratios",
+		],
+		maxDuration: 15,
+		costEstimate: 0.26,
+		processingTime: 60,
+		providerBackend: "gmi",
+	});
 }

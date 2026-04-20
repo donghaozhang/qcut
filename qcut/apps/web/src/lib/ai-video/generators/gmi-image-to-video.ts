@@ -229,13 +229,23 @@ export interface Seedance260128ReferenceParams extends Seedance260128Params {
 	referenceImages: string[];
 }
 
-/** Generate image-to-video using GMI Seedance 2.0 260128. */
-export async function generateSeedance260128ImageVideo(
+type Seedance260128Endpoint =
+	| "seedance-2-0-260128"
+	| "seedance-2-0-fast-260128";
+
+/**
+ * Shared dispatcher for the Seedance-260128 image-to-video family. The
+ * standard and fast tiers have identical payload shapes per GMI's API
+ * reference; only the `model` string on the wire changes.
+ */
+async function dispatchSeedance260128ImageFamily(
+	endpoint: Seedance260128Endpoint,
+	modelLabel: string,
 	params: Seedance260128ImageParams
 ): Promise<VideoGenerationResponse> {
 	if (!params.firstFrame) {
 		throw new Error(
-			"Seedance 2.0 260128 image-to-video requires a first-frame image"
+			`${modelLabel} image-to-video requires a first-frame image`
 		);
 	}
 
@@ -248,45 +258,34 @@ export async function generateSeedance260128ImageVideo(
 	if (params.lastFrame) payload.last_frame = params.lastFrame;
 	applySeedance260128OptionalFields(payload, params);
 
-	const submitResult = await providerRouter.submit(
-		"seedance-2-0-260128",
-		payload,
-		"gmi"
-	);
-
+	const submitResult = await providerRouter.submit(endpoint, payload, "gmi");
 	const pollResult = await providerRouter.poll(
 		submitResult.requestId,
 		submitResult.provider
 	);
 
 	if (pollResult.status === "failed") {
-		throw new Error(
-			pollResult.error ?? "GMI Seedance 2.0 260128 image-to-video failed"
-		);
+		throw new Error(pollResult.error ?? `${modelLabel} image-to-video failed`);
 	}
 
 	return {
 		job_id: jobId,
 		status: "completed",
-		message: "Video generated with GMI Seedance 2.0 260128 (image-to-video)",
+		message: `Video generated with ${modelLabel} (image-to-video)`,
 		estimated_time: 0,
 		video_url: pollResult.videoUrl,
 		video_data: pollResult,
 	};
 }
 
-/**
- * Generate reference-to-video using GMI Seedance 2.0 260128.
- *
- * No first_frame anchor — character consistency is driven purely by
- * the supplied reference image(s) (and optional reference videos/audios).
- */
-export async function generateSeedance260128ReferenceVideo(
+async function dispatchSeedance260128ReferenceFamily(
+	endpoint: Seedance260128Endpoint,
+	modelLabel: string,
 	params: Seedance260128ReferenceParams
 ): Promise<VideoGenerationResponse> {
 	if (!params.referenceImages?.length) {
 		throw new Error(
-			"Seedance 2.0 260128 reference-to-video requires at least one reference image"
+			`${modelLabel} reference-to-video requires at least one reference image`
 		);
 	}
 
@@ -295,12 +294,7 @@ export async function generateSeedance260128ReferenceVideo(
 	const payload: Record<string, unknown> = { prompt: params.prompt };
 	applySeedance260128OptionalFields(payload, params);
 
-	const submitResult = await providerRouter.submit(
-		"seedance-2-0-260128",
-		payload,
-		"gmi"
-	);
-
+	const submitResult = await providerRouter.submit(endpoint, payload, "gmi");
 	const pollResult = await providerRouter.poll(
 		submitResult.requestId,
 		submitResult.provider
@@ -308,19 +302,67 @@ export async function generateSeedance260128ReferenceVideo(
 
 	if (pollResult.status === "failed") {
 		throw new Error(
-			pollResult.error ?? "GMI Seedance 2.0 260128 reference-to-video failed"
+			pollResult.error ?? `${modelLabel} reference-to-video failed`
 		);
 	}
 
 	return {
 		job_id: jobId,
 		status: "completed",
-		message:
-			"Video generated with GMI Seedance 2.0 260128 (reference-to-video)",
+		message: `Video generated with ${modelLabel} (reference-to-video)`,
 		estimated_time: 0,
 		video_url: pollResult.videoUrl,
 		video_data: pollResult,
 	};
+}
+
+/** Generate image-to-video using GMI Seedance 2.0 260128 (standard tier). */
+export function generateSeedance260128ImageVideo(
+	params: Seedance260128ImageParams
+): Promise<VideoGenerationResponse> {
+	return dispatchSeedance260128ImageFamily(
+		"seedance-2-0-260128",
+		"GMI Seedance 2.0 260128",
+		params
+	);
+}
+
+/** Generate image-to-video using GMI Seedance 2.0 Fast 260128. */
+export function generateSeedanceFast260128ImageVideo(
+	params: Seedance260128ImageParams
+): Promise<VideoGenerationResponse> {
+	return dispatchSeedance260128ImageFamily(
+		"seedance-2-0-fast-260128",
+		"GMI Seedance 2.0 Fast 260128",
+		params
+	);
+}
+
+/**
+ * Generate reference-to-video using GMI Seedance 2.0 260128.
+ *
+ * No first_frame anchor — character consistency is driven purely by
+ * the supplied reference image(s) (and optional reference videos/audios).
+ */
+export function generateSeedance260128ReferenceVideo(
+	params: Seedance260128ReferenceParams
+): Promise<VideoGenerationResponse> {
+	return dispatchSeedance260128ReferenceFamily(
+		"seedance-2-0-260128",
+		"GMI Seedance 2.0 260128",
+		params
+	);
+}
+
+/** Generate reference-to-video using GMI Seedance 2.0 Fast 260128. */
+export function generateSeedanceFast260128ReferenceVideo(
+	params: Seedance260128ReferenceParams
+): Promise<VideoGenerationResponse> {
+	return dispatchSeedance260128ReferenceFamily(
+		"seedance-2-0-fast-260128",
+		"GMI Seedance 2.0 Fast 260128",
+		params
+	);
 }
 
 /** Generate image-to-video using GMI SkyReels V4. */

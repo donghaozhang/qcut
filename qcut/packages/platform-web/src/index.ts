@@ -321,6 +321,9 @@ const licenseAdapter: PlatformLicenseAPI = {
 	async clearAuthToken() {
 		return true;
 	},
+	async getAuthToken() {
+		return "";
+	},
 	async emailLogin() {
 		return { success: false, error: "Authentication not available in browser" };
 	},

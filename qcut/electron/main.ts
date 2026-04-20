@@ -515,7 +515,7 @@ function createWindow(): void {
 					"worker-src 'self' blob: app:; " +
 					"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
 					"font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com; " +
-					`connect-src 'self' blob: app: http://localhost:${staticServerPort} ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://api.github.com https://fal.run https://queue.fal.run https://rest.alpha.fal.ai https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://freesound.org https://cdn.freesound.org https://cdn.tldraw.com; ` +
+					`connect-src 'self' blob: app: http://localhost:${staticServerPort} ws: wss: https://fonts.googleapis.com https://fonts.gstatic.com https://api.github.com https://fal.run https://queue.fal.run https://rest.alpha.fal.ai https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://freesound.org https://cdn.freesound.org https://cdn.tldraw.com https://qcut-license-server.zdhpeter.workers.dev https://storage.googleapis.com; ` +
 					"media-src 'self' blob: data: app: https://freesound.org https://cdn.freesound.org https://fal.media https://v3.fal.media https://v3b.fal.media; " +
 					"img-src 'self' blob: data: app: https://fal.run https://fal.media https://v3.fal.media https://v3b.fal.media https://api.iconify.design https://api.simplesvg.com https://api.unisvg.com https://avatars.githubusercontent.com https://i.ibb.co https://cdn.tldraw.com https://lh3.googleusercontent.com;",
 			];
@@ -523,6 +523,23 @@ function createWindow(): void {
 			// Add COOP/COEP headers to support SharedArrayBuffer (required for FFmpeg WASM)
 			responseHeaders["Cross-Origin-Opener-Policy"] = ["same-origin"];
 			responseHeaders["Cross-Origin-Embedder-Policy"] = ["credentialless"];
+
+			// Inject CORS allow-origin on responses from trusted AI media
+			// buckets that don't set the header themselves (GCS in particular).
+			// Without this the renderer's `fetch(videoUrl)` in media-integration.ts
+			// fails with "No 'Access-Control-Allow-Origin' header" and the
+			// generated video never lands in the media panel.
+			const MEDIA_CORS_HOSTS = [
+				"https://storage.googleapis.com/",
+				"https://gmi-video-assests-prod.storage.googleapis.com/",
+			];
+			if (MEDIA_CORS_HOSTS.some((host) => details.url.startsWith(host))) {
+				responseHeaders["Access-Control-Allow-Origin"] = ["*"];
+				responseHeaders["Access-Control-Allow-Methods"] = [
+					"GET, HEAD, OPTIONS",
+				];
+				responseHeaders["Access-Control-Allow-Headers"] = ["*"];
+			}
 
 			callback({ responseHeaders });
 		}

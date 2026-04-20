@@ -37,6 +37,54 @@ Set via `--image-model <key>`.
 
 Set via `--video-model <key>`.
 
+## Credit pricing for the editor UI
+
+Logged-in users spend QCut credits instead of paying GMI directly. The
+renderer computes the deduction from
+`estimateCreditCost(modelKey, { durationSeconds })` in
+`apps/web/src/lib/credit-costs.ts`. Pricing is **derived at runtime
+from each model's registry `price` string** — no parallel map. Policy:
+**1 credit ≈ $0.01**, and ranges always take the **upper bound** so
+there are no surprise bills on audio / 1080p runs.
+
+| modelKey                           | Price (raw)     | Credits / s | Example — 5s clip |
+| ---------------------------------- | --------------- | ----------: | ----------------: |
+| `gmi_seedance_2_0_260128_t2v`      | $0.052/s        | 5.2         | 26                |
+| `gmi_seedance_2_0_fast_260128_t2v` | $0.052/s *(placeholder)* | 5.2 | 26                |
+| `gmi_veo31_lite_t2v`               | $0.03–0.08/s    | 8.0         | 40                |
+| `gmi_skyreels_v4_t2v`              | $0.14/s         | 14.0        | 70                |
+| `gmi_kling_v3_t2v`                 | $0.168/s        | 16.8        | 84                |
+| `gmi_kling_v3_omni_t2v`            | $0.084–0.14/s   | 14.0        | 70                |
+| `runway_gen45_t2v`                 | $0.50/s         | 50.0        | 250               |
+| `runway_gen4_turbo_t2v`            | $0.25/s         | 25.0        | 125               |
+
+The **total** is rounded — e.g. $0.052/s × 4s × 100 = 20.8 → **21
+credits** charged. See
+[docs/task/ai-model-catalogue/README.md](../ai-model-catalogue/README.md)
+for every other category (T2V, I2V, T2I, avatar, speech, upscale) and
+their numbers.
+
+Failed / cancelled / timed-out jobs are refunded automatically via
+`POST /api/ai/refund` on the license server
+(`packages/license-server/src/routes/ai-proxy.ts`). The refund is
+capped at the total amount deducted for the same user + model in the
+last 24 hours minus any prior refunds.
+
+Offline / self-hosted / CLI users with `VITE_GMI_API_KEY` set bypass
+credits entirely — they pay GMI Cloud directly on their own account.
+
+## Authentication for the editor UI
+
+All GMI text/image-to-video models work out of the box for logged-in QCut
+users — the renderer's `gmi-client` falls back to the license-server
+relay when no local `VITE_GMI_API_KEY` is set (implementation in
+`apps/web/src/lib/ai-clients/gmi-client.ts` and the shared relay helpers
+at `apps/web/src/lib/ai-video/core/license-relay.ts`).
+
+Offline / self-hosted / CLI use still requires `VITE_GMI_API_KEY` in the
+environment or Electron secure storage — the relay only activates when a
+session token is present.
+
 ## Payload-shape differences (handled automatically)
 
 The vimax `VideoGeneratorAdapter` sends provider-specific payloads via

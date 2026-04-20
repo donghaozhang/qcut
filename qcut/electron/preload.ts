@@ -483,6 +483,7 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 		setAuthToken: (token: string) =>
 			ipcRenderer.invoke("license:set-auth-token", token),
 		clearAuthToken: () => ipcRenderer.invoke("license:clear-auth-token"),
+		getAuthToken: () => ipcRenderer.invoke("license:get-auth-token"),
 		onActivationToken: (callback: (token: string) => void) => {
 			const listener = (_event: unknown, token: string) => callback(token);
 			ipcRenderer.on("license:activation-token", listener);

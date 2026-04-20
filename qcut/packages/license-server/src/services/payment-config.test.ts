@@ -91,4 +91,9 @@ describe("payment-config", () => {
 		expect(origins).toContain("https://quriosity.com.au");
 		expect(origins).toContain("http://localhost:3000");
 	});
+
+	it("allowlists the Electron `app://.` origin by default", () => {
+		const origins = getAllowedCorsOrigins();
+		expect(origins).toContain("app://.");
+	});
 });

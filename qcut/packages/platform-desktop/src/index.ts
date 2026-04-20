@@ -73,6 +73,7 @@ const licenseAdapter = {
 		api().license.deductCredits(a, m, d),
 	setAuthToken: (t: any) => api().license.setAuthToken(t),
 	clearAuthToken: () => api().license.clearAuthToken(),
+	getAuthToken: () => api().license.getAuthToken(),
 	emailLogin: (e: any, p: any) => api().license.emailLogin(e, p),
 	emailSignup: (n: any, e: any, p: any) => api().license.emailSignup(n, e, p),
 	getGoogleLoginUrl: () => api().license.getGoogleLoginUrl(),
