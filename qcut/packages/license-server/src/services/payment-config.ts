@@ -1,5 +1,9 @@
 const DEFAULT_CORS_ORIGINS = [
 	"http://localhost:3000",
+	// Electron packaged app uses the `app://` scheme with hostname `.`
+	// (see `electron/main.ts:587` → `app://./index.html`). The browser sends
+	// this as `Origin: app://.` on CORS preflights.
+	"app://.",
 	"app://qcut",
 	"https://quriosity.com.au",
 	"https://www.quriosity.com.au",
