@@ -62,7 +62,8 @@ export function clearGmiApiKeyCache(): void {
 
 /** GMI API request status shape. */
 interface GmiRequestStatusResponse {
-	id: string;
+	request_id?: string;
+	id?: string;
 	status: "queued" | "processing" | "success" | "failed" | "cancelled";
 	outcome?: {
 		video_url?: string;
@@ -136,8 +137,18 @@ export const gmiClient: ProviderClient = {
 			throw new Error(`GMI API error (${response.status}): ${detail}`);
 		}
 
-		const result = (await response.json()) as { id: string };
-		return { requestId: result.id, provider: "gmi" };
+		// GMI Cloud returns `request_id` (snake_case); some older responses used
+		// `id`. Accept either — matches the native-pipeline parser at
+		// `electron/native-pipeline/infra/api-caller.ts:753-757`.
+		const result = (await response.json()) as {
+			request_id?: string;
+			id?: string;
+		};
+		const requestId = result.request_id ?? result.id;
+		if (!requestId) {
+			throw new Error("GMI API returned no request ID");
+		}
+		return { requestId, provider: "gmi" };
 	},
 
 	async poll(

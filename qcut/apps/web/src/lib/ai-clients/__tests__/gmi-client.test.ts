@@ -84,7 +84,7 @@ describe("gmiClient", () => {
 
 			mockFetch.mockResolvedValueOnce({
 				ok: true,
-				json: async () => ({ id: "req-123" }),
+				json: async () => ({ request_id: "req-123" }),
 			});
 
 			const result = await gmiClient.submit("kling-v3", {
@@ -113,7 +113,7 @@ describe("gmiClient", () => {
 			vi.mocked(getSessionToken).mockResolvedValue("session-xyz");
 			vi.mocked(proxySubmit).mockResolvedValueOnce({
 				ok: true,
-				json: async () => ({ id: "relay-req-1" }),
+				json: async () => ({ request_id: "relay-req-1" }),
 			} as unknown as Response);
 
 			const result = await gmiClient.submit("seedance-2-0-260128", {
@@ -131,6 +131,33 @@ describe("gmiClient", () => {
 				sessionToken: "session-xyz",
 			});
 			expect(mockFetch).not.toHaveBeenCalled();
+		});
+
+		it("accepts legacy `id` field on the submit response", async () => {
+			(import.meta.env as Record<string, unknown>).VITE_GMI_API_KEY =
+				"test-key";
+
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({ id: "legacy-req-9" }),
+			});
+
+			const result = await gmiClient.submit("kling-v3", { prompt: "x" });
+			expect(result.requestId).toBe("legacy-req-9");
+		});
+
+		it("throws when GMI returns neither `request_id` nor `id`", async () => {
+			(import.meta.env as Record<string, unknown>).VITE_GMI_API_KEY =
+				"test-key";
+
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({}),
+			});
+
+			await expect(
+				gmiClient.submit("kling-v3", { prompt: "x" })
+			).rejects.toThrow(/no request ID/);
 		});
 
 		it("throws on API error response", async () => {
