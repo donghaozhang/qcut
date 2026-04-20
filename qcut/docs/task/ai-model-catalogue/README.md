@@ -51,6 +51,7 @@
 | `gmi_kling_v3_t2v` | Kling V3 (GMI) | Kling AI | $0.168/s | 0.168 | 16.8 | 84 |
 | `gmi_kling_v3_omni_t2v` | Kling V3 Omni (GMI) | Kling AI | $0.084–0.14/s | 0.14 | 14 | 70 |
 | `gmi_seedance_2_0_260128_t2v` | Seedance 2.0 260128 (GMI) | ByteDance | $0.052/s | 0.052 | 5.2 | 26 |
+| `gmi_seedance_2_0_fast_260128_t2v` | Seedance 2.0 Fast 260128 (GMI) | ByteDance | $0.052/s* | 0.052 | 5.2 | 26 |
 | `runway_gen45_t2v` | Runway Gen4.5 | Runway | $0.50/s | 0.50 | 50 | 250 |
 | `runway_gen4_turbo_t2v` | Runway Gen4 Turbo | Runway | $0.25/s | 0.25 | 25 | 125 |
 
@@ -93,6 +94,8 @@
 | `gmi_kling_motion_control` | Kling 3 Motion Control (GMI) | Kling AI | $0.126–0.168/s | 0.168 | 16.8 | 84 |
 | `gmi_seedance_2_0_260128_i2v` | Seedance 2.0 260128 I2V (GMI) | ByteDance | $0.052/s | 0.052 | 5.2 | 26 |
 | `gmi_seedance_2_0_260128_ref2v` | Seedance 2.0 260128 Ref2V (GMI) | ByteDance | $0.052/s | 0.052 | 5.2 | 26 |
+| `gmi_seedance_2_0_fast_260128_i2v` | Seedance 2.0 Fast 260128 I2V (GMI) | ByteDance | $0.052/s* | 0.052 | 5.2 | 26 |
+| `gmi_seedance_2_0_fast_260128_ref2v` | Seedance 2.0 Fast 260128 Ref2V (GMI) | ByteDance | $0.052/s* | 0.052 | 5.2 | 26 |
 | `runway_gen45_i2v` | Runway Gen4.5 I2V | Runway | $0.50/s | 0.50 | 50 | 250 |
 | `runway_gen4_turbo_i2v` | Runway Gen4 Turbo I2V | Runway | $0.25/s | 0.25 | 25 | 125 |
 | `runway_gen3a_turbo_i2v` | Runway Gen3a Turbo I2V | Runway | $0.10/s | 0.10 | 10 | 50 |
@@ -192,23 +195,22 @@ and description flows. Priced via `COST_OVERRIDES`.
 ## Coverage summary
 
 Measured at runtime by `credit-costs-coverage.test.ts` against the live
-`AI_MODELS` registry — **92 dispatchable models, 87 priced from
-their registry `price` string, 1 free-tier, 5 explicit TBD**:
+`AI_MODELS` registry — **95 dispatchable models, 94 priced from
+their registry `price` string, 1 free-tier, 0 fallback**:
 
 | Category | In `AI_MODELS` | Priced | Free ($0.00) | Fallback (`TBD`) |
 | --- | ---: | ---: | ---: | ---: |
-| Text-to-Video | 29 | 28 | 1 | 0 |
-| Image-to-Video | 38 | 38 | 0 | 0 |
+| Text-to-Video | 30 | 29 | 1 | 0 |
+| Image-to-Video | 40 | 40 | 0 | 0 |
 | Avatar / Lipsync | 15 | 15 | 0 | 0 |
-| Speech / Audio | 6 | 1 | 0 | 5 (TBD) |
+| Speech / Audio | 6 | 6 | 0 | 0 |
 | Upscale / Enhancement | 3 | 3 | 0 | 0 |
 | Angles (fixed utility) | 1 | 1 | 0 | 0 |
-| **In registry** | **92** | **87** | **1** | **5** |
+| **In registry** | **95** | **94** | **1** | **0** |
 
-The five fallbacks are all provider-side `TBD`s, not bugs:
-`chatterbox_tts_turbo`, `chatterbox_s2s`, `elevenlabs_v3`, `qwen3_tts`,
-`qwen3_clone_voice`. They become priced automatically when the provider
-publishes numbers and someone updates the registry entry.
+`*` Fast-tier prices on GMI Seedance Fast rows are placeholders matching
+the standard tier. Reprice once GMI publishes the fast-tier rate — see
+`docs/task/gmi-provider/seedance-2-0-fast-260128-plan.md`.
 
 ### Not-in-registry caveat
 

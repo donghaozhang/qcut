@@ -50,6 +50,7 @@ there are no surprise bills on audio / 1080p runs.
 | modelKey                           | Price (raw)     | Credits / s | Example — 5s clip |
 | ---------------------------------- | --------------- | ----------: | ----------------: |
 | `gmi_seedance_2_0_260128_t2v`      | $0.052/s        | 5.2         | 26                |
+| `gmi_seedance_2_0_fast_260128_t2v` | $0.052/s *(placeholder)* | 5.2 | 26                |
 | `gmi_veo31_lite_t2v`               | $0.03–0.08/s    | 8.0         | 40                |
 | `gmi_skyreels_v4_t2v`              | $0.14/s         | 14.0        | 70                |
 | `gmi_kling_v3_t2v`                 | $0.168/s        | 16.8        | 84                |
