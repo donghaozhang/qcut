@@ -181,6 +181,35 @@ describe("gmiClient", () => {
 			expect(call.credits?.description).toMatch(/Seedance|seedance|GMI/);
 		});
 
+		// Regression: production callers pass the GMI endpoint string
+		// ("seedance-2-0-260128"), not the renderer modelKey. Previously
+		// `buildCreditsForModel` used the endpoint directly to look up
+		// `AI_MODELS`, always missed, and under-billed to 1 credit.
+		it.each([
+			["seedance-2-0-260128", 4, 21],
+			["seedance-2-0-fast-260128", 4, 21],
+			["seedance-2-0-260128", 8, 42],
+		])(
+			"maps GMI endpoint %s (%ss) back to the renderer modelKey for credit pricing",
+			async (endpoint, duration, expectedCredits) => {
+				vi.mocked(getSessionToken).mockResolvedValue("session-xyz");
+				vi.mocked(proxySubmit).mockResolvedValueOnce({
+					status: 200,
+					ok: true,
+					json: async () => ({ request_id: "req" }),
+				} as unknown as Response);
+
+				await gmiClient.submit(endpoint as string, {
+					prompt: "p",
+					duration,
+				});
+
+				const call = vi.mocked(proxySubmit).mock.calls[0][0];
+				expect(call.credits?.amount).toBe(expectedCredits);
+				expect(call.credits?.modelKey).toMatch(/^gmi_seedance_2_0_/);
+			}
+		);
+
 		it("throws InsufficientCreditsError with balance on 402", async () => {
 			vi.mocked(getSessionToken).mockResolvedValue("session-xyz");
 			vi.mocked(proxySubmit).mockResolvedValueOnce({

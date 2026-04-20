@@ -21,6 +21,7 @@
 
 import { platform } from "@qcut/platform-core";
 import { useLicenseStore } from "@/stores/license-store";
+import { AI_MODELS } from "@/components/editor/media-panel/views/ai/constants/ai-constants";
 import { estimateCreditCost } from "../credit-costs";
 import {
 	getSessionToken,
@@ -116,24 +117,51 @@ async function readErrorDetail(response: Response): Promise<string> {
 }
 
 /**
+ * Reverse-lookup a renderer modelKey from the GMI endpoint string.
+ *
+ * `providerRouter.submit(endpoint, payload, "gmi")` passes the endpoint
+ * (`"seedance-2-0-260128"`) as the first arg, but `estimateCreditCost`
+ * keys on the renderer modelKey (`"gmi_seedance_2_0_260128_t2v"`). Without
+ * this reverse hop every relay call silently under-bills to 1 credit.
+ *
+ * Searches all endpoint shapes in `AIModel.endpoints` (text_to_video,
+ * image_to_video, text_to_image, clone_voice, etc.) since the same
+ * endpoint might power multiple capability flavours (T2V vs I2V vs
+ * Ref2V for Seedance). First match wins — any of them will share the
+ * same `price` string for the family.
+ */
+function findModelKeyByEndpoint(endpoint: string): string | undefined {
+	for (const model of AI_MODELS) {
+		const endpoints = model.endpoints as Record<string, string> | undefined;
+		if (!endpoints) continue;
+		for (const value of Object.values(endpoints)) {
+			if (value === endpoint) return model.id;
+		}
+	}
+	return undefined;
+}
+
+/**
  * Build the credit entry the relay attaches to a submit. Returns
  * `undefined` when the model is missing a pricing entry or duration
  * doesn't apply (`estimateCreditCost` falls back to 1 for unknowns,
  * but we'd rather not deduct anything we can't explain to the user).
  */
 function buildCreditsForModel(
-	model: string,
+	endpoint: string,
 	payload: Record<string, unknown>
 ): ProxySubmitCredits | undefined {
 	const duration = Number(payload.duration);
 	const durationSeconds =
 		Number.isFinite(duration) && duration > 0 ? duration : undefined;
-	const amount = estimateCreditCost(model, { durationSeconds });
+
+	const modelKey = findModelKeyByEndpoint(endpoint) ?? endpoint;
+	const amount = estimateCreditCost(modelKey, { durationSeconds });
 	if (!Number.isFinite(amount) || amount <= 0) return undefined;
 	return {
 		amount,
-		modelKey: model,
-		description: `GMI — ${model}${
+		modelKey,
+		description: `GMI — ${modelKey}${
 			durationSeconds ? ` (${durationSeconds}s)` : ""
 		}`,
 	};
