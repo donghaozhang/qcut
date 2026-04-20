@@ -13,6 +13,19 @@ vi.mock("../../ai-video/core/license-relay", () => ({
 	getSessionToken: vi.fn().mockResolvedValue(""),
 	proxySubmit: vi.fn(),
 	proxyStatus: vi.fn(),
+	refundCredits: vi.fn().mockResolvedValue(new Response("{}", { status: 200 })),
+}));
+
+// Mock license-store so fire-and-forget checkLicense/openBuyCreditsPage
+// calls from the gmi-client don't crash the test environment.
+const mockCheckLicense = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/stores/license-store", () => ({
+	useLicenseStore: {
+		getState: () => ({
+			checkLicense: mockCheckLicense,
+			openBuyCreditsPage: vi.fn(),
+		}),
+	},
 }));
 
 import { platform } from "@qcut/platform-core";
@@ -20,8 +33,14 @@ import {
 	getSessionToken,
 	proxySubmit,
 	proxyStatus,
+	refundCredits,
 } from "../../ai-video/core/license-relay";
-import { gmiClient, clearGmiApiKeyCache } from "../gmi-client";
+import {
+	gmiClient,
+	clearGmiApiKeyCache,
+	clearGmiPendingDeductions,
+} from "../gmi-client";
+import { InsufficientCreditsError } from "../../ai-video/core/relay-errors";
 
 const mockFetch = vi.fn();
 const originalFetch = globalThis.fetch;
@@ -29,6 +48,7 @@ const originalFetch = globalThis.fetch;
 beforeEach(() => {
 	vi.clearAllMocks();
 	clearGmiApiKeyCache();
+	clearGmiPendingDeductions();
 	globalThis.fetch = mockFetch;
 	delete (import.meta.env as Record<string, unknown>).VITE_GMI_API_KEY;
 	// Reset platform mock to return no key by default
@@ -112,6 +132,7 @@ describe("gmiClient", () => {
 		it("routes through license-server relay when no local key but session token present", async () => {
 			vi.mocked(getSessionToken).mockResolvedValue("session-xyz");
 			vi.mocked(proxySubmit).mockResolvedValueOnce({
+				status: 200,
 				ok: true,
 				json: async () => ({ request_id: "relay-req-1" }),
 			} as unknown as Response);
@@ -121,16 +142,84 @@ describe("gmiClient", () => {
 			});
 
 			expect(result).toEqual({ requestId: "relay-req-1", provider: "gmi" });
-			expect(proxySubmit).toHaveBeenCalledWith({
-				provider: "gmi",
-				endpoint:
-					"https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey/requests",
-				method: "POST",
-				body: { model: "seedance-2-0-260128", payload: { prompt: "a dog" } },
-				signal: undefined,
-				sessionToken: "session-xyz",
-			});
+			expect(proxySubmit).toHaveBeenCalledWith(
+				expect.objectContaining({
+					provider: "gmi",
+					endpoint:
+						"https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey/requests",
+					method: "POST",
+					body: { model: "seedance-2-0-260128", payload: { prompt: "a dog" } },
+					sessionToken: "session-xyz",
+				})
+			);
 			expect(mockFetch).not.toHaveBeenCalled();
+		});
+
+		it("attaches credits when routing through relay with a known model + duration", async () => {
+			vi.mocked(getSessionToken).mockResolvedValue("session-xyz");
+			vi.mocked(proxySubmit).mockResolvedValueOnce({
+				status: 200,
+				ok: true,
+				json: async () => ({ request_id: "relay-req-credits" }),
+			} as unknown as Response);
+
+			await gmiClient.submit("gmi_seedance_2_0_260128_t2v", {
+				prompt: "hello",
+				duration: 4,
+			});
+
+			expect(proxySubmit).toHaveBeenCalledWith(
+				expect.objectContaining({
+					credits: expect.objectContaining({
+						modelKey: "gmi_seedance_2_0_260128_t2v",
+					}),
+				})
+			);
+			const call = vi.mocked(proxySubmit).mock.calls[0][0];
+			expect(call.credits?.amount).toBeCloseTo(0.52 * 4, 6);
+			expect(call.credits?.description).toMatch(/Seedance|seedance|GMI/);
+		});
+
+		it("throws InsufficientCreditsError with balance on 402", async () => {
+			vi.mocked(getSessionToken).mockResolvedValue("session-xyz");
+			vi.mocked(proxySubmit).mockResolvedValueOnce({
+				status: 402,
+				ok: false,
+				json: async () => ({
+					error: "Insufficient credits",
+					credits: {
+						planCredits: 1,
+						topUpCredits: 0,
+						totalCredits: 1,
+						planCreditsResetAt: "2026-05-01T00:00:00.000Z",
+					},
+				}),
+			} as unknown as Response);
+
+			await expect(
+				gmiClient.submit("gmi_seedance_2_0_260128_t2v", {
+					prompt: "x",
+					duration: 4,
+				})
+			).rejects.toBeInstanceOf(InsufficientCreditsError);
+		});
+
+		it("does not add to pending deductions when submit fails with no request id", async () => {
+			vi.mocked(getSessionToken).mockResolvedValue("session-xyz");
+			vi.mocked(proxySubmit).mockResolvedValueOnce({
+				status: 200,
+				ok: true,
+				json: async () => ({}),
+			} as unknown as Response);
+
+			await expect(
+				gmiClient.submit("gmi_seedance_2_0_260128_t2v", {
+					prompt: "x",
+					duration: 4,
+				})
+			).rejects.toThrow(/no request ID/);
+			// Refund should still fire so the server-side deduction is reversed
+			expect(refundCredits).toHaveBeenCalledTimes(1);
 		});
 
 		it("accepts legacy `id` field on the submit response", async () => {
@@ -271,6 +360,72 @@ describe("gmiClient", () => {
 				sessionToken: "session-xyz",
 			});
 			expect(mockFetch).not.toHaveBeenCalled();
+		});
+
+		it("refunds credits when a relay-submitted job polls as failed", async () => {
+			vi.mocked(getSessionToken).mockResolvedValue("session-xyz");
+			// Seed a pending deduction by running a relay submit first.
+			vi.mocked(proxySubmit).mockResolvedValueOnce({
+				status: 200,
+				ok: true,
+				json: async () => ({ request_id: "req-failed-1" }),
+			} as unknown as Response);
+			await gmiClient.submit("gmi_seedance_2_0_260128_t2v", {
+				prompt: "x",
+				duration: 4,
+			});
+
+			// Now poll and have the provider fail.
+			vi.mocked(proxyStatus).mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({
+					request_id: "req-failed-1",
+					status: "failed",
+					error: "upstream safety filter",
+				}),
+			} as unknown as Response);
+
+			const result = await gmiClient.poll("req-failed-1", {
+				maxAttempts: 1,
+				pollIntervalMs: 0,
+			});
+
+			expect(result.status).toBe("failed");
+			expect(refundCredits).toHaveBeenCalledTimes(1);
+			const refundArgs = vi.mocked(refundCredits).mock.calls[0][0];
+			expect(refundArgs.modelKey).toBe("gmi_seedance_2_0_260128_t2v");
+			expect(refundArgs.amount).toBeCloseTo(0.52 * 4, 6);
+			expect(refundArgs.description).toMatch(/refund/);
+		});
+
+		it("does NOT refund when the job completes successfully", async () => {
+			vi.mocked(getSessionToken).mockResolvedValue("session-xyz");
+			vi.mocked(proxySubmit).mockResolvedValueOnce({
+				status: 200,
+				ok: true,
+				json: async () => ({ request_id: "req-ok-1" }),
+			} as unknown as Response);
+			await gmiClient.submit("gmi_seedance_2_0_260128_t2v", {
+				prompt: "x",
+				duration: 4,
+			});
+
+			vi.mocked(proxyStatus).mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({
+					request_id: "req-ok-1",
+					status: "success",
+					outcome: { video_url: "https://example.com/ok.mp4" },
+				}),
+			} as unknown as Response);
+
+			const result = await gmiClient.poll("req-ok-1", {
+				maxAttempts: 1,
+				pollIntervalMs: 0,
+			});
+
+			expect(result.status).toBe("completed");
+			expect(refundCredits).not.toHaveBeenCalled();
 		});
 
 		it("maps cancelled status to failed", async () => {

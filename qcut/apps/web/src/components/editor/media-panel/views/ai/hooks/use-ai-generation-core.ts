@@ -11,6 +11,7 @@ import {
 	handleApiError,
 	type ProgressCallback,
 } from "@/lib/ai-clients/ai-video-client";
+import { useLicenseStore } from "@/stores/license-store";
 import { debugLogger } from "@/lib/debug/debug-logger";
 import {
 	routeTextToVideoHandler,
@@ -273,10 +274,24 @@ export function useHandleGenerate(
 			const notifySkip = (modelId: string, reason: string | undefined) => {
 				const message = reason ?? "Generation skipped";
 				console.log(`  ⚠️ Skipping model - ${message}`);
-				if (!seenSkipReasons.has(message)) {
-					seenSkipReasons.add(message);
-					toast.error(message, { description: `Model: ${modelId}` });
+				if (seenSkipReasons.has(message)) return;
+				seenSkipReasons.add(message);
+
+				// Match the `InsufficientCreditsError` marker so we can show a
+				// targeted toast with a Top-up CTA instead of the generic error.
+				if (message.includes("Insufficient credits for")) {
+					toast.error("Not enough credits", {
+						description: message.replace(/^[^:]*:\s*/, ""),
+						action: {
+							label: "Top up",
+							onClick: () =>
+								useLicenseStore.getState().openBuyCreditsPage(),
+						},
+					});
+					return;
 				}
+
+				toast.error(message, { description: `Model: ${modelId}` });
 			};
 
 			// Sequential generation to avoid rate limits

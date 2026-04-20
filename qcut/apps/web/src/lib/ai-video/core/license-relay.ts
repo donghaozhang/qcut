@@ -47,6 +47,15 @@ export async function getSessionToken(): Promise<string> {
 	return "";
 }
 
+export interface ProxySubmitCredits {
+	/** Credits to deduct for this operation. Must be > 0. */
+	amount: number;
+	/** Model identifier recorded in the credit ledger. */
+	modelKey: string;
+	/** Human-readable ledger description. */
+	description: string;
+}
+
 export interface ProxySubmitOptions {
 	provider: "fal" | "gmi" | "runway" | "elevenlabs" | "gemini" | "openrouter";
 	/** Full provider endpoint URL (e.g. `https://console.gmicloud.ai/api/v1/...`). */
@@ -55,6 +64,12 @@ export interface ProxySubmitOptions {
 	body?: unknown;
 	signal?: AbortSignal;
 	sessionToken?: string;
+	/**
+	 * When set, the license server atomically deducts these credits before
+	 * forwarding to the provider. A 402 response indicates insufficient
+	 * balance and the provider call is not made.
+	 */
+	credits?: ProxySubmitCredits;
 }
 
 /**
@@ -75,17 +90,60 @@ export async function proxySubmit(
 		throw new Error("No QCut session token available for license-server relay");
 	}
 
+	const payload: Record<string, unknown> = {
+		provider: options.provider,
+		endpoint: options.endpoint,
+		method: options.method ?? "POST",
+		body: options.body,
+	};
+	if (options.credits && options.credits.amount > 0) {
+		payload.credits = options.credits;
+	}
+
 	return fetch(`${LICENSE_SERVER_URL}/api/ai/proxy`, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
 			Authorization: `Bearer ${token}`,
 		},
+		body: JSON.stringify(payload),
+		signal: options.signal,
+	});
+}
+
+export interface RefundCreditsOptions {
+	amount: number;
+	modelKey: string;
+	description: string;
+	sessionToken?: string;
+	signal?: AbortSignal;
+}
+
+/**
+ * Refund credits previously deducted by a relay call that failed
+ * downstream (provider error, timeout, safety-filter reject).
+ *
+ * Fire-and-forget is fine — failures only show up in telemetry. Never
+ * swallow the underlying provider error by throwing from here.
+ */
+export async function refundCredits(
+	options: RefundCreditsOptions
+): Promise<Response> {
+	const token = options.sessionToken ?? (await getSessionToken());
+	if (!token) {
+		throw new Error("No QCut session token available for license-server relay");
+	}
+
+	return fetch(`${LICENSE_SERVER_URL}/api/ai/refund`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${token}`,
+		},
 		body: JSON.stringify({
-			provider: options.provider,
-			endpoint: options.endpoint,
-			method: options.method ?? "POST",
-			body: options.body,
+			amount: options.amount,
+			modelKey: options.modelKey,
+			description: options.description,
 		}),
 		signal: options.signal,
 	});

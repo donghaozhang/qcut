@@ -7,6 +7,7 @@
 
 import { platform } from "@qcut/platform-core";
 import { handleAIServiceError } from "@/lib/debug/error-handler";
+import { estimateCreditCost } from "@/lib/credit-costs";
 import { LICENSE_SERVER_URL, getSessionToken } from "./license-relay";
 
 // Direct FAL AI integration - no backend needed
@@ -117,6 +118,14 @@ export interface FalRequestOptions {
 	signal?: AbortSignal;
 	/** Enable queue mode for long-running jobs */
 	queueMode?: boolean;
+	/**
+	 * Renderer-side model key (e.g. `kling-v2.6-pro`). Required by the
+	 * relay-mode credit deduction path; direct-call BYOK users ignore it.
+	 * Distinct from the FAL endpoint string (`fal-ai/kling/v2.6/text-to-video`).
+	 */
+	modelKey?: string;
+	/** Duration in seconds — used to compute per-second credit costs. */
+	durationSeconds?: number;
 }
 
 /**
@@ -139,18 +148,39 @@ export async function makeFalRequest(
 				? endpoint
 				: `${base}/${endpoint}`;
 
+			// Attach credits only when the caller identified the model.
+			// FAL endpoint strings are not 1:1 with renderer model keys, so we
+			// can't safely infer `modelKey` from `endpoint` without mis-billing.
+			const proxyBody: Record<string, unknown> = {
+				provider: "fal",
+				endpoint: targetUrl,
+				method: "POST",
+				body: payload,
+			};
+			if (options?.modelKey) {
+				const amount = estimateCreditCost(options.modelKey, {
+					durationSeconds: options.durationSeconds,
+				});
+				if (Number.isFinite(amount) && amount > 0) {
+					proxyBody.credits = {
+						amount,
+						modelKey: options.modelKey,
+						description: `FAL — ${options.modelKey}${
+							options.durationSeconds
+								? ` (${options.durationSeconds}s)`
+								: ""
+						}`,
+					};
+				}
+			}
+
 			return fetch(`${LICENSE_SERVER_URL}/api/ai/proxy`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${sessionToken}`,
 				},
-				body: JSON.stringify({
-					provider: "fal",
-					endpoint: targetUrl,
-					method: "POST",
-					body: payload,
-				}),
+				body: JSON.stringify(proxyBody),
 				signal: options?.signal,
 			});
 		}

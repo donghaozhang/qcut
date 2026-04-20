@@ -7,7 +7,10 @@ import {
 	isEndpointAllowed,
 	isValidProvider,
 } from "../services/provider-keys";
-import { deductCreditsForUser } from "../services/credit-service";
+import {
+	deductCreditsForUser,
+	refundCreditsForUser,
+} from "../services/credit-service";
 import { rateLimitMiddleware } from "../middleware/rate-limit";
 
 const MAX_PROXY_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -76,7 +79,12 @@ aiProxyRoutes.post("/proxy", async (c) => {
 			);
 		}
 
-		// Deduct credits if the client requested it
+		// Deduct credits if the client requested it. Keeps the post-deduction
+		// balance so we can echo it back on the successful response for
+		// client-side balance sync.
+		let postDeductionBalance: Awaited<
+			ReturnType<typeof deductCreditsForUser>
+		>["balance"] | null = null;
 		if (credits) {
 			const amount = Number(credits.amount);
 			const modelKey =
@@ -103,6 +111,7 @@ aiProxyRoutes.post("/proxy", async (c) => {
 						402
 					);
 				}
+				postDeductionBalance = deduction.balance;
 			}
 		}
 
@@ -120,12 +129,21 @@ aiProxyRoutes.post("/proxy", async (c) => {
 		});
 
 		const responseBody = await providerResponse.text();
+		const responseHeaders: Record<string, string> = {
+			"Content-Type":
+				providerResponse.headers.get("Content-Type") ?? "application/json",
+		};
+		if (postDeductionBalance) {
+			// Additive, backwards-compatible balance echo. Clients can also parse
+			// the JSON body if they already consume it, but a header keeps the
+			// common case (provider returns binary/streamed data) simple.
+			responseHeaders["x-credits-remaining"] = String(
+				postDeductionBalance.totalCredits
+			);
+		}
 		return new Response(responseBody, {
 			status: providerResponse.status,
-			headers: {
-				"Content-Type":
-					providerResponse.headers.get("Content-Type") ?? "application/json",
-			},
+			headers: responseHeaders,
 		});
 	} catch (error) {
 		if (error instanceof DOMException && error.name === "TimeoutError") {
@@ -134,6 +152,61 @@ aiProxyRoutes.post("/proxy", async (c) => {
 		return c.json(
 			{
 				error: error instanceof Error ? error.message : "Proxy request failed",
+			},
+			500
+		);
+	}
+});
+
+// ---------------------------------------------------------------------------
+// POST /refund — refund a credit deduction after a downstream failure
+// ---------------------------------------------------------------------------
+aiProxyRoutes.post("/refund", async (c) => {
+	try {
+		const userId = c.get("userId") as string;
+		const payload = await c.req.json().catch(() => null);
+		if (!payload || typeof payload !== "object") {
+			return c.json({ error: "Invalid JSON body" }, 400);
+		}
+
+		const amount = Number((payload as Record<string, unknown>).amount);
+		const modelKey =
+			typeof (payload as Record<string, unknown>).modelKey === "string"
+				? ((payload as Record<string, unknown>).modelKey as string).trim()
+				: "";
+		const description =
+			typeof (payload as Record<string, unknown>).description === "string"
+				? ((payload as Record<string, unknown>).description as string).trim()
+				: "";
+
+		if (!Number.isFinite(amount) || amount <= 0) {
+			return c.json({ error: "amount must be a positive number" }, 400);
+		}
+		if (modelKey.length === 0) {
+			return c.json({ error: "modelKey is required" }, 400);
+		}
+
+		const result = await refundCreditsForUser({
+			userId,
+			amount,
+			modelKey,
+			description: description.length > 0 ? description : `refund — ${modelKey}`,
+		});
+
+		if (!result.success) {
+			return c.json(
+				{
+					error: result.reason ?? "Refund rejected",
+					credits: result.balance,
+				},
+				409
+			);
+		}
+		return c.json({ credits: result.balance });
+	} catch (error) {
+		return c.json(
+			{
+				error: error instanceof Error ? error.message : "Refund failed",
 			},
 			500
 		);

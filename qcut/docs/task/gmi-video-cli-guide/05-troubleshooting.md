@@ -208,6 +208,28 @@ All four are on branch `cli-drama` as of this session.
   (`getSessionToken`, `proxySubmit`, `proxyStatus`). Future providers add
   relay support in ~10 lines.
 
+### E) Toast shows *"Not enough credits"* with a *Top up* button
+
+- **What it means:** the license server returned 402 — the atomic
+  pre-deduction in `POST /api/ai/proxy` found your balance below the
+  estimated cost for the selected model + duration.
+- **Why the toast looks different:** `gmi-client.ts` throws a typed
+  `InsufficientCreditsError` when it sees 402; `use-ai-generation-core.ts`
+  pattern-matches the message and renders a targeted toast with a
+  *Top up* action that opens the QCut buy-credits page.
+- **What to check:**
+  1. Your actual balance — `useLicenseStore.getState().license.credits`
+     in the DevTools console or the pricing page.
+  2. The estimated cost — see the
+     [credit pricing table](04-gmi-models.md#credit-pricing-for-the-editor-ui).
+  3. If your balance drops unexpectedly after a failure that should
+     have refunded, check the server's credit ledger
+     (`creditTransactions` table in Supabase — look for `type: "refund"`
+     rows with the same `modelKey` as the deduction).
+- **Refund window:** the server only refunds against deductions from
+  the last 24 hours for the same user + same `modelKey`. Older failures
+  can't be auto-refunded — contact support.
+
 ## Still broken (not yet fixed)
 
 | Issue | File to fix | Effort |

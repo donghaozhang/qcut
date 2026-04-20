@@ -23,9 +23,8 @@ afterEach(() => {
 	globalThis.fetch = originalFetch;
 });
 
-const { proxySubmit, proxyStatus, getSessionToken } = await import(
-	"../license-relay"
-);
+const { proxySubmit, proxyStatus, refundCredits, getSessionToken } =
+	await import("../license-relay");
 
 describe("license-relay", () => {
 	describe("getSessionToken", () => {
@@ -114,6 +113,85 @@ describe("license-relay", () => {
 
 			const [, init] = mockFetch.mock.calls[0];
 			expect(init.signal).toBe(controller.signal);
+		});
+
+		it("attaches credits to the proxy body when provided", async () => {
+			mockGetAuthToken.mockResolvedValue("tok");
+			mockFetch.mockResolvedValue(new Response("{}", { status: 200 }));
+
+			await proxySubmit({
+				provider: "gmi",
+				endpoint: "https://x/y",
+				body: { model: "m" },
+				credits: {
+					amount: 2.08,
+					modelKey: "gmi_seedance_2_0_260128_t2v",
+					description: "GMI — Seedance",
+				},
+			});
+
+			const [, init] = mockFetch.mock.calls[0];
+			const parsed = JSON.parse(init.body);
+			expect(parsed.credits).toEqual({
+				amount: 2.08,
+				modelKey: "gmi_seedance_2_0_260128_t2v",
+				description: "GMI — Seedance",
+			});
+		});
+
+		it("omits credits from body when amount is zero or undefined", async () => {
+			mockGetAuthToken.mockResolvedValue("tok");
+			mockFetch.mockResolvedValue(new Response("{}", { status: 200 }));
+
+			await proxySubmit({
+				provider: "gmi",
+				endpoint: "https://x/y",
+				body: {},
+			});
+			let [, init] = mockFetch.mock.calls[0];
+			expect(JSON.parse(init.body).credits).toBeUndefined();
+
+			await proxySubmit({
+				provider: "gmi",
+				endpoint: "https://x/y",
+				body: {},
+				credits: { amount: 0, modelKey: "m", description: "d" },
+			});
+			[, init] = mockFetch.mock.calls[1];
+			expect(JSON.parse(init.body).credits).toBeUndefined();
+		});
+	});
+
+	describe("refundCredits", () => {
+		it("posts to /api/ai/refund with amount, modelKey, description", async () => {
+			mockGetAuthToken.mockResolvedValue("session-xyz");
+			mockFetch.mockResolvedValue(
+				new Response('{"credits":{"totalCredits":50}}', { status: 200 })
+			);
+
+			await refundCredits({
+				amount: 2.08,
+				modelKey: "gmi_seedance_2_0_260128_t2v",
+				description: "GMI — refund",
+			});
+
+			expect(mockFetch).toHaveBeenCalledOnce();
+			const [url, init] = mockFetch.mock.calls[0];
+			expect(url).toMatch(/\/api\/ai\/refund$/);
+			expect(init.method).toBe("POST");
+			expect(init.headers.Authorization).toBe("Bearer session-xyz");
+			expect(JSON.parse(init.body)).toEqual({
+				amount: 2.08,
+				modelKey: "gmi_seedance_2_0_260128_t2v",
+				description: "GMI — refund",
+			});
+		});
+
+		it("throws when no session token is available", async () => {
+			mockGetAuthToken.mockResolvedValue("");
+			await expect(
+				refundCredits({ amount: 1, modelKey: "m", description: "d" })
+			).rejects.toThrow(/No QCut session token/);
 		});
 	});
 

@@ -140,6 +140,48 @@ const PER_SECOND_COSTS: Record<string, CreditCost> = {
 		label: "VEED Fabric 1.0",
 		unit: "per second",
 	},
+
+	// GMI Cloud — Text-to-Video (worst-case tier to avoid under-billing).
+	// Derived from `price` strings in text2video-models-config/models.ts at
+	// $0.10 per credit. Revisit when the resolution/audio-aware pricing
+	// follow-up lands (see docs/task/gmi-video-cli-guide/10-credit-deduction-relay.md).
+	gmi_seedance_2_0_260128_t2v: {
+		credits: 0.52,
+		label: "Seedance 2.0 260128 (GMI)",
+		unit: "per second",
+	},
+	gmi_veo31_lite_t2v: {
+		credits: 0.8,
+		label: "Veo 3.1 Lite (GMI)",
+		unit: "per second",
+	},
+	gmi_skyreels_v4_t2v: {
+		credits: 1.4,
+		label: "SkyReels V4 (GMI)",
+		unit: "per second",
+	},
+	gmi_kling_v3_t2v: {
+		credits: 1.68,
+		label: "Kling V3 (GMI)",
+		unit: "per second",
+	},
+	gmi_kling_v3_omni_t2v: {
+		credits: 1.4,
+		label: "Kling V3 Omni (GMI)",
+		unit: "per second",
+	},
+
+	// Runway — Text-to-Video
+	runway_gen45_t2v: {
+		credits: 5,
+		label: "Runway Gen4.5",
+		unit: "per second",
+	},
+	runway_gen4_turbo_t2v: {
+		credits: 2.5,
+		label: "Runway Gen4 Turbo",
+		unit: "per second",
+	},
 };
 
 /** Per-character costs (for TTS) */

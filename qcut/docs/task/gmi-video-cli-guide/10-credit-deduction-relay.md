@@ -1,4 +1,34 @@
-# Plan — Credit Deduction for GMI / FAL License-Server Relay
+# Credit Deduction for GMI / FAL License-Server Relay (implementation log)
+
+> **Status: landed on branch `credit-system`.** T1–T9 complete.
+> T10 (manual verification + worker deploy) is the only step left for
+> the user.
+
+## Final results
+
+- **Renderer tests**: 56/56 pass. Command: `bunx vitest run src/lib/__tests__/credit-costs.test.ts src/lib/ai-clients/__tests__/gmi-client.test.ts src/lib/ai-video/core/__tests__/license-relay.test.ts src/lib/ai-video/core/__tests__/fal-request-proxy.test.ts` from `apps/web`.
+- **Server tests**: 25/25 pass (was 22). Command: `bunx vitest run src/routes/ai-proxy.test.ts` from `packages/license-server`.
+- **Type check**: clean for `apps/web`; `packages/license-server` emits one pre-existing `sharp` type-definition warning unrelated to this change.
+
+Files touched:
+
+- `apps/web/src/lib/credit-costs.ts` — 7 new per-second entries.
+- `apps/web/src/lib/ai-video/core/license-relay.ts` — `credits` field on `ProxySubmitOptions`, new `refundCredits` helper.
+- `apps/web/src/lib/ai-video/core/relay-errors.ts` — new `InsufficientCreditsError`.
+- `apps/web/src/lib/ai-video/core/relay-types.ts` — shared `CreditBalanceInfo`.
+- `apps/web/src/lib/ai-clients/gmi-client.ts` — credit estimation + 402 handling + refund-on-failure via internal `pendingRelayDeductions` map.
+- `apps/web/src/lib/ai-video/core/fal-request.ts` — optional `modelKey` + `durationSeconds` fields drive relay credit attachment.
+- `apps/web/src/stores/license-store.ts` — new `applyBalance(balance)` setter.
+- `apps/web/src/components/editor/media-panel/views/ai/hooks/use-ai-generation-core.ts` — targeted insufficient-credits toast with Top-up action.
+- `packages/license-server/src/services/credit-service.ts` — new `refundCreditsForUser` with 24h window + amount cap + SQL transaction.
+- `packages/license-server/src/routes/ai-proxy.ts` — new `POST /refund` route; `x-credits-remaining` header on the deduct-success path.
+
+Test files:
+
+- `apps/web/src/lib/__tests__/credit-costs.test.ts` — **new**, 11 tests.
+- `apps/web/src/lib/ai-clients/__tests__/gmi-client.test.ts` — 25 tests (was 20).
+- `apps/web/src/lib/ai-video/core/__tests__/license-relay.test.ts` — 14 tests (was 10).
+- `packages/license-server/src/routes/ai-proxy.test.ts` — 25 tests (was 22).
 
 Target: every AI video generation that runs through `POST /api/ai/proxy`
 (i.e. logged-in users without a local provider key) deducts the correct
@@ -64,7 +94,7 @@ Long-term invariants:
 
 Each ≤20 minutes. Paths listed for every file touched.
 
-### T1 — Populate `credit-costs.ts` for GMI + Runway models
+### T1 ✅ — Populate `credit-costs.ts` for GMI + Runway models
 
 - **File:** `apps/web/src/lib/credit-costs.ts:100-143` (`PER_SECOND_COSTS`).
 - Add entries derived from each model's `price` field in
@@ -88,7 +118,7 @@ Each ≤20 minutes. Paths listed for every file touched.
 - Update the adjacent comment about "$0.10 per credit" to reference
   the table as authoritative.
 
-### T2 — Thread `credits` through `proxySubmit`
+### T2 ✅ — Thread `credits` through `proxySubmit`
 
 - **File:** `apps/web/src/lib/ai-video/core/license-relay.ts`
   - Extend `ProxySubmitOptions` with an optional
@@ -99,7 +129,7 @@ Each ≤20 minutes. Paths listed for every file touched.
     a pricing entry should still work (helpful when adding new
     providers).
 
-### T3 — GMI client: estimate + attach credits on submit
+### T3 ✅ — GMI client: estimate + attach credits on submit
 
 - **File:** `apps/web/src/lib/ai-clients/gmi-client.ts`
 - In `submit(...)`:
@@ -115,7 +145,7 @@ Each ≤20 minutes. Paths listed for every file touched.
      UI can surface a targeted toast ("You need X more credits") instead
      of a generic "GMI API error (402)".
 
-### T4 — Server-side refund endpoint + client call on provider failure
+### T4 ✅ — Server-side refund endpoint + client call on provider failure
 
 - **Server:** new `POST /api/ai/refund` handler in
   `packages/license-server/src/routes/ai-proxy.ts` (or a new
@@ -137,7 +167,7 @@ Each ≤20 minutes. Paths listed for every file touched.
     `refundCredits`. Same on `submit` throwing after a successful
     deduction.
 
-### T5 — FAL parity
+### T5 ✅ — FAL parity
 
 - **File:** `apps/web/src/lib/ai-video/core/fal-request.ts:151-191`.
 - When routing through the proxy (existing branch), mirror T3:
@@ -147,7 +177,7 @@ Each ≤20 minutes. Paths listed for every file touched.
   not the renderer's `modelKey`. Thread the `modelKey` separately (FAL
   callers already have it at `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/*`). Don't use the endpoint as the `modelKey`.
 
-### T6 — Renderer balance sync
+### T6 ✅ — Renderer balance sync
 
 - **File:** `apps/web/src/stores/license-store.ts` — already has
   `setCredits(credits)` accessor (per survey). Expose
@@ -161,7 +191,7 @@ Each ≤20 minutes. Paths listed for every file touched.
   deduction.balance` in the JSON body when the provider call succeeds,
   and in the 402 body. Backwards-compatible (additive field).
 
-### T7 — UI: insufficient-credits toast and balance chip
+### T7 ✅ — UI: insufficient-credits toast and balance chip
 
 - **File:** `apps/web/src/components/editor/media-panel/views/ai/hooks/use-ai-generation-core.ts`
 - When the skip reason is `InsufficientCreditsError`, render a toast
@@ -171,7 +201,7 @@ Each ≤20 minutes. Paths listed for every file touched.
   plan. Adds no new SQL but changes layout — belongs in the next
   sprint.
 
-### T8 — Tests
+### T8 ✅ — Tests
 
 | Test file                                                                                     | Covers                                                |
 | --------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
@@ -184,7 +214,7 @@ Each ≤20 minutes. Paths listed for every file touched.
 Run: `bunx vitest run` from `apps/web` and `bunx vitest run` from
 `packages/license-server`.
 
-### T9 — Docs
+### T9 ✅ — Docs
 
 - **File:** `docs/task/gmi-video-cli-guide/10-credit-deduction-relay.md`
   (this plan) — convert to implementation log with ✅ markers when each

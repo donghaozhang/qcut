@@ -37,6 +37,34 @@ Set via `--image-model <key>`.
 
 Set via `--video-model <key>`.
 
+## Credit pricing for the editor UI
+
+Logged-in users spend QCut credits instead of paying GMI directly. The
+renderer computes the deduction from `estimateCreditCost(modelKey,
+{ durationSeconds })` in
+`apps/web/src/lib/credit-costs.ts`. At 1 credit ≈ $0.10 and using the
+worst-case tier per model (so there are no surprise bills on audio /
+1080p runs):
+
+| modelKey                           | Credits / s | Example — 5s clip |
+| ---------------------------------- | ----------- | ----------------- |
+| `gmi_seedance_2_0_260128_t2v`      | 0.52        | 2.60              |
+| `gmi_veo31_lite_t2v`               | 0.80        | 4.00              |
+| `gmi_skyreels_v4_t2v`              | 1.40        | 7.00              |
+| `gmi_kling_v3_t2v`                 | 1.68        | 8.40              |
+| `gmi_kling_v3_omni_t2v`            | 1.40        | 7.00              |
+| `runway_gen45_t2v`                 | 5.00        | 25.00             |
+| `runway_gen4_turbo_t2v`            | 2.50        | 12.50             |
+
+Failed / cancelled / timed-out jobs are refunded automatically via
+`POST /api/ai/refund` on the license server
+(`packages/license-server/src/routes/ai-proxy.ts`). The refund is
+capped at the total amount deducted for the same user + model in the
+last 24 hours minus any prior refunds.
+
+Offline / self-hosted / CLI users with `VITE_GMI_API_KEY` set bypass
+credits entirely — they pay GMI Cloud directly on their own account.
+
 ## Authentication for the editor UI
 
 All GMI text/image-to-video models work out of the box for logged-in QCut

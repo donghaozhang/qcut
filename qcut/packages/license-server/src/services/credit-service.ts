@@ -362,6 +362,120 @@ export async function deductCreditsForUser({
 	}
 }
 
+/**
+ * Atomically credits a user's plan balance as a refund against a recent
+ * relay-time deduction. The refund amount may not exceed the total
+ * credits deducted by the same user for the same model in the last
+ * `refundWindowMs` (default: 24 hours) minus any prior refunds in that
+ * window — callers must not double-refund the same provider failure.
+ */
+export async function refundCreditsForUser({
+	userId,
+	amount,
+	modelKey,
+	description,
+	refundWindowMs = 24 * 60 * 60 * 1000,
+}: {
+	userId: string;
+	amount: number;
+	modelKey: string;
+	description: string;
+	refundWindowMs?: number;
+}): Promise<{ success: boolean; balance: CreditBalanceInfo; reason?: string }> {
+	try {
+		validatePositiveAmount({ amount });
+		const normalizedAmount = roundCredits({ amount });
+		validatePositiveAmount({ amount: normalizedAmount });
+
+		const windowStart = new Date(Date.now() - refundWindowMs);
+
+		const updated = await db.transaction(async (tx) => {
+			const recent = await tx
+				.select({
+					amount: creditTransactions.amount,
+					type: creditTransactions.type,
+				})
+				.from(creditTransactions)
+				.where(
+					and(
+						eq(creditTransactions.userId, userId),
+						eq(creditTransactions.modelKey, modelKey),
+						sql`${creditTransactions.createdAt} >= ${windowStart}`
+					)
+				);
+
+			let deducted = 0;
+			let alreadyRefunded = 0;
+			for (const row of recent) {
+				if (row.type === "deduction") {
+					// deductions are stored as negative amounts
+					deducted += Math.abs(row.amount);
+				} else if (row.type === "refund") {
+					alreadyRefunded += row.amount;
+				}
+			}
+
+			const refundable = Math.max(deducted - alreadyRefunded, 0);
+			if (refundable < normalizedAmount) {
+				return {
+					status: "over_cap" as const,
+					refundable: roundCredits({ amount: refundable }),
+				};
+			}
+
+			const balance = await ensureCreditBalance({ userId });
+			const refreshed = await resetPlanCreditsIfDue({ userId, balance });
+
+			const now = new Date();
+			const [nextBalance] = await tx
+				.update(creditBalances)
+				.set({
+					planCredits: sql`${creditBalances.planCredits} + ${normalizedAmount}`,
+					updatedAt: now,
+				})
+				.where(eq(creditBalances.id, refreshed.id))
+				.returning();
+
+			if (!nextBalance) {
+				return { status: "no_balance" as const };
+			}
+
+			await tx.insert(creditTransactions).values({
+				id: crypto.randomUUID(),
+				userId,
+				type: "refund",
+				amount: normalizedAmount,
+				balanceAfter: nextBalance.planCredits + nextBalance.topUpCredits,
+				description,
+				modelKey,
+			});
+
+			return { status: "ok" as const, balance: nextBalance };
+		});
+
+		if (updated.status === "ok") {
+			return {
+				success: true,
+				balance: buildCreditBalanceInfo({ balance: updated.balance }),
+			};
+		}
+
+		const latestBalance = await getCreditBalanceByUserId({ userId });
+		return {
+			success: false,
+			balance: latestBalance,
+			reason:
+				updated.status === "over_cap"
+					? "Refund exceeds refundable deductions in the last 24h"
+					: "Balance row missing",
+		};
+	} catch (error) {
+		throw new Error(
+			`Failed to refund credits for user ${userId}: ${error instanceof Error ? error.message : "Unknown error"}`
+		);
+	}
+}
+
 /** Returns recent credit transactions in reverse chronological order. */
 export async function listCreditHistoryByUserId({
 	userId,
