@@ -4,7 +4,9 @@ import {
 	adaptShotForSeedance,
 	clampDuration,
 	resolveSeedanceFamily,
+	resolveSeedanceTier,
 	sanitizeShotPrompt,
+	SEEDANCE_FAST_ENDPOINT,
 } from "../video-shot-adapter.js";
 
 describe("clampDuration", () => {
@@ -986,5 +988,103 @@ describe("adaptShotForSeedance — per-family prompt cap", () => {
 			"kling-omni"
 		);
 		expect((adapted.payload.prompt as string).length).toBeLessThanOrEqual(2500);
+	});
+});
+
+describe("resolveSeedanceTier", () => {
+	it("returns standard by default", () => {
+		expect(resolveSeedanceTier(undefined)).toBe("standard");
+		expect(resolveSeedanceTier("gmi_seedance_2_0_260128")).toBe("standard");
+		expect(resolveSeedanceTier("gmi_seedance_2_0_260128_i2v")).toBe(
+			"standard"
+		);
+	});
+
+	it("detects the fast tier on both bare and suffixed model keys", () => {
+		expect(resolveSeedanceTier("gmi_seedance_2_0_fast_260128")).toBe("fast");
+		expect(resolveSeedanceTier("gmi_seedance_2_0_fast_260128_t2v")).toBe(
+			"fast"
+		);
+		expect(resolveSeedanceTier("gmi_seedance_2_0_fast_260128_ref2v")).toBe(
+			"fast"
+		);
+	});
+
+	it("still maps fast keys into the gmi family (no new family)", () => {
+		expect(resolveSeedanceFamily("gmi_seedance_2_0_fast_260128")).toBe("gmi");
+		expect(resolveSeedanceFamily("gmi_seedance_2_0_fast_260128_i2v")).toBe(
+			"gmi"
+		);
+	});
+});
+
+describe("adaptShotForSeedance — fast tier", () => {
+	it("routes t2v shots to the `-fast-` endpoint and variant", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: "A draft shot",
+				characters: [],
+				durationSeconds: 5,
+			},
+			{},
+			"gmi",
+			"fast"
+		);
+		expect(adapted.endpoint).toBe(SEEDANCE_FAST_ENDPOINT);
+		expect(adapted.variant).toBe("gmi_seedance_2_0_fast_260128_t2v");
+		expect(adapted.provider).toBe("gmi");
+	});
+
+	it("routes i2v shots with the fast endpoint when a first-frame is provided", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "2",
+				description: "draft",
+				characters: [],
+				durationSeconds: 5,
+				firstFrameUrl: "https://example.com/frame.jpg",
+			},
+			{},
+			"gmi",
+			"fast"
+		);
+		expect(adapted.endpoint).toBe(SEEDANCE_FAST_ENDPOINT);
+		expect(adapted.variant).toBe("gmi_seedance_2_0_fast_260128_i2v");
+		expect(adapted.payload.first_frame).toBe("https://example.com/frame.jpg");
+	});
+
+	it("routes ref2v shots with the fast endpoint when catalogued refs exist", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "3",
+				description: "Alice in a draft",
+				characters: ["Alice"],
+				durationSeconds: 5,
+			},
+			{ Alice: "https://cdn/alice.png" },
+			"gmi",
+			"fast"
+		);
+		expect(adapted.endpoint).toBe(SEEDANCE_FAST_ENDPOINT);
+		expect(adapted.variant).toBe("gmi_seedance_2_0_fast_260128_ref2v");
+		expect(adapted.payload.reference_images).toEqual([
+			"https://cdn/alice.png",
+		]);
+	});
+
+	it("defaults to standard tier when the argument is omitted", () => {
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "4",
+				description: "still standard",
+				characters: [],
+				durationSeconds: 5,
+			},
+			{},
+			"gmi"
+		);
+		expect(adapted.endpoint).toBe("seedance-2-0-260128");
+		expect(adapted.variant).toBe("gmi_seedance_2_0_260128_t2v");
 	});
 });

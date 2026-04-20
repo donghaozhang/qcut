@@ -1,3 +1,54 @@
+# GMI Seedance 2.0 Fast 260128 — GUI + CLI (implementation log)
+
+> **Status: landed on branch `credit-system`.** T1–T8 complete. Pricing
+> uses a conservative `$0.052/s` placeholder (matches the standard tier);
+> reprice when GMI publishes the fast-tier rate. T9 (manual verification)
+> is the only step left for the user.
+
+## Final results
+
+- **Renderer tests:** 123/123 pass.
+- **CLI tests:** 79/79 pass (was 69 — added 10 for tier detection + fast adapter routing).
+- **Type check:** clean for `apps/web` + `electron/`.
+- **Coverage:** `AI_MODELS` grew from 92 → 95; every new entry priced
+  automatically from its registry `price` string.
+
+Commands:
+```
+# from apps/web
+bunx vitest run src/lib/__tests__/credit-costs-coverage.test.ts \
+  src/lib/ai-video/generators/__tests__/gmi-text-to-video.test.ts \
+  src/lib/ai-video/generators/__tests__/gmi-image-to-video.test.ts \
+  src/components/editor/media-panel/views/ai/hooks/generation/__tests__/model-handlers-routing.test.ts
+
+# from repo root (CLI)
+bunx vitest run electron/native-pipeline/cli/vimax-cli-handlers/__tests__/video-shot-adapter.test.ts \
+  electron/native-pipeline/execution/__tests__/step-executors-vidu.test.ts
+```
+
+Files touched (summary):
+
+| Layer | File | What changed |
+| --- | --- | --- |
+| Renderer registry | `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/models.ts` | Added `gmi_seedance_2_0_fast_260128_t2v` |
+| Renderer registry | `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/order.ts` | Added to picker order |
+| Renderer registry | `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/capabilities.ts` | Added capability block |
+| Renderer registry | `apps/web/src/components/editor/media-panel/views/ai/constants/image2video-models-config.ts` | Added `gmi_seedance_2_0_fast_260128_i2v` + `_ref2v` + order |
+| Generator | `apps/web/src/lib/ai-video/generators/gmi-text-to-video.ts` | Parameterised endpoint; added `generateSeedanceFast260128TextVideo` |
+| Generator | `apps/web/src/lib/ai-video/generators/gmi-image-to-video.ts` | Same for ImageVideo + ReferenceVideo |
+| Barrel | `apps/web/src/lib/ai-video/index.ts` | Re-export the 3 new generator fns |
+| Handler | `.../handlers/text-to-video-handlers.ts` | New `handleSeedanceFast260128T2V` |
+| Handler | `.../handlers/image-to-video-handlers-gmi.ts` | New I2V + Ref2V fast handlers |
+| Routing | `.../model-handlers.ts` | 3 new `case` arms |
+| CLI registry | `electron/native-pipeline/registry-data/text-to-video.ts` | Added fast T2V |
+| CLI registry | `electron/native-pipeline/registry-data/image-to-video.ts` | Added fast I2V + Ref2V |
+| CLI adapter | `electron/native-pipeline/cli/vimax-cli-handlers/video-shot-adapter.ts` | `SeedanceTier` type, `SEEDANCE_FAST_ENDPOINT`, `seedanceEndpointFor`, `resolveSeedanceTier`; GMI builders accept `tier` |
+| CLI handler | `electron/native-pipeline/cli/vimax-cli-handlers/video-handler.ts` | Threads `tier` into `adaptShotForSeedance` |
+| CLI executor | `electron/native-pipeline/execution/step-executors.ts` | Aspect-ratio remap widened to both endpoints |
+| Tests | see test files listed in T7 | +12 new cases |
+
+---
+
 # Plan — Add GMI Seedance 2.0 **Fast** 260128 to GUI and CLI
 
 Target: ship the `seedance-2-0-fast-260128` GMI Cloud endpoint as a
@@ -83,7 +134,7 @@ Each ≤20 min, file paths listed.
 - If unavailable, ask Quriosity GMI account admin / or use the non-fast
   $0.052/s as a conservative placeholder and open a follow-up issue.
 
-### T1 — Renderer T2V registry entry ✅-ready
+### T1 ✅ — Renderer T2V registry entry
 
 - **File:** `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/models.ts`
   - Duplicate the existing `gmi_seedance_2_0_260128_t2v` block (around
@@ -97,14 +148,14 @@ Each ≤20 min, file paths listed.
 - **File:** `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/capabilities.ts`
   - Duplicate the `gmi_seedance_2_0_260128_t2v` capabilities block.
 
-### T2 — Renderer I2V + Ref2V registry entries
+### T2 ✅ — Renderer I2V + Ref2V registry entries
 
 - **File:** `apps/web/src/components/editor/media-panel/views/ai/constants/image2video-models-config.ts`
   - Duplicate both `gmi_seedance_2_0_260128_i2v` and `gmi_seedance_2_0_260128_ref2v` (around lines 743–788) as `gmi_seedance_2_0_fast_260128_i2v` and `gmi_seedance_2_0_fast_260128_ref2v`.
   - Update `endpoints.image_to_video` → `"seedance-2-0-fast-260128"`.
   - Add both IDs to `I2V_MODEL_ORDER` in the same file (around line 902).
 
-### T3 — Renderer generator refactor (shared endpoint param)
+### T3 ✅ — Renderer generator refactor (shared endpoint param)
 
 - **File:** `apps/web/src/lib/ai-video/generators/gmi-text-to-video.ts`
   - `generateSeedance260128TextVideo(...)` currently hardcodes `"seedance-2-0-260128"`. Extract the endpoint into a parameter with default `"seedance-2-0-260128"`, and export a second thin wrapper `generateSeedanceFast260128TextVideo` that passes `"seedance-2-0-fast-260128"`.
@@ -113,7 +164,7 @@ Each ≤20 min, file paths listed.
   - Same refactor for `generateSeedance260128ImageVideo` and
     `generateSeedance260128ReferenceVideo`.
 
-### T4 — Renderer handler routes
+### T4 ✅ — Renderer handler routes
 
 - **File:** `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/text-to-video-handlers.ts`
   - Add `handleSeedanceFast260128T2V` next to `handleSeedance260128T2V` (~line 581). It's a 30-line copy with only the generator call changing.
@@ -124,14 +175,14 @@ Each ≤20 min, file paths listed.
   - Add `case "gmi_seedance_2_0_fast_260128_t2v"` to the T2V routing switch (~line 309).
   - Add the two I2V cases to the I2V routing switch.
 
-### T5 — CLI registry entries
+### T5 ✅ — CLI registry entries
 
 - **File:** `electron/native-pipeline/registry-data/text-to-video.ts`
   - Duplicate the `gmi_seedance_2_0_260128_t2v` `ModelRegistry.register({})` block (~lines 539–571) as the fast variant. Same pricing/durations/ratios, endpoint `"seedance-2-0-fast-260128"`.
 - **File:** `electron/native-pipeline/registry-data/image-to-video.ts`
   - Duplicate the two blocks at ~lines 1041–1110 and 1112–1161 for the fast i2v and ref2v.
 
-### T6 — CLI shot adapter + step executor
+### T6 ✅ — CLI shot adapter + step executor
 
 - **File:** `electron/native-pipeline/cli/vimax-cli-handlers/video-shot-adapter.ts`
   - Extend the `SeedanceVariant` union (~line 52) with three new members: `"gmi_seedance_2_0_fast_260128_t2v" | "_i2v" | "_ref2v"`.
@@ -139,7 +190,7 @@ Each ≤20 min, file paths listed.
 - **File:** `electron/native-pipeline/execution/step-executors.ts:147-152`
   - The `endpoint === "seedance-2-0-260128"` guard that remaps `aspect_ratio` → `ratio` needs to also match `"seedance-2-0-fast-260128"`. Switch to a prefix check (`endpoint.startsWith("seedance-2-0-")`) or a Set lookup.
 
-### T7 — Tests
+### T7 ✅ — Tests
 
 | Test file                                                                                      | What to add                                 |
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------- |
@@ -154,7 +205,7 @@ Each ≤20 min, file paths listed.
 
 Run: `bunx vitest run` from `apps/web`; `bunx vitest run` from `electron/native-pipeline`.
 
-### T8 — Docs
+### T8 ✅ — Docs
 
 - **File:** `docs/task/gmi-provider/seedance-2-0-fast-260128-plan.md` (this file) — convert to implementation log with ✅ per subtask.
 - **File:** `docs/task/gmi-video-cli-guide/04-gmi-models.md` — add the fast variant row to the **Video models** table and the **Credit pricing** table.
