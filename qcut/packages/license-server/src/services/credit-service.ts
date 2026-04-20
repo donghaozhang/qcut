@@ -389,43 +389,48 @@ export async function refundCreditsForUser({
 
 		const windowStart = new Date(Date.now() - refundWindowMs);
 
+		// Do read queries + balance bootstrap BEFORE opening the transaction.
+		// Mirrors `deductCreditsForUser`; Hyperdrive doesn't love nested
+		// connection-grabbing helpers inside a tx callback.
+		const recent = await db
+			.select({
+				amount: creditTransactions.amount,
+				type: creditTransactions.type,
+			})
+			.from(creditTransactions)
+			.where(
+				and(
+					eq(creditTransactions.userId, userId),
+					eq(creditTransactions.modelKey, modelKey),
+					sql`${creditTransactions.createdAt} >= ${windowStart}`
+				)
+			);
+
+		let deducted = 0;
+		let alreadyRefunded = 0;
+		for (const row of recent) {
+			if (row.type === "deduction") {
+				// deductions are stored as negative amounts
+				deducted += Math.abs(row.amount);
+			} else if (row.type === "refund") {
+				alreadyRefunded += row.amount;
+			}
+		}
+
+		const refundable = Math.max(deducted - alreadyRefunded, 0);
+		if (refundable < normalizedAmount) {
+			const latestBalance = await getCreditBalanceByUserId({ userId });
+			return {
+				success: false,
+				balance: latestBalance,
+				reason: "Refund exceeds refundable deductions in the last 24h",
+			};
+		}
+
+		const balance = await ensureCreditBalance({ userId });
+		const refreshed = await resetPlanCreditsIfDue({ userId, balance });
+
 		const updated = await db.transaction(async (tx) => {
-			const recent = await tx
-				.select({
-					amount: creditTransactions.amount,
-					type: creditTransactions.type,
-				})
-				.from(creditTransactions)
-				.where(
-					and(
-						eq(creditTransactions.userId, userId),
-						eq(creditTransactions.modelKey, modelKey),
-						sql`${creditTransactions.createdAt} >= ${windowStart}`
-					)
-				);
-
-			let deducted = 0;
-			let alreadyRefunded = 0;
-			for (const row of recent) {
-				if (row.type === "deduction") {
-					// deductions are stored as negative amounts
-					deducted += Math.abs(row.amount);
-				} else if (row.type === "refund") {
-					alreadyRefunded += row.amount;
-				}
-			}
-
-			const refundable = Math.max(deducted - alreadyRefunded, 0);
-			if (refundable < normalizedAmount) {
-				return {
-					status: "over_cap" as const,
-					refundable: roundCredits({ amount: refundable }),
-				};
-			}
-
-			const balance = await ensureCreditBalance({ userId });
-			const refreshed = await resetPlanCreditsIfDue({ userId, balance });
-
 			const now = new Date();
 			const [nextBalance] = await tx
 				.update(creditBalances)
@@ -464,10 +469,7 @@ export async function refundCreditsForUser({
 		return {
 			success: false,
 			balance: latestBalance,
-			reason:
-				updated.status === "over_cap"
-					? "Refund exceeds refundable deductions in the last 24h"
-					: "Balance row missing",
+			reason: "Balance row missing",
 		};
 	} catch (error) {
 		throw new Error(
