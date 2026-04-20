@@ -281,6 +281,17 @@ export const gmiClient: ProviderClient = {
 
 		if (!response.ok) {
 			const detail = await readErrorDetail(response);
+			// Relay deducts atomically before forwarding (ai-proxy.ts:88-115), so
+			// a provider-side error leaves the deduction orphaned. The server's
+			// refund cap rejects refunds exceeding actual deductions, so
+			// pre-deduction relay errors (400/403/413/503) are safely no-ops.
+			if (relayCredits && sessionTokenForRefund) {
+				scheduleRefund(
+					relayCredits,
+					"submit-http-error",
+					sessionTokenForRefund
+				);
+			}
 			throw new Error(`GMI API error (${response.status}): ${detail}`);
 		}
 
