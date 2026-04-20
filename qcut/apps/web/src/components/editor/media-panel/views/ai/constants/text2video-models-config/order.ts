@@ -13,6 +13,9 @@ import { T2V_MODELS, type T2VModelId } from "./models";
  * Models are ordered by quality/capability (highest first) to guide user selection.
  */
 export const T2V_MODEL_ORDER: readonly T2VModelId[] = [
+	// Seedance GMI picks — promoted to top
+	"gmi_seedance_2_0_260128_t2v",
+	"gmi_seedance_2_0_fast_260128_t2v",
 	// Badged picks — always on top
 	"sora2_text_to_video_pro", // ⭐ Recommended
 	"ltxv2_fast_t2v", // ⚡ Fast
@@ -42,8 +45,6 @@ export const T2V_MODEL_ORDER: readonly T2VModelId[] = [
 	"gmi_skyreels_v4_t2v",
 	"gmi_kling_v3_t2v",
 	"gmi_kling_v3_omni_t2v",
-	"gmi_seedance_2_0_260128_t2v",
-	"gmi_seedance_2_0_fast_260128_t2v",
 	// Runway
 	"runway_gen45_t2v",
 	"runway_gen4_turbo_t2v",

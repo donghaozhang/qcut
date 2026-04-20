@@ -595,9 +595,15 @@ export async function handleSeedance260128T2V(
 				: undefined;
 		const response = await generateSeedance260128TextVideo({
 			prompt: ctx.prompt,
-			duration: resolveSeedanceDuration(settings.duration),
-			resolution: resolveSeedanceResolution(settings.resolution),
-			ratio: resolveSeedanceRatio(settings.aspectRatio),
+			duration: resolveSeedanceDuration(
+				settings.unifiedParams?.duration ?? settings.duration
+			),
+			resolution: resolveSeedanceResolution(
+				settings.unifiedParams?.resolution ?? settings.resolution
+			),
+			ratio: resolveSeedanceRatio(
+				settings.unifiedParams?.aspect_ratio ?? settings.aspectRatio
+			),
 			seed,
 		});
 		return { response };
@@ -623,9 +629,15 @@ export async function handleSeedanceFast260128T2V(
 				: undefined;
 		const response = await generateSeedanceFast260128TextVideo({
 			prompt: ctx.prompt,
-			duration: resolveSeedanceDuration(settings.duration),
-			resolution: resolveSeedanceResolution(settings.resolution),
-			ratio: resolveSeedanceRatio(settings.aspectRatio),
+			duration: resolveSeedanceDuration(
+				settings.unifiedParams?.duration ?? settings.duration
+			),
+			resolution: resolveSeedanceResolution(
+				settings.unifiedParams?.resolution ?? settings.resolution
+			),
+			ratio: resolveSeedanceRatio(
+				settings.unifiedParams?.aspect_ratio ?? settings.aspectRatio
+			),
 			seed,
 		});
 		return { response };
