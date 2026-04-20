@@ -46,18 +46,25 @@ export function parsePriceString(raw: string | undefined): ParsedPrice | null {
 	// Unit detection — suffix-based. Order matters: check more specific
 	// suffixes ("1k chars", "MP", "min") before the generic "/s".
 	let unit: PriceUnit = "fixed";
+	let numericPart = s;
 	if (/\/\s*1k\s*chars?/i.test(s)) {
 		unit = "per-1k-chars";
+		// Strip the "/1k chars" suffix so the "1" inside "1k" doesn't leak
+		// into number extraction below (regression fix).
+		numericPart = s.replace(/\/\s*1k\s*chars?/i, "");
 	} else if (/\/\s*MP\b/i.test(s)) {
 		unit = "per-megapixel";
+		numericPart = s.replace(/\/\s*MP\b/i, "");
 	} else if (/\/\s*min\b/i.test(s)) {
 		unit = "per-minute";
+		numericPart = s.replace(/\/\s*min\b/i, "");
 	} else if (/\/s\b/i.test(s)) {
 		unit = "per-second";
+		numericPart = s.replace(/\/s\b/i, "");
 	}
 
 	// Extract all numeric substrings (e.g., "0.05", "0.08" from "$0.05-0.08/s").
-	const matches = [...s.matchAll(/(\d+(?:\.\d+)?)/g)];
+	const matches = [...numericPart.matchAll(/(\d+(?:\.\d+)?)/g)];
 	if (matches.length === 0) return null;
 
 	const numbers = matches.map((m) => Number.parseFloat(m[1]));
@@ -131,5 +138,9 @@ export function creditsFromParsedPrice(
 	}
 	if (rawCredits == null || !Number.isFinite(rawCredits)) return null;
 	if (rawCredits <= 0) return 0;
-	return Math.max(1, Math.round(rawCredits));
+	// Snap to 6-decimal precision before rounding so floating-point noise
+	// on inputs like 0.015 × 60 / 60 × 100 = 1.4999999… doesn't round DOWN
+	// to 1 when the arithmetically-exact answer is 1.5.
+	const snapped = Math.round(rawCredits * 1e6) / 1e6;
+	return Math.max(1, Math.round(snapped));
 }

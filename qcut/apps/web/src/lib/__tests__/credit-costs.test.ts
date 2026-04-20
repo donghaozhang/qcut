@@ -56,6 +56,30 @@ describe("credit-costs — registry-driven pricing (1 credit ≈ $0.01)", () => 
 		expect(estimateCreditCost("gmi_kling_v3_t2v")).toBe(1);
 	});
 
+	it.each([
+		// Chatterbox S2S is $0.015/min → 1.5 credits/min.
+		// 60s → 1.5 credits → floored to 1. 120s (2min) → 3.
+		["chatterbox_s2s", { durationSeconds: 60 }, 2],
+		["chatterbox_s2s", { durationSeconds: 120 }, 3],
+		// Qwen3 Voice Clone is $0.0008/min → 0.08 credits/min.
+		// Any single-minute call is below the 1-credit floor → 1.
+		["qwen3_clone_voice", { durationSeconds: 60 }, 1],
+		// ElevenLabs v3 $0.10/1k chars → 10 credits per 1k chars.
+		// 2500 chars → 25.
+		["elevenlabs_v3", { characterCount: 2500 }, 25],
+		// Qwen3 TTS $0.09/1k chars × 2000 chars = 18.
+		["qwen3_tts", { characterCount: 2000 }, 18],
+		// Chatterbox TTS Turbo $0.02/1k chars × 1000 = 2.
+		["chatterbox_tts_turbo", { characterCount: 1000 }, 2],
+	] as const)(
+		"prices speech model %s with %o as %s credits",
+		(modelKey, params, expected) => {
+			expect(
+				estimateCreditCost(modelKey as string, params as Record<string, number>)
+			).toBe(expected);
+		}
+	);
+
 	it("applies overrides ahead of the registry lookup", () => {
 		// ElevenLabs TTS lives in COST_OVERRIDES — 0.1 credits per 1k chars.
 		// 1000 chars → round(0.1) = 1 credit (min of 1).
