@@ -176,7 +176,8 @@ describe("gmiClient", () => {
 				})
 			);
 			const call = vi.mocked(proxySubmit).mock.calls[0][0];
-			expect(call.credits?.amount).toBeCloseTo(0.52 * 4, 6);
+			// 1 credit ≈ $0.01; $0.052/s × 4s × 100 = 20.8 → round = 21.
+			expect(call.credits?.amount).toBe(21);
 			expect(call.credits?.description).toMatch(/Seedance|seedance|GMI/);
 		});
 
@@ -394,7 +395,7 @@ describe("gmiClient", () => {
 			expect(refundCredits).toHaveBeenCalledTimes(1);
 			const refundArgs = vi.mocked(refundCredits).mock.calls[0][0];
 			expect(refundArgs.modelKey).toBe("gmi_seedance_2_0_260128_t2v");
-			expect(refundArgs.amount).toBeCloseTo(0.52 * 4, 6);
+			expect(refundArgs.amount).toBe(21);
 			expect(refundArgs.description).toMatch(/refund/);
 		});
 

@@ -1,248 +1,185 @@
 /**
- * Credit cost mapping for AI operations.
- * 1 credit ≈ $0.10 of AI compute.
+ * Credit cost resolution for AI operations.
  *
- * Costs are derived from electron/native-pipeline/infra/cost-calculator.ts
- * pricing and rounded to simple values for user-facing display.
+ * Policy: **1 credit ≈ US$0.01.** Credits are computed at runtime from
+ * each model's registry `price` string so the renderer has a single
+ * source of truth — adding a new model to the registry automatically
+ * prices it; no parallel map to keep in sync.
  *
- * To adjust pricing, update this config — no code changes needed.
+ * Range handling: worst-case (upper bound) to prevent under-billing on
+ * premium tiers (1080p, pro, audio). See `credit-costs-parser.ts` for
+ * the `$0.05-0.08/s → 0.08` policy.
+ *
+ * Overrides: a small `COST_OVERRIDES` map handles providers whose keys
+ * live outside the main AI model registry (ElevenLabs TTS, transcription,
+ * utility LLMs). Registry-driven models should NOT appear here.
  */
 
+import { AI_MODELS } from "@/components/editor/media-panel/views/ai/constants/ai-constants";
+import {
+	CREDIT_USD_MULTIPLIER,
+	creditsFromParsedPrice,
+	parsePriceString,
+	type CreditComputeParams,
+	type ParsedPrice,
+	type PriceUnit,
+} from "./credit-costs-parser";
+
 export interface CreditCost {
-	/** Credits consumed per operation */
+	/** Credits consumed per unit (rate). */
 	credits: number;
-	/** Human-readable label */
+	/** Human-readable label for display. */
 	label: string;
-	/** Unit for display (e.g. "per image", "per 5s video") */
+	/** Unit for display (e.g. "per image", "per second", "per 5s video"). */
 	unit: string;
 }
 
-/** Fixed-cost operations (per invocation) */
-const FIXED_COSTS: Record<string, CreditCost> = {
-	// Text-to-Image
-	"flux-schnell": { credits: 0.1, label: "FLUX.1 Schnell", unit: "per image" },
-	"flux-dev": { credits: 0.3, label: "FLUX.1 Dev", unit: "per image" },
-	"seedream-v3": { credits: 0.2, label: "Seedream v3", unit: "per image" },
-	"imagen-4": { credits: 0.4, label: "Google Imagen 4", unit: "per image" },
-	"reve-t2i": { credits: 0.5, label: "Reve T2I", unit: "per image" },
-
-	// Image-to-Video (fixed price models)
-	"kling-v2.1-i2v": { credits: 0.5, label: "Kling v2.1", unit: "per video" },
-	"minimax-hailuo-02": {
-		credits: 0.5,
-		label: "MiniMax Hailuo-02",
-		unit: "per video",
-	},
-	"minimax-hailuo-02-pro": {
-		credits: 1,
-		label: "Hailuo-02 Pro",
-		unit: "per video",
-	},
-	"kling-v3-pro-i2v": {
-		credits: 3.5,
-		label: "Kling v3 Pro I2V",
-		unit: "per video",
-	},
-	"kling-v3-std-i2v": {
-		credits: 2.5,
-		label: "Kling v3 Std I2V",
-		unit: "per video",
-	},
-
-	// Avatar (fixed price models)
-	"kling-avatar-v2-std": {
-		credits: 0.6,
-		label: "Kling Avatar v2 Std",
-		unit: "per video",
-	},
-	"kling-avatar-v2-pro": {
-		credits: 1,
-		label: "Kling Avatar v2 Pro",
-		unit: "per video",
-	},
-
-	// Video Upscale
-	"bytedance-upscaler": {
-		credits: 0.5,
-		label: "ByteDance Upscaler",
-		unit: "per video",
-	},
-	flashvsr: { credits: 0.3, label: "FlashVSR", unit: "per video" },
-
-	// Image Edit
-	"flux-kontext": { credits: 0.3, label: "FLUX Kontext", unit: "per image" },
-	"luma-photon": { credits: 0.2, label: "Luma Photon", unit: "per image" },
-
-	// Prompt Generation
-	"openrouter-prompt": {
-		credits: 0.1,
-		label: "Prompt Generation",
-		unit: "per request",
-	},
-
-	// Image Understanding
-	"gemini-describe": {
-		credits: 0.1,
-		label: "Gemini Describe",
-		unit: "per request",
-	},
-
-	// GMI Cloud LLM models
-	"gmi-glm-5.1": { credits: 0.1, label: "GLM 5.1", unit: "per request" },
-	"gmi-gemini-3.1-pro": {
-		credits: 0.2,
-		label: "Gemini 3.1 Pro",
-		unit: "per request",
-	},
-	"gmi-gpt-5.4": { credits: 0.3, label: "GPT-5.4", unit: "per request" },
-};
-
-/** Per-second costs (multiply by duration) */
-const PER_SECOND_COSTS: Record<string, CreditCost> = {
-	// Text-to-Video
-	"ltxv2-fast-1080p": {
-		credits: 0.4,
-		label: "LTX V2 Fast 1080p",
-		unit: "per second",
-	},
-	"ltx23-pro-1080p": {
-		credits: 0.6,
-		label: "LTX 2.3 Pro 1080p",
-		unit: "per second",
-	},
-	"ltx23-fast-1080p": {
-		credits: 0.4,
-		label: "LTX 2.3 Fast 1080p",
-		unit: "per second",
-	},
-	"kling-v2.6-pro": {
-		credits: 0.7,
-		label: "Kling v2.6 Pro",
-		unit: "per second",
-	},
-	"wan-v2.6-1080p": {
-		credits: 1.5,
-		label: "WAN v2.6 1080p",
-		unit: "per second",
-	},
-	"veo-3": { credits: 5, label: "Google Veo 3", unit: "per second" },
-	"veo-3-fast": { credits: 3, label: "Google Veo 3 Fast", unit: "per second" },
-	"sora-2": { credits: 1, label: "Sora 2", unit: "per second" },
-
-	// Avatar per-second
-	"omnihuman-v1.5": {
-		credits: 1.6,
-		label: "OmniHuman v1.5",
-		unit: "per second",
-	},
-	"veed-fabric-1.0": {
-		credits: 1,
-		label: "VEED Fabric 1.0",
-		unit: "per second",
-	},
-
-	// GMI Cloud — Text-to-Video (worst-case tier to avoid under-billing).
-	// Derived from `price` strings in text2video-models-config/models.ts at
-	// $0.10 per credit. Revisit when the resolution/audio-aware pricing
-	// follow-up lands (see docs/task/gmi-video-cli-guide/10-credit-deduction-relay.md).
-	gmi_seedance_2_0_260128_t2v: {
-		credits: 0.52,
-		label: "Seedance 2.0 260128 (GMI)",
-		unit: "per second",
-	},
-	gmi_veo31_lite_t2v: {
-		credits: 0.8,
-		label: "Veo 3.1 Lite (GMI)",
-		unit: "per second",
-	},
-	gmi_skyreels_v4_t2v: {
-		credits: 1.4,
-		label: "SkyReels V4 (GMI)",
-		unit: "per second",
-	},
-	gmi_kling_v3_t2v: {
-		credits: 1.68,
-		label: "Kling V3 (GMI)",
-		unit: "per second",
-	},
-	gmi_kling_v3_omni_t2v: {
-		credits: 1.4,
-		label: "Kling V3 Omni (GMI)",
-		unit: "per second",
-	},
-
-	// Runway — Text-to-Video
-	runway_gen45_t2v: {
-		credits: 5,
-		label: "Runway Gen4.5",
-		unit: "per second",
-	},
-	runway_gen4_turbo_t2v: {
-		credits: 2.5,
-		label: "Runway Gen4 Turbo",
-		unit: "per second",
-	},
-};
-
-/** Per-character costs (for TTS) */
-const PER_CHARACTER_COSTS: Record<string, CreditCost> = {
+/**
+ * Overrides for modelKeys that don't live in the AI_MODELS registry
+ * (TTS, transcription, internal utility prompts). Values are credits
+ * per unit, already at the 1-credit-≈-$0.01 scale.
+ */
+const COST_OVERRIDES: Record<
+	string,
+	{ unit: PriceUnit; amountPerUnitCredits: number; label: string }
+> = {
 	"elevenlabs-tts": {
-		credits: 0.001,
+		unit: "per-1k-chars",
+		amountPerUnitCredits: 0.1, // $0.001/char → 0.1 credits per 1k chars
 		label: "ElevenLabs TTS",
-		unit: "per character",
+	},
+	"elevenlabs-scribe": {
+		// Per-minute; we approximate via a fixed price the caller bakes into
+		// `characterCount` won't work, so expose it via per-second math:
+		// $0.001/min → we keep this as a registry gap follow-up.
+		unit: "fixed",
+		amountPerUnitCredits: 10, // 10 credits per transcription job (placeholder)
+		label: "ElevenLabs Scribe",
+	},
+	"openrouter-prompt": {
+		unit: "fixed",
+		amountPerUnitCredits: 10,
+		label: "Prompt Generation",
+	},
+	"gemini-describe": {
+		unit: "fixed",
+		amountPerUnitCredits: 10,
+		label: "Gemini Describe",
+	},
+	"gmi-glm-5.1": {
+		unit: "fixed",
+		amountPerUnitCredits: 10,
+		label: "GLM 5.1",
+	},
+	"gmi-gemini-3.1-pro": {
+		unit: "fixed",
+		amountPerUnitCredits: 20,
+		label: "Gemini 3.1 Pro",
+	},
+	"gmi-gpt-5.4": {
+		unit: "fixed",
+		amountPerUnitCredits: 30,
+		label: "GPT-5.4",
 	},
 };
 
-/** Per-minute costs (for transcription) */
-const PER_MINUTE_COSTS: Record<string, CreditCost> = {
-	"elevenlabs-scribe": {
-		credits: 0.1,
-		label: "ElevenLabs Scribe",
-		unit: "per minute",
-	},
-};
+function unitLabel(unit: PriceUnit): string {
+	switch (unit) {
+		case "per-second":
+			return "per second";
+		case "per-1k-chars":
+			return "per 1k characters";
+		case "per-megapixel":
+			return "per megapixel";
+		case "fixed":
+			return "per operation";
+	}
+}
+
+function lookupRegistryPrice(modelKey: string): ParsedPrice | null {
+	const entry = AI_MODELS.find((m) => m.id === modelKey);
+	if (!entry) return null;
+	return parsePriceString(entry.price);
+}
 
 /**
  * Estimate credit cost for an AI operation.
- * Returns the credit amount to deduct.
+ *
+ * Resolution order:
+ *   1. `COST_OVERRIDES[modelKey]` — TTS/transcription/utility LLMs.
+ *   2. `AI_MODELS[modelKey].price` parsed and scaled by
+ *      {@link CREDIT_USD_MULTIPLIER}.
+ *   3. Fallback: `1` credit when the model is unknown or its price is
+ *      "TBD"/unparseable. Safe default — tests and unknown models still
+ *      go through rather than throwing.
  */
 export function estimateCreditCost(
 	modelKey: string,
-	params?: {
-		durationSeconds?: number;
-		characterCount?: number;
-		minutes?: number;
-	}
+	params?: CreditComputeParams
 ): number {
-	const fixed = FIXED_COSTS[modelKey];
-	if (fixed) return fixed.credits;
-
-	const perSecond = PER_SECOND_COSTS[modelKey];
-	if (perSecond && params?.durationSeconds) {
-		return perSecond.credits * params.durationSeconds;
+	const override = COST_OVERRIDES[modelKey];
+	if (override) {
+		return computeFromOverride(override, params);
 	}
-
-	const perChar = PER_CHARACTER_COSTS[modelKey];
-	if (perChar && params?.characterCount) {
-		return perChar.credits * params.characterCount;
-	}
-
-	const perMinute = PER_MINUTE_COSTS[modelKey];
-	if (perMinute && params?.minutes) {
-		return perMinute.credits * params.minutes;
-	}
-
-	// Unknown model — return a safe default
-	return 1;
+	const parsed = lookupRegistryPrice(modelKey);
+	if (!parsed) return 1;
+	const credits = creditsFromParsedPrice(parsed, params);
+	if (credits == null) return 1;
+	return credits;
 }
 
-/** Get the cost entry for display purposes */
+function computeFromOverride(
+	override: (typeof COST_OVERRIDES)[string],
+	params?: CreditComputeParams
+): number {
+	const { unit, amountPerUnitCredits } = override;
+	switch (unit) {
+		case "fixed":
+			return Math.max(1, Math.round(amountPerUnitCredits));
+		case "per-second":
+			if (!params?.durationSeconds) return 1;
+			return Math.max(
+				1,
+				Math.round(amountPerUnitCredits * params.durationSeconds)
+			);
+		case "per-1k-chars":
+			if (!params?.characterCount) return 1;
+			return Math.max(
+				1,
+				Math.round((amountPerUnitCredits * params.characterCount) / 1000)
+			);
+		case "per-megapixel":
+			if (!params?.megapixels) return 1;
+			return Math.max(
+				1,
+				Math.round(amountPerUnitCredits * params.megapixels)
+			);
+	}
+}
+
+/**
+ * Return a displayable cost entry for a model. Used by UI surfaces that
+ * want to show "~N credits per video" tooltips before the user hits
+ * Generate.
+ */
 export function getCreditCostInfo(modelKey: string): CreditCost | null {
-	return (
-		FIXED_COSTS[modelKey] ??
-		PER_SECOND_COSTS[modelKey] ??
-		PER_CHARACTER_COSTS[modelKey] ??
-		PER_MINUTE_COSTS[modelKey] ??
-		null
-	);
+	const override = COST_OVERRIDES[modelKey];
+	if (override) {
+		return {
+			credits: override.amountPerUnitCredits,
+			label: override.label,
+			unit: unitLabel(override.unit),
+		};
+	}
+	const entry = AI_MODELS.find((m) => m.id === modelKey);
+	if (!entry) return null;
+	const parsed = parsePriceString(entry.price);
+	if (!parsed) return null;
+	return {
+		credits: parsed.amountUsd * CREDIT_USD_MULTIPLIER,
+		label: entry.name,
+		unit: unitLabel(parsed.unit),
+	};
 }
+
+export { CREDIT_USD_MULTIPLIER } from "./credit-costs-parser";
