@@ -524,6 +524,23 @@ function createWindow(): void {
 			responseHeaders["Cross-Origin-Opener-Policy"] = ["same-origin"];
 			responseHeaders["Cross-Origin-Embedder-Policy"] = ["credentialless"];
 
+			// Inject CORS allow-origin on responses from trusted AI media
+			// buckets that don't set the header themselves (GCS in particular).
+			// Without this the renderer's `fetch(videoUrl)` in media-integration.ts
+			// fails with "No 'Access-Control-Allow-Origin' header" and the
+			// generated video never lands in the media panel.
+			const MEDIA_CORS_HOSTS = [
+				"https://storage.googleapis.com/",
+				"https://gmi-video-assests-prod.storage.googleapis.com/",
+			];
+			if (MEDIA_CORS_HOSTS.some((host) => details.url.startsWith(host))) {
+				responseHeaders["Access-Control-Allow-Origin"] = ["*"];
+				responseHeaders["Access-Control-Allow-Methods"] = [
+					"GET, HEAD, OPTIONS",
+				];
+				responseHeaders["Access-Control-Allow-Headers"] = ["*"];
+			}
+
 			callback({ responseHeaders });
 		}
 	);
