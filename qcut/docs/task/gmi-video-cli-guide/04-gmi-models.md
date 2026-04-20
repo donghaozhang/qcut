@@ -40,21 +40,28 @@ Set via `--video-model <key>`.
 ## Credit pricing for the editor UI
 
 Logged-in users spend QCut credits instead of paying GMI directly. The
-renderer computes the deduction from `estimateCreditCost(modelKey,
-{ durationSeconds })` in
-`apps/web/src/lib/credit-costs.ts`. At 1 credit ≈ $0.10 and using the
-worst-case tier per model (so there are no surprise bills on audio /
-1080p runs):
+renderer computes the deduction from
+`estimateCreditCost(modelKey, { durationSeconds })` in
+`apps/web/src/lib/credit-costs.ts`. Pricing is **derived at runtime
+from each model's registry `price` string** — no parallel map. Policy:
+**1 credit ≈ $0.01**, and ranges always take the **upper bound** so
+there are no surprise bills on audio / 1080p runs.
 
-| modelKey                           | Credits / s | Example — 5s clip |
-| ---------------------------------- | ----------- | ----------------- |
-| `gmi_seedance_2_0_260128_t2v`      | 0.52        | 2.60              |
-| `gmi_veo31_lite_t2v`               | 0.80        | 4.00              |
-| `gmi_skyreels_v4_t2v`              | 1.40        | 7.00              |
-| `gmi_kling_v3_t2v`                 | 1.68        | 8.40              |
-| `gmi_kling_v3_omni_t2v`            | 1.40        | 7.00              |
-| `runway_gen45_t2v`                 | 5.00        | 25.00             |
-| `runway_gen4_turbo_t2v`            | 2.50        | 12.50             |
+| modelKey                           | Price (raw)     | Credits / s | Example — 5s clip |
+| ---------------------------------- | --------------- | ----------: | ----------------: |
+| `gmi_seedance_2_0_260128_t2v`      | $0.052/s        | 5.2         | 26                |
+| `gmi_veo31_lite_t2v`               | $0.03–0.08/s    | 8.0         | 40                |
+| `gmi_skyreels_v4_t2v`              | $0.14/s         | 14.0        | 70                |
+| `gmi_kling_v3_t2v`                 | $0.168/s        | 16.8        | 84                |
+| `gmi_kling_v3_omni_t2v`            | $0.084–0.14/s   | 14.0        | 70                |
+| `runway_gen45_t2v`                 | $0.50/s         | 50.0        | 250               |
+| `runway_gen4_turbo_t2v`            | $0.25/s         | 25.0        | 125               |
+
+The **total** is rounded — e.g. $0.052/s × 4s × 100 = 20.8 → **21
+credits** charged. See
+[docs/task/ai-model-catalogue/README.md](../ai-model-catalogue/README.md)
+for every other category (T2V, I2V, T2I, avatar, speech, upscale) and
+their numbers.
 
 Failed / cancelled / timed-out jobs are refunded automatically via
 `POST /api/ai/refund` on the license server

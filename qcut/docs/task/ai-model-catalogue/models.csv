@@ -1,123 +1,122 @@
-category,model_key,name,provider,price_raw,credits,credit_unit,notes
-text-to-video,sora2_text_to_video,Sora 2 Text-to-Video,OpenAI,$0.10/s,,,fallback 1 credit
-text-to-video,sora2_text_to_video_pro,Sora 2 Text-to-Video Pro,OpenAI,$0.30-0.50,,,fallback 1 credit
-text-to-video,kling_v3_pro_t2v,Kling v3 Pro T2V,Kling AI,$0.336,,,fallback 1 credit
-text-to-video,kling_v3_standard_t2v,Kling v3 Standard T2V,Kling AI,$0.252,,,fallback 1 credit
-text-to-video,kling_v26_pro_t2v,Kling v2.6 Pro T2V,Kling AI,$0.70,,,fallback 1 credit; key-mismatch kling-v2.6-pro
-text-to-video,wan_26_t2v,WAN v2.6 T2V,WAN AI,$0.75,,,fallback 1 credit; key-mismatch wan-v2.6-1080p
-text-to-video,ltxv2_pro_t2v,LTX Video 2.0 Pro T2V,Lightricks,$0.06/s,,,fallback 1 credit
-text-to-video,ltxv2_fast_t2v,LTX Video 2.0 Fast T2V,Lightricks,$0.04-0.16/s,,,fallback 1 credit; key-mismatch ltxv2-fast-1080p
-text-to-video,ltx23_pro_t2v,LTX Video 2.3 Pro T2V,Lightricks,$0.06-0.24/s,,,fallback 1 credit; key-mismatch ltx23-pro-1080p
-text-to-video,ltx23_fast_t2v,LTX Video 2.3 Fast T2V,Lightricks,$0.04-0.16/s,,,fallback 1 credit; key-mismatch ltx23-fast-1080p
-text-to-video,veo31_fast_text_to_video,Veo 3.1 Fast T2V,Google,$1.20,,,fallback 1 credit; key-mismatch veo-3-fast
-text-to-video,veo31_text_to_video,Veo 3.1 T2V,Google,$3.20,,,fallback 1 credit; key-mismatch veo-3
-text-to-video,veo31_lite_text_to_video,Veo 3.1 Lite T2V,Google,$0.05-0.08/s,,,fallback 1 credit
-text-to-video,hailuo23_standard_t2v,Hailuo 2.3 Standard T2V,MiniMax,$0.28-0.56,,,fallback 1 credit
-text-to-video,hailuo23_pro_t2v,Hailuo 2.3 Pro T2V,MiniMax,$0.49,,,fallback 1 credit
-text-to-video,seedance,Seedance v1 Lite,ByteDance,$0.18,,,fallback 1 credit
-text-to-video,seedance_pro,Seedance v1 Pro,ByteDance,$0.62,,,fallback 1 credit
-text-to-video,seedance2,Seedance 2.0,ByteDance,$0.30,,,fallback 1 credit
-text-to-video,wan_25_preview,WAN v2.5 Preview,WAN AI,$0.12,,,fallback 1 credit
-text-to-video,kling_v2_5_turbo,Kling v2.5 Turbo Pro,Kling AI,$0.18,,,fallback 1 credit
-text-to-video,kling_v2_5_turbo_standard,Kling v2.5 Turbo Standard,Kling AI,$0.10,,,fallback 1 credit
-text-to-video,vidu_q3_t2v,Vidu Q3 T2V,Vidu,$0.07-0.154/s,,,fallback 1 credit
-text-to-video,gmi_veo31_lite_t2v,Veo 3.1 Lite (GMI),Google,$0.03-0.08/s,0.8,per second,
-text-to-video,gmi_skyreels_v4_t2v,SkyReels V4 T2V (GMI),SkyReels,$0.14/s,1.4,per second,
-text-to-video,gmi_kling_v3_t2v,Kling V3 T2V (GMI),Kling AI,$0.168/s,1.68,per second,
-text-to-video,gmi_kling_v3_omni_t2v,Kling V3 Omni (GMI),Kling AI,$0.084-0.14/s,1.4,per second,
-text-to-video,gmi_seedance_2_0_260128_t2v,Seedance 2.0 260128 (GMI),ByteDance,$0.052/s,0.52,per second,
-text-to-video,runway_gen45_t2v,Runway Gen4.5 T2V,Runway,$0.50/s,5,per second,
-text-to-video,runway_gen4_turbo_t2v,Runway Gen4 Turbo T2V,Runway,$0.25/s,2.5,per second,
-image-to-video,sora2_image_to_video,Sora 2 I2V,OpenAI,$0.10/s,,,fallback 1 credit
-image-to-video,sora2_image_to_video_pro,Sora 2 I2V Pro,OpenAI,$0.30-0.50,,,fallback 1 credit
-image-to-video,kling_v3_pro_i2v,Kling v3 Pro I2V,Kling AI,$0.336,,,fallback 1 credit; key-mismatch kling-v3-pro-i2v
-image-to-video,kling_v3_standard_i2v,Kling v3 Standard I2V,Kling AI,$0.252,,,fallback 1 credit; key-mismatch kling-v3-std-i2v
-image-to-video,kling_v26_pro_i2v,Kling v2.6 Pro I2V,Kling AI,$0.70,,,fallback 1 credit
-image-to-video,ltxv2_i2v,LTX Video 2.0 I2V,Lightricks,$0.36,,,fallback 1 credit
-image-to-video,ltxv2_fast_i2v,LTX Video 2.0 Fast I2V,Lightricks,$0.04-0.16,,,fallback 1 credit
-image-to-video,ltx23_fast_i2v,LTX Video 2.3 Fast I2V,Lightricks,$0.04-0.16,,,fallback 1 credit
-image-to-video,seedance_pro_fast_i2v,Seedance v1 Pro Fast I2V,ByteDance,$0.24,,,fallback 1 credit
-image-to-video,seedance_pro_i2v,Seedance v1 Pro I2V,ByteDance,$0.62,,,fallback 1 credit
-image-to-video,seedance2_i2v,Seedance 2.0 I2V,ByteDance,$0.50,,,fallback 1 credit
-image-to-video,seedance2_ref2v,Seedance 2.0 Ref2V,ByteDance,$0.60,,,fallback 1 credit
-image-to-video,kling_v2_5_turbo_i2v,Kling v2.5 Turbo Pro I2V,Kling AI,$0.35,,,fallback 1 credit
-image-to-video,wan_25_preview_i2v,WAN v2.5 Preview I2V,WAN AI,$0.05-0.15/s,,,fallback 1 credit
-image-to-video,wan_26_i2v,WAN v2.6 I2V,WAN AI,$0.10-0.15/s,,,fallback 1 credit
-image-to-video,veo31_fast_image_to_video,Veo 3.1 Fast I2V,Google,$1.20,,,fallback 1 credit
-image-to-video,veo31_fast_frame_to_video,Veo 3.1 Fast Frame-to-Video,Google,$1.20,,,fallback 1 credit
-image-to-video,veo31_image_to_video,Veo 3.1 I2V,Google,$3.20,,,fallback 1 credit
-image-to-video,veo31_frame_to_video,Veo 3.1 Frame-to-Video,Google,$3.20,,,fallback 1 credit
-image-to-video,hailuo23_standard,Hailuo 2.3 Standard,MiniMax,$0.28-0.56,,,fallback 1 credit
-image-to-video,hailuo23_fast_pro,Hailuo 2.3 Fast Pro,MiniMax,$0.33,,,fallback 1 credit
-image-to-video,hailuo23_pro,Hailuo 2.3 Pro,MiniMax,$0.49,,,fallback 1 credit
-image-to-video,vidu_q2_turbo_i2v,Vidu Q2 Turbo I2V,Vidu,$0.05,,,fallback 1 credit
-image-to-video,kling_o1_i2v,Kling O1 I2V,Kling AI,$0.112,,,fallback 1 credit
-image-to-video,vidu_q3_i2v,Vidu Q3 I2V,Vidu,$0.07-0.154/s,,,fallback 1 credit
-image-to-video,veo31_lite_image_to_video,Veo 3.1 Lite I2V,Google,$0.05-0.08/s,,,fallback 1 credit
-image-to-video,veo31_lite_frame_to_video,Veo 3.1 Lite Frame-to-Video,Google,$0.05-0.08/s,,,fallback 1 credit
-image-to-video,pixverse_v6_i2v,PixVerse v6,PixVerse,$0.025-0.09/s,,,fallback 1 credit
-image-to-video,gmi_veo31_lite_i2v,Veo 3.1 Lite I2V (GMI),Google,$0.03-0.08/s,,,fallback 1 credit; not in costs table
-image-to-video,gmi_skyreels_v4_i2v,SkyReels V4 I2V (GMI),SkyReels,$0.14/s,,,fallback 1 credit; not in costs table
-image-to-video,gmi_kling_v3_i2v,Kling V3 I2V (GMI),Kling AI,$0.168/s,,,fallback 1 credit; not in costs table
-image-to-video,gmi_kling_v3_omni_i2v,Kling V3 Omni I2V (GMI),Kling AI,$0.084-0.14/s,,,fallback 1 credit; not in costs table
-image-to-video,gmi_kling_motion_control,Kling 3 Motion Control (GMI),Kling AI,$0.126-0.168/s,,,fallback 1 credit; not in costs table
-image-to-video,gmi_seedance_2_0_260128_i2v,Seedance 2.0 260128 I2V (GMI),ByteDance,$0.052/s,,,fallback 1 credit; not in costs table
-image-to-video,gmi_seedance_2_0_260128_ref2v,Seedance 2.0 260128 Ref2V (GMI),ByteDance,$0.052/s,,,fallback 1 credit; not in costs table
-image-to-video,runway_gen45_i2v,Runway Gen4.5 I2V,Runway,$0.50/s,,,fallback 1 credit; not in costs table
-image-to-video,runway_gen4_turbo_i2v,Runway Gen4 Turbo I2V,Runway,$0.25/s,,,fallback 1 credit; not in costs table
-image-to-video,runway_gen3a_turbo_i2v,Runway Gen3a Turbo I2V,Runway,$0.10/s,,,fallback 1 credit; not in costs table
-text-to-image,flux-pro-v11-ultra,FLUX Pro v1.1 Ultra,Black Forest Labs,$0.05-0.09,,,fallback 1 credit
-text-to-image,flux-2-flex,FLUX 2 Flex,Black Forest Labs,$0.06/MP,,,fallback 1 credit
-text-to-image,imagen4-ultra,Imagen4 Ultra,Google,$0.08-0.12,,,fallback 1 credit; key-mismatch imagen-4
-text-to-image,nano-banana,Nano Banana,Google,$0.039,,,fallback 1 credit
-text-to-image,gemini-3-pro,Gemini 3 Pro,Google,$0.15-0.30,,,fallback 1 credit
-text-to-image,seeddream-v3,SeedDream v3,ByteDance,$0.03-0.06,,,fallback 1 credit; key-mismatch seedream-v3
-text-to-image,seeddream-v4,SeedDream v4,ByteDance,$0.04-0.08,,,fallback 1 credit
-text-to-image,seeddream-v4-5,SeedDream v4.5,ByteDance,$0.04-0.08,,,fallback 1 credit
-text-to-image,seeddream-v4-5-edit,SeedDream v4.5 Edit,ByteDance,$0.04-0.08,,,fallback 1 credit
-text-to-image,wan-v2-2,WAN v2.2,fal.ai,$0.06-0.10,,,fallback 1 credit
-text-to-image,qwen-image,Qwen Image,Alibaba,$0.04-0.08,,,fallback 1 credit
-text-to-image,reve-text-to-image,Reve T2I,fal.ai,$0.04,,,fallback 1 credit; key-mismatch reve-t2i
-text-to-image,z-image-turbo,Z-Image Turbo,Tongyi-MAI,$0.03-0.05,,,fallback 1 credit
-text-to-image,phota,Phota,Photalabs,$0.05,,,fallback 1 credit
-text-to-image,gpt-image-1-5,GPT Image 1.5,OpenAI,$0.04-0.08,,,fallback 1 credit
-text-to-image,wan-v2-7-t2i,Wan 2.7 T2I,WAN AI,$0.04-0.06,,,fallback 1 credit
-text-to-image,wan-v2-7-pro-t2i,Wan 2.7 Pro T2I,WAN AI,$0.06-0.10,,,fallback 1 credit
-text-to-image,wan-v2-7-edit,Wan 2.7 Edit,WAN AI,$0.04-0.06,,,fallback 1 credit
-text-to-image,wan-v2-7-pro-edit,Wan 2.7 Pro Edit,WAN AI,$0.06-0.10,,,fallback 1 credit
-avatar,wan_26_ref2v,WAN v2.6 Ref2V,WAN AI,$0.10-0.15/s,,,fallback 1 credit
-avatar,wan_animate_replace,WAN Animate/Replace,WAN AI,$0.075,,,fallback 1 credit
-avatar,kling_avatar_v2_standard,Kling Avatar v2 Standard,Kling AI,$0.0562,,,fallback 1 credit; key-mismatch kling-avatar-v2-std
-avatar,kling_avatar_v2_pro,Kling Avatar v2 Pro,Kling AI,$0.115,,,fallback 1 credit; key-mismatch kling-avatar-v2-pro
-avatar,sync_lipsync_react1,Sync Lipsync React-1,Sync Labs,$0.10,,,fallback 1 credit
-avatar,kling_o1_v2v_reference,Kling O1 Video Reference,Kling AI,$0.112,,,fallback 1 credit
-avatar,kling_o1_v2v_edit,Kling O1 Video Edit,Kling AI,$0.168,,,fallback 1 credit
-avatar,kling_o1_ref2video,Kling O1 Reference-to-Video,Kling AI,$0.112,,,fallback 1 credit
-avatar,grok_imagine_r2v,Grok Imagine Ref-to-Video,xAI,$0.30,,,fallback 1 credit
-avatar,bytedance_omnihuman_v1_5,ByteDance OmniHuman v1.5,ByteDance,$0.20,,,fallback 1 credit; key-mismatch omnihuman-v1.5
-avatar,veo31_fast_extend_video,Veo 3.1 Fast Extend,Google,$0.15/s,,,fallback 1 credit
-avatar,veo31_extend_video,Veo 3.1 Extend,Google,$0.40/s,,,fallback 1 credit
-avatar,kling_avatar_pro,Kling Avatar Pro,Kling AI,$0.25,,,fallback 1 credit
-avatar,kling_avatar_standard,Kling Avatar Standard,Kling AI,$0.15,,,fallback 1 credit
-avatar,sora2_video_to_video_remix,Sora 2 V2V Remix,OpenAI,$0.00,,,fallback 1 credit
-speech,chatterbox_tts,Chatterbox TTS,fal.ai,$0.025/1k chars,,,fallback 1 credit
-speech,chatterbox_tts_turbo,Chatterbox TTS Turbo,fal.ai,TBD,,,fallback 1 credit
-speech,chatterbox_s2s,Chatterbox Voice Convert,fal.ai,TBD,,,fallback 1 credit
-speech,elevenlabs_v3,ElevenLabs v3,ElevenLabs,TBD,,,fallback 1 credit
-speech,qwen3_tts,Qwen3 TTS,Alibaba,TBD,,,fallback 1 credit
-speech,qwen3_clone_voice,Qwen3 Voice Clone,Alibaba,TBD,,,fallback 1 credit
-speech,elevenlabs-tts,ElevenLabs TTS,ElevenLabs,,0.001,per character,
-speech,elevenlabs-scribe,ElevenLabs Scribe,ElevenLabs,,0.1,per minute,
-upscale,crystal-upscaler,Crystal Upscaler,fal.ai,$0.02/image,,,fallback 1 credit
-upscale,seedvr-upscale,SeedVR Upscale,SeedVR Labs,$0.05/image,,,fallback 1 credit
-upscale,topaz-upscale,Topaz Upscale,Topaz Labs,$0.10/image,,,fallback 1 credit
-upscale,bytedance-upscaler,ByteDance Upscaler,ByteDance,,0.5,per video,
-upscale,flashvsr,FlashVSR,fal.ai,,0.3,per video,
-image-edit,flux-kontext,FLUX Kontext,Black Forest Labs,,0.3,per image,
-image-edit,luma-photon,Luma Photon,Luma,,0.2,per image,
-image-edit,reve-t2i,Reve T2I,fal.ai,,0.5,per image,
-utility,openrouter-prompt,Prompt Generation,OpenRouter,,0.1,per request,
-utility,gemini-describe,Gemini Describe,Google,,0.1,per request,
-utility,gmi-glm-5.1,GLM 5.1,GMI Cloud,,0.1,per request,
-utility,gmi-gemini-3.1-pro,Gemini 3.1 Pro,GMI Cloud,,0.2,per request,
-utility,gmi-gpt-5.4,GPT-5.4,GMI Cloud,,0.3,per request,
+category,model_key,name,provider,price_raw,upper_usd,unit,credits_per_unit,credits_at_5s_or_fixed
+text-to-video,sora2_text_to_video,Sora 2,OpenAI,$0.10/s,0.10,per-second,10,50
+text-to-video,sora2_text_to_video_pro,Sora 2 Pro,OpenAI,$0.30-0.50/s,0.50,per-second,50,250
+text-to-video,kling_v3_pro_t2v,Kling v3 Pro,Kling AI,$0.336/s,0.336,per-second,33.6,168
+text-to-video,kling_v3_standard_t2v,Kling v3 Standard,Kling AI,$0.252/s,0.252,per-second,25.2,126
+text-to-video,kling_v26_pro_t2v,Kling v2.6 Pro,Kling AI,$0.70/s,0.70,per-second,70,350
+text-to-video,wan_26_t2v,WAN v2.6,WAN AI,$0.75/s,0.75,per-second,75,375
+text-to-video,ltxv2_pro_t2v,LTX V2 Pro,Lightricks,$0.06/s,0.06,per-second,6,30
+text-to-video,ltxv2_fast_t2v,LTX V2 Fast,Lightricks,$0.04-0.16/s,0.16,per-second,16,80
+text-to-video,ltx23_pro_t2v,LTX 2.3 Pro,Lightricks,$0.06-0.24/s,0.24,per-second,24,120
+text-to-video,ltx23_fast_t2v,LTX 2.3 Fast,Lightricks,$0.04-0.16/s,0.16,per-second,16,80
+text-to-video,veo31_fast_text_to_video,Veo 3.1 Fast,Google,$1.20/s,1.20,per-second,120,600
+text-to-video,veo31_text_to_video,Veo 3.1,Google,$3.20/s,3.20,per-second,320,1600
+text-to-video,veo31_lite_text_to_video,Veo 3.1 Lite,Google,$0.05-0.08/s,0.08,per-second,8,40
+text-to-video,hailuo23_standard_t2v,Hailuo 2.3 Standard,MiniMax,$0.28-0.56/s,0.56,per-second,56,280
+text-to-video,hailuo23_pro_t2v,Hailuo 2.3 Pro,MiniMax,$0.49/s,0.49,per-second,49,245
+text-to-video,seedance,Seedance v1 Lite,ByteDance,$0.18/s,0.18,per-second,18,90
+text-to-video,seedance_pro,Seedance v1 Pro,ByteDance,$0.62/s,0.62,per-second,62,310
+text-to-video,seedance2,Seedance 2.0,ByteDance,$0.30/s,0.30,per-second,30,150
+text-to-video,wan_25_preview,WAN v2.5 Preview,WAN AI,$0.12/s,0.12,per-second,12,60
+text-to-video,kling_v2_5_turbo,Kling v2.5 Turbo Pro,Kling AI,$0.18/s,0.18,per-second,18,90
+text-to-video,kling_v2_5_turbo_standard,Kling v2.5 Turbo Std,Kling AI,$0.10/s,0.10,per-second,10,50
+text-to-video,vidu_q3_t2v,Vidu Q3,Vidu,$0.07-0.154/s,0.154,per-second,15.4,77
+text-to-video,gmi_veo31_lite_t2v,Veo 3.1 Lite (GMI),Google,$0.03-0.08/s,0.08,per-second,8,40
+text-to-video,gmi_skyreels_v4_t2v,SkyReels V4 (GMI),SkyReels,$0.14/s,0.14,per-second,14,70
+text-to-video,gmi_kling_v3_t2v,Kling V3 (GMI),Kling AI,$0.168/s,0.168,per-second,16.8,84
+text-to-video,gmi_kling_v3_omni_t2v,Kling V3 Omni (GMI),Kling AI,$0.084-0.14/s,0.14,per-second,14,70
+text-to-video,gmi_seedance_2_0_260128_t2v,Seedance 2.0 260128 (GMI),ByteDance,$0.052/s,0.052,per-second,5.2,26
+text-to-video,runway_gen45_t2v,Runway Gen4.5,Runway,$0.50/s,0.50,per-second,50,250
+text-to-video,runway_gen4_turbo_t2v,Runway Gen4 Turbo,Runway,$0.25/s,0.25,per-second,25,125
+image-to-video,sora2_image_to_video,Sora 2 I2V,OpenAI,$0.10/s,0.10,per-second,10,50
+image-to-video,sora2_image_to_video_pro,Sora 2 I2V Pro,OpenAI,$0.30-0.50/s,0.50,per-second,50,250
+image-to-video,kling_v3_pro_i2v,Kling v3 Pro I2V,Kling AI,$0.336/s,0.336,per-second,33.6,168
+image-to-video,kling_v3_standard_i2v,Kling v3 Std I2V,Kling AI,$0.252/s,0.252,per-second,25.2,126
+image-to-video,kling_v26_pro_i2v,Kling v2.6 Pro I2V,Kling AI,$0.70/s,0.70,per-second,70,350
+image-to-video,ltxv2_i2v,LTX V2 I2V,Lightricks,$0.36/s,0.36,per-second,36,180
+image-to-video,ltxv2_fast_i2v,LTX V2 Fast I2V,Lightricks,$0.04-0.16/s,0.16,per-second,16,80
+image-to-video,ltx23_fast_i2v,LTX 2.3 Fast I2V,Lightricks,$0.04-0.16/s,0.16,per-second,16,80
+image-to-video,seedance_pro_fast_i2v,Seedance v1 Pro Fast,ByteDance,$0.24/s,0.24,per-second,24,120
+image-to-video,seedance_pro_i2v,Seedance v1 Pro I2V,ByteDance,$0.62/s,0.62,per-second,62,310
+image-to-video,seedance2_i2v,Seedance 2.0 I2V,ByteDance,$0.50/s,0.50,per-second,50,250
+image-to-video,seedance2_ref2v,Seedance 2.0 Ref2V,ByteDance,$0.60/s,0.60,per-second,60,300
+image-to-video,kling_v2_5_turbo_i2v,Kling v2.5 Turbo Pro I2V,Kling AI,$0.35/s,0.35,per-second,35,175
+image-to-video,wan_25_preview_i2v,WAN v2.5 Preview I2V,WAN AI,$0.05-0.15/s,0.15,per-second,15,75
+image-to-video,wan_26_i2v,WAN v2.6 I2V,WAN AI,$0.10-0.15/s,0.15,per-second,15,75
+image-to-video,veo31_fast_image_to_video,Veo 3.1 Fast I2V,Google,$1.20/s,1.20,per-second,120,600
+image-to-video,veo31_fast_frame_to_video,Veo 3.1 Fast Frame-to-Video,Google,$1.20/s,1.20,per-second,120,600
+image-to-video,veo31_image_to_video,Veo 3.1 I2V,Google,$3.20/s,3.20,per-second,320,1600
+image-to-video,veo31_frame_to_video,Veo 3.1 Frame-to-Video,Google,$3.20/s,3.20,per-second,320,1600
+image-to-video,hailuo23_standard,Hailuo 2.3 Standard,MiniMax,$0.28-0.56/s,0.56,per-second,56,280
+image-to-video,hailuo23_fast_pro,Hailuo 2.3 Fast Pro,MiniMax,$0.33/s,0.33,per-second,33,165
+image-to-video,hailuo23_pro,Hailuo 2.3 Pro,MiniMax,$0.49/s,0.49,per-second,49,245
+image-to-video,vidu_q2_turbo_i2v,Vidu Q2 Turbo I2V,Vidu,$0.05/s,0.05,per-second,5,25
+image-to-video,kling_o1_i2v,Kling O1 I2V,Kling AI,$0.112/s,0.112,per-second,11.2,56
+image-to-video,vidu_q3_i2v,Vidu Q3 I2V,Vidu,$0.07-0.154/s,0.154,per-second,15.4,77
+image-to-video,veo31_lite_image_to_video,Veo 3.1 Lite I2V,Google,$0.05-0.08/s,0.08,per-second,8,40
+image-to-video,veo31_lite_frame_to_video,Veo 3.1 Lite Frame-to-Video,Google,$0.05-0.08/s,0.08,per-second,8,40
+image-to-video,pixverse_v6_i2v,PixVerse v6,PixVerse,$0.025-0.09/s,0.09,per-second,9,45
+image-to-video,gmi_veo31_lite_i2v,Veo 3.1 Lite I2V (GMI),Google,$0.03-0.08/s,0.08,per-second,8,40
+image-to-video,gmi_skyreels_v4_i2v,SkyReels V4 I2V (GMI),SkyReels,$0.14/s,0.14,per-second,14,70
+image-to-video,gmi_kling_v3_i2v,Kling V3 I2V (GMI),Kling AI,$0.168/s,0.168,per-second,16.8,84
+image-to-video,gmi_kling_v3_omni_i2v,Kling V3 Omni I2V (GMI),Kling AI,$0.084-0.14/s,0.14,per-second,14,70
+image-to-video,gmi_kling_motion_control,Kling 3 Motion Control (GMI),Kling AI,$0.126-0.168/s,0.168,per-second,16.8,84
+image-to-video,gmi_seedance_2_0_260128_i2v,Seedance 2.0 260128 I2V (GMI),ByteDance,$0.052/s,0.052,per-second,5.2,26
+image-to-video,gmi_seedance_2_0_260128_ref2v,Seedance 2.0 260128 Ref2V (GMI),ByteDance,$0.052/s,0.052,per-second,5.2,26
+image-to-video,runway_gen45_i2v,Runway Gen4.5 I2V,Runway,$0.50/s,0.50,per-second,50,250
+image-to-video,runway_gen4_turbo_i2v,Runway Gen4 Turbo I2V,Runway,$0.25/s,0.25,per-second,25,125
+image-to-video,runway_gen3a_turbo_i2v,Runway Gen3a Turbo I2V,Runway,$0.10/s,0.10,per-second,10,50
+text-to-image,gemini-3-pro,Gemini 3 Pro,Google,$0.15-0.30,0.30,fixed,30,30
+text-to-image,imagen4-ultra,Imagen 4 Ultra,Google,$0.08-0.12,0.12,fixed,12,12
+text-to-image,wan-v2-2,WAN v2.2,fal.ai,$0.06-0.10,0.10,fixed,10,10
+text-to-image,wan-v2-7-pro-t2i,Wan 2.7 Pro T2I,WAN AI,$0.06-0.10,0.10,fixed,10,10
+text-to-image,wan-v2-7-pro-edit,Wan 2.7 Pro Edit,WAN AI,$0.06-0.10,0.10,fixed,10,10
+text-to-image,flux-pro-v11-ultra,FLUX Pro v1.1 Ultra,Black Forest Labs,$0.05-0.09,0.09,fixed,9,9
+text-to-image,seeddream-v4,SeedDream v4,ByteDance,$0.04-0.08,0.08,fixed,8,8
+text-to-image,seeddream-v4-5,SeedDream v4.5,ByteDance,$0.04-0.08,0.08,fixed,8,8
+text-to-image,seeddream-v4-5-edit,SeedDream v4.5 Edit,ByteDance,$0.04-0.08,0.08,fixed,8,8
+text-to-image,qwen-image,Qwen Image,Alibaba,$0.04-0.08,0.08,fixed,8,8
+text-to-image,gpt-image-1-5,GPT Image 1.5,OpenAI,$0.04-0.08,0.08,fixed,8,8
+text-to-image,seeddream-v3,SeedDream v3,ByteDance,$0.03-0.06,0.06,fixed,6,6
+text-to-image,wan-v2-7-t2i,Wan 2.7 T2I,WAN AI,$0.04-0.06,0.06,fixed,6,6
+text-to-image,wan-v2-7-edit,Wan 2.7 Edit,WAN AI,$0.04-0.06,0.06,fixed,6,6
+text-to-image,flux-2-flex,FLUX 2 Flex,Black Forest Labs,$0.06/MP,0.06,per-megapixel,6,
+text-to-image,z-image-turbo,Z-Image Turbo,Tongyi-MAI,$0.03-0.05,0.05,fixed,5,5
+text-to-image,phota,Phota,Photalabs,$0.05,0.05,fixed,5,5
+text-to-image,reve-text-to-image,Reve T2I,fal.ai,$0.04,0.04,fixed,4,4
+text-to-image,nano-banana,Nano Banana,Google,$0.039,0.039,fixed,4,4
+avatar,wan_26_ref2v,WAN v2.6 Ref2V,WAN AI,$0.10-0.15/s,0.15,per-second,15,75
+avatar,wan_animate_replace,WAN Animate/Replace,WAN AI,$0.075,0.075,fixed,8,8
+avatar,kling_avatar_v2_standard,Kling Avatar v2 Std,Kling AI,$0.0562/s,0.0562,per-second,5.62,28
+avatar,kling_avatar_v2_pro,Kling Avatar v2 Pro,Kling AI,$0.115/s,0.115,per-second,11.5,58
+avatar,sync_lipsync_react1,Sync Lipsync React-1,Sync Labs,$0.10/s,0.10,per-second,10,50
+avatar,kling_o1_v2v_reference,Kling O1 Video Reference,Kling AI,$0.112/s,0.112,per-second,11.2,56
+avatar,kling_o1_v2v_edit,Kling O1 Video Edit,Kling AI,$0.168/s,0.168,per-second,16.8,84
+avatar,kling_o1_ref2video,Kling O1 Reference-to-Video,Kling AI,$0.112/s,0.112,per-second,11.2,56
+avatar,grok_imagine_r2v,Grok Imagine Ref-to-Video,xAI,$0.30/s,0.30,per-second,30,150
+avatar,bytedance_omnihuman_v1_5,ByteDance OmniHuman v1.5,ByteDance,$0.20/s,0.20,per-second,20,100
+avatar,veo31_fast_extend_video,Veo 3.1 Fast Extend,Google,$0.15/s,0.15,per-second,15,75
+avatar,veo31_extend_video,Veo 3.1 Extend,Google,$0.40/s,0.40,per-second,40,200
+avatar,kling_avatar_pro,Kling Avatar Pro,Kling AI,$0.25/s,0.25,per-second,25,125
+avatar,kling_avatar_standard,Kling Avatar Standard,Kling AI,$0.15/s,0.15,per-second,15,75
+avatar,sora2_video_to_video_remix,Sora 2 V2V Remix,OpenAI,$0.00,0.00,fixed,0,0
+speech,chatterbox_tts,Chatterbox TTS,fal.ai,$0.025/1k chars,0.025,per-1k-chars,2.5,
+speech,chatterbox_tts_turbo,Chatterbox TTS Turbo,fal.ai,TBD,,,1,
+speech,chatterbox_s2s,Chatterbox Voice Convert,fal.ai,TBD,,,1,
+speech,elevenlabs_v3,ElevenLabs v3,ElevenLabs,TBD,,,1,
+speech,qwen3_tts,Qwen3 TTS,Alibaba,TBD,,,1,
+speech,qwen3_clone_voice,Qwen3 Voice Clone,Alibaba,TBD,,,1,
+speech,elevenlabs-tts,ElevenLabs TTS (override),ElevenLabs,,,per-1k-chars,0.1,
+speech,elevenlabs-scribe,ElevenLabs Scribe (override),ElevenLabs,,,fixed,10,10
+upscale,bytedance_video_upscaler,ByteDance Upscaler,ByteDance,$0.05,0.05,fixed,5,5
+upscale,flashvsr_video_upscaler,FlashVSR,fal.ai,$0.03,0.03,fixed,3,3
+upscale,topaz_video_upscale,Topaz Video AI,Topaz Labs,$0.50,0.50,fixed,50,50
+upscale,shots_cinematic_angles,SHOTS Cinematic Angles,—,$0.40,0.40,fixed,40,40
+upscale,crystal-upscaler,Crystal Upscaler,fal.ai,$0.02 / image,0.02,fixed,2,2
+upscale,seedvr-upscale,SeedVR Upscale,SeedVR Labs,$0.05 / image,0.05,fixed,5,5
+upscale,topaz-upscale,Topaz Upscale,Topaz Labs,$0.10 / image,0.10,fixed,10,10
+utility,openrouter-prompt,Prompt Generation,OpenRouter,,,fixed,10,10
+utility,gemini-describe,Gemini Describe,Google,,,fixed,10,10
+utility,gmi-glm-5.1,GLM 5.1,GMI Cloud,,,fixed,10,10
+utility,gmi-gemini-3.1-pro,Gemini 3.1 Pro,GMI Cloud,,,fixed,20,20
+utility,gmi-gpt-5.4,GPT-5.4,GMI Cloud,,,fixed,30,30
