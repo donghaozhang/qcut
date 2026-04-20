@@ -30,6 +30,18 @@ describe("model-provider-logos", () => {
 		it("returns undefined for unknown models", () => {
 			expect(getProviderLogo("unknown_model")).toBeUndefined();
 		});
+
+		it.each([
+			["gmi_veo31_lite_t2v", "/model-logos/google.svg"],
+			["gmi_kling_v3_t2v", "/model-logos/kling.svg"],
+			["gmi_kling_v3_omni_t2v", "/model-logos/kling.svg"],
+			["gmi_seedance_2_0_260128_t2v", "/model-logos/bytedance.svg"],
+			["gmi_skyreels_v4_t2v", "/model-logos/skyreels.svg"],
+			["runway_gen45_t2v", "/model-logos/runway.svg"],
+			["runway_gen4_turbo_t2v", "/model-logos/runway.svg"],
+		])("maps provider-prefixed id %s to %s", (modelId, expectedLogo) => {
+			expect(getProviderLogo(modelId)).toBe(expectedLogo);
+		});
 	});
 
 	describe("getProviderName", () => {
