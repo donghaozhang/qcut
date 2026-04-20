@@ -453,6 +453,22 @@ export const T2V_MODEL_CAPABILITIES: Record<T2VModelId, T2VModelCapabilities> =
 			defaultDuration: 5,
 		},
 
+		gmi_seedance_2_0_fast_260128_t2v: {
+			supportsAspectRatio: true,
+			supportedAspectRatios: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9"],
+			supportsResolution: true,
+			supportedResolutions: ["480p", "720p", "1080p"],
+			supportsDuration: true,
+			supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+			supportsNegativePrompt: false,
+			supportsPromptExpansion: false,
+			supportsSeed: true,
+			supportsSafetyChecker: false,
+			defaultAspectRatio: "16:9",
+			defaultResolution: "720p",
+			defaultDuration: 5,
+		},
+
 		// Runway
 		runway_gen45_t2v: {
 			supportsAspectRatio: true,

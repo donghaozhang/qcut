@@ -15,6 +15,7 @@ import {
 	generateKlingV3GmiTextVideo,
 	generateKlingOmniTextVideo,
 	generateSeedance260128TextVideo,
+	generateSeedanceFast260128TextVideo,
 	generateRunwayTextToVideo,
 } from "@/lib/ai-video";
 import type {
@@ -593,6 +594,34 @@ export async function handleSeedance260128T2V(
 				? rawSeed
 				: undefined;
 		const response = await generateSeedance260128TextVideo({
+			prompt: ctx.prompt,
+			duration: resolveSeedanceDuration(settings.duration),
+			resolution: resolveSeedanceResolution(settings.resolution),
+			ratio: resolveSeedanceRatio(settings.aspectRatio),
+			seed,
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/** Handle Seedance 2.0 Fast 260128 text-to-video (same shape as standard). */
+export async function handleSeedanceFast260128T2V(
+	ctx: ModelHandlerContext,
+	settings: TextToVideoSettings
+): Promise<ModelHandlerResult> {
+	try {
+		const rawSeed = settings.unifiedParams?.seed;
+		const seed =
+			typeof rawSeed === "number" && Number.isFinite(rawSeed)
+				? rawSeed
+				: undefined;
+		const response = await generateSeedanceFast260128TextVideo({
 			prompt: ctx.prompt,
 			duration: resolveSeedanceDuration(settings.duration),
 			resolution: resolveSeedanceResolution(settings.resolution),

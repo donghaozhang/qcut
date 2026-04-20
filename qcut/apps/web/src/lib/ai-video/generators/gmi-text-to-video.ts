@@ -194,8 +194,14 @@ export function applySeedance260128OptionalFields(
 	}
 }
 
-/** Generate text-to-video using GMI Seedance 2.0 260128. */
-export async function generateSeedance260128TextVideo(
+/**
+ * Internal worker — submits to any Seedance-260128-family endpoint (the
+ * non-fast and fast variants share an identical payload shape per GMI's
+ * API reference). Exposed publicly via thin wrappers below.
+ */
+async function dispatchSeedance260128Family(
+	endpoint: "seedance-2-0-260128" | "seedance-2-0-fast-260128",
+	modelLabel: string,
 	params: Seedance260128Params
 ): Promise<VideoGenerationResponse> {
 	const jobId = generateJobId();
@@ -203,11 +209,7 @@ export async function generateSeedance260128TextVideo(
 	const payload: Record<string, unknown> = { prompt: params.prompt };
 	applySeedance260128OptionalFields(payload, params);
 
-	const submitResult = await providerRouter.submit(
-		"seedance-2-0-260128",
-		payload,
-		"gmi"
-	);
+	const submitResult = await providerRouter.submit(endpoint, payload, "gmi");
 
 	const pollResult = await providerRouter.poll(
 		submitResult.requestId,
@@ -215,19 +217,39 @@ export async function generateSeedance260128TextVideo(
 	);
 
 	if (pollResult.status === "failed") {
-		throw new Error(
-			pollResult.error ?? "GMI Seedance 2.0 260128 text-to-video failed"
-		);
+		throw new Error(pollResult.error ?? `${modelLabel} text-to-video failed`);
 	}
 
 	return {
 		job_id: jobId,
 		status: "completed",
-		message: "Video generated with GMI Seedance 2.0 260128",
+		message: `Video generated with ${modelLabel}`,
 		estimated_time: 0,
 		video_url: pollResult.videoUrl,
 		video_data: pollResult,
 	};
+}
+
+/** Generate text-to-video using GMI Seedance 2.0 260128 (standard tier). */
+export function generateSeedance260128TextVideo(
+	params: Seedance260128Params
+): Promise<VideoGenerationResponse> {
+	return dispatchSeedance260128Family(
+		"seedance-2-0-260128",
+		"GMI Seedance 2.0 260128",
+		params
+	);
+}
+
+/** Generate text-to-video using GMI Seedance 2.0 Fast 260128 (lower-latency tier). */
+export function generateSeedanceFast260128TextVideo(
+	params: Seedance260128Params
+): Promise<VideoGenerationResponse> {
+	return dispatchSeedance260128Family(
+		"seedance-2-0-fast-260128",
+		"GMI Seedance 2.0 Fast 260128",
+		params
+	);
 }
 
 /** Generate text-to-video using GMI SkyReels V4. */
