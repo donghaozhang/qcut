@@ -46,6 +46,7 @@ import {
 	type LTX23Resolution,
 	type LTX23FPS,
 } from "../components/ai-ltx23-settings";
+import { AIPromptCharCounter } from "../components/ai-prompt-char-counter";
 
 // ============================================
 // Types
@@ -236,8 +237,6 @@ export function AITextTab({
 	const isExtendedLTXV2FastTextDuration =
 		ltxv2FastDuration > LTXV2_FAST_CONFIG.EXTENDED_DURATION_THRESHOLD;
 
-	const remainingChars = maxChars - prompt.length;
-
 	return (
 		<div className="space-y-4">
 			{/* Prompt input */}
@@ -255,18 +254,15 @@ export function AITextTab({
 					value={prompt}
 					onChange={(e) => onPromptChange(e.target.value)}
 					className={`${isCompact ? "min-h-[80px]" : "min-h-[120px]"} text-xs resize-none`}
-					maxLength={maxChars}
+					maxLength={isSora2Selected ? maxChars : undefined}
 					autoResize
 					maxHeight={isCompact ? 160 : 240}
 				/>
-				<div
-					className={`text-xs ${remainingChars < 50 ? "text-orange-500" : remainingChars < 20 ? "text-red-500" : "text-muted-foreground"} text-right`}
-				>
-					{remainingChars} characters remaining
-					{isSora2Selected && (
-						<span className="ml-2 text-primary">(Sora 2: 5000 max)</span>
-					)}
-				</div>
+				<AIPromptCharCounter
+					length={prompt.length}
+					maxChars={maxChars}
+					note={isSora2Selected ? "Sora 2: 5000 max" : undefined}
+				/>
 
 				{/* Additional Settings */}
 				{selectedModels.length > 0 && (

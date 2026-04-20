@@ -29,7 +29,11 @@ import { useUpscaleTabState } from "./hooks/use-ai-upscale-tab-state";
 import { useAnglesTabState } from "./hooks/use-ai-angles-tab-state";
 
 // Import constants and types
-import { AI_MODELS, REVE_TEXT_TO_IMAGE_MODEL } from "./constants/ai-constants";
+import {
+	AI_MODELS,
+	REVE_TEXT_TO_IMAGE_MODEL,
+	UI_CONSTANTS,
+} from "./constants/ai-constants";
 import {
 	getCombinedCapabilities,
 	resolveT2VModelId,
@@ -341,7 +345,11 @@ export function AiView({ mode }: { mode?: "upscale" | "angles" } = {}) {
 		videoMetadata: upscaleState.videoMetadata,
 	});
 
-	const maxChars = generation.isSora2Selected ? 5000 : 500;
+	// Sora 2 has its own API-enforced 5000-char hard cap; other models use
+	// the soft/strong warning thresholds defined in UI_CONSTANTS.
+	const maxChars = generation.isSora2Selected
+		? 5000
+		: UI_CONSTANTS.STRONG_PROMPT_WARN_CHARS;
 
 	// Handle media store loading/error states
 	if (generation.mediaStoreError) {

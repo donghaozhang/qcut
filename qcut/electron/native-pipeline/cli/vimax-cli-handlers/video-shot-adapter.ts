@@ -20,7 +20,7 @@
  *
  * Prompt sanitization strips stage-direction markers (`△`) and
  * dialogue speaker tags but keeps the text after them. Prompts
- * longer than 500 chars are truncated on a word boundary.
+ * longer than 8000 chars are truncated on a word boundary.
  *
  * @module electron/native-pipeline/cli/vimax-cli-handlers/video-shot-adapter
  */
@@ -160,7 +160,25 @@ const MAX_VIDU_REFERENCES = 4;
  * the ref-image budget other families use.
  */
 const MAX_KLING_ELEMENTS = 4;
-const MAX_PROMPT_CHARS = 500;
+
+/**
+ * Per-family prompt-length cap (chars). Truncation is a final safety net
+ * to keep us under the upstream API's hard limit; it is not a stylistic
+ * recommendation. UI surfaces a softer warning at much lower thresholds.
+ *
+ * - Seedance: no documented hard cap; 8000 is a generous practical ceiling.
+ * - Kling V3 Omni: GMI documents a 2500-char top-level prompt cap.
+ * - Vidu: shares Seedance's ceiling (no documented cap).
+ */
+const PROMPT_CHAR_LIMITS: Record<SeedanceFamily, number> = {
+	gmi: 8000,
+	fal: 8000,
+	vidu: 8000,
+	"kling-omni": 2500,
+};
+
+/** Default fallback when caller doesn't pass a per-family limit. */
+const DEFAULT_MAX_PROMPT_CHARS = 8000;
 
 /** Clamp a duration to the valid integer range for the target family. */
 export function clampDuration(
@@ -181,9 +199,14 @@ export function clampDuration(
  *   - Strip leading `△` from each line (stage-direction marker).
  *   - Strip short speaker tags like `<name>:` or `<name>（<note>）:`.
  *   - Collapse whitespace runs.
- *   - Truncate to 500 chars on a word boundary.
+ *   - Truncate on a word boundary at `maxChars` (default 8000).
+ *
+ * Pass `maxChars` to use a tighter per-family cap (e.g. 2500 for Kling).
  */
-export function sanitizeShotPrompt(raw: string): string {
+export function sanitizeShotPrompt(
+	raw: string,
+	maxChars: number = DEFAULT_MAX_PROMPT_CHARS
+): string {
 	const lines = raw
 		.split(/\r?\n/)
 		.map((line) => {
@@ -203,12 +226,12 @@ export function sanitizeShotPrompt(raw: string): string {
 	let combined = lines.join(" ");
 	combined = combined.replace(/\s+/g, " ").trim();
 
-	if (combined.length <= MAX_PROMPT_CHARS) return combined;
+	if (combined.length <= maxChars) return combined;
 
 	// Truncate on the last whitespace boundary within the window.
-	const slice = combined.slice(0, MAX_PROMPT_CHARS);
+	const slice = combined.slice(0, maxChars);
 	const lastSpace = slice.lastIndexOf(" ");
-	if (lastSpace > MAX_PROMPT_CHARS * 0.7) return slice.slice(0, lastSpace);
+	if (lastSpace > maxChars * 0.7) return slice.slice(0, lastSpace);
 	return slice;
 }
 
@@ -466,7 +489,10 @@ export function adaptShotForSeedance(
 	const minDuration =
 		family === "kling-omni" ? MIN_DURATION_KLING : MIN_DURATION_SEEDANCE;
 	const duration = clampDuration(shot.durationSeconds, { minDuration });
-	const scenePrompt = sanitizeShotPrompt(shot.description || "");
+	const scenePrompt = sanitizeShotPrompt(
+		shot.description || "",
+		PROMPT_CHAR_LIMITS[family]
+	);
 	const styleTrim = shot.stylePrompt?.trim() ?? "";
 
 	// Partition referenced characters into catalogued vs. skipped.

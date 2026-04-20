@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import { AIImageUploadSection } from "../components/ai-image-upload";
+import { AIPromptCharCounter } from "../components/ai-prompt-char-counter";
 import { AiKlingV25Settings } from "../components/ai-kling-v25-settings";
 import { AiKlingV26Settings } from "../components/ai-kling-v26-settings";
 import { AiLtxFastI2VSettings } from "../components/ai-ltx-fast-i2v-settings";
@@ -351,8 +352,8 @@ export function AIImageTab({
 					value={prompt}
 					onChange={(e) => onPromptChange(e.target.value)}
 					className="min-h-[40px] text-xs resize-none"
-					maxLength={maxChars}
 				/>
+				<AIPromptCharCounter length={prompt.length} maxChars={maxChars} />
 			</div>
 
 			{/* Vidu Q2 Settings */}

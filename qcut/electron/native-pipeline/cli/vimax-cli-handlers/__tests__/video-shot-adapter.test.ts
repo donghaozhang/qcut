@@ -55,10 +55,17 @@ describe("sanitizeShotPrompt", () => {
 		expect(sanitizeShotPrompt("a    b   c")).toBe("a b c");
 	});
 
-	it("truncates at 500 chars on a word boundary", () => {
-		const long = "word ".repeat(200); // 1000 chars of 'word '
+	it("truncates at 8000 chars on a word boundary by default", () => {
+		const long = "word ".repeat(2000); // 10000 chars of 'word '
 		const out = sanitizeShotPrompt(long);
-		expect(out.length).toBeLessThanOrEqual(500);
+		expect(out.length).toBeLessThanOrEqual(8000);
+		expect(out.endsWith("word")).toBe(true);
+	});
+
+	it("respects an explicit maxChars cap (e.g. 2500 for Kling)", () => {
+		const long = "word ".repeat(2000); // 10000 chars of 'word '
+		const out = sanitizeShotPrompt(long, 2500);
+		expect(out.length).toBeLessThanOrEqual(2500);
 		expect(out.endsWith("word")).toBe(true);
 	});
 
@@ -947,5 +954,37 @@ describe("adaptShotForSeedance — characterDescriptions injection", () => {
 			"gmi"
 		);
 		expect(adapted.payload.prompt).toBe("Alice walks");
+	});
+});
+
+describe("adaptShotForSeedance — per-family prompt cap", () => {
+	it("Seedance (gmi) keeps prompts up to 8000 chars", () => {
+		const long = "a".repeat(7000);
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: long,
+				characters: [],
+				durationSeconds: 5,
+			},
+			{},
+			"gmi"
+		);
+		expect((adapted.payload.prompt as string).length).toBe(7000);
+	});
+
+	it("Kling Omni truncates prompts over 2500 chars", () => {
+		const long = "word ".repeat(800); // 4000 chars
+		const adapted = adaptShotForSeedance(
+			{
+				shotId: "1",
+				description: long,
+				characters: [],
+				durationSeconds: 5,
+			},
+			{},
+			"kling-omni"
+		);
+		expect((adapted.payload.prompt as string).length).toBeLessThanOrEqual(2500);
 	});
 });

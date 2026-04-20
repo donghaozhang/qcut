@@ -91,9 +91,10 @@ Rules (documented, simple, reversible):
 - Strip dialogue: lines matching `^[^：:\n]{1,20}[：:]` get their
   speaker tag removed; keep the spoken text in case the scene
   depends on it.
-- Trim to 500 characters max (Seedance doesn't document a hard
-  cap, but very long prompts historically produce muddier output;
-  empirically 300–500 chars is the sweet spot on cdrama material).
+- Trim to 8000 characters max (Seedance doesn't document a hard
+  cap; raised from 500 to support long-form scene descriptions.
+  Empirically 300–500 chars remains the sweet spot for cdrama
+  material — the cap exists as an upper bound, not a target).
 - Collapse duplicate whitespace.
 
 No LLM rewriting — keep the transform deterministic so the adapter
@@ -134,7 +135,7 @@ Added conditionally:
 5. Clamps `durationSeconds: 2` up to 4; clamps `20` down to 15;
    passes `7` through as integer.
 6. Strips `△` and dialogue prefixes; keeps dialogue text.
-7. Truncates prompts over 500 chars to 500, preserving word
+7. Truncates prompts over 8000 chars to 8000, preserving word
    boundaries.
 8. Omits `reference_images` from t2v payload entirely (not
    `reference_images: []`).

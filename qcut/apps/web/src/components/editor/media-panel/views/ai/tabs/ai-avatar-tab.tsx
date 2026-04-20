@@ -39,6 +39,7 @@ import {
 import { Info, ChevronDown, ChevronUp } from "lucide-react";
 
 import { UPLOAD_CONSTANTS, AVATAR_MODELS } from "../constants/ai-constants";
+import { AIPromptCharCounter } from "../components/ai-prompt-char-counter";
 import { calculateKlingAvatarV2Cost } from "../utils/ai-cost-calculators";
 import type {
 	SyncLipsyncEmotion,
@@ -349,8 +350,8 @@ export function AIAvatarTab({
 					value={prompt}
 					onChange={(e) => onPromptChange(e.target.value)}
 					className="min-h-[40px] text-xs resize-none"
-					maxLength={maxChars}
 				/>
+				<AIPromptCharCounter length={prompt.length} maxChars={maxChars} />
 			</div>
 
 			{/* Kling Avatar v2 Options */}
