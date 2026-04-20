@@ -87,6 +87,8 @@ function unitLabel(unit: PriceUnit): string {
 	switch (unit) {
 		case "per-second":
 			return "per second";
+		case "per-minute":
+			return "per minute";
 		case "per-1k-chars":
 			return "per 1k characters";
 		case "per-megapixel":
@@ -142,6 +144,20 @@ function computeFromOverride(
 				1,
 				Math.round(amountPerUnitCredits * params.durationSeconds)
 			);
+		case "per-minute":
+			if (params?.minutes) {
+				return Math.max(
+					1,
+					Math.round(amountPerUnitCredits * params.minutes)
+				);
+			}
+			if (params?.durationSeconds) {
+				return Math.max(
+					1,
+					Math.round((amountPerUnitCredits * params.durationSeconds) / 60)
+				);
+			}
+			return 1;
 		case "per-1k-chars":
 			if (!params?.characterCount) return 1;
 			return Math.max(

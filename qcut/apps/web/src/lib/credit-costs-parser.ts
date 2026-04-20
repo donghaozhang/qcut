@@ -18,6 +18,7 @@
 
 export type PriceUnit =
 	| "per-second"
+	| "per-minute"
 	| "per-1k-chars"
 	| "per-megapixel"
 	| "fixed";
@@ -43,12 +44,14 @@ export function parsePriceString(raw: string | undefined): ParsedPrice | null {
 	if (/^tbd$/i.test(s)) return null;
 
 	// Unit detection — suffix-based. Order matters: check more specific
-	// suffixes ("1k chars", "MP") before the generic "/s".
+	// suffixes ("1k chars", "MP", "min") before the generic "/s".
 	let unit: PriceUnit = "fixed";
 	if (/\/\s*1k\s*chars?/i.test(s)) {
 		unit = "per-1k-chars";
 	} else if (/\/\s*MP\b/i.test(s)) {
 		unit = "per-megapixel";
+	} else if (/\/\s*min\b/i.test(s)) {
+		unit = "per-minute";
 	} else if (/\/s\b/i.test(s)) {
 		unit = "per-second";
 	}
@@ -70,6 +73,8 @@ export function parsePriceString(raw: string | undefined): ParsedPrice | null {
 
 export interface CreditComputeParams {
 	durationSeconds?: number;
+	/** Audio duration in minutes — used for `/min` models. */
+	minutes?: number;
 	characterCount?: number;
 	/** Image resolution in megapixels — only used for `/MP` models. */
 	megapixels?: number;
@@ -100,6 +105,19 @@ export function creditsFromParsedPrice(
 		case "per-second":
 			if (typeof params?.durationSeconds !== "number") return null;
 			rawCredits = amountUsd * params.durationSeconds * CREDIT_USD_MULTIPLIER;
+			break;
+		case "per-minute":
+			if (typeof params?.minutes === "number") {
+				rawCredits = amountUsd * params.minutes * CREDIT_USD_MULTIPLIER;
+			} else if (typeof params?.durationSeconds === "number") {
+				// Accept durationSeconds as an alternative so callers that only
+				// know about seconds (most video pipelines) don't need a second
+				// param for audio-only per-minute models.
+				rawCredits =
+					(amountUsd * params.durationSeconds) / 60 * CREDIT_USD_MULTIPLIER;
+			} else {
+				return null;
+			}
 			break;
 		case "per-1k-chars":
 			if (typeof params?.characterCount !== "number") return null;
