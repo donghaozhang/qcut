@@ -137,7 +137,6 @@ const UPSCALE_VIDEO_MODELS: AIModel[] = [
 		max_duration: 120,
 		category: "upscale",
 		endpoints: { upscale_video: "topaz/video-upscale" },
-		comingSoon: true,
 	},
 ];
 

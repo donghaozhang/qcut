@@ -178,6 +178,9 @@ export interface UpscaleSettings {
 	flashvsrOutputQuality: string;
 	flashvsrOutputWriteMode: string;
 	flashvsrSeed: number | null;
+	topazUpscaleFactor: number;
+	topazTargetFPS: "original" | "interpolated";
+	topazH264Output: boolean;
 }
 
 interface VideoResponse {

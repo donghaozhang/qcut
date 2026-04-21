@@ -176,15 +176,80 @@ export async function upscaleFlashVSRVideo(
 }
 
 /**
- * Upscales a video using the Topaz Video Upscaler.
+ * Upscales a video using the Topaz Video Upscaler (`fal-ai/topaz/upscale/video`).
  *
- * @param request - Parameters including `video_url`, `upscale_factor`, and optional `target_fps` and `h264_output`
- * @returns A VideoGenerationResponse containing the upscaled video's URL and binary data
- * @throws Error with message "Topaz Video Upscale not yet implemented"
+ * @param request - Parameters. `video_url` is required. Optional: `upscale_factor`
+ *   (2–8, default 2), `target_fps` (integer — if set, enables frame interpolation),
+ *   `h264_output` (default false = H265).
+ * @returns A VideoGenerationResponse with `job_id`, `status`, a human-readable `message`,
+ *   the resulting `video_url`, and the raw provider response in `video_data`.
+ * @throws If the FAL API key is not configured, `video_url` is missing, the model
+ *   registry entry is not found, `upscale_factor` is out of range, or the FAL API
+ *   returns an error (401/429 messages are propagated via `handleFalResponse`).
  */
 export async function upscaleTopazVideo(
-	_request: TopazUpscaleRequest
+	request: TopazUpscaleRequest
 ): Promise<VideoGenerationResponse> {
-	// TODO: Implement when Topaz API endpoint is available
-	throw new Error("Topaz Video Upscale not yet implemented");
+	return withErrorHandling(
+		"Upscale video with Topaz",
+		{ operation: "upscaleTopazVideo" },
+		async () => {
+			const falApiKey = await getFalApiKeyAsync();
+			if (!falApiKey) {
+				throw new Error(
+					"FAL API key not configured. Please set VITE_FAL_API_KEY environment variable or configure it in Settings."
+				);
+			}
+
+			if (!request.video_url) {
+				throw new Error("Video URL is required for upscaling");
+			}
+
+			const modelConfig = getModelConfig("topaz_video_upscale");
+			if (!modelConfig) {
+				throw new Error("Topaz upscaler model not found");
+			}
+
+			const endpoint = modelConfig.endpoints.upscale_video;
+			if (!endpoint) {
+				throw new Error("Topaz upscaler endpoint not configured");
+			}
+
+			const upscaleFactor = request.upscale_factor ?? 2;
+			if (upscaleFactor < 2 || upscaleFactor > 8) {
+				throw new Error("Topaz upscale factor must be between 2 and 8");
+			}
+
+			const payload: Record<string, unknown> = {
+				video_url: request.video_url,
+				upscale_factor: upscaleFactor,
+				// Reason: fal uses `H264_output` (capital H) on the wire. Map from
+				// our camelCase interface field here so callers don't need to know.
+				H264_output: request.h264_output ?? false,
+			};
+
+			if (typeof request.target_fps === "number") {
+				payload.target_fps = request.target_fps;
+			}
+
+			const jobId = generateJobId();
+			const response = await makeFalRequest(endpoint, payload);
+
+			if (!response.ok) {
+				await handleFalResponse(response, "Upscale video with Topaz");
+			}
+
+			const result = await response.json();
+			return {
+				job_id: jobId,
+				status: "completed",
+				message: `Video upscaled with Topaz (${upscaleFactor}x)`,
+				estimated_time: 0,
+				video_url:
+					result.video?.url ||
+					(typeof result.video === "string" ? result.video : result.url),
+				video_data: result,
+			};
+		}
+	);
 }
