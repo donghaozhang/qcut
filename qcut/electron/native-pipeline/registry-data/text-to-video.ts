@@ -593,7 +593,7 @@ export function registerTextToVideoModels(): void {
 		endpoint: "seedance-2-0-fast-260128",
 		categories: ["text_to_video"],
 		description:
-			"Lower-latency Seedance 2.0 260128 variant — same durations/resolutions as the standard tier, priced for drafts",
+			"Lower-latency Seedance 2.0 260128 variant — 480p/720p only (no 1080p), priced for drafts",
 		pricing: { per_second: 0.022 },
 		durationOptions: [
 			"4",
@@ -610,7 +610,7 @@ export function registerTextToVideoModels(): void {
 			"15",
 		],
 		aspectRatios: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "adaptive"],
-		resolutions: ["480p", "720p", "1080p"],
+		resolutions: ["480p", "720p"],
 		defaults: {
 			duration: 5,
 			resolution: "720p",

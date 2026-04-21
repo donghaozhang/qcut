@@ -25,6 +25,7 @@ import type {
 } from "../model-handler-types";
 import {
 	resolveSeedanceDuration,
+	resolveSeedanceFastResolution,
 	resolveSeedanceRatio,
 	resolveSeedanceResolution,
 } from "./seedance-260128-params";
@@ -632,7 +633,7 @@ export async function handleSeedanceFast260128T2V(
 			duration: resolveSeedanceDuration(
 				settings.unifiedParams?.duration ?? settings.duration
 			),
-			resolution: resolveSeedanceResolution(
+			resolution: resolveSeedanceFastResolution(
 				settings.unifiedParams?.resolution ?? settings.resolution
 			),
 			ratio: resolveSeedanceRatio(

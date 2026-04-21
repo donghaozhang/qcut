@@ -23,6 +23,7 @@ import type {
 } from "../model-handler-types";
 import {
 	resolveSeedanceDuration,
+	resolveSeedanceFastResolution,
 	resolveSeedanceRatio,
 	resolveSeedanceResolution,
 } from "./seedance-260128-params";
@@ -271,7 +272,7 @@ export async function handleSeedanceFast260128I2V(
 			prompt: ctx.prompt,
 			firstFrame: imageSource,
 			duration: resolveSeedanceDuration(settings.duration),
-			resolution: resolveSeedanceResolution(settings.resolution),
+			resolution: resolveSeedanceFastResolution(settings.resolution),
 			ratio: resolveSeedanceRatio(settings.aspectRatio),
 		});
 		return { response };
@@ -307,7 +308,7 @@ export async function handleSeedanceFast260128Ref2V(
 			prompt: ctx.prompt,
 			referenceImages: [referenceImageSource],
 			duration: resolveSeedanceDuration(settings.duration),
-			resolution: resolveSeedanceResolution(settings.resolution),
+			resolution: resolveSeedanceFastResolution(settings.resolution),
 			ratio: resolveSeedanceRatio(settings.aspectRatio),
 		});
 		return { response };

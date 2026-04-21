@@ -587,10 +587,10 @@ export const T2V_MODELS = {
 		name: "Seedance 2.0 Fast 260128 (GMI)",
 		badge: "\u26A1 Fast",
 		description:
-			"Lower-latency Seedance 2.0 260128 variant via GMI — same durations/resolutions as the standard tier, priced for drafts and iterations",
+			"Lower-latency Seedance 2.0 260128 variant via GMI — 480p/720p only (no 1080p), priced for drafts and iterations",
 		price: "$0.022/s",
-		resolution: "480p / 720p / 1080p",
-		supportedResolutions: ["480p", "720p", "1080p"],
+		resolution: "480p / 720p",
+		supportedResolutions: ["480p", "720p"],
 		max_duration: 15,
 		category: "text",
 		endpoints: {
