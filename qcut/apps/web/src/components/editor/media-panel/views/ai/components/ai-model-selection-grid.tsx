@@ -47,10 +47,14 @@ export function AIModelSelectionGrid({
 	const orderedModels =
 		activeTab === "text"
 			? [...filteredModels].sort((a, b) => {
-					const ai = T2V_MODEL_ORDER.indexOf(a.id as (typeof T2V_MODEL_ORDER)[number]);
-					const bi = T2V_MODEL_ORDER.indexOf(b.id as (typeof T2V_MODEL_ORDER)[number]);
-					const aRank = ai === -1 ? Number.POSITIVE_INFINITY : ai;
-					const bRank = bi === -1 ? Number.POSITIVE_INFINITY : bi;
+					const ai = T2V_MODEL_ORDER.indexOf(
+						a.id as (typeof T2V_MODEL_ORDER)[number]
+					);
+					const bi = T2V_MODEL_ORDER.indexOf(
+						b.id as (typeof T2V_MODEL_ORDER)[number]
+					);
+					const aRank = ai === -1 ? Number.MAX_SAFE_INTEGER : ai;
+					const bRank = bi === -1 ? Number.MAX_SAFE_INTEGER : bi;
 					return aRank - bRank;
 				})
 			: filteredModels;

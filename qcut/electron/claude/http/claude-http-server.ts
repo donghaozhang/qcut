@@ -18,6 +18,7 @@ import {
 	generateId,
 	getProjectPath,
 	getProjectsRootPath,
+	sanitizeProjectId,
 } from "../utils/helpers.js";
 import {
 	requestTimelineFromRenderer,
@@ -284,7 +285,11 @@ export function startClaudeHTTPServer(
 	});
 
 	router.post("/api/claude/project/:projectId/reveal", async (req) => {
-		const projectPath = getProjectPath(req.params.projectId);
+		const rawId = req.params.projectId;
+		if (!rawId || !sanitizeProjectId(rawId)) {
+			throw new HttpError(400, "Invalid 'projectId'");
+		}
+		const projectPath = getProjectPath(rawId);
 		const error = await shell.openPath(projectPath);
 		if (error) {
 			throw new HttpError(500, `Failed to open project folder: ${error}`);

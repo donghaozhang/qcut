@@ -133,9 +133,9 @@ describe("upscaleTopazVideo", () => {
 	});
 
 	it("throws when video_url is empty", async () => {
-		await expect(
-			upscaleTopazVideo({ video_url: "" })
-		).rejects.toThrow(/Video URL is required/);
+		await expect(upscaleTopazVideo({ video_url: "" })).rejects.toThrow(
+			/Video URL is required/
+		);
 	});
 
 	it("throws when upscale_factor is outside 2..8", async () => {
