@@ -156,6 +156,9 @@ export function useHandleGenerate(
 		flashvsrOutputQuality = "high",
 		flashvsrOutputWriteMode = "balanced",
 		flashvsrSeed,
+		topazUpscaleFactor = 2,
+		topazTargetFPS = "original",
+		topazH264Output = false,
 	} = props;
 
 	const {
@@ -496,6 +499,9 @@ export function useHandleGenerate(
 						flashvsrOutputQuality,
 						flashvsrOutputWriteMode,
 						flashvsrSeed: flashvsrSeed ?? null,
+						topazUpscaleFactor,
+						topazTargetFPS,
+						topazH264Output,
 					};
 
 					handlerResult = await routeUpscaleHandler(
@@ -659,6 +665,9 @@ export function useHandleGenerate(
 		flashvsrOutputQuality,
 		flashvsrOutputWriteMode,
 		flashvsrSeed,
+		topazUpscaleFactor,
+		topazTargetFPS,
+		topazH264Output,
 		hailuoT2VDuration,
 		ltxv2Duration,
 		ltxv2FPS,

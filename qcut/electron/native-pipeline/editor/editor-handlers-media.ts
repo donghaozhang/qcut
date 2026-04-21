@@ -364,10 +364,12 @@ async function dispatchProject(
 			return projectExportState(client, opts);
 		case "import-state":
 			return projectImportState();
+		case "reveal":
+			return projectReveal(client, opts);
 		default:
 			return {
 				success: false,
-				error: `Unknown project action: ${action}. Available: settings, update-settings, stats, summary, report, create, delete, rename, duplicate, list, info, export-state, import-state`,
+				error: `Unknown project action: ${action}. Available: settings, update-settings, stats, summary, report, create, delete, rename, duplicate, list, info, export-state, import-state, reveal`,
 			};
 	}
 }
@@ -559,4 +561,32 @@ function projectImportState(): CLIResult {
 		error:
 			"editor:project:import-state is not yet implemented. Coming in a future release.",
 	};
+}
+
+/** Handle project reveal — opens the project folder in the OS file manager. */
+async function projectReveal(
+	client: EditorApiClient,
+	opts: CLIRunOptions
+): Promise<CLIResult> {
+	let projectId = opts.projectId;
+	if (!projectId) {
+		try {
+			const nav = await client.get<{ activeProjectId: string | null }>(
+				"/api/claude/navigator/projects"
+			);
+			projectId = nav?.activeProjectId ?? undefined;
+		} catch {
+			// Renderer didn't answer (editor not ready / IPC stuck). Fall through
+			// to revealing the parent Projects folder so the command still helps.
+		}
+	}
+	if (!projectId) {
+		const data = await client.post("/api/claude/project/reveal-root", {});
+		return { success: true, data };
+	}
+	const data = await client.post(
+		`/api/claude/project/${encodeURIComponent(projectId)}/reveal`,
+		{}
+	);
+	return { success: true, data };
 }

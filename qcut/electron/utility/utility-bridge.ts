@@ -17,8 +17,13 @@ import {
 	ipcMain,
 	app,
 	webContents,
+	shell,
 } from "electron";
 import * as path from "node:path";
+import {
+	getProjectPath,
+	getProjectsRootPath,
+} from "../claude/utils/helpers.js";
 import {
 	requestTimelineFromRenderer,
 	requestSplitFromRenderer,
@@ -404,6 +409,23 @@ async function handleMainRequest(
 			requestTimeline: async ({ win }) =>
 				await requestTimelineFromRenderer(win),
 		});
+	}
+	if (channel === "project:reveal") {
+		const req = data as { projectId: string };
+		const projectPath = getProjectPath(req.projectId);
+		const error = await shell.openPath(projectPath);
+		if (error) {
+			throw new Error(`Failed to open project folder: ${error}`);
+		}
+		return { path: projectPath };
+	}
+	if (channel === "project:reveal-root") {
+		const rootPath = getProjectsRootPath();
+		const error = await shell.openPath(rootPath);
+		if (error) {
+			throw new Error(`Failed to open projects folder: ${error}`);
+		}
+		return { path: rootPath };
 	}
 
 	const win = getWindow();

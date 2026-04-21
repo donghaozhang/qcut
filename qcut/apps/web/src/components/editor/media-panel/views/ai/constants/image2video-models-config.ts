@@ -791,12 +791,10 @@ export const I2V_MODELS = {
 		name: "Seedance 2.0 Fast 260128 I2V (GMI)",
 		badge: "\u26A1 Fast",
 		description:
-			"Lower-latency Seedance image-to-video — first/last-frame anchors, reference assets, native audio",
-		// Conservative placeholder — matches the standard tier. Reprice once
-		// GMI publishes the fast-tier rate.
-		price: "$0.052/s",
-		resolution: "480p / 720p / 1080p",
-		supportedResolutions: ["480p", "720p", "1080p"],
+			"Lower-latency Seedance image-to-video — 480p/720p only (no 1080p), first/last-frame anchors, reference assets, native audio",
+		price: "$0.022/s",
+		resolution: "480p / 720p",
+		supportedResolutions: ["480p", "720p"],
 		max_duration: 15,
 		category: "image",
 		requiredInputs: ["firstFrame"],
@@ -817,11 +815,10 @@ export const I2V_MODELS = {
 		name: "Seedance 2.0 Fast 260128 Ref2V (GMI)",
 		badge: "\u26A1 Fast",
 		description:
-			"Character-consistent Seedance video driven by a reference image (fast tier)",
-		// Conservative placeholder — matches the standard tier.
-		price: "$0.052/s",
-		resolution: "480p / 720p / 1080p",
-		supportedResolutions: ["480p", "720p", "1080p"],
+			"Character-consistent Seedance video driven by a reference image (fast tier) — 480p/720p only, no 1080p",
+		price: "$0.022/s",
+		resolution: "480p / 720p",
+		supportedResolutions: ["480p", "720p"],
 		max_duration: 15,
 		category: "image",
 		requiredInputs: ["referenceImage"],

@@ -453,6 +453,22 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 		);
 	});
 
+	router.post("/api/claude/project/:projectId/reveal", async (req) => {
+		return await withTimeout(
+			requestFromMain("project:reveal", { projectId: req.params.projectId }),
+			10_000,
+			"Reveal project folder timed out"
+		);
+	});
+
+	router.post("/api/claude/project/reveal-root", async () => {
+		return await withTimeout(
+			requestFromMain("project:reveal-root", {}),
+			10_000,
+			"Reveal projects folder timed out"
+		);
+	});
+
 	// ==========================================================================
 	// Screenshot capture
 	// ==========================================================================

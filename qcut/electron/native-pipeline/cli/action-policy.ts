@@ -43,6 +43,7 @@ const DEFAULT_ALLOW_PATTERNS = [
 	"editor:project:report",
 	"editor:project:list",
 	"editor:project:info",
+	"editor:project:reveal",
 	"editor:timeline:export",
 	"editor:timeline:get-selection",
 	"editor:timeline:info",

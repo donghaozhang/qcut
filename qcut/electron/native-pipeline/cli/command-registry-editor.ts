@@ -220,6 +220,11 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		"Load project.json into editor (not yet implemented)",
 		[PID, DATA_REQ]
 	),
+	"editor:project:reveal": ed(
+		"editor:project:reveal",
+		"Reveal project folder in the OS file manager (defaults to the active project)",
+		[f("--project-id", "string", "Project ID (defaults to the active project)")]
+	),
 
 	// ── Timeline ──
 	"editor:timeline:export": ed("editor:timeline:export", "Export timeline", [

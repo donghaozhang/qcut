@@ -9,7 +9,7 @@ import {
 	UserIcon,
 	ExternalLink,
 } from "lucide-react";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -27,6 +27,7 @@ import { useImageTabState } from "./hooks/use-ai-image-tab-state";
 import { useAvatarTabState } from "./hooks/use-ai-avatar-tab-state";
 import { useUpscaleTabState } from "./hooks/use-ai-upscale-tab-state";
 import { useAnglesTabState } from "./hooks/use-ai-angles-tab-state";
+import { useSelectedModelsByTab } from "./hooks/use-selected-models-by-tab";
 
 // Import constants and types
 import {
@@ -65,9 +66,6 @@ export function AiView({ mode }: { mode?: "upscale" | "angles" } = {}) {
 	// Shared State
 	// ============================================
 	const [prompt, setPrompt] = useState("");
-	const [selectedModels, setSelectedModels] = useState<string[]>([
-		"sora2_text_to_video_pro",
-	]);
 	const [selectedImage, setSelectedImage] = useState<File | null>(null);
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -89,20 +87,13 @@ export function AiView({ mode }: { mode?: "upscale" | "angles" } = {}) {
 		useMediaPanelStore();
 	const activeTab = mode ? mode : globalActiveTab;
 
-	// Set default recommended model when switching tabs
-	const prevTabRef = useRef(activeTab);
-	useEffect(() => {
-		if (prevTabRef.current !== activeTab) {
-			prevTabRef.current = activeTab;
-			const defaults: Partial<Record<typeof activeTab, string>> = {
-				text: "sora2_text_to_video_pro",
-				image: "sora2_image_to_video_pro",
-				avatar: "kling_avatar_v2_pro",
-			};
-			const def = defaults[activeTab];
-			if (def) setSelectedModels([def]);
-		}
-	}, [activeTab]);
+	// Per-tab selected-models. Each tab owns its own list so selections
+	// cannot leak across tabs (prevents the "T2V model bleeds into
+	// Upscale tab" bug). `selectedModels` and `setSelectedModels`
+	// transparently read/write the active tab's slice so downstream
+	// consumers keep their existing `string[]` contract.
+	const { selectedModels, setSelectedModels } =
+		useSelectedModelsByTab(activeTab);
 
 	// Listen for qcut://panel subpanel switching (iPad CLI)
 	useEffect(() => {

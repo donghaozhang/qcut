@@ -17,6 +17,13 @@ const SEEDANCE_RESOLUTIONS: readonly SeedanceResolution[] = [
 	"720p",
 	"1080p",
 ];
+// Fast tier (doubao-seedance-2-0-fast) rejects 1080p upstream — see
+// GMI / Volcano Ark docs. Keep this list in sync with the capability
+// table for `gmi_seedance_2_0_fast_260128_*`.
+const SEEDANCE_FAST_RESOLUTIONS: readonly SeedanceResolution[] = [
+	"480p",
+	"720p",
+];
 const SEEDANCE_RATIOS: readonly SeedanceRatio[] = [
 	"16:9",
 	"4:3",
@@ -29,6 +36,14 @@ const SEEDANCE_RATIOS: readonly SeedanceRatio[] = [
 
 export function resolveSeedanceResolution(value: unknown): SeedanceResolution {
 	return SEEDANCE_RESOLUTIONS.includes(value as SeedanceResolution)
+		? (value as SeedanceResolution)
+		: "720p";
+}
+
+export function resolveSeedanceFastResolution(
+	value: unknown
+): SeedanceResolution {
+	return SEEDANCE_FAST_RESOLUTIONS.includes(value as SeedanceResolution)
 		? (value as SeedanceResolution)
 		: "720p";
 }

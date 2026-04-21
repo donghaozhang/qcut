@@ -457,7 +457,7 @@ export const T2V_MODEL_CAPABILITIES: Record<T2VModelId, T2VModelCapabilities> =
 			supportsAspectRatio: true,
 			supportedAspectRatios: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9"],
 			supportsResolution: true,
-			supportedResolutions: ["480p", "720p", "1080p"],
+			supportedResolutions: ["480p", "720p"],
 			supportsDuration: true,
 			supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
 			supportsNegativePrompt: false,

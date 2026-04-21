@@ -452,12 +452,18 @@ export interface HeyGenTranslateRequest {
 }
 
 /**
- * Topaz video upscaler request parameters
+ * Topaz video upscaler request parameters.
+ *
+ * Mirrors the fal.ai `fal-ai/topaz/upscale/video` wire format:
+ *   - `target_fps` is an integer; omit to keep source fps, set to a value
+ *     to enable frame interpolation.
+ *   - `H264_output` on the wire (capital H). The generator maps the
+ *     camelCase field below to that exact casing when building the payload.
  */
 export interface TopazUpscaleRequest {
 	video_url: string;
 	upscale_factor?: number;
-	target_fps?: "original" | "interpolated";
+	target_fps?: number;
 	h264_output?: boolean;
 }
 

@@ -123,4 +123,10 @@ export interface AIModel {
 	supportedLipsyncModes?: string[];
 	/** Provider backend override (defaults to "fal" if not set) */
 	providerBackend?: "fal" | "gmi" | "runway";
+	/**
+	 * Model is advertised in the UI but not yet wired to a handler.
+	 * When true, the selection grid disables the button and shows a
+	 * "Coming soon" label so users cannot select it.
+	 */
+	comingSoon?: boolean;
 }

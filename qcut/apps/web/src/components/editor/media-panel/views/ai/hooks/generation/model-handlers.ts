@@ -64,6 +64,7 @@ import {
 import {
 	handleByteDanceUpscale,
 	handleFlashVSRUpscale,
+	handleTopazUpscale,
 } from "./handlers/upscale-handlers";
 import {
 	handleKlingO1Ref2Video,
@@ -434,7 +435,7 @@ export async function routeUpscaleHandler(
 		case "flashvsr_video_upscaler":
 			return handleFlashVSRUpscale(ctx, settings);
 		case "topaz_video_upscale":
-			throw new Error("Topaz Video Upscale not yet implemented");
+			return handleTopazUpscale(ctx, settings);
 		default:
 			return {
 				response: undefined,
