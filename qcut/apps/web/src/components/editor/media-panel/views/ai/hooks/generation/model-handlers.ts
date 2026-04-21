@@ -434,7 +434,11 @@ export async function routeUpscaleHandler(
 		case "flashvsr_video_upscaler":
 			return handleFlashVSRUpscale(ctx, settings);
 		case "topaz_video_upscale":
-			throw new Error("Topaz Video Upscale not yet implemented");
+			return {
+				response: undefined,
+				shouldSkip: true,
+				skipReason: "Topaz Video Upscale is coming soon",
+			};
 		default:
 			return {
 				response: undefined,

@@ -1,7 +1,8 @@
 # Plan: AI Panel `selectedModels` Tab Isolation
 
-**Status**: Proposed
+**Status**: ✅ Implemented (2026-04-21)
 **Estimated time**: ~60–90 minutes (mechanical but touches ~10 files)
+**Actual time**: ~40 minutes
 **Risk**: Low — change is a shape refactor on a single piece of state, with no new logic
 
 ---
@@ -279,3 +280,80 @@ Single PR. No feature flag — the refactor's observable behavior differs from t
 
 - Bug report and root-cause trace: see conversation `2026-04-21` — user report "when I upscale video why it call video generation model".
 - Adjacent refactor plan (index.tsx structural split): `docs/task/refactor-plans/refactor-plan-ai-index.md` — this tab-isolation change should land **before** that bigger split so the new state shape is the one being carried forward.
+
+---
+
+## Implementation summary (2026-04-21)
+
+### Deviations from plan
+
+- **Picked option (b) for testability** — extracted a dedicated `useSelectedModelsByTab` hook rather than testing through `AiView`. This keeps the test surface tiny (one hook, no 60-prop render harness) and gives the state shape a proper home for future reuse.
+- **Angles default** — confirmed from `apps/web/src/components/editor/media-panel/views/ai/constants/angles-config.ts:81` that the canonical model id is `"shots_cinematic_angles"`. Used that.
+- **Downstream audit** — confirmed via grep that every consumer only reads `selectedModels: string[]` or consumes `onToggleModel` as a callback prop. No downstream file needed changes. The `setSelectedModels` wrapper preserves the `useState` setter contract (plain array or functional updater), so `toggleModel` at `index.tsx:305` works unchanged.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/use-selected-models-by-tab.ts` | **NEW** — hook + `TAB_DEFAULT_MODELS` constant |
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/__tests__/use-selected-models-by-tab.test.ts` | **NEW** — 12 tests across 4 describe blocks |
+| `apps/web/src/components/editor/media-panel/views/ai/index.tsx` | Removed shared `selectedModels` useState; removed `prevTabRef` + `defaults` tab-switch effect; removed unused `useRef` import; wired `useSelectedModelsByTab(activeTab)` |
+| `apps/web/src/components/editor/media-panel/views/ai/types/ai-types/model-config.ts` | Added `comingSoon?: boolean` to `AIModel` |
+| `apps/web/src/components/editor/media-panel/views/ai/constants/ai-constants.ts` | Marked Topaz with `comingSoon: true` |
+| `apps/web/src/components/editor/media-panel/views/ai/components/ai-model-selection-grid.tsx` | Disabled button + "Coming soon" label when `comingSoon` flag is set |
+| `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/model-handlers.ts` | Replaced Topaz `throw` with graceful `shouldSkip` return |
+| `docs/task/ai-panel-tab-isolation/plan.md` | **NEW** (this doc) |
+
+Total production code diff: **+86 lines** (new hook) / **−18 lines** (deleted state + defaults effect in index.tsx). Net: roughly +68 LOC, concentrated in the new hook file which has a single responsibility.
+
+### New file line counts (all well under the 800-line limit)
+
+| File | Lines |
+|------|-------|
+| `use-selected-models-by-tab.ts` | 86 |
+| `use-selected-models-by-tab.test.ts` | 160 |
+
+### Test results
+
+Command: `bun x vitest run apps/web/src/components/editor/media-panel/views/ai/hooks/__tests__/`
+
+```
+ ✓ use-selected-models-by-tab.test.ts  (12 tests)  14ms
+ ✓ use-reve-edit-state.test.ts          (2 tests)  11ms
+ ✓ use-ai-polling.test.ts               (4 tests)   4ms
+ ✓ use-cost-calculation.test.ts        (12 tests)  12ms
+ ✓ use-ai-panel-effects.test.ts        (10 tests)
+ ✓ use-ai-generation-helpers.test.ts   (35 tests)   4ms
+ ✓ use-ai-mock-generation.test.ts       (2 tests)   4ms
+ ✓ use-ai-generation-contract.test.ts   (1 test)    8ms
+
+ Test Files  9 passed (9)
+      Tests  78 passed (78)
+```
+
+Type-check: `bun x tsc --noEmit` from `apps/web/` → exit 0, zero errors.
+
+### Behavior changes (user-visible)
+
+1. ✅ Cross-tab selection leakage is gone. Selecting Seedance T2V on the Text tab and switching to Upscale no longer puts the T2V id in the Upscale tab's `selectedModels` array. The bug in the original report ("Unknown upscale model: gmi_seedance_2_0_fast_260128_t2v") cannot reproduce.
+2. ✅ Upscale and Angles tabs now have proper default models (`bytedance_video_upscaler` and `shots_cinematic_angles`), instead of silently inheriting whatever was in the previous tab.
+3. ✅ Tab switches no longer wipe a tab's selections. If a user picks three T2V models in the Text tab, pops to Upscale briefly, and comes back, their three models are still there.
+
+### Topaz "not yet implemented" — also fixed (defensively)
+
+Originally scoped out as a separate task, but addressed here because the throw remained user-reachable. Three small changes:
+
+- `apps/web/src/components/editor/media-panel/views/ai/types/ai-types/model-config.ts` — added `comingSoon?: boolean` to `AIModel`.
+- `apps/web/src/components/editor/media-panel/views/ai/constants/ai-constants.ts` — marked `topaz_video_upscale` with `comingSoon: true`.
+- `apps/web/src/components/editor/media-panel/views/ai/components/ai-model-selection-grid.tsx` — button is `disabled` when `comingSoon`, shows "Coming soon" sub-label and tooltip, `onClick` no-ops as a defense in depth.
+- `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/model-handlers.ts:436` — replaced `throw new Error("...not yet implemented")` with a graceful skip (`shouldSkip: true, skipReason: "Topaz Video Upscale is coming soon"`). If any future not-yet-implemented model slips through, Generate will surface a skip toast instead of crashing.
+
+Actually implementing Topaz end-to-end (API integration, IPC wiring, cost calc) remains a separate task — this plan only removes the crash path.
+
+### Verification checklist
+
+- [x] Hook compiles and type-checks
+- [x] All 12 new tests pass
+- [x] Adjacent AI-hook test suite (78 tests) still passes — no regressions
+- [x] `index.tsx` renders without touching `selectedModels` shape downstream
+- [ ] Manual smoke test in `bun run electron:dev` — recommended before merge (see Subtask 5)

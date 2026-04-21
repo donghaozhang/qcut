@@ -59,43 +59,58 @@ export function AIModelSelectionGrid({
 		<div className="space-y-2">
 			<Label className="text-xs font-medium">Select AI Models</Label>
 			<div className="grid grid-cols-2 gap-2">
-				{orderedModels.map((model) => (
-					<Button
-						key={model.id}
-						type="button"
-						size="sm"
-						variant={isModelSelected(model.id) ? "default" : "outline"}
-						onClick={() => onToggleModel(model.id)}
-						className={`h-auto min-h-[44px] py-2 px-2 text-xs justify-start items-start ${isCompact ? "flex-col" : "flex-row"}`}
-					>
-						<div className="flex items-center gap-1.5 text-left leading-tight flex-1 min-w-0">
-							{(() => {
-								const logo = getProviderLogo(model.id);
-								return logo ? (
-									<img
-										src={logo}
-										alt={`${getProviderName(model.id) ?? model.name} logo`}
-										loading="lazy"
-										className="w-5 h-5 shrink-0 rounded-sm"
-									/>
-								) : null;
-							})()}
-							<div className="flex flex-col min-w-0">
-								<span className="truncate">{model.name}</span>
-								{model.badge && (
-									<span className="text-[10px] text-muted-foreground/80 truncate">
-										{model.badge}
-									</span>
-								)}
+				{orderedModels.map((model) => {
+					const isComingSoon = Boolean(model.comingSoon);
+					return (
+						<Button
+							key={model.id}
+							type="button"
+							size="sm"
+							variant={isModelSelected(model.id) ? "default" : "outline"}
+							disabled={isComingSoon}
+							aria-disabled={isComingSoon}
+							title={isComingSoon ? `${model.name} — coming soon` : undefined}
+							onClick={() => {
+								if (isComingSoon) return;
+								onToggleModel(model.id);
+							}}
+							className={`h-auto min-h-[44px] py-2 px-2 text-xs justify-start items-start ${isCompact ? "flex-col" : "flex-row"} ${isComingSoon ? "opacity-60 cursor-not-allowed" : ""}`}
+						>
+							<div className="flex items-center gap-1.5 text-left leading-tight flex-1 min-w-0">
+								{(() => {
+									const logo = getProviderLogo(model.id);
+									return logo ? (
+										<img
+											src={logo}
+											alt={`${getProviderName(model.id) ?? model.name} logo`}
+											loading="lazy"
+											className="w-5 h-5 shrink-0 rounded-sm"
+										/>
+									) : null;
+								})()}
+								<div className="flex flex-col min-w-0">
+									<span className="truncate">{model.name}</span>
+									{isComingSoon ? (
+										<span className="text-[10px] text-muted-foreground/80 truncate">
+											Coming soon
+										</span>
+									) : (
+										model.badge && (
+											<span className="text-[10px] text-muted-foreground/80 truncate">
+												{model.badge}
+											</span>
+										)
+									)}
+								</div>
 							</div>
-						</div>
-						{!isCompact && (
-							<span className="ml-2 text-muted-foreground whitespace-nowrap shrink-0">
-								${model.price}
-							</span>
-						)}
-					</Button>
-				))}
+							{!isCompact && (
+								<span className="ml-2 text-muted-foreground whitespace-nowrap shrink-0">
+									${model.price}
+								</span>
+							)}
+						</Button>
+					);
+				})}
 			</div>
 		</div>
 	);
