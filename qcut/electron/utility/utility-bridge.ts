@@ -17,8 +17,10 @@ import {
 	ipcMain,
 	app,
 	webContents,
+	shell,
 } from "electron";
 import * as path from "node:path";
+import { getProjectPath } from "../claude/utils/helpers.js";
 import {
 	requestTimelineFromRenderer,
 	requestSplitFromRenderer,
@@ -583,6 +585,16 @@ async function handleMainRequest(
 		case "navigate-to-project": {
 			const req = data as { projectId: string };
 			return requestNavigateToProject(win, req.projectId);
+		}
+
+		case "project:reveal": {
+			const req = data as { projectId: string };
+			const projectPath = getProjectPath(req.projectId);
+			const error = await shell.openPath(projectPath);
+			if (error) {
+				throw new Error(`Failed to open project folder: ${error}`);
+			}
+			return { path: projectPath };
 		}
 
 		case "screen-recording:sources": {
