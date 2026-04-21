@@ -14,7 +14,11 @@ import type { IncomingMessage, Server, ServerResponse } from "node:http";
 import { app, BrowserWindow, shell } from "electron";
 import { createRouter, HttpError } from "../utils/http-router.js";
 import { claudeLog } from "../utils/logger.js";
-import { generateId, getProjectPath } from "../utils/helpers.js";
+import {
+	generateId,
+	getProjectPath,
+	getProjectsRootPath,
+} from "../utils/helpers.js";
 import {
 	requestTimelineFromRenderer,
 	requestSplitFromRenderer,
@@ -268,6 +272,15 @@ export function startClaudeHTTPServer(
 				setTimeout(() => reject(new HttpError(504, "Renderer timed out")), 5000)
 			),
 		]);
+	});
+
+	router.post("/api/claude/project/reveal-root", async () => {
+		const rootPath = getProjectsRootPath();
+		const error = await shell.openPath(rootPath);
+		if (error) {
+			throw new HttpError(500, `Failed to open projects folder: ${error}`);
+		}
+		return { path: rootPath };
 	});
 
 	router.post("/api/claude/project/:projectId/reveal", async (req) => {

@@ -38,6 +38,13 @@ export function getProjectPath(projectId: string): string {
 }
 
 /**
+ * Get the parent Projects folder path (contains all project subfolders).
+ */
+export function getProjectsRootPath(): string {
+	return path.join(getDocumentsPath(), "QCut", "Projects");
+}
+
+/**
  * Get media folder path for a project
  */
 export function getMediaPath(projectId: string): string {
@@ -162,6 +169,7 @@ export function sanitizeFilename(filename: string): string {
 module.exports = {
 	sanitizeProjectId,
 	getProjectPath,
+	getProjectsRootPath,
 	getMediaPath,
 	getTimelinePath,
 	getProjectSettingsPath,

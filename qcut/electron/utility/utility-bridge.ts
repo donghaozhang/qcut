@@ -20,7 +20,7 @@ import {
 	shell,
 } from "electron";
 import * as path from "node:path";
-import { getProjectPath } from "../claude/utils/helpers.js";
+import { getProjectPath, getProjectsRootPath } from "../claude/utils/helpers.js";
 import {
 	requestTimelineFromRenderer,
 	requestSplitFromRenderer,
@@ -595,6 +595,15 @@ async function handleMainRequest(
 				throw new Error(`Failed to open project folder: ${error}`);
 			}
 			return { path: projectPath };
+		}
+
+		case "project:reveal-root": {
+			const rootPath = getProjectsRootPath();
+			const error = await shell.openPath(rootPath);
+			if (error) {
+				throw new Error(`Failed to open projects folder: ${error}`);
+			}
+			return { path: rootPath };
 		}
 
 		case "screen-recording:sources": {

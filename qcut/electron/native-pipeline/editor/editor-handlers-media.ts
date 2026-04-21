@@ -570,17 +570,19 @@ async function projectReveal(
 ): Promise<CLIResult> {
 	let projectId = opts.projectId;
 	if (!projectId) {
-		const nav = await client.get<{ activeProjectId: string | null }>(
-			"/api/claude/navigator/projects"
-		);
-		projectId = nav?.activeProjectId ?? undefined;
-		if (!projectId) {
-			return {
-				success: false,
-				error:
-					"No active project in the editor. Open a project in QCut or pass --project-id.",
-			};
+		try {
+			const nav = await client.get<{ activeProjectId: string | null }>(
+				"/api/claude/navigator/projects"
+			);
+			projectId = nav?.activeProjectId ?? undefined;
+		} catch {
+			// Renderer didn't answer (editor not ready / IPC stuck). Fall through
+			// to revealing the parent Projects folder so the command still helps.
 		}
+	}
+	if (!projectId) {
+		const data = await client.post("/api/claude/project/reveal-root", {});
+		return { success: true, data };
 	}
 	const data = await client.post(
 		`/api/claude/project/${encodeURIComponent(projectId)}/reveal`,
