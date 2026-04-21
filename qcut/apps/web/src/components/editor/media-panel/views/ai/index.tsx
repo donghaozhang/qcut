@@ -66,7 +66,7 @@ export function AiView({ mode }: { mode?: "upscale" | "angles" } = {}) {
 	// ============================================
 	const [prompt, setPrompt] = useState("");
 	const [selectedModels, setSelectedModels] = useState<string[]>([
-		"sora2_text_to_video_pro",
+		"gmi_seedance_2_0_fast_260128_t2v",
 	]);
 	const [selectedImage, setSelectedImage] = useState<File | null>(null);
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -95,7 +95,7 @@ export function AiView({ mode }: { mode?: "upscale" | "angles" } = {}) {
 		if (prevTabRef.current !== activeTab) {
 			prevTabRef.current = activeTab;
 			const defaults: Partial<Record<typeof activeTab, string>> = {
-				text: "sora2_text_to_video_pro",
+				text: "gmi_seedance_2_0_fast_260128_t2v",
 				image: "sora2_image_to_video_pro",
 				avatar: "kling_avatar_v2_pro",
 			};

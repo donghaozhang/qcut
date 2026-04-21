@@ -588,10 +588,7 @@ export const T2V_MODELS = {
 		badge: "\u26A1 Fast",
 		description:
 			"Lower-latency Seedance 2.0 260128 variant via GMI — same durations/resolutions as the standard tier, priced for drafts and iterations",
-		// Conservative placeholder — matches the standard tier. Reprice once
-		// GMI publishes the fast-tier rate. See T0 in
-		// docs/task/gmi-provider/seedance-2-0-fast-260128-plan.md.
-		price: "$0.052/s",
+		price: "$0.022/s",
 		resolution: "480p / 720p / 1080p",
 		supportedResolutions: ["480p", "720p", "1080p"],
 		max_duration: 15,

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { AI_MODELS } from "../constants/ai-constants";
+import { AI_MODELS, T2V_MODEL_ORDER } from "../constants/ai-constants";
 import {
 	getProviderLogo,
 	getProviderName,
@@ -22,31 +22,44 @@ export function AIModelSelectionGrid({
 }: AIModelSelectionGridProps) {
 	const isModelSelected = (modelId: string) => selectedModels.includes(modelId);
 
+	const filteredModels = AI_MODELS.filter((model) => {
+		if (activeTab === "avatar") {
+			return model.category === "avatar";
+		}
+		if (activeTab === "text") {
+			return (
+				model.category === "text" ||
+				(!model.category && model.category !== "avatar")
+			);
+		}
+		if (activeTab === "image") {
+			return model.category === "image";
+		}
+		if (activeTab === "upscale") {
+			return model.category === "upscale";
+		}
+		if (activeTab === "angles") {
+			return model.category === "angles";
+		}
+		return false;
+	});
+
+	const orderedModels =
+		activeTab === "text"
+			? [...filteredModels].sort((a, b) => {
+					const ai = T2V_MODEL_ORDER.indexOf(a.id as (typeof T2V_MODEL_ORDER)[number]);
+					const bi = T2V_MODEL_ORDER.indexOf(b.id as (typeof T2V_MODEL_ORDER)[number]);
+					const aRank = ai === -1 ? Number.POSITIVE_INFINITY : ai;
+					const bRank = bi === -1 ? Number.POSITIVE_INFINITY : bi;
+					return aRank - bRank;
+				})
+			: filteredModels;
+
 	return (
 		<div className="space-y-2">
 			<Label className="text-xs font-medium">Select AI Models</Label>
 			<div className="grid grid-cols-2 gap-2">
-				{AI_MODELS.filter((model) => {
-					if (activeTab === "avatar") {
-						return model.category === "avatar";
-					}
-					if (activeTab === "text") {
-						return (
-							model.category === "text" ||
-							(!model.category && model.category !== "avatar")
-						);
-					}
-					if (activeTab === "image") {
-						return model.category === "image";
-					}
-					if (activeTab === "upscale") {
-						return model.category === "upscale";
-					}
-					if (activeTab === "angles") {
-						return model.category === "angles";
-					}
-					return false;
-				}).map((model) => (
+				{orderedModels.map((model) => (
 					<Button
 						key={model.id}
 						type="button"

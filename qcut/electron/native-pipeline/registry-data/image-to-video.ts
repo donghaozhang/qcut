@@ -1190,8 +1190,7 @@ export function registerImageToVideoModels(): void {
 		categories: ["image_to_video"],
 		description:
 			"Lower-latency Seedance 2.0 reference-to-video — character-consistent output with native audio, priced for drafts",
-		// Conservative placeholder — matches standard tier.
-		pricing: { per_second: 0.052 },
+		pricing: { per_second: 0.022 },
 		durationOptions: [
 			"4",
 			"5",
@@ -1249,7 +1248,7 @@ export function registerImageToVideoModels(): void {
 			audio_generate: true,
 			ref_video: true,
 		},
-		costEstimate: 0.26,
+		costEstimate: 0.11,
 		processingTime: 60,
 		providerBackend: "gmi",
 	});
@@ -1262,7 +1261,7 @@ export function registerImageToVideoModels(): void {
 		categories: ["image_to_video"],
 		description:
 			"Lower-latency Seedance 2.0 image-to-video with first/last-frame anchoring and native audio",
-		pricing: { per_second: 0.052 },
+		pricing: { per_second: 0.022 },
 		durationOptions: [
 			"4",
 			"5",
@@ -1322,7 +1321,7 @@ export function registerImageToVideoModels(): void {
 			audio_generate: true,
 			ref_video: true,
 		},
-		costEstimate: 0.26,
+		costEstimate: 0.11,
 		processingTime: 60,
 		providerBackend: "gmi",
 	});
