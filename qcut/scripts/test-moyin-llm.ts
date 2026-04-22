@@ -29,7 +29,7 @@ async function main(): Promise<void> {
 	const reply = await callLLM(
 		"You are a terse assistant. Reply with a single short sentence.",
 		"Say hello.",
-		{ model, maxTokens: 64 }
+		{ model, maxTokens: 512 }
 	);
 	const duration = ((Date.now() - start) / 1000).toFixed(2);
 	console.log(`callLLM OK (${duration}s):`);
