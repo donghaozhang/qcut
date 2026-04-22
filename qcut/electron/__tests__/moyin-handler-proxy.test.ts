@@ -27,19 +27,6 @@ vi.mock("../native-pipeline/infra/proxy-client.js", () => ({
 	setSessionTokenProvider: vi.fn(),
 }));
 
-vi.mock("electron", () => ({
-	app: {
-		getPath: vi.fn(() => "/mock/tmp"),
-		getVersion: vi.fn(() => "0.0.1-test"),
-	},
-	ipcMain: {
-		handle: vi.fn(),
-		on: vi.fn(),
-		once: vi.fn(),
-		removeListener: vi.fn(),
-	},
-}));
-
 vi.mock("electron-log", () => ({
 	default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 	info: vi.fn(),
@@ -47,7 +34,7 @@ vi.mock("electron-log", () => ({
 	error: vi.fn(),
 }));
 
-const { callLLM } = await import("../moyin-handler.js");
+const { callLLM } = await import("../moyin-llm.js");
 
 const EMPTY_KEYS = {
 	falApiKey: "",
