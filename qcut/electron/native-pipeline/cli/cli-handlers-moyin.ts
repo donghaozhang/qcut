@@ -28,6 +28,8 @@ import {
 	OPENROUTER_BASE,
 	GEMINI_BASE,
 } from "../infra/api-caller.js";
+import { isProxyAvailable, proxyRequest } from "../infra/proxy-client.js";
+import { buildProviderUrl } from "../infra/api-provider-urls.js";
 
 // ==================== Constants ====================
 
@@ -47,6 +49,21 @@ const MODEL_ALIASES: Record<string, string> = {
 	"gemini-flash": "google/gemini-2.5-flash",
 	"gemini-pro": "google/gemini-2.5-pro",
 };
+
+/**
+ * GMI Cloud model aliases. Kept in sync with the Moyin IPC resolver in
+ * `electron/moyin-llm.ts` so the CLI, the IPC handler, and the Director UI
+ * all accept the same --model flag values.
+ */
+const GMI_MODEL_ALIASES: Record<string, string> = {
+	"gmi-glm-5.1": "zai-org/GLM-5.1-FP8",
+	"gmi-gemini-3.1-flash-lite": "google/gemini-3.1-flash-lite-preview",
+	"gmi-gemini-3.1-pro": "google/gemini-3.1-pro-preview",
+};
+
+function isGmiAlias(model?: string): boolean {
+	return !!model && model in GMI_MODEL_ALIASES;
+}
 
 function resolveModel(model?: string): string {
 	if (!model) return DEFAULT_OPENROUTER_MODEL;
@@ -476,25 +493,181 @@ function callClaudeCLI(
 	});
 }
 
+// ==================== GMI (BYOK + Proxy) ====================
+
+/** Call GMI Cloud's OpenAI-compatible chat/completions directly with a local key. */
+async function callGmiDirect(
+	apiKey: string,
+	model: string,
+	systemPrompt: string,
+	userPrompt: string
+): Promise<LLMCallResult> {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+	try {
+		const response = await fetch(
+			buildProviderUrl("gmi-llm", "chat/completions"),
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${apiKey}`,
+				},
+				body: JSON.stringify({
+					model,
+					messages: [
+						{ role: "system", content: systemPrompt },
+						{ role: "user", content: userPrompt },
+					],
+					temperature: 0.7,
+					max_tokens: 8192,
+				}),
+				signal: controller.signal,
+			}
+		);
+		if (!response.ok) {
+			const errText = await response.text().catch(() => "");
+			throw new Error(
+				`GMI API error (${response.status}): ${errText.slice(0, 200)}`
+			);
+		}
+		const data = (await response.json()) as {
+			choices?: Array<{ message?: { content?: string } }>;
+		};
+		const content = data.choices?.[0]?.message?.content;
+		if (!content) throw new Error("Empty response from GMI");
+		return { text: content, provider: "GMI", model };
+	} finally {
+		clearTimeout(timeout);
+	}
+}
+
+/** Call GMI Cloud chat/completions through the QCut license-server proxy. */
+async function callGmiViaProxy(
+	model: string,
+	systemPrompt: string,
+	userPrompt: string
+): Promise<LLMCallResult> {
+	const response = await proxyRequest({
+		provider: "gmi-llm",
+		endpoint: buildProviderUrl("gmi-llm", "chat/completions"),
+		method: "POST",
+		body: {
+			model,
+			messages: [
+				{ role: "system", content: systemPrompt },
+				{ role: "user", content: userPrompt },
+			],
+			temperature: 0.7,
+			max_tokens: 8192,
+		},
+		timeoutMs: REQUEST_TIMEOUT_MS,
+	});
+	if (!response.ok) {
+		const preview =
+			typeof response.data === "string"
+				? response.data.slice(0, 200)
+				: JSON.stringify(response.data).slice(0, 200);
+		throw new Error(`Proxy GMI LLM error (${response.status}): ${preview}`);
+	}
+	const data = response.data as {
+		choices?: Array<{ message?: { content?: string } }>;
+	};
+	const content = data?.choices?.[0]?.message?.content;
+	if (!content) throw new Error("Empty response from proxy GMI LLM");
+	return { text: content, provider: "GMI (proxy)", model };
+}
+
+/** Call OpenRouter via the QCut license-server proxy (no local key required). */
+async function callOpenRouterViaProxy(
+	systemPrompt: string,
+	userPrompt: string,
+	options: LLMCallOptions = {}
+): Promise<LLMCallResult> {
+	const model = resolveModel(options.model);
+	const response = await proxyRequest({
+		provider: "openrouter",
+		endpoint: buildProviderUrl("openrouter", "chat/completions"),
+		method: "POST",
+		body: {
+			model,
+			messages: [
+				{ role: "system", content: systemPrompt },
+				{ role: "user", content: userPrompt },
+			],
+			temperature: 0.7,
+			max_tokens: 8192,
+		},
+		timeoutMs: REQUEST_TIMEOUT_MS,
+	});
+	if (!response.ok) {
+		const preview =
+			typeof response.data === "string"
+				? response.data.slice(0, 200)
+				: JSON.stringify(response.data).slice(0, 200);
+		throw new Error(`Proxy OpenRouter error (${response.status}): ${preview}`);
+	}
+	const data = response.data as {
+		choices?: Array<{ message?: { content?: string } }>;
+	};
+	const content = data?.choices?.[0]?.message?.content;
+	if (!content) throw new Error("Empty response from proxy OpenRouter");
+	return { text: content, provider: "OpenRouter (proxy)", model };
+}
+
 // ==================== LLM Router ====================
 
-/** Route LLM call to OpenRouter, Gemini, or Claude CLI based on available keys. */
+/**
+ * Route LLM call based on selected model and available credentials.
+ *
+ * Order of precedence:
+ *   1. `gmi-*` aliases: local GMI key → GMI proxy → error
+ *   2. Local OpenRouter key → OpenRouter direct
+ *   3. Local Gemini key → Gemini direct
+ *   4. Signed in (QCUT_AUTH_TOKEN) → OpenRouter via proxy
+ *   5. Fallback → Claude CLI
+ */
 async function callLLM(
 	systemPrompt: string,
 	userPrompt: string,
 	options: LLMCallOptions = {}
 ): Promise<LLMCallResult> {
+	// 1. GMI alias? Prefer GMI, never fall back to OpenRouter/Gemini.
+	if (isGmiAlias(options.model)) {
+		const gmiModel = GMI_MODEL_ALIASES[options.model as string];
+		const gmiKey =
+			process.env.GMI_API_KEY?.trim() ||
+			(await envApiKeyProvider("gmi")) ||
+			(await envApiKeyProvider("gmi-llm"));
+		if (gmiKey) {
+			return callGmiDirect(gmiKey, gmiModel, systemPrompt, userPrompt);
+		}
+		if (await isProxyAvailable()) {
+			return callGmiViaProxy(gmiModel, systemPrompt, userPrompt);
+		}
+		throw new Error(
+			`No GMI API key configured for ${options.model}. Sign in to QCut, or set GMI_API_KEY in ~/.qcut/.env`
+		);
+	}
+
+	// 2. Local OpenRouter key
 	const openRouterKey = await envApiKeyProvider("openrouter");
 	if (openRouterKey) {
 		return callOpenRouter(openRouterKey, systemPrompt, userPrompt, options);
 	}
 
+	// 3. Local Gemini key
 	const geminiKey = await envApiKeyProvider("google");
 	if (geminiKey) {
 		return callGeminiDirect(geminiKey, systemPrompt, userPrompt, options);
 	}
 
-	// Fallback — no streaming support
+	// 4. Signed in → OpenRouter via proxy
+	if (await isProxyAvailable()) {
+		return callOpenRouterViaProxy(systemPrompt, userPrompt, options);
+	}
+
+	// 5. Fallback — no streaming support
 	return callClaudeCLI(systemPrompt, userPrompt);
 }
 
