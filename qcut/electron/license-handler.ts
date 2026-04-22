@@ -13,6 +13,7 @@ import {
 	getKey as loadKey,
 	deleteKey as removeKey,
 } from "./native-pipeline/infra/key-manager.js";
+import { setSessionTokenProvider } from "./native-pipeline/infra/proxy-client.js";
 
 const AUTH_KEY_NAME = "QCUT_AUTH_TOKEN";
 const LICENSE_SERVER_URL =
@@ -222,6 +223,11 @@ export { getAuthToken };
 export { setAuthToken };
 
 export function setupLicenseIPC(): void {
+	// Share Electron's auth-token resolution with the license-server proxy
+	// client, so provider calls (moyin, api-caller, etc.) can relay through
+	// the license server when the user is signed in without a local API key.
+	setSessionTokenProvider(getAuthToken);
+
 	ipcMain.handle("license:set-auth-token", async (_event, token: string) => {
 		if (typeof token !== "string") {
 			return false;

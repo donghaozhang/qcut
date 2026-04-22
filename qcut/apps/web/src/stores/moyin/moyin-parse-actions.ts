@@ -175,7 +175,6 @@ export async function runCalibrationPipeline(
 
 // ==================== PTY Terminal Execution ====================
 
-import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { usePtyTerminalStore } from "@/stores/pty-terminal-store";
 import { platform } from "@qcut/platform-core";
 
@@ -223,10 +222,7 @@ export async function attemptPtyParse(
 			return { success: false };
 		}
 
-		// 2. Switch to PTY terminal tab
-		useMediaPanelStore.getState().setActiveTab("pty");
-
-		// 3. Ensure shell session is running
+		// 2. Ensure shell session is running
 		const ptyState = usePtyTerminalStore.getState();
 
 		// If connected to a non-shell provider, bail out to IPC fallback
@@ -250,13 +246,13 @@ export async function attemptPtyParse(
 			return { success: false };
 		}
 
-		// 4. Build and write CLI command (shell-quote values to prevent injection)
+		// 3. Build and write CLI command (shell-quote values to prevent injection)
 		const q = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
 		const cmd = `cd ${q(projectRoot)} && bun run pipeline moyin:parse-script --script ${q(saveResult.filePath)} --model ${model} --stream`;
 
 		await ptyApi.write(sessionId, cmd + "\n");
 
-		// 5. Track the pending parse and schedule fallback cleanup (cancelled on success)
+		// 4. Track the pending parse and schedule fallback cleanup (cancelled on success)
 		pendingTempScriptPath = saveResult.filePath;
 		if (cleanupTimerId != null) clearTimeout(cleanupTimerId);
 		cleanupTimerId = setTimeout(() => {

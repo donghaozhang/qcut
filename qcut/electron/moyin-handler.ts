@@ -8,6 +8,10 @@ import { spawn, execSync } from "node:child_process";
 import { writeFile, unlink } from "node:fs/promises";
 import { join, basename, normalize } from "node:path";
 import { getDecryptedApiKeys } from "./api-key-handler.js";
+import {
+	isProxyAvailable,
+	proxyRequest,
+} from "./native-pipeline/infra/proxy-client.js";
 
 interface Logger {
 	info(...args: unknown[]): void;
@@ -132,34 +136,92 @@ Important requirements:
 
 const REQUEST_TIMEOUT_MS = 60_000;
 
-/** Route an LLM call to OpenRouter, Gemini, or Claude CLI based on available keys. */
+/**
+ * Route an LLM call, preferring local keys (BYOK), then falling back to the
+ * license-server proxy for signed-in users without a local key.
+ *
+ * Order:
+ *   1. Local OpenRouter key → direct call
+ *   2. Local Gemini key → direct call
+ *   3. License-server proxy (OpenRouter route) when session token is available
+ *   4. Error: no key configured
+ */
 export async function callLLM(
 	systemPrompt: string,
 	userPrompt: string,
 	options: { temperature?: number; maxTokens?: number } = {}
 ): Promise<string> {
 	const keys = await getDecryptedApiKeys();
-
-	// Try OpenRouter key first, then Gemini
 	const openaiKey = keys.openRouterApiKey;
 	const googleKey = keys.geminiApiKey;
 
-	if (!openaiKey && !googleKey) {
-		throw new Error(
-			"No LLM API key configured. Set OPENROUTER_API_KEY or GEMINI_API_KEY in Settings or ~/.qcut/.env"
-		);
-	}
-
-	const provider = openaiKey ? "OpenRouter" : "Gemini";
-	log.info(
-		`[Moyin] callLLM using ${provider} (prompt: ${userPrompt.length} chars)`
-	);
-
 	if (openaiKey) {
+		log.info(
+			`[Moyin] callLLM using OpenRouter (prompt: ${userPrompt.length} chars)`
+		);
 		return callOpenAICompatible(openaiKey, systemPrompt, userPrompt, options);
 	}
 
-	return callGemini(googleKey!, systemPrompt, userPrompt);
+	if (googleKey) {
+		log.info(
+			`[Moyin] callLLM using Gemini (prompt: ${userPrompt.length} chars)`
+		);
+		return callGemini(googleKey, systemPrompt, userPrompt);
+	}
+
+	if (await isProxyAvailable()) {
+		log.info(
+			`[Moyin] callLLM using license-server proxy (prompt: ${userPrompt.length} chars)`
+		);
+		return callOpenRouterViaProxy(systemPrompt, userPrompt, options);
+	}
+
+	throw new Error(
+		"No LLM API key configured. Sign in to QCut, or set OPENROUTER_API_KEY or GEMINI_API_KEY in Settings or ~/.qcut/.env"
+	);
+}
+
+/**
+ * Call OpenRouter's chat/completions via the QCut license-server proxy.
+ * Used when the user is signed in but has no local provider key.
+ */
+async function callOpenRouterViaProxy(
+	systemPrompt: string,
+	userPrompt: string,
+	options: { temperature?: number; maxTokens?: number } = {}
+): Promise<string> {
+	const response = await proxyRequest({
+		provider: "openrouter",
+		endpoint: "chat/completions",
+		method: "POST",
+		body: {
+			model: "google/gemini-3-flash-preview",
+			messages: [
+				{ role: "system", content: systemPrompt },
+				{ role: "user", content: userPrompt },
+			],
+			temperature: options.temperature ?? 0.7,
+			max_tokens: options.maxTokens ?? 4096,
+		},
+		timeoutMs: REQUEST_TIMEOUT_MS,
+	});
+
+	if (!response.ok) {
+		const preview =
+			typeof response.data === "string"
+				? response.data.slice(0, 200)
+				: JSON.stringify(response.data).slice(0, 200);
+		throw new Error(`Proxy LLM error (${response.status}): ${preview}`);
+	}
+
+	const data = response.data as {
+		choices?: Array<{ message?: { content?: string } }>;
+	};
+	const content = data?.choices?.[0]?.message?.content;
+	if (!content) {
+		throw new Error("Empty response from proxy LLM");
+	}
+	return content;
 }
 
 /** Call an OpenAI-compatible API (OpenRouter or direct OpenAI). */
