@@ -18,6 +18,7 @@ import {
 	isProxyAvailable,
 	proxyRequest,
 } from "./native-pipeline/infra/proxy-client.js";
+import { buildProviderUrl } from "./native-pipeline/infra/api-provider-urls.js";
 
 interface Logger {
 	info(...args: unknown[]): void;
@@ -203,7 +204,8 @@ async function callGmiViaProxy(
 ): Promise<string> {
 	const response = await proxyRequest({
 		provider: "gmi-llm",
-		endpoint: "chat/completions",
+		// Full URL for the license server's allowlist (api.gmi-serving.com).
+		endpoint: buildProviderUrl("gmi-llm", "chat/completions"),
 		method: "POST",
 		body: buildGmiChatPayload(model, systemPrompt, userPrompt, options),
 		timeoutMs: REQUEST_TIMEOUT_MS,
@@ -266,7 +268,9 @@ async function callOpenRouterViaProxy(
 ): Promise<string> {
 	const response = await proxyRequest({
 		provider: "openrouter",
-		endpoint: "chat/completions",
+		// License server validates against full-URL prefixes — send the
+		// fully qualified endpoint so it passes the SSRF allowlist.
+		endpoint: buildProviderUrl("openrouter", "chat/completions"),
 		method: "POST",
 		body: {
 			model: "google/gemini-3-flash-preview",

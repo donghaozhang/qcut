@@ -175,9 +175,13 @@ function extractActivationTokenFromUrl(url: string): string | null {
 }
 
 function deliverActivationTokenToRenderer(token: string): void {
+	logger.info(
+		`[DeepLink] deliverActivationTokenToRenderer (token len ${token.length}, window: ${mainWindow && !mainWindow.isDestroyed() ? "live" : "missing"})`
+	);
 	try {
 		if (mainWindow && !mainWindow.isDestroyed()) {
 			mainWindow.webContents.send("license:activation-token", token);
+			logger.info("[DeepLink] Sent license:activation-token IPC to renderer");
 			return;
 		}
 	} catch (error) {
@@ -187,6 +191,9 @@ function deliverActivationTokenToRenderer(token: string): void {
 		);
 	}
 
+	logger.info(
+		"[DeepLink] No live window — buffering token for when window opens"
+	);
 	pendingLicenseActivationToken = token;
 }
 
@@ -699,12 +706,19 @@ if (!isHeadlessRecorder) {
 
 // macOS: handle deep links via open-url event
 app.on("open-url", (event, url) => {
+	logger.info(`[DeepLink] open-url event fired: ${url.slice(0, 80)}`);
 	try {
 		event.preventDefault();
 		const token = extractActivationTokenFromUrl(url);
 		if (!token) {
+			logger.warn(
+				`[DeepLink] open-url had no extractable token: ${url.slice(0, 80)}`
+			);
 			return;
 		}
+		logger.info(
+			`[DeepLink] open-url extracted token (len ${token.length})`
+		);
 		deliverActivationTokenToRenderer(token);
 	} catch (error) {
 		logger.warn("[DeepLink] Failed to handle open-url event:", error);

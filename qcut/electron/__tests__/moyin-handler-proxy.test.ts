@@ -76,7 +76,9 @@ describe("moyin-handler callLLM proxy fallback", () => {
 		expect(mocks.proxyRequest).toHaveBeenCalledTimes(1);
 		const call = mocks.proxyRequest.mock.calls[0][0];
 		expect(call.provider).toBe("openrouter");
-		expect(call.endpoint).toBe("chat/completions");
+		expect(call.endpoint).toBe(
+			"https://openrouter.ai/api/v1/chat/completions"
+		);
 		expect(call.method).toBe("POST");
 		expect(call.body.messages).toEqual([
 			{ role: "system", content: "sys" },
@@ -172,7 +174,9 @@ describe("moyin-handler callLLM GMI routing", () => {
 		expect(mocks.proxyRequest).toHaveBeenCalledTimes(1);
 		const call = mocks.proxyRequest.mock.calls[0][0];
 		expect(call.provider).toBe("gmi-llm");
-		expect(call.endpoint).toBe("chat/completions");
+		expect(call.endpoint).toBe(
+			"https://api.gmi-serving.com/v1/chat/completions"
+		);
 		expect(call.body.model).toBe("zai-org/GLM-5.1-FP8");
 	});
 
