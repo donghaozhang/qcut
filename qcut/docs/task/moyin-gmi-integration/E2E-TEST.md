@@ -363,10 +363,24 @@ Recorded verdicts from running this guide end-to-end on `director-v2`:
 | §A2 OpenRouter via proxy (`--model minimax`) | ⚠️ server 503 "API key not configured for provider: openrouter" — Worker env gap, not a client bug |
 | §A3 all three GMI aliases | ✅ each routed through proxy to correct GMI model id |
 | §B standalone moyin-llm, all three GMI aliases | ✅ each produced a real GMI reply (512 tokens) |
-| §C1 Director UI via CLI automation | ✅ **Full end-to-end pass** — `parseStatus: "ready"` in 15s, exported title reflected the new script ("Marzipan Mansion Investigation"), both initial parse and calibration went through GMI proxy |
-| §C2 Director UI manual provider-selector smoke | Not yet run (requires human click on Image/Video Provider dropdowns) |
+| §C1 Director UI via CLI automation | ✅ **Full end-to-end pass** — `parseStatus: "ready"`, exported title reflected the new script (latest verified: "The Keeper and the Kraken"), characters "Brannigan" + "Elowen" |
+| §C2 Manual click in UI (user's original complaint) | ✅ **Default parse model is now `gmi-glm-5.1`** — clicking Parse Script with no dropdown change now routes to the working GMI proxy path instead of OpenRouter 503 |
+| §C3 Director UI manual provider-selector smoke (Image/Video) | Not yet run (requires human click on dropdowns) |
 | Unit tests (`electron/__tests__/moyin-*`) | ✅ 44/44 pass |
 
 Shipping verdict: the IPC + CLI GMI paths work end-to-end for signed-in
 users. The OpenRouter proxy path is blocked by a license-server Worker env
 deployment, filed as follow-up; does not block Moyin GMI usage.
+
+### Known follow-ups (not blockers)
+
+- **Character + scene calibrators** (`apps/web/src/lib/moyin/script/character-calibrator.ts`
+  and `scene-calibrator.ts`) still use their own LLM abstraction that
+  defaults to OpenRouter. They fail silently under the current Worker
+  config (caught per-step in `runCalibrationPipeline`) so `parseStatus`
+  still settles on `"ready"`, but the character/scene enrichment isn't
+  as rich as it could be. Threading `parseModel` through
+  `calibrateCharacters`/`calibrateScenes` is a separate refactor.
+- Shot count is currently 0 when GLM-5.1 returns an empty shot array —
+  likely a prompt-tuning issue specific to that model. Other GMI models
+  may produce shots normally. Not a routing bug.

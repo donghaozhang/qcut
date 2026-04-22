@@ -223,7 +223,8 @@ export async function generateShotsForEpisodeAction(
 	episodeScenes: ScriptScene[],
 	episodeTitle: string,
 	scriptTitle: string,
-	targetDuration?: string
+	targetDuration?: string,
+	model?: string
 ): Promise<Shot[]> {
 	let api: ReturnType<typeof platform>["moyin"] | undefined;
 	try {
@@ -266,6 +267,7 @@ ${sceneDescs}
 Generate shots for each scene with proper camera language and visual storytelling.${totalShotBudget ? ` IMPORTANT: Total shot count must be approximately ${totalShotBudget} shots.` : ""}`,
 		temperature: 0.5,
 		maxTokens: 8192,
+		model,
 	});
 
 	if (!result.success || !result.text) {

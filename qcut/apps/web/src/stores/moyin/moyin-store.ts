@@ -330,6 +330,15 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 
 			advancePipeline("import", "active");
 
+			// Cancel any stale PTY timeout from a previous parse attempt —
+			// otherwise it can fire mid-way through this new parse and
+			// flip parseStatus back to "error" even though the new call
+			// is succeeding.
+			if (parseTimeoutRef != null) {
+				clearTimeout(parseTimeoutRef);
+				parseTimeoutRef = null;
+			}
+
 			// --- PTY path: stream output in terminal, data arrives via onParsed ---
 			// CLI-triggered parses skip PTY to go straight to the IPC path,
 			// which calls callLLM directly and reports real errors instantly.

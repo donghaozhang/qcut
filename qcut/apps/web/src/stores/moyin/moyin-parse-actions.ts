@@ -135,7 +135,8 @@ export async function runCalibrationPipeline(
 				epScenes,
 				ep.title,
 				sd?.title || "Unknown",
-				targetDur
+				targetDur,
+				model
 			);
 			allNewShots.push(...newShots);
 		}
