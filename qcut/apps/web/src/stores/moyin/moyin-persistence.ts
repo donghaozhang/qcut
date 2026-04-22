@@ -31,7 +31,11 @@ export interface MoyinPersistedState {
 	videoProvider?: "fal" | "gmi";
 }
 
-const STORAGE_VERSION = 5;
+// Kept at 4 — adding the optional `imageProvider`/`videoProvider` fields is
+// fully backward compatible: old envelopes simply lack those keys and the
+// store defaults to `"fal"` via initialState during `loadProject`. Bumping
+// the version would silently discard every user's prior moyin state.
+const STORAGE_VERSION = 4;
 const STORAGE_PREFIX = "moyin-project-";
 
 export function getMoyinStorageKey(projectId: string): string {

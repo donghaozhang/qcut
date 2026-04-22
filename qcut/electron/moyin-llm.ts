@@ -37,7 +37,10 @@ import("electron-log")
 		// Keep no-op logger when electron-log is unavailable (e.g. under Vitest).
 	});
 
-const REQUEST_TIMEOUT_MS = 60_000;
+// 180s per LLM call. GMI GLM-5.1 routinely spends 30-60s on longer
+// screenplays and shot calibration; the old 60s cap was cutting calls
+// in progress and surfacing as "operation was aborted due to timeout".
+const REQUEST_TIMEOUT_MS = 180_000;
 const CLAUDE_CLI_TIMEOUT_MS = 600_000;
 
 const GMI_LLM_BASE = "https://api.gmi-serving.com/v1";

@@ -165,37 +165,83 @@ export function setupMoyinIPC(): void {
 
 				const response = await callLLM(PARSE_SYSTEM_PROMPT, userPrompt, {
 					temperature: 0.7,
-					maxTokens: 4096,
+					// Long screenplays (6K+ chars) with many characters/scenes
+					// produce JSON well over 4K tokens. Truncation leaves a
+					// dangling brace, which then fails JSON.parse at position 1.
+					maxTokens: 16_384,
 					model: options.model,
 				});
 
-				// Extract JSON from response
+				// Extract JSON from response. Strip markdown fences, locate the
+				// outermost JSON object, and fix common LLM JSON quirks.
 				const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
 				let cleaned = jsonMatch ? jsonMatch[1].trim() : response.trim();
 
-				// Find outermost JSON object
 				const firstBrace = cleaned.indexOf("{");
 				if (firstBrace === -1) {
+					log.error(
+						"[Moyin] No JSON object found. Response preview:",
+						response.slice(0, 500)
+					);
 					throw new Error("No JSON found in LLM response");
 				}
 
+				// Walk depth, but treat braces inside string literals as content.
 				let depth = 0;
 				let endIdx = firstBrace;
+				let inString = false;
+				let escaped = false;
 				for (let i = firstBrace; i < cleaned.length; i++) {
-					if (cleaned[i] === "{") depth++;
-					if (cleaned[i] === "}") depth--;
-					if (depth === 0) {
-						endIdx = i;
-						break;
+					const ch = cleaned[i];
+					if (inString) {
+						if (escaped) {
+							escaped = false;
+						} else if (ch === "\\") {
+							escaped = true;
+						} else if (ch === '"') {
+							inString = false;
+						}
+						continue;
+					}
+					if (ch === '"') {
+						inString = true;
+						continue;
+					}
+					if (ch === "{") depth++;
+					else if (ch === "}") {
+						depth--;
+						if (depth === 0) {
+							endIdx = i;
+							break;
+						}
 					}
 				}
 				cleaned = cleaned.substring(firstBrace, endIdx + 1);
 
-				const parsed = JSON.parse(cleaned);
+				// Strip trailing commas before closing brackets — GLM-5.1 and
+				// other models occasionally emit them.
+				cleaned = cleaned.replace(/,(\s*[}\]])/g, "$1");
 
+				let parsed: Record<string, unknown>;
+				try {
+					parsed = JSON.parse(cleaned);
+				} catch (parseErr) {
+					log.error(
+						"[Moyin] JSON.parse failed.",
+						parseErr instanceof Error ? parseErr.message : String(parseErr),
+						"\nCleaned (first 400):",
+						cleaned.slice(0, 400),
+						"\nRaw response (first 400):",
+						response.slice(0, 400)
+					);
+					throw parseErr;
+				}
+
+				const chars = parsed.characters;
+				const scenes = parsed.scenes;
 				log.info("[Moyin] Script parsed successfully", {
-					characters: parsed.characters?.length || 0,
-					scenes: parsed.scenes?.length || 0,
+					characters: Array.isArray(chars) ? chars.length : 0,
+					scenes: Array.isArray(scenes) ? scenes.length : 0,
 				});
 
 				return { success: true, data: parsed };
