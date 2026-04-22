@@ -120,7 +120,7 @@ interface MoyinState {
 interface MoyinActions {
 	setActiveStep: (step: MoyinStep) => void;
 	setRawScript: (text: string) => void;
-	parseScript: () => Promise<void>;
+	parseScript: (options?: { skipPty?: boolean }) => Promise<void>;
 	parseNovel: (
 		novelText: string,
 		language?: "zh" | "en" | "auto"
@@ -304,7 +304,7 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 			}
 		},
 
-		parseScript: async () => {
+		parseScript: async (options?: { skipPty?: boolean }) => {
 			const { rawScript, parseModel } = get();
 			if (!rawScript.trim()) return;
 
@@ -326,8 +326,12 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 			advancePipeline("import", "active");
 
 			// --- PTY path: stream output in terminal, data arrives via onParsed ---
+			// CLI-triggered parses skip PTY to go straight to the IPC path,
+			// which calls callLLM directly and reports real errors instantly.
 			ensureParsedListenerRegistered();
-			const ptyResult = await attemptPtyParse(rawScript, parseModel);
+			const ptyResult = options?.skipPty
+				? { success: false as const }
+				: await attemptPtyParse(rawScript, parseModel);
 			if (ptyResult.success) {
 				const pendingPath = ptyResult.tempPath ?? null;
 				// Set a 3-minute timeout for PTY path (scoped to this run)

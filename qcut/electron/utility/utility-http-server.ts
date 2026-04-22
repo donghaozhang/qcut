@@ -631,9 +631,11 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 		);
 	});
 
-	router.post("/api/claude/moyin/parse", async () => {
+	router.post("/api/claude/moyin/parse", async (req) => {
+		const model =
+			typeof req.body?.model === "string" ? req.body.model : undefined;
 		return await withTimeout(
-			requestFromMain("moyin:trigger-parse", {}),
+			requestFromMain("moyin:trigger-parse", { model }),
 			10_000,
 			"Trigger parse timed out"
 		);

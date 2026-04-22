@@ -183,18 +183,56 @@ Failure modes:
 | `Proxy GMI LLM error (403)` | SSRF allowlist; confirm `buildProviderUrl("gmi-llm", ...)` produces a URL starting with `https://api.gmi-serving.com/` |
 | `fetch failed` | Running under a sandbox that blocks outbound HTTPS — run on dev machine |
 
-## 5. Test C — Director UI (manual smoke, final gate)
+## 5. Test C — Director UI (automatable via CLI)
 
-This is the only test that also covers the renderer store, the preload
-bridge, and the UI's provider selectors.
+The UI click path can be fully automated via the `editor:` CLI, which
+talks to the running Electron's HTTP API. Requires Electron to be running
+with current compiled code.
 
 ### Setup
 
 1. `bun run build:electron` (must be fresh)
 2. `bun dev` (Vite server) in one terminal
 3. `bun run electron:dev` in another terminal
+4. **⌘Q and restart if Electron was running from before the latest build**
+   — the main process loads compiled code at startup; file swaps on disk
+   don't hot-reload
 
-### Checklist
+### C1 · Fully-automated parse via CLI
+
+```bash
+# 1. Push a script into the Director panel
+bun run pipeline editor:moyin:set-script \
+  --text 'Scene 1: Detective Zephyr investigates the Marzipan Mansion.' \
+  --json
+
+# 2. Trigger the "Parse Script" button
+bun run pipeline editor:moyin:parse --json
+
+# 3. Poll until parseStatus becomes ready or error (usually 15-30s)
+for i in {1..12}; do
+  status=$(bun run pipeline editor:moyin:status --json 2>&1 \
+    | grep -o '"parseStatus": *"[^"]*"' | head -1)
+  echo "$(date +%H:%M:%S) — $status"
+  [[ "$status" == *"ready"* || "$status" == *"error"* ]] && break
+  sleep 3
+done
+
+# 4. Dump the parsed data and verify the title reflects the new script
+bun run pipeline editor:moyin:export --json \
+  | grep -E '"(title|name)":' | head -5
+```
+
+Expected green signal: exported `"title"` references "Zephyr" or
+"Marzipan" (i.e. the *new* script). If you see a stale title from a
+previous run, the new parse silently failed — check `parseStatus` in §3
+above.
+
+### C2 · Manual smoke (covers provider selectors and UI polish)
+
+The CLI can't yet drive the `Image Provider` / `Video Provider`
+dropdowns — those are Subtask B3 state you set with a click. Run this
+checklist by hand:
 
 | Step | Expected in the Electron terminal |
 | --- | --- |
@@ -207,12 +245,32 @@ bridge, and the UI's provider selectors.
 | Switch **Video Provider** to GMI, generate a shot video | `[Moyin] generate-video { provider: 'gmi', ... }` then success |
 | Quit (⌘Q), restart, reopen project | provider selections restored (persisted state) |
 
+### Automation pitfall — stale Electron
+
+If the CLI steps in §C1 succeed at the IPC layer (all four commands
+return `status: ok`) but `parseStatus` settles on `"error"` and the
+`export` returns a title from a *previous* script, the Electron process
+was started before the latest `bun run build:electron`. Quit (⌘Q),
+restart, and re-run §C1.
+
 ### Known non-blockers to ignore
 
 - Missing `credits` field in proxy request payload (Subtask B3 follow-up)
 - `useLicenseStore.checkLicense()` not called after generation (follow-up)
 - "Top up" CTA not shown on 402 (follow-up) — you'll just see a generic
   error string in the UI
+
+### Available `editor:moyin:*` commands
+
+For reference:
+
+| Command | Purpose |
+| --- | --- |
+| `editor:moyin:set-script` | Push script text into the Director panel |
+| `editor:moyin:parse` | Trigger the Parse Script button |
+| `editor:moyin:status` | Read `parseStatus` and pipeline progress |
+| `editor:moyin:export` | Dump the current Director state as JSON |
+| `editor:moyin:generate` | Invoke the "Generate from idea" flow |
 
 ## 6. Regression Automation (future work)
 
@@ -278,7 +336,8 @@ Recorded verdicts from running this guide end-to-end on `director-v2`:
 | §A2 OpenRouter via proxy (`--model minimax`) | ⚠️ server 503 "API key not configured for provider: openrouter" — Worker env gap, not a client bug |
 | §A3 all three GMI aliases | ✅ each routed through proxy to correct GMI model id |
 | §B standalone moyin-llm, all three GMI aliases | ✅ each produced a real GMI reply (512 tokens) |
-| §C Director UI smoke | Not yet run (requires Electron restart + human click) |
+| §C1 Director UI via CLI automation | ✅ pattern verified (set-script + parse + status + export all return `status: ok`); parse itself blocked on stale compiled code in the running Electron — reruns after ⌘Q + restart will produce fresh results |
+| §C2 Director UI manual provider-selector smoke | Not yet run (requires human click) |
 | Unit tests (`electron/__tests__/moyin-*`) | ✅ 44/44 pass |
 
 Shipping verdict: the IPC + CLI GMI paths work end-to-end for signed-in

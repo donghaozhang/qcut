@@ -684,7 +684,8 @@ async function handleMainRequest(
 		}
 
 		case "moyin:trigger-parse": {
-			requestTriggerParse(win);
+			const req = data as { model?: string };
+			requestTriggerParse(win, { model: req?.model });
 			return { triggered: true };
 		}
 

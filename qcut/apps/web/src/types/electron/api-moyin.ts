@@ -72,7 +72,7 @@ export interface ElectronMoyinOps {
 		onParsed: (callback: (data: Record<string, unknown>) => void) => void;
 		removeParseListener: () => void;
 		onSetScript: (callback: (data: { text: string }) => void) => void;
-		onTriggerParse: (callback: () => void) => void;
+		onTriggerParse: (callback: (data?: { model?: string }) => void) => void;
 		onGenerateScript: (
 			callback: (data: {
 				idea: string;

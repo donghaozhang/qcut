@@ -273,7 +273,8 @@ const moyinAdapter = {
 	removeParseListener: () => api().moyin.removeParseListener(),
 	onSetScript: (cb: (data: { text: string }) => void) =>
 		api().moyin.onSetScript(cb),
-	onTriggerParse: (cb: () => void) => api().moyin.onTriggerParse(cb),
+	onTriggerParse: (cb: (data?: { model?: string }) => void) =>
+		api().moyin.onTriggerParse(cb),
 	onGenerateScript: (
 		cb: (data: {
 			idea: string;

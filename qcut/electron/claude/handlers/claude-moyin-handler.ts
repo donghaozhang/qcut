@@ -33,9 +33,17 @@ export function requestSetScript(win: BrowserWindow, text: string): void {
 /**
  * Trigger the "Parse Script" button in the moyin panel.
  * Fire-and-forget — renderer calls parseScript() on the store.
+ * When `options.model` is provided, the renderer sets that parse model
+ * before running the parse (so the CLI can exercise a specific provider
+ * without the user touching the UI dropdown).
  */
-export function requestTriggerParse(win: BrowserWindow): void {
-	win.webContents.send("claude:moyin:trigger-parse", {});
+export function requestTriggerParse(
+	win: BrowserWindow,
+	options: { model?: string } = {}
+): void {
+	win.webContents.send("claude:moyin:trigger-parse", {
+		model: options.model,
+	});
 }
 
 /**

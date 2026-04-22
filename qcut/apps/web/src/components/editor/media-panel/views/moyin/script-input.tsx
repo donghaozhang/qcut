@@ -349,7 +349,7 @@ export function ScriptInput() {
 
 					<div className="flex items-center gap-2">
 						<Button
-							onClick={parseScript}
+							onClick={() => parseScript()}
 							disabled={!canParse}
 							className="flex-1"
 							size="sm"

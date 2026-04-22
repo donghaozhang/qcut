@@ -682,7 +682,11 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	"editor:moyin:parse": ed(
 		"editor:moyin:parse",
 		"Trigger Parse Script button",
-		[]
+		[
+			f("--model", "string", "Parse model alias (e.g. gmi-glm-5.1)", {
+				short: "-m",
+			}),
+		]
 	),
 	"editor:moyin:status": ed("editor:moyin:status", "Get pipeline progress", []),
 	"editor:moyin:export": ed(
