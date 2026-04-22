@@ -439,6 +439,28 @@ export interface PlatformMoyinAPI {
 		text?: string;
 		error?: string;
 	}>;
+	/** Generate a storyboard image via FAL or GMI. */
+	generateImage(options: {
+		provider: "fal" | "gmi";
+		prompt: string;
+		size?: { width: number; height: number };
+		model?: string;
+	}): Promise<{
+		success: boolean;
+		url?: string;
+		error?: string;
+	}>;
+	/** Generate a video from an existing image via FAL or GMI. */
+	generateVideo(options: {
+		provider: "fal" | "gmi";
+		imageUrl: string;
+		prompt: string;
+		model?: string;
+	}): Promise<{
+		success: boolean;
+		url?: string;
+		error?: string;
+	}>;
 	isClaudeAvailable(): Promise<boolean>;
 	saveTempScript(options: { rawScript: string }): Promise<{
 		success: boolean;

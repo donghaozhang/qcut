@@ -135,6 +135,7 @@ const { setupRemotionFolderIPC } = require("./remotion-folder-handler.js");
 const { setupVideoSearchIPC } = require("./video-search-handler.js");
 const { setupScreenRecordingIPC } = require("./screen-recording-handler.js");
 const { setupMoyinIPC } = require("./moyin-handler.js");
+const { setupMoyinMediaIPC } = require("./moyin-media-handler.js");
 const { setupLicenseIPC } = require("./license-handler.js");
 const { setupYouTubeIPC } = require("./youtube-handler.js");
 const {
@@ -813,6 +814,7 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 			["RemotionFolderIPC", setupRemotionFolderIPC],
 			["ScreenRecordingIPC", setupScreenRecordingIPC],
 			["MoyinIPC", setupMoyinIPC],
+			["MoyinMediaIPC", setupMoyinMediaIPC],
 			["LicenseIPC", setupLicenseIPC],
 			["YouTubeIPC", () => setupYouTubeIPC(() => mainWindow)],
 		];

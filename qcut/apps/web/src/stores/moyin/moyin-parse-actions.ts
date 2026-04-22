@@ -21,6 +21,11 @@ export const MODEL_OPTIONS = [
 	{ value: "gemini-pro", label: "Gemini Pro" },
 	{ value: "kimi", label: "Kimi K2.5" },
 	{ value: "claude", label: "Claude (no key)" },
+	// GMI Cloud models — route through api.gmi-serving.com (BYOK) or via
+	// the QCut license-server proxy when the user is signed in.
+	{ value: "gmi-glm-5.1", label: "GMI · GLM-5.1" },
+	{ value: "gmi-gemini-3.1-flash-lite", label: "GMI · Gemini 3.1 Flash Lite" },
+	{ value: "gmi-gemini-3.1-pro", label: "GMI · Gemini 3.1 Pro" },
 ] as const;
 
 /** Display label for a model alias */

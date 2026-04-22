@@ -254,6 +254,18 @@ const moyinAdapter = {
 	generateStoryboard: (o: Record<string, unknown>) =>
 		api().moyin.generateStoryboard(o),
 	callLLM: (o: Record<string, unknown>) => api().moyin.callLLM(o),
+	generateImage: (o: {
+		provider: "fal" | "gmi";
+		prompt: string;
+		size?: { width: number; height: number };
+		model?: string;
+	}) => api().moyin.generateImage(o),
+	generateVideo: (o: {
+		provider: "fal" | "gmi";
+		imageUrl: string;
+		prompt: string;
+		model?: string;
+	}) => api().moyin.generateVideo(o),
 	isClaudeAvailable: () => api().moyin.isClaudeAvailable(),
 	saveTempScript: (o: { rawScript: string }) => api().moyin.saveTempScript(o),
 	cleanupTempScript: (p: string) => api().moyin.cleanupTempScript(p),

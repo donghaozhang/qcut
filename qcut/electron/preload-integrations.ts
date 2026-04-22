@@ -883,6 +883,10 @@ export function createMoyinAPI(): NonNullable<ElectronAPI["moyin"]> {
 		generateStoryboard: (options) =>
 			ipcRenderer.invoke("moyin:generate-storyboard", options),
 		callLLM: (options) => ipcRenderer.invoke("moyin:call-llm", options),
+		generateImage: (options) =>
+			ipcRenderer.invoke("moyin:generate-image", options),
+		generateVideo: (options) =>
+			ipcRenderer.invoke("moyin:generate-video", options),
 		isClaudeAvailable: () => ipcRenderer.invoke("moyin:is-claude-available"),
 		saveTempScript: (options: { rawScript: string }) =>
 			ipcRenderer.invoke("moyin:save-temp-script", options),

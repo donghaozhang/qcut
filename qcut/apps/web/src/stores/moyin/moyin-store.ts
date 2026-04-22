@@ -15,7 +15,6 @@ import type {
 import {
 	buildShotImagePrompt,
 	buildEndFramePrompt,
-	generateFalImage,
 	generateShotImageRequest,
 	generateShotVideoRequest,
 	persistShotMedia,
@@ -110,6 +109,10 @@ interface MoyinState {
 	createError: string | null;
 	selectedShotIds: Set<string>;
 	parseModel: string;
+	/** Provider used for storyboard image generation ("fal" | "gmi"). */
+	imageProvider: "fal" | "gmi";
+	/** Provider used for storyboard video generation ("fal" | "gmi"). */
+	videoProvider: "fal" | "gmi";
 	/** Preserved from generate step so shot calibration can respect it. */
 	lastTargetDuration: string | undefined;
 }
@@ -131,6 +134,8 @@ interface MoyinActions {
 	setSceneCount: (count: string) => void;
 	setShotCount: (count: string) => void;
 	setParseModel: (model: string) => void;
+	setImageProvider: (provider: "fal" | "gmi") => void;
+	setVideoProvider: (provider: "fal" | "gmi") => void;
 	checkApiKeyStatus: () => Promise<void>;
 	updateCharacter: (id: string, updates: Partial<ScriptCharacter>) => void;
 	addCharacter: (char: ScriptCharacter) => void;
@@ -225,6 +230,8 @@ const initialState: MoyinState = {
 	createError: null,
 	selectedShotIds: new Set<string>(),
 	parseModel: "minimax",
+	imageProvider: "fal",
+	videoProvider: "fal",
 	lastTargetDuration: undefined,
 };
 
@@ -271,6 +278,8 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 		setSceneCount: (count) => set({ sceneCount: count }),
 		setShotCount: (count) => set({ shotCount: count }),
 		setParseModel: (model) => set({ parseModel: model }),
+		setImageProvider: (provider) => set({ imageProvider: provider }),
+		setVideoProvider: (provider) => set({ videoProvider: provider }),
 
 		checkApiKeyStatus: async () => {
 			try {
@@ -347,7 +356,10 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 					throw new Error("Moyin API not available. Please run in Electron.");
 				}
 
-				const result = await api.parseScript({ rawScript });
+				const result = await api.parseScript({
+					rawScript,
+					model: get().parseModel,
+				});
 
 				if (!result.success || !result.data) {
 					throw new Error(result.error || "Failed to parse script");
@@ -530,7 +542,10 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 					selectedStyleId
 				);
 				patchShot(shotId, { imageProgress: 30 });
-				const remoteImageUrl = await generateShotImageRequest(prompt);
+				const remoteImageUrl = await generateShotImageRequest(
+					prompt,
+					get().imageProvider
+				);
 				const imageUrl = await persistShotMedia(
 					remoteImageUrl,
 					`shot-${shotId}-image.png`
@@ -564,7 +579,8 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 				patchShot(shotId, { videoProgress: 20 });
 				const remoteVideoUrl = await generateShotVideoRequest(
 					shot.imageUrl,
-					prompt
+					prompt,
+					get().videoProvider
 				);
 				const videoUrl = await persistShotMedia(
 					remoteVideoUrl,
@@ -594,7 +610,10 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 			try {
 				const prompt = buildEndFramePrompt(shot);
 				if (!prompt) throw new Error("No end frame prompt available.");
-				const remoteUrl = await generateFalImage(prompt);
+				const remoteUrl = await generateShotImageRequest(
+					prompt,
+					get().imageProvider
+				);
 				const endFrameImageUrl = await persistShotMedia(
 					remoteUrl,
 					`shot-${shotId}-endframe.png`
@@ -782,7 +801,8 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 					characters,
 					selectedStyleId,
 					scriptData,
-					(p) => set({ generationProgress: p })
+					(p) => set({ generationProgress: p }),
+					get().imageProvider
 				);
 				set({
 					generationStatus: "done",

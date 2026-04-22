@@ -39,16 +39,90 @@ import("electron-log")
 const REQUEST_TIMEOUT_MS = 60_000;
 const CLAUDE_CLI_TIMEOUT_MS = 600_000;
 
+const GMI_LLM_BASE = "https://api.gmi-serving.com/v1";
+
+export type LlmProvider = "openrouter" | "gmi-llm" | "gemini";
+
+/**
+ * Resolve a Moyin-side model alias (e.g. `gmi-glm-5.1`, `gemini-pro`) into
+ * the concrete provider + provider-model-id that should handle the call.
+ *
+ * Keeping this as a pure function means both the IPC handler and the PTY
+ * CLI path can agree on routing without duplicating the alias list.
+ */
+export function resolveLlmProvider(modelAlias?: string): {
+	provider: LlmProvider;
+	model: string;
+} {
+	switch (modelAlias) {
+		case "gmi-glm-5.1":
+			return { provider: "gmi-llm", model: "zai-org/GLM-5.1-FP8" };
+		case "gmi-gemini-3.1-flash-lite":
+			return {
+				provider: "gmi-llm",
+				model: "google/gemini-3.1-flash-lite-preview",
+			};
+		case "gmi-gemini-3.1-pro":
+			return { provider: "gmi-llm", model: "google/gemini-3.1-pro-preview" };
+		case "gemini":
+		case "gemini-pro":
+			// Future: route directly to Gemini. Today: fall through to openrouter
+			// so existing behavior is unchanged when these aliases are passed.
+			return { provider: "openrouter", model: "google/gemini-3-flash-preview" };
+		default:
+			return { provider: "openrouter", model: "google/gemini-3-flash-preview" };
+	}
+}
+
 /**
  * Route an LLM call, preferring local keys (BYOK), then falling back to the
  * license-server proxy for signed-in users without a local key.
+ *
+ * When `options.model` is a `gmi-*` alias, the GMI route is preferred
+ * (local GMI key → GMI proxy) before the legacy OpenRouter/Gemini chain.
  */
 export async function callLLM(
 	systemPrompt: string,
 	userPrompt: string,
-	options: { temperature?: number; maxTokens?: number } = {}
+	options: {
+		temperature?: number;
+		maxTokens?: number;
+		model?: string;
+	} = {}
 ): Promise<string> {
 	const keys = await getDecryptedApiKeys();
+	const resolved = resolveLlmProvider(options.model);
+
+	if (resolved.provider === "gmi-llm") {
+		const gmiKey = keys.gmiApiKey;
+		if (gmiKey) {
+			log.info(
+				`[Moyin] callLLM using GMI (${resolved.model}, prompt: ${userPrompt.length} chars)`
+			);
+			return callGmiLLM(
+				gmiKey,
+				resolved.model,
+				systemPrompt,
+				userPrompt,
+				options
+			);
+		}
+		if (await isProxyAvailable()) {
+			log.info(
+				`[Moyin] callLLM using GMI via proxy (${resolved.model}, prompt: ${userPrompt.length} chars)`
+			);
+			return callGmiViaProxy(
+				resolved.model,
+				systemPrompt,
+				userPrompt,
+				options
+			);
+		}
+		throw new Error(
+			`No GMI API key configured for model ${options.model}. Sign in to QCut, or set GMI_API_KEY in Settings or ~/.qcut/.env`
+		);
+	}
+
 	const openaiKey = keys.openRouterApiKey;
 	const googleKey = keys.geminiApiKey;
 
@@ -74,8 +148,111 @@ export async function callLLM(
 	}
 
 	throw new Error(
-		"No LLM API key configured. Sign in to QCut, or set OPENROUTER_API_KEY or GEMINI_API_KEY in Settings or ~/.qcut/.env"
+		"No LLM API key configured. Sign in to QCut, or set OPENROUTER_API_KEY, GEMINI_API_KEY, or GMI_API_KEY in Settings or ~/.qcut/.env"
 	);
+}
+
+/** Call GMI Cloud's chat/completions directly with a local API key. */
+async function callGmiLLM(
+	apiKey: string,
+	model: string,
+	systemPrompt: string,
+	userPrompt: string,
+	options: { temperature?: number; maxTokens?: number } = {}
+): Promise<string> {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+	try {
+		const response = await fetch(`${GMI_LLM_BASE}/chat/completions`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${apiKey}`,
+			},
+			body: JSON.stringify(buildGmiChatPayload(model, systemPrompt, userPrompt, options)),
+			signal: controller.signal,
+		});
+
+		if (!response.ok) {
+			const errText = await response.text().catch(() => "");
+			throw new Error(
+				`GMI LLM error (${response.status}): ${errText.slice(0, 200)}`
+			);
+		}
+
+		const data = (await response.json()) as {
+			choices?: Array<{ message?: { content?: string } }>;
+		};
+		const content = data.choices?.[0]?.message?.content;
+		if (!content) {
+			throw new Error("Empty response from GMI LLM");
+		}
+		return content;
+	} finally {
+		clearTimeout(timeout);
+	}
+}
+
+/** Call GMI Cloud's chat/completions via the license-server proxy. */
+async function callGmiViaProxy(
+	model: string,
+	systemPrompt: string,
+	userPrompt: string,
+	options: { temperature?: number; maxTokens?: number } = {}
+): Promise<string> {
+	const response = await proxyRequest({
+		provider: "gmi-llm",
+		endpoint: "chat/completions",
+		method: "POST",
+		body: buildGmiChatPayload(model, systemPrompt, userPrompt, options),
+		timeoutMs: REQUEST_TIMEOUT_MS,
+	});
+
+	if (!response.ok) {
+		const preview =
+			typeof response.data === "string"
+				? response.data.slice(0, 200)
+				: JSON.stringify(response.data).slice(0, 200);
+		throw new Error(`Proxy GMI LLM error (${response.status}): ${preview}`);
+	}
+
+	const data = response.data as {
+		choices?: Array<{ message?: { content?: string } }>;
+	};
+	const content = data?.choices?.[0]?.message?.content;
+	if (!content) {
+		throw new Error("Empty response from proxy GMI LLM");
+	}
+	return content;
+}
+
+/**
+ * Build the OpenAI-compatible request body used by GMI. GPT-5-family models
+ * require `max_completion_tokens` — mirror the same branch the ViMax
+ * adapter uses so behavior stays consistent across features.
+ */
+function buildGmiChatPayload(
+	model: string,
+	systemPrompt: string,
+	userPrompt: string,
+	options: { temperature?: number; maxTokens?: number } = {}
+): Record<string, unknown> {
+	const maxTokens = options.maxTokens ?? 4096;
+	const payload: Record<string, unknown> = {
+		model,
+		messages: [
+			{ role: "system", content: systemPrompt },
+			{ role: "user", content: userPrompt },
+		],
+		temperature: options.temperature ?? 0.7,
+	};
+	if (model.startsWith("openai/gpt-5")) {
+		payload.max_completion_tokens = maxTokens;
+	} else {
+		payload.max_tokens = maxTokens;
+	}
+	return payload;
 }
 
 /**

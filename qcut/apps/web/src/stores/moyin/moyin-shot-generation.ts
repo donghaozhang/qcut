@@ -4,8 +4,10 @@
  */
 
 import type { ScriptCharacter, ScriptScene, Shot } from "@/types/moyin-script";
-import { getFalApiKeyAsync } from "@/lib/ai-video/core/fal-request";
+import { platform } from "@qcut/platform-core";
 import { VISUAL_STYLE_PRESETS } from "@/lib/moyin/presets/visual-styles";
+
+export type MoyinMediaProvider = "fal" | "gmi";
 
 /** Build an image prompt from shot + context data. */
 export function buildShotImagePrompt(
@@ -37,88 +39,72 @@ export function buildShotImagePrompt(
 		.join(". ");
 }
 
-/** Generate an image via fal.ai with configurable size. */
+/**
+ * Generate a shot image via the main-process media IPC.
+ *
+ * Provider defaults to FAL (existing Director behavior). When the user
+ * selects GMI in the Moyin config panel, the request is routed through
+ * `callModelApi` which supports both local GMI keys and the QCut
+ * license-server proxy.
+ */
+export async function generateShotImage(
+	prompt: string,
+	provider: MoyinMediaProvider = "fal",
+	size: { width: number; height: number } = { width: 1920, height: 1080 }
+): Promise<string> {
+	const api = platform().moyin;
+	if (!api?.generateImage) {
+		throw new Error(
+			"Moyin media API not available. Please run in Electron with a recent build."
+		);
+	}
+
+	const result = await api.generateImage({ provider, prompt, size });
+	if (!result.success || !result.url) {
+		throw new Error(result.error ?? "Image generation failed");
+	}
+	return result.url;
+}
+
+/** Generate a single shot image (1920×1080, caller-provided provider). */
+export async function generateShotImageRequest(
+	prompt: string,
+	provider: MoyinMediaProvider = "fal"
+): Promise<string> {
+	return generateShotImage(prompt, provider);
+}
+
+/**
+ * Backward-compat: force FAL and allow a custom size.
+ *
+ * @deprecated Prefer `generateShotImage(prompt, provider, size)` with an
+ *   explicit provider, so the Director's provider toggle applies.
+ */
 export async function generateFalImage(
 	prompt: string,
 	size: { width: number; height: number } = { width: 1920, height: 1080 }
 ): Promise<string> {
-	const apiKey = await getFalApiKeyAsync();
-	if (!apiKey) {
-		throw new Error("FAL API key not configured. Please set it in Settings.");
-	}
-
-	const response = await fetch("https://fal.run/fal-ai/flux-pro/v1.1-ultra", {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-			Authorization: `Key ${apiKey}`,
-		},
-		body: JSON.stringify({
-			prompt,
-			num_images: 1,
-			image_size: size,
-			safety_tolerance: "6",
-		}),
-	});
-
-	if (!response.ok) {
-		const errorData = await response.json().catch(() => ({}));
-		const detail =
-			(errorData as Record<string, unknown>).detail || response.statusText;
-		throw new Error(`Image generation failed: ${detail}`);
-	}
-
-	const data = (await response.json()) as {
-		images?: Array<{ url: string }>;
-	};
-	const imageUrl = data.images?.[0]?.url;
-	if (!imageUrl) throw new Error("No image returned from API");
-	return imageUrl;
+	return generateShotImage(prompt, "fal", size);
 }
 
-/** Generate a single shot image (1920x1080). */
-export async function generateShotImageRequest(
-	prompt: string
-): Promise<string> {
-	return generateFalImage(prompt);
-}
-
-/** Generate a video from an existing shot image via fal.ai. */
+/** Generate a video from an existing shot image via the main-process IPC. */
 export async function generateShotVideoRequest(
 	imageUrl: string,
-	prompt: string
+	prompt: string,
+	provider: MoyinMediaProvider = "fal"
 ): Promise<string> {
-	const apiKey = await getFalApiKeyAsync();
-	if (!apiKey) {
-		throw new Error("FAL API key not configured. Please set it in Settings.");
+	const api = platform().moyin;
+	if (!api?.generateVideo) {
+		throw new Error(
+			"Moyin media API not available. Please run in Electron with a recent build."
+		);
 	}
 
-	const response = await fetch(
-		"https://fal.run/fal-ai/wan/v2.1/image-to-video",
-		{
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Key ${apiKey}`,
-			},
-			body: JSON.stringify({
-				image_url: imageUrl,
-				prompt,
-			}),
-		}
-	);
-
-	if (!response.ok) {
-		const errorData = await response.json().catch(() => ({}));
-		const detail =
-			(errorData as Record<string, unknown>).detail || response.statusText;
-		throw new Error(`Video generation failed: ${detail}`);
+	const result = await api.generateVideo({ provider, imageUrl, prompt });
+	if (!result.success || !result.url) {
+		throw new Error(result.error ?? "Video generation failed");
 	}
-
-	const data = (await response.json()) as { video?: { url: string } };
-	const videoUrl = data.video?.url;
-	if (!videoUrl) throw new Error("No video returned from API");
-	return videoUrl;
+	return result.url;
 }
 
 /**

@@ -27,9 +27,11 @@ export interface MoyinPersistedState {
 	language: string;
 	sceneCount: string;
 	shotCount: string;
+	imageProvider?: "fal" | "gmi";
+	videoProvider?: "fal" | "gmi";
 }
 
-const STORAGE_VERSION = 4;
+const STORAGE_VERSION = 5;
 const STORAGE_PREFIX = "moyin-project-";
 
 export function getMoyinStorageKey(projectId: string): string {
@@ -50,6 +52,8 @@ export function partializeMoyinState(state: {
 	language: string;
 	sceneCount: string;
 	shotCount: string;
+	imageProvider?: "fal" | "gmi";
+	videoProvider?: "fal" | "gmi";
 }): MoyinPersistedState {
 	return {
 		rawScript: state.rawScript,
@@ -64,6 +68,8 @@ export function partializeMoyinState(state: {
 		language: state.language,
 		sceneCount: state.sceneCount,
 		shotCount: state.shotCount,
+		imageProvider: state.imageProvider,
+		videoProvider: state.videoProvider,
 	};
 }
 

@@ -35,6 +35,11 @@ export interface MoyinParseOptions {
 	rawScript: string;
 	language?: string;
 	sceneCount?: number;
+	/**
+	 * Model alias (see MODEL_OPTIONS in moyin-parse-actions). When a
+	 * `gmi-*` alias is passed, callLLM routes through GMI Cloud.
+	 */
+	model?: string;
 }
 
 export interface MoyinParseResult {
@@ -147,6 +152,7 @@ export function setupMoyinIPC(): void {
 				log.info("[Moyin] Parsing script...", {
 					length: options.rawScript.length,
 					language: options.language,
+					model: options.model,
 				});
 
 				let userPrompt = options.rawScript;
@@ -160,6 +166,7 @@ export function setupMoyinIPC(): void {
 				const response = await callLLM(PARSE_SYSTEM_PROMPT, userPrompt, {
 					temperature: 0.7,
 					maxTokens: 4096,
+					model: options.model,
 				});
 
 				// Extract JSON from response
@@ -239,17 +246,20 @@ export function setupMoyinIPC(): void {
 				userPrompt: string;
 				temperature?: number;
 				maxTokens?: number;
+				model?: string;
 			}
 		): Promise<{ success: boolean; text?: string; error?: string }> => {
 			try {
 				log.info("[Moyin] LLM call...", {
 					systemLen: options.systemPrompt.length,
 					userLen: options.userPrompt.length,
+					model: options.model,
 				});
 
 				const text = await callLLM(options.systemPrompt, options.userPrompt, {
 					temperature: options.temperature,
 					maxTokens: options.maxTokens,
+					model: options.model,
 				});
 
 				return { success: true, text };
