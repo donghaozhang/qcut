@@ -229,7 +229,12 @@ const initialState: MoyinState = {
 	createStatus: "idle",
 	createError: null,
 	selectedShotIds: new Set<string>(),
-	parseModel: "minimax",
+	// Default to GMI GLM-5.1 — the license-server proxy currently has
+	// GMI_API_KEY configured but not OPENROUTER_API_KEY, so picking an
+	// OpenRouter-routed model by default would 503. Users can still switch
+	// to minimax/kimi/etc. via the Parse Model selector; the proxy will
+	// work for those as soon as the Worker gets the OpenRouter key.
+	parseModel: "gmi-glm-5.1",
 	imageProvider: "fal",
 	videoProvider: "fal",
 	lastTargetDuration: undefined,
@@ -375,10 +380,15 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 					selectedShotIds: new Set<string>(),
 					activeStep: "characters",
 				});
-				await runCalibrationPipeline(data, rawScript, {
-					getState: get,
-					setState: set,
-				});
+				await runCalibrationPipeline(
+					data,
+					rawScript,
+					{
+						getState: get,
+						setState: set,
+					},
+					get().parseModel
+				);
 				set({ parseStatus: "ready" });
 			} catch (error) {
 				const currentStep = get().pipelineStep;
@@ -924,10 +934,15 @@ function ensureParsedListenerRegistered(): void {
 			});
 
 			// Run full calibration pipeline (title, synopsis, shots, characters, scenes)
-			runCalibrationPipeline(scriptData, state.rawScript, {
-				getState: useMoyinStore.getState,
-				setState: useMoyinStore.setState,
-			})
+			runCalibrationPipeline(
+				scriptData,
+				state.rawScript,
+				{
+					getState: useMoyinStore.getState,
+					setState: useMoyinStore.setState,
+				},
+				useMoyinStore.getState().parseModel
+			)
 				.then(() => {
 					useMoyinStore.setState({ parseStatus: "ready" });
 				})

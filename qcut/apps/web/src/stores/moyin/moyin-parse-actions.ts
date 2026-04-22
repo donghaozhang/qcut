@@ -63,7 +63,8 @@ interface StoreRef {
 export async function runCalibrationPipeline(
 	data: ScriptData,
 	rawScript: string,
-	store: StoreRef
+	store: StoreRef,
+	model?: string
 ): Promise<void> {
 	const advancePipeline = (step: PipelineStep, status: PipelineStepStatus) => {
 		const progress = { ...store.getState().pipelineProgress, [step]: status };
@@ -93,7 +94,7 @@ export async function runCalibrationPipeline(
 	// --- Title Calibration ---
 	advancePipeline("title_calibration", "active");
 	try {
-		const { title, logline } = await calibrateTitleLLM(data, rawScript);
+		const { title, logline } = await calibrateTitleLLM(data, rawScript, model);
 		const updated = { ...data, title, logline };
 		store.setState({ scriptData: updated });
 		advancePipeline("title_calibration", "done");
@@ -107,7 +108,8 @@ export async function runCalibrationPipeline(
 	try {
 		const synopsis = await generateSynopsisLLM(
 			store.getState().scriptData ?? data,
-			rawScript
+			rawScript,
+			model
 		);
 		const current = store.getState().scriptData;
 		if (current) {
@@ -157,7 +159,7 @@ export async function runCalibrationPipeline(
 	advancePipeline("character_calibration", "active");
 	try {
 		const { characters: chars, scriptData: sd2 } = store.getState();
-		const enhanced = await enhanceCharactersLLM(chars, sd2, rawScript);
+		const enhanced = await enhanceCharactersLLM(chars, sd2, rawScript, model);
 		store.setState({ characters: enhanced });
 		advancePipeline("character_calibration", "done");
 	} catch (err) {
@@ -169,7 +171,7 @@ export async function runCalibrationPipeline(
 	advancePipeline("scene_calibration", "active");
 	try {
 		const { scenes: scns, scriptData: sd3 } = store.getState();
-		const enhanced = await enhanceScenesLLM(scns, sd3, rawScript);
+		const enhanced = await enhanceScenesLLM(scns, sd3, rawScript, model);
 		store.setState({ scenes: enhanced });
 		advancePipeline("scene_calibration", "done");
 	} catch (err) {

@@ -27,6 +27,7 @@ interface MoyinApi {
 		userPrompt: string;
 		temperature?: number;
 		maxTokens?: number;
+		model?: string;
 	}) => Promise<LLMResult>;
 }
 
@@ -107,7 +108,8 @@ async function getCalibrationContext({
 /** Refine the screenplay title and logline using an LLM. */
 export async function calibrateTitleLLM(
 	scriptData: ScriptData,
-	rawScript: string
+	rawScript: string,
+	model?: string
 ): Promise<{ title: string; logline: string }> {
 	const api = getMoyinApi();
 
@@ -126,6 +128,7 @@ ${rawScript.slice(0, 500)}
 Refine the title and logline. Keep the original if it's already strong.`,
 		temperature: 0.5,
 		maxTokens: 256,
+		model,
 	});
 
 	if (!result.success || !result.text) {
@@ -158,7 +161,8 @@ Refine the title and logline. Keep the original if it's already strong.`,
 /** Generate a 2-3 sentence synopsis for the screenplay via LLM. */
 export async function generateSynopsisLLM(
 	scriptData: ScriptData,
-	rawScript: string
+	rawScript: string,
+	model?: string
 ): Promise<string> {
 	const api = getMoyinApi();
 
@@ -182,6 +186,7 @@ ${rawScript.slice(0, 800)}
 Write a compelling 2-3 sentence synopsis.`,
 		temperature: 0.7,
 		maxTokens: 512,
+		model,
 	});
 
 	if (!result.success || !result.text) {
@@ -216,7 +221,8 @@ interface EnhancedCharacterData {
 export async function enhanceCharactersLLM(
 	characters: ScriptCharacter[],
 	scriptData: ScriptData | null,
-	rawScript?: string
+	rawScript?: string,
+	model?: string
 ): Promise<ScriptCharacter[]> {
 	const calibrationContext = await getCalibrationContext({
 		rawScript,
@@ -286,6 +292,7 @@ ${charSummary}
 Generate rich visual descriptions and identity anchors for each character.`,
 		temperature: 0.5,
 		maxTokens: 4096,
+		model,
 	});
 
 	if (!result.success || !result.text) {
@@ -335,7 +342,8 @@ interface EnhancedSceneData {
 export async function enhanceScenesLLM(
 	scenes: ScriptScene[],
 	scriptData: ScriptData | null,
-	rawScript?: string
+	rawScript?: string,
+	model?: string
 ): Promise<ScriptScene[]> {
 	const calibrationContext = await getCalibrationContext({
 		rawScript,
@@ -397,6 +405,7 @@ ${sceneSummary}
 Generate comprehensive art direction for each scene.`,
 		temperature: 0.5,
 		maxTokens: 4096,
+		model,
 	});
 
 	if (!result.success || !result.text) {

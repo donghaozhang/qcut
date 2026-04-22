@@ -206,16 +206,20 @@ bun run pipeline editor:moyin:set-script \
   --text 'Scene 1: Detective Zephyr investigates the Marzipan Mansion.' \
   --json
 
-# 2. Trigger the "Parse Script" button
-bun run pipeline editor:moyin:parse --json
+# 2. Trigger the "Parse Script" button with a specific model.
+#    --model is threaded all the way through the renderer store into
+#    both the initial parse call and every calibration-pipeline call,
+#    so the whole pipeline uses GMI (not the UI's default minimax).
+bun run pipeline editor:moyin:parse --model gmi-glm-5.1 --json
 
-# 3. Poll until parseStatus becomes ready or error (usually 15-30s)
-for i in {1..12}; do
+# 3. Poll until parseStatus becomes ready or error (typically 15-30s
+#    for a short script; calibration pipeline adds ~10-30s)
+for i in {1..24}; do
   status=$(bun run pipeline editor:moyin:status --json 2>&1 \
     | grep -o '"parseStatus": *"[^"]*"' | head -1)
   echo "$(date +%H:%M:%S) — $status"
   [[ "$status" == *"ready"* || "$status" == *"error"* ]] && break
-  sleep 3
+  sleep 5
 done
 
 # 4. Dump the parsed data and verify the title reflects the new script
@@ -223,10 +227,33 @@ bun run pipeline editor:moyin:export --json \
   | grep -E '"(title|name)":' | head -5
 ```
 
-Expected green signal: exported `"title"` references "Zephyr" or
-"Marzipan" (i.e. the *new* script). If you see a stale title from a
-previous run, the new parse silently failed — check `parseStatus` in §3
-above.
+**Expected green signal (verified 2026-04-22 on `director-v2`):**
+
+```
+"parseStatus": "ready"
+"title": "Marzipan Mansion Investigation"
+"logline": "A detective investigates the enigmatic Marzipan Mansion..."
+"name": "Detective Zephyr"
+"name": "Octavia"
+```
+
+Electron log should show both the initial parse *and* each calibration
+step going through the same GMI proxy:
+
+```
+[Moyin] Parsing script... { length: 140, model: 'gmi-glm-5.1' }
+[Moyin] callLLM using GMI via proxy (zai-org/GLM-5.1-FP8, prompt: 140 chars)
+[Moyin] Script parsed successfully { characters: 2, scenes: 1 }
+[Moyin] LLM call... { systemLen: ..., userLen: ..., model: 'gmi-glm-5.1' }
+[Moyin] callLLM using GMI via proxy (zai-org/GLM-5.1-FP8, prompt: ... chars)
+```
+
+If you see `callLLM using license-server proxy` (without "GMI") on
+any subsequent LLM call, calibration is hitting the OpenRouter route,
+which currently 503s because the license-server Worker env is missing
+`OPENROUTER_API_KEY`. That's the pre-existing server-side gap; all
+moyin-side code now threads the GMI model through calibration to
+avoid it.
 
 ### C2 · Manual smoke (covers provider selectors and UI polish)
 
@@ -336,8 +363,8 @@ Recorded verdicts from running this guide end-to-end on `director-v2`:
 | §A2 OpenRouter via proxy (`--model minimax`) | ⚠️ server 503 "API key not configured for provider: openrouter" — Worker env gap, not a client bug |
 | §A3 all three GMI aliases | ✅ each routed through proxy to correct GMI model id |
 | §B standalone moyin-llm, all three GMI aliases | ✅ each produced a real GMI reply (512 tokens) |
-| §C1 Director UI via CLI automation | ✅ pattern verified (set-script + parse + status + export all return `status: ok`); parse itself blocked on stale compiled code in the running Electron — reruns after ⌘Q + restart will produce fresh results |
-| §C2 Director UI manual provider-selector smoke | Not yet run (requires human click) |
+| §C1 Director UI via CLI automation | ✅ **Full end-to-end pass** — `parseStatus: "ready"` in 15s, exported title reflected the new script ("Marzipan Mansion Investigation"), both initial parse and calibration went through GMI proxy |
+| §C2 Director UI manual provider-selector smoke | Not yet run (requires human click on Image/Video Provider dropdowns) |
 | Unit tests (`electron/__tests__/moyin-*`) | ✅ 44/44 pass |
 
 Shipping verdict: the IPC + CLI GMI paths work end-to-end for signed-in
