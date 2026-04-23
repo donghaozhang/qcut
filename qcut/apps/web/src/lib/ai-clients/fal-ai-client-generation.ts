@@ -302,7 +302,8 @@ export async function generateWithModel(
 
 		const response = await delegate.makeRequest<FalImageResponse>(
 			model.endpoint,
-			params
+			params,
+			{ modelKey }
 		);
 
 		let image: { url: string; width: number; height: number };

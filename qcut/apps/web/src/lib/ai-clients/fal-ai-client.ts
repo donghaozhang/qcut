@@ -61,6 +61,7 @@ import { reveTextToImage, reveEdit } from "./fal-ai-client-reve";
 import {
 	FAL_LOG_COMPONENT,
 	type FalImageResponse,
+	type FalRequestDelegateOptions,
 	type GenerationSettings,
 	type GenerationResult,
 	type MultiModelGenerationResult,
@@ -156,7 +157,8 @@ class FalAIClient {
 	 */
 	private async makeRequest<T = FalImageResponse>(
 		endpoint: string,
-		params: Record<string, unknown>
+		params: Record<string, unknown>,
+		options?: FalRequestDelegateOptions
 	): Promise<T> {
 		// The endpoint already contains the full URL, so use it directly
 		const requestUrl = endpoint.startsWith("https://")
@@ -166,14 +168,17 @@ class FalAIClient {
 		debugLogger.log(FAL_LOG_COMPONENT, "REQUEST_START", {
 			endpoint: requestUrl,
 			params,
+			modelKey: options?.modelKey,
 		});
 
 		// Route through makeFalRequest so signed-in users go via the
 		// license-server proxy first (falling back to the local VITE_FAL_API_KEY
-		// on proxy failure). This unblocks users whose local key lacks access
-		// to a specific FAL model (e.g. OpenAI passthrough like gpt-image-2).
+		// on proxy failure). `modelKey` drives credit deduction on the proxy
+		// side — when present, the license server debits the user's ledger.
 		const response = await makeFalRequest(requestUrl, params, {
 			proxyFirst: true,
+			modelKey: options?.modelKey,
+			durationSeconds: options?.durationSeconds,
 		});
 
 		debugLogger.log(FAL_LOG_COMPONENT, "REQUEST_STATUS", {

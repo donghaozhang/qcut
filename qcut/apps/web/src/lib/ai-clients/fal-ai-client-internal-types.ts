@@ -1,7 +1,22 @@
 import type { OutputFormat } from "../ai-video/validation/validators";
 
+export interface FalRequestDelegateOptions {
+	/**
+	 * Renderer-side model key (e.g. `gpt-image-2-fal`). Threaded to the
+	 * license-server proxy so credit deduction can be attributed to the
+	 * right model in the ledger. Optional — direct (BYOK) calls ignore it.
+	 */
+	modelKey?: string;
+	/** Duration in seconds — used to price per-second video models. */
+	durationSeconds?: number;
+}
+
 export interface FalAIClientRequestDelegate {
-	makeRequest<T>(endpoint: string, params: Record<string, unknown>): Promise<T>;
+	makeRequest<T>(
+		endpoint: string,
+		params: Record<string, unknown>,
+		options?: FalRequestDelegateOptions
+	): Promise<T>;
 }
 
 export interface GenerationResult {

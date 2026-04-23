@@ -201,4 +201,34 @@ describe("makeFalRequest proxyFirst mode", () => {
 		expect(url).toBe("https://fal.run/fal-ai/test");
 		expect(init.headers.Authorization).toBe("Key local-key-abc");
 	});
+
+	it("attaches credits to proxy body when modelKey is supplied", async () => {
+		mockGetAuthToken.mockResolvedValue("session-xyz");
+		mockFetch.mockResolvedValue(new Response('{"images":[]}', { status: 200 }));
+
+		await makeFalRequest(
+			"https://fal.run/openai/gpt-image-2",
+			{ prompt: "t" },
+			{ proxyFirst: true, modelKey: "gpt-image-2-fal" }
+		);
+
+		const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+		expect(body.credits?.modelKey).toBe("gpt-image-2-fal");
+		expect(body.credits?.amount).toBeGreaterThan(0);
+		expect(body.credits?.description).toContain("gpt-image-2-fal");
+	});
+
+	it("omits credits when modelKey is not supplied", async () => {
+		mockGetAuthToken.mockResolvedValue("session-xyz");
+		mockFetch.mockResolvedValue(new Response('{"images":[]}', { status: 200 }));
+
+		await makeFalRequest(
+			"fal-ai/test",
+			{ prompt: "t" },
+			{ proxyFirst: true }
+		);
+
+		const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+		expect(body.credits).toBeUndefined();
+	});
 });

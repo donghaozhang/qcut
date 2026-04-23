@@ -81,6 +81,19 @@ const COST_OVERRIDES: Record<
 		amountPerUnitCredits: 30,
 		label: "GPT-5.4",
 	},
+	// gpt-image-2 variants: $0.042 per image at default quality/size on both
+	// FAL and GMI paths. Rounded up to 5 credits for a small margin on
+	// larger sizes / high-quality tier.
+	"gpt-image-2-fal": {
+		unit: "fixed",
+		amountPerUnitCredits: 5,
+		label: "GPT-Image-2 (FAL)",
+	},
+	"gpt-image-2-gmi": {
+		unit: "fixed",
+		amountPerUnitCredits: 5,
+		label: "GPT-Image-2 (GMI)",
+	},
 };
 
 function unitLabel(unit: PriceUnit): string {
