@@ -185,9 +185,11 @@ describe("gmiClient", () => {
 		// ("seedance-2-0-260128"), not the renderer modelKey. Previously
 		// `buildCreditsForModel` used the endpoint directly to look up
 		// `AI_MODELS`, always missed, and under-billed to 1 credit.
+		// Standard variant is $0.052/s → 4s=21, 8s=42.
+		// Fast variant is $0.022/s → 4s=9 (rounded from 8.8).
 		it.each([
 			["seedance-2-0-260128", 4, 21],
-			["seedance-2-0-fast-260128", 4, 21],
+			["seedance-2-0-fast-260128", 4, 9],
 			["seedance-2-0-260128", 8, 42],
 		])("maps GMI endpoint %s (%ss) back to the renderer modelKey for credit pricing", async (endpoint, duration, expectedCredits) => {
 			vi.mocked(getSessionToken).mockResolvedValue("session-xyz");
