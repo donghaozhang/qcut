@@ -13,6 +13,47 @@ import {
 	type FalAIClientRequestDelegate,
 } from "./fal-ai-client-internal-types";
 
+// Shared modelKey constants for credit-ledger attribution. A single key per
+// FAL tier is reused across text/image/frame/extend variants — they share
+// pricing (per-second) on FAL's side.
+const VEO31_FAST_KEY = "veo-3.1-fast";
+const VEO31_LITE_KEY = "veo-3.1-lite";
+const VEO31_STANDARD_KEY = "veo-3.1";
+
+/** Parse Veo's `"4s" | "6s" | "7s" | "8s"` duration strings to numeric seconds. */
+function parseVeoDuration(duration: string | undefined): number {
+	if (!duration) return 8;
+	const n = Number.parseInt(duration, 10);
+	return Number.isFinite(n) && n > 0 ? n : 8;
+}
+
+function inferVeo31ModelKey(endpoint: string): string {
+	if (endpoint.includes("veo3.1/fast")) return VEO31_FAST_KEY;
+	if (endpoint.includes("veo3.1/lite")) return VEO31_LITE_KEY;
+	return VEO31_STANDARD_KEY;
+}
+
+type VeoParams =
+	| Veo31TextToVideoInput
+	| Veo31ImageToVideoInput
+	| Veo31FrameToVideoInput
+	| Veo31ExtendVideoInput;
+
+async function veoMakeRequest(
+	delegate: FalAIClientRequestDelegate,
+	endpoint: string,
+	params: VeoParams
+): Promise<Veo31Response> {
+	return delegate.makeRequest<Veo31Response>(
+		endpoint,
+		params as unknown as Record<string, unknown>,
+		{
+			modelKey: inferVeo31ModelKey(endpoint),
+			durationSeconds: parseVeoDuration(params.duration),
+		}
+	);
+}
+
 export async function veo31FastTextToVideo(
 	delegate: FalAIClientRequestDelegate,
 	params: Veo31TextToVideoInput
@@ -24,10 +65,7 @@ export async function veo31FastTextToVideo(
 			params,
 		});
 
-		const response = await delegate.makeRequest<Veo31Response>(
-			endpoint,
-			params as unknown as Record<string, unknown>
-		);
+		const response = await veoMakeRequest(delegate, endpoint, params);
 
 		if (!response.video?.url) {
 			throw new Error("No video URL in Veo 3.1 Fast response");
@@ -65,10 +103,7 @@ export async function veo31FastImageToVideo(
 			params,
 		});
 
-		const response = await delegate.makeRequest<Veo31Response>(
-			endpoint,
-			params as unknown as Record<string, unknown>
-		);
+		const response = await veoMakeRequest(delegate, endpoint, params);
 
 		if (!response.video?.url) {
 			throw new Error("No video URL in Veo 3.1 Fast response");
@@ -107,10 +142,7 @@ export async function veo31FastFrameToVideo(
 			params,
 		});
 
-		const response = await delegate.makeRequest<Veo31Response>(
-			endpoint,
-			params as unknown as Record<string, unknown>
-		);
+		const response = await veoMakeRequest(delegate, endpoint, params);
 
 		if (!response.video?.url) {
 			throw new Error("No video URL in Veo 3.1 Fast response");
@@ -148,10 +180,7 @@ export async function veo31TextToVideo(
 			params,
 		});
 
-		const response = await delegate.makeRequest<Veo31Response>(
-			endpoint,
-			params as unknown as Record<string, unknown>
-		);
+		const response = await veoMakeRequest(delegate, endpoint, params);
 
 		if (!response.video?.url) {
 			throw new Error("No video URL in Veo 3.1 Standard response");
@@ -195,10 +224,7 @@ export async function veo31ImageToVideo(
 			}
 		);
 
-		const response = await delegate.makeRequest<Veo31Response>(
-			endpoint,
-			params as unknown as Record<string, unknown>
-		);
+		const response = await veoMakeRequest(delegate, endpoint, params);
 
 		if (!response.video?.url) {
 			throw new Error("No video URL in Veo 3.1 Standard response");
@@ -242,10 +268,7 @@ export async function veo31FrameToVideo(
 			}
 		);
 
-		const response = await delegate.makeRequest<Veo31Response>(
-			endpoint,
-			params as unknown as Record<string, unknown>
-		);
+		const response = await veoMakeRequest(delegate, endpoint, params);
 
 		if (!response.video?.url) {
 			throw new Error("No video URL in Veo 3.1 Standard response");
@@ -289,10 +312,7 @@ export async function veo31LiteTextToVideo(
 			params,
 		});
 
-		const response = await delegate.makeRequest<Veo31Response>(
-			endpoint,
-			params as unknown as Record<string, unknown>
-		);
+		const response = await veoMakeRequest(delegate, endpoint, params);
 
 		if (!response.video?.url) {
 			throw new Error("No video URL in Veo 3.1 Lite response");
@@ -330,10 +350,7 @@ export async function veo31LiteImageToVideo(
 			params,
 		});
 
-		const response = await delegate.makeRequest<Veo31Response>(
-			endpoint,
-			params as unknown as Record<string, unknown>
-		);
+		const response = await veoMakeRequest(delegate, endpoint, params);
 
 		if (!response.video?.url) {
 			throw new Error("No video URL in Veo 3.1 Lite response");
@@ -372,10 +389,7 @@ export async function veo31LiteFrameToVideo(
 			params,
 		});
 
-		const response = await delegate.makeRequest<Veo31Response>(
-			endpoint,
-			params as unknown as Record<string, unknown>
-		);
+		const response = await veoMakeRequest(delegate, endpoint, params);
 
 		if (!response.video?.url) {
 			throw new Error("No video URL in Veo 3.1 Lite response");
@@ -413,10 +427,7 @@ export async function veo31FastExtendVideo(
 			params,
 		});
 
-		const response = await delegate.makeRequest<Veo31Response>(
-			endpoint,
-			params as unknown as Record<string, unknown>
-		);
+		const response = await veoMakeRequest(delegate, endpoint, params);
 
 		if (!response.video?.url) {
 			throw new Error("No video URL in Veo 3.1 Fast extend response");
@@ -454,10 +465,7 @@ export async function veo31ExtendVideo(
 			params,
 		});
 
-		const response = await delegate.makeRequest<Veo31Response>(
-			endpoint,
-			params as unknown as Record<string, unknown>
-		);
+		const response = await veoMakeRequest(delegate, endpoint, params);
 
 		if (!response.video?.url) {
 			throw new Error("No video URL in Veo 3.1 Standard extend response");

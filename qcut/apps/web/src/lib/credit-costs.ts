@@ -16,6 +16,7 @@
  */
 
 import { AI_MODELS } from "@/components/editor/media-panel/views/ai/constants/ai-constants";
+import { TEXT2IMAGE_MODELS } from "./ai-models/text2image-models";
 import {
 	CREDIT_USD_MULTIPLIER,
 	creditsFromParsedPrice,
@@ -81,18 +82,31 @@ const COST_OVERRIDES: Record<
 		amountPerUnitCredits: 30,
 		label: "GPT-5.4",
 	},
-	// gpt-image-2 variants: $0.042 per image at default quality/size on both
-	// FAL and GMI paths. Rounded up to 5 credits for a small margin on
-	// larger sizes / high-quality tier.
-	"gpt-image-2-fal": {
-		unit: "fixed",
-		amountPerUnitCredits: 5,
-		label: "GPT-Image-2 (FAL)",
+	// Veo 3.1 FAL video tiers — per-second pricing (USD → credits at 100x).
+	// Source: electron/native-pipeline/registry-data (fast: $0.10/s,
+	// lite: $0.05/s, standard: $0.50/s). Same key is used across
+	// text-to-video / image-to-video / frame-to-video / extend-video.
+	"veo-3.1-fast": {
+		unit: "per-second",
+		amountPerUnitCredits: 10,
+		label: "Veo 3.1 Fast",
 	},
-	"gpt-image-2-gmi": {
-		unit: "fixed",
+	"veo-3.1-lite": {
+		unit: "per-second",
 		amountPerUnitCredits: 5,
-		label: "GPT-Image-2 (GMI)",
+		label: "Veo 3.1 Lite",
+	},
+	"veo-3.1": {
+		unit: "per-second",
+		amountPerUnitCredits: 50,
+		label: "Veo 3.1",
+	},
+	// Reve Edit — flat $0.04/image per FAL listing (same as Reve TTI).
+	// The TTI variant is priced via the TEXT2IMAGE_MODELS registry lookup.
+	"reve-edit": {
+		unit: "fixed",
+		amountPerUnitCredits: 4,
+		label: "Reve Edit",
 	},
 };
 
@@ -137,10 +151,18 @@ export function estimateCreditCost(
 		return computeFromOverride(override, params);
 	}
 	const parsed = lookupRegistryPrice(modelKey);
-	if (!parsed) return 1;
-	const credits = creditsFromParsedPrice(parsed, params);
-	if (credits == null) return 1;
-	return credits;
+	if (parsed) {
+		const credits = creditsFromParsedPrice(parsed, params);
+		if (credits != null) return credits;
+	}
+	// Fall back to the text-to-image registry, whose entries already carry
+	// `costPerImage` in cents (1 credit ≈ 1 cent). Keeps every GUI text2image
+	// model billable without duplicating pricing in COST_OVERRIDES.
+	const t2iModel = TEXT2IMAGE_MODELS[modelKey];
+	if (t2iModel?.costPerImage && t2iModel.costPerImage > 0) {
+		return Math.max(1, Math.round(t2iModel.costPerImage));
+	}
+	return 1;
 }
 
 function computeFromOverride(
@@ -195,14 +217,25 @@ export function getCreditCostInfo(modelKey: string): CreditCost | null {
 		};
 	}
 	const entry = AI_MODELS.find((m) => m.id === modelKey);
-	if (!entry) return null;
-	const parsed = parsePriceString(entry.price);
-	if (!parsed) return null;
-	return {
-		credits: parsed.amountUsd * CREDIT_USD_MULTIPLIER,
-		label: entry.name,
-		unit: unitLabel(parsed.unit),
-	};
+	if (entry) {
+		const parsed = parsePriceString(entry.price);
+		if (parsed) {
+			return {
+				credits: parsed.amountUsd * CREDIT_USD_MULTIPLIER,
+				label: entry.name,
+				unit: unitLabel(parsed.unit),
+			};
+		}
+	}
+	const t2iModel = TEXT2IMAGE_MODELS[modelKey];
+	if (t2iModel?.costPerImage && t2iModel.costPerImage > 0) {
+		return {
+			credits: t2iModel.costPerImage,
+			label: t2iModel.name,
+			unit: "per image",
+		};
+	}
+	return null;
 }
 
 export { CREDIT_USD_MULTIPLIER } from "./credit-costs-parser";

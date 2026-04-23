@@ -52,7 +52,8 @@ export async function reveTextToImage(
 
 		const response = await delegate.makeRequest<ReveTextToImageOutput>(
 			endpoint,
-			sanitizedParams as unknown as Record<string, unknown>
+			sanitizedParams as unknown as Record<string, unknown>,
+			{ modelKey: "reve-text-to-image" }
 		);
 
 		if (!response.images || response.images.length === 0) {
@@ -128,7 +129,8 @@ export async function reveEdit(
 
 		const response = await delegate.makeRequest<ReveEditOutput>(
 			endpoint,
-			sanitizedParams as unknown as Record<string, unknown>
+			sanitizedParams as unknown as Record<string, unknown>,
+			{ modelKey: "reve-edit" }
 		);
 
 		if (!response.images || response.images.length === 0) {
