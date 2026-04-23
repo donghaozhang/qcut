@@ -127,11 +127,7 @@ describe("makeFalRequest proxyFirst mode", () => {
 		mockGetAuthToken.mockResolvedValue("session-xyz");
 		mockFetch.mockResolvedValue(new Response('{"images":[]}', { status: 200 }));
 
-		await makeFalRequest(
-			"fal-ai/test",
-			{ prompt: "t" },
-			{ proxyFirst: true }
-		);
+		await makeFalRequest("fal-ai/test", { prompt: "t" }, { proxyFirst: true });
 
 		expect(mockFetch).toHaveBeenCalledOnce();
 		const [url, init] = mockFetch.mock.calls[0];
@@ -145,11 +141,7 @@ describe("makeFalRequest proxyFirst mode", () => {
 			.mockResolvedValueOnce(new Response("", { status: 500 }))
 			.mockResolvedValueOnce(new Response('{"images":[]}', { status: 200 }));
 
-		await makeFalRequest(
-			"fal-ai/test",
-			{ prompt: "t" },
-			{ proxyFirst: true }
-		);
+		await makeFalRequest("fal-ai/test", { prompt: "t" }, { proxyFirst: true });
 
 		expect(mockFetch).toHaveBeenCalledTimes(2);
 		const [, proxyInit] = mockFetch.mock.calls[0];
@@ -162,7 +154,9 @@ describe("makeFalRequest proxyFirst mode", () => {
 	it("returns proxy response on non-OK when no local key (no fallback available)", async () => {
 		vi.stubEnv("VITE_FAL_API_KEY", "");
 		mockGetAuthToken.mockResolvedValue("session-xyz");
-		mockFetch.mockResolvedValue(new Response('{"detail":"x"}', { status: 500 }));
+		mockFetch.mockResolvedValue(
+			new Response('{"detail":"x"}', { status: 500 })
+		);
 
 		const response = await makeFalRequest(
 			"fal-ai/test",
@@ -190,11 +184,7 @@ describe("makeFalRequest proxyFirst mode", () => {
 		mockGetAuthToken.mockResolvedValue("");
 		mockFetch.mockResolvedValue(new Response('{"images":[]}', { status: 200 }));
 
-		await makeFalRequest(
-			"fal-ai/test",
-			{ prompt: "t" },
-			{ proxyFirst: true }
-		);
+		await makeFalRequest("fal-ai/test", { prompt: "t" }, { proxyFirst: true });
 
 		expect(mockFetch).toHaveBeenCalledOnce();
 		const [url, init] = mockFetch.mock.calls[0];
@@ -222,11 +212,7 @@ describe("makeFalRequest proxyFirst mode", () => {
 		mockGetAuthToken.mockResolvedValue("session-xyz");
 		mockFetch.mockResolvedValue(new Response('{"images":[]}', { status: 200 }));
 
-		await makeFalRequest(
-			"fal-ai/test",
-			{ prompt: "t" },
-			{ proxyFirst: true }
-		);
+		await makeFalRequest("fal-ai/test", { prompt: "t" }, { proxyFirst: true });
 
 		const body = JSON.parse(mockFetch.mock.calls[0][1].body);
 		expect(body.credits).toBeUndefined();
