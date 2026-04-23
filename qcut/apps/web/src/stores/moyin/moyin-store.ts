@@ -297,6 +297,7 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 					status.openRouterApiKey?.set ||
 					status.geminiApiKey?.set ||
 					status.anthropicApiKey?.set ||
+					status.gmiApiKey?.set ||
 					false;
 				if (!configured) {
 					// Claude CLI is available as fallback (no API key required)
@@ -749,7 +750,7 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 		setSelectedProfileId: (id) => set({ selectedProfileId: id }),
 
 		enhanceCharacters: async () => {
-			const { characters, scriptData, rawScript } = get();
+			const { characters, scriptData, rawScript, parseModel } = get();
 			if (characters.length === 0) return;
 			set({
 				characterCalibrationStatus: "calibrating",
@@ -759,7 +760,8 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 				const enhanced = await enhanceCharactersLLM(
 					characters,
 					scriptData,
-					rawScript
+					rawScript,
+					parseModel
 				);
 				set({ characters: enhanced, characterCalibrationStatus: "done" });
 			} catch (error) {
@@ -771,11 +773,16 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 			}
 		},
 		enhanceScenes: async () => {
-			const { scenes, scriptData, rawScript } = get();
+			const { scenes, scriptData, rawScript, parseModel } = get();
 			if (scenes.length === 0) return;
 			set({ sceneCalibrationStatus: "calibrating", calibrationError: null });
 			try {
-				const enhanced = await enhanceScenesLLM(scenes, scriptData, rawScript);
+				const enhanced = await enhanceScenesLLM(
+					scenes,
+					scriptData,
+					rawScript,
+					parseModel
+				);
 				set({ scenes: enhanced, sceneCalibrationStatus: "done" });
 			} catch (error) {
 				set({

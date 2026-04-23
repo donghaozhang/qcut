@@ -6,11 +6,7 @@
 import { ipcMain, app } from "electron";
 import { writeFile, unlink } from "node:fs/promises";
 import { join, basename, normalize } from "node:path";
-import {
-	callLLM,
-	callClaudeCLI,
-	isClaudeCLIAvailable,
-} from "./moyin-llm.js";
+import { callLLM, callClaudeCLI, isClaudeCLIAvailable } from "./moyin-llm.js";
 
 interface Logger {
 	info(...args: unknown[]): void;
@@ -320,7 +316,7 @@ export function setupMoyinIPC(): void {
 
 	// Check if Claude CLI is available (for fallback LLM)
 	ipcMain.handle("moyin:is-claude-available", async (): Promise<boolean> => {
-		return isClaudeCLIAvailable();
+		return await isClaudeCLIAvailable();
 	});
 
 	// Save raw script text to a temp file (for PTY terminal CLI execution)

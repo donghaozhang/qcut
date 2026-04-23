@@ -59,6 +59,12 @@ export interface MoyinMediaResult {
 const FAL_IMAGE_URL = "https://fal.run/fal-ai/flux-pro/v1.1-ultra";
 const FAL_VIDEO_URL = "https://fal.run/fal-ai/wan/v2.1/image-to-video";
 
+// FAL image/video generation can be slow; guard against an unresponsive
+// endpoint hanging the IPC handler (and the renderer's "generating" state)
+// indefinitely.
+const FAL_IMAGE_TIMEOUT_MS = 120_000;
+const FAL_VIDEO_TIMEOUT_MS = 300_000;
+
 const GMI_IMAGE_MODEL_DEFAULT = "seedream-4.0";
 const GMI_VIDEO_MODEL_DEFAULT = "veo-3.1-lite-generate-001";
 
@@ -69,35 +75,43 @@ async function generateFalImage(
 	options: MoyinGenerateImageOptions
 ): Promise<string> {
 	const size = options.size ?? { width: 1920, height: 1080 };
-	const response = await fetch(FAL_IMAGE_URL, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-			Authorization: `Key ${apiKey}`,
-		},
-		body: JSON.stringify({
-			prompt: options.prompt,
-			num_images: 1,
-			image_size: size,
-			safety_tolerance: "6",
-		}),
-	});
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), FAL_IMAGE_TIMEOUT_MS);
 
-	if (!response.ok) {
-		const errorData = (await response.json().catch(() => ({}))) as Record<
-			string,
-			unknown
-		>;
-		const detail = errorData.detail || response.statusText;
-		throw new Error(`FAL image generation failed: ${detail}`);
-	}
+	try {
+		const response = await fetch(FAL_IMAGE_URL, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Key ${apiKey}`,
+			},
+			body: JSON.stringify({
+				prompt: options.prompt,
+				num_images: 1,
+				image_size: size,
+				safety_tolerance: "6",
+			}),
+			signal: controller.signal,
+		});
 
-	const data = (await response.json()) as { images?: Array<{ url: string }> };
-	const imageUrl = data.images?.[0]?.url;
-	if (!imageUrl) {
-		throw new Error("No image returned from FAL API");
+		if (!response.ok) {
+			const errorData = (await response.json().catch(() => ({}))) as Record<
+				string,
+				unknown
+			>;
+			const detail = errorData.detail || response.statusText;
+			throw new Error(`FAL image generation failed: ${detail}`);
+		}
+
+		const data = (await response.json()) as { images?: Array<{ url: string }> };
+		const imageUrl = data.images?.[0]?.url;
+		if (!imageUrl) {
+			throw new Error("No image returned from FAL API");
+		}
+		return imageUrl;
+	} finally {
+		clearTimeout(timeout);
 	}
-	return imageUrl;
 }
 
 async function generateGmiImage(
@@ -115,7 +129,9 @@ async function generateGmiImage(
 	});
 
 	if (!result.success) {
-		throw new Error(`GMI image generation failed: ${result.error ?? "unknown"}`);
+		throw new Error(
+			`GMI image generation failed: ${result.error ?? "unknown"}`
+		);
 	}
 	if (!result.outputUrl) {
 		throw new Error("No image URL returned from GMI");
@@ -129,33 +145,41 @@ async function generateFalVideo(
 	apiKey: string,
 	options: MoyinGenerateVideoOptions
 ): Promise<string> {
-	const response = await fetch(FAL_VIDEO_URL, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-			Authorization: `Key ${apiKey}`,
-		},
-		body: JSON.stringify({
-			image_url: options.imageUrl,
-			prompt: options.prompt,
-		}),
-	});
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), FAL_VIDEO_TIMEOUT_MS);
 
-	if (!response.ok) {
-		const errorData = (await response.json().catch(() => ({}))) as Record<
-			string,
-			unknown
-		>;
-		const detail = errorData.detail || response.statusText;
-		throw new Error(`FAL video generation failed: ${detail}`);
-	}
+	try {
+		const response = await fetch(FAL_VIDEO_URL, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Key ${apiKey}`,
+			},
+			body: JSON.stringify({
+				image_url: options.imageUrl,
+				prompt: options.prompt,
+			}),
+			signal: controller.signal,
+		});
 
-	const data = (await response.json()) as { video?: { url: string } };
-	const videoUrl = data.video?.url;
-	if (!videoUrl) {
-		throw new Error("No video URL returned from FAL");
+		if (!response.ok) {
+			const errorData = (await response.json().catch(() => ({}))) as Record<
+				string,
+				unknown
+			>;
+			const detail = errorData.detail || response.statusText;
+			throw new Error(`FAL video generation failed: ${detail}`);
+		}
+
+		const data = (await response.json()) as { video?: { url: string } };
+		const videoUrl = data.video?.url;
+		if (!videoUrl) {
+			throw new Error("No video URL returned from FAL");
+		}
+		return videoUrl;
+	} finally {
+		clearTimeout(timeout);
 	}
-	return videoUrl;
 }
 
 async function generateGmiVideo(
@@ -171,7 +195,9 @@ async function generateGmiVideo(
 	});
 
 	if (!result.success) {
-		throw new Error(`GMI video generation failed: ${result.error ?? "unknown"}`);
+		throw new Error(
+			`GMI video generation failed: ${result.error ?? "unknown"}`
+		);
 	}
 	if (!result.outputUrl) {
 		throw new Error("No video URL returned from GMI");

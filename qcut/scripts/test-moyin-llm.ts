@@ -19,11 +19,18 @@ loadEnvFile();
 setSessionTokenProvider(async () => getKey("QCUT_AUTH_TOKEN") ?? "");
 
 const modelArg = process.argv.indexOf("--model");
-const model = modelArg !== -1 ? process.argv[modelArg + 1] : "gmi-glm-5.1";
+const modelValue = modelArg !== -1 ? process.argv[modelArg + 1] : undefined;
+if (modelArg !== -1 && (!modelValue || modelValue.startsWith("-"))) {
+	console.error("Error: --model flag requires a non-empty value");
+	process.exit(1);
+}
+const model = modelValue ?? "gmi-glm-5.1";
 
 async function main(): Promise<void> {
-	console.log(`resolveLlmProvider(${JSON.stringify(model)}) =`,
-		resolveLlmProvider(model));
+	console.log(
+		`resolveLlmProvider(${JSON.stringify(model)}) =`,
+		resolveLlmProvider(model)
+	);
 
 	const start = Date.now();
 	const reply = await callLLM(

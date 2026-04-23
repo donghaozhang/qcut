@@ -1,18 +1,21 @@
 /**
  * Moyin LLM Dispatch
  *
- * Routes LLM calls across four sources, in order:
- *   1. Local OpenRouter key → direct OpenAI-compatible fetch
- *   2. Local Gemini key → direct Gemini fetch
- *   3. License-server proxy (OpenRouter) when the user is signed in
- *   4. Claude CLI fallback (no key required, slow)
+ * Routes LLM calls across providers, in order:
+ *   1. GMI Cloud (when a gmi-* alias is selected: local key → proxy)
+ *   2. Local OpenRouter key → direct OpenAI-compatible fetch
+ *   3. Local Gemini key → direct Gemini fetch
+ *   4. License-server proxy (OpenRouter) when the user is signed in
+ *
+ * `callClaudeCLI` is exported as an opt-in fallback (used by the PTY CLI
+ * path and tests); it is not part of the `callLLM` dispatch chain.
  *
  * Extracted from moyin-handler.ts so it can be imported by both the IPC
  * handler and the HTTP-route orchestrator, and unit-tested without the
  * handler file's CJS/ESM interop hack.
  */
 
-import { spawn, execSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { getDecryptedApiKeys } from "./api-key-handler.js";
 import {
 	isProxyAvailable,
@@ -115,12 +118,7 @@ export async function callLLM(
 			log.info(
 				`[Moyin] callLLM using GMI via proxy (${resolved.model}, prompt: ${userPrompt.length} chars)`
 			);
-			return callGmiViaProxy(
-				resolved.model,
-				systemPrompt,
-				userPrompt,
-				options
-			);
+			return callGmiViaProxy(resolved.model, systemPrompt, userPrompt, options);
 		}
 		throw new Error(
 			`No GMI API key configured for model ${options.model}. Sign in to QCut, or set GMI_API_KEY in Settings or ~/.qcut/.env`
@@ -141,7 +139,7 @@ export async function callLLM(
 		log.info(
 			`[Moyin] callLLM using Gemini (prompt: ${userPrompt.length} chars)`
 		);
-		return callGemini(googleKey, systemPrompt, userPrompt);
+		return callGemini(googleKey, systemPrompt, userPrompt, options);
 	}
 
 	if (await isProxyAvailable()) {
@@ -174,7 +172,9 @@ async function callGmiLLM(
 				"Content-Type": "application/json",
 				Authorization: `Bearer ${apiKey}`,
 			},
-			body: JSON.stringify(buildGmiChatPayload(model, systemPrompt, userPrompt, options)),
+			body: JSON.stringify(
+				buildGmiChatPayload(model, systemPrompt, userPrompt, options)
+			),
 			signal: controller.signal,
 		});
 
@@ -365,7 +365,8 @@ async function callOpenAICompatible(
 async function callGemini(
 	apiKey: string,
 	systemPrompt: string,
-	userPrompt: string
+	userPrompt: string,
+	options: { temperature?: number; maxTokens?: number } = {}
 ): Promise<string> {
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -382,8 +383,8 @@ async function callGemini(
 					},
 					contents: [{ role: "user", parts: [{ text: userPrompt }] }],
 					generationConfig: {
-						temperature: 0.7,
-						maxOutputTokens: 4096,
+						temperature: options.temperature ?? 0.7,
+						maxOutputTokens: options.maxTokens ?? 4096,
 					},
 				}),
 				signal: controller.signal,
@@ -435,10 +436,12 @@ export async function callClaudeCLI(
 			"[Moyin] Spawning claude -p (claude-haiku-4-5-20251001, 600s timeout)..."
 		);
 
-		const env = { ...process.env };
-		delete env.CLAUDECODE;
-		delete env.CLAUDE_CODE_ENTRYPOINT;
-		delete env.CLAUDE_CODE_SSE_PORT;
+		const {
+			CLAUDECODE: _claudeCode,
+			CLAUDE_CODE_ENTRYPOINT: _claudeEntry,
+			CLAUDE_CODE_SSE_PORT: _claudeSse,
+			...env
+		} = process.env;
 
 		const child = spawn("claude", args, {
 			stdio: ["pipe", "pipe", "pipe"],
@@ -543,11 +546,23 @@ export async function callClaudeCLI(
 }
 
 /** Check if the claude CLI is available on PATH. */
-export function isClaudeCLIAvailable(): boolean {
-	try {
-		execSync("claude --version", { timeout: 5000, stdio: "pipe" });
-		return true;
-	} catch {
-		return false;
-	}
+export async function isClaudeCLIAvailable(): Promise<boolean> {
+	return new Promise((resolve) => {
+		const child = spawn("claude", ["--version"], { stdio: "ignore" });
+
+		const timeoutId = setTimeout(() => {
+			child.kill("SIGTERM");
+			resolve(false);
+		}, 5_000);
+
+		child.once("error", () => {
+			clearTimeout(timeoutId);
+			resolve(false);
+		});
+
+		child.once("close", (code) => {
+			clearTimeout(timeoutId);
+			resolve(code === 0);
+		});
+	});
 }

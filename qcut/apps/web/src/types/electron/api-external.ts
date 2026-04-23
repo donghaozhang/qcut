@@ -11,6 +11,7 @@ export interface ElectronApiKeyOps {
 			openRouterApiKey: string;
 			anthropicApiKey: string;
 			elevenLabsApiKey: string;
+			gmiApiKey: string;
 		}>;
 		set: (keys: {
 			falApiKey?: string;
@@ -19,6 +20,7 @@ export interface ElectronApiKeyOps {
 			openRouterApiKey?: string;
 			anthropicApiKey?: string;
 			elevenLabsApiKey?: string;
+			gmiApiKey?: string;
 		}) => Promise<boolean>;
 		clear: () => Promise<boolean>;
 		status: () => Promise<{
@@ -28,6 +30,7 @@ export interface ElectronApiKeyOps {
 			openRouterApiKey: { set: boolean; source: string };
 			anthropicApiKey: { set: boolean; source: string };
 			elevenLabsApiKey: { set: boolean; source: string };
+			gmiApiKey: { set: boolean; source: string };
 		}>;
 	};
 }

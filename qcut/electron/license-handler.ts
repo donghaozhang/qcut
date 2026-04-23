@@ -248,7 +248,7 @@ export function setupLicenseIPC(): void {
 	// the license server when the user is signed in without a local API key.
 	setSessionTokenProvider(getAuthToken);
 
-	ipcMain.handle("license:set-auth-token", async (_event, token: string) => {
+	ipcMain.handle("license:set-auth-token", async (_event, token: unknown) => {
 		if (typeof token !== "string") {
 			log.warn("[License] license:set-auth-token called with non-string");
 			return false;

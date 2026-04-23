@@ -256,7 +256,7 @@ export async function attemptPtyParse(
 
 		// 3. Build and write CLI command (shell-quote values to prevent injection)
 		const q = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
-		const cmd = `cd ${q(projectRoot)} && bun run pipeline moyin:parse-script --script ${q(saveResult.filePath)} --model ${model} --stream`;
+		const cmd = `cd ${q(projectRoot)} && bun run pipeline moyin:parse-script --script ${q(saveResult.filePath)} --model ${q(model)} --stream`;
 
 		await ptyApi.write(sessionId, cmd + "\n");
 
