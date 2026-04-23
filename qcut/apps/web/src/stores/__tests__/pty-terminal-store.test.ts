@@ -136,6 +136,7 @@ describe("usePtyTerminalStore", () => {
 				openRouterApiKey: "sk-or-test-key",
 				anthropicApiKey: "",
 				elevenLabsApiKey: "",
+				gmiApiKey: "",
 			});
 
 			const { result } = renderHook(() => usePtyTerminalStore());
@@ -170,6 +171,7 @@ describe("usePtyTerminalStore", () => {
 				openRouterApiKey: "sk-or-test-key",
 				anthropicApiKey: "",
 				elevenLabsApiKey: "",
+				gmiApiKey: "",
 			});
 
 			const { result } = renderHook(() => usePtyTerminalStore());
@@ -199,6 +201,7 @@ describe("usePtyTerminalStore", () => {
 				openRouterApiKey: "",
 				anthropicApiKey: "",
 				elevenLabsApiKey: "",
+				gmiApiKey: "",
 			});
 
 			const { result } = renderHook(() => usePtyTerminalStore());
@@ -567,6 +570,7 @@ describe("usePtyTerminalStore", () => {
 				openRouterApiKey: "sk-or-test-key",
 				anthropicApiKey: "",
 				elevenLabsApiKey: "",
+				gmiApiKey: "",
 			});
 
 			const { result } = renderHook(() => usePtyTerminalStore());
