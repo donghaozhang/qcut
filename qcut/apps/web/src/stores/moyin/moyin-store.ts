@@ -15,7 +15,6 @@ import type {
 import {
 	buildShotImagePrompt,
 	buildEndFramePrompt,
-	generateFalImage,
 	generateShotImageRequest,
 	generateShotVideoRequest,
 	persistShotMedia,
@@ -110,6 +109,10 @@ interface MoyinState {
 	createError: string | null;
 	selectedShotIds: Set<string>;
 	parseModel: string;
+	/** Provider used for storyboard image generation ("fal" | "gmi"). */
+	imageProvider: "fal" | "gmi";
+	/** Provider used for storyboard video generation ("fal" | "gmi"). */
+	videoProvider: "fal" | "gmi";
 	/** Preserved from generate step so shot calibration can respect it. */
 	lastTargetDuration: string | undefined;
 }
@@ -117,7 +120,7 @@ interface MoyinState {
 interface MoyinActions {
 	setActiveStep: (step: MoyinStep) => void;
 	setRawScript: (text: string) => void;
-	parseScript: () => Promise<void>;
+	parseScript: (options?: { skipPty?: boolean }) => Promise<void>;
 	parseNovel: (
 		novelText: string,
 		language?: "zh" | "en" | "auto"
@@ -131,6 +134,8 @@ interface MoyinActions {
 	setSceneCount: (count: string) => void;
 	setShotCount: (count: string) => void;
 	setParseModel: (model: string) => void;
+	setImageProvider: (provider: "fal" | "gmi") => void;
+	setVideoProvider: (provider: "fal" | "gmi") => void;
 	checkApiKeyStatus: () => Promise<void>;
 	updateCharacter: (id: string, updates: Partial<ScriptCharacter>) => void;
 	addCharacter: (char: ScriptCharacter) => void;
@@ -224,7 +229,14 @@ const initialState: MoyinState = {
 	createStatus: "idle",
 	createError: null,
 	selectedShotIds: new Set<string>(),
-	parseModel: "minimax",
+	// Default to GMI GLM-5.1 — the license-server proxy currently has
+	// GMI_API_KEY configured but not OPENROUTER_API_KEY, so picking an
+	// OpenRouter-routed model by default would 503. Users can still switch
+	// to minimax/kimi/etc. via the Parse Model selector; the proxy will
+	// work for those as soon as the Worker gets the OpenRouter key.
+	parseModel: "gmi-glm-5.1",
+	imageProvider: "fal",
+	videoProvider: "fal",
 	lastTargetDuration: undefined,
 };
 
@@ -271,6 +283,8 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 		setSceneCount: (count) => set({ sceneCount: count }),
 		setShotCount: (count) => set({ shotCount: count }),
 		setParseModel: (model) => set({ parseModel: model }),
+		setImageProvider: (provider) => set({ imageProvider: provider }),
+		setVideoProvider: (provider) => set({ videoProvider: provider }),
 
 		checkApiKeyStatus: async () => {
 			try {
@@ -283,6 +297,7 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 					status.openRouterApiKey?.set ||
 					status.geminiApiKey?.set ||
 					status.anthropicApiKey?.set ||
+					status.gmiApiKey?.set ||
 					false;
 				if (!configured) {
 					// Claude CLI is available as fallback (no API key required)
@@ -295,7 +310,7 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 			}
 		},
 
-		parseScript: async () => {
+		parseScript: async (options?: { skipPty?: boolean }) => {
 			const { rawScript, parseModel } = get();
 			if (!rawScript.trim()) return;
 
@@ -316,9 +331,22 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 
 			advancePipeline("import", "active");
 
+			// Cancel any stale PTY timeout from a previous parse attempt —
+			// otherwise it can fire mid-way through this new parse and
+			// flip parseStatus back to "error" even though the new call
+			// is succeeding.
+			if (parseTimeoutRef != null) {
+				clearTimeout(parseTimeoutRef);
+				parseTimeoutRef = null;
+			}
+
 			// --- PTY path: stream output in terminal, data arrives via onParsed ---
+			// CLI-triggered parses skip PTY to go straight to the IPC path,
+			// which calls callLLM directly and reports real errors instantly.
 			ensureParsedListenerRegistered();
-			const ptyResult = await attemptPtyParse(rawScript, parseModel);
+			const ptyResult = options?.skipPty
+				? { success: false as const }
+				: await attemptPtyParse(rawScript, parseModel);
 			if (ptyResult.success) {
 				const pendingPath = ptyResult.tempPath ?? null;
 				// Set a 3-minute timeout for PTY path (scoped to this run)
@@ -347,7 +375,10 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 					throw new Error("Moyin API not available. Please run in Electron.");
 				}
 
-				const result = await api.parseScript({ rawScript });
+				const result = await api.parseScript({
+					rawScript,
+					model: get().parseModel,
+				});
 
 				if (!result.success || !result.data) {
 					throw new Error(result.error || "Failed to parse script");
@@ -359,10 +390,15 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 					selectedShotIds: new Set<string>(),
 					activeStep: "characters",
 				});
-				await runCalibrationPipeline(data, rawScript, {
-					getState: get,
-					setState: set,
-				});
+				await runCalibrationPipeline(
+					data,
+					rawScript,
+					{
+						getState: get,
+						setState: set,
+					},
+					get().parseModel
+				);
 				set({ parseStatus: "ready" });
 			} catch (error) {
 				const currentStep = get().pipelineStep;
@@ -530,7 +566,10 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 					selectedStyleId
 				);
 				patchShot(shotId, { imageProgress: 30 });
-				const remoteImageUrl = await generateShotImageRequest(prompt);
+				const remoteImageUrl = await generateShotImageRequest(
+					prompt,
+					get().imageProvider
+				);
 				const imageUrl = await persistShotMedia(
 					remoteImageUrl,
 					`shot-${shotId}-image.png`
@@ -564,7 +603,8 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 				patchShot(shotId, { videoProgress: 20 });
 				const remoteVideoUrl = await generateShotVideoRequest(
 					shot.imageUrl,
-					prompt
+					prompt,
+					get().videoProvider
 				);
 				const videoUrl = await persistShotMedia(
 					remoteVideoUrl,
@@ -594,7 +634,10 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 			try {
 				const prompt = buildEndFramePrompt(shot);
 				if (!prompt) throw new Error("No end frame prompt available.");
-				const remoteUrl = await generateFalImage(prompt);
+				const remoteUrl = await generateShotImageRequest(
+					prompt,
+					get().imageProvider
+				);
 				const endFrameImageUrl = await persistShotMedia(
 					remoteUrl,
 					`shot-${shotId}-endframe.png`
@@ -707,7 +750,7 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 		setSelectedProfileId: (id) => set({ selectedProfileId: id }),
 
 		enhanceCharacters: async () => {
-			const { characters, scriptData, rawScript } = get();
+			const { characters, scriptData, rawScript, parseModel } = get();
 			if (characters.length === 0) return;
 			set({
 				characterCalibrationStatus: "calibrating",
@@ -717,7 +760,8 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 				const enhanced = await enhanceCharactersLLM(
 					characters,
 					scriptData,
-					rawScript
+					rawScript,
+					parseModel
 				);
 				set({ characters: enhanced, characterCalibrationStatus: "done" });
 			} catch (error) {
@@ -729,11 +773,16 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 			}
 		},
 		enhanceScenes: async () => {
-			const { scenes, scriptData, rawScript } = get();
+			const { scenes, scriptData, rawScript, parseModel } = get();
 			if (scenes.length === 0) return;
 			set({ sceneCalibrationStatus: "calibrating", calibrationError: null });
 			try {
-				const enhanced = await enhanceScenesLLM(scenes, scriptData, rawScript);
+				const enhanced = await enhanceScenesLLM(
+					scenes,
+					scriptData,
+					rawScript,
+					parseModel
+				);
 				set({ scenes: enhanced, sceneCalibrationStatus: "done" });
 			} catch (error) {
 				set({
@@ -782,7 +831,8 @@ export const useMoyinStore = create<MoyinStore>((set, get) => {
 					characters,
 					selectedStyleId,
 					scriptData,
-					(p) => set({ generationProgress: p })
+					(p) => set({ generationProgress: p }),
+					get().imageProvider
 				);
 				set({
 					generationStatus: "done",
@@ -900,10 +950,15 @@ function ensureParsedListenerRegistered(): void {
 			});
 
 			// Run full calibration pipeline (title, synopsis, shots, characters, scenes)
-			runCalibrationPipeline(scriptData, state.rawScript, {
-				getState: useMoyinStore.getState,
-				setState: useMoyinStore.setState,
-			})
+			runCalibrationPipeline(
+				scriptData,
+				state.rawScript,
+				{
+					getState: useMoyinStore.getState,
+					setState: useMoyinStore.setState,
+				},
+				useMoyinStore.getState().parseModel
+			)
 				.then(() => {
 					useMoyinStore.setState({ parseStatus: "ready" });
 				})

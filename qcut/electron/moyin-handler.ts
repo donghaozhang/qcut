@@ -4,10 +4,9 @@
  */
 
 import { ipcMain, app } from "electron";
-import { spawn, execSync } from "node:child_process";
 import { writeFile, unlink } from "node:fs/promises";
 import { join, basename, normalize } from "node:path";
-import { getDecryptedApiKeys } from "./api-key-handler.js";
+import { callLLM, callClaudeCLI, isClaudeCLIAvailable } from "./moyin-llm.js";
 
 interface Logger {
 	info(...args: unknown[]): void;
@@ -32,6 +31,11 @@ export interface MoyinParseOptions {
 	rawScript: string;
 	language?: string;
 	sceneCount?: number;
+	/**
+	 * Model alias (see MODEL_OPTIONS in moyin-parse-actions). When a
+	 * `gmi-*` alias is passed, callLLM routes through GMI Cloud.
+	 */
+	model?: string;
 }
 
 export interface MoyinParseResult {
@@ -128,291 +132,9 @@ Important requirements:
 7. Episode IDs use ep_1, ep_2 format
 8. visualPrompt for scenes must be in English`;
 
-// ==================== LLM Call ====================
-
-const REQUEST_TIMEOUT_MS = 60_000;
-
-/** Route an LLM call to OpenRouter, Gemini, or Claude CLI based on available keys. */
-export async function callLLM(
-	systemPrompt: string,
-	userPrompt: string,
-	options: { temperature?: number; maxTokens?: number } = {}
-): Promise<string> {
-	const keys = await getDecryptedApiKeys();
-
-	// Try OpenRouter key first, then Gemini
-	const openaiKey = keys.openRouterApiKey;
-	const googleKey = keys.geminiApiKey;
-
-	if (!openaiKey && !googleKey) {
-		throw new Error(
-			"No LLM API key configured. Set OPENROUTER_API_KEY or GEMINI_API_KEY in Settings or ~/.qcut/.env"
-		);
-	}
-
-	const provider = openaiKey ? "OpenRouter" : "Gemini";
-	log.info(
-		`[Moyin] callLLM using ${provider} (prompt: ${userPrompt.length} chars)`
-	);
-
-	if (openaiKey) {
-		return callOpenAICompatible(openaiKey, systemPrompt, userPrompt, options);
-	}
-
-	return callGemini(googleKey!, systemPrompt, userPrompt);
-}
-
-/** Call an OpenAI-compatible API (OpenRouter or direct OpenAI). */
-async function callOpenAICompatible(
-	apiKey: string,
-	systemPrompt: string,
-	userPrompt: string,
-	options: { temperature?: number; maxTokens?: number } = {}
-): Promise<string> {
-	// Determine endpoint - OpenRouter or OpenAI
-	const isOpenRouter = apiKey.startsWith("sk-or-");
-	const baseUrl = isOpenRouter
-		? "https://openrouter.ai/api/v1"
-		: "https://api.openai.com/v1";
-	const model = isOpenRouter ? "google/gemini-3-flash-preview" : "gpt-4o-mini";
-
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-	try {
-		const response = await fetch(`${baseUrl}/chat/completions`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${apiKey}`,
-			},
-			body: JSON.stringify({
-				model,
-				messages: [
-					{ role: "system", content: systemPrompt },
-					{ role: "user", content: userPrompt },
-				],
-				temperature: options.temperature ?? 0.7,
-				max_tokens: options.maxTokens ?? 4096,
-			}),
-			signal: controller.signal,
-		});
-
-		if (!response.ok) {
-			const errText = await response.text().catch(() => "");
-			throw new Error(
-				`LLM API error (${response.status}): ${errText.slice(0, 200)}`
-			);
-		}
-
-		const data = (await response.json()) as {
-			choices?: Array<{ message?: { content?: string } }>;
-		};
-		const content = data.choices?.[0]?.message?.content;
-		if (!content) {
-			throw new Error("Empty response from LLM");
-		}
-
-		return content;
-	} finally {
-		clearTimeout(timeout);
-	}
-}
-
-/** Call the Google Gemini generative language API. */
-async function callGemini(
-	apiKey: string,
-	systemPrompt: string,
-	userPrompt: string
-): Promise<string> {
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-	try {
-		const response = await fetch(
-			`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					system_instruction: {
-						parts: [{ text: systemPrompt }],
-					},
-					contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-					generationConfig: {
-						temperature: 0.7,
-						maxOutputTokens: 4096,
-					},
-				}),
-				signal: controller.signal,
-			}
-		);
-
-		if (!response.ok) {
-			const errText = await response.text().catch(() => "");
-			throw new Error(
-				`Gemini API error (${response.status}): ${errText.slice(0, 200)}`
-			);
-		}
-
-		const data = (await response.json()) as {
-			candidates?: Array<{
-				content?: { parts?: Array<{ text?: string }> };
-			}>;
-		};
-		const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-		if (!text) {
-			throw new Error("Empty response from Gemini");
-		}
-
-		return text;
-	} finally {
-		clearTimeout(timeout);
-	}
-}
-
-// ==================== Claude CLI Fallback ====================
-
-const CLAUDE_CLI_TIMEOUT_MS = 600_000;
-
-/** Spawn the Claude CLI as a child process for LLM inference (no API key needed). */
-async function callClaudeCLI(
-	systemPrompt: string,
-	userPrompt: string
-): Promise<string> {
-	return new Promise((resolve, reject) => {
-		const args = [
-			"-p",
-			"--model",
-			"claude-haiku-4-5-20251001",
-			"--output-format",
-			"json",
-			"--max-turns",
-			"1",
-			"--system-prompt",
-			systemPrompt,
-		];
-
-		log.info(
-			"[Moyin] Spawning claude -p (claude-haiku-4-5-20251001, 600s timeout)..."
-		);
-
-		const env = { ...process.env };
-		delete env.CLAUDECODE;
-		delete env.CLAUDE_CODE_ENTRYPOINT;
-		delete env.CLAUDE_CODE_SSE_PORT;
-
-		const child = spawn("claude", args, {
-			stdio: ["pipe", "pipe", "pipe"],
-			env,
-		});
-
-		log.info("[Moyin] Claude CLI spawned, PID:", child.pid);
-
-		let stdout = "";
-		let stderr = "";
-		let settled = false;
-
-		child.stdout.on("data", (chunk: Buffer) => {
-			stdout += chunk.toString();
-			log.info(
-				`[Moyin] Claude CLI stdout chunk: +${chunk.length} bytes (total: ${stdout.length})`
-			);
-		});
-		child.stderr.on("data", (chunk: Buffer) => {
-			stderr += chunk.toString();
-			log.warn(
-				`[Moyin] Claude CLI stderr: ${chunk.toString().trim().slice(0, 200)}`
-			);
-		});
-
-		const timeoutId = setTimeout(() => {
-			if (!settled) {
-				settled = true;
-				child.kill("SIGTERM");
-				log.error("[Moyin] Claude CLI timed out after 600s");
-				reject(
-					new Error(
-						"Claude CLI timed out after 600s. Configure an API key in Settings for faster parsing."
-					)
-				);
-			}
-		}, CLAUDE_CLI_TIMEOUT_MS);
-
-		child.on("close", (code) => {
-			if (settled) return;
-			settled = true;
-			clearTimeout(timeoutId);
-			if (code !== 0) {
-				log.error(
-					`[Moyin] Claude CLI exit ${code}: ${stderr.trim().slice(0, 200)}`
-				);
-				reject(
-					new Error(
-						`Claude CLI failed (exit ${code}): ${stderr.trim().slice(0, 200)}`
-					)
-				);
-			} else {
-				const raw = stdout.trim();
-				if (!raw) {
-					reject(new Error("Empty response from Claude CLI"));
-					return;
-				}
-
-				// --output-format json wraps result in {type, result, ...}
-				let text = raw;
-				try {
-					const envelope = JSON.parse(raw) as {
-						result?: unknown;
-						is_error?: unknown;
-						duration_ms?: number;
-					};
-					if (envelope.is_error === true) {
-						reject(
-							new Error(`Claude CLI error: ${envelope.result || "unknown"}`)
-						);
-						return;
-					}
-					if (typeof envelope.result === "string") {
-						log.info(`[Moyin] Claude CLI envelope: ${envelope.duration_ms}ms`);
-						text = envelope.result;
-					}
-				} catch (e) {
-					log.info(
-						`[Moyin] Could not parse Claude CLI output as JSON envelope, using raw output. Error: ${e instanceof Error ? e.message : String(e)}`
-					);
-				}
-
-				log.info(`[Moyin] Claude CLI returned ${text.length} chars`);
-				resolve(text);
-			}
-		});
-
-		child.on("error", (err) => {
-			if (settled) return;
-			settled = true;
-			clearTimeout(timeoutId);
-			reject(
-				new Error(
-					`Claude CLI not found: ${err.message}. Install with: npm install -g @anthropic-ai/claude-code`
-				)
-			);
-		});
-
-		child.stdin.write(userPrompt);
-		child.stdin.end();
-	});
-}
-
-/** Check if claude CLI is available on PATH. */
-function isClaudeCLIAvailable(): boolean {
-	try {
-		execSync("claude --version", { timeout: 5000, stdio: "pipe" });
-		return true;
-	} catch {
-		return false;
-	}
-}
+// Re-export LLM dispatch for downstream consumers (e.g. novel-parse-handler)
+// that were previously importing `callLLM` from this file directly.
+export { callLLM };
 
 // ==================== IPC Setup ====================
 
@@ -426,6 +148,7 @@ export function setupMoyinIPC(): void {
 				log.info("[Moyin] Parsing script...", {
 					length: options.rawScript.length,
 					language: options.language,
+					model: options.model,
 				});
 
 				let userPrompt = options.rawScript;
@@ -438,36 +161,83 @@ export function setupMoyinIPC(): void {
 
 				const response = await callLLM(PARSE_SYSTEM_PROMPT, userPrompt, {
 					temperature: 0.7,
-					maxTokens: 4096,
+					// Long screenplays (6K+ chars) with many characters/scenes
+					// produce JSON well over 4K tokens. Truncation leaves a
+					// dangling brace, which then fails JSON.parse at position 1.
+					maxTokens: 16_384,
+					model: options.model,
 				});
 
-				// Extract JSON from response
+				// Extract JSON from response. Strip markdown fences, locate the
+				// outermost JSON object, and fix common LLM JSON quirks.
 				const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
 				let cleaned = jsonMatch ? jsonMatch[1].trim() : response.trim();
 
-				// Find outermost JSON object
 				const firstBrace = cleaned.indexOf("{");
 				if (firstBrace === -1) {
+					log.error(
+						"[Moyin] No JSON object found. Response preview:",
+						response.slice(0, 500)
+					);
 					throw new Error("No JSON found in LLM response");
 				}
 
+				// Walk depth, but treat braces inside string literals as content.
 				let depth = 0;
 				let endIdx = firstBrace;
+				let inString = false;
+				let escaped = false;
 				for (let i = firstBrace; i < cleaned.length; i++) {
-					if (cleaned[i] === "{") depth++;
-					if (cleaned[i] === "}") depth--;
-					if (depth === 0) {
-						endIdx = i;
-						break;
+					const ch = cleaned[i];
+					if (inString) {
+						if (escaped) {
+							escaped = false;
+						} else if (ch === "\\") {
+							escaped = true;
+						} else if (ch === '"') {
+							inString = false;
+						}
+						continue;
+					}
+					if (ch === '"') {
+						inString = true;
+						continue;
+					}
+					if (ch === "{") depth++;
+					else if (ch === "}") {
+						depth--;
+						if (depth === 0) {
+							endIdx = i;
+							break;
+						}
 					}
 				}
 				cleaned = cleaned.substring(firstBrace, endIdx + 1);
 
-				const parsed = JSON.parse(cleaned);
+				// Strip trailing commas before closing brackets — GLM-5.1 and
+				// other models occasionally emit them.
+				cleaned = cleaned.replace(/,(\s*[}\]])/g, "$1");
 
+				let parsed: Record<string, unknown>;
+				try {
+					parsed = JSON.parse(cleaned);
+				} catch (parseErr) {
+					log.error(
+						"[Moyin] JSON.parse failed.",
+						parseErr instanceof Error ? parseErr.message : String(parseErr),
+						"\nCleaned (first 400):",
+						cleaned.slice(0, 400),
+						"\nRaw response (first 400):",
+						response.slice(0, 400)
+					);
+					throw parseErr;
+				}
+
+				const chars = parsed.characters;
+				const scenes = parsed.scenes;
 				log.info("[Moyin] Script parsed successfully", {
-					characters: parsed.characters?.length || 0,
-					scenes: parsed.scenes?.length || 0,
+					characters: Array.isArray(chars) ? chars.length : 0,
+					scenes: Array.isArray(scenes) ? scenes.length : 0,
 				});
 
 				return { success: true, data: parsed };
@@ -518,17 +288,20 @@ export function setupMoyinIPC(): void {
 				userPrompt: string;
 				temperature?: number;
 				maxTokens?: number;
+				model?: string;
 			}
 		): Promise<{ success: boolean; text?: string; error?: string }> => {
 			try {
 				log.info("[Moyin] LLM call...", {
 					systemLen: options.systemPrompt.length,
 					userLen: options.userPrompt.length,
+					model: options.model,
 				});
 
 				const text = await callLLM(options.systemPrompt, options.userPrompt, {
 					temperature: options.temperature,
 					maxTokens: options.maxTokens,
+					model: options.model,
 				});
 
 				return { success: true, text };
@@ -543,7 +316,7 @@ export function setupMoyinIPC(): void {
 
 	// Check if Claude CLI is available (for fallback LLM)
 	ipcMain.handle("moyin:is-claude-available", async (): Promise<boolean> => {
-		return isClaudeCLIAvailable();
+		return await isClaudeCLIAvailable();
 	});
 
 	// Save raw script text to a temp file (for PTY terminal CLI execution)

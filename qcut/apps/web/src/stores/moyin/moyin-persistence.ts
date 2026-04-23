@@ -27,8 +27,14 @@ export interface MoyinPersistedState {
 	language: string;
 	sceneCount: string;
 	shotCount: string;
+	imageProvider?: "fal" | "gmi";
+	videoProvider?: "fal" | "gmi";
 }
 
+// Kept at 4 — adding the optional `imageProvider`/`videoProvider` fields is
+// fully backward compatible: old envelopes simply lack those keys and the
+// store defaults to `"fal"` via initialState during `loadProject`. Bumping
+// the version would silently discard every user's prior moyin state.
 const STORAGE_VERSION = 4;
 const STORAGE_PREFIX = "moyin-project-";
 
@@ -50,6 +56,8 @@ export function partializeMoyinState(state: {
 	language: string;
 	sceneCount: string;
 	shotCount: string;
+	imageProvider?: "fal" | "gmi";
+	videoProvider?: "fal" | "gmi";
 }): MoyinPersistedState {
 	return {
 		rawScript: state.rawScript,
@@ -64,6 +72,8 @@ export function partializeMoyinState(state: {
 		language: state.language,
 		sceneCount: state.sceneCount,
 		shotCount: state.shotCount,
+		imageProvider: state.imageProvider,
+		videoProvider: state.videoProvider,
 	};
 }
 

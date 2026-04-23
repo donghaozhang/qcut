@@ -137,6 +137,10 @@ export function ScriptInput() {
 
 	const parseModel = useMoyinStore((s) => s.parseModel);
 	const setParseModel = useMoyinStore((s) => s.setParseModel);
+	const imageProvider = useMoyinStore((s) => s.imageProvider);
+	const setImageProvider = useMoyinStore((s) => s.setImageProvider);
+	const videoProvider = useMoyinStore((s) => s.videoProvider);
+	const setVideoProvider = useMoyinStore((s) => s.setVideoProvider);
 	const selectedStyleId = useMoyinStore((s) => s.selectedStyleId);
 	const setSelectedStyleId = useMoyinStore((s) => s.setSelectedStyleId);
 	const selectedProfileId = useMoyinStore((s) => s.selectedProfileId);
@@ -345,7 +349,7 @@ export function ScriptInput() {
 
 					<div className="flex items-center gap-2">
 						<Button
-							onClick={parseScript}
+							onClick={() => parseScript()}
 							disabled={!canParse}
 							className="flex-1"
 							size="sm"
@@ -528,6 +532,48 @@ export function ScriptInput() {
 							))}
 						</SelectContent>
 					</Select>
+				</div>
+
+				{/* Image + Video providers (FAL vs GMI) */}
+				<div className="grid grid-cols-2 gap-2">
+					<div className="space-y-1">
+						<Label className="text-xs">Image Provider</Label>
+						<Select
+							value={imageProvider}
+							onValueChange={(v) => setImageProvider(v as "fal" | "gmi")}
+						>
+							<SelectTrigger className="h-7 text-xs">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="fal" className="text-xs">
+									FAL · Flux Pro
+								</SelectItem>
+								<SelectItem value="gmi" className="text-xs">
+									GMI · Seedream
+								</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+					<div className="space-y-1">
+						<Label className="text-xs">Video Provider</Label>
+						<Select
+							value={videoProvider}
+							onValueChange={(v) => setVideoProvider(v as "fal" | "gmi")}
+						>
+							<SelectTrigger className="h-7 text-xs">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="fal" className="text-xs">
+									FAL · WAN 2.1
+								</SelectItem>
+								<SelectItem value="gmi" className="text-xs">
+									GMI · Veo 3.1 Lite
+								</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
 				</div>
 
 				{/* Scene Count / Shot Count */}

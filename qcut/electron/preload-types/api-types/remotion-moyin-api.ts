@@ -38,6 +38,7 @@ export interface MoyinAPI {
 			rawScript: string;
 			language?: string;
 			sceneCount?: number;
+			model?: string;
 		}) => Promise<{
 			success: boolean;
 			data?: Record<string, unknown>;
@@ -56,9 +57,32 @@ export interface MoyinAPI {
 			userPrompt: string;
 			temperature?: number;
 			maxTokens?: number;
+			model?: string;
 		}) => Promise<{
 			success: boolean;
 			text?: string;
+			error?: string;
+		}>;
+		/** Generate a storyboard image via FAL or GMI (main-process IPC). */
+		generateImage: (options: {
+			provider: "fal" | "gmi";
+			prompt: string;
+			size?: { width: number; height: number };
+			model?: string;
+		}) => Promise<{
+			success: boolean;
+			url?: string;
+			error?: string;
+		}>;
+		/** Generate a video from an existing image via FAL or GMI. */
+		generateVideo: (options: {
+			provider: "fal" | "gmi";
+			imageUrl: string;
+			prompt: string;
+			model?: string;
+		}) => Promise<{
+			success: boolean;
+			url?: string;
 			error?: string;
 		}>;
 		isClaudeAvailable: () => Promise<boolean>;
@@ -72,7 +96,7 @@ export interface MoyinAPI {
 		onParsed: (callback: (data: Record<string, unknown>) => void) => void;
 		removeParseListener: () => void;
 		onSetScript: (callback: (data: { text: string }) => void) => void;
-		onTriggerParse: (callback: () => void) => void;
+		onTriggerParse: (callback: (data?: { model?: string }) => void) => void;
 		onGenerateScript: (
 			callback: (data: {
 				idea: string;

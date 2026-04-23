@@ -21,6 +21,11 @@ export const MODEL_OPTIONS = [
 	{ value: "gemini-pro", label: "Gemini Pro" },
 	{ value: "kimi", label: "Kimi K2.5" },
 	{ value: "claude", label: "Claude (no key)" },
+	// GMI Cloud models — route through api.gmi-serving.com (BYOK) or via
+	// the QCut license-server proxy when the user is signed in.
+	{ value: "gmi-glm-5.1", label: "GMI · GLM-5.1" },
+	{ value: "gmi-gemini-3.1-flash-lite", label: "GMI · Gemini 3.1 Flash Lite" },
+	{ value: "gmi-gemini-3.1-pro", label: "GMI · Gemini 3.1 Pro" },
 ] as const;
 
 /** Display label for a model alias */
@@ -58,7 +63,8 @@ interface StoreRef {
 export async function runCalibrationPipeline(
 	data: ScriptData,
 	rawScript: string,
-	store: StoreRef
+	store: StoreRef,
+	model?: string
 ): Promise<void> {
 	const advancePipeline = (step: PipelineStep, status: PipelineStepStatus) => {
 		const progress = { ...store.getState().pipelineProgress, [step]: status };
@@ -88,7 +94,7 @@ export async function runCalibrationPipeline(
 	// --- Title Calibration ---
 	advancePipeline("title_calibration", "active");
 	try {
-		const { title, logline } = await calibrateTitleLLM(data, rawScript);
+		const { title, logline } = await calibrateTitleLLM(data, rawScript, model);
 		const updated = { ...data, title, logline };
 		store.setState({ scriptData: updated });
 		advancePipeline("title_calibration", "done");
@@ -102,7 +108,8 @@ export async function runCalibrationPipeline(
 	try {
 		const synopsis = await generateSynopsisLLM(
 			store.getState().scriptData ?? data,
-			rawScript
+			rawScript,
+			model
 		);
 		const current = store.getState().scriptData;
 		if (current) {
@@ -128,7 +135,8 @@ export async function runCalibrationPipeline(
 				epScenes,
 				ep.title,
 				sd?.title || "Unknown",
-				targetDur
+				targetDur,
+				model
 			);
 			allNewShots.push(...newShots);
 		}
@@ -152,7 +160,7 @@ export async function runCalibrationPipeline(
 	advancePipeline("character_calibration", "active");
 	try {
 		const { characters: chars, scriptData: sd2 } = store.getState();
-		const enhanced = await enhanceCharactersLLM(chars, sd2, rawScript);
+		const enhanced = await enhanceCharactersLLM(chars, sd2, rawScript, model);
 		store.setState({ characters: enhanced });
 		advancePipeline("character_calibration", "done");
 	} catch (err) {
@@ -164,7 +172,7 @@ export async function runCalibrationPipeline(
 	advancePipeline("scene_calibration", "active");
 	try {
 		const { scenes: scns, scriptData: sd3 } = store.getState();
-		const enhanced = await enhanceScenesLLM(scns, sd3, rawScript);
+		const enhanced = await enhanceScenesLLM(scns, sd3, rawScript, model);
 		store.setState({ scenes: enhanced });
 		advancePipeline("scene_calibration", "done");
 	} catch (err) {
@@ -175,7 +183,6 @@ export async function runCalibrationPipeline(
 
 // ==================== PTY Terminal Execution ====================
 
-import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { usePtyTerminalStore } from "@/stores/pty-terminal-store";
 import { platform } from "@qcut/platform-core";
 
@@ -223,10 +230,7 @@ export async function attemptPtyParse(
 			return { success: false };
 		}
 
-		// 2. Switch to PTY terminal tab
-		useMediaPanelStore.getState().setActiveTab("pty");
-
-		// 3. Ensure shell session is running
+		// 2. Ensure shell session is running
 		const ptyState = usePtyTerminalStore.getState();
 
 		// If connected to a non-shell provider, bail out to IPC fallback
@@ -250,13 +254,13 @@ export async function attemptPtyParse(
 			return { success: false };
 		}
 
-		// 4. Build and write CLI command (shell-quote values to prevent injection)
+		// 3. Build and write CLI command (shell-quote values to prevent injection)
 		const q = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
-		const cmd = `cd ${q(projectRoot)} && bun run pipeline moyin:parse-script --script ${q(saveResult.filePath)} --model ${model} --stream`;
+		const cmd = `cd ${q(projectRoot)} && bun run pipeline moyin:parse-script --script ${q(saveResult.filePath)} --model ${q(model)} --stream`;
 
 		await ptyApi.write(sessionId, cmd + "\n");
 
-		// 5. Track the pending parse and schedule fallback cleanup (cancelled on success)
+		// 4. Track the pending parse and schedule fallback cleanup (cancelled on success)
 		pendingTempScriptPath = saveResult.filePath;
 		if (cleanupTimerId != null) clearTimeout(cleanupTimerId);
 		cleanupTimerId = setTimeout(() => {

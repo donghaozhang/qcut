@@ -883,6 +883,10 @@ export function createMoyinAPI(): NonNullable<ElectronAPI["moyin"]> {
 		generateStoryboard: (options) =>
 			ipcRenderer.invoke("moyin:generate-storyboard", options),
 		callLLM: (options) => ipcRenderer.invoke("moyin:call-llm", options),
+		generateImage: (options) =>
+			ipcRenderer.invoke("moyin:generate-image", options),
+		generateVideo: (options) =>
+			ipcRenderer.invoke("moyin:generate-video", options),
 		isClaudeAvailable: () => ipcRenderer.invoke("moyin:is-claude-available"),
 		saveTempScript: (options: { rawScript: string }) =>
 			ipcRenderer.invoke("moyin:save-temp-script", options),
@@ -902,9 +906,12 @@ export function createMoyinAPI(): NonNullable<ElectronAPI["moyin"]> {
 				(_: unknown, data: { text: string }) => callback(data)
 			);
 		},
-		onTriggerParse: (callback: () => void) => {
+		onTriggerParse: (callback: (data?: { model?: string }) => void) => {
 			ipcRenderer.removeAllListeners("claude:moyin:trigger-parse");
-			ipcRenderer.on("claude:moyin:trigger-parse", () => callback());
+			ipcRenderer.on(
+				"claude:moyin:trigger-parse",
+				(_: unknown, data: { model?: string }) => callback(data)
+			);
 		},
 		onGenerateScript: (
 			callback: (data: {

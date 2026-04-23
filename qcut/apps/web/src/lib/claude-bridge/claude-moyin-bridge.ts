@@ -32,7 +32,7 @@ export function setupClaudeMoyinBridge(): void {
 		toast.info("Script updated via CLI");
 	});
 
-	moyin.onTriggerParse(() => {
+	moyin.onTriggerParse((data) => {
 		const state = useMoyinStore.getState();
 		if (!state.rawScript.trim()) {
 			toast.error("Cannot parse: no script text");
@@ -42,12 +42,26 @@ export function setupClaudeMoyinBridge(): void {
 			toast.warning("Parse already in progress");
 			return;
 		}
-		toast.info("Parse Script triggered via CLI");
-		state.parseScript().catch((err: unknown) => {
-			const message =
-				err instanceof Error ? err.message : "Unknown parse error";
-			toast.error(`Parse failed: ${message}`);
-		});
+		if (data?.model && data.model !== state.parseModel) {
+			state.setParseModel(data.model);
+		}
+		toast.info(
+			data?.model
+				? `Parse Script triggered via CLI (${data.model})`
+				: "Parse Script triggered via CLI"
+		);
+		// Re-read state after possible setParseModel to ensure the new model
+		// is used (Zustand mutations are synchronous so this is safe).
+		// CLI-triggered parses skip PTY so the IPC path surfaces errors
+		// immediately instead of hanging on a 3-minute PTY timeout.
+		useMoyinStore
+			.getState()
+			.parseScript({ skipPty: true })
+			.catch((err: unknown) => {
+				const message =
+					err instanceof Error ? err.message : "Unknown parse error";
+				toast.error(`Parse failed: ${message}`);
+			});
 	});
 
 	moyin.onGenerateScript((data) => {

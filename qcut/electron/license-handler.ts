@@ -13,6 +13,20 @@ import {
 	getKey as loadKey,
 	deleteKey as removeKey,
 } from "./native-pipeline/infra/key-manager.js";
+import { setSessionTokenProvider } from "./native-pipeline/infra/proxy-client.js";
+
+interface Logger {
+	info(...args: unknown[]): void;
+	warn(...args: unknown[]): void;
+	error(...args: unknown[]): void;
+}
+const noopLog = (): void => {};
+let log: Logger = { info: noopLog, warn: noopLog, error: noopLog };
+import("electron-log")
+	.then((m) => {
+		log = m.default as Logger;
+	})
+	.catch(() => {});
 
 const AUTH_KEY_NAME = "QCUT_AUTH_TOKEN";
 const LICENSE_SERVER_URL =
@@ -52,11 +66,18 @@ function setAuthToken({ token }: { token: string }): void {
 	try {
 		if (trimmed.length > 0) {
 			persistKey(AUTH_KEY_NAME, trimmed);
+			log.info(
+				`[License] setAuthToken persisted (${trimmed.length} chars) to ~/.qcut/.env`
+			);
 		} else {
 			removeKey(AUTH_KEY_NAME);
+			log.info("[License] setAuthToken cleared QCUT_AUTH_TOKEN");
 		}
-	} catch {
-		// Non-fatal: in-memory token still works for this session
+	} catch (err) {
+		log.error(
+			"[License] setAuthToken FAILED to persist:",
+			err instanceof Error ? err.message : String(err)
+		);
 	}
 }
 
@@ -222,10 +243,19 @@ export { getAuthToken };
 export { setAuthToken };
 
 export function setupLicenseIPC(): void {
-	ipcMain.handle("license:set-auth-token", async (_event, token: string) => {
+	// Share Electron's auth-token resolution with the license-server proxy
+	// client, so provider calls (moyin, api-caller, etc.) can relay through
+	// the license server when the user is signed in without a local API key.
+	setSessionTokenProvider(getAuthToken);
+
+	ipcMain.handle("license:set-auth-token", async (_event, token: unknown) => {
 		if (typeof token !== "string") {
+			log.warn("[License] license:set-auth-token called with non-string");
 			return false;
 		}
+		log.info(
+			`[License] license:set-auth-token invoked (token len ${token.length})`
+		);
 		setAuthToken({ token });
 		return authToken.length > 0;
 	});

@@ -603,7 +603,11 @@ async function handleMoyinCommand(
 			return { success: true, data };
 		}
 		case "parse": {
-			const data = await client.post("/api/claude/moyin/parse", {});
+			const payload: Record<string, unknown> = {};
+			if (typeof options.model === "string" && options.model.length > 0) {
+				payload.model = options.model;
+			}
+			const data = await client.post("/api/claude/moyin/parse", payload);
 			return { success: true, data };
 		}
 		case "status": {

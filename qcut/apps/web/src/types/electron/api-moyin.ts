@@ -8,6 +8,8 @@ export interface ElectronMoyinOps {
 			rawScript: string;
 			language?: string;
 			sceneCount?: number;
+			/** Model alias (e.g. "gmi-glm-5.1", "gemini-pro"). */
+			model?: string;
 		}) => Promise<{
 			success: boolean;
 			data?: Record<string, unknown>;
@@ -26,9 +28,37 @@ export interface ElectronMoyinOps {
 			userPrompt: string;
 			temperature?: number;
 			maxTokens?: number;
+			/** Model alias (e.g. "gmi-glm-5.1", "gemini-pro"). */
+			model?: string;
 		}) => Promise<{
 			success: boolean;
 			text?: string;
+			error?: string;
+		}>;
+		/**
+		 * Generate a storyboard image through the selected provider.
+		 * Routes through FAL (default flux-pro v1.1-ultra) or GMI (default
+		 * seedream-4.0) based on the `provider` field.
+		 */
+		generateImage: (options: {
+			provider: "fal" | "gmi";
+			prompt: string;
+			size?: { width: number; height: number };
+			model?: string;
+		}) => Promise<{
+			success: boolean;
+			url?: string;
+			error?: string;
+		}>;
+		/** Generate a video from an existing image via the selected provider. */
+		generateVideo: (options: {
+			provider: "fal" | "gmi";
+			imageUrl: string;
+			prompt: string;
+			model?: string;
+		}) => Promise<{
+			success: boolean;
+			url?: string;
 			error?: string;
 		}>;
 		isClaudeAvailable: () => Promise<boolean>;
@@ -42,7 +72,7 @@ export interface ElectronMoyinOps {
 		onParsed: (callback: (data: Record<string, unknown>) => void) => void;
 		removeParseListener: () => void;
 		onSetScript: (callback: (data: { text: string }) => void) => void;
-		onTriggerParse: (callback: () => void) => void;
+		onTriggerParse: (callback: (data?: { model?: string }) => void) => void;
 		onGenerateScript: (
 			callback: (data: {
 				idea: string;

@@ -14,7 +14,10 @@ import { platform } from "@qcut/platform-core";
 import { buildStoryboardPrompt } from "@/lib/moyin/storyboard/prompt-builder";
 import { calculateGrid } from "@/lib/moyin/storyboard/grid-calculator";
 import { VISUAL_STYLE_PRESETS } from "@/lib/moyin/presets/visual-styles";
-import { generateFalImage } from "./moyin-shot-generation";
+import {
+	generateShotImage,
+	type MoyinMediaProvider,
+} from "./moyin-shot-generation";
 
 // ==================== Helpers ====================
 
@@ -61,7 +64,8 @@ export async function generateStoryboardAction(
 	characters: ScriptCharacter[],
 	selectedStyleId: string,
 	scriptData: ScriptData | null,
-	onProgress: (progress: number) => void
+	onProgress: (progress: number) => void,
+	provider: MoyinMediaProvider = "fal"
 ): Promise<StoryboardResult> {
 	onProgress(10);
 
@@ -112,7 +116,7 @@ export async function generateStoryboardAction(
 
 	onProgress(20);
 
-	const imageUrl = await generateFalImage(prompt, {
+	const imageUrl = await generateShotImage(prompt, provider, {
 		width: gridConfig.canvasWidth,
 		height: gridConfig.canvasHeight,
 	});
@@ -219,7 +223,8 @@ export async function generateShotsForEpisodeAction(
 	episodeScenes: ScriptScene[],
 	episodeTitle: string,
 	scriptTitle: string,
-	targetDuration?: string
+	targetDuration?: string,
+	model?: string
 ): Promise<Shot[]> {
 	let api: ReturnType<typeof platform>["moyin"] | undefined;
 	try {
@@ -262,6 +267,7 @@ ${sceneDescs}
 Generate shots for each scene with proper camera language and visual storytelling.${totalShotBudget ? ` IMPORTANT: Total shot count must be approximately ${totalShotBudget} shots.` : ""}`,
 		temperature: 0.5,
 		maxTokens: 8192,
+		model,
 	});
 
 	if (!result.success || !result.text) {
