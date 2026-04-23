@@ -116,3 +116,89 @@ describe("getSessionToken error handling", () => {
 		).rejects.toThrow("FAL API key not configured");
 	});
 });
+
+describe("makeFalRequest proxyFirst mode", () => {
+	beforeEach(() => {
+		clearFalApiKeyCache();
+		vi.stubEnv("VITE_FAL_API_KEY", "local-key-abc");
+	});
+
+	it("tries proxy first when proxyFirst=true AND session token exists", async () => {
+		mockGetAuthToken.mockResolvedValue("session-xyz");
+		mockFetch.mockResolvedValue(new Response('{"images":[]}', { status: 200 }));
+
+		await makeFalRequest(
+			"fal-ai/test",
+			{ prompt: "t" },
+			{ proxyFirst: true }
+		);
+
+		expect(mockFetch).toHaveBeenCalledOnce();
+		const [url, init] = mockFetch.mock.calls[0];
+		expect(url).toContain("/api/ai/proxy");
+		expect(init.headers.Authorization).toBe("Bearer session-xyz");
+	});
+
+	it("falls back to local key when proxy returns non-OK AND local key present", async () => {
+		mockGetAuthToken.mockResolvedValue("session-xyz");
+		mockFetch
+			.mockResolvedValueOnce(new Response("", { status: 500 }))
+			.mockResolvedValueOnce(new Response('{"images":[]}', { status: 200 }));
+
+		await makeFalRequest(
+			"fal-ai/test",
+			{ prompt: "t" },
+			{ proxyFirst: true }
+		);
+
+		expect(mockFetch).toHaveBeenCalledTimes(2);
+		const [, proxyInit] = mockFetch.mock.calls[0];
+		expect(proxyInit.headers.Authorization).toBe("Bearer session-xyz");
+		const [directUrl, directInit] = mockFetch.mock.calls[1];
+		expect(directUrl).toBe("https://fal.run/fal-ai/test");
+		expect(directInit.headers.Authorization).toBe("Key local-key-abc");
+	});
+
+	it("returns proxy response on non-OK when no local key (no fallback available)", async () => {
+		vi.stubEnv("VITE_FAL_API_KEY", "");
+		mockGetAuthToken.mockResolvedValue("session-xyz");
+		mockFetch.mockResolvedValue(new Response('{"detail":"x"}', { status: 500 }));
+
+		const response = await makeFalRequest(
+			"fal-ai/test",
+			{ prompt: "t" },
+			{ proxyFirst: true }
+		);
+
+		expect(response.status).toBe(500);
+		expect(mockFetch).toHaveBeenCalledOnce();
+	});
+
+	it("uses direct local-key path when proxyFirst=false (default) with local key", async () => {
+		mockGetAuthToken.mockResolvedValue("session-xyz");
+		mockFetch.mockResolvedValue(new Response('{"images":[]}', { status: 200 }));
+
+		await makeFalRequest("fal-ai/test", { prompt: "t" });
+
+		expect(mockFetch).toHaveBeenCalledOnce();
+		const [url, init] = mockFetch.mock.calls[0];
+		expect(url).toBe("https://fal.run/fal-ai/test");
+		expect(init.headers.Authorization).toBe("Key local-key-abc");
+	});
+
+	it("uses direct local-key path when proxyFirst=true but no session token", async () => {
+		mockGetAuthToken.mockResolvedValue("");
+		mockFetch.mockResolvedValue(new Response('{"images":[]}', { status: 200 }));
+
+		await makeFalRequest(
+			"fal-ai/test",
+			{ prompt: "t" },
+			{ proxyFirst: true }
+		);
+
+		expect(mockFetch).toHaveBeenCalledOnce();
+		const [url, init] = mockFetch.mock.calls[0];
+		expect(url).toBe("https://fal.run/fal-ai/test");
+		expect(init.headers.Authorization).toBe("Key local-key-abc");
+	});
+});

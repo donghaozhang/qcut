@@ -126,11 +126,63 @@ export interface FalRequestOptions {
 	modelKey?: string;
 	/** Duration in seconds — used to compute per-second credit costs. */
 	durationSeconds?: number;
+	/**
+	 * When true and a QCut session token is available, route through the
+	 * license-server proxy first and only fall back to the local FAL key
+	 * on proxy failure. Mirrors the CLI `api-caller` proxy-first semantics,
+	 * giving logged-in users a working path when their local key lacks
+	 * access to a specific model (e.g. FAL's OpenAI passthrough models).
+	 * Default false → legacy "proxy only if no local key" behavior.
+	 */
+	proxyFirst?: boolean;
+}
+
+async function submitFalViaProxy(
+	targetUrl: string,
+	payload: Record<string, unknown>,
+	sessionToken: string,
+	options: FalRequestOptions | undefined
+): Promise<Response> {
+	const proxyBody: Record<string, unknown> = {
+		provider: "fal",
+		endpoint: targetUrl,
+		method: "POST",
+		body: payload,
+	};
+	if (options?.modelKey) {
+		const amount = estimateCreditCost(options.modelKey, {
+			durationSeconds: options.durationSeconds,
+		});
+		if (Number.isFinite(amount) && amount > 0) {
+			proxyBody.credits = {
+				amount,
+				modelKey: options.modelKey,
+				description: `FAL — ${options.modelKey}${
+					options.durationSeconds ? ` (${options.durationSeconds}s)` : ""
+				}`,
+			};
+		}
+	}
+	return fetch(`${LICENSE_SERVER_URL}/api/ai/proxy`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${sessionToken}`,
+		},
+		body: JSON.stringify(proxyBody),
+		signal: options?.signal,
+	});
 }
 
 /**
  * Makes an authenticated request to FAL AI API.
- * Uses proxy mode via the license server when no local API key is available.
+ *
+ * Default behavior: use the local FAL key when present, otherwise route
+ * through the license-server proxy for signed-in users.
+ *
+ * With `proxyFirst: true`: try the license-server proxy first even when a
+ * local key is present, and fall back to the local key only on proxy failure.
+ * This unblocks users whose local key lacks access to a specific model.
  */
 export async function makeFalRequest(
 	endpoint: string,
@@ -138,51 +190,41 @@ export async function makeFalRequest(
 	options?: FalRequestOptions
 ): Promise<Response> {
 	const apiKey = await getFalApiKeyAsync();
+	const base = options?.queueMode ? FAL_QUEUE_BASE : FAL_API_BASE;
+	const targetUrl = endpoint.startsWith("https://")
+		? endpoint
+		: `${base}/${endpoint}`;
 
-	// If no local key, try proxy mode
-	if (!apiKey) {
-		const sessionToken = await getSessionToken();
-		if (sessionToken) {
-			const base = options?.queueMode ? FAL_QUEUE_BASE : FAL_API_BASE;
-			const targetUrl = endpoint.startsWith("https://")
-				? endpoint
-				: `${base}/${endpoint}`;
+	const sessionToken =
+		options?.proxyFirst || !apiKey ? await getSessionToken() : "";
 
-			// Attach credits only when the caller identified the model.
-			// FAL endpoint strings are not 1:1 with renderer model keys, so we
-			// can't safely infer `modelKey` from `endpoint` without mis-billing.
-			const proxyBody: Record<string, unknown> = {
-				provider: "fal",
-				endpoint: targetUrl,
-				method: "POST",
-				body: payload,
-			};
-			if (options?.modelKey) {
-				const amount = estimateCreditCost(options.modelKey, {
-					durationSeconds: options.durationSeconds,
-				});
-				if (Number.isFinite(amount) && amount > 0) {
-					proxyBody.credits = {
-						amount,
-						modelKey: options.modelKey,
-						description: `FAL — ${options.modelKey}${
-							options.durationSeconds ? ` (${options.durationSeconds}s)` : ""
-						}`,
-					};
-				}
-			}
-
-			return fetch(`${LICENSE_SERVER_URL}/api/ai/proxy`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${sessionToken}`,
-				},
-				body: JSON.stringify(proxyBody),
-				signal: options?.signal,
-			});
+	if (sessionToken && (options?.proxyFirst || !apiKey)) {
+		let proxyResponse: Response | null = null;
+		try {
+			proxyResponse = await submitFalViaProxy(
+				targetUrl,
+				payload,
+				sessionToken,
+				options
+			);
+		} catch (error) {
+			if (!apiKey) throw error;
+			console.warn(
+				"[makeFalRequest] proxy threw, falling back to local FAL key",
+				error
+			);
 		}
+		if (proxyResponse && (proxyResponse.ok || !apiKey)) {
+			return proxyResponse;
+		}
+		if (proxyResponse && apiKey) {
+			console.warn(
+				`[makeFalRequest] proxy returned ${proxyResponse.status}, falling back to local FAL key`
+			);
+		}
+	}
 
+	if (!apiKey) {
 		const error = new Error(
 			"FAL API key not configured. Please sign in to your QCut account or set VITE_FAL_API_KEY."
 		);
@@ -197,18 +239,11 @@ export async function makeFalRequest(
 		Authorization: `Key ${apiKey}`,
 		"Content-Type": "application/json",
 	};
-
-	// Queue mode uses queue.fal.run subdomain for async job submission
 	if (options?.queueMode) {
 		headers["X-Fal-Queue"] = "true";
 	}
 
-	const base = options?.queueMode ? FAL_QUEUE_BASE : FAL_API_BASE;
-	const url = endpoint.startsWith("https://")
-		? endpoint
-		: `${base}/${endpoint}`;
-
-	return fetch(url, {
+	return fetch(targetUrl, {
 		method: "POST",
 		headers,
 		body: JSON.stringify(payload),

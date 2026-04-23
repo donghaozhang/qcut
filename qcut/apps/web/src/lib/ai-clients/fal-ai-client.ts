@@ -32,6 +32,7 @@ import {
 	uploadFileToFal as uploadFileToFalCore,
 	type FalUploadFileType,
 } from "../ai-video/core/fal-upload";
+import { makeFalRequest } from "../ai-video/core/fal-request";
 import {
 	convertV3Parameters,
 	convertV4Parameters,
@@ -157,14 +158,6 @@ class FalAIClient {
 		endpoint: string,
 		params: Record<string, unknown>
 	): Promise<T> {
-		// Ensure API key is loaded (may be async from Electron storage)
-		const apiKey = await this.ensureApiKey();
-		if (!apiKey) {
-			throw new Error(
-				"FAL API key is required. Please set VITE_FAL_API_KEY environment variable or configure it in Settings."
-			);
-		}
-
 		// The endpoint already contains the full URL, so use it directly
 		const requestUrl = endpoint.startsWith("https://")
 			? endpoint
@@ -175,14 +168,12 @@ class FalAIClient {
 			params,
 		});
 
-		// Make direct API call to fal.run instead of proxy
-		const response = await fetch(requestUrl, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"Authorization": `Key ${apiKey}`,
-			},
-			body: JSON.stringify(params),
+		// Route through makeFalRequest so signed-in users go via the
+		// license-server proxy first (falling back to the local VITE_FAL_API_KEY
+		// on proxy failure). This unblocks users whose local key lacks access
+		// to a specific FAL model (e.g. OpenAI passthrough like gpt-image-2).
+		const response = await makeFalRequest(requestUrl, params, {
+			proxyFirst: true,
 		});
 
 		debugLogger.log(FAL_LOG_COMPONENT, "REQUEST_STATUS", {
