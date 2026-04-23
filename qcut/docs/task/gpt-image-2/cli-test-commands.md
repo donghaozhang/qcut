@@ -9,9 +9,36 @@ This doc records the exact CLI invocations that exercise the **same main-process
 
 ## Prerequisites
 
-1. Sign in to QCut so the license-server session token is available — these commands rely on the proxy.
+1. Log in with a QCut test account (below) — stores `QCUT_AUTH_TOKEN` so the proxy path is available.
 2. Rebuild the CLI if you changed any `electron/native-pipeline/*` source since the last build: `bun run build`.
-3. You only need QCut *running* for the `editor:generate:*` variant (it hits the app's HTTP bridge on 39260). The plain `gen image` variant runs standalone.
+3. You only need QCut *running* for the `editor:generate:*` variant (it hits the app's HTTP bridge on 8765). The plain `gen image` variant runs standalone.
+
+---
+
+## 0. Log in with the QCut test account
+
+Credentials live in `.env.test-accounts` (gitignored) — ask the project admin. Once logged in, `qcut` writes the token to `~/.qcut/.env` as `QCUT_AUTH_TOKEN`, and both the standalone CLI and the editor's main process will pick it up automatically.
+
+```bash
+# Load test credentials into the shell
+source .env.test-accounts
+
+# Log in — persists the session token
+qcut system login --email "$QCUT_TEST_EMAIL" --password "$QCUT_TEST_PASSWORD"
+# → "Logged in as <email>"
+
+# Verify the token was stored
+qcut system check-keys | grep QCUT_AUTH_TOKEN
+# → QCUT_AUTH_TOKEN    configured (env) xxxx****xxxx
+
+# Quick credit / plan check against the license server
+TOKEN=$(grep '^QCUT_AUTH_TOKEN=' ~/.qcut/.env | cut -d= -f2-)
+curl -s -H "Authorization: Bearer $TOKEN" \
+  https://qcut-license-server.zdhpeter.workers.dev/api/license/status | jq .
+# → {"plan":"free","status":"active","credits":{"totalCredits":...}}
+```
+
+> **BYOK users**: set `VITE_FAL_API_KEY` in your environment instead and skip this step. The CLI will call FAL directly; no credits are deducted. Note this path hits FAL's `openai/gpt-image-2` with *your* FAL key + OpenAI passthrough credentials, which is usually where gpt-image-2 specifically breaks.
 
 ---
 
@@ -54,7 +81,24 @@ The detail-envelope detection landed in commit `1b08c8c2d` — before that, FAL 
 
 This calls the **same handler the GUI Generate button invokes** (`POST /api/claude/generate/:projectId/start` → `startGenerateJob` → `NativePipelineManager`). Useful when you want to verify the GUI flow without touching the renderer.
 
-Requires a running QCut editor (`bun run electron:dev` or packaged). Find your `project-id` in the URL (`/editor/<project-id>`) or via `qcut editor:project:list`.
+Requires a running QCut editor (`bun run electron:dev` or packaged). Find your `project-id` via `qcut editor:project:list` (look for `activeProjectId`) or from the editor URL (`/editor/<project-id>`).
+
+### 2a. Open the project in the editor first
+
+The editor must have the target project loaded before `editor:generate:*` will work — otherwise generation jobs are created but immediately fail with an internal project-state error. Open it with:
+
+```bash
+# List projects + find the active one
+qcut editor:project:list
+
+# Navigate the running editor to the project you want to generate into
+qcut editor:navigator:open --project-id <project-id>
+# → { "navigated": true, "projectId": "<project-id>" }
+```
+
+If the editor window is unfocused or still booting, `navigator:open` can return `"Timeout waiting for navigation confirmation"`. The navigation usually still lands — confirm with `qcut editor:timeline:export --project-id <pid>` and retry `navigator:open` if the timeline isn't loaded yet.
+
+### 2b. Run the generation commands
 
 ```bash
 # Fire-and-forget (returns jobId, then poll manually)
