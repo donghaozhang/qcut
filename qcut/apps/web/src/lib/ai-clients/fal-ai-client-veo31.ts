@@ -21,10 +21,22 @@ const VEO31_LITE_KEY = "veo-3.1-lite";
 const VEO31_STANDARD_KEY = "veo-3.1";
 
 /** Parse Veo's `"4s" | "6s" | "7s" | "8s"` duration strings to numeric seconds. */
-function parseVeoDuration(duration: string | undefined): number {
-	if (!duration) return 8;
+function parseVeoDuration(
+	duration: string | undefined,
+	fallback: number
+): number {
+	if (!duration) return fallback;
 	const n = Number.parseInt(duration, 10);
-	return Number.isFinite(n) && n > 0 ? n : 8;
+	return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/**
+ * Per-endpoint default duration. Extend-video only supports `"7s"` (see
+ * Veo31ExtendVideoInput); every other Veo 3.1 variant defaults to `"8s"`.
+ * Using 8s everywhere over-bills extend-video credits by ~14%.
+ */
+function inferVeoDefaultDuration(endpoint: string): number {
+	return endpoint.includes("extend-video") ? 7 : 8;
 }
 
 function inferVeo31ModelKey(endpoint: string): string {
@@ -49,7 +61,10 @@ async function veoMakeRequest(
 		params as unknown as Record<string, unknown>,
 		{
 			modelKey: inferVeo31ModelKey(endpoint),
-			durationSeconds: parseVeoDuration(params.duration),
+			durationSeconds: parseVeoDuration(
+				params.duration,
+				inferVeoDefaultDuration(endpoint)
+			),
 		}
 	);
 }

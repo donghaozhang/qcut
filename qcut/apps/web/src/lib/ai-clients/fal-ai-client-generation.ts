@@ -62,6 +62,15 @@ export function convertSettingsToParams(
 			break;
 
 		case "gpt-image-2-fal": {
+			// The shared UI picker emits portrait sizes as `portrait_3_4` /
+			// `portrait_9_16`, but FAL's `openai/gpt-image-2` endpoint expects
+			// the digits reversed (`portrait_4_3` / `portrait_16_9`). Remap
+			// before the allow-list check so portrait selections land instead
+			// of silently falling back to `landscape_4_3` from defaultParams.
+			const sizeRemap: Record<string, string> = {
+				portrait_3_4: "portrait_4_3",
+				portrait_9_16: "portrait_16_9",
+			};
 			const allowed = [
 				"square_hd",
 				"square",
@@ -70,11 +79,12 @@ export function convertSettingsToParams(
 				"landscape_4_3",
 				"landscape_16_9",
 			];
-			if (
-				typeof settings.imageSize === "string" &&
-				allowed.includes(settings.imageSize)
-			) {
-				params.image_size = settings.imageSize;
+			const size =
+				typeof settings.imageSize === "string"
+					? (sizeRemap[settings.imageSize] ?? settings.imageSize)
+					: settings.imageSize;
+			if (typeof size === "string" && allowed.includes(size)) {
+				params.image_size = size;
 			}
 			break;
 		}
