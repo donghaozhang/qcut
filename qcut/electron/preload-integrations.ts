@@ -906,9 +906,7 @@ export function createMoyinAPI(): NonNullable<ElectronAPI["moyin"]> {
 				(_: unknown, data: { text: string }) => callback(data)
 			);
 		},
-		onTriggerParse: (
-			callback: (data?: { model?: string }) => void
-		) => {
+		onTriggerParse: (callback: (data?: { model?: string }) => void) => {
 			ipcRenderer.removeAllListeners("claude:moyin:trigger-parse");
 			ipcRenderer.on(
 				"claude:moyin:trigger-parse",

@@ -716,9 +716,7 @@ app.on("open-url", (event, url) => {
 			);
 			return;
 		}
-		logger.info(
-			`[DeepLink] open-url extracted token (len ${token.length})`
-		);
+		logger.info(`[DeepLink] open-url extracted token (len ${token.length})`);
 		deliverActivationTokenToRenderer(token);
 	} catch (error) {
 		logger.warn("[DeepLink] Failed to handle open-url event:", error);
