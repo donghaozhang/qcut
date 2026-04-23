@@ -261,7 +261,7 @@ export const useText2ImageStore = create<Text2ImageStore>()(
 			},
 
 			// Model selection
-			selectedModels: [...TEXT2IMAGE_MODEL_ORDER], // Default to all models in curated priority order
+			selectedModels: [TEXT2IMAGE_MODEL_ORDER[0]], // Default to top-of-order model (single-model mode)
 			setModelSelection: (modelKey, isSelected) =>
 				set((state) => {
 					const alreadySelected = state.selectedModels.includes(modelKey);
@@ -311,7 +311,7 @@ export const useText2ImageStore = create<Text2ImageStore>()(
 				}),
 
 			// Generation mode
-			generationMode: "multi", // Default to multi-model mode
+			generationMode: "single", // Default to single-model mode (top-of-order model pre-selected)
 			setGenerationMode: (mode) => {
 				if (mode === get().generationMode) {
 					return;

@@ -1,6 +1,174 @@
 import type { Text2ImageModel } from "./types";
 
 export const OTHER_MODELS: Record<string, Text2ImageModel> = {
+	"gpt-image-2-fal": {
+		id: "gpt-image-2-fal",
+		name: "GPT-Image-2 (FAL)",
+		description:
+			"OpenAI GPT-Image-2 via FAL — photorealistic generation with accurate in-image text and strong prompt adherence",
+		provider: "OpenAI (via FAL)",
+		endpoint: "https://fal.run/openai/gpt-image-2",
+
+		qualityRating: 5,
+		speedRating: 4,
+
+		estimatedCost: "$0.042",
+		costPerImage: 4.2, // cents
+
+		maxResolution: "1536x1024 (via preset)",
+		supportedAspectRatios: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+
+		defaultParams: {
+			image_size: "landscape_4_3",
+			quality: "high",
+			output_format: "png",
+			num_images: 1,
+		},
+
+		availableParams: [
+			{
+				name: "image_size",
+				type: "select",
+				options: [
+					"square_hd",
+					"square",
+					"portrait_4_3",
+					"portrait_16_9",
+					"landscape_4_3",
+					"landscape_16_9",
+				],
+				default: "landscape_4_3",
+				description:
+					"Output image size preset (FAL-style, not pixel dimensions)",
+			},
+			{
+				name: "quality",
+				type: "select",
+				options: ["low", "medium", "high"],
+				default: "high",
+				description:
+					"Image quality — affects detail and cost (no 'auto' tier on FAL)",
+			},
+			{
+				name: "output_format",
+				type: "select",
+				options: ["png", "jpeg", "webp"],
+				default: "png",
+				description: "File format of the generated image",
+			},
+			{
+				name: "num_images",
+				type: "number",
+				min: 1,
+				max: 4,
+				default: 1,
+				description: "Number of images to generate",
+			},
+		],
+
+		bestFor: [
+			"Photorealistic image generation",
+			"Images containing readable text",
+			"Strong prompt adherence across complex scenes",
+			"Image editing with mask-based inpainting",
+			"Working fallback while GMI's gpt-image-2 relay is degraded",
+		],
+
+		strengths: [
+			"Independent of GMI's OpenAI relay outage",
+			"Webp output support (GMI variant does not expose webp)",
+			"FAL preset sizes are simpler for UI users than pixel strings",
+			"Native inpainting via image_urls + mask_url",
+		],
+
+		limitations: [
+			"No 'auto' quality tier (GMI variant has it)",
+			"Preset image sizes only — no arbitrary pixel dimensions via QCut UI",
+			"Pricing tier table not published by FAL; flat $0.042 is a GMI-derived estimate",
+		],
+	},
+
+	"gpt-image-2-gmi": {
+		id: "gpt-image-2-gmi",
+		name: "GPT-Image-2",
+		description:
+			"OpenAI GPT-Image-2 via GMI Cloud — photorealistic generation with accurate in-image text and strong prompt adherence",
+		provider: "OpenAI (via GMI)",
+		endpoint:
+			"https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey/requests",
+
+		qualityRating: 5,
+		speedRating: 4,
+
+		estimatedCost: "$0.011-$0.250",
+		costPerImage: 4.2, // cents (default: medium 1024×1024)
+
+		maxResolution: "1536x1024",
+		supportedAspectRatios: ["1:1", "3:2", "2:3"],
+
+		defaultParams: {
+			size: "1024x1024",
+			quality: "medium",
+			output_format: "png",
+			n: 1,
+		},
+
+		availableParams: [
+			{
+				name: "size",
+				type: "select",
+				options: ["1024x1024", "1024x1536", "1536x1024"],
+				default: "1024x1024",
+				description: "Output image resolution",
+			},
+			{
+				name: "quality",
+				type: "select",
+				options: ["low", "medium", "high", "auto"],
+				default: "medium",
+				description: "Image quality — affects detail and cost",
+			},
+			{
+				name: "output_format",
+				type: "select",
+				options: ["png", "jpeg"],
+				default: "png",
+				description: "File format of the generated image",
+			},
+			{
+				name: "n",
+				type: "number",
+				min: 1,
+				max: 10,
+				default: 1,
+				description: "Number of images to generate (1-10)",
+			},
+		],
+
+		bestFor: [
+			"Photorealistic image generation",
+			"Images containing readable text",
+			"Strong prompt adherence across complex scenes",
+			"Image editing with mask-based inpainting",
+			"Premium commercial content",
+		],
+
+		strengths: [
+			"Accurate in-image text rendering",
+			"Best-in-class prompt adherence",
+			"Photorealism across diverse styles",
+			"Native inpainting via image + mask",
+			"Up to 10 images per request",
+		],
+
+		limitations: [
+			"Three fixed resolutions (no arbitrary sizes)",
+			"No webp output (png/jpeg only)",
+			"High-quality tier is the most expensive model in the catalog ($0.167-$0.250)",
+			"No guidance scale or seed controls",
+		],
+	},
+
 	"wan-v2-2": {
 		id: "wan-v2-2",
 		name: "WAN v2.2",

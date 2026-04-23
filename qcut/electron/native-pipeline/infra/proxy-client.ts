@@ -403,10 +403,26 @@ export async function callModelApiViaProxy(
 					signal,
 				});
 				const resultData = result.data as Record<string, unknown>;
+				const extracted = extractOutputUrl(resultData);
+				if (!extracted && Array.isArray(resultData?.detail)) {
+					const detail = resultData.detail as Array<unknown>;
+					const first = detail[0];
+					const firstMsg =
+						typeof first === "string"
+							? first
+							: (((first as Record<string, unknown>)?.msg as string) ??
+								((first as Record<string, unknown>)?.type as string) ??
+								"Unknown error");
+					return {
+						success: false,
+						error: `FAL returned error: ${String(firstMsg)} — full payload: ${JSON.stringify(resultData).slice(0, 300)}`,
+						duration: (Date.now() - startTime) / 1000,
+					};
+				}
 				return {
 					success: true,
 					data: resultData,
-					outputUrl: extractOutputUrl(resultData),
+					outputUrl: extracted,
 					duration: (Date.now() - startTime) / 1000,
 				};
 			}
@@ -503,10 +519,36 @@ async function pollViaProxy({
 					signal,
 				});
 				const data = result.data as Record<string, unknown>;
+				const extracted = extractOutputUrl(data);
+				// FAL sometimes returns a 200 queue response whose payload is
+				// a FastAPI-style `{ detail: [...] }` error envelope (e.g.
+				// "downstream_service_error" when OpenAI passthrough fails).
+				// Without this check the CLI reports success + exit 0 on an
+				// empty outputUrl and the user never sees the real error.
+				if (!extracted && Array.isArray(data?.detail)) {
+					const detail = data.detail as Array<unknown>;
+					const first = detail[0];
+					const firstMsg =
+						typeof first === "string"
+							? first
+							: (((first as Record<string, unknown>)?.msg as string) ??
+								((first as Record<string, unknown>)?.type as string) ??
+								"Unknown error");
+					return {
+						success: false,
+						error: `FAL returned error: ${String(firstMsg)} — full payload: ${JSON.stringify(data).slice(0, 300)}`,
+						duration: (Date.now() - startTime) / 1000,
+					};
+				}
+				if (!extracted) {
+					console.error(
+						`[proxy-client] FAL ${endpoint} returned no recognized outputUrl. Raw keys: ${Object.keys(data ?? {}).join(", ")}. Data preview: ${JSON.stringify(data).slice(0, 500)}`
+					);
+				}
 				return {
 					success: true,
 					data,
-					outputUrl: extractOutputUrl(data),
+					outputUrl: extracted,
 					duration: (Date.now() - startTime) / 1000,
 				};
 			}

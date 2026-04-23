@@ -126,11 +126,108 @@ export interface FalRequestOptions {
 	modelKey?: string;
 	/** Duration in seconds — used to compute per-second credit costs. */
 	durationSeconds?: number;
+	/**
+	 * When true and a QCut session token is available, route through the
+	 * license-server proxy first and only fall back to the local FAL key
+	 * on proxy failure. Mirrors the CLI `api-caller` proxy-first semantics,
+	 * giving logged-in users a working path when their local key lacks
+	 * access to a specific model (e.g. FAL's OpenAI passthrough models).
+	 * Default false → legacy "proxy only if no local key" behavior.
+	 */
+	proxyFirst?: boolean;
+}
+
+/**
+ * Combine the caller's AbortSignal with an optional timeout into a single signal.
+ * Uses AbortSignal.any (widely available in modern Chromium/Node 20+) when both
+ * are present, so cancellation *and* timeout both trigger abort.
+ */
+function buildAbortSignal(
+	options: FalRequestOptions | undefined
+): AbortSignal | undefined {
+	const signals: AbortSignal[] = [];
+	if (options?.signal) signals.push(options.signal);
+	if (options?.timeout && options.timeout > 0) {
+		signals.push(AbortSignal.timeout(options.timeout));
+	}
+	if (signals.length === 0) return undefined;
+	if (signals.length === 1) return signals[0];
+	return AbortSignal.any(signals);
+}
+
+/**
+ * Peek at a proxy response body (via clone, so the original stream is untouched)
+ * and decide whether the caller can treat it as success. Returns false when the
+ * proxy returned a 200 FastAPI-style `{ detail: [...] }` error envelope with no
+ * success marker like `request_id` — in which case the caller should fall back.
+ */
+async function isProxyResponseUsable(response: Response): Promise<boolean> {
+	if (!response.ok) return false;
+	let body: unknown;
+	try {
+		body = await response.clone().json();
+	} catch {
+		return true; // Non-JSON 200 — pass through; caller will handle it.
+	}
+	if (!body || typeof body !== "object") return true;
+	const obj = body as Record<string, unknown>;
+	if (
+		Array.isArray(obj.detail) &&
+		!obj.request_id &&
+		!obj.images &&
+		!obj.data
+	) {
+		return false;
+	}
+	return true;
+}
+
+async function submitFalViaProxy(
+	targetUrl: string,
+	payload: Record<string, unknown>,
+	sessionToken: string,
+	options: FalRequestOptions | undefined
+): Promise<Response> {
+	const proxyBody: Record<string, unknown> = {
+		provider: "fal",
+		endpoint: targetUrl,
+		method: "POST",
+		body: payload,
+	};
+	if (options?.modelKey) {
+		const amount = estimateCreditCost(options.modelKey, {
+			durationSeconds: options.durationSeconds,
+		});
+		if (Number.isFinite(amount) && amount > 0) {
+			proxyBody.credits = {
+				amount,
+				modelKey: options.modelKey,
+				description: `FAL — ${options.modelKey}${
+					options.durationSeconds ? ` (${options.durationSeconds}s)` : ""
+				}`,
+			};
+		}
+	}
+	return fetch(`${LICENSE_SERVER_URL}/api/ai/proxy`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${sessionToken}`,
+		},
+		body: JSON.stringify(proxyBody),
+		signal: buildAbortSignal(options),
+	});
 }
 
 /**
  * Makes an authenticated request to FAL AI API.
- * Uses proxy mode via the license server when no local API key is available.
+ *
+ * Default behavior: use the local FAL key when present, otherwise route
+ * through the license-server proxy for signed-in users.
+ *
+ * With `proxyFirst: true`: try the license-server proxy first even when a
+ * local key is present, and fall back to the local key only on proxy failure.
+ * This unblocks users whose local key lacks access to a specific model.
  */
 export async function makeFalRequest(
 	endpoint: string,
@@ -138,51 +235,46 @@ export async function makeFalRequest(
 	options?: FalRequestOptions
 ): Promise<Response> {
 	const apiKey = await getFalApiKeyAsync();
+	const base = options?.queueMode ? FAL_QUEUE_BASE : FAL_API_BASE;
+	const targetUrl = endpoint.startsWith("https://")
+		? endpoint
+		: `${base}/${endpoint}`;
 
-	// If no local key, try proxy mode
-	if (!apiKey) {
-		const sessionToken = await getSessionToken();
-		if (sessionToken) {
-			const base = options?.queueMode ? FAL_QUEUE_BASE : FAL_API_BASE;
-			const targetUrl = endpoint.startsWith("https://")
-				? endpoint
-				: `${base}/${endpoint}`;
+	const sessionToken =
+		options?.proxyFirst || !apiKey ? await getSessionToken() : "";
 
-			// Attach credits only when the caller identified the model.
-			// FAL endpoint strings are not 1:1 with renderer model keys, so we
-			// can't safely infer `modelKey` from `endpoint` without mis-billing.
-			const proxyBody: Record<string, unknown> = {
-				provider: "fal",
-				endpoint: targetUrl,
-				method: "POST",
-				body: payload,
-			};
-			if (options?.modelKey) {
-				const amount = estimateCreditCost(options.modelKey, {
-					durationSeconds: options.durationSeconds,
-				});
-				if (Number.isFinite(amount) && amount > 0) {
-					proxyBody.credits = {
-						amount,
-						modelKey: options.modelKey,
-						description: `FAL — ${options.modelKey}${
-							options.durationSeconds ? ` (${options.durationSeconds}s)` : ""
-						}`,
-					};
-				}
-			}
-
-			return fetch(`${LICENSE_SERVER_URL}/api/ai/proxy`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${sessionToken}`,
-				},
-				body: JSON.stringify(proxyBody),
-				signal: options?.signal,
-			});
+	if (sessionToken && (options?.proxyFirst || !apiKey)) {
+		let proxyResponse: Response | null = null;
+		try {
+			proxyResponse = await submitFalViaProxy(
+				targetUrl,
+				payload,
+				sessionToken,
+				options
+			);
+		} catch (error) {
+			if (!apiKey) throw error;
+			console.warn(
+				"[makeFalRequest] proxy threw, falling back to local FAL key",
+				error
+			);
 		}
+		if (proxyResponse) {
+			// The proxy can return HTTP 200 with a FastAPI-style `{ detail: [...] }`
+			// error envelope when the upstream provider fails. Without peeking at the
+			// body we'd treat that as success and skip the local-key fallback, leaving
+			// the caller to parse an error payload as a normal FAL response.
+			const usable = apiKey ? await isProxyResponseUsable(proxyResponse) : true;
+			if (usable) {
+				return proxyResponse;
+			}
+			console.warn(
+				`[makeFalRequest] proxy returned ${proxyResponse.status} (or 200 error envelope), falling back to local FAL key`
+			);
+		}
+	}
 
+	if (!apiKey) {
 		const error = new Error(
 			"FAL API key not configured. Please sign in to your QCut account or set VITE_FAL_API_KEY."
 		);
@@ -197,22 +289,15 @@ export async function makeFalRequest(
 		Authorization: `Key ${apiKey}`,
 		"Content-Type": "application/json",
 	};
-
-	// Queue mode uses queue.fal.run subdomain for async job submission
 	if (options?.queueMode) {
 		headers["X-Fal-Queue"] = "true";
 	}
 
-	const base = options?.queueMode ? FAL_QUEUE_BASE : FAL_API_BASE;
-	const url = endpoint.startsWith("https://")
-		? endpoint
-		: `${base}/${endpoint}`;
-
-	return fetch(url, {
+	return fetch(targetUrl, {
 		method: "POST",
 		headers,
 		body: JSON.stringify(payload),
-		signal: options?.signal,
+		signal: buildAbortSignal(options),
 	});
 }
 

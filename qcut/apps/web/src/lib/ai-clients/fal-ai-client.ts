@@ -32,6 +32,7 @@ import {
 	uploadFileToFal as uploadFileToFalCore,
 	type FalUploadFileType,
 } from "../ai-video/core/fal-upload";
+import { makeFalRequest } from "../ai-video/core/fal-request";
 import {
 	convertV3Parameters,
 	convertV4Parameters,
@@ -60,6 +61,7 @@ import { reveTextToImage, reveEdit } from "./fal-ai-client-reve";
 import {
 	FAL_LOG_COMPONENT,
 	type FalImageResponse,
+	type FalRequestDelegateOptions,
 	type GenerationSettings,
 	type GenerationResult,
 	type MultiModelGenerationResult,
@@ -155,16 +157,9 @@ class FalAIClient {
 	 */
 	private async makeRequest<T = FalImageResponse>(
 		endpoint: string,
-		params: Record<string, unknown>
+		params: Record<string, unknown>,
+		options?: FalRequestDelegateOptions
 	): Promise<T> {
-		// Ensure API key is loaded (may be async from Electron storage)
-		const apiKey = await this.ensureApiKey();
-		if (!apiKey) {
-			throw new Error(
-				"FAL API key is required. Please set VITE_FAL_API_KEY environment variable or configure it in Settings."
-			);
-		}
-
 		// The endpoint already contains the full URL, so use it directly
 		const requestUrl = endpoint.startsWith("https://")
 			? endpoint
@@ -173,16 +168,17 @@ class FalAIClient {
 		debugLogger.log(FAL_LOG_COMPONENT, "REQUEST_START", {
 			endpoint: requestUrl,
 			params,
+			modelKey: options?.modelKey,
 		});
 
-		// Make direct API call to fal.run instead of proxy
-		const response = await fetch(requestUrl, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"Authorization": `Key ${apiKey}`,
-			},
-			body: JSON.stringify(params),
+		// Route through makeFalRequest so signed-in users go via the
+		// license-server proxy first (falling back to the local VITE_FAL_API_KEY
+		// on proxy failure). `modelKey` drives credit deduction on the proxy
+		// side — when present, the license server debits the user's ledger.
+		const response = await makeFalRequest(requestUrl, params, {
+			proxyFirst: true,
+			modelKey: options?.modelKey,
+			durationSeconds: options?.durationSeconds,
 		});
 
 		debugLogger.log(FAL_LOG_COMPONENT, "REQUEST_STATUS", {

@@ -102,4 +102,39 @@ describe("credit-costs — registry-driven pricing (1 credit ≈ $0.01)", () => 
 		expect(info?.credits).toBe(30);
 		expect(info?.unit).toBe("per operation");
 	});
+
+	it.each([
+		// modelKey, expectedCredits — costPerImage in cents rounds to credits.
+		["gpt-image-2-fal", 4], // costPerImage: 4.2 → 4
+		["gpt-image-2-gmi", 4], // costPerImage: 4.2 → 4
+		["nano-banana", 4], // costPerImage: 3.9 → 4
+		["seeddream-v4", 5], // costPerImage: 5
+		["flux-pro-v11-ultra", 7], // costPerImage: 7
+		["imagen4-ultra", 10], // costPerImage: 10
+		["gemini-3-pro", 15], // costPerImage: 15
+		["reve-text-to-image", 4], // costPerImage: 4
+	])("prices text2image model %s via registry fallback", (modelKey, expected) => {
+		expect(estimateCreditCost(modelKey)).toBe(expected);
+	});
+
+	it("uses COST_OVERRIDES for Veo 3.1 tiers (per-second)", () => {
+		// Fast: 10 credits/s × 8s = 80
+		expect(estimateCreditCost("veo-3.1-fast", { durationSeconds: 8 })).toBe(80);
+		// Lite: 5 × 8 = 40
+		expect(estimateCreditCost("veo-3.1-lite", { durationSeconds: 8 })).toBe(40);
+		// Standard: 50 × 8 = 400
+		expect(estimateCreditCost("veo-3.1", { durationSeconds: 8 })).toBe(400);
+	});
+
+	it("uses COST_OVERRIDES for Reve Edit (fixed)", () => {
+		expect(estimateCreditCost("reve-edit")).toBe(4);
+	});
+
+	it("getCreditCostInfo exposes text2image registry entries", () => {
+		const info = getCreditCostInfo("gpt-image-2-fal");
+		expect(info).not.toBeNull();
+		expect(info?.credits).toBeCloseTo(4.2, 6);
+		expect(info?.unit).toBe("per image");
+		expect(info?.label).toContain("GPT-Image-2");
+	});
 });

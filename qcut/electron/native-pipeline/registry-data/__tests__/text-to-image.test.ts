@@ -53,4 +53,57 @@ describe("text-to-image registry", () => {
 		expect(ModelRegistry.has("flux_schnell")).toBe(true);
 		expect(ModelRegistry.has("imagen4")).toBe(true);
 	});
+
+	it("registers gpt_image_2_gmi against GMI Cloud with image-editing support", () => {
+		expect(ModelRegistry.has("gpt_image_2_gmi")).toBe(true);
+		const model = ModelRegistry.get("gpt_image_2_gmi");
+		expect(model.name).toBe("GPT-Image-2 (GMI)");
+		expect(model.provider).toBe("OpenAI (via GMI)");
+		expect(model.endpoint).toBe("gpt-image-2");
+		expect(model.providerBackend).toBe("gmi");
+		expect(model.categories).toContain("text_to_image");
+		expect(model.categories).toContain("image_to_image");
+		expect(model.costEstimate).toBe(0.042);
+	});
+
+	it("gpt_image_2_gmi defaults match GMI's medium 1024x1024 tier", () => {
+		const model = ModelRegistry.get("gpt_image_2_gmi");
+		expect(model.defaults?.size).toBe("1024x1024");
+		expect(model.defaults?.quality).toBe("medium");
+		expect(model.defaults?.output_format).toBe("png");
+		expect(model.defaults?.n).toBe(1);
+	});
+
+	it("does not register the bare gpt_image_2 key post-rename", () => {
+		expect(ModelRegistry.has("gpt_image_2")).toBe(false);
+	});
+
+	it("registers gpt_image_2_fal against FAL with image-editing support", () => {
+		expect(ModelRegistry.has("gpt_image_2_fal")).toBe(true);
+		const model = ModelRegistry.get("gpt_image_2_fal");
+		expect(model.name).toBe("GPT-Image-2 (FAL)");
+		expect(model.provider).toBe("OpenAI (via FAL)");
+		expect(model.endpoint).toBe("openai/gpt-image-2");
+		expect(model.providerBackend).toBe("fal");
+		expect(model.categories).toContain("text_to_image");
+		expect(model.categories).toContain("image_to_image");
+		expect(model.costEstimate).toBe(0.042);
+	});
+
+	it("gpt_image_2_fal defaults use FAL preset conventions", () => {
+		const model = ModelRegistry.get("gpt_image_2_fal");
+		expect(model.defaults?.image_size).toBe("landscape_4_3");
+		expect(model.defaults?.quality).toBe("high");
+		expect(model.defaults?.output_format).toBe("png");
+		expect(model.defaults?.num_images).toBe(1);
+	});
+
+	it("FAL and GMI variants are distinct, symmetric entries", () => {
+		const fal = ModelRegistry.get("gpt_image_2_fal");
+		const gmi = ModelRegistry.get("gpt_image_2_gmi");
+		expect(fal.providerBackend).toBe("fal");
+		expect(gmi.providerBackend).toBe("gmi");
+		expect(fal.endpoint).not.toBe(gmi.endpoint);
+		expect(fal.provider).not.toBe(gmi.provider);
+	});
 });

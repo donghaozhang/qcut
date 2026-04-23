@@ -15,6 +15,8 @@ import {
 } from "./utility-http-server.js";
 import { UtilityPtyManager } from "./utility-pty-manager.js";
 import type { MainToUtilityMessage } from "./utility-ipc-types.js";
+import { setSessionTokenProvider } from "../native-pipeline/infra/proxy-client.js";
+import { getKey } from "../native-pipeline/infra/key-manager.js";
 
 // Use electron-log when available, fall back to console
 let logger: {
@@ -59,6 +61,24 @@ if (!maybeParentPort) {
 
 // After the guard above, parentPort is guaranteed to be defined
 const parentPort: import("node:worker_threads").MessagePort = maybeParentPort;
+
+// Wire the license-server session token provider for this utility process's
+// proxy-client instance. The main process does the same in setupLicenseIPC,
+// but that call only affects main's module copy — the utility process has
+// its own module graph. Without this, api-caller.ts in the utility process
+// sees `providerSet=false` and skips proxy, falling through to whatever local
+// FAL/GMI key is set (often stale) and returning 401.
+// Reading from ~/.qcut/.env matches what the CLI runner does; the main
+// process also persists any token received via `license:set-auth-token` IPC
+// to the same file, so this stays in sync across processes automatically.
+setSessionTokenProvider(async () => {
+	try {
+		const token = getKey("QCUT_AUTH_TOKEN");
+		return token?.trim() ?? "";
+	} catch {
+		return "";
+	}
+});
 
 const ptyManager = new UtilityPtyManager(parentPort);
 

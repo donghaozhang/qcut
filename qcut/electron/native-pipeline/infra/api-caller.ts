@@ -471,10 +471,34 @@ export async function pollQueueStatus(
 				};
 			}
 			const data = await resultRes.json();
+			const extracted = extractOutputUrl(data);
+			// Guard against FAL COMPLETED-with-error envelope ({detail:[...]}) —
+			// without this the caller treats downstream failures as success.
+			if (
+				!extracted &&
+				data &&
+				typeof data === "object" &&
+				Array.isArray((data as Record<string, unknown>).detail)
+			) {
+				const detail = (data as Record<string, unknown>)
+					.detail as Array<unknown>;
+				const first = detail[0];
+				const firstMsg =
+					typeof first === "string"
+						? first
+						: (((first as Record<string, unknown>)?.msg as string) ??
+							((first as Record<string, unknown>)?.type as string) ??
+							"Unknown error");
+				return {
+					success: false,
+					error: `FAL returned error: ${String(firstMsg)} — full payload: ${JSON.stringify(data).slice(0, 300)}`,
+					duration: (Date.now() - startTime) / 1000,
+				};
+			}
 			return {
 				success: true,
 				data,
-				outputUrl: extractOutputUrl(data),
+				outputUrl: extracted,
 				duration: (Date.now() - startTime) / 1000,
 			};
 		}
@@ -608,9 +632,9 @@ export async function callModelApi(
 	} = options;
 
 	const apiKey = await getApiKey(provider);
-	const useProxy = !apiKey && (await isProxyAvailable());
+	const proxyAvailable = await isProxyAvailable();
 
-	if (!apiKey && !useProxy) {
+	if (!apiKey && !proxyAvailable) {
 		return {
 			success: false,
 			error: `No API key configured for provider: ${provider}`,
@@ -618,18 +642,28 @@ export async function callModelApi(
 		};
 	}
 
-	// ── Proxy mode: route through license server ──
-	if (useProxy) {
+	// ── Proxy-first: route through license server when user is logged in.
+	// Falls back to the local provider key only when the proxy call fails
+	// AND a local key is present. Users without a local key still get the
+	// proxy result (success or error) surfaced directly.
+	// Timeout pass-through preserves the GMI-aware envelope — long-running
+	// GMI ops (kling-create-element, ~5 min) would otherwise abort at the
+	// proxy-client default. `retries` is intentionally not forwarded: the
+	// proxy has its own fixed retry budget (PROXY_RETRIES).
+	if (proxyAvailable) {
 		const credits = options.modelKey
 			? estimateProxyCredits(options.modelKey, options.payload)
 			: undefined;
-		// Pass the computed timeoutMs (post-default) so proxy mode
-		// inherits the same GMI-aware envelope as direct mode — otherwise
-		// long-running GMI operations (kling-create-element, ~5 min each)
-		// abort at the 120s proxy fallback default. `retries` isn't a
-		// ProxyApiCallOptions field (proxy has its own fixed retry budget
-		// in PROXY_RETRIES).
-		return callModelApiViaProxy({ ...options, credits, timeoutMs }, startTime);
+		const proxyResult = await callModelApiViaProxy(
+			{ ...options, credits, timeoutMs },
+			startTime
+		);
+		if (proxyResult.success || !apiKey) {
+			return proxyResult;
+		}
+		console.warn(
+			`[api-caller] Proxy call failed for ${provider} (${proxyResult.error}); falling back to local ${provider.toUpperCase()}_KEY`
+		);
 	}
 
 	const headers = buildHeaders(provider, apiKey);
