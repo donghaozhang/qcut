@@ -36,6 +36,44 @@ $ cd electron && bun x tsc && bun x esbuild ../electron/preload.ts ...
 
 If `bun run build` fails, fix the build before running any of the commands below — the compiled `qcut` binary won't pick up new registry entries or CLI handlers otherwise.
 
+### Troubleshooting — "Cannot read properties of undefined (reading 'resolve')" or "src/App.js (25:16): Expression expected"
+
+Symptom: Vite fails to load the config or parses an unexpected `.js` file:
+
+```
+qcut:build: failed to load config from .../apps/web/vite.config.js
+qcut:build: TypeError: Cannot read properties of undefined (reading 'resolve')
+```
+or
+```
+qcut:build: src/App.js (25:16): Expression expected
+```
+
+Cause: a prior `tsc` run (without `--noEmit`, or from an IDE / out-of-scope build task) emitted compiled `.js` files next to their `.ts`/`.tsx` sources across `apps/web/src/`, `electron/`, and `packages/`. Vite prefers `.js` over `.ts` when both exist, so the broken compiled output takes precedence.
+
+Fix: delete every untracked `.js` that has a paired `.ts`/`.tsx` sibling, then rebuild:
+
+```bash
+cd /Users/peter/Desktop/code/qcut/qcut
+
+for scope in apps/web/src electron packages; do
+  git ls-files --others --exclude-standard "$scope" | grep '\.js$' | while read -r f; do
+    base="${f%.js}"
+    if [ -f "${base}.ts" ] || [ -f "${base}.tsx" ]; then
+      rm "$f"
+    fi
+  done
+done
+
+# Confirm none remain
+git ls-files --others --exclude-standard apps/web/src electron packages \
+  | grep '\.js$' | wc -l   # → 0
+
+bun run build   # now passes in ~25s
+```
+
+Observed on 2026-04-23: ~2,200 stale `.js` files under `apps/web/src/` + `electron/` + `packages/`, zero orphan `.js` without a source pair, zero `.js.map` or `.d.ts` alongside them. The filter keeps legitimate non-tsc JS scripts intact (e.g. reference material in `docs/task/`, binary build artifacts).
+
 ---
 
 ## 0.1. Launch Electron in the background
