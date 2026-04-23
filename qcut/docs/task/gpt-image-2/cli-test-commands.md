@@ -190,7 +190,22 @@ If you see this line, copy the full raw payload into a follow-up ticket — it's
 | Date | Command | Result | Cause |
 |---|---|---|---|
 | 2026-04-23 | `gen image -m gpt_image_2_gmi` | HTTP 500 after 3 retries — "Generation failed due to a temporary backend error." | GMI tenant/backend broken |
-| 2026-04-23 | `gen image -m gpt_image_2_fal` | Queue COMPLETED with `{detail:[{type:"downstream_service_error", input:{..., openai_api_key:null}}]}`, billed $0.042 | FAL tenant missing OpenAI BYOK credential |
-| 2026-04-23 | Same after `1b08c8c2d` | Proxy reports failure → falls back to local key → 401 "invalid key credentials" → exit 1 | Same root cause, now surfaced loudly instead of silent exit 0 |
+| 2026-04-23 (early) | `gen image -m gpt_image_2_fal` | Queue COMPLETED with `{detail:[{type:"downstream_service_error", input:{..., openai_api_key:null}}]}`, billed $0.042 | Intermittent — FAL OpenAI passthrough flakiness |
+| 2026-04-23 | Same after `1b08c8c2d` | Proxy reports failure → falls back to local key → 401 "invalid key credentials" → exit 1 | Surfaced the failure loudly instead of silent exit 0 |
+| 2026-04-23 | `editor:generate:start -m gpt_image_2_fal` | Instant 401 "invalid key credentials" inside editor | **Utility process had no session token provider** — fixed by wiring `setSessionTokenProvider` in `electron/utility/utility-process.ts` against `~/.qcut/.env` |
 
-Until the provider side is fixed, expect failure on both variants. When FAL or GMI restores service, the same command will produce a PNG with no code changes.
+---
+
+## 7. Verified working — 2026-04-23 20:47 (end-to-end pass)
+
+After landing (a) the renderer proxy-first routing, (b) the FAL `{detail:[…]}` detector, and (c) the utility-process `setSessionTokenProvider` wiring — all three `editor:generate:start` variants produced real PNGs via the license-server proxy in one session:
+
+| Test | Job ID | Duration | Output |
+|---|---|---|---|
+| Fire-and-forget | `gen_1776940809253_8weua` | 120.9s | `~/Documents/QCut/Projects/ecf93d99…/media/output_1776940927907.png` |
+| `--poll` | `gen_1776940942187_h8pb5` | 133.2s | `~/Documents/QCut/Projects/ecf93d99…/media/output_1776941073077.png` |
+| `--poll --add-to-timeline` | `gen_1776941086255_fwv7c` | 167.1s | `~/Documents/QCut/Projects/ecf93d99…/media/output_1776941251740.png` |
+
+Each run also wrote a session copy to `$TMPDIR/qcut/aicp-output/<jobId>/output_<ts>.png` (the native pipeline's raw output before project import). Every job returned `"status":"completed"`, `cost: undefined` from the manager (FAL doesn't echo cost in the queue result; the CLI shows the registry estimate), and the auto-imported `mediaId` in the Claude HTTP response.
+
+The session-token provider fix moves the editor path from "silently direct-to-FAL with a stale local key → 401" to "proxy-first → succeed". The GUI Generate button uses the same renderer path as the CLI, so it should behave the same once you re-login in the app's Settings UI and restart.
