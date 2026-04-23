@@ -405,9 +405,14 @@ export async function callModelApiViaProxy(
 				const resultData = result.data as Record<string, unknown>;
 				const extracted = extractOutputUrl(resultData);
 				if (!extracted && Array.isArray(resultData?.detail)) {
-					const detail = resultData.detail as Array<Record<string, unknown>>;
+					const detail = resultData.detail as Array<unknown>;
+					const first = detail[0];
 					const firstMsg =
-						detail[0]?.msg ?? detail[0]?.type ?? "Unknown error";
+						typeof first === "string"
+							? first
+							: ((first as Record<string, unknown>)?.msg as string) ??
+								((first as Record<string, unknown>)?.type as string) ??
+								"Unknown error";
 					return {
 						success: false,
 						error: `FAL returned error: ${String(firstMsg)} — full payload: ${JSON.stringify(resultData).slice(0, 300)}`,
@@ -521,8 +526,14 @@ async function pollViaProxy({
 				// Without this check the CLI reports success + exit 0 on an
 				// empty outputUrl and the user never sees the real error.
 				if (!extracted && Array.isArray(data?.detail)) {
-					const detail = data.detail as Array<Record<string, unknown>>;
-					const firstMsg = detail[0]?.msg ?? detail[0]?.type ?? "Unknown error";
+					const detail = data.detail as Array<unknown>;
+					const first = detail[0];
+					const firstMsg =
+						typeof first === "string"
+							? first
+							: ((first as Record<string, unknown>)?.msg as string) ??
+								((first as Record<string, unknown>)?.type as string) ??
+								"Unknown error";
 					return {
 						success: false,
 						error: `FAL returned error: ${String(firstMsg)} — full payload: ${JSON.stringify(data).slice(0, 300)}`,

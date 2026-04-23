@@ -18,9 +18,12 @@ export const TEXT2IMAGE_MODELS: Record<string, Text2ImageModel> = {
 // ============================================
 // Shared priority order (cheapest ➜ premium)
 // ============================================
+// NOTE: `gpt-image-2-gmi` is intentionally absent from the picker order.
+// The model is registered in TEXT2IMAGE_MODELS for CLI/programmatic use, but
+// GUI generation flows through FalAIClient and has no GMI-aware routing yet,
+// so exposing it in the picker would produce confusing auth/URL failures.
 export const TEXT2IMAGE_MODEL_ORDER = [
 	"gpt-image-2-fal",
-	"gpt-image-2-gmi",
 	"gemini-3-pro",
 	"gpt-image-1-5",
 	"phota",
@@ -117,7 +120,6 @@ export function recommendModelsForPrompt(prompt: string): string[] {
 export const MODEL_CATEGORIES = {
 	PHOTOREALISTIC: [
 		"gpt-image-2-fal",
-		"gpt-image-2-gmi",
 		"imagen4-ultra",
 		"wan-v2-2",
 		"wan-v2-7-pro-t2i",
@@ -145,7 +147,6 @@ export const MODEL_CATEGORIES = {
 	],
 	HIGH_QUALITY: [
 		"gpt-image-2-fal",
-		"gpt-image-2-gmi",
 		"imagen4-ultra",
 		"wan-v2-2",
 		"wan-v2-7-pro-t2i",

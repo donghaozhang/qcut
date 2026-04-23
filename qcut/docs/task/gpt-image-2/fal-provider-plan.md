@@ -422,7 +422,7 @@ If proxy path succeeds and a real PNG lands: variant is live. If FAL returns 401
 | GUI type check | `cd apps/web && bunx tsc --noEmit -p tsconfig.json` | ✅ 0 errors |
 | Electron type check | `cd electron && bunx tsc --noEmit -p tsconfig.json` | ✅ 0 errors |
 
-### Live CLI smoke (run 2026-04-23, logged in as `qcut-love2@qcut.app`)
+### Live CLI smoke (run 2026-04-23, logged in as a QCut test account)
 
 ```
 $ bun run pipeline gen image -m gpt_image_2_fal \

@@ -137,6 +137,51 @@ export interface FalRequestOptions {
 	proxyFirst?: boolean;
 }
 
+/**
+ * Combine the caller's AbortSignal with an optional timeout into a single signal.
+ * Uses AbortSignal.any (widely available in modern Chromium/Node 20+) when both
+ * are present, so cancellation *and* timeout both trigger abort.
+ */
+function buildAbortSignal(
+	options: FalRequestOptions | undefined
+): AbortSignal | undefined {
+	const signals: AbortSignal[] = [];
+	if (options?.signal) signals.push(options.signal);
+	if (options?.timeout && options.timeout > 0) {
+		signals.push(AbortSignal.timeout(options.timeout));
+	}
+	if (signals.length === 0) return undefined;
+	if (signals.length === 1) return signals[0];
+	return AbortSignal.any(signals);
+}
+
+/**
+ * Peek at a proxy response body (via clone, so the original stream is untouched)
+ * and decide whether the caller can treat it as success. Returns false when the
+ * proxy returned a 200 FastAPI-style `{ detail: [...] }` error envelope with no
+ * success marker like `request_id` — in which case the caller should fall back.
+ */
+async function isProxyResponseUsable(response: Response): Promise<boolean> {
+	if (!response.ok) return false;
+	let body: unknown;
+	try {
+		body = await response.clone().json();
+	} catch {
+		return true; // Non-JSON 200 — pass through; caller will handle it.
+	}
+	if (!body || typeof body !== "object") return true;
+	const obj = body as Record<string, unknown>;
+	if (
+		Array.isArray(obj.detail) &&
+		!obj.request_id &&
+		!obj.images &&
+		!obj.data
+	) {
+		return false;
+	}
+	return true;
+}
+
 async function submitFalViaProxy(
 	targetUrl: string,
 	payload: Record<string, unknown>,
@@ -170,7 +215,7 @@ async function submitFalViaProxy(
 			Authorization: `Bearer ${sessionToken}`,
 		},
 		body: JSON.stringify(proxyBody),
-		signal: options?.signal,
+		signal: buildAbortSignal(options),
 	});
 }
 
@@ -214,12 +259,19 @@ export async function makeFalRequest(
 				error
 			);
 		}
-		if (proxyResponse && (proxyResponse.ok || !apiKey)) {
-			return proxyResponse;
-		}
-		if (proxyResponse && apiKey) {
+		if (proxyResponse) {
+			// The proxy can return HTTP 200 with a FastAPI-style `{ detail: [...] }`
+			// error envelope when the upstream provider fails. Without peeking at the
+			// body we'd treat that as success and skip the local-key fallback, leaving
+			// the caller to parse an error payload as a normal FAL response.
+			const usable = apiKey
+				? await isProxyResponseUsable(proxyResponse)
+				: true;
+			if (usable) {
+				return proxyResponse;
+			}
 			console.warn(
-				`[makeFalRequest] proxy returned ${proxyResponse.status}, falling back to local FAL key`
+				`[makeFalRequest] proxy returned ${proxyResponse.status} (or 200 error envelope), falling back to local FAL key`
 			);
 		}
 	}
@@ -247,7 +299,7 @@ export async function makeFalRequest(
 		method: "POST",
 		headers,
 		body: JSON.stringify(payload),
-		signal: options?.signal,
+		signal: buildAbortSignal(options),
 	});
 }
 

@@ -61,6 +61,24 @@ export function convertSettingsToParams(
 			params.image_size = settings.imageSize;
 			break;
 
+		case "gpt-image-2-fal": {
+			const allowed = [
+				"square_hd",
+				"square",
+				"portrait_4_3",
+				"portrait_16_9",
+				"landscape_4_3",
+				"landscape_16_9",
+			];
+			if (
+				typeof settings.imageSize === "string" &&
+				allowed.includes(settings.imageSize)
+			) {
+				params.image_size = settings.imageSize;
+			}
+			break;
+		}
+
 		case "wan-v2-2":
 			params.image_size = settings.imageSize;
 			break;

@@ -77,15 +77,18 @@ describe("text2image-models registry", () => {
 		expect(model?.endpoint).toContain("fal.run/openai/gpt-image-2");
 	});
 
-	it("FAL variant takes top-of-order, GMI variant sits right behind", () => {
+	it("FAL variant takes top-of-order; GMI variant is kept out of the picker", () => {
 		expect(TEXT2IMAGE_MODEL_ORDER[0]).toBe("gpt-image-2-fal");
-		expect(TEXT2IMAGE_MODEL_ORDER[1]).toBe("gpt-image-2-gmi");
+		// GMI variant is registered but excluded from the picker until a
+		// GMI-aware generation client exists (GUI flow routes through FAL).
+		expect(TEXT2IMAGE_MODEL_ORDER as readonly string[]).not.toContain(
+			"gpt-image-2-gmi"
+		);
 	});
 
 	it("first entry from getText2ImageModelEntriesInPriorityOrder is gpt-image-2-fal", () => {
 		const entries = getText2ImageModelEntriesInPriorityOrder();
 		expect(entries[0][0]).toBe("gpt-image-2-fal");
-		expect(entries[1][0]).toBe("gpt-image-2-gmi");
 	});
 
 	it("does not register the bare gpt-image-2 key post-rename", () => {

@@ -3,7 +3,11 @@
 This doc records the exact CLI invocations that exercise the **same main-process generation path** the GUI uses (`NativePipelineManager` → `callModelApi` → proxy-first → FAL queue poll → auto-import to timeline). Use these when you want to verify gpt-image-2 end-to-end without clicking through the UI, or to bypass the renderer `fal-ai-client` while debugging.
 
 **Branch**: `GPT-Image2`
-**Status**: Both FAL and GMI variants currently fail at the **provider** level — not in QCut code. See [fal-provider-plan.md](./fal-provider-plan.md) §7 for the downstream-error evidence.
+**Status** (as of 2026-04-23):
+- FAL variant (`openai/gpt-image-2`): reaches queue and completes, but intermittently returns a FastAPI-style `{detail:[...]}` `downstream_service_error` envelope from FAL's OpenAI passthrough. End-to-end runs *have* succeeded on this date (see §6 table) — fail-rate is provider-side, not QCut code.
+- GMI variant (`gpt-image-2-gmi`): backend returns HTTP 500 after retries (GMI tenant/backend issue).
+
+Both failure modes originate at the provider, not in QCut routing or auth. See [fal-provider-plan.md](./fal-provider-plan.md) §7 for the downstream-error evidence.
 
 ---
 
@@ -136,7 +140,7 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 # → {"plan":"free","status":"active","credits":{"totalCredits":...}}
 ```
 
-> **BYOK users**: set `VITE_FAL_API_KEY` in your environment instead and skip this step. The CLI will call FAL directly; no credits are deducted. Note this path hits FAL's `openai/gpt-image-2` with *your* FAL key + OpenAI passthrough credentials, which is usually where gpt-image-2 specifically breaks.
+> **BYOK users**: set any one of `VITE_FAL_API_KEY`, `FAL_API_KEY`, or `FAL_KEY` in your environment instead and skip this step — runtime key lookup accepts all three. The CLI will call FAL directly; no credits are deducted. Note this path hits FAL's `openai/gpt-image-2` with *your* FAL key + OpenAI passthrough credentials, which is usually where gpt-image-2 specifically breaks.
 
 ---
 
@@ -274,7 +278,7 @@ bun run pipeline gen image -m gpt_image_2_fal -t "..." --verbose
 
 The diagnostic log added in `1b08c8c2d` fires on any unrecognized FAL payload shape:
 
-```
+```text
 [proxy-client] FAL openai/gpt-image-2 returned no recognized outputUrl.
 Raw keys: detail. Data preview: {"detail":[{...}]}
 ```
