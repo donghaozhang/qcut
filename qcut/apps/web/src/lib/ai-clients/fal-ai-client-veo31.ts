@@ -39,6 +39,11 @@ function inferVeoDefaultDuration(endpoint: string): number {
 	return endpoint.includes("extend-video") ? 7 : 8;
 }
 
+/**
+ * Map a FAL Veo 3.1 endpoint to the credit-ledger model key. The key is
+ * shared across text/image/frame/extend variants of the same tier because
+ * FAL prices them per second at the same rate.
+ */
 function inferVeo31ModelKey(endpoint: string): string {
 	if (endpoint.includes("veo3.1/fast")) return VEO31_FAST_KEY;
 	if (endpoint.includes("veo3.1/lite")) return VEO31_LITE_KEY;
@@ -51,6 +56,11 @@ type VeoParams =
 	| Veo31FrameToVideoInput
 	| Veo31ExtendVideoInput;
 
+/**
+ * Shared request entry point for every Veo 3.1 variant. Computes the
+ * per-endpoint credit cost (model key + duration in seconds) and delegates
+ * to the FAL client, which handles proxy-first routing and response parsing.
+ */
 async function veoMakeRequest(
 	delegate: FalAIClientRequestDelegate,
 	endpoint: string,
