@@ -9,13 +9,73 @@ This doc records the exact CLI invocations that exercise the **same main-process
 
 ## Prerequisites
 
-1. Log in with a QCut test account (below) — stores `QCUT_AUTH_TOKEN` so the proxy path is available.
-2. Rebuild the CLI if you changed any `electron/native-pipeline/*` source since the last build: `bun run build`.
-3. You only need QCut *running* for the `editor:generate:*` variant (it hits the app's HTTP bridge on 8765). The plain `gen image` variant runs standalone.
+Follow steps **0**, **0.1**, and **0.2** below in order — they build the CLI, launch the editor, and log in. After that, pick whichever generation path you want (§1 standalone CLI, §2 editor HTTP bridge, etc.).
+
+- Step **0** is required whenever you've touched any `electron/native-pipeline/*` source since the last build — the `qcut` binary is a compiled snapshot.
+- Step **0.1** is only required for the `editor:generate:*` variant in §2 (it hits the editor's HTTP bridge on 8765). Skip it if you're only running §1.
+- Step **0.2** is required for any path that uses the license-server proxy (anything other than pure BYOK with `VITE_FAL_API_KEY`).
 
 ---
 
-## 0. Log in with the QCut test account
+## 0. Build the CLI
+
+Rebuilds `qcut` + `electron/native-pipeline` from source. Required after pulling new commits or editing any CLI handler / registry data.
+
+```bash
+cd /Users/peter/Desktop/code/qcut/qcut
+bun run build
+# → vite build (apps/web), tsc (electron), esbuild preload → ~25-40s total
+```
+
+Expected output ends with:
+```
+$ cd electron && bun x tsc && bun x esbuild ../electron/preload.ts ...
+  ../dist/electron/preload.js  47.2kb
+⚡ Done in 2ms
+```
+
+If `bun run build` fails, fix the build before running any of the commands below — the compiled `qcut` binary won't pick up new registry entries or CLI handlers otherwise.
+
+---
+
+## 0.1. Launch Electron in the background
+
+Only needed for §2 (editor HTTP bridge) — skip if you're only running §1 standalone CLI.
+
+```bash
+# From the qcut subdirectory
+cd /Users/peter/Desktop/code/qcut/qcut
+
+# Launch the packaged build; disown so closing the terminal doesn't kill it
+bun run electron &
+disown
+```
+
+Or, if you prefer a detached launch that survives the shell:
+
+```bash
+nohup bun run electron > /tmp/qcut-electron.log 2>&1 &
+```
+
+Verify the editor HTTP bridge is up before moving on:
+
+```bash
+qcut editor:health --json | jq '.status'
+# → "ok"
+```
+
+If `editor:health` returns `"No active window"`, kill any stale Electron processes and relaunch — the single-instance lock can leave a zombie with no window attached:
+
+```bash
+pkill -f "qcut/node_modules/.bun/electron@"
+sleep 2
+bun run electron &
+disown
+```
+
+---
+
+## 0.2. Log in with the QCut test account
 
 Credentials live in `.env.test-accounts` (gitignored) — ask the project admin. Once logged in, `qcut` writes the token to `~/.qcut/.env` as `QCUT_AUTH_TOKEN`, and both the standalone CLI and the editor's main process will pick it up automatically.
 
