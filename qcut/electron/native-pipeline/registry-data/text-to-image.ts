@@ -113,27 +113,29 @@ export function registerTextToImageModels(): void {
 	});
 
 	ModelRegistry.register({
-		key: "gpt_image_2",
-		name: "GPT-Image-2",
+		key: "gpt_image_2_fal",
+		name: "GPT-Image-2 (FAL)",
 		provider: "OpenAI (via FAL)",
-		endpoint: "fal-ai/gpt-image-2",
-		categories: ["text_to_image"],
+		endpoint: "openai/gpt-image-2",
+		categories: ["text_to_image", "image_to_image"],
 		description:
-			"OpenAI GPT-Image-2 — next-gen prompt adherence and high-fidelity generation",
-		pricing: { per_image: 0.06 },
-		aspectRatios: ["1:1", "16:9", "9:16", "3:2", "2:3"],
+			"OpenAI GPT-Image-2 via FAL — photorealistic, strong prompt adherence, accurate in-image text",
+		pricing: { per_image: 0.042 },
+		aspectRatios: ["1:1", "4:3", "3:4", "16:9", "9:16"],
 		defaults: {
-			image_size: "1536x1024",
+			image_size: "landscape_4_3",
 			quality: "high",
 			output_format: "png",
+			num_images: 1,
 		},
 		features: [
 			"gpt_powered",
-			"natural_language",
-			"high_quality",
-			"strong_prompt_adherence",
+			"photorealistic",
+			"accurate_text_in_image",
+			"image_editing",
+			"inpainting",
 		],
-		costEstimate: 0.06,
+		costEstimate: 0.042,
 		processingTime: 45,
 	});
 
@@ -287,6 +289,34 @@ export function registerTextToImageModels(): void {
 	});
 
 	// ── GMI Cloud Image Models ──────────────────────────────────
+
+	ModelRegistry.register({
+		key: "gpt_image_2_gmi",
+		name: "GPT-Image-2 (GMI)",
+		provider: "OpenAI (via GMI)",
+		endpoint: "gpt-image-2",
+		categories: ["text_to_image", "image_to_image"],
+		description:
+			"OpenAI GPT-Image-2 via GMI Cloud — photorealistic, strong prompt adherence, accurate in-image text",
+		pricing: { per_image: 0.042 },
+		aspectRatios: ["1:1", "3:2", "2:3"],
+		defaults: {
+			size: "1024x1024",
+			quality: "medium",
+			output_format: "png",
+			n: 1,
+		},
+		features: [
+			"gpt_powered",
+			"photorealistic",
+			"accurate_text_in_image",
+			"image_editing",
+			"inpainting",
+		],
+		costEstimate: 0.042,
+		processingTime: 30,
+		providerBackend: "gmi",
+	});
 
 	ModelRegistry.register({
 		key: "gmi_gemini_3_pro_image",

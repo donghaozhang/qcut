@@ -1,183 +1,371 @@
-# GPT-Image-2 Integration — Implementation Plan
+# GPT-Image-2 Integration — Implementation Plan (v2 · GMI)
+
+> **Update (2026-04-23)**: Model key renamed `gpt_image_2` → `gpt_image_2_gmi` (GUI: `gpt-image-2` → `gpt-image-2-gmi`) to pair symmetrically with the new FAL variant `gpt_image_2_fal`. See sibling plan [`fal-provider-plan.md`](./fal-provider-plan.md) for the FAL redundancy rationale (GMI's OpenAI relay was returning 500s consistently) and the full rename + FAL-add rollout.
+
+
 
 **Branch**: `GPT-Image2`
-**Scope**: Add OpenAI GPT-Image-2 as a new text-to-image provider in QCut, surfaced in both the **native pipeline CLI** and the **GUI AI panel**. In the GUI, the model must appear at the **top** of the Text2Image model order.
-**Estimated effort**: ~60–90 minutes (broken into subtasks below — each is ≤20 min).
-**Priority (per CLAUDE.md)**: long-term maintainability > scalability > performance > short-term gains. No ad-hoc shims — reuse existing registration shapes, existing key manager, existing panel ordering mechanism.
+**Scope**: Add OpenAI's **gpt-image-2** as a new text-to-image provider in QCut, served via **GMI Cloud** (not FAL). Surfaced in both the native pipeline CLI and the GUI AI panel. In the GUI it must appear at the **top** of the Text2Image model order.
+**Estimated effort**: ~45–75 minutes (earlier FAL-shaped scaffolding is mostly re-usable; provider, endpoint, params, and pricing change).
+**Priority (per CLAUDE.md)**: long-term maintainability > scalability > performance > short-term gains.
 
 ---
 
-## 1. Design Overview
+## 1. What changed vs. plan v1
 
-QCut has a **semi-shared** image-provider architecture:
+The previous revision of this plan assumed GPT-Image-2 would be served through FAL's proxy (`fal-ai/gpt-image-2`). That endpoint **does not exist** — confirmed by a live CLI test on 2026-04-23 where both a direct curl and the license-server proxy timed out against it.
 
-- **CLI side** — a single `ModelRegistry` in `electron/native-pipeline/` drives YAML pipelines and the native CLI. Models are registered in category-specific files under `registry-data/`.
-- **GUI side** — an independent model catalog under `apps/web/src/lib/text2image-models/` is consumed by the AI panel. Sort order is controlled by a single `TEXT2IMAGE_MODEL_ORDER` array.
+GMI Cloud exposes GPT-Image-2 at:
 
-These two catalogs are not auto-synchronized; a new model must be registered in both places. This plan treats them as two distinct subtasks with matching metadata.
+- Base URL: `https://console.gmicloud.ai`
+- Submit: `POST /api/v1/ie/requestqueue/apikey/requests`
+- Poll / status: `GET /api/v1/ie/requestqueue/apikey/requests/{request_id}`
+- Auth: `Authorization: Bearer ${GMI_API_KEY}`
 
-**Key decision — transport**:
-- Existing sibling model `gpt-image-1-5` uses FAL.ai as a proxy (`fal-ai/gpt-image-1.5`) rather than a direct OpenAI client. This is the pattern we should follow for GPT-Image-2 if FAL exposes the endpoint, because:
-  1. Key management already works (`VITE_FAL_API_KEY` is wired end-to-end).
-  2. No new HTTP client or retry/backoff code.
-  3. Consistent error/quota surface with siblings.
-- If FAL does not yet proxy GPT-Image-2, fall back to a direct OpenAI call using the existing `OPENAI_API_KEY` (already in `KEY_NAMES` in `electron/native-pipeline/infra/key-manager.ts`). This fallback is documented in Subtask 1 as a branch point; do not implement both.
+QCut's CLI already speaks this protocol (`electron/native-pipeline/infra/api-caller.ts:508` — `pollGmiQueue`). The existing GMI image models (`gmi_gemini_3_pro_image`, `gmi_seedream_4`, etc. in `registry-data/text-to-image.ts:289-357`) are the pattern to follow; GPT-Image-2 simply adds another entry to that block.
 
-**Key decision — GUI "top" ordering**:
-- The Text2Image panel sorts models by `TEXT2IMAGE_MODEL_ORDER` in `apps/web/src/lib/text2image-models/index.ts:21`. Inserting `"gpt-image-2"` at index 0 places it first in the grid — no new sort logic required. This is the same mechanism used to promote Seedance GMI in PR #281.
+The proxy-first / local-fallback rework in `api-caller.ts:callModelApi` (landed in this branch) applies to GMI too — logged-in users will spend QCut credits via the license-server proxy before falling back to `GMI_API_KEY`. No extra work needed there.
 
 ---
 
-## 2. Prerequisites (do before coding)
+## 2. Design Overview
 
-| # | Task | Where |
-|---|------|-------|
-| P1 | Confirm FAL endpoint for GPT-Image-2 (e.g. `fal-ai/gpt-image-2`). If absent, branch to direct-OpenAI path. | FAL dashboard / OpenAI docs |
-| P2 | Record actual pricing (per-image, by size/quality) and supported sizes/aspect ratios. Needed for `pricing.per_image` and `aspectRatios`. | OpenAI / FAL pricing |
-| P3 | Decide the canonical model ID. Use `gpt-image-2` for GUI (kebab-case, matches `gpt-image-1-5`) and `gpt_image_2` for CLI (snake_case, matches `gpt_image_1_5`). | This plan |
+### Provider & transport
 
-Do **not** guess pricing — incorrect cost estimates propagate into the UI and export-cost calculators.
+| Aspect | Value |
+|---|---|
+| Provider string (CLI) | `"OpenAI (via GMI)"` |
+| Provider string (GUI) | `"OpenAI (via GMI)"` |
+| `providerBackend` (CLI) | `"gmi"` |
+| `endpoint` (CLI) | `"gpt-image-2"` (GMI model slug, not a URL) |
+| `endpoint` (GUI) | `"https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey/requests"` (documentation-only) |
+| Auth key name | `GMI_API_KEY` (already in `KEY_NAMES` in `electron/native-pipeline/infra/key-manager.ts`) |
+| Transport | GMI queue + poll; handled by existing `pollGmiQueue()` |
+
+### Parameters (per GMI spec)
+
+| Parameter | Type | Required | Default | Options / range |
+|---|---|---|---|---|
+| `prompt` | string | yes | — | — |
+| `size` | enum | no | `"1024x1024"` | `"1024x1024"`, `"1024x1536"`, `"1536x1024"` |
+| `quality` | enum | no | `"medium"` | `"low"`, `"medium"`, `"high"`, `"auto"` |
+| `output_format` | enum | no | `"png"` | `"png"`, `"jpeg"` (no webp) |
+| `n` | integer | no | `1` | `1` – `10` |
+| `image` | base64 | no | — | For edit mode |
+| `mask` | base64 | no | — | White = edit, black = preserve |
+
+### Pricing (per image)
+
+| Quality | 1024×1024 | 1024×1536 / 1536×1024 |
+|---|---|---|
+| Low | $0.011 | $0.016 |
+| Medium | **$0.042** (default) | $0.063 |
+| High | $0.167 | $0.250 |
+
+The CLI registry's `pricing.per_image` is a flat number today, so we register the **default tier** ($0.042) there. A tiered-pricing estimator is out of scope for this PR — see §6 for follow-up.
+
+### GUI "top" ordering
+
+Unchanged from v1: insert `"gpt-image-2"` at index 0 of `TEXT2IMAGE_MODEL_ORDER` in `apps/web/src/lib/text2image-models/index.ts`. Already landed in the earlier (FAL-shaped) commits on this branch; subtask 3 below just updates the provider/params of the entry itself, not the order.
 
 ---
 
-## 3. Subtasks
+## 3. Prerequisites
 
-### Subtask 1 — CLI registry entry (≈10 min)
+| # | Check | Source of truth |
+|---|---|---|
+| P1 | `GMI_API_KEY` is listed in `KEY_NAMES` | `electron/native-pipeline/infra/key-manager.ts:22` (already there) |
+| P2 | GMI queue+poll code path handles `gpt-image-2` — model-agnostic | `electron/native-pipeline/infra/api-caller.ts:508-588` (already works for other GMI models) |
+| P3 | License-server `/api/ai/proxy` allowlists the GMI base URL | `packages/license-server/src/routes/ai-proxy.ts` — existing GMI image models already use this path, so allowlist is fine |
+| P4 | Proxy-first priority applies to `provider: "gmi"` calls | `electron/native-pipeline/infra/api-caller.ts:610-641` (landed this branch) |
+
+All four are satisfied by code already in tree. No P-tasks require net-new work.
+
+---
+
+## 4. Subtasks
+
+### Subtask 1 — Rewrite CLI registry entry (≈10 min)
 
 **File**: `electron/native-pipeline/registry-data/text-to-image.ts`
 
-Add a new `ModelRegistry.register({...})` call, modelled on the existing `gpt_image_1_5` block at lines 115–132. Place it **immediately above** `gpt_image_1_5` so the file order mirrors the GUI "top" position.
+Remove the earlier FAL-shaped `gpt_image_2` block (currently lines ~115-140 on this branch — inserted above `gpt_image_1_5`) and add a GMI-shaped registration in the **GMI Cloud Image Models** block around line 289, placed **first** in that block so file order mirrors the GUI top position. New shape:
 
-Required fields (shape confirmed from existing siblings):
 ```ts
-{
+ModelRegistry.register({
   key: "gpt_image_2",
-  name: "GPT-Image-2",
-  provider: "OpenAI (via FAL)",          // or "OpenAI" if direct path
-  endpoint: "fal-ai/gpt-image-2",        // confirm in P1
-  categories: ["text_to_image"],
-  description: "OpenAI GPT-Image-2 — next-gen prompt-adherent image generation",
-  pricing: { per_image: <from P2> },
-  aspectRatios: [<from P2>],
-  defaults: { image_size: "...", quality: "...", output_format: "png" },
-  features: ["gpt_powered", "high_quality", ...],
-  costEstimate: <from P2>,
-  processingTime: <estimated seconds>,
-}
+  name: "GPT-Image-2 (GMI)",
+  provider: "OpenAI (via GMI)",
+  endpoint: "gpt-image-2",
+  categories: ["text_to_image", "image_to_image"],
+  description:
+    "OpenAI GPT-Image-2 via GMI Cloud — photorealistic, strong prompt adherence, accurate in-image text",
+  pricing: { per_image: 0.042 },
+  aspectRatios: ["1:1", "3:2", "2:3"],
+  defaults: {
+    size: "1024x1024",
+    quality: "medium",
+    output_format: "png",
+    n: 1,
+  },
+  features: [
+    "gpt_powered",
+    "photorealistic",
+    "accurate_text_in_image",
+    "image_editing",
+    "inpainting",
+  ],
+  costEstimate: 0.042,
+  processingTime: 30,
+  providerBackend: "gmi",
+});
 ```
 
-**Long-term note**: Do not inline the endpoint string in call sites. All references flow through `ModelRegistry.get("gpt_image_2")` so future endpoint migrations are a one-line change here.
+Categories include `image_to_image` because GMI's GPT-Image-2 accepts `image` + optional `mask` for edit/inpaint — matches the existing pattern set by `gmi_gemini_3_pro_image` (which also declares both categories). No `sync_mode` field — GMI always uses request_id + poll; `pollGmiQueue` handles the "status=success in first response" fast-path too.
 
----
-
-### Subtask 2 — GUI model definition (≈15 min)
+### Subtask 2 — Rewrite GUI model definition (≈15 min)
 
 **File**: `apps/web/src/lib/text2image-models/other-models.ts`
 
-Add a `"gpt-image-2"` entry to `OTHER_MODELS`, modelled on the existing `"gpt-image-1-5"` block at lines 454–538. Place it **at the top** of the object (before `wan-v2-2`) so file-order reflects visual priority — this is cosmetic but aids maintainability.
+The earlier FAL-shaped `"gpt-image-2"` entry (now at the top of `OTHER_MODELS`) needs its provider, endpoint, pricing, and params replaced with the GMI shape:
 
-Required shape (matches `Text2ImageModel` type in `apps/web/src/lib/text2image-models/types.ts`):
-- `id: "gpt-image-2"`
-- `name: "GPT-Image-2"`
-- `provider: "OpenAI"`
-- `endpoint`: `https://fal.run/fal-ai/gpt-image-2` (or direct OpenAI URL)
-- `qualityRating`, `speedRating`, `estimatedCost`, `costPerImage` (cents)
-- `maxResolution`, `supportedAspectRatios` (from P2)
-- `defaultParams` + `availableParams` array (mirror `gpt-image-1-5` parameter shape — `image_size`, `background`, `quality`, `num_images`, `output_format`)
-- `bestFor`, `strengths`, `limitations` — factual, no marketing copy
+```ts
+"gpt-image-2": {
+  id: "gpt-image-2",
+  name: "GPT-Image-2",
+  description:
+    "OpenAI GPT-Image-2 via GMI Cloud — photorealistic generation with accurate in-image text and strong prompt adherence",
+  provider: "OpenAI (via GMI)",
+  endpoint: "https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey/requests",
 
-**No new file**. Adding a dedicated `openai-models.ts` alongside `google-models.ts`/`bytedance-models.ts` is tempting but premature — there is only one OpenAI model family in the GUI today. Revisit if a third OpenAI model lands.
+  qualityRating: 5,
+  speedRating: 4,
+
+  estimatedCost: "$0.011–$0.250",  // reflects full 9-cell tier table
+  costPerImage: 4.2,  // cents, default tier (medium 1024×1024)
+
+  maxResolution: "1536x1024",
+  supportedAspectRatios: ["1:1", "3:2", "2:3"],
+
+  defaultParams: {
+    size: "1024x1024",
+    quality: "medium",
+    output_format: "png",
+    n: 1,
+  },
+
+  availableParams: [
+    {
+      name: "size",
+      type: "select",
+      options: ["1024x1024", "1024x1536", "1536x1024"],
+      default: "1024x1024",
+      description: "Output image resolution",
+    },
+    {
+      name: "quality",
+      type: "select",
+      options: ["low", "medium", "high", "auto"],
+      default: "medium",
+      description: "Image quality — affects detail and cost",
+    },
+    {
+      name: "output_format",
+      type: "select",
+      options: ["png", "jpeg"],
+      default: "png",
+      description: "File format of the generated image",
+    },
+    {
+      name: "n",
+      type: "number",
+      min: 1,
+      max: 10,
+      default: 1,
+      description: "Number of images to generate (1-10)",
+    },
+  ],
+
+  bestFor: [
+    "Photorealistic image generation",
+    "Images containing readable text",
+    "Strong prompt adherence across complex scenes",
+    "Image editing with mask-based inpainting",
+    "Premium commercial content",
+  ],
+
+  strengths: [
+    "Accurate in-image text rendering",
+    "Best-in-class prompt adherence",
+    "Photorealism across diverse styles",
+    "Native inpainting via image + mask",
+    "Up to 10 images per request",
+  ],
+
+  limitations: [
+    "Three fixed resolutions (no arbitrary sizes)",
+    "No webp output (png/jpeg only)",
+    "High-quality tier is the most expensive model in the catalog ($0.167–$0.250)",
+    "No guidance scale or seed controls",
+  ],
+},
+```
+
+### Subtask 3 — Keep top-of-order (≈1 min · already done)
+
+`apps/web/src/lib/text2image-models/index.ts` already places `"gpt-image-2"` at index 0 of `TEXT2IMAGE_MODEL_ORDER`, and inside `PHOTOREALISTIC` / `HIGH_QUALITY` categories. No change required — only verify after Subtask 2 lands.
+
+### Subtask 4 — Update unit tests (≈15 min)
+
+**CLI** — `electron/native-pipeline/registry-data/__tests__/text-to-image.test.ts`
+
+The two `gpt_image_2` assertions added in the earlier revision assert `endpoint === "fal-ai/gpt-image-2"` and `provider === "OpenAI (via FAL)"`. Update to the GMI shape:
+
+- `provider === "OpenAI (via GMI)"`
+- `endpoint === "gpt-image-2"`
+- `providerBackend === "gmi"`
+- `categories` includes both `"text_to_image"` and `"image_to_image"`
+- `defaults.size === "1024x1024"`, `defaults.quality === "medium"`
+- `costEstimate === 0.042`
+
+**GUI** — `apps/web/src/lib/text2image-models/__tests__/text2image-models.test.ts`
+
+- Keep the top-of-order assertion (`TEXT2IMAGE_MODEL_ORDER[0] === "gpt-image-2"`)
+- Update the provider assertion from `"OpenAI"` to `"OpenAI (via GMI)"`
+- Model count stays at 20 (we're updating the existing entry, not adding a new one)
+
+### Subtask 5 — Update docs (≈5 min)
+
+**`docs/technical/media-panel-reference.md`** — under the Text2Image supported-models list, adjust the note from "GPT-Image-2 (top)" so it reads "GPT-Image-2 (top, via GMI Cloud)" to signal the provider change. Count of 14 models remains correct.
+
+**CLAUDE.md** — `GMI_API_KEY` is already documented. No change.
+
+### Subtask 6 — Live CLI smoke test via proxy (≈10 min)
+
+With `qcut system login` already in place on this branch, run:
+
+```bash
+bun run pipeline gen image -m gpt_image_2 \
+  -t "A photograph of a red fox in an autumn forest" \
+  -o /tmp/gpt-image-2-test --json
+```
+
+**Expected**: a real PNG lands in `/tmp/gpt-image-2-test/`, cost reported as $0.042 (default tier), `outputPath` populated in the JSON response. The proxy-first path drains credits from the logged-in account's balance.
+
+**If the proxy returns "insufficient credits"**: top up or switch to a test account with credits (slots 1–10 in `.env.test-accounts`).
+
+**If GMI returns 404** for `gpt-image-2`: the model slug is wrong or not yet live on the caller's GMI tenant — check `GET /api/v1/apikey/models` and adjust the `endpoint` field.
 
 ---
 
-### Subtask 3 — Promote to top of GUI order (≈5 min)
+## 5. File Reference Map
 
-**File**: `apps/web/src/lib/text2image-models/index.ts`
-
-Two edits:
-
-1. **Line 21–38 (`TEXT2IMAGE_MODEL_ORDER`)** — insert `"gpt-image-2"` as the **first** element:
-   ```ts
-   export const TEXT2IMAGE_MODEL_ORDER = [
-     "gpt-image-2",      // ← new, top position
-     "gemini-3-pro",
-     "gpt-image-1-5",
-     // ...unchanged
-   ] as const;
-   ```
-2. **Lines 115–162 (`MODEL_CATEGORIES`)** — add `"gpt-image-2"` to both `PHOTOREALISTIC` and `HIGH_QUALITY` (alongside `gpt-image-1-5`). Do **not** add to `FAST` or `COST_EFFECTIVE` without speed/price evidence from P2.
-
-**Do not** add the model to `recommendModelsForPrompt` heuristic yet — that is a follow-up task once we have real usage signals.
+| Layer | File | Change vs. v1 of this branch |
+|---|---|---|
+| CLI registry | `electron/native-pipeline/registry-data/text-to-image.ts` | **Delete** old FAL-shaped `gpt_image_2` block near line ~115; **add** GMI-shaped block inside "GMI Cloud Image Models" at ~line 289, first in that group |
+| CLI key mgr | `electron/native-pipeline/infra/key-manager.ts` | No change — `GMI_API_KEY` + `OPENAI_API_KEY` already present |
+| CLI proxy priority | `electron/native-pipeline/infra/api-caller.ts:610-641` | No further change — server-first inversion already landed on this branch |
+| GUI model def | `apps/web/src/lib/text2image-models/other-models.ts` | **Rewrite** the existing `"gpt-image-2"` entry with GMI provider, endpoint, params, pricing |
+| GUI order | `apps/web/src/lib/text2image-models/index.ts` | No change — index 0 already correct |
+| CLI test | `electron/native-pipeline/registry-data/__tests__/text-to-image.test.ts` | Update 2 assertions (provider, endpoint, backend, defaults, cost) |
+| GUI test | `apps/web/src/lib/text2image-models/__tests__/text2image-models.test.ts` | Update provider assertion `"OpenAI"` → `"OpenAI (via GMI)"` |
+| Priority test | `electron/__tests__/api-caller-proxy-priority.test.ts` | No change — provider-agnostic inversion test |
+| Docs | `docs/technical/media-panel-reference.md` | Clarify GMI provider in the supported-models note |
+| This plan | `docs/task/gpt-image-2/implementation-plan.md` | This file (v2) |
 
 ---
 
-### Subtask 4 — Unit tests (≈15 min)
+## 6. Risks & Long-Term Maintainability Notes
 
-Add small, focused assertions that break loudly if someone removes or renames the model.
-
-**CLI tests** — `electron/__tests__/native-registry.test.ts`
-- Add a case to the existing `text_to_image` category check asserting `ModelRegistry.listByCategory("text_to_image")` includes an entry with `key === "gpt_image_2"`.
-- Assert the entry's `endpoint`, `pricing.per_image`, and `categories` match what we registered.
-
-**GUI tests** — `apps/web/src/lib/text2image-models/__tests__/text2image-models.test.ts` (create if missing; follow the `.test.ts` convention used in `apps/web/src/lib/text2image-models/__tests__/`)
-- `TEXT2IMAGE_MODEL_ORDER[0]` equals `"gpt-image-2"` (this is the "top of GUI" contract — regressing this fails the test).
-- `TEXT2IMAGE_MODELS["gpt-image-2"]` is defined and has `provider === "OpenAI"`.
-- `getText2ImageModelEntriesInPriorityOrder()[0][0] === "gpt-image-2"`.
-
-**No E2E test** in this PR — the AI panel E2E harness (`apps/web/src/test/e2e/ai-enhancement-export-integration.e2e.ts`) is slow and already covers the grid render path; adding a per-model E2E gives diminishing returns.
+- **Tiered pricing not modelled** — the `pricing.per_image` registry field is a flat number, but real GPT-Image-2 pricing spans $0.011–$0.250 across 6 cells (quality × size). The $0.042 default is fine for ranking/sorting, but cost-estimator accuracy drops for low and high tiers. Track as a follow-up ticket: extend `ModelDefinition.pricing` with an optional `per_image_tiers: Record<"low"|"medium"|"high"|"auto", Record<size, number>>` and teach `estimateProxyCredits` to consult it when `payload.quality` / `payload.size` are present.
+- **Sync-vs-async ambiguity** — the GMI docs call the endpoint "synchronous" but the response shape includes `request_id` and a separate status-check endpoint. `pollGmiQueue` already handles both branches (status === "success" in the first response returns immediately), so no action needed; call out in the PR description so future maintainers don't "optimize" the polling away.
+- **Category drift** — registering both `text_to_image` and `image_to_image` means GPT-Image-2 appears in **two** tabs in the AI panel (Generation and Adjustment). This is consistent with `gmi_gemini_3_pro_image` and matches actual capability (prompt + optional image/mask), but confirm the GUI doesn't double-count this model in the "top" position of both tabs.
+- **CLI/GUI drift** (same as v1) — two independent catalogs. Extract a shared manifest in a follow-up PR; do not attempt here.
+- **Tests as the top-of-order contract** — `text2image-models.test.ts`'s `TEXT2IMAGE_MODEL_ORDER[0] === "gpt-image-2"` assertion is load-bearing; update it in-PR if a future model deposes GPT-Image-2 from the top.
 
 ---
 
-### Subtask 5 — Documentation updates (≈10 min)
+## 7. Status — v2 plan supersedes v1 (2026-04-23)
 
-1. **`docs/technical/media-panel-reference.md`** — section "2. AI Images (Text2Image)" (lines 83–115 per exploration). Append `GPT-Image-2` to the listed models; keep the existing `GPT Image 1.5` entry — the two coexist.
-2. **`docs/task/gpt-image-2/implementation-plan.md`** — this file. Keep it updated if scope shifts.
-3. **`CLAUDE.md`** env-var section — no change needed; `OPENAI_API_KEY` is already documented.
+### v1 residue still in tree on this branch
 
----
+The following files were changed under v1 (FAL-based). They remain committed on the branch but **must be revised** per §4 before merge; the v1 versions are incorrect:
 
-### Subtask 6 — Manual QA (≈15 min)
+- `electron/native-pipeline/registry-data/text-to-image.ts` — FAL-shaped `gpt_image_2` block
+- `apps/web/src/lib/text2image-models/other-models.ts` — FAL-shaped entry
+- `electron/native-pipeline/registry-data/__tests__/text-to-image.test.ts` — asserts FAL provider/endpoint
+- `apps/web/src/lib/text2image-models/__tests__/text2image-models.test.ts` — asserts `provider === "OpenAI"` (should be `"OpenAI (via GMI)"`)
 
-Per CLAUDE.md "When Working on Features" checklist:
+### Independently validated and retained
 
-1. `bun run electron:dev` — open AI panel → Text2Image tab. Confirm GPT-Image-2 appears as the first card. Generate one image end-to-end.
-2. `bun run electron` (production build) — repeat smoke test to catch packaging-time path issues (FFmpeg paths, key loading from `~/.qcut/.env`).
-3. `bun run pipeline -- --help` — confirm `gpt_image_2` shows up in the model list of the native CLI.
-4. Run `bun run pipeline` with a tiny YAML that calls `gpt_image_2` to confirm key resolution + response parsing.
-5. `bun check-types` and `bun lint:clean` before committing.
+- **Proxy-first priority inversion** in `electron/native-pipeline/infra/api-caller.ts:610-641` — proven correct by a live CLI run of `gpt_image_1_5` that produced a 2.3 MB PNG via the license-server proxy on a logged-in account (no valid local `FAL_KEY` used). Applies to all providers including GMI. Keep.
+- **New priority test** `electron/__tests__/api-caller-proxy-priority.test.ts` — 4/4 passing; provider-agnostic. Keep.
+- **Docs scaffold** in `docs/technical/media-panel-reference.md` listing GPT-Image-2 at top — keep, but tweak wording per §4/ST5.
 
-Abort and investigate if: the panel renders but generation fails silently (likely a key wiring issue), or the model appears at a non-top position (likely a stale memoized selector — check `text2image-store.ts`).
+### Live CLI evidence that triggered the v2 rewrite
 
----
+| Run | Command | Result |
+|---|---|---|
+| Control | `bun run pipeline gen image -m gpt_image_1_5 -t "…"` via proxy | ✅ 2.3 MB PNG saved; cost $0.04, 59s |
+| Broken | `bun run pipeline gen image -m gpt_image_2 -t "…"` via proxy | ❌ Returns `success:true` with no `outputPath` — the FAL endpoint `fal-ai/gpt-image-2` does not exist |
+| Raw probe | `curl -X POST …/api/ai/proxy` with `endpoint: "https://fal.run/fal-ai/gpt-image-2"` | ❌ License server responds `{"error":"Provider request timed out"}` after 30–60s |
 
-## 4. File Reference Map
+### Immediate next actions (when resuming implementation)
 
-| Layer | File | Change |
-|-------|------|--------|
-| CLI registry | `electron/native-pipeline/registry-data/text-to-image.ts` | Add `ModelRegistry.register({ key: "gpt_image_2", ... })` above line 115 |
-| CLI key mgr | `electron/native-pipeline/infra/key-manager.ts` | No change — `OPENAI_API_KEY` + `VITE_FAL_API_KEY` already present |
-| GUI model def | `apps/web/src/lib/text2image-models/other-models.ts` | Prepend `"gpt-image-2"` entry to `OTHER_MODELS` |
-| GUI order | `apps/web/src/lib/text2image-models/index.ts:21` | Insert `"gpt-image-2"` at index 0 of `TEXT2IMAGE_MODEL_ORDER` |
-| GUI categories | `apps/web/src/lib/text2image-models/index.ts:115` | Add to `PHOTOREALISTIC` + `HIGH_QUALITY` |
-| CLI tests | `electron/__tests__/native-registry.test.ts` | Add registry assertions for `gpt_image_2` |
-| GUI tests | `apps/web/src/lib/text2image-models/__tests__/text2image-models.test.ts` | Add top-of-order and model-presence assertions |
-| Panel doc | `docs/technical/media-panel-reference.md` | Append GPT-Image-2 to the Text2Image model list |
-| This plan | `docs/task/gpt-image-2/implementation-plan.md` | Source of truth for the rollout |
+1. Apply §4 Subtasks 1–5 to rewrite the four files in the "v1 residue" list.
+2. Run `bunx vitest run electron/native-pipeline/registry-data/__tests__/text-to-image.test.ts electron/__tests__/api-caller-proxy-priority.test.ts` and the GUI model tests — all should pass.
+3. Run Subtask 6 live CLI smoke with a credit-bearing test account (e.g. `QCUT_TEST_EMAIL_2`).
+4. Only after a real PNG lands: open PR titled `feat(ai-panel): add GPT-Image-2 via GMI Cloud and promote to top of Text2Image`.
 
----
+### Deferred / follow-ups
 
-## 5. Risks & Long-Term Maintainability Notes
-
-- **Catalog drift** — CLI and GUI model lists are independent. A future refactor should extract a shared JSON/TS manifest both consume, but that is out of scope here and attempting it in this PR would 5× the diff. Track as a separate tech-debt note.
-- **Endpoint churn** — if OpenAI renames/versions the model, only the two `endpoint` strings need updating (CLI + GUI entries). Call sites must keep using `getModelById("gpt-image-2")` and `ModelRegistry.get("gpt_image_2")` — do not inline the URL anywhere else.
-- **Pricing display** — `costPerImage` is in cents in GUI but in dollars in CLI (`pricing.per_image`). Keep this unit convention; do not "unify" in this PR without a dedicated migration.
-- **Order promotion is load-bearing** — test in Subtask 4 pins `TEXT2IMAGE_MODEL_ORDER[0] === "gpt-image-2"`. If a future model needs the top slot, the test must be updated *in the same PR* that promotes it.
+- Tiered-pricing model change — separate PR (see §6).
+- Manual Electron dev-mode + prod smoke in the GUI — unchanged from v1 deferral (requires interactive run).
+- Shared CLI/GUI model manifest — unchanged tech-debt note.
 
 ---
 
-## 6. Rollout
+## 8. Status — v2 implementation landed (2026-04-23)
 
-1. Implement subtasks 1 → 5 in one branch (`GPT-Image2`), committing per subtask for reviewability.
-2. Run Subtask 6 QA.
-3. Open PR titled `feat(ai-panel): add GPT-Image-2 and promote to top of Text2Image`.
-4. Post-merge, update `docs/task/gpt-image-2/` with a short `status.md` noting the release tag and any follow-up tasks deferred from this plan.
+### Files changed
+
+**Source**
+- `electron/native-pipeline/registry-data/text-to-image.ts` — removed FAL-shaped `gpt_image_2` block; added GMI-shaped registration as first model in the "GMI Cloud Image Models" group (`provider: "OpenAI (via GMI)"`, `endpoint: "gpt-image-2"`, `providerBackend: "gmi"`, categories `["text_to_image","image_to_image"]`, defaults `{size, quality, output_format, n}`, `costEstimate: 0.042`).
+- `apps/web/src/lib/text2image-models/other-models.ts` — rewrote the `"gpt-image-2"` entry with GMI provider/endpoint, correct parameter set (3 sizes, 4 quality tiers, png/jpeg only, n 1-10), and the full $0.011-$0.250 price range in the `estimatedCost` string.
+
+**Tests**
+- `electron/native-pipeline/registry-data/__tests__/text-to-image.test.ts` — updated the two `gpt_image_2` assertions to match GMI shape (provider, endpoint, `providerBackend: "gmi"`, both categories, default `size`/`quality`/`output_format`/`n`, `costEstimate: 0.042`).
+- `apps/web/src/lib/text2image-models/__tests__/text2image-models.test.ts` — provider assertion `"OpenAI"` → `"OpenAI (via GMI)"`; added endpoint check against `console.gmicloud.ai`.
+
+**Docs**
+- `docs/technical/media-panel-reference.md` — appended "via GMI Cloud" to the top-of-list note for GPT-Image-2.
+
+### Test results (run 2026-04-23, post-rewrite)
+
+| Suite | Command | Result |
+|-------|---------|--------|
+| CLI text-to-image registry | `bunx vitest run electron/native-pipeline/registry-data/__tests__/text-to-image.test.ts` | ✅ 8/8 pass |
+| CLI api-caller (legacy + priority + credit) | `bunx vitest run electron/__tests__/{native-api-caller,api-caller-proxy-priority,proxy-credit-passthrough,proxy-credit-integration,credit-estimator}.test.ts` | ✅ 22/22 pass |
+| GUI text2image-models | `cd apps/web && bunx vitest run src/lib/text2image-models/__tests__/text2image-models.test.ts` | ✅ 11/11 pass |
+| GUI type check | `cd apps/web && bunx tsc --noEmit -p tsconfig.json` | ✅ 0 errors |
+| Electron type check | `cd electron && bunx tsc --noEmit -p tsconfig.json` | ✅ 0 errors |
+
+### Live CLI smoke (run 2026-04-23, logged in as `qcut-love2@qcut.app`)
+
+| Run | Model | Path | Outcome |
+|---|---|---|---|
+| 1 | `gpt_image_2` | CLI → license-server proxy → GMI | ⚠️ GMI returned HTTP 500 after 3 retries: `{"error":"Generation failed due to a temporary backend error. Please try again."}` |
+| 2 | `gpt_image_2` | Raw curl → license-server proxy with spec-shaped body | ⚠️ Same 500 payload from GMI — confirms the CLI builds the correct `{model,payload}` shape; the error originates in GMI, not in QCut. |
+| 3 (control) | `gmi_seedream_5_lite` | CLI → license-server proxy → GMI | ✅ JPG delivered to disk, cost $0.01, 31s. Proxy-first pipeline end-to-end operational. |
+
+**Interpretation**: the QCut-side integration is correct — same code path that succeeds for `gmi_seedream_5_lite` is being used for `gpt_image_2`, with the correct `{model: "gpt-image-2", payload: {prompt, size, quality, output_format, n}}` body verified by raw curl. The 500 is **GMI tenant-side**: either the QCut license-server's GMI account doesn't have `gpt-image-2` enabled yet, or GMI's `gpt-image-2` backend is transiently degraded. No code change will fix this — action required is **ops-level** (GMI tenant admin to enable the model for the QCut server's API key, or retry once GMI's backend recovers).
+
+### Latent bug discovered but not fixed in this PR
+
+`electron/native-pipeline/execution/step-executors.ts:239-250` has a FAL-specific remap keyed by `model.endpoint.includes("gpt-image")` that sets `payload.image_size`. Today this only runs when `payload.aspect_ratio` is present (not the default path), so it does **not** cause the GMI 500 observed above. But if a caller ever passes `aspect_ratio` with a gpt-image-* model, the remap would add the wrong key (`image_size` instead of `size`) to the GMI payload. Tracked as a follow-up: narrow the condition to `model.endpoint.startsWith("fal-ai/") && model.endpoint.includes("gpt-image")` or gate on `provider === "fal"`. Out of scope for this PR since the current call path does not trigger it.
+
+### Immediate next action (to fully ship)
+
+1. Confirm `gpt-image-2` is enabled on the QCut license-server's GMI tenant (`/api/v1/apikey/models` on their key should list it).
+2. Retry Subtask 6 once GMI returns non-500 — expect a ~$0.042 PNG written to the output dir.
+3. Only then open the PR titled `feat(ai-panel): add GPT-Image-2 via GMI Cloud and promote to top of Text2Image`.

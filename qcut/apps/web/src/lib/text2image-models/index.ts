@@ -19,7 +19,8 @@ export const TEXT2IMAGE_MODELS: Record<string, Text2ImageModel> = {
 // Shared priority order (cheapest ➜ premium)
 // ============================================
 export const TEXT2IMAGE_MODEL_ORDER = [
-	"gpt-image-2",
+	"gpt-image-2-fal",
+	"gpt-image-2-gmi",
 	"gemini-3-pro",
 	"gpt-image-1-5",
 	"phota",
@@ -115,7 +116,8 @@ export function recommendModelsForPrompt(prompt: string): string[] {
 
 export const MODEL_CATEGORIES = {
 	PHOTOREALISTIC: [
-		"gpt-image-2",
+		"gpt-image-2-fal",
+		"gpt-image-2-gmi",
 		"imagen4-ultra",
 		"wan-v2-2",
 		"wan-v2-7-pro-t2i",
@@ -142,7 +144,8 @@ export const MODEL_CATEGORIES = {
 		"wan-v2-7-t2i",
 	],
 	HIGH_QUALITY: [
-		"gpt-image-2",
+		"gpt-image-2-fal",
+		"gpt-image-2-gmi",
 		"imagen4-ultra",
 		"wan-v2-2",
 		"wan-v2-7-pro-t2i",

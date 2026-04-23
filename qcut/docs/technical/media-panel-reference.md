@@ -95,7 +95,7 @@ Multi-view hub for AI image workflows. Uses a `ModelTypeSelector` pill bar to sw
 
 | Sub-view | Component | Description |
 |----------|-----------|-------------|
-| `generation` | Inline in `text2image.tsx` | Text-to-image generation with 13 models |
+| `generation` | Inline in `text2image.tsx` | Text-to-image generation with 15 models |
 | `adjustment` | `AdjustmentPanel` (`components/editor/adjustment/`) | AI-powered image editing with text prompts |
 | `camera` | `CameraSelectorView` (`views/camera-selector/`) | Virtual cinema camera configurator |
 | `upscale` | Inline in `text2image.tsx` | Image upscaling with multiple AI models |
@@ -104,14 +104,14 @@ Multi-view hub for AI image workflows. Uses a `ModelTypeSelector` pill bar to sw
 
 ### Generation Sub-view Features
 - **Text-to-image generation:** Create images from text descriptions
-- **Multiple AI models:** 13 text-to-image models from Google, OpenAI, ByteDance, Black Forest Labs, Alibaba, fal.ai, and Tongyi-MAI
+- **Multiple AI models:** 15 text-to-image models from Google, OpenAI, ByteDance, Black Forest Labs, Alibaba, fal.ai, and Tongyi-MAI
 - **Generation modes:** Single model or multi-model comparison
 - **Style presets:** Image size options (square, landscape, portrait)
 - **Generation history:** View and reuse previous generations
 - **Add to media:** Generated images automatically added to media library
 
 ### Supported Models (Generation)
-Gemini 3 Pro, GPT Image 1.5, Nano Banana, SeedDream v3/v4/v4.5, FLUX Pro v1.1 Ultra, FLUX 2 Flex, Imagen4 Ultra, WAN v2.2, Qwen Image, Z-Image Turbo, Reve
+GPT-Image-2 (via FAL, top), GPT-Image-2 (via GMI Cloud), Gemini 3 Pro, GPT Image 1.5, Nano Banana, SeedDream v3/v4/v4.5, FLUX Pro v1.1 Ultra, FLUX 2 Flex, Imagen4 Ultra, WAN v2.2, Qwen Image, Z-Image Turbo, Reve
 
 ### Upscale Sub-view Features
 - **Image upscaling:** Enhance resolution using AI models

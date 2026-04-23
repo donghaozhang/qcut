@@ -9,8 +9,8 @@ import {
 } from "@/lib/ai-models/text2image-models";
 
 describe("text2image-models registry", () => {
-	it("TEXT2IMAGE_MODELS has exactly 19 models", () => {
-		expect(Object.keys(TEXT2IMAGE_MODELS)).toHaveLength(19);
+	it("TEXT2IMAGE_MODELS has exactly 21 models", () => {
+		expect(Object.keys(TEXT2IMAGE_MODELS)).toHaveLength(21);
 	});
 
 	it("every model in TEXT2IMAGE_MODEL_ORDER exists in TEXT2IMAGE_MODELS", () => {
@@ -59,5 +59,39 @@ describe("text2image-models registry", () => {
 	it("keeps edit-only model in registry but not picker order", () => {
 		expect(TEXT2IMAGE_MODELS["seeddream-v4-5-edit"]).toBeDefined();
 		expect(TEXT2IMAGE_MODEL_ORDER).not.toContain("seeddream-v4-5-edit");
+	});
+
+	it("gpt-image-2-gmi is registered with OpenAI (via GMI) as the provider", () => {
+		const model = TEXT2IMAGE_MODELS["gpt-image-2-gmi"];
+		expect(model).toBeDefined();
+		expect(model?.provider).toBe("OpenAI (via GMI)");
+		expect(model?.name).toBe("GPT-Image-2");
+		expect(model?.endpoint).toContain("console.gmicloud.ai");
+	});
+
+	it("gpt-image-2-fal is registered with OpenAI (via FAL) as the provider", () => {
+		const model = TEXT2IMAGE_MODELS["gpt-image-2-fal"];
+		expect(model).toBeDefined();
+		expect(model?.provider).toBe("OpenAI (via FAL)");
+		expect(model?.name).toBe("GPT-Image-2 (FAL)");
+		expect(model?.endpoint).toContain("fal.run/openai/gpt-image-2");
+	});
+
+	it("FAL variant takes top-of-order, GMI variant sits right behind", () => {
+		expect(TEXT2IMAGE_MODEL_ORDER[0]).toBe("gpt-image-2-fal");
+		expect(TEXT2IMAGE_MODEL_ORDER[1]).toBe("gpt-image-2-gmi");
+	});
+
+	it("first entry from getText2ImageModelEntriesInPriorityOrder is gpt-image-2-fal", () => {
+		const entries = getText2ImageModelEntriesInPriorityOrder();
+		expect(entries[0][0]).toBe("gpt-image-2-fal");
+		expect(entries[1][0]).toBe("gpt-image-2-gmi");
+	});
+
+	it("does not register the bare gpt-image-2 key post-rename", () => {
+		expect(TEXT2IMAGE_MODELS["gpt-image-2"]).toBeUndefined();
+		expect(TEXT2IMAGE_MODEL_ORDER as readonly string[]).not.toContain(
+			"gpt-image-2"
+		);
 	});
 });
