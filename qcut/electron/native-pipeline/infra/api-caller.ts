@@ -471,10 +471,30 @@ export async function pollQueueStatus(
 				};
 			}
 			const data = await resultRes.json();
+			const extracted = extractOutputUrl(data);
+			// Guard against FAL COMPLETED-with-error envelope ({detail:[...]}) —
+			// without this the caller treats downstream failures as success.
+			if (
+				!extracted &&
+				data &&
+				typeof data === "object" &&
+				Array.isArray((data as Record<string, unknown>).detail)
+			) {
+				const detail = (data as Record<string, unknown>).detail as Array<
+					Record<string, unknown>
+				>;
+				const firstMsg =
+					detail[0]?.msg ?? detail[0]?.type ?? "Unknown error";
+				return {
+					success: false,
+					error: `FAL returned error: ${String(firstMsg)} — full payload: ${JSON.stringify(data).slice(0, 300)}`,
+					duration: (Date.now() - startTime) / 1000,
+				};
+			}
 			return {
 				success: true,
 				data,
-				outputUrl: extractOutputUrl(data),
+				outputUrl: extracted,
 				duration: (Date.now() - startTime) / 1000,
 			};
 		}
