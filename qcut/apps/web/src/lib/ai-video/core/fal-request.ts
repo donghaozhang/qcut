@@ -264,9 +264,7 @@ export async function makeFalRequest(
 			// error envelope when the upstream provider fails. Without peeking at the
 			// body we'd treat that as success and skip the local-key fallback, leaving
 			// the caller to parse an error payload as a normal FAL response.
-			const usable = apiKey
-				? await isProxyResponseUsable(proxyResponse)
-				: true;
+			const usable = apiKey ? await isProxyResponseUsable(proxyResponse) : true;
 			if (usable) {
 				return proxyResponse;
 			}

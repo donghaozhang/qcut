@@ -480,16 +480,15 @@ export async function pollQueueStatus(
 				typeof data === "object" &&
 				Array.isArray((data as Record<string, unknown>).detail)
 			) {
-				const detail = (data as Record<string, unknown>).detail as Array<
-					unknown
-				>;
+				const detail = (data as Record<string, unknown>)
+					.detail as Array<unknown>;
 				const first = detail[0];
 				const firstMsg =
 					typeof first === "string"
 						? first
-						: ((first as Record<string, unknown>)?.msg as string) ??
+						: (((first as Record<string, unknown>)?.msg as string) ??
 							((first as Record<string, unknown>)?.type as string) ??
-							"Unknown error";
+							"Unknown error");
 				return {
 					success: false,
 					error: `FAL returned error: ${String(firstMsg)} — full payload: ${JSON.stringify(data).slice(0, 300)}`,
