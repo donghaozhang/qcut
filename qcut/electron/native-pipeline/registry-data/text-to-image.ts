@@ -113,6 +113,31 @@ export function registerTextToImageModels(): void {
 	});
 
 	ModelRegistry.register({
+		key: "gpt_image_2",
+		name: "GPT-Image-2",
+		provider: "OpenAI (via FAL)",
+		endpoint: "fal-ai/gpt-image-2",
+		categories: ["text_to_image"],
+		description:
+			"OpenAI GPT-Image-2 — next-gen prompt adherence and high-fidelity generation",
+		pricing: { per_image: 0.06 },
+		aspectRatios: ["1:1", "16:9", "9:16", "3:2", "2:3"],
+		defaults: {
+			image_size: "1536x1024",
+			quality: "high",
+			output_format: "png",
+		},
+		features: [
+			"gpt_powered",
+			"natural_language",
+			"high_quality",
+			"strong_prompt_adherence",
+		],
+		costEstimate: 0.06,
+		processingTime: 45,
+	});
+
+	ModelRegistry.register({
 		key: "gpt_image_1_5",
 		name: "GPT Image 1.5",
 		provider: "OpenAI (via FAL)",

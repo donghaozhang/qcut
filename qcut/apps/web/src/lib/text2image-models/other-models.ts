@@ -1,6 +1,95 @@
 import type { Text2ImageModel } from "./types";
 
 export const OTHER_MODELS: Record<string, Text2ImageModel> = {
+	"gpt-image-2": {
+		id: "gpt-image-2",
+		name: "GPT-Image-2",
+		description:
+			"OpenAI's next-gen GPT-Image-2 — strongest prompt adherence and high-fidelity generation",
+		provider: "OpenAI",
+		endpoint: "https://fal.run/fal-ai/gpt-image-2",
+
+		qualityRating: 5,
+		speedRating: 4,
+
+		estimatedCost: "$0.06-0.12",
+		costPerImage: 6, // cents
+
+		maxResolution: "2048x2048",
+		supportedAspectRatios: ["1:1", "3:2", "2:3", "16:9", "9:16"],
+
+		defaultParams: {
+			image_size: "1536x1024",
+			background: "auto",
+			quality: "high",
+			num_images: 1,
+			output_format: "png",
+			sync_mode: false,
+		},
+
+		availableParams: [
+			{
+				name: "image_size",
+				type: "select",
+				options: ["1024x1024", "1536x1024", "1024x1536", "2048x2048"],
+				default: "1536x1024",
+				description: "Output image resolution",
+			},
+			{
+				name: "background",
+				type: "select",
+				options: ["auto", "transparent", "opaque"],
+				default: "auto",
+				description: "Background type (transparent for compositing)",
+			},
+			{
+				name: "quality",
+				type: "select",
+				options: ["low", "medium", "high", "hd"],
+				default: "high",
+				description: "Output quality level",
+			},
+			{
+				name: "num_images",
+				type: "number",
+				min: 1,
+				max: 4,
+				default: 1,
+				description: "Number of images to generate",
+			},
+			{
+				name: "output_format",
+				type: "select",
+				options: ["jpeg", "png", "webp"],
+				default: "png",
+				description: "Output image format",
+			},
+		],
+
+		bestFor: [
+			"Highest-fidelity image generation",
+			"Strongest prompt adherence",
+			"Transparent backgrounds for compositing",
+			"Premium commercial content",
+			"Detailed scenes with complex instructions",
+		],
+
+		strengths: [
+			"Best-in-class prompt adherence",
+			"Transparent background support",
+			"Multiple output formats (png, jpeg, webp)",
+			"Higher max resolution than GPT Image 1.5",
+			"Consistent quality across styles",
+		],
+
+		limitations: [
+			"Higher cost than GPT Image 1.5",
+			"Fewer aspect-ratio options than fully flexible models",
+			"No guidance scale control",
+			"No seed for reproducibility",
+		],
+	},
+
 	"wan-v2-2": {
 		id: "wan-v2-2",
 		name: "WAN v2.2",
