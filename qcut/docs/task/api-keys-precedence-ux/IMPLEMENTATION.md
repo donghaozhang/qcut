@@ -395,3 +395,25 @@ FAL   tiers=env+electron+aicp-cli+qcut-env   status=environment  shadows: [elect
 - **Real-world shadowing is non-hypothetical**: on this dev machine two of eight fields (FAL, Freesound) already live in a shadowed state, which means the UI warnings will be exercised the moment a user retypes into those fields. This is useful dogfood coverage — not a bug.
 - **Env override behaves as designed**: a shell-exported `FAL_KEY` promotes to `environment` and pushes every lower tier into `shadowedBy`. The rendered warning in `ApiKeyField` will call out `environment` as the active source.
 - No failures to record.
+
+---
+
+## Post-ship iteration — save-location toast (2026-04-24)
+
+**Change:** the post-save toast now always fires (was previously silent when no shadow). Describes the real destinations so users know where their key landed.
+
+**Path:** `apps/web/src/components/editor/properties-panel/api-keys-view.tsx` — `saveApiKeys` callback.
+
+**New behavior:**
+- Always calls `toast.success("API keys saved", { description: ... })` after a successful `apiKeys.set(...)` round-trip.
+- Description composes up to three sentences:
+  1. Always: "Stored in QCut's encrypted keystore and synced to `~/.qcut/.env` so the native CLI can read them."
+  2. If any typed non-empty value is FAL/Gemini/OpenRouter: "FAL / Gemini / OpenRouter keys are also synced to `~/.config/video-ai-studio/credentials.env` for the AICP CLI."
+  3. If `shadowedSaves > 0` (per `countShadowedAppSaves`): "{n} key(s) are currently overridden by a higher-priority source — see the warnings above."
+- Uses `toast.success` (green checkmark variant) instead of the plain `toast()` used before.
+
+**Why:** the original ST-5 spec only surfaced the shadow case, leaving users without feedback on where non-shadowed keys were persisted. User feedback on 2026-04-24: "after people click save keys there should be message pop up about where their key is saved."
+
+**Impact on tests:** the Playwright spec asserts `page.getByText(/overridden/)` on the shadowed save path — still passes because the shadow sentence is still appended when shadow count > 0. Non-shadow saves now produce a visible toast too; no existing assertion asserts its absence, so nothing breaks.
+
+**Source of truth for destinations:** the AICP field set (`AICP_SYNCED_FIELDS` at the top of `api-keys-view.tsx`) mirrors `AICP_REVERSE_MAP` in `electron/api-key-handler.ts`. If that map changes — e.g. ElevenLabs gets AICP-synced — update the set to match, otherwise the toast will lie.

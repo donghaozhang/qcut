@@ -371,3 +371,25 @@ FAL   tiers=env+electron+aicp-cli+qcut-env   status=environment  shadows: [elect
 - **现实中的屏蔽并非假设**：本机 8 个字段里已有 2 个（FAL、Freesound）处于被屏蔽状态 —— 用户一旦在这两项上开始输入，UI 警告就会被点亮。这是有用的自用验证，不是缺陷。
 - **环境变量覆盖符合设计**：shell 导出的 `FAL_KEY` 将 `source` 提升为 `environment`，并把所有更低层级推入 `shadowedBy`。`ApiKeyField` 里的警告会把 `environment` 标记为生效源。
 - 无失败待记录。
+
+---
+
+## 上线后迭代 —— 保存位置 toast（2026-04-24）
+
+**改动：** 保存后的 toast 现在总会弹出（以前只在有屏蔽时才弹）。描述里告诉用户这次保存到底落到了哪些位置。
+
+**文件：** `apps/web/src/components/editor/properties-panel/api-keys-view.tsx` —— `saveApiKeys` 回调。
+
+**新行为：**
+- 在 `apiKeys.set(...)` 成功往返之后，总会调用 `toast.success("API keys saved", { description: ... })`。
+- 描述最多由三句组成：
+  1. 始终出现：「Stored in QCut's encrypted keystore and synced to `~/.qcut/.env` so the native CLI can read them.」
+  2. 若本次保存中任意一个非空字段属于 FAL/Gemini/OpenRouter：「FAL / Gemini / OpenRouter keys are also synced to `~/.config/video-ai-studio/credentials.env` for the AICP CLI.」
+  3. 若 `shadowedSaves > 0`（来自 `countShadowedAppSaves`）：「{n} key(s) are currently overridden by a higher-priority source — see the warnings above.」
+- 使用 `toast.success`（绿色对勾样式），替换掉原来的纯 `toast()`。
+
+**动机：** ST-5 的原始设计只在屏蔽场景下才弹提示，非屏蔽保存时用户完全看不到反馈。2026-04-24 用户反馈：「after people click save keys there should be message pop up about where their key is saved」。
+
+**对测试的影响：** Playwright 用例断言 `page.getByText(/overridden/)` 走的是屏蔽路径 —— 仍然通过，因为只要屏蔽计数 >0，屏蔽那一句仍会追加。非屏蔽保存现在也会弹 toast；目前没有任何断言否定它存在，不会打坏已有用例。
+
+**目标位置的真相源：** `api-keys-view.tsx` 顶部的 `AICP_SYNCED_FIELDS` 集合对应 `electron/api-key-handler.ts` 中的 `AICP_REVERSE_MAP`。如果那张映射将来发生变化（比如 ElevenLabs 也要同步到 AICP），务必同步更新这个集合，否则 toast 会说谎。

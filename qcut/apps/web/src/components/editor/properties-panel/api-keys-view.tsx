@@ -40,6 +40,15 @@ const EDITABLE_API_KEY_FIELDS: readonly EditableApiKeyField[] = [
 	"runwayApiKey",
 ];
 
+// Fields that electron/api-key-handler.ts syncs to the AICP CLI
+// credentials.env file (see AICP_REVERSE_MAP). The other editable fields
+// only sync to the Electron keystore + ~/.qcut/.env.
+const AICP_SYNCED_FIELDS: ReadonlySet<EditableApiKeyField> = new Set([
+	"falApiKey",
+	"geminiApiKey",
+	"openRouterApiKey",
+]);
+
 function getActiveSource({
 	status,
 }: {
@@ -178,20 +187,37 @@ export function ApiKeysView() {
 			await apiKeys.set(trimmedKeys);
 
 			setFreesoundTestResult(null);
+			let shadowedSaves = 0;
 			if (apiKeys.status) {
 				const statuses = await apiKeys.status();
 				setKeyStatuses(statuses);
-				const shadowedSaves = countShadowedAppSaves({
+				shadowedSaves = countShadowedAppSaves({
 					statuses,
 					values: trimmedKeys,
 				});
-
-				if (shadowedSaves > 0) {
-					toast("Saved", {
-						description: `${shadowedSaves} key(s) are stored but currently overridden by a higher-priority source - see the warnings above.`,
-					});
-				}
 			}
+
+			const wroteAicpSyncedField = EDITABLE_API_KEY_FIELDS.some(
+				(field) =>
+					trimmedKeys[field] !== "" && AICP_SYNCED_FIELDS.has(field)
+			);
+			const descriptionParts = [
+				"Stored in QCut's encrypted keystore and synced to ~/.qcut/.env so the native CLI can read them.",
+			];
+			if (wroteAicpSyncedField) {
+				descriptionParts.push(
+					"FAL / Gemini / OpenRouter keys are also synced to ~/.config/video-ai-studio/credentials.env for the AICP CLI."
+				);
+			}
+			if (shadowedSaves > 0) {
+				descriptionParts.push(
+					`${shadowedSaves} key(s) are currently overridden by a higher-priority source — see the warnings above.`
+				);
+			}
+
+			toast.success("API keys saved", {
+				description: descriptionParts.join(" "),
+			});
 			setDirtyFields({});
 		} catch (error) {
 			handleError(error, {
