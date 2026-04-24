@@ -2,7 +2,7 @@
 /**
  * API Keys Precedence smoke — standalone CLI for QUR-29.
  *
- * Runs two blocks:
+ * Modes:
  *   1. Deterministic matrix: exercises the pure `computeKeyStatus` helper
  *      with the 5 presence cases from IMPLEMENTATION.md §ST-2 plus a
  *      snapshot of KEY_SOURCE_PRECEDENCE. Asserts expected
@@ -11,17 +11,27 @@
  *      ~/.qcut/.env, and the Electron userData api-keys.json blob for each of
  *      the 8 supported fields (FAL, Freesound, Gemini, OpenRouter, Anthropic,
  *      ElevenLabs, GMI, Runway) and prints the resolved status per field.
+ *   3. Save-and-verify: picks a field that is currently `not-set`, snapshots
+ *      the aicp-cli + qcut-env tier files, writes a sentinel fake value to
+ *      each in turn (simulating what the Save button syncs), re-probes the
+ *      status after every write, asserts the expected {source, shadowedBy}
+ *      transitions, and restores the tier files in a finally block so the
+ *      host machine always ends in the pre-run state. Can also exercise the
+ *      env-var tier by mutating process.env before the probe.
  *
  * Electron safeStorage decryption is not available outside Electron — the
- * probe reports "electron: set (encrypted)" when api-keys.json contains a
- * non-empty base64 blob for a field, which is equivalent for precedence
- * purposes since resolveStatus only checks presence.
+ * probe treats a non-empty base64 entry in api-keys.json as `electron: true`,
+ * which is equivalent for precedence purposes since resolveStatus only checks
+ * presence. The save-and-verify mode therefore cannot simulate the tier-2
+ * half of the Save button path; it covers tiers 1, 3, 4.
  *
  * Usage:
- *   bun run scripts/api-keys-precedence-smoke.ts           # matrix + probe
- *   bun run scripts/api-keys-precedence-smoke.ts --matrix  # matrix only
- *   bun run scripts/api-keys-precedence-smoke.ts --probe   # probe only
- *   bun run scripts/api-keys-precedence-smoke.ts --json    # JSON output
+ *   bun run scripts/api-keys-precedence-smoke.ts                    # matrix + probe
+ *   bun run scripts/api-keys-precedence-smoke.ts --matrix           # matrix only
+ *   bun run scripts/api-keys-precedence-smoke.ts --probe            # probe only
+ *   bun run scripts/api-keys-precedence-smoke.ts --json             # JSON output
+ *   bun run scripts/api-keys-precedence-smoke.ts --save-and-verify  # write/verify/restore
+ *   bun run scripts/api-keys-precedence-smoke.ts --save-and-verify --field=openRouterApiKey
  */
 
 import fs from "node:fs";
@@ -387,11 +397,323 @@ function printProbe(r: ReturnType<typeof runProbe>): void {
 	console.log();
 }
 
+// -----------------------------------------------------------------------------
+// Save-and-verify mode
+// -----------------------------------------------------------------------------
+
+type SaveStep = {
+	label: string;
+	expected: KeyStatus;
+	actual?: KeyStatus;
+	pass?: boolean;
+};
+
+function probeField(spec: FieldSpec): KeyStatus {
+	const aicpEnv = parseEnvFile(getAicpCredentialsPath());
+	const qcutEnv = parseEnvFile(getQcutEnvPath());
+	const electronBlob = loadElectronBlob();
+	return computeKeyStatus({
+		env: Boolean(
+			process.env[spec.envName] ||
+				(spec.altEnvName && process.env[spec.altEnvName])
+		),
+		electron: Boolean(electronBlob[spec.field]),
+		aicpCli: spec.aicpName ? Boolean(aicpEnv[spec.aicpName]) : false,
+		qcutEnv: spec.qcutEnvName ? Boolean(qcutEnv[spec.qcutEnvName]) : false,
+	});
+}
+
+type FileSnapshot = {
+	filePath: string;
+	existed: boolean;
+	content: Buffer | null;
+};
+
+function snapshotFile(filePath: string): FileSnapshot {
+	const existed = fs.existsSync(filePath);
+	return {
+		filePath,
+		existed,
+		content: existed ? fs.readFileSync(filePath) : null,
+	};
+}
+
+function restoreFile(snap: FileSnapshot): void {
+	if (snap.existed && snap.content) {
+		fs.writeFileSync(snap.filePath, snap.content, { mode: 0o600 });
+	} else if (fs.existsSync(snap.filePath)) {
+		fs.unlinkSync(snap.filePath);
+	}
+}
+
+function upsertEnvLine(filePath: string, key: string, value: string): void {
+	const dir = path.dirname(filePath);
+	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+	const prev = fs.existsSync(filePath)
+		? fs.readFileSync(filePath, "utf-8").split("\n")
+		: [];
+	const kept: string[] = [];
+	for (const line of prev) {
+		const trimmed = line.trim();
+		if (!trimmed || trimmed.startsWith("#")) {
+			kept.push(line);
+			continue;
+		}
+		const eqIdx = trimmed.indexOf("=");
+		if (eqIdx <= 0) {
+			kept.push(line);
+			continue;
+		}
+		if (trimmed.slice(0, eqIdx) === key) continue;
+		kept.push(line);
+	}
+	kept.push(`${key}=${value}`);
+	fs.writeFileSync(filePath, kept.join("\n") + "\n", { mode: 0o600 });
+}
+
+function assertStatus(
+	actual: KeyStatus,
+	expected: KeyStatus
+): { pass: boolean; detail: string } {
+	const pass = statusEq(actual, expected);
+	const detail = pass
+		? ""
+		: `expected source=${expected.source} shadowedBy=[${expected.shadowedBy.join(",")}] set=${expected.set}; actual source=${actual.source} shadowedBy=[${actual.shadowedBy.join(",")}] set=${actual.set}`;
+	return { pass, detail };
+}
+
+function runSaveAndVerify(fieldName: FieldKey): {
+	field: FieldKey;
+	allPass: boolean;
+	steps: SaveStep[];
+	notes: string[];
+} {
+	const spec = FIELDS.find((f) => f.field === fieldName);
+	if (!spec) {
+		throw new Error(
+			`unknown field "${fieldName}" — valid: ${FIELDS.map((f) => f.field).join(", ")}`
+		);
+	}
+
+	const notes: string[] = [];
+	const steps: SaveStep[] = [];
+
+	// Precondition: pick a field that is currently not-set, otherwise we risk
+	// overwriting a real user key. Fail loudly.
+	const initial = probeField(spec);
+	if (initial.set) {
+		throw new Error(
+			`field "${fieldName}" is already set (source=${initial.source}). Pick a different --field to avoid clobbering real credentials.`
+		);
+	}
+
+	const aicpPath = getAicpCredentialsPath();
+	const qcutEnvPath = getQcutEnvPath();
+	const aicpSnap = snapshotFile(aicpPath);
+	const qcutEnvSnap = snapshotFile(qcutEnvPath);
+	const sentinel = `qcut-smoke-DELETE-ME-${Date.now()}`;
+
+	const savedEnvVar = process.env[spec.envName];
+	const savedAltEnvVar = spec.altEnvName
+		? process.env[spec.altEnvName]
+		: undefined;
+
+	try {
+		// Step 1 — nothing set: source=not-set
+		steps.push({
+			label: "pre-flight — field is not-set",
+			expected: { set: false, source: "not-set", shadowedBy: [] },
+			actual: initial,
+			pass: statusEq(initial, {
+				set: false,
+				source: "not-set",
+				shadowedBy: [],
+			}),
+		});
+
+		// Step 2 — simulate Save's qcut-env sync only
+		if (spec.qcutEnvName) {
+			upsertEnvLine(qcutEnvPath, spec.qcutEnvName, sentinel);
+			const actual = probeField(spec);
+			steps.push({
+				label: "after write to qcut-env tier — source=qcut-env",
+				expected: { set: true, source: "qcut-env", shadowedBy: [] },
+				actual,
+				pass: statusEq(actual, {
+					set: true,
+					source: "qcut-env",
+					shadowedBy: [],
+				}),
+			});
+		} else {
+			notes.push(
+				`field ${fieldName} has no qcut-env mapping — skipped tier-4 step`
+			);
+		}
+
+		// Step 3 — also simulate Save's aicp-cli sync: electron would outrank this
+		// if present, but we can't touch safeStorage from the CLI, so aicp-cli wins.
+		if (spec.aicpName) {
+			upsertEnvLine(aicpPath, spec.aicpName, sentinel);
+			const actual = probeField(spec);
+			const expectedShadow: KeySource[] = spec.qcutEnvName ? ["qcut-env"] : [];
+			steps.push({
+				label: `after write to aicp-cli tier — source=aicp-cli shadows=[${expectedShadow.join(",")}]`,
+				expected: {
+					set: true,
+					source: "aicp-cli",
+					shadowedBy: expectedShadow,
+				},
+				actual,
+				pass: statusEq(actual, {
+					set: true,
+					source: "aicp-cli",
+					shadowedBy: expectedShadow,
+				}),
+			});
+		} else {
+			notes.push(
+				`field ${fieldName} has no aicp-cli mapping — skipped tier-3 step`
+			);
+		}
+
+		// Step 4 — inject env var: tier 1 should outrank tiers 3 and 4
+		process.env[spec.envName] = sentinel;
+		{
+			const actual = probeField(spec);
+			const shadow: KeySource[] = [];
+			if (spec.aicpName) shadow.push("aicp-cli");
+			if (spec.qcutEnvName) shadow.push("qcut-env");
+			steps.push({
+				label: `env var ${spec.envName} injected — source=environment shadows=[${shadow.join(",")}]`,
+				expected: {
+					set: true,
+					source: "environment",
+					shadowedBy: shadow,
+				},
+				actual,
+				pass: statusEq(actual, {
+					set: true,
+					source: "environment",
+					shadowedBy: shadow,
+				}),
+			});
+		}
+
+		// Step 5 — remove env var: should drop back to aicp-cli (if mapped) or qcut-env
+		delete process.env[spec.envName];
+		if (spec.altEnvName) delete process.env[spec.altEnvName];
+		{
+			const actual = probeField(spec);
+			const expected: KeyStatus = spec.aicpName
+				? {
+						set: true,
+						source: "aicp-cli",
+						shadowedBy: spec.qcutEnvName ? ["qcut-env"] : [],
+					}
+				: spec.qcutEnvName
+					? { set: true, source: "qcut-env", shadowedBy: [] }
+					: { set: false, source: "not-set", shadowedBy: [] };
+			steps.push({
+				label: "env var unset — rolls back to file tier",
+				expected,
+				actual,
+				pass: statusEq(actual, expected),
+			});
+		}
+	} finally {
+		// ALWAYS restore — even if an assertion threw. Leaves the host machine
+		// in the pre-run state.
+		restoreFile(aicpSnap);
+		restoreFile(qcutEnvSnap);
+		if (savedEnvVar === undefined) delete process.env[spec.envName];
+		else process.env[spec.envName] = savedEnvVar;
+		if (spec.altEnvName) {
+			if (savedAltEnvVar === undefined) delete process.env[spec.altEnvName];
+			else process.env[spec.altEnvName] = savedAltEnvVar;
+		}
+	}
+
+	// Step 6 — post-cleanup sanity: back to not-set
+	const finalStatus = probeField(spec);
+	steps.push({
+		label: "post-cleanup — field is back to not-set",
+		expected: { set: false, source: "not-set", shadowedBy: [] },
+		actual: finalStatus,
+		pass: statusEq(finalStatus, {
+			set: false,
+			source: "not-set",
+			shadowedBy: [],
+		}),
+	});
+
+	const allPass = steps.every((s) => s.pass);
+	return { field: fieldName, allPass, steps, notes };
+}
+
+function printSaveAndVerify(r: ReturnType<typeof runSaveAndVerify>): void {
+	console.log(`\n=== Save-and-verify (${r.field}) ===\n`);
+	for (const note of r.notes) {
+		console.log(`  ${yellow("note")}  ${note}`);
+	}
+	for (const step of r.steps) {
+		const badge = step.pass ? green("PASS") : red("FAIL");
+		console.log(`  ${badge}  ${step.label}`);
+		if (!step.pass) {
+			const a = step.actual;
+			const e = step.expected;
+			console.log(
+				`        expected: source=${e.source} shadowedBy=[${e.shadowedBy.join(",")}] set=${e.set}`
+			);
+			if (a) {
+				console.log(
+					`        actual:   source=${a.source} shadowedBy=[${a.shadowedBy.join(",")}] set=${a.set}`
+				);
+			}
+		}
+	}
+	const summary = r.allPass ? green("ALL PASS") : red("FAILED");
+	console.log(`\n  Save-and-verify: ${summary}\n`);
+}
+
+function parseFieldArg(args: string[]): FieldKey {
+	const flag = args.find((a) => a.startsWith("--field="));
+	const name = flag ? flag.slice("--field=".length) : "geminiApiKey";
+	if (!FIELDS.some((f) => f.field === name)) {
+		throw new Error(
+			`--field must be one of: ${FIELDS.map((f) => f.field).join(", ")}`
+		);
+	}
+	return name as FieldKey;
+}
+
+// -----------------------------------------------------------------------------
+
 function main(): void {
 	const args = process.argv.slice(2);
 	const wantJson = args.includes("--json");
+	const wantSaveVerify = args.includes("--save-and-verify");
 	const onlyMatrix = args.includes("--matrix") && !args.includes("--probe");
 	const onlyProbe = args.includes("--probe") && !args.includes("--matrix");
+
+	if (wantSaveVerify) {
+		const field = parseFieldArg(args);
+		let result: ReturnType<typeof runSaveAndVerify>;
+		try {
+			result = runSaveAndVerify(field);
+		} catch (err) {
+			console.error(
+				red(`save-and-verify failed to start: ${(err as Error).message}`)
+			);
+			process.exit(2);
+		}
+		if (wantJson) {
+			console.log(JSON.stringify(result, null, 2));
+		} else {
+			printSaveAndVerify(result);
+		}
+		process.exit(result.allPass ? 0 : 1);
+	}
 
 	const matrix = onlyProbe ? null : runMatrix();
 	const probe = onlyMatrix ? null : runProbe();
