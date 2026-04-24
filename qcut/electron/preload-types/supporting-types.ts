@@ -163,7 +163,7 @@ export interface ApiKeyConfig {
 	runwayApiKey?: string;
 }
 
-export type ApiKeySource = "environment" | "electron" | "aicp-cli" | "qcut-env";
+export type ApiKeySource = "environment" | "electron" | "file";
 
 export interface ApiKeyStatus {
 	set: boolean;

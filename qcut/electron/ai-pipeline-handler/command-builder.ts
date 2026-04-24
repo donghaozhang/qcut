@@ -8,6 +8,11 @@ import { app } from "electron";
 import * as path from "path";
 import * as fs from "fs";
 import { getDecryptedApiKeys } from "../api-key-handler.js";
+import {
+	QCUT_ENV_MAP,
+	SPAWN_ENV_SIBLINGS,
+	type ApiKeyField,
+} from "../api-key-vocabulary.js";
 import type { GenerateOptions } from "./types.js";
 
 /** Generate a unique session ID for pipeline execution tracking. */
@@ -111,24 +116,49 @@ export function resolveOutputDirectory({
 	}
 }
 
-/** Build the environment variables for spawning the pipeline process, including decrypted API keys. */
+/**
+ * Build the environment variables for spawning the pipeline process,
+ * including decrypted API keys.
+ *
+ * Injects every key in `QCUT_ENV_MAP` whose stored value is non-empty.
+ * `process.env` wins — if the user set `FAL_KEY` in their shell, the
+ * stored key does NOT override it (preserves shell-env precedence from
+ * the KEY_SOURCE_PRECEDENCE chain).
+ *
+ * Siblings declared in `SPAWN_ENV_SIBLINGS` (e.g. `FAL_KEY` → `FAL_API_KEY`)
+ * are ALWAYS mirrored from the **resolved** primary value, even when the
+ * primary came from `process.env`. This preserves the sibling contract so
+ * AICP binaries that read `FAL_API_KEY` still find the key the user
+ * exported as `FAL_KEY` — without ever emitting conflicting pairs.
+ */
 export async function buildSpawnEnvironment(): Promise<NodeJS.ProcessEnv> {
 	const spawnEnv: NodeJS.ProcessEnv = { ...process.env };
 
 	try {
 		const storedKeys = await getDecryptedApiKeys();
-		if (storedKeys.falApiKey) {
-			spawnEnv.FAL_KEY = storedKeys.falApiKey;
-			spawnEnv.FAL_API_KEY = storedKeys.falApiKey;
-		}
-		if (storedKeys.geminiApiKey) {
-			spawnEnv.GEMINI_API_KEY = storedKeys.geminiApiKey;
-		}
-		if (storedKeys.openRouterApiKey) {
-			spawnEnv.OPENROUTER_API_KEY = storedKeys.openRouterApiKey;
-		}
-		if (storedKeys.elevenLabsApiKey) {
-			spawnEnv.ELEVENLABS_API_KEY = storedKeys.elevenLabsApiKey;
+
+		for (const [field, envName] of Object.entries(QCUT_ENV_MAP) as Array<
+			[ApiKeyField, string]
+		>) {
+			// Shell-exported value wins when present; otherwise fall back to
+			// the stored GUI/file value. Either source feeds the siblings
+			// loop below, so we only ever emit one value per primary-and-
+			// siblings group.
+			const resolved = spawnEnv[envName] ?? storedKeys[field];
+			if (!resolved) continue;
+
+			if (!spawnEnv[envName]) {
+				spawnEnv[envName] = resolved;
+			}
+
+			const siblings = SPAWN_ENV_SIBLINGS[envName];
+			if (siblings) {
+				for (const sibling of siblings) {
+					if (!spawnEnv[sibling]) {
+						spawnEnv[sibling] = resolved;
+					}
+				}
+			}
 		}
 	} catch (error) {
 		console.warn("[AI Pipeline] Failed to load stored API keys:", error);

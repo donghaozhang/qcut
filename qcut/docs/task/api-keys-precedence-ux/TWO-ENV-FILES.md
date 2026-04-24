@@ -1,5 +1,7 @@
 # Why does QCut write API keys to two different env files?
 
+> **⚠ Superseded by [ONE-ENV-FILE-IMPLEMENTATION.md](./ONE-ENV-FILE-IMPLEMENTATION.md)** (shipped via PR #286). The precedence chain now collapses the two file tiers into a single `file` tier with `~/.qcut/.env` as the canonical destination. AICP's legacy `credentials.env` is still *mirrored* during the migration beta (see ST-5 + ST-8) but is no longer an independent tier. This doc is kept as the historical record — the migration routine in `electron/api-key-handler.ts` still references the old paths.
+
 Companion to [IMPLEMENTATION.md](./IMPLEMENTATION.md) and [PLAN.md](./PLAN.md). Explains the two file-based credential stores the precedence chain points at — `~/.config/video-ai-studio/credentials.env` and `~/.qcut/.env` — why they're separate, and who reads each one.
 
 - **TL;DR:** they belong to two independent command-line tools (`aicp` and the QCut native pipeline CLI). Each tool stands on its own with its own hard-coded credential path. When the user clicks **Save API Keys** in the GUI, the Electron save handler *syncs* keys to both files so whichever CLI the user later invokes finds the key — it is not that QCut stores the same key twice for no reason.

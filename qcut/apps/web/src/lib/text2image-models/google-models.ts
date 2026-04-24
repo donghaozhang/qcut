@@ -8,6 +8,9 @@ export const GOOGLE_MODELS: Record<string, Text2ImageModel> = {
 			"Google's latest high-quality model with exceptional photorealism",
 		provider: "Google",
 		endpoint: "https://fal.run/fal-ai/imagen4/preview/ultra",
+		// Imagen4 Ultra generates typically take 30-60 s; queue submit keeps
+		// each proxy round-trip inside the edge timeout.
+		useQueue: true,
 
 		qualityRating: 5,
 		speedRating: 3,

@@ -4,6 +4,23 @@
  * Manages API keys via .env files for CLI usage.
  * Supports setup, get, set, and validation of API keys.
  *
+ * ## Canonical file contract
+ *
+ * `~/.qcut/.env` is **the** QCut-managed credential file (single source of
+ * truth for file-based credentials). AICP's legacy `credentials.env` remains
+ * on disk for the `qcut set-key` / standalone `aicp set-key` pass-through CLI
+ * (see `electron/main.ts` `isCliKeyCommand` branch) and is still mirrored by
+ * the GUI save handler during the ONE-ENV-FILE beta window — the end-state
+ * (GUI writes only `~/.qcut/.env`) is a post-beta follow-up (ST-8).
+ *
+ * Production spawn sites inject these keys into child-process env via
+ * `buildSpawnEnvironment()` in
+ * `electron/ai-pipeline-handler/command-builder.ts` — AICP reads QCut-managed
+ * keys from `process.env` at runtime, not from its own credentials.env.
+ *
+ * See `docs/task/api-keys-precedence-ux/ONE-ENV-FILE-IMPLEMENTATION.md`
+ * (§A ST-0 audit) for the reasoning and the full call-site inventory.
+ *
  * @module electron/native-pipeline/key-manager
  */
 
@@ -34,6 +51,21 @@ export type ApiKeyName = (typeof KEY_NAMES)[number];
 export interface KeyStatus {
 	name: string;
 	configured: boolean;
+	/**
+	 * Which physical source the key was resolved from. **Intentionally
+	 * distinct** from `ApiKeySource` in
+	 * `packages/platform-core/src/types/core-api.ts` and
+	 * `electron/preload-types/supporting-types.ts` — that 3-tier union
+	 * (`environment | electron | file`) describes the GUI precedence chain
+	 * and lives inside the IPC boundary. This `source` is the native CLI's
+	 * diagnostic output for `qcut keys check`, consumed only by
+	 * `electron/native-pipeline/cli/cli-handlers-admin.ts`, and keeps
+	 * `envfile` (`~/.qcut/.env`) and `aicp-cli` (legacy AICP
+	 * `credentials.env`) separate so operators can see which file holds a
+	 * given key during the ONE-ENV-FILE migration beta.
+	 *
+	 * See PR #286 discussion thread 3135859463 / 3135894462 for history.
+	 */
 	source: "env" | "envfile" | "aicp-cli" | "none";
 	masked?: string;
 }
@@ -116,6 +148,16 @@ export function getKey(name: string): string | undefined {
 	const envValue = process.env[name];
 	if (envValue) return envValue;
 
+	const entries = readEnvFile();
+	return entries.get(name);
+}
+
+/**
+ * Read a key from the `~/.qcut/.env` file only, ignoring `process.env`.
+ * Used by one-shot migrations that must make decisions based on what the
+ * canonical file actually contains — not on what the user's shell exports.
+ */
+export function getKeyFromFile(name: string): string | undefined {
 	const entries = readEnvFile();
 	return entries.get(name);
 }

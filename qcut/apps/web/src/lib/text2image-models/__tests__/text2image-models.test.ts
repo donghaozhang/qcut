@@ -4,6 +4,9 @@ import {
 	TEXT2IMAGE_MODELS,
 	TEXT2IMAGE_MODEL_ORDER,
 	getModelById,
+	getModelDisplayName,
+	getModelDisplayNameById,
+	getModelRoutingBadge,
 	getModelsByProvider,
 	getText2ImageModelEntriesInPriorityOrder,
 } from "@/lib/ai-models/text2image-models";
@@ -96,5 +99,68 @@ describe("text2image-models registry", () => {
 		expect(TEXT2IMAGE_MODEL_ORDER as readonly string[]).not.toContain(
 			"gpt-image-2"
 		);
+	});
+});
+
+describe("getModelRoutingBadge", () => {
+	it("returns 'FAL' for any fal.run endpoint", () => {
+		expect(
+			getModelRoutingBadge({ endpoint: "https://fal.run/openai/gpt-image-2" })
+		).toBe("FAL");
+		expect(
+			getModelRoutingBadge({ endpoint: "https://fal.run/fal-ai/gemini-3-pro" })
+		).toBe("FAL");
+	});
+
+	it("returns 'GMI' for gmicloud.ai endpoints", () => {
+		expect(
+			getModelRoutingBadge({
+				endpoint: "https://console.gmicloud.ai/api/v1/ie/requestqueue",
+			})
+		).toBe("GMI");
+	});
+
+	it("returns null for unknown/empty endpoints", () => {
+		expect(getModelRoutingBadge({ endpoint: "" })).toBeNull();
+		expect(
+			getModelRoutingBadge({ endpoint: "https://example.com/model" })
+		).toBeNull();
+	});
+});
+
+describe("getModelDisplayName", () => {
+	it("appends (FAL) suffix for FAL-routed models", () => {
+		const gemini = TEXT2IMAGE_MODELS["gemini-3-pro"];
+		expect(getModelDisplayName(gemini)).toBe("Gemini 3 Pro (FAL)");
+	});
+
+	it("strips a legacy hard-coded (FAL) suffix before re-appending", () => {
+		const gpt = TEXT2IMAGE_MODELS["gpt-image-2-fal"];
+		// Raw name is "GPT-Image-2 (FAL)"; helper must not return "X (FAL) (FAL)".
+		expect(getModelDisplayName(gpt)).toBe("GPT-Image-2 (FAL)");
+	});
+
+	it("appends (GMI) for the gmicloud-routed variant", () => {
+		const gpt = TEXT2IMAGE_MODELS["gpt-image-2-gmi"];
+		expect(getModelDisplayName(gpt)).toBe("GPT-Image-2 (GMI)");
+	});
+
+	it("every model in TEXT2IMAGE_MODEL_ORDER gets a recognised badge", () => {
+		for (const id of TEXT2IMAGE_MODEL_ORDER) {
+			const model = TEXT2IMAGE_MODELS[id];
+			const badge = getModelRoutingBadge(model);
+			expect(badge, `model ${id} missing routing badge`).not.toBeNull();
+		}
+	});
+});
+
+describe("getModelDisplayNameById", () => {
+	it("returns the labelled name for a known id", () => {
+		expect(getModelDisplayNameById("nano-banana")).toBe("Nano Banana (FAL)");
+		expect(getModelDisplayNameById("phota")).toBe("Phota (FAL)");
+	});
+
+	it("returns undefined for an unknown id", () => {
+		expect(getModelDisplayNameById("no-such-model")).toBeUndefined();
 	});
 });

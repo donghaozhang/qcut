@@ -21,10 +21,11 @@ describe("ApiKeysPrecedenceInfo", () => {
 			screen.getByRole("button", { name: /How API key resolution works/ })
 		);
 
+		// Post ONE-ENV-FILE migration: three tiers (env / app / file). The
+		// "app" label appears in both the tier row and the footer caption.
 		expect(screen.getByText("env")).toBeInTheDocument();
 		expect(screen.getAllByText("app")).toHaveLength(2);
-		expect(screen.getByText("cli")).toBeInTheDocument();
-		expect(screen.getByText("qcut-env")).toBeInTheDocument();
+		expect(screen.getByText("file")).toBeInTheDocument();
 	});
 
 	it("renders exactly one interactive disclosure", () => {

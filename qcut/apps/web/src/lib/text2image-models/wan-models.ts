@@ -98,6 +98,9 @@ export const WAN_MODELS: Record<string, Text2ImageModel> = {
 			"Wan 2.7 Pro text-to-image — higher quality output with bilingual prompts",
 		provider: "Wan",
 		endpoint: "https://fal.run/fal-ai/wan/v2.7/pro/text-to-image",
+		// Pro tier routinely spans 40-90 s; routed through queue to avoid
+		// tripping the proxy edge timeout.
+		useQueue: true,
 
 		qualityRating: 5,
 		speedRating: 3,

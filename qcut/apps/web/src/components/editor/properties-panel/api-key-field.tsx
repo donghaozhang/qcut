@@ -147,7 +147,7 @@ export function ApiKeyField({
 	);
 }
 
-/** Small badge showing the source of an API key (env, app, cli). */
+/** Small badge showing the active source tier (env / app / file / web). */
 export function KeySourceBadge({ source }: { source: ApiKeyStatusSource }) {
 	if (source === "not-set") return null;
 

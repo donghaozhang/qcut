@@ -8,6 +8,8 @@ export const OTHER_MODELS: Record<string, Text2ImageModel> = {
 			"OpenAI GPT-Image-2 via FAL — photorealistic generation with accurate in-image text and strong prompt adherence",
 		provider: "OpenAI (via FAL)",
 		endpoint: "https://fal.run/openai/gpt-image-2",
+		// Regularly exceeds the proxy's ~100 s edge cap in sync mode.
+		useQueue: true,
 
 		qualityRating: 5,
 		speedRating: 4,

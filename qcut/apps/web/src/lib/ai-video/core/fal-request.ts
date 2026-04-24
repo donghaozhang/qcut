@@ -301,6 +301,237 @@ export async function makeFalRequest(
 	});
 }
 
+// ---------------------------------------------------------------------------
+// Queue-mode submit + poll + fetch result
+// ---------------------------------------------------------------------------
+
+/** Maximum wall-clock time a queue job may take before we give up polling. */
+const QUEUE_MAX_WAIT_MS = 15 * 60 * 1000; // 15 min — well over any FAL image-gen ceiling
+/** Interval between status polls. 3 s keeps UI feeling live without hammering. */
+const QUEUE_POLL_INTERVAL_MS = 3_000;
+
+interface QueueSubmitEnvelope {
+	request_id?: string;
+	status_url?: string;
+	response_url?: string;
+	/** Some FAL endpoints return the images inline when the job is small enough. */
+	images?: unknown;
+	image?: unknown;
+	data?: unknown;
+	detail?: unknown;
+}
+
+interface QueueStatusEnvelope {
+	status?: string;
+	queue_position?: number;
+	error?: string;
+}
+
+/** Rewrite a sync FAL URL (`fal.run/...`) into its queue equivalent (`queue.fal.run/...`). */
+function toQueueSubmitUrl(syncEndpoint: string): string {
+	if (syncEndpoint.startsWith(FAL_QUEUE_BASE)) return syncEndpoint;
+	if (syncEndpoint.startsWith(FAL_API_BASE)) {
+		return FAL_QUEUE_BASE + syncEndpoint.slice(FAL_API_BASE.length);
+	}
+	// Non-FAL endpoint — caller shouldn't have asked for queue mode. Fall back
+	// to the given URL; the submit will fail fast if it's not a queue URL.
+	return syncEndpoint;
+}
+
+/**
+ * Pull the FAL endpoint path (e.g. `openai/gpt-image-2`) out of a full queue
+ * URL. Needed so `/api/ai/status` and `/api/ai/result` can construct the
+ * correct upstream URL when `statusUrl` / `resultUrl` weren't forwarded.
+ */
+function extractEndpointPath(queueUrl: string): string {
+	if (!queueUrl.startsWith(FAL_QUEUE_BASE + "/")) return "";
+	return queueUrl.slice(FAL_QUEUE_BASE.length + 1).replace(/\/+$/, "");
+}
+
+function buildProxyStatusUrl(params: {
+	requestId: string;
+	endpointPath: string;
+	statusUrlHint?: string;
+}): string {
+	const q = new URLSearchParams({
+		provider: "fal",
+		endpoint: params.endpointPath,
+		requestId: params.requestId,
+	});
+	if (params.statusUrlHint) q.set("statusUrl", params.statusUrlHint);
+	return `${LICENSE_SERVER_URL}/api/ai/status?${q.toString()}`;
+}
+
+function buildProxyResultUrl(params: {
+	requestId: string;
+	endpointPath: string;
+	resultUrlHint?: string;
+}): string {
+	const q = new URLSearchParams({
+		provider: "fal",
+		endpoint: params.endpointPath,
+		requestId: params.requestId,
+	});
+	if (params.resultUrlHint) q.set("resultUrl", params.resultUrlHint);
+	return `${LICENSE_SERVER_URL}/api/ai/result?${q.toString()}`;
+}
+
+function sleepMs(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Submit a FAL job via the queue, poll through the license-server proxy until
+ * it completes, and return a `Response` shaped identically to the synchronous
+ * `makeFalRequest` return value — so existing callers that parse
+ * `{ images: [...] }` don't have to care that a poll loop ran.
+ *
+ * Usage is confined to models flagged with `useQueue: true` in the
+ * `TEXT2IMAGE_MODELS` registry. For signed-in users this routes entirely
+ * through `/api/ai/proxy`, `/api/ai/status`, and `/api/ai/result` — each call
+ * completes in a few seconds, sidestepping Cloudflare's ~100 s edge timeout
+ * that sync calls to slow models (GPT-Image-2, Imagen4 Ultra) hit.
+ *
+ * BYOK (no session token) path falls back to direct `queue.fal.run` calls
+ * using the local key. Behaviour matches the proxy path end-to-end.
+ */
+export async function makeFalRequestQueued(
+	endpoint: string,
+	payload: Record<string, unknown>,
+	options?: FalRequestOptions
+): Promise<Response> {
+	const syncUrl = endpoint.startsWith("https://")
+		? endpoint
+		: `${FAL_API_BASE}/${endpoint}`;
+	const queueSubmitUrl = toQueueSubmitUrl(syncUrl);
+	const endpointPath = extractEndpointPath(queueSubmitUrl);
+
+	// Step 1 — submit. Use `makeFalRequest` so the proxy-first + BYOK fallback
+	// semantics carry over for free. The submit itself is cheap (<3 s typical).
+	const submitResponse = await makeFalRequest(queueSubmitUrl, payload, options);
+	if (!submitResponse.ok) {
+		return submitResponse; // Caller handles error envelope uniformly.
+	}
+
+	let submitBody: QueueSubmitEnvelope;
+	try {
+		submitBody = (await submitResponse.clone().json()) as QueueSubmitEnvelope;
+	} catch {
+		return submitResponse;
+	}
+
+	// If FAL returned the result inline (small jobs sometimes skip the queue),
+	// pass it through unchanged.
+	if (!submitBody.request_id && (submitBody.images || submitBody.image)) {
+		return submitResponse;
+	}
+
+	const requestId = submitBody.request_id;
+	if (!requestId) {
+		// Unexpected submit shape — return so callers see the raw payload.
+		return submitResponse;
+	}
+
+	// Determine transport: proxy if we have a session token, direct otherwise.
+	const sessionToken = await getSessionToken();
+	const apiKey = await getFalApiKeyAsync();
+	const useProxy = Boolean(sessionToken && (options?.proxyFirst || !apiKey));
+
+	const abort = buildAbortSignal(options);
+	const deadline = Date.now() + QUEUE_MAX_WAIT_MS;
+	let completed = false;
+
+	// Step 2 — poll status.
+	while (Date.now() < deadline) {
+		if (abort?.aborted) {
+			throw new DOMException("FAL queue poll aborted", "AbortError");
+		}
+		await sleepMs(QUEUE_POLL_INTERVAL_MS);
+
+		const statusResponse = useProxy
+			? await fetch(
+					buildProxyStatusUrl({
+						requestId,
+						endpointPath,
+						statusUrlHint: submitBody.status_url,
+					}),
+					{
+						headers: { Authorization: `Bearer ${sessionToken}` },
+						signal: abort,
+					}
+				)
+			: await fetch(
+					submitBody.status_url ??
+						`${queueSubmitUrl}/requests/${requestId}/status`,
+					{
+						headers: apiKey ? { Authorization: `Key ${apiKey}` } : {},
+						signal: abort,
+					}
+				);
+
+		if (!statusResponse.ok) {
+			// Transient status error — one retry's worth before surfacing.
+			if (statusResponse.status >= 500) continue;
+			return statusResponse;
+		}
+
+		let status: QueueStatusEnvelope;
+		try {
+			status = (await statusResponse.json()) as QueueStatusEnvelope;
+		} catch {
+			continue;
+		}
+
+		if (status.status === "COMPLETED") {
+			completed = true;
+			break;
+		}
+		if (status.status === "FAILED") {
+			// Fabricate a 502 Response so the call site's error-handling path
+			// triggers (same as a sync-mode upstream failure).
+			return new Response(
+				JSON.stringify({ detail: status.error ?? "FAL queue job failed" }),
+				{ status: 502, headers: { "Content-Type": "application/json" } }
+			);
+		}
+	}
+
+	// Distinguish "broke on COMPLETED" from "fell out on deadline" via an
+	// explicit flag — relying on `Date.now() >= deadline` after the loop is
+	// racy: the final poll's sleep + network round-trip can push the clock
+	// past the deadline even when FAL reported COMPLETED, silently turning
+	// a successful generation into a 504.
+	if (!completed) {
+		return new Response(
+			JSON.stringify({
+				detail: `FAL queue job ${requestId} exceeded ${QUEUE_MAX_WAIT_MS / 1000}s`,
+			}),
+			{ status: 504, headers: { "Content-Type": "application/json" } }
+		);
+	}
+
+	// Step 3 — fetch the completed result.
+	return useProxy
+		? fetch(
+				buildProxyResultUrl({
+					requestId,
+					endpointPath,
+					resultUrlHint: submitBody.response_url,
+				}),
+				{
+					headers: { Authorization: `Bearer ${sessionToken}` },
+					signal: abort,
+				}
+			)
+		: fetch(
+				submitBody.response_url ?? `${queueSubmitUrl}/requests/${requestId}`,
+				{
+					headers: apiKey ? { Authorization: `Key ${apiKey}` } : {},
+					signal: abort,
+				}
+			);
+}
+
 /**
  * Handles FAL API response and converts errors to user-friendly messages.
  *
