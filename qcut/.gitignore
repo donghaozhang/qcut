@@ -17,6 +17,7 @@
 /build/*
 !/build/*.icns
 !/build/*.ico
+!/build/icon.png
 !/build/entitlements.mac.plist
 !/build/aicp/
 !/build/aicp/aicp.spec
