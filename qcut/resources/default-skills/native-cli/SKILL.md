@@ -253,10 +253,7 @@ qcut flow novel2movie --novel book.txt --max-scenes 20
 
 ## API Key Setup
 
-Keys stored in `~/.qcut/.env` (mode `0600`) — this is the canonical file tier
-as of the ONE-ENV-FILE migration (see
-`docs/task/api-keys-precedence-ux/ONE-ENV-FILE-IMPLEMENTATION.md`). QCut's GUI
-mirrors writes here for every editable key.
+Keys stored in `~/.qcut/.env` (mode `0600`).
 
 ```bash
 qcut system setup          # Create .env template
