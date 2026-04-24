@@ -56,6 +56,42 @@ export function getModelById(id: string): Text2ImageModel | undefined {
 	return TEXT2IMAGE_MODELS[id];
 }
 
+/**
+ * Routing provider badge derived from the model's endpoint hostname.
+ *
+ * Keeps the badge in lockstep with where the request actually goes rather
+ * than relying on a hand-maintained suffix in each model's `name`. New
+ * models automatically inherit the correct badge the moment their
+ * `endpoint` lands.
+ */
+export function getModelRoutingBadge(
+	model: Pick<Text2ImageModel, "endpoint">
+): string | null {
+	const endpoint = model.endpoint ?? "";
+	if (endpoint.includes("fal.run")) return "FAL";
+	if (endpoint.includes("gmicloud.ai") || endpoint.includes("gmi.cloud"))
+		return "GMI";
+	return null;
+}
+
+/**
+ * Returns the name a user should see in the picker / status labels with a
+ * trailing `(FAL)` / `(GMI)` suffix derived from the endpoint. Any legacy
+ * hard-coded `(FAL)` / `(GMI)` suffix already present in `model.name` is
+ * stripped first so we don't end up with doubles like "X (FAL) (FAL)".
+ */
+export function getModelDisplayName(model: Text2ImageModel): string {
+	const badge = getModelRoutingBadge(model);
+	const base = model.name.replace(/\s*\((FAL|GMI)\)\s*$/i, "");
+	return badge ? `${base} (${badge})` : model.name;
+}
+
+/** Convenience lookup-then-display variant — returns `undefined` when the id is unknown. */
+export function getModelDisplayNameById(id: string): string | undefined {
+	const model = TEXT2IMAGE_MODELS[id];
+	return model ? getModelDisplayName(model) : undefined;
+}
+
 /** Get text-to-image models filtered by provider name. */
 export function getModelsByProvider(provider: string): Text2ImageModel[] {
 	return Object.values(TEXT2IMAGE_MODELS).filter(
