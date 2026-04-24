@@ -7,18 +7,13 @@ import {
 } from "./native-pipeline/infra/key-manager.js";
 import { computeKeyStatus, KEY_SOURCE_PRECEDENCE } from "./api-key-status.js";
 import type { KeyStatus, KeySource } from "./api-key-status.js";
-
-// Type definitions for API key management
-interface ApiKeys {
-	falApiKey: string;
-	freesoundApiKey: string;
-	geminiApiKey: string;
-	openRouterApiKey: string;
-	anthropicApiKey: string;
-	elevenLabsApiKey: string;
-	gmiApiKey: string;
-	runwayApiKey: string;
-}
+import {
+	AICP_ENV_MAP,
+	AICP_ENV_READ_MAP,
+	QCUT_ENV_MAP,
+	QCUT_ENV_READ_MAP,
+	type ApiKeys,
+} from "./api-key-vocabulary.js";
 
 interface ApiKeyData {
 	falApiKey?: string;
@@ -53,31 +48,11 @@ interface ApiKeyHandlers {
 	"api-keys:status": () => Promise<ApiKeysStatus>;
 }
 
-// AICP env var name → QCut ApiKeys field mapping
-const AICP_KEY_MAP: Record<string, keyof ApiKeys> = {
-	FAL_KEY: "falApiKey",
-	GEMINI_API_KEY: "geminiApiKey",
-	OPENROUTER_API_KEY: "openRouterApiKey",
-};
-
-// Reverse: QCut ApiKeys field → AICP env var name (for syncing to credentials.env)
-const AICP_REVERSE_MAP: Partial<Record<keyof ApiKeys, string>> = {
-	falApiKey: "FAL_KEY",
-	geminiApiKey: "GEMINI_API_KEY",
-	openRouterApiKey: "OPENROUTER_API_KEY",
-};
-
-// QCut ApiKeys field → ~/.qcut/.env key name (for syncing to native CLI store)
-const QCUT_ENV_MAP: Partial<Record<keyof ApiKeys, string>> = {
-	falApiKey: "FAL_KEY",
-	freesoundApiKey: "FREESOUND_API_KEY",
-	geminiApiKey: "GEMINI_API_KEY",
-	openRouterApiKey: "OPENROUTER_API_KEY",
-	anthropicApiKey: "ANTHROPIC_API_KEY",
-	elevenLabsApiKey: "ELEVENLABS_API_KEY",
-	gmiApiKey: "GMI_API_KEY",
-	runwayApiKey: "RUNWAY_API_KEY",
-};
+// Backwards-compatible aliases for the vocabulary module. Existing call sites
+// use these names; the tables themselves now live in api-key-vocabulary.ts so
+// the spawn env builder, migration routine, and tests share a single source.
+const AICP_KEY_MAP = AICP_ENV_READ_MAP;
+const AICP_REVERSE_MAP = AICP_ENV_MAP;
 
 const EMPTY_API_KEYS: ApiKeys = {
 	falApiKey: "",
@@ -213,7 +188,7 @@ function syncToAicpCredentials(keys: Partial<ApiKeys>): void {
 		const credPath = getAicpCredentialsPath();
 
 		// Read existing lines to preserve keys not managed by QCut
-		const managedVars = new Set(Object.values(AICP_REVERSE_MAP));
+		const managedVars = new Set<string>(Object.values(AICP_REVERSE_MAP));
 		const preserved: string[] = [];
 		if (fs.existsSync(credPath)) {
 			for (const line of fs.readFileSync(credPath, "utf-8").split("\n")) {
@@ -290,14 +265,6 @@ async function loadElectronStoredKeys(): Promise<ApiKeys> {
 		return getEmptyApiKeys();
 	}
 }
-
-// Reverse of QCUT_ENV_MAP: env var name → ApiKeys field (for reading ~/.qcut/.env)
-const QCUT_ENV_READ_MAP: Record<string, keyof ApiKeys> = Object.fromEntries(
-	Object.entries(QCUT_ENV_MAP).map(([field, envName]) => [
-		envName,
-		field as keyof ApiKeys,
-	])
-) as Record<string, keyof ApiKeys>;
 
 /**
  * Load keys from ~/.qcut/.env (Tier 3b — native CLI credential store).
