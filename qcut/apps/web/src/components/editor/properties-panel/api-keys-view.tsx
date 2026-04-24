@@ -40,9 +40,12 @@ const EDITABLE_API_KEY_FIELDS: readonly EditableApiKeyField[] = [
 	"runwayApiKey",
 ];
 
-// Fields that electron/api-key-handler.ts syncs to the AICP CLI
-// credentials.env file (see AICP_REVERSE_MAP). The other editable fields
-// only sync to the Electron keystore + ~/.qcut/.env.
+// Fields that electron/api-key-handler.ts mirrors into AICP's legacy
+// credentials.env file during the ONE-ENV-FILE beta window (see
+// AICP_ENV_MAP). Kept so users with long-running `aicp` CLI workflows
+// keep reading these three keys from the file they historically watch.
+// After the beta, this constant and the legacy sync both disappear —
+// `~/.qcut/.env` is the single canonical destination.
 const AICP_SYNCED_FIELDS: ReadonlySet<EditableApiKeyField> = new Set([
 	"falApiKey",
 	"geminiApiKey",
@@ -201,11 +204,11 @@ export function ApiKeysView() {
 				(field) => trimmedKeys[field] !== "" && AICP_SYNCED_FIELDS.has(field)
 			);
 			const descriptionParts = [
-				"Stored in QCut's encrypted keystore and synced to ~/.qcut/.env so the native CLI can read them.",
+				"Stored in QCut's encrypted keystore and written to ~/.qcut/.env (the canonical file tier).",
 			];
 			if (wroteAicpSyncedField) {
 				descriptionParts.push(
-					"FAL / Gemini / OpenRouter keys are also synced to ~/.config/video-ai-studio/credentials.env for the AICP CLI."
+					"FAL / Gemini / OpenRouter are also mirrored to the legacy AICP credentials.env during the migration window."
 				);
 			}
 			if (shadowedSaves > 0) {
