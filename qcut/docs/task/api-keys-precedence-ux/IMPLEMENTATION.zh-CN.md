@@ -279,12 +279,12 @@ bun run test          # vitest —— 所有 workspace
 bun run test:e2e:bg   # Playwright 无头
 ```
 
-- [ ] Lint 通过
-- [ ] 类型检查通过
-- [ ] 单元测试通过
-- [ ] E2E 通过（或合理跳过并注明原因）
-- [ ] QA.md 清单签字
-- [ ] Issue #283 已关闭并附带摘要
+- [ ] Lint 通过 —— 10 个改动文件的局部 biome 检查已通过；合并前还需跑一次全仓 `bun lint:clean`。
+- [x] 类型检查通过
+- [x] 单元测试通过 —— 三个新测试文件的 vitest 局部跑通（15/15 绿，2026-04-24）。全仓 `bun run test` 仍待执行。
+- [x] E2E 通过（或合理跳过并注明原因）—— `api-keys-precedence.e2e.ts` 由于 `electron/dist/main.js` 未构建而干净跳过，与现有 remotion-preview 模式一致。
+- [ ] QA.md 清单签字 —— `docs/task/api-keys-precedence-ux/QA.md` 已存在，含 8 条 + 4 道关卡；所有勾选仍为空，待一次真机过验。
+- [ ] Issue #283 已关闭并附带摘要 —— 取决于 PR 合并。
 
 ---
 
@@ -308,3 +308,66 @@ bun run test:e2e:bg   # Playwright 无头
 - `electron/__tests__/api-key-aicp-fallback.test.ts` —— ST-2 的纯函数测试模式。
 - `apps/web/tests/e2e/remotion-preview.spec.ts` —— ST-7 带 env 启动 Electron 的模式。
 - `apps/web/src/hooks/__tests__/use-toast.test.ts` —— ST-6 的 RTL + Vitest 写法。
+
+---
+
+## CLI 冒烟 —— `scripts/api-keys-precedence-smoke.ts`
+
+独立的 Bun CLI（无需启动 Electron 主进程），端到端检验已上线的优先级逻辑：
+
+1. **确定性矩阵** —— 从 `electron/api-key-status.ts` 导入纯函数 `computeKeyStatus`，跑 ST-2 的 5 个组合 + `KEY_SOURCE_PRECEDENCE` 顺序快照，对 `{set, source, shadowedBy}` 做精确断言，任何一处失败即以非零退出。
+2. **真实探测** —— 为 8 个字段依次读取 `process.env`、`~/.config/video-ai-studio/credentials.env`、`~/.qcut/.env` 以及 Electron 的 `api-keys.json` 加密块，按字段打印解析后的状态。因 Electron `safeStorage` 只能在主进程解密，脚本把 `api-keys.json` 里非空的 base64 条目视为 `electron: true` —— 这对优先级判断等价，因为 `resolveStatus` 本身也只看存在性。
+
+### 用法
+
+```bash
+bun run scripts/api-keys-precedence-smoke.ts           # 默认：矩阵 + 探测
+bun run scripts/api-keys-precedence-smoke.ts --matrix  # 只跑确定性矩阵
+bun run scripts/api-keys-precedence-smoke.ts --probe   # 只跑真实探测
+bun run scripts/api-keys-precedence-smoke.ts --json    # 机器可读输出
+```
+
+### 运行记录 · 2026-04-24 · darwin · 无环境变量注入
+
+| 用例 | 结果 |
+|---|---|
+| Matrix · `env + electron` → `environment` / shadows `[electron]` | ✅ PASS |
+| Matrix · `electron + aicp-cli` → `electron` / shadows `[aicp-cli]` | ✅ PASS |
+| Matrix · 四级全设 → `environment` / shadows `[electron, aicp-cli, qcut-env]` | ✅ PASS |
+| Matrix · 仅 `qcut-env` → `qcut-env` / shadows `[]` | ✅ PASS |
+| Matrix · 都没有 → `not-set`，`set: false` | ✅ PASS |
+| `KEY_SOURCE_PRECEDENCE` 快照 = `[environment, electron, aicp-cli, qcut-env]` | ✅ PASS |
+
+**矩阵：全部通过（6/6）。** 退出码 `0`。
+
+真实探测（本机实际文件）：
+
+| 字段 | 有值的层级 | 解析后的 `source` | `shadowedBy` |
+|---|---|---|---|
+| FAL | `electron + aicp-cli + qcut-env` | `electron` | `[aicp-cli, qcut-env]` |
+| Freesound | `electron + qcut-env` | `electron` | `[qcut-env]` |
+| Gemini | 无 | `not-set` | `[]` |
+| OpenRouter | 无 | `not-set` | `[]` |
+| Anthropic | 无 | `not-set` | `[]` |
+| ElevenLabs | 无 | `not-set` | `[]` |
+| GMI | 无 | `not-set` | `[]` |
+| Runway | 无 | `not-set` | `[]` |
+
+层级文件：`~/Library/Application Support/qcut/api-keys.json` 存在，`~/.config/video-ai-studio/credentials.env` 存在，`~/.qcut/.env` 存在。FAL 和 Freesound 两行正好命中了 UI 警告设计要覆盖的屏蔽场景。
+
+### 运行记录 · 2026-04-24 · darwin · 注入 `FAL_KEY=from-env`
+
+验证 tier-1（env）能正确压过 electron + aicp-cli + qcut-env：
+
+```
+FAL   tiers=env+electron+aicp-cli+qcut-env   status=environment  shadows: [electron, aicp-cli, qcut-env]
+```
+
+✅ PASS —— FAL 升为 `environment`，其余三层按优先级顺序进入 `shadowedBy`。这与 PLAN §6 Q1 / ST-2 第 3 用例的真实数据一致，确认在相同条件下 UI 的输入框警告会如期触发。
+
+### 解读
+
+- **纯解析器正确**：矩阵 6/6，无偏差。
+- **现实中的屏蔽并非假设**：本机 8 个字段里已有 2 个（FAL、Freesound）处于被屏蔽状态 —— 用户一旦在这两项上开始输入，UI 警告就会被点亮。这是有用的自用验证，不是缺陷。
+- **环境变量覆盖符合设计**：shell 导出的 `FAL_KEY` 将 `source` 提升为 `environment`，并把所有更低层级推入 `shadowedBy`。`ApiKeyField` 里的警告会把 `environment` 标记为生效源。
+- 无失败待记录。
