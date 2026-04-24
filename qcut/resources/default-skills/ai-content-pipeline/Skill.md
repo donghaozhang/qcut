@@ -29,10 +29,13 @@ keep working for the duration of the beta window.
 **Recommended for Claude Code / CLI workflows:**
 
 ```bash
-# Set FAL key persistently (secure hidden prompt). The canonical QCut
-# credential file is ~/.qcut/.env; aicp writes the legacy
-# ~/.config/video-ai-studio/credentials.env, which QCut mirrors into the
-# canonical file during the migration beta via the ST-3 routine.
+# Set FAL key persistently (secure hidden prompt). QCut's canonical
+# credential file is ~/.qcut/.env. The `aicp` binary still writes to its
+# legacy ~/.config/video-ai-studio/credentials.env for backwards
+# compatibility during the ONE-ENV-FILE beta — QCut mirrors that legacy
+# file into the canonical ~/.qcut/.env on next launch via the ST-3
+# migration routine. Prefer `qcut set-key` for new workflows; it writes
+# directly to the canonical file.
 aicp set-key FAL_KEY
 
 # Verify the key is stored

@@ -312,13 +312,19 @@ export async function getDecryptedApiKeys(): Promise<ApiKeys> {
 	const aicpKeys = loadAicpCredentials();
 	const qcutEnvKeys = loadQcutEnvKeys();
 
+	// Canonical file tier = ~/.qcut/.env (qcutEnvKeys). The legacy AICP
+	// `credentials.env` (aicpKeys) is merged in only as a fallback so
+	// historical `aicp set-key` users keep working during the beta. Order
+	// matters: qcut-env must resolve BEFORE aicp-cli so a fresh value in
+	// the canonical file is never shadowed by a stale copy in the legacy
+	// file (see ONE-ENV-FILE-IMPLEMENTATION.md ST-4 "qcut-env wins").
 	return {
 		falApiKey:
 			process.env.FAL_KEY ||
 			process.env.FAL_API_KEY ||
 			electronKeys.falApiKey ||
-			aicpKeys.falApiKey ||
 			qcutEnvKeys.falApiKey ||
+			aicpKeys.falApiKey ||
 			"",
 		freesoundApiKey:
 			process.env.FREESOUND_API_KEY ||
@@ -328,14 +334,14 @@ export async function getDecryptedApiKeys(): Promise<ApiKeys> {
 		geminiApiKey:
 			process.env.GEMINI_API_KEY ||
 			electronKeys.geminiApiKey ||
-			aicpKeys.geminiApiKey ||
 			qcutEnvKeys.geminiApiKey ||
+			aicpKeys.geminiApiKey ||
 			"",
 		openRouterApiKey:
 			process.env.OPENROUTER_API_KEY ||
 			electronKeys.openRouterApiKey ||
-			aicpKeys.openRouterApiKey ||
 			qcutEnvKeys.openRouterApiKey ||
+			aicpKeys.openRouterApiKey ||
 			"",
 		anthropicApiKey:
 			process.env.ANTHROPIC_API_KEY ||

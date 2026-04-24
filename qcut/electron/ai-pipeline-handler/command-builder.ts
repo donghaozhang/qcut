@@ -123,9 +123,13 @@ export function resolveOutputDirectory({
  * Injects every key in `QCUT_ENV_MAP` whose stored value is non-empty.
  * `process.env` wins — if the user set `FAL_KEY` in their shell, the
  * stored key does NOT override it (preserves shell-env precedence from
- * the KEY_SOURCE_PRECEDENCE chain). Sibling env vars listed in
- * `SPAWN_ENV_SIBLINGS` (e.g. `FAL_KEY` → `FAL_API_KEY`) are populated
- * from the same stored value.
+ * the KEY_SOURCE_PRECEDENCE chain).
+ *
+ * Siblings declared in `SPAWN_ENV_SIBLINGS` (e.g. `FAL_KEY` → `FAL_API_KEY`)
+ * are ALWAYS mirrored from the **resolved** primary value, even when the
+ * primary came from `process.env`. This preserves the sibling contract so
+ * AICP binaries that read `FAL_API_KEY` still find the key the user
+ * exported as `FAL_KEY` — without ever emitting conflicting pairs.
  */
 export async function buildSpawnEnvironment(): Promise<NodeJS.ProcessEnv> {
 	const spawnEnv: NodeJS.ProcessEnv = { ...process.env };
@@ -136,21 +140,22 @@ export async function buildSpawnEnvironment(): Promise<NodeJS.ProcessEnv> {
 		for (const [field, envName] of Object.entries(QCUT_ENV_MAP) as Array<
 			[ApiKeyField, string]
 		>) {
-			const value = storedKeys[field];
-			if (!value) continue;
+			// Shell-exported value wins when present; otherwise fall back to
+			// the stored GUI/file value. Either source feeds the siblings
+			// loop below, so we only ever emit one value per primary-and-
+			// siblings group.
+			const resolved = spawnEnv[envName] ?? storedKeys[field];
+			if (!resolved) continue;
 
-			// If the shell already set the primary, defer to its value for
-			// siblings too — otherwise we'd emit conflicting pairs like
-			// `FAL_KEY=from-shell` + `FAL_API_KEY=from-stored`.
-			if (spawnEnv[envName]) continue;
-
-			spawnEnv[envName] = value;
+			if (!spawnEnv[envName]) {
+				spawnEnv[envName] = resolved;
+			}
 
 			const siblings = SPAWN_ENV_SIBLINGS[envName];
 			if (siblings) {
 				for (const sibling of siblings) {
 					if (!spawnEnv[sibling]) {
-						spawnEnv[sibling] = value;
+						spawnEnv[sibling] = resolved;
 					}
 				}
 			}

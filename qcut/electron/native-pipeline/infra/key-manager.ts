@@ -52,13 +52,21 @@ export interface KeyStatus {
 	name: string;
 	configured: boolean;
 	/**
-	 * Where the key was resolved. Aligned with the 3-tier precedence model
-	 * exposed via `packages/platform-core`'s `ApiKeySource` — the two
-	 * physical file locations (`~/.qcut/.env` and the legacy AICP
-	 * `credentials.env`) collapse into a single `"file"` source so the CLI
-	 * output and the type contract agree post ONE-ENV-FILE migration.
+	 * Which physical source the key was resolved from. **Intentionally
+	 * distinct** from `ApiKeySource` in
+	 * `packages/platform-core/src/types/core-api.ts` and
+	 * `electron/preload-types/supporting-types.ts` — that 3-tier union
+	 * (`environment | electron | file`) describes the GUI precedence chain
+	 * and lives inside the IPC boundary. This `source` is the native CLI's
+	 * diagnostic output for `qcut keys check`, consumed only by
+	 * `electron/native-pipeline/cli/cli-handlers-admin.ts`, and keeps
+	 * `envfile` (`~/.qcut/.env`) and `aicp-cli` (legacy AICP
+	 * `credentials.env`) separate so operators can see which file holds a
+	 * given key during the ONE-ENV-FILE migration beta.
+	 *
+	 * See PR #286 discussion thread 3135859463 / 3135894462 for history.
 	 */
-	source: "env" | "file" | "none";
+	source: "env" | "envfile" | "aicp-cli" | "none";
 	masked?: string;
 }
 
@@ -191,7 +199,7 @@ export function checkKeys(): KeyStatus[] {
 			return {
 				name,
 				configured: true,
-				source: "file" as const,
+				source: "envfile" as const,
 				masked: maskKey(fileValue),
 			};
 		}
@@ -199,7 +207,7 @@ export function checkKeys(): KeyStatus[] {
 			return {
 				name,
 				configured: true,
-				source: "file" as const,
+				source: "aicp-cli" as const,
 				masked: maskKey(aicpValue),
 			};
 		}

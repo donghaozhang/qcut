@@ -439,6 +439,7 @@ export async function makeFalRequestQueued(
 
 	const abort = buildAbortSignal(options);
 	const deadline = Date.now() + QUEUE_MAX_WAIT_MS;
+	let completed = false;
 
 	// Step 2 — poll status.
 	while (Date.now() < deadline) {
@@ -481,7 +482,10 @@ export async function makeFalRequestQueued(
 			continue;
 		}
 
-		if (status.status === "COMPLETED") break;
+		if (status.status === "COMPLETED") {
+			completed = true;
+			break;
+		}
 		if (status.status === "FAILED") {
 			// Fabricate a 502 Response so the call site's error-handling path
 			// triggers (same as a sync-mode upstream failure).
@@ -492,7 +496,12 @@ export async function makeFalRequestQueued(
 		}
 	}
 
-	if (Date.now() >= deadline) {
+	// Distinguish "broke on COMPLETED" from "fell out on deadline" via an
+	// explicit flag — relying on `Date.now() >= deadline` after the loop is
+	// racy: the final poll's sleep + network round-trip can push the clock
+	// past the deadline even when FAL reported COMPLETED, silently turning
+	// a successful generation into a 504.
+	if (!completed) {
 		return new Response(
 			JSON.stringify({
 				detail: `FAL queue job ${requestId} exceeded ${QUEUE_MAX_WAIT_MS / 1000}s`,

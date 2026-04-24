@@ -160,6 +160,30 @@ describe("buildSpawnEnvironment", () => {
 		expect(env.GEMINI_API_KEY).toBe("shell-gemini");
 	});
 
+	it("mirrors shell FAL_KEY to FAL_API_KEY sibling (never emits conflicting pair)", async () => {
+		// Preserves the sibling contract even when the primary came from the
+		// shell — AICP binaries that read FAL_API_KEY still find the value.
+		process.env.FAL_KEY = "from-shell";
+		mocks.decryptedKeys.falApiKey = "from-stored";
+
+		const env = await buildSpawnEnvironment();
+
+		expect(env.FAL_KEY).toBe("from-shell");
+		// Sibling populated from the same shell value, NOT from stored.
+		expect(env.FAL_API_KEY).toBe("from-shell");
+	});
+
+	it("leaves an already-set FAL_API_KEY sibling alone", async () => {
+		process.env.FAL_KEY = "from-shell";
+		process.env.FAL_API_KEY = "sibling-already-set";
+		mocks.decryptedKeys.falApiKey = "from-stored";
+
+		const env = await buildSpawnEnvironment();
+
+		expect(env.FAL_KEY).toBe("from-shell");
+		expect(env.FAL_API_KEY).toBe("sibling-already-set");
+	});
+
 	it("leaves unset keys absent when stored values are empty", async () => {
 		const env = await buildSpawnEnvironment();
 
