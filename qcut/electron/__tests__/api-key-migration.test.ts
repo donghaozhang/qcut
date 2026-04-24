@@ -129,8 +129,7 @@ function writeAicpCredentials(content: string): void {
 	const aicpDir =
 		process.platform === "win32"
 			? path.join(
-					process.env.APPDATA ||
-						path.join(tempDirs.home, "AppData", "Roaming"),
+					process.env.APPDATA || path.join(tempDirs.home, "AppData", "Roaming"),
 					"video-ai-studio"
 				)
 			: path.join(tempDirs.home, ".config", "video-ai-studio");
