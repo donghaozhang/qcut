@@ -1,18 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { EyeIcon, EyeOffIcon, ExternalLinkIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
+import type { ApiKeyStatusSource, KeySource } from "@qcut/platform-core";
+import {
+	PRECEDENCE_BADGE_LABELS,
+	PRECEDENCE_ONE_LINERS,
+} from "./api-key-precedence";
 import { PropertyGroup } from "./property-item";
 
 interface ApiKeyFieldProps {
-	label: React.ReactNode;
-	description: React.ReactNode;
+	label: ReactNode;
+	description: ReactNode;
 	placeholder: string;
 	value: string;
 	onChange: (value: string) => void;
 	testId?: string;
+	shadowedBy?: readonly KeySource[];
+	activeSource?: KeySource;
 	/** Optional test button */
 	onTest?: () => void;
 	isTesting?: boolean;
@@ -21,6 +33,10 @@ interface ApiKeyFieldProps {
 	getKeyUrl?: string;
 }
 
+/**
+ * Only the editable app tier is warned here; lower-priority shadows are already
+ * inactive by design and do not make the user's saved app value ineffective.
+ */
 export function ApiKeyField({
 	label,
 	description,
@@ -28,17 +44,44 @@ export function ApiKeyField({
 	value,
 	onChange,
 	testId,
+	shadowedBy = [],
+	activeSource,
 	onTest,
 	isTesting,
 	testResult,
 	getKeyUrl,
 }: ApiKeyFieldProps) {
 	const [showKey, setShowKey] = useState(false);
+	const shouldShowShadowWarning =
+		activeSource === "environment" &&
+		shadowedBy.includes("electron") &&
+		value.trim() !== "";
+	const shouldShowFallbackChip =
+		shadowedBy.includes("electron") && activeSource !== "electron";
 
 	return (
-		<PropertyGroup title={label}>
+		<PropertyGroup
+			title={
+				<span className="flex items-center gap-2">
+					{label}
+					{shouldShowFallbackChip && (
+						<span className="rounded border border-border/70 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+							Fallback value
+						</span>
+					)}
+				</span>
+			}
+		>
 			<div className="flex flex-col gap-2">
 				<div className="text-xs text-muted-foreground">{description}</div>
+				{shouldShowShadowWarning && (
+					<div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-300">
+						<span aria-hidden="true">⚠ </span>
+						Saved locally, but the active key comes from{" "}
+						<strong>{activeSource}</strong>. This value will be used only if the{" "}
+						{activeSource} source is removed.
+					</div>
+				)}
 				<div className="flex gap-2">
 					<div className="flex-1 relative">
 						<Input
@@ -103,16 +146,33 @@ export function ApiKeyField({
 }
 
 /** Small badge showing the source of an API key (env, app, cli). */
-export function KeySourceBadge({ source }: { source: string }) {
+export function KeySourceBadge({ source }: { source: ApiKeyStatusSource }) {
 	if (source === "not-set") return null;
-	const labels: Record<string, string> = {
-		environment: "env",
-		electron: "app",
-		"aicp-cli": "cli",
-	};
-	return (
-		<span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-			{labels[source] || source}
+
+	const label =
+		source === "localStorage" ? "web" : PRECEDENCE_BADGE_LABELS[source];
+	const tooltipText =
+		source === "localStorage" ? undefined : PRECEDENCE_ONE_LINERS[source];
+	const badge = (
+		<span
+			aria-label={tooltipText ?? label}
+			className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+			title={tooltipText}
+		>
+			{label}
 		</span>
+	);
+
+	if (!tooltipText) {
+		return badge;
+	}
+
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>{badge}</TooltipTrigger>
+			<TooltipContent side="top" className="max-w-64">
+				{tooltipText}
+			</TooltipContent>
+		</Tooltip>
 	);
 }

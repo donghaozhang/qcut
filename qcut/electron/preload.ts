@@ -18,6 +18,7 @@ import type {
 	FrameData,
 	ExportOptions,
 	ApiKeyConfig,
+	ApiKeysStatus,
 	GitHubStarsResponse,
 	FalUploadResult,
 	ThemeSource,
@@ -318,14 +319,7 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 		set: (keys: ApiKeyConfig): Promise<boolean> =>
 			ipcRenderer.invoke("api-keys:set", keys),
 		clear: (): Promise<boolean> => ipcRenderer.invoke("api-keys:clear"),
-		status: (): Promise<{
-			falApiKey: { set: boolean; source: string };
-			freesoundApiKey: { set: boolean; source: string };
-			geminiApiKey: { set: boolean; source: string };
-			openRouterApiKey: { set: boolean; source: string };
-			anthropicApiKey: { set: boolean; source: string };
-			elevenLabsApiKey: { set: boolean; source: string };
-		}> => ipcRenderer.invoke("api-keys:status"),
+		status: (): Promise<ApiKeysStatus> => ipcRenderer.invoke("api-keys:status"),
 	},
 
 	// Shell operations
@@ -638,6 +632,7 @@ export type {
 	FrameData,
 	ExportOptions,
 	ApiKeyConfig,
+	ApiKeysStatus,
 	GitHubStarsResponse,
 	FalUploadResult,
 	ThemeSource,

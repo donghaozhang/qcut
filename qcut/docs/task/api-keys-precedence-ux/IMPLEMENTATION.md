@@ -60,7 +60,7 @@ cd apps/web && bunx tsc --noEmit -p tsconfig.json
 
 **Commit:** `refactor(api-keys): extend KeyStatus with shadowedBy + export precedence constant`
 
-- [ ] ST-1 shipped
+- [x] ST-1 shipped
 
 ---
 
@@ -90,7 +90,7 @@ bunx vitest run electron/__tests__/api-key-status.test.ts
 
 **Commit:** `test(api-keys): cover shadowedBy computation and precedence constant`
 
-- [ ] ST-2 shipped
+- [x] ST-2 shipped
 
 ---
 
@@ -118,7 +118,7 @@ cd apps/web && bunx tsc --noEmit -p tsconfig.json
 
 **Commit:** `feat(api-keys): add collapsible precedence explainer`
 
-- [ ] ST-3 shipped
+- [x] ST-3 shipped
 
 ---
 
@@ -149,7 +149,7 @@ npx @biomejs/biome check apps/web/src/components/editor/properties-panel/api-key
 
 **Commit:** `feat(api-keys): surface shadow warnings and tooltip on ApiKeyField`
 
-- [ ] ST-4 shipped
+- [x] ST-4 shipped
 
 ---
 
@@ -166,6 +166,7 @@ npx @biomejs/biome check apps/web/src/components/editor/properties-panel/api-key
    activeSource={keyStatuses.<field>.source}
    ```
 3. In `saveApiKeys` (after the status refetch), compute `shadowedSaves = 8 fields filter: typed value non-empty AND status.shadowedBy.length > 0`. If `>0`, call `toast({ title: "Saved", description: \`\${n} key(s) are stored but currently overridden by a higher-priority source — see the warnings above.\` })` via `@/hooks/use-toast`.
+   - Implementation note: shipped with the existing visible Sonner toaster instead of the legacy `use-toast` hook, because the app root mounts `@/components/ui/sonner` and does not mount the legacy toaster.
 4. Footer note at line `~293` — append "See *How API key resolution works* above." (Use the same rendered heading text so users can grep-find it.)
 
 **Leave save behavior identical.** Only *surface* changes — any attempt to re-order precedence belongs in a different PR.
@@ -180,7 +181,7 @@ bunx vitest run apps/web/src/components/editor/properties-panel/
 
 **Commit:** `feat(api-keys): wire precedence explainer + post-save shadow toast`
 
-- [ ] ST-5 shipped
+- [x] ST-5 shipped
 
 ---
 
@@ -217,13 +218,15 @@ cd apps/web && bunx vitest run src/components/editor/properties-panel/__tests__/
 
 **Commit:** `test(api-keys): cover ApiKeyField shadow UI + precedence explainer`
 
-- [ ] ST-6 shipped
+- [x] ST-6 shipped
 
 ---
 
 ## ST-7 · Playwright smoke
 
-**Path:** `apps/web/tests/e2e/api-keys-precedence.spec.ts` *(new)*
+**Path:** `apps/web/src/test/e2e/api-keys-precedence.e2e.ts` *(new)*
+
+**Repo note:** `playwright.config.ts` only discovers `apps/web/src/test/e2e/**/*.e2e.ts` and explicitly ignores `*.spec.ts`, so the smoke test uses the configured E2E location instead of the stale path in the original task draft.
 
 **Pattern to copy:** `apps/web/tests/e2e/remotion-preview.spec.ts` — existing spec that knows how to launch Electron with env. Crib the launcher block verbatim.
 
@@ -241,14 +244,14 @@ cd apps/web && bunx vitest run src/components/editor/properties-panel/__tests__/
 **Run:**
 
 ```bash
-bun run test:e2e -- tests/e2e/api-keys-precedence.spec.ts
+bun run test:e2e -- api-keys-precedence.e2e.ts
 ```
 
 (Use `test:e2e:bg` for headless CI.)
 
 **Commit:** `test(api-keys): Playwright smoke for precedence UX`
 
-- [ ] ST-7 shipped
+- [x] ST-7 shipped
 
 ---
 
@@ -266,7 +269,7 @@ bun run test:e2e -- tests/e2e/api-keys-precedence.spec.ts
 
 **Commit:** `docs(api-keys): manual QA checklist`
 
-- [ ] ST-8 shipped
+- [x] ST-8 shipped
 
 ---
 
@@ -280,7 +283,7 @@ bun run test:e2e:bg   # Playwright headless
 ```
 
 - [ ] Lint clean
-- [ ] Types clean
+- [x] Types clean
 - [ ] Unit tests pass
 - [ ] E2E passes (or skipped with justification)
 - [ ] QA.md checklist signed
@@ -288,20 +291,41 @@ bun run test:e2e:bg   # Playwright headless
 
 ---
 
+## Focused verification run
+
+- [x] `cd electron && bunx tsc --noEmit -p tsconfig.json`
+- [x] `cd apps/web && bunx tsc --noEmit -p tsconfig.json`
+- [x] `bun check-types` (exited 0; Turbo reported no configured package tasks)
+- [x] `bunx vitest run electron/__tests__/api-key-status.test.ts`
+- [x] `bunx vitest run apps/web/src/components/editor/properties-panel/__tests__`
+- [x] `bunx @biomejs/biome check <touched files>`
+- [x] `bun run test:e2e -- api-keys-precedence.e2e.ts` (skipped cleanly because `electron/dist/main.js` is not built)
+
+---
+
 ## Files touched (for PR description copy-paste)
 
 **Modified:**
 - `electron/api-key-handler.ts`
+- `electron/preload.ts`
+- `electron/preload-types/api-types/ai-services-api.ts`
+- `electron/preload-types/supporting-types.ts`
 - `packages/platform-core/src/types/core-api.ts`
+- `packages/platform-core/src/index.ts`
+- `packages/platform-web/src/index.ts`
+- `apps/web/src/types/electron/api-external.ts`
 - `apps/web/src/components/editor/properties-panel/api-keys-view.tsx`
 - `apps/web/src/components/editor/properties-panel/api-key-field.tsx`
+- `docs/task/api-keys-precedence-ux/IMPLEMENTATION.md`
 
 **Created:**
+- `electron/api-key-status.ts`
 - `apps/web/src/components/editor/properties-panel/api-keys-precedence-info.tsx`
+- `apps/web/src/components/editor/properties-panel/api-key-precedence.ts`
 - `apps/web/src/components/editor/properties-panel/__tests__/api-key-field.test.tsx`
 - `apps/web/src/components/editor/properties-panel/__tests__/api-keys-precedence-info.test.tsx`
 - `electron/__tests__/api-key-status.test.ts`
-- `apps/web/tests/e2e/api-keys-precedence.spec.ts`
+- `apps/web/src/test/e2e/api-keys-precedence.e2e.ts`
 - `docs/task/api-keys-precedence-ux/QA.md`
 
 **Read-only reference:**

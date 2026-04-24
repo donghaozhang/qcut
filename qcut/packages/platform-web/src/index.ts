@@ -18,6 +18,7 @@ import {
 	type PlatformThemeAPI,
 	type PlatformShellAPI,
 	type PlatformApiKeysAPI,
+	type PlatformApiKeysStatus,
 	type PlatformLicenseAPI,
 	type PlatformSoundsAPI,
 	type PlatformAudioAPI,
@@ -275,9 +276,9 @@ const apiKeysAdapter: PlatformApiKeysAPI = {
 	},
 	async status() {
 		const keys = await apiKeysAdapter.get();
-		const result: Record<string, { set: boolean; source: string }> = {};
+		const result: PlatformApiKeysStatus = {};
 		for (const [key, value] of Object.entries(keys)) {
-			result[key] = { set: !!value, source: "localStorage" };
+			result[key] = { set: !!value, source: "localStorage", shadowedBy: [] };
 		}
 		return result;
 	},

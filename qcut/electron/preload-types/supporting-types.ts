@@ -160,6 +160,26 @@ export interface ApiKeyConfig {
 	anthropicApiKey?: string;
 	elevenLabsApiKey?: string;
 	gmiApiKey?: string;
+	runwayApiKey?: string;
+}
+
+export type ApiKeySource = "environment" | "electron" | "aicp-cli" | "qcut-env";
+
+export interface ApiKeyStatus {
+	set: boolean;
+	source: ApiKeySource | "not-set";
+	shadowedBy: ApiKeySource[];
+}
+
+export interface ApiKeysStatus {
+	anthropicApiKey: ApiKeyStatus;
+	elevenLabsApiKey: ApiKeyStatus;
+	falApiKey: ApiKeyStatus;
+	freesoundApiKey: ApiKeyStatus;
+	geminiApiKey: ApiKeyStatus;
+	gmiApiKey: ApiKeyStatus;
+	openRouterApiKey: ApiKeyStatus;
+	runwayApiKey: ApiKeyStatus;
 }
 
 export interface SaveAIVideoOptions {

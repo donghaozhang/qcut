@@ -5,6 +5,8 @@ import {
 	setKey as persistToQcutEnv,
 	deleteKey as removeFromQcutEnv,
 } from "./native-pipeline/infra/key-manager.js";
+import { computeKeyStatus, KEY_SOURCE_PRECEDENCE } from "./api-key-status.js";
+import type { KeyStatus, KeySource } from "./api-key-status.js";
 
 // Type definitions for API key management
 interface ApiKeys {
@@ -33,19 +35,14 @@ interface EncryptedApiKeyData {
 	[key: string]: string;
 }
 
-interface KeyStatus {
-	set: boolean;
-	source: "environment" | "electron" | "aicp-cli" | "not-set";
-}
-
 interface ApiKeysStatus {
-	falApiKey: KeyStatus;
-	freesoundApiKey: KeyStatus;
-	geminiApiKey: KeyStatus;
-	openRouterApiKey: KeyStatus;
 	anthropicApiKey: KeyStatus;
 	elevenLabsApiKey: KeyStatus;
+	freesoundApiKey: KeyStatus;
+	falApiKey: KeyStatus;
+	geminiApiKey: KeyStatus;
 	gmiApiKey: KeyStatus;
+	openRouterApiKey: KeyStatus;
 	runwayApiKey: KeyStatus;
 }
 
@@ -502,28 +499,61 @@ export function setupApiKeyIPC(): void {
 	ipcMain.handle("api-keys:status", async (): Promise<ApiKeysStatus> => {
 		const electronKeys = await loadElectronStoredKeys();
 		const aicpKeys = loadAicpCredentials();
+		const qcutEnvKeys = loadQcutEnvKeys();
 
-		function resolveStatus(
-			envName: string,
-			field: keyof ApiKeys,
-			altEnvName?: string
-		): KeyStatus {
-			if (process.env[envName] || (altEnvName && process.env[altEnvName]))
-				return { set: true, source: "environment" };
-			if (electronKeys[field]) return { set: true, source: "electron" };
-			if (aicpKeys[field]) return { set: true, source: "aicp-cli" };
-			return { set: false, source: "not-set" };
+		function resolveStatus({
+			envName,
+			field,
+			altEnvName,
+		}: {
+			envName: string;
+			field: keyof ApiKeys;
+			altEnvName?: string;
+		}): KeyStatus {
+			return computeKeyStatus({
+				env: Boolean(
+					process.env[envName] || (altEnvName && process.env[altEnvName])
+				),
+				electron: Boolean(electronKeys[field]),
+				aicpCli: Boolean(aicpKeys[field]),
+				qcutEnv: Boolean(qcutEnvKeys[field]),
+			});
 		}
 
 		return {
-			falApiKey: resolveStatus("FAL_KEY", "falApiKey", "FAL_API_KEY"),
-			freesoundApiKey: resolveStatus("FREESOUND_API_KEY", "freesoundApiKey"),
-			geminiApiKey: resolveStatus("GEMINI_API_KEY", "geminiApiKey"),
-			openRouterApiKey: resolveStatus("OPENROUTER_API_KEY", "openRouterApiKey"),
-			anthropicApiKey: resolveStatus("ANTHROPIC_API_KEY", "anthropicApiKey"),
-			elevenLabsApiKey: resolveStatus("ELEVENLABS_API_KEY", "elevenLabsApiKey"),
-			gmiApiKey: resolveStatus("GMI_API_KEY", "gmiApiKey"),
-			runwayApiKey: resolveStatus("RUNWAY_API_KEY", "runwayApiKey"),
+			anthropicApiKey: resolveStatus({
+				envName: "ANTHROPIC_API_KEY",
+				field: "anthropicApiKey",
+			}),
+			elevenLabsApiKey: resolveStatus({
+				envName: "ELEVENLABS_API_KEY",
+				field: "elevenLabsApiKey",
+			}),
+			falApiKey: resolveStatus({
+				envName: "FAL_KEY",
+				field: "falApiKey",
+				altEnvName: "FAL_API_KEY",
+			}),
+			freesoundApiKey: resolveStatus({
+				envName: "FREESOUND_API_KEY",
+				field: "freesoundApiKey",
+			}),
+			geminiApiKey: resolveStatus({
+				envName: "GEMINI_API_KEY",
+				field: "geminiApiKey",
+			}),
+			gmiApiKey: resolveStatus({
+				envName: "GMI_API_KEY",
+				field: "gmiApiKey",
+			}),
+			openRouterApiKey: resolveStatus({
+				envName: "OPENROUTER_API_KEY",
+				field: "openRouterApiKey",
+			}),
+			runwayApiKey: resolveStatus({
+				envName: "RUNWAY_API_KEY",
+				field: "runwayApiKey",
+			}),
 		};
 	});
 }
@@ -534,7 +564,17 @@ module.exports = {
 	getDecryptedApiKeys,
 	loadAicpCredentials,
 	getAicpCredentialsPath,
+	KEY_SOURCE_PRECEDENCE,
+	computeKeyStatus,
 };
 
 export { loadAicpCredentials, getAicpCredentialsPath, loadElectronStoredKeys };
-export type { ApiKeys, ApiKeyData, ApiKeyHandlers, KeyStatus, ApiKeysStatus };
+export { KEY_SOURCE_PRECEDENCE, computeKeyStatus };
+export type {
+	ApiKeys,
+	ApiKeyData,
+	ApiKeyHandlers,
+	KeySource,
+	KeyStatus,
+	ApiKeysStatus,
+};

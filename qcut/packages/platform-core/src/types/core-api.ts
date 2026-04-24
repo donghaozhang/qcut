@@ -71,11 +71,29 @@ export interface PlatformShellAPI {
 // API Keys
 // ---------------------------------------------------------------------------
 
+export const KEY_SOURCE_PRECEDENCE = [
+	"environment",
+	"electron",
+	"aicp-cli",
+	"qcut-env",
+] as const;
+
+export type KeySource = (typeof KEY_SOURCE_PRECEDENCE)[number];
+export type ApiKeyStatusSource = KeySource | "localStorage" | "not-set";
+
+export interface PlatformApiKeyStatus {
+	set: boolean;
+	source: ApiKeyStatusSource;
+	shadowedBy: readonly KeySource[];
+}
+
+export type PlatformApiKeysStatus = Record<string, PlatformApiKeyStatus>;
+
 export interface PlatformApiKeysAPI {
 	get(): Promise<Record<string, string>>;
 	set(keys: Record<string, string>): Promise<boolean>;
 	clear(): Promise<boolean>;
-	status(): Promise<Record<string, { set: boolean; source: string }>>;
+	status(): Promise<PlatformApiKeysStatus>;
 }
 
 // ---------------------------------------------------------------------------
