@@ -60,7 +60,7 @@ FAL_KEY=from-env bun run scripts/api-keys-precedence-smoke.ts --probe
 
 ## 3. Expected output shape
 
-```
+```text
 === Deterministic matrix (computeKeyStatus) ===
 
   PASS  env + electron
@@ -124,7 +124,7 @@ Tier files observed: `~/Library/Application Support/qcut/api-keys.json`, `~/.con
 
 ### Run 2 · 2026-04-24 · darwin · `FAL_KEY=from-env` injected
 
-```
+```text
 FAL   tiers=env+electron+aicp-cli+qcut-env   status=environment  shadows: [electron, aicp-cli, qcut-env]
 ```
 
@@ -150,10 +150,11 @@ Post-run cleanup check — sentinel strings must be absent from the tier files:
 ```bash
 $ grep -i "smoke-delete-me" ~/.config/video-ai-studio/credentials.env ~/.qcut/.env
 $ echo $?
-0   # grep found nothing (exit 1) would be a cleanup leak; exit 0 (found nothing *after* empty output) is clean
+1   # grep exit 1 + no output = no match found = clean.
+    # exit 0 + any matching line would mean the sentinel leaked and cleanup failed.
 ```
 
-✅ PASS — both tier files restored byte-for-byte to their pre-run content.
+✅ PASS — both tier files restored byte-for-byte to their pre-run content (verified: grep produced no output and returned `1`).
 
 ### Run 4 · 2026-04-24 · darwin · `--save-and-verify --field=openRouterApiKey`
 
@@ -174,7 +175,7 @@ Second field to prove the test target is not special-cased.
 
 `falApiKey` is already set in the electron tier on this machine. The CLI must refuse rather than clobber real credentials.
 
-```
+```bash
 $ bun run scripts/api-keys-precedence-smoke.ts --save-and-verify --field=falApiKey
 save-and-verify failed to start: field "falApiKey" is already set (source=electron). Pick a different --field to avoid clobbering real credentials.
 $ echo $?

@@ -1,3 +1,16 @@
+/**
+ * Precedence for API key sources. Highest-priority tier wins.
+ *
+ * ⚠ Mirrored in `packages/platform-core/src/types/core-api.ts` and
+ * `electron/preload-types/supporting-types.ts`. Electron's tsconfig uses
+ * `rootDir: "."` + `moduleResolution: "node"` and can't resolve workspace
+ * subpath exports, so the constant lives here and is duplicated out —
+ * a convention documented elsewhere in electron/ (see
+ * `electron/native-pipeline/subtitle/subtitle-types.ts` header). Any
+ * reorder or new tier MUST land in all three copies together — the
+ * snapshot assertion in `electron/__tests__/api-key-status.test.ts`
+ * catches ordering drift.
+ */
 export const KEY_SOURCE_PRECEDENCE = [
 	"environment",
 	"electron",

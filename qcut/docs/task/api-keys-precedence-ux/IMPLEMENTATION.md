@@ -383,7 +383,7 @@ Tier files observed: `api-keys.json` present under `~/Library/Application Suppor
 
 Verifies tier-1 (env) correctly outranks electron + aicp-cli + qcut-env:
 
-```
+```text
 FAL   tiers=env+electron+aicp-cli+qcut-env   status=environment  shadows: [electron, aicp-cli, qcut-env]
 ```
 

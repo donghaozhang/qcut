@@ -71,6 +71,19 @@ export interface PlatformShellAPI {
 // API Keys
 // ---------------------------------------------------------------------------
 
+/**
+ * Precedence for API key sources. Highest-priority tier wins.
+ *
+ * ⚠ Mirrored in `electron/api-key-status.ts` and
+ * `electron/preload-types/supporting-types.ts`. Electron's tsconfig
+ * (`rootDir: "."`, `moduleResolution: "node"`) can't resolve workspace
+ * subpath exports, which is why the constant is duplicated there rather
+ * than imported — a convention documented on multiple sites in electron/
+ * (e.g. `electron/native-pipeline/subtitle/subtitle-types.ts`). Any
+ * reorder or new tier MUST land in all three copies together — the
+ * snapshot assertion in `electron/__tests__/api-key-status.test.ts`
+ * catches ordering drift.
+ */
 export const KEY_SOURCE_PRECEDENCE = [
 	"environment",
 	"electron",

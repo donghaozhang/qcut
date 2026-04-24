@@ -223,7 +223,9 @@ cd apps/web && bunx vitest run src/components/editor/properties-panel/__tests__/
 
 ## ST-7 · Playwright 冒烟测试
 
-**路径：** `apps/web/tests/e2e/api-keys-precedence.spec.ts` *(新建)*
+**路径：** `apps/web/src/test/e2e/api-keys-precedence.e2e.ts` *(新建)*
+
+**仓库约定：** `playwright.config.ts` 只扫描 `apps/web/src/test/e2e/**/*.e2e.ts` 并显式忽略 `*.spec.ts`，所以冒烟测试落在配置里已指定的 E2E 目录，而不是任务草稿里那条陈旧的 `.spec.ts` 路径。
 
 **参考模式：** `apps/web/tests/e2e/remotion-preview.spec.ts` —— 现有的 spec，已经知道怎么带着 env 启动 Electron。启动块直接照抄。
 
@@ -241,14 +243,14 @@ cd apps/web && bunx vitest run src/components/editor/properties-panel/__tests__/
 **运行：**
 
 ```bash
-bun run test:e2e -- tests/e2e/api-keys-precedence.spec.ts
+bun run test:e2e -- api-keys-precedence.e2e.ts
 ```
 
 （CI 无头用 `test:e2e:bg`。）
 
 **Commit：** `test(api-keys): Playwright smoke for precedence UX`
 
-- [ ] ST-7 已完成
+- [x] ST-7 已完成
 
 ---
 
@@ -301,7 +303,7 @@ bun run test:e2e:bg   # Playwright 无头
 - `apps/web/src/components/editor/properties-panel/__tests__/api-key-field.test.tsx`
 - `apps/web/src/components/editor/properties-panel/__tests__/api-keys-precedence-info.test.tsx`
 - `electron/__tests__/api-key-status.test.ts`
-- `apps/web/tests/e2e/api-keys-precedence.spec.ts`
+- `apps/web/src/test/e2e/api-keys-precedence.e2e.ts`
 - `docs/task/api-keys-precedence-ux/QA.md`
 
 **只读参考：**
@@ -359,7 +361,7 @@ bun run scripts/api-keys-precedence-smoke.ts --json    # 机器可读输出
 
 验证 tier-1（env）能正确压过 electron + aicp-cli + qcut-env：
 
-```
+```text
 FAL   tiers=env+electron+aicp-cli+qcut-env   status=environment  shadows: [electron, aicp-cli, qcut-env]
 ```
 

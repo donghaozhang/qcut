@@ -57,7 +57,9 @@ export function ApiKeyField({
 		shadowedBy.includes("electron") &&
 		value.trim() !== "";
 	const shouldShowFallbackChip =
-		shadowedBy.includes("electron") && activeSource !== "electron";
+		shadowedBy.includes("electron") &&
+		activeSource !== "electron" &&
+		value.trim() !== "";
 
 	return (
 		<PropertyGroup
