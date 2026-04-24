@@ -1,33 +1,142 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, type ReactNode } from "react";
 import { KeyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PlatformCapability, platform } from "@qcut/platform-core";
+import {
+	PlatformCapability,
+	platform,
+	type KeySource,
+	type PlatformApiKeyStatus,
+	type PlatformApiKeysStatus,
+} from "@qcut/platform-core";
+import { toast } from "sonner";
 import {
 	handleError,
 	ErrorCategory,
 	ErrorSeverity,
 } from "@/lib/debug/error-handler";
 import { ApiKeyField, KeySourceBadge } from "./api-key-field";
+import { ApiKeysPrecedenceInfo } from "./api-keys-precedence-info";
 
-/** API key management panel with inputs for FAL, Freesound, Gemini, OpenRouter, and Anthropic keys. */
+type EditableApiKeyField =
+	| "anthropicApiKey"
+	| "elevenLabsApiKey"
+	| "falApiKey"
+	| "freesoundApiKey"
+	| "geminiApiKey"
+	| "gmiApiKey"
+	| "openRouterApiKey"
+	| "runwayApiKey";
+
+const EDITABLE_API_KEY_FIELDS: readonly EditableApiKeyField[] = [
+	"anthropicApiKey",
+	"elevenLabsApiKey",
+	"falApiKey",
+	"freesoundApiKey",
+	"geminiApiKey",
+	"gmiApiKey",
+	"openRouterApiKey",
+	"runwayApiKey",
+];
+
+// Fields that electron/api-key-handler.ts syncs to the AICP CLI
+// credentials.env file (see AICP_REVERSE_MAP). The other editable fields
+// only sync to the Electron keystore + ~/.qcut/.env.
+const AICP_SYNCED_FIELDS: ReadonlySet<EditableApiKeyField> = new Set([
+	"falApiKey",
+	"geminiApiKey",
+	"openRouterApiKey",
+]);
+
+function getActiveSource({
+	status,
+}: {
+	status?: PlatformApiKeyStatus;
+}): KeySource | undefined {
+	if (
+		!status ||
+		status.source === "not-set" ||
+		status.source === "localStorage"
+	) {
+		return undefined;
+	}
+
+	return status.source;
+}
+
+function countShadowedAppSaves({
+	statuses,
+	values,
+}: {
+	statuses: PlatformApiKeysStatus;
+	values: Record<EditableApiKeyField, string>;
+}) {
+	return EDITABLE_API_KEY_FIELDS.filter(
+		(field) =>
+			values[field] !== "" && statuses[field]?.shadowedBy.includes("electron")
+	).length;
+}
+
+function getShadowedBy({
+	fieldIsDirty,
+	status,
+}: {
+	fieldIsDirty: boolean;
+	status?: PlatformApiKeyStatus;
+}): readonly KeySource[] | undefined {
+	if (!status) {
+		return undefined;
+	}
+
+	if (
+		fieldIsDirty &&
+		status.source === "environment" &&
+		!status.shadowedBy.includes("electron")
+	) {
+		return [...status.shadowedBy, "electron"];
+	}
+
+	return status.shadowedBy;
+}
+
+function ApiKeyLabel({
+	children,
+	status,
+}: {
+	children: ReactNode;
+	status?: PlatformApiKeyStatus;
+}) {
+	return (
+		<span className="flex items-center gap-2">
+			{children}
+			{status && <KeySourceBadge source={status.source} />}
+		</span>
+	);
+}
+
+/** API key management panel for provider keys stored in the app tier. */
 export function ApiKeysView() {
 	const [falApiKey, setFalApiKey] = useState("");
 	const [freesoundApiKey, setFreesoundApiKey] = useState("");
 	const [geminiApiKey, setGeminiApiKey] = useState("");
 	const [openRouterApiKey, setOpenRouterApiKey] = useState("");
 	const [anthropicApiKey, setAnthropicApiKey] = useState("");
+	const [elevenLabsApiKey, setElevenLabsApiKey] = useState("");
+	const [gmiApiKey, setGmiApiKey] = useState("");
+	const [runwayApiKey, setRunwayApiKey] = useState("");
+	const [dirtyFields, setDirtyFields] = useState<
+		Partial<Record<EditableApiKeyField, boolean>>
+	>({});
 	const [isLoading, setIsLoading] = useState(true);
 	const [isTestingFreesound, setIsTestingFreesound] = useState(false);
 	const [freesoundTestResult, setFreesoundTestResult] = useState<{
 		success: boolean;
 		message: string;
 	} | null>(null);
-	const [keyStatuses, setKeyStatuses] = useState<Record<
-		string,
-		{ set: boolean; source: string }
-	> | null>(null);
+	const [keyStatuses, setKeyStatuses] = useState<PlatformApiKeysStatus | null>(
+		null
+	);
 
 	const loadApiKeys = useCallback(async () => {
 		try {
@@ -39,6 +148,10 @@ export function ApiKeysView() {
 				setGeminiApiKey(keys.geminiApiKey || "");
 				setOpenRouterApiKey(keys.openRouterApiKey || "");
 				setAnthropicApiKey(keys.anthropicApiKey || "");
+				setElevenLabsApiKey(keys.elevenLabsApiKey || "");
+				setGmiApiKey(keys.gmiApiKey || "");
+				setRunwayApiKey(keys.runwayApiKey || "");
+				setDirtyFields({});
 			}
 			if (apiKeys.status) {
 				const statuses = await apiKeys.status();
@@ -60,20 +173,51 @@ export function ApiKeysView() {
 	const saveApiKeys = useCallback(async () => {
 		try {
 			const apiKeys = platform().apiKeys;
-
-			await apiKeys.set({
+			const trimmedKeys: Record<EditableApiKeyField, string> = {
+				anthropicApiKey: anthropicApiKey.trim(),
+				elevenLabsApiKey: elevenLabsApiKey.trim(),
 				falApiKey: falApiKey.trim(),
 				freesoundApiKey: freesoundApiKey.trim(),
 				geminiApiKey: geminiApiKey.trim(),
+				gmiApiKey: gmiApiKey.trim(),
 				openRouterApiKey: openRouterApiKey.trim(),
-				anthropicApiKey: anthropicApiKey.trim(),
-			});
+				runwayApiKey: runwayApiKey.trim(),
+			};
+
+			await apiKeys.set(trimmedKeys);
 
 			setFreesoundTestResult(null);
+			let shadowedSaves = 0;
 			if (apiKeys.status) {
 				const statuses = await apiKeys.status();
 				setKeyStatuses(statuses);
+				shadowedSaves = countShadowedAppSaves({
+					statuses,
+					values: trimmedKeys,
+				});
 			}
+
+			const wroteAicpSyncedField = EDITABLE_API_KEY_FIELDS.some(
+				(field) => trimmedKeys[field] !== "" && AICP_SYNCED_FIELDS.has(field)
+			);
+			const descriptionParts = [
+				"Stored in QCut's encrypted keystore and synced to ~/.qcut/.env so the native CLI can read them.",
+			];
+			if (wroteAicpSyncedField) {
+				descriptionParts.push(
+					"FAL / Gemini / OpenRouter keys are also synced to ~/.config/video-ai-studio/credentials.env for the AICP CLI."
+				);
+			}
+			if (shadowedSaves > 0) {
+				descriptionParts.push(
+					`${shadowedSaves} key(s) are currently overridden by a higher-priority source — see the warnings above.`
+				);
+			}
+
+			toast.success("API keys saved", {
+				description: descriptionParts.join(" "),
+			});
+			setDirtyFields({});
 		} catch (error) {
 			handleError(error, {
 				operation: "Save API Keys",
@@ -88,6 +232,9 @@ export function ApiKeysView() {
 		geminiApiKey,
 		openRouterApiKey,
 		anthropicApiKey,
+		elevenLabsApiKey,
+		gmiApiKey,
+		runwayApiKey,
 	]);
 
 	const testFreesoundKey = useCallback(async () => {
@@ -115,6 +262,16 @@ export function ApiKeysView() {
 		}
 	}, []);
 
+	const markDirty = useCallback(({ field }: { field: EditableApiKeyField }) => {
+		setDirtyFields((current) => {
+			if (current[field]) {
+				return current;
+			}
+
+			return { ...current, [field]: true };
+		});
+	}, []);
+
 	useEffect(() => {
 		loadApiKeys();
 	}, [loadApiKeys]);
@@ -134,14 +291,13 @@ export function ApiKeysView() {
 				sound effects.
 			</div>
 
+			<ApiKeysPrecedenceInfo />
+
 			<ApiKeyField
 				label={
-					<span className="flex items-center gap-2">
+					<ApiKeyLabel status={keyStatuses?.falApiKey}>
 						FAL AI API Key
-						{keyStatuses?.falApiKey && (
-							<KeySourceBadge source={keyStatuses.falApiKey.source} />
-						)}
-					</span>
+					</ApiKeyLabel>
 				}
 				description={
 					<>
@@ -158,19 +314,24 @@ export function ApiKeysView() {
 				}
 				placeholder="Enter your FAL API key"
 				value={falApiKey}
-				onChange={setFalApiKey}
+				onChange={(value) => {
+					setFalApiKey(value);
+					markDirty({ field: "falApiKey" });
+				}}
 				testId="fal-api-key-input"
+				shadowedBy={getShadowedBy({
+					fieldIsDirty: dirtyFields.falApiKey === true,
+					status: keyStatuses?.falApiKey,
+				})}
+				activeSource={getActiveSource({ status: keyStatuses?.falApiKey })}
 				getKeyUrl="https://fal.ai/dashboard/keys"
 			/>
 
 			<ApiKeyField
 				label={
-					<span className="flex items-center gap-2">
+					<ApiKeyLabel status={keyStatuses?.freesoundApiKey}>
 						Freesound API Key
-						{keyStatuses?.freesoundApiKey && (
-							<KeySourceBadge source={keyStatuses.freesoundApiKey.source} />
-						)}
-					</span>
+					</ApiKeyLabel>
 				}
 				description={
 					<>
@@ -189,23 +350,28 @@ export function ApiKeysView() {
 				value={freesoundApiKey}
 				onChange={(v) => {
 					setFreesoundApiKey(v);
+					markDirty({ field: "freesoundApiKey" });
 					setFreesoundTestResult(null);
 				}}
 				testId="freesound-api-key-input"
 				onTest={testFreesoundKey}
 				isTesting={isTestingFreesound}
 				testResult={freesoundTestResult}
+				shadowedBy={getShadowedBy({
+					fieldIsDirty: dirtyFields.freesoundApiKey === true,
+					status: keyStatuses?.freesoundApiKey,
+				})}
+				activeSource={getActiveSource({
+					status: keyStatuses?.freesoundApiKey,
+				})}
 				getKeyUrl="https://freesound.org/apiv2/apply/"
 			/>
 
 			<ApiKeyField
 				label={
-					<span className="flex items-center gap-2">
+					<ApiKeyLabel status={keyStatuses?.geminiApiKey}>
 						Gemini API Key
-						{keyStatuses?.geminiApiKey && (
-							<KeySourceBadge source={keyStatuses.geminiApiKey.source} />
-						)}
-					</span>
+					</ApiKeyLabel>
 				}
 				description={
 					<>
@@ -222,19 +388,24 @@ export function ApiKeysView() {
 				}
 				placeholder="Enter your Gemini API key (AIza...)"
 				value={geminiApiKey}
-				onChange={setGeminiApiKey}
+				onChange={(value) => {
+					setGeminiApiKey(value);
+					markDirty({ field: "geminiApiKey" });
+				}}
 				testId="gemini-api-key-input"
+				shadowedBy={getShadowedBy({
+					fieldIsDirty: dirtyFields.geminiApiKey === true,
+					status: keyStatuses?.geminiApiKey,
+				})}
+				activeSource={getActiveSource({ status: keyStatuses?.geminiApiKey })}
 				getKeyUrl="https://aistudio.google.com/app/apikey"
 			/>
 
 			<ApiKeyField
 				label={
-					<span className="flex items-center gap-2">
+					<ApiKeyLabel status={keyStatuses?.openRouterApiKey}>
 						OpenRouter API Key
-						{keyStatuses?.openRouterApiKey && (
-							<KeySourceBadge source={keyStatuses.openRouterApiKey.source} />
-						)}
-					</span>
+					</ApiKeyLabel>
 				}
 				description={
 					<>
@@ -251,19 +422,26 @@ export function ApiKeysView() {
 				}
 				placeholder="Enter your OpenRouter API key (sk-or-v1-...)"
 				value={openRouterApiKey}
-				onChange={setOpenRouterApiKey}
+				onChange={(value) => {
+					setOpenRouterApiKey(value);
+					markDirty({ field: "openRouterApiKey" });
+				}}
 				testId="openrouter-api-key-input"
+				shadowedBy={getShadowedBy({
+					fieldIsDirty: dirtyFields.openRouterApiKey === true,
+					status: keyStatuses?.openRouterApiKey,
+				})}
+				activeSource={getActiveSource({
+					status: keyStatuses?.openRouterApiKey,
+				})}
 				getKeyUrl="https://openrouter.ai/keys"
 			/>
 
 			<ApiKeyField
 				label={
-					<span className="flex items-center gap-2">
+					<ApiKeyLabel status={keyStatuses?.anthropicApiKey}>
 						Anthropic API Key (Optional)
-						{keyStatuses?.anthropicApiKey && (
-							<KeySourceBadge source={keyStatuses.anthropicApiKey.source} />
-						)}
-					</span>
+					</ApiKeyLabel>
 				}
 				description={
 					<>
@@ -273,9 +451,83 @@ export function ApiKeysView() {
 				}
 				placeholder="Optional: sk-ant-..."
 				value={anthropicApiKey}
-				onChange={setAnthropicApiKey}
+				onChange={(value) => {
+					setAnthropicApiKey(value);
+					markDirty({ field: "anthropicApiKey" });
+				}}
 				testId="anthropic-api-key-input"
+				shadowedBy={getShadowedBy({
+					fieldIsDirty: dirtyFields.anthropicApiKey === true,
+					status: keyStatuses?.anthropicApiKey,
+				})}
+				activeSource={getActiveSource({
+					status: keyStatuses?.anthropicApiKey,
+				})}
 				getKeyUrl="https://console.anthropic.com/settings/keys"
+			/>
+
+			<ApiKeyField
+				label={
+					<ApiKeyLabel status={keyStatuses?.elevenLabsApiKey}>
+						ElevenLabs API Key
+					</ApiKeyLabel>
+				}
+				description="For text-to-speech and voice generation."
+				placeholder="Enter your ElevenLabs API key"
+				value={elevenLabsApiKey}
+				onChange={(value) => {
+					setElevenLabsApiKey(value);
+					markDirty({ field: "elevenLabsApiKey" });
+				}}
+				testId="elevenlabs-api-key-input"
+				shadowedBy={getShadowedBy({
+					fieldIsDirty: dirtyFields.elevenLabsApiKey === true,
+					status: keyStatuses?.elevenLabsApiKey,
+				})}
+				activeSource={getActiveSource({
+					status: keyStatuses?.elevenLabsApiKey,
+				})}
+				getKeyUrl="https://elevenlabs.io/app/settings/api-keys"
+			/>
+
+			<ApiKeyField
+				label={
+					<ApiKeyLabel status={keyStatuses?.gmiApiKey}>GMI API Key</ApiKeyLabel>
+				}
+				description="For GMI Cloud video, image, and LLM models."
+				placeholder="Enter your GMI API key"
+				value={gmiApiKey}
+				onChange={(value) => {
+					setGmiApiKey(value);
+					markDirty({ field: "gmiApiKey" });
+				}}
+				testId="gmi-api-key-input"
+				shadowedBy={getShadowedBy({
+					fieldIsDirty: dirtyFields.gmiApiKey === true,
+					status: keyStatuses?.gmiApiKey,
+				})}
+				activeSource={getActiveSource({ status: keyStatuses?.gmiApiKey })}
+			/>
+
+			<ApiKeyField
+				label={
+					<ApiKeyLabel status={keyStatuses?.runwayApiKey}>
+						Runway API Key
+					</ApiKeyLabel>
+				}
+				description="For Runway video generation models."
+				placeholder="Enter your Runway API key"
+				value={runwayApiKey}
+				onChange={(value) => {
+					setRunwayApiKey(value);
+					markDirty({ field: "runwayApiKey" });
+				}}
+				testId="runway-api-key-input"
+				shadowedBy={getShadowedBy({
+					fieldIsDirty: dirtyFields.runwayApiKey === true,
+					status: keyStatuses?.runwayApiKey,
+				})}
+				activeSource={getActiveSource({ status: keyStatuses?.runwayApiKey })}
 			/>
 
 			<div className="flex justify-end">
@@ -293,7 +545,7 @@ export function ApiKeysView() {
 			<div className="text-xs text-muted-foreground border-t pt-4">
 				<strong>Note:</strong> API keys are stored securely on your device and
 				never shared. Restart the application after saving for changes to take
-				effect.
+				effect. See <em>How API key resolution works</em> above.
 			</div>
 		</div>
 	);

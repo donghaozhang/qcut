@@ -14,12 +14,18 @@ export {
 } from "./types/base.js";
 
 // Core API namespaces
+export { KEY_SOURCE_PRECEDENCE } from "./types/core-api.js";
+
 export type {
 	PlatformFilesAPI,
 	PlatformStorageAPI,
 	PlatformThemeAPI,
 	PlatformShellAPI,
 	PlatformApiKeysAPI,
+	KeySource,
+	ApiKeyStatusSource,
+	PlatformApiKeyStatus,
+	PlatformApiKeysStatus,
 	PlatformLicenseAPI,
 	LicenseInfo,
 	LicenseCreditBalance,

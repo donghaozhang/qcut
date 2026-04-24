@@ -2,6 +2,8 @@
  * External service operations (API keys, FAL, GitHub, shell) for ElectronAPI.
  */
 
+import type { PlatformApiKeyStatus } from "@qcut/platform-core";
+
 export interface ElectronApiKeyOps {
 	apiKeys: {
 		get: () => Promise<{
@@ -12,6 +14,7 @@ export interface ElectronApiKeyOps {
 			anthropicApiKey: string;
 			elevenLabsApiKey: string;
 			gmiApiKey: string;
+			runwayApiKey?: string;
 		}>;
 		set: (keys: {
 			falApiKey?: string;
@@ -21,16 +24,18 @@ export interface ElectronApiKeyOps {
 			anthropicApiKey?: string;
 			elevenLabsApiKey?: string;
 			gmiApiKey?: string;
+			runwayApiKey?: string;
 		}) => Promise<boolean>;
 		clear: () => Promise<boolean>;
 		status: () => Promise<{
-			falApiKey: { set: boolean; source: string };
-			freesoundApiKey: { set: boolean; source: string };
-			geminiApiKey: { set: boolean; source: string };
-			openRouterApiKey: { set: boolean; source: string };
-			anthropicApiKey: { set: boolean; source: string };
-			elevenLabsApiKey: { set: boolean; source: string };
-			gmiApiKey: { set: boolean; source: string };
+			anthropicApiKey: PlatformApiKeyStatus;
+			elevenLabsApiKey: PlatformApiKeyStatus;
+			falApiKey: PlatformApiKeyStatus;
+			freesoundApiKey: PlatformApiKeyStatus;
+			geminiApiKey: PlatformApiKeyStatus;
+			gmiApiKey: PlatformApiKeyStatus;
+			openRouterApiKey: PlatformApiKeyStatus;
+			runwayApiKey: PlatformApiKeyStatus;
 		}>;
 	};
 }
