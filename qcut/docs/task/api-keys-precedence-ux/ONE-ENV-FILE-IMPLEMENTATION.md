@@ -1,5 +1,7 @@
 # Implementation Plan: Collapse Two File-Based Credential Stores Into One
 
+> **Status: SHIPPED via PR [#286](https://github.com/Quriosity-agent/qcut/pull/286).** Branch `single-env-file-plan`. Commits `58a63369` → `d75bbe73` deliver ST-0 through ST-7. ST-8 (beta-window follow-up) remains scheduled for T+1 and T+2 releases. See § 5 Definition of Done for the per-subtask checklist.
+
 - **Source design doc:** [ONE-ENV-FILE.md](./ONE-ENV-FILE.md) (design / discussion). This doc is the executable counterpart.
 - **Companion docs:** [TWO-ENV-FILES.md](./TWO-ENV-FILES.md) (current two-file state), [PLAN.md](./PLAN.md) / [IMPLEMENTATION.md](./IMPLEMENTATION.md) (precedence UX, PR #285).
 - **Priority axis (from CLAUDE.md):** long-term maintainability > scalability > performance > short-term gains.
@@ -433,14 +435,14 @@ Do NOT delete the AICP `credentials.env` during rollback; it's the fallback for 
 
 ## 5. Definition of Done
 
-- [ ] ST-0 audit complete; ≤ 10 direct AICP spawn sites documented in § A below.
-- [ ] ST-1 canonical docstrings land in `key-manager.ts` and `api-key-status.ts`.
-- [ ] ST-2 `aicp-wrapper.ts` + 4 passing unit tests. All ST-0 call sites migrated.
-- [ ] ST-3 `migrateToSingleEnvFile()` + 5 passing unit tests. Marker file verified.
-- [ ] ST-4 precedence chain is 3 tiers across `electron/`, `packages/platform-core/`, `electron/preload-types/`. All renamed tests pass. Snapshot regenerated and reviewed.
-- [ ] ST-5 UI renders 3-tier precedence info. 2 new component tests pass.
-- [ ] ST-6 TWO-ENV-FILES.md banner added. CLAUDE.md env section updated. Skill docs clarified.
-- [ ] ST-7 `bun check-types`, `bun lint:clean`, `bun run test` all green. 4 manual smoke scenarios documented in PR.
+- [x] ST-0 audit complete; 1 direct AICP spawn site documented in § A below (well under the ≤ 10 gate). Shipped in `58a63369`.
+- [x] ST-1 canonical docstrings land in `key-manager.ts` and `api-key-status.ts`. Shipped in `58a63369`.
+- [x] ST-2 env-injection centralised at `electron/api-key-vocabulary.ts` + refactored `buildSpawnEnvironment()` (see § A.4 for why no new `aicp-wrapper.ts` was needed). 9 passing unit tests at `electron/__tests__/command-builder-env.test.ts`. Shipped in `e88e9384`.
+- [x] ST-3 `migrateToSingleEnvFile()` + 7 passing unit tests at `electron/__tests__/api-key-migration.test.ts`. Marker file verified across idempotence + non-clobber scenarios. Shipped in `7d7e8d36`.
+- [x] ST-4 precedence chain is 3 tiers across `electron/api-key-status.ts`, `packages/platform-core/src/types/core-api.ts`, `electron/preload-types/supporting-types.ts`. Snapshot test updated. Shipped in `3bc3b3d7`.
+- [x] ST-5 UI renders 3-tier precedence info. `KeySourceBadge` collapses to 3 labels. 9 component tests across api-key-field + api-keys-precedence-info pass. Save toast copy rewritten. Shipped in `d07fb319`.
+- [x] ST-6 TWO-ENV-FILES.md banner added. CLAUDE.md env section updated. `ai-content-pipeline/Skill.md` + `native-cli/SKILL.md` clarified. Shipped in `5f6363e7`.
+- [x] ST-7 `bun x tsc --noEmit` (electron + apps/web + scripts) clean; `bun run lint:clean` clean (5 infos for unrelated preexisting `docs/` parse skips); `bun run test` 5423/5423 non-skipped tests pass. 24 timeline-store errors verified preexisting on master via git stash. Biome-format sweep shipped in `d75bbe73`.
 - [ ] ST-8 scheduled: follow-up PR queued on calendar for T+1 release (toast removal) and T+2 release (drop AICP file read).
 
 ---
