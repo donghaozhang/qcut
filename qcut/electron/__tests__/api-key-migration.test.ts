@@ -82,6 +82,7 @@ vi.mock("node:os", async (importOriginal) => {
 
 let originalHome: string | undefined;
 let originalUserProfile: string | undefined;
+let originalAppData: string | undefined;
 
 beforeEach(() => {
 	tempDirs.base = fs.mkdtempSync(path.join(REAL_TMP_ROOT, "qcut-migration-"));
@@ -92,8 +93,12 @@ beforeEach(() => {
 
 	originalHome = process.env.HOME;
 	originalUserProfile = process.env.USERPROFILE;
+	originalAppData = process.env.APPDATA;
 	process.env.HOME = tempDirs.home;
 	process.env.USERPROFILE = tempDirs.home;
+	// Sandbox APPDATA so Windows runs don't read the real user's AICP
+	// credentials file — `getAicpCredentialsPath()` uses it on win32.
+	process.env.APPDATA = path.join(tempDirs.home, "AppData", "Roaming");
 });
 
 afterEach(() => {
@@ -101,6 +106,8 @@ afterEach(() => {
 	else process.env.HOME = originalHome;
 	if (originalUserProfile === undefined) delete process.env.USERPROFILE;
 	else process.env.USERPROFILE = originalUserProfile;
+	if (originalAppData === undefined) delete process.env.APPDATA;
+	else process.env.APPDATA = originalAppData;
 
 	if (tempDirs.base) {
 		try {
@@ -119,7 +126,14 @@ afterEach(() => {
 import { migrateToSingleEnvFile } from "../api-key-handler";
 
 function writeAicpCredentials(content: string): void {
-	const aicpDir = path.join(tempDirs.home, ".config", "video-ai-studio");
+	const aicpDir =
+		process.platform === "win32"
+			? path.join(
+					process.env.APPDATA ||
+						path.join(tempDirs.home, "AppData", "Roaming"),
+					"video-ai-studio"
+				)
+			: path.join(tempDirs.home, ".config", "video-ai-studio");
 	fs.mkdirSync(aicpDir, { recursive: true });
 	fs.writeFileSync(path.join(aicpDir, "credentials.env"), content);
 }
@@ -221,5 +235,25 @@ describe("migrateToSingleEnvFile", () => {
 
 		expect(() => migrateToSingleEnvFile({ userDataDir: "" })).not.toThrow();
 		expect(readQcutEnv()).toBe("");
+	});
+
+	it("ignores process.env when deciding whether ~/.qcut/.env already has a key", () => {
+		// Regression: a shell-exported key used to suppress the backfill
+		// because the existence check went through `getKey()`, which reads
+		// `process.env` first. The file must still be populated from the
+		// legacy AICP credentials file.
+		const originalFalKey = process.env.FAL_KEY;
+		process.env.FAL_KEY = "from-shell";
+		try {
+			writeAicpCredentials("FAL_KEY=from-aicp\n");
+
+			migrateToSingleEnvFile({ userDataDir: tempDirs.userData });
+
+			expect(readQcutEnv()).toContain("FAL_KEY=from-aicp");
+			expect(readQcutEnv()).not.toContain("from-shell");
+		} finally {
+			if (originalFalKey === undefined) delete process.env.FAL_KEY;
+			else process.env.FAL_KEY = originalFalKey;
+		}
 	});
 });

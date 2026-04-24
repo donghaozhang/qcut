@@ -139,9 +139,12 @@ export async function buildSpawnEnvironment(): Promise<NodeJS.ProcessEnv> {
 			const value = storedKeys[field];
 			if (!value) continue;
 
-			if (!spawnEnv[envName]) {
-				spawnEnv[envName] = value;
-			}
+			// If the shell already set the primary, defer to its value for
+			// siblings too — otherwise we'd emit conflicting pairs like
+			// `FAL_KEY=from-shell` + `FAL_API_KEY=from-stored`.
+			if (spawnEnv[envName]) continue;
+
+			spawnEnv[envName] = value;
 
 			const siblings = SPAWN_ENV_SIBLINGS[envName];
 			if (siblings) {

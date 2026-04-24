@@ -85,10 +85,10 @@ ST-4 (collapse precedence chain, 45m)
 
 ```bash
 rg --no-heading -n 'resources[/\\]bin[/\\]aicp|aicp[/\\](darwin|linux|win32)[/\\]aicp' \
-   /Users/peter/Desktop/code/qcut/qcut/electron \
-   /Users/peter/Desktop/code/qcut/qcut/resources \
-   /Users/peter/Desktop/code/qcut/qcut/apps \
-   /Users/peter/Desktop/code/qcut/qcut/packages
+   electron \
+   resources \
+   apps \
+   packages
 ```
 
 **Files expected to surface (prior knowledge; confirm):**
@@ -114,11 +114,11 @@ rg --no-heading -n 'resources[/\\]bin[/\\]aicp|aicp[/\\](darwin|linux|win32)[/\\
 
 **Files to modify:**
 
-- `/Users/peter/Desktop/code/qcut/qcut/electron/native-pipeline/infra/key-manager.ts`
+- `electron/native-pipeline/infra/key-manager.ts`
   - Add JSDoc block at top of file stating: "Canonical QCut credential file. Single source of truth for file-based credentials per docs/task/api-keys-precedence-ux/ONE-ENV-FILE.md §2. AICP reads these via runAicp() wrapper, not via its own credentials.env."
   - No code change.
 
-- `/Users/peter/Desktop/code/qcut/qcut/electron/api-key-status.ts`
+- `electron/api-key-status.ts`
   - Extend the existing mirror-notice JSDoc (added in PR #285) to include: "Post ONE-ENV-FILE implementation, tier `aicp-cli` and `qcut-env` will collapse to `file`. See docs/task/api-keys-precedence-ux/ONE-ENV-FILE-IMPLEMENTATION.md ST-4."
 
 **Acceptance criteria:**
@@ -136,7 +136,7 @@ rg --no-heading -n 'resources[/\\]bin[/\\]aicp|aicp[/\\](darwin|linux|win32)[/\\
 
 **Files to create:**
 
-- `/Users/peter/Desktop/code/qcut/qcut/electron/native-pipeline/infra/aicp-wrapper.ts`
+- `electron/native-pipeline/infra/aicp-wrapper.ts`
   - Exports `runAicp(args: string[], opts?: { cwd?: string; stdio?: "inherit" | "pipe" }): Promise<{ stdout: string; stderr: string; code: number }>`.
   - Resolves binary path (reuse existing resolver — do NOT duplicate; audit uses in ST-0 to find it; likely `resolveAicpBinary()` somewhere in `electron/claude/` or `electron/native-pipeline/`).
   - Reads file-based keys via `loadEnvFile()` from `electron/native-pipeline/infra/key-manager.ts:206`.
@@ -149,7 +149,7 @@ rg --no-heading -n 'resources[/\\]bin[/\\]aicp|aicp[/\\](darwin|linux|win32)[/\\
 
 **Tests to create:**
 
-- `/Users/peter/Desktop/code/qcut/qcut/electron/native-pipeline/infra/__tests__/aicp-wrapper.test.ts`
+- `electron/native-pipeline/infra/__tests__/aicp-wrapper.test.ts`
   - **Test case 1** — env injection: point fake binary at a shell script echoing `$FAL_KEY`. Populate `~/.qcut/.env` via `setKey('FAL_KEY', 'from-file')` in a temp HOME. Unset `process.env.FAL_KEY`. Assert stdout is `from-file`.
   - **Test case 2** — process.env precedence: same setup, but also set `process.env.FAL_KEY = 'from-env'`. Assert stdout is `from-env`.
   - **Test case 3** — missing file: delete `~/.qcut/.env`. Run wrapper. Assert it does not throw, runs AICP with only `process.env`.
@@ -171,7 +171,7 @@ rg --no-heading -n 'resources[/\\]bin[/\\]aicp|aicp[/\\](darwin|linux|win32)[/\\
 
 **Files to modify:**
 
-- `/Users/peter/Desktop/code/qcut/qcut/electron/api-key-handler.ts`
+- `electron/api-key-handler.ts`
   - Add `migrateToSingleEnvFile(): Promise<void>` near top of file, exported for testability.
   - Wire call into `setupApiKeyIPC()` **before** the existing startup sync block (current lines 398–409 per TWO-ENV-FILES.md references).
   - Marker path: `path.join(app.getPath('userData'), '.env-file-unified')`.
@@ -179,7 +179,7 @@ rg --no-heading -n 'resources[/\\]bin[/\\]aicp|aicp[/\\](darwin|linux|win32)[/\\
 
 **Files to create:**
 
-- `/Users/peter/Desktop/code/qcut/qcut/electron/__tests__/api-key-migration.test.ts`
+- `electron/__tests__/api-key-migration.test.ts`
   - **Test case 1** — fresh migration: temp HOME with only `~/.config/video-ai-studio/credentials.env` containing `FAL_KEY=abc`. Run `migrateToSingleEnvFile()`. Assert `~/.qcut/.env` now contains `FAL_KEY=abc` and marker file exists.
   - **Test case 2** — idempotent: invoke twice; assert second call is a no-op (`fs.stat(marker).mtime` unchanged).
   - **Test case 3** — non-clobber: prime `~/.qcut/.env` with `FAL_KEY=preexisting`; old file has `FAL_KEY=abc`. Migrate. Assert `~/.qcut/.env` still has `preexisting`.
@@ -200,13 +200,13 @@ rg --no-heading -n 'resources[/\\]bin[/\\]aicp|aicp[/\\](darwin|linux|win32)[/\\
 
 **Files to modify:**
 
-- `/Users/peter/Desktop/code/qcut/qcut/electron/api-key-status.ts`
+- `electron/api-key-status.ts`
   - Update `KEY_SOURCE_PRECEDENCE` to `["environment", "electron", "file"] as const`.
   - Update `KeySource` type.
   - Update `KeyPresence` interface: replace `aicpCli` + `qcutEnv` with single `file` boolean.
   - Update `computeKeyStatus()` — drop one tier's logic.
 
-- `/Users/peter/Desktop/code/qcut/qcut/electron/api-key-handler.ts`
+- `electron/api-key-handler.ts`
   - Merge `loadAicpCredentials()` + `loadQcutEnvKeys()` into a single `loadFileKeys()`. During beta, `loadFileKeys` reads both and merges (qcut-env wins) to keep tolerant of users still writing to AICP file; remove AICP read after one release.
   - Delete `syncToAicpCredentials()` (lines 211–251).
   - Rename `syncToQcutEnv()` → `syncToEnvFile()` (lines 259–274).
@@ -214,21 +214,21 @@ rg --no-heading -n 'resources[/\\]bin[/\\]aicp|aicp[/\\](darwin|linux|win32)[/\\
   - Simplify `getDecryptedApiKeys()` fallback chain to 3 lookups.
 
 - **Mirror updates** (per api-key-status.ts:4-13 cross-rootDir mirror notice):
-  - `/Users/peter/Desktop/code/qcut/qcut/packages/platform-core/src/types/core-api.ts` — update `KEY_SOURCE_PRECEDENCE` export + `KeySource` type + mirror-notice JSDoc.
-  - `/Users/peter/Desktop/code/qcut/qcut/electron/preload-types/supporting-types.ts` — update type aliases.
+  - `packages/platform-core/src/types/core-api.ts` — update `KEY_SOURCE_PRECEDENCE` export + `KeySource` type + mirror-notice JSDoc.
+  - `electron/preload-types/supporting-types.ts` — update type aliases.
 
 **Tests to update:**
 
-- `/Users/peter/Desktop/code/qcut/qcut/electron/__tests__/api-key-status.test.ts`
+- `electron/__tests__/api-key-status.test.ts`
   - Update snapshot to reflect 3-tier precedence.
   - Update table-driven tests for `computeKeyStatus` — replace (env, electron, aicp, qcut) 4-tuples with (env, electron, file) 3-tuples.
 
-- `/Users/peter/Desktop/code/qcut/qcut/electron/__tests__/api-key-aicp-fallback.test.ts`
+- `electron/__tests__/api-key-aicp-fallback.test.ts`
   - Rename file → `api-key-file-fallback.test.ts`.
   - Update test names: "AICP fallback" → "file fallback".
   - Scenarios: (a) only file set → resolved source === `'file'`; (b) file + electron set → electron wins; (c) file + environment set → environment wins.
 
-- `/Users/peter/Desktop/code/qcut/qcut/electron/__tests__/api-key-injection.test.ts`
+- `electron/__tests__/api-key-injection.test.ts`
   - Update expected env injection ordering.
 
 **Tests to create:**
@@ -249,28 +249,28 @@ rg --no-heading -n 'resources[/\\]bin[/\\]aicp|aicp[/\\](darwin|linux|win32)[/\\
 
 **Files to modify:**
 
-- `/Users/peter/Desktop/code/qcut/qcut/apps/web/src/components/editor/properties-panel/api-keys-view.tsx`
+- `apps/web/src/components/editor/properties-panel/api-keys-view.tsx`
   - `AICP_SYNCED_FIELDS` constant — delete or convert to `AICP_VOCAB_FIELDS` (still used by toast copy "synced to AICP via env wrapper"; see ST-6 for wording).
   - Save handler toast description: keep the first sentence (destinations), drop the AICP-specific sentence (AICP reads env directly now), keep shadow warning sentence (unchanged).
   - Remove `"aicp-cli"` handling from any source-label switch statement.
 
-- `/Users/peter/Desktop/code/qcut/qcut/apps/web/src/components/editor/properties-panel/api-key-field.tsx`
+- `apps/web/src/components/editor/properties-panel/api-key-field.tsx`
   - `KeySourceBadge` variants — collapse `aicp-cli` + `qcut-env` branches into `file`.
   - `shadowedBy` array can now contain at most one entry (`"file"`), not two.
   - Fallback chip gate (`value.trim() !== ""`) — unchanged; keeps Devin's fix from PR #285.
 
-- `/Users/peter/Desktop/code/qcut/qcut/apps/web/src/components/editor/properties-panel/api-keys-precedence-info.tsx` (if present per PLAN.md §4; else in api-keys-view.tsx)
+- `apps/web/src/components/editor/properties-panel/api-keys-precedence-info.tsx` (if present per PLAN.md §4; else in api-keys-view.tsx)
   - Update copy to describe 3 tiers instead of 4.
   - Update inline code references (`~/.config/video-ai-studio/credentials.env` → remove; only `~/.qcut/.env` remains).
 
 **Tests to update:**
 
-- `/Users/peter/Desktop/code/qcut/qcut/apps/web/src/components/editor/properties-panel/__tests__/api-keys-view.test.tsx` (create if not present)
+- `apps/web/src/components/editor/properties-panel/__tests__/api-keys-view.test.tsx` (create if not present)
   - Assert precedence info renders 3 tier rows (env, electron, file).
   - Assert toast description on save contains the single file path.
   - Assert shadowedBy badge renders `"file"` not `"qcut-env"` / `"aicp-cli"`.
 
-- `/Users/peter/Desktop/code/qcut/qcut/apps/web/src/components/editor/properties-panel/__tests__/api-key-field.test.tsx` (create if not present)
+- `apps/web/src/components/editor/properties-panel/__tests__/api-key-field.test.tsx` (create if not present)
   - Assert `KeySourceBadge` renders correct label per source literal.
   - Assert fallback chip hidden when value is empty.
 
@@ -288,26 +288,26 @@ rg --no-heading -n 'resources[/\\]bin[/\\]aicp|aicp[/\\](darwin|linux|win32)[/\\
 
 **Files to modify:**
 
-- `/Users/peter/Desktop/code/qcut/qcut/docs/task/api-keys-precedence-ux/TWO-ENV-FILES.md`
+- `docs/task/api-keys-precedence-ux/TWO-ENV-FILES.md`
   - Prepend a banner at line 1: `> **Superseded by [ONE-ENV-FILE-IMPLEMENTATION.md](./ONE-ENV-FILE-IMPLEMENTATION.md)** — historical record of the pre-unification design. Kept in place because the migration routine relies on the logic described below.`
   - Do NOT delete content — migration routine depends on understanding the old paths.
 
-- `/Users/peter/Desktop/code/qcut/qcut/docs/task/api-keys-precedence-ux/TWO-ENV-FILES.zh-CN.md` *(if created — check current state)*
+- `docs/task/api-keys-precedence-ux/TWO-ENV-FILES.zh-CN.md` *(if created — check current state)*
   - Same banner, Chinese.
 
-- `/Users/peter/Desktop/code/qcut/qcut/docs/task/api-keys-precedence-ux/IMPLEMENTATION.md`
+- `docs/task/api-keys-precedence-ux/IMPLEMENTATION.md`
   - Add a "Post-unification addendum" section at the bottom: "After ONE-ENV-FILE implementation, the precedence UX operates on 3 tiers; the 4-tier copy in §X was accurate at time of PR #285 and remains historically valid."
 
-- `/Users/peter/Desktop/code/qcut/qcut/docs/task/api-keys-precedence-ux/PLAN.md`
+- `docs/task/api-keys-precedence-ux/PLAN.md`
   - Add brief cross-ref to `ONE-ENV-FILE-IMPLEMENTATION.md` near the tier table.
 
-- `/Users/peter/Desktop/code/qcut/qcut/CLAUDE.md`
+- `CLAUDE.md`
   - In the Environment Variables section, add one line below the existing `GMI_API_KEY` line: "File-based credentials for all of the above live in `~/.qcut/.env` (single source of truth — see docs/task/api-keys-precedence-ux/ONE-ENV-FILE-IMPLEMENTATION.md)."
 
-- `/Users/peter/Desktop/code/qcut/qcut/resources/default-skills/ai-content-pipeline/Skill.md`
+- `resources/default-skills/ai-content-pipeline/Skill.md`
   - Clarify credential section: "QCut manages AICP-relevant keys (FAL, Gemini, OpenRouter) via `~/.qcut/.env`. AICP's own `credentials.env` remains the destination of manual `aicp set-key` writes; QCut's env wrapper merges both at read time."
 
-- `/Users/peter/Desktop/code/qcut/qcut/resources/default-skills/native-cli/SKILL.md`
+- `resources/default-skills/native-cli/SKILL.md`
   - Verify storage section — it already correctly states `~/.qcut/.env`. No change expected but confirm during review.
 
 **Tests:** none (docs-only).
@@ -323,7 +323,7 @@ rg --no-heading -n 'resources[/\\]bin[/\\]aicp|aicp[/\\](darwin|linux|win32)[/\\
 
 **Goal:** Catch regressions before merge.
 
-**Commands (run from `/Users/peter/Desktop/code/qcut/qcut`):**
+**Commands (run from the repository root):**
 
 ```bash
 bun check-types
@@ -377,12 +377,12 @@ bun run test
 
 - T+0: ship ST-0 through ST-7. Migration toast active.
 - T+1 release (~2 weeks): if no crash reports or migration-error issues, remove the migration toast (keep the routine — it's cheap and covers late upgraders).
-  - File: `/Users/peter/Desktop/code/qcut/qcut/apps/web/src/components/editor/properties-panel/api-keys-view.tsx` — conditional toast removal (follow-up PR).
+  - File: `apps/web/src/components/editor/properties-panel/api-keys-view.tsx` — conditional toast removal (follow-up PR).
 - T+2 releases (~4 weeks): stop reading AICP's `credentials.env` from `loadFileKeys()` in `electron/api-key-handler.ts`. Migration is one-shot and the merge path can be removed.
 
 **Tests to update at T+2:**
 
-- `/Users/peter/Desktop/code/qcut/qcut/electron/__tests__/api-key-migration.test.ts` — add a "legacy file ignored after marker" test.
+- `electron/__tests__/api-key-migration.test.ts` — add a "legacy file ignored after marker" test.
 
 **Acceptance criteria:**
 
@@ -486,7 +486,7 @@ rg --no-heading -n 'spawn\(|execFile\(|spawnSync\(' electron/ai-pipeline-handler
 
 ### A.4 Conclusions reshaping downstream subtasks
 
-1. **ST-2 scope shrinks.** No new `aicp-wrapper.ts` module is needed — `buildSpawnEnvironment()` already exists and works. ST-2 becomes: (a) expand the key set covered by `buildSpawnEnvironment` to cover the full 8-key AICP-vocabulary, (b) add the 4 unit tests from §ST-2 targeting `command-builder.ts`, (c) centralize `getAicpKeyNames()` to remove duplication between `buildSpawnEnvironment` and `AICP_REVERSE_MAP`.
+1. **ST-2 scope shrinks.** No new `aicp-wrapper.ts` module is needed — `buildSpawnEnvironment()` already exists and works. ST-2 becomes: (a) confirm `buildSpawnEnvironment` covers AICP's 3-key vocabulary (`FAL_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`) and drop any fields AICP does not understand, (b) add the 4 unit tests from §ST-2 targeting `command-builder.ts`, (c) centralize `getAicpKeyNames()` to remove duplication between `buildSpawnEnvironment` and `AICP_REVERSE_MAP`.
 2. **`electron/main.ts:765` remains a direct spawn by design.** The `qcut set-key` CLI is a pass-through by contract. Document this in ST-1 docstrings; do not wrap.
 3. **Dev-mode `system aicp` path** (`environment.ts:107-118`) also does not go through `buildSpawnEnvironment` during version detection (only during `execute()`). Version detection reads no keys, so this is safe to leave alone. Note in ST-1 docs.
 

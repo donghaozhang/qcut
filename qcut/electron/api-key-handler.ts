@@ -4,7 +4,7 @@ import fs from "fs";
 import {
 	setKey as persistToQcutEnv,
 	deleteKey as removeFromQcutEnv,
-	getKey as readFromQcutEnv,
+	getKeyFromFile as readFromQcutEnvFile,
 } from "./native-pipeline/infra/key-manager.js";
 import { computeKeyStatus, KEY_SOURCE_PRECEDENCE } from "./api-key-status.js";
 import type { KeyStatus, KeySource } from "./api-key-status.js";
@@ -413,7 +413,11 @@ export function migrateToSingleEnvFile({
 			const aicpValue = aicpKeys[field as keyof ApiKeys];
 			if (!aicpValue) continue;
 
-			const existing = readFromQcutEnv(envName);
+			// Read the canonical file directly — `getKey()` would consult
+			// `process.env` first, so a shell-exported key would suppress
+			// the backfill and leave the file empty after the marker is
+			// written.
+			const existing = readFromQcutEnvFile(envName);
 			if (existing) continue;
 
 			persistToQcutEnv(envName, aicpValue);

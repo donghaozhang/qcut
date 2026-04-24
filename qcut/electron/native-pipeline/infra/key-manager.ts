@@ -136,6 +136,16 @@ export function getKey(name: string): string | undefined {
 	return entries.get(name);
 }
 
+/**
+ * Read a key from the `~/.qcut/.env` file only, ignoring `process.env`.
+ * Used by one-shot migrations that must make decisions based on what the
+ * canonical file actually contains — not on what the user's shell exports.
+ */
+export function getKeyFromFile(name: string): string | undefined {
+	const entries = readEnvFile();
+	return entries.get(name);
+}
+
 export function checkKeys(): KeyStatus[] {
 	const envEntries = readEnvFile();
 
