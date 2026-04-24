@@ -198,8 +198,7 @@ export function ApiKeysView() {
 			}
 
 			const wroteAicpSyncedField = EDITABLE_API_KEY_FIELDS.some(
-				(field) =>
-					trimmedKeys[field] !== "" && AICP_SYNCED_FIELDS.has(field)
+				(field) => trimmedKeys[field] !== "" && AICP_SYNCED_FIELDS.has(field)
 			);
 			const descriptionParts = [
 				"Stored in QCut's encrypted keystore and synced to ~/.qcut/.env so the native CLI can read them.",
