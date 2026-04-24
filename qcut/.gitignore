@@ -58,7 +58,8 @@ node_modules
 bun.lockb
 
 # IDE and editor files
-.vscode/
+.vscode/*
+!.vscode/tasks.json
 .idea/
 *.swp
 *.swo

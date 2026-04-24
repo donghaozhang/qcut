@@ -26,7 +26,8 @@ node_modules/
 .env.*.local
 
 # IDE files
-.vscode/
+.vscode/*
+!.vscode/tasks.json
 .idea/
 
 # OS files
