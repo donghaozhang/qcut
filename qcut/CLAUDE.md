@@ -156,6 +156,12 @@ FREESOUND_API_KEY       # Freesound sound effects
 OPENAI_API_KEY          # OpenAI/Sora
 GMI_API_KEY             # GMI Cloud (Veo Lite, SkyReels)
 
+# File-based credentials for all of the above live in ~/.qcut/.env (the
+# canonical file tier — see docs/task/api-keys-precedence-ux/ONE-ENV-FILE-IMPLEMENTATION.md).
+# AICP's legacy ~/.config/video-ai-studio/credentials.env is still mirrored
+# during the migration beta for the three AICP-vocab keys (FAL / Gemini /
+# OpenRouter) but is not an independent precedence tier.
+
 # Legacy — defined in apps/web/src/env.ts but not actively used in Electron
 DATABASE_URL            # PostgreSQL
 BETTER_AUTH_SECRET      # Auth

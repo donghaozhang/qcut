@@ -68,11 +68,11 @@ function mergeKeys(electronKeys: ApiKeys, aicpKeys: Partial<ApiKeys>): ApiKeys {
 function resolveKeySource(
 	envValue: string | undefined,
 	electronValue: string,
-	aicpValue: string | undefined
+	fileValue: string | undefined
 ): { set: boolean; source: string } {
 	if (envValue) return { set: true, source: "environment" };
 	if (electronValue) return { set: true, source: "electron" };
-	if (aicpValue) return { set: true, source: "aicp-cli" };
+	if (fileValue) return { set: true, source: "file" };
 	return { set: false, source: "not-set" };
 }
 
@@ -193,9 +193,9 @@ describe("resolveKeySource (3-tier priority)", () => {
 		expect(status).toEqual({ set: true, source: "electron" });
 	});
 
-	it("reports 'aicp-cli' when only AICP store has key", () => {
+	it("reports 'file' when only the file tier has a key (AICP or ~/.qcut/.env)", () => {
 		const status = resolveKeySource(undefined, "", "aicp_val");
-		expect(status).toEqual({ set: true, source: "aicp-cli" });
+		expect(status).toEqual({ set: true, source: "file" });
 	});
 
 	it("reports 'not-set' when no key exists anywhere", () => {

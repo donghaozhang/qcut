@@ -93,9 +93,9 @@ test.describe("API keys precedence UX", () => {
 		await page
 			.getByRole("button", { name: /How API key resolution works/ })
 			.click();
+		// Post ONE-ENV-FILE migration: three tiers shown (env / app / file).
 		await expect(page.getByText("env")).toBeVisible();
 		await expect(page.getByText("app").first()).toBeVisible();
-		await expect(page.getByText("cli")).toBeVisible();
-		await expect(page.getByText("qcut-env")).toBeVisible();
+		await expect(page.getByText("file")).toBeVisible();
 	});
 });

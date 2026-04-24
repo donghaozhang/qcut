@@ -19,12 +19,23 @@ QCut resolves the FAL key from a **3-tier fallback** (highest priority wins):
 |------|--------|------------|
 | 1 | Environment variable | `export FAL_KEY=your_key` |
 | 2 | QCut Electron store | Editor -> Settings -> API Keys |
-| 3 | AICP CLI credential store | `aicp set-key FAL_KEY` |
+| 3 | File tier (canonical: `~/.qcut/.env`; AICP's `credentials.env` mirrored during migration beta) | `aicp set-key FAL_KEY` or `qcut set-key FAL_KEY` |
+
+Post ONE-ENV-FILE migration (PR #286), QCut reads its three AICP-vocab keys
+(FAL / Gemini / OpenRouter) from `~/.qcut/.env` as the canonical source, and
+mirrors into the legacy `credentials.env` so standalone `aicp set-key` flows
+keep working for the duration of the beta window.
 
 **Recommended for Claude Code / CLI workflows:**
 
 ```bash
-# Set FAL key persistently (secure hidden prompt, stored at ~/.config/video-ai-studio/credentials.env)
+# Set FAL key persistently (secure hidden prompt). QCut's canonical
+# credential file is ~/.qcut/.env. The `aicp` binary still writes to its
+# legacy ~/.config/video-ai-studio/credentials.env for backwards
+# compatibility during the ONE-ENV-FILE beta — QCut mirrors that legacy
+# file into the canonical ~/.qcut/.env on next launch via the ST-3
+# migration routine. Prefer `qcut set-key` for new workflows; it writes
+# directly to the canonical file.
 aicp set-key FAL_KEY
 
 # Verify the key is stored

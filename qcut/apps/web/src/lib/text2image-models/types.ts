@@ -5,6 +5,19 @@ export interface Text2ImageModel {
 	provider: string;
 	endpoint: string;
 
+	/**
+	 * Submit via FAL's queue endpoint (`queue.fal.run/...`) instead of the
+	 * synchronous `fal.run/...` endpoint. Required for models whose generation
+	 * time regularly exceeds ~90 s — the license-server proxy (a Cloudflare
+	 * Worker) is fronted by a ~100 s edge timeout, and sync calls to slow
+	 * models 504 before FAL finishes. Queue submits return a `request_id` in
+	 * ~2 s; the client polls `/api/ai/status` until COMPLETED, then fetches
+	 * `/api/ai/result`. Each proxy call stays well under the edge cap.
+	 *
+	 * Leave unset (or false) for fast models (<30 s typical).
+	 */
+	useQueue?: boolean;
+
 	// Quality indicators (1-5 scale)
 	qualityRating: number;
 	speedRating: number;

@@ -7,8 +7,7 @@ describe("computeKeyStatus", () => {
 			computeKeyStatus({
 				env: true,
 				electron: true,
-				aicpCli: false,
-				qcutEnv: false,
+				file: false,
 			})
 		).toEqual({
 			set: true,
@@ -17,18 +16,17 @@ describe("computeKeyStatus", () => {
 		});
 	});
 
-	it("reports electron with aicp-cli shadowed", () => {
+	it("reports electron with file shadowed", () => {
 		expect(
 			computeKeyStatus({
 				env: false,
 				electron: true,
-				aicpCli: true,
-				qcutEnv: false,
+				file: true,
 			})
 		).toEqual({
 			set: true,
 			source: "electron",
-			shadowedBy: ["aicp-cli"],
+			shadowedBy: ["file"],
 		});
 	});
 
@@ -37,27 +35,25 @@ describe("computeKeyStatus", () => {
 			computeKeyStatus({
 				env: true,
 				electron: true,
-				aicpCli: true,
-				qcutEnv: true,
+				file: true,
 			})
 		).toEqual({
 			set: true,
 			source: "environment",
-			shadowedBy: ["electron", "aicp-cli", "qcut-env"],
+			shadowedBy: ["electron", "file"],
 		});
 	});
 
-	it("reports qcut-env when only qcut-env is set", () => {
+	it("reports file when only file is set", () => {
 		expect(
 			computeKeyStatus({
 				env: false,
 				electron: false,
-				aicpCli: false,
-				qcutEnv: true,
+				file: true,
 			})
 		).toEqual({
 			set: true,
-			source: "qcut-env",
+			source: "file",
 			shadowedBy: [],
 		});
 	});
@@ -67,8 +63,7 @@ describe("computeKeyStatus", () => {
 			computeKeyStatus({
 				env: false,
 				electron: false,
-				aicpCli: false,
-				qcutEnv: false,
+				file: false,
 			})
 		).toEqual({
 			set: false,
@@ -80,11 +75,6 @@ describe("computeKeyStatus", () => {
 
 describe("KEY_SOURCE_PRECEDENCE", () => {
 	it("keeps the resolver precedence order stable", () => {
-		expect(KEY_SOURCE_PRECEDENCE).toEqual([
-			"environment",
-			"electron",
-			"aicp-cli",
-			"qcut-env",
-		]);
+		expect(KEY_SOURCE_PRECEDENCE).toEqual(["environment", "electron", "file"]);
 	});
 });
