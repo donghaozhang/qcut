@@ -295,11 +295,17 @@ function loadQcutEnvKeys(): Partial<ApiKeys> {
 }
 
 /**
- * Get decrypted API keys with 4-tier fallback:
- *   1. Environment variables (process.env)
+ * Get decrypted API keys with 3-tier fallback (post ONE-ENV-FILE migration):
+ *   1. Environment variables (`process.env`)
  *   2. QCut Electron safeStorage store
- *   3. AICP CLI credential store (~/.config/video-ai-studio/credentials.env)
- *   4. QCut native CLI store (~/.qcut/.env)
+ *   3. File tier — `~/.qcut/.env` canonical, AICP's legacy `credentials.env`
+ *      merged in as a fallback during the beta window
+ *
+ * The `aicpKeys` / `qcutEnvKeys` locals below are the two physical sources
+ * that back the logical `file` tier. The public `ApiKeySource` contract and
+ * the UI both describe these as a single tier; only the internal resolver
+ * still distinguishes them so existing `aicp set-key`-only users continue
+ * to resolve cleanly.
  */
 export async function getDecryptedApiKeys(): Promise<ApiKeys> {
 	const electronKeys = await loadElectronStoredKeys();

@@ -9,8 +9,9 @@
  * `~/.qcut/.env` is **the** QCut-managed credential file (single source of
  * truth for file-based credentials). AICP's legacy `credentials.env` remains
  * on disk for the `qcut set-key` / standalone `aicp set-key` pass-through CLI
- * (see `electron/main.ts` `isCliKeyCommand` branch) but is NOT written by the
- * GUI save handler after the ONE-ENV-FILE migration ships.
+ * (see `electron/main.ts` `isCliKeyCommand` branch) and is still mirrored by
+ * the GUI save handler during the ONE-ENV-FILE beta window — the end-state
+ * (GUI writes only `~/.qcut/.env`) is a post-beta follow-up (ST-8).
  *
  * Production spawn sites inject these keys into child-process env via
  * `buildSpawnEnvironment()` in
@@ -50,7 +51,14 @@ export type ApiKeyName = (typeof KEY_NAMES)[number];
 export interface KeyStatus {
 	name: string;
 	configured: boolean;
-	source: "env" | "envfile" | "aicp-cli" | "none";
+	/**
+	 * Where the key was resolved. Aligned with the 3-tier precedence model
+	 * exposed via `packages/platform-core`'s `ApiKeySource` — the two
+	 * physical file locations (`~/.qcut/.env` and the legacy AICP
+	 * `credentials.env`) collapse into a single `"file"` source so the CLI
+	 * output and the type contract agree post ONE-ENV-FILE migration.
+	 */
+	source: "env" | "file" | "none";
 	masked?: string;
 }
 
@@ -183,7 +191,7 @@ export function checkKeys(): KeyStatus[] {
 			return {
 				name,
 				configured: true,
-				source: "envfile" as const,
+				source: "file" as const,
 				masked: maskKey(fileValue),
 			};
 		}
@@ -191,7 +199,7 @@ export function checkKeys(): KeyStatus[] {
 			return {
 				name,
 				configured: true,
-				source: "aicp-cli" as const,
+				source: "file" as const,
 				masked: maskKey(aicpValue),
 			};
 		}
