@@ -32,7 +32,10 @@ import {
 	uploadFileToFal as uploadFileToFalCore,
 	type FalUploadFileType,
 } from "../ai-video/core/fal-upload";
-import { makeFalRequest } from "../ai-video/core/fal-request";
+import {
+	makeFalRequest,
+	makeFalRequestQueued,
+} from "../ai-video/core/fal-request";
 import {
 	convertV3Parameters,
 	convertV4Parameters,
@@ -175,7 +178,17 @@ class FalAIClient {
 		// license-server proxy first (falling back to the local VITE_FAL_API_KEY
 		// on proxy failure). `modelKey` drives credit deduction on the proxy
 		// side — when present, the license server debits the user's ledger.
-		const response = await makeFalRequest(requestUrl, params, {
+		//
+		// Slow models (`useQueue: true` in the registry) submit via FAL's queue
+		// endpoint and poll for completion. Keeps every proxy round-trip under
+		// the ~100 s edge timeout that sync calls to e.g. GPT-Image-2 hit.
+		const modelSpec = options?.modelKey
+			? TEXT2IMAGE_MODELS[options.modelKey]
+			: undefined;
+		const submit = modelSpec?.useQueue
+			? makeFalRequestQueued
+			: makeFalRequest;
+		const response = await submit(requestUrl, params, {
 			proxyFirst: true,
 			modelKey: options?.modelKey,
 			durationSeconds: options?.durationSeconds,
