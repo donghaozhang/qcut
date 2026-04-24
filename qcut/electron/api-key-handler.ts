@@ -4,6 +4,7 @@ import fs from "fs";
 import {
 	setKey as persistToQcutEnv,
 	deleteKey as removeFromQcutEnv,
+	getKey as readFromQcutEnv,
 } from "./native-pipeline/infra/key-manager.js";
 import { computeKeyStatus, KEY_SOURCE_PRECEDENCE } from "./api-key-status.js";
 import type { KeyStatus, KeySource } from "./api-key-status.js";
@@ -353,12 +354,95 @@ export async function getDecryptedApiKeys(): Promise<ApiKeys> {
 	};
 }
 
+/** Marker filename written once migration has run; gates idempotence. */
+const UNIFIED_ENV_MARKER_FILENAME = ".env-file-unified";
+
+/**
+ * Resolve the userData directory used by the marker file. Split out from
+ * `migrateToSingleEnvFile` so tests can inject a temp dir without stubbing
+ * `app.getPath`.
+ */
+function getUserDataDir(): string {
+	try {
+		return app.getPath("userData");
+	} catch {
+		return process.env.QCUT_USERDATA_DIR || "";
+	}
+}
+
+/**
+ * One-shot migration: copy AICP-vocabulary keys from the legacy
+ * `credentials.env` file into `~/.qcut/.env` on first launch of the
+ * unified-file build.
+ *
+ *   - Reads marker at `${userDataDir}/${UNIFIED_ENV_MARKER_FILENAME}`; skips
+ *     entirely if present (idempotent across restarts).
+ *   - For each key in the AICP vocabulary (FAL_KEY / GEMINI_API_KEY /
+ *     OPENROUTER_API_KEY), if `~/.qcut/.env` has no value AND
+ *     `credentials.env` does, copies the value over. Never overwrites
+ *     existing native-CLI values.
+ *   - Leaves the legacy `credentials.env` untouched — AICP's own
+ *     `aicp set-key` CLI keeps writing there, and QCut's file reader
+ *     continues to merge both at read time during the beta window.
+ *   - Writes an ISO timestamp marker on success so subsequent launches
+ *     no-op.
+ *
+ * Exported for the migration unit test; not part of the IPC surface.
+ */
+export function migrateToSingleEnvFile({
+	userDataDir = getUserDataDir(),
+}: { userDataDir?: string } = {}): void {
+	if (!userDataDir) {
+		console.warn("[API Keys] Migration skipped: no userData dir available");
+		return;
+	}
+
+	const markerPath = path.join(userDataDir, UNIFIED_ENV_MARKER_FILENAME);
+
+	try {
+		if (fs.existsSync(markerPath)) {
+			return;
+		}
+
+		const aicpKeys = loadAicpCredentials();
+		let copied = 0;
+
+		for (const [field, envName] of Object.entries(AICP_REVERSE_MAP)) {
+			const aicpValue = aicpKeys[field as keyof ApiKeys];
+			if (!aicpValue) continue;
+
+			const existing = readFromQcutEnv(envName);
+			if (existing) continue;
+
+			persistToQcutEnv(envName, aicpValue);
+			copied += 1;
+		}
+
+		if (!fs.existsSync(userDataDir)) {
+			fs.mkdirSync(userDataDir, { recursive: true });
+		}
+		fs.writeFileSync(markerPath, new Date().toISOString(), { mode: 0o600 });
+
+		if (copied > 0) {
+			console.log(
+				`[API Keys] Migration: copied ${copied} key(s) from credentials.env → ~/.qcut/.env`
+			);
+		}
+	} catch (error) {
+		console.warn("[API Keys] Migration failed:", error);
+	}
+}
+
 /**
  * Setup API key-related IPC handlers for Electron
  * Uses Electron's safeStorage for encrypted key storage
  */
 export function setupApiKeyIPC(): void {
 	const apiKeysFilePath = getApiKeysFilePath();
+
+	// One-shot migration from legacy credentials.env → ~/.qcut/.env before
+	// the existing startup sync runs. Idempotent via marker file.
+	migrateToSingleEnvFile();
 
 	// Auto-sync existing encrypted keys to AICP credential store on startup
 	// so CLI tools can access keys saved before syncToAicpCredentials was added.
