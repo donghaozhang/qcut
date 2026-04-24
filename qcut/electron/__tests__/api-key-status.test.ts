@@ -75,10 +75,6 @@ describe("computeKeyStatus", () => {
 
 describe("KEY_SOURCE_PRECEDENCE", () => {
 	it("keeps the resolver precedence order stable", () => {
-		expect(KEY_SOURCE_PRECEDENCE).toEqual([
-			"environment",
-			"electron",
-			"file",
-		]);
+		expect(KEY_SOURCE_PRECEDENCE).toEqual(["environment", "electron", "file"]);
 	});
 });

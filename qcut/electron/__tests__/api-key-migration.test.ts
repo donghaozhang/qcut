@@ -39,7 +39,11 @@ function assertSafeTempPath(p: string): void {
 			`[api-key-migration.test] refusing to rm unsafe path: ${resolved} (expected under ${normalizedRoot})`
 		);
 	}
-	if (resolved === "/" || resolved === path.sep || resolved === normalizedRoot) {
+	if (
+		resolved === "/" ||
+		resolved === path.sep ||
+		resolved === normalizedRoot
+	) {
 		throw new Error("[api-key-migration.test] refusing to rm filesystem root");
 	}
 }
@@ -215,9 +219,7 @@ describe("migrateToSingleEnvFile", () => {
 	it("skips migration and does not throw when userDataDir is empty", () => {
 		writeAicpCredentials("FAL_KEY=will-not-migrate\n");
 
-		expect(() =>
-			migrateToSingleEnvFile({ userDataDir: "" })
-		).not.toThrow();
+		expect(() => migrateToSingleEnvFile({ userDataDir: "" })).not.toThrow();
 		expect(readQcutEnv()).toBe("");
 	});
 });

@@ -391,7 +391,9 @@ function getUserDataDir(): string {
  */
 export function migrateToSingleEnvFile({
 	userDataDir = getUserDataDir(),
-}: { userDataDir?: string } = {}): void {
+}: {
+	userDataDir?: string;
+} = {}): void {
 	if (!userDataDir) {
 		console.warn("[API Keys] Migration skipped: no userData dir available");
 		return;

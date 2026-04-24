@@ -22,7 +22,9 @@ const mocks = vi.hoisted(() => {
 	};
 });
 
-mocks.mockGetDecryptedApiKeys.mockImplementation(async () => mocks.decryptedKeys);
+mocks.mockGetDecryptedApiKeys.mockImplementation(
+	async () => mocks.decryptedKeys
+);
 
 vi.mock("electron", () => ({
 	app: {
@@ -50,10 +52,7 @@ function resetStoredKeys() {
 	}
 }
 
-const ENV_KEYS_TO_CLEAN = [
-	...Object.values(QCUT_ENV_MAP),
-	"FAL_API_KEY",
-];
+const ENV_KEYS_TO_CLEAN = [...Object.values(QCUT_ENV_MAP), "FAL_API_KEY"];
 
 function snapshotEnv(): Record<string, string | undefined> {
 	const out: Record<string, string | undefined> = {};
@@ -91,7 +90,11 @@ afterEach(() => {
 describe("api-key-vocabulary", () => {
 	it("AICP vocabulary is the 3-key subset of the full vocab", () => {
 		expect(getAicpKeyNames()).toEqual(
-			expect.arrayContaining(["FAL_KEY", "GEMINI_API_KEY", "OPENROUTER_API_KEY"])
+			expect.arrayContaining([
+				"FAL_KEY",
+				"GEMINI_API_KEY",
+				"OPENROUTER_API_KEY",
+			])
 		);
 		expect(getAicpKeyNames()).toHaveLength(3);
 		for (const name of getAicpKeyNames()) {

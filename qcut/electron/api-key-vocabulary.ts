@@ -88,20 +88,22 @@ export const AICP_ENV_MAP = {
 } as const satisfies Partial<Record<ApiKeyField, string>>;
 
 /** Reverse of QCUT_ENV_MAP — env-var-name → field, for reading env files. */
-export const QCUT_ENV_READ_MAP: Record<string, ApiKeyField> = Object.fromEntries(
-	Object.entries(QCUT_ENV_MAP).map(([field, envName]) => [
-		envName,
-		field as ApiKeyField,
-	])
-) as Record<string, ApiKeyField>;
+export const QCUT_ENV_READ_MAP: Record<string, ApiKeyField> =
+	Object.fromEntries(
+		Object.entries(QCUT_ENV_MAP).map(([field, envName]) => [
+			envName,
+			field as ApiKeyField,
+		])
+	) as Record<string, ApiKeyField>;
 
 /** Reverse of AICP_ENV_MAP — env-var-name → field, for reading AICP credentials. */
-export const AICP_ENV_READ_MAP: Record<string, ApiKeyField> = Object.fromEntries(
-	Object.entries(AICP_ENV_MAP).map(([field, envName]) => [
-		envName,
-		field as ApiKeyField,
-	])
-) as Record<string, ApiKeyField>;
+export const AICP_ENV_READ_MAP: Record<string, ApiKeyField> =
+	Object.fromEntries(
+		Object.entries(AICP_ENV_MAP).map(([field, envName]) => [
+			envName,
+			field as ApiKeyField,
+		])
+	) as Record<string, ApiKeyField>;
 
 /**
  * Sibling env vars that should be set alongside the canonical one when a
