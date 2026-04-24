@@ -4,6 +4,22 @@
  * Manages API keys via .env files for CLI usage.
  * Supports setup, get, set, and validation of API keys.
  *
+ * ## Canonical file contract
+ *
+ * `~/.qcut/.env` is **the** QCut-managed credential file (single source of
+ * truth for file-based credentials). AICP's legacy `credentials.env` remains
+ * on disk for the `qcut set-key` / standalone `aicp set-key` pass-through CLI
+ * (see `electron/main.ts` `isCliKeyCommand` branch) but is NOT written by the
+ * GUI save handler after the ONE-ENV-FILE migration ships.
+ *
+ * Production spawn sites inject these keys into child-process env via
+ * `buildSpawnEnvironment()` in
+ * `electron/ai-pipeline-handler/command-builder.ts` — AICP reads QCut-managed
+ * keys from `process.env` at runtime, not from its own credentials.env.
+ *
+ * See `docs/task/api-keys-precedence-ux/ONE-ENV-FILE-IMPLEMENTATION.md`
+ * (§A ST-0 audit) for the reasoning and the full call-site inventory.
+ *
  * @module electron/native-pipeline/key-manager
  */
 

@@ -445,18 +445,48 @@ Do NOT delete the AICP `credentials.env` during rollback; it's the fallback for 
 
 ---
 
-## A. ST-0 Audit Results *(populate during execution)*
+## A. ST-0 Audit Results *(completed 2026-04-24)*
 
-> To be filled in during ST-0. Expected format:
->
-> ```
-> electron/claude/ai-video-handler.ts:142 — direct-spawn
-> electron/native-pipeline/providers/aicp-image.ts:87 — direct-spawn
-> resources/default-skills/ai-content-pipeline/Skill.md:56 — skill-docs-only
-> … etc
-> ```
->
-> If total `direct-spawn` count > 10, HALT — post in PR to re-evaluate strategy 3.4.
+**Grep invocation:**
+
+```bash
+rg --no-heading -n 'resources[/\\]bin[/\\]aicp|aicp[/\\](darwin|linux|win32)[/\\]aicp' electron resources apps packages
+rg --no-heading -n "getBinaryPath\(" electron apps packages
+rg --no-heading -n 'spawn\(|execFile\(|spawnSync\(' electron/ai-pipeline-handler electron/claude
+```
+
+### A.1 Direct-spawn hits (runtime code)
+
+| # | Location | Classification | Notes |
+|---|---|---|---|
+| 1 | `electron/main.ts:765` | `direct-spawn` | `qcut set-key` / `check-keys` / `delete-key` CLI — intentionally passes stdio-inherit to AICP with NO env injection. This is a deliberate pass-through to AICP's own key-management flow; wrapping it would break the user's expectation that `qcut set-key` writes to AICP's own `credentials.env`. **Keep as-is.** |
+| 2 | `electron/ai-pipeline-handler/pipeline-manager.ts:228` | `via-env-builder` | Already calls `buildSpawnEnvironment()` (`electron/ai-pipeline-handler/command-builder.ts:115-138`) which injects `FAL_KEY`, `FAL_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `ELEVENLABS_API_KEY` from `getDecryptedApiKeys()`. **This is effectively the wrapper ST-2 proposes.** |
+
+**Total direct-spawn: 1** (below the ≤ 10 gate). ST-2 can proceed.
+
+### A.2 Non-runtime hits
+
+- **Skill docs (6 hits):**
+  - `resources/default-skills/qcut-toolkit/ai-content-pipeline/SKILL.md:34,74,75`
+  - `resources/default-skills/ai-content-pipeline/Skill.md:34,74,75`
+- **Test fixtures / mocks:**
+  - `electron/__tests__/api-key-injection.test.ts:50,210` — mock path strings.
+  - `electron/__tests__/binary-manager.test.ts:93,94,157,170,175,180,191,195,200,218` — `BinaryManager` unit tests.
+  - `electron/__tests__/ai-pipeline-handler.test.ts:55,193,239,266,296,331` — pipeline handler mocks.
+  - `electron/__tests__/api-key-aicp-fallback.test.ts:207,212` — fallback semantics (affected by ST-4).
+- **Upstream AICP repo (vendored):** `packages/video-agent-skill/**/*` — AICP's own tests and spec. Not QCut's code; out of scope.
+- **ps-output mock:** `packages/qagent/packages/web/src/lib/__tests__/cli-sessions.test.ts:125` — literal string in a `ps` output fixture; not a spawn site.
+
+### A.3 Helper / resolver
+
+- `electron/binary-manager.ts:426` — `BinaryManager.getBinaryPath()`. **Already a single resolver.** No duplication to consolidate.
+- `electron/ai-pipeline-handler/environment.ts:20,115` — `getBundledConfig()` + `detectEnvironment()` build the `PipelineConfig` consumed by pipeline-manager. Correct layering; no refactor needed.
+
+### A.4 Conclusions reshaping downstream subtasks
+
+1. **ST-2 scope shrinks.** No new `aicp-wrapper.ts` module is needed — `buildSpawnEnvironment()` already exists and works. ST-2 becomes: (a) expand the key set covered by `buildSpawnEnvironment` to cover the full 8-key AICP-vocabulary, (b) add the 4 unit tests from §ST-2 targeting `command-builder.ts`, (c) centralize `getAicpKeyNames()` to remove duplication between `buildSpawnEnvironment` and `AICP_REVERSE_MAP`.
+2. **`electron/main.ts:765` remains a direct spawn by design.** The `qcut set-key` CLI is a pass-through by contract. Document this in ST-1 docstrings; do not wrap.
+3. **Dev-mode `system aicp` path** (`environment.ts:107-118`) also does not go through `buildSpawnEnvironment` during version detection (only during `execute()`). Version detection reads no keys, so this is safe to leave alone. Note in ST-1 docs.
 
 ---
 

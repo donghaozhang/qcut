@@ -10,6 +10,12 @@
  * reorder or new tier MUST land in all three copies together — the
  * snapshot assertion in `electron/__tests__/api-key-status.test.ts`
  * catches ordering drift.
+ *
+ * Post-ONE-ENV-FILE migration, tiers `aicp-cli` and `qcut-env` are planned to
+ * collapse into a single `file` tier. See
+ * `docs/task/api-keys-precedence-ux/ONE-ENV-FILE-IMPLEMENTATION.md` ST-4.
+ * Until then, both tiers coexist — `aicp-cli` reads the legacy AICP file and
+ * `qcut-env` reads the canonical `~/.qcut/.env`.
  */
 export const KEY_SOURCE_PRECEDENCE = [
 	"environment",
