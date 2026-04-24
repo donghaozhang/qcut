@@ -185,9 +185,7 @@ class FalAIClient {
 		const modelSpec = options?.modelKey
 			? TEXT2IMAGE_MODELS[options.modelKey]
 			: undefined;
-		const submit = modelSpec?.useQueue
-			? makeFalRequestQueued
-			: makeFalRequest;
+		const submit = modelSpec?.useQueue ? makeFalRequestQueued : makeFalRequest;
 		const response = await submit(requestUrl, params, {
 			proxyFirst: true,
 			modelKey: options?.modelKey,

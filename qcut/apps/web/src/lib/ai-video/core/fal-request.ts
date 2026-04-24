@@ -415,9 +415,7 @@ export async function makeFalRequestQueued(
 
 	let submitBody: QueueSubmitEnvelope;
 	try {
-		submitBody = (await submitResponse
-			.clone()
-			.json()) as QueueSubmitEnvelope;
+		submitBody = (await submitResponse.clone().json()) as QueueSubmitEnvelope;
 	} catch {
 		return submitResponse;
 	}
