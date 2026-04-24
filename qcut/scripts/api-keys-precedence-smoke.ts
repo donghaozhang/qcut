@@ -54,31 +54,31 @@ type MatrixCase = {
 const MATRIX_CASES: MatrixCase[] = [
 	{
 		label: "env + electron",
-		presence: { env: true, electron: true, aicpCli: false, qcutEnv: false },
+		presence: { env: true, electron: true, file: false },
 		expected: { set: true, source: "environment", shadowedBy: ["electron"] },
 	},
 	{
-		label: "electron + aicp-cli",
-		presence: { env: false, electron: true, aicpCli: true, qcutEnv: false },
-		expected: { set: true, source: "electron", shadowedBy: ["aicp-cli"] },
+		label: "electron + file",
+		presence: { env: false, electron: true, file: true },
+		expected: { set: true, source: "electron", shadowedBy: ["file"] },
 	},
 	{
-		label: "env + electron + aicp-cli + qcut-env",
-		presence: { env: true, electron: true, aicpCli: true, qcutEnv: true },
+		label: "env + electron + file",
+		presence: { env: true, electron: true, file: true },
 		expected: {
 			set: true,
 			source: "environment",
-			shadowedBy: ["electron", "aicp-cli", "qcut-env"],
+			shadowedBy: ["electron", "file"],
 		},
 	},
 	{
-		label: "qcut-env only",
-		presence: { env: false, electron: false, aicpCli: false, qcutEnv: true },
-		expected: { set: true, source: "qcut-env", shadowedBy: [] },
+		label: "file only",
+		presence: { env: false, electron: false, file: true },
+		expected: { set: true, source: "file", shadowedBy: [] },
 	},
 	{
 		label: "none",
-		presence: { env: false, electron: false, aicpCli: false, qcutEnv: false },
+		presence: { env: false, electron: false, file: false },
 		expected: { set: false, source: "not-set", shadowedBy: [] },
 	},
 ];
@@ -86,8 +86,7 @@ const MATRIX_CASES: MatrixCase[] = [
 const EXPECTED_PRECEDENCE: readonly KeySource[] = [
 	"environment",
 	"electron",
-	"aicp-cli",
-	"qcut-env",
+	"file",
 ];
 
 type FieldKey =
@@ -307,8 +306,7 @@ function runProbe(): {
 		const presence: Presence = {
 			env: envPresent,
 			electron: electronPresent,
-			aicpCli: aicpPresent,
-			qcutEnv: qcutEnvPresent,
+			file: aicpPresent || qcutEnvPresent,
 		};
 		return {
 			field: spec.field,
@@ -339,8 +337,7 @@ function formatPresence(p: Presence): string {
 	const parts = [
 		p.env ? "env" : "",
 		p.electron ? "electron" : "",
-		p.aicpCli ? "aicp-cli" : "",
-		p.qcutEnv ? "qcut-env" : "",
+		p.file ? "file" : "",
 	].filter(Boolean);
 	return parts.length === 0 ? dim("none") : parts.join("+");
 }
@@ -379,10 +376,10 @@ function printProbe(r: ReturnType<typeof runProbe>): void {
 		`  tier 2 (electron):        ${r.sources.electron.present ? green("found") : dim("missing")}  ${r.sources.electron.path}`
 	);
 	console.log(
-		`  tier 3 (aicp-cli):        ${r.sources.aicp.present ? green("found") : dim("missing")}  ${r.sources.aicp.path}`
+		`  tier 3 (file - qcut):     ${r.sources.qcutEnv.present ? green("found") : dim("missing")}  ${r.sources.qcutEnv.path}`
 	);
 	console.log(
-		`  tier 4 (qcut-env):        ${r.sources.qcutEnv.present ? green("found") : dim("missing")}  ${r.sources.qcutEnv.path}`
+		`  tier 3 (file - aicp):     ${r.sources.aicp.present ? green("found") : dim("missing")}  ${r.sources.aicp.path}  (legacy; merged into file tier)`
 	);
 	console.log();
 
@@ -412,14 +409,17 @@ function probeField(spec: FieldSpec): KeyStatus {
 	const aicpEnv = parseEnvFile(getAicpCredentialsPath());
 	const qcutEnv = parseEnvFile(getQcutEnvPath());
 	const electronBlob = loadElectronBlob();
+	const aicpPresent = spec.aicpName ? Boolean(aicpEnv[spec.aicpName]) : false;
+	const qcutEnvPresent = spec.qcutEnvName
+		? Boolean(qcutEnv[spec.qcutEnvName])
+		: false;
 	return computeKeyStatus({
 		env: Boolean(
 			process.env[spec.envName] ||
 				(spec.altEnvName && process.env[spec.altEnvName])
 		),
 		electron: Boolean(electronBlob[spec.field]),
-		aicpCli: spec.aicpName ? Boolean(aicpEnv[spec.aicpName]) : false,
-		qcutEnv: spec.qcutEnvName ? Boolean(qcutEnv[spec.qcutEnvName]) : false,
+		file: aicpPresent || qcutEnvPresent,
 	});
 }
 
@@ -531,59 +531,57 @@ function runSaveAndVerify(fieldName: FieldKey): {
 			}),
 		});
 
-		// Step 2 — simulate Save's qcut-env sync only
+		// Step 2 — write to canonical ~/.qcut/.env. Source should resolve
+		// to `file` immediately; no shadow because the legacy AICP file is
+		// still empty.
 		if (spec.qcutEnvName) {
 			upsertEnvLine(qcutEnvPath, spec.qcutEnvName, sentinel);
 			const actual = probeField(spec);
 			steps.push({
-				label: "after write to qcut-env tier — source=qcut-env",
-				expected: { set: true, source: "qcut-env", shadowedBy: [] },
+				label: "after write to ~/.qcut/.env — source=file",
+				expected: { set: true, source: "file", shadowedBy: [] },
 				actual,
 				pass: statusEq(actual, {
 					set: true,
-					source: "qcut-env",
+					source: "file",
 					shadowedBy: [],
 				}),
 			});
 		} else {
 			notes.push(
-				`field ${fieldName} has no qcut-env mapping — skipped tier-4 step`
+				`field ${fieldName} has no qcut-env mapping — skipped file-tier write step`
 			);
 		}
 
-		// Step 3 — also simulate Save's aicp-cli sync: electron would outrank this
-		// if present, but we can't touch safeStorage from the CLI, so aicp-cli wins.
+		// Step 3 — also populate legacy AICP credentials.env. Under the
+		// unified `file` tier, this is still source=file (no extra shadow),
+		// proving the two physical locations merge into one logical tier.
 		if (spec.aicpName) {
 			upsertEnvLine(aicpPath, spec.aicpName, sentinel);
 			const actual = probeField(spec);
-			const expectedShadow: KeySource[] = spec.qcutEnvName ? ["qcut-env"] : [];
 			steps.push({
-				label: `after write to aicp-cli tier — source=aicp-cli shadows=[${expectedShadow.join(",")}]`,
-				expected: {
-					set: true,
-					source: "aicp-cli",
-					shadowedBy: expectedShadow,
-				},
+				label:
+					"after also writing to legacy credentials.env — still source=file (merged tier)",
+				expected: { set: true, source: "file", shadowedBy: [] },
 				actual,
 				pass: statusEq(actual, {
 					set: true,
-					source: "aicp-cli",
-					shadowedBy: expectedShadow,
+					source: "file",
+					shadowedBy: [],
 				}),
 			});
 		} else {
 			notes.push(
-				`field ${fieldName} has no aicp-cli mapping — skipped tier-3 step`
+				`field ${fieldName} has no aicp-cli mapping — skipped legacy-file write step`
 			);
 		}
 
-		// Step 4 — inject env var: tier 1 should outrank tiers 3 and 4
+		// Step 4 — inject env var: tier 1 should outrank the file tier.
 		process.env[spec.envName] = sentinel;
 		{
 			const actual = probeField(spec);
-			const shadow: KeySource[] = [];
-			if (spec.aicpName) shadow.push("aicp-cli");
-			if (spec.qcutEnvName) shadow.push("qcut-env");
+			const fileTierPopulated = Boolean(spec.aicpName || spec.qcutEnvName);
+			const shadow: KeySource[] = fileTierPopulated ? ["file"] : [];
 			steps.push({
 				label: `env var ${spec.envName} injected — source=environment shadows=[${shadow.join(",")}]`,
 				expected: {
@@ -600,20 +598,15 @@ function runSaveAndVerify(fieldName: FieldKey): {
 			});
 		}
 
-		// Step 5 — remove env var: should drop back to aicp-cli (if mapped) or qcut-env
+		// Step 5 — remove env var: should drop back to the file tier.
 		delete process.env[spec.envName];
 		if (spec.altEnvName) delete process.env[spec.altEnvName];
 		{
 			const actual = probeField(spec);
-			const expected: KeyStatus = spec.aicpName
-				? {
-						set: true,
-						source: "aicp-cli",
-						shadowedBy: spec.qcutEnvName ? ["qcut-env"] : [],
-					}
-				: spec.qcutEnvName
-					? { set: true, source: "qcut-env", shadowedBy: [] }
-					: { set: false, source: "not-set", shadowedBy: [] };
+			const fileTierPopulated = Boolean(spec.aicpName || spec.qcutEnvName);
+			const expected: KeyStatus = fileTierPopulated
+				? { set: true, source: "file", shadowedBy: [] }
+				: { set: false, source: "not-set", shadowedBy: [] };
 			steps.push({
 				label: "env var unset — rolls back to file tier",
 				expected,

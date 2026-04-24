@@ -87,8 +87,7 @@ export interface PlatformShellAPI {
 export const KEY_SOURCE_PRECEDENCE = [
 	"environment",
 	"electron",
-	"aicp-cli",
-	"qcut-env",
+	"file",
 ] as const;
 
 export type KeySource = (typeof KEY_SOURCE_PRECEDENCE)[number];

@@ -545,7 +545,13 @@ export function setupApiKeyIPC(): void {
 	});
 
 	/**
-	 * Get key status with source info (env / electron / aicp-cli / not-set)
+	 * Get key status with source info (env / electron / file / not-set)
+	 *
+	 * Post-ONE-ENV-FILE migration, the two legacy file-based tiers
+	 * (`aicp-cli`, `qcut-env`) are unified under a single `file` tier.
+	 * A key is `file`-present when *either* `~/.qcut/.env` or the legacy
+	 * AICP `credentials.env` has a value — keeps AICP-CLI-only users
+	 * working while canonical writes flow only to `~/.qcut/.env`.
 	 */
 	ipcMain.handle("api-keys:status", async (): Promise<ApiKeysStatus> => {
 		const electronKeys = await loadElectronStoredKeys();
@@ -566,8 +572,7 @@ export function setupApiKeyIPC(): void {
 					process.env[envName] || (altEnvName && process.env[altEnvName])
 				),
 				electron: Boolean(electronKeys[field]),
-				aicpCli: Boolean(aicpKeys[field]),
-				qcutEnv: Boolean(qcutEnvKeys[field]),
+				file: Boolean(qcutEnvKeys[field] || aicpKeys[field]),
 			});
 		}
 

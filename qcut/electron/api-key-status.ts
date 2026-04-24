@@ -11,17 +11,16 @@
  * snapshot assertion in `electron/__tests__/api-key-status.test.ts`
  * catches ordering drift.
  *
- * Post-ONE-ENV-FILE migration, tiers `aicp-cli` and `qcut-env` are planned to
- * collapse into a single `file` tier. See
+ * As of the ONE-ENV-FILE migration, the two file-based tiers collapsed
+ * into a single `file` tier — `~/.qcut/.env` is the canonical store and
+ * AICP's credentials.env is read through the same loader for backwards
+ * compatibility during the beta window. See
  * `docs/task/api-keys-precedence-ux/ONE-ENV-FILE-IMPLEMENTATION.md` ST-4.
- * Until then, both tiers coexist — `aicp-cli` reads the legacy AICP file and
- * `qcut-env` reads the canonical `~/.qcut/.env`.
  */
 export const KEY_SOURCE_PRECEDENCE = [
 	"environment",
 	"electron",
-	"aicp-cli",
-	"qcut-env",
+	"file",
 ] as const;
 
 export type KeySource = (typeof KEY_SOURCE_PRECEDENCE)[number];
@@ -30,8 +29,7 @@ export type KeyStatusSource = KeySource | "not-set";
 export interface KeyPresence {
 	env: boolean;
 	electron: boolean;
-	aicpCli: boolean;
-	qcutEnv: boolean;
+	file: boolean;
 }
 
 export interface KeyStatus {
@@ -43,14 +41,12 @@ export interface KeyStatus {
 export function computeKeyStatus({
 	env,
 	electron,
-	aicpCli,
-	qcutEnv,
+	file,
 }: KeyPresence): KeyStatus {
 	const presenceBySource = {
 		environment: env,
 		electron,
-		"aicp-cli": aicpCli,
-		"qcut-env": qcutEnv,
+		file,
 	} satisfies Record<KeySource, boolean>;
 
 	const source = KEY_SOURCE_PRECEDENCE.find(
