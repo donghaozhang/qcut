@@ -87,11 +87,12 @@ describe("getAIVideoDir", () => {
 		expect(segments).toContain("videos");
 	});
 
-	it("sanitizes the project ID by removing path separators", () => {
+	it("sanitizes the project ID by stripping path separators and parent refs", () => {
 		const result = getAIVideoDir("../malicious");
-		// Dots are preserved but slashes are replaced with underscores
-		expect(result).toContain(".._malicious");
-		expect(result).not.toContain("/malicious");
+		// `sanitizePathComponent` strips both slashes and `..` entirely, so
+		// the project ID resolves to the cleaned name with no traversal residue.
+		expect(result).not.toContain("..");
+		expect(result).toContain(`${path.sep}malicious${path.sep}`);
 	});
 
 	it("starts from Documents path", () => {
