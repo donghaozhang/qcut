@@ -1,156 +1,191 @@
 # Windows Code Signing — Documentation Tasks
 
-To meet the issue's "Documentation explains required signing secrets and
-release setup" criterion, the following docs land alongside the code
-changes. These are written for the **maintainer** (release operator),
-not end users.
+Maintainer-facing docs to land alongside the code, plus user-facing
+download-page copy to mitigate first-run SmartScreen friction.
 
 ## New file: `qcut/docs/setup/windows-code-signing.md`
 
-**Audience:** anyone bringing up a new release runner, debugging a failing
-release, or rotating signing credentials.
-
-**Path-aware:** the file should cover both Path A (SignPath Foundation,
-preferred) and Path B (Azure Trusted Signing, fallback). The deployed
-release stack uses exactly one — keep both sections so a future
-maintainer can switch paths if eligibility changes.
-
-### Path A — SignPath Foundation secrets
-
-Required GitHub Actions secrets / variables:
-
-| Name | Type | Source |
-|------|------|--------|
-| SIGNPATH_API_TOKEN | secret | SignPath user settings → API tokens |
-| SIGNPATH_ORGANIZATION_ID | variable | SignPath organization page (UUID) |
-| SIGNPATH_PROJECT_SLUG | variable | SignPath project page |
-| SIGNPATH_SIGNING_POLICY_SLUG | variable | SignPath project → Policies |
-| SIGNPATH_ARTIFACT_SLUG | variable | SignPath project → Artifact configurations |
-| WINDOWS_PUBLISHER_NAME | variable | Subject CN issued by SignPath |
-
-Local signing is **not supported** by SignPath Foundation — signing
-happens server-side via the GitHub Action. Maintainers needing a signed
-local build should ask SignPath about a manual signing flow or just use
-the CI artifact.
-
-### Path B — Azure Trusted Signing secrets
+**Audience:** anyone bringing up a new release machine, debugging a
+failing release, or rotating Certum credentials.
 
 **Outline:**
 
 ```markdown
 # Windows Code Signing — Setup Guide
 
-## Prerequisites
-- Azure subscription owned by Quriosity.
-- A Trusted Signing Account + Certificate Profile (see
-  docs/task/windows-code-signing/CERTIFICATE-OPTIONS.md for the procurement
-  walkthrough — once procurement is done, that doc becomes a historical
-  record and this file is the operational reference).
-- A service principal with the
-  `Trusted Signing Certificate Profile Signer` role.
+## Certificate Vendor
+- Provider: **Certum SimplySign** (https://shop.certum.eu/)
+- Product: Standard Code Signing in Cloud (NOT the USB token version)
+- Tier: Organization
+- Cert subject: `Quriosity Pty Ltd`
+- Cost: ~USD 200/year (€189/year). Annual renewal mandatory under 2026 CA/B Forum rules (max 460-day validity).
 
-## GitHub Actions secrets
-The following repository secrets must exist:
+## GitHub repo settings
+We do NOT store any signing credentials in GitHub Actions. Signing happens
+on a maintainer's local Windows machine after CI builds an unsigned
+artifact. See `docs/task/windows-code-signing/IMPLEMENTATION.md` for the
+architecture rationale.
 
-| Secret | Source | Example |
-|--------|--------|---------|
-| AZURE_TENANT_ID | Azure AD tenant of the SP | 00000000-0000-0000-0000-000000000000 |
-| AZURE_CLIENT_ID | Service principal app ID | 00000000-0000-0000-0000-000000000000 |
-| AZURE_CLIENT_SECRET | Service principal client secret | (rotate every 6 months) |
-| AZURE_TRUSTED_SIGNING_ENDPOINT | Region endpoint | https://eus.codesigning.azure.net/ |
-| AZURE_TRUSTED_SIGNING_ACCOUNT | Trusted Signing Account name | qcut-signing |
-| AZURE_CERTIFICATE_PROFILE | Profile name | qcut-public-trust |
-| WINDOWS_PUBLISHER_NAME | Subject CN of the issued cert | Quriosity Pty Ltd |
+The only Windows-related repo setting:
 
-## Local signed builds
-Maintainers with access to the Azure SP can produce a signed installer
-locally:
+| Name | Type | Value |
+|------|------|-------|
+| WINDOWS_PUBLISHER_NAME | variable | "Quriosity Pty Ltd" — used by `verify:win-signature` to assert the cert subject |
 
-\`\`\`powershell
-$env:AZURE_TENANT_ID="..."
-$env:AZURE_CLIENT_ID="..."
-$env:AZURE_CLIENT_SECRET="..."
-$env:AZURE_TRUSTED_SIGNING_ENDPOINT="..."
-$env:AZURE_TRUSTED_SIGNING_ACCOUNT="..."
-$env:AZURE_CERTIFICATE_PROFILE="..."
-$env:WINDOWS_PUBLISHER_NAME="..."
-cd qcut
-bun run dist:win:release
-\`\`\`
+## Local signing machine setup
+On the dedicated Windows signing machine (or a Windows VM if maintainer is on macOS):
 
-For an unsigned local build (no Azure access required), use:
+1. **Install SimplySign mobile app** on phone (iOS/Android) and pair with Certum account.
+2. **Install SimplySign desktop signing tool** from https://www.certum.eu/en/cert_expert_simply_sign/.
+3. **Install Windows SDK signtool** via `winget install --id Microsoft.WindowsSDK`.
+4. **Authenticate desktop tool** by scanning QR code on phone.
+5. **Find the cert SHA1 thumbprint** in Keychain Access / certutil:
+   \`\`\`powershell
+   certutil -store -user My
+   \`\`\`
+   Look for "Developer ID Application: Quriosity Pty Ltd" — copy the SHA1 thumbprint (40 hex chars).
+6. **Set environment variable**:
+   \`\`\`powershell
+   [Environment]::SetEnvironmentVariable("QCUT_WIN_CERT_THUMBPRINT", "<thumbprint>", "User")
+   \`\`\`
+
+## Per-release signing workflow
+
 \`\`\`bash
-bun run dist:win:unsigned
+# 1. Wait for CI to finish (build-windows job)
+# 2. Download the windows-build-unsigned artifact
+# 3. Place QCut*Setup*.exe and latest.yml into qcut/dist-electron/
+cd qcut
+bun run sign:win
+# 4. Approve signing on your phone (SimplySign app push notification, ~30 sec)
+# 5. Verify
+bun run verify:win-signature
+# 6. Manually upload signed .exe + latest.yml to the GitHub Release page
 \`\`\`
 
 ## Verifying a signed installer
+
 \`\`\`powershell
-signtool verify /pa /v .\dist-electron\QCut*Setup*.exe
-Get-AuthenticodeSignature .\dist-electron\QCut*Setup*.exe
+# On any Windows machine:
+signtool verify /pa /v .\QCut*Setup*.exe
+Get-AuthenticodeSignature .\QCut*Setup*.exe
 \`\`\`
 
+Expected:
+- `signtool verify` exits 0 with "Successfully verified".
+- `Get-AuthenticodeSignature` reports `Status: Valid` and `SignerCertificate.Subject` containing "CN=Quriosity Pty Ltd".
+
 ## Troubleshooting
-- "Sign error 0x80070002" → Azure SP missing role, re-run role assignment.
-- "Publisher mismatch" from verify-windows-signature.ts → WINDOWS_PUBLISHER_NAME
-  drifted from the cert subject; update the secret.
-- Workflow hangs on signing for >5 min → Trusted Signing endpoint outage,
-  check Azure status page; do not bypass signing.
 
-## Rotating the service principal secret
-1. Generate a new client secret in Azure portal (App registrations →
-   <SP name> → Certificates & secrets).
-2. Update `AZURE_CLIENT_SECRET` in repo secrets.
-3. Trigger a `*-rc.N` release tag and confirm the workflow succeeds.
-4. Delete the old client secret in Azure portal.
+### `signtool: error 0x80092004 — Cannot find object or property`
+The cert thumbprint is not findable in the user's certificate store. Check:
+- SimplySign desktop tool is running and authenticated (the cert appears only when the tool exposes the Cloud HSM identity).
+- `QCUT_WIN_CERT_THUMBPRINT` matches the actual thumbprint from `certutil -store -user My`.
 
-## Renewal
-Public Trust certificate profiles auto-rotate; no manual renewal. Set a
-billing alert in Azure for the Trusted Signing resource.
+### Phone never receives push notification
+- SimplySign app needs internet on phone.
+- Re-authenticate the desktop tool — sometimes the SimplySign session expires after hours of inactivity.
+
+### `signtool sign` succeeds but `signtool verify` fails
+- Timestamp service may have failed silently. Re-sign with a different `/tr` URL (alternatives: `http://timestamp.digicert.com`, `http://timestamp.sectigo.com`).
+
+### SmartScreen still warns users on signed installer
+This is **expected** for the first hundreds-thousands of downloads of a new build. SmartScreen reputation is per file hash and accumulates over time. See `docs/task/windows-code-signing/CERTIFICATE-OPTIONS.md` § "SmartScreen reputation reality" for full context.
+
+## Rotating credentials
+
+### Cert renewal (annual)
+1. Pay renewal at shop.certum.eu before expiry.
+2. Re-do identity validation (Certum may shortcut this if nothing changed).
+3. New cert is issued under same SimplySign account; new thumbprint.
+4. Update `QCUT_WIN_CERT_THUMBPRINT` on signing machine.
+5. Old signed builds remain valid (timestamp counter-signed).
+
+### Adding a second team member
+1. Add new user under Certum organization.
+2. They install SimplySign app + desktop tool with their own credentials.
+3. Both Donghao and the new member can now approve signings — useful for vacation coverage.
+
+## Renewal calendar
+Set a calendar reminder **60 days before cert expiry**. The Certum dashboard shows expiry date.
 ```
 
 ## Modified: `qcut/docs/release.md`
 
-If this file does not exist yet, create it. Add a section near the top:
+Add (or merge with the macOS signing section):
 
 ```markdown
 ## Prerequisites for Windows releases
-Windows release builds **must** be Authenticode-signed. The release
-workflow will fail if signing is misconfigured; this is intentional —
-do **not** bypass signing to push a release. See
-`docs/setup/windows-code-signing.md` for setup and troubleshooting.
+Windows releases must be signed by Quriosity's Certum-issued Authenticode
+certificate. **Signing is a manual step** that happens on a maintainer's
+local machine after CI builds the unsigned artifact — see
+`docs/setup/windows-code-signing.md` for the per-release workflow.
+
+This is intentional: Certum SimplySign requires phone-based approval per
+signing operation, which cannot be automated in GitHub Actions. The
+tradeoff was deliberate (cost vs. automation); see
+`docs/task/windows-code-signing/CERTIFICATE-OPTIONS.md`.
 ```
 
 ## Modified: `qcut/CLAUDE.md`
 
-Append a small section under "Architecture Guidelines → DON'T":
+Append under "Architecture Guidelines → DON'T":
 
 ```markdown
-- Disable Windows code signing in the release workflow (`forceCodeSigning=false`).
-  See `docs/setup/windows-code-signing.md`. Local-dev unsigned builds use
-  `bun run dist:win:unsigned`.
+- Auto-attach unsigned Windows `.exe` to GitHub Releases. Windows artifacts
+  must be signed manually before publishing — see
+  `docs/setup/windows-code-signing.md`. The Windows job intentionally
+  produces a `windows-build-unsigned` artifact, NOT a published Release file.
 ```
 
-This makes the rule visible to future Claude Code sessions so we do not
-silently regress.
+This makes the constraint visible to future Claude Code sessions.
 
-## Issue / PR template note (optional, low priority)
+## Windows download-page user-facing copy
 
-If `qcut/.github/PULL_REQUEST_TEMPLATE.md` exists, add a checkbox:
+QCut's Windows download page (whatever route, e.g. `qcut.app/download`)
+should include this paragraph near the Windows download button. This is
+**user-facing**, written for end users, not maintainers.
 
-```markdown
-- [ ] If touching `release.yml` or `package.json` `build.win`, I have not
-      disabled code signing.
-```
+### English version
 
-Skip if the template does not already exist — do not create one just for
-this.
+> 💡 **First time installing? You may see a Windows security warning.**
+>
+> When you run `QCut.AI.Video.Editor-Setup.exe`, Windows SmartScreen may
+> show "Windows protected your PC" — this is normal for new software
+> versions, even after we've signed our installer.
+>
+> 1. Click **More info** in the warning dialog.
+> 2. Confirm the publisher shown is **Quriosity Pty Ltd** — that's us.
+> 3. Click **Run anyway**.
+>
+> The Windows User Account Control prompt that follows should also show
+> **"Verified publisher: Quriosity Pty Ltd"** — you can safely click Yes.
+
+### Chinese version
+
+> 💡 **首次安装时可能出现 Windows 安全警告。**
+>
+> 运行 `QCut.AI.Video.Editor-Setup.exe` 时，Windows SmartScreen 可能弹
+> "Windows protected your PC" — 这对新版本软件是正常现象，即使我们已签名。
+>
+> 1. 点弹窗里的 **More info（更多信息）**。
+> 2. 确认发布者显示为 **Quriosity Pty Ltd** — 就是我们。
+> 3. 点 **Run anyway（仍然运行）**。
+>
+> 接下来的 Windows 用户账户控制弹窗会显示 **"Verified publisher: Quriosity Pty Ltd"** — 可以放心点"是"。
+
+### Why this copy matters
+
+Without this guidance, the user from the Unblock-File screenshot
+(captured 2026-04 — see conversation history) had to use a separate AI
+agent to figure out PowerShell to install QCut. Each user who hits this
+without guidance is likely to abandon. The copy is free to add and
+immediately reduces abandonment in the SmartScreen-warning window
+(roughly the first ~hundreds of installs after each release).
 
 ## What NOT to document
 
-- **The actual Azure secret values.** Never commit secrets, never include
-  example values that look real.
-- **End-user "this app is signed" messaging.** SmartScreen rendering is
-  Microsoft's surface; we do not control it. Documenting it as a feature
-  invites false promises if MSFT changes the dialog.
-- **A separate user-facing FAQ entry.** The change is invisible-by-design
-  for end users; only release-engineering docs need updates.
+- Actual SHA1 thumbprint of the cert — sensitive, lives only in `QCUT_WIN_CERT_THUMBPRINT` on signing machine and Certum dashboard.
+- Step-by-step "how SmartScreen works internally" — Microsoft's docs cover this.
+- Microsoft Store submission — different cert path, separate task.
+- iOS / mobile distribution — out of scope.

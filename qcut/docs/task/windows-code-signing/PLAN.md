@@ -2,154 +2,106 @@
 
 **Tracking issue:** [Quriosity-agent/qcut#289](https://github.com/Quriosity-agent/qcut/issues/289)
 **Branch:** `gpt-image-2`
-**Created:** 2026-04-25 (revised same day to add SignPath Foundation path)
+**Created:** 2026-04-25 (revised same day after eliminating Azure / SignPath / EV paths)
 
 ## Goal
 
-Remove the `Publisher: Unknown publisher` warning from the QCut Windows
-installer by Authenticode-signing the NSIS `.exe` produced by
-`electron-builder` in the GitHub Actions release pipeline.
+Sign the QCut Windows NSIS installer with an Authenticode certificate
+issued to **Quriosity Pty Ltd**, so:
+
+1. The UAC dialog shows "Verified publisher: Quriosity Pty Ltd" instead of yellow "Unknown publisher".
+2. Enterprise IT policies that block unsigned executables stop blocking QCut.
+3. Antivirus false-positive rate drops.
+4. SmartScreen "Windows protected your PC" warning at least shows the publisher name (still triggers on early downloads — see [CERTIFICATE-OPTIONS.md §SmartScreen reputation reality](CERTIFICATE-OPTIONS.md#smartscreen-reputation-reality-2026)).
 
 Long-term outcome (priority order, per `CLAUDE.md`):
+1. **Maintainability** — signing fits into the release workflow with manageable manual overhead.
+2. **Scalability** — credentials and identity live in cloud HSM, not on a single laptop.
+3. **Performance** — signing should not extend release wall time by more than a few minutes.
+4. **Short-term gains** — *not* a goal. We are not buying a cheap OV reseller cert that comes with USB-token operational debt.
 
-1. **Maintainability** — signing is configured once and works across every
-   future release without per-release manual steps.
-2. **Scalability** — secrets / signing identity live in cloud-hosted
-   services, not on a single developer's machine. A new maintainer can
-   release without owning a USB token.
-3. **Performance** — signing should not noticeably extend release CI time
-   (target < 60 s extra on Windows job).
-4. **Short-term gains** — *not* a goal. We will not ship a self-signed
-   cert or one-time hack just to silence SmartScreen for v2026.5.
+## Why we are buying
 
-## Why this might not require buying a license
+QCut may close-source. Free/OSS-only paths (SignPath Foundation) are
+incompatible. The team has elected to buy a commercial certificate.
 
-`qcut/LICENSE` is MIT-style and `qcut/package.json:308` describes QCut as
-"Open-source AI video editor" — both prerequisites for **SignPath
-Foundation**, a free Authenticode signing program for verified
-open-source projects (used by Blender, OBS Studio, Inkscape, Krita,
-GIMP, KeePass, Notepad++, etc.).
+## Path chosen: Certum SimplySign Standard Code Signing
 
-**Plan:** apply to SignPath Foundation first (free, ~1–2 weeks for
-review). Only if SignPath denies do we buy Azure Trusted Signing
-(~USD 10/month). See [`CERTIFICATE-OPTIONS.md`](CERTIFICATE-OPTIONS.md)
-for full vendor comparison and the rationale against DigiCert / Sectigo /
-EV in v1.
+- **Cost:** ~USD 200/year (€189/year)
+- **Type:** OV (Organization Validation), Cloud HSM
+- **Subject:** "Quriosity Pty Ltd"
+- **Why this and not others:** see [CERTIFICATE-OPTIONS.md](CERTIFICATE-OPTIONS.md). Short version: Azure unavailable (country + age), SignPath OSS-only, EV no longer worth premium since 2024, Sectigo/DigiCert OV needs USB token.
+- **Tradeoff to accept:** Each `signtool sign` operation prompts Donghao's phone via SimplySign mobile app for approval. Releases are no longer fully unattended — the signing step is manual, taking ~30 seconds of human input per release.
 
-## Path decision (gates Subtask 1 outcome)
-
-The implementation has two flavors. Subtask 1 picks one based on the
-SignPath outcome.
-
-| | **Path A — SignPath (preferred)** | **Path B — Azure (fallback)** |
-|-|-----------------------------------|-------------------------------|
-| Cost | $0 | ~$120/year |
-| Signing trigger | Post-build via SignPath GitHub Action | Inline during `electron-builder` via `azureSignOptions` |
-| `electron-builder` win config | `forceCodeSigning: false`, `signAndEditExecutable: false` (SignPath signs post-build, otherwise builder doesn't know how) | `forceCodeSigning: true`, `signAndEditExecutable: true`, `azureSignOptions` populated |
-| New CI step | "Submit signing request to SignPath" using `signpath/github-action-submit-signing-request@v1` | None — signing happens in the existing build step |
-| New repo secrets | `SIGNPATH_API_TOKEN`, `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_SLUG`, `SIGNPATH_SIGNING_POLICY_SLUG`, `SIGNPATH_ARTIFACT_SLUG` | `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TRUSTED_SIGNING_ENDPOINT`, `AZURE_TRUSTED_SIGNING_ACCOUNT`, `AZURE_CERTIFICATE_PROFILE`, `WINDOWS_PUBLISHER_NAME` |
-| Verifier script (`verify-windows-signature.ts`) | **Same** — verifies via `signtool /pa /v` and matches `WINDOWS_PUBLISHER_NAME` env var | **Same** |
-
-The verifier script and the manual VM dry-run are path-agnostic. Most
-other subtasks have an "if Path A / if Path B" detail in
-[`IMPLEMENTATION.md`](IMPLEMENTATION.md).
+If signing-step manual overhead becomes painful (e.g. weekly hotfix releases), the migration path is **SSL.com eSigner OV** (~$250/year, full REST API automation). See [IMPLEMENTATION.md §future hardening](IMPLEMENTATION.md#5-future-hardening-track-separately).
 
 ## Subtask map
 
-The full implementation is **clearly > 20 minutes** (multi-day if you
-count vendor review). Subtasks are sequenced so each one is independently
-mergeable and reviewable.
+| # | Subtask | Owner action | Code? | Wall time | Detail |
+|---|---------|--------------|-------|-----------|--------|
+| 1 | Order Certum cert | Pay €189 at shop.certum.eu | No | 15 min | [CERTIFICATE-OPTIONS.md §how to apply](CERTIFICATE-OPTIONS.md#certum-simplysign-how-to-apply) |
+| 2 | Submit identity validation docs | Upload ASIC, D-U-N-S, passport, address proof | No | 30 min submit + 3–7 days Certum review | [CERTIFICATE-OPTIONS.md §how to apply](CERTIFICATE-OPTIONS.md#certum-simplysign-how-to-apply) |
+| 3 | Install SimplySign mobile app + desktop signing tool | On Donghao's phone + signing machine | No | 30 min | [IMPLEMENTATION.md §0](IMPLEMENTATION.md#0-tooling-setup) |
+| 4 | Update `electron-builder` Windows config | Remove signing-disable flags from `qcut/package.json` | Yes | 20 min | [IMPLEMENTATION.md §1](IMPLEMENTATION.md#1-update-electron-builder-windows-config) |
+| 5 | Update GitHub Actions release workflow | CI builds unsigned, exposes artifact for manual signing | Yes | 30 min | [IMPLEMENTATION.md §2](IMPLEMENTATION.md#2-update-github-actions-release-workflow) |
+| 6 | Add local signing helper script | New `qcut/scripts/sign-windows-release.ts` | Yes | 1 hr | [IMPLEMENTATION.md §3](IMPLEMENTATION.md#3-add-local-signing-helper-script) |
+| 7 | Add post-signing signature verifier | New `qcut/scripts/verify-windows-signature.ts` | Yes | 1 hr | [IMPLEMENTATION.md §4](IMPLEMENTATION.md#4-add-post-signing-signature-verifier) |
+| 8 | Add Windows download-page warning copy | Explain SmartScreen first-run experience | Yes (web) | 30 min | [DOCUMENTATION.md](DOCUMENTATION.md) |
+| 9 | Maintainer documentation | New `qcut/docs/setup/windows-code-signing.md` | Yes (docs) | 45 min | [DOCUMENTATION.md](DOCUMENTATION.md) |
+| 10 | Tests | Verifier + workflow guardrails | Yes | 1 hr | [TESTING.md](TESTING.md) |
+| 11 | Dry-run release on clean Windows VM | Manual verification | No | 1 hr | [IMPLEMENTATION.md §6](IMPLEMENTATION.md#6-dry-run-release-on-clean-windows-vm) |
 
-| # | Subtask | Owner action | Code? | Est. wall time | Detail file |
-|---|---------|--------------|-------|----------------|-------------|
-| 1a | **Apply to SignPath Foundation** | Submit OSS application | No | 1–2 weeks (review) | [CERTIFICATE-OPTIONS.md §SignPath](CERTIFICATE-OPTIONS.md#signpath-foundation-how-to-apply) |
-| 1b | Azure procurement *(fallback only — only if 1a is denied)* | Buy Trusted Signing identity, verify org | No | 1–7 days | [CERTIFICATE-OPTIONS.md §Azure](CERTIFICATE-OPTIONS.md#azure-trusted-signing-procurement-fallback-only) |
-| 2 | Update `electron-builder` Windows config | Path-dependent edit to `qcut/package.json` `build.win` | Yes | 30 min | [IMPLEMENTATION.md §A1 / §B1](IMPLEMENTATION.md) |
-| 3 | Update local `dist:win*` npm scripts | Remove `forceCodeSigning=false` overrides; keep one unsigned variant | Yes | 20 min | [IMPLEMENTATION.md §A2 / §B2](IMPLEMENTATION.md) |
-| 4 | Update release workflow | Path A: add SignPath submit step. Path B: remove `--config.win.*=false`, inject Azure secrets. | Yes | 30–60 min | [IMPLEMENTATION.md §A3 / §B3](IMPLEMENTATION.md) |
-| 5 | Add post-build signature verification | New script + CI step (path-agnostic) | Yes | 1 hr | [IMPLEMENTATION.md §4](IMPLEMENTATION.md#4-add-post-build-signature-verification-shared) |
-| 6 | Documentation | Maintainer signing setup guide + release doc update | Yes (docs) | 45 min | [DOCUMENTATION.md](DOCUMENTATION.md) |
-| 7 | Tests | Unit tests for verifier + workflow YAML guardrail (path-aware) | Yes | 1 hr | [TESTING.md](TESTING.md) |
-| 8 | Dry-run release | Trigger release on `rc` tag, verify signed `.exe` on a clean Windows VM | No | 1 hr | [IMPLEMENTATION.md §5](IMPLEMENTATION.md#5-dry-run-release--manual-verification-shared) |
-
-**Total engineering time (excluding vendor review): ~5 hours regardless of path.**
+**Total engineering time: ~5 hours. Wall time: dominated by Certum's 3–7 day identity review.**
 
 ## Files this plan will touch
 
-Authoritative list — keep this in sync if scope changes. Items marked
-**[A]** are Path A only, **[B]** Path B only, **[shared]** apply to both.
-
 ### Modified
 
-- `qcut/package.json` — lines 84, 86, 88, 89 (scripts) and lines 231–240 (`build.win`).
-  - **[A]** `build.win` flips `verifyUpdateCodeSignature` to `true` only;
-    `forceCodeSigning` stays `false` because SignPath signs post-build.
-  - **[B]** all three signing flags flipped to `true`, plus
-    `azureSignOptions` block added.
-- `qcut/.github/workflows/release.yml` — line 96 (Build Electron application step) and surrounding env block (~lines 60–98).
-  - **[A]** Removes the `forceCodeSigning=false` overrides; adds new
-    "Submit signing request to SignPath" + "Download signed artifact"
-    steps after the build.
-  - **[B]** Removes overrides; adds Azure secret env vars to the build
-    step.
-- `qcut/docs/release.md` — add signing prerequisites section *(create if missing)*.
+- `qcut/package.json`
+  - Lines 84, 86, 88, 89 (`scripts` block) — remove `forceCodeSigning=false` overrides
+  - Lines 231–240 (`build.win` block) — keep `forceCodeSigning: false` because we sign **after** electron-builder finishes (manual local signing); flip `verifyUpdateCodeSignature` to `true`
+- `qcut/.github/workflows/release.yml` — line 96 area: remove `--config.win.*=false` overrides; document that signing happens manually after CI
+- `qcut/docs/release.md` — signing prerequisites note (create if missing)
 
 ### Added
 
-- **[shared]** `qcut/scripts/verify-windows-signature.ts` — Bun/Node wrapper that shells out to `signtool verify /pa /v` and exits non-zero if unsigned or signed by an unexpected publisher.
-- **[shared]** `qcut/scripts/__tests__/verify-windows-signature.test.ts` — Vitest unit tests.
-- **[shared]** `qcut/scripts/__tests__/package-json-signing.test.ts` — `package.json` shape guardrail (path-aware: validates either Path A or Path B config).
-- **[shared]** `qcut/scripts/__tests__/release-workflow-signing.test.ts` — workflow YAML guardrail (path-aware).
-- **[shared]** `qcut/docs/setup/windows-code-signing.md` — maintainer-facing setup guide. Covers both Path A (SignPath) and Path B (Azure) credential setup.
+- `qcut/scripts/sign-windows-release.ts` — wrapper that calls `signtool sign` with Certum SimplySign Cloud HSM identity; expects SimplySign desktop tool installed and authenticated.
+- `qcut/scripts/verify-windows-signature.ts` — runs `signtool verify /pa /v` against the signed artifact, fails non-zero on missing signature or wrong publisher.
+- `qcut/scripts/__tests__/verify-windows-signature.test.ts` — Vitest unit tests.
+- `qcut/scripts/__tests__/package-json-signing.test.ts` — `package.json` shape guardrail.
+- `qcut/scripts/__tests__/release-workflow-signing.test.ts` — workflow YAML guardrail.
+- `qcut/docs/setup/windows-code-signing.md` — maintainer-facing setup guide.
 - `qcut/docs/task/windows-code-signing/` — this folder.
 
 ### Not touched (intentional)
 
-- `qcut/build/icon.ico` — icon stays as-is.
-- `qcut/scripts/release.ts` — release orchestrator does not need to know
-  about signing.
-- `qcut/package.json` `build.mac` block — macOS signing is a separate
-  concern (and currently also unsigned in CI; tracked elsewhere).
+- `qcut/build/icon.ico` — icon stays.
+- `qcut/scripts/release.ts` — release orchestrator does not need to know about signing.
+- `qcut/package.json` `build.mac` block — macOS signing is a separate task.
 
 ## Risks & open questions
 
-1. **SignPath review timing** — typically 1–2 weeks. Subtask 1a must
-   start *before* engineering work to avoid blocking release.
-2. **SignPath denial path** — if denied, Subtask 1b (Azure) adds another
-   1–7 days for Microsoft identity validation. Plan release timing
-   accordingly.
-3. **SmartScreen reputation lag** — even after signing, the *first*
-   signed builds may show "less common app" warnings until reputation
-   accumulates. Document this expectation in the user-facing release
-   notes.
-4. **macOS / Linux unaffected** — this plan deliberately scopes to
-   Windows. macOS is *also* currently unsigned in CI (no `mac.identity`,
-   no Apple secrets in `release.yml`); that is a separate task.
-5. **Cert renewal**
-   - Path A: SignPath rotates automatically; no calendar reminder needed.
-   - Path B: profile auto-rotates, but the Azure subscription billing
-     should have an alert.
+1. **Certum identity review delay.** Typical 3–7 business days. With D-U-N-S already issued, expect the faster end of that range.
+2. **SimplySign desktop tool platform support.** Certum officially supports Windows. Mac/Linux signing requires running the Windows tool through a VM or finding alternatives. Donghao currently uses macOS — verify SimplySign workflow works for him before relying on it.
+3. **Phone availability for every release.** Donghao must approve each `signtool` operation via SimplySign app. If he's offline (flight, vacation), no signed release possible. Mitigation: add a second team member to the Certum account once cert is issued.
+4. **SmartScreen reputation will not be instant.** Even after signing, the first ~hundreds of downloads of each new build will still trigger SmartScreen. This is unavoidable in 2026 (see [CERTIFICATE-OPTIONS.md §SmartScreen reputation reality](CERTIFICATE-OPTIONS.md#smartscreen-reputation-reality-2026)). Mitigation: add a download-page note explaining the first-run warning is expected.
+5. **Cert renewal.** 460-day max validity (2026 CA/B Forum rule). Calendar reminder 60 days before expiry. Renewal preserves nothing — each cert renewal effectively starts fresh on SmartScreen reputation per file hash anyway.
+6. **macOS / Linux unaffected.** This plan deliberately scopes to Windows. macOS is *also* currently unsigned in CI (no `mac.identity`, no Apple secrets in `release.yml`); that is tracked at [`docs/task/macos-code-signing/`](../macos-code-signing/).
 
 ## Success criteria
 
-Mirrors the issue acceptance criteria, made testable:
+Mirrors GitHub issue #289 acceptance, made testable:
 
-- [ ] `signtool verify /pa /v QCut*Setup*.exe` exits 0 on the release artifact.
-- [ ] `Get-AuthenticodeSignature` reports `Status: Valid` and a
-      `SignerCertificate.Subject` matching the expected publisher
-      (SignPath-issued or Azure-issued).
-- [ ] `qcut/package.json` `build.win` has the appropriate signing config
-      for the chosen path (see Path decision table above).
-- [ ] CI release job fails fast (before publishing) if signing fails.
-- [ ] A first-time Windows user sees the verified publisher name on
-      installer launch (verified manually on a clean VM).
-- [ ] Maintainer signing setup is documented at
-      `qcut/docs/setup/windows-code-signing.md`.
+- [ ] `signtool verify /pa /v QCut*Setup*.exe` exits 0 on the released artifact.
+- [ ] `Get-AuthenticodeSignature` reports `Status: Valid` with `SignerCertificate.Subject` containing "Quriosity Pty Ltd".
+- [ ] `qcut/package.json` `build.win` no longer has `forceCodeSigning: false` overrides in npm scripts.
+- [ ] On a clean Windows VM, double-clicking the installer shows blue UAC dialog with "Verified publisher: Quriosity Pty Ltd" (not yellow "Unknown publisher").
+- [ ] Maintainer signing setup is documented at `qcut/docs/setup/windows-code-signing.md`.
+- [ ] Windows download page on QCut website has a one-paragraph note explaining the first-run SmartScreen warning is normal and how to proceed.
 
 ## Out of scope for this plan
 
-- macOS notarization changes.
-- Microsoft Store submission (mentioned in the issue as a *future*
-  reputation booster — file a separate issue).
-- Auto-update signature pinning beyond what `electron-builder`'s
-  `verifyUpdateCodeSignature: true` already provides.
+- macOS notarization changes (separate task).
+- Microsoft Store submission (different cert path entirely; mentioned in issue as future reputation booster).
+- Auto-update signature pinning beyond what `electron-builder`'s `verifyUpdateCodeSignature: true` already provides.
+- Migration to fully-automated CI signing (SSL.com eSigner) — track as future hardening once Certum manual flow is operational.

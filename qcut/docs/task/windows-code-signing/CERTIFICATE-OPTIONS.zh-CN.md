@@ -1,124 +1,140 @@
 # 代码签名证书选型
 
-这就是用户提到的"license"。Authenticode 签名必须用受信任 CA 颁发的证书，
-自签证书没法满足 SmartScreen。
-
-> **重要背景（2026-04-25 通过看代码确认）：**
-> `qcut/LICENSE` 是 MIT 类许可证（"Permission is hereby granted, free of
-> charge…"），`qcut/package.json:308` 把自己描述成 "Open-source AI video
-> editor"。两者都满足 **SignPath Foundation** 免费签名计划的资格。本文档
-> 第一版漏了这条 — 现修正。
-
 ## 一句话推荐
 
-1. **先申请 [SignPath Foundation](https://signpath.io/foundation/) — 对开源项目免费，QCut 完全符合资格。** 审批一般 1–2 周。
-2. **如果 SignPath 拒绝（开源项目极少被拒，但有可能） → 退到 Azure Trusted Signing — Public Trust 身份，约 USD 10/月。**
+**[Certum SimplySign Standard Code Signing](https://shop.certum.eu/standard-code-signing-in-cloud.html) — Organization 席位，约 USD 200/年（€189/年）。**
 
-我们故意**不**推荐 v1 走 DigiCert / Sectigo OV/EV。原因见下文。
+QCut/Quriosity 资格情况：
+- ✅ 澳洲可买
+- ✅ 没有公司年限要求
+- ✅ 云签名（不需要 USB token）
+- ⚠️ 每次签名都需要在 SimplySign 手机 App 上点确认 — 半手工，**不能完全自动化 CI**。详见 [IMPLEMENTATION.zh-CN.md §架构决策](IMPLEMENTATION.zh-CN.md#架构决策签名在哪里发生)
 
-## 行业对比
+如果完全自动化 CI 比省 ~$50/年更重要：**备选：SSL.com eSigner OV — 约 USD 250/年，REST API，全自动化。**
 
-| 厂商 / 产品 | 价格（USD/年） | 开源资格？ | SmartScreen 暖机 | CI 友好？ | 验证方式 | 备注 |
-|------------|----------------|------------|-------------------|-----------|----------|------|
-| **SignPath Foundation** | **$0** | ✅ 必须 | 普通 | ✅ 官方 GitHub Action | 人工开源认证 | **QCut 推荐方案。** Blender、OBS Studio、Inkscape、Krita、GIMP、KeePass、Notepad++、Audacity、ImHex 都用它。 |
-| **Azure Trusted Signing**（Public Trust） | ~$120（$10/月） | 不适用 | 普通 | ✅ 通过 `azureSignOptions` 原生支持 | 组织或个人 | 推荐的 fallback。 |
-| **DigiCert OV** | $400–600 | 否 | 慢（数周到数月） | ⚠️ USB 令牌或 KSP | 组织 | 传统方案，CI 不友好。 |
-| **DigiCert EV** | $600–800 | 否 | **立即** | ⚠️ 仅硬件令牌 / 云 HSM | 严格 | 用户体验最好，CI 集成最难。 |
-| **Sectigo OV** | $200–400 | 否 | 慢 | ⚠️ 令牌 / KSP | 组织 | 便宜的传统方案。 |
-| **Sectigo EV** | $400–600 | 否 | 立即 | ⚠️ HSM | 严格 | 便宜的 EV。 |
-| **SSL.com EV（eSigner）** | $300–500 | 否 | 立即 | ✅ 通过 REST API 用云 HSM | 严格 | EV 里 CI 集成最好的。 |
-| **自签证书** | $0 | — | 永远不被信任 | ✅ | 无 | **解决不了问题。** |
+## 其它路径为什么被排除
 
-## 为什么 QCut 选 SignPath Foundation
+### ❌ Azure Trusted Signing（Microsoft Artifact Signing）
 
-1. **QCut 完全符合资格。** MIT 许可证 + 公开 GitHub 仓库 + CI 驱动构建 =
-   完美贴合 SignPath Foundation 的资格画像。证据已在仓库里：
-   - `qcut/LICENSE` — MIT
-   - `qcut/.github/workflows/release.yml` — CI 构建链
-   - `qcut/package.json:308` — 自描述为 "Open-source AI video editor"
-2. **$0 vs $120/年。** 项目长期能省下持续支出。
-3. **行业验证过。** 几乎所有发布签名 Windows 构建的主要开源桌面应用都
-   用 SignPath Foundation：Blender、OBS Studio、Inkscape、Krita、GIMP、
-   KeePass、Notepad++、Audacity、ImHex 等。风险画像很清楚。
-4. **GitHub Actions 一等集成。** 官方提供
-   `signpath/github-action-submit-signing-request@v1`。
-5. **唯一的卡点是资格** — 实现复杂度跟 Azure 方案差不多。
+两个**独立**的拦路石：
 
-## 为什么 Azure Trusted Signing 是合适的 fallback
+1. **国家资格**。微软 2026-01 官方 FAQ：*"For Public Trust certificates, Artifact Signing is currently available to organizations in the USA, Canada, the European Union, and the United Kingdom."* 澳洲不在名单。
+2. **公司年限**。微软要求 *"at least three years of verifiable history"*。Quriosity 注册于 2024-06-10，要到 2027-06-10 才符合。
 
-如果 SignPath 因为构建可复现性、治理或活跃度等原因拒绝 QCut，
-Azure Trusted Signing 仍然是次优解：
+微软 Q&A 里明确说**没有 exception process**。来源：[Microsoft Artifact Signing FAQ](https://learn.microsoft.com/en-us/azure/artifact-signing/faq)。
 
-1. **不用硬件令牌** — 云 HSM，能在 GitHub-hosted Windows runner 上跑。
-2. **`electron-builder` 一等支持**，通过 `azureSignOptions`。
-3. **商业方案里最便宜** — $10/月 比 DigiCert/Sectigo 便宜 $300+/年。
-4. **微软直签** — 由微软根证书签发。
+### ❌ SignPath Foundation（开源免费）
 
-## 为什么 v1 跳过 DigiCert / Sectigo / EV
+要求项目持续保持 OSI 批准的开源许可证。QCut 之后可能闭源，SignPath
+Foundation 资格不能延续到闭源项目。
 
-- **OV 证书** — 必须把 USB 令牌寄到构建机，或额外付费用 KSP 托管签名
-  服务。对 CI 驱动的开源项目来说运维很麻烦。
-- **EV 证书** — 立即有 SmartScreen 信誉，但贵 4–8 倍而且必须用 FIPS
-  HSM。只有在已经签名后**仍然**有信誉问题时再考虑。
+### ❌ SSL.com EV / DigiCert EV
 
-## SignPath Foundation：怎么申请
+2024 年之前，EV 证书有"立即获得 SmartScreen 信誉"的特权 — EV 签名的
+程序首次下载也不弹警告。**微软 2024 年取消了这个特权**，更新了
+Trusted Root Program 要求。
 
-1. **确认资格：**
-   - OSI 批准的许可证（MIT ✅，见 `qcut/LICENSE`）。
-   - 公开源代码仓库（✅，GitHub 上）。
-   - CI 驱动构建（✅，`qcut/.github/workflows/release.yml`）。
-   - 活跃开发（✅，master 上有近期提交）。
-2. **去 https://signpath.io/foundation/ 提交申请。**
-3. **提供资料：**
-   - 项目名：QCut
-   - 仓库 URL：https://github.com/Quriosity-agent/qcut
-   - 许可证位置：`qcut/LICENSE`（MIT）
-   - 构建流水线位置：`qcut/.github/workflows/release.yml`
-   - 维护者联系方式（例如 `support@qcut.app`，已在
-     `qcut/package.json:290` 出现）
-4. **等 1–2 周审核。** SignPath 可能追问构建可复现性、二进制信任链、
-   发布频率等问题。
-5. **批准后会拿到：**
-   - Organization ID（UUID）。
-   - Project slug（例如 `qcut`）。
-   - Signing policy slug（例如 `release-signing`）。
-   - Artifact configuration slug（例如 `qcut-installer`）。
-   - API Token — 存进 GitHub 仓库 secret `SIGNPATH_API_TOKEN`。
+到 2026 年，OV 和 EV 在 SmartScreen 层面**功能完全一样** — 都要靠
+下载量积累信誉。EV 多花 2 倍价钱已经不划算。
 
-SignPath 路径的实现细节见
-[`IMPLEMENTATION.zh-CN.md` Path A](IMPLEMENTATION.zh-CN.md#path-a-signpath推荐)。
+来源：[Reputation with OV certificates and are EV certificates still the better option? — Microsoft Q&A](https://learn.microsoft.com/en-us/answers/questions/417016/reputation-with-ov-certificates-and-are-ev-certifi)。
 
-## Azure Trusted Signing：采购步骤（仅 fallback 时执行）
+### ❌ Sectigo / DigiCert OV 通过传统分销商（~$170–230/年）
 
-只有 SignPath 拒绝 QCut 后才执行这一节。
+纸面便宜，但多数还是要用 USB 硬件令牌。USB token 没法插到
+GitHub-hosted Windows runner 上，自托管 + 寄送/管理 token 的运维成本
+比省下来的证书钱多。
 
-1. 用 Quriosity 的组织账号登录 [Azure 门户](https://portal.azure.com)。
-2. 在支持 Trusted Signing 的区域（East US、West Central US 等）创建
-   **Trusted Signing Account**。
-3. 创建 **Certificate Profile**，类型选 **Public Trust → Public Trust
-   Identity Validation**。
-4. 向微软提交身份验证材料。**1–7 天。**
-5. 记下 `electron-builder` 需要的几个值：
-   - Endpoint（例如 `https://eus.codesigning.azure.net/`）
-   - Code Signing Account Name
-   - Certificate Profile Name
-   - Publisher Name（subject CN，会在 `Get-AuthenticodeSignature` 里显示）
-6. 创建一个**服务主体**，授予 `Trusted Signing Certificate Profile
-   Signer` 角色。记下：
-   - `AZURE_TENANT_ID`
-   - `AZURE_CLIENT_ID`
-   - `AZURE_CLIENT_SECRET`（或用 OIDC 联邦身份 — 长期更优）
+云签名版本（DigiCert KeyLocker、SSL.com eSigner）的 OV 起价 $400+，
+比 Certum 贵明显。
 
-## 长期优化：用 OIDC 联邦身份替代客户端密钥（Azure 路径）
+## 行业对比（2026-04）
 
-如果最终走 Azure 路径，建议给服务主体配置**联邦凭据**，让 GitHub
-Actions 通过 OIDC 认证，GitHub Secret 里完全不存
-`AZURE_CLIENT_SECRET`。跟踪在
-[`IMPLEMENTATION.zh-CN.md §6`](IMPLEMENTATION.zh-CN.md#6-后续加固单独跟踪)。
+| 厂商 | 价格（USD/年） | CI 自动化 | 开源资格 | 澳洲可买 | 新公司可买 | 备注 |
+|------|---------------|-----------|---------|---------|----------|------|
+| **Certum SimplySign Standard** | **~$200** | ⚠️ 手机确认 | ✅ ✅ | ✅ | ✅ | **QCut 推荐**。Inkdrop 等大量 indie Electron 项目都用。 |
+| **SSL.com eSigner OV** | ~$200–250 | ✅ REST API | ✅ ✅ | ✅ | ✅ | CI 集成更好，价格类似。 |
+| SSL.com eSigner EV | ~$350–500 | ✅ | ✅ ✅ | ✅ | ✅ | EV 自 2024 起不再值溢价。 |
+| Sectigo OV（分销商） | $170–230 | ⚠️ USB token | ✅ ✅ | ✅ | ✅ | 不友好 GitHub-hosted CI。 |
+| DigiCert OV/EV | $400–800 | ⚠️ USB / KSP | ✅ ✅ | ✅ | ✅ | 贵，没必要。 |
+| Azure Artifact Signing | $120 | ✅ | 不适用 | ❌ | ❌ | **Quriosity 不能买。** |
+| SignPath Foundation | $0 | ✅ | 仅开源 | ✅ | ✅ | **绑死开源。** |
+
+## 签了实际改变什么（vs. 没改变什么）
+
+诚实披露 — 不要被供应商话术骗，签名解决一些事，但不解决另一些。
+
+### ✅ 立即生效（签完当天）
+
+- **UAC 弹窗**：黄色"Unknown publisher" → 蓝色"Verified publisher: Quriosity Pty Ltd"
+- **企业 IT 策略**禁未签名 .exe 的，QCut 现在能装
+- **杀毒软件误报率**显著下降（卡巴斯基、360、火绒、Avast、Defender 启发式）
+- **浏览器下载警告**减少
+- **winget / Chocolatey / scoop** 包管理器愿意收 QCut
+- **自动更新完整性**：`electron-updater` 能校验每个更新都来自同一发布者
+
+### 📈 渐进生效（积累几百到几千次安装）
+
+- **SmartScreen "Windows protected your PC"** 警告频率降低，最终消失
+- 信誉按文件 hash 积累，**也**慢慢按发布者积累
+
+### ❌ 不会改变
+
+- **Mark of the Web (MOTW)**：Windows 仍会给下载文件打标记，**这是浏览器加的，跟签名无关**。用户可能仍会看到"Open File - Security Warning"对话框。
+- **前几百次安装仍可能触发 SmartScreen** — 但有验证过的发布者名（"Quriosity Pty Ltd"）显示，转化率显著提升。
+- **用户对陌生品牌的不信任**：签名只能证明"是 Quriosity"，不能证明"Quriosity 值得信任"。新公司还是会被看作新公司。
+
+## SmartScreen 信誉的现实（2026）
+
+**关键披露：** SmartScreen 信誉是按**文件 hash** 算的，不是按证书也不是按发布者。每次发新版（v2026.5.0 → v2026.6.0），新 `.exe` 哈希不一样，**信誉重头积累**，无视过去发了多少签名版本。
+
+实际意味着：
+
+- QCut v2026.6.0 第一个下载用户**仍会看到** SmartScreen 警告（即使我们签了名）。
+- 信誉随用户安装且无负面反馈而增长。
+- ~几百到几千次无问题安装后，警告停止。
+- 频繁版本更新会重置信誉 — 发布节奏会影响这个。
+
+### 缓解策略
+
+- 不要为每个小改动发新版 — 批量打包成版本化发布。
+- 鼓励用户保留下载缓存（同一 hash 重复运行能积累信誉）。
+- 长期稳定的发布者，新 hash 也会被宽松扫描。
+- 在 Windows 下载页加一段说明，告诉用户新版本警告是预期的。
+
+## 价格趋势（2026 行业现状）
+
+- **2026 年 3 月起：** CA/Browser Forum 把代码签名证书最长有效期从 39 个月缩短到 **460 天（约 15 个月）**。从那以后所有签发的证书都受这个限制。**续期变成年度，不再有多年期。**
+- **EV 证书在 2024 年失去了独有的"SmartScreen 立即信誉"特权。** OV 和 EV 现在 SmartScreen 行为完全一致。
+- **Azure Trusted Signing 在 2025 年收紧资格** — 先窄到美/加（要 3 年公司历史），后稍微扩到 EU/UK。澳洲等地至 2026-Q1 仍被排除。
+- **云 HSM 签名**（不要 USB token）成为 indie 默认选择。Certum SimplySign、SSL.com eSigner、DigiCert KeyLocker 都支持。
+
+## Certum SimplySign：怎么申请
+
+1. **下单** https://shop.certum.eu/standard-code-signing-in-cloud.html
+   - 类型：Standard Code Signing **in Cloud**（**不**是 USB 版）
+   - 期限：1 年（2026 CA/B 规则下最长就 15 个月）
+   - 验证：**Organization**（证书 subject = "Quriosity Pty Ltd"）
+2. **提交身份材料** — Certum 会邮件列出清单。常见包括：
+   - Quriosity ASIC 公司注册（你已有）
+   - D-U-N-S Number 893394655（明显加快验证）
+   - Donghao 护照扫描 + 居住地证明（用于 Authorized Representative 验证）
+   - Quriosity Pty Ltd 地址证明（452 Flinders St 的租约或近期账单）
+3. **身份验证。** Certum 审核 3–7 个工作日（已有 D-U-N-S 会更快）。
+4. **激活 SimplySign 账号。** Certum 发激活链接 → 在 Donghao 手机装 SimplySign App → 在他的 Mac/Windows 机器装桌面签名工具。
+5. **签发的证书**存在 Certum 云 HSM 里。每次 `signtool sign` 操作都会让 Donghao 手机弹窗确认。
+
+针对这套凭据的工程实现见 [`IMPLEMENTATION.zh-CN.md`](IMPLEMENTATION.zh-CN.md)。
 
 ## 续期
 
-- **SignPath Foundation**：证书自动轮换，只要项目保持开源 + 活跃就
-  永久免费。
-- **Azure Trusted Signing**：profile 自动轮换；Trusted Signing Account
-  按月计费，是普通 Azure 资源 — 在订阅里设个账单告警。
+- **每年**（CA/B 强制 15 个月上限）。
+- 提前 60 天设日历提醒。
+- 续期**不**保留 SmartScreen 信誉（信誉本来就是按文件 hash 算的；续期也不会改变已发出去的旧版本，那些保留它们自己的信誉）。
+
+## 未来迁移路径
+
+如果 Certum 的手机确认变成瓶颈：
+- **SSL.com eSigner OV**（每年多 ~$50） — REST API 全自动化 CI 签名。
+- **等到 Azure 资格满足** 2027-06（Quriosity 满 3 年）— 还要看微软是否扩大国家名单到澳洲。
+- **以后再升 EV** — 如果 SmartScreen 信誉死活积累不上去（不太可能，因为 EV 现在也不立即了）。

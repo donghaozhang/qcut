@@ -2,148 +2,114 @@
 
 **对应 issue：** [Quriosity-agent/qcut#289](https://github.com/Quriosity-agent/qcut/issues/289)
 **分支：** `gpt-image-2`
-**创建日期：** 2026-04-25（同日修订，加入 SignPath Foundation 路线）
+**创建日期：** 2026-04-25（同日修订，排除掉 Azure / SignPath / EV 路径之后定方案）
 
 ## 目标
 
-通过对 `electron-builder` 产出的 NSIS `.exe` 进行 Authenticode 签名，
-消除 QCut Windows 安装包上"发布者：未知发布者"的警告。签名工作在
-GitHub Actions 发布流水线里完成。
+用 Authenticode 证书（颁发给 **Quriosity Pty Ltd**）签 QCut 的 Windows
+NSIS 安装包，使：
 
-按 `CLAUDE.md` 的优先级顺序，长期目标是：
+1. UAC 弹窗显示蓝色 "Verified publisher: Quriosity Pty Ltd"，不再是
+   黄色 "Unknown publisher"。
+2. 禁未签名 .exe 的企业 IT 策略不再拦 QCut。
+3. 杀毒软件误报率下降。
+4. SmartScreen "Windows protected your PC" 警告至少能显示发布者名
+   （早期下载仍会触发 — 详见
+   [CERTIFICATE-OPTIONS.zh-CN.md §SmartScreen 信誉的现实](CERTIFICATE-OPTIONS.zh-CN.md#smartscreen-信誉的现实2026)）。
 
-1. **可维护性** — 一次配置好，以后每次发布都能自动签，无需手工干预。
-2. **可扩展性** — 密钥/签名身份放在云服务里，不绑定到某个开发者
-   的电脑。新维护者也能正常发布，不用拿 USB 令牌。
-3. **性能** — 签名不应明显增加发布 CI 时间（目标：Windows 任务额外
-   不超过 60 秒）。
-4. **短期收益** — *不是*目标。我们不会用自签证书或一次性 hack 来
-   敷衍 v2026.5。
+按 `CLAUDE.md` 优先级顺序：
+1. **可维护性** — 签名能融入发布流程，手工开销可控。
+2. **可扩展性** — 凭据和身份在云 HSM 里，不绑定到某台电脑。
+3. **性能** — 签名不应让发布墙上时间多于几分钟。
+4. **短期收益** — *不是*目标。我们不会为了便宜 50 美金买一个带 USB
+   token 运维债的 OV 分销证书。
 
-## 这件事不一定要"买 license"
+## 为什么要买
 
-`qcut/LICENSE` 是 MIT 类许可证，`qcut/package.json:308` 把 QCut 描述成
-"Open-source AI video editor" — 这两条满足了 **SignPath Foundation**
-的资格。SignPath Foundation 是面向开源项目的免费 Authenticode 签名计划
-（Blender、OBS Studio、Inkscape、Krita、GIMP、KeePass、Notepad++ 等都用
-它）。
+QCut 之后可能闭源，免费/仅开源路径（SignPath Foundation）不兼容。
+团队决定走商业证书路径。
 
-**计划：** 先申请 SignPath Foundation（免费，约 1–2 周审批）。只有
-SignPath 拒绝了，才去买 Azure Trusted Signing（约 USD 10/月）。完整的
-厂商对比和 v1 不选 DigiCert/Sectigo/EV 的理由见
-[`CERTIFICATE-OPTIONS.zh-CN.md`](CERTIFICATE-OPTIONS.zh-CN.md)。
+## 选定路径：Certum SimplySign Standard Code Signing
 
-## 路径决策（取决于子任务 1 结果）
+- **价格：** 约 USD 200/年（€189/年）
+- **类型：** OV（Organization Validation），云 HSM
+- **Subject：** "Quriosity Pty Ltd"
+- **为什么是这个**：见 [CERTIFICATE-OPTIONS.zh-CN.md](CERTIFICATE-OPTIONS.zh-CN.md)。简版：Azure 不可用（国家+年限）、SignPath 仅开源、EV 自 2024 起不再值溢价、Sectigo/DigiCert OV 要 USB token。
+- **要接受的权衡：** 每次 `signtool sign` 都会通过 SimplySign 手机
+  App 让 Donghao 确认。发布**不再**完全无人值守 — 签名步骤是手工的，
+  每次发布需要约 30 秒人工确认。
 
-实现有两种风格。子任务 1 的结果决定走哪条。
-
-| | **Path A — SignPath（首选）** | **Path B — Azure（fallback）** |
-|-|-------------------------------|--------------------------------|
-| 成本 | $0 | 约 $120/年 |
-| 签名时机 | 构建后通过 SignPath GitHub Action 签 | 构建过程中 `electron-builder` 通过 `azureSignOptions` 内联签 |
-| `electron-builder` win 配置 | `forceCodeSigning: false`、`signAndEditExecutable: false`（SignPath 在构建后才签，否则 builder 不知道怎么签） | `forceCodeSigning: true`、`signAndEditExecutable: true`，加上 `azureSignOptions` |
-| 新增 CI 步骤 | "Submit signing request to SignPath"，用 `signpath/github-action-submit-signing-request@v1` | 无 — 签名在原有 build 步骤里发生 |
-| 新增仓库 secret | `SIGNPATH_API_TOKEN`、`SIGNPATH_ORGANIZATION_ID`、`SIGNPATH_PROJECT_SLUG`、`SIGNPATH_SIGNING_POLICY_SLUG`、`SIGNPATH_ARTIFACT_SLUG` | `AZURE_TENANT_ID`、`AZURE_CLIENT_ID`、`AZURE_CLIENT_SECRET`、`AZURE_TRUSTED_SIGNING_ENDPOINT`、`AZURE_TRUSTED_SIGNING_ACCOUNT`、`AZURE_CERTIFICATE_PROFILE`、`WINDOWS_PUBLISHER_NAME` |
-| 校验脚本 (`verify-windows-signature.ts`) | **相同** — 用 `signtool /pa /v` 校验，匹配 `WINDOWS_PUBLISHER_NAME` 环境变量 | **相同** |
-
-校验脚本和人工 VM 演练与具体路径无关。其它子任务在
-[`IMPLEMENTATION.zh-CN.md`](IMPLEMENTATION.zh-CN.md) 里都有 "Path A / Path B"
-分支说明。
+如果手工签名变成痛点（比如要每周热修发版），迁移路径是
+**SSL.com eSigner OV**（约 $250/年，REST API 全自动）。详见
+[IMPLEMENTATION.zh-CN.md §未来加固](IMPLEMENTATION.zh-CN.md#5-未来加固单独跟踪)。
 
 ## 子任务拆分
 
-整个工作明显**超过 20 分钟**（如果算上厂商审核，可能要几天）。
-下面的子任务按顺序排列，每个都可以独立合并、独立 review。
+| # | 子任务 | 操作内容 | 改代码？ | 耗时 | 详情 |
+|---|--------|----------|---------|------|------|
+| 1 | Certum 下单 | 在 shop.certum.eu 付 €189 | 否 | 15 分钟 | [CERTIFICATE-OPTIONS.zh-CN.md §怎么申请](CERTIFICATE-OPTIONS.zh-CN.md#certum-simplysign怎么申请) |
+| 2 | 提交身份验证材料 | 上传 ASIC、D-U-N-S、护照、地址证明 | 否 | 提交 30 分钟 + Certum 审核 3–7 天 | 同上 |
+| 3 | 装 SimplySign 手机 App + 桌面签名工具 | 在 Donghao 的手机和签名机 | 否 | 30 分钟 | [IMPLEMENTATION.zh-CN.md §0](IMPLEMENTATION.zh-CN.md#0-工具链准备) |
+| 4 | 改 `electron-builder` Windows 配置 | 从 `qcut/package.json` 删 signing-disable 标志 | 是 | 20 分钟 | [IMPLEMENTATION.zh-CN.md §1](IMPLEMENTATION.zh-CN.md#1-修改-electron-builder-windows-配置) |
+| 5 | 改 GitHub Actions 发布工作流 | CI 出未签名包，artifact 留给本地签 | 是 | 30 分钟 | [IMPLEMENTATION.zh-CN.md §2](IMPLEMENTATION.zh-CN.md#2-修改-github-actions-发布工作流) |
+| 6 | 加本地签名辅助脚本 | 新增 `qcut/scripts/sign-windows-release.ts` | 是 | 1 小时 | [IMPLEMENTATION.zh-CN.md §3](IMPLEMENTATION.zh-CN.md#3-加本地签名辅助脚本) |
+| 7 | 加签名后校验脚本 | 新增 `qcut/scripts/verify-windows-signature.ts` | 是 | 1 小时 | [IMPLEMENTATION.zh-CN.md §4](IMPLEMENTATION.zh-CN.md#4-加签名后的校验脚本) |
+| 8 | Windows 下载页加警告文案 | 解释 SmartScreen 首次运行体验 | 是（网站） | 30 分钟 | [DOCUMENTATION.zh-CN.md](DOCUMENTATION.zh-CN.md) |
+| 9 | 维护者文档 | 新增 `qcut/docs/setup/windows-code-signing.md` | 是（文档） | 45 分钟 | 同上 |
+| 10 | 测试 | 校验脚本 + workflow 守门 | 是 | 1 小时 | [TESTING.zh-CN.md](TESTING.zh-CN.md) |
+| 11 | 在干净 Windows VM 上做发布演练 | 人工验证 | 否 | 1 小时 | [IMPLEMENTATION.zh-CN.md §6](IMPLEMENTATION.zh-CN.md#6-在干净-windows-vm-上做发布演练) |
 
-| # | 子任务 | 操作内容 | 是否改代码 | 预估耗时 | 详细文件 |
-|---|--------|----------|-----------|----------|----------|
-| 1a | **申请 SignPath Foundation** | 提交开源项目申请 | 否 | 1–2 周（审核） | [CERTIFICATE-OPTIONS.zh-CN.md §SignPath](CERTIFICATE-OPTIONS.zh-CN.md#signpath-foundation怎么申请) |
-| 1b | Azure 采购 *（仅 1a 被拒时执行）* | 在 Azure 申请 Trusted Signing 身份 | 否 | 1–7 天 | [CERTIFICATE-OPTIONS.zh-CN.md §Azure](CERTIFICATE-OPTIONS.zh-CN.md#azure-trusted-signing采购步骤仅-fallback-时执行) |
-| 2 | 改 `electron-builder` Windows 配置 | 路径相关，编辑 `qcut/package.json` 的 `build.win` | 是 | 30 分钟 | [IMPLEMENTATION.zh-CN.md §A1 / §B1](IMPLEMENTATION.zh-CN.md) |
-| 3 | 改本地 `dist:win*` 脚本 | 删掉 `forceCodeSigning=false` 覆盖，保留一个未签名变体 | 是 | 20 分钟 | [IMPLEMENTATION.zh-CN.md §A2 / §B2](IMPLEMENTATION.zh-CN.md) |
-| 4 | 改发布工作流 | Path A：加 SignPath 提交步骤。Path B：删除 `--config.win.*=false`，注入 Azure secret。 | 是 | 30–60 分钟 | [IMPLEMENTATION.zh-CN.md §A3 / §B3](IMPLEMENTATION.zh-CN.md) |
-| 5 | 加构建后签名校验 | 新增脚本 + CI 步骤（与路径无关） | 是 | 1 小时 | [IMPLEMENTATION.zh-CN.md §4](IMPLEMENTATION.zh-CN.md#4-增加构建后签名校验共享) |
-| 6 | 文档 | 维护者签名设置指南 + 发布文档更新 | 是（文档） | 45 分钟 | [DOCUMENTATION.zh-CN.md](DOCUMENTATION.zh-CN.md) |
-| 7 | 测试 | 校验脚本单元测试 + 工作流 YAML 守门测试（路径相关） | 是 | 1 小时 | [TESTING.zh-CN.md](TESTING.zh-CN.md) |
-| 8 | 发布演练 | 推 `rc` tag，在干净 Windows VM 上验证签名 `.exe` | 否 | 1 小时 | [IMPLEMENTATION.zh-CN.md §5](IMPLEMENTATION.zh-CN.md#5-发布演练人工验证共享) |
-
-**工程总耗时（不含厂商审核）：两条路都是约 5 小时。**
+**工程总耗时：约 5 小时。墙上时间主要被 Certum 的 3–7 天身份审核占据。**
 
 ## 本方案会动到的文件
 
-下面是权威清单。**[A]** 仅 Path A，**[B]** 仅 Path B，**[共享]** 两条
-路都涉及。
-
 ### 需要修改
 
-- `qcut/package.json` — 第 84、86、88、89 行（`scripts` 块）和第
-  231–240 行（`build.win` 块）。
-  - **[A]** `build.win` 只把 `verifyUpdateCodeSignature` 改成 `true`；
-    `forceCodeSigning` 保持 `false`，因为 SignPath 在构建后才签。
-  - **[B]** 三个签名 flag 全部改成 `true`，并加 `azureSignOptions` 块。
-- `qcut/.github/workflows/release.yml` — 第 96 行 "Build Electron
-  application" 步骤和周边 env 块（约第 60–98 行）。
-  - **[A]** 删掉 `forceCodeSigning=false` 覆盖；在 build 之后加新的
-    "Submit signing request to SignPath" + "Download signed artifact"
-    步骤。
-  - **[B]** 删掉覆盖；给 build 步骤的 env 块加 Azure secret。
-- `qcut/docs/release.md` — 加一段签名前置条件说明（如果文件不存在，
-  新建）。
+- `qcut/package.json`
+  - 第 84、86、88、89 行（`scripts` 块） — 删 `forceCodeSigning=false` 覆盖
+  - 第 231–240 行（`build.win` 块） — 保持 `forceCodeSigning: false`，因为我们在 electron-builder **完成之后**手工本地签；把 `verifyUpdateCodeSignature` 改成 `true`
+- `qcut/.github/workflows/release.yml` — 第 96 行附近：删 `--config.win.*=false` 覆盖；说明签名在 CI 之后手工进行
+- `qcut/docs/release.md` — 加签名前置条件说明（不存在则新建）
 
 ### 需要新增
 
-- **[共享]** `qcut/scripts/verify-windows-signature.ts` — Bun/Node 包装
-  脚本，调用 `signtool verify /pa /v`，签名异常或发布者不匹配时退出
-  非零。
-- **[共享]** `qcut/scripts/__tests__/verify-windows-signature.test.ts` —
-  Vitest 单元测试。
-- **[共享]** `qcut/scripts/__tests__/package-json-signing.test.ts` —
-  `package.json` 形态守门（路径相关：能识别 Path A 或 Path B 配置）。
-- **[共享]** `qcut/scripts/__tests__/release-workflow-signing.test.ts` —
-  工作流 YAML 守门（路径相关）。
-- **[共享]** `qcut/docs/setup/windows-code-signing.md` — 维护者签名
-  设置指南。覆盖 Path A（SignPath）和 Path B（Azure）的凭据设置。
+- `qcut/scripts/sign-windows-release.ts` — 调 `signtool sign` 用 Certum SimplySign 云 HSM 身份的 wrapper；前提是 SimplySign 桌面工具已安装并已认证。
+- `qcut/scripts/verify-windows-signature.ts` — 跑 `signtool verify /pa /v`，签名缺失或发布者错时退出非零。
+- `qcut/scripts/__tests__/verify-windows-signature.test.ts` — Vitest 单测。
+- `qcut/scripts/__tests__/package-json-signing.test.ts` — `package.json` 形态守门。
+- `qcut/scripts/__tests__/release-workflow-signing.test.ts` — 工作流 YAML 守门。
+- `qcut/docs/setup/windows-code-signing.md` — 维护者签名设置指南。
 - `qcut/docs/task/windows-code-signing/` — 本目录。
 
 ### 故意不动
 
 - `qcut/build/icon.ico` — 图标保持原样。
 - `qcut/scripts/release.ts` — 发布编排脚本不需要知道签名细节。
-- `qcut/package.json` 的 `build.mac` 块 — macOS 签名是另一个独立任务
-  （目前 CI 里 macOS 也没真正签名；另开 issue 跟踪）。
+- `qcut/package.json` 的 `build.mac` 块 — macOS 签名是另一个任务。
 
 ## 风险与待定问题
 
-1. **SignPath 审核时间** — 一般 1–2 周。子任务 1a 必须*先于*工程改动
-   启动，否则会卡发布。
-2. **SignPath 拒绝路径** — 如果被拒，子任务 1b（Azure）还要再 1–7 天
-   等微软身份验证。发布节奏要据此规划。
-3. **SmartScreen 信誉滞后** — 即使签了名，*前几个*签名版本仍可能显示
-   "不常见的应用"警告，要等信誉积累。这条要写进面向用户的发布说明。
-4. **macOS / Linux 不受影响** — 本方案故意只覆盖 Windows。macOS *目前*
-   在 CI 里**也**没签名（`mac.identity` 和 Apple secret 都没配），是
-   独立的另一个任务。
-5. **证书续期**
-   - Path A：SignPath 自动轮换，不需要日历提醒。
-   - Path B：profile 自动轮换，但 Azure 订阅账单要设告警。
+1. **Certum 身份审核延迟。** 一般 3–7 个工作日。已有 D-U-N-S 会偏快一端。
+2. **SimplySign 桌面工具的平台支持。** Certum 官方支持 Windows。Mac/Linux 签名要么 VM 跑 Windows 工具，要么找替代方案。Donghao 目前主用 macOS — 上线前确认 SimplySign 工作流在他这边能跑通。
+3. **每次发布都要手机能用。** Donghao 要在 SimplySign App 上确认每次 `signtool` 操作。如果他离线（飞机、休假），就发不出签名包。缓解：证书签发后给 Certum 账号添加第二个团队成员。
+4. **SmartScreen 信誉不会立即生效。** 即使签了，新版本前 ~几百次下载仍会触发 SmartScreen。这在 2026 年是不可避免的（详见 [CERTIFICATE-OPTIONS.zh-CN.md §SmartScreen 信誉的现实](CERTIFICATE-OPTIONS.zh-CN.md#smartscreen-信誉的现实2026)）。缓解：在下载页加说明，告诉用户首次运行警告是预期的。
+5. **证书续期。** 460 天上限（2026 CA/B Forum 规则）。提前 60 天日历提醒。续期不保留任何东西 — 信誉本来就按文件 hash 算，且续期不影响已发布的旧版本（它们各自保留自己的信誉）。
+6. **macOS / Linux 不受影响。** 本方案故意只覆盖 Windows。macOS 在 CI 里**也**目前没签（没有 `mac.identity`，`release.yml` 没 Apple secret），跟踪在 [`docs/task/macos-code-signing/`](../macos-code-signing/)。
 
 ## 验收标准
 
-参考 issue 的验收标准，转化为可测的形式：
+参考 GitHub issue #289 验收，转化成可测形式：
 
 - [ ] `signtool verify /pa /v QCut*Setup*.exe` 在发布产物上退出 0。
-- [ ] `Get-AuthenticodeSignature` 报告 `Status: Valid`，
-      `SignerCertificate.Subject` 是预期发布者（SignPath 颁发或
-      Azure 颁发）。
-- [ ] `qcut/package.json` 的 `build.win` 是当前路径下的正确签名配置
-      （见上文路径决策表）。
-- [ ] CI 发布任务在签名失败时立即失败（不发布到 release）。
-- [ ] 在干净 Windows VM 上首次安装时，能看到经过验证的发布者名称。
+- [ ] `Get-AuthenticodeSignature` 报告 `Status: Valid`，`SignerCertificate.Subject` 包含 "Quriosity Pty Ltd"。
+- [ ] `qcut/package.json` 的 `build.win` 在 npm 脚本里不再有 `forceCodeSigning: false` 覆盖。
+- [ ] 在干净 Windows VM 上双击安装包，UAC 弹**蓝色** "Verified publisher: Quriosity Pty Ltd"（不再是黄色"Unknown publisher"）。
 - [ ] 维护者签名指南已发布在 `qcut/docs/setup/windows-code-signing.md`。
+- [ ] QCut 网站 Windows 下载页有一段说明，告诉用户首次运行的 SmartScreen 警告是正常的、怎么继续。
 
 ## 本方案不覆盖的部分
 
-- macOS 公证（notarization）相关改动。
-- Microsoft Store 提交（issue 提了将来可作为信誉补充，单独立 issue）。
-- 自动更新签名校验里 `electron-builder` 的
-  `verifyUpdateCodeSignature: true` 以外的额外校验。
+- macOS 公证相关改动（独立任务）。
+- Microsoft Store 提交（完全不同的证书路径；issue 提了将来可作为信誉补充）。
+- 自动更新签名校验里 `electron-builder` 的 `verifyUpdateCodeSignature: true` 以外的额外校验。
+- 迁移到完全自动化 CI 签名（SSL.com eSigner） — 在 Certum 手工流程跑通后单独跟踪。
