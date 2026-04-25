@@ -1,10 +1,17 @@
 # Windows 代码签名 — 测试方案
 
 测试只覆盖**我们自己拥有的**部分（校验脚本、工作流形态、`package.json`
-形态）。我们故意**不**单元测试 `signtool.exe` 本身，也不测试 Microsoft
-的签名服务 — 这些是集成层面的事，由
-[`IMPLEMENTATION.zh-CN.md §5`](IMPLEMENTATION.zh-CN.md#5-发布演练人工验证)
+形态）。我们故意**不**单元测试 `signtool.exe` 本身，也不测试 SignPath
+或 Microsoft 的签名服务 — 这些是集成层面的事，由
+[`IMPLEMENTATION.zh-CN.md §5`](IMPLEMENTATION.zh-CN.md#5-发布演练人工验证共享)
 里的发布演练步骤覆盖。
+
+> **路径相关：** 下面的测试 2 和测试 3 校验 `package.json` 和
+> `release.yml` 的形态。Path A（SignPath）与 Path B（Azure）的
+> *期望*形态不同。子任务 1 落地后，按所选路径写测试。下面骨架是
+> Path B 版本（因为是先写的）；Path A 版本断言相反的内容（例如
+> `azureSignOptions` **不应**存在；SignPath GitHub Action 步骤
+> **应**存在）。
 
 ## 测试清单
 

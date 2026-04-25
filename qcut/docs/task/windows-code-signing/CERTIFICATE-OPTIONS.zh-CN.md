@@ -1,87 +1,124 @@
 # 代码签名证书选型
 
-这就是用户提到的"license"。Authenticode 签名必须用商用证书，
+这就是用户提到的"license"。Authenticode 签名必须用受信任 CA 颁发的证书，
 自签证书没法满足 SmartScreen。
+
+> **重要背景（2026-04-25 通过看代码确认）：**
+> `qcut/LICENSE` 是 MIT 类许可证（"Permission is hereby granted, free of
+> charge…"），`qcut/package.json:308` 把自己描述成 "Open-source AI video
+> editor"。两者都满足 **SignPath Foundation** 免费签名计划的资格。本文档
+> 第一版漏了这条 — 现修正。
 
 ## 一句话推荐
 
-**Azure Trusted Signing — Public Trust 身份**。约 USD 10/月。
-最适合 CI 驱动的 Electron 发布流水线。issue #289 推荐的也是这条路。
+1. **先申请 [SignPath Foundation](https://signpath.io/foundation/) — 对开源项目免费，QCut 完全符合资格。** 审批一般 1–2 周。
+2. **如果 SignPath 拒绝（开源项目极少被拒，但有可能） → 退到 Azure Trusted Signing — Public Trust 身份，约 USD 10/月。**
 
-## 对比表
+我们故意**不**推荐 v1 走 DigiCert / Sectigo OV/EV。原因见下文。
 
-| 厂商 / 产品 | 价格（USD/年） | SmartScreen 暖机 | CI 友好？ | 验证方式 | 备注 |
-|------------|----------------|-------------------|-----------|----------|------|
-| **Azure Trusted Signing**（Public Trust） | ~$120（$10/月） | 普通（信誉随时间累积） | ✅ 通过 `azureSignOptions` 原生支持 | 组织或个人 | **推荐**。云端密钥，无 HSM，微软签发。 |
-| **Azure Trusted Signing**（Private Trust） | ~$120 | 不适用（仅内网） | ✅ | 组织 | 没用 — Private Trust 是给单租户内部业务系统用的。 |
-| **DigiCert OV** | $400–600 | 慢（数周到数月） | ⚠️ USB 令牌或 KSP | 组织 | 传统方案。OV = 组织验证。 |
-| **DigiCert EV** | $600–800 | **立即**有 SmartScreen 信誉 | ⚠️ 仅硬件令牌 / 云 HSM | 严格组织验证 | 用户体验最好，CI 集成最难。EV 私钥必须放在 FIPS HSM 里。 |
-| **Sectigo OV** | $200–400 | 慢 | ⚠️ 令牌 / KSP | 组织 | 便宜的 OV 选项。 |
-| **Sectigo EV** | $400–600 | 立即 | ⚠️ HSM | 严格 | 便宜的 EV 选项。 |
-| **SSL.com EV（eSigner）** | $300–500 | 立即 | ✅ 通过 REST API 用云 HSM | 严格 | 如果非 EV 不可，这个折中方案不错。 |
-| **GlobalSign OV/EV** | $250–700 | 慢 / 立即 | ⚠️ / ✅ | 组织 / 严格 | 与 DigiCert 差不多。 |
-| **自签证书** | $0 | 永远不被信任 | ✅ | 无 | **解决不了问题**，列在这里只是为了显式排除。 |
+## 行业对比
 
-## 为什么 QCut 选 Azure Trusted Signing
+| 厂商 / 产品 | 价格（USD/年） | 开源资格？ | SmartScreen 暖机 | CI 友好？ | 验证方式 | 备注 |
+|------------|----------------|------------|-------------------|-----------|----------|------|
+| **SignPath Foundation** | **$0** | ✅ 必须 | 普通 | ✅ 官方 GitHub Action | 人工开源认证 | **QCut 推荐方案。** Blender、OBS Studio、Inkscape、Krita、GIMP、KeePass、Notepad++、Audacity、ImHex 都用它。 |
+| **Azure Trusted Signing**（Public Trust） | ~$120（$10/月） | 不适用 | 普通 | ✅ 通过 `azureSignOptions` 原生支持 | 组织或个人 | 推荐的 fallback。 |
+| **DigiCert OV** | $400–600 | 否 | 慢（数周到数月） | ⚠️ USB 令牌或 KSP | 组织 | 传统方案，CI 不友好。 |
+| **DigiCert EV** | $600–800 | 否 | **立即** | ⚠️ 仅硬件令牌 / 云 HSM | 严格 | 用户体验最好，CI 集成最难。 |
+| **Sectigo OV** | $200–400 | 否 | 慢 | ⚠️ 令牌 / KSP | 组织 | 便宜的传统方案。 |
+| **Sectigo EV** | $400–600 | 否 | 立即 | ⚠️ HSM | 严格 | 便宜的 EV。 |
+| **SSL.com EV（eSigner）** | $300–500 | 否 | 立即 | ✅ 通过 REST API 用云 HSM | 严格 | EV 里 CI 集成最好的。 |
+| **自签证书** | $0 | — | 永远不被信任 | ✅ | 无 | **解决不了问题。** |
 
-1. **不用 USB 硬件令牌** — 硬件令牌没法插进 GitHub-hosted 的 Windows
-   runner。要用就得寄到自托管 runner（运维负担大），或者用云 HSM。
-   Trusted Signing 默认就是云 HSM。
-2. **`electron-builder` 一等支持** — `azureSignOptions` 有官方文档和
-   完整测试。
-3. **价格便宜** — 每月 10 美金远低于 DigiCert/Sectigo OV 的 400+/年，
-   更比 EV 的成本低很多。
-4. **微软直签** — 由微软根证书签发，SmartScreen 显示的发布者字符串
-   不会有第三方 CA 链相关的奇怪问题。
-5. **与 issue 一致** — issue #289 直接推荐了这条路线，跟 reporter 的
-   思路保持一致。
+## 为什么 QCut 选 SignPath Foundation
 
-## 什么时候考虑升级到 EV
+1. **QCut 完全符合资格。** MIT 许可证 + 公开 GitHub 仓库 + CI 驱动构建 =
+   完美贴合 SignPath Foundation 的资格画像。证据已在仓库里：
+   - `qcut/LICENSE` — MIT
+   - `qcut/.github/workflows/release.yml` — CI 构建链
+   - `qcut/package.json:308` — 自描述为 "Open-source AI video editor"
+2. **$0 vs $120/年。** 项目长期能省下持续支出。
+3. **行业验证过。** 几乎所有发布签名 Windows 构建的主要开源桌面应用都
+   用 SignPath Foundation：Blender、OBS Studio、Inkscape、Krita、GIMP、
+   KeePass、Notepad++、Audacity、ImHex 等。风险画像很清楚。
+4. **GitHub Actions 一等集成。** 官方提供
+   `signpath/github-action-submit-signing-request@v1`。
+5. **唯一的卡点是资格** — 实现复杂度跟 Azure 方案差不多。
 
-EV 证书带来**立即生效**的 SmartScreen 信誉。下面情况下值得升级：
+## 为什么 Azure Trusted Signing 是合适的 fallback
 
-- Trusted Signing 的初始版本下载量超过 1000 后还是会触发"不常见的应用"
-  警告；并且
-- 这些警告确实导致安装转化下降（需要"下载 → 首次启动"的 telemetry
-  数据来证实）。
+如果 SignPath 因为构建可复现性、治理或活跃度等原因拒绝 QCut，
+Azure Trusted Signing 仍然是次优解：
 
-如果将来要走 EV，**SSL.com eSigner** 是推荐供应商，因为它提供云签名
-REST API，不用自托管 runner 插 USB 令牌就能替换 `azureSignOptions`。
+1. **不用硬件令牌** — 云 HSM，能在 GitHub-hosted Windows runner 上跑。
+2. **`electron-builder` 一等支持**，通过 `azureSignOptions`。
+3. **商业方案里最便宜** — $10/月 比 DigiCert/Sectigo 便宜 $300+/年。
+4. **微软直签** — 由微软根证书签发。
 
-## 采购步骤（Azure Trusted Signing）
+## 为什么 v1 跳过 DigiCert / Sectigo / EV
 
-下面是工程子任务开始之前需要做的人工操作。
+- **OV 证书** — 必须把 USB 令牌寄到构建机，或额外付费用 KSP 托管签名
+  服务。对 CI 驱动的开源项目来说运维很麻烦。
+- **EV 证书** — 立即有 SmartScreen 信誉，但贵 4–8 倍而且必须用 FIPS
+  HSM。只有在已经签名后**仍然**有信誉问题时再考虑。
 
-1. 用 Quriosity 的组织账号登录
-   [Azure 门户](https://portal.azure.com)。
-2. 在支持 Trusted Signing 的区域（East US、West Central US 等）创建一个
-   **Trusted Signing Account** 资源。
-3. 创建一个 **Certificate Profile**，类型选 **Public Trust → Public Trust
-   Identity Validation**（组织证书）或 **Public Trust Individual
-   Validation**（个人证书）。
-4. 向微软提交身份验证材料。**这一步要 1–7 天**，要早做。
-5. 验证通过后，记下 `electron-builder` 需要的几个值：
-   - **Endpoint** — 例如 `https://eus.codesigning.azure.net/`
-   - **Code Signing Account Name** — 步骤 2 里 Trusted Signing 资源名。
-   - **Certificate Profile Name** — 步骤 3 里创建的 profile 名。
-   - **Publisher Name** — 准确的证书 subject CN，会在
-     `Get-AuthenticodeSignature` 里显示。必须与 Azure 颁发的证书 subject
-     完全一致。
-6. 创建一个**服务主体 (service principal)**，给它授予 Trusted Signing
-   资源上的 `Trusted Signing Certificate Profile Signer` 角色。记下：
+## SignPath Foundation：怎么申请
+
+1. **确认资格：**
+   - OSI 批准的许可证（MIT ✅，见 `qcut/LICENSE`）。
+   - 公开源代码仓库（✅，GitHub 上）。
+   - CI 驱动构建（✅，`qcut/.github/workflows/release.yml`）。
+   - 活跃开发（✅，master 上有近期提交）。
+2. **去 https://signpath.io/foundation/ 提交申请。**
+3. **提供资料：**
+   - 项目名：QCut
+   - 仓库 URL：https://github.com/Quriosity-agent/qcut
+   - 许可证位置：`qcut/LICENSE`（MIT）
+   - 构建流水线位置：`qcut/.github/workflows/release.yml`
+   - 维护者联系方式（例如 `support@qcut.app`，已在
+     `qcut/package.json:290` 出现）
+4. **等 1–2 周审核。** SignPath 可能追问构建可复现性、二进制信任链、
+   发布频率等问题。
+5. **批准后会拿到：**
+   - Organization ID（UUID）。
+   - Project slug（例如 `qcut`）。
+   - Signing policy slug（例如 `release-signing`）。
+   - Artifact configuration slug（例如 `qcut-installer`）。
+   - API Token — 存进 GitHub 仓库 secret `SIGNPATH_API_TOKEN`。
+
+SignPath 路径的实现细节见
+[`IMPLEMENTATION.zh-CN.md` Path A](IMPLEMENTATION.zh-CN.md#path-a-signpath推荐)。
+
+## Azure Trusted Signing：采购步骤（仅 fallback 时执行）
+
+只有 SignPath 拒绝 QCut 后才执行这一节。
+
+1. 用 Quriosity 的组织账号登录 [Azure 门户](https://portal.azure.com)。
+2. 在支持 Trusted Signing 的区域（East US、West Central US 等）创建
+   **Trusted Signing Account**。
+3. 创建 **Certificate Profile**，类型选 **Public Trust → Public Trust
+   Identity Validation**。
+4. 向微软提交身份验证材料。**1–7 天。**
+5. 记下 `electron-builder` 需要的几个值：
+   - Endpoint（例如 `https://eus.codesigning.azure.net/`）
+   - Code Signing Account Name
+   - Certificate Profile Name
+   - Publisher Name（subject CN，会在 `Get-AuthenticodeSignature` 里显示）
+6. 创建一个**服务主体**，授予 `Trusted Signing Certificate Profile
+   Signer` 角色。记下：
    - `AZURE_TENANT_ID`
    - `AZURE_CLIENT_ID`
-   - `AZURE_CLIENT_SECRET`（或者用 OIDC 联邦身份 — 长期更优，见下文）
+   - `AZURE_CLIENT_SECRET`（或用 OIDC 联邦身份 — 长期更优）
 
-## 长期优化：用 OIDC 联邦身份替代客户端密钥
+## 长期优化：用 OIDC 联邦身份替代客户端密钥（Azure 路径）
 
-要降低长期维护成本，建议给服务主体配置**联邦凭据 (federated credential)**，
-让 GitHub Actions 通过 OIDC 认证，这样 GitHub Secret 里就完全不用存
-`AZURE_CLIENT_SECRET`。这是基本流程跑通后的加固任务，跟踪在
+如果最终走 Azure 路径，建议给服务主体配置**联邦凭据**，让 GitHub
+Actions 通过 OIDC 认证，GitHub Secret 里完全不存
+`AZURE_CLIENT_SECRET`。跟踪在
 [`IMPLEMENTATION.zh-CN.md §6`](IMPLEMENTATION.zh-CN.md#6-后续加固单独跟踪)。
 
 ## 续期
 
-Trusted Signing 的 certificate profile 会自动轮换证书，没有年度续期任务。
-**Trusted Signing Account 本身**按月计费，是普通 Azure 资源 — 在订阅里
-设置一个账单告警就好。
+- **SignPath Foundation**：证书自动轮换，只要项目保持开源 + 活跃就
+  永久免费。
+- **Azure Trusted Signing**：profile 自动轮换；Trusted Signing Account
+  按月计费，是普通 Azure 资源 — 在订阅里设个账单告警。

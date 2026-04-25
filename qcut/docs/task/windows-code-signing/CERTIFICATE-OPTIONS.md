@@ -1,93 +1,133 @@
 # Code Signing Certificate Options
 
-This is the "license" the user flagged. Authenticode signing requires a
-commercial certificate; self-signed will not satisfy SmartScreen.
+## TL;DR
 
-## TL;DR recommendation
+**Recommended: [Certum SimplySign Standard Code Signing](https://shop.certum.eu/standard-code-signing-in-cloud.html) — Organization tier, ~USD 200/year (€189/year).**
 
-**Azure Trusted Signing — Public Trust identity.** ~USD 10/month. Best fit
-for a CI-driven Electron release pipeline. Issue #289 already proposes
-this path.
+Eligibility for QCut/Quriosity:
+- ✅ Available in Australia
+- ✅ No company-age requirement
+- ✅ Cloud-based (no USB token)
+- ⚠️ Each signing operation requires phone approval via SimplySign mobile app — semi-manual, not full CI automation. See [IMPLEMENTATION.md §architecture](IMPLEMENTATION.md#architecture-decision-where-signing-happens).
 
-## Comparison
+If full CI automation matters more than the ~$50/year savings: **Alternative: SSL.com eSigner OV — ~USD 250/year, REST API, fully automated.**
 
-| Vendor / Product | Cost (USD/yr) | SmartScreen warmup | CI-friendly? | Validation type | Notes |
-|------------------|---------------|--------------------|--------------|-----------------|-------|
-| **Azure Trusted Signing** (Public Trust) | ~$120 ($10/mo) | Standard (builds over time) | ✅ Native via `azureSignOptions` | Org or individual | **Recommended.** Cloud-resident keys, no HSM, MSFT-issued. |
-| **Azure Trusted Signing** (Private Trust) | ~$120 | N/A (internal only) | ✅ | Org | Not useful — Private Trust is for line-of-business apps inside one tenant. |
-| **DigiCert OV** | $400–600 | Slow (weeks–months) | ⚠️ Token shipping or KSP | Org | Traditional. OV = Organization Validation. |
-| **DigiCert EV** | $600–800 | **Instant** SmartScreen reputation | ⚠️ Hardware token / cloud HSM only | Strict org vetting | Best UX, hardest CI integration. EV keys must live in FIPS HSM. |
-| **Sectigo OV** | $200–400 | Slow | ⚠️ Token / KSP | Org | Cheaper OV option. |
-| **Sectigo EV** | $400–600 | Instant | ⚠️ HSM | Strict | Cheaper EV option. |
-| **SSL.com EV (eSigner)** | $300–500 | Instant | ✅ Cloud HSM via REST API | Strict | Good middle ground if EV reputation is required. |
-| **GlobalSign OV/EV** | $250–700 | Slow / Instant | ⚠️ / ✅ | Org / Strict | Comparable to DigiCert. |
-| **Self-signed** | $0 | Never trusted | ✅ | None | **Does not solve the issue.** Listed only to rule it out. |
+## Why every other option was ruled out
 
-## Why Azure Trusted Signing wins for QCut
+### ❌ Azure Trusted Signing (Microsoft Artifact Signing)
 
-1. **No hardware token** — Hardware tokens cannot be plugged into a
-   GitHub-hosted Windows runner. Either you ship the token to a self-hosted
-   runner (operational burden) or use a cloud HSM. Trusted Signing is cloud
-   HSM by default.
-2. **`electron-builder` first-class support** — `azureSignOptions` is
-   documented and tested.
-3. **Lower price floor** — $10/mo is significantly less than the $400+/yr
-   DigiCert/Sectigo OV options, and dramatically less than EV.
-4. **Microsoft-issued** — signed by a Microsoft root, so the publisher
-   string in SmartScreen is shown without third-party CA chain quirks.
-5. **Aligned with the issue** — issue #289 proposes this exact path; we
-   stay aligned with the reporter's mental model.
+Two **independent** blockers:
 
-## When to upgrade to EV later
+1. **Country eligibility.** Microsoft's official FAQ (Jan 2026): *"For Public Trust certificates, Artifact Signing is currently available to organizations in the USA, Canada, the European Union, and the United Kingdom."* Australia is not listed.
+2. **Organization age.** Microsoft requires *"at least three years of verifiable history."* Quriosity registered 2024-06-10; will not qualify until 2027-06-10.
 
-EV gives **instant** SmartScreen reputation. Worth the upgrade if:
+Microsoft Q&A confirms there is no exception process. Source: [Microsoft Artifact Signing FAQ](https://learn.microsoft.com/en-us/azure/artifact-signing/faq).
 
-- Initial Trusted Signing builds still trigger "less common app" warnings
-  beyond ~1,000 cumulative downloads, *and*
-- Those warnings demonstrably hurt install conversion (track via download
-  → first-launch telemetry, if available).
+### ❌ SignPath Foundation (free for OSS)
 
-If we go EV later, **SSL.com eSigner** is the recommended provider because
-it exposes a cloud-signing REST API that can replace `azureSignOptions`
-without requiring a self-hosted runner with a USB token.
+Requires the project to remain open-source under an OSI-approved license. QCut may close-source in the future. SignPath Foundation eligibility cannot be carried over to a closed-source project.
 
-## Procurement steps (Azure Trusted Signing)
+### ❌ SSL.com EV / DigiCert EV
 
-This is the manual, out-of-code work needed before any of the engineering
-subtasks can be merged.
+Pre-2024, EV certificates granted instant SmartScreen reputation — an EV-signed binary would show no warning even on first download. **Microsoft removed this in 2024** when they updated the Trusted Root Program requirements.
 
-1. Sign in to the [Azure portal](https://portal.azure.com) with the
-   Quriosity org account that will own the cert.
-2. Create a **Trusted Signing Account** resource in a region that supports
-   it (East US, West Central US, etc.).
-3. Create a **Certificate Profile** of type **Public Trust → Public Trust
-   Identity Validation** for an organization, or **Public Trust Individual
-   Validation** for a personal cert.
-4. Submit identity documents to Microsoft for validation. **This step takes
-   1–7 days.** Plan accordingly.
-5. Once validated, note the values needed by `electron-builder`:
-   - **Endpoint** — e.g. `https://eus.codesigning.azure.net/`
-   - **Code Signing Account Name** — the Trusted Signing Account resource name.
-   - **Certificate Profile Name** — the profile created in step 3.
-   - **Publisher Name** — exact subject CN that will appear in
-     `Get-AuthenticodeSignature`. Must match an Azure-issued cert subject.
-6. Create a **service principal** scoped to the Trusted Signing resource
-   with the `Trusted Signing Certificate Profile Signer` role. Capture:
-   - `AZURE_TENANT_ID`
-   - `AZURE_CLIENT_ID`
-   - `AZURE_CLIENT_SECRET` (or use OIDC federation — preferred long-term,
-     see below)
+As of 2026, OV and EV certificates are **functionally identical** for SmartScreen purposes — both must build reputation organically through download volume. The 2× price premium for EV is no longer justified.
 
-## Long-term: prefer OIDC federation over client secret
+Source: [Reputation with OV certificates and are EV certificates still the better option? — Microsoft Q&A](https://learn.microsoft.com/en-us/answers/questions/417016/reputation-with-ov-certificates-and-are-ev-certifi).
 
-For lower long-term maintenance, configure a **federated credential** on
-the service principal so GitHub Actions authenticates via OIDC and no
-`AZURE_CLIENT_SECRET` ever touches a GitHub secret. This is a follow-up
-hardening task once the basic flow works — track in
-[`IMPLEMENTATION.md §6`](IMPLEMENTATION.md#6-future-hardening).
+### ❌ Sectigo / DigiCert OV via traditional reseller (~$170–230/yr)
+
+Cheap on paper but most still require a USB hardware token. Hardware tokens cannot be plugged into GitHub-hosted Windows runners, and the operational cost of shipping/managing a token to a self-hosted runner outweighs the certificate savings.
+
+The cloud-based exceptions (DigiCert KeyLocker, SSL.com eSigner) are priced at $400+ for OV, well above Certum.
+
+## Industry comparison (April 2026)
+
+| Vendor | Cost (USD/yr) | CI automation | OSS-eligible | AU eligible | < 3yr eligible | Notes |
+|--------|---------------|----------------|--------------|-------------|----------------|-------|
+| **Certum SimplySign Standard** | **~$200** | ⚠️ Phone approval | ✅ ✅ | ✅ | ✅ | **Recommended for QCut.** Used by Inkdrop and many indie Electron projects. |
+| **SSL.com eSigner OV** | ~$200–250 | ✅ Full REST API | ✅ ✅ | ✅ | ✅ | Better CI fit, similar price. |
+| SSL.com eSigner EV | ~$350–500 | ✅ | ✅ ✅ | ✅ | ✅ | EV no longer worth premium since 2024. |
+| Sectigo OV (resellers) | $170–230 | ⚠️ USB token | ✅ ✅ | ✅ | ✅ | Hostile to GitHub-hosted CI. |
+| DigiCert OV/EV | $400–800 | ⚠️ USB / KSP | ✅ ✅ | ✅ | ✅ | Expensive, not justified. |
+| Azure Artifact Signing | $120 | ✅ | N/A | ❌ | ❌ | **Not available to Quriosity.** |
+| SignPath Foundation | $0 | ✅ | OSS-only | ✅ | ✅ | **Locks project to open-source.** |
+
+## What signing actually changes (vs. doesn't)
+
+Honest disclosure — signing does and doesn't fix specific things. Don't be misled by vendor marketing.
+
+### ✅ Immediate changes (the day you sign)
+
+- **UAC dialog**: yellow "Unknown publisher" → blue "Verified publisher: Quriosity Pty Ltd"
+- **Enterprise IT policies** that block unsigned executables now allow QCut
+- **Antivirus false-positive rate** drops significantly (Kaspersky, 360, Huorong, Avast, Defender heuristics)
+- **Browser download warnings** reduced
+- **winget / Chocolatey / scoop** package managers will accept QCut
+- **Auto-update integrity**: `electron-updater` can verify each update chains to the same publisher
+
+### 📈 Gradual changes (over hundreds–thousands of installs)
+
+- **SmartScreen "Windows protected your PC"** warning becomes less frequent, eventually disappears
+- Reputation accumulates per file hash AND (slowly) per publisher
+
+### ❌ Does NOT change
+
+- **Mark of the Web (MOTW)**: Windows still tags downloaded files. This is browser-side, not signature-side. Users may still see "Open File - Security Warning" dialogs.
+- **First few hundred installs may still trigger SmartScreen** — but with verified publisher name shown ("Quriosity Pty Ltd"), conversion improves significantly.
+- **User trust in unknown brands**: signing proves identity, not reputation. New companies still feel new.
+
+## SmartScreen reputation reality (2026)
+
+**Critical disclosure:** SmartScreen reputation is **per file hash**, not per certificate or per publisher. Each new build (v2026.5.0 → v2026.6.0) starts with zero reputation regardless of past releases.
+
+What this means in practice:
+
+- The very first user who downloads QCut v2026.6.0 will see a SmartScreen warning **even after we sign**.
+- Reputation builds as more users install and don't report problems.
+- After ~hundreds–thousands of installs without negative signals, the warning stops.
+- Frequent versioning resets reputation — release cadence affects this.
+
+### Mitigation strategies
+
+- Don't release for every minor change — batch fixes into versioned drops.
+- Encourage users to keep downloads in their cache (re-running same hash builds reputation).
+- Long-term established publishers do get less aggressive scanning, even on new hashes.
+- Add a Windows-download-page note explaining the warning is expected for new versions.
+
+## Pricing trends (2026 industry context)
+
+- **Effective March 2026:** CA/Browser Forum reduced max code-signing cert validity from 39 months to **460 days (~15 months)**. All issued certs from that date forward are bound to this limit. Renewal cadence is now annual, not multi-year.
+- **EV certificates lost their unique SmartScreen instant-reputation benefit in 2024.** OV and EV now behave identically for SmartScreen.
+- **Azure Trusted Signing eligibility was tightened in 2025** — narrowed to USA/Canada (with 3-year history), then expanded slightly to EU/UK. Australia and other geographies remain excluded as of 2026-Q1.
+- **Cloud-HSM signing** (no USB token) is now the indie default. Certum SimplySign, SSL.com eSigner, DigiCert KeyLocker all support this.
+
+## Certum SimplySign: how to apply
+
+1. **Order the cert** at https://shop.certum.eu/standard-code-signing-in-cloud.html.
+   - Type: Standard Code Signing **in Cloud** (NOT the USB version)
+   - Term: 1 year (max under 2026 CA/B rules)
+   - Validation: **Organization** (cert subject = "Quriosity Pty Ltd")
+2. **Provide identity documents** — Certum will email a list. Typical:
+   - Quriosity ASIC company registration (you have this)
+   - D-U-N-S Number 893394655 (significantly speeds up validation)
+   - Donghao's passport scan + utility bill (for Authorized Representative validation)
+   - Quriosity Pty Ltd address proof (lease agreement or recent utility for 452 Flinders St)
+3. **Identity verification.** Certum reviews documents (3–7 business days, faster with D-U-N-S already done).
+4. **Activate SimplySign account.** Certum emails activation link → installs SimplySign mobile app on Donghao's phone → desktop signing tool on his Mac/Windows machine.
+5. **Issued certificate** lives in Certum's cloud HSM. Each `signtool sign` operation prompts Donghao's phone for approval.
+
+Implementation against this credential setup is in [`IMPLEMENTATION.md`](IMPLEMENTATION.md).
 
 ## Renewal
 
-Trusted Signing certificate profiles auto-rotate certificates; no annual
-renewal task. The **Trusted Signing Account itself** is billed monthly as
-a regular Azure resource — set a billing alert in the Azure subscription.
+- **Annual** (15-month cap by CA/B Forum).
+- Set a calendar reminder 60 days before cert expiry.
+- Renewal does NOT preserve SmartScreen reputation (it's per file hash anyway, and renewing doesn't change builds you've already shipped — those keep their reputation).
+
+## Future migration paths
+
+If Certum's manual phone approval becomes a bottleneck:
+- **SSL.com eSigner OV** (~$50/year more) — fully automated CI signing via REST API.
+- **Wait for Azure eligibility** in 2027-06 (Quriosity hits 3 years) — may also depend on Microsoft expanding country list to AU.
+- **Move to EV later** if SmartScreen reputation never converges (unlikely now, since EV no longer instant).

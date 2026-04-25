@@ -8,7 +8,32 @@ not end users.
 ## New file: `qcut/docs/setup/windows-code-signing.md`
 
 **Audience:** anyone bringing up a new release runner, debugging a failing
-release, or rotating Azure credentials.
+release, or rotating signing credentials.
+
+**Path-aware:** the file should cover both Path A (SignPath Foundation,
+preferred) and Path B (Azure Trusted Signing, fallback). The deployed
+release stack uses exactly one — keep both sections so a future
+maintainer can switch paths if eligibility changes.
+
+### Path A — SignPath Foundation secrets
+
+Required GitHub Actions secrets / variables:
+
+| Name | Type | Source |
+|------|------|--------|
+| SIGNPATH_API_TOKEN | secret | SignPath user settings → API tokens |
+| SIGNPATH_ORGANIZATION_ID | variable | SignPath organization page (UUID) |
+| SIGNPATH_PROJECT_SLUG | variable | SignPath project page |
+| SIGNPATH_SIGNING_POLICY_SLUG | variable | SignPath project → Policies |
+| SIGNPATH_ARTIFACT_SLUG | variable | SignPath project → Artifact configurations |
+| WINDOWS_PUBLISHER_NAME | variable | Subject CN issued by SignPath |
+
+Local signing is **not supported** by SignPath Foundation — signing
+happens server-side via the GitHub Action. Maintainers needing a signed
+local build should ask SignPath about a manual signing flow or just use
+the CI artifact.
+
+### Path B — Azure Trusted Signing secrets
 
 **Outline:**
 

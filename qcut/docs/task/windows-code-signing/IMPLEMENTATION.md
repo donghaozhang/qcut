@@ -3,27 +3,36 @@
 Detailed engineering subtasks. Sequenced so each can be a single PR.
 File paths are relative to the repository root unless noted.
 
-> **Prerequisite:** Subtask 1 (cert procurement, see
-> [`CERTIFICATE-OPTIONS.md`](CERTIFICATE-OPTIONS.md)) is complete and the
-> following values are known and stored as GitHub Actions secrets:
-> `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`,
-> `AZURE_TRUSTED_SIGNING_ENDPOINT`, `AZURE_TRUSTED_SIGNING_ACCOUNT`,
-> `AZURE_CERTIFICATE_PROFILE`, `WINDOWS_PUBLISHER_NAME`.
+> **Pick the path before reading further.** Subtask 1 in
+> [`PLAN.md`](PLAN.md) decides between **Path A (SignPath, free, OSS)**
+> and **Path B (Azure Trusted Signing, paid, fallback)**. Sections §A*
+> apply to Path A, §B* to Path B, §4–§6 to both. Implement only one path.
 
 ---
 
-## 1. Update `electron-builder` Windows config
+## Path A — SignPath (recommended)
 
-**Files:** `qcut/package.json` (lines 231–240, the `build.win` block).
+**Prerequisite:** Subtask 1a complete and the following are stored as
+GitHub Actions secrets / variables:
 
-### Before
+- `SIGNPATH_API_TOKEN` (secret)
+- `SIGNPATH_ORGANIZATION_ID` (variable, UUID)
+- `SIGNPATH_PROJECT_SLUG` (variable, e.g. `qcut`)
+- `SIGNPATH_SIGNING_POLICY_SLUG` (variable, e.g. `release-signing`)
+- `SIGNPATH_ARTIFACT_SLUG` (variable, e.g. `qcut-installer`)
+- `WINDOWS_PUBLISHER_NAME` (variable, expected subject CN — SignPath
+  tells you this when the project is approved)
+
+### A1. Update `electron-builder` Windows config
+
+**File:** `qcut/package.json` (lines 231–240, the `build.win` block).
 
 ```json
 "win": {
   "target": "nsis",
   "icon": "build/icon.ico",
   "forceCodeSigning": false,
-  "verifyUpdateCodeSignature": false,
+  "verifyUpdateCodeSignature": true,
   "signAndEditExecutable": false,
   "requestedExecutionLevel": "asInvoker",
   "artifactName": "${productName}-Setup-${version}.${ext}",
@@ -31,7 +40,128 @@ File paths are relative to the repository root unless noted.
 }
 ```
 
-### After
+**Why these values for Path A:**
+
+- `forceCodeSigning: false` — SignPath signs **after** `electron-builder`
+  finishes, so the builder must not block on inline signing.
+- `verifyUpdateCodeSignature: true` — auto-updater still verifies that
+  future updates chain to the same publisher.
+- `signAndEditExecutable: false` — same reason as `forceCodeSigning`.
+  SignPath's signing policy can be configured to sign both the inner
+  `app.exe` and the installer wrapper; that happens server-side.
+
+### A2. Update local `dist:win*` npm scripts
+
+**File:** `qcut/package.json` (lines 84, 86, 88, 89).
+
+`forceCodeSigning=false` overrides should still be **removed** from
+`dist:win` and `dist:win:release` (they are redundant with the new
+config). `dist:win:unsigned` and `dist:win:fast` keep their explicit
+`forceCodeSigning=false` for clarity (those scripts deliberately produce
+unsigned artifacts for local dev).
+
+| Script | New value |
+|--------|-----------|
+| `dist:win` | `electron-builder --win --publish never` |
+| `dist:win:unsigned` | unchanged |
+| `dist:win:release` | `electron-builder --win --publish never && bun run verify:packaged-ffmpeg && bun run verify:packaged-aicp` (no `verify:windows-signature` here — that runs in CI **after** SignPath returns the signed artifact, see §A3) |
+| `dist:win:fast` | unchanged |
+
+Also add to the `scripts` block:
+
+```json
+"verify:windows-signature": "bun scripts/verify-windows-signature.ts"
+```
+
+(used by CI in §A3 step 3.)
+
+### A3. Update GitHub Actions release workflow
+
+**File:** `qcut/.github/workflows/release.yml` (Windows job, lines 56–108).
+
+**Step 1 — modify** "Build Electron application" (line 94–98) to drop
+the `forceCodeSigning=false` overrides:
+
+```yaml
+- name: Build Electron application
+  run: |
+    npx electron-builder --win --publish never --config.publish.channel=${{ needs.prepare.outputs.channel }}
+  env:
+    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**Step 2 — add** "Submit signing request to SignPath" after the build
+and **before** "Upload artifacts":
+
+```yaml
+- name: Upload unsigned artifact for signing
+  id: upload-unsigned
+  uses: actions/upload-artifact@v7
+  with:
+    name: windows-unsigned
+    path: qcut/dist-electron/QCut*Setup*.exe
+    if-no-files-found: error
+
+- name: Submit signing request to SignPath
+  id: signpath
+  uses: signpath/github-action-submit-signing-request@v1
+  with:
+    api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+    organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+    project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+    signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+    artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_SLUG }}
+    github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+    wait-for-completion: true
+    output-artifact-directory: qcut/dist-electron-signed
+
+- name: Replace unsigned artifact with signed
+  shell: pwsh
+  run: |
+    Remove-Item qcut/dist-electron/QCut*Setup*.exe
+    Move-Item qcut/dist-electron-signed/QCut*Setup*.exe qcut/dist-electron/
+```
+
+**Step 3 — add** signature verification (this is §4 below; same step on
+both paths):
+
+```yaml
+- name: Verify Windows signature
+  shell: pwsh
+  env:
+    WINDOWS_PUBLISHER_NAME: ${{ vars.WINDOWS_PUBLISHER_NAME }}
+  run: |
+    cd qcut
+    bun run verify:windows-signature
+```
+
+**Step 4 — modify** "Upload artifacts" (line 100) so it uploads the
+*signed* file (path is unchanged, since we moved the signed file to
+`dist-electron/`).
+
+> **Note on `latest.yml`:** `latest.yml` in `dist-electron/` was
+> generated by electron-builder against the *unsigned* file's hash.
+> After SignPath replaces the file, the SHA512 in `latest.yml` is wrong
+> and auto-update will reject the artifact. Fix: regenerate `latest.yml`
+> after the SignPath replace step. SignPath's docs cover this — common
+> approach is a small post-replace script that recomputes the SHA512 and
+> rewrites `latest.yml`. Track this as a separate sub-PR if it's not in
+> the official action by the time we implement.
+
+---
+
+## Path B — Azure Trusted Signing (fallback)
+
+**Prerequisite:** Subtask 1b complete and the following are GitHub
+Actions secrets / variables:
+
+- `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` (secrets)
+- `AZURE_TRUSTED_SIGNING_ENDPOINT`, `AZURE_TRUSTED_SIGNING_ACCOUNT`,
+  `AZURE_CERTIFICATE_PROFILE`, `WINDOWS_PUBLISHER_NAME` (variables)
+
+### B1. Update `electron-builder` Windows config
+
+**File:** `qcut/package.json` (lines 231–240).
 
 ```json
 "win": {
@@ -52,90 +182,34 @@ File paths are relative to the repository root unless noted.
 }
 ```
 
-### Why every flag matters
+**Why every flag matters:**
 
 - `forceCodeSigning: true` — fails the build if signing is misconfigured
-  instead of silently shipping unsigned bytes. Required by the issue's
-  acceptance criteria.
-- `verifyUpdateCodeSignature: true` — the auto-updater will refuse to
-  apply an update whose signature does not chain to the same publisher.
-  Defends against compromised update-server scenarios.
-- `signAndEditExecutable: true` — signs the `app.exe` inside the installer
-  too, not just the installer wrapper. Otherwise the *installed* app still
-  appears unsigned to the OS.
-- Values reference `${env.*}` so the same `package.json` works in CI and
-  locally without committing secrets.
+  instead of silently shipping unsigned bytes.
+- `verifyUpdateCodeSignature: true` — auto-updater refuses updates whose
+  signature doesn't chain to the same publisher.
+- `signAndEditExecutable: true` — signs the inner `app.exe` too.
+- `${env.*}` references keep secrets out of `package.json`.
 
-### Verification
+### B2. Update local `dist:win*` npm scripts
 
-- `bun check-types` — config is JSON, no type impact, but run anyway.
-- `cd qcut && npx electron-builder --help | grep -i azure` — confirm the
-  installed `electron-builder` version supports `azureSignOptions`.
+Same shape as §A2 but the unsigned scripts (`dist:win:unsigned`,
+`dist:win:fast`) are still useful for developers without Azure access.
 
----
+| Script | New value |
+|--------|-----------|
+| `dist:win` | `electron-builder --win --publish never` |
+| `dist:win:unsigned` | unchanged (keeps `forceCodeSigning=false` override for unsigned local dev) |
+| `dist:win:release` | `electron-builder --win --publish never && bun run verify:packaged-ffmpeg && bun run verify:packaged-aicp && bun run verify:windows-signature` |
+| `dist:win:fast` | unchanged |
 
-## 2. Update local `dist:win*` npm scripts
+Also add the `verify:windows-signature` script entry as in §A2.
 
-**File:** `qcut/package.json` (lines 84, 86, 88, 89).
+### B3. Update GitHub Actions release workflow
 
-The current scripts hard-code `--config.win.forceCodeSigning=false` and
-`--config.win.verifyUpdateCodeSignature=false`. Once subtask 1 lands,
-these overrides will *prevent* signing even on machines that have the
-Azure secrets exported.
+**File:** `qcut/.github/workflows/release.yml`.
 
-### Changes
-
-| Script | Old | New |
-|--------|-----|-----|
-| `dist:win` | `electron-builder --win --publish never -c.win.forceCodeSigning=false` | `electron-builder --win --publish never` |
-| `dist:win:unsigned` | (same as before) | **Keep as-is** — explicitly unsigned local-dev variant. Rename intent in script comment if helpful. |
-| `dist:win:release` | `electron-builder --win --publish never --config.win.forceCodeSigning=false --config.win.verifyUpdateCodeSignature=false && …` | `electron-builder --win --publish never && bun run verify:packaged-ffmpeg && bun run verify:packaged-aicp && bun run verify:windows-signature` |
-| `dist:win:fast` | `electron-builder --win --publish never --config.win.forceCodeSigning=false --config.compression=store --config.nsis.differentialPackage=false` | `electron-builder --win --publish never --config.win.forceCodeSigning=false --config.compression=store --config.nsis.differentialPackage=false` (**unchanged**) |
-
-### Rationale
-
-- `dist:win:unsigned` and `dist:win:fast` are deliberately kept unsigned —
-  developers without Azure access still need a way to build a working
-  installer for local smoke tests. They are not used by the release
-  pipeline.
-- `dist:win:release` is the canonical signed release script; it now runs
-  the new `verify:windows-signature` script (added in subtask 5) as a
-  belt-and-braces check.
-- Script `verify:windows-signature` will be added in `package.json`
-  `scripts` block alongside the other `verify:*` entries:
-
-```json
-"verify:windows-signature": "bun scripts/verify-windows-signature.ts"
-```
-
-### Verification
-
-- Run `cd qcut && bun run dist:win:unsigned` on a Windows machine — should
-  still produce an unsigned installer for local dev.
-- Run `cd qcut && bun run dist:win:release` with Azure secrets exported —
-  should produce a signed installer and exit 0.
-
----
-
-## 3. Update GitHub Actions release workflow
-
-**File:** `qcut/.github/workflows/release.yml` (Windows job, lines 56–108).
-
-### Changes
-
-Step "Build Electron application" at line 94–98:
-
-**Before:**
-
-```yaml
-- name: Build Electron application
-  run: |
-    npx electron-builder --win --publish never --config.win.forceCodeSigning=false --config.win.verifyUpdateCodeSignature=false --config.publish.channel=${{ needs.prepare.outputs.channel }}
-  env:
-    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-**After:**
+Modify "Build Electron application" (line 94–98):
 
 ```yaml
 - name: Build Electron application
@@ -146,45 +220,22 @@ Step "Build Electron application" at line 94–98:
     AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
     AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
     AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-    AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
-    AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
-    AZURE_CERTIFICATE_PROFILE: ${{ secrets.AZURE_CERTIFICATE_PROFILE }}
-    WINDOWS_PUBLISHER_NAME: ${{ secrets.WINDOWS_PUBLISHER_NAME }}
+    AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ vars.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+    AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ vars.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+    AZURE_CERTIFICATE_PROFILE: ${{ vars.AZURE_CERTIFICATE_PROFILE }}
+    WINDOWS_PUBLISHER_NAME: ${{ vars.WINDOWS_PUBLISHER_NAME }}
 ```
 
-Add a new step **after** "Build Electron application" and **before**
-"Upload artifacts":
+Add the verification step (same as §A3 step 3) **after** build, **before**
+"Upload artifacts".
 
-```yaml
-- name: Verify Windows signature
-  shell: pwsh
-  run: |
-    cd qcut
-    bun run verify:windows-signature
-```
-
-### Why a separate verify step
-
-`forceCodeSigning: true` already aborts the build on signing failure, but
-a separate verify step:
-
-1. Runs `signtool verify /pa /v` against the *final* artifact path that
-   uploads to the release — catches any post-build mutation.
-2. Produces explicit log output that humans (and `prtaskit`) can scan
-   when investigating "why is this release showing unknown publisher" in
-   the future.
-3. Costs ~2 seconds; the value-to-cost ratio is excellent.
-
-### Verification
-
-- `actionlint qcut/.github/workflows/release.yml` (or
-  `npx @action-validator/cli`) — YAML syntax + secret-reference sanity.
-- Tag a `vX.Y.Z-rc.1` release and watch the workflow — signing should
-  succeed, the verify step should print `Successfully verified`.
+`latest.yml` is correct out of the box because signing is inline.
 
 ---
 
-## 4. Add post-build signature verification
+## 4. Add post-build signature verification (shared)
+
+Path-agnostic. Used by both Path A and Path B.
 
 **New files:**
 
@@ -196,16 +247,15 @@ a separate verify step:
 
 1. Locate the release artifact (`qcut/dist-electron/QCut*Setup*.exe`,
    first match by mtime).
-2. On Windows, run `signtool verify /pa /v <path>`. On non-Windows, run
-   `osslsigncode verify <path>` if available; otherwise log a warning
-   and exit 0 (the script is only authoritative on Windows runners).
+2. On Windows, run `signtool verify /pa /v <path>`. On non-Windows,
+   warn-and-skip (the script is only authoritative on Windows runners).
 3. Parse output. Require:
    - Exit code 0.
    - Subject CN matches `process.env.WINDOWS_PUBLISHER_NAME` if set.
 4. Exit non-zero with a clear message on failure.
 5. No silent fallbacks. If the artifact does not exist, fail loudly.
 
-### Sketch (final code lives in the new file)
+### Sketch
 
 ```ts
 // qcut/scripts/verify-windows-signature.ts
@@ -255,20 +305,13 @@ console.log("[verify-windows-signature] OK");
 ### Why a `.ts` script (not a raw `.ps1`)
 
 - Matches existing convention — see `qcut/scripts/verify-packaged-ffmpeg.ts`
-  and `qcut/scripts/verify-packaged-aicp.ts`.
-- Easier to unit test (Vitest can mock `child_process`).
-- Cross-platform-safe: it can no-op on macOS/Linux dev machines without
-  blowing up the script chain in `dist:win:release`.
-
-### Verification
-
-- `cd qcut && bun run verify:windows-signature` after a signed local
-  build → exits 0.
-- Same command after a `dist:win:unsigned` build → exits non-zero.
+  and `qcut/scripts/verify-packaged-aicp.ts` (both confirmed present).
+- Easier to unit-test (Vitest can mock `child_process`).
+- Cross-platform-safe: no-ops on macOS/Linux dev machines.
 
 ---
 
-## 5. Dry-run release & manual verification
+## 5. Dry-run release & manual verification (shared)
 
 Manual smoke test on a clean Windows VM (no developer tools, fresh
 profile):
@@ -298,16 +341,17 @@ the workflow change and investigate.
 
 Out of scope for the v1 implementation but worth filing follow-up issues:
 
-- **OIDC federation for Azure auth** — replace `AZURE_CLIENT_SECRET` in
-  GitHub Actions with `azure/login@v2` + workload identity federation. No
-  rotating secrets to manage. See
-  [`CERTIFICATE-OPTIONS.md`](CERTIFICATE-OPTIONS.md) §"Long-term: prefer
-  OIDC federation".
+- **(Path B only) OIDC federation for Azure auth** — replace
+  `AZURE_CLIENT_SECRET` with `azure/login@v2` + workload identity
+  federation. No rotating secrets to manage.
+- **(Path A only) `latest.yml` integrity** — once SignPath replaces the
+  signed installer, ensure `latest.yml` SHA512 is recomputed before
+  upload, or auto-update will reject the artifact.
 - **EV cert evaluation** — six months after v1 ships, review SmartScreen
-  warning rate and decide whether to upgrade to EV (see
-  [`CERTIFICATE-OPTIONS.md`](CERTIFICATE-OPTIONS.md)).
+  warning rate and decide whether to upgrade to EV.
 - **Microsoft Store distribution** — separate channel, separate
   certificate, separate review process. Issue #289 mentions it as a
   reputation booster but it is not part of this plan.
-- **Reproducible artifacts** — sign-in-place vs. sign-then-archive can
-  affect reproducibility; revisit if QCut adopts SLSA-style attestations.
+- **macOS signing** — currently *also* unconfigured in CI (no
+  `mac.identity`, no Apple secrets in `release.yml`). File a separate
+  task; do not bundle with the Windows work.

@@ -1,10 +1,19 @@
 # Windows Code Signing — Testing
 
 Tests must cover the parts of the implementation we own (the verifier
-script, the workflow shape, the package.json shape). We deliberately do
-**not** unit-test `signtool.exe` itself or Microsoft's signing service —
-those are integration concerns covered by the dry-run release step in
-[`IMPLEMENTATION.md §5`](IMPLEMENTATION.md#5-dry-run-release--manual-verification).
+script, the workflow shape, the `package.json` shape). We deliberately do
+**not** unit-test `signtool.exe` itself, SignPath's service, or
+Microsoft's signing service — those are integration concerns covered by
+the dry-run release step in
+[`IMPLEMENTATION.md §5`](IMPLEMENTATION.md#5-dry-run-release--manual-verification-shared).
+
+> **Path-aware:** Tests 2 and 3 below validate the `package.json` and
+> `release.yml` shapes. Their *expected* shape differs between Path A
+> (SignPath) and Path B (Azure). Once Subtask 1 lands, write the tests
+> against the shape of the chosen path. The skeletons below show the
+> Path B variants because they were authored first; Path A variants
+> assert the inverse (e.g. `azureSignOptions` should NOT exist; the
+> SignPath GitHub Action step SHOULD exist).
 
 ## Test inventory
 

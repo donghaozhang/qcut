@@ -6,8 +6,31 @@
 
 ## 新增文件：`qcut/docs/setup/windows-code-signing.md`
 
-**读者：** 任何要搭建一台新的发布机、排查发布失败、或轮换 Azure 密钥
+**读者：** 任何要搭建一台新的发布机、排查发布失败、或轮换签名凭据
 的人。
+
+**路径相关：** 文档要同时覆盖 Path A（SignPath Foundation，首选）
+和 Path B（Azure Trusted Signing，fallback）。线上发布栈只用其中一条，
+但两节都保留，方便将来维护者在资格变化时切换。
+
+### Path A — SignPath Foundation 凭据
+
+需要的 GitHub Actions secret / variable：
+
+| 名称 | 类型 | 来源 |
+|------|------|------|
+| SIGNPATH_API_TOKEN | secret | SignPath 用户设置 → API tokens |
+| SIGNPATH_ORGANIZATION_ID | variable | SignPath 组织页（UUID） |
+| SIGNPATH_PROJECT_SLUG | variable | SignPath 项目页 |
+| SIGNPATH_SIGNING_POLICY_SLUG | variable | SignPath 项目 → Policies |
+| SIGNPATH_ARTIFACT_SLUG | variable | SignPath 项目 → Artifact configurations |
+| WINDOWS_PUBLISHER_NAME | variable | SignPath 颁发的 subject CN |
+
+SignPath Foundation **不支持本地签名** — 签名发生在服务端，通过
+GitHub Action 完成。需要本地签名构建的维护者要么向 SignPath 申请
+人工签名流程，要么直接用 CI 产物。
+
+### Path B — Azure Trusted Signing 凭据
 
 **大纲：**
 
