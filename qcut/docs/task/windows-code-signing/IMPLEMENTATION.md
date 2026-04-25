@@ -313,7 +313,7 @@ This script runs in two places:
 
 ## 5. Future hardening (track separately)
 
-- **Migrate to SSL.com eSigner OV** if manual signing becomes a bottleneck. Adds full CI automation; adds ~$50/year.
+- **Migrate to SSL.com eSigner OV** if manual signing becomes a bottleneck. Adds full CI automation. Adds **~$220+/year** ($239/year cert + $200–240/year eSigner Cloud Signing subscription, dual cost — earlier drafts erroneously claimed "~$50 more"). Justified only at >1 release/week — at QCut's current cadence the manual phone-approval cost is ~minutes/year, not worth $220.
 - **Add team member to Certum account** so signing is not blocked when Donghao is offline.
 - **Reputation acceleration**: keep release frequency moderate (don't release weekly), encourage downloads to flow through stable URLs that aggregate hash reputation faster.
 - **Re-evaluate Azure Artifact Signing in 2027-06** once Quriosity hits 3-year mark — and if Microsoft has expanded country eligibility to AU. If both are true, $120/year + full CI automation makes Azure attractive again.

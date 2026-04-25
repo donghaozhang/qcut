@@ -10,7 +10,9 @@ QCut/Quriosity 资格情况：
 - ✅ 云签名（不需要 USB token）
 - ⚠️ 每次签名都需要在 SimplySign 手机 App 上点确认 — 半手工，**不能完全自动化 CI**。详见 [IMPLEMENTATION.zh-CN.md §架构决策](IMPLEMENTATION.zh-CN.md#架构决策签名在哪里发生)
 
-如果完全自动化 CI 比省 ~$50/年更重要：**备选：SSL.com eSigner OV — 约 USD 250/年，REST API，全自动化。**
+如果完全自动化 CI 比 **~$220/年的差价**更重要：**备选：SSL.com eSigner OV — 约 USD 439–479/年（$239 证书 + $200–240/年 eSigner 订阅），REST API，全自动化。**
+
+> **定价真相（2026-04-25 在 SSL.com 结账页核实）：** SSL.com 是**双重收费**产品，不是单一价格。证书本身 $239/年，但云签名要另外订阅 `eSigner`（Tier 1：$20/月 或 $200/年，20 次签名/月）。很多二手来源只报证书价格，漏掉 eSigner 订阅费 — 本文档早期草稿也犯了同样的错。
 
 ## 其它路径为什么被排除
 
@@ -53,8 +55,8 @@ GitHub-hosted Windows runner 上，自托管 + 寄送/管理 token 的运维成�
 | 厂商 | 价格（USD/年） | CI 自动化 | 开源资格 | 澳洲可买 | 新公司可买 | 备注 |
 |------|---------------|-----------|---------|---------|----------|------|
 | **Certum SimplySign Standard** | **~$200** | ⚠️ 手机确认 | ✅ ✅ | ✅ | ✅ | **QCut 推荐**。Inkdrop 等大量 indie Electron 项目都用。 |
-| **SSL.com eSigner OV** | ~$200–250 | ✅ REST API | ✅ ✅ | ✅ | ✅ | CI 集成更好，价格类似。 |
-| SSL.com eSigner EV | ~$350–500 | ✅ | ✅ ✅ | ✅ | ✅ | EV 自 2024 起不再值溢价。 |
+| **SSL.com eSigner OV** | **~$439–479**（$239 证书 + $200–240 eSigner 订阅） | ✅ REST API | ✅ ✅ | ✅ | ✅ | 全自动 CI，但**比 Certum 贵 ~2 倍**。双重收费（证书 + 强制 eSigner 订阅）在结账前不明显。 |
+| SSL.com eSigner EV | ~$590–740（$350–500 证书 + $200–240 eSigner 订阅） | ✅ | ✅ ✅ | ✅ | ✅ | EV 自 2024 起不再值溢价。 |
 | Sectigo OV（分销商） | $170–230 | ⚠️ USB token | ✅ ✅ | ✅ | ✅ | 不友好 GitHub-hosted CI。 |
 | DigiCert OV/EV | $400–800 | ⚠️ USB / KSP | ✅ ✅ | ✅ | ✅ | 贵，没必要。 |
 | Azure Artifact Signing | $120 | ✅ | 不适用 | ❌ | ❌ | **Quriosity 不能买。** |
@@ -135,6 +137,6 @@ GitHub-hosted Windows runner 上，自托管 + 寄送/管理 token 的运维成�
 ## 未来迁移路径
 
 如果 Certum 的手机确认变成瓶颈：
-- **SSL.com eSigner OV**（每年多 ~$50） — REST API 全自动化 CI 签名。
-- **等到 Azure 资格满足** 2027-06（Quriosity 满 3 年）— 还要看微软是否扩大国家名单到澳洲。
+- **SSL.com eSigner OV**（每年多 ~$220+，详见对比表的双重收费结构） — REST API 全自动化 CI 签名。**只在高频发版（每周 1 次以上）时值得**；低频下手动确认每年总成本只有几分钟，省不下 $220。
+- **等到 Azure 资格满足** 2027-06（Quriosity 满 3 年）— 还要看微软是否扩大国家名单到澳洲。如果都满足，$120/年 + 全自动 CI，Azure 完胜。
 - **以后再升 EV** — 如果 SmartScreen 信誉死活积累不上去（不太可能，因为 EV 现在也不立即了）。

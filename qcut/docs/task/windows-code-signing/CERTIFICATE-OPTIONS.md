@@ -10,7 +10,9 @@ Eligibility for QCut/Quriosity:
 - ✅ Cloud-based (no USB token)
 - ⚠️ Each signing operation requires phone approval via SimplySign mobile app — semi-manual, not full CI automation. See [IMPLEMENTATION.md §architecture](IMPLEMENTATION.md#architecture-decision-where-signing-happens).
 
-If full CI automation matters more than the ~$50/year savings: **Alternative: SSL.com eSigner OV — ~USD 250/year, REST API, fully automated.**
+If full CI automation matters more than the **~$220/year cost difference**: **Alternative: SSL.com eSigner OV — ~USD 439–479/year ($239 cert + $200–240/year eSigner subscription), REST API, fully automated.**
+
+> **Pricing reality (verified 2026-04-25 by viewing SSL.com checkout):** SSL.com is a **dual-cost** product, not a single price. The cert itself is $239/year, but cloud signing requires a separate `eSigner` subscription (Tier 1: $20/mo or $200/year for 20 signings/month). Many secondhand sources only quote the cert price and miss the eSigner fee — earlier drafts of this document made the same mistake.
 
 ## Why every other option was ruled out
 
@@ -46,8 +48,8 @@ The cloud-based exceptions (DigiCert KeyLocker, SSL.com eSigner) are priced at $
 | Vendor | Cost (USD/yr) | CI automation | OSS-eligible | AU eligible | < 3yr eligible | Notes |
 |--------|---------------|----------------|--------------|-------------|----------------|-------|
 | **Certum SimplySign Standard** | **~$200** | ⚠️ Phone approval | ✅ ✅ | ✅ | ✅ | **Recommended for QCut.** Used by Inkdrop and many indie Electron projects. |
-| **SSL.com eSigner OV** | ~$200–250 | ✅ Full REST API | ✅ ✅ | ✅ | ✅ | Better CI fit, similar price. |
-| SSL.com eSigner EV | ~$350–500 | ✅ | ✅ ✅ | ✅ | ✅ | EV no longer worth premium since 2024. |
+| **SSL.com eSigner OV** | **~$439–479** ($239 cert + $200–240 eSigner sub) | ✅ Full REST API | ✅ ✅ | ✅ | ✅ | Full CI automation, but **~2× Certum's price**. Dual-cost structure (cert + mandatory eSigner subscription) is not obvious until checkout. |
+| SSL.com eSigner EV | ~$590–740 ($350–500 cert + $200–240 eSigner sub) | ✅ | ✅ ✅ | ✅ | ✅ | EV no longer worth premium since 2024. |
 | Sectigo OV (resellers) | $170–230 | ⚠️ USB token | ✅ ✅ | ✅ | ✅ | Hostile to GitHub-hosted CI. |
 | DigiCert OV/EV | $400–800 | ⚠️ USB / KSP | ✅ ✅ | ✅ | ✅ | Expensive, not justified. |
 | Azure Artifact Signing | $120 | ✅ | N/A | ❌ | ❌ | **Not available to Quriosity.** |
@@ -128,6 +130,6 @@ Implementation against this credential setup is in [`IMPLEMENTATION.md`](IMPLEME
 ## Future migration paths
 
 If Certum's manual phone approval becomes a bottleneck:
-- **SSL.com eSigner OV** (~$50/year more) — fully automated CI signing via REST API.
-- **Wait for Azure eligibility** in 2027-06 (Quriosity hits 3 years) — may also depend on Microsoft expanding country list to AU.
+- **SSL.com eSigner OV** (~$220+/year more — see comparison table for actual dual-cost structure) — fully automated CI signing via REST API. Worth it only at high release frequency (>1×/week); below that, the manual phone-approval cost is ~minutes/year and not worth $220.
+- **Wait for Azure eligibility** in 2027-06 (Quriosity hits 3 years) — may also depend on Microsoft expanding country list to AU. If both clear, $120/year + full CI automation makes Azure a clear winner.
 - **Move to EV later** if SmartScreen reputation never converges (unlikely now, since EV no longer instant).

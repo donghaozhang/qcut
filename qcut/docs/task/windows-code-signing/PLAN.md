@@ -33,7 +33,7 @@ incompatible. The team has elected to buy a commercial certificate.
 - **Why this and not others:** see [CERTIFICATE-OPTIONS.md](CERTIFICATE-OPTIONS.md). Short version: Azure unavailable (country + age), SignPath OSS-only, EV no longer worth premium since 2024, Sectigo/DigiCert OV needs USB token.
 - **Tradeoff to accept:** Each `signtool sign` operation prompts Donghao's phone via SimplySign mobile app for approval. Releases are no longer fully unattended — the signing step is manual, taking ~30 seconds of human input per release.
 
-If signing-step manual overhead becomes painful (e.g. weekly hotfix releases), the migration path is **SSL.com eSigner OV** (~$250/year, full REST API automation). See [IMPLEMENTATION.md §future hardening](IMPLEMENTATION.md#5-future-hardening-track-separately).
+If signing-step manual overhead becomes painful (e.g. weekly hotfix releases), the migration path is **SSL.com eSigner OV** (~$439–479/year — that is *$239 cert + $200–240/year eSigner subscription*; the second cost surprised earlier drafts). At QCut's current ~monthly release cadence, the manual phone-approval cost is ~minutes/year and not worth the ~$220+ Certum-vs-SSL.com price gap. See [IMPLEMENTATION.md §future hardening](IMPLEMENTATION.md#5-future-hardening-track-separately).
 
 ## Subtask map
 

@@ -307,7 +307,7 @@ console.log("[verify-windows-signature] OK");
 
 ## 5. 未来加固（单独跟踪）
 
-- **迁移到 SSL.com eSigner OV** — 如果手工签名变成瓶颈。完全自动化 CI；每年多 ~$50。
+- **迁移到 SSL.com eSigner OV** — 如果手工签名变成瓶颈。完全自动化 CI。每年多 **~$220+**（$239/年证书 + $200–240/年 eSigner Cloud Signing 订阅，双重收费 — 之前草稿错估 "~$50 更多"）。只有每周发版 1 次以上才值得 — QCut 当前节奏下，手机确认每年只占几分钟，不值 $220。
 - **给 Certum 账号加第二个团队成员**，避免 Donghao 离线时签不了。
 - **加快信誉积累**：发布频率别太高（不要每周发版），让下载尽量走稳定 URL，加速 hash 信誉积累。
 - **2027-06 重新评估 Azure Artifact Signing** — Quriosity 满 3 年时，看微软是否扩大了国家资格到澳洲。如果两个条件都满足，$120/年 + 全自动 CI 让 Azure 重新有吸引力。

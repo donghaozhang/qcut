@@ -40,7 +40,8 @@ QCut 之后可能闭源，免费/仅开源路径（SignPath Foundation）不兼�
   每次发布需要约 30 秒人工确认。
 
 如果手工签名变成痛点（比如要每周热修发版），迁移路径是
-**SSL.com eSigner OV**（约 $250/年，REST API 全自动）。详见
+**SSL.com eSigner OV**（约 $439–479/年 — 即 *$239 证书 + $200–240/年 eSigner 订阅*；第二笔费用之前的草稿都漏了）。
+按 QCut 当前约每月一次的发版节奏，手工确认成本一年只有几分钟，不值 ~$220+ 的 Certum vs SSL.com 价差。详见
 [IMPLEMENTATION.zh-CN.md §未来加固](IMPLEMENTATION.zh-CN.md#5-未来加固单独跟踪)。
 
 ## 子任务拆分
