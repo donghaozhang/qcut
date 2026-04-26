@@ -8,6 +8,16 @@ service, or Microsoft's SmartScreen — those are integration concerns
 covered by the dry-run release in
 [`IMPLEMENTATION.md §6`](IMPLEMENTATION.md#6-dry-run-release-on-clean-windows-vm).
 
+> ⚠️ **Pair these tests with the IMPLEMENTATION.md changes — do not land
+> them independently.** Today `qcut/package.json` ships with
+> `build.win.verifyUpdateCodeSignature: false` and the `dist:win:*` scripts
+> pass `--config.win.verifyUpdateCodeSignature=false`, and the `sign:win` /
+> `verify:win-signature` scripts do not yet exist. The assertions below
+> describe the **post-pivot end state** that the IMPLEMENTATION.md PR flips
+> on. If you add these test files in a separate PR before the package.json
+> and scripts are updated, Tests 3 and 4 will fail by design and block
+> unrelated CI runs.
+
 ## Test inventory
 
 | # | Type | File path | What it covers |

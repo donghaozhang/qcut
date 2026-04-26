@@ -34,11 +34,17 @@ failing release, or rotating Apple credentials.
 With cert in your local keychain and env vars set:
 
 \`\`\`bash
-APPLE_ID="apple-dev@qcut.app" \
+cd qcut && \
+  APPLE_ID="apple-dev@qcut.app" \
   APPLE_APP_SPECIFIC_PASSWORD="..." \
   APPLE_TEAM_ID="ABCDE12345" \
-  cd qcut && bun run dist:mac
+  bun run dist:mac
 \`\`\`
+
+> Bash applies the `VAR=value` prefix only to the **first** command in the
+> chain. Putting the assignments before `cd qcut && bun run dist:mac` would
+> scope them to `cd` and lose them by the time `bun run` starts — keep the
+> assignments after the `&&` so they reach `bun run dist:mac`.
 
 If the cert is NOT in your keychain, also set CSC_LINK + CSC_KEY_PASSWORD.
 

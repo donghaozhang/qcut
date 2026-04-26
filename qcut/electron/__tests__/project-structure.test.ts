@@ -44,6 +44,7 @@ vi.mock("fs", async (importOriginal) => {
 import {
 	REQUIRED_PROJECT_FOLDERS,
 	ensureProjectStructure,
+	getProjectRoot,
 	getProjectsBasePath,
 	isExistingDirectory,
 	sanitizePathComponent,
@@ -103,6 +104,25 @@ describe("validatePathWithinBase", () => {
 			validatePathWithinBase(path.resolve(base, "..", "..", "etc"), base)
 		).toThrow(/Path traversal/);
 	});
+});
+
+// ============================================================================
+// getProjectRoot — reject IDs that sanitize to empty
+// ============================================================================
+
+describe("getProjectRoot", () => {
+	it("resolves a valid project ID under the base", () => {
+		expect(getProjectRoot("proj-1")).toBe(
+			path.join("/mock/Documents", "QCut", "Projects", "proj-1")
+		);
+	});
+
+	it.each([["empty string", ""], ["dotdot", ".."], ["slash", "/"], ["backslash", "\\"]])(
+		"throws on %s (sanitizes to empty)",
+		(_label, input) => {
+			expect(() => getProjectRoot(input)).toThrow(/sanitizes to an empty/);
+		}
+	);
 });
 
 // ============================================================================
@@ -195,5 +215,14 @@ describe("ensureProjectStructure", () => {
 			path.join("/mock/Documents", "QCut", "Projects", "escape")
 		);
 		expect(result.projectRoot).not.toContain("..");
+	});
+
+	it("rejects an empty project ID rather than ensuring the base directory", async () => {
+		accessMock.mockResolvedValue(undefined);
+		await expect(ensureProjectStructure("")).rejects.toThrow(/sanitizes to an empty/);
+		await expect(ensureProjectStructure("..")).rejects.toThrow(/sanitizes to an empty/);
+		// And no fs operations should have been issued.
+		expect(mkdirMock).not.toHaveBeenCalled();
+		expect(accessMock).not.toHaveBeenCalled();
 	});
 });

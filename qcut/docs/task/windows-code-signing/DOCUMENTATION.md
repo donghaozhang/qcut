@@ -39,11 +39,11 @@ On the dedicated Windows signing machine (or a Windows VM if maintainer is on ma
 2. **Install SimplySign desktop signing tool** from https://www.certum.eu/en/cert_expert_simply_sign/.
 3. **Install Windows SDK signtool** via `winget install --id Microsoft.WindowsSDK`.
 4. **Authenticate desktop tool** by scanning QR code on phone.
-5. **Find the cert SHA1 thumbprint** in Keychain Access / certutil:
+5. **Find the cert SHA1 thumbprint** with `certutil`:
    \`\`\`powershell
    certutil -store -user My
    \`\`\`
-   Look for "Developer ID Application: Quriosity Pty Ltd" — copy the SHA1 thumbprint (40 hex chars).
+   Look for the Windows Authenticode code-signing entry whose `Subject` (CN) is `Quriosity Pty Ltd` — copy the SHA1 thumbprint (40 hex chars). (`Developer ID Application` is the Apple naming convention; do not look for it on Windows.)
 6. **Set environment variable**:
    \`\`\`powershell
    [Environment]::SetEnvironmentVariable("QCUT_WIN_CERT_THUMBPRINT", "<thumbprint>", "User")

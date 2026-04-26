@@ -36,11 +36,14 @@
 本地钥匙串里有证书 + 环境变量都设好后：
 
 \`\`\`bash
-APPLE_ID="apple-dev@qcut.app" \
+cd qcut && \
+  APPLE_ID="apple-dev@qcut.app" \
   APPLE_APP_SPECIFIC_PASSWORD="..." \
   APPLE_TEAM_ID="ABCDE12345" \
-  cd qcut && bun run dist:mac
+  bun run dist:mac
 \`\`\`
+
+> Bash 中 `VAR=value` 前缀只作用于命令链里的**第一个**命令。如果写在 `cd qcut && bun run dist:mac` 之前，环境变量只会作用于 `cd`，等 `bun run` 启动时已经丢失 — 必须把赋值放在 `&&` 之后，才能传给 `bun run dist:mac`。
 
 如果证书**不在**钥匙串里，再设 CSC_LINK + CSC_KEY_PASSWORD。
 

@@ -13,11 +13,13 @@
  *   3. A single `ENOENT` retry covers the TOCTOU race where the directory
  *      disappears between `stat` and `writeFile`.
  *
- * Path-redaction policy: error strings returned over IPC and emitted via
- * `console.error` are redacted in packaged builds (`<project>/...` instead of
- * the absolute Documents path) so customer bug reports do not leak local
- * filesystem layout. Dev breadcrumbs (`console.log`) are intentionally NOT
- * redacted — they only run when a developer launches `bun run electron:dev`.
+ * Path-redaction policy: every log message that would contain an absolute
+ * filesystem path — both `console.error` for failures and the `console.log`
+ * breadcrumbs from getAIVideoDir, save, and migration — is funneled through
+ * `redactPath()`. In packaged builds (`!app.isPackaged`) the absolute
+ * Documents path is replaced with `<project>` before reaching stdout/log
+ * capture; in dev (`bun run electron:dev`) or with `QCUT_DEBUG_PATHS=1` the
+ * full path is preserved for debugging.
  */
 
 import * as path from "path";
@@ -26,6 +28,7 @@ import { app, ipcMain } from "electron";
 import { randomBytes } from "crypto";
 import {
 	ensureProjectStructure,
+	getProjectRoot,
 	getProjectsBasePath,
 	isExistingDirectory,
 	sanitizePathComponent,
@@ -88,7 +91,9 @@ export function getAIVideoDir(projectId: string): string {
 		"videos"
 	);
 	console.log(
-		`[AI Video Path] getAIVideoDir("${projectId}") → ${dir} (sanitized="${sanitized}")`
+		redactPath(
+			`[AI Video Path] getAIVideoDir("${projectId}") → ${dir} (sanitized="${sanitized}")`
+		)
 	);
 	return dir;
 }
@@ -220,7 +225,9 @@ export async function saveAIVideoToDisk(
 		// Resolve target directory.
 		const projectDir = getAIVideoDir(projectId);
 		console.log(
-			`[AI Video Save] Saving to projectDir: ${projectDir} (projectId="${projectId}")`
+			redactPath(
+				`[AI Video Save] Saving to projectDir: ${projectDir} (projectId="${projectId}")`
+			)
 		);
 
 		// Ensure the FULL project tree exists (not just the leaf videos folder).
@@ -315,7 +322,9 @@ export async function saveAIVideoToDisk(
 		}
 
 		console.log(
-			`✅ AI Video saved successfully to disk: ${filePath} (${(buffer.length / 1024 / 1024).toFixed(2)}MB)`
+			redactPath(
+				`✅ AI Video saved successfully to disk: ${filePath} (${(buffer.length / 1024 / 1024).toFixed(2)}MB)`
+			)
 		);
 
 		return {
@@ -414,7 +423,9 @@ export function registerAIVideoHandlers(): void {
 		"ai-video:get-project-dir",
 		async (event, projectId: string): Promise<string> => {
 			const dir = getAIVideoDir(projectId);
-			console.log(`[AI Video IPC] get-project-dir("${projectId}") → ${dir}`);
+			console.log(
+				redactPath(`[AI Video IPC] get-project-dir("${projectId}") → ${dir}`)
+			);
 			return dir;
 		}
 	);
@@ -446,9 +457,11 @@ export async function migrateAIVideosToDocuments(): Promise<MigrationResult> {
 	};
 
 	const legacyRoot = path.join(app.getPath("userData"), "projects");
-	console.log(`[AI Video Migration] Legacy root: ${legacyRoot}`);
+	console.log(redactPath(`[AI Video Migration] Legacy root: ${legacyRoot}`));
 	console.log(
-		`[AI Video Migration] Documents base: ${app.getPath("documents")}`
+		redactPath(
+			`[AI Video Migration] Documents base: ${app.getPath("documents")}`
+		)
 	);
 
 	// Early return if no legacy directory

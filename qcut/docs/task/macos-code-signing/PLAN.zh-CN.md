@@ -33,8 +33,8 @@ Apple Developer Program 在开源/闭源两种状态下都适用，**不需要**
 | 平台 | 厂商 | 年成本 | 包含 |
 |------|------|--------|------|
 | **Mac** | Apple | $99 | 无限 Developer ID 证书 + 公证 + iOS 资格 |
-| **Windows** | Azure Trusted Signing | ~$120 | Public Trust 签名身份，按月计费 |
-| **合计** | | **~$219/年** | 双平台齐全 |
+| **Windows** | Certum SimplySign（OV） | ~$200 | 云端 HSM Authenticode 证书 + 手机审批签名 — 详见 [windows-code-signing/CERTIFICATE-OPTIONS.zh-CN.md](../windows-code-signing/CERTIFICATE-OPTIONS.zh-CN.md) |
+| **合计** | | **~$299/年** | 双平台齐全 |
 
 ## 子任务拆分
 

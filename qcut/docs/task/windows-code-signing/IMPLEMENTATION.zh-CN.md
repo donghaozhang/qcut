@@ -22,7 +22,7 @@ Certum SimplySign 要求**每次** `signtool` 调用都通过手机确认 — �
 |------|--------------|------|
 | **A（采用）：CI 出未签名包，本地签后再发布** | CI 出未签名 `.exe` artifact；维护者下载、本地 Windows 机签、把签好的 artifact 上传到 GitHub Release | 每次发布人工 ~5 分钟。Inkdrop 也是这个工作流。 |
 | B：自托管 Windows runner 装 SimplySign | runner 触发签名；Donghao 仍然要在手机上点确认 | 增加 runner 托管成本和 SimplySign 常驻运维。手机确认还是要 — 没省什么。 |
-| C：换成 SSL.com eSigner OV | CI 用 REST API token 签 | 每年多 ~$50，全自动。如果 A 变痛点的迁移路径。 |
+| C：换成 SSL.com eSigner OV | CI 用 REST API token 签 | 每年多 ~$220+（双重收费：~$239/年证书 + ~$200–240/年 eSigner Cloud Signing 订阅，详见 §5），全自动。如果 A 变痛点的迁移路径。 |
 
 **采用方案 A。** 这是 indie Electron 圈的行业惯例，而且最便宜。
 迁移到 C 作为未来加固保留。
@@ -43,7 +43,7 @@ Certum SimplySign 要求**每次** `signtool` 调用都通过手机确认 — �
    ```powershell
    certutil -store -user My
    ```
-   应该能看到 Quriosity Pty Ltd 的 Developer ID Application 证书，私钥引用指向 SimplySign 的 CSP。
+   应该能看到颁发给 `Quriosity Pty Ltd` 的 Windows Authenticode 代码签名证书（Subject CN 为 `Quriosity Pty Ltd`），私钥引用指向 SimplySign 的 CSP。（`Developer ID Application` 是 Apple 命名约定，Windows 上不适用。）
 
 任何一步失败，后面的实现都做不了。
 
@@ -177,7 +177,7 @@ v1 选 **2.3a**。把手工步骤写清楚：
 ### 行为规范
 
 1. 在 `qcut/dist-electron/` 找最新的未签名 `QCut*Setup*.exe`。
-2. 跑 `signtool sign /tr http://timestamp.acs.microsoft.com /td sha256 /fd sha256 /sha1 <thumbprint> /sm <exe>`。
+2. 跑 `signtool sign /tr https://timestamp.acs.microsoft.com /td sha256 /fd sha256 /sha1 <thumbprint> /sm <exe>`。
    - `sha1 <thumbprint>` — 从 SimplySign 暴露的身份库选 Quriosity 证书。
    - `tr` — RFC 3161 时间戳服务。微软的对 SmartScreen 信誉对齐最好。
    - `td sha256` 和 `fd sha256` — 现代 SHA-256 算法（CA/B Forum 2024 后强制要求）。
@@ -221,7 +221,7 @@ console.log("[sign-windows-release] 在手机的 SimplySign App 上批准...");
 
 execFileSync("signtool", [
   "sign",
-  "/tr", "http://timestamp.acs.microsoft.com",
+  "/tr", "https://timestamp.acs.microsoft.com",
   "/td", "sha256",
   "/fd", "sha256",
   "/sha1", certThumbprint,

@@ -113,8 +113,8 @@ What this means in practice:
 2. **Provide identity documents** — Certum will email a list. Typical:
    - Quriosity ASIC company registration (you have this)
    - D-U-N-S Number 893394655 (significantly speeds up validation)
-   - Donghao's passport scan + utility bill (for Authorized Representative validation)
-   - Quriosity Pty Ltd address proof (lease agreement or recent utility for 452 Flinders St)
+   - Authorized Representative identity documents (government photo ID + recent proof-of-address utility bill or bank statement)
+   - Registered business address proof (lease agreement or recent utility bill issued to Quriosity Pty Ltd at its registered place of business)
 3. **Identity verification.** Certum reviews documents (3–7 business days, faster with D-U-N-S already done).
 4. **Activate SimplySign account.** Certum emails activation link → installs SimplySign mobile app on Donghao's phone → desktop signing tool on his Mac/Windows machine.
 5. **Issued certificate** lives in Certum's cloud HSM. Each `signtool sign` operation prompts Donghao's phone for approval.

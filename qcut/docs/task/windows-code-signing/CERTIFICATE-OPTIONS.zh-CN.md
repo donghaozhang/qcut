@@ -120,8 +120,8 @@ GitHub-hosted Windows runner 上，自托管 + 寄送/管理 token 的运维成�
 2. **提交身份材料** — Certum 会邮件列出清单。常见包括：
    - Quriosity ASIC 公司注册（你已有）
    - D-U-N-S Number 893394655（明显加快验证）
-   - Donghao 护照扫描 + 居住地证明（用于 Authorized Representative 验证）
-   - Quriosity Pty Ltd 地址证明（452 Flinders St 的租约或近期账单）
+   - 授权代表身份证明（政府签发的带照片身份证件 + 近期住址证明，如水电气账单或银行对账单）
+   - 公司注册地址证明（开具给 Quriosity Pty Ltd、寄送至其注册经营地址的租约或近期账单）
 3. **身份验证。** Certum 审核 3–7 个工作日（已有 D-U-N-S 会更快）。
 4. **激活 SimplySign 账号。** Certum 发激活链接 → 在 Donghao 手机装 SimplySign App → 在他的 Mac/Windows 机器装桌面签名工具。
 5. **签发的证书**存在 Certum 云 HSM 里。每次 `signtool sign` 操作都会让 Donghao 手机弹窗确认。

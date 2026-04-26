@@ -42,7 +42,7 @@
    \`\`\`powershell
    certutil -store -user My
    \`\`\`
-   找 "Developer ID Application: Quriosity Pty Ltd" — 抄 SHA1 thumbprint（40 位 hex）。
+   找 `Subject`（CN）为 `Quriosity Pty Ltd` 的 Windows Authenticode 代码签名证书条目 — 抄 SHA1 thumbprint（40 位 hex）。（`Developer ID Application` 是 Apple 命名约定，Windows 上不要找它。）
 6. **设环境变量**：
    \`\`\`powershell
    [Environment]::SetEnvironmentVariable("QCUT_WIN_CERT_THUMBPRINT", "<thumbprint>", "User")

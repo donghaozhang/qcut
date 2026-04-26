@@ -25,7 +25,7 @@ Three architecturally clean options:
 |--------|----------------------|----------|
 | **A (chosen): Build unsigned in CI, sign locally before publish** | CI produces an unsigned `.exe` artifact; maintainer downloads it, signs on local Windows machine, uploads signed artifact to GitHub Release | Manual ~5 min per release. Same workflow Inkdrop uses. |
 | B: Self-hosted Windows runner with SimplySign installed | Runner triggers signing; Donghao still gets phone push and approves | Adds runner hosting cost and SimplySign always-running operational overhead. Phone confirmation still required — saves nothing. |
-| C: Switch to SSL.com eSigner OV | CI signs with REST API token | ~$50/year more, full automation. Migration path if Option A becomes painful. |
+| C: Switch to SSL.com eSigner OV | CI signs with REST API token | ~$220+/year more (dual cost: ~$239/year cert + ~$200–240/year eSigner Cloud Signing — see §5), full automation. Migration path if Option A becomes painful. |
 
 **Option A is the chosen path.** It matches industry norms for indie
 Electron projects and keeps the cost low. Migration to Option C is
@@ -47,7 +47,7 @@ preserved as a future-hardening track.
    ```powershell
    certutil -store -user My
    ```
-   The Quriosity Pty Ltd Developer ID Application certificate should appear, with a private-key reference pointing to SimplySign's CSP.
+   The Windows Authenticode code-signing certificate issued to `Quriosity Pty Ltd` (subject CN `Quriosity Pty Ltd`) should appear, with a private-key reference pointing to SimplySign's CSP. (`Developer ID Application` is the Apple naming convention and does not apply on Windows.)
 
 If any of these steps fail, the rest of this implementation cannot proceed.
 
@@ -181,7 +181,7 @@ Choose **2.3a** for v1. Document the manual step clearly:
 ### Behaviour spec
 
 1. Find the latest unsigned `QCut*Setup*.exe` in `qcut/dist-electron/`.
-2. Run `signtool sign /tr http://timestamp.acs.microsoft.com /td sha256 /fd sha256 /sha1 <thumbprint> /sm <exe>`.
+2. Run `signtool sign /tr https://timestamp.acs.microsoft.com /td sha256 /fd sha256 /sha1 <thumbprint> /sm <exe>`.
    - `sha1 <thumbprint>` — selects the Quriosity cert from SimplySign's exposed identity store.
    - `tr` is the RFC 3161 timestamp authority. Microsoft's is recommended for SmartScreen reputation alignment.
    - `td sha256` and `fd sha256` — modern SHA-256 algorithms (CA/B Forum requires post-2024).
@@ -225,7 +225,7 @@ console.log("[sign-windows-release] approve on your phone via SimplySign app..."
 
 execFileSync("signtool", [
   "sign",
-  "/tr", "http://timestamp.acs.microsoft.com",
+  "/tr", "https://timestamp.acs.microsoft.com",
   "/td", "sha256",
   "/fd", "sha256",
   "/sha1", certThumbprint,

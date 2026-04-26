@@ -34,8 +34,8 @@ Per-platform comparison:
 | Platform | Vendor | Annual cost | What you get |
 |----------|--------|-------------|--------------|
 | **Mac** | Apple | $99 | Unlimited Developer ID certs + notarization + iOS access |
-| **Windows** | Azure Trusted Signing | ~$120 | Public Trust signing identity, monthly billing |
-| **Total** | | **~$219/yr** | Both platforms covered |
+| **Windows** | Certum SimplySign (OV) | ~$200 | Cloud-HSM Authenticode cert with phone-approval signing — see [windows-code-signing/CERTIFICATE-OPTIONS.md](../windows-code-signing/CERTIFICATE-OPTIONS.md) |
+| **Total** | | **~$299/yr** | Both platforms covered |
 
 ## Subtask map
 

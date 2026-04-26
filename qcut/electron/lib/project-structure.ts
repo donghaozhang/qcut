@@ -92,10 +92,18 @@ export function validatePathWithinBase(
 
 /**
  * Resolve the absolute project root for a given project ID.
- * Validates against path traversal.
+ * Validates against path traversal and rejects IDs that sanitize to empty —
+ * inputs like `""`, `"/"`, `"\\"`, or `".."` would otherwise resolve to the
+ * shared projects base directory and let writes from one project bleed into
+ * another (or into the base itself).
  */
 export function getProjectRoot(projectId: string): string {
 	const sanitizedProjectId = sanitizePathComponent(projectId);
+	if (sanitizedProjectId === "") {
+		throw new Error(
+			`Invalid projectId: ${JSON.stringify(projectId)} sanitizes to an empty path segment`
+		);
+	}
 	const basePath = getProjectsBasePath();
 	const projectRoot = path.join(basePath, sanitizedProjectId);
 	validatePathWithinBase(projectRoot, basePath);
