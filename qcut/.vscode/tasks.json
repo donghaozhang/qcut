@@ -1,65 +1,72 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "QCut",
-      "type": "shell",
-      "command": "zsh",
-      "isBackground": true,
-      "icon": { "id": "film", "color": "terminal.ansiRed" },
-      "presentation": { "reveal": "always", "panel": "new" },
-      "problemMatcher": []
-    },
-    {
-      "label": "Claude Git",
-      "type": "shell",
-      "command": "claude --dangerously-skip-permissions",
-      "isBackground": true,
-      "icon": { "id": "git-branch", "color": "terminal.ansiBlue" },
-      "presentation": { "reveal": "always", "panel": "new" },
-      "problemMatcher": []
-    },
-    {
-      "label": "Claude Branch",
-      "type": "shell",
-      "command": "claude --dangerously-skip-permissions",
-      "isBackground": true,
-      "icon": { "id": "source-control", "color": "terminal.ansiMagenta" },
-      "presentation": { "reveal": "always", "panel": "new" },
-      "problemMatcher": []
-    },
-    {
-      "label": "Claude Build",
-      "type": "shell",
-      "command": "claude --dangerously-skip-permissions",
-      "isBackground": true,
-      "icon": { "id": "package", "color": "terminal.ansiGreen" },
-      "presentation": { "reveal": "always", "panel": "new" },
-      "problemMatcher": []
-    },
-    {
-      "label": "Codex",
-      "type": "shell",
-      "command": "codex --full-auto",
-      "isBackground": true,
-      "icon": { "id": "hubot", "color": "terminal.ansiYellow" },
-      "presentation": { "reveal": "always", "panel": "new" },
-      "problemMatcher": []
-    },
-    {
-      "label": "Discord",
-      "type": "shell",
-      "command": "claude --dangerously-skip-permissions",
-      "isBackground": true,
-      "icon": { "id": "comment-discussion", "color": "terminal.ansiCyan" },
-      "presentation": { "reveal": "always", "panel": "new" },
-      "problemMatcher": []
-    },
-    {
-      "label": "Open All Agents",
-      "dependsOn": ["QCut", "Claude Git", "Claude Branch", "Claude Build", "Codex", "Discord"],
-      "runOptions": { "runOn": "folderOpen" },
-      "problemMatcher": []
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "QCut",
+			"type": "shell",
+			"command": "zsh",
+			"isBackground": true,
+			"icon": { "id": "film", "color": "terminal.ansiRed" },
+			"presentation": { "reveal": "always", "panel": "new" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Claude Git",
+			"type": "shell",
+			"command": "claude --dangerously-skip-permissions",
+			"isBackground": true,
+			"icon": { "id": "git-branch", "color": "terminal.ansiBlue" },
+			"presentation": { "reveal": "always", "panel": "new" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Claude Branch",
+			"type": "shell",
+			"command": "claude --dangerously-skip-permissions",
+			"isBackground": true,
+			"icon": { "id": "source-control", "color": "terminal.ansiMagenta" },
+			"presentation": { "reveal": "always", "panel": "new" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Claude Build",
+			"type": "shell",
+			"command": "claude --dangerously-skip-permissions",
+			"isBackground": true,
+			"icon": { "id": "package", "color": "terminal.ansiGreen" },
+			"presentation": { "reveal": "always", "panel": "new" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Codex",
+			"type": "shell",
+			"command": "codex --full-auto",
+			"isBackground": true,
+			"icon": { "id": "hubot", "color": "terminal.ansiYellow" },
+			"presentation": { "reveal": "always", "panel": "new" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Discord",
+			"type": "shell",
+			"command": "claude --dangerously-skip-permissions",
+			"isBackground": true,
+			"icon": { "id": "comment-discussion", "color": "terminal.ansiCyan" },
+			"presentation": { "reveal": "always", "panel": "new" },
+			"problemMatcher": []
+		},
+		{
+			"label": "Open All Agents",
+			"dependsOn": [
+				"QCut",
+				"Claude Git",
+				"Claude Branch",
+				"Claude Build",
+				"Codex",
+				"Discord"
+			],
+			"runOptions": { "runOn": "folderOpen" },
+			"problemMatcher": []
+		}
+	]
 }

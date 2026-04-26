@@ -7,9 +7,15 @@
  * @module electron/project-folder-handler
  */
 
-import { ipcMain, app } from "electron";
+import { ipcMain } from "electron";
 import * as fs from "fs/promises";
 import * as path from "path";
+import {
+	ensureProjectStructure,
+	getProjectsBasePath,
+	sanitizePathComponent,
+	validatePathWithinBase,
+} from "./lib/project-structure";
 
 // ============================================================================
 // Types
@@ -104,54 +110,9 @@ const MEDIA_EXTENSIONS: Record<string, string[]> = {
 	image: [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".svg"],
 };
 
-/** Required project folder structure */
-const REQUIRED_FOLDERS = [
-	"media",
-	"media/imported",
-	"media/generated",
-	"media/generated/images",
-	"media/generated/videos",
-	"media/generated/audio",
-	"media/temp",
-	"output",
-	"cache",
-];
-
 // ============================================================================
 // Path Utilities
 // ============================================================================
-
-/**
- * Get the base path for QCut projects in the user's Documents folder.
- */
-function getProjectsBasePath(): string {
-	const documentsPath = app.getPath("documents");
-	return path.join(documentsPath, "QCut", "Projects");
-}
-
-/**
- * Sanitize a path component to prevent path traversal attacks.
- * Removes path separators and parent directory references.
- */
-function sanitizePathComponent(component: string): string {
-	return component.replace(/[/\\]/g, "").replace(/\.\./g, "");
-}
-
-/**
- * Validate that a resolved path stays within the allowed base directory.
- * @throws Error if path traversal is detected
- */
-function validatePathWithinBase(resolvedPath: string, basePath: string): void {
-	const normalizedResolved = path.resolve(resolvedPath);
-	const normalizedBase = path.resolve(basePath);
-
-	if (
-		!normalizedResolved.startsWith(normalizedBase + path.sep) &&
-		normalizedResolved !== normalizedBase
-	) {
-		throw new Error("Path traversal attempt detected");
-	}
-}
 
 /**
  * Determine media type from file extension.
@@ -365,44 +326,19 @@ export function setupProjectFolderIPC(): void {
 	);
 
 	// -------------------------------------------------------------------------
-	// Ensure project folder structure exists
+	// Ensure project folder structure exists.
+	// Delegates to the shared `ensureProjectStructure` so the AI video save
+	// path and any future writers agree on REQUIRED_PROJECT_FOLDERS.
 	// -------------------------------------------------------------------------
 	ipcMain.handle(
 		"project-folder:ensure-structure",
 		async (_, projectId: string): Promise<EnsureStructureResult> => {
-			const sanitizedProjectId = sanitizePathComponent(projectId);
-			const basePath = getProjectsBasePath();
-			const projectRoot = path.join(basePath, sanitizedProjectId);
-
-			validatePathWithinBase(projectRoot, basePath);
-
-			log.info(`${LOG_PREFIX} Ensuring structure for: ${sanitizedProjectId}`);
-
-			const created: string[] = [];
-			const existing: string[] = [];
-
-			for (const folder of REQUIRED_FOLDERS) {
-				const folderPath = path.join(projectRoot, folder);
-
-				try {
-					await fs.access(folderPath);
-					existing.push(folder);
-				} catch {
-					try {
-						await fs.mkdir(folderPath, { recursive: true });
-						created.push(folder);
-						log.info(`${LOG_PREFIX} Created folder: ${folder}`);
-					} catch (mkdirError) {
-						log.error(`${LOG_PREFIX} Failed to create ${folder}:`, mkdirError);
-					}
-				}
-			}
-
+			log.info(`${LOG_PREFIX} Ensuring structure for: ${projectId}`);
+			const ensured = await ensureProjectStructure(projectId);
 			log.info(
-				`${LOG_PREFIX} Structure ensured: ${created.length} created, ${existing.length} existing`
+				`${LOG_PREFIX} Structure ensured: ${ensured.created.length} created, ${ensured.existing.length} existing`
 			);
-
-			return { created, existing };
+			return { created: ensured.created, existing: ensured.existing };
 		}
 	);
 

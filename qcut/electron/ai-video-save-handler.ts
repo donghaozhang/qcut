@@ -1,12 +1,76 @@
+/**
+ * AI Video Save Handler
+ *
+ * Persists AI-generated videos under the user's project tree at
+ * `Documents/QCut/Projects/<projectId>/media/generated/videos/`.
+ *
+ * Reliability contract:
+ *   1. Project tree is ensured via the shared `ensureProjectStructure` so this
+ *      writer agrees byte-for-byte with `project-folder:ensure-structure`.
+ *   2. A `stat` guard runs immediately before `writeFile` to handle cloud-sync
+ *      placeholder directories (OneDrive / iCloud) that report present-but-not-
+ *      hydrated.
+ *   3. A single `ENOENT` retry covers the TOCTOU race where the directory
+ *      disappears between `stat` and `writeFile`.
+ *
+ * Path-redaction policy: every log message that would contain an absolute
+ * filesystem path — both `console.error` for failures and the `console.log`
+ * breadcrumbs from getAIVideoDir, save, and migration — is funneled through
+ * `redactPath()`. In packaged builds (`!app.isPackaged`) the absolute
+ * Documents path is replaced with `<project>` before reaching stdout/log
+ * capture; in dev (`bun run electron:dev`) or with `QCUT_DEBUG_PATHS=1` the
+ * full path is preserved for debugging.
+ */
+
 import * as path from "path";
 import * as fs from "fs";
 import { app, ipcMain } from "electron";
 import { randomBytes } from "crypto";
+import {
+	ensureProjectStructure,
+	getProjectRoot,
+	getProjectsBasePath,
+	isExistingDirectory,
+} from "./lib/project-structure";
 
 const MAX_VIDEO_SIZE = 5 * 1024 * 1024 * 1024; // 5GB limit for AI videos
 
 /**
- * Sanitize filename to prevent path traversal attacks
+ * When true, error strings keep absolute paths (developer debugging).
+ * When false (packaged production builds), absolute paths are replaced with
+ * `<project>` so we don't leak local filesystem layout to UI/logs.
+ */
+function isPathDebugEnabled(): boolean {
+	if (process.env.QCUT_DEBUG_PATHS === "1") return true;
+	try {
+		return !app.isPackaged;
+	} catch {
+		// `app.isPackaged` may not be available in test/mock contexts.
+		return false;
+	}
+}
+
+/**
+ * Replace any occurrence of the projects base path in a message with
+ * `<project>` unless debug mode is enabled.
+ *
+ * Exported for unit tests.
+ */
+export function redactPath(message: string): string {
+	if (isPathDebugEnabled()) return message;
+	let base: string;
+	try {
+		base = getProjectsBasePath();
+	} catch {
+		return message;
+	}
+	return message.split(base).join("<project>");
+}
+
+/**
+ * Sanitize filename to prevent path traversal attacks.
+ * Used for the FILENAME portion only — for project IDs, use
+ * `sanitizePathComponent` from `./lib/project-structure`.
  */
 export function sanitizeFilename(filename: string): string {
 	return filename.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -15,20 +79,21 @@ export function sanitizeFilename(filename: string): string {
 /**
  * Get the Documents-based AI video directory for a project.
  * Path: Documents/QCut/Projects/{projectId}/media/generated/videos/
+ *
+ * Routes through `getProjectRoot` so an invalid `projectId` (empty after
+ * sanitization, or one that resolves to the projects base directory like
+ * `"."` / `"..."`) throws here instead of silently producing a path that
+ * targets the shared base.
  */
 export function getAIVideoDir(projectId: string): string {
-	const documentsPath = app.getPath("documents");
 	const dir = path.join(
-		documentsPath,
-		"QCut",
-		"Projects",
-		sanitizeFilename(projectId),
+		getProjectRoot(projectId),
 		"media",
 		"generated",
 		"videos"
 	);
 	console.log(
-		`[AI Video Path] getAIVideoDir("${projectId}") → ${dir} (documents=${documentsPath})`
+		redactPath(`[AI Video Path] getAIVideoDir("${projectId}") → ${dir}`)
 	);
 	return dir;
 }
@@ -53,6 +118,38 @@ function generateUniqueId(): string {
 	return randomBytes(8).toString("hex");
 }
 
+/**
+ * Write a file with a pre-write `stat` guard plus a single ENOENT retry.
+ *
+ * Step A: confirms `projectDir` exists AND is a directory; if not, calls
+ *         `ensureProjectStructure(projectId)` first. This catches OneDrive
+ *         placeholder directories before the first write attempt.
+ * Step B: on `ENOENT` from `writeFile`, re-ensures the structure and retries
+ *         exactly once. Any other error propagates without retry.
+ *
+ * Exported for unit tests.
+ */
+export async function writeFileWithStatGuard(
+	filePath: string,
+	projectDir: string,
+	buffer: Buffer,
+	projectId: string
+): Promise<void> {
+	const dirOk = await isExistingDirectory(projectDir);
+	if (!dirOk) {
+		await ensureProjectStructure(projectId);
+	}
+
+	try {
+		await fs.promises.writeFile(filePath, buffer, { mode: 0o644 });
+		return;
+	} catch (err: any) {
+		if (err?.code !== "ENOENT") throw err;
+		await ensureProjectStructure(projectId);
+		await fs.promises.writeFile(filePath, buffer, { mode: 0o644 });
+	}
+}
+
 interface SaveAIVideoOptions {
 	fileName: string;
 	fileData: ArrayBuffer | Uint8Array | Buffer;
@@ -75,12 +172,22 @@ interface SaveAIVideoResult {
 }
 
 /**
+ * Report a save failure: log redacted to console.error and return a
+ * redacted-error result. The unredacted version goes nowhere unless
+ * debug mode is enabled.
+ */
+function fail(error: string): SaveAIVideoResult {
+	const redacted = redactPath(error);
+	console.error("AI Video Save Error:", redacted);
+	return { success: false, error: redacted };
+}
+
+/**
  * Save AI-generated video to permanent project storage
  * This is MANDATORY - if save fails, the entire operation must fail
  *
  * @param options - Save options including file data and project info
  * @returns Result object with local path or error
- * @throws Error if save fails - NO FALLBACKS ALLOWED
  */
 export async function saveAIVideoToDisk(
 	options: SaveAIVideoOptions
@@ -97,52 +204,41 @@ export async function saveAIVideoToDisk(
 		} else if (fileData instanceof Uint8Array) {
 			buffer = Buffer.from(fileData);
 		} else {
-			const error =
-				"Invalid file data type - must be Buffer, ArrayBuffer, or Uint8Array";
-			console.error("AI Video Save Error:", error);
-			return {
-				success: false,
-				error,
-			};
+			return fail(
+				"Invalid file data type - must be Buffer, ArrayBuffer, or Uint8Array"
+			);
 		}
 
 		// Validate file size
 		if (buffer.length > MAX_VIDEO_SIZE) {
 			const sizeInMB = (buffer.length / 1024 / 1024).toFixed(2);
-			const error = `Video file too large: ${sizeInMB}MB exceeds ${MAX_VIDEO_SIZE / 1024 / 1024 / 1024}GB limit`;
-			console.error("AI Video Save Error:", error);
-			return {
-				success: false,
-				error,
-			};
+			return fail(
+				`Video file too large: ${sizeInMB}MB exceeds ${MAX_VIDEO_SIZE / 1024 / 1024 / 1024}GB limit`
+			);
 		}
 
 		// Validate buffer is not empty
 		if (buffer.length === 0) {
-			const error = "Video file is empty - cannot save";
-			console.error("AI Video Save Error:", error);
-			return {
-				success: false,
-				error,
-			};
+			return fail("Video file is empty - cannot save");
 		}
 
-		// Create project-specific video directory (Documents-based)
+		// Resolve target directory.
 		const projectDir = getAIVideoDir(projectId);
 		console.log(
-			`[AI Video Save] Saving to projectDir: ${projectDir} (projectId="${projectId}")`
+			redactPath(
+				`[AI Video Save] Saving to projectDir: ${projectDir} (projectId="${projectId}")`
+			)
 		);
 
-		// Ensure directory exists with proper permissions
+		// Ensure the FULL project tree exists (not just the leaf videos folder).
+		// This funnels through the same code path as `project-folder:ensure-structure`
+		// so a future required folder added there is automatically created here too.
 		try {
-			await fs.promises.mkdir(projectDir, { recursive: true, mode: 0o755 });
-		} catch (mkdirError: any) {
-			const error = `Failed to create project directory: ${mkdirError.message}`;
-			console.error("AI Video Save Error:", error);
-			return {
-				success: false,
-				error,
-			};
+			await ensureProjectStructure(projectId);
+		} catch (ensureError: any) {
+			return fail(
+				`Failed to ensure project directory: ${ensureError?.message ?? String(ensureError)}`
+			);
 		}
 
 		// Generate unique filename with metadata
@@ -168,28 +264,22 @@ export async function saveAIVideoToDisk(
 			if (availableSpace < requiredSpace) {
 				const availableMB = (availableSpace / 1024 / 1024).toFixed(2);
 				const requiredMB = (requiredSpace / 1024 / 1024).toFixed(2);
-				const error = `Insufficient disk space: ${availableMB}MB available, ${requiredMB}MB required`;
-				console.error("AI Video Save Error:", error);
-				return {
-					success: false,
-					error,
-				};
+				return fail(
+					`Insufficient disk space: ${availableMB}MB available, ${requiredMB}MB required`
+				);
 			}
-		} catch (statfsError) {
+		} catch {
 			// statfs might not be available on all systems, continue anyway
 			console.warn("Could not check disk space, proceeding with save");
 		}
 
-		// Write file to disk - THIS MUST SUCCEED
+		// Write file to disk via the stat-guard + ENOENT-retry helper.
 		try {
-			await fs.promises.writeFile(filePath, buffer, { mode: 0o644 });
+			await writeFileWithStatGuard(filePath, projectDir, buffer, projectId);
 		} catch (writeError: any) {
-			const error = `Failed to write video file to disk: ${writeError.message}`;
-			console.error("AI Video Save Error:", error);
-			return {
-				success: false,
-				error,
-			};
+			return fail(
+				`Failed to write video file to disk: ${writeError?.message ?? String(writeError)}`
+			);
 		}
 
 		// Verify the file was written correctly
@@ -198,20 +288,14 @@ export async function saveAIVideoToDisk(
 			if (stats.size !== buffer.length) {
 				// File size mismatch - delete corrupted file
 				await fs.promises.unlink(filePath).catch(() => {});
-				const error = `File verification failed: size mismatch (expected ${buffer.length}, got ${stats.size})`;
-				console.error("AI Video Save Error:", error);
-				return {
-					success: false,
-					error,
-				};
+				return fail(
+					`File verification failed: size mismatch (expected ${buffer.length}, got ${stats.size})`
+				);
 			}
 		} catch (verifyError: any) {
-			const error = `Failed to verify saved file: ${verifyError.message}`;
-			console.error("AI Video Save Error:", error);
-			return {
-				success: false,
-				error,
-			};
+			return fail(
+				`Failed to verify saved file: ${verifyError?.message ?? String(verifyError)}`
+			);
 		}
 
 		// Save metadata file alongside video (optional, non-critical)
@@ -238,7 +322,9 @@ export async function saveAIVideoToDisk(
 		}
 
 		console.log(
-			`✅ AI Video saved successfully to disk: ${filePath} (${(buffer.length / 1024 / 1024).toFixed(2)}MB)`
+			redactPath(
+				`✅ AI Video saved successfully to disk: ${filePath} (${(buffer.length / 1024 / 1024).toFixed(2)}MB)`
+			)
 		);
 
 		return {
@@ -248,12 +334,9 @@ export async function saveAIVideoToDisk(
 			fileSize: buffer.length,
 		};
 	} catch (unexpectedError: any) {
-		const error = `Unexpected error saving AI video: ${unexpectedError.message}`;
-		console.error("AI Video Save CRITICAL ERROR:", error);
-		return {
-			success: false,
-			error,
-		};
+		return fail(
+			`Unexpected error saving AI video: ${unexpectedError?.message ?? String(unexpectedError)}`
+		);
 	}
 }
 
@@ -340,7 +423,9 @@ export function registerAIVideoHandlers(): void {
 		"ai-video:get-project-dir",
 		async (event, projectId: string): Promise<string> => {
 			const dir = getAIVideoDir(projectId);
-			console.log(`[AI Video IPC] get-project-dir("${projectId}") → ${dir}`);
+			console.log(
+				redactPath(`[AI Video IPC] get-project-dir("${projectId}") → ${dir}`)
+			);
 			return dir;
 		}
 	);
@@ -372,9 +457,11 @@ export async function migrateAIVideosToDocuments(): Promise<MigrationResult> {
 	};
 
 	const legacyRoot = path.join(app.getPath("userData"), "projects");
-	console.log(`[AI Video Migration] Legacy root: ${legacyRoot}`);
+	console.log(redactPath(`[AI Video Migration] Legacy root: ${legacyRoot}`));
 	console.log(
-		`[AI Video Migration] Documents base: ${app.getPath("documents")}`
+		redactPath(
+			`[AI Video Migration] Documents base: ${app.getPath("documents")}`
+		)
 	);
 
 	// Early return if no legacy directory
@@ -409,7 +496,20 @@ export async function migrateAIVideosToDocuments(): Promise<MigrationResult> {
 		}
 
 		result.projectsProcessed++;
-		const destDir = getAIVideoDir(projectName);
+
+		// Resolve destination — `getAIVideoDir` now throws for project names
+		// that sanitize to empty / `.` / would collapse to the Projects base
+		// (e.g. legacy folders named `..` or `.`). Skip those rather than
+		// migrating to the wrong directory.
+		let destDir: string;
+		try {
+			destDir = getAIVideoDir(projectName);
+		} catch (err) {
+			result.errors.push(
+				`Skipping legacy project ${JSON.stringify(projectName)}: invalid project ID after sanitization (${err instanceof Error ? err.message : String(err)})`
+			);
+			continue;
+		}
 
 		// Ensure destination exists
 		try {
