@@ -150,7 +150,7 @@ Add a section near the top (or merge with the Windows signing section if both ex
 macOS releases must be signed by Quriosity's Developer ID Application
 certificate AND notarized by Apple. The release workflow will fail if
 either step fails — do not bypass. See
-`docs/setup/macos-code-signing.md` for credential setup and rotation.
+`setup/macos-code-signing.md` for credential setup and rotation.
 ```
 
 ## Modified: `qcut/CLAUDE.md`

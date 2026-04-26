@@ -65,6 +65,9 @@ vi.mock("fs", async (importOriginal) => {
 });
 
 import { saveAIVideoToDisk } from "../ai-video-save-handler";
+import { REQUIRED_PROJECT_FOLDERS } from "../lib/project-structure";
+
+const REQUIRED_PROJECT_FOLDERS_LEN = REQUIRED_PROJECT_FOLDERS.length;
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -91,8 +94,18 @@ function tinyVideoBuffer(): ArrayBuffer {
 const PROJECT_ID = "proj-1";
 
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+// Snapshot the inherited env var (if any) so we can restore it in afterEach.
+// `isPathDebugEnabled()` checks `process.env.QCUT_DEBUG_PATHS === "1"` BEFORE
+// `app.isPackaged`, so a developer running tests with this set in their shell
+// would otherwise make every packaged-mode redaction test pass-through and
+// silently lose coverage.
+const originalQcutDebugPaths = process.env.QCUT_DEBUG_PATHS;
 
 beforeEach(() => {
+	// Force-clear so packaged-mode tests are deterministic regardless of
+	// whatever the host shell / CI runner has in its environment.
+	delete process.env.QCUT_DEBUG_PATHS;
+
 	writeFileMock.mockReset();
 	mkdirMock.mockReset();
 	accessMock.mockReset();
@@ -121,6 +134,12 @@ beforeEach(() => {
 
 afterEach(() => {
 	vi.restoreAllMocks();
+	// Restore (or delete) so suite teardown matches the inherited shell env.
+	if (originalQcutDebugPaths === undefined) {
+		delete process.env.QCUT_DEBUG_PATHS;
+	} else {
+		process.env.QCUT_DEBUG_PATHS = originalQcutDebugPaths;
+	}
 });
 
 // ============================================================================
@@ -154,12 +173,27 @@ describe("saveAIVideoToDisk — happy path", () => {
 
 describe("saveAIVideoToDisk — projectDir missing before write", () => {
 	it("triggers an extra ensureProjectStructure via the stat guard", async () => {
-		// First stat call (isExistingDirectory) → throw (folder missing).
-		// Subsequent stats (verify saved file) → real file.
-		statMock.mockRejectedValueOnce(enoent()).mockResolvedValue({
-			isDirectory: () => true,
-			isFile: () => true,
-			size: 4,
+		// `ensureProjectStructure` now calls `stat()` per required folder,
+		// and the stat guard inside `writeFileWithStatGuard` calls `stat()`
+		// once on `projectDir`. So total stats per save = 9 (upfront ensure)
+		// + 1 (stat guard) + 1 (verify written file) = 11 minimum.
+		//
+		// In this scenario the projectDir's stat (the guard) reports missing,
+		// triggering a SECOND ensureProjectStructure → 9 more stat calls.
+		// Then the verify-written-file stat. Expected ≥ 19 stat calls.
+		let statCallIndex = 0;
+		statMock.mockImplementation(async () => {
+			statCallIndex++;
+			// Make the writeFileWithStatGuard stat (call ~10) report missing
+			// so the recovery branch fires. Every other call reports a dir.
+			if (statCallIndex === REQUIRED_PROJECT_FOLDERS_LEN + 1) {
+				throw enoent();
+			}
+			return {
+				isDirectory: () => true,
+				isFile: () => true,
+				size: 4,
+			};
 		});
 		writeFileMock.mockResolvedValue(undefined);
 
@@ -170,9 +204,9 @@ describe("saveAIVideoToDisk — projectDir missing before write", () => {
 		});
 
 		expect(result.success).toBe(true);
-		// One ensure for the upfront call + one for the stat-guard recovery.
-		// REQUIRED_PROJECT_FOLDERS has 9 entries, accessed via `access`.
-		expect(accessMock.mock.calls.length).toBeGreaterThanOrEqual(18);
+		expect(statMock.mock.calls.length).toBeGreaterThanOrEqual(
+			REQUIRED_PROJECT_FOLDERS_LEN * 2 + 1
+		);
 		expect(writeFileMock).toHaveBeenCalledTimes(1);
 	});
 });

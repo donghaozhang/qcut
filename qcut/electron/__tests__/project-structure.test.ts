@@ -197,8 +197,10 @@ describe("isExistingDirectory", () => {
 
 describe("ensureProjectStructure", () => {
 	it("creates every required folder when none exist", async () => {
-		// access throws → not present → mkdir is called for each folder
-		accessMock.mockRejectedValue(new Error("ENOENT"));
+		// stat throws → not present → mkdir is called for each folder
+		statMock.mockRejectedValue(
+			Object.assign(new Error("ENOENT"), { code: "ENOENT" })
+		);
 		mkdirMock.mockResolvedValue(undefined);
 
 		const result = await ensureProjectStructure("proj-1");
@@ -211,8 +213,8 @@ describe("ensureProjectStructure", () => {
 		);
 	});
 
-	it("reports every folder as existing when access succeeds", async () => {
-		accessMock.mockResolvedValue(undefined);
+	it("reports every folder as existing when stat reports a directory", async () => {
+		statMock.mockResolvedValue({ isDirectory: () => true });
 
 		const result = await ensureProjectStructure("proj-1");
 
@@ -221,9 +223,31 @@ describe("ensureProjectStructure", () => {
 		expect(mkdirMock).not.toHaveBeenCalled();
 	});
 
+	// Regression: a stray FILE at a required folder path used to be
+	// classified as "existing" via fs.access, then the next write would
+	// fail with ENOTDIR with no recovery. Now we stat → isDirectory()
+	// and try to mkdir over it (which surfaces the conflict via EEXIST/
+	// ENOTDIR and is collected by omission so the caller can recover).
+	it("does NOT mark a folder as existing when a file occupies its path", async () => {
+		statMock.mockResolvedValue({ isDirectory: () => false });
+		// mkdir on top of a file fails (real ENOTDIR semantics).
+		mkdirMock.mockRejectedValue(
+			Object.assign(new Error("ENOTDIR"), { code: "ENOTDIR" })
+		);
+
+		const result = await ensureProjectStructure("proj-1");
+
+		expect(result.existing).toEqual([]);
+		expect(result.created).toEqual([]);
+		// We tried mkdir for every folder (none of them survived).
+		expect(mkdirMock).toHaveBeenCalledTimes(REQUIRED_PROJECT_FOLDERS.length);
+	});
+
 	it("collects per-folder mkdir failures by omission and keeps going", async () => {
 		// Every folder is missing.
-		accessMock.mockRejectedValue(new Error("ENOENT"));
+		statMock.mockRejectedValue(
+			Object.assign(new Error("ENOENT"), { code: "ENOENT" })
+		);
 		// First mkdir fails, the rest succeed.
 		let callCount = 0;
 		mkdirMock.mockImplementation(async () => {
@@ -240,7 +264,7 @@ describe("ensureProjectStructure", () => {
 	});
 
 	it("sanitizes the project ID before resolving the root", async () => {
-		accessMock.mockResolvedValue(undefined);
+		statMock.mockResolvedValue({ isDirectory: () => true });
 
 		const result = await ensureProjectStructure("../escape");
 
@@ -251,7 +275,7 @@ describe("ensureProjectStructure", () => {
 	});
 
 	it("rejects an empty project ID rather than ensuring the base directory", async () => {
-		accessMock.mockResolvedValue(undefined);
+		statMock.mockResolvedValue({ isDirectory: () => true });
 		await expect(ensureProjectStructure("")).rejects.toThrow(
 			/sanitizes to an empty/
 		);
@@ -260,6 +284,6 @@ describe("ensureProjectStructure", () => {
 		);
 		// And no fs operations should have been issued.
 		expect(mkdirMock).not.toHaveBeenCalled();
-		expect(accessMock).not.toHaveBeenCalled();
+		expect(statMock).not.toHaveBeenCalled();
 	});
 });

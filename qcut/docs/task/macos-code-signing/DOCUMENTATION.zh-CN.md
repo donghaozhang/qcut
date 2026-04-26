@@ -141,7 +141,7 @@ Apple ID 上的账单卡有效**。续费失败的话约 30 天内所有签名�
 ## macOS 发布前置条件
 macOS 发布产物**必须**用 Quriosity 的 Developer ID Application 证书
 签名**并且**经过 Apple 公证。任一步失败发布工作流都会失败 — **不要**
-绕过。设置和凭据轮换见 `docs/setup/macos-code-signing.md`。
+绕过。设置和凭据轮换见 `setup/macos-code-signing.md`。
 ```
 
 ## 修改：`qcut/CLAUDE.md`

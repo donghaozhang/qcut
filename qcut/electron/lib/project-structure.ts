@@ -149,18 +149,34 @@ export async function ensureProjectStructure(
 
 	for (const folder of REQUIRED_PROJECT_FOLDERS) {
 		const folderPath = path.join(projectRoot, folder);
+		// Classify with `stat().isDirectory()` rather than `access()` so a
+		// stray file occupying a required folder's path doesn't get
+		// silently marked as "existing" — that misclassification would
+		// cause the next mkdir-then-write call to fail with ENOTDIR with
+		// no chance for the caller to recover.
+		let stats: import("fs").Stats | undefined;
 		try {
-			await fs.promises.access(folderPath);
-			existing.push(folder);
+			stats = await fs.promises.stat(folderPath);
 		} catch {
-			try {
-				await fs.promises.mkdir(folderPath, { recursive: true });
-				created.push(folder);
-			} catch {
-				// Per-folder failure is collected by omission; caller can
-				// re-stat the leaf they actually need (e.g. saveAIVideoToDisk)
-				// to decide whether to continue.
-			}
+			stats = undefined;
+		}
+
+		if (stats?.isDirectory()) {
+			existing.push(folder);
+			continue;
+		}
+
+		// Either the path is missing OR a non-directory occupies it.
+		// `mkdir({ recursive: true })` will throw EEXIST/ENOTDIR for the
+		// occupied case, which we collect-by-omission so callers can
+		// surface the real conflict.
+		try {
+			await fs.promises.mkdir(folderPath, { recursive: true });
+			created.push(folder);
+		} catch {
+			// Per-folder failure is collected by omission; caller can
+			// re-stat the leaf they actually need (e.g. saveAIVideoToDisk)
+			// to decide whether to continue.
 		}
 	}
 
