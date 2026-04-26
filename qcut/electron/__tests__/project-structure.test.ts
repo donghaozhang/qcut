@@ -117,12 +117,14 @@ describe("getProjectRoot", () => {
 		);
 	});
 
-	it.each([["empty string", ""], ["dotdot", ".."], ["slash", "/"], ["backslash", "\\"]])(
-		"throws on %s (sanitizes to empty)",
-		(_label, input) => {
-			expect(() => getProjectRoot(input)).toThrow(/sanitizes to an empty/);
-		}
-	);
+	it.each([
+		["empty string", ""],
+		["dotdot", ".."],
+		["slash", "/"],
+		["backslash", "\\"],
+	])("throws on %s (sanitizes to empty)", (_label, input) => {
+		expect(() => getProjectRoot(input)).toThrow(/sanitizes to an empty/);
+	});
 });
 
 // ============================================================================
@@ -153,7 +155,9 @@ describe("isExistingDirectory", () => {
 	});
 
 	it("returns false when stat throws", async () => {
-		statMock.mockRejectedValue(Object.assign(new Error("nope"), { code: "ENOENT" }));
+		statMock.mockRejectedValue(
+			Object.assign(new Error("nope"), { code: "ENOENT" })
+		);
 		await expect(isExistingDirectory("/anything")).resolves.toBe(false);
 	});
 });
@@ -219,8 +223,12 @@ describe("ensureProjectStructure", () => {
 
 	it("rejects an empty project ID rather than ensuring the base directory", async () => {
 		accessMock.mockResolvedValue(undefined);
-		await expect(ensureProjectStructure("")).rejects.toThrow(/sanitizes to an empty/);
-		await expect(ensureProjectStructure("..")).rejects.toThrow(/sanitizes to an empty/);
+		await expect(ensureProjectStructure("")).rejects.toThrow(
+			/sanitizes to an empty/
+		);
+		await expect(ensureProjectStructure("..")).rejects.toThrow(
+			/sanitizes to an empty/
+		);
 		// And no fs operations should have been issued.
 		expect(mkdirMock).not.toHaveBeenCalled();
 		expect(accessMock).not.toHaveBeenCalled();

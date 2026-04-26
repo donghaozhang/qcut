@@ -71,7 +71,9 @@ function getActiveSource({
 // Defensive accessor: `shadowedBy` is typed as required, but a status entry
 // returned by an older Electron build (or a not-yet-rebuilt preload bundle)
 // can omit it. Treat missing as "no shadows" rather than crashing the save.
-function shadowedByOf(status: PlatformApiKeyStatus | undefined): readonly KeySource[] {
+function shadowedByOf(
+	status: PlatformApiKeyStatus | undefined
+): readonly KeySource[] {
 	return status?.shadowedBy ?? [];
 }
 
@@ -84,8 +86,7 @@ export function countShadowedAppSaves({
 }) {
 	return EDITABLE_API_KEY_FIELDS.filter(
 		(field) =>
-			values[field] !== "" &&
-			shadowedByOf(statuses[field]).includes("electron")
+			values[field] !== "" && shadowedByOf(statuses[field]).includes("electron")
 	).length;
 }
 

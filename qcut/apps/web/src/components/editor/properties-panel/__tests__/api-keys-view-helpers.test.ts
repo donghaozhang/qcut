@@ -3,10 +3,7 @@ import type {
 	PlatformApiKeyStatus,
 	PlatformApiKeysStatus,
 } from "@qcut/platform-core";
-import {
-	countShadowedAppSaves,
-	getShadowedBy,
-} from "../api-keys-view";
+import { countShadowedAppSaves, getShadowedBy } from "../api-keys-view";
 
 // A status object as returned by the IPC bridge in the wild. The shape is
 // permissive — older Electron builds (pre `computeKeyStatus`) and certain
@@ -34,10 +31,16 @@ describe("countShadowedAppSaves — defensive against missing shadowedBy", () =>
 	it("does not throw when a field's status entry is missing entirely", () => {
 		const statuses: PlatformApiKeysStatus = {};
 		expect(() =>
-			countShadowedAppSaves({ statuses, values: { ...VALUES, runwayApiKey: "rw_x" } })
+			countShadowedAppSaves({
+				statuses,
+				values: { ...VALUES, runwayApiKey: "rw_x" },
+			})
 		).not.toThrow();
 		expect(
-			countShadowedAppSaves({ statuses, values: { ...VALUES, runwayApiKey: "rw_x" } })
+			countShadowedAppSaves({
+				statuses,
+				values: { ...VALUES, runwayApiKey: "rw_x" },
+			})
 		).toBe(0);
 	});
 
@@ -47,10 +50,16 @@ describe("countShadowedAppSaves — defensive against missing shadowedBy", () =>
 			runwayApiKey: status({ set: true, source: "electron" }),
 		};
 		expect(() =>
-			countShadowedAppSaves({ statuses, values: { ...VALUES, runwayApiKey: "rw_x" } })
+			countShadowedAppSaves({
+				statuses,
+				values: { ...VALUES, runwayApiKey: "rw_x" },
+			})
 		).not.toThrow();
 		expect(
-			countShadowedAppSaves({ statuses, values: { ...VALUES, runwayApiKey: "rw_x" } })
+			countShadowedAppSaves({
+				statuses,
+				values: { ...VALUES, runwayApiKey: "rw_x" },
+			})
 		).toBe(0);
 	});
 
@@ -95,7 +104,9 @@ describe("countShadowedAppSaves — defensive against missing shadowedBy", () =>
 
 describe("getShadowedBy — defensive against missing shadowedBy", () => {
 	it("returns undefined when status is undefined", () => {
-		expect(getShadowedBy({ fieldIsDirty: true, status: undefined })).toBeUndefined();
+		expect(
+			getShadowedBy({ fieldIsDirty: true, status: undefined })
+		).toBeUndefined();
 	});
 
 	it("returns [] when status.shadowedBy is undefined and field is clean", () => {

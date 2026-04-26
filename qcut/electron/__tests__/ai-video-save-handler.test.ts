@@ -146,13 +146,11 @@ describe("saveAIVideoToDisk — projectDir missing before write", () => {
 	it("triggers an extra ensureProjectStructure via the stat guard", async () => {
 		// First stat call (isExistingDirectory) → throw (folder missing).
 		// Subsequent stats (verify saved file) → real file.
-		statMock
-			.mockRejectedValueOnce(enoent())
-			.mockResolvedValue({
-				isDirectory: () => true,
-				isFile: () => true,
-				size: 4,
-			});
+		statMock.mockRejectedValueOnce(enoent()).mockResolvedValue({
+			isDirectory: () => true,
+			isFile: () => true,
+			size: 4,
+		});
 		writeFileMock.mockResolvedValue(undefined);
 
 		const result = await saveAIVideoToDisk({
