@@ -58,6 +58,20 @@ console     → No logs captured yet                             PASS
 fps         → 55 FPS (164 frames/3.0s)                        PASS
 ```
 
+### Re-verified on Physical iPad (2026-04-26)
+Device: iPad Air 13-inch (M2), iPadOS 26.3.1.
+After a fresh Capacitor sync + Xcode rebuild + reinstall (free dev cert
+expired since the March verification, required re-trusting the developer Apple ID
+on the device under Settings → General → VPN & Device Management):
+```
+state → { route: "", tracks: 1, elements: 0, project: null,         PASS
+          panel: { activeTab: "media", aiActiveTab: "text" },
+          panelView: "export",
+          export: { isExporting: false, settings: { quality: "1080p", format: "webm" } } }
+```
+Note: the project store reported empty on launch (no project auto-opened); subsequent
+`open-editor` is needed to load a project before `tracks`/`elements` populate.
+
 ---
 
 ## Implementation Plan
