@@ -10,14 +10,22 @@ infrastructure (see [`docs/task/platform/ios-cli-automation.md`](../platform/ios
 
 ## Setup verified (2026-04-26)
 
-- Device: Donghao's iPad (2), iPad Air 13-inch (M2), iPadOS 26.3.1
+- Device: iPad Air 13-inch (M2), iPadOS 26.3.1
 - App: `com.qcut.videoeditor` reinstalled via `xcrun devicectl` after re-trust
 - CLI: `qcut://state` round-trip via `xcrun devicectl device process launch
   --payload-url` confirmed to return JSON with all 6 stores attached.
-- Build pipeline: `bunx @capacitor/cli@8 sync ios` → `xcodebuild` →
-  `devicectl install`. (`@capacitor/cli` is not in `package.json` —
-  invoked via `npx -y @capacitor/cli@8` as a one-off; consider pinning if
-  this branch needs repeatable CI builds.)
+- Build pipeline: `npx -y @capacitor/cli@8 sync ios` → `xcodebuild` →
+  `devicectl install`.
+
+> ⚠️ `@capacitor/cli` is not pinned in `apps/web/package.json` and `bunx`
+> currently fails to resolve it (`could not determine executable to run for
+> package cap`), so the sync step has to fall back to `npx -y
+> @capacitor/cli@8` as a one-off. **This is a real gap, not a stylistic one
+> — without pinning, every contributor running this branch is exposed to
+> whatever Capacitor 8.x patch ships next.** A small follow-up should
+> `bun add -d @capacitor/cli@<exact-version>` (matching the iOS-side
+> `capacitor-swift-pm 8.2.0`) and then standardize the docs on `bunx`
+> across the board.
 
 ## Candidate workstreams (pick one or more)
 

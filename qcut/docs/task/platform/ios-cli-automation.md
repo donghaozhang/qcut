@@ -59,10 +59,10 @@ fps         → 55 FPS (164 frames/3.0s)                        PASS
 ```
 
 ### Re-verified on Physical iPad (2026-04-26)
-Device: Donghao's iPad (2), iPad Air 13-inch (M2) — `F044472A-68A8-53DA-8BC9-8DE828B714E8`
-After a fresh `bunx @capacitor/cli sync ios` + Xcode rebuild + reinstall (free dev cert
-expired since the March verification, required re-trusting `zdhpeter@gmail.com` on the
-device under Settings → General → VPN & Device Management):
+Device: iPad Air 13-inch (M2), iPadOS 26.3.1.
+After a fresh Capacitor sync + Xcode rebuild + reinstall (free dev cert
+expired since the March verification, required re-trusting the developer Apple ID
+on the device under Settings → General → VPN & Device Management):
 ```
 state → { route: "", tracks: 1, elements: 0, project: null,         PASS
           panel: { activeTab: "media", aiActiveTab: "text" },
