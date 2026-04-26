@@ -74,6 +74,23 @@ describe("sanitizePathComponent", () => {
 	it("preserves alphanumeric characters and hyphens/underscores/dots", () => {
 		expect(sanitizePathComponent("project_v1.0-rc")).toBe("project_v1.0-rc");
 	});
+
+	// Regression: odd-length dot runs ("...", ".....") used to leave a residual
+	// "." which `path.join(base, ".")` collapses to base. The "\.{2,}" pattern
+	// now consumes the entire run.
+	it.each([
+		["...", ""],
+		["....", ""],
+		[".....", ""],
+		["....proj", "proj"],
+		["a..b", "ab"],
+	])("collapses any run of 2+ dots: %s → %s", (input, expected) => {
+		expect(sanitizePathComponent(input)).toBe(expected);
+	});
+
+	it("preserves single dots between segments", () => {
+		expect(sanitizePathComponent("a.b.c")).toBe("a.b.c");
+	});
 });
 
 // ============================================================================
@@ -122,8 +139,20 @@ describe("getProjectRoot", () => {
 		["dotdot", ".."],
 		["slash", "/"],
 		["backslash", "\\"],
+		["triple dots", "..."],
+		["five dots", "....."],
 	])("throws on %s (sanitizes to empty)", (_label, input) => {
 		expect(() => getProjectRoot(input)).toThrow(/sanitizes to an empty/);
+	});
+
+	// Regression: inputs that sanitize to "." (e.g. "./" — slash stripped)
+	// must not be allowed; `path.join(base, ".")` resolves to `base` itself.
+	it.each([
+		["lone dot", "."],
+		["dot-slash", "./"],
+		["dot-backslash", ".\\"],
+	])("throws on %s (resolves to projects base)", (_label, input) => {
+		expect(() => getProjectRoot(input)).toThrow(/projects base directory/);
 	});
 });
 

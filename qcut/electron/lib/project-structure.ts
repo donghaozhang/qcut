@@ -65,10 +65,19 @@ export function getProjectsBasePath(): string {
 
 /**
  * Sanitize a single path component to prevent path traversal.
- * Strips path separators and parent-directory references.
+ *
+ * Strips path separators and any run of two-or-more dots. The two-or-more
+ * pattern (rather than just `..`) is required because a non-greedy single-pass
+ * `replace(/\.\./g, "")` of an odd-length dot run like `"..."` leaves a
+ * residual `"."` — and `path.join(base, ".")` collapses to `base` itself,
+ * which would defeat project isolation. `"\.{2,}"` consumes the entire run.
+ *
+ * A lone single dot survives (it's a legal filename char), but is rejected
+ * downstream by `getProjectRoot` (see the `path.join(...) === basePath`
+ * guard).
  */
 export function sanitizePathComponent(component: string): string {
-	return component.replace(/[/\\]/g, "").replace(/\.\./g, "");
+	return component.replace(/[/\\]/g, "").replace(/\.{2,}/g, "");
 }
 
 /**
@@ -92,10 +101,14 @@ export function validatePathWithinBase(
 
 /**
  * Resolve the absolute project root for a given project ID.
- * Validates against path traversal and rejects IDs that sanitize to empty —
- * inputs like `""`, `"/"`, `"\\"`, or `".."` would otherwise resolve to the
- * shared projects base directory and let writes from one project bleed into
- * another (or into the base itself).
+ *
+ * Defends against three classes of bad input:
+ *   1. Sanitized to empty (`""`, `"/"`, `"\\"`, `".."`, `"...."`) — explicit reject.
+ *   2. Sanitized to `"."` or any value that `path.join` collapses back to the
+ *      projects base — explicit reject so writes from one project cannot
+ *      bleed into the base directory.
+ *   3. Path traversal that escapes the base after `path.join` — caught by
+ *      `validatePathWithinBase`.
  */
 export function getProjectRoot(projectId: string): string {
 	const sanitizedProjectId = sanitizePathComponent(projectId);
@@ -106,6 +119,11 @@ export function getProjectRoot(projectId: string): string {
 	}
 	const basePath = getProjectsBasePath();
 	const projectRoot = path.join(basePath, sanitizedProjectId);
+	if (path.resolve(projectRoot) === path.resolve(basePath)) {
+		throw new Error(
+			`Invalid projectId: ${JSON.stringify(projectId)} resolves to the projects base directory`
+		);
+	}
 	validatePathWithinBase(projectRoot, basePath);
 	return projectRoot;
 }

@@ -54,12 +54,12 @@ vi.mock("fs", async (importOriginal) => {
 		default: actual,
 		promises: {
 			...actual.promises,
-			writeFile: (...args: any[]) => writeFileMock(...args),
-			mkdir: (...args: any[]) => mkdirMock(...args),
-			access: (...args: any[]) => accessMock(...args),
-			stat: (...args: any[]) => statMock(...args),
-			statfs: (...args: any[]) => statfsMock(...args),
-			unlink: (...args: any[]) => unlinkMock(...args),
+			writeFile: (...args: unknown[]) => writeFileMock(...args),
+			mkdir: (...args: unknown[]) => mkdirMock(...args),
+			access: (...args: unknown[]) => accessMock(...args),
+			stat: (...args: unknown[]) => statMock(...args),
+			statfs: (...args: unknown[]) => statfsMock(...args),
+			unlink: (...args: unknown[]) => unlinkMock(...args),
 		},
 	};
 });
@@ -68,10 +68,20 @@ import { saveAIVideoToDisk } from "../ai-video-save-handler";
 
 // ---- helpers ---------------------------------------------------------------
 
-function enoent(): Error {
-	return Object.assign(new Error("ENOENT: no such file or directory"), {
-		code: "ENOENT",
-	});
+/**
+ * Build a realistic ENOENT error whose `.message` includes a path under the
+ * mocked `/mock/Documents` projects base. This is what node's fs throws — and
+ * it's the actual surface that the redaction logic has to clean up. Tests
+ * that mock a path-less ENOENT pass even when redaction is broken (CodeRabbit
+ * #3143145185), so always pass a path.
+ */
+function enoent(
+	filePath = "/mock/Documents/QCut/Projects/proj-1/media/generated/videos/video.mp4"
+): NodeJS.ErrnoException {
+	return Object.assign(
+		new Error(`ENOENT: no such file or directory, open '${filePath}'`),
+		{ code: "ENOENT", path: filePath }
+	);
 }
 
 function tinyVideoBuffer(): ArrayBuffer {
@@ -238,6 +248,10 @@ describe("saveAIVideoToDisk — non-ENOENT writeFile error", () => {
 describe("saveAIVideoToDisk — path redaction", () => {
 	it("redacts Documents path from IPC error AND console.error in packaged build", async () => {
 		isPackagedRef.value = true;
+		// Reject every writeFile attempt with an ENOENT whose message embeds
+		// the full /mock/Documents path — proving the redaction path actually
+		// strips it. (Without a real path in the error, the assertions below
+		// pass even when redaction is broken.)
 		writeFileMock.mockRejectedValue(enoent());
 
 		const result = await saveAIVideoToDisk({
@@ -247,12 +261,20 @@ describe("saveAIVideoToDisk — path redaction", () => {
 		});
 
 		expect(result.success).toBe(false);
+		// Sanity: the message we returned includes the path token (just
+		// proves the test plumbing is wired up — without the next line, this
+		// would still pass for a wholly empty error string).
+		expect(result.error).toMatch(/Failed to write video file to disk/);
+		expect(result.error).toContain("<project>");
 		expect(result.error).not.toContain("/mock/Documents");
-		// console.error was called with the redacted message — no /mock/Documents anywhere.
+
+		// console.error was also called with the redacted message — no
+		// /mock/Documents anywhere in production logs.
 		const seenInLogs = consoleErrorSpy.mock.calls
 			.flat()
 			.map((arg) => (typeof arg === "string" ? arg : ""))
 			.join("\n");
+		expect(seenInLogs).toContain("<project>");
 		expect(seenInLogs).not.toContain("/mock/Documents");
 	});
 
@@ -267,9 +289,10 @@ describe("saveAIVideoToDisk — path redaction", () => {
 		});
 
 		expect(result.success).toBe(false);
-		// In dev mode the unredacted message is fine — it should just report ENOENT.
-		// We don't strictly require the full path to appear in this surface, but we
-		// do require that the redacted token "<project>" is NOT inserted.
+		// In dev mode the unredacted absolute path MUST appear so devs can
+		// see exactly which path failed. The "<project>" token must NOT be
+		// inserted (that's a packaged-build-only substitution).
+		expect(result.error).toContain("/mock/Documents");
 		expect(result.error).not.toContain("<project>");
 	});
 });

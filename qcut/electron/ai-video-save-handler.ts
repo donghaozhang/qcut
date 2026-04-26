@@ -31,7 +31,6 @@ import {
 	getProjectRoot,
 	getProjectsBasePath,
 	isExistingDirectory,
-	sanitizePathComponent,
 } from "./lib/project-structure";
 
 const MAX_VIDEO_SIZE = 5 * 1024 * 1024 * 1024; // 5GB limit for AI videos
@@ -80,20 +79,21 @@ export function sanitizeFilename(filename: string): string {
 /**
  * Get the Documents-based AI video directory for a project.
  * Path: Documents/QCut/Projects/{projectId}/media/generated/videos/
+ *
+ * Routes through `getProjectRoot` so an invalid `projectId` (empty after
+ * sanitization, or one that resolves to the projects base directory like
+ * `"."` / `"..."`) throws here instead of silently producing a path that
+ * targets the shared base.
  */
 export function getAIVideoDir(projectId: string): string {
-	const sanitized = sanitizePathComponent(projectId);
 	const dir = path.join(
-		getProjectsBasePath(),
-		sanitized,
+		getProjectRoot(projectId),
 		"media",
 		"generated",
 		"videos"
 	);
 	console.log(
-		redactPath(
-			`[AI Video Path] getAIVideoDir("${projectId}") → ${dir} (sanitized="${sanitized}")`
-		)
+		redactPath(`[AI Video Path] getAIVideoDir("${projectId}") → ${dir}`)
 	);
 	return dir;
 }
@@ -496,7 +496,20 @@ export async function migrateAIVideosToDocuments(): Promise<MigrationResult> {
 		}
 
 		result.projectsProcessed++;
-		const destDir = getAIVideoDir(projectName);
+
+		// Resolve destination — `getAIVideoDir` now throws for project names
+		// that sanitize to empty / `.` / would collapse to the Projects base
+		// (e.g. legacy folders named `..` or `.`). Skip those rather than
+		// migrating to the wrong directory.
+		let destDir: string;
+		try {
+			destDir = getAIVideoDir(projectName);
+		} catch (err) {
+			result.errors.push(
+				`Skipping legacy project ${JSON.stringify(projectName)}: invalid project ID after sanitization (${err instanceof Error ? err.message : String(err)})`
+			);
+			continue;
+		}
 
 		// Ensure destination exists
 		try {

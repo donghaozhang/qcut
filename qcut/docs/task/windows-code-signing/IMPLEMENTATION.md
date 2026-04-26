@@ -91,7 +91,7 @@ If any of these steps fail, the rest of this implementation cannot proceed.
 
 - **`forceCodeSigning: false`** — kept `false` because signing happens **after** electron-builder finishes (in our local sign step). If we set this to `true`, electron-builder would try to sign during build and fail because no cert is available in the runner's keychain.
 - **`verifyUpdateCodeSignature: true`** — flipped from `false`. Auto-updater will refuse updates whose signature does not chain to the same publisher. Defends against compromised update-server scenarios.
-- **`signAndEditExecutable: false`** — kept `false` because we sign the outer installer .exe in our local step. The inner `app.exe` inside the installer is also signed there.
+- **`signAndEditExecutable: false`** — kept `false` because **we run `signtool` only on the outer NSIS `Setup.exe` in our local step**. The inner `app.exe` is signed by electron-builder during the **unpacked stage** (before NSIS bundles it) when `signtool.exe` and a cert are present in the build environment; `signtool` invoked on the already-built `Setup.exe` does **not** re-sign nested binaries. If a future change requires CI builds to skip the unpacked-stage sign (e.g., no cert on the runner), the local sign script must be extended to unpack → sign `app.exe` → repack → sign `Setup.exe`. Auto-update signature verification (`verifyUpdateCodeSignature: true`) only checks the signature of the file electron-updater downloads — for QCut that's the `Setup.exe`, so this two-stage subtlety doesn't affect updater behavior, but it matters for SmartScreen reputation on the inner binary.
 - **No `azureSignOptions`** — Azure path is ruled out (see [CERTIFICATE-OPTIONS.md](CERTIFICATE-OPTIONS.md#-azure-trusted-signing-microsoft-artifact-signing)).
 
 ### Update local `dist:win*` npm scripts
@@ -118,7 +118,7 @@ Add to `scripts`:
 
 ## 2. Update GitHub Actions release workflow
 
-**File:** `qcut/.github/workflows/release.yml` (Windows job, lines 56–108).
+**File:** `.github/workflows/release.yml` (Windows job, lines 56–108).
 
 The Windows CI build produces an **unsigned** `.exe` and uploads it as an artifact. The maintainer downloads, signs locally, and uploads the signed `.exe` back to the Release.
 
@@ -329,7 +329,7 @@ After all PRs land, do a manual end-to-end test:
 3. Run `bun run sign:win`. Approve on phone. Confirm script outputs "done".
 4. Run `bun run verify:win-signature`. Expect "OK".
 5. Manually upload signed `.exe` + `latest.yml` to the GitHub Release page.
-6. On a **clean** Windows Sequoia/11 VM (no developer tools, fresh user):
+6. On a **clean** Windows 11 VM (or Windows 10/11, no developer tools, fresh user):
    - Download the `.exe` from the Release page.
    - Double-click. SmartScreen may pop the warning ("Windows protected your PC"). Click "More info" → confirm "Quriosity Pty Ltd" appears. Click "Run anyway".
    - **Expected UAC dialog:** blue background, "Verified publisher: Quriosity Pty Ltd". Click "Yes".

@@ -87,7 +87,7 @@ The cert thumbprint is not findable in the user's certificate store. Check:
 - Re-authenticate the desktop tool — sometimes the SimplySign session expires after hours of inactivity.
 
 ### `signtool sign` succeeds but `signtool verify` fails
-- Timestamp service may have failed silently. Re-sign with a different `/tr` URL (alternatives: `http://timestamp.digicert.com`, `http://timestamp.sectigo.com`).
+- Timestamp service may have failed silently. Re-sign with a different `/tr` URL (alternatives: `http://timestamp.digicert.com`, `http://timestamp.sectigo.com` — HTTP-only per vendor specification; DigiCert and Sectigo do not offer HTTPS endpoints for the RFC3161 `/tr` interface, and signtool accepts both for the response-signed timestamp protocol).
 
 ### SmartScreen still warns users on signed installer
 This is **expected** for the first hundreds-thousands of downloads of a new build. SmartScreen reputation is per file hash and accumulates over time. See `docs/task/windows-code-signing/CERTIFICATE-OPTIONS.md` § "SmartScreen reputation reality" for full context.

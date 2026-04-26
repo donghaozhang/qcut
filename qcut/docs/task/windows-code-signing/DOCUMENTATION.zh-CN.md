@@ -86,7 +86,7 @@ Get-AuthenticodeSignature .\QCut*Setup*.exe
 - 重新认证桌面工具 — SimplySign 会话有时空闲几小时后过期。
 
 ### `signtool sign` 成功但 `signtool verify` 失败
-- 时间戳服务可能悄悄失败了。换一个 `/tr` URL 重签（备选：`http://timestamp.digicert.com`、`http://timestamp.sectigo.com`）。
+- 时间戳服务可能悄悄失败了。换一个 `/tr` URL 重签（备选：`http://timestamp.digicert.com`、`http://timestamp.sectigo.com` — 厂商规范要求 HTTP；DigiCert 和 Sectigo 的 RFC3161 `/tr` 接口都不提供 HTTPS 端点，signtool 对响应已签名的时间戳协议本身也接受 HTTP）。
 
 ### 签名后用户仍看到 SmartScreen 警告
 这对**每个新版本**的前几百到几千次下载都是**预期的**。SmartScreen 信誉按文件 hash 算，需要时间积累。完整背景见 `docs/task/windows-code-signing/CERTIFICATE-OPTIONS.zh-CN.md` § "SmartScreen 信誉的现实"。

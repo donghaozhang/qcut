@@ -30,6 +30,16 @@ failing release, or rotating Apple credentials.
 | APPLE_APP_SPECIFIC_PASSWORD | secret | from appleid.apple.com → App-Specific Passwords |
 | APPLE_TEAM_ID | variable | 10-char Team ID from developer.apple.com → Membership Details |
 
+> ⚠️ **Workflow wiring is part of the implementation PR, not this planning
+> doc.** The current `.github/workflows/release.yml` `build-macos` job (around
+> lines 169–178) exposes only `GH_TOKEN` and `USE_HARD_LINKS` to the
+> "Build Electron application" step. The signing/notarization PR must
+> expand the `env:` block to also forward `MAC_CSC_LINK`,
+> `MAC_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and
+> `APPLE_TEAM_ID` — without that change, electron-builder will fall back
+> to producing an unsigned, un-notarized `.app` even after the secrets
+> exist on the repo.
+
 ## Local signed builds
 With cert in your local keychain and env vars set:
 

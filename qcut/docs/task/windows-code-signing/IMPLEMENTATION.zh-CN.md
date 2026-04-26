@@ -87,7 +87,7 @@ Certum SimplySign 要求**每次** `signtool` 调用都通过手机确认 — �
 
 - **`forceCodeSigning: false`** — 仍然 `false`，因为签名发生在 electron-builder **完成之后**（我们的本地签名步骤里）。如果设成 `true`，electron-builder 会在 build 期间想签，但 runner 钥匙串里没证书，构建会失败。
 - **`verifyUpdateCodeSignature: true`** — 从 `false` 翻成 `true`。自动更新会拒绝签名链不匹配同一发布者的更新。防御更新服务器被入侵的场景。
-- **`signAndEditExecutable: false`** — 仍然 `false`，因为我们在本地签名步骤里签**外层**安装包 `.exe`。安装包内的 `app.exe` 也在那一步签。
+- **`signAndEditExecutable: false`** — 仍然 `false`，因为**本地签名步骤里我们只用 `signtool` 签外层 NSIS `Setup.exe`**。安装包内的 `app.exe` 是在 electron-builder 的 **unpacked 阶段**（NSIS 打包之前）签的——前提是构建环境里有 `signtool.exe` 和证书；对已经打包好的 `Setup.exe` 再跑 `signtool` **不会**重新签里面的嵌套二进制。如果将来 CI 构建跳过 unpacked 阶段签名（例如 runner 上没证书），本地签名脚本就需要扩展为：解包 → 签 `app.exe` → 重新打包 → 签 `Setup.exe`。自动更新签名校验（`verifyUpdateCodeSignature: true`）只检查 electron-updater 下载的那个文件 — 对 QCut 来说就是 `Setup.exe`，所以这个两阶段细节不影响更新逻辑，但对于内层二进制的 SmartScreen 信誉很关键。
 - **没有 `azureSignOptions`** — Azure 路径已排除（见 [CERTIFICATE-OPTIONS.zh-CN.md](CERTIFICATE-OPTIONS.zh-CN.md#-azure-trusted-signingmicrosoft-artifact-signing)）。
 
 ### 改本地 `dist:win*` npm 脚本
@@ -114,7 +114,7 @@ Certum SimplySign 要求**每次** `signtool` 调用都通过手机确认 — �
 
 ## 2. 修改 GitHub Actions 发布工作流
 
-**文件：** `qcut/.github/workflows/release.yml`（Windows 任务，第 56–108 行）。
+**文件：** `.github/workflows/release.yml`（Windows 任务，第 56–108 行）。
 
 Windows CI build 出**未签名**的 `.exe` 并上传作为 artifact。维护者下载、本地签、把签好的 `.exe` 手工上传回 Release。
 
@@ -323,7 +323,7 @@ console.log("[verify-windows-signature] OK");
 3. 跑 `bun run sign:win`。在手机批准。确认脚本输出 "完成"。
 4. 跑 `bun run verify:win-signature`。期望 "OK"。
 5. 把签名 `.exe` + `latest.yml` 手工上传到 GitHub Release 页面。
-6. 在**干净** Windows Sequoia/11 VM（无开发工具，新用户）上：
+6. 在**干净** Windows 11 VM（或 Windows 10/11，无开发工具，新用户）上：
    - 从 Release 页面下载 `.exe`。
    - 双击。SmartScreen 可能弹警告（"Windows protected your PC"）。点 "More info" → 确认看到 "Quriosity Pty Ltd"。点 "Run anyway"。
    - **预期 UAC 弹窗：** 蓝色背景，"Verified publisher: Quriosity Pty Ltd"。点 "Yes"。

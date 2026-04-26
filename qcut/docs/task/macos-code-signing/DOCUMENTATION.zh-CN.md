@@ -32,6 +32,14 @@
 | APPLE_APP_SPECIFIC_PASSWORD | secret | appleid.apple.com → App-Specific Passwords |
 | APPLE_TEAM_ID | variable | developer.apple.com → Membership Details 里的 10 位 Team ID |
 
+> ⚠️ **工作流接线属于实现 PR，不属于这份规划文档。** 当前
+> `.github/workflows/release.yml` 的 `build-macos` 任务（约 169–178 行）的
+> "Build Electron application" 步骤只把 `GH_TOKEN` 和 `USE_HARD_LINKS` 塞进
+> `env:`。签名/公证那个 PR 必须扩充该 `env:` 块，再把 `MAC_CSC_LINK`、
+> `MAC_CSC_KEY_PASSWORD`、`APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD` 和
+> `APPLE_TEAM_ID` 也透传过去 — 没有这一步，即使仓库里已经有这些 secret，
+> electron-builder 仍会回退到产出未签名、未公证的 `.app`。
+
 ## 本地签名构建
 本地钥匙串里有证书 + 环境变量都设好后：
 
