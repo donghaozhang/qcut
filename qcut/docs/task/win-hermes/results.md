@@ -1,57 +1,82 @@
 # win-hermes build results
 
-## Summary
+## Final status
 - Branch: `win-Hermes`
 - Working directory: `qcut/`
-- Build command requested: `bun run build`
-- Bun used: `C:\Users\yanie\.bun\bin\bun.exe`
-- Started (UTC): `2026-04-27T01:55:34Z`
-- Finished (UTC): `2026-04-27T01:56:55Z`
-- Result: ❌ failed
-- Exit status: `2`
+- Final build command: `/mnt/c/Users/yanie/.bun/bin/bun.exe run build`
+- Final result: ✅ passed
+- Final exit status: `0`
+- Successful run started (UTC): `2026-04-27T03:09:41Z`
+- Successful run finished (UTC): `2026-04-27T03:09:54Z`
 
-## Failure point
-The web build completed, but the Electron TypeScript build failed afterward.
+## Root cause
+The repository already declared `@google/genai` in `qcut/package.json`, and `electron/video-search/gemini-embedding-provider.ts` imported the same package name correctly.
+
+The failure came from **local dependency state being out of sync**:
+- `package.json` declared `@google/genai`
+- local `node_modules/@google/` initially did **not** contain `genai`
+- Electron TypeScript compilation therefore failed with:
 
 ```text
 video-search/gemini-embedding-provider.ts(20,40): error TS2307: Cannot find module '@google/genai' or its corresponding type declarations.
 ```
 
-## Notable observations
-- `bun` was not available on the WSL PATH, so the build was run with Windows Bun directly.
-- Initial attempt with plain `bun run build` failed immediately with:
+## Plan file
+The implementation plan was written first here:
+- `qcut/docs/task/win-hermes/plan.md`
 
-```text
-/usr/bin/bash: line 3: bun: command not found
+## What I did
+1. Confirmed the import path in:
+   - `qcut/electron/video-search/gemini-embedding-provider.ts`
+2. Confirmed the dependency declaration in:
+   - `qcut/package.json`
+3. Verified local install state was missing `node_modules/@google/genai`
+4. Synced dependencies with:
+
+```bash
+/mnt/c/Users/yanie/.bun/bin/bun.exe install
 ```
 
-- The subsequent run with Windows Bun successfully executed the setup and web build steps.
-- Vite emitted several warnings during the web build, including:
-  - route test files under `apps/web/src/routes/...` not exporting `Route`
-  - module type warnings for `apps/web/postcss.config.ts`
-  - multiple dynamic-import/static-import chunking warnings
-  - oversized chunk warnings after minification
-
-## Successful stages before failure
-- `bun run setup-ffmpeg`
-- `bun run stage-ffmpeg-binaries`
-- `bun run sync-skills`
-- `turbo run build` for the web app
-- Vite production build completed with:
-
-```text
-✓ built in 40.50s
-```
-
-## Full log location
-- `/tmp/win-hermes-build.log`
-
-## Suggested next fix
-Install or expose the missing dependency used by Electron build:
-- `@google/genai`
-
-Then rerun:
+5. Verified `node_modules/@google/genai` existed after install
+6. Re-ran the build with:
 
 ```bash
 /mnt/c/Users/yanie/.bun/bin/bun.exe run build
 ```
+
+## Implementation result
+- **No source-code change was required to fix the build**
+- The fix was to reconcile local dependencies so the declared package was actually installed
+
+## Notes from dependency sync
+Bun install succeeded and restored the missing dependency state.
+
+Observed install command result:
+- exit status: `0`
+- log: `/tmp/win-hermes-bun-install.log`
+
+## Build verification
+The follow-up build completed successfully.
+
+Key successful final step:
+
+```text
+$ cd electron && bun x tsc && bun x esbuild ../electron/preload.ts --bundle --platform=node --outfile=../dist/electron/preload.js --external:electron
+
+  ..\dist\electron\preload.js  47.2kb
+
+Done in 8ms
+```
+
+## Warnings still present but non-fatal
+The build still emits warnings, including:
+- route test files under `apps/web/src/routes/...` not exporting `Route`
+- `postcss.config.ts` module-type warnings
+- Vite chunking and large-chunk warnings
+
+These warnings did **not** block the build.
+
+## Logs
+- failed run log: `/tmp/win-hermes-build.log`
+- install log: `/tmp/win-hermes-bun-install.log`
+- successful run log: `/tmp/win-hermes-build-2.log`
