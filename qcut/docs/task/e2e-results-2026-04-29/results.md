@@ -31,9 +31,8 @@ bun run build           # tests launch from dist/electron/main.js
 bun run test:e2e:bg     # invisible / offscreen mode
 ```
 
-- HTML report: `docs/completed/test-results/index.html`
-- Raw artifacts: `docs/completed/test-results-raw/`
-- Captured console log: [`run.log.gz`](./run.log.gz) (gzipped, 580K → 30K)
+- HTML report: `docs/completed/test-results/index.html` (gitignored)
+- Raw artifacts: `docs/completed/test-results-raw/` (gitignored)
 
 ## Coverage
 
