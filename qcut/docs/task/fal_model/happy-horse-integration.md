@@ -1,6 +1,6 @@
 # Alibaba Happy Horse Video Models — Integration Plan
 
-**Status**: ✅ Implemented on 2026-04-30 (subtasks 1–6). All three models wired to the CLI; T2V + Ref2V wired to the GUI model picker. Video-Edit is CLI-only for this iteration — a "Video Edit" tab in the AI panel with multi-image uploader is left as a follow-up (see "Implementation summary" → "GUI scope" below).
+**Status**: ✅ Implemented and **verified end-to-end against the live FAL queue** on 2026-04-30 (subtasks 1–6 + two live-test bug fixes). All three models wired to the CLI; T2V + Ref2V wired to the GUI model picker. Video-Edit is CLI-only for this iteration — a "Video Edit" tab in the AI panel with multi-image uploader is left as a follow-up (see "Implementation summary" → "GUI scope" below).
 **Date**: 2026-04-30
 **Source specs**:
 - T2V: <https://fal.ai/models/alibaba/happy-horse/text-to-video/api>
@@ -60,12 +60,30 @@
 
 ### Test results
 
+**Unit tests:**
 - `bunx vitest run apps/web/src/lib/ai-video/validation/__tests__/happy-horse-validators.test.ts` → **37/37 ✅**
-- `bunx vitest run electron/native-pipeline/execution/__tests__/step-executors-happy-horse.test.ts` → **9/9 ✅**
+- `bunx vitest run electron/native-pipeline/execution/__tests__/step-executors-happy-horse.test.ts` → **11/11 ✅** (added integer-coercion + multi-reference upload tests after live runs)
 - `bunx vitest run apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/__tests__/` → **15/15 ✅** (handler-exports updated, no regressions)
-- `bunx vitest run apps/web/src/lib/ai-video/ electron/native-pipeline/execution/__tests__/ electron/native-pipeline/registry-data/__tests__/` → **200/200 ✅** (broader regression sweep)
-- `bunx vitest run electron/native-pipeline/cli/__tests__/ apps/web/src/components/editor/media-panel/views/ai/constants/__tests__/` → **82/82 ✅**
-- Type checks: `bunx tsc -p electron/tsconfig.json --noEmit` → clean. `bunx tsc -p apps/web/tsconfig.json --noEmit` → clean.
+- `bunx vitest run apps/web/src/lib/ai-video/ electron/native-pipeline/execution/__tests__/ electron/native-pipeline/registry-data/__tests__/` → **200/200 ✅**
+- Type checks (`tsc --noEmit` on both `electron/` and `apps/web/` projects) → clean.
+
+**Live FAL runs** (queued through the QCut license-server proxy, beta tester account):
+
+| Model | Inputs | FAL endpoint | Wall-clock | Output |
+|---|---|---|---|---|
+| `happy_horse_t2v` | prompt + 3s @ 720p 16:9 | `alibaba/happy-horse/text-to-video` | 101.2 s | `output_1777581645705.mp4` (2.7 MB) ✅ |
+| `happy_horse_ref2v` | 2 reference PNGs (logo.png + icon.png) + 3s @ 720p 9:16 | `alibaba/happy-horse/reference-to-video` | 106.9 s | `output_1777581849069.mp4` (2.0 MB) ✅ |
+| `happy_horse_video_edit` (auto audio) | T2V output as source + warm-tint prompt | `alibaba/happy-horse/video-edit` | 105.0 s | `output_1777581963020.mp4` (2.1 MB) ✅ |
+| `happy_horse_video_edit` (origin audio + @Image1) | T2V output + logo.png ref + watermark prompt | `alibaba/happy-horse/video-edit` | 111.3 s | `output_1777582084777.mp4` ✅ |
+
+### Bugs found by the live runs (and fixed)
+
+1. **`duration` is an integer enum, not a string.** I had stringified `duration` for `happy_horse_t2v` / `happy_horse_ref2v` based on a misreading of the FAL spec ("enum 3–15"). The live endpoint returns `literal_error: "Input should be 3, 4, 5, …, 15"` when given `"5"`.
+   - Fix: changed registry defaults from `"5"` → `5`, `durationOptions` from `["3"…"15"]` → `[3…15]`, removed the stringify branches in `step-executors.ts`, `generators/text-to-video/shared.ts`, and `generators/happy-horse-generators.ts`. Step-executor now coerces `string → number` for any registry-default leakage.
+   - Test: new `coerces a string-form integer duration to a number` regression guard.
+2. **Multi-reference local paths in `--reference-images` were sent verbatim to FAL.** The Ref2V branch only uploaded `input.imageUrl` (single); the array from `payload.image_urls` (set by `--reference-images`) bypassed the upload path. FAL responded with `Value error, Input must be a valid HTTPS URL or a Data URI`.
+   - Fix: added an unconditional upload pass in `executeImageToVideo` after the per-model branches that walks `payload.image_urls` for `happy_horse_ref2v` and uploads any non-`https://` entries via `uploadToFalStorage`, capping at 9.
+   - Test: new `uploads local paths in image_urls to FAL storage before submit` test that mocks `uploadToFalStorage` and asserts the local path is replaced while existing HTTPS URLs pass through.
 
 ### How it gets used
 

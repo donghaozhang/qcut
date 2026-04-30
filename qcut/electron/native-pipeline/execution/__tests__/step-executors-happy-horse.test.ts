@@ -1,8 +1,8 @@
 /**
  * Step-executor payload-shape tests for the three Alibaba Happy Horse
  * endpoints. Pins:
- *  - happy_horse_t2v        → string-enum duration, no image_*, no video_*
- *  - happy_horse_ref2v      → image_urls (array), prompt, string-enum duration
+ *  - happy_horse_t2v        → integer-enum duration (3–15), no image_*, no video_*
+ *  - happy_horse_ref2v      → image_urls (array), prompt, integer-enum duration
  *  - happy_horse_video_edit → video_url + reference_image_urls (≤5),
  *                             audio_setting, no per-model duration knob
  *
@@ -48,7 +48,7 @@ beforeEach(() => {
 });
 
 describe("executeTextToVideo — happy_horse_t2v", () => {
-	it("posts to alibaba/happy-horse/text-to-video with stringified duration", async () => {
+	it("posts to alibaba/happy-horse/text-to-video with integer duration", async () => {
 		const model = ModelRegistry.get("happy_horse_t2v");
 		await executeStep(
 			model,
@@ -60,8 +60,10 @@ describe("executeTextToVideo — happy_horse_t2v", () => {
 		const call = mockedCallModelApi.mock.calls[0][0];
 		expect(call.endpoint).toBe("alibaba/happy-horse/text-to-video");
 		expect(call.payload.prompt).toBe("neon city at dusk");
-		// FAL's schema expects the string-enum form
-		expect(call.payload.duration).toBe("5");
+		// FAL's schema expects the integer-literal form (verified live —
+		// the string form returns literal_error).
+		expect(call.payload.duration).toBe(5);
+		expect(typeof call.payload.duration).toBe("number");
 		expect(call.payload.resolution).toBe("1080p");
 		expect(call.payload.aspect_ratio).toBe("16:9");
 		// Must not leak image/video fields onto a T2V request
@@ -69,10 +71,23 @@ describe("executeTextToVideo — happy_horse_t2v", () => {
 		expect(call.payload).not.toHaveProperty("image_urls");
 		expect(call.payload).not.toHaveProperty("video_url");
 	});
+
+	it("coerces a string-form integer duration to a number (defends against registry-default drift)", async () => {
+		const model = ModelRegistry.get("happy_horse_t2v");
+		await executeStep(
+			model,
+			{ text: "p" },
+			{ duration: "7" }, // simulates an old string default leaking through
+			{}
+		);
+		const payload = mockedCallModelApi.mock.calls[0][0].payload;
+		expect(payload.duration).toBe(7);
+		expect(typeof payload.duration).toBe("number");
+	});
 });
 
 describe("executeImageToVideo — happy_horse_ref2v", () => {
-	it("wraps a single imageUrl into image_urls and stringifies duration", async () => {
+	it("wraps a single imageUrl into image_urls and keeps duration as integer", async () => {
 		const model = ModelRegistry.get("happy_horse_ref2v");
 		await executeStep(
 			model,
@@ -86,7 +101,8 @@ describe("executeImageToVideo — happy_horse_ref2v", () => {
 		const call = mockedCallModelApi.mock.calls[0][0];
 		expect(call.endpoint).toBe("alibaba/happy-horse/reference-to-video");
 		expect(call.payload.image_urls).toEqual(["https://example.com/alice.png"]);
-		expect(call.payload.duration).toBe("5");
+		expect(call.payload.duration).toBe(5);
+		expect(typeof call.payload.duration).toBe("number");
 		// Field-name regression guards — Happy Horse uses image_urls,
 		// distinct from Vidu (reference_image_urls) and GMI Seedance
 		// (reference_images). The wrong one silently degrades to a generic
@@ -115,6 +131,36 @@ describe("executeImageToVideo — happy_horse_ref2v", () => {
 			"https://example.com/lead.png",
 			"https://example.com/extra1.png",
 			"https://example.com/extra2.png",
+		]);
+	});
+
+	it("uploads local paths in image_urls to FAL storage before submit", async () => {
+		const { uploadToFalStorage } = await import("../../infra/api-caller.js");
+		const mockedUpload = vi.mocked(uploadToFalStorage);
+		mockedUpload.mockResolvedValue({
+			success: true,
+			url: "https://v3.fal.media/uploaded.png",
+			duration: 0,
+		});
+		const model = ModelRegistry.get("happy_horse_ref2v");
+		await executeStep(
+			model,
+			{ text: "p" },
+			{
+				duration: 5,
+				image_urls: [
+					"/local/path/alice.png",
+					"https://example.com/already-https.png",
+				],
+			},
+			{}
+		);
+		const payload = mockedCallModelApi.mock.calls[0][0].payload;
+		// Local path was uploaded; HTTPS entry passed through verbatim.
+		expect(mockedUpload).toHaveBeenCalledWith("/local/path/alice.png");
+		expect(payload.image_urls).toEqual([
+			"https://v3.fal.media/uploaded.png",
+			"https://example.com/already-https.png",
 		]);
 	});
 

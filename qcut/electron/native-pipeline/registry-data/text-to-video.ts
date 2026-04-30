@@ -649,25 +649,14 @@ export function registerTextToVideoModels(): void {
 		description:
 			"Alibaba Happy Horse text-to-video — 720p/1080p, 3–15s, 5 aspect ratios",
 		pricing: { type: "per_second", cost: null as unknown as number },
-		durationOptions: [
-			"3",
-			"4",
-			"5",
-			"6",
-			"7",
-			"8",
-			"9",
-			"10",
-			"11",
-			"12",
-			"13",
-			"14",
-			"15",
-		],
+		// FAL accepts integer literals 3–15 (verified live — string form
+		// returns literal_error). Keep durationOptions as numbers so the
+		// CLI/UI surface them without coercion.
+		durationOptions: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
 		aspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
 		resolutions: ["720p", "1080p"],
 		defaults: {
-			duration: "5",
+			duration: 5,
 			resolution: "1080p",
 			aspect_ratio: "16:9",
 			enable_safety_checker: true,

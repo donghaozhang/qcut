@@ -166,12 +166,17 @@ export async function executeStep(
 		}
 	}
 
-	// Alibaba Happy Horse T2V/Ref2V validate `duration` as a string enum
-	// ("3"–"15") per the FAL spec. The CLI converts `-d 5s` to the number 5,
-	// which the server rejects. Mirrors the Kling/Seedance branch above.
+	// Alibaba Happy Horse T2V/Ref2V `duration` is an integer literal enum
+	// (3, 4, …, 15) — verified against the live FAL endpoint, which rejects
+	// the string form with `literal_error`. The CLI's `-d 5s` already parses
+	// to the number 5, but the registry default ("5") is a string; coerce
+	// any string-form integer back to a number here.
 	if (model.key === "happy_horse_t2v" || model.key === "happy_horse_ref2v") {
-		if (typeof payload.duration === "number") {
-			payload.duration = String(payload.duration);
+		if (typeof payload.duration === "string") {
+			const n = Number(payload.duration);
+			if (Number.isFinite(n) && Number.isInteger(n)) {
+				payload.duration = n;
+			}
 		}
 	}
 
@@ -386,11 +391,11 @@ async function executeImageToVideo(
 			// like FAL Seedance 2.0).
 			payload.reference_image_urls = [imageUrl];
 		} else if (model.key === "happy_horse_ref2v") {
-			// Happy Horse Ref2V expects `image_urls` (1–9). CLI may pass
-			// either the multi-flag form (--reference-images, repeatable —
-			// already merged into payload.image_urls by handler-generate)
-			// or a single --image-url. Merge both, dedupe-by-prepend, and
-			// cap at 9 (FAL silently rejects beyond the limit).
+			// Happy Horse Ref2V expects `image_urls` (1–9). The single
+			// `--image-url` is prepended into the array; the multi-flag form
+			// (`--reference-images`) lands in `payload.image_urls` via
+			// handler-generate and is uploaded below in the unconditional
+			// pass that follows. Cap at 9 (FAL rejects more).
 			const existing = Array.isArray(payload.image_urls)
 				? (payload.image_urls as string[])
 				: [];
@@ -413,6 +418,44 @@ async function executeImageToVideo(
 	if (input.text) {
 		payload.prompt = input.text;
 	}
+
+	// Happy Horse Ref2V can receive multiple references via the CLI's
+	// repeatable `--reference-images` flag, which lands in `payload.image_urls`
+	// already as a raw list (often local paths). FAL only accepts HTTPS URLs
+	// or data URIs, so upload any non-http entries here. Cap at 9 — FAL
+	// rejects more.
+	if (
+		model.key === "happy_horse_ref2v" &&
+		Array.isArray(payload.image_urls)
+	) {
+		const raw = (payload.image_urls as string[]).slice(0, 9);
+		const resolved: string[] = [];
+		for (const entry of raw) {
+			if (provider === "fal" && !/^https?:\/\//i.test(entry)) {
+				if (options.signal?.aborted) {
+					return {
+						success: false,
+						error: "Step cancelled before reference image upload",
+						duration: 0,
+					};
+				}
+				options.onProgress?.(8, "Uploading reference image...");
+				const upload = await uploadToFalStorage(entry);
+				if (!upload.success || !upload.url) {
+					return {
+						success: false,
+						error: upload.error || "Failed to upload reference image",
+						duration: 0,
+					};
+				}
+				resolved.push(upload.url);
+			} else {
+				resolved.push(entry);
+			}
+		}
+		payload.image_urls = resolved;
+	}
+
 	const result = await callModelApi({
 		endpoint: model.endpoint,
 		modelKey: model.key,

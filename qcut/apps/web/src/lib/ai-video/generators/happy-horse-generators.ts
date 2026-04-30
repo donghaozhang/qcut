@@ -62,12 +62,6 @@ function resolveEndpoint(
 	return VIDEO_EDIT_ENDPOINT;
 }
 
-/** Stringify duration for the FAL string-enum schema. */
-function durationToString(d: number | string | undefined): string | undefined {
-	if (d === undefined) return undefined;
-	return String(d);
-}
-
 function buildSharedPayload(
 	prompt: string,
 	resolution: string,
@@ -116,7 +110,7 @@ export async function generateHappyHorseT2V(
 				request.seed,
 				request.enable_safety_checker
 			);
-			payload.duration = durationToString(duration);
+			payload.duration = duration;
 			payload.aspect_ratio = aspectRatio;
 
 			const jobId = generateJobId();
@@ -173,7 +167,7 @@ export async function generateHappyHorseRef2V(
 				request.enable_safety_checker
 			);
 			payload.image_urls = request.image_urls;
-			payload.duration = durationToString(duration);
+			payload.duration = duration;
 			payload.aspect_ratio = aspectRatio;
 
 			const jobId = generateJobId();
