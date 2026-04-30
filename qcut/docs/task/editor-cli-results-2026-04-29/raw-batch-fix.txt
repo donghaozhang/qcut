@@ -1,0 +1,26 @@
+=== diagnostics:analyze (with --message) ===
+$ bun run electron/native-pipeline/cli/cli.ts editor:diagnostics:analyze --message "test diagnostics from cli battery" --json
+{
+  "status": "error",
+  "error": "Cannot read properties of undefined (reading 'getVersion')",
+  "code": "editor:diagnostics:analyze:failed",
+  "command_id": "cmd-1777486022649-5wytbs",
+  "duration_ms": 8
+}
+error: script "pipeline" exited with code 1
+
+=== auth:token (token list) ===
+$ bun run electron/native-pipeline/cli/cli.ts editor:auth:token --json
+{
+  "status": "ok",
+  "data": {
+    "schema_version": "1",
+    "command": "editor:auth:token",
+    "data": {
+      "token": "WS6S...goPC",
+      "authenticated": true
+    }
+  },
+  "command_id": "cmd-1777486022703-p37ypp",
+  "duration_ms": 8
+}
