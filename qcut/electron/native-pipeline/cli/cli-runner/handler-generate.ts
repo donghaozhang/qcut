@@ -7,6 +7,7 @@
  */
 
 import * as path from "path";
+import * as fs from "fs/promises";
 import { ModelRegistry } from "../../infra/registry.js";
 import { PipelineExecutor } from "../../execution/executor.js";
 import type { PipelineStep } from "../../execution/executor.js";
@@ -15,6 +16,91 @@ import { downloadOutput } from "../../infra/api-caller.js";
 import { resolveOutputDir } from "../../output/output-utils.js";
 import type { CLIRunOptions, CLIResult, ProgressFn } from "./types.js";
 import { guessExtFromCommand } from "./progress.js";
+
+/**
+ * Slugify a prompt for use in a filename. Lowercases, strips non-word
+ * chars, collapses whitespace into single dashes, trims to 60 chars on
+ * a word boundary so the result is always a usable identifier.
+ */
+export function slugifyPrompt(prompt: string, maxLen = 60): string {
+	const cleaned = prompt
+		.toLowerCase()
+		.replace(/[^a-z0-9\s-]/g, " ")
+		.replace(/\s+/g, "-")
+		.replace(/-+/g, "-")
+		.replace(/^-|-$/g, "");
+	if (cleaned.length <= maxLen) return cleaned || "untitled";
+	const truncated = cleaned.slice(0, maxLen);
+	const lastDash = truncated.lastIndexOf("-");
+	return lastDash > 20 ? truncated.slice(0, lastDash) : truncated;
+}
+
+/**
+ * Build a descriptive output basename: `<model>_<prompt-slug>_<timestamp>`.
+ * Falls back to `output_<timestamp>` when there's no model or prompt.
+ */
+export function buildOutputBasename(
+	model: string | undefined,
+	promptText: string,
+	timestamp: number,
+	jobIndex: number
+): string {
+	const stamp = String(timestamp);
+	const slug = slugifyPrompt(promptText);
+	const indexSuffix = jobIndex >= 0 ? `_${jobIndex}` : "";
+	if (model && slug && slug !== "untitled") {
+		return `${model}_${slug}_${stamp}${indexSuffix}`;
+	}
+	if (model) {
+		return `${model}_${stamp}${indexSuffix}`;
+	}
+	return `output_${stamp}${indexSuffix}`;
+}
+
+/** Write a sidecar JSON file with prompt + parameters next to the output. */
+async function writeSidecarJson(
+	basenamePath: string,
+	command: string,
+	model: string | undefined,
+	endpoint: string | undefined,
+	prompt: string,
+	params: Record<string, unknown>,
+	options: CLIRunOptions,
+	result: { outputUrl?: string; outputPath?: string; cost?: number },
+	timestamp: number,
+	durationSeconds: number
+): Promise<void> {
+	const sidecar = {
+		schema_version: "1",
+		command,
+		model,
+		endpoint,
+		prompt,
+		params,
+		inputs: {
+			image_url: options.imageUrl,
+			video_url: options.videoUrl,
+			audio_url: options.audioUrl,
+			reference_images: options.referenceImages,
+		},
+		output: {
+			path: result.outputPath,
+			video_url: result.outputUrl,
+		},
+		cost: result.cost ?? null,
+		duration_seconds: durationSeconds,
+		generated_at: new Date(timestamp).toISOString(),
+	};
+	try {
+		await fs.writeFile(
+			`${basenamePath}.json`,
+			JSON.stringify(sidecar, null, 2),
+			"utf8"
+		);
+	} catch {
+		// Sidecar is best-effort — losing it must not fail the run.
+	}
+}
 
 /**
  * Run a single generation step and download the result.
@@ -77,11 +163,38 @@ async function runSingleGeneration(
 		};
 	}
 
+	const outputTimestamp = Date.now();
+	const basename = buildOutputBasename(
+		options.model,
+		promptText,
+		outputTimestamp,
+		jobIndex
+	);
+
+	// The executor's `mapApiResult` already downloaded under a generic
+	// `output_<ms>.mp4` name. Rename to our descriptive basename in-place
+	// so the user sees `<model>_<slug>_<ms>.mp4` in their exports folder.
+	// Best-effort: a rename failure (race, permissions) leaves the file
+	// at the original path — the download itself isn't lost.
+	if (result.outputPath && outputDir) {
+		const currentDir = path.dirname(result.outputPath);
+		const ext = path.extname(result.outputPath);
+		const desired = path.join(currentDir, `${basename}${ext}`);
+		if (currentDir === outputDir && desired !== result.outputPath) {
+			try {
+				await fs.rename(result.outputPath, desired);
+				result.outputPath = desired;
+			} catch {
+				// Keep original path if rename fails.
+			}
+		}
+	}
+
+	// Fallback: executor didn't download (e.g. no outputDir was wired
+	// through). Download here using the new basename.
 	if (!result.outputPath && result.outputUrl && outputDir) {
 		const ext = guessExtFromCommand(options.command);
-		const suffix = jobIndex >= 0 ? `_${jobIndex}` : "";
-		const filename = `output_${Date.now()}${suffix}${ext}`;
-		const destPath = path.join(outputDir, filename);
+		const destPath = path.join(outputDir, `${basename}${ext}`);
 		try {
 			result.outputPath = await downloadOutput(result.outputUrl, destPath);
 		} catch {
@@ -97,6 +210,30 @@ async function runSingleGeneration(
 	});
 
 	const cost = result.cost ?? estimateCost(options.model!, params).totalCost;
+
+	// Sidecar JSON next to the output captures the prompt + every param
+	// the run was given. Lets users reproduce a generation without
+	// digging through shell history. Best-effort: write failures don't
+	// fail the run (the video is the primary deliverable).
+	if (result.outputPath || (outputDir && result.outputUrl)) {
+		const sidecarBase = result.outputPath
+			? result.outputPath.replace(/\.[^.]+$/, "")
+			: path.join(outputDir, basename);
+		await writeSidecarJson(
+			sidecarBase,
+			options.command,
+			options.model,
+			ModelRegistry.has(options.model ?? "")
+				? ModelRegistry.get(options.model!).endpoint
+				: undefined,
+			promptText,
+			params,
+			options,
+			{ outputUrl: result.outputUrl, outputPath: result.outputPath, cost },
+			outputTimestamp,
+			(Date.now() - startTime) / 1000
+		);
+	}
 
 	return {
 		success: true,
