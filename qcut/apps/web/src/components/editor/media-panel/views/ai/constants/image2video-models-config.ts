@@ -898,6 +898,29 @@ export const I2V_MODELS = {
 		supportedAspectRatios: ["16:9", "9:16", "1:1", "3:4", "4:3", "21:9"],
 		providerBackend: "runway",
 	},
+	happy_horse_ref2v: {
+		id: "happy_horse_ref2v",
+		name: "Alibaba Happy Horse Ref2V",
+		description:
+			"Multi-character reference-to-video (1–9 images, addressed as character1…character9 in the prompt)",
+		price: "TBD",
+		resolution: "720p / 1080p",
+		max_duration: 15,
+		category: "image",
+		endpoints: {
+			image_to_video: "alibaba/happy-horse/reference-to-video",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+			enable_safety_checker: true,
+		},
+		supportedResolutions: ["720p", "1080p"],
+		supportedDurations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+		supportedAspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+		requiredInputs: ["referenceImages"],
+	},
 } as const satisfies Record<string, AIModel>;
 
 /**
@@ -926,6 +949,7 @@ export const I2V_MODEL_ORDER: readonly I2VModelId[] = [
 	"seedance_pro_i2v",
 	"seedance2_i2v",
 	"seedance2_ref2v",
+	"happy_horse_ref2v",
 	"veo31_fast_image_to_video",
 	"kling_v2_5_turbo_i2v",
 	"seedance_pro_fast_i2v",

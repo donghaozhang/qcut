@@ -275,12 +275,31 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 					"gmi_seedance_2_0_260128_t2v",
 					"gmi_seedance_2_0_260128_i2v",
 					"gmi_seedance_2_0_260128_ref2v",
+					"happy_horse_t2v",
+					"happy_horse_ref2v",
+					"happy_horse_video_edit",
 				],
 			}),
 			f("--duration", "string", "Duration (e.g. 5s)", { short: "-d" }),
 			f("--aspect-ratio", "string", "Aspect ratio"),
 			f("--resolution", "string", "Resolution"),
 			f("--image-url", "string", "Input image URL (img2vid)"),
+			f(
+				"--video-url",
+				"string",
+				"Input video URL (video-edit models, e.g. happy_horse_video_edit)"
+			),
+			f(
+				"--reference-images",
+				"string[]",
+				"Reference image URLs (repeatable). Used by happy_horse_ref2v (1–9) and happy_horse_video_edit (≤5)"
+			),
+			f(
+				"--audio-setting",
+				"string",
+				"Happy Horse video-edit: 'auto' (model decides) or 'origin' (preserve input audio)",
+				{ enum: ["auto", "origin"] }
+			),
 			f("--negative-prompt", "string", "Negative prompt"),
 			f("--count", "number", "Generate N copies"),
 			f("--prompts", "string[]", "Multiple prompts (repeatable)"),
@@ -301,6 +320,9 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut-pipeline create-video -t 'A flower blooming' --image-url https://example.com/flower.jpg",
 			"qcut-pipeline create-video -t '<<<element_1>>> walks in park' -m gmi_kling_v3_omni_t2v --element-ids abc123",
 			"qcut-pipeline create-video -t '<<<element_1>>> sings on stage' -m gmi_kling_v3_omni_i2v --element-ids abc --sound on --watermark",
+			"qcut-pipeline create-video -t 'neon city at dusk' -m happy_horse_t2v -d 5s --aspect-ratio 16:9 --resolution 1080p",
+			"qcut-pipeline create-video -t 'character1 hands character2 a coffee cup' -m happy_horse_ref2v --reference-images https://.../alice.png --reference-images https://.../bob.png",
+			"qcut-pipeline create-video -t 'make @Image1 wear a red coat in the rain' -m happy_horse_video_edit --video-url https://.../source.mp4 --reference-images https://.../coat.png --resolution 1080p --audio-setting origin",
 		],
 	},
 	"generate-avatar": {

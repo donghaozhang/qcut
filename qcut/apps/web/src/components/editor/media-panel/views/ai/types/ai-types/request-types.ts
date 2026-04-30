@@ -159,6 +159,76 @@ export interface LTX23A2VRequest {
 }
 
 /**
+ * Shared Happy Horse parameter types.
+ *
+ * `duration` is sent to FAL as a string enum ("3"–"15"), but the renderer
+ * accepts a numeric type for type-checking ergonomics — the generators
+ * stringify before submit. See docs/task/fal_model/happy-horse-integration.md.
+ */
+export type HappyHorseDuration =
+	| 3
+	| 4
+	| 5
+	| 6
+	| 7
+	| 8
+	| 9
+	| 10
+	| 11
+	| 12
+	| 13
+	| 14
+	| 15;
+export type HappyHorseResolution = "720p" | "1080p";
+export type HappyHorseAspectRatio = "16:9" | "9:16" | "1:1" | "4:3" | "3:4";
+export type HappyHorseAudioSetting = "auto" | "origin";
+
+/**
+ * Request parameters for Alibaba Happy Horse text-to-video
+ */
+export interface HappyHorseT2VRequest {
+	model: string;
+	prompt: string;
+	duration?: HappyHorseDuration;
+	resolution?: HappyHorseResolution;
+	aspect_ratio?: HappyHorseAspectRatio;
+	seed?: number;
+	enable_safety_checker?: boolean;
+}
+
+/**
+ * Request parameters for Alibaba Happy Horse reference-to-video.
+ * Supply 1–9 reference images; the prompt references each as
+ * character1…character9.
+ */
+export interface HappyHorseRef2VRequest {
+	model: string;
+	prompt: string;
+	image_urls: string[];
+	duration?: HappyHorseDuration;
+	resolution?: HappyHorseResolution;
+	aspect_ratio?: HappyHorseAspectRatio;
+	seed?: number;
+	enable_safety_checker?: boolean;
+}
+
+/**
+ * Request parameters for Alibaba Happy Horse video-edit.
+ * Optional reference images (≤5) referenced via @Image1…@Image5.
+ * Output is capped at 15s; input must be MP4/MOV, 3–60s, ≤100 MB.
+ */
+export interface HappyHorseVideoEditRequest {
+	model: string;
+	video_url: string;
+	prompt: string;
+	reference_image_urls?: string[];
+	resolution?: HappyHorseResolution;
+	audio_setting?: HappyHorseAudioSetting;
+	seed?: number;
+	enable_safety_checker?: boolean;
+}
+
+/**
  * Request parameters for avatar video generation
  */
 export interface AvatarVideoRequest {

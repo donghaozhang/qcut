@@ -126,5 +126,11 @@ export function buildTextToVideoPayload(
 		payload.duration = String(payload.duration);
 	}
 
+	// Happy Horse T2V uses the same string-enum duration as Kling/Seedance —
+	// FAL rejects the numeric form. See docs/task/fal_model/happy-horse-integration.md
+	if (request.model === "happy_horse_t2v" && payload.duration !== undefined) {
+		payload.duration = String(payload.duration);
+	}
+
 	return payload;
 }

@@ -1,12 +1,104 @@
 # Alibaba Happy Horse Video Models — Integration Plan
 
+**Status**: ✅ Implemented on 2026-04-30 (subtasks 1–6). All three models wired to the CLI; T2V + Ref2V wired to the GUI model picker. Video-Edit is CLI-only for this iteration — a "Video Edit" tab in the AI panel with multi-image uploader is left as a follow-up (see "Implementation summary" → "GUI scope" below).
 **Date**: 2026-04-30
-**Estimated Total**: ~95 minutes (6 subtasks)
-**Priority**: Medium — adds a new T2V model, a multi-character ref2v model, and QCut's first prompt-driven video-edit model
 **Source specs**:
 - T2V: <https://fal.ai/models/alibaba/happy-horse/text-to-video/api>
 - Ref2V: <https://fal.ai/models/alibaba/happy-horse/reference-to-video/api>
 - Video-Edit: <https://fal.ai/models/alibaba/happy-horse/video-edit/api>
+
+---
+
+## Implementation summary (2026-04-30)
+
+### Files changed / added
+
+**Pipeline registries (subtask 1):**
+- `electron/native-pipeline/registry-data/text-to-video.ts` — added `happy_horse_t2v`.
+- `electron/native-pipeline/registry-data/image-to-video.ts` — added `happy_horse_ref2v`.
+- `electron/native-pipeline/registry-data/video-to-video.ts` — added `happy_horse_video_edit` under existing `video_to_video` category (no new category needed; `executeVideoToVideo` already handles `video_url + prompt`).
+
+**CLI surface (subtask 1):**
+- `electron/native-pipeline/cli/command-registry.ts` — added the three model keys to the `create-video --model` enum, plus `--video-url`, `--reference-images` (extended description), and a new `--audio-setting` flag (enum: `auto | origin`). Three new help examples cover T2V, Ref2V, and Video-Edit.
+- `electron/native-pipeline/cli/cli.ts` — registered the `audio-setting` parser key and forwarded it to `CLIRunOptions.audioSetting`.
+- `electron/native-pipeline/cli/cli-runner/types.ts` — added `audioSetting?: string`.
+- `electron/native-pipeline/cli/cli-runner/handler-generate.ts` — new branch that maps `--reference-images` → `params.image_urls` (Ref2V, capped 9) or `params.reference_image_urls` (Video-Edit, capped 5) and validates `audio_setting`; loosened the create-video input check to accept `--video-url` or `--reference-images` (not just `--text` / `--image-url`).
+
+**Step executor (subtask 2):**
+- `electron/native-pipeline/execution/step-executors.ts`:
+  - Top-level: stringifies `duration` for `happy_horse_t2v` / `happy_horse_ref2v` (FAL accepts only the string-enum form).
+  - `executeImageToVideo`: new `happy_horse_ref2v` branch that merges the single `--image-url` (if provided) with the `params.image_urls` array, deduplicates, and caps at 9.
+  - `executeVideoToVideo`: new branch that uploads each local entry in `payload.reference_image_urls` to FAL storage (≤5) — mirrors the existing `video_url` upload path.
+
+**Renderer types (subtask 3):**
+- `apps/web/src/components/editor/media-panel/views/ai/types/ai-types/request-types.ts` — added `HappyHorseDuration | Resolution | AspectRatio | AudioSetting` literal types and `HappyHorseT2VRequest | HappyHorseRef2VRequest | HappyHorseVideoEditRequest` interfaces.
+- `apps/web/src/components/editor/media-panel/views/ai/types/ai-types/index.ts` and `ai-types.ts` — re-exported the new types.
+
+**Renderer validators (subtask 3):**
+- `apps/web/src/lib/ai-video/validation/validators/happy-horse-validators.ts` (new) — duration/resolution/aspect-ratio/prompt/seed/image-urls/reference-images/video-edit-url/audio-setting validators + `isHappyHorseModel` / variant guards.
+- `apps/web/src/lib/ai-video/validation/validators/index.ts` — re-exports.
+
+**Renderer generators (subtask 3):**
+- `apps/web/src/lib/ai-video/generators/happy-horse-generators.ts` (new) — `generateHappyHorseT2V`, `generateHappyHorseRef2V`, `generateHappyHorseVideoEdit`. One module instead of three (~250 LOC, well under the 800-line ceiling) since the three share validators and only diverge in payload shape.
+- `apps/web/src/lib/ai-video/generators/text-to-video/shared.ts` — added `happy_horse_t2v` to the duration-stringify branch in `buildTextToVideoPayload` so the generic T2V flow also emits the correct payload shape.
+
+**Renderer UI registry (subtask 4):**
+- `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/models.ts` — added `happy_horse_t2v` model entry.
+- `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/order.ts` — placed in T2V_MODEL_ORDER next to LTX 2.3.
+- `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/capabilities.ts` — added capability flags (5 aspect ratios, 720p/1080p, 3–15 s duration enum, seed + safety checker, no negative prompt / prompt expansion).
+- `apps/web/src/components/editor/media-panel/views/ai/constants/image2video-models-config.ts` — added `happy_horse_ref2v` model entry + `I2V_MODEL_ORDER` slot adjacent to `seedance2_ref2v`.
+
+**Renderer handler routing (subtask 4):**
+- `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/image-to-video-handlers.ts` — new `handleHappyHorseRef2V`. Single-image GUI lift (uploads the `selectedImage` slot and calls the generator with a length-1 `image_urls` array). Multi-image (1–9) GUI uploader is the deferred follow-up; CLI users already get the full range.
+- `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/model-handlers.ts` — registered the new handler in the I2V router.
+- T2V routing falls through `routeTextToVideoHandler`'s `default → handleGenericT2V`, which already calls `generateVideo()` with the registered endpoint and the duration-stringification branch added in `shared.ts`.
+
+**Tests (subtask 5):**
+- `apps/web/src/lib/ai-video/validation/__tests__/happy-horse-validators.test.ts` (new) — **37 tests**, covers every validator with boundary cases.
+- `electron/native-pipeline/execution/__tests__/step-executors-happy-horse.test.ts` (new) — **9 tests**, payload-shape contracts for all three models + Vidu/Seedance regression guards.
+- `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/__tests__/handler-exports.test.ts` — bumped expected handler counts (16→17 and 60→61) to absorb the new `handleHappyHorseRef2V`.
+
+### Test results
+
+- `bunx vitest run apps/web/src/lib/ai-video/validation/__tests__/happy-horse-validators.test.ts` → **37/37 ✅**
+- `bunx vitest run electron/native-pipeline/execution/__tests__/step-executors-happy-horse.test.ts` → **9/9 ✅**
+- `bunx vitest run apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/__tests__/` → **15/15 ✅** (handler-exports updated, no regressions)
+- `bunx vitest run apps/web/src/lib/ai-video/ electron/native-pipeline/execution/__tests__/ electron/native-pipeline/registry-data/__tests__/` → **200/200 ✅** (broader regression sweep)
+- `bunx vitest run electron/native-pipeline/cli/__tests__/ apps/web/src/components/editor/media-panel/views/ai/constants/__tests__/` → **82/82 ✅**
+- Type checks: `bunx tsc -p electron/tsconfig.json --noEmit` → clean. `bunx tsc -p apps/web/tsconfig.json --noEmit` → clean.
+
+### How it gets used
+
+```bash
+# T2V
+qcut gen video -m happy_horse_t2v \
+  -t "neon city street at dusk" \
+  -d 5s --resolution 1080p --aspect-ratio 16:9
+
+# Ref2V (multi-character) — pass --reference-images repeatedly
+qcut gen video -m happy_horse_ref2v \
+  -t "character1 hands character2 a coffee cup; character3 watches" \
+  --reference-images https://.../alice.png \
+  --reference-images https://.../bob.png \
+  --reference-images https://.../carol.png \
+  -d 5s --aspect-ratio 9:16
+
+# Video-Edit
+qcut gen video -m happy_horse_video_edit \
+  --video-url https://.../source.mp4 \
+  -t "make @Image1 wear a red coat in the rain" \
+  --reference-images https://.../coat.png \
+  --resolution 1080p --audio-setting origin
+```
+
+### Design choices recorded
+
+- **Reused `create-video` instead of a new `edit-video` command.** The plan considered a dedicated `edit-video` command for clarity, but the existing `create-video` already accepts model-specific flags (`--image-url`, `--element-ids`, `--sound`, etc.). Adding `--video-url` and `--audio-setting` follows the established pattern and avoided forking command-routing, action-policy, and progress reporters. Help-text examples surface the video-edit usage explicitly. Revisit if a third video-edit model lands and the example list grows unwieldy.
+- **Reused the existing `video_to_video` category** instead of introducing a `video_edit` `ModelCategory`. `executeVideoToVideo` already handles `video_url + prompt`, so the only new work was a `reference_image_urls` upload branch keyed on `model.key`. Cost estimation is a `pricing` field, not a category, so no estimation logic was perturbed.
+- **One `happy-horse-generators.ts` module** rather than three sibling files. The three functions share 80% of their validation/payload-construction surface; the file weighs ~250 LOC. Splitting buys nothing today and would create three near-identical import graphs.
+- **Field-name routing in `executeImageToVideo` stays per-key** (matches Vidu/Seedance pattern). Happy Horse uses `image_urls`, distinct from Vidu's `reference_image_urls` and GMI Seedance's `reference_images`. The vidu/seedance regression guards in the test file pin all four conventions so a future refactor can't silently degrade any of them.
+- **Cost = `null` for now.** FAL has not published pricing for these endpoints. Registries pass `null as unknown as number` for the per-second `cost` and set `costEstimate: 0`. Once the first paid run lands, update the registries and surface the figure in the renderer's cost estimator.
+- **GUI scope this iteration**: T2V works end-to-end through the existing model picker (generic T2V handler + duration stringification in `shared.ts`). Ref2V works with a single reference image (using the existing `selectedImage` slot). Multi-image upload UI (1–9 slots, "Insert character N" buttons) and the Video-Edit panel/tab are deferred — they require non-trivial changes to `ImageToVideoSettings`, `aiActiveTab` enum, and panel components. The CLI already supports the full feature set, so the deferred UI work is a productivity polish, not a functional gap.
 
 ---
 

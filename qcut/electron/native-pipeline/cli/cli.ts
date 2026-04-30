@@ -233,8 +233,10 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// transfer-motion options
 			orientation: { type: "string" },
 			"no-sound": { type: "boolean", default: false },
-			// generate-avatar options
+			// generate-avatar options (also reused by happy_horse_ref2v / happy_horse_video_edit)
 			"reference-images": { type: "string", multiple: true },
+			// happy_horse_video_edit: 'auto' | 'origin'
+			"audio-setting": { type: "string" },
 			// analyze-video options
 			"analysis-type": { type: "string" },
 			"output-format": { type: "string", short: "f" },
@@ -585,8 +587,10 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		// transfer-motion options
 		orientation: values.orientation as string | undefined,
 		noSound: (values["no-sound"] as boolean) ?? false,
-		// generate-avatar options
+		// generate-avatar options (also reused by happy_horse_ref2v / happy_horse_video_edit)
 		referenceImages: values["reference-images"] as string[] | undefined,
+		// happy_horse_video_edit
+		audioSetting: values["audio-setting"] as string | undefined,
 		// analyze-video options
 		analysisType: values["analysis-type"] as string | undefined,
 		outputFormat: values["output-format"] as string | undefined,

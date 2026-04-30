@@ -11,3 +11,4 @@ export * from "./wan-validators";
 export * from "./reve-validators";
 export * from "./lipsync-validators";
 export * from "./pixverse-validators";
+export * from "./happy-horse-validators";

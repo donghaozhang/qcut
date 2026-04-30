@@ -166,6 +166,15 @@ export async function executeStep(
 		}
 	}
 
+	// Alibaba Happy Horse T2V/Ref2V validate `duration` as a string enum
+	// ("3"–"15") per the FAL spec. The CLI converts `-d 5s` to the number 5,
+	// which the server rejects. Mirrors the Kling/Seedance branch above.
+	if (model.key === "happy_horse_t2v" || model.key === "happy_horse_ref2v") {
+		if (typeof payload.duration === "number") {
+			payload.duration = String(payload.duration);
+		}
+	}
+
 	switch (category) {
 		case "text_to_image":
 			return executeTextToImage(model, input, payload, provider, options);
@@ -376,6 +385,19 @@ async function executeImageToVideo(
 			// Duration stays integer (Vidu does NOT require string literal
 			// like FAL Seedance 2.0).
 			payload.reference_image_urls = [imageUrl];
+		} else if (model.key === "happy_horse_ref2v") {
+			// Happy Horse Ref2V expects `image_urls` (1–9). CLI may pass
+			// either the multi-flag form (--reference-images, repeatable —
+			// already merged into payload.image_urls by handler-generate)
+			// or a single --image-url. Merge both, dedupe-by-prepend, and
+			// cap at 9 (FAL silently rejects beyond the limit).
+			const existing = Array.isArray(payload.image_urls)
+				? (payload.image_urls as string[])
+				: [];
+			const merged = existing.includes(imageUrl)
+				? existing
+				: [imageUrl, ...existing];
+			payload.image_urls = merged.slice(0, 9);
 		} else if (model.key === "seedance_2_0_i2v") {
 			// FAL Seedance 2.0 i2v shares the same string-literal duration
 			// schema as its ref2v sibling, so coerce number → string here
@@ -490,6 +512,43 @@ async function executeVideoToVideo(
 	if (input.text) {
 		payload.prompt = input.text;
 	}
+
+	// Happy Horse video-edit: optional `reference_image_urls` (≤5, used in
+	// the prompt as @Image1…@Image5). Local paths get uploaded to FAL CDN
+	// the same way the source video does. Cap at 5 — the FAL endpoint
+	// rejects more.
+	if (
+		model.key === "happy_horse_video_edit" &&
+		Array.isArray(payload.reference_image_urls)
+	) {
+		const refs = (payload.reference_image_urls as string[]).slice(0, 5);
+		const resolvedRefs: string[] = [];
+		for (const ref of refs) {
+			if (provider === "fal" && !/^https?:/i.test(ref)) {
+				if (options.signal?.aborted) {
+					return {
+						success: false,
+						error: "Step cancelled before reference image upload",
+						duration: 0,
+					};
+				}
+				options.onProgress?.(15, "Uploading reference image...");
+				const upload = await uploadToFalStorage(ref);
+				if (!upload.success || !upload.url) {
+					return {
+						success: false,
+						error: upload.error || "Failed to upload reference image",
+						duration: 0,
+					};
+				}
+				resolvedRefs.push(upload.url);
+			} else {
+				resolvedRefs.push(ref);
+			}
+		}
+		payload.reference_image_urls = resolvedRefs;
+	}
+
 	const result = await callModelApi({
 		endpoint: model.endpoint,
 		modelKey: model.key,

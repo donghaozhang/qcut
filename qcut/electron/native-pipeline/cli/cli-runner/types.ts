@@ -131,8 +131,10 @@ export interface CLIRunOptions {
 	// transfer-motion options
 	orientation?: string;
 	noSound?: boolean;
-	// generate-avatar options
+	// generate-avatar options (also reused by happy_horse_ref2v / happy_horse_video_edit)
 	referenceImages?: string[];
+	/** happy_horse_video_edit: 'auto' (model decides) | 'origin' (preserve input audio) */
+	audioSetting?: string;
 	// analyze-video options
 	analysisType?: string;
 	outputFormat?: string;

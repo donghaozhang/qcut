@@ -40,6 +40,7 @@ import {
 	handleSeedanceProI2V,
 	handleSeedance2I2V,
 	handleSeedance2Ref2V,
+	handleHappyHorseRef2V,
 	handleKlingV25I2V,
 	handleKlingV26I2V,
 } from "./handlers/image-to-video-handlers";
@@ -369,6 +370,8 @@ export async function routeImageToVideoHandler(
 			return handleSeedance2I2V(ctx, settings);
 		case "seedance2_ref2v":
 			return handleSeedance2Ref2V(ctx, settings);
+		case "happy_horse_ref2v":
+			return handleHappyHorseRef2V(ctx, settings);
 		case "kling_v2_5_turbo_i2v":
 			return handleKlingV25I2V(ctx, settings);
 		case "kling_v26_pro_i2v":

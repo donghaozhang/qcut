@@ -649,6 +649,27 @@ export const T2V_MODELS = {
 		supportedAspectRatios: ["16:9", "9:16"],
 		providerBackend: "runway",
 	},
+	happy_horse_t2v: {
+		id: "happy_horse_t2v",
+		name: "Alibaba Happy Horse T2V",
+		description:
+			"Alibaba Happy Horse text-to-video — 720p/1080p, 3–15s, five aspect ratios",
+		price: "TBD",
+		resolution: "720p / 1080p",
+		supportedResolutions: ["720p", "1080p"],
+		max_duration: 15,
+		category: "text",
+		endpoints: {
+			text_to_video: "alibaba/happy-horse/text-to-video",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+		},
+		supportedDurations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+		supportedAspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+	},
 } as const satisfies Record<string, AIModel>;
 
 /**

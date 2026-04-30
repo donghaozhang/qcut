@@ -133,8 +133,11 @@ export async function handleGenerate(
 
 	const hasTextInput = !!options.text;
 	const hasImageInput = !!options.imageUrl;
+	const hasVideoInput = !!options.videoUrl;
 	const hasAudioInput = !!options.audioUrl;
 	const hasPrompts = options.prompts && options.prompts.length > 0;
+	const hasReferenceImages =
+		!!options.referenceImages && options.referenceImages.length > 0;
 
 	if (options.command === "generate-image" && !hasTextInput && !hasPrompts) {
 		return {
@@ -142,10 +145,17 @@ export async function handleGenerate(
 			error: "Missing --text/-t (prompt for image generation).",
 		};
 	}
-	if (options.command === "create-video" && !hasTextInput && !hasImageInput) {
+	if (
+		options.command === "create-video" &&
+		!hasTextInput &&
+		!hasImageInput &&
+		!hasVideoInput &&
+		!hasReferenceImages
+	) {
 		return {
 			success: false,
-			error: "Missing --text/-t or --image-url (need a prompt or image input).",
+			error:
+				"Missing input. Provide --text/-t, --image-url, --video-url (video-edit), or --reference-images.",
 		};
 	}
 	if (
@@ -190,6 +200,33 @@ export async function handleGenerate(
 	if (options.command === "generate-avatar") {
 		if (options.referenceImages && options.referenceImages.length > 0) {
 			params.reference_images = options.referenceImages.slice(0, 4);
+		}
+	}
+
+	// Happy Horse models reuse --reference-images / --audio-setting:
+	// - happy_horse_ref2v: 1–9 images become payload `image_urls`
+	// - happy_horse_video_edit: ≤5 images become payload `reference_image_urls`
+	// Field-name mapping happens inside step-executors per-model branches;
+	// the CLI just stages the array under a stable key the executor reads.
+	if (options.command === "create-video") {
+		if (options.referenceImages && options.referenceImages.length > 0) {
+			if (options.model === "happy_horse_ref2v") {
+				params.image_urls = options.referenceImages.slice(0, 9);
+			} else if (options.model === "happy_horse_video_edit") {
+				params.reference_image_urls = options.referenceImages.slice(0, 5);
+			}
+		}
+		if (options.audioSetting && options.model === "happy_horse_video_edit") {
+			if (
+				options.audioSetting !== "auto" &&
+				options.audioSetting !== "origin"
+			) {
+				return {
+					success: false,
+					error: `Invalid --audio-setting '${options.audioSetting}'. Expected 'auto' or 'origin'.`,
+				};
+			}
+			params.audio_setting = options.audioSetting;
 		}
 	}
 

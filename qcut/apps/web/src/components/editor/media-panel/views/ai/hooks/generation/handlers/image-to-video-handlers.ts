@@ -732,6 +732,77 @@ export async function handleSeedance2Ref2V(
 }
 
 /**
+ * Handle Alibaba Happy Horse reference-to-video generation.
+ *
+ * Multi-image support (1–9) is GUI-side TBD: currently we lift the
+ * single `selectedImage` slot to a length-1 `image_urls` array. Once
+ * the multi-image uploader UI lands, expose the rest of the array
+ * here. CLI users already get full 1–9 support via --reference-images.
+ */
+export async function handleHappyHorseRef2V(
+	ctx: ModelHandlerContext,
+	settings: ImageToVideoSettings
+): Promise<ModelHandlerResult> {
+	if (!settings.selectedImage) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: "Happy Horse Ref2V requires at least one reference image",
+		};
+	}
+
+	try {
+		const referenceImageUrl = await settings.uploadImageToFal(
+			settings.selectedImage
+		);
+
+		ctx.progressCallback({
+			status: "processing",
+			progress: 10,
+			message: `Submitting ${ctx.modelName} request...`,
+		});
+
+		const { generateHappyHorseRef2V } = await import(
+			"@/lib/ai-video/generators/happy-horse-generators"
+		);
+
+		const aspect = (settings.aspectRatio ?? "16:9") as
+			| "16:9"
+			| "9:16"
+			| "1:1"
+			| "4:3"
+			| "3:4";
+		const resolution = (settings.resolution === "720p" ? "720p" : "1080p") as
+			| "720p"
+			| "1080p";
+
+		const response = await generateHappyHorseRef2V({
+			model: ctx.modelId,
+			prompt: ctx.prompt,
+			image_urls: [referenceImageUrl],
+			duration: (settings.duration ?? 5) as never,
+			resolution,
+			aspect_ratio: aspect,
+			seed: settings.imageSeed ?? undefined,
+		});
+
+		ctx.progressCallback({
+			status: "completed",
+			progress: 100,
+			message: `Video generated with ${ctx.modelName}`,
+		});
+
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/**
  * Handle Kling v2.5 Turbo image-to-video generation
  */
 export async function handleKlingV25I2V(

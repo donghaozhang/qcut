@@ -28,6 +28,7 @@ export const T2V_MODEL_ORDER: readonly T2VModelId[] = [
 	"ltx23_pro_t2v",
 	"ltx23_fast_t2v",
 	"ltxv2_pro_t2v",
+	"happy_horse_t2v",
 	"hailuo23_pro_t2v",
 	"veo31_fast_text_to_video",
 	"veo31_lite_text_to_video",
