@@ -53,8 +53,7 @@ function resolveEndpoint(
 		return config?.endpoints?.text_to_video || T2V_ENDPOINT;
 	}
 	if (kind === "ref2v") {
-		// FAL ref2v endpoint slot — registered as image_to_video in the UI config.
-		return config?.endpoints?.image_to_video || REF2V_ENDPOINT;
+		return config?.endpoints?.reference_to_video || REF2V_ENDPOINT;
 	}
 	// Video-edit isn't a standard renderer-side endpoint slot today; fall back
 	// to the constant. Once a video_to_video slot is added to AIModelEndpoints

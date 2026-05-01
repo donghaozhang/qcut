@@ -349,7 +349,7 @@ export const AVATAR_MODELS = {
 		// uploader (1–9 slots). Mirrors `grok_imagine_r2v`'s contract.
 		requiredInputs: ["referenceImages"],
 		endpoints: {
-			text_to_video: "alibaba/happy-horse/reference-to-video",
+			reference_to_video: "alibaba/happy-horse/reference-to-video",
 		},
 		default_params: {
 			duration: 5,
