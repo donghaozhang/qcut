@@ -48,9 +48,7 @@ function makeCtx(): ModelHandlerContext & { progressCalls: ProgressCall[] } {
 	};
 }
 
-function makeSettings(
-	overrides: Partial<AvatarSettings> = {}
-): AvatarSettings {
+function makeSettings(overrides: Partial<AvatarSettings> = {}): AvatarSettings {
 	const uploadImageToFal = vi.fn(
 		async (file: File) => `https://fal.storage/${file.name}`
 	);
@@ -117,10 +115,7 @@ describe("handleHappyHorseRef2V", () => {
 			expect.objectContaining({
 				model: "happy_horse_ref2v",
 				prompt: "two characters dance",
-				image_urls: [
-					"https://fal.storage/a.png",
-					"https://fal.storage/b.png",
-				],
+				image_urls: ["https://fal.storage/a.png", "https://fal.storage/b.png"],
 			})
 		);
 		expect(result.shouldSkip).toBeFalsy();
