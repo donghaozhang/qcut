@@ -684,4 +684,65 @@ export function registerTextToVideoModels(): void {
 		costEstimate: 0,
 		processingTime: 60,
 	});
+
+	// Alibaba Wan AI Happy Horse 1.0 — text-to-video via GMI Cloud
+	// (request-queue API at console.gmicloud.ai). Sibling of `happy_horse_t2v`
+	// which is FAL-backed; GMI uses different field names (`ratio` not
+	// `aspect_ratio`), uppercase resolution casing (`1080P`), and a wider
+	// 2–15s duration range. See
+	// docs/task/gmi-provider/gmi-happy-horse-t2v-plan.md
+	ModelRegistry.register({
+		key: "gmi_happy_horse_t2v",
+		name: "Alibaba Happy Horse T2V (GMI)",
+		provider: "Alibaba (via GMI)",
+		endpoint: "happyhorse1.0-t2v",
+		categories: ["text_to_video"],
+		description:
+			"Alibaba Wan AI Happy Horse 1.0 T2V — 720p/1080p, 2–15s, audio-driven, via GMI Cloud",
+		pricing: { per_second: 0.28 },
+		durationOptions: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+		aspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+		resolutions: ["720p", "1080p"],
+		defaults: {
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+			prompt_extend: true,
+			watermark: false,
+		},
+		features: [
+			"negative_prompt",
+			"audio_input",
+			"prompt_extension",
+			"seed_control",
+			"watermark_toggle",
+			"flexible_duration",
+			"multiple_aspect_ratios",
+		],
+		maxDuration: 15,
+		inputRequirements: {
+			required: ["prompt"],
+			optional: [
+				"duration",
+				"resolution",
+				"aspect_ratio",
+				"negative_prompt",
+				"audio_url",
+				"prompt_extend",
+				"watermark",
+				"seed",
+			],
+		},
+		extendedFeatures: {
+			start_frame: false,
+			end_frame: false,
+			ref_images: false,
+			audio_input: true,
+			audio_generate: false,
+			ref_video: false,
+		},
+		costEstimate: 1.4,
+		processingTime: 60,
+		providerBackend: "gmi",
+	});
 }

@@ -24,6 +24,7 @@ import {
 	handleGmiKlingOmniT2V,
 	handleSeedance260128T2V,
 	handleSeedanceFast260128T2V,
+	handleGmiHappyHorseT2V,
 } from "./handlers/text-to-video-handlers";
 import {
 	handleVeo31FastI2V,
@@ -318,6 +319,8 @@ export async function routeTextToVideoHandler(
 			return handleSeedance260128T2V(ctx, settings);
 		case "gmi_seedance_2_0_fast_260128_t2v":
 			return handleSeedanceFast260128T2V(ctx, settings);
+		case "gmi_happy_horse_t2v":
+			return handleGmiHappyHorseT2V(ctx, settings);
 		default:
 			return handleGenericT2V(ctx, settings);
 	}

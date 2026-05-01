@@ -229,6 +229,51 @@ export interface HappyHorseVideoEditRequest {
 }
 
 /**
+ * GMI Happy Horse 1.0 T2V duration extends the FAL range — GMI accepts 2–15
+ * (FAL accepts 3–15). A separate type keeps each provider's surface honest.
+ */
+export type GmiHappyHorseDuration =
+	| 2
+	| 3
+	| 4
+	| 5
+	| 6
+	| 7
+	| 8
+	| 9
+	| 10
+	| 11
+	| 12
+	| 13
+	| 14
+	| 15;
+
+/**
+ * Request parameters for Alibaba Wan AI Happy Horse 1.0 T2V via GMI Cloud.
+ *
+ * Wire-level differences from the FAL twin (`HappyHorseT2VRequest`):
+ *   - GMI uses `ratio` (NOT `aspect_ratio`) at the API edge.
+ *   - GMI accepts uppercase resolution casing (`720P`/`1080P`).
+ *   - `audio_url`, `negative_prompt`, `prompt_extend`, `watermark` are GMI-only.
+ *
+ * The renderer keeps `aspect_ratio` as the canonical name; the executor
+ * (electron/native-pipeline/execution/step-executors.ts) renames it to
+ * `ratio` at submit time. See docs/task/gmi-provider/gmi-happy-horse-t2v-plan.md.
+ */
+export interface GmiHappyHorseT2VRequest {
+	model: string;
+	prompt: string;
+	negative_prompt?: string;
+	duration?: GmiHappyHorseDuration;
+	resolution?: HappyHorseResolution;
+	aspect_ratio?: HappyHorseAspectRatio;
+	audio_url?: string | null;
+	prompt_extend?: boolean;
+	watermark?: boolean;
+	seed?: number;
+}
+
+/**
  * Request parameters for avatar video generation
  */
 export interface AvatarVideoRequest {

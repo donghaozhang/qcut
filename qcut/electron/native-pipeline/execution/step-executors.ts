@@ -166,6 +166,32 @@ export async function executeStep(
 		}
 	}
 
+	// GMI Happy Horse 1.0 T2V uses `ratio` (not `aspect_ratio`) and uppercase
+	// resolution casing (`1080P`/`720P`). It also accepts `audio_url: null` to
+	// mean "no audio-driven generation"; sending no key at all is fine, but
+	// passing the explicit null mirrors the API spec and keeps the JSON
+	// sidecar self-describing. Duration must remain a number — the registry
+	// already stores ints (2–15), so the only coercion needed is for the
+	// stringified form some CLI parsers produce.
+	if (provider === "gmi" && model.endpoint === "happyhorse1.0-t2v") {
+		if (typeof payload.aspect_ratio === "string") {
+			payload.ratio = payload.aspect_ratio;
+			payload.aspect_ratio = undefined;
+		}
+		if (typeof payload.resolution === "string") {
+			payload.resolution = payload.resolution.toUpperCase();
+		}
+		if (typeof payload.duration === "string") {
+			const n = Number(payload.duration);
+			if (Number.isFinite(n) && Number.isInteger(n)) {
+				payload.duration = n;
+			}
+		}
+		if (payload.audio_url === undefined) {
+			payload.audio_url = null;
+		}
+	}
+
 	// Alibaba Happy Horse T2V/Ref2V `duration` is an integer literal enum
 	// (3, 4, …, 15) — verified against the live FAL endpoint, which rejects
 	// the string form with `literal_error`. The CLI's `-d 5s` already parses

@@ -57,6 +57,8 @@ export type {
 	HappyHorseResolution,
 	HappyHorseAspectRatio,
 	HappyHorseAudioSetting,
+	GmiHappyHorseT2VRequest,
+	GmiHappyHorseDuration,
 	AvatarVideoRequest,
 	VideoGenerationResponse,
 	ModelsResponse,

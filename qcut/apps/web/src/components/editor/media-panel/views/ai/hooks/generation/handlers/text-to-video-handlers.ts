@@ -16,6 +16,7 @@ import {
 	generateKlingOmniTextVideo,
 	generateSeedance260128TextVideo,
 	generateSeedanceFast260128TextVideo,
+	generateHappyHorseGmiTextVideo,
 	generateRunwayTextToVideo,
 } from "@/lib/ai-video";
 import type {
@@ -639,6 +640,135 @@ export async function handleSeedanceFast260128T2V(
 			ratio: resolveSeedanceRatio(
 				settings.unifiedParams?.aspect_ratio ?? settings.aspectRatio
 			),
+			seed,
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+type GmiHappyHorseDurationLiteral =
+	| 2
+	| 3
+	| 4
+	| 5
+	| 6
+	| 7
+	| 8
+	| 9
+	| 10
+	| 11
+	| 12
+	| 13
+	| 14
+	| 15;
+type GmiHappyHorseResolutionLiteral = "720p" | "1080p";
+type GmiHappyHorseRatioLiteral = "16:9" | "9:16" | "1:1" | "4:3" | "3:4";
+
+const GMI_HAPPY_HORSE_DURATIONS = new Set([
+	2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+]);
+const GMI_HAPPY_HORSE_RESOLUTIONS = new Set(["720p", "1080p"]);
+const GMI_HAPPY_HORSE_RATIOS = new Set([
+	"16:9",
+	"9:16",
+	"1:1",
+	"4:3",
+	"3:4",
+]);
+
+function resolveGmiHappyHorseDuration(
+	raw: unknown
+): GmiHappyHorseDurationLiteral | undefined {
+	if (raw == null || raw === "") return undefined;
+	const n = typeof raw === "number" ? raw : Number(raw);
+	if (!Number.isFinite(n) || !Number.isInteger(n)) return undefined;
+	return GMI_HAPPY_HORSE_DURATIONS.has(n)
+		? (n as GmiHappyHorseDurationLiteral)
+		: undefined;
+}
+
+function resolveGmiHappyHorseResolution(
+	raw: unknown
+): GmiHappyHorseResolutionLiteral | undefined {
+	if (typeof raw !== "string") return undefined;
+	const lower = raw.toLowerCase();
+	return GMI_HAPPY_HORSE_RESOLUTIONS.has(lower)
+		? (lower as GmiHappyHorseResolutionLiteral)
+		: undefined;
+}
+
+function resolveGmiHappyHorseRatio(
+	raw: unknown
+): GmiHappyHorseRatioLiteral | undefined {
+	if (typeof raw !== "string") return undefined;
+	return GMI_HAPPY_HORSE_RATIOS.has(raw)
+		? (raw as GmiHappyHorseRatioLiteral)
+		: undefined;
+}
+
+/**
+ * Handle GMI Alibaba Happy Horse 1.0 text-to-video generation.
+ *
+ * The renderer's canonical setting names (`aspectRatio`, `resolution`) are
+ * mapped to the GMI generator's parameter names here. Optional fields
+ * (`negative_prompt`, `audio_url`, `prompt_extend`, `watermark`, `seed`)
+ * flow through `unifiedParams` so they don't bloat `TextToVideoSettings`
+ * for unrelated models.
+ */
+export async function handleGmiHappyHorseT2V(
+	ctx: ModelHandlerContext,
+	settings: TextToVideoSettings
+): Promise<ModelHandlerResult> {
+	try {
+		const unified = settings.unifiedParams ?? {};
+		const rawSeed = unified.seed;
+		const seed =
+			typeof rawSeed === "number" && Number.isFinite(rawSeed)
+				? rawSeed
+				: undefined;
+
+		const negativePrompt =
+			typeof unified.negative_prompt === "string" &&
+			unified.negative_prompt.trim().length > 0
+				? unified.negative_prompt
+				: undefined;
+
+		const audioUrlRaw = unified.audio_url;
+		const audioUrl =
+			audioUrlRaw === null
+				? null
+				: typeof audioUrlRaw === "string" && audioUrlRaw.trim().length > 0
+					? audioUrlRaw
+					: undefined;
+
+		const promptExtend =
+			typeof unified.prompt_extend === "boolean"
+				? unified.prompt_extend
+				: undefined;
+		const watermark =
+			typeof unified.watermark === "boolean" ? unified.watermark : undefined;
+
+		const response = await generateHappyHorseGmiTextVideo({
+			prompt: ctx.prompt,
+			duration: resolveGmiHappyHorseDuration(
+				unified.duration ?? settings.duration
+			),
+			resolution: resolveGmiHappyHorseResolution(
+				unified.resolution ?? settings.resolution
+			),
+			ratio: resolveGmiHappyHorseRatio(
+				unified.aspect_ratio ?? settings.aspectRatio
+			),
+			negative_prompt: negativePrompt,
+			audio_url: audioUrl,
+			prompt_extend: promptExtend,
+			watermark,
 			seed,
 		});
 		return { response };
