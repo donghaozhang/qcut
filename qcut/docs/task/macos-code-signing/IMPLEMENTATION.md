@@ -44,17 +44,22 @@ Engineering subtasks. Each is independently mergeable.
   "gatekeeperAssess": false,
   "entitlements": "build/entitlements.mac.plist",
   "entitlementsInherit": "build/entitlements.mac.plist",
-  "identity": "Developer ID Application: Quriosity Pty Ltd (${env.APPLE_TEAM_ID})",
-  "notarize": {
-    "teamId": "${env.APPLE_TEAM_ID}"
-  }
+  "identity": "Quriosity Pty Ltd (JQ3Q27U24X)",
+  "notarize": true
 }
 ```
 
 ### Why every flag matters
 
-- **`identity`** — pins the signing identity by name. Without this, `electron-builder` picks the first matching cert in keychain, which can break if multiple Apple Developer certs are present. It also makes failures explicit ("identity not found") instead of silently skipping signing.
-- **`notarize: { teamId }`** — `electron-builder ≥24.13` has built-in notarization. The build will:
+- **`identity`** — pins the signing identity by name. Without this, `electron-builder` picks the first matching cert in keychain, which can break if multiple Apple Developer certs are present. Two gotchas verified during initial setup (2026-04-30):
+  - **Do NOT include the `Developer ID Application:` prefix** — electron-builder rejects that prefix with "Please remove prefix" and asks you to provide just the team part.
+  - **`${env.APPLE_TEAM_ID}` interpolation does NOT reliably work in this field.** electron-builder silently falls back to ad-hoc signing (`identityName=- identityHash=none`) when interpolation fails. **Hardcode the team ID** in the literal string. The team ID is publicly embedded in any signed binary anyway, so it is not a secret.
+- **`notarize: true`** — in `electron-builder ≥26` this field is a **boolean** (older versions accepted an object `{ teamId }`). Set to `true` to enable the `@electron/notarize` integration. Team ID is read entirely from the `APPLE_TEAM_ID` env var, not from config. To activate notarization, set one of these env-var combinations:
+  1. `APPLE_API_KEY` + `APPLE_API_KEY_ID` + `APPLE_API_ISSUER` (recommended long-term)
+  2. `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` + `APPLE_TEAM_ID` (the current setup)
+  3. `APPLE_KEYCHAIN` + `APPLE_KEYCHAIN_PROFILE`
+
+  The build will:
   1. Sign the `.app` and inner binaries.
   2. Submit to Apple's notary service.
   3. Wait for verdict (typically 5–10 minutes).

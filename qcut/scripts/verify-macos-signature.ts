@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,15 +22,28 @@ function findLatestDmg(): string {
 }
 
 function findApp(): string {
-	const candidate = join(distDir, "mac-arm64", "QCut.app");
-	if (!existsSync(candidate)) {
-		throw new Error(`app not found: ${candidate}`);
+	const macDir = join(distDir, "mac-arm64");
+	if (!existsSync(macDir)) {
+		throw new Error(`mac-arm64 dir not found: ${macDir}`);
 	}
-	return candidate;
+	const apps = readdirSync(macDir).filter((f) => f.endsWith(".app"));
+	if (apps.length === 0) {
+		throw new Error(`no .app bundle in ${macDir}`);
+	}
+	if (apps.length > 1) {
+		throw new Error(`expected exactly one .app, found ${apps.length}: ${apps.join(", ")}`);
+	}
+	return join(macDir, apps[0]);
 }
 
 function run(cmd: string, args: string[]): string {
-	return execFileSync(cmd, args, { encoding: "utf8" });
+	const result = spawnSync(cmd, args, { encoding: "utf8" });
+	if (result.status !== 0) {
+		throw new Error(
+			`${cmd} exited ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+		);
+	}
+	return (result.stdout || "") + (result.stderr || "");
 }
 
 if (process.platform !== "darwin") {
@@ -56,11 +69,21 @@ if (!spctlOut.includes("Notarized Developer ID")) {
 	throw new Error("spctl reports app is signed but not notarized");
 }
 
-console.log(`[verify-macos-signature] xcrun stapler validate ${dmg}`);
-const staplerOut = run("xcrun", ["stapler", "validate", dmg]);
-console.log(staplerOut);
-if (!staplerOut.includes("worked")) {
-	throw new Error("stapler validation failed");
+console.log(`[verify-macos-signature] xcrun stapler validate ${app}`);
+const staplerAppOut = run("xcrun", ["stapler", "validate", app]);
+console.log(staplerAppOut);
+if (!staplerAppOut.includes("worked")) {
+	throw new Error("stapler validation on .app failed");
+}
+
+console.log(`[verify-macos-signature] xcrun stapler validate ${dmg} (advisory)`);
+try {
+	const staplerDmgOut = run("xcrun", ["stapler", "validate", dmg]);
+	console.log(staplerDmgOut);
+} catch (err) {
+	console.warn(
+		`[verify-macos-signature] dmg not separately stapled (non-fatal: Gatekeeper validates the inner .app, which is stapled): ${(err as Error).message.split("\n")[0]}`,
+	);
 }
 
 if (expectedTeamId) {

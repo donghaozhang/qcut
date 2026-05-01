@@ -87,7 +87,8 @@
 		"compile-afterpack": "mkdir -p dist/scripts && bun build scripts/afterPack.ts --outfile=dist/scripts/afterPack.js --target=node --format=cjs",
 		"dist:win:release": "bun run compile-afterpack && bun run stage-ffmpeg-binaries && bun run stage-aicp-binaries && electron-builder --win --publish never --config.win.forceCodeSigning=false --config.win.verifyUpdateCodeSignature=false && bun run verify:packaged-ffmpeg && bun run verify:packaged-aicp",
 		"dist:win:fast": "bun run stage-ffmpeg-binaries && bun run stage-aicp-binaries && electron-builder --win --publish never --config.win.forceCodeSigning=false --config.compression=store --config.nsis.differentialPackage=false",
-		"dist:mac": "bun run compile-afterpack && bun run stage-ffmpeg-binaries && bun run stage-aicp-binaries && electron-builder --mac --publish never && bun run verify:packaged-ffmpeg && bun run verify:packaged-aicp",
+		"dist:mac": "bun run compile-afterpack && bun run stage-ffmpeg-binaries && bun run stage-aicp-binaries && electron-builder --mac --publish never && bun run build:mac-dmg && bun run verify:packaged-ffmpeg && bun run verify:packaged-aicp",
+		"build:mac-dmg": "bun scripts/build-mac-dmg.ts",
 		"dist:linux": "bun run stage-ffmpeg-binaries && bun run stage-aicp-binaries && electron-builder --linux --publish never && bun run verify:packaged-ffmpeg && bun run verify:packaged-aicp",
 		"dist:all": "bun run stage-ffmpeg-binaries && bun run stage-aicp-binaries && electron-builder --win --mac --linux --publish never",
 		"package:win": "electron-packager . QCut --platform=win32 --arch=x64 --out=dist-packager-new --overwrite --ignore=\"dist-packager.*\" --ignore=\"dist-electron.*\"",
@@ -267,12 +268,6 @@
 			"category": "public.app-category.video",
 			"icon": "build/icon.icns",
 			"target": [
-				{
-					"target": "dmg",
-					"arch": [
-						"arm64"
-					]
-				},
 				{
 					"target": "zip",
 					"arch": [
