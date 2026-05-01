@@ -3,7 +3,7 @@
 ## Context
 - Branch: `win-Hermes`
 - Date: 2026-04-27
-- Repo root: `C:\Users\yanie\Desktop\qcut-fresh\qcut`
+- Repo root: `<repo>\qcut` (Windows native checkout)
 - QCut app state during test: desktop app running (multiple `electron` processes, HTTP server up on `127.0.0.1:8765`)
 - App version: `2026.04.26.2` (per `editor:health`)
 - API version: `1.1.0`
@@ -14,8 +14,8 @@
 This round did **not** use `bun run qcut ...` because that path is broken on Windows native (see "Blocker findings"). Working invocation:
 
 ```powershell
-$env:NODE_PATH = "C:\Users\yanie\AppData\Local\Temp\qcut-cli-test\node_modules"
-node C:\Users\yanie\Desktop\qcut-fresh\qcut\dist\electron\native-pipeline\cli\cli.js <subcommand> [flags]
+$env:NODE_PATH = "C:\Users\<user>\AppData\Local\Temp\qcut-cli-test\node_modules"
+node C:\Users\<user>\Desktop\qcut-fresh\qcut\dist\electron\native-pipeline\cli\cli.js <subcommand> [flags]
 ```
 
 Where the temp `node_modules` contains a flat `npm install js-yaml` (the bundled `node_modules` uses Bun symlinks that `node` cannot follow on Windows).
@@ -81,7 +81,7 @@ Where the temp `node_modules` contains a flat `npm install js-yaml` (the bundled
 
 | Command | Result | Notes |
 |---|---|---|
-| `editor:auth:token --json` | ✅ | Masked: `JJHc...EAci` |
+| `editor:auth:token --json` | ✅ | Masked: `<redacted>...<redacted>` |
 | `editor:auth:token --reveal --force --json` | ✅ | Full token revealed |
 
 ### Navigator / UI / sessions
@@ -163,12 +163,12 @@ Note: full panel list reported by the error includes panels not documented in `e
 
 Requested:
 ```
---filename C:\Users\yanie\AppData\Local\Temp\qcut-shot.png
+--filename C:\Users\<user>\AppData\Local\Temp\qcut-shot.png
 ```
 
 Actual saved location:
 ```
-C:\Users\yanie\Videos\QCut Recordings\C__Users_yanie_AppData_Local_Temp_qcut-shot.png
+C:\Users\<user>\Videos\QCut Recordings\C__Users_<user>_AppData_Local_Temp_qcut-shot.png
 ```
 
 The handler treats the entire absolute path as a sanitized basename and forces it into `~/Videos/QCut Recordings/`. Returned `width: 0, height: 0` (suspicious — image likely empty). Documented behavior was just `--filename`, no path semantics; this matches but is surprising for absolute paths.
@@ -200,7 +200,7 @@ Reproduced with:
 - `bun run qcut editor:health --status-only --json`
 - `bun electron/native-pipeline/cli/cli.ts --help`
 - `bun _wrapper.mjs` where the wrapper only `import()`s `cli.ts`
-- WSL invocation of the same Windows `bun.exe` (`/mnt/c/Users/yanie/.bun/bin/bun.exe`)
+- WSL invocation of the same Windows `bun.exe` (`bun`)
 
 Bun runs **fine** for trivial scripts (`bun -e "console.log('hi')"`), so the crash is during TS transform of the CLI's import graph.
 
@@ -214,7 +214,7 @@ npm init -y; npm install js-yaml
 $env:NODE_PATH = "<path-to-flat-node_modules>"
 
 # Run any qcut subcommand
-node C:\Users\yanie\Desktop\qcut-fresh\qcut\dist\electron\native-pipeline\cli\cli.js <subcommand> [flags]
+node C:\Users\<user>\Desktop\qcut-fresh\qcut\dist\electron\native-pipeline\cli\cli.js <subcommand> [flags]
 ```
 
 Why a flat `node_modules` is needed: the project's bundled `node_modules` is laid out by Bun with junctions/symlinks (`node_modules/js-yaml -> node_modules/.bun/js-yaml@4.1.1/...`). `node` on Windows cannot resolve these symlinks during CJS lookup. This affects only the compiled `dist/.../cli.js` — when running through Bun the issue does not arise (Bun has its own resolver).

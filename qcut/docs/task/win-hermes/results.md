@@ -3,7 +3,7 @@
 ## Final status
 - Branch: `win-Hermes`
 - Working directory: `qcut/`
-- Final build command: `/mnt/c/Users/yanie/.bun/bin/bun.exe run build`
+- Final build command: `bun run build`
 - Final result: ✅ passed
 - Final exit status: `0`
 - Successful run started (UTC): `2026-04-27T03:09:41Z`
@@ -34,14 +34,14 @@ The implementation plan was written first here:
 4. Synced dependencies with:
 
 ```bash
-/mnt/c/Users/yanie/.bun/bin/bun.exe install
+bun install
 ```
 
 5. Verified `node_modules/@google/genai` existed after install
 6. Re-ran the build with:
 
 ```bash
-/mnt/c/Users/yanie/.bun/bin/bun.exe run build
+bun run build
 ```
 
 ## Implementation result

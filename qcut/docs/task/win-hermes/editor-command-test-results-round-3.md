@@ -3,9 +3,9 @@
 ## Context
 - Branch: `win-Hermes`
 - Date: 2026-04-27
-- Repo root: `C:\Users\yanie\Desktop\qcut-fresh\qcut`
+- Repo root: `<repo>\qcut` (Windows native checkout)
 - QCut app state: running, same Electron processes from Round 2
-- Auth state: logged in (token `JJHc...EAci`, `authenticated: true` from Round 2)
+- Auth state: logged in (token redacted, `authenticated: true` from Round 2)
 - Invocation pattern: same as Round 2 (PowerShell, compiled `cli.js` + `node` + `NODE_PATH`)
 
 ## Goal
@@ -108,7 +108,7 @@ Suggested follow-up: read `editor/editor-handlers-timeline.ts` (or wherever `edi
 
 ## Files
 
-- Test artifacts: `C:\Users\yanie\AppData\Local\Temp\qcut-element.json`, `qcut-changes.json`, `qcut-state-export.json` (deleted after run)
+- Test artifacts: `C:\Users\<user>\AppData\Local\Temp\qcut-element.json`, `qcut-changes.json`, `qcut-state-export.json` (deleted after run)
 - Cleanup confirmed: post-test `editor:project:list` shows only the original project
 
 ## Cumulative coverage across all 3 rounds

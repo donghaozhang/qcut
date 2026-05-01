@@ -2,8 +2,8 @@
 
 ## Context
 - Branch: `win-Hermes`
-- Repo root: `/mnt/c/Users/yanie/Desktop/qcut-fresh/qcut`
-- CLI invocation used: `/mnt/c/Users/yanie/.bun/bin/bun.exe run qcut ...`
+- Repo root: `/mnt/c/<repo>/qcut`
+- CLI invocation used: `bun run qcut ...`
 - QCut app state during test: desktop app was already running
 - Native CLI version: `1.0.0`
 

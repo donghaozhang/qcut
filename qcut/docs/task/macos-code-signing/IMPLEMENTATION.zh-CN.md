@@ -64,7 +64,6 @@
   3. `APPLE_KEYCHAIN` + `APPLE_KEYCHAIN_PROFILE`
 
   构建会：
-  构建会：
   1. 签名 `.app` 和内层二进制。
   2. 提交给 Apple 公证服务。
   3. 等结果（一般 5–10 分钟）。
