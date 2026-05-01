@@ -1,0 +1,34 @@
+{"desc": "editor:health", "cmd": "editor:health", "status": "ok", "elapsed_ms": 64, "error": "", "bytes": 6390}
+{"desc": "editor:auth:token", "cmd": "editor:auth:token", "status": "ok", "elapsed_ms": 62, "error": "", "bytes": 243}
+{"desc": "editor:project:list", "cmd": "editor:project:list", "status": "ok", "elapsed_ms": 64, "error": "", "bytes": 4506}
+{"desc": "editor:project:settings", "cmd": "editor:project:settings --project-id ecf93d99-3e78-4551-b766-f49192173475", "status": "ok", "elapsed_ms": 65, "error": "", "bytes": 409}
+{"desc": "editor:project:stats", "cmd": "editor:project:stats --project-id ecf93d99-3e78-4551-b766-f49192173475", "status": "ok", "elapsed_ms": 3073, "error": "", "bytes": 412}
+{"desc": "editor:project:summary", "cmd": "editor:project:summary --project-id ecf93d99-3e78-4551-b766-f49192173475", "status": "ok", "elapsed_ms": 66, "error": "", "bytes": 711}
+{"desc": "editor:project:info (minimal)", "cmd": "editor:project:info --project-id ecf93d99-3e78-4551-b766-f49192173475", "status": "ok", "elapsed_ms": 3085, "error": "", "bytes": 1032}
+{"desc": "editor:project:info --full", "cmd": "editor:project:info --project-id ecf93d99-3e78-4551-b766-f49192173475 --full", "status": "ok", "elapsed_ms": 3076, "error": "", "bytes": 9732}
+{"desc": "editor:media:list", "cmd": "editor:media:list --project-id ecf93d99-3e78-4551-b766-f49192173475", "status": "ok", "elapsed_ms": 64, "error": "", "bytes": 7603}
+{"desc": "editor:timeline:export", "cmd": "editor:timeline:export --project-id ecf93d99-3e78-4551-b766-f49192173475", "status": "ok", "elapsed_ms": 63, "error": "", "bytes": 914}
+{"desc": "editor:timeline:info", "cmd": "editor:timeline:info --project-id ecf93d99-3e78-4551-b766-f49192173475", "status": "ok", "elapsed_ms": 62, "error": "", "bytes": 912}
+{"desc": "editor:timeline:get-selection", "cmd": "editor:timeline:get-selection --project-id ecf93d99-3e78-4551-b766-f49192173475", "status": "ok", "elapsed_ms": 65, "error": "", "bytes": 218}
+{"desc": "editor:analyze:models", "cmd": "editor:analyze:models", "status": "ok", "elapsed_ms": 64, "error": "", "bytes": 988}
+{"desc": "editor:generate:models", "cmd": "editor:generate:models", "status": "ok", "elapsed_ms": 63, "error": "", "bytes": 54654}
+{"desc": "editor:export:presets", "cmd": "editor:export:presets", "status": "ok", "elapsed_ms": 63, "error": "", "bytes": 2926}
+{"desc": "editor:export:list-jobs", "cmd": "editor:export:list-jobs --project-id ecf93d99-3e78-4551-b766-f49192173475", "status": "ok", "elapsed_ms": 64, "error": "", "bytes": 186}
+{"desc": "editor:export:recommend tiktok", "cmd": "editor:export:recommend --project-id ecf93d99-3e78-4551-b766-f49192173475 --target tiktok", "status": "ok", "elapsed_ms": 64, "error": "", "bytes": 695}
+{"desc": "editor:state:snapshot (full)", "cmd": "editor:state:snapshot", "status": "json-parse-error", "elapsed_ms": 743, "error": "Unterminated string starting at: line 326 column 22 (char 17095895)", "bytes": -1}
+{"desc": "editor:state:snapshot timeline", "cmd": "editor:state:snapshot --include timeline", "status": "ok", "elapsed_ms": 64, "error": "", "bytes": 1414}
+{"desc": "editor:state:snapshot media", "cmd": "editor:state:snapshot --include media", "status": "json-parse-error", "elapsed_ms": 756, "error": "Unterminated string starting at: line 326 column 22 (char 19198781)", "bytes": -1}
+{"desc": "editor:state:snapshot project", "cmd": "editor:state:snapshot --include project", "status": "ok", "elapsed_ms": 63, "error": "", "bytes": 1160}
+{"desc": "editor:snapshot (UI tree)", "cmd": "editor:snapshot", "status": "json-parse-error", "elapsed_ms": 70, "error": "Expecting property name enclosed in double quotes: line 3033 column 2 (char 81751)", "bytes": -1}
+{"desc": "editor:snapshot --interactive", "cmd": "editor:snapshot --interactive", "status": "ok", "elapsed_ms": 63, "error": "", "bytes": 18820}
+{"desc": "editor:screen-recording:sources", "cmd": "editor:screen-recording:sources", "status": "ok", "elapsed_ms": 395, "error": "", "bytes": 2995}
+{"desc": "editor:screen-recording:status", "cmd": "editor:screen-recording:status --project-id ecf93d99-3e78-4551-b766-f49192173475", "status": "ok", "elapsed_ms": 64, "error": "", "bytes": 442}
+{"desc": "editor:moyin:status", "cmd": "editor:moyin:status", "status": "ok", "elapsed_ms": 63, "error": "", "bytes": 642}
+{"desc": "editor:diagnostics:analyze", "cmd": "editor:diagnostics:analyze --message test diagnostic", "status": "ok", "elapsed_ms": 62, "error": "", "bytes": 946}
+{"desc": "editor:screenshot:capture", "cmd": "editor:screenshot:capture --filename editor-cli-test.png", "status": "ok", "elapsed_ms": 134, "error": "", "bytes": 346}
+{"desc": "editor:ui:switch-panel ai", "cmd": "editor:ui:switch-panel --panel ai", "status": "ok", "elapsed_ms": 64, "error": "", "bytes": 262}
+{"desc": "editor:ui:switch-panel media", "cmd": "editor:ui:switch-panel --panel media", "status": "ok", "elapsed_ms": 64, "error": "", "bytes": 261}
+{"desc": "editor:undo (no-op)", "cmd": "editor:undo", "status": "json-parse-error", "elapsed_ms": 58, "error": "Extra data: line 8 column 1 (char 272)", "bytes": -1}
+{"desc": "editor:redo (no-op)", "cmd": "editor:redo", "status": "json-parse-error", "elapsed_ms": 58, "error": "Extra data: line 8 column 1 (char 272)", "bytes": -1}
+{"desc": "editor:errors", "cmd": "editor:errors", "status": "json-parse-error", "elapsed_ms": 64, "error": "Extra data: line 8 column 1 (char 219)", "bytes": -1}
+{"desc": "editor:console", "cmd": "editor:console", "status": "json-parse-error", "elapsed_ms": 64, "error": "Extra data: line 8 column 1 (char 220)", "bytes": -1}
