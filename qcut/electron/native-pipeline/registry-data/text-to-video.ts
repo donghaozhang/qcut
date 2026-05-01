@@ -637,8 +637,8 @@ export function registerTextToVideoModels(): void {
 	});
 
 	// Alibaba Happy Horse — text-to-video. Supports 5 aspect ratios, 720p/1080p,
-	// duration 3–15s. FAL accepts `duration` as a string enum per the published
-	// schema; the executor stringifies before submit.
+	// duration 3–15s. FAL requires `duration` as an integer literal enum (3–15);
+	// the string form is rejected with literal_error (verified live 2026-04-30).
 	// See docs/task/fal_model/happy-horse-integration.md
 	ModelRegistry.register({
 		key: "happy_horse_t2v",

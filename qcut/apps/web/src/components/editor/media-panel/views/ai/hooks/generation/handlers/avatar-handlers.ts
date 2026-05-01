@@ -9,6 +9,7 @@ import {
 	generateKlingO1Video,
 	generateWAN26RefVideo,
 } from "@/lib/ai-video";
+import type { HappyHorseDuration } from "../../../types/ai-types";
 import type {
 	AvatarSettings,
 	ModelHandlerContext,
@@ -163,6 +164,11 @@ export async function handleHappyHorseRef2V(
 			model: ctx.modelId,
 			prompt: ctx.prompt,
 			image_urls: imageUrls,
+			duration: settings.happyHorseRef2vDuration as
+				| HappyHorseDuration
+				| undefined,
+			resolution: settings.happyHorseRef2vResolution,
+			aspect_ratio: settings.happyHorseRef2vAspectRatio,
 		});
 
 		debugLogger.log("model-handlers", "HAPPY_HORSE_REF2V_COMPLETE", {
