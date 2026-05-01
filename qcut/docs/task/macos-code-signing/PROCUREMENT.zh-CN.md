@@ -180,6 +180,90 @@ Apple 的公证服务用 Apple ID + 一个独立的 "app-specific password" 做
 - 存到 GitHub secret `APPLE_ID`（是邮箱地址 — 严格说也可以用
   variable，但 secret 更安全，避免被扫描收集）。
 
+## 5. CLI 快捷路径（可选，混合方式）
+
+第 1–4 节给的是纯 GUI 路径。这一节是**混合路径**：能用命令行的步
+骤就用命令行，剩下两个**无法绕过**的网页步骤单独标出。一次性首
+次设置约 5 分钟。
+
+### 什么可以走 CLI
+
+| 步骤 | 命令 |
+|------|------|
+| 生成 CSR | `openssl req -new …`（替代钥匙串访问对话框） |
+| 把 `.cer + .key` 合成 `.p12` | `openssl pkcs12 -export …` |
+| 导入到登录钥匙串 | `security import …` |
+| 验证签名身份 | `security find-identity -v -p codesigning` |
+| base64 编码给 CI | `base64 -i … \| pbcopy` |
+
+### 什么必须走网页
+
+1. **把 CSR 提交给 Apple 拿回 `.cer`** — 没有公开 CLI。可选方案：
+   - **网页**：developer.apple.com（3 分钟）— 推荐一次性使用。
+   - **App Store Connect API**（`fastlane cert` 或直接调 API）— 但
+     创建 API Key 本身仍是网页步骤，只有要长期自动化证书轮换时
+     才值得。
+2. **App-Specific Password** — 完全没有 API，必须在 account.apple.com
+   网页生成。可考虑改用 App Store Connect API Key 做公证（见
+   "后续加固"一节），可绕开 App-Specific Password。
+
+### 混合路径完整脚本
+
+#### ① CLI 生成 CSR
+
+```bash
+cd ~/Desktop
+openssl genrsa -out quriosity-developer-id.key 2048
+openssl req -new -key quriosity-developer-id.key \
+  -out quriosity-developer-id.csr \
+  -subj "/emailAddress=apple-dev@qcut.app/CN=Quriosity Apple Developer ID/C=AU"
+```
+
+#### ② 网页操作（约 4 分钟）
+
+- developer.apple.com → **Certificates** → **+** → **Developer ID
+  Application** → 上传 `.csr` → 下载 `.cer`（保存为
+  `developerID_application.cer`）。
+- account.apple.com → **Sign-In and Security** → **App-Specific
+  Passwords** → 生成 `QCut release notarization`，立刻复制保存。
+
+#### ③ CLI 合成 `.p12` 并导入
+
+```bash
+# 把 .cer + .key 打包成 .p12（提示输入导出密码 = MAC_CSC_KEY_PASSWORD）
+openssl pkcs12 -export \
+  -out quriosity-developer-id.p12 \
+  -inkey quriosity-developer-id.key \
+  -in developerID_application.cer \
+  -name "Developer ID Application: Quriosity Pty Ltd (JQ3Q27U24X)"
+
+# 导入到登录钥匙串（让本地 `bun run dist:mac` 找得到）
+security import quriosity-developer-id.p12 \
+  -k ~/Library/Keychains/login.keychain-db \
+  -P "$P12_PASSWORD" \
+  -T /usr/bin/codesign
+
+# 验证签名身份已就绪
+security find-identity -v -p codesigning | grep "Developer ID Application"
+
+# base64 编码给 GitHub Actions secret MAC_CSC_LINK
+base64 -i quriosity-developer-id.p12 | pbcopy
+```
+
+> ⚠️ 用 OpenSSL 生成 CSR 时，**私钥 `quriosity-developer-id.key` 务必
+> 妥善保管**（1Password 或加密备份）。丢了 = 证书作废需重申请。
+> 钥匙串访问的 GUI 路径默认把私钥保存在登录钥匙串里，不会散落
+> 桌面 — 这是 GUI 路径相对 CLI 路径唯一的便利点。
+
+### 选择建议
+
+| 场景 | 推荐路径 |
+|------|----------|
+| 一次性首次设置 | **混合**（本节，约 5 分钟） |
+| 不熟悉钥匙串访问 | 混合（CLI 命令比 GUI 流程更直接） |
+| 完全不想碰命令行 | 纯 GUI（第 3 节） |
+| 长期自动化（多年后证书轮换） | App Store Connect API + `fastlane cert`（见"后续加固"） |
+
 ## 总结：GitHub 仓库设置
 
 四个子任务都做完后，**Settings → Secrets and variables → Actions**
