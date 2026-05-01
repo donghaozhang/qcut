@@ -53,9 +53,9 @@ describe("parseStateRequestFromQuery", () => {
 	});
 
 	it("rejects invalid include section with HTTP 400", () => {
-		expect(() =>
-			parseStateRequestFromQuery({ include: "garbage" })
-		).toThrow(/Invalid include section/);
+		expect(() => parseStateRequestFromQuery({ include: "garbage" })).toThrow(
+			/Invalid include section/
+		);
 	});
 
 	it("dedupes repeated include sections", () => {

@@ -10,10 +10,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import {
-	buildOutputBasename,
-	slugifyPrompt,
-} from "../handler-generate.js";
+import { buildOutputBasename, slugifyPrompt } from "../handler-generate.js";
 
 describe("slugifyPrompt", () => {
 	it("lowercases and replaces whitespace with dashes", () => {

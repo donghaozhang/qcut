@@ -31,7 +31,9 @@ function findApp(): string {
 		throw new Error(`no .app bundle in ${macDir}`);
 	}
 	if (apps.length > 1) {
-		throw new Error(`expected exactly one .app, found ${apps.length}: ${apps.join(", ")}`);
+		throw new Error(
+			`expected exactly one .app, found ${apps.length}: ${apps.join(", ")}`
+		);
 	}
 	return join(macDir, apps[0]);
 }
@@ -40,7 +42,7 @@ function run(cmd: string, args: string[]): string {
 	const result = spawnSync(cmd, args, { encoding: "utf8" });
 	if (result.status !== 0) {
 		throw new Error(
-			`${cmd} exited ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+			`${cmd} exited ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`
 		);
 	}
 	return (result.stdout || "") + (result.stderr || "");
@@ -56,7 +58,7 @@ const dmg = findLatestDmg();
 
 console.log(`[verify-macos-signature] codesign --verify ${app}`);
 console.log(
-	run("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app]),
+	run("codesign", ["--verify", "--deep", "--strict", "--verbose=2", app])
 );
 
 console.log(`[verify-macos-signature] spctl --assess ${app}`);
@@ -76,13 +78,15 @@ if (!staplerAppOut.includes("worked")) {
 	throw new Error("stapler validation on .app failed");
 }
 
-console.log(`[verify-macos-signature] xcrun stapler validate ${dmg} (advisory)`);
+console.log(
+	`[verify-macos-signature] xcrun stapler validate ${dmg} (advisory)`
+);
 try {
 	const staplerDmgOut = run("xcrun", ["stapler", "validate", dmg]);
 	console.log(staplerDmgOut);
 } catch (err) {
 	console.warn(
-		`[verify-macos-signature] dmg not separately stapled (non-fatal: Gatekeeper validates the inner .app, which is stapled): ${(err as Error).message.split("\n")[0]}`,
+		`[verify-macos-signature] dmg not separately stapled (non-fatal: Gatekeeper validates the inner .app, which is stapled): ${(err as Error).message.split("\n")[0]}`
 	);
 }
 

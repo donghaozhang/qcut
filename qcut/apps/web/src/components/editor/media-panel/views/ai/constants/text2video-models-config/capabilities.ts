@@ -506,9 +506,7 @@ export const T2V_MODEL_CAPABILITIES: Record<T2VModelId, T2VModelCapabilities> =
 			supportsResolution: true,
 			supportedResolutions: ["720p", "1080p"],
 			supportsDuration: true,
-			supportedDurations: [
-				3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-			],
+			supportedDurations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
 			supportsNegativePrompt: false,
 			supportsPromptExpansion: false,
 			supportsSeed: true,

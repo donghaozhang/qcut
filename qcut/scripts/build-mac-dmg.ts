@@ -18,7 +18,7 @@ const apps = existsSync(macDir)
 	: [];
 if (apps.length !== 1) {
 	throw new Error(
-		`expected exactly one .app in ${macDir}, found: ${apps.join(", ") || "(none)"}`,
+		`expected exactly one .app in ${macDir}, found: ${apps.join(", ") || "(none)"}`
 	);
 }
 const appPath = join(macDir, apps[0]);
@@ -28,16 +28,16 @@ const appName = apps[0].replace(/\.app$/, "");
 // stay in sync (electron-builder normalizes package.json's `version` via semver
 // and the literal version string from package.json may differ).
 const zipMatch = readdirSync(distDir).find((f) =>
-	new RegExp(`^${escapeRegex(appName)}-(.+)-arm64-mac\\.zip$`).test(f),
+	new RegExp(`^${escapeRegex(appName)}-(.+)-arm64-mac\\.zip$`).test(f)
 );
 if (!zipMatch) {
 	throw new Error(
-		`expected electron-builder .zip in ${distDir} to derive version from`,
+		`expected electron-builder .zip in ${distDir} to derive version from`
 	);
 }
 const version = zipMatch.replace(
 	new RegExp(`^${escapeRegex(appName)}-(.+)-arm64-mac\\.zip$`),
-	"$1",
+	"$1"
 );
 const productName = appName;
 
@@ -51,11 +51,14 @@ const stagingDir = join(distDir, ".dmg-staging-arm64");
 console.log(`[build-mac-dmg] source app: ${appPath}`);
 console.log(`[build-mac-dmg] output dmg: ${dmgFile}`);
 
-if (existsSync(stagingDir)) rmSync(stagingDir, { recursive: true, force: true });
+if (existsSync(stagingDir))
+	rmSync(stagingDir, { recursive: true, force: true });
 if (existsSync(dmgFile)) rmSync(dmgFile, { force: true });
 mkdirSync(stagingDir, { recursive: true });
 
-console.log(`[build-mac-dmg] staging .app + Applications symlink in ${stagingDir}`);
+console.log(
+	`[build-mac-dmg] staging .app + Applications symlink in ${stagingDir}`
+);
 execFileSync("ditto", [appPath, join(stagingDir, apps[0])]);
 execFileSync("ln", ["-s", "/Applications", join(stagingDir, "Applications")]);
 
@@ -77,11 +80,11 @@ const result = spawnSync(
 		"-ov",
 		dmgFile,
 	],
-	{ encoding: "utf8" },
+	{ encoding: "utf8" }
 );
 if (result.status !== 0) {
 	throw new Error(
-		`hdiutil exited ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+		`hdiutil exited ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`
 	);
 }
 console.log(result.stdout);

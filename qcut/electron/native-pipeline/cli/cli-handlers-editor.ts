@@ -371,9 +371,7 @@ async function handleStateCommand(
 			if (options.include) params.set("include", options.include);
 			if (options.withThumbnails) params.set("media.includeThumbnails", "1");
 			const qs = params.toString();
-			const data = await client.get(
-				`/api/claude/state${qs ? `?${qs}` : ""}`
-			);
+			const data = await client.get(`/api/claude/state${qs ? `?${qs}` : ""}`);
 			return { success: true, data };
 		}
 		default:

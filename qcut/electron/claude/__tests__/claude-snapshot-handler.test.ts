@@ -200,7 +200,8 @@ describe("claude-snapshot-handler", () => {
 		it("accepts a truncated envelope from the renderer without throwing", async () => {
 			const truncated = {
 				truncated: true,
-				reason: "Snapshot exceeds maxBytes (4096). Got 12345 bytes across 3 elements.",
+				reason:
+					"Snapshot exceeds maxBytes (4096). Got 12345 bytes across 3 elements.",
 				suggestion:
 					"Re-run with --interactive (actionable elements only), --depth N to limit DOM traversal, --max-nodes N for an explicit element cap, or --max-bytes N to lift the byte cap.",
 				meta: {

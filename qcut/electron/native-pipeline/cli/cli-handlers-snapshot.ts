@@ -16,11 +16,17 @@ function buildSnapshotQuery({
 		query.depth = String(options.depth);
 	}
 
-	if (typeof options.maxBytes === "number" && Number.isFinite(options.maxBytes)) {
+	if (
+		typeof options.maxBytes === "number" &&
+		Number.isFinite(options.maxBytes)
+	) {
 		query.maxBytes = String(options.maxBytes);
 	}
 
-	if (typeof options.maxNodes === "number" && Number.isFinite(options.maxNodes)) {
+	if (
+		typeof options.maxNodes === "number" &&
+		Number.isFinite(options.maxNodes)
+	) {
 		query.maxNodes = String(options.maxNodes);
 	}
 

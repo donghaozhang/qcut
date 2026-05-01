@@ -424,10 +424,7 @@ async function executeImageToVideo(
 	// already as a raw list (often local paths). FAL only accepts HTTPS URLs
 	// or data URIs, so upload any non-http entries here. Cap at 9 — FAL
 	// rejects more.
-	if (
-		model.key === "happy_horse_ref2v" &&
-		Array.isArray(payload.image_urls)
-	) {
+	if (model.key === "happy_horse_ref2v" && Array.isArray(payload.image_urls)) {
 		const raw = (payload.image_urls as string[]).slice(0, 9);
 		const resolved: string[] = [];
 		for (const entry of raw) {

@@ -156,7 +156,9 @@ export function stripThumbnailIfBase64(
 
 function buildMediaItemsSnapshot({
 	includeThumbnails = false,
-}: { includeThumbnails?: boolean } = {}): {
+}: {
+	includeThumbnails?: boolean;
+} = {}): {
 	items: MediaStateSnapshotItem[];
 	unsavedCount: number;
 } {
@@ -177,9 +179,7 @@ function buildMediaItemsSnapshot({
 				// QCut's media store (especially for AI-generated content
 				// before it's persisted to disk). Strip both unless the
 				// caller opts in via `includeThumbnails: true`.
-				url: includeThumbnails
-					? item.url
-					: stripThumbnailIfBase64(item.url),
+				url: includeThumbnails ? item.url : stripThumbnailIfBase64(item.url),
 				thumbnailUrl: includeThumbnails
 					? item.thumbnailUrl
 					: stripThumbnailIfBase64(item.thumbnailUrl),

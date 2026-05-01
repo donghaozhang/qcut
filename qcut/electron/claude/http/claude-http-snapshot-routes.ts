@@ -50,10 +50,7 @@ function parsePositiveInt({
 	if (!value) return undefined;
 	const parsed = Number.parseInt(value, 10);
 	if (!Number.isFinite(parsed) || parsed <= 0) {
-		throw new HttpError(
-			400,
-			`Invalid ${field} query. Use a positive integer.`
-		);
+		throw new HttpError(400, `Invalid ${field} query. Use a positive integer.`);
 	}
 	return parsed;
 }
@@ -72,8 +69,14 @@ export function parseSnapshotRequestFromQuery({
 	const request: EditorSnapshotRequest = {};
 	const interactiveValue = parseInteractive({ value: interactive });
 	const depthValue = parseDepth({ value: depth });
-	const maxBytesValue = parsePositiveInt({ value: maxBytes, field: "maxBytes" });
-	const maxNodesValue = parsePositiveInt({ value: maxNodes, field: "maxNodes" });
+	const maxBytesValue = parsePositiveInt({
+		value: maxBytes,
+		field: "maxBytes",
+	});
+	const maxNodesValue = parsePositiveInt({
+		value: maxNodes,
+		field: "maxNodes",
+	});
 
 	if (typeof interactiveValue === "boolean") {
 		request.interactive = interactiveValue;
