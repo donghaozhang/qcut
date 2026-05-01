@@ -227,6 +227,9 @@ function getAvatarDurationSeconds({
 	if (modelId === "grok_imagine_r2v") {
 		return settings.grokR2vDuration ?? 8;
 	}
+	if (modelId === "happy_horse_ref2v") {
+		return settings.happyHorseRef2vDuration ?? 5;
+	}
 	return settings.videoDuration ?? settings.audioDuration ?? undefined;
 }
 
