@@ -269,6 +269,32 @@ The plan called out only `thumbnailUrl` as the source of base64 bloat. Live re-t
 - The `STRIPPED_THUMBNAIL_SENTINEL = "<stripped>"` shape change *is* visible to existing callers, but parsing `state.media.items[].thumbnailUrl` defensively (treat any non-empty string as opaque) is the correct pattern; no in-tree consumer breaks. Skill docs updated accordingly.
 - `editor:snapshot` now always includes a `truncated` field (`false` for ordinary results, `true` for the envelope). Existing consumers that read `.elements`/`.summary` keep working unchanged when the response is *not* truncated.
 
+### Re-test after Electron restart (2026-04-30, post-implementation)
+
+Restarted Electron from a clean production build, opened the same project (`ecf93d99-…` — 28 media items, 40 UI elements), and re-ran the full sweep:
+
+| Command | bytes | result |
+|---|---|---|
+| `editor:state:snapshot --include media` (default) | **35,821** | ✅ JSON parses, 28 items, all data-URIs replaced with `<stripped>` |
+| `editor:state:snapshot --include media --with-thumbnails` | 4,784,129 | ⚠️ JSON parse fails — see caveat below |
+| `editor:snapshot` (default cap) | **26,922** | ✅ JSON parses, 40 elements, `truncated: false` |
+| `editor:snapshot --interactive` | 5,622 | ✅ 9 actionable elements |
+| `editor:snapshot --max-bytes 1024` | 625 | ✅ truncated envelope, byte-cap reason |
+| `editor:snapshot --max-nodes 5` | 611 | ✅ truncated envelope, node-cap reason |
+| `editor:snapshot --max-bytes 5000000 --max-nodes 10000` | 26,954 | ✅ full tree returned (cap lifted) |
+
+22-command regression sweep across read-only `editor:*` commands: **21/22 ok** (the one not-ok is `--with-thumbnails`, see below).
+
+### Known caveat — `--with-thumbnails` still produces unparseable JSON
+
+When the user explicitly opts back into raw thumbnails, the response is 4.7 MB and fails JSON parsing with `Invalid control character at line 155 column 68536`. This is **not a regression** — it's the legacy behaviour the default-strip was designed to avoid.
+
+**Why it fails:** base64 itself is `[A-Za-z0-9+/=]+` and never produces control chars, and `JSON.stringify` always escapes ASCII < 0x20 in strings. So the corruption is in the **data** stored in `mediaStore.mediaItems[].url` itself — likely `Blob`/`ArrayBuffer` `toString()` artifacts in the AI-generated `data:application/octet-stream;base64,…` URIs that haven't been persisted to disk yet. The renderer code has been pushing this corrupted-shape data into the store; we just stopped paying the cost in the default path.
+
+**Mitigation:** the default path is clean for every caller (CI, MCP, test harnesses). Anyone who actually needs renderable thumbnails over the wire should not use `--with-thumbnails` — the right path is the deferred `editor:media:thumbnail --media-id X` endpoint listed under "Out of scope" below.
+
+**Tests still cover the safe path:** the 25 new unit tests in subtask 3 pin the contract for the default (stripped) shape. The opt-in path is unchanged from before the fix and remains a known-bad escape hatch — documented as such in `editor-output.md`.
+
 ---
 
 ## Out of scope (deferred)

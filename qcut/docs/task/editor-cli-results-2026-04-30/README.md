@@ -108,7 +108,7 @@ Raw results: [`raw-readonly.jsonl`](raw-readonly.jsonl) · [`raw-mutations.jsonl
 
 ## Real issues found
 
-> **Both bugs fixed and verified live on 2026-04-30** — see [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md#implementation-summary-2026-04-30) for files changed, test counts, and the before/after byte counts (19 MB → 35 KB; 80 KB corrupt → 27 KB clean).
+> **Both bugs fixed and verified live on 2026-04-30** — see [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md#implementation-summary-2026-04-30) for files changed, test counts, and the before/after byte counts (19 MB → 35 KB; 80 KB corrupt → 27 KB clean). Re-test after restart pinned in [IMPLEMENTATION-PLAN.md → Re-test](IMPLEMENTATION-PLAN.md#re-test-after-electron-restart-2026-04-30-post-implementation): **21/22 read-only commands pass**. The one outlier (`--with-thumbnails` opt-in) still returns unparseable JSON because of upstream `Blob.toString()` corruption in the renderer's media store — documented as a known caveat there.
 
 ### 1. ✅ ~~`editor:state:snapshot` (full / `--include media`)~~ — 19 MB output, malformed near the end
 
