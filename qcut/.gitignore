@@ -53,6 +53,7 @@ node_modules
 
 *.env
 .env.*
+!.env.signing.example
 
 # cursor
 bun.lockb
