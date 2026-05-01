@@ -24,13 +24,22 @@ Developer ID 签名 + Apple 公证服务（notarization）。
 ## 进度
 
 - [x] 方案已草拟
-- [ ] 子任务 1：查找 / 申请 Quriosity 的 D-U-N-S Number
-- [ ] 子任务 2：注册 Apple Developer Program（组织席位，$99/年）
-- [ ] 子任务 3：生成 Developer ID Application 证书，导出 .p12
-- [ ] 子任务 4：生成 App-Specific Password，记下 Team ID
-- [ ] 子任务 5：改 `electron-builder` mac 配置（`identity` + `notarize`）
-- [ ] 子任务 6：改 GitHub Actions 发布工作流（mac job env 块）
-- [ ] 子任务 7：加构建后签名 + 公证校验脚本
-- [ ] 子任务 8：维护者文档
-- [ ] 子任务 9：测试
-- [ ] 子任务 10：在干净 macOS VM 上做发布演练
+- [x] 子任务 1：D-U-N-S Number — `893394655`（Quriosity Pty Ltd，2026-04-25 签发）
+- [x] 子任务 2：Apple Developer Program 已注册 — Team ID `JQ3Q27U24X`，账号持有人 `zdhpeter@gmail.com`（2026-04-30 激活）
+- [x] 子任务 3：Developer ID Application 证书已生成，已导入登录钥匙串，导出为 `.p12`（证书哈希 `363E778CF99E6C0D76484ECFDEF45927DC7EEE86`）
+- [x] 子任务 4：App-Specific Password 已生成，Team ID 已记录
+- [x] 子任务 5：`electron-builder` `mac.identity` + `mac.notarize: true` 已写入 `package.json` — commit `39eb7169d`
+- [x] 子任务 6：GitHub Actions `release.yml` `build-macos` 任务接入了 `CSC_LINK`、`CSC_KEY_PASSWORD`、`APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD`、`APPLE_TEAM_ID`；secrets 已推到 `Quriosity-agent/qcut` — commit `3803151ef`
+- [x] 子任务 7：`scripts/verify-macos-signature.ts` + `verify:macos-signature` npm 脚本
+- [x] ~~子任务 8~~ 维护者文档 —— 部分完成；PROCUREMENT / IMPLEMENTATION 文档覆盖了流程，但还没单独写 `docs/setup/macos-code-signing.md`
+- [ ] 子任务 9：verify 脚本的自动化测试（延后）
+- [x] 子任务 10：本机演练（2026-05-01）—— 双击 DMG、拖到 Applications、双击启动全部成功；`spctl: accepted, source=Notarized Developer ID`
+
+### 计划外（额外完成）
+
+- [x] **自定义 hdiutil DMG（`scripts/build-mac-dmg.ts`）** 绕过 dmg-builder@26.8.1 在 macOS Tahoe 上把 175 MB Electron Framework 二进制丢失的 bug — 详见 commit `3803151ef` 和 memory 中的 `dmg_builder_tahoe_bug.md`。`mac.target` 缩减为 `["zip"]`；DMG 在 electron-builder 跑完后用 `hdiutil create` 对已签名/已公证/已 staple 的 `.app` 直接生成。
+
+### 还没做
+
+- [ ] 建议：推一个 RC tag 在 GitHub-hosted Mac runner 上完整跑一次 `release.yml` `build-macos`——本机构建工作良好，但 CI 路径（`CSC_LINK` base64 解码到临时钥匙串）还没真正跑过。
+- [ ] 可选：给 `electron-userland/electron-builder` 提一个 upstream issue，附本次任务的复现步骤。

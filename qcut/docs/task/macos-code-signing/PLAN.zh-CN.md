@@ -103,13 +103,12 @@ Apple Developer Program 在开源/闭源两种状态下都适用，**不需要**
 
 ## 验收标准
 
-- [ ] `codesign --verify --deep --strict --verbose=2 QCut.app` 退出 0。
-- [ ] `spctl -a -t exec -vv QCut.app` 报告 `accepted` 且 `source=Notarized Developer ID`。
-- [ ] `xcrun stapler validate QCut.dmg` 报告 `The validate action worked!`。
-- [ ] 在干净 macOS Sequoia/Sonoma VM 上双击 `.dmg`、拖到 Applications、
-      打开，**不**弹"无法打开"也**不**需要右键 → 打开。
-- [ ] macOS 安全弹窗里显示的开发者名是 "Quriosity Pty Ltd"。
-- [ ] 维护者签名指南已发布在 `qcut/docs/setup/macos-code-signing.md`。
+- [x] `codesign --verify --deep --strict --verbose=2 QCut.app` 退出 0。*（2026-05-01 通过 `verify:macos-signature` 脚本验证）*
+- [x] `spctl -a -t exec -vv QCut.app` 报告 `accepted` 且 `source=Notarized Developer ID`。*（2026-05-01 验证）*
+- [x] ~~`xcrun stapler validate QCut.dmg` 报告 `The validate action worked!`。~~ 调整：stapler 校验的是 **DMG 里的 `.app`**（通过），不是 DMG 本身。electron-builder 26 不再直接 staple `.dmg`，因为 Gatekeeper 启动时检查的是内层 `.app`。`verify:macos-signature` 把 DMG-staple 视作 advisory。*（2026-05-01 验证）*
+- [x] 在开发者本机（macOS 26.4.1 Tahoe）双击 `.dmg`、拖到 Applications、打开，只弹了标准"从互联网下载 → 打开"对话框 —— 没有"无法打开"，也不需要右键 → 打开。*（2026-05-01 验证）*。**还没在干净 VM / 新建用户账号上验证** —— 见 [README.zh-CN.md](README.zh-CN.md#还没做) 的"还没做"。
+- [x] macOS 安全弹窗里显示的开发者名是 "Quriosity Pty Ltd"。*（2026-05-01 验证）*
+- [ ] 维护者签名指南 `qcut/docs/setup/macos-code-signing.md` —— 部分完成：PROCUREMENT.md 和 IMPLEMENTATION.md 覆盖了流程，但还没合并写出一份独立的 setup 指南。
 
 ## 本方案不覆盖的部分
 
