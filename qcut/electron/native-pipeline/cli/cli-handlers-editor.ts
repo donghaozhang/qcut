@@ -363,10 +363,17 @@ async function handleStateCommand(
 					error: `Unknown state action: ${action}. Available: snapshot`,
 				};
 			}
-			const queryParams = options.include
-				? `?include=${encodeURIComponent(options.include)}`
-				: "";
-			const data = await client.get(`/api/claude/state${queryParams}`);
+			// `--with-thumbnails` flips the default. Default is to strip
+			// `data:image/...;base64,…` thumbnail URLs because they routinely
+			// blow past the HTTP/IPC transport limit and break JSON parsing
+			// in clients (see docs/task/editor-cli-results-2026-04-30/).
+			const params = new URLSearchParams();
+			if (options.include) params.set("include", options.include);
+			if (options.withThumbnails) params.set("media.includeThumbnails", "1");
+			const qs = params.toString();
+			const data = await client.get(
+				`/api/claude/state${qs ? `?${qs}` : ""}`
+			);
 			return { success: true, data };
 		}
 		default:

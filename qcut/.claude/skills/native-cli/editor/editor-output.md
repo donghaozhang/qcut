@@ -307,8 +307,13 @@ qcut editor:state:snapshot --json
 
 # Partial snapshot (specific sections)
 qcut editor:state:snapshot --include timeline,playhead --json
+
+# Include raw base64 thumbnails (off by default)
+qcut editor:state:snapshot --include media --with-thumbnails --json
 ```
 
 **Sections**: `timeline`, `selection`, `playhead`, `media`, `editor` (or `ui`), `project`
+
+**Thumbnails are stripped by default.** `media.items[].url` and `media.items[].thumbnailUrl` are replaced with the sentinel `"<stripped>"` whenever the value is a `data:image/...;base64,…` URI — base64 thumbnails routinely push the response past 10–20 MB and break JSON parsing in clients. Pass `--with-thumbnails` to opt back into the raw URIs (only do this when the consumer is going to render them, e.g. a debugging UI). Non-data URIs (`blob:`, `https:`, `app:`) always pass through.
 
 For advanced state automation (events, transactions, capabilities, notification bridge), see [editor-state-control.md](editor-state-control.md).

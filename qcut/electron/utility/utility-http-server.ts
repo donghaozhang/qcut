@@ -60,7 +60,7 @@ import type {
 import type { ClaudeConsoleEntry } from "../claude/handlers/claude-console-handler.js";
 import type {
 	EditorSnapshotActionResult,
-	EditorSnapshotResult,
+	EditorSnapshotResponse,
 } from "../types/claude-api.js";
 import { authorizeClaudeHttpRequest } from "../claude/http/claude-http-auth.js";
 
@@ -385,7 +385,7 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 		requestSnapshot: async (request) =>
 			(await requestFromMain("get-editor-accessibility-snapshot", {
 				request,
-			})) as EditorSnapshotResult,
+			})) as EditorSnapshotResponse,
 		clickSnapshotRef: async (request) =>
 			(await requestFromMain("snapshot:click", {
 				request,

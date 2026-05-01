@@ -4,9 +4,13 @@ import type {
 	EditorSnapshotClickRequest,
 	EditorSnapshotFillRequest,
 	EditorSnapshotRequest,
+	EditorSnapshotResponse,
 	EditorSnapshotResult,
+	EditorSnapshotTruncatedResult,
 } from "../../types/claude-api.js";
 import {
+	DEFAULT_SNAPSHOT_MAX_BYTES,
+	DEFAULT_SNAPSHOT_MAX_NODES,
 	EDITOR_SNAPSHOT_REF_ATTRIBUTE,
 	EDITOR_SNAPSHOT_STATE_KEY,
 	EDITOR_SNAPSHOT_VERSION,
@@ -50,9 +54,29 @@ function normalizeSnapshotRequest({
 		}
 	}
 
+	let maxBytes = DEFAULT_SNAPSHOT_MAX_BYTES;
+	if (
+		typeof request?.maxBytes === "number" &&
+		Number.isFinite(request.maxBytes) &&
+		request.maxBytes > 0
+	) {
+		maxBytes = Math.trunc(request.maxBytes);
+	}
+
+	let maxNodes = DEFAULT_SNAPSHOT_MAX_NODES;
+	if (
+		typeof request?.maxNodes === "number" &&
+		Number.isFinite(request.maxNodes) &&
+		request.maxNodes > 0
+	) {
+		maxNodes = Math.trunc(request.maxNodes);
+	}
+
 	return {
 		interactive,
 		depth,
+		maxBytes,
+		maxNodes,
 	};
 }
 
@@ -67,6 +91,8 @@ function buildSnapshotScript({
 		const SNAPSHOT_STATE_KEY = ${JSON.stringify(EDITOR_SNAPSHOT_STATE_KEY)};
 		const interactiveOnly = ${normalized.interactive ? "true" : "false"};
 		const maxDepth = ${normalized.depth};
+		const MAX_BYTES = ${normalized.maxBytes};
+		const MAX_NODES = ${normalized.maxNodes};
 		const MAX_TEXT = 120;
 		const MAX_VALUE = 120;
 
@@ -278,14 +304,20 @@ function buildSnapshotScript({
 
 		clearSnapshotAttributes();
 
+		let nodeBudgetExhausted = false;
 		const walk = (node, depth, parentRef) => {
 			if (!(node instanceof HTMLElement)) return;
 			if (!isVisible(node)) return;
+			if (nodeBudgetExhausted) return;
 
 			const actionable = isInteractive(node);
 			let currentParentRef = parentRef;
 
 			if (!interactiveOnly || actionable) {
+				if (elements.length >= MAX_NODES) {
+					nodeBudgetExhausted = true;
+					return;
+				}
 				const rect = node.getBoundingClientRect();
 				const assigned = assignStableRef(node, usedRefs);
 				const ref = assigned.ref;
@@ -338,7 +370,7 @@ function buildSnapshotScript({
 
 		commitSnapshotState(seenKeys);
 
-		return {
+		const fullPayload = {
 			version: ${EDITOR_SNAPSHOT_VERSION},
 			timestamp: Date.now(),
 			interactiveOnly,
@@ -348,7 +380,43 @@ function buildSnapshotScript({
 				total: elements.length,
 				actionable: elements.filter((item) => item.actionable).length,
 			},
+			truncated: false,
 		};
+
+		// Size guard — Electron's executeJavaScript IPC silently mangles
+		// objects that serialise past ~hundreds of KB. Returning a
+		// dedicated truncation envelope is more useful than letting the
+		// caller's JSON.parse fail on a corrupt blob. See
+		// docs/task/editor-cli-results-2026-04-30/IMPLEMENTATION-PLAN.md.
+		let serialized = "";
+		try {
+			serialized = JSON.stringify(fullPayload);
+		} catch (_err) {
+			serialized = "";
+		}
+		const totalNodes = elements.length;
+		if (
+			(MAX_BYTES > 0 && serialized.length > MAX_BYTES) ||
+			nodeBudgetExhausted
+		) {
+			return {
+				truncated: true,
+				reason:
+					(nodeBudgetExhausted
+						? "Snapshot reached maxNodes (" + MAX_NODES + ") before traversal completed."
+						: "Snapshot exceeds maxBytes (" + MAX_BYTES + "). Got " + serialized.length + " bytes across " + totalNodes + " elements."),
+				suggestion:
+					"Re-run with --interactive (actionable elements only), --depth N to limit DOM traversal, --max-nodes N for an explicit element cap, or --max-bytes N to lift the byte cap.",
+				meta: {
+					totalNodes: totalNodes,
+					serializedBytes: serialized.length,
+					maxBytes: MAX_BYTES,
+					maxNodes: MAX_NODES,
+				},
+			};
+		}
+
+		return fullPayload;
 	})()`;
 }
 
@@ -657,10 +725,27 @@ function buildSnapshotFillScript({
 	})()`;
 }
 
-function isValidSnapshotResult(value: unknown): value is EditorSnapshotResult {
+function isTruncatedSnapshotResult(
+	value: unknown
+): value is EditorSnapshotTruncatedResult {
+	if (typeof value !== "object" || value === null) return false;
+	const candidate = value as Partial<EditorSnapshotTruncatedResult>;
+	return (
+		candidate.truncated === true &&
+		typeof candidate.reason === "string" &&
+		typeof candidate.suggestion === "string" &&
+		typeof candidate.meta === "object" &&
+		candidate.meta !== null
+	);
+}
+
+function isValidSnapshotResult(
+	value: unknown
+): value is EditorSnapshotResult | EditorSnapshotTruncatedResult {
 	if (typeof value !== "object" || value === null) {
 		return false;
 	}
+	if (isTruncatedSnapshotResult(value)) return true;
 	const candidate = value as Partial<EditorSnapshotResult>;
 	return (
 		typeof candidate.version === "number" &&
@@ -742,7 +827,7 @@ export async function executeSnapshotAction({
 export async function requestEditorSnapshotFromRenderer(
 	win: BrowserWindow,
 	request?: EditorSnapshotRequest
-): Promise<EditorSnapshotResult> {
+): Promise<EditorSnapshotResponse> {
 	const snapshot = await win.webContents.executeJavaScript(
 		buildSnapshotScript({ request })
 	);

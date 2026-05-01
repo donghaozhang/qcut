@@ -18,9 +18,16 @@ capture pass/fail per command, and surface real bugs vs. test-harness noise.
 | `status: ok` | **43** |
 | `status: error` (domain) | 0 |
 | Parse error in test harness (5) — actual command worked | 5 |
-| Real parse / output bugs (3) | **3** |
+| Real parse / output bugs (2) | **2** |
 
-So **48 of 51 commands work as documented**. Three real issues found, listed at the bottom.
+So **49 of 51 commands work as documented**. Two real issues found, both with the same root cause; listed at the bottom.
+
+> **Update 2026-04-30 (post-publish):** initial sweep flagged
+> `editor:project:report` as a third bug because the test harness piped
+> `ls` through `head -3` and dropped the report filename. A fresh
+> direct call confirmed the report **does** save to disk
+> (`/tmp/qcut-report-debug/pipeline-report-…-2026-05-01.md`, 728 bytes
+> markdown, 66 ms). Removed from the bug list.
 
 Raw results: [`raw-readonly.jsonl`](raw-readonly.jsonl) · [`raw-mutations.jsonl`](raw-mutations.jsonl).
 
@@ -101,7 +108,9 @@ Raw results: [`raw-readonly.jsonl`](raw-readonly.jsonl) · [`raw-mutations.jsonl
 
 ## Real issues found
 
-### 1. `editor:state:snapshot` (full / `--include media`) — 19 MB output, malformed near the end
+> **Both bugs fixed and verified live on 2026-04-30** — see [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md#implementation-summary-2026-04-30) for files changed, test counts, and the before/after byte counts (19 MB → 35 KB; 80 KB corrupt → 27 KB clean).
+
+### 1. ✅ ~~`editor:state:snapshot` (full / `--include media`)~~ — 19 MB output, malformed near the end
 
 ```
 Unterminated string starting at: line 326 column 22 (char 17095895)
@@ -118,7 +127,7 @@ The snapshot includes raw `data:image/jpeg;base64,…` thumbnail URLs **and** `b
 
 **Workaround**: use `--include` with explicit sections that don't include `media`. Most callers don't need the inline thumbnails.
 
-### 2. `editor:snapshot` (full UI tree) — 80 KB but truncated mid-JSON
+### 2. ✅ ~~`editor:snapshot` (full UI tree)~~ — 80 KB but truncated mid-JSON
 
 ```
 Expecting property name enclosed in double quotes: line 3033 column 2 (char 81752)
@@ -136,18 +145,18 @@ The JSON ends in the middle of a property value. The `--interactive` variant (wh
 
 **Workaround**: use `--interactive` (covers the common UI-automation use case anyway) or `--depth N` to bound size.
 
-### 3. `editor:project:report` — claims `ok` but writes nothing
+### ~~3. `editor:project:report`~~ — withdrawn (test-harness false alarm)
+
+The original entry claimed the report wrote nothing. Re-testing shows it writes correctly:
 
 ```
-$ qcut editor:project:report --project-id <id> --output-dir /tmp/qcut-report-test --json
-{ "status": "ok", "data": { … } }
-$ ls /tmp/qcut-report-test/
-# (empty)
+$ qcut editor:project:report --project-id <id> --output-dir /tmp/qcut-report-debug --json
+{ "status": "ok", "data": { "savedTo": "/tmp/.../pipeline-report-<id>-2026-05-01.md", "markdown": "..." } }
+$ ls /tmp/qcut-report-debug/
+pipeline-report-…-2026-05-01.md   # 728 bytes
 ```
 
-The command returns success but the configured output directory remains empty. Either the report writes elsewhere (silent path override) or the write is silently swallowed.
-
-**Workaround**: unknown — call the underlying summary endpoints (`editor:project:summary`, `editor:project:stats`, `editor:project:info --full`) directly until investigated.
+The first sweep used `ls -la | head -3` after the call, which only printed `.` and `..` and cut off the actual report filename. Source path: `electron/claude/handlers/claude-summary-handler.ts:336` (`generatePipelineReport`) — `saveToDisk` is auto-set to `true` whenever `outputDir` is supplied in the request body, so the disk write is unconditional.
 
 ---
 
