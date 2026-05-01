@@ -6,7 +6,7 @@ import type {
 	EditorSnapshotClickRequest,
 	EditorSnapshotFillRequest,
 	EditorSnapshotRequest,
-	EditorSnapshotResult,
+	EditorSnapshotResponse,
 	EditorSnapshotSelectRequest,
 } from "../../types/claude-api.js";
 import { MAX_EDITOR_SNAPSHOT_DEPTH } from "../../types/claude-api.js";
@@ -40,16 +40,43 @@ function parseDepth({ value }: { value?: string }): number | undefined {
 	return Math.min(parsed, MAX_EDITOR_SNAPSHOT_DEPTH);
 }
 
+function parsePositiveInt({
+	value,
+	field,
+}: {
+	value?: string;
+	field: string;
+}): number | undefined {
+	if (!value) return undefined;
+	const parsed = Number.parseInt(value, 10);
+	if (!Number.isFinite(parsed) || parsed <= 0) {
+		throw new HttpError(400, `Invalid ${field} query. Use a positive integer.`);
+	}
+	return parsed;
+}
+
 export function parseSnapshotRequestFromQuery({
 	interactive,
 	depth,
+	maxBytes,
+	maxNodes,
 }: {
 	interactive?: string;
 	depth?: string;
+	maxBytes?: string;
+	maxNodes?: string;
 }): EditorSnapshotRequest | undefined {
 	const request: EditorSnapshotRequest = {};
 	const interactiveValue = parseInteractive({ value: interactive });
 	const depthValue = parseDepth({ value: depth });
+	const maxBytesValue = parsePositiveInt({
+		value: maxBytes,
+		field: "maxBytes",
+	});
+	const maxNodesValue = parsePositiveInt({
+		value: maxNodes,
+		field: "maxNodes",
+	});
 
 	if (typeof interactiveValue === "boolean") {
 		request.interactive = interactiveValue;
@@ -57,6 +84,8 @@ export function parseSnapshotRequestFromQuery({
 	if (typeof depthValue === "number") {
 		request.depth = depthValue;
 	}
+	if (typeof maxBytesValue === "number") request.maxBytes = maxBytesValue;
+	if (typeof maxNodesValue === "number") request.maxNodes = maxNodesValue;
 
 	return Object.keys(request).length > 0 ? request : undefined;
 }
@@ -172,7 +201,7 @@ export function registerSnapshotRoutes(
 	options: {
 		requestSnapshot: (
 			request?: EditorSnapshotRequest
-		) => Promise<EditorSnapshotResult>;
+		) => Promise<EditorSnapshotResponse>;
 		clickSnapshotRef: (
 			request: EditorSnapshotClickRequest
 		) => Promise<EditorSnapshotActionResult>;
@@ -192,6 +221,8 @@ export function registerSnapshotRoutes(
 		const request = parseSnapshotRequestFromQuery({
 			interactive: req.query.interactive,
 			depth: req.query.depth,
+			maxBytes: req.query.maxBytes,
+			maxNodes: req.query.maxNodes,
 		});
 		const timeoutMs = options.timeoutMs ?? 5000;
 		return await withSnapshotTimeout({

@@ -336,6 +336,31 @@ export const AVATAR_MODELS = {
 		},
 		default_params: {},
 	},
+	happy_horse_ref2v: {
+		id: "happy_horse_ref2v",
+		name: "Alibaba Happy Horse Ref2V",
+		description:
+			"Multi-character reference-to-video (1–9 images, addressed as character1…character9 in the prompt)",
+		price: "TBD",
+		resolution: "720p / 1080p",
+		max_duration: 15,
+		category: "avatar",
+		// Reuses the avatar panel's `referenceImages: (File | null)[]`
+		// uploader (1–9 slots). Mirrors `grok_imagine_r2v`'s contract.
+		requiredInputs: ["referenceImages"],
+		endpoints: {
+			reference_to_video: "alibaba/happy-horse/reference-to-video",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+			enable_safety_checker: true,
+		},
+		supportedResolutions: ["720p", "1080p"],
+		supportedDurations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+		supportedAspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+	},
 } as const satisfies Record<string, AIModel>;
 
 /**
@@ -366,6 +391,7 @@ export const AVATAR_MODEL_ORDER: readonly AvatarModelId[] = [
 	"kling_avatar_pro",
 	"kling_avatar_standard",
 	"sora2_video_to_video_remix",
+	"happy_horse_ref2v",
 ] as const;
 
 validateModelOrderInvariant({

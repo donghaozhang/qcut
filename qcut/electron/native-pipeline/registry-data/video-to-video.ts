@@ -164,4 +164,65 @@ export function registerVideoToVideoModels(): void {
 		costEstimate: 1.68,
 		processingTime: 60,
 	});
+
+	// Alibaba Happy Horse — prompt-driven video edit. Optional reference
+	// images (≤5) referenced via @Image1…@Image5 in the prompt. Output is
+	// capped at 15s even when input is up to 60s. Audio either regenerated
+	// by the model (`auto`) or preserved from input (`origin`).
+	// Lives in the existing `video_to_video` category — `executeVideoToVideo`
+	// already accepts `video_url` + `prompt`; the only additions are the
+	// `reference_image_urls` array branch and the `audio_setting` passthrough.
+	// See docs/task/fal_model/happy-horse-integration.md
+	ModelRegistry.register({
+		key: "happy_horse_video_edit",
+		name: "Alibaba Happy Horse Video Edit",
+		provider: "Alibaba (via FAL)",
+		endpoint: "alibaba/happy-horse/video-edit",
+		categories: ["video_to_video"],
+		description:
+			"Prompt-driven video edit with optional reference images (≤5, @Image1…@Image5). Output capped at 15s.",
+		pricing: { type: "per_second", cost: null as unknown as number },
+		aspectRatios: [],
+		resolutions: ["720p", "1080p"],
+		defaults: {
+			resolution: "1080p",
+			audio_setting: "auto",
+			enable_safety_checker: true,
+		},
+		features: [
+			"prompt_driven_edit",
+			"reference_images",
+			"audio_passthrough",
+			"seed_control",
+		],
+		maxDuration: 60,
+		inputRequirements: {
+			required: ["video_url", "prompt"],
+			optional: [
+				"reference_image_urls",
+				"resolution",
+				"audio_setting",
+				"seed",
+				"enable_safety_checker",
+			],
+		},
+		extendedParams: ["reference_image_urls"],
+		extendedFeatures: {
+			start_frame: false,
+			end_frame: false,
+			ref_images: true,
+			audio_input: true,
+			audio_generate: false,
+			ref_video: false,
+		},
+		modelInfo: {
+			maxReferenceImages: 5,
+			outputDurationCapSeconds: 15,
+			inputMinSeconds: 3,
+			inputMaxSeconds: 60,
+			inputMaxBytes: 100 * 1024 * 1024,
+		},
+		costEstimate: 0,
+		processingTime: 90,
+	});
 }

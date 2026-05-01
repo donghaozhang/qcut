@@ -3,9 +3,50 @@ export const MAX_EDITOR_SNAPSHOT_DEPTH = 8;
 export const EDITOR_SNAPSHOT_REF_ATTRIBUTE = "data-qcut-snapshot-ref";
 export const EDITOR_SNAPSHOT_STATE_KEY = "__qcutSnapshotState";
 
+/**
+ * Default soft cap on the serialised snapshot payload (256 KB). Beyond
+ * this the renderer returns a `truncated: true` envelope instead of the
+ * partial tree, because Electron's `executeJavaScript` IPC silently
+ * mangles very large objects (~80 KB ceiling observed in practice).
+ *
+ * Callers can lift the cap with `request.maxBytes` but the IPC ceiling
+ * still applies — past a few hundred KB the response will arrive corrupt.
+ *
+ * See docs/task/editor-cli-results-2026-04-30/IMPLEMENTATION-PLAN.md
+ */
+export const DEFAULT_SNAPSHOT_MAX_BYTES = 256 * 1024;
+
+/**
+ * Default cap on the number of elements walked into the snapshot. Stops
+ * very wide DOM trees (think dropdown listboxes with 1000+ items) from
+ * filling the byte budget before reaching the actually-interesting nodes.
+ */
+export const DEFAULT_SNAPSHOT_MAX_NODES = 500;
+
 export interface EditorSnapshotRequest {
 	interactive?: boolean;
 	depth?: number;
+	/** Soft cap on serialized payload size; default DEFAULT_SNAPSHOT_MAX_BYTES. */
+	maxBytes?: number;
+	/** Hard cap on element count; default DEFAULT_SNAPSHOT_MAX_NODES. */
+	maxNodes?: number;
+}
+
+/**
+ * Returned by the renderer when a snapshot exceeds the configured cap.
+ * Lets the client distinguish "the tree was too big" from "the response
+ * is corrupt" — exactly what was missing before.
+ */
+export interface EditorSnapshotTruncatedResult {
+	truncated: true;
+	reason: string;
+	suggestion: string;
+	meta: {
+		totalNodes: number;
+		serializedBytes: number;
+		maxBytes: number;
+		maxNodes: number;
+	};
 }
 
 export interface EditorSnapshotBounds {
@@ -44,7 +85,14 @@ export interface EditorSnapshotResult {
 		total: number;
 		actionable: number;
 	};
+	/** Always present; `false` for ordinary results. Set together with the truncated envelope. */
+	truncated?: false;
 }
+
+/** Snapshot payload returned to the caller — full tree OR truncated envelope. */
+export type EditorSnapshotResponse =
+	| EditorSnapshotResult
+	| EditorSnapshotTruncatedResult;
 
 export interface EditorSnapshotClickRequest {
 	ref: string;

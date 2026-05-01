@@ -69,6 +69,7 @@ import {
 import {
 	handleKlingO1Ref2Video,
 	handleGrokImagineR2V,
+	handleHappyHorseRef2V,
 	handleWAN26Ref2Video,
 	handleKlingO1V2V,
 	handleKlingAvatarV2,
@@ -225,6 +226,9 @@ function getAvatarDurationSeconds({
 	}
 	if (modelId === "grok_imagine_r2v") {
 		return settings.grokR2vDuration ?? 8;
+	}
+	if (modelId === "happy_horse_ref2v") {
+		return settings.happyHorseRef2vDuration ?? 5;
 	}
 	return settings.videoDuration ?? settings.audioDuration ?? undefined;
 }
@@ -469,6 +473,8 @@ export async function routeAvatarHandler(
 			return handleKlingO1Ref2Video(ctx, settings);
 		case "grok_imagine_r2v":
 			return handleGrokImagineR2V(ctx, settings);
+		case "happy_horse_ref2v":
+			return handleHappyHorseRef2V(ctx, settings);
 		case "wan_26_ref2v":
 			return handleWAN26Ref2Video(ctx, settings);
 		case "kling_o1_v2v_reference":

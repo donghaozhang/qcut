@@ -19,6 +19,7 @@ import type {
 } from "../../../../../electron/types/claude-api";
 import {
 	EDITOR_STATE_SNAPSHOT_VERSION,
+	STRIPPED_THUMBNAIL_SENTINEL,
 	StateSection,
 } from "../../../../../electron/types/claude-api";
 
@@ -134,7 +135,30 @@ function getUnknownBoolean({
 	}
 }
 
-function buildMediaItemsSnapshot(): {
+/**
+ * Strip a possibly-huge `data:image/...;base64,…` thumbnail URL down to the
+ * sentinel constant so the snapshot stays small enough for HTTP/IPC
+ * transport. Non-data URIs (`blob:`, `http(s):`, `app:`) are left as-is
+ * because they're tiny references; only `data:` payloads are the
+ * truncation hazard. `null`/`undefined` collapse to `undefined` so callers
+ * can still distinguish "no thumbnail" from "thumbnail stripped".
+ *
+ * Exported for direct unit testing — see
+ * apps/web/src/lib/claude-bridge/__tests__/claude-state-bridge-thumbnails.test.ts
+ */
+export function stripThumbnailIfBase64(
+	value: string | null | undefined
+): string | undefined {
+	if (value == null) return undefined;
+	if (value.startsWith("data:")) return STRIPPED_THUMBNAIL_SENTINEL;
+	return value;
+}
+
+function buildMediaItemsSnapshot({
+	includeThumbnails = false,
+}: {
+	includeThumbnails?: boolean;
+} = {}): {
 	items: MediaStateSnapshotItem[];
 	unsavedCount: number;
 } {
@@ -151,8 +175,14 @@ function buildMediaItemsSnapshot(): {
 				id: item.id,
 				name: item.name,
 				type: item.type,
-				url: item.url,
-				thumbnailUrl: item.thumbnailUrl,
+				// Both `url` and `thumbnailUrl` can be `data:` URIs in
+				// QCut's media store (especially for AI-generated content
+				// before it's persisted to disk). Strip both unless the
+				// caller opts in via `includeThumbnails: true`.
+				url: includeThumbnails ? item.url : stripThumbnailIfBase64(item.url),
+				thumbnailUrl: includeThumbnails
+					? item.thumbnailUrl
+					: stripThumbnailIfBase64(item.thumbnailUrl),
 				duration: item.duration,
 				width: item.width,
 				height: item.height,
@@ -366,9 +396,13 @@ function buildEditorStateSnapshot({
 		snapshot.state.timeline = timelineSnapshot;
 	}
 
+	const includeThumbnails = request?.media?.includeThumbnails === true;
+
 	if (includeMedia) {
 		const mediaStore = useMediaStore.getState();
-		const { items, unsavedCount } = buildMediaItemsSnapshot();
+		const { items, unsavedCount } = buildMediaItemsSnapshot({
+			includeThumbnails,
+		});
 		mediaUnsavedCount = unsavedCount;
 
 		const counts = {
@@ -392,6 +426,8 @@ function buildEditorStateSnapshot({
 			hasInitialized: mediaStore.hasInitialized,
 		};
 	} else {
+		// Always uses default (stripped) — we only need unsavedCount here,
+		// not the thumbnails. Cheap regardless of `includeThumbnails`.
 		mediaUnsavedCount = buildMediaItemsSnapshot().unsavedCount;
 	}
 

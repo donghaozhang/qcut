@@ -23,36 +23,51 @@ const STATE_SECTION_QUERY_MAP: Record<string, StateSectionType> = {
 	project: StateSection.PROJECT,
 };
 
+function parseBooleanFlag(value: string | undefined): boolean {
+	if (!value) return false;
+	return value === "1" || value.toLowerCase() === "true";
+}
+
 export function parseStateRequestFromQuery({
 	include,
+	mediaIncludeThumbnails,
 }: {
 	include?: string;
+	mediaIncludeThumbnails?: string;
 }): EditorStateRequest | undefined {
 	try {
-		if (!include) return;
+		const includeThumbnails = parseBooleanFlag(mediaIncludeThumbnails);
 
-		const parts = include
-			.split(",")
-			.map((part) => part.trim().toLowerCase())
-			.filter(Boolean);
+		if (!include && !includeThumbnails) return;
 
-		if (parts.length === 0) return;
+		let sections: StateSectionType[] | undefined;
+		if (include) {
+			const parts = include
+				.split(",")
+				.map((part) => part.trim().toLowerCase())
+				.filter(Boolean);
 
-		const parsed: StateSectionType[] = [];
-		for (const part of parts) {
-			const section = STATE_SECTION_QUERY_MAP[part];
-			if (!section) {
-				throw new HttpError(
-					400,
-					`Invalid include section '${part}'. Valid values: ${Object.keys(STATE_SECTION_QUERY_MAP).join(", ")}`
-				);
-			}
-			if (!parsed.includes(section)) {
-				parsed.push(section);
+			if (parts.length > 0) {
+				sections = [];
+				for (const part of parts) {
+					const section = STATE_SECTION_QUERY_MAP[part];
+					if (!section) {
+						throw new HttpError(
+							400,
+							`Invalid include section '${part}'. Valid values: ${Object.keys(STATE_SECTION_QUERY_MAP).join(", ")}`
+						);
+					}
+					if (!sections.includes(section)) {
+						sections.push(section);
+					}
+				}
 			}
 		}
 
-		return { include: parsed };
+		const request: EditorStateRequest = {};
+		if (sections) request.include = sections;
+		if (includeThumbnails) request.media = { includeThumbnails: true };
+		return request;
 	} catch (error) {
 		if (error instanceof HttpError) {
 			throw error;
@@ -74,6 +89,7 @@ export function registerStateRoutes(
 		try {
 			const request = parseStateRequestFromQuery({
 				include: req.query.include,
+				mediaIncludeThumbnails: req.query["media.includeThumbnails"],
 			});
 			const timeoutMs = options.timeoutMs ?? 5000;
 			let timer: ReturnType<typeof setTimeout> | undefined;

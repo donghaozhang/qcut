@@ -74,7 +74,10 @@ import {
 	getExportJobStatus,
 	listExportJobs,
 } from "../handlers/claude-export-handler.js";
-import { analyzeError } from "../handlers/claude-diagnostics-handler.js";
+import {
+	analyzeError,
+	getSystemInfo,
+} from "../handlers/claude-diagnostics-handler.js";
 import {
 	generateProjectSummary,
 	generatePipelineReport,
@@ -1010,7 +1013,8 @@ export function registerSharedRoutes(
 	router.post("/api/claude/diagnostics/analyze", async (req) => {
 		if (!req.body?.message)
 			throw new HttpError(400, "Missing 'message' in error report");
-		return analyzeError(req.body);
+		const systemInfo = getSystemInfo(accessor.getAppVersion());
+		return analyzeError(req.body, systemInfo);
 	});
 
 	// ==========================================================================

@@ -156,6 +156,98 @@ The Apple ID you used for enrollment.
 
 - Store as GitHub secret `APPLE_ID` (it is the email address — arguably could be a variable, but secret is safer to avoid feeding reconnaissance).
 
+## 5. CLI shortcut path (optional, hybrid)
+
+Sections 1–4 are the pure-GUI path. This section gives a **hybrid
+path**: use the command line where it is faster, with the two
+**unavoidable** web-UI steps called out separately. About 5 minutes
+end-to-end for one-time setup.
+
+### What CAN be done via CLI
+
+| Step | Command |
+|------|---------|
+| Generate CSR | `openssl req -new …` (replaces Keychain Access dialog) |
+| Combine `.cer + .key` into `.p12` | `openssl pkcs12 -export …` |
+| Import into login keychain | `security import …` |
+| Verify signing identity | `security find-identity -v -p codesigning` |
+| base64 encode for CI | `base64 -i … \| pbcopy` |
+
+### What CANNOT be done via CLI
+
+1. **Submitting the CSR to Apple to get the `.cer`** — no public CLI.
+   Options:
+   - **Web UI** at developer.apple.com (3 minutes) — recommended for
+     one-time setup.
+   - **App Store Connect API** (`fastlane cert` or direct API calls)
+     — but creating the API Key itself is a web-UI step, so you'd
+     still click once. Only worth it for long-term automated cert
+     rotation.
+2. **App-Specific Password** — no API exists, must use
+   account.apple.com. Workaround: use App Store Connect API Key for
+   notarization instead (see "Future hardening"); that bypasses the
+   app-specific password entirely.
+
+### Full hybrid script
+
+#### ① Generate CSR via CLI
+
+```bash
+cd ~/Desktop
+openssl genrsa -out quriosity-developer-id.key 2048
+openssl req -new -key quriosity-developer-id.key \
+  -out quriosity-developer-id.csr \
+  -subj "/emailAddress=apple-dev@qcut.app/CN=Quriosity Apple Developer ID/C=AU"
+```
+
+#### ② Web UI (~4 minutes)
+
+- developer.apple.com → **Certificates** → **+** → **Developer ID
+  Application** → upload the `.csr` → download the `.cer` (save as
+  `developerID_application.cer`).
+- account.apple.com → **Sign-In and Security** → **App-Specific
+  Passwords** → generate `QCut release notarization`, copy it
+  immediately.
+
+#### ③ Bundle `.p12` and import via CLI
+
+```bash
+# Combine .cer + .key into .p12 (prompts for export password = MAC_CSC_KEY_PASSWORD)
+openssl pkcs12 -export \
+  -out quriosity-developer-id.p12 \
+  -inkey quriosity-developer-id.key \
+  -in developerID_application.cer \
+  -name "Developer ID Application: Quriosity Pty Ltd (JQ3Q27U24X)"
+
+# Import into login keychain so `bun run dist:mac` picks it up locally
+security import quriosity-developer-id.p12 \
+  -k ~/Library/Keychains/login.keychain-db \
+  -P "$P12_PASSWORD" \
+  -T /usr/bin/codesign
+
+# Verify the identity is usable
+security find-identity -v -p codesigning | grep "Developer ID Application"
+
+# base64 encode for the GitHub Actions secret MAC_CSC_LINK
+base64 -i quriosity-developer-id.p12 | pbcopy
+```
+
+> ⚠️ When generating the CSR with OpenSSL, the private-key file
+> `quriosity-developer-id.key` **must be safeguarded** (1Password or
+> an encrypted backup). Losing it means the certificate has to be
+> revoked and reissued. The Keychain Access GUI path keeps the
+> private key inside the login keychain by default — that is the one
+> convenience advantage of the GUI path over CLI.
+
+### When to use which path
+
+| Scenario | Recommended path |
+|----------|------------------|
+| One-time first-time setup | **Hybrid** (this section, ~5 min) |
+| Unfamiliar with Keychain Access | Hybrid (CLI is more direct than GUI flow) |
+| Prefer not to touch the command line | Pure GUI (section 3) |
+| Long-term automation (cert rotation in N years) | App Store Connect API + `fastlane cert` (see "Future hardening") |
+
 ## Summary: GitHub repo settings
 
 After all four subtasks, the following must be configured in

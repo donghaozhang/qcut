@@ -13,19 +13,37 @@ Get a ref-based accessibility tree of the visible editor UI. Each interactive el
 ### Take snapshot
 
 ```bash
-# Full snapshot
+# Full snapshot (capped at 256 KB / 500 elements by default)
 qcut editor:snapshot --json
 
 # Only actionable elements, limited depth
 qcut editor:snapshot --interactive --depth 2 --json
+
+# Lift the size cap for a giant view (still bounded by Electron IPC ~1MB)
+qcut editor:snapshot --max-bytes 524288 --max-nodes 1000 --json
 ```
 
-| Flag | Type | Description |
-|------|------|-------------|
-| `--interactive` | boolean | Only include actionable UI elements |
-| `--depth` | number | Maximum DOM traversal depth |
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--interactive` | boolean | false | Only include actionable UI elements |
+| `--depth` | number | 8 | Maximum DOM traversal depth |
+| `--max-bytes` | number | 262144 (256 KB) | Soft cap on serialized payload size |
+| `--max-nodes` | number | 500 | Hard cap on element count |
 
 Returns `elements[]` with `ref`, `role`, `tagName`, `name`, `actionable`, `bounds`, and `children`.
+
+**Truncation envelope:** when the snapshot exceeds `--max-bytes` or `--max-nodes`, the response is replaced with a deterministic envelope instead of a corrupt blob:
+
+```json
+{
+  "truncated": true,
+  "reason": "Snapshot exceeds maxBytes (262144). Got 312456 bytes across 712 elements.",
+  "suggestion": "Re-run with --interactive (actionable elements only), --depth N to limit DOM traversal, --max-nodes N for an explicit element cap, or --max-bytes N to lift the byte cap.",
+  "meta": { "totalNodes": 712, "serializedBytes": 312456, "maxBytes": 262144, "maxNodes": 500 }
+}
+```
+
+Branch on `response.truncated === true` to handle this case. The default cap exists because Electron's `executeJavaScript` IPC silently mangles very large payloads — a corrupt JSON string was the original bug ([docs/task/editor-cli-results-2026-04-30/](../../../../docs/task/editor-cli-results-2026-04-30/IMPLEMENTATION-PLAN.md)).
 
 ### Click an element
 

@@ -98,6 +98,8 @@ vi.mock("../handlers/avatar-handlers", () => ({
 		.fn()
 		.mockResolvedValue({ response: undefined }),
 	handleVeo31ExtendVideo: vi.fn().mockResolvedValue({ response: undefined }),
+	handleGrokImagineR2V: vi.fn().mockResolvedValue({ response: undefined }),
+	handleHappyHorseRef2V: vi.fn().mockResolvedValue({ response: undefined }),
 }));
 
 function createContext({ modelId }: { modelId: string }): ModelHandlerContext {
@@ -171,6 +173,50 @@ describe("model handler routing regression", () => {
 		);
 
 		expect(handleGenericAvatarMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("routeAvatarHandler maps happy_horse_ref2v and forwards happyHorseRef2vDuration to credit guard", async () => {
+		const { enforceCreditRequirement } = await import(
+			"@/lib/license/credit-guard"
+		);
+		const enforceMock = vi.mocked(enforceCreditRequirement);
+		const handleHappyHorseRef2VMock = vi.mocked(
+			avatarHandlers.handleHappyHorseRef2V
+		);
+		enforceMock.mockClear();
+		handleHappyHorseRef2VMock.mockClear();
+
+		await routeAvatarHandler(createContext({ modelId: "happy_horse_ref2v" }), {
+			happyHorseRef2vDuration: 10,
+		} as AvatarSettings);
+
+		expect(handleHappyHorseRef2VMock).toHaveBeenCalledTimes(1);
+		expect(enforceMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				modelId: "happy_horse_ref2v",
+				durationSeconds: 10,
+			})
+		);
+	});
+
+	it("routeAvatarHandler defaults happy_horse_ref2v duration to 5s when settings omit it", async () => {
+		const { enforceCreditRequirement } = await import(
+			"@/lib/license/credit-guard"
+		);
+		const enforceMock = vi.mocked(enforceCreditRequirement);
+		enforceMock.mockClear();
+
+		await routeAvatarHandler(
+			createContext({ modelId: "happy_horse_ref2v" }),
+			{} as AvatarSettings
+		);
+
+		expect(enforceMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				modelId: "happy_horse_ref2v",
+				durationSeconds: 5,
+			})
+		);
 	});
 
 	// GMI T2V routing

@@ -9,6 +9,7 @@ import {
 	generateKlingO1Video,
 	generateWAN26RefVideo,
 } from "@/lib/ai-video";
+import type { HappyHorseDuration } from "../../../types/ai-types";
 import type {
 	AvatarSettings,
 	ModelHandlerContext,
@@ -97,6 +98,88 @@ export async function handleGrokImagineR2V(
 		debugLogger.log("model-handlers", "GROK_R2V_COMPLETE", {
 			modelId: ctx.modelId,
 			hasResponse: !!response,
+		});
+
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/**
+ * Handle Alibaba Happy Horse Reference-to-Video generation.
+ *
+ * Multi-character: 1–9 reference images uploaded in parallel, each
+ * addressed in the prompt as character1…character9. Mirrors the
+ * Grok-Imagine R2V pattern but the upper bound is 9 (not 7) and the
+ * payload field is `image_urls` per the FAL spec.
+ */
+export async function handleHappyHorseRef2V(
+	ctx: ModelHandlerContext,
+	settings: AvatarSettings
+): Promise<ModelHandlerResult> {
+	const refImages = settings.referenceImages?.filter(
+		(img): img is File => img != null
+	);
+	if (!refImages?.length) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason:
+				"Happy Horse Ref2V requires at least one reference image (up to 9)",
+		};
+	}
+
+	try {
+		debugLogger.log("model-handlers", "HAPPY_HORSE_REF2V_START", {
+			modelId: ctx.modelId,
+			referenceImageCount: refImages.length,
+		});
+
+		ctx.progressCallback({
+			status: "processing",
+			progress: 5,
+			message: `Uploading ${Math.min(refImages.length, 9)} reference image(s)...`,
+		});
+
+		const imageUrls = await Promise.all(
+			refImages.slice(0, 9).map((img) => settings.uploadImageToFal(img))
+		);
+
+		ctx.progressCallback({
+			status: "processing",
+			progress: 25,
+			message: `Submitting ${ctx.modelName} request...`,
+		});
+
+		const { generateHappyHorseRef2V } = await import(
+			"@/lib/ai-video/generators/happy-horse-generators"
+		);
+
+		const response = await generateHappyHorseRef2V({
+			model: ctx.modelId,
+			prompt: ctx.prompt,
+			image_urls: imageUrls,
+			duration: settings.happyHorseRef2vDuration as
+				| HappyHorseDuration
+				| undefined,
+			resolution: settings.happyHorseRef2vResolution,
+			aspect_ratio: settings.happyHorseRef2vAspectRatio,
+		});
+
+		debugLogger.log("model-handlers", "HAPPY_HORSE_REF2V_COMPLETE", {
+			modelId: ctx.modelId,
+			hasResponse: !!response,
+		});
+
+		ctx.progressCallback({
+			status: "completed",
+			progress: 100,
+			message: `Video generated with ${ctx.modelName}`,
 		});
 
 		return { response };

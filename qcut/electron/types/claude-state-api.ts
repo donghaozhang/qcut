@@ -18,7 +18,24 @@ export type StateSection = (typeof StateSection)[keyof typeof StateSection];
 
 export interface EditorStateRequest {
 	include?: StateSection[];
+	/**
+	 * Per-section options. Today only `media.includeThumbnails` is honoured —
+	 * default is **false** because raw `data:image/jpeg;base64,…` thumbnail
+	 * URLs can push the snapshot past the HTTP/IPC transport limits and
+	 * break JSON parsing in clients (see
+	 * docs/task/editor-cli-results-2026-04-30/IMPLEMENTATION-PLAN.md).
+	 *
+	 * When `false`, populated `thumbnailUrl` fields are replaced with the
+	 * sentinel string `"<stripped>"` so callers can detect existence
+	 * without paying the bytes; null/undefined values pass through.
+	 */
+	media?: {
+		includeThumbnails?: boolean;
+	};
 }
+
+/** Sentinel value used for stripped thumbnail URLs. */
+export const STRIPPED_THUMBNAIL_SENTINEL = "<stripped>";
 
 export interface EditorStateSnapshot {
 	version: number;

@@ -15,17 +15,29 @@ import type {
 const HANDLER_NAME = "Diagnostics";
 
 /**
- * Get current system information
+ * Get current system information.
+ *
+ * `app` is only available in the Electron main process. When invoked from
+ * the utility process (HTTP server), pass `appVersion` from the accessor.
  */
-export function getSystemInfo(): SystemInfo {
+export function getSystemInfo(appVersion?: string): SystemInfo {
 	const totalMem = os.totalmem();
 	const freeMem = os.freemem();
+
+	let resolvedVersion = appVersion;
+	if (!resolvedVersion) {
+		try {
+			resolvedVersion = app?.getVersion?.() ?? "unknown";
+		} catch {
+			resolvedVersion = "unknown";
+		}
+	}
 
 	return {
 		platform: os.platform(),
 		arch: os.arch(),
 		osVersion: os.release(),
-		appVersion: app.getVersion(),
+		appVersion: resolvedVersion,
 		nodeVersion: process.versions.node,
 		electronVersion: process.versions.electron,
 		memory: {

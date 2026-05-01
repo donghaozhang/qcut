@@ -166,6 +166,20 @@ export async function executeStep(
 		}
 	}
 
+	// Alibaba Happy Horse T2V/Ref2V `duration` is an integer literal enum
+	// (3, 4, …, 15) — verified against the live FAL endpoint, which rejects
+	// the string form with `literal_error`. The CLI's `-d 5s` already parses
+	// to the number 5, but the registry default ("5") is a string; coerce
+	// any string-form integer back to a number here.
+	if (model.key === "happy_horse_t2v" || model.key === "happy_horse_ref2v") {
+		if (typeof payload.duration === "string") {
+			const n = Number(payload.duration);
+			if (Number.isFinite(n) && Number.isInteger(n)) {
+				payload.duration = n;
+			}
+		}
+	}
+
 	switch (category) {
 		case "text_to_image":
 			return executeTextToImage(model, input, payload, provider, options);
@@ -376,6 +390,19 @@ async function executeImageToVideo(
 			// Duration stays integer (Vidu does NOT require string literal
 			// like FAL Seedance 2.0).
 			payload.reference_image_urls = [imageUrl];
+		} else if (model.key === "happy_horse_ref2v") {
+			// Happy Horse Ref2V expects `image_urls` (1–9). The single
+			// `--image-url` is prepended into the array; the multi-flag form
+			// (`--reference-images`) lands in `payload.image_urls` via
+			// handler-generate and is uploaded below in the unconditional
+			// pass that follows. Cap at 9 (FAL rejects more).
+			const existing = Array.isArray(payload.image_urls)
+				? (payload.image_urls as string[])
+				: [];
+			const merged = existing.includes(imageUrl)
+				? existing
+				: [imageUrl, ...existing];
+			payload.image_urls = merged.slice(0, 9);
 		} else if (model.key === "seedance_2_0_i2v") {
 			// FAL Seedance 2.0 i2v shares the same string-literal duration
 			// schema as its ref2v sibling, so coerce number → string here
@@ -391,6 +418,41 @@ async function executeImageToVideo(
 	if (input.text) {
 		payload.prompt = input.text;
 	}
+
+	// Happy Horse Ref2V can receive multiple references via the CLI's
+	// repeatable `--reference-images` flag, which lands in `payload.image_urls`
+	// already as a raw list (often local paths). FAL only accepts HTTPS URLs
+	// or data URIs, so upload any non-http entries here. Cap at 9 — FAL
+	// rejects more.
+	if (model.key === "happy_horse_ref2v" && Array.isArray(payload.image_urls)) {
+		const raw = (payload.image_urls as string[]).slice(0, 9);
+		const resolved: string[] = [];
+		for (const entry of raw) {
+			if (provider === "fal" && !/^https?:\/\//i.test(entry)) {
+				if (options.signal?.aborted) {
+					return {
+						success: false,
+						error: "Step cancelled before reference image upload",
+						duration: 0,
+					};
+				}
+				options.onProgress?.(8, "Uploading reference image...");
+				const upload = await uploadToFalStorage(entry);
+				if (!upload.success || !upload.url) {
+					return {
+						success: false,
+						error: upload.error || "Failed to upload reference image",
+						duration: 0,
+					};
+				}
+				resolved.push(upload.url);
+			} else {
+				resolved.push(entry);
+			}
+		}
+		payload.image_urls = resolved;
+	}
+
 	const result = await callModelApi({
 		endpoint: model.endpoint,
 		modelKey: model.key,
@@ -490,6 +552,43 @@ async function executeVideoToVideo(
 	if (input.text) {
 		payload.prompt = input.text;
 	}
+
+	// Happy Horse video-edit: optional `reference_image_urls` (≤5, used in
+	// the prompt as @Image1…@Image5). Local paths get uploaded to FAL CDN
+	// the same way the source video does. Cap at 5 — the FAL endpoint
+	// rejects more.
+	if (
+		model.key === "happy_horse_video_edit" &&
+		Array.isArray(payload.reference_image_urls)
+	) {
+		const refs = (payload.reference_image_urls as string[]).slice(0, 5);
+		const resolvedRefs: string[] = [];
+		for (const ref of refs) {
+			if (provider === "fal" && !/^https?:/i.test(ref)) {
+				if (options.signal?.aborted) {
+					return {
+						success: false,
+						error: "Step cancelled before reference image upload",
+						duration: 0,
+					};
+				}
+				options.onProgress?.(15, "Uploading reference image...");
+				const upload = await uploadToFalStorage(ref);
+				if (!upload.success || !upload.url) {
+					return {
+						success: false,
+						error: upload.error || "Failed to upload reference image",
+						duration: 0,
+					};
+				}
+				resolvedRefs.push(upload.url);
+			} else {
+				resolvedRefs.push(ref);
+			}
+		}
+		payload.reference_image_urls = resolvedRefs;
+	}
+
 	const result = await callModelApi({
 		endpoint: model.endpoint,
 		modelKey: model.key,

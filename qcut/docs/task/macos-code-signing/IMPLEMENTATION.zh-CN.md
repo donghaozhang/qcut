@@ -44,10 +44,8 @@
   "gatekeeperAssess": false,
   "entitlements": "build/entitlements.mac.plist",
   "entitlementsInherit": "build/entitlements.mac.plist",
-  "identity": "Developer ID Application: Quriosity Pty Ltd (${env.APPLE_TEAM_ID})",
-  "notarize": {
-    "teamId": "${env.APPLE_TEAM_ID}"
-  }
+  "identity": "Quriosity Pty Ltd (JQ3Q27U24X)",
+  "notarize": true
 }
 ```
 
@@ -57,7 +55,14 @@
   `electron-builder` 会自动选钥匙串里第一个匹配的证书；如果钥匙串里
   有多张 Apple Developer 证书就会出错。显式指定也让失败更明显
   （会报 "identity not found"），不会悄无声息地跳过签名。
-- **`notarize: { teamId }`** — `electron-builder ≥24.13` 自带公证支持。
+- **`notarize: true`** — 在 `electron-builder ≥26` 中 `notarize` 字段
+  是 boolean（旧版本是对象 `{ teamId }`）。设为 `true` 启用 `@electron/notarize`
+  集成；team ID 完全从环境变量 `APPLE_TEAM_ID` 读取，配置里不再重复。
+  公证激活需要环境变量三选一组合：
+  1. `APPLE_API_KEY` + `APPLE_API_KEY_ID` + `APPLE_API_ISSUER`（推荐，长期方案）
+  2. `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` + `APPLE_TEAM_ID`（当前方案）
+  3. `APPLE_KEYCHAIN` + `APPLE_KEYCHAIN_PROFILE`
+
   构建会：
   1. 签名 `.app` 和内层二进制。
   2. 提交给 Apple 公证服务。

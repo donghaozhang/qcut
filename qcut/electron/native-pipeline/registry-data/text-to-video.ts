@@ -635,4 +635,53 @@ export function registerTextToVideoModels(): void {
 		processingTime: 60,
 		providerBackend: "gmi",
 	});
+
+	// Alibaba Happy Horse — text-to-video. Supports 5 aspect ratios, 720p/1080p,
+	// duration 3–15s. FAL requires `duration` as an integer literal enum (3–15);
+	// the string form is rejected with literal_error (verified live 2026-04-30).
+	// See docs/task/fal_model/happy-horse-integration.md
+	ModelRegistry.register({
+		key: "happy_horse_t2v",
+		name: "Alibaba Happy Horse T2V",
+		provider: "Alibaba (via FAL)",
+		endpoint: "alibaba/happy-horse/text-to-video",
+		categories: ["text_to_video"],
+		description:
+			"Alibaba Happy Horse text-to-video — 720p/1080p, 3–15s, 5 aspect ratios",
+		pricing: { type: "per_second", cost: null as unknown as number },
+		// FAL accepts integer literals 3–15 (verified live — string form
+		// returns literal_error). Keep durationOptions as numbers so the
+		// CLI/UI surface them without coercion.
+		durationOptions: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+		aspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+		resolutions: ["720p", "1080p"],
+		defaults: {
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+			enable_safety_checker: true,
+		},
+		features: ["multi_aspect", "seed_control"],
+		maxDuration: 15,
+		inputRequirements: {
+			required: ["prompt"],
+			optional: [
+				"duration",
+				"resolution",
+				"aspect_ratio",
+				"seed",
+				"enable_safety_checker",
+			],
+		},
+		extendedFeatures: {
+			start_frame: false,
+			end_frame: false,
+			ref_images: false,
+			audio_input: false,
+			audio_generate: false,
+			ref_video: false,
+		},
+		costEstimate: 0,
+		processingTime: 60,
+	});
 }

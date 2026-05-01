@@ -1,0 +1,90 @@
+## health
+        },
+        {
+          "name": "events.mcpPreview",
+          "version": "1.0.0",
+          "category": "events",
+          "deprecated": false
+        },
+        {
+          "name": "transactions.batchMutations",
+          "version": "1.0.0",
+          "category": "transactions",
+          "deprecated": false
+        },
+        {
+          "name": "transactions.asyncJobs",
+          "version": "1.0.0",
+          "category": "transactions",
+          "deprecated": false
+        }
+      ]
+    }
+  },
+  "command_id": "cmd-1777485910227-x4c9id",
+  "duration_ms": 7
+}
+---
+## auth:status
+$ bun run electron/native-pipeline/cli/cli.ts editor:auth:status --json
+Unknown command: editor:auth:status
+Run with --help for usage.
+---
+## project:list
+          "id": "a033a037-9a6a-4749-a7da-1b1d0e3f3876",
+          "name": "New Project",
+          "createdAt": "2026-03-04T13:41:56.928Z",
+          "updatedAt": "2026-03-04T13:42:14.765Z"
+        },
+        {
+          "id": "f777a24c-c843-4e0b-95bb-99e755ad08a2",
+          "name": "Short Clip",
+          "createdAt": "2026-03-04T05:58:18.159Z",
+          "updatedAt": "2026-03-04T05:58:32.255Z"
+        },
+        {
+          "id": "8040345c-30f0-4fea-a547-e350ec3a0836",
+          "name": "News Video",
+          "createdAt": "2026-03-04T03:43:09.742Z",
+          "updatedAt": "2026-03-04T03:43:20.330Z"
+        },
+        {
+          "id": "298edff5-068a-4b7a-8211-d34d107d11b0",
+          "name": "New Project",
+          "createdAt": "2026-03-02T03:40:23.965Z",
+          "updatedAt": "2026-03-02T03:40:23.965Z"
+        }
+      ],
+      "activeProjectId": null
+    }
+  },
+  "command_id": "cmd-1777485910315-tunpj0",
+  "duration_ms": 9
+}
+---
+## project:current
+$ bun run electron/native-pipeline/cli/cli.ts editor:project:current --json
+Unknown command: editor:project:current
+Run with --help for usage.
+---
+## state:snapshot (timeline,playhead)
+            "status": "Auto-save idle",
+            "isSaving": false,
+            "lastSavedAt": null
+          },
+          "history": {
+            "undoDepth": 0,
+            "redoDepth": 0
+          }
+        }
+      }
+    }
+  },
+  "command_id": "cmd-1777485910399-cs6pbu",
+  "duration_ms": 9
+}
+---
+## ui:get-panel
+$ bun run electron/native-pipeline/cli/cli.ts editor:ui:get-panel --json
+Unknown command: editor:ui:get-panel
+Run with --help for usage.

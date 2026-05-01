@@ -233,8 +233,10 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// transfer-motion options
 			orientation: { type: "string" },
 			"no-sound": { type: "boolean", default: false },
-			// generate-avatar options
+			// generate-avatar options (also reused by happy_horse_ref2v / happy_horse_video_edit)
 			"reference-images": { type: "string", multiple: true },
+			// happy_horse_video_edit: 'auto' | 'origin'
+			"audio-setting": { type: "string" },
 			// analyze-video options
 			"analysis-type": { type: "string" },
 			"output-format": { type: "string", short: "f" },
@@ -355,6 +357,15 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			output: { type: "string" },
 			// state snapshot flags
 			include: { type: "string" },
+			// editor:state:snapshot — opt back into raw `data:` thumbnail URLs.
+			// Default is stripped (sentinel `<stripped>`); see
+			// docs/task/editor-cli-results-2026-04-30/IMPLEMENTATION-PLAN.md
+			"with-thumbnails": { type: "boolean", default: false },
+			// editor:snapshot — render-side size guards (renderer returns a
+			// `truncated: true` envelope past `--max-bytes` instead of a
+			// corrupt payload). Both flags are optional.
+			"max-bytes": { type: "string" },
+			"max-nodes": { type: "string" },
 			// performance flags
 			"skip-health": { type: "boolean", default: false },
 			"status-only": { type: "boolean", default: false },
@@ -585,8 +596,10 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		// transfer-motion options
 		orientation: values.orientation as string | undefined,
 		noSound: (values["no-sound"] as boolean) ?? false,
-		// generate-avatar options
+		// generate-avatar options (also reused by happy_horse_ref2v / happy_horse_video_edit)
 		referenceImages: values["reference-images"] as string[] | undefined,
+		// happy_horse_video_edit
+		audioSetting: values["audio-setting"] as string | undefined,
 		// analyze-video options
 		analysisType: values["analysis-type"] as string | undefined,
 		outputFormat: values["output-format"] as string | undefined,
@@ -800,6 +813,17 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		output: values.output as string | undefined,
 		// state snapshot flags
 		include: values.include as string | undefined,
+		withThumbnails: (values["with-thumbnails"] as boolean) ?? false,
+		maxBytes: values["max-bytes"]
+			? Number.isNaN(parseInt(values["max-bytes"] as string, 10))
+				? undefined
+				: parseInt(values["max-bytes"] as string, 10)
+			: undefined,
+		maxNodes: values["max-nodes"]
+			? Number.isNaN(parseInt(values["max-nodes"] as string, 10))
+				? undefined
+				: parseInt(values["max-nodes"] as string, 10)
+			: undefined,
 		// performance flags
 		skipHealth: (values["skip-health"] as boolean) ?? false,
 		statusOnly: (values["status-only"] as boolean) ?? false,

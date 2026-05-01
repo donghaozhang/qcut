@@ -87,12 +87,12 @@ Per-platform comparison:
 
 ## Success criteria
 
-- [ ] `codesign --verify --deep --strict --verbose=2 QCut.app` exits 0.
-- [ ] `spctl -a -t exec -vv QCut.app` reports `accepted` with `source=Notarized Developer ID`.
-- [ ] `xcrun stapler validate QCut.dmg` reports `The validate action worked!`.
-- [ ] On a clean macOS Sequoia/Sonoma VM, double-clicking the `.dmg`, dragging to Applications, and opening, does NOT show "cannot be opened" or require right-click → Open.
-- [ ] Verified developer name shown in the macOS security prompt is "Quriosity Pty Ltd".
-- [ ] Maintainer signing setup is documented at `qcut/docs/setup/macos-code-signing.md`.
+- [x] `codesign --verify --deep --strict --verbose=2 QCut.app` exits 0. *(verified 2026-05-01 via `verify:macos-signature` script)*
+- [x] `spctl -a -t exec -vv QCut.app` reports `accepted` with `source=Notarized Developer ID`. *(verified 2026-05-01)*
+- [x] ~~`xcrun stapler validate QCut.dmg` reports `The validate action worked!`.~~ Adjusted: stapler validates the **`.app` inside the DMG** (passes), not the DMG itself. electron-builder 26 stopped stapling the `.dmg` directly because Gatekeeper checks the inner `.app` on launch. `verify:macos-signature` treats DMG-staple as advisory. *(verified 2026-05-01)*
+- [x] On the developer's Mac (macOS 26.4.1 Tahoe), double-clicking the `.dmg`, dragging to Applications, and opening shows the standard "downloaded from Internet → Open" dialog only — no "cannot be opened" error, no right-click → Open required. *(verified 2026-05-01)*. **Not yet verified on a clean VM / fresh user account** — see "Still open" in [README.md](README.md#still-open).
+- [x] Verified the macOS security dialog shows "Quriosity Pty Ltd" as the developer name. *(verified 2026-05-01)*
+- [ ] Maintainer signing setup at `qcut/docs/setup/macos-code-signing.md` — partial: PROCUREMENT.md and IMPLEMENTATION.md cover the flow, but no consolidated setup guide written yet.
 
 ## Out of scope
 

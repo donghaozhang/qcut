@@ -131,8 +131,10 @@ export interface CLIRunOptions {
 	// transfer-motion options
 	orientation?: string;
 	noSound?: boolean;
-	// generate-avatar options
+	// generate-avatar options (also reused by happy_horse_ref2v / happy_horse_video_edit)
 	referenceImages?: string[];
+	/** happy_horse_video_edit: 'auto' (model decides) | 'origin' (preserve input audio) */
+	audioSetting?: string;
 	// analyze-video options
 	analysisType?: string;
 	outputFormat?: string;
@@ -273,6 +275,17 @@ export interface CLIRunOptions {
 	example?: boolean;
 	/** Output file path for export commands */
 	output?: string;
+	/**
+	 * editor:state:snapshot: include raw `data:` thumbnail URLs in the
+	 * `media` section. Default is `false` because base64 thumbnails can
+	 * push the response past HTTP/IPC transport limits and break JSON
+	 * parsing. See docs/task/editor-cli-results-2026-04-30/.
+	 */
+	withThumbnails?: boolean;
+	/** editor:snapshot: hard cap on payload size before returning `truncated: true`. */
+	maxBytes?: number;
+	/** editor:snapshot: hard cap on number of elements walked before returning `truncated: true`. */
+	maxNodes?: number;
 	/** Comma-separated state sections for editor:state:snapshot */
 	include?: string;
 	/** Skip editor health check (caller guarantees editor is up) */

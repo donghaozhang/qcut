@@ -1325,4 +1325,57 @@ export function registerImageToVideoModels(): void {
 		processingTime: 60,
 		providerBackend: "gmi",
 	});
+
+	// Alibaba Happy Horse — reference-to-video (1–9 reference images).
+	// Prompt references each image as character1…character9.
+	// FAL field name is `image_urls` (plural list) — distinct from
+	// Vidu Q3 mix's `reference_image_urls` and Seedance's `reference_images`.
+	// Routing is by registry key in `executeImageToVideo`, not by field
+	// name — adding a new ref2v provider only requires a new branch there.
+	// See docs/task/fal_model/happy-horse-integration.md
+	ModelRegistry.register({
+		key: "happy_horse_ref2v",
+		name: "Alibaba Happy Horse Ref2V",
+		provider: "Alibaba (via FAL)",
+		endpoint: "alibaba/happy-horse/reference-to-video",
+		categories: ["image_to_video"],
+		description:
+			"Multi-character reference-to-video — supply 1–9 images and reference each as character1…character9 in the prompt",
+		pricing: { type: "per_second", cost: null as unknown as number },
+		// FAL accepts integer literals 3–15 (verified live). See note on
+		// happy_horse_t2v in registry-data/text-to-video.ts.
+		durationOptions: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+		aspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+		resolutions: ["720p", "1080p"],
+		defaults: {
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+			enable_safety_checker: true,
+		},
+		features: ["multi_reference", "character_consistency", "seed_control"],
+		maxDuration: 15,
+		inputRequirements: {
+			required: ["prompt", "image_urls"],
+			optional: [
+				"duration",
+				"resolution",
+				"aspect_ratio",
+				"seed",
+				"enable_safety_checker",
+			],
+		},
+		extendedParams: ["image_urls"],
+		extendedFeatures: {
+			start_frame: false,
+			end_frame: false,
+			ref_images: true,
+			audio_input: false,
+			audio_generate: false,
+			ref_video: false,
+		},
+		modelInfo: { maxReferenceImages: 9, minReferenceImages: 1 },
+		costEstimate: 0,
+		processingTime: 60,
+	});
 }
