@@ -674,13 +674,7 @@ const GMI_HAPPY_HORSE_DURATIONS = new Set([
 	2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 ]);
 const GMI_HAPPY_HORSE_RESOLUTIONS = new Set(["720p", "1080p"]);
-const GMI_HAPPY_HORSE_RATIOS = new Set([
-	"16:9",
-	"9:16",
-	"1:1",
-	"4:3",
-	"3:4",
-]);
+const GMI_HAPPY_HORSE_RATIOS = new Set(["16:9", "9:16", "1:1", "4:3", "3:4"]);
 
 function resolveGmiHappyHorseDuration(
 	raw: unknown

@@ -1,5 +1,48 @@
 # GMI Happy Horse T2V — `happyhorse1.0-t2v` (GMI Cloud Wan AI)
 
+> **Status: landed.** All 8 subtasks complete except #8 (live verification —
+> the user can run the smoke command at the bottom of this doc whenever
+> they're ready to spend GMI credits). Tests: 68/68 pass across 5 affected
+> files. Type-check clean for `apps/web` + `electron/`. AI_MODELS coverage
+> grew from 97 → 98, priced from the `$0.28/s` registry string.
+
+## Final results
+
+```bash
+# Backend (CLI / executor)
+bunx vitest run electron/native-pipeline/execution/__tests__/step-executors-happy-horse.test.ts
+
+# Renderer (generator + handler routing + handler-exports + credit coverage)
+bunx vitest run \
+  apps/web/src/lib/ai-video/generators/__tests__/gmi-text-to-video.test.ts \
+  apps/web/src/components/editor/media-panel/views/ai/hooks/generation/__tests__/model-handlers-routing.test.ts \
+  apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/__tests__/handler-exports.test.ts \
+  apps/web/src/lib/__tests__/credit-costs-coverage.test.ts
+```
+
+Files touched (summary):
+
+| Layer | File | What changed |
+| --- | --- | --- |
+| CLI registry | `electron/native-pipeline/registry-data/text-to-video.ts` | Added `gmi_happy_horse_t2v` (providerBackend `gmi`, $0.28/s, durations 2–15) |
+| CLI executor | `electron/native-pipeline/execution/step-executors.ts` | Added GMI Happy Horse branch — renames `aspect_ratio`→`ratio`, uppercases `resolution`, defaults `audio_url=null`, coerces stringified duration |
+| Renderer generator | `apps/web/src/lib/ai-video/generators/gmi-text-to-video.ts` | Added `generateHappyHorseGmiTextVideo` |
+| Renderer barrel | `apps/web/src/lib/ai-video/index.ts` | Re-export the new generator |
+| Renderer types | `apps/web/src/components/editor/media-panel/views/ai/types/ai-types/request-types.ts` | Added `GmiHappyHorseT2VRequest` + `GmiHappyHorseDuration` (2–15) |
+| Renderer types barrel | `apps/web/src/components/editor/media-panel/views/ai/types/ai-types/index.ts` | Re-export the new types |
+| Renderer model picker | `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/models.ts` | Added `gmi_happy_horse_t2v` model entry |
+| Renderer order | `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/order.ts` | Inserted right after the FAL twin |
+| Renderer capabilities | `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/capabilities.ts` | Added capability block (negative prompt + prompt expansion enabled) |
+| Renderer handler | `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/text-to-video-handlers.ts` | Added `handleGmiHappyHorseT2V` + 3 file-private resolver helpers |
+| Renderer routing | `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/model-handlers.ts` | New `case "gmi_happy_horse_t2v"` arm |
+| Tests (executor) | `electron/native-pipeline/execution/__tests__/step-executors-happy-horse.test.ts` | +5 cases (rename, uppercase, defaults, audio passthrough, FAL twin guard) |
+| Tests (generator) | `apps/web/src/lib/ai-video/generators/__tests__/gmi-text-to-video.test.ts` | +4 cases (payload shape, default null, user audio, failure) |
+| Tests (routing) | `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/__tests__/model-handlers-routing.test.ts` | +1 case in `it.each` |
+| Tests (exports) | `apps/web/src/components/editor/media-panel/views/ai/hooks/generation/handlers/__tests__/handler-exports.test.ts` | Bumped t2v handler count 18→19, total 61→62 |
+
+---
+
+
 > **Goal.** Ship the GMI Cloud `happyhorse1.0-t2v` model as a first-class
 > text-to-video model in both the renderer (editor GUI) and the native
 > pipeline CLI (`bun run qcut flow …` / `qcut generate …`). It is a

@@ -176,7 +176,7 @@ export async function executeStep(
 	if (provider === "gmi" && model.endpoint === "happyhorse1.0-t2v") {
 		if (typeof payload.aspect_ratio === "string") {
 			payload.ratio = payload.aspect_ratio;
-			payload.aspect_ratio = undefined;
+			delete payload.aspect_ratio;
 		}
 		if (typeof payload.resolution === "string") {
 			payload.resolution = payload.resolution.toUpperCase();
