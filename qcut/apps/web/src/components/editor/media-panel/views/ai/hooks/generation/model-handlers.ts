@@ -40,7 +40,6 @@ import {
 	handleSeedanceProI2V,
 	handleSeedance2I2V,
 	handleSeedance2Ref2V,
-	handleHappyHorseRef2V,
 	handleKlingV25I2V,
 	handleKlingV26I2V,
 } from "./handlers/image-to-video-handlers";
@@ -70,6 +69,7 @@ import {
 import {
 	handleKlingO1Ref2Video,
 	handleGrokImagineR2V,
+	handleHappyHorseRef2V,
 	handleWAN26Ref2Video,
 	handleKlingO1V2V,
 	handleKlingAvatarV2,
@@ -370,8 +370,6 @@ export async function routeImageToVideoHandler(
 			return handleSeedance2I2V(ctx, settings);
 		case "seedance2_ref2v":
 			return handleSeedance2Ref2V(ctx, settings);
-		case "happy_horse_ref2v":
-			return handleHappyHorseRef2V(ctx, settings);
 		case "kling_v2_5_turbo_i2v":
 			return handleKlingV25I2V(ctx, settings);
 		case "kling_v26_pro_i2v":
@@ -472,6 +470,8 @@ export async function routeAvatarHandler(
 			return handleKlingO1Ref2Video(ctx, settings);
 		case "grok_imagine_r2v":
 			return handleGrokImagineR2V(ctx, settings);
+		case "happy_horse_ref2v":
+			return handleHappyHorseRef2V(ctx, settings);
 		case "wan_26_ref2v":
 			return handleWAN26Ref2Video(ctx, settings);
 		case "kling_o1_v2v_reference":
