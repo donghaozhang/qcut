@@ -13,9 +13,11 @@
 
 > "Seedance 2.0 series models do not support direct upload of reference images or videos containing real human faces. The following solutions are provided to make it easier for creatives to use portraits."
 
+All three resolve to passing an `asset://<asset_id>` URI in `content.image_url.url` (or `video_url.url`):
+
 1. **Reuse a Seedance 2.0 output that already contains a face** — outputs from your account within the last 30 days are trusted as input assets.
-2. **Use preset digital characters** — pass an asset ID from the digital character library.
-3. **Use authorized real-person assets** — pre-licensed identity packs.
+2. **Virtual Character Library** — pre-built virtual avatars from the [Model Playground](https://console.byteplus.com/ark/region:ark+ap-southeast-1/experience/vision?modelId=seedance-2-0-260128&tab=GenVideo) (beta — needs ticket activation). See [04-avatar-library.md](./04-avatar-library.md).
+3. **Real-Human Asset Library** — onboard a real person via QR-code / face verification consent flow; assets become private to your account. See [04-avatar-library.md](./04-avatar-library.md).
 
 ## Files in this folder
 
@@ -25,6 +27,7 @@
 | [01-quickstart.md](./01-quickstart.md) | How to run the smoke test | yes |
 | [02-capabilities.md](./02-capabilities.md) | Modes, limits, language/format/size constraints | yes |
 | [03-api-reference.md](./03-api-reference.md) | Verified `tasks.create` request body reference + payload examples per mode | yes |
+| [04-avatar-library.md](./04-avatar-library.md) | Avatar / character libraries (virtual + real-human) and `asset://` URI usage | yes |
 | [seedance-2-0-quickstart.sh](./seedance-2-0-quickstart.sh) | Original gist (text-to-video) | yes |
 | [test-seedance.sh](./test-seedance.sh) | Text-to-video smoke test (venv, deps fixed) | yes |
 | [test-seedance-i2v.sh](./test-seedance-i2v.sh) | Image-to-video first-frame smoke test (synthetic moon scene) | yes |
