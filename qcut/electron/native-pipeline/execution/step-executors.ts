@@ -186,23 +186,27 @@ export async function executeStep(
 		if (typeof payload.resolution === "string") {
 			payload.resolution = payload.resolution.toUpperCase();
 		}
-		if (typeof payload.duration === "string") {
-			const n = Number(payload.duration);
-			if (Number.isFinite(n) && Number.isInteger(n)) {
-				payload.duration = n;
-			}
-		}
-		// GMI rejects out-of-range or non-integer duration server-side; enforce
-		// the 2–15s contract locally so a sidecar/CLI override (`--duration 16`,
-		// `--duration 1.5`) fails with a deterministic message instead of a
-		// provider-side validation error.
-		if (typeof payload.duration === "number") {
-			const d = payload.duration;
-			if (!Number.isInteger(d) || d < 2 || d > 15) {
+		// GMI rejects out-of-range, non-integer, or non-numeric duration
+		// server-side; enforce the 2–15s contract locally so a sidecar/CLI
+		// override (`--duration 16`, `--duration 1.5`, `--duration abc`) fails
+		// with a deterministic message instead of a provider-side validation
+		// error. Handles both string and number forms in a single check so
+		// malformed strings can't slip through.
+		if (payload.duration !== undefined) {
+			const raw = payload.duration;
+			const d = typeof raw === "string" ? Number(raw) : raw;
+			if (
+				typeof d !== "number" ||
+				!Number.isFinite(d) ||
+				!Number.isInteger(d) ||
+				d < 2 ||
+				d > 15
+			) {
 				throw new Error(
-					`GMI Happy Horse duration must be an integer between 2 and 15 (got ${d})`
+					`GMI Happy Horse duration must be an integer between 2 and 15 (got ${String(raw)})`
 				);
 			}
+			payload.duration = d;
 		}
 		if (payload.audio_url === undefined) {
 			payload.audio_url = null;
