@@ -192,6 +192,18 @@ export async function executeStep(
 				payload.duration = n;
 			}
 		}
+		// GMI rejects out-of-range or non-integer duration server-side; enforce
+		// the 2–15s contract locally so a sidecar/CLI override (`--duration 16`,
+		// `--duration 1.5`) fails with a deterministic message instead of a
+		// provider-side validation error.
+		if (typeof payload.duration === "number") {
+			const d = payload.duration;
+			if (!Number.isInteger(d) || d < 2 || d > 15) {
+				throw new Error(
+					`GMI Happy Horse duration must be an integer between 2 and 15 (got ${d})`
+				);
+			}
+		}
 		if (payload.audio_url === undefined) {
 			payload.audio_url = null;
 		}

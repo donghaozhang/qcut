@@ -42,9 +42,11 @@ The three image-mode scenarios (first-frame, first-and-last-frame, multimodal re
 | Mode | Required `content` items | `role` |
 |---|---|---|
 | Text-to-video | 1 × `text` | n/a |
-| Image-to-video (first frame) | 1 × `text` (optional) + 1 × `image_url` | `first_frame` (or blank) |
+| Image-to-video (first frame) | 1 × `text` (optional) + 1 × `image_url` | `first_frame` (or omitted) |
 | Image-to-video (first + last frame) | 1 × `text` (optional) + 2 × `image_url` | `first_frame`, `last_frame` |
 | Multimodal reference-to-video | text (optional) + 1–9 `image_url` + 0–3 `video_url` + 0–3 `audio_url` | `reference_image`, `reference_video`, `reference_audio` |
+
+> **Note on the single-image case:** omitting `role` is treated as the `first_frame` mode (the default), so it still falls under the same mutual-exclusivity rule — you cannot mix a role-less / `first_frame` image with `reference_image` images in the same task.
 
 Allowed combinations for multimodal:
 - text + image
