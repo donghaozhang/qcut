@@ -166,3 +166,8 @@ packages/qagent/packages/web/screenshots/
 
 e2e-output.txt
 input/
+
+# Hackathon API keys + test artifacts (do not commit)
+docs/task/bytedance-hackathon/api-keys.md
+docs/task/bytedance-hackathon/.venv/
+docs/task/bytedance-hackathon/*.mp4
