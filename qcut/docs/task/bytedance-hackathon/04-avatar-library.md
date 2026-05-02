@@ -14,6 +14,29 @@ The supported paths for putting a face into a Seedance 2.0 video. All three work
 
 The `asset://` scheme is treated as pre-authorized — the visual face filter that rejects raw uploads does not trigger.
 
+## Prerequisite — activate the Asset Service (verified 2026-05-02)
+
+Before any `asset://...` URI works, the account must activate the **Asset Service**. We probed this with [`test-seedance-avatar.sh`](./test-seedance-avatar.sh) using the URI from the docs (`asset://asset-20260222234430-mxpgh`) and the hackathon key, and received:
+
+```
+HTTP 400 Bad Request
+{
+  "error": {
+    "code":    "InvalidParameter",
+    "param":   "content[1].image_url.url",
+    "message": "The parameter `content[1].image_url.url` specified in the request is not valid: Your account has not activated the Asset Service. You may activate it at https://console.byteplus.com/ark/region:ark+ap-southeast-1/openManagement?...&advancedActiveKey=model.",
+    "type":    "BadRequest"
+  }
+}
+```
+
+Two important takeaways:
+
+- **The URI format itself is recognized.** No "malformed URI" error — the API accepted `asset://asset-20260222234430-mxpgh` as syntactically valid and rejected it on entitlement, not on shape.
+- **Activation is account-scoped.** Visit the activation URL in the console while logged in to whichever BytePlus account holds the API key. Once Asset Service is enabled, the same key unlocks both libraries (Virtual Character + Real-Human) and the 30-day output reuse path.
+
+The error code is stable as `InvalidParameter` with the substring `"has not activated the Asset Service"` in the message — branch on the substring (the top-level code is shared with other invalid-parameter errors).
+
 ## Library 1 — Virtual Character Library (zero consent friction)
 
 Pre-built virtual avatars. No custom uploads, no real faces — but they're trusted assets you can drop straight into a generation.

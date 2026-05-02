@@ -32,6 +32,7 @@ All three resolve to passing an `asset://<asset_id>` URI in `content.image_url.u
 | [test-seedance.sh](./test-seedance.sh) | Text-to-video smoke test (venv, deps fixed) | yes |
 | [test-seedance-i2v.sh](./test-seedance-i2v.sh) | Image-to-video first-frame smoke test (synthetic moon scene) | yes |
 | [test-seedance-i2v-face.sh](./test-seedance-i2v-face.sh) | Face-filter probe (expects refusal) | yes |
+| [test-seedance-avatar.sh](./test-seedance-avatar.sh) | Avatar / `asset://` URI probe — needs Asset Service activation on the account | yes |
 | `api-keys.md` | The four hackathon API keys | **no — gitignored** |
 | `.venv/`, `*.mp4` etc. | Test artifacts | **no — gitignored** |
 
