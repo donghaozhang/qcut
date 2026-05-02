@@ -8,6 +8,11 @@ on:
   push:
     tags:
       - 'v*'
+  # Manual trigger so we can validate workflow edits without pushing a real
+  # release tag. Skips the `release` job (no tag context) — just runs the
+  # three platform builds and uploads artifacts. Useful for re-testing the
+  # macOS notarization path after a transient failure.
+  workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -103,6 +108,7 @@ jobs:
           name: windows-build
           path: |
             qcut/dist-electron/QCut*Setup*.exe
+            qcut/dist-electron/QCut*Setup*.exe.blockmap
             qcut/dist-electron/latest.yml
             !qcut/dist-electron/builder-debug.yml
           if-no-files-found: error
@@ -111,6 +117,12 @@ jobs:
   build-macos:
     needs: prepare
     runs-on: ${{ vars.USE_SELF_HOSTED_MAC == 'true' && fromJSON('["self-hosted", "macOS", "ARM64"]') || 'macos-latest' }}
+    # Hard ceiling so a notarytool hang (Apple notary endpoint DNS / polling
+    # failure — see v2026.05.01.1 / .2 incidents) fails the job in 45 min
+    # rather than burning runner time for hours. A successful run is ~12 min;
+    # 45 leaves slack for a slow Apple notary day. Re-run with
+    # `gh run rerun <id> --failed` after a timeout — most hangs are transient.
+    timeout-minutes: 45
     env:
       FFMPEG_STAGE_TARGETS: darwin-arm64,darwin-x64
     steps:
@@ -197,6 +209,7 @@ jobs:
           path: |
             qcut/dist-electron/*.dmg
             qcut/dist-electron/*.zip
+            qcut/dist-electron/*.blockmap
             qcut/dist-electron/latest-mac.yml
             !qcut/dist-electron/builder-debug.yml
           if-no-files-found: error
@@ -316,9 +329,11 @@ jobs:
           generate_release_notes: true
           files: |
             artifacts/windows-build/QCut*Setup*.exe
+            artifacts/windows-build/QCut*Setup*.exe.blockmap
             artifacts/windows-build/latest.yml
             artifacts/macos-build/*.dmg
             artifacts/macos-build/*.zip
+            artifacts/macos-build/*.blockmap
             artifacts/macos-build/latest-mac.yml
             artifacts/linux-build/*.AppImage
             artifacts/linux-build/*.deb
