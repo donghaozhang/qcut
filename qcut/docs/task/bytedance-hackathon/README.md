@@ -4,10 +4,10 @@
 
 | Question | Answer |
 |---|---|
-| Does it support real-person photo upload? | **Not directly.** Seedance 2.0 refuses raw uploads of images/videos containing real human faces. Three official workarounds exist (see below). |
-| Does it support image-to-video? | Yes — first-frame, first-and-last-frame, and 1-to-9-image reference-to-video. |
+| Does it support real-person photo upload? | **Not directly — verified.** Submit-time refusal `HTTP 400 InputImageSensitiveContentDetected.PrivacyInformation`. Even GAN-synthesized faces are blocked. Three official workarounds exist (see below). |
+| Does it support image-to-video? | ✅ Verified 2026-05-02. Non-face first-frame JPEG → 1.5 MB MP4 in ~110s. |
 | Does it support audio/video references? | Yes (Seedance 2.0 only) — up to 3 reference videos and 3 reference audios per task. |
-| Smoke test working? | ✅ Verified 2026-05-02 — text-to-video round-trip in ~110s, 5s 16:9 1080p clip, ~2.2 MB. |
+| Text-to-video smoke test? | ✅ Verified 2026-05-02 — ~110s, 5s 16:9 1080p, ~2.2 MB. |
 
 ## The face-restriction workarounds (per official docs)
 
@@ -26,7 +26,9 @@
 | [02-capabilities.md](./02-capabilities.md) | Modes, limits, language/format/size constraints | yes |
 | [03-api-reference.md](./03-api-reference.md) | Verified `tasks.create` request body reference + payload examples per mode | yes |
 | [seedance-2-0-quickstart.sh](./seedance-2-0-quickstart.sh) | Original gist (text-to-video) | yes |
-| [test-seedance.sh](./test-seedance.sh) | Venv-based smoke test (deps fixed) | yes |
+| [test-seedance.sh](./test-seedance.sh) | Text-to-video smoke test (venv, deps fixed) | yes |
+| [test-seedance-i2v.sh](./test-seedance-i2v.sh) | Image-to-video first-frame smoke test (synthetic moon scene) | yes |
+| [test-seedance-i2v-face.sh](./test-seedance-i2v-face.sh) | Face-filter probe (expects refusal) | yes |
 | `api-keys.md` | The four hackathon API keys | **no — gitignored** |
 | `.venv/`, `*.mp4` etc. | Test artifacts | **no — gitignored** |
 

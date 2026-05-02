@@ -12,6 +12,29 @@ Three official workarounds:
 2. **Preset digital characters** — pass an asset ID from BytePlus's digital character library (URI form, retrievable from the library).
 3. **Authorized real-person assets** — separately licensed identity packs.
 
+### Verified refusal behaviour (probed 2026-05-02)
+
+We ran [`test-seedance-i2v-face.sh`](./test-seedance-i2v-face.sh) submitting a 1024×1024 GAN-synthesized face from `thispersondoesnotexist.com` as `role: "first_frame"`. The API refused **at submit time** before any task ID was issued:
+
+```
+HTTP 400 Bad Request
+{
+  "error": {
+    "code":    "InputImageSensitiveContentDetected.PrivacyInformation",
+    "message": "The request failed because the input image may contain real person.",
+    "type":    "BadRequest"
+  }
+}
+```
+
+Notable:
+
+- Detection is **visual**, not identity-based — a synthetic face nobody owns still triggers it.
+- Refused **before** the task is queued, so no quota burned and no `tasks.get` polling needed.
+- Branch on `error.code == "InputImageSensitiveContentDetected.PrivacyInformation"` in client code to surface the face-restriction message and offer the three workarounds above.
+
+We also verified that a non-face first-frame image (a generated moon-and-hills JPEG via [`test-seedance-i2v.sh`](./test-seedance-i2v.sh)) is accepted normally and produces a video in roughly the same time as a text-to-video task (~110s).
+
 The three image-mode scenarios (first-frame, first-and-last-frame, multimodal reference-to-video) are **mutually exclusive** within a single task — you can't mix `first_frame` images with `reference_image` images.
 
 ## Three input modes (Seedance 2.0)

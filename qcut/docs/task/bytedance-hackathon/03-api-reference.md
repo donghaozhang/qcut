@@ -171,6 +171,40 @@ Keep request body ≤ 64 MB; for large files use a public URL or an asset ID ins
 
 This is the supported path to put a real human face into a Seedance 2.0 task.
 
+## Real-face refusal envelope (verified 2026-05-02)
+
+A direct-upload first-frame image that contains a (real or synthetic) human face is refused **at submit**:
+
+```
+HTTP 400 Bad Request
+{
+  "error": {
+    "code":    "InputImageSensitiveContentDetected.PrivacyInformation",
+    "message": "The request failed because the input image may contain real person.",
+    "type":    "BadRequest"
+  }
+}
+```
+
+In `byteplussdkarkruntime` this surfaces as `ArkBadRequestError`. Branch on `error.code` in client code:
+
+```python
+from byteplussdkarkruntime import Ark
+from byteplussdkarkruntime._exceptions import ArkBadRequestError
+
+try:
+    task = client.content_generation.tasks.create(...)
+except ArkBadRequestError as e:
+    body = getattr(e, "body", {}) or {}
+    if (body.get("error") or {}).get("code") == "InputImageSensitiveContentDetected.PrivacyInformation":
+        # Face filter triggered — fall back to digital character / 30-day reuse / authorized asset
+        ...
+    else:
+        raise
+```
+
+The filter runs visually, before quota/tasking, so failed face uploads cost nothing.
+
 ## Querying a task
 
 ```python
