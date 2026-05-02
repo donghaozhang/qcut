@@ -36,6 +36,7 @@ vi.mock("../handlers/text-to-video-handlers", () => ({
 	handleSeedanceFast260128T2V: vi
 		.fn()
 		.mockResolvedValue({ response: undefined }),
+	handleGmiHappyHorseT2V: vi.fn().mockResolvedValue({ response: undefined }),
 }));
 
 vi.mock("../handlers/image-to-video-handlers", () => ({
@@ -238,6 +239,8 @@ describe("model handler routing regression", () => {
 			textToVideoHandlers.handleSeedanceFast260128T2V as ReturnType<
 				typeof vi.fn
 			>,
+		handleGmiHappyHorseT2V:
+			textToVideoHandlers.handleGmiHappyHorseT2V as ReturnType<typeof vi.fn>,
 	};
 
 	it.each([
@@ -247,6 +250,7 @@ describe("model handler routing regression", () => {
 		["gmi_kling_v3_omni_t2v", "handleGmiKlingOmniT2V"],
 		["gmi_seedance_2_0_260128_t2v", "handleSeedance260128T2V"],
 		["gmi_seedance_2_0_fast_260128_t2v", "handleSeedanceFast260128T2V"],
+		["gmi_happy_horse_t2v", "handleGmiHappyHorseT2V"],
 	] as const)("routeTextToVideoHandler maps %s to %s", async (modelId, handlerName) => {
 		const mock = vi.mocked(t2vHandlerMap[handlerName]);
 		await routeTextToVideoHandler(

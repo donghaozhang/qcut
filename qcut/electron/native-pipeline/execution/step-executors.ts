@@ -166,6 +166,53 @@ export async function executeStep(
 		}
 	}
 
+	// GMI Happy Horse 1.0 T2V uses `ratio` (not `aspect_ratio`) and uppercase
+	// resolution casing (`1080P`/`720P`). It also accepts `audio_url: null` to
+	// mean "no audio-driven generation"; sending no key at all is fine, but
+	// passing the explicit null mirrors the API spec and keeps the JSON
+	// sidecar self-describing. Duration must remain a number — the registry
+	// already stores ints (2–15), so the only coercion needed is for the
+	// stringified form some CLI parsers produce.
+	if (provider === "gmi" && model.endpoint === "happyhorse1.0-t2v") {
+		if (typeof payload.aspect_ratio === "string") {
+			// Preserve a caller-provided `ratio` when both keys end up in the
+			// payload (the registry default supplies aspect_ratio; the user can
+			// override either key from the CLI / sidecar).
+			if (payload.ratio === undefined) {
+				payload.ratio = payload.aspect_ratio;
+			}
+			payload.aspect_ratio = undefined;
+		}
+		if (typeof payload.resolution === "string") {
+			payload.resolution = payload.resolution.toUpperCase();
+		}
+		// GMI rejects out-of-range, non-integer, or non-numeric duration
+		// server-side; enforce the 2–15s contract locally so a sidecar/CLI
+		// override (`--duration 16`, `--duration 1.5`, `--duration abc`) fails
+		// with a deterministic message instead of a provider-side validation
+		// error. Handles both string and number forms in a single check so
+		// malformed strings can't slip through.
+		if (payload.duration !== undefined) {
+			const raw = payload.duration;
+			const d = typeof raw === "string" ? Number(raw) : raw;
+			if (
+				typeof d !== "number" ||
+				!Number.isFinite(d) ||
+				!Number.isInteger(d) ||
+				d < 2 ||
+				d > 15
+			) {
+				throw new Error(
+					`GMI Happy Horse duration must be an integer between 2 and 15 (got ${String(raw)})`
+				);
+			}
+			payload.duration = d;
+		}
+		if (payload.audio_url === undefined) {
+			payload.audio_url = null;
+		}
+	}
+
 	// Alibaba Happy Horse T2V/Ref2V `duration` is an integer literal enum
 	// (3, 4, …, 15) — verified against the live FAL endpoint, which rejects
 	// the string form with `literal_error`. The CLI's `-d 5s` already parses

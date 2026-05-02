@@ -252,6 +252,88 @@ export function generateSeedanceFast260128TextVideo(
 	);
 }
 
+/**
+ * Generate text-to-video using GMI Alibaba Wan AI Happy Horse 1.0.
+ *
+ * GMI's `happyhorse1.0-t2v` accepts:
+ *   - `prompt` (required), `negative_prompt`
+ *   - `duration` int 2–15
+ *   - `resolution` "720P"/"1080P" (uppercase P — uppercased server-side too,
+ *     but we send canonical form to be explicit)
+ *   - `ratio` (NOT `aspect_ratio`) one of 16:9 / 9:16 / 1:1 / 4:3 / 3:4
+ *   - `audio_url` for audio-driven generation; `null` means none
+ *   - `prompt_extend`, `watermark`, `seed`
+ */
+export async function generateHappyHorseGmiTextVideo(params: {
+	prompt: string;
+	negative_prompt?: string;
+	duration?: number;
+	resolution?: "720p" | "1080p" | "720P" | "1080P";
+	ratio?: "16:9" | "9:16" | "1:1" | "4:3" | "3:4";
+	audio_url?: string | null;
+	prompt_extend?: boolean;
+	watermark?: boolean;
+	seed?: number;
+}): Promise<VideoGenerationResponse> {
+	const jobId = generateJobId();
+
+	// GMI rejects out-of-range or non-integer duration server-side; clamp here
+	// to spend the round-trip only on payloads the API will accept.
+	const rawDuration = params.duration ?? 5;
+	if (!Number.isInteger(rawDuration) || rawDuration < 2 || rawDuration > 15) {
+		throw new Error(
+			`GMI Happy Horse duration must be an integer between 2 and 15 (got ${rawDuration})`
+		);
+	}
+
+	const resolution = (params.resolution ?? "1080p").toUpperCase();
+	const payload: Record<string, unknown> = {
+		prompt: params.prompt,
+		duration: rawDuration,
+		resolution,
+		ratio: params.ratio ?? "16:9",
+		audio_url: params.audio_url ?? null,
+		prompt_extend: params.prompt_extend ?? true,
+		watermark: params.watermark ?? false,
+	};
+
+	if (params.negative_prompt) payload.negative_prompt = params.negative_prompt;
+	if (params.seed != null) {
+		if (!Number.isInteger(params.seed)) {
+			throw new Error(
+				`GMI Happy Horse seed must be an integer (got ${params.seed})`
+			);
+		}
+		payload.seed = params.seed;
+	}
+
+	const submitResult = await providerRouter.submit(
+		"happyhorse1.0-t2v",
+		payload,
+		"gmi"
+	);
+
+	const pollResult = await providerRouter.poll(
+		submitResult.requestId,
+		submitResult.provider
+	);
+
+	if (pollResult.status === "failed") {
+		throw new Error(
+			pollResult.error ?? "GMI Happy Horse 1.0 text-to-video failed"
+		);
+	}
+
+	return {
+		job_id: jobId,
+		status: "completed",
+		message: "Video generated with GMI Happy Horse 1.0 T2V",
+		estimated_time: 0,
+		video_url: pollResult.videoUrl,
+		video_data: pollResult,
+	};
+}
+
 /** Generate text-to-video using GMI SkyReels V4. */
 export async function generateSkyreelsV4TextVideo(params: {
 	prompt: string;

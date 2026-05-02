@@ -670,6 +670,30 @@ export const T2V_MODELS = {
 		supportedDurations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
 		supportedAspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
 	},
+	gmi_happy_horse_t2v: {
+		id: "gmi_happy_horse_t2v",
+		name: "Alibaba Happy Horse T2V (GMI)",
+		description:
+			"Alibaba Wan AI Happy Horse 1.0 via GMI Cloud — 720p/1080p, 2–15s, audio-driven, negative prompt",
+		price: "$0.28/s",
+		resolution: "720p / 1080p",
+		supportedResolutions: ["720p", "1080p"],
+		max_duration: 15,
+		category: "text",
+		endpoints: {
+			text_to_video: "happyhorse1.0-t2v",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+			prompt_extend: true,
+			watermark: false,
+		},
+		supportedDurations: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+		supportedAspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+		providerBackend: "gmi",
+	},
 } as const satisfies Record<string, AIModel>;
 
 /**

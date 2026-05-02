@@ -190,6 +190,7 @@ export {
 	generateKlingOmniTextVideo,
 	generateSeedance260128TextVideo,
 	generateSeedanceFast260128TextVideo,
+	generateHappyHorseGmiTextVideo,
 } from "./generators/gmi-text-to-video";
 export type { Seedance260128Params } from "./generators/gmi-text-to-video";
 export {

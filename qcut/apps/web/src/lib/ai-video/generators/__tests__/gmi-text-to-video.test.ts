@@ -19,6 +19,7 @@ import {
 	generateSeedance260128TextVideo,
 	generateSeedanceFast260128TextVideo,
 	generateSkyreelsV4TextVideo,
+	generateHappyHorseGmiTextVideo,
 } from "../gmi-text-to-video";
 
 const mockedSubmit = vi.mocked(providerRouter.submit);
@@ -239,6 +240,73 @@ describe("generateSeedanceFast260128TextVideo", () => {
 
 		await expect(
 			generateSeedanceFast260128TextVideo({ prompt: "x" })
+		).rejects.toThrow("boom");
+	});
+});
+
+describe("generateHappyHorseGmiTextVideo", () => {
+	it("submits to happyhorse1.0-t2v with uppercase resolution and `ratio` field", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(successPollResult);
+
+		await generateHappyHorseGmiTextVideo({
+			prompt: "drone over a misty forest",
+			duration: 10,
+			resolution: "1080p",
+			ratio: "16:9",
+			negative_prompt: "blurry, low quality",
+			seed: 12345,
+		});
+
+		expect(mockedSubmit).toHaveBeenCalledWith(
+			"happyhorse1.0-t2v",
+			{
+				prompt: "drone over a misty forest",
+				duration: 10,
+				resolution: "1080P",
+				ratio: "16:9",
+				audio_url: null,
+				prompt_extend: true,
+				watermark: false,
+				negative_prompt: "blurry, low quality",
+				seed: 12345,
+			},
+			"gmi"
+		);
+	});
+
+	it("defaults audio_url to null when not supplied (matches GMI spec)", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(successPollResult);
+
+		await generateHappyHorseGmiTextVideo({ prompt: "p" });
+
+		const payload = mockedSubmit.mock.calls[0][1];
+		expect(payload.audio_url).toBeNull();
+		expect(payload.duration).toBe(5); // registry default
+		expect(payload.resolution).toBe("1080P");
+		expect(payload.ratio).toBe("16:9");
+	});
+
+	it("forwards a user-supplied audio_url unchanged", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(successPollResult);
+
+		await generateHappyHorseGmiTextVideo({
+			prompt: "p",
+			audio_url: "https://example.com/voice.mp3",
+		});
+
+		const payload = mockedSubmit.mock.calls[0][1];
+		expect(payload.audio_url).toBe("https://example.com/voice.mp3");
+	});
+
+	it("throws on failed poll", async () => {
+		mockedSubmit.mockResolvedValue(successSubmitResult);
+		mockedPoll.mockResolvedValue(failedPollResult);
+
+		await expect(
+			generateHappyHorseGmiTextVideo({ prompt: "p" })
 		).rejects.toThrow("boom");
 	});
 });

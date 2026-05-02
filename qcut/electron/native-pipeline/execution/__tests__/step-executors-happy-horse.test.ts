@@ -239,6 +239,100 @@ describe("executeVideoToVideo — happy_horse_video_edit", () => {
 	});
 });
 
+describe("executeTextToVideo — gmi_happy_horse_t2v", () => {
+	beforeEach(() => {
+		if (!ModelRegistry.has("gmi_happy_horse_t2v")) {
+			registerTextToVideoModels();
+		}
+	});
+
+	it("renames aspect_ratio to ratio and uppercases resolution", async () => {
+		const model = ModelRegistry.get("gmi_happy_horse_t2v");
+		await executeStep(
+			model,
+			{ text: "drone over a misty forest" },
+			{ duration: 10, resolution: "1080p", aspect_ratio: "16:9" },
+			{}
+		);
+		expect(mockedCallModelApi).toHaveBeenCalledTimes(1);
+		const call = mockedCallModelApi.mock.calls[0][0];
+		expect(call.endpoint).toBe("happyhorse1.0-t2v");
+		expect(call.payload.prompt).toBe("drone over a misty forest");
+		// GMI field-name regression guards
+		expect(call.payload.ratio).toBe("16:9");
+		// Cleared to `undefined` rather than `delete`d — the key still exists
+		// but won't be serialized into JSON or matched by the API contract.
+		expect(call.payload.aspect_ratio).toBeUndefined();
+		// GMI accepts uppercase resolution casing
+		expect(call.payload.resolution).toBe("1080P");
+		// Duration must remain numeric
+		expect(call.payload.duration).toBe(10);
+		expect(typeof call.payload.duration).toBe("number");
+	});
+
+	it("preserves an explicit ratio when aspect_ratio is also present", async () => {
+		const model = ModelRegistry.get("gmi_happy_horse_t2v");
+		await executeStep(
+			model,
+			{ text: "p" },
+			{ aspect_ratio: "16:9", ratio: "9:16" },
+			{}
+		);
+		const payload = mockedCallModelApi.mock.calls[0][0].payload;
+		// Caller-supplied ratio wins over the registry/UI-supplied aspect_ratio.
+		expect(payload.ratio).toBe("9:16");
+		expect(payload.aspect_ratio).toBeUndefined();
+	});
+
+	it("defaults audio_url to null when not supplied", async () => {
+		const model = ModelRegistry.get("gmi_happy_horse_t2v");
+		await executeStep(model, { text: "p" }, {}, {});
+		const payload = mockedCallModelApi.mock.calls[0][0].payload;
+		// Explicit null is the canonical "no audio-driven generation" signal
+		expect(payload.audio_url).toBeNull();
+	});
+
+	it("preserves user-supplied audio_url and negative_prompt without renaming", async () => {
+		const model = ModelRegistry.get("gmi_happy_horse_t2v");
+		await executeStep(
+			model,
+			{ text: "p" },
+			{
+				audio_url: "https://example.com/voice.mp3",
+				negative_prompt: "blurry, low quality",
+			},
+			{}
+		);
+		const payload = mockedCallModelApi.mock.calls[0][0].payload;
+		expect(payload.audio_url).toBe("https://example.com/voice.mp3");
+		expect(payload.negative_prompt).toBe("blurry, low quality");
+	});
+
+	it("coerces stringified integer duration back to a number", async () => {
+		const model = ModelRegistry.get("gmi_happy_horse_t2v");
+		await executeStep(model, { text: "p" }, { duration: "7" }, {});
+		const payload = mockedCallModelApi.mock.calls[0][0].payload;
+		expect(payload.duration).toBe(7);
+		expect(typeof payload.duration).toBe("number");
+	});
+
+	it("does NOT touch FAL happy_horse_t2v aspect_ratio (regression guard)", async () => {
+		const model = ModelRegistry.get("happy_horse_t2v");
+		await executeStep(
+			model,
+			{ text: "p" },
+			{ aspect_ratio: "9:16", resolution: "720p" },
+			{}
+		);
+		const payload = mockedCallModelApi.mock.calls[0][0].payload;
+		// FAL twin keeps canonical names — ensure the GMI branch didn't
+		// accidentally widen its match condition.
+		expect(payload.aspect_ratio).toBe("9:16");
+		expect(payload).not.toHaveProperty("ratio");
+		expect(payload.resolution).toBe("720p"); // lowercase preserved
+	});
+});
+
 describe("executeImageToVideo — Vidu / Seedance regression guards", () => {
 	// Reaffirm that adding the happy_horse_ref2v branch did not perturb
 	// neighboring ref2v branches. Mirrors the guards in

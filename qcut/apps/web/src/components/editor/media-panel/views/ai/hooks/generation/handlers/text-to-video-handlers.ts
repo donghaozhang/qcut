@@ -16,6 +16,7 @@ import {
 	generateKlingOmniTextVideo,
 	generateSeedance260128TextVideo,
 	generateSeedanceFast260128TextVideo,
+	generateHappyHorseGmiTextVideo,
 	generateRunwayTextToVideo,
 } from "@/lib/ai-video";
 import type {
@@ -23,6 +24,11 @@ import type {
 	ModelHandlerResult,
 	TextToVideoSettings,
 } from "../model-handler-types";
+import {
+	resolveGmiHappyHorseDuration,
+	resolveGmiHappyHorseRatio,
+	resolveGmiHappyHorseResolution,
+} from "./gmi-happy-horse-params";
 import {
 	resolveSeedanceDuration,
 	resolveSeedanceFastResolution,
@@ -639,6 +645,75 @@ export async function handleSeedanceFast260128T2V(
 			ratio: resolveSeedanceRatio(
 				settings.unifiedParams?.aspect_ratio ?? settings.aspectRatio
 			),
+			seed,
+		});
+		return { response };
+	} catch (error) {
+		return {
+			response: undefined,
+			shouldSkip: true,
+			skipReason: `${ctx.modelName} generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+		};
+	}
+}
+
+/**
+ * Handle GMI Alibaba Happy Horse 1.0 text-to-video generation.
+ *
+ * The renderer's canonical setting names (`aspectRatio`, `resolution`) are
+ * mapped to the GMI generator's parameter names here. Optional fields
+ * (`negative_prompt`, `audio_url`, `prompt_extend`, `watermark`, `seed`)
+ * flow through `unifiedParams` so they don't bloat `TextToVideoSettings`
+ * for unrelated models.
+ */
+export async function handleGmiHappyHorseT2V(
+	ctx: ModelHandlerContext,
+	settings: TextToVideoSettings
+): Promise<ModelHandlerResult> {
+	try {
+		const unified = settings.unifiedParams ?? {};
+		const rawSeed = unified.seed;
+		const seed =
+			typeof rawSeed === "number" && Number.isFinite(rawSeed)
+				? rawSeed
+				: undefined;
+
+		const negativePrompt =
+			typeof unified.negative_prompt === "string" &&
+			unified.negative_prompt.trim().length > 0
+				? unified.negative_prompt
+				: undefined;
+
+		const audioUrlRaw = unified.audio_url;
+		const audioUrl =
+			audioUrlRaw === null
+				? null
+				: typeof audioUrlRaw === "string" && audioUrlRaw.trim().length > 0
+					? audioUrlRaw
+					: undefined;
+
+		const promptExtend =
+			typeof unified.prompt_extend === "boolean"
+				? unified.prompt_extend
+				: undefined;
+		const watermark =
+			typeof unified.watermark === "boolean" ? unified.watermark : undefined;
+
+		const response = await generateHappyHorseGmiTextVideo({
+			prompt: ctx.prompt,
+			duration: resolveGmiHappyHorseDuration(
+				unified.duration ?? settings.duration
+			),
+			resolution: resolveGmiHappyHorseResolution(
+				unified.resolution ?? settings.resolution
+			),
+			ratio: resolveGmiHappyHorseRatio(
+				unified.aspect_ratio ?? settings.aspectRatio
+			),
+			negative_prompt: negativePrompt,
+			audio_url: audioUrl,
+			prompt_extend: promptExtend,
+			watermark,
 			seed,
 		});
 		return { response };

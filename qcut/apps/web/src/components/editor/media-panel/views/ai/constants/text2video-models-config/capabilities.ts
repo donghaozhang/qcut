@@ -515,4 +515,20 @@ export const T2V_MODEL_CAPABILITIES: Record<T2VModelId, T2VModelCapabilities> =
 			defaultResolution: "1080p",
 			defaultDuration: 5,
 		},
+
+		gmi_happy_horse_t2v: {
+			supportsAspectRatio: true,
+			supportedAspectRatios: ["16:9", "9:16", "1:1", "4:3", "3:4"],
+			supportsResolution: true,
+			supportedResolutions: ["720p", "1080p"],
+			supportsDuration: true,
+			supportedDurations: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+			supportsNegativePrompt: true,
+			supportsPromptExpansion: true,
+			supportsSeed: true,
+			supportsSafetyChecker: false,
+			defaultAspectRatio: "16:9",
+			defaultResolution: "1080p",
+			defaultDuration: 5,
+		},
 	};
