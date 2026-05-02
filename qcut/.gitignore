@@ -171,3 +171,10 @@ input/
 docs/task/bytedance-hackathon/api-keys.md
 docs/task/bytedance-hackathon/.venv/
 docs/task/bytedance-hackathon/*.mp4
+docs/task/bytedance-hackathon/*.mov
+docs/task/bytedance-hackathon/*.webm
+docs/task/bytedance-hackathon/*.mkv
+docs/task/bytedance-hackathon/*.avi
+docs/task/bytedance-hackathon/*.gif
+docs/task/bytedance-hackathon/*.mp3
+docs/task/bytedance-hackathon/*.wav
