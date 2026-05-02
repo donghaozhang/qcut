@@ -260,12 +260,28 @@ describe("executeTextToVideo — gmi_happy_horse_t2v", () => {
 		expect(call.payload.prompt).toBe("drone over a misty forest");
 		// GMI field-name regression guards
 		expect(call.payload.ratio).toBe("16:9");
-		expect(call.payload).not.toHaveProperty("aspect_ratio");
+		// Cleared to `undefined` rather than `delete`d — the key still exists
+		// but won't be serialized into JSON or matched by the API contract.
+		expect(call.payload.aspect_ratio).toBeUndefined();
 		// GMI accepts uppercase resolution casing
 		expect(call.payload.resolution).toBe("1080P");
 		// Duration must remain numeric
 		expect(call.payload.duration).toBe(10);
 		expect(typeof call.payload.duration).toBe("number");
+	});
+
+	it("preserves an explicit ratio when aspect_ratio is also present", async () => {
+		const model = ModelRegistry.get("gmi_happy_horse_t2v");
+		await executeStep(
+			model,
+			{ text: "p" },
+			{ aspect_ratio: "16:9", ratio: "9:16" },
+			{}
+		);
+		const payload = mockedCallModelApi.mock.calls[0][0].payload;
+		// Caller-supplied ratio wins over the registry/UI-supplied aspect_ratio.
+		expect(payload.ratio).toBe("9:16");
+		expect(payload.aspect_ratio).toBeUndefined();
 	});
 
 	it("defaults audio_url to null when not supplied", async () => {

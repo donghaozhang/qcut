@@ -16,7 +16,7 @@ Three official workarounds:
 
 We ran [`test-seedance-i2v-face.sh`](./test-seedance-i2v-face.sh) submitting a 1024×1024 GAN-synthesized face from `thispersondoesnotexist.com` as `role: "first_frame"`. The API refused **at submit time** before any task ID was issued:
 
-```
+```http
 HTTP 400 Bad Request
 {
   "error": {

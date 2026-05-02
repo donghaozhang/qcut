@@ -277,10 +277,19 @@ export async function generateHappyHorseGmiTextVideo(params: {
 }): Promise<VideoGenerationResponse> {
 	const jobId = generateJobId();
 
+	// GMI rejects out-of-range or non-integer duration server-side; clamp here
+	// to spend the round-trip only on payloads the API will accept.
+	const rawDuration = params.duration ?? 5;
+	if (!Number.isInteger(rawDuration) || rawDuration < 2 || rawDuration > 15) {
+		throw new Error(
+			`GMI Happy Horse duration must be an integer between 2 and 15 (got ${rawDuration})`
+		);
+	}
+
 	const resolution = (params.resolution ?? "1080p").toUpperCase();
 	const payload: Record<string, unknown> = {
 		prompt: params.prompt,
-		duration: params.duration ?? 5,
+		duration: rawDuration,
 		resolution,
 		ratio: params.ratio ?? "16:9",
 		audio_url: params.audio_url ?? null,
@@ -289,7 +298,14 @@ export async function generateHappyHorseGmiTextVideo(params: {
 	};
 
 	if (params.negative_prompt) payload.negative_prompt = params.negative_prompt;
-	if (params.seed != null) payload.seed = params.seed;
+	if (params.seed != null) {
+		if (!Number.isInteger(params.seed)) {
+			throw new Error(
+				`GMI Happy Horse seed must be an integer (got ${params.seed})`
+			);
+		}
+		payload.seed = params.seed;
+	}
 
 	const submitResult = await providerRouter.submit(
 		"happyhorse1.0-t2v",

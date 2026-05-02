@@ -61,8 +61,22 @@ try:
         duration=5,
     )
 except Exception as e:
-    print(f"REFUSED at submit: {type(e).__name__}: {e}", flush=True)
-    sys.exit(0)
+    # Differentiate a content-policy refusal (the result we're probing for)
+    # from auth/network/SDK failures (which we must not silently swallow,
+    # otherwise the script reports a false-positive "refusal").
+    name = type(e).__name__
+    msg = str(e)
+    refusal_hints = ("policy", "face", "content", "moderation", "filter")
+    looks_like_refusal = (
+        "BadRequest" in name
+        or " 400" in msg
+        or any(h in msg.lower() for h in refusal_hints)
+    )
+    if looks_like_refusal:
+        print(f"REFUSED at submit: {name}: {msg}", flush=True)
+        sys.exit(0)
+    print(f"ERROR at submit (not a refusal): {name}: {msg}", flush=True)
+    sys.exit(1)
 
 print(f"Task accepted at submit: {task.id}", flush=True)
 

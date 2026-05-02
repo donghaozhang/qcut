@@ -51,7 +51,9 @@ while time.time() < deadline:
         print("Saved: cat_moon.mp4", flush=True)
         sys.exit(0)
     if r.status in ("failed", "cancelled"):
-        print(f"Failed: {r.error.code} - {r.error.message}", flush=True)
+        code = getattr(getattr(r, "error", None), "code", "?")
+        msg = getattr(getattr(r, "error", None), "message", "?")
+        print(f"Failed ({r.status}): {code} - {msg}", flush=True)
         sys.exit(1)
     print(f"  {r.status}...", flush=True)
     time.sleep(10)

@@ -5,7 +5,7 @@ Verified working on macOS (Python 3.14) on 2026-05-02.
 ## Run
 
 ```bash
-export SEEDANCE_2_0_API=f645bb3e-ce20-425c-ac73-106e88a12d5b   # see api-keys.md
+export SEEDANCE_2_0_API="<your-key>"   # see api-keys.md (gitignored)
 ./test-seedance.sh
 ```
 

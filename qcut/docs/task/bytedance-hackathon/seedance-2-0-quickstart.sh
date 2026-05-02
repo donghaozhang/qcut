@@ -1,11 +1,14 @@
 #!/bin/bash
 set -e
 
-pip3 install byteplus-python-sdk-v2 httpx -q
+# byteplus-python-sdk-v2 has broken declared deps; install the missing
+# transitive imports (typing_extensions, pydantic, anyio, distro, sniffio)
+# explicitly so this works on a clean Python.
+pip3 install byteplus-python-sdk-v2 httpx typing_extensions pydantic anyio distro sniffio -q
 
 python3 - <<'PYTHON'
 from byteplussdkarkruntime import Ark
-import os, time, httpx
+import os, sys, time, httpx
 
 api_key = os.environ.get("SEEDANCE_2_0_API")
 if not api_key:
@@ -24,7 +27,8 @@ task = client.content_generation.tasks.create(
 )
 print(f"Task: {task.id}")
 
-while True:
+deadline = time.time() + 360  # 6 min
+while time.time() < deadline:
     r = client.content_generation.tasks.get(task_id=task.id)
     if r.status == "succeeded":
         url = r.content.video_url
@@ -35,10 +39,15 @@ while True:
                 for chunk in resp.iter_bytes():
                     f.write(chunk)
         print("Saved: cat_moon.mp4")
-        break
-    elif r.status in ("failed", "cancelled"):
-        print(f"Failed: {r.error.code} - {r.error.message}")
-        break
+        sys.exit(0)
+    if r.status in ("failed", "cancelled"):
+        code = getattr(getattr(r, "error", None), "code", "?")
+        msg = getattr(getattr(r, "error", None), "message", "?")
+        print(f"Failed: {code} - {msg}")
+        sys.exit(1)
     print(f"  {r.status}...")
     time.sleep(10)
+
+print("Timed out after 6 min")
+sys.exit(2)
 PYTHON

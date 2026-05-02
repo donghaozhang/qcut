@@ -18,7 +18,7 @@ The `asset://` scheme is treated as pre-authorized — the visual face filter th
 
 Before any `asset://...` URI works, the account must activate the **Asset Service**. We probed this with [`test-seedance-avatar.sh`](./test-seedance-avatar.sh) using the URI from the docs (`asset://asset-20260222234430-mxpgh`) and the hackathon key, and received:
 
-```
+```http
 HTTP 400 Bad Request
 {
   "error": {

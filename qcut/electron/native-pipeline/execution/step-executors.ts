@@ -175,8 +175,13 @@ export async function executeStep(
 	// stringified form some CLI parsers produce.
 	if (provider === "gmi" && model.endpoint === "happyhorse1.0-t2v") {
 		if (typeof payload.aspect_ratio === "string") {
-			payload.ratio = payload.aspect_ratio;
-			delete payload.aspect_ratio;
+			// Preserve a caller-provided `ratio` when both keys end up in the
+			// payload (the registry default supplies aspect_ratio; the user can
+			// override either key from the CLI / sidecar).
+			if (payload.ratio === undefined) {
+				payload.ratio = payload.aspect_ratio;
+			}
+			payload.aspect_ratio = undefined;
 		}
 		if (typeof payload.resolution === "string") {
 			payload.resolution = payload.resolution.toUpperCase();

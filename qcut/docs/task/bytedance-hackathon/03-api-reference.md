@@ -175,7 +175,7 @@ This is the supported path to put a real human face into a Seedance 2.0 task.
 
 A direct-upload first-frame image that contains a (real or synthetic) human face is refused **at submit**:
 
-```
+```http
 HTTP 400 Bad Request
 {
   "error": {
