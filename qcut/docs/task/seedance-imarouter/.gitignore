@@ -1,0 +1,6 @@
+*.mp4
+*.mov
+*.webm
+*.mkv
+*.json
+!package.json
