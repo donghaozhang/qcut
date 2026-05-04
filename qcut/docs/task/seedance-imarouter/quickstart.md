@@ -66,6 +66,33 @@ node docs/task/seedance-imarouter/seedance-generate.mjs --task-id task_2026...
 | `--task-id <id>`    | —                     | Skip submission, just poll this task id      |
 | `--poll-interval`   | `5` (seconds)         | Seconds between status checks                |
 | `--timeout`         | `600` (seconds)       | Give up after this long                      |
+| `--upload <url>`    | (repeatable)          | Pre-upload via `/v1/assets/create` and use the resulting `asset://...` |
+| `--asset-timeout`   | `120` (seconds)       | Max time to wait for asset review            |
+| `--group-name`      | `seedance-cli`        | Name used when auto-creating an asset group  |
+| `--reset-group`     | off                   | Force a fresh asset group (ignores cached id)|
+
+## Asset upload flow (`--upload`)
+
+For real-people / portrait references, route the image through `/v1/assets/create` so it goes through the platform's pre-review (the same review that may reject inline URLs with `Error 601400`).
+
+```bash
+node docs/task/seedance-imarouter/seedance-generate.mjs \
+  --prompt "Subject smiles, gentle head turn, soft natural light" \
+  --model seedance-2.0 \
+  --upload "https://your-host.example.com/portrait.jpg" \
+  --duration 5 \
+  --aspect-ratio 16:9 \
+  --out docs/task/seedance-imarouter/test-upload.mp4
+```
+
+What happens:
+
+1. Creates an asset group on first run, caches its id in `.env` as `IMAROUTER_GROUP_ID_OVERSEAS` or `IMAROUTER_GROUP_ID_CN` (channel-aware).
+2. `POST /v1/assets/create` with the right `model` for your channel (`seedance-upload` for overseas, `ima-pro-upload-cn` for `-cn` models).
+3. Polls `POST /v1/assets/get` until `Status` reads as approved (or rejects fast, surfacing the reason).
+4. Submits the video job with `images: ["asset://asset-..."]`.
+
+Channel safety: the script picks `uploadModel` from the video model — never mix domestic/overseas, which would create a usable `asset://...` that the video job can't consume.
 
 ## Exit codes
 

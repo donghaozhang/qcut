@@ -111,6 +111,55 @@ Get a key at <https://imarouter.com>.
 - Reference videos: max 3 clips, ≤15 s combined, ≥409 600 px each (≈640×640).
 - No callback URL — you must poll the GET endpoint.
 
+## Asset / Portrait endpoints
+
+For real-people / portrait references, the platform recommends pre-uploading the image so it goes through review before the video call. The script's `--upload` flag wires this up automatically.
+
+| Method | Path                          | Purpose                                                  |
+| ------ | ----------------------------- | -------------------------------------------------------- |
+| POST   | `/v1/assets/group/create`     | Create a material group (one-time, cached in `.env`)     |
+| POST   | `/v1/assets/group/list`       | List existing groups                                     |
+| POST   | `/v1/assets/create`           | Upload an image/video/audio URL into a group             |
+| POST   | `/v1/assets/get`              | Poll an asset's review `Status`                          |
+| POST   | `/v1/assets/list`             | List assets                                              |
+| POST   | `/v1/assets/quota`            | Query asset quota                                        |
+
+### Channel mapping (must match!)
+
+Mixing channels yields an `asset://...` id that the video job will refuse.
+
+| Video model                                  | Asset `model`        | Region    |
+| -------------------------------------------- | -------------------- | --------- |
+| `seedance-2.0`, `seedance-2.0-fast`          | `seedance-upload`    | overseas  |
+| `seedance-2.0-cn`, `seedance-2.0-fast-cn`    | `ima-pro-upload-cn`  | domestic  |
+
+### `POST /v1/assets/group/create` — minimum body
+
+```json
+{ "name": "seedance-cli", "model": "seedance-upload" }
+```
+
+Returns `{ "data": { "Id": "group-..." } }`.
+
+### `POST /v1/assets/create` — minimum body
+
+```json
+{
+  "group_id": "group-...",
+  "url": "https://your-host.example.com/portrait.jpg",
+  "asset_type": "Image",
+  "model": "seedance-upload"
+}
+```
+
+Returns `{ "data": { "Id": "asset-..." } }`. Feed back as `asset://asset-...` in `images[]`.
+
+### Content policy
+
+> "When using your own virtual characters or real-life materials, only **amateurs** are allowed, and **celebrity characters are not supported**."
+
+Uploaded assets undergo mandatory review (≈10 s) — clear approve/reject before any video credit is spent.
+
 ## Files
 
 - [`quickstart.md`](./quickstart.md) — how to run the script

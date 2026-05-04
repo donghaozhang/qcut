@@ -4,3 +4,10 @@
 *.mkv
 *.json
 !package.json
+
+# Test reference images (often copyrighted) — keep out of git
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
