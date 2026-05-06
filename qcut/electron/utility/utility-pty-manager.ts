@@ -9,6 +9,7 @@ import { platform } from "node:os";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { MessagePort } from "node:worker_threads";
+import { createSpawnDiagnostics } from "../pty-spawn-diagnostics.js";
 
 // Use electron-log when available, fall back to console
 let logger: {
@@ -178,8 +179,17 @@ export class UtilityPtyManager {
 				typeof msg.command === "string" &&
 				msg.command.trim().startsWith("claude");
 			if (isClaudeCommand) {
-				// Prevent "nested session" detection when QCut is launched from Claude Code
+				// Strip parent Claude Code session markers so the inner claude does
+				// not detect a nested session and bail. CLAUDECODE alone is not
+				// enough — the CLI also sets CLAUDE_CODE_ENTRYPOINT,
+				// CLAUDE_CODE_EXECPATH, CLAUDE_CODE_SSE_PORT, AI_AGENT, etc.
 				delete spawnEnv.CLAUDECODE;
+				delete spawnEnv.AI_AGENT;
+				for (const key of Object.keys(spawnEnv)) {
+					if (key.startsWith("CLAUDE_CODE_")) {
+						delete spawnEnv[key];
+					}
+				}
 			}
 			if (isClaudeCommand && msg.mcpServerPath) {
 				spawnEnv.CLAUDE_MCP_SERVERS = buildClaudeMcpServersEnv({
@@ -189,6 +199,31 @@ export class UtilityPtyManager {
 					projectRoot: msg.projectRoot || spawnCwd,
 					apiBaseUrl: msg.apiBaseUrl,
 				});
+			}
+
+			const diagnostics = createSpawnDiagnostics({
+				shell,
+				args,
+				cwd: spawnCwd,
+				command: msg.command,
+				envPath: spawnEnv.PATH,
+				platformName: platform(),
+				pathExtEnv: spawnEnv.PATHEXT,
+			});
+			logger.info("[UtilityPTY] ===== SPAWN =====");
+			logger.info(`[UtilityPTY] sessionId=${msg.sessionId}`);
+			logger.info(`[UtilityPTY] shell=${diagnostics.shell}`);
+			logger.info(`[UtilityPTY] args=${JSON.stringify(diagnostics.args)}`);
+			logger.info(
+				`[UtilityPTY] cwd=${diagnostics.cwd} (exists=${diagnostics.cwdExists})`
+			);
+			logger.info(`[UtilityPTY] PATH preview: ${diagnostics.pathPreview}`);
+			if (diagnostics.commandBinary) {
+				logger.info(
+					`[UtilityPTY] resolved ${diagnostics.commandBinary}: ${
+						diagnostics.resolvedCommandPath || "NOT FOUND"
+					}`
+				);
 			}
 
 			const ptyProcess = pty.spawn(shell, args, {
@@ -212,6 +247,9 @@ export class UtilityPtyManager {
 
 			ptyProcess.onExit(
 				({ exitCode, signal }: { exitCode: number; signal?: number }) => {
+					logger.info(
+						`[UtilityPTY] exit sessionId=${msg.sessionId} exitCode=${exitCode} signal=${signal ?? "none"}`
+					);
 					this.parentPort.postMessage({
 						type: "pty:exit",
 						sessionId: msg.sessionId,

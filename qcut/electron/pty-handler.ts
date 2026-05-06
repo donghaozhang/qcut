@@ -290,8 +290,17 @@ export function setupPtyIPC(): void {
 					options.command.trim().startsWith("claude");
 
 				if (isClaudeCommand) {
-					// Prevent "nested session" detection when QCut is launched from Claude Code
+					// Strip parent Claude Code session markers so the inner claude
+					// does not detect a nested session and bail. CLAUDECODE alone is
+					// not enough — the CLI also sets CLAUDE_CODE_ENTRYPOINT,
+					// CLAUDE_CODE_EXECPATH, CLAUDE_CODE_SSE_PORT, AI_AGENT, etc.
 					delete spawnEnv.CLAUDECODE;
+					delete spawnEnv.AI_AGENT;
+					for (const key of Object.keys(spawnEnv)) {
+						if (key.startsWith("CLAUDE_CODE_")) {
+							delete spawnEnv[key];
+						}
+					}
 					const mcpServerPath = resolveQcutMcpServerEntry();
 					if (mcpServerPath) {
 						spawnEnv.CLAUDE_MCP_SERVERS = buildClaudeMcpServersEnv({
