@@ -97,6 +97,31 @@ function getShell(): string {
 	return process.env.SHELL || "/bin/bash";
 }
 
+/**
+ * Prepend common user/local install locations to PATH so binaries like
+ * `claude` (~/.local/bin) and Homebrew tools (/opt/homebrew/bin,
+ * /usr/local/bin) are resolvable even when QCut is launched from Finder
+ * with a minimal GUI environment. No-op on Windows.
+ */
+function augmentPathForSpawn(envPath: string | undefined): string | undefined {
+	if (platform() === "win32") return envPath;
+	const home = process.env.HOME;
+	const candidates = [
+		home ? `${home}/.local/bin` : "",
+		"/opt/homebrew/bin",
+		"/usr/local/bin",
+		"/usr/bin",
+		"/bin",
+		"/usr/sbin",
+		"/sbin",
+	].filter((entry): entry is string => entry.length > 0);
+	const existing = (envPath ?? "").split(":").filter((p) => p.length > 0);
+	const existingSet = new Set(existing);
+	const additions = candidates.filter((c) => !existingSet.has(c));
+	if (additions.length === 0) return envPath;
+	return [...additions, ...existing].join(":");
+}
+
 /** Return default shell arguments. */
 function getShellArgs(): string[] {
 	if (platform() === "win32") return [];
@@ -173,6 +198,7 @@ export class UtilityPtyManager {
 
 			const spawnCwd = msg.cwd || process.cwd();
 			const spawnEnv: NodeJS.ProcessEnv = { ...process.env, ...msg.env };
+			spawnEnv.PATH = augmentPathForSpawn(spawnEnv.PATH);
 
 			// Wire up MCP server for Claude commands
 			const isClaudeCommand =

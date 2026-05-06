@@ -114,6 +114,31 @@ function getShellArgs(): string[] {
 	return ["-l"]; // Login shell on Unix
 }
 
+/**
+ * Prepend common user/local install locations to PATH so binaries like
+ * `claude` (~/.local/bin) and Homebrew tools (/opt/homebrew/bin,
+ * /usr/local/bin) are resolvable even when QCut is launched from Finder
+ * with a minimal GUI environment. No-op on Windows.
+ */
+function augmentPathForSpawn(envPath: string | undefined): string | undefined {
+	if (platform() === "win32") return envPath;
+	const home = process.env.HOME;
+	const candidates = [
+		home ? `${home}/.local/bin` : "",
+		"/opt/homebrew/bin",
+		"/usr/local/bin",
+		"/usr/bin",
+		"/bin",
+		"/usr/sbin",
+		"/sbin",
+	].filter((entry): entry is string => entry.length > 0);
+	const existing = (envPath ?? "").split(":").filter((p) => p.length > 0);
+	const existingSet = new Set(existing);
+	const additions = candidates.filter((c) => !existingSet.has(c));
+	if (additions.length === 0) return envPath;
+	return [...additions, ...existing].join(":");
+}
+
 /** Locate the QCut MCP server entry point in dev or packaged paths. */
 function resolveQcutMcpServerEntry(): string | null {
 	const candidates = [
@@ -284,6 +309,7 @@ export function setupPtyIPC(): void {
 					...process.env,
 					...options.env, // Merge additional env vars (e.g., OPENROUTER_API_KEY)
 				};
+				spawnEnv.PATH = augmentPathForSpawn(spawnEnv.PATH);
 
 				const isClaudeCommand =
 					typeof options.command === "string" &&
