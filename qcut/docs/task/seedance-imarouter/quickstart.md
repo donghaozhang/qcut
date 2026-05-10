@@ -10,6 +10,8 @@ export IMAROUTER_API_KEY="sk-..."
 
 ## 2. Run the script
 
+> Run the commands below from the `qcut/` directory (`cd qcut` from the repo root). Outputs are written next to the script so they stay covered by `docs/task/seedance-imarouter/.gitignore`.
+
 Text-to-video (default):
 
 ```bash
@@ -18,7 +20,7 @@ node docs/task/seedance-imarouter/seedance-generate.mjs \
   --model seedance-2.0-fast \
   --duration 5 \
   --resolution 720p \
-  --out ./out.mp4
+  --out docs/task/seedance-imarouter/out.mp4
 ```
 
 Image-to-video:
@@ -31,7 +33,7 @@ node docs/task/seedance-imarouter/seedance-generate.mjs \
   --duration 10 \
   --aspect-ratio 16:9 \
   --audio \
-  --out ./tea.mp4
+  --out docs/task/seedance-imarouter/tea.mp4
 ```
 
 Submit only (skip polling, just print the task id):

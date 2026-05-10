@@ -11,3 +11,6 @@
 *.png
 *.gif
 *.webp
+
+# Local config / API keys (script uses ~/.qcut/.env, but guard anyway)
+.env

@@ -4,15 +4,16 @@
 // Asset upload (Portrait): https://doc.imarouter.com/#en/tag/portrait
 // Run: node seedance-generate.mjs --prompt "..." [flags]
 
-import { writeFile, readFile } from "node:fs/promises";
+import { writeFile, readFile, mkdir } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createWriteStream } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const ENV_PATH = join(SCRIPT_DIR, ".env");
+const ENV_PATH = join(homedir(), ".qcut", ".env");
 
 async function loadDotEnv(path) {
 	try {
@@ -20,8 +21,8 @@ async function loadDotEnv(path) {
 		for (const line of text.split("\n")) {
 			const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/i);
 			if (!m) continue;
-			const [, k, rawV] = m;
-			const v = rawV.replace(/^['"]|['"]$/g, "");
+			const k = m[1].toUpperCase();
+			const v = m[2].trim().replace(/^['"]|['"]$/g, "");
 			if (process.env[k] === undefined) process.env[k] = v;
 		}
 	} catch {
@@ -31,6 +32,7 @@ async function loadDotEnv(path) {
 await loadDotEnv(ENV_PATH);
 
 async function upsertDotEnv(updates) {
+	await mkdir(dirname(ENV_PATH), { recursive: true });
 	let text = "";
 	try { text = await readFile(ENV_PATH, "utf8"); } catch { /* fresh file */ }
 	const lines = text.split("\n");
@@ -38,7 +40,7 @@ async function upsertDotEnv(updates) {
 	const out = lines.map((line) => {
 		const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=/i);
 		if (!m) return line;
-		const k = m[1];
+		const k = m[1].toUpperCase();
 		if (Object.hasOwn(updates, k)) {
 			seen.add(k);
 			return `${k}=${updates[k]}`;
@@ -117,7 +119,7 @@ function parseArgs(argv) {
 function printHelp() {
 	console.log(`Usage: node seedance-generate.mjs [flags]
 
-Required env: IMAROUTER_API_KEY (in ./env or process env)
+Required env: IMAROUTER_API_KEY (in ~/.qcut/.env or process env)
 See ./quickstart.md for the full flag list.`);
 }
 
@@ -318,7 +320,7 @@ async function main() {
 	console.log(`✓ video URL: ${url}`);
 	if (args.out) await downloadTo(url, args.out);
 	await writeFile(
-		`${args.out ?? "result"}.json`,
+		args.out ? `${args.out}.json` : join(SCRIPT_DIR, "result.json"),
 		JSON.stringify(result, null, 2),
 	);
 }
