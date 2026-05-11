@@ -5,7 +5,7 @@ API key precedence: $DASHSCOPE_API_KEY (set in shell or ~/.qcut/.env).
 """
 
 import os
-from openai import OpenAI
+from openai import APIError, OpenAI
 
 
 def main() -> None:
@@ -29,7 +29,9 @@ def main() -> None:
             ],
         )
         print(completion.choices[0].message.content)
-    except Exception as e:
+    except APIError as e:
+        # Narrow handler: lets unexpected local errors (typos, attr errors)
+        # surface instead of being swallowed by a blanket `except Exception`.
         print(f"Error message: {e}")
         print(
             "See: https://www.alibabacloud.com/help/model-studio/"

@@ -183,10 +183,16 @@ export class UtilityPtyManager {
 				// not detect a nested session and bail. CLAUDECODE alone is not
 				// enough — the CLI also sets CLAUDE_CODE_ENTRYPOINT,
 				// CLAUDE_CODE_EXECPATH, CLAUDE_CODE_SSE_PORT, AI_AGENT, etc.
-				delete spawnEnv.CLAUDECODE;
-				delete spawnEnv.AI_AGENT;
+				// Match case-insensitively: Windows env vars can land as
+				// `ClaudeCode` / `claudecode`, and `spawnEnv` is a plain object
+				// so bare `delete spawnEnv.CLAUDECODE` misses those casings.
 				for (const key of Object.keys(spawnEnv)) {
-					if (key.startsWith("CLAUDE_CODE_")) {
+					const upper = key.toUpperCase();
+					if (
+						upper === "CLAUDECODE" ||
+						upper === "AI_AGENT" ||
+						upper.startsWith("CLAUDE_CODE_")
+					) {
 						delete spawnEnv[key];
 					}
 				}
@@ -201,19 +207,32 @@ export class UtilityPtyManager {
 				});
 			}
 
+			// Windows env keys are case-insensitive at the OS level, but
+			// `spawnEnv` is a plain spread of `process.env` — bare
+			// `spawnEnv.PATH` returns `undefined` when the variable was set as
+			// `Path` / `path`. Fall back through common casings so binary
+			// resolution diagnostics work regardless of source.
 			const diagnostics = createSpawnDiagnostics({
 				shell,
 				args,
 				cwd: spawnCwd,
 				command: msg.command,
-				envPath: spawnEnv.PATH,
+				envPath: spawnEnv.PATH ?? spawnEnv.Path ?? spawnEnv.path,
 				platformName: platform(),
-				pathExtEnv: spawnEnv.PATHEXT,
+				pathExtEnv: spawnEnv.PATHEXT ?? spawnEnv.PathExt ?? spawnEnv.pathext,
 			});
 			logger.info("[UtilityPTY] ===== SPAWN =====");
 			logger.info(`[UtilityPTY] sessionId=${msg.sessionId}`);
 			logger.info(`[UtilityPTY] shell=${diagnostics.shell}`);
-			logger.info(`[UtilityPTY] args=${JSON.stringify(diagnostics.args)}`);
+			// Redact the command payload — args can contain raw user input
+			// (`["-c", msg.command]` on Unix) which may include tokens or
+			// prompts; log only the shell flags + a payload-length marker.
+			const safeArgs = diagnostics.args.map((arg) =>
+				typeof arg === "string" && arg.startsWith("-")
+					? arg
+					: `<redacted ${typeof arg === "string" ? arg.length : 0} chars>`
+			);
+			logger.info(`[UtilityPTY] args=${JSON.stringify(safeArgs)}`);
 			logger.info(
 				`[UtilityPTY] cwd=${diagnostics.cwd} (exists=${diagnostics.cwdExists})`
 			);

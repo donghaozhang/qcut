@@ -84,27 +84,46 @@ function parseArgs(argv) {
 	};
 	for (let i = 0; i < argv.length; i++) {
 		const a = argv[i];
-		const next = () => argv[++i];
+		// Read the next argv slot as the value for a value-taking flag.
+		// Errors out with a clear message instead of letting `undefined` /
+		// `NaN` propagate into payload assembly or HTTP calls.
+		const requireValue = () => {
+			const v = argv[++i];
+			if (v === undefined) {
+				console.error(`Missing value for ${a}`);
+				process.exit(1);
+			}
+			return v;
+		};
+		const requireNumber = () => {
+			const raw = requireValue();
+			const n = Number(raw);
+			if (!Number.isFinite(n)) {
+				console.error(`Invalid number for ${a}: ${raw}`);
+				process.exit(1);
+			}
+			return n;
+		};
 		switch (a) {
-			case "--prompt": args.prompt = next(); break;
-			case "--model": args.model = next(); break;
-			case "--duration": args.duration = Number(next()); break;
-			case "--resolution": args.resolution = next(); break;
-			case "--aspect-ratio": args.aspectRatio = next(); break;
-			case "--size": args.size = next(); break;
-			case "--image": args.images.push(next()); break;
-			case "--upload": args.uploads.push(next()); break;
-			case "--ref-video": args.refVideos.push(next()); break;
-			case "--ref-audio": args.refAudios.push(next()); break;
-			case "--role-mode": args.roleMode = next(); break;
+			case "--prompt": args.prompt = requireValue(); break;
+			case "--model": args.model = requireValue(); break;
+			case "--duration": args.duration = requireNumber(); break;
+			case "--resolution": args.resolution = requireValue(); break;
+			case "--aspect-ratio": args.aspectRatio = requireValue(); break;
+			case "--size": args.size = requireValue(); break;
+			case "--image": args.images.push(requireValue()); break;
+			case "--upload": args.uploads.push(requireValue()); break;
+			case "--ref-video": args.refVideos.push(requireValue()); break;
+			case "--ref-audio": args.refAudios.push(requireValue()); break;
+			case "--role-mode": args.roleMode = requireValue(); break;
 			case "--audio": args.audio = true; break;
-			case "--out": args.out = next(); break;
+			case "--out": args.out = requireValue(); break;
 			case "--submit-only": args.submitOnly = true; break;
-			case "--task-id": args.taskId = next(); break;
-			case "--poll-interval": args.pollInterval = Number(next()); break;
-			case "--timeout": args.timeout = Number(next()); break;
-			case "--asset-timeout": args.assetTimeout = Number(next()); break;
-			case "--group-name": args.groupName = next(); break;
+			case "--task-id": args.taskId = requireValue(); break;
+			case "--poll-interval": args.pollInterval = requireNumber(); break;
+			case "--timeout": args.timeout = requireNumber(); break;
+			case "--asset-timeout": args.assetTimeout = requireNumber(); break;
+			case "--group-name": args.groupName = requireValue(); break;
 			case "--reset-group": args.resetGroup = true; break;
 			case "-h":
 			case "--help": args.help = true; break;
@@ -248,6 +267,13 @@ async function submit(args) {
 		body: JSON.stringify(payload),
 	});
 	const id = res.task_id ?? res.id;
+	// Fail fast — polling `/v1/videos/undefined` masks the real failure
+	// shape (the API often returns `{ code, message }` on rejection).
+	if (!id) {
+		throw new Error(
+			`submit returned no task id; raw response: ${JSON.stringify(res)}`,
+		);
+	}
 	console.log(`✓ task submitted: ${id}`);
 	return id;
 }

@@ -294,10 +294,16 @@ export function setupPtyIPC(): void {
 					// does not detect a nested session and bail. CLAUDECODE alone is
 					// not enough — the CLI also sets CLAUDE_CODE_ENTRYPOINT,
 					// CLAUDE_CODE_EXECPATH, CLAUDE_CODE_SSE_PORT, AI_AGENT, etc.
-					delete spawnEnv.CLAUDECODE;
-					delete spawnEnv.AI_AGENT;
+					// Match case-insensitively: Windows env vars can land as
+					// `ClaudeCode` / `claudecode`, and `spawnEnv` is a plain object
+					// so a bare `delete spawnEnv.CLAUDECODE` misses those casings.
 					for (const key of Object.keys(spawnEnv)) {
-						if (key.startsWith("CLAUDE_CODE_")) {
+						const upper = key.toUpperCase();
+						if (
+							upper === "CLAUDECODE" ||
+							upper === "AI_AGENT" ||
+							upper.startsWith("CLAUDE_CODE_")
+						) {
 							delete spawnEnv[key];
 						}
 					}

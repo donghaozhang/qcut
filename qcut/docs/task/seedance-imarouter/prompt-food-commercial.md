@@ -42,5 +42,5 @@ node seedance-generate.mjs \
   --duration 5 \
   --resolution 1080p \
   --aspect-ratio 16:9 \
-  --out docs/task/seedance-imarouter/test-food-5s.mp4
+  --out test-food-5s.mp4
 ```
