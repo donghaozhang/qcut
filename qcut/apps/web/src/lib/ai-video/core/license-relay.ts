@@ -57,7 +57,14 @@ export interface ProxySubmitCredits {
 }
 
 export interface ProxySubmitOptions {
-	provider: "fal" | "gmi" | "runway" | "elevenlabs" | "gemini" | "openrouter";
+	provider:
+		| "fal"
+		| "gmi"
+		| "runway"
+		| "elevenlabs"
+		| "gemini"
+		| "openrouter"
+		| "imarouter";
 	/** Full provider endpoint URL (e.g. `https://console.gmicloud.ai/api/v1/...`). */
 	endpoint: string;
 	method?: "POST" | "GET" | "PUT" | "DELETE";
@@ -150,7 +157,7 @@ export async function refundCredits(
 }
 
 export interface ProxyStatusOptions {
-	provider: "fal" | "gmi";
+	provider: "fal" | "gmi" | "imarouter";
 	requestId: string;
 	/** Required for FAL; optional/ignored for GMI (server constructs the URL). */
 	endpoint?: string;

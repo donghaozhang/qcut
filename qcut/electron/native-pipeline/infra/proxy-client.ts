@@ -447,6 +447,30 @@ export async function callModelApiViaProxy(
 			}
 		}
 
+		if (provider === "imarouter") {
+			// Submit response shape: `{ task_id }` (or `{ id }` in older builds).
+			// pollViaProxy uppercases the status enum so IMA Router's lowercase
+			// `completed | failed` falls into the existing COMPLETED / FAILED
+			// branches, and `extractOutputUrl` already understands
+			// `results: [{ url }]`.
+			const taskId =
+				typeof data.task_id === "string"
+					? data.task_id
+					: typeof data.id === "string"
+						? data.id
+						: "";
+			if (taskId) {
+				return pollViaProxy({
+					provider: "imarouter",
+					endpoint,
+					requestId: taskId,
+					onProgress: options.onProgress,
+					signal,
+					startTime,
+				});
+			}
+		}
+
 		return {
 			success: true,
 			data,

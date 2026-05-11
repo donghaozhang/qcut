@@ -24,4 +24,5 @@ AI_PROXY_RATE_LIMIT = "60"
 # wrangler secret put GMI_API_KEY
 # wrangler secret put RUNWAY_API_KEY
 # wrangler secret put FREESOUND_API_KEY
+# wrangler secret put IMAROUTER_API_KEY
 # wrangler secret put ADMIN_API_KEY

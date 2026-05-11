@@ -11,7 +11,8 @@ export type AiProvider =
 	| "gmi"
 	| "gmi-llm"
 	| "runway"
-	| "freesound";
+	| "freesound"
+	| "imarouter";
 
 interface ProviderConfig {
 	envVar: string;
@@ -68,6 +69,11 @@ const PROVIDER_CONFIGS: Record<AiProvider, ProviderConfig> = {
 		envVar: "FREESOUND_API_KEY",
 		buildHeaders: (key) => ({ Authorization: `Token ${key}` }),
 		allowedPrefixes: ["https://freesound.org/apiv2/"],
+	},
+	imarouter: {
+		envVar: "IMAROUTER_API_KEY",
+		buildHeaders: (key) => ({ Authorization: `Bearer ${key}` }),
+		allowedPrefixes: ["https://api.imarouter.com/"],
 	},
 };
 
