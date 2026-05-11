@@ -81,6 +81,21 @@ interface GmiStatusResponse {
 	error?: string;
 }
 
+interface ImaRouterSubmitResponse {
+	task_id?: string;
+	id?: string;
+	code?: number | string;
+	message?: string;
+}
+
+interface ImaRouterStatusResponse {
+	status?: "queued" | "in_progress" | "completed" | "failed" | string;
+	progress?: number;
+	results?: Array<{ url?: string }>;
+	error?: { code?: number | string; message?: string } | string;
+	message?: string;
+}
+
 const FAL_TRUSTED_HOSTS = [".fal.run", ".fal.ai"];
 
 /**
@@ -256,6 +271,8 @@ export function envApiKeyProvider(provider: ProviderName): Promise<string> {
 			return Promise.resolve(process.env.GMI_API_KEY || "");
 		case "runway":
 			return Promise.resolve(process.env.RUNWAY_API_KEY || "");
+		case "imarouter":
+			return Promise.resolve(process.env.IMAROUTER_API_KEY || "");
 	}
 }
 
@@ -287,6 +304,15 @@ async function defaultApiKeyProvider(provider: ProviderName): Promise<string> {
 				return process.env.GMI_API_KEY || keys.gmiApiKey || "";
 			case "runway":
 				return process.env.RUNWAY_API_KEY || keys.runwayApiKey || "";
+			case "imarouter":
+				// `keys.imarouterApiKey` is read defensively — older encrypted-store
+				// blobs don't have the field, and accessing it via the typed accessor
+				// returns undefined which the `||` chain handles.
+				return (
+					process.env.IMAROUTER_API_KEY ||
+					(keys as { imarouterApiKey?: string }).imarouterApiKey ||
+					""
+				);
 		}
 	} catch {
 		// Not in Electron — fall through to env vars
@@ -337,6 +363,9 @@ function buildHeaders(
 		case "runway":
 			headers.Authorization = `Bearer ${apiKey}`;
 			headers["X-Runway-Version"] = "2024-11-06";
+			break;
+		case "imarouter":
+			headers.Authorization = `Bearer ${apiKey}`;
 			break;
 	}
 	return headers;
@@ -611,7 +640,93 @@ async function pollGmiQueue(
 	};
 }
 
-export { extractOutputUrl };
+const IMAROUTER_MAX_POLL_MS = 30 * 60 * 1000; // 30 min ceiling
+
+/**
+ * Poll an IMA Router video task until completion, failure, or timeout.
+ *
+ * Shape:
+ *   submit:  POST /v1/videos                  → { task_id }
+ *   poll:    GET  /v1/videos/{task_id}        → { status, progress, results: [{ url }] }
+ *
+ * Mirrors the GMI poller but reads IMA Router's lowercase status enum
+ * (`queued | in_progress | completed | failed`) and surfaces error
+ * payloads when the task ends in `failed`.
+ */
+async function pollImaRouterTask(
+	taskId: string,
+	options?: {
+		onProgress?: (percent: number, message: string) => void;
+		signal?: AbortSignal;
+	}
+): Promise<ApiCallResult> {
+	const startTime = Date.now();
+	const apiKey = await getApiKey("imarouter");
+	const headers = buildHeaders("imarouter", apiKey);
+	const statusUrl = buildProviderUrl("imarouter", `v1/videos/${taskId}`);
+
+	let lastPercent = -1;
+	while (Date.now() - startTime < IMAROUTER_MAX_POLL_MS) {
+		if (options?.signal?.aborted) {
+			return {
+				success: false,
+				error: "Cancelled",
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+
+		const res = await fetch(statusUrl, { headers, signal: options?.signal });
+		if (!res.ok) {
+			const body = await res.text();
+			return {
+				success: false,
+				error: `IMA Router status error ${res.status}: ${redactErrorPreview(body)}`,
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+		const status = (await res.json()) as ImaRouterStatusResponse;
+
+		const percent =
+			typeof status.progress === "number"
+				? Math.max(0, Math.min(100, Math.round(status.progress)))
+				: lastPercent;
+		if (options?.onProgress && percent !== lastPercent) {
+			lastPercent = percent;
+			options.onProgress(percent, status.status ?? "in_progress");
+		}
+
+		if (status.status === "completed") {
+			return {
+				success: true,
+				data: status,
+				outputUrl: extractOutputUrl(status),
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+		if (status.status === "failed") {
+			const errMsg =
+				typeof status.error === "string"
+					? status.error
+					: (status.error?.message ?? status.message ?? "task failed");
+			return {
+				success: false,
+				error: `IMA Router task ${taskId} failed: ${errMsg}`,
+				duration: (Date.now() - startTime) / 1000,
+			};
+		}
+
+		const interval = getAdaptivePollInterval(Date.now() - startTime);
+		await new Promise((r) => setTimeout(r, interval));
+	}
+
+	return {
+		success: false,
+		error: `IMA Router task ${taskId} timed out after ${IMAROUTER_MAX_POLL_MS / 1000}s`,
+		duration: (Date.now() - startTime) / 1000,
+	};
+}
+
+export { extractOutputUrl, pollImaRouterTask };
 
 /**
  * Call a provider endpoint and normalize the result payload.
@@ -626,7 +741,9 @@ export async function callModelApi(
 		endpoint,
 		payload,
 		provider,
-		timeoutMs = provider === "gmi" ? GMI_TIMEOUT_MS : DEFAULT_TIMEOUT_MS,
+		timeoutMs = provider === "gmi" || provider === "imarouter"
+			? GMI_TIMEOUT_MS
+			: DEFAULT_TIMEOUT_MS,
 		retries = DEFAULT_RETRIES,
 		signal,
 	} = options;
@@ -798,6 +915,44 @@ export async function callModelApi(
 			}
 
 			return pollGmiQueue(requestId, {
+				onProgress: options.onProgress,
+				signal: combinedSignal,
+			});
+		} else if (provider === "imarouter") {
+			// IMA Router: POST /v1/videos with the full payload (no model-name
+			// envelope like GMI); endpoint is the path, payload already includes
+			// `model`, `prompt`, etc. assembled by the step executor.
+			const submitRes = await fetchWithRetry(
+				url,
+				{
+					method: "POST",
+					headers,
+					body: JSON.stringify(payload),
+					signal: combinedSignal,
+				},
+				retries
+			);
+
+			if (!submitRes.ok) {
+				const body = await submitRes.text();
+				return {
+					success: false,
+					error: `IMA Router submit error ${submitRes.status}: ${redactErrorPreview(body)}`,
+					duration: (Date.now() - startTime) / 1000,
+				};
+			}
+
+			const submitData = (await submitRes.json()) as ImaRouterSubmitResponse;
+			const taskId = submitData.task_id || submitData.id;
+			if (!taskId) {
+				return {
+					success: false,
+					error: `IMA Router submit did not return a task id: ${submitData.message ?? JSON.stringify(submitData)}`,
+					duration: (Date.now() - startTime) / 1000,
+				};
+			}
+
+			return pollImaRouterTask(taskId, {
 				onProgress: options.onProgress,
 				signal: combinedSignal,
 			});

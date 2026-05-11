@@ -103,8 +103,11 @@ describe("api-key-vocabulary", () => {
 	});
 
 	it("full vocabulary covers every GUI-managed field", () => {
-		expect(getQcutEnvKeyNames()).toHaveLength(8);
-		expect(Object.keys(QCUT_ENV_MAP)).toHaveLength(8);
+		// 9 keys: original 8 + IMAROUTER_API_KEY added when the IMA Router
+		// provider was wired in. Bump again whenever a new field lands in
+		// `ApiKeys` / `QCUT_ENV_MAP`.
+		expect(getQcutEnvKeyNames()).toHaveLength(9);
+		expect(Object.keys(QCUT_ENV_MAP)).toHaveLength(9);
 	});
 
 	it("AICP vocabulary stays a strict subset (adding keys should not accidentally promote to AICP)", () => {

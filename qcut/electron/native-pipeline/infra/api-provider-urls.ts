@@ -11,7 +11,8 @@ export type ProviderName =
 	| "volcengine"
 	| "gmi"
 	| "gmi-llm"
-	| "runway";
+	| "runway"
+	| "imarouter";
 
 export const FAL_BASE = "https://queue.fal.run";
 export const FAL_STATUS_BASE = "https://queue.fal.run";
@@ -22,6 +23,7 @@ export const VOLCENGINE_BASE = "https://ark.cn-beijing.volces.com/api/v3";
 const GMI_BASE = "https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey";
 const GMI_LLM_BASE = "https://api.gmi-serving.com/v1";
 const RUNWAY_BASE = "https://api.runwayml.com/v1";
+export const IMAROUTER_BASE = "https://api.imarouter.com";
 
 /** Build a fully qualified provider URL from a logical endpoint path. */
 export function buildProviderUrl(
@@ -45,6 +47,8 @@ export function buildProviderUrl(
 			return `${GMI_LLM_BASE}/${endpoint}`;
 		case "runway":
 			return `${RUNWAY_BASE}/${endpoint}`;
+		case "imarouter":
+			return `${IMAROUTER_BASE}/${endpoint.replace(/^\/+/, "")}`;
 	}
 }
 
@@ -75,6 +79,11 @@ export function extractOutputUrl(data: unknown): string | undefined {
 	}
 	if (Array.isArray(obj.media_urls) && obj.media_urls.length > 0) {
 		const first = obj.media_urls[0] as Record<string, unknown>;
+		if (typeof first?.url === "string") return first.url;
+	}
+	// IMA Router shape: `{ status: "completed", results: [{ url: "..." }] }`
+	if (Array.isArray(obj.results) && obj.results.length > 0) {
+		const first = obj.results[0] as Record<string, unknown>;
 		if (typeof first?.url === "string") return first.url;
 	}
 	// GMI outcome shape: `{ outcome: { video_url: "..." } }` for Seedance 2.0 and

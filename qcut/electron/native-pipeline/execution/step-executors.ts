@@ -100,6 +100,40 @@ function getProviderForEndpoint(endpoint: string): ProviderName {
 	return "fal";
 }
 
+/**
+ * Reshape a flat payload into the IMA Router `/v1/videos` body shape:
+ * top-level `{ model, prompt, duration, images?, size? }` plus a nested
+ * `metadata` object for resolution / aspect_ratio / audio / role_mode /
+ * reference_video_urls / reference_audio_urls. Keys absent from the flat
+ * payload stay absent from `metadata` so we never emit empty containers.
+ */
+function reshapeForImaRouter(
+	payload: Record<string, unknown>
+): Record<string, unknown> {
+	const out: Record<string, unknown> = {};
+	const metadata: Record<string, unknown> = {};
+	const METADATA_KEYS = new Set([
+		"resolution",
+		"aspect_ratio",
+		"audio",
+		"role_mode",
+		"reference_video_urls",
+		"reference_audio_urls",
+	]);
+	for (const [k, v] of Object.entries(payload)) {
+		if (v === undefined || v === null) continue;
+		if (METADATA_KEYS.has(k)) metadata[k] = v;
+		else out[k] = v;
+	}
+	// `size` (WxH) overrides `resolution` per IMA Router spec — drop the
+	// duplicate metadata.resolution so the API picks the explicit size.
+	if (typeof out.size === "string" && "resolution" in metadata) {
+		delete metadata.resolution;
+	}
+	if (Object.keys(metadata).length > 0) out.metadata = metadata;
+	return out;
+}
+
 /** Execute a single pipeline step with the given model, input, and parameters. */
 export async function executeStep(
 	model: ModelDefinition,
@@ -350,10 +384,13 @@ async function executeTextToVideo(
 		payload.frame_interpolation = model.defaults.frame_interpolation;
 	}
 
+	const submitPayload =
+		provider === "imarouter" ? reshapeForImaRouter(payload) : payload;
+
 	const result = await callModelApi({
 		endpoint: model.endpoint,
 		modelKey: model.key,
-		payload,
+		payload: submitPayload,
 		provider,
 		onProgress: options.onProgress,
 		signal: options.signal,
@@ -458,6 +495,30 @@ async function executeImageToVideo(
 			if (typeof payload.duration === "number") {
 				payload.duration = String(payload.duration);
 			}
+		} else if (provider === "imarouter") {
+			// IMA Router routes through `/v1/assets/create` for portrait /
+			// real-people refs (rejected as inline URLs with Error 601400),
+			// then sends `images: ["asset://..."]` to `/v1/videos`. Channel
+			// (overseas vs CN) determines the upload model — never mix.
+			const { channelFor, ensureGroup, uploadAsset } = await import(
+				"../infra/imarouter-assets.js"
+			);
+			const channel = channelFor(model.key);
+			const { envApiKeyProvider } = await import("../infra/api-caller.js");
+			const apiKey = await envApiKeyProvider("imarouter");
+			if (!apiKey) {
+				return {
+					success: false,
+					error: "IMAROUTER_API_KEY not configured",
+					duration: 0,
+				};
+			}
+			const groupId = await ensureGroup(channel, { apiKey });
+			const assetUrl = await uploadAsset(imageUrl, channel, groupId, {
+				apiKey,
+				signal: options.signal,
+			});
+			payload.images = [assetUrl];
 		} else {
 			payload.image_url = imageUrl;
 		}
@@ -500,10 +561,13 @@ async function executeImageToVideo(
 		payload.image_urls = resolved;
 	}
 
+	const submitPayload =
+		provider === "imarouter" ? reshapeForImaRouter(payload) : payload;
+
 	const result = await callModelApi({
 		endpoint: model.endpoint,
 		modelKey: model.key,
-		payload,
+		payload: submitPayload,
 		provider,
 		onProgress: options.onProgress,
 		signal: options.signal,

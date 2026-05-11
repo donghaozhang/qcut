@@ -88,6 +88,7 @@ beforeEach(() => {
 	process.env.ELEVENLABS_API_KEY = "test-elevenlabs-key";
 	process.env.GMI_API_KEY = "test-gmi-key";
 	process.env.RUNWAY_API_KEY = "test-runway-key";
+	process.env.IMAROUTER_API_KEY = "test-imarouter-key";
 	process.env.AI_PROXY_RATE_LIMIT = "1000"; // high limit for tests
 });
 
@@ -169,6 +170,37 @@ describe("POST /api/ai/proxy", () => {
 		const [url, opts] = mockFetch.mock.calls[0];
 		expect(url).toBe("https://queue.fal.run/fal-ai/test");
 		expect(opts.headers.Authorization).toBe("Key test-fal-key");
+	});
+
+	it("forwards request to IMA Router with Bearer auth and only its allowed prefix", async () => {
+		// Allowed: api.imarouter.com — verifies the SSRF whitelist update.
+		mockProviderResponse({ task_id: "task_imr_001" });
+
+		const res = await buildApp().request("/api/ai/proxy", {
+			method: "POST",
+			headers: jsonHeaders(),
+			body: JSON.stringify({
+				provider: "imarouter",
+				endpoint: "https://api.imarouter.com/v1/videos",
+				body: { model: "seedance-2.0", prompt: "a sunset" },
+			}),
+		});
+
+		expect(res.status).toBe(200);
+		const [url, opts] = mockFetch.mock.calls[0];
+		expect(url).toBe("https://api.imarouter.com/v1/videos");
+		expect(opts.headers.Authorization).toBe("Bearer test-imarouter-key");
+		// Disallowed off-prefix host stays blocked.
+		const denied = await buildApp().request("/api/ai/proxy", {
+			method: "POST",
+			headers: jsonHeaders(),
+			body: JSON.stringify({
+				provider: "imarouter",
+				endpoint: "https://evil.example/v1/videos",
+				body: {},
+			}),
+		});
+		expect(denied.status).toBe(403);
 	});
 
 	it("forwards request with Gemini auth format", async () => {
@@ -470,6 +502,18 @@ describe("GET /api/ai/status", () => {
 		expect(url).toBe(
 			"https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey/requests/gmi-req-456"
 		);
+	});
+
+	it("polls IMA Router status with correct URL + Bearer auth", async () => {
+		mockProviderResponse({ status: "in_progress", progress: 30 });
+
+		await buildApp().request(
+			"/api/ai/status?provider=imarouter&requestId=task_abc123"
+		);
+
+		const [url, opts] = mockFetch.mock.calls[0];
+		expect(url).toBe("https://api.imarouter.com/v1/videos/task_abc123");
+		expect(opts.headers.Authorization).toBe("Bearer test-imarouter-key");
 	});
 
 	it("returns 400 for providers that don't support polling", async () => {

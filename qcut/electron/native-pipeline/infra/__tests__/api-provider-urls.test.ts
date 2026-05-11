@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { extractOutputUrl } from "../api-provider-urls.js";
+import { buildProviderUrl, extractOutputUrl } from "../api-provider-urls.js";
 
 describe("extractOutputUrl", () => {
 	it("returns undefined for null/non-object input", () => {
@@ -93,5 +93,28 @@ describe("extractOutputUrl", () => {
 
 	it("returns undefined when no recognized URL field is present", () => {
 		expect(extractOutputUrl({ status: "success", cost: 0.26 })).toBeUndefined();
+	});
+
+	it("extracts IMA Router results[0].url shape", () => {
+		// IMA Router poll response: `{ status: "completed", results: [{ url: "..." }] }`
+		expect(
+			extractOutputUrl({
+				status: "completed",
+				progress: 100,
+				results: [{ url: "https://imarouter.example/v.mp4" }],
+			})
+		).toBe("https://imarouter.example/v.mp4");
+	});
+});
+
+describe("buildProviderUrl", () => {
+	it("joins imarouter endpoints onto the base URL", () => {
+		expect(buildProviderUrl("imarouter", "v1/videos")).toBe(
+			"https://api.imarouter.com/v1/videos"
+		);
+		// Tolerate a leading slash — registry-data sometimes writes "/v1/...".
+		expect(buildProviderUrl("imarouter", "/v1/assets/create")).toBe(
+			"https://api.imarouter.com/v1/assets/create"
+		);
 	});
 });

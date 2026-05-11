@@ -39,6 +39,7 @@ export interface ApiKeys {
 	elevenLabsApiKey: string;
 	gmiApiKey: string;
 	runwayApiKey: string;
+	imarouterApiKey: string;
 }
 
 /** The canonical set of QCut-managed fields, in the order the GUI displays them. */
@@ -51,6 +52,7 @@ export const API_KEY_FIELDS = [
 	"elevenLabsApiKey",
 	"gmiApiKey",
 	"runwayApiKey",
+	"imarouterApiKey",
 ] as const satisfies ReadonlyArray<keyof ApiKeys>;
 
 export type ApiKeyField = (typeof API_KEY_FIELDS)[number];
@@ -72,6 +74,7 @@ export const QCUT_ENV_MAP = {
 	elevenLabsApiKey: "ELEVENLABS_API_KEY",
 	gmiApiKey: "GMI_API_KEY",
 	runwayApiKey: "RUNWAY_API_KEY",
+	imarouterApiKey: "IMAROUTER_API_KEY",
 } as const satisfies Record<ApiKeyField, string>;
 
 /**

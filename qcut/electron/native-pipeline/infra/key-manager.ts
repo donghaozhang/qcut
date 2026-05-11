@@ -43,6 +43,7 @@ const KEY_NAMES = [
 	"SYNTHESIA_API_KEY",
 	"ARK_API_KEY",
 	"GMI_API_KEY",
+	"IMAROUTER_API_KEY",
 	"QCUT_AUTH_TOKEN",
 ] as const;
 

@@ -26,6 +26,7 @@ type EditableApiKeyField =
 	| "freesoundApiKey"
 	| "geminiApiKey"
 	| "gmiApiKey"
+	| "imarouterApiKey"
 	| "openRouterApiKey"
 	| "runwayApiKey";
 
@@ -36,6 +37,7 @@ const EDITABLE_API_KEY_FIELDS: readonly EditableApiKeyField[] = [
 	"freesoundApiKey",
 	"geminiApiKey",
 	"gmiApiKey",
+	"imarouterApiKey",
 	"openRouterApiKey",
 	"runwayApiKey",
 ];
@@ -138,6 +140,7 @@ export function ApiKeysView() {
 	const [anthropicApiKey, setAnthropicApiKey] = useState("");
 	const [elevenLabsApiKey, setElevenLabsApiKey] = useState("");
 	const [gmiApiKey, setGmiApiKey] = useState("");
+	const [imaRouterApiKey, setImaRouterApiKey] = useState("");
 	const [runwayApiKey, setRunwayApiKey] = useState("");
 	const [dirtyFields, setDirtyFields] = useState<
 		Partial<Record<EditableApiKeyField, boolean>>
@@ -164,6 +167,7 @@ export function ApiKeysView() {
 				setAnthropicApiKey(keys.anthropicApiKey || "");
 				setElevenLabsApiKey(keys.elevenLabsApiKey || "");
 				setGmiApiKey(keys.gmiApiKey || "");
+				setImaRouterApiKey(keys.imarouterApiKey || "");
 				setRunwayApiKey(keys.runwayApiKey || "");
 				setDirtyFields({});
 			}
@@ -194,6 +198,7 @@ export function ApiKeysView() {
 				freesoundApiKey: freesoundApiKey.trim(),
 				geminiApiKey: geminiApiKey.trim(),
 				gmiApiKey: gmiApiKey.trim(),
+				imarouterApiKey: imaRouterApiKey.trim(),
 				openRouterApiKey: openRouterApiKey.trim(),
 				runwayApiKey: runwayApiKey.trim(),
 			};
@@ -248,6 +253,7 @@ export function ApiKeysView() {
 		anthropicApiKey,
 		elevenLabsApiKey,
 		gmiApiKey,
+		imaRouterApiKey,
 		runwayApiKey,
 	]);
 
@@ -521,6 +527,30 @@ export function ApiKeysView() {
 					status: keyStatuses?.gmiApiKey,
 				})}
 				activeSource={getActiveSource({ status: keyStatuses?.gmiApiKey })}
+			/>
+
+			<ApiKeyField
+				label={
+					<ApiKeyLabel status={keyStatuses?.imarouterApiKey}>
+						IMA Router API Key
+					</ApiKeyLabel>
+				}
+				description="For direct ByteDance Seedance 2.0 routing via https://imarouter.com — supports both overseas and mainland China (-cn) channels."
+				placeholder="Enter your IMA Router API key"
+				value={imaRouterApiKey}
+				onChange={(value) => {
+					setImaRouterApiKey(value);
+					markDirty({ field: "imarouterApiKey" });
+				}}
+				testId="imarouter-api-key-input"
+				shadowedBy={getShadowedBy({
+					fieldIsDirty: dirtyFields.imarouterApiKey === true,
+					status: keyStatuses?.imarouterApiKey,
+				})}
+				activeSource={getActiveSource({
+					status: keyStatuses?.imarouterApiKey,
+				})}
+				getKeyUrl="https://imarouter.com"
 			/>
 
 			<ApiKeyField

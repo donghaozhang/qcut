@@ -1,0 +1,7 @@
+# Local config / API keys
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/

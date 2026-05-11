@@ -636,6 +636,158 @@ export function registerTextToVideoModels(): void {
 		providerBackend: "gmi",
 	});
 
+	// IMA Router (api.imarouter.com) — direct ByteDance Seedance 2.0 routing.
+	// Submit `POST /v1/videos` + poll `GET /v1/videos/{task_id}`. Channel
+	// matters: overseas (`seedance-2.0`, `seedance-2.0-fast`) and CN
+	// (`-cn` suffix) cannot share asset groups. See
+	// docs/task/seedance-imarouter/imarouter-integration-plan.md.
+	ModelRegistry.register({
+		key: "imarouter_seedance_2_0_t2v",
+		name: "ByteDance Seedance 2.0 T2V (IMA Router)",
+		provider: "ByteDance (via IMA Router)",
+		endpoint: "v1/videos",
+		categories: ["text_to_video"],
+		description:
+			"Seedance 2.0 full quality via IMA Router overseas — 720p / 1080p, 5–15s, native audio toggle",
+		pricing: { type: "per_video", cost: 0.3 },
+		durationOptions: [
+			"5",
+			"6",
+			"7",
+			"8",
+			"9",
+			"10",
+			"11",
+			"12",
+			"13",
+			"14",
+			"15",
+		],
+		aspectRatios: ["16:9", "9:16", "1:1"],
+		resolutions: ["720p", "1080p"],
+		defaults: {
+			model: "seedance-2.0",
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+		},
+		features: [
+			"native_audio",
+			"reference_images",
+			"reference_videos",
+			"reference_audios",
+		],
+		maxDuration: 15,
+		costEstimate: 0.3,
+		processingTime: 120,
+		providerBackend: "imarouter",
+	});
+
+	ModelRegistry.register({
+		key: "imarouter_seedance_2_0_fast_t2v",
+		name: "ByteDance Seedance 2.0 Fast T2V (IMA Router)",
+		provider: "ByteDance (via IMA Router)",
+		endpoint: "v1/videos",
+		categories: ["text_to_video"],
+		description:
+			"Lower-latency Seedance 2.0 via IMA Router overseas — 720p ONLY (1080p rejected with unsupported_resolution_for_fast_variant), 5–10s",
+		pricing: { type: "per_video", cost: 0.12 },
+		durationOptions: ["5", "6", "7", "8", "9", "10"],
+		aspectRatios: ["16:9", "9:16", "1:1"],
+		resolutions: ["720p"],
+		defaults: {
+			model: "seedance-2.0-fast",
+			duration: 5,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+		},
+		features: [
+			"native_audio",
+			"reference_images",
+			"reference_videos",
+			"reference_audios",
+		],
+		maxDuration: 10,
+		costEstimate: 0.12,
+		processingTime: 60,
+		providerBackend: "imarouter",
+	});
+
+	// CN variants — mainland China endpoints. `model: "seedance-2.0-cn"` /
+	// `"seedance-2.0-fast-cn"` and the asset upload model `ima-pro-upload-cn`
+	// must match: overseas group ids cannot consume CN `asset://...` refs.
+	ModelRegistry.register({
+		key: "imarouter_seedance_2_0_cn_t2v",
+		name: "ByteDance Seedance 2.0 T2V (IMA Router CN)",
+		provider: "ByteDance (via IMA Router CN)",
+		endpoint: "v1/videos",
+		categories: ["text_to_video"],
+		description:
+			"Seedance 2.0 full quality via IMA Router mainland China — 720p / 1080p, 5–15s",
+		pricing: { type: "per_video", cost: 0.3 },
+		durationOptions: [
+			"5",
+			"6",
+			"7",
+			"8",
+			"9",
+			"10",
+			"11",
+			"12",
+			"13",
+			"14",
+			"15",
+		],
+		aspectRatios: ["16:9", "9:16", "1:1"],
+		resolutions: ["720p", "1080p"],
+		defaults: {
+			model: "seedance-2.0-cn",
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+		},
+		features: [
+			"native_audio",
+			"reference_images",
+			"reference_videos",
+			"reference_audios",
+		],
+		maxDuration: 15,
+		costEstimate: 0.3,
+		processingTime: 120,
+		providerBackend: "imarouter",
+	});
+
+	ModelRegistry.register({
+		key: "imarouter_seedance_2_0_fast_cn_t2v",
+		name: "ByteDance Seedance 2.0 Fast T2V (IMA Router CN)",
+		provider: "ByteDance (via IMA Router CN)",
+		endpoint: "v1/videos",
+		categories: ["text_to_video"],
+		description:
+			"Lower-latency Seedance 2.0 via IMA Router mainland China — 720p ONLY, 5–10s",
+		pricing: { type: "per_video", cost: 0.12 },
+		durationOptions: ["5", "6", "7", "8", "9", "10"],
+		aspectRatios: ["16:9", "9:16", "1:1"],
+		resolutions: ["720p"],
+		defaults: {
+			model: "seedance-2.0-fast-cn",
+			duration: 5,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+		},
+		features: [
+			"native_audio",
+			"reference_images",
+			"reference_videos",
+			"reference_audios",
+		],
+		maxDuration: 10,
+		costEstimate: 0.12,
+		processingTime: 60,
+		providerBackend: "imarouter",
+	});
+
 	// Alibaba Happy Horse — text-to-video. Supports 5 aspect ratios, 720p/1080p,
 	// duration 3–15s. FAL requires `duration` as an integer literal enum (3–15);
 	// the string form is rejected with literal_error (verified live 2026-04-30).

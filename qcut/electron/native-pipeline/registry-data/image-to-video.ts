@@ -1326,6 +1326,236 @@ export function registerImageToVideoModels(): void {
 		providerBackend: "gmi",
 	});
 
+	// ── IMA Router (api.imarouter.com) — overseas I2V / Ref2V ──────────────────
+	// Both shapes hit `POST /v1/videos`. The difference is how the reference
+	// images are sent: I2V puts the (single) anchor image into `images: [url]`
+	// at submit time; Ref2V supports up to 14 reference URLs and additionally
+	// honors `metadata.role_mode` for casting. For real-people refs the
+	// executor auto-routes through `/v1/assets/create` first (see
+	// `requiresAssetUpload`). Channel rule: NEVER mix overseas with `-cn`.
+	ModelRegistry.register({
+		key: "imarouter_seedance_2_0_i2v",
+		name: "ByteDance Seedance 2.0 I2V (IMA Router)",
+		provider: "ByteDance (via IMA Router)",
+		endpoint: "v1/videos",
+		categories: ["image_to_video"],
+		description:
+			"Seedance 2.0 image-to-video via IMA Router overseas — 720p / 1080p, 5–15s",
+		pricing: { type: "per_video", cost: 0.3 },
+		durationOptions: [
+			"5",
+			"6",
+			"7",
+			"8",
+			"9",
+			"10",
+			"11",
+			"12",
+			"13",
+			"14",
+			"15",
+		],
+		aspectRatios: ["16:9", "9:16", "1:1"],
+		resolutions: ["720p", "1080p"],
+		defaults: {
+			model: "seedance-2.0",
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+			role_mode: "frame",
+		},
+		features: [
+			"image_to_video",
+			"native_audio",
+			"reference_videos",
+			"reference_audios",
+		],
+		maxDuration: 15,
+		costEstimate: 0.3,
+		processingTime: 120,
+		providerBackend: "imarouter",
+		extendedFeatures: { requiresAssetUpload: true },
+	});
+
+	ModelRegistry.register({
+		key: "imarouter_seedance_2_0_fast_i2v",
+		name: "ByteDance Seedance 2.0 Fast I2V (IMA Router)",
+		provider: "ByteDance (via IMA Router)",
+		endpoint: "v1/videos",
+		categories: ["image_to_video"],
+		description:
+			"Lower-latency Seedance 2.0 I2V via IMA Router overseas — 720p ONLY, 5–10s",
+		pricing: { type: "per_video", cost: 0.12 },
+		durationOptions: ["5", "6", "7", "8", "9", "10"],
+		aspectRatios: ["16:9", "9:16", "1:1"],
+		resolutions: ["720p"],
+		defaults: {
+			model: "seedance-2.0-fast",
+			duration: 5,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+			role_mode: "frame",
+		},
+		features: ["image_to_video", "native_audio"],
+		maxDuration: 10,
+		costEstimate: 0.12,
+		processingTime: 60,
+		providerBackend: "imarouter",
+		extendedFeatures: { requiresAssetUpload: true },
+	});
+
+	ModelRegistry.register({
+		key: "imarouter_seedance_2_0_ref2v",
+		name: "ByteDance Seedance 2.0 Ref2V (IMA Router)",
+		provider: "ByteDance (via IMA Router)",
+		endpoint: "v1/videos",
+		categories: ["image_to_video"],
+		description:
+			"Seedance 2.0 reference-to-video via IMA Router overseas — up to 14 references, `role_mode: reference|frame`",
+		pricing: { type: "per_video", cost: 0.3 },
+		durationOptions: [
+			"5",
+			"6",
+			"7",
+			"8",
+			"9",
+			"10",
+			"11",
+			"12",
+			"13",
+			"14",
+			"15",
+		],
+		aspectRatios: ["16:9", "9:16", "1:1"],
+		resolutions: ["720p", "1080p"],
+		defaults: {
+			model: "seedance-2.0",
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+			role_mode: "reference",
+		},
+		features: [
+			"multi_reference",
+			"native_audio",
+			"reference_videos",
+			"reference_audios",
+		],
+		maxDuration: 15,
+		costEstimate: 0.3,
+		processingTime: 120,
+		providerBackend: "imarouter",
+		extendedFeatures: { requiresAssetUpload: true },
+	});
+
+	// CN variants — mainland China I2V/Ref2V. The executor's `channelFor(model.key)`
+	// matches the `_cn` suffix and switches the upload model to
+	// `ima-pro-upload-cn` automatically.
+	ModelRegistry.register({
+		key: "imarouter_seedance_2_0_cn_i2v",
+		name: "ByteDance Seedance 2.0 I2V (IMA Router CN)",
+		provider: "ByteDance (via IMA Router CN)",
+		endpoint: "v1/videos",
+		categories: ["image_to_video"],
+		description:
+			"Seedance 2.0 image-to-video via IMA Router mainland China — 720p / 1080p, 5–15s",
+		pricing: { type: "per_video", cost: 0.3 },
+		durationOptions: [
+			"5",
+			"6",
+			"7",
+			"8",
+			"9",
+			"10",
+			"11",
+			"12",
+			"13",
+			"14",
+			"15",
+		],
+		aspectRatios: ["16:9", "9:16", "1:1"],
+		resolutions: ["720p", "1080p"],
+		defaults: {
+			model: "seedance-2.0-cn",
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+			role_mode: "frame",
+		},
+		features: ["image_to_video", "native_audio"],
+		maxDuration: 15,
+		costEstimate: 0.3,
+		processingTime: 120,
+		providerBackend: "imarouter",
+		extendedFeatures: { requiresAssetUpload: true },
+	});
+
+	ModelRegistry.register({
+		key: "imarouter_seedance_2_0_fast_cn_i2v",
+		name: "ByteDance Seedance 2.0 Fast I2V (IMA Router CN)",
+		provider: "ByteDance (via IMA Router CN)",
+		endpoint: "v1/videos",
+		categories: ["image_to_video"],
+		description:
+			"Lower-latency Seedance 2.0 I2V via IMA Router mainland China — 720p ONLY, 5–10s",
+		pricing: { type: "per_video", cost: 0.12 },
+		durationOptions: ["5", "6", "7", "8", "9", "10"],
+		aspectRatios: ["16:9", "9:16", "1:1"],
+		resolutions: ["720p"],
+		defaults: {
+			model: "seedance-2.0-fast-cn",
+			duration: 5,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+			role_mode: "frame",
+		},
+		features: ["image_to_video"],
+		maxDuration: 10,
+		costEstimate: 0.12,
+		processingTime: 60,
+		providerBackend: "imarouter",
+		extendedFeatures: { requiresAssetUpload: true },
+	});
+
+	ModelRegistry.register({
+		key: "imarouter_seedance_2_0_cn_ref2v",
+		name: "ByteDance Seedance 2.0 Ref2V (IMA Router CN)",
+		provider: "ByteDance (via IMA Router CN)",
+		endpoint: "v1/videos",
+		categories: ["image_to_video"],
+		description:
+			"Seedance 2.0 reference-to-video via IMA Router mainland China — up to 14 references",
+		pricing: { type: "per_video", cost: 0.3 },
+		durationOptions: [
+			"5",
+			"6",
+			"7",
+			"8",
+			"9",
+			"10",
+			"11",
+			"12",
+			"13",
+			"14",
+			"15",
+		],
+		aspectRatios: ["16:9", "9:16", "1:1"],
+		resolutions: ["720p", "1080p"],
+		defaults: {
+			model: "seedance-2.0-cn",
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+			role_mode: "reference",
+		},
+		features: ["multi_reference", "native_audio"],
+		maxDuration: 15,
+		costEstimate: 0.3,
+		processingTime: 120,
+		providerBackend: "imarouter",
+		extendedFeatures: { requiresAssetUpload: true },
+	});
+
 	// Alibaba Happy Horse — reference-to-video (1–9 reference images).
 	// Prompt references each image as character1…character9.
 	// FAL field name is `image_urls` (plural list) — distinct from
