@@ -15,6 +15,7 @@ import { homedir } from "node:os";
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ENV_PATH = join(homedir(), ".qcut", ".env");
 
+/** Parse a `.env`-style file at `path` and seed `process.env` with any keys not already set. */
 async function loadDotEnv(path) {
 	try {
 		const text = await readFile(path, "utf8");
@@ -31,6 +32,7 @@ async function loadDotEnv(path) {
 }
 await loadDotEnv(ENV_PATH);
 
+/** Merge `updates` (key→value) into the canonical `~/.qcut/.env`, preserving other lines. */
 async function upsertDotEnv(updates) {
 	await mkdir(dirname(ENV_PATH), { recursive: true });
 	let text = "";
@@ -65,6 +67,7 @@ const CHANNEL = {
 	"seedance-2.0-fast-cn": { region: "cn",       uploadModel: "ima-pro-upload-cn", envKey: "IMAROUTER_GROUP_ID_CN" },
 };
 
+/** Parse CLI argv into a normalized options bag; exits on unknown or invalid flags. */
 function parseArgs(argv) {
 	const args = {
 		model: "seedance-2.0-fast",
@@ -135,6 +138,7 @@ function parseArgs(argv) {
 	return args;
 }
 
+/** Print the short usage message and point at the full flag reference. */
 function printHelp() {
 	console.log(`Usage: node seedance-generate.mjs [flags]
 
@@ -142,6 +146,7 @@ Required env: IMAROUTER_API_KEY (in ~/.qcut/.env or process env)
 See ./quickstart.md for the full flag list.`);
 }
 
+/** Build the `POST /v1/videos` request body from parsed CLI args, including the `metadata` envelope. */
 function buildPayload(args) {
 	const metadata = {};
 	if (args.resolution && !args.size) metadata.resolution = args.resolution;
@@ -162,6 +167,7 @@ function buildPayload(args) {
 	return body;
 }
 
+/** Fetch wrapper that injects the IMA Router Bearer auth + JSON headers and throws on non-OK responses. */
 async function apiFetch(path, init = {}) {
 	const res = await fetch(`${BASE_URL}${path}`, {
 		...init,
@@ -182,10 +188,12 @@ async function apiFetch(path, init = {}) {
 	return json;
 }
 
+/** Promise-based `setTimeout` for poll-loop delays. */
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 // ── Asset (Portrait) flow ─────────────────────────────────────────────────────
 
+/** Return the cached asset-group id for `channel`, creating + persisting one via `/v1/assets/group/create` if missing. */
 async function ensureGroup(channel, args) {
 	if (!args.resetGroup) {
 		const cached = process.env[channel.envKey];
@@ -214,6 +222,7 @@ async function ensureGroup(channel, args) {
 const TERMINAL_OK = /^(approved|succe|ready|active|done)/i;
 const TERMINAL_FAIL = /^(reject|fail|error|deny)/i;
 
+/** Upload `url` via `/v1/assets/create`, poll until approved, and return the `asset://{id}` reference. */
 async function uploadAsset(url, channel, groupId, args) {
 	console.log(`→ POST /v1/assets/create  ${url}`);
 	const res = await apiFetch("/v1/assets/create", {
@@ -258,6 +267,7 @@ async function uploadAsset(url, channel, groupId, args) {
 
 // ── Video flow ────────────────────────────────────────────────────────────────
 
+/** POST `/v1/videos` with the assembled payload and return the new task id (throws if absent). */
 async function submit(args) {
 	const payload = buildPayload(args);
 	console.log("→ POST /v1/videos");
@@ -278,6 +288,7 @@ async function submit(args) {
 	return id;
 }
 
+/** Poll `/v1/videos/{taskId}` until completion, failure, or `args.timeout` is exhausted. */
 async function poll(taskId, args) {
 	const deadline = Date.now() + args.timeout * 1000;
 	let lastProgress = -1;
@@ -298,6 +309,7 @@ async function poll(taskId, args) {
 	throw err;
 }
 
+/** Stream the remote `url` to the local file `dest`. */
 async function downloadTo(url, dest) {
 	const res = await fetch(url);
 	if (!res.ok || !res.body) throw new Error(`download failed: ${res.status}`);
@@ -305,6 +317,7 @@ async function downloadTo(url, dest) {
 	console.log(`✓ saved → ${dest}`);
 }
 
+/** Entry point — parses argv, runs the asset-upload + submit + poll + download pipeline. */
 async function main() {
 	const args = parseArgs(process.argv.slice(2));
 	if (args.help) { printHelp(); return; }

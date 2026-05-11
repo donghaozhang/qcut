@@ -9,6 +9,7 @@ from openai import APIError, OpenAI
 
 
 def main() -> None:
+    """Send a single chat request to Qwen via DashScope and print the reply."""
     api_key = os.getenv("DASHSCOPE_API_KEY")
     if not api_key:
         raise SystemExit(
