@@ -298,9 +298,10 @@ jobs:
             !qcut/dist-electron/builder-debug.yml
           if-no-files-found: error
 
-  # Create release with all artifacts
+  # Create release with all artifacts (only on tag pushes, never on workflow_dispatch)
   release:
     needs: [prepare, build-windows, build-macos, build-linux]
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ${{ vars.USE_BLACKSMITH == 'true' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
     steps:
       - name: Download all artifacts

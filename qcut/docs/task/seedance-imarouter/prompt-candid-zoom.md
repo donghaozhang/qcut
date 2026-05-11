@@ -1,0 +1,30 @@
+# Prompt — Candid iPhone Zoom (seedance-2.0)
+
+**Model:** `seedance-2.0`
+**Duration:** ~10–15 s (use 10 if 15 is rejected)
+**References:**
+- `@图片1` — young Asian woman, long dark hair, white headband with bows (lady.jpeg)
+- `@图片2` — short-haired foreign man, navy plaid suit, burgundy polka-dot tie (man.jpeg)
+- `@图片3` — IMA Studio AI logo: black-and-white sticker-style face with a smug/winking expression on a purple-blue gradient (imastudioai_logo.jpeg)
+- `@音频1` — Chinese male voiceover saying *"ima 交易被发现啦"* (optional reference audio for sync — see "Audio modes" below)
+
+**Audio:** No background music. Seedance does not generate Mandarin speech from the prompt; the dialogue line is a visual/timing cue only. The real audio track is supplied (or not) via `--ref-audio`.
+
+### Audio modes
+
+1. **Visual-only (default, no `--ref-audio`)** — seedance renders mouth movement that *looks* like the line is being spoken, but the output has no real Mandarin audio. Use this for silent or muted edits, or when you plan to dub in post.
+2. **Reference-audio (`--ref-audio https://…/voiceover.mp3`)** — supply `@音频1` so the platform syncs lip movement to the real waveform. Use this when you want the final clip to actually carry the spoken line.
+
+## Prompt
+
+Candid voyeuristic style, handheld iPhone shooting from a farther distance across the street secretly, using the phone camera's **digital zoom in** effect, nighttime scene, intense shaky footage, typical iPhone digital zoom graininess, slight blur and noise, phone-quality video, subtle glass reflections and streetlight refractions, unstable framing with occasional loss of focus, like a passerby standing across the street secretly recording with an iPhone from afar and slowly zooming in.
+
+Scene: Inside a high-end restaurant, with wine glasses and tableware on the table. Seated at the table are a young Asian woman with long dark hair wearing a white headband with bows (@图片1) and a short-haired foreign man in a navy plaid suit and burgundy polka-dot tie (@图片2), as they converse in low voices, smile, look at the iPhone 17 Pro Max, and clink glasses. The background features other diners and soft lighting.
+
+Camera movement: Starting from a farther position across the street, first capturing the restaurant's exterior facade, then slowly **digital zoom in** with the phone camera to push closer to the interior through the glass window, with continuous shaky footage and searching for focus; during the zoom, the frame shows typical iPhone digital zoom grain and slight distortion, occasionally briefly blocked by passing pedestrians or vehicles, with an extremely strong sense of authentic candid filming. In the final 4-5 seconds, the two suddenly realize they're being filmed, turning back toward the camera direction with expressions of surprise and shock; the man rotates his iPhone 17 Pro Max screen-out toward the camera, and the screen displays the IMA Studio AI logo (@图片3) — a black-and-white sticker-style smug face on a purple-blue gradient — filling the phone screen as a playful reveal. **The man visibly mouths the Chinese line "ima 交易被发现啦" in a surprised, teasing, roasting expression, with Mandarin-shaped lip movements timed to the syllables — exactly as the logo appears on the phone screen. (The actual audio is supplied via `@音频1` when `--ref-audio` is used; otherwise the lip motion is visual-only.)**
+
+Duration: 15 seconds.
+
+Dialogue (in-frame, mouthed by the male character): *"ima 交易被发现啦"* — clearly articulated lip movement on-camera, surprised/teasing tone. The audible track comes from `@音频1` in reference-audio mode; without `--ref-audio`, the output is visual-only and you'd dub in post.
+
+Style: Authentic phone candid video texture, with strong handheld shaking, nighttime warm lighting mixed with cool tones, subtle noise, like real iPhone long-distance zoom footage. Particularly emphasize the phone video quality and shaky feel during digital zoom from across the street. (No background music)
