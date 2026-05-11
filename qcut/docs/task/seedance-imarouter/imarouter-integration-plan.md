@@ -1,9 +1,9 @@
 # Integration Plan — IMA Router as a First-Class Provider
 
-**Status:** Proposed
+**Status:** Implemented (phases 1–6 landed on `mac-old`, 2026-05-10).
 **Owner:** TBD
 **Created:** 2026-05-10
-**Branch (for follow-up work):** to be named `feat/imarouter-provider`
+**Branch:** `mac-old` (continued onto PR #297 per user direction)
 
 ---
 
@@ -191,3 +191,83 @@ Steps 1–4 unblock CI users immediately and are safe to ship before the GUI lan
 - `qcut keys check` reports `IMAROUTER_API_KEY` (sourced from `~/.qcut/.env`).
 - All new tests in 5.6 pass under `bun run test`.
 - `bun lint:clean` + `bun check-types` clean.
+
+---
+
+## 11. Implementation summary (2026-05-10)
+
+Landed in one pass on `mac-old`. Every phase from §6 made it in.
+
+### Infra & dispatch (Phase 1–2)
+- `electron/native-pipeline/infra/api-provider-urls.ts` — added `"imarouter"` to `ProviderName`, `IMAROUTER_BASE`, `buildProviderUrl("imarouter", ...)`, and the `results: [{ url }]` branch in `extractOutputUrl`.
+- `electron/native-pipeline/infra/api-caller.ts` — `pollImaRouterTask` poller, `"imarouter"` dispatch case in `callModelApi`, `Authorization: Bearer ...` header, env-var key path (`IMAROUTER_API_KEY`), and 30-min timeout for imarouter (shared with GMI's `GMI_TIMEOUT_MS`).
+- `electron/native-pipeline/infra/key-manager.ts` — added `IMAROUTER_API_KEY` to `KEY_NAMES`.
+- `electron/native-pipeline/infra/registry.ts` — extended `ProviderBackend` with `"imarouter"`.
+
+### Asset (portrait) flow (Phase 3)
+- `electron/native-pipeline/infra/imarouter-assets.ts` — new module: `channelFor()`, `ensureGroup()`, `uploadAsset()`, plus state file `~/.qcut/imarouter-state.json` (separate from `.env` per §7).
+- `electron/native-pipeline/execution/step-executors.ts` — `reshapeForImaRouter()` helper (flat → IMA Router metadata shape), applied in `executeTextToVideo` and `executeImageToVideo`. I2V/Ref2V routes URLs through `uploadAsset` and emits `payload.images: ["asset://..."]`.
+
+### Registry entries — T2V + I2V + Ref2V × overseas + CN (Phase 2 + 4)
+- `electron/native-pipeline/registry-data/text-to-video.ts` — 4 entries (`imarouter_seedance_2_0{,_fast,_cn,_fast_cn}_t2v`).
+- `electron/native-pipeline/registry-data/image-to-video.ts` — 6 entries (I2V + fast I2V + Ref2V per channel; CN variants mirror overseas).
+- Pricing populated on every entry → `cost-calculator.ts` consumes registry entries directly; no calculator edits needed.
+
+### CLI surface
+- `electron/native-pipeline/cli/command-registry.ts` — extended the `qcut t2v/i2v/ref2v --model` enum with all 10 new keys.
+
+### GUI integration (Phase 5)
+- `apps/web/src/components/editor/media-panel/views/ai/constants/text2video-models-config/{models,order,capabilities}.ts` — 4 T2V model entries, ordering, and capability map (fast variant locked to 720p).
+- `apps/web/src/components/editor/media-panel/views/ai/constants/image2video-models-config.ts` — 6 I2V/Ref2V entries + ordering.
+- `apps/web/src/components/editor/media-panel/views/ai/constants/model-provider-logos.ts` — added `"imarouter_"` to `ROUTING_PREFIXES` so the ByteDance logo resolves for all imarouter keys.
+- API-key UI:
+  - `apps/web/src/components/editor/properties-panel/api-keys-view.tsx` — added `IMA Router API Key` field with inline provider URL (`getKeyUrl="https://imarouter.com"`).
+  - `apps/web/src/types/electron/api-external.ts` — added `imarouterApiKey` to `apiKeys.{get,set,status}` types.
+  - `electron/api-key-vocabulary.ts` — added `imarouterApiKey: "IMAROUTER_API_KEY"` to `ApiKeys`, `API_KEY_FIELDS`, and `QCUT_ENV_MAP` (full env vocab is now 9 keys).
+  - `electron/api-key-handler.ts` — mirrored `imarouterApiKey` into `ApiKeyData`, `ApiKeysStatus`, `EMPTY_API_KEYS`, the decrypt allowlist, the encrypted-save allowlist, the merged-keys resolver, and the status report.
+
+### Renderer-side provider client
+- `apps/web/src/lib/ai-clients/imarouter-client.ts` — direct-call client (no license-server relay; users supply their own key). Implements `ProviderClient` with `submit` / `poll` / `isAvailable`.
+- `apps/web/src/lib/ai-video/core/provider-types.ts` — extended `ProviderBackend` with `"imarouter"`.
+- `apps/web/src/lib/ai-video/core/provider-router.ts` — registered `imaRouterClient`; updated the `keyHint` map.
+
+### Tests added / updated
+- `electron/native-pipeline/infra/__tests__/api-provider-urls.test.ts` — new IMA Router `results[]` extractor + `buildProviderUrl("imarouter", ...)` tests.
+- `electron/native-pipeline/infra/__tests__/api-caller-imarouter.test.ts` — new file. 5 tests cover submit→poll happy path, 4xx submit error redaction, missing `task_id`, `status: failed` surfacing, and missing-key handling.
+- `electron/native-pipeline/infra/__tests__/imarouter-assets.test.ts` — new file. 4 tests cover `channelFor()` for overseas / `_cn` registry keys, raw API model names, and unknown-input default.
+- `electron/__tests__/command-builder-env.test.ts` — bumped vocab length assertion from 8 → 9 with a comment noting why.
+- `apps/web/src/components/editor/properties-panel/__tests__/api-keys-view-helpers.test.ts` — added `imarouterApiKey: ""` to the shared `VALUES` fixture so the `Record<EditableApiKeyField, string>` contract type-checks.
+
+### Verification commands
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Phase 1–3 unit tests | `bun run test electron/native-pipeline/infra/__tests__` | 5 files, 37/37 pass |
+| Phase 5 helpers test | `bun run test apps/web/src/components/editor/properties-panel/__tests__/api-keys-view-helpers.test.ts` | 9/9 pass |
+| Env-vocab guard | `bun run test electron/__tests__/command-builder-env.test.ts` | 11/11 pass |
+| Full repo sweep | `bun run test` | 5605/5619 pass, 14 skipped, 0 IMA-router-related failures. 23 module-loader errors in pre-existing parallel-suite races (timeline-store / project-store import) reproduce on master and are unrelated. |
+| Electron type-check | `npx tsc --noEmit -p electron/tsconfig.json` | clean |
+| Web type-check | `npx tsc --noEmit -p apps/web/tsconfig.json` | clean |
+| Biome format | `npx @biomejs/biome format --write <touched files>` | 4 nits auto-fixed |
+
+### Deliverable model keys
+
+| Key | Channel | Endpoint | Resolutions | Duration |
+| --- | --- | --- | --- | --- |
+| `imarouter_seedance_2_0_t2v` | overseas | `v1/videos` | 720p / 1080p | 5–15 s |
+| `imarouter_seedance_2_0_fast_t2v` | overseas | `v1/videos` | 720p only | 5–10 s |
+| `imarouter_seedance_2_0_cn_t2v` | CN | `v1/videos` | 720p / 1080p | 5–15 s |
+| `imarouter_seedance_2_0_fast_cn_t2v` | CN | `v1/videos` | 720p only | 5–10 s |
+| `imarouter_seedance_2_0_i2v` | overseas | `v1/videos` | 720p / 1080p | 5–15 s |
+| `imarouter_seedance_2_0_fast_i2v` | overseas | `v1/videos` | 720p only | 5–10 s |
+| `imarouter_seedance_2_0_ref2v` | overseas | `v1/videos` | 720p / 1080p | 5–15 s |
+| `imarouter_seedance_2_0_cn_i2v` | CN | `v1/videos` | 720p / 1080p | 5–15 s |
+| `imarouter_seedance_2_0_fast_cn_i2v` | CN | `v1/videos` | 720p only | 5–10 s |
+| `imarouter_seedance_2_0_cn_ref2v` | CN | `v1/videos` | 720p / 1080p | 5–15 s |
+
+### Known follow-ups
+
+- **Pricing** — flat per-video numbers in the registry (`$0.30` for full, `$0.12` for fast) are placeholders. Replace with the real per-second IMA Router public rates once they're confirmed.
+- **CN channel UX** — the GUI currently exposes CN variants to all users. Per §7 open question, consider hiding them unless `region === "cn"` (or behind a debug toggle).
+- **Pre-existing module-loader errors** — 23 vitest module-runner races on `apps/web/src/stores/project-store.ts` import are not caused by this work, but should be filed as a separate fix.
+- **License-server relay** — left out by design (§4). Revisit if QCut adds a free-tier path that bills IMA Router usage centrally.

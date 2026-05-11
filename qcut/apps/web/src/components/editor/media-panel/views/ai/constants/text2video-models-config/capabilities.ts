@@ -469,6 +469,72 @@ export const T2V_MODEL_CAPABILITIES: Record<T2VModelId, T2VModelCapabilities> =
 			defaultDuration: 5,
 		},
 
+		// IMA Router (direct ByteDance Seedance 2.0 routing)
+		imarouter_seedance_2_0_t2v: {
+			supportsAspectRatio: true,
+			supportedAspectRatios: ["16:9", "9:16", "1:1"],
+			supportsResolution: true,
+			supportedResolutions: ["720p", "1080p"],
+			supportsDuration: true,
+			supportedDurations: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+			supportsNegativePrompt: false,
+			supportsPromptExpansion: false,
+			supportsSeed: false,
+			supportsSafetyChecker: false,
+			defaultAspectRatio: "16:9",
+			defaultResolution: "1080p",
+			defaultDuration: 5,
+		},
+
+		imarouter_seedance_2_0_fast_t2v: {
+			supportsAspectRatio: true,
+			supportedAspectRatios: ["16:9", "9:16", "1:1"],
+			supportsResolution: true,
+			// Fast variant rejects 1080p with `unsupported_resolution_for_fast_variant`.
+			supportedResolutions: ["720p"],
+			supportsDuration: true,
+			supportedDurations: [5, 6, 7, 8, 9, 10],
+			supportsNegativePrompt: false,
+			supportsPromptExpansion: false,
+			supportsSeed: false,
+			supportsSafetyChecker: false,
+			defaultAspectRatio: "16:9",
+			defaultResolution: "720p",
+			defaultDuration: 5,
+		},
+
+		imarouter_seedance_2_0_cn_t2v: {
+			supportsAspectRatio: true,
+			supportedAspectRatios: ["16:9", "9:16", "1:1"],
+			supportsResolution: true,
+			supportedResolutions: ["720p", "1080p"],
+			supportsDuration: true,
+			supportedDurations: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+			supportsNegativePrompt: false,
+			supportsPromptExpansion: false,
+			supportsSeed: false,
+			supportsSafetyChecker: false,
+			defaultAspectRatio: "16:9",
+			defaultResolution: "1080p",
+			defaultDuration: 5,
+		},
+
+		imarouter_seedance_2_0_fast_cn_t2v: {
+			supportsAspectRatio: true,
+			supportedAspectRatios: ["16:9", "9:16", "1:1"],
+			supportsResolution: true,
+			supportedResolutions: ["720p"],
+			supportsDuration: true,
+			supportedDurations: [5, 6, 7, 8, 9, 10],
+			supportsNegativePrompt: false,
+			supportsPromptExpansion: false,
+			supportsSeed: false,
+			supportsSafetyChecker: false,
+			defaultAspectRatio: "16:9",
+			defaultResolution: "720p",
+			defaultDuration: 5,
+		},
+
 		// Runway
 		runway_gen45_t2v: {
 			supportsAspectRatio: true,

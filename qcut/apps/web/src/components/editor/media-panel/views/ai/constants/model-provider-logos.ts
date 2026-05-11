@@ -40,10 +40,11 @@ const SORTED_KEYS = Object.keys(PROVIDER_MAP).sort(
 	(a, b) => b.length - a.length
 );
 
-// Routing prefixes identify the backend (e.g. GMI Cloud), not the underlying
-// model family. Strip them so `gmi_veo31_lite_t2v` resolves to the Google (Veo)
-// logo rather than falling through to undefined.
-const ROUTING_PREFIXES = ["gmi_"];
+// Routing prefixes identify the backend (e.g. GMI Cloud, IMA Router), not the
+// underlying model family. Strip them so `gmi_veo31_lite_t2v` and
+// `imarouter_seedance_2_0_t2v` resolve to their respective family logo
+// (Google / ByteDance) rather than falling through to undefined.
+const ROUTING_PREFIXES = ["gmi_", "imarouter_"];
 
 export function getProviderForModel(modelId: string): ProviderInfo | undefined {
 	const candidates = [modelId];

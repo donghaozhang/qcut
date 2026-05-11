@@ -23,6 +23,7 @@ const VALUES = {
 	freesoundApiKey: "",
 	geminiApiKey: "",
 	gmiApiKey: "",
+	imarouterApiKey: "",
 	openRouterApiKey: "",
 	runwayApiKey: "",
 };

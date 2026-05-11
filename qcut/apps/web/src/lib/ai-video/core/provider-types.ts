@@ -7,7 +7,7 @@
  */
 
 /** Supported provider backends. */
-export type ProviderBackend = "fal" | "gmi" | "runway";
+export type ProviderBackend = "fal" | "gmi" | "runway" | "imarouter";
 
 /** Result of submitting a generation request to a provider. */
 export interface ProviderSubmitResult {

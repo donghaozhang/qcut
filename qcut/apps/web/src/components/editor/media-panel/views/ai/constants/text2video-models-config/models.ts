@@ -605,6 +605,96 @@ export const T2V_MODELS = {
 		supportedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
 		supportedAspectRatios: ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9"],
 	},
+	// --- IMA Router (api.imarouter.com) — direct ByteDance Seedance 2.0 routing ---
+	// Provider-side asset upload handles real-people / portrait refs that FAL/GMI
+	// won't accept inline. Channel rule: overseas (`seedance-2.0`,
+	// `seedance-2.0-fast`) and CN (`-cn`) cannot share asset groups.
+	imarouter_seedance_2_0_t2v: {
+		id: "imarouter_seedance_2_0_t2v",
+		name: "Seedance 2.0 (IMA Router)",
+		description:
+			"Direct ByteDance Seedance 2.0 via IMA Router overseas — 720p/1080p, 5–15s, native audio",
+		price: "$0.30/video",
+		resolution: "720p / 1080p",
+		supportedResolutions: ["720p", "1080p"],
+		max_duration: 15,
+		category: "text",
+		endpoints: {
+			text_to_video: "v1/videos",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+		},
+		supportedDurations: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+		supportedAspectRatios: ["16:9", "9:16", "1:1"],
+	},
+	imarouter_seedance_2_0_fast_t2v: {
+		id: "imarouter_seedance_2_0_fast_t2v",
+		name: "Seedance 2.0 Fast (IMA Router)",
+		badge: "⚡ Fast",
+		description:
+			"Lower-latency Seedance 2.0 via IMA Router overseas — 720p ONLY (1080p rejected), 5–10s, drafts and iterations",
+		price: "$0.12/video",
+		resolution: "720p",
+		supportedResolutions: ["720p"],
+		max_duration: 10,
+		category: "text",
+		endpoints: {
+			text_to_video: "v1/videos",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+		},
+		supportedDurations: [5, 6, 7, 8, 9, 10],
+		supportedAspectRatios: ["16:9", "9:16", "1:1"],
+	},
+	imarouter_seedance_2_0_cn_t2v: {
+		id: "imarouter_seedance_2_0_cn_t2v",
+		name: "Seedance 2.0 (IMA Router CN)",
+		description:
+			"Direct ByteDance Seedance 2.0 via IMA Router mainland China — 720p/1080p, 5–15s",
+		price: "$0.30/video",
+		resolution: "720p / 1080p",
+		supportedResolutions: ["720p", "1080p"],
+		max_duration: 15,
+		category: "text",
+		endpoints: {
+			text_to_video: "v1/videos",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "1080p",
+			aspect_ratio: "16:9",
+		},
+		supportedDurations: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+		supportedAspectRatios: ["16:9", "9:16", "1:1"],
+	},
+	imarouter_seedance_2_0_fast_cn_t2v: {
+		id: "imarouter_seedance_2_0_fast_cn_t2v",
+		name: "Seedance 2.0 Fast (IMA Router CN)",
+		badge: "⚡ Fast",
+		description:
+			"Lower-latency Seedance 2.0 via IMA Router mainland China — 720p ONLY, 5–10s",
+		price: "$0.12/video",
+		resolution: "720p",
+		supportedResolutions: ["720p"],
+		max_duration: 10,
+		category: "text",
+		endpoints: {
+			text_to_video: "v1/videos",
+		},
+		default_params: {
+			duration: 5,
+			resolution: "720p",
+			aspect_ratio: "16:9",
+		},
+		supportedDurations: [5, 6, 7, 8, 9, 10],
+		supportedAspectRatios: ["16:9", "9:16", "1:1"],
+	},
 	// --- Runway models ---
 	runway_gen45_t2v: {
 		id: "runway_gen45_t2v",

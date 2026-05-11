@@ -16,6 +16,7 @@ import type {
 } from "./provider-types";
 import { falProvider } from "./fal-provider";
 import { gmiClient } from "../../ai-clients/gmi-client";
+import { imaRouterClient } from "../../ai-clients/imarouter-client";
 import { runwayClient } from "../../ai-clients/runway-client";
 
 /** Registered provider clients, keyed by backend name. */
@@ -23,6 +24,7 @@ const providers = new Map<ProviderBackend, ProviderClient>([
 	["fal", falProvider],
 	["gmi", gmiClient],
 	["runway", runwayClient],
+	["imarouter", imaRouterClient],
 ]);
 
 /**
@@ -45,6 +47,7 @@ async function resolveProvider(
 		fal: "VITE_FAL_API_KEY",
 		gmi: "GMI_API_KEY",
 		runway: "RUNWAY_API_KEY",
+		imarouter: "IMAROUTER_API_KEY",
 	};
 	throw new Error(
 		`Provider "${preferredBackend}" is not available. ` +

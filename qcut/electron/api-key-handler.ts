@@ -25,6 +25,7 @@ interface ApiKeyData {
 	elevenLabsApiKey?: string;
 	gmiApiKey?: string;
 	runwayApiKey?: string;
+	imarouterApiKey?: string;
 }
 
 interface EncryptedApiKeyData {
@@ -40,6 +41,7 @@ interface ApiKeysStatus {
 	gmiApiKey: KeyStatus;
 	openRouterApiKey: KeyStatus;
 	runwayApiKey: KeyStatus;
+	imarouterApiKey: KeyStatus;
 }
 
 interface ApiKeyHandlers {
@@ -64,6 +66,7 @@ const EMPTY_API_KEYS: ApiKeys = {
 	elevenLabsApiKey: "",
 	gmiApiKey: "",
 	runwayApiKey: "",
+	imarouterApiKey: "",
 };
 
 /** Return a fresh ApiKeys object with all fields empty. */
@@ -120,6 +123,7 @@ function decryptStoredApiKeys({
 			"elevenLabsApiKey",
 			"gmiApiKey",
 			"runwayApiKey",
+			"imarouterApiKey",
 		] as const;
 		for (const field of apiKeyFields) {
 			result[field] = decryptStoredValue({
@@ -363,6 +367,11 @@ export async function getDecryptedApiKeys(): Promise<ApiKeys> {
 			electronKeys.runwayApiKey ||
 			qcutEnvKeys.runwayApiKey ||
 			"",
+		imarouterApiKey:
+			process.env.IMAROUTER_API_KEY ||
+			electronKeys.imarouterApiKey ||
+			qcutEnvKeys.imarouterApiKey ||
+			"",
 	};
 }
 
@@ -507,6 +516,7 @@ export function setupApiKeyIPC(): void {
 					"elevenLabsApiKey",
 					"gmiApiKey",
 					"runwayApiKey",
+					"imarouterApiKey",
 				] as const;
 
 				if (encryptionAvailable) {
@@ -627,6 +637,10 @@ export function setupApiKeyIPC(): void {
 			runwayApiKey: resolveStatus({
 				envName: "RUNWAY_API_KEY",
 				field: "runwayApiKey",
+			}),
+			imarouterApiKey: resolveStatus({
+				envName: "IMAROUTER_API_KEY",
+				field: "imarouterApiKey",
 			}),
 		};
 	});

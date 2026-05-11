@@ -15,6 +15,7 @@ export interface ElectronApiKeyOps {
 			elevenLabsApiKey: string;
 			gmiApiKey: string;
 			runwayApiKey?: string;
+			imarouterApiKey?: string;
 		}>;
 		set: (keys: {
 			falApiKey?: string;
@@ -25,6 +26,7 @@ export interface ElectronApiKeyOps {
 			elevenLabsApiKey?: string;
 			gmiApiKey?: string;
 			runwayApiKey?: string;
+			imarouterApiKey?: string;
 		}) => Promise<boolean>;
 		clear: () => Promise<boolean>;
 		status: () => Promise<{
@@ -36,6 +38,7 @@ export interface ElectronApiKeyOps {
 			gmiApiKey: PlatformApiKeyStatus;
 			openRouterApiKey: PlatformApiKeyStatus;
 			runwayApiKey: PlatformApiKeyStatus;
+			imarouterApiKey?: PlatformApiKeyStatus;
 		}>;
 	};
 }
