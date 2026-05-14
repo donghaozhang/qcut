@@ -22,6 +22,10 @@ export const db = getDb();
 // Re-export schema for convenience
 export * from "./schema";
 
+// Re-export agent path TS types (Supabase migration is source of truth;
+// see supabase/migrations/20260514000000_agent_tables.sql)
+export * from "./types/agent";
+
 // Re-export drizzle-orm functions to ensure version consistency
 export {
 	eq,
