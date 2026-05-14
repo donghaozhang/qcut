@@ -16,11 +16,12 @@
  */
 
 import { Hono } from "hono";
+// `eq` is also used below for the agent_secrets lookup
 import { and, eq, inArray } from "drizzle-orm";
 import { Sandbox } from "e2b";
 import { SignJWT } from "jose";
 
-import { agentEvents, sandboxSessions } from "@qcut/db/schema";
+import { agentEvents, agentSecrets, sandboxSessions } from "@qcut/db/schema";
 import { db } from "../db/drizzle";
 import { authMiddleware } from "../middleware/auth";
 import { deductCreditsForUser } from "../services/credit-service";
@@ -107,12 +108,24 @@ sandboxRoutes.post("/spawn", async (c) => {
 		);
 	}
 
+	// Fetch the user's stored provider keys; the entrypoint materializes
+	// them into ~/.qcut/.env inside the sandbox. v0 stores plaintext;
+	// pgsodium upgrade is a follow-up.
+	const secrets = await db
+		.select({ key: agentSecrets.key, value: agentSecrets.value })
+		.from(agentSecrets)
+		.where(eq(agentSecrets.userId, userId));
+	const envs: Record<string, string> = {
+		QCUT_SESSION_ROLE: "interactive",
+	};
+	for (const s of secrets) envs[s.key] = s.value;
+
 	// Spawn E2B sandbox.
 	let sandbox: Awaited<ReturnType<typeof Sandbox.create>>;
 	try {
 		sandbox = await Sandbox.create(imageTag, {
 			timeoutMs: TTL_MS,
-			envs: { QCUT_SESSION_ROLE: "interactive" },
+			envs,
 			apiKey: e2bKey,
 		});
 	} catch (err) {
@@ -130,9 +143,12 @@ sandboxRoutes.post("/spawn", async (c) => {
 		return c.json({ error: "sandbox_create_failed" }, 502);
 	}
 
-	// Layer-2 spawn probe.
+	// Layer-2 spawn probe. We wrap the doctor invocation through the
+	// entrypoint script so ~/.qcut/.env gets materialized from the
+	// injected env vars first — E2B's commands.run bypasses Dockerfile
+	// ENTRYPOINT, so doing this explicitly here is required.
 	const probe = await sandbox.commands.run(
-		"qcut system doctor --json --skip-health",
+		"/usr/local/bin/qcut-entrypoint qcut system doctor --json --skip-health",
 		{ timeoutMs: PROBE_TIMEOUT_MS },
 	);
 	if (probe.exitCode !== 0) {
