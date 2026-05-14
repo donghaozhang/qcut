@@ -1,11 +1,14 @@
 import {
+	bigserial,
+	index,
+	integer,
+	jsonb,
+	numeric,
 	pgTable,
 	text,
 	timestamp,
-	boolean,
-	integer,
-	numeric,
 	uniqueIndex,
+	boolean,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -206,3 +209,193 @@ export const usageRecords = pgTable("usage_records", {
 		.$defaultFn(() => /* @__PURE__ */ new Date())
 		.notNull(),
 }).enableRLS();
+
+// --- Agent path (headless CLI) + Sandbox (interactive browser shell) ---
+//
+// One source of truth: Drizzle on the same Postgres the license-server
+// reaches via Hyperdrive. v0 has no per-workspace concept — keys are
+// strictly per-user. Plan-tier or future team accounts can layer on
+// top later without touching this schema.
+
+/** Per-user provider API keys (FAL/Gemini/OpenAI/…). Materialized into
+ * the container's ~/.qcut/.env at spawn time. v0 stores plaintext;
+ * pgsodium-managed values are a follow-up once key rotation is
+ * concrete. */
+export const agentSecrets = pgTable(
+	"agent_secrets",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		key: text("key").notNull(),
+		value: text("value").notNull(),
+		createdAt: timestamp("created_at")
+			.$defaultFn(() => /* @__PURE__ */ new Date())
+			.notNull(),
+		updatedAt: timestamp("updated_at")
+			.$defaultFn(() => /* @__PURE__ */ new Date())
+			.notNull(),
+	},
+	(t) => ({
+		userKey: uniqueIndex("agent_secrets_user_key_unique").on(
+			t.userId,
+			t.key,
+		),
+	}),
+).enableRLS();
+
+/** Queued / running / terminal headless jobs. Worker claims via a
+ * `claim_one_agent_job` Postgres function (defined in the generated
+ * migration alongside this table). */
+export const agentJobs = pgTable(
+	"agent_jobs",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		status: text("status", {
+			enum: ["queued", "running", "succeeded", "failed", "cancelled"],
+		}).notNull(),
+		command: text("command").notNull(),
+		args: jsonb("args").$type<Record<string, unknown>>().notNull().default({}),
+		createdAt: timestamp("created_at")
+			.$defaultFn(() => /* @__PURE__ */ new Date())
+			.notNull(),
+		claimedAt: timestamp("claimed_at"),
+		finishedAt: timestamp("finished_at"),
+		exitCode: integer("exit_code"),
+		error: text("error"),
+		runnerId: text("runner_id"),
+	},
+	(t) => ({
+		userStatusCreated: index("agent_jobs_user_status_created_idx").on(
+			t.userId,
+			t.status,
+			t.createdAt,
+		),
+		pending: index("agent_jobs_pending_idx").on(t.status),
+	}),
+).enableRLS();
+
+/** Telemetry stream — CLI stderr JSONL + relay-side audit. */
+export const agentEvents = pgTable(
+	"agent_events",
+	{
+		id: bigserial("id", { mode: "number" }).primaryKey(),
+		jobId: text("job_id").references(() => agentJobs.id, {
+			onDelete: "cascade",
+		}),
+		userId: text("user_id").references(() => users.id, {
+			onDelete: "cascade",
+		}),
+		kind: text("kind").notNull(),
+		payload: jsonb("payload")
+			.$type<Record<string, unknown>>()
+			.notNull()
+			.default({}),
+		createdAt: timestamp("created_at")
+			.$defaultFn(() => /* @__PURE__ */ new Date())
+			.notNull(),
+	},
+	(t) => ({
+		jobCreated: index("agent_events_job_created_idx").on(t.jobId, t.createdAt),
+		userKindCreated: index("agent_events_user_kind_created_idx").on(
+			t.userId,
+			t.kind,
+			t.createdAt,
+		),
+	}),
+).enableRLS();
+
+/** Output files produced by a job (image/video/audio/json/log). The
+ * `storage_path` points into Supabase Storage (kept cross-stack for v0
+ * since the license-server has no storage primitive — R2 migration is
+ * a follow-up). */
+export const agentArtifacts = pgTable(
+	"agent_artifacts",
+	{
+		id: text("id").primaryKey(),
+		jobId: text("job_id")
+			.notNull()
+			.references(() => agentJobs.id, { onDelete: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		kind: text("kind", {
+			enum: ["image", "video", "audio", "json", "log"],
+		}).notNull(),
+		storagePath: text("storage_path").notNull(),
+		bytes: integer("bytes"),
+		meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default({}),
+		createdAt: timestamp("created_at")
+			.$defaultFn(() => /* @__PURE__ */ new Date())
+			.notNull(),
+	},
+	(t) => ({
+		job: index("agent_artifacts_job_idx").on(t.jobId),
+	}),
+).enableRLS();
+
+/** Interactive browser-terminal sessions (Phase 2). */
+export const sandboxSessions = pgTable(
+	"sandbox_sessions",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		status: text("status", {
+			enum: ["spawning", "active", "stopping", "ended"],
+		}).notNull(),
+		provider: text("provider", { enum: ["e2b", "daytona"] }).notNull(),
+		providerSessionId: text("provider_session_id").notNull(),
+		imageTag: text("image_tag").notNull(),
+		startedAt: timestamp("started_at")
+			.$defaultFn(() => /* @__PURE__ */ new Date())
+			.notNull(),
+		lastInputAt: timestamp("last_input_at"),
+		endedAt: timestamp("ended_at"),
+		endReason: text("end_reason", {
+			enum: ["disconnect", "idle_timeout", "ttl", "error", "user_kill"],
+		}),
+		exitCode: integer("exit_code"),
+		resourceClass: text("resource_class", { enum: ["standard", "large"] })
+			.notNull()
+			.default("standard"),
+		expiresAt: timestamp("expires_at").notNull(),
+	},
+	(t) => ({
+		userStartedDesc: index("sandbox_sessions_user_started_idx").on(
+			t.userId,
+			t.startedAt,
+		),
+		expiresActive: index("sandbox_sessions_expires_active_idx").on(
+			t.expiresAt,
+		),
+	}),
+).enableRLS();
+
+// --- Inferred types (consumers should import from @qcut/db) ---
+
+export type AgentSecret = typeof agentSecrets.$inferSelect;
+export type NewAgentSecret = typeof agentSecrets.$inferInsert;
+
+export type AgentJob = typeof agentJobs.$inferSelect;
+export type NewAgentJob = typeof agentJobs.$inferInsert;
+export type AgentJobStatus = AgentJob["status"];
+
+export type AgentEvent = typeof agentEvents.$inferSelect;
+export type NewAgentEvent = typeof agentEvents.$inferInsert;
+
+export type AgentArtifact = typeof agentArtifacts.$inferSelect;
+export type NewAgentArtifact = typeof agentArtifacts.$inferInsert;
+export type AgentArtifactKind = AgentArtifact["kind"];
+
+export type SandboxSession = typeof sandboxSessions.$inferSelect;
+export type NewSandboxSession = typeof sandboxSessions.$inferInsert;
+export type SandboxStatus = SandboxSession["status"];
+export type SandboxProvider = SandboxSession["provider"];
+export type SandboxEndReason = NonNullable<SandboxSession["endReason"]>;
+export type SandboxResourceClass = SandboxSession["resourceClass"];

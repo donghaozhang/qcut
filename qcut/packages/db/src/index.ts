@@ -19,16 +19,9 @@ function getDb() {
 // Export a proxy that forwards all calls to the actual db instance
 export const db = getDb();
 
-// Re-export schema for convenience
+// Re-export schema for convenience (agent_* and sandbox_sessions
+// tables live here as well, with inferred types).
 export * from "./schema";
-
-// Re-export agent path TS types (Supabase migration is source of truth;
-// see supabase/migrations/20260514000000_agent_tables.sql)
-export * from "./types/agent";
-
-// Sandbox sessions (PR 06). Migration:
-// supabase/migrations/20260514000100_sandbox_sessions.sql
-export * from "./types/sandbox";
 
 // Re-export drizzle-orm functions to ensure version consistency
 export {
