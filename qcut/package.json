@@ -60,6 +60,7 @@
 		"packages/auth",
 		"packages/db",
 		"packages/agent-worker",
+		"packages/qcut-relay",
 		"packages/license-server",
 		"packages/editor-core",
 		"packages/platform-core",
