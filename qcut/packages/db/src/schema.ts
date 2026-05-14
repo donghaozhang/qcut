@@ -1,4 +1,6 @@
+import { sql } from "drizzle-orm";
 import {
+	bigint,
 	bigserial,
 	index,
 	integer,
@@ -238,11 +240,8 @@ export const agentSecrets = pgTable(
 			.notNull(),
 	},
 	(t) => ({
-		userKey: uniqueIndex("agent_secrets_user_key_unique").on(
-			t.userId,
-			t.key,
-		),
-	}),
+		userKey: uniqueIndex("agent_secrets_user_key_unique").on(t.userId, t.key),
+	})
 ).enableRLS();
 
 /** Queued / running / terminal headless jobs. Worker claims via a
@@ -273,10 +272,16 @@ export const agentJobs = pgTable(
 		userStatusCreated: index("agent_jobs_user_status_created_idx").on(
 			t.userId,
 			t.status,
-			t.createdAt,
+			t.createdAt
 		),
-		pending: index("agent_jobs_pending_idx").on(t.status),
-	}),
+		// Partial index sized for the claim_one_agent_job hot path
+		// (WHERE status='queued' ORDER BY created_at). Covering both the
+		// filter and the sort column eliminates the runtime sort that a
+		// plain index on `status` alone would need.
+		queueCreated: index("agent_jobs_queued_created_idx")
+			.on(t.createdAt)
+			.where(sql`${t.status} = 'queued'`),
+	})
 ).enableRLS();
 
 /** Telemetry stream — CLI stderr JSONL + relay-side audit. */
@@ -304,9 +309,9 @@ export const agentEvents = pgTable(
 		userKindCreated: index("agent_events_user_kind_created_idx").on(
 			t.userId,
 			t.kind,
-			t.createdAt,
+			t.createdAt
 		),
-	}),
+	})
 ).enableRLS();
 
 /** Output files produced by a job (image/video/audio/json/log). The
@@ -327,7 +332,11 @@ export const agentArtifacts = pgTable(
 			enum: ["image", "video", "audio", "json", "log"],
 		}).notNull(),
 		storagePath: text("storage_path").notNull(),
-		bytes: integer("bytes"),
+		// bigint mode: "number" keeps the TS type as `number | null`
+		// (safe for sizes up to Number.MAX_SAFE_INTEGER ≈ 9 PB), while
+		// the underlying column is Postgres bigint so a multi-GB video
+		// artifact won't overflow int4's ~2.1 GB ceiling.
+		bytes: bigint("bytes", { mode: "number" }),
 		meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default({}),
 		createdAt: timestamp("created_at")
 			.$defaultFn(() => /* @__PURE__ */ new Date())
@@ -335,7 +344,7 @@ export const agentArtifacts = pgTable(
 	},
 	(t) => ({
 		job: index("agent_artifacts_job_idx").on(t.jobId),
-	}),
+	})
 ).enableRLS();
 
 /** Interactive browser-terminal sessions (Phase 2). */
@@ -369,12 +378,10 @@ export const sandboxSessions = pgTable(
 	(t) => ({
 		userStartedDesc: index("sandbox_sessions_user_started_idx").on(
 			t.userId,
-			t.startedAt,
+			t.startedAt
 		),
-		expiresActive: index("sandbox_sessions_expires_active_idx").on(
-			t.expiresAt,
-		),
-	}),
+		expiresActive: index("sandbox_sessions_expires_active_idx").on(t.expiresAt),
+	})
 ).enableRLS();
 
 // --- Inferred types (consumers should import from @qcut/db) ---

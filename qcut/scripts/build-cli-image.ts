@@ -19,6 +19,18 @@ const version = process.env.QCUT_VERSION ?? "dev";
 const tag = `qcut-cli:${version}`;
 const platforms = process.env.PLATFORMS ?? "linux/amd64";
 
+// `docker buildx --load` materializes the image into the local docker
+// engine, but the docker exporter cannot represent manifest lists, so a
+// multi-platform input fails with "docker exporter does not currently
+// support exporting manifest lists". CI uses `--push` for multi-arch;
+// this script is for local smoking.
+if (platforms.includes(",")) {
+	console.error(
+		`✗ PLATFORMS=${platforms} is multi-platform; --load can only carry a single arch.\n  • Local smoke: leave PLATFORMS unset (linux/amd64) or pick one arch.\n  • Multi-arch publish: use the CI workflow that runs --push to a registry.`
+	);
+	process.exit(2);
+}
+
 console.log(`▶ docker buildx build → ${tag} (${platforms})`);
 await $`docker buildx build \
   --file Dockerfile.cli \

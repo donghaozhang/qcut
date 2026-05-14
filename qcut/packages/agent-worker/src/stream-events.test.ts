@@ -20,9 +20,11 @@ function fakeJob(): AgentJob {
 
 describe("parseStderr", () => {
 	it("returns one row per non-empty line", () => {
-		const stderr = ['{"kind":"cli_progress","percent":10}', "", "plain log line"].join(
-			"\n",
-		);
+		const stderr = [
+			'{"kind":"cli_progress","percent":10}',
+			"",
+			"plain log line",
+		].join("\n");
 		const rows = parseStderr(stderr, fakeJob());
 		expect(rows).toHaveLength(2);
 	});

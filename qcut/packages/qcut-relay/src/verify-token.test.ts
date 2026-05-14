@@ -22,7 +22,7 @@ async function makeToken(opts: {
 describe("verifyToken", () => {
 	it("accepts a fresh, correctly-signed token", async () => {
 		const t = await makeToken({ session_id: "abc-123" });
-		const claims = await verifyToken(t, SECRET);
+		const claims = await verifyToken({ token: t, secret: SECRET });
 		expect(claims.session_id).toBe("abc-123");
 	});
 
@@ -31,26 +31,34 @@ describe("verifyToken", () => {
 			session_id: "abc",
 			secret: new TextEncoder().encode("wrong_secret"),
 		});
-		await expect(verifyToken(t, SECRET)).rejects.toThrow("sig_mismatch");
+		await expect(verifyToken({ token: t, secret: SECRET })).rejects.toThrow(
+			"sig_mismatch"
+		);
 	});
 
 	it("rejects an expired token", async () => {
 		const t = await makeToken({ session_id: "abc", expIn: "1s" });
 		await new Promise((r) => setTimeout(r, 1500));
-		await expect(verifyToken(t, SECRET)).rejects.toThrow("expired");
+		await expect(verifyToken({ token: t, secret: SECRET })).rejects.toThrow(
+			"expired"
+		);
 	});
 
 	it("rejects a token missing session_id", async () => {
 		const t = await makeToken({}); // no session_id claim
-		await expect(verifyToken(t, SECRET)).rejects.toThrow("missing_session_id");
+		await expect(verifyToken({ token: t, secret: SECRET })).rejects.toThrow(
+			"missing_session_id"
+		);
 	});
 
 	it("rejects malformed input", async () => {
-		await expect(verifyToken("not.a.jwt", SECRET)).rejects.toThrow();
-		await expect(verifyToken("", SECRET)).rejects.toThrow();
-		await expect(verifyToken("only-one-part", SECRET)).rejects.toThrow(
-			"malformed_token",
-		);
+		await expect(
+			verifyToken({ token: "not.a.jwt", secret: SECRET })
+		).rejects.toThrow();
+		await expect(verifyToken({ token: "", secret: SECRET })).rejects.toThrow();
+		await expect(
+			verifyToken({ token: "only-one-part", secret: SECRET })
+		).rejects.toThrow("malformed_token");
 	});
 
 	it("rejects non-HS256 alg", async () => {
@@ -62,7 +70,9 @@ describe("verifyToken", () => {
 		const header = b64url(JSON.stringify({ alg: "none", typ: "JWT" }));
 		const payload = b64url(JSON.stringify({ session_id: "abc" }));
 		const fakeToken = `${header}.${payload}.AAAA`;
-		await expect(verifyToken(fakeToken, SECRET)).rejects.toThrow("alg_mismatch");
+		await expect(
+			verifyToken({ token: fakeToken, secret: SECRET })
+		).rejects.toThrow("alg_mismatch");
 	});
 });
 

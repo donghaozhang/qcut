@@ -13,7 +13,7 @@ import type { AgentJob } from "@qcut/db";
 
 export async function claimOneJob(
 	supabase: SupabaseClient,
-	runnerId: string,
+	runnerId: string
 ): Promise<AgentJob | null> {
 	const { data, error } = await supabase.rpc("claim_one_agent_job", {
 		_runner_id: runnerId,

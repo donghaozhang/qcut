@@ -11,7 +11,7 @@ three paths and what's done / not done.
 |---|---|---|---|
 | `qcut-cli:dev` (local Docker image) | local Docker daemon | ✅ built, **verified end-to-end** against prod | n/a |
 | `ghcr.io/quriosity-agent/qcut-cli:vX.Y.Z` | GitHub Container Registry | ❌ never pushed (CI workflow ready) | ❌ |
-| E2B template `qcut-cli` (ID `mo0cc1eel03akhsen8e5`) | E2B's build cluster | ⚠️ **built but with bugs** — `Sandbox.create()` works, but the `qcut` wrapper script's shebang is mangled (`#!/usr/bin/env bashnexec ...`). Needs rebuild with the `echo`-based wrapper now in `e2b.Dockerfile`. | n/a (E2B private) |
+| E2B template `qcut-cli` (ID `<your-e2b-template-id>`) | E2B's build cluster | ⚠️ **built but with bugs** — `Sandbox.create()` works, but the `qcut` wrapper script's shebang is mangled (`#!/usr/bin/env bashnexec ...`). Needs rebuild with the `echo`-based wrapper now in `e2b.Dockerfile`. | n/a (E2B private) |
 
 Current working:
 - `bun run build:cli-image` produces `qcut-cli:dev` locally; the agent-worker uses this against the live Supabase DB. **Smoked end-to-end** (qcutlove user, `qcut --version` job, exit 0).
@@ -32,7 +32,7 @@ open -a Docker
 # wait until the whale icon stops animating
 
 # 2. Build the image
-cd /Users/peter/Desktop/code/qcut/qcut
+cd /path/to/qcut/repo
 bun run build:cli-image
 
 # 3. Tag check
@@ -87,7 +87,7 @@ npm install -g @e2b/cli
 e2b auth login
 
 # 3. Build the template from our Dockerfile
-cd /Users/peter/Desktop/code/qcut/qcut
+cd /path/to/qcut/repo
 e2b template build --dockerfile Dockerfile.cli --name qcut-cli
 # → prints a template ID on success
 ```

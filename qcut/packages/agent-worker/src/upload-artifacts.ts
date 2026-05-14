@@ -9,11 +9,12 @@
  * @module @qcut/agent-worker/upload-artifacts
  */
 
-import { readdir, readFile, stat } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { AgentArtifact, AgentArtifactKind, AgentJob } from "@qcut/db";
+import type { AgentArtifactKind, AgentJob } from "@qcut/db";
 
 const KIND_BY_EXT: Record<string, AgentArtifactKind> = {
 	".png": "image",
@@ -34,6 +35,23 @@ const KIND_BY_EXT: Record<string, AgentArtifactKind> = {
 	".srt": "log",
 };
 
+/**
+ * Snake-case insert payload for the `agent_artifacts` REST endpoint.
+ * The Drizzle-inferred `AgentArtifact` type is camelCase and only
+ * matches columns selected back through Drizzle — supabase-js PostgREST
+ * round-trips need the raw column names.
+ */
+interface AgentArtifactInsert {
+	id: string;
+	job_id: string;
+	user_id: string;
+	kind: AgentArtifactKind;
+	storage_path: string;
+	bytes: number;
+	meta: Record<string, unknown>;
+	created_at: string;
+}
+
 /** Exported for testing. */
 export function classify(name: string): AgentArtifactKind {
 	const dot = name.lastIndexOf(".");
@@ -42,11 +60,15 @@ export function classify(name: string): AgentArtifactKind {
 	return KIND_BY_EXT[ext] ?? "log";
 }
 
-export async function uploadArtifacts(
-	supabase: SupabaseClient,
-	job: AgentJob,
-	dir: string,
-): Promise<void> {
+export async function uploadArtifacts({
+	supabase,
+	job,
+	dir,
+}: {
+	supabase: SupabaseClient;
+	job: AgentJob;
+	dir: string;
+}): Promise<void> {
 	let entries: string[];
 	try {
 		entries = await readdir(dir);
@@ -68,26 +90,25 @@ export async function uploadArtifacts(
 		const kind = classify(name);
 		const storagePath = `agent/${job.userId}/${job.id}/${name}`;
 
-		let bytes: Buffer;
-		try {
-			bytes = await readFile(full);
-		} catch (err) {
-			console.error(`[agent-worker] read ${full} failed:`, err);
-			continue;
-		}
-
+		// Stream the file straight to Supabase Storage so a multi-GB video
+		// artifact doesn't load into RAM (would OOM the worker host).
+		const stream = createReadStream(full);
 		const { error: upErr } = await supabase.storage
 			.from("artifacts")
-			.upload(storagePath, bytes, { upsert: false });
+			.upload(storagePath, stream, {
+				upsert: false,
+				duplex: "half",
+			});
 		if (upErr) {
+			stream.destroy();
 			console.error(
 				`[agent-worker] storage upload ${storagePath} failed:`,
-				upErr.message,
+				upErr.message
 			);
 			continue;
 		}
 
-		const row = {
+		const row: AgentArtifactInsert = {
 			id: crypto.randomUUID(),
 			job_id: job.id,
 			user_id: job.userId,
@@ -96,14 +117,14 @@ export async function uploadArtifacts(
 			bytes: s.size,
 			meta: { filename: name },
 			created_at: new Date().toISOString(),
-		} satisfies Partial<AgentArtifact> & { id: string };
+		};
 		const { error: insErr } = await supabase
 			.from("agent_artifacts")
 			.insert(row);
 		if (insErr) {
 			console.error(
 				`[agent-worker] agent_artifacts insert ${name} failed:`,
-				insErr.message,
+				insErr.message
 			);
 		}
 	}

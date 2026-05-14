@@ -20,7 +20,7 @@ WebSocket 接进 Cloudflare Durable Object、DO 挂到 E2B 沙箱的 PTY、
 
 ## 最终的端到端实测
 
-```
+```text
 ✓ POST /api/sandbox/spawn → 200
   session_id      6ad17eaf-e454-4baf-8703-dc3f28af33cd
   credits_used    5

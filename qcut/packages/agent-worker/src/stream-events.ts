@@ -38,7 +38,9 @@ export function parseStderr(stderr: string, job: AgentJob): EventRow[] {
 			payload = { message: masked };
 		}
 		const kind =
-			typeof payload.kind === "string" ? (payload.kind as string) : "cli_stderr";
+			typeof payload.kind === "string"
+				? (payload.kind as string)
+				: "cli_stderr";
 		rows.push({
 			job_id: job.id,
 			user_id: job.userId,
@@ -53,7 +55,7 @@ export function parseStderr(stderr: string, job: AgentJob): EventRow[] {
 export async function streamEvents(
 	supabase: SupabaseClient,
 	job: AgentJob,
-	stderr: string,
+	stderr: string
 ): Promise<void> {
 	const rows = parseStderr(stderr, job);
 	if (rows.length === 0) return;
@@ -63,7 +65,10 @@ export async function streamEvents(
 		if (error) {
 			// Don't bring down the worker for telemetry. Log and continue;
 			// the job's final status row still gets written.
-			console.error("[agent-worker] agent_events insert failed:", error.message);
+			console.error(
+				"[agent-worker] agent_events insert failed:",
+				error.message
+			);
 			return;
 		}
 	}

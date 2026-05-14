@@ -8,7 +8,7 @@
 #     e2b template create qcut-cli -d e2b.Dockerfile \
 #     --cpu-count 2 --memory-mb 4096
 
-FROM oven/bun:1.3.10-debian
+FROM oven/bun:1.3.14-debian
 ARG QCUT_VERSION=dev
 ENV QCUT_VERSION=${QCUT_VERSION}
 

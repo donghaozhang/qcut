@@ -21,7 +21,7 @@ credits debited correctly.
 
 ## Live E2E verification (final run)
 
-```
+```text
 ✓ POST /api/sandbox/spawn → 200
   session_id      6ad17eaf-e454-4baf-8703-dc3f28af33cd
   credits_used    5

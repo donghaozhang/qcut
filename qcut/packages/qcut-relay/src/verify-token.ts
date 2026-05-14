@@ -12,10 +12,13 @@ export interface RelayClaims {
 	session_id: string;
 }
 
-export async function verifyToken(
-	token: string,
-	secret: string,
-): Promise<RelayClaims> {
+export async function verifyToken({
+	token,
+	secret,
+}: {
+	token: string;
+	secret: string;
+}): Promise<RelayClaims> {
 	const [headerB64, payloadB64, sigB64] = token.split(".");
 	if (!headerB64 || !payloadB64 || !sigB64) {
 		throw new Error("malformed_token");
@@ -31,7 +34,7 @@ export async function verifyToken(
 		new TextEncoder().encode(secret),
 		{ name: "HMAC", hash: "SHA-256" },
 		false,
-		["verify"],
+		["verify"]
 	);
 	const data = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
 	const sig = b64decBin(sigB64);
@@ -63,8 +66,7 @@ export function peekSessionId(token: string): string | null {
 
 function b64decBin(s: string): Uint8Array {
 	// Re-pad and convert URL-safe → standard base64
-	const padded =
-		s + (s.length % 4 === 0 ? "" : "====".slice(s.length % 4));
+	const padded = s + (s.length % 4 === 0 ? "" : "====".slice(s.length % 4));
 	const std = padded.replace(/-/g, "+").replace(/_/g, "/");
 	const bin = atob(std);
 	const out = new Uint8Array(bin.length);

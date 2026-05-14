@@ -10,7 +10,7 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
 |------|------|-----------|-----------|
 | `qcut-cli:dev`（本地 Docker 镜像） | 本地 Docker daemon | ✅ 已构建、**对生产端到端验证过** | n/a |
 | `ghcr.io/quriosity-agent/qcut-cli:vX.Y.Z` | GitHub Container Registry | ❌ 没推（CI 流程就绪） | ❌ |
-| E2B 模板 `qcut-cli`（ID `mo0cc1eel03akhsen8e5`） | E2B 构建集群 | ⚠️ **建好了但有 bug** —— `Sandbox.create()` 能用，但 `qcut` 包装脚本的 shebang 被搞坏（`#!/usr/bin/env bashnexec ...`）。需要按现在 `e2b.Dockerfile` 重建。 | n/a（E2B 私有）|
+| E2B 模板 `qcut-cli`（ID `<your-e2b-template-id>`） | E2B 构建集群 | ⚠️ **建好了但有 bug** —— `Sandbox.create()` 能用，但 `qcut` 包装脚本的 shebang 被搞坏（`#!/usr/bin/env bashnexec ...`）。需要按现在 `e2b.Dockerfile` 重建。 | n/a（E2B 私有）|
 
 当前能用：
 - `bun run build:cli-image` 本地产 `qcut-cli:dev`；agent-worker 用它接生产 Supabase。**端到端测过**（qcutlove 用户、`qcut --version` 任务、exit 0）。
@@ -30,7 +30,7 @@ open -a Docker
 # 等鲸鱼图标停止动画
 
 # 2. 构建镜像
-cd /Users/peter/Desktop/code/qcut/qcut
+cd /path/to/qcut/repo
 bun run build:cli-image
 
 # 3. 看标签
@@ -82,7 +82,7 @@ npm install -g @e2b/cli
 e2b auth login
 
 # 3. 从 Dockerfile 构建模板
-cd /Users/peter/Desktop/code/qcut/qcut
+cd /path/to/qcut/repo
 e2b template build --dockerfile Dockerfile.cli --name qcut-cli
 # → 成功后打印一个模板 ID
 ```
