@@ -4,6 +4,11 @@
 > 中被取代或重构了（Drizzle 替代 Supabase 成 schema 权威；`user_id`
 > 替换 `workspace_id`；spawn 搬到 license-server 的 Hono 路由）。
 > ACTUAL.zh.md 是按 commit 记录的实际落地日志，附生产环境验证证据。
+>
+> 🐳 **然后读 [`IMAGE-BOOTSTRAP.zh.md`](IMAGE-BOOTSTRAP.zh.md)。** 今天
+> qcut-cli 镜像在任何地方都不存在（本地 Docker、GHCR、E2B 都没有）。
+> 三条路径（本地 / GHCR / E2B 模板）从 PR spec 里独立出来，因为每家
+> provider 都需要自己的构建步骤。
 
 九份 PR 级别的任务规约，每一份都能直接喂给 `/implementit`。每个文件明确说：要做什么、文件放哪、加哪些测试、跑什么验证算"完工"。
 

@@ -6,6 +6,11 @@
 > spawn moved to a license-server Hono route). ACTUAL.md is the
 > commit-by-commit log of what really shipped, with live-verification
 > evidence against the production Postgres.
+>
+> 🐳 **Then read [`IMAGE-BOOTSTRAP.md`](IMAGE-BOOTSTRAP.md).** Today no
+> qcut-cli image exists anywhere (local Docker, GHCR, or E2B). The
+> three paths (local / GHCR / E2B template) are documented separately
+> from the PR specs because each provider needs its own build step.
 
 Nine PR-sized task specs, each consumable by `/implementit`. Each file says exactly what to build, where the files go, what tests to add, and what to run to verify "done."
 
