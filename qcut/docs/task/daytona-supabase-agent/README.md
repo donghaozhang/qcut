@@ -51,6 +51,14 @@ Browser sandbox extension (interactive surface in wzrdagentstudio):
 | [web-sandbox-integration.md](web-sandbox/integration.md) | Concrete wiring into wzrdagentstudio + Supabase Edge Function + Cloudflare DO relay |
 | [web-sandbox-verification.md](web-sandbox/verification.md) | Three-layer smoke test recipe, exit-code contract, failure-mode catalogue, CI hook |
 
+Implementation plan (PR-sized specs consumable by `/implementit`):
+
+| File | Purpose |
+|------|---------|
+| [implementation/README.md](implementation/README.md) | Index: 9 PR specs across Phase 1 (headless) and Phase 2 (browser sandbox), conventions, what's out of scope |
+| [implementation/01-system-doctor.md](implementation/01-system-doctor.md) — [05-daytona-devcontainer.md](implementation/05-daytona-devcontainer.md) | Phase 1: doctor command, container image, Supabase schema, agent-worker, Daytona devcontainer |
+| [implementation/06-sandbox-sessions-schema.md](implementation/06-sandbox-sessions-schema.md) — [09-wzrd-terminal-ui.md](implementation/09-wzrd-terminal-ui.md) | Phase 2: `sandbox_sessions` table, `/sandbox-spawn` Edge Function, Cloudflare DO relay, wzrdagentstudio xterm.js UI |
+
 ## Quick reference
 
 ```bash

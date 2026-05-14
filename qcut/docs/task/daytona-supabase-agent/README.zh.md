@@ -51,6 +51,14 @@ vm0 参考分析（来自 [vm0-ai/vm0](https://github.com/vm0-ai/vm0) 的经验�
 | [web-sandbox-integration.zh.md](web-sandbox/integration.zh.md) | 接进 wzrdagentstudio + Supabase Edge Function + Cloudflare DO 中继的具体接线 |
 | [web-sandbox-verification.zh.md](web-sandbox/verification.zh.md) | 三层烟测脚本、退出码契约、失败模式表、CI 钩子 |
 
+实现计划（PR 级规约，可直接喂给 `/implementit`）：
+
+| 文件 | 内容 |
+|------|------|
+| [implementation/README.zh.md](implementation/README.zh.md) | 索引：Phase 1（无头）和 Phase 2（浏览器沙箱）共 9 份 PR 规约、统一约定、不覆盖的部分 |
+| [implementation/01-system-doctor.zh.md](implementation/01-system-doctor.zh.md) —— [05-daytona-devcontainer.zh.md](implementation/05-daytona-devcontainer.zh.md) | Phase 1：doctor 命令、容器镜像、Supabase schema、agent-worker、Daytona devcontainer |
+| [implementation/06-sandbox-sessions-schema.zh.md](implementation/06-sandbox-sessions-schema.zh.md) —— [09-wzrd-terminal-ui.zh.md](implementation/09-wzrd-terminal-ui.zh.md) | Phase 2：`sandbox_sessions` 表、`/sandbox-spawn` Edge Function、Cloudflare DO 中继、wzrdagentstudio xterm.js UI |
+
 ## 快速参考
 
 ```bash
