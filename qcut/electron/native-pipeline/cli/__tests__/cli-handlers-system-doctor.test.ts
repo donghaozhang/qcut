@@ -25,9 +25,7 @@ describe("runDoctor", () => {
 
 	it("does not include provider_pings when skipHealth=true", () => {
 		const report = runDoctor({ skipHealth: true });
-		expect(
-			report.checks.some((c) => c.name === "provider_pings"),
-		).toBe(false);
+		expect(report.checks.some((c) => c.name === "provider_pings")).toBe(false);
 	});
 
 	it("includes provider_pings warn when skipHealth=false", () => {

@@ -74,9 +74,7 @@ export function runDoctor(opts: { skipHealth: boolean }): DoctorReport {
 
 	const ffmpegVersion = safeVersion("ffmpeg", ["-version"]);
 	checks.push(
-		ffmpegVersion
-			? ok("ffmpeg", ffmpegVersion)
-			: fail("ffmpeg", "not on PATH"),
+		ffmpegVersion ? ok("ffmpeg", ffmpegVersion) : fail("ffmpeg", "not on PATH")
 	);
 
 	const envPath = path.join(os.homedir(), ".qcut", ".env");
@@ -87,7 +85,7 @@ export function runDoctor(opts: { skipHealth: boolean }): DoctorReport {
 			const mode = fs.statSync(envPath).mode & 0o777;
 			if (mode !== 0o600) {
 				checks.push(
-					warn("env_file_mode", `expected 0600, got 0${mode.toString(8)}`),
+					warn("env_file_mode", `expected 0600, got 0${mode.toString(8)}`)
 				);
 			} else {
 				checks.push(ok("env_file_mode", "0600"));
@@ -104,8 +102,8 @@ export function runDoctor(opts: { skipHealth: boolean }): DoctorReport {
 				? ok("env_file_keys", `${keysConfigured}/${keysTotal} configured`)
 				: fail(
 						"env_file_keys",
-						`0/${keysTotal} configured (set with: qcut system set-key)`,
-					),
+						`0/${keysTotal} configured (set with: qcut system set-key)`
+					)
 		);
 	} else {
 		checks.push(fail("env_file", `${envPath} not found`));
@@ -116,10 +114,7 @@ export function runDoctor(opts: { skipHealth: boolean }): DoctorReport {
 		// external SLO dependencies, not a CLI smoke test. Surface as warn
 		// so consumers know it wasn't run.
 		checks.push(
-			warn(
-				"provider_pings",
-				"not implemented (use --skip-health to suppress)",
-			),
+			warn("provider_pings", "not implemented (use --skip-health to suppress)")
 		);
 	}
 

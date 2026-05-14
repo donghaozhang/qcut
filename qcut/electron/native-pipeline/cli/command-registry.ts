@@ -1126,10 +1126,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"Report environment health (bun/ffmpeg/.env/keys) as JSON. Used by the Daytona/E2B spawn probe.",
 		category: "keys",
 		flags: [],
-		examples: [
-			"qcut system doctor --json --skip-health",
-			"qcut system doctor",
-		],
+		examples: ["qcut system doctor --json --skip-health", "qcut system doctor"],
 	},
 
 	// ── Project Setup ──

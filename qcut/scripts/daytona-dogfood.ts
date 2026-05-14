@@ -17,18 +17,21 @@ import { $ } from "bun";
 import { randomUUID } from "node:crypto";
 
 const SANDBOX = `qcut-dogfood-${randomUUID().slice(0, 8)}`;
-const IMAGE = process.env.QCUT_IMAGE_TAG ?? "ghcr.io/quriosity-agent/qcut-cli:v0";
+const IMAGE =
+	process.env.QCUT_IMAGE_TAG ?? "ghcr.io/quriosity-agent/qcut-cli:v0";
 
 console.log(`▶ daytona create ${SANDBOX}  (image ${IMAGE})`);
 await $`daytona create ${SANDBOX} --image ${IMAGE} --quiet`;
 
 try {
 	console.log("▶ doctor inside sandbox");
-	const doctor = await $`daytona ssh ${SANDBOX} -- qcut system doctor --json --skip-health`.text();
+	const doctor =
+		await $`daytona ssh ${SANDBOX} -- qcut system doctor --json --skip-health`.text();
 	console.log(doctor);
 
 	console.log("▶ idea2video --dry-run (validates routing)");
-	const dry = await $`daytona ssh ${SANDBOX} -- qcut flow idea2video --input "a red panda eating bamboo" --skip-health --no-confirm --dry-run --json`.text();
+	const dry =
+		await $`daytona ssh ${SANDBOX} -- qcut flow idea2video --input "a red panda eating bamboo" --skip-health --no-confirm --dry-run --json`.text();
 	console.log(dry);
 
 	console.log("▶ idea2video real (1s clip)");

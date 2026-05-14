@@ -45,19 +45,22 @@ interface SpawnBody {
 }
 
 sandboxRoutes.post("/spawn", async (c) => {
-  try {
-    return await spawnHandler(c);
-  } catch (err) {
-    console.error("[sandbox/spawn] unhandled:", err);
-    return c.json(
-      {
-        error: "unhandled",
-        detail: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack?.split("\n").slice(0, 5).join("\n") : undefined,
-      },
-      500,
-    );
-  }
+	try {
+		return await spawnHandler(c);
+	} catch (err) {
+		console.error("[sandbox/spawn] unhandled:", err);
+		return c.json(
+			{
+				error: "unhandled",
+				detail: err instanceof Error ? err.message : String(err),
+				stack:
+					err instanceof Error
+						? err.stack?.split("\n").slice(0, 5).join("\n")
+						: undefined,
+			},
+			500
+		);
+	}
 });
 
 async function spawnHandler(c: Context) {
@@ -90,8 +93,8 @@ async function spawnHandler(c: Context) {
 		.where(
 			and(
 				eq(sandboxSessions.userId, userId),
-				inArray(sandboxSessions.status, ["spawning", "active"]),
-			),
+				inArray(sandboxSessions.status, ["spawning", "active"])
+			)
 		);
 	if (active.length >= MAX_CONCURRENT) {
 		return c.json({ error: "too_many_active_sessions" }, 429);
@@ -122,7 +125,7 @@ async function spawnHandler(c: Context) {
 				available:
 					deduction.balance.planCredits + deduction.balance.topUpCredits,
 			},
-			402,
+			402
 		);
 	}
 
@@ -169,7 +172,7 @@ async function spawnHandler(c: Context) {
 	try {
 		probe = await sandbox.commands.run(
 			"/usr/local/bin/qcut-entrypoint qcut system doctor --json --skip-health",
-			{ timeoutMs: PROBE_TIMEOUT_MS },
+			{ timeoutMs: PROBE_TIMEOUT_MS }
 		);
 	} catch (err) {
 		await sandbox.kill();
@@ -178,7 +181,7 @@ async function spawnHandler(c: Context) {
 				error: "probe_threw",
 				detail: err instanceof Error ? err.message : String(err),
 			},
-			502,
+			502
 		);
 	}
 	if (probe.exitCode !== 0) {
@@ -227,7 +230,7 @@ async function spawnHandler(c: Context) {
 				error: "persist_failed",
 				detail: err instanceof Error ? err.message : String(err),
 			},
-			500,
+			500
 		);
 	}
 
@@ -245,7 +248,7 @@ async function spawnHandler(c: Context) {
 				error: "jwt_sign_failed",
 				detail: err instanceof Error ? err.message : String(err),
 			},
-			500,
+			500
 		);
 	}
 
