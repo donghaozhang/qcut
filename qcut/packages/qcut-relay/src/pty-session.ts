@@ -1,12 +1,16 @@
 /**
  * Durable Object holding one live PTY session pair (browser WS ↔ E2B
- * PTY). One DO per session_id; idFromName(session_id) gives us global
+ * PTY). One DO per session_id; idFromName(session_id) gives global
  * routing.
  *
- * The DO verifies the relay token *itself* (the top-level fetch only
- * peeks). It then opens a PTY in the named E2B sandbox, pipes bytes
- * both ways, samples a row into agent_events every 5 s or 8 KB out,
- * and PATCHes sandbox_sessions when the connection drops.
+ * E2B SDK v2 PTY contract:
+ *   - sandbox.pty.create({ cols, rows, onData, timeoutMs }) → CommandHandle
+ *     (has .pid)
+ *   - sandbox.pty.sendInput(pid, Uint8Array) → write bytes to stdin
+ *   - sandbox.pty.resize(pid, { cols, rows })
+ *   - sandbox.pty.kill(pid)
+ *
+ * onData is registered at create time, not on the handle.
  *
  * @module @qcut/relay/pty-session
  */
@@ -14,13 +18,6 @@
 import { auditEvent, fetchSession, markEnded } from "./audit.js";
 import { verifyToken } from "./verify-token.js";
 import type { Env } from "./index.js";
-
-interface PtyHandle {
-	write(data: Uint8Array): void;
-	resize(opts: { cols: number; rows: number }): void;
-	onData(cb: (b: Uint8Array) => void): void;
-	kill(): Promise<void> | void;
-}
 
 export class PtySession {
 	private state: DurableObjectState;
@@ -51,17 +48,10 @@ export class PtySession {
 			return new Response("session_not_active", { status: 410 });
 		}
 
-		// Lazy import — keep the E2B SDK out of the cold-start path until
-		// we actually need it. Cloudflare Workers honour dynamic imports.
 		const e2b = await import("e2b");
 		const sandbox = await e2b.Sandbox.connect(session.provider_session_id, {
 			apiKey: this.env.E2B_API_KEY,
 		});
-		const pty = (await (sandbox as { pty: { create: (opts: unknown) => Promise<PtyHandle> } }).pty.create({
-			rows: 24,
-			cols: 80,
-			command: "/usr/local/bin/qcut-entrypoint bash",
-		})) as PtyHandle;
 
 		const pair = new WebSocketPair();
 		const client = pair[0];
@@ -70,58 +60,86 @@ export class PtySession {
 
 		let bytesOut = 0;
 		let lastAudit = Date.now();
-
-		pty.onData((chunk: Uint8Array) => {
-			bytesOut += chunk.byteLength;
-			server.send(chunk);
-			if (Date.now() - lastAudit > 5000 || bytesOut > 8192) {
-				const sample = bytesOut;
-				bytesOut = 0;
-				lastAudit = Date.now();
-				void auditEvent(this.env, claims.session_id, "sandbox_io", {
-					direction: "out",
-					bytes: sample,
-				});
+		const sendBuf = (chunk: Uint8Array) => {
+			try {
+				server.send(chunk);
+			} catch {
+				/* socket closed mid-send; ignore */
 			}
+		};
+
+		const pty = await sandbox.pty.create({
+			cols: 80,
+			rows: 24,
+			timeoutMs: 30 * 60 * 1000,
+			onData: (chunk: Uint8Array) => {
+				bytesOut += chunk.byteLength;
+				sendBuf(chunk);
+				if (Date.now() - lastAudit > 5000 || bytesOut > 8192) {
+					const sample = bytesOut;
+					bytesOut = 0;
+					lastAudit = Date.now();
+					void auditEvent(this.env, claims.session_id, "sandbox_io", {
+						direction: "out",
+						bytes: sample,
+					});
+				}
+			},
 		});
 
-		// motd + lifecycle markers
-		const motd =
-			`qcut sandbox · session ${claims.session_id.slice(0, 8)} · expires ${session.expires_at}\r\n` +
-			"type 'qcut system doctor' to verify provider reachability\r\n";
-		server.send(new TextEncoder().encode(motd));
+		// Materialize ~/.qcut/.env from the env vars injected at spawn,
+		// then a friendly motd. Drops the user straight at the bash prompt
+		// (which is what E2B's pty.create gives them by default).
+		await sandbox.pty.sendInput(
+			pty.pid,
+			new TextEncoder().encode(
+				"/usr/local/bin/qcut-entrypoint /bin/true && clear && echo 'qcut sandbox · session " +
+					claims.session_id.slice(0, 8) +
+					" · expires " +
+					session.expires_at +
+					"' && echo 'type: qcut --help for command reference'\n",
+			),
+		);
 		void auditEvent(this.env, claims.session_id, "motd_sent", {});
 		void auditEvent(this.env, claims.session_id, "pty_attached", {});
 
 		server.addEventListener("message", (ev: MessageEvent) => {
-			const data = ev.data;
-			if (typeof data === "string") {
-				// Control frames as JSON envelopes
-				try {
-					const ctrl = JSON.parse(data);
-					if (
-						ctrl &&
-						ctrl.kind === "resize" &&
-						typeof ctrl.rows === "number" &&
-						typeof ctrl.cols === "number"
-					) {
-						pty.resize({ rows: ctrl.rows, cols: ctrl.cols });
+			void (async () => {
+				const data = ev.data;
+				if (typeof data === "string") {
+					try {
+						const ctrl = JSON.parse(data);
+						if (
+							ctrl &&
+							ctrl.kind === "resize" &&
+							typeof ctrl.rows === "number" &&
+							typeof ctrl.cols === "number"
+						) {
+							await sandbox.pty.resize(pty.pid, {
+								cols: ctrl.cols,
+								rows: ctrl.rows,
+							});
+						}
+					} catch {
+						/* drop malformed control */
 					}
-				} catch {
-					/* drop malformed */
+					return;
 				}
-				return;
-			}
-			const buf = new Uint8Array(data as ArrayBuffer);
-			pty.write(buf);
+				try {
+					const buf = new Uint8Array(data as ArrayBuffer);
+					await sandbox.pty.sendInput(pty.pid, buf);
+				} catch {
+					/* sandbox gone; ignore */
+				}
+			})();
 		});
 
 		server.addEventListener("close", () => {
 			void (async () => {
 				try {
-					await pty.kill();
+					await sandbox.pty.kill(pty.pid);
 				} catch {
-					/* ignore */
+					/* already dead */
 				}
 				await markEnded(this.env, claims.session_id, "disconnect");
 			})();

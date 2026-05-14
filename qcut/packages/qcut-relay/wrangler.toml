@@ -10,7 +10,8 @@ bindings = [
 
 [[migrations]]
 tag = "v1"
-new_classes = ["PtySession"]
+# Free-plan Durable Objects require sqlite-backed classes.
+new_sqlite_classes = ["PtySession"]
 
 # Set via `wrangler secret put`:
 #   SUPABASE_URL

@@ -10,6 +10,7 @@
 		"test": "bunx vitest run --config vitest.config.ts"
 	},
 	"dependencies": {
+		"e2b": "^2.20.0",
 		"jose": "^5.0.0"
 	},
 	"devDependencies": {
