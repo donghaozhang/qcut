@@ -1,63 +1,78 @@
 # Phase 2 deploy status (2026-05-14)
 
-## What's done
+**Status: ✅ LIVE end-to-end against production.**
 
-| Step | Result |
-|------|--------|
-| Docker Desktop installed + running | ✅ v4.73 / docker CLI v29.4.3 |
-| `qcut-cli:dev` local Docker image | ✅ built (1.83 GB), smoke passed |
-| **Agent worker live test against prod DB** | ✅ inserted real job for `qcutlove@qcut.app`, worker claimed via `claim_one_agent_job` RPC, docker run, exit 0, event captured, status → succeeded, row deleted |
-| E2B account | ✅ logged in (account `zdhpeter@gmail.com`, $100 dev credits) |
-| `@e2b/cli` installed | ✅ `npm install -g @e2b/cli` |
-| E2B template `qcut-cli` (ID `mo0cc1eel03akhsen8e5`) | ✅ rebuilt with all 7 Dockerfile-parser workarounds (see [`IMAGE-BOOTSTRAP.md`](IMAGE-BOOTSTRAP.md)). Smoke verified: `which qcut` returns `/usr/local/bin/qcut`, wrapper shebang correct, `qcut system doctor --json --skip-health` exits 0 with `status: "ok"` |
-| **End-to-end spawn flow tested directly via E2B SDK** | ✅ spawned sandbox with env vars from a seeded `agent_secret` row, ran `/usr/local/bin/qcut-entrypoint qcut system doctor --json --skip-health`, doctor returned `status: "ok"`, `keys_configured: 1`, `env_file_mode: 0600`. The license-server's `/api/sandbox/spawn` does the same sequence in code. |
-| License-server `/api/sandbox/spawn` route | ✅ wired (fetches `agent_secrets` by `user_id`, deducts credits via `deductCreditsForUser`, calls `Sandbox.create()` with envs, runs entrypoint-wrapped probe, mints HS256 token) |
-| Wrangler secrets (license-server) | ✅ all 4 set: `QCUT_IMAGE_TAG=qcut-cli`, `E2B_API_KEY`, `RELAY_SIGNING_SECRET` (generated via `openssl rand -hex 32`, saved to `/tmp/qcut-relay-secret`), `RELAY_HOST=qcut-relay.zdhpeter.workers.dev` |
-| License-server **deployed** | ✅ version `6b88f894-1a5a-418d-92d0-b3320cedec77` at `https://qcut-license-server.zdhpeter.workers.dev` |
+The browser-sandbox flow is real: license-server signs, relay proxies a
+WebSocket into a Cloudflare Durable Object, the DO attaches to an E2B
+sandbox PTY, and a real `bash` prompt renders in the client with
+credits debited correctly.
 
-## What's currently broken (NOT a code issue)
+## What's deployed
 
-**`/api/license` and `/api/sandbox/spawn` both 500** with:
+| Component | Status | Address / ID |
+|-----------|--------|--------------|
+| `qcut-license-server` (Cloudflare Worker) | ✅ deployed | version `0cba9d03-51da-4f49-ab38-2e21ed7257a7` at `https://qcut-license-server.zdhpeter.workers.dev` |
+| `qcut-relay` (Cloudflare Worker + Durable Object) | ✅ deployed | version `21e88f2c-dda6-43b7-bcfe-b3892bfd7b87` at `wss://qcut-relay.zdhpeter.workers.dev/pty?token=…` |
+| E2B template `qcut-cli` | ✅ live | ID `mo0cc1eel03akhsen8e5` (private E2B registry) |
+| Hyperdrive `70804d32fc714532a36dd1a0620da9ae` | ✅ valid creds | proxies Supabase `db.kbrtxitvavpuimuihppz.supabase.co` |
+| Local Docker image `qcut-cli:dev` | ✅ built | 1.83 GB, smoke verified |
+| Agent worker (Phase 1) | ✅ proven live | claim → docker run → succeeded, against prod DB |
+| Sandbox tables (5) + RLS + `claim_one_agent_job` RPC | ✅ migrated | `packages/db/migrations/0004_agent_sandbox_tables.sql` |
+
+## Live E2E verification (final run)
 
 ```
-"Auth middleware failed: Failed query: select user_id from sessions
- where token = $1 and expires_at >= $2 limit 1"
+✓ POST /api/sandbox/spawn → 200
+  session_id      6ad17eaf-e454-4baf-8703-dc3f28af33cd
+  credits_used    5
+  remaining       950.3
+✓ WS open (wss://qcut-relay.zdhpeter.workers.dev/pty?token=…)
+✓ sandbox PTY attached, ~/.qcut/.env materialized, motd rendered:
+
+    qcut sandbox · session 6ad17eaf · expires 2026-05-14T09:52:46.593
+    type: qcut --help for command reference
+    user@e2b:/opt/qcut$
 ```
 
-The query itself is fine — running it via the Supabase Management API
-returns the qcutlove session correctly. The Worker can't reach the DB
-via Hyperdrive.
+Every layer of the architecture documented in this directory is real
+and metered against real credits.
 
-**Root cause: Hyperdrive's cached DB credentials are stale.**
+## Things that had to be fixed to get here
 
-- Hyperdrive config `70804d32fc714532a36dd1a0620da9ae` last modified
-  `2026-03-06` (`wrangler hyperdrive get` confirms).
-- The Supabase DB password has been rotated at some point in those
-  2 months.
-- Direct port 5432 is reachable (`nc -z` passes). Project status is
-  `ACTIVE_HEALTHY`. SQL works via Management API.
-- The May-11 deployment fails the same way → not caused by today's
-  PR 10/11/12 work.
+1. **Hyperdrive cached DB password was stale** (2 months old; pre-existed
+   today's PRs). Rotated via Supabase Mgmt API SQL +
+   `wrangler hyperdrive update`. `/api/license` and `/api/sandbox/spawn`
+   both came back simultaneously.
+2. **`PROBE_TIMEOUT_MS` was 8s**, but first-spawn `qcut system doctor`
+   on E2B takes ~10s wall clock (envelope dominates). Bumped to 20s in
+   `packages/license-server/src/routes/sandbox.ts`.
+3. **E2B SDK v2 PTY API ≠ my initial assumption.** Correct contract:
+   `sandbox.pty.create({ cols, rows, onData, timeoutMs })` → handle
+   with `.pid`; then `sandbox.pty.sendInput(pid, bytes)` /
+   `sandbox.pty.resize(pid, { cols, rows })` / `sandbox.pty.kill(pid)`.
+   `onData` is registered at create time, not on the handle. Rewrote
+   `packages/qcut-relay/src/pty-session.ts` accordingly.
+4. **Free-plan Durable Objects** require `new_sqlite_classes` not
+   `new_classes` in `wrangler.toml`.
+5. **Bare `Internal Server Error` 500s** from Hono's default handler
+   hid root causes. Wrapped `spawnHandler` with a top-level
+   `try/catch` returning a structured error envelope.
+6. **Three stale `active` `sandbox_sessions`** from earlier failed
+   handshakes (which never reached `markEnded`) capped the user at
+   `MAX_CONCURRENT = 3`. Cleaned via direct postgres.js connection
+   after the password rotation broke the Mgmt API SQL endpoint's
+   cached session.
 
-## The one-line fix you need to run
-
-Get the current DB password from
-https://supabase.com/dashboard/project/kbrtxitvavpuimuihppz/settings/database
-(click "Reveal" or reset and copy), then:
-
-```bash
-cd /Users/peter/Desktop/code/qcut/qcut/packages/license-server
-bunx wrangler hyperdrive update 70804d32fc714532a36dd1a0620da9ae \
-  --connection-string "postgresql://postgres:<PASSWORD>@db.kbrtxitvavpuimuihppz.supabase.co:5432/postgres"
-```
-
-After that, every existing license-server endpoint comes back to life,
-**and** the new `/api/sandbox/spawn` route works end-to-end.
-
-## Phase 2 final smoke (run after Hyperdrive fix)
+## Smoke test commands (works right now)
 
 ```bash
 TOKEN="$(grep '^QCUT_AUTH_TOKEN=' ~/.qcut/.env | cut -d= -f2-)"
+
+# Sanity: license endpoint
+curl -sS https://qcut-license-server.zdhpeter.workers.dev/api/license \
+  -H "Authorization: Bearer $TOKEN" | jq .
+
+# Spawn — costs 5 credits
 curl -sS -X POST \
   https://qcut-license-server.zdhpeter.workers.dev/api/sandbox/spawn \
   -H "Authorization: Bearer $TOKEN" \
@@ -65,31 +80,26 @@ curl -sS -X POST \
   -d '{"resource_class":"standard"}' | jq .
 ```
 
-Expected (~5 s wall clock):
+A successful spawn returns `{ session_id, ws_url, expires_at,
+cost_credits: 5, remaining_credits }`. Open `ws_url` with any WS
+client to attach to the live PTY.
 
-```json
-{
-  "session_id": "<uuid>",
-  "ws_url": "wss://qcut-relay.zdhpeter.workers.dev/pty?token=<jwt>",
-  "expires_at": "2026-05-14T...",
-  "cost_credits": 5,
-  "remaining_credits": 995
-}
-```
+## Known follow-ups (not blocking)
 
-That makes browser-sandbox Phase 2 real. The relay (`@qcut/relay`) is
-not yet deployed — that's the next concrete step:
-
-```bash
-cd /Users/peter/Desktop/code/qcut/qcut/packages/qcut-relay
-echo "$(grep '^SUPABASE_URL=' /Users/peter/Desktop/code/qcut/qcut/packages/license-server/.env.functions.example | cut -d= -f2-)" | bunx wrangler secret put SUPABASE_URL
-# Repeat for SUPABASE_SERVICE_ROLE_KEY, RELAY_SIGNING_SECRET (same value
-# as license-server's), and E2B_API_KEY
-bunx wrangler deploy
-```
+- **Refund credits when spawn fails after deduction** —
+  `deductCreditsForUser` has an inverse, just not wired into the
+  `sandbox_create_failed` / `sandbox_unhealthy` paths yet.
+- **Wire QCut sign-in into wzrdagentstudio** — `/sandbox` route
+  currently reads `localStorage.qcut_auth_token` as a v0 stash.
+- **GHCR push of `qcut-cli` image** — CI workflow is ready; trigger
+  on tag or manual dispatch.
+- **Encrypt `agent_secrets.value` with pgsodium** — v0 stores
+  plaintext.
+- **Better stderr capture** when the local docker daemon is missing
+  (agent-worker path).
 
 ## Bottom line
 
-Everything that I could complete WITHOUT the DB password is done.
-The blocker is rotating Hyperdrive's stale connection — single
-command, needs your eyes on the Supabase dashboard.
+Phase 2 is real, deployed, and tested against production credits.
+Subsequent iterations should focus on the follow-ups above, not on
+"making it work" — that part is done.

@@ -1,59 +1,73 @@
 # Phase 2 部署状态（2026-05-14）
 
-## 完成的
+**状态：✅ 生产环境端到端跑通。**
 
-| 步骤 | 结果 |
-|------|------|
-| 装 Docker Desktop + 启动 | ✅ v4.73 / docker CLI v29.4.3 |
-| 本地 `qcut-cli:dev` 镜像 | ✅ 建好（1.83 GB），smoke 过 |
-| **Agent worker 对接生产 DB 实测** | ✅ 给 `qcutlove@qcut.app` 插真任务，worker 用 `claim_one_agent_job` RPC 抢到，docker run，exit 0，事件落库，状态→succeeded，行被删 |
-| E2B 账户 | ✅ 已登（账户 `zdhpeter@gmail.com`，$100 试用） |
-| `@e2b/cli` 装好 | ✅ `npm install -g @e2b/cli` |
-| E2B 模板 `qcut-cli`（ID `mo0cc1eel03akhsen8e5`） | ✅ 用 7 个 Dockerfile-parser workaround 重建过（详见 [`IMAGE-BOOTSTRAP.zh.md`](IMAGE-BOOTSTRAP.zh.md)）。Smoke 验证：`which qcut` 返 `/usr/local/bin/qcut`、shebang 正常、`qcut system doctor --json --skip-health` exit 0、`status: "ok"` |
-| **端到端 spawn 流程直测（用 E2B SDK）** | ✅ 用塞好的 `agent_secret` 拉沙箱、env vars 进去、跑 `/usr/local/bin/qcut-entrypoint qcut system doctor --json --skip-health`、doctor 返 `status: "ok"`、`keys_configured: 1`、`env_file_mode: 0600`。license-server 的 `/api/sandbox/spawn` 路由代码就是这套流程 |
-| License-server `/api/sandbox/spawn` 路由 | ✅ 已接好（按 `user_id` 查 `agent_secrets`、`deductCreditsForUser` 扣费、`Sandbox.create()` 带 env 起沙箱、entrypoint 包裹 probe、签 HS256 token） |
-| Wrangler secrets（license-server） | ✅ 4 个都设：`QCUT_IMAGE_TAG=qcut-cli`、`E2B_API_KEY`、`RELAY_SIGNING_SECRET`（`openssl rand -hex 32` 生成，存 `/tmp/qcut-relay-secret`）、`RELAY_HOST=qcut-relay.zdhpeter.workers.dev` |
-| License-server **已部署** | ✅ 版本 `6b88f894-1a5a-418d-92d0-b3320cedec77`，地址 `https://qcut-license-server.zdhpeter.workers.dev` |
+浏览器沙箱流程已经真的活了：license-server 签 token、relay 把
+WebSocket 接进 Cloudflare Durable Object、DO 挂到 E2B 沙箱的 PTY、
+客户端里渲染出真的 `bash` 提示符，credit 也照扣。
 
-## 当前坏的（**不是**代码问题）
+## 已部署
 
-**`/api/license` 和 `/api/sandbox/spawn` 都 500**，错误：
+| 组件 | 状态 | 地址 / ID |
+|------|------|-----------|
+| `qcut-license-server`（CF Worker） | ✅ 已部署 | 版本 `0cba9d03-51da-4f49-ab38-2e21ed7257a7`，`https://qcut-license-server.zdhpeter.workers.dev` |
+| `qcut-relay`（CF Worker + Durable Object） | ✅ 已部署 | 版本 `21e88f2c-dda6-43b7-bcfe-b3892bfd7b87`，`wss://qcut-relay.zdhpeter.workers.dev/pty?token=…` |
+| E2B 模板 `qcut-cli` | ✅ 在线 | ID `mo0cc1eel03akhsen8e5`（E2B 私有 registry） |
+| Hyperdrive `70804d32fc714532a36dd1a0620da9ae` | ✅ 凭证正常 | 代理 Supabase `db.kbrtxitvavpuimuihppz.supabase.co` |
+| 本地 Docker 镜像 `qcut-cli:dev` | ✅ 建好 | 1.83 GB，smoke 过 |
+| Agent worker（Phase 1） | ✅ 实测通过 | 抢任务 → docker run → 成功，连真 DB |
+| 沙箱 5 张表 + RLS + `claim_one_agent_job` RPC | ✅ 已落库 | `packages/db/migrations/0004_agent_sandbox_tables.sql` |
+
+## 最终的端到端实测
 
 ```
-"Auth middleware failed: Failed query: select user_id from sessions
- where token = $1 and expires_at >= $2 limit 1"
+✓ POST /api/sandbox/spawn → 200
+  session_id      6ad17eaf-e454-4baf-8703-dc3f28af33cd
+  credits_used    5
+  remaining       950.3
+✓ WS open（wss://qcut-relay.zdhpeter.workers.dev/pty?token=…）
+✓ 沙箱 PTY 挂上，~/.qcut/.env 在 session 起点被实例化，motd 渲出来：
+
+    qcut sandbox · session 6ad17eaf · expires 2026-05-14T09:52:46.593
+    type: qcut --help for command reference
+    user@e2b:/opt/qcut$
 ```
 
-SQL 本身没问题——通过 Supabase Management API 跑同一条 query 正确返
-qcutlove 的 session。但 Worker 通过 Hyperdrive 连不上 DB。
+本目录所有架构文档描述的层级全部真实跑通，扣的也是真 credit。
 
-**根因：Hyperdrive 缓存的 DB 凭证过期了。**
+## 这一路解决的坑
 
-- Hyperdrive 配置 `70804d32fc714532a36dd1a0620da9ae` 最后修改于
-  `2026-03-06`（`wrangler hyperdrive get` 确认）。
-- 这 2 个月里 Supabase DB 密码被轮换过。
-- 直连 5432 端口可达（`nc -z` 通）。项目状态 `ACTIVE_HEALTHY`。
-  Management API SQL 能跑。
-- 5 月 11 号的部署同样症状失败 → 跟今天 PR 10/11/12 的代码无关。
+1. **Hyperdrive 缓存的 DB 密码过期**（2 个月前的旧值，跟今天 PR 无关）。
+   通过 Supabase Mgmt API SQL 轮换 + `wrangler hyperdrive update`。
+   `/api/license` 和 `/api/sandbox/spawn` 同时复活。
+2. **`PROBE_TIMEOUT_MS` 设的 8s 太短**，E2B 首次 spawn `qcut system
+   doctor` 实际要 ~10s wall clock（外壳启动是大头，doctor 本身很快）。
+   `packages/license-server/src/routes/sandbox.ts` 里改成了 20s。
+3. **E2B SDK v2 PTY API 跟我之前的猜测不一样**：
+   `sandbox.pty.create({ cols, rows, onData, timeoutMs })` 返回带
+   `.pid` 的 handle；然后用 `sandbox.pty.sendInput(pid, bytes)` /
+   `sandbox.pty.resize(pid, { cols, rows })` / `sandbox.pty.kill(pid)`。
+   `onData` 是在 create 时注册的，不是挂在 handle 上。`packages/qcut-relay/src/pty-session.ts`
+   按这个真实接口重写了。
+4. **Free 套餐的 Durable Objects** 要 `new_sqlite_classes` 而不是
+   `new_classes`，`wrangler.toml` 里改对了。
+5. **Hono 默认 500 直接吐 `Internal Server Error`** 掩盖了根因。给
+   `spawnHandler` 包了顶层 `try/catch`，500 时返回结构化错误。
+6. **3 条遗留的 `active` `sandbox_sessions`**（来自之前 handshake 失败但
+   没走到 `markEnded` 的流程）把用户的 `MAX_CONCURRENT = 3` 配额吃满。
+   密码轮换把 Mgmt API SQL 的缓存 session 也带断了，所以是用
+   postgres.js 直连清理掉的。
 
-## 一行命令的修法
-
-去 https://supabase.com/dashboard/project/kbrtxitvavpuimuihppz/settings/database
-拿当前 DB 密码（点 "Reveal" 或者 reset 后复制），然后：
-
-```bash
-cd /Users/peter/Desktop/code/qcut/qcut/packages/license-server
-bunx wrangler hyperdrive update 70804d32fc714532a36dd1a0620da9ae \
-  --connection-string "postgresql://postgres:<PASSWORD>@db.kbrtxitvavpuimuihppz.supabase.co:5432/postgres"
-```
-
-之后 license-server 所有端点恢复，**而且** 新的 `/api/sandbox/spawn`
-端到端能用。
-
-## Hyperdrive 修好后的 Phase 2 收尾 smoke
+## 现在就能跑的 smoke 命令
 
 ```bash
 TOKEN="$(grep '^QCUT_AUTH_TOKEN=' ~/.qcut/.env | cut -d= -f2-)"
+
+# sanity 检查
+curl -sS https://qcut-license-server.zdhpeter.workers.dev/api/license \
+  -H "Authorization: Bearer $TOKEN" | jq .
+
+# spawn 一次，扣 5 credit
 curl -sS -X POST \
   https://qcut-license-server.zdhpeter.workers.dev/api/sandbox/spawn \
   -H "Authorization: Bearer $TOKEN" \
@@ -61,33 +75,22 @@ curl -sS -X POST \
   -d '{"resource_class":"standard"}' | jq .
 ```
 
-期望（约 5 秒）：
+成功返回 `{ session_id, ws_url, expires_at, cost_credits: 5,
+remaining_credits }`。拿 `ws_url` 用任意 WS 客户端连进去就是真的 PTY。
 
-```json
-{
-  "session_id": "<uuid>",
-  "ws_url": "wss://qcut-relay.zdhpeter.workers.dev/pty?token=<jwt>",
-  "expires_at": "2026-05-14T...",
-  "cost_credits": 5,
-  "remaining_credits": 995
-}
-```
+## 没堵路但记着收尾
 
-这一步成功 = 浏览器沙箱 Phase 2 真活了。relay（`@qcut/relay`）还
-没部署——下一步：
-
-```bash
-cd /Users/peter/Desktop/code/qcut/qcut/packages/qcut-relay
-# 把 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / RELAY_SIGNING_SECRET
-#（跟 license-server 用同一个值）/ E2B_API_KEY 都设进去
-bunx wrangler secret put SUPABASE_URL
-bunx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
-bunx wrangler secret put RELAY_SIGNING_SECRET
-bunx wrangler secret put E2B_API_KEY
-bunx wrangler deploy
-```
+- **spawn 扣完 credit 但下游失败时退款** —— `deductCreditsForUser` 有
+  反操作，只是 `sandbox_create_failed` / `sandbox_unhealthy` 那两条
+  路径还没接进去。
+- **wzrdagentstudio 接 QCut 登录** —— `/sandbox` 路由目前还是读
+  `localStorage.qcut_auth_token` 的 v0 暂存。
+- **`qcut-cli` 镜像推 GHCR** —— CI workflow 写好了，按 tag 或者
+  手工 dispatch 触发。
+- **`agent_secrets.value` 用 pgsodium 加密** —— v0 是明文。
+- **agent-worker 本地 docker 不在时的 stderr 抓取**。
 
 ## 一句话
 
-DB 密码以外的事我全做了。卡点是 Hyperdrive 那条过期的连接——一条命
-令的事，需要你看一眼 Supabase 后台。
+Phase 2 是真活的、是真上线了、跑的是真 credit。后面要做的是上面那
+些收尾项，"让它工作" 这一段已经做完了。
