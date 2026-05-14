@@ -7,12 +7,12 @@ metered against real credits.
 The four items below are intentionally deferred from that cut —
 each is independently shippable and listed roughly by impact.
 
-| # | Item | Why it's deferred | Status |
-|---|------|-------------------|--------|
-| 1 | `agent_secrets.value` encryption (pgsodium) | v0 stores plaintext; key-rotation operator workflow was the unknown that blocked it | Not started |
-| 2 | Refund credits when spawn fails after deduction | `deductCreditsForUser` has an inverse but it's not wired into `sandbox_create_failed` / `sandbox_unhealthy` paths | Not started |
-| 3 | QCut sign-in in wzrdagentstudio `/sandbox` | Today reads `localStorage.qcut_auth_token` as a v0 stash; needs the real Better Auth flow | Not started |
-| 4 | GHCR push of `qcut-cli` image | CI workflow ready (`.github/workflows/cli-image.yml`); just needs a `v*` tag dispatch | Not started |
+| #   | Item                                            | Why it's deferred                                                                                                 | Status      |
+| --- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1   | `agent_secrets.value` encryption (pgsodium)     | v0 stores plaintext; key-rotation operator workflow was the unknown that blocked it                               | Not started |
+| 2   | Refund credits when spawn fails after deduction | `deductCreditsForUser` has an inverse but it's not wired into `sandbox_create_failed` / `sandbox_unhealthy` paths | Not started |
+| 3   | QCut sign-in in wzrdagentstudio `/sandbox`      | Today reads `localStorage.qcut_auth_token` as a v0 stash; needs the real Better Auth flow                         | Not started |
+| 4   | GHCR push of `qcut-cli` image                   | CI workflow exists and smokes the image before push; still needs a real dispatch/tag and pull verification        | In progress |
 
 ## 1. `agent_secrets` encryption with pgsodium
 
@@ -21,6 +21,7 @@ as plaintext in `agent_secrets.value`. A DB read leak today instantly
 yields usable credentials.
 
 Pieces to design:
+
 - pgsodium key-management: server-managed key, key rotation flow,
   who can rotate, what happens on rotation to in-flight job containers.
 - Migration story: convert existing rows in place (the
@@ -40,13 +41,14 @@ same `keys_configured: 1` as today.
 
 ## 2. Refund credits on failed spawn
 
-**Goal**: spawn currently deducts 5 credits *before* calling
+**Goal**: spawn currently deducts 5 credits _before_ calling
 `Sandbox.create()`. If the create or doctor probe fails (today
 returns `sandbox_create_failed` or `sandbox_unhealthy`), the user
 is left with 5 fewer credits and no sandbox. There's a `// TODO:
 refund credits here` at `sandbox.ts:159`.
 
 Pieces:
+
 - `deductCreditsForUser` exists in
   `packages/license-server/src/services/credit-service.ts`; need its
   inverse `refundCreditsForUser` (or call deduct with a negative
@@ -71,6 +73,7 @@ real Better Auth flow so a logged-out user is redirected to QCut
 sign-in and a logged-in user has their token attached automatically.
 
 Pieces:
+
 - Locate the Better Auth client wiring already used elsewhere in
   wzrdagentstudio (or in this repo's apps/web) and lift it.
 - Wzrd's `/sandbox` route: gate on session, redirect to
@@ -85,20 +88,22 @@ and the relay attaches.
 ## 4. GHCR push of `qcut-cli` image
 
 **Goal**: `agent-worker`'s Daytona variant points at
-`ghcr.io/quriosity-agent/qcut-cli:v0`, but that tag has never been
-pushed. The CI workflow at `.github/workflows/cli-image.yml` is
-already wired; it just needs a tag (e.g. `qcut-cli-v1`) or a
-manual `workflow_dispatch` to actually publish.
+`ghcr.io/quriosity-agent/qcut-cli:v0`, but that tag has not yet been
+verified as pullable. The CI workflow at `.github/workflows/cli-image.yml`
+is wired to build, smoke, and push; it needs a tag or manual
+`workflow_dispatch` to publish the first image.
 
 Pieces:
+
 - Verify the workflow's secrets (GHCR auth via `GITHUB_TOKEN` should
   already work because the package will live under
   `quriosity-agent/qcut-cli`).
 - Run the workflow once on dispatch with `tag=v1`.
 - Confirm `docker pull ghcr.io/quriosity-agent/qcut-cli:v1` works
   from a token-authenticated docker login.
-- Update `agent-worker/src/run-on-daytona.ts:IMAGE_TAG` default to
-  `:v1` (or `:latest`).
+- `agent-worker/src/run-on-daytona.ts` now uses `@daytona/sdk` and
+  creates an ephemeral image sandbox. Keep its default tag at `:v0`
+  unless the first published image uses a different tag.
 - Document the daytona path actually being exercised against the
   pushed image.
 

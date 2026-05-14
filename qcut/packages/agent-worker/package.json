@@ -11,6 +11,7 @@
 		"test:watch": "bunx vitest --config vitest.config.ts"
 	},
 	"dependencies": {
+		"@daytona/sdk": "^0.175.0",
 		"@qcut/db": "workspace:*",
 		"@supabase/supabase-js": "^2.49.0",
 		"execa": "^9.0.0"

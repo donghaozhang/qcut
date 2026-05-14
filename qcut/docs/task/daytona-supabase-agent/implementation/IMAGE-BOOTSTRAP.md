@@ -7,18 +7,28 @@ three paths and what's done / not done.
 
 ## Status (2026-05-14, after first build round)
 
-| Artifact | Where | Built? | Pushed? |
-|---|---|---|---|
-| `qcut-cli:dev` (local Docker image) | local Docker daemon | ✅ built, **verified end-to-end** against prod | n/a |
-| `ghcr.io/quriosity-agent/qcut-cli:vX.Y.Z` | GitHub Container Registry | ❌ never pushed (CI workflow ready) | ❌ |
-| E2B template `qcut-cli` (ID `<your-e2b-template-id>`) | E2B's build cluster | ⚠️ **built but with bugs** — `Sandbox.create()` works, but the `qcut` wrapper script's shebang is mangled (`#!/usr/bin/env bashnexec ...`). Needs rebuild with the `echo`-based wrapper now in `e2b.Dockerfile`. | n/a (E2B private) |
+| Artifact                                              | Where                     | Built?                                                                                                                                                                                                           | Pushed?                     |
+| ----------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `qcut-cli:dev` (local Docker image)                   | local Docker daemon       | ✅ built, **verified end-to-end** against prod                                                                                                                                                                   | n/a                         |
+| `ghcr.io/quriosity-agent/qcut-cli:vX.Y.Z`             | GitHub Container Registry | ⚠️ workflow added at `.github/workflows/cli-image.yml`; needs first dispatch/tag                                                                                                                                 | ❌ not yet confirmed pulled |
+| E2B template `qcut-cli` (ID `<your-e2b-template-id>`) | E2B's build cluster       | ⚠️ **built but with bugs** — `Sandbox.create()` works, but the `qcut` wrapper script's shebang is mangled (`#!/usr/bin/env bashnexec ...`). Needs rebuild with the `echo`-based wrapper now in `e2b.Dockerfile`. | n/a (E2B private)           |
 
 Current working:
+
 - `bun run build:cli-image` produces `qcut-cli:dev` locally; the agent-worker uses this against the live Supabase DB. **Smoked end-to-end** (qcutlove user, `qcut --version` job, exit 0).
 
-Currently broken / needs one more iteration:
-- `POST /api/sandbox/spawn` would return `sandbox_create_failed` (the spawn-probe runs `qcut system doctor` which hits the wrapper-shebang bug → 127 exit).
-- Fix: re-run `e2b template create qcut-cli -d e2b.Dockerfile --cpu-count 2 --memory-mb 4096` after moving workspace `node_modules` out (see "Workarounds" below). The current `e2b.Dockerfile` already incorporates all five bug fixes documented below.
+Currently still needs external credentials / provider runs:
+
+- GHCR: run `.github/workflows/cli-image.yml` once by `workflow_dispatch`
+  or a `v*` tag, then verify a token-authenticated `docker pull`.
+- Daytona: `packages/agent-worker` now uses the current `@daytona/sdk`
+  API, but the path still needs a real `DAYTONA_API_KEY` dogfood run
+  against the pushed GHCR image.
+- E2B: if rebuilding the browser-sandbox template, re-run
+  `e2b template create qcut-cli -d e2b.Dockerfile --cpu-count 2
+--memory-mb 4096` after moving workspace `node_modules` out (see
+  "Workarounds" below). The current `e2b.Dockerfile` already
+  incorporates the parser/USER/shebang fixes documented below.
 
 ## Path A — local Docker (fastest, dev only)
 
@@ -50,8 +60,9 @@ Worker / E2B / Daytona Cloud all can't see it.
 
 ## Path B — GitHub Container Registry (production-grade for Daytona)
 
-CI workflow `.github/workflows/cli-image.yml` builds + pushes on
-either a `v*` git tag or manual dispatch. Once you trigger it:
+CI workflow `.github/workflows/cli-image.yml` builds, runs
+`qcut-smoke`, and pushes on either a `v*` git tag or manual dispatch.
+Once you trigger it:
 
 ```bash
 # Option 1: tag-based publish
@@ -64,6 +75,7 @@ gh workflow run cli-image --field tag=dev-2026-05-14
 ```
 
 Side effects:
+
 - The image becomes pullable from `ghcr.io/quriosity-agent/qcut-cli:<tag>`
 - Anyone with read access to the repo's packages can pull
 - For private packages: pulling clients need a GitHub PAT with `read:packages`
@@ -76,7 +88,7 @@ first successful publish.
 
 E2B does NOT pull Docker images from GHCR. It builds its own template
 artifacts from a Dockerfile via the `e2b` CLI. This is a separate
-build step from Paths A and B; the artifact is a *template ID* like
+build step from Paths A and B; the artifact is a _template ID_ like
 `abcd1234efgh5678`.
 
 ```bash
@@ -153,7 +165,7 @@ Verified against E2B CLI 1.6+ on 2026-05-14:
   while IFS='=' read -r o d; do mv "$d" "$o"; done < /tmp/qcut-nm-map.txt
   ```
 - ⚠️ **Heavy builds OOM at 4 GiB.** `apps/web` Vite build (`tsc + vite
-  build`) gets SIGKILL'd. The CLI doesn't need the web bundle — run
+build`) gets SIGKILL'd. The CLI doesn't need the web bundle — run
   `bun install --frozen-lockfile --ignore-scripts` and **skip**
   `bun run build`. The CLI wrapper invokes `bun electron/.../cli.ts`
   directly from TypeScript source.
@@ -165,11 +177,11 @@ Verified against E2B CLI 1.6+ on 2026-05-14:
 
 ## Cost of each path
 
-| Path | Time to first build | Recurring cost | Best for |
-|---|---|---|---|
-| Local Docker | ~3 min one-time + daemon overhead | $0 (your laptop) | Worker dev against live DB |
-| GHCR | ~3 min CI run | GHCR free for public repos; paid for private storage | Daytona Cloud workspaces, the agent-worker's Daytona swap-in |
-| E2B template | ~5 min one-time + first spawn ~3 s | per-second E2B billing | Browser-sandbox path (PR 12) |
+| Path         | Time to first build                | Recurring cost                                       | Best for                                                     |
+| ------------ | ---------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------ |
+| Local Docker | ~3 min one-time + daemon overhead  | $0 (your laptop)                                     | Worker dev against live DB                                   |
+| GHCR         | ~3 min CI run                      | GHCR free for public repos; paid for private storage | Daytona Cloud workspaces, the agent-worker's Daytona swap-in |
+| E2B template | ~5 min one-time + first spawn ~3 s | per-second E2B billing                               | Browser-sandbox path (PR 12)                                 |
 
 ## Recommendation
 

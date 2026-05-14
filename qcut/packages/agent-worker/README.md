@@ -17,8 +17,9 @@ bun --cwd packages/agent-worker start
 
 # 3. From another terminal, queue a job:
 psql "$DATABASE_URL" <<SQL
-insert into public.agent_jobs (workspace_id, status, command)
-values ('00000000-0000-0000-0000-000000000abc',
+insert into public.agent_jobs (id, user_id, status, command)
+values ('00000000-0000-0000-0000-000000000001',
+        '<better-auth-user-id>',
         'queued',
         'qcut system doctor --json --skip-health');
 SQL
@@ -42,7 +43,7 @@ Supabase Realtime (INSERT push)
 main.ts ── claimOneJob() ── claim_one_agent_job RPC ── agent_jobs (running)
    │
    ▼
-runContainer() ─── docker run qcut-cli:vX bash -c "<cmd>" ── outputs to /output
+runContainer() ─── docker run qcut-cli:vX qcut <cmd> ── outputs to /output
    │
    ├── streamEvents() ── parse CLI stderr → agent_events (masked)
    ├── uploadArtifacts() ── scan output dir → Storage + agent_artifacts
@@ -54,8 +55,11 @@ worker restart with rows queued).
 
 ## Daytona swap-in
 
-PR 05 adds a `run-on-daytona.ts` and main.ts swaps in when
-`DAYTONA_API_KEY` is set. The rest of the pipeline is identical.
+Set `DAYTONA_API_KEY` and point `QCUT_IMAGE_TAG` at a pushed image
+such as `ghcr.io/quriosity-agent/qcut-cli:v0`. `main.ts` then swaps
+from local Docker to `run-on-daytona.ts`, which creates an ephemeral
+Daytona sandbox, runs the same command through `qcut-entrypoint`,
+downloads `/output`, and deletes the sandbox.
 
 ## Tests
 
@@ -63,7 +67,7 @@ PR 05 adds a `run-on-daytona.ts` and main.ts swaps in when
 bun --cwd packages/agent-worker test
 ```
 
-Unit tests cover the masker (provider/JWT/AWS/Slack patterns) and the
-stderr → event-row parser. Container spawning and Supabase Storage
-uploads are integration concerns; they need a real Docker daemon + a
-local Supabase to exercise.
+Unit tests cover the masker (provider/JWT/AWS/Slack patterns), the
+stderr → event-row parser, artifact classification, and the Daytona
+runner command/env/fallback behavior. Real Docker, Daytona, and
+Supabase Storage uploads still need integration credentials to exercise.

@@ -1,22 +1,22 @@
 /**
- * Daytona variant of runContainer (PR 05).
+ * Daytona-backed runner for agent jobs.
  *
- * Same contract as ./run-container.ts (local docker), but spawns a
- * Daytona sandbox via the @daytonaio/sdk. main.ts swaps in this
- * path when DAYTONA_API_KEY is set.
- *
- * The SDK shape is approximate — the real @daytonaio/sdk method
- * names may differ slightly. Adjust at deploy time; the file is
- * structured so the swap is a one-line change.
+ * Same external contract as run-container.ts: execute one qcut command,
+ * return captured stdio, and materialize /output locally for artifact
+ * upload.
  *
  * @module @qcut/agent-worker/run-on-daytona
  */
 
+import { randomUUID } from "node:crypto";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { Daytona } from "@daytona/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { execa } from "execa";
+
 import type { AgentJob } from "@qcut/db";
 
 import { tokenizeCommand } from "./run-container.js";
@@ -24,55 +24,145 @@ import type { ContainerResult } from "./run-container.js";
 
 const IMAGE_TAG =
 	process.env.QCUT_IMAGE_TAG ?? "ghcr.io/quriosity-agent/qcut-cli:v0";
-const TIMEOUT_MS = 30 * 60 * 1000;
+const TIMEOUT_SECONDS = 30 * 60;
+const OUTPUT_ARCHIVE = "/tmp/qcut-output.tar";
 
-interface DaytonaSandboxApi {
-	create(opts: {
-		image: string;
-		env: Record<string, string>;
-		resources?: { cpu?: number; memoryGb?: number };
-	}): Promise<{ id: string }>;
-	exec(
-		id: string,
-		opts: { command: string; timeoutMs: number }
-	): Promise<{ stdout: string; stderr: string; exitCode: number }>;
-	downloadDir(id: string, remotePath: string): Promise<string>;
-	kill(id: string): Promise<void>;
+interface AgentSecretRow {
+	key: string;
+	value: string;
 }
 
-interface DaytonaSdk {
-	sandboxes: DaytonaSandboxApi;
+interface DaytonaSessionCommandResult {
+	stdout?: string;
+	stderr?: string;
+	output?: string;
+	exitCode?: number;
 }
 
-interface DaytonaCtor {
-	new (opts: { apiKey: string }): DaytonaSdk;
+interface DaytonaSandbox {
+	id: string;
+	process: {
+		createSession(sessionId: string): Promise<void>;
+		deleteSession(sessionId: string): Promise<void>;
+		executeSessionCommand(
+			sessionId: string,
+			request: {
+				command: string;
+				runAsync?: boolean;
+				suppressInputEcho?: boolean;
+			},
+			timeout?: number
+		): Promise<DaytonaSessionCommandResult>;
+	};
+	fs: {
+		downloadFile(
+			remotePath: string,
+			localPath: string,
+			timeout?: number
+		): Promise<void>;
+	};
 }
 
-/** Lazy import so the worker doesn't pull the SDK when running locally. */
-async function getDaytonaCtor(): Promise<DaytonaCtor> {
-	// @ts-expect-error — optional peer dep not in package.json; if someone
-	// adds @daytonaio/sdk to deps later, this directive will start erroring
-	// and they can remove it. main.ts only takes this path when
-	// DAYTONA_API_KEY is set, which implies the caller wired the dep.
-	const mod = await import("@daytonaio/sdk").catch((err) => {
-		throw new Error(
-			`Daytona SDK not installed (add @daytonaio/sdk to packages/agent-worker/package.json). Underlying: ${err}`
-		);
-	});
-	const Ctor = (mod as { Daytona?: DaytonaCtor }).Daytona;
-	if (!Ctor) {
-		throw new Error("@daytonaio/sdk did not export Daytona constructor");
-	}
-	return Ctor;
+interface DaytonaClient {
+	create(
+		params: {
+			image: string;
+			envVars: Record<string, string>;
+			resources: { cpu: number; memory: number };
+			ephemeral: boolean;
+			autoStopInterval: number;
+		},
+		options: { timeout: number }
+	): Promise<DaytonaSandbox>;
+	delete(sandbox: DaytonaSandbox, timeout?: number): Promise<void>;
 }
 
-export async function runOnDaytona(
-	supabase: SupabaseClient,
-	job: AgentJob
-): Promise<ContainerResult> {
+interface DaytonaClientCtor {
+	new (config: { apiKey: string }): DaytonaClient;
+}
+
+interface RunOnDaytonaDeps {
+	DaytonaClient?: DaytonaClientCtor;
+	makeOutputDir?: () => Promise<string>;
+	makeSessionId?: () => string;
+	extractArchive?: (params: {
+		archivePath: string;
+		outputDir: string;
+	}) => Promise<void>;
+}
+
+interface RunOnDaytonaParams {
+	supabase: SupabaseClient;
+	job: AgentJob;
+	deps?: RunOnDaytonaDeps;
+}
+
+interface CommandParts {
+	command: string;
+	archiveCommand: string;
+}
+
+export function buildDaytonaCommand({
+	command,
+}: {
+	command: string;
+}): CommandParts {
+	const safeArgv = tokenizeCommand(command);
+	const qcutCommand = `/usr/local/bin/qcut-entrypoint ${safeArgv.join(
+		" "
+	)} -o /output`;
+
+	return {
+		command: `mkdir -p /output && ${qcutCommand}`,
+		archiveCommand: `tar -C /output -cf ${OUTPUT_ARCHIVE} .`,
+	};
+}
+
+export function buildDaytonaEnv({
+	secrets,
+}: {
+	secrets: AgentSecretRow[];
+}): Record<string, string> {
+	const env: Record<string, string> = { QCUT_SESSION_ROLE: "agent" };
+	for (const secret of secrets) env[secret.key] = secret.value;
+	return env;
+}
+
+async function extractArchive({
+	archivePath,
+	outputDir,
+}: {
+	archivePath: string;
+	outputDir: string;
+}): Promise<void> {
+	await execa("tar", ["-xf", archivePath, "-C", outputDir]);
+}
+
+async function downloadOutputDir({
+	sandbox,
+	outputDir,
+	extract,
+}: {
+	sandbox: DaytonaSandbox;
+	outputDir: string;
+	extract: (params: {
+		archivePath: string;
+		outputDir: string;
+	}) => Promise<void>;
+}): Promise<void> {
+	const localArchive = join(outputDir, "qcut-output.tar");
+	await sandbox.fs.downloadFile(OUTPUT_ARCHIVE, localArchive, TIMEOUT_SECONDS);
+	await extract({ archivePath: localArchive, outputDir });
+}
+
+export async function runOnDaytona({
+	supabase,
+	job,
+	deps = {},
+}: RunOnDaytonaParams): Promise<ContainerResult> {
 	const apiKey = process.env.DAYTONA_API_KEY;
 	if (!apiKey) {
-		throw new Error("DAYTONA_API_KEY not set — should not call runOnDaytona");
+		throw new Error("DAYTONA_API_KEY not set; cannot run job on Daytona");
 	}
 
 	const { data: secrets, error: secErr } = await supabase
@@ -85,62 +175,79 @@ export async function runOnDaytona(
 		);
 	}
 	if (!secrets || secrets.length === 0) {
-		// Not fatal — the container itself will surface a clearer error
-		// (e.g. "GEMINI_API_KEY required"), and the user might be running a
-		// pipeline that legitimately needs no provider keys.
 		console.warn(
 			`[agent-worker] no agent_secrets configured for user ${job.userId}; container will only see QCUT_SESSION_ROLE`
 		);
 	}
-	const env = Object.fromEntries((secrets ?? []).map((s) => [s.key, s.value]));
 
-	const Ctor = await getDaytonaCtor();
-	const daytona = new Ctor({ apiKey });
-
-	const sandbox = await daytona.sandboxes.create({
-		image: IMAGE_TAG,
-		env: { ...env, QCUT_SESSION_ROLE: "agent" },
-		resources: { cpu: 2, memoryGb: 4 },
+	const DaytonaClient =
+		deps.DaytonaClient ?? (Daytona as unknown as DaytonaClientCtor);
+	const daytona = new DaytonaClient({ apiKey });
+	const outputDir = deps.makeOutputDir
+		? await deps.makeOutputDir()
+		: await mkdtemp(join(tmpdir(), "qcut-daytona-"));
+	const sessionId = deps.makeSessionId?.() ?? `qcut-${randomUUID()}`;
+	const { command, archiveCommand } = buildDaytonaCommand({
+		command: job.command,
 	});
 
-	// Gate `job.command` against shell metacharacters before concatenating
-	// into the Daytona SDK's string `command` arg — same allow-list
-	// `runContainer` enforces for the local-docker path.
-	const safeArgv = tokenizeCommand(job.command);
+	let sandbox: DaytonaSandbox | undefined;
+	let result: DaytonaSessionCommandResult | undefined;
+	let artifactsFallback = false;
 
 	try {
-		const result = await daytona.sandboxes.exec(sandbox.id, {
-			command: `${safeArgv.join(" ")} -o /output`,
-			timeoutMs: TIMEOUT_MS,
-		});
+		sandbox = await daytona.create(
+			{
+				image: IMAGE_TAG,
+				envVars: buildDaytonaEnv({ secrets: secrets ?? [] }),
+				resources: { cpu: 2, memory: 4 },
+				ephemeral: true,
+				autoStopInterval: 30,
+			},
+			{ timeout: 120 }
+		);
 
-		// Daytona returns a local materialized path; if the SDK shape
-		// differs, this becomes "download artifact-by-artifact" code.
-		let outputDir: string;
-		let artifactsFallback = false;
+		await sandbox.process.createSession(sessionId);
+		result = await sandbox.process.executeSessionCommand(
+			sessionId,
+			{
+				command,
+				runAsync: false,
+				suppressInputEcho: true,
+			},
+			TIMEOUT_SECONDS
+		);
+		await sandbox.process.executeSessionCommand(
+			sessionId,
+			{
+				command: archiveCommand,
+				runAsync: false,
+				suppressInputEcho: true,
+			},
+			TIMEOUT_SECONDS
+		);
+
 		try {
-			outputDir = await daytona.sandboxes.downloadDir(sandbox.id, "/output");
+			await downloadOutputDir({
+				sandbox,
+				outputDir,
+				extract: deps.extractArchive ?? extractArchive,
+			});
 		} catch (err) {
-			// Fallback: stage an empty dir so uploadArtifacts is a no-op
-			// rather than crashing the worker. Record it loudly in the
-			// agent_events stream so an operator can see real artifacts are
-			// missing — without it, a "succeeded" job with no outputs looks
-			// like a CLI bug instead of an upload-side failure.
 			artifactsFallback = true;
 			console.warn(
-				"[agent-worker] daytona downloadDir failed; staging empty dir + stderr log:",
+				"[agent-worker] daytona artifact download failed; staging stderr log:",
 				err
 			);
-			outputDir = await mkdtemp(join(tmpdir(), "qcut-empty-"));
 			await mkdir(outputDir, { recursive: true });
-			await writeFile(join(outputDir, "exec.log"), result.stderr);
+			await writeFile(join(outputDir, "exec.log"), result.stderr ?? "");
 			try {
 				await supabase.from("agent_events").insert({
 					job_id: job.id,
 					user_id: job.userId,
 					kind: "artifact_fallback",
 					payload: {
-						reason: "daytona_downloadDir_failed",
+						reason: "daytona_artifact_download_failed",
 						error: err instanceof Error ? err.message : String(err),
 					},
 					created_at: new Date().toISOString(),
@@ -154,17 +261,27 @@ export async function runOnDaytona(
 		}
 
 		return {
-			stdout: result.stdout,
-			stderr: result.stderr,
-			exitCode: result.exitCode,
+			stdout: result.stdout ?? result.output ?? "",
+			stderr: result.stderr ?? "",
+			exitCode: result.exitCode ?? 1,
 			outputDir,
 			artifactsFallback,
 		};
 	} finally {
-		try {
-			await daytona.sandboxes.kill(sandbox.id);
-		} catch (err) {
-			console.error(`[agent-worker] kill sandbox ${sandbox.id} failed:`, err);
+		if (sandbox) {
+			try {
+				await sandbox.process.deleteSession(sessionId);
+			} catch (err) {
+				console.warn("[agent-worker] daytona session cleanup failed:", err);
+			}
+			try {
+				await daytona.delete(sandbox, 60);
+			} catch (err) {
+				console.error(
+					`[agent-worker] delete sandbox ${sandbox.id} failed:`,
+					err
+				);
+			}
 		}
 	}
 }

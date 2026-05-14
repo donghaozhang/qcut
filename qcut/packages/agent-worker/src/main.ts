@@ -74,7 +74,7 @@ async function tryDrain(): Promise<void> {
 async function chooseRunner(job: AgentJob): Promise<ContainerResult> {
 	if (process.env.DAYTONA_API_KEY) {
 		const { runOnDaytona } = await import("./run-on-daytona.js");
-		return runOnDaytona(supabase, job);
+		return runOnDaytona({ supabase, job });
 	}
 	return runContainer(supabase, job);
 }
