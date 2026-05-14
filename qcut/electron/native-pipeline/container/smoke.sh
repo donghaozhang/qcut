@@ -20,14 +20,17 @@ echo "▶ qcut --version"
 qcut --version || echo "(no --version handler; that's ok)"
 
 echo "▶ qcut system doctor --json --skip-health"
-# No keys at smoke time → env_file or env_file_keys WILL be 'fail'.
-# We only check the envelope shape here; key health is verified later.
+# No keys at smoke time → env_file or env_file_keys WILL be 'fail',
+# which makes the CLI exit non-zero. That's fine here; we only check
+# the envelope shape. The CLI's `--json` output wraps the doctor
+# report inside `.data.data` (the outer envelope is success/error
+# metadata; the inner one is the doctor report itself).
 output="$(qcut system doctor --json --skip-health || true)"
-echo "${output}" | jq -e '.checks | length > 0' >/dev/null \
-  || { echo "✗ no checks in doctor output" >&2; exit 1; }
-echo "${output}" | jq -e '.bun_version' >/dev/null \
+echo "${output}" | jq -e '.data.data.checks | length > 0' >/dev/null \
+  || { echo "✗ no checks in doctor output" >&2; echo "${output}" >&2; exit 1; }
+echo "${output}" | jq -e '.data.data.bun_version' >/dev/null \
   || { echo "✗ missing bun_version in doctor output" >&2; exit 1; }
-echo "${output}" | jq -e '.ffmpeg_version' >/dev/null \
+echo "${output}" | jq -e '.data.data.ffmpeg_version' >/dev/null \
   || { echo "✗ missing ffmpeg_version in doctor output" >&2; exit 1; }
 
 echo "✓ doctor envelope shape ok"

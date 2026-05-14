@@ -41,7 +41,8 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # Non-root user so ~/.qcut/.env mode 0600 works without root juggling.
-RUN useradd -m -s /bin/bash -u 1000 qcut
+# UID 1001 because the oven/bun base already has a `bun` user at 1000.
+RUN useradd -m -s /bin/bash -u 1001 qcut
 USER qcut
 WORKDIR /home/qcut/qcut
 
