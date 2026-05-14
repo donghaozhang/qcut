@@ -181,3 +181,6 @@ docs/task/bytedance-hackathon/*.wav
 docs/task/bytedance-hackathon/*.jpg
 docs/task/bytedance-hackathon/*.jpeg
 docs/task/bytedance-hackathon/*.png
+
+# Local reference clones (kept out of git)
+docs/task/daytona-supabase-agent/vm0/
