@@ -5,18 +5,20 @@ provider. Docker, Daytona, and E2B each consume the same `Dockerfile.cli`
 but materialise it as different artifacts. This file documents the
 three paths and what's done / not done.
 
-## Status (2026-05-14)
+## Status (2026-05-14, after first build round)
 
 | Artifact | Where | Built? | Pushed? |
 |---|---|---|---|
-| `qcut-cli:dev` (local Docker image) | your machine's daemon | ❌ never built | n/a |
-| `ghcr.io/quriosity-agent/qcut-cli:vX.Y.Z` | GitHub Container Registry | ❌ never pushed (CI workflow now exists; see below) | ❌ |
-| E2B template `qcut-cli` | E2B's build cluster | ❌ never built | ❌ |
+| `qcut-cli:dev` (local Docker image) | local Docker daemon | ✅ built, **verified end-to-end** against prod | n/a |
+| `ghcr.io/quriosity-agent/qcut-cli:vX.Y.Z` | GitHub Container Registry | ❌ never pushed (CI workflow ready) | ❌ |
+| E2B template `qcut-cli` (ID `mo0cc1eel03akhsen8e5`) | E2B's build cluster | ⚠️ **built but with bugs** — `Sandbox.create()` works, but the `qcut` wrapper script's shebang is mangled (`#!/usr/bin/env bashnexec ...`). Needs rebuild with the `echo`-based wrapper now in `e2b.Dockerfile`. | n/a (E2B private) |
 
-So today, any of these will fail:
-- `bun run scripts/daytona-dogfood.ts` → "image not found"
-- `bun packages/agent-worker/src/main.ts` (with a real job) → "image not found"
-- `POST /api/sandbox/spawn` on license-server → `sandbox_create_failed` 502
+Current working:
+- `bun run build:cli-image` produces `qcut-cli:dev` locally; the agent-worker uses this against the live Supabase DB. **Smoked end-to-end** (qcutlove user, `qcut --version` job, exit 0).
+
+Currently broken / needs one more iteration:
+- `POST /api/sandbox/spawn` would return `sandbox_create_failed` (the spawn-probe runs `qcut system doctor` which hits the wrapper-shebang bug → 127 exit).
+- Fix: re-run `e2b template create qcut-cli -d e2b.Dockerfile --cpu-count 2 --memory-mb 4096` after moving workspace `node_modules` out (see "Workarounds" below). The current `e2b.Dockerfile` already incorporates all five bug fixes documented below.
 
 ## Path A — local Docker (fastest, dev only)
 
@@ -109,21 +111,57 @@ After this, `POST /api/sandbox/spawn` on the live license-server
 spawns a real E2B sandbox, runs the doctor probe, signs an HS256
 relay token, and returns `{ session_id, ws_url, expires_at }`.
 
-## E2B Dockerfile compatibility notes
+## E2B Dockerfile compatibility notes (the hard-earned list)
 
-E2B template builder accepts standard Dockerfiles with these
-constraints (verified against the current `Dockerfile.cli`):
+E2B's template builder uses its **own Dockerfile parser**, not Docker's.
+Several things that work in standard Docker fail or behave differently.
+Verified against E2B CLI 1.6+ on 2026-05-14:
 
-- ✅ Multi-stage builds — fine
-- ✅ Non-root USER — fine; entrypoint script handles chown
-- ✅ Any base image — `oven/bun:1.3.10-debian` works
-- ⚠️ `ENTRYPOINT` is honored, but the user-facing prompt expects bash;
-  current Dockerfile sets `CMD ["bash"]` which is what we want
-- ⚠️ E2B may not preserve `qcut-entrypoint` as the entrypoint — it
-  injects its own bootstrap. Test: spawn the template, then check
-  whether `~/.qcut/.env` was materialized. If not, the spawn route
-  needs to run `qcut-entrypoint /bin/true` first to set up the env
-  file before the user attaches.
+- ❌ **Multi-stage builds are not supported.** `FROM ... AS builder`
+  fails immediately ("Multi-stage Dockerfiles are not supported"). Use
+  `e2b.Dockerfile` (single-stage) for E2B and keep multi-stage
+  `Dockerfile.cli` for GHCR/Daytona/local-Docker.
+- ❌ **Multi-arg `COPY a b c ./` silently drops everything but the
+  first arg.** Split into one `COPY` per source:
+  ```
+  COPY package.json ./
+  COPY bun.lock ./
+  COPY turbo.json ./
+  ```
+- ❌ **`printf '%s\n' '...' '...'` mangles `\n` to literal `n`** in the
+  output file. Use multiple `echo` lines instead:
+  ```
+  RUN echo '#!/usr/bin/env bash' > /usr/local/bin/qcut \
+   && echo 'exec bun /opt/.../cli.ts "$@"' >> /usr/local/bin/qcut
+  ```
+- ❌ **`USER <name>` breaks `Sandbox.commands.run`** with
+  "fork/exec /bin/sh: permission denied". E2B's command runner spawns
+  as its internal `user` user; overriding USER blocks it. Drop the
+  USER directive; keep files in `/opt/...` and `/usr/local/bin/...`
+  so any user can read them.
+- ❌ **`.dockerignore` not honored.** Workspace `node_modules` dirs
+  with broken bun symlinks get uploaded and break `COPY apps apps`
+  with "failed to extract files". Workaround: move them out of the
+  workspace before running `e2b template create`, restore after:
+  ```
+  mkdir -p /tmp/qcut-nm && i=0
+  for d in apps/web/node_modules packages/*/node_modules; do
+    if [ -d "$d" ]; then i=$((i+1)); mv "$d" /tmp/qcut-nm/nm-$i;
+       echo "$d=/tmp/qcut-nm/nm-$i" >> /tmp/qcut-nm-map.txt; fi
+  done
+  # run e2b template create here
+  while IFS='=' read -r o d; do mv "$d" "$o"; done < /tmp/qcut-nm-map.txt
+  ```
+- ⚠️ **Heavy builds OOM at 4 GiB.** `apps/web` Vite build (`tsc + vite
+  build`) gets SIGKILL'd. The CLI doesn't need the web bundle — run
+  `bun install --frozen-lockfile --ignore-scripts` and **skip**
+  `bun run build`. The CLI wrapper invokes `bun electron/.../cli.ts`
+  directly from TypeScript source.
+- ⚠️ **UIDs 1000 + 1001 are reserved** by E2B's base. Don't try to
+  pin a UID via `useradd -u`. (And don't add a user at all — see USER
+  point above.)
+- ✅ `--cpu-count 2 --memory-mb 4096` is enough for `bun install`-only
+  builds. Builds completed in ~90 s.
 
 ## Cost of each path
 

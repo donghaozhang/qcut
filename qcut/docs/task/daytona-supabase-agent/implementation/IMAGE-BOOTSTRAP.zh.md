@@ -4,18 +4,20 @@
 E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产物**。
 本文档列三条路 + 每条路的当前进度。
 
-## 当前状态（2026-05-14）
+## 当前状态（2026-05-14，第一轮构建之后）
 
 | 产物 | 位置 | 是否构建？ | 是否推送？ |
 |------|------|-----------|-----------|
-| `qcut-cli:dev`（本地 Docker 镜像） | 你机器的 Docker daemon | ❌ 从未构建 | n/a |
-| `ghcr.io/quriosity-agent/qcut-cli:vX.Y.Z` | GitHub Container Registry | ❌ 从未推送（CI 工作流已就绪，见下） | ❌ |
-| E2B 模板 `qcut-cli` | E2B 的构建集群 | ❌ 从未构建 | ❌ |
+| `qcut-cli:dev`（本地 Docker 镜像） | 本地 Docker daemon | ✅ 已构建、**对生产端到端验证过** | n/a |
+| `ghcr.io/quriosity-agent/qcut-cli:vX.Y.Z` | GitHub Container Registry | ❌ 没推（CI 流程就绪） | ❌ |
+| E2B 模板 `qcut-cli`（ID `mo0cc1eel03akhsen8e5`） | E2B 构建集群 | ⚠️ **建好了但有 bug** —— `Sandbox.create()` 能用，但 `qcut` 包装脚本的 shebang 被搞坏（`#!/usr/bin/env bashnexec ...`）。需要按现在 `e2b.Dockerfile` 重建。 | n/a（E2B 私有）|
 
-所以今天，下列任何操作都会失败：
-- `bun run scripts/daytona-dogfood.ts` → "镜像找不到"
-- `bun packages/agent-worker/src/main.ts`（带真任务） → "镜像找不到"
-- `POST /api/sandbox/spawn`（license-server）→ `sandbox_create_failed` 502
+当前能用：
+- `bun run build:cli-image` 本地产 `qcut-cli:dev`；agent-worker 用它接生产 Supabase。**端到端测过**（qcutlove 用户、`qcut --version` 任务、exit 0）。
+
+当前不能用 / 还要再来一次：
+- `POST /api/sandbox/spawn` 会返 `sandbox_create_failed`（spawn-probe 跑 `qcut system doctor` → 撞 shebang bug → exit 127）。
+- 解法：移走 workspace `node_modules` 后重跑 `e2b template create qcut-cli -d e2b.Dockerfile --cpu-count 2 --memory-mb 4096`（见下面 "绕路"）。现在 `e2b.Dockerfile` 已经把下文记的 5 个 bug 全部修了。
 
 ## 路径 A —— 本地 Docker（最快，仅开发）
 
@@ -104,20 +106,53 @@ wrangler deploy
 跑 doctor 探针、签 HS256 中继 token、返
 `{ session_id, ws_url, expires_at }`。
 
-## E2B 对 Dockerfile 的兼容性注意
+## E2B 对 Dockerfile 的兼容性注意（踩坑实录）
 
-E2B 模板构建器接受标准 Dockerfile，但有几个约束（对当前 `Dockerfile.cli`
-已检查）：
+E2B 用**自家 Dockerfile 解析器**，不是 Docker 的。好几样在标准
+Docker 里能用的东西在它这边失败或行为不同。2026-05-14 在 E2B CLI 1.6+
+上验证：
 
-- ✅ 多阶段构建 —— 行
-- ✅ 非 root USER —— 行；entrypoint 脚本会 chown
-- ✅ 任意 base 镜像 —— `oven/bun:1.3.10-debian` 没问题
-- ⚠️ `ENTRYPOINT` 会被尊重，但用户终端期望是 bash；当前 Dockerfile
-  `CMD ["bash"]` 正是这个意思
-- ⚠️ E2B 可能不保留 `qcut-entrypoint` 作 entrypoint —— 它会注入自己的
-  bootstrap。验证：拉起模板后查 `~/.qcut/.env` 是否物化了。如果没有，
-  spawn 路由要在用户连之前先 `qcut-entrypoint /bin/true` 把 env file
-  搭起来。
+- ❌ **不支持多阶段构建**。`FROM ... AS builder` 立即报错
+  "Multi-stage Dockerfiles are not supported"。E2B 专用 `e2b.Dockerfile`
+  保持单阶段；GHCR/Daytona/本地 Docker 继续用多阶段的 `Dockerfile.cli`。
+- ❌ **多参数 `COPY a b c ./` 静默丢掉除第一个外的所有参数**。每个
+  source 拆一行 COPY：
+  ```
+  COPY package.json ./
+  COPY bun.lock ./
+  COPY turbo.json ./
+  ```
+- ❌ **`printf '%s\n' '...' '...'` 把 `\n` 误写为字面的 `n`**。换成
+  多个 `echo`：
+  ```
+  RUN echo '#!/usr/bin/env bash' > /usr/local/bin/qcut \
+   && echo 'exec bun /opt/.../cli.ts "$@"' >> /usr/local/bin/qcut
+  ```
+- ❌ **`USER <name>` 会让 `Sandbox.commands.run` 跑出 "fork/exec
+  /bin/sh: permission denied"**。E2B 的 command runner 用它内部的
+  `user` 用户起进程；覆盖 USER 就挂。**别加 USER**；把文件放
+  `/opt/...` 和 `/usr/local/bin/...`，任何用户都能读。
+- ❌ **不尊重 `.dockerignore`**。带 bun 工作区 symlink 的 `node_modules`
+  会被上传，然后 `COPY apps apps` 报 "failed to extract files"。绕路：
+  跑 `e2b template create` 前把 workspace `node_modules` 挪走，跑完
+  再挪回：
+  ```
+  mkdir -p /tmp/qcut-nm && i=0
+  for d in apps/web/node_modules packages/*/node_modules; do
+    if [ -d "$d" ]; then i=$((i+1)); mv "$d" /tmp/qcut-nm/nm-$i;
+       echo "$d=/tmp/qcut-nm/nm-$i" >> /tmp/qcut-nm-map.txt; fi
+  done
+  # 这里跑 e2b template create
+  while IFS='=' read -r o d; do mv "$d" "$o"; done < /tmp/qcut-nm-map.txt
+  ```
+- ⚠️ **重活在 4 GiB 内存下 OOM**。`apps/web` Vite 构建（`tsc + vite
+  build`）被 SIGKILL。CLI 不需要 web bundle —— 跑
+  `bun install --frozen-lockfile --ignore-scripts`、**跳过**
+  `bun run build`。CLI 包装脚本直接 `bun electron/.../cli.ts` 跑 TS 源码。
+- ⚠️ **UID 1000 和 1001 被 E2B base 占了**。别用 `useradd -u` 钉
+  UID。（其实根本别加 user —— 见上面 USER 那一条。）
+- ✅ `--cpu-count 2 --memory-mb 4096` 对纯 `bun install` 的构建够。
+  ~90 秒搞定。
 
 ## 各路径的成本
 
