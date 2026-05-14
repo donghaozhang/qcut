@@ -2,7 +2,7 @@
 
 A user opens a web terminal in wzrdagentstudio. It connects to an E2B (Phase 1) or Daytona (Phase 2) dev sandbox where `qcut` is preinstalled. They type `qcut gen txt2img …` and watch it run. Output streams back live; artifacts land in Supabase Storage.
 
-> Sibling to [`README.md`](README.md). The agent plan documented there is *headless and programmatic* — a Supabase row inserts a job, a worker drains it. This sandbox plan is *interactive* — a human sits at an xterm.js, runs `qcut …` by hand, and reads the output. Same containers under the hood, different control surface.
+> Sibling to [`README.md`](../README.md). The agent plan documented there is *headless and programmatic* — a Supabase row inserts a job, a worker drains it. This sandbox plan is *interactive* — a human sits at an xterm.js, runs `qcut …` by hand, and reads the output. Same containers under the hood, different control surface.
 
 ## Why both surfaces
 
@@ -15,7 +15,7 @@ A user opens a web terminal in wzrdagentstudio. It connects to an E2B (Phase 1) 
 | Long-running, idempotent, scheduled | **Yes** | No |
 | Auditable, replayable | **Yes** | Partial (session recording only) |
 
-The sandbox surface is **strictly additive** to the agent surface. Same Dockerfile ([`container-setup.md`](container-setup.md)), same secret loader ([`secrets-supabase.md`](secrets-supabase.md)), same `qcut` binary. The difference is the entry vector — `agent_jobs` INSERT vs. xterm.js WebSocket.
+The sandbox surface is **strictly additive** to the agent surface. Same Dockerfile ([`container-setup.md`](../core-plan/container-setup.md)), same secret loader ([`secrets-supabase.md`](../core-plan/secrets-supabase.md)), same `qcut` binary. The difference is the entry vector — `agent_jobs` INSERT vs. xterm.js WebSocket.
 
 ## Scope
 
@@ -39,19 +39,19 @@ The sandbox surface is **strictly additive** to the agent surface. Same Dockerfi
 
 | File | Purpose |
 |------|---------|
-| [`web-sandbox-README.md`](web-sandbox-README.md) | This index. |
-| [`web-sandbox-architecture.md`](web-sandbox-architecture.md) | Component diagram, lifecycle, tech choice (E2B vs Daytona for interactive PTY), `sandbox_sessions` schema, auth flow, resource limits. |
-| [`web-sandbox-integration.md`](web-sandbox-integration.md) | Concrete wiring into wzrdagentstudio: routes, React component, Supabase Edge Function for spawn, WebSocket relay shape, Cloudflare DO option. |
-| [`web-sandbox-verification.md`](web-sandbox-verification.md) | "How do we know qcut actually ran?" — three layers of smoke test, exit-code contracts, failure-mode catalogue, CI hook. |
+| [`web-sandbox-README.md`](README.md) | This index. |
+| [`web-sandbox-architecture.md`](architecture.md) | Component diagram, lifecycle, tech choice (E2B vs Daytona for interactive PTY), `sandbox_sessions` schema, auth flow, resource limits. |
+| [`web-sandbox-integration.md`](integration.md) | Concrete wiring into wzrdagentstudio: routes, React component, Supabase Edge Function for spawn, WebSocket relay shape, Cloudflare DO option. |
+| [`web-sandbox-verification.md`](verification.md) | "How do we know qcut actually ran?" — three layers of smoke test, exit-code contracts, failure-mode catalogue, CI hook. |
 
 Read in that order. Chinese counterparts append `.zh.md`.
 
 ## How this hooks into existing planning
 
-- **Reuses container image** from [`container-setup.md`](container-setup.md). One image, two entry points (`bun run agent` for headless, wrapped `bash` for interactive).
-- **Reuses secret loader** from [`secrets-supabase.md`](secrets-supabase.md). Option A (file tier) works identically — the sandbox writes `~/.qcut/.env` on spawn, mode 0600, just like the agent does on cold start.
-- **Reuses telemetry rows** from [`architecture.md`](architecture.md). `agent_events` gets `kind = 'sandbox_*'` rows so we audit "who shelled in, when, what they ran" without inventing a parallel logging path.
-- **Does NOT reuse the JobProvider pattern** from [`vm0-job-pipeline.md`](vm0-job-pipeline.md). Interactive sessions don't have a discover/claim/complete shape — they're spawned on user click, killed on disconnect.
+- **Reuses container image** from [`container-setup.md`](../core-plan/container-setup.md). One image, two entry points (`bun run agent` for headless, wrapped `bash` for interactive).
+- **Reuses secret loader** from [`secrets-supabase.md`](../core-plan/secrets-supabase.md). Option A (file tier) works identically — the sandbox writes `~/.qcut/.env` on spawn, mode 0600, just like the agent does on cold start.
+- **Reuses telemetry rows** from [`architecture.md`](../core-plan/architecture.md). `agent_events` gets `kind = 'sandbox_*'` rows so we audit "who shelled in, when, what they ran" without inventing a parallel logging path.
+- **Does NOT reuse the JobProvider pattern** from [`vm0-job-pipeline.md`](../vm0-reference/job-pipeline.md). Interactive sessions don't have a discover/claim/complete shape — they're spawned on user click, killed on disconnect.
 
 ## Quick reference
 
@@ -83,8 +83,8 @@ That's the full UX. Everything else in this folder explains how it stays cheap, 
 
 ## See also
 
-- [`README.md`](README.md) — top-level index for the headless agent plan
-- [`container-setup.md`](container-setup.md) — Dockerfile shared with this work
-- [`secrets-supabase.md`](secrets-supabase.md) — secret injection at spawn time
-- [`architecture.md`](architecture.md) — `agent_events` schema and exit-code contract referenced here
+- [`README.md`](../README.md) — top-level index for the headless agent plan
+- [`container-setup.md`](../core-plan/container-setup.md) — Dockerfile shared with this work
+- [`secrets-supabase.md`](../core-plan/secrets-supabase.md) — secret injection at spawn time
+- [`architecture.md`](../core-plan/architecture.md) — `agent_events` schema and exit-code contract referenced here
 - `/Users/peter/Desktop/code/wzrdagentstudio/` — the React+Vite app that hosts the terminal UI

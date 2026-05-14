@@ -41,7 +41,7 @@ bun --version
 
 ## Layer 2 —— 沙箱启动探针
 
-跑在 Spawn Edge Function 里，沙箱起来之后、WS URL 返回浏览器**之前**。从 [`web-sandbox-integration.zh.md`](web-sandbox-integration.zh.md)：
+跑在 Spawn Edge Function 里，沙箱起来之后、WS URL 返回浏览器**之前**。从 [`web-sandbox-integration.zh.md`](integration.zh.md)：
 
 ```typescript
 const probe = await sandbox.commands.run('qcut system doctor --json --skip-health', {
@@ -98,7 +98,7 @@ type 'qcut --help' for command reference
 
 ## 退出码契约
 
-CLI 承诺这些退出码；CI 据此 gate。（呼应 [`architecture.md`](architecture.md)，因为 Layer 1/2 脚本明确依赖这些。）
+CLI 承诺这些退出码；CI 据此 gate。（呼应 [`architecture.md`](../core-plan/architecture.md)，因为 Layer 1/2 脚本明确依赖这些。）
 
 | 码 | 含义 | 可重试 |
 |----|------|--------|
@@ -185,7 +185,7 @@ jobs:
 
 ## 相关文档
 
-- [`web-sandbox-architecture.zh.md`](web-sandbox-architecture.zh.md) —— 验证的是什么
-- [`web-sandbox-integration.zh.md`](web-sandbox-integration.zh.md) —— 探针接在哪
-- [`architecture.md`](architecture.md) —— 上面引用的退出码和 `agent_events` schema
-- [`vm0-job-pipeline.zh.md`](vm0-job-pipeline.zh.md) —— 审计 mask 复用的 masker 模块
+- [`web-sandbox-architecture.zh.md`](architecture.zh.md) —— 验证的是什么
+- [`web-sandbox-integration.zh.md`](integration.zh.md) —— 探针接在哪
+- [`architecture.md`](../core-plan/architecture.md) —— 上面引用的退出码和 `agent_events` schema
+- [`vm0-job-pipeline.zh.md`](../vm0-reference/job-pipeline.zh.md) —— 审计 mask 复用的 masker 模块

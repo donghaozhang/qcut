@@ -98,7 +98,7 @@ qcut <group> <action> [args] \
 
 ### stdout — final envelope
 
-One of three shapes (see [`references/REFERENCE.md`](../../../.claude/skills/native-cli/references/REFERENCE.md)):
+One of three shapes (see [`references/REFERENCE.md`](../../../../.claude/skills/native-cli/references/REFERENCE.md)):
 
 ```json
 { "status": "ok",      "command_id": "cmd-...", "duration_ms": 8300, "data": { "outputPath": "...", "cost": 0.005 } }

@@ -149,8 +149,8 @@ We should copy this pattern conceptually: on every container exit, write a row t
 
 ## See also
 
-- [`vm0-overview.md`](vm0-overview.md) — the big picture
-- [`vm0-job-pipeline.md`](vm0-job-pipeline.md) — how jobs reach this VM lifecycle
-- [`vm0-secrets-proxy.md`](vm0-secrets-proxy.md) — the network-namespace tie-in
+- [`vm0-overview.md`](overview.md) — the big picture
+- [`vm0-job-pipeline.md`](job-pipeline.md) — how jobs reach this VM lifecycle
+- [`vm0-secrets-proxy.md`](secrets-proxy.md) — the network-namespace tie-in
 - `vm0/crates/README.md` — vm0's own architecture summary
 - `vm0/crates/sandbox-fc/src/cow_pool.rs` — the heart of the warm-pool implementation

@@ -1,6 +1,6 @@
 # Web 沙箱架构
 
-wzrdagentstudio 里一下点击怎么变成一个活的 `qcut` shell。配 [`web-sandbox-README.zh.md`](web-sandbox-README.zh.md) 读。
+wzrdagentstudio 里一下点击怎么变成一个活的 `qcut` shell。配 [`web-sandbox-README.zh.md`](README.zh.md) 读。
 
 ## 一句话
 
@@ -31,7 +31,7 @@ Supabase Edge Function（Deno）`/sandbox-spawn`：
 2. 检查 workspace 并发上限。
 3. 读 workspace 密钥（同 agent 路径的查询）。
 4. 调 provider SDK 从 `qcut-cli:vX` 镜像创建沙箱、注入 env vars。
-5. 跑 spawn-probe（见 [`web-sandbox-verification.zh.md`](web-sandbox-verification.zh.md) Layer 2）。不过就中止。
+5. 跑 spawn-probe（见 [`web-sandbox-verification.zh.md`](verification.zh.md) Layer 2）。不过就中止。
 6. 插一行 `sandbox_sessions`。
 7. 返回 `{ session_id, ws_url, expires_at }`。
 
@@ -51,9 +51,9 @@ Edge Function 撑不起长连 WebSocket（Deno isolate 超时）。中继得是�
 
 ### 4. 沙箱 PTY
 
-E2B 或 Daytona 提供。从中继收 stdin、吐 stdout/stderr。镜像就是 [`container-setup.md`](container-setup.md) 那份 Dockerfile。交互用途下，CMD 从 `bun run agent` 换成 `bash`（中继创建 PTY 时指定）。
+E2B 或 Daytona 提供。从中继收 stdin、吐 stdout/stderr。镜像就是 [`container-setup.md`](../core-plan/container-setup.md) 那份 Dockerfile。交互用途下，CMD 从 `bun run agent` 换成 `bash`（中继创建 PTY 时指定）。
 
-`~/.qcut/.env` 在沙箱启动时由 `entrypoint.sh` 物化：读 Spawn API 注入的 env vars、按 0600 写文件——逻辑同 [`secrets-supabase.md`](secrets-supabase.md) Option A。
+`~/.qcut/.env` 在沙箱启动时由 `entrypoint.sh` 物化：读 Spawn API 注入的 env vars、按 0600 写文件——逻辑同 [`secrets-supabase.md`](../core-plan/secrets-supabase.md) Option A。
 
 ## Provider 选型：E2B vs Daytona
 
@@ -174,7 +174,7 @@ RLS：workspace 成员能 SELECT 自家行；只有 service role 能 INSERT/UPDA
 | 会话中 WS 断 | xterm 显 "disconnected" | 用户点重连；中继 30 s 内能重绑同一 PTY |
 | 用户关 tab | idle 定时器最终触发 | 会话进 `idle_timeout` 被 kill |
 | qcut 二进制丢/坏 | 第一行提示 `qcut: command not found` | Layer 2 在用户看到前就挡掉 |
-| 输入里漏 token | masker 改写成 `***` 后再插审计 | 复用 [`vm0-job-pipeline.zh.md`](vm0-job-pipeline.zh.md) 里的 masker 模块 |
+| 输入里漏 token | masker 改写成 `***` 后再插审计 | 复用 [`vm0-job-pipeline.zh.md`](../vm0-reference/job-pipeline.zh.md) 里的 masker 模块 |
 
 ## 我们**不**做的
 
@@ -184,7 +184,7 @@ RLS：workspace 成员能 SELECT 自家行；只有 service role 能 INSERT/UPDA
 
 ## 相关文档
 
-- [`web-sandbox-integration.zh.md`](web-sandbox-integration.zh.md) —— 接进 wzrdagentstudio 的具体接线
-- [`web-sandbox-verification.zh.md`](web-sandbox-verification.zh.md) —— 证明拉起来的沙箱真能跑 qcut
-- [`container-setup.md`](container-setup.md) —— 这镜像扩展的那份 Dockerfile
-- [`secrets-supabase.md`](secrets-supabase.md) —— spawn 时的密钥注入
+- [`web-sandbox-integration.zh.md`](integration.zh.md) —— 接进 wzrdagentstudio 的具体接线
+- [`web-sandbox-verification.zh.md`](verification.zh.md) —— 证明拉起来的沙箱真能跑 qcut
+- [`container-setup.md`](../core-plan/container-setup.md) —— 这镜像扩展的那份 Dockerfile
+- [`secrets-supabase.md`](../core-plan/secrets-supabase.md) —— spawn 时的密钥注入

@@ -2,7 +2,7 @@
 
 用户在 wzrdagentstudio 里打开一个网页终端。终端连到一个预装了 `qcut` 的 E2B（Phase 1）或 Daytona（Phase 2）沙箱。用户敲 `qcut gen txt2img …`，看着它跑。输出实时回流；产物落到 Supabase Storage。
 
-> 和 [`README.md`](README.md) 是兄弟篇。那边讲的 agent 方案是**无头、程序化**的——Supabase 插一行任务、worker 把它消化掉。这份是**交互式**的——人坐在 xterm.js 前面、手敲 `qcut …`、看输出。容器都是同一个，只是控制入口不同。
+> 和 [`README.md`](../README.md) 是兄弟篇。那边讲的 agent 方案是**无头、程序化**的——Supabase 插一行任务、worker 把它消化掉。这份是**交互式**的——人坐在 xterm.js 前面、手敲 `qcut …`、看输出。容器都是同一个，只是控制入口不同。
 
 ## 为什么两个入口都要
 
@@ -15,7 +15,7 @@
 | 长跑、幂等、可调度 | **是** | 否 |
 | 可审计、可重放 | **是** | 部分（只有 session 录制） |
 
-沙箱入口是 agent 入口的**严格增量**。同一个 Dockerfile（[`container-setup.md`](container-setup.md)），同一个密钥加载器（[`secrets-supabase.md`](secrets-supabase.md)），同一个 `qcut` 二进制。区别只在入口向量——`agent_jobs` INSERT vs. xterm.js WebSocket。
+沙箱入口是 agent 入口的**严格增量**。同一个 Dockerfile（[`container-setup.md`](../core-plan/container-setup.md)），同一个密钥加载器（[`secrets-supabase.md`](../core-plan/secrets-supabase.md)），同一个 `qcut` 二进制。区别只在入口向量——`agent_jobs` INSERT vs. xterm.js WebSocket。
 
 ## 范围
 
@@ -39,19 +39,19 @@
 
 | 文件 | 用途 |
 |------|------|
-| [`web-sandbox-README.zh.md`](web-sandbox-README.zh.md) | 本索引。 |
-| [`web-sandbox-architecture.zh.md`](web-sandbox-architecture.zh.md) | 组件图、生命周期、技术选型（E2B vs Daytona 哪个更适合交互式 PTY）、`sandbox_sessions` schema、鉴权流、资源限额。 |
-| [`web-sandbox-integration.zh.md`](web-sandbox-integration.zh.md) | 接到 wzrdagentstudio 的具体接线：路由、React 组件、Supabase Edge Function 拉起沙箱、WebSocket 中继形态、Cloudflare DO 选项。 |
-| [`web-sandbox-verification.zh.md`](web-sandbox-verification.zh.md) | "怎么确认 qcut 真的跑起来了？"——三层烟测、退出码契约、失败模式表、CI 钩子。 |
+| [`web-sandbox-README.zh.md`](README.zh.md) | 本索引。 |
+| [`web-sandbox-architecture.zh.md`](architecture.zh.md) | 组件图、生命周期、技术选型（E2B vs Daytona 哪个更适合交互式 PTY）、`sandbox_sessions` schema、鉴权流、资源限额。 |
+| [`web-sandbox-integration.zh.md`](integration.zh.md) | 接到 wzrdagentstudio 的具体接线：路由、React 组件、Supabase Edge Function 拉起沙箱、WebSocket 中继形态、Cloudflare DO 选项。 |
+| [`web-sandbox-verification.zh.md`](verification.zh.md) | "怎么确认 qcut 真的跑起来了？"——三层烟测、退出码契约、失败模式表、CI 钩子。 |
 
 按这个顺序读。英文对应去掉 `.zh`。
 
 ## 怎么挂到已有规划上
 
-- **复用容器镜像**自 [`container-setup.md`](container-setup.md)。一个镜像两个入口（headless 走 `bun run agent`，interactive 走包了一层的 `bash`）。
-- **复用密钥加载器**自 [`secrets-supabase.md`](secrets-supabase.md)。Option A（文件层）一字不改——沙箱启动时按 0600 写 `~/.qcut/.env`，和 agent 冷启时同形态。
-- **复用 telemetry 表**自 [`architecture.md`](architecture.md)。`agent_events` 新增 `kind = 'sandbox_*'` 系列，审计"谁、何时 shell 进来、跑了什么"不需要另起一套日志路径。
-- **不复用 JobProvider 模式**（来自 [`vm0-job-pipeline.md`](vm0-job-pipeline.md)）。交互会话没有 discover/claim/complete 形态——用户点一下就拉起，断开就 kill。
+- **复用容器镜像**自 [`container-setup.md`](../core-plan/container-setup.md)。一个镜像两个入口（headless 走 `bun run agent`，interactive 走包了一层的 `bash`）。
+- **复用密钥加载器**自 [`secrets-supabase.md`](../core-plan/secrets-supabase.md)。Option A（文件层）一字不改——沙箱启动时按 0600 写 `~/.qcut/.env`，和 agent 冷启时同形态。
+- **复用 telemetry 表**自 [`architecture.md`](../core-plan/architecture.md)。`agent_events` 新增 `kind = 'sandbox_*'` 系列，审计"谁、何时 shell 进来、跑了什么"不需要另起一套日志路径。
+- **不复用 JobProvider 模式**（来自 [`vm0-job-pipeline.md`](../vm0-reference/job-pipeline.md)）。交互会话没有 discover/claim/complete 形态——用户点一下就拉起，断开就 kill。
 
 ## 速查
 
@@ -83,8 +83,8 @@ $ qcut gen txt2img --provider fal --prompt "a red panda" --skip-health --json
 
 ## 相关文档
 
-- [`README.md`](README.md) —— 无头 agent 方案总索引
-- [`container-setup.md`](container-setup.md) —— 复用的 Dockerfile
-- [`secrets-supabase.md`](secrets-supabase.md) —— 启动时的密钥注入
-- [`architecture.md`](architecture.md) —— 这里引用到的 `agent_events` schema 和退出码契约
+- [`README.md`](../README.md) —— 无头 agent 方案总索引
+- [`container-setup.md`](../core-plan/container-setup.md) —— 复用的 Dockerfile
+- [`secrets-supabase.md`](../core-plan/secrets-supabase.md) —— 启动时的密钥注入
+- [`architecture.md`](../core-plan/architecture.md) —— 这里引用到的 `agent_events` schema 和退出码契约
 - `/Users/peter/Desktop/code/wzrdagentstudio/` —— 终端 UI 宿主的 React+Vite 应用

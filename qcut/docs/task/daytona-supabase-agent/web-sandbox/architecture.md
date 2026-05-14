@@ -1,6 +1,6 @@
 # Web Sandbox Architecture
 
-How a click in wzrdagentstudio becomes a live `qcut` shell. Companion to [`web-sandbox-README.md`](web-sandbox-README.md).
+How a click in wzrdagentstudio becomes a live `qcut` shell. Companion to [`web-sandbox-README.md`](README.md).
 
 ## One-liner
 
@@ -31,7 +31,7 @@ A Supabase Edge Function (Deno) at `/sandbox-spawn`:
 2. Enforces per-workspace concurrency cap.
 3. Reads workspace secrets (same query as the agent path).
 4. Calls the provider SDK to create a sandbox from image `qcut-cli:vX`, passing env vars.
-5. Runs the spawn-probe (see [`web-sandbox-verification.md`](web-sandbox-verification.md) Layer 2). Aborts if it fails.
+5. Runs the spawn-probe (see [`web-sandbox-verification.md`](verification.md) Layer 2). Aborts if it fails.
 6. Inserts a `sandbox_sessions` row.
 7. Returns `{ session_id, ws_url, expires_at }`.
 
@@ -51,9 +51,9 @@ State: minimal. The Durable Object holds the live socket pair, nothing persisted
 
 ### 4. Sandbox PTY
 
-Provided by E2B or Daytona. Receives stdin from the relay, emits stdout/stderr. The image is the same Dockerfile from [`container-setup.md`](container-setup.md). For interactive use we change CMD from `bun run agent` to `bash` (the relay specifies it on PTY creation).
+Provided by E2B or Daytona. Receives stdin from the relay, emits stdout/stderr. The image is the same Dockerfile from [`container-setup.md`](../core-plan/container-setup.md). For interactive use we change CMD from `bun run agent` to `bash` (the relay specifies it on PTY creation).
 
-`~/.qcut/.env` is materialized at spawn time by an `entrypoint.sh` that reads env vars injected by the Spawn API and writes the file mode 0600 — same logic as [`secrets-supabase.md`](secrets-supabase.md) Option A.
+`~/.qcut/.env` is materialized at spawn time by an `entrypoint.sh` that reads env vars injected by the Spawn API and writes the file mode 0600 — same logic as [`secrets-supabase.md`](../core-plan/secrets-supabase.md) Option A.
 
 ## Provider choice: E2B vs Daytona
 
@@ -174,7 +174,7 @@ Per workspace:
 | WS drop mid-session | xterm shows "disconnected" | User clicks reconnect; relay rebinds to same PTY within 30 s grace |
 | User closes tab | idle timer eventually fires | Session reaches `idle_timeout`, killed |
 | qcut binary missing/corrupted | `qcut: command not found` on first prompt | Layer 2 catches before user sees it |
-| Token leak in input | masker rewrites to `***` before audit insert | Reuse masker module from [`vm0-job-pipeline.md`](vm0-job-pipeline.md) |
+| Token leak in input | masker rewrites to `***` before audit insert | Reuse masker module from [`vm0-job-pipeline.md`](../vm0-reference/job-pipeline.md) |
 
 ## What we are not building
 
@@ -184,7 +184,7 @@ Per workspace:
 
 ## See also
 
-- [`web-sandbox-integration.md`](web-sandbox-integration.md) — concrete wiring in wzrdagentstudio
-- [`web-sandbox-verification.md`](web-sandbox-verification.md) — proving the spawned sandbox actually runs qcut
-- [`container-setup.md`](container-setup.md) — the Dockerfile this image extends
-- [`secrets-supabase.md`](secrets-supabase.md) — secret injection at spawn time
+- [`web-sandbox-integration.md`](integration.md) — concrete wiring in wzrdagentstudio
+- [`web-sandbox-verification.md`](verification.md) — proving the spawned sandbox actually runs qcut
+- [`container-setup.md`](../core-plan/container-setup.md) — the Dockerfile this image extends
+- [`secrets-supabase.md`](../core-plan/secrets-supabase.md) — secret injection at spawn time

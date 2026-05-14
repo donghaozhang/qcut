@@ -205,9 +205,9 @@ Connector 模块**强类型** `as const satisfies Record<string, ConnectorConfig
 
 ## 相关文档
 
-- [`vm0-overview.zh.md`](vm0-overview.zh.md) —— 背景
-- [`vm0-job-pipeline.zh.md`](vm0-job-pipeline.zh.md) —— `run_id` 怎么传到代理
-- [`secrets-supabase.zh.md`](secrets-supabase.zh.md) —— 我们 v0 密钥加载器
+- [`vm0-overview.zh.md`](overview.zh.md) —— 背景
+- [`vm0-job-pipeline.zh.md`](job-pipeline.zh.md) —— `run_id` 怎么传到代理
+- [`secrets-supabase.zh.md`](../core-plan/secrets-supabase.zh.md) —— 我们 v0 密钥加载器
 - `vm0/crates/runner/mitm-addon/src/auth.py` —— 待移植的缓存 + 刷新逻辑
 - `vm0/crates/runner/mitm-addon/src/mitm_addon.py` —— 顶层插件钩子
 - `vm0/turbo/packages/connectors/src/firewall-types.ts` —— 防火墙规则 schema

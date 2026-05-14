@@ -194,9 +194,9 @@ We should follow the same. `agent_jobs.status` only has three terminal values be
 
 ## See also
 
-- [`vm0-overview.md`](vm0-overview.md) — context and comparison
-- [`vm0-sandbox.md`](vm0-sandbox.md) — the VM lifecycle this pipeline drives
-- [`vm0-secrets-proxy.md`](vm0-secrets-proxy.md) — what mitmproxy does during job execution
+- [`vm0-overview.md`](overview.md) — context and comparison
+- [`vm0-sandbox.md`](sandbox.md) — the VM lifecycle this pipeline drives
+- [`vm0-secrets-proxy.md`](secrets-proxy.md) — what mitmproxy does during job execution
 - `vm0/crates/runner/src/provider/mod.rs` — the JobProvider trait
 - `vm0/crates/runner/src/provider/api_ably_supervisor.rs` — push+pull supervisor (1.4k LOC)
 - `vm0/crates/guest-agent/src/lib.rs` — module list inside the VM

@@ -83,8 +83,8 @@ vm0/
 
 **以后再抄（生产成熟度）**：
 
-- **mitmproxy 注入凭证**——见 [`vm0-secrets-proxy.zh.md`](vm0-secrets-proxy.zh.md)。能干净地把容器盘上的密钥明文消掉。
-- **快照 / COW 预热池**——见 [`vm0-sandbox.zh.md`](vm0-sandbox.zh.md)。除非需要 < 1 s 任务认领，不必做。
+- **mitmproxy 注入凭证**——见 [`vm0-secrets-proxy.zh.md`](secrets-proxy.zh.md)。能干净地把容器盘上的密钥明文消掉。
+- **快照 / COW 预热池**——见 [`vm0-sandbox.zh.md`](sandbox.zh.md)。除非需要 < 1 s 任务认领，不必做。
 - **Connector schema**——如果以后 QCut 要把 CLI 表面暴露给第三方 agent，`packages/connectors/*.ts` 那套（一文件一工具、`authMethods` + `environmentMapping`）形态对路。
 
 **不可移植**：
@@ -105,6 +105,6 @@ vm0/
 
 ## 配套文档
 
-- [`vm0-sandbox.zh.md`](vm0-sandbox.zh.md) —— Firecracker、COW、vsock、网络命名空间。
-- [`vm0-job-pipeline.zh.md`](vm0-job-pipeline.zh.md) —— Ably 推送、runner provider、guest-agent 生命周期。
-- [`vm0-secrets-proxy.zh.md`](vm0-secrets-proxy.zh.md) —— mitmproxy + 防火墙 + connector 模型；QCut 端的回港路径。
+- [`vm0-sandbox.zh.md`](sandbox.zh.md) —— Firecracker、COW、vsock、网络命名空间。
+- [`vm0-job-pipeline.zh.md`](job-pipeline.zh.md) —— Ably 推送、runner provider、guest-agent 生命周期。
+- [`vm0-secrets-proxy.zh.md`](secrets-proxy.zh.md) —— mitmproxy + 防火墙 + connector 模型；QCut 端的回港路径。

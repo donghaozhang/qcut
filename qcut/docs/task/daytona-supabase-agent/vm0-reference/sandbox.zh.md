@@ -148,8 +148,8 @@ runner.start
 
 ## 相关文档
 
-- [`vm0-overview.zh.md`](vm0-overview.zh.md) —— 全景
-- [`vm0-job-pipeline.zh.md`](vm0-job-pipeline.zh.md) —— 任务怎么走到这个 VM 生命周期
-- [`vm0-secrets-proxy.zh.md`](vm0-secrets-proxy.zh.md) —— 网络命名空间的下文
+- [`vm0-overview.zh.md`](overview.zh.md) —— 全景
+- [`vm0-job-pipeline.zh.md`](job-pipeline.zh.md) —— 任务怎么走到这个 VM 生命周期
+- [`vm0-secrets-proxy.zh.md`](secrets-proxy.zh.md) —— 网络命名空间的下文
 - `vm0/crates/README.md` —— vm0 自家架构总结
 - `vm0/crates/sandbox-fc/src/cow_pool.rs` —— 预热池实现的核心

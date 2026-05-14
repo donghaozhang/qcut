@@ -194,9 +194,9 @@ create table agent_runners (
 
 ## 相关文档
 
-- [`vm0-overview.zh.md`](vm0-overview.zh.md) —— 全景对比
-- [`vm0-sandbox.zh.md`](vm0-sandbox.zh.md) —— 此管道驱动的 VM 生命周期
-- [`vm0-secrets-proxy.zh.md`](vm0-secrets-proxy.zh.md) —— 任务执行时 mitmproxy 在干嘛
+- [`vm0-overview.zh.md`](overview.zh.md) —— 全景对比
+- [`vm0-sandbox.zh.md`](sandbox.zh.md) —— 此管道驱动的 VM 生命周期
+- [`vm0-secrets-proxy.zh.md`](secrets-proxy.zh.md) —— 任务执行时 mitmproxy 在干嘛
 - `vm0/crates/runner/src/provider/mod.rs` —— JobProvider trait
 - `vm0/crates/runner/src/provider/api_ably_supervisor.rs` —— 推+拉 supervisor（1.4k 行）
 - `vm0/crates/guest-agent/src/lib.rs` —— VM 内模块清单

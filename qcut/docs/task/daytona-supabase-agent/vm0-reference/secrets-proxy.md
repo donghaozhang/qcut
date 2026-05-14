@@ -205,9 +205,9 @@ Defer until needed.
 
 ## See also
 
-- [`vm0-overview.md`](vm0-overview.md) — context
-- [`vm0-job-pipeline.md`](vm0-job-pipeline.md) — how `run_id` reaches the proxy
-- [`secrets-supabase.md`](secrets-supabase.md) — our v0 secret loader
+- [`vm0-overview.md`](overview.md) — context
+- [`vm0-job-pipeline.md`](job-pipeline.md) — how `run_id` reaches the proxy
+- [`secrets-supabase.md`](../core-plan/secrets-supabase.md) — our v0 secret loader
 - `vm0/crates/runner/mitm-addon/src/auth.py` — the cache + refresh logic to port
 - `vm0/crates/runner/mitm-addon/src/mitm_addon.py` — top-level addon hooks
 - `vm0/turbo/packages/connectors/src/firewall-types.ts` — firewall rule schema

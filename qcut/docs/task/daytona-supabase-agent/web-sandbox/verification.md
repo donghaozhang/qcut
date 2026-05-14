@@ -41,7 +41,7 @@ Those are the next two layers.
 
 ## Layer 2 — sandbox spawn probe
 
-Runs inside the Spawn Edge Function, *after* the sandbox is up but *before* the WS URL is returned to the browser. From [`web-sandbox-integration.md`](web-sandbox-integration.md):
+Runs inside the Spawn Edge Function, *after* the sandbox is up but *before* the WS URL is returned to the browser. From [`web-sandbox-integration.md`](integration.md):
 
 ```typescript
 const probe = await sandbox.commands.run('qcut system doctor --json --skip-health', {
@@ -98,7 +98,7 @@ All three are short enough (< 5 s each) to run unattended in CI.
 
 ## Exit code contract
 
-The CLI commits to these exit codes; CI gates on them. (Mirrors [`architecture.md`](architecture.md); restated here because Layer 1/2 scripts gate on these explicitly.)
+The CLI commits to these exit codes; CI gates on them. (Mirrors [`architecture.md`](../core-plan/architecture.md); restated here because Layer 1/2 scripts gate on these explicitly.)
 
 | Code | Meaning | Retryable |
 |------|---------|-----------|
@@ -185,7 +185,7 @@ Until those four hold, ship as a feature-flagged beta. After them, default-on pe
 
 ## See also
 
-- [`web-sandbox-architecture.md`](web-sandbox-architecture.md) — what is being verified
-- [`web-sandbox-integration.md`](web-sandbox-integration.md) — where the probe is wired
-- [`architecture.md`](architecture.md) — exit codes and `agent_events` schema referenced above
-- [`vm0-job-pipeline.md`](vm0-job-pipeline.md) — masker module reused for audit redaction
+- [`web-sandbox-architecture.md`](architecture.md) — what is being verified
+- [`web-sandbox-integration.md`](integration.md) — where the probe is wired
+- [`architecture.md`](../core-plan/architecture.md) — exit codes and `agent_events` schema referenced above
+- [`vm0-job-pipeline.md`](../vm0-reference/job-pipeline.md) — masker module reused for audit redaction

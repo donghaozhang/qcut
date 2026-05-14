@@ -98,7 +98,7 @@ qcut <group> <action> [args] \
 
 ### stdout —— 最终信封
 
-三种之一（详见 [`references/REFERENCE.md`](../../../.claude/skills/native-cli/references/REFERENCE.md)）：
+三种之一（详见 [`references/REFERENCE.md`](../../../../.claude/skills/native-cli/references/REFERENCE.md)）：
 
 ```json
 { "status": "ok",      "command_id": "cmd-...", "duration_ms": 8300, "data": { "outputPath": "...", "cost": 0.005 } }

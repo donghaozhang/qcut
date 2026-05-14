@@ -1,36 +1,36 @@
-# 接入 wzrdagentstudio
+# Integration with wzrdagentstudio
 
-终端在 React 应用里住哪、Supabase 那侧加什么 Edge Function、两边契约长啥样。配 [`web-sandbox-architecture.zh.md`](web-sandbox-architecture.zh.md) 读。
+Where the terminal lives in the React app, what edge functions are added on the Supabase side, and the contract between them. Companion to [`web-sandbox-architecture.md`](architecture.md).
 
-## wzrdagentstudio 内文件布局
+## File layout in wzrdagentstudio
 
 ```
 src/
 ├── features/
-│   └── qcut-sandbox/                       # 新功能文件夹
+│   └── qcut-sandbox/                       # new feature folder
 │       ├── routes/
 │       │   └── SandboxRoute.tsx             # /sandbox/$workspaceId
 │       ├── components/
-│       │   ├── TerminalView.tsx             # xterm.js 包装
+│       │   ├── TerminalView.tsx             # xterm.js wrapper
 │       │   ├── SessionHeader.tsx            # "Connected · TTL 28 min · stop"
-│       │   ├── ResourceClassPicker.tsx      # standard / large 下拉
-│       │   └── RecentSessions.tsx           # 用户最近 10 个 ended 会话
+│       │   ├── ResourceClassPicker.tsx      # standard / large dropdown
+│       │   └── RecentSessions.tsx           # last 10 ended sessions
 │       ├── hooks/
 │       │   ├── useSpawnSandbox.ts           # POST /sandbox-spawn
-│       │   ├── useSandboxSocket.ts          # WS 生命周期 + 重连
-│       │   └── useIdleTimer.ts              # 本地 idle 提示 UI
+│       │   ├── useSandboxSocket.ts          # WS lifecycle + reconnect
+│       │   └── useIdleTimer.ts              # local idle hint UI
 │       └── api/
-│           └── sandbox-client.ts            # 类型化 fetch 包装
+│           └── sandbox-client.ts            # typed fetch wrappers
 └── integrations/
     └── supabase/
-        └── functions.ts                     # 把 'sandbox-spawn' 加进已知函数名
+        └── functions.ts                     # add 'sandbox-spawn' to known function names
 ```
 
-路由用应用里现有的 auth 包装兜底。studio dashboard 上放一张卡片打开它。
+Route is gated by the existing auth wrapper used elsewhere in the app. Drop a card on the studio dashboard that opens it.
 
-## React 骨架
+## React skeleton
 
-`TerminalView.tsx`：
+`TerminalView.tsx`:
 
 ```tsx
 import { Terminal } from '@xterm/xterm';
@@ -73,15 +73,15 @@ export function TerminalView({ wsUrl, onExit }: { wsUrl: string; onExit: (reason
 }
 ```
 
-要点：
+Notes:
 
-- **ArrayBuffer 传输**，不是文本。PTY 吐原始字节；文本模式 WS 会破坏非 UTF8（`qcut` 有些输出用框线字符）。
-- **Resize 用带内 JSON 信封。** 中继区分二进制帧（stdin/stdout）和 JSON 控制帧（resize、ping）。一字节前缀也行；JSON 简单点，控制帧少。
-- **组件里不放重连逻辑。** 那住在 `useSandboxSocket` hook 里，能在 30 s 宽限期内重建 socket 并重绑 PTY。
+- **ArrayBuffer transport**, not text. The PTY emits raw bytes; text-mode WS would corrupt non-UTF8 (some `qcut` output uses box-drawing).
+- **Resize via in-band JSON envelope.** The relay distinguishes binary frames (stdin/stdout) from JSON control frames (resize, ping). A single-byte prefix would also work; JSON is fine here since control frames are rare.
+- **No reconnect logic in this component.** That lives in the `useSandboxSocket` hook, which can recreate the socket and reattach to the PTY within the 30 s grace.
 
 ## Spawn Edge Function
 
-`supabase/functions/sandbox-spawn/index.ts`：
+`supabase/functions/sandbox-spawn/index.ts`:
 
 ```typescript
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
     envs: { ...env, QCUT_SESSION_ROLE: 'interactive' },
   });
 
-  // Layer-2 spawn probe（见 web-sandbox-verification.zh.md）
+  // Layer-2 spawn probe (see web-sandbox-verification.md)
   const probe = await sandbox.commands.run('qcut system doctor --json --skip-health', {
     timeoutMs: 8_000,
   });
@@ -171,19 +171,19 @@ Deno.serve(async (req) => {
 });
 ```
 
-~100 行，远在 Edge Function 复杂度顶之下。不做重试——重试不重试客户端自己决定。
+This is ~100 LOC, well under the Edge Function complexity ceiling. No retries — the client decides whether to ask again.
 
-## WS 中继
+## WS Relay
 
-中继当不了 Supabase Edge Function。选项：
+The relay cannot be a Supabase Edge Function. Options:
 
-| 宿主 | 优点 | 缺点 |
+| Host | Pros | Cons |
 |------|------|------|
-| Cloudflare Worker + Durable Object | 便宜、全球；DO 持活 socket | 自定义域 WS 要配；按区域算 egress |
-| Fly.io Node 服务 | 标准 `ws` + `node-pty`；好调试 | 闲时也付钱；默认单区域 |
-| Render / Railway Node 服务 | 同 Fly | 同 |
+| Cloudflare Worker + Durable Object | Cheap, global; DO holds live socket | Custom-domain WS setup; egress per region |
+| Fly.io Node service | Standard `ws` + `node-pty`; easy to debug | Always-on cost; single region by default |
+| Render / Railway Node service | Same as Fly | Same |
 
-**选 Cloudflare Worker + Durable Object。** 中继大部分时间闲、爆发性高；DO 计费正好匹配。骨架：
+**Pick Cloudflare Worker + Durable Object.** The relay is mostly idle and bursty; DO billing matches. Sketch:
 
 ```typescript
 // relay-worker/src/index.ts
@@ -196,14 +196,14 @@ export class PtySession {
     }
 
     const token = new URL(request.url).searchParams.get('token');
-    const { session_id } = await verifyToken(token!);                  // 不合法 throw
-    const session = await loadSession(session_id);                     // 走 Supabase service role
+    const { session_id } = await verifyToken(token!);                  // throws on bad token
+    const session = await loadSession(session_id);                     // Supabase service role
 
     const sandbox = await Sandbox.connect(session.provider_session_id);
     const pty = await sandbox.pty.create({
       rows: 24,
       cols: 80,
-      command: '/usr/local/bin/qcut-entrypoint.sh',                    // 包 bash + 物化 ~/.qcut/.env
+      command: '/usr/local/bin/qcut-entrypoint.sh',                    // wraps bash + materialises ~/.qcut/.env
     });
 
     const pair = new WebSocketPair();
@@ -229,43 +229,43 @@ export class PtySession {
 }
 ```
 
-审计钩子：每个块按采样窗（~1 KB 或 5 s）插一行 `agent_events`，`kind = 'sandbox_io'`，过 mask。完整按键日志太多了，存储吃不消。
+Audit hooks: on every chunk over a sample window (~1 KB or 5 s), emit one `agent_events` row with `kind = 'sandbox_io'`, masked. Full keystroke logs are overkill and storage-heavy.
 
-## wzrdagentstudio 侧接线
+## Wiring on the wzrdagentstudio side
 
-1. 应用 router 加路由 `/sandbox/:workspaceId`。
-2. studio dashboard 侧栏放 "qcut shell" 入口，按 workspace feature flag `qcut_sandbox_enabled` 控制。
-3. 复用现有 Supabase 客户端 `src/integrations/supabase/client.ts`——不另开。
-4. `package.json` 加 `@xterm/xterm`、`@xterm/addon-fit`、`@xterm/addon-web-links`。
-5. `src/integrations/supabase/functions.ts` 的类型化清单加 spawn 函数名。
+1. Add route `/sandbox/:workspaceId` in the app router.
+2. Drop a "qcut shell" entry in the studio dashboard sidebar, gated by feature flag `qcut_sandbox_enabled` on the workspace.
+3. Reuse the existing Supabase client at `src/integrations/supabase/client.ts` — no new client.
+4. Add `@xterm/xterm`, `@xterm/addon-fit`, `@xterm/addon-web-links` to `package.json`.
+5. Add the spawn function name to the typed list in `src/integrations/supabase/functions.ts`.
 
-## 数据流总结
+## Data flow summary
 
 ```
-1. 用户 → wzrdagentstudio       : 点 "qcut shell"
-2. wzrdagentstudio → Supabase   : POST /functions/v1/sandbox-spawn
-3. Supabase Edge → E2B          : Sandbox.create(image, env)
-4. Supabase Edge → Sandbox      : sandbox.commands.run("qcut system doctor --json --skip-health")
-5. Supabase Edge → Postgres     : INSERT sandbox_sessions
+1. User → wzrdagentstudio        : click "qcut shell"
+2. wzrdagentstudio → Supabase    : POST /functions/v1/sandbox-spawn
+3. Supabase Edge → E2B           : Sandbox.create(image, env)
+4. Supabase Edge → Sandbox       : sandbox.commands.run("qcut system doctor --json --skip-health")
+5. Supabase Edge → Postgres      : INSERT sandbox_sessions
 6. Supabase Edge → wzrdagentstudio: { session_id, ws_url, expires_at }
-7. wzrdagentstudio → 中继        : WS connect（带签名 token）
-8. 中继 → E2B                   : sandbox.pty.create()
-9. 浏览器 ↔ 中继 ↔ E2B PTY ↔ qcut    （活字节）
-10. 浏览器关 / TTL 到            : 中继 → E2B kill，UPDATE sandbox_sessions
+7. wzrdagentstudio → Relay       : WS connect (signed token)
+8. Relay → E2B                   : sandbox.pty.create()
+9. Browser ↔ Relay ↔ E2B PTY ↔ qcut    (live bytes)
+10. Browser closes / TTL fires   : Relay → E2B kill, UPDATE sandbox_sessions
 ```
 
-第 1–6 步是一次 HTTP 请求。从第 7 步起是长连 WS。
+Steps 1–6 are a single HTTP request. Step 7 onward is the long-lived WS.
 
-## 常见问题
+## Common questions
 
-- **为什么不把中继塞进 wzrdagentstudio 的 Vite 开发服务器？** 开发能跑；生产是 CDN 后面的静态资产——没有 Node 运行时给你贴。中继得拆出去，跟开发体验无关。
-- **能跳过中继让浏览器直连 E2B 吗？** E2B 是暴露了 WS 能用的 PTY，但需要的 token 是 workspace-secret 级别的。把它放浏览器里，network tab 一眼就漏。中继持密钥。
-- **为啥不一开始就上 Daytona？** Daytona 的 TS SDK 没像 E2B 那样把 PTY-over-WS 暴露好；我们得自己写那层。会做，先不做。
-- **agent 路径的 `entrypoint.ts` 在这里啥位置？** 无头模式照跑。交互模式下，一个薄的 `qcut-entrypoint.sh` 从 env vars 物化 `~/.qcut/.env`、然后 `exec bash`。密钥加载语义一样，只是 exec 不同。
+- **Why not embed the relay directly in wzrdagentstudio's Vite dev server?** Dev would work; prod hosts static assets behind CDN — no Node runtime to attach to. Splitting the relay out is required regardless of the dev experience.
+- **Can we skip the relay and have the browser hit E2B directly?** E2B does expose a WS-able PTY, but the tokens needed are workspace-secret-grade. Putting them in the browser leaks them on the network tab. The relay holds the keys.
+- **Why not Daytona day one?** Daytona's TS SDK does not expose PTY-over-WS the way E2B does; we'd build that layer ourselves. We will, but not yet.
+- **Where does the agent path's `entrypoint.ts` fit?** It still runs in headless mode. For interactive mode, a thin `qcut-entrypoint.sh` materialises `~/.qcut/.env` from envs and then `exec bash`. Same secret-loader semantics, different exec.
 
-## 相关文档
+## See also
 
-- [`web-sandbox-verification.zh.md`](web-sandbox-verification.zh.md) —— 接好之后怎么确认能工作
-- [`web-sandbox-architecture.zh.md`](web-sandbox-architecture.zh.md) —— 组件拆解
-- [`container-setup.md`](container-setup.md) —— 镜像结构（`qcut-entrypoint.sh` 放这）
-- [`secrets-supabase.md`](secrets-supabase.md) —— 上面引到的 `agent_secrets` schema
+- [`web-sandbox-verification.md`](verification.md) — once wired up, how to know it works
+- [`web-sandbox-architecture.md`](architecture.md) — component breakdown
+- [`container-setup.md`](../core-plan/container-setup.md) — image structure (`qcut-entrypoint.sh` goes here)
+- [`secrets-supabase.md`](../core-plan/secrets-supabase.md) — `agent_secrets` schema referenced above

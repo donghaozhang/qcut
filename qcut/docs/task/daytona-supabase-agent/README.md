@@ -29,27 +29,27 @@ Core plan (headless agent):
 
 | File | Purpose |
 |------|---------|
-| [architecture.md](architecture.md) | System diagram: Supabase ↔ Daytona ↔ CLI. Job lifecycle, event streams, failure modes |
-| [container-setup.md](container-setup.md) | Dockerfile, Daytona devcontainer config, build steps, runtime requirements |
-| [secrets-supabase.md](secrets-supabase.md) | API key table schema, secret loader script, three precedence strategies |
+| [architecture.md](core-plan/architecture.md) | System diagram: Supabase ↔ Daytona ↔ CLI. Job lifecycle, event streams, failure modes |
+| [container-setup.md](core-plan/container-setup.md) | Dockerfile, Daytona devcontainer config, build steps, runtime requirements |
+| [secrets-supabase.md](core-plan/secrets-supabase.md) | API key table schema, secret loader script, three precedence strategies |
 
 vm0 reference analysis (lessons from [vm0-ai/vm0](https://github.com/vm0-ai/vm0)):
 
 | File | Purpose |
 |------|---------|
-| [vm0-overview.md](vm0-overview.md) | Top-level comparison, repo layout, what to borrow / defer / skip |
-| [vm0-sandbox.md](vm0-sandbox.md) | Firecracker microVM + NBD COW + netns pool; why we stay on containers |
-| [vm0-job-pipeline.md](vm0-job-pipeline.md) | JobProvider trait, push/pull discovery, guest-agent module map |
-| [vm0-secrets-proxy.md](vm0-secrets-proxy.md) | mitmproxy credential injection, firewall rules, backport phasing |
+| [vm0-overview.md](vm0-reference/overview.md) | Top-level comparison, repo layout, what to borrow / defer / skip |
+| [vm0-sandbox.md](vm0-reference/sandbox.md) | Firecracker microVM + NBD COW + netns pool; why we stay on containers |
+| [vm0-job-pipeline.md](vm0-reference/job-pipeline.md) | JobProvider trait, push/pull discovery, guest-agent module map |
+| [vm0-secrets-proxy.md](vm0-reference/secrets-proxy.md) | mitmproxy credential injection, firewall rules, backport phasing |
 
 Browser sandbox extension (interactive surface in wzrdagentstudio):
 
 | File | Purpose |
 |------|---------|
-| [web-sandbox-README.md](web-sandbox-README.md) | Index: human shells into a sandbox from a web page; why both this and the agent path |
-| [web-sandbox-architecture.md](web-sandbox-architecture.md) | xterm.js → relay → E2B/Daytona PTY. `sandbox_sessions` schema, lifecycle, limits |
-| [web-sandbox-integration.md](web-sandbox-integration.md) | Concrete wiring into wzrdagentstudio + Supabase Edge Function + Cloudflare DO relay |
-| [web-sandbox-verification.md](web-sandbox-verification.md) | Three-layer smoke test recipe, exit-code contract, failure-mode catalogue, CI hook |
+| [web-sandbox-README.md](web-sandbox/README.md) | Index: human shells into a sandbox from a web page; why both this and the agent path |
+| [web-sandbox-architecture.md](web-sandbox/architecture.md) | xterm.js → relay → E2B/Daytona PTY. `sandbox_sessions` schema, lifecycle, limits |
+| [web-sandbox-integration.md](web-sandbox/integration.md) | Concrete wiring into wzrdagentstudio + Supabase Edge Function + Cloudflare DO relay |
+| [web-sandbox-verification.md](web-sandbox/verification.md) | Three-layer smoke test recipe, exit-code contract, failure-mode catalogue, CI hook |
 
 ## Quick reference
 

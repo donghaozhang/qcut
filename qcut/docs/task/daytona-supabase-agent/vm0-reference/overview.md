@@ -83,8 +83,8 @@ These are stricter than our project; useful as a reference bar.
 
 **Worth adopting later (production maturity)**:
 
-- **mitmproxy-based credential injection** — see [`vm0-secrets-proxy.md`](vm0-secrets-proxy.md). Cleanly removes plaintext keys from container disk.
-- **Snapshot / COW pool for fast cold start** — see [`vm0-sandbox.md`](vm0-sandbox.md). Only matters if we need < 1 s job pickup.
+- **mitmproxy-based credential injection** — see [`vm0-secrets-proxy.md`](secrets-proxy.md). Cleanly removes plaintext keys from container disk.
+- **Snapshot / COW pool for fast cold start** — see [`vm0-sandbox.md`](sandbox.md). Only matters if we need < 1 s job pickup.
 - **Connector schema** — if QCut ever needs to expose its CLI surface to third-party agents, the `packages/connectors/*.ts` pattern (one file per tool, each with `authMethods` + `environmentMapping`) is well-shaped.
 
 **Not portable**:
@@ -105,6 +105,6 @@ These are stricter than our project; useful as a reference bar.
 
 ## Companion docs
 
-- [`vm0-sandbox.md`](vm0-sandbox.md) — Firecracker, COW, vsock, network namespaces.
-- [`vm0-job-pipeline.md`](vm0-job-pipeline.md) — Ably push, runner provider, guest-agent lifecycle.
-- [`vm0-secrets-proxy.md`](vm0-secrets-proxy.md) — mitmproxy + firewall + connector model; backport options for QCut.
+- [`vm0-sandbox.md`](sandbox.md) — Firecracker, COW, vsock, network namespaces.
+- [`vm0-job-pipeline.md`](job-pipeline.md) — Ably push, runner provider, guest-agent lifecycle.
+- [`vm0-secrets-proxy.md`](secrets-proxy.md) — mitmproxy + firewall + connector model; backport options for QCut.
