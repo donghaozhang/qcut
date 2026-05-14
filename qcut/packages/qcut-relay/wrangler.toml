@@ -1,0 +1,23 @@
+name = "qcut-relay"
+main = "src/index.ts"
+compatibility_date = "2026-05-13"
+compatibility_flags = ["nodejs_compat"]
+
+[durable_objects]
+bindings = [
+  { name = "PTY", class_name = "PtySession" }
+]
+
+[[migrations]]
+tag = "v1"
+# Free-plan Durable Objects require sqlite-backed classes.
+new_sqlite_classes = ["PtySession"]
+
+# Set via `wrangler secret put`:
+#   SUPABASE_URL
+#   SUPABASE_SERVICE_ROLE_KEY
+#   RELAY_SIGNING_SECRET   (must match Edge Function env)
+#   E2B_API_KEY
+
+[observability]
+enabled = true

@@ -29,6 +29,20 @@
 			"when": 1762603200000,
 			"tag": "0003_payment_guardrails_and_integrity",
 			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "7",
+			"when": 1778740898601,
+			"tag": "0004_agent_sandbox_tables",
+			"breakpoints": true
+		},
+		{
+			"idx": 5,
+			"version": "7",
+			"when": 1778791283000,
+			"tag": "0005_agent_artifacts_bigint_and_queue_index",
+			"breakpoints": true
 		}
 	]
 }

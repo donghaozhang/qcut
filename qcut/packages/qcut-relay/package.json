@@ -1,0 +1,22 @@
+{
+	"name": "@qcut/relay",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"main": "src/index.ts",
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy",
+		"test": "bunx vitest run --config vitest.config.ts"
+	},
+	"dependencies": {
+		"e2b": "^2.20.0",
+		"jose": "^5.0.0"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^4.20240909.0",
+		"@types/bun": "latest",
+		"vitest": "^4.0.0",
+		"wrangler": "^3.0.0"
+	}
+}

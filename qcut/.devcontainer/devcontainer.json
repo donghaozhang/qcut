@@ -1,0 +1,25 @@
+{
+	"name": "qcut-cli sandbox",
+	"image": "ghcr.io/quriosity-agent/qcut-cli:v0",
+	"remoteUser": "qcut",
+	"workspaceFolder": "/workspace",
+	"mounts": [
+		"source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+	],
+	"containerEnv": {
+		"QCUT_SESSION_ROLE": "interactive"
+	},
+	"postCreateCommand": "/workspace/.devcontainer/post-create.sh",
+	"customizations": {
+		"daytona": {
+			"category": "qcut",
+			"resourceClass": "standard",
+			"regions": ["us-east-1", "eu-west-1"]
+		},
+		"vscode": {
+			"extensions": ["ms-azuretools.vscode-docker", "biomejs.biome"]
+		}
+	},
+	"forwardPorts": [],
+	"shutdownAction": "stopContainer"
+}

@@ -93,6 +93,7 @@ import {
 import { handleGenerateMusic } from "../cli-handlers-music.js";
 import { handleRecord } from "../cli-handlers-record.js";
 import { handleRecordDaemon } from "../cli-handlers-record-daemon.js";
+import { handleSystemDoctor } from "../cli-handlers-system-doctor.js";
 
 /**
  * Unified handler signature.
@@ -184,6 +185,7 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"get-key": wrap(adminHandleGetKey),
 	"check-keys": wrap0(adminHandleCheckKeys),
 	"delete-key": wrap(adminHandleDeleteKey),
+	"system-doctor": wrap(handleSystemDoctor),
 
 	// ── Project ──
 	"init-project": wrap(adminHandleInitProject),

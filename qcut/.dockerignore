@@ -1,0 +1,44 @@
+# Keep the Docker build context small. Mirrors .gitignore plus dev-only paths.
+.git
+.gitignore
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/out
+dist-electron
+dist-packager*
+build_exe
+**/coverage
+**/.cache
+**/.vite
+**/.tsbuildinfo
+
+# Tests / fixtures we never want in the runtime image
+**/__tests__
+**/test-results
+**/playwright-report
+e2e
+tests
+playwright
+
+# Logs / scratch
+*.log
+**/screenshots
+output
+slide-deck
+
+# Local secrets — defensive (we always allow-list inject at runtime)
+.env
+.env.*
+**/.env
+**/.env.*
+**/credentials.env
+**/.qcut
+
+# Docs / IDE
+docs
+.vscode
+.idea
+.cursor
+.claude

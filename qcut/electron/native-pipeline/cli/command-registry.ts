@@ -129,6 +129,7 @@ export const CATEGORIES: CategoryDef[] = [
 			"get-key",
 			"delete-key",
 			"check-keys",
+			"system-doctor",
 		],
 	},
 	{
@@ -1118,6 +1119,14 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		category: "keys",
 		flags: [],
 		examples: ["qcut-pipeline check-keys --json"],
+	},
+	"system-doctor": {
+		name: "system-doctor",
+		description:
+			"Report environment health (bun/ffmpeg/.env/keys) as JSON. Used by the Daytona/E2B spawn probe.",
+		category: "keys",
+		flags: [],
+		examples: ["qcut system doctor --json --skip-health", "qcut system doctor"],
 	},
 
 	// ── Project Setup ──

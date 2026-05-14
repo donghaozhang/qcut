@@ -19,7 +19,8 @@ function getDb() {
 // Export a proxy that forwards all calls to the actual db instance
 export const db = getDb();
 
-// Re-export schema for convenience
+// Re-export schema for convenience (agent_* and sandbox_sessions
+// tables live here as well, with inferred types).
 export * from "./schema";
 
 // Re-export drizzle-orm functions to ensure version consistency

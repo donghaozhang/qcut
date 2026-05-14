@@ -16,7 +16,9 @@
 		"@noble/hashes": "^1.8.0",
 		"better-auth": "1.1.6",
 		"drizzle-orm": "^0.45.1",
+		"e2b": "^1.0.0",
 		"hono": "^4.0.0",
+		"jose": "^5.0.0",
 		"postgres": "^3.4.8",
 		"stripe": "^17.0.0"
 	},

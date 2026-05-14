@@ -100,9 +100,7 @@ export function setCachedGroupId(
 const TERMINAL_OK = /^(approved|succe|ready|active|done)/i;
 const TERMINAL_FAIL = /^(reject|fail|error|deny)/i;
 
-interface FetchLike {
-	(input: string, init?: RequestInit): Promise<Response>;
-}
+type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
 interface AssetClientOptions {
 	apiKey: string;
