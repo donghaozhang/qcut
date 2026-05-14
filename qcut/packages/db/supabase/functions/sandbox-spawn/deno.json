@@ -1,7 +1,0 @@
-{
-	"imports": {
-		"@supabase/supabase-js": "jsr:@supabase/supabase-js@2",
-		"jose": "jsr:@panva/jose@5",
-		"e2b": "npm:e2b@latest"
-	}
-}

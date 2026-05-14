@@ -1,5 +1,12 @@
 # Implementation Plan
 
+> 📌 **Read [`ACTUAL.md`](ACTUAL.md) first.** Several of the specs below
+> got superseded or refactored during implementation (Drizzle replaced
+> Supabase as schema authority; `user_id` replaced `workspace_id`;
+> spawn moved to a license-server Hono route). ACTUAL.md is the
+> commit-by-commit log of what really shipped, with live-verification
+> evidence against the production Postgres.
+
 Nine PR-sized task specs, each consumable by `/implementit`. Each file says exactly what to build, where the files go, what tests to add, and what to run to verify "done."
 
 Reference docs (background, why, schemas) live in the sibling folders:

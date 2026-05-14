@@ -1,3 +1,9 @@
+> ⚠️ **Updated.** This spec lands as-described in commit `b9458750c`,
+> then was refactored to use `userId` instead of `workspace_id` and
+> explicit `created_at` on every INSERT in commit `665d05f19` (PR 11).
+> Live verified: worker claimed a real row against production Postgres
+> via the `claim_one_agent_job` RPC. See [`ACTUAL.md`](ACTUAL.md).
+
 # PR 04 — `packages/agent-worker` — the headless drainer
 
 > **Phase**: 1 · **Depends on**: PR 02 (container), PR 03 (schema) · **Estimated LOC**: ~280

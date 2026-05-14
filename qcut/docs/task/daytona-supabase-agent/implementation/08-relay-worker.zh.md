@@ -1,3 +1,8 @@
+> ⚠️ **只改了列名。** 代码结构原样落地为 commit `170924319`。PR 12 把
+> `audit.ts` 写 `agent_events` 时的 `workspace_id` 改成 `user_id`，
+> 显式带上 `created_at`（新 schema 没有 DB 侧 default）。token 签发
+> 校验不变。见 [`ACTUAL.zh.md`](ACTUAL.zh.md)。
+
 # PR 08 —— Cloudflare Worker + Durable Object PTY 中继
 
 > **Phase**：2 · **依赖**：PR 07（spawn 签的就是这里要验的 token） · **工作量**：~250 行

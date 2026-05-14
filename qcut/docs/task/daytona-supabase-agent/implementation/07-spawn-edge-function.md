@@ -1,3 +1,12 @@
+> ⚠️ **Architecture changed.** The Deno Edge Function landed in commit
+> `79f2c8734` but was **deleted** in PR 12 and replaced by a Hono route
+> at `packages/license-server/src/routes/sandbox.ts`. The new route
+> reuses the license-server's Better Auth middleware (no Supabase
+> JWTs needed) and deducts credits via `deductCreditsForUser` before
+> spawning. Endpoint moved from
+> `${SUPABASE_URL}/functions/v1/sandbox-spawn` →
+> `${LICENSE_SERVER_URL}/api/sandbox/spawn`. See [`ACTUAL.md`](ACTUAL.md).
+
 # PR 07 — `/sandbox-spawn` Supabase Edge Function
 
 > **Phase**: 2 · **Depends on**: PR 01, 02, 03, 06 · **Estimated LOC**: ~150

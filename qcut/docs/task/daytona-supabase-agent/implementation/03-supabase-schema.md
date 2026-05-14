@@ -1,3 +1,9 @@
+> ⚠️ **Superseded.** This spec assumed Supabase was the schema authority.
+> The actual implementation puts the same tables in `packages/db/src/schema.ts`
+> (Drizzle source-of-truth) and uses `user_id` instead of `workspace_id`
+> — see [`ACTUAL.md`](ACTUAL.md) and commit `f4d4cd1` (PR 10). Migration
+> applied live as `packages/db/migrations/0004_agent_sandbox_tables.sql`.
+
 # PR 03 — Supabase schema for agent jobs, events, secrets, artifacts
 
 > **Phase**: 1 · **Depends on**: nothing (parallel to 01/02) · **Estimated LOC**: ~150

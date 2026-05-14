@@ -1,5 +1,10 @@
 # 实现计划
 
+> 📌 **先读 [`ACTUAL.zh.md`](ACTUAL.zh.md)。** 下面几份 spec 在实现过程
+> 中被取代或重构了（Drizzle 替代 Supabase 成 schema 权威；`user_id`
+> 替换 `workspace_id`；spawn 搬到 license-server 的 Hono 路由）。
+> ACTUAL.zh.md 是按 commit 记录的实际落地日志，附生产环境验证证据。
+
 九份 PR 级别的任务规约，每一份都能直接喂给 `/implementit`。每个文件明确说：要做什么、文件放哪、加哪些测试、跑什么验证算"完工"。
 
 背景资料（为什么、schema 这些）在兄弟文件夹里：

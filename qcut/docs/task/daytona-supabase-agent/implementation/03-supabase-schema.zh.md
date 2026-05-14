@@ -1,3 +1,8 @@
+> ⚠️ **已被取代。** 本 spec 假设 Supabase 是 schema 权威。实际实现把相同
+> 的表放到 `packages/db/src/schema.ts`（Drizzle 为源），用 `user_id` 替换
+> `workspace_id`——见 [`ACTUAL.zh.md`](ACTUAL.zh.md) 和 commit `f4d4cd1`
+> （PR 10）。Migration 已实际应用为 `packages/db/migrations/0004_agent_sandbox_tables.sql`。
+
 # PR 03 —— Supabase schema：agent_secrets / agent_jobs / agent_events / agent_artifacts
 
 > **Phase**：1 · **依赖**：无（和 01/02 并行） · **工作量**：~150 行

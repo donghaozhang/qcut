@@ -1,3 +1,8 @@
+> ⚠️ **已被取代。** 同 PR 03 的原因——`sandbox_sessions` 现在住在
+> Drizzle schema 里，用 `user_id`。合并的 migration
+> `0004_agent_sandbox_tables.sql` 同时包含两张表。见
+> [`ACTUAL.zh.md`](ACTUAL.zh.md) 和 commit `f4d4cd1`。
+
 # PR 06 —— `sandbox_sessions` schema
 
 > **Phase**：2 · **依赖**：PR 03（Phase 1 schema） · **工作量**：~80 行

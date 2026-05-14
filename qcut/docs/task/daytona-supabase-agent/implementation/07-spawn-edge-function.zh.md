@@ -1,3 +1,10 @@
+> ⚠️ **架构变了。** Deno Edge Function 在 commit `79f2c8734` 落过盘，
+> 但在 PR 12 被**删除**，由 `packages/license-server/src/routes/sandbox.ts`
+> 这条 Hono 路由替换。新路由复用 license-server 现成的 Better Auth
+> 中间件（不再需要 Supabase JWT），spawn 前通过 `deductCreditsForUser`
+> 扣费。端点从 `${SUPABASE_URL}/functions/v1/sandbox-spawn` 改为
+> `${LICENSE_SERVER_URL}/api/sandbox/spawn`。见 [`ACTUAL.zh.md`](ACTUAL.zh.md)。
+
 # PR 07 —— `/sandbox-spawn` Supabase Edge Function
 
 > **Phase**：2 · **依赖**：PR 01、02、03、06 · **工作量**：~150 行

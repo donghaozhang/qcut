@@ -1,3 +1,11 @@
+> ⚠️ **Endpoint changed.** UI shipped in commit `f3caa17` (wzrdagentstudio
+> repo, branch `qcut-cli`). PR 12 swapped the spawn caller from
+> `supabase.functions.invoke('sandbox-spawn')` to a plain `fetch` against
+> `${LICENSE_SERVER_URL}/api/sandbox/spawn` with the user's QCut session
+> Bearer token. `workspaceId` route param dropped (path is `/sandbox`);
+> SandboxPage reads `localStorage.qcut_auth_token` until QCut sign-in is
+> wired into the app. See [`ACTUAL.md`](ACTUAL.md).
+
 # PR 09 — wzrdagentstudio terminal UI
 
 > **Phase**: 2 · **Depends on**: PR 07, PR 08 · **Estimated LOC**: ~220

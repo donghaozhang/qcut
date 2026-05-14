@@ -38,12 +38,14 @@ export async function auditEvent(
 	kind: string,
 	payload: Record<string, unknown>,
 ): Promise<void> {
-	// workspace_id is filled by the worker / Spawn API; the relay only
-	// knows session_id, so we store that in payload and let queries join.
+	// user_id is filled by the spawn route; the relay only knows
+	// session_id, so we store that in payload and let queries join
+	// back to the user via sandbox_sessions.
 	await rest(env, "POST", "agent_events", {
-		workspace_id: null,
+		user_id: null,
 		kind,
 		payload: { session_id, ...payload },
+		created_at: new Date().toISOString(),
 	});
 }
 

@@ -1,3 +1,8 @@
+> ⚠️ **已更新。** 本 spec 原样落地为 commit `b9458750c`，之后在
+> commit `665d05f19`（PR 11）重构为用 `userId` 而非 `workspace_id`，
+> 所有 INSERT 显式带 `created_at`。生产实测：worker 通过
+> `claim_one_agent_job` RPC 抢到了真行。详见 [`ACTUAL.zh.md`](ACTUAL.zh.md)。
+
 # PR 04 —— `packages/agent-worker`：无头 drainer
 
 > **Phase**：1 · **依赖**：PR 02（容器）、PR 03（schema） · **工作量**：~280 行

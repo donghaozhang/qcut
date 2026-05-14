@@ -1,3 +1,8 @@
+> ⚠️ **Superseded.** Same reason as PR 03 — `sandbox_sessions` now lives
+> in the Drizzle schema with `user_id`. Consolidated migration
+> `0004_agent_sandbox_tables.sql` covers both tables. See
+> [`ACTUAL.md`](ACTUAL.md) and commit `f4d4cd1`.
+
 # PR 06 — `sandbox_sessions` schema
 
 > **Phase**: 2 · **Depends on**: PR 03 (Phase 1 schema) · **Estimated LOC**: ~80

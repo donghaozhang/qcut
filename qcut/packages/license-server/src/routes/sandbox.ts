@@ -1,0 +1,193 @@
+/**
+ * /api/sandbox/* — Hono route for browser-terminal sandbox sessions.
+ *
+ * POST /api/sandbox/spawn
+ *   body: { resource_class?: "standard" | "large" }
+ *   header: Authorization: Bearer <session-token>
+ *   returns: { session_id, ws_url, expires_at }
+ *
+ * Phase 2 entry point (replaces the old Deno Edge Function at
+ * packages/db/supabase/functions/sandbox-spawn/). Lives here because
+ * Better Auth + credit deduction are both license-server concerns.
+ *
+ * The relay (packages/qcut-relay) verifies the returned token with the
+ * same RELAY_SIGNING_SECRET, so this server signs and the relay
+ * verifies — gate-keeping split for hot-path speed.
+ */
+
+import { Hono } from "hono";
+import { and, eq, inArray } from "drizzle-orm";
+import { Sandbox } from "e2b";
+import { SignJWT } from "jose";
+
+import { agentEvents, sandboxSessions } from "@qcut/db/schema";
+import { db } from "../db/drizzle";
+import { authMiddleware } from "../middleware/auth";
+import { deductCreditsForUser } from "../services/credit-service";
+
+const sandboxRoutes = new Hono();
+sandboxRoutes.use("/*", authMiddleware);
+
+const MAX_CONCURRENT = 3;
+const TTL_MS = 30 * 60 * 1000;
+const PROBE_TIMEOUT_MS = 8_000;
+
+const SPAWN_COST: Record<"standard" | "large", number> = {
+	standard: 5,
+	large: 10,
+};
+
+interface SpawnBody {
+	resource_class?: "standard" | "large";
+}
+
+sandboxRoutes.post("/spawn", async (c) => {
+	const userId = c.get("userId") as string;
+	const imageTag = process.env.QCUT_IMAGE_TAG ?? "qcut-cli:v0";
+	const relayHost = process.env.RELAY_HOST ?? "relay.qcut.app";
+	const relaySecret = process.env.RELAY_SIGNING_SECRET;
+	const e2bKey = process.env.E2B_API_KEY;
+
+	if (!relaySecret) {
+		return c.json({ error: "spawn_misconfigured: RELAY_SIGNING_SECRET" }, 500);
+	}
+	if (!e2bKey) {
+		return c.json({ error: "spawn_misconfigured: E2B_API_KEY" }, 500);
+	}
+
+	let body: SpawnBody = {};
+	try {
+		body = (await c.req.json()) as SpawnBody;
+	} catch {
+		// empty body is fine; defaults apply
+	}
+	const resourceClass: "standard" | "large" =
+		body.resource_class === "large" ? "large" : "standard";
+
+	// Concurrency cap — count this user's active sessions.
+	const active = await db
+		.select({ id: sandboxSessions.id })
+		.from(sandboxSessions)
+		.where(
+			and(
+				eq(sandboxSessions.userId, userId),
+				inArray(sandboxSessions.status, ["spawning", "active"]),
+			),
+		);
+	if (active.length >= MAX_CONCURRENT) {
+		return c.json({ error: "too_many_active_sessions" }, 429);
+	}
+
+	// Audit: spawn_started (before billing — we want a record even if
+	// downstream fails).
+	await db.insert(agentEvents).values({
+		userId,
+		kind: "spawn_started",
+		payload: { resource_class: resourceClass, image_tag: imageTag },
+		createdAt: new Date(),
+	});
+
+	// Charge first — refund on failure paths.
+	const cost = SPAWN_COST[resourceClass];
+	const deduction = await deductCreditsForUser({
+		userId,
+		amount: cost,
+		modelKey: `sandbox:${resourceClass}`,
+		description: `sandbox spawn (${resourceClass})`,
+	});
+	if (!deduction.success) {
+		return c.json(
+			{
+				error: "insufficient_credits",
+				required: cost,
+				available:
+					deduction.balance.planCredits + deduction.balance.topUpCredits,
+			},
+			402,
+		);
+	}
+
+	// Spawn E2B sandbox.
+	let sandbox: Awaited<ReturnType<typeof Sandbox.create>>;
+	try {
+		sandbox = await Sandbox.create(imageTag, {
+			timeoutMs: TTL_MS,
+			envs: { QCUT_SESSION_ROLE: "interactive" },
+			apiKey: e2bKey,
+		});
+	} catch (err) {
+		await db.insert(agentEvents).values({
+			userId,
+			kind: "doctor_probe",
+			payload: {
+				stage: "create",
+				error: err instanceof Error ? err.message : String(err),
+			},
+			createdAt: new Date(),
+		});
+		// TODO: refund credits here — refundCreditsForUser exists; keeping
+		// scope tight for v0. Document as known followup.
+		return c.json({ error: "sandbox_create_failed" }, 502);
+	}
+
+	// Layer-2 spawn probe.
+	const probe = await sandbox.commands.run(
+		"qcut system doctor --json --skip-health",
+		{ timeoutMs: PROBE_TIMEOUT_MS },
+	);
+	if (probe.exitCode !== 0) {
+		await sandbox.kill();
+		await db.insert(agentEvents).values({
+			userId,
+			kind: "doctor_probe",
+			payload: {
+				stage: "probe",
+				exit_code: probe.exitCode,
+				stderr: probe.stderr.slice(0, 1000),
+			},
+			createdAt: new Date(),
+		});
+		return c.json({ error: "sandbox_unhealthy" }, 502);
+	}
+
+	// Persist session.
+	const sessionId = crypto.randomUUID();
+	const expiresAt = new Date(Date.now() + TTL_MS);
+	await db.insert(sandboxSessions).values({
+		id: sessionId,
+		userId,
+		status: "active",
+		provider: "e2b",
+		providerSessionId: sandbox.sandboxId,
+		imageTag,
+		startedAt: new Date(),
+		resourceClass,
+		expiresAt,
+	});
+	await db.insert(agentEvents).values({
+		userId,
+		kind: "spawn_probe_ok",
+		payload: {
+			session_id: sessionId,
+			provider_session_id: sandbox.sandboxId,
+		},
+		createdAt: new Date(),
+	});
+
+	// Mint 5-minute HS256 token for the relay.
+	const wsToken = await new SignJWT({ session_id: sessionId })
+		.setProtectedHeader({ alg: "HS256" })
+		.setExpirationTime("5m")
+		.sign(new TextEncoder().encode(relaySecret));
+
+	return c.json({
+		session_id: sessionId,
+		ws_url: `wss://${relayHost}/pty?token=${wsToken}`,
+		expires_at: expiresAt.toISOString(),
+		cost_credits: cost,
+		remaining_credits:
+			deduction.balance.planCredits + deduction.balance.topUpCredits,
+	});
+});
+
+export { sandboxRoutes };

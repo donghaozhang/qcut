@@ -1,3 +1,9 @@
+> ⚠️ **Column rename only.** Code structure landed as-described in
+> commit `170924319`. PR 12 renamed `workspace_id` → `user_id` in the
+> `agent_events` payload written by `audit.ts` and added an explicit
+> `created_at` (the new schema has no DB-side default). Token signing
+> + verification unchanged. See [`ACTUAL.md`](ACTUAL.md).
+
 # PR 08 — Cloudflare Worker + Durable Object PTY relay
 
 > **Phase**: 2 · **Depends on**: PR 07 (spawn signs the token this verifies) · **Estimated LOC**: ~250

@@ -1,3 +1,11 @@
+> ⚠️ **端点变了。** UI 在 wzrdagentstudio 仓库的 `qcut-cli` 分支
+> commit `f3caa17` 落盘。PR 12 把 spawn 调用从
+> `supabase.functions.invoke('sandbox-spawn')` 改成对
+> `${LICENSE_SERVER_URL}/api/sandbox/spawn` 的普通 `fetch`，带用户的
+> QCut session Bearer token。`workspaceId` 路由参数去掉（路径变 `/sandbox`）；
+> SandboxPage 暂从 `localStorage.qcut_auth_token` 读，等 QCut 登录组件
+> 接进 wzrdagentstudio 后替换。见 [`ACTUAL.zh.md`](ACTUAL.zh.md)。
+
 # PR 09 —— wzrdagentstudio 终端 UI
 
 > **Phase**：2 · **依赖**：PR 07、PR 08 · **工作量**：~220 行
