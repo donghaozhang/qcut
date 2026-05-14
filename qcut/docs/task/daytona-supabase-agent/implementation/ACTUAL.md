@@ -2,7 +2,7 @@
 
 This file logs the gap between the original PR specs (01-09) and what
 got implemented + landed against the live QCut backend. Read this
-*before* the individual spec files — those still describe the
+_before_ the individual spec files — those still describe the
 original plan, with banner pointers to the changes here.
 
 ## TL;DR
@@ -17,43 +17,78 @@ into that architecture.
 
 ## Commit-by-commit log
 
-| Commit | What | Spec ref |
-|--------|------|----------|
-| `90ce05709` | `qcut system doctor --json --skip-health` | PR 01 ✅ unchanged |
-| `fbae951f6` | Dockerfile + entrypoint + smoke + `build:cli-image` | PR 02 ✅ unchanged |
-| `2add844f2` | (later superseded) Supabase migration for agent_* | PR 03 ❌ superseded by `f4d4cd1` |
-| `7f5f5b728` → `b9458750c` (rebased) | (later refactored) agent-worker with `workspace_id` | PR 04 ⚠️ refactored by `665d05f19` |
-| `9719bf874` | Daytona devcontainer + dogfood + worker swap-in | PR 05 ✅ unchanged |
-| `2a8e16589` | (later superseded) Supabase migration for sandbox_sessions | PR 06 ❌ superseded by `f4d4cd1` |
-| `79f2c8734` | (later superseded) Deno Edge Function `/sandbox-spawn` | PR 07 ❌ superseded by `<this PR>` |
-| `170924319` | `@qcut/relay` Cloudflare Worker (DO + token verify) | PR 08 ✅ structurally unchanged; column rename in `<this PR>` |
-| `f3caa17` (wzrdagentstudio) | xterm.js terminal UI calling Supabase Functions | PR 09 ⚠️ endpoint switched in `<this PR>` |
-| `f4d4cd1` | **PR 10** — schema realignment: Drizzle is source of truth, `user_id` replaces `workspace_id` everywhere, migration `0004_agent_sandbox_tables.sql` | replaces 03+06 |
-| `665d05f19` | **PR 11** — agent-worker source files refactored to `userId`, `created_at` added explicitly to all inserts | updates 04 |
-| _this PR_ | **PR 12** — Phase 2 alignment: sandbox-spawn moves to a Hono route in `packages/license-server/src/routes/sandbox.ts` with Better Auth + credit deduction; relay audit columns renamed; wzrdagentstudio frontend calls license-server | replaces 07; updates 08+09 |
+| Commit                              | What                                                                                                                                                                                                                                  | Spec ref                                                                                |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `90ce05709`                         | `qcut system doctor --json --skip-health`                                                                                                                                                                                             | PR 01 ✅ unchanged                                                                      |
+| `fbae951f6`                         | Dockerfile + entrypoint + smoke + `build:cli-image`                                                                                                                                                                                   | PR 02 ✅ unchanged                                                                      |
+| `2add844f2`                         | (later superseded) Supabase migration for agent\_\*                                                                                                                                                                                   | PR 03 ❌ superseded by `f4d4cd1`                                                        |
+| `7f5f5b728` → `b9458750c` (rebased) | (later refactored) agent-worker with `workspace_id`                                                                                                                                                                                   | PR 04 ⚠️ refactored by `665d05f19`                                                      |
+| `9719bf874`                         | Daytona devcontainer + dogfood + worker swap-in                                                                                                                                                                                       | PR 05 ✅ unchanged                                                                      |
+| `2a8e16589`                         | (later superseded) Supabase migration for sandbox_sessions                                                                                                                                                                            | PR 06 ❌ superseded by `f4d4cd1`                                                        |
+| `79f2c8734`                         | (later superseded) Deno Edge Function `/sandbox-spawn`                                                                                                                                                                                | PR 07 ❌ superseded by `<this PR>`                                                      |
+| `170924319`                         | `@qcut/relay` Cloudflare Worker (DO + token verify)                                                                                                                                                                                   | PR 08 ✅ structurally unchanged; column rename in `<this PR>`                           |
+| `f3caa17` (wzrdagentstudio)         | xterm.js terminal UI calling Supabase Functions                                                                                                                                                                                       | PR 09 ⚠️ endpoint switched in `<this PR>`                                               |
+| `f4d4cd1`                           | **PR 10** — schema realignment: Drizzle is source of truth, `user_id` replaces `workspace_id` everywhere, migration `0004_agent_sandbox_tables.sql`                                                                                   | replaces 03+06                                                                          |
+| `665d05f19`                         | **PR 11** — agent-worker source files refactored to `userId`, `created_at` added explicitly to all inserts                                                                                                                            | updates 04                                                                              |
+| _this PR_                           | **PR 12** — Phase 2 alignment: sandbox-spawn moves to a Hono route in `packages/license-server/src/routes/sandbox.ts` with Better Auth + credit deduction; relay audit columns renamed; wzrdagentstudio frontend calls license-server | replaces 07; updates 08+09                                                              |
+| `b536d61b2`                         | **Phase 3 follow-up** — GHCR image workflow, current `@daytona/sdk` worker path, Daytona runner tests, and image-bootstrap docs                                                                                                       | completes the code side of PR 05's Daytona swap-in; provider verification still pending |
 
 ## Live verification (against production)
 
 These ran against project `kbrtxitvavpuimuihppz` (Supabase Postgres,
 ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
 
-| Check | Result |
-|-------|--------|
-| Migration 0004 applied via Management API | All 5 tables + RPC + 13 indexes created; verified via `pg_tables`/`pg_indexes` queries |
-| Realtime publication updated for `agent_jobs`, `agent_events`, `sandbox_sessions` | `pg_publication_tables` confirms |
-| `claim_one_agent_job` RPC smoke | Insert → claim → mark succeeded → cleanup completed cleanly |
-| Live worker against prod | Worker claimed real row, runner_id persisted, status transitioned to `failed` (docker daemon absent on this host — expected) |
-| License-server `/api/license` | Returns `1000.3` credits, plan `free`, reset `2026-06-11` |
+| Check                                                                             | Result                                                                                                                       |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Migration 0004 applied via Management API                                         | All 5 tables + RPC + 13 indexes created; verified via `pg_tables`/`pg_indexes` queries                                       |
+| Realtime publication updated for `agent_jobs`, `agent_events`, `sandbox_sessions` | `pg_publication_tables` confirms                                                                                             |
+| `claim_one_agent_job` RPC smoke                                                   | Insert → claim → mark succeeded → cleanup completed cleanly                                                                  |
+| Live worker against prod                                                          | Worker claimed real row, runner_id persisted, status transitioned to `failed` (docker daemon absent on this host — expected) |
+| License-server `/api/license`                                                     | Returns `1000.3` credits, plan `free`, reset `2026-06-11`                                                                    |
+
+## What is now done after `b536d61b2`
+
+1. **GHCR publish workflow exists.** `.github/workflows/cli-image.yml`
+   builds `Dockerfile.cli`, runs `qcut-smoke`, then pushes
+   `ghcr.io/<owner>/qcut-cli:<tag>` and `:latest`.
+2. **Daytona worker code uses the current SDK.**
+   `packages/agent-worker/src/run-on-daytona.ts` now uses
+   `@daytona/sdk` (`daytona.create`, session command execution,
+   sandbox filesystem download, `daytona.delete`) instead of the old
+   approximate `sandboxes.create/exec/downloadDir` shape.
+3. **Daytona command/env behavior is tested.**
+   `packages/agent-worker/src/run-on-daytona.test.ts` covers
+   entrypoint wrapping, secret injection, shell-metacharacter rejection,
+   sandbox deletion, artifact download, and artifact fallback events.
+4. **Worker package type-checks independently.**
+   `packages/agent-worker/tsconfig.json` scopes ambient types to Bun so
+   unrelated root type stubs do not leak into the package.
 
 ## What still needs doing (gates on credentials / external services)
 
-1. **Build and push** `qcut-cli:v0` to a registry the E2B/Daytona spawn pulls from. CI step, not done here.
-2. **Set license-server secrets** (`wrangler secret put`): `E2B_API_KEY`, `RELAY_SIGNING_SECRET`, `RELAY_HOST`, `QCUT_IMAGE_TAG`.
-3. **Deploy `@qcut/relay`** via `wrangler deploy` in `packages/qcut-relay`.
-4. **Rotate the leaked Supabase PAT** (`sbp_b303...`) — it's been seen by GitHub's secret scanner. Generate a new one at supabase.com/dashboard/account/tokens.
-5. **Wire QCut login into wzrdagentstudio.** SandboxPage currently reads `localStorage.qcut_auth_token` as a v0 stash — replace with a real QCut sign-in component.
-6. **Refund on spawn failure.** PR 12's `routes/sandbox.ts` deducts credits up-front but doesn't refund yet if E2B fails after billing. Small follow-up.
-7. **Capture stderr properly when docker is missing.** PR 11 worker exit_code lands but `error` column stays null if execa can't spawn. Follow-up.
+1. **Run the GHCR workflow once** with `tag=v0` or a chosen release tag,
+   then verify `docker pull ghcr.io/quriosity-agent/qcut-cli:<tag>`
+   from a token-authenticated environment.
+2. **Dogfood Daytona worker path** with `DAYTONA_API_KEY` and
+   `QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:<tag>` by inserting
+   a real `agent_jobs` row and confirming Daytona pulls the image,
+   runs `qcut system doctor --json --skip-health`, downloads `/output`,
+   and marks the job succeeded.
+3. **Set/confirm license-server secrets** (`wrangler secret put`):
+   `E2B_API_KEY`, `RELAY_SIGNING_SECRET`, `RELAY_HOST`, `QCUT_IMAGE_TAG`.
+4. **Deploy/confirm `@qcut/relay`** via `wrangler deploy` in
+   `packages/qcut-relay`.
+5. **Rotate the leaked Supabase PAT** (`sbp_b303...`) — it has been seen
+   by GitHub's secret scanner. Generate a new one at
+   supabase.com/dashboard/account/tokens.
+6. **Wire QCut login into wzrdagentstudio.** SandboxPage currently reads
+   `localStorage.qcut_auth_token` as a v0 stash — replace with a real
+   QCut sign-in component.
+7. **Refund on spawn failure.** PR 12's `routes/sandbox.ts` deducts
+   credits up-front but does not refund yet if E2B fails after billing.
+8. **Capture stderr properly when docker is missing.** PR 11 worker
+   `exit_code` lands but `error` column stays null if execa cannot
+   spawn.
 
 ## How to read the spec files going forward
 

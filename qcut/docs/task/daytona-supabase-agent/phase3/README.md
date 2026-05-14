@@ -7,12 +7,12 @@ metered against real credits.
 The four items below are intentionally deferred from that cut —
 each is independently shippable and listed roughly by impact.
 
-| #   | Item                                            | Why it's deferred                                                                                                 | Status      |
-| --- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1   | `agent_secrets.value` encryption (pgsodium)     | v0 stores plaintext; key-rotation operator workflow was the unknown that blocked it                               | Not started |
-| 2   | Refund credits when spawn fails after deduction | `deductCreditsForUser` has an inverse but it's not wired into `sandbox_create_failed` / `sandbox_unhealthy` paths | Not started |
-| 3   | QCut sign-in in wzrdagentstudio `/sandbox`      | Today reads `localStorage.qcut_auth_token` as a v0 stash; needs the real Better Auth flow                         | Not started |
-| 4   | GHCR push of `qcut-cli` image                   | CI workflow exists and smokes the image before push; still needs a real dispatch/tag and pull verification        | In progress |
+| #   | Item                                            | Why it's deferred                                                                                                 | Status                        |
+| --- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| 1   | `agent_secrets.value` encryption (pgsodium)     | v0 stores plaintext; key-rotation operator workflow was the unknown that blocked it                               | Not started                   |
+| 2   | Refund credits when spawn fails after deduction | `deductCreditsForUser` has an inverse but it's not wired into `sandbox_create_failed` / `sandbox_unhealthy` paths | Not started                   |
+| 3   | QCut sign-in in wzrdagentstudio `/sandbox`      | Today reads `localStorage.qcut_auth_token` as a v0 stash; needs the real Better Auth flow                         | Not started                   |
+| 4   | GHCR push of `qcut-cli` image                   | Code is complete; still needs a real dispatch/tag, pull verification, and Daytona dogfood run                     | Provider verification pending |
 
 ## 1. `agent_secrets` encryption with pgsodium
 
@@ -93,19 +93,35 @@ verified as pullable. The CI workflow at `.github/workflows/cli-image.yml`
 is wired to build, smoke, and push; it needs a tag or manual
 `workflow_dispatch` to publish the first image.
 
-Pieces:
+Done in `b536d61b2`:
 
-- Verify the workflow's secrets (GHCR auth via `GITHUB_TOKEN` should
+- Added `.github/workflows/cli-image.yml`: build `Dockerfile.cli`,
+  run `qcut-smoke`, push `ghcr.io/<owner>/qcut-cli:<tag>` and `:latest`.
+- Added `@daytona/sdk` to `packages/agent-worker`.
+- Replaced the approximate Daytona runner with the current SDK shape:
+  `daytona.create({ image, envVars, resources, ephemeral })`,
+  `sandbox.process.executeSessionCommand(...)`,
+  `sandbox.fs.downloadFile(...)`, and `daytona.delete(...)`.
+- Added tests for command construction, secret env projection,
+  unsafe-command rejection, artifact fallback events, and sandbox cleanup.
+- Verified locally with:
+  - `bun --cwd packages/agent-worker test`
+  - `bunx tsc --noEmit -p packages/agent-worker/tsconfig.json`
+  - `bunx @biomejs/biome check ...`
+
+Next subtask:
+
+- Verify the workflow's permissions (GHCR auth via `GITHUB_TOKEN` should
   already work because the package will live under
   `quriosity-agent/qcut-cli`).
-- Run the workflow once on dispatch with `tag=v1`.
-- Confirm `docker pull ghcr.io/quriosity-agent/qcut-cli:v1` works
+- Run the workflow once on dispatch with `tag=v0`.
+- Confirm `docker pull ghcr.io/quriosity-agent/qcut-cli:v0` works
   from a token-authenticated docker login.
 - `agent-worker/src/run-on-daytona.ts` now uses `@daytona/sdk` and
   creates an ephemeral image sandbox. Keep its default tag at `:v0`
   unless the first published image uses a different tag.
-- Document the daytona path actually being exercised against the
-  pushed image.
+- Run the Daytona dogfood path with `DAYTONA_API_KEY` set and document
+  the real job ID, sandbox ID, exit code, and artifact rows.
 
 Verification: insert an agent_jobs row for `qcutlove@qcut.app` with
 `DAYTONA_API_KEY` set, agent-worker claims it, Daytona pulls from

@@ -1,17 +1,18 @@
 # Phase 3 —— 在已上线 Phase 2 沙箱基础上的收尾项
 
 Phase 2 已经在 `v2026.05.14.1` 上线（PR #300，master `3d83aa396`
-+ `6902a9fbb`）。浏览器沙箱 spawn → relay → E2B PTY 真实跑通、
-credit 真扣。
+
+- `6902a9fbb`）。浏览器沙箱 spawn → relay → E2B PTY 真实跑通、
+  credit 真扣。
 
 下面 4 项是当时刻意推迟的，每一项都能独立成 PR，按影响面排序。
 
-| # | 项目 | 为什么推迟 | 状态 |
-|---|------|-----------|------|
-| 1 | `agent_secrets.value` 加密（pgsodium）| v0 存明文；key-rotation 的运维流程当时没想清楚 | 未启动 |
-| 2 | spawn 失败时退款 credit | `deductCreditsForUser` 有反操作，但还没接进 `sandbox_create_failed` / `sandbox_unhealthy` 路径 | 未启动 |
-| 3 | wzrdagentstudio `/sandbox` 接 QCut 登录 | 今天用 `localStorage.qcut_auth_token` 占位；要换成真的 Better Auth 流程 | 未启动 |
-| 4 | `qcut-cli` 镜像推 GHCR | CI workflow 写好了（`.github/workflows/cli-image.yml`），缺一次 `v*` tag 或手动触发 | 未启动 |
+| #   | 项目                                    | 为什么推迟                                                                                     | 状态             |
+| --- | --------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------- |
+| 1   | `agent_secrets.value` 加密（pgsodium）  | v0 存明文；key-rotation 的运维流程当时没想清楚                                                 | 未启动           |
+| 2   | spawn 失败时退款 credit                 | `deductCreditsForUser` 有反操作，但还没接进 `sandbox_create_failed` / `sandbox_unhealthy` 路径 | 未启动           |
+| 3   | wzrdagentstudio `/sandbox` 接 QCut 登录 | 今天用 `localStorage.qcut_auth_token` 占位；要换成真的 Better Auth 流程                        | 未启动           |
+| 4   | `qcut-cli` 镜像推 GHCR                  | 代码已完成；还缺真实 dispatch/tag、pull 验证、Daytona dogfood                                  | 等 provider 验证 |
 
 ## 1. pgsodium 加密 `agent_secrets`
 
@@ -19,6 +20,7 @@ credit 真扣。
 存在 `agent_secrets.value` 里。今天 DB 一旦被读穿，凭证立刻可用。
 
 要想清楚的事：
+
 - pgsodium 密钥管理：服务端密钥怎么管、谁能轮换、轮换的时候在跑
   的容器怎么办。
 - 数据迁移：把现存行原地转加密（`qcutlove@qcut.app` 现在就有一条
@@ -41,6 +43,7 @@ credit 真扣。
 `sandbox.ts:159` 上有条 `// TODO: refund credits here`。
 
 要做的事：
+
 - `packages/license-server/src/services/credit-service.ts` 里
   `deductCreditsForUser` 已经存在；需要它的反操作
   `refundCreditsForUser`（或者直接以负数调 deduct，看服务的不变
@@ -63,6 +66,7 @@ credit 真扣。
 未登录就跳 QCut 登录页，登录后 token 自动挂上。
 
 要做的事：
+
 - 找 wzrdagentstudio（或本仓 apps/web）里已经在用的 Better Auth
   客户端，搬过来。
 - Wzrd 的 `/sandbox` 路由：先看 session，没有就跳
@@ -81,15 +85,34 @@ credit 真扣。
 缺一次 tag（比如 `qcut-cli-v1`）或者手动 `workflow_dispatch`
 把镜像真正发出去。
 
-要做的事：
-- 看 workflow 的 secrets（GHCR 认证应该是 `GITHUB_TOKEN` 直接
-  就行，因为包名落在 `quriosity-agent/qcut-cli` 下）。
-- 手动 dispatch 一次跑 `tag=v1`。
+`b536d61b2` 已完成：
+
+- 新增 `.github/workflows/cli-image.yml`：构建 `Dockerfile.cli`、
+  跑 `qcut-smoke`、推 `ghcr.io/<owner>/qcut-cli:<tag>` 和 `:latest`。
+- 给 `packages/agent-worker` 加 `@daytona/sdk`。
+- 把原先近似的 Daytona runner 换成当前 SDK 形态：
+  `daytona.create({ image, envVars, resources, ephemeral })`、
+  `sandbox.process.executeSessionCommand(...)`、
+  `sandbox.fs.downloadFile(...)`、`daytona.delete(...)`。
+- 加了测试覆盖 command 构造、secret env 投影、危险 command 拒绝、
+  artifact fallback event、sandbox cleanup。
+- 本地验证通过：
+  - `bun --cwd packages/agent-worker test`
+  - `bunx tsc --noEmit -p packages/agent-worker/tsconfig.json`
+  - `bunx @biomejs/biome check ...`
+
+下一个子任务：
+
+- 看 workflow 权限（GHCR 认证应该是 `GITHUB_TOKEN` 直接就行，因为
+  包名落在 `quriosity-agent/qcut-cli` 下）。
+- 手动 dispatch 一次跑 `tag=v0`。
 - 用 token-authenticated 的 docker login 实测
-  `docker pull ghcr.io/quriosity-agent/qcut-cli:v1`。
-- 把 `agent-worker/src/run-on-daytona.ts:IMAGE_TAG` 的默认值改成
-  `:v1` 或 `:latest`。
-- 把 Daytona 路径真的对着推过的镜像跑一次写进文档。
+  `docker pull ghcr.io/quriosity-agent/qcut-cli:v0`。
+- `agent-worker/src/run-on-daytona.ts` 现在已经使用 `@daytona/sdk`，
+  并创建 ephemeral image sandbox。除非首个发布 tag 不是 `v0`，
+  否则默认 tag 保持 `:v0`。
+- 带 `DAYTONA_API_KEY` 跑真实 Daytona dogfood，并把 job ID、
+  sandbox ID、exit code、artifact rows 写回文档。
 
 验证：给 `qcutlove@qcut.app` 插一条 agent_jobs，开
 `DAYTONA_API_KEY`，agent-worker 抢任务、Daytona 从 GHCR 拉镜像、

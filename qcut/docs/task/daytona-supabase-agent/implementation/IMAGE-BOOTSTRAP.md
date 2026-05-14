@@ -5,17 +5,29 @@ provider. Docker, Daytona, and E2B each consume the same `Dockerfile.cli`
 but materialise it as different artifacts. This file documents the
 three paths and what's done / not done.
 
-## Status (2026-05-14, after first build round)
+## Status (2026-05-14, after Daytona worker follow-up)
 
 | Artifact                                              | Where                     | Built?                                                                                                                                                                                                           | Pushed?                     |
 | ----------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
 | `qcut-cli:dev` (local Docker image)                   | local Docker daemon       | ✅ built, **verified end-to-end** against prod                                                                                                                                                                   | n/a                         |
-| `ghcr.io/quriosity-agent/qcut-cli:vX.Y.Z`             | GitHub Container Registry | ⚠️ workflow added at `.github/workflows/cli-image.yml`; needs first dispatch/tag                                                                                                                                 | ❌ not yet confirmed pulled |
+| `ghcr.io/quriosity-agent/qcut-cli:vX.Y.Z`             | GitHub Container Registry | ✅ workflow committed at `.github/workflows/cli-image.yml`; it builds, smokes, and pushes                                                                                                                        | ❌ needs first dispatch/tag |
 | E2B template `qcut-cli` (ID `<your-e2b-template-id>`) | E2B's build cluster       | ⚠️ **built but with bugs** — `Sandbox.create()` works, but the `qcut` wrapper script's shebang is mangled (`#!/usr/bin/env bashnexec ...`). Needs rebuild with the `echo`-based wrapper now in `e2b.Dockerfile`. | n/a (E2B private)           |
 
 Current working:
 
 - `bun run build:cli-image` produces `qcut-cli:dev` locally; the agent-worker uses this against the live Supabase DB. **Smoked end-to-end** (qcutlove user, `qcut --version` job, exit 0).
+- `packages/agent-worker` has a typed Daytona runner using
+  `@daytona/sdk@0.175.0`. It creates an ephemeral image sandbox,
+  runs the qcut command through `/usr/local/bin/qcut-entrypoint`,
+  archives `/output`, downloads it locally for Supabase artifact upload,
+  and deletes the sandbox.
+- `packages/agent-worker/src/run-on-daytona.test.ts` verifies command
+  construction, secret env projection, unsafe-command rejection,
+  artifact fallback behavior, and sandbox cleanup without real Daytona
+  credentials.
+- `.github/workflows/cli-image.yml` builds `Dockerfile.cli`, runs
+  `qcut-smoke`, then pushes `ghcr.io/<owner>/qcut-cli:<tag>` and
+  `:latest`.
 
 Currently still needs external credentials / provider runs:
 
@@ -29,6 +41,30 @@ Currently still needs external credentials / provider runs:
 --memory-mb 4096` after moving workspace `node_modules` out (see
   "Workarounds" below). The current `e2b.Dockerfile` already
   incorporates the parser/USER/shebang fixes documented below.
+
+## Next subtask
+
+Publish and verify the first GHCR image:
+
+```bash
+gh workflow run "CLI Image" --field tag=v0 --field platforms=linux/amd64
+gh run watch
+docker pull ghcr.io/quriosity-agent/qcut-cli:v0
+```
+
+After the pull works, dogfood Daytona:
+
+```bash
+DAYTONA_API_KEY=... \
+QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:v0 \
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+bun --cwd packages/agent-worker start
+```
+
+Then insert an `agent_jobs` row for
+`qcut system doctor --json --skip-health` and confirm the job finishes
+with `status='succeeded'`.
 
 ## Path A — local Docker (fastest, dev only)
 
@@ -185,12 +221,11 @@ build`) gets SIGKILL'd. The CLI doesn't need the web bundle — run
 
 ## Recommendation
 
-1. **Today / right now**: run Path A on your machine to unblock the
-   worker against the live DB. ~5 minutes once Docker Desktop is up.
-2. **Within a week**: trigger Path B once via `gh workflow run` so the
-   Daytona devcontainer + dogfood script work for anyone.
-3. **Before the browser sandbox is meaningful**: Path C. Until then
-   the `/api/sandbox/spawn` route deducts credits + returns 502
-   `sandbox_create_failed`.
+1. **Now**: trigger Path B once via `gh workflow run` so the Daytona
+   devcontainer + worker swap-in have a pullable image.
+2. **Immediately after GHCR publish**: run the Daytona dogfood worker
+   path with a real `DAYTONA_API_KEY` and a doctor job.
+3. **For browser sandbox image refreshes**: rebuild Path C only when the
+   E2B template needs to pick up Dockerfile or CLI changes.
 
 See also: [`ACTUAL.md`](ACTUAL.md), [`02-container-image.md`](02-container-image.md).

@@ -4,20 +4,62 @@
 E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产物**。
 本文档列三条路 + 每条路的当前进度。
 
-## 当前状态（2026-05-14，第一轮构建之后）
+## 当前状态（2026-05-14，Daytona worker follow-up 之后）
 
-| 产物 | 位置 | 是否构建？ | 是否推送？ |
-|------|------|-----------|-----------|
-| `qcut-cli:dev`（本地 Docker 镜像） | 本地 Docker daemon | ✅ 已构建、**对生产端到端验证过** | n/a |
-| `ghcr.io/quriosity-agent/qcut-cli:vX.Y.Z` | GitHub Container Registry | ❌ 没推（CI 流程就绪） | ❌ |
-| E2B 模板 `qcut-cli`（ID `<your-e2b-template-id>`） | E2B 构建集群 | ⚠️ **建好了但有 bug** —— `Sandbox.create()` 能用，但 `qcut` 包装脚本的 shebang 被搞坏（`#!/usr/bin/env bashnexec ...`）。需要按现在 `e2b.Dockerfile` 重建。 | n/a（E2B 私有）|
+| 产物                                               | 位置                      | 是否构建？                                                                                                                                                  | 是否推送？                 |
+| -------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `qcut-cli:dev`（本地 Docker 镜像）                 | 本地 Docker daemon        | ✅ 已构建、**对生产端到端验证过**                                                                                                                           | n/a                        |
+| `ghcr.io/quriosity-agent/qcut-cli:vX.Y.Z`          | GitHub Container Registry | ✅ workflow 已提交到 `.github/workflows/cli-image.yml`，会 build、smoke、push                                                                               | ❌ 还缺第一次 dispatch/tag |
+| E2B 模板 `qcut-cli`（ID `<your-e2b-template-id>`） | E2B 构建集群              | ⚠️ **建好了但有 bug** —— `Sandbox.create()` 能用，但 `qcut` 包装脚本的 shebang 被搞坏（`#!/usr/bin/env bashnexec ...`）。需要按现在 `e2b.Dockerfile` 重建。 | n/a（E2B 私有）            |
 
 当前能用：
-- `bun run build:cli-image` 本地产 `qcut-cli:dev`；agent-worker 用它接生产 Supabase。**端到端测过**（qcutlove 用户、`qcut --version` 任务、exit 0）。
 
-当前不能用 / 还要再来一次：
-- `POST /api/sandbox/spawn` 会返 `sandbox_create_failed`（spawn-probe 跑 `qcut system doctor` → 撞 shebang bug → exit 127）。
-- 解法：移走 workspace `node_modules` 后重跑 `e2b template create qcut-cli -d e2b.Dockerfile --cpu-count 2 --memory-mb 4096`（见下面 "绕路"）。现在 `e2b.Dockerfile` 已经把下文记的 5 个 bug 全部修了。
+- `bun run build:cli-image` 本地产 `qcut-cli:dev`；agent-worker 用它接生产 Supabase。**端到端测过**（qcutlove 用户、`qcut --version` 任务、exit 0）。
+- `packages/agent-worker` 现在有 typed Daytona runner，使用
+  `@daytona/sdk@0.175.0`。它会创建 ephemeral image sandbox，
+  通过 `/usr/local/bin/qcut-entrypoint` 跑 qcut 命令，把 `/output`
+  打包后下载到本地用于 Supabase artifact upload，最后删除 sandbox。
+- `packages/agent-worker/src/run-on-daytona.test.ts` 在不需要真实
+  Daytona 凭证的情况下验证 command 构造、secret env 投影、拒绝危险
+  command、artifact fallback、sandbox cleanup。
+- `.github/workflows/cli-image.yml` 会构建 `Dockerfile.cli`，跑
+  `qcut-smoke`，然后推 `ghcr.io/<owner>/qcut-cli:<tag>` 和
+  `:latest`。
+
+当前还需要外部凭证 / provider 实跑：
+
+- GHCR：通过 `workflow_dispatch` 或 `v*` tag 跑一次
+  `.github/workflows/cli-image.yml`，然后用带 token 的
+  `docker pull` 确认镜像可拉。
+- Daytona：agent-worker 已接当前 `@daytona/sdk` API，但还需要真实
+  `DAYTONA_API_KEY`，对着推到 GHCR 的镜像跑一次 dogfood。
+- E2B：如果要刷新浏览器沙箱模板，移走 workspace `node_modules`
+  后重跑 `e2b template create qcut-cli -d e2b.Dockerfile
+--cpu-count 2 --memory-mb 4096`（见下面 "绕路"）。现在
+  `e2b.Dockerfile` 已包含 parser / USER / shebang 修复。
+
+## 下一个子任务
+
+发布并验证第一版 GHCR 镜像：
+
+```bash
+gh workflow run "CLI Image" --field tag=v0 --field platforms=linux/amd64
+gh run watch
+docker pull ghcr.io/quriosity-agent/qcut-cli:v0
+```
+
+pull 通过后，dogfood Daytona：
+
+```bash
+DAYTONA_API_KEY=... \
+QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:v0 \
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+bun --cwd packages/agent-worker start
+```
+
+然后插入一条 `qcut system doctor --json --skip-health` 的
+`agent_jobs`，确认 job 以 `status='succeeded'` 结束。
 
 ## 路径 A —— 本地 Docker（最快，仅开发）
 
@@ -61,6 +103,7 @@ gh workflow run cli-image --field tag=dev-2026-05-14
 ```
 
 副作用：
+
 - 镜像可从 `ghcr.io/quriosity-agent/qcut-cli:<tag>` 拉取
 - 任何有该仓库包读权限的人都能拉
 - 私有包：拉取的客户端需要带 `read:packages` 作用域的 GitHub PAT
@@ -146,7 +189,7 @@ Docker 里能用的东西在它这边失败或行为不同。2026-05-14 在 E2B 
   while IFS='=' read -r o d; do mv "$d" "$o"; done < /tmp/qcut-nm-map.txt
   ```
 - ⚠️ **重活在 4 GiB 内存下 OOM**。`apps/web` Vite 构建（`tsc + vite
-  build`）被 SIGKILL。CLI 不需要 web bundle —— 跑
+build`）被 SIGKILL。CLI 不需要 web bundle —— 跑
   `bun install --frozen-lockfile --ignore-scripts`、**跳过**
   `bun run build`。CLI 包装脚本直接 `bun electron/.../cli.ts` 跑 TS 源码。
 - ⚠️ **UID 1000 和 1001 被 E2B base 占了**。别用 `useradd -u` 钉
@@ -156,19 +199,19 @@ Docker 里能用的东西在它这边失败或行为不同。2026-05-14 在 E2B 
 
 ## 各路径的成本
 
-| 路径 | 首次构建时间 | 持续成本 | 适用场景 |
-|------|-------------|---------|---------|
-| 本地 Docker | ~3 分钟一次 + daemon 内存 | $0（你的笔记本） | Worker 对接生产 DB 开发 |
-| GHCR | ~3 分钟 CI 跑一次 | 公开仓库免费；私有付费 | Daytona Cloud 工作区、worker 的 Daytona swap-in |
-| E2B 模板 | ~5 分钟一次 + 首次 spawn ~3 s | 按秒计费 | 浏览器沙箱路径（PR 12） |
+| 路径        | 首次构建时间                  | 持续成本               | 适用场景                                        |
+| ----------- | ----------------------------- | ---------------------- | ----------------------------------------------- |
+| 本地 Docker | ~3 分钟一次 + daemon 内存     | $0（你的笔记本）       | Worker 对接生产 DB 开发                         |
+| GHCR        | ~3 分钟 CI 跑一次             | 公开仓库免费；私有付费 | Daytona Cloud 工作区、worker 的 Daytona swap-in |
+| E2B 模板    | ~5 分钟一次 + 首次 spawn ~3 s | 按秒计费               | 浏览器沙箱路径（PR 12）                         |
 
 ## 建议
 
-1. **今天 / 现在**：跑 Path A，让 worker 能对接你的生产 DB 端到端。
-   Docker Desktop 起来后大约 5 分钟。
-2. **本周内**：用 `gh workflow run` 跑一次 Path B，让 Daytona devcontainer +
-   dogfood 脚本对所有人都能用。
-3. **浏览器沙箱真上线前**：Path C。在这之前 `/api/sandbox/spawn` 会扣
-   credits 后返 502 `sandbox_create_failed`。
+1. **现在**：用 `gh workflow run` 跑一次 Path B，让 Daytona
+   devcontainer + worker swap-in 有一个可拉的镜像。
+2. **GHCR 发布后立刻**：带真实 `DAYTONA_API_KEY` 跑 Daytona dogfood
+   worker 路径和 doctor job。
+3. **浏览器沙箱镜像需要刷新时**：只有 E2B template 需要吃到
+   Dockerfile 或 CLI 变更时才重建 Path C。
 
 参见：[`ACTUAL.zh.md`](ACTUAL.zh.md)、[`02-container-image.zh.md`](02-container-image.zh.md)。
