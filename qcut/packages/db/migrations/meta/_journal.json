@@ -1,41 +1,48 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1750753385927,
-      "tag": "0000_brainy_saracen",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1761960000000,
-      "tag": "0001_payment_license_system",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1762012800000,
-      "tag": "0002_payment_reliability_updates",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1762603200000,
-      "tag": "0003_payment_guardrails_and_integrity",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1778740898601,
-      "tag": "0004_agent_sandbox_tables",
-      "breakpoints": true
-    }
-  ]
+	"version": "7",
+	"dialect": "postgresql",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "7",
+			"when": 1750753385927,
+			"tag": "0000_brainy_saracen",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1761960000000,
+			"tag": "0001_payment_license_system",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1762012800000,
+			"tag": "0002_payment_reliability_updates",
+			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "7",
+			"when": 1762603200000,
+			"tag": "0003_payment_guardrails_and_integrity",
+			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "7",
+			"when": 1778740898601,
+			"tag": "0004_agent_sandbox_tables",
+			"breakpoints": true
+		},
+		{
+			"idx": 5,
+			"version": "7",
+			"when": 1778791283000,
+			"tag": "0005_agent_artifacts_bigint_and_queue_index",
+			"breakpoints": true
+		}
+	]
 }
