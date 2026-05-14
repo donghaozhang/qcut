@@ -112,7 +112,8 @@ Phase 2 已经在 `v2026.05.14.1` 上线（PR #300，master `3d83aa396`
   并创建 ephemeral image sandbox。除非首个发布 tag 不是 `v0`，
   否则默认 tag 保持 `:v0`。
 - 带 `DAYTONA_API_KEY` 跑真实 Daytona dogfood，并把 job ID、
-  sandbox ID、exit code、artifact rows 写回文档。
+  sandbox ID、exit code、artifact rows 写回文档。key 有了以后直接用
+  `bun run dogfood:daytona-worker`。
 
 验证：给 `qcutlove@qcut.app` 插一条 agent_jobs，开
 `DAYTONA_API_KEY`，agent-worker 抢任务、Daytona 从 GHCR 拉镜像、

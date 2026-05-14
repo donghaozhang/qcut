@@ -73,6 +73,7 @@
 		"build:web": "cd apps/web && VITE_BUILD_TARGET=web bun run build:web",
 		"build": "turbo run build && bun run build:electron",
 		"build:cli-image": "bun run scripts/build-cli-image.ts",
+		"dogfood:daytona-worker": "bun run scripts/daytona-worker-dogfood.ts",
 		"check-types": "turbo run check-types",
 		"postinstall": "bun run setup-ffmpeg && bun scripts/patch-node-pty.ts",
 		"build:electron": "cd electron && bun x tsc && bun x esbuild ../electron/preload.ts --bundle --platform=node --outfile=../dist/electron/preload.js --external:electron",

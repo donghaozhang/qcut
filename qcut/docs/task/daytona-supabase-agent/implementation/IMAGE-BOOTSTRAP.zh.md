@@ -55,11 +55,13 @@ DAYTONA_API_KEY=... \
 QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:v0 \
 SUPABASE_URL=... \
 SUPABASE_SERVICE_ROLE_KEY=... \
-bun --cwd packages/agent-worker start
+QCUT_DOGFOOD_USER_ID=<better-auth-user-id> \
+bun run dogfood:daytona-worker
 ```
 
-然后插入一条 `qcut system doctor --json --skip-health` 的
-`agent_jobs`，确认 job 以 `status='succeeded'` 结束。
+脚本会插入一条 `qcut system doctor --json --skip-health` 的
+`agent_jobs`，启动 worker，轮询到终态，打印 artifact rows，并保留
+job row 作为证据。
 
 ## 路径 A —— 本地 Docker（最快，仅开发）
 

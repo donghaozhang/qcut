@@ -122,6 +122,7 @@ Next subtask:
   unless the first published image uses a different tag.
 - Run the Daytona dogfood path with `DAYTONA_API_KEY` set and document
   the real job ID, sandbox ID, exit code, and artifact rows.
+  Use `bun run dogfood:daytona-worker` once the key is available.
 
 Verification: insert an agent_jobs row for `qcutlove@qcut.app` with
 `DAYTONA_API_KEY` set, agent-worker claims it, Daytona pulls from
