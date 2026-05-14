@@ -16,9 +16,10 @@ const BATCH = 500;
 
 interface EventRow {
 	job_id: string;
-	workspace_id: string;
+	user_id: string;
 	kind: string;
 	payload: Record<string, unknown>;
+	created_at: string;
 }
 
 export function parseStderr(stderr: string, job: AgentJob): EventRow[] {
@@ -40,9 +41,10 @@ export function parseStderr(stderr: string, job: AgentJob): EventRow[] {
 			typeof payload.kind === "string" ? (payload.kind as string) : "cli_stderr";
 		rows.push({
 			job_id: job.id,
-			workspace_id: job.workspace_id,
+			user_id: job.userId,
 			kind,
 			payload,
+			created_at: new Date().toISOString(),
 		});
 	}
 	return rows;

@@ -35,7 +35,7 @@ export async function runContainer(
 	const { data: secrets } = await supabase
 		.from("agent_secrets")
 		.select("key, value")
-		.eq("workspace_id", job.workspace_id);
+		.eq("user_id", job.userId);
 
 	const envFlags: string[] = [];
 	for (const s of secrets ?? []) {

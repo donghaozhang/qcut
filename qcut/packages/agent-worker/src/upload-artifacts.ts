@@ -1,6 +1,6 @@
 /**
  * Walk the per-job /output mount, upload each file to the `artifacts`
- * Supabase Storage bucket at `agent/<workspace_id>/<job_id>/<name>`,
+ * Supabase Storage bucket at `agent/<user_id>/<job_id>/<name>`,
  * insert an agent_artifacts row per file.
  *
  * Best-effort: a failed upload logs and continues; the worker's job
@@ -66,7 +66,7 @@ export async function uploadArtifacts(
 		if (!s.isFile()) continue;
 
 		const kind = classify(name);
-		const storagePath = `agent/${job.workspace_id}/${job.id}/${name}`;
+		const storagePath = `agent/${job.userId}/${job.id}/${name}`;
 
 		let bytes: Buffer;
 		try {
@@ -87,14 +87,16 @@ export async function uploadArtifacts(
 			continue;
 		}
 
-		const row: Omit<AgentArtifact, "id" | "created_at"> = {
+		const row = {
+			id: crypto.randomUUID(),
 			job_id: job.id,
-			workspace_id: job.workspace_id,
+			user_id: job.userId,
 			kind,
 			storage_path: storagePath,
 			bytes: s.size,
 			meta: { filename: name },
-		};
+			created_at: new Date().toISOString(),
+		} satisfies Partial<AgentArtifact> & { id: string };
 		const { error: insErr } = await supabase
 			.from("agent_artifacts")
 			.insert(row);

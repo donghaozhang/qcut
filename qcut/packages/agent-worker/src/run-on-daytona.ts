@@ -75,7 +75,7 @@ export async function runOnDaytona(
 	const { data: secrets } = await supabase
 		.from("agent_secrets")
 		.select("key, value")
-		.eq("workspace_id", job.workspace_id);
+		.eq("user_id", job.userId);
 	const env = Object.fromEntries((secrets ?? []).map((s) => [s.key, s.value]));
 
 	const Ctor = await getDaytonaCtor();
