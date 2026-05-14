@@ -26,6 +26,7 @@ import { randomUUID } from "node:crypto";
 import type { AgentJob } from "@qcut/db";
 
 import { claimOneJob } from "./claim.js";
+import type { ContainerResult } from "./run-container.js";
 import { runContainer } from "./run-container.js";
 import { streamEvents } from "./stream-events.js";
 import { uploadArtifacts } from "./upload-artifacts.js";
@@ -68,9 +69,20 @@ async function tryDrain(): Promise<void> {
 	}
 }
 
+/** Lazily import the Daytona path so local-only runs don't need the SDK. */
+async function chooseRunner(
+	job: AgentJob,
+): Promise<ContainerResult> {
+	if (process.env.DAYTONA_API_KEY) {
+		const { runOnDaytona } = await import("./run-on-daytona.js");
+		return runOnDaytona(supabase, job);
+	}
+	return runContainer(supabase, job);
+}
+
 async function executeJob(job: AgentJob): Promise<void> {
 	try {
-		const result = await runContainer(supabase, job);
+		const result = await chooseRunner(job);
 		await streamEvents(supabase, job, result.stderr);
 		await uploadArtifacts(supabase, job, result.outputDir);
 
