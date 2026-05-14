@@ -54,6 +54,7 @@ node_modules
 *.env
 .env.*
 !.env.signing.example
+!packages/db/.env.functions.example
 
 # cursor
 bun.lockb
