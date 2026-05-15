@@ -118,6 +118,10 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
     Codex to use shell commands for QCut work, run image generation through
     `qcut gen image`, and write generated files into `/tmp/qcut-output` so
     the worker can upload them.
+13. **The Daytona CLI image now includes the native-cli skill.**
+    `Dockerfile.cli` copies `.claude/skills/native-cli` into
+    `/home/qcut/qcut/.claude/skills/native-cli`, and `qcut-smoke` fails the
+    image build unless that skill's `SKILL.md` is present.
 
 ## What still needs doing (gates on credentials / external services)
 

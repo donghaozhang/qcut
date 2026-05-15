@@ -108,6 +108,10 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
     Codex 模式会加一段短的 QCut 专用运行提示：需要处理 QCut 时用
     shell command；图片生成走 `qcut gen image`；生成文件写到
     `/tmp/qcut-output`，这样 worker 能继续上传 artifact。
+13. **Daytona CLI 镜像现在包含 native-cli skill。**
+    `Dockerfile.cli` 会把 `.claude/skills/native-cli` 拷到
+    `/home/qcut/qcut/.claude/skills/native-cli`；`qcut-smoke`
+    会检查这个 skill 的 `SKILL.md`，不存在就让镜像构建失败。
 
 ## 还没做的（依赖外部凭证 / 服务）
 
