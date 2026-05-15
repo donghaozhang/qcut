@@ -11,7 +11,12 @@ The CLI's resolver order, defined in `qcut system check-keys`:
 3. `~/.config/video-ai-studio/credentials.env` (legacy AICP file, beta-only mirror)
 4. `none` (key absent)
 
-Supported names: `FAL_KEY`, `GEMINI_API_KEY`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY`, `ELEVENLABS_API_KEY`, `OPENAI_API_KEY`, `RUNWAY_API_KEY`, `HEYGEN_API_KEY`, `DID_API_KEY`, `SYNTHESIA_API_KEY`, `QCUT_AUTH_TOKEN`.
+Supported names: `FAL_KEY`, `GEMINI_API_KEY`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY`, `ELEVENLABS_API_KEY`, `OPENAI_API_KEY`, `RUNWAY_API_KEY`, `HEYGEN_API_KEY`, `DID_API_KEY`, `SYNTHESIA_API_KEY`, `QCUT_AUTH_TOKEN`, `CODEX_AUTH_JSON`.
+
+`CODEX_AUTH_JSON` is a special runtime secret for Codex chat-agent jobs.
+It is projected into the sandbox environment, validated as JSON by the
+container entrypoint, and written to `~/.codex/auth.json` with mode `0600`.
+It is intentionally not written to `~/.qcut/.env`.
 
 Container goal: load the right subset for a workspace into one of these tiers **before** any `qcut …` command runs.
 

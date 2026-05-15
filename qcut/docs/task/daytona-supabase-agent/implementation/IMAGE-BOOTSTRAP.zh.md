@@ -4,20 +4,102 @@
 E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产物**。
 本文档列三条路 + 每条路的当前进度。
 
-## 当前状态（2026-05-14，第一轮构建之后）
+## 当前状态（2026-05-15，GHCR + Daytona dogfood 之后）
 
-| 产物 | 位置 | 是否构建？ | 是否推送？ |
-|------|------|-----------|-----------|
-| `qcut-cli:dev`（本地 Docker 镜像） | 本地 Docker daemon | ✅ 已构建、**对生产端到端验证过** | n/a |
-| `ghcr.io/quriosity-agent/qcut-cli:vX.Y.Z` | GitHub Container Registry | ❌ 没推（CI 流程就绪） | ❌ |
-| E2B 模板 `qcut-cli`（ID `<your-e2b-template-id>`） | E2B 构建集群 | ⚠️ **建好了但有 bug** —— `Sandbox.create()` 能用，但 `qcut` 包装脚本的 shebang 被搞坏（`#!/usr/bin/env bashnexec ...`）。需要按现在 `e2b.Dockerfile` 重建。 | n/a（E2B 私有）|
+| 产物                                               | 位置                      | 是否构建？                                                                                                                                                  | 是否推送？                  |
+| -------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `qcut-cli:agents-smoke`（本地 Docker 镜像）        | 本地 Docker daemon        | ✅ 按 `linux/amd64` 构建；`qcut-smoke` 验过 qcut、Codex CLI `0.130.0`、Claude Code `2.1.142`                                                                 | n/a                         |
+| `qcut-cli:codex-auth-smoke`（本地 Docker 镜像）   | 本地 Docker daemon        | ✅ 按 `linux/amd64` 构建；验证 qcut smoke、`CODEX_AUTH_JSON` 运行时 Codex 登录启动、prompt env 解码                                                           | n/a                         |
+| `qcut-cli:dev`（本地 Docker 镜像）                 | 本地 Docker daemon        | ✅ 已构建、**对生产端到端验证过**                                                                                                                           | n/a                         |
+| `ghcr.io/quriosity-agent/qcut-cli:v0`              | GitHub Container Registry | ✅ workflow run `25902797671` 已重新发布；推后 `qcut-smoke` 验过 qcut、Codex CLI `0.130.0`、Claude Code `2.1.142`、`native-cli` skill、最新 entrypoint            | ✅ public，匿名 pull 已验证 |
+| E2B 模板 `qcut-cli`（ID `<your-e2b-template-id>`） | E2B 构建集群              | ⚠️ **建好了但有 bug** —— `Sandbox.create()` 能用，但 `qcut` 包装脚本的 shebang 被搞坏（`#!/usr/bin/env bashnexec ...`）。需要按现在 `e2b.Dockerfile` 重建。 | n/a（E2B 私有）             |
 
 当前能用：
-- `bun run build:cli-image` 本地产 `qcut-cli:dev`；agent-worker 用它接生产 Supabase。**端到端测过**（qcutlove 用户、`qcut --version` 任务、exit 0）。
 
-当前不能用 / 还要再来一次：
-- `POST /api/sandbox/spawn` 会返 `sandbox_create_failed`（spawn-probe 跑 `qcut system doctor` → 撞 shebang bug → exit 127）。
-- 解法：移走 workspace `node_modules` 后重跑 `e2b template create qcut-cli -d e2b.Dockerfile --cpu-count 2 --memory-mb 4096`（见下面 "绕路"）。现在 `e2b.Dockerfile` 已经把下文记的 5 个 bug 全部修了。
+- `bun run build:cli-image` 本地产 `qcut-cli:dev`；agent-worker 用它接生产 Supabase。**端到端测过**（qcutlove 用户、`qcut --version` 任务、exit 0）。
+- `packages/agent-worker` 现在有 typed Daytona runner，使用
+  `@daytona/sdk@0.175.0`。它会创建 ephemeral image sandbox，
+  通过 `/usr/local/bin/qcut-entrypoint` 跑 qcut 命令，把
+  `/tmp/qcut-output` 打包后下载到本地用于 Supabase artifact upload，
+  最后删除 sandbox。
+- `claim_one_agent_job` 返回的 Supabase snake_case row 会先 normalize
+  成 Drizzle 的 `AgentJob` camelCase 形态，再给 worker 使用；这修掉了
+  dogfood 里发现的 `agent/undefined/...` artifact path 问题。
+- `packages/agent-worker/src/run-on-daytona.test.ts` 在不需要真实
+  Daytona 凭证的情况下验证 command 构造、secret env 投影、拒绝危险
+  command、artifact fallback、sandbox cleanup。
+- `.github/workflows/cli-image.yml` 会构建 `Dockerfile.cli`，跑
+  `qcut-smoke`，然后推 `ghcr.io/<owner>/qcut-cli:<tag>` 和
+  `:latest`。默认分支 workflow 已修成 lowercase GHCR owner
+  （`master` 上 `f80dc47dd`，`phase3-followups` 上 cherry-pick 为
+  `ed99a4ac9`）。
+- `Dockerfile.cli` 现在会安装固定版本 agent CLI：Codex CLI
+  `0.130.0` 和 Claude Code `2.1.142`。本地 `linux/amd64`
+  `qcut-cli:agents-smoke` 镜像已经证明这两个 binary 能在 Daytona
+  使用的同架构里启动。
+- `electron/native-pipeline/container/entrypoint.sh` 现在会在运行时启动
+  Codex 登录。`CODEX_AUTH_JSON` 会先用 `jq` 校验，再写到权限 `0600`
+  的 `~/.codex/auth.json`，不会进入 `~/.qcut/.env`。如果 Codex 任务
+  没有 auth JSON，会设置 `QCUT_BOOTSTRAP_CODEX=1`，entrypoint 才会
+  尝试用 `OPENAI_API_KEY` 生成 Codex auth。
+- website 的 Chat Agent 页现在可提交 qcut 图片任务，也可提交 Codex chat
+  任务。Codex prompt 不拼进 shell command：它走 `args.codexPrompt` →
+  `QCUT_CODEX_PROMPT_B64` → stdin → `codex exec --skip-git-repo-check --json -`。
+- 本机 `~/.qcut/.env` 现在已有 Daytona/Supabase dogfood 所需环境变量名。
+  `scripts/daytona-worker-dogfood.ts` 会先自动读取这个文件，再检查必需环境变量。
+- Supabase 项目 `kbrtxitvavpuimuihppz` 已通过
+  `supabase secrets set` 设置 `DAYTONA_API_KEY` 项目 secret。
+- Supabase Storage 已创建私有 `artifacts` bucket，用于
+  `agent_artifacts` 上传。
+
+已验证的 provider 实跑：
+
+- GHCR workflow run `25902797671` 重新发布了：
+  - `ghcr.io/quriosity-agent/qcut-cli:v0`
+  - `ghcr.io/quriosity-agent/qcut-cli:latest`
+  - digest
+    `sha256:2b9b8c7aa80bc2e5db874f04ccca302bbce0693a7d90274fe2b8645049fdbb7b`
+- GHCR package 已改成 public。匿名 Docker pull
+  `ghcr.io/quriosity-agent/qcut-cli:v0` 成功，workflow 对推上去的镜像
+  跑 `qcut-smoke` 也通过，其中包括
+  `.claude/skills/native-cli/SKILL.md` 检查。
+- Daytona dogfood 已对着推上去的 GHCR 镜像跑通：
+  - job `dogfood-cc1078a0-2966-4afc-8444-08d514b76dca`
+  - runner `adb353a8-269f-4f80-9987-4a71f98f599a`
+  - status `succeeded`，exit code `0`
+  - artifact row `234936d9-3e87-4ca9-ba68-cff42299726b`，kind `log`，
+    storage path
+    `agent/79bf60b02770d2cc510da53e471590f4/dogfood-cc1078a0-2966-4afc-8444-08d514b76dca/qcut-output.tar`，
+    bytes `10240`
+- 本地固定版本 agent CLI smoke 已通过：
+  - image `qcut-cli:agents-smoke`
+  - platform `linux/amd64`
+  - `codex --version` → `codex-cli 0.130.0`
+  - `claude --version` → `2.1.142 (Claude Code)`
+- 本地 Codex auth bootstrap smoke 已通过：
+  - image `qcut-cli:codex-auth-smoke`
+  - fake `CODEX_AUTH_JSON` 能写入 `~/.codex/auth.json`
+  - auth 文件权限验证为 `0600`
+  - `QCUT_CODEX_PROMPT_B64` 能在镜像内解码，不经过 shell 插值
+
+当前还需要外部 provider 工作：
+
+- E2B：如果要刷新浏览器沙箱模板，移走 workspace `node_modules`
+  后重跑 `e2b template create qcut-cli -d e2b.Dockerfile
+--cpu-count 2 --memory-mb 4096`（见下面 "绕路"）。现在
+  `e2b.Dockerfile` 已包含 parser / USER / shebang 修复。
+
+## 下一个子任务
+
+GHCR/Daytona 镜像路径已经证明能跑，GHCR `v0` 现在也已经带 Codex auth
+bootstrap。下一步继续 Phase 3 的产品硬化：
+
+1. merge/deploy worker 修复：Supabase row normalize、Daytona 使用
+   `/tmp/qcut-output`。
+2. 实现 sandbox spawn 失败时退 credit。
+3. 设计并迁移 `agent_secrets.value` 加密。
+4. 把 wzrdagentstudio `/sandbox` 的 localStorage token 占位换成真的
+   QCut 登录流。
 
 ## 路径 A —— 本地 Docker（最快，仅开发）
 
@@ -61,12 +143,13 @@ gh workflow run cli-image --field tag=dev-2026-05-14
 ```
 
 副作用：
+
 - 镜像可从 `ghcr.io/quriosity-agent/qcut-cli:<tag>` 拉取
 - 任何有该仓库包读权限的人都能拉
 - 私有包：拉取的客户端需要带 `read:packages` 作用域的 GitHub PAT
 
 Daytona 怎么用：`.devcontainer/devcontainer.json` 已经写死了
-`ghcr.io/quriosity-agent/qcut-cli:v0`。首次发布成功后改这个 tag 字符串。
+`ghcr.io/quriosity-agent/qcut-cli:v0`。只有 CLI 镜像本身变化时才需要换 tag。
 
 ## 路径 C —— E2B 模板（`/api/sandbox/spawn` 路由必需）
 
@@ -146,7 +229,7 @@ Docker 里能用的东西在它这边失败或行为不同。2026-05-14 在 E2B 
   while IFS='=' read -r o d; do mv "$d" "$o"; done < /tmp/qcut-nm-map.txt
   ```
 - ⚠️ **重活在 4 GiB 内存下 OOM**。`apps/web` Vite 构建（`tsc + vite
-  build`）被 SIGKILL。CLI 不需要 web bundle —— 跑
+build`）被 SIGKILL。CLI 不需要 web bundle —— 跑
   `bun install --frozen-lockfile --ignore-scripts`、**跳过**
   `bun run build`。CLI 包装脚本直接 `bun electron/.../cli.ts` 跑 TS 源码。
 - ⚠️ **UID 1000 和 1001 被 E2B base 占了**。别用 `useradd -u` 钉
@@ -156,19 +239,19 @@ Docker 里能用的东西在它这边失败或行为不同。2026-05-14 在 E2B 
 
 ## 各路径的成本
 
-| 路径 | 首次构建时间 | 持续成本 | 适用场景 |
-|------|-------------|---------|---------|
-| 本地 Docker | ~3 分钟一次 + daemon 内存 | $0（你的笔记本） | Worker 对接生产 DB 开发 |
-| GHCR | ~3 分钟 CI 跑一次 | 公开仓库免费；私有付费 | Daytona Cloud 工作区、worker 的 Daytona swap-in |
-| E2B 模板 | ~5 分钟一次 + 首次 spawn ~3 s | 按秒计费 | 浏览器沙箱路径（PR 12） |
+| 路径        | 首次构建时间                  | 持续成本               | 适用场景                                        |
+| ----------- | ----------------------------- | ---------------------- | ----------------------------------------------- |
+| 本地 Docker | ~3 分钟一次 + daemon 内存     | $0（你的笔记本）       | Worker 对接生产 DB 开发                         |
+| GHCR        | ~3 分钟 CI 跑一次             | 公开仓库免费；私有付费 | Daytona Cloud 工作区、worker 的 Daytona swap-in |
+| E2B 模板    | ~5 分钟一次 + 首次 spawn ~3 s | 按秒计费               | 浏览器沙箱路径（PR 12）                         |
 
 ## 建议
 
-1. **今天 / 现在**：跑 Path A，让 worker 能对接你的生产 DB 端到端。
-   Docker Desktop 起来后大约 5 分钟。
-2. **本周内**：用 `gh workflow run` 跑一次 Path B，让 Daytona devcontainer +
-   dogfood 脚本对所有人都能用。
-3. **浏览器沙箱真上线前**：Path C。在这之前 `/api/sandbox/spawn` 会扣
-   credits 后返 502 `sandbox_create_failed`。
+1. **现在**：merge/deploy dogfood 验证过的 worker 修复
+   （`claim_one_agent_job` normalize + Daytona output dir）。
+2. **CLI 镜像需要刷新时**：只有 `Dockerfile.cli` 或 CLI runtime 代码变了
+   才重跑 Path B。
+3. **浏览器沙箱镜像需要刷新时**：只有 E2B template 需要吃到
+   Dockerfile 或 CLI 变更时才重建 Path C。
 
 参见：[`ACTUAL.zh.md`](ACTUAL.zh.md)、[`02-container-image.zh.md`](02-container-image.zh.md)。

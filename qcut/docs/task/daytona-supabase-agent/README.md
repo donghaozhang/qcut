@@ -27,36 +27,36 @@ Headless, containerized execution of QCut pipelines — no Electron, no GUI. Sui
 
 Core plan (headless agent):
 
-| File | Purpose |
-|------|---------|
-| [architecture.md](core-plan/architecture.md) | System diagram: Supabase ↔ Daytona ↔ CLI. Job lifecycle, event streams, failure modes |
-| [container-setup.md](core-plan/container-setup.md) | Dockerfile, Daytona devcontainer config, build steps, runtime requirements |
-| [secrets-supabase.md](core-plan/secrets-supabase.md) | API key table schema, secret loader script, three precedence strategies |
+| File                                                 | Purpose                                                                               |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [architecture.md](core-plan/architecture.md)         | System diagram: Supabase ↔ Daytona ↔ CLI. Job lifecycle, event streams, failure modes |
+| [container-setup.md](core-plan/container-setup.md)   | Dockerfile, Daytona devcontainer config, build steps, runtime requirements            |
+| [secrets-supabase.md](core-plan/secrets-supabase.md) | API key table schema, secret loader script, three precedence strategies               |
 
 vm0 reference analysis (lessons from [vm0-ai/vm0](https://github.com/vm0-ai/vm0)):
 
-| File | Purpose |
-|------|---------|
-| [vm0-overview.md](vm0-reference/overview.md) | Top-level comparison, repo layout, what to borrow / defer / skip |
-| [vm0-sandbox.md](vm0-reference/sandbox.md) | Firecracker microVM + NBD COW + netns pool; why we stay on containers |
-| [vm0-job-pipeline.md](vm0-reference/job-pipeline.md) | JobProvider trait, push/pull discovery, guest-agent module map |
-| [vm0-secrets-proxy.md](vm0-reference/secrets-proxy.md) | mitmproxy credential injection, firewall rules, backport phasing |
+| File                                                   | Purpose                                                               |
+| ------------------------------------------------------ | --------------------------------------------------------------------- |
+| [vm0-overview.md](vm0-reference/overview.md)           | Top-level comparison, repo layout, what to borrow / defer / skip      |
+| [vm0-sandbox.md](vm0-reference/sandbox.md)             | Firecracker microVM + NBD COW + netns pool; why we stay on containers |
+| [vm0-job-pipeline.md](vm0-reference/job-pipeline.md)   | JobProvider trait, push/pull discovery, guest-agent module map        |
+| [vm0-secrets-proxy.md](vm0-reference/secrets-proxy.md) | mitmproxy credential injection, firewall rules, backport phasing      |
 
 Browser sandbox extension (interactive surface in wzrdagentstudio):
 
-| File | Purpose |
-|------|---------|
-| [web-sandbox-README.md](web-sandbox/README.md) | Index: human shells into a sandbox from a web page; why both this and the agent path |
-| [web-sandbox-architecture.md](web-sandbox/architecture.md) | xterm.js → relay → E2B/Daytona PTY. `sandbox_sessions` schema, lifecycle, limits |
-| [web-sandbox-integration.md](web-sandbox/integration.md) | Concrete wiring into wzrdagentstudio + Supabase Edge Function + Cloudflare DO relay |
-| [web-sandbox-verification.md](web-sandbox/verification.md) | Three-layer smoke test recipe, exit-code contract, failure-mode catalogue, CI hook |
+| File                                                       | Purpose                                                                              |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| [web-sandbox-README.md](web-sandbox/README.md)             | Index: human shells into a sandbox from a web page; why both this and the agent path |
+| [web-sandbox-architecture.md](web-sandbox/architecture.md) | xterm.js → relay → E2B/Daytona PTY. `sandbox_sessions` schema, lifecycle, limits     |
+| [web-sandbox-integration.md](web-sandbox/integration.md)   | Concrete wiring into wzrdagentstudio + Supabase Edge Function + Cloudflare DO relay  |
+| [web-sandbox-verification.md](web-sandbox/verification.md) | Three-layer smoke test recipe, exit-code contract, failure-mode catalogue, CI hook   |
 
 Implementation plan (PR-sized specs consumable by `/implementit`):
 
-| File | Purpose |
-|------|---------|
-| [implementation/README.md](implementation/README.md) | Index: 9 PR specs across Phase 1 (headless) and Phase 2 (browser sandbox), conventions, what's out of scope |
-| [implementation/01-system-doctor.md](implementation/01-system-doctor.md) — [05-daytona-devcontainer.md](implementation/05-daytona-devcontainer.md) | Phase 1: doctor command, container image, Supabase schema, agent-worker, Daytona devcontainer |
+| File                                                                                                                                                           | Purpose                                                                                                             |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| [implementation/README.md](implementation/README.md)                                                                                                           | Index: 9 PR specs across Phase 1 (headless) and Phase 2 (browser sandbox), conventions, what's out of scope         |
+| [implementation/01-system-doctor.md](implementation/01-system-doctor.md) — [05-daytona-devcontainer.md](implementation/05-daytona-devcontainer.md)             | Phase 1: doctor command, container image, Supabase schema, agent-worker, Daytona devcontainer                       |
 | [implementation/06-sandbox-sessions-schema.md](implementation/06-sandbox-sessions-schema.md) — [09-wzrd-terminal-ui.md](implementation/09-wzrd-terminal-ui.md) | Phase 2: `sandbox_sessions` table, `/sandbox-spawn` Edge Function, Cloudflare DO relay, wzrdagentstudio xterm.js UI |
 
 ## Quick reference
@@ -78,4 +78,16 @@ qcut flow run \
 
 ## Status
 
-Planning. No code committed yet. See individual docs for open questions.
+Implemented in stages. Phase 1 local Docker worker and Phase 2 E2B
+browser-sandbox are live/proven; the Daytona-specific cloud image path
+is now code-complete but still needs provider verification.
+
+Current source of truth:
+
+- [`implementation/ACTUAL.md`](implementation/ACTUAL.md) — shipped
+  architecture and drift from the original PR specs.
+- [`implementation/PHASE2-STATUS.md`](implementation/PHASE2-STATUS.md)
+  — live E2B browser-sandbox deployment status.
+- [`implementation/IMAGE-BOOTSTRAP.md`](implementation/IMAGE-BOOTSTRAP.md)
+  — local Docker, GHCR, E2B, and Daytona image bootstrapping status.
+- [`phase3/README.md`](phase3/README.md) — remaining follow-up tasks.

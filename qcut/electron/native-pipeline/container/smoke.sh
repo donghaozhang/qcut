@@ -10,6 +10,15 @@ set -euo pipefail
 echo "▶ bun --version"
 bun --version
 
+echo "▶ node --version"
+node --version
+
+echo "▶ npm --version"
+npm --version
+
+echo "▶ git --version"
+git --version
+
 echo "▶ ffmpeg -version (first line)"
 ffmpeg -version | head -n 1
 
@@ -18,6 +27,22 @@ which qcut
 
 echo "▶ qcut --version"
 qcut --version || echo "(no --version handler; that's ok)"
+
+echo "▶ which codex"
+which codex
+
+echo "▶ codex --version"
+codex --version
+
+echo "▶ which claude"
+which claude
+
+echo "▶ claude --version"
+claude --version
+
+echo "▶ native-cli skill"
+test -f /home/qcut/qcut/.claude/skills/native-cli/SKILL.md
+grep -q "name: native-cli" /home/qcut/qcut/.claude/skills/native-cli/SKILL.md
 
 echo "▶ qcut system doctor --json --skip-health"
 # No keys at smoke time → env_file or env_file_keys WILL be 'fail',

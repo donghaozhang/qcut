@@ -4,7 +4,7 @@
 
 ## 目标
 
-一个可复现的 Docker 镜像 `qcut-cli:vX`，无头跑 QCut CLI。镜像里烧进 qcut + FFmpeg + bun；密钥/项目数据在运行时注入。镜像的 `ENTRYPOINT` 从 env vars 物化 `~/.qcut/.env`、再 `exec` 命令（默认 `bash` 交互）。
+一个可复现的 Docker 镜像 `qcut-cli:vX`，无头跑 QCut CLI。镜像里烧进 qcut、FFmpeg、bun、Node/npm、Git、OpenSSH、Codex CLI、Claude Code CLI；密钥/项目数据在运行时注入。镜像的 `ENTRYPOINT` 从 env vars 物化 `~/.qcut/.env`、再 `exec` 命令（默认 `bash` 交互）。
 
 ## 依赖
 
@@ -46,11 +46,18 @@ RUN bun run build
 # ---------- runtime ----------
 FROM oven/bun:1.3.10-debian
 ARG QCUT_VERSION=dev
+ARG CODEX_CLI_VERSION=0.130.0
+ARG CLAUDE_CODE_VERSION=2.1.142
 ENV QCUT_VERSION=${QCUT_VERSION}
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      ffmpeg ca-certificates curl \
+      ffmpeg ca-certificates curl jq git openssh-client nodejs npm \
+ && npm install -g --omit=dev --no-audit --no-fund \
+      "@openai/codex@${CODEX_CLI_VERSION}" \
+      "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
+ && npm cache clean --force \
+ && rm -rf /root/.npm \
  && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -s /bin/bash -u 1000 qcut
@@ -76,8 +83,13 @@ CMD ["bash"]
 
 要点：
 - 两阶段把最终镜像压到 ~500 MB。
+- Codex CLI 和 Claude Code CLI 走官方 npm 包安装；版本 build args 默认最新 smoke 验过的版本，想主动升级时再覆盖。
 - 最终用户非 root（`qcut`, uid 1000），`~/.qcut/.env` 0600 直接顺。
 - `QCUT_VERSION` 构建期烧进去，被 `system doctor` 读。
+- Codex 登录只在运行时处理。`CODEX_AUTH_JSON` 不在 qcut `.env`
+  allow-list 里；entrypoint 会校验它并写成权限 `0600` 的
+  `~/.codex/auth.json`。如果 Codex 任务设置 `QCUT_BOOTSTRAP_CODEX=1`，
+  entrypoint 也可以用 `OPENAI_API_KEY` 跑 `codex login --with-api-key`。
 
 ### Step 2 —— Entrypoint
 
@@ -107,6 +119,15 @@ for key in "${ALLOWED_KEYS[@]}"; do
 done
 chmod 0600 "${ENV_FILE}"
 
+if [[ -n "${CODEX_AUTH_JSON:-}" ]]; then
+  mkdir -p "${HOME}/.codex"
+  printf '%s' "${CODEX_AUTH_JSON}" | jq -e . >/dev/null
+  printf '%s' "${CODEX_AUTH_JSON}" > "${HOME}/.codex/auth.json"
+  chmod 0600 "${HOME}/.codex/auth.json"
+elif [[ "${QCUT_BOOTSTRAP_CODEX:-}" == "1" && -n "${OPENAI_API_KEY:-}" ]]; then
+  printf '%s' "${OPENAI_API_KEY}" | codex login --with-api-key >/dev/null
+fi
+
 exec "$@"
 ```
 
@@ -121,8 +142,15 @@ exec "$@"
 set -euo pipefail
 
 bun --version
+node --version
+npm --version
+git --version
 ffmpeg -version | head -n 1
 which qcut
+which codex
+codex --version
+which claude
+claude --version
 
 output="$(qcut system doctor --json --skip-health || true)"
 echo "${output}" | jq -e '.checks | length > 0' >/dev/null

@@ -5,20 +5,108 @@ provider. Docker, Daytona, and E2B each consume the same `Dockerfile.cli`
 but materialise it as different artifacts. This file documents the
 three paths and what's done / not done.
 
-## Status (2026-05-14, after first build round)
+## Status (2026-05-15, after GHCR + Daytona dogfood)
 
-| Artifact | Where | Built? | Pushed? |
-|---|---|---|---|
-| `qcut-cli:dev` (local Docker image) | local Docker daemon | ✅ built, **verified end-to-end** against prod | n/a |
-| `ghcr.io/quriosity-agent/qcut-cli:vX.Y.Z` | GitHub Container Registry | ❌ never pushed (CI workflow ready) | ❌ |
-| E2B template `qcut-cli` (ID `<your-e2b-template-id>`) | E2B's build cluster | ⚠️ **built but with bugs** — `Sandbox.create()` works, but the `qcut` wrapper script's shebang is mangled (`#!/usr/bin/env bashnexec ...`). Needs rebuild with the `echo`-based wrapper now in `e2b.Dockerfile`. | n/a (E2B private) |
+| Artifact                                              | Where                     | Built?                                                                                                                                                                                                           | Pushed?                            |
+| ----------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `qcut-cli:agents-smoke` (local Docker image)          | local Docker daemon       | ✅ built for `linux/amd64`; `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, and Claude Code `2.1.142`                                                                                                          | n/a                                |
+| `qcut-cli:codex-auth-smoke` (local Docker image)      | local Docker daemon       | ✅ built for `linux/amd64`; verifies qcut smoke plus runtime Codex auth bootstrap from `CODEX_AUTH_JSON` and prompt env decoding                                                                                 | n/a                                |
+| `qcut-cli:dev` (local Docker image)                   | local Docker daemon       | ✅ built, **verified end-to-end** against prod                                                                                                                                                                   | n/a                                |
+| `ghcr.io/quriosity-agent/qcut-cli:v0`                 | GitHub Container Registry | ✅ republished by workflow run `25902797671`; pushed-image `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, Claude Code `2.1.142`, `native-cli` skill, and the latest entrypoint                                 | ✅ public, anonymous pull verified |
+| E2B template `qcut-cli` (ID `<your-e2b-template-id>`) | E2B's build cluster       | ⚠️ **built but with bugs** — `Sandbox.create()` works, but the `qcut` wrapper script's shebang is mangled (`#!/usr/bin/env bashnexec ...`). Needs rebuild with the `echo`-based wrapper now in `e2b.Dockerfile`. | n/a (E2B private)                  |
 
 Current working:
-- `bun run build:cli-image` produces `qcut-cli:dev` locally; the agent-worker uses this against the live Supabase DB. **Smoked end-to-end** (qcutlove user, `qcut --version` job, exit 0).
 
-Currently broken / needs one more iteration:
-- `POST /api/sandbox/spawn` would return `sandbox_create_failed` (the spawn-probe runs `qcut system doctor` which hits the wrapper-shebang bug → 127 exit).
-- Fix: re-run `e2b template create qcut-cli -d e2b.Dockerfile --cpu-count 2 --memory-mb 4096` after moving workspace `node_modules` out (see "Workarounds" below). The current `e2b.Dockerfile` already incorporates all five bug fixes documented below.
+- `bun run build:cli-image` produces `qcut-cli:dev` locally; the agent-worker uses this against the live Supabase DB. **Smoked end-to-end** (qcutlove user, `qcut --version` job, exit 0).
+- `packages/agent-worker` has a typed Daytona runner using
+  `@daytona/sdk@0.175.0`. It creates an ephemeral image sandbox,
+  runs the qcut command through `/usr/local/bin/qcut-entrypoint`,
+  archives `/tmp/qcut-output`, downloads it locally for Supabase
+  artifact upload, and deletes the sandbox.
+- `claim_one_agent_job` results are normalized from Supabase
+  snake_case into the Drizzle `AgentJob` camelCase shape before the
+  worker touches `job.userId`; this fixed the `agent/undefined/...`
+  artifact path bug found during dogfood.
+- `packages/agent-worker/src/run-on-daytona.test.ts` verifies command
+  construction, secret env projection, unsafe-command rejection,
+  artifact fallback behavior, and sandbox cleanup without real Daytona
+  credentials.
+- `.github/workflows/cli-image.yml` builds `Dockerfile.cli`, runs
+  `qcut-smoke`, then pushes `ghcr.io/<owner>/qcut-cli:<tag>` and
+  `:latest`. The default-branch workflow was fixed to lowercase the
+  GHCR owner (`f80dc47dd` on `master`, cherry-picked as `ed99a4ac9`
+  on `phase3-followups`).
+- `Dockerfile.cli` now installs pinned agent CLIs: Codex CLI `0.130.0`
+  and Claude Code `2.1.142`. The local `linux/amd64`
+  `qcut-cli:agents-smoke` image proves both binaries launch inside the
+  same architecture Daytona consumes.
+- `electron/native-pipeline/container/entrypoint.sh` now bootstraps Codex
+  auth at runtime. `CODEX_AUTH_JSON` is validated with `jq`, written to
+  `~/.codex/auth.json` with mode `0600`, and never enters
+  `~/.qcut/.env`. Codex jobs without auth JSON set `QCUT_BOOTSTRAP_CODEX=1`
+  so the entrypoint may derive Codex auth from `OPENAI_API_KEY`.
+- The website Chat Agent page can submit either qcut image jobs or Codex
+  chat jobs. Codex prompt text is kept out of shell commands: it goes
+  through `args.codexPrompt`, then `QCUT_CODEX_PROMPT_B64`, then stdin to
+  `codex exec --skip-git-repo-check --json -`.
+- Local `~/.qcut/.env` now contains the required Daytona/Supabase
+  dogfood env names. `scripts/daytona-worker-dogfood.ts` auto-loads
+  that file before checking required env.
+- Supabase project `kbrtxitvavpuimuihppz` now has the
+  `DAYTONA_API_KEY` project secret set via `supabase secrets set`.
+- Supabase Storage bucket `artifacts` now exists as a private bucket
+  for `agent_artifacts` uploads.
+
+Verified provider runs:
+
+- GHCR workflow run `25902797671` republished:
+  - `ghcr.io/quriosity-agent/qcut-cli:v0`
+  - `ghcr.io/quriosity-agent/qcut-cli:latest`
+  - digest
+    `sha256:2b9b8c7aa80bc2e5db874f04ccca302bbce0693a7d90274fe2b8645049fdbb7b`
+- The GHCR package was made public. Anonymous Docker pull of
+  `ghcr.io/quriosity-agent/qcut-cli:v0` succeeded, and the pushed-image
+  workflow smoke passed, including the `.claude/skills/native-cli/SKILL.md`
+  check.
+- Daytona dogfood succeeded against the pushed GHCR image:
+  - job `dogfood-cc1078a0-2966-4afc-8444-08d514b76dca`
+  - runner `adb353a8-269f-4f80-9987-4a71f98f599a`
+  - status `succeeded`, exit code `0`
+  - artifact row `234936d9-3e87-4ca9-ba68-cff42299726b`, kind `log`,
+    storage path
+    `agent/79bf60b02770d2cc510da53e471590f4/dogfood-cc1078a0-2966-4afc-8444-08d514b76dca/qcut-output.tar`,
+    bytes `10240`
+- Local pinned agent-CLI smoke succeeded:
+  - image `qcut-cli:agents-smoke`
+  - platform `linux/amd64`
+  - `codex --version` → `codex-cli 0.130.0`
+  - `claude --version` → `2.1.142 (Claude Code)`
+- Local Codex auth bootstrap smoke succeeded:
+  - image `qcut-cli:codex-auth-smoke`
+  - fake `CODEX_AUTH_JSON` wrote `~/.codex/auth.json`
+  - auth file mode verified as `0600`
+  - `QCUT_CODEX_PROMPT_B64` decoded inside the image without shell
+    interpolation
+
+Currently still needs external provider work:
+
+- E2B: if rebuilding the browser-sandbox template, re-run
+  `e2b template create qcut-cli -d e2b.Dockerfile --cpu-count 2
+--memory-mb 4096` after moving workspace `node_modules` out (see
+  "Workarounds" below). The current `e2b.Dockerfile` already
+  incorporates the parser/USER/shebang fixes documented below.
+
+## Next subtask
+
+The GHCR/Daytona image path is proven, and GHCR `v0` now includes the
+Codex auth bootstrap. Next, continue Phase 3 product hardening:
+
+1. Merge/deploy the worker changes that normalize Supabase rows and use
+   `/tmp/qcut-output` for Daytona.
+2. Implement credit refund on failed sandbox spawn.
+3. Design and migrate `agent_secrets.value` encryption.
+4. Replace the wzrdagentstudio `/sandbox` localStorage token shim with
+   the real QCut sign-in flow.
 
 ## Path A — local Docker (fastest, dev only)
 
@@ -50,8 +138,9 @@ Worker / E2B / Daytona Cloud all can't see it.
 
 ## Path B — GitHub Container Registry (production-grade for Daytona)
 
-CI workflow `.github/workflows/cli-image.yml` builds + pushes on
-either a `v*` git tag or manual dispatch. Once you trigger it:
+CI workflow `.github/workflows/cli-image.yml` builds, runs
+`qcut-smoke`, and pushes on either a `v*` git tag or manual dispatch.
+Once you trigger it:
 
 ```bash
 # Option 1: tag-based publish
@@ -64,19 +153,20 @@ gh workflow run cli-image --field tag=dev-2026-05-14
 ```
 
 Side effects:
+
 - The image becomes pullable from `ghcr.io/quriosity-agent/qcut-cli:<tag>`
 - Anyone with read access to the repo's packages can pull
 - For private packages: pulling clients need a GitHub PAT with `read:packages`
 
 Daytona consumption: `.devcontainer/devcontainer.json` already pins
-`ghcr.io/quriosity-agent/qcut-cli:v0`. Bump that tag string after the
-first successful publish.
+`ghcr.io/quriosity-agent/qcut-cli:v0`. Bump that tag string only when
+the CLI image itself changes.
 
 ## Path C — E2B template (required for the `/api/sandbox/spawn` route)
 
 E2B does NOT pull Docker images from GHCR. It builds its own template
 artifacts from a Dockerfile via the `e2b` CLI. This is a separate
-build step from Paths A and B; the artifact is a *template ID* like
+build step from Paths A and B; the artifact is a _template ID_ like
 `abcd1234efgh5678`.
 
 ```bash
@@ -153,7 +243,7 @@ Verified against E2B CLI 1.6+ on 2026-05-14:
   while IFS='=' read -r o d; do mv "$d" "$o"; done < /tmp/qcut-nm-map.txt
   ```
 - ⚠️ **Heavy builds OOM at 4 GiB.** `apps/web` Vite build (`tsc + vite
-  build`) gets SIGKILL'd. The CLI doesn't need the web bundle — run
+build`) gets SIGKILL'd. The CLI doesn't need the web bundle — run
   `bun install --frozen-lockfile --ignore-scripts` and **skip**
   `bun run build`. The CLI wrapper invokes `bun electron/.../cli.ts`
   directly from TypeScript source.
@@ -165,20 +255,19 @@ Verified against E2B CLI 1.6+ on 2026-05-14:
 
 ## Cost of each path
 
-| Path | Time to first build | Recurring cost | Best for |
-|---|---|---|---|
-| Local Docker | ~3 min one-time + daemon overhead | $0 (your laptop) | Worker dev against live DB |
-| GHCR | ~3 min CI run | GHCR free for public repos; paid for private storage | Daytona Cloud workspaces, the agent-worker's Daytona swap-in |
-| E2B template | ~5 min one-time + first spawn ~3 s | per-second E2B billing | Browser-sandbox path (PR 12) |
+| Path         | Time to first build                | Recurring cost                                       | Best for                                                     |
+| ------------ | ---------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------ |
+| Local Docker | ~3 min one-time + daemon overhead  | $0 (your laptop)                                     | Worker dev against live DB                                   |
+| GHCR         | ~3 min CI run                      | GHCR free for public repos; paid for private storage | Daytona Cloud workspaces, the agent-worker's Daytona swap-in |
+| E2B template | ~5 min one-time + first spawn ~3 s | per-second E2B billing                               | Browser-sandbox path (PR 12)                                 |
 
 ## Recommendation
 
-1. **Today / right now**: run Path A on your machine to unblock the
-   worker against the live DB. ~5 minutes once Docker Desktop is up.
-2. **Within a week**: trigger Path B once via `gh workflow run` so the
-   Daytona devcontainer + dogfood script work for anyone.
-3. **Before the browser sandbox is meaningful**: Path C. Until then
-   the `/api/sandbox/spawn` route deducts credits + returns 502
-   `sandbox_create_failed`.
+1. **Now**: merge/deploy the worker fixes proven by dogfood
+   (`claim_one_agent_job` normalization and Daytona output dir).
+2. **For CLI image refreshes**: re-run Path B only when `Dockerfile.cli`
+   or CLI runtime code changes.
+3. **For browser sandbox image refreshes**: rebuild Path C only when the
+   E2B template needs to pick up Dockerfile or CLI changes.
 
 See also: [`ACTUAL.md`](ACTUAL.md), [`02-container-image.md`](02-container-image.md).

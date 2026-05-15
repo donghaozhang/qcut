@@ -9,6 +9,7 @@ import { youtubeRoutes } from "./routes/youtube";
 import { adminRoutes } from "./routes/admin";
 import { aiProxyRoutes } from "./routes/ai-proxy";
 import { sandboxRoutes } from "./routes/sandbox";
+import { agentRoutes } from "./routes/agent";
 import { getMockResponse, isMockMode } from "./middleware/mock";
 import { getAllowedCorsOrigins } from "./services/payment-config";
 
@@ -81,5 +82,6 @@ app.route("/api/youtube", youtubeRoutes);
 app.route("/api/admin", adminRoutes);
 app.route("/api/ai", aiProxyRoutes);
 app.route("/api/sandbox", sandboxRoutes);
+app.route("/api/agent", agentRoutes);
 
 export default app;

@@ -19,6 +19,17 @@ import type { AgentJob } from "@qcut/db";
 
 const IMAGE_TAG = process.env.QCUT_IMAGE_TAG ?? "qcut-cli:dev";
 const TIMEOUT_MS = 30 * 60 * 1000;
+const CODEX_PROMPT_ENV = "QCUT_CODEX_PROMPT_B64";
+const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
+const NATIVE_CLI_SKILL_PATH =
+	"/home/qcut/qcut/.claude/skills/native-cli/SKILL.md";
+const NATIVE_CLI_SKILL_DIR = "/home/qcut/qcut/.claude/skills/native-cli";
+const CODEX_SANDBOX_CONTEXT = [
+	"You are running inside QCut's Daytona CLI image.",
+	`The QCut native CLI skill is available at ${NATIVE_CLI_SKILL_PATH}.`,
+	`Related native-cli references live under ${NATIVE_CLI_SKILL_DIR}/references and editor docs live under ${NATIVE_CLI_SKILL_DIR}/editor.`,
+	"Read that skill before running nontrivial QCut CLI workflows or when command syntax is unclear.",
+].join("\n");
 
 // Anything beyond simple whitespace-separated tokens with the usual
 // flag punctuation (-, =, ., /, :, ,) gets rejected so a forged
@@ -57,6 +68,53 @@ export function tokenizeCommand(command: string): string[] {
 	return tokens;
 }
 
+export function isCodexAgentCommand({ command }: { command: string }): boolean {
+	return command.trim() === CODEX_AGENT_COMMAND;
+}
+
+export function getCodexPrompt({ args }: { args: unknown }): string {
+	if (!args || typeof args !== "object" || Array.isArray(args)) {
+		return "";
+	}
+	const prompt = (args as { codexPrompt?: unknown }).codexPrompt;
+	return typeof prompt === "string" ? prompt.trim() : "";
+}
+
+export function buildCodexSandboxPrompt({
+	prompt,
+}: {
+	prompt: string;
+}): string {
+	return [CODEX_SANDBOX_CONTEXT, "", "User task:", prompt].join("\n");
+}
+
+export function buildCodexPromptEnv({
+	prompt,
+}: {
+	prompt: string;
+}): Record<string, string> {
+	if (prompt.length === 0) {
+		throw new Error("codexPrompt is required for codex agent jobs");
+	}
+	const sandboxPrompt = buildCodexSandboxPrompt({ prompt });
+	return {
+		[CODEX_PROMPT_ENV]: Buffer.from(sandboxPrompt, "utf8").toString("base64"),
+		QCUT_BOOTSTRAP_CODEX: "1",
+	};
+}
+
+export function buildCodexShellCommand({
+	outputDir,
+}: {
+	outputDir: string;
+}): string {
+	return [
+		"set -o pipefail",
+		`mkdir -p ${outputDir}`,
+		`printf '%s' "$${CODEX_PROMPT_ENV}" | base64 -d | /usr/local/bin/qcut-entrypoint codex exec --skip-git-repo-check --sandbox danger-full-access --json --output-last-message ${outputDir}/codex-last-message.md - > ${outputDir}/codex-events.jsonl`,
+	].join("; ");
+}
+
 export async function runContainer(
 	supabase: SupabaseClient,
 	job: AgentJob
@@ -76,18 +134,22 @@ export async function runContainer(
 	const outputDir = await mkdtemp(join(tmpdir(), "qcut-job-"));
 	envFlags.push("-v", `${outputDir}:/output`, "-e", "QCUT_OUTPUT_DIR=/output");
 
-	// Pass the user command as argv (no `bash -c`) so a row in agent_jobs
-	// can't inject shell metacharacters. Append `-o /output` always.
 	const userArgv = tokenizeCommand(job.command);
-	const args = [
-		"run",
-		"--rm",
-		...envFlags,
-		IMAGE_TAG,
-		...userArgv,
-		"-o",
-		"/output",
-	];
+	const isCodexJob = isCodexAgentCommand({ command: job.command });
+	const codexPrompt = isCodexJob ? getCodexPrompt({ args: job.args }) : "";
+	const commandArgs = isCodexJob
+		? ["bash", "-lc", buildCodexShellCommand({ outputDir: "/output" })]
+		: [...userArgv, "-o", "/output"];
+
+	if (isCodexJob) {
+		for (const [key, value] of Object.entries(
+			buildCodexPromptEnv({ prompt: codexPrompt })
+		)) {
+			envFlags.push("-e", `${key}=${value}`);
+		}
+	}
+
+	const args = ["run", "--rm", ...envFlags, IMAGE_TAG, ...commandArgs];
 
 	const result = await execa("docker", args, {
 		reject: false,
