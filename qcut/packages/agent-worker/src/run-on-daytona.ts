@@ -109,6 +109,13 @@ interface CommandParts {
 	archiveCommand: string;
 }
 
+function quoteShellArg({ arg }: { arg: string }): string {
+	if (/^[A-Za-z0-9_\-./:=,@+]+$/.test(arg)) {
+		return arg;
+	}
+	return `'${arg.replaceAll("'", "'\\''")}'`;
+}
+
 export function buildDaytonaCommand({
 	command,
 	args,
@@ -125,9 +132,8 @@ export function buildDaytonaCommand({
 		};
 	}
 
-	const qcutCommand = `/usr/local/bin/qcut-entrypoint ${safeArgv.join(
-		" "
-	)} -o ${DAYTONA_OUTPUT_DIR}`;
+	const quotedArgv = safeArgv.map((arg) => quoteShellArg({ arg })).join(" ");
+	const qcutCommand = `/usr/local/bin/qcut-entrypoint ${quotedArgv} -o ${DAYTONA_OUTPUT_DIR}`;
 
 	return {
 		command: `mkdir -p ${DAYTONA_OUTPUT_DIR} && ${qcutCommand}`,

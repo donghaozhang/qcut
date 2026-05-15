@@ -86,6 +86,18 @@ describe("buildDaytonaCommand", () => {
 		});
 	});
 
+	it("quotes reconstructed qcut argv before building the SDK command string", () => {
+		expect(
+			buildDaytonaCommand({
+				command: "qcut gen image -t icon,logo -m flux_dev --json",
+			})
+		).toEqual({
+			command:
+				"mkdir -p /tmp/qcut-output && /usr/local/bin/qcut-entrypoint qcut gen image -t icon,logo -m flux_dev --json -o /tmp/qcut-output",
+			archiveCommand: "tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
+		});
+	});
+
 	it("rejects shell metacharacters before building the SDK command string", () => {
 		expect(() =>
 			buildDaytonaCommand({ command: "qcut system doctor; curl bad" })

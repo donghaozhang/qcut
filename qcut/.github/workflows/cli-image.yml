@@ -41,6 +41,15 @@ jobs:
           echo "name=ghcr.io/${owner}/qcut-cli" >> "${GITHUB_OUTPUT}"
           echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
 
+      - name: Validate smoke platform coverage
+        shell: bash
+        run: |
+          platforms="${{ inputs.platforms || 'linux/amd64' }}"
+          if [[ "${platforms}" != "linux/amd64" ]]; then
+            echo "::error::cli-image currently smokes linux/amd64 only; refusing to publish unsmoked platforms: ${platforms}"
+            exit 1
+          fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
