@@ -13,6 +13,25 @@ const MAX_TEXT_ARTIFACT_BYTES = 256_000;
 const SAFE_COMMAND_TOKEN = /^[A-Za-z0-9_\-./:=,@+]+$/;
 const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
 const TEXT_ARTIFACT_KINDS = new Set(["json", "log"]);
+const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
+	".gif": "image/gif",
+	".jpeg": "image/jpeg",
+	".jpg": "image/jpeg",
+	".json": "application/json",
+	".log": "text/plain; charset=utf-8",
+	".m4a": "audio/mp4",
+	".mov": "video/quicktime",
+	".mp3": "audio/mpeg",
+	".mp4": "video/mp4",
+	".ogg": "audio/ogg",
+	".png": "image/png",
+	".srt": "text/plain; charset=utf-8",
+	".tar": "application/x-tar",
+	".txt": "text/plain; charset=utf-8",
+	".wav": "audio/wav",
+	".webm": "video/webm",
+	".webp": "image/webp",
+};
 
 interface CreateAgentJobBody {
 	command?: string;
@@ -70,28 +89,12 @@ agentRoutes.get("/jobs/:jobId/artifacts/:artifactId/text", async (c) => {
 	const jobId = c.req.param("jobId");
 	const artifactId = c.req.param("artifactId");
 
-	const [job] = await db
-		.select()
-		.from(agentJobs)
-		.where(and(eq(agentJobs.id, jobId), eq(agentJobs.userId, userId)))
-		.limit(1);
-
+	const job = await getOwnedAgentJob({ jobId, userId });
 	if (!job) {
 		return c.json({ error: "job_not_found" }, 404);
 	}
 
-	const [artifact] = await db
-		.select()
-		.from(agentArtifacts)
-		.where(
-			and(
-				eq(agentArtifacts.id, artifactId),
-				eq(agentArtifacts.jobId, jobId),
-				eq(agentArtifacts.userId, userId)
-			)
-		)
-		.limit(1);
-
+	const artifact = await getOwnedAgentArtifact({ artifactId, jobId, userId });
 	if (!artifact) {
 		return c.json({ error: "artifact_not_found" }, 404);
 	}
@@ -113,6 +116,41 @@ agentRoutes.get("/jobs/:jobId/artifacts/:artifactId/text", async (c) => {
 	return c.text(await data.text(), 200, {
 		"Content-Type": "text/plain; charset=utf-8",
 	});
+});
+
+agentRoutes.get("/jobs/:jobId/artifacts/:artifactId/download", async (c) => {
+	const userId = c.get("userId") as string;
+	const jobId = c.req.param("jobId");
+	const artifactId = c.req.param("artifactId");
+
+	const job = await getOwnedAgentJob({ jobId, userId });
+	if (!job) {
+		return c.json({ error: "job_not_found" }, 404);
+	}
+
+	const artifact = await getOwnedAgentArtifact({ artifactId, jobId, userId });
+	if (!artifact) {
+		return c.json({ error: "artifact_not_found" }, 404);
+	}
+
+	const { data, error } = await getSupabase()
+		.storage.from("artifacts")
+		.download(artifact.storagePath);
+
+	if (error || !data) {
+		return c.json({ error: "artifact_download_failed" }, 502);
+	}
+
+	const filename = getArtifactFilename({ artifact });
+	const headers: Record<string, string> = {
+		"Content-Disposition": `attachment; filename="${escapeContentDispositionFilename({ filename })}"`,
+		"Content-Type": getArtifactContentType({ artifact, blob: data }),
+	};
+	if (artifact.bytes !== null && artifact.bytes !== undefined) {
+		headers["Content-Length"] = String(artifact.bytes);
+	}
+
+	return c.body(data.stream(), 200, headers);
 });
 
 agentRoutes.get("/jobs/:jobId", async (c) => {
@@ -150,6 +188,44 @@ agentRoutes.get("/jobs/:jobId", async (c) => {
 		artifacts: artifacts.map(serializeAgentArtifact),
 	});
 });
+
+async function getOwnedAgentJob({
+	jobId,
+	userId,
+}: {
+	jobId: string;
+	userId: string;
+}): Promise<typeof agentJobs.$inferSelect | null> {
+	const [job] = await db
+		.select()
+		.from(agentJobs)
+		.where(and(eq(agentJobs.id, jobId), eq(agentJobs.userId, userId)))
+		.limit(1);
+	return job || null;
+}
+
+async function getOwnedAgentArtifact({
+	artifactId,
+	jobId,
+	userId,
+}: {
+	artifactId: string;
+	jobId: string;
+	userId: string;
+}): Promise<typeof agentArtifacts.$inferSelect | null> {
+	const [artifact] = await db
+		.select()
+		.from(agentArtifacts)
+		.where(
+			and(
+				eq(agentArtifacts.id, artifactId),
+				eq(agentArtifacts.jobId, jobId),
+				eq(agentArtifacts.userId, userId)
+			)
+		)
+		.limit(1);
+	return artifact || null;
+}
 
 async function createAgentJob(c: Context) {
 	const userId = c.get("userId") as string;
@@ -270,6 +346,54 @@ function serializeDate({
 		return value.toISOString();
 	}
 	return value;
+}
+
+function getArtifactFilename({
+	artifact,
+}: {
+	artifact: typeof agentArtifacts.$inferSelect;
+}): string {
+	const meta = artifact.meta;
+	if (
+		meta &&
+		typeof meta === "object" &&
+		"filename" in meta &&
+		typeof meta.filename === "string" &&
+		meta.filename.trim().length > 0
+	) {
+		return meta.filename.trim();
+	}
+	const parts = artifact.storagePath.split("/");
+	return parts[parts.length - 1] || "qcut-artifact";
+}
+
+function escapeContentDispositionFilename({
+	filename,
+}: {
+	filename: string;
+}): string {
+	return filename.replace(/["\r\n\\]/g, "_");
+}
+
+function getArtifactContentType({
+	artifact,
+	blob,
+}: {
+	artifact: typeof agentArtifacts.$inferSelect;
+	blob: Blob;
+}): string {
+	const filename = getArtifactFilename({ artifact }).toLowerCase();
+	const dot = filename.lastIndexOf(".");
+	if (dot >= 0) {
+		const contentType = CONTENT_TYPE_BY_EXTENSION[filename.slice(dot)];
+		if (contentType) {
+			return contentType;
+		}
+	}
+	if (blob.type.length > 0) {
+		return blob.type;
+	}
+	return "application/octet-stream";
 }
 
 function serializeAgentJob(job: typeof agentJobs.$inferSelect) {

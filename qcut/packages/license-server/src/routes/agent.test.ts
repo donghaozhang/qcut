@@ -69,6 +69,41 @@ function mockArtifactDownload({ text }: { text: string }): void {
 	} as never);
 }
 
+function mockOwnedJobAndArtifact({
+	artifact,
+}: {
+	artifact: Record<string, unknown>;
+}): void {
+	mockSelectRowsOnce({
+		rows: [
+			{
+				id: "job-1",
+				userId: "mock-user-001",
+				status: "succeeded",
+				command: CODEX_AGENT_COMMAND,
+				args: {},
+				createdAt: new Date("2026-05-15T00:00:00.000Z"),
+				claimedAt: null,
+				finishedAt: null,
+				exitCode: 0,
+				error: null,
+				runnerId: "runner-1",
+			},
+		],
+	});
+	mockSelectRowsOnce({
+		rows: [
+			{
+				id: "artifact-1",
+				jobId: "job-1",
+				userId: "mock-user-001",
+				createdAt: new Date("2026-05-15T00:00:01.000Z"),
+				...artifact,
+			},
+		],
+	});
+}
+
 beforeEach(() => {
 	process.env.MOCK_MODE = "true";
 	vi.clearAllMocks();
@@ -174,36 +209,13 @@ describe("agent default user auth", () => {
 
 describe("GET /api/agent/jobs/:jobId/artifacts/:artifactId/text", () => {
 	it("returns text artifacts owned by the authenticated user", async () => {
-		mockSelectRowsOnce({
-			rows: [
-				{
-					id: "job-1",
-					userId: "mock-user-001",
-					status: "succeeded",
-					command: CODEX_AGENT_COMMAND,
-					args: {},
-					createdAt: new Date("2026-05-15T00:00:00.000Z"),
-					claimedAt: null,
-					finishedAt: null,
-					exitCode: 0,
-					error: null,
-					runnerId: "runner-1",
-				},
-			],
-		});
-		mockSelectRowsOnce({
-			rows: [
-				{
-					id: "artifact-1",
-					jobId: "job-1",
-					userId: "mock-user-001",
-					kind: "log",
-					storagePath: "agent/mock-user-001/job-1/codex-last-message.md",
-					bytes: 17,
-					meta: { filename: "codex-last-message.md" },
-					createdAt: new Date("2026-05-15T00:00:01.000Z"),
-				},
-			],
+		mockOwnedJobAndArtifact({
+			artifact: {
+				kind: "log",
+				storagePath: "agent/mock-user-001/job-1/codex-last-message.md",
+				bytes: 17,
+				meta: { filename: "codex-last-message.md" },
+			},
 		});
 		mockArtifactDownload({ text: "Hello from Codex." });
 
@@ -216,36 +228,13 @@ describe("GET /api/agent/jobs/:jobId/artifacts/:artifactId/text", () => {
 	});
 
 	it("rejects large text artifacts before downloading", async () => {
-		mockSelectRowsOnce({
-			rows: [
-				{
-					id: "job-1",
-					userId: "mock-user-001",
-					status: "succeeded",
-					command: CODEX_AGENT_COMMAND,
-					args: {},
-					createdAt: new Date("2026-05-15T00:00:00.000Z"),
-					claimedAt: null,
-					finishedAt: null,
-					exitCode: 0,
-					error: null,
-					runnerId: "runner-1",
-				},
-			],
-		});
-		mockSelectRowsOnce({
-			rows: [
-				{
-					id: "artifact-1",
-					jobId: "job-1",
-					userId: "mock-user-001",
-					kind: "log",
-					storagePath: "agent/mock-user-001/job-1/codex-events.jsonl",
-					bytes: 300_000,
-					meta: { filename: "codex-events.jsonl" },
-					createdAt: new Date("2026-05-15T00:00:01.000Z"),
-				},
-			],
+		mockOwnedJobAndArtifact({
+			artifact: {
+				kind: "log",
+				storagePath: "agent/mock-user-001/job-1/codex-events.jsonl",
+				bytes: 300_000,
+				meta: { filename: "codex-events.jsonl" },
+			},
 		});
 
 		const res = await buildApp().request(
@@ -255,6 +244,43 @@ describe("GET /api/agent/jobs/:jobId/artifacts/:artifactId/text", () => {
 		expect(res.status).toBe(413);
 		expect(await res.json()).toEqual({ error: "artifact_too_large" });
 		expect(getSupabase).not.toHaveBeenCalled();
+	});
+});
+
+describe("GET /api/agent/jobs/:jobId/artifacts/:artifactId/download", () => {
+	it("streams artifacts owned by the authenticated user", async () => {
+		mockOwnedJobAndArtifact({
+			artifact: {
+				kind: "image",
+				storagePath: "agent/mock-user-001/job-1/result.jpg",
+				bytes: 3,
+				meta: { filename: "result.jpg" },
+			},
+		});
+		const download = vi.fn().mockResolvedValue({
+			data: new Blob([new Uint8Array([1, 2, 3])]),
+			error: null,
+		});
+		const from = vi.fn().mockReturnValue({ download });
+		vi.mocked(getSupabase).mockReturnValue({
+			storage: { from },
+		} as never);
+
+		const res = await buildApp().request(
+			"/api/agent/jobs/job-1/artifacts/artifact-1/download"
+		);
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toBe("image/jpeg");
+		expect(res.headers.get("Content-Disposition")).toBe(
+			'attachment; filename="result.jpg"'
+		);
+		expect(new Uint8Array(await res.arrayBuffer())).toEqual(
+			new Uint8Array([1, 2, 3])
+		);
+		expect(download).toHaveBeenCalledWith(
+			"agent/mock-user-001/job-1/result.jpg"
+		);
 	});
 });
 

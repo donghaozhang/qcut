@@ -55,6 +55,7 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
 | GHCR agent-CLI image publish                                                      | Workflow run `25899152153` republished `ghcr.io/quriosity-agent/qcut-cli:v0`; digest `sha256:07ab8298aefb308a5aeefd5c2a7a3b64493c446c84f323c384b0ebeb16ae673a`; pushed-image smoke verified Codex and Claude Code |
 | GHCR native-cli skill image publish                                               | Workflow run `25902797671` republished `ghcr.io/quriosity-agent/qcut-cli:v0`; digest `sha256:2b9b8c7aa80bc2e5db874f04ccca302bbce0693a7d90274fe2b8645049fdbb7b`; pushed-image smoke verified `.claude/skills/native-cli/SKILL.md` |
 | Local Codex auth bootstrap smoke                                                  | `qcut-cli:codex-auth-smoke` built for `linux/amd64`; fake `CODEX_AUTH_JSON` wrote `~/.codex/auth.json` with mode `0600`; `QCUT_CODEX_PROMPT_B64` decoded correctly inside the image |
+| Website Codex → QCut CLI image E2E                                                | Chat Agent job `9b8a7693-00e0-4cff-8635-a7d78135d2d8` succeeded with exit `0`; Codex ran `qcut gen image ... -o /tmp/qcut-output`; uploaded JPG artifact `flux_dev_small-blue-square-icon-on-a-clean-white-background_1778827141210.jpg` |
 
 ## What is now done after `b536d61b2`
 
@@ -126,6 +127,13 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
     image build unless that skill's `SKILL.md` is present. Daytona job
     `b6ce291d-3853-4a41-b70f-c989c159c633` verified the pushed image in a
     live sandbox and returned `NATIVE_CLI_SKILL_READY`.
+14. **Website artifacts are downloadable.**
+    The license-server now exposes an authenticated binary artifact download
+    route at `/api/agent/jobs/:jobId/artifacts/:artifactId/download`. The
+    Chat Agent page renders a Download button for each artifact, fetches the
+    blob with the user's QCut auth token or the configured default agent
+    account, then triggers a browser download without exposing Supabase
+    service-role credentials to the frontend.
 
 ## What still needs doing (gates on credentials / external services)
 

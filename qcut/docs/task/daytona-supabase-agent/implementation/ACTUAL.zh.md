@@ -53,6 +53,7 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
 | GHCR agent CLI 镜像发布                                                    | workflow run `25899152153` 重新发布 `ghcr.io/quriosity-agent/qcut-cli:v0`；digest `sha256:07ab8298aefb308a5aeefd5c2a7a3b64493c446c84f323c384b0ebeb16ae673a`；推后 smoke 验到 Codex 和 Claude Code |
 | GHCR native-cli skill 镜像发布                                             | workflow run `25902797671` 重新发布 `ghcr.io/quriosity-agent/qcut-cli:v0`；digest `sha256:2b9b8c7aa80bc2e5db874f04ccca302bbce0693a7d90274fe2b8645049fdbb7b`；推后 smoke 验到 `.claude/skills/native-cli/SKILL.md` |
 | 本地 Codex auth bootstrap smoke                                           | `qcut-cli:codex-auth-smoke` 按 `linux/amd64` 构建；假的 `CODEX_AUTH_JSON` 能写成权限 `0600` 的 `~/.codex/auth.json`；`QCUT_CODEX_PROMPT_B64` 在镜像内能正确解码 |
+| Website Codex → QCut CLI 图片 E2E                                         | Chat Agent job `9b8a7693-00e0-4cff-8635-a7d78135d2d8` 成功，exit `0`；Codex 实际跑了 `qcut gen image ... -o /tmp/qcut-output`；上传了 JPG artifact `flux_dev_small-blue-square-icon-on-a-clean-white-background_1778827141210.jpg` |
 
 ## `b536d61b2` 之后已经完成的事
 
@@ -116,6 +117,12 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
     会检查这个 skill 的 `SKILL.md`，不存在就让镜像构建失败。Daytona job
     `b6ce291d-3853-4a41-b70f-c989c159c633` 已在 live sandbox 验证推上去的
     镜像，并返回 `NATIVE_CLI_SKILL_READY`。
+14. **Website artifacts 现在可以下载。**
+    license-server 新增了带认证的二进制下载接口：
+    `/api/agent/jobs/:jobId/artifacts/:artifactId/download`。Chat Agent 页会
+    给每个 artifact 渲染 Download 按钮，用用户的 QCut auth token 或服务端
+    配置的默认 agent account 去 fetch blob，然后触发浏览器下载；Supabase
+    service-role key 不会暴露到前端。
 
 ## 还没做的（依赖外部凭证 / 服务）
 
