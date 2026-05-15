@@ -28,14 +28,19 @@ Current working:
 - `.github/workflows/cli-image.yml` builds `Dockerfile.cli`, runs
   `qcut-smoke`, then pushes `ghcr.io/<owner>/qcut-cli:<tag>` and
   `:latest`.
+- Local `~/.qcut/.env` now contains `DAYTONA_API_KEY` and
+  `SUPABASE_ACCESS_TOKEN`. `scripts/daytona-worker-dogfood.ts`
+  auto-loads that file before checking required env.
+- Supabase project `kbrtxitvavpuimuihppz` now has the
+  `DAYTONA_API_KEY` project secret set via `supabase secrets set`.
 
 Currently still needs external credentials / provider runs:
 
 - GHCR: run `.github/workflows/cli-image.yml` once by `workflow_dispatch`
   or a `v*` tag, then verify a token-authenticated `docker pull`.
-- Daytona: `packages/agent-worker` now uses the current `@daytona/sdk`
-  API, but the path still needs a real `DAYTONA_API_KEY` dogfood run
-  against the pushed GHCR image.
+- Daytona: credentials are configured locally and in Supabase project
+  secrets, but the path still needs a real dogfood run against the
+  pushed GHCR image.
 - E2B: if rebuilding the browser-sandbox template, re-run
   `e2b template create qcut-cli -d e2b.Dockerfile --cpu-count 2
 --memory-mb 4096` after moving workspace `node_modules` out (see
@@ -55,7 +60,6 @@ docker pull ghcr.io/quriosity-agent/qcut-cli:v0
 After the pull works, dogfood Daytona:
 
 ```bash
-DAYTONA_API_KEY=... \
 QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:v0 \
 SUPABASE_URL=... \
 SUPABASE_SERVICE_ROLE_KEY=... \
@@ -63,7 +67,7 @@ QCUT_DOGFOOD_USER_ID=<better-auth-user-id> \
 bun run dogfood:daytona-worker
 ```
 
-The script inserts an `agent_jobs` row for
+The script loads `~/.qcut/.env`, inserts an `agent_jobs` row for
 `qcut system doctor --json --skip-health`, starts the worker, polls the
 job to a terminal status, prints artifact rows, and leaves the job row
 in place as evidence.

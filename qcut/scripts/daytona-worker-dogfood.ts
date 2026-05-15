@@ -7,6 +7,8 @@
  * job + artifact evidence. It intentionally leaves the job row in place
  * so the run can be audited later.
  *
+ * Reads ~/.qcut/.env first, then process.env.
+ *
  * Required env:
  *   DAYTONA_API_KEY
  *   SUPABASE_URL
@@ -20,6 +22,9 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 const REQUIRED_ENV = [
 	"DAYTONA_API_KEY",
@@ -60,6 +65,26 @@ interface AgentArtifactRow {
 	storage_path: string;
 	bytes: number | null;
 	created_at: string;
+}
+
+function loadQcutEnvFile() {
+	const envPath = join(homedir(), ".qcut", ".env");
+	let content = "";
+	try {
+		content = readFileSync(envPath, "utf8");
+	} catch {
+		return;
+	}
+
+	for (const rawLine of content.split(/\r?\n/)) {
+		const line = rawLine.trim();
+		if (!line || line.startsWith("#")) continue;
+		const separator = line.indexOf("=");
+		if (separator <= 0) continue;
+		const key = line.slice(0, separator).trim();
+		const value = line.slice(separator + 1);
+		if (!process.env[key]) process.env[key] = value;
+	}
 }
 
 function getEnv(): DogfoodEnv {
@@ -250,6 +275,7 @@ async function stopWorker({ worker }: { worker: Bun.Subprocess }) {
 	await worker.exited.catch(() => undefined);
 }
 
+loadQcutEnvFile();
 const env = getEnv();
 const jobId = `dogfood-${randomUUID()}`;
 

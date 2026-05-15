@@ -25,14 +25,19 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
 - `.github/workflows/cli-image.yml` 会构建 `Dockerfile.cli`，跑
   `qcut-smoke`，然后推 `ghcr.io/<owner>/qcut-cli:<tag>` 和
   `:latest`。
+- 本机 `~/.qcut/.env` 现在已有 `DAYTONA_API_KEY` 和
+  `SUPABASE_ACCESS_TOKEN`。`scripts/daytona-worker-dogfood.ts` 会先自动
+  读取这个文件，再检查必需环境变量。
+- Supabase 项目 `kbrtxitvavpuimuihppz` 已通过
+  `supabase secrets set` 设置 `DAYTONA_API_KEY` 项目 secret。
 
 当前还需要外部凭证 / provider 实跑：
 
 - GHCR：通过 `workflow_dispatch` 或 `v*` tag 跑一次
   `.github/workflows/cli-image.yml`，然后用带 token 的
   `docker pull` 确认镜像可拉。
-- Daytona：agent-worker 已接当前 `@daytona/sdk` API，但还需要真实
-  `DAYTONA_API_KEY`，对着推到 GHCR 的镜像跑一次 dogfood。
+- Daytona：本地和 Supabase 项目 secret 已有凭证，但还需要对着推到
+  GHCR 的镜像跑一次真实 dogfood。
 - E2B：如果要刷新浏览器沙箱模板，移走 workspace `node_modules`
   后重跑 `e2b template create qcut-cli -d e2b.Dockerfile
 --cpu-count 2 --memory-mb 4096`（见下面 "绕路"）。现在
@@ -51,7 +56,6 @@ docker pull ghcr.io/quriosity-agent/qcut-cli:v0
 pull 通过后，dogfood Daytona：
 
 ```bash
-DAYTONA_API_KEY=... \
 QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:v0 \
 SUPABASE_URL=... \
 SUPABASE_SERVICE_ROLE_KEY=... \
@@ -59,7 +63,8 @@ QCUT_DOGFOOD_USER_ID=<better-auth-user-id> \
 bun run dogfood:daytona-worker
 ```
 
-脚本会插入一条 `qcut system doctor --json --skip-health` 的
+脚本会读取 `~/.qcut/.env`，插入一条 `qcut system doctor --json
+--skip-health` 的
 `agent_jobs`，启动 worker，轮询到终态，打印 artifact rows，并保留
 job row 作为证据。
 

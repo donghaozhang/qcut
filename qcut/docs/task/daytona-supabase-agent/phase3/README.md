@@ -7,12 +7,12 @@ metered against real credits.
 The four items below are intentionally deferred from that cut —
 each is independently shippable and listed roughly by impact.
 
-| #   | Item                                            | Why it's deferred                                                                                                 | Status                        |
-| --- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| 1   | `agent_secrets.value` encryption (pgsodium)     | v0 stores plaintext; key-rotation operator workflow was the unknown that blocked it                               | Not started                   |
-| 2   | Refund credits when spawn fails after deduction | `deductCreditsForUser` has an inverse but it's not wired into `sandbox_create_failed` / `sandbox_unhealthy` paths | Not started                   |
-| 3   | QCut sign-in in wzrdagentstudio `/sandbox`      | Today reads `localStorage.qcut_auth_token` as a v0 stash; needs the real Better Auth flow                         | Not started                   |
-| 4   | GHCR push of `qcut-cli` image                   | Code is complete; still needs a real dispatch/tag, pull verification, and Daytona dogfood run                     | Provider verification pending |
+| #   | Item                                            | Why it's deferred                                                                                                         | Status                        |
+| --- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| 1   | `agent_secrets.value` encryption (pgsodium)     | v0 stores plaintext; key-rotation operator workflow was the unknown that blocked it                                       | Not started                   |
+| 2   | Refund credits when spawn fails after deduction | `deductCreditsForUser` has an inverse but it's not wired into `sandbox_create_failed` / `sandbox_unhealthy` paths         | Not started                   |
+| 3   | QCut sign-in in wzrdagentstudio `/sandbox`      | Today reads `localStorage.qcut_auth_token` as a v0 stash; needs the real Better Auth flow                                 | Not started                   |
+| 4   | GHCR push of `qcut-cli` image                   | Code is complete; credentials are configured; still needs a real dispatch/tag, pull verification, and Daytona dogfood run | Provider verification pending |
 
 ## 1. `agent_secrets` encryption with pgsodium
 
@@ -120,13 +120,16 @@ Next subtask:
 - `agent-worker/src/run-on-daytona.ts` now uses `@daytona/sdk` and
   creates an ephemeral image sandbox. Keep its default tag at `:v0`
   unless the first published image uses a different tag.
-- Run the Daytona dogfood path with `DAYTONA_API_KEY` set and document
-  the real job ID, sandbox ID, exit code, and artifact rows.
-  Use `bun run dogfood:daytona-worker` once the key is available.
+- `DAYTONA_API_KEY` is now present in local `~/.qcut/.env` and set as
+  a Supabase project secret for `kbrtxitvavpuimuihppz`; the dogfood
+  script auto-loads the local env file.
+- Run the Daytona dogfood path and document the real job ID, sandbox ID,
+  exit code, and artifact rows. Use `bun run dogfood:daytona-worker`
+  after the GHCR image is pullable.
 
-Verification: insert an agent_jobs row for `qcutlove@qcut.app` with
-`DAYTONA_API_KEY` set, agent-worker claims it, Daytona pulls from
-GHCR, doctor probe passes.
+Verification: insert an agent_jobs row for `qcutlove@qcut.app`,
+agent-worker claims it with the configured Daytona credentials, Daytona
+pulls from GHCR, doctor probe passes.
 
 ## Ordering recommendation
 

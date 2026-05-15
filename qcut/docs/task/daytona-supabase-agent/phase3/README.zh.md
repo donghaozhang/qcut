@@ -12,7 +12,7 @@ Phase 2 已经在 `v2026.05.14.1` 上线（PR #300，master `3d83aa396`
 | 1   | `agent_secrets.value` 加密（pgsodium）  | v0 存明文；key-rotation 的运维流程当时没想清楚                                                 | 未启动           |
 | 2   | spawn 失败时退款 credit                 | `deductCreditsForUser` 有反操作，但还没接进 `sandbox_create_failed` / `sandbox_unhealthy` 路径 | 未启动           |
 | 3   | wzrdagentstudio `/sandbox` 接 QCut 登录 | 今天用 `localStorage.qcut_auth_token` 占位；要换成真的 Better Auth 流程                        | 未启动           |
-| 4   | `qcut-cli` 镜像推 GHCR                  | 代码已完成；还缺真实 dispatch/tag、pull 验证、Daytona dogfood                                  | 等 provider 验证 |
+| 4   | `qcut-cli` 镜像推 GHCR                  | 代码已完成；凭证已配置；还缺真实 dispatch/tag、pull 验证、Daytona dogfood                      | 等 provider 验证 |
 
 ## 1. pgsodium 加密 `agent_secrets`
 
@@ -111,13 +111,15 @@ Phase 2 已经在 `v2026.05.14.1` 上线（PR #300，master `3d83aa396`
 - `agent-worker/src/run-on-daytona.ts` 现在已经使用 `@daytona/sdk`，
   并创建 ephemeral image sandbox。除非首个发布 tag 不是 `v0`，
   否则默认 tag 保持 `:v0`。
-- 带 `DAYTONA_API_KEY` 跑真实 Daytona dogfood，并把 job ID、
-  sandbox ID、exit code、artifact rows 写回文档。key 有了以后直接用
+- `DAYTONA_API_KEY` 现在已写进本地 `~/.qcut/.env`，也已设成
+  Supabase 项目 `kbrtxitvavpuimuihppz` 的 project secret；
+  dogfood 脚本会自动读取本地 env 文件。
+- 跑真实 Daytona dogfood，并把 job ID、sandbox ID、exit code、
+  artifact rows 写回文档。GHCR 镜像可拉以后直接用
   `bun run dogfood:daytona-worker`。
 
-验证：给 `qcutlove@qcut.app` 插一条 agent_jobs，开
-`DAYTONA_API_KEY`，agent-worker 抢任务、Daytona 从 GHCR 拉镜像、
-doctor 探活通过。
+验证：给 `qcutlove@qcut.app` 插一条 agent_jobs，agent-worker 用已配置
+的 Daytona 凭证抢任务、Daytona 从 GHCR 拉镜像、doctor 探活通过。
 
 ## 推荐做的顺序
 
