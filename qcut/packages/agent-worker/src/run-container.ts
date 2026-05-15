@@ -21,6 +21,15 @@ const IMAGE_TAG = process.env.QCUT_IMAGE_TAG ?? "qcut-cli:dev";
 const TIMEOUT_MS = 30 * 60 * 1000;
 const CODEX_PROMPT_ENV = "QCUT_CODEX_PROMPT_B64";
 const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
+const NATIVE_CLI_SKILL_PATH =
+	"/home/qcut/qcut/.claude/skills/native-cli/SKILL.md";
+const NATIVE_CLI_SKILL_DIR = "/home/qcut/qcut/.claude/skills/native-cli";
+const CODEX_SANDBOX_CONTEXT = [
+	"You are running inside QCut's Daytona CLI image.",
+	`The QCut native CLI skill is available at ${NATIVE_CLI_SKILL_PATH}.`,
+	`Related native-cli references live under ${NATIVE_CLI_SKILL_DIR}/references and editor docs live under ${NATIVE_CLI_SKILL_DIR}/editor.`,
+	"Read that skill before running nontrivial QCut CLI workflows or when command syntax is unclear.",
+].join("\n");
 
 // Anything beyond simple whitespace-separated tokens with the usual
 // flag punctuation (-, =, ., /, :, ,) gets rejected so a forged
@@ -71,6 +80,14 @@ export function getCodexPrompt({ args }: { args: unknown }): string {
 	return typeof prompt === "string" ? prompt.trim() : "";
 }
 
+export function buildCodexSandboxPrompt({
+	prompt,
+}: {
+	prompt: string;
+}): string {
+	return [CODEX_SANDBOX_CONTEXT, "", "User task:", prompt].join("\n");
+}
+
 export function buildCodexPromptEnv({
 	prompt,
 }: {
@@ -79,8 +96,9 @@ export function buildCodexPromptEnv({
 	if (prompt.length === 0) {
 		throw new Error("codexPrompt is required for codex agent jobs");
 	}
+	const sandboxPrompt = buildCodexSandboxPrompt({ prompt });
 	return {
-		[CODEX_PROMPT_ENV]: Buffer.from(prompt, "utf8").toString("base64"),
+		[CODEX_PROMPT_ENV]: Buffer.from(sandboxPrompt, "utf8").toString("base64"),
 		QCUT_BOOTSTRAP_CODEX: "1",
 	};
 }

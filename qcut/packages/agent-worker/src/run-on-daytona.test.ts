@@ -149,7 +149,12 @@ describe("buildDaytonaEnv", () => {
 		expect(env.CODEX_AUTH_JSON).toBe('{"tokens":{"id_token":"x"}}');
 		expect(
 			Buffer.from(env.QCUT_CODEX_PROMPT_B64, "base64").toString("utf8")
-		).toBe("Explain QCut's agent path.");
+		).toContain(
+			"The QCut native CLI skill is available at /home/qcut/qcut/.claude/skills/native-cli/SKILL.md."
+		);
+		expect(
+			Buffer.from(env.QCUT_CODEX_PROMPT_B64, "base64").toString("utf8")
+		).toContain("User task:\nExplain QCut's agent path.");
 	});
 
 	it("rejects codex jobs without prompt args before sandbox creation", () => {
