@@ -33,7 +33,7 @@ into that architecture.
 | _this PR_                           | **PR 12** — Phase 2 alignment: sandbox-spawn moves to a Hono route in `packages/license-server/src/routes/sandbox.ts` with Better Auth + credit deduction; relay audit columns renamed; wzrdagentstudio frontend calls license-server | replaces 07; updates 08+09                                                              |
 | `b536d61b2`                         | **Phase 3 follow-up** — GHCR image workflow, current `@daytona/sdk` worker path, Daytona runner tests, and image-bootstrap docs                                                                                                       | completes the code side of PR 05's Daytona swap-in; provider verification still pending |
 | `ed99a4ac9` + this follow-up        | **Phase 3 verification** — GHCR owner casing fix, public `qcut-cli:v0` publish, Daytona dogfood, worker row normalization, Daytona writable output dir                                                                                | completes provider verification for PR 05's Daytona swap-in                             |
-| agent-CLI image follow-up           | `Dockerfile.cli` now installs pinned Codex CLI `0.130.0` and Claude Code CLI `2.1.142`; `qcut-smoke` hard-checks both binaries and versions                                                                                           | updates PR 02 image contract; publish still requires a new GHCR build                   |
+| `ce02d4968`                         | `Dockerfile.cli` now installs pinned Codex CLI `0.130.0` and Claude Code CLI `2.1.142`; `qcut-smoke` hard-checks both binaries and versions; GHCR `v0` republished                                                                      | updates PR 02 image contract                                                           |
 
 ## Live verification (against production)
 
@@ -51,6 +51,7 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
 | Anonymous GHCR pull + smoke                                                       | `docker pull --platform linux/amd64 ghcr.io/quriosity-agent/qcut-cli:v0` succeeded after package visibility changed to public; `qcut-smoke` passed |
 | Daytona dogfood worker path                                                       | Job `dogfood-cc1078a0-2966-4afc-8444-08d514b76dca` succeeded with exit `0`; artifact row `234936d9-3e87-4ca9-ba68-cff42299726b` uploaded           |
 | Local amd64 agent-CLI image smoke                                                 | `docker buildx build --platform linux/amd64 --tag qcut-cli:agents-smoke ...` succeeded; `qcut-smoke` verified `codex-cli 0.130.0` and `2.1.142 (Claude Code)` |
+| GHCR agent-CLI image publish                                                      | Workflow run `25897357872` republished `ghcr.io/quriosity-agent/qcut-cli:v0`; digest `sha256:c8411892681fd119188f566ee2a304d81221e1e92e0e0092965537d456927d52`; pushed-image smoke verified Codex and Claude Code |
 
 ## What is now done after `b536d61b2`
 
@@ -88,29 +89,30 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
    native binaries for Codex CLI `0.130.0` and Claude Code `2.1.142`.
    `qcut-smoke` now fails the image build if either `codex` or `claude`
    is missing.
+9. **GHCR `v0` has been republished with those agent CLIs.**
+   Workflow run `25897357872` pushed the refreshed image and then pulled
+   `ghcr.io/quriosity-agent/qcut-cli:v0` back from GHCR for `qcut-smoke`.
+   The smoke log verified `/usr/local/bin/codex` and
+   `/usr/local/bin/claude`.
 
 ## What still needs doing (gates on credentials / external services)
 
 1. **Merge/deploy the worker fixes** from this follow-up. The provider
    path is verified locally against production services; deployed worker
    code needs the same row-normalization and Daytona output-dir fixes.
-2. **Publish the refreshed GHCR image** after merging this image change.
-   The local `qcut-cli:agents-smoke` image has Codex/Claude Code; the
-   already-published `ghcr.io/quriosity-agent/qcut-cli:v0` digest does
-   not change until the image workflow pushes a new tag.
-3. **Set/confirm license-server secrets** (`wrangler secret put`):
+2. **Set/confirm license-server secrets** (`wrangler secret put`):
    `E2B_API_KEY`, `RELAY_SIGNING_SECRET`, `RELAY_HOST`, `QCUT_IMAGE_TAG`.
-4. **Deploy/confirm `@qcut/relay`** via `wrangler deploy` in
+3. **Deploy/confirm `@qcut/relay`** via `wrangler deploy` in
    `packages/qcut-relay`.
-5. **Rotate the leaked Supabase PAT** (`sbp_b303...`) — it has been seen
+4. **Rotate the leaked Supabase PAT** (`sbp_b303...`) — it has been seen
    by GitHub's secret scanner. Generate a new one at
    supabase.com/dashboard/account/tokens.
-6. **Wire QCut login into wzrdagentstudio.** SandboxPage currently reads
+5. **Wire QCut login into wzrdagentstudio.** SandboxPage currently reads
    `localStorage.qcut_auth_token` as a v0 stash — replace with a real
    QCut sign-in component.
-7. **Refund on spawn failure.** PR 12's `routes/sandbox.ts` deducts
+6. **Refund on spawn failure.** PR 12's `routes/sandbox.ts` deducts
    credits up-front but does not refund yet if E2B fails after billing.
-8. **Capture stderr properly when docker is missing.** PR 11 worker
+7. **Capture stderr properly when docker is missing.** PR 11 worker
    `exit_code` lands but `error` column stays null if execa cannot
    spawn.
 

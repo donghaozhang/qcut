@@ -11,7 +11,7 @@ three paths and what's done / not done.
 | ----------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
 | `qcut-cli:agents-smoke` (local Docker image)          | local Docker daemon       | ✅ built for `linux/amd64`; `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, and Claude Code `2.1.142`                                                                                                          | n/a                                |
 | `qcut-cli:dev` (local Docker image)                   | local Docker daemon       | ✅ built, **verified end-to-end** against prod                                                                                                                                                                   | n/a                                |
-| `ghcr.io/quriosity-agent/qcut-cli:v0`                 | GitHub Container Registry | ✅ built by workflow run `25893277360`; `qcut-smoke` passed; **older digest does not include Codex/Claude Code until republished**                                                                               | ✅ public, anonymous pull verified |
+| `ghcr.io/quriosity-agent/qcut-cli:v0`                 | GitHub Container Registry | ✅ republished by workflow run `25897357872`; pushed-image `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, and Claude Code `2.1.142`                                                                            | ✅ public, anonymous pull verified |
 | E2B template `qcut-cli` (ID `<your-e2b-template-id>`) | E2B's build cluster       | ⚠️ **built but with bugs** — `Sandbox.create()` works, but the `qcut` wrapper script's shebang is mangled (`#!/usr/bin/env bashnexec ...`). Needs rebuild with the `echo`-based wrapper now in `e2b.Dockerfile`. | n/a (E2B private)                  |
 
 Current working:
@@ -49,14 +49,14 @@ Current working:
 
 Verified provider runs:
 
-- GHCR workflow run `25893277360` published:
+- GHCR workflow run `25897357872` republished:
   - `ghcr.io/quriosity-agent/qcut-cli:v0`
   - `ghcr.io/quriosity-agent/qcut-cli:latest`
   - digest
-    `sha256:b1b35894c4c9b77fc79522ed209d610cfd2f3816479056f8aa61d6a8bcce2356`
+    `sha256:c8411892681fd119188f566ee2a304d81221e1e92e0e0092965537d456927d52`
 - The GHCR package was made public. Anonymous Docker pull of
-  `ghcr.io/quriosity-agent/qcut-cli:v0` succeeded, and local
-  `docker run ... qcut-smoke` passed.
+  `ghcr.io/quriosity-agent/qcut-cli:v0` succeeded, and the pushed-image
+  workflow smoke passed.
 - Daytona dogfood succeeded against the pushed GHCR image:
   - job `dogfood-cc1078a0-2966-4afc-8444-08d514b76dca`
   - runner `adb353a8-269f-4f80-9987-4a71f98f599a`
@@ -73,8 +73,6 @@ Verified provider runs:
 
 Currently still needs external provider work:
 
-- GHCR: publish a refreshed tag after this Dockerfile change. Daytona
-  jobs using the old `v0` digest will not see `codex` or `claude`.
 - E2B: if rebuilding the browser-sandbox template, re-run
   `e2b template create qcut-cli -d e2b.Dockerfile --cpu-count 2
 --memory-mb 4096` after moving workspace `node_modules` out (see
@@ -83,17 +81,14 @@ Currently still needs external provider work:
 
 ## Next subtask
 
-The GHCR/Daytona path is proven, and the next local image contains the
-coding agent CLIs. Next, ship the image change and then continue Phase 3
-product hardening:
+The GHCR/Daytona image path is proven and `v0` now contains the coding
+agent CLIs. Next, continue Phase 3 product hardening:
 
-1. Publish a refreshed GHCR image tag that includes Codex CLI and Claude
-   Code CLI, then point `QCUT_IMAGE_TAG` at that tag.
-2. Merge/deploy the worker changes that normalize Supabase rows and use
+1. Merge/deploy the worker changes that normalize Supabase rows and use
    `/tmp/qcut-output` for Daytona.
-3. Implement credit refund on failed sandbox spawn.
-4. Design and migrate `agent_secrets.value` encryption.
-5. Replace the wzrdagentstudio `/sandbox` localStorage token shim with
+2. Implement credit refund on failed sandbox spawn.
+3. Design and migrate `agent_secrets.value` encryption.
+4. Replace the wzrdagentstudio `/sandbox` localStorage token shim with
    the real QCut sign-in flow.
 
 ## Path A — local Docker (fastest, dev only)
