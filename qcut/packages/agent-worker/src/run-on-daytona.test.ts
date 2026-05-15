@@ -14,13 +14,14 @@ import {
 } from "./run-on-daytona";
 
 const originalDaytonaApiKey = process.env.DAYTONA_API_KEY;
+const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
 
 afterEach(() => {
 	process.env.DAYTONA_API_KEY = originalDaytonaApiKey;
 	vi.restoreAllMocks();
 });
 
-function makeJob(): AgentJob {
+function makeJob(overrides: Partial<AgentJob> = {}): AgentJob {
 	return {
 		id: "job-1",
 		userId: "user-1",
@@ -33,6 +34,7 @@ function makeJob(): AgentJob {
 		exitCode: null,
 		error: null,
 		runnerId: "runner-1",
+		...overrides,
 	};
 }
 
@@ -89,6 +91,19 @@ describe("buildDaytonaCommand", () => {
 			buildDaytonaCommand({ command: "qcut system doctor; curl bad" })
 		).toThrow("shell-metacharacters");
 	});
+
+	it("builds a codex stdin command without interpolating the prompt", () => {
+		expect(
+			buildDaytonaCommand({
+				command: CODEX_AGENT_COMMAND,
+				args: { codexPrompt: "Explain QCut's agent path." },
+			})
+		).toEqual({
+			command:
+				"set -o pipefail; mkdir -p /tmp/qcut-output; printf '%s' \"$QCUT_CODEX_PROMPT_B64\" | base64 -d | /usr/local/bin/qcut-entrypoint codex exec --skip-git-repo-check --json --output-last-message /tmp/qcut-output/codex-last-message.md - > /tmp/qcut-output/codex-events.jsonl",
+			archiveCommand: "tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
+		});
+	});
 });
 
 describe("buildDaytonaEnv", () => {
@@ -105,6 +120,33 @@ describe("buildDaytonaEnv", () => {
 			OPENAI_API_KEY: "sk-test",
 			GEMINI_API_KEY: "gm-test",
 		});
+	});
+
+	it("adds codex prompt bootstrap env for codex jobs", () => {
+		const env = buildDaytonaEnv({
+			secrets: [
+				{ key: "CODEX_AUTH_JSON", value: '{"tokens":{"id_token":"x"}}' },
+			],
+			job: makeJob({
+				command: CODEX_AGENT_COMMAND,
+				args: { codexPrompt: "Explain QCut's agent path." },
+			}),
+		});
+
+		expect(env.QCUT_BOOTSTRAP_CODEX).toBe("1");
+		expect(env.CODEX_AUTH_JSON).toBe('{"tokens":{"id_token":"x"}}');
+		expect(
+			Buffer.from(env.QCUT_CODEX_PROMPT_B64, "base64").toString("utf8")
+		).toBe("Explain QCut's agent path.");
+	});
+
+	it("rejects codex jobs without prompt args before sandbox creation", () => {
+		expect(() =>
+			buildDaytonaEnv({
+				secrets: [],
+				job: makeJob({ command: CODEX_AGENT_COMMAND, args: {} }),
+			})
+		).toThrow("codexPrompt is required");
 	});
 });
 

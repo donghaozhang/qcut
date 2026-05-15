@@ -12,6 +12,8 @@ set -euo pipefail
 
 ENV_DIR="${HOME}/.qcut"
 ENV_FILE="${ENV_DIR}/.env"
+CODEX_DIR="${CODEX_HOME:-${HOME}/.codex}"
+CODEX_AUTH_FILE="${CODEX_DIR}/auth.json"
 
 mkdir -p "${ENV_DIR}"
 chmod 0700 "${ENV_DIR}"
@@ -48,6 +50,24 @@ for key in "${ALLOWED_KEYS[@]}"; do
   fi
 done
 chmod 0600 "${ENV_FILE}"
+
+bootstrap_codex_auth() {
+  mkdir -p "${CODEX_DIR}"
+  chmod 0700 "${CODEX_DIR}"
+
+  if [[ -n "${CODEX_AUTH_JSON:-}" ]]; then
+    printf '%s' "${CODEX_AUTH_JSON}" | jq -e . >/dev/null
+    printf '%s' "${CODEX_AUTH_JSON}" > "${CODEX_AUTH_FILE}"
+    chmod 0600 "${CODEX_AUTH_FILE}"
+    return
+  fi
+
+  if [[ -n "${OPENAI_API_KEY:-}" && "${QCUT_BOOTSTRAP_CODEX:-}" == "1" ]]; then
+    printf '%s' "${OPENAI_API_KEY}" | codex login --with-api-key >/dev/null
+  fi
+}
+
+bootstrap_codex_auth "$@"
 
 # If no command was provided, fall through to bash (interactive shell).
 exec "$@"

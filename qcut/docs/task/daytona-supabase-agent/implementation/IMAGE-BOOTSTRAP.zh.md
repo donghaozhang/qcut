@@ -9,6 +9,7 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
 | 产物                                               | 位置                      | 是否构建？                                                                                                                                                  | 是否推送？                  |
 | -------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
 | `qcut-cli:agents-smoke`（本地 Docker 镜像）        | 本地 Docker daemon        | ✅ 按 `linux/amd64` 构建；`qcut-smoke` 验过 qcut、Codex CLI `0.130.0`、Claude Code `2.1.142`                                                                 | n/a                         |
+| `qcut-cli:codex-auth-smoke`（本地 Docker 镜像）   | 本地 Docker daemon        | ✅ 按 `linux/amd64` 构建；验证 qcut smoke、`CODEX_AUTH_JSON` 运行时 Codex 登录启动、prompt env 解码                                                           | n/a                         |
 | `qcut-cli:dev`（本地 Docker 镜像）                 | 本地 Docker daemon        | ✅ 已构建、**对生产端到端验证过**                                                                                                                           | n/a                         |
 | `ghcr.io/quriosity-agent/qcut-cli:v0`              | GitHub Container Registry | ✅ workflow run `25897357872` 已重新发布；推后 `qcut-smoke` 验过 qcut、Codex CLI `0.130.0`、Claude Code `2.1.142`                                           | ✅ public，匿名 pull 已验证 |
 | E2B 模板 `qcut-cli`（ID `<your-e2b-template-id>`） | E2B 构建集群              | ⚠️ **建好了但有 bug** —— `Sandbox.create()` 能用，但 `qcut` 包装脚本的 shebang 被搞坏（`#!/usr/bin/env bashnexec ...`）。需要按现在 `e2b.Dockerfile` 重建。 | n/a（E2B 私有）             |
@@ -36,6 +37,14 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
   `0.130.0` 和 Claude Code `2.1.142`。本地 `linux/amd64`
   `qcut-cli:agents-smoke` 镜像已经证明这两个 binary 能在 Daytona
   使用的同架构里启动。
+- `electron/native-pipeline/container/entrypoint.sh` 现在会在运行时启动
+  Codex 登录。`CODEX_AUTH_JSON` 会先用 `jq` 校验，再写到权限 `0600`
+  的 `~/.codex/auth.json`，不会进入 `~/.qcut/.env`。如果 Codex 任务
+  没有 auth JSON，会设置 `QCUT_BOOTSTRAP_CODEX=1`，entrypoint 才会
+  尝试用 `OPENAI_API_KEY` 生成 Codex auth。
+- website 的 Chat Agent 页现在可提交 qcut 图片任务，也可提交 Codex chat
+  任务。Codex prompt 不拼进 shell command：它走 `args.codexPrompt` →
+  `QCUT_CODEX_PROMPT_B64` → stdin → `codex exec --skip-git-repo-check --json -`。
 - 本机 `~/.qcut/.env` 现在已有 Daytona/Supabase dogfood 所需环境变量名。
   `scripts/daytona-worker-dogfood.ts` 会先自动读取这个文件，再检查必需环境变量。
 - Supabase 项目 `kbrtxitvavpuimuihppz` 已通过
@@ -66,6 +75,11 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
   - platform `linux/amd64`
   - `codex --version` → `codex-cli 0.130.0`
   - `claude --version` → `2.1.142 (Claude Code)`
+- 本地 Codex auth bootstrap smoke 已通过：
+  - image `qcut-cli:codex-auth-smoke`
+  - fake `CODEX_AUTH_JSON` 能写入 `~/.codex/auth.json`
+  - auth 文件权限验证为 `0600`
+  - `QCUT_CODEX_PROMPT_B64` 能在镜像内解码，不经过 shell 插值
 
 当前还需要外部 provider 工作：
 
@@ -76,14 +90,15 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
 
 ## 下一个子任务
 
-GHCR/Daytona 镜像路径已经证明能跑，`v0` 现在也已经带 coding agent CLI。
-下一步继续 Phase 3 的产品硬化：
+GHCR/Daytona 镜像路径已经证明能跑，本地 Docker 也已经验证 Codex auth
+bootstrap。下一步继续 Phase 3 的产品硬化：
 
-1. merge/deploy worker 修复：Supabase row normalize、Daytona 使用
+1. 重新发布 GHCR `v0`，让 Daytona 拿到 entrypoint auth bootstrap。
+2. merge/deploy worker 修复：Supabase row normalize、Daytona 使用
    `/tmp/qcut-output`。
-2. 实现 sandbox spawn 失败时退 credit。
-3. 设计并迁移 `agent_secrets.value` 加密。
-4. 把 wzrdagentstudio `/sandbox` 的 localStorage token 占位换成真的
+3. 实现 sandbox spawn 失败时退 credit。
+4. 设计并迁移 `agent_secrets.value` 加密。
+5. 把 wzrdagentstudio `/sandbox` 的 localStorage token 占位换成真的
    QCut 登录流。
 
 ## 路径 A —— 本地 Docker（最快，仅开发）

@@ -32,6 +32,7 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
 | `b536d61b2`                            | **Phase 3 follow-up** —— GHCR 镜像 workflow、当前 `@daytona/sdk` worker 路径、Daytona runner 测试、镜像启动文档                                                                            | 完成 PR 05 Daytona swap-in 的代码部分；provider 验证仍待做 |
 | `ed99a4ac9` + 本轮 follow-up           | **Phase 3 verification** —— GHCR owner 大小写修复、public `qcut-cli:v0` 发布、Daytona dogfood、worker row normalize、Daytona 可写输出目录                                                  | 完成 PR 05 Daytona swap-in 的 provider 验证                |
 | `ce02d4968`                            | `Dockerfile.cli` 现在安装固定版本 Codex CLI `0.130.0` 和 Claude Code CLI `2.1.142`；`qcut-smoke` 会硬检查两个 binary 和版本；GHCR `v0` 已重新发布                                              | 更新 PR 02 镜像契约                                       |
+| 本轮 follow-up                         | Chat Agent Codex 模式：license-server 只接受固定的 `codex exec --skip-git-repo-check --json -`，worker 用 base64 env 传 prompt，entrypoint 从 `CODEX_AUTH_JSON` 或受控 `OPENAI_API_KEY` 启动 Codex 登录 | 扩展 PR 02 + PR 04，支持 coding-agent sandbox 任务         |
 
 ## 生产环境实测
 
@@ -50,6 +51,7 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
 | Daytona dogfood worker 路径                                                | job `dogfood-cc1078a0-2966-4afc-8444-08d514b76dca` 成功，exit `0`；artifact row `234936d9-3e87-4ca9-ba68-cff42299726b` 已上传 |
 | 本地 amd64 agent CLI 镜像 smoke                                           | `docker buildx build --platform linux/amd64 --tag qcut-cli:agents-smoke ...` 成功；`qcut-smoke` 验到 `codex-cli 0.130.0` 和 `2.1.142 (Claude Code)` |
 | GHCR agent CLI 镜像发布                                                    | workflow run `25897357872` 重新发布 `ghcr.io/quriosity-agent/qcut-cli:v0`；digest `sha256:c8411892681fd119188f566ee2a304d81221e1e92e0e0092965537d456927d52`；推后 smoke 验到 Codex 和 Claude Code |
+| 本地 Codex auth bootstrap smoke                                           | `qcut-cli:codex-auth-smoke` 按 `linux/amd64` 构建；假的 `CODEX_AUTH_JSON` 能写成权限 `0600` 的 `~/.codex/auth.json`；`QCUT_CODEX_PROMPT_B64` 在镜像内能正确解码 |
 
 ## `b536d61b2` 之后已经完成的事
 
@@ -88,24 +90,38 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
    workflow run `25897357872` 推送刷新后的镜像，然后又从 GHCR 拉回
    `ghcr.io/quriosity-agent/qcut-cli:v0` 跑 `qcut-smoke`。smoke 日志确认
    `/usr/local/bin/codex` 和 `/usr/local/bin/claude` 都存在。
+10. **Codex chat job 已接入现有 agent 路径。**
+    website 的 Chat Agent 页现在可以提交 Codex 模式任务。license-server
+    只接受固定的 stdin 版 Codex command；prompt 走 `args.codexPrompt`；
+    worker 把它 base64 成 `QCUT_CODEX_PROMPT_B64`；Daytona 里实际跑：
+    `codex exec --skip-git-repo-check --json --output-last-message ... -`。
+11. **Codex 登录只在运行时处理。**
+    `CODEX_AUTH_JSON` 从 `agent_secrets` 投影进 sandbox env，entrypoint
+    把它写成权限 `0600` 的 `~/.codex/auth.json`。如果没有 auth JSON，
+    Codex 任务会设置 `QCUT_BOOTSTRAP_CODEX=1`，entrypoint 才会用
+    `OPENAI_API_KEY` 跑 `codex login --with-api-key`。普通 qcut 任务不会
+    触发这条登录路径。
 
 ## 还没做的（依赖外部凭证 / 服务）
 
-1. **merge/deploy 本轮 worker 修复**。provider 路径已经用生产服务
+1. **重新发布带 Codex auth bootstrap 的 GHCR `v0`。** 上一个 `v0`
+   已有 Codex binary；但 `CODEX_AUTH_JSON` / `QCUT_BOOTSTRAP_CODEX`
+   的 entrypoint 行为必须进新镜像，Daytona 才能用。
+2. **merge/deploy 本轮 worker 修复**。provider 路径已经用生产服务
    本地验证；部署态 worker 也需要同样的 row normalize 和 Daytona
    output dir 修复。
-2. **设 / 确认 license-server 密钥**（`wrangler secret put`）：
+3. **设 / 确认 license-server 密钥**（`wrangler secret put`）：
    `E2B_API_KEY`、`RELAY_SIGNING_SECRET`、`RELAY_HOST`、`QCUT_IMAGE_TAG`。
-3. **部署 / 确认 `@qcut/relay`**：`packages/qcut-relay` 下
+4. **部署 / 确认 `@qcut/relay`**：`packages/qcut-relay` 下
    `wrangler deploy`。
-4. **轮换泄露的 Supabase PAT**（`sbp_b303...`）——GitHub secret
+5. **轮换泄露的 Supabase PAT**（`sbp_b303...`）——GitHub secret
    scanner 已看到。去 supabase.com/dashboard/account/tokens 新建一个。
-5. **wzrdagentstudio 接 QCut 登录**。SandboxPage 当前读
+6. **wzrdagentstudio 接 QCut 登录**。SandboxPage 当前读
    `localStorage.qcut_auth_token` 作为 v0 暂存——换成真正的 QCut
    sign-in 组件。
-6. **spawn 失败时退费**。PR 12 的 `routes/sandbox.ts` 先扣费，但
+7. **spawn 失败时退费**。PR 12 的 `routes/sandbox.ts` 先扣费，但
    E2B 失败后没退。
-7. **docker 不在时 stderr 抓不到**。PR 11 worker 退出码会落 DB，
+8. **docker 不在时 stderr 抓不到**。PR 11 worker 退出码会落 DB，
    但 `error` 列在 execa 起不来时是 null。
 
 ## 怎么读各 spec

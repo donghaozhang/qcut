@@ -11,7 +11,11 @@
 3. `~/.config/video-ai-studio/credentials.env`（旧 AICP 文件，仅 beta 期镜像）
 4. `none`（没有）
 
-支持的 key 名：`FAL_KEY`、`GEMINI_API_KEY`、`GOOGLE_AI_API_KEY`、`OPENROUTER_API_KEY`、`ELEVENLABS_API_KEY`、`OPENAI_API_KEY`、`RUNWAY_API_KEY`、`HEYGEN_API_KEY`、`DID_API_KEY`、`SYNTHESIA_API_KEY`、`QCUT_AUTH_TOKEN`。
+支持的 key 名：`FAL_KEY`、`GEMINI_API_KEY`、`GOOGLE_AI_API_KEY`、`OPENROUTER_API_KEY`、`ELEVENLABS_API_KEY`、`OPENAI_API_KEY`、`RUNWAY_API_KEY`、`HEYGEN_API_KEY`、`DID_API_KEY`、`SYNTHESIA_API_KEY`、`QCUT_AUTH_TOKEN`、`CODEX_AUTH_JSON`。
+
+`CODEX_AUTH_JSON` 是 Codex chat-agent 任务的特殊运行时 secret。它会被
+投影进 sandbox 环境变量，由容器 entrypoint 校验为 JSON，再写成权限
+`0600` 的 `~/.codex/auth.json`。它故意不会写进 `~/.qcut/.env`。
 
 容器的目标：在跑任何 `qcut …` 之前，把该 workspace 的那部分 key 装进上面任一层。
 

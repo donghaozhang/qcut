@@ -10,6 +10,7 @@ three paths and what's done / not done.
 | Artifact                                              | Where                     | Built?                                                                                                                                                                                                           | Pushed?                            |
 | ----------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
 | `qcut-cli:agents-smoke` (local Docker image)          | local Docker daemon       | ✅ built for `linux/amd64`; `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, and Claude Code `2.1.142`                                                                                                          | n/a                                |
+| `qcut-cli:codex-auth-smoke` (local Docker image)      | local Docker daemon       | ✅ built for `linux/amd64`; verifies qcut smoke plus runtime Codex auth bootstrap from `CODEX_AUTH_JSON` and prompt env decoding                                                                                 | n/a                                |
 | `qcut-cli:dev` (local Docker image)                   | local Docker daemon       | ✅ built, **verified end-to-end** against prod                                                                                                                                                                   | n/a                                |
 | `ghcr.io/quriosity-agent/qcut-cli:v0`                 | GitHub Container Registry | ✅ republished by workflow run `25897357872`; pushed-image `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, and Claude Code `2.1.142`                                                                            | ✅ public, anonymous pull verified |
 | E2B template `qcut-cli` (ID `<your-e2b-template-id>`) | E2B's build cluster       | ⚠️ **built but with bugs** — `Sandbox.create()` works, but the `qcut` wrapper script's shebang is mangled (`#!/usr/bin/env bashnexec ...`). Needs rebuild with the `echo`-based wrapper now in `e2b.Dockerfile`. | n/a (E2B private)                  |
@@ -39,6 +40,15 @@ Current working:
   and Claude Code `2.1.142`. The local `linux/amd64`
   `qcut-cli:agents-smoke` image proves both binaries launch inside the
   same architecture Daytona consumes.
+- `electron/native-pipeline/container/entrypoint.sh` now bootstraps Codex
+  auth at runtime. `CODEX_AUTH_JSON` is validated with `jq`, written to
+  `~/.codex/auth.json` with mode `0600`, and never enters
+  `~/.qcut/.env`. Codex jobs without auth JSON set `QCUT_BOOTSTRAP_CODEX=1`
+  so the entrypoint may derive Codex auth from `OPENAI_API_KEY`.
+- The website Chat Agent page can submit either qcut image jobs or Codex
+  chat jobs. Codex prompt text is kept out of shell commands: it goes
+  through `args.codexPrompt`, then `QCUT_CODEX_PROMPT_B64`, then stdin to
+  `codex exec --skip-git-repo-check --json -`.
 - Local `~/.qcut/.env` now contains the required Daytona/Supabase
   dogfood env names. `scripts/daytona-worker-dogfood.ts` auto-loads
   that file before checking required env.
@@ -70,6 +80,12 @@ Verified provider runs:
   - platform `linux/amd64`
   - `codex --version` → `codex-cli 0.130.0`
   - `claude --version` → `2.1.142 (Claude Code)`
+- Local Codex auth bootstrap smoke succeeded:
+  - image `qcut-cli:codex-auth-smoke`
+  - fake `CODEX_AUTH_JSON` wrote `~/.codex/auth.json`
+  - auth file mode verified as `0600`
+  - `QCUT_CODEX_PROMPT_B64` decoded inside the image without shell
+    interpolation
 
 Currently still needs external provider work:
 
@@ -81,14 +97,15 @@ Currently still needs external provider work:
 
 ## Next subtask
 
-The GHCR/Daytona image path is proven and `v0` now contains the coding
-agent CLIs. Next, continue Phase 3 product hardening:
+The GHCR/Daytona image path is proven and local Docker now verifies the
+Codex auth bootstrap. Next, continue Phase 3 product hardening:
 
-1. Merge/deploy the worker changes that normalize Supabase rows and use
+1. Republish GHCR `v0` so Daytona picks up the entrypoint auth bootstrap.
+2. Merge/deploy the worker changes that normalize Supabase rows and use
    `/tmp/qcut-output` for Daytona.
-2. Implement credit refund on failed sandbox spawn.
-3. Design and migrate `agent_secrets.value` encryption.
-4. Replace the wzrdagentstudio `/sandbox` localStorage token shim with
+3. Implement credit refund on failed sandbox spawn.
+4. Design and migrate `agent_secrets.value` encryption.
+5. Replace the wzrdagentstudio `/sandbox` localStorage token shim with
    the real QCut sign-in flow.
 
 ## Path A — local Docker (fastest, dev only)

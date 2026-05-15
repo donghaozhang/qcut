@@ -9,7 +9,12 @@ vi.mock("../db/drizzle", () => ({
 }));
 
 const { db } = await import("../db/drizzle");
-const { agentRoutes, validateCommand } = await import("./agent");
+const {
+	CODEX_AGENT_COMMAND,
+	agentRoutes,
+	validateAgentJobBody,
+	validateCommand,
+} = await import("./agent");
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -65,14 +70,54 @@ describe("validateCommand", () => {
 
 	it("rejects non-qcut commands", () => {
 		expect(validateCommand({ command: "curl https://example.com" })).toBe(
-			"command_must_start_with_qcut"
+			"command_must_start_with_qcut_or_codex_exec"
 		);
+	});
+
+	it("accepts the fixed codex exec stdin command", () => {
+		expect(validateCommand({ command: CODEX_AGENT_COMMAND })).toBe("");
+	});
+
+	it("requires a prompt for codex exec jobs", () => {
+		expect(
+			validateAgentJobBody({
+				command: CODEX_AGENT_COMMAND,
+				args: {},
+			})
+		).toBe("codex_prompt_required");
 	});
 
 	it("rejects shell metacharacters", () => {
 		expect(
 			validateCommand({ command: "qcut system doctor --json; curl bad" })
 		).toBe("command_contains_unsafe_token");
+	});
+
+	it("creates a queued codex job with prompt args", async () => {
+		const { values } = mockInsertChain();
+
+		const res = await buildApp().request("/api/agent/jobs", {
+			method: "POST",
+			headers: jsonHeaders(),
+			body: JSON.stringify({
+				command: CODEX_AGENT_COMMAND,
+				args: { codexPrompt: "Summarize the project status." },
+			}),
+		});
+
+		expect(res.status).toBe(201);
+		const body = await res.json();
+		expect(body.job.command).toBe(CODEX_AGENT_COMMAND);
+		expect(body.job.args).toEqual({
+			codexPrompt: "Summarize the project status.",
+		});
+		expect(values).toHaveBeenNthCalledWith(
+			1,
+			expect.objectContaining({
+				command: CODEX_AGENT_COMMAND,
+				args: { codexPrompt: "Summarize the project status." },
+			})
+		);
 	});
 });
 

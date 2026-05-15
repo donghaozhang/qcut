@@ -98,6 +98,11 @@ Notes:
 - Codex CLI and Claude Code CLI are installed with their official npm packages; the version build args default to the latest smoke-verified versions and can be overridden when intentionally upgrading.
 - Final user is non-root (`qcut`, uid 1000) so `~/.qcut/.env` mode 0600 owned by `qcut` works without root juggling.
 - `QCUT_VERSION` is baked at build time and read by `system doctor`.
+- Codex login is runtime-only. `CODEX_AUTH_JSON` is not part of the qcut
+  `.env` allow-list; the entrypoint validates it and writes
+  `~/.codex/auth.json` with mode `0600`. If a Codex job sets
+  `QCUT_BOOTSTRAP_CODEX=1`, the entrypoint may also run
+  `codex login --with-api-key` from `OPENAI_API_KEY`.
 
 ### Step 2 — Entrypoint
 
@@ -134,6 +139,17 @@ for key in "${ALLOWED_KEYS[@]}"; do
   fi
 done
 chmod 0600 "${ENV_FILE}"
+
+# Codex jobs can project a full auth.json through the sandbox env. This is
+# intentionally separate from ~/.qcut/.env because it is not a qcut provider key.
+if [[ -n "${CODEX_AUTH_JSON:-}" ]]; then
+  mkdir -p "${HOME}/.codex"
+  printf '%s' "${CODEX_AUTH_JSON}" | jq -e . >/dev/null
+  printf '%s' "${CODEX_AUTH_JSON}" > "${HOME}/.codex/auth.json"
+  chmod 0600 "${HOME}/.codex/auth.json"
+elif [[ "${QCUT_BOOTSTRAP_CODEX:-}" == "1" && -n "${OPENAI_API_KEY:-}" ]]; then
+  printf '%s' "${OPENAI_API_KEY}" | codex login --with-api-key >/dev/null
+fi
 
 # If no command was passed, fall through to bash (interactive).
 exec "$@"

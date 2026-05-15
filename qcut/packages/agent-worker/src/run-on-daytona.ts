@@ -19,7 +19,13 @@ import { execa } from "execa";
 
 import type { AgentJob } from "@qcut/db";
 
-import { tokenizeCommand } from "./run-container.js";
+import {
+	buildCodexPromptEnv,
+	buildCodexShellCommand,
+	getCodexPrompt,
+	isCodexAgentCommand,
+	tokenizeCommand,
+} from "./run-container.js";
 import type { ContainerResult } from "./run-container.js";
 
 const IMAGE_TAG =
@@ -105,10 +111,20 @@ interface CommandParts {
 
 export function buildDaytonaCommand({
 	command,
+	args,
 }: {
 	command: string;
+	args?: unknown;
 }): CommandParts {
 	const safeArgv = tokenizeCommand(command);
+	if (isCodexAgentCommand({ command })) {
+		getCodexPrompt({ args });
+		return {
+			command: buildCodexShellCommand({ outputDir: DAYTONA_OUTPUT_DIR }),
+			archiveCommand: `tar -C ${DAYTONA_OUTPUT_DIR} -cf ${OUTPUT_ARCHIVE} .`,
+		};
+	}
+
 	const qcutCommand = `/usr/local/bin/qcut-entrypoint ${safeArgv.join(
 		" "
 	)} -o ${DAYTONA_OUTPUT_DIR}`;
@@ -121,11 +137,19 @@ export function buildDaytonaCommand({
 
 export function buildDaytonaEnv({
 	secrets,
+	job,
 }: {
 	secrets: AgentSecretRow[];
+	job?: AgentJob;
 }): Record<string, string> {
 	const env: Record<string, string> = { QCUT_SESSION_ROLE: "agent" };
 	for (const secret of secrets) env[secret.key] = secret.value;
+	if (job && isCodexAgentCommand({ command: job.command })) {
+		Object.assign(
+			env,
+			buildCodexPromptEnv({ prompt: getCodexPrompt({ args: job.args }) })
+		);
+	}
 	return env;
 }
 
@@ -190,6 +214,7 @@ export async function runOnDaytona({
 	const sessionId = deps.makeSessionId?.() ?? `qcut-${randomUUID()}`;
 	const { command, archiveCommand } = buildDaytonaCommand({
 		command: job.command,
+		args: job.args,
 	});
 
 	let sandbox: DaytonaSandbox | undefined;
@@ -200,7 +225,7 @@ export async function runOnDaytona({
 		sandbox = await daytona.create(
 			{
 				image: IMAGE_TAG,
-				envVars: buildDaytonaEnv({ secrets: secrets ?? [] }),
+				envVars: buildDaytonaEnv({ secrets: secrets ?? [], job }),
 				resources: { cpu: 2, memory: 4 },
 				ephemeral: true,
 				autoStopInterval: 30,

@@ -86,6 +86,10 @@ CMD ["bash"]
 - Codex CLI 和 Claude Code CLI 走官方 npm 包安装；版本 build args 默认最新 smoke 验过的版本，想主动升级时再覆盖。
 - 最终用户非 root（`qcut`, uid 1000），`~/.qcut/.env` 0600 直接顺。
 - `QCUT_VERSION` 构建期烧进去，被 `system doctor` 读。
+- Codex 登录只在运行时处理。`CODEX_AUTH_JSON` 不在 qcut `.env`
+  allow-list 里；entrypoint 会校验它并写成权限 `0600` 的
+  `~/.codex/auth.json`。如果 Codex 任务设置 `QCUT_BOOTSTRAP_CODEX=1`，
+  entrypoint 也可以用 `OPENAI_API_KEY` 跑 `codex login --with-api-key`。
 
 ### Step 2 —— Entrypoint
 
@@ -114,6 +118,15 @@ for key in "${ALLOWED_KEYS[@]}"; do
   fi
 done
 chmod 0600 "${ENV_FILE}"
+
+if [[ -n "${CODEX_AUTH_JSON:-}" ]]; then
+  mkdir -p "${HOME}/.codex"
+  printf '%s' "${CODEX_AUTH_JSON}" | jq -e . >/dev/null
+  printf '%s' "${CODEX_AUTH_JSON}" > "${HOME}/.codex/auth.json"
+  chmod 0600 "${HOME}/.codex/auth.json"
+elif [[ "${QCUT_BOOTSTRAP_CODEX:-}" == "1" && -n "${OPENAI_API_KEY:-}" ]]; then
+  printf '%s' "${OPENAI_API_KEY}" | codex login --with-api-key >/dev/null
+fi
 
 exec "$@"
 ```

@@ -8,7 +8,9 @@ const agentRoutes = new Hono();
 agentRoutes.use("/*", authMiddleware);
 
 const MAX_COMMAND_LENGTH = 2000;
+const MAX_CODEX_PROMPT_LENGTH = 12_000;
 const SAFE_COMMAND_TOKEN = /^[A-Za-z0-9_\-./:=,@+]+$/;
+const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
 
 interface CreateAgentJobBody {
 	command?: string;
@@ -83,7 +85,10 @@ async function createAgentJob(c: Context) {
 	const userId = c.get("userId") as string;
 	const body = await parseCreateAgentJobBody({ c });
 	const command = body.command?.trim() ?? "";
-	const validationError = validateCommand({ command });
+	const validationError = validateAgentJobBody({
+		command,
+		args: body.args,
+	});
 
 	if (validationError) {
 		return c.json({ error: validationError }, 400);
@@ -143,8 +148,8 @@ function validateCommand({ command }: { command: string }): string {
 	if (command.length > MAX_COMMAND_LENGTH) {
 		return "command_too_long";
 	}
-	if (!command.startsWith("qcut ")) {
-		return "command_must_start_with_qcut";
+	if (!command.startsWith("qcut ") && command !== CODEX_AGENT_COMMAND) {
+		return "command_must_start_with_qcut_or_codex_exec";
 	}
 
 	const tokens = command.split(/\s+/).filter(Boolean);
@@ -154,6 +159,32 @@ function validateCommand({ command }: { command: string }): string {
 		}
 	}
 
+	return "";
+}
+
+function validateAgentJobBody({
+	command,
+	args,
+}: {
+	command: string;
+	args?: Record<string, unknown>;
+}): string {
+	const commandError = validateCommand({ command });
+	if (commandError) {
+		return commandError;
+	}
+	if (command !== CODEX_AGENT_COMMAND) {
+		return "";
+	}
+
+	const prompt =
+		args && typeof args.codexPrompt === "string" ? args.codexPrompt.trim() : "";
+	if (prompt.length === 0) {
+		return "codex_prompt_required";
+	}
+	if (prompt.length > MAX_CODEX_PROMPT_LENGTH) {
+		return "codex_prompt_too_long";
+	}
 	return "";
 }
 
@@ -211,4 +242,9 @@ function serializeAgentArtifact(artifact: typeof agentArtifacts.$inferSelect) {
 	};
 }
 
-export { agentRoutes, validateCommand };
+export {
+	CODEX_AGENT_COMMAND,
+	agentRoutes,
+	validateAgentJobBody,
+	validateCommand,
+};
