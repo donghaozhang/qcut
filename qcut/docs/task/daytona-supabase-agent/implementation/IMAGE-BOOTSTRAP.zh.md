@@ -11,7 +11,7 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
 | `qcut-cli:agents-smoke`（本地 Docker 镜像）        | 本地 Docker daemon        | ✅ 按 `linux/amd64` 构建；`qcut-smoke` 验过 qcut、Codex CLI `0.130.0`、Claude Code `2.1.142`                                                                 | n/a                         |
 | `qcut-cli:codex-auth-smoke`（本地 Docker 镜像）   | 本地 Docker daemon        | ✅ 按 `linux/amd64` 构建；验证 qcut smoke、`CODEX_AUTH_JSON` 运行时 Codex 登录启动、prompt env 解码                                                           | n/a                         |
 | `qcut-cli:dev`（本地 Docker 镜像）                 | 本地 Docker daemon        | ✅ 已构建、**对生产端到端验证过**                                                                                                                           | n/a                         |
-| `ghcr.io/quriosity-agent/qcut-cli:v0`              | GitHub Container Registry | ✅ workflow run `25897357872` 已重新发布；推后 `qcut-smoke` 验过 qcut、Codex CLI `0.130.0`、Claude Code `2.1.142`                                           | ✅ public，匿名 pull 已验证 |
+| `ghcr.io/quriosity-agent/qcut-cli:v0`              | GitHub Container Registry | ✅ workflow run `25899152153` 已重新发布；推后 `qcut-smoke` 验过 qcut、Codex CLI `0.130.0`、Claude Code `2.1.142`、最新 entrypoint                            | ✅ public，匿名 pull 已验证 |
 | E2B 模板 `qcut-cli`（ID `<your-e2b-template-id>`） | E2B 构建集群              | ⚠️ **建好了但有 bug** —— `Sandbox.create()` 能用，但 `qcut` 包装脚本的 shebang 被搞坏（`#!/usr/bin/env bashnexec ...`）。需要按现在 `e2b.Dockerfile` 重建。 | n/a（E2B 私有）             |
 
 当前能用：
@@ -54,11 +54,11 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
 
 已验证的 provider 实跑：
 
-- GHCR workflow run `25897357872` 重新发布了：
+- GHCR workflow run `25899152153` 重新发布了：
   - `ghcr.io/quriosity-agent/qcut-cli:v0`
   - `ghcr.io/quriosity-agent/qcut-cli:latest`
   - digest
-    `sha256:c8411892681fd119188f566ee2a304d81221e1e92e0e0092965537d456927d52`
+    `sha256:07ab8298aefb308a5aeefd5c2a7a3b64493c446c84f323c384b0ebeb16ae673a`
 - GHCR package 已改成 public。匿名 Docker pull
   `ghcr.io/quriosity-agent/qcut-cli:v0` 成功，workflow 对推上去的镜像
   跑 `qcut-smoke` 也通过。
@@ -90,15 +90,14 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
 
 ## 下一个子任务
 
-GHCR/Daytona 镜像路径已经证明能跑，本地 Docker 也已经验证 Codex auth
+GHCR/Daytona 镜像路径已经证明能跑，GHCR `v0` 现在也已经带 Codex auth
 bootstrap。下一步继续 Phase 3 的产品硬化：
 
-1. 重新发布 GHCR `v0`，让 Daytona 拿到 entrypoint auth bootstrap。
-2. merge/deploy worker 修复：Supabase row normalize、Daytona 使用
+1. merge/deploy worker 修复：Supabase row normalize、Daytona 使用
    `/tmp/qcut-output`。
-3. 实现 sandbox spawn 失败时退 credit。
-4. 设计并迁移 `agent_secrets.value` 加密。
-5. 把 wzrdagentstudio `/sandbox` 的 localStorage token 占位换成真的
+2. 实现 sandbox spawn 失败时退 credit。
+3. 设计并迁移 `agent_secrets.value` 加密。
+4. 把 wzrdagentstudio `/sandbox` 的 localStorage token 占位换成真的
    QCut 登录流。
 
 ## 路径 A —— 本地 Docker（最快，仅开发）

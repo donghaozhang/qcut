@@ -50,7 +50,7 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
 | 匿名 GHCR pull + smoke                                                     | package 改 public 后，`docker pull --platform linux/amd64 ghcr.io/quriosity-agent/qcut-cli:v0` 成功；`qcut-smoke` 通过        |
 | Daytona dogfood worker 路径                                                | job `dogfood-cc1078a0-2966-4afc-8444-08d514b76dca` 成功，exit `0`；artifact row `234936d9-3e87-4ca9-ba68-cff42299726b` 已上传 |
 | 本地 amd64 agent CLI 镜像 smoke                                           | `docker buildx build --platform linux/amd64 --tag qcut-cli:agents-smoke ...` 成功；`qcut-smoke` 验到 `codex-cli 0.130.0` 和 `2.1.142 (Claude Code)` |
-| GHCR agent CLI 镜像发布                                                    | workflow run `25897357872` 重新发布 `ghcr.io/quriosity-agent/qcut-cli:v0`；digest `sha256:c8411892681fd119188f566ee2a304d81221e1e92e0e0092965537d456927d52`；推后 smoke 验到 Codex 和 Claude Code |
+| GHCR agent CLI 镜像发布                                                    | workflow run `25899152153` 重新发布 `ghcr.io/quriosity-agent/qcut-cli:v0`；digest `sha256:07ab8298aefb308a5aeefd5c2a7a3b64493c446c84f323c384b0ebeb16ae673a`；推后 smoke 验到 Codex 和 Claude Code |
 | 本地 Codex auth bootstrap smoke                                           | `qcut-cli:codex-auth-smoke` 按 `linux/amd64` 构建；假的 `CODEX_AUTH_JSON` 能写成权限 `0600` 的 `~/.codex/auth.json`；`QCUT_CODEX_PROMPT_B64` 在镜像内能正确解码 |
 
 ## `b536d61b2` 之后已经完成的事
@@ -87,9 +87,10 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
    Codex CLI `0.130.0`、Claude Code `2.1.142`。`qcut-smoke`
    现在会在 `codex` 或 `claude` 缺失时直接让镜像构建失败。
 9. **GHCR `v0` 已经带这些 agent CLI。**
-   workflow run `25897357872` 推送刷新后的镜像，然后又从 GHCR 拉回
+   workflow run `25899152153` 推送刷新后的镜像，然后又从 GHCR 拉回
    `ghcr.io/quriosity-agent/qcut-cli:v0` 跑 `qcut-smoke`。smoke 日志确认
-   `/usr/local/bin/codex` 和 `/usr/local/bin/claude` 都存在。
+   `/usr/local/bin/codex` 和 `/usr/local/bin/claude` 都存在。这个发布镜像
+   也已经带上 `qcut-entrypoint` 的 Codex runtime auth bootstrap。
 10. **Codex chat job 已接入现有 agent 路径。**
     website 的 Chat Agent 页现在可以提交 Codex 模式任务。license-server
     只接受固定的 stdin 版 Codex command；prompt 走 `args.codexPrompt`；
@@ -104,24 +105,21 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
 
 ## 还没做的（依赖外部凭证 / 服务）
 
-1. **重新发布带 Codex auth bootstrap 的 GHCR `v0`。** 上一个 `v0`
-   已有 Codex binary；但 `CODEX_AUTH_JSON` / `QCUT_BOOTSTRAP_CODEX`
-   的 entrypoint 行为必须进新镜像，Daytona 才能用。
-2. **merge/deploy 本轮 worker 修复**。provider 路径已经用生产服务
+1. **merge/deploy 本轮 worker 修复**。provider 路径已经用生产服务
    本地验证；部署态 worker 也需要同样的 row normalize 和 Daytona
    output dir 修复。
-3. **设 / 确认 license-server 密钥**（`wrangler secret put`）：
+2. **设 / 确认 license-server 密钥**（`wrangler secret put`）：
    `E2B_API_KEY`、`RELAY_SIGNING_SECRET`、`RELAY_HOST`、`QCUT_IMAGE_TAG`。
-4. **部署 / 确认 `@qcut/relay`**：`packages/qcut-relay` 下
+3. **部署 / 确认 `@qcut/relay`**：`packages/qcut-relay` 下
    `wrangler deploy`。
-5. **轮换泄露的 Supabase PAT**（`sbp_b303...`）——GitHub secret
+4. **轮换泄露的 Supabase PAT**（`sbp_b303...`）——GitHub secret
    scanner 已看到。去 supabase.com/dashboard/account/tokens 新建一个。
-6. **wzrdagentstudio 接 QCut 登录**。SandboxPage 当前读
+5. **wzrdagentstudio 接 QCut 登录**。SandboxPage 当前读
    `localStorage.qcut_auth_token` 作为 v0 暂存——换成真正的 QCut
    sign-in 组件。
-7. **spawn 失败时退费**。PR 12 的 `routes/sandbox.ts` 先扣费，但
+6. **spawn 失败时退费**。PR 12 的 `routes/sandbox.ts` 先扣费，但
    E2B 失败后没退。
-8. **docker 不在时 stderr 抓不到**。PR 11 worker 退出码会落 DB，
+7. **docker 不在时 stderr 抓不到**。PR 11 worker 退出码会落 DB，
    但 `error` 列在 execa 起不来时是 null。
 
 ## 怎么读各 spec

@@ -12,7 +12,7 @@ three paths and what's done / not done.
 | `qcut-cli:agents-smoke` (local Docker image)          | local Docker daemon       | ✅ built for `linux/amd64`; `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, and Claude Code `2.1.142`                                                                                                          | n/a                                |
 | `qcut-cli:codex-auth-smoke` (local Docker image)      | local Docker daemon       | ✅ built for `linux/amd64`; verifies qcut smoke plus runtime Codex auth bootstrap from `CODEX_AUTH_JSON` and prompt env decoding                                                                                 | n/a                                |
 | `qcut-cli:dev` (local Docker image)                   | local Docker daemon       | ✅ built, **verified end-to-end** against prod                                                                                                                                                                   | n/a                                |
-| `ghcr.io/quriosity-agent/qcut-cli:v0`                 | GitHub Container Registry | ✅ republished by workflow run `25897357872`; pushed-image `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, and Claude Code `2.1.142`                                                                            | ✅ public, anonymous pull verified |
+| `ghcr.io/quriosity-agent/qcut-cli:v0`                 | GitHub Container Registry | ✅ republished by workflow run `25899152153`; pushed-image `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, Claude Code `2.1.142`, and the latest entrypoint                                                    | ✅ public, anonymous pull verified |
 | E2B template `qcut-cli` (ID `<your-e2b-template-id>`) | E2B's build cluster       | ⚠️ **built but with bugs** — `Sandbox.create()` works, but the `qcut` wrapper script's shebang is mangled (`#!/usr/bin/env bashnexec ...`). Needs rebuild with the `echo`-based wrapper now in `e2b.Dockerfile`. | n/a (E2B private)                  |
 
 Current working:
@@ -59,11 +59,11 @@ Current working:
 
 Verified provider runs:
 
-- GHCR workflow run `25897357872` republished:
+- GHCR workflow run `25899152153` republished:
   - `ghcr.io/quriosity-agent/qcut-cli:v0`
   - `ghcr.io/quriosity-agent/qcut-cli:latest`
   - digest
-    `sha256:c8411892681fd119188f566ee2a304d81221e1e92e0e0092965537d456927d52`
+    `sha256:07ab8298aefb308a5aeefd5c2a7a3b64493c446c84f323c384b0ebeb16ae673a`
 - The GHCR package was made public. Anonymous Docker pull of
   `ghcr.io/quriosity-agent/qcut-cli:v0` succeeded, and the pushed-image
   workflow smoke passed.
@@ -97,15 +97,14 @@ Currently still needs external provider work:
 
 ## Next subtask
 
-The GHCR/Daytona image path is proven and local Docker now verifies the
+The GHCR/Daytona image path is proven, and GHCR `v0` now includes the
 Codex auth bootstrap. Next, continue Phase 3 product hardening:
 
-1. Republish GHCR `v0` so Daytona picks up the entrypoint auth bootstrap.
-2. Merge/deploy the worker changes that normalize Supabase rows and use
+1. Merge/deploy the worker changes that normalize Supabase rows and use
    `/tmp/qcut-output` for Daytona.
-3. Implement credit refund on failed sandbox spawn.
-4. Design and migrate `agent_secrets.value` encryption.
-5. Replace the wzrdagentstudio `/sandbox` localStorage token shim with
+2. Implement credit refund on failed sandbox spawn.
+3. Design and migrate `agent_secrets.value` encryption.
+4. Replace the wzrdagentstudio `/sandbox` localStorage token shim with
    the real QCut sign-in flow.
 
 ## Path A — local Docker (fastest, dev only)
