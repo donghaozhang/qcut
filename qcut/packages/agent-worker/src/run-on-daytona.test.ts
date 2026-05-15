@@ -236,7 +236,7 @@ describe("runOnDaytona", () => {
 		expect(createCalls).toEqual([
 			{
 				image:
-					"ghcr.io/quriosity-agent/qcut-cli@sha256:07ab8298aefb308a5aeefd5c2a7a3b64493c446c84f323c384b0ebeb16ae673a",
+					"ghcr.io/quriosity-agent/qcut-cli@sha256:2b9b8c7aa80bc2e5db874f04ccca302bbce0693a7d90274fe2b8645049fdbb7b",
 				envVars: {
 					QCUT_SESSION_ROLE: "agent",
 					OPENAI_API_KEY: "sk-test",

@@ -51,6 +51,7 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
 | Daytona dogfood worker 路径                                                | job `dogfood-cc1078a0-2966-4afc-8444-08d514b76dca` 成功，exit `0`；artifact row `234936d9-3e87-4ca9-ba68-cff42299726b` 已上传 |
 | 本地 amd64 agent CLI 镜像 smoke                                           | `docker buildx build --platform linux/amd64 --tag qcut-cli:agents-smoke ...` 成功；`qcut-smoke` 验到 `codex-cli 0.130.0` 和 `2.1.142 (Claude Code)` |
 | GHCR agent CLI 镜像发布                                                    | workflow run `25899152153` 重新发布 `ghcr.io/quriosity-agent/qcut-cli:v0`；digest `sha256:07ab8298aefb308a5aeefd5c2a7a3b64493c446c84f323c384b0ebeb16ae673a`；推后 smoke 验到 Codex 和 Claude Code |
+| GHCR native-cli skill 镜像发布                                             | workflow run `25902797671` 重新发布 `ghcr.io/quriosity-agent/qcut-cli:v0`；digest `sha256:2b9b8c7aa80bc2e5db874f04ccca302bbce0693a7d90274fe2b8645049fdbb7b`；推后 smoke 验到 `.claude/skills/native-cli/SKILL.md` |
 | 本地 Codex auth bootstrap smoke                                           | `qcut-cli:codex-auth-smoke` 按 `linux/amd64` 构建；假的 `CODEX_AUTH_JSON` 能写成权限 `0600` 的 `~/.codex/auth.json`；`QCUT_CODEX_PROMPT_B64` 在镜像内能正确解码 |
 
 ## `b536d61b2` 之后已经完成的事
@@ -87,10 +88,11 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
    Codex CLI `0.130.0`、Claude Code `2.1.142`。`qcut-smoke`
    现在会在 `codex` 或 `claude` 缺失时直接让镜像构建失败。
 9. **GHCR `v0` 已经带这些 agent CLI。**
-   workflow run `25899152153` 推送刷新后的镜像，然后又从 GHCR 拉回
+   workflow run `25902797671` 推送刷新后的镜像，然后又从 GHCR 拉回
    `ghcr.io/quriosity-agent/qcut-cli:v0` 跑 `qcut-smoke`。smoke 日志确认
-   `/usr/local/bin/codex` 和 `/usr/local/bin/claude` 都存在。这个发布镜像
-   也已经带上 `qcut-entrypoint` 的 Codex runtime auth bootstrap。
+   `/usr/local/bin/codex`、`/usr/local/bin/claude` 和
+   `.claude/skills/native-cli/SKILL.md` 都存在。这个发布镜像也已经带上
+   `qcut-entrypoint` 的 Codex runtime auth bootstrap。
 10. **Codex chat job 已接入现有 agent 路径。**
     website 的 Chat Agent 页现在可以提交 Codex 模式任务。license-server
     只接受固定的 stdin 版 Codex command；prompt 走 `args.codexPrompt`；

@@ -12,7 +12,7 @@ three paths and what's done / not done.
 | `qcut-cli:agents-smoke` (local Docker image)          | local Docker daemon       | ✅ built for `linux/amd64`; `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, and Claude Code `2.1.142`                                                                                                          | n/a                                |
 | `qcut-cli:codex-auth-smoke` (local Docker image)      | local Docker daemon       | ✅ built for `linux/amd64`; verifies qcut smoke plus runtime Codex auth bootstrap from `CODEX_AUTH_JSON` and prompt env decoding                                                                                 | n/a                                |
 | `qcut-cli:dev` (local Docker image)                   | local Docker daemon       | ✅ built, **verified end-to-end** against prod                                                                                                                                                                   | n/a                                |
-| `ghcr.io/quriosity-agent/qcut-cli:v0`                 | GitHub Container Registry | ✅ republished by workflow run `25899152153`; pushed-image `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, Claude Code `2.1.142`, and the latest entrypoint                                                    | ✅ public, anonymous pull verified |
+| `ghcr.io/quriosity-agent/qcut-cli:v0`                 | GitHub Container Registry | ✅ republished by workflow run `25902797671`; pushed-image `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, Claude Code `2.1.142`, `native-cli` skill, and the latest entrypoint                                 | ✅ public, anonymous pull verified |
 | E2B template `qcut-cli` (ID `<your-e2b-template-id>`) | E2B's build cluster       | ⚠️ **built but with bugs** — `Sandbox.create()` works, but the `qcut` wrapper script's shebang is mangled (`#!/usr/bin/env bashnexec ...`). Needs rebuild with the `echo`-based wrapper now in `e2b.Dockerfile`. | n/a (E2B private)                  |
 
 Current working:
@@ -59,14 +59,15 @@ Current working:
 
 Verified provider runs:
 
-- GHCR workflow run `25899152153` republished:
+- GHCR workflow run `25902797671` republished:
   - `ghcr.io/quriosity-agent/qcut-cli:v0`
   - `ghcr.io/quriosity-agent/qcut-cli:latest`
   - digest
-    `sha256:07ab8298aefb308a5aeefd5c2a7a3b64493c446c84f323c384b0ebeb16ae673a`
+    `sha256:2b9b8c7aa80bc2e5db874f04ccca302bbce0693a7d90274fe2b8645049fdbb7b`
 - The GHCR package was made public. Anonymous Docker pull of
   `ghcr.io/quriosity-agent/qcut-cli:v0` succeeded, and the pushed-image
-  workflow smoke passed.
+  workflow smoke passed, including the `.claude/skills/native-cli/SKILL.md`
+  check.
 - Daytona dogfood succeeded against the pushed GHCR image:
   - job `dogfood-cc1078a0-2966-4afc-8444-08d514b76dca`
   - runner `adb353a8-269f-4f80-9987-4a71f98f599a`

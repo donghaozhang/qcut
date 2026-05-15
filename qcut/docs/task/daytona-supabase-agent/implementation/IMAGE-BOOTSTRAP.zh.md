@@ -11,7 +11,7 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
 | `qcut-cli:agents-smoke`（本地 Docker 镜像）        | 本地 Docker daemon        | ✅ 按 `linux/amd64` 构建；`qcut-smoke` 验过 qcut、Codex CLI `0.130.0`、Claude Code `2.1.142`                                                                 | n/a                         |
 | `qcut-cli:codex-auth-smoke`（本地 Docker 镜像）   | 本地 Docker daemon        | ✅ 按 `linux/amd64` 构建；验证 qcut smoke、`CODEX_AUTH_JSON` 运行时 Codex 登录启动、prompt env 解码                                                           | n/a                         |
 | `qcut-cli:dev`（本地 Docker 镜像）                 | 本地 Docker daemon        | ✅ 已构建、**对生产端到端验证过**                                                                                                                           | n/a                         |
-| `ghcr.io/quriosity-agent/qcut-cli:v0`              | GitHub Container Registry | ✅ workflow run `25899152153` 已重新发布；推后 `qcut-smoke` 验过 qcut、Codex CLI `0.130.0`、Claude Code `2.1.142`、最新 entrypoint                            | ✅ public，匿名 pull 已验证 |
+| `ghcr.io/quriosity-agent/qcut-cli:v0`              | GitHub Container Registry | ✅ workflow run `25902797671` 已重新发布；推后 `qcut-smoke` 验过 qcut、Codex CLI `0.130.0`、Claude Code `2.1.142`、`native-cli` skill、最新 entrypoint            | ✅ public，匿名 pull 已验证 |
 | E2B 模板 `qcut-cli`（ID `<your-e2b-template-id>`） | E2B 构建集群              | ⚠️ **建好了但有 bug** —— `Sandbox.create()` 能用，但 `qcut` 包装脚本的 shebang 被搞坏（`#!/usr/bin/env bashnexec ...`）。需要按现在 `e2b.Dockerfile` 重建。 | n/a（E2B 私有）             |
 
 当前能用：
@@ -54,14 +54,15 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
 
 已验证的 provider 实跑：
 
-- GHCR workflow run `25899152153` 重新发布了：
+- GHCR workflow run `25902797671` 重新发布了：
   - `ghcr.io/quriosity-agent/qcut-cli:v0`
   - `ghcr.io/quriosity-agent/qcut-cli:latest`
   - digest
-    `sha256:07ab8298aefb308a5aeefd5c2a7a3b64493c446c84f323c384b0ebeb16ae673a`
+    `sha256:2b9b8c7aa80bc2e5db874f04ccca302bbce0693a7d90274fe2b8645049fdbb7b`
 - GHCR package 已改成 public。匿名 Docker pull
   `ghcr.io/quriosity-agent/qcut-cli:v0` 成功，workflow 对推上去的镜像
-  跑 `qcut-smoke` 也通过。
+  跑 `qcut-smoke` 也通过，其中包括
+  `.claude/skills/native-cli/SKILL.md` 检查。
 - Daytona dogfood 已对着推上去的 GHCR 镜像跑通：
   - job `dogfood-cc1078a0-2966-4afc-8444-08d514b76dca`
   - runner `adb353a8-269f-4f80-9987-4a71f98f599a`

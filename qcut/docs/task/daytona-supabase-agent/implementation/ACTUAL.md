@@ -53,6 +53,7 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
 | Daytona dogfood worker path                                                       | Job `dogfood-cc1078a0-2966-4afc-8444-08d514b76dca` succeeded with exit `0`; artifact row `234936d9-3e87-4ca9-ba68-cff42299726b` uploaded           |
 | Local amd64 agent-CLI image smoke                                                 | `docker buildx build --platform linux/amd64 --tag qcut-cli:agents-smoke ...` succeeded; `qcut-smoke` verified `codex-cli 0.130.0` and `2.1.142 (Claude Code)` |
 | GHCR agent-CLI image publish                                                      | Workflow run `25899152153` republished `ghcr.io/quriosity-agent/qcut-cli:v0`; digest `sha256:07ab8298aefb308a5aeefd5c2a7a3b64493c446c84f323c384b0ebeb16ae673a`; pushed-image smoke verified Codex and Claude Code |
+| GHCR native-cli skill image publish                                               | Workflow run `25902797671` republished `ghcr.io/quriosity-agent/qcut-cli:v0`; digest `sha256:2b9b8c7aa80bc2e5db874f04ccca302bbce0693a7d90274fe2b8645049fdbb7b`; pushed-image smoke verified `.claude/skills/native-cli/SKILL.md` |
 | Local Codex auth bootstrap smoke                                                  | `qcut-cli:codex-auth-smoke` built for `linux/amd64`; fake `CODEX_AUTH_JSON` wrote `~/.codex/auth.json` with mode `0600`; `QCUT_CODEX_PROMPT_B64` decoded correctly inside the image |
 
 ## What is now done after `b536d61b2`
@@ -92,11 +93,12 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
    `qcut-smoke` now fails the image build if either `codex` or `claude`
    is missing.
 9. **GHCR `v0` has been republished with those agent CLIs.**
-   Workflow run `25899152153` pushed the refreshed image and then pulled
+   Workflow run `25902797671` pushed the refreshed image and then pulled
    `ghcr.io/quriosity-agent/qcut-cli:v0` back from GHCR for `qcut-smoke`.
    The smoke log verified `/usr/local/bin/codex` and
-   `/usr/local/bin/claude`. This published image also includes the
-   runtime Codex auth bootstrap in `qcut-entrypoint`.
+   `/usr/local/bin/claude`, plus `.claude/skills/native-cli/SKILL.md`.
+   This published image also includes the runtime Codex auth bootstrap in
+   `qcut-entrypoint`.
 10. **Codex chat jobs are wired through the existing agent path.**
     The website's Chat Agent page can now submit a Codex mode job. The
     license-server only accepts the fixed stdin-based Codex command, the
