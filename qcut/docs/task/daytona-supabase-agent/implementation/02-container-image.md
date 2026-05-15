@@ -4,7 +4,7 @@
 
 ## Goal
 
-A reproducible Docker image `qcut-cli:vX` that runs the QCut CLI headlessly. Image bakes in qcut + FFmpeg + bun; secrets and project data are mounted/injected at runtime. The image's `ENTRYPOINT` materializes `~/.qcut/.env` from environment variables and `exec`s the requested command (default `bash` for interactive use).
+A reproducible Docker image `qcut-cli:vX` that runs the QCut CLI headlessly. Image bakes in qcut, FFmpeg, bun, Node/npm, Git, OpenSSH, Codex CLI, and Claude Code CLI; secrets and project data are mounted/injected at runtime. The image's `ENTRYPOINT` materializes `~/.qcut/.env` from environment variables and `exec`s the requested command (default `bash` for interactive use).
 
 ## Depends on
 
@@ -46,6 +46,8 @@ RUN bun run build
 # ---------- runtime ----------
 FROM oven/bun:1.3.10-debian
 ARG QCUT_VERSION=dev
+ARG CODEX_CLI_VERSION=0.130.0
+ARG CLAUDE_CODE_VERSION=2.1.142
 ENV QCUT_VERSION=${QCUT_VERSION}
 
 RUN apt-get update \
@@ -53,6 +55,16 @@ RUN apt-get update \
       ffmpeg \
       ca-certificates \
       curl \
+      jq \
+      git \
+      openssh-client \
+      nodejs \
+      npm \
+ && npm install -g --omit=dev --no-audit --no-fund \
+      "@openai/codex@${CODEX_CLI_VERSION}" \
+      "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
+ && npm cache clean --force \
+ && rm -rf /root/.npm \
  && rm -rf /var/lib/apt/lists/*
 
 # Non-root user; ~/.qcut is writable
@@ -83,6 +95,7 @@ CMD ["bash"]
 
 Notes:
 - Two stages keep the final image lean (~500 MB).
+- Codex CLI and Claude Code CLI are installed with their official npm packages; the version build args default to the latest smoke-verified versions and can be overridden when intentionally upgrading.
 - Final user is non-root (`qcut`, uid 1000) so `~/.qcut/.env` mode 0600 owned by `qcut` works without root juggling.
 - `QCUT_VERSION` is baked at build time and read by `system doctor`.
 
@@ -139,12 +152,19 @@ set -euo pipefail
 
 echo "▶ bun --version"
 bun --version
+node --version
+npm --version
+git --version
 
 echo "▶ ffmpeg -version (line 1)"
 ffmpeg -version | head -n 1
 
 echo "▶ which qcut"
 which qcut
+which codex
+codex --version
+which claude
+claude --version
 
 echo "▶ qcut system doctor --json --skip-health"
 # We do not expect keys at smoke time — env_file_keys WILL be 'fail'.

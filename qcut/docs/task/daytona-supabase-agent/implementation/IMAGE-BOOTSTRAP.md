@@ -9,8 +9,9 @@ three paths and what's done / not done.
 
 | Artifact                                              | Where                     | Built?                                                                                                                                                                                                           | Pushed?                            |
 | ----------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `qcut-cli:agents-smoke` (local Docker image)          | local Docker daemon       | ✅ built for `linux/amd64`; `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, and Claude Code `2.1.142`                                                                                                          | n/a                                |
 | `qcut-cli:dev` (local Docker image)                   | local Docker daemon       | ✅ built, **verified end-to-end** against prod                                                                                                                                                                   | n/a                                |
-| `ghcr.io/quriosity-agent/qcut-cli:v0`                 | GitHub Container Registry | ✅ built by workflow run `25893277360`; `qcut-smoke` passed                                                                                                                                                      | ✅ public, anonymous pull verified |
+| `ghcr.io/quriosity-agent/qcut-cli:v0`                 | GitHub Container Registry | ✅ built by workflow run `25893277360`; `qcut-smoke` passed; **older digest does not include Codex/Claude Code until republished**                                                                               | ✅ public, anonymous pull verified |
 | E2B template `qcut-cli` (ID `<your-e2b-template-id>`) | E2B's build cluster       | ⚠️ **built but with bugs** — `Sandbox.create()` works, but the `qcut` wrapper script's shebang is mangled (`#!/usr/bin/env bashnexec ...`). Needs rebuild with the `echo`-based wrapper now in `e2b.Dockerfile`. | n/a (E2B private)                  |
 
 Current working:
@@ -34,6 +35,10 @@ Current working:
   `:latest`. The default-branch workflow was fixed to lowercase the
   GHCR owner (`f80dc47dd` on `master`, cherry-picked as `ed99a4ac9`
   on `phase3-followups`).
+- `Dockerfile.cli` now installs pinned agent CLIs: Codex CLI `0.130.0`
+  and Claude Code `2.1.142`. The local `linux/amd64`
+  `qcut-cli:agents-smoke` image proves both binaries launch inside the
+  same architecture Daytona consumes.
 - Local `~/.qcut/.env` now contains the required Daytona/Supabase
   dogfood env names. `scripts/daytona-worker-dogfood.ts` auto-loads
   that file before checking required env.
@@ -60,9 +65,16 @@ Verified provider runs:
     storage path
     `agent/79bf60b02770d2cc510da53e471590f4/dogfood-cc1078a0-2966-4afc-8444-08d514b76dca/qcut-output.tar`,
     bytes `10240`
+- Local pinned agent-CLI smoke succeeded:
+  - image `qcut-cli:agents-smoke`
+  - platform `linux/amd64`
+  - `codex --version` → `codex-cli 0.130.0`
+  - `claude --version` → `2.1.142 (Claude Code)`
 
 Currently still needs external provider work:
 
+- GHCR: publish a refreshed tag after this Dockerfile change. Daytona
+  jobs using the old `v0` digest will not see `codex` or `claude`.
 - E2B: if rebuilding the browser-sandbox template, re-run
   `e2b template create qcut-cli -d e2b.Dockerfile --cpu-count 2
 --memory-mb 4096` after moving workspace `node_modules` out (see
@@ -71,13 +83,14 @@ Currently still needs external provider work:
 
 ## Next subtask
 
-The GHCR/Daytona path is now proven. Next, ship the worker fixes and
-then move to the remaining Phase 3 product hardening:
+The GHCR/Daytona path is proven, and the next local image contains the
+coding agent CLIs. Next, ship the image change and then continue Phase 3
+product hardening:
 
-1. Merge/deploy the worker changes that normalize Supabase rows and use
+1. Publish a refreshed GHCR image tag that includes Codex CLI and Claude
+   Code CLI, then point `QCUT_IMAGE_TAG` at that tag.
+2. Merge/deploy the worker changes that normalize Supabase rows and use
    `/tmp/qcut-output` for Daytona.
-2. Keep `QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:v0` unless CLI
-   code changes require a new image tag.
 3. Implement credit refund on failed sandbox spawn.
 4. Design and migrate `agent_secrets.value` encryption.
 5. Replace the wzrdagentstudio `/sandbox` localStorage token shim with
