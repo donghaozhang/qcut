@@ -46,11 +46,13 @@ jobs:
       - name: Resolve tag
         id: tag
         run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
           if [ "${{ github.event_name }}" = "push" ]; then
             echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           else
             echo "value=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
           fi
+          echo "owner=${owner}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
@@ -69,8 +71,8 @@ jobs:
           file: qcut/Dockerfile.cli
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/qcut-cli:${{ steps.tag.outputs.value }}
-            ghcr.io/${{ github.repository_owner }}/qcut-cli:latest
+            ghcr.io/${{ steps.tag.outputs.owner }}/qcut-cli:${{ steps.tag.outputs.value }}
+            ghcr.io/${{ steps.tag.outputs.owner }}/qcut-cli:latest
           build-args: |
             QCUT_VERSION=${{ steps.tag.outputs.value }}
           cache-from: type=gha
@@ -79,5 +81,5 @@ jobs:
       - name: Smoke test pushed image
         run: |
           docker run --rm \
-            ghcr.io/${{ github.repository_owner }}/qcut-cli:${{ steps.tag.outputs.value }} \
+            ghcr.io/${{ steps.tag.outputs.owner }}/qcut-cli:${{ steps.tag.outputs.value }} \
             qcut-smoke
