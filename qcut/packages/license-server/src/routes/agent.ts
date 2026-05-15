@@ -2,6 +2,7 @@ import { Hono, type Context } from "hono";
 import { and, desc, eq } from "drizzle-orm";
 import { agentArtifacts, agentEvents, agentJobs } from "@qcut/db/schema";
 import { db } from "../db/drizzle";
+import { getSupabase } from "../db/supabase";
 import { authMiddleware } from "../middleware/auth";
 
 const agentRoutes = new Hono();
@@ -9,8 +10,10 @@ agentRoutes.use("/*", authMiddleware);
 
 const MAX_COMMAND_LENGTH = 2000;
 const MAX_CODEX_PROMPT_LENGTH = 12_000;
+const MAX_TEXT_ARTIFACT_BYTES = 256_000;
 const SAFE_COMMAND_TOKEN = /^[A-Za-z0-9_\-./:=,@+]+$/;
 const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
+const TEXT_ARTIFACT_KINDS = new Set(["json", "log"]);
 
 interface CreateAgentJobBody {
 	command?: string;
@@ -43,6 +46,56 @@ agentRoutes.get("/jobs", async (c) => {
 		.limit(20);
 
 	return c.json({ jobs: jobs.map(serializeAgentJob) });
+});
+
+agentRoutes.get("/jobs/:jobId/artifacts/:artifactId/text", async (c) => {
+	const userId = c.get("userId") as string;
+	const jobId = c.req.param("jobId");
+	const artifactId = c.req.param("artifactId");
+
+	const [job] = await db
+		.select()
+		.from(agentJobs)
+		.where(and(eq(agentJobs.id, jobId), eq(agentJobs.userId, userId)))
+		.limit(1);
+
+	if (!job) {
+		return c.json({ error: "job_not_found" }, 404);
+	}
+
+	const [artifact] = await db
+		.select()
+		.from(agentArtifacts)
+		.where(
+			and(
+				eq(agentArtifacts.id, artifactId),
+				eq(agentArtifacts.jobId, jobId),
+				eq(agentArtifacts.userId, userId)
+			)
+		)
+		.limit(1);
+
+	if (!artifact) {
+		return c.json({ error: "artifact_not_found" }, 404);
+	}
+	if (!TEXT_ARTIFACT_KINDS.has(artifact.kind)) {
+		return c.json({ error: "artifact_not_text" }, 415);
+	}
+	if (artifact.bytes && artifact.bytes > MAX_TEXT_ARTIFACT_BYTES) {
+		return c.json({ error: "artifact_too_large" }, 413);
+	}
+
+	const { data, error } = await getSupabase()
+		.storage.from("artifacts")
+		.download(artifact.storagePath);
+
+	if (error || !data) {
+		return c.json({ error: "artifact_download_failed" }, 502);
+	}
+
+	return c.text(await data.text(), 200, {
+		"Content-Type": "text/plain; charset=utf-8",
+	});
 });
 
 agentRoutes.get("/jobs/:jobId", async (c) => {

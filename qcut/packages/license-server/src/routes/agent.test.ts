@@ -8,7 +8,12 @@ vi.mock("../db/drizzle", () => ({
 	},
 }));
 
+vi.mock("../db/supabase", () => ({
+	getSupabase: vi.fn(),
+}));
+
 const { db } = await import("../db/drizzle");
+const { getSupabase } = await import("../db/supabase");
 const {
 	CODEX_AGENT_COMMAND,
 	agentRoutes,
@@ -43,6 +48,24 @@ function mockInsertChain() {
 	const values = vi.fn().mockResolvedValue(undefined);
 	vi.mocked(db.insert).mockReturnValue({ values } as never);
 	return { values };
+}
+
+function mockSelectRowsOnce({ rows }: { rows: unknown[] }): void {
+	const limit = vi.fn().mockResolvedValue(rows);
+	const where = vi.fn().mockReturnValue({ limit });
+	const from = vi.fn().mockReturnValue({ where });
+	vi.mocked(db.select).mockReturnValueOnce({ from } as never);
+}
+
+function mockArtifactDownload({ text }: { text: string }): void {
+	const download = vi.fn().mockResolvedValue({
+		data: new Blob([text], { type: "text/plain" }),
+		error: null,
+	});
+	const from = vi.fn().mockReturnValue({ download });
+	vi.mocked(getSupabase).mockReturnValue({
+		storage: { from },
+	} as never);
 }
 
 beforeEach(() => {
@@ -118,6 +141,92 @@ describe("validateCommand", () => {
 				args: { codexPrompt: "Summarize the project status." },
 			})
 		);
+	});
+});
+
+describe("GET /api/agent/jobs/:jobId/artifacts/:artifactId/text", () => {
+	it("returns text artifacts owned by the authenticated user", async () => {
+		mockSelectRowsOnce({
+			rows: [
+				{
+					id: "job-1",
+					userId: "mock-user-001",
+					status: "succeeded",
+					command: CODEX_AGENT_COMMAND,
+					args: {},
+					createdAt: new Date("2026-05-15T00:00:00.000Z"),
+					claimedAt: null,
+					finishedAt: null,
+					exitCode: 0,
+					error: null,
+					runnerId: "runner-1",
+				},
+			],
+		});
+		mockSelectRowsOnce({
+			rows: [
+				{
+					id: "artifact-1",
+					jobId: "job-1",
+					userId: "mock-user-001",
+					kind: "log",
+					storagePath: "agent/mock-user-001/job-1/codex-last-message.md",
+					bytes: 17,
+					meta: { filename: "codex-last-message.md" },
+					createdAt: new Date("2026-05-15T00:00:01.000Z"),
+				},
+			],
+		});
+		mockArtifactDownload({ text: "Hello from Codex." });
+
+		const res = await buildApp().request(
+			"/api/agent/jobs/job-1/artifacts/artifact-1/text"
+		);
+
+		expect(res.status).toBe(200);
+		expect(await res.text()).toBe("Hello from Codex.");
+	});
+
+	it("rejects large text artifacts before downloading", async () => {
+		mockSelectRowsOnce({
+			rows: [
+				{
+					id: "job-1",
+					userId: "mock-user-001",
+					status: "succeeded",
+					command: CODEX_AGENT_COMMAND,
+					args: {},
+					createdAt: new Date("2026-05-15T00:00:00.000Z"),
+					claimedAt: null,
+					finishedAt: null,
+					exitCode: 0,
+					error: null,
+					runnerId: "runner-1",
+				},
+			],
+		});
+		mockSelectRowsOnce({
+			rows: [
+				{
+					id: "artifact-1",
+					jobId: "job-1",
+					userId: "mock-user-001",
+					kind: "log",
+					storagePath: "agent/mock-user-001/job-1/codex-events.jsonl",
+					bytes: 300_000,
+					meta: { filename: "codex-events.jsonl" },
+					createdAt: new Date("2026-05-15T00:00:01.000Z"),
+				},
+			],
+		});
+
+		const res = await buildApp().request(
+			"/api/agent/jobs/job-1/artifacts/artifact-1/text"
+		);
+
+		expect(res.status).toBe(413);
+		expect(await res.json()).toEqual({ error: "artifact_too_large" });
+		expect(getSupabase).not.toHaveBeenCalled();
 	});
 });
 
