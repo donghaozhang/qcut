@@ -42,3 +42,7 @@ docs
 .idea
 .cursor
 .claude
+!.claude/
+!.claude/skills/
+!.claude/skills/native-cli/
+!.claude/skills/native-cli/**
