@@ -113,7 +113,9 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
 13. **Daytona CLI 镜像现在包含 native-cli skill。**
     `Dockerfile.cli` 会把 `.claude/skills/native-cli` 拷到
     `/home/qcut/qcut/.claude/skills/native-cli`；`qcut-smoke`
-    会检查这个 skill 的 `SKILL.md`，不存在就让镜像构建失败。
+    会检查这个 skill 的 `SKILL.md`，不存在就让镜像构建失败。Daytona job
+    `b6ce291d-3853-4a41-b70f-c989c159c633` 已在 live sandbox 验证推上去的
+    镜像，并返回 `NATIVE_CLI_SKILL_READY`。
 
 ## 还没做的（依赖外部凭证 / 服务）
 

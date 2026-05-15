@@ -123,7 +123,9 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
 13. **The Daytona CLI image now includes the native-cli skill.**
     `Dockerfile.cli` copies `.claude/skills/native-cli` into
     `/home/qcut/qcut/.claude/skills/native-cli`, and `qcut-smoke` fails the
-    image build unless that skill's `SKILL.md` is present.
+    image build unless that skill's `SKILL.md` is present. Daytona job
+    `b6ce291d-3853-4a41-b70f-c989c159c633` verified the pushed image in a
+    live sandbox and returned `NATIVE_CLI_SKILL_READY`.
 
 ## What still needs doing (gates on credentials / external services)
 
