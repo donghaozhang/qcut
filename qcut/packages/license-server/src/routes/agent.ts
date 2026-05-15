@@ -1,4 +1,4 @@
-import { Hono, type Context } from "hono";
+import { Hono, type Context, type Next } from "hono";
 import { and, desc, eq } from "drizzle-orm";
 import { agentArtifacts, agentEvents, agentJobs } from "@qcut/db/schema";
 import { db } from "../db/drizzle";
@@ -6,7 +6,6 @@ import { getSupabase } from "../db/supabase";
 import { authMiddleware } from "../middleware/auth";
 
 const agentRoutes = new Hono();
-agentRoutes.use("/*", authMiddleware);
 
 const MAX_COMMAND_LENGTH = 2000;
 const MAX_CODEX_PROMPT_LENGTH = 12_000;
@@ -18,6 +17,24 @@ const TEXT_ARTIFACT_KINDS = new Set(["json", "log"]);
 interface CreateAgentJobBody {
 	command?: string;
 	args?: Record<string, unknown>;
+}
+
+agentRoutes.use("/*", agentAuthMiddleware);
+
+async function agentAuthMiddleware(c: Context, next: Next) {
+	const defaultUserId = getDefaultAgentUserId();
+	const authHeader = c.req.header("Authorization") || "";
+	if (authHeader.length === 0 && defaultUserId.length > 0) {
+		c.set("userId", defaultUserId);
+		await next();
+		return;
+	}
+	return authMiddleware(c, next);
+}
+
+function getDefaultAgentUserId(): string {
+	const value = process.env.QCUT_AGENT_DEFAULT_USER_ID;
+	return typeof value === "string" ? value.trim() : "";
 }
 
 agentRoutes.post("/jobs", async (c) => {
@@ -298,6 +315,7 @@ function serializeAgentArtifact(artifact: typeof agentArtifacts.$inferSelect) {
 export {
 	CODEX_AGENT_COMMAND,
 	agentRoutes,
+	getDefaultAgentUserId,
 	validateAgentJobBody,
 	validateCommand,
 };

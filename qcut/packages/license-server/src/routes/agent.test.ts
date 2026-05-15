@@ -17,6 +17,7 @@ const { getSupabase } = await import("../db/supabase");
 const {
 	CODEX_AGENT_COMMAND,
 	agentRoutes,
+	getDefaultAgentUserId,
 	validateAgentJobBody,
 	validateCommand,
 } = await import("./agent");
@@ -139,6 +140,33 @@ describe("validateCommand", () => {
 			expect.objectContaining({
 				command: CODEX_AGENT_COMMAND,
 				args: { codexPrompt: "Summarize the project status." },
+			})
+		);
+	});
+});
+
+describe("agent default user auth", () => {
+	it("uses QCUT_AGENT_DEFAULT_USER_ID when no bearer token is supplied", async () => {
+		process.env.MOCK_MODE = "false";
+		process.env.QCUT_AGENT_DEFAULT_USER_ID = "default-agent-user";
+		const { values } = mockInsertChain();
+
+		const res = await buildApp().request("/api/agent/jobs", {
+			method: "POST",
+			headers: jsonHeaders(),
+			body: JSON.stringify({
+				command: CODEX_AGENT_COMMAND,
+				args: { codexPrompt: "Summarize the sandbox status." },
+			}),
+		});
+
+		expect(getDefaultAgentUserId()).toBe("default-agent-user");
+		expect(res.status).toBe(201);
+		expect(values).toHaveBeenNthCalledWith(
+			1,
+			expect.objectContaining({
+				userId: "default-agent-user",
+				command: CODEX_AGENT_COMMAND,
 			})
 		);
 	});
