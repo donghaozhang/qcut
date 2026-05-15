@@ -112,7 +112,7 @@ describe("buildDaytonaCommand", () => {
 			})
 		).toEqual({
 			command:
-				"set -o pipefail; mkdir -p /tmp/qcut-output; printf '%s' \"$QCUT_CODEX_PROMPT_B64\" | base64 -d | /usr/local/bin/qcut-entrypoint codex exec --skip-git-repo-check --json --output-last-message /tmp/qcut-output/codex-last-message.md - > /tmp/qcut-output/codex-events.jsonl",
+				"set -o pipefail; mkdir -p /tmp/qcut-output; printf '%s' \"$QCUT_CODEX_PROMPT_B64\" | base64 -d | /usr/local/bin/qcut-entrypoint codex exec --skip-git-repo-check --sandbox danger-full-access --json --output-last-message /tmp/qcut-output/codex-last-message.md - > /tmp/qcut-output/codex-events.jsonl",
 			archiveCommand: "tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
 		});
 	});

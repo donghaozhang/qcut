@@ -95,13 +95,19 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
     website 的 Chat Agent 页现在可以提交 Codex 模式任务。license-server
     只接受固定的 stdin 版 Codex command；prompt 走 `args.codexPrompt`；
     worker 把它 base64 成 `QCUT_CODEX_PROMPT_B64`；Daytona 里实际跑：
-    `codex exec --skip-git-repo-check --json --output-last-message ... -`。
+    `codex exec --skip-git-repo-check --sandbox danger-full-access --json --output-last-message ... -`。
+    这里显式指定 sandbox mode，是因为 Daytona 已经提供外层隔离；
+    Codex 默认命令 sandbox 在这个镜像里可能会在 shell 启动前失败。
 11. **Codex 登录只在运行时处理。**
     `CODEX_AUTH_JSON` 从 `agent_secrets` 投影进 sandbox env，entrypoint
     把它写成权限 `0600` 的 `~/.codex/auth.json`。如果没有 auth JSON，
     Codex 任务会设置 `QCUT_BOOTSTRAP_CODEX=1`，entrypoint 才会用
     `OPENAI_API_KEY` 跑 `codex login --with-api-key`。普通 qcut 任务不会
     触发这条登录路径。
+12. **website 的 Codex prompt 现在会把 QCut 工作导回 QCut CLI。**
+    Codex 模式会加一段短的 QCut 专用运行提示：需要处理 QCut 时用
+    shell command；图片生成走 `qcut gen image`；生成文件写到
+    `/tmp/qcut-output`，这样 worker 能继续上传 artifact。
 
 ## 还没做的（依赖外部凭证 / 服务）
 
