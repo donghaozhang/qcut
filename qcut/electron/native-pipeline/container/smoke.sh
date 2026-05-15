@@ -40,6 +40,10 @@ which claude
 echo "▶ claude --version"
 claude --version
 
+echo "▶ native-cli skill"
+test -f /home/qcut/qcut/.claude/skills/native-cli/SKILL.md
+grep -q "name: native-cli" /home/qcut/qcut/.claude/skills/native-cli/SKILL.md
+
 echo "▶ qcut system doctor --json --skip-health"
 # No keys at smoke time → env_file or env_file_keys WILL be 'fail',
 # which makes the CLI exit non-zero. That's fine here; we only check

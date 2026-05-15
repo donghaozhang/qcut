@@ -62,6 +62,7 @@ COPY --from=builder --chown=qcut:qcut /build/dist           /home/qcut/qcut/dist
 COPY --from=builder --chown=qcut:qcut /build/node_modules   /home/qcut/qcut/node_modules
 COPY --from=builder --chown=qcut:qcut /build/package.json   /home/qcut/qcut/package.json
 COPY --from=builder --chown=qcut:qcut /build/electron       /home/qcut/qcut/electron
+COPY --chown=qcut:qcut .claude/skills/native-cli            /home/qcut/qcut/.claude/skills/native-cli
 
 # Wrapper + smoke scripts
 COPY --chown=qcut:qcut --chmod=0755 \
