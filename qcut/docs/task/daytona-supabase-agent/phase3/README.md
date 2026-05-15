@@ -7,12 +7,12 @@ metered against real credits.
 The four items below are intentionally deferred from that cut —
 each is independently shippable and listed roughly by impact.
 
-| #   | Item                                            | Why it's deferred                                                                                                         | Status                        |
-| --- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| 1   | `agent_secrets.value` encryption (pgsodium)     | v0 stores plaintext; key-rotation operator workflow was the unknown that blocked it                                       | Not started                   |
-| 2   | Refund credits when spawn fails after deduction | `deductCreditsForUser` has an inverse but it's not wired into `sandbox_create_failed` / `sandbox_unhealthy` paths         | Not started                   |
-| 3   | QCut sign-in in wzrdagentstudio `/sandbox`      | Today reads `localStorage.qcut_auth_token` as a v0 stash; needs the real Better Auth flow                                 | Not started                   |
-| 4   | GHCR push of `qcut-cli` image                   | Code is complete; credentials are configured; still needs a real dispatch/tag, pull verification, and Daytona dogfood run | Provider verification pending |
+| #   | Item                                            | Why it's deferred                                                                                                 | Status      |
+| --- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1   | `agent_secrets.value` encryption (pgsodium)     | v0 stores plaintext; key-rotation operator workflow was the unknown that blocked it                               | Not started |
+| 2   | Refund credits when spawn fails after deduction | `deductCreditsForUser` has an inverse but it's not wired into `sandbox_create_failed` / `sandbox_unhealthy` paths | Not started |
+| 3   | QCut sign-in in wzrdagentstudio `/sandbox`      | Today reads `localStorage.qcut_auth_token` as a v0 stash; needs the real Better Auth flow                         | Not started |
+| 4   | GHCR push of `qcut-cli` image                   | Needed the first real image publish, public pull verification, and Daytona dogfood evidence                       | ✅ Verified |
 
 ## 1. `agent_secrets` encryption with pgsodium
 
@@ -88,10 +88,9 @@ and the relay attaches.
 ## 4. GHCR push of `qcut-cli` image
 
 **Goal**: `agent-worker`'s Daytona variant points at
-`ghcr.io/quriosity-agent/qcut-cli:v0`, but that tag has not yet been
-verified as pullable. The CI workflow at `.github/workflows/cli-image.yml`
-is wired to build, smoke, and push; it needs a tag or manual
-`workflow_dispatch` to publish the first image.
+`ghcr.io/quriosity-agent/qcut-cli:v0`. The CI workflow at
+`.github/workflows/cli-image.yml` must build, smoke, publish, and leave
+an image Daytona can pull without a private GHCR token.
 
 Done in `b536d61b2`:
 
@@ -109,34 +108,42 @@ Done in `b536d61b2`:
   - `bunx tsc --noEmit -p packages/agent-worker/tsconfig.json`
   - `bunx @biomejs/biome check ...`
 
-Next subtask:
+Done in the GHCR/Daytona verification pass:
 
-- Verify the workflow's permissions (GHCR auth via `GITHUB_TOKEN` should
-  already work because the package will live under
-  `quriosity-agent/qcut-cli`).
-- Run the workflow once on dispatch with `tag=v0`.
-- Confirm `docker pull ghcr.io/quriosity-agent/qcut-cli:v0` works
-  from a token-authenticated docker login.
-- `agent-worker/src/run-on-daytona.ts` now uses `@daytona/sdk` and
-  creates an ephemeral image sandbox. Keep its default tag at `:v0`
-  unless the first published image uses a different tag.
-- `DAYTONA_API_KEY` is now present in local `~/.qcut/.env` and set as
-  a Supabase project secret for `kbrtxitvavpuimuihppz`; the dogfood
-  script auto-loads the local env file.
-- Run the Daytona dogfood path and document the real job ID, sandbox ID,
-  exit code, and artifact rows. Use `bun run dogfood:daytona-worker`
-  after the GHCR image is pullable.
+- Fixed the default-branch workflow's GHCR owner casing
+  (`f80dc47dd` on `master`; cherry-picked as `ed99a4ac9` on this
+  branch) so Docker tags are lowercase.
+- Ran workflow run `25893277360` with `tag=v0`; it built
+  `Dockerfile.cli`, ran `qcut-smoke`, and pushed `:v0` + `:latest`.
+- Published digest:
+  `sha256:b1b35894c4c9b77fc79522ed209d610cfd2f3816479056f8aa61d6a8bcce2356`.
+- Made the GHCR package public, then verified anonymous
+  `docker pull --platform linux/amd64 ghcr.io/quriosity-agent/qcut-cli:v0`
+  and local `docker run ... qcut-smoke`.
+- Corrected local dogfood env so `SUPABASE_SERVICE_ROLE_KEY` is actually
+  a `service_role` JWT, not the anon key.
+- Created the private Supabase Storage bucket `artifacts`.
+- Fixed dogfood-discovered worker bugs:
+  - normalize Supabase RPC snake_case rows before using `job.userId`
+  - use `/tmp/qcut-output` inside Daytona because non-root image users
+    cannot create `/output`
+- Ran `bun run dogfood:daytona-worker` successfully:
+  - job `dogfood-cc1078a0-2966-4afc-8444-08d514b76dca`
+  - runner `adb353a8-269f-4f80-9987-4a71f98f599a`
+  - status `succeeded`, exit code `0`
+  - artifact `234936d9-3e87-4ca9-ba68-cff42299726b`
 
-Verification: insert an agent_jobs row for `qcutlove@qcut.app`,
-agent-worker claims it with the configured Daytona credentials, Daytona
-pulls from GHCR, doctor probe passes.
+Next subtask for this item: merge/deploy the worker fixes. Keep
+`QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:v0` unless CLI runtime
+code changes require a new image.
 
 ## Ordering recommendation
 
-1. **#2 (credit refund)** — smallest, all the pieces are local to
+1. **Deploy the #4 worker fixes** — the image path is verified; the
+   row-normalization and Daytona output-dir fixes need to land with the
+   worker code.
+2. **#2 (credit refund)** — smallest, all the pieces are local to
    `sandbox.ts` and `credit-service.ts`; ships in one PR.
-2. **#4 (GHCR push)** — pure infra, no schema changes; unblocks the
-   Daytona path being more than a code path.
 3. **#1 (pgsodium)** — requires migration + key-management thinking;
    biggest blast radius if done sloppily.
 4. **#3 (QCut sign-in)** — wzrdagentstudio touch, separate repo,

@@ -79,8 +79,8 @@ describe("buildDaytonaCommand", () => {
 			})
 		).toEqual({
 			command:
-				"mkdir -p /output && /usr/local/bin/qcut-entrypoint qcut system doctor --json --skip-health -o /output",
-			archiveCommand: "tar -C /output -cf /tmp/qcut-output.tar .",
+				"mkdir -p /tmp/qcut-output && /usr/local/bin/qcut-entrypoint qcut system doctor --json --skip-health -o /tmp/qcut-output",
+			archiveCommand: "tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
 		});
 	});
 
@@ -192,10 +192,10 @@ describe("runOnDaytona", () => {
 			},
 		]);
 		expect(sessionCalls).toContain(
-			"session-1:mkdir -p /output && /usr/local/bin/qcut-entrypoint qcut system doctor --json --skip-health -o /output:1800"
+			"session-1:mkdir -p /tmp/qcut-output && /usr/local/bin/qcut-entrypoint qcut system doctor --json --skip-health -o /tmp/qcut-output:1800"
 		);
 		expect(sessionCalls).toContain(
-			"session-1:tar -C /output -cf /tmp/qcut-output.tar .:1800"
+			"session-1:tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .:1800"
 		);
 		expect(downloaded).toEqual([
 			{

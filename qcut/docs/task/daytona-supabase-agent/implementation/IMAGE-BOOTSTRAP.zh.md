@@ -4,40 +4,61 @@
 E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产物**。
 本文档列三条路 + 每条路的当前进度。
 
-## 当前状态（2026-05-14，Daytona worker follow-up 之后）
+## 当前状态（2026-05-15，GHCR + Daytona dogfood 之后）
 
-| 产物                                               | 位置                      | 是否构建？                                                                                                                                                  | 是否推送？                 |
-| -------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `qcut-cli:dev`（本地 Docker 镜像）                 | 本地 Docker daemon        | ✅ 已构建、**对生产端到端验证过**                                                                                                                           | n/a                        |
-| `ghcr.io/quriosity-agent/qcut-cli:vX.Y.Z`          | GitHub Container Registry | ✅ workflow 已提交到 `.github/workflows/cli-image.yml`，会 build、smoke、push                                                                               | ❌ 还缺第一次 dispatch/tag |
-| E2B 模板 `qcut-cli`（ID `<your-e2b-template-id>`） | E2B 构建集群              | ⚠️ **建好了但有 bug** —— `Sandbox.create()` 能用，但 `qcut` 包装脚本的 shebang 被搞坏（`#!/usr/bin/env bashnexec ...`）。需要按现在 `e2b.Dockerfile` 重建。 | n/a（E2B 私有）            |
+| 产物                                               | 位置                      | 是否构建？                                                                                                                                                  | 是否推送？                  |
+| -------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `qcut-cli:dev`（本地 Docker 镜像）                 | 本地 Docker daemon        | ✅ 已构建、**对生产端到端验证过**                                                                                                                           | n/a                         |
+| `ghcr.io/quriosity-agent/qcut-cli:v0`              | GitHub Container Registry | ✅ workflow run `25893277360` 已构建；`qcut-smoke` 通过                                                                                                     | ✅ public，匿名 pull 已验证 |
+| E2B 模板 `qcut-cli`（ID `<your-e2b-template-id>`） | E2B 构建集群              | ⚠️ **建好了但有 bug** —— `Sandbox.create()` 能用，但 `qcut` 包装脚本的 shebang 被搞坏（`#!/usr/bin/env bashnexec ...`）。需要按现在 `e2b.Dockerfile` 重建。 | n/a（E2B 私有）             |
 
 当前能用：
 
 - `bun run build:cli-image` 本地产 `qcut-cli:dev`；agent-worker 用它接生产 Supabase。**端到端测过**（qcutlove 用户、`qcut --version` 任务、exit 0）。
 - `packages/agent-worker` 现在有 typed Daytona runner，使用
   `@daytona/sdk@0.175.0`。它会创建 ephemeral image sandbox，
-  通过 `/usr/local/bin/qcut-entrypoint` 跑 qcut 命令，把 `/output`
-  打包后下载到本地用于 Supabase artifact upload，最后删除 sandbox。
+  通过 `/usr/local/bin/qcut-entrypoint` 跑 qcut 命令，把
+  `/tmp/qcut-output` 打包后下载到本地用于 Supabase artifact upload，
+  最后删除 sandbox。
+- `claim_one_agent_job` 返回的 Supabase snake_case row 会先 normalize
+  成 Drizzle 的 `AgentJob` camelCase 形态，再给 worker 使用；这修掉了
+  dogfood 里发现的 `agent/undefined/...` artifact path 问题。
 - `packages/agent-worker/src/run-on-daytona.test.ts` 在不需要真实
   Daytona 凭证的情况下验证 command 构造、secret env 投影、拒绝危险
   command、artifact fallback、sandbox cleanup。
 - `.github/workflows/cli-image.yml` 会构建 `Dockerfile.cli`，跑
   `qcut-smoke`，然后推 `ghcr.io/<owner>/qcut-cli:<tag>` 和
-  `:latest`。
-- 本机 `~/.qcut/.env` 现在已有 `DAYTONA_API_KEY` 和
-  `SUPABASE_ACCESS_TOKEN`。`scripts/daytona-worker-dogfood.ts` 会先自动
-  读取这个文件，再检查必需环境变量。
+  `:latest`。默认分支 workflow 已修成 lowercase GHCR owner
+  （`master` 上 `f80dc47dd`，`phase3-followups` 上 cherry-pick 为
+  `ed99a4ac9`）。
+- 本机 `~/.qcut/.env` 现在已有 Daytona/Supabase dogfood 所需环境变量名。
+  `scripts/daytona-worker-dogfood.ts` 会先自动读取这个文件，再检查必需环境变量。
 - Supabase 项目 `kbrtxitvavpuimuihppz` 已通过
   `supabase secrets set` 设置 `DAYTONA_API_KEY` 项目 secret。
+- Supabase Storage 已创建私有 `artifacts` bucket，用于
+  `agent_artifacts` 上传。
 
-当前还需要外部凭证 / provider 实跑：
+已验证的 provider 实跑：
 
-- GHCR：通过 `workflow_dispatch` 或 `v*` tag 跑一次
-  `.github/workflows/cli-image.yml`，然后用带 token 的
-  `docker pull` 确认镜像可拉。
-- Daytona：本地和 Supabase 项目 secret 已有凭证，但还需要对着推到
-  GHCR 的镜像跑一次真实 dogfood。
+- GHCR workflow run `25893277360` 发布了：
+  - `ghcr.io/quriosity-agent/qcut-cli:v0`
+  - `ghcr.io/quriosity-agent/qcut-cli:latest`
+  - digest
+    `sha256:b1b35894c4c9b77fc79522ed209d610cfd2f3816479056f8aa61d6a8bcce2356`
+- GHCR package 已改成 public。匿名 Docker pull
+  `ghcr.io/quriosity-agent/qcut-cli:v0` 成功，本地
+  `docker run ... qcut-smoke` 也通过。
+- Daytona dogfood 已对着推上去的 GHCR 镜像跑通：
+  - job `dogfood-cc1078a0-2966-4afc-8444-08d514b76dca`
+  - runner `adb353a8-269f-4f80-9987-4a71f98f599a`
+  - status `succeeded`，exit code `0`
+  - artifact row `234936d9-3e87-4ca9-ba68-cff42299726b`，kind `log`，
+    storage path
+    `agent/79bf60b02770d2cc510da53e471590f4/dogfood-cc1078a0-2966-4afc-8444-08d514b76dca/qcut-output.tar`，
+    bytes `10240`
+
+当前还需要外部 provider 工作：
+
 - E2B：如果要刷新浏览器沙箱模板，移走 workspace `node_modules`
   后重跑 `e2b template create qcut-cli -d e2b.Dockerfile
 --cpu-count 2 --memory-mb 4096`（见下面 "绕路"）。现在
@@ -45,28 +66,17 @@ E2B 三家都吃同一个 `Dockerfile.cli`，但**各自实体化成不同的产
 
 ## 下一个子任务
 
-发布并验证第一版 GHCR 镜像：
+GHCR/Daytona 这条路已经证明能跑。下一步是把 worker 修复合进去并继续
+Phase 3 的产品硬化：
 
-```bash
-gh workflow run "CLI Image" --field tag=v0 --field platforms=linux/amd64
-gh run watch
-docker pull ghcr.io/quriosity-agent/qcut-cli:v0
-```
-
-pull 通过后，dogfood Daytona：
-
-```bash
-QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:v0 \
-SUPABASE_URL=... \
-SUPABASE_SERVICE_ROLE_KEY=... \
-QCUT_DOGFOOD_USER_ID=<better-auth-user-id> \
-bun run dogfood:daytona-worker
-```
-
-脚本会读取 `~/.qcut/.env`，插入一条 `qcut system doctor --json
---skip-health` 的
-`agent_jobs`，启动 worker，轮询到终态，打印 artifact rows，并保留
-job row 作为证据。
+1. merge/deploy worker 修复：Supabase row normalize、Daytona 使用
+   `/tmp/qcut-output`。
+2. 除非 CLI 代码变了，否则继续用
+   `QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:v0`。
+3. 实现 sandbox spawn 失败时退 credit。
+4. 设计并迁移 `agent_secrets.value` 加密。
+5. 把 wzrdagentstudio `/sandbox` 的 localStorage token 占位换成真的
+   QCut 登录流。
 
 ## 路径 A —— 本地 Docker（最快，仅开发）
 
@@ -116,7 +126,7 @@ gh workflow run cli-image --field tag=dev-2026-05-14
 - 私有包：拉取的客户端需要带 `read:packages` 作用域的 GitHub PAT
 
 Daytona 怎么用：`.devcontainer/devcontainer.json` 已经写死了
-`ghcr.io/quriosity-agent/qcut-cli:v0`。首次发布成功后改这个 tag 字符串。
+`ghcr.io/quriosity-agent/qcut-cli:v0`。只有 CLI 镜像本身变化时才需要换 tag。
 
 ## 路径 C —— E2B 模板（`/api/sandbox/spawn` 路由必需）
 
@@ -214,10 +224,10 @@ build`）被 SIGKILL。CLI 不需要 web bundle —— 跑
 
 ## 建议
 
-1. **现在**：用 `gh workflow run` 跑一次 Path B，让 Daytona
-   devcontainer + worker swap-in 有一个可拉的镜像。
-2. **GHCR 发布后立刻**：带真实 `DAYTONA_API_KEY` 跑 Daytona dogfood
-   worker 路径和 doctor job。
+1. **现在**：merge/deploy dogfood 验证过的 worker 修复
+   （`claim_one_agent_job` normalize + Daytona output dir）。
+2. **CLI 镜像需要刷新时**：只有 `Dockerfile.cli` 或 CLI runtime 代码变了
+   才重跑 Path B。
 3. **浏览器沙箱镜像需要刷新时**：只有 E2B template 需要吃到
    Dockerfile 或 CLI 变更时才重建 Path C。
 

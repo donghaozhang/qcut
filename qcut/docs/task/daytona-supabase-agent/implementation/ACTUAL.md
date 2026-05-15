@@ -32,19 +32,23 @@ into that architecture.
 | `665d05f19`                         | **PR 11** — agent-worker source files refactored to `userId`, `created_at` added explicitly to all inserts                                                                                                                            | updates 04                                                                              |
 | _this PR_                           | **PR 12** — Phase 2 alignment: sandbox-spawn moves to a Hono route in `packages/license-server/src/routes/sandbox.ts` with Better Auth + credit deduction; relay audit columns renamed; wzrdagentstudio frontend calls license-server | replaces 07; updates 08+09                                                              |
 | `b536d61b2`                         | **Phase 3 follow-up** — GHCR image workflow, current `@daytona/sdk` worker path, Daytona runner tests, and image-bootstrap docs                                                                                                       | completes the code side of PR 05's Daytona swap-in; provider verification still pending |
+| `ed99a4ac9` + this follow-up        | **Phase 3 verification** — GHCR owner casing fix, public `qcut-cli:v0` publish, Daytona dogfood, worker row normalization, Daytona writable output dir                                                                                | completes provider verification for PR 05's Daytona swap-in                             |
 
 ## Live verification (against production)
 
 These ran against project `kbrtxitvavpuimuihppz` (Supabase Postgres,
 ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
 
-| Check                                                                             | Result                                                                                                                       |
-| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Migration 0004 applied via Management API                                         | All 5 tables + RPC + 13 indexes created; verified via `pg_tables`/`pg_indexes` queries                                       |
-| Realtime publication updated for `agent_jobs`, `agent_events`, `sandbox_sessions` | `pg_publication_tables` confirms                                                                                             |
-| `claim_one_agent_job` RPC smoke                                                   | Insert → claim → mark succeeded → cleanup completed cleanly                                                                  |
-| Live worker against prod                                                          | Worker claimed real row, runner_id persisted, status transitioned to `failed` (docker daemon absent on this host — expected) |
-| License-server `/api/license`                                                     | Returns `1000.3` credits, plan `free`, reset `2026-06-11`                                                                    |
+| Check                                                                             | Result                                                                                                                                             |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Migration 0004 applied via Management API                                         | All 5 tables + RPC + 13 indexes created; verified via `pg_tables`/`pg_indexes` queries                                                             |
+| Realtime publication updated for `agent_jobs`, `agent_events`, `sandbox_sessions` | `pg_publication_tables` confirms                                                                                                                   |
+| `claim_one_agent_job` RPC smoke                                                   | Insert → claim → mark succeeded → cleanup completed cleanly                                                                                        |
+| Live worker against prod                                                          | Worker claimed real row, runner_id persisted, status transitioned to `failed` (docker daemon absent on this host — expected)                       |
+| License-server `/api/license`                                                     | Returns `1000.3` credits, plan `free`, reset `2026-06-11`                                                                                          |
+| GHCR `qcut-cli:v0` publish                                                        | Workflow run `25893277360` succeeded; image digest `sha256:b1b35894c4c9b77fc79522ed209d610cfd2f3816479056f8aa61d6a8bcce2356`                       |
+| Anonymous GHCR pull + smoke                                                       | `docker pull --platform linux/amd64 ghcr.io/quriosity-agent/qcut-cli:v0` succeeded after package visibility changed to public; `qcut-smoke` passed |
+| Daytona dogfood worker path                                                       | Job `dogfood-cc1078a0-2966-4afc-8444-08d514b76dca` succeeded with exit `0`; artifact row `234936d9-3e87-4ca9-ba68-cff42299726b` uploaded           |
 
 ## What is now done after `b536d61b2`
 
@@ -63,30 +67,39 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
 4. **Worker package type-checks independently.**
    `packages/agent-worker/tsconfig.json` scopes ambient types to Bun so
    unrelated root type stubs do not leak into the package.
+5. **GHCR provider verification is complete.**
+   The root workflow was fixed to lowercase the GHCR owner, workflow run
+   `25893277360` published `ghcr.io/quriosity-agent/qcut-cli:v0` and
+   `:latest`, and the package is public so Daytona can pull it.
+6. **Daytona worker dogfood is complete.**
+   The dogfood script inserted a real `agent_jobs` row, the worker
+   claimed it, Daytona pulled the GHCR image, `qcut system doctor
+--json --skip-health` passed, and `qcut-output.tar` landed in the
+   `artifacts` Storage bucket.
+7. **Dogfood-discovered worker bugs are fixed.**
+   `claim_one_agent_job` rows are normalized from Supabase snake_case
+   into Drizzle camelCase before use, and Daytona writes artifacts under
+   `/tmp/qcut-output` instead of trying to create `/output` as a
+   non-root image user.
 
 ## What still needs doing (gates on credentials / external services)
 
-1. **Run the GHCR workflow once** with `tag=v0` or a chosen release tag,
-   then verify `docker pull ghcr.io/quriosity-agent/qcut-cli:<tag>`
-   from a token-authenticated environment.
-2. **Dogfood Daytona worker path** with `DAYTONA_API_KEY` and
-   `QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:<tag>` by inserting
-   a real `agent_jobs` row and confirming Daytona pulls the image,
-   runs `qcut system doctor --json --skip-health`, downloads `/output`,
-   and marks the job succeeded.
-3. **Set/confirm license-server secrets** (`wrangler secret put`):
+1. **Merge/deploy the worker fixes** from this follow-up. The provider
+   path is verified locally against production services; deployed worker
+   code needs the same row-normalization and Daytona output-dir fixes.
+2. **Set/confirm license-server secrets** (`wrangler secret put`):
    `E2B_API_KEY`, `RELAY_SIGNING_SECRET`, `RELAY_HOST`, `QCUT_IMAGE_TAG`.
-4. **Deploy/confirm `@qcut/relay`** via `wrangler deploy` in
+3. **Deploy/confirm `@qcut/relay`** via `wrangler deploy` in
    `packages/qcut-relay`.
-5. **Rotate the leaked Supabase PAT** (`sbp_b303...`) — it has been seen
+4. **Rotate the leaked Supabase PAT** (`sbp_b303...`) — it has been seen
    by GitHub's secret scanner. Generate a new one at
    supabase.com/dashboard/account/tokens.
-6. **Wire QCut login into wzrdagentstudio.** SandboxPage currently reads
+5. **Wire QCut login into wzrdagentstudio.** SandboxPage currently reads
    `localStorage.qcut_auth_token` as a v0 stash — replace with a real
    QCut sign-in component.
-7. **Refund on spawn failure.** PR 12's `routes/sandbox.ts` deducts
+6. **Refund on spawn failure.** PR 12's `routes/sandbox.ts` deducts
    credits up-front but does not refund yet if E2B fails after billing.
-8. **Capture stderr properly when docker is missing.** PR 11 worker
+7. **Capture stderr properly when docker is missing.** PR 11 worker
    `exit_code` lands but `error` column stays null if execa cannot
    spawn.
 

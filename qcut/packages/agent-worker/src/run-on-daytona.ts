@@ -25,6 +25,7 @@ import type { ContainerResult } from "./run-container.js";
 const IMAGE_TAG =
 	process.env.QCUT_IMAGE_TAG ?? "ghcr.io/quriosity-agent/qcut-cli:v0";
 const TIMEOUT_SECONDS = 30 * 60;
+const DAYTONA_OUTPUT_DIR = "/tmp/qcut-output";
 const OUTPUT_ARCHIVE = "/tmp/qcut-output.tar";
 
 interface AgentSecretRow {
@@ -110,11 +111,11 @@ export function buildDaytonaCommand({
 	const safeArgv = tokenizeCommand(command);
 	const qcutCommand = `/usr/local/bin/qcut-entrypoint ${safeArgv.join(
 		" "
-	)} -o /output`;
+	)} -o ${DAYTONA_OUTPUT_DIR}`;
 
 	return {
-		command: `mkdir -p /output && ${qcutCommand}`,
-		archiveCommand: `tar -C /output -cf ${OUTPUT_ARCHIVE} .`,
+		command: `mkdir -p ${DAYTONA_OUTPUT_DIR} && ${qcutCommand}`,
+		archiveCommand: `tar -C ${DAYTONA_OUTPUT_DIR} -cf ${OUTPUT_ARCHIVE} .`,
 	};
 }
 
