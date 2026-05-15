@@ -235,7 +235,8 @@ describe("runOnDaytona", () => {
 		expect(clientConfigs).toEqual([{ apiKey: "daytona-test" }]);
 		expect(createCalls).toEqual([
 			{
-				image: "ghcr.io/quriosity-agent/qcut-cli:v0",
+				image:
+					"ghcr.io/quriosity-agent/qcut-cli@sha256:07ab8298aefb308a5aeefd5c2a7a3b64493c446c84f323c384b0ebeb16ae673a",
 				envVars: {
 					QCUT_SESSION_ROLE: "agent",
 					OPENAI_API_KEY: "sk-test",
