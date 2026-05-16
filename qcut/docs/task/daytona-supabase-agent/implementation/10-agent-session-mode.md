@@ -298,6 +298,52 @@ local production-shaped worker:
 | Persistence proof | second job read the marker written by the first job and returned `SECOND_PLAN_E2E_SAME_SANDBOX_plan-e2e-1778902437060` from `codex-last-message.md` |
 | Artifact evidence | both jobs uploaded `codex-events.jsonl`, `qcut-exit.json`, `qcut-output.tar`, and `codex-last-message.md` |
 
+## Live Website E2E - 2026-05-15
+
+Production fix before the passing run:
+
+- The live license-server was creating new sessions with `image_tag='qcut-cli'`,
+  which Daytona could not pull in the cloud and produced create/start
+  timeouts.
+- Set `QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`
+  in `packages/license-server/wrangler.toml` and redeployed the Cloudflare
+  Worker.
+- Increased the worker Daytona create/start timeout from 120 seconds to 300
+  seconds so first-use image pulls have enough headroom.
+
+Focused tests after the fix:
+
+```bash
+bun --cwd packages/agent-worker test -- run-on-daytona.test.ts
+bunx tsc -p packages/agent-worker/tsconfig.json --noEmit
+bun --cwd packages/license-server test -- agent.test.ts
+bunx biome check packages/license-server/wrangler.toml packages/license-server/src/routes/agent.ts
+```
+
+Live UI run at `https://quriosity.com.au/chat-agent.html`:
+
+| Step | Evidence |
+| --- | --- |
+| Run id | `ui-e2e-1778904289442` |
+| Session | `2676fb3f-daed-45c3-b4c2-9be072ac2992` |
+| Sandbox | `8a7b6295-fbbf-4545-a339-ae43fbaccb36` |
+| Turn 1 job | `30d42eae-352e-4185-b524-1264918e9a4e` succeeded |
+| Turn 1 reply | `TURN1_OK_ui-e2e-1778904289442` |
+| Turn 2 job | `811dec1b-43ab-4684-b8af-e49e59c98642` succeeded |
+| Turn 2 reply | `TURN2_OK_SAME_CONVERSATION_ui-e2e-1778904289442` |
+| Turn 2 continuity proof | job prompt included the first user/assistant turn, and `agent_session_ready.reused=true` with the same sandbox |
+| Video job | `f60d3e6e-2b6d-4c48-bb94-61856b76b05c` succeeded |
+| Video artifact | `e2e-video-ui-e2e-1778904289442.mp4`, kind `video`, 40,239 bytes |
+| Download verification | artifact download endpoint returned `200`, `Content-Type: video/mp4`, `Content-Disposition: attachment; filename="e2e-video-ui-e2e-1778904289442.mp4"`, MP4 `ftyp` signature |
+
+Screenshots:
+
+- Before: `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-e2e-before.png`
+- After turn 1: `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-e2e-after-turn1.png`
+- After turn 2: `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-e2e-after-turn2.png`
+- After video artifacts:
+  `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-e2e-after-video-artifacts.png`
+
 ## Follow-ups
 
 - Persistent Codex PTY/daemon process inside the same sandbox.
