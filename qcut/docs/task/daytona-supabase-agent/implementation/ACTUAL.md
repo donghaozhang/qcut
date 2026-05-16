@@ -263,6 +263,50 @@ YouTube download result:
 - The previous `BaW_jenozKc` URL should not be reused as a success probe
   because it now returns unavailable independently of QCut.
 
+## Terminal session artifact download fix
+
+Production bug:
+
+- The PTY session artifact route
+  `/api/agent/sessions/:sessionId/artifacts/:filename/download` failed in
+  Cloudflare Workers with
+  `"Buffer" is not supported: Module "buffer" is not available in the
+  "serverless" runtime`.
+- Cause: Daytona SDK `sandbox.fs.downloadFile()` parses the download multipart
+  body through Node `Buffer`; the Worker runtime does not expose that module.
+
+Fix shipped:
+
+- `packages/license-server/src/services/daytona-download.ts` now calls
+  Daytona's lower-level `downloadFiles` API with `responseType: "arraybuffer"`.
+- The license-server parses Daytona's multipart response with Web-standard
+  `Uint8Array`/`TextEncoder`/`TextDecoder` only, then returns the artifact bytes
+  directly from the session download route.
+- `packages/license-server/src/routes/agent.test.ts` now asserts the session
+  download path does **not** call `sandbox.fs.downloadFile()`.
+- `packages/license-server/src/services/daytona-download.test.ts` covers
+  multipart file extraction, multipart error parts, and raw byte fallback.
+
+Verification:
+
+```bash
+bun --cwd packages/license-server test src/routes/agent.test.ts src/services/daytona-download.test.ts
+node --test packages/nexusai-website/js/agent-chat.test.js
+bunx tsc --noEmit --strict --moduleResolution bundler --module ESNext --target ES2022 --typeRoots /tmp/qcut-empty-types packages/license-server/src/services/daytona-download.ts
+```
+
+Production E2E on 2026-05-16:
+
+| Step | Evidence |
+| --- | --- |
+| Deployed license-server | version `0c0f9734-0bdc-4632-a62a-eb7b9696bb4f` |
+| Deployed relay | version `3d0ec83e-5aa1-477d-aafa-09115e27ab68` |
+| Session | `c4b059cc-d8c2-480d-8c8a-0dd07950b45d` |
+| Daytona sandbox | `960e6ecc-a2ea-4e00-9f9a-70c283ece3c9` |
+| PTY proof | WebSocket opened, then wrote `/tmp/qcut-output/download-check.txt` |
+| Artifact list | returned `download-check.txt` |
+| Download proof | deployed route returned exact text `qcut artifact download ok` |
+
 ## What still needs doing (gates on credentials / external services)
 
 1. **Merge the `qcut-cli-v2` follow-up branch** once the stdio artifact

@@ -12,6 +12,7 @@ import {
 import { db } from "../db/drizzle";
 import { getSupabase } from "../db/supabase";
 import { authMiddleware } from "../middleware/auth";
+import { downloadDaytonaFileBytes } from "../services/daytona-download";
 
 const agentRoutes = new Hono();
 
@@ -48,7 +49,6 @@ const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
 	".webm": "video/webm",
 	".webp": "image/webp",
 };
-
 interface CreateAgentJobBody {
 	command?: string;
 	args?: Record<string, unknown>;
@@ -622,19 +622,19 @@ async function downloadAgentSessionArtifact(c: Context) {
 	}
 
 	const sandbox = await getDaytonaSandboxForSession({ session });
-	const buffer = await sandbox.fs.downloadFile(
-		`${TERMINAL_OUTPUT_DIR}/${filename}`,
-		10 * 60
-	);
+	const remotePath = `${TERMINAL_OUTPUT_DIR}/${filename}`;
+	const fileBytes = await downloadDaytonaFileBytes({
+		sandbox,
+		remotePath,
+		timeoutSeconds: 10 * 60,
+	});
 	const headers: Record<string, string> = {
 		"Content-Disposition": `attachment; filename="${escapeContentDispositionFilename({ filename })}"`,
 		"Content-Type": getContentTypeByFilename({ filename }),
+		"Content-Length": String(fileBytes.byteLength),
 	};
-	if (typeof buffer.byteLength === "number") {
-		headers["Content-Length"] = String(buffer.byteLength);
-	}
 
-	return c.body(buffer, 200, headers);
+	return c.body(fileBytes, 200, headers);
 }
 
 async function getRequestAgentSession({

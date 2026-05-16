@@ -501,12 +501,72 @@ Follow-up permission fix:
   prompts while the process is already running inside a disposable Daytona
   sandbox.
 
+Default connection follow-up:
+
+- The website now auto-connects the Daytona PTY after Chat Agent page
+  initialization. Users no longer need to click Connect before sending a Codex
+  prompt.
+- Local browser verification saved
+  `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-autoconnect-local.png`
+  and confirmed the terminal reached `connected` on page load.
+
+## Terminal Artifact Download Fix - 2026-05-16
+
+Problem found in production:
+
+- Downloading artifacts from the PTY session route failed with
+  `"Buffer" is not supported: Module "buffer" is not available in the
+  "serverless" runtime`.
+- The root cause was Daytona SDK `sandbox.fs.downloadFile()` converting the
+  multipart response through Node `Buffer`, which Cloudflare Workers do not
+  provide.
+
+Implemented fix:
+
+- Added `packages/license-server/src/services/daytona-download.ts` to call
+  Daytona's lower-level `downloadFiles` API with `responseType: "arraybuffer"`.
+- Parses the multipart response with `Uint8Array`, `TextEncoder`, and
+  `TextDecoder` only; no Node `Buffer` or `require("buffer")` is used.
+- Updated the PTY terminal artifact route to return the parsed binary bytes
+  with `Content-Length`, `Content-Type`, and attachment disposition.
+- Added dedicated service tests for multipart file extraction, multipart error
+  parts, and raw non-multipart fallback.
+
+Verification:
+
+```bash
+bun --cwd packages/license-server test src/routes/agent.test.ts src/services/daytona-download.test.ts
+node --test packages/nexusai-website/js/agent-chat.test.js
+bunx tsc --noEmit --strict --moduleResolution bundler --module ESNext --target ES2022 --typeRoots /tmp/qcut-empty-types packages/license-server/src/services/daytona-download.ts
+```
+
+Result:
+
+- License-server focused tests: 27 passed.
+- Website chat client tests: 18 passed.
+- Focused service typecheck passed.
+- Full license-server typecheck is still blocked by existing unrelated
+  workspace issues: missing implicit `sharp` types and duplicate Drizzle
+  versions.
+
+Production E2E after deploying `qcut-license-server` and `qcut-relay`:
+
+| Step | Evidence |
+| --- | --- |
+| Session | `c4b059cc-d8c2-480d-8c8a-0dd07950b45d` |
+| Daytona sandbox | `960e6ecc-a2ea-4e00-9f9a-70c283ece3c9` |
+| Relay/PTY | WebSocket opened against deployed `qcut-relay` |
+| Artifact created | `/tmp/qcut-output/download-check.txt` |
+| Artifact list | returned `download-check.txt` |
+| Download route | returned `qcut artifact download ok` from the deployed license-server |
+
 ## Follow-ups
 
 - Decide whether to keep `codex exec` per Send or graduate to a long-lived
   interactive Codex process inside the PTY.
-- Stream large terminal artifact downloads through object storage instead of
-  buffering Daytona `fs.downloadFile` in the Worker.
+- For very large terminal artifacts, consider streaming or uploading through
+  object storage instead of buffering the Daytona multipart response in the
+  Worker.
 - User-visible "session will expire soon" countdown.
 - Per-session credit policy if idle warm sandboxes become costly.
 - Add a normal migration-runner path so production schema changes do not need a

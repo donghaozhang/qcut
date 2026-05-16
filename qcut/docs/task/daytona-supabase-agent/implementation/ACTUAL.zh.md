@@ -244,6 +244,49 @@ YouTube 下载结果：
 - 之前的 `BaW_jenozKc` 不能再当成功 probe，因为它现在脱离 QCut 也会返回
   unavailable。
 
+## Terminal session artifact 下载修复
+
+生产 bug：
+
+- PTY session artifact 下载接口
+  `/api/agent/sessions/:sessionId/artifacts/:filename/download` 在
+  Cloudflare Workers 里失败，错误是：
+  `"Buffer" is not supported: Module "buffer" is not available in the
+  "serverless" runtime`。
+- 根因是 Daytona SDK 的 `sandbox.fs.downloadFile()` 会用 Node `Buffer`
+  解析下载 multipart body；Worker runtime 没有这个模块。
+
+已上线的修复：
+
+- 新增 `packages/license-server/src/services/daytona-download.ts`，改为调用
+  Daytona 底层 `downloadFiles` API，并指定 `responseType: "arraybuffer"`。
+- license-server 用 Web 标准的 `Uint8Array` / `TextEncoder` /
+  `TextDecoder` 解析 Daytona multipart response，不再碰 Node `Buffer`。
+- `packages/license-server/src/routes/agent.test.ts` 现在明确断言 session
+  下载路径不会调用 `sandbox.fs.downloadFile()`。
+- `packages/license-server/src/services/daytona-download.test.ts` 覆盖
+  multipart 文件提取、multipart error part、非 multipart 原始 bytes fallback。
+
+验证命令：
+
+```bash
+bun --cwd packages/license-server test src/routes/agent.test.ts src/services/daytona-download.test.ts
+node --test packages/nexusai-website/js/agent-chat.test.js
+bunx tsc --noEmit --strict --moduleResolution bundler --module ESNext --target ES2022 --typeRoots /tmp/qcut-empty-types packages/license-server/src/services/daytona-download.ts
+```
+
+2026-05-16 生产 E2E：
+
+| 步骤 | 证据 |
+| --- | --- |
+| license-server 部署 | version `0c0f9734-0bdc-4632-a62a-eb7b9696bb4f` |
+| relay 部署 | version `3d0ec83e-5aa1-477d-aafa-09115e27ab68` |
+| Session | `c4b059cc-d8c2-480d-8c8a-0dd07950b45d` |
+| Daytona sandbox | `960e6ecc-a2ea-4e00-9f9a-70c283ece3c9` |
+| PTY 证明 | WebSocket 成功 open，并写入 `/tmp/qcut-output/download-check.txt` |
+| Artifact list | 返回 `download-check.txt` |
+| Download 证明 | 已部署接口返回精确文本 `qcut artifact download ok` |
+
 ## 还没做的（依赖外部凭证 / 服务）
 
 1. **review 后合并 `qcut-cli-v2` follow-up 分支**，把 stdio artifact

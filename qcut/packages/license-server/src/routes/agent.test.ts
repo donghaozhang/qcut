@@ -19,6 +19,7 @@ const daytonaMocks = vi.hoisted(() => ({
 	get: vi.fn(),
 	executeCommand: vi.fn(),
 	downloadFile: vi.fn(),
+	downloadFiles: vi.fn(),
 }));
 
 vi.mock("@daytona/sdk", () => ({
@@ -107,6 +108,27 @@ function mockArtifactDownload({ text }: { text: string }): void {
 	vi.mocked(getSupabase).mockReturnValue({
 		storage: { from },
 	} as never);
+}
+
+function buildMultipartDownload({
+	boundary,
+	filename,
+	bytes,
+}: {
+	boundary: string;
+	filename: string;
+	bytes: Uint8Array;
+}): Uint8Array {
+	const encoder = new TextEncoder();
+	const prefix = encoder.encode(
+		`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: application/octet-stream\r\n\r\n`
+	);
+	const suffix = encoder.encode(`\r\n--${boundary}--\r\n`);
+	const output = new Uint8Array(prefix.length + bytes.length + suffix.length);
+	output.set(prefix, 0);
+	output.set(bytes, prefix.length);
+	output.set(suffix, prefix.length + bytes.length);
+	return output;
 }
 
 function mockOwnedJobAndArtifact({
@@ -398,11 +420,21 @@ describe("agent terminal artifacts", () => {
 		mockSelectRowsOnce({
 			rows: [makeAgentSession({ providerSessionId: "sandbox-1" })],
 		});
+		const boundary = "qcut-test-boundary";
 		daytonaMocks.get.mockResolvedValue({
 			fs: {
-				downloadFile: daytonaMocks.downloadFile.mockResolvedValue(
-					Buffer.from([1, 2, 3])
-				),
+				apiClient: {
+					downloadFiles: daytonaMocks.downloadFiles.mockResolvedValue({
+						data: buildMultipartDownload({
+							boundary,
+							filename: "/tmp/qcut-output/result.png",
+							bytes: new Uint8Array([1, 2, 3]),
+						}),
+						headers: {
+							"content-type": `multipart/form-data; boundary=${boundary}`,
+						},
+					}),
+				},
 			},
 		});
 
@@ -418,10 +450,11 @@ describe("agent terminal artifacts", () => {
 		expect(new Uint8Array(await res.arrayBuffer())).toEqual(
 			new Uint8Array([1, 2, 3])
 		);
-		expect(daytonaMocks.downloadFile).toHaveBeenCalledWith(
-			"/tmp/qcut-output/result.png",
-			600
+		expect(daytonaMocks.downloadFiles).toHaveBeenCalledWith(
+			{ paths: ["/tmp/qcut-output/result.png"] },
+			{ responseType: "arraybuffer", timeout: 600_000 }
 		);
+		expect(daytonaMocks.downloadFile).not.toHaveBeenCalled();
 	});
 });
 
