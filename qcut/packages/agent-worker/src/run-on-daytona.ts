@@ -29,7 +29,7 @@ import {
 import type { ContainerResult } from "./run-container.js";
 
 const DEFAULT_DAYTONA_IMAGE =
-	"ghcr.io/quriosity-agent/qcut-cli@sha256:2b9b8c7aa80bc2e5db874f04ccca302bbce0693a7d90274fe2b8645049fdbb7b";
+	"ghcr.io/quriosity-agent/qcut-cli@sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923";
 const IMAGE_TAG = process.env.QCUT_IMAGE_TAG ?? DEFAULT_DAYTONA_IMAGE;
 const TIMEOUT_SECONDS = 30 * 60;
 const DAYTONA_OUTPUT_DIR = "/tmp/qcut-output";

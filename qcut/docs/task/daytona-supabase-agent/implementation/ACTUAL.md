@@ -58,6 +58,8 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
 | Local Codex auth bootstrap smoke                                                  | `qcut-cli:codex-auth-smoke` built for `linux/amd64`; fake `CODEX_AUTH_JSON` wrote `~/.codex/auth.json` with mode `0600`; `QCUT_CODEX_PROMPT_B64` decoded correctly inside the image |
 | Website Codex → QCut CLI image E2E                                                | Chat Agent job `9b8a7693-00e0-4cff-8635-a7d78135d2d8` succeeded with exit `0`; Codex ran `qcut gen image ... -o /tmp/qcut-output`; uploaded JPG artifact `flux_dev_small-blue-square-icon-on-a-clean-white-background_1778827141210.jpg` |
 | Local YouTube-capable CLI image smoke                                             | `qcut-cli:youtube-fix` built for `linux/amd64`; `qcut-smoke` passed; `yt-dlp` + Deno downloaded a YouTube `.mp4` into `/tmp/qcut-output` without installing tools into the artifact directory |
+| GHCR YouTube-capable image publish                                                | Workflow run `25949183927` published `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`; digest `sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923`; pushed-image and local pull smoke passed |
+| Website Codex → YouTube artifact E2E                                              | Chat Agent job `3b19b2cd-cb17-4576-add0-89ba9aca2e4e` succeeded with exit `0`; Codex used `yt-dlp` with cache under `/tmp/qcut-tools`; artifacts include downloadable `youtube-e2e.mp4` (464.8 KB) and summary JSON |
 
 ## What is now done after `b536d61b2`
 
@@ -157,6 +159,10 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
     The Codex operating prompt also tells the sandbox to put temporary
     tools/cache under `/tmp/qcut-tools` or `/tmp`, leaving
     `/tmp/qcut-output` for final artifacts and small diagnostics only.
+    Workflow run `25949183927` published this as
+    `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`; the Daytona
+    runner default image digest has been updated to
+    `sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923`.
 
 ## Live CLI E2E coverage and timing
 
@@ -197,7 +203,8 @@ The website Codex mode was tested as a three-turn browser session:
 | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
 | `8bac5fba` | Remember `sapphire-bridge-481` | succeeded / 0 | 11.1s | 1.4s | 9.8s | 3 | First Codex turn returned `stored sapphire-bridge-481` and uploaded `codex-last-message.md`. |
 | `19ff765e` | Ask what phrase was remembered, without repeating it | succeeded / 0 | 12.7s | 1.0s | 11.8s | 3 | Multi-turn context works in the current implementation: the page rebuilt the prompt from prior messages and Codex answered `sapphire-bridge-481`. |
-| `619d2ec1` | Download the public youtube-dl test video `BaW_jenozKc` into `/tmp/qcut-output` | succeeded / 0 | 104.4s | 1.4s | 103.0s | 7 | Codex executed shell steps and uploaded diagnostics, but YouTube/yt-dlp returned `Video unavailable`; no `.mp4` artifact was produced. |
+| `619d2ec1` | Download the public youtube-dl test video `BaW_jenozKc` into `/tmp/qcut-output` | succeeded / 0 | 104.4s | 1.4s | 103.0s | 7 | Pre-fix probe: Codex executed shell steps and uploaded diagnostics, but YouTube/yt-dlp returned `Video unavailable`; no `.mp4` artifact was produced. |
+| `3b19b2cd` | Download currently available YouTube URL `jNQXAC9IVRw` into `/tmp/qcut-output` | succeeded / 0 | ~2m | live website poll | live Daytona run | 5 | Post-fix E2E: Codex used preinstalled `yt-dlp` + Deno and wrote `youtube-e2e.mp4` plus summary JSON. The website Download button fetched the MP4 successfully. |
 
 Current Codex conversation behavior:
 
@@ -218,17 +225,21 @@ YouTube download result:
 - `youtube-download-error.txt` contained
   `ERROR: [youtube] BaW_jenozKc: Video unavailable`.
 - No `.mp4` appeared in artifacts because the download did not complete.
-- Follow-up fix implemented locally: the CLI image now includes `yt-dlp`
-  and Deno, with EJS remote components enabled. A clean
-  `qcut-cli:youtube-fix` container downloaded
-  `https://www.youtube.com/watch?v=jNQXAC9IVRw` to
-  `/tmp/qcut-output/youtube-test.mp4` (312 KB) after running
-  `qcut-smoke`.
-- Still to verify live: publish that refreshed image to GHCR, point the
-  Daytona worker at the new tag/digest, and rerun the website Chat Agent
-  YouTube prompt. The previous `BaW_jenozKc` URL should not be reused as
-  the success probe because it now returns unavailable independently of
-  QCut.
+- Follow-up fix verified end-to-end: workflow run `25949183927` published
+  the refreshed image, the local worker was restarted with
+  `QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`,
+  and website job `3b19b2cd-cb17-4576-add0-89ba9aca2e4e` produced:
+  - `youtube-e2e.mp4` (`video`, 464.8 KB)
+  - `youtube-e2e-summary.json` (`json`, 96 bytes, `exit_status: 0`)
+  - `qcut-output.tar` (480.0 KB)
+  - `codex-last-message.md`
+  - `codex-events.jsonl`
+- The website artifact download route also works for the MP4: clicking the
+  `youtube-e2e.mp4` Download button fetched
+  `/api/agent/jobs/3b19b2cd-cb17-4576-add0-89ba9aca2e4e/artifacts/.../download`
+  with HTTP 200 and saved `youtube-e2e.mp4` in the Playwright session.
+- The previous `BaW_jenozKc` URL should not be reused as a success probe
+  because it now returns unavailable independently of QCut.
 
 ## What still needs doing (gates on credentials / external services)
 
@@ -236,10 +247,10 @@ YouTube download result:
    capture, YouTube image fix, and E2E notes are reviewed.
 2. **Set/confirm license-server secrets** (`wrangler secret put`):
    `E2B_API_KEY`, `RELAY_SIGNING_SECRET`, `RELAY_HOST`, `QCUT_IMAGE_TAG`.
-3. **Publish the refreshed CLI image to GHCR and rerun live Chat Agent
-   YouTube E2E.** Manual `docker push` was blocked by the local GHCR token
-   missing package write scope, so use `.github/workflows/cli-image.yml`
-   from `qcut-cli-v2` or publish after merge.
+3. **After merge, decide whether to republish `v0`/`latest` or keep the
+   verified digest pin.** The tested image is currently available as
+   `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`, and the worker
+   default pin points at its digest.
 4. **Deploy/confirm `@qcut/relay`** via `wrangler deploy` in
    `packages/qcut-relay`.
 5. **Rotate the leaked Supabase PAT** (`sbp_b303...`) — it has been seen

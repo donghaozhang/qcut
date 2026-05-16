@@ -56,6 +56,8 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
 | 本地 Codex auth bootstrap smoke                                           | `qcut-cli:codex-auth-smoke` 按 `linux/amd64` 构建；假的 `CODEX_AUTH_JSON` 能写成权限 `0600` 的 `~/.codex/auth.json`；`QCUT_CODEX_PROMPT_B64` 在镜像内能正确解码 |
 | Website Codex → QCut CLI 图片 E2E                                         | Chat Agent job `9b8a7693-00e0-4cff-8635-a7d78135d2d8` 成功，exit `0`；Codex 实际跑了 `qcut gen image ... -o /tmp/qcut-output`；上传了 JPG artifact `flux_dev_small-blue-square-icon-on-a-clean-white-background_1778827141210.jpg` |
 | 本地 YouTube-capable CLI 镜像 smoke                                      | `qcut-cli:youtube-fix` 按 `linux/amd64` 构建；`qcut-smoke` 通过；`yt-dlp` + Deno 能把 YouTube `.mp4` 下载进 `/tmp/qcut-output`，且不会把工具安装到 artifact 目录 |
+| GHCR YouTube-capable 镜像发布                                             | workflow run `25949183927` 发布 `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`；digest `sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923`；推后 smoke 和本地 pull smoke 都通过 |
+| Website Codex → YouTube artifact E2E                                      | Chat Agent job `3b19b2cd-cb17-4576-add0-89ba9aca2e4e` 成功，exit `0`；Codex 用 `/tmp/qcut-tools` 做 cache 跑预装 `yt-dlp`；artifacts 包含可下载的 `youtube-e2e.mp4`（464.8 KB）和 summary JSON |
 
 ## `b536d61b2` 之后已经完成的事
 
@@ -143,6 +145,10 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
     `/etc/yt-dlp.conf` 的 `--remote-components ejs:github`。Codex 的运行
     prompt 也要求临时工具 / cache 放到 `/tmp/qcut-tools` 或 `/tmp`，
     `/tmp/qcut-output` 只放最终产物和小诊断文件。
+    workflow run `25949183927` 已把这个镜像发布成
+    `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`；Daytona
+    runner 的默认镜像 digest 已更新到
+    `sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923`。
 
 ## Live CLI E2E 覆盖和耗时
 
@@ -180,7 +186,8 @@ website Codex 模式用真实浏览器跑了三轮：
 | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
 | `8bac5fba` | 让 Codex 记住 `sapphire-bridge-481` | succeeded / 0 | 11.1s | 1.4s | 9.8s | 3 | 第一轮回复 `stored sapphire-bridge-481`，并上传 `codex-last-message.md`。 |
 | `19ff765e` | 不重复短语，直接问上一轮记住了什么 | succeeded / 0 | 12.7s | 1.0s | 11.8s | 3 | 当前多轮上下文可用：前端把历史消息重新拼进下一轮 `codexPrompt`，Codex 回答了 `sapphire-bridge-481`。 |
-| `619d2ec1` | 把公开的 youtube-dl 测试视频 `BaW_jenozKc` 下载到 `/tmp/qcut-output` | succeeded / 0 | 104.4s | 1.4s | 103.0s | 7 | Codex 执行了 shell 步骤并上传诊断文件，但 YouTube/yt-dlp 返回 `Video unavailable`；没有生成 `.mp4` artifact。 |
+| `619d2ec1` | 把公开的 youtube-dl 测试视频 `BaW_jenozKc` 下载到 `/tmp/qcut-output` | succeeded / 0 | 104.4s | 1.4s | 103.0s | 7 | 修复前 probe：Codex 执行了 shell 步骤并上传诊断文件，但 YouTube/yt-dlp 返回 `Video unavailable`；没有生成 `.mp4` artifact。 |
+| `3b19b2cd` | 把当前可访问的 YouTube URL `jNQXAC9IVRw` 下载到 `/tmp/qcut-output` | succeeded / 0 | 约 2m | live website poll | live Daytona run | 5 | 修复后 E2E：Codex 用预装 `yt-dlp` + Deno 写出 `youtube-e2e.mp4` 和 summary JSON；website Download 按钮也成功下载 MP4。 |
 
 当前 Codex 对话行为：
 
@@ -200,13 +207,20 @@ YouTube 下载结果：
 - `youtube-download-error.txt` 里是
   `ERROR: [youtube] BaW_jenozKc: Video unavailable`。
 - 因为下载没有完成，所以 artifacts 里没有 `.mp4`。
-- 本地 follow-up 修复已完成：CLI 镜像现在包含 `yt-dlp` 和 Deno，并打开
-  EJS remote components。干净的 `qcut-cli:youtube-fix` 容器先通过
-  `qcut-smoke`，再把 `https://www.youtube.com/watch?v=jNQXAC9IVRw`
-  下载成 `/tmp/qcut-output/youtube-test.mp4`（312 KB）。
-- 还要做一次 live 验证：把刷新后的镜像发布到 GHCR，让 Daytona worker
-  指向新的 tag/digest，然后从 website Chat Agent 重跑 YouTube prompt。
-  之前的 `BaW_jenozKc` 不能再当成功 probe，因为它现在脱离 QCut 也会返回
+- follow-up 修复已端到端验证：workflow run `25949183927` 发布刷新后的
+  镜像；本地 worker 用
+  `QCUT_IMAGE_TAG=ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`
+  重启；website job `3b19b2cd-cb17-4576-add0-89ba9aca2e4e` 产出：
+  - `youtube-e2e.mp4`（`video`，464.8 KB）
+  - `youtube-e2e-summary.json`（`json`，96 bytes，`exit_status: 0`）
+  - `qcut-output.tar`（480.0 KB）
+  - `codex-last-message.md`
+  - `codex-events.jsonl`
+- website artifact 下载接口也验证过：点击 `youtube-e2e.mp4` 的 Download
+  按钮会请求
+  `/api/agent/jobs/3b19b2cd-cb17-4576-add0-89ba9aca2e4e/artifacts/.../download`，
+  返回 HTTP 200，并在 Playwright session 保存 `youtube-e2e.mp4`。
+- 之前的 `BaW_jenozKc` 不能再当成功 probe，因为它现在脱离 QCut 也会返回
   unavailable。
 
 ## 还没做的（依赖外部凭证 / 服务）
@@ -215,10 +229,10 @@ YouTube 下载结果：
    capture、YouTube 镜像修复和这轮 E2E 记录进主线。
 2. **设 / 确认 license-server 密钥**（`wrangler secret put`）：
    `E2B_API_KEY`、`RELAY_SIGNING_SECRET`、`RELAY_HOST`、`QCUT_IMAGE_TAG`。
-3. **发布刷新后的 CLI 镜像到 GHCR，并重跑 live Chat Agent YouTube E2E。**
-   本地手动 `docker push` 被 GHCR 拒了，因为当前 token 没有 package write
-   scope；所以要用 `qcut-cli-v2` 上的 `.github/workflows/cli-image.yml`
-   发临时 tag，或合并后再发布。
+3. **合并后决定是重发 `v0` / `latest`，还是保留已验证 digest pin。**
+   当前测过的镜像 tag 是
+   `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`，worker 默认 pin
+   已指向它的 digest。
 4. **部署 / 确认 `@qcut/relay`**：`packages/qcut-relay` 下
    `wrangler deploy`。
 5. **轮换泄露的 Supabase PAT**（`sbp_b303...`）——GitHub secret

@@ -14,6 +14,7 @@ three paths and what's done / not done.
 | `qcut-cli:youtube-fix` (local Docker image)           | local Docker daemon       | ✅ built for `linux/amd64`; `qcut-smoke` verifies `yt-dlp` `2026.03.17`, Deno `2.7.4`, Codex, Claude, and native-cli; real YouTube `.mp4` download writes to `/tmp/qcut-output`                                 | n/a                                |
 | `qcut-cli:dev` (local Docker image)                   | local Docker daemon       | ✅ built, **verified end-to-end** against prod                                                                                                                                                                   | n/a                                |
 | `ghcr.io/quriosity-agent/qcut-cli:v0`                 | GitHub Container Registry | ✅ republished by workflow run `25902797671`; pushed-image `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, Claude Code `2.1.142`, `native-cli` skill, and the latest entrypoint                                 | ✅ public, anonymous pull verified |
+| `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516` | GitHub Container Registry | ✅ published by workflow run `25949183927`; digest `sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923`; pushed-image and local pull smoke passed; website YouTube E2E passed             | ✅ public, anonymous pull verified |
 | E2B template `qcut-cli` (ID `<your-e2b-template-id>`) | E2B's build cluster       | ⚠️ **built but with bugs** — `Sandbox.create()` works, but the `qcut` wrapper script's shebang is mangled (`#!/usr/bin/env bashnexec ...`). Needs rebuild with the `echo`-based wrapper now in `e2b.Dockerfile`. | n/a (E2B private)                  |
 
 Current working:
@@ -101,13 +102,26 @@ Verified provider runs:
   - the previous `BaW_jenozKc` probe should be considered invalid now
     because YouTube returns `Video unavailable` for that ID independently
     of QCut
+- GHCR YouTube image publish succeeded:
+  - workflow run `25949183927`
+  - image `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`
+  - digest `sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923`
+  - pushed-image smoke passed in CI, and local pull + `qcut-smoke` passed
+- Website Chat Agent YouTube E2E succeeded:
+  - job `3b19b2cd-cb17-4576-add0-89ba9aca2e4e`
+  - runner `aca4aa3b-941b-41cd-9ca9-fb28235c16ac`
+  - status `succeeded`, exit code `0`
+  - artifacts include downloadable `youtube-e2e.mp4` (464.8 KB),
+    `youtube-e2e-summary.json`, `qcut-output.tar`, `codex-last-message.md`,
+    and `codex-events.jsonl`
+  - Playwright clicked the MP4 Download button and saved
+    `.playwright-cli/youtube-e2e.mp4`
 
 Currently still needs external provider work:
 
-- GHCR/Daytona: publish the refreshed `Dockerfile.cli` image with the
-  GitHub Actions workflow and point `QCUT_IMAGE_TAG` or the worker env to
-  the new tag/digest before the live website YouTube E2E. Manual local
-  `docker push` was blocked by a GHCR token missing package write scope.
+- GHCR/Daytona: after merge, either republish the verified image as `v0`
+  / `latest`, or keep the Daytona runner pinned to the verified digest
+  above.
 - E2B: if rebuilding the browser-sandbox template, re-run
   `e2b template create qcut-cli -d e2b.Dockerfile --cpu-count 2
 --memory-mb 4096` after moving workspace `node_modules` out (see
@@ -116,20 +130,15 @@ Currently still needs external provider work:
 
 ## Next subtask
 
-The GHCR/Daytona image path is proven, and GHCR `v0` now includes the
-Codex auth bootstrap. The YouTube fix is verified locally in
-`qcut-cli:youtube-fix`; next, publish that image through GHCR and run the
-same prompt from the live Chat Agent page.
+The GHCR/Daytona image path is proven, GHCR `v0` includes the Codex auth
+bootstrap, and the YouTube-capable image is now verified through the live
+Chat Agent page.
 
-1. Dispatch `.github/workflows/cli-image.yml` from `qcut-cli-v2` with a
-   temporary tag such as `youtube-fix-2026-05-16`.
-2. Restart the local worker with `QCUT_IMAGE_TAG` set to that GHCR tag or
-   digest.
-3. Rerun the website Chat Agent YouTube download E2E with a currently
-   available, authorized video URL.
-4. Implement credit refund on failed sandbox spawn.
-5. Design and migrate `agent_secrets.value` encryption.
-6. Replace the wzrdagentstudio `/sandbox` localStorage token shim with
+1. Merge `qcut-cli-v2`, then decide whether to publish this digest as
+   `v0` / `latest` or continue with the digest pin.
+2. Implement credit refund on failed sandbox spawn.
+3. Design and migrate `agent_secrets.value` encryption.
+4. Replace the wzrdagentstudio `/sandbox` localStorage token shim with
    the real QCut sign-in flow.
 
 ## Path A — local Docker (fastest, dev only)
