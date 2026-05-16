@@ -379,7 +379,8 @@ Completed:
 - QCut relay supports `session_kind="agent"` tokens and creates a Daytona PTY
   for the existing agent sandbox.
 - The website uses xterm.js and sends the chat prompt as a visible
-  `codex exec --sandbox danger-full-access` command in the PTY.
+  `codex exec --dangerously-bypass-approvals-and-sandbox` command in the PTY,
+  so Codex does not stop for permission prompts inside Daytona.
 - Terminal artifacts are listed and downloaded directly from
   `/tmp/qcut-output` with session artifact endpoints.
 - Production Workers were deployed with shared `RELAY_SIGNING_SECRET` and

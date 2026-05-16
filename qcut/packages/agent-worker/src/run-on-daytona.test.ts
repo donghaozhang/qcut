@@ -243,6 +243,7 @@ describe("buildDaytonaCommand", () => {
 		expect(command).toContain("export QCUT_CODEX_PROMPT_B64=");
 		expect(command).toContain("export QCUT_BOOTSTRAP_CODEX=1");
 		expect(command).toContain("/usr/local/bin/qcut-entrypoint codex exec");
+		expect(command).toContain("--dangerously-bypass-approvals-and-sandbox");
 		expect(command).not.toContain("Explain QCut's agent path.");
 	});
 });

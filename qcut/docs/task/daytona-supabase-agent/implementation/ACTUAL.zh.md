@@ -105,7 +105,7 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
     website 的 Chat Agent 页现在可以提交 Codex 模式任务。license-server
     只接受固定的 stdin 版 Codex command；prompt 走 `args.codexPrompt`；
     worker 把它 base64 成 `QCUT_CODEX_PROMPT_B64`；Daytona 里实际跑：
-    `codex exec --skip-git-repo-check --sandbox danger-full-access --json --output-last-message ... -`。
+    `codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --json --output-last-message ... -`。
     这里显式指定 sandbox mode，是因为 Daytona 已经提供外层隔离；
     Codex 默认命令 sandbox 在这个镜像里可能会在 shell 启动前失败。
 11. **Codex 登录只在运行时处理。**

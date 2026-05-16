@@ -117,7 +117,7 @@ export function buildCodexShellCommand({
 	return [
 		"set -o pipefail",
 		`mkdir -p ${outputDir}`,
-		`printf '%s' "$${CODEX_PROMPT_ENV}" | base64 -d | /usr/local/bin/qcut-entrypoint codex exec --skip-git-repo-check --sandbox danger-full-access --json --output-last-message ${outputDir}/codex-last-message.md - > ${outputDir}/codex-events.jsonl`,
+		`printf '%s' "$${CODEX_PROMPT_ENV}" | base64 -d | /usr/local/bin/qcut-entrypoint codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --json --output-last-message ${outputDir}/codex-last-message.md - > ${outputDir}/codex-events.jsonl`,
 	].join("; ");
 }
 

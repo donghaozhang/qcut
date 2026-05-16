@@ -112,7 +112,7 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
     license-server only accepts the fixed stdin-based Codex command, the
     prompt travels as `args.codexPrompt`, the worker base64-encodes it into
     `QCUT_CODEX_PROMPT_B64`, and Daytona runs:
-    `codex exec --skip-git-repo-check --sandbox danger-full-access --json --output-last-message ... -`.
+    `codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --json --output-last-message ... -`.
     The explicit sandbox mode is required because Daytona already provides
     the external sandbox; Codex's default command sandbox can fail before a
     shell starts inside this image.

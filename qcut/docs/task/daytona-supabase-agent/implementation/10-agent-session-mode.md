@@ -431,8 +431,10 @@ Implemented fix:
   - `GET /api/agent/sessions/:sessionId/artifacts`
   - `GET /api/agent/sessions/:sessionId/artifacts/:filename/download`
 - Updated `chat-agent.html` to use xterm.js as the primary interface. The Send
-  button now writes a `codex exec --sandbox danger-full-access` command into the
-  live PTY, so the user sees real shell/Codex output in the terminal.
+  button now writes a
+  `codex exec --dangerously-bypass-approvals-and-sandbox` command into the live
+  PTY, so the user sees real shell/Codex output in the terminal without Codex
+  stopping for permission prompts inside the already isolated Daytona sandbox.
 - Fixed CORS for local website E2E by allowlisting `http://localhost:4177` and
   `http://127.0.0.1:4177`.
 - Fixed relay stdin handling: non-resize string WebSocket messages are terminal
@@ -491,6 +493,13 @@ Screenshots:
   `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-send-codex-artifact-visible.png`
 - Production page after website push:
   `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-production-pty-artifacts.png`
+
+Follow-up permission fix:
+
+- Updated both website PTY Send and agent-worker Codex jobs to start Codex with
+  `--dangerously-bypass-approvals-and-sandbox`. This avoids hanging on approval
+  prompts while the process is already running inside a disposable Daytona
+  sandbox.
 
 ## Follow-ups
 
