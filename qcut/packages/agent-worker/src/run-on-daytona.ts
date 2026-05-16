@@ -27,6 +27,7 @@ import {
 	tokenizeCommand,
 } from "./run-container.js";
 import type { ContainerResult } from "./run-container.js";
+import { insertAgentEvents, parseEventText } from "./stream-events.js";
 
 const DEFAULT_DAYTONA_IMAGE =
 	"ghcr.io/quriosity-agent/qcut-cli@sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923";
@@ -34,9 +35,15 @@ const IMAGE_TAG = process.env.QCUT_IMAGE_TAG ?? DEFAULT_DAYTONA_IMAGE;
 const TIMEOUT_SECONDS = 30 * 60;
 const DAYTONA_OUTPUT_DIR = "/tmp/qcut-output";
 const OUTPUT_ARCHIVE = "/tmp/qcut-output.tar";
+const ARCHIVE_COMMAND = `tar --exclude='.qcut-agent-*' -C ${DAYTONA_OUTPUT_DIR} -cf ${OUTPUT_ARCHIVE} .`;
 const QCUT_STDOUT_FILE = "qcut-stdout.txt";
 const QCUT_STDERR_FILE = "qcut-stderr.txt";
 const QCUT_EXIT_FILE = "qcut-exit.json";
+const AGENT_DONE_FILE = ".qcut-agent-done";
+const AGENT_PID_FILE = ".qcut-agent-pid";
+const WRAPPER_STDOUT_FILE = ".qcut-agent-wrapper-stdout";
+const WRAPPER_STDERR_FILE = ".qcut-agent-wrapper-stderr";
+const STREAM_POLL_MS = 2000;
 
 interface AgentSecretRow {
 	key: string;
@@ -96,6 +103,7 @@ interface RunOnDaytonaDeps {
 	DaytonaClient?: DaytonaClientCtor;
 	makeOutputDir?: () => Promise<string>;
 	makeSessionId?: () => string;
+	sleep?: (ms: number) => Promise<void>;
 	extractArchive?: (params: {
 		archivePath: string;
 		outputDir: string;
@@ -111,6 +119,21 @@ interface RunOnDaytonaParams {
 interface CommandParts {
 	command: string;
 	archiveCommand: string;
+	streams: StreamSpec[];
+	stdoutPath: string;
+	stderrPath: string;
+	exitPath: string;
+}
+
+interface StreamSpec {
+	path: string;
+	kind: string;
+	source: string;
+}
+
+interface StreamCursor {
+	partial: string;
+	size: number;
 }
 
 function quoteShellArg({ arg }: { arg: string }): string {
@@ -132,6 +155,31 @@ function buildQcutShellCommand({ quotedArgv }: { quotedArgv: string }): string {
 	].join("; ");
 }
 
+function outputPath({ filename }: { filename: string }): string {
+	return `${DAYTONA_OUTPUT_DIR}/${filename}`;
+}
+
+function buildAsyncStartCommand({ command }: { command: string }): string {
+	const donePath = outputPath({ filename: AGENT_DONE_FILE });
+	const pidPath = outputPath({ filename: AGENT_PID_FILE });
+	const wrapperStdoutPath = outputPath({ filename: WRAPPER_STDOUT_FILE });
+	const wrapperStderrPath = outputPath({ filename: WRAPPER_STDERR_FILE });
+	const wrappedCommand = [
+		"set +e",
+		command,
+		"exit_code=$?",
+		`[ -f ${outputPath({ filename: QCUT_EXIT_FILE })} ] || printf '{"exitCode":%s}\\n' "$exit_code" > ${outputPath({ filename: QCUT_EXIT_FILE })}`,
+		`touch ${donePath}`,
+		'exit "$exit_code"',
+	].join("; ");
+	return [
+		`rm -rf ${DAYTONA_OUTPUT_DIR} ${OUTPUT_ARCHIVE}`,
+		`mkdir -p ${DAYTONA_OUTPUT_DIR}`,
+		`( ${wrappedCommand} ) > ${wrapperStdoutPath} 2> ${wrapperStderrPath} & pid=$!`,
+		`printf '{"pid":%s}\\n' "$pid" > ${pidPath}`,
+	].join("; ");
+}
+
 export function buildDaytonaCommand({
 	command,
 	args,
@@ -144,7 +192,22 @@ export function buildDaytonaCommand({
 		getCodexPrompt({ args });
 		return {
 			command: buildCodexShellCommand({ outputDir: DAYTONA_OUTPUT_DIR }),
-			archiveCommand: `tar -C ${DAYTONA_OUTPUT_DIR} -cf ${OUTPUT_ARCHIVE} .`,
+			archiveCommand: ARCHIVE_COMMAND,
+			streams: [
+				{
+					path: outputPath({ filename: "codex-events.jsonl" }),
+					kind: "codex_event",
+					source: "codex-events.jsonl",
+				},
+				{
+					path: outputPath({ filename: WRAPPER_STDERR_FILE }),
+					kind: "daytona_stderr",
+					source: WRAPPER_STDERR_FILE,
+				},
+			],
+			stdoutPath: outputPath({ filename: "codex-events.jsonl" }),
+			stderrPath: outputPath({ filename: WRAPPER_STDERR_FILE }),
+			exitPath: outputPath({ filename: QCUT_EXIT_FILE }),
 		};
 	}
 
@@ -152,7 +215,27 @@ export function buildDaytonaCommand({
 
 	return {
 		command: buildQcutShellCommand({ quotedArgv }),
-		archiveCommand: `tar -C ${DAYTONA_OUTPUT_DIR} -cf ${OUTPUT_ARCHIVE} .`,
+		archiveCommand: ARCHIVE_COMMAND,
+		streams: [
+			{
+				path: outputPath({ filename: QCUT_STDOUT_FILE }),
+				kind: "daytona_stdout",
+				source: QCUT_STDOUT_FILE,
+			},
+			{
+				path: outputPath({ filename: QCUT_STDERR_FILE }),
+				kind: "daytona_stderr",
+				source: QCUT_STDERR_FILE,
+			},
+			{
+				path: outputPath({ filename: WRAPPER_STDERR_FILE }),
+				kind: "daytona_stderr",
+				source: WRAPPER_STDERR_FILE,
+			},
+		],
+		stdoutPath: outputPath({ filename: QCUT_STDOUT_FILE }),
+		stderrPath: outputPath({ filename: QCUT_STDERR_FILE }),
+		exitPath: outputPath({ filename: QCUT_EXIT_FILE }),
 	};
 }
 
@@ -201,6 +284,222 @@ async function downloadOutputDir({
 	await extract({ archivePath: localArchive, outputDir });
 }
 
+function sleep({ ms }: { ms: number }): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function recordAgentEvent({
+	supabase,
+	job,
+	kind,
+	payload,
+}: {
+	supabase: SupabaseClient;
+	job: AgentJob;
+	kind: string;
+	payload: Record<string, unknown>;
+}): Promise<void> {
+	await insertAgentEvents({
+		supabase,
+		rows: [
+			{
+				job_id: job.id,
+				user_id: job.userId,
+				kind,
+				payload,
+				created_at: new Date().toISOString(),
+			},
+		],
+	});
+}
+
+async function executeShellCommand({
+	sandbox,
+	sessionId,
+	command,
+	timeout = 60,
+}: {
+	sandbox: DaytonaSandbox;
+	sessionId: string;
+	command: string;
+	timeout?: number;
+}): Promise<DaytonaSessionCommandResult> {
+	return sandbox.process.executeSessionCommand(
+		sessionId,
+		{
+			command,
+			runAsync: false,
+			suppressInputEcho: true,
+		},
+		timeout
+	);
+}
+
+async function readRemoteFile({
+	sandbox,
+	sessionId,
+	path,
+}: {
+	sandbox: DaytonaSandbox;
+	sessionId: string;
+	path: string;
+}): Promise<string> {
+	const result = await executeShellCommand({
+		sandbox,
+		sessionId,
+		command: `cat ${quoteShellArg({ arg: path })} 2>/dev/null || true`,
+	});
+	return result.stdout ?? result.output ?? "";
+}
+
+async function remoteFileExists({
+	sandbox,
+	sessionId,
+	path,
+}: {
+	sandbox: DaytonaSandbox;
+	sessionId: string;
+	path: string;
+}): Promise<boolean> {
+	const result = await executeShellCommand({
+		sandbox,
+		sessionId,
+		command: `test -f ${quoteShellArg({ arg: path })} && printf yes || true`,
+	});
+	return (result.stdout ?? result.output ?? "").trim() === "yes";
+}
+
+function takeNewCompleteLines({
+	text,
+	cursor,
+	includePartial = false,
+}: {
+	text: string;
+	cursor: StreamCursor;
+	includePartial?: boolean;
+}): string {
+	if (text.length < cursor.size) {
+		cursor.size = 0;
+		cursor.partial = "";
+	}
+	const chunk = text.slice(cursor.size);
+	cursor.size = text.length;
+	if (chunk.length === 0) {
+		if (!includePartial) return "";
+		const partial = cursor.partial;
+		cursor.partial = "";
+		return partial;
+	}
+	const combined = `${cursor.partial}${chunk}`;
+	if (includePartial) {
+		cursor.partial = "";
+		return combined;
+	}
+	if (!combined.includes("\n")) {
+		cursor.partial = combined;
+		return "";
+	}
+	const lines = combined.split("\n");
+	cursor.partial = lines.pop() ?? "";
+	return lines.join("\n");
+}
+
+async function flushStreamEvents({
+	supabase,
+	job,
+	sandbox,
+	sessionId,
+	streams,
+	cursors,
+	includePartial = false,
+}: {
+	supabase: SupabaseClient;
+	job: AgentJob;
+	sandbox: DaytonaSandbox;
+	sessionId: string;
+	streams: StreamSpec[];
+	cursors: Map<string, StreamCursor>;
+	includePartial?: boolean;
+}): Promise<void> {
+	for (const stream of streams) {
+		const cursor = cursors.get(stream.path) ?? { partial: "", size: 0 };
+		cursors.set(stream.path, cursor);
+		const text = await readRemoteFile({
+			sandbox,
+			sessionId,
+			path: stream.path,
+		});
+		const newLines = takeNewCompleteLines({ text, cursor, includePartial });
+		const rows = parseEventText({
+			text: newLines,
+			job,
+			defaultKind: stream.kind,
+			source: stream.source,
+		});
+		await insertAgentEvents({ supabase, rows });
+	}
+}
+
+async function waitForRemoteCommand({
+	supabase,
+	job,
+	sandbox,
+	sessionId,
+	streams,
+	sleepFn,
+}: {
+	supabase: SupabaseClient;
+	job: AgentJob;
+	sandbox: DaytonaSandbox;
+	sessionId: string;
+	streams: StreamSpec[];
+	sleepFn: (ms: number) => Promise<void>;
+}): Promise<void> {
+	const startedAt = Date.now();
+	const cursors = new Map<string, StreamCursor>();
+	const donePath = outputPath({ filename: AGENT_DONE_FILE });
+	while (Date.now() - startedAt < TIMEOUT_SECONDS * 1000) {
+		await sleepFn(STREAM_POLL_MS);
+		await flushStreamEvents({
+			supabase,
+			job,
+			sandbox,
+			sessionId,
+			streams,
+			cursors,
+		});
+		if (await remoteFileExists({ sandbox, sessionId, path: donePath })) {
+			await flushStreamEvents({
+				supabase,
+				job,
+				sandbox,
+				sessionId,
+				streams,
+				cursors,
+				includePartial: true,
+			});
+			return;
+		}
+	}
+	await recordAgentEvent({
+		supabase,
+		job,
+		kind: "daytona_timeout",
+		payload: { timeoutSeconds: TIMEOUT_SECONDS },
+	});
+	throw new Error(`Daytona command timed out after ${TIMEOUT_SECONDS}s`);
+}
+
+function parseExitCode({ text }: { text: string }): number {
+	try {
+		const parsed = JSON.parse(text);
+		const value = (parsed as { exitCode?: unknown }).exitCode;
+		return typeof value === "number" && Number.isFinite(value) ? value : 1;
+	} catch {
+		return 1;
+	}
+}
+
 export async function runOnDaytona({
 	supabase,
 	job,
@@ -233,10 +532,11 @@ export async function runOnDaytona({
 		? await deps.makeOutputDir()
 		: await mkdtemp(join(tmpdir(), "qcut-daytona-"));
 	const sessionId = deps.makeSessionId?.() ?? `qcut-${randomUUID()}`;
-	const { command, archiveCommand } = buildDaytonaCommand({
-		command: job.command,
-		args: job.args,
-	});
+	const { command, archiveCommand, streams, stdoutPath, stderrPath, exitPath } =
+		buildDaytonaCommand({
+			command: job.command,
+			args: job.args,
+		});
 
 	let sandbox: DaytonaSandbox | undefined;
 	let result: DaytonaSessionCommandResult | undefined;
@@ -253,26 +553,74 @@ export async function runOnDaytona({
 			},
 			{ timeout: 120 }
 		);
+		await recordAgentEvent({
+			supabase,
+			job,
+			kind: "daytona_sandbox_ready",
+			payload: { sandboxId: sandbox.id, image: IMAGE_TAG },
+		});
 
 		await sandbox.process.createSession(sessionId);
-		result = await sandbox.process.executeSessionCommand(
+		await recordAgentEvent({
+			supabase,
+			job,
+			kind: "daytona_command_started",
+			payload: { sessionId },
+		});
+		const startResult = await executeShellCommand({
+			sandbox,
 			sessionId,
-			{
-				command,
-				runAsync: false,
-				suppressInputEcho: true,
-			},
-			TIMEOUT_SECONDS
-		);
-		await sandbox.process.executeSessionCommand(
+			command: buildAsyncStartCommand({ command }),
+			timeout: 120,
+		});
+		if (
+			typeof startResult.exitCode === "number" &&
+			startResult.exitCode !== 0
+		) {
+			await recordAgentEvent({
+				supabase,
+				job,
+				kind: "daytona_command_start_failed",
+				payload: {
+					exitCode: startResult.exitCode,
+					stderr: startResult.stderr ?? "",
+					stdout: startResult.stdout ?? startResult.output ?? "",
+				},
+			});
+			throw new Error(
+				`Daytona command failed to start with exit ${startResult.exitCode}`
+			);
+		}
+		await waitForRemoteCommand({
+			supabase,
+			job,
+			sandbox,
 			sessionId,
-			{
-				command: archiveCommand,
-				runAsync: false,
-				suppressInputEcho: true,
-			},
-			TIMEOUT_SECONDS
-		);
+			streams,
+			sleepFn: deps.sleep ?? ((ms) => sleep({ ms })),
+		});
+		const [stdout, stderr, exitText] = await Promise.all([
+			readRemoteFile({ sandbox, sessionId, path: stdoutPath }),
+			readRemoteFile({ sandbox, sessionId, path: stderrPath }),
+			readRemoteFile({ sandbox, sessionId, path: exitPath }),
+		]);
+		result = {
+			stdout,
+			stderr,
+			exitCode: parseExitCode({ text: exitText }),
+		};
+		await recordAgentEvent({
+			supabase,
+			job,
+			kind: "daytona_command_finished",
+			payload: { exitCode: result.exitCode },
+		});
+		await executeShellCommand({
+			sandbox,
+			sessionId,
+			command: archiveCommand,
+			timeout: TIMEOUT_SECONDS,
+		});
 
 		try {
 			await downloadOutputDir({
@@ -312,6 +660,7 @@ export async function runOnDaytona({
 			stderr: result.stderr ?? "",
 			exitCode: result.exitCode ?? 1,
 			outputDir,
+			eventsStreamed: true,
 			artifactsFallback,
 		};
 	} finally {

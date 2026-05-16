@@ -34,6 +34,7 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
 | `ce02d4968`                            | `Dockerfile.cli` 现在安装固定版本 Codex CLI `0.130.0` 和 Claude Code CLI `2.1.142`；`qcut-smoke` 会硬检查两个 binary 和版本；GHCR `v0` 已重新发布                                              | 更新 PR 02 镜像契约                                       |
 | 本轮 follow-up                         | Chat Agent Codex 模式：license-server 只接受固定的 `codex exec --skip-git-repo-check --json -`，worker 用 base64 env 传 prompt，entrypoint 从 `CODEX_AUTH_JSON` 或受控 `OPENAI_API_KEY` 启动 Codex 登录 | 扩展 PR 02 + PR 04，支持 coding-agent sandbox 任务         |
 | `qcut-cli-v2` follow-up                | Daytona CLI 镜像补 YouTube 下载能力：预装固定版本 `yt-dlp` `2026.03.17`、Deno `2.7.4`，并写入 `/etc/yt-dlp.conf` 的 `--remote-components ejs:github`；Codex prompt 也要求临时安装/cache 不要写进 `/tmp/qcut-output` | 扩展 PR 02 镜像契约和 PR 04 Codex artifact 卫生            |
+| `qcut-cli-v2` follow-up                | Daytona job 现在会在 sandbox command 仍在运行时实时写 `agent_events`；website 的 Codex pending 气泡会摘要最近的 lifecycle / Codex events；上传 artifact 时会排除内部 `.qcut-agent-*` 控制文件             | 更新 PR 04 worker telemetry 和 Chat Agent website          |
 
 ## 生产环境实测
 
@@ -58,6 +59,8 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
 | 本地 YouTube-capable CLI 镜像 smoke                                      | `qcut-cli:youtube-fix` 按 `linux/amd64` 构建；`qcut-smoke` 通过；`yt-dlp` + Deno 能把 YouTube `.mp4` 下载进 `/tmp/qcut-output`，且不会把工具安装到 artifact 目录 |
 | GHCR YouTube-capable 镜像发布                                             | workflow run `25949183927` 发布 `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`；digest `sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923`；推后 smoke 和本地 pull smoke 都通过 |
 | Website Codex → YouTube artifact E2E                                      | Chat Agent job `3b19b2cd-cb17-4576-add0-89ba9aca2e4e` 成功，exit `0`；Codex 用 `/tmp/qcut-tools` 做 cache 跑预装 `yt-dlp`；artifacts 包含可下载的 `youtube-e2e.mp4`（464.8 KB）和 summary JSON |
+| Website Codex realtime streaming E2E                                      | Chat Agent job `9d870b84-f2ba-4b43-b9df-c5ac9c2d14a9` 成功，exit `0`；job 仍在 running 时，Codex pending 气泡已经显示 `daytona_command_started`、`thread.started`、`turn.started`、`item.started`；artifact 包含 `ui-stream-summary.json` |
+| Daytona artifact 控制文件清理                                             | `qcut --help --json` job `229f19e9-50ad-40f7-a83d-84df1f454c77` 成功，exit `0`；上传 artifact 是 `qcut-exit.json`、`qcut-stdout.txt`、`qcut-stderr.txt`、`qcut-output.tar`，内部 `.qcut-agent-*` 文件不再暴露 |
 
 ## `b536d61b2` 之后已经完成的事
 
@@ -149,6 +152,22 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
     `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`；Daytona
     runner 的默认镜像 digest 已更新到
     `sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923`。
+17. **Daytona job 现在边跑边 stream。**
+    worker 会把 sandbox command 放到后台运行，每 2 秒轮询相关输出文件，
+    把新增的完整行实时插入 `agent_events`，不再等 job 结束才一次性写。
+    Codex job stream `codex-events.jsonl`；直接 qcut job stream
+    `qcut-stdout.txt` 和 `qcut-stderr.txt`。主 worker 会识别 Daytona
+    runner 已经 stream 过 events，结束时不会再重复写 stderr。这轮 live
+    probe 抓到了一个 async start 的 shell bug（生成了 `&;`）；现在已经改成
+    合法后台命令，并且 start command 非 0 会立刻写
+    `daytona_command_start_failed`，不会再假 running 30 分钟。
+18. **Chat Agent 会在对话里显示 live Codex 进度。**
+    website 原来的 Events panel 继续保留；现在 pending 的 Codex 回复气泡
+    也会显示最近 events 的滚动摘要。job
+    `9d870b84-f2ba-4b43-b9df-c5ac9c2d14a9` 已验证：完成前气泡显示了
+    Daytona session event 和 Codex 的 `thread.started`、`turn.started`、
+    `item.started`；完成后替换成
+    `UI_STREAM_DONE /tmp/qcut-output/ui-stream-summary.json`。
 
 ## Live CLI E2E 覆盖和耗时
 
@@ -188,6 +207,8 @@ website Codex 模式用真实浏览器跑了三轮：
 | `19ff765e` | 不重复短语，直接问上一轮记住了什么 | succeeded / 0 | 12.7s | 1.0s | 11.8s | 3 | 当前多轮上下文可用：前端把历史消息重新拼进下一轮 `codexPrompt`，Codex 回答了 `sapphire-bridge-481`。 |
 | `619d2ec1` | 把公开的 youtube-dl 测试视频 `BaW_jenozKc` 下载到 `/tmp/qcut-output` | succeeded / 0 | 104.4s | 1.4s | 103.0s | 7 | 修复前 probe：Codex 执行了 shell 步骤并上传诊断文件，但 YouTube/yt-dlp 返回 `Video unavailable`；没有生成 `.mp4` artifact。 |
 | `3b19b2cd` | 把当前可访问的 YouTube URL `jNQXAC9IVRw` 下载到 `/tmp/qcut-output` | succeeded / 0 | 约 2m | live website poll | live Daytona run | 5 | 修复后 E2E：Codex 用预装 `yt-dlp` + Deno 写出 `youtube-e2e.mp4` 和 summary JSON；website Download 按钮也成功下载 MP4。 |
+| `4ceb713b` | Realtime streaming E2E：4 步 shell loop 后写 `realtime-stream-summary.json` | succeeded / 0 | 约 31s | live website poll | live Daytona run | 5 | worker 在完成前已经 stream Daytona lifecycle events 和 Codex JSONL events；最终回复 `STREAM_TEST_DONE /tmp/qcut-output/realtime-stream-summary.json`。 |
+| `9d870b84` | Realtime UI smoke：2 步 shell loop 后写 `ui-stream-summary.json` | succeeded / 0 | 约 18s | live website poll | live Daytona run | 5 | website pending Codex 气泡在 running 中显示最近的 `daytona_command_started` 和 `codex_event` 摘要，完成后解析成 `UI_STREAM_DONE ...`。 |
 
 当前 Codex 对话行为：
 
@@ -226,7 +247,8 @@ YouTube 下载结果：
 ## 还没做的（依赖外部凭证 / 服务）
 
 1. **review 后合并 `qcut-cli-v2` follow-up 分支**，把 stdio artifact
-   capture、YouTube 镜像修复和这轮 E2E 记录进主线。
+   capture、YouTube 镜像修复、realtime streaming worker、website
+   progress UI 和这轮 E2E 记录进主线。
 2. **设 / 确认 license-server 密钥**（`wrangler secret put`）：
    `E2B_API_KEY`、`RELAY_SIGNING_SECRET`、`RELAY_HOST`、`QCUT_IMAGE_TAG`。
 3. **合并后决定是重发 `v0` / `latest`，还是保留已验证 digest pin。**

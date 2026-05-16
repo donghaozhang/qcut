@@ -84,7 +84,9 @@ async function executeJob(job: AgentJob): Promise<void> {
 	try {
 		const result = await chooseRunner(job);
 		outputDir = result.outputDir;
-		await streamEvents(supabase, job, result.stderr);
+		if (!result.eventsStreamed) {
+			await streamEvents(supabase, job, result.stderr);
+		}
 		await uploadArtifacts({ supabase, job, dir: result.outputDir });
 
 		const status = result.exitCode === 0 ? "succeeded" : "failed";

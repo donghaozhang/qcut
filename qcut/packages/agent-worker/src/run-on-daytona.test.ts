@@ -89,15 +89,54 @@ function makeSupabase({
 	return { client, insertedEvents };
 }
 
+function flattenInsertedEvents({
+	insertedEvents,
+}: {
+	insertedEvents: unknown[];
+}): Array<{ kind?: unknown; payload?: unknown }> {
+	const rows: Array<{ kind?: unknown; payload?: unknown }> = [];
+	for (const entry of insertedEvents) {
+		if (Array.isArray(entry)) {
+			for (const row of entry) {
+				rows.push(row as { kind?: unknown; payload?: unknown });
+			}
+			continue;
+		}
+		rows.push(entry as { kind?: unknown; payload?: unknown });
+	}
+	return rows;
+}
+
 describe("buildDaytonaCommand", () => {
 	it("wraps qcut through the container entrypoint and archives /output", () => {
 		expect(
 			buildDaytonaCommand({
 				command: "qcut system doctor --json --skip-health",
 			})
-		).toEqual({
+		).toMatchObject({
 			command: EXPECTED_QCUT_DOCTOR_DAYTONA_COMMAND,
-			archiveCommand: "tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
+			archiveCommand:
+				"tar --exclude='.qcut-agent-*' -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
+			streams: [
+				{
+					path: "/tmp/qcut-output/qcut-stdout.txt",
+					kind: "daytona_stdout",
+					source: "qcut-stdout.txt",
+				},
+				{
+					path: "/tmp/qcut-output/qcut-stderr.txt",
+					kind: "daytona_stderr",
+					source: "qcut-stderr.txt",
+				},
+				{
+					path: "/tmp/qcut-output/.qcut-agent-wrapper-stderr",
+					kind: "daytona_stderr",
+					source: ".qcut-agent-wrapper-stderr",
+				},
+			],
+			stdoutPath: "/tmp/qcut-output/qcut-stdout.txt",
+			stderrPath: "/tmp/qcut-output/qcut-stderr.txt",
+			exitPath: "/tmp/qcut-output/qcut-exit.json",
 		});
 	});
 
@@ -106,9 +145,10 @@ describe("buildDaytonaCommand", () => {
 			buildDaytonaCommand({
 				command: "qcut gen image -t icon,logo -m flux_dev --json",
 			})
-		).toEqual({
+		).toMatchObject({
 			command: EXPECTED_QCUT_IMAGE_DAYTONA_COMMAND,
-			archiveCommand: "tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
+			archiveCommand:
+				"tar --exclude='.qcut-agent-*' -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
 		});
 	});
 
@@ -124,10 +164,26 @@ describe("buildDaytonaCommand", () => {
 				command: CODEX_AGENT_COMMAND,
 				args: { codexPrompt: "Explain QCut's agent path." },
 			})
-		).toEqual({
+		).toMatchObject({
 			command:
 				"set -o pipefail; mkdir -p /tmp/qcut-output; printf '%s' \"$QCUT_CODEX_PROMPT_B64\" | base64 -d | /usr/local/bin/qcut-entrypoint codex exec --skip-git-repo-check --sandbox danger-full-access --json --output-last-message /tmp/qcut-output/codex-last-message.md - > /tmp/qcut-output/codex-events.jsonl",
-			archiveCommand: "tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
+			archiveCommand:
+				"tar --exclude='.qcut-agent-*' -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
+			streams: [
+				{
+					path: "/tmp/qcut-output/codex-events.jsonl",
+					kind: "codex_event",
+					source: "codex-events.jsonl",
+				},
+				{
+					path: "/tmp/qcut-output/.qcut-agent-wrapper-stderr",
+					kind: "daytona_stderr",
+					source: ".qcut-agent-wrapper-stderr",
+				},
+			],
+			stdoutPath: "/tmp/qcut-output/codex-events.jsonl",
+			stderrPath: "/tmp/qcut-output/.qcut-agent-wrapper-stderr",
+			exitPath: "/tmp/qcut-output/qcut-exit.json",
 		});
 	});
 });
@@ -184,7 +240,7 @@ describe("buildDaytonaEnv", () => {
 describe("runOnDaytona", () => {
 	it("creates an ephemeral image sandbox, executes qcut, downloads artifacts, and deletes the sandbox", async () => {
 		process.env.DAYTONA_API_KEY = "daytona-test";
-		const { client } = makeSupabase();
+		const { client, insertedEvents } = makeSupabase();
 		const outputDir = await mkdtemp(join(tmpdir(), "qcut-daytona-test-"));
 		const sessionCalls: string[] = [];
 		const clientConfigs: Array<{ apiKey: string }> = [];
@@ -209,6 +265,29 @@ describe("runOnDaytona", () => {
 					timeout?: number
 				) {
 					sessionCalls.push(`${sessionId}:${request.command}:${timeout}`);
+					if (request.command.includes("qcut-stdout.txt")) {
+						return Promise.resolve({
+							stdout: '{"kind":"cli_progress","message":"halfway"}\n',
+							stderr: "",
+							exitCode: 0,
+						});
+					}
+					if (
+						request.command.includes("qcut-stderr.txt") ||
+						request.command.includes(".qcut-agent-wrapper-stderr")
+					) {
+						return Promise.resolve({ stdout: "", stderr: "", exitCode: 0 });
+					}
+					if (request.command.includes(".qcut-agent-done")) {
+						return Promise.resolve({ stdout: "yes", stderr: "", exitCode: 0 });
+					}
+					if (request.command.includes("qcut-exit.json")) {
+						return Promise.resolve({
+							stdout: '{"exitCode":0}\n',
+							stderr: "",
+							exitCode: 0,
+						});
+					}
 					return Promise.resolve({
 						stdout: "ok",
 						stderr: "",
@@ -247,6 +326,7 @@ describe("runOnDaytona", () => {
 				DaytonaClient: FakeDaytonaClient,
 				makeOutputDir: () => Promise.resolve(outputDir),
 				makeSessionId: () => "session-1",
+				sleep: () => Promise.resolve(),
 				extractArchive: () => Promise.resolve(),
 			},
 		});
@@ -265,11 +345,13 @@ describe("runOnDaytona", () => {
 				autoStopInterval: 30,
 			},
 		]);
+		expect(
+			sessionCalls.some((call) => call.includes("rm -rf /tmp/qcut-output"))
+		).toBe(true);
+		expect(sessionCalls.some((call) => call.includes("&;"))).toBe(false);
+		expect(sessionCalls.some((call) => call.includes("& pid=$!"))).toBe(true);
 		expect(sessionCalls).toContain(
-			`session-1:${EXPECTED_QCUT_DOCTOR_DAYTONA_COMMAND}:1800`
-		);
-		expect(sessionCalls).toContain(
-			"session-1:tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .:1800"
+			"session-1:tar --exclude='.qcut-agent-*' -C /tmp/qcut-output -cf /tmp/qcut-output.tar .:1800"
 		);
 		expect(downloaded).toEqual([
 			{
@@ -279,12 +361,21 @@ describe("runOnDaytona", () => {
 		]);
 		expect(deleteCalls).toEqual(["sandbox-1"]);
 		expect(result).toMatchObject({
-			stdout: "ok",
+			stdout: '{"kind":"cli_progress","message":"halfway"}\n',
 			stderr: "",
 			exitCode: 0,
 			outputDir,
 			artifactsFallback: false,
+			eventsStreamed: true,
 		});
+		expect(
+			flattenInsertedEvents({ insertedEvents }).map((event) => event.kind)
+		).toEqual([
+			"daytona_sandbox_ready",
+			"daytona_command_started",
+			"cli_progress",
+			"daytona_command_finished",
+		]);
 
 		await rm(outputDir, { recursive: true, force: true });
 	});
@@ -305,7 +396,33 @@ describe("runOnDaytona", () => {
 				deleteSession() {
 					return Promise.resolve();
 				},
-				executeSessionCommand() {
+				executeSessionCommand(
+					_sessionId: string,
+					request: { command: string }
+				) {
+					if (request.command.includes("qcut-stderr.txt")) {
+						return Promise.resolve({
+							stdout: "stderr text",
+							stderr: "",
+							exitCode: 0,
+						});
+					}
+					if (
+						request.command.includes("qcut-stdout.txt") ||
+						request.command.includes(".qcut-agent-wrapper-stderr")
+					) {
+						return Promise.resolve({ stdout: "", stderr: "", exitCode: 0 });
+					}
+					if (request.command.includes(".qcut-agent-done")) {
+						return Promise.resolve({ stdout: "yes", stderr: "", exitCode: 0 });
+					}
+					if (request.command.includes("qcut-exit.json")) {
+						return Promise.resolve({
+							stdout: '{"exitCode":0}\n',
+							stderr: "",
+							exitCode: 0,
+						});
+					}
 					return Promise.resolve({
 						stdout: "",
 						stderr: "stderr text",
@@ -341,6 +458,7 @@ describe("runOnDaytona", () => {
 				DaytonaClient: FakeDaytonaClient,
 				makeOutputDir: () => Promise.resolve(outputDir),
 				makeSessionId: () => "session-1",
+				sleep: () => Promise.resolve(),
 			},
 		});
 
@@ -348,7 +466,11 @@ describe("runOnDaytona", () => {
 			"stderr text"
 		);
 		expect(clientConfigs).toEqual([{ apiKey: "daytona-test" }]);
-		expect(insertedEvents).toHaveLength(1);
+		expect(
+			flattenInsertedEvents({ insertedEvents }).some(
+				(event) => event.kind === "artifact_fallback"
+			)
+		).toBe(true);
 		expect(result.artifactsFallback).toBe(true);
 
 		await rm(outputDir, { recursive: true, force: true });

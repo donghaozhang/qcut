@@ -45,6 +45,8 @@ export interface ContainerResult {
 	stderr: string;
 	exitCode: number;
 	outputDir: string;
+	/** True when the runner already streamed agent_events during execution. */
+	eventsStreamed?: boolean;
 	/** True when outputDir holds a stand-in (e.g. downloadDir failed), not real artifacts. */
 	artifactsFallback?: boolean;
 }

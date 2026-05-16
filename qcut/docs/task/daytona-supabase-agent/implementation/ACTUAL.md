@@ -36,6 +36,7 @@ into that architecture.
 | `ce02d4968`                         | `Dockerfile.cli` now installs pinned Codex CLI `0.130.0` and Claude Code CLI `2.1.142`; `qcut-smoke` hard-checks both binaries and versions; GHCR `v0` republished                                                                      | updates PR 02 image contract                                                           |
 | this follow-up                      | Chat Agent Codex mode: license-server accepts the fixed `codex exec --skip-git-repo-check --json -` command, worker passes prompt via base64 env, entrypoint bootstraps Codex auth from `CODEX_AUTH_JSON` or gated `OPENAI_API_KEY` | extends PR 02 + PR 04 for coding-agent sandbox jobs                                    |
 | `qcut-cli-v2` follow-up             | YouTube download support in the Daytona CLI image: preinstalls pinned `yt-dlp` `2026.03.17`, Deno `2.7.4`, and `/etc/yt-dlp.conf` with `--remote-components ejs:github`; Codex prompts now keep temp installs/cache out of `/tmp/qcut-output` | extends PR 02 image contract and PR 04 Codex artifact hygiene                          |
+| `qcut-cli-v2` follow-up             | Daytona jobs now stream live `agent_events` while the sandbox command is still running; the website Codex pending bubble summarizes recent lifecycle/Codex events; internal `.qcut-agent-*` control files are excluded from uploaded artifacts | updates PR 04 worker telemetry and the Chat Agent website                              |
 
 ## Live verification (against production)
 
@@ -60,6 +61,8 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
 | Local YouTube-capable CLI image smoke                                             | `qcut-cli:youtube-fix` built for `linux/amd64`; `qcut-smoke` passed; `yt-dlp` + Deno downloaded a YouTube `.mp4` into `/tmp/qcut-output` without installing tools into the artifact directory |
 | GHCR YouTube-capable image publish                                                | Workflow run `25949183927` published `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`; digest `sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923`; pushed-image and local pull smoke passed |
 | Website Codex → YouTube artifact E2E                                              | Chat Agent job `3b19b2cd-cb17-4576-add0-89ba9aca2e4e` succeeded with exit `0`; Codex used `yt-dlp` with cache under `/tmp/qcut-tools`; artifacts include downloadable `youtube-e2e.mp4` (464.8 KB) and summary JSON |
+| Website Codex realtime streaming E2E                                              | Chat Agent job `9d870b84-f2ba-4b43-b9df-c5ac9c2d14a9` succeeded with exit `0`; while the job was still running, the pending Codex bubble showed `daytona_command_started`, `thread.started`, `turn.started`, and `item.started`; artifacts included `ui-stream-summary.json` |
+| Daytona artifact-control-file hygiene                                             | `qcut --help --json` job `229f19e9-50ad-40f7-a83d-84df1f454c77` succeeded with exit `0`; uploaded artifacts are `qcut-exit.json`, `qcut-stdout.txt`, `qcut-stderr.txt`, and `qcut-output.tar`, with internal `.qcut-agent-*` files excluded |
 
 ## What is now done after `b536d61b2`
 
@@ -163,6 +166,23 @@ ap-southeast-2) and `qcutlove@qcut.app` user `79bf60b02770d2cc510da53e471590f4`:
     `ghcr.io/quriosity-agent/qcut-cli:youtube-fix-20260516`; the Daytona
     runner default image digest has been updated to
     `sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923`.
+17. **Daytona jobs now stream while they run.**
+    The worker starts the sandbox command in the background, polls the
+    relevant output files every 2 seconds, and inserts new complete lines into
+    `agent_events` before the job reaches a terminal state. Codex jobs stream
+    `codex-events.jsonl`; direct qcut jobs stream `qcut-stdout.txt` and
+    `qcut-stderr.txt`. The main worker marks Daytona results as already
+    streamed so it does not duplicate stderr after completion. A live probe
+    caught an async-start shell bug (`&;`); the runner now uses a valid
+    background command, records start failures immediately, and avoids a fake
+    30-minute "running" state.
+18. **Chat Agent shows live Codex progress in the conversation.**
+    The website still renders the full Events panel, and now also updates the
+    pending Codex chat bubble with a short rolling summary of recent events.
+    Job `9d870b84-f2ba-4b43-b9df-c5ac9c2d14a9` verified the user-visible
+    behavior: before completion, the bubble showed the Daytona session event
+    plus Codex `thread.started`, `turn.started`, and `item.started`; after
+    completion it was replaced by `UI_STREAM_DONE /tmp/qcut-output/ui-stream-summary.json`.
 
 ## Live CLI E2E coverage and timing
 
@@ -205,6 +225,8 @@ The website Codex mode was tested as a three-turn browser session:
 | `19ff765e` | Ask what phrase was remembered, without repeating it | succeeded / 0 | 12.7s | 1.0s | 11.8s | 3 | Multi-turn context works in the current implementation: the page rebuilt the prompt from prior messages and Codex answered `sapphire-bridge-481`. |
 | `619d2ec1` | Download the public youtube-dl test video `BaW_jenozKc` into `/tmp/qcut-output` | succeeded / 0 | 104.4s | 1.4s | 103.0s | 7 | Pre-fix probe: Codex executed shell steps and uploaded diagnostics, but YouTube/yt-dlp returned `Video unavailable`; no `.mp4` artifact was produced. |
 | `3b19b2cd` | Download currently available YouTube URL `jNQXAC9IVRw` into `/tmp/qcut-output` | succeeded / 0 | ~2m | live website poll | live Daytona run | 5 | Post-fix E2E: Codex used preinstalled `yt-dlp` + Deno and wrote `youtube-e2e.mp4` plus summary JSON. The website Download button fetched the MP4 successfully. |
+| `4ceb713b` | Realtime streaming E2E: create `realtime-stream-summary.json` after a 4-step shell loop | succeeded / 0 | ~31s | live website poll | live Daytona run | 5 | Worker streamed Daytona lifecycle events and Codex JSONL events before completion; final reply was `STREAM_TEST_DONE /tmp/qcut-output/realtime-stream-summary.json`. |
+| `9d870b84` | Realtime UI smoke: create `ui-stream-summary.json` after a 2-step shell loop | succeeded / 0 | ~18s | live website poll | live Daytona run | 5 | Website pending Codex bubble updated while running with recent `daytona_command_started` and `codex_event` summaries, then resolved to `UI_STREAM_DONE ...`. |
 
 Current Codex conversation behavior:
 
@@ -244,7 +266,8 @@ YouTube download result:
 ## What still needs doing (gates on credentials / external services)
 
 1. **Merge the `qcut-cli-v2` follow-up branch** once the stdio artifact
-   capture, YouTube image fix, and E2E notes are reviewed.
+   capture, YouTube image fix, realtime streaming worker changes, website
+   progress UI, and E2E notes are reviewed.
 2. **Set/confirm license-server secrets** (`wrangler secret put`):
    `E2B_API_KEY`, `RELAY_SIGNING_SECRET`, `RELAY_HOST`, `QCUT_IMAGE_TAG`.
 3. **After merge, decide whether to republish `v0`/`latest` or keep the

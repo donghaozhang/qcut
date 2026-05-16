@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgentJob } from "@qcut/db";
-import { parseStderr } from "./stream-events";
+import { parseEventText, parseStderr } from "./stream-events";
 
 function fakeJob(): AgentJob {
 	return {
@@ -68,5 +68,31 @@ describe("parseStderr", () => {
 	it("returns empty array for empty input", () => {
 		expect(parseStderr("", fakeJob())).toEqual([]);
 		expect(parseStderr("\n\n\n", fakeJob())).toEqual([]);
+	});
+
+	it("uses caller default kind when JSON has no kind", () => {
+		const rows = parseEventText({
+			text: '{"type":"exec_command","status":"started"}',
+			job: fakeJob(),
+			defaultKind: "codex_event",
+		});
+		expect(rows[0]?.kind).toBe("codex_event");
+		expect(rows[0]?.payload).toMatchObject({
+			type: "exec_command",
+			status: "started",
+		});
+	});
+
+	it("adds source metadata when payload does not provide it", () => {
+		const rows = parseEventText({
+			text: "download started",
+			job: fakeJob(),
+			defaultKind: "daytona_stdout",
+			source: "qcut-stdout.txt",
+		});
+		expect(rows[0]?.payload).toEqual({
+			message: "download started",
+			source: "qcut-stdout.txt",
+		});
 	});
 });

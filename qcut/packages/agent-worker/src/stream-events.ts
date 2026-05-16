@@ -14,7 +14,7 @@ import { mask } from "./mask.js";
 
 const BATCH = 500;
 
-interface EventRow {
+export interface EventRow {
 	job_id: string;
 	user_id: string;
 	kind: string;
@@ -22,9 +22,19 @@ interface EventRow {
 	created_at: string;
 }
 
-export function parseStderr(stderr: string, job: AgentJob): EventRow[] {
+export function parseEventText({
+	text,
+	job,
+	defaultKind = "cli_stderr",
+	source,
+}: {
+	text: string;
+	job: AgentJob;
+	defaultKind?: string;
+	source?: string;
+}): EventRow[] {
 	const rows: EventRow[] = [];
-	for (const raw of stderr.split("\n")) {
+	for (const raw of text.split("\n")) {
 		if (!raw.trim()) continue;
 		const masked = mask(raw);
 		let payload: Record<string, unknown>;
@@ -37,10 +47,11 @@ export function parseStderr(stderr: string, job: AgentJob): EventRow[] {
 		} catch {
 			payload = { message: masked };
 		}
+		if (source && typeof payload.source !== "string") {
+			payload = { ...payload, source };
+		}
 		const kind =
-			typeof payload.kind === "string"
-				? (payload.kind as string)
-				: "cli_stderr";
+			typeof payload.kind === "string" ? (payload.kind as string) : defaultKind;
 		rows.push({
 			job_id: job.id,
 			user_id: job.userId,
@@ -52,12 +63,17 @@ export function parseStderr(stderr: string, job: AgentJob): EventRow[] {
 	return rows;
 }
 
-export async function streamEvents(
-	supabase: SupabaseClient,
-	job: AgentJob,
-	stderr: string
-): Promise<void> {
-	const rows = parseStderr(stderr, job);
+export function parseStderr(stderr: string, job: AgentJob): EventRow[] {
+	return parseEventText({ text: stderr, job });
+}
+
+export async function insertAgentEvents({
+	supabase,
+	rows,
+}: {
+	supabase: SupabaseClient;
+	rows: EventRow[];
+}): Promise<void> {
 	if (rows.length === 0) return;
 	for (let i = 0; i < rows.length; i += BATCH) {
 		const slice = rows.slice(i, i + BATCH);
@@ -72,4 +88,13 @@ export async function streamEvents(
 			return;
 		}
 	}
+}
+
+export async function streamEvents(
+	supabase: SupabaseClient,
+	job: AgentJob,
+	stderr: string
+): Promise<void> {
+	const rows = parseStderr(stderr, job);
+	await insertAgentEvents({ supabase, rows });
 }
