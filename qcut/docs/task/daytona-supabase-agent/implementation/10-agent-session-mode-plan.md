@@ -365,6 +365,39 @@ Manual E2E (after `supabase db push` and worker restart with the current
    `reason='user_kill'`, then re-send and confirm a new
    `provider_session_id`.
 
+## 2026-05-15 PTY Update
+
+The follow-up PTY work is now implemented in the same branch because the job
+event stream could not show real Codex messages while Codex was still running.
+`codex exec --json` emits the assistant text only at `item.completed`, so the
+website now uses a real terminal as the primary chat-agent surface.
+
+Completed:
+
+- License-server creates/reuses an `agent_sessions` Daytona sandbox and signs a
+  relay token from `POST /api/agent/sessions/:sessionId/pty-token`.
+- QCut relay supports `session_kind="agent"` tokens and creates a Daytona PTY
+  for the existing agent sandbox.
+- The website uses xterm.js and sends the chat prompt as a visible
+  `codex exec --sandbox danger-full-access` command in the PTY.
+- Terminal artifacts are listed and downloaded directly from
+  `/tmp/qcut-output` with session artifact endpoints.
+- Production Workers were deployed with shared `RELAY_SIGNING_SECRET` and
+  `DAYTONA_API_KEY`.
+
+Passing verification:
+
+```bash
+node --test packages/nexusai-website/js/agent-chat.test.js
+bun --cwd packages/license-server test -- src/routes/agent.test.ts src/services/payment-config.test.ts
+bun --cwd packages/qcut-relay test
+bun --cwd packages/agent-worker test
+bunx tsc -p packages/qcut-relay/tsconfig.json --noEmit
+```
+
+Live E2E evidence is recorded in
+[`10-agent-session-mode.md`](10-agent-session-mode.md#pty-terminal-mode---2026-05-15).
+
 ## Long-term considerations
 
 - **Migrations on Cloudflare Workers.** The temporary migration route used in
@@ -377,9 +410,9 @@ Manual E2E (after `supabase db push` and worker restart with the current
 - **Provider abstraction.** `provider='daytona'` is a column on purpose. New
   providers should be added by extending the enum + a worker dispatch, not by
   replacing Daytona inline.
-- **Codex PTY follow-up.** The spec explicitly calls out PTY/daemon as a
-  separate PR. Do not sneak partial PTY work into this one; it needs its own
-  transport and backpressure design.
+- **Codex process model.** The website now has a real PTY, but Send still uses
+  one `codex exec` per prompt. A future interactive Codex daemon can run inside
+  the same PTY if we need true process-level conversation state.
 
 ## See also
 

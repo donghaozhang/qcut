@@ -13,12 +13,25 @@ vi.mock("../db/supabase", () => ({
 	getSupabase: vi.fn(),
 }));
 
+const daytonaMocks = vi.hoisted(() => ({
+	Daytona: vi.fn(),
+	create: vi.fn(),
+	get: vi.fn(),
+	executeCommand: vi.fn(),
+	downloadFile: vi.fn(),
+}));
+
+vi.mock("@daytona/sdk", () => ({
+	Daytona: daytonaMocks.Daytona,
+}));
+
 const { db } = await import("../db/drizzle");
 const { getSupabase } = await import("../db/supabase");
 const {
 	CODEX_AGENT_COMMAND,
 	agentRoutes,
 	getDefaultAgentUserId,
+	parseTerminalArtifactList,
 	validateAgentJobBody,
 	validateCommand,
 } = await import("./agent");
@@ -134,6 +147,12 @@ function mockOwnedJobAndArtifact({
 beforeEach(() => {
 	process.env.MOCK_MODE = "true";
 	vi.clearAllMocks();
+	daytonaMocks.Daytona.mockImplementation(function DaytonaMock() {
+		return {
+			create: daytonaMocks.create,
+			get: daytonaMocks.get,
+		};
+	});
 });
 
 afterEach(() => {
@@ -315,6 +334,94 @@ describe("POST /api/agent/sessions/:sessionId/end", () => {
 		expect(res.status).toBe(404);
 		expect(await res.json()).toEqual({ error: "agent_session_not_found" });
 		expect(set).not.toHaveBeenCalled();
+	});
+});
+
+describe("agent terminal artifacts", () => {
+	it("parses only direct safe files from Daytona find output", () => {
+		expect(
+			parseTerminalArtifactList({
+				stdout: [
+					"result.png\t120",
+					"clip.mp4\t4096",
+					"../secret.txt\t10",
+					"nested/file.txt\t20",
+					"bad.txt\tnot-a-number",
+				].join("\n"),
+			})
+		).toEqual([
+			{ filename: "result.png", bytes: 120 },
+			{ filename: "clip.mp4", bytes: 4096 },
+			{ filename: "bad.txt", bytes: 0 },
+		]);
+	});
+
+	it("lists files from the active Daytona terminal sandbox", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		mockSelectRowsOnce({
+			rows: [makeAgentSession({ providerSessionId: "sandbox-1" })],
+		});
+		daytonaMocks.get.mockResolvedValue({
+			process: {
+				executeCommand: daytonaMocks.executeCommand.mockResolvedValue({
+					exitCode: 0,
+					result: "result.png\t120\nclip.mp4\t4096\n",
+				}),
+			},
+		});
+
+		const res = await buildApp().request(
+			"/api/agent/sessions/agent-session-1/artifacts"
+		);
+
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.artifacts).toEqual([
+			expect.objectContaining({
+				id: "result.png",
+				sessionId: "agent-session-1",
+				kind: "image",
+				bytes: 120,
+			}),
+			expect.objectContaining({
+				id: "clip.mp4",
+				sessionId: "agent-session-1",
+				kind: "video",
+				bytes: 4096,
+			}),
+		]);
+		expect(daytonaMocks.get).toHaveBeenCalledWith("sandbox-1");
+	});
+
+	it("downloads a file from the active Daytona terminal sandbox", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		mockSelectRowsOnce({
+			rows: [makeAgentSession({ providerSessionId: "sandbox-1" })],
+		});
+		daytonaMocks.get.mockResolvedValue({
+			fs: {
+				downloadFile: daytonaMocks.downloadFile.mockResolvedValue(
+					Buffer.from([1, 2, 3])
+				),
+			},
+		});
+
+		const res = await buildApp().request(
+			"/api/agent/sessions/agent-session-1/artifacts/result.png/download"
+		);
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toBe("image/png");
+		expect(res.headers.get("Content-Disposition")).toBe(
+			'attachment; filename="result.png"'
+		);
+		expect(new Uint8Array(await res.arrayBuffer())).toEqual(
+			new Uint8Array([1, 2, 3])
+		);
+		expect(daytonaMocks.downloadFile).toHaveBeenCalledWith(
+			"/tmp/qcut-output/result.png",
+			600
+		);
 	});
 });
 

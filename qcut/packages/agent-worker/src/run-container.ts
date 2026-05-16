@@ -30,6 +30,7 @@ const CODEX_SANDBOX_CONTEXT = [
 	`Related native-cli references live under ${NATIVE_CLI_SKILL_DIR}/references and editor docs live under ${NATIVE_CLI_SKILL_DIR}/editor.`,
 	"Read that skill before running nontrivial QCut CLI workflows or when command syntax is unclear.",
 	"yt-dlp and deno are available for authorized video download probes.",
+	"For long-running shell commands, stream user-visible stdout with tee -a /tmp/qcut-output/codex-live-stdout.log.",
 	"Put temporary tools, caches, and package installs under /tmp/qcut-tools or /tmp, not /tmp/qcut-output.",
 	"Write only final user-requested files and small diagnostic summaries/logs under /tmp/qcut-output.",
 ].join("\n");

@@ -344,10 +344,160 @@ Screenshots:
 - After video artifacts:
   `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-e2e-after-video-artifacts.png`
 
+## Live Stdout Streaming Fix - 2026-05-15
+
+Problem found during UI verification:
+
+- The page streamed Daytona/Codex lifecycle events while a job was running, but
+  shell stdout from Codex command executions only appeared later inside
+  `item.completed.aggregated_output`.
+- That made the UI feel idle during long-running commands such as `yt-dlp`,
+  `ffmpeg`, and QCut generation jobs.
+
+Implemented fix:
+
+- Added `codex-live-stdout.log` as a Daytona stream source for Codex jobs.
+  The worker polls it with the same cursor-based stream loop used for
+  `codex-events.jsonl`.
+- Updated the Codex sandbox instructions to tell long-running shell commands to
+  stream user-visible stdout with:
+
+```bash
+tee -a /tmp/qcut-output/codex-live-stdout.log
+```
+
+- Added `codex_stdout` events for live stdout rows so the website pending Codex
+  message and Events panel can show command progress while the job is still
+  `running`.
+- Split fallback `aggregated_output` from `codex-events.jsonl` into
+  `codex_stdout` rows when no live line was seen, so older/non-tee commands still
+  expose their stdout cleanly after Codex emits the completed event.
+- Added de-dupe so rows already streamed from `codex-live-stdout.log` are not
+  repeated again from final `aggregated_output`.
+
+Focused tests:
+
+```bash
+bun --cwd packages/agent-worker test -- stream-events.test.ts run-on-daytona.test.ts
+bunx tsc -p packages/agent-worker/tsconfig.json --noEmit
+node --test packages/nexusai-website/js/agent-chat.test.js
+bunx biome check packages/agent-worker/src/stream-events.ts packages/agent-worker/src/stream-events.test.ts packages/agent-worker/src/run-container.ts packages/agent-worker/src/run-on-daytona.ts packages/agent-worker/src/run-on-daytona.test.ts
+```
+
+Result:
+
+- Agent worker: 27 tests passed.
+- Website chat client: 14 tests passed.
+- Agent worker typecheck passed.
+- Focused Biome check passed.
+
+Live UI verification against `https://quriosity.com.au/chat-agent.html` with the
+local production-shaped worker restarted from this branch:
+
+| Step | Evidence |
+| --- | --- |
+| Running stdout job | `398d42a4-b6c3-4695-b05f-55d541044b37` |
+| Runner | `c6146513-2bcd-4182-945f-48ce7421098f` |
+| Session reuse | `agent_session_ready.reused=true`, sandbox `af9c00ec-e4c4-41f2-9e84-884114e3d8c8` |
+| Running UI proof | page showed `codex_stdout: LIVE_STDOUT_stdout-dedupe-1778908772404_1` while job status was still `running` |
+| Completion | job succeeded with exit `0` |
+| De-dupe proof | final API response had `eventCount=3` and `uniqueCount=3` for `_1`, `_2`, `_3` stdout rows |
+| Artifact proof | uploaded `codex-live-stdout.log`, `stdout-dedupe-stdout-dedupe-1778908772404.txt`, `qcut-output.tar`, `codex-events.jsonl`, `qcut-exit.json`, and `codex-last-message.md` |
+
+Screenshot:
+
+- Running stdout stream:
+  `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-e2e-live-stdout-dedupe-running.png`
+
+## PTY Terminal Mode - 2026-05-15
+
+Problem found after live stdout streaming:
+
+- `codex exec --json` only emits the real assistant message at
+  `item.completed`; it does not expose token-by-token assistant deltas.
+- The previous web UI could show worker events and shell stdout, but it was not
+  the same experience as a real terminal. The user could not type into a fixed
+  sandbox shell.
+
+Implemented fix:
+
+- Added a Daytona-backed PTY path to `packages/qcut-relay`. The relay now
+  accepts signed tokens for `agent_sessions`, connects to the session's Daytona
+  sandbox, creates a PTY, and bridges browser input/output over WebSocket.
+- Added `POST /api/agent/sessions/:sessionId/pty-token` in the license-server.
+  This creates or reuses the Daytona sandbox, injects saved `agent_secrets`, and
+  signs a short-lived relay token with `session_kind="agent"`.
+- Added terminal artifact endpoints:
+  - `GET /api/agent/sessions/:sessionId/artifacts`
+  - `GET /api/agent/sessions/:sessionId/artifacts/:filename/download`
+- Updated `chat-agent.html` to use xterm.js as the primary interface. The Send
+  button now writes a `codex exec --sandbox danger-full-access` command into the
+  live PTY, so the user sees real shell/Codex output in the terminal.
+- Fixed CORS for local website E2E by allowlisting `http://localhost:4177` and
+  `http://127.0.0.1:4177`.
+- Fixed relay stdin handling: non-resize string WebSocket messages are terminal
+  input, not malformed control packets.
+
+Deployment:
+
+- Deployed `qcut-license-server` to Cloudflare Workers after adding the PTY
+  token and terminal artifact routes.
+- Deployed `qcut-relay` to Cloudflare Workers after adding Daytona PTY support.
+- Set shared `RELAY_SIGNING_SECRET` on both Workers.
+- Set `DAYTONA_API_KEY` on both Workers.
+
+Focused tests:
+
+```bash
+node --test packages/nexusai-website/js/agent-chat.test.js
+bun --cwd packages/license-server test -- src/routes/agent.test.ts src/services/payment-config.test.ts
+bun --cwd packages/qcut-relay test
+bun --cwd packages/agent-worker test
+bunx tsc -p packages/qcut-relay/tsconfig.json --noEmit
+```
+
+Result:
+
+- Website chat client: 18 tests passed.
+- License server focused tests: 31 tests passed.
+- QCut relay: 9 tests passed.
+- Agent worker: 46 tests passed.
+- QCut relay typecheck passed.
+- License-server repo typecheck still has the existing unrelated
+  `Cannot find type definition file for 'sharp'` issue.
+
+Live/local E2E against deployed Workers and local website:
+
+| Step | Evidence |
+| --- | --- |
+| Session | `13a3b39a-d9fe-420a-bec3-f7dc9eb00a6d` |
+| Daytona sandbox | `9c50d534-8190-4e14-a30d-2a8350638252` |
+| PTY proof | Browser terminal accepted keyboard input and printed `direct-pty-ok` |
+| Codex proof | Send button ran real `codex exec` inside the PTY |
+| QCut CLI proof | Codex ran `qcut --help \| head -12` and output `qcut-pipeline v1.0.0 — AI content generation CLI` |
+| Artifact proof | `/tmp/qcut-output/terminal-e2e.txt` appeared in the web Artifacts panel with a Download button |
+
+Screenshots:
+
+- Connected PTY:
+  `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-pty-connected.png`
+- Direct keyboard PTY:
+  `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-pty-keyboard-direct.png`
+- Terminal artifact refresh:
+  `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-pty-artifact-refresh-confirmed.png`
+- Send button starts real Codex in PTY:
+  `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-send-codex-command-visible.png`
+- Codex result plus downloadable artifacts:
+  `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-send-codex-artifact-visible.png`
+- Production page after website push:
+  `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-production-pty-artifacts.png`
+
 ## Follow-ups
 
-- Persistent Codex PTY/daemon process inside the same sandbox.
-- Session artifact browser that can show prior job artifacts within a chat.
+- Decide whether to keep `codex exec` per Send or graduate to a long-lived
+  interactive Codex process inside the PTY.
+- Stream large terminal artifact downloads through object storage instead of
+  buffering Daytona `fs.downloadFile` in the Worker.
 - User-visible "session will expire soon" countdown.
 - Per-session credit policy if idle warm sandboxes become costly.
 - Add a normal migration-runner path so production schema changes do not need a

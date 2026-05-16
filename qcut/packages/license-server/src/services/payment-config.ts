@@ -1,5 +1,7 @@
 const DEFAULT_CORS_ORIGINS = [
 	"http://localhost:3000",
+	"http://localhost:4177",
+	"http://127.0.0.1:4177",
 	// Electron packaged app uses the `app://` scheme with hostname `.`
 	// (see `electron/main.ts:587` → `app://./index.html`). The browser sends
 	// this as `Origin: app://.` on CORS preflights.

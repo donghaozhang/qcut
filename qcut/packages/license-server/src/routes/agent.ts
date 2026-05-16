@@ -1,10 +1,13 @@
 import { Hono, type Context, type Next } from "hono";
 import { and, desc, eq, gt } from "drizzle-orm";
+import { Daytona } from "@daytona/sdk";
+import { SignJWT } from "jose";
 import {
 	agentArtifacts,
 	agentEvents,
 	agentJobs,
 	agentSessions,
+	agentSecrets,
 } from "@qcut/db/schema";
 import { db } from "../db/drizzle";
 import { getSupabase } from "../db/supabase";
@@ -16,7 +19,11 @@ const MAX_COMMAND_LENGTH = 2000;
 const MAX_CODEX_PROMPT_LENGTH = 12_000;
 const MAX_AGENT_SOURCE_LENGTH = 120;
 const MAX_TEXT_ARTIFACT_BYTES = 256_000;
+const MAX_TERMINAL_ARTIFACTS = 80;
 const AGENT_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+const AGENT_SESSION_SANDBOX_AUTO_STOP_MINUTES = 120;
+const DAYTONA_CREATE_TIMEOUT_SECONDS = 300;
+const TERMINAL_OUTPUT_DIR = "/tmp/qcut-output";
 const SAFE_COMMAND_TOKEN = /^[A-Za-z0-9_\-./:=,@+]+$/;
 const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
 const DEFAULT_DAYTONA_IMAGE =
@@ -92,6 +99,57 @@ agentRoutes.post("/sessions/:sessionId/end", async (c) => {
 		);
 	}
 });
+
+agentRoutes.post("/sessions/:sessionId/pty-token", async (c) => {
+	try {
+		return await createAgentPtyToken(c);
+	} catch (error) {
+		return c.json(
+			{
+				error:
+					error instanceof Error
+						? `Failed to create agent terminal: ${error.message}`
+						: "Failed to create agent terminal",
+			},
+			500
+		);
+	}
+});
+
+agentRoutes.get("/sessions/:sessionId/artifacts", async (c) => {
+	try {
+		return await listAgentSessionArtifacts(c);
+	} catch (error) {
+		return c.json(
+			{
+				error:
+					error instanceof Error
+						? `Failed to list session artifacts: ${error.message}`
+						: "Failed to list session artifacts",
+			},
+			500
+		);
+	}
+});
+
+agentRoutes.get(
+	"/sessions/:sessionId/artifacts/:filename/download",
+	async (c) => {
+		try {
+			return await downloadAgentSessionArtifact(c);
+		} catch (error) {
+			return c.json(
+				{
+					error:
+						error instanceof Error
+							? `Failed to download session artifact: ${error.message}`
+							: "Failed to download session artifact",
+				},
+				500
+			);
+		}
+	}
+);
 
 function getDefaultAgentUserId(): string {
 	const value = process.env.QCUT_AGENT_DEFAULT_USER_ID;
@@ -437,6 +495,253 @@ async function endAgentSession(c: Context) {
 	});
 }
 
+type DaytonaClient = InstanceType<typeof Daytona>;
+type DaytonaSandbox = Awaited<ReturnType<DaytonaClient["create"]>>;
+
+async function createAgentPtyToken(c: Context) {
+	const userId = c.get("userId") as string;
+	const sessionId = normalizeOptionalId({ value: c.req.param("sessionId") });
+	if (!sessionId) {
+		return c.json({ error: "agent_session_id_required" }, 400);
+	}
+
+	const relaySecret = getRelaySigningSecret();
+	if (!relaySecret) {
+		return c.json({ error: "agent_terminal_misconfigured: relay_secret" }, 500);
+	}
+
+	const apiKey = getDaytonaApiKey();
+	if (!apiKey) {
+		return c.json({ error: "agent_terminal_misconfigured: daytona" }, 500);
+	}
+
+	const session = await getActiveOwnedAgentSession({
+		sessionId,
+		userId,
+		now: new Date(),
+	});
+	if (!session) {
+		return c.json({ error: "agent_session_not_found" }, 404);
+	}
+
+	const daytona = new Daytona({ apiKey });
+	const sandbox = await getOrCreateAgentTerminalSandbox({
+		daytona,
+		session,
+		userId,
+	});
+	const now = new Date();
+	await db
+		.update(agentSessions)
+		.set({
+			providerSessionId: sandbox.id,
+			imageTag: getAgentImageTag(),
+			lastActiveAt: now,
+		})
+		.where(
+			and(eq(agentSessions.id, session.id), eq(agentSessions.userId, userId))
+		);
+	await db.insert(agentEvents).values({
+		jobId: null,
+		userId,
+		kind: "agent_terminal_ready",
+		payload: {
+			sessionId: session.id,
+			sandboxId: sandbox.id,
+			provider: "daytona",
+		},
+		createdAt: now,
+	});
+
+	const wsToken = await new SignJWT({
+		session_id: session.id,
+		session_kind: "agent",
+	})
+		.setProtectedHeader({ alg: "HS256" })
+		.setExpirationTime("5m")
+		.sign(new TextEncoder().encode(relaySecret));
+	const expiresAt = serializeDate({ value: session.expiresAt });
+
+	return c.json({
+		session: serializeAgentSession({
+			...session,
+			providerSessionId: sandbox.id,
+			imageTag: getAgentImageTag(),
+			lastActiveAt: now,
+		}),
+		ws_url: `wss://${getRelayHost()}/pty?token=${wsToken}`,
+		expires_at: expiresAt,
+	});
+}
+
+async function listAgentSessionArtifacts(c: Context) {
+	const userId = c.get("userId") as string;
+	const session = await getRequestAgentSession({ c, userId });
+	if (!session) {
+		return c.json({ error: "agent_session_not_found" }, 404);
+	}
+	if (!session.providerSessionId) {
+		return c.json({ artifacts: [] });
+	}
+
+	const sandbox = await getDaytonaSandboxForSession({ session });
+	const result = await sandbox.process.executeCommand(
+		`find ${TERMINAL_OUTPUT_DIR} -maxdepth 1 -type f -printf '%f\\t%s\\n' 2>/dev/null | sort`,
+		"/home/qcut/qcut",
+		undefined,
+		30
+	);
+	const stdout = typeof result.result === "string" ? result.result : "";
+	const artifacts = parseTerminalArtifactList({ stdout })
+		.slice(0, MAX_TERMINAL_ARTIFACTS)
+		.map((artifact) =>
+			serializeTerminalArtifact({
+				sessionId: session.id,
+				artifact,
+			})
+		);
+
+	return c.json({ artifacts });
+}
+
+async function downloadAgentSessionArtifact(c: Context) {
+	const userId = c.get("userId") as string;
+	const session = await getRequestAgentSession({ c, userId });
+	if (!session) {
+		return c.json({ error: "agent_session_not_found" }, 404);
+	}
+	if (!session.providerSessionId) {
+		return c.json({ error: "agent_session_sandbox_not_ready" }, 409);
+	}
+
+	const filename = normalizeTerminalArtifactFilename({
+		value: c.req.param("filename"),
+	});
+	if (!filename) {
+		return c.json({ error: "artifact_filename_invalid" }, 400);
+	}
+
+	const sandbox = await getDaytonaSandboxForSession({ session });
+	const buffer = await sandbox.fs.downloadFile(
+		`${TERMINAL_OUTPUT_DIR}/${filename}`,
+		10 * 60
+	);
+	const headers: Record<string, string> = {
+		"Content-Disposition": `attachment; filename="${escapeContentDispositionFilename({ filename })}"`,
+		"Content-Type": getContentTypeByFilename({ filename }),
+	};
+	if (typeof buffer.byteLength === "number") {
+		headers["Content-Length"] = String(buffer.byteLength);
+	}
+
+	return c.body(buffer, 200, headers);
+}
+
+async function getRequestAgentSession({
+	c,
+	userId,
+}: {
+	c: Context;
+	userId: string;
+}): Promise<typeof agentSessions.$inferSelect | null> {
+	const sessionId = normalizeOptionalId({ value: c.req.param("sessionId") });
+	if (!sessionId) {
+		return null;
+	}
+	return getActiveOwnedAgentSession({
+		sessionId,
+		userId,
+		now: new Date(),
+	});
+}
+
+async function getDaytonaSandboxForSession({
+	session,
+}: {
+	session: typeof agentSessions.$inferSelect;
+}): Promise<DaytonaSandbox> {
+	if (!session.providerSessionId) {
+		throw new Error("agent_session_sandbox_not_ready");
+	}
+	const apiKey = getDaytonaApiKey();
+	if (!apiKey) {
+		throw new Error("agent_terminal_misconfigured: daytona");
+	}
+	const daytona = new Daytona({ apiKey });
+	return daytona.get(session.providerSessionId);
+}
+
+async function getOrCreateAgentTerminalSandbox({
+	daytona,
+	session,
+	userId,
+}: {
+	daytona: DaytonaClient;
+	session: typeof agentSessions.$inferSelect;
+	userId: string;
+}): Promise<DaytonaSandbox> {
+	if (session.providerSessionId) {
+		try {
+			return await daytona.get(session.providerSessionId);
+		} catch (error) {
+			await db.insert(agentEvents).values({
+				jobId: null,
+				userId,
+				kind: "agent_terminal_sandbox_replaced",
+				payload: {
+					sessionId: session.id,
+					sandboxId: session.providerSessionId,
+					error: error instanceof Error ? error.message : String(error),
+				},
+				createdAt: new Date(),
+			});
+		}
+	}
+
+	const envVars = await buildAgentTerminalEnv({ userId });
+	return daytona.create(
+		{
+			image: getAgentImageTag(),
+			envVars,
+			resources: { cpu: 2, memory: 4 },
+			ephemeral: true,
+			autoStopInterval: AGENT_SESSION_SANDBOX_AUTO_STOP_MINUTES,
+		},
+		{ timeout: DAYTONA_CREATE_TIMEOUT_SECONDS }
+	);
+}
+
+async function buildAgentTerminalEnv({
+	userId,
+}: {
+	userId: string;
+}): Promise<Record<string, string>> {
+	const secrets = await db
+		.select({ key: agentSecrets.key, value: agentSecrets.value })
+		.from(agentSecrets)
+		.where(eq(agentSecrets.userId, userId));
+	const envVars: Record<string, string> = { QCUT_SESSION_ROLE: "agent" };
+	for (const secret of secrets) envVars[secret.key] = secret.value;
+	return envVars;
+}
+
+function getDaytonaApiKey(): string {
+	const value = process.env.DAYTONA_API_KEY;
+	return typeof value === "string" ? value.trim() : "";
+}
+
+function getRelaySigningSecret(): string {
+	const value = process.env.RELAY_SIGNING_SECRET;
+	return typeof value === "string" ? value.trim() : "";
+}
+
+function getRelayHost(): string {
+	const value = process.env.RELAY_HOST;
+	return typeof value === "string" && value.trim().length > 0
+		? value.trim()
+		: "qcut-relay.zdhpeter.workers.dev";
+}
+
 async function getActiveOwnedAgentSession({
 	sessionId,
 	userId,
@@ -492,6 +797,29 @@ function normalizeOptionalId({ value }: { value: unknown }): string | null {
 	return trimmed.length === 0 ? null : trimmed;
 }
 
+function normalizeTerminalArtifactFilename({
+	value,
+}: {
+	value: unknown;
+}): string | null {
+	if (typeof value !== "string") {
+		return null;
+	}
+	const trimmed = value.trim();
+	if (
+		trimmed.length === 0 ||
+		trimmed.length > 255 ||
+		trimmed === "." ||
+		trimmed === ".." ||
+		trimmed.includes("/") ||
+		trimmed.includes("\\") ||
+		trimmed.includes("\0")
+	) {
+		return null;
+	}
+	return trimmed;
+}
+
 async function parseCreateAgentJobBody({
 	c,
 }: {
@@ -503,6 +831,33 @@ async function parseCreateAgentJobBody({
 	} catch {
 		return {};
 	}
+}
+
+function parseTerminalArtifactList({
+	stdout,
+}: {
+	stdout: string;
+}): Array<{ filename: string; bytes: number }> {
+	return stdout
+		.split("\n")
+		.map((line) => line.trimEnd())
+		.filter((line) => line.length > 0)
+		.flatMap((line) => {
+			const [filename, rawBytes] = line.split("\t");
+			const safeFilename = normalizeTerminalArtifactFilename({
+				value: filename,
+			});
+			if (!safeFilename) {
+				return [];
+			}
+			const bytes = Number(rawBytes);
+			return [
+				{
+					filename: safeFilename,
+					bytes: Number.isFinite(bytes) && bytes >= 0 ? bytes : 0,
+				},
+			];
+		});
 }
 
 function validateCommand({ command }: { command: string }): string {
@@ -614,6 +969,18 @@ function getArtifactContentType({
 	return "application/octet-stream";
 }
 
+function getContentTypeByFilename({ filename }: { filename: string }): string {
+	const normalized = filename.toLowerCase();
+	const dot = normalized.lastIndexOf(".");
+	if (dot >= 0) {
+		return (
+			CONTENT_TYPE_BY_EXTENSION[normalized.slice(dot)] ||
+			"application/octet-stream"
+		);
+	}
+	return "application/octet-stream";
+}
+
 function serializeAgentJob(job: typeof agentJobs.$inferSelect) {
 	return {
 		id: job.id,
@@ -672,10 +1039,53 @@ function serializeAgentArtifact(artifact: typeof agentArtifacts.$inferSelect) {
 	};
 }
 
+function serializeTerminalArtifact({
+	sessionId,
+	artifact,
+}: {
+	sessionId: string;
+	artifact: { filename: string; bytes: number };
+}) {
+	return {
+		id: artifact.filename,
+		sessionId,
+		jobId: null,
+		userId: null,
+		kind: classifyArtifactKind({ filename: artifact.filename }),
+		storagePath: `${TERMINAL_OUTPUT_DIR}/${artifact.filename}`,
+		bytes: artifact.bytes,
+		meta: { filename: artifact.filename, source: "terminal" },
+		createdAt: null,
+	};
+}
+
+function classifyArtifactKind({
+	filename,
+}: {
+	filename: string;
+}): "image" | "video" | "audio" | "json" | "log" {
+	const dot = filename.lastIndexOf(".");
+	const ext = dot >= 0 ? filename.toLowerCase().slice(dot) : "";
+	if ([".gif", ".jpeg", ".jpg", ".png", ".webp"].includes(ext)) {
+		return "image";
+	}
+	if ([".mov", ".mp4", ".webm"].includes(ext)) {
+		return "video";
+	}
+	if ([".m4a", ".mp3", ".ogg", ".wav"].includes(ext)) {
+		return "audio";
+	}
+	if (ext === ".json") {
+		return "json";
+	}
+	return "log";
+}
+
 export {
 	CODEX_AGENT_COMMAND,
 	agentRoutes,
 	getDefaultAgentUserId,
+	parseTerminalArtifactList,
 	validateAgentJobBody,
 	validateCommand,
 };

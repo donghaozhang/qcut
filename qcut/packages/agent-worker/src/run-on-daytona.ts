@@ -44,6 +44,7 @@ const AGENT_DONE_FILE = ".qcut-agent-done";
 const AGENT_PID_FILE = ".qcut-agent-pid";
 const WRAPPER_STDOUT_FILE = ".qcut-agent-wrapper-stdout";
 const WRAPPER_STDERR_FILE = ".qcut-agent-wrapper-stderr";
+const CODEX_LIVE_STDOUT_FILE = "codex-live-stdout.log";
 const STREAM_POLL_MS = 2000;
 const SESSION_SANDBOX_AUTO_STOP_MINUTES = 120;
 const DEFAULT_AGENT_SESSION_IDLE_MS = 20 * 60 * 1000;
@@ -164,6 +165,10 @@ interface StreamCursor {
 	size: number;
 }
 
+interface StreamState {
+	liveStdoutMessages: Set<string>;
+}
+
 function isDaytonaEmptyExitCodeError({ error }: { error: unknown }): boolean {
 	const message = error instanceof Error ? error.message : String(error);
 	return (
@@ -239,6 +244,11 @@ export function buildDaytonaCommand({
 			command: buildCodexShellCommandForJob({ args }),
 			archiveCommand: ARCHIVE_COMMAND,
 			streams: [
+				{
+					path: outputPath({ filename: CODEX_LIVE_STDOUT_FILE }),
+					kind: "codex_stdout",
+					source: CODEX_LIVE_STDOUT_FILE,
+				},
 				{
 					path: outputPath({ filename: "codex-events.jsonl" }),
 					kind: "codex_event",
@@ -753,6 +763,38 @@ function takeNewCompleteLines({
 	return lines.join("\n");
 }
 
+function filterDuplicateStdoutRows({
+	rows,
+	stream,
+	state,
+}: {
+	rows: ReturnType<typeof parseEventText>;
+	stream: StreamSpec;
+	state: StreamState;
+}): ReturnType<typeof parseEventText> {
+	return rows.filter((row) => {
+		if (row.kind !== "codex_stdout") {
+			return true;
+		}
+		const message =
+			typeof row.payload.message === "string" ? row.payload.message : "";
+		if (message.length === 0) {
+			return true;
+		}
+		if (stream.source === CODEX_LIVE_STDOUT_FILE) {
+			state.liveStdoutMessages.add(message);
+			return true;
+		}
+		if (
+			row.payload.source === "codex-events.jsonl:aggregated_output" &&
+			state.liveStdoutMessages.has(message)
+		) {
+			return false;
+		}
+		return true;
+	});
+}
+
 async function flushStreamEvents({
 	supabase,
 	job,
@@ -760,6 +802,7 @@ async function flushStreamEvents({
 	sessionId,
 	streams,
 	cursors,
+	state,
 	includePartial = false,
 }: {
 	supabase: SupabaseClient;
@@ -768,6 +811,7 @@ async function flushStreamEvents({
 	sessionId: string;
 	streams: StreamSpec[];
 	cursors: Map<string, StreamCursor>;
+	state: StreamState;
 	includePartial?: boolean;
 }): Promise<void> {
 	for (const stream of streams) {
@@ -786,7 +830,10 @@ async function flushStreamEvents({
 			defaultKind: stream.kind,
 			source: stream.source,
 		});
-		await insertAgentEvents({ supabase, rows });
+		await insertAgentEvents({
+			supabase,
+			rows: filterDuplicateStdoutRows({ rows, stream, state }),
+		});
 	}
 }
 
@@ -807,6 +854,7 @@ async function waitForRemoteCommand({
 }): Promise<void> {
 	const startedAt = Date.now();
 	const cursors = new Map<string, StreamCursor>();
+	const state: StreamState = { liveStdoutMessages: new Set() };
 	const donePath = outputPath({ filename: AGENT_DONE_FILE });
 	while (Date.now() - startedAt < TIMEOUT_SECONDS * 1000) {
 		await sleepFn(STREAM_POLL_MS);
@@ -817,6 +865,7 @@ async function waitForRemoteCommand({
 			sessionId,
 			streams,
 			cursors,
+			state,
 		});
 		if (await remoteFileExists({ sandbox, sessionId, path: donePath })) {
 			await flushStreamEvents({
@@ -826,6 +875,7 @@ async function waitForRemoteCommand({
 				sessionId,
 				streams,
 				cursors,
+				state,
 				includePartial: true,
 			});
 			return;

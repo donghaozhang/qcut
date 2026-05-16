@@ -10,6 +10,7 @@
 
 export interface RelayClaims {
 	session_id: string;
+	session_kind?: "agent" | "sandbox";
 }
 
 export async function verifyToken({
@@ -29,7 +30,7 @@ export async function verifyToken({
 		throw new Error("alg_mismatch");
 	}
 
-	const key = await globalThis.crypto.subtle.importKey(
+	const key = await crypto.subtle.importKey(
 		"raw",
 		new TextEncoder().encode(secret),
 		{ name: "HMAC", hash: "SHA-256" },
@@ -38,7 +39,7 @@ export async function verifyToken({
 	);
 	const data = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
 	const sig = b64decBin(sigB64);
-	const ok = await globalThis.crypto.subtle.verify("HMAC", key, sig, data);
+	const ok = await crypto.subtle.verify("HMAC", key, sig, data);
 	if (!ok) throw new Error("sig_mismatch");
 
 	const payload = JSON.parse(b64decUtf8(payloadB64));
@@ -48,7 +49,11 @@ export async function verifyToken({
 	if (typeof payload.session_id !== "string") {
 		throw new Error("missing_session_id");
 	}
-	return { session_id: payload.session_id };
+	const session_kind =
+		payload.session_kind === "agent" || payload.session_kind === "sandbox"
+			? payload.session_kind
+			: undefined;
+	return { session_id: payload.session_id, session_kind };
 }
 
 /** Peek `session_id` *without* verifying signature — only for routing

@@ -220,6 +220,11 @@ describe("buildDaytonaCommand", () => {
 				"tar --exclude='.qcut-agent-*' -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
 			streams: [
 				{
+					path: "/tmp/qcut-output/codex-live-stdout.log",
+					kind: "codex_stdout",
+					source: "codex-live-stdout.log",
+				},
+				{
 					path: "/tmp/qcut-output/codex-events.jsonl",
 					kind: "codex_event",
 					source: "codex-events.jsonl",
@@ -449,6 +454,115 @@ describe("runOnDaytona", () => {
 			"daytona_command_finished",
 		]);
 		expect(stdoutReads).toBeGreaterThan(1);
+
+		await rm(outputDir, { recursive: true, force: true });
+	});
+
+	it("streams Codex live stdout without duplicating final aggregated output", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		const { client, insertedEvents } = makeSupabase();
+		const outputDir = await mkdtemp(join(tmpdir(), "qcut-daytona-test-"));
+		const codexEvent = JSON.stringify({
+			item: {
+				id: "item_0",
+				type: "command_execution",
+				status: "completed",
+				command:
+					"/bin/bash -lc 'echo LIVE_1 | tee -a /tmp/qcut-output/codex-live-stdout.log'",
+				exit_code: 0,
+				aggregated_output: "LIVE_1\n",
+			},
+			type: "item.completed",
+		});
+		const sandbox = {
+			id: "sandbox-1",
+			process: {
+				createSession() {
+					return Promise.resolve();
+				},
+				deleteSession() {
+					return Promise.resolve();
+				},
+				executeSessionCommand(
+					_sessionId: string,
+					request: { command: string }
+				) {
+					if (request.command.includes("codex-live-stdout.log")) {
+						return Promise.resolve({
+							stdout: "LIVE_1\n",
+							stderr: "",
+							exitCode: 0,
+						});
+					}
+					if (request.command.includes("codex-events.jsonl")) {
+						return Promise.resolve({
+							stdout: `${codexEvent}\n`,
+							stderr: "",
+							exitCode: 0,
+						});
+					}
+					if (request.command.includes(".qcut-agent-wrapper-stderr")) {
+						return Promise.resolve({ stdout: "", stderr: "", exitCode: 0 });
+					}
+					if (request.command.includes(".qcut-agent-done")) {
+						return Promise.resolve({ stdout: "yes", stderr: "", exitCode: 0 });
+					}
+					if (request.command.includes("qcut-exit.json")) {
+						return Promise.resolve({
+							stdout: '{"exitCode":0}\n',
+							stderr: "",
+							exitCode: 0,
+						});
+					}
+					return Promise.resolve({ stdout: "ok", stderr: "", exitCode: 0 });
+				},
+			},
+			fs: {
+				downloadFile() {
+					return Promise.resolve();
+				},
+			},
+		};
+
+		class FakeDaytonaClient {
+			create() {
+				return Promise.resolve(sandbox);
+			}
+
+			get() {
+				return Promise.reject(
+					new Error("get should not run for one-shot jobs")
+				);
+			}
+
+			delete() {
+				return Promise.resolve();
+			}
+		}
+
+		await runOnDaytona({
+			supabase: client,
+			job: makeJob({
+				command: CODEX_AGENT_COMMAND,
+				args: { codexPrompt: "Run a streaming probe." },
+			}),
+			deps: {
+				DaytonaClient: FakeDaytonaClient,
+				makeOutputDir: () => Promise.resolve(outputDir),
+				makeSessionId: () => "session-1",
+				sleep: () => Promise.resolve(),
+				extractArchive: () => Promise.resolve(),
+			},
+		});
+
+		const stdoutEvents = flattenInsertedEvents({ insertedEvents }).filter(
+			(event) => event.kind === "codex_stdout"
+		);
+		expect(stdoutEvents).toHaveLength(1);
+		expect(stdoutEvents[0]?.payload).toMatchObject({
+			message: "LIVE_1",
+			source: "codex-live-stdout.log",
+		});
 
 		await rm(outputDir, { recursive: true, force: true });
 	});

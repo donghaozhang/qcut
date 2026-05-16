@@ -22,6 +22,75 @@ export interface EventRow {
 	created_at: string;
 }
 
+function buildEventRow({
+	job,
+	kind,
+	payload,
+	createdAt,
+}: {
+	job: AgentJob;
+	kind: string;
+	payload: Record<string, unknown>;
+	createdAt: string;
+}): EventRow {
+	return {
+		job_id: job.id,
+		user_id: job.userId,
+		kind,
+		payload,
+		created_at: createdAt,
+	};
+}
+
+function buildCodexStdoutRows({
+	payload,
+	job,
+	createdAt,
+}: {
+	payload: Record<string, unknown>;
+	job: AgentJob;
+	createdAt: string;
+}): EventRow[] {
+	if (payload.source !== "codex-events.jsonl") {
+		return [];
+	}
+	const item =
+		payload.item && typeof payload.item === "object"
+			? (payload.item as Record<string, unknown>)
+			: null;
+	if (
+		!item ||
+		item.type !== "command_execution" ||
+		typeof item.aggregated_output !== "string" ||
+		item.aggregated_output.trim().length === 0
+	) {
+		return [];
+	}
+	const commandContext: Record<string, unknown> = {};
+	if (typeof item.id === "string") {
+		commandContext.itemId = item.id;
+	}
+	if (typeof item.command === "string") {
+		commandContext.command = mask(item.command);
+	}
+	return item.aggregated_output
+		.split("\n")
+		.map((line) => line.trimEnd())
+		.filter((line) => line.trim().length > 0)
+		.map((line) =>
+			buildEventRow({
+				job,
+				kind: "codex_stdout",
+				createdAt,
+				payload: {
+					message: mask(line),
+					source: "codex-events.jsonl:aggregated_output",
+					...commandContext,
+				},
+			})
+		);
+}
+
 export function parseEventText({
 	text,
 	job,
@@ -36,6 +105,7 @@ export function parseEventText({
 	const rows: EventRow[] = [];
 	for (const raw of text.split("\n")) {
 		if (!raw.trim()) continue;
+		const createdAt = new Date().toISOString();
 		const masked = mask(raw);
 		let payload: Record<string, unknown>;
 		try {
@@ -52,13 +122,21 @@ export function parseEventText({
 		}
 		const kind =
 			typeof payload.kind === "string" ? (payload.kind as string) : defaultKind;
-		rows.push({
-			job_id: job.id,
-			user_id: job.userId,
-			kind,
-			payload,
-			created_at: new Date().toISOString(),
-		});
+		rows.push(
+			buildEventRow({
+				job,
+				kind,
+				payload,
+				createdAt,
+			})
+		);
+		rows.push(
+			...buildCodexStdoutRows({
+				payload,
+				job,
+				createdAt,
+			})
+		);
 	}
 	return rows;
 }

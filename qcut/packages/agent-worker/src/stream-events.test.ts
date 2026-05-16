@@ -96,4 +96,37 @@ describe("parseStderr", () => {
 			source: "qcut-stdout.txt",
 		});
 	});
+
+	it("splits Codex command aggregated output into stdout line events", () => {
+		const rows = parseEventText({
+			text: JSON.stringify({
+				item: {
+					id: "item_0",
+					type: "command_execution",
+					status: "completed",
+					command: "/bin/bash -lc 'echo hello'",
+					aggregated_output: "line one\nline two\n",
+				},
+				type: "item.completed",
+			}),
+			job: fakeJob(),
+			defaultKind: "codex_event",
+			source: "codex-events.jsonl",
+		});
+		expect(rows.map((row) => row.kind)).toEqual([
+			"codex_event",
+			"codex_stdout",
+			"codex_stdout",
+		]);
+		expect(rows[1]?.payload).toMatchObject({
+			message: "line one",
+			source: "codex-events.jsonl:aggregated_output",
+			itemId: "item_0",
+			command: "/bin/bash -lc 'echo hello'",
+		});
+		expect(rows[2]?.payload).toMatchObject({
+			message: "line two",
+			source: "codex-events.jsonl:aggregated_output",
+		});
+	});
 });
