@@ -286,7 +286,7 @@ export function buildCodexStartupCommand({
 		"if ! grep -Fq '[projects.\"/home/qcut/qcut\"]' /home/qcut/.codex/config.toml 2>/dev/null; then",
 		"cat >> /home/qcut/.codex/config.toml <<'QCUT_CODEX_TRUST'",
 		"",
-		"[projects.\"/home/qcut/qcut\"]",
+		'[projects."/home/qcut/qcut"]',
 		'trust_level = "trusted"',
 		"QCUT_CODEX_TRUST",
 		"fi",

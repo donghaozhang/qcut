@@ -909,7 +909,7 @@ function buildTerminalArtifactListCommand(): string {
 		`if [ -d ${TERMINAL_OUTPUT_DIR} ]; then`,
 		`for file in ${TERMINAL_OUTPUT_DIR}/*; do`,
 		'[ -f "$file" ] || continue',
-		'filename=${file##*/}',
+		"filename=${file##*/}",
 		'bytes=$(wc -c < "$file" | tr -d " ")',
 		'printf "%s\\t%s\\n" "$filename" "$bytes"',
 		"done | sort",
