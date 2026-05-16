@@ -128,6 +128,7 @@ export const CATEGORIES: CategoryDef[] = [
 			"set-key",
 			"get-key",
 			"delete-key",
+			"keys",
 			"check-keys",
 			"system-doctor",
 		],
@@ -1113,11 +1114,43 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		flags: [f("--name", "string", "Key name", { required: true })],
 		examples: ["qcut-pipeline delete-key --name FAL_KEY"],
 	},
+	keys: {
+		name: "keys",
+		description: "Show configured and missing API keys",
+		category: "keys",
+		flags: [
+			f("--configured", "boolean", "Show only configured keys", {
+				default: false,
+			}),
+			f("--missing", "boolean", "Show only missing keys", { default: false }),
+			f(
+				"--category",
+				"string",
+				"Filter by capability: auth, image, video, audio, llm, search, avatar"
+			),
+		],
+		examples: [
+			"qcut system keys",
+			"qcut system keys --json",
+			"qcut system keys --missing --json",
+			"qcut system keys --category image",
+		],
+	},
 	"check-keys": {
 		name: "check-keys",
 		description: "Check configured API keys",
 		category: "keys",
-		flags: [],
+		flags: [
+			f("--configured", "boolean", "Show only configured keys", {
+				default: false,
+			}),
+			f("--missing", "boolean", "Show only missing keys", { default: false }),
+			f(
+				"--category",
+				"string",
+				"Filter by capability: auth, image, video, audio, llm, search, avatar"
+			),
+		],
 		examples: ["qcut-pipeline check-keys --json"],
 	},
 	"system-doctor": {

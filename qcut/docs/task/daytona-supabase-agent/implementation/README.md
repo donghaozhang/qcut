@@ -23,6 +23,11 @@
 > [`13-qcut-cli-command-survey.md`](13-qcut-cli-command-survey.md).** These
 > document the Chat Agent E2E command and the QCut CLI command-family smoke
 > matrix.
+>
+> 🔑 **For the next key-management CLI improvement, read
+> [`14-qcut-system-keys-plan.md`](14-qcut-system-keys-plan.md).** It defines
+> the proposed `qcut system keys` command, JSON contract, redaction rules, and
+> Chat Agent preflight flow.
 
 Nine PR-sized task specs, each consumable by `/implementit`. Each file says exactly what to build, where the files go, what tests to add, and what to run to verify "done."
 
@@ -101,3 +106,4 @@ Every PR spec follows the same skeleton:
 - [`../core-plan/secrets-supabase.md`](../core-plan/secrets-supabase.md) — `agent_secrets` loader the worker reuses
 - [`12-agent-chat-e2e-cli.md`](12-agent-chat-e2e-cli.md) — Chat Agent E2E test command
 - [`13-qcut-cli-command-survey.md`](13-qcut-cli-command-survey.md) — QCut CLI smoke-test matrix
+- [`14-qcut-system-keys-plan.md`](14-qcut-system-keys-plan.md) — proposed `qcut system keys` command

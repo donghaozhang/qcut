@@ -20,6 +20,11 @@
 > [`12-agent-chat-e2e-cli.zh.md`](12-agent-chat-e2e-cli.zh.md) 和
 > [`13-qcut-cli-command-survey.zh.md`](13-qcut-cli-command-survey.zh.md)。**
 > 这两份记录 Chat Agent E2E 命令和 QCut CLI 命令族 smoke matrix。
+>
+> 🔑 **如果要看下一步 key 管理 CLI 改进，读
+> [`14-qcut-system-keys-plan.zh.md`](14-qcut-system-keys-plan.zh.md)。**
+> 它定义了建议新增的 `qcut system keys` 命令、JSON 契约、脱敏规则和
+> Chat Agent preflight 流程。
 
 九份 PR 级别的任务规约，每一份都能直接喂给 `/implementit`。每个文件明确说：要做什么、文件放哪、加哪些测试、跑什么验证算"完工"。
 
@@ -98,3 +103,4 @@ Phase 2 各 PR 在**依赖已合入 main 之后**可乱序，但 06 → 07 → 0
 - [`../core-plan/secrets-supabase.md`](../core-plan/secrets-supabase.md) —— Worker 复用的 `agent_secrets` 加载器
 - [`12-agent-chat-e2e-cli.zh.md`](12-agent-chat-e2e-cli.zh.md) —— Chat Agent E2E 测试命令
 - [`13-qcut-cli-command-survey.zh.md`](13-qcut-cli-command-survey.zh.md) —— QCut CLI smoke-test matrix
+- [`14-qcut-system-keys-plan.zh.md`](14-qcut-system-keys-plan.zh.md) —— 建议新增的 `qcut system keys` 命令

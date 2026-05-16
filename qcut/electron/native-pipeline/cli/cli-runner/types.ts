@@ -34,6 +34,8 @@ export interface CLIRunOptions {
 	verbose: boolean;
 	quiet: boolean;
 	category?: string;
+	configured?: boolean;
+	missing?: boolean;
 	prompt?: string;
 	layout?: string;
 	upscale?: string;

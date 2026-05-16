@@ -28,6 +28,11 @@ import {
 } from "../editor/project-commands.js";
 import { createExamples } from "./example-pipelines.js";
 import { readHiddenInput } from "../cli/interactive.js";
+import {
+	buildKeyReport,
+	normalizeKeyCategory,
+	normalizeKeyFilter,
+} from "./cli-key-report.js";
 
 export function handleSetup(): CLIResult {
 	try {
@@ -106,9 +111,27 @@ export function handleGetKey(options: CLIRunOptions): CLIResult {
 	return { success: true, data: { name: options.keyName, masked } };
 }
 
-export function handleCheckKeys(): CLIResult {
-	const keys = checkKeys();
-	return { success: true, data: { keys } };
+export function handleCheckKeys(
+	options: CLIRunOptions = {} as CLIRunOptions
+): CLIResult {
+	try {
+		const filter = normalizeKeyFilter({
+			configured: options.configured,
+			missing: options.missing,
+		});
+		const category = normalizeKeyCategory({ category: options.category });
+		const report = buildKeyReport({
+			statuses: checkKeys(),
+			filter,
+			category,
+		});
+		return { success: true, data: report };
+	} catch (err) {
+		return {
+			success: false,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
 }
 
 export function handleDeleteKey(options: CLIRunOptions): CLIResult {
