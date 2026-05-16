@@ -29,6 +29,9 @@ const CODEX_SANDBOX_CONTEXT = [
 	`The QCut native CLI skill is available at ${NATIVE_CLI_SKILL_PATH}.`,
 	`Related native-cli references live under ${NATIVE_CLI_SKILL_DIR}/references and editor docs live under ${NATIVE_CLI_SKILL_DIR}/editor.`,
 	"Read that skill before running nontrivial QCut CLI workflows or when command syntax is unclear.",
+	"yt-dlp and deno are available for authorized video download probes.",
+	"Put temporary tools, caches, and package installs under /tmp/qcut-tools or /tmp, not /tmp/qcut-output.",
+	"Write only final user-requested files and small diagnostic summaries/logs under /tmp/qcut-output.",
 ].join("\n");
 
 // Anything beyond simple whitespace-separated tokens with the usual

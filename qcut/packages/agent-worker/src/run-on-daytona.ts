@@ -34,6 +34,9 @@ const IMAGE_TAG = process.env.QCUT_IMAGE_TAG ?? DEFAULT_DAYTONA_IMAGE;
 const TIMEOUT_SECONDS = 30 * 60;
 const DAYTONA_OUTPUT_DIR = "/tmp/qcut-output";
 const OUTPUT_ARCHIVE = "/tmp/qcut-output.tar";
+const QCUT_STDOUT_FILE = "qcut-stdout.txt";
+const QCUT_STDERR_FILE = "qcut-stderr.txt";
+const QCUT_EXIT_FILE = "qcut-exit.json";
 
 interface AgentSecretRow {
 	key: string;
@@ -117,6 +120,18 @@ function quoteShellArg({ arg }: { arg: string }): string {
 	return `'${arg.replaceAll("'", "'\\''")}'`;
 }
 
+function buildQcutShellCommand({ quotedArgv }: { quotedArgv: string }): string {
+	const qcutCommand = `/usr/local/bin/qcut-entrypoint ${quotedArgv} -o ${DAYTONA_OUTPUT_DIR}`;
+	return [
+		`mkdir -p ${DAYTONA_OUTPUT_DIR}`,
+		"set +e",
+		`${qcutCommand} > ${DAYTONA_OUTPUT_DIR}/${QCUT_STDOUT_FILE} 2> ${DAYTONA_OUTPUT_DIR}/${QCUT_STDERR_FILE}`,
+		"exit_code=$?",
+		`printf '{"exitCode":%s}\\n' "$exit_code" > ${DAYTONA_OUTPUT_DIR}/${QCUT_EXIT_FILE}`,
+		'[ "$exit_code" -eq 0 ]',
+	].join("; ");
+}
+
 export function buildDaytonaCommand({
 	command,
 	args,
@@ -134,10 +149,9 @@ export function buildDaytonaCommand({
 	}
 
 	const quotedArgv = safeArgv.map((arg) => quoteShellArg({ arg })).join(" ");
-	const qcutCommand = `/usr/local/bin/qcut-entrypoint ${quotedArgv} -o ${DAYTONA_OUTPUT_DIR}`;
 
 	return {
-		command: `mkdir -p ${DAYTONA_OUTPUT_DIR} && ${qcutCommand}`,
+		command: buildQcutShellCommand({ quotedArgv }),
 		archiveCommand: `tar -C ${DAYTONA_OUTPUT_DIR} -cf ${OUTPUT_ARCHIVE} .`,
 	};
 }

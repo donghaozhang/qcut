@@ -318,6 +318,28 @@ describe("POST /api/agent/jobs", () => {
 		);
 	});
 
+	it("records the submitted job source when provided", async () => {
+		const { values } = mockInsertChain();
+
+		const res = await buildApp().request("/api/agent/jobs", {
+			method: "POST",
+			headers: jsonHeaders(),
+			body: JSON.stringify({
+				command: "qcut system doctor --json --skip-health",
+				args: { source: "codex_cli_e2e_probe" },
+			}),
+		});
+
+		expect(res.status).toBe(201);
+		expect(values).toHaveBeenNthCalledWith(
+			2,
+			expect.objectContaining({
+				kind: "job_submitted",
+				payload: { source: "codex_cli_e2e_probe" },
+			})
+		);
+	});
+
 	it("rejects unsafe commands before inserting rows", async () => {
 		const { values } = mockInsertChain();
 

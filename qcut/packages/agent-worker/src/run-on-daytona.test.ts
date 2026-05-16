@@ -15,6 +15,22 @@ import {
 
 const originalDaytonaApiKey = process.env.DAYTONA_API_KEY;
 const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
+const EXPECTED_QCUT_DOCTOR_DAYTONA_COMMAND = [
+	"mkdir -p /tmp/qcut-output",
+	"set +e",
+	"/usr/local/bin/qcut-entrypoint qcut system doctor --json --skip-health -o /tmp/qcut-output > /tmp/qcut-output/qcut-stdout.txt 2> /tmp/qcut-output/qcut-stderr.txt",
+	"exit_code=$?",
+	'printf \'{"exitCode":%s}\\n\' "$exit_code" > /tmp/qcut-output/qcut-exit.json',
+	'[ "$exit_code" -eq 0 ]',
+].join("; ");
+const EXPECTED_QCUT_IMAGE_DAYTONA_COMMAND = [
+	"mkdir -p /tmp/qcut-output",
+	"set +e",
+	"/usr/local/bin/qcut-entrypoint qcut gen image -t icon,logo -m flux_dev --json -o /tmp/qcut-output > /tmp/qcut-output/qcut-stdout.txt 2> /tmp/qcut-output/qcut-stderr.txt",
+	"exit_code=$?",
+	'printf \'{"exitCode":%s}\\n\' "$exit_code" > /tmp/qcut-output/qcut-exit.json',
+	'[ "$exit_code" -eq 0 ]',
+].join("; ");
 
 afterEach(() => {
 	process.env.DAYTONA_API_KEY = originalDaytonaApiKey;
@@ -80,8 +96,7 @@ describe("buildDaytonaCommand", () => {
 				command: "qcut system doctor --json --skip-health",
 			})
 		).toEqual({
-			command:
-				"mkdir -p /tmp/qcut-output && /usr/local/bin/qcut-entrypoint qcut system doctor --json --skip-health -o /tmp/qcut-output",
+			command: EXPECTED_QCUT_DOCTOR_DAYTONA_COMMAND,
 			archiveCommand: "tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
 		});
 	});
@@ -92,8 +107,7 @@ describe("buildDaytonaCommand", () => {
 				command: "qcut gen image -t icon,logo -m flux_dev --json",
 			})
 		).toEqual({
-			command:
-				"mkdir -p /tmp/qcut-output && /usr/local/bin/qcut-entrypoint qcut gen image -t icon,logo -m flux_dev --json -o /tmp/qcut-output",
+			command: EXPECTED_QCUT_IMAGE_DAYTONA_COMMAND,
 			archiveCommand: "tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .",
 		});
 	});
@@ -252,7 +266,7 @@ describe("runOnDaytona", () => {
 			},
 		]);
 		expect(sessionCalls).toContain(
-			"session-1:mkdir -p /tmp/qcut-output && /usr/local/bin/qcut-entrypoint qcut system doctor --json --skip-health -o /tmp/qcut-output:1800"
+			`session-1:${EXPECTED_QCUT_DOCTOR_DAYTONA_COMMAND}:1800`
 		);
 		expect(sessionCalls).toContain(
 			"session-1:tar -C /tmp/qcut-output -cf /tmp/qcut-output.tar .:1800"

@@ -11,6 +11,7 @@ three paths and what's done / not done.
 | ----------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
 | `qcut-cli:agents-smoke` (local Docker image)          | local Docker daemon       | ✅ built for `linux/amd64`; `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, and Claude Code `2.1.142`                                                                                                          | n/a                                |
 | `qcut-cli:codex-auth-smoke` (local Docker image)      | local Docker daemon       | ✅ built for `linux/amd64`; verifies qcut smoke plus runtime Codex auth bootstrap from `CODEX_AUTH_JSON` and prompt env decoding                                                                                 | n/a                                |
+| `qcut-cli:youtube-fix` (local Docker image)           | local Docker daemon       | ✅ built for `linux/amd64`; `qcut-smoke` verifies `yt-dlp` `2026.03.17`, Deno `2.7.4`, Codex, Claude, and native-cli; real YouTube `.mp4` download writes to `/tmp/qcut-output`                                 | n/a                                |
 | `qcut-cli:dev` (local Docker image)                   | local Docker daemon       | ✅ built, **verified end-to-end** against prod                                                                                                                                                                   | n/a                                |
 | `ghcr.io/quriosity-agent/qcut-cli:v0`                 | GitHub Container Registry | ✅ republished by workflow run `25902797671`; pushed-image `qcut-smoke` verifies qcut, Codex CLI `0.130.0`, Claude Code `2.1.142`, `native-cli` skill, and the latest entrypoint                                 | ✅ public, anonymous pull verified |
 | E2B template `qcut-cli` (ID `<your-e2b-template-id>`) | E2B's build cluster       | ⚠️ **built but with bugs** — `Sandbox.create()` works, but the `qcut` wrapper script's shebang is mangled (`#!/usr/bin/env bashnexec ...`). Needs rebuild with the `echo`-based wrapper now in `e2b.Dockerfile`. | n/a (E2B private)                  |
@@ -40,6 +41,10 @@ Current working:
   and Claude Code `2.1.142`. The local `linux/amd64`
   `qcut-cli:agents-smoke` image proves both binaries launch inside the
   same architecture Daytona consumes.
+- `Dockerfile.cli` now also installs pinned YouTube tooling: `yt-dlp`
+  `2026.03.17`, Deno `2.7.4`, and `/etc/yt-dlp.conf` with
+  `--remote-components ejs:github`. This lets Codex use `yt-dlp` directly
+  in Daytona without installing Python packages into `/tmp/qcut-output`.
 - `electron/native-pipeline/container/entrypoint.sh` now bootstraps Codex
   auth at runtime. `CODEX_AUTH_JSON` is validated with `jq`, written to
   `~/.codex/auth.json` with mode `0600`, and never enters
@@ -87,9 +92,22 @@ Verified provider runs:
   - auth file mode verified as `0600`
   - `QCUT_CODEX_PROMPT_B64` decoded inside the image without shell
     interpolation
+- Local YouTube image smoke succeeded:
+  - image `qcut-cli:youtube-fix`
+  - platform `linux/amd64`
+  - `qcut-smoke` verified `yt-dlp`, Deno, Codex, Claude, and native-cli
+  - `yt-dlp` downloaded `https://www.youtube.com/watch?v=jNQXAC9IVRw` to
+    `/tmp/qcut-output/youtube-test.mp4` (312 KB)
+  - the previous `BaW_jenozKc` probe should be considered invalid now
+    because YouTube returns `Video unavailable` for that ID independently
+    of QCut
 
 Currently still needs external provider work:
 
+- GHCR/Daytona: publish the refreshed `Dockerfile.cli` image with the
+  GitHub Actions workflow and point `QCUT_IMAGE_TAG` or the worker env to
+  the new tag/digest before the live website YouTube E2E. Manual local
+  `docker push` was blocked by a GHCR token missing package write scope.
 - E2B: if rebuilding the browser-sandbox template, re-run
   `e2b template create qcut-cli -d e2b.Dockerfile --cpu-count 2
 --memory-mb 4096` after moving workspace `node_modules` out (see
@@ -99,13 +117,19 @@ Currently still needs external provider work:
 ## Next subtask
 
 The GHCR/Daytona image path is proven, and GHCR `v0` now includes the
-Codex auth bootstrap. Next, continue Phase 3 product hardening:
+Codex auth bootstrap. The YouTube fix is verified locally in
+`qcut-cli:youtube-fix`; next, publish that image through GHCR and run the
+same prompt from the live Chat Agent page.
 
-1. Merge/deploy the worker changes that normalize Supabase rows and use
-   `/tmp/qcut-output` for Daytona.
-2. Implement credit refund on failed sandbox spawn.
-3. Design and migrate `agent_secrets.value` encryption.
-4. Replace the wzrdagentstudio `/sandbox` localStorage token shim with
+1. Dispatch `.github/workflows/cli-image.yml` from `qcut-cli-v2` with a
+   temporary tag such as `youtube-fix-2026-05-16`.
+2. Restart the local worker with `QCUT_IMAGE_TAG` set to that GHCR tag or
+   digest.
+3. Rerun the website Chat Agent YouTube download E2E with a currently
+   available, authorized video URL.
+4. Implement credit refund on failed sandbox spawn.
+5. Design and migrate `agent_secrets.value` encryption.
+6. Replace the wzrdagentstudio `/sandbox` localStorage token shim with
    the real QCut sign-in flow.
 
 ## Path A — local Docker (fastest, dev only)

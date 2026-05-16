@@ -31,6 +31,8 @@ FROM oven/bun:1.3.10-debian
 ARG QCUT_VERSION=dev
 ARG CODEX_CLI_VERSION=0.130.0
 ARG CLAUDE_CODE_VERSION=2.1.142
+ARG DENO_VERSION=2.7.4
+ARG YT_DLP_VERSION=2026.3.17
 ENV QCUT_VERSION=${QCUT_VERSION}
 
 # System deps: FFmpeg is the heaviest qcut runtime requirement; Node/npm
@@ -45,9 +47,30 @@ RUN apt-get update \
       openssh-client \
       nodejs \
       npm \
+      python3 \
+      python3-pip \
+      unzip \
  && npm install -g --omit=dev --no-audit --no-fund \
       "@openai/codex@${CODEX_CLI_VERSION}" \
       "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
+ && python3 -m pip install --no-cache-dir --break-system-packages \
+      "yt-dlp==${YT_DLP_VERSION}" \
+ && deno_arch="$(dpkg --print-architecture)" \
+ && case "${deno_arch}" in \
+      amd64) deno_target="x86_64-unknown-linux-gnu" ;; \
+      arm64) deno_target="aarch64-unknown-linux-gnu" ;; \
+      *) echo "unsupported deno architecture: ${deno_arch}" >&2; exit 1 ;; \
+    esac \
+ && curl -fsSL \
+      "https://github.com/denoland/deno/releases/download/v${DENO_VERSION}/deno-${deno_target}.zip" \
+      -o /tmp/deno.zip \
+ && unzip -q /tmp/deno.zip -d /usr/local/bin \
+ && chmod 0755 /usr/local/bin/deno \
+ && printf '%s\n' \
+      '--remote-components' \
+      'ejs:github' \
+    > /etc/yt-dlp.conf \
+ && rm -f /tmp/deno.zip \
  && npm cache clean --force \
  && rm -rf /root/.npm \
  && rm -rf /var/lib/apt/lists/*

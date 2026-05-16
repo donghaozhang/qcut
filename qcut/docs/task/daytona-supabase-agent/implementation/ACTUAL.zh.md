@@ -33,6 +33,7 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
 | `ed99a4ac9` + 本轮 follow-up           | **Phase 3 verification** —— GHCR owner 大小写修复、public `qcut-cli:v0` 发布、Daytona dogfood、worker row normalize、Daytona 可写输出目录                                                  | 完成 PR 05 Daytona swap-in 的 provider 验证                |
 | `ce02d4968`                            | `Dockerfile.cli` 现在安装固定版本 Codex CLI `0.130.0` 和 Claude Code CLI `2.1.142`；`qcut-smoke` 会硬检查两个 binary 和版本；GHCR `v0` 已重新发布                                              | 更新 PR 02 镜像契约                                       |
 | 本轮 follow-up                         | Chat Agent Codex 模式：license-server 只接受固定的 `codex exec --skip-git-repo-check --json -`，worker 用 base64 env 传 prompt，entrypoint 从 `CODEX_AUTH_JSON` 或受控 `OPENAI_API_KEY` 启动 Codex 登录 | 扩展 PR 02 + PR 04，支持 coding-agent sandbox 任务         |
+| `qcut-cli-v2` follow-up                | Daytona CLI 镜像补 YouTube 下载能力：预装固定版本 `yt-dlp` `2026.03.17`、Deno `2.7.4`，并写入 `/etc/yt-dlp.conf` 的 `--remote-components ejs:github`；Codex prompt 也要求临时安装/cache 不要写进 `/tmp/qcut-output` | 扩展 PR 02 镜像契约和 PR 04 Codex artifact 卫生            |
 
 ## 生产环境实测
 
@@ -54,6 +55,7 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
 | GHCR native-cli skill 镜像发布                                             | workflow run `25902797671` 重新发布 `ghcr.io/quriosity-agent/qcut-cli:v0`；digest `sha256:2b9b8c7aa80bc2e5db874f04ccca302bbce0693a7d90274fe2b8645049fdbb7b`；推后 smoke 验到 `.claude/skills/native-cli/SKILL.md` |
 | 本地 Codex auth bootstrap smoke                                           | `qcut-cli:codex-auth-smoke` 按 `linux/amd64` 构建；假的 `CODEX_AUTH_JSON` 能写成权限 `0600` 的 `~/.codex/auth.json`；`QCUT_CODEX_PROMPT_B64` 在镜像内能正确解码 |
 | Website Codex → QCut CLI 图片 E2E                                         | Chat Agent job `9b8a7693-00e0-4cff-8635-a7d78135d2d8` 成功，exit `0`；Codex 实际跑了 `qcut gen image ... -o /tmp/qcut-output`；上传了 JPG artifact `flux_dev_small-blue-square-icon-on-a-clean-white-background_1778827141210.jpg` |
+| 本地 YouTube-capable CLI 镜像 smoke                                      | `qcut-cli:youtube-fix` 按 `linux/amd64` 构建；`qcut-smoke` 通过；`yt-dlp` + Deno 能把 YouTube `.mp4` 下载进 `/tmp/qcut-output`，且不会把工具安装到 artifact 目录 |
 
 ## `b536d61b2` 之后已经完成的事
 
@@ -123,24 +125,110 @@ Worker 上**、schema 是 **Drizzle 管 Hyperdrive 后面的 Postgres**
     给每个 artifact 渲染 Download 按钮，用用户的 QCut auth token 或服务端
     配置的默认 agent account 去 fetch blob，然后触发浏览器下载；Supabase
     service-role key 不会暴露到前端。
+15. **Daytona qcut job 现在会把 CLI stdout/stderr 也作为 artifact 保存。**
+    E2E 探测发现：`qcut system check-keys --json` 这类非生成命令虽然
+    `exit_code=0`，但只上传空的 `qcut-output.tar`；失败命令也会出现
+    `error=null`、用户看不到失败原因。Daytona runner 现在会给每个 qcut
+    job 写入 `qcut-stdout.txt`、`qcut-stderr.txt` 和 `qcut-exit.json`。
+    wrapper 会记录真实 CLI exit code，但不会主动关闭 Daytona persistent
+    session shell。live 回归已验证失败路径
+    `575b396e-db81-480d-922d-20835650a63e` 和真实图片生成路径
+    `9785346b-b385-4d45-bde1-525e8139d088`。
+16. **下一版 CLI 镜像可以跑 YouTube 下载工作流。**
+    上一次 Codex YouTube probe 有两个独立问题：测试视频 `BaW_jenozKc`
+    现在本身就返回 `Video unavailable`；同时已发布的 CLI 镜像没有
+    `yt-dlp` 和 JavaScript runtime，导致 Codex 临时把工具装进
+    `/tmp/qcut-output`，污染 artifact。现在 `Dockerfile.cli` 会预装
+    `yt-dlp` `2026.03.17`、Deno `2.7.4`，并写入
+    `/etc/yt-dlp.conf` 的 `--remote-components ejs:github`。Codex 的运行
+    prompt 也要求临时工具 / cache 放到 `/tmp/qcut-tools` 或 `/tmp`，
+    `/tmp/qcut-output` 只放最终产物和小诊断文件。
+
+## Live CLI E2E 覆盖和耗时
+
+这一轮一共验证了 **9 个 live agent job**，覆盖 **5 类 CLI 命令形态**：
+help、auth/key 检查、model 列表、预期内参数校验失败、真实图片生成。
+下面的耗时来自生产 `agent_jobs.created_at`、`claimed_at`、`finished_at`：
+`queue` 是等 worker claim 的时间，`run` 是 Daytona sandbox 执行加 artifact
+下载 / 上传时间。
+
+| Job | Command | 结果 | 总耗时 | Queue | Run | Artifacts | 验证点 |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| `bcec5b30` | `qcut gen image -t small-blue-square-icon-on-a-clean-white-background -m flux_dev --json` | succeeded / 0 | 12.1s | 1.1s | 11.0s | 3 | Website Chat Agent 可以跑真实图片生成，并返回 image/json/tar artifacts。 |
+| `0dd0e898` | `qcut --help --json` | succeeded / 0 | 5.3s | 1.2s | 4.2s | 1 | 修复前探测：命令成功但只有空 tar，暴露 stdout artifact 缺失。 |
+| `c6732148` | `qcut system check-keys --json` | succeeded / 0 | 7.5s | 4.3s | 3.2s | 1 | 修复前探测：auth/key 命令成功，但用户看不到输出。 |
+| `7d823624` | `qcut system models --json` | succeeded / 0 | 10.5s | 6.7s | 3.8s | 1 | 修复前探测：model 列表也有同样的输出不可见问题。 |
+| `d7e6813f` | `qcut gen image -m flux_dev --json` | failed / 1 | 4.8s | 0.5s | 4.3s | 1 | 修复前失败探测：参数校验失败时 `error=null`，没有可读原因。 |
+| `575b396e` | `qcut gen image -m flux_dev --json` | failed / 1 | 235.0s | 229.0s | 6.0s | 4 | 修复后失败探测：`qcut-stdout.txt` 现在能看到 `Missing --text/-t`；总耗时长是因为它排在一个被手动失败的 hung-wrapper probe 后面。 |
+| `da5a8216` | `qcut system check-keys --json` | succeeded / 0 | 6.1s | 0.9s | 5.2s | 4 | 修复后成功探测：非生成命令现在会上传 stdout/stderr/exit artifacts。 |
+| `9785346b` | `qcut gen image -t tiny-red-circle-icon-on-white-background -m flux_dev --json` | succeeded / 0 | 13.5s | 1.1s | 12.4s | 6 | 修复后真实图片生成仍然正常；返回 image/json 加 stdout/stderr/exit artifacts。 |
+| `899a9d6c` | `qcut --help --json` | succeeded / 0 | 7.4s | 1.3s | 6.1s | 4 | 已部署 license-server source probe，同时验证修复后的 help command artifact。 |
+
+修复后的稳定耗时大概是：
+
+- 轻量 CLI（`help`、`check-keys`）总耗时通常 **6-8 秒**。
+- 预期内参数校验失败被 claim 后大概 **6 秒 run time**。
+- 真实 `flux_dev` 图片生成在这条 Daytona 路径里大概 **12-14 秒总耗时**。
+- 单 worker 空闲时 queue 通常约 **1 秒**；`575b396e` 是异常值，因为它排在
+  我们故意打出来的 hung-wrapper probe 后面，中间重启过 worker。
+
+## Live Codex 多轮对话和 YouTube artifact 测试
+
+website Codex 模式用真实浏览器跑了三轮：
+
+| Job | Prompt 形态 | 结果 | 总耗时 | Queue | Run | Artifacts | 验证点 |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| `8bac5fba` | 让 Codex 记住 `sapphire-bridge-481` | succeeded / 0 | 11.1s | 1.4s | 9.8s | 3 | 第一轮回复 `stored sapphire-bridge-481`，并上传 `codex-last-message.md`。 |
+| `19ff765e` | 不重复短语，直接问上一轮记住了什么 | succeeded / 0 | 12.7s | 1.0s | 11.8s | 3 | 当前多轮上下文可用：前端把历史消息重新拼进下一轮 `codexPrompt`，Codex 回答了 `sapphire-bridge-481`。 |
+| `619d2ec1` | 把公开的 youtube-dl 测试视频 `BaW_jenozKc` 下载到 `/tmp/qcut-output` | succeeded / 0 | 104.4s | 1.4s | 103.0s | 7 | Codex 执行了 shell 步骤并上传诊断文件，但 YouTube/yt-dlp 返回 `Video unavailable`；没有生成 `.mp4` artifact。 |
+
+当前 Codex 对话行为：
+
+- 页面不刷新时，多轮对话是可用的，因为前端会把之前的 user/assistant
+  messages 拼进下一次 `codexPrompt`。
+- 这还不是持久化 Codex session。每一轮仍然是新的 Daytona job；刷新页面后，
+  内存里的历史会丢，除非后续补 job history reload。
+- Codex 文件 artifact 是通的：`codex-events.jsonl`、`codex-last-message.md`
+  和写进 `/tmp/qcut-output` 的文件都会上传。
+
+YouTube 下载结果：
+
+- 这轮生成了 `youtube-download-summary.json`、
+  `youtube-download-stdout.txt`、`youtube-download-error.txt`。
+- `youtube-download-summary.json` 里是 `exit_status: 1`、
+  `downloaded_filename: ""`、`byte_size: 0`。
+- `youtube-download-error.txt` 里是
+  `ERROR: [youtube] BaW_jenozKc: Video unavailable`。
+- 因为下载没有完成，所以 artifacts 里没有 `.mp4`。
+- 本地 follow-up 修复已完成：CLI 镜像现在包含 `yt-dlp` 和 Deno，并打开
+  EJS remote components。干净的 `qcut-cli:youtube-fix` 容器先通过
+  `qcut-smoke`，再把 `https://www.youtube.com/watch?v=jNQXAC9IVRw`
+  下载成 `/tmp/qcut-output/youtube-test.mp4`（312 KB）。
+- 还要做一次 live 验证：把刷新后的镜像发布到 GHCR，让 Daytona worker
+  指向新的 tag/digest，然后从 website Chat Agent 重跑 YouTube prompt。
+  之前的 `BaW_jenozKc` 不能再当成功 probe，因为它现在脱离 QCut 也会返回
+  unavailable。
 
 ## 还没做的（依赖外部凭证 / 服务）
 
-1. **merge/deploy 本轮 worker 修复**。provider 路径已经用生产服务
-   本地验证；部署态 worker 也需要同样的 row normalize 和 Daytona
-   output dir 修复。
+1. **review 后合并 `qcut-cli-v2` follow-up 分支**，把 stdio artifact
+   capture、YouTube 镜像修复和这轮 E2E 记录进主线。
 2. **设 / 确认 license-server 密钥**（`wrangler secret put`）：
    `E2B_API_KEY`、`RELAY_SIGNING_SECRET`、`RELAY_HOST`、`QCUT_IMAGE_TAG`。
-3. **部署 / 确认 `@qcut/relay`**：`packages/qcut-relay` 下
+3. **发布刷新后的 CLI 镜像到 GHCR，并重跑 live Chat Agent YouTube E2E。**
+   本地手动 `docker push` 被 GHCR 拒了，因为当前 token 没有 package write
+   scope；所以要用 `qcut-cli-v2` 上的 `.github/workflows/cli-image.yml`
+   发临时 tag，或合并后再发布。
+4. **部署 / 确认 `@qcut/relay`**：`packages/qcut-relay` 下
    `wrangler deploy`。
-4. **轮换泄露的 Supabase PAT**（`sbp_b303...`）——GitHub secret
+5. **轮换泄露的 Supabase PAT**（`sbp_b303...`）——GitHub secret
    scanner 已看到。去 supabase.com/dashboard/account/tokens 新建一个。
-5. **wzrdagentstudio 接 QCut 登录**。SandboxPage 当前读
+6. **wzrdagentstudio 接 QCut 登录**。SandboxPage 当前读
    `localStorage.qcut_auth_token` 作为 v0 暂存——换成真正的 QCut
    sign-in 组件。
-6. **spawn 失败时退费**。PR 12 的 `routes/sandbox.ts` 先扣费，但
+7. **spawn 失败时退费**。PR 12 的 `routes/sandbox.ts` 先扣费，但
    E2B 失败后没退。
-7. **docker 不在时 stderr 抓不到**。PR 11 worker 退出码会落 DB，
+8. **docker 不在时 stderr 抓不到**。PR 11 worker 退出码会落 DB，
    但 `error` 列在 execa 起不来时是 null。
 
 ## 怎么读各 spec

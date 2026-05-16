@@ -9,6 +9,7 @@ const agentRoutes = new Hono();
 
 const MAX_COMMAND_LENGTH = 2000;
 const MAX_CODEX_PROMPT_LENGTH = 12_000;
+const MAX_AGENT_SOURCE_LENGTH = 120;
 const MAX_TEXT_ARTIFACT_BYTES = 256_000;
 const SAFE_COMMAND_TOKEN = /^[A-Za-z0-9_\-./:=,@+]+$/;
 const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
@@ -255,7 +256,7 @@ async function createAgentJob(c: Context) {
 		jobId,
 		userId,
 		kind: "job_submitted",
-		payload: { source: "website_chat_agent" },
+		payload: { source: getAgentJobSource({ args: body.args }) },
 		createdAt,
 	});
 
@@ -272,6 +273,22 @@ async function createAgentJob(c: Context) {
 		},
 		201
 	);
+}
+
+function getAgentJobSource({
+	args,
+}: {
+	args?: Record<string, unknown>;
+}): string {
+	const source = args?.source;
+	if (typeof source !== "string") {
+		return "website_chat_agent";
+	}
+	const trimmed = source.trim();
+	if (trimmed.length === 0) {
+		return "website_chat_agent";
+	}
+	return trimmed.slice(0, MAX_AGENT_SOURCE_LENGTH);
 }
 
 async function parseCreateAgentJobBody({
