@@ -43,6 +43,13 @@
 			"when": 1778791283000,
 			"tag": "0005_agent_artifacts_bigint_and_queue_index",
 			"breakpoints": true
+		},
+		{
+			"idx": 6,
+			"version": "7",
+			"when": 1778900577000,
+			"tag": "0006_agent_sessions",
+			"breakpoints": true
 		}
 	]
 }

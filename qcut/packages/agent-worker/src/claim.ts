@@ -114,6 +114,11 @@ export function normalizeAgentJob({
 	return {
 		id,
 		userId,
+		sessionId: getNullableString({
+			row,
+			camelKey: "sessionId",
+			snakeKey: "session_id",
+		}),
 		status: status as AgentJob["status"],
 		command,
 		args: getArgs({ row }),

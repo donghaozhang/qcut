@@ -1,6 +1,11 @@
 import { Hono, type Context, type Next } from "hono";
-import { and, desc, eq } from "drizzle-orm";
-import { agentArtifacts, agentEvents, agentJobs } from "@qcut/db/schema";
+import { and, desc, eq, gt } from "drizzle-orm";
+import {
+	agentArtifacts,
+	agentEvents,
+	agentJobs,
+	agentSessions,
+} from "@qcut/db/schema";
 import { db } from "../db/drizzle";
 import { getSupabase } from "../db/supabase";
 import { authMiddleware } from "../middleware/auth";
@@ -11,8 +16,11 @@ const MAX_COMMAND_LENGTH = 2000;
 const MAX_CODEX_PROMPT_LENGTH = 12_000;
 const MAX_AGENT_SOURCE_LENGTH = 120;
 const MAX_TEXT_ARTIFACT_BYTES = 256_000;
+const AGENT_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 const SAFE_COMMAND_TOKEN = /^[A-Za-z0-9_\-./:=,@+]+$/;
 const CODEX_AGENT_COMMAND = "codex exec --skip-git-repo-check --json -";
+const DEFAULT_DAYTONA_IMAGE =
+	"ghcr.io/quriosity-agent/qcut-cli@sha256:48aa813162bf7a4b20d38ec694ccc0e1ffc9b61dcdc8c9e1447749d77b500923";
 const TEXT_ARTIFACT_KINDS = new Set(["json", "log"]);
 const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
 	".gif": "image/gif",
@@ -37,6 +45,7 @@ const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
 interface CreateAgentJobBody {
 	command?: string;
 	args?: Record<string, unknown>;
+	sessionId?: string;
 }
 
 agentRoutes.use("/*", agentAuthMiddleware);
@@ -51,6 +60,38 @@ async function agentAuthMiddleware(c: Context, next: Next) {
 	}
 	return authMiddleware(c, next);
 }
+
+agentRoutes.post("/sessions", async (c) => {
+	try {
+		return await createOrReuseAgentSession(c);
+	} catch (error) {
+		return c.json(
+			{
+				error:
+					error instanceof Error
+						? `Failed to create agent session: ${error.message}`
+						: "Failed to create agent session",
+			},
+			500
+		);
+	}
+});
+
+agentRoutes.post("/sessions/:sessionId/end", async (c) => {
+	try {
+		return await endAgentSession(c);
+	} catch (error) {
+		return c.json(
+			{
+				error:
+					error instanceof Error
+						? `Failed to end agent session: ${error.message}`
+						: "Failed to end agent session",
+			},
+			500
+		);
+	}
+});
 
 function getDefaultAgentUserId(): string {
 	const value = process.env.QCUT_AGENT_DEFAULT_USER_ID;
@@ -241,12 +282,26 @@ async function createAgentJob(c: Context) {
 		return c.json({ error: validationError }, 400);
 	}
 
+	const sessionId = normalizeOptionalId({ value: body.sessionId });
+	const session =
+		sessionId === null
+			? null
+			: await getActiveOwnedAgentSession({
+					sessionId,
+					userId,
+					now: new Date(),
+				});
+	if (sessionId && !session) {
+		return c.json({ error: "agent_session_not_found" }, 404);
+	}
+
 	const jobId = crypto.randomUUID();
 	const createdAt = new Date();
 
 	await db.insert(agentJobs).values({
 		id: jobId,
 		userId,
+		sessionId: session?.id ?? null,
 		status: "queued",
 		command,
 		args: body.args ?? {},
@@ -256,15 +311,27 @@ async function createAgentJob(c: Context) {
 		jobId,
 		userId,
 		kind: "job_submitted",
-		payload: { source: getAgentJobSource({ args: body.args }) },
+		payload: {
+			source: getAgentJobSource({ args: body.args }),
+			...(session ? { sessionId: session.id } : {}),
+		},
 		createdAt,
 	});
+	if (session) {
+		await db
+			.update(agentSessions)
+			.set({ lastActiveAt: createdAt })
+			.where(
+				and(eq(agentSessions.id, session.id), eq(agentSessions.userId, userId))
+			);
+	}
 
 	return c.json(
 		{
 			job: {
 				id: jobId,
 				userId,
+				sessionId: session?.id ?? null,
 				status: "queued",
 				command,
 				args: body.args ?? {},
@@ -273,6 +340,125 @@ async function createAgentJob(c: Context) {
 		},
 		201
 	);
+}
+
+async function createOrReuseAgentSession(c: Context) {
+	const userId = c.get("userId") as string;
+	const now = new Date();
+	const [session] = await db
+		.select()
+		.from(agentSessions)
+		.where(
+			and(
+				eq(agentSessions.userId, userId),
+				eq(agentSessions.status, "active"),
+				gt(agentSessions.expiresAt, now)
+			)
+		)
+		.orderBy(desc(agentSessions.lastActiveAt))
+		.limit(1);
+	if (session) {
+		return c.json({ session: serializeAgentSession(session) });
+	}
+
+	const sessionId = crypto.randomUUID();
+	const imageTag = getAgentImageTag();
+	const expiresAt = new Date(now.getTime() + AGENT_SESSION_TTL_MS);
+	await db.insert(agentSessions).values({
+		id: sessionId,
+		userId,
+		status: "active",
+		provider: "daytona",
+		providerSessionId: null,
+		imageTag,
+		startedAt: now,
+		lastActiveAt: now,
+		expiresAt,
+	});
+
+	return c.json(
+		{
+			session: {
+				id: sessionId,
+				userId,
+				status: "active",
+				provider: "daytona",
+				providerSessionId: null,
+				imageTag,
+				startedAt: now.toISOString(),
+				lastActiveAt: now.toISOString(),
+				expiresAt: expiresAt.toISOString(),
+				endedAt: null,
+				endReason: null,
+				runnerId: null,
+			},
+		},
+		201
+	);
+}
+
+async function endAgentSession(c: Context) {
+	const userId = c.get("userId") as string;
+	const sessionId = normalizeOptionalId({ value: c.req.param("sessionId") });
+	if (!sessionId) {
+		return c.json({ error: "agent_session_id_required" }, 400);
+	}
+
+	const [session] = await db
+		.select()
+		.from(agentSessions)
+		.where(
+			and(eq(agentSessions.id, sessionId), eq(agentSessions.userId, userId))
+		)
+		.limit(1);
+	if (!session) {
+		return c.json({ error: "agent_session_not_found" }, 404);
+	}
+
+	const now = new Date();
+	await db
+		.update(agentSessions)
+		.set({
+			status: "stopping",
+			endReason: "user_kill",
+			lastActiveAt: now,
+		})
+		.where(
+			and(eq(agentSessions.id, sessionId), eq(agentSessions.userId, userId))
+		);
+
+	return c.json({
+		session: serializeAgentSession({
+			...session,
+			status: "stopping",
+			endReason: "user_kill",
+			lastActiveAt: now,
+		}),
+	});
+}
+
+async function getActiveOwnedAgentSession({
+	sessionId,
+	userId,
+	now,
+}: {
+	sessionId: string;
+	userId: string;
+	now: Date;
+}): Promise<typeof agentSessions.$inferSelect | null> {
+	const [session] = await db
+		.select()
+		.from(agentSessions)
+		.where(
+			and(
+				eq(agentSessions.id, sessionId),
+				eq(agentSessions.userId, userId),
+				eq(agentSessions.status, "active"),
+				gt(agentSessions.expiresAt, now)
+			)
+		)
+		.limit(1);
+	return session || null;
 }
 
 function getAgentJobSource({
@@ -289,6 +475,21 @@ function getAgentJobSource({
 		return "website_chat_agent";
 	}
 	return trimmed.slice(0, MAX_AGENT_SOURCE_LENGTH);
+}
+
+function getAgentImageTag(): string {
+	const value = process.env.QCUT_IMAGE_TAG;
+	return typeof value === "string" && value.trim().length > 0
+		? value.trim()
+		: DEFAULT_DAYTONA_IMAGE;
+}
+
+function normalizeOptionalId({ value }: { value: unknown }): string | null {
+	if (typeof value !== "string") {
+		return null;
+	}
+	const trimmed = value.trim();
+	return trimmed.length === 0 ? null : trimmed;
 }
 
 async function parseCreateAgentJobBody({
@@ -417,6 +618,7 @@ function serializeAgentJob(job: typeof agentJobs.$inferSelect) {
 	return {
 		id: job.id,
 		userId: job.userId,
+		sessionId: job.sessionId,
 		status: job.status,
 		command: job.command,
 		args: job.args,
@@ -426,6 +628,23 @@ function serializeAgentJob(job: typeof agentJobs.$inferSelect) {
 		exitCode: job.exitCode,
 		error: job.error,
 		runnerId: job.runnerId,
+	};
+}
+
+function serializeAgentSession(session: typeof agentSessions.$inferSelect) {
+	return {
+		id: session.id,
+		userId: session.userId,
+		status: session.status,
+		provider: session.provider,
+		providerSessionId: session.providerSessionId,
+		imageTag: session.imageTag,
+		startedAt: serializeDate({ value: session.startedAt }),
+		lastActiveAt: serializeDate({ value: session.lastActiveAt }),
+		expiresAt: serializeDate({ value: session.expiresAt }),
+		endedAt: serializeDate({ value: session.endedAt }),
+		endReason: session.endReason,
+		runnerId: session.runnerId,
 	};
 }
 

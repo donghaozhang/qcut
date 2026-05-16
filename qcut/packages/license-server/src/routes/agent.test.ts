@@ -5,6 +5,7 @@ vi.mock("../db/drizzle", () => ({
 	db: {
 		insert: vi.fn(),
 		select: vi.fn(),
+		update: vi.fn(),
 	},
 }));
 
@@ -51,11 +52,37 @@ function mockInsertChain() {
 	return { values };
 }
 
+function mockUpdateChain() {
+	const where = vi.fn().mockResolvedValue(undefined);
+	const set = vi.fn().mockReturnValue({ where });
+	vi.mocked(db.update).mockReturnValue({ set } as never);
+	return { set, where };
+}
+
 function mockSelectRowsOnce({ rows }: { rows: unknown[] }): void {
 	const limit = vi.fn().mockResolvedValue(rows);
-	const where = vi.fn().mockReturnValue({ limit });
+	const orderBy = vi.fn().mockReturnValue({ limit });
+	const where = vi.fn().mockReturnValue({ limit, orderBy });
 	const from = vi.fn().mockReturnValue({ where });
 	vi.mocked(db.select).mockReturnValueOnce({ from } as never);
+}
+
+function makeAgentSession(overrides: Record<string, unknown> = {}) {
+	return {
+		id: "agent-session-1",
+		userId: "mock-user-001",
+		status: "active",
+		provider: "daytona",
+		providerSessionId: null,
+		imageTag: "qcut-cli:test",
+		startedAt: new Date("2026-05-15T00:00:00.000Z"),
+		lastActiveAt: new Date("2026-05-15T00:00:00.000Z"),
+		expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+		endedAt: null,
+		endReason: null,
+		runnerId: null,
+		...overrides,
+	};
 }
 
 function mockArtifactDownload({ text }: { text: string }): void {
@@ -207,6 +234,72 @@ describe("agent default user auth", () => {
 	});
 });
 
+describe("POST /api/agent/sessions", () => {
+	it("creates an active Daytona session when none can be reused", async () => {
+		mockSelectRowsOnce({ rows: [] });
+		const { values } = mockInsertChain();
+
+		const res = await buildApp().request("/api/agent/sessions", {
+			method: "POST",
+			headers: jsonHeaders(),
+			body: JSON.stringify({}),
+		});
+
+		expect(res.status).toBe(201);
+		const body = await res.json();
+		expect(body.session.status).toBe("active");
+		expect(body.session.provider).toBe("daytona");
+		expect(values).toHaveBeenCalledWith(
+			expect.objectContaining({
+				userId: "mock-user-001",
+				status: "active",
+				provider: "daytona",
+			})
+		);
+	});
+
+	it("reuses the newest active session", async () => {
+		mockSelectRowsOnce({ rows: [makeAgentSession()] });
+
+		const res = await buildApp().request("/api/agent/sessions", {
+			method: "POST",
+			headers: jsonHeaders(),
+			body: JSON.stringify({}),
+		});
+
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.session.id).toBe("agent-session-1");
+		expect(db.insert).not.toHaveBeenCalled();
+	});
+});
+
+describe("POST /api/agent/sessions/:sessionId/end", () => {
+	it("marks the owned session as stopping for worker cleanup", async () => {
+		mockSelectRowsOnce({ rows: [makeAgentSession()] });
+		const { set } = mockUpdateChain();
+
+		const res = await buildApp().request(
+			"/api/agent/sessions/agent-session-1/end",
+			{
+				method: "POST",
+				headers: jsonHeaders(),
+				body: JSON.stringify({}),
+			}
+		);
+
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.session.status).toBe("stopping");
+		expect(set).toHaveBeenCalledWith(
+			expect.objectContaining({
+				status: "stopping",
+				endReason: "user_kill",
+			})
+		);
+	});
+});
+
 describe("GET /api/agent/jobs/:jobId/artifacts/:artifactId/text", () => {
 	it("returns text artifacts owned by the authenticated user", async () => {
 		mockOwnedJobAndArtifact({
@@ -338,6 +431,64 @@ describe("POST /api/agent/jobs", () => {
 				payload: { source: "codex_cli_e2e_probe" },
 			})
 		);
+	});
+
+	it("creates a queued job attached to an active session", async () => {
+		mockSelectRowsOnce({ rows: [makeAgentSession()] });
+		const { values } = mockInsertChain();
+		const { set } = mockUpdateChain();
+
+		const res = await buildApp().request("/api/agent/jobs", {
+			method: "POST",
+			headers: jsonHeaders(),
+			body: JSON.stringify({
+				command: CODEX_AGENT_COMMAND,
+				sessionId: "agent-session-1",
+				args: { codexPrompt: "Continue the chat." },
+			}),
+		});
+
+		expect(res.status).toBe(201);
+		const body = await res.json();
+		expect(body.job.sessionId).toBe("agent-session-1");
+		expect(values).toHaveBeenNthCalledWith(
+			1,
+			expect.objectContaining({
+				sessionId: "agent-session-1",
+				command: CODEX_AGENT_COMMAND,
+			})
+		);
+		expect(values).toHaveBeenNthCalledWith(
+			2,
+			expect.objectContaining({
+				payload: {
+					source: "website_chat_agent",
+					sessionId: "agent-session-1",
+				},
+			})
+		);
+		expect(set).toHaveBeenCalledWith(
+			expect.objectContaining({ lastActiveAt: expect.any(Date) })
+		);
+	});
+
+	it("rejects a job attached to a missing session", async () => {
+		mockSelectRowsOnce({ rows: [] });
+		const { values } = mockInsertChain();
+
+		const res = await buildApp().request("/api/agent/jobs", {
+			method: "POST",
+			headers: jsonHeaders(),
+			body: JSON.stringify({
+				command: CODEX_AGENT_COMMAND,
+				sessionId: "missing-session",
+				args: { codexPrompt: "Continue the chat." },
+			}),
+		});
+
+		expect(res.status).toBe(404);
+		expect(await res.json()).toEqual({ error: "agent_session_not_found" });
+		expect(values).not.toHaveBeenCalled();
 	});
 
 	it("rejects unsafe commands before inserting rows", async () => {

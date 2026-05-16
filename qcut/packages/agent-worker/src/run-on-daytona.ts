@@ -44,10 +44,24 @@ const AGENT_PID_FILE = ".qcut-agent-pid";
 const WRAPPER_STDOUT_FILE = ".qcut-agent-wrapper-stdout";
 const WRAPPER_STDERR_FILE = ".qcut-agent-wrapper-stderr";
 const STREAM_POLL_MS = 2000;
+const SESSION_SANDBOX_AUTO_STOP_MINUTES = 120;
+const DEFAULT_AGENT_SESSION_IDLE_MS = 20 * 60 * 1000;
+const AGENT_SESSION_CLEANUP_LIMIT = 20;
 
 interface AgentSecretRow {
 	key: string;
 	value: string;
+}
+
+interface AgentSessionRow {
+	id: string;
+	user_id: string;
+	status: string;
+	provider_session_id: string | null;
+	image_tag: string;
+	last_active_at: string;
+	expires_at: string;
+	end_reason?: string | null;
 }
 
 interface DaytonaSessionCommandResult {
@@ -92,6 +106,7 @@ interface DaytonaClient {
 		},
 		options: { timeout: number }
 	): Promise<DaytonaSandbox>;
+	get(sandboxId: string): Promise<DaytonaSandbox>;
 	delete(sandbox: DaytonaSandbox, timeout?: number): Promise<void>;
 }
 
@@ -116,6 +131,12 @@ interface RunOnDaytonaParams {
 	deps?: RunOnDaytonaDeps;
 }
 
+interface CleanupDaytonaAgentSessionsParams {
+	supabase: SupabaseClient;
+	runnerId: string;
+	deps?: Pick<RunOnDaytonaDeps, "DaytonaClient">;
+}
+
 interface CommandParts {
 	command: string;
 	archiveCommand: string;
@@ -123,6 +144,12 @@ interface CommandParts {
 	stdoutPath: string;
 	stderrPath: string;
 	exitPath: string;
+}
+
+interface PreparedSandbox {
+	sandbox: DaytonaSandbox;
+	deleteSandboxOnFinish: boolean;
+	agentSessionId: string | null;
 }
 
 interface StreamSpec {
@@ -163,6 +190,15 @@ function buildQcutShellCommand({ quotedArgv }: { quotedArgv: string }): string {
 	].join("; ");
 }
 
+function buildCodexShellCommandForJob({ args }: { args?: unknown }): string {
+	const env = buildCodexPromptEnv({ prompt: getCodexPrompt({ args }) });
+	return [
+		`export QCUT_CODEX_PROMPT_B64=${quoteShellArg({ arg: env.QCUT_CODEX_PROMPT_B64 })}`,
+		"export QCUT_BOOTSTRAP_CODEX=1",
+		buildCodexShellCommand({ outputDir: DAYTONA_OUTPUT_DIR }),
+	].join("; ");
+}
+
 function outputPath({ filename }: { filename: string }): string {
 	return `${DAYTONA_OUTPUT_DIR}/${filename}`;
 }
@@ -199,7 +235,7 @@ export function buildDaytonaCommand({
 	if (isCodexAgentCommand({ command })) {
 		getCodexPrompt({ args });
 		return {
-			command: buildCodexShellCommand({ outputDir: DAYTONA_OUTPUT_DIR }),
+			command: buildCodexShellCommandForJob({ args }),
 			archiveCommand: ARCHIVE_COMMAND,
 			streams: [
 				{
@@ -245,6 +281,13 @@ export function buildDaytonaCommand({
 		stderrPath: outputPath({ filename: QCUT_STDERR_FILE }),
 		exitPath: outputPath({ filename: QCUT_EXIT_FILE }),
 	};
+}
+
+function getJobSessionId({ job }: { job: AgentJob }): string | null {
+	const value = job.sessionId;
+	return typeof value === "string" && value.trim().length > 0
+		? value.trim()
+		: null;
 }
 
 export function buildDaytonaEnv({
@@ -296,6 +339,13 @@ function sleep({ ms }: { ms: number }): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function getAgentSessionIdleMs(): number {
+	const parsed = Number(process.env.AGENT_SESSION_IDLE_MS);
+	return Number.isFinite(parsed) && parsed > 0
+		? parsed
+		: DEFAULT_AGENT_SESSION_IDLE_MS;
+}
+
 async function recordAgentEvent({
 	supabase,
 	job,
@@ -319,6 +369,279 @@ async function recordAgentEvent({
 			},
 		],
 	});
+}
+
+async function fetchAgentSession({
+	supabase,
+	job,
+	sessionId,
+}: {
+	supabase: SupabaseClient;
+	job: AgentJob;
+	sessionId: string;
+}): Promise<AgentSessionRow> {
+	const { data, error } = await supabase
+		.from("agent_sessions")
+		.select(
+			"id, user_id, status, provider_session_id, image_tag, last_active_at, expires_at, end_reason"
+		)
+		.eq("id", sessionId)
+		.eq("user_id", job.userId)
+		.maybeSingle();
+	if (error) {
+		throw new Error(`agent_sessions fetch failed: ${error.message}`);
+	}
+	if (!data) {
+		throw new Error(`agent session ${sessionId} was not found`);
+	}
+	const row = data as AgentSessionRow;
+	if (row.status !== "active") {
+		throw new Error(`agent session ${sessionId} is ${row.status}`);
+	}
+	if (Date.parse(row.expires_at) <= Date.now()) {
+		throw new Error(`agent session ${sessionId} expired`);
+	}
+	return row;
+}
+
+async function updateAgentSession({
+	supabase,
+	sessionId,
+	userId,
+	values,
+}: {
+	supabase: SupabaseClient;
+	sessionId: string;
+	userId: string;
+	values: Record<string, unknown>;
+}): Promise<void> {
+	const { error } = await supabase
+		.from("agent_sessions")
+		.update(values)
+		.eq("id", sessionId)
+		.eq("user_id", userId);
+	if (error) {
+		throw new Error(`agent_sessions update failed: ${error.message}`);
+	}
+}
+
+async function createDaytonaSandbox({
+	daytona,
+	envVars,
+	autoStopInterval,
+}: {
+	daytona: DaytonaClient;
+	envVars: Record<string, string>;
+	autoStopInterval: number;
+}): Promise<DaytonaSandbox> {
+	return daytona.create(
+		{
+			image: IMAGE_TAG,
+			envVars,
+			resources: { cpu: 2, memory: 4 },
+			ephemeral: true,
+			autoStopInterval,
+		},
+		{ timeout: 120 }
+	);
+}
+
+async function getReusableSandbox({
+	daytona,
+	session,
+}: {
+	daytona: DaytonaClient;
+	session: AgentSessionRow;
+}): Promise<DaytonaSandbox | null> {
+	if (!session.provider_session_id) {
+		return null;
+	}
+	try {
+		return await daytona.get(session.provider_session_id);
+	} catch (error) {
+		console.warn(
+			`[agent-worker] Daytona session ${session.id} sandbox ${session.provider_session_id} is unavailable; creating a replacement:`,
+			error
+		);
+		return null;
+	}
+}
+
+async function prepareDaytonaSandbox({
+	supabase,
+	job,
+	daytona,
+	envVars,
+}: {
+	supabase: SupabaseClient;
+	job: AgentJob;
+	daytona: DaytonaClient;
+	envVars: Record<string, string>;
+}): Promise<PreparedSandbox> {
+	const agentSessionId = getJobSessionId({ job });
+	if (!agentSessionId) {
+		const sandbox = await createDaytonaSandbox({
+			daytona,
+			envVars,
+			autoStopInterval: 30,
+		});
+		await recordAgentEvent({
+			supabase,
+			job,
+			kind: "daytona_sandbox_ready",
+			payload: { sandboxId: sandbox.id, image: IMAGE_TAG },
+		});
+		return {
+			sandbox,
+			deleteSandboxOnFinish: true,
+			agentSessionId: null,
+		};
+	}
+
+	const agentSession = await fetchAgentSession({
+		supabase,
+		job,
+		sessionId: agentSessionId,
+	});
+	const reusableSandbox = await getReusableSandbox({
+		daytona,
+		session: agentSession,
+	});
+	const sandbox =
+		reusableSandbox ??
+		(await createDaytonaSandbox({
+			daytona,
+			envVars,
+			autoStopInterval: SESSION_SANDBOX_AUTO_STOP_MINUTES,
+		}));
+	await updateAgentSession({
+		supabase,
+		sessionId: agentSession.id,
+		userId: job.userId,
+		values: {
+			provider_session_id: sandbox.id,
+			image_tag: IMAGE_TAG,
+			last_active_at: new Date().toISOString(),
+			runner_id: job.runnerId ?? null,
+		},
+	});
+	await recordAgentEvent({
+		supabase,
+		job,
+		kind: "agent_session_ready",
+		payload: {
+			sessionId: agentSession.id,
+			sandboxId: sandbox.id,
+			reused: Boolean(reusableSandbox),
+			image: IMAGE_TAG,
+		},
+	});
+	return {
+		sandbox,
+		deleteSandboxOnFinish: false,
+		agentSessionId: agentSession.id,
+	};
+}
+
+function getSessionEndReason({
+	session,
+	nowMs,
+}: {
+	session: AgentSessionRow;
+	nowMs: number;
+}): "idle_timeout" | "ttl" | "user_kill" {
+	if (session.status === "stopping") {
+		return "user_kill";
+	}
+	if (Date.parse(session.expires_at) <= nowMs) {
+		return "ttl";
+	}
+	return "idle_timeout";
+}
+
+async function endDaytonaAgentSession({
+	supabase,
+	daytona,
+	session,
+	runnerId,
+}: {
+	supabase: SupabaseClient;
+	daytona: DaytonaClient;
+	session: AgentSessionRow;
+	runnerId: string;
+}): Promise<void> {
+	const now = new Date();
+	const endReason = getSessionEndReason({
+		session,
+		nowMs: now.getTime(),
+	});
+	if (session.provider_session_id) {
+		try {
+			const sandbox = await daytona.get(session.provider_session_id);
+			await daytona.delete(sandbox, 60);
+		} catch (error) {
+			console.warn(
+				`[agent-worker] cleanup could not delete Daytona sandbox ${session.provider_session_id}:`,
+				error
+			);
+		}
+	}
+	await supabase
+		.from("agent_sessions")
+		.update({
+			status: "ended",
+			ended_at: now.toISOString(),
+			end_reason: endReason,
+			runner_id: runnerId,
+		})
+		.eq("id", session.id);
+	await supabase.from("agent_events").insert({
+		job_id: null,
+		user_id: session.user_id,
+		kind: "agent_session_ended",
+		payload: {
+			sessionId: session.id,
+			sandboxId: session.provider_session_id,
+			reason: endReason,
+		},
+		created_at: now.toISOString(),
+	});
+}
+
+export async function cleanupDaytonaAgentSessions({
+	supabase,
+	runnerId,
+	deps = {},
+}: CleanupDaytonaAgentSessionsParams): Promise<number> {
+	const apiKey = process.env.DAYTONA_API_KEY;
+	if (!apiKey) {
+		return 0;
+	}
+	const DaytonaClient =
+		deps.DaytonaClient ?? (Daytona as unknown as DaytonaClientCtor);
+	const daytona = new DaytonaClient({ apiKey });
+	const now = new Date();
+	const idleCutoff = new Date(now.getTime() - getAgentSessionIdleMs());
+	const { data, error } = await supabase
+		.from("agent_sessions")
+		.select(
+			"id, user_id, status, provider_session_id, image_tag, last_active_at, expires_at, end_reason"
+		)
+		.in("status", ["active", "stopping"])
+		.or(
+			`status.eq.stopping,expires_at.lt.${now.toISOString()},last_active_at.lt.${idleCutoff.toISOString()}`
+		)
+		.limit(AGENT_SESSION_CLEANUP_LIMIT);
+	if (error) {
+		throw new Error(`agent_sessions cleanup select failed: ${error.message}`);
+	}
+	const sessions = (data ?? []) as AgentSessionRow[];
+	await Promise.all(
+		sessions.map((session) =>
+			endDaytonaAgentSession({ supabase, daytona, session, runnerId })
+		)
+	);
+	return sessions.length;
 }
 
 async function executeShellCommand({
@@ -550,6 +873,7 @@ export async function runOnDaytona({
 	const DaytonaClient =
 		deps.DaytonaClient ?? (Daytona as unknown as DaytonaClientCtor);
 	const daytona = new DaytonaClient({ apiKey });
+	const envVars = buildDaytonaEnv({ secrets: secrets ?? [], job });
 	const outputDir = deps.makeOutputDir
 		? await deps.makeOutputDir()
 		: await mkdtemp(join(tmpdir(), "qcut-daytona-"));
@@ -563,24 +887,19 @@ export async function runOnDaytona({
 	let sandbox: DaytonaSandbox | undefined;
 	let result: DaytonaSessionCommandResult | undefined;
 	let artifactsFallback = false;
+	let deleteSandboxOnFinish = true;
+	let agentSessionId: string | null = null;
 
 	try {
-		sandbox = await daytona.create(
-			{
-				image: IMAGE_TAG,
-				envVars: buildDaytonaEnv({ secrets: secrets ?? [], job }),
-				resources: { cpu: 2, memory: 4 },
-				ephemeral: true,
-				autoStopInterval: 30,
-			},
-			{ timeout: 120 }
-		);
-		await recordAgentEvent({
+		const prepared = await prepareDaytonaSandbox({
 			supabase,
 			job,
-			kind: "daytona_sandbox_ready",
-			payload: { sandboxId: sandbox.id, image: IMAGE_TAG },
+			daytona,
+			envVars,
 		});
+		sandbox = prepared.sandbox;
+		deleteSandboxOnFinish = prepared.deleteSandboxOnFinish;
+		agentSessionId = prepared.agentSessionId;
 
 		await sandbox.process.createSession(sessionId);
 		await recordAgentEvent({
@@ -637,6 +956,14 @@ export async function runOnDaytona({
 			kind: "daytona_command_finished",
 			payload: { exitCode: result.exitCode },
 		});
+		if (agentSessionId) {
+			await updateAgentSession({
+				supabase,
+				sessionId: agentSessionId,
+				userId: job.userId,
+				values: { last_active_at: new Date().toISOString() },
+			});
+		}
 		await executeShellCommand({
 			sandbox,
 			sessionId,
@@ -692,13 +1019,15 @@ export async function runOnDaytona({
 			} catch (err) {
 				console.warn("[agent-worker] daytona session cleanup failed:", err);
 			}
-			try {
-				await daytona.delete(sandbox, 60);
-			} catch (err) {
-				console.error(
-					`[agent-worker] delete sandbox ${sandbox.id} failed:`,
-					err
-				);
+			if (deleteSandboxOnFinish) {
+				try {
+					await daytona.delete(sandbox, 60);
+				} catch (err) {
+					console.error(
+						`[agent-worker] delete sandbox ${sandbox.id} failed:`,
+						err
+					);
+				}
 			}
 		}
 	}

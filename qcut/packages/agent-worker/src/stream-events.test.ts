@@ -6,6 +6,7 @@ function fakeJob(): AgentJob {
 	return {
 		id: "j-1",
 		userId: "user-abc",
+		sessionId: null,
 		status: "running",
 		command: "qcut system doctor --json --skip-health",
 		args: {},

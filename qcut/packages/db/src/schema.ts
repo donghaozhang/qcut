@@ -244,6 +244,47 @@ export const agentSecrets = pgTable(
 	})
 ).enableRLS();
 
+/** Persistent headless Daytona sandbox sessions for website Codex chat.
+ * Jobs may attach to one of these so follow-up prompts reuse the same
+ * filesystem/tool cache until TTL or idle cleanup ends the sandbox. */
+export const agentSessions = pgTable(
+	"agent_sessions",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		status: text("status", {
+			enum: ["active", "stopping", "ended", "error"],
+		}).notNull(),
+		provider: text("provider", { enum: ["daytona"] })
+			.notNull()
+			.default("daytona"),
+		providerSessionId: text("provider_session_id"),
+		imageTag: text("image_tag").notNull(),
+		startedAt: timestamp("started_at")
+			.$defaultFn(() => /* @__PURE__ */ new Date())
+			.notNull(),
+		lastActiveAt: timestamp("last_active_at")
+			.$defaultFn(() => /* @__PURE__ */ new Date())
+			.notNull(),
+		expiresAt: timestamp("expires_at").notNull(),
+		endedAt: timestamp("ended_at"),
+		endReason: text("end_reason", {
+			enum: ["idle_timeout", "ttl", "error", "user_kill"],
+		}),
+		runnerId: text("runner_id"),
+	},
+	(t) => ({
+		userStatusActive: index("agent_sessions_user_status_last_active_idx").on(
+			t.userId,
+			t.status,
+			t.lastActiveAt
+		),
+		expiresActive: index("agent_sessions_expires_active_idx").on(t.expiresAt),
+	})
+).enableRLS();
+
 /** Queued / running / terminal headless jobs. Worker claims via a
  * `claim_one_agent_job` Postgres function (defined in the generated
  * migration alongside this table). */
@@ -254,6 +295,9 @@ export const agentJobs = pgTable(
 		userId: text("user_id")
 			.notNull()
 			.references(() => users.id, { onDelete: "cascade" }),
+		sessionId: text("session_id").references(() => agentSessions.id, {
+			onDelete: "set null",
+		}),
 		status: text("status", {
 			enum: ["queued", "running", "succeeded", "failed", "cancelled"],
 		}).notNull(),
@@ -281,6 +325,10 @@ export const agentJobs = pgTable(
 		queueCreated: index("agent_jobs_queued_created_idx")
 			.on(t.createdAt)
 			.where(sql`${t.status} = 'queued'`),
+		sessionCreated: index("agent_jobs_session_created_idx").on(
+			t.sessionId,
+			t.createdAt
+		),
 	})
 ).enableRLS();
 
@@ -388,6 +436,11 @@ export const sandboxSessions = pgTable(
 
 export type AgentSecret = typeof agentSecrets.$inferSelect;
 export type NewAgentSecret = typeof agentSecrets.$inferInsert;
+
+export type AgentSession = typeof agentSessions.$inferSelect;
+export type NewAgentSession = typeof agentSessions.$inferInsert;
+export type AgentSessionStatus = AgentSession["status"];
+export type AgentSessionEndReason = NonNullable<AgentSession["endReason"]>;
 
 export type AgentJob = typeof agentJobs.$inferSelect;
 export type NewAgentJob = typeof agentJobs.$inferInsert;
