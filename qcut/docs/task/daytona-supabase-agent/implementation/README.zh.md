@@ -9,6 +9,12 @@
 > qcut-cli 镜像在任何地方都不存在（本地 Docker、GHCR、E2B 都没有）。
 > 三条路径（本地 / GHCR / E2B 模板）从 PR spec 里独立出来，因为每家
 > provider 都需要自己的构建步骤。
+>
+> 🧭 **如果要理解当前 website Chat Agent 的真实运行流程，读
+> [`11-chat-agent-runtime-flow.zh.md`](11-chat-agent-runtime-flow.zh.md)。**
+> 它解释 Connect 如何创建/复用 Daytona session、接上 PTY relay、自动启动
+> Codex、把 prompt 送进 persistent Codex TUI，以及 `/tmp/qcut-output`
+> artifacts 如何出现在网页里。
 
 九份 PR 级别的任务规约，每一份都能直接喂给 `/implementit`。每个文件明确说：要做什么、文件放哪、加哪些测试、跑什么验证算"完工"。
 

@@ -11,6 +11,12 @@
 > qcut-cli image exists anywhere (local Docker, GHCR, or E2B). The
 > three paths (local / GHCR / E2B template) are documented separately
 > from the PR specs because each provider needs its own build step.
+>
+> 🧭 **For the current website Chat Agent runtime, read
+> [`11-chat-agent-runtime-flow.md`](11-chat-agent-runtime-flow.md).** It explains
+> how Connect creates/reuses a Daytona session, attaches the PTY relay, boots
+> Codex automatically, sends prompts into the persistent Codex TUI, and exposes
+> `/tmp/qcut-output` artifacts.
 
 Nine PR-sized task specs, each consumable by `/implementit`. Each file says exactly what to build, where the files go, what tests to add, and what to run to verify "done."
 
