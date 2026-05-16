@@ -136,6 +136,14 @@ interface StreamCursor {
 	size: number;
 }
 
+function isDaytonaEmptyExitCodeError({ error }: { error: unknown }): boolean {
+	const message = error instanceof Error ? error.message : String(error);
+	return (
+		message.includes("failed to convert exit code to int") ||
+		message.includes('strconv.Atoi: parsing ""')
+	);
+}
+
 function quoteShellArg({ arg }: { arg: string }): string {
 	if (/^[A-Za-z0-9_\-./:=,@+]+$/.test(arg)) {
 		return arg;
@@ -318,36 +326,48 @@ async function executeShellCommand({
 	sessionId,
 	command,
 	timeout = 60,
+	allowEmptyExitCodeError = false,
 }: {
 	sandbox: DaytonaSandbox;
 	sessionId: string;
 	command: string;
 	timeout?: number;
+	allowEmptyExitCodeError?: boolean;
 }): Promise<DaytonaSessionCommandResult> {
-	return sandbox.process.executeSessionCommand(
-		sessionId,
-		{
-			command,
-			runAsync: false,
-			suppressInputEcho: true,
-		},
-		timeout
-	);
+	try {
+		return await sandbox.process.executeSessionCommand(
+			sessionId,
+			{
+				command,
+				runAsync: false,
+				suppressInputEcho: true,
+			},
+			timeout
+		);
+	} catch (error) {
+		if (allowEmptyExitCodeError && isDaytonaEmptyExitCodeError({ error })) {
+			return { stdout: "", stderr: "", exitCode: 0 };
+		}
+		throw error;
+	}
 }
 
 async function readRemoteFile({
 	sandbox,
 	sessionId,
 	path,
+	allowEmptyExitCodeError = false,
 }: {
 	sandbox: DaytonaSandbox;
 	sessionId: string;
 	path: string;
+	allowEmptyExitCodeError?: boolean;
 }): Promise<string> {
 	const result = await executeShellCommand({
 		sandbox,
 		sessionId,
 		command: `cat ${quoteShellArg({ arg: path })} 2>/dev/null || true`,
+		allowEmptyExitCodeError,
 	});
 	return result.stdout ?? result.output ?? "";
 }
@@ -365,6 +385,7 @@ async function remoteFileExists({
 		sandbox,
 		sessionId,
 		command: `test -f ${quoteShellArg({ arg: path })} && printf yes || true`,
+		allowEmptyExitCodeError: true,
 	});
 	return (result.stdout ?? result.output ?? "").trim() === "yes";
 }
@@ -428,6 +449,7 @@ async function flushStreamEvents({
 			sandbox,
 			sessionId,
 			path: stream.path,
+			allowEmptyExitCodeError: true,
 		});
 		const newLines = takeNewCompleteLines({ text, cursor, includePartial });
 		const rows = parseEventText({

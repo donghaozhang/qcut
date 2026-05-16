@@ -243,6 +243,7 @@ describe("runOnDaytona", () => {
 		const { client, insertedEvents } = makeSupabase();
 		const outputDir = await mkdtemp(join(tmpdir(), "qcut-daytona-test-"));
 		const sessionCalls: string[] = [];
+		let stdoutReads = 0;
 		const clientConfigs: Array<{ apiKey: string }> = [];
 		const createCalls: unknown[] = [];
 		const deleteCalls: string[] = [];
@@ -265,7 +266,18 @@ describe("runOnDaytona", () => {
 					timeout?: number
 				) {
 					sessionCalls.push(`${sessionId}:${request.command}:${timeout}`);
-					if (request.command.includes("qcut-stdout.txt")) {
+					if (
+						request.command.startsWith("cat ") &&
+						request.command.includes("qcut-stdout.txt")
+					) {
+						stdoutReads += 1;
+						if (stdoutReads === 1) {
+							return Promise.reject(
+								new Error(
+									'DaytonaError: failed to execute command: bad request: failed to convert exit code to int: strconv.Atoi: parsing "": invalid syntax'
+								)
+							);
+						}
 						return Promise.resolve({
 							stdout: '{"kind":"cli_progress","message":"halfway"}\n',
 							stderr: "",
@@ -376,6 +388,7 @@ describe("runOnDaytona", () => {
 			"cli_progress",
 			"daytona_command_finished",
 		]);
+		expect(stdoutReads).toBeGreaterThan(1);
 
 		await rm(outputDir, { recursive: true, force: true });
 	});
