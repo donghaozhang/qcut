@@ -298,6 +298,24 @@ describe("POST /api/agent/sessions/:sessionId/end", () => {
 			})
 		);
 	});
+
+	it("returns 404 when ending a session owned by another user", async () => {
+		mockSelectRowsOnce({ rows: [] });
+		const { set } = mockUpdateChain();
+
+		const res = await buildApp().request(
+			"/api/agent/sessions/other-user-session/end",
+			{
+				method: "POST",
+				headers: jsonHeaders(),
+				body: JSON.stringify({}),
+			}
+		);
+
+		expect(res.status).toBe(404);
+		expect(await res.json()).toEqual({ error: "agent_session_not_found" });
+		expect(set).not.toHaveBeenCalled();
+	});
 });
 
 describe("GET /api/agent/jobs/:jobId/artifacts/:artifactId/text", () => {
@@ -482,6 +500,25 @@ describe("POST /api/agent/jobs", () => {
 			body: JSON.stringify({
 				command: CODEX_AGENT_COMMAND,
 				sessionId: "missing-session",
+				args: { codexPrompt: "Continue the chat." },
+			}),
+		});
+
+		expect(res.status).toBe(404);
+		expect(await res.json()).toEqual({ error: "agent_session_not_found" });
+		expect(values).not.toHaveBeenCalled();
+	});
+
+	it("rejects a job attached to a session owned by another user", async () => {
+		mockSelectRowsOnce({ rows: [] });
+		const { values } = mockInsertChain();
+
+		const res = await buildApp().request("/api/agent/jobs", {
+			method: "POST",
+			headers: jsonHeaders(),
+			body: JSON.stringify({
+				command: CODEX_AGENT_COMMAND,
+				sessionId: "other-user-session",
 				args: { codexPrompt: "Continue the chat." },
 			}),
 		});

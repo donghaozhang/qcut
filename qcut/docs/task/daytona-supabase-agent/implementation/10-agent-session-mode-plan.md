@@ -27,6 +27,57 @@ Long-term properties we want this plan to preserve:
 - **Artifacts stay job-scoped.** Only `/tmp/qcut-output` is uploaded per turn.
   Everything else in the sandbox is the user's persistent workspace.
 
+## Implementation Status - 2026-05-15
+
+Implemented and verified:
+
+- Subtasks 10.1-10.4: Drizzle schema, idempotent local SQL migration,
+  Supabase CLI migration copy, session routes, job `sessionId` handling, and
+  route tests.
+- Subtasks 10.6-10.9: Daytona sandbox reuse, persistent session sandbox
+  creation, replacement after a missing Daytona sandbox, idle cleanup, TTL
+  cleanup, user-kill cleanup, and missing-sandbox cleanup tests.
+- Subtasks 10.11-10.13: website session client, "New session" UI, artifact
+  download controls, final Codex message loading, live status polling, and
+  chat-client tests.
+- Follow-up UI tightening: the website page now supports only the persistent
+  Codex Chat Agent flow. Image and video requests should be handled inside
+  that chat, with uploaded outputs shown in the Artifacts panel.
+- Subtask 10.14: focused local tests plus real production license-server /
+  Daytona session reuse smoke.
+
+Implementation notes:
+
+- Cleanup remains in `packages/agent-worker/src/run-on-daytona.ts`; the
+  optional `cleanup.ts` extraction was not needed to make the behavior
+  testable.
+- The worker currently fetches the linked `agent_sessions` row in the Daytona
+  runner after `claim_one_agent_job` returns the job. The behavior still
+  verifies `user_id`, session `active` status, and TTL before using a sandbox.
+  A future RPC shape can join the row during claim if queue latency or an
+  extra Supabase round trip becomes measurable.
+- Production schema was already applied; the new Supabase migration file keeps
+  the repository aligned for future `supabase db push` runs.
+
+Latest verification:
+
+```bash
+bun --cwd packages/agent-worker test -- run-on-daytona.test.ts claim.test.ts stream-events.test.ts
+bun --cwd packages/license-server test -- agent.test.ts
+node --test packages/nexusai-website/js/agent-chat.test.js
+bunx tsc -p packages/agent-worker/tsconfig.json --noEmit
+bunx biome check packages/agent-worker/src/run-on-daytona.ts packages/agent-worker/src/run-on-daytona.test.ts packages/license-server/src/routes/agent.test.ts
+```
+
+Live smoke:
+
+- Session `b6423733-cef4-4a94-b031-c06737d78d3b`.
+- Jobs `1f7c80da-5ff7-4201-9ffa-c6d59f1576af` and
+  `9020e69f-3606-48d1-ab2f-d92ae5da5807` both succeeded.
+- Both jobs used Daytona sandbox `2df92162-0f45-4ec6-8a7a-0b7395672f97`.
+- The second job read the marker from the first job and returned
+  `SECOND_PLAN_E2E_SAME_SANDBOX_plan-e2e-1778902437060`.
+
 ## Files
 
 | Path | Action | Purpose |
@@ -246,7 +297,9 @@ Touches: `packages/nexusai-website/js/agent-chat.js`.
   `localStorage` and surface a toast — the next send will reopen a fresh
   session.
 
-Keep image-gen mode untouched: it remains one-shot.
+The page no longer exposes a direct image-generation mode. Keep image and
+video requests inside the Codex chat path so all generated outputs use the
+same session and artifact panel.
 
 ### Subtask 10.12 — Website "New session" UI
 

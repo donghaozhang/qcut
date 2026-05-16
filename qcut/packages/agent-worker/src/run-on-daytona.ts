@@ -428,15 +428,17 @@ async function updateAgentSession({
 async function createDaytonaSandbox({
 	daytona,
 	envVars,
+	imageTag,
 	autoStopInterval,
 }: {
 	daytona: DaytonaClient;
 	envVars: Record<string, string>;
+	imageTag: string;
 	autoStopInterval: number;
 }): Promise<DaytonaSandbox> {
 	return daytona.create(
 		{
-			image: IMAGE_TAG,
+			image: imageTag,
 			envVars,
 			resources: { cpu: 2, memory: 4 },
 			ephemeral: true,
@@ -483,6 +485,7 @@ async function prepareDaytonaSandbox({
 		const sandbox = await createDaytonaSandbox({
 			daytona,
 			envVars,
+			imageTag: IMAGE_TAG,
 			autoStopInterval: 30,
 		});
 		await recordAgentEvent({
@@ -512,6 +515,7 @@ async function prepareDaytonaSandbox({
 		(await createDaytonaSandbox({
 			daytona,
 			envVars,
+			imageTag: agentSession.image_tag || IMAGE_TAG,
 			autoStopInterval: SESSION_SANDBOX_AUTO_STOP_MINUTES,
 		}));
 	await updateAgentSession({

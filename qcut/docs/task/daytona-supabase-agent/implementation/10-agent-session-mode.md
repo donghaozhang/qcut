@@ -158,8 +158,9 @@ Chat Agent default Codex mode uses a session:
   - clears localStorage
   - creates a fresh session on next send
 
-Image-generation mode can stay one-shot for now. It does not need persistent
-Codex context.
+The website surface is intentionally Chat Agent only. Image and video requests
+go through Codex in the persistent sandbox; when the worker uploads files from
+`/tmp/qcut-output`, they appear in the Artifacts panel.
 
 ## Tests
 
@@ -168,27 +169,38 @@ Implemented coverage:
 - License-server:
   - creates/reuses active sessions
   - marks an owned session as `stopping`
+  - returns `404` when ending another user's session
   - rejects jobs with a missing/inactive session
+  - rejects jobs with another user's session id without inserting a row
   - stores `sessionId` on jobs
 - Agent worker:
   - one-shot jobs keep the old create/run/delete behavior
+  - new session jobs create a persistent sandbox with the session row's
+    `image_tag`
   - session jobs reuse `provider_session_id`
+  - session jobs replace a missing Daytona sandbox and keep the replacement
+    alive
   - session jobs do not delete the sandbox after job finish
-  - idle cleanup deletes sandbox and marks session ended
+  - idle, TTL, user-kill, and missing-sandbox cleanup paths mark sessions
+    ended
   - Codex prompt is injected per job so reused sandboxes do not replay an old
     prompt
 - Website:
   - creates a session through the license-server route
   - passes `sessionId` into Codex job creation
   - stores and clears `qcut_agent_session_id`
+  - posts to the session end route for the "New session" flow
+  - keeps the page as a single Chat Agent flow with no direct image-mode
+    selector
 
 Verified locally:
 
 ```bash
-bun --cwd packages/agent-worker test -- run-on-daytona.test.ts stream-events.test.ts
+bun --cwd packages/agent-worker test -- run-on-daytona.test.ts claim.test.ts stream-events.test.ts
 bun --cwd packages/license-server test -- agent.test.ts
 node --test packages/nexusai-website/js/agent-chat.test.js
 bunx tsc -p packages/agent-worker/tsconfig.json --noEmit
+bunx biome check packages/agent-worker/src/run-on-daytona.ts packages/agent-worker/src/run-on-daytona.test.ts packages/license-server/src/routes/agent.test.ts
 bunx biome check packages/db/src/schema.ts packages/license-server/src/routes/agent.ts packages/license-server/src/routes/agent.test.ts packages/agent-worker/src/claim.ts packages/agent-worker/src/main.ts packages/agent-worker/src/run-on-daytona.ts packages/agent-worker/src/run-on-daytona.test.ts packages/agent-worker/src/stream-events.test.ts packages/nexusai-website/chat-agent.html
 ```
 
@@ -239,6 +251,52 @@ Live website test:
 Screenshot:
 
 - `/Users/peter/Desktop/code/qcut/qcut/output/playwright/live-chat-agent-session-e2e.png`
+
+## Additional Verification - 2026-05-15
+
+Implementation follow-up:
+
+- Added the Supabase CLI migration copy at
+  `packages/db/supabase/migrations/20260516000000_agent_sessions.sql`.
+- Fixed the Daytona worker so a newly created session sandbox uses
+  `agent_sessions.image_tag`, not only the worker process default.
+- Removed the website image-mode selector so the page only submits persistent
+  Codex chat jobs. Image/video outputs are expected to appear through the
+  existing Artifacts panel after upload.
+- Expanded tests for session ownership, new persistent sandbox creation,
+  replacement after Daytona says the previous sandbox is gone, TTL cleanup,
+  user-kill cleanup, missing-sandbox cleanup, and website end-session requests.
+
+Focused test run:
+
+```bash
+bun --cwd packages/agent-worker test -- run-on-daytona.test.ts claim.test.ts stream-events.test.ts
+bun --cwd packages/license-server test -- agent.test.ts
+node --test packages/nexusai-website/js/agent-chat.test.js
+bunx tsc -p packages/agent-worker/tsconfig.json --noEmit
+bunx biome check packages/agent-worker/src/run-on-daytona.ts packages/agent-worker/src/run-on-daytona.test.ts packages/license-server/src/routes/agent.test.ts
+```
+
+Result:
+
+- Agent worker: 27 tests passed.
+- License server: 21 tests passed.
+- Website chat client: 14 tests passed.
+- Agent worker typecheck passed.
+- Focused Biome check passed.
+
+Real session reuse smoke against the production license-server and current
+local production-shaped worker:
+
+| Step | Evidence |
+| --- | --- |
+| Run id | `plan-e2e-1778902437060` |
+| Session | `b6423733-cef4-4a94-b031-c06737d78d3b` |
+| First Codex job | `1f7c80da-5ff7-4201-9ffa-c6d59f1576af` succeeded |
+| Second Codex job | `9020e69f-3606-48d1-ab2f-d92ae5da5807` succeeded |
+| Sandbox reuse | both jobs used sandbox `2df92162-0f45-4ec6-8a7a-0b7395672f97` |
+| Persistence proof | second job read the marker written by the first job and returned `SECOND_PLAN_E2E_SAME_SANDBOX_plan-e2e-1778902437060` from `codex-last-message.md` |
+| Artifact evidence | both jobs uploaded `codex-events.jsonl`, `qcut-exit.json`, `qcut-output.tar`, and `codex-last-message.md` |
 
 ## Follow-ups
 
