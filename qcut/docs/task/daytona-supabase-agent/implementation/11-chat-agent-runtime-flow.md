@@ -279,6 +279,39 @@ change should be:
 7. In tests, wait for both status `connected` and a new-session marker, not just
    any old terminal text containing "OpenAI Codex".
 
+## Manual Connect Fix Verification - 2026-05-16
+
+Implemented follow-up fixes:
+
+- Removed page-load `autoConnectAgentTerminal()`.
+- Made `connectAgentTerminal()` wait for WebSocket `open` before resolving, so
+  Send cannot race against a `connecting` socket.
+- Set `terminalSocket = null` on close for the active socket.
+- Ignored stale close/error events from older sockets.
+- Cleared terminal output on Disconnect so old Codex text cannot be mistaken for
+  a fresh connection.
+
+Verification used production origin with the fixed local `agent-chat.js`
+injected by Playwright request routing. This keeps production API, CORS, relay,
+Daytona, and Codex behavior real while validating the pending frontend change.
+
+Screenshot folder:
+
+- `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-manual-connect-fixed-prod-origin-1778962012126`
+
+| Step | Result | Screenshot |
+| --- | --- | --- |
+| Fresh load, 500ms | `disconnected`; terminal says `Connect to open a real terminal.` | `01-initial-load-no-connect.png` |
+| No click after 8s | Still `disconnected`; no OpenAI Codex / YOLO text | `02-no-click-after-8s-still-disconnected.png` |
+| Click Connect | Opens OpenAI Codex in YOLO mode | `03-after-connect-codex-ready.png` |
+| Turn 1 | Prompt marker `MANUAL_TURN_ONE_1778962012126` appears in the Codex terminal | `04-turn-one-marker-visible.png` |
+| Turn 2 | Codex runs `mkdir -p /tmp/qcut-output ... manual-connect-1778962012126.txt` | `05-turn-two-command-visible.png` |
+| Artifacts | `manual-connect-1778962012126.txt`, 29 bytes, Download button visible | `06-artifact-visible.png` |
+| Disconnect | Terminal returns to clean fallback text | `07-after-disconnect-clean.png` |
+| Reconnect | Opens Codex again in YOLO mode | `08-after-reconnect-codex-ready.png` |
+
+All fix-verification steps passed.
+
 ## What This Is Not
 
 This is not a queue-only job runner anymore for the website Chat Agent path.

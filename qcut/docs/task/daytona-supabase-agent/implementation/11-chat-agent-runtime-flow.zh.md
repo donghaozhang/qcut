@@ -268,6 +268,38 @@ download route 会校验 filename，然后从 Daytona 流式下载 bytes。浏�
 7. 测试里不能只判断 terminal text 包含 `OpenAI Codex`，还要判断状态是
    `connected`，并最好带一个当前 session marker。
 
+## 手动 Connect 修复验证 - 2026-05-16
+
+这轮已经实现的修复：
+
+- 移除了页面加载时的 `autoConnectAgentTerminal()`。
+- `connectAgentTerminal()` 现在会等 WebSocket `open` 后才 resolve，避免
+  Send 抢在 `connecting` 状态时发送 prompt。
+- active socket close 时会设置 `terminalSocket = null`。
+- 旧 socket 的 close/error 事件不会污染新 socket 状态。
+- Disconnect 时会清空 terminal 输出，避免旧 Codex 内容被误判成新连接。
+
+验证方式：打开生产 origin，但用 Playwright request routing 注入本地修复版
+`agent-chat.js`。这样 API、CORS、relay、Daytona、Codex 都还是生产真实链路，
+同时可以验证尚未发布的 frontend 修复。
+
+截图目录：
+
+- `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-manual-connect-fixed-prod-origin-1778962012126`
+
+| 步骤 | 结果 | 截图 |
+| --- | --- | --- |
+| fresh load，500ms | `disconnected`；terminal 显示 `Connect to open a real terminal.` | `01-initial-load-no-connect.png` |
+| 8 秒不点击 | 仍然 `disconnected`；没有 OpenAI Codex / YOLO 文本 | `02-no-click-after-8s-still-disconnected.png` |
+| 点击 Connect | 进入 OpenAI Codex，YOLO mode | `03-after-connect-codex-ready.png` |
+| 第一轮 | marker `MANUAL_TURN_ONE_1778962012126` 出现在 Codex terminal | `04-turn-one-marker-visible.png` |
+| 第二轮 | Codex 执行 `mkdir -p /tmp/qcut-output ... manual-connect-1778962012126.txt` | `05-turn-two-command-visible.png` |
+| Artifacts | `manual-connect-1778962012126.txt`，29 bytes，Download button 可见 | `06-artifact-visible.png` |
+| Disconnect | terminal 回到干净 fallback 文本 | `07-after-disconnect-clean.png` |
+| Reconnect | 再次进入 Codex，YOLO mode | `08-after-reconnect-codex-ready.png` |
+
+修复验证全部通过。
+
 ## 它不是什么
 
 对 website Chat Agent 路径来说，它现在已经不是纯队列式 job runner。
