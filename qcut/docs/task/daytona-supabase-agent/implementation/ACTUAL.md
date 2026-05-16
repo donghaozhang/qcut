@@ -307,6 +307,49 @@ Production E2E on 2026-05-16:
 | Artifact list | returned `download-check.txt` |
 | Download proof | deployed route returned exact text `qcut artifact download ok` |
 
+## Persistent Codex-on-connect update
+
+Implementation update:
+
+- The deployed PTY design now treats Codex as the default terminal process, not
+  an optional shell command.
+- On attach, `qcut-relay` runs `qcut-entrypoint`, marks `/home/qcut/qcut` as a
+  trusted Codex project, writes QCut Chat Agent defaults into sandbox
+  `AGENTS.md`, then starts an idle interactive Codex TUI with
+  `--dangerously-bypass-approvals-and-sandbox`, `--no-alt-screen`, and
+  `-C /home/qcut/qcut`.
+- The relay temporarily disables PTY input echo while writing startup files so
+  the user does not see the `AGENTS.md` bootstrap script in terminal scrollback.
+- The `AGENTS.md` section points Codex at
+  `/home/qcut/qcut/.claude/skills/native-cli/SKILL.md` and tells it to write
+  final files to `/tmp/qcut-output` for the website Artifacts panel. This keeps
+  the first live user turn free for the actual task.
+- The website Send button now sends bracketed paste plus carriage return into
+  the persistent Codex PTY instead of spawning a new `codex exec` command per
+  turn.
+
+Focused verification:
+
+```bash
+node --test packages/nexusai-website/js/agent-chat.test.js
+bun --cwd packages/qcut-relay test
+bunx tsc -p packages/qcut-relay/tsconfig.json --noEmit
+bun --cwd packages/license-server test
+```
+
+Production E2E result:
+
+- New Daytona session connected through deployed `qcut-relay`.
+- Codex opened by default in YOLO mode, without the workspace trust prompt.
+- Bootstrap setup no longer leaked the `AGENTS.md` heredoc into terminal
+  scrollback.
+- A prompt sent through the PTY made Codex create
+  `/tmp/qcut-output/direct-1778919565593.txt`.
+- Deployed `qcut-license-server` listed that file through
+  `/api/agent/sessions/:id/artifacts` and downloaded it with matching content.
+- Artifact listing now uses Daytona `fs.listFiles()` first and falls back to a
+  `sh -lc` process namespace listing for `/tmp/qcut-output`.
+
 ## What still needs doing (gates on credentials / external services)
 
 1. **Merge the `qcut-cli-v2` follow-up branch** once the stdio artifact

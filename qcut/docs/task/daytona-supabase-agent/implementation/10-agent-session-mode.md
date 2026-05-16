@@ -510,6 +510,34 @@ Default connection follow-up:
   `/Users/peter/Desktop/code/qcut/qcut/output/playwright/chat-agent-autoconnect-local.png`
   and confirmed the terminal reached `connected` on page load.
 
+Default Codex follow-up:
+
+- The relay now boots the PTY directly into interactive Codex instead of
+  leaving the user at a plain shell prompt.
+- Startup runs `qcut-entrypoint` first so saved QCut/Codex auth is materialized,
+  marks `/home/qcut/qcut` as a trusted Codex project, writes QCut Chat Agent
+  defaults into sandbox `AGENTS.md`, then starts an idle interactive Codex TUI:
+- Relay temporarily disables PTY input echo during bootstrap so the setup script
+  does not pollute the user's terminal scrollback.
+
+```bash
+codex --dangerously-bypass-approvals-and-sandbox --no-alt-screen -C /home/qcut/qcut ...
+```
+
+- The sandbox `AGENTS.md` section tells Codex it is QCut's website Chat Agent,
+  points it at `/home/qcut/qcut/.claude/skills/native-cli/SKILL.md`, and
+  repeats the `/tmp/qcut-output` artifact rule. This avoids burning the first
+  interactive turn on setup instructions.
+- The website Send button now sends bracketed paste plus carriage return into
+  that persistent Codex session rather than spawning `codex exec` for every
+  message. Artifact polling still watches `/tmp/qcut-output`.
+- Production E2E confirmed the flow by sending a Codex prompt that created
+  `/tmp/qcut-output/direct-1778919565593.txt`; the deployed Artifacts API listed
+  it and the download endpoint returned matching content.
+- Artifact listing now uses Daytona `fs.listFiles()` first and falls back to a
+  `sh -lc` process namespace listing when `/tmp/qcut-output` is not visible via
+  the FS API.
+
 ## Terminal Artifact Download Fix - 2026-05-16
 
 Problem found in production:

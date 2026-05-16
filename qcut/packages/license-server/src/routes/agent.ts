@@ -585,14 +585,18 @@ async function listAgentSessionArtifacts(c: Context) {
 	}
 
 	const sandbox = await getDaytonaSandboxForSession({ session });
-	const result = await sandbox.process.executeCommand(
-		`find ${TERMINAL_OUTPUT_DIR} -maxdepth 1 -type f -printf '%f\\t%s\\n' 2>/dev/null | sort`,
-		"/home/qcut/qcut",
-		undefined,
-		30
-	);
-	const stdout = typeof result.result === "string" ? result.result : "";
-	const artifacts = parseTerminalArtifactList({ stdout })
+	let files: Array<{ isDir?: boolean; name?: string; size?: number }>;
+	try {
+		files = await sandbox.fs.listFiles(TERMINAL_OUTPUT_DIR);
+	} catch {
+		files = [];
+	}
+	const fileArtifacts = parseTerminalArtifactFiles({ files });
+	const terminalArtifacts =
+		fileArtifacts.length > 0
+			? fileArtifacts
+			: await listTerminalArtifactsViaShell({ sandbox });
+	const artifacts = terminalArtifacts
 		.slice(0, MAX_TERMINAL_ARTIFACTS)
 		.map((artifact) =>
 			serializeTerminalArtifact({
@@ -860,6 +864,64 @@ function parseTerminalArtifactList({
 		});
 }
 
+function parseTerminalArtifactFiles({
+	files,
+}: {
+	files: Array<{ isDir?: boolean; name?: string; size?: number }>;
+}): Array<{ filename: string; bytes: number }> {
+	return files
+		.filter((file) => !file.isDir)
+		.flatMap((file) => {
+			const safeFilename = normalizeTerminalArtifactFilename({
+				value: file.name,
+			});
+			if (!safeFilename) {
+				return [];
+			}
+			const bytes = Number(file.size);
+			return [
+				{
+					filename: safeFilename,
+					bytes: Number.isFinite(bytes) && bytes >= 0 ? bytes : 0,
+				},
+			];
+		})
+		.sort((left, right) => left.filename.localeCompare(right.filename));
+}
+
+async function listTerminalArtifactsViaShell({
+	sandbox,
+}: {
+	sandbox: DaytonaSandbox;
+}): Promise<Array<{ filename: string; bytes: number }>> {
+	const result = await sandbox.process.executeCommand(
+		buildTerminalArtifactListCommand(),
+		"/home/qcut/qcut",
+		undefined,
+		30
+	);
+	const stdout = typeof result.result === "string" ? result.result : "";
+	return parseTerminalArtifactList({ stdout });
+}
+
+function buildTerminalArtifactListCommand(): string {
+	const script = [
+		`if [ -d ${TERMINAL_OUTPUT_DIR} ]; then`,
+		`for file in ${TERMINAL_OUTPUT_DIR}/*; do`,
+		'[ -f "$file" ] || continue',
+		'filename=${file##*/}',
+		'bytes=$(wc -c < "$file" | tr -d " ")',
+		'printf "%s\\t%s\\n" "$filename" "$bytes"',
+		"done | sort",
+		"fi",
+	].join("\n");
+	return `sh -lc ${shellSingleQuote({ value: script })}`;
+}
+
+function shellSingleQuote({ value }: { value: string }): string {
+	return `'${value.replace(/'/g, "'\"'\"'")}'`;
+}
+
 function validateCommand({ command }: { command: string }): string {
 	if (command.length === 0) {
 		return "command_required";
@@ -1084,7 +1146,9 @@ function classifyArtifactKind({
 export {
 	CODEX_AGENT_COMMAND,
 	agentRoutes,
+	buildTerminalArtifactListCommand,
 	getDefaultAgentUserId,
+	parseTerminalArtifactFiles,
 	parseTerminalArtifactList,
 	validateAgentJobBody,
 	validateCommand,

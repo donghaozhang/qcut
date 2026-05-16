@@ -287,6 +287,48 @@ bunx tsc --noEmit --strict --moduleResolution bundler --module ESNext --target E
 | Artifact list | 返回 `download-check.txt` |
 | Download 证明 | 已部署接口返回精确文本 `qcut artifact download ok` |
 
+## Connect 后默认进入 Codex 的更新
+
+实现更新：
+
+- PTY 现在把 Codex 当成默认 terminal process，不再只是给用户一个普通
+  shell prompt。
+- attach 时，`qcut-relay` 会先跑 `qcut-entrypoint`，把
+  `/home/qcut/qcut` 写入 Codex trusted project，再把 QCut Chat Agent 默认
+  指令写入 sandbox 里的 `AGENTS.md`，最后启动 idle 状态的 interactive
+  Codex，并带上 `--dangerously-bypass-approvals-and-sandbox`、
+  `--no-alt-screen`、`-C /home/qcut/qcut`。
+- relay 写启动文件时会临时关闭 PTY input echo，避免用户在 terminal
+  scrollback 里看到 `AGENTS.md` bootstrap 脚本。
+- `AGENTS.md` 里的 section 会明确告诉 Codex：
+  `/home/qcut/qcut/.claude/skills/native-cli/SKILL.md` 是 QCut native CLI
+  skill，并要求最终文件写入 `/tmp/qcut-output`，这样 website Artifacts
+  面板可以列出和下载。这样第一条真实用户消息不会被启动 prompt 占掉。
+- website 的 Send 按钮现在会用 bracketed paste 加 carriage return 把用户
+  消息提交到这个 persistent Codex PTY，不再每轮生成一个新的 `codex exec`
+  shell command。
+
+聚焦验证：
+
+```bash
+node --test packages/nexusai-website/js/agent-chat.test.js
+bun --cwd packages/qcut-relay test
+bunx tsc -p packages/qcut-relay/tsconfig.json --noEmit
+bun --cwd packages/license-server test
+```
+
+生产 E2E 结果：
+
+- 新 Daytona session 通过已部署的 `qcut-relay` 成功连接。
+- Codex 默认以 YOLO mode 打开，没有 workspace trust prompt。
+- bootstrap 不再把 `AGENTS.md` heredoc 泄漏到 terminal scrollback。
+- 通过 PTY 发 prompt 后，Codex 真实创建了
+  `/tmp/qcut-output/direct-1778919565593.txt`。
+- 已部署的 `qcut-license-server` 能通过
+  `/api/agent/sessions/:id/artifacts` 列出该文件，并且 download 内容匹配。
+- Artifact listing 现在先走 Daytona `fs.listFiles()`，为空时 fallback 到
+  `sh -lc` 在 process namespace 里列 `/tmp/qcut-output`。
+
 ## 还没做的（依赖外部凭证 / 服务）
 
 1. **review 后合并 `qcut-cli-v2` follow-up 分支**，把 stdio artifact

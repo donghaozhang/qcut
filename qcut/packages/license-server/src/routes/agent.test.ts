@@ -18,6 +18,7 @@ const daytonaMocks = vi.hoisted(() => ({
 	create: vi.fn(),
 	get: vi.fn(),
 	executeCommand: vi.fn(),
+	listFiles: vi.fn(),
 	downloadFile: vi.fn(),
 	downloadFiles: vi.fn(),
 }));
@@ -31,7 +32,9 @@ const { getSupabase } = await import("../db/supabase");
 const {
 	CODEX_AGENT_COMMAND,
 	agentRoutes,
+	buildTerminalArtifactListCommand,
 	getDefaultAgentUserId,
+	parseTerminalArtifactFiles,
 	parseTerminalArtifactList,
 	validateAgentJobBody,
 	validateCommand,
@@ -360,6 +363,14 @@ describe("POST /api/agent/sessions/:sessionId/end", () => {
 });
 
 describe("agent terminal artifacts", () => {
+	it("builds a shell artifact list fallback command for Daytona process namespace", () => {
+		const command = buildTerminalArtifactListCommand();
+
+		expect(command).toContain("sh -lc");
+		expect(command).toContain("for file in /tmp/qcut-output/*");
+		expect(command).toContain("wc -c");
+	});
+
 	it("parses only direct safe files from Daytona find output", () => {
 		expect(
 			parseTerminalArtifactList({
@@ -378,16 +389,75 @@ describe("agent terminal artifacts", () => {
 		]);
 	});
 
+	it("parses only direct safe files from Daytona file details", () => {
+		expect(
+			parseTerminalArtifactFiles({
+				files: [
+					{ name: "result.png", size: 120, isDir: false },
+					{ name: "clip.mp4", size: 4096, isDir: false },
+					{ name: "nested", size: 0, isDir: true },
+					{ name: "../secret.txt", size: 10, isDir: false },
+					{ name: "bad.txt", size: Number.NaN, isDir: false },
+				],
+			})
+		).toEqual([
+			{ filename: "bad.txt", bytes: 0 },
+			{ filename: "clip.mp4", bytes: 4096 },
+			{ filename: "result.png", bytes: 120 },
+		]);
+	});
+
 	it("lists files from the active Daytona terminal sandbox", async () => {
 		process.env.DAYTONA_API_KEY = "daytona-test";
 		mockSelectRowsOnce({
 			rows: [makeAgentSession({ providerSessionId: "sandbox-1" })],
 		});
 		daytonaMocks.get.mockResolvedValue({
+			fs: {
+				listFiles: daytonaMocks.listFiles.mockResolvedValue([
+					{ name: "result.png", size: 120, isDir: false },
+					{ name: "clip.mp4", size: 4096, isDir: false },
+				]),
+			},
+		});
+
+		const res = await buildApp().request(
+			"/api/agent/sessions/agent-session-1/artifacts"
+		);
+
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.artifacts).toEqual([
+			expect.objectContaining({
+				id: "clip.mp4",
+				sessionId: "agent-session-1",
+				kind: "video",
+				bytes: 4096,
+			}),
+			expect.objectContaining({
+				id: "result.png",
+				sessionId: "agent-session-1",
+				kind: "image",
+				bytes: 120,
+			}),
+		]);
+		expect(daytonaMocks.get).toHaveBeenCalledWith("sandbox-1");
+		expect(daytonaMocks.listFiles).toHaveBeenCalledWith("/tmp/qcut-output");
+	});
+
+	it("falls back to shell listing when Daytona FS listing is empty", async () => {
+		process.env.DAYTONA_API_KEY = "daytona-test";
+		mockSelectRowsOnce({
+			rows: [makeAgentSession({ providerSessionId: "sandbox-1" })],
+		});
+		daytonaMocks.get.mockResolvedValue({
+			fs: {
+				listFiles: daytonaMocks.listFiles.mockResolvedValue([]),
+			},
 			process: {
 				executeCommand: daytonaMocks.executeCommand.mockResolvedValue({
 					exitCode: 0,
-					result: "result.png\t120\nclip.mp4\t4096\n",
+					result: "result.png\t120\n",
 				}),
 			},
 		});
@@ -401,18 +471,15 @@ describe("agent terminal artifacts", () => {
 		expect(body.artifacts).toEqual([
 			expect.objectContaining({
 				id: "result.png",
-				sessionId: "agent-session-1",
-				kind: "image",
 				bytes: 120,
 			}),
-			expect.objectContaining({
-				id: "clip.mp4",
-				sessionId: "agent-session-1",
-				kind: "video",
-				bytes: 4096,
-			}),
 		]);
-		expect(daytonaMocks.get).toHaveBeenCalledWith("sandbox-1");
+		expect(daytonaMocks.executeCommand).toHaveBeenCalledWith(
+			expect.stringContaining("sh -lc"),
+			"/home/qcut/qcut",
+			undefined,
+			30
+		);
 	});
 
 	it("downloads a file from the active Daytona terminal sandbox", async () => {

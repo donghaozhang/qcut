@@ -20,6 +20,21 @@ import { verifyToken } from "./verify-token.js";
 import type { Env } from "./index.js";
 import { Daytona } from "@daytona/sdk";
 
+const CODEX_AGENT_INSTRUCTIONS = [
+	"## QCut Website Chat Agent Defaults",
+	"",
+	"You are QCut's website Chat Agent running inside a Daytona sandbox.",
+	"Use the QCut native CLI for QCut work. Do not use external image or video tools when the QCut CLI can do the job.",
+	"The QCut native CLI skill is available at /home/qcut/qcut/.claude/skills/native-cli/SKILL.md.",
+	"Read that skill before nontrivial QCut CLI workflows or whenever command syntax is unclear.",
+	"Useful first checks: qcut --version, qcut --help --json, and qcut system models --json.",
+	"Write final user-requested files under /tmp/qcut-output so the website Artifacts panel can list and download them.",
+	"Put temporary tools, caches, and package installs under /tmp/qcut-tools or /tmp, not /tmp/qcut-output.",
+	"yt-dlp and deno are available for authorized video download probes.",
+	"Codex is already running inside an externally isolated Daytona sandbox. Approval prompts and Codex sandboxing have been disabled intentionally for this environment.",
+	"Wait for the user's next message before running a QCut task.",
+].join("\n");
+
 export class PtySession {
 	private env: Env;
 	// Single-attachment guard. The DO id is derived from session_id, so any
@@ -147,17 +162,16 @@ export class PtySession {
 				};
 			}
 
-			// Materialize ~/.qcut/.env from the env vars injected at spawn,
-			// then a friendly motd. Both providers drop us at a shell.
+			// Materialize auth, then replace the shell with an already-authorized Codex session.
+			await sendInput(new TextEncoder().encode("stty -echo\n"));
+			await delay({ ms: 100 });
 			await sendInput(
 				new TextEncoder().encode(
-					"/usr/local/bin/qcut-entrypoint /bin/true && clear && echo 'qcut terminal · session " +
-						claims.session_id.slice(0, 8) +
-						" · provider " +
-						session.provider +
-						" · expires " +
-						session.expires_at +
-						"' && echo 'type: qcut --help or run codex from here' && cd /home/qcut/qcut 2>/dev/null || true\n"
+					buildCodexStartupCommand({
+						sessionId: claims.session_id,
+						provider: session.provider,
+						expiresAt: session.expires_at,
+					})
 				)
 			);
 			void auditEvent(this.env, claims.session_id, "motd_sent", {});
@@ -252,4 +266,54 @@ export class PtySession {
 			return new Response("session_init_failed", { status: 502 });
 		}
 	}
+}
+
+export function buildCodexStartupCommand({
+	sessionId,
+	provider,
+	expiresAt,
+}: {
+	sessionId: string;
+	provider: string;
+	expiresAt: string;
+}): string {
+	const marker = `QCUT_CODEX_AGENT_${sessionId.replace(/[^A-Za-z0-9_]/g, "_")}`;
+	return `${[
+		"/usr/local/bin/qcut-entrypoint /bin/true",
+		"cd /home/qcut/qcut 2>/dev/null || exit 1",
+		"mkdir -p /tmp/qcut-output /tmp/qcut-tools",
+		"mkdir -p /home/qcut/.codex",
+		"if ! grep -Fq '[projects.\"/home/qcut/qcut\"]' /home/qcut/.codex/config.toml 2>/dev/null; then",
+		"cat >> /home/qcut/.codex/config.toml <<'QCUT_CODEX_TRUST'",
+		"",
+		"[projects.\"/home/qcut/qcut\"]",
+		'trust_level = "trusted"',
+		"QCUT_CODEX_TRUST",
+		"fi",
+		"if ! grep -Fq '## QCut Website Chat Agent Defaults' /home/qcut/qcut/AGENTS.md 2>/dev/null; then",
+		`cat >> /home/qcut/qcut/AGENTS.md <<'${marker}'`,
+		"",
+		CODEX_AGENT_INSTRUCTIONS,
+		marker,
+		"fi",
+		"stty echo",
+		"clear",
+		`printf '%s\\n' ${shellSingleQuote({
+			value: `qcut codex terminal | session ${sessionId.slice(0, 8)} | provider ${provider} | expires ${expiresAt}`,
+		})}`,
+		[
+			"exec codex",
+			"--dangerously-bypass-approvals-and-sandbox",
+			"--no-alt-screen",
+			"-C /home/qcut/qcut",
+		].join(" "),
+	].join("\n")}\n`;
+}
+
+function shellSingleQuote({ value }: { value: string }): string {
+	return `'${value.replace(/'/g, "'\"'\"'")}'`;
+}
+
+function delay({ ms }: { ms: number }): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
 }
